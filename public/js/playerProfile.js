@@ -155,6 +155,7 @@ function syncFavoriteSnapshot(profile, playFabId = getCurrentUserPlayFabId()) {
 
 function getFavoritePlayerMetaText(entry) {
     const nationKey = String(entry?.nation || '').trim().toLowerCase();
+    if (nationKey === 'neutral') return '無国籍';
     return nationKey ? `${getNationLabel(nationKey) || nationKey}の国` : '所属国未設定';
 }
 

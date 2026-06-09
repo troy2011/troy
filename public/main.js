@@ -87,7 +87,8 @@ const AVATAR_COLOR_BY_NATION = {
     fire: 'red',
     earth: 'green',
     wind: 'yellow',
-    water: 'blue'
+    water: 'blue',
+    neutral: 'black'
 };
 
 function initHomeSurprises() {
@@ -235,6 +236,7 @@ function getAvatarColorForNation(nation) {
 
 function getNationLabel(nation) {
     const key = String(nation || '').toLowerCase();
+    if (key === 'neutral') return '無国籍';
     return NATION_LABEL_BY_KEY[key] || key || '不明';
 }
 
@@ -1258,7 +1260,11 @@ async function initializeAppFeatures() {
     bindAvatarStyleActionButtons();
     window.addEventListener('player:stats-updated', (event) => {
         const level = normalizeLevel(event?.detail?.stats?.Level || 1);
-        window.myAvatarBaseInfo = { ...window.myAvatarBaseInfo, level };
+        window.myAvatarBaseInfo = {
+            ...window.myAvatarBaseInfo,
+            level,
+            ...(level >= 41 ? { Nation: 'neutral', AvatarColor: 'black' } : {})
+        };
         myAvatarBaseInfo = window.myAvatarBaseInfo;
         renderAvatarStylePanel();
     });
@@ -1597,19 +1603,21 @@ async function updateAvatarBaseInfo() {
                 }
             }
             const readAvatarStyleValue = (key) => ensuredAvatarStyle[key] ?? result.Data[key]?.Value;
-            const nation = (result.Data.Nation?.Value || '').toLowerCase();
+            const currentLevel = getCurrentPlayerLevel();
+            const isPirateKing = currentLevel >= 41;
+            const nation = isPirateKing ? 'neutral' : (result.Data.Nation?.Value || '').toLowerCase();
             const nationChangedAt = String(result.Data.NationChangedAt?.Value || '');
             const nationColor = getAvatarColorForNation(nation);
             myAvatarBaseInfo = {
                 Race: (result.Data.Race?.Value || 'Human').toLowerCase(),
                 Nation: nation,
-                AvatarColor: nationColor || result.Data.AvatarColor?.Value || 'brown',
+                AvatarColor: isPirateKing ? 'black' : (nationColor || result.Data.AvatarColor?.Value || 'brown'),
                 SkinColorIndex: parseAvatarStyleIndex(result.Data.SkinColorIndex?.Value),
                 FaceIndex: parseAvatarStyleIndex(result.Data.FaceIndex?.Value),
                 HairStyleIndex: parseAvatarStyleIndex(readAvatarStyleValue('HairStyleIndex')),
                 HairColorIndex: parseAvatarStyleIndex(result.Data.HairColorIndex?.Value),
                 FacialHairStyleIndex: parseAvatarStyleIndex(readAvatarStyleValue('FacialHairStyleIndex'), 1, 0),
-                level: getCurrentPlayerLevel()
+                level: currentLevel
             };
             window.myAvatarBaseInfo = myAvatarBaseInfo;
             preloadAvatarBaseSprites(myAvatarBaseInfo);

@@ -6,6 +6,7 @@ const economy = require('../economy');
 const admin = require('firebase-admin');
 const { geohashForLocation } = require('geofire-common');
 const { buildStatsMapFromStatistics, applyDerivedPlayerLevelToStats } = require('../playerLevel');
+const { getAvatarColorForNation } = require('../nation');
 const {
     CREW_ROLE_DEFS,
     CREW_ROLE_BY_ID,
@@ -174,6 +175,13 @@ function normalizeNationKey(value) {
     return '';
 }
 
+function normalizePlayerNationKey(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw) return '';
+    if (raw === 'neutral' || raw === 'nationless' || raw === 'none' || raw === '無国籍') return 'neutral';
+    return normalizeNationKey(raw);
+}
+
 function getNationGuildLabel(nationKey) {
     const key = normalizeNationKey(nationKey);
     return NATION_GUILD_LABEL_BY_KEY[key] || '国';
@@ -284,6 +292,37 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             ProfileConstraints: { ShowDisplayName: true }
         });
         return String(profileResult?.PlayerProfile?.DisplayName || playFabId || '').trim() || playFabId;
+    }
+
+    async function getPlayerStoredNation(playFabId) {
+        if (!playFabId) return '';
+        const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Keys: ['Nation']
+        });
+        return normalizePlayerNationKey(readOnly?.Data?.Nation?.Value);
+    }
+
+    async function resolveGuildMasterNation(guildData) {
+        const guildNation = normalizePlayerNationKey(guildData?.nation || guildData?.nationKey || guildData?.kingNation);
+        if (guildNation) return guildNation;
+        const ownerPlayFabId = guildData?.ownerPlayFabId || guildData?.captainPlayFabId || '';
+        return ownerPlayFabId ? getPlayerStoredNation(ownerPlayFabId) : '';
+    }
+
+    async function syncGuildMemberNationToMaster(memberPlayFabId, guildData) {
+        const nation = await resolveGuildMasterNation(guildData);
+        if (!nation) return { updated: false, reason: 'MasterNationMissing' };
+        const avatarColor = getAvatarColorForNation(nation) || (nation === 'neutral' ? 'black' : '');
+        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+            PlayFabId: memberPlayFabId,
+            Data: {
+                Nation: nation,
+                AvatarColor: avatarColor || 'brown',
+                NationChangedAt: String(Date.now())
+            }
+        });
+        return { updated: true, nation, avatarColor: avatarColor || 'brown' };
     }
 
     async function getKingGuildContext(playFabId) {
@@ -1128,6 +1167,13 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                     console.warn('[ギルド加入] 募集掲示板の同期に失敗しました。', syncError?.message || syncError);
                 });
                 await saveGuildData(guildId, guildData, promisifyPlayFab);
+                let nationSync = null;
+                try {
+                    nationSync = await syncGuildMemberNationToMaster(requesterPlayFabId, guildData);
+                } catch (syncError) {
+                    nationSync = { updated: false, error: syncError?.errorMessage || syncError?.message || String(syncError) };
+                    console.warn('[ギルド加入] 所属国同期に失敗しました。', nationSync.error);
+                }
 
                 res.json({
                     success: true,
@@ -1136,7 +1182,10 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                     crewRoleId: requestedRoleId,
                     crewRoleLabel: CREW_ROLE_BY_ID[requestedRoleId]?.label || '',
                     crewGameLabel: CREW_ROLE_BY_ID[requestedRoleId]?.gameLabel || '',
-                    crewIconKey: CREW_ROLE_BY_ID[requestedRoleId]?.iconKey || ''
+                    crewIconKey: CREW_ROLE_BY_ID[requestedRoleId]?.iconKey || '',
+                    nation: nationSync?.nation || undefined,
+                    avatarColor: nationSync?.avatarColor || undefined,
+                    nationSyncError: nationSync?.error || undefined
                 });
 
             } catch (addError) {
@@ -1492,6 +1541,13 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 console.warn('[加入申請承認] 募集掲示板の同期に失敗しました。', syncError?.message || syncError);
             });
             await saveGuildData(guildId, guildData, promisifyPlayFab);
+            let nationSync = null;
+            try {
+                nationSync = await syncGuildMemberNationToMaster(applicantId, guildData);
+            } catch (syncError) {
+                nationSync = { updated: false, error: syncError?.errorMessage || syncError?.message || String(syncError) };
+                console.warn('[加入申請承認] 所属国同期に失敗しました。', nationSync.error);
+            }
 
             console.log(`[加入申請承認] 成功: ${applicantId} をギルドに追加しました。`);
 
@@ -1499,7 +1555,10 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 success: true,
                 message: '加入申請を承認しました。',
                 crewRoleId: approvedRoleId,
-                crewRoleLabel: CREW_ROLE_BY_ID[approvedRoleId]?.label || ''
+                crewRoleLabel: CREW_ROLE_BY_ID[approvedRoleId]?.label || '',
+                nation: nationSync?.nation || undefined,
+                avatarColor: nationSync?.avatarColor || undefined,
+                nationSyncError: nationSync?.error || undefined
             });
 
         } catch (error) {

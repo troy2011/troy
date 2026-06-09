@@ -221,6 +221,15 @@ async function joinGuild(playFabId, guildId) {
         const data = await requestJoinGuild(playFabId, guildId, { crewRoleId });
 
         if (data && data.success) {
+            const nation = String(data.nation || '').trim().toLowerCase();
+            const avatarColor = String(data.avatarColor || '').trim().toLowerCase();
+            if (nation || avatarColor) {
+                window.myAvatarBaseInfo = {
+                    ...(window.myAvatarBaseInfo || {}),
+                    ...(nation ? { Nation: nation } : {}),
+                    ...(avatarColor ? { AvatarColor: avatarColor } : {})
+                };
+            }
             // ギルド情報を再読み込み
             await loadGuildInfo(playFabId);
             showRpgMessage(rpgSay.guildJoined(data.guildName));

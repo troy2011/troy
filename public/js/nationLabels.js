@@ -6,7 +6,7 @@ export const NATION_LABELS = {
     water: '水の国',
     wind: '風の国',
     earth: '地の国',
-    neutral: '中立'
+    neutral: '無国籍'
 };
 
 export const NATION_MARKS = {

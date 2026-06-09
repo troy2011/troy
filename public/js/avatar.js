@@ -115,7 +115,8 @@ function normalizeAvatarColor(value) {
         fire: 'red',
         water: 'blue',
         wind: 'yellow',
-        earth: 'green'
+        earth: 'green',
+        neutral: 'black'
     };
     return aliasMap[raw] || raw;
 }

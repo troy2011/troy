@@ -8,6 +8,7 @@ const { getUnlockedFeaturesBetween } = require('./featureUnlocks');
 
 const PLAYER_LEVEL_STAT = 'Level';
 const BASE_CONTRIBUTION_PER_LEVEL = 1500;
+const PIRATE_KING_LEVEL = 41;
 
 function normalizeContribution(value) {
     return Math.max(0, Math.floor(Number(value) || 0));
@@ -52,6 +53,42 @@ function buildStatsMapFromStatistics(statistics) {
         });
     }
     return statsMap;
+}
+
+function parseBooleanFlag(value) {
+    const normalized = String(value ?? '').trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
+}
+
+async function syncPirateKingNationStatus(playFabId, deps, level) {
+    if (!playFabId || Math.max(1, Math.floor(Number(level) || 1)) < PIRATE_KING_LEVEL) {
+        return { updated: false, reason: 'NotPirateKing' };
+    }
+    const { promisifyPlayFab, PlayFabServer } = deps || {};
+    if (typeof promisifyPlayFab !== 'function' || !PlayFabServer) {
+        throw new Error('Missing PlayFab dependencies for pirate king nation sync');
+    }
+    const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+        PlayFabId: playFabId,
+        Keys: ['IsKing', 'Nation', 'AvatarColor']
+    });
+    if (parseBooleanFlag(readOnly?.Data?.IsKing?.Value)) {
+        return { updated: false, reason: 'NationKing' };
+    }
+    const currentNation = String(readOnly?.Data?.Nation?.Value || '').trim().toLowerCase();
+    const currentAvatarColor = String(readOnly?.Data?.AvatarColor?.Value || '').trim().toLowerCase();
+    if (currentNation === 'neutral' && currentAvatarColor === 'black') {
+        return { updated: false, reason: 'AlreadySynced', nation: 'neutral', avatarColor: 'black' };
+    }
+    await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+        PlayFabId: playFabId,
+        Data: {
+            Nation: 'neutral',
+            AvatarColor: 'black',
+            NationChangedAt: String(Date.now())
+        }
+    });
+    return { updated: true, nation: 'neutral', avatarColor: 'black' };
 }
 
 async function addPlayerNationContribution(playFabId, amount, deps, options = {}) {
@@ -101,6 +138,16 @@ async function addPlayerNationContribution(playFabId, amount, deps, options = {}
         ]
     });
 
+    let pirateKingNationStatus = null;
+    if (nextProgress.level >= PIRATE_KING_LEVEL) {
+        try {
+            pirateKingNationStatus = await syncPirateKingNationStatus(playFabId, deps, nextProgress.level);
+        } catch (error) {
+            pirateKingNationStatus = { updated: false, error: error?.errorMessage || error?.message || String(error) };
+            console.warn('[nation-contribution] Pirate king nation sync failed:', pirateKingNationStatus.error);
+        }
+    }
+
     return {
         updated: true,
         dayKey: dailyState.todayKey,
@@ -111,6 +158,7 @@ async function addPlayerNationContribution(playFabId, amount, deps, options = {}
         previousLevel: currentLevel,
         leveledUp: nextProgress.level > currentLevel,
         unlockedFeatures: getUnlockedFeaturesBetween(currentLevel, nextProgress.level),
+        pirateKingNationStatus,
         ...nextProgress
     };
 }
@@ -120,10 +168,12 @@ module.exports = {
     PLAYER_CONTRIBUTION_STAT,
     PLAYER_DAILY_CONTRIBUTION_STAT,
     BASE_CONTRIBUTION_PER_LEVEL,
+    PIRATE_KING_LEVEL,
     normalizeContribution,
     calculateLevelFromContribution,
     getPlayerContributionTotal,
     applyDerivedPlayerLevelToStats,
     buildStatsMapFromStatistics,
+    syncPirateKingNationStatus,
     addPlayerNationContribution
 };

@@ -15,7 +15,9 @@ const {
     applyDerivedPlayerLevelToStats,
     buildStatsMapFromStatistics,
     getPlayerContributionTotal,
-    calculateLevelFromContribution
+    calculateLevelFromContribution,
+    PIRATE_KING_LEVEL,
+    syncPirateKingNationStatus
 } = require('./playerLevel');
 const {
     calculateStatAllocationState,
@@ -431,7 +433,9 @@ function initializeInventoryRoutes(app, deps) {
     }
 
     function buildAvatarBaseFromReadOnly(readOnlyData = {}, stats = {}) {
-        const nation = String(readOnlyData?.Nation?.Value || '').trim().toLowerCase();
+        const level = Math.max(1, Number(stats?.Level || stats?.level || 1) || 1);
+        const isPirateKing = level >= 41 && !resolveIsKingFlag(readOnlyData);
+        const nation = isPirateKing ? 'neutral' : String(readOnlyData?.Nation?.Value || '').trim().toLowerCase();
         const avatarColor = getAvatarColorForNation(nation)
             || String(readOnlyData?.AvatarColor?.Value || '').trim()
             || 'brown';
@@ -444,7 +448,7 @@ function initializeInventoryRoutes(app, deps) {
             HairStyleIndex: parseAvatarStyleReadOnlyValue(readOnlyData, 'HairStyleIndex'),
             HairColorIndex: Math.max(1, Number(readOnlyData?.HairColorIndex?.Value || 1) || 1),
             FacialHairStyleIndex: parseAvatarStyleReadOnlyValue(readOnlyData, 'FacialHairStyleIndex'),
-            level: Math.max(1, Number(stats?.Level || stats?.level || 1) || 1)
+            level
         };
     }
 
@@ -939,6 +943,7 @@ function initializeInventoryRoutes(app, deps) {
             const readOnlyKeys = [
                 'Race',
                 'Nation',
+                'IsKing',
                 'AvatarColor',
                 'SkinColorIndex',
                 'FaceIndex',
@@ -1099,9 +1104,15 @@ function initializeInventoryRoutes(app, deps) {
             let isKing = false;
             let nation = null;
             try {
-                const readOnly = await getPlayerReadOnlyData(playFabId, ['IsKing', 'Nation']);
+                const readOnly = await getPlayerReadOnlyData(playFabId, ['IsKing', 'Nation', 'AvatarColor']);
                 isKing = resolveIsKingFlag(readOnly?.Data);
                 nation = String(readOnly?.Data?.Nation?.Value || '').trim().toLowerCase() || null;
+                if (!isKing && Number(stats.Level || 1) >= PIRATE_KING_LEVEL) {
+                    const syncResult = await syncPirateKingNationStatus(playFabId, { promisifyPlayFab, PlayFabServer }, stats.Level);
+                    if (syncResult?.nation) {
+                        nation = syncResult.nation;
+                    }
+                }
             } catch (rankError) {
                 console.warn('[ステータス取得] 王情報の取得に失敗:', rankError?.errorMessage || rankError?.message || rankError);
             }

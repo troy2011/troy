@@ -727,6 +727,7 @@ export function showBuildingMenu(island, playFabId) {
             green: 'earth',
             yellow: 'wind',
             purple: 'wind',
+            black: 'neutral',
             blue: 'water'
         };
         return mapping[color] || null;

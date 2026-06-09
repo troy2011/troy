@@ -90,6 +90,17 @@ function normalizeLevel(stats) {
     return Math.max(1, Math.floor(Number(stats?.Level || window.myAvatarBaseInfo?.level || 1) || 1));
 }
 
+function applyGuildNationSync(data) {
+    const nation = String(data?.nation || '').trim().toLowerCase();
+    const avatarColor = String(data?.avatarColor || '').trim().toLowerCase();
+    if (!nation && !avatarColor) return;
+    window.myAvatarBaseInfo = {
+        ...(window.myAvatarBaseInfo || {}),
+        ...(nation ? { Nation: nation } : {}),
+        ...(avatarColor ? { AvatarColor: avatarColor } : {})
+    };
+}
+
 function canRecruitCompanions() {
     return currentIsKing || currentLevel >= CAPTAIN_LEVEL;
 }
@@ -637,6 +648,7 @@ async function joinCrewFromScan(playFabId) {
         const guildId = value.slice(6).trim();
         const data = await requestJoinGuild(playFabId, guildId, { crewRoleId }, { throwOnError: true });
         if (data?.success) {
+            applyGuildNationSync(data);
             setMessage(`${getCrewRoleLabel(crewRoleId) || '選択した役職'}として仲間に参加しました。`);
             await loadCompanionPage(playFabId);
         }
@@ -713,6 +725,7 @@ async function approveApplication(playFabId, button) {
     try {
         const data = await approveGuildApplication(playFabId, currentGuild.guildId, applicantId, { crewRoleId }, { throwOnError: true });
         if (data?.success) {
+            applyGuildNationSync(data);
             setMessage(`${getCrewRoleLabel(crewRoleId) || '選択した役職'}として加入を承認しました。`);
             await loadCompanionPage(playFabId);
         }

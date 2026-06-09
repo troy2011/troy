@@ -52,7 +52,8 @@ const AVATAR_COLOR_BY_NATION = {
     fire: 'red',
     earth: 'green',
     wind: 'yellow',
-    water: 'blue'
+    water: 'blue',
+    neutral: 'black'
 };
 
 const KING_STARTER_CROWN_BY_NATION = {
