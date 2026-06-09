@@ -9,7 +9,10 @@ async function callTitleScoped(apiFunction, request, deps) {
     if (typeof promisifyPlayFab !== 'function') {
         throw new Error('PromisifyPlayFabMissing');
     }
-    return withTitleEntityToken(() => promisifyPlayFab(apiFunction, request));
+    const runner = typeof deps?.withTitleEntityToken === 'function'
+        ? deps.withTitleEntityToken
+        : withTitleEntityToken;
+    return runner(() => promisifyPlayFab(apiFunction, request));
 }
 
 async function resolvePlayerEntityKey(playFabId, deps) {
@@ -96,6 +99,26 @@ function isNationGuildData(guildData) {
     return guildData?.guildType === 'nation' || parseBooleanFlag(guildData?.isNationGuild);
 }
 
+function isNationMembershipGroup(groupEntry, guildData = null) {
+    const values = [
+        groupEntry?.GroupName,
+        groupEntry?.Group?.Name,
+        guildData?.groupName,
+        guildData?.name
+    ];
+    return values.some((value) => /^nation_(fire|water|wind|earth)_island$/i.test(String(value || '').trim()));
+}
+
+function hasShipSharingGuildData(guildData) {
+    const ownerPlayFabId = normalizePlayFabId(guildData?.ownerPlayFabId);
+    if (!ownerPlayFabId) return false;
+    const guildType = String(guildData?.guildType || '').trim().toLowerCase();
+    return !guildType
+        || guildType === 'nation'
+        || guildType === 'pirate'
+        || parseBooleanFlag(guildData?.isNationGuild);
+}
+
 function resolveGuildShipId(guildId, guildData) {
     const explicit = String(guildData?.guildShipId || '').trim();
     if (explicit) return explicit;
@@ -130,11 +153,20 @@ async function resolveGuildShipContext(playFabId, deps = {}) {
     const groups = Array.isArray(membership?.Groups) ? membership.Groups : [];
     if (groups.length === 0) return ownContext;
 
-    const group = groups[0];
-    const guildId = String(group?.Group?.Id || '').trim();
-    if (!guildId) return ownContext;
+    let selected = null;
+    for (const group of groups) {
+        if (isNationMembershipGroup(group)) continue;
+        const guildId = String(group?.Group?.Id || '').trim();
+        if (!guildId) continue;
+        const guildData = await getGuildData(guildId, deps);
+        if (isNationMembershipGroup(group, guildData)) continue;
+        if (!hasShipSharingGuildData(guildData)) continue;
+        selected = { group, guildId, guildData };
+        break;
+    }
+    if (!selected) return ownContext;
 
-    const guildData = await getGuildData(guildId, deps);
+    const { group, guildId, guildData } = selected;
     const ownerPlayFabId = normalizePlayFabId(guildData?.ownerPlayFabId);
     const isNationGuild = isNationGuildData(guildData);
     const guildType = isNationGuild ? 'nation' : 'pirate';
