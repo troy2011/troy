@@ -1259,7 +1259,7 @@ function openHomePlayerShipDetails(event) {
         return;
     }
     if (typeof window.viewShipDetails === 'function') {
-        window.viewShipDetails(shipId);
+        window.viewShipDetails(shipId, currentPlayerShipProfile || {});
     }
 }
 

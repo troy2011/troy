@@ -732,15 +732,9 @@ test('home ship evolution button stays inside the ship panel', async ({ page }) 
   });
   await page.route('**/api/get-ship-position', async (route) => {
     await route.fulfill({
-      status: 200,
+      status: 404,
       contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({
-        success: true,
-        positionData: {
-          position: { x: 120, y: 140 },
-          movement: { isMoving: false }
-        }
-      })
+      body: JSON.stringify({ error: 'Ship position not found' })
     });
   });
   await page.route('**/api/get-ship-asset', async (route) => {
@@ -805,6 +799,7 @@ test('home ship evolution button stays inside the ship panel', async ({ page }) 
   await page.locator('#homePlayerShipFrame .home-player-ship-icon').click();
   await expect(page.locator('#shipDetailsModal')).toBeVisible();
   await expect(page.locator('#shipDetailsContent')).toContainText('Test Ship');
+  await expect(page.locator('#shipDetailsContent')).toContainText('位置情報は未登録です。');
   await expectNoPageErrors(errors);
 });
 

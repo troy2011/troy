@@ -2298,12 +2298,24 @@ async function confirmCreateShip(playFabId) {
 }
 
 
-async function viewShipDetails(shipId) {
-    const positionData = await Ship.getShipPosition(shipId);
-    if (!positionData) return;
+async function viewShipDetails(shipId, fallbackShip = {}) {
+    let positionData = null;
+    try {
+        positionData = await Ship.getShipPosition(shipId);
+    } catch (error) {
+        console.warn('[viewShipDetails] Ship position unavailable:', error?.message || error);
+    }
 
-    const assetData = await Ship.getShipAsset(myPlayFabId, shipId);
-    const currentPos = Ship.calculateCurrentPosition(positionData.movement, positionData.position);
+    let assetData = null;
+    try {
+        assetData = await Ship.getShipAsset(myPlayFabId, shipId);
+    } catch (error) {
+        console.warn('[viewShipDetails] Ship asset unavailable:', error?.message || error);
+    }
+    const movement = positionData?.movement || {};
+    const currentPos = positionData
+        ? Ship.calculateCurrentPosition(movement, positionData.position || { x: 0, y: 0 })
+        : null;
 
     const catalogItem = (() => {
         if (!window.shipCatalog || !assetData) return null;
@@ -2325,10 +2337,15 @@ async function viewShipDetails(shipId) {
     })();
     const actionLabel = actionInfo?.label || 'なし';
     const actionDescription = actionInfo?.description || '';
+    const shipTitle = assetData?.ShipType
+        || fallbackShip?.shipName
+        || fallbackShip?.name
+        || fallbackShip?.form
+        || '船情報';
 
     document.getElementById('shipDetailsContent').innerHTML = `
         <div style="margin-bottom: 16px;">
-            <h3>${assetData ? assetData.ShipType : '不明'}</h3>
+            <h3>${shipTitle}</h3>
             <div style="font-size: 12px; color: var(--text-sub);">${shipId}</div>
         </div>
         ${assetData ? `
@@ -2336,11 +2353,11 @@ async function viewShipDetails(shipId) {
             <h4>ステータス</h4>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; margin-top: 8px;">
                 <div>タイプ: ${(() => { switch (assetData.Domain) { case 'sea_underwater': return '海中'; case 'air': return '飛空'; case 'sea_surface': default: return '海上'; } })()}</div>
-                <div>HP: <span style="color: var(--hp-color);">${assetData.Stats.CurrentHP}/${assetData.Stats.MaxHP}</span></div>
-                <div>速度: ${assetData.Stats.Speed}</div>
+                <div>HP: <span style="color: var(--hp-color);">${assetData.Stats?.CurrentHP ?? '-'}/${assetData.Stats?.MaxHP ?? '-'}</span></div>
+                <div>速度: ${assetData.Stats?.Speed ?? '-'}</div>
                 <div>視覚距離: ${visionValue}</div>
-                <div>積荷: ${assetData.Cargo.length}/${assetData.Stats.CargoCapacity}</div>
-                <div>乗組員: ${assetData.Crew.length}/${assetData.Stats.CrewCapacity}</div>
+                <div>積荷: ${Array.isArray(assetData.Cargo) ? assetData.Cargo.length : 0}/${assetData.Stats?.CargoCapacity ?? '-'}</div>
+                <div>乗組員: ${Array.isArray(assetData.Crew) ? assetData.Crew.length : 0}/${assetData.Stats?.CrewCapacity ?? '-'}</div>
                 <div>アクション: ${actionLabel}</div>
             </div>
             ${actionDescription ? `<div style="margin-top: 8px; font-size: 12px; color: var(--text-sub);">効果: ${actionDescription}</div>` : ''}
@@ -2348,25 +2365,27 @@ async function viewShipDetails(shipId) {
         <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 4px; margin-bottom: 12px;">
             <h4>装備</h4>
             <div style="font-size: 13px; margin-top: 8px;">
-                <div>大砲: ${assetData.Equipment.Cannon || 'なし'}</div>
-                <div>帆: ${assetData.Equipment.Sail || 'なし'}</div>
-                <div>船体: ${assetData.Equipment.Hull || 'なし'}</div>
-                <div>錨: ${assetData.Equipment.Anchor || 'なし'}</div>
+                <div>大砲: ${assetData.Equipment?.Cannon || 'なし'}</div>
+                <div>帆: ${assetData.Equipment?.Sail || 'なし'}</div>
+                <div>船体: ${assetData.Equipment?.Hull || 'なし'}</div>
+                <div>錨: ${assetData.Equipment?.Anchor || 'なし'}</div>
             </div>
         </div>
         ` : ''}
         <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 4px;">
             <h4>位置情報</h4>
             <div style="font-size: 13px; margin-top: 8px;">
+                ${currentPos ? `
                 <div>現在位置: (${Math.round(currentPos.x)}, ${Math.round(currentPos.y)})</div>
-                <div>状態: ${positionData.movement.isMoving ? '航海中' : '停泊中'}</div>
-                ${positionData.movement.isMoving ? `
+                <div>状態: ${movement.isMoving ? '航海中' : '停泊中'}</div>
+                ${movement.isMoving ? `
                 <div style="margin-top: 8px;">
-                    <div>出発地: (${Math.round(positionData.movement.departurePos.x)}, ${Math.round(positionData.movement.departurePos.y)})</div>
-                    <div>目的地: (${Math.round(positionData.movement.destinationPos.x)}, ${Math.round(positionData.movement.destinationPos.y)})</div>
-                    <div>到着予定: ${Ship.formatETA(positionData.movement.arrivalTime)}</div>
+                    <div>出発地: (${Math.round(movement.departurePos?.x || 0)}, ${Math.round(movement.departurePos?.y || 0)})</div>
+                    <div>目的地: (${Math.round(movement.destinationPos?.x || 0)}, ${Math.round(movement.destinationPos?.y || 0)})</div>
+                    <div>到着予定: ${Ship.formatETA(movement.arrivalTime)}</div>
                 </div>
                 ` : ''}
+                ` : '<div>位置情報は未登録です。</div>'}
             </div>
         </div>
     `;
