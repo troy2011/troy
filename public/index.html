@@ -130,27 +130,6 @@
                         <div class="home-qr-help">入店QRや他プレイヤーのMY QRを読み取れます。</div>
                     </div>
                 </div>
-                <div class="content-area home-transfer-card home-card">
-                    <div class="home-card-header">
-                        <span class="home-card-emoji">↗</span>
-                        <span class="home-card-title">ゴールド管理</span>
-                    </div>
-                    <div class="transfer-quick-row">
-                        <button class="transfer-quick-btn" data-amount="100">100</button>
-                        <button class="transfer-quick-btn" data-amount="500">500</button>
-                        <button class="transfer-quick-btn" data-amount="1000">1000</button>
-                        <button class="transfer-quick-btn reset" data-amount="0">C</button>
-                    </div>
-                    <div class="transfer-input-row">
-                        <input type="number" id="transferAmount" placeholder="手入力" value="0" />
-                        <span>G</span>
-                    </div>
-                    <div class="transfer-action-row">
-                        <button id="btnScanPay" class="transfer-send-btn">渡す</button>
-                        <button id="btnCoinConvert" class="transfer-coin-btn" type="button">チップ化</button>
-                        <button id="btnCoinGoldConvert" class="transfer-gold-btn" type="button">チップ返却</button>
-                    </div>
-                </div>
                 <div class="content-area home-social-card home-card">
                     <div class="home-card-header">
                         <span class="home-card-emoji">◎</span>
@@ -1387,30 +1366,6 @@
             <div class="modal-buttons">
                 <button id="btnConfirmTransfer" style="background:var(--hp-color);">送る</button>
                 <button id="btnCancelTransfer" style="background:#4b5563;">キャンセル</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="coinConvertModal" class="modal-overlay">
-        <div class="modal-content coin-convert-modal-content">
-            <div id="coinConvertMain">
-                <div class="coin-convert-icon">🪙</div>
-                <h3 id="coinConvertTitle">チップ化</h3>
-                <div id="coinConvertAmount" class="coin-convert-amount">0G</div>
-                <p id="coinConvertText" class="coin-convert-text">店内チップに交換します。</p>
-                <div class="modal-buttons">
-                    <button id="btnConfirmCoinConvert" style="background:var(--accent-color); color:#111827;">確認してチップ化</button>
-                    <button id="btnCancelCoinConvert" style="background:#4b5563;">キャンセル</button>
-                </div>
-                <p id="coinConvertResult" class="coin-convert-result"></p>
-            </div>
-            <div id="coinConvertReceipt" class="coin-convert-receipt" hidden>
-                <div class="coin-convert-staff-view">
-                    <div class="coin-convert-staff-kicker">チップを渡してください</div>
-                    <div id="coinConvertReceiptAmountStaff" class="coin-convert-staff-amount">0G</div>
-                    <div class="coin-convert-staff-note">この画面をスタッフに見せてください</div>
-                </div>
-                <button id="btnCoinConvertReceived" type="button" class="coin-convert-received-btn">チップを受け取った</button>
             </div>
         </div>
     </div>

@@ -1839,10 +1839,6 @@ button.home-player-ship-name {
     box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.28), 0 10px 20px rgba(0, 0, 0, 0.35);
 }
 
-.home-card.shake {
-    animation: cardShake 0.28s ease;
-}
-
 .home-card-header {
     display: flex;
     align-items: center;
@@ -1860,112 +1856,6 @@ button.home-player-ship-name {
     font-weight: 900;
     letter-spacing: 0.2em;
     color: var(--text-main);
-}
-
-.transfer-action-row {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
-}
-
-.transfer-action-row .transfer-send-btn,
-.transfer-coin-btn,
-.transfer-gold-btn {
-    width: 100%;
-}
-
-.transfer-coin-btn {
-    min-height: 42px;
-    border-radius: 10px;
-    border: 1px solid rgba(251, 191, 36, 0.32);
-    background: linear-gradient(135deg, rgba(245, 158, 11, 0.95), rgba(217, 119, 6, 0.95));
-    color: #111827;
-    font-weight: 900;
-    box-shadow: 0 8px 18px -14px rgba(251, 191, 36, 0.8);
-}
-
-.transfer-gold-btn {
-    min-height: 42px;
-    border-radius: 10px;
-    border: 1px solid rgba(96, 165, 250, 0.34);
-    background: linear-gradient(135deg, rgba(96, 165, 250, 0.95), rgba(37, 99, 235, 0.95));
-    color: #f8fafc;
-    font-weight: 900;
-    box-shadow: 0 8px 18px -14px rgba(96, 165, 250, 0.85);
-}
-
-.coin-convert-modal-content {
-    max-width: 360px;
-}
-
-.coin-convert-icon {
-    font-size: 40px;
-}
-
-.coin-convert-amount {
-    margin: 10px 0;
-    color: var(--accent-color);
-    font-size: 28px;
-    font-weight: 900;
-}
-
-.coin-convert-text,
-.coin-convert-result {
-    color: var(--text-sub);
-    font-size: 13px;
-    line-height: 1.6;
-}
-
-.coin-convert-result {
-    min-height: 20px;
-    margin-top: 10px;
-    color: #fde68a;
-    font-weight: 800;
-}
-
-.coin-convert-receipt {
-    display: grid;
-    gap: 18px;
-}
-
-.coin-convert-staff-view {
-    min-height: 230px;
-    display: grid;
-    place-items: center;
-    gap: 10px;
-    padding: 22px 14px;
-    border-radius: 16px;
-    border: 2px solid rgba(251, 191, 36, 0.58);
-    background: radial-gradient(circle at center, rgba(251, 191, 36, 0.22), rgba(15, 23, 42, 0.96));
-    transform: rotate(180deg);
-}
-
-.coin-convert-staff-kicker,
-.coin-convert-staff-note {
-    color: #fde68a;
-    font-size: 14px;
-    font-weight: 900;
-    letter-spacing: 0.02em;
-}
-
-.coin-convert-staff-amount {
-    color: #fff7ed;
-    font-size: clamp(48px, 17vw, 86px);
-    font-weight: 1000;
-    line-height: 1;
-    text-shadow: 0 6px 24px rgba(251, 191, 36, 0.45);
-}
-
-.coin-convert-received-btn {
-    min-height: 72px;
-    width: 100%;
-    border: 0;
-    border-radius: 14px;
-    background: linear-gradient(135deg, #f59e0b, #fbbf24);
-    color: #111827;
-    font-size: 20px;
-    font-weight: 1000;
-    box-shadow: 0 16px 32px -18px rgba(251, 191, 36, 0.9);
 }
 
 .home-shortcut-grid {
@@ -2141,36 +2031,6 @@ button.home-player-ship-name {
     margin: 8px 0 0;
 }
 
-.transfer-quick-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    margin-bottom: 12px;
-}
-
-.transfer-quick-btn {
-    background: #374151;
-    color: var(--text-main);
-    box-shadow: none;
-    border: 1px solid var(--border-color);
-}
-
-.transfer-quick-btn.reset {
-    background: #1f2937;
-    color: var(--text-sub);
-    border-style: dashed;
-}
-
-.transfer-quick-btn:active {
-    transform: scale(0.98);
-}
-
-.transfer-quick-btn:active,
-.transfer-send-btn:active {
-    transform: translateY(2px) scale(0.98);
-    box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.35);
-}
-
 @keyframes pulseLamp {
     0%, 100% { transform: scale(1); opacity: 0.6; }
     50% { transform: scale(1.2); opacity: 1; }
@@ -2187,14 +2047,6 @@ button.home-player-ship-name {
     70% { opacity: 0.5; }
     85% { transform: translateX(120%); opacity: 0; }
     100% { transform: translateX(120%); opacity: 0; }
-}
-
-@keyframes cardShake {
-    0% { transform: translateX(0); }
-    25% { transform: translateX(-4px); }
-    50% { transform: translateX(3px); }
-    75% { transform: translateX(-2px); }
-    100% { transform: translateX(0); }
 }
 
 .home-qr-area canvas {
@@ -2216,10 +2068,6 @@ button.home-player-ship-name {
     background: #111827;
     color: #fff;
     font-size: 14px;
-}
-
-.transfer-send-btn {
-    width: 100%;
 }
 
 /* --- Ship cards --- */
@@ -10891,8 +10739,7 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 }
 
 
-.home-qr-card,
-.home-transfer-card {
+.home-qr-card {
     padding-top: 14px;
 }
 
@@ -10964,25 +10811,6 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     font-size: 12px;
 }
 
-.transfer-quick-row {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
-    position: relative;
-    z-index: 1;
-}
-
-.transfer-quick-btn {
-    min-height: 44px;
-    border-radius: 14px;
-    border-color: rgba(148, 163, 184, 0.18);
-    background: linear-gradient(180deg, rgba(31, 41, 55, 0.92), rgba(17, 24, 39, 0.94));
-    color: #f8fafc;
-}
-
-.transfer-quick-btn.reset {
-    background: rgba(15, 23, 42, 0.84);
-}
-
 .transfer-input-row {
     position: relative;
     z-index: 1;
@@ -11006,16 +10834,6 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     background: transparent;
     font-size: 18px;
     font-weight: 700;
-}
-
-.transfer-send-btn {
-    position: relative;
-    z-index: 1;
-    background:
-        linear-gradient(180deg, rgba(245, 158, 11, 0.96), rgba(217, 119, 6, 1)),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0));
-    border-color: rgba(251, 191, 36, 0.44);
-    color: #fff;
 }
 
 #tabContentQr .content-area,
@@ -19060,7 +18878,6 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-qr-card { --home-card-icon: var(--icon-compass); }
-.home-transfer-card { --home-card-icon: var(--icon-money-bag); }
 .home-social-card { --home-card-icon: var(--icon-pirate-flag); }
 .tarot-game-select-icon,
 #tarotModePoker .tarot-mode-icon,
@@ -19068,9 +18885,6 @@ body[data-sea-tone] .home-hero-card {
 #tarotModeKingdom .tarot-mode-icon { --home-card-icon: var(--icon-nav-king); }
 
 .home-qr-scan-btn,
-.transfer-send-btn,
-.transfer-coin-btn,
-.transfer-gold-btn,
 .king-chip-return-btn,
 .home-exploration-btn,
 .ranking-toggle-btn,
@@ -19087,9 +18901,6 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-qr-scan-btn::before,
-.transfer-send-btn::before,
-.transfer-coin-btn::before,
-.transfer-gold-btn::before,
 .king-chip-return-btn::before,
 .home-exploration-btn::before,
 .ranking-toggle-btn::before,
@@ -19106,9 +18917,6 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-qr-scan-btn { --button-icon: var(--icon-qr-scan); }
-.transfer-send-btn { --button-icon: var(--icon-money-bag); }
-.transfer-coin-btn { --button-icon: var(--icon-chip); }
-.transfer-gold-btn { --button-icon: var(--icon-coin-stack); }
 .king-chip-return-btn { --button-icon: var(--icon-coin-stack); }
 .home-exploration-btn { --button-icon: var(--icon-compass); }
 .home-exploration-btn::before {
@@ -19148,10 +18956,7 @@ body[data-sea-tone] .home-hero-card {
 #btnCreateGuild { --button-icon: var(--icon-pirate-flag); }
 #btnScanJoinGuild { --button-icon: var(--icon-compass); }
 
-.home-qr-scan-btn,
-.transfer-send-btn,
-.transfer-coin-btn,
-.transfer-gold-btn {
+.home-qr-scan-btn {
     border: 1px solid transparent;
     border-radius: 8px;
     background:
@@ -19166,16 +18971,6 @@ body[data-sea-tone] .home-hero-card {
     box-shadow: none;
 }
 
-.transfer-send-btn,
-.transfer-coin-btn {
-    background:
-        linear-gradient(180deg, rgba(255, 239, 176, 0.3), rgba(109, 58, 11, 0.22)),
-        linear-gradient(180deg, #e7b64b, #9c5c1e);
-    border-image-source: url("./assets/ui/buttons/button-gold-large.png");
-    color: #eff8ff;
-    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
-}
-
 .home-qr-scan-btn {
     min-height: 44px;
     padding: 8px 14px;
@@ -19183,28 +18978,10 @@ body[data-sea-tone] .home-hero-card {
     font-size: 15px;
 }
 
-.transfer-action-row .transfer-send-btn,
-.transfer-action-row .transfer-coin-btn,
-.transfer-action-row .transfer-gold-btn {
-    min-height: 44px;
-    padding: 7px 5px;
-    gap: 4px;
-    font-size: clamp(12px, 3.2vw, 14px);
-    white-space: nowrap;
-}
-
 .home-qr-scan-btn::before {
     width: 24px;
     height: 24px;
     flex-basis: 24px;
-}
-
-.transfer-action-row .transfer-send-btn::before,
-.transfer-action-row .transfer-coin-btn::before,
-.transfer-action-row .transfer-gold-btn::before {
-    width: 18px;
-    height: 18px;
-    flex-basis: 18px;
 }
 
 #tabContentQr .qr-battle-card > h2::before,
@@ -19471,7 +19248,6 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-qr-card,
-.home-transfer-card,
 .home-social-card {
     border: 13px solid transparent;
     border-radius: 8px;
@@ -19513,8 +19289,7 @@ body[data-sea-tone] .home-hero-card {
         radial-gradient(circle at 50% 0%, rgba(125, 211, 252, 0.16), transparent 52%);
 }
 
-.home-shortcut-btn,
-.transfer-quick-btn {
+.home-shortcut-btn {
     border: 11px solid transparent;
     border-radius: 8px;
     border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 11px / 0 stretch;
@@ -19523,34 +19298,11 @@ body[data-sea-tone] .home-hero-card {
         radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.06), transparent 58%);
 }
 
-.home-shortcut-btn-secondary,
-.transfer-quick-btn.reset {
+.home-shortcut-btn-secondary {
     border-image: url("./assets/ui/panels/panel-wood.png") 34 fill / 11px / 0 stretch;
     background:
         linear-gradient(180deg, rgba(49, 27, 13, 0.36), rgba(7, 6, 5, 0.42)),
         repeating-linear-gradient(0deg, rgba(119, 68, 30, 0.1) 0 1px, transparent 1px 12px);
-}
-
-.transfer-quick-row {
-    gap: 8px;
-}
-
-.transfer-quick-btn {
-    min-height: 34px;
-    padding: 0 6px;
-    border-width: 8px;
-    border-image-width: 8px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: clamp(18px, 5vw, 24px);
-    font-weight: 900;
-    line-height: 1;
-    text-align: center;
-}
-
-.transfer-quick-btn.reset {
-    color: #f0d6aa;
 }
 
 #tabContentQr .qr-battle-card > h2 { --section-banner: var(--banner-sheet-swords); }
