@@ -853,10 +853,14 @@ button.home-player-ship-name {
     animation: none !important;
 }
 
+.exploration-sequence-overlay:not(.is-battle) .exploration-sequence-avatar {
+    opacity: 0 !important;
+}
+
 .exploration-sequence-overlay.is-battle .exploration-sequence-boss {
     left: 42px;
     right: auto;
-    bottom: 74px;
+    bottom: 118px;
     width: 112px;
     height: 134px;
     opacity: 1;
@@ -865,7 +869,8 @@ button.home-player-ship-name {
 }
 
 .exploration-sequence-overlay.is-battle .exploration-sequence-avatar {
-    opacity: 1;
+    bottom: 118px;
+    opacity: 1 !important;
 }
 
 .exploration-sequence-overlay.is-battle .exploration-sequence-ship-effect {
@@ -918,10 +923,15 @@ button.home-player-ship-name {
     animation-duration: 540ms;
 }
 
-.exploration-sequence-overlay.is-treasure .exploration-sequence-ship {
-    left: 232px;
-    bottom: 64px;
-    animation: homePlayerShipFrameStep 300ms steps(3) infinite;
+.exploration-sequence-overlay.is-treasure .exploration-sequence-ship,
+.exploration-sequence-overlay.is-treasure .exploration-sequence-horizon,
+.exploration-sequence-overlay.is-treasure .exploration-sequence-route,
+.exploration-sequence-overlay.is-treasure .exploration-sequence-arrival,
+.exploration-sequence-overlay.is-treasure .exploration-sequence-island,
+.exploration-sequence-overlay.is-treasure .exploration-sequence-log {
+    opacity: 0 !important;
+    animation: none !important;
+    transition: none;
 }
 
 .home-player-ship-frame:not(.is-exploring) .home-player-ship-icon.is-guild .home-guild-ship-layer.is-hull,
@@ -970,12 +980,16 @@ button.home-player-ship-name {
 }
 
 .exploration-sequence-overlay.is-treasure .exploration-sequence-chests {
+    left: 50%;
+    right: auto;
+    bottom: 112px;
     opacity: 1;
-    transform: scale(1.15);
+    transform: translateX(-50%) scale(1.15);
 }
 
 .exploration-sequence-overlay.is-treasure .exploration-sequence-mini-chest {
-    animation: explorationSequenceChest 850ms steps(8) infinite;
+    background-position: 0 0;
+    animation: none;
 }
 
 .exploration-sequence-copy {
@@ -1250,7 +1264,8 @@ button.home-player-ship-name {
 
 .exploration-result-overlay.is-awaiting-open .exploration-result-chest {
     width: 112px;
-    animation: explorationSequenceChest 850ms steps(8) infinite;
+    background-position: 0 0;
+    animation: none;
 }
 
 .exploration-result-overlay.is-opening .exploration-result-chest.has-rewards {

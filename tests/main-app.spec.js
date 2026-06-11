@@ -1170,7 +1170,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(Math.abs(audit.shipMotionDelta)).toBeGreaterThan(2);
   expect(Math.abs(audit.shipVerticalDelta)).toBeLessThanOrEqual(1);
   expect(audit.shipFrameCount).toBeGreaterThanOrEqual(2);
-  expect(audit.treasureAnimationName).toContain('homePlayerShipFrameStep');
+  expect(audit.treasureAnimationName).toBe('none');
   expect(audit.treasureAnimationName).not.toContain('explorationSequenceTreasureShip');
   expect(audit.resultClose.height).toBe('32px');
   expect(audit.resultClose.minHeight).toBe('32px');
