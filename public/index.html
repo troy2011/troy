@@ -21,7 +21,11 @@
     <link rel="stylesheet" href="css/island.css">
 </head>
 
-<body>
+<body class="app-booting">
+    <div id="bootSplash" class="boot-splash" aria-label="TROY 起動中">
+        <img src="./Sprites/background/title.webp" alt="TROY" class="boot-splash-title" decoding="async" fetchpriority="high">
+        <div class="boot-splash-spinner" aria-hidden="true"></div>
+    </div>
     <div id="appWrapper" style="display: none;">
         <!-- ★ ヘッダー (Global Status) -->
         <div id="globalStatusBar">

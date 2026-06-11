@@ -2848,6 +2848,46 @@ body.modal-lock .modal-overlay {
 }
 
 /* ローディング */
+.boot-splash {
+    position: fixed;
+    inset: 0;
+    z-index: 4500;
+    display: none;
+    place-items: center;
+    padding: max(18px, env(safe-area-inset-top)) 18px max(22px, env(safe-area-inset-bottom));
+    background:
+        radial-gradient(ellipse at 50% 18%, rgba(220, 169, 82, 0.16), transparent 42%),
+        linear-gradient(180deg, #05070b 0%, #0b1019 52%, #020409 100%);
+}
+
+body.app-booting .boot-splash {
+    display: grid;
+}
+
+.boot-splash-title {
+    display: block;
+    width: min(78vw, 390px);
+    max-width: 100%;
+    max-height: min(76dvh, 720px);
+    object-fit: contain;
+    filter:
+        drop-shadow(0 16px 28px rgba(0, 0, 0, 0.72))
+        drop-shadow(0 0 22px rgba(220, 169, 82, 0.18));
+}
+
+.boot-splash-spinner {
+    position: fixed;
+    left: 50%;
+    bottom: max(28px, calc(env(safe-area-inset-bottom) + 20px));
+    width: 32px;
+    height: 32px;
+    margin-left: -16px;
+    border: 3px solid rgba(220, 169, 82, 0.24);
+    border-top-color: #f7d27a;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
 .spinner {
     width: 40px; height: 40px;
     border: 4px solid rgba(245, 158, 11, 0.3);

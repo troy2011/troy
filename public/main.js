@@ -750,6 +750,14 @@ PlayFab.settings.titleId = '1A0BA';
 let homeExplorationButtonBound = false;
 let homeExplorationPopupObserver = null;
 
+function revealAppWrapper() {
+    document.body?.classList.remove('app-booting');
+    const splash = document.getElementById('bootSplash');
+    if (splash) splash.hidden = true;
+    const wrapper = document.getElementById('appWrapper');
+    if (wrapper) wrapper.style.display = 'block';
+}
+
 function normalizeHomeTroyPlayFabId(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
@@ -976,7 +984,7 @@ async function initializeLiff() {
                 void refreshPlayFabDisplayName(myPlayFabId);
 
                 if (loginData.needsRaceSelection) {
-                    document.getElementById('appWrapper').style.display = 'block';
+                    revealAppWrapper();
                     autoAssignRace();
                 } else {
                     const troyEntryRequest = getTroyEntryRequestFromUrl();
@@ -984,7 +992,7 @@ async function initializeLiff() {
                     clearPendingAppInviteState({ removeFromUrl: true });
                     await initializeAppFeatures();
                     __perfLog('initializeAppFeatures done');
-                    document.getElementById('appWrapper').style.display = 'block';
+                    revealAppWrapper();
                     void NationKing.refreshKingNav(myPlayFabId);
 
                     // Check for help request URL parameters
@@ -1019,7 +1027,7 @@ async function initializeLiff() {
             __perfLog('calling signInWithCustomToken');
             signInWithCustomToken(auth, loginData.firebaseToken).catch(error => {
                 console.error("Firebase sign-in failed:", error);
-                document.getElementById('appWrapper').style.display = 'block';
+                revealAppWrapper();
                 document.getElementById('globalPlayerName').innerText = '認証エラー';
             });
         } else {
@@ -1029,7 +1037,7 @@ async function initializeLiff() {
             } else {
                 clearPendingAppInviteState({ removeFromUrl: true });
             }
-            document.getElementById('appWrapper').style.display = 'block';
+            revealAppWrapper();
         }
 
     } catch (error) {
@@ -1044,7 +1052,7 @@ async function initializeLiff() {
             }
         }
         console.error('Error:', error);
-        document.getElementById('appWrapper').style.display = 'block';
+        revealAppWrapper();
         document.getElementById('globalPlayerName').innerText = '初期化エラー';
     }
 }

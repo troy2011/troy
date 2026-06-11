@@ -10,6 +10,8 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
   const state = await bootstrapMainApp(page);
 
   await expect(page.locator('#appWrapper')).toBeVisible();
+  await expect(page.locator('#bootSplash')).toBeHidden();
+  await expect(page.locator('body')).not.toHaveClass(/app-booting/);
   await expect(page.locator('#globalPlayerName')).toHaveText('Playwright Tester');
   await expect(page.locator('#tabContentHome')).toBeVisible();
   await expect(page.locator('#troyMapLink')).toHaveText('MAP');
