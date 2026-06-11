@@ -667,9 +667,10 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
     const armorItem = getItemDetails(equipmentMap.Armor);
     const accessoryItem = getItemDetails(equipmentMap.Accessory);
 
-    // 相手の場合は左右のアイテムを入れ替えて表示
-    const finalRightHandItem = isOpponent ? leftHandItem : rightHandItem;
-    const finalLeftHandItem = isOpponent ? rightHandItem : leftHandItem;
+    // Opponent facing is handled by flipping the whole avatar container.
+    // Keep equipment on its original hand, otherwise the flip is applied twice.
+    const finalRightHandItem = rightHandItem;
+    const finalLeftHandItem = leftHandItem;
 
     const drawItem = (layer, item) => {
         if (item?.customData) {

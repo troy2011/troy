@@ -2625,6 +2625,50 @@ test('tall avatar weapons stay close to the avatar floor', async ({ page }) => {
   await expectNoPageErrors(errors);
 });
 
+test('opponent avatar keeps right-hand weapon on weapon layer when flipped', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await bootstrapMainApp(page);
+
+  await page.evaluate(async () => {
+    const fixture = document.createElement('div');
+    fixture.id = 'opponentWeaponLayerFixture';
+    fixture.style.cssText = 'position:fixed;left:0;top:0;opacity:0;pointer-events:none;';
+    fixture.innerHTML = `
+      <div id="opponentWeaponAvatar" class="avatar-container">
+        <div id="opponentWeaponAvatar-layer-body" class="avatar-layer"></div>
+        <div id="opponentWeaponAvatar-layer-head" class="avatar-layer"></div>
+        <div id="opponentWeaponAvatar-layer-facial-hair" class="avatar-layer"></div>
+        <div id="opponentWeaponAvatar-layer-hair" class="avatar-layer"></div>
+        <div id="opponentWeaponAvatar-layer-armor" class="avatar-layer"></div>
+        <div id="opponentWeaponAvatar-layer-hand-right" class="avatar-layer"></div>
+        <div id="opponentWeaponAvatar-layer-weapon-right" class="avatar-layer"></div>
+        <div id="opponentWeaponAvatar-layer-hand-left" class="avatar-layer"></div>
+        <div id="opponentWeaponAvatar-layer-shield-left" class="avatar-layer"></div>
+      </div>`;
+    document.body.appendChild(fixture);
+
+    const { renderAvatar } = await import('/js/avatar.js');
+    const avatar = { Race: 'human', AvatarColor: 'brown', SkinColorIndex: 1, FaceIndex: 1, HairStyleIndex: 1, FacialHairStyleIndex: 0, level: 21 };
+    const items = {
+      polearm_001: { itemId: 'polearm_001', customData: { Category: 'Weapon', sprite_path: './Sprites/weapons/melee weapons/polearm.png', sprite_index: '0', sprite_w: '32', sprite_h: '64' } }
+    };
+    renderAvatar('opponentWeaponAvatar', avatar, { RightHand: 'polearm_001' }, items, true);
+  });
+
+  await page.waitForFunction(() => (
+    document.getElementById('opponentWeaponAvatar-layer-weapon-right')?.dataset.loadState === 'ready'
+  ));
+  const layerState = await page.evaluate(() => {
+    const weapon = window.getComputedStyle(document.getElementById('opponentWeaponAvatar-layer-weapon-right')).backgroundImage;
+    const shield = window.getComputedStyle(document.getElementById('opponentWeaponAvatar-layer-shield-left')).backgroundImage;
+    return { weapon, shield };
+  });
+
+  expect(layerState.weapon).toContain('polearm.png');
+  expect(layerState.shield).toBe('none');
+  await expectNoPageErrors(errors);
+});
+
 test('avatar shield center aligns with the left hand center', async ({ page }) => {
   const errors = trackPageErrors(page);
   await bootstrapMainApp(page);
