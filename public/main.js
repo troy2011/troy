@@ -751,7 +751,7 @@ PlayFab.settings.titleId = '1A0BA';
 let homeExplorationButtonBound = false;
 let homeCoinConvertBound = false;
 let homeExplorationPopupObserver = null;
-const HOME_PLUNDER_ENTRY_ENABLED = false;
+const HOME_PLUNDER_ENTRY_ENABLED = true;
 
 function revealAppWrapper() {
     document.body?.classList.remove('app-booting');
@@ -772,6 +772,30 @@ function isCurrentPlayerInTroyStatus(status, playFabId = window.myPlayFabId) {
     const target = normalizeHomeTroyPlayFabId(playFabId);
     const members = Array.isArray(status?.members) ? status.members : [];
     return members.some((member) => normalizeHomeTroyPlayFabId(member?.playFabId || member?.id) === target);
+}
+
+function getHomePlunderOpponents(status = window.__troyStatus, playFabId = window.myPlayFabId) {
+    if (!status?.isOpen || !playFabId) return [];
+    const selfId = normalizeHomeTroyPlayFabId(playFabId);
+    const seen = new Set();
+    return (Array.isArray(status?.members) ? status.members : [])
+        .map((member) => ({
+            ...member,
+            playFabId: String(member?.playFabId || member?.id || '').trim()
+        }))
+        .filter((member) => {
+            const id = normalizeHomeTroyPlayFabId(member.playFabId);
+            if (!id || id === selfId || seen.has(id)) return false;
+            seen.add(id);
+            return true;
+        });
+}
+
+function pickHomePlunderOpponent(status = window.__troyStatus, playFabId = window.myPlayFabId) {
+    const opponents = getHomePlunderOpponents(status, playFabId);
+    if (opponents.length === 0) return null;
+    const index = Math.floor(Math.random() * opponents.length);
+    return opponents[index] || opponents[0];
 }
 
 function getHomeCoinConvertElements() {
@@ -952,14 +976,56 @@ async function openHomeExplorationPopup() {
     ensureHomeExplorationPopupClose(panel);
 }
 
+async function startHomePlunderBattle() {
+    const button = document.getElementById('btnHomeExploration');
+    if (!isCurrentPlayerInTroyStatus(window.__troyStatus)) {
+        void openHomeExplorationPopup();
+        return;
+    }
+
+    const opponent = pickHomePlunderOpponent(window.__troyStatus, window.myPlayFabId);
+    if (!opponent?.playFabId) {
+        showRpgMessage('略奪できる相手が店内にいません。');
+        return;
+    }
+
+    if (typeof window.startBattleWithOpponent !== 'function') {
+        showRpgMessage('白兵戦の準備ができていません。少し待ってから試してください。');
+        return;
+    }
+
+    const previousText = button?.textContent || '';
+    if (button) {
+        button.disabled = true;
+        button.textContent = '相手を捕捉中...';
+    }
+    try {
+        showRpgMessage('略奪相手を捕捉しました。白兵戦を開始します。');
+        await window.startBattleWithOpponent(opponent.playFabId);
+    } catch (error) {
+        console.warn('[HomePlunder] Failed to start battle:', error);
+        showRpgMessage(error?.message || '白兵戦の開始に失敗しました。');
+    } finally {
+        if (button) {
+            button.disabled = false;
+            syncHomeExplorationButtonLabel();
+            if (!button.textContent && previousText) button.textContent = previousText;
+        }
+    }
+}
+
 function initHomeExplorationButton() {
     if (homeExplorationButtonBound) return;
     const button = document.getElementById('btnHomeExploration');
     if (!button) return;
     syncHomeExplorationButtonLabel();
     button.addEventListener('click', () => {
-        if (isCurrentPlayerInTroyStatus(window.__troyStatus) && !HOME_PLUNDER_ENTRY_ENABLED) {
-            showRpgMessage('略奪は準備中です。');
+        if (isCurrentPlayerInTroyStatus(window.__troyStatus)) {
+            if (!HOME_PLUNDER_ENTRY_ENABLED) {
+                showRpgMessage('略奪は準備中です。');
+                return;
+            }
+            void startHomePlunderBattle();
             return;
         }
         void openHomeExplorationPopup();

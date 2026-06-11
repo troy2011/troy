@@ -1045,7 +1045,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expectNoPageErrors(errors);
 });
 
-test('home plunder route is paused for checked-in customers', async ({ page }) => {
+test('home plunder route starts a melee battle against another checked-in customer', async ({ page }) => {
   const errors = trackPageErrors(page);
   let explorationStatusRequests = 0;
   await page.route('**/api/get-troy-status', async (route) => {
@@ -1055,7 +1055,10 @@ test('home plunder route is paused for checked-in customers', async ({ page }) =
       body: JSON.stringify({
         nation: 'fire',
         isOpen: true,
-        members: [{ playFabId: 'PF_PLAYWRIGHT', displayName: 'Playwright Tester' }]
+        members: [
+          { playFabId: 'PF_PLAYWRIGHT', displayName: 'Playwright Tester' },
+          { playFabId: 'PF_RAIDER_TARGET', displayName: 'Target Player' }
+        ]
       })
     });
   });
@@ -1069,12 +1072,19 @@ test('home plunder route is paused for checked-in customers', async ({ page }) =
   });
 
   await bootstrapMainApp(page);
+  await page.evaluate(() => {
+    window.__homePlunderBattleTarget = null;
+    window.startBattleWithOpponent = async (opponentId) => {
+      window.__homePlunderBattleTarget = opponentId;
+      return { battleId: 'BATTLE_FROM_HOME_PLUNDER' };
+    };
+  });
 
-  await expect(page.locator('#btnHomeExploration')).toHaveText('略奪準備中');
-  await expect(page.locator('#btnHomeExploration')).toHaveAttribute('data-plunder-paused', 'true');
+  await expect(page.locator('#btnHomeExploration')).toHaveText('略奪に出る');
+  await expect(page.locator('#btnHomeExploration')).toHaveAttribute('data-plunder-paused', 'false');
   await page.locator('#btnHomeExploration').click();
   await expect(page.locator('#shipExplorationPanel')).toBeHidden();
-  await expect(page.locator('.rpg-message-popup')).toContainText('略奪は準備中です。');
+  await expect.poll(async () => page.evaluate(() => window.__homePlunderBattleTarget)).toBe('PF_RAIDER_TARGET');
   expect(explorationStatusRequests).toBe(0);
 
   await expectNoPageErrors(errors);
