@@ -10,7 +10,6 @@ const {
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
 const ENABLE_LEGACY_POINT_ROUTES = String(process.env.ENABLE_LEGACY_POINT_ROUTES || '').trim().toLowerCase() === 'true';
-const BOUNTY_RANKING_STAT = 'bounty_ranking';
 const STORE_GAME_ELO_INITIAL_RATING = 1000;
 const STORE_GAME_ELO_K_FACTOR = 64;
 
@@ -521,42 +520,17 @@ function initializeEconomyRoutes(app, deps) {
     // 懸賞金ランキング取得
     app.post('/api/get-bounty-ranking', async (req, res) => {
         try {
-            try {
-                const calculated = await buildCalculatedTroyBountyRanking({
-                    promisifyPlayFab,
-                    PlayFabServer,
-                    firestore
-                }, {
-                    limit: req.body?.limit || 10
-                });
-                if (calculated) {
-                    return res.json(calculated);
-                }
-            } catch (calculatedError) {
-                console.warn('[get-bounty-ranking] calculated ranking fallback failed:', calculatedError?.errorMessage || calculatedError?.message || calculatedError);
-            }
-
-            const result = await promisifyPlayFab(PlayFabServer.GetLeaderboard, {
-                StatisticName: BOUNTY_RANKING_STAT,
-                StartPosition: 0,
-                MaxResultsCount: 10,
-                ProfileConstraints: { ShowAvatarUrl: true, ShowDisplayName: true }
+            const calculated = await buildCalculatedTroyBountyRanking({
+                promisifyPlayFab,
+                PlayFabServer,
+                firestore
+            }, {
+                limit: req.body?.limit || 10
             });
-            let ranking = [];
-            if (result && result.Leaderboard) {
-                ranking = await buildPlayerRankingRows(result.Leaderboard, { promisifyPlayFab, PlayFabServer }, (entry) => {
-                    const avatarUrl = (entry.Profile && entry.Profile.AvatarUrl) ? entry.Profile.AvatarUrl : null;
-                    return {
-                        position: entry.Position,
-                        playFabId: entry.PlayFabId || null,
-                        displayName: entry.DisplayName || '名無し',
-                        bounty: entry.StatValue,
-                        score: entry.StatValue,
-                        avatarUrl: avatarUrl
-                    };
-                });
+            if (!calculated) {
+                return res.status(503).json({ error: '懸賞金ランキングを計算できませんでした。' });
             }
-            res.json({ ranking });
+            res.json(calculated);
         } catch (error) {
             console.error('懸賞金ランキング取得失敗:', error.errorMessage || error.message || error);
             return res.status(500).json({
@@ -736,43 +710,14 @@ function initializeEconomyRoutes(app, deps) {
             const payerNewBalance = await getCurrencyBalance(authenticatedPlayFabId, VIRTUAL_CURRENCY_CODE, economyDeps);
             try {
                 const receiverNewBalance = await getCurrencyBalance(toId, VIRTUAL_CURRENCY_CODE, economyDeps);
-                let bountyAdded = false;
-                let receiverNewBounty = null;
-                let payerNewBounty = null;
-                let bountyTransferred = 0;
-                let bountyShortage = false;
-                try {
-                    const payerBounty = await getCurrencyBalance(authenticatedPlayFabId, 'BT', economyDeps);
-                    const bountyTransfer = Math.min(Math.max(0, payerBounty), amountInt);
-                    bountyShortage = payerBounty < amountInt;
-                    if (bountyTransfer > 0) {
-                        await transferEconomyItem(authenticatedPlayFabId, toId, 'BT', bountyTransfer, { ...payerDeps, idempotencyId: idempotencyFor('bt-transfer') });
-                        receiverNewBounty = await getCurrencyBalance(toId, 'BT', economyDeps);
-                        payerNewBounty = await getCurrencyBalance(authenticatedPlayFabId, 'BT', economyDeps);
-                        bountyAdded = true;
-                        bountyTransferred = bountyTransfer;
-                    }
-                } catch (bountyError) {
-                    console.warn('[transfer-points] Failed to sync bounty:', bountyError?.errorMessage || bountyError?.message || bountyError);
-                }
                 await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
                     PlayFabId: authenticatedPlayFabId,
                     Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: payerNewBalance }]
                 });
-                const receiverStats = [{ StatisticName: LEADERBOARD_NAME, Value: receiverNewBalance }];
-                if (bountyAdded && receiverNewBounty !== null) {
-                    receiverStats.push({ StatisticName: BOUNTY_RANKING_STAT, Value: receiverNewBounty });
-                }
                 await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
                     PlayFabId: toId,
-                    Statistics: receiverStats
+                    Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: receiverNewBalance }]
                 });
-                if (bountyAdded && payerNewBounty !== null) {
-                    await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-                        PlayFabId: authenticatedPlayFabId,
-                        Statistics: [{ StatisticName: BOUNTY_RANKING_STAT, Value: payerNewBounty }]
-                    });
-                }
                 try {
                     const getDisplayName = async (id) => {
                         try {
@@ -816,15 +761,12 @@ function initializeEconomyRoutes(app, deps) {
                         console.warn('[transfer-points] Notification write failed:', notifyError?.message || notifyError);
                     }
                 }
-                res.json({ newBalance: payerNewBalance, bountyAdded, bountyShortage, bountyTransferred });
+                res.json({ newBalance: payerNewBalance });
             } catch (addError) {
                 console.error('送金後の処理失敗:', addError.errorMessage || addError.message || addError);
                 const addMessage = addError?.errorMessage || addError?.message || '';
                 res.json({
                     newBalance: payerNewBalance,
-                    bountyAdded: false,
-                    bountyShortage: false,
-                    bountyTransferred: 0,
                     postTransferSyncError: String(addMessage || '送金後の同期に失敗しました。')
                 });
             }

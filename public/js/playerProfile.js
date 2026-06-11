@@ -319,12 +319,9 @@ async function executeProfileTransfer(amount) {
     const targetPlayFabId = String(activeProfile?.playFabId || '').trim();
     const targetName = String(activeProfile?.displayName || targetPlayFabId).trim() || targetPlayFabId;
     const requestId = createRequestId('profile-transfer');
-    const data = await transferPoints(myPlayFabId, targetPlayFabId, amount, { requestId, throwOnError: true });
+    await transferPoints(myPlayFabId, targetPlayFabId, amount, { requestId, throwOnError: true });
     setTransferPanelOpen(false);
-    const bountyNote = data?.bountyShortage
-        ? ' 賞金は不足分を除いて移動しました。'
-        : '';
-    showRpgMessage(`${targetName} に ${amount}G送りました。${bountyNote}`.trim(), 2600);
+    showRpgMessage(`${targetName} に ${amount}G送りました。`, 2600);
     const Player = await import('./player.js');
     await Player.getPoints(myPlayFabId);
     await Player.getRanking();

@@ -199,7 +199,7 @@ test('builds TROY bounty ranking from fresh member snapshot when PlayFab stats l
   expect(row.avatarUrl).toBe('https://example.test/avatar.png');
 });
 
-test('builds calculated bounty ranking for get-bounty-ranking fallback', async () => {
+test('builds calculated bounty ranking for get-bounty-ranking', async () => {
   const memberDocs = [
     {
       id: 'PLAYER_LOW',
