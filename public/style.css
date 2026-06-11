@@ -11091,13 +11091,19 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 
 #battleStage.melee-battle-stage {
     flex: 0 0 auto;
-    min-height: clamp(230px, 39dvh, 330px);
+    min-height: clamp(276px, 43dvh, 360px);
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 10px;
+    gap: 0;
     align-items: stretch;
     padding: 0;
     position: relative;
+    overflow: hidden;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-navy-wide.png") 34 / 12px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(5, 12, 18, 0.08) 0%, rgba(7, 10, 15, 0.06) 48%, rgba(19, 12, 6, 0.18) 100%),
+        url("./Sprites/background/deck.webp") center bottom / auto 150% no-repeat;
 }
 
 #battleStage.melee-battle-stage::before {
@@ -11119,28 +11125,69 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     pointer-events: none;
 }
 
+#battleStage.melee-battle-stage::after {
+    content: "";
+    position: absolute;
+    inset: 8px;
+    z-index: 1;
+    pointer-events: none;
+    box-shadow:
+        inset 0 0 46px rgba(0, 0, 0, 0.48),
+        inset 0 0 0 1px rgba(255, 240, 180, 0.08);
+}
+
 .battle-player-area.melee-combatant {
     width: auto;
     min-width: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
-    padding: 12px 10px 10px;
+    position: relative;
+    display: block;
+    padding: 0;
     z-index: 2;
-    border: 1px solid transparent;
-    border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 9px / 0 stretch;
+    border: 0;
+}
+
+.battle-player-area.melee-combatant::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 52px;
+    width: 104px;
+    height: 20px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(0, 0, 0, 0.42), transparent 72%);
+    z-index: 1;
+    pointer-events: none;
 }
 
 .battle-avatar-container.melee-avatar {
-    width: 96px;
-    height: 112px;
-    position: relative;
-    margin: 2px 0 8px;
-    transform: none;
-    transform-origin: center center;
+    --avatar-combat-scale: 1.9;
+    --avatar-combat-scale-hit: 2;
+    --avatar-attack-start-x: 0px;
+    --avatar-attack-x: -38px;
+    --avatar-attack-recoil-x: -24px;
+    --avatar-attack-y: 0px;
+    position: absolute;
+    left: 50%;
+    bottom: 78px;
+    width: 64px;
+    height: 64px;
+    margin: 0;
+    transform: translateX(-50%) scale(var(--avatar-combat-scale)) !important;
+    transform-origin: center bottom;
     image-rendering: pixelated;
+    z-index: 3;
+    filter: drop-shadow(0 14px 12px rgba(0, 0, 0, 0.46));
+}
+
+.melee-combatant-enemy .battle-avatar-container.melee-avatar {
+    --avatar-attack-x: 38px;
+    --avatar-attack-recoil-x: 24px;
+    transform: translateX(-50%) scale(var(--avatar-combat-scale)) scaleX(-1) !important;
+}
+
+.melee-combatant-player .battle-avatar-container.melee-avatar {
+    bottom: 76px;
 }
 
 #battleLogContainer.melee-battle-log {
@@ -12733,12 +12780,17 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 }
 
 .battle-status-card {
-    width: 100%;
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    top: 12px;
+    width: auto;
     min-width: 0;
     padding: 8px 9px 7px;
+    z-index: 5;
     border: 1px solid transparent;
     border-image: url("./assets/ui/panels/panel-dark-wide.png") 34 fill / 9px / 0 stretch;
-    background: transparent;
+    background: rgba(6, 10, 16, 0.62);
     box-shadow: none;
 }
 
@@ -12793,8 +12845,13 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 }
 
 .battle-atb-track {
-    width: 100%;
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: 18px;
+    width: auto;
     height: 7px;
+    z-index: 5;
     overflow: hidden;
     border-radius: 999px;
     background: rgba(9, 15, 24, 0.88);
@@ -12881,8 +12938,7 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     }
 
     #battleStage.melee-battle-stage {
-        min-height: 222px;
-        gap: 7px;
+        min-height: 268px;
     }
 
     .battle-player-area.melee-combatant {
@@ -12890,8 +12946,14 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     }
 
     .battle-avatar-container.melee-avatar {
-        width: 88px;
-        height: 104px;
+        --avatar-combat-scale: 1.72;
+        width: 60px;
+        height: 60px;
+        bottom: 74px;
+    }
+
+    .melee-combatant-player .battle-avatar-container.melee-avatar {
+        bottom: 72px;
     }
 }
 
