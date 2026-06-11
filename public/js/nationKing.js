@@ -142,7 +142,7 @@ function _renderTroyMembers(members = []) {
                     <span class="king-chip-return-label">チップ返却</span>
                     <div class="king-chip-return-controls">
                         <div class="transfer-input-row king-chip-return-input-row">
-                            <input type="number" min="100" step="100" inputmode="numeric" placeholder="返却G" value="0" data-chip-return-amount="${_escapeHtml(playFabId)}" aria-label="${_escapeHtml(displayName)}への返却G" />
+                            <input type="number" min="1" step="1" inputmode="numeric" placeholder="返却G" value="0" data-chip-return-amount="${_escapeHtml(playFabId)}" aria-label="${_escapeHtml(displayName)}への返却G" />
                             <span>G</span>
                         </div>
                         <button type="button" class="btn-muted king-chip-return-btn" data-chip-return="${_escapeHtml(playFabId)}" data-chip-return-name="${_escapeHtml(displayName)}">返却</button>
@@ -534,7 +534,6 @@ function _extractErrorMessage(error, fallback = 'ゴールドの付与に失敗�
         .trim();
     if (!message) return fallback;
     if (message.includes('requestId is required')) return '処理IDの発行に失敗しました。画面を再読み込みしてもう一度お試しください。';
-    if (message.includes('100G単位')) return message;
     if (message.includes('NotInTroy')) return '入店リストにいないプレイヤーです。入店状態を確認してください。';
     if (message.includes('NotKingForOpenTroy')) return 'TROYの開閉に失敗しました。状態を再読み込みしてもう一度お試しください。';
     if (message.includes('NotKing')) return '王のみ操作できます。';
@@ -868,8 +867,8 @@ function _wireHandlers(playFabId) {
                     _setMessage('返却対象が不正です。', true);
                     return;
                 }
-                if (!amount || amount <= 0 || amount % 100 !== 0) {
-                    _setMessage('返却チップ総額は100G刻みで入力してください。', true);
+                if (!amount || amount <= 0 || amount > 1000000) {
+                    _setMessage('返却チップ総額は1G以上、100万Gまでで入力してください。', true);
                     amountEl?.focus();
                     return;
                 }

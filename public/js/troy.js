@@ -5,6 +5,7 @@ import {
     joinTroy,
     getTroyCalendar,
     createTroyCustomerOrderRequest,
+    convertTroyGoldToCoin,
     createReservation as requestCreateReservation
 } from './playfabClient.js';
 import { createRequestId } from './api.js';
@@ -352,6 +353,7 @@ function updateTroyMenuBoardPlacement() {
 function updateOrderAvailability() {
     updateTroyStatusInline();
     setMenuButtonsEnabled(canUseTroyMenu());
+    updateTroyCoinConvertPanel();
     renderTroyMenuBoard();
     updateTroyPrimaryAction();
     applyOrderEntryClosedPrimaryState();
@@ -407,8 +409,6 @@ function updateTroyRoleUI() {
     if (openTabCard) openTabCard.hidden = true;
     const orderStatus = document.getElementById('troyOrderStatusInline');
     if (orderStatus) orderStatus.hidden = false;
-    const coinNote = document.getElementById('troyCoinNoteDetails');
-    if (coinNote) coinNote.hidden = true;
     applyOrderEntryClosedPrimaryState();
 }
 
@@ -1012,6 +1012,82 @@ function updatePointsDisplays(points) {
     if (currentPointsEl) currentPointsEl.innerText = String(value);
     const globalPointsEl = document.getElementById('globalPoints');
     if (globalPointsEl) globalPointsEl.innerText = String(value);
+}
+
+function getTroyCoinConvertElements() {
+    return {
+        panel: document.getElementById('troyCoinConvertPanel'),
+        input: document.getElementById('troyCoinConvertAmount'),
+        button: document.getElementById('btnTroyCoinConvert'),
+        message: document.getElementById('troyCoinConvertMessage')
+    };
+}
+
+function normalizeTroyCoinConvertAmount(value) {
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) return 0;
+    if (Math.floor(amount) !== amount) return 0;
+    if (amount <= 0 || amount > 1000000) return 0;
+    if (amount % 100 !== 0) return 0;
+    return amount;
+}
+
+function setTroyCoinConvertMessage(message = '', tone = '') {
+    const { message: messageEl } = getTroyCoinConvertElements();
+    if (!messageEl) return;
+    messageEl.textContent = message;
+    messageEl.dataset.tone = tone || '';
+}
+
+function updateTroyCoinConvertPanel() {
+    const { panel, input, button } = getTroyCoinConvertElements();
+    if (!panel) return;
+    const available = canUseTroyMenu();
+    panel.hidden = !available;
+    if (input) input.disabled = !available;
+    if (button) button.disabled = !available;
+    if (!available) setTroyCoinConvertMessage('');
+}
+
+async function submitTroyCoinConvert(playFabId = window.myPlayFabId) {
+    const { input, button } = getTroyCoinConvertElements();
+    if (!button || button.disabled) return;
+    if (!canUseTroyMenu(playFabId)) {
+        showTroyNotice(_lastStatus?.isOpen ? '入店してからチップ化できます。' : 'TROYはCLOSE中です。');
+        updateTroyCoinConvertPanel();
+        return;
+    }
+
+    const amount = normalizeTroyCoinConvertAmount(input?.value);
+    if (!amount) {
+        setTroyCoinConvertMessage('100G単位で入力してください。', 'error');
+        return;
+    }
+
+    const previousText = button.textContent;
+    button.disabled = true;
+    button.textContent = '処理中';
+    setTroyCoinConvertMessage('');
+
+    try {
+        const result = await convertTroyGoldToCoin(
+            playFabId,
+            amount,
+            createRequestId('troy-customer-chip'),
+            { throwOnError: true }
+        );
+        if (Number.isFinite(Number(result?.newBalance))) {
+            updatePointsDisplays(Number(result.newBalance));
+        }
+        setTroyCoinConvertMessage(`${amount.toLocaleString('ja-JP')}Gをチップ化しました。スタッフからチップを受け取ってください。`, 'success');
+        showTroyNotice('チップ化しました。スタッフからチップを受け取ってください。');
+    } catch (error) {
+        console.warn('[TroyCoin] Customer chip conversion failed:', error);
+        setTroyCoinConvertMessage(error?.message || 'チップ化に失敗しました。', 'error');
+    } finally {
+        button.disabled = !canUseTroyMenu(playFabId);
+        button.textContent = previousText || 'チップ化';
+    }
 }
 
 function parseYenPrice(value) {
@@ -1703,6 +1779,19 @@ function wireHandlers(playFabId) {
     }
     const reservationPurpose = document.getElementById('reservationPurpose');
     if (reservationPurpose) reservationPurpose.addEventListener('change', updateTroyReservationPurposeHelp);
+
+    const coinConvertBtn = document.getElementById('btnTroyCoinConvert');
+    if (coinConvertBtn) {
+        coinConvertBtn.addEventListener('click', () => submitTroyCoinConvert(window.myPlayFabId || playFabId));
+    }
+    const coinConvertInput = document.getElementById('troyCoinConvertAmount');
+    if (coinConvertInput) {
+        coinConvertInput.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            void submitTroyCoinConvert(window.myPlayFabId || playFabId);
+        });
+    }
 }
 export async function loadTroyPage(playFabId) {
     loadFavoriteDrinkEntries(playFabId);

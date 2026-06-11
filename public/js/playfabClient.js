@@ -344,6 +344,10 @@ export function createTroyCustomerOrderRequest(playFabId, payload = {}, options)
     return callApiWithLoader('/api/troy-orders/customer-request', { playFabId, ...(payload || {}) }, options);
 }
 
+export function convertTroyGoldToCoin(playFabId, amount, requestId, options) {
+    return callApiWithLoader('/api/troy-convert-gold-to-coin', { playFabId, amount, requestId }, options);
+}
+
 export function setTroyOpen(playFabId, isOpen, options) {
     return callApiWithLoader('/api/king-set-troy-open', { playFabId, isOpen }, options);
 }

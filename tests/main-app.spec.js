@@ -215,6 +215,7 @@ test('ranking tab shows bounty billiards and game as top category buttons', asyn
 test('troy tab replaces bottom chat with a menu board customer order request', async ({ page }) => {
   const errors = trackPageErrors(page);
   const customerOrderRequests = [];
+  const coinConvertRequests = [];
   await page.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js', async (route) => {
     await route.fulfill({
       status: 200,
@@ -281,6 +282,15 @@ export function onSnapshot(_ref, next) {
       body: JSON.stringify({ success: true, request: { requestId: 'REQ1', status: 'pending' } })
     });
   });
+  await page.route('**/api/troy-convert-gold-to-coin', async (route) => {
+    const requestBody = route.request().postDataJSON();
+    coinConvertRequests.push(requestBody);
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ success: true, amount: requestBody.amount, newBalance: 8900 })
+    });
+  });
 
   await bootstrapMainApp(page);
   await page.evaluate(async () => {
@@ -316,6 +326,16 @@ export function onSnapshot(_ref, next) {
   await expect(page.locator('#troyEntryList')).toContainText('現在 1 名入店中');
   await expect(page.locator('#troyEntryList .troy-entry-item')).toHaveCount(0);
   await expect(page.locator('#troyEntryList')).not.toContainText('テスト船長');
+  await expect(page.locator('#troyCoinConvertPanel')).toBeVisible();
+  await page.locator('#troyCoinConvertAmount').fill('1100');
+  await page.locator('#btnTroyCoinConvert').click();
+  await expect.poll(() => coinConvertRequests.length).toBe(1);
+  expect(coinConvertRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    amount: 1100
+  });
+  expect(coinConvertRequests[0].requestId).toMatch(/^troy-customer-chip-/);
+  await expect(page.locator('#troyCoinConvertMessage')).toContainText('1,100Gをチップ化しました');
   await expect(page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab-icon img')).toHaveCount(11);
   await expect(page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: 'BOTTLE MENU' }).locator('.troy-menu-board-tab-icon img')).toHaveAttribute('src', /Sprites\/drinks\/troy_champagne_bottle_flute\.png/);
   await expect(page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: '酒場のフード' }).locator('.troy-menu-board-tab-icon img')).toHaveAttribute('src', /Sprites\/food\/snack_fried_chicken_skillet\.png/);
@@ -1805,16 +1825,16 @@ test('king store game scoring saves from each in-store customer row', async ({ p
   const playerRow = page.locator('.troy-entry-item[data-troy-entry-player="PLAYER1"]');
   await expect(playerRow).toContainText('海風の船長');
   await expect(playerRow.locator('.king-chip-return-panel')).toContainText('チップ返却');
-  await playerRow.locator('[data-chip-return-amount="PLAYER1"]').fill('1200');
+  await playerRow.locator('[data-chip-return-amount="PLAYER1"]').fill('1234');
   await playerRow.locator('[data-chip-return="PLAYER1"]').click();
 
   await expect.poll(() => chipReturnRequests.length).toBe(1);
   expect(chipReturnRequests[0]).toMatchObject({
     playFabId: 'PF_PLAYWRIGHT',
     receiverPlayFabId: 'PLAYER1',
-    amount: 1200
+    amount: 1234
   });
-  await expect(page.locator('#kingPageMessage')).toContainText('海風の船長 に 1,200Gをチップ返却しました。');
+  await expect(page.locator('#kingPageMessage')).toContainText('海風の船長 に 1,234Gをチップ返却しました。');
   await expect(playerRow.locator('[data-chip-return-amount="PLAYER1"]')).toHaveValue('0');
   await expect(playerRow.locator('.king-store-game-inline summary')).toHaveText('店内ゲーム採点');
   await expect(playerRow.locator('[data-store-game-type] option[value="billiards"]')).toHaveText('ビリヤード');

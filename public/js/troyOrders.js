@@ -1104,7 +1104,7 @@ function renderTicketDetail() {
                     <div class="troy-orders-settle">
                         <label>
                             <span>チップ返却</span>
-                            <input type="number" min="0" step="100" inputmode="numeric" value="0" data-chip-return>
+                            <input type="number" min="0" step="1" inputmode="numeric" value="0" data-chip-return>
                             <b>G</b>
                         </label>
                         <button type="button" data-settle ${total > 0 ? '' : 'disabled'}>会計・退店</button>
@@ -1214,8 +1214,8 @@ async function settleFromCard(card) {
     const chipReturnInput = card.querySelector('[data-chip-return]');
     const chipReturnAmount = Math.max(0, Math.floor(Number(chipReturnInput?.value || 0) || 0));
     if (!receiverId || expectedTotal <= 0 || !targets.length) return;
-    if (chipReturnAmount > 0 && (chipReturnAmount % 100 !== 0 || chipReturnAmount > 1000000)) {
-        setMessage('チップ返却は100G単位、100万Gまでで入力してください。', true);
+    if (chipReturnAmount > 0 && chipReturnAmount > 1000000) {
+        setMessage('チップ返却は100万Gまでで入力してください。', true);
         return;
     }
     const confirmCheck = $('troyOrdersConfirmCheck');

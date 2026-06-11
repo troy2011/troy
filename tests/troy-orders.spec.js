@@ -271,11 +271,11 @@ test('staff register creates a checkout from an in-store member and settles with
   await expect(page.locator('#troyOrdersTicketDetail')).toContainText('¥1,500');
   await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('¥1,500');
 
-  await page.locator('#troyOrdersTicketDetail [data-chip-return]').fill('300');
+  await page.locator('#troyOrdersTicketDetail [data-chip-return]').fill('333');
   await page.locator('#troyOrdersTicketDetail [data-settle]').click();
   await expect(page.locator('#troyOrdersConfirmModal')).toBeVisible();
   await expect(page.locator('#troyOrdersConfirmItems')).toContainText('チップ返却');
-  await expect(page.locator('#troyOrdersConfirmItems')).toContainText('300G');
+  await expect(page.locator('#troyOrdersConfirmItems')).toContainText('333G');
   await expect(page.locator('#troyOrdersConfirmItems')).not.toContainText('瓶ビール（ハートランド）');
   await expect(page.locator('#troyOrdersConfirmItems')).toContainText('裏メニュー');
 
@@ -291,7 +291,7 @@ test('staff register creates a checkout from an in-store member and settles with
   expect(settleRequests[0].receiverPlayFabId).toBe('PLAYER1');
   expect(settleRequests[0].settlementRepresentativePlayFabId).toBe('PLAYER1');
   expect(settleRequests[0].expectedTotal).toBe(1500);
-  expect(settleRequests[0].chipReturnAmount).toBe(300);
+  expect(settleRequests[0].chipReturnAmount).toBe(333);
   await expect(page.locator('#troyOrdersMessage')).toContainText('会計と退店処理を完了しました');
   await expect(page.locator('[data-open-ticket]')).toHaveCount(1);
 });

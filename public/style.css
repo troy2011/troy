@@ -3939,6 +3939,100 @@ body.modal-lock .modal-overlay {
         radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.08), transparent 58%);
 }
 
+.troy-coin-convert-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(190px, 44%);
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-dark-wide.png") 34 fill / 12px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(14, 10, 6, 0.78), rgba(4, 8, 14, 0.9)),
+        radial-gradient(ellipse at 50% 0%, rgba(220, 169, 82, 0.12), transparent 62%);
+}
+
+.troy-coin-convert-panel[hidden] {
+    display: none;
+}
+
+.troy-coin-convert-copy {
+    min-width: 0;
+}
+
+.troy-coin-convert-title {
+    color: #ffe5a4;
+    font-size: 14px;
+    font-weight: 1000;
+    line-height: 1.25;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
+}
+
+.troy-coin-convert-note,
+.troy-coin-convert-message {
+    margin-top: 3px;
+    color: #d0b98c;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.35;
+}
+
+.troy-coin-convert-message {
+    grid-column: 1 / -1;
+    min-height: 15px;
+}
+
+.troy-coin-convert-message[data-tone="success"] {
+    color: #bbf7d0;
+}
+
+.troy-coin-convert-message[data-tone="error"] {
+    color: #fecaca;
+}
+
+.troy-coin-convert-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 84px;
+    gap: 8px;
+    align-items: center;
+}
+
+.troy-coin-convert-input {
+    width: 100%;
+    min-height: 38px;
+    padding: 0 10px;
+    border: 1px solid rgba(220, 169, 82, 0.44);
+    border-radius: 6px;
+    background: rgba(10, 8, 6, 0.86);
+    color: #f8e8bd;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.troy-coin-convert-input:disabled {
+    opacity: 0.58;
+}
+
+.troy-coin-convert-button {
+    min-height: 38px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    border-image: url("./assets/ui/buttons/button-gold-large.png") 24 fill / 10px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(255, 239, 176, 0.42), rgba(109, 58, 11, 0.28)),
+        linear-gradient(180deg, #f2c45f, #a86420);
+    color: #1d0e04;
+    font-size: 13px;
+    font-weight: 1000;
+}
+
+.troy-coin-convert-button:disabled {
+    border-image-source: url("./assets/ui/buttons/button-dark-large.png");
+    color: #bfa97a;
+    filter: saturate(0.75) brightness(0.88);
+}
+
 .troy-menu-board-tabs {
     display: flex;
     gap: 6px;
@@ -4497,30 +4591,6 @@ body.modal-lock .troy-menu-board-order-modal {
     border-color: rgba(251, 191, 36, 0.3);
     background: rgba(120, 53, 15, 0.2);
     color: #fef3c7;
-}
-
-.troy-coin-note-details {
-    margin-top: 8px;
-    border-radius: 10px;
-    border: 1px solid rgba(34, 197, 94, 0.18);
-    background: rgba(20, 83, 45, 0.14);
-}
-
-.troy-coin-note-details summary {
-    padding: 8px 10px;
-    color: #bbf7d0;
-    font-size: 12px;
-    font-weight: 800;
-    cursor: pointer;
-}
-
-.troy-coin-note {
-    margin: 0;
-    padding: 9px 10px;
-    border-top: 1px solid rgba(34, 197, 94, 0.16);
-    color: #bbf7d0;
-    font-size: 12px;
-    line-height: 1.5;
 }
 
 .king-troy-ops-head {

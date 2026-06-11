@@ -143,6 +143,15 @@ function normalizeTroyCoinConversionAmount(value) {
     return amount;
 }
 
+function normalizeTroyCoinReturnAmount(value) {
+    const raw = Number(value);
+    if (!Number.isFinite(raw)) return 0;
+    const amount = Math.floor(raw);
+    if (amount !== raw) return 0;
+    if (amount <= 0 || amount > TROY_COIN_CONVERSION_MAX_AMOUNT) return 0;
+    return amount;
+}
+
 function normalizeRequiredRequestId(value) {
     return String(value || '').trim().slice(0, 120);
 }
@@ -4605,10 +4614,10 @@ function initializeNationRoutes(app, deps) {
 
     app.post('/api/king-troy-return-coin', async (req, res) => {
         const { playFabId, receiverPlayFabId } = req.body || {};
-        const amount = normalizeTroyCoinConversionAmount(req.body?.amount);
+        const amount = normalizeTroyCoinReturnAmount(req.body?.amount);
         const requestId = normalizeRequiredRequestId(req.body?.requestId);
         if (!playFabId || !receiverPlayFabId || amount <= 0) {
-            return res.status(400).json({ error: 'playFabId, receiverPlayFabId and 100G単位の正しい金額が必要です。' });
+            return res.status(400).json({ error: 'playFabId, receiverPlayFabId and 正しい返却金額が必要です。' });
         }
         if (!requestId) {
             return res.status(400).json({ error: 'requestId is required' });
@@ -5357,7 +5366,7 @@ function initializeNationRoutes(app, deps) {
 
         const requestId = String(payload.requestId || '').trim();
         const rawChipReturnAmount = Math.max(0, Math.floor(Number(payload.chipReturnAmount ?? payload.coinDepositAmount) || 0));
-        const chipReturnAmount = rawChipReturnAmount > 0 ? normalizeTroyCoinConversionAmount(rawChipReturnAmount) : 0;
+        const chipReturnAmount = rawChipReturnAmount > 0 ? normalizeTroyCoinReturnAmount(rawChipReturnAmount) : 0;
         if (rawChipReturnAmount > 0 && chipReturnAmount <= 0) {
             const error = new Error('InvalidChipReturnAmount');
             error.statusCode = 400;

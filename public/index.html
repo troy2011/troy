@@ -231,6 +231,17 @@
                             <div class="troy-calendar-meta">入店中はメニューから注文できます</div>
                         </div>
                     </div>
+                    <div id="troyCoinConvertPanel" class="troy-coin-convert-panel" hidden>
+                        <div class="troy-coin-convert-copy">
+                            <div class="troy-coin-convert-title">チップ化</div>
+                            <div class="troy-coin-convert-note">100G単位でスタッフ受け取り用チップにします。</div>
+                        </div>
+                        <div class="troy-coin-convert-controls">
+                            <input id="troyCoinConvertAmount" class="troy-coin-convert-input" type="number" min="100" max="1000000" step="100" inputmode="numeric" placeholder="1000">
+                            <button id="btnTroyCoinConvert" class="troy-coin-convert-button" type="button">チップ化</button>
+                        </div>
+                        <div id="troyCoinConvertMessage" class="troy-coin-convert-message" aria-live="polite"></div>
+                    </div>
                     <div id="troyMenuBoardCategoryTabs" class="troy-menu-board-tabs" role="tablist" aria-label="メニューカテゴリ"></div>
                     <div id="troyMenuBoardList" class="troy-menu-board-list">
                         <div class="troy-calendar-empty">メニューを読み込み中です。</div>
