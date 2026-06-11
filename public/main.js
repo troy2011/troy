@@ -751,6 +751,7 @@ PlayFab.settings.titleId = '1A0BA';
 let homeExplorationButtonBound = false;
 let homeCoinConvertBound = false;
 let homeExplorationPopupObserver = null;
+const HOME_PLUNDER_ENTRY_ENABLED = false;
 
 function revealAppWrapper() {
     document.body?.classList.remove('app-booting');
@@ -813,8 +814,12 @@ function syncHomeExplorationButtonLabel(status = window.__troyStatus) {
     updateHomeCoinConvertPanel(status);
     if (!button) return;
     const isInTroy = isCurrentPlayerInTroyStatus(status);
-    button.textContent = isInTroy ? '略奪に出る' : '探索に出る';
-    button.setAttribute('aria-label', isInTroy ? '略奪に出る' : '探索に出る');
+    const label = isInTroy
+        ? (HOME_PLUNDER_ENTRY_ENABLED ? '略奪に出る' : '略奪準備中')
+        : '探索に出る';
+    button.textContent = label;
+    button.setAttribute('aria-label', label);
+    button.dataset.plunderPaused = isInTroy && !HOME_PLUNDER_ENTRY_ENABLED ? 'true' : 'false';
 }
 
 async function submitHomeCoinConvert(playFabId = window.myPlayFabId) {
@@ -953,6 +958,10 @@ function initHomeExplorationButton() {
     if (!button) return;
     syncHomeExplorationButtonLabel();
     button.addEventListener('click', () => {
+        if (isCurrentPlayerInTroyStatus(window.__troyStatus) && !HOME_PLUNDER_ENTRY_ENABLED) {
+            showRpgMessage('略奪は準備中です。');
+            return;
+        }
         void openHomeExplorationPopup();
     });
     window.addEventListener('troy:status-updated', (event) => {

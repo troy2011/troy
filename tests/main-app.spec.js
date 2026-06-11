@@ -979,7 +979,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
       body: JSON.stringify({
         nation: 'fire',
         isOpen: true,
-        members: [{ playFabId: 'PF_PLAYWRIGHT', displayName: 'Playwright Tester' }]
+        members: []
       })
     });
   });
@@ -1013,7 +1013,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
 
   await bootstrapMainApp(page);
 
-  await expect(page.locator('#btnHomeExploration')).toHaveText('略奪に出る');
+  await expect(page.locator('#btnHomeExploration')).toHaveText('探索に出る');
   await page.locator('#btnHomeExploration').click();
 
   const panel = page.locator('#shipExplorationPanel');
@@ -1042,6 +1042,41 @@ test('home exploration button loads exploration data in a popup', async ({ page 
 
   await panel.locator('[data-home-exploration-close]').click();
   await expect(panel).toBeHidden();
+  await expectNoPageErrors(errors);
+});
+
+test('home plunder route is paused for checked-in customers', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  let explorationStatusRequests = 0;
+  await page.route('**/api/get-troy-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        nation: 'fire',
+        isOpen: true,
+        members: [{ playFabId: 'PF_PLAYWRIGHT', displayName: 'Playwright Tester' }]
+      })
+    });
+  });
+  await page.route('**/api/exploration/status', async (route) => {
+    explorationStatusRequests += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ship: null, active: null, reports: [], destinations: [] })
+    });
+  });
+
+  await bootstrapMainApp(page);
+
+  await expect(page.locator('#btnHomeExploration')).toHaveText('略奪準備中');
+  await expect(page.locator('#btnHomeExploration')).toHaveAttribute('data-plunder-paused', 'true');
+  await page.locator('#btnHomeExploration').click();
+  await expect(page.locator('#shipExplorationPanel')).toBeHidden();
+  await expect(page.locator('.rpg-message-popup')).toContainText('略奪は準備中です。');
+  expect(explorationStatusRequests).toBe(0);
+
   await expectNoPageErrors(errors);
 });
 

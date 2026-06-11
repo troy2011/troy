@@ -19346,6 +19346,13 @@ body[data-sea-tone] .home-hero-card {
     height: 18px;
     flex-basis: 18px;
 }
+
+.home-exploration-btn[data-plunder-paused="true"] {
+    border-image-source: url("./assets/ui/buttons/button-dark-large.png");
+    color: #d8c8a0;
+    filter: saturate(0.82) brightness(0.92);
+}
+
 #btnShowPsRanking { --button-icon: var(--icon-coin-stack); }
 #btnShowDartsRanking { --button-icon: var(--icon-dart); }
 #btnShowKaraokeRanking { --button-icon: var(--icon-microphone); }
