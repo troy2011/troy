@@ -2442,106 +2442,56 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
 
 
     // ★★★ 報酬処理用の非同期関数を追加 ★★★
+    // Battle rewards only move gold. Bounty is calculated elsewhere from the current TROY rules.
     async function handleBattleRewards(battleId, winnerId, loserId, roundKey = null) {
-        console.log(`[報酬処理] 開始。 勝者: ${winnerId}, 敗者: ${loserId}`);
+        console.log(`[battle-reward] start winner=${winnerId} loser=${loserId}`);
         const loserInventory = await getAllInventoryItems(loserId);
         const loserPs = getCurrencyBalanceFromItems(loserInventory, VIRTUAL_CURRENCY_CODE);
-        const loserBounty = getCurrencyBalanceFromItems(loserInventory, 'BT');
         const battleRef = db.ref(`battles/${battleId}`);
-        if (roundKey) {
-            const rewardFlagRef = battleRef.child(`rewardProcessedRounds/${roundKey}`);
-            const rewardLockSnapshot = await rewardFlagRef.transaction(current => {
-                if (current) return;
-                return { at: Date.now(), winnerId, loserId };
-            });
-            if (!rewardLockSnapshot.committed) {
-                console.log(`[報酬処理] 既に処理済みのためスキップ: ${battleId} ${roundKey}`);
-                return;
-            }
-        } else {
-            const rewardFlagRef = battleRef.child('rewardProcessed');
-            const rewardLockSnapshot = await rewardFlagRef.transaction(current => {
-                if (current) return;
-                return { at: Date.now(), winnerId, loserId };
-            });
-            if (!rewardLockSnapshot.committed) {
-                console.log(`[報酬処理] 既に処理済みのためスキップ: ${battleId}`);
-                return;
-            }
+        const rewardFlagRef = roundKey
+            ? battleRef.child(`rewardProcessedRounds/${roundKey}`)
+            : battleRef.child('rewardProcessed');
+        const rewardLockSnapshot = await rewardFlagRef.transaction(current => {
+            if (current) return;
+            return { at: Date.now(), winnerId, loserId };
+        });
+        if (!rewardLockSnapshot.committed) {
+            console.log(`[battle-reward] already processed: ${battleId}${roundKey ? ` ${roundKey}` : ''}`);
+            return;
         }
-        const rewardLogUpdates = {};
 
-        // ★★★ 修正: 奪う金額の計算ロジックを変更 ★★★
-        // 1. 所持金(Ps)の10%～30%を計算
+        const rewardLogUpdates = {};
         const randomRate = Math.random() * (0.3 - 0.1) + 0.1;
         const pointsToSteal = Math.floor(loserPs * randomRate);
 
         if (pointsToSteal <= 0) {
-            console.log('[報酬処理] 奪う金額が0のため、報酬はありません。');
+            console.log('[battle-reward] no gold to steal');
             rewardLogUpdates[`log/${Date.now()}`] = 'しかし、奪えるものが何もなかった！';
             await battleRef.update(rewardLogUpdates);
             return;
         }
 
-        // 敗者から減算
         await economy.subtractEconomyItem(loserId, VIRTUAL_CURRENCY_CODE, pointsToSteal, getEconomyDeps());
-
-
-
-        // ★★★ 修正: 勝者の懸賞金(BT)を奪った額だけ上げ、敗者から同額を減らす ★★★
         await economy.addEconomyItem(winnerId, VIRTUAL_CURRENCY_CODE, pointsToSteal, getEconomyDeps());
-        let bountyTransfer = 0;
-        let bountyTransferFailed = false;
-        if (loserBounty > 0) {
-            bountyTransfer = Math.min(loserBounty, pointsToSteal);
-            if (bountyTransfer > 0) {
-                await economy.subtractEconomyItem(loserId, 'BT', bountyTransfer, getEconomyDeps());
-                try {
-                    await economy.addEconomyItem(winnerId, 'BT', bountyTransfer, getEconomyDeps());
-                } catch (bountyAddError) {
-                    bountyTransferFailed = true;
-                    console.warn('[報酬処理] BT付与に失敗。返金を試みます。', bountyAddError?.errorMessage || bountyAddError?.message || bountyAddError);
-                    try {
-                        await economy.addEconomyItem(loserId, 'BT', bountyTransfer, getEconomyDeps());
-                    } catch (refundError) {
-                        console.warn('[報酬処理] BT返金に失敗。', refundError?.errorMessage || refundError?.message || refundError);
-                    }
-                }
-            }
-        }
 
-        console.log(`[報酬処理] ${winnerId} が ${loserId} から ${pointsToSteal}${VIRTUAL_CURRENCY_CODE} を奪った！`);
-
-        // バトルログに報酬情報を追記
+        console.log(`[battle-reward] ${winnerId} stole ${pointsToSteal}${VIRTUAL_CURRENCY_CODE} from ${loserId}`);
         rewardLogUpdates[`log/${Date.now()}`] = `勝者は ${pointsToSteal}${VIRTUAL_CURRENCY_CODE} を奪った！`;
+        await battleRef.update(rewardLogUpdates);
 
-        // 両者のランキングスコアを更新
         const winnerInventory = await getAllInventoryItems(winnerId);
         const winnerNewBalance = getCurrencyBalanceFromItems(winnerInventory, VIRTUAL_CURRENCY_CODE);
-        const loserNewBalance = loserPs - pointsToSteal;
-        const winnerNewBounty = getCurrencyBalanceFromItems(winnerInventory, 'BT');
-        const loserNewBounty = Math.max(0, loserBounty - bountyTransfer);
-        if (bountyTransfer > 0 && bountyTransfer < pointsToSteal) {
-            rewardLogUpdates[`log/${Date.now()}`] = `懸賞金が不足していたため、BTの移動は${bountyTransfer}に抑えられた。`;
-        }
-        if (bountyTransferFailed) {
-            rewardLogUpdates[`log/${Date.now()}`] = '懸賞金の移動に失敗したため、BTは変動しなかった。';
-        }
-        if (Object.keys(rewardLogUpdates).length > 0) {
-            await battleRef.update(rewardLogUpdates);
-        }
-
-        // ★★★ 修正: Psランキングと懸賞金ランキングを同時に更新 ★★★
-        await _promisifyPlayFab(_PlayFabServer.UpdatePlayerStatistics, { PlayFabId: winnerId, Statistics: [
-            { StatisticName: 'points_ranking', Value: winnerNewBalance },
-            { StatisticName: 'bounty_ranking', Value: winnerNewBounty }
-        ] });
-        await _promisifyPlayFab(_PlayFabServer.UpdatePlayerStatistics, { PlayFabId: loserId, Statistics: [
-            { StatisticName: 'points_ranking', Value: loserNewBalance },
-            { StatisticName: 'bounty_ranking', Value: loserNewBounty }
-        ] });
-        console.log('[報酬処理] 両者のランキングスコアを更新しました。');
+        const loserNewBalance = Math.max(0, loserPs - pointsToSteal);
+        await _promisifyPlayFab(_PlayFabServer.UpdatePlayerStatistics, {
+            PlayFabId: winnerId,
+            Statistics: [{ StatisticName: 'points_ranking', Value: winnerNewBalance }]
+        });
+        await _promisifyPlayFab(_PlayFabServer.UpdatePlayerStatistics, {
+            PlayFabId: loserId,
+            Statistics: [{ StatisticName: 'points_ranking', Value: loserNewBalance }]
+        });
+        console.log('[battle-reward] updated gold ranking only');
     }
+
 }
 
 // ★ v42: 共通関数を exports する
