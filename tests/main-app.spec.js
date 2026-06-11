@@ -1080,7 +1080,10 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
     const shipTopValues = shipSamples.map((sample) => sample.top);
     const shipVerticalDelta = Math.max(...shipTopValues) - Math.min(...shipTopValues);
     const shipFrameCount = new Set(shipSamples.map((sample) => sample.backgroundPosition)).size;
+    sequence.className = 'exploration-sequence-overlay is-boat is-sky-deep is-battle';
+    const battleScene = styleOf('.exploration-sequence-scene');
     sequence.className = 'exploration-sequence-overlay is-boat is-sky-deep is-treasure';
+    const treasureScene = styleOf('.exploration-sequence-scene');
     const treasureAnimationName = window.getComputedStyle(shipElement).animationName;
     const openedDetails = styleOf('.exploration-result-details');
     result.className = 'exploration-result-overlay is-awaiting-open';
@@ -1089,7 +1092,8 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
 
     const output = {
       sequenceDialog: styleOf('.exploration-sequence-dialog'),
-      sequenceScene: styleOf('.exploration-sequence-scene'),
+      sequenceScene: treasureScene,
+      sequenceBattleScene: battleScene,
       sequenceSky: styleOf('.exploration-sequence-sky'),
       sequenceRoute: styleOf('.exploration-sequence-route'),
       sequenceArrival: styleOf('.exploration-sequence-arrival'),
@@ -1118,6 +1122,8 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
 
   expect(audit.sequenceDialog.borderImageSource).toContain('assets/ui/panels/');
   expect(audit.sequenceScene.borderImageSource).toContain('assets/ui/panels/');
+  expect(audit.sequenceScene.backgroundImage).toContain('Sprites/background/sea.webp');
+  expect(audit.sequenceBattleScene.backgroundImage).toContain('Sprites/background/deck.webp');
   expect(audit.sequenceLog.borderImageSource).toContain('assets/ui/panels/');
   expect(audit.sequenceRoute.animationName).toBe('none');
   expect(audit.sequenceRoute.backgroundImage).not.toContain('repeating-linear-gradient');
