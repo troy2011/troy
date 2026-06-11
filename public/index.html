@@ -121,6 +121,23 @@
                         <div class="ship-exploration-empty">探索情報を読み込み中です。</div>
                     </div>
                 </div>
+                <section id="homeCoinConvertPanel" class="content-area home-chip-card home-card" hidden>
+                    <div class="home-card-header">
+                        <span class="home-card-emoji home-chip-card-icon" aria-hidden="true"></span>
+                        <span class="home-card-title">チップ化</span>
+                    </div>
+                    <div class="troy-coin-convert-panel home-coin-convert-panel">
+                        <div class="troy-coin-convert-copy">
+                            <div class="troy-coin-convert-title">ゴールドをチップにする</div>
+                            <div class="troy-coin-convert-note">入店中だけ利用できます。スタッフからチップを受け取ってください。</div>
+                        </div>
+                        <div class="troy-coin-convert-controls">
+                            <input id="homeCoinConvertAmount" class="troy-coin-convert-input" type="number" inputmode="numeric" min="100" step="100" placeholder="金額">
+                            <button id="btnHomeCoinConvert" class="troy-coin-convert-button" type="button">チップ化</button>
+                        </div>
+                        <div id="homeCoinConvertMessage" class="troy-coin-convert-message" aria-live="polite"></div>
+                    </div>
+                </section>
                 <div class="content-area home-qr-card home-card">
                     <div class="home-card-header">
                         <span class="home-card-emoji">▣</span>

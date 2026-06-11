@@ -19,6 +19,7 @@ import { installPlayerProfileInteractions, openPlayerProfile, refreshFavoritePla
 import { showRpgMessage, rpgSay } from './js/rpgMessages.js';
 import {
     ensureAvatarStyleDefaults as requestEnsureAvatarStyleDefaults,
+    convertTroyGoldToCoin,
     getTroyStatus,
     updateAvatarStyle as requestUpdateAvatarStyle
 } from './js/playfabClient.js';
@@ -748,6 +749,7 @@ PlayFab.settings.titleId = '1A0BA';
 // --- 初期化フロー ---
 
 let homeExplorationButtonBound = false;
+let homeCoinConvertBound = false;
 let homeExplorationPopupObserver = null;
 
 function revealAppWrapper() {
@@ -771,12 +773,112 @@ function isCurrentPlayerInTroyStatus(status, playFabId = window.myPlayFabId) {
     return members.some((member) => normalizeHomeTroyPlayFabId(member?.playFabId || member?.id) === target);
 }
 
+function getHomeCoinConvertElements() {
+    return {
+        panel: document.getElementById('homeCoinConvertPanel'),
+        input: document.getElementById('homeCoinConvertAmount'),
+        button: document.getElementById('btnHomeCoinConvert'),
+        message: document.getElementById('homeCoinConvertMessage')
+    };
+}
+
+function normalizeHomeCoinConvertAmount(value) {
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) return 0;
+    if (Math.floor(amount) !== amount) return 0;
+    if (amount <= 0 || amount > 1000000) return 0;
+    if (amount % 100 !== 0) return 0;
+    return amount;
+}
+
+function setHomeCoinConvertMessage(message = '', tone = '') {
+    const { message: messageEl } = getHomeCoinConvertElements();
+    if (!messageEl) return;
+    messageEl.textContent = message;
+    messageEl.dataset.tone = tone || '';
+}
+
+function updateHomeCoinConvertPanel(status = window.__troyStatus) {
+    const { panel, input, button } = getHomeCoinConvertElements();
+    if (!panel) return;
+    const available = isCurrentPlayerInTroyStatus(status);
+    panel.hidden = !available;
+    if (input) input.disabled = !available;
+    if (button) button.disabled = !available;
+    if (!available) setHomeCoinConvertMessage('');
+}
+
 function syncHomeExplorationButtonLabel(status = window.__troyStatus) {
     const button = document.getElementById('btnHomeExploration');
+    updateHomeCoinConvertPanel(status);
     if (!button) return;
     const isInTroy = isCurrentPlayerInTroyStatus(status);
     button.textContent = isInTroy ? '略奪に出る' : '探索に出る';
     button.setAttribute('aria-label', isInTroy ? '略奪に出る' : '探索に出る');
+}
+
+async function submitHomeCoinConvert(playFabId = window.myPlayFabId) {
+    const { input, button } = getHomeCoinConvertElements();
+    if (!button || button.disabled) return;
+    if (!isCurrentPlayerInTroyStatus(window.__troyStatus, playFabId)) {
+        showRpgMessage(window.__troyStatus?.isOpen ? '入店してからチップ化できます。' : 'TROYはCLOSE中です。');
+        updateHomeCoinConvertPanel();
+        return;
+    }
+
+    const amount = normalizeHomeCoinConvertAmount(input?.value);
+    if (!amount) {
+        setHomeCoinConvertMessage('100G単位で入力してください。', 'error');
+        return;
+    }
+
+    const previousText = button.textContent;
+    button.disabled = true;
+    button.textContent = '処理中';
+    setHomeCoinConvertMessage('');
+
+    try {
+        const result = await convertTroyGoldToCoin(
+            playFabId,
+            amount,
+            createRequestId('troy-customer-chip'),
+            { throwOnError: true }
+        );
+        if (Number.isFinite(Number(result?.newBalance))) {
+            const currentPointsEl = document.getElementById('currentPoints');
+            if (currentPointsEl) currentPointsEl.innerText = String(Number(result.newBalance));
+            const globalPointsEl = document.getElementById('globalPoints');
+            if (globalPointsEl) globalPointsEl.innerText = String(Number(result.newBalance));
+        }
+        setHomeCoinConvertMessage(`${amount.toLocaleString('ja-JP')}Gをチップ化しました。スタッフからチップを受け取ってください。`, 'success');
+        showRpgMessage('チップ化しました。スタッフからチップを受け取ってください。');
+    } catch (error) {
+        console.warn('[HomeCoin] Customer chip conversion failed:', error);
+        setHomeCoinConvertMessage(error?.message || 'チップ化に失敗しました。', 'error');
+    } finally {
+        button.disabled = !isCurrentPlayerInTroyStatus(window.__troyStatus, playFabId);
+        button.textContent = previousText || 'チップ化';
+    }
+}
+
+function initHomeCoinConvertPanel() {
+    if (homeCoinConvertBound) return;
+    const { input, button } = getHomeCoinConvertElements();
+    if (!button && !input) return;
+    if (button) {
+        button.addEventListener('click', () => {
+            void submitHomeCoinConvert(window.myPlayFabId);
+        });
+    }
+    if (input) {
+        input.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            void submitHomeCoinConvert(window.myPlayFabId);
+        });
+    }
+    updateHomeCoinConvertPanel();
+    homeCoinConvertBound = true;
 }
 
 async function refreshHomeExplorationButtonLabel(playFabId = window.myPlayFabId) {
@@ -870,6 +972,7 @@ function bindAvatarStyleActionButtons(root = document) {
 document.addEventListener('DOMContentLoaded', () => {
     initHomeSurprises();
     initHomeExplorationButton();
+    initHomeCoinConvertPanel();
     initHomeAvatarStyleModal();
     updateSeaToneByTime();
     initPwaShell();
@@ -1083,6 +1186,7 @@ async function initializeAppFeatures() {
     });
     initMapChat(myPlayFabId);
     initTroyChat(myPlayFabId);
+    initHomeCoinConvertPanel();
 
     // ── バトルルームシート ──────────────────────────────────
     const battleRoomSheet     = document.getElementById('battleRoomSheet');

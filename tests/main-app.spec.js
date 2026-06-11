@@ -130,6 +130,54 @@ test('home tab shows only the latest nation announcement in the top banner panel
   await expectNoPageErrors(errors);
 });
 
+test('home tab lets checked-in customers convert gold to chips', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const coinConvertRequests = [];
+
+  await page.route('**/api/get-troy-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        nation: 'fire',
+        isOpen: true,
+        members: [{ playFabId: 'PF_PLAYWRIGHT', displayName: 'Playwright Tester' }],
+        menuDisabled: [],
+        menuSpecials: [],
+        menuCustomItems: []
+      })
+    });
+  });
+  await page.route('**/api/troy-convert-gold-to-coin', async (route) => {
+    const requestBody = route.request().postDataJSON();
+    coinConvertRequests.push(requestBody);
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ success: true, amount: requestBody.amount, newBalance: 8800 })
+    });
+  });
+
+  await bootstrapMainApp(page);
+
+  await expect(page.locator('#tabContentHome')).toBeVisible();
+  await expect(page.locator('#homeCoinConvertPanel')).toBeVisible();
+  await expect(page.locator('#homeCoinConvertPanel .home-card-emoji')).toHaveCSS('background-image', /046\.png/);
+  await page.locator('#homeCoinConvertAmount').fill('1200');
+  await page.locator('#btnHomeCoinConvert').click();
+
+  await expect.poll(() => coinConvertRequests.length).toBe(1);
+  expect(coinConvertRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    amount: 1200
+  });
+  expect(coinConvertRequests[0].requestId).toMatch(/^troy-customer-chip-/);
+  await expect(page.locator('#homeCoinConvertMessage')).toContainText('1,200Gをチップ化しました');
+  await expect(page.locator('#currentPoints')).toHaveText('8800');
+
+  await expectNoPageErrors(errors);
+});
+
 test('ranking tab shows bounty billiards and game as top category buttons', async ({ page }) => {
   const errors = trackPageErrors(page);
   const storeGameRequests = [];

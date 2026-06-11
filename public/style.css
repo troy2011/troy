@@ -4127,6 +4127,31 @@ body.app-booting .boot-splash {
     display: none;
 }
 
+.home-coin-convert-panel {
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+}
+
+.home-coin-convert-panel .troy-coin-convert-controls {
+    grid-template-columns: minmax(0, 1fr) 96px;
+}
+
+.home-chip-card {
+    display: grid;
+    gap: 10px;
+}
+
+.home-chip-card[hidden] {
+    display: none;
+}
+
+.home-chip-card-icon {
+    width: 26px;
+    height: 26px;
+    background: var(--icon-chip) center / contain no-repeat;
+}
+
 .troy-coin-convert-copy {
     min-width: 0;
 }
@@ -4195,6 +4220,7 @@ body.app-booting .boot-splash {
     color: #1d0e04;
     font-size: 13px;
     font-weight: 1000;
+    white-space: nowrap;
 }
 
 .troy-coin-convert-button:disabled {
@@ -19198,6 +19224,7 @@ body[data-sea-tone] .home-hero-card {
 
 .home-qr-card { --home-card-icon: var(--icon-compass); }
 .home-social-card { --home-card-icon: var(--icon-pirate-flag); }
+.home-chip-card { --home-card-icon: var(--icon-chip); }
 .tarot-game-select-icon,
 #tarotModePoker .tarot-mode-icon,
 #tarotModeSpin .tarot-mode-icon { --home-card-icon: var(--icon-tarot); }
