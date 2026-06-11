@@ -352,16 +352,20 @@ export async function getBountyRanking() {
     const rankingListEl = document.getElementById('bountyRankingList');
     if (!rankingListEl) return;
     rankingListEl.innerHTML = renderRankingState('（懸賞金ランキングを読み込んでいます...）');
-    const data = await fetchBountyRanking();
-    if (data?.ranking) {
-        rankingListEl.innerHTML = renderRankingRows(data.ranking, {
-            emptyMessage: '（まだ懸賞金がありません）',
-            getName: (entry) => entry.displayName || '冒険者',
-            getScore: (entry) => `${formatNumber(entry.bounty ?? entry.score)} ${BOUNTY_UNIT_LABEL}`,
-            getMeta: formatPlayerLevelRankMeta,
-            getPlayerId: (entry) => entry.playFabId || ''
-        });
-        return;
+    try {
+        const data = await fetchBountyRanking();
+        if (data?.ranking) {
+            rankingListEl.innerHTML = renderRankingRows(data.ranking, {
+                emptyMessage: '（まだ懸賞金がありません）',
+                getName: (entry) => entry.displayName || '冒険者',
+                getScore: (entry) => `${formatNumber(entry.bounty ?? entry.score)} ${BOUNTY_UNIT_LABEL}`,
+                getMeta: formatPlayerLevelRankMeta,
+                getPlayerId: (entry) => entry.playFabId || ''
+            });
+            return;
+        }
+    } catch (error) {
+        console.warn('[ranking] bounty ranking load failed:', error?.message || error);
     }
     rankingListEl.innerHTML = renderRankingState('（ランキングを取得できませんでした）');
 }

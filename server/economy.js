@@ -53,6 +53,9 @@ const STORE_GAME_RANKING_STATS = {
         scoreScale: 1000
     }
 };
+
+const TROY_GLOBAL_ROOM_ID = 'global';
+const TROY_BOUNTY_RANKING_MEMBER_LIMIT = 50;
 const NATION_EMOJI_BY_NATION = {
     fire: '🔥',
     water: '💧',
@@ -331,6 +334,52 @@ async function buildPlayerRankingRows(leaderboard, deps, mapEntry) {
     }));
 }
 
+async function buildCalculatedTroyBountyRanking(deps, options = {}) {
+    const { firestore } = deps || {};
+    if (!firestore) return null;
+    const limitRaw = Number.parseInt(String(options.limit || '10'), 10);
+    const limit = Number.isFinite(limitRaw) ? Math.min(50, Math.max(1, limitRaw)) : 10;
+    const { buildTroyBountyRankingRow } = require('./nation');
+    if (typeof buildTroyBountyRankingRow !== 'function') return null;
+
+    const roomRef = firestore.collection('troy_rooms').doc(TROY_GLOBAL_ROOM_ID);
+    const roomSnap = await roomRef.get();
+    const roomData = roomSnap.exists ? (roomSnap.data() || {}) : {};
+    const membersSnap = await roomRef
+        .collection('members')
+        .orderBy('joinedAt', 'asc')
+        .limit(TROY_BOUNTY_RANKING_MEMBER_LIMIT)
+        .get();
+    const rows = await Promise.all(membersSnap.docs.map((doc) => buildTroyBountyRankingRow(doc, deps)));
+    const ranking = rows
+        .filter(Boolean)
+        .sort((a, b) => (
+            (b.bounty - a.bounty)
+            || (b.level - a.level)
+            || (a.joinedAtMs - b.joinedAtMs)
+            || String(a.playFabId || '').localeCompare(String(b.playFabId || ''))
+        ))
+        .slice(0, limit)
+        .map((entry, index) => ({
+            position: index + 1,
+            playFabId: entry.playFabId,
+            displayName: entry.displayName,
+            avatarUrl: entry.avatarUrl,
+            level: entry.level,
+            rankName: entry.rankName,
+            bounty: entry.bounty,
+            score: entry.score
+        }));
+
+    return {
+        scope: 'troy-members',
+        isOpen: !!roomData.isOpen,
+        memberCount: membersSnap.size,
+        updatedAt: Date.now(),
+        ranking
+    };
+}
+
 // APIルートを初期化
 function initializeEconomyRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, getEntityKeyFromPlayFabId, firestore, admin, emitDisplayEvent, requireAuthenticatedPlayFabId } = deps;
@@ -472,6 +521,21 @@ function initializeEconomyRoutes(app, deps) {
     // 懸賞金ランキング取得
     app.post('/api/get-bounty-ranking', async (req, res) => {
         try {
+            try {
+                const calculated = await buildCalculatedTroyBountyRanking({
+                    promisifyPlayFab,
+                    PlayFabServer,
+                    firestore
+                }, {
+                    limit: req.body?.limit || 10
+                });
+                if (calculated) {
+                    return res.json(calculated);
+                }
+            } catch (calculatedError) {
+                console.warn('[get-bounty-ranking] calculated ranking fallback failed:', calculatedError?.errorMessage || calculatedError?.message || calculatedError);
+            }
+
             const result = await promisifyPlayFab(PlayFabServer.GetLeaderboard, {
                 StatisticName: BOUNTY_RANKING_STAT,
                 StartPosition: 0,
@@ -842,5 +906,6 @@ module.exports = {
     getCurrencyBalance,
     transferEconomyItem,
     applyTax,
+    buildCalculatedTroyBountyRanking,
     initializeEconomyRoutes
 };

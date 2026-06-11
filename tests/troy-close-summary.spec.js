@@ -11,6 +11,7 @@ const {
   buildTroyBountyRankingRow,
   formatTroyCloseSummaryMessage
 } = require('../server/nation');
+const { buildCalculatedTroyBountyRanking } = require('../server/economy');
 
 test('formats TROY close summary LINE message with daily sales and pending checkouts', () => {
   expect(normalizeLineUserIdList('U1, U2 U1;U3')).toEqual(['U1', 'U2', 'U3']);
@@ -196,6 +197,75 @@ test('builds TROY bounty ranking from fresh member snapshot when PlayFab stats l
   expect(row.level).toBe(3);
   expect(row.bounty).toBe(9000);
   expect(row.avatarUrl).toBe('https://example.test/avatar.png');
+});
+
+test('builds calculated bounty ranking for get-bounty-ranking fallback', async () => {
+  const memberDocs = [
+    {
+      id: 'PLAYER_LOW',
+      data: () => ({
+        displayName: '低い賞金首',
+        contributionTotal: 800,
+        level: 2,
+        joinedAt: { toMillis: () => 2000 }
+      })
+    },
+    {
+      id: 'PLAYER_HIGH',
+      data: () => ({
+        displayName: '高い賞金首',
+        contributionTotal: 3000,
+        level: 3,
+        joinedAt: { toMillis: () => 1000 }
+      })
+    }
+  ];
+  const firestore = {
+    collection: (name) => {
+      if (name !== 'troy_rooms') {
+        return {
+          doc: () => ({
+            get: async () => ({ exists: false, data: () => ({}) })
+          })
+        };
+      }
+      return {
+        doc: () => ({
+          get: async () => ({ exists: true, data: () => ({ isOpen: true }) }),
+          collection: () => ({
+            orderBy: () => ({
+              limit: () => ({
+                get: async () => ({ size: memberDocs.length, docs: memberDocs })
+              })
+            })
+          })
+        })
+      };
+    }
+  };
+
+  const ranking = await buildCalculatedTroyBountyRanking({
+    firestore,
+    PlayFabServer: {
+      GetPlayerStatistics: () => {},
+      GetPlayerProfile: () => {}
+    },
+    promisifyPlayFab: async (method, request) => {
+      if (String(request?.PlayFabId || '') === 'PLAYER_HIGH' && method.name === 'GetPlayerProfile') {
+        return { PlayerProfile: { DisplayName: '高い賞金首', AvatarUrl: '' } };
+      }
+      if (method.name === 'GetPlayerProfile') {
+        return { PlayerProfile: { DisplayName: '低い賞金首', AvatarUrl: '' } };
+      }
+      return { Statistics: [] };
+    }
+  });
+
+  expect(ranking.scope).toBe('troy-members');
+  expect(ranking.isOpen).toBe(true);
+  expect(ranking.memberCount).toBe(2);
+  expect(ranking.ranking.map((row) => row.playFabId)).toEqual(['PLAYER_HIGH', 'PLAYER_LOW']);
+  expect(ranking.ranking.map((row) => row.bounty)).toEqual([9000, 1600]);
 });
 
 test('builds TROY item and category sales breakdowns from checkout items', () => {
