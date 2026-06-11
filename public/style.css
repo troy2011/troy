@@ -451,7 +451,7 @@ button.home-player-ship-name {
     height: 306px;
     overflow: hidden;
     border: 1px solid transparent;
-    border-image: url("./assets/ui/panels/panel-navy-wide.png") 34 fill / 12px / 0 stretch;
+    border-image: url("./assets/ui/panels/panel-navy-wide.png") 34 / 12px / 0 stretch;
     border-radius: 6px;
     background:
         linear-gradient(180deg, rgba(8, 47, 73, 0.06) 0%, rgba(5, 12, 18, 0.1) 42%, rgba(6, 24, 36, 0.28) 100%),
