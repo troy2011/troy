@@ -1324,19 +1324,26 @@
     </div>
 
     <!-- バトルモーダル -->
-    <div id="battleModal" class="modal-overlay">
-        <div class="modal-content battle-modal-shell" style="background: rgba(17, 24, 39, 0.95);">
-            <div id="battleStage">
+    <div id="battleModal" class="modal-overlay melee-battle-overlay" aria-hidden="true">
+        <div class="modal-content battle-modal-shell melee-battle-shell" role="dialog" aria-modal="true" aria-labelledby="meleeBattleTitle">
+            <div class="melee-battle-header">
+                <div class="melee-battle-title-block">
+                    <div class="melee-battle-kicker">BOARDING BATTLE</div>
+                    <h2 id="meleeBattleTitle">白兵戦</h2>
+                </div>
+                <div class="melee-battle-mode">AUTO</div>
+            </div>
+            <div id="battleStage" class="melee-battle-stage">
                 <!-- 相手 -->
-                <div class="battle-player-area" id="battlePlayerA">
-                    <div class="battle-status-card battle-status-card-enemy" style="background:rgba(255,0,0,0.1); padding:4px; border-radius:4px; width:100%; text-align:center; border:1px solid #ef4444;">
-                        <div id="battlePlayerAName" class="battle-status-name" style="font-size:12px; overflow:hidden; text-overflow:ellipsis;">Enemy</div>
-                        <div class="battle-health-track" style="height:6px; background:#374151; margin-top:2px; border-radius:3px;">
-                            <div id="battlePlayerAHpBar" class="battle-health-fill battle-health-fill-enemy" style="height:100%; width:100%; background:#ef4444; transition:width 0.3s;"></div>
+                <div class="battle-player-area melee-combatant melee-combatant-enemy" id="battlePlayerA">
+                    <div class="battle-status-card battle-status-card-enemy melee-status-card">
+                        <div id="battlePlayerAName" class="battle-status-name">Enemy</div>
+                        <div class="battle-health-track">
+                            <div id="battlePlayerAHpBar" class="battle-health-fill battle-health-fill-enemy"></div>
                         </div>
-                        <div id="battlePlayerAHpText" class="battle-health-text" style="font-size:10px;">-/-</div>
+                        <div id="battlePlayerAHpText" class="battle-health-text">-/-</div>
                     </div>
-                    <div id="battle-avatar-A" class="battle-avatar-container">
+                    <div id="battle-avatar-A" class="battle-avatar-container melee-avatar">
                         <div id="battle-avatar-A-layer-body" class="avatar-layer"></div>
                         <div id="battle-avatar-A-layer-head" class="avatar-layer"></div>
                         <div id="battle-avatar-A-layer-facial-hair" class="avatar-layer"></div>
@@ -1347,22 +1354,22 @@
                         <div id="battle-avatar-A-layer-hand-left" class="avatar-layer"></div>
                         <div id="battle-avatar-A-layer-shield-left" class="avatar-layer"></div>
                     </div>
-                    <div class="battle-atb-track battle-atb-track-enemy" style="height:4px; width:100%; background:#374151; margin-top:5px; border-radius:2px;">
+                    <div class="battle-atb-track battle-atb-track-enemy">
                          <!-- 敵のATBは非表示でもよいが、表示するならここ -->
-                         <div id="battlePlayerAAtbBar" class="battle-atb-fill" style="height:100%; width:0%; background:var(--accent-color);"></div>
+                         <div id="battlePlayerAAtbBar" class="battle-atb-fill"></div>
                     </div>
                 </div>
 
                 <!-- 自分 -->
-                <div class="battle-player-area" id="battlePlayerB">
-                    <div class="battle-status-card battle-status-card-player" style="background:rgba(0,255,0,0.1); padding:4px; border-radius:4px; width:100%; text-align:center; border:1px solid #10b981;">
-                        <div id="battlePlayerBName" class="battle-status-name" style="font-size:12px; overflow:hidden; text-overflow:ellipsis;">You</div>
-                        <div class="battle-health-track" style="height:6px; background:#374151; margin-top:2px; border-radius:3px;">
-                            <div id="battlePlayerBHpBar" class="battle-health-fill battle-health-fill-player" style="height:100%; width:100%; background:#10b981; transition:width 0.3s;"></div>
+                <div class="battle-player-area melee-combatant melee-combatant-player" id="battlePlayerB">
+                    <div class="battle-status-card battle-status-card-player melee-status-card">
+                        <div id="battlePlayerBName" class="battle-status-name">You</div>
+                        <div class="battle-health-track">
+                            <div id="battlePlayerBHpBar" class="battle-health-fill battle-health-fill-player"></div>
                         </div>
-                         <div id="battlePlayerBHpText" class="battle-health-text" style="font-size:10px;">-/-</div>
+                         <div id="battlePlayerBHpText" class="battle-health-text">-/-</div>
                     </div>
-                    <div id="battle-avatar-B" class="battle-avatar-container">
+                    <div id="battle-avatar-B" class="battle-avatar-container melee-avatar">
                         <div id="battle-avatar-B-layer-body" class="avatar-layer"></div>
                         <div id="battle-avatar-B-layer-head" class="avatar-layer"></div>
                         <div id="battle-avatar-B-layer-facial-hair" class="avatar-layer"></div>
@@ -1374,15 +1381,15 @@
                         <div id="battle-avatar-B-layer-shield-left" class="avatar-layer"></div>
                     </div>
                     <!-- 自分のATB -->
-                     <div class="battle-atb-track battle-atb-track-player" style="height:8px; width:100%; background:#374151; margin-top:5px; border-radius:4px; overflow:hidden; border:1px solid #d97706;">
-                         <div id="battlePlayerBAtbBar" class="battle-atb-fill" style="height:100%; width:0%; background:var(--accent-color); transition:width 0.1s linear;"></div>
+                     <div class="battle-atb-track battle-atb-track-player">
+                         <div id="battlePlayerBAtbBar" class="battle-atb-fill"></div>
                     </div>
                 </div>
             </div>
 
-            <div id="battleLogContainer" class="battle-log-shell" style="font-size:12px; color:#ccc;"></div>
-            <div id="battleCommandArea" class="battle-command-shell" style="min-height:50px; display:flex; align-items:center; justify-content:center;">
-                <p class="battle-command-placeholder" style="color:#6b7280; font-size:12px;">準備中...</p>
+            <div id="battleLogContainer" class="battle-log-shell melee-battle-log"></div>
+            <div id="battleCommandArea" class="battle-command-shell melee-battle-command">
+                <p class="battle-command-placeholder">準備中...</p>
             </div>
         </div>
     </div>

@@ -168,6 +168,7 @@ function showBattleModal(battleId) {
     currentBattleId = battleId;
     const battleModal = document.getElementById('battleModal');
     battleModal.style.display = 'flex';
+    battleModal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('modal-lock');
     setBattleActiveWindow(5000);
     clearBattleAutoCloseTimer();
@@ -284,7 +285,10 @@ function closeBattleModalAndHandlePending() {
         battleInterval = null;
     }
     const battleModal = document.getElementById('battleModal');
-    if (battleModal) battleModal.style.display = 'none';
+    if (battleModal) {
+        battleModal.style.display = 'none';
+        battleModal.setAttribute('aria-hidden', 'true');
+    }
     document.body.classList.remove('modal-lock');
     if (Number(window.__battleActiveUntil || 0) <= Date.now()) {
         window.__battleActiveUntil = 0;
@@ -440,7 +444,7 @@ function showBattleResult(commandArea, battleState, myId, myPlayerOnlineRef) {
         clearInterval(battleInterval);
         battleInterval = null;
     }
-    const resultMsg = (battleState.winner === myId) ? '<h3 style="color: gold;">YOU WIN!</h3>' : '<h3 style="color: red;">YOU LOSE...</h3>';
+    const resultMsg = (battleState.winner === myId) ? '<h3 class="battle-result-title battle-result-title-win">YOU WIN!</h3>' : '<h3 class="battle-result-title battle-result-title-lose">YOU LOSE...</h3>';
     commandArea.innerHTML = resultMsg + '<button onclick="returnToMapAfterBattle()">戻る</button>';
     if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
         const msg = (battleState.winner === myId)
@@ -481,7 +485,7 @@ function startBattleLoop(initialBattleState) {
             if (myPlayer && myPlayer.atb >= 100 && !isMyActionReady) {
                 console.log("[Battle Loop] My turn! Preparing to attack.");
                 isMyActionReady = true; // 行動開始フラグ
-                document.getElementById('battleCommandArea').innerHTML = '<p style="color: gold;">ACTION!</p>';
+                document.getElementById('battleCommandArea').innerHTML = '<p class="battle-action-callout">ACTION!</p>';
                 
                 await sendBattleAction('attack', battleDependencies.callApiWithLoader);
                 

@@ -2909,42 +2909,6 @@ body.modal-lock .modal-overlay {
 }
 
 /* バトル画面調整 */
-#battleModal .modal-content {
-    width: 100%;
-    height: 100%;
-    max-width: none;
-    border-radius: 0;
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-}
-
-#battleStage {
-    flex-grow: 1;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px;
-    position: relative;
-}
-
-.battle-player-area {
-    width: 45%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    z-index: 2;
-}
-
-.battle-avatar-container {
-    width: 80px;
-    height: 80px;
-    position: relative;
-    transform: scale(1.5);
-    margin: 20px 0;
-    image-rendering: pixelated;
-}
-
 /* 順位切り替えボタン */
 #rankingToggleButtons {
     display: flex;
@@ -11062,52 +11026,144 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     border: 1px solid rgba(148, 163, 184, 0.16);
 }
 
-#battleModal {
-    align-items: stretch;
-}
-
-#battleModal .battle-modal-shell {
-    gap: 10px;
-    padding: calc(10px + var(--safe-top)) 10px calc(12px + var(--safe-bottom));
+#battleModal.melee-battle-overlay {
+    align-items: center;
+    justify-content: center;
+    padding: calc(10px + var(--safe-top)) 10px calc(10px + var(--safe-bottom));
     background:
-        linear-gradient(180deg, rgba(7, 13, 24, 0.98), rgba(17, 24, 39, 1)),
-        radial-gradient(120% 120% at 50% 0%, rgba(59, 130, 246, 0.12), transparent 44%);
+        linear-gradient(180deg, rgba(5, 8, 14, 0.9), rgba(2, 6, 12, 0.96)),
+        radial-gradient(circle at 50% 38%, rgba(248, 197, 94, 0.16), transparent 42%);
 }
 
-#battleStage {
+#battleModal .melee-battle-shell {
+    width: min(94vw, 560px);
+    max-width: 560px;
+    max-height: min(92dvh, 760px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 18px;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 14px / 0 stretch;
+    border-radius: 0;
+    color: #f8fafc;
+    box-shadow: 0 22px 54px rgba(0, 0, 0, 0.56);
+}
+
+.melee-battle-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 50px;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark-wide.png") 34 fill / 11px / 0 stretch;
+}
+
+.melee-battle-kicker {
+    color: #f8d888;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+}
+
+.melee-battle-title-block h2 {
+    margin: 0;
+    color: #fff7d6;
+    font-size: 22px;
+    line-height: 1.1;
+    letter-spacing: 0;
+}
+
+.melee-battle-mode {
     flex: 0 0 auto;
-    min-height: 42dvh;
-    padding: 8px 4px 2px;
+    min-width: 58px;
+    padding: 7px 9px;
+    text-align: center;
+    color: #27160b;
+    font-size: 11px;
+    font-weight: 900;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/buttons/button-gold-large.png") 24 fill / 9px / 0 stretch;
+}
+
+#battleStage.melee-battle-stage {
+    flex: 0 0 auto;
+    min-height: clamp(230px, 39dvh, 330px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+    align-items: stretch;
+    padding: 0;
+    position: relative;
+}
+
+#battleStage.melee-battle-stage::before {
+    content: 'VS';
+    position: absolute;
+    left: 50%;
+    top: 47%;
+    z-index: 4;
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    transform: translate(-50%, -50%);
+    color: #27160b;
+    font-size: 13px;
+    font-weight: 1000;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/buttons/button-gold-large.png") 24 fill / 10px / 0 stretch;
+    pointer-events: none;
+}
+
+.battle-player-area.melee-combatant {
+    width: auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
     gap: 8px;
-    align-items: flex-end;
+    padding: 12px 10px 10px;
+    z-index: 2;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 9px / 0 stretch;
 }
 
-.battle-player-area {
-    width: calc(50% - 4px);
+.battle-avatar-container.melee-avatar {
+    width: 96px;
+    height: 112px;
+    position: relative;
+    margin: 2px 0 8px;
+    transform: none;
+    transform-origin: center center;
+    image-rendering: pixelated;
 }
 
-.battle-avatar-container {
-    margin: 16px 0 12px;
-    transform: scale(1.35);
-}
-
-#battleLogContainer {
+#battleLogContainer.melee-battle-log {
     flex: 1 1 auto;
-    min-height: 160px;
-    max-height: 30dvh;
+    min-height: 118px;
+    max-height: 24dvh;
     overflow: auto;
-    padding: 10px 12px 14px;
-    border-radius: 16px;
-    background: rgba(8, 15, 28, 0.88);
-    border: 1px solid rgba(148, 163, 184, 0.16);
+    padding: 30px 12px 12px;
+    color: #e8edf4;
+    font-size: 12px;
+    line-height: 1.45;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark-wide.png") 34 fill / 12px / 0 stretch;
 }
 
-#battleCommandArea {
-    min-height: 70px;
+#battleCommandArea.melee-battle-command {
+    min-height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 10px 12px;
-    border-radius: 16px;
-    background: rgba(8, 15, 28, 0.92);
-    border: 1px solid rgba(148, 163, 184, 0.14);
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark-wide.png") 34 fill / 12px / 0 stretch;
 }
 
 .island-command-panel {
@@ -12677,37 +12733,56 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 }
 
 .battle-status-card {
-    padding: 8px 8px 6px !important;
-    border-radius: 14px !important;
-    background: rgba(15, 23, 42, 0.82) !important;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    width: 100%;
+    min-width: 0;
+    padding: 8px 9px 7px;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark-wide.png") 34 fill / 9px / 0 stretch;
+    background: transparent;
+    box-shadow: none;
 }
 
 .battle-status-card-enemy {
-    border-color: rgba(239, 68, 68, 0.55) !important;
+    --battle-side-color: #ef8d7f;
 }
 
 .battle-status-card-player {
-    border-color: rgba(16, 185, 129, 0.55) !important;
+    --battle-side-color: #8ee6b7;
 }
 
 .battle-status-name {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    text-align: center;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 900;
     color: #f8fafc;
 }
 
 .battle-health-track {
+    width: 100%;
+    height: 8px;
+    margin-top: 6px;
     overflow: hidden;
-    border-radius: 999px !important;
-    background: rgba(51, 65, 85, 0.92) !important;
+    border-radius: 999px;
+    background: rgba(9, 15, 24, 0.86);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .battle-health-fill {
+    height: 100%;
+    width: 100%;
     border-radius: inherit;
+    transition: width 0.3s ease;
+}
+
+.battle-health-fill-enemy {
+    background: linear-gradient(90deg, #b74135, #ef8d7f);
+}
+
+.battle-health-fill-player {
+    background: linear-gradient(90deg, #188f5a, #8ee6b7);
 }
 
 .battle-health-text {
@@ -12718,13 +12793,20 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 }
 
 .battle-atb-track {
-    border-radius: 999px !important;
-    background: rgba(51, 65, 85, 0.9) !important;
+    width: 100%;
+    height: 7px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(9, 15, 24, 0.88);
+    border: 1px solid rgba(248, 216, 136, 0.18);
 }
 
 .battle-atb-fill {
+    height: 100%;
+    width: 0%;
     border-radius: inherit;
-    background: linear-gradient(90deg, rgba(245, 158, 11, 0.96), rgba(251, 191, 36, 0.96)) !important;
+    background: linear-gradient(90deg, #d18b2c, #f8d888);
+    transition: width 0.1s linear;
 }
 
 .battle-log-shell {
@@ -12735,11 +12817,11 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     content: 'BATTLE LOG';
     position: absolute;
     left: 12px;
-    top: 8px;
+    top: 10px;
     font-size: 10px;
     font-weight: 900;
-    letter-spacing: 0.14em;
-    color: #94a3b8;
+    letter-spacing: 0.08em;
+    color: #f8d888;
 }
 
 .battle-command-shell {
@@ -12748,7 +12830,69 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 
 .battle-command-placeholder {
     margin: 0;
-    color: #94a3b8 !important;
+    color: #d7e1ed !important;
+    font-size: 12px !important;
+    font-weight: 800;
+}
+
+.battle-action-callout {
+    margin: 0;
+    color: #f8d888;
+    font-size: 18px;
+    font-weight: 1000;
+    letter-spacing: 0.05em;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.battle-result-title {
+    margin: 0 0 8px;
+    font-size: 22px;
+    font-weight: 1000;
+    letter-spacing: 0.04em;
+    text-align: center;
+}
+
+.battle-result-title-win {
+    color: #f8d888;
+}
+
+.battle-result-title-lose {
+    color: #ef8d7f;
+}
+
+#battleCommandArea button {
+    min-width: 120px;
+    min-height: 40px;
+    padding: 8px 18px;
+    color: #27160b;
+    font-size: 14px;
+    font-weight: 900;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/buttons/button-gold-large.png") 24 fill / 10px / 0 stretch;
+    background: transparent;
+    box-shadow: none;
+}
+
+@media (max-width: 420px) {
+    #battleModal .melee-battle-shell {
+        width: 96vw;
+        padding: 14px;
+        gap: 8px;
+    }
+
+    #battleStage.melee-battle-stage {
+        min-height: 222px;
+        gap: 7px;
+    }
+
+    .battle-player-area.melee-combatant {
+        padding-inline: 7px;
+    }
+
+    .battle-avatar-container.melee-avatar {
+        width: 88px;
+        height: 104px;
+    }
 }
 
 @media (max-width: 640px) {
