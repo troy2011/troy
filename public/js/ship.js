@@ -30,6 +30,8 @@ import { createRequestId } from './api.js';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { formatCurrencyLabel } from './config.js';
 import * as Player from './player.js';
+import * as Inventory from './inventory.js';
+import { buildAvatarLayerMarkup, renderAvatar, triggerAvatarAttackMotion } from './avatar.js';
 
 class LRUCache {
     constructor(maxSize = 100) {
@@ -1604,6 +1606,29 @@ function renderExplorationRewardChests(count) {
     return '<span class="exploration-sequence-mini-chest" style="--i:0;"></span>';
 }
 
+const EXPLORATION_BATTLE_AVATAR_PREFIX = 'exploration-battle-avatar';
+
+function renderExplorationBattleAvatarMarkup() {
+    return `
+        <div id="${EXPLORATION_BATTLE_AVATAR_PREFIX}" class="exploration-sequence-avatar avatar-combat-actor" aria-hidden="true">
+            ${buildAvatarLayerMarkup(EXPLORATION_BATTLE_AVATAR_PREFIX)}
+        </div>
+    `;
+}
+
+function renderCurrentExplorationBattleAvatar() {
+    const avatarBase = window.myAvatarBaseInfo || { Race: 'human', SkinColorIndex: 1, AvatarColor: 'brown' };
+    let equipment = {};
+    let itemSource = {};
+    try {
+        equipment = Inventory.getMyCurrentEquipment?.() || {};
+        itemSource = Inventory.getMyInventory?.() || {};
+    } catch (error) {
+        console.warn('[exploration] failed to read current avatar equipment:', error);
+    }
+    renderAvatar(EXPLORATION_BATTLE_AVATAR_PREFIX, avatarBase, equipment, itemSource, false);
+}
+
 function getExplorationBattleLogLines(report) {
     return String(report?.bossLog || '')
         .split('\n')
@@ -1839,6 +1864,7 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
                     ${renderExplorationBossImage(bossSprite, 'exploration-sequence-boss-image', { decorative: true })}
                     <small>BOSS</small>
                 </div>
+                ${renderExplorationBattleAvatarMarkup()}
                 <div class="exploration-sequence-ship-effect" aria-hidden="true"></div>
                 <div class="exploration-sequence-ship is-${form}" data-guild-sail-color="${escapeHtml(guildSailColor)}" aria-hidden="true">${guildLayers}</div>
                 <div class="exploration-sequence-chests" aria-hidden="true">${renderExplorationRewardChests(rewardCount)}</div>
@@ -1852,11 +1878,13 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
     `;
     document.body.appendChild(overlay);
     applyPlayerShipFrameDirection(overlay.querySelector('.exploration-sequence-ship'), form === 'guild' ? 'guild-right' : 'row2-a');
+    renderCurrentExplorationBattleAvatar();
     homeFrame?.classList.add('is-exploring');
     homeIcon?.classList.add('is-exploring-sail');
 
     const label = overlay.querySelector('[data-exploration-sequence-label]');
     const logBox = overlay.querySelector('.exploration-sequence-log');
+    const battleAvatar = overlay.querySelector(`#${EXPLORATION_BATTLE_AVATAR_PREFIX}`);
     const setPhase = (phase, text) => {
         overlay.className = `exploration-sequence-overlay is-${form} ${shipTrait.className} is-sky-${destinationVisual.sky} is-boss-${bossTierKey} is-${phase} is-result-${bossResult}`;
         if (label) label.textContent = text;
@@ -1875,8 +1903,10 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
     setPhase('left', '上陸地点へ直進');
     await wait(640);
     setPhase('battle', bossResult === 'none' ? 'BOSSの気配を回避' : `${bossTierLabel ? `${bossTierLabel}BOSS` : 'BOSS'}「${report.bossName || '???'}」と交戦`);
+    triggerAvatarAttackMotion(battleAvatar, { direction: 'left', duration: 520 });
     setBattleLog(2);
     await wait(420);
+    triggerAvatarAttackMotion(battleAvatar, { direction: 'left', duration: 520 });
     setBattleLog(4);
     await wait(820);
     setPhase('treasure', rewardCount > 0 ? `宝箱${rewardCount}個を発見` : 'お宝は見つからなかった');

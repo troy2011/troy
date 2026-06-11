@@ -1014,6 +1014,8 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
           <div class="exploration-sequence-route"></div>
           <div class="exploration-sequence-arrival"></div>
           <div class="exploration-sequence-island">🏝️</div>
+          <div class="exploration-sequence-boss"><img class="exploration-boss-image exploration-sequence-boss-image" src="./Sprites/monsters/ghost_pirate.png" alt="boss"><small>BOSS</small></div>
+          <div class="exploration-sequence-avatar avatar-combat-actor"></div>
           <div class="exploration-sequence-ship is-boat"></div>
           <div class="exploration-sequence-chests"><span class="exploration-sequence-mini-chest"></span></div>
           <div class="exploration-sequence-log"><div>log</div></div>
@@ -1081,7 +1083,15 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
     const shipVerticalDelta = Math.max(...shipTopValues) - Math.min(...shipTopValues);
     const shipFrameCount = new Set(shipSamples.map((sample) => sample.backgroundPosition)).size;
     sequence.className = 'exploration-sequence-overlay is-boat is-sky-deep is-battle';
+    const battleAvatarElement = sequence.querySelector('.exploration-sequence-avatar');
+    battleAvatarElement.classList.add('is-avatar-attacking', 'is-avatar-attack-left');
     const battleScene = styleOf('.exploration-sequence-scene');
+    const battleShip = styleOf('.exploration-sequence-ship');
+    const battleAvatar = styleOf('.exploration-sequence-avatar');
+    const battleRoute = styleOf('.exploration-sequence-route');
+    const battleIsland = styleOf('.exploration-sequence-island');
+    const battleBossRect = sequence.querySelector('.exploration-sequence-boss').getBoundingClientRect();
+    const battleAvatarRect = battleAvatarElement.getBoundingClientRect();
     sequence.className = 'exploration-sequence-overlay is-boat is-sky-deep is-treasure';
     const treasureScene = styleOf('.exploration-sequence-scene');
     const treasureAnimationName = window.getComputedStyle(shipElement).animationName;
@@ -1094,6 +1104,12 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
       sequenceDialog: styleOf('.exploration-sequence-dialog'),
       sequenceScene: treasureScene,
       sequenceBattleScene: battleScene,
+      sequenceBattleShip: battleShip,
+      sequenceBattleAvatar: battleAvatar,
+      sequenceBattleRoute: battleRoute,
+      sequenceBattleIsland: battleIsland,
+      sequenceBattleBossLeft: battleBossRect.left,
+      sequenceBattleAvatarLeft: battleAvatarRect.left,
       sequenceSky: styleOf('.exploration-sequence-sky'),
       sequenceRoute: styleOf('.exploration-sequence-route'),
       sequenceArrival: styleOf('.exploration-sequence-arrival'),
@@ -1124,6 +1140,13 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(audit.sequenceScene.borderImageSource).toContain('assets/ui/panels/');
   expect(audit.sequenceScene.backgroundImage).toContain('Sprites/background/sea.webp');
   expect(audit.sequenceBattleScene.backgroundImage).toContain('Sprites/background/deck.webp');
+  expect(audit.sequenceBattleShip.opacity).toBe('0');
+  expect(audit.sequenceBattleShip.animationName).toBe('none');
+  expect(audit.sequenceBattleAvatar.opacity).toBe('1');
+  expect(audit.sequenceBattleAvatar.animationName).toContain('avatarCombatAttack');
+  expect(audit.sequenceBattleRoute.opacity).toBe('0');
+  expect(audit.sequenceBattleIsland.opacity).toBe('0');
+  expect(audit.sequenceBattleBossLeft).toBeLessThan(audit.sequenceBattleAvatarLeft);
   expect(audit.sequenceLog.borderImageSource).toContain('assets/ui/panels/');
   expect(audit.sequenceRoute.animationName).toBe('none');
   expect(audit.sequenceRoute.backgroundImage).not.toContain('repeating-linear-gradient');

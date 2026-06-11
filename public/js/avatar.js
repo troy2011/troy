@@ -4,6 +4,54 @@ import { AVATAR_PART_OFFSETS } from './config.js';
 import { buildTarotCardMeta } from './tarotCards.js';
 import { FEATURE_UNLOCK_LEVELS } from './featureUnlocks.js';
 
+const AVATAR_LAYER_NAMES = Object.freeze([
+    'body',
+    'head',
+    'facial-hair',
+    'hair',
+    'armor',
+    'hand-right',
+    'weapon-right',
+    'hand-left',
+    'shield-left'
+]);
+
+export function buildAvatarLayerMarkup(prefix) {
+    return AVATAR_LAYER_NAMES
+        .map((name) => `<div id="${prefix}-layer-${name}" class="avatar-layer"></div>`)
+        .join('');
+}
+
+export function triggerAvatarAttackMotion(target, options = {}) {
+    const element = typeof target === 'string' ? document.getElementById(target) : target;
+    if (!element) return Promise.resolve(false);
+    const direction = options.direction === 'right' ? 'right' : 'left';
+    const duration = Math.max(120, Number(options.duration || 520) || 520);
+    const token = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    element.dataset.avatarAttackToken = token;
+    element.classList.remove('is-avatar-attacking', 'is-avatar-attack-left', 'is-avatar-attack-right');
+    void element.offsetWidth;
+    element.style.setProperty('--avatar-attack-duration', `${duration}ms`);
+    element.classList.add('is-avatar-attacking', `is-avatar-attack-${direction}`);
+    return new Promise((resolve) => {
+        let finished = false;
+        const finish = () => {
+            if (finished) return;
+            finished = true;
+            element.removeEventListener('animationend', finish);
+            if (element.dataset.avatarAttackToken !== token) {
+                resolve(false);
+                return;
+            }
+            delete element.dataset.avatarAttackToken;
+            element.classList.remove('is-avatar-attacking', 'is-avatar-attack-left', 'is-avatar-attack-right');
+            resolve(true);
+        };
+        element.addEventListener('animationend', finish, { once: true });
+        window.setTimeout(finish, duration + 80);
+    });
+}
+
 const spritePromiseCache = new Map();
 const ITEM_SPRITE_PRESETS = Object.freeze([
     { idPrefixes: ['accessory_', 'offhand_'], path: './Sprites/items/icons.png', width: 16, height: 16, cols: 16, twoHanded: false },

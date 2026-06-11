@@ -644,6 +644,27 @@ button.home-player-ship-name {
     line-height: 1;
 }
 
+.exploration-sequence-avatar {
+    --avatar-attack-x: -48px;
+    --avatar-attack-recoil-x: -34px;
+    --avatar-attack-y: 0px;
+    --avatar-combat-scale: 2.05;
+    --avatar-combat-scale-hit: 2.14;
+    --avatar-facing-scale-x: -1;
+    --avatar-slash-left: -30px;
+    --avatar-slash-top: 8px;
+    position: absolute;
+    right: 86px;
+    bottom: 70px;
+    width: 64px;
+    height: 64px;
+    z-index: 6;
+    opacity: 0;
+    image-rendering: pixelated;
+    pointer-events: none;
+    filter: drop-shadow(0 14px 12px rgba(0, 0, 0, 0.44));
+}
+
 .exploration-sequence-overlay.is-boss-weak .exploration-sequence-boss small {
     border-color: rgba(134, 239, 172, 0.76);
     background: rgba(20, 83, 45, 0.84);
@@ -819,18 +840,37 @@ button.home-player-ship-name {
     transform: scaleX(1);
 }
 
+.exploration-sequence-overlay.is-battle .exploration-sequence-horizon,
+.exploration-sequence-overlay.is-battle .exploration-sequence-route,
+.exploration-sequence-overlay.is-battle .exploration-sequence-arrival,
+.exploration-sequence-overlay.is-battle .exploration-sequence-island {
+    opacity: 0 !important;
+    transition: none;
+}
+
 .exploration-sequence-overlay.is-battle .exploration-sequence-ship {
-    left: 214px;
-    bottom: 64px;
-    animation:
-        explorationSequenceBattle 150ms ease-in-out infinite,
-        homePlayerShipFrameStep 300ms steps(3) infinite;
+    opacity: 0;
+    animation: none !important;
 }
 
 .exploration-sequence-overlay.is-battle .exploration-sequence-boss {
+    left: 42px;
+    right: auto;
+    bottom: 74px;
+    width: 112px;
+    height: 134px;
     opacity: 1;
     transform: scale(1);
     animation: explorationSequenceBoss 300ms ease-in-out infinite;
+}
+
+.exploration-sequence-overlay.is-battle .exploration-sequence-avatar {
+    opacity: 1;
+}
+
+.exploration-sequence-overlay.is-battle .exploration-sequence-ship-effect {
+    left: 260px;
+    bottom: 90px;
 }
 
 .exploration-sequence-overlay.is-battle.is-result-none .exploration-sequence-boss {
@@ -843,16 +883,14 @@ button.home-player-ship-name {
 }
 
 .exploration-sequence-overlay.is-battle.is-result-defeat .exploration-sequence-ship {
-    animation:
-        explorationSequenceShipDefeat 320ms ease-in-out infinite,
-        homePlayerShipFrameStep 300ms steps(3) infinite;
+    opacity: 0;
+    animation: none !important;
 }
 
 .exploration-sequence-overlay.is-battle.is-result-escaped .exploration-sequence-ship,
 .exploration-sequence-overlay.is-battle.is-result-draw .exploration-sequence-ship {
-    animation:
-        explorationSequenceLeft 900ms linear forwards,
-        homePlayerShipFrameStep 300ms steps(3) infinite;
+    opacity: 0;
+    animation: none !important;
 }
 
 .exploration-sequence-overlay.is-battle.is-defender-run .exploration-sequence-ship-effect {
@@ -1002,6 +1040,33 @@ button.home-player-ship-name {
 @keyframes explorationSequenceBattle {
     0%, 100% { transform: translateX(0) scale(1.8); }
     50% { transform: translateX(4px) scale(1.8); }
+}
+
+@keyframes avatarCombatAttack {
+    0%, 100% {
+        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    38% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x))) translateY(calc(var(--avatar-attack-y) - 3px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    54% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-recoil-x))) translateY(calc(var(--avatar-attack-y) - 1px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+}
+
+@keyframes avatarCombatSlash {
+    0%, 24%, 100% {
+        opacity: 0;
+        transform: rotate(-24deg) translateX(0) scale(0.42);
+    }
+    42% {
+        opacity: 1;
+        transform: rotate(-24deg) translateX(-10px) scale(1);
+    }
+    62% {
+        opacity: 0;
+        transform: rotate(-24deg) translateX(-18px) scale(1.12);
+    }
 }
 
 @keyframes explorationSequenceBoss {
@@ -2312,6 +2377,50 @@ button.home-player-ship-name {
     width: 100%;
     height: 100%;
     background-repeat: no-repeat;
+}
+
+.avatar-combat-actor {
+    --avatar-attack-duration: 520ms;
+    --avatar-attack-start-x: 0px;
+    --avatar-attack-x: -34px;
+    --avatar-attack-recoil-x: -24px;
+    --avatar-attack-y: 0px;
+    --avatar-combat-scale: 1;
+    --avatar-combat-scale-hit: var(--avatar-combat-scale);
+    --avatar-facing-scale-x: 1;
+    --avatar-slash-left: -26px;
+    --avatar-slash-top: 10px;
+    transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    transform-origin: center bottom;
+}
+
+.avatar-combat-actor.is-avatar-attack-right {
+    --avatar-attack-x: 34px;
+    --avatar-attack-recoil-x: 24px;
+}
+
+.avatar-combat-actor.is-avatar-attacking {
+    animation: avatarCombatAttack var(--avatar-attack-duration) cubic-bezier(0.2, 0.76, 0.24, 1) both;
+}
+
+.avatar-combat-actor::after {
+    content: "";
+    position: absolute;
+    left: var(--avatar-slash-left);
+    top: var(--avatar-slash-top);
+    width: 48px;
+    height: 34px;
+    opacity: 0;
+    pointer-events: none;
+    border-top: 3px solid rgba(254, 243, 199, 0.95);
+    border-right: 2px solid rgba(251, 191, 36, 0.72);
+    border-radius: 50%;
+    filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.82));
+    transform: rotate(-24deg) scale(0.5);
+}
+
+.avatar-combat-actor.is-avatar-attacking::after {
+    animation: avatarCombatSlash var(--avatar-attack-duration) ease-out both;
 }
 
 .inventory-loadout-stats {
