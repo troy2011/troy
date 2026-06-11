@@ -1839,6 +1839,90 @@ test('king page shows TROY entry QR from priority controls', async ({ page }) =>
   await expectNoPageErrors(errors);
 });
 
+test('king calendar panel shows reservation review actions', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const reviewRequests = [];
+  let reservationStatus = 'pending';
+
+  await bootstrapMainApp(page);
+  await page.unroute('**/api/get-nation-king-page');
+  await page.route('**/api/get-nation-king-page', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        nation: 'fire',
+        troyOpen: false,
+        troyMembers: [],
+        announcement: { message: 'Map systems nominal' }
+      })
+    });
+  });
+  await page.route('**/api/troy-calendar/list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ calendar: [] })
+    });
+  });
+  await page.route('**/api/reservations/list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        isKing: true,
+        reservations: [{
+          id: 'RESERVE1',
+          startsAtMs: Date.parse('2026-06-15T21:00:00+09:00'),
+          partySize: 4,
+          purpose: 'visit',
+          purposeLabel: '来店',
+          status: reservationStatus,
+          displayName: '予約太郎',
+          note: '奥の席希望',
+          canReview: reservationStatus === 'pending'
+        }]
+      })
+    });
+  });
+  await page.route('**/api/reservations/review', async (route) => {
+    const body = route.request().postDataJSON();
+    reviewRequests.push(body);
+    reservationStatus = body.approve ? 'approved' : 'rejected';
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ success: true })
+    });
+  });
+
+  await page.evaluate(async () => {
+    const king = await import('/js/nationKing.js');
+    await king.refreshKingNav('PF_PLAYWRIGHT');
+    await window.showTab('king', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
+  });
+
+  await page.locator('[data-king-section-tab="calendar"]').click();
+  const reservationPanel = page.locator('#kingTroyReservationMount');
+  await expect(reservationPanel).toBeVisible();
+  await expect(reservationPanel).toContainText('予約申請');
+  await expect(reservationPanel).toContainText('予約太郎');
+  await expect(reservationPanel).toContainText('奥の席希望');
+  await expect(reservationPanel.locator('[data-reservation-review="RESERVE1"][data-reservation-approve="true"]')).toBeVisible();
+
+  await reservationPanel.locator('[data-reservation-review="RESERVE1"][data-reservation-approve="true"]').click();
+  await expect.poll(() => reviewRequests.length).toBe(1);
+  expect(reviewRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    reservationId: 'RESERVE1',
+    approve: true
+  });
+  await expect(reservationPanel).toContainText('承認済み');
+  await expect(reservationPanel.locator('[data-reservation-review="RESERVE1"]')).toHaveCount(0);
+
+  await expectNoPageErrors(errors);
+});
+
 test('king store game scoring saves from each in-store customer row', async ({ page }) => {
   const errors = trackPageErrors(page);
   const scoreRequests = [];

@@ -303,7 +303,7 @@ async function notifyReservationRequestToKing(reservation, deps) {
             `用途: ${getReservationPurposeLabel(reservation)}`,
             `申請者: ${reservation.displayName || reservation.playFabId}`,
             reservation.note ? `メモ: ${reservation.note}` : '',
-            'イベントタブで承認/却下してください。'
+            '王タブのカレンダーで承認/却下してください。'
         ].filter(Boolean).join('\n');
         await lineClient.pushMessage(kingLineUserId, { type: 'text', text: message });
     } catch (error) {

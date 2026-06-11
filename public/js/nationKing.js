@@ -12,6 +12,8 @@ import {
     kingUpdateStoreGameScore,
     setTroyOpen,
     kingUpdateMenu,
+    getReservations,
+    reviewReservation,
     getTroyCalendar,
     saveTroyCalendarEntry,
     deleteTroyCalendarEntry
@@ -201,6 +203,73 @@ function _calendarStatusLabel(status) {
     }
 }
 
+function _reservationStatusLabel(status) {
+    switch (String(status || '').toLowerCase()) {
+        case 'approved': return '承認済み';
+        case 'rejected': return '却下';
+        case 'cancelled': return 'キャンセル';
+        default: return '申請中';
+    }
+}
+
+function _formatReservationDate(ms) {
+    const value = Number(ms || 0);
+    if (!value) return '-';
+    return new Intl.DateTimeFormat('ja-JP', {
+        month: 'numeric',
+        day: 'numeric',
+        weekday: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).format(new Date(value));
+}
+
+function _renderKingReservations(reservations = []) {
+    const mount = document.getElementById('kingTroyReservationMount');
+    if (!mount) return;
+    const rows = Array.isArray(reservations) ? reservations : [];
+    const activeRows = rows
+        .filter((reservation) => ['pending', 'approved'].includes(String(reservation?.status || 'pending')))
+        .sort((a, b) => {
+            const statusWeight = (status) => (String(status || 'pending') === 'pending' ? 0 : 1);
+            const diff = statusWeight(a.status) - statusWeight(b.status);
+            if (diff) return diff;
+            return Number(a.startsAtMs || 0) - Number(b.startsAtMs || 0);
+        });
+
+    mount.innerHTML = `
+        <div class="troy-admin-label">予約申請</div>
+        <div class="troy-admin-help">LINEで届いた店舗予約はここで承認または却下できます。</div>
+        <div class="king-reservation-list">
+            ${activeRows.length ? activeRows.map((reservation) => {
+                const status = String(reservation?.status || 'pending').toLowerCase();
+                const canReview = !!reservation?.canReview;
+                const purpose = String(reservation?.purposeLabel || reservation?.purpose || '予約').trim();
+                return `
+                    <div class="king-reservation-card is-${_escapeHtml(status)}" data-reservation-id="${_escapeHtml(reservation.id)}">
+                        <div class="king-reservation-head">
+                            <strong>${_escapeHtml(_formatReservationDate(reservation.startsAtMs))}</strong>
+                            <span class="king-reservation-status">${_escapeHtml(_reservationStatusLabel(status))}</span>
+                        </div>
+                        <div class="king-reservation-meta">
+                            <span>申請者: ${_escapeHtml(reservation.displayName || 'Player')}</span>
+                            <span>人数: ${Math.max(0, Number(reservation.partySize) || 0)}名</span>
+                            <span>用途: ${_escapeHtml(purpose)}</span>
+                        </div>
+                        ${reservation.note ? `<div class="king-reservation-note">${_escapeHtml(reservation.note)}</div>` : ''}
+                        ${canReview ? `
+                            <div class="king-reservation-actions">
+                                <button type="button" class="btn-open" data-reservation-review="${_escapeHtml(reservation.id)}" data-reservation-approve="true">承認</button>
+                                <button type="button" class="btn-muted" data-reservation-review="${_escapeHtml(reservation.id)}" data-reservation-approve="false">却下</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('') : '<div class="troy-calendar-empty">予約申請はありません。</div>'}
+        </div>
+    `;
+}
+
 function _renderKingTroyCalendar(entries = []) {
     const mount = document.getElementById('kingTroyCalendarMount');
     if (!mount) return;
@@ -282,6 +351,19 @@ async function _loadKingTroyCalendar(playFabId, nation) {
         const mount = document.getElementById('kingTroyCalendarMount');
         if (mount) mount.innerHTML = '<div class="troy-calendar-empty">営業予定を読み込めませんでした。</div>';
         console.warn('[KingTroyCalendar] load failed:', error?.message || error);
+    }
+}
+
+async function _loadKingReservations(playFabId) {
+    try {
+        const result = await getReservations(playFabId, { isSilent: true });
+        const reservations = Array.isArray(result?.reservations) ? result.reservations : [];
+        if (_lastPageData) _lastPageData.reservations = reservations;
+        _renderKingReservations(reservations);
+    } catch (error) {
+        const mount = document.getElementById('kingTroyReservationMount');
+        if (mount) mount.innerHTML = '<div class="troy-calendar-empty">予約申請を読み込めませんでした。</div>';
+        console.warn('[KingReservations] load failed:', error?.message || error);
     }
 }
 
@@ -727,6 +809,7 @@ export async function loadKingPage(playFabId, options = {}) {
     _renderTroyMembers(data.troyMembers);
     _renderMenuManagement(data);
     await _loadKingTroyCalendar(playFabId, data.nation);
+    await _loadKingReservations(playFabId);
     const isOpen = !!data.troyOpen;
     if (troyStatusEl) {
         if (troyStatusEl) troyStatusEl.innerText = isOpen ? 'OPEN' : 'CLOSE';
@@ -762,7 +845,7 @@ function _wireHandlers(playFabId) {
     const warTargetPartEl = document.getElementById('kingWarTargetPart');
     const warDeployBtn = document.getElementById('btnKingWarDeploy');
     const warStrikeBtn = document.getElementById('btnKingWarStrike');
-    const calendarMountEl = document.getElementById('kingTroyCalendarMount');
+    const calendarPanelEl = document.getElementById('kingSectionPanelCalendar');
     const troyEntryListEl = document.getElementById('kingTroyEntryList');
     const kingSectionTabsEl = document.getElementById('kingSectionTabs');
 
@@ -1019,10 +1102,30 @@ function _wireHandlers(playFabId) {
         });
     }
 
-    if (calendarMountEl) {
-        calendarMountEl.addEventListener('click', async (event) => {
+    if (calendarPanelEl) {
+        calendarPanelEl.addEventListener('click', async (event) => {
             const target = event.target instanceof Element ? event.target : null;
             if (!target) return;
+
+            const reservationReviewBtn = target.closest('[data-reservation-review]');
+            if (reservationReviewBtn) {
+                const reservationId = String(reservationReviewBtn.getAttribute('data-reservation-review') || '').trim();
+                const approve = String(reservationReviewBtn.getAttribute('data-reservation-approve') || 'true') !== 'false';
+                if (!reservationId) return;
+                const previous = reservationReviewBtn.textContent;
+                reservationReviewBtn.setAttribute('disabled', 'disabled');
+                reservationReviewBtn.textContent = approve ? '承認中...' : '却下中...';
+                try {
+                    await reviewReservation(playFabId, reservationId, approve, { isSilent: true });
+                    await _loadKingReservations(playFabId);
+                    _setMessage(approve ? '予約を承認しました。' : '予約を却下しました。');
+                } catch (error) {
+                    _setMessage(_extractErrorMessage(error, approve ? '予約の承認に失敗しました。' : '予約の却下に失敗しました。'), true);
+                    reservationReviewBtn.removeAttribute('disabled');
+                    reservationReviewBtn.textContent = previous;
+                }
+                return;
+            }
 
             const editBtn = target.closest('[data-calendar-edit]');
             if (editBtn) {
