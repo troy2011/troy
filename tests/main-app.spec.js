@@ -922,6 +922,17 @@ test('home nation guild ship uses guild ship display for the king owner', async 
 test('home exploration button loads exploration data in a popup', async ({ page }) => {
   const errors = trackPageErrors(page);
   let explorationStatusBody = null;
+  await page.route('**/api/get-troy-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        nation: 'fire',
+        isOpen: true,
+        members: [{ playFabId: 'PF_PLAYWRIGHT', displayName: 'Playwright Tester' }]
+      })
+    });
+  });
   await page.route('**/api/exploration/status', async (route) => {
     explorationStatusBody = route.request().postDataJSON();
     await route.fulfill({
@@ -952,6 +963,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
 
   await bootstrapMainApp(page);
 
+  await expect(page.locator('#btnHomeExploration')).toHaveText('略奪に出る');
   await page.locator('#btnHomeExploration').click();
 
   const panel = page.locator('#shipExplorationPanel');

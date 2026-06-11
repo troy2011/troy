@@ -1646,6 +1646,9 @@ export async function showTab(tabId, playerInfo, options = {}) {
                 }
             }, 50);
         }
+        if (tabId === 'home' && typeof window.refreshHomeExplorationButtonLabel === 'function') {
+            void window.refreshHomeExplorationButtonLabel(playerInfo.playFabId);
+        }
     } catch (error) {
         console.error(`Failed to load data for tab ${tabId}:`, error);
     }

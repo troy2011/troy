@@ -19,6 +19,7 @@ import { installPlayerProfileInteractions, openPlayerProfile, refreshFavoritePla
 import { showRpgMessage, rpgSay } from './js/rpgMessages.js';
 import {
     ensureAvatarStyleDefaults as requestEnsureAvatarStyleDefaults,
+    getTroyStatus,
     updateAvatarStyle as requestUpdateAvatarStyle
 } from './js/playfabClient.js';
 import { FEATURE_UNLOCK_LEVELS, formatUnlockedFeatures, isFeatureUnlocked, normalizeLevel } from './js/featureUnlocks.js';
@@ -749,6 +750,43 @@ PlayFab.settings.titleId = '1A0BA';
 let homeExplorationButtonBound = false;
 let homeExplorationPopupObserver = null;
 
+function normalizeHomeTroyPlayFabId(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    return raw.replace(/^playfab:/i, '').trim().toUpperCase();
+}
+
+function isCurrentPlayerInTroyStatus(status, playFabId = window.myPlayFabId) {
+    if (!status?.isOpen || !playFabId) return false;
+    const target = normalizeHomeTroyPlayFabId(playFabId);
+    const members = Array.isArray(status?.members) ? status.members : [];
+    return members.some((member) => normalizeHomeTroyPlayFabId(member?.playFabId || member?.id) === target);
+}
+
+function syncHomeExplorationButtonLabel(status = window.__troyStatus) {
+    const button = document.getElementById('btnHomeExploration');
+    if (!button) return;
+    const isInTroy = isCurrentPlayerInTroyStatus(status);
+    button.textContent = isInTroy ? '略奪に出る' : '探索に出る';
+    button.setAttribute('aria-label', isInTroy ? '略奪に出る' : '探索に出る');
+}
+
+async function refreshHomeExplorationButtonLabel(playFabId = window.myPlayFabId) {
+    syncHomeExplorationButtonLabel();
+    if (!playFabId) return;
+    try {
+        const status = await getTroyStatus(playFabId, {}, { isSilent: true, throwOnError: true });
+        if (status) {
+            window.__troyStatus = status;
+            syncHomeExplorationButtonLabel(status);
+        }
+    } catch (error) {
+        console.warn('[home-exploration] Failed to refresh TROY status:', error);
+    }
+}
+
+window.refreshHomeExplorationButtonLabel = refreshHomeExplorationButtonLabel;
+
 function closeHomeExplorationPopup() {
     const panel = document.getElementById('shipExplorationPanel');
     if (!panel) return;
@@ -803,8 +841,12 @@ function initHomeExplorationButton() {
     if (homeExplorationButtonBound) return;
     const button = document.getElementById('btnHomeExploration');
     if (!button) return;
+    syncHomeExplorationButtonLabel();
     button.addEventListener('click', () => {
         void openHomeExplorationPopup();
+    });
+    window.addEventListener('troy:status-updated', (event) => {
+        syncHomeExplorationButtonLabel(event?.detail?.status || window.__troyStatus);
     });
     homeExplorationButtonBound = true;
 }
@@ -876,6 +918,7 @@ async function initializeLiff() {
         myPlayFabId = loginData.playFabId;
         window.myPlayFabId = loginData.playFabId; // グローバルスコープにも設定
         window.__resolvedTroyEntryNation = loginData.troyEntryNation || null;
+        void refreshHomeExplorationButtonLabel(myPlayFabId);
 
         // --- PlayFab & Firebase Login ---
         authUnsubscribe = onAuthStateChanged(auth, async (user) => {

@@ -1675,6 +1675,9 @@ function renderStatus(data) {
     _lastStatus = data;
     if (typeof window !== 'undefined') {
         window.__troyStatus = data;
+        window.dispatchEvent(new CustomEvent('troy:status-updated', {
+            detail: { status: data }
+        }));
     }
     const { badge, section } = getTroyElements();
     if (badge) {
