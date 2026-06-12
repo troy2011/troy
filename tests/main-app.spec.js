@@ -1066,16 +1066,22 @@ test('home plunder route opens the naval battle phase and boarding starts the me
     });
   });
   await page.route('**/api/get-player-public-profile', async (route) => {
+    const body = route.request().postDataJSON?.() || {};
+    const targetId = body.targetPlayFabId || qrTargetId;
+    const isQrTarget = targetId === qrTargetId;
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
         profile: {
-          playFabId: qrTargetId,
-          displayName: 'QR Target',
+          playFabId: targetId,
+          displayName: isQrTarget ? 'QR Target' : 'Playwright Tester',
           nation: 'fire',
-          level: 7,
-          stats: { str: 7, def: 6, agi: 5, int: 4 },
+          level: isQrTarget ? 7 : 5,
+          stats: isQrTarget ? { str: 7, def: 6, agi: 5, int: 4 } : { str: 5, def: 5, agi: 6, int: 3 },
+          playerShip: isQrTarget
+            ? { form: 'fighter', shipClass: 'fighter', name: '赤い略奪船', level: 3, cargoResources: { RS: 4 } }
+            : { form: 'explorer', shipClass: 'explorer', name: 'テスト快速船', level: 2 },
           equipment: {},
           itemSource: {},
           equipmentList: [],
@@ -1119,6 +1125,8 @@ test('home plunder route opens the naval battle phase and boarding starts the me
   // 略奪ボタンからQRを読み取り、白兵戦を直接開始せずに海戦フェーズを開く
   await expect(page.locator('#navalBattleModal')).toBeVisible();
   await expect(page.locator('#navalBattleModal')).toContainText('QR Targetの船');
+  await expect(page.locator('#navalBattleModal')).toContainText('赤い略奪船');
+  await expect(page.locator('#navalBattleModal')).toContainText('戦利品上限');
   await expect(page.locator('#navalPvpStatus')).toContainText('相手');
   await expect(page.locator('#navalCommands .naval-command-btn')).toHaveCount(4);
   expect(await page.evaluate(() => window.__homePlunderBattleTarget)).toBe(null);
@@ -1131,7 +1139,11 @@ test('home plunder route opens the naval battle phase and boarding starts the me
     attackerId: 'PF_PLAYWRIGHT',
     defenderId: qrTargetId,
     players: {
-      defender: { playFabId: qrTargetId, displayName: 'QR Target' }
+      defender: {
+        playFabId: qrTargetId,
+        displayName: 'QR Target',
+        shipProfile: { form: 'fighter', shipClass: 'fighter', name: '赤い略奪船', level: 3 }
+      }
     }
   });
   await page.locator('[data-naval-command="bowCannon"]').click();

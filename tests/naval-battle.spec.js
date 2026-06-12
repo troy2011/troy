@@ -23,6 +23,7 @@ test('naval battle UI moves from normal phase to overlap boarding phase', async 
   await expect(page.locator('#navalDistanceLabel')).toHaveText('距離 3');
   await expect(page.locator('#navalEnemyPlan')).not.toHaveText('');
   await expect(page.locator('#navalIntel')).toContainText('敵戦法');
+  await expect(page.locator('#navalLootPanel')).toContainText('戦利品上限');
   await expect(page.locator('#navalCommands .naval-command-btn')).toHaveCount(4);
   await expect(page.locator('[data-naval-command="ram"]')).toBeDisabled();
 
@@ -50,7 +51,8 @@ test('naval battle UI moves from normal phase to overlap boarding phase', async 
   });
   await expect(page.locator('#navalSea')).toHaveClass(/is-overlap/);
   await expect(page.locator('#navalDistanceLabel')).toContainText('重なり状態');
-  await expect(page.locator('#navalCommands .naval-command-btn')).toHaveCount(3);
+  await expect(page.locator('#navalCommands .naval-command-btn')).toHaveCount(4);
+  await expect(page.locator('[data-naval-command="cargoRaid"]')).toBeDisabled();
   await expect(page.locator('[data-naval-command="boarding"]')).toBeDisabled();
 
   await page.evaluate(() => {
@@ -59,6 +61,7 @@ test('naval battle UI moves from normal phase to overlap boarding phase', async 
       b.enemy.command = null;
     });
   });
+  await expect(page.locator('[data-naval-command="cargoRaid"]')).toBeEnabled();
   await expect(page.locator('[data-naval-command="boarding"]')).toBeEnabled();
   await page.locator('[data-naval-command="boarding"]').click();
   await expect(modal).toBeHidden();

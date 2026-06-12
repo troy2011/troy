@@ -20,6 +20,7 @@ import { showRpgMessage, rpgSay } from './js/rpgMessages.js';
 import {
     ensureAvatarStyleDefaults as requestEnsureAvatarStyleDefaults,
     convertTroyGoldToCoin,
+    getPublicPlayerProfile,
     getTroyStatus,
     updateAvatarStyle as requestUpdateAvatarStyle
 } from './js/playfabClient.js';
@@ -988,6 +989,36 @@ async function openHomeExplorationPopup() {
     ensureHomeExplorationPopupClose(panel);
 }
 
+async function loadHomePlunderPublicProfiles(opponent) {
+    const selfId = window.myPlayFabId;
+    const opponentId = opponent?.playFabId;
+    const fallbackOpponent = {
+        playFabId: opponentId,
+        displayName: opponent?.displayName || opponentId,
+        playerShip: opponent?.playerShip || null
+    };
+    const fallbackSelf = {
+        playFabId: selfId,
+        displayName: window.myPlayFabDisplayName || window.myLineProfile?.displayName || selfId,
+        playerShip: null
+    };
+    const safeLoad = async (targetId, fallback) => {
+        if (!selfId || !targetId) return fallback;
+        try {
+            const data = await getPublicPlayerProfile(selfId, targetId, { isSilent: true, throwOnError: true });
+            return data?.profile || fallback;
+        } catch (error) {
+            console.warn('[HomePlunder] Failed to load public profile:', targetId, error);
+            return fallback;
+        }
+    };
+    const [selfProfile, opponentProfile] = await Promise.all([
+        safeLoad(selfId, fallbackSelf),
+        safeLoad(opponentId, fallbackOpponent)
+    ]);
+    return { selfProfile, opponentProfile };
+}
+
 async function startHomePlunderBattle(options = {}) {
     const button = document.getElementById('btnHomeExploration');
     if (!isCurrentPlayerInTroyStatus(window.__troyStatus)) {
@@ -1022,13 +1053,16 @@ async function startHomePlunderBattle(options = {}) {
 
     showRpgMessage('QR相手とのリアルタイム海戦に接続します。');
     try {
+        const { selfProfile, opponentProfile } = await loadHomePlunderPublicProfiles(opponent);
         await startNavalPvpBattle({
             db,
             uid: window.__tkUid,
             selfId: window.myPlayFabId,
             selfName: window.myPlayFabDisplayName || window.myLineProfile?.displayName || window.myPlayFabId,
+            selfProfile,
             opponentId: opponent.playFabId,
             opponentName: opponent.displayName || opponent.playFabId,
+            opponentProfile,
             // 接舷成立時のみ既存の白兵戦へ移行する
             onBoarding: (opponentId) => {
                 Promise.resolve(window.startBattleWithOpponent(opponentId || opponent.playFabId)).catch((error) => {

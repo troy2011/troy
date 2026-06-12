@@ -19,6 +19,29 @@ const EVADE_RATE = { front: 0.3, side: 0, back: 0.6 };
 const SIDE_DAMAGE_MULTIPLIER = 1.5;
 
 const FACING_LABEL = { front: '前向き', side: '横向き', back: '後ろ向き' };
+const SHIP_FORM_LABEL = {
+    boat: 'ボート',
+    common: 'ボート',
+    explorer: '探索船',
+    defender: '防衛船',
+    fighter: '戦闘船',
+    merchant: '商船',
+    guild: '旗艦'
+};
+const SHIP_FORM_MODIFIER = {
+    boat: { hp: 0, attack: 0, defense: 0, speed: 0, cargo: 0 },
+    common: { hp: 0, attack: 0, defense: 0, speed: 0, cargo: 0 },
+    explorer: { hp: 4, attack: 0, defense: 0, speed: 1, cargo: 0 },
+    defender: { hp: 10, attack: 0, defense: 2, speed: 0, cargo: 0 },
+    fighter: { hp: 6, attack: 2, defense: 0, speed: 0, cargo: 0 },
+    merchant: { hp: 5, attack: 0, defense: 0, speed: 0, cargo: 2 },
+    guild: { hp: 12, attack: 2, defense: 2, speed: 0, cargo: 1 }
+};
+const PLUNDER_LIMITS = {
+    victory: { chips: 30, cargo: 2, exploration: 1 },
+    cargoRaid: { chips: 12, cargo: 1, exploration: 1 }
+};
+const REPAIR_RISK = { chips: 20, cooldownMinutes: 5 };
 
 const ENEMY_PLANS = [
     { name: '突撃型', ramBias: 0.75, advanceBias: 0.72, broadsideBias: 0.42, caution: 0.28 },
@@ -32,7 +55,7 @@ const ENEMY_PLANS = [
 const COMMANDS = {
     bowCannon: {
         id: 'bowCannon', label: '船首砲', lag: 3, type: 'cannon',
-        desc: '中ダメージ。衝角チャージ中の相手の威力を半減',
+        desc: '中ダメージ。衝角チャージ中の相手を弱体化',
         resolve(b, self, foe) {
             fireCannon(b, self, foe, { damage: 12, name: '船首砲' });
             if (foe.command && foe.command.def.id === 'ram' && !foe.command.ramWeakened) {
@@ -43,14 +66,14 @@ const COMMANDS = {
     },
     broadside: {
         id: 'broadside', label: '舷側砲', lag: 6, type: 'cannon',
-        desc: '超大ダメージ（必中）',
+        desc: '超大ダメージ必中。ただし横向きで危険',
         resolve(b, self, foe) {
             fireCannon(b, self, foe, { damage: 30, sureHit: true, name: '舷側砲' });
         }
     },
     sternCannon: {
         id: 'sternCannon', label: '船尾砲', lag: 3, type: 'cannon',
-        desc: '小ダメージ。命中時、相手のコマンドを1カウント遅延',
+        desc: '安全寄りの小ダメージ。命中時に相手を遅延',
         resolve(b, self, foe) {
             const hit = fireCannon(b, self, foe, { damage: 6, name: '船尾砲' });
             if (hit && foe.command) {
@@ -81,7 +104,7 @@ const COMMANDS = {
     },
     ram: {
         id: 'ram', label: '衝角', lag: 5, type: 'ram',
-        desc: '距離1限定。特大ダメージ＋相手を操舵不能。チャージ中はアーマー',
+        desc: '距離1限定。特大ダメージ＋操舵不能。船首砲に弱い',
         isAvailable(b) { return b.distance === 1; },
         resolve(b, self, foe) {
             if (b.distance !== 1) {
@@ -129,6 +152,15 @@ const COMMANDS = {
             updateLayout(b);
         }
     },
+    cargoRaid: {
+        id: 'cargoRaid', label: '船倉略奪', lag: 2, type: 'loot',
+        desc: '少量だけ奪って撤退。相手スタン中か大破寸前で狙える',
+        isAvailable(b, self, foe) { return b.distance === 0 && (foe.stun > 0 || foe.hp <= foe.maxHp * 0.35); },
+        resolve(b, self) {
+            log(b, `${self.label}が船倉を素早く荒らして離脱した！`);
+            finishBattle(b, self.isPlayer ? 'cargoRaid' : 'enemyCargoRaid');
+        }
+    },
     boarding: {
         id: 'boarding', label: '接舷', lag: 1, type: 'boarding',
         desc: '相手が操舵不能のときのみ。白兵戦へ移行',
@@ -143,19 +175,139 @@ const PHASE_A_COMMANDS = {
     side: ['broadside', 'rudderToFront', 'rudderToBack'],
     back: ['sternCannon', 'rudderToSide', 'flee']
 };
-const PHASE_B_COMMANDS = ['zeroBroadside', 'retreat', 'boarding'];
+const PHASE_B_COMMANDS = ['zeroBroadside', 'retreat', 'cargoRaid', 'boarding'];
 
 // ---------------------------------------------------------------------
 // 戦闘状態
 // ---------------------------------------------------------------------
 let battle = null;
 
-function createShip(label, isPlayer) {
+function clampNumber(value, min, max, fallback = 0) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return fallback;
+    return Math.max(min, Math.min(max, number));
+}
+
+function asObject(value) {
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+
+function normalizeShipForm(shipProfile = {}) {
+    const raw = String(
+        shipProfile.form
+        || shipProfile.shipClass
+        || shipProfile.class
+        || shipProfile.Class
+        || shipProfile.itemId
+        || ''
+    ).toLowerCase();
+    if (raw.includes('guild')) return 'guild';
+    if (raw.includes('merchant')) return 'merchant';
+    if (raw.includes('fighter')) return 'fighter';
+    if (raw.includes('defender')) return 'defender';
+    if (raw.includes('explorer')) return 'explorer';
+    if (raw.includes('common')) return 'common';
+    return 'boat';
+}
+
+function getStatValue(stats = {}, keys = []) {
+    const source = asObject(stats);
+    for (const key of keys) {
+        const value = Number(source[key] ?? source[key.toUpperCase()] ?? source[key.toLowerCase()]);
+        if (Number.isFinite(value)) return value;
+    }
+    return 0;
+}
+
+function readCargoMap(profile = {}, shipProfile = {}) {
+    const candidates = [
+        profile.cargoResources,
+        profile.cargo,
+        profile.shipCargo,
+        profile.resourceCargo,
+        shipProfile.cargoResources,
+        shipProfile.cargo,
+        shipProfile.ResourceCargo,
+        shipProfile.resourceCargo
+    ];
+    const found = candidates.find((entry) => entry && typeof entry === 'object' && !Array.isArray(entry));
+    return found ? { ...found } : {};
+}
+
+function summarizeCargo(cargoMap = {}, fallbackBonus = 0) {
+    const entries = Object.entries(cargoMap)
+        .map(([id, amount]) => ({ id: String(id), amount: Math.max(0, Math.floor(Number(amount) || 0)) }))
+        .filter((entry) => entry.amount > 0)
+        .sort((a, b) => b.amount - a.amount);
+    const total = entries.reduce((sum, entry) => sum + entry.amount, 0);
+    if (!entries.length) {
+        return {
+            total: Math.max(0, fallbackBonus),
+            text: fallbackBonus > 0 ? `積載余力 +${fallbackBonus}` : '空',
+            topItem: null
+        };
+    }
+    const top = entries[0];
+    return {
+        total,
+        text: `${top.id} x${top.amount}${entries.length > 1 ? ` ほか${entries.length - 1}種` : ''}`,
+        topItem: top
+    };
+}
+
+function normalizeShipProfile(profile = {}, explicitShipProfile = {}) {
+    const publicProfile = asObject(profile);
+    const shipProfile = {
+        ...asObject(publicProfile.playerShip),
+        ...asObject(explicitShipProfile)
+    };
+    const form = normalizeShipForm(shipProfile);
+    const modifier = SHIP_FORM_MODIFIER[form] || SHIP_FORM_MODIFIER.boat;
+    const stats = asObject(publicProfile.stats);
+    const level = clampNumber(publicProfile.level ?? stats.level ?? stats.PlayerLevel, 1, 99, 1);
+    const shipLevel = clampNumber(shipProfile.level ?? shipProfile.Level, 1, 10, 1);
+    const hpBonus = modifier.hp + Math.min(8, Math.floor(level / 10) * 2) + Math.min(4, Math.floor(shipLevel / 3));
+    const attackStat = getStatValue(stats, ['str', 'STR', 'attack', 'ATK']);
+    const defenseStat = getStatValue(stats, ['def', 'DEF', 'defense']);
+    const speedStat = getStatValue(stats, ['agi', 'AGI', 'speed']);
+    const cargo = summarizeCargo(readCargoMap(publicProfile, shipProfile), modifier.cargo);
+    const label = String(shipProfile.name || shipProfile.DisplayName || SHIP_FORM_LABEL[form] || '船').slice(0, 16);
+    return {
+        form,
+        formLabel: SHIP_FORM_LABEL[form] || '船',
+        name: label,
+        level,
+        shipLevel,
+        hpBonus: clampNumber(hpBonus, 0, 18, 0),
+        attackBonus: clampNumber(modifier.attack + Math.floor(attackStat / 8), 0, 5, 0),
+        defenseBonus: clampNumber(modifier.defense + Math.floor(defenseStat / 8), 0, 5, 0),
+        speed: clampNumber(modifier.speed + Math.floor(speedStat / 12), 0, 2, 0),
+        cargoTotal: cargo.total,
+        cargoText: cargo.text,
+        topCargo: cargo.topItem,
+        profile
+    };
+}
+
+function createShip(label, isPlayer, profile = {}, shipProfile = {}) {
+    const spec = normalizeShipProfile(profile, shipProfile);
+    const maxHp = MAX_HP + spec.hpBonus;
     return {
         label,
         isPlayer,
-        hp: MAX_HP,
-        maxHp: MAX_HP,
+        hp: maxHp,
+        maxHp,
+        shipForm: spec.form,
+        shipType: spec.formLabel,
+        shipName: spec.name,
+        shipLevel: spec.shipLevel,
+        playerLevel: spec.level,
+        attackBonus: spec.attackBonus,
+        defenseBonus: spec.defenseBonus,
+        speed: spec.speed,
+        cargoTotal: spec.cargoTotal,
+        cargoText: spec.cargoText,
+        topCargo: spec.topCargo,
         facing: 'front',
         stun: 0,
         rudderCooldown: 0,
@@ -182,6 +334,7 @@ function cloneCommand(command) {
     return {
         def,
         lagRemaining: Math.max(0, Number(command.lagRemaining) || 0),
+        lagTotal: Math.max(1, Number(command.lagTotal || command.lag || def.lag) || def.lag),
         ramWeakened: Boolean(command.ramWeakened)
     };
 }
@@ -190,6 +343,17 @@ function cloneShipState(source, fallbackLabel, isPlayer) {
     const ship = createShip(source?.label || fallbackLabel, isPlayer);
     ship.hp = Math.max(0, Number(source?.hp ?? ship.hp) || 0);
     ship.maxHp = Math.max(1, Number(source?.maxHp ?? ship.maxHp) || 1);
+    ship.shipForm = String(source?.shipForm || ship.shipForm || 'boat');
+    ship.shipType = String(source?.shipType || ship.shipType || SHIP_FORM_LABEL[ship.shipForm] || '船');
+    ship.shipName = String(source?.shipName || ship.shipName || ship.shipType || '船');
+    ship.shipLevel = Math.max(1, Number(source?.shipLevel || ship.shipLevel || 1) || 1);
+    ship.playerLevel = Math.max(1, Number(source?.playerLevel || ship.playerLevel || 1) || 1);
+    ship.attackBonus = clampNumber(source?.attackBonus, 0, 5, ship.attackBonus || 0);
+    ship.defenseBonus = clampNumber(source?.defenseBonus, 0, 5, ship.defenseBonus || 0);
+    ship.speed = clampNumber(source?.speed, 0, 2, ship.speed || 0);
+    ship.cargoTotal = Math.max(0, Number(source?.cargoTotal || ship.cargoTotal || 0) || 0);
+    ship.cargoText = String(source?.cargoText || ship.cargoText || '空');
+    ship.topCargo = source?.topCargo || ship.topCargo || null;
     ship.facing = FACING_LABEL[source?.facing] ? source.facing : ship.facing;
     ship.stun = Math.max(0, Number(source?.stun) || 0);
     ship.rudderCooldown = Math.max(0, Number(source?.rudderCooldown) || 0);
@@ -202,12 +366,24 @@ function serializeShipState(ship) {
         label: ship.label,
         hp: ship.hp,
         maxHp: ship.maxHp,
+        shipForm: ship.shipForm,
+        shipType: ship.shipType,
+        shipName: ship.shipName,
+        shipLevel: ship.shipLevel,
+        playerLevel: ship.playerLevel,
+        attackBonus: ship.attackBonus,
+        defenseBonus: ship.defenseBonus,
+        speed: ship.speed,
+        cargoTotal: ship.cargoTotal,
+        cargoText: ship.cargoText,
+        topCargo: ship.topCargo || null,
         facing: ship.facing,
         stun: ship.stun,
         rudderCooldown: ship.rudderCooldown,
         command: ship.command ? {
             id: ship.command.def.id,
             lagRemaining: ship.command.lagRemaining,
+            lagTotal: ship.command.lagTotal || ship.command.def.lag,
             ramWeakened: Boolean(ship.command.ramWeakened)
         } : null
     };
@@ -221,6 +397,8 @@ function serializeBattleState(b) {
         player: serializeShipState(b.player),
         enemy: serializeShipState(b.enemy),
         enemyPlan: b.enemyPlan?.name || '',
+        reward: b.reward || null,
+        rewardResult: b.rewardResult || null,
         logs: Array.isArray(b.logs) ? b.logs.slice(0, 30) : [],
         finished: Boolean(b.finished),
         outcome: b.outcome || null
@@ -234,10 +412,23 @@ function resolveEnemyPlanByName(name) {
 function transformSnapshotForPerspective(snapshot, perspective = 'player') {
     if (!snapshot || typeof snapshot !== 'object') return null;
     if (perspective !== 'enemy') return snapshot;
+    const outcomeMap = {
+        victory: 'defeat',
+        defeat: 'victory',
+        escape: 'enemyEscaped',
+        enemyEscaped: 'escape',
+        boarding: 'boarded',
+        boarded: 'boarding',
+        cargoRaid: 'enemyCargoRaid',
+        enemyCargoRaid: 'cargoRaid'
+    };
     return {
         ...snapshot,
         player: snapshot.enemy,
         enemy: snapshot.player,
+        outcome: outcomeMap[snapshot.outcome] || snapshot.outcome,
+        reward: null,
+        rewardResult: null,
         logs: Array.isArray(snapshot.logs) ? snapshot.logs : []
     };
 }
@@ -265,11 +456,23 @@ function escapeHtml(text) {
 // ---------------------------------------------------------------------
 function hasEvadeWindow(ship) {
     // おもかじ選択直後（最初の1カウント）のみ無敵
+    const lagTotal = ship.command?.lagTotal || ship.command?.def?.lag || 0;
     return Boolean(
         ship.command &&
         ship.command.def.type === 'rudder' &&
-        ship.command.lagRemaining >= ship.command.def.lag - 1
+        ship.command.lagRemaining >= lagTotal - 1
     );
+}
+
+function getCommandLag(ship, def) {
+    let lag = Number(def?.lag || 1);
+    if (ship?.speed > 0 && (def?.type === 'move' || def?.type === 'rudder')) {
+        lag -= 1;
+    }
+    if (ship?.speed >= 2 && def?.id === 'sternCannon') {
+        lag -= 1;
+    }
+    return Math.max(1, lag);
 }
 
 // 命中判定＋ダメージ適用。命中したら true
@@ -286,7 +489,9 @@ function fireCannon(b, attacker, defender, { damage, sureHit = false, name, isRa
         }
     }
     let dealt = damage;
+    dealt += Number(attacker.attackBonus || 0);
     if (defender.facing === 'side') dealt = Math.round(dealt * SIDE_DAMAGE_MULTIPLIER);
+    dealt = Math.max(1, dealt - Number(defender.defenseBonus || 0));
     defender.hp = Math.max(0, defender.hp - dealt);
     log(b, `${attacker.label}の${name}が命中！ ${defender.label}に${dealt}ダメージ`);
     // 条件①：横向き/後ろ向きで大砲を被弾 → 操舵不能
@@ -348,8 +553,9 @@ function selectCommand(b, self, foe, def) {
         }
         return true;
     }
-    self.command = { def, lagRemaining: def.lag, ramWeakened: false };
-    log(b, `${self.label}が「${def.label}」を選択（ラグ ${def.lag}）`);
+    const lag = getCommandLag(self, def);
+    self.command = { def, lagRemaining: lag, lagTotal: lag, ramWeakened: false };
+    log(b, `${self.label}が「${def.label}」を選択（ラグ ${lag}）`);
     render(b);
     notifyStateChanged(b);
     return true;
@@ -386,6 +592,7 @@ function aiSelect(b) {
 
     if (b.distance === 0) {
         if (foe.stun > 0 && canSelect(b, self, foe, COMMANDS.boarding)) { pick('boarding'); return; }
+        if (canSelect(b, self, foe, COMMANDS.cargoRaid) && (lowHp || Math.random() < 0.35)) { pick('cargoRaid'); return; }
         if (lowHp && Math.random() < plan.caution) { pick('retreat'); return; }
         pick('zeroBroadside');
         return;
@@ -443,22 +650,156 @@ function tick(b) {
     notifyStateChanged(b);
 }
 
+function normalizeExplorationCandidates(profile = {}) {
+    const source = asObject(profile);
+    const candidates = [
+        source.explorationCandidates,
+        source.explorationRewards,
+        source.reports,
+        source.destinations,
+        source.playerShip?.explorationCandidates
+    ].find(Array.isArray) || [];
+    return candidates
+        .map((entry) => String(entry?.name || entry?.destinationName || entry?.label || entry?.id || entry || '').trim())
+        .filter(Boolean)
+        .slice(0, 3);
+}
+
+function resolveChipPool(profile = {}) {
+    const source = asObject(profile);
+    const value = Number(
+        source.chips
+        ?? source.chip
+        ?? source.points
+        ?? source.balance
+        ?? source.troyChips
+        ?? 0
+    );
+    return Math.max(0, Math.floor(Number.isFinite(value) ? value : 0));
+}
+
+function createRewardModel(options = {}, playerShip, enemyShip) {
+    const opponentProfile = asObject(options.opponentProfile || options.rewardProfile);
+    const chipPool = resolveChipPool(opponentProfile);
+    const explorationCandidates = normalizeExplorationCandidates(opponentProfile);
+    return {
+        chipPool,
+        targetShip: enemyShip?.shipType || '船',
+        targetCargoText: enemyShip?.cargoText || '空',
+        targetCargoTotal: Math.max(0, Number(enemyShip?.cargoTotal || 0) || 0),
+        topCargo: enemyShip?.topCargo || null,
+        explorationCandidates,
+        limits: PLUNDER_LIMITS,
+        risk: REPAIR_RISK,
+        note: '実資産の移動はサーバー検証API接続後に確定'
+    };
+}
+
+function estimateChipReward(model, limit) {
+    if (model.chipPool > 0) {
+        return Math.min(limit.chips, Math.max(1, Math.floor(model.chipPool * 0.08)));
+    }
+    return limit.chips;
+}
+
+function estimateCargoReward(model, limit) {
+    const top = model.topCargo;
+    if (top?.id && top.amount > 0) {
+        return {
+            id: top.id,
+            amount: Math.min(limit.cargo, Math.max(1, Math.floor(top.amount * 0.25)))
+        };
+    }
+    if (model.targetCargoTotal > 0) {
+        return { id: '貨物', amount: Math.min(limit.cargo, Math.max(1, Math.floor(model.targetCargoTotal * 0.2))) };
+    }
+    return { id: '貨物候補', amount: limit.cargo };
+}
+
+function resolveOutcomeReward(b, outcome) {
+    const model = b.reward || createRewardModel(b.options, b.player, b.enemy);
+    if (outcome === 'victory' || outcome === 'cargoRaid') {
+        const limit = PLUNDER_LIMITS[outcome === 'victory' ? 'victory' : 'cargoRaid'];
+        const cargo = estimateCargoReward(model, limit);
+        const exploration = model.explorationCandidates.slice(0, limit.exploration);
+        return {
+            outcome,
+            label: outcome === 'victory' ? '撃沈勝利' : '船倉略奪撤退',
+            chips: estimateChipReward(model, limit),
+            cargo,
+            exploration,
+            capped: true,
+            note: '店内ゲーム用に少量上限で計算'
+        };
+    }
+    if (outcome === 'defeat' || outcome === 'boarded' || outcome === 'enemyCargoRaid') {
+        return {
+            outcome,
+            label: outcome === 'enemyCargoRaid' ? '略奪された' : '敗北リスク',
+            repairChips: REPAIR_RISK.chips,
+            cooldownMinutes: REPAIR_RISK.cooldownMinutes,
+            note: '修理費/クールダウン候補'
+        };
+    }
+    if (outcome === 'escape' || outcome === 'enemyEscaped') {
+        return {
+            outcome,
+            label: outcome === 'escape' ? '逃走成功' : '相手逃走',
+            chips: 0,
+            cargo: null,
+            note: '戦利品なし。損失も最小'
+        };
+    }
+    return {
+        outcome,
+        label: '白兵戦へ移行',
+        note: '接舷後の勝敗は白兵戦側で判定'
+    };
+}
+
+function formatRewardResult(result) {
+    if (!result) return '';
+    if (result.outcome === 'victory' || result.outcome === 'cargoRaid') {
+        const cargo = result.cargo ? `${result.cargo.id} x${result.cargo.amount}` : '貨物なし';
+        const exploration = result.exploration?.length ? ` / ${result.exploration.join('、')}` : '';
+        return `戦利品候補: チップ${result.chips} / ${cargo}${exploration}。${result.note}`;
+    }
+    if (result.repairChips) {
+        return `リスク: 修理費チップ${result.repairChips}、クールダウン${result.cooldownMinutes}分。${result.note}`;
+    }
+    return result.note || '';
+}
+
 // ---------------------------------------------------------------------
 // 終了処理
 // ---------------------------------------------------------------------
 const OUTCOME_TEXT = {
-    victory: { title: '略奪勝利！', body: '敵船を沈黙させた。（略奪勝利スタブ）' },
-    defeat: { title: '敗北…', body: '自船が大破した。（敗北スタブ）' },
-    escape: { title: '逃走成功！', body: '敵から逃げ切った。（逃走勝利スタブ）' },
+    victory: { title: '撃沈勝利！', body: '敵船を沈黙させ、船倉を確保した。' },
+    defeat: { title: '敗北…', body: '自船が大破した。修理と再出撃準備が必要。' },
+    escape: { title: '逃走成功！', body: '敵から逃げ切った。戦利品はないが損失も最小。' },
     enemyEscaped: { title: '敵に逃げられた', body: '相手は海域から離脱した。' },
+    cargoRaid: { title: '船倉略奪成功！', body: '少量だけ奪い、深追いせず撤退した。' },
+    enemyCargoRaid: { title: '船倉を荒らされた', body: '相手が少量を奪って撤退した。' },
     boarding: { title: '接舷成功！', body: '白兵戦へ移行する！' },
     boarded: { title: '接舷された！', body: '敵が乗り込んでくる！ 白兵戦へ移行する！' }
 };
+
+function showBattleResultOverlay(b) {
+    if (!b || b.outcome === 'boarding' || b.outcome === 'boarded') return;
+    const text = OUTCOME_TEXT[b.outcome] || { title: '海戦終了', body: '' };
+    const overlay = document.getElementById('navalBattleResult');
+    if (overlay) {
+        overlay.querySelector('.naval-result-title').textContent = text.title;
+        overlay.querySelector('.naval-result-body').textContent = [text.body, formatRewardResult(b.rewardResult)].filter(Boolean).join('\n');
+        overlay.hidden = false;
+    }
+}
 
 function finishBattle(b, outcome) {
     if (b.finished) return;
     b.finished = true;
     b.outcome = outcome;
+    b.rewardResult = resolveOutcomeReward(b, outcome);
     if (b.timer) { clearInterval(b.timer); b.timer = null; }
     render(b);
     notifyStateChanged(b);
@@ -470,13 +811,7 @@ function finishBattle(b, outcome) {
         return;
     }
 
-    const text = OUTCOME_TEXT[outcome] || { title: '海戦終了', body: '' };
-    const overlay = document.getElementById('navalBattleResult');
-    if (overlay) {
-        overlay.querySelector('.naval-result-title').textContent = text.title;
-        overlay.querySelector('.naval-result-body').textContent = text.body;
-        overlay.hidden = false;
-    }
+    showBattleResultOverlay(b);
 }
 
 function handleResultClose() {
@@ -487,14 +822,19 @@ function handleResultClose() {
         victory: b.options.onVictory,
         defeat: b.options.onDefeat,
         escape: b.options.onEscape,
-        enemyEscaped: b.options.onEnemyEscaped
+        enemyEscaped: b.options.onEnemyEscaped,
+        cargoRaid: b.options.onCargoRaid,
+        enemyCargoRaid: b.options.onEnemyCargoRaid
     };
     const cb = callbacks[b.outcome];
-    if (typeof cb === 'function') cb(b.options.opponentId);
+    if (typeof cb === 'function') cb(b.options.opponentId, b.rewardResult);
 }
 
 function getTacticalMessage(b) {
     if (!b || b.finished) return '';
+    if (b.distance === 0 && canSelect(b, b.player, b.enemy, COMMANDS.cargoRaid)) {
+        return '略奪撤退好機：船倉を少量だけ奪って戦闘を切り上げられる。';
+    }
     if (b.distance === 0 && b.enemy.stun > 0) {
         return '接舷好機：相手の操舵が止まっている。';
     }
@@ -506,6 +846,9 @@ function getTacticalMessage(b) {
     }
     if (b.player.facing === 'side') {
         return '横腹危険：被弾すると大ダメージになりやすい。';
+    }
+    if (b.player.facing === 'back') {
+        return '後ろ向き：安全だが攻撃力は低い。船尾砲で相手を遅らせられる。';
     }
     if (b.enemy.facing === 'side') {
         return '砲撃好機：相手が横腹を見せている。';
@@ -576,10 +919,11 @@ body.naval-battle-lock { overflow: hidden; }
 .naval-hp-bar { height: 8px; background: #1c2f49; border-radius: 4px; overflow: hidden; margin: 3px 0 6px; }
 .naval-hp-fill { height: 100%; background: linear-gradient(90deg, #34d399, #10b981); transition: width 300ms ease; }
 .naval-hp-fill.is-low { background: linear-gradient(90deg, #f87171, #dc2626); }
-.naval-status-row { display: flex; justify-content: space-between; font-size: 11px; color: #b9cde4; }
-.naval-status-row b { color: #fff; }
+.naval-status-row { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: #b9cde4; }
+.naval-status-row b { color: #fff; text-align: right; overflow-wrap: anywhere; }
 .naval-stun-badge { color: #fbbf24; font-weight: bold; }
 
+.naval-loot-panel { background: #132238; border: 1px solid #36577e; border-radius: 8px; color: #d8e8f7; font-size: 12px; line-height: 1.45; padding: 7px 9px; margin-bottom: 8px; }
 .naval-intel { background: #17253a; border: 1px solid #3f6491; border-radius: 8px; color: #d9e8f7; font-size: 12px; line-height: 1.45; padding: 7px 9px; margin-bottom: 8px; }
 .naval-commands { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .naval-command-btn { flex: 1 1 calc(50% - 6px); min-width: 140px; background: #1b3a5e; border: 1px solid #3f6491; color: #e8f0fa; border-radius: 8px; padding: 8px 6px; cursor: pointer; text-align: left; }
@@ -595,7 +939,7 @@ body.naval-battle-lock { overflow: hidden; }
 #navalBattleResult[hidden] { display: none; }
 .naval-result-card { background: #11243c; border: 2px solid #3b577c; border-radius: 12px; padding: 20px 28px; text-align: center; }
 .naval-result-title { font-size: 18px; margin: 0 0 8px; }
-.naval-result-body { font-size: 13px; color: #b9cde4; margin: 0 0 14px; }
+.naval-result-body { font-size: 13px; color: #b9cde4; margin: 0 0 14px; white-space: pre-line; }
 .naval-result-close { background: #1d4ed8; color: #fff; border: none; border-radius: 8px; padding: 8px 24px; cursor: pointer; }
 `;
 
@@ -641,20 +985,27 @@ function ensureModal() {
                     <h4>自分の船</h4>
                     <div class="naval-hp-bar"><div class="naval-hp-fill" id="navalHpPlayer"></div></div>
                     <div class="naval-status-row"><span>HP</span><b id="navalHpPlayerText"></b></div>
+                    <div class="naval-status-row"><span>船型</span><b id="navalTypePlayer"></b></div>
+                    <div class="naval-status-row"><span>補正</span><b id="navalSpecPlayer"></b></div>
                     <div class="naval-status-row"><span>向き</span><b id="navalFacingPlayer"></b></div>
                     <div class="naval-status-row"><span>おもかじCD</span><b id="navalRudderPlayer"></b></div>
                     <div class="naval-status-row"><span>操舵不能</span><b id="navalStunPlayer"></b></div>
+                    <div class="naval-status-row"><span>船倉</span><b id="navalCargoPlayer"></b></div>
                 </div>
                 <div class="naval-status-card is-enemy">
                     <h4 id="navalEnemyTitle">敵船</h4>
                     <div class="naval-hp-bar"><div class="naval-hp-fill" id="navalHpEnemy"></div></div>
                     <div class="naval-status-row"><span>HP</span><b id="navalHpEnemyText"></b></div>
+                    <div class="naval-status-row"><span>船型</span><b id="navalTypeEnemy"></b></div>
+                    <div class="naval-status-row"><span>補正</span><b id="navalSpecEnemy"></b></div>
                     <div class="naval-status-row"><span>戦法</span><b id="navalEnemyPlan"></b></div>
                     <div class="naval-status-row"><span>向き</span><b id="navalFacingEnemy"></b></div>
                     <div class="naval-status-row"><span>おもかじCD</span><b id="navalRudderEnemy"></b></div>
                     <div class="naval-status-row"><span>操舵不能</span><b id="navalStunEnemy"></b></div>
+                    <div class="naval-status-row"><span>船倉</span><b id="navalCargoEnemy"></b></div>
                 </div>
             </div>
+            <div class="naval-loot-panel" id="navalLootPanel"></div>
             <div class="naval-intel" id="navalIntel"></div>
             <div class="naval-command-note" id="navalCommandNote"></div>
             <div class="naval-commands" id="navalCommands"></div>
@@ -752,10 +1103,10 @@ function renderShipPositions(b) {
 
 function renderStatus(b) {
     const cards = [
-        { ship: b.player, hp: 'navalHpPlayer', hpText: 'navalHpPlayerText', facing: 'navalFacingPlayer', rudder: 'navalRudderPlayer', stun: 'navalStunPlayer', shipFacing: 'navalShipPlayerFacing' },
-        { ship: b.enemy, hp: 'navalHpEnemy', hpText: 'navalHpEnemyText', facing: 'navalFacingEnemy', rudder: 'navalRudderEnemy', stun: 'navalStunEnemy', shipFacing: 'navalShipEnemyFacing' }
+        { ship: b.player, hp: 'navalHpPlayer', hpText: 'navalHpPlayerText', type: 'navalTypePlayer', spec: 'navalSpecPlayer', cargo: 'navalCargoPlayer', facing: 'navalFacingPlayer', rudder: 'navalRudderPlayer', stun: 'navalStunPlayer', shipFacing: 'navalShipPlayerFacing' },
+        { ship: b.enemy, hp: 'navalHpEnemy', hpText: 'navalHpEnemyText', type: 'navalTypeEnemy', spec: 'navalSpecEnemy', cargo: 'navalCargoEnemy', facing: 'navalFacingEnemy', rudder: 'navalRudderEnemy', stun: 'navalStunEnemy', shipFacing: 'navalShipEnemyFacing' }
     ];
-    cards.forEach(({ ship, hp, hpText, facing, rudder, stun, shipFacing }) => {
+    cards.forEach(({ ship, hp, hpText, type, spec, cargo, facing, rudder, stun, shipFacing }) => {
         const fill = document.getElementById(hp);
         if (fill) {
             const ratio = ship.hp / ship.maxHp;
@@ -764,6 +1115,12 @@ function renderStatus(b) {
         }
         const hpEl = document.getElementById(hpText);
         if (hpEl) hpEl.textContent = `${ship.hp} / ${ship.maxHp}`;
+        const typeEl = document.getElementById(type);
+        if (typeEl) typeEl.textContent = `${ship.shipName || ship.shipType || '船'} / ${ship.shipType || '船'} Lv${ship.shipLevel || 1}`;
+        const specEl = document.getElementById(spec);
+        if (specEl) specEl.textContent = `攻+${ship.attackBonus || 0} 防+${ship.defenseBonus || 0} 速+${ship.speed || 0}`;
+        const cargoEl = document.getElementById(cargo);
+        if (cargoEl) cargoEl.textContent = ship.cargoText || '空';
         const facingEl = document.getElementById(facing);
         if (facingEl) facingEl.textContent = b.distance === 0 ? '横並び' : FACING_LABEL[ship.facing];
         const rudderEl = document.getElementById(rudder);
@@ -780,6 +1137,13 @@ function renderStatus(b) {
     if (enemyPlan) enemyPlan.textContent = b.enemyPlan?.name || '標準型';
     const intel = document.getElementById('navalIntel');
     if (intel) intel.textContent = getTacticalMessage(b);
+    const loot = document.getElementById('navalLootPanel');
+    if (loot) {
+        const model = b.reward || createRewardModel(b.options, b.player, b.enemy);
+        const victory = PLUNDER_LIMITS.victory;
+        const raid = PLUNDER_LIMITS.cargoRaid;
+        loot.textContent = `戦利品上限: 撃沈 チップ${victory.chips}/貨物${victory.cargo}、略奪撤退 チップ${raid.chips}/貨物${raid.cargo}。対象船倉: ${model.targetCargoText}。敗北時: 修理費候補チップ${model.risk.chips}/CD${model.risk.cooldownMinutes}分。`;
+    }
 }
 
 function renderCommands(b) {
@@ -791,11 +1155,12 @@ function renderCommands(b) {
     const self = b.player;
     const foe = b.enemy;
     availableCommands(b, self, foe).forEach((def) => {
+        const lag = getCommandLag(self, def);
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'naval-command-btn';
         button.dataset.navalCommand = def.id;
-        button.innerHTML = `<b>${escapeHtml(def.label)}（ラグ ${def.lag}）</b><small>${escapeHtml(def.desc)}</small>`;
+        button.innerHTML = `<b>${escapeHtml(def.label)}（ラグ ${lag}）</b><small>${escapeHtml(def.desc)}</small>`;
         button.disabled = !canSelect(b, self, foe, def);
         button.addEventListener('click', () => {
             if (typeof b.options.onCommandSelect === 'function') {
@@ -847,13 +1212,26 @@ function startNavalBattle(options = {}) {
         count: 0,
         distance: INITIAL_DISTANCE,
         enemyPlan,
-        player: createShip(options.playerName ? `${options.playerName}の船` : '自分の船', true),
-        enemy: createShip(options.opponentName ? `${options.opponentName}の船` : '敵船', false),
+        player: createShip(
+            options.playerName ? `${options.playerName}の船` : '自分の船',
+            true,
+            options.playerProfile,
+            options.playerShipProfile
+        ),
+        enemy: createShip(
+            options.opponentName ? `${options.opponentName}の船` : '敵船',
+            false,
+            options.opponentProfile,
+            options.opponentShipProfile
+        ),
         logs: [],
         finished: false,
         outcome: null,
+        reward: null,
+        rewardResult: null,
         timer: null
     };
+    battle.reward = createRewardModel(options, battle.player, battle.enemy);
 
     const enemyTitle = document.getElementById('navalEnemyTitle');
     if (enemyTitle) enemyTitle.textContent = battle.enemy.label;
@@ -884,9 +1262,14 @@ function applyNavalBattleSnapshot(snapshot, perspective = 'player') {
     battle.player = cloneShipState(next.player, '自分の船', true);
     battle.enemy = cloneShipState(next.enemy, '敵船', false);
     battle.enemyPlan = resolveEnemyPlanByName(next.enemyPlan);
+    battle.reward = next.reward || createRewardModel(battle.options, battle.player, battle.enemy);
+    battle.rewardResult = next.rewardResult || null;
     battle.logs = Array.isArray(next.logs) ? next.logs.slice(0, 30) : [];
     battle.finished = Boolean(next.finished);
     battle.outcome = next.outcome || null;
+    if (battle.finished) {
+        battle.rewardResult = resolveOutcomeReward(battle, battle.outcome);
+    }
 
     const enemyTitle = document.getElementById('navalEnemyTitle');
     if (enemyTitle) enemyTitle.textContent = battle.enemy.label;
@@ -895,6 +1278,7 @@ function applyNavalBattleSnapshot(snapshot, perspective = 'player') {
     const logEl = document.getElementById('navalBattleLog');
     if (logEl) logEl.innerHTML = battle.logs.map((m) => `<div>${escapeHtml(m)}</div>`).join('');
     render(battle);
+    if (battle.finished) showBattleResultOverlay(battle);
     return battle;
 }
 

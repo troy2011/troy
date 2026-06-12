@@ -37,6 +37,21 @@ function clone(value) {
     return JSON.parse(JSON.stringify(value || null));
 }
 
+function normalizeProfile(rawProfile) {
+    const profile = rawProfile?.profile && typeof rawProfile.profile === 'object' ? rawProfile.profile : rawProfile;
+    if (!profile || typeof profile !== 'object') return null;
+    return {
+        playFabId: normalizeId(profile.playFabId || profile.PlayFabId || ''),
+        displayName: String(profile.displayName || profile.DisplayName || '').slice(0, 40),
+        nation: String(profile.nation || profile.Nation || '').slice(0, 20),
+        level: Math.max(1, Math.floor(Number(profile.level || profile.Level || profile.stats?.level || 1) || 1)),
+        stats: profile.stats && typeof profile.stats === 'object' ? clone(profile.stats) : {},
+        playerShip: profile.playerShip && typeof profile.playerShip === 'object' ? clone(profile.playerShip) : null,
+        cargoResources: profile.cargoResources && typeof profile.cargoResources === 'object' ? clone(profile.cargoResources) : null,
+        explorationCandidates: Array.isArray(profile.explorationCandidates) ? profile.explorationCandidates.slice(0, 3) : []
+    };
+}
+
 function isFinishedOrStale(room) {
     if (!room) return true;
     if (room.status === 'finished') return true;
@@ -44,14 +59,17 @@ function isFinishedOrStale(room) {
     return updatedAt > 0 && nowMs() - updatedAt > STALE_ROOM_MS;
 }
 
-function makePlayer(playFabId, displayName) {
+function makePlayer(playFabId, displayName, profile = null) {
+    const publicProfile = normalizeProfile(profile);
     return {
         playFabId: normalizeId(playFabId),
-        displayName: String(displayName || playFabId || 'Player')
+        displayName: String(displayName || publicProfile?.displayName || playFabId || 'Player'),
+        profile: publicProfile,
+        shipProfile: publicProfile?.playerShip || null
     };
 }
 
-function createRoom({ roomId, uid, selfId, selfName, opponentId, opponentName }) {
+function createRoom({ roomId, uid, selfId, selfName, opponentId, opponentName, selfProfile, opponentProfile }) {
     const createdAt = nowMs();
     return {
         schema: SCHEMA_VERSION,
@@ -63,8 +81,8 @@ function createRoom({ roomId, uid, selfId, selfName, opponentId, opponentName })
         attackerId: normalizeId(selfId),
         defenderId: normalizeId(opponentId),
         players: {
-            attacker: makePlayer(selfId, selfName),
-            defender: makePlayer(opponentId, opponentName)
+            attacker: makePlayer(selfId, selfName, selfProfile),
+            defender: makePlayer(opponentId, opponentName, opponentProfile)
         },
         presence: {},
         pendingCommands: {},
@@ -88,8 +106,16 @@ function roleToEngineSide(role) {
     return role === 'defender' ? 'enemy' : 'player';
 }
 
+function playerForRole(room, role) {
+    return role === 'attacker' ? room?.players?.attacker : room?.players?.defender;
+}
+
+function opponentForRole(room, role) {
+    return role === 'attacker' ? room?.players?.defender : room?.players?.attacker;
+}
+
 function opponentNameFor(room, role, fallback) {
-    const other = role === 'attacker' ? room?.players?.defender : room?.players?.attacker;
+    const other = opponentForRole(room, role);
     return String(other?.displayName || fallback || other?.playFabId || '相手');
 }
 
@@ -237,25 +263,35 @@ function applyRoomState(room) {
     }
 }
 
-async function ensureRoom({ db, uid, selfId, selfName, opponentId, opponentName }) {
+async function ensureRoom({ db, uid, selfId, selfName, selfProfile, opponentId, opponentName, opponentProfile }) {
     const roomId = buildRoomId(selfId, opponentId);
     const roomRef = ref(db, `${ROOM_ROOT}/${roomId}`);
     let room = await readRoom(roomRef);
     if (isFinishedOrStale(room)) {
-        room = createRoom({ roomId, uid, selfId, selfName, opponentId, opponentName });
+        room = createRoom({ roomId, uid, selfId, selfName, selfProfile, opponentId, opponentName, opponentProfile });
     }
 
     const role = getRole(room, selfId);
     if (!role) {
-        room = createRoom({ roomId, uid, selfId, selfName, opponentId, opponentName });
+        room = createRoom({ roomId, uid, selfId, selfName, selfProfile, opponentId, opponentName, opponentProfile });
     } else if (!room.hostUid) {
         room.hostUid = uid;
+    }
+
+    const activeRole = getRole(room, selfId) || 'attacker';
+    room.players = {
+        ...(room.players || {}),
+        [activeRole]: makePlayer(selfId, selfName, selfProfile)
+    };
+    const otherRole = activeRole === 'attacker' ? 'defender' : 'attacker';
+    if (opponentProfile && !room.players?.[otherRole]?.profile) {
+        room.players[otherRole] = makePlayer(opponentId, opponentName, opponentProfile);
     }
 
     const presence = { ...(room.presence || {}) };
     presence[uid] = {
         uid,
-        role: getRole(room, selfId) || 'attacker',
+        role: activeRole,
         playFabId: normalizeId(selfId),
         displayName: String(selfName || selfId),
         updatedAt: serverTimestamp()
@@ -271,8 +307,10 @@ export async function startNavalPvpBattle({
     uid,
     selfId,
     selfName,
+    selfProfile,
     opponentId,
     opponentName,
+    opponentProfile,
     onBoarding
 } = {}) {
     if (!db || !uid) throw new Error('リアルタイム接続の準備ができていません。');
@@ -281,13 +319,20 @@ export async function startNavalPvpBattle({
 
     stopSession();
 
-    const ensured = await ensureRoom({ db, uid, selfId, selfName, opponentId, opponentName });
+    const ensured = await ensureRoom({ db, uid, selfId, selfName, selfProfile, opponentId, opponentName, opponentProfile });
     const role = getRole(ensured.room, selfId) || 'attacker';
     const opponentNameResolved = opponentNameFor(ensured.room, role, opponentName);
+    const selfPlayer = playerForRole(ensured.room, role) || makePlayer(selfId, selfName, selfProfile);
+    const opponentPlayer = opponentForRole(ensured.room, role) || makePlayer(opponentId, opponentName, opponentProfile);
 
     window.startNavalBattle({
         opponentId,
+        playerName: selfPlayer.displayName || selfName,
         opponentName: opponentNameResolved,
+        playerProfile: selfPlayer.profile,
+        opponentProfile: opponentPlayer.profile,
+        playerShipProfile: selfPlayer.shipProfile,
+        opponentShipProfile: opponentPlayer.shipProfile,
         disableAi: true,
         disableTimer: true,
         onCommandSelect: sendCommand,
