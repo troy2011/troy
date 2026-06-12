@@ -1991,6 +1991,11 @@ async function startHomeQrScan() {
                 return;
             }
             const target = setHomePlunderQrTarget(targetPlayFabId);
+            if (isCurrentPlayerInTroyStatus(window.__troyStatus, myPlayFabId) && HOME_PLUNDER_ENTRY_ENABLED) {
+                showRpgMessage(`${target.displayName || target.playFabId}を捕捉しました。海戦を開始します。`, 2600);
+                await startHomePlunderBattle();
+                return;
+            }
             showRpgMessage(`${target.displayName || target.playFabId}を略奪対象にしました。`, 2600);
             await openPlayerProfile(targetPlayFabId);
             return;

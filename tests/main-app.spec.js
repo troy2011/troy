@@ -1112,14 +1112,9 @@ test('home plunder route opens the naval battle phase and boarding starts the me
   await expect(page.locator('#navalBattleModal')).toHaveCount(0);
 
   await page.locator('#btnHomeScanQr').click();
-  await expect(page.locator('#playerProfileModal')).toBeVisible();
-  await expect(page.locator('#playerProfileName')).toHaveText('QR Target');
-  await page.locator('#btnClosePlayerProfile').click();
   await expect(page.locator('#playerProfileModal')).not.toBeVisible();
 
-  await page.locator('#btnHomeExploration').click();
-
-  // 略奪ボタンは白兵戦を直接開始せず、まず海戦フェーズを開く
+  // QR読み取り後は白兵戦を直接開始せず、そのまま海戦フェーズを開く
   await expect(page.locator('#navalBattleModal')).toBeVisible();
   await expect(page.locator('#navalBattleModal')).toContainText('QR Targetの船');
   await expect(page.locator('#navalPvpStatus')).toContainText('相手');
