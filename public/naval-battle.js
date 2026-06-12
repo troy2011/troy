@@ -42,6 +42,14 @@ const PLUNDER_LIMITS = {
     cargoRaid: { chips: 12, cargo: 1, exploration: 1 }
 };
 const REPAIR_RISK = { chips: 20, cooldownMinutes: 5 };
+const COMMAND_TYPE_LABEL = {
+    cannon: '砲撃',
+    move: '操船',
+    ram: '突撃',
+    rudder: '操舵',
+    loot: '略奪',
+    boarding: '接舷'
+};
 
 const ENEMY_PLANS = [
     { name: '突撃型', ramBias: 0.75, advanceBias: 0.72, broadsideBias: 0.42, caution: 0.28 },
@@ -882,65 +890,102 @@ function closeNavalBattle() {
 // UI 構築
 // ---------------------------------------------------------------------
 const NAVAL_CSS = `
-#navalBattleModal { position: fixed; inset: 0; z-index: 6000; display: none; align-items: center; justify-content: center; background: rgba(6, 12, 24, 0.85); }
+#navalBattleModal { position: fixed; inset: 0; z-index: 6000; display: none; align-items: center; justify-content: center; background: rgba(4, 12, 18, 0.86); padding: 12px; }
 #navalBattleModal.is-open { display: flex; }
 body.naval-battle-lock { overflow: hidden; }
-.naval-shell { width: min(560px, 96vw); max-height: 96vh; overflow-y: auto; background: linear-gradient(180deg, #11243c 0%, #0a1626 100%); border: 2px solid #3b577c; border-radius: 12px; padding: 12px; color: #e8f0fa; font-size: 13px; }
-.naval-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.naval-head h3 { margin: 0; font-size: 16px; }
-.naval-close { background: transparent; border: none; color: #9fb4ce; font-size: 20px; cursor: pointer; padding: 0 6px; }
+.naval-shell { width: min(720px, 100%); max-height: min(96vh, 920px); overflow-y: auto; background: linear-gradient(180deg, #13241f 0%, #07141b 100%); border: 1px solid #58706c; border-radius: 10px; padding: 14px; color: #edf7f4; font-size: 13px; box-shadow: 0 22px 60px rgba(0,0,0,0.42); }
+.naval-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
+.naval-title-block { min-width: 0; }
+.naval-head h3 { margin: 0; font-size: 17px; letter-spacing: 0; }
+.naval-subtitle { margin-top: 2px; color: #a9c6bf; font-size: 11px; }
+.naval-close { width: 34px; height: 34px; display: grid; place-items: center; background: #152724; border: 1px solid #4a6661; border-radius: 8px; color: #d7e7e2; font-size: 20px; cursor: pointer; padding: 0; flex: 0 0 auto; }
+.naval-close:hover { background: #203631; }
 
-.naval-timeline { position: relative; height: 56px; background: #0d1c30; border: 1px solid #2c4566; border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+.naval-timeline { position: relative; height: 64px; background: #0b1a20; border: 1px solid #335751; border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
 .naval-timeline-axis { position: absolute; inset: 0; display: flex; }
-.naval-timeline-axis span { flex: 1; border-left: 1px dashed #25405f; color: #5d7894; font-size: 10px; padding: 2px 0 0 3px; }
-.naval-timeline-marker { position: absolute; left: 0; transform: translateX(-50%); transition: left ${TICK_MS}ms linear; padding: 1px 6px; border-radius: 9px; font-size: 11px; white-space: nowrap; }
-.naval-timeline-marker.is-player { top: 6px; background: #1d4ed8; }
-.naval-timeline-marker.is-enemy { bottom: 6px; background: #b91c1c; }
+.naval-timeline-axis span { flex: 1; border-left: 1px dashed rgba(108, 145, 137, 0.42); color: #6f918a; font-size: 10px; padding: 3px 0 0 4px; }
+.naval-timeline-lane-label { position: absolute; left: 8px; color: #789d95; font-size: 10px; z-index: 1; }
+.naval-timeline-lane-label.is-player { top: 24px; }
+.naval-timeline-lane-label.is-enemy { bottom: 8px; }
+.naval-timeline-marker { position: absolute; left: 0; transform: translateX(-50%); transition: left ${TICK_MS}ms linear; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.24); max-width: 44%; overflow: hidden; text-overflow: ellipsis; }
+.naval-timeline-marker.is-player { top: 20px; background: #1f7a69; color: #f3fffb; }
+.naval-timeline-marker.is-enemy { bottom: 5px; background: #a93f42; color: #fff5f2; }
 .naval-timeline-marker.is-idle { opacity: 0.35; }
 
-.naval-sea { position: relative; height: 170px; border-radius: 8px; border: 1px solid #2c4566; background: linear-gradient(180deg, #14334f 0%, #0d2740 55%, #0a1d31 100%); margin-bottom: 10px; overflow: hidden; }
-.naval-distance-label { position: absolute; top: 6px; left: 0; right: 0; text-align: center; color: #9fc3e8; font-size: 12px; }
+.naval-battle-grid { display: grid; grid-template-columns: minmax(300px, 1.06fr) minmax(280px, 0.94fr); gap: 10px; align-items: stretch; margin-bottom: 10px; }
+.naval-sea { position: relative; min-height: 244px; border-radius: 8px; border: 1px solid #365d58; background: linear-gradient(180deg, #18413d 0%, #0f3239 54%, #081a22 100%); overflow: hidden; }
+.naval-sea::before { content: ""; position: absolute; inset: 34px 0 0; background: repeating-linear-gradient(172deg, rgba(179, 221, 211, 0.14) 0 1px, transparent 1px 22px); opacity: 0.45; pointer-events: none; }
+.naval-sea::after { content: ""; position: absolute; left: 12%; right: 12%; top: 50%; border-top: 1px dashed rgba(244, 211, 126, 0.42); pointer-events: none; }
+.naval-distance-label { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); min-width: 96px; text-align: center; color: #ffe5a3; background: rgba(9, 26, 31, 0.72); border: 1px solid rgba(244, 211, 126, 0.36); border-radius: 999px; font-size: 12px; font-weight: 700; padding: 3px 10px; z-index: 1; }
 .naval-ship { position: absolute; width: 96px; text-align: center; transition: left 400ms ease, top 400ms ease, transform 400ms ease; }
-.naval-ship .naval-ship-glyph { font-size: 40px; line-height: 1; display: inline-block; transition: transform 400ms ease; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.5)); }
-.naval-ship .naval-ship-name { font-size: 11px; color: #cfe3f7; margin-top: 2px; text-shadow: 0 1px 2px #000; }
-.naval-ship .naval-ship-facing { font-size: 10px; color: #8fb7dd; }
+.naval-ship .naval-ship-glyph { width: 58px; height: 58px; display: inline-grid; place-items: center; background: rgba(5, 15, 18, 0.56); border: 1px solid rgba(226, 244, 239, 0.18); border-radius: 8px; font-size: 38px; line-height: 1; transition: transform 400ms ease; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.42)); }
+.naval-ship .naval-ship-name { font-size: 11px; color: #edf8f4; margin-top: 4px; text-shadow: 0 1px 2px #000; overflow-wrap: anywhere; }
+.naval-ship .naval-ship-facing { font-size: 10px; color: #a9c9c1; }
 .naval-ship.is-stunned .naval-ship-glyph { animation: navalShake 0.4s infinite; filter: grayscale(0.6) drop-shadow(0 4px 4px rgba(0,0,0,0.5)); }
 @keyframes navalShake { 0%,100% { transform: var(--naval-rot) translateX(0); } 25% { transform: var(--naval-rot) translateX(-3px); } 75% { transform: var(--naval-rot) translateX(3px); } }
 /* 距離0：2.5D風の並走レイアウト（奥に敵、手前に自分） */
-.naval-sea.is-overlap { background: linear-gradient(180deg, #1a3c5c 0%, #102c47 55%, #0a1d31 100%); }
+.naval-sea.is-overlap { background: linear-gradient(180deg, #204b3f 0%, #15373a 55%, #081a22 100%); }
 .naval-sea.is-overlap .naval-ship.is-enemy { transform: scale(0.75); z-index: 1; }
 .naval-sea.is-overlap .naval-ship.is-player { transform: scale(1.1); z-index: 2; }
 
-.naval-status { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-.naval-status-card { background: #0d1c30; border: 1px solid #2c4566; border-radius: 8px; padding: 8px; }
-.naval-status-card h4 { margin: 0 0 4px; font-size: 12px; }
-.naval-status-card.is-player h4 { color: #7fb3ff; }
-.naval-status-card.is-enemy h4 { color: #ff9b8a; }
-.naval-hp-bar { height: 8px; background: #1c2f49; border-radius: 4px; overflow: hidden; margin: 3px 0 6px; }
-.naval-hp-fill { height: 100%; background: linear-gradient(90deg, #34d399, #10b981); transition: width 300ms ease; }
+.naval-status { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.naval-status-card { background: #0b1a20; border: 1px solid #335751; border-radius: 8px; padding: 9px; min-width: 0; }
+.naval-status-card h4 { margin: 0 0 6px; font-size: 12px; overflow-wrap: anywhere; }
+.naval-status-card.is-player h4 { color: #7ee3cf; }
+.naval-status-card.is-enemy h4 { color: #ffaaa0; }
+.naval-hp-bar { height: 9px; background: #1d2d2b; border-radius: 999px; overflow: hidden; margin: 4px 0 7px; }
+.naval-hp-fill { height: 100%; background: linear-gradient(90deg, #50d6a5, #1fae83); transition: width 300ms ease; }
 .naval-hp-fill.is-low { background: linear-gradient(90deg, #f87171, #dc2626); }
-.naval-status-row { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: #b9cde4; }
+.naval-status-row { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: #b8cec8; padding: 1px 0; }
 .naval-status-row b { color: #fff; text-align: right; overflow-wrap: anywhere; }
 .naval-stun-badge { color: #fbbf24; font-weight: bold; }
 
-.naval-loot-panel { background: #132238; border: 1px solid #36577e; border-radius: 8px; color: #d8e8f7; font-size: 12px; line-height: 1.45; padding: 7px 9px; margin-bottom: 8px; }
-.naval-intel { background: #17253a; border: 1px solid #3f6491; border-radius: 8px; color: #d9e8f7; font-size: 12px; line-height: 1.45; padding: 7px 9px; margin-bottom: 8px; }
-.naval-commands { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-.naval-command-btn { flex: 1 1 calc(50% - 6px); min-width: 140px; background: #1b3a5e; border: 1px solid #3f6491; color: #e8f0fa; border-radius: 8px; padding: 8px 6px; cursor: pointer; text-align: left; }
-.naval-command-btn:disabled { opacity: 0.35; cursor: default; }
-.naval-command-btn:not(:disabled):hover { background: #245081; }
-.naval-command-btn b { display: block; font-size: 13px; }
-.naval-command-btn small { display: block; font-size: 10px; color: #9fc3e8; margin-top: 2px; }
-.naval-command-note { font-size: 11px; color: #fbbf24; min-height: 16px; margin-bottom: 6px; }
+.naval-win-routes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
+.naval-route { border: 1px solid #345b54; border-radius: 8px; background: #0d1d20; padding: 7px; min-width: 0; }
+.naval-route strong { display: block; color: #f4d37e; font-size: 12px; overflow-wrap: anywhere; }
+.naval-route span { display: block; margin-top: 2px; color: #a9c6bf; font-size: 10px; line-height: 1.25; overflow-wrap: anywhere; }
+.naval-route.is-ready { border-color: #d7b35c; background: #211d11; }
+.naval-route.is-danger { border-color: #9c4648; background: #231416; }
+.naval-route.is-done { border-color: #51b893; background: #10261e; }
+.naval-loot-panel, .naval-intel { border-radius: 8px; font-size: 12px; line-height: 1.45; padding: 8px 10px; margin-bottom: 8px; overflow-wrap: anywhere; }
+.naval-loot-panel { background: #151f1a; border: 1px solid #5e7045; color: #efe5bd; }
+.naval-intel { background: #13211f; border: 1px solid #3f6a62; color: #dcefe9; }
+.naval-commands { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-bottom: 8px; }
+.naval-command-btn { min-width: 0; min-height: 76px; background: #12231f; border: 1px solid #3f6a62; color: #edf7f4; border-radius: 8px; padding: 9px; cursor: pointer; text-align: left; display: grid; gap: 4px; align-content: start; }
+.naval-command-btn:disabled { opacity: 0.42; cursor: default; filter: grayscale(0.25); }
+.naval-command-btn:not(:disabled):hover { background: #19352e; border-color: #7ccbb9; }
+.naval-command-btn b { display: block; font-size: 13px; line-height: 1.25; overflow-wrap: anywhere; }
+.naval-command-btn small { display: block; font-size: 10px; color: #b5d2ca; line-height: 1.35; overflow-wrap: anywhere; }
+.naval-command-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; color: #f4d37e; font-size: 10px; font-weight: 700; }
+.naval-command-kind { color: #0b1816; background: #f4d37e; border-radius: 999px; padding: 2px 7px; }
+.naval-command-btn.is-cannon { border-color: #577a89; }
+.naval-command-btn.is-ram { border-color: #a95d4d; }
+.naval-command-btn.is-rudder { border-color: #4f9b88; }
+.naval-command-btn.is-move { border-color: #8b9161; }
+.naval-command-btn.is-loot { border-color: #c0a150; }
+.naval-command-btn.is-boarding { border-color: #b76d76; }
+.naval-command-note { font-size: 11px; color: #f4d37e; min-height: 16px; margin-bottom: 6px; overflow-wrap: anywhere; }
 
-#navalBattleLog { height: 84px; overflow-y: auto; background: #0a1626; border: 1px solid #2c4566; border-radius: 8px; padding: 6px 8px; font-size: 11px; line-height: 1.5; color: #b9cde4; }
+#navalBattleLog { height: 92px; overflow-y: auto; background: #07141b; border: 1px solid #2f534d; border-radius: 8px; padding: 7px 9px; font-size: 11px; line-height: 1.5; color: #b8cec8; }
 
 #navalBattleResult { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(4, 9, 18, 0.82); border-radius: 12px; z-index: 3; }
 #navalBattleResult[hidden] { display: none; }
-.naval-result-card { background: #11243c; border: 2px solid #3b577c; border-radius: 12px; padding: 20px 28px; text-align: center; }
+.naval-result-card { width: min(420px, 92%); background: #11211f; border: 2px solid #6b8060; border-radius: 10px; padding: 20px 24px; text-align: center; box-shadow: 0 18px 46px rgba(0,0,0,0.35); }
 .naval-result-title { font-size: 18px; margin: 0 0 8px; }
-.naval-result-body { font-size: 13px; color: #b9cde4; margin: 0 0 14px; white-space: pre-line; }
-.naval-result-close { background: #1d4ed8; color: #fff; border: none; border-radius: 8px; padding: 8px 24px; cursor: pointer; }
+.naval-result-body { font-size: 13px; color: #c8ded8; margin: 0 0 14px; white-space: pre-line; line-height: 1.55; }
+.naval-result-close { background: #1f7a69; color: #fff; border: none; border-radius: 8px; padding: 8px 24px; cursor: pointer; }
+.naval-result-close:hover { background: #26947f; }
+
+@media (max-width: 640px) {
+    #navalBattleModal { padding: 6px; align-items: stretch; }
+    .naval-shell { width: 100%; max-height: 100%; border-radius: 8px; padding: 10px; }
+    .naval-battle-grid { display: block; margin-bottom: 10px; }
+    .naval-sea { min-height: 168px; margin-bottom: 10px; }
+    .naval-win-routes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .naval-commands { grid-template-columns: 1fr; }
+    .naval-command-btn { min-height: 64px; }
+    .naval-timeline-marker { max-width: 50%; }
+}
 `;
 
 function ensureModal() {
@@ -957,54 +1002,62 @@ function ensureModal() {
     modal.innerHTML = `
         <div class="naval-shell" role="dialog" aria-modal="true" aria-labelledby="navalBattleTitle" style="position: relative;">
             <div class="naval-head">
-                <h3 id="navalBattleTitle">海戦</h3>
+                <div class="naval-title-block">
+                    <h3 id="navalBattleTitle">略奪海戦</h3>
+                    <div class="naval-subtitle">QR相手とのリアルタイムPvP</div>
+                </div>
                 <button type="button" class="naval-close" aria-label="海戦をやめる" data-naval-close>×</button>
             </div>
             <div class="naval-timeline" id="navalTimeline">
                 <div class="naval-timeline-axis">${
                     Array.from({ length: TIMELINE_MAX + 1 }, (_, i) => `<span>${i}</span>`).join('')
                 }</div>
+                <div class="naval-timeline-lane-label is-player">自分</div>
+                <div class="naval-timeline-lane-label is-enemy">相手</div>
                 <div class="naval-timeline-marker is-player" id="navalMarkerPlayer">待機中</div>
                 <div class="naval-timeline-marker is-enemy" id="navalMarkerEnemy">待機中</div>
             </div>
-            <div class="naval-sea" id="navalSea">
-                <div class="naval-distance-label" id="navalDistanceLabel"></div>
-                <div class="naval-ship is-enemy" id="navalShipEnemy">
-                    <span class="naval-ship-glyph">🏴‍☠️</span>
-                    <div class="naval-ship-name" id="navalShipEnemyName"></div>
-                    <div class="naval-ship-facing" id="navalShipEnemyFacing"></div>
+            <div class="naval-battle-grid">
+                <div class="naval-sea" id="navalSea">
+                    <div class="naval-distance-label" id="navalDistanceLabel"></div>
+                    <div class="naval-ship is-enemy" id="navalShipEnemy">
+                        <span class="naval-ship-glyph">🏴‍☠️</span>
+                        <div class="naval-ship-name" id="navalShipEnemyName"></div>
+                        <div class="naval-ship-facing" id="navalShipEnemyFacing"></div>
+                    </div>
+                    <div class="naval-ship is-player" id="navalShipPlayer">
+                        <span class="naval-ship-glyph">⛵</span>
+                        <div class="naval-ship-name">自分の船</div>
+                        <div class="naval-ship-facing" id="navalShipPlayerFacing"></div>
+                    </div>
                 </div>
-                <div class="naval-ship is-player" id="navalShipPlayer">
-                    <span class="naval-ship-glyph">⛵</span>
-                    <div class="naval-ship-name">自分の船</div>
-                    <div class="naval-ship-facing" id="navalShipPlayerFacing"></div>
+                <div class="naval-status">
+                    <div class="naval-status-card is-player">
+                        <h4>自分の船</h4>
+                        <div class="naval-hp-bar"><div class="naval-hp-fill" id="navalHpPlayer"></div></div>
+                        <div class="naval-status-row"><span>HP</span><b id="navalHpPlayerText"></b></div>
+                        <div class="naval-status-row"><span>船型</span><b id="navalTypePlayer"></b></div>
+                        <div class="naval-status-row"><span>補正</span><b id="navalSpecPlayer"></b></div>
+                        <div class="naval-status-row"><span>向き</span><b id="navalFacingPlayer"></b></div>
+                        <div class="naval-status-row"><span>おもかじCD</span><b id="navalRudderPlayer"></b></div>
+                        <div class="naval-status-row"><span>操舵不能</span><b id="navalStunPlayer"></b></div>
+                        <div class="naval-status-row"><span>船倉</span><b id="navalCargoPlayer"></b></div>
+                    </div>
+                    <div class="naval-status-card is-enemy">
+                        <h4 id="navalEnemyTitle">敵船</h4>
+                        <div class="naval-hp-bar"><div class="naval-hp-fill" id="navalHpEnemy"></div></div>
+                        <div class="naval-status-row"><span>HP</span><b id="navalHpEnemyText"></b></div>
+                        <div class="naval-status-row"><span>船型</span><b id="navalTypeEnemy"></b></div>
+                        <div class="naval-status-row"><span>補正</span><b id="navalSpecEnemy"></b></div>
+                        <div class="naval-status-row"><span>戦法</span><b id="navalEnemyPlan"></b></div>
+                        <div class="naval-status-row"><span>向き</span><b id="navalFacingEnemy"></b></div>
+                        <div class="naval-status-row"><span>おもかじCD</span><b id="navalRudderEnemy"></b></div>
+                        <div class="naval-status-row"><span>操舵不能</span><b id="navalStunEnemy"></b></div>
+                        <div class="naval-status-row"><span>船倉</span><b id="navalCargoEnemy"></b></div>
+                    </div>
                 </div>
             </div>
-            <div class="naval-status">
-                <div class="naval-status-card is-player">
-                    <h4>自分の船</h4>
-                    <div class="naval-hp-bar"><div class="naval-hp-fill" id="navalHpPlayer"></div></div>
-                    <div class="naval-status-row"><span>HP</span><b id="navalHpPlayerText"></b></div>
-                    <div class="naval-status-row"><span>船型</span><b id="navalTypePlayer"></b></div>
-                    <div class="naval-status-row"><span>補正</span><b id="navalSpecPlayer"></b></div>
-                    <div class="naval-status-row"><span>向き</span><b id="navalFacingPlayer"></b></div>
-                    <div class="naval-status-row"><span>おもかじCD</span><b id="navalRudderPlayer"></b></div>
-                    <div class="naval-status-row"><span>操舵不能</span><b id="navalStunPlayer"></b></div>
-                    <div class="naval-status-row"><span>船倉</span><b id="navalCargoPlayer"></b></div>
-                </div>
-                <div class="naval-status-card is-enemy">
-                    <h4 id="navalEnemyTitle">敵船</h4>
-                    <div class="naval-hp-bar"><div class="naval-hp-fill" id="navalHpEnemy"></div></div>
-                    <div class="naval-status-row"><span>HP</span><b id="navalHpEnemyText"></b></div>
-                    <div class="naval-status-row"><span>船型</span><b id="navalTypeEnemy"></b></div>
-                    <div class="naval-status-row"><span>補正</span><b id="navalSpecEnemy"></b></div>
-                    <div class="naval-status-row"><span>戦法</span><b id="navalEnemyPlan"></b></div>
-                    <div class="naval-status-row"><span>向き</span><b id="navalFacingEnemy"></b></div>
-                    <div class="naval-status-row"><span>おもかじCD</span><b id="navalRudderEnemy"></b></div>
-                    <div class="naval-status-row"><span>操舵不能</span><b id="navalStunEnemy"></b></div>
-                    <div class="naval-status-row"><span>船倉</span><b id="navalCargoEnemy"></b></div>
-                </div>
-            </div>
+            <div class="naval-win-routes" id="navalWinRoutes"></div>
             <div class="naval-loot-panel" id="navalLootPanel"></div>
             <div class="naval-intel" id="navalIntel"></div>
             <div class="naval-command-note" id="navalCommandNote"></div>
@@ -1146,6 +1199,48 @@ function renderStatus(b) {
     }
 }
 
+function renderWinRoutes(b) {
+    const container = document.getElementById('navalWinRoutes');
+    if (!container) return;
+    const enemyLow = b.enemy.hp <= b.enemy.maxHp * 0.35;
+    const boardingReady = b.distance === 0 && b.enemy.stun > 0;
+    const cargoReady = canSelect(b, b.player, b.enemy, COMMANDS.cargoRaid);
+    const escapeReady = b.player.facing === 'back' && b.distance >= 4;
+    const playerBoardingRisk = b.distance === 0 && b.player.stun > 0;
+    const routes = [
+        {
+            key: 'sink',
+            title: '撃沈',
+            text: `敵HP ${b.enemy.hp}/${b.enemy.maxHp}`,
+            state: b.outcome === 'victory' ? 'done' : enemyLow ? 'ready' : ''
+        },
+        {
+            key: 'boarding',
+            title: '接舷',
+            text: boardingReady ? '白兵戦へ移行可能' : '相手スタンが必要',
+            state: b.outcome === 'boarding' ? 'done' : playerBoardingRisk ? 'danger' : boardingReady ? 'ready' : ''
+        },
+        {
+            key: 'escape',
+            title: '逃走',
+            text: `距離 ${b.distance}/${ESCAPE_DISTANCE}`,
+            state: b.outcome === 'escape' ? 'done' : escapeReady ? 'ready' : ''
+        },
+        {
+            key: 'cargo',
+            title: '略奪撤退',
+            text: cargoReady ? '船倉を少量確保' : '距離0で隙を作る',
+            state: b.outcome === 'cargoRaid' ? 'done' : cargoReady ? 'ready' : ''
+        }
+    ];
+    container.innerHTML = routes.map((route) => `
+        <div class="naval-route ${route.state ? `is-${route.state}` : ''}" data-route="${escapeHtml(route.key)}">
+            <strong>${escapeHtml(route.title)}</strong>
+            <span>${escapeHtml(route.text)}</span>
+        </div>
+    `).join('');
+}
+
 function renderCommands(b) {
     const container = document.getElementById('navalCommands');
     const note = document.getElementById('navalCommandNote');
@@ -1158,10 +1253,18 @@ function renderCommands(b) {
         const lag = getCommandLag(self, def);
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'naval-command-btn';
+        button.className = `naval-command-btn is-${def.type}`;
         button.dataset.navalCommand = def.id;
-        button.innerHTML = `<b>${escapeHtml(def.label)}（ラグ ${lag}）</b><small>${escapeHtml(def.desc)}</small>`;
+        button.innerHTML = `
+            <span class="naval-command-meta">
+                <span class="naval-command-kind">${escapeHtml(COMMAND_TYPE_LABEL[def.type] || '行動')}</span>
+                <span>ラグ ${lag}</span>
+            </span>
+            <b>${escapeHtml(def.label)}</b>
+            <small>${escapeHtml(def.desc)}</small>
+        `;
         button.disabled = !canSelect(b, self, foe, def);
+        button.setAttribute('aria-label', `${def.label} ラグ${lag}`);
         button.addEventListener('click', () => {
             if (typeof b.options.onCommandSelect === 'function') {
                 const handled = b.options.onCommandSelect(def.id, {
@@ -1189,6 +1292,7 @@ function render(b) {
     renderMarker(document.getElementById('navalMarkerEnemy'), b.enemy);
     renderShipPositions(b);
     renderStatus(b);
+    renderWinRoutes(b);
     renderCommands(b);
 }
 

@@ -23,6 +23,7 @@ test('naval battle UI moves from normal phase to overlap boarding phase', async 
   await expect(page.locator('#navalDistanceLabel')).toHaveText('距離 3');
   await expect(page.locator('#navalEnemyPlan')).not.toHaveText('');
   await expect(page.locator('#navalIntel')).toContainText('敵戦法');
+  await expect(page.locator('#navalWinRoutes .naval-route')).toHaveCount(4);
   await expect(page.locator('#navalLootPanel')).toContainText('戦利品上限');
   await expect(page.locator('#navalCommands .naval-command-btn')).toHaveCount(4);
   await expect(page.locator('[data-naval-command="ram"]')).toBeDisabled();
