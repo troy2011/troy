@@ -11,7 +11,7 @@ const {
   buildTroyBountyRankingRow,
   formatTroyCloseSummaryMessage
 } = require('../server/nation');
-const { buildCalculatedTroyBountyRanking } = require('../server/economy');
+const { buildCalculatedTroyBountyRanking, buildCalculatedGlobalBountyRanking } = require('../server/economy');
 
 test('formats TROY close summary LINE message with daily sales and pending checkouts', () => {
   expect(normalizeLineUserIdList('U1, U2 U1;U3')).toEqual(['U1', 'U2', 'U3']);
@@ -199,7 +199,7 @@ test('builds TROY bounty ranking from fresh member snapshot when PlayFab stats l
   expect(row.avatarUrl).toBe('https://example.test/avatar.png');
 });
 
-test('builds calculated bounty ranking for get-bounty-ranking', async () => {
+test('builds calculated TROY member bounty ranking', async () => {
   const memberDocs = [
     {
       id: 'PLAYER_LOW',
@@ -266,6 +266,73 @@ test('builds calculated bounty ranking for get-bounty-ranking', async () => {
   expect(ranking.memberCount).toBe(2);
   expect(ranking.ranking.map((row) => row.playFabId)).toEqual(['PLAYER_HIGH', 'PLAYER_LOW']);
   expect(ranking.ranking.map((row) => row.bounty)).toEqual([9000, 1600]);
+});
+
+test('builds global bounty ranking from player contribution leaderboard', async () => {
+  const firestore = {
+    collection: (name) => ({
+      doc: (id) => ({
+        get: async () => {
+          const exists = id === 'PLAYER_DEBT' && name === 'troy_contribution_debts';
+          return {
+            exists,
+            data: () => (exists ? { debt: 500 } : {})
+          };
+        }
+      })
+    })
+  };
+
+  const ranking = await buildCalculatedGlobalBountyRanking({
+    firestore,
+    PlayFabServer: {
+      GetLeaderboard: function GetLeaderboard() {},
+      GetPlayerStatistics: function GetPlayerStatistics() {},
+      GetPlayerProfile: function GetPlayerProfile() {}
+    },
+    promisifyPlayFab: async (method, request) => {
+      if (method.name === 'GetLeaderboard') {
+        return {
+          Leaderboard: [
+            {
+              Position: 0,
+              PlayFabId: 'PLAYER_DEBT',
+              DisplayName: '借り持ち',
+              StatValue: 3000,
+              Profile: { AvatarUrl: 'https://example.test/debt.png' }
+            },
+            {
+              Position: 1,
+              PlayFabId: 'PLAYER_CLEAR',
+              DisplayName: '無傷',
+              StatValue: 2500,
+              Profile: { AvatarUrl: 'https://example.test/clear.png' }
+            }
+          ]
+        };
+      }
+      if (method.name === 'GetPlayerStatistics') {
+        const contribution = request.PlayFabId === 'PLAYER_DEBT' ? 3000 : 2500;
+        return {
+          Statistics: [
+            { StatisticName: 'NationContribution', Value: contribution }
+          ]
+        };
+      }
+      return {
+        PlayerProfile: {
+          DisplayName: request.PlayFabId === 'PLAYER_DEBT' ? '借り持ち' : '無傷',
+          AvatarUrl: request.PlayFabId === 'PLAYER_DEBT'
+            ? 'https://example.test/debt.png'
+            : 'https://example.test/clear.png'
+        }
+      };
+    }
+  });
+
+  expect(ranking.scope).toBe('all-players');
+  expect(ranking.ranking.map((row) => row.playFabId)).toEqual(['PLAYER_DEBT', 'PLAYER_CLEAR']);
+  expect(ranking.ranking.map((row) => row.bounty)).toEqual([8500, 5000]);
 });
 
 test('builds TROY item and category sales breakdowns from checkout items', () => {

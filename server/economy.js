@@ -5,13 +5,15 @@ const { addGlobalChatMessage } = require('./chat');
 const { withTitleEntityToken } = require('./playfab');
 const {
     applyDerivedPlayerLevelToStats,
-    buildStatsMapFromStatistics
+    buildStatsMapFromStatistics,
+    PLAYER_CONTRIBUTION_STAT
 } = require('./playerLevel');
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
 const ENABLE_LEGACY_POINT_ROUTES = String(process.env.ENABLE_LEGACY_POINT_ROUTES || '').trim().toLowerCase() === 'true';
 const STORE_GAME_ELO_INITIAL_RATING = 1000;
 const STORE_GAME_ELO_K_FACTOR = 64;
+const GLOBAL_BOUNTY_RANKING_CANDIDATE_LIMIT = 100;
 
 const ECONOMY_CURRENCY_IDS = new Set([
     VIRTUAL_CURRENCY_CODE,
@@ -379,6 +381,60 @@ async function buildCalculatedTroyBountyRanking(deps, options = {}) {
     };
 }
 
+async function buildCalculatedGlobalBountyRanking(deps, options = {}) {
+    const { promisifyPlayFab, PlayFabServer } = deps || {};
+    if (typeof promisifyPlayFab !== 'function' || !PlayFabServer) return null;
+    const limitRaw = Number.parseInt(String(options.limit || '10'), 10);
+    const limit = Number.isFinite(limitRaw) ? Math.min(50, Math.max(1, limitRaw)) : 10;
+    const { buildTroyBountyRankingRow } = require('./nation');
+    if (typeof buildTroyBountyRankingRow !== 'function') return null;
+
+    const result = await promisifyPlayFab(PlayFabServer.GetLeaderboard, {
+        StatisticName: PLAYER_CONTRIBUTION_STAT,
+        StartPosition: 0,
+        MaxResultsCount: GLOBAL_BOUNTY_RANKING_CANDIDATE_LIMIT,
+        ProfileConstraints: { ShowAvatarUrl: true, ShowDisplayName: true }
+    });
+    const entries = Array.isArray(result?.Leaderboard) ? result.Leaderboard : [];
+    const rows = await Promise.all(entries.map((entry) => {
+        const avatarUrl = entry?.Profile?.AvatarUrl || '';
+        const displayName = entry?.DisplayName || entry?.Profile?.DisplayName || entry?.PlayFabId || 'Player';
+        return buildTroyBountyRankingRow({
+            id: entry?.PlayFabId || '',
+            data: () => ({
+                displayName,
+                avatarUrl,
+                contributionTotal: entry?.StatValue || 0,
+                joinedAt: Number(entry?.Position || 0)
+            })
+        }, deps);
+    }));
+    const ranking = rows
+        .filter(Boolean)
+        .sort((a, b) => (
+            (b.bounty - a.bounty)
+            || (b.level - a.level)
+            || String(a.playFabId || '').localeCompare(String(b.playFabId || ''))
+        ))
+        .slice(0, limit)
+        .map((entry, index) => ({
+            position: index + 1,
+            playFabId: entry.playFabId,
+            displayName: entry.displayName,
+            avatarUrl: entry.avatarUrl,
+            level: entry.level,
+            rankName: entry.rankName,
+            bounty: entry.bounty,
+            score: entry.score
+        }));
+
+    return {
+        scope: 'all-players',
+        updatedAt: Date.now(),
+        ranking
+    };
+}
+
 // APIルートを初期化
 function initializeEconomyRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, getEntityKeyFromPlayFabId, firestore, admin, emitDisplayEvent, requireAuthenticatedPlayFabId } = deps;
@@ -520,7 +576,7 @@ function initializeEconomyRoutes(app, deps) {
     // 懸賞金ランキング取得
     app.post('/api/get-bounty-ranking', async (req, res) => {
         try {
-            const calculated = await buildCalculatedTroyBountyRanking({
+            const calculated = await buildCalculatedGlobalBountyRanking({
                 promisifyPlayFab,
                 PlayFabServer,
                 firestore
@@ -849,5 +905,6 @@ module.exports = {
     transferEconomyItem,
     applyTax,
     buildCalculatedTroyBountyRanking,
+    buildCalculatedGlobalBountyRanking,
     initializeEconomyRoutes
 };
