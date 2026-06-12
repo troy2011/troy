@@ -988,10 +988,20 @@ async function openHomeExplorationPopup() {
     ensureHomeExplorationPopupClose(panel);
 }
 
-async function startHomePlunderBattle() {
+async function startHomePlunderBattle(options = {}) {
     const button = document.getElementById('btnHomeExploration');
     if (!isCurrentPlayerInTroyStatus(window.__troyStatus)) {
         void openHomeExplorationPopup();
+        return;
+    }
+
+    if (!options.useExistingQrTarget) {
+        showRpgMessage('対戦相手のQRを読み込んでください。', 2600);
+        await startHomeQrScan({
+            button,
+            plunderOnly: true,
+            loadingLabel: 'QR読み取り中...'
+        });
         return;
     }
 
@@ -1951,8 +1961,9 @@ async function scanQrValue() {
     throw new Error('この環境では QR 読み取りが利用できません。');
 }
 
-async function startHomeQrScan() {
-    const button = document.getElementById('btnHomeScanQr');
+async function startHomeQrScan(options = {}) {
+    const button = options.button || document.getElementById('btnHomeScanQr');
+    const plunderOnly = Boolean(options.plunderOnly);
     if (!liff.isInClient()) {
         showRpgMessage('QRスキャンはLINEアプリ内でのみ利用できます。', 2600);
         return;
@@ -1964,7 +1975,7 @@ async function startHomeQrScan() {
     const previousLabel = button?.innerText || '';
     if (button) {
         button.disabled = true;
-        button.innerText = '読み取り中...';
+        button.innerText = options.loadingLabel || '読み取り中...';
     }
     try {
         const qrValue = await scanQrValue();
@@ -1975,11 +1986,19 @@ async function startHomeQrScan() {
 
         const entryRequest = getTroyEntryRequestFromQrValue(qrValue);
         if (entryRequest) {
+            if (plunderOnly) {
+                showRpgMessage('対戦相手のMY QRを読み込んでください。', 2600);
+                return;
+            }
             await handleTroyEntryRequest(entryRequest);
             return;
         }
 
         if (isEquipmentGachaQrValue(qrValue)) {
+            if (plunderOnly) {
+                showRpgMessage('対戦相手のMY QRを読み込んでください。', 2600);
+                return;
+            }
             showRpgMessage('装備品ガチャQRは、持ち物タブの宝箱から読み込んでください。', 3200);
             return;
         }
@@ -1993,7 +2012,7 @@ async function startHomeQrScan() {
             const target = setHomePlunderQrTarget(targetPlayFabId);
             if (isCurrentPlayerInTroyStatus(window.__troyStatus, myPlayFabId) && HOME_PLUNDER_ENTRY_ENABLED) {
                 showRpgMessage(`${target.displayName || target.playFabId}を捕捉しました。海戦を開始します。`, 2600);
-                await startHomePlunderBattle();
+                await startHomePlunderBattle({ useExistingQrTarget: true });
                 return;
             }
             showRpgMessage(`${target.displayName || target.playFabId}を略奪対象にしました。`, 2600);

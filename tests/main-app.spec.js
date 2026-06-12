@@ -1096,9 +1096,13 @@ test('home plunder route opens the naval battle phase and boarding starts the me
   await bootstrapMainApp(page, { mockFirebaseDatabase: true });
   await page.evaluate(() => {
     window.__homePlunderBattleTarget = null;
+    window.__homePlunderScanCount = 0;
     window.__tkUid = 'UID_PLAYWRIGHT';
     window.liff.isInClient = () => true;
-    window.liff.scanCodeV2 = async () => ({ value: 'ABCDEF1234567890' });
+    window.liff.scanCodeV2 = async () => {
+      window.__homePlunderScanCount += 1;
+      return { value: 'ABCDEF1234567890' };
+    };
     window.startBattleWithOpponent = async (opponentId) => {
       window.__homePlunderBattleTarget = opponentId;
       return { battleId: 'BATTLE_FROM_HOME_PLUNDER' };
@@ -1109,12 +1113,10 @@ test('home plunder route opens the naval battle phase and boarding starts the me
   await expect(page.locator('#btnHomeExploration')).toHaveAttribute('data-plunder-paused', 'false');
   await page.locator('#btnHomeExploration').click();
   await expect(page.locator('#shipExplorationPanel')).toBeHidden();
-  await expect(page.locator('#navalBattleModal')).toHaveCount(0);
-
-  await page.locator('#btnHomeScanQr').click();
+  await expect.poll(async () => page.evaluate(() => window.__homePlunderScanCount)).toBe(1);
   await expect(page.locator('#playerProfileModal')).not.toBeVisible();
 
-  // QR読み取り後は白兵戦を直接開始せず、そのまま海戦フェーズを開く
+  // 略奪ボタンからQRを読み取り、白兵戦を直接開始せずに海戦フェーズを開く
   await expect(page.locator('#navalBattleModal')).toBeVisible();
   await expect(page.locator('#navalBattleModal')).toContainText('QR Targetの船');
   await expect(page.locator('#navalPvpStatus')).toContainText('相手');
