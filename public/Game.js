@@ -1,6 +1,5 @@
 import * as Phaser from 'phaser';
 import WorldMapScene from './WorldMapScene.js';
-import BattleRoomScene from './BattleRoomScene.js';
 
 let gameInstance = null;
 
@@ -48,7 +47,7 @@ export const launchGame = (containerId, playerInfo = null) => {
                 }
             }
         },
-        scene: [WorldMapScene, BattleRoomScene]
+        scene: [WorldMapScene]
     };
 
     // プレイヤー情報をグローバルに保存して、シーンから参照できるようにする

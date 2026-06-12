@@ -225,6 +225,7 @@ export function onChildAdded() {
 export function onDisconnect() {
   return {
     set: async () => {},
+    remove: async () => {},
     cancel: async () => {}
   };
 }

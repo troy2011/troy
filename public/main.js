@@ -13,7 +13,7 @@ import * as Ship from './js/ship.js';
 import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js';
 import { initMapChat, initTroyChat } from './js/mapChat.js';
-import { enterBattleRoom } from './BattleRoomScene.js';
+import { startNavalPvpBattle } from './js/navalPvpClient.js';
 import { renderAvatar, preloadAvatarBaseSprites } from './js/avatar.js';
 import { installPlayerProfileInteractions, openPlayerProfile, refreshFavoritePlayersList } from './js/playerProfile.js';
 import { showRpgMessage, rpgSay } from './js/rpgMessages.js';
@@ -1001,31 +1001,37 @@ async function startHomePlunderBattle() {
         return;
     }
 
-    if (typeof window.startNavalBattle !== 'function') {
-        showRpgMessage('海戦の準備ができていません。少し待ってから試してください。');
-        return;
-    }
     if (typeof window.startBattleWithOpponent !== 'function') {
         showRpgMessage('白兵戦の準備ができていません。少し待ってから試してください。');
         return;
     }
+    if (!window.__tkUid || !db) {
+        showRpgMessage('リアルタイム対戦の接続準備中です。少し待ってから試してください。');
+        return;
+    }
 
-    showRpgMessage('略奪相手を捕捉しました。海戦を開始します。');
-    window.startNavalBattle({
-        opponentId: opponent.playFabId,
-        opponentName: opponent.displayName || opponent.playFabId,
-        // 接舷成立時のみ既存の白兵戦へ移行する
-        onBoarding: (opponentId) => {
-            Promise.resolve(window.startBattleWithOpponent(opponentId || opponent.playFabId)).catch((error) => {
-                console.warn('[HomePlunder] Failed to start melee battle:', error);
-                showRpgMessage(error?.message || '白兵戦の開始に失敗しました。');
-            });
-        },
-        onVictory: () => showRpgMessage('敵船を撃沈！ 略奪に成功しました。（勝利スタブ）'),
-        onDefeat: () => showRpgMessage('自船が大破した…。略奪に失敗しました。（敗北スタブ）'),
-        onEscape: () => showRpgMessage('敵から逃げ切りました。（逃走勝利スタブ）'),
-        onEnemyEscaped: () => showRpgMessage('相手に逃げられました…。')
-    });
+    showRpgMessage('QR相手とのリアルタイム海戦に接続します。');
+    try {
+        await startNavalPvpBattle({
+            db,
+            uid: window.__tkUid,
+            selfId: window.myPlayFabId,
+            selfName: window.myPlayFabDisplayName || window.myLineProfile?.displayName || window.myPlayFabId,
+            opponentId: opponent.playFabId,
+            opponentName: opponent.displayName || opponent.playFabId,
+            // 接舷成立時のみ既存の白兵戦へ移行する
+            onBoarding: (opponentId) => {
+                Promise.resolve(window.startBattleWithOpponent(opponentId || opponent.playFabId)).catch((error) => {
+                    console.warn('[HomePlunder] Failed to start melee battle:', error);
+                    showRpgMessage(error?.message || '白兵戦の開始に失敗しました。');
+                });
+            }
+        });
+    } catch (error) {
+        console.warn('[HomePlunder] Failed to start realtime naval battle:', error);
+        showRpgMessage(error?.message || 'リアルタイム海戦の開始に失敗しました。');
+        return;
+    }
     if (button) syncHomeExplorationButtonLabel();
 }
 
@@ -1287,55 +1293,6 @@ async function initializeAppFeatures() {
     initTroyChat(myPlayFabId);
     initHomeCoinConvertPanel();
 
-    // ── バトルルームシート ──────────────────────────────────
-    const battleRoomSheet     = document.getElementById('battleRoomSheet');
-    const battleRoomSheetClose = document.getElementById('battleRoomSheetClose');
-    const battleRoomCreateBtn  = document.getElementById('battleRoomCreateBtn');
-    const battleRoomJoinBtn    = document.getElementById('battleRoomJoinBtn');
-    const battleRoomMsg        = document.getElementById('battleRoomMsg');
-
-    function openBattleRoomSheet(territoryId) {
-        if (!battleRoomSheet) return;
-        battleRoomSheet.dataset.territoryId = territoryId || '';
-        battleRoomSheet.setAttribute('aria-hidden', 'false');
-        battleRoomSheet.classList.add('is-open');
-        if (battleRoomMsg) battleRoomMsg.textContent = '';
-    }
-    function closeBattleRoomSheet() {
-        if (!battleRoomSheet) return;
-        battleRoomSheet.setAttribute('aria-hidden', 'true');
-        battleRoomSheet.classList.remove('is-open');
-    }
-
-    battleRoomSheetClose?.addEventListener('click', closeBattleRoomSheet);
-
-    battleRoomCreateBtn?.addEventListener('click', async () => {
-        const territoryId = battleRoomSheet?.dataset.territoryId || '';
-        if (battleRoomMsg) battleRoomMsg.textContent = 'ルームを作成中...';
-        try {
-            const scene = window.worldMapScene;
-            await enterBattleRoom(scene, { playFabId: myPlayFabId, territoryId, nation: myAvatarBaseInfo?.Nation || null, mode: 'create' });
-            closeBattleRoomSheet();
-        } catch (err) {
-            if (battleRoomMsg) battleRoomMsg.textContent = err.message || '作成失敗';
-        }
-    });
-
-    battleRoomJoinBtn?.addEventListener('click', async () => {
-        const territoryId = battleRoomSheet?.dataset.territoryId || '';
-        if (battleRoomMsg) battleRoomMsg.textContent = '参戦中...';
-        try {
-            const scene = window.worldMapScene;
-            await enterBattleRoom(scene, { playFabId: myPlayFabId, territoryId, nation: myAvatarBaseInfo?.Nation || null, mode: 'join' });
-            closeBattleRoomSheet();
-        } catch (err) {
-            if (battleRoomMsg) battleRoomMsg.textContent = err.message || '参戦失敗';
-        }
-    });
-
-    window.openBattleRoomSheet = openBattleRoomSheet;
-    window.closeBattleRoomSheet = closeBattleRoomSheet;
-
     // ── バトルタブ：領海カード描画 ──────────────────────────────
     const ELEMENT_LABEL = { fire: '炎', wind: '風', water: '水', earth: '大地' };
 
@@ -1444,13 +1401,9 @@ async function initializeAppFeatures() {
                     <div class="battle-territory-owner ${t.ownerNation ? 'is-occupied' : ''}">${ownerText}</div>
                 </div>
                 <div class="battle-territory-card-right">
-                    <button class="battle-territory-btn" type="button"
-                        data-territory-id="${t.territoryId}">侵攻する</button>
+                    <button class="battle-territory-btn" type="button" data-territory-id="${t.territoryId}" disabled>停止中</button>
                 </div>
             `;
-            card.querySelector('.battle-territory-btn').addEventListener('click', () => {
-                openBattleRoomSheet(t.territoryId);
-            });
             container.appendChild(card);
         });
     }

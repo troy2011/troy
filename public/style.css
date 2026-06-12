@@ -13814,87 +13814,6 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     padding: 24px 0;
 }
 
-/* ── バトルルームシート ───────────────────────────────────── */
-.battle-room-sheet {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(180deg, #1e1a2e 0%, #0f0d1a 100%);
-    border-top: 2px solid rgba(255, 68, 68, 0.4);
-    border-radius: 16px 16px 0 0;
-    padding: 0 16px 20px;
-    transform: translateY(100%);
-    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
-    z-index: 120;
-    max-height: 50vh;
-    overflow-y: auto;
-}
-.battle-room-sheet.is-open {
-    transform: translateY(0);
-}
-.battle-room-sheet[aria-hidden="true"] { display: block; }
-
-.battle-room-sheet-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 0 8px;
-}
-.battle-room-sheet-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #ff9999;
-    letter-spacing: 0.05em;
-}
-.battle-room-sheet-body {
-    padding-bottom: 8px;
-}
-.battle-room-active-info,
-.battle-room-no-active {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 0;
-}
-.battle-room-active-label {
-    font-size: 12px;
-    color: #ffcc66;
-    text-align: center;
-}
-.battle-room-hint {
-    font-size: 12px;
-    color: rgba(148, 163, 184, 0.6);
-    text-align: center;
-}
-.battle-room-btn {
-    padding: 10px 28px;
-    border-radius: 8px;
-    border: none;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    letter-spacing: 0.04em;
-    transition: opacity 0.15s;
-}
-.battle-room-btn:active { opacity: 0.75; }
-.battle-room-btn--create {
-    background: linear-gradient(135deg, #c0392b, #e74c3c);
-    color: #fff;
-}
-.battle-room-btn--join {
-    background: linear-gradient(135deg, #2980b9, #3498db);
-    color: #fff;
-}
-.battle-room-msg {
-    font-size: 11px;
-    color: #aaaaaa;
-    text-align: center;
-    min-height: 16px;
-    margin-top: 4px;
-}
-
 /* ═══════════════════════════════════════════════════════
    バトルタブ
 ═══════════════════════════════════════════════════════ */
@@ -14011,6 +13930,11 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 }
 .battle-territory-btn:active {
     opacity: 0.75;
+}
+.battle-territory-btn:disabled {
+    cursor: default;
+    opacity: 0.48;
+    filter: grayscale(0.35);
 }
 
 /* ── 週次争奪バナー ──────────────────────────────────────────── */
@@ -21141,7 +21065,6 @@ body[data-sea-tone] .home-hero-card {
 #btnTroyJoin,
 .event-action-btn.is-join,
 .event-action-btn.is-approve,
-#battleRoomJoinBtn,
 #btnKingTroyOpen,
 #btnKingSaveAnnouncement,
 .king-store-game-inline-save,
@@ -21151,7 +21074,6 @@ body[data-sea-tone] .home-hero-card {
 
 #btnCreateReservation,
 #btnCreateEvent,
-#battleRoomCreateBtn,
 #createIslandButton,
 #btnKingMenuAddCustom,
 #btnKingMenuAddSpecial {

@@ -1093,9 +1093,10 @@ test('home plunder route opens the naval battle phase and boarding starts the me
     });
   });
 
-  await bootstrapMainApp(page);
+  await bootstrapMainApp(page, { mockFirebaseDatabase: true });
   await page.evaluate(() => {
     window.__homePlunderBattleTarget = null;
+    window.__tkUid = 'UID_PLAYWRIGHT';
     window.liff.isInClient = () => true;
     window.liff.scanCodeV2 = async () => ({ value: 'ABCDEF1234567890' });
     window.startBattleWithOpponent = async (opponentId) => {
@@ -1121,8 +1122,27 @@ test('home plunder route opens the naval battle phase and boarding starts the me
   // 略奪ボタンは白兵戦を直接開始せず、まず海戦フェーズを開く
   await expect(page.locator('#navalBattleModal')).toBeVisible();
   await expect(page.locator('#navalBattleModal')).toContainText('QR Targetの船');
+  await expect(page.locator('#navalPvpStatus')).toContainText('相手');
   await expect(page.locator('#navalCommands .naval-command-btn')).toHaveCount(4);
   expect(await page.evaluate(() => window.__homePlunderBattleTarget)).toBe(null);
+  const pvpRoom = await page.evaluate(() => {
+    const store = window.__pwFirebaseDbStore;
+    const entries = Array.from(store.values.entries()).filter(([key]) => key.startsWith('navalPlunderRooms/'));
+    return entries[0]?.[1] || null;
+  });
+  expect(pvpRoom).toMatchObject({
+    attackerId: 'PF_PLAYWRIGHT',
+    defenderId: qrTargetId,
+    players: {
+      defender: { playFabId: qrTargetId, displayName: 'QR Target' }
+    }
+  });
+  await page.locator('[data-naval-command="bowCannon"]').click();
+  await expect.poll(async () => page.evaluate(() => {
+    const store = window.__pwFirebaseDbStore;
+    const entries = Array.from(store.values.entries()).filter(([key]) => key.startsWith('navalPlunderRooms/'));
+    return entries[0]?.[1]?.pendingCommands?.attacker?.commandId || '';
+  })).toBe('bowCannon');
 
   // 接舷成立時のみ白兵戦（startBattleWithOpponent）へ移行する
   await page.evaluate(() => window.__navalBattleDebug.forceBoarding());

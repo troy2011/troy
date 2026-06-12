@@ -174,6 +174,79 @@ function createEnemyPlan(options = {}) {
     return ENEMY_PLANS[hashString(seed) % ENEMY_PLANS.length];
 }
 
+function cloneCommand(command) {
+    const commandId = command?.def?.id || command?.id;
+    if (!commandId) return null;
+    const def = COMMANDS[commandId];
+    if (!def) return null;
+    return {
+        def,
+        lagRemaining: Math.max(0, Number(command.lagRemaining) || 0),
+        ramWeakened: Boolean(command.ramWeakened)
+    };
+}
+
+function cloneShipState(source, fallbackLabel, isPlayer) {
+    const ship = createShip(source?.label || fallbackLabel, isPlayer);
+    ship.hp = Math.max(0, Number(source?.hp ?? ship.hp) || 0);
+    ship.maxHp = Math.max(1, Number(source?.maxHp ?? ship.maxHp) || 1);
+    ship.facing = FACING_LABEL[source?.facing] ? source.facing : ship.facing;
+    ship.stun = Math.max(0, Number(source?.stun) || 0);
+    ship.rudderCooldown = Math.max(0, Number(source?.rudderCooldown) || 0);
+    ship.command = cloneCommand(source?.command);
+    return ship;
+}
+
+function serializeShipState(ship) {
+    return {
+        label: ship.label,
+        hp: ship.hp,
+        maxHp: ship.maxHp,
+        facing: ship.facing,
+        stun: ship.stun,
+        rudderCooldown: ship.rudderCooldown,
+        command: ship.command ? {
+            id: ship.command.def.id,
+            lagRemaining: ship.command.lagRemaining,
+            ramWeakened: Boolean(ship.command.ramWeakened)
+        } : null
+    };
+}
+
+function serializeBattleState(b) {
+    if (!b) return null;
+    return {
+        count: b.count,
+        distance: b.distance,
+        player: serializeShipState(b.player),
+        enemy: serializeShipState(b.enemy),
+        enemyPlan: b.enemyPlan?.name || '',
+        logs: Array.isArray(b.logs) ? b.logs.slice(0, 30) : [],
+        finished: Boolean(b.finished),
+        outcome: b.outcome || null
+    };
+}
+
+function resolveEnemyPlanByName(name) {
+    return ENEMY_PLANS.find((plan) => plan.name === name) || ENEMY_PLANS[0];
+}
+
+function transformSnapshotForPerspective(snapshot, perspective = 'player') {
+    if (!snapshot || typeof snapshot !== 'object') return null;
+    if (perspective !== 'enemy') return snapshot;
+    return {
+        ...snapshot,
+        player: snapshot.enemy,
+        enemy: snapshot.player,
+        logs: Array.isArray(snapshot.logs) ? snapshot.logs : []
+    };
+}
+
+function notifyStateChanged(b) {
+    if (!b || typeof b.options.onStateChange !== 'function') return;
+    b.options.onStateChange(serializeBattleState(b));
+}
+
 function log(b, message) {
     b.logs.unshift(message);
     if (b.logs.length > 30) b.logs.length = 30;
@@ -278,6 +351,7 @@ function selectCommand(b, self, foe, def) {
     self.command = { def, lagRemaining: def.lag, ramWeakened: false };
     log(b, `${self.label}が「${def.label}」を選択（ラグ ${def.lag}）`);
     render(b);
+    notifyStateChanged(b);
     return true;
 }
 
@@ -364,8 +438,9 @@ function tick(b) {
         }
     });
 
-    if (!b.finished) aiSelect(b);
+    if (!b.finished && !b.options.disableAi) aiSelect(b);
     render(b);
+    notifyStateChanged(b);
 }
 
 // ---------------------------------------------------------------------
@@ -386,6 +461,7 @@ function finishBattle(b, outcome) {
     b.outcome = outcome;
     if (b.timer) { clearInterval(b.timer); b.timer = null; }
     render(b);
+    notifyStateChanged(b);
 
     if (outcome === 'boarding' || outcome === 'boarded') {
         // 接舷は結果画面を挟まず即座に白兵戦スタブへ
@@ -721,7 +797,17 @@ function renderCommands(b) {
         button.dataset.navalCommand = def.id;
         button.innerHTML = `<b>${escapeHtml(def.label)}（ラグ ${def.lag}）</b><small>${escapeHtml(def.desc)}</small>`;
         button.disabled = !canSelect(b, self, foe, def);
-        button.addEventListener('click', () => selectCommand(b, self, foe, def));
+        button.addEventListener('click', () => {
+            if (typeof b.options.onCommandSelect === 'function') {
+                const handled = b.options.onCommandSelect(def.id, {
+                    command: def,
+                    canSelect: canSelect(b, self, foe, def),
+                    state: serializeBattleState(b)
+                });
+                if (handled !== false) return;
+            }
+            selectCommand(b, self, foe, def);
+        });
         container.appendChild(button);
     });
 
@@ -753,12 +839,15 @@ function startNavalBattle(options = {}) {
 
     if (battle && battle.timer) clearInterval(battle.timer);
 
+    const enemyPlan = options.enemyPlan
+        ? resolveEnemyPlanByName(options.enemyPlan)
+        : createEnemyPlan(options);
     battle = {
         options,
         count: 0,
         distance: INITIAL_DISTANCE,
-        enemyPlan: createEnemyPlan(options),
-        player: createShip('自分の船', true),
+        enemyPlan,
+        player: createShip(options.playerName ? `${options.playerName}の船` : '自分の船', true),
         enemy: createShip(options.opponentName ? `${options.opponentName}の船` : '敵船', false),
         logs: [],
         finished: false,
@@ -780,8 +869,48 @@ function startNavalBattle(options = {}) {
     document.body.classList.add('naval-battle-lock');
     render(battle);
 
-    battle.timer = setInterval(() => tick(battle), TICK_MS);
+    if (!options.disableTimer) {
+        battle.timer = setInterval(() => tick(battle), TICK_MS);
+    }
     return battle;
+}
+
+function applyNavalBattleSnapshot(snapshot, perspective = 'player') {
+    if (!battle) return null;
+    const next = transformSnapshotForPerspective(snapshot, perspective);
+    if (!next) return null;
+    battle.count = Math.max(0, Number(next.count) || 0);
+    battle.distance = Math.max(0, Math.min(ESCAPE_DISTANCE, Number(next.distance ?? INITIAL_DISTANCE) || 0));
+    battle.player = cloneShipState(next.player, '自分の船', true);
+    battle.enemy = cloneShipState(next.enemy, '敵船', false);
+    battle.enemyPlan = resolveEnemyPlanByName(next.enemyPlan);
+    battle.logs = Array.isArray(next.logs) ? next.logs.slice(0, 30) : [];
+    battle.finished = Boolean(next.finished);
+    battle.outcome = next.outcome || null;
+
+    const enemyTitle = document.getElementById('navalEnemyTitle');
+    if (enemyTitle) enemyTitle.textContent = battle.enemy.label;
+    const enemyName = document.getElementById('navalShipEnemyName');
+    if (enemyName) enemyName.textContent = battle.enemy.label;
+    const logEl = document.getElementById('navalBattleLog');
+    if (logEl) logEl.innerHTML = battle.logs.map((m) => `<div>${escapeHtml(m)}</div>`).join('');
+    render(battle);
+    return battle;
+}
+
+function applyNavalBattleCommand(commandId, side = 'player') {
+    if (!battle || battle.finished) return false;
+    const def = COMMANDS[commandId];
+    if (!def) return false;
+    const self = side === 'enemy' ? battle.enemy : battle.player;
+    const foe = side === 'enemy' ? battle.player : battle.enemy;
+    return selectCommand(battle, self, foe, def);
+}
+
+function stepNavalBattle() {
+    if (!battle || battle.finished) return false;
+    tick(battle);
+    return true;
 }
 
 window.startNavalBattle = startNavalBattle;
@@ -792,10 +921,15 @@ if (typeof window.startMeleeCombat !== 'function') {
 // テスト・デバッグ用フック
 window.__navalBattleDebug = {
     getState: () => battle,
+    serialize: () => serializeBattleState(battle),
+    applySnapshot: applyNavalBattleSnapshot,
+    applyCommand: applyNavalBattleCommand,
+    step: stepNavalBattle,
     mutate: (fn) => {
         if (!battle || typeof fn !== 'function') return null;
         fn(battle);
         render(battle);
+        notifyStateChanged(battle);
         return battle;
     },
     forceBoarding: () => { if (battle && !battle.finished) finishBattle(battle, 'boarding'); },
