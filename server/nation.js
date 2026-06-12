@@ -2891,6 +2891,8 @@ function initializeNationRoutes(app, deps) {
             update.nation = activeNation;
             update.troyBusinessDayKey = businessDayKey;
             update.openedAt = admin.firestore.FieldValue.serverTimestamp();
+            update.openedBy = context?.kingId || null;
+            update.openedByLineUserId = context?.openedByLineUserId || null;
         } else {
             update.closedAt = admin.firestore.FieldValue.serverTimestamp();
         }
@@ -3908,7 +3910,20 @@ function initializeNationRoutes(app, deps) {
 
         try {
             const kingContext = await requireKingContext(authenticatedPlayFabId, firestore, nationDeps);
-            const context = { nation: kingContext.nation, mapping: kingContext.mapping, kingId: kingContext.kingId };
+            let openedByLineUserId = '';
+            if (nextOpen) {
+                try {
+                    openedByLineUserId = await getLineUserId(kingContext.kingId, nationDeps);
+                } catch (lineError) {
+                    console.warn('[king-set-troy-open] Failed to resolve opener LINE ID:', lineError?.errorMessage || lineError?.message || lineError);
+                }
+            }
+            const context = {
+                nation: kingContext.nation,
+                mapping: kingContext.mapping,
+                kingId: kingContext.kingId,
+                openedByLineUserId
+            };
             const result = await setGlobalTroyOpenState(context, nextOpen);
             let label = 'TROY';
             if (requesterPlayFabId) {
@@ -4536,6 +4551,23 @@ function initializeNationRoutes(app, deps) {
         });
     }
 
+    async function notifyTroyCoinConversionToOpener(roomData = {}, entry = {}) {
+        if (!lineClient || typeof lineClient.pushMessage !== 'function') return null;
+        const lineUserId = String(roomData?.openedByLineUserId || '').trim();
+        if (!lineUserId) return null;
+        const amount = Math.max(0, Math.floor(Number(entry.amount) || 0));
+        const displayName = String(entry.displayName || entry.playFabId || 'お客様').trim() || 'お客様';
+        if (amount <= 0) return null;
+        const text = [
+            '【TROY チップ化】',
+            `${displayName}`,
+            `${amount.toLocaleString('ja-JP')}Gをチップ化しました。`,
+            'スタッフからチップを渡してください。'
+        ].join('\n');
+        await lineClient.pushMessage(lineUserId, { type: 'text', text });
+        return { sent: true, lineUserId };
+    }
+
     function buildTroyCoinConversionLogsPayload(roomData = {}) {
         const rows = Array.isArray(roomData?.coinConversionLogs) ? roomData.coinConversionLogs : [];
         return rows
@@ -4568,15 +4600,21 @@ function initializeNationRoutes(app, deps) {
             await subtractEconomyItem(context.memberId, 'PS', amount, { idempotencyId });
             const conversion = await recordTroyCoinConversion(context.memberRef, requestId, 'gold_to_coin', amount);
             if (!conversion.duplicate) {
+                const conversionEntry = {
+                    id: requestId,
+                    playFabId: context.memberId,
+                    displayName: context.memberData?.displayName || context.memberId,
+                    amount
+                };
                 try {
-                    await appendTroyCoinConversionLog(context.roomRef, {
-                        id: requestId,
-                        playFabId: context.memberId,
-                        displayName: context.memberData?.displayName || context.memberId,
-                        amount
-                    });
+                    await appendTroyCoinConversionLog(context.roomRef, conversionEntry);
                 } catch (logError) {
                     console.warn('[troy-convert-gold-to-coin] Failed to append coin conversion log:', logError?.message || logError);
+                }
+                try {
+                    await notifyTroyCoinConversionToOpener(context.roomData, conversionEntry);
+                } catch (notifyError) {
+                    console.warn('[troy-convert-gold-to-coin] Failed to notify opener:', notifyError?.message || notifyError);
                 }
             }
             let newBalance = null;
@@ -5853,7 +5891,20 @@ function initializeNationRoutes(app, deps) {
         try {
             const nextOpen = !!req.body?.isOpen;
             const kingContext = await requireKingContext(requesterPlayFabId, firestore, nationDeps);
-            const context = { nation: kingContext.nation, mapping: kingContext.mapping, kingId: kingContext.kingId };
+            let openedByLineUserId = '';
+            if (nextOpen) {
+                try {
+                    openedByLineUserId = await getLineUserId(kingContext.kingId, nationDeps);
+                } catch (lineError) {
+                    console.warn('[troy-orders-set-open] Failed to resolve opener LINE ID:', lineError?.errorMessage || lineError?.message || lineError);
+                }
+            }
+            const context = {
+                nation: kingContext.nation,
+                mapping: kingContext.mapping,
+                kingId: kingContext.kingId,
+                openedByLineUserId
+            };
             const result = await setGlobalTroyOpenState(context, nextOpen);
             return res.json(result);
         } catch (error) {
