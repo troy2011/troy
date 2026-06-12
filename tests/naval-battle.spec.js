@@ -21,6 +21,8 @@ test('naval battle UI moves from normal phase to overlap boarding phase', async 
   await expect(modal).toBeVisible();
   await expect(page.locator('#navalTimeline .naval-timeline-axis span')).toHaveText(['0', '1', '2', '3', '4', '5', '6']);
   await expect(page.locator('#navalDistanceLabel')).toHaveText('距離 3');
+  await expect(page.locator('#navalEnemyPlan')).not.toHaveText('');
+  await expect(page.locator('#navalIntel')).toContainText('敵戦法');
   await expect(page.locator('#navalCommands .naval-command-btn')).toHaveCount(4);
   await expect(page.locator('[data-naval-command="ram"]')).toBeDisabled();
 

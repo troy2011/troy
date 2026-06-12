@@ -750,7 +750,9 @@ PlayFab.settings.titleId = '1A0BA';
 
 let homeExplorationButtonBound = false;
 let homeCoinConvertBound = false;
+let homeQrScanBound = false;
 let homeExplorationPopupObserver = null;
+let homePlunderQrTarget = null;
 const HOME_PLUNDER_ENTRY_ENABLED = true;
 
 function revealAppWrapper() {
@@ -774,28 +776,38 @@ function isCurrentPlayerInTroyStatus(status, playFabId = window.myPlayFabId) {
     return members.some((member) => normalizeHomeTroyPlayFabId(member?.playFabId || member?.id) === target);
 }
 
-function getHomePlunderOpponents(status = window.__troyStatus, playFabId = window.myPlayFabId) {
-    if (!status?.isOpen || !playFabId) return [];
-    const selfId = normalizeHomeTroyPlayFabId(playFabId);
-    const seen = new Set();
-    return (Array.isArray(status?.members) ? status.members : [])
-        .map((member) => ({
-            ...member,
-            playFabId: String(member?.playFabId || member?.id || '').trim()
-        }))
-        .filter((member) => {
-            const id = normalizeHomeTroyPlayFabId(member.playFabId);
-            if (!id || id === selfId || seen.has(id)) return false;
-            seen.add(id);
-            return true;
-        });
+function findTroyMemberByPlayFabId(status = window.__troyStatus, playFabId = '') {
+    const target = normalizeHomeTroyPlayFabId(playFabId);
+    if (!target) return null;
+    const members = Array.isArray(status?.members) ? status.members : [];
+    return members.find((member) => normalizeHomeTroyPlayFabId(member?.playFabId || member?.id) === target) || null;
 }
 
-function pickHomePlunderOpponent(status = window.__troyStatus, playFabId = window.myPlayFabId) {
-    const opponents = getHomePlunderOpponents(status, playFabId);
-    if (opponents.length === 0) return null;
-    const index = Math.floor(Math.random() * opponents.length);
-    return opponents[index] || opponents[0];
+function setHomePlunderQrTarget(playFabId, status = window.__troyStatus) {
+    const normalized = normalizeHomeTroyPlayFabId(playFabId);
+    if (!normalized) {
+        homePlunderQrTarget = null;
+        return null;
+    }
+    const member = findTroyMemberByPlayFabId(status, normalized);
+    homePlunderQrTarget = {
+        playFabId: normalized,
+        displayName: member?.displayName || member?.name || normalized
+    };
+    window.__homePlunderQrTarget = { ...homePlunderQrTarget };
+    return homePlunderQrTarget;
+}
+
+function getHomePlunderQrOpponent(status = window.__troyStatus, playFabId = window.myPlayFabId) {
+    if (!homePlunderQrTarget?.playFabId) return null;
+    const targetId = normalizeHomeTroyPlayFabId(homePlunderQrTarget.playFabId);
+    if (!targetId || targetId === normalizeHomeTroyPlayFabId(playFabId)) return null;
+    const member = findTroyMemberByPlayFabId(status, targetId);
+    return {
+        ...homePlunderQrTarget,
+        playFabId: targetId,
+        displayName: member?.displayName || member?.name || homePlunderQrTarget.displayName || targetId
+    };
 }
 
 function getHomeCoinConvertElements() {
@@ -983,9 +995,9 @@ async function startHomePlunderBattle() {
         return;
     }
 
-    const opponent = pickHomePlunderOpponent(window.__troyStatus, window.myPlayFabId);
+    const opponent = getHomePlunderQrOpponent(window.__troyStatus, window.myPlayFabId);
     if (!opponent?.playFabId) {
-        showRpgMessage('略奪できる相手が店内にいません。');
+        showRpgMessage('相手のMY QRを読み取ってから略奪してください。');
         return;
     }
 
@@ -1039,6 +1051,14 @@ function initHomeExplorationButton() {
     homeExplorationButtonBound = true;
 }
 
+function initHomeQrScanButton() {
+    if (homeQrScanBound) return;
+    const button = document.getElementById('btnHomeScanQr');
+    if (!button) return;
+    button.addEventListener('click', startHomeQrScan);
+    homeQrScanBound = true;
+}
+
 function bindAvatarStyleActionButtons(root = document) {
     root.querySelectorAll('[data-avatar-style-action]').forEach((button) => {
         if (button.dataset.avatarStyleActionBound === 'true') return;
@@ -1051,6 +1071,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initHomeSurprises();
     initHomeExplorationButton();
     initHomeCoinConvertPanel();
+    initHomeQrScanButton();
     initHomeAvatarStyleModal();
     updateSeaToneByTime();
     initPwaShell();
@@ -1460,7 +1481,7 @@ async function initializeAppFeatures() {
     document.getElementById('btnGetBountyRanking')?.addEventListener('click', () => Player.getBountyRanking());
     document.getElementById('btnGetBilliardsRanking')?.addEventListener('click', () => Player.getStoreGameRanking('billiards'));
     document.getElementById('btnGetGameRanking')?.addEventListener('click', () => Player.getStoreGameRanking('game'));
-    document.getElementById('btnHomeScanQr')?.addEventListener('click', startHomeQrScan);
+    initHomeQrScanButton();
     initHomeExplorationButton();
     initHomeAvatarStyleModal();
     document.getElementById('globalPlayerName')?.addEventListener('click', promptChangeDisplayName);
@@ -2012,6 +2033,12 @@ async function startHomeQrScan() {
 
         const targetPlayFabId = normalizePlayFabIdFromQrValue(qrValue);
         if (targetPlayFabId) {
+            if (normalizeHomeTroyPlayFabId(targetPlayFabId) === normalizeHomeTroyPlayFabId(myPlayFabId)) {
+                showRpgMessage('自分のQRは略奪対象にできません。', 2600);
+                return;
+            }
+            const target = setHomePlunderQrTarget(targetPlayFabId);
+            showRpgMessage(`${target.displayName || target.playFabId}を略奪対象にしました。`, 2600);
             await openPlayerProfile(targetPlayFabId);
             return;
         }

@@ -1048,6 +1048,8 @@ test('home exploration button loads exploration data in a popup', async ({ page 
 test('home plunder route opens the naval battle phase and boarding starts the melee battle', async ({ page }) => {
   const errors = trackPageErrors(page);
   let explorationStatusRequests = 0;
+  const qrTargetId = 'ABCDEF1234567890';
+  const decoyTargetId = '1111111111111111';
   await page.route('**/api/get-troy-status', async (route) => {
     await route.fulfill({
       status: 200,
@@ -1057,8 +1059,28 @@ test('home plunder route opens the naval battle phase and boarding starts the me
         isOpen: true,
         members: [
           { playFabId: 'PF_PLAYWRIGHT', displayName: 'Playwright Tester' },
-          { playFabId: 'PF_RAIDER_TARGET', displayName: 'Target Player' }
+          { playFabId: qrTargetId, displayName: 'QR Target' },
+          { playFabId: decoyTargetId, displayName: 'Decoy Player' }
         ]
+      })
+    });
+  });
+  await page.route('**/api/get-player-public-profile', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        profile: {
+          playFabId: qrTargetId,
+          displayName: 'QR Target',
+          nation: 'fire',
+          level: 7,
+          stats: { str: 7, def: 6, agi: 5, int: 4 },
+          equipment: {},
+          itemSource: {},
+          equipmentList: [],
+          avatarBase: { Race: 'human', SkinColorIndex: 1, FacialHairStyleIndex: 0 }
+        }
       })
     });
   });
@@ -1074,6 +1096,8 @@ test('home plunder route opens the naval battle phase and boarding starts the me
   await bootstrapMainApp(page);
   await page.evaluate(() => {
     window.__homePlunderBattleTarget = null;
+    window.liff.isInClient = () => true;
+    window.liff.scanCodeV2 = async () => ({ value: 'ABCDEF1234567890' });
     window.startBattleWithOpponent = async (opponentId) => {
       window.__homePlunderBattleTarget = opponentId;
       return { battleId: 'BATTLE_FROM_HOME_PLUNDER' };
@@ -1084,17 +1108,26 @@ test('home plunder route opens the naval battle phase and boarding starts the me
   await expect(page.locator('#btnHomeExploration')).toHaveAttribute('data-plunder-paused', 'false');
   await page.locator('#btnHomeExploration').click();
   await expect(page.locator('#shipExplorationPanel')).toBeHidden();
+  await expect(page.locator('#navalBattleModal')).toHaveCount(0);
+
+  await page.locator('#btnHomeScanQr').click();
+  await expect(page.locator('#playerProfileModal')).toBeVisible();
+  await expect(page.locator('#playerProfileName')).toHaveText('QR Target');
+  await page.locator('#btnClosePlayerProfile').click();
+  await expect(page.locator('#playerProfileModal')).not.toBeVisible();
+
+  await page.locator('#btnHomeExploration').click();
 
   // 略奪ボタンは白兵戦を直接開始せず、まず海戦フェーズを開く
   await expect(page.locator('#navalBattleModal')).toBeVisible();
-  await expect(page.locator('#navalBattleModal')).toContainText('Target Playerの船');
+  await expect(page.locator('#navalBattleModal')).toContainText('QR Targetの船');
   await expect(page.locator('#navalCommands .naval-command-btn')).toHaveCount(4);
   expect(await page.evaluate(() => window.__homePlunderBattleTarget)).toBe(null);
 
   // 接舷成立時のみ白兵戦（startBattleWithOpponent）へ移行する
   await page.evaluate(() => window.__navalBattleDebug.forceBoarding());
   await expect(page.locator('#navalBattleModal')).toBeHidden();
-  await expect.poll(async () => page.evaluate(() => window.__homePlunderBattleTarget)).toBe('PF_RAIDER_TARGET');
+  await expect.poll(async () => page.evaluate(() => window.__homePlunderBattleTarget)).toBe(qrTargetId);
   expect(explorationStatusRequests).toBe(0);
 
   await expectNoPageErrors(errors);

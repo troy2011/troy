@@ -20,6 +20,12 @@ const SIDE_DAMAGE_MULTIPLIER = 1.5;
 
 const FACING_LABEL = { front: '前向き', side: '横向き', back: '後ろ向き' };
 
+const ENEMY_PLANS = [
+    { name: '突撃型', ramBias: 0.75, advanceBias: 0.72, broadsideBias: 0.42, caution: 0.28 },
+    { name: '砲撃型', ramBias: 0.35, advanceBias: 0.46, broadsideBias: 0.82, caution: 0.38 },
+    { name: '攪乱型', ramBias: 0.48, advanceBias: 0.55, broadsideBias: 0.55, caution: 0.58 }
+];
+
 // ---------------------------------------------------------------------
 // コマンド定義
 // ---------------------------------------------------------------------
@@ -157,6 +163,17 @@ function createShip(label, isPlayer) {
     };
 }
 
+function hashString(value) {
+    return String(value || '').split('').reduce((hash, ch) => (
+        ((hash << 5) - hash + ch.charCodeAt(0)) >>> 0
+    ), 0);
+}
+
+function createEnemyPlan(options = {}) {
+    const seed = options.opponentId || options.opponentName || 'enemy';
+    return ENEMY_PLANS[hashString(seed) % ENEMY_PLANS.length];
+}
+
 function log(b, message) {
     b.logs.unshift(message);
     if (b.logs.length > 30) b.logs.length = 30;
@@ -290,20 +307,22 @@ function aiSelect(b) {
     if (b.finished || self.stun > 0 || self.command) return;
 
     const lowHp = self.hp <= self.maxHp * 0.3;
+    const plan = b.enemyPlan || ENEMY_PLANS[0];
     const pick = (id) => selectCommand(b, self, foe, COMMANDS[id]);
 
     if (b.distance === 0) {
         if (foe.stun > 0 && canSelect(b, self, foe, COMMANDS.boarding)) { pick('boarding'); return; }
-        if (lowHp && Math.random() < 0.6) { pick('retreat'); return; }
+        if (lowHp && Math.random() < plan.caution) { pick('retreat'); return; }
         pick('zeroBroadside');
         return;
     }
 
     if (self.facing === 'side') {
         // 横向きは危険：HPが減っていれば向きを変える、それ以外は舷側砲
-        if (lowHp && canSelect(b, self, foe, COMMANDS.rudderToBack) && Math.random() < 0.7) { pick('rudderToBack'); return; }
-        if (canSelect(b, self, foe, COMMANDS.broadside)) { pick('broadside'); return; }
+        if (lowHp && canSelect(b, self, foe, COMMANDS.rudderToBack) && Math.random() < plan.caution) { pick('rudderToBack'); return; }
+        if (canSelect(b, self, foe, COMMANDS.broadside) && Math.random() < plan.broadsideBias) { pick('broadside'); return; }
         if (canSelect(b, self, foe, COMMANDS.rudderToFront)) { pick('rudderToFront'); return; }
+        if (canSelect(b, self, foe, COMMANDS.broadside)) { pick('broadside'); return; }
         return;
     }
 
@@ -316,9 +335,9 @@ function aiSelect(b) {
     }
 
     // 前向き
-    if (lowHp && canSelect(b, self, foe, COMMANDS.rudderToSide) && Math.random() < 0.4) { pick('rudderToSide'); return; }
-    if (b.distance === 1 && Math.random() < 0.5) { pick('ram'); return; }
-    if (b.distance > 1 && Math.random() < 0.5) { pick('advance'); return; }
+    if (lowHp && canSelect(b, self, foe, COMMANDS.rudderToSide) && Math.random() < plan.caution) { pick('rudderToSide'); return; }
+    if (b.distance === 1 && Math.random() < plan.ramBias) { pick('ram'); return; }
+    if (b.distance > 1 && Math.random() < plan.advanceBias) { pick('advance'); return; }
     pick('bowCannon');
 }
 
@@ -398,6 +417,32 @@ function handleResultClose() {
     if (typeof cb === 'function') cb(b.options.opponentId);
 }
 
+function getTacticalMessage(b) {
+    if (!b || b.finished) return '';
+    if (b.distance === 0 && b.enemy.stun > 0) {
+        return '接舷好機：相手の操舵が止まっている。';
+    }
+    if (b.distance === 0 && b.player.stun > 0) {
+        return '接舷危険：こちらの操舵が止まっている。';
+    }
+    if (b.enemy.command?.def.id === 'ram') {
+        return '衝角警戒：敵が突進準備中。船首砲で威力を落とせる。';
+    }
+    if (b.player.facing === 'side') {
+        return '横腹危険：被弾すると大ダメージになりやすい。';
+    }
+    if (b.enemy.facing === 'side') {
+        return '砲撃好機：相手が横腹を見せている。';
+    }
+    if (b.distance === 1 && b.player.facing === 'front') {
+        return '接近好機：衝角から接舷に持ち込める距離。';
+    }
+    if (b.enemy.command) {
+        return `敵行動：${b.enemy.command.def.label}まであと${b.enemy.command.lagRemaining}カウント。`;
+    }
+    return `敵戦法：${b.enemyPlan?.name || '標準型'}。距離と向きで攻め方が変わる。`;
+}
+
 // 白兵戦システムは実装済みの前提：スタブ呼び出しで処理を終える
 function startMeleeCombat() {
     console.log('[NavalBattle] startMeleeCombat() — 白兵戦システムへ移行（スタブ）');
@@ -459,6 +504,7 @@ body.naval-battle-lock { overflow: hidden; }
 .naval-status-row b { color: #fff; }
 .naval-stun-badge { color: #fbbf24; font-weight: bold; }
 
+.naval-intel { background: #17253a; border: 1px solid #3f6491; border-radius: 8px; color: #d9e8f7; font-size: 12px; line-height: 1.45; padding: 7px 9px; margin-bottom: 8px; }
 .naval-commands { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .naval-command-btn { flex: 1 1 calc(50% - 6px); min-width: 140px; background: #1b3a5e; border: 1px solid #3f6491; color: #e8f0fa; border-radius: 8px; padding: 8px 6px; cursor: pointer; text-align: left; }
 .naval-command-btn:disabled { opacity: 0.35; cursor: default; }
@@ -527,11 +573,13 @@ function ensureModal() {
                     <h4 id="navalEnemyTitle">敵船</h4>
                     <div class="naval-hp-bar"><div class="naval-hp-fill" id="navalHpEnemy"></div></div>
                     <div class="naval-status-row"><span>HP</span><b id="navalHpEnemyText"></b></div>
+                    <div class="naval-status-row"><span>戦法</span><b id="navalEnemyPlan"></b></div>
                     <div class="naval-status-row"><span>向き</span><b id="navalFacingEnemy"></b></div>
                     <div class="naval-status-row"><span>おもかじCD</span><b id="navalRudderEnemy"></b></div>
                     <div class="naval-status-row"><span>操舵不能</span><b id="navalStunEnemy"></b></div>
                 </div>
             </div>
+            <div class="naval-intel" id="navalIntel"></div>
             <div class="naval-command-note" id="navalCommandNote"></div>
             <div class="naval-commands" id="navalCommands"></div>
             <div id="navalBattleLog"></div>
@@ -652,6 +700,10 @@ function renderStatus(b) {
         const shipFacingEl = document.getElementById(shipFacing);
         if (shipFacingEl) shipFacingEl.textContent = b.distance === 0 ? '横並び' : FACING_LABEL[ship.facing];
     });
+    const enemyPlan = document.getElementById('navalEnemyPlan');
+    if (enemyPlan) enemyPlan.textContent = b.enemyPlan?.name || '標準型';
+    const intel = document.getElementById('navalIntel');
+    if (intel) intel.textContent = getTacticalMessage(b);
 }
 
 function renderCommands(b) {
@@ -705,6 +757,7 @@ function startNavalBattle(options = {}) {
         options,
         count: 0,
         distance: INITIAL_DISTANCE,
+        enemyPlan: createEnemyPlan(options),
         player: createShip('自分の船', true),
         enemy: createShip(options.opponentName ? `${options.opponentName}の船` : '敵船', false),
         logs: [],
@@ -722,7 +775,7 @@ function startNavalBattle(options = {}) {
     const logEl = document.getElementById('navalBattleLog');
     if (logEl) logEl.innerHTML = '';
 
-    log(battle, `${battle.enemy.label}と接敵！ 海戦開始（距離 ${INITIAL_DISTANCE}）`);
+    log(battle, `${battle.enemy.label}と接敵！ 海戦開始（距離 ${INITIAL_DISTANCE} / ${battle.enemyPlan.name}）`);
     modal.classList.add('is-open');
     document.body.classList.add('naval-battle-lock');
     render(battle);
