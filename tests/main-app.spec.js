@@ -1045,7 +1045,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expectNoPageErrors(errors);
 });
 
-test('home plunder route starts a melee battle against another checked-in customer', async ({ page }) => {
+test('home plunder route opens the naval battle phase and boarding starts the melee battle', async ({ page }) => {
   const errors = trackPageErrors(page);
   let explorationStatusRequests = 0;
   await page.route('**/api/get-troy-status', async (route) => {
@@ -1084,6 +1084,16 @@ test('home plunder route starts a melee battle against another checked-in custom
   await expect(page.locator('#btnHomeExploration')).toHaveAttribute('data-plunder-paused', 'false');
   await page.locator('#btnHomeExploration').click();
   await expect(page.locator('#shipExplorationPanel')).toBeHidden();
+
+  // 略奪ボタンは白兵戦を直接開始せず、まず海戦フェーズを開く
+  await expect(page.locator('#navalBattleModal')).toBeVisible();
+  await expect(page.locator('#navalBattleModal')).toContainText('Target Playerの船');
+  await expect(page.locator('#navalCommands .naval-command-btn')).toHaveCount(4);
+  expect(await page.evaluate(() => window.__homePlunderBattleTarget)).toBe(null);
+
+  // 接舷成立時のみ白兵戦（startBattleWithOpponent）へ移行する
+  await page.evaluate(() => window.__navalBattleDebug.forceBoarding());
+  await expect(page.locator('#navalBattleModal')).toBeHidden();
   await expect.poll(async () => page.evaluate(() => window.__homePlunderBattleTarget)).toBe('PF_RAIDER_TARGET');
   expect(explorationStatusRequests).toBe(0);
 

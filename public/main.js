@@ -989,29 +989,32 @@ async function startHomePlunderBattle() {
         return;
     }
 
+    if (typeof window.startNavalBattle !== 'function') {
+        showRpgMessage('海戦の準備ができていません。少し待ってから試してください。');
+        return;
+    }
     if (typeof window.startBattleWithOpponent !== 'function') {
         showRpgMessage('白兵戦の準備ができていません。少し待ってから試してください。');
         return;
     }
 
-    const previousText = button?.textContent || '';
-    if (button) {
-        button.disabled = true;
-        button.textContent = '相手を捕捉中...';
-    }
-    try {
-        showRpgMessage('略奪相手を捕捉しました。白兵戦を開始します。');
-        await window.startBattleWithOpponent(opponent.playFabId);
-    } catch (error) {
-        console.warn('[HomePlunder] Failed to start battle:', error);
-        showRpgMessage(error?.message || '白兵戦の開始に失敗しました。');
-    } finally {
-        if (button) {
-            button.disabled = false;
-            syncHomeExplorationButtonLabel();
-            if (!button.textContent && previousText) button.textContent = previousText;
-        }
-    }
+    showRpgMessage('略奪相手を捕捉しました。海戦を開始します。');
+    window.startNavalBattle({
+        opponentId: opponent.playFabId,
+        opponentName: opponent.displayName || opponent.playFabId,
+        // 接舷成立時のみ既存の白兵戦へ移行する
+        onBoarding: (opponentId) => {
+            Promise.resolve(window.startBattleWithOpponent(opponentId || opponent.playFabId)).catch((error) => {
+                console.warn('[HomePlunder] Failed to start melee battle:', error);
+                showRpgMessage(error?.message || '白兵戦の開始に失敗しました。');
+            });
+        },
+        onVictory: () => showRpgMessage('敵船を撃沈！ 略奪に成功しました。（勝利スタブ）'),
+        onDefeat: () => showRpgMessage('自船が大破した…。略奪に失敗しました。（敗北スタブ）'),
+        onEscape: () => showRpgMessage('敵から逃げ切りました。（逃走勝利スタブ）'),
+        onEnemyEscaped: () => showRpgMessage('相手に逃げられました…。')
+    });
+    if (button) syncHomeExplorationButtonLabel();
 }
 
 function initHomeExplorationButton() {
