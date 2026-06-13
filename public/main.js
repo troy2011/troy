@@ -836,6 +836,58 @@ function setHomeCoinConvertMessage(message = '', tone = '') {
     messageEl.dataset.tone = tone || '';
 }
 
+function ensureTroyStaffChipConfirmOverlay() {
+    let overlay = document.getElementById('troyStaffChipConfirmOverlay');
+    if (overlay) return overlay;
+    overlay = document.createElement('div');
+    overlay.id = 'troyStaffChipConfirmOverlay';
+    overlay.className = 'troy-staff-chip-confirm-overlay';
+    overlay.hidden = true;
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.innerHTML = `
+        <div class="troy-staff-chip-confirm-card" role="dialog" aria-modal="true" aria-labelledby="troyStaffChipConfirmTitle">
+            <div id="troyStaffChipConfirmTitle" class="troy-staff-chip-confirm-title">スタッフ確認</div>
+            <div id="troyStaffChipConfirmAmount" class="troy-staff-chip-confirm-amount">0G</div>
+            <div id="troyStaffChipConfirmNote" class="troy-staff-chip-confirm-note">スタッフからチップを受け取ってください</div>
+            <button id="troyStaffChipConfirmButton" class="troy-staff-chip-confirm-button" type="button" aria-label="確認して閉じる">
+                <img src="assets/ui/icons/046.png" alt="" aria-hidden="true">
+            </button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const close = () => {
+        overlay.hidden = true;
+        overlay.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-lock');
+    };
+    overlay.querySelector('#troyStaffChipConfirmButton')?.addEventListener('click', close);
+    overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) close();
+    });
+    return overlay;
+}
+
+function showTroyStaffChipConfirm(options = {}) {
+    const amount = Math.max(0, Math.floor(Number(options.amount) || 0));
+    if (amount <= 0) return;
+    const overlay = ensureTroyStaffChipConfirmOverlay();
+    const titleEl = overlay.querySelector('#troyStaffChipConfirmTitle');
+    const amountEl = overlay.querySelector('#troyStaffChipConfirmAmount');
+    const noteEl = overlay.querySelector('#troyStaffChipConfirmNote');
+    if (titleEl) titleEl.textContent = String(options.title || 'スタッフ確認');
+    if (amountEl) amountEl.textContent = `${amount.toLocaleString('ja-JP')}G`;
+    if (noteEl) noteEl.textContent = String(options.note || 'スタッフからチップを受け取ってください');
+    overlay.hidden = false;
+    overlay.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-lock');
+    requestAnimationFrame(() => {
+        overlay.querySelector('#troyStaffChipConfirmButton')?.focus();
+    });
+}
+
+window.showTroyStaffChipConfirm = showTroyStaffChipConfirm;
+
 function updateHomeCoinConvertPanel(status = window.__troyStatus) {
     const { panel, input, button } = getHomeCoinConvertElements();
     if (!panel) return;
@@ -893,6 +945,11 @@ async function submitHomeCoinConvert(playFabId = window.myPlayFabId) {
             if (globalPointsEl) globalPointsEl.innerText = String(Number(result.newBalance));
         }
         setHomeCoinConvertMessage(`${amount.toLocaleString('ja-JP')}Gをチップ化しました。スタッフからチップを受け取ってください。`, 'success');
+        showTroyStaffChipConfirm({
+            title: 'チップ化',
+            amount,
+            note: 'この画面をスタッフに見せてください'
+        });
         showRpgMessage('チップ化しました。スタッフからチップを受け取ってください。');
     } catch (error) {
         console.warn('[HomeCoin] Customer chip conversion failed:', error);
@@ -1917,6 +1974,14 @@ async function handleTroyEntryRequest(entryRequest, options = {}) {
         if (result?.entryChargeError) parts.push('入店チャージ未登録');
         if (result?.entryBonusGranted > 0) parts.push(`${result.entryBonusGranted}G 獲得`);
         showRpgMessage(parts.join(' / '), 2800);
+        const entryStaffChipAmount = Math.max(0, Math.floor(Number(result?.entryStaffChipAmount ?? TROY_ENTRY_STAFF_CHIP_AMOUNT) || 0));
+        if (!result?.alreadyEntered && entryStaffChipAmount > 0) {
+            showTroyStaffChipConfirm({
+                title: '入店チップ',
+                amount: entryStaffChipAmount,
+                note: 'この画面をスタッフに見せてください'
+            });
+        }
     } catch (error) {
         const detail = String(error?.message || error || '');
         const message = detail.includes('TroyClosed')

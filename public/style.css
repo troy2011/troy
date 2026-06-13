@@ -4193,6 +4193,104 @@ body.app-booting .boot-splash {
     filter: saturate(0.75) brightness(0.88);
 }
 
+.troy-staff-chip-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    background:
+        radial-gradient(circle at 50% 55%, rgba(236, 181, 82, 0.2), transparent 42%),
+        rgba(3, 5, 9, 0.82);
+}
+
+.troy-staff-chip-confirm-overlay[hidden] {
+    display: none;
+}
+
+.troy-staff-chip-confirm-card {
+    width: min(92vw, 420px);
+    min-height: min(76vh, 520px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 30px 24px 28px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 18px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(18, 12, 5, 0.94), rgba(4, 7, 12, 0.96)),
+        radial-gradient(ellipse at 50% 22%, rgba(255, 225, 130, 0.2), transparent 62%);
+    box-shadow: 0 20px 54px rgba(0, 0, 0, 0.55);
+    color: #fff5cf;
+    text-align: center;
+    transform: rotate(180deg);
+}
+
+.troy-staff-chip-confirm-title {
+    color: #f7d982;
+    font-size: 18px;
+    font-weight: 1000;
+    line-height: 1.2;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.82);
+}
+
+.troy-staff-chip-confirm-amount {
+    color: #ffffff;
+    font-size: clamp(48px, 16vw, 88px);
+    font-weight: 1000;
+    line-height: 0.95;
+    letter-spacing: 0;
+    text-shadow:
+        0 4px 0 rgba(0, 0, 0, 0.88),
+        0 0 22px rgba(255, 207, 94, 0.28);
+}
+
+.troy-staff-chip-confirm-note {
+    max-width: 15em;
+    color: #ead6a4;
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1.45;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7);
+}
+
+.troy-staff-chip-confirm-button {
+    width: min(54vw, 210px);
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    gap: 4px;
+    padding: 14px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #fff7d7;
+    font-size: 14px;
+    font-weight: 1000;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.88);
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.troy-staff-chip-confirm-button:focus-visible {
+    outline: 3px solid rgba(255, 233, 162, 0.92);
+    outline-offset: 5px;
+}
+
+.troy-staff-chip-confirm-button img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter:
+        drop-shadow(0 8px 9px rgba(0, 0, 0, 0.58))
+        drop-shadow(0 0 18px rgba(255, 214, 103, 0.26));
+}
+
 .troy-menu-board-tabs {
     display: flex;
     gap: 6px;

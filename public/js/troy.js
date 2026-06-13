@@ -1080,6 +1080,13 @@ async function submitTroyCoinConvert(playFabId = window.myPlayFabId) {
             updatePointsDisplays(Number(result.newBalance));
         }
         setTroyCoinConvertMessage(`${amount.toLocaleString('ja-JP')}Gをチップ化しました。スタッフからチップを受け取ってください。`, 'success');
+        if (typeof window.showTroyStaffChipConfirm === 'function') {
+            window.showTroyStaffChipConfirm({
+                title: 'チップ化',
+                amount,
+                note: 'この画面をスタッフに見せてください'
+            });
+        }
         showTroyNotice('チップ化しました。スタッフからチップを受け取ってください。');
     } catch (error) {
         console.warn('[TroyCoin] Customer chip conversion failed:', error);

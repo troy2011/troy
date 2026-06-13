@@ -173,6 +173,11 @@ test('home tab lets checked-in customers convert gold to chips', async ({ page }
   });
   expect(coinConvertRequests[0].requestId).toMatch(/^troy-customer-chip-/);
   await expect(page.locator('#homeCoinConvertMessage')).toContainText('1,200Gをチップ化しました');
+  await expect(page.locator('#troyStaffChipConfirmOverlay')).toBeVisible();
+  await expect(page.locator('#troyStaffChipConfirmAmount')).toHaveText('1,200G');
+  await expect(page.locator('#troyStaffChipConfirmButton img')).toHaveAttribute('src', /assets\/ui\/icons\/046\.png/);
+  await page.locator('#troyStaffChipConfirmButton').click();
+  await expect(page.locator('#troyStaffChipConfirmOverlay')).toBeHidden();
   await expect(page.locator('#currentPoints')).toHaveText('8800');
 
   await expectNoPageErrors(errors);
@@ -386,6 +391,10 @@ export function onSnapshot(_ref, next) {
   });
   expect(coinConvertRequests[0].requestId).toMatch(/^troy-customer-chip-/);
   await expect(page.locator('#troyCoinConvertMessage')).toContainText('1,100Gをチップ化しました');
+  await expect(page.locator('#troyStaffChipConfirmOverlay')).toBeVisible();
+  await expect(page.locator('#troyStaffChipConfirmAmount')).toHaveText('1,100G');
+  await page.locator('#troyStaffChipConfirmButton').click();
+  await expect(page.locator('#troyStaffChipConfirmOverlay')).toBeHidden();
   await expect(page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab-icon img')).toHaveCount(11);
   await expect(page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: 'BOTTLE MENU' }).locator('.troy-menu-board-tab-icon img')).toHaveAttribute('src', /Sprites\/drinks\/troy_champagne_bottle_flute\.png/);
   await expect(page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: '酒場のフード' }).locator('.troy-menu-board-tab-icon img')).toHaveAttribute('src', /Sprites\/food\/snack_fried_chicken_skillet\.png/);
@@ -590,6 +599,10 @@ export function onSnapshot(_ref, next) {
   await expect(page.locator('#tabContentTroy')).toBeVisible();
   await expect(page.locator('#tabContentTroy')).toContainText('入店中');
   await expect(page.locator('.rpg-message-popup')).toContainText('スタッフからチップ500を受け取ってください');
+  await expect(page.locator('#troyStaffChipConfirmOverlay')).toBeVisible();
+  await expect(page.locator('#troyStaffChipConfirmAmount')).toHaveText('500G');
+  await page.locator('#troyStaffChipConfirmButton').click();
+  await expect(page.locator('#troyStaffChipConfirmOverlay')).toBeHidden();
 
   await expectNoPageErrors(errors);
 });
