@@ -14619,6 +14619,11 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     color: #081b0d;
 }
 
+.troy-orders-sound-toggle.is-pending {
+    background: linear-gradient(180deg, #f5d774, #b98220);
+    color: #211204;
+}
+
 .troy-orders-summary {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));

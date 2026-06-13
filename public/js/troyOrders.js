@@ -37,6 +37,14 @@ let localTicketGroups = [];
 let manualTicketOrder = [];
 let ticketDragState = null;
 let suppressNextTicketClick = false;
+let soundUnlocked = false;
+let soundUnlockPromise = null;
+let soundAudioContext = null;
+let soundDecodeStarted = false;
+const soundPlayers = new Map();
+const soundBuffers = new Map();
+const soundBufferPromises = new Map();
+const soundArrayBufferPromises = new Map();
 
 function $(id) {
     return document.getElementById(id);
@@ -370,9 +378,159 @@ function setStoredSoundEnabled(enabled) {
 function updateSoundToggle() {
     const btn = $('troyOrdersSoundToggle');
     if (!btn) return;
-    btn.textContent = soundEnabled ? 'Sound ON' : 'Sound OFF';
+    btn.textContent = soundEnabled ? (soundUnlocked ? 'Sound ON' : 'Sound ON...') : 'Sound OFF';
     btn.setAttribute('aria-pressed', soundEnabled ? 'true' : 'false');
     btn.classList.toggle('is-enabled', soundEnabled);
+    btn.classList.toggle('is-pending', soundEnabled && !soundUnlocked);
+}
+
+function getOrderSoundSource(key = 'default') {
+    return ORDER_SOUND_SOURCES[key] || ORDER_SOUND_SOURCES.default;
+}
+
+function getOrderSoundPlayer(key = 'default') {
+    if (typeof Audio === 'undefined') return null;
+    const safeKey = ORDER_SOUND_SOURCES[key] ? key : 'default';
+    if (soundPlayers.has(safeKey)) return soundPlayers.get(safeKey);
+    const audio = new Audio(getOrderSoundSource(safeKey));
+    audio.preload = 'auto';
+    audio.playsInline = true;
+    audio.volume = 0.9;
+    soundPlayers.set(safeKey, audio);
+    return audio;
+}
+
+function fetchOrderSoundArrayBuffer(src) {
+    if (!src) return Promise.resolve(null);
+    if (soundArrayBufferPromises.has(src)) return soundArrayBufferPromises.get(src);
+    const promise = fetch(src, { cache: 'force-cache' })
+        .then((res) => (res.ok ? res.arrayBuffer() : null))
+        .catch(() => null);
+    soundArrayBufferPromises.set(src, promise);
+    return promise;
+}
+
+function unlockOrderWebAudio() {
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextCtor) return Promise.resolve(false);
+    return Promise.resolve().then(async () => {
+        soundAudioContext = soundAudioContext || new AudioContextCtor();
+        if (soundAudioContext.state === 'suspended') await soundAudioContext.resume();
+        const source = soundAudioContext.createOscillator();
+        const gain = soundAudioContext.createGain();
+        gain.gain.value = 0.0001;
+        source.connect(gain);
+        gain.connect(soundAudioContext.destination);
+        source.start();
+        source.stop(soundAudioContext.currentTime + 0.03);
+        return true;
+    }).catch(() => false);
+}
+
+function decodeOrderAudioData(arrayBuffer) {
+    if (!soundAudioContext?.decodeAudioData) return Promise.resolve(null);
+    return new Promise((resolve, reject) => {
+        try {
+            const result = soundAudioContext.decodeAudioData(arrayBuffer, resolve, reject);
+            if (result?.then) result.then(resolve, reject);
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+function loadOrderSoundBuffer(src) {
+    if (!src || !soundAudioContext?.decodeAudioData) return Promise.resolve(null);
+    if (soundBuffers.has(src)) return Promise.resolve(soundBuffers.get(src));
+    if (soundBufferPromises.has(src)) return soundBufferPromises.get(src);
+    const promise = fetchOrderSoundArrayBuffer(src)
+        .then((arrayBuffer) => (arrayBuffer ? decodeOrderAudioData(arrayBuffer.slice(0)) : null))
+        .then((buffer) => {
+            if (buffer) soundBuffers.set(src, buffer);
+            return buffer;
+        })
+        .catch(() => null);
+    soundBufferPromises.set(src, promise);
+    return promise;
+}
+
+function startOrderSoundBufferPreload() {
+    if (soundDecodeStarted || !soundAudioContext) return;
+    soundDecodeStarted = true;
+    Object.values(ORDER_SOUND_SOURCES).forEach((src) => {
+        loadOrderSoundBuffer(src);
+    });
+}
+
+function warmupOrderSoundElement(key) {
+    const audio = getOrderSoundPlayer(key);
+    if (!audio) return Promise.resolve(false);
+    const previousVolume = audio.volume;
+    audio.volume = 0.01;
+    audio.currentTime = 0;
+    let result = null;
+    try {
+        result = audio.play();
+    } catch (_) {
+        audio.volume = previousVolume;
+        return Promise.resolve(false);
+    }
+    return Promise.resolve(result).then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.volume = previousVolume;
+        return true;
+    }).catch(() => {
+        audio.volume = previousVolume;
+        return false;
+    });
+}
+
+async function unlockOrderSound() {
+    if (!soundEnabled) return false;
+    if (soundUnlocked) return true;
+    if (soundUnlockPromise) return soundUnlockPromise;
+    soundUnlockPromise = (async () => {
+        const keys = Object.keys(ORDER_SOUND_SOURCES);
+        const webAudioPromise = unlockOrderWebAudio();
+        const warmupPromises = keys.map((key) => warmupOrderSoundElement(key));
+        const webAudioReady = await webAudioPromise;
+        if (webAudioReady) startOrderSoundBufferPreload();
+        const warmupResults = await Promise.all(warmupPromises);
+        const bufferResults = webAudioReady
+            ? await Promise.all(Object.values(ORDER_SOUND_SOURCES).map((src) => loadOrderSoundBuffer(src)))
+            : [];
+        soundUnlocked = warmupResults.some(Boolean) || bufferResults.some(Boolean);
+        soundUnlockPromise = null;
+        updateSoundToggle();
+        return soundUnlocked;
+    })().catch((error) => {
+        console.warn('[troy-orders-sound] unlock failed:', error);
+        soundUnlockPromise = null;
+        soundUnlocked = false;
+        updateSoundToggle();
+        return false;
+    });
+    return soundUnlockPromise;
+}
+
+function playBufferedOrderSound(src) {
+    if (!src || !soundAudioContext || !soundBuffers.has(src)) return false;
+    try {
+        if (soundAudioContext.state === 'suspended') {
+            soundAudioContext.resume?.().catch?.(() => {});
+        }
+        const source = soundAudioContext.createBufferSource();
+        const gain = soundAudioContext.createGain();
+        source.buffer = soundBuffers.get(src);
+        gain.gain.value = 0.9;
+        source.connect(gain);
+        gain.connect(soundAudioContext.destination);
+        source.start(0);
+        return true;
+    } catch (_) {
+        return false;
+    }
 }
 
 function getOrderSoundKeyByCount(orderCountToday = 0) {
@@ -406,13 +564,27 @@ function pickOrderSoundKey(items = []) {
 }
 
 function playOrderSound(key = 'default') {
-    if (!soundEnabled || typeof Audio === 'undefined') return;
-    const src = ORDER_SOUND_SOURCES[key] || ORDER_SOUND_SOURCES.default;
+    if (!soundEnabled || !soundUnlocked) return;
+    const src = getOrderSoundSource(key);
+    if (playBufferedOrderSound(src)) return;
+    if (soundAudioContext && !soundBuffers.has(src)) {
+        loadOrderSoundBuffer(src).then((buffer) => {
+            if (buffer && soundEnabled && soundUnlocked) playBufferedOrderSound(src);
+        });
+    }
     try {
-        const audio = new Audio(src);
+        const audio = getOrderSoundPlayer(key);
+        if (!audio) return;
         audio.volume = 0.9;
+        audio.currentTime = 0;
         const result = audio.play();
-        if (result?.catch) result.catch((error) => console.warn('[troy-orders-sound] play blocked:', error));
+        if (result?.catch) result.catch((error) => {
+            console.warn('[troy-orders-sound] play blocked:', error);
+            if (!soundAudioContext || soundAudioContext.state !== 'running') {
+                soundUnlocked = false;
+                updateSoundToggle();
+            }
+        });
     } catch (error) {
         console.warn('[troy-orders-sound] play failed:', error);
     }
@@ -1710,13 +1882,32 @@ function stopAutoRefresh() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    soundEnabled = getStoredSoundEnabled();
+    const soundWasEnabled = getStoredSoundEnabled();
+    soundEnabled = false;
+    soundUnlocked = false;
     updateSoundToggle();
-    $('troyOrdersSoundToggle')?.addEventListener('click', () => {
-        soundEnabled = !soundEnabled;
+    if (soundWasEnabled) {
+        setMessage('音を使う場合はSound ONを押してください。');
+    }
+    $('troyOrdersSoundToggle')?.addEventListener('click', async () => {
+        const nextEnabled = !soundEnabled;
+        soundEnabled = nextEnabled;
+        if (!soundEnabled) soundUnlocked = false;
         setStoredSoundEnabled(soundEnabled);
         updateSoundToggle();
-        if (soundEnabled) playOrderSound('default');
+        if (soundEnabled) {
+            const ok = await unlockOrderSound();
+            if (ok) {
+                setMessage('');
+                playOrderSound('default');
+            } else {
+                setMessage('音を有効化できませんでした。もう一度Sound ONを押してください。', true);
+                soundEnabled = false;
+                soundUnlocked = false;
+                setStoredSoundEnabled(false);
+                updateSoundToggle();
+            }
+        }
     });
 
     const sortEl = $('troyOrdersSort');

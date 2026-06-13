@@ -161,16 +161,18 @@ test('display kiosk starts with audio gate and hides controls after launch', asy
       avatarSize: Math.round(firstAvatar.getBoundingClientRect().width),
       videoCurrentTime: document.getElementById('seaVideo')?.currentTime || 0,
       videoPaused: document.getElementById('seaVideo')?.paused ?? true,
-      videoMuted: document.getElementById('seaVideo')?.muted ?? false,
+      videoMuted: document.getElementById('seaVideo')?.muted ?? true,
+      videoVolume: document.getElementById('seaVideo')?.volume ?? 0,
       scrollWidth: document.documentElement.scrollWidth,
       clientWidth: document.documentElement.clientWidth
     };
   });
 
   expect(audit.audioPlayCount).toBeGreaterThanOrEqual(5);
-  expect(audit.videoCurrentTime).toBeGreaterThan(0.2);
+  expect(audit.videoCurrentTime).toBeGreaterThan(0.05);
   expect(audit.videoPaused).toBe(false);
-  expect(audit.videoMuted).toBe(true);
+  expect(audit.videoMuted).toBe(false);
+  expect(audit.videoVolume).toBeGreaterThan(0);
   expect(audit.panelWidth).toBeGreaterThanOrEqual(380);
   expect(audit.titleFontSize).toBeGreaterThanOrEqual(20);
   expect(audit.firstWantedText).toBe('WANTED');

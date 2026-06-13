@@ -471,6 +471,129 @@ test('staff register accepts customer-side order requests into tickets', async (
   await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('瓶ビール（ハートランド）');
 });
 
+test('staff register unlocks sound on tap and plays for new orders', async ({ page }) => {
+  const now = Date.now();
+  let state = {
+    troyOpen: true,
+    nation: 'fire',
+    troyTodaySales: { total: 0, count: 0 },
+    troyCoinConversionLogs: [],
+    troyMembers: [
+      { playFabId: 'PLAYER1', displayName: 'Sound Tester', joinedAtMs: now - 60_000, level: 24, rankName: 'Captain' }
+    ],
+    troyPendingCheckouts: [],
+    troyCustomerOrderRequests: []
+  };
+
+  await page.addInitScript(() => {
+    window.__orderAudioPlayCount = 0;
+    window.__orderAudioSources = [];
+    window.Audio = class MockAudio {
+      constructor(src) {
+        this.src = src;
+        this.volume = 1;
+        this.currentTime = 0;
+        this.preload = '';
+        this.playsInline = false;
+      }
+
+      async play() {
+        window.__orderAudioPlayCount += 1;
+        window.__orderAudioSources.push(this.src);
+      }
+
+      pause() {}
+    };
+    class MockAudioContext {
+      constructor() {
+        this.state = 'running';
+        this.currentTime = 0;
+        this.destination = {};
+      }
+
+      async resume() {
+        this.state = 'running';
+      }
+
+      createOscillator() {
+        return { connect: () => {}, start: () => {}, stop: () => {} };
+      }
+
+      createGain() {
+        return { gain: { value: 1 }, connect: () => {} };
+      }
+
+      createBufferSource() {
+        return { buffer: null, connect: () => {}, start: () => { window.__orderAudioPlayCount += 1; } };
+      }
+
+      decodeAudioData(_buffer, resolve) {
+        const decoded = {};
+        if (typeof resolve === 'function') {
+          resolve(decoded);
+          return undefined;
+        }
+        return Promise.resolve(decoded);
+      }
+    }
+    window.AudioContext = MockAudioContext;
+    window.webkitAudioContext = MockAudioContext;
+    window.EventSource = class MockEventSource {
+      static OPEN = 1;
+
+      constructor() {
+        this.readyState = MockEventSource.OPEN;
+        window.__ordersStream = this;
+      }
+
+      close() {}
+    };
+  });
+
+  await page.route('**/api/troy-orders/list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify(state)
+    });
+  });
+
+  await page.goto('/troy-orders.html', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('#troyOrdersSoundToggle')).toHaveText('Sound OFF');
+  await page.locator('#troyOrdersSoundToggle').click();
+  await expect(page.locator('#troyOrdersSoundToggle')).toHaveText('Sound ON');
+  const afterUnlockCount = await page.evaluate(() => window.__orderAudioPlayCount);
+  expect(afterUnlockCount).toBeGreaterThanOrEqual(1);
+
+  state = {
+    ...state,
+    troyPendingCheckouts: [{
+      playFabId: 'PLAYER1',
+      displayName: 'Sound Tester',
+      status: 'open',
+      total: 700,
+      totalItems: 1,
+      createdAtMs: now,
+      lastOrderedAtMs: now,
+      items: [{
+        orderId: 'sound-test-order-1',
+        name: 'Bottle Beer',
+        quantity: 1,
+        price: 700,
+        lineTotal: 700,
+        status: 'pending',
+        orderedAtMs: now
+      }]
+    }]
+  };
+  await page.evaluate((payload) => {
+    window.__ordersStream.onmessage({ data: JSON.stringify(payload) });
+  }, state);
+
+  await expect(page.locator('[data-open-ticket]', { hasText: 'Sound Tester' })).toContainText('¥700');
+  await expect.poll(() => page.evaluate(() => window.__orderAudioPlayCount)).toBeGreaterThan(afterUnlockCount);
+});
+
 test('staff register shows king-managed custom menu items', async ({ page }) => {
   const now = Date.now();
   const state = {

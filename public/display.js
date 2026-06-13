@@ -35,6 +35,8 @@
   let audioDecodeStarted = false;
   let seaVideoWatchTimer = null;
   let seaVideoLoadRequested = false;
+  let seaVideoAudioEnabled = false;
+  let seaVideoAudioReady = false;
   let lastSeaVideoTime = 0;
   let lastSeaVideoCheckAt = 0;
   const soundBuffers = new Map();
@@ -66,13 +68,22 @@
     if (audioGateStatus) audioGateStatus.textContent = text || '';
   };
 
-  const ensureSeaVideoPlayback = async () => {
+  const ensureSeaVideoPlayback = async (options = {}) => {
     if (!seaVideo) return false;
-    seaVideo.muted = true;
-    seaVideo.defaultMuted = true;
+    const withAudio = options.withAudio === true || seaVideoAudioEnabled;
+    if (withAudio) {
+      seaVideoAudioEnabled = true;
+      seaVideo.muted = false;
+      seaVideo.defaultMuted = false;
+      seaVideo.volume = Math.max(0, Math.min(1, Number(options.volume ?? 0.85) || 0.85));
+      seaVideo.removeAttribute('muted');
+    } else {
+      seaVideo.muted = true;
+      seaVideo.defaultMuted = true;
+      seaVideo.setAttribute('muted', '');
+    }
     seaVideo.loop = true;
     seaVideo.playsInline = true;
-    seaVideo.setAttribute('muted', '');
     seaVideo.setAttribute('playsinline', '');
     seaVideo.setAttribute('webkit-playsinline', '');
     try {
@@ -83,6 +94,7 @@
       const result = seaVideo.play();
       if (result?.catch) await result.catch(() => {});
     } catch (_) {}
+    seaVideoAudioReady = !!withAudio && !seaVideo.muted && !seaVideo.paused;
     return !seaVideo.paused;
   };
 
@@ -230,7 +242,7 @@
 
     const webAudioPromise = unlockWebAudio();
     const warmupPromises = [...soundPlayers.values()].map((audio) => beginWarmupAudioElement(audio));
-    const seaVideoPromise = ensureSeaVideoPlayback();
+    const seaVideoPromise = ensureSeaVideoPlayback({ withAudio: true });
 
     const webAudioReady = await webAudioPromise;
     if (webAudioReady) startSoundBufferPreload();
@@ -243,7 +255,7 @@
 
     const anySoundReady = warmupResults.some(Boolean);
     const anyBufferReady = bufferResults.some(Boolean);
-    audioUnlocked = anySoundReady || anyBufferReady;
+    audioUnlocked = anySoundReady || anyBufferReady || seaVideoAudioReady;
     audioUnlocking = false;
     if (!audioUnlocked) {
       setGateStatus('音が有効化できませんでした。もう一度タップしてください。');
