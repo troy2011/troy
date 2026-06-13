@@ -68,8 +68,35 @@
     if (audioGateStatus) audioGateStatus.textContent = text || '';
   };
 
+  const configureSeaVideoInlinePlayback = () => {
+    if (!seaVideo) return;
+    seaVideo.controls = false;
+    seaVideo.autoplay = true;
+    seaVideo.loop = true;
+    seaVideo.playsInline = true;
+    seaVideo.setAttribute('playsinline', '');
+    seaVideo.setAttribute('webkit-playsinline', '');
+    seaVideo.setAttribute('x-webkit-airplay', 'deny');
+    seaVideo.setAttribute('disableremoteplayback', '');
+    seaVideo.setAttribute('disablepictureinpicture', '');
+    seaVideo.setAttribute('controlslist', 'nodownload noremoteplayback nofullscreen');
+    seaVideo.removeAttribute('controls');
+    try {
+      seaVideo.disableRemotePlayback = true;
+    } catch (_) {}
+    try {
+      seaVideo.disablePictureInPicture = true;
+    } catch (_) {}
+    try {
+      if (seaVideo.webkitPresentationMode && seaVideo.webkitPresentationMode !== 'inline') {
+        seaVideo.webkitSetPresentationMode?.('inline');
+      }
+    } catch (_) {}
+  };
+
   const ensureSeaVideoPlayback = async (options = {}) => {
     if (!seaVideo) return false;
+    configureSeaVideoInlinePlayback();
     const withAudio = options.withAudio === true || seaVideoAudioEnabled;
     if (withAudio) {
       seaVideoAudioEnabled = true;
@@ -120,10 +147,23 @@
 
   const installSeaVideoRecovery = () => {
     if (!seaVideo) return;
+    configureSeaVideoInlinePlayback();
     ['canplay', 'pause', 'stalled', 'error'].forEach((eventName) => {
       seaVideo.addEventListener(eventName, () => {
         ensureSeaVideoPlayback();
       });
+    });
+    seaVideo.addEventListener('webkitbeginfullscreen', () => {
+      window.setTimeout(() => {
+        try {
+          seaVideo.webkitExitFullscreen?.();
+        } catch (_) {}
+        configureSeaVideoInlinePlayback();
+        ensureSeaVideoPlayback();
+      }, 0);
+    });
+    seaVideo.addEventListener('webkitpresentationmodechanged', () => {
+      configureSeaVideoInlinePlayback();
     });
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) ensureSeaVideoPlayback();

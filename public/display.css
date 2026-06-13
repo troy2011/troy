@@ -41,12 +41,15 @@ body.display-kiosk #sea {
   height: 100%;
   object-fit: cover;
   object-position: center;
+  pointer-events: none;
+  z-index: 0;
 }
 
 #effects {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: 1;
 }
 
 #audioGate {
@@ -151,6 +154,7 @@ body.display-ready #displayControls {
   position: absolute;
   top: max(18px, env(safe-area-inset-top));
   right: max(18px, env(safe-area-inset-right));
+  z-index: 2;
   width: clamp(500px, 34vw, 670px);
   padding: 26px 28px 24px;
   border: 28px solid transparent;

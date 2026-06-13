@@ -163,6 +163,14 @@ test('display kiosk starts with audio gate and hides controls after launch', asy
       videoPaused: document.getElementById('seaVideo')?.paused ?? true,
       videoMuted: document.getElementById('seaVideo')?.muted ?? true,
       videoVolume: document.getElementById('seaVideo')?.volume ?? 0,
+      videoControls: document.getElementById('seaVideo')?.controls ?? true,
+      videoPlaysInline: document.getElementById('seaVideo')?.playsInline ?? false,
+      videoWebkitInlineAttr: document.getElementById('seaVideo')?.hasAttribute('webkit-playsinline') ?? false,
+      videoAirplayAttr: document.getElementById('seaVideo')?.getAttribute('x-webkit-airplay') || '',
+      videoRemotePlaybackAttr: document.getElementById('seaVideo')?.hasAttribute('disableremoteplayback') ?? false,
+      videoControlsList: document.getElementById('seaVideo')?.getAttribute('controlslist') || '',
+      videoPointerEvents: getComputedStyle(document.getElementById('seaVideo')).pointerEvents,
+      panelZIndex: Number.parseInt(getComputedStyle(rankingPanel).zIndex, 10) || 0,
       scrollWidth: document.documentElement.scrollWidth,
       clientWidth: document.documentElement.clientWidth
     };
@@ -173,6 +181,14 @@ test('display kiosk starts with audio gate and hides controls after launch', asy
   expect(audit.videoPaused).toBe(false);
   expect(audit.videoMuted).toBe(false);
   expect(audit.videoVolume).toBeGreaterThan(0);
+  expect(audit.videoControls).toBe(false);
+  expect(audit.videoPlaysInline).toBe(true);
+  expect(audit.videoWebkitInlineAttr).toBe(true);
+  expect(audit.videoAirplayAttr).toBe('deny');
+  expect(audit.videoRemotePlaybackAttr).toBe(true);
+  expect(audit.videoControlsList).toContain('noremoteplayback');
+  expect(audit.videoPointerEvents).toBe('none');
+  expect(audit.panelZIndex).toBeGreaterThan(0);
   expect(audit.panelWidth).toBeGreaterThanOrEqual(380);
   expect(audit.titleFontSize).toBeGreaterThanOrEqual(20);
   expect(audit.firstWantedText).toBe('WANTED');
