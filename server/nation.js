@@ -2811,6 +2811,34 @@ function initializeNationRoutes(app, deps) {
         }
     };
 
+    function buildTroyCustomerOrderDisplayEvent(context = {}, request = {}, options = {}) {
+        const requestId = String(request?.requestId || options.requestId || '').trim().slice(0, 96);
+        const displayName = String(request?.displayName || request?.playFabId || '').trim().slice(0, 48);
+        const itemName = String(request?.name || request?.itemName || '').trim().slice(0, 80);
+        const quantity = Math.max(1, Math.min(99, Math.floor(Number(request?.quantity) || 1)));
+        const lineTotal = Math.max(0, Math.floor(Number(request?.lineTotal ?? request?.total) || 0));
+        const menuImage = normalizeTroyMenuImagePath(request?.menuImage || request?.image || request?.iconImage);
+        const topic = String(options.topic || 'troy-customer-order').trim().toLowerCase();
+        const action = String(options.action || '').trim().toLowerCase();
+        const labelParts = [];
+        if (displayName) labelParts.push(displayName);
+        if (itemName) labelParts.push(`${itemName}${quantity > 1 ? ` x${quantity}` : ''}`);
+        return {
+            topic,
+            type: 'refresh',
+            label: labelParts.length ? `注文: ${labelParts.join(' / ')}` : 'TROYメニュー注文',
+            requestId,
+            displayName,
+            itemName,
+            quantity,
+            lineTotal,
+            menuImage,
+            createdAtMs: Math.max(0, Math.floor(Number(request?.createdAtMs || request?.createdAt) || Date.now())),
+            nation: String(context?.nation || request?.nation || '').trim().toLowerCase(),
+            action
+        };
+    }
+
     async function buildTroyCloseSummary(context = {}) {
         const roomRef = getTroyRoomDoc(firestore);
         const roomSnap = await roomRef.get();
@@ -5165,6 +5193,11 @@ function initializeNationRoutes(app, deps) {
                 request: buildTroyCustomerOrderRequestPayload([{ id: requestId, data: () => requestData }])[0]
             };
         });
+        if (result.created && result.request) {
+            pushDisplayEvent(buildTroyCustomerOrderDisplayEvent(context, result.request, {
+                topic: 'troy-customer-order'
+            }));
+        }
         return { success: true, duplicate: !result.created, request: result.request };
     }
 
@@ -5217,7 +5250,13 @@ function initializeNationRoutes(app, deps) {
         }
         const requestRef = context.roomRef.collection('customerOrderRequests').doc(requestId);
         const marked = await markTroyCustomerOrderRequestForReview(context, requestId, action);
-        if (marked.rejected) return { success: true, action: 'reject', requestId };
+        if (marked.rejected) {
+            pushDisplayEvent(buildTroyCustomerOrderDisplayEvent(context, { ...marked.data, requestId }, {
+                topic: 'troy-customer-order-reviewed',
+                action: 'reject'
+            }));
+            return { success: true, action: 'reject', requestId };
+        }
 
         const request = marked.data || {};
         const nowMs = Date.now();
@@ -5242,6 +5281,10 @@ function initializeNationRoutes(app, deps) {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedAtMs: nowMs
             }, { merge: true });
+            pushDisplayEvent(buildTroyCustomerOrderDisplayEvent(context, { ...request, requestId }, {
+                topic: 'troy-customer-order-reviewed',
+                action: 'accept'
+            }));
             return { success: true, action: 'accept', requestId };
         } catch (error) {
             await requestRef.set({

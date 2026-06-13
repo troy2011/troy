@@ -202,6 +202,55 @@ test('display kiosk starts with audio gate and hides controls after launch', asy
   expect(audit.scrollWidth).toBe(audit.clientWidth);
 });
 
+test('display shows TROY menu order notices until staff reviews them', async ({ page }) => {
+  await installDisplayMocks(page, { autoEntryEvent: false });
+  await page.goto('/display.html', { waitUntil: 'domcontentloaded' });
+  await page.locator('#btnStartDisplay').click();
+  await expect(page.locator('#audioGate')).toBeHidden();
+  await expect(page.locator('body')).toHaveClass(/display-ready/);
+  await expect(page.locator('#orderNoticePanel')).toBeHidden();
+
+  const audioBefore = await page.evaluate(() => window.__displayAudioPlayCount || 0);
+  await page.evaluate(() => {
+    window.__emitDisplayEvent({
+      topic: 'troy-customer-order',
+      type: 'refresh',
+      requestId: 'customer-order-001',
+      displayName: '海風の船長',
+      itemName: '瓶ビール（ハートランド）',
+      quantity: 2,
+      lineTotal: 1400,
+      menuImage: '/Sprites/drinks/fantasy_anchor_green_beer_bottle.png',
+      createdAtMs: 1710000000000
+    });
+  });
+
+  await expect(page.locator('#orderNoticePanel')).toBeVisible();
+  await expect(page.locator('#orderNoticeCount')).toHaveText('1件');
+  await expect(page.locator('.order-notice-row')).toHaveCount(1);
+  await expect(page.locator('.order-notice-name')).toHaveText('海風の船長');
+  await expect(page.locator('.order-notice-item')).toHaveText('瓶ビール（ハートランド） x2');
+  await expect(page.locator('.order-notice-total')).toHaveText('1,400円');
+  await expect(page.locator('.order-notice-action')).toHaveText('承認待ち');
+  await expect(page.locator('.order-notice-footer')).toHaveText('スタッフ用オーダーページで受付');
+  await expect(page.locator('.order-notice-thumb img')).toHaveAttribute('src', '/Sprites/drinks/fantasy_anchor_green_beer_bottle.png');
+  await expect(page.locator('.effect')).toHaveCount(0);
+
+  await expect.poll(async () => page.evaluate(() => window.__displayAudioPlayCount || 0)).toBeGreaterThan(audioBefore);
+
+  await page.evaluate(() => {
+    window.__emitDisplayEvent({
+      topic: 'troy-customer-order-reviewed',
+      type: 'refresh',
+      requestId: 'customer-order-001',
+      action: 'accept'
+    });
+  });
+
+  await expect(page.locator('#orderNoticePanel')).toBeHidden();
+  await expect(page.locator('.order-notice-row')).toHaveCount(0);
+});
+
 test('display audio unlock works when Android-style activation expires after the tap task', async ({ page }) => {
   await installDisplayMocks(page, {
     autoEntryEvent: false,

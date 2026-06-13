@@ -38,3 +38,30 @@ test('display event normalization keeps lifecycle topics for ranking refresh', (
   expect(event).not.toHaveProperty('level');
   expect(event).not.toHaveProperty('rankBenefits');
 });
+
+test('display event normalization keeps customer order notice fields', () => {
+  const event = normalizeDisplayEvent({
+    topic: 'troy-customer-order',
+    type: 'refresh',
+    label: '注文: 海風の船長 / 瓶ビール（ハートランド） x2',
+    requestId: 'customer-order-001',
+    displayName: '海風の船長',
+    itemName: '瓶ビール（ハートランド）',
+    quantity: 2,
+    lineTotal: 1400,
+    menuImage: '/Sprites/drinks/fantasy_anchor_green_beer_bottle.png',
+    createdAtMs: 1710000000000
+  });
+
+  expect(event).toMatchObject({
+    topic: 'troy-customer-order',
+    type: 'refresh',
+    requestId: 'customer-order-001',
+    displayName: '海風の船長',
+    itemName: '瓶ビール（ハートランド）',
+    quantity: 2,
+    lineTotal: 1400,
+    menuImage: '/Sprites/drinks/fantasy_anchor_green_beer_bottle.png',
+    createdAtMs: 1710000000000
+  });
+});

@@ -10,6 +10,9 @@
   const unlockAudioBtn = document.getElementById('btnUnlockAudio');
   const testSoundBtn = document.getElementById('btnTestSound');
   const fullscreenBtn = document.getElementById('btnFullscreen');
+  const orderNoticePanel = document.getElementById('orderNoticePanel');
+  const orderNoticeList = document.getElementById('orderNoticeList');
+  const orderNoticeCount = document.getElementById('orderNoticeCount');
   const effectTypes = ['splash', 'boom', 'flare', 'ghost'];
   const BOUNTY_UNIT_LABEL = 'ĐɃ';
   const RANKING_REFRESH_TOPICS = new Set([
@@ -28,6 +31,9 @@
     '/audio/order-count-4-rocket-launcher.mp3',
     '/audio/order-count-5-plus-battlefield.mp3',
   ];
+  const CUSTOMER_ORDER_NOTICE_TOPIC = 'troy-customer-order';
+  const CUSTOMER_ORDER_REVIEWED_TOPIC = 'troy-customer-order-reviewed';
+  const ORDER_NOTICE_SOUND_SRC = ENTRY_SOUNDS[1];
 
   let audioUnlocked = false;
   let audioUnlocking = false;
@@ -426,6 +432,7 @@
   let stream = null;
   let rankingRefreshTimer = null;
   let rankingRequestPromise = null;
+  const pendingCustomerOrderNotices = new Map();
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -527,6 +534,117 @@
   const formatNumber = (value) => {
     const num = Math.max(0, Math.floor(Number(value) || 0));
     return num.toLocaleString('ja-JP');
+  };
+
+  const normalizeOrderNoticeText = (value, fallback = '') => {
+    const text = String(value || '').trim();
+    return text || fallback;
+  };
+
+  const normalizeCustomerOrderNotice = (payload = {}) => {
+    const requestId = normalizeOrderNoticeText(payload.requestId);
+    if (!requestId) return null;
+    const quantity = Math.max(1, Math.min(99, Math.floor(Number(payload.quantity) || 1)));
+    const lineTotal = Math.max(0, Math.floor(Number(payload.lineTotal ?? payload.total) || 0));
+    const createdAtMs = Math.max(0, Math.floor(Number(payload.createdAtMs || payload.createdAt) || Date.now()));
+    return {
+      requestId,
+      displayName: normalizeOrderNoticeText(payload.displayName, 'お客様').slice(0, 48),
+      itemName: normalizeOrderNoticeText(payload.itemName || payload.name || payload.label, 'メニュー注文').slice(0, 80),
+      quantity,
+      lineTotal,
+      menuImage: normalizeOrderNoticeText(payload.menuImage || payload.image || payload.iconImage).slice(0, 220),
+      createdAtMs
+    };
+  };
+
+  const createOrderNoticeThumb = (notice) => {
+    const thumb = document.createElement('div');
+    thumb.className = 'order-notice-thumb';
+    if (!notice.menuImage) {
+      thumb.classList.add('order-notice-thumb-fallback');
+      thumb.textContent = '注';
+      return thumb;
+    }
+    const img = document.createElement('img');
+    img.src = notice.menuImage;
+    img.alt = '';
+    img.loading = 'eager';
+    img.decoding = 'async';
+    img.addEventListener('error', () => {
+      img.remove();
+      thumb.classList.add('order-notice-thumb-fallback');
+      thumb.textContent = '注';
+    });
+    thumb.appendChild(img);
+    return thumb;
+  };
+
+  const renderCustomerOrderNotices = () => {
+    if (!orderNoticePanel || !orderNoticeList) return;
+    const orders = Array.from(pendingCustomerOrderNotices.values())
+      .sort((a, b) => (a.createdAtMs - b.createdAtMs) || a.requestId.localeCompare(b.requestId));
+    orderNoticePanel.hidden = orders.length === 0;
+    if (orderNoticeCount) orderNoticeCount.textContent = `${orders.length}件`;
+    orderNoticeList.innerHTML = '';
+    orders.slice(0, 3).forEach((notice) => {
+      const row = document.createElement('div');
+      row.className = 'order-notice-row';
+
+      const main = document.createElement('div');
+      main.className = 'order-notice-main';
+
+      const name = document.createElement('div');
+      name.className = 'order-notice-name';
+      name.textContent = notice.displayName;
+
+      const item = document.createElement('div');
+      item.className = 'order-notice-item';
+      item.textContent = `${notice.itemName}${notice.quantity > 1 ? ` x${notice.quantity}` : ''}`;
+
+      const action = document.createElement('div');
+      action.className = 'order-notice-action';
+      action.textContent = '承認待ち';
+
+      const total = document.createElement('div');
+      total.className = 'order-notice-total';
+      total.textContent = `${formatNumber(notice.lineTotal)}円`;
+
+      main.appendChild(name);
+      main.appendChild(item);
+      main.appendChild(action);
+      row.appendChild(createOrderNoticeThumb(notice));
+      row.appendChild(main);
+      row.appendChild(total);
+      orderNoticeList.appendChild(row);
+    });
+
+    if (orders.length > 3) {
+      const more = document.createElement('div');
+      more.className = 'order-notice-more';
+      more.textContent = `ほか${orders.length - 3}件`;
+      orderNoticeList.appendChild(more);
+    }
+  };
+
+  const handleCustomerOrderDisplayEvent = (payload = {}, options = {}) => {
+    const topic = String(payload.topic || '').toLowerCase();
+    if (topic !== CUSTOMER_ORDER_NOTICE_TOPIC && topic !== CUSTOMER_ORDER_REVIEWED_TOPIC) return false;
+    const requestId = normalizeOrderNoticeText(payload.requestId);
+    if (topic === CUSTOMER_ORDER_REVIEWED_TOPIC) {
+      if (requestId) {
+        pendingCustomerOrderNotices.delete(requestId);
+        renderCustomerOrderNotices();
+      }
+      return true;
+    }
+    const notice = normalizeCustomerOrderNotice(payload);
+    if (notice) {
+      pendingCustomerOrderNotices.set(notice.requestId, notice);
+      renderCustomerOrderNotices();
+      if (!options.silent) playSound(ORDER_NOTICE_SOUND_SRC);
+    }
+    return true;
   };
 
   const getRankingAvatarUrl = (row) => String(
@@ -665,7 +783,8 @@
     if (payload.type === 'batch' && Array.isArray(payload.events)) {
       let shouldRefreshRanking = false;
       payload.events.forEach((event) => {
-        if (shouldRenderEffectForEvent(event)) spawnEffect(event);
+        const handledCustomerOrder = handleCustomerOrderDisplayEvent(event, { silent: true });
+        if (!handledCustomerOrder && shouldRenderEffectForEvent(event)) spawnEffect(event);
         const topic = String(event?.topic || '').toLowerCase();
         if (shouldRefreshRankingForEvent(event)) shouldRefreshRanking = true;
         if (topic === 'troy-entry') playSound(getEntrySoundSrc(event.level));
@@ -674,7 +793,8 @@
       return;
     }
 
-    if (shouldRenderEffectForEvent(payload)) spawnEffect(payload);
+    const handledCustomerOrder = handleCustomerOrderDisplayEvent(payload);
+    if (!handledCustomerOrder && shouldRenderEffectForEvent(payload)) spawnEffect(payload);
     const topic = String(payload.topic || '').toLowerCase();
     if (topic === 'troy-entry') playSound(getEntrySoundSrc(payload.level));
     if (shouldRefreshRankingForEvent(payload)) scheduleRankingRefresh(120);
