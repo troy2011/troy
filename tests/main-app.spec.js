@@ -130,6 +130,102 @@ test('home tab shows only the latest nation announcement in the top banner panel
   await expectNoPageErrors(errors);
 });
 
+test('home avatar applies equipped gear during app startup', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const equipmentRequests = [];
+  await page.route(/\/api\/(get-stats|player-ship\/status|exploration\/status|get-troy-status|get-global-chat|get-line-friend-bonus-status|tarot-fortune-status|get-player-display-name)$/, async (route) => {
+    const url = route.request().url();
+    let body = {};
+    if (url.includes('/api/get-stats')) {
+      body = {
+        stats: {
+          Level: 1,
+          STR: 1,
+          DEF: 1,
+          AGI: 1,
+          INT: 1
+        }
+      };
+    } else if (url.includes('/api/player-ship/status')) {
+      body = { ship: null, activeShip: null };
+    } else if (url.includes('/api/exploration/status')) {
+      body = { status: null, destinations: [] };
+    } else if (url.includes('/api/get-troy-status')) {
+      body = { isOpen: false, members: [] };
+    } else if (url.includes('/api/get-global-chat')) {
+      body = { messages: [] };
+    } else if (url.includes('/api/get-line-friend-bonus-status')) {
+      body = { claimed: true };
+    } else if (url.includes('/api/tarot-fortune-status')) {
+      body = { ok: true, available: false };
+    } else if (url.includes('/api/get-player-display-name')) {
+      body = { displayName: 'Playwright Tester' };
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify(body)
+    });
+  });
+  await page.route('**/api/get-inventory', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        inventory: [
+          {
+            itemId: 'sword_001',
+            name: '起動確認の剣',
+            customData: {
+              Category: 'Weapon',
+              sprite_path: './Sprites/weapons/melee weapons/sword.png',
+              sprite_index: '1',
+              sprite_w: '32',
+              sprite_h: '32',
+              Atk: '5'
+            }
+          }
+        ],
+        virtualCurrency: { PS: 1200 },
+        contribution: 0,
+        contributionProgress: { level: 1, expInto: 0, expNeeded: 1500, rank: 0 },
+        isKing: false
+      })
+    });
+  });
+  await page.route('**/api/tarot-deck-get', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ok: true, tarotDeck: [], tarotRole: null })
+    });
+  });
+  await page.route('**/api/get-equipment', async (route) => {
+    equipmentRequests.push(JSON.parse(route.request().postData() || '{}'));
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        equipment: {
+          RightHand: 'sword_001'
+        }
+      })
+    });
+  });
+
+  await bootstrapMainApp(page, {
+    firebaseToken: 'playwright-firebase-token',
+    mockFirebaseAuth: true
+  });
+
+  await expect.poll(() => equipmentRequests.length, { timeout: 10_000 }).toBeGreaterThanOrEqual(1);
+  await expect.poll(async () => page.locator('#home-avatar-layer-weapon-right').evaluate((layer) => (
+    window.getComputedStyle(layer).backgroundImage
+  )), { timeout: 10_000 }).toContain('sword.png');
+  await expect(page.locator('#home-avatar-layer-shield-left')).toHaveCSS('background-image', 'none');
+  await expectNoPageErrors(errors);
+});
+
 test('home tab lets checked-in customers convert gold to chips', async ({ page }) => {
   const errors = trackPageErrors(page);
   const coinConvertRequests = [];

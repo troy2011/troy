@@ -43,6 +43,8 @@ let activeInventoryGroup = 'Equipment';
 let activeInventoryCategory = 'Weapon';
 let lastInventoryFetchAt = 0;
 let inventoryFetchPromise = null;
+let equipmentLoaded = false;
+let equipmentFetchPromise = null;
 // カードレベルデータ: { [itemId]: { level, maxLevel, quantity, nextLevelCost } }
 let cardLevelMap = {};
 
@@ -1444,6 +1446,31 @@ export function getMyCurrentEquipment() {
     return myCurrentEquipment;
 }
 
+async function loadCurrentEquipment(playFabId, options = {}) {
+    const force = options && options.force === true;
+    if (equipmentFetchPromise && !force) return equipmentFetchPromise;
+    if (equipmentFetchPromise && force) {
+        try {
+            await equipmentFetchPromise;
+        } catch (_error) {
+            // Ignore the stale equipment request and continue with a fresh request.
+        }
+    }
+    equipmentFetchPromise = (async () => {
+        const data = await fetchEquipment(playFabId, { isSilent: options.isSilent === true });
+        if (data?.equipment) {
+            myCurrentEquipment = data.equipment;
+        }
+        equipmentLoaded = true;
+        return data;
+    })();
+    try {
+        return await equipmentFetchPromise;
+    } finally {
+        equipmentFetchPromise = null;
+    }
+}
+
 function calculateLevelFromExp(expValue) {
     const baseExp = 1500;
     let level = 1;
@@ -1540,7 +1567,7 @@ export async function getInventory(playFabId, options = {}) {
     if (deckData?.ok) {
         applyTarotDeckData(deckData);
     }
-    await getEquipment(playFabId);
+    await getEquipment(playFabId, { isSilent: true });
     renderInventoryTabControls();
     updateInventorySortOptions(getActiveInventoryCategory());
     renderInventoryGrid(getActiveInventoryCategory());
@@ -1560,14 +1587,22 @@ export async function getInventory(playFabId, options = {}) {
 export async function refreshResourceSummary(playFabId, options = {}) {
     const now = Date.now();
     const force = options && options.force === true;
-    if (!force && now - lastInventoryFetchAt < 1500) {
+    if (!force && now - lastInventoryFetchAt < 1500 && equipmentLoaded) {
         updateExperienceUI();
         renderTarotDeckPanels();
         return;
     }
+    const shouldLoadEquipment = force || !equipmentLoaded;
+    const equipmentRequest = shouldLoadEquipment
+        ? loadCurrentEquipment(playFabId, { isSilent: true, force }).catch((error) => {
+            console.warn('[inventory] equipment summary refresh failed:', error);
+            return null;
+        })
+        : Promise.resolve(null);
     const [data, deckData] = await Promise.all([
         fetchInventory(playFabId),
-        fetchTarotDecks(playFabId, { isSilent: true })
+        fetchTarotDecks(playFabId, { isSilent: true }),
+        equipmentRequest
     ]);
     if (data) {
         const contributionValue = data.contribution ?? data.experience ?? 0;
@@ -1599,11 +1634,8 @@ export async function refreshResourceSummary(playFabId, options = {}) {
     }
 }
 
-export async function getEquipment(playFabId) {
-    const data = await fetchEquipment(playFabId);
-    if (data?.equipment) {
-        myCurrentEquipment = data.equipment;
-    }
+export async function getEquipment(playFabId, options = {}) {
+    await loadCurrentEquipment(playFabId, options);
     updateEquipmentAndAvatarDisplay();
 }
 
