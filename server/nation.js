@@ -2813,26 +2813,15 @@ function initializeNationRoutes(app, deps) {
 
     function buildTroyCustomerOrderDisplayEvent(context = {}, request = {}, options = {}) {
         const requestId = String(request?.requestId || options.requestId || '').trim().slice(0, 96);
-        const displayName = String(request?.displayName || request?.playFabId || '').trim().slice(0, 48);
-        const itemName = String(request?.name || request?.itemName || '').trim().slice(0, 80);
-        const quantity = Math.max(1, Math.min(99, Math.floor(Number(request?.quantity) || 1)));
-        const lineTotal = Math.max(0, Math.floor(Number(request?.lineTotal ?? request?.total) || 0));
-        const menuImage = normalizeTroyMenuImagePath(request?.menuImage || request?.image || request?.iconImage);
         const topic = String(options.topic || 'troy-customer-order').trim().toLowerCase();
         const action = String(options.action || '').trim().toLowerCase();
-        const labelParts = [];
-        if (displayName) labelParts.push(displayName);
-        if (itemName) labelParts.push(`${itemName}${quantity > 1 ? ` x${quantity}` : ''}`);
         return {
             topic,
             type: 'refresh',
-            label: labelParts.length ? `注文: ${labelParts.join(' / ')}` : 'TROYメニュー注文',
+            label: topic === 'troy-customer-order-reviewed'
+                ? 'TROYメニュー注文 処理済み'
+                : 'TROYメニュー注文あり',
             requestId,
-            displayName,
-            itemName,
-            quantity,
-            lineTotal,
-            menuImage,
             createdAtMs: Math.max(0, Math.floor(Number(request?.createdAtMs || request?.createdAt) || Date.now())),
             nation: String(context?.nation || request?.nation || '').trim().toLowerCase(),
             action

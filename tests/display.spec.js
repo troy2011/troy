@@ -228,12 +228,15 @@ test('display shows TROY menu order notices until staff reviews them', async ({ 
   await expect(page.locator('#orderNoticePanel')).toBeVisible();
   await expect(page.locator('#orderNoticeCount')).toHaveText('1件');
   await expect(page.locator('.order-notice-row')).toHaveCount(1);
-  await expect(page.locator('.order-notice-name')).toHaveText('海風の船長');
-  await expect(page.locator('.order-notice-item')).toHaveText('瓶ビール（ハートランド） x2');
-  await expect(page.locator('.order-notice-total')).toHaveText('1,400円');
-  await expect(page.locator('.order-notice-action')).toHaveText('承認待ち');
-  await expect(page.locator('.order-notice-footer')).toHaveText('スタッフ用オーダーページで受付');
-  await expect(page.locator('.order-notice-thumb img')).toHaveAttribute('src', '/Sprites/drinks/fantasy_anchor_green_beer_bottle.png');
+  await expect(page.locator('.order-notice-item')).toHaveText('注文が入りました');
+  await expect(page.locator('.order-notice-action')).toHaveText('確認中');
+  await expect(page.locator('.order-notice-footer')).toHaveText('スタッフ確認中');
+  await expect(page.locator('.order-notice-thumb')).toHaveCount(0);
+  await expect(page.locator('#orderNoticePanel')).not.toContainText('海風の船長');
+  await expect(page.locator('#orderNoticePanel')).not.toContainText('瓶ビール');
+  await expect(page.locator('#orderNoticePanel')).not.toContainText('1,400');
+  await expect(page.locator('#orderNoticePanel')).not.toContainText('ハートランド');
+  await expect(page.locator('#orderNoticePanel')).not.toContainText('オーダーページ');
   await expect(page.locator('.effect')).toHaveCount(0);
 
   await expect.poll(async () => page.evaluate(() => window.__displayAudioPlayCount || 0)).toBeGreaterThan(audioBefore);

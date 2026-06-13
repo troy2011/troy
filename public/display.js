@@ -544,40 +544,11 @@
   const normalizeCustomerOrderNotice = (payload = {}) => {
     const requestId = normalizeOrderNoticeText(payload.requestId);
     if (!requestId) return null;
-    const quantity = Math.max(1, Math.min(99, Math.floor(Number(payload.quantity) || 1)));
-    const lineTotal = Math.max(0, Math.floor(Number(payload.lineTotal ?? payload.total) || 0));
     const createdAtMs = Math.max(0, Math.floor(Number(payload.createdAtMs || payload.createdAt) || Date.now()));
     return {
       requestId,
-      displayName: normalizeOrderNoticeText(payload.displayName, 'お客様').slice(0, 48),
-      itemName: normalizeOrderNoticeText(payload.itemName || payload.name || payload.label, 'メニュー注文').slice(0, 80),
-      quantity,
-      lineTotal,
-      menuImage: normalizeOrderNoticeText(payload.menuImage || payload.image || payload.iconImage).slice(0, 220),
       createdAtMs
     };
-  };
-
-  const createOrderNoticeThumb = (notice) => {
-    const thumb = document.createElement('div');
-    thumb.className = 'order-notice-thumb';
-    if (!notice.menuImage) {
-      thumb.classList.add('order-notice-thumb-fallback');
-      thumb.textContent = '注';
-      return thumb;
-    }
-    const img = document.createElement('img');
-    img.src = notice.menuImage;
-    img.alt = '';
-    img.loading = 'eager';
-    img.decoding = 'async';
-    img.addEventListener('error', () => {
-      img.remove();
-      thumb.classList.add('order-notice-thumb-fallback');
-      thumb.textContent = '注';
-    });
-    thumb.appendChild(img);
-    return thumb;
   };
 
   const renderCustomerOrderNotices = () => {
@@ -587,44 +558,22 @@
     orderNoticePanel.hidden = orders.length === 0;
     if (orderNoticeCount) orderNoticeCount.textContent = `${orders.length}件`;
     orderNoticeList.innerHTML = '';
-    orders.slice(0, 3).forEach((notice) => {
-      const row = document.createElement('div');
-      row.className = 'order-notice-row';
+    if (orders.length === 0) return;
 
-      const main = document.createElement('div');
-      main.className = 'order-notice-main';
+    const row = document.createElement('div');
+    row.className = 'order-notice-row';
 
-      const name = document.createElement('div');
-      name.className = 'order-notice-name';
-      name.textContent = notice.displayName;
+    const item = document.createElement('div');
+    item.className = 'order-notice-item';
+    item.textContent = orders.length > 1 ? `注文が${orders.length}件入っています` : '注文が入りました';
 
-      const item = document.createElement('div');
-      item.className = 'order-notice-item';
-      item.textContent = `${notice.itemName}${notice.quantity > 1 ? ` x${notice.quantity}` : ''}`;
+    const action = document.createElement('div');
+    action.className = 'order-notice-action';
+    action.textContent = '確認中';
 
-      const action = document.createElement('div');
-      action.className = 'order-notice-action';
-      action.textContent = '承認待ち';
-
-      const total = document.createElement('div');
-      total.className = 'order-notice-total';
-      total.textContent = `${formatNumber(notice.lineTotal)}円`;
-
-      main.appendChild(name);
-      main.appendChild(item);
-      main.appendChild(action);
-      row.appendChild(createOrderNoticeThumb(notice));
-      row.appendChild(main);
-      row.appendChild(total);
-      orderNoticeList.appendChild(row);
-    });
-
-    if (orders.length > 3) {
-      const more = document.createElement('div');
-      more.className = 'order-notice-more';
-      more.textContent = `ほか${orders.length - 3}件`;
-      orderNoticeList.appendChild(more);
-    }
+    row.appendChild(item);
+    row.appendChild(action);
+    orderNoticeList.appendChild(row);
   };
 
   const handleCustomerOrderDisplayEvent = (payload = {}, options = {}) => {
