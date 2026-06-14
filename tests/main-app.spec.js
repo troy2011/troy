@@ -1561,14 +1561,31 @@ test('player profile shows public stats on the left with avatar on the right', a
             Race: 'human',
             Nation: 'water',
             AvatarColor: 'blue',
+            SkinColorIndex: 1,
+            FaceIndex: 1,
+            HairStyleIndex: 1,
             level: 18
           },
           playerShip: {
             form: 'explorer',
             stage: 2
           },
-          equipment: {},
-          itemSource: {},
+          equipment: {
+            RightHand: 'polearm_001'
+          },
+          itemSource: {
+            polearm_001: {
+              itemId: 'polearm_001',
+              customData: {
+                Category: 'Weapon',
+                sprite_path: './Sprites/weapons/melee weapons/polearm.png',
+                sprite_index: '0',
+                sprite_w: '32',
+                sprite_h: '64',
+                TwoHanded: 'true'
+              }
+            }
+          },
           equipmentList: []
         }
       })
@@ -1601,12 +1618,22 @@ test('player profile shows public stats on the left with avatar on the right', a
     const statsRect = stats?.getBoundingClientRect();
     const avatarRect = avatar?.getBoundingClientRect();
     const avatarInnerRect = avatarInner?.getBoundingClientRect();
+    const avatarLayerRects = Array.from(avatarInner?.querySelectorAll('.avatar-layer') || [])
+      .filter((layer) => window.getComputedStyle(layer).backgroundImage !== 'none')
+      .map((layer) => layer.getBoundingClientRect());
+    const avatarLayerBounds = avatarLayerRects.reduce((acc, rect) => ({
+      left: Math.min(acc.left, rect.left),
+      top: Math.min(acc.top, rect.top),
+      right: Math.max(acc.right, rect.right),
+      bottom: Math.max(acc.bottom, rect.bottom)
+    }), { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity });
     const shipRect = ship?.getBoundingClientRect();
     const copyRect = copy?.getBoundingClientRect();
     const firstStatRect = firstStat?.getBoundingClientRect();
     return {
       statsRight: statsRect?.right || 0,
       avatarLeft: avatarRect?.left || 0,
+      avatarTop: avatarRect?.top || 0,
       avatarRight: avatarRect?.right || 0,
       avatarBottom: avatarRect?.bottom || 0,
       avatarWidth: avatarRect?.width || 0,
@@ -1619,6 +1646,12 @@ test('player profile shows public stats on the left with avatar on the right', a
       shipTop: shipRect?.top || 0,
       shipLeft: shipRect?.left || 0,
       shipRight: shipRect?.right || 0,
+      layerBounds: {
+        left: avatarLayerBounds.left,
+        top: avatarLayerBounds.top,
+        right: avatarLayerBounds.right,
+        bottom: avatarLayerBounds.bottom
+      },
       statHeight: firstStatRect?.height || 0
     };
   });
@@ -1630,6 +1663,10 @@ test('player profile shows public stats on the left with avatar on the right', a
   expect(layout.avatarWidth).toBeGreaterThanOrEqual(130);
   expect(layout.avatarCenterDelta).toBeLessThanOrEqual(12);
   expect(layout.avatarTransform).toContain('matrix');
+  expect(layout.layerBounds.left).toBeGreaterThanOrEqual(layout.avatarLeft - 1);
+  expect(layout.layerBounds.top).toBeGreaterThanOrEqual(layout.avatarTop - 1);
+  expect(layout.layerBounds.right).toBeLessThanOrEqual(layout.avatarRight + 1);
+  expect(layout.layerBounds.bottom).toBeLessThanOrEqual(layout.avatarBottom + 1);
   expect(layout.statHeight).toBeLessThanOrEqual(36);
   await expectNoPageErrors(errors);
 });
