@@ -130,12 +130,9 @@ export function showCreateGuildModal() {
  * @param {string} guildName - ギルド名
  */
 export async function createGuild(playFabId, guildName) {
-    if (!guildName || guildName.trim().length === 0) {
-        document.getElementById('guildCreateMessage').textContent = 'ギルド名を入力してください';
-        return;
-    }
+    const requestedName = String(guildName || '').replace(/\s+/g, ' ').trim();
 
-    if (guildName.length > 30) {
+    if (requestedName.length > 30) {
         document.getElementById('guildCreateMessage').textContent = 'ギルド名は30文字以内で入力してください';
         return;
     }
@@ -143,7 +140,7 @@ export async function createGuild(playFabId, guildName) {
     document.getElementById('guildCreateMessage').textContent = '作成中...';
 
     try {
-        const data = await requestCreateGuild(playFabId, guildName.trim());
+        const data = await requestCreateGuild(playFabId, requestedName);
 
         if (data && data.success) {
             document.getElementById('guildCreateModal').style.display = 'none';
@@ -153,7 +150,7 @@ export async function createGuild(playFabId, guildName) {
             await loadGuildInfo(playFabId);
 
             // 成功メッセージを表示
-            showMessage(`ギルド「${guildName}」を作成しました！`);
+            showMessage(`ギルド「${data.guildName || requestedName || '海賊団'}」を作成しました！`);
         } else {
             document.getElementById('guildCreateMessage').textContent = data?.error || 'ギルド作成に失敗しました';
         }

@@ -2362,8 +2362,69 @@ test('king can found a nation guild from companions regardless of level', async 
   await expect(page.locator('#eventHostFeeInfo')).toContainText('王はレベルに関係なく国ギルドを設立できます。');
   await expect(page.locator('#crewCreatePreview')).toHaveText('火の国ギルド を設立します。');
   await expect(page.locator('#btnCreateCrew')).toBeEnabled();
-  await expect(page.locator('#btnCreateCrew')).toHaveText('10,000Gで国ギルドを設立');
+  await expect(page.locator('#btnCreateCrew')).toHaveText('1,000Gで国ギルドを設立');
   await expect(page.locator('#crewOverviewList .event-card')).not.toContainText('Lv.21');
+  await expectNoPageErrors(errors);
+});
+
+test('ship captain can create a pirate guild with an optional custom name', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  let createRequest = null;
+  await page.route('**/api/get-stats', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        stats: { Level: 21 },
+        isKing: false,
+        nation: 'water'
+      })
+    });
+  });
+  await page.route('**/api/crew-recruitment/list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ posts: [] })
+    });
+  });
+  await page.route('**/api/create-guild', async (route) => {
+    createRequest = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ success: true, guildName: createRequest.guildName, cost: 1000 })
+    });
+  });
+  await bootstrapMainApp(page);
+  await page.unroute('**/api/get-guild-info');
+  await page.route('**/api/get-guild-info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ guild: null })
+    });
+  });
+
+  await page.evaluate(() => {
+    window.myAvatarBaseInfo = {
+      ...(window.myAvatarBaseInfo || {}),
+      Nation: 'water',
+      level: 21,
+      displayName: '青波'
+    };
+    window.myPlayFabDisplayName = '青波';
+  });
+  await page.evaluate(async () => {
+    await window.showTab('events', { playFabId: 'PF_PLAYWRIGHT', race: 'goblin', nation: 'water' });
+  });
+
+  await expect(page.locator('#btnCreateCrew')).toHaveText('1,000Gで海賊団を設立');
+  await expect(page.locator('#crewNameInput')).toBeVisible();
+  await page.locator('#crewNameInput').fill('青波一味');
+  await expect(page.locator('#crewCreatePreview')).toHaveText('青波一味 を設立します。');
+  await page.locator('#btnCreateCrew').click();
+  await expect.poll(() => createRequest?.guildName).toBe('青波一味');
   await expectNoPageErrors(errors);
 });
 

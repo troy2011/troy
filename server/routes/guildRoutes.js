@@ -17,7 +17,7 @@ const {
 } = require('../crewRoles');
 
 const CREW_UNLOCK_LEVEL = 21;
-const CREW_FOUNDING_COST = 10000;
+const CREW_FOUNDING_COST = 1000;
 const MAX_CREW_COMPANIONS = 7;
 const CREW_RECRUITMENT_COLLECTION = 'crew_recruitment_posts';
 const MAX_CREW_RECRUITMENT_MESSAGE_LENGTH = 120;
@@ -154,6 +154,10 @@ function normalizePlayFabId(value) {
 
 function sanitizeRecruitmentMessage(value) {
     return String(value || '').replace(/\s+/g, ' ').trim().slice(0, MAX_CREW_RECRUITMENT_MESSAGE_LENGTH);
+}
+
+function sanitizeRequestedGuildName(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
 function normalizeCrewRoleIds(values) {
@@ -707,6 +711,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
     // ----------------------------------------------------
     app.post('/api/get-guild-info', async (req, res) => {
         const { playFabId } = req.body;
+        const requestedGuildName = sanitizeRequestedGuildName(req.body?.guildName);
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
         const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!requesterPlayFabId) return;
@@ -1063,9 +1068,12 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             const captainName = await getPlayerDisplayName(ownerPlayFabId);
             const guildNation = isNationGuild ? kingContext.nationKey : await getPlayerStoredNation(ownerPlayFabId).catch(() => '');
             const parentNationMeta = await getParentNationGroupMeta(guildNation);
+            if (!isNationGuild && requestedGuildName.length > 30) {
+                return res.status(400).json({ error: '海賊団名は30文字以内で入力してください。' });
+            }
             const guildName = isNationGuild
                 ? buildNationGuildName(kingContext.nationKey)
-                : `${captainName.replace(/海賊団$/u, '').slice(0, 25)}海賊団`;
+                : (requestedGuildName || `${captainName.replace(/海賊団$/u, '').slice(0, 25)}海賊団`);
 
             await economy.subtractEconomyItem(ownerPlayFabId, 'PS', CREW_FOUNDING_COST, economyDeps);
 

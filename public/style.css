@@ -14290,6 +14290,20 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     font-size: 12px;
     line-height: 1.5;
 }
+.crew-create-options {
+    display: grid;
+    gap: 8px;
+    margin: 10px 0 8px;
+}
+
+.crew-create-options[hidden] {
+    display: none;
+}
+
+#crewNameHint {
+    margin: 0;
+    color: #cbd5e1;
+}
 .event-create-btn,
 .event-refresh-btn,
 .event-action-btn {

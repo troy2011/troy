@@ -23,7 +23,7 @@ import {
 } from './crewRoles.js';
 
 const CAPTAIN_LEVEL = 21;
-const CREW_FOUNDING_COST = 10000;
+const CREW_FOUNDING_COST = 1000;
 
 let bound = false;
 let currentGuild = null;
@@ -158,6 +158,30 @@ function getCaptainCrewName() {
     const visibleName = document.getElementById('globalPlayerName')?.textContent || '';
     const rawName = String(window.myPlayFabDisplayName || window.myAvatarBaseInfo?.displayName || visibleName || '船長').trim() || '船長';
     return `${rawName.replace(/海賊団$/u, '').slice(0, 25)}海賊団`;
+}
+
+function getCrewNameInputValue() {
+    return String(document.getElementById('crewNameInput')?.value || '').replace(/\s+/g, ' ').trim();
+}
+
+function getCrewCreateName() {
+    if (currentIsKing) return getNationGuildName();
+    return getCrewNameInputValue() || getCaptainCrewName();
+}
+
+function updateCrewCreatePreview() {
+    const createPreview = document.getElementById('crewCreatePreview');
+    const hint = document.getElementById('crewNameHint');
+    if (createPreview) {
+        createPreview.textContent = `${getCrewCreateName()} を設立します。`;
+    }
+    if (hint && !currentIsKing) {
+        const fallbackName = getCaptainCrewName();
+        const inputName = getCrewNameInputValue();
+        hint.textContent = inputName
+            ? `${inputName} として作成します。`
+            : `未入力なら「${fallbackName}」で作成します。`;
+    }
 }
 
 function renderRoleOptions(availableRoles = null) {
@@ -525,6 +549,8 @@ function generateInviteQr(guildId) {
 
 function renderInvitePanel(guild) {
     const hostFeeEl = document.getElementById('eventHostFeeInfo');
+    const createOptions = document.getElementById('crewCreateOptions');
+    const nameInput = document.getElementById('crewNameInput');
     const createPreview = document.getElementById('crewCreatePreview');
     const createBtn = document.getElementById('btnCreateCrew');
     const invitePanel = document.getElementById('crewInvitePanel');
@@ -544,14 +570,20 @@ function renderInvitePanel(guild) {
             hostFeeEl.textContent = currentIsKing
                 ? `王はレベルに関係なく国ギルドを設立できます。設立には${CREW_FOUNDING_COST.toLocaleString('ja-JP')}G必要です。`
                 : isCaptain
-                    ? `設立には${CREW_FOUNDING_COST.toLocaleString('ja-JP')}G必要です。設立後に勧誘QRが発行されます。`
+                    ? `海賊団名は任意です。未入力なら自動命名し、設立後に勧誘QRが発行されます。`
                 : `現在はLv.${currentLevel} ${currentRankName}です。船長以上で利用できます。`;
         }
     }
 
+    if (createOptions) {
+        createOptions.hidden = hasGuild || currentIsKing || !isCaptain;
+    }
+    if (nameInput) {
+        nameInput.disabled = hasGuild || currentIsKing || !isCaptain;
+        nameInput.placeholder = `${getCaptainCrewName()}（未入力時）`;
+    }
     if (createPreview) {
         createPreview.hidden = hasGuild;
-        createPreview.textContent = `${getCaptainCrewName()} を設立します。`;
     }
     if (createBtn) {
         createBtn.disabled = !canCreateGuild || hasGuild;
@@ -571,6 +603,7 @@ function renderInvitePanel(guild) {
 
     renderRoleOptions(guild?.availableRoles || null);
     generateInviteQr(guild?.guildId || '');
+    updateCrewCreatePreview();
 }
 
 async function loadCompanionPage(playFabId) {
@@ -615,15 +648,38 @@ async function createCrew(playFabId) {
         setMessage('船長以上、または王になるとギルドを設立できます。', true);
         return;
     }
+    const createBtn = document.getElementById('btnCreateCrew');
+    const requestedName = currentIsKing ? '' : getCrewNameInputValue();
+    if (requestedName.length > 30) {
+        setMessage('海賊団名は30文字以内で入力してください。', true);
+        return;
+    }
+    const previousText = createBtn?.textContent || '';
     try {
-        const data = await requestCreateGuild(playFabId, '', { throwOnError: true });
+        if (createBtn) {
+            createBtn.disabled = true;
+            createBtn.textContent = '設立中...';
+        }
+        setMessage(`${getCrewCreateName()}を設立しています...`);
+        const data = await requestCreateGuild(playFabId, requestedName, { throwOnError: true });
         if (data?.success) {
             const fallbackName = data?.isNationGuild ? '国ギルド' : '海賊団';
-            setMessage(`${data.guildName || fallbackName}を設立しました。勧誘QRを共有できます。`);
             await loadCompanionPage(playFabId);
+            setMessage(`${data.guildName || fallbackName}を設立しました。勧誘QRを共有できます。`);
+            document.getElementById('crewInvitePanel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            setMessage(data?.error || 'ギルドの設立に失敗しました。', true);
+            if (createBtn) {
+                createBtn.disabled = false;
+                createBtn.textContent = previousText;
+            }
         }
     } catch (error) {
         setMessage(error?.message || error?.error || 'ギルドの設立に失敗しました。', true);
+        if (createBtn) {
+            createBtn.disabled = false;
+            createBtn.textContent = previousText;
+        }
     }
 }
 
@@ -756,6 +812,7 @@ async function rejectApplication(playFabId, button) {
 function bindEvents(playFabId) {
     if (bound) return;
     document.getElementById('btnCreateCrew')?.addEventListener('click', () => createCrew(window.myPlayFabId || playFabId));
+    document.getElementById('crewNameInput')?.addEventListener('input', updateCrewCreatePreview);
     document.getElementById('btnCopyCrewInvite')?.addEventListener('click', async () => {
         const value = document.getElementById('crewInviteValue')?.textContent || '';
         const copied = await copyText(value).catch(() => false);

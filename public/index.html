@@ -566,8 +566,15 @@
                         <section class="event-create-panel">
                             <h3>仲間を集める</h3>
                             <div id="eventHostFeeInfo" class="event-host-fee">船長以上、または王で利用できます。</div>
+                            <div id="crewCreateOptions" class="crew-create-options">
+                                <label class="is-wide">
+                                    海賊団名
+                                    <input id="crewNameInput" type="text" maxlength="30" autocomplete="off" placeholder="未入力なら自動で命名">
+                                </label>
+                                <div id="crewNameHint" class="event-create-note">未入力ならプレイヤー名から自動で命名します。</div>
+                            </div>
                             <div id="crewCreatePreview" class="event-create-note">ギルドを設立します。</div>
-                            <button id="btnCreateCrew" class="event-create-btn" type="button">10,000Gで海賊団を設立</button>
+                            <button id="btnCreateCrew" class="event-create-btn" type="button">1,000Gで海賊団を設立</button>
                             <div id="crewInvitePanel" class="crew-invite-panel" hidden>
                                 <div class="crew-invite-title">勧誘QR</div>
                                 <canvas id="crewInviteQrCanvas" class="crew-invite-qr"></canvas>
