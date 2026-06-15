@@ -336,6 +336,26 @@ function initializeInventoryRoutes(app, deps) {
         return raw.replace(/^playfab:/i, '').trim().toUpperCase();
     }
 
+    function isSystemNationGroupName(value) {
+        return /^nation_(fire|water|wind|earth)_island$/i.test(String(value || '').trim());
+    }
+
+    function isSystemNationGroupEntry(groupEntry, guildData = null) {
+        return [
+            groupEntry?.GroupName,
+            groupEntry?.Group?.Name,
+            guildData?.groupName,
+            guildData?.name
+        ].some(isSystemNationGroupName);
+    }
+
+    function parseGuildDataObject(rawData) {
+        if (!rawData) return {};
+        if (typeof rawData === 'string') return JSON.parse(rawData);
+        if (typeof rawData === 'object') return rawData;
+        return {};
+    }
+
     async function getPlayerCrewRankInfo(playFabId, stats = {}) {
         if (!PlayFabGroups || !PlayFabData || !playFabId) return null;
         try {
@@ -346,29 +366,36 @@ function initializeInventoryRoutes(app, deps) {
             const groups = Array.isArray(membershipResult?.Groups) ? membershipResult.Groups : [];
             if (!groups.length) return null;
 
-            const group = groups[0];
-            const guildId = group?.Group?.Id;
-            if (!guildId) return null;
+            for (const group of groups) {
+                const guildId = group?.Group?.Id;
+                if (!guildId || isSystemNationGroupEntry(group)) continue;
 
-            const guildDataResult = await withTitleEntityToken(() => promisifyPlayFab(PlayFabData.GetObjects, {
-                Entity: { Id: guildId, Type: 'group' },
-                EscapeObject: false
-            }));
-            const rawData = guildDataResult?.Objects?.GuildData?.DataObject;
-            const guildData = rawData ? JSON.parse(rawData) : {};
-            const roleAssignments = guildData?.crewRoles && typeof guildData.crewRoles === 'object' ? guildData.crewRoles : {};
-            const roleId = normalizeCrewRoleId(roleAssignments[normalizePlayFabId(playFabId)]);
-            const role = CREW_ROLE_BY_ID[roleId] || null;
-            if (!role) return null;
+                const guildDataResult = await withTitleEntityToken(() => promisifyPlayFab(PlayFabData.GetObjects, {
+                    Entity: { Id: guildId, Type: 'group' },
+                    EscapeObject: false
+                }));
+                const rawData = guildDataResult?.Objects?.GuildData?.DataObject;
+                const guildData = parseGuildDataObject(rawData);
+                if (isSystemNationGroupEntry(group, guildData)) continue;
 
-            const level = Math.max(1, Math.floor(Number(stats.Level || 1) || 1));
-            return {
-                guildId,
-                guildName: String(group?.GroupName || '').trim(),
-                crewRoleId: roleId,
-                crewRoleLabel: role.label,
-                crewRankTitle: getCrewRankTitle(roleId, level)
-            };
+                const ownerId = normalizePlayFabId(guildData?.ownerPlayFabId || guildData?.captainPlayFabId);
+                if (!ownerId) continue;
+
+                const roleAssignments = guildData?.crewRoles && typeof guildData.crewRoles === 'object' ? guildData.crewRoles : {};
+                const roleId = normalizeCrewRoleId(roleAssignments[normalizePlayFabId(playFabId)]);
+                const role = CREW_ROLE_BY_ID[roleId] || null;
+                if (!role) continue;
+
+                const level = Math.max(1, Math.floor(Number(stats.Level || 1) || 1));
+                return {
+                    guildId,
+                    guildName: String(group?.GroupName || '').trim(),
+                    crewRoleId: roleId,
+                    crewRoleLabel: role.label,
+                    crewRankTitle: getCrewRankTitle(roleId, level)
+                };
+            }
+            return null;
         } catch (error) {
             console.warn('[inventory] crew rank info resolve failed:', error?.errorMessage || error?.message || error);
             return null;

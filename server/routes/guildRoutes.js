@@ -30,6 +30,13 @@ const NATION_GUILD_LABEL_BY_KEY = {
     earth: '地の国'
 };
 
+const NATION_GROUP_NAME_BY_KEY = {
+    fire: 'nation_fire_island',
+    water: 'nation_water_island',
+    wind: 'nation_wind_island',
+    earth: 'nation_earth_island'
+};
+
 const NATION_ALIASES = {
     human: 'fire',
     goblin: 'water',
@@ -96,7 +103,10 @@ async function getGuildData(guildId, promisifyPlayFab) {
         }));
 
         if (result.Objects && result.Objects.GuildData) {
-            return JSON.parse(result.Objects.GuildData.DataObject);
+            const raw = result.Objects.GuildData.DataObject;
+            if (!raw) return {};
+            if (typeof raw === 'string') return JSON.parse(raw);
+            if (typeof raw === 'object') return raw;
         }
 
         // デフォルトのギルドデータ
@@ -187,6 +197,11 @@ function getNationGuildLabel(nationKey) {
     return NATION_GUILD_LABEL_BY_KEY[key] || '国';
 }
 
+function getNationGroupName(nationKey) {
+    const key = normalizeNationKey(nationKey);
+    return NATION_GROUP_NAME_BY_KEY[key] || '';
+}
+
 function buildNationGuildName(nationKey) {
     return `${getNationGuildLabel(nationKey)}ギルド`;
 }
@@ -201,6 +216,32 @@ function isNationGuildData(guildData) {
     return guildData?.guildType === 'nation' || parseBooleanFlag(guildData?.isNationGuild);
 }
 
+function isSystemNationGroupName(value) {
+    return /^nation_(fire|water|wind|earth)_island$/i.test(String(value || '').trim());
+}
+
+function isSystemNationGroupEntry(groupEntry, guildData = null) {
+    const values = [
+        groupEntry?.GroupName,
+        groupEntry?.Group?.Name,
+        guildData?.groupName,
+        guildData?.name
+    ];
+    return values.some(isSystemNationGroupName);
+}
+
+function resolveGuildNationKey(guildData) {
+    return normalizeNationKey(guildData?.nation || guildData?.nationKey || guildData?.kingNation);
+}
+
+function hasCompanionGuildData(guildData) {
+    const ownerPlayFabId = normalizePlayFabId(guildData?.ownerPlayFabId || guildData?.captainPlayFabId);
+    if (!ownerPlayFabId) return false;
+    const guildType = String(guildData?.guildType || '').trim().toLowerCase();
+    if (!guildType) return true;
+    return guildType === 'pirate' || guildType === 'nation' || parseBooleanFlag(guildData?.isNationGuild);
+}
+
 function getGuildType(guildData) {
     return isNationGuildData(guildData) ? 'nation' : 'pirate';
 }
@@ -208,6 +249,64 @@ function getGuildType(guildData) {
 function getGuildOwnerTitle(guildData) {
     if (String(guildData?.ownerTitle || '').trim()) return String(guildData.ownerTitle).trim();
     return isNationGuildData(guildData) ? '王' : '船長';
+}
+
+function getGuildMemberPlayFabMap(guildData) {
+    const source = guildData?.memberPlayFabIds || guildData?.memberEntityPlayFabIds || {};
+    return source && typeof source === 'object' && !Array.isArray(source) ? { ...source } : {};
+}
+
+function setGuildMemberPlayFabMapEntry(guildData, entityKey, playFabId) {
+    const entityId = String(entityKey?.Id || '').trim();
+    const normalizedPlayFabId = normalizePlayFabId(playFabId);
+    if (!entityId || !normalizedPlayFabId) return getGuildMemberPlayFabMap(guildData);
+    const map = getGuildMemberPlayFabMap(guildData);
+    map[entityId] = normalizedPlayFabId;
+    guildData.memberPlayFabIds = map;
+    return map;
+}
+
+function resolveGuildMemberPlayFabId(entityId, guildData) {
+    const rawEntityId = String(entityId || '').trim();
+    if (!rawEntityId) return '';
+    const map = getGuildMemberPlayFabMap(guildData);
+    const mapped = map[rawEntityId] || map[rawEntityId.toUpperCase()] || map[rawEntityId.toLowerCase()];
+    return normalizePlayFabId(mapped || rawEntityId);
+}
+
+function scoreCompanionGuildCandidate(candidate, requesterPlayFabId, kingContext = {}) {
+    const guildData = candidate?.guildData || {};
+    if (!hasCompanionGuildData(guildData)) return -1;
+    if (isSystemNationGroupEntry(candidate?.group, guildData)) return -1;
+
+    const requesterId = normalizePlayFabId(requesterPlayFabId);
+    const ownerId = normalizePlayFabId(guildData.ownerPlayFabId || guildData.captainPlayFabId);
+    const guildType = getGuildType(guildData);
+    const nationKey = resolveGuildNationKey(guildData);
+    const isOwner = !!requesterId && requesterId === ownerId;
+
+    if (kingContext?.isKing) {
+        if (guildType === 'nation' && isOwner && nationKey && nationKey === kingContext.nationKey) return 1000;
+        return -1;
+    }
+
+    if (isOwner) return 800;
+
+    const roleAssignments = guildData?.crewRoles || guildData?.roleAssignments || {};
+    if (roleAssignments && typeof roleAssignments === 'object' && roleAssignments[requesterId]) return 700;
+
+    return guildType === 'nation' ? 600 : 500;
+}
+
+function selectCompanionGuildCandidate(candidates, requesterPlayFabId, kingContext = {}) {
+    return (Array.isArray(candidates) ? candidates : [])
+        .map((candidate, index) => ({
+            candidate,
+            index,
+            score: scoreCompanionGuildCandidate(candidate, requesterPlayFabId, kingContext)
+        }))
+        .filter((entry) => entry.score >= 0)
+        .sort((a, b) => (b.score - a.score) || (a.index - b.index))[0]?.candidate || null;
 }
 
 /**
@@ -342,6 +441,59 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             console.warn('[Guild] Failed to resolve king guild context:', error?.errorMessage || error?.message || error);
             return { isKing: false, nationKey: '', nationLabel: '' };
         }
+    }
+
+    async function getParentNationGroupMeta(nationKey) {
+        const normalizedNation = normalizeNationKey(nationKey);
+        const groupName = getNationGroupName(normalizedNation);
+        if (!groupName) return { nation: normalizedNation || null, parentNationGroupName: '', parentNationGroupId: '' };
+        let parentNationGroupId = '';
+        try {
+            const snap = await admin.firestore().collection('nation_groups').doc(groupName).get();
+            if (snap?.exists) {
+                parentNationGroupId = String(snap.data()?.groupId || '').trim();
+            }
+        } catch (error) {
+            console.warn('[Guild] Failed to resolve parent nation group:', error?.message || error);
+        }
+        return {
+            nation: normalizedNation,
+            parentNationGroupName: groupName,
+            parentNationGroupId
+        };
+    }
+
+    async function buildCompanionGuildCandidates(groups) {
+        const entries = [];
+        for (const groupEntry of Array.isArray(groups) ? groups : []) {
+            const guildId = String(groupEntry?.Group?.Id || '').trim();
+            if (!guildId) continue;
+            if (isSystemNationGroupEntry(groupEntry)) continue;
+            const guildData = await getGuildData(guildId, promisifyPlayFab);
+            if (isSystemNationGroupEntry(groupEntry, guildData)) continue;
+            if (!hasCompanionGuildData(guildData)) continue;
+            entries.push({
+                group: groupEntry,
+                guildId,
+                guildName: String(groupEntry?.GroupName || groupEntry?.Group?.Name || guildData?.name || '').trim(),
+                guildData
+            });
+        }
+        return entries;
+    }
+
+    async function resolveCompanionGuildMembership(entityKey, requesterPlayFabId, kingContext = null) {
+        const membershipResult = await callTitleScopedApi(PlayFabGroups.ListMembership, {
+            Entity: entityKey
+        });
+        const groups = Array.isArray(membershipResult?.Groups) ? membershipResult.Groups : [];
+        const candidates = await buildCompanionGuildCandidates(groups);
+        const context = kingContext || await getKingGuildContext(requesterPlayFabId);
+        return {
+            groups,
+            candidates,
+            selected: selectCompanionGuildCandidate(candidates, requesterPlayFabId, context)
+        };
     }
 
     function getCrewRoleAssignments(guildData) {
@@ -499,7 +651,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         const now = new Date().toISOString();
         const guildType = getGuildType(guildData);
         const isNationGuild = guildType === 'nation';
-        const nationKey = normalizeNationKey(guildData?.nation);
+        const nationKey = resolveGuildNationKey(guildData);
         const fallbackGuildName = isNationGuild ? buildNationGuildName(nationKey) : '海賊団';
         const ownerTitle = getGuildOwnerTitle(guildData);
         guildData.recruitment = {
@@ -519,6 +671,8 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             guildType,
             isNationGuild,
             nation: nationKey || null,
+            parentNationGroupId: String(guildData?.parentNationGroupId || '').trim() || null,
+            parentNationGroupName: String(guildData?.parentNationGroupName || getNationGroupName(nationKey)).trim() || null,
             isOpen: recruitment.isOpen,
             roleIds: recruitment.roleIds,
             roles: recruitment.roles,
@@ -577,21 +731,18 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 return res.status(500).json({ error: 'プレイヤー情報の取得に失敗しました。' });
             }
 
-            // プレイヤーが所属するグループを取得
-            const membershipResult = await callTitleScopedApi(PlayFabGroups.ListMembership, {
-                Entity: resolvedEntity
-            });
+            const kingContext = await getKingGuildContext(requesterPlayFabId);
+            const membership = await resolveCompanionGuildMembership(resolvedEntity, requesterPlayFabId, kingContext);
+            const selectedGuild = membership.selected;
 
-            if (!membershipResult.Groups || membershipResult.Groups.length === 0) {
-                // ギルドに未加入
-                console.log(`[ギルド情報取得] ${playFabId} はどのギルドにも所属していません。`);
+            if (!selectedGuild) {
+                console.log(`[ギルド情報取得] ${playFabId} は仲間ギルドに所属していません。`);
                 return res.json({ guild: null });
             }
 
-            // 最初のグループを取得（1人のプレイヤーは1つのギルドにのみ所属）
-            const group = membershipResult.Groups[0];
-            const guildId = group.Group.Id;
-            const guildName = group.GroupName;
+            const group = selectedGuild.group;
+            const guildId = selectedGuild.guildId;
+            const guildName = selectedGuild.guildName || selectedGuild.guildData?.name || group.GroupName;
             const memberRole = group.RoleName || 'メンバー';
             const memberRoleLabel = memberRole === 'admins' ? '船長' : 'メンバー';
 
@@ -600,17 +751,19 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 Group: { Id: guildId, Type: 'group' }
             });
 
-            const memberCount = membersResult.Members ? membersResult.Members.length : 0;
+            const memberCount = Array.isArray(membersResult.Members)
+                ? membersResult.Members.reduce((count, roleGroup) => count + (Array.isArray(roleGroup.Members) ? roleGroup.Members.length : 0), 0)
+                : 0;
 
             // ギルドデータを取得（レベル、経験値、資金など）
-            const guildData = await getGuildData(guildId, promisifyPlayFab);
+            const guildData = selectedGuild.guildData;
             const currentLevel = calculateGuildLevel(guildData.exp);
             const requesterLevel = await getPlayerLevel(requesterPlayFabId).catch(() => 1);
             const crewMeta = buildGuildCrewMeta(guildData, requesterPlayFabId, requesterLevel);
             const recruitment = buildRecruitmentInfo(guildData);
             const guildType = getGuildType(guildData);
             const isNationGuild = guildType === 'nation';
-            const nationKey = normalizeNationKey(guildData?.nation);
+            const nationKey = resolveGuildNationKey(guildData);
             const ownerTitle = getGuildOwnerTitle(guildData);
             const isOwner = normalizePlayFabId(guildData?.ownerPlayFabId) === normalizePlayFabId(requesterPlayFabId);
             const resolvedMemberRoleLabel = isOwner ? ownerTitle : memberRoleLabel;
@@ -637,6 +790,8 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                     guildType,
                     isNationGuild,
                     nation: nationKey || null,
+                    parentNationGroupId: String(guildData?.parentNationGroupId || '').trim() || null,
+                    parentNationGroupName: String(guildData?.parentNationGroupName || getNationGroupName(nationKey)).trim() || null,
                     ownerTitle,
                     maxMembers: Math.max(1, crewMeta.maxCompanions + 1),
                     companionCount: crewMeta.companionCount,
@@ -676,11 +831,9 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             let appliedGuildIds = new Set();
             const requesterEntity = await resolvePlayerEntityKey(requesterPlayFabId).catch(() => null);
             if (requesterEntity?.Id && requesterEntity?.Type) {
-                const membershipResult = await callTitleScopedApi(PlayFabGroups.ListMembership, {
-                    Entity: requesterEntity
-                }).catch(() => null);
-                const groups = Array.isArray(membershipResult?.Groups) ? membershipResult.Groups : [];
-                currentGuildId = String(groups[0]?.Group?.Id || '');
+                const kingContext = await getKingGuildContext(requesterPlayFabId);
+                const membership = await resolveCompanionGuildMembership(requesterEntity, requesterPlayFabId, kingContext).catch(() => null);
+                currentGuildId = String(membership?.selected?.guildId || '');
 
                 const opportunities = await callTitleScopedApi(PlayFabGroups.ListMembershipOpportunities, {
                     Entity: requesterEntity
@@ -717,6 +870,8 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                     guildType,
                     isNationGuild,
                     nation: nationKey || null,
+                    parentNationGroupId: String(data.parentNationGroupId || '').trim() || null,
+                    parentNationGroupName: String(data.parentNationGroupName || getNationGroupName(nationKey)).trim() || null,
                     message: sanitizeRecruitmentMessage(data.message),
                     roleIds,
                     roles: buildCrewRolePayload(roleIds),
@@ -801,12 +956,20 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 return res.status(500).json({ error: 'プレイヤー情報の取得に失敗しました。' });
             }
 
-            const membershipResult = await callTitleScopedApi(PlayFabGroups.ListMembership, { Entity: entityKey });
-            if (Array.isArray(membershipResult?.Groups) && membershipResult.Groups.length > 0) {
+            const kingContext = await getKingGuildContext(requesterPlayFabId);
+            if (kingContext.isKing) {
+                return res.status(400).json({ error: '王は王直属の国ギルドのみ管理できます。' });
+            }
+
+            const membership = await resolveCompanionGuildMembership(entityKey, requesterPlayFabId, kingContext);
+            if (membership.selected) {
                 return res.status(400).json({ error: '既にギルドに所属しています。' });
             }
 
             const guildData = await getGuildData(guildId, promisifyPlayFab);
+            if (isSystemNationGroupEntry({ Group: { Id: guildId }, GroupName: await getGuildName(guildId).catch(() => '') }, guildData) || !hasCompanionGuildData(guildData)) {
+                return res.status(400).json({ error: 'このQRは仲間ギルド用ではありません。' });
+            }
             const recruitment = buildRecruitmentInfo(guildData);
             if (!recruitment.isOpen || !recruitment.roleIds.includes(requestedRoleId)) {
                 const roleLabel = CREW_ROLE_BY_ID[requestedRoleId]?.label || '選択した役職';
@@ -887,31 +1050,19 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 });
             }
 
-            // プレイヤーのEntityKeyを取得
-            const entityResult = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
-                PlayFabId: ownerPlayFabId,
-                ProfileConstraints: { ShowLinkedAccounts: true }
-            });
-
-            if (!entityResult.PlayerProfile || !entityResult.PlayerProfile.PlayerId) {
+            const entityKey = await resolvePlayerEntityKey(ownerPlayFabId);
+            if (!entityKey?.Id || !entityKey?.Type) {
                 return res.status(500).json({ error: 'プレイヤー情報の取得に失敗しました。' });
             }
 
-            const entityKey = {
-                Id: entityResult.PlayerProfile.PlayerId,
-                Type: 'title_player_account'
-            };
-
-            // 既にギルドに所属していないか確認
-            const membershipResult = await callTitleScopedApi(PlayFabGroups.ListMembership, {
-                Entity: entityKey
-            });
-
-            if (membershipResult.Groups && membershipResult.Groups.length > 0) {
+            const membership = await resolveCompanionGuildMembership(entityKey, ownerPlayFabId, kingContext);
+            if (membership.selected) {
                 return res.status(400).json({ error: '既にギルドに所属しています。' });
             }
 
             const captainName = await getPlayerDisplayName(ownerPlayFabId);
+            const guildNation = isNationGuild ? kingContext.nationKey : await getPlayerStoredNation(ownerPlayFabId).catch(() => '');
+            const parentNationMeta = await getParentNationGroupMeta(guildNation);
             const guildName = isNationGuild
                 ? buildNationGuildName(kingContext.nationKey)
                 : `${captainName.replace(/海賊団$/u, '').slice(0, 25)}海賊団`;
@@ -931,7 +1082,9 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 name: guildName,
                 guildType,
                 isNationGuild,
-                nation: isNationGuild ? kingContext.nationKey : null,
+                nation: guildNation || null,
+                parentNationGroupId: parentNationMeta.parentNationGroupId || '',
+                parentNationGroupName: parentNationMeta.parentNationGroupName || '',
                 ownerTitle,
                 level: 1,
                 exp: 0,
@@ -940,9 +1093,13 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 pendingApplications: [],
                 chatMessages: [], // チャットメッセージ履歴
                 ownerPlayFabId,
+                ownerEntityId: entityKey.Id,
                 captainName,
                 maxCompanions: MAX_CREW_COMPANIONS,
                 crewRoles: {},
+                memberPlayFabIds: {
+                    [entityKey.Id]: normalizePlayFabId(ownerPlayFabId)
+                },
                 recruitment: {
                     isOpen: false,
                     roleIds: [],
@@ -1097,27 +1254,18 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         console.log(`[ギルド加入] ${playFabId} がギルド ${guildId} に加入申請します...`);
 
         try {
-            // プレイヤーのEntityKeyを取得
-            const entityResult = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
-                PlayFabId: requesterPlayFabId,
-                ProfileConstraints: { ShowLinkedAccounts: true }
-            });
-
-            if (!entityResult.PlayerProfile || !entityResult.PlayerProfile.PlayerId) {
+            const entityKey = await resolvePlayerEntityKey(requesterPlayFabId);
+            if (!entityKey?.Id || !entityKey?.Type) {
                 return res.status(500).json({ error: 'プレイヤー情報の取得に失敗しました。' });
             }
 
-            const entityKey = {
-                Id: entityResult.PlayerProfile.PlayerId,
-                Type: 'title_player_account'
-            };
+            const kingContext = await getKingGuildContext(requesterPlayFabId);
+            if (kingContext.isKing) {
+                return res.status(400).json({ error: '王は王直属の国ギルドのみ管理できます。' });
+            }
 
-            // 既にギルドに所属していないか確認
-            const membershipResult = await callTitleScopedApi(PlayFabGroups.ListMembership, {
-                Entity: entityKey
-            });
-
-            if (membershipResult.Groups && membershipResult.Groups.length > 0) {
+            const membership = await resolveCompanionGuildMembership(entityKey, requesterPlayFabId, kingContext);
+            if (membership.selected) {
                 return res.status(400).json({ error: '既にギルドに所属しています。' });
             }
 
@@ -1127,6 +1275,9 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             };
 
             const guildData = await getGuildData(guildId, promisifyPlayFab);
+            if (isSystemNationGroupEntry({ Group: { Id: guildId } }, guildData) || !hasCompanionGuildData(guildData)) {
+                return res.status(400).json({ error: 'このQRは仲間ギルド用ではありません。' });
+            }
             const roleAssignments = getCrewRoleAssignments(guildData);
             const maxCompanions = Math.max(1, Number(guildData.maxCompanions || MAX_CREW_COMPANIONS) || MAX_CREW_COMPANIONS);
             if (Object.keys(roleAssignments).length >= maxCompanions) {
@@ -1149,6 +1300,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 roleAssignments[normalizedRequesterId] = requestedRoleId;
                 guildData.crewRoles = roleAssignments;
                 guildData.maxCompanions = maxCompanions;
+                setGuildMemberPlayFabMapEntry(guildData, entityKey, requesterPlayFabId);
 
                 console.log(`[ギルド加入] 成功: ${requesterPlayFabId} がギルド ${guildId} に ${requestedRoleId} として加入しました。`);
 
@@ -1217,32 +1369,19 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         console.log(`[ギルド脱退] ${playFabId} がギルドから脱退します...`);
 
         try {
-            // プレイヤーのEntityKeyを取得
-            const entityResult = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
-                PlayFabId: playFabId,
-                ProfileConstraints: { ShowLinkedAccounts: true }
-            });
-
-            if (!entityResult.PlayerProfile || !entityResult.PlayerProfile.PlayerId) {
+            const entityKey = await resolvePlayerEntityKey(requesterPlayFabId);
+            if (!entityKey?.Id || !entityKey?.Type) {
                 return res.status(500).json({ error: 'プレイヤー情報の取得に失敗しました。' });
             }
 
-            const entityKey = {
-                Id: entityResult.PlayerProfile.PlayerId,
-                Type: 'title_player_account'
-            };
-
-            // 現在所属しているギルドを取得
-            const membershipResult = await callTitleScopedApi(PlayFabGroups.ListMembership, {
-                Entity: entityKey
-            });
-
-            if (!membershipResult.Groups || membershipResult.Groups.length === 0) {
+            const kingContext = await getKingGuildContext(requesterPlayFabId);
+            const membership = await resolveCompanionGuildMembership(entityKey, requesterPlayFabId, kingContext);
+            const selectedGuild = membership.selected;
+            if (!selectedGuild) {
                 return res.status(400).json({ error: 'ギルドに所属していません。' });
             }
 
-            const group = membershipResult.Groups[0];
-            const guildId = group.Group.Id;
+            const guildId = selectedGuild.guildId;
 
             const groupEntity = {
                 Id: guildId,
@@ -1255,10 +1394,13 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 Members: [entityKey]
             });
 
-            const guildData = await getGuildData(guildId, promisifyPlayFab);
+            const guildData = selectedGuild.guildData;
             const roleAssignments = getCrewRoleAssignments(guildData);
             delete roleAssignments[normalizePlayFabId(requesterPlayFabId)];
             guildData.crewRoles = roleAssignments;
+            const memberMap = getGuildMemberPlayFabMap(guildData);
+            delete memberMap[String(entityKey.Id || '').trim()];
+            guildData.memberPlayFabIds = memberMap;
             await syncCrewRecruitmentPost(guildId, await getGuildName(guildId), guildData).catch((syncError) => {
                 console.warn('[ギルド脱退] 募集掲示板の同期に失敗しました。', syncError?.message || syncError);
             });
@@ -1311,63 +1453,68 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             const roleAssignments = getCrewRoleAssignments(guildData);
             const ownerTitle = getGuildOwnerTitle(guildData);
             const guildOwnerId = normalizePlayFabId(guildData?.ownerPlayFabId);
+            const guildOwnerEntityId = String(guildData?.ownerEntityId || '').trim();
 
             // メンバー情報を整形
             const members = [];
-            for (const member of membersResult.Members) {
-                // EntityからPlayFabIdを取得し、プロフィール情報を取得する
-                const entityId = member.Members[0].Key.Id;
-                const roleName = member.RoleId || 'members';
-                const isOwnerMember = guildOwnerId && guildOwnerId === normalizePlayFabId(entityId);
-                const memberRoleLabel = isOwnerMember ? ownerTitle : (roleName === 'admins' ? '船長' : 'メンバー');
-                const crewRoleId = normalizeCrewRoleId(roleAssignments[normalizePlayFabId(entityId)]);
-                const crewRole = CREW_ROLE_BY_ID[crewRoleId] || null;
+            for (const roleGroup of membersResult.Members) {
+                const roleName = roleGroup.RoleId || 'members';
+                const roleMembers = Array.isArray(roleGroup.Members) ? roleGroup.Members : [];
+                for (const member of roleMembers) {
+                    const key = member?.Key || member?.EntityKey || member;
+                    const entityId = String(key?.Id || '').trim();
+                    if (!entityId) continue;
+                    const memberPlayFabId = resolveGuildMemberPlayFabId(entityId, guildData);
+                    const isOwnerMember = (guildOwnerId && guildOwnerId === normalizePlayFabId(memberPlayFabId))
+                        || (guildOwnerEntityId && guildOwnerEntityId === entityId);
+                    const memberRoleLabel = isOwnerMember ? ownerTitle : (roleName === 'admins' ? '船長' : 'メンバー');
+                    const crewRoleId = normalizeCrewRoleId(roleAssignments[normalizePlayFabId(memberPlayFabId)]);
+                    const crewRole = CREW_ROLE_BY_ID[crewRoleId] || null;
 
-                try {
-                    // EntityIDからプレイヤープロフィールを取得
-                    const [profileResult, statsResult] = await Promise.all([
-                        promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
-                            PlayFabId: entityId,
-                            ProfileConstraints: { ShowDisplayName: true, ShowAvatarUrl: true }
-                        }),
-                        promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: entityId }).catch(() => null)
-                    ]);
-                    const statsMap = buildStatsMapFromStatistics(statsResult?.Statistics || []);
-                    const derived = applyDerivedPlayerLevelToStats(statsMap);
-                    const memberLevel = Math.max(1, Math.floor(Number(derived?.stats?.Level || statsMap.Level || 1) || 1));
+                    try {
+                        const [profileResult, statsResult] = await Promise.all([
+                            promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+                                PlayFabId: memberPlayFabId,
+                                ProfileConstraints: { ShowDisplayName: true, ShowAvatarUrl: true }
+                            }),
+                            promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: memberPlayFabId }).catch(() => null)
+                        ]);
+                        const statsMap = buildStatsMapFromStatistics(statsResult?.Statistics || []);
+                        const derived = applyDerivedPlayerLevelToStats(statsMap);
+                        const memberLevel = Math.max(1, Math.floor(Number(derived?.stats?.Level || statsMap.Level || 1) || 1));
 
-                    if (profileResult.PlayerProfile) {
+                        if (profileResult.PlayerProfile) {
+                            members.push({
+                                playFabId: memberPlayFabId,
+                                displayName: profileResult.PlayerProfile.DisplayName || 'Unknown',
+                                avatarUrl: profileResult.PlayerProfile.AvatarUrl || null,
+                                role: memberRoleLabel,
+                                crewRoleId,
+                                crewRoleLabel: crewRole?.label || '',
+                                crewGameLabel: crewRole?.gameLabel || '',
+                                crewIconKey: crewRole?.iconKey || '',
+                                crewRankLevel: crewRole ? getCrewRankLevel(memberLevel) : 0,
+                                crewRankDecorationClass: crewRole ? getCrewRankDecorationClass(memberLevel) : '',
+                                crewRankTitle: crewRole ? getCrewRankTitle(crewRoleId, memberLevel) : '',
+                                level: memberLevel
+                            });
+                        }
+                    } catch (profileError) {
+                        console.warn(`[ギルドメンバー取得] Entity ${entityId} のプロフィール取得に失敗:`, profileError.message);
                         members.push({
-                            playFabId: entityId,
-                            displayName: profileResult.PlayerProfile.DisplayName || 'Unknown',
-                            avatarUrl: profileResult.PlayerProfile.AvatarUrl || null,
+                            playFabId: memberPlayFabId,
+                            displayName: 'Unknown',
+                            avatarUrl: null,
                             role: memberRoleLabel,
                             crewRoleId,
                             crewRoleLabel: crewRole?.label || '',
                             crewGameLabel: crewRole?.gameLabel || '',
                             crewIconKey: crewRole?.iconKey || '',
-                            crewRankLevel: crewRole ? getCrewRankLevel(memberLevel) : 0,
-                            crewRankDecorationClass: crewRole ? getCrewRankDecorationClass(memberLevel) : '',
-                            crewRankTitle: crewRole ? getCrewRankTitle(crewRoleId, memberLevel) : '',
-                            level: memberLevel
+                            crewRankLevel: crewRole ? getCrewRankLevel(1) : 0,
+                            crewRankDecorationClass: crewRole ? getCrewRankDecorationClass(1) : '',
+                            crewRankTitle: crewRole ? getCrewRankTitle(crewRoleId, 1) : ''
                         });
                     }
-                } catch (profileError) {
-                    console.warn(`[ギルドメンバー取得] Entity ${entityId} のプロフィール取得に失敗:`, profileError.message);
-                    // プロフィール取得に失敗しても、メンバーリストには追加
-                    members.push({
-                        playFabId: entityId,
-                        displayName: 'Unknown',
-                        avatarUrl: null,
-                        role: memberRoleLabel,
-                        crewRoleId,
-                        crewRoleLabel: crewRole?.label || '',
-                        crewGameLabel: crewRole?.gameLabel || '',
-                        crewIconKey: crewRole?.iconKey || '',
-                        crewRankLevel: crewRole ? getCrewRankLevel(1) : 0,
-                        crewRankDecorationClass: crewRole ? getCrewRankDecorationClass(1) : '',
-                        crewRankTitle: crewRole ? getCrewRankTitle(crewRoleId, 1) : ''
-                    });
                 }
             }
 
@@ -1527,6 +1674,14 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             };
 
             const groupEntity = { Id: guildId, Type: 'group' };
+            const applicantKingContext = await getKingGuildContext(applicantId);
+            if (applicantKingContext.isKing) {
+                return res.status(400).json({ error: '王は王直属の国ギルドのみ管理できます。' });
+            }
+            const applicantMembership = await resolveCompanionGuildMembership(applicantEntityKey, applicantId, applicantKingContext).catch(() => null);
+            if (applicantMembership?.selected) {
+                return res.status(400).json({ error: '申請者は既にギルドに所属しています。' });
+            }
 
             // 申請を承認
             await callTitleScopedApi(PlayFabGroups.AcceptGroupApplication, {
@@ -1536,6 +1691,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
 
             roleAssignments[normalizePlayFabId(applicantId)] = approvedRoleId;
             guildData.crewRoles = roleAssignments;
+            setGuildMemberPlayFabMapEntry(guildData, applicantEntityKey, applicantId);
             removePendingApplication(guildData, applicantId);
             await syncCrewRecruitmentPost(guildId, await getGuildName(guildId), guildData).catch((syncError) => {
                 console.warn('[加入申請承認] 募集掲示板の同期に失敗しました。', syncError?.message || syncError);
@@ -1936,4 +2092,16 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
     console.log('[ギルドAPI] ギルド関連のAPIルートを初期化しました。');
 }
 
-module.exports = { initializeGuildRoutes };
+module.exports = {
+    initializeGuildRoutes,
+    __test: {
+        getNationGroupName,
+        isSystemNationGroupName,
+        isSystemNationGroupEntry,
+        hasCompanionGuildData,
+        resolveGuildNationKey,
+        selectCompanionGuildCandidate,
+        resolveGuildMemberPlayFabId,
+        setGuildMemberPlayFabMapEntry
+    }
+};
