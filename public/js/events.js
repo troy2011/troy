@@ -1,6 +1,7 @@
 import {
     getPlayerStats,
     getGuildInfo,
+    getGuildInviteInfo,
     createGuild as requestCreateGuild,
     joinGuild as requestJoinGuild,
     leaveGuild as requestLeaveGuild,
@@ -34,6 +35,8 @@ let currentNationKey = '';
 let currentRecruitmentPosts = [];
 let currentApplications = [];
 let selectedRecruitmentRoleIds = new Set();
+let selectedInviteRoleId = '';
+let pendingCrewInvite = null;
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -184,32 +187,48 @@ function updateCrewCreatePreview() {
     }
 }
 
-function renderRoleOptions(availableRoles = null) {
-    const select = document.getElementById('crewRoleSelect');
-    if (!select) return;
-    const availability = new Map(
+function buildRoleAvailabilityMap(availableRoles = null) {
+    return new Map(
         Array.isArray(availableRoles)
             ? availableRoles.map((role) => [String(role.id || '').trim(), role.available !== false])
             : []
     );
-    select.innerHTML = CREW_ROLE_DEFS.map((role) => {
-        const known = availability.has(role.id);
-        const available = known ? availability.get(role.id) : true;
-        return `<option value="${escapeHtml(role.id)}" ${available ? '' : 'disabled'}>${escapeHtml(role.label)} / ${escapeHtml(role.gameLabel)}${available ? '' : '（使用中）'}</option>`;
-    }).join('');
-    select.onchange = () => renderRoleGuide(availability);
-    renderRoleGuide(availability);
 }
 
-function renderRoleGuide(availability = new Map()) {
-    const guide = document.getElementById('crewRoleGuide');
-    const select = document.getElementById('crewRoleSelect');
+function isRoleAvailable(availability, roleId) {
+    return availability.has(roleId) ? availability.get(roleId) : true;
+}
+
+function renderInviteRoleOptions(availableRoles = null) {
+    const select = document.getElementById('crewInviteRoleSelect');
+    if (!select) return;
+    const availability = buildRoleAvailabilityMap(availableRoles);
+    const firstAvailable = CREW_ROLE_DEFS.find((role) => isRoleAvailable(availability, role.id))?.id || '';
+    if (!selectedInviteRoleId || !isRoleAvailable(availability, selectedInviteRoleId)) {
+        selectedInviteRoleId = firstAvailable;
+    }
+    select.innerHTML = CREW_ROLE_DEFS.map((role) => {
+        const available = isRoleAvailable(availability, role.id);
+        return `<option value="${escapeHtml(role.id)}" ${available ? '' : 'disabled'}>${escapeHtml(role.label)} / ${escapeHtml(role.gameLabel)}${available ? '' : '（使用中）'}</option>`;
+    }).join('');
+    select.value = selectedInviteRoleId;
+    select.disabled = !selectedInviteRoleId;
+    select.onchange = () => {
+        selectedInviteRoleId = String(select.value || '').trim();
+        renderInviteRoleGuide(availability);
+        generateInviteQr(currentGuild?.guildId || '', selectedInviteRoleId);
+    };
+    renderInviteRoleGuide(availability);
+}
+
+function renderInviteRoleGuide(availability = new Map()) {
+    const guide = document.getElementById('crewInviteRoleGuide');
+    const select = document.getElementById('crewInviteRoleSelect');
     if (!guide || !select) return;
 
     const selectedRoleId = String(select.value || '').trim();
     guide.innerHTML = CREW_ROLE_DEFS.map((role) => {
-        const known = availability.has(role.id);
-        const available = known ? availability.get(role.id) : true;
+        const available = isRoleAvailable(availability, role.id);
         const selected = selectedRoleId === role.id;
         const sampleRankLevel = 3;
         return `
@@ -233,7 +252,9 @@ function renderRoleGuide(availability = new Map()) {
         button.addEventListener('click', () => {
             if (button.disabled) return;
             select.value = button.dataset.crewRoleId || '';
-            renderRoleGuide(availability);
+            selectedInviteRoleId = String(select.value || '').trim();
+            renderInviteRoleGuide(availability);
+            generateInviteQr(currentGuild?.guildId || '', selectedInviteRoleId);
         });
     });
 }
@@ -534,17 +555,100 @@ function renderMembers(members) {
     });
 }
 
-function generateInviteQr(guildId) {
-    const value = guildId ? `guild:${guildId}` : '';
+function buildInviteQrValue(guildId, crewRoleId) {
+    const safeGuildId = String(guildId || '').trim();
+    const safeRoleId = String(crewRoleId || '').trim();
+    return safeGuildId && safeRoleId ? `guild:${safeGuildId}:role:${safeRoleId}` : '';
+}
+
+function parseInviteQrValue(value) {
+    const raw = String(value || '').trim();
+    const parts = raw.split(':');
+    if (parts[0] !== 'guild' || !parts[1]) return null;
+    if (parts.length === 2) {
+        return { guildId: parts[1].trim(), crewRoleId: '', isLegacy: true };
+    }
+    if (parts.length >= 4 && parts[2] === 'role') {
+        return { guildId: parts[1].trim(), crewRoleId: String(parts[3] || '').trim(), isLegacy: false };
+    }
+    return null;
+}
+
+function clearInviteQrCanvas(canvas) {
+    if (!canvas) return;
+    const context = canvas.getContext?.('2d');
+    if (!context) return;
+    context.clearRect(0, 0, canvas.width || 160, canvas.height || 160);
+}
+
+function generateInviteQr(guildId, crewRoleId) {
+    const value = buildInviteQrValue(guildId, crewRoleId);
     const canvas = document.getElementById('crewInviteQrCanvas');
     const valueEl = document.getElementById('crewInviteValue');
-    if (valueEl) valueEl.textContent = value;
-    if (!canvas || !value || typeof QRious !== 'function') return;
+    const copyBtn = document.getElementById('btnCopyCrewInvite');
+    if (valueEl) valueEl.textContent = value || '空いている役職を選んでください。';
+    if (copyBtn) copyBtn.disabled = !value;
+    if (!canvas || !value || typeof QRious !== 'function') {
+        clearInviteQrCanvas(canvas);
+        return;
+    }
     new QRious({
         element: canvas,
         value,
         size: 160
     });
+}
+
+function clearJoinConfirmation() {
+    pendingCrewInvite = null;
+    const panel = document.getElementById('crewJoinConfirmPanel');
+    const body = document.getElementById('crewJoinConfirmBody');
+    const confirmBtn = document.getElementById('btnConfirmCrewJoin');
+    if (panel) panel.hidden = true;
+    if (body) body.innerHTML = '';
+    if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = '加入する';
+    }
+}
+
+function renderJoinConfirmation(invite) {
+    pendingCrewInvite = invite || null;
+    const panel = document.getElementById('crewJoinConfirmPanel');
+    const body = document.getElementById('crewJoinConfirmBody');
+    const confirmBtn = document.getElementById('btnConfirmCrewJoin');
+    if (!panel || !body || !pendingCrewInvite) {
+        clearJoinConfirmation();
+        return;
+    }
+
+    const roleId = String(pendingCrewInvite.crewRoleId || '').trim();
+    const roleDef = CREW_ROLE_BY_ID[roleId] || {};
+    const roleLabel = pendingCrewInvite.crewRoleLabel || roleDef.label || getCrewRoleLabel(roleId) || '役職';
+    const gameLabel = pendingCrewInvite.crewGameLabel || roleDef.gameLabel || '';
+    const iconKey = pendingCrewInvite.crewIconKey || roleDef.iconKey || '';
+    const canJoin = pendingCrewInvite.canJoin !== false;
+    if (confirmBtn) confirmBtn.disabled = !canJoin;
+    panel.hidden = false;
+    body.innerHTML = `
+        <article class="event-card crew-join-confirm-card ${canJoin ? '' : 'is-rejected'}" data-crew-icon="${escapeHtml(iconKey)}">
+            <div class="event-card-head">
+                <span class="crew-role-icon" aria-hidden="true"></span>
+                <div>
+                    <div class="event-card-type">${escapeHtml(pendingCrewInvite.ownerTitle || '船長')}からの勧誘</div>
+                    <h3>${escapeHtml(pendingCrewInvite.guildName || 'ギルド')}</h3>
+                </div>
+                <span class="event-status">${canJoin ? '確認待ち' : '加入不可'}</span>
+            </div>
+            <div class="event-card-meta">
+                <span>${escapeHtml(roleLabel)}</span>
+                ${gameLabel ? `<span>${escapeHtml(gameLabel)}</span>` : ''}
+                <span>仲間 ${Number(pendingCrewInvite.companionCount || 0)} / ${Number(pendingCrewInvite.maxCompanions || 7)}人</span>
+            </div>
+            <p class="event-card-desc">${escapeHtml(canJoin ? `${roleLabel}として加入しますか？` : (pendingCrewInvite.unavailableReason || 'この勧誘は現在利用できません。'))}</p>
+        </article>
+    `;
+    panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function renderInvitePanel(guild) {
@@ -560,6 +664,7 @@ function renderInvitePanel(guild) {
     const hasGuild = !!guild?.guildId;
     const isNationGuild = guild?.guildType === 'nation' || !!guild?.isNationGuild;
     const guildKindLabel = isNationGuild ? '国ギルド' : '海賊団';
+    const canInviteToGuild = hasGuild && (guild?.isOwner || currentIsKing || guild?.role === '船長' || guild?.role === '王');
 
     if (hostFeeEl) {
         if (hasGuild) {
@@ -597,12 +702,23 @@ function renderInvitePanel(guild) {
     if (invitePanel) {
         invitePanel.hidden = !hasGuild;
     }
+    const inviteOwnerControls = document.getElementById('crewInviteOwnerControls');
+    if (inviteOwnerControls) {
+        inviteOwnerControls.hidden = !canInviteToGuild;
+    }
+    const inviteMemberNote = document.getElementById('crewInviteMemberNote');
+    if (inviteMemberNote) {
+        inviteMemberNote.hidden = canInviteToGuild;
+    }
     if (joinPanel) {
         joinPanel.hidden = hasGuild;
     }
+    if (hasGuild) {
+        clearJoinConfirmation();
+    }
 
-    renderRoleOptions(guild?.availableRoles || null);
-    generateInviteQr(guild?.guildId || '');
+    renderInviteRoleOptions(canInviteToGuild ? guild?.availableRoles || null : null);
+    generateInviteQr(canInviteToGuild ? guild?.guildId || '' : '', canInviteToGuild ? selectedInviteRoleId : '');
     updateCrewCreatePreview();
 }
 
@@ -692,25 +808,59 @@ async function joinCrewFromScan(playFabId) {
     try {
         const result = await lineClient.scanCodeV2();
         const value = String(result?.value || '').trim();
-        if (!value.startsWith('guild:')) {
+        const inviteCode = parseInviteQrValue(value);
+        if (!inviteCode?.guildId) {
             setMessage('仲間の勧誘QRではありません。', true);
             return;
         }
-        const crewRoleId = String(document.getElementById('crewRoleSelect')?.value || '').trim();
-        if (!crewRoleId) {
-            setMessage('役職を選んでください。', true);
+        if (inviteCode.isLegacy || !inviteCode.crewRoleId) {
+            setMessage('役職が指定されていない古い勧誘QRです。船長に新しい役職QRを表示してもらってください。', true);
             return;
         }
-        const guildId = value.slice(6).trim();
+        const data = await getGuildInviteInfo(playFabId, inviteCode.guildId, inviteCode.crewRoleId, { throwOnError: true });
+        if (data?.success && data.invite) {
+            renderJoinConfirmation(data.invite);
+            const roleLabel = data.invite.crewRoleLabel || getCrewRoleLabel(inviteCode.crewRoleId) || '役職';
+            setMessage(`${roleLabel}として加入する内容を確認してください。`);
+        }
+    } catch (error) {
+        setMessage(error?.message || error?.error || '勧誘内容の確認に失敗しました。', true);
+    }
+}
+
+async function confirmCrewJoin(playFabId) {
+    if (!pendingCrewInvite?.guildId || !pendingCrewInvite?.crewRoleId) {
+        setMessage('確認中の勧誘がありません。', true);
+        return;
+    }
+    const confirmBtn = document.getElementById('btnConfirmCrewJoin');
+    const previousText = confirmBtn?.textContent || '';
+    try {
+        if (confirmBtn) {
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = '加入中...';
+        }
+        const guildId = pendingCrewInvite.guildId;
+        const crewRoleId = pendingCrewInvite.crewRoleId;
         const data = await requestJoinGuild(playFabId, guildId, { crewRoleId }, { throwOnError: true });
         if (data?.success) {
             applyGuildNationSync(data);
-            setMessage(`${getCrewRoleLabel(crewRoleId) || '選択した役職'}として仲間に参加しました。`);
+            clearJoinConfirmation();
             await loadCompanionPage(playFabId);
+            setMessage(`${getCrewRoleLabel(crewRoleId) || '選択した役職'}として仲間に参加しました。`);
         }
     } catch (error) {
         setMessage(error?.message || error?.error || '仲間への参加に失敗しました。', true);
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = previousText;
+        }
     }
+}
+
+function cancelCrewJoin() {
+    clearJoinConfirmation();
+    setMessage('加入を見送りました。');
 }
 
 async function leaveCrew(playFabId) {
@@ -819,6 +969,8 @@ function bindEvents(playFabId) {
         setMessage(copied ? '勧誘コードをコピーしました。' : 'コピーに失敗しました。', !copied);
     });
     document.getElementById('btnScanJoinCrew')?.addEventListener('click', () => joinCrewFromScan(window.myPlayFabId || playFabId));
+    document.getElementById('btnConfirmCrewJoin')?.addEventListener('click', () => confirmCrewJoin(window.myPlayFabId || playFabId));
+    document.getElementById('btnCancelCrewJoin')?.addEventListener('click', cancelCrewJoin);
     document.getElementById('btnLeaveCrew')?.addEventListener('click', () => leaveCrew(window.myPlayFabId || playFabId));
     document.getElementById('btnSaveCrewRecruitment')?.addEventListener('click', () => saveRecruitment(window.myPlayFabId || playFabId, true));
     document.getElementById('btnCloseCrewRecruitment')?.addEventListener('click', () => saveRecruitment(window.myPlayFabId || playFabId, false));

@@ -197,6 +197,10 @@ export function getGuildInfo(playFabId, entityKey, options) {
     return callApiWithLoader('/api/get-guild-info', { playFabId, entityKey: resolvedEntityKey }, options);
 }
 
+export function getGuildInviteInfo(playFabId, guildId, crewRoleId, options) {
+    return callApiWithLoader('/api/get-guild-invite-info', { playFabId, guildId, crewRoleId }, options);
+}
+
 export function createGuild(playFabId, guildName, payloadOrOptions, maybeOptions) {
     const hasPayload = payloadOrOptions && typeof payloadOrOptions === 'object' && (
         Object.prototype.hasOwnProperty.call(payloadOrOptions, 'requestId')

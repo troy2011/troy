@@ -823,6 +823,92 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
     });
 
     // ----------------------------------------------------
+    // API: 勧誘QRの加入内容を確認
+    // ----------------------------------------------------
+    app.post('/api/get-guild-invite-info', async (req, res) => {
+        const { playFabId, guildId } = req.body;
+        const requestedRoleId = normalizeCrewRoleId(req.body?.crewRoleId || req.body?.roleId);
+        if (!playFabId || !guildId) {
+            return res.status(400).json({ error: 'IDまたはギルドIDがありません。' });
+        }
+        if (!requestedRoleId) {
+            return res.status(400).json({ error: '役職が指定されていません。' });
+        }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+
+        try {
+            const groupName = await getGuildName(guildId).catch(() => '');
+            const guildData = await getGuildData(guildId, promisifyPlayFab);
+            if (isSystemNationGroupEntry({ Group: { Id: guildId }, GroupName: groupName }, guildData) || !hasCompanionGuildData(guildData)) {
+                return res.status(400).json({ error: 'このQRは仲間ギルド用ではありません。' });
+            }
+
+            const role = CREW_ROLE_BY_ID[requestedRoleId];
+            const roleAssignments = getCrewRoleAssignments(guildData);
+            const assignedRoleIds = Object.values(roleAssignments).map(normalizeCrewRoleId).filter(Boolean);
+            const companionCount = Object.keys(roleAssignments).length;
+            const maxCompanions = Math.max(1, Number(guildData.maxCompanions || MAX_CREW_COMPANIONS) || MAX_CREW_COMPANIONS);
+            let canJoin = true;
+            let unavailableReason = '';
+
+            if (companionCount >= maxCompanions) {
+                canJoin = false;
+                unavailableReason = `仲間は最大${maxCompanions}名までです。`;
+            } else if (assignedRoleIds.includes(requestedRoleId)) {
+                canJoin = false;
+                unavailableReason = `${role.label}はすでに同じギルド内で使われています。`;
+            }
+
+            const entityKey = await resolvePlayerEntityKey(requesterPlayFabId).catch(() => null);
+            if (entityKey?.Id && entityKey?.Type) {
+                const kingContext = await getKingGuildContext(requesterPlayFabId);
+                if (kingContext.isKing) {
+                    canJoin = false;
+                    unavailableReason = '王は王直属の国ギルドのみ管理できます。';
+                } else {
+                    const membership = await resolveCompanionGuildMembership(entityKey, requesterPlayFabId, kingContext);
+                    if (membership.selected) {
+                        canJoin = false;
+                        unavailableReason = '既にギルドに所属しています。';
+                    }
+                }
+            }
+
+            const guildType = getGuildType(guildData);
+            const isNationGuild = guildType === 'nation';
+            const nationKey = resolveGuildNationKey(guildData);
+            const fallbackGuildName = isNationGuild ? buildNationGuildName(nationKey) : '海賊団';
+            res.json({
+                success: true,
+                invite: {
+                    guildId: String(guildId),
+                    guildName: String(groupName || guildData?.name || '').trim() || fallbackGuildName,
+                    guildType,
+                    isNationGuild,
+                    nation: nationKey || null,
+                    captainName: String(guildData?.captainName || '').trim(),
+                    ownerTitle: getGuildOwnerTitle(guildData),
+                    companionCount,
+                    maxCompanions,
+                    crewRoleId: requestedRoleId,
+                    crewRoleLabel: role.label,
+                    crewGameLabel: role.gameLabel,
+                    crewIconKey: role.iconKey,
+                    canJoin,
+                    unavailableReason
+                }
+            });
+        } catch (error) {
+            console.error('[GuildInviteInfo]', error?.errorMessage || error?.message || error);
+            res.status(500).json({
+                error: '勧誘内容の確認に失敗しました。',
+                details: error?.errorMessage || error?.message
+            });
+        }
+    });
+
+    // ----------------------------------------------------
     // API: 募集中の海賊団一覧を取得
     // ----------------------------------------------------
     app.post('/api/crew-recruitment/list', async (req, res) => {
@@ -1026,6 +1112,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
     // ----------------------------------------------------
     app.post('/api/create-guild', async (req, res) => {
         const { playFabId } = req.body;
+        const requestedGuildName = sanitizeRequestedGuildName(req.body?.guildName);
         if (!playFabId) {
             return res.status(400).json({ error: 'IDがありません。' });
         }

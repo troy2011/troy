@@ -14488,6 +14488,7 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     margin-top: 12px;
 }
 .crew-recruitment-role-select,
+.crew-invite-panel select,
 .crew-application-role-row select {
     min-height: 36px;
     border: 1px solid rgba(148, 163, 184, 0.28);
@@ -14504,6 +14505,13 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     margin-top: 10px;
 }
 .crew-application-role-row label {
+    display: grid;
+    gap: 6px;
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 700;
+}
+.crew-invite-panel label {
     display: grid;
     gap: 6px;
     color: #cbd5e1;
@@ -14534,6 +14542,10 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     padding: 8px;
     font-size: 12px;
     text-align: center;
+}
+.crew-join-confirm-body {
+    display: grid;
+    gap: 10px;
 }
 
 @media (max-width: 720px) {
@@ -22432,6 +22444,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentEvents .crew-invite-value,
+#tabContentEvents .crew-invite-panel select,
 #tabContentEvents .crew-recruitment-role-select,
 #tabContentEvents .crew-application-role-row select {
     border: 10px solid transparent;
@@ -22449,6 +22462,11 @@ body[data-sea-tone] .home-hero-card {
     display: grid;
     place-items: center;
     font-weight: 800;
+}
+
+#tabContentEvents .crew-invite-panel label {
+    color: #f2d394;
+    text-shadow: 0 1px 0 #000;
 }
 
 #tabContentEvents .crew-recruitment-role-select {

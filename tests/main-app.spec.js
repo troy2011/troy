@@ -2352,8 +2352,7 @@ test('king can found a nation guild from companions regardless of level', async 
     };
   });
   await page.evaluate(async () => {
-    const events = await import('/js/events.js');
-    await events.loadEventPage('PF_PLAYWRIGHT');
+    await window.showTab('events', { playFabId: 'PF_PLAYWRIGHT', race: 'goblin', nation: 'water' });
   });
 
   await expect(page.locator('#crewRankSummary')).toContainText('Lv.3 王 / 国ギルド勧誘可');
@@ -2503,7 +2502,12 @@ test('companion tab hides internal PlayFab IDs from member and application cards
           treasury: 0,
           availableRoles: [
             { id: 'swordsman', available: false },
-            { id: 'doctor', available: true }
+            { id: 'sniper', available: false },
+            { id: 'cook', available: false },
+            { id: 'doctor', available: true },
+            { id: 'shipwright', available: false },
+            { id: 'musician', available: false },
+            { id: 'archaeologist', available: false }
           ]
         }
       })
@@ -2519,8 +2523,110 @@ test('companion tab hides internal PlayFab IDs from member and application cards
   await expect(page.locator('#crewMembersList')).toContainText('剣士');
   await expect(page.locator('#crewApplicationsList')).toContainText('流浪の医師');
   await expect(page.locator('#crewApplicationsList')).toContainText('医師');
+  await expect(page.locator('#crewInviteRoleSelect')).toHaveValue('doctor');
+  await expect(page.locator('#crewInviteValue')).toContainText('guild:GUILD_OWNER:role:doctor');
   await expect(page.locator('#tabContentEvents')).not.toContainText('ID PLAYER_MEMBER_1');
   await expect(page.locator('#tabContentEvents')).not.toContainText('ID APPLICANT_DOCTOR');
+  await expectNoPageErrors(errors);
+});
+
+test('companion invite scan shows role confirmation before joining', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  let inviteRequest = null;
+  const joinRequests = [];
+  await page.route('**/api/get-stats', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        stats: { Level: 12 },
+        isKing: false,
+        nation: 'water'
+      })
+    });
+  });
+  await page.route('**/api/crew-recruitment/list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ posts: [] })
+    });
+  });
+  await page.route('**/api/get-guild-invite-info', async (route) => {
+    inviteRequest = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        invite: {
+          guildId: inviteRequest.guildId,
+          guildName: '青波海賊団',
+          ownerTitle: '船長',
+          companionCount: 2,
+          maxCompanions: 7,
+          crewRoleId: inviteRequest.crewRoleId,
+          crewRoleLabel: '医師',
+          crewGameLabel: '酒',
+          crewIconKey: 'drink',
+          canJoin: true
+        }
+      })
+    });
+  });
+  await page.route('**/api/join-guild', async (route) => {
+    joinRequests.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        guildId: 'GUILD_INVITE',
+        guildName: '青波海賊団',
+        crewRoleId: 'doctor',
+        crewRoleLabel: '医師'
+      })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.unroute('**/api/get-guild-info');
+  await page.route('**/api/get-guild-info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ guild: null })
+    });
+  });
+  await page.evaluate(() => {
+    window.liff.isInClient = () => true;
+    window.liff.scanCodeV2 = async () => ({ value: 'guild:GUILD_INVITE:role:doctor' });
+  });
+  await page.evaluate(async () => {
+    await window.showTab('events', { playFabId: 'PF_PLAYWRIGHT', race: 'goblin', nation: 'water' });
+  });
+
+  await page.locator('#btnScanJoinCrew').click();
+  await expect.poll(() => inviteRequest?.crewRoleId).toBe('doctor');
+  await expect(page.locator('#crewJoinConfirmPanel')).toBeVisible();
+  await expect(page.locator('#crewJoinConfirmPanel')).toContainText('青波海賊団');
+  await expect(page.locator('#crewJoinConfirmPanel')).toContainText('医師');
+  await expect(page.locator('#crewJoinConfirmPanel')).toContainText('酒');
+  expect(joinRequests).toHaveLength(0);
+
+  await page.locator('#btnCancelCrewJoin').click();
+  await expect(page.locator('#crewJoinConfirmPanel')).toBeHidden();
+  expect(joinRequests).toHaveLength(0);
+
+  await page.locator('#btnScanJoinCrew').click();
+  await page.locator('#btnConfirmCrewJoin').click();
+  await expect.poll(() => joinRequests.length).toBe(1);
+  expect(joinRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    guildId: 'GUILD_INVITE',
+    crewRoleId: 'doctor'
+  });
+  await expect(page.locator('#eventPageMessage')).toContainText('医師として仲間に参加しました。');
   await expectNoPageErrors(errors);
 });
 

@@ -576,19 +576,37 @@
                             <div id="crewCreatePreview" class="event-create-note">ギルドを設立します。</div>
                             <button id="btnCreateCrew" class="event-create-btn" type="button">1,000Gで海賊団を設立</button>
                             <div id="crewInvitePanel" class="crew-invite-panel" hidden>
-                                <div class="crew-invite-title">勧誘QR</div>
-                                <canvas id="crewInviteQrCanvas" class="crew-invite-qr"></canvas>
-                                <div id="crewInviteValue" class="crew-invite-value"></div>
+                                <div id="crewInviteOwnerControls">
+                                    <div class="crew-invite-title">勧誘QR</div>
+                                    <label class="is-wide">
+                                        勧誘する役職
+                                        <select id="crewInviteRoleSelect"></select>
+                                    </label>
+                                    <div id="crewInviteRoleGuide" class="crew-role-guide"></div>
+                                    <div id="crewInviteHelp" class="event-create-note">空いている役職を選ぶと、その役職専用のQRを表示します。</div>
+                                    <canvas id="crewInviteQrCanvas" class="crew-invite-qr"></canvas>
+                                    <div id="crewInviteValue" class="crew-invite-value"></div>
+                                    <div class="event-card-actions">
+                                        <button id="btnCopyCrewInvite" class="event-action-btn is-approve" type="button">勧誘コードをコピー</button>
+                                    </div>
+                                </div>
+                                <div id="crewInviteMemberNote" class="event-create-note" hidden>所属中のギルドです。勧誘QRは船長が発行します。</div>
                                 <div class="event-card-actions">
-                                    <button id="btnCopyCrewInvite" class="event-action-btn is-approve" type="button">勧誘コードをコピー</button>
                                     <button id="btnLeaveCrew" class="event-action-btn is-reject" type="button">脱退</button>
                                 </div>
                             </div>
                             <div id="crewJoinPanel" class="crew-join-panel">
                                 <div class="crew-invite-title">勧誘を受ける</div>
-                                <label>役職<select id="crewRoleSelect"></select></label>
-                                <div id="crewRoleGuide" class="crew-role-guide"></div>
+                                <div class="event-create-note">船長が表示した役職QRを読み取ると、加入内容を確認できます。</div>
                                 <button id="btnScanJoinCrew" class="event-action-btn is-join" type="button">勧誘QRを読む</button>
+                            </div>
+                            <div id="crewJoinConfirmPanel" class="crew-join-panel" hidden>
+                                <div class="crew-invite-title">加入確認</div>
+                                <div id="crewJoinConfirmBody" class="crew-join-confirm-body"></div>
+                                <div class="event-card-actions">
+                                    <button id="btnConfirmCrewJoin" class="event-action-btn is-approve" type="button">加入する</button>
+                                    <button id="btnCancelCrewJoin" class="event-action-btn is-reject" type="button">拒否</button>
+                                </div>
                             </div>
                         </section>
                         <section id="crewRecruitmentManagePanel" class="event-create-panel" hidden>
