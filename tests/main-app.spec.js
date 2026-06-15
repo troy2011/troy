@@ -2523,6 +2523,7 @@ test('companion tab hides internal PlayFab IDs from member and application cards
   await expect(page.locator('#crewMembersList')).toContainText('剣士');
   await expect(page.locator('#crewApplicationsList')).toContainText('流浪の医師');
   await expect(page.locator('#crewApplicationsList')).toContainText('医師');
+  await expect(page.locator('#tabContentEvents .crew-system-help summary')).toHaveText('海賊団システム');
   await expect(page.locator('#crewInviteRoleSelect')).toHaveValue('doctor');
   await expect(page.locator('#crewInviteValue')).toContainText('guild:GUILD_OWNER:role:doctor');
   await expect(page.locator('#tabContentEvents')).not.toContainText('ID PLAYER_MEMBER_1');

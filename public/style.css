@@ -14547,6 +14547,38 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     display: grid;
     gap: 10px;
 }
+.crew-system-help {
+    margin: 10px 0 14px;
+    padding: 10px 12px;
+    border: 12px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 12px / 0 stretch;
+    background:
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.08), transparent 58%),
+        linear-gradient(180deg, rgba(8, 12, 18, 0.88), rgba(2, 5, 9, 0.96));
+    color: #f7e8c1;
+    box-shadow: inset 0 1px 0 rgba(255, 239, 192, 0.08);
+}
+.crew-system-help summary {
+    cursor: pointer;
+    color: #fff1c2;
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1.2;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
+}
+.crew-system-help-body {
+    display: grid;
+    gap: 6px;
+    margin-top: 10px;
+}
+.crew-system-help-body p {
+    margin: 0;
+    color: #d7c7a4;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.55;
+}
 .crew-warehouse-actions {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
