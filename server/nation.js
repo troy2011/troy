@@ -173,8 +173,8 @@ function isValidTroyCoinReturnQrToken(value) {
 function getPlayerRankNameByLevel(level, options = {}) {
     if (options.isKing) return '王';
     const value = Math.max(1, Math.floor(Number(level) || 1));
-    if (value >= 41) return '海賊王';
-    if (value >= 31) return '提督';
+    if (value >= 51) return '海賊王';
+    if (value >= 41) return '提督';
     if (value >= 21) return '船長';
     if (value >= 11) return '航海士';
     return '見習い';
@@ -182,8 +182,8 @@ function getPlayerRankNameByLevel(level, options = {}) {
 
 function getPlayerRankServiceBenefitsByLevel(level) {
     const value = Math.max(1, Math.floor(Number(level) || 1));
-    if (value >= 41) return ['ドリンクサイズアップ回数制限なし', '店内ゲーム遊び放題'];
-    if (value >= 31) return ['ドリンクサイズアップ回数制限なし'];
+    if (value >= 51) return ['ドリンクサイズアップ回数制限なし', '店内ゲーム遊び放題'];
+    if (value >= 41) return ['ドリンクサイズアップ回数制限なし'];
     if (value >= 21) return ['ドリンクサイズアップ1回', '専用ジョッキ（店内専用）'];
     if (value >= 11) return ['ドリンクサイズアップ1回', '入店時に階級表示'];
     return ['通常サービス', '入店表示のみ'];

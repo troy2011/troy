@@ -8,7 +8,7 @@ const { getUnlockedFeaturesBetween } = require('./featureUnlocks');
 
 const PLAYER_LEVEL_STAT = 'Level';
 const BASE_CONTRIBUTION_PER_LEVEL = 1500;
-const PIRATE_KING_LEVEL = 41;
+const PIRATE_KING_LEVEL = 51;
 
 function normalizeContribution(value) {
     return Math.max(0, Math.floor(Number(value) || 0));

@@ -1571,7 +1571,7 @@ async function initializeAppFeatures() {
         window.myAvatarBaseInfo = {
             ...window.myAvatarBaseInfo,
             level,
-            ...(level >= 41 ? { Nation: 'neutral', AvatarColor: 'black' } : {})
+            ...(level >= 51 ? { Nation: 'neutral', AvatarColor: 'black' } : {})
         };
         myAvatarBaseInfo = window.myAvatarBaseInfo;
         renderAvatarStylePanel();
@@ -1912,7 +1912,7 @@ async function updateAvatarBaseInfo() {
             }
             const readAvatarStyleValue = (key) => ensuredAvatarStyle[key] ?? result.Data[key]?.Value;
             const currentLevel = getCurrentPlayerLevel();
-            const isPirateKing = currentLevel >= 41;
+            const isPirateKing = currentLevel >= 51;
             const nation = isPirateKing ? 'neutral' : (result.Data.Nation?.Value || '').toLowerCase();
             const nationChangedAt = String(result.Data.NationChangedAt?.Value || '');
             const nationColor = getAvatarColorForNation(nation);

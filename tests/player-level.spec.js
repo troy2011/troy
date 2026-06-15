@@ -1,5 +1,9 @@
 const { test, expect } = require('@playwright/test');
-const { syncPirateKingNationStatus } = require('../server/playerLevel');
+const {
+  calculateLevelFromContribution,
+  PIRATE_KING_LEVEL,
+  syncPirateKingNationStatus
+} = require('../server/playerLevel');
 
 const getUserReadOnlyDataApi = function getUserReadOnlyDataApi() {};
 const updateUserReadOnlyDataApi = function updateUserReadOnlyDataApi() {};
@@ -32,7 +36,7 @@ function makeDeps(readOnlyData = {}) {
 test('pirate king sync makes non-king players neutral black', async () => {
   const { deps, updates } = makeDeps({ IsKing: 'false', Nation: 'fire', AvatarColor: 'red' });
 
-  const result = await syncPirateKingNationStatus('PLAYER1', deps, 41);
+  const result = await syncPirateKingNationStatus('PLAYER1', deps, PIRATE_KING_LEVEL);
 
   expect(result).toMatchObject({ updated: true, nation: 'neutral', avatarColor: 'black' });
   expect(updates).toHaveLength(1);
@@ -45,11 +49,26 @@ test('pirate king sync makes non-king players neutral black', async () => {
   });
 });
 
+test('pirate king sync does not run before level 51', async () => {
+  const { deps, updates } = makeDeps({ IsKing: 'false', Nation: 'fire', AvatarColor: 'red' });
+
+  const result = await syncPirateKingNationStatus('PLAYER1', deps, PIRATE_KING_LEVEL - 1);
+
+  expect(result).toMatchObject({ updated: false, reason: 'NotPirateKing' });
+  expect(updates).toHaveLength(0);
+});
+
 test('pirate king sync keeps nation kings in their nation', async () => {
   const { deps, updates } = makeDeps({ IsKing: 'true', Nation: 'fire', AvatarColor: 'red' });
 
-  const result = await syncPirateKingNationStatus('KING1', deps, 41);
+  const result = await syncPirateKingNationStatus('KING1', deps, PIRATE_KING_LEVEL);
 
   expect(result).toMatchObject({ updated: false, reason: 'NationKing' });
   expect(updates).toHaveLength(0);
+});
+
+test('player contribution totals reach admiral at level 41 and pirate king at level 51', () => {
+  expect(calculateLevelFromContribution(247500).level).toBe(41);
+  expect(calculateLevelFromContribution(511500).level).toBe(51);
+  expect(PIRATE_KING_LEVEL).toBe(51);
 });

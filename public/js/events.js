@@ -91,8 +91,8 @@ function getNationGuildName() {
 function getRankName(level, isKing = false) {
     if (isKing) return '王';
     const value = Math.max(1, Math.floor(Number(level) || 1));
-    if (value >= 41) return '海賊王';
-    if (value >= 31) return '提督';
+    if (value >= 51) return '海賊王';
+    if (value >= 41) return '提督';
     if (value >= 21) return '船長';
     if (value >= 11) return '航海士';
     return '見習い';

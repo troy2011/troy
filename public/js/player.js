@@ -56,8 +56,8 @@ export function getMyCrewRankInfo() {
 
 function getPlayerRankName(level) {
     const value = Math.max(1, Math.floor(Number(level) || 1));
-    if (value >= 41) return '海賊王';
-    if (value >= 31) return '提督';
+    if (value >= 51) return '海賊王';
+    if (value >= 41) return '提督';
     if (value >= 21) return '船長';
     if (value >= 11) return '航海士';
     return '見習い';
@@ -73,13 +73,13 @@ function getPlayerRankBenefitItems(level) {
         label: 'サイズUP無制限',
         title: '入店中、対象ドリンクを何杯でもサイズアップできます'
     };
-    if (value >= 41) {
+    if (value >= 51) {
         return [
             sizeUpUnlimited,
             { label: '店内ゲーム遊び放題', title: '入店中、対象の店内ゲームを自由に遊べます' }
         ];
     }
-    if (value >= 31) return [sizeUpUnlimited];
+    if (value >= 41) return [sizeUpUnlimited];
     if (value >= 21) {
         return [
             sizeUpOnce,

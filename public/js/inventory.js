@@ -1499,8 +1499,8 @@ function normalizeExperienceProgress(progress, expValue) {
 
 function getRankName(level, isKing) {
     if (isKing) return '王';
-    if (level >= 41) return '海賊王';
-    if (level >= 31) return '提督';
+    if (level >= 51) return '海賊王';
+    if (level >= 41) return '提督';
     if (level >= 21) return '船長';
     if (level >= 11) return '航海士';
     return '見習い';
@@ -1508,8 +1508,8 @@ function getRankName(level, isKing) {
 
 function getRankTier(level, isKing) {
     if (isKing) return 'king';
-    if (level >= 41) return 'pirate-king';
-    if (level >= 31) return 'admiral';
+    if (level >= 51) return 'pirate-king';
+    if (level >= 41) return 'admiral';
     if (level >= 21) return 'captain';
     if (level >= 11) return 'navigator';
     return 'apprentice';

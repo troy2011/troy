@@ -313,7 +313,7 @@ test('ranking tab shows bounty billiards and game as top category buttons', asyn
         { displayName: '玉突き名人', score: 800, scoreScale: 1, level: 12, rankName: '航海士', playFabId: 'PF_BILLIARDS' }
       ],
       game: [
-        { displayName: '遊技王', score: 42, scoreScale: 1, level: 31, rankName: '提督', playFabId: 'PF_GAME' }
+        { displayName: '遊技王', score: 42, scoreScale: 1, level: 41, rankName: '提督', playFabId: 'PF_GAME' }
       ]
     };
     await route.fulfill({

@@ -461,7 +461,7 @@ function initializeInventoryRoutes(app, deps) {
 
     function buildAvatarBaseFromReadOnly(readOnlyData = {}, stats = {}) {
         const level = Math.max(1, Number(stats?.Level || stats?.level || 1) || 1);
-        const isPirateKing = level >= 41 && !resolveIsKingFlag(readOnlyData);
+        const isPirateKing = level >= PIRATE_KING_LEVEL && !resolveIsKingFlag(readOnlyData);
         const nation = isPirateKing ? 'neutral' : String(readOnlyData?.Nation?.Value || '').trim().toLowerCase();
         const avatarColor = getAvatarColorForNation(nation)
             || String(readOnlyData?.AvatarColor?.Value || '').trim()
