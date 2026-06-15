@@ -2014,7 +2014,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
     // ----------------------------------------------------
     app.post('/api/donate-to-guild-warehouse', async (req, res) => {
         const { playFabId, guildId, itemInstanceId, itemId } = req.body;
-        if (!playFabId || !guildId || !itemInstanceId || !itemId) {
+        if (!playFabId || !guildId || !itemId) {
             return res.status(400).json({ error: '必要な情報が不足しています。' });
         }
         const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
@@ -2034,6 +2034,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             const donatedItem = {
                 itemId: itemId,
                 donatedBy: playFabId,
+                itemInstanceId: itemInstanceId || '',
                 donatedAt: new Date().toISOString()
             };
 
@@ -2051,13 +2052,120 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             res.json({
                 success: true,
                 message: 'アイテムをギルド倉庫に寄付しました。',
-                guildExp: guildData.exp
+                guildExp: guildData.exp,
+                warehouse: guildData.warehouse,
+                treasury: guildData.treasury || 0
             });
 
         } catch (error) {
             if (handleGuildAccessError(res, error)) return;
             console.error('[ギルド倉庫寄付エラー]', error.errorMessage || error.message);
             res.status(500).json({ error: 'アイテムの寄付に失敗しました。', details: error.errorMessage || error.message });
+        }
+    });
+
+    // ----------------------------------------------------
+    // API: ギルド共有資金に入金
+    // ----------------------------------------------------
+    app.post('/api/deposit-guild-currency', async (req, res) => {
+        const { playFabId, guildId } = req.body;
+        const amount = Math.max(0, Math.floor(Number(req.body?.amount) || 0));
+        if (!playFabId || !guildId || amount <= 0) {
+            return res.status(400).json({ error: 'IDまたは入金額がありません。' });
+        }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+
+        let debited = false;
+        try {
+            await assertGuildMembership(requesterPlayFabId, guildId);
+            const balance = await economy.getCurrencyBalance(requesterPlayFabId, 'PS', economyDeps).catch(() => null);
+            if (Number.isFinite(balance) && balance < amount) {
+                return res.status(402).json({ error: '所持Gが不足しています。', balance, required: amount });
+            }
+            await economy.subtractEconomyItem(requesterPlayFabId, 'PS', amount, economyDeps);
+            debited = true;
+            const guildData = await getGuildData(guildId, promisifyPlayFab);
+            guildData.treasury = Math.max(0, Math.floor(Number(guildData.treasury || 0) || 0)) + amount;
+            guildData.treasuryLedger = Array.isArray(guildData.treasuryLedger) ? guildData.treasuryLedger : [];
+            guildData.treasuryLedger.push({
+                type: 'deposit',
+                playFabId: normalizePlayFabId(requesterPlayFabId),
+                amount,
+                createdAt: new Date().toISOString()
+            });
+            guildData.treasuryLedger = guildData.treasuryLedger.slice(-100);
+            await saveGuildData(guildId, guildData, promisifyPlayFab);
+
+            res.json({
+                success: true,
+                treasury: guildData.treasury,
+                warehouse: guildData.warehouse || [],
+                playerBalance: Number.isFinite(balance) ? Math.max(0, balance - amount) : undefined
+            });
+        } catch (error) {
+            if (debited) {
+                await economy.addEconomyItem(requesterPlayFabId, 'PS', amount, economyDeps).catch((refundError) => {
+                    console.warn('[ギルド共有資金入金] 返金に失敗しました:', refundError?.errorMessage || refundError?.message || refundError);
+                });
+            }
+            if (handleGuildAccessError(res, error)) return;
+            console.error('[ギルド共有資金入金エラー]', error.errorMessage || error.message);
+            res.status(500).json({ error: '共有資金への入金に失敗しました。', details: error.errorMessage || error.message });
+        }
+    });
+
+    // ----------------------------------------------------
+    // API: ギルド共有資金から出金
+    // ----------------------------------------------------
+    app.post('/api/withdraw-guild-currency', async (req, res) => {
+        const { playFabId, guildId } = req.body;
+        const amount = Math.max(0, Math.floor(Number(req.body?.amount) || 0));
+        if (!playFabId || !guildId || amount <= 0) {
+            return res.status(400).json({ error: 'IDまたは出金額がありません。' });
+        }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+
+        let savedGuildData = null;
+        try {
+            await assertGuildMembership(requesterPlayFabId, guildId);
+            const guildData = await getGuildData(guildId, promisifyPlayFab);
+            const treasury = Math.max(0, Math.floor(Number(guildData.treasury || 0) || 0));
+            if (treasury < amount) {
+                return res.status(400).json({ error: '共有資金が不足しています。', treasury, required: amount });
+            }
+            guildData.treasury = treasury - amount;
+            guildData.treasuryLedger = Array.isArray(guildData.treasuryLedger) ? guildData.treasuryLedger : [];
+            guildData.treasuryLedger.push({
+                type: 'withdraw',
+                playFabId: normalizePlayFabId(requesterPlayFabId),
+                amount,
+                createdAt: new Date().toISOString()
+            });
+            guildData.treasuryLedger = guildData.treasuryLedger.slice(-100);
+            await saveGuildData(guildId, guildData, promisifyPlayFab);
+            savedGuildData = guildData;
+            await economy.addEconomyItem(requesterPlayFabId, 'PS', amount, economyDeps);
+
+            res.json({
+                success: true,
+                treasury: guildData.treasury,
+                warehouse: guildData.warehouse || []
+            });
+        } catch (error) {
+            if (savedGuildData) {
+                savedGuildData.treasury = Math.max(0, Math.floor(Number(savedGuildData.treasury || 0) || 0)) + amount;
+                savedGuildData.treasuryLedger = Array.isArray(savedGuildData.treasuryLedger)
+                    ? savedGuildData.treasuryLedger.filter((entry) => !(entry?.type === 'withdraw' && entry?.amount === amount && normalizePlayFabId(entry?.playFabId) === normalizePlayFabId(requesterPlayFabId))).slice(-100)
+                    : [];
+                await saveGuildData(guildId, savedGuildData, promisifyPlayFab).catch((restoreError) => {
+                    console.warn('[ギルド共有資金出金] 共有資金の復元に失敗しました:', restoreError?.errorMessage || restoreError?.message || restoreError);
+                });
+            }
+            if (handleGuildAccessError(res, error)) return;
+            console.error('[ギルド共有資金出金エラー]', error.errorMessage || error.message);
+            res.status(500).json({ error: '共有資金の出金に失敗しました。', details: error.errorMessage || error.message });
         }
     });
 
@@ -2098,7 +2206,9 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
 
             res.json({
                 success: true,
-                message: 'アイテムをギルド倉庫から引き出しました。'
+                message: 'アイテムをギルド倉庫から引き出しました。',
+                warehouse: guildData.warehouse,
+                treasury: guildData.treasury || 0
             });
 
         } catch (error) {

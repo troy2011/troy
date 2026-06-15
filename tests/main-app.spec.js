@@ -2630,6 +2630,149 @@ test('companion invite scan shows role confirmation before joining', async ({ pa
   await expectNoPageErrors(errors);
 });
 
+test('companion member can use shared warehouse currency and items', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  let treasury = 1200;
+  let warehouse = [
+    { itemId: 'shared_potion', donatedBy: 'CAPTAIN', donatedAt: '2026-06-15T12:00:00.000Z' }
+  ];
+  let depositCurrencyRequest = null;
+  let withdrawCurrencyRequest = null;
+  let donateItemRequest = null;
+  let withdrawItemRequest = null;
+
+  await page.route('**/api/get-stats', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        stats: { Level: 24 },
+        isKing: false,
+        nation: 'water'
+      })
+    });
+  });
+  await page.route('**/api/crew-recruitment/list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ posts: [] })
+    });
+  });
+  await page.route('**/api/get-guild-members', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ members: [] })
+    });
+  });
+  await page.route('**/api/get-guild-warehouse', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ treasury, warehouse })
+    });
+  });
+  await page.route('**/api/get-inventory', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        inventory: [
+          { itemId: 'my_potion', name: '回復薬', count: 2, instances: ['STACK_MY_POTION'], customData: { Category: 'Consumable' } }
+        ],
+        virtualCurrency: { PS: 5000 }
+      })
+    });
+  });
+  await page.route('**/api/deposit-guild-currency', async (route) => {
+    depositCurrencyRequest = route.request().postDataJSON();
+    treasury += depositCurrencyRequest.amount;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ success: true, treasury, warehouse })
+    });
+  });
+  await page.route('**/api/withdraw-guild-currency', async (route) => {
+    withdrawCurrencyRequest = route.request().postDataJSON();
+    treasury -= withdrawCurrencyRequest.amount;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ success: true, treasury, warehouse })
+    });
+  });
+  await page.route('**/api/donate-to-guild-warehouse', async (route) => {
+    donateItemRequest = route.request().postDataJSON();
+    warehouse.push({ itemId: donateItemRequest.itemId, donatedBy: donateItemRequest.playFabId, donatedAt: '2026-06-16T12:00:00.000Z' });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ success: true, treasury, warehouse })
+    });
+  });
+  await page.route('**/api/withdraw-from-guild-warehouse', async (route) => {
+    withdrawItemRequest = route.request().postDataJSON();
+    warehouse.splice(withdrawItemRequest.warehouseIndex, 1);
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ success: true, treasury, warehouse })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.unroute('**/api/get-guild-info');
+  await page.route('**/api/get-guild-info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        guild: {
+          guildId: 'GUILD_SHARED',
+          name: '共有海賊団',
+          role: 'メンバー',
+          isOwner: false,
+          guildType: 'pirate',
+          companionCount: 2,
+          maxCompanions: 7,
+          memberCount: 3,
+          maxMembers: 8,
+          level: 1,
+          treasury
+        }
+      })
+    });
+  });
+  await page.evaluate(async () => {
+    await window.showTab('events', { playFabId: 'PF_PLAYWRIGHT', race: 'goblin', nation: 'water' });
+  });
+
+  await expect(page.locator('#crewWarehousePanel')).toBeVisible();
+  await expect(page.locator('#crewWarehouseSummary')).toContainText('資金 1,200G / アイテム 1');
+  await expect(page.locator('#crewDepositItemSelect')).toContainText('回復薬 x2');
+
+  await page.locator('#crewDepositCurrencyInput').fill('300');
+  await page.locator('#btnDepositGuildCurrency').click();
+  await expect.poll(() => depositCurrencyRequest?.amount).toBe(300);
+  await expect(page.locator('#crewWarehouseSummary')).toContainText('資金 1,500G');
+
+  await page.locator('#crewWithdrawCurrencyInput').fill('200');
+  await page.locator('#btnWithdrawGuildCurrency').click();
+  await expect.poll(() => withdrawCurrencyRequest?.amount).toBe(200);
+  await expect(page.locator('#crewWarehouseSummary')).toContainText('資金 1,300G');
+
+  await page.locator('#btnDepositGuildItem').click();
+  await expect.poll(() => donateItemRequest?.itemId).toBe('my_potion');
+  await expect(page.locator('#crewWarehouseSummary')).toContainText('アイテム 2');
+
+  await page.locator('#crewWarehouseList .js-withdraw-guild-item').first().click();
+  await expect.poll(() => withdrawItemRequest?.warehouseIndex).toBe(0);
+  await expect(page.locator('#crewWarehouseSummary')).toContainText('アイテム 1');
+  await expectNoPageErrors(errors);
+});
+
 test('current equipment slots render equipped item sprites on the right edge', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.route('**/api/get-player-public-profile', async (route) => {

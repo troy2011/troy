@@ -14547,6 +14547,34 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     display: grid;
     gap: 10px;
 }
+.crew-warehouse-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: end;
+    margin-top: 12px;
+}
+.crew-warehouse-actions.is-item {
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+.crew-warehouse-actions label {
+    display: grid;
+    gap: 5px;
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 800;
+}
+.crew-warehouse-actions input,
+.crew-warehouse-actions select {
+    min-height: 36px;
+    width: 100%;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 7px;
+    background: #111827;
+    color: #f8fafc;
+    padding: 7px 9px;
+    font-size: 13px;
+}
 
 @media (max-width: 720px) {
     .event-page {
@@ -14567,6 +14595,10 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     .event-card-head {
         flex-direction: column;
         gap: 8px;
+    }
+    .crew-warehouse-actions,
+    .crew-warehouse-actions.is-item {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -22445,6 +22477,8 @@ body[data-sea-tone] .home-hero-card {
 
 #tabContentEvents .crew-invite-value,
 #tabContentEvents .crew-invite-panel select,
+#tabContentEvents .crew-warehouse-actions input,
+#tabContentEvents .crew-warehouse-actions select,
 #tabContentEvents .crew-recruitment-role-select,
 #tabContentEvents .crew-application-role-row select {
     border: 10px solid transparent;

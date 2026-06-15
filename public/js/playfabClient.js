@@ -242,8 +242,20 @@ export function getGuildWarehouse(playFabId, guildId, options) {
     return callApiWithLoader('/api/get-guild-warehouse', { playFabId, guildId }, options);
 }
 
+export function donateToGuildWarehouse(playFabId, guildId, itemId, itemInstanceId, options) {
+    return callApiWithLoader('/api/donate-to-guild-warehouse', { playFabId, guildId, itemId, itemInstanceId }, options);
+}
+
 export function withdrawFromGuildWarehouse(playFabId, guildId, warehouseIndex, options) {
     return callApiWithLoader('/api/withdraw-from-guild-warehouse', { playFabId, guildId, warehouseIndex }, options);
+}
+
+export function depositGuildCurrency(playFabId, guildId, amount, options) {
+    return callApiWithLoader('/api/deposit-guild-currency', { playFabId, guildId, amount }, options);
+}
+
+export function withdrawGuildCurrency(playFabId, guildId, amount, options) {
+    return callApiWithLoader('/api/withdraw-guild-currency', { playFabId, guildId, amount }, options);
 }
 
 export function getGuildApplications(playFabId, guildId, options) {

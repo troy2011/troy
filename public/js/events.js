@@ -9,6 +9,12 @@ import {
     getGuildApplications,
     approveGuildApplication,
     rejectGuildApplication,
+    getInventory as fetchPlayerInventory,
+    getGuildWarehouse,
+    donateToGuildWarehouse,
+    withdrawFromGuildWarehouse,
+    depositGuildCurrency as requestDepositGuildCurrency,
+    withdrawGuildCurrency as requestWithdrawGuildCurrency,
     getCrewRecruitmentBoard,
     saveCrewRecruitment,
     applyCrewRecruitment
@@ -37,6 +43,9 @@ let currentApplications = [];
 let selectedRecruitmentRoleIds = new Set();
 let selectedInviteRoleId = '';
 let pendingCrewInvite = null;
+let currentWarehouseItems = [];
+let currentWarehouseTreasury = 0;
+let currentDepositInventory = [];
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -269,6 +278,104 @@ function formatDateTime(value) {
         hour: '2-digit',
         minute: '2-digit'
     });
+}
+
+function normalizePositiveAmount(value) {
+    return Math.max(0, Math.floor(Number(value) || 0));
+}
+
+function getInventoryItemLabel(item) {
+    return String(item?.name || item?.customData?.DisplayName || item?.customData?.Title || item?.itemId || '').trim();
+}
+
+function getWarehouseItemLabel(item) {
+    return String(item?.name || item?.itemName || item?.displayName || item?.itemId || '').trim() || 'アイテム';
+}
+
+function normalizeWarehousePayload(data = {}) {
+    currentWarehouseItems = Array.isArray(data?.warehouse) ? data.warehouse : [];
+    currentWarehouseTreasury = Math.max(0, Math.floor(Number(data?.treasury || 0) || 0));
+    if (currentGuild) currentGuild.treasury = currentWarehouseTreasury;
+}
+
+function renderWarehousePanel(guild) {
+    const panel = document.getElementById('crewWarehousePanel');
+    const summary = document.getElementById('crewWarehouseSummary');
+    const treasuryEl = document.getElementById('crewWarehouseTreasury');
+    const list = document.getElementById('crewWarehouseList');
+    const empty = document.getElementById('crewWarehouseEmpty');
+    const depositSelect = document.getElementById('crewDepositItemSelect');
+    if (panel) panel.hidden = !guild?.guildId;
+    if (!guild?.guildId) return;
+
+    if (summary) {
+        summary.textContent = `資金 ${currentWarehouseTreasury.toLocaleString('ja-JP')}G / アイテム ${currentWarehouseItems.length}`;
+    }
+    if (treasuryEl) {
+        treasuryEl.textContent = currentWarehouseTreasury.toLocaleString('ja-JP');
+    }
+
+    if (depositSelect) {
+        const items = Array.isArray(currentDepositInventory) ? currentDepositInventory : [];
+        const options = items
+            .filter((item) => String(item?.itemId || '').trim() && Number(item?.count || 0) > 0)
+            .map((item) => {
+                const itemId = String(item.itemId || '').trim();
+                const count = Math.max(1, Math.floor(Number(item.count || 1) || 1));
+                const instanceId = Array.isArray(item.instances) && item.instances[0] ? String(item.instances[0]) : '';
+                const label = `${getInventoryItemLabel(item)} x${count}`;
+                return `<option value="${escapeHtml(itemId)}" data-instance-id="${escapeHtml(instanceId)}">${escapeHtml(label)}</option>`;
+            });
+        depositSelect.innerHTML = options.length
+            ? options.join('')
+            : '<option value="">預けられる持ち物がありません</option>';
+        depositSelect.disabled = options.length === 0;
+    }
+
+    if (!list || !empty) return;
+    list.innerHTML = '';
+    empty.hidden = currentWarehouseItems.length > 0;
+    currentWarehouseItems.forEach((item, index) => {
+        const card = document.createElement('article');
+        card.className = 'event-card crew-warehouse-item-card';
+        card.innerHTML = `
+            <div class="event-card-head">
+                <div>
+                    <div class="event-card-type">共有アイテム</div>
+                    <h3>${escapeHtml(getWarehouseItemLabel(item))}</h3>
+                </div>
+                <span class="event-status">倉庫</span>
+            </div>
+            <div class="event-card-meta">
+                <span>${escapeHtml(String(item?.itemId || ''))}</span>
+                ${item?.donatedAt ? `<span>${escapeHtml(formatDateTime(item.donatedAt))}</span>` : ''}
+            </div>
+            <div class="event-card-actions">
+                <button class="event-action-btn is-join js-withdraw-guild-item" type="button" data-warehouse-index="${index}">引き出す</button>
+            </div>
+        `;
+        list.appendChild(card);
+    });
+}
+
+async function refreshWarehouse(playFabId, options = {}) {
+    if (!currentGuild?.guildId) {
+        normalizeWarehousePayload({ warehouse: [], treasury: 0 });
+        currentDepositInventory = [];
+        renderWarehousePanel(null);
+        return null;
+    }
+    const shouldLoadInventory = options.withInventory !== false;
+    const [warehouseData, inventoryData] = await Promise.all([
+        getGuildWarehouse(playFabId, currentGuild.guildId, { isSilent: true }).catch(() => null),
+        shouldLoadInventory
+            ? fetchPlayerInventory(playFabId, { isSilent: true }).catch(() => null)
+            : Promise.resolve(null)
+    ]);
+    if (warehouseData) normalizeWarehousePayload(warehouseData);
+    if (Array.isArray(inventoryData?.inventory)) currentDepositInventory = inventoryData.inventory;
+    renderWarehousePanel(currentGuild);
+    return warehouseData;
 }
 
 function getAvailableRoleMap(availableRoles = []) {
@@ -740,10 +847,20 @@ async function loadCompanionPage(playFabId) {
     currentRecruitmentPosts = Array.isArray(boardData?.posts) ? boardData.posts : [];
 
     let members = [];
+    let warehouseData = null;
+    let inventoryData = null;
     if (currentGuild?.guildId) {
-        const memberData = await requestGuildMembers(playFabId, currentGuild.guildId, { isSilent: true }).catch(() => null);
+        const [memberData, fetchedWarehouse, fetchedInventory] = await Promise.all([
+            requestGuildMembers(playFabId, currentGuild.guildId, { isSilent: true }).catch(() => null),
+            getGuildWarehouse(playFabId, currentGuild.guildId, { isSilent: true }).catch(() => null),
+            fetchPlayerInventory(playFabId, { isSilent: true }).catch(() => null)
+        ]);
         members = Array.isArray(memberData?.members) ? memberData.members : [];
+        warehouseData = fetchedWarehouse;
+        inventoryData = fetchedInventory;
     }
+    normalizeWarehousePayload(warehouseData || { warehouse: [], treasury: currentGuild?.treasury || 0 });
+    currentDepositInventory = Array.isArray(inventoryData?.inventory) ? inventoryData.inventory : [];
     currentApplications = [];
     if (currentGuild?.guildId && (currentGuild.isOwner || currentGuild.role === '船長')) {
         const applicationsData = await getGuildApplications(playFabId, currentGuild.guildId, { isSilent: true }).catch(() => null);
@@ -754,6 +871,7 @@ async function loadCompanionPage(playFabId) {
     renderOverview(currentGuild);
     renderMembers(members);
     renderInvitePanel(currentGuild);
+    renderWarehousePanel(currentGuild);
     renderRecruitmentManager(currentGuild);
     renderApplications(currentApplications, currentGuild);
     renderRecruitmentBoard(currentRecruitmentPosts, currentGuild);
@@ -877,6 +995,89 @@ async function leaveCrew(playFabId) {
     }
 }
 
+async function depositGuildCurrency(playFabId) {
+    if (!currentGuild?.guildId) return;
+    const input = document.getElementById('crewDepositCurrencyInput');
+    const amount = normalizePositiveAmount(input?.value);
+    if (!amount) {
+        setMessage('入金するGを入力してください。', true);
+        return;
+    }
+    try {
+        const data = await requestDepositGuildCurrency(playFabId, currentGuild.guildId, amount, { throwOnError: true });
+        if (data?.success) {
+            if (input) input.value = '';
+            normalizeWarehousePayload(data);
+            await refreshWarehouse(playFabId);
+            setMessage(`${amount.toLocaleString('ja-JP')}Gを共有資金に入金しました。`);
+        }
+    } catch (error) {
+        setMessage(error?.message || error?.error || '共有資金への入金に失敗しました。', true);
+    }
+}
+
+async function withdrawGuildCurrency(playFabId) {
+    if (!currentGuild?.guildId) return;
+    const input = document.getElementById('crewWithdrawCurrencyInput');
+    const amount = normalizePositiveAmount(input?.value);
+    if (!amount) {
+        setMessage('出金するGを入力してください。', true);
+        return;
+    }
+    try {
+        const data = await requestWithdrawGuildCurrency(playFabId, currentGuild.guildId, amount, { throwOnError: true });
+        if (data?.success) {
+            if (input) input.value = '';
+            normalizeWarehousePayload(data);
+            await refreshWarehouse(playFabId);
+            setMessage(`共有資金から${amount.toLocaleString('ja-JP')}Gを引き出しました。`);
+        }
+    } catch (error) {
+        setMessage(error?.message || error?.error || '共有資金の出金に失敗しました。', true);
+    }
+}
+
+async function depositGuildItem(playFabId) {
+    if (!currentGuild?.guildId) return;
+    const select = document.getElementById('crewDepositItemSelect');
+    const itemId = String(select?.value || '').trim();
+    if (!itemId) {
+        setMessage('預ける持ち物を選んでください。', true);
+        return;
+    }
+    const option = select?.selectedOptions?.[0] || null;
+    const itemInstanceId = String(option?.dataset?.instanceId || '').trim();
+    const itemName = option?.textContent?.replace(/\s+x\d+$/u, '').trim() || itemId;
+    try {
+        const data = await donateToGuildWarehouse(playFabId, currentGuild.guildId, itemId, itemInstanceId, { throwOnError: true });
+        if (data?.success) {
+            await refreshWarehouse(playFabId);
+            setMessage(`${itemName}を共有倉庫に預けました。`);
+        }
+    } catch (error) {
+        setMessage(error?.message || error?.error || '共有倉庫への預け入れに失敗しました。', true);
+    }
+}
+
+async function withdrawGuildItem(playFabId, button) {
+    if (!currentGuild?.guildId) return;
+    const warehouseIndex = Number(button?.dataset?.warehouseIndex);
+    if (!Number.isInteger(warehouseIndex) || warehouseIndex < 0) {
+        setMessage('引き出すアイテムを選んでください。', true);
+        return;
+    }
+    const itemName = getWarehouseItemLabel(currentWarehouseItems[warehouseIndex]);
+    try {
+        const data = await withdrawFromGuildWarehouse(playFabId, currentGuild.guildId, warehouseIndex, { throwOnError: true });
+        if (data?.success) {
+            await refreshWarehouse(playFabId);
+            setMessage(`${itemName}を共有倉庫から引き出しました。`);
+        }
+    } catch (error) {
+        setMessage(error?.message || error?.error || '共有倉庫からの引き出しに失敗しました。', true);
+    }
+}
+
 async function saveRecruitment(playFabId, isOpen = true) {
     if (!currentGuild?.guildId) return;
     const roleIds = Array.from(selectedRecruitmentRoleIds);
@@ -972,6 +1173,18 @@ function bindEvents(playFabId) {
     document.getElementById('btnConfirmCrewJoin')?.addEventListener('click', () => confirmCrewJoin(window.myPlayFabId || playFabId));
     document.getElementById('btnCancelCrewJoin')?.addEventListener('click', cancelCrewJoin);
     document.getElementById('btnLeaveCrew')?.addEventListener('click', () => leaveCrew(window.myPlayFabId || playFabId));
+    document.getElementById('btnRefreshCrewWarehouse')?.addEventListener('click', async () => {
+        await refreshWarehouse(window.myPlayFabId || playFabId);
+        setMessage('共有倉庫を更新しました。');
+    });
+    document.getElementById('btnDepositGuildCurrency')?.addEventListener('click', () => depositGuildCurrency(window.myPlayFabId || playFabId));
+    document.getElementById('btnWithdrawGuildCurrency')?.addEventListener('click', () => withdrawGuildCurrency(window.myPlayFabId || playFabId));
+    document.getElementById('btnDepositGuildItem')?.addEventListener('click', () => depositGuildItem(window.myPlayFabId || playFabId));
+    document.getElementById('crewWarehouseList')?.addEventListener('click', (event) => {
+        const button = event.target?.closest?.('.js-withdraw-guild-item');
+        if (!button) return;
+        withdrawGuildItem(window.myPlayFabId || playFabId, button);
+    });
     document.getElementById('btnSaveCrewRecruitment')?.addEventListener('click', () => saveRecruitment(window.myPlayFabId || playFabId, true));
     document.getElementById('btnCloseCrewRecruitment')?.addEventListener('click', () => saveRecruitment(window.myPlayFabId || playFabId, false));
     document.getElementById('crewRecruitmentBoardList')?.addEventListener('click', (event) => {

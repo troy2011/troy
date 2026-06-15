@@ -609,6 +609,51 @@
                                 </div>
                             </div>
                         </section>
+                        <section id="crewWarehousePanel" class="event-list-panel" hidden>
+                            <div class="event-list-head">
+                                <h3>共有倉庫</h3>
+                                <span id="crewWarehouseSummary">資金 0G / アイテム 0</span>
+                            </div>
+                            <div class="event-card crew-warehouse-card">
+                                <div class="event-card-head">
+                                    <div>
+                                        <div class="event-card-type">共有資金</div>
+                                        <h3><span id="crewWarehouseTreasury">0</span>G</h3>
+                                    </div>
+                                    <span class="event-status">出し入れ自由</span>
+                                </div>
+                                <div class="crew-warehouse-actions">
+                                    <label>
+                                        入金
+                                        <input id="crewDepositCurrencyInput" type="number" inputmode="numeric" min="1" step="1" placeholder="G">
+                                    </label>
+                                    <button id="btnDepositGuildCurrency" class="event-action-btn is-approve" type="button">入金</button>
+                                    <label>
+                                        出金
+                                        <input id="crewWithdrawCurrencyInput" type="number" inputmode="numeric" min="1" step="1" placeholder="G">
+                                    </label>
+                                    <button id="btnWithdrawGuildCurrency" class="event-action-btn is-join" type="button">出金</button>
+                                </div>
+                            </div>
+                            <div class="event-card crew-warehouse-card">
+                                <div class="event-card-head">
+                                    <div>
+                                        <div class="event-card-type">共有アイテム</div>
+                                        <h3>倉庫に預ける</h3>
+                                    </div>
+                                    <button id="btnRefreshCrewWarehouse" class="event-action-btn" type="button">更新</button>
+                                </div>
+                                <div class="crew-warehouse-actions is-item">
+                                    <label class="is-wide">
+                                        自分の持ち物
+                                        <select id="crewDepositItemSelect"></select>
+                                    </label>
+                                    <button id="btnDepositGuildItem" class="event-action-btn is-approve" type="button">預ける</button>
+                                </div>
+                            </div>
+                            <div id="crewWarehouseList" class="event-list"></div>
+                            <div id="crewWarehouseEmpty" class="event-empty">共有倉庫は空です。</div>
+                        </section>
                         <section id="crewRecruitmentManagePanel" class="event-create-panel" hidden>
                             <h3>勧誘掲示板</h3>
                             <div id="crewRecruitmentManageNote" class="event-host-fee">募集する役職を選んで公開できます。</div>
