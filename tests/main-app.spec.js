@@ -840,7 +840,7 @@ test('home tab replaces HP and MP recovery controls with compact stat chips', as
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
         stats: {
-          Level: 12,
+          Level: 21,
           ちから: 7,
           みのまもり: 8,
           すばやさ: 9,
@@ -867,6 +867,25 @@ test('home tab replaces HP and MP recovery controls with compact stat chips', as
   await expect(page.locator('#btnCoinGoldConvert')).toHaveCount(0);
   await expect(page.locator('#coinConvertModal')).toHaveCount(0);
   await expect(page.locator('#tabContentHome')).not.toContainText('ゴールド管理');
+  await expect(page.locator('#homeRankBenefit .home-rank-benefit-chip')).toHaveText([
+    '1杯サイズUP',
+    '専用海賊ジョッキ'
+  ]);
+  const rankBenefitAudit = await page.locator('#homeRankBenefit').evaluate((element) => {
+    const style = window.getComputedStyle(element);
+    return {
+      whiteSpace: style.whiteSpace,
+      scrollWidth: element.scrollWidth,
+      clientWidth: element.clientWidth,
+      scrollHeight: element.scrollHeight,
+      clientHeight: element.clientHeight,
+      ariaLabel: element.getAttribute('aria-label') || ''
+    };
+  });
+  expect(rankBenefitAudit.whiteSpace).not.toBe('nowrap');
+  expect(rankBenefitAudit.scrollWidth).toBeLessThanOrEqual(rankBenefitAudit.clientWidth + 1);
+  expect(rankBenefitAudit.scrollHeight).toBeLessThanOrEqual(rankBenefitAudit.clientHeight + 1);
+  expect(rankBenefitAudit.ariaLabel).toContain('専用の海賊ジョッキ');
   const homeBackgrounds = await page.evaluate(() => {
     const homeTab = document.getElementById('tabContentHome');
     const heroCard = document.querySelector('.home-hero-card');

@@ -63,13 +63,61 @@ function getPlayerRankName(level) {
     return '見習い';
 }
 
-function getPlayerRankBenefits(level) {
+function getPlayerRankBenefitItems(level) {
     const value = Math.max(1, Math.floor(Number(level) || 1));
-    if (value >= 41) return ['ドリンクサイズアップ回数制限なし', '店内ゲーム遊び放題'];
-    if (value >= 31) return ['ドリンクサイズアップ回数制限なし'];
-    if (value >= 21) return ['ドリンクサイズアップ1回', '専用ジョッキ（店内専用）'];
-    if (value >= 11) return ['ドリンクサイズアップ1回', '入店時に階級表示'];
-    return ['通常サービス', '入店表示のみ'];
+    const sizeUpOnce = {
+        label: '1杯サイズUP',
+        title: '入店中、対象ドリンクを1杯だけ大きいサイズにできます'
+    };
+    const sizeUpUnlimited = {
+        label: 'サイズUP無制限',
+        title: '入店中、対象ドリンクを何杯でもサイズアップできます'
+    };
+    if (value >= 41) {
+        return [
+            sizeUpUnlimited,
+            { label: '店内ゲーム遊び放題', title: '入店中、対象の店内ゲームを自由に遊べます' }
+        ];
+    }
+    if (value >= 31) return [sizeUpUnlimited];
+    if (value >= 21) {
+        return [
+            sizeUpOnce,
+            { label: '専用海賊ジョッキ', title: '店内で専用の海賊ジョッキを使えます' }
+        ];
+    }
+    if (value >= 11) {
+        return [
+            sizeUpOnce,
+            { label: '階級表示', title: '入店時の表示に階級が出ます' }
+        ];
+    }
+    return [{ label: '通常サービス', title: '通常の店内サービスです' }];
+}
+
+function renderHomeRankBenefits(element, level, crewRoleLabel) {
+    if (!element) return;
+    const items = [];
+    const roleLabel = String(crewRoleLabel || '').trim();
+    if (roleLabel) {
+        items.push({
+            label: roleLabel,
+            title: `海賊団の役職: ${roleLabel}`,
+            className: 'is-role'
+        });
+    }
+    items.push(...getPlayerRankBenefitItems(level));
+
+    element.replaceChildren();
+    element.setAttribute('aria-label', items.map((item) => item.title || item.label).join('、'));
+    items.forEach((item) => {
+        const chip = document.createElement('span');
+        chip.className = `home-rank-benefit-chip ${item.className || ''}`.trim();
+        chip.textContent = item.label;
+        chip.title = item.title || item.label;
+        chip.setAttribute('aria-label', item.title || item.label);
+        element.appendChild(chip);
+    });
 }
 
 export async function getPlayerStats(playFabId) {
@@ -102,11 +150,7 @@ function updatePlayerStatsDisplay() {
     const rankBadgeEl = document.getElementById('globalRankBadge');
     if (rankBadgeEl) rankBadgeEl.innerText = rankName;
     const benefitEl = document.getElementById('homeRankBenefit');
-    if (benefitEl) {
-        benefitEl.innerText = myCrewRankInfo?.crewRoleLabel
-            ? `${myCrewRankInfo.crewRoleLabel} / ${getPlayerRankBenefits(Level).join(' / ')}`
-            : getPlayerRankBenefits(Level).join(' / ');
-    }
+    renderHomeRankBenefits(benefitEl, Level, myCrewRankInfo?.crewRoleLabel);
     if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('player:stats-updated', { detail: { stats: { ...myPlayerStats } } }));
     }
