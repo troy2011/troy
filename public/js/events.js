@@ -22,12 +22,20 @@ import {
 import { getNationLabel } from './nationLabels.js';
 import { buildPlayerTriggerHtml } from './playerProfile.js';
 import {
-    CREW_ROLE_DEFS,
     CREW_ROLE_BY_ID,
     getCrewRankDecorationClass,
     getCrewRankLevel,
     getCrewRoleLabel
 } from './crewRoles.js';
+import {
+    buildApplicationRoleOptionsHtml,
+    buildInviteRoleGuideHtml,
+    buildInviteRoleOptionsHtml,
+    buildRecruitmentRoleGuideHtml,
+    buildRoleAvailabilityMap,
+    getFirstAvailableRoleId,
+    isRoleAvailable
+} from './crewRoleUi.js';
 
 const CAPTAIN_LEVEL = 21;
 const CREW_FOUNDING_COST = 1000;
@@ -213,30 +221,15 @@ function updateCrewCreatePreview() {
     }
 }
 
-function buildRoleAvailabilityMap(availableRoles = null) {
-    return new Map(
-        Array.isArray(availableRoles)
-            ? availableRoles.map((role) => [String(role.id || '').trim(), role.available !== false])
-            : []
-    );
-}
-
-function isRoleAvailable(availability, roleId) {
-    return availability.has(roleId) ? availability.get(roleId) : true;
-}
-
 function renderInviteRoleOptions(availableRoles = null) {
     const select = document.getElementById('crewInviteRoleSelect');
     if (!select) return;
     const availability = buildRoleAvailabilityMap(availableRoles);
-    const firstAvailable = CREW_ROLE_DEFS.find((role) => isRoleAvailable(availability, role.id))?.id || '';
+    const firstAvailable = getFirstAvailableRoleId(availability);
     if (!selectedInviteRoleId || !isRoleAvailable(availability, selectedInviteRoleId)) {
         selectedInviteRoleId = firstAvailable;
     }
-    select.innerHTML = CREW_ROLE_DEFS.map((role) => {
-        const available = isRoleAvailable(availability, role.id);
-        return `<option value="${escapeHtml(role.id)}" ${available ? '' : 'disabled'}>${escapeHtml(role.label)} / ${escapeHtml(role.gameLabel)}${available ? '' : '（使用中）'}</option>`;
-    }).join('');
+    select.innerHTML = buildInviteRoleOptionsHtml(availability);
     select.value = selectedInviteRoleId;
     select.disabled = !selectedInviteRoleId;
     select.onchange = () => {
@@ -253,26 +246,7 @@ function renderInviteRoleGuide(availability = new Map()) {
     if (!guide || !select) return;
 
     const selectedRoleId = String(select.value || '').trim();
-    guide.innerHTML = CREW_ROLE_DEFS.map((role) => {
-        const available = isRoleAvailable(availability, role.id);
-        const selected = selectedRoleId === role.id;
-        const sampleRankLevel = 3;
-        return `
-            <button
-                type="button"
-                class="crew-role-card ${selected ? 'is-selected' : ''} ${available ? '' : 'is-disabled'} crew-rank-${sampleRankLevel}"
-                data-crew-role-id="${escapeHtml(role.id)}"
-                data-crew-icon="${escapeHtml(role.iconKey)}"
-                ${available ? '' : 'disabled'}
-            >
-                <span class="crew-role-icon" aria-hidden="true"></span>
-                <span class="crew-role-copy">
-                    <strong>${escapeHtml(role.label)}</strong>
-                    <span>${escapeHtml(role.gameLabel)}</span>
-                </span>
-            </button>
-        `;
-    }).join('');
+    guide.innerHTML = buildInviteRoleGuideHtml(availability, selectedRoleId);
 
     guide.querySelectorAll('[data-crew-role-id]').forEach((button) => {
         button.addEventListener('click', () => {
@@ -460,39 +434,11 @@ async function refreshWarehouse(playFabId, options = {}) {
     return warehouseData;
 }
 
-function getAvailableRoleMap(availableRoles = []) {
-    return new Map(
-        Array.isArray(availableRoles)
-            ? availableRoles.map((role) => [String(role.id || '').trim(), role.available !== false])
-            : []
-    );
-}
-
 function renderRecruitmentRoleGuide(guild) {
     const guide = document.getElementById('crewRecruitmentRoleGuide');
     if (!guide) return;
-    const availability = getAvailableRoleMap(guild?.availableRoles || []);
-    guide.innerHTML = CREW_ROLE_DEFS.map((role) => {
-        const known = availability.has(role.id);
-        const available = known ? availability.get(role.id) : true;
-        const selected = selectedRecruitmentRoleIds.has(role.id);
-        return `
-            <button
-                type="button"
-                class="crew-role-card ${selected ? 'is-selected' : ''} ${available ? '' : 'is-disabled'} crew-rank-3"
-                data-recruitment-role-id="${escapeHtml(role.id)}"
-                data-crew-icon="${escapeHtml(role.iconKey)}"
-                aria-pressed="${selected ? 'true' : 'false'}"
-                ${available ? '' : 'disabled'}
-            >
-                <span class="crew-role-icon" aria-hidden="true"></span>
-                <span class="crew-role-copy">
-                    <strong>${escapeHtml(role.label)}</strong>
-                    <span>${escapeHtml(role.gameLabel)}${available ? '' : ' / 使用中'}</span>
-                </span>
-            </button>
-        `;
-    }).join('');
+    const availability = buildRoleAvailabilityMap(guild?.availableRoles || []);
+    guide.innerHTML = buildRecruitmentRoleGuideHtml(availability, selectedRecruitmentRoleIds);
 
     guide.querySelectorAll('[data-recruitment-role-id]').forEach((button) => {
         button.addEventListener('click', () => {
@@ -545,18 +491,13 @@ function renderApplications(applications, guild) {
     list.innerHTML = '';
     empty.hidden = entries.length > 0;
     if (summary) summary.textContent = `${entries.length}件`;
-    const availability = getAvailableRoleMap(guild?.availableRoles || []);
+    const availability = buildRoleAvailabilityMap(guild?.availableRoles || []);
 
     entries.forEach((app) => {
         const playFabId = String(app.playFabId || '').trim();
         const roleId = String(app.crewRoleId || '').trim();
         const roleDef = CREW_ROLE_BY_ID[roleId] || null;
-        const availableOptions = CREW_ROLE_DEFS.map((role) => {
-            const available = availability.has(role.id) ? availability.get(role.id) : true;
-            const selected = role.id === roleId;
-            const disabled = !available && !selected;
-            return `<option value="${escapeHtml(role.id)}" ${selected ? 'selected' : ''} ${disabled ? 'disabled' : ''}>${escapeHtml(role.label)}${available || selected ? '' : '（使用中）'}</option>`;
-        }).join('');
+        const availableOptions = buildApplicationRoleOptionsHtml(availability, roleId);
         const card = document.createElement('article');
         card.className = 'event-card is-pending crew-application-card';
         if (roleDef?.iconKey) card.dataset.crewIcon = roleDef.iconKey;
