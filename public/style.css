@@ -2975,6 +2975,21 @@ body.app-booting .boot-splash {
         drop-shadow(0 0 22px rgba(220, 169, 82, 0.18));
 }
 
+@media (max-width: 768px) {
+    .boot-splash {
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .boot-splash-title {
+        width: 100vw;
+        height: 100dvh;
+        max-width: none;
+        max-height: none;
+        object-fit: cover;
+    }
+}
+
 .boot-splash-spinner {
     position: fixed;
     left: 50%;
