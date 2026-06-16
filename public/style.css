@@ -14310,6 +14310,12 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     margin: 0;
     color: #cbd5e1;
 }
+#crewCreatePreview {
+    color: #fff1c2;
+    font-size: 13px;
+    font-weight: 900;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
+}
 .event-create-btn,
 .event-refresh-btn,
 .event-action-btn {

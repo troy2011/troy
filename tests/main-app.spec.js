@@ -2379,6 +2379,7 @@ test('king can found a nation guild from companions regardless of level', async 
   await expect(page.locator('#crewOverviewList .event-card')).toContainText('国のギルドを設立できます');
   await expect(page.locator('#eventHostFeeInfo')).toContainText('王はレベルに関係なく国ギルドを設立できます。');
   await expect(page.locator('#crewCreatePreview')).toHaveText('火の国ギルド を設立します。');
+  await expect(page.locator('#crewCreatePreview')).toHaveCSS('color', 'rgb(255, 241, 194)');
   await expect(page.locator('#btnCreateCrew')).toBeEnabled();
   await expect(page.locator('#btnCreateCrew')).toHaveText('1,000Gで国ギルドを設立');
   await expect(page.locator('#crewOverviewList .event-card')).not.toContainText('Lv.21');
