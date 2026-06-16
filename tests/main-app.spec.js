@@ -2483,7 +2483,7 @@ test('companion tab hides internal PlayFab IDs from member and application cards
           {
             playFabId: 'PLAYER_MEMBER_NO_NAME',
             crewRoleId: 'cook',
-            crewRoleLabel: '料理人',
+            crewRoleLabel: 'コック',
             level: 24
           }
         ]
@@ -2498,9 +2498,9 @@ test('companion tab hides internal PlayFab IDs from member and application cards
         applications: [
           {
             playFabId: 'APPLICANT_DOCTOR',
-            displayName: '流浪の医師',
+            displayName: '流浪の船医',
             crewRoleId: 'doctor',
-            crewRoleLabel: '医師',
+            crewRoleLabel: '船医',
             appliedAt: Date.now()
           },
           {
@@ -2554,12 +2554,14 @@ test('companion tab hides internal PlayFab IDs from member and application cards
   await expect(page.locator('#crewMembersList')).toContainText('海風の剣士');
   await expect(page.locator('#crewMembersList')).toContainText('剣士');
   await expect(page.locator('#crewMembersList')).toContainText('名前未設定');
-  await expect(page.locator('#crewApplicationsList')).toContainText('流浪の医師');
-  await expect(page.locator('#crewApplicationsList')).toContainText('医師');
+  await expect(page.locator('#crewApplicationsList')).toContainText('流浪の船医');
+  await expect(page.locator('#crewApplicationsList')).toContainText('船医');
   await expect(page.locator('#crewApplicationsList')).toContainText('名前未設定');
   await expect(page.locator('#tabContentEvents .crew-system-help summary')).toHaveText('海賊団とは？');
   await expect(page.locator('#tabContentEvents .crew-system-help')).toContainText('共有ボトルキープ');
   await expect(page.locator('#crewInviteRoleSelect')).toHaveValue('doctor');
+  await expect(page.locator('#crewInviteRoleSelect option[value="cook"]')).toHaveText('コック / ギャンブラー（使用中）');
+  await expect(page.locator('#crewInviteRoleSelect option[value="doctor"]')).toHaveText('船医 / サポート');
   await expect(page.locator('#crewInviteValue')).toContainText('guild:GUILD_OWNER:role:doctor');
   await expect(page.locator('#tabContentEvents')).not.toContainText('ID PLAYER_MEMBER_1');
   await expect(page.locator('#tabContentEvents')).not.toContainText('ID APPLICANT_DOCTOR');
@@ -2604,8 +2606,8 @@ test('companion invite scan shows role confirmation before joining', async ({ pa
           companionCount: 2,
           maxCompanions: 7,
           crewRoleId: inviteRequest.crewRoleId,
-          crewRoleLabel: '医師',
-          crewGameLabel: '酒',
+          crewRoleLabel: '船医',
+          crewGameLabel: 'サポート',
           crewIconKey: 'drink',
           canJoin: true
         }
@@ -2622,7 +2624,7 @@ test('companion invite scan shows role confirmation before joining', async ({ pa
         guildId: 'GUILD_INVITE',
         guildName: '青波海賊団',
         crewRoleId: 'doctor',
-        crewRoleLabel: '医師'
+        crewRoleLabel: '船医'
       })
     });
   });
@@ -2648,8 +2650,8 @@ test('companion invite scan shows role confirmation before joining', async ({ pa
   await expect.poll(() => inviteRequest?.crewRoleId).toBe('doctor');
   await expect(page.locator('#crewJoinConfirmPanel')).toBeVisible();
   await expect(page.locator('#crewJoinConfirmPanel')).toContainText('青波海賊団');
-  await expect(page.locator('#crewJoinConfirmPanel')).toContainText('医師');
-  await expect(page.locator('#crewJoinConfirmPanel')).toContainText('酒');
+  await expect(page.locator('#crewJoinConfirmPanel')).toContainText('船医');
+  await expect(page.locator('#crewJoinConfirmPanel')).toContainText('サポート');
   expect(joinRequests).toHaveLength(0);
 
   await page.locator('#btnCancelCrewJoin').click();
@@ -2664,7 +2666,7 @@ test('companion invite scan shows role confirmation before joining', async ({ pa
     guildId: 'GUILD_INVITE',
     crewRoleId: 'doctor'
   });
-  await expect(page.locator('#eventPageMessage')).toContainText('医師として仲間に参加しました。');
+  await expect(page.locator('#eventPageMessage')).toContainText('船医として仲間に参加しました。');
   await expectNoPageErrors(errors);
 });
 

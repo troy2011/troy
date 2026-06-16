@@ -15,22 +15,22 @@ export const CREW_ROLE_DEFS = [
     },
     {
         id: 'cook',
-        label: '料理人',
-        gameLabel: 'フード',
+        label: 'コック',
+        gameLabel: 'ギャンブラー',
         iconKey: 'fish',
-        rankTitles: ['皿洗い', '賄い番', '料理人', '料理長', '食の覇王']
+        rankTitles: ['皿洗い', '賄い番', 'コック', '料理長', '食の覇王']
     },
     {
         id: 'doctor',
-        label: '医師',
-        gameLabel: '酒',
+        label: '船医',
+        gameLabel: 'サポート',
         iconKey: 'drink',
-        rankTitles: ['包帯巻き', '薬局生', '医師', '大船医', '神医']
+        rankTitles: ['包帯巻き', '薬局生', '船医', '大船医', '神医']
     },
     {
         id: 'shipwright',
         label: '船大工',
-        gameLabel: 'ゲーム',
+        gameLabel: '卓球',
         iconKey: 'game',
         rankTitles: ['木屑拾い', '職人補佐', '船大工', '棟梁', '伝説の造船師']
     },
