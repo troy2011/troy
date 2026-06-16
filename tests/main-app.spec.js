@@ -2478,6 +2478,12 @@ test('companion tab hides internal PlayFab IDs from member and application cards
             crewRoleId: 'swordsman',
             crewRoleLabel: '剣士',
             level: 24
+          },
+          {
+            playFabId: 'PLAYER_MEMBER_NO_NAME',
+            crewRoleId: 'cook',
+            crewRoleLabel: '料理人',
+            level: 24
           }
         ]
       })
@@ -2494,6 +2500,12 @@ test('companion tab hides internal PlayFab IDs from member and application cards
             displayName: '流浪の医師',
             crewRoleId: 'doctor',
             crewRoleLabel: '医師',
+            appliedAt: Date.now()
+          },
+          {
+            playFabId: 'APPLICANT_NO_NAME',
+            crewRoleId: 'sniper',
+            crewRoleLabel: '狙撃手',
             appliedAt: Date.now()
           }
         ]
@@ -2540,14 +2552,18 @@ test('companion tab hides internal PlayFab IDs from member and application cards
 
   await expect(page.locator('#crewMembersList')).toContainText('海風の剣士');
   await expect(page.locator('#crewMembersList')).toContainText('剣士');
+  await expect(page.locator('#crewMembersList')).toContainText('名前未設定');
   await expect(page.locator('#crewApplicationsList')).toContainText('流浪の医師');
   await expect(page.locator('#crewApplicationsList')).toContainText('医師');
+  await expect(page.locator('#crewApplicationsList')).toContainText('名前未設定');
   await expect(page.locator('#tabContentEvents .crew-system-help summary')).toHaveText('海賊団とは？');
   await expect(page.locator('#tabContentEvents .crew-system-help')).toContainText('共有ボトルキープ');
   await expect(page.locator('#crewInviteRoleSelect')).toHaveValue('doctor');
   await expect(page.locator('#crewInviteValue')).toContainText('guild:GUILD_OWNER:role:doctor');
   await expect(page.locator('#tabContentEvents')).not.toContainText('ID PLAYER_MEMBER_1');
   await expect(page.locator('#tabContentEvents')).not.toContainText('ID APPLICANT_DOCTOR');
+  await expect(page.locator('#tabContentEvents')).not.toContainText('PLAYER_MEMBER_NO_NAME');
+  await expect(page.locator('#tabContentEvents')).not.toContainText('APPLICANT_NO_NAME');
   await expectNoPageErrors(errors);
 });
 
@@ -2655,7 +2671,13 @@ test('companion member can use shared warehouse currency and items', async ({ pa
   const errors = trackPageErrors(page);
   let treasury = 1200;
   let warehouse = [
-    { itemId: 'shared_potion', donatedBy: 'CAPTAIN', donatedAt: '2026-06-15T12:00:00.000Z' }
+    {
+      itemId: 'shared_potion',
+      itemName: '共有回復薬',
+      imagePath: './Sprites/food/snack_miso_soup_bowl.png',
+      donatedBy: 'CAPTAIN',
+      donatedAt: '2026-06-15T12:00:00.000Z'
+    }
   ];
   let depositCurrencyRequest = null;
   let withdrawCurrencyRequest = null;
@@ -2700,7 +2722,16 @@ test('companion member can use shared warehouse currency and items', async ({ pa
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
         inventory: [
-          { itemId: 'my_potion', name: '回復薬', count: 2, instances: ['STACK_MY_POTION'], customData: { Category: 'Consumable' } }
+          {
+            itemId: 'my_potion',
+            name: '回復薬',
+            count: 2,
+            instances: ['STACK_MY_POTION'],
+            customData: {
+              Category: 'Consumable',
+              image_path: './Sprites/food/snack_pickle_barrel.png'
+            }
+          }
         ],
         virtualCurrency: { PS: 5000 }
       })
@@ -2726,7 +2757,13 @@ test('companion member can use shared warehouse currency and items', async ({ pa
   });
   await page.route('**/api/donate-to-guild-warehouse', async (route) => {
     donateItemRequest = route.request().postDataJSON();
-    warehouse.push({ itemId: donateItemRequest.itemId, donatedBy: donateItemRequest.playFabId, donatedAt: '2026-06-16T12:00:00.000Z' });
+    warehouse.push({
+      itemId: donateItemRequest.itemId,
+      itemName: donateItemRequest.itemName,
+      imagePath: donateItemRequest.imagePath,
+      donatedBy: donateItemRequest.playFabId,
+      donatedAt: '2026-06-16T12:00:00.000Z'
+    });
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
@@ -2773,6 +2810,8 @@ test('companion member can use shared warehouse currency and items', async ({ pa
   await expect(page.locator('#crewWarehousePanel')).toBeVisible();
   await expect(page.locator('#crewWarehouseSummary')).toContainText('資金 1,200G / アイテム 1');
   await expect(page.locator('#crewDepositItemSelect')).toContainText('回復薬 x2');
+  await expect(page.locator('#crewWarehouseList')).toContainText('共有回復薬');
+  await expect(page.locator('#crewWarehouseList .crew-warehouse-thumb img')).toHaveCount(1);
 
   await page.locator('#crewDepositCurrencyInput').fill('300');
   await page.locator('#btnDepositGuildCurrency').click();
@@ -2786,7 +2825,11 @@ test('companion member can use shared warehouse currency and items', async ({ pa
 
   await page.locator('#btnDepositGuildItem').click();
   await expect.poll(() => donateItemRequest?.itemId).toBe('my_potion');
+  await expect.poll(() => donateItemRequest?.itemName).toBe('回復薬');
+  await expect.poll(() => donateItemRequest?.imagePath).toBe('./Sprites/food/snack_pickle_barrel.png');
   await expect(page.locator('#crewWarehouseSummary')).toContainText('アイテム 2');
+  await expect(page.locator('#crewWarehouseList')).toContainText('回復薬');
+  await expect(page.locator('#crewWarehouseList .crew-warehouse-thumb img')).toHaveCount(2);
 
   await page.locator('#crewWarehouseList .js-withdraw-guild-item').first().click();
   await expect.poll(() => withdrawItemRequest?.warehouseIndex).toBe(0);

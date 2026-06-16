@@ -31,6 +31,7 @@ import {
 
 const CAPTAIN_LEVEL = 21;
 const CREW_FOUNDING_COST = 1000;
+const SAFE_PLAYER_DISPLAY_NAME = '名前未設定';
 
 let bound = false;
 let currentGuild = null;
@@ -55,6 +56,22 @@ function escapeHtml(value) {
         '"': '&quot;',
         "'": '&#039;'
     }[char]));
+}
+
+function normalizePlayerId(value) {
+    return String(value || '').replace(/^playfab:/i, '').trim().toUpperCase();
+}
+
+function getSafePlayerDisplayName(value, blockedValues = []) {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (!text || /^unknown$/i.test(text)) return SAFE_PLAYER_DISPLAY_NAME;
+    const blocked = Array.isArray(blockedValues) ? blockedValues : [blockedValues];
+    const normalizedText = normalizePlayerId(text);
+    const matchesBlocked = blocked.some((blockedValue) => {
+        const raw = String(blockedValue || '').trim();
+        return raw && (text === raw || normalizedText === normalizePlayerId(raw));
+    });
+    return matchesBlocked ? SAFE_PLAYER_DISPLAY_NAME : text;
 }
 
 function setMessage(text, isError = false) {
@@ -288,8 +305,63 @@ function getInventoryItemLabel(item) {
     return String(item?.name || item?.customData?.DisplayName || item?.customData?.Title || item?.itemId || '').trim();
 }
 
+function getInventoryItemImagePath(item) {
+    const customData = item?.customData || {};
+    return String(
+        item?.imagePath
+        || item?.image_path
+        || item?.ImagePath
+        || item?.spritePath
+        || item?.sprite_path
+        || item?.SpritePath
+        || customData.imagePath
+        || customData.image_path
+        || customData.ImagePath
+        || customData.MenuImagePath
+        || customData.SpritePath
+        || customData.spritePath
+        || customData.sprite_path
+        || ''
+    ).trim();
+}
+
 function getWarehouseItemLabel(item) {
     return String(item?.name || item?.itemName || item?.displayName || item?.itemId || '').trim() || 'アイテム';
+}
+
+function getWarehouseItemImagePath(item) {
+    return String(item?.imagePath || item?.image_path || item?.ImagePath || item?.spritePath || item?.sprite_path || item?.SpritePath || '').trim();
+}
+
+function getSelectedDepositItem(itemId, itemInstanceId = '') {
+    const normalizedItemId = String(itemId || '').trim();
+    const normalizedInstanceId = String(itemInstanceId || '').trim();
+    if (!normalizedItemId) return null;
+    return (Array.isArray(currentDepositInventory) ? currentDepositInventory : []).find((item) => {
+        if (String(item?.itemId || '').trim() !== normalizedItemId) return false;
+        if (!normalizedInstanceId) return true;
+        return Array.isArray(item?.instances) && item.instances.some((instanceId) => String(instanceId || '').trim() === normalizedInstanceId);
+    }) || null;
+}
+
+async function withBusyButton(button, busyText, action) {
+    const target = button && typeof button === 'object' ? button : null;
+    if (target?.dataset?.actionBusy === 'true') return;
+    const originalText = typeof target?.textContent === 'string' ? target.textContent : '';
+    if (target) {
+        target.dataset.actionBusy = 'true';
+        if ('disabled' in target) target.disabled = true;
+        if (busyText) target.textContent = busyText;
+    }
+    try {
+        return await action();
+    } finally {
+        if (target) {
+            delete target.dataset.actionBusy;
+            if ('disabled' in target) target.disabled = false;
+            if (busyText) target.textContent = originalText;
+        }
+    }
 }
 
 function normalizeWarehousePayload(data = {}) {
@@ -323,8 +395,11 @@ function renderWarehousePanel(guild) {
                 const itemId = String(item.itemId || '').trim();
                 const count = Math.max(1, Math.floor(Number(item.count || 1) || 1));
                 const instanceId = Array.isArray(item.instances) && item.instances[0] ? String(item.instances[0]) : '';
+                const itemName = getInventoryItemLabel(item);
+                const imagePath = getInventoryItemImagePath(item);
+                const category = String(item?.category || item?.customData?.Category || item?.customData?.category || '').trim();
                 const label = `${getInventoryItemLabel(item)} x${count}`;
-                return `<option value="${escapeHtml(itemId)}" data-instance-id="${escapeHtml(instanceId)}">${escapeHtml(label)}</option>`;
+                return `<option value="${escapeHtml(itemId)}" data-instance-id="${escapeHtml(instanceId)}" data-item-name="${escapeHtml(itemName)}" data-image-path="${escapeHtml(imagePath)}" data-category="${escapeHtml(category)}">${escapeHtml(label)}</option>`;
             });
         depositSelect.innerHTML = options.length
             ? options.join('')
@@ -336,13 +411,20 @@ function renderWarehousePanel(guild) {
     list.innerHTML = '';
     empty.hidden = currentWarehouseItems.length > 0;
     currentWarehouseItems.forEach((item, index) => {
+        const imagePath = getWarehouseItemImagePath(item);
+        const thumbnailHtml = imagePath
+            ? `<span class="crew-warehouse-thumb" aria-hidden="true"><img src="${escapeHtml(imagePath)}" alt=""></span>`
+            : '';
         const card = document.createElement('article');
         card.className = 'event-card crew-warehouse-item-card';
         card.innerHTML = `
             <div class="event-card-head">
-                <div>
-                    <div class="event-card-type">共有アイテム</div>
-                    <h3>${escapeHtml(getWarehouseItemLabel(item))}</h3>
+                <div class="crew-warehouse-title-row">
+                    ${thumbnailHtml}
+                    <div>
+                        <div class="event-card-type">共有アイテム</div>
+                        <h3>${escapeHtml(getWarehouseItemLabel(item))}</h3>
+                    </div>
                 </div>
                 <span class="event-status">倉庫</span>
             </div>
@@ -483,7 +565,7 @@ function renderApplications(applications, guild) {
                 <span class="crew-role-icon" aria-hidden="true"></span>
                 <div>
                     <div class="event-card-type">加入申請</div>
-                    <h3>${buildPlayerTriggerHtml(playFabId, app.displayName || playFabId || 'Unknown', { className: 'player-link-inline' })}</h3>
+                    <h3>${buildPlayerTriggerHtml(playFabId, getSafePlayerDisplayName(app.displayName, [playFabId, app.entityId]), { className: 'player-link-inline' })}</h3>
                 </div>
                 <span class="event-status">${escapeHtml(app.crewRoleLabel || roleDef?.label || '役職未選択')}</span>
             </div>
@@ -632,7 +714,7 @@ function renderMembers(members) {
     empty.hidden = entries.length > 0;
     entries.forEach((member) => {
         const playFabId = String(member.playFabId || '').trim();
-        const displayName = member.displayName || playFabId || 'Unknown';
+        const displayName = getSafePlayerDisplayName(member.displayName, [playFabId, member.entityId]);
         const roleId = String(member.crewRoleId || '').trim();
         const roleDef = CREW_ROLE_BY_ID[roleId] || null;
         const memberLevel = Number(member.level || 1) || 1;
@@ -1047,9 +1129,17 @@ async function depositGuildItem(playFabId) {
     }
     const option = select?.selectedOptions?.[0] || null;
     const itemInstanceId = String(option?.dataset?.instanceId || '').trim();
-    const itemName = option?.textContent?.replace(/\s+x\d+$/u, '').trim() || itemId;
+    const inventoryItem = getSelectedDepositItem(itemId, itemInstanceId);
+    const itemName = String(option?.dataset?.itemName || getInventoryItemLabel(inventoryItem) || option?.textContent?.replace(/\s+x\d+$/u, '').trim() || itemId).trim();
+    const imagePath = String(option?.dataset?.imagePath || getInventoryItemImagePath(inventoryItem) || '').trim();
+    const category = String(option?.dataset?.category || inventoryItem?.category || inventoryItem?.customData?.Category || inventoryItem?.customData?.category || '').trim();
     try {
-        const data = await donateToGuildWarehouse(playFabId, currentGuild.guildId, itemId, itemInstanceId, { throwOnError: true });
+        const data = await donateToGuildWarehouse(playFabId, currentGuild.guildId, itemId, itemInstanceId, {
+            itemName,
+            displayName: itemName,
+            imagePath,
+            category
+        }, { throwOnError: true });
         if (data?.success) {
             await refreshWarehouse(playFabId);
             setMessage(`${itemName}を共有倉庫に預けました。`);
@@ -1177,13 +1267,13 @@ function bindEvents(playFabId) {
         await refreshWarehouse(window.myPlayFabId || playFabId);
         setMessage('共有倉庫を更新しました。');
     });
-    document.getElementById('btnDepositGuildCurrency')?.addEventListener('click', () => depositGuildCurrency(window.myPlayFabId || playFabId));
-    document.getElementById('btnWithdrawGuildCurrency')?.addEventListener('click', () => withdrawGuildCurrency(window.myPlayFabId || playFabId));
-    document.getElementById('btnDepositGuildItem')?.addEventListener('click', () => depositGuildItem(window.myPlayFabId || playFabId));
+    document.getElementById('btnDepositGuildCurrency')?.addEventListener('click', (event) => withBusyButton(event.currentTarget, '入金中', () => depositGuildCurrency(window.myPlayFabId || playFabId)));
+    document.getElementById('btnWithdrawGuildCurrency')?.addEventListener('click', (event) => withBusyButton(event.currentTarget, '出金中', () => withdrawGuildCurrency(window.myPlayFabId || playFabId)));
+    document.getElementById('btnDepositGuildItem')?.addEventListener('click', (event) => withBusyButton(event.currentTarget, '預け中', () => depositGuildItem(window.myPlayFabId || playFabId)));
     document.getElementById('crewWarehouseList')?.addEventListener('click', (event) => {
         const button = event.target?.closest?.('.js-withdraw-guild-item');
         if (!button) return;
-        withdrawGuildItem(window.myPlayFabId || playFabId, button);
+        withBusyButton(button, '引き出し中', () => withdrawGuildItem(window.myPlayFabId || playFabId, button));
     });
     document.getElementById('btnSaveCrewRecruitment')?.addEventListener('click', () => saveRecruitment(window.myPlayFabId || playFabId, true));
     document.getElementById('btnCloseCrewRecruitment')?.addEventListener('click', () => saveRecruitment(window.myPlayFabId || playFabId, false));

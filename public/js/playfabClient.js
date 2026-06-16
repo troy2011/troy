@@ -242,8 +242,20 @@ export function getGuildWarehouse(playFabId, guildId, options) {
     return callApiWithLoader('/api/get-guild-warehouse', { playFabId, guildId }, options);
 }
 
-export function donateToGuildWarehouse(playFabId, guildId, itemId, itemInstanceId, options) {
-    return callApiWithLoader('/api/donate-to-guild-warehouse', { playFabId, guildId, itemId, itemInstanceId }, options);
+export function donateToGuildWarehouse(playFabId, guildId, itemId, itemInstanceId, metadataOrOptions, maybeOptions) {
+    const metadataKeys = ['itemName', 'displayName', 'imagePath', 'category'];
+    const hasMetadata = metadataOrOptions
+        && typeof metadataOrOptions === 'object'
+        && metadataKeys.some((key) => Object.prototype.hasOwnProperty.call(metadataOrOptions, key));
+    const metadata = hasMetadata ? metadataOrOptions : {};
+    const options = hasMetadata ? maybeOptions : metadataOrOptions;
+    return callApiWithLoader('/api/donate-to-guild-warehouse', {
+        playFabId,
+        guildId,
+        itemId,
+        itemInstanceId,
+        ...metadata
+    }, options);
 }
 
 export function withdrawFromGuildWarehouse(playFabId, guildId, warehouseIndex, options) {

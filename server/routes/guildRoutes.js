@@ -25,6 +25,7 @@ const CREW_RECRUITMENT_LIST_LIMIT = 50;
 const GUILD_MUTATION_LOCK_COLLECTION = 'guild_mutation_locks';
 const GUILD_MUTATION_LOCK_TTL_MS = 30_000;
 const GUILD_MUTATION_LOCK_WAIT_MS = 8_000;
+const SAFE_PLAYER_DISPLAY_NAME = '名前未設定';
 
 const NATION_GUILD_LABEL_BY_KEY = {
     fire: '火の国',
@@ -153,6 +154,31 @@ function normalizePlayFabId(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
     return raw.replace(/^playfab:/i, '').trim().toUpperCase();
+}
+
+function sanitizePublicDisplayName(value, blockedValues = []) {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (!text || /^unknown$/i.test(text)) return SAFE_PLAYER_DISPLAY_NAME;
+    const blocked = Array.isArray(blockedValues) ? blockedValues : [blockedValues];
+    const normalizedText = normalizePlayFabId(text);
+    const matchesBlocked = blocked.some((blockedValue) => {
+        const raw = String(blockedValue || '').trim();
+        return raw && (text === raw || normalizedText === normalizePlayFabId(raw));
+    });
+    return matchesBlocked ? SAFE_PLAYER_DISPLAY_NAME : text.slice(0, 40);
+}
+
+function sanitizeWarehouseItemText(value, maxLength = 80) {
+    return String(value || '').replace(/\s+/g, ' ').trim().slice(0, maxLength);
+}
+
+function sanitizeWarehouseImagePath(value) {
+    const text = String(value || '').replace(/\\/g, '/').trim();
+    if (!text || text.length > 220) return '';
+    if (/^(?:https?:|data:|javascript:|\/\/)/i.test(text)) return '';
+    if (!/^(?:\.\/|\/)?(?:Sprites|assets)\//i.test(text)) return '';
+    if (!/\.(?:png|webp|jpe?g|gif)$/i.test(text)) return '';
+    return text;
 }
 
 function sanitizeRecruitmentMessage(value) {
@@ -457,7 +483,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             PlayFabId: playFabId,
             ProfileConstraints: { ShowDisplayName: true }
         });
-        return String(profileResult?.PlayerProfile?.DisplayName || playFabId || '').trim() || playFabId;
+        return sanitizePublicDisplayName(profileResult?.PlayerProfile?.DisplayName, playFabId);
     }
 
     async function getPlayerStoredNation(playFabId) {
@@ -1148,7 +1174,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 playFabId: requesterPlayFabId,
                 entityId: entityKey.Id,
                 entityType: entityKey.Type,
-                displayName: profile.DisplayName || requesterPlayFabId,
+                displayName: sanitizePublicDisplayName(profile.DisplayName, [requesterPlayFabId, entityKey.Id]),
                 avatarUrl: profile.AvatarUrl || null,
                 crewRoleId: requestedRoleId,
                 source: 'recruitment_board',
@@ -1648,7 +1674,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                         if (profileResult.PlayerProfile) {
                             members.push({
                                 playFabId: memberPlayFabId,
-                                displayName: profileResult.PlayerProfile.DisplayName || 'Unknown',
+                                displayName: sanitizePublicDisplayName(profileResult.PlayerProfile.DisplayName, [memberPlayFabId, entityId]),
                                 avatarUrl: profileResult.PlayerProfile.AvatarUrl || null,
                                 role: memberRoleLabel,
                                 crewRoleId,
@@ -1665,7 +1691,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                         console.warn(`[ギルドメンバー取得] Entity ${entityId} のプロフィール取得に失敗:`, profileError.message);
                         members.push({
                             playFabId: memberPlayFabId,
-                            displayName: 'Unknown',
+                            displayName: SAFE_PLAYER_DISPLAY_NAME,
                             avatarUrl: null,
                             role: memberRoleLabel,
                             crewRoleId,
@@ -1721,7 +1747,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 applicationMap.set(key, {
                     playFabId: entry.playFabId || entry.entityId,
                     entityId: entry.entityId || '',
-                    displayName: entry.displayName || entry.playFabId || entry.entityId || 'Unknown',
+                    displayName: sanitizePublicDisplayName(entry.displayName, [entry.playFabId, entry.entityId]),
                     avatarUrl: entry.avatarUrl || null,
                     appliedAt: entry.appliedAt || new Date().toISOString(),
                     crewRoleId: entry.crewRoleId || '',
@@ -1756,7 +1782,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                             addApplication({
                                 playFabId: stored?.playFabId || entityId,
                                 entityId,
-                                displayName: profileResult.PlayerProfile.DisplayName || 'Unknown',
+                                displayName: sanitizePublicDisplayName(profileResult.PlayerProfile.DisplayName, [stored?.playFabId, entityId]),
                                 avatarUrl: profileResult.PlayerProfile.AvatarUrl || null,
                                 appliedAt: stored?.appliedAt || app.Created || new Date().toISOString(),
                                 crewRoleId: stored?.crewRoleId || ''
@@ -2006,7 +2032,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 ProfileConstraints: { ShowDisplayName: true, ShowAvatarUrl: true }
             });
 
-            const displayName = profileResult.PlayerProfile.DisplayName || 'Unknown';
+            const displayName = sanitizePublicDisplayName(profileResult.PlayerProfile.DisplayName, playFabId);
             const avatarUrl = profileResult.PlayerProfile.AvatarUrl || null;
 
             // ギルドデータを取得
@@ -2097,12 +2123,27 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 debitedItem = true;
 
                 const guildData = await getGuildData(guildId, promisifyPlayFab);
+                const itemName = sanitizeWarehouseItemText(req.body?.itemName || req.body?.displayName || req.body?.name);
+                const imagePath = sanitizeWarehouseImagePath(req.body?.imagePath || req.body?.image_path || req.body?.ImagePath || req.body?.spritePath || req.body?.sprite_path || req.body?.SpritePath);
+                const category = sanitizeWarehouseItemText(req.body?.category || req.body?.Category, 40);
                 const donatedItem = {
                     itemId: itemId,
                     donatedBy: requesterPlayFabId,
                     itemInstanceId: itemInstanceId || '',
                     donatedAt: new Date().toISOString()
                 };
+                if (itemName) {
+                    donatedItem.itemName = itemName;
+                    donatedItem.displayName = itemName;
+                    donatedItem.name = itemName;
+                }
+                if (imagePath) {
+                    donatedItem.imagePath = imagePath;
+                    donatedItem.image_path = imagePath;
+                }
+                if (category) {
+                    donatedItem.category = category;
+                }
 
                 guildData.warehouse = guildData.warehouse || [];
                 guildData.warehouse.push(donatedItem);
@@ -2401,6 +2442,8 @@ module.exports = {
         resolveGuildNationKey,
         selectCompanionGuildCandidate,
         resolveGuildMemberPlayFabId,
-        setGuildMemberPlayFabMapEntry
+        setGuildMemberPlayFabMapEntry,
+        sanitizePublicDisplayName,
+        sanitizeWarehouseImagePath
     }
 };

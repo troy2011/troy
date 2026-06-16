@@ -14613,6 +14613,32 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     padding: 7px 9px;
     font-size: 13px;
 }
+.crew-warehouse-title-row {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 10px;
+}
+.crew-warehouse-title-row > div {
+    min-width: 0;
+}
+.crew-warehouse-thumb {
+    display: inline-grid;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    place-items: center;
+    border-radius: 7px;
+    border: 1px solid rgba(255, 230, 170, 0.35);
+    background: rgba(8, 12, 18, 0.45);
+    box-shadow: inset 0 0 10px rgba(255, 218, 144, 0.08);
+}
+.crew-warehouse-thumb img {
+    display: block;
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
+}
 
 @media (max-width: 720px) {
     .event-page {

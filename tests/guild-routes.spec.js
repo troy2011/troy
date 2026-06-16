@@ -77,3 +77,17 @@ test('member entity map resolves PlayFab IDs for group member rows', () => {
   expect(__test.resolveGuildMemberPlayFabId('entity-player-1', guildData)).toBe('PLAYER1');
   expect(__test.resolveGuildMemberPlayFabId('legacyplayfabid', guildData)).toBe('LEGACYPLAYFABID');
 });
+
+test('public display name sanitizer never falls back to player identifiers', () => {
+  expect(__test.sanitizePublicDisplayName('', 'PLAYER1')).toBe('名前未設定');
+  expect(__test.sanitizePublicDisplayName('Unknown')).toBe('名前未設定');
+  expect(__test.sanitizePublicDisplayName('player1', 'PLAYER1')).toBe('名前未設定');
+  expect(__test.sanitizePublicDisplayName('海風の剣士', 'PLAYER1')).toBe('海風の剣士');
+});
+
+test('guild warehouse image path sanitizer keeps local sprites only', () => {
+  expect(__test.sanitizeWarehouseImagePath('./Sprites/food/snack_pickle_barrel.png')).toBe('./Sprites/food/snack_pickle_barrel.png');
+  expect(__test.sanitizeWarehouseImagePath('/assets/ui/icons/046.png')).toBe('/assets/ui/icons/046.png');
+  expect(__test.sanitizeWarehouseImagePath('https://example.com/item.png')).toBe('');
+  expect(__test.sanitizeWarehouseImagePath('javascript:alert(1)')).toBe('');
+});
