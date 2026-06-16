@@ -55,6 +55,73 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
   await expectNoPageErrors(errors);
 });
 
+test('daily tarot fortune modal shows clear draw and result states on mobile', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/api/tarot-fortune-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ canDraw: true })
+    });
+  });
+  await page.route('**/api/tarot-fortune-draw', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        balance: 1007,
+        result: {
+          cardId: 'daily_test_wands_7',
+          cardNumber: 7,
+          suit: 'Wands',
+          isArcana: false,
+          effectType: 'none',
+          cardName: 'ワンドの7',
+          orientation: 'upright',
+          fortune: '追い風に乗って小さな勝負が進む日。',
+          rewardPs: 7,
+          rewardType: 'gold'
+        }
+      })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    const Tarot = await import('/js/tarotPoker.js');
+    await Tarot.showDailyFortunePromptOnLogin('PF_PLAYWRIGHT');
+  });
+  const overlay = page.locator('#dailyTarotFortuneOverlay');
+  const modal = page.locator('#dailyTarotFortuneModal');
+  await expect(overlay).toBeVisible();
+  await expect(page.locator('#dailyTarotFortuneSub')).toHaveText('カードをタップしてめくってください。');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('まだ見えないカード');
+  await expect(page.locator('#dailyTarotFortuneReward')).toBeHidden();
+
+  const beforeMetrics = await modal.evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    return {
+      right: rect.right,
+      bottom: rect.bottom,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight
+    };
+  });
+  expect(beforeMetrics.right).toBeLessThanOrEqual(beforeMetrics.viewportWidth);
+  expect(beforeMetrics.bottom).toBeLessThanOrEqual(beforeMetrics.viewportHeight);
+
+  await page.locator('#dailyTarotFortuneCardHost .tarot-fortune-card-shell').click();
+  await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText('ワンドの7');
+  await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText('正位置');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('追い風に乗って');
+  await expect(page.locator('#dailyTarotFortuneReward')).toContainText('+7G');
+
+  await page.locator('.tarot-fortune-done').click();
+  await expect(overlay).toBeHidden();
+  await expectNoPageErrors(errors);
+});
+
 test('home tab shows only the latest nation announcement in the top banner panel', async ({ page }) => {
   const errors = trackPageErrors(page);
   await bootstrapMainApp(page);

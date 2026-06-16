@@ -255,6 +255,9 @@ const DAILY_FORTUNE_MODAL_ID = 'dailyTarotFortuneModal';
 const DAILY_FORTUNE_CARD_HOST_ID = 'dailyTarotFortuneCardHost';
 const DAILY_FORTUNE_TEXT_ID = 'dailyTarotFortuneText';
 const DAILY_FORTUNE_TITLE_ID = 'dailyTarotFortuneTitle';
+const DAILY_FORTUNE_SUB_ID = 'dailyTarotFortuneSub';
+const DAILY_FORTUNE_RESULT_META_ID = 'dailyTarotFortuneResultMeta';
+const DAILY_FORTUNE_REWARD_ID = 'dailyTarotFortuneReward';
 
 let dailyFortuneCheckedSession = false;
 let dailyFortuneClaimedSession = false;
@@ -4668,11 +4671,22 @@ function ensureDailyFortuneOverlay() {
     overlay.id = DAILY_FORTUNE_OVERLAY_ID;
     overlay.className = 'tarot-fortune-overlay';
     overlay.innerHTML = `
-        <div id="${DAILY_FORTUNE_MODAL_ID}" class="tarot-fortune-modal">
+        <div id="${DAILY_FORTUNE_MODAL_ID}" class="tarot-fortune-modal" role="dialog" aria-modal="true" aria-labelledby="${DAILY_FORTUNE_TITLE_ID}">
+            <button type="button" class="tarot-fortune-close" aria-label="閉じる">×</button>
+            <div class="tarot-fortune-kicker">DAILY TAROT</div>
             <div id="${DAILY_FORTUNE_TITLE_ID}" class="tarot-fortune-title">本日の運勢</div>
-            <div class="tarot-fortune-sub">1日1回だけ、タロットで運勢を占えます。</div>
-            <div id="${DAILY_FORTUNE_CARD_HOST_ID}" class="tarot-fortune-card-host"></div>
-            <div id="${DAILY_FORTUNE_TEXT_ID}" class="tarot-fortune-text">運勢を読み込み中...</div>
+            <div id="${DAILY_FORTUNE_SUB_ID}" class="tarot-fortune-sub">1日1回だけ、タロットで運勢を占えます。</div>
+            <div class="tarot-fortune-stage">
+                <div id="${DAILY_FORTUNE_CARD_HOST_ID}" class="tarot-fortune-card-host"></div>
+                <div class="tarot-fortune-reading">
+                    <div id="${DAILY_FORTUNE_RESULT_META_ID}" class="tarot-fortune-result-meta" hidden></div>
+                    <div id="${DAILY_FORTUNE_TEXT_ID}" class="tarot-fortune-text">運勢を読み込み中...</div>
+                    <div id="${DAILY_FORTUNE_REWARD_ID}" class="tarot-fortune-reward" hidden></div>
+                </div>
+            </div>
+            <div class="tarot-fortune-actions">
+                <button type="button" class="tarot-fortune-done">閉じる</button>
+            </div>
         </div>
     `;
     document.body.appendChild(overlay);
@@ -4682,45 +4696,19 @@ function ensureDailyFortuneOverlay() {
             closeDailyFortuneOverlay();
         }
     });
+    overlay.querySelector('.tarot-fortune-close')?.addEventListener('click', closeDailyFortuneOverlay);
+    overlay.querySelector('.tarot-fortune-done')?.addEventListener('click', closeDailyFortuneOverlay);
     return overlay;
 }
 
 function applyDailyFortuneOverlayLayout(overlay) {
     if (!overlay) return;
-    Object.assign(overlay.style, {
-        position: 'fixed',
-        left: '0',
-        top: '0',
-        right: '0',
-        bottom: '0',
-        width: '100vw',
-        height: '100dvh',
-        zIndex: '3800',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '14px',
-        background: 'rgba(0, 0, 0, 0.72)',
-        boxSizing: 'border-box'
-    });
+    const display = overlay.style.display;
+    overlay.removeAttribute('style');
+    if (display) overlay.style.display = display;
     const modal = overlay.querySelector(`#${DAILY_FORTUNE_MODAL_ID}`);
     if (!modal) return;
-    Object.assign(modal.style, {
-        position: 'relative',
-        width: 'min(520px, calc(100% - 20px))',
-        maxWidth: '520px',
-        maxHeight: 'min(85dvh, 640px)',
-        boxSizing: 'border-box',
-        overflowY: 'auto',
-        borderRadius: '8px',
-        border: '18px solid transparent',
-        borderImage: 'url("/assets/ui/panels/panel-blue-square.png") 24 fill / 18px / 0 stretch',
-        background: 'transparent',
-        boxShadow: '0 18px 44px rgba(0, 0, 0, 0.45)',
-        padding: '14px 14px 12px',
-        textAlign: 'center',
-        color: '#f8fbff',
-        margin: '0 auto'
-    });
+    modal.removeAttribute('style');
 }
 
 function closeDailyFortuneOverlay() {
@@ -4761,9 +4749,11 @@ function renderDailyFortuneResultLegacy(result) {
     cardHost.innerHTML = '';
     cardHost.appendChild(cardEl);
 
-    const orientationLabel = String(result?.orientation || '') === 'reversed' ? '逆位置' : '正位置';
-    titleEl.textContent = `本日の運勢: ${String(result?.cardName || '')}（${orientationLabel}）`;
+    titleEl.textContent = '本日の運勢';
+    setDailyFortuneSubText('今日のカードが開かれました。');
+    setDailyFortuneResultMeta(result);
     textEl.textContent = String(result?.fortune || '');
+    setDailyFortuneReward(result);
     showDailyFortuneRpgMessage(getDailyFortuneRewardText(result));
 }
 
@@ -4780,6 +4770,59 @@ function getDailyFortuneRewardText(result) {
     return reward > 0 ? `+${reward}G` : '';
 }
 
+function setDailyFortuneSubText(text) {
+    const subEl = document.getElementById(DAILY_FORTUNE_SUB_ID);
+    if (subEl) subEl.textContent = String(text || '');
+}
+
+function setDailyFortuneResultMeta(result) {
+    const metaEl = document.getElementById(DAILY_FORTUNE_RESULT_META_ID);
+    if (!metaEl) return;
+    const cardName = String(result?.cardName || '').trim();
+    const orientationLabel = String(result?.orientation || '') === 'reversed' ? '逆位置' : '正位置';
+    if (!cardName) {
+        metaEl.hidden = true;
+        metaEl.textContent = '';
+        return;
+    }
+    metaEl.hidden = false;
+    metaEl.textContent = '';
+    const cardNameEl = document.createElement('span');
+    cardNameEl.className = 'tarot-fortune-card-name';
+    cardNameEl.textContent = cardName;
+    const orientationEl = document.createElement('span');
+    orientationEl.className = 'tarot-fortune-orientation';
+    orientationEl.textContent = orientationLabel;
+    metaEl.append(cardNameEl, orientationEl);
+}
+
+function setDailyFortuneReward(result) {
+    const rewardEl = document.getElementById(DAILY_FORTUNE_REWARD_ID);
+    if (!rewardEl) return;
+    const rewardText = getDailyFortuneRewardText(result);
+    if (!rewardText) {
+        rewardEl.hidden = true;
+        rewardEl.textContent = '';
+        return;
+    }
+    rewardEl.hidden = false;
+    rewardEl.textContent = rewardText;
+}
+
+function resetDailyFortuneResultDetails() {
+    setDailyFortuneSubText('水晶球がカードを探しています。');
+    const metaEl = document.getElementById(DAILY_FORTUNE_RESULT_META_ID);
+    if (metaEl) {
+        metaEl.hidden = true;
+        metaEl.textContent = '';
+    }
+    const rewardEl = document.getElementById(DAILY_FORTUNE_REWARD_ID);
+    if (rewardEl) {
+        rewardEl.hidden = true;
+        rewardEl.textContent = '';
+    }
+}
+
 function renderDailyFortuneResult(result, options = {}) {
     const cardHost = document.getElementById(DAILY_FORTUNE_CARD_HOST_ID);
     const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
@@ -4791,10 +4834,12 @@ function renderDailyFortuneResult(result, options = {}) {
 
     const card = getCardDataFromFortuneResult(result);
     const isReversed = String(result?.orientation || '') === 'reversed';
-    const orientationLabel = isReversed ? '逆位置' : '正位置';
     const finalizeReveal = () => {
-        titleEl.textContent = `本日の運勢: ${String(result?.cardName || '')}（${orientationLabel}）`;
+        titleEl.textContent = '本日の運勢';
+        setDailyFortuneSubText('今日のカードが開かれました。');
+        setDailyFortuneResultMeta(result);
         textEl.textContent = String(result?.fortune || '');
+        setDailyFortuneReward(result);
     };
 
     const handleReveal = async () => {
@@ -4815,7 +4860,9 @@ function renderDailyFortuneResult(result, options = {}) {
     cardHost.innerHTML = '';
     cardHost.appendChild(cardEl);
     titleEl.textContent = '本日の運勢';
-    textEl.textContent = 'カードをタップしてめくってください。';
+    resetDailyFortuneResultDetails();
+    setDailyFortuneSubText('カードをタップしてめくってください。');
+    textEl.textContent = 'まだ見えないカードに、今日の流れが眠っています。';
 }
 
 function normalizeDailyBountyReward(rawReward) {
@@ -4873,6 +4920,7 @@ async function handleDailyFortuneDraw(playFabId) {
     dailyFortuneInFlight = true;
     const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
     try {
+        resetDailyFortuneResultDetails();
         if (textEl) textEl.textContent = '運勢を読み込み中...';
         const data = await requestDailyFortuneDraw(playFabId);
         if (data?.result) {
@@ -4901,6 +4949,7 @@ async function handleDailyFortuneDraw(playFabId) {
             await window.refreshInventory({ force: true });
         }
     } catch (error) {
+        setDailyFortuneSubText('カードを開けませんでした。');
         if (textEl) {
             textEl.textContent = `占いに失敗しました: ${error?.message || 'unknown error'}`;
         }
@@ -4917,6 +4966,7 @@ function setupDailyFortuneOverlay(playFabId) {
 
     if (titleEl) titleEl.textContent = '本日の運勢';
     if (cardHost) cardHost.innerHTML = '';
+    resetDailyFortuneResultDetails();
     if (textEl) textEl.textContent = '運勢を読み込み中...';
     handleDailyFortuneDraw(playFabId);
 }

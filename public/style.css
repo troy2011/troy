@@ -9797,40 +9797,88 @@ body.modal-lock .troy-menu-board-order-modal {
 }
 
 .tarot-fortune-modal {
-    width: min(520px, calc(100% - 20px));
+    position: relative;
+    width: min(560px, calc(100% - 12px));
     box-sizing: border-box;
     border-radius: 8px;
     border: 18px solid transparent;
     border-image: url("./assets/ui/panels/panel-blue-square.png") 24 fill / 18px / 0 stretch;
     background: transparent;
     box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
-    padding: 14px 14px 12px;
+    padding: 16px 16px 14px;
     text-align: center;
     color: #f8fbff;
+    max-height: min(90dvh, 720px);
+    overflow-y: auto;
+    --tarot-card-w: 88px;
+    --tarot-card-h: 138px;
+}
+
+.tarot-fortune-close {
+    position: absolute;
+    top: 7px;
+    right: 8px;
+    width: 32px;
+    height: 32px;
+    border: 1px solid rgba(248, 226, 168, 0.5);
+    border-radius: 50%;
+    background: rgba(5, 12, 24, 0.66);
+    color: #fff4b8;
+    font-size: 20px;
+    line-height: 1;
+    display: grid;
+    place-items: center;
+    padding: 0;
+}
+
+.tarot-fortune-kicker {
+    font-size: 10px;
+    font-weight: 800;
+    color: rgba(219, 234, 254, 0.78);
+    margin-bottom: 2px;
 }
 
 .tarot-fortune-title {
-    font-size: 22px;
+    font-size: 24px;
     font-weight: 900;
-    letter-spacing: 0.04em;
+    letter-spacing: 0;
     color: #fff4b8;
     text-shadow: 0 2px 2px rgba(0, 0, 0, 0.45);
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
 .tarot-fortune-sub {
     font-size: 12px;
     color: #dbeafe;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
-    margin-bottom: 10px;
+    margin-bottom: 12px;
+}
+
+.tarot-fortune-stage {
+    display: grid;
+    grid-template-columns: minmax(96px, 0.8fr) minmax(0, 1.2fr);
+    gap: 14px;
+    align-items: center;
 }
 
 .tarot-fortune-card-host {
-    min-height: 110px;
+    min-height: calc(var(--tarot-card-h, 138px) + 10px);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 10px;
+}
+
+.tarot-fortune-reading {
+    min-height: 128px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(4, 12, 24, 0.4);
+    box-shadow: inset 0 0 0 1px rgba(248, 226, 168, 0.12);
 }
 
 .tarot-fortune-card-shell {
@@ -9847,6 +9895,10 @@ body.modal-lock .troy-menu-board-order-modal {
     align-items: center;
     justify-content: center;
     cursor: pointer;
+}
+
+.tarot-fortune-card-shell.is-clickable {
+    filter: drop-shadow(0 0 18px rgba(248, 226, 168, 0.22));
 }
 
 .tarot-fortune-card-shell .tarot-fortune-card-art {
@@ -9871,13 +9923,103 @@ body.modal-lock .troy-menu-board-order-modal {
     transform: translate(-50%, -50%) rotate(180deg);
 }
 
+.tarot-fortune-result-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.tarot-fortune-result-meta[hidden],
+.tarot-fortune-reward[hidden] {
+    display: none;
+}
+
+.tarot-fortune-card-name,
+.tarot-fortune-orientation {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    color: #fff7cc;
+    background: rgba(127, 78, 20, 0.45);
+    box-shadow: inset 0 0 0 1px rgba(248, 226, 168, 0.22);
+}
+
+.tarot-fortune-orientation {
+    color: #dbeafe;
+    background: rgba(33, 82, 142, 0.42);
+}
+
 .tarot-fortune-text {
     font-size: 13px;
     line-height: 1.6;
     color: #f8fbff;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
-    min-height: 44px;
-    margin-bottom: 10px;
+    min-height: 42px;
+}
+
+.tarot-fortune-reward {
+    font-size: 12px;
+    line-height: 1.45;
+    color: #ffe8a3;
+    font-weight: 800;
+    padding-top: 7px;
+    border-top: 1px solid rgba(248, 226, 168, 0.16);
+}
+
+.tarot-fortune-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 14px;
+}
+
+.tarot-fortune-done {
+    min-height: 34px;
+    min-width: 108px;
+    border: 1px solid rgba(248, 226, 168, 0.42);
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(143, 95, 32, 0.92), rgba(86, 47, 17, 0.92));
+    color: #fff7cc;
+    font-size: 13px;
+    font-weight: 900;
+    padding: 6px 16px;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.26);
+}
+
+@media (max-width: 520px) {
+    .tarot-fortune-overlay {
+        padding: 10px;
+    }
+
+    .tarot-fortune-modal {
+        width: min(100%, 420px);
+        padding: 14px 12px 12px;
+        --tarot-card-w: 78px;
+        --tarot-card-h: 122px;
+    }
+
+    .tarot-fortune-stage {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .tarot-fortune-reading {
+        min-height: 104px;
+        text-align: center;
+    }
+
+    .tarot-fortune-result-meta {
+        justify-content: center;
+    }
+
+    .tarot-fortune-title {
+        font-size: 21px;
+        padding-inline: 24px;
+    }
 }
 
 @media (max-width: 900px) {
