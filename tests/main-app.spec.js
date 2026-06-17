@@ -3541,7 +3541,7 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   await expectNoPageErrors(errors);
 });
 
-test('tarot cards can toggle deck membership directly from inventory grid', async ({ page }) => {
+test('tarot cards open detail before changing deck membership', async ({ page }) => {
   const errors = trackPageErrors(page);
   const tarotItems = [
     {
@@ -3631,7 +3631,21 @@ test('tarot cards can toggle deck membership directly from inventory grid', asyn
   });
 
   await expect(page.locator('#meleeDeckGrid')).toHaveAttribute('data-deck-count', '1');
+  const tarotSticky = await page.evaluate(() => ({
+    switcher: window.getComputedStyle(document.getElementById('inventoryMobileSwitch')).position,
+    deck: window.getComputedStyle(document.querySelector('#tabContentInventory .inventory-section[data-panel="tarot"]')).position
+  }));
+  expect(tarotSticky).toEqual({ switcher: 'sticky', deck: 'sticky' });
+
+  await page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty)').click();
+  expect(unequipRequests).toHaveLength(0);
+  await expect(page.locator('#itemDetailModal')).toBeVisible();
+  await page.evaluate(() => window.closeItemDetailModal && window.closeItemDetailModal());
+
   await page.locator('#inventoryGrid .inventory-item-cell:has(.tarot-number-badge.is-wand)').click();
+  expect(equipRequests).toHaveLength(0);
+  await expect(page.locator('#itemDetailModal')).toBeVisible();
+  await page.locator('#itemDetailModal .item-detail-action.is-equip').click();
   expect(equipRequests).toHaveLength(1);
   expect(equipRequests[0]).toMatchObject({
     playFabId: 'PF_PLAYWRIGHT',
@@ -3641,6 +3655,9 @@ test('tarot cards can toggle deck membership directly from inventory grid', asyn
   await expect(page.locator('#meleeDeckGrid')).toHaveAttribute('data-deck-count', '2');
 
   await page.locator('#inventoryGrid .inventory-item-cell:has(.tarot-number-badge.is-cup)').click();
+  expect(unequipRequests).toHaveLength(0);
+  await expect(page.locator('#itemDetailModal')).toBeVisible();
+  await page.locator('#itemDetailModal .item-detail-action.is-remove').click();
   expect(unequipRequests).toHaveLength(1);
   expect(unequipRequests[0]).toMatchObject({
     playFabId: 'PF_PLAYWRIGHT',
@@ -3651,7 +3668,7 @@ test('tarot cards can toggle deck membership directly from inventory grid', asyn
   await expectNoPageErrors(errors);
 });
 
-test('equipment cards can equip directly from inventory grid', async ({ page }) => {
+test('equipment cards open detail before equipping from inventory grid', async ({ page }) => {
   const errors = trackPageErrors(page);
   const equipmentItems = [
     {
@@ -3717,9 +3734,19 @@ test('equipment cards can equip directly from inventory grid', async ({ page }) 
     inventory.switchInventoryTab('Weapon');
   });
 
-  await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"] .inventory-item-quick-action.is-equip')).toHaveText('右手');
+  const equipmentSticky = await page.evaluate(() => ({
+    switcher: window.getComputedStyle(document.getElementById('inventoryMobileSwitch')).position,
+    loadout: window.getComputedStyle(document.querySelector('#tabContentInventory .avatar-card.inventory-section')).position
+  }));
+  expect(equipmentSticky).toEqual({ switcher: 'sticky', loadout: 'sticky' });
+
+  await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"] .inventory-item-stat-badge')).toHaveText('12');
+  await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"] .inventory-item-quick-action')).toHaveCount(0);
   await page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]').click();
 
+  expect(equipRequests).toHaveLength(0);
+  await expect(page.locator('#itemDetailModal')).toBeVisible();
+  await page.locator('#itemDetailModal .item-detail-action.is-equip').first().click();
   expect(equipRequests).toHaveLength(1);
   expect(equipRequests[0]).toMatchObject({
     playFabId: 'PF_PLAYWRIGHT',
@@ -3727,6 +3754,6 @@ test('equipment cards can equip directly from inventory grid', async ({ page }) 
     slot: 'RightHand'
   });
   await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]')).toHaveAttribute('data-equipment-state', 'equipped');
-  await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"] .inventory-item-quick-action.is-remove')).toHaveText('外す');
+  await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"] .inventory-item-quick-action')).toHaveCount(0);
   await expectNoPageErrors(errors);
 });

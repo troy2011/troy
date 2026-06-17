@@ -45,6 +45,7 @@ let lastInventoryFetchAt = 0;
 let inventoryFetchPromise = null;
 let equipmentLoaded = false;
 let equipmentFetchPromise = null;
+let inventoryStickyResizeObserver = null;
 // カードレベルデータ: { [itemId]: { level, maxLevel, quantity, nextLevelCost } }
 let cardLevelMap = {};
 
@@ -94,6 +95,34 @@ function showInventoryFeedback(msg, isError = false) {
     fb.textContent = msg;
     el.prepend(fb);
     setTimeout(() => fb.remove(), 3000);
+}
+
+function syncInventoryStickyMetrics() {
+    if (typeof document === 'undefined') return;
+    const tabContent = document.getElementById('tabContentInventory');
+    const switcher = document.getElementById('inventoryMobileSwitch');
+    if (!tabContent || !switcher) return;
+    const switchHeight = Math.ceil(switcher.getBoundingClientRect().height || 0);
+    const activePinnedPanel = tabContent.querySelector('.inventory-section.active[data-panel="tarot"]')
+        || tabContent.querySelector('.avatar-card.inventory-section.active');
+    const pinnedPanelHeight = Math.ceil(activePinnedPanel?.getBoundingClientRect().height || 0);
+    tabContent.style.setProperty('--inventory-switch-sticky-height', `${switchHeight}px`);
+    tabContent.style.setProperty('--inventory-loadout-sticky-height', `${pinnedPanelHeight}px`);
+}
+
+function bindInventoryStickyMetrics() {
+    if (typeof document === 'undefined') return;
+    const switcher = document.getElementById('inventoryMobileSwitch');
+    if (!switcher) return;
+    syncInventoryStickyMetrics();
+    if (!inventoryStickyResizeObserver && typeof ResizeObserver !== 'undefined') {
+        inventoryStickyResizeObserver = new ResizeObserver(() => syncInventoryStickyMetrics());
+        inventoryStickyResizeObserver.observe(switcher);
+    }
+    if (typeof window !== 'undefined' && window.__inventoryStickyMetricsBound !== true) {
+        window.__inventoryStickyMetricsBound = true;
+        window.addEventListener('resize', syncInventoryStickyMetrics);
+    }
 }
 const ITEM_SPRITE_PRESETS = Object.freeze([
     { idPrefixes: ['accessory_', 'offhand_'], path: './Sprites/items/icons.png', width: 16, height: 16, cols: 16, twoHanded: false },
@@ -321,6 +350,7 @@ export function switchInventoryPanel(panel, options = {}) {
         tabContent.dataset.inventoryPanel = activeInventoryPanel;
         tabContent.dataset.inventoryGroup = activeInventoryGroup;
     }
+    bindInventoryStickyMetrics();
     bindEquipmentSlotInteractions();
     if (!options.scrollSwitcher) return;
     const switcher = document.getElementById('inventoryMobileSwitch');
@@ -607,9 +637,8 @@ function renderDeckCardSprite(visualEl, entry) {
     visualEl.appendChild(artEl);
 }
 
-function renderDeckGrid(gridEl, deckItemIds, deckType) {
+function renderDeckGrid(gridEl, deckItemIds) {
     if (!gridEl) return;
-    const playFabId = window.myPlayFabId || null;
     const MAX_SLOTS = 5;
     const filledCount = Math.min(deckItemIds.length, MAX_SLOTS);
     gridEl.dataset.deckCount = String(filledCount);
@@ -623,7 +652,6 @@ function renderDeckGrid(gridEl, deckItemIds, deckType) {
         cell.className = `tarot-loadout-card${item ? '' : ' is-empty'}`;
         if (item) {
             cell.type = 'button';
-            cell.dataset.action = 'remove-tarot-card';
         }
         cell.setAttribute('aria-label', `タロットデッキ ${i + 1}枚目`);
         if (item) {
@@ -632,31 +660,14 @@ function renderDeckGrid(gridEl, deckItemIds, deckType) {
             if (entry.isArcana) cell.classList.add('is-arcana');
             cell.dataset.suit = entry.suitKey || 'none';
             cell.title = entry.title;
-            cell.setAttribute('aria-label', `${entry.title}をデッキから外す`);
-            if (playFabId) {
-                cell.addEventListener('click', () => unequipTarotCardFromDeck(playFabId, itemId, deckType));
-            }
+            cell.setAttribute('aria-label', `${entry.title}の詳細を開く`);
+            cell.addEventListener('click', () => showItemDetailModal(item));
             const visualEl = document.createElement('div');
             visualEl.className = 'tarot-loadout-visual';
             renderDeckCardSprite(visualEl, entry);
             const numberBadge = createTarotNumberBadge(entry.numberLabel, entry.suitKey);
             if (numberBadge) visualEl.appendChild(numberBadge);
-            const actionsEl = document.createElement('div');
-            actionsEl.className = 'tarot-loadout-cell-actions';
-            const removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.className = 'tarot-loadout-cell-remove';
-            removeBtn.setAttribute('aria-label', 'デッキから外す');
-            removeBtn.title = 'デッキから外す';
-            if (playFabId) {
-                removeBtn.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    unequipTarotCardFromDeck(playFabId, itemId, deckType);
-                });
-            }
-            actionsEl.append(removeBtn);
-            cell.append(visualEl, actionsEl);
+            cell.append(visualEl);
         } else {
             cell.setAttribute('aria-label', `タロットデッキ ${i + 1}枚目 空き`);
             const emptyEl = document.createElement('div');
@@ -668,13 +679,18 @@ function renderDeckGrid(gridEl, deckItemIds, deckType) {
     }
     gridEl.innerHTML = '';
     cells.forEach((cell) => gridEl.appendChild(cell));
+    if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => syncInventoryStickyMetrics());
+    } else {
+        syncInventoryStickyMetrics();
+    }
 }
 
 function renderTarotDeckPanels() {
     const shipPanel = document.getElementById('shipDeckPanel');
     if (shipPanel) shipPanel.hidden = true;
     renderDeckRolePanel(document.getElementById('meleeDeckRole'), getCommonTarotRole());
-    renderDeckGrid(document.getElementById('meleeDeckGrid'), getCommonTarotDeck(), 'tarot');
+    renderDeckGrid(document.getElementById('meleeDeckGrid'), getCommonTarotDeck());
 }
 
 function getInventoryTabHint(category) {
@@ -1033,26 +1049,65 @@ function getInventoryRarityTone(item) {
     return 'green';
 }
 
-function createInventoryStatBadges(item) {
+function getPrimaryInventoryCardStats(item, canonicalCategory) {
     const cd = item?.customData || {};
-    if (!isInventoryEquipmentCategory(getCanonicalTarotCategory(cd.Category))) return null;
-    const rarityTone = getInventoryRarityTone(item);
-    const stats = [
-        { key: 'Power', label: '攻', tone: 'power' },
-        { key: 'Defense', label: '防', tone: 'defense' },
-        { key: 'MagicPower', label: '術', tone: 'magic' },
-        { key: 'HealPower', label: '回', tone: 'heal' }
-    ]
-        .map((stat) => ({ ...stat, value: getInventoryStatValue(cd, stat.key) }))
-        .filter((stat) => stat.value);
+    const category = canonicalCategory || getCanonicalTarotCategory(cd.Category);
+    const pick = (key, tone, ariaLabel) => {
+        const value = getInventoryStatValue(cd, key);
+        return value ? { value, tone, ariaLabel } : null;
+    };
+
+    if (isTarotInventoryCategory(category)) {
+        const stats = [];
+        const lvd = cardLevelMap[item?.itemId];
+        if (lvd?.level) {
+            stats.push({ value: lvd.level, tone: 'level', ariaLabel: 'Level' });
+        }
+        return stats;
+    }
+
+    if (!isInventoryEquipmentCategory(category)) return [];
+
+    if (category === 'Weapon') {
+        return [pick('Power', 'power', 'Power')].filter(Boolean);
+    }
+    if (category === 'Shield' || category === 'Armor') {
+        return [pick('Defense', 'defense', 'Defense')].filter(Boolean);
+    }
+    if (category === 'Offhand') {
+        return [pick('MagicPower', 'magic', 'Magic power') || pick('HealPower', 'heal', 'Heal power')].filter(Boolean);
+    }
+    if (category === 'Accessory') {
+        return [
+            pick('Power', 'power', 'Power'),
+            pick('Defense', 'defense', 'Defense'),
+            pick('MagicPower', 'magic', 'Magic power'),
+            pick('HealPower', 'heal', 'Heal power')
+        ].filter(Boolean).slice(0, 2);
+    }
+
+    return [
+        pick('Power', 'power', 'Power'),
+        pick('Defense', 'defense', 'Defense'),
+        pick('MagicPower', 'magic', 'Magic power'),
+        pick('HealPower', 'heal', 'Heal power')
+    ].filter(Boolean).slice(0, 2);
+}
+
+function createInventoryStatBadges(item, canonicalCategory = '') {
+    const stats = getPrimaryInventoryCardStats(item, canonicalCategory);
     if (!stats.length) return null;
+    const rarityTone = getInventoryRarityTone(item);
 
     const wrap = document.createElement('div');
     wrap.className = 'inventory-item-stat-badges';
     stats.forEach((stat) => {
         const badge = document.createElement('span');
         badge.className = `inventory-item-stat-badge is-${stat.tone} is-${rarityTone}`;
-        badge.textContent = `${stat.label}${stat.value}`;
+        badge.textContent = String(stat.value);
+        if (stat.ariaLabel) {
+            badge.setAttribute('aria-label', `${stat.ariaLabel} ${stat.value}`);
+        }
         wrap.appendChild(badge);
     });
     return wrap;
@@ -1324,12 +1379,6 @@ function createInventoryCell(item, requestedCategory) {
     const compareSummary = getInventoryComparisonSummary(item, canonicalCategory);
     const quickActions = getInventoryQuickActions(item, canonicalCategory);
     const quickAction = quickActions[0] || null;
-    const tarotDeckAction = isTarotCard
-        ? quickActions.find((action) => ['equip', 'remove', 'disabled'].includes(action?.tone))
-        : null;
-    const equipmentAction = isEquipmentCard
-        ? quickActions.find((action) => ['equip', 'remove'].includes(action?.tone))
-        : null;
     const rarityTone = getInventoryRarityTone(item);
     cell.classList.add(`is-rarity-${rarityTone}`);
     if (isTarotCard) {
@@ -1359,30 +1408,11 @@ function createInventoryCell(item, requestedCategory) {
     if (isEquipmentEquipped) {
         cell.classList.add('is-equipment-equipped');
     }
-    const activateCell = async () => {
-        if (!isTarotCard) {
-            if (equipmentAction) {
-                await equipmentAction.run();
-            } else {
-                showItemDetailModal(item);
-            }
-            return;
-        }
-        if (!tarotDeckAction) {
-            showItemDetailModal(item);
-            return;
-        }
-        if (tarotDeckAction.disabled) {
-            showInventoryFeedback('デッキは5枚までです。先に1枚外してください。', true);
-            return;
-        }
-        await tarotDeckAction.run();
-    };
-    cell.addEventListener('click', () => activateCell());
+    cell.addEventListener('click', () => showItemDetailModal(item));
     cell.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
-        activateCell();
+        showItemDetailModal(item);
     });
 
     const head = document.createElement('div');
@@ -1403,7 +1433,7 @@ function createInventoryCell(item, requestedCategory) {
     head.appendChild(headMeta);
     cell.appendChild(head);
 
-    const statBadges = createInventoryStatBadges(item);
+    const statBadges = createInventoryStatBadges(item, canonicalCategory);
     if (statBadges) {
         cell.classList.add('has-stat-badges');
         cell.appendChild(statBadges);
@@ -1468,7 +1498,7 @@ function createInventoryCell(item, requestedCategory) {
     main.appendChild(copy);
     cell.appendChild(main);
 
-    if (compareSummary || quickActions.length) {
+    if (!isTarotCard && !isEquipmentCard && (compareSummary || quickActions.length)) {
         const tail = document.createElement('div');
         tail.className = 'inventory-item-tail';
         if (compareSummary) {
@@ -1880,12 +1910,18 @@ export function renderInventoryGrid(category) {
 
     if (sorted.length === 0) {
         gridEl.innerHTML = `<p style="grid-column: 1 / -1; text-align: center;">${getEmptyInventoryMessage(category)}</p>`;
+        syncInventoryStickyMetrics();
         return;
     }
 
     sorted.forEach(item => {
         gridEl.appendChild(createInventoryCell(item, category));
     });
+    if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => syncInventoryStickyMetrics());
+    } else {
+        syncInventoryStickyMetrics();
+    }
 }
 
 function setSpriteIcon(element, imageUrl, spriteIndex, spriteWidth = 32, spriteHeight = 32, scale = 1, itemCategory = null, avatarColor = null) {

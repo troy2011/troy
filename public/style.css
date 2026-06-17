@@ -20872,6 +20872,17 @@ body[data-sea-tone] .home-hero-card {
     bottom: 30px;
 }
 
+#tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell .inventory-item-stat-badges,
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell .inventory-item-stat-badges {
+    left: 50%;
+    right: auto;
+    bottom: 8px;
+    transform: translateX(-50%);
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+
 #tabContentInventory .inventory-item-stat-badge {
     min-width: 34px;
     min-height: 16px;
@@ -20887,6 +20898,14 @@ body[data-sea-tone] .home-hero-card {
     line-height: 1;
     text-shadow: 0 1px 1px rgba(0, 0, 0, 0.84);
     box-shadow: none;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell .inventory-item-stat-badge,
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell .inventory-item-stat-badge {
+    min-width: 26px;
+    min-height: 18px;
+    padding: 2px 6px;
+    font-size: 11px;
 }
 
 #tabContentInventory .inventory-item-stat-badge.is-blue {
@@ -21057,9 +21076,14 @@ body[data-sea-tone] .home-hero-card {
     --inventory-panel-bg: linear-gradient(180deg, rgba(7, 8, 10, 0.9), rgba(3, 4, 6, 0.98));
     --inventory-gold: #ffe4a0;
     --inventory-ink: #261306;
+    --inventory-sticky-top: calc(134px + var(--safe-top));
+    --inventory-switch-sticky-height: 72px;
+    --inventory-loadout-sticky-height: 220px;
 }
 
 #tabContentInventory .inventory-mobile-switch {
+    top: var(--inventory-sticky-top);
+    z-index: 80;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 4px;
     padding: 5px;
@@ -21125,6 +21149,14 @@ body[data-sea-tone] .home-hero-card {
     background:
         radial-gradient(ellipse at 50% 0%, rgba(255, 222, 144, 0.12), transparent 58%),
         var(--inventory-panel-bg);
+}
+
+#tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .avatar-card.inventory-section,
+#tabContentInventory[data-inventory-panel="tarot"] .inventory-section.active[data-panel="tarot"] {
+    position: sticky;
+    top: calc(var(--inventory-sticky-top) + var(--inventory-switch-sticky-height) + 6px);
+    z-index: 70;
+    box-shadow: 0 14px 24px rgba(0, 0, 0, 0.34);
 }
 
 #tabContentInventory .avatar-card.inventory-section::before,
@@ -21485,6 +21517,7 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory .inventory-item-cell {
     border: 11px solid transparent;
     border-radius: 8px;
+    scroll-margin-top: calc(var(--inventory-sticky-top) + var(--inventory-switch-sticky-height) + var(--inventory-loadout-sticky-height) + 18px);
     border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 10px / 0 stretch;
     background:
         radial-gradient(circle at 50% 18%, rgba(255, 224, 142, 0.1), transparent 48%),
@@ -21589,6 +21622,47 @@ body[data-sea-tone] .home-hero-card {
         width: 52px;
         height: 52px;
         align-self: center;
+    }
+
+    #tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] #equipmentGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .equip-slot {
+        min-height: 64px;
+        grid-template-columns: 28px minmax(0, 1fr);
+        grid-template-rows: auto auto;
+        gap: 3px 6px;
+        padding: 7px;
+    }
+
+    #tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .equip-slot-icon {
+        grid-column: 1;
+        grid-row: 1 / 3;
+        width: 28px;
+        height: 28px;
+        background-size: 28px 28px;
+    }
+
+    #tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .equip-slot-label {
+        grid-column: 2;
+        grid-row: 1;
+        font-size: 11px;
+        line-height: 1;
+    }
+
+    #tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .equip-slot-name {
+        grid-column: 2;
+        grid-row: 2;
+        margin-top: 0;
+        font-size: 11px;
+        line-height: 1.1;
+        -webkit-line-clamp: 1;
+    }
+
+    #tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .equip-slot-stats,
+    #tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .equip-slot-item-art {
+        display: none;
     }
 }
 
@@ -23050,7 +23124,40 @@ body[data-sea-tone] .home-hero-card {
 
 #tabContentInventory .tarot-deck-panel {
     display: grid;
-    gap: 10px;
+    gap: 6px;
+}
+
+#tabContentInventory[data-inventory-panel="tarot"] .inventory-section.active[data-panel="tarot"] {
+    padding: 8px;
+}
+
+#tabContentInventory[data-inventory-panel="tarot"] .inventory-section.active[data-panel="tarot"] > .section-header {
+    min-height: 32px;
+    margin-bottom: 6px;
+    padding: 3px 10px;
+    border-width: 8px 18px;
+}
+
+#tabContentInventory[data-inventory-panel="tarot"] .tarot-deck-panel {
+    border-width: 9px;
+    border-image-width: 9px;
+    gap: 6px;
+    padding: 6px;
+}
+
+#tabContentInventory[data-inventory-panel="tarot"] .tarot-loadout-header {
+    min-height: 0;
+    margin: 0 0 2px;
+    padding: 0 4px;
+    border: 0;
+    border-image: none;
+    background: none;
+}
+
+#tabContentInventory[data-inventory-panel="tarot"] .tarot-loadout-header h3 {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.1;
 }
 
 #tabContentInventory .tarot-loadout-header p,
@@ -23223,36 +23330,6 @@ body[data-sea-tone] .home-hero-card {
     height: 18px;
     padding-inline: 3px;
     font-size: 11px;
-}
-
-#tabContentInventory .tarot-loadout-cell-actions {
-    position: absolute;
-    top: -6px;
-    right: auto;
-    left: -6px;
-    z-index: 5;
-    display: block;
-    width: 17px;
-    height: 17px;
-}
-
-#tabContentInventory .tarot-loadout-cell-remove {
-    width: 17px;
-    height: 17px;
-    min-height: 17px;
-    padding: 0;
-    border: 1px solid rgba(255, 228, 160, 0.32);
-    border-radius: 50%;
-    background:
-        rgba(7, 8, 10, 0.92)
-        var(--icon-action-close)
-        center / 11px 11px
-        no-repeat;
-    color: transparent;
-    font-size: 0;
-    line-height: 1;
-    display: grid;
-    place-items: center;
 }
 
 #tabContentInventory .tarot-loadout-cell-empty {
