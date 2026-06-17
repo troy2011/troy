@@ -6,6 +6,8 @@ import {
     joinGuild as requestJoinGuild,
     leaveGuild as requestLeaveGuild,
     getGuildMembers as requestGuildMembers,
+    updateGuildMemberRole,
+    removeGuildMember,
     getGuildApplications,
     approveGuildApplication,
     rejectGuildApplication,
@@ -22,6 +24,7 @@ import {
 import { getNationLabel } from './nationLabels.js';
 import { buildPlayerTriggerHtml } from './playerProfile.js';
 import {
+    CREW_ROLE_DEFS,
     CREW_ROLE_BY_ID,
     getCrewRankDecorationClass,
     getCrewRankLevel,
@@ -62,7 +65,11 @@ let selectedInviteRoleId = '';
 let pendingCrewInvite = null;
 let currentWarehouseItems = [];
 let currentWarehouseTreasury = 0;
+let currentWarehouseHistory = [];
 let currentDepositInventory = [];
+let currentMembers = [];
+let activeCrewSection = 'overview';
+let activeRecruitmentFilter = 'all';
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -188,6 +195,95 @@ async function copyText(text) {
     const copied = document.execCommand('copy');
     input.remove();
     return copied;
+}
+
+function isCrewOwner(guild = currentGuild) {
+    return !!guild?.guildId && (guild.isOwner || guild.role === '船長' || guild.role === '王');
+}
+
+function getMemberDisplayNameById(playFabId) {
+    const target = normalizePlayerId(playFabId);
+    const member = currentMembers.find((entry) => normalizePlayerId(entry?.playFabId) === target);
+    return getSafePlayerDisplayName(member?.displayName, [member?.playFabId, member?.entityId]);
+}
+
+function getMemberWarehouseStats(playFabId) {
+    const target = normalizePlayerId(playFabId);
+    const stats = { deposit: 0, withdraw: 0, itemDeposit: 0, itemWithdraw: 0 };
+    currentWarehouseHistory.forEach((entry) => {
+        if (normalizePlayerId(entry?.playFabId) !== target) return;
+        const amount = Math.max(0, Math.floor(Number(entry?.amount || 0) || 0));
+        if (entry.type === 'currency_deposit') stats.deposit += amount;
+        if (entry.type === 'currency_withdraw') stats.withdraw += amount;
+        if (entry.type === 'item_deposit') stats.itemDeposit += 1;
+        if (entry.type === 'item_withdraw') stats.itemWithdraw += 1;
+    });
+    return stats;
+}
+
+function switchCrewSection(sectionId = activeCrewSection) {
+    const next = ['overview', 'invite', 'warehouse', 'recruitment'].includes(sectionId) ? sectionId : 'overview';
+    activeCrewSection = next;
+    document.querySelectorAll('[data-crew-section-tab]').forEach((button) => {
+        const active = button.dataset.crewSectionTab === next;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    document.querySelectorAll('[data-companion-section]').forEach((section) => {
+        section.classList.toggle('is-section-hidden', section.dataset.companionSection !== next);
+    });
+}
+
+function focusCrewSection(sectionId, selector = '') {
+    switchCrewSection(sectionId);
+    if (!selector) return;
+    requestAnimationFrame(() => {
+        document.querySelector(selector)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+}
+
+function buildQuickAction(label, section, selector = '', variant = '') {
+    return `<button type="button" class="crew-quick-action ${variant}" data-crew-quick-section="${escapeHtml(section)}" data-crew-quick-target="${escapeHtml(selector)}">${escapeHtml(label)}</button>`;
+}
+
+function renderQuickPanel(guild) {
+    const title = document.getElementById('crewQuickTitle');
+    const meta = document.getElementById('crewQuickMeta');
+    const actions = document.getElementById('crewQuickActions');
+    if (!title || !meta || !actions) return;
+
+    if (!guild?.guildId) {
+        const unlocked = canRecruitCompanions();
+        title.textContent = unlocked ? '仲間を集められます' : 'まだ仲間は未所属です';
+        meta.textContent = unlocked
+            ? '海賊団を設立するか、募集掲示板から参加先を探せます。'
+            : `Lv.${CAPTAIN_LEVEL}以上、または王になると海賊団を設立できます。`;
+        actions.innerHTML = [
+            buildQuickAction('募集を見る', 'recruitment', '#crewRecruitmentBoardPanel'),
+            buildQuickAction('勧誘QRを読む', 'invite', '#crewJoinPanel', 'is-primary'),
+            unlocked ? buildQuickAction('設立する', 'invite', '#btnCreateCrew') : ''
+        ].join('');
+        return;
+    }
+
+    const appCount = Number(currentApplications.length || guild.pendingApplicationsCount || 0);
+    title.textContent = `${getNationLabel(guild.name) || guild.name || '仲間'}に所属中`;
+    meta.textContent = isCrewOwner(guild)
+        ? `仲間 ${Number(guild.companionCount || 0)} / ${Number(guild.maxCompanions || 7)}人、加入申請 ${appCount}件`
+        : `共有倉庫とメンバー一覧を確認できます。`;
+    actions.innerHTML = [
+        buildQuickAction('メンバー', 'overview', '#crewMembersList'),
+        buildQuickAction('共有倉庫', 'warehouse', '#crewWarehousePanel', 'is-primary'),
+        isCrewOwner(guild) ? buildQuickAction(`申請 ${appCount}件`, 'recruitment', '#crewApplicationsPanel') : ''
+    ].join('');
+}
+
+function renderApplicationBadge(guild) {
+    const badge = document.getElementById('crewApplicationsBadge');
+    if (!badge) return;
+    const count = Number(currentApplications.length || guild?.pendingApplicationsCount || 0);
+    badge.textContent = String(count);
+    badge.hidden = !isCrewOwner(guild) || count <= 0;
 }
 
 function updateRankSummary() {
@@ -317,7 +413,35 @@ async function withBusyButton(button, busyText, action) {
 function normalizeWarehousePayload(data = {}) {
     currentWarehouseItems = Array.isArray(data?.warehouse) ? data.warehouse : [];
     currentWarehouseTreasury = Math.max(0, Math.floor(Number(data?.treasury || 0) || 0));
+    currentWarehouseHistory = Array.isArray(data?.history) ? data.history : [];
     if (currentGuild) currentGuild.treasury = currentWarehouseTreasury;
+}
+
+function getWarehouseHistoryLabel(entry) {
+    const name = getMemberDisplayNameById(entry?.playFabId);
+    const amount = Math.max(0, Math.floor(Number(entry?.amount || 0) || 0)).toLocaleString('ja-JP');
+    const itemName = String(entry?.itemName || entry?.itemId || 'アイテム').trim();
+    if (entry?.type === 'currency_deposit') return `${name} が ${amount}G 入金`;
+    if (entry?.type === 'currency_withdraw') return `${name} が ${amount}G 出金`;
+    if (entry?.type === 'item_deposit') return `${name} が ${itemName} を預け入れ`;
+    if (entry?.type === 'item_withdraw') return `${name} が ${itemName} を引き出し`;
+    return `${name} が倉庫を操作`;
+}
+
+function renderWarehouseHistory() {
+    const list = document.getElementById('crewWarehouseHistoryList');
+    const empty = document.getElementById('crewWarehouseHistoryEmpty');
+    const summary = document.getElementById('crewWarehouseHistorySummary');
+    if (!list || !empty) return;
+    const entries = Array.isArray(currentWarehouseHistory) ? currentWarehouseHistory.slice(0, 20) : [];
+    empty.hidden = entries.length > 0;
+    if (summary) summary.textContent = `最新${entries.length}件`;
+    list.innerHTML = entries.map((entry) => `
+        <div class="crew-history-entry">
+            <span>${escapeHtml(getWarehouseHistoryLabel(entry))}</span>
+            ${entry?.createdAt ? `<time>${escapeHtml(formatDateTime(entry.createdAt))}</time>` : ''}
+        </div>
+    `).join('');
 }
 
 function renderWarehousePanel(guild) {
@@ -348,6 +472,42 @@ function renderWarehousePanel(guild) {
     list.innerHTML = currentWarehouseItems
         .map((item, index) => buildWarehouseItemCardHtml(item, index))
         .join('');
+    renderWarehouseHistory();
+}
+
+function renderRoleSlots(members, guild) {
+    const panel = document.getElementById('crewRoleSlotsPanel');
+    const list = document.getElementById('crewRoleSlotsList');
+    const summary = document.getElementById('crewRoleSlotsSummary');
+    if (!panel || !list) return;
+    panel.hidden = !guild?.guildId;
+    if (!guild?.guildId) return;
+
+    const memberByRole = new Map();
+    (Array.isArray(members) ? members : []).forEach((member) => {
+        const roleId = String(member?.crewRoleId || '').trim();
+        if (roleId) memberByRole.set(roleId, member);
+    });
+    const availableMap = buildRoleAvailabilityMap(guild?.availableRoles || []);
+    const openCount = CREW_ROLE_DEFS.filter((role) => !memberByRole.has(role.id) && isRoleAvailable(availableMap, role.id)).length;
+    if (summary) summary.textContent = `空き ${openCount} / ${CREW_ROLE_DEFS.length}`;
+    const canInvite = isCrewOwner(guild);
+    list.innerHTML = CREW_ROLE_DEFS.map((role) => {
+        const member = memberByRole.get(role.id);
+        const available = !member && isRoleAvailable(availableMap, role.id);
+        const status = member ? '所属中' : (available ? '空き' : '使用中');
+        return `
+            <article class="crew-role-slot ${member ? 'is-filled' : ''} ${available ? 'is-open' : ''}" data-crew-icon="${escapeHtml(role.iconKey)}">
+                <span class="crew-role-icon" aria-hidden="true"></span>
+                <div class="crew-role-slot-copy">
+                    <strong>${escapeHtml(role.label)}</strong>
+                    <span>${escapeHtml(role.gameLabel)} / ${escapeHtml(status)}</span>
+                    ${member ? `<em>${buildPlayerTriggerHtml(member.playFabId, getSafePlayerDisplayName(member.displayName, [member.playFabId, member.entityId]), { className: 'player-link-inline' })}</em>` : ''}
+                </div>
+                ${canInvite && available ? `<button type="button" class="crew-slot-invite" data-crew-slot-invite="${escapeHtml(role.id)}">QR</button>` : ''}
+            </article>
+        `;
+    }).join('');
 }
 
 async function refreshWarehouse(playFabId, options = {}) {
@@ -468,10 +628,20 @@ function renderRecruitmentBoard(posts, guild) {
     const summary = document.getElementById('crewRecruitmentBoardSummary');
     if (!list || !empty) return;
 
-    const entries = Array.isArray(posts) ? posts : [];
+    const sourceEntries = Array.isArray(posts) ? posts : [];
+    const entries = sourceEntries.filter((post) => {
+        const isNationGuild = post.guildType === 'nation' || !!post.isNationGuild;
+        if (activeRecruitmentFilter === 'canApply') return !!post.canApply;
+        if (activeRecruitmentFilter === 'nation') return isNationGuild;
+        if (activeRecruitmentFilter === 'pirate') return !isNationGuild;
+        return true;
+    });
     list.innerHTML = '';
     empty.hidden = entries.length > 0;
-    if (summary) summary.textContent = `${entries.length}件`;
+    if (summary) summary.textContent = `${entries.length} / ${sourceEntries.length}件`;
+    document.querySelectorAll('[data-crew-board-filter]').forEach((button) => {
+        button.classList.toggle('is-active', button.dataset.crewBoardFilter === activeRecruitmentFilter);
+    });
 
     entries.forEach((post) => {
         const isNationGuild = post.guildType === 'nation' || !!post.isNationGuild;
@@ -589,6 +759,8 @@ function renderMembers(members) {
     list.innerHTML = '';
     const entries = Array.isArray(members) ? members : [];
     empty.hidden = entries.length > 0;
+    const owner = isCrewOwner(currentGuild);
+    const availability = buildRoleAvailabilityMap(currentGuild?.availableRoles || []);
     entries.forEach((member) => {
         const playFabId = String(member.playFabId || '').trim();
         const displayName = getSafePlayerDisplayName(member.displayName, [playFabId, member.entityId]);
@@ -599,6 +771,9 @@ function renderMembers(members) {
         const rankClass = member.crewRankDecorationClass || getCrewRankDecorationClass(memberLevel);
         const iconKey = member.crewIconKey || roleDef?.iconKey || '';
         const gameLabel = member.crewGameLabel || roleDef?.gameLabel || '';
+        const isCaptainMember = member.role === '船長' || member.role === '王' || normalizePlayerId(playFabId) === normalizePlayerId(currentGuild?.ownerPlayFabId);
+        const warehouseStats = getMemberWarehouseStats(playFabId);
+        const roleOptions = buildApplicationRoleOptionsHtml(availability, roleId);
         const card = document.createElement('article');
         card.className = `event-card crew-member-card ${rankClass}`;
         if (iconKey) card.dataset.crewIcon = iconKey;
@@ -615,7 +790,16 @@ function renderMembers(members) {
                 ${gameLabel ? `<span>${escapeHtml(gameLabel)}</span>` : ''}
                 ${roleId ? `<span>役職Lv.${rankLevel}</span>` : ''}
                 ${member.level ? `<span>Lv.${Number(member.level || 1)}</span>` : ''}
+                <span>入金 ${warehouseStats.deposit.toLocaleString('ja-JP')}G</span>
+                <span>預入 ${warehouseStats.itemDeposit}件</span>
             </div>
+            ${owner && !isCaptainMember ? `
+                <div class="crew-member-tools">
+                    <label>役職<select data-member-role="${escapeHtml(playFabId)}">${roleOptions}</select></label>
+                    <button class="event-action-btn is-approve js-update-crew-member-role" type="button" data-member-id="${escapeHtml(playFabId)}">変更</button>
+                    <button class="event-action-btn is-reject js-remove-crew-member" type="button" data-member-id="${escapeHtml(playFabId)}">除名</button>
+                </div>
+            ` : ''}
         `;
         list.appendChild(card);
     });
@@ -818,6 +1002,7 @@ async function loadCompanionPage(playFabId) {
         warehouseData = fetchedWarehouse;
         inventoryData = fetchedInventory;
     }
+    currentMembers = members;
     normalizeWarehousePayload(warehouseData || { warehouse: [], treasury: currentGuild?.treasury || 0 });
     currentDepositInventory = Array.isArray(inventoryData?.inventory) ? inventoryData.inventory : [];
     currentApplications = [];
@@ -827,13 +1012,17 @@ async function loadCompanionPage(playFabId) {
     }
 
     updateRankSummary();
+    renderQuickPanel(currentGuild);
+    renderApplicationBadge(currentGuild);
     renderOverview(currentGuild);
+    renderRoleSlots(members, currentGuild);
     renderMembers(members);
     renderInvitePanel(currentGuild);
     renderWarehousePanel(currentGuild);
     renderRecruitmentManager(currentGuild);
     renderApplications(currentApplications, currentGuild);
     renderRecruitmentBoard(currentRecruitmentPosts, currentGuild);
+    switchCrewSection(activeCrewSection);
 }
 
 async function createCrew(playFabId) {
@@ -1127,6 +1316,46 @@ async function rejectApplication(playFabId, button) {
     }
 }
 
+async function changeMemberRole(playFabId, button) {
+    if (!currentGuild?.guildId || !isCrewOwner(currentGuild)) return;
+    const memberPlayFabId = String(button?.dataset?.memberId || '').trim();
+    const card = button?.closest?.('.event-card');
+    const crewRoleId = String(card?.querySelector?.('[data-member-role]')?.value || '').trim();
+    if (!memberPlayFabId || !crewRoleId) {
+        setMessage('変更する仲間と役職を選んでください。', true);
+        return;
+    }
+    try {
+        const data = await updateGuildMemberRole(playFabId, currentGuild.guildId, memberPlayFabId, crewRoleId, { throwOnError: true });
+        if (data?.success) {
+            setMessage(`${getCrewRoleLabel(crewRoleId) || '選択した役職'}に変更しました。`);
+            await loadCompanionPage(playFabId);
+        }
+    } catch (error) {
+        setMessage(error?.message || error?.error || '仲間の役職変更に失敗しました。', true);
+    }
+}
+
+async function removeMember(playFabId, button) {
+    if (!currentGuild?.guildId || !isCrewOwner(currentGuild)) return;
+    const memberPlayFabId = String(button?.dataset?.memberId || '').trim();
+    const memberName = getMemberDisplayNameById(memberPlayFabId);
+    if (!memberPlayFabId) {
+        setMessage('除名する仲間を選んでください。', true);
+        return;
+    }
+    if (!confirm(`${memberName}を仲間から除名しますか？`)) return;
+    try {
+        const data = await removeGuildMember(playFabId, currentGuild.guildId, memberPlayFabId, { throwOnError: true });
+        if (data?.success) {
+            setMessage(`${memberName}を仲間から除名しました。`);
+            await loadCompanionPage(playFabId);
+        }
+    } catch (error) {
+        setMessage(error?.message || error?.error || '仲間の除名に失敗しました。', true);
+    }
+}
+
 function bindEvents(playFabId) {
     if (bound) return;
     document.getElementById('btnCreateCrew')?.addEventListener('click', () => createCrew(window.myPlayFabId || playFabId));
@@ -1168,6 +1397,40 @@ function bindEvents(playFabId) {
         const rejectButton = event.target?.closest?.('.js-reject-crew-application');
         if (rejectButton) {
             rejectApplication(window.myPlayFabId || playFabId, rejectButton);
+        }
+    });
+    document.getElementById('tabContentEvents')?.addEventListener('click', (event) => {
+        const tabButton = event.target?.closest?.('[data-crew-section-tab]');
+        if (tabButton) {
+            switchCrewSection(tabButton.dataset.crewSectionTab || 'overview');
+            return;
+        }
+        const quickButton = event.target?.closest?.('[data-crew-quick-section]');
+        if (quickButton) {
+            focusCrewSection(quickButton.dataset.crewQuickSection || 'overview', quickButton.dataset.crewQuickTarget || '');
+            return;
+        }
+        const filterButton = event.target?.closest?.('[data-crew-board-filter]');
+        if (filterButton) {
+            activeRecruitmentFilter = filterButton.dataset.crewBoardFilter || 'all';
+            renderRecruitmentBoard(currentRecruitmentPosts, currentGuild);
+            return;
+        }
+        const slotInviteButton = event.target?.closest?.('[data-crew-slot-invite]');
+        if (slotInviteButton) {
+            selectedInviteRoleId = String(slotInviteButton.dataset.crewSlotInvite || '').trim();
+            renderInvitePanel(currentGuild);
+            focusCrewSection('invite', '#crewInvitePanel');
+            return;
+        }
+        const memberRoleButton = event.target?.closest?.('.js-update-crew-member-role');
+        if (memberRoleButton) {
+            withBusyButton(memberRoleButton, '変更中', () => changeMemberRole(window.myPlayFabId || playFabId, memberRoleButton));
+            return;
+        }
+        const removeMemberButton = event.target?.closest?.('.js-remove-crew-member');
+        if (removeMemberButton) {
+            withBusyButton(removeMemberButton, '除名中', () => removeMember(window.myPlayFabId || playFabId, removeMemberButton));
         }
     });
     bound = true;

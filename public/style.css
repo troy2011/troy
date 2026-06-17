@@ -23093,6 +23093,208 @@ body[data-sea-tone] .home-hero-card {
     min-height: 84px;
 }
 
+#tabContentEvents .crew-quick-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    margin: 12px 0;
+    padding: 12px;
+    border: 12px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-dark-wide.png") 26 fill / 12px / 0 stretch;
+    background: linear-gradient(180deg, rgba(12, 18, 27, 0.92), rgba(5, 8, 13, 0.98));
+}
+
+#tabContentEvents .crew-quick-title {
+    color: #fff1c2;
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1.25;
+}
+
+#tabContentEvents .crew-quick-meta {
+    margin-top: 3px;
+    color: #d0b98c;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.45;
+}
+
+#tabContentEvents .crew-quick-actions,
+#tabContentEvents .crew-section-tabs,
+#tabContentEvents .crew-board-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+#tabContentEvents .crew-quick-action,
+#tabContentEvents .crew-section-tab,
+#tabContentEvents .crew-board-filter,
+#tabContentEvents .crew-slot-invite {
+    min-height: 36px;
+    padding: 8px 12px;
+    border: 1px solid rgba(220, 169, 82, 0.32);
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(29, 38, 52, 0.92), rgba(7, 11, 18, 0.96));
+    color: #f7e8c1;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+#tabContentEvents .crew-quick-action.is-primary,
+#tabContentEvents .crew-section-tab.is-active,
+#tabContentEvents .crew-board-filter.is-active,
+#tabContentEvents .crew-slot-invite {
+    border-color: rgba(242, 211, 148, 0.75);
+    color: #fff1c2;
+    box-shadow: 0 0 0 2px rgba(242, 211, 148, 0.12);
+}
+
+#tabContentEvents .crew-section-tabs {
+    margin: 12px 0;
+}
+
+#tabContentEvents .crew-section-tab {
+    position: relative;
+    flex: 1 1 120px;
+}
+
+#tabContentEvents .crew-tab-badge {
+    position: absolute;
+    top: -7px;
+    right: 8px;
+    min-width: 19px;
+    height: 19px;
+    display: grid;
+    place-items: center;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #b91c1c;
+    color: #fff7ed;
+    font-size: 10px;
+    line-height: 1;
+}
+
+#tabContentEvents [data-companion-section].is-section-hidden {
+    display: none !important;
+}
+
+#tabContentEvents .crew-role-slot-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 8px;
+}
+
+#tabContentEvents .crew-role-slot {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 9px;
+    min-height: 68px;
+    padding: 9px;
+    border: 1px solid rgba(220, 169, 82, 0.22);
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(13, 19, 27, 0.86), rgba(5, 7, 10, 0.94));
+}
+
+#tabContentEvents .crew-role-slot.is-filled {
+    border-color: rgba(125, 211, 252, 0.36);
+}
+
+#tabContentEvents .crew-role-slot.is-open {
+    border-color: rgba(74, 222, 128, 0.42);
+}
+
+#tabContentEvents .crew-role-slot-copy {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+#tabContentEvents .crew-role-slot-copy strong {
+    color: #ffe2a0;
+    font-size: 13px;
+}
+
+#tabContentEvents .crew-role-slot-copy span,
+#tabContentEvents .crew-role-slot-copy em {
+    color: #cbd5e1;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 800;
+    line-height: 1.25;
+}
+
+#tabContentEvents .crew-member-tools {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 8px;
+    align-items: end;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(220, 169, 82, 0.18);
+}
+
+#tabContentEvents .crew-member-tools label {
+    color: #f2d394;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+#tabContentEvents .crew-member-tools select {
+    width: 100%;
+    margin-top: 4px;
+}
+
+#tabContentEvents .crew-history-panel {
+    margin-top: 12px;
+}
+
+#tabContentEvents .crew-history-list {
+    display: grid;
+    gap: 7px;
+}
+
+#tabContentEvents .crew-history-entry {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid rgba(220, 169, 82, 0.18);
+    border-radius: 8px;
+    background: rgba(4, 7, 11, 0.64);
+    color: #f7e8c1;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+#tabContentEvents .crew-history-entry time {
+    flex: 0 0 auto;
+    color: #d0b98c;
+}
+
+@media (max-width: 640px) {
+    #tabContentEvents .crew-quick-panel,
+    #tabContentEvents .crew-member-tools {
+        grid-template-columns: 1fr;
+    }
+
+    #tabContentEvents .crew-quick-actions {
+        width: 100%;
+    }
+
+    #tabContentEvents .crew-quick-action {
+        flex: 1 1 120px;
+    }
+
+    #tabContentEvents .crew-history-entry {
+        display: grid;
+    }
+}
+
 #tabContentQr .guild-companion-redirect {
     display: grid;
     gap: 12px;

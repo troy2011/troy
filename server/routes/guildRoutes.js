@@ -21,6 +21,7 @@ const CREW_FOUNDING_COST = 1000;
 const MAX_CREW_COMPANIONS = 7;
 const CREW_RECRUITMENT_COLLECTION = 'crew_recruitment_posts';
 const MAX_CREW_RECRUITMENT_MESSAGE_LENGTH = 120;
+const MAX_WAREHOUSE_HISTORY_ENTRIES = 100;
 const CREW_RECRUITMENT_LIST_LIMIT = 50;
 const GUILD_MUTATION_LOCK_COLLECTION = 'guild_mutation_locks';
 const GUILD_MUTATION_LOCK_TTL_MS = 30_000;
@@ -183,6 +184,48 @@ function sanitizeWarehouseImagePath(value) {
 
 function sanitizeRecruitmentMessage(value) {
     return String(value || '').replace(/\s+/g, ' ').trim().slice(0, MAX_CREW_RECRUITMENT_MESSAGE_LENGTH);
+}
+
+function sanitizeWarehouseHistoryType(value) {
+    const type = String(value || '').trim().toLowerCase();
+    return ['currency_deposit', 'currency_withdraw', 'item_deposit', 'item_withdraw'].includes(type) ? type : '';
+}
+
+function normalizeWarehouseHistoryEntry(entry) {
+    const type = sanitizeWarehouseHistoryType(entry?.type);
+    if (!type) return null;
+    const createdAt = String(entry?.createdAt || new Date().toISOString());
+    return {
+        type,
+        playFabId: normalizePlayFabId(entry?.playFabId),
+        amount: Math.max(0, Math.floor(Number(entry?.amount || 0) || 0)),
+        itemId: sanitizeWarehouseItemText(entry?.itemId, 80),
+        itemName: sanitizeWarehouseItemText(entry?.itemName || entry?.displayName || entry?.name, 80),
+        createdAt
+    };
+}
+
+function appendWarehouseHistory(guildData, entry) {
+    const normalized = normalizeWarehouseHistoryEntry(entry);
+    if (!normalized) return [];
+    const history = Array.isArray(guildData?.warehouseHistory) ? guildData.warehouseHistory : [];
+    guildData.warehouseHistory = [...history, normalized].slice(-MAX_WAREHOUSE_HISTORY_ENTRIES);
+    return guildData.warehouseHistory;
+}
+
+function buildWarehouseHistory(guildData) {
+    const explicit = Array.isArray(guildData?.warehouseHistory) ? guildData.warehouseHistory : [];
+    const legacyTreasury = Array.isArray(guildData?.treasuryLedger) ? guildData.treasuryLedger : [];
+    return [
+        ...legacyTreasury.map((entry) => normalizeWarehouseHistoryEntry({
+            ...entry,
+            type: entry?.type === 'withdraw' ? 'currency_withdraw' : 'currency_deposit'
+        })),
+        ...explicit.map(normalizeWarehouseHistoryEntry)
+    ]
+        .filter(Boolean)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, MAX_WAREHOUSE_HISTORY_ENTRIES);
 }
 
 function sanitizeRequestedGuildName(value) {
@@ -467,6 +510,27 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             throw new Error('NotGuildOwner');
         }
         return guildData;
+    }
+
+    function findGroupMemberByPlayFabId(membersResult, guildData, playFabId) {
+        const target = normalizePlayFabId(playFabId);
+        if (!target) return null;
+        for (const roleGroup of Array.isArray(membersResult?.Members) ? membersResult.Members : []) {
+            const roleMembers = Array.isArray(roleGroup?.Members) ? roleGroup.Members : [];
+            for (const member of roleMembers) {
+                const key = member?.Key || member?.EntityKey || member;
+                const entityId = String(key?.Id || '').trim();
+                if (!entityId) continue;
+                const memberPlayFabId = resolveGuildMemberPlayFabId(entityId, guildData);
+                if (normalizePlayFabId(memberPlayFabId) === target) {
+                    return {
+                        entityKey: { Id: entityId, Type: String(key?.Type || 'title_player_account').trim() || 'title_player_account' },
+                        roleId: String(roleGroup?.RoleId || 'members')
+                    };
+                }
+            }
+        }
+        return null;
     }
 
     async function getPlayerLevel(playFabId) {
@@ -890,6 +954,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                     nation: nationKey || null,
                     parentNationGroupId: String(guildData?.parentNationGroupId || '').trim() || null,
                     parentNationGroupName: String(guildData?.parentNationGroupName || getNationGroupName(nationKey)).trim() || null,
+                    ownerPlayFabId: normalizePlayFabId(guildData?.ownerPlayFabId),
                     ownerTitle,
                     maxMembers: Math.max(1, crewMeta.maxCompanions + 1),
                     companionCount: crewMeta.companionCount,
@@ -1720,6 +1785,119 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
     });
 
     // ----------------------------------------------------
+    // API: 船長が仲間の役職を変更
+    // ----------------------------------------------------
+    app.post('/api/update-guild-member-role', async (req, res) => {
+        const { playFabId, guildId, memberPlayFabId } = req.body;
+        const requestedRoleId = normalizeCrewRoleId(req.body?.crewRoleId || req.body?.roleId);
+        if (!playFabId || !guildId || !memberPlayFabId || !requestedRoleId) {
+            return res.status(400).json({ error: '必要な情報が不足しています。' });
+        }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+
+        try {
+            const guildData = await assertGuildOwner(requesterPlayFabId, guildId);
+            const ownerId = normalizePlayFabId(guildData?.ownerPlayFabId);
+            const targetId = normalizePlayFabId(memberPlayFabId);
+            if (ownerId && ownerId === targetId) {
+                return res.status(400).json({ error: '船長の役職は変更できません。' });
+            }
+
+            const membersResult = await callTitleScopedApi(PlayFabGroups.ListGroupMembers, {
+                Group: { Id: guildId, Type: 'group' }
+            });
+            if (!findGroupMemberByPlayFabId(membersResult, guildData, targetId)) {
+                return res.status(404).json({ error: '対象の仲間が見つかりません。' });
+            }
+
+            const roleAssignments = getCrewRoleAssignments(guildData);
+            const usedByOther = Object.entries(roleAssignments).some(([assignedPlayFabId, assignedRoleId]) => (
+                normalizePlayFabId(assignedPlayFabId) !== targetId
+                && normalizeCrewRoleId(assignedRoleId) === requestedRoleId
+            ));
+            if (usedByOther) {
+                const roleLabel = CREW_ROLE_BY_ID[requestedRoleId]?.label || '選択した役職';
+                return res.status(400).json({ error: `${roleLabel}はすでに同じギルド内で使われています。` });
+            }
+
+            roleAssignments[targetId] = requestedRoleId;
+            guildData.crewRoles = roleAssignments;
+            await syncCrewRecruitmentPost(guildId, await getGuildName(guildId), guildData).catch((syncError) => {
+                console.warn('[仲間役職変更] 募集掲示板の同期に失敗しました。', syncError?.message || syncError);
+            });
+            await saveGuildData(guildId, guildData, promisifyPlayFab);
+
+            res.json({
+                success: true,
+                memberPlayFabId: targetId,
+                crewRoleId: requestedRoleId,
+                crewRoleLabel: CREW_ROLE_BY_ID[requestedRoleId]?.label || '',
+                availableRoles: getAvailableCrewRoles(guildData)
+            });
+        } catch (error) {
+            if (handleGuildAccessError(res, error)) return;
+            console.error('[仲間役職変更エラー]', error.errorMessage || error.message);
+            res.status(500).json({ error: '仲間の役職変更に失敗しました。', details: error.errorMessage || error.message });
+        }
+    });
+
+    // ----------------------------------------------------
+    // API: 船長が仲間を除名
+    // ----------------------------------------------------
+    app.post('/api/remove-guild-member', async (req, res) => {
+        const { playFabId, guildId, memberPlayFabId } = req.body;
+        if (!playFabId || !guildId || !memberPlayFabId) {
+            return res.status(400).json({ error: '必要な情報が不足しています。' });
+        }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+
+        try {
+            const guildData = await assertGuildOwner(requesterPlayFabId, guildId);
+            const ownerId = normalizePlayFabId(guildData?.ownerPlayFabId);
+            const targetId = normalizePlayFabId(memberPlayFabId);
+            if (ownerId && ownerId === targetId) {
+                return res.status(400).json({ error: '船長は除名できません。' });
+            }
+
+            const membersResult = await callTitleScopedApi(PlayFabGroups.ListGroupMembers, {
+                Group: { Id: guildId, Type: 'group' }
+            });
+            const targetMember = findGroupMemberByPlayFabId(membersResult, guildData, targetId);
+            if (!targetMember?.entityKey) {
+                return res.status(404).json({ error: '対象の仲間が見つかりません。' });
+            }
+
+            await callTitleScopedApi(PlayFabGroups.RemoveMembers, {
+                Group: { Id: guildId, Type: 'group' },
+                Members: [targetMember.entityKey]
+            });
+
+            const roleAssignments = getCrewRoleAssignments(guildData);
+            delete roleAssignments[targetId];
+            guildData.crewRoles = roleAssignments;
+            const memberMap = getGuildMemberPlayFabMap(guildData);
+            delete memberMap[String(targetMember.entityKey.Id || '').trim()];
+            guildData.memberPlayFabIds = memberMap;
+            await syncCrewRecruitmentPost(guildId, await getGuildName(guildId), guildData).catch((syncError) => {
+                console.warn('[仲間除名] 募集掲示板の同期に失敗しました。', syncError?.message || syncError);
+            });
+            await saveGuildData(guildId, guildData, promisifyPlayFab);
+
+            res.json({
+                success: true,
+                memberPlayFabId: targetId,
+                availableRoles: getAvailableCrewRoles(guildData)
+            });
+        } catch (error) {
+            if (handleGuildAccessError(res, error)) return;
+            console.error('[仲間除名エラー]', error.errorMessage || error.message);
+            res.status(500).json({ error: '仲間の除名に失敗しました。', details: error.errorMessage || error.message });
+        }
+    });
+
+    // ----------------------------------------------------
     // API: 加入申請一覧を取得（リーダー用）
     // ----------------------------------------------------
     app.post('/api/get-guild-applications', async (req, res) => {
@@ -2092,7 +2270,8 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
 
             res.json({
                 warehouse: warehouse,
-                treasury: guildData.treasury || 0
+                treasury: guildData.treasury || 0,
+                history: buildWarehouseHistory(guildData)
             });
 
         } catch (error) {
@@ -2147,6 +2326,13 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
 
                 guildData.warehouse = guildData.warehouse || [];
                 guildData.warehouse.push(donatedItem);
+                appendWarehouseHistory(guildData, {
+                    type: 'item_deposit',
+                    playFabId: requesterPlayFabId,
+                    itemId,
+                    itemName: itemName || itemId,
+                    createdAt: donatedItem.donatedAt
+                });
                 guildData.exp = (guildData.exp || 0) + 10;
                 await saveGuildData(guildId, guildData, promisifyPlayFab);
                 debitedItem = false;
@@ -2156,7 +2342,8 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                     message: 'アイテムをギルド倉庫に寄付しました。',
                     guildExp: guildData.exp,
                     warehouse: guildData.warehouse,
-                    treasury: guildData.treasury || 0
+                    treasury: guildData.treasury || 0,
+                    history: buildWarehouseHistory(guildData)
                 };
             });
 
@@ -2215,6 +2402,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                     success: true,
                     treasury: guildData.treasury,
                     warehouse: guildData.warehouse || [],
+                    history: buildWarehouseHistory(guildData),
                     playerBalance: Number.isFinite(balance) ? Math.max(0, balance - amount) : undefined
                 };
             });
@@ -2273,7 +2461,8 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 return {
                     success: true,
                     treasury: guildData.treasury,
-                    warehouse: guildData.warehouse || []
+                    warehouse: guildData.warehouse || [],
+                    history: buildWarehouseHistory(guildData)
                 };
             });
             res.json(payload);
@@ -2325,6 +2514,13 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 await economy.addEconomyItem(requesterPlayFabId, item.itemId, 1, economyDeps);
                 grantedItemId = item.itemId;
                 guildData.warehouse.splice(index, 1);
+                appendWarehouseHistory(guildData, {
+                    type: 'item_withdraw',
+                    playFabId: requesterPlayFabId,
+                    itemId: item.itemId,
+                    itemName: item.itemName || item.displayName || item.name || item.itemId,
+                    createdAt: new Date().toISOString()
+                });
                 await saveGuildData(guildId, guildData, promisifyPlayFab);
                 grantedItemId = '';
 
@@ -2332,7 +2528,8 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                     success: true,
                     message: 'アイテムをギルド倉庫から引き出しました。',
                     warehouse: guildData.warehouse,
-                    treasury: guildData.treasury || 0
+                    treasury: guildData.treasury || 0,
+                    history: buildWarehouseHistory(guildData)
                 };
             });
 
@@ -2444,6 +2641,8 @@ module.exports = {
         resolveGuildMemberPlayFabId,
         setGuildMemberPlayFabMapEntry,
         sanitizePublicDisplayName,
-        sanitizeWarehouseImagePath
+        sanitizeWarehouseImagePath,
+        appendWarehouseHistory,
+        buildWarehouseHistory
     }
 };

@@ -230,6 +230,14 @@ export function getGuildMembers(playFabId, guildId, options) {
     return callApiWithLoader('/api/get-guild-members', { playFabId, guildId }, options);
 }
 
+export function updateGuildMemberRole(playFabId, guildId, memberPlayFabId, crewRoleId, options) {
+    return callApiWithLoader('/api/update-guild-member-role', { playFabId, guildId, memberPlayFabId, crewRoleId }, options);
+}
+
+export function removeGuildMember(playFabId, guildId, memberPlayFabId, options) {
+    return callApiWithLoader('/api/remove-guild-member', { playFabId, guildId, memberPlayFabId }, options);
+}
+
 export function getGuildChat(playFabId, guildId, options) {
     return callApiWithLoader('/api/get-guild-chat', { playFabId, guildId }, options);
 }

@@ -546,6 +546,13 @@
                         </div>
                     </div>
                     <div id="eventPageMessage" class="event-page-message"></div>
+                    <div id="crewQuickPanel" class="crew-quick-panel" aria-live="polite">
+                        <div>
+                            <div id="crewQuickTitle" class="crew-quick-title">仲間状況を確認中</div>
+                            <div id="crewQuickMeta" class="crew-quick-meta">利用できる操作を読み込んでいます。</div>
+                        </div>
+                        <div id="crewQuickActions" class="crew-quick-actions"></div>
+                    </div>
                     <details class="crew-system-help">
                         <summary>海賊団とは？</summary>
                         <div class="crew-system-help-body">
@@ -557,8 +564,14 @@
                             <p>王はレベルに関係なく、自分の国の仲間を集められます。</p>
                         </div>
                     </details>
+                    <div class="crew-section-tabs" role="tablist" aria-label="仲間タブ内メニュー">
+                        <button type="button" class="crew-section-tab is-active" data-crew-section-tab="overview">概要</button>
+                        <button type="button" class="crew-section-tab" data-crew-section-tab="invite">勧誘/参加</button>
+                        <button type="button" class="crew-section-tab" data-crew-section-tab="warehouse">倉庫</button>
+                        <button type="button" class="crew-section-tab" data-crew-section-tab="recruitment">募集/申請<span id="crewApplicationsBadge" class="crew-tab-badge" hidden>0</span></button>
+                    </div>
                     <div class="event-layout">
-                        <section class="event-list-panel">
+                        <section class="event-list-panel" data-companion-section="overview">
                             <div class="event-list-head">
                                 <h3>仲間状況</h3>
                                 <span id="crewRankSummary">階級を確認中</span>
@@ -566,7 +579,14 @@
                             <div id="crewOverviewList" class="event-list"></div>
                             <div id="crewOverviewEmpty" class="event-empty">仲間情報を読み込んでいます。</div>
                         </section>
-                        <section class="event-list-panel">
+                        <section id="crewRoleSlotsPanel" class="event-list-panel" data-companion-section="overview" hidden>
+                            <div class="event-list-head">
+                                <h3>役職スロット</h3>
+                                <span id="crewRoleSlotsSummary">空き確認中</span>
+                            </div>
+                            <div id="crewRoleSlotsList" class="crew-role-slot-list"></div>
+                        </section>
+                        <section class="event-list-panel" data-companion-section="overview">
                             <div class="event-list-head">
                                 <h3>メンバー</h3>
                                 <span>現在の仲間一覧</span>
@@ -574,7 +594,7 @@
                             <div id="crewMembersList" class="event-list"></div>
                             <div id="crewMembersEmpty" class="event-empty">仲間はまだいません。</div>
                         </section>
-                        <section class="event-create-panel">
+                        <section class="event-create-panel" data-companion-section="invite">
                             <h3>仲間を集める</h3>
                             <div id="eventHostFeeInfo" class="event-host-fee">船長以上、または王で利用できます。</div>
                             <div id="crewCreateOptions" class="crew-create-options">
@@ -588,13 +608,13 @@
                             <button id="btnCreateCrew" class="event-create-btn" type="button">1,000Gで海賊団を設立</button>
                             <div id="crewInvitePanel" class="crew-invite-panel" hidden>
                                 <div id="crewInviteOwnerControls">
-                                    <div class="crew-invite-title">勧誘QR</div>
+                                    <div class="crew-invite-title">近くの人を招待（QR）</div>
                                     <label class="is-wide">
                                         勧誘する役職
                                         <select id="crewInviteRoleSelect"></select>
                                     </label>
                                     <div id="crewInviteRoleGuide" class="crew-role-guide"></div>
-                                    <div id="crewInviteHelp" class="event-create-note">空いている役職を選ぶと、その役職専用のQRを表示します。</div>
+                                    <div id="crewInviteHelp" class="event-create-note">その場にいる相手へ渡す役職専用QRです。知らない人を募集するときは募集掲示板を使います。</div>
                                     <canvas id="crewInviteQrCanvas" class="crew-invite-qr"></canvas>
                                     <div id="crewInviteValue" class="crew-invite-value"></div>
                                     <div class="event-card-actions">
@@ -620,7 +640,7 @@
                                 </div>
                             </div>
                         </section>
-                        <section id="crewWarehousePanel" class="event-list-panel" hidden>
+                        <section id="crewWarehousePanel" class="event-list-panel" data-companion-section="warehouse" hidden>
                             <div class="event-list-head">
                                 <h3>共有倉庫</h3>
                                 <span id="crewWarehouseSummary">資金 0G / アイテム 0</span>
@@ -664,8 +684,16 @@
                             </div>
                             <div id="crewWarehouseList" class="event-list"></div>
                             <div id="crewWarehouseEmpty" class="event-empty">共有倉庫は空です。</div>
+                            <div class="crew-history-panel">
+                                <div class="event-list-head">
+                                    <h3>倉庫履歴</h3>
+                                    <span id="crewWarehouseHistorySummary">最新0件</span>
+                                </div>
+                                <div id="crewWarehouseHistoryList" class="crew-history-list"></div>
+                                <div id="crewWarehouseHistoryEmpty" class="event-empty">履歴はまだありません。</div>
+                            </div>
                         </section>
-                        <section id="crewRecruitmentManagePanel" class="event-create-panel" hidden>
+                        <section id="crewRecruitmentManagePanel" class="event-create-panel" data-companion-section="recruitment" hidden>
                             <h3>勧誘掲示板</h3>
                             <div id="crewRecruitmentManageNote" class="event-host-fee">募集する役職を選んで公開できます。</div>
                             <label class="is-wide">
@@ -678,7 +706,7 @@
                                 <button id="btnCloseCrewRecruitment" class="event-action-btn is-reject" type="button">募集を停止</button>
                             </div>
                         </section>
-                        <section id="crewApplicationsPanel" class="event-list-panel" hidden>
+                        <section id="crewApplicationsPanel" class="event-list-panel" data-companion-section="recruitment" hidden>
                             <div class="event-list-head">
                                 <h3>加入申請</h3>
                                 <span id="crewApplicationsSummary">0件</span>
@@ -686,10 +714,16 @@
                             <div id="crewApplicationsList" class="event-list"></div>
                             <div id="crewApplicationsEmpty" class="event-empty">加入申請はありません。</div>
                         </section>
-                        <section id="crewRecruitmentBoardPanel" class="event-list-panel">
+                        <section id="crewRecruitmentBoardPanel" class="event-list-panel" data-companion-section="recruitment">
                             <div class="event-list-head">
                                 <h3>募集掲示板</h3>
                                 <span id="crewRecruitmentBoardSummary">募集中のギルド</span>
+                            </div>
+                            <div class="crew-board-filters" role="group" aria-label="募集掲示板フィルター">
+                                <button type="button" class="crew-board-filter is-active" data-crew-board-filter="all">すべて</button>
+                                <button type="button" class="crew-board-filter" data-crew-board-filter="canApply">申請可能</button>
+                                <button type="button" class="crew-board-filter" data-crew-board-filter="nation">国ギルド</button>
+                                <button type="button" class="crew-board-filter" data-crew-board-filter="pirate">海賊団</button>
                             </div>
                             <div id="crewRecruitmentBoardList" class="event-list"></div>
                             <div id="crewRecruitmentBoardEmpty" class="event-empty">募集中のギルドはありません。</div>

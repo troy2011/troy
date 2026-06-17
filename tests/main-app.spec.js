@@ -2505,6 +2505,7 @@ test('ship captain can create a pirate guild with an optional custom name', asyn
     await window.showTab('events', { playFabId: 'PF_PLAYWRIGHT', race: 'goblin', nation: 'water' });
   });
 
+  await page.locator('[data-crew-section-tab="invite"]').click();
   await expect(page.locator('#btnCreateCrew')).toHaveText('1,000Gで海賊団を設立');
   await expect(page.locator('#crewNameInput')).toBeVisible();
   await page.locator('#crewNameInput').fill('青波一味');
@@ -2621,6 +2622,10 @@ test('companion tab hides internal PlayFab IDs from member and application cards
   await expect(page.locator('#crewMembersList')).toContainText('海風の剣士');
   await expect(page.locator('#crewMembersList')).toContainText('剣士');
   await expect(page.locator('#crewMembersList')).toContainText('名前未設定');
+  await expect(page.locator('#crewQuickPanel')).toContainText('テスト海賊団に所属中');
+  await expect(page.locator('#crewRoleSlotsList')).toContainText('船医');
+  await expect(page.locator('#crewRoleSlotsList')).toContainText('空き');
+  await expect(page.locator('#crewApplicationsBadge')).toHaveText('2');
   await expect(page.locator('#crewApplicationsList')).toContainText('流浪の船医');
   await expect(page.locator('#crewApplicationsList')).toContainText('船医');
   await expect(page.locator('#crewApplicationsList')).toContainText('名前未設定');
@@ -2713,6 +2718,7 @@ test('companion invite scan shows role confirmation before joining', async ({ pa
     await window.showTab('events', { playFabId: 'PF_PLAYWRIGHT', race: 'goblin', nation: 'water' });
   });
 
+  await page.locator('[data-crew-section-tab="invite"]').click();
   await page.locator('#btnScanJoinCrew').click();
   await expect.poll(() => inviteRequest?.crewRoleId).toBe('doctor');
   await expect(page.locator('#crewJoinConfirmPanel')).toBeVisible();
@@ -2776,14 +2782,25 @@ test('companion member can use shared warehouse currency and items', async ({ pa
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({ members: [] })
+      body: JSON.stringify({
+        members: [
+          { playFabId: 'PF_PLAYWRIGHT', displayName: '倉庫係', crewRoleId: 'doctor', crewRoleLabel: '船医', level: 24 }
+        ]
+      })
     });
   });
   await page.route('**/api/get-guild-warehouse', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({ treasury, warehouse })
+      body: JSON.stringify({
+        treasury,
+        warehouse,
+        history: [
+          { type: 'currency_deposit', playFabId: 'PF_PLAYWRIGHT', amount: 300, createdAt: '2026-06-16T12:10:00.000Z' },
+          { type: 'item_deposit', playFabId: 'PF_PLAYWRIGHT', itemId: 'shared_potion', itemName: '共有回復薬', createdAt: '2026-06-15T12:00:00.000Z' }
+        ]
+      })
     });
   });
   await page.route('**/api/get-inventory', async (route) => {
@@ -2876,12 +2893,15 @@ test('companion member can use shared warehouse currency and items', async ({ pa
   await page.evaluate(async () => {
     await window.showTab('events', { playFabId: 'PF_PLAYWRIGHT', race: 'goblin', nation: 'water' });
   });
+  await page.locator('[data-crew-section-tab="warehouse"]').click();
 
   await expect(page.locator('#crewWarehousePanel')).toBeVisible();
   await expect(page.locator('#crewWarehouseSummary')).toContainText('資金 1,200G / アイテム 1');
   await expect(page.locator('#crewDepositItemSelect')).toContainText('回復薬 x2');
   await expect(page.locator('#crewWarehouseList')).toContainText('共有回復薬');
   await expect(page.locator('#crewWarehouseList .crew-warehouse-thumb img')).toHaveCount(1);
+  await expect(page.locator('#crewWarehouseHistoryList')).toContainText('倉庫係 が 300G 入金');
+  await expect(page.locator('#crewWarehouseHistoryList')).toContainText('倉庫係 が 共有回復薬 を預け入れ');
 
   await page.locator('#crewDepositCurrencyInput').fill('300');
   await page.locator('#btnDepositGuildCurrency').click();

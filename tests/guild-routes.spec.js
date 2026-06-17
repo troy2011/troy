@@ -91,3 +91,24 @@ test('guild warehouse image path sanitizer keeps local sprites only', () => {
   expect(__test.sanitizeWarehouseImagePath('https://example.com/item.png')).toBe('');
   expect(__test.sanitizeWarehouseImagePath('javascript:alert(1)')).toBe('');
 });
+
+test('guild warehouse history merges treasury ledger and item entries newest first', () => {
+  const guildData = {
+    treasuryLedger: [
+      { type: 'deposit', playFabId: 'player1', amount: 100, createdAt: '2026-06-15T10:00:00.000Z' }
+    ],
+    warehouseHistory: []
+  };
+  __test.appendWarehouseHistory(guildData, {
+    type: 'item_deposit',
+    playFabId: 'player2',
+    itemId: 'potion',
+    itemName: '回復薬',
+    createdAt: '2026-06-16T10:00:00.000Z'
+  });
+
+  const history = __test.buildWarehouseHistory(guildData);
+  expect(history).toHaveLength(2);
+  expect(history[0]).toMatchObject({ type: 'item_deposit', playFabId: 'PLAYER2', itemName: '回復薬' });
+  expect(history[1]).toMatchObject({ type: 'currency_deposit', playFabId: 'PLAYER1', amount: 100 });
+});
