@@ -1574,6 +1574,21 @@ function renderExplorationDestinationBossChips(destination) {
     `;
 }
 
+function renderExplorationDestinationMetaChips(destination) {
+    const chips = [
+        destination?.roleLabel ? { className: 'is-role', label: destination.roleLabel } : null,
+        destination?.riskLabel ? { className: 'is-risk', label: destination.riskLabel } : null,
+        destination?.rewardHint ? { className: 'is-reward', label: destination.rewardHint } : null,
+        destination?.bossWeightHint ? { className: 'is-boss', label: destination.bossWeightHint } : null
+    ].filter(Boolean);
+    if (!chips.length) return '';
+    return `
+        <div class="ship-exploration-role-chips" aria-label="探索特徴">
+            ${chips.map((chip) => `<span class="ship-exploration-role-chip ${chip.className}">${escapeHtml(chip.label)}</span>`).join('')}
+        </div>
+    `;
+}
+
 function normalizeBossResult(value) {
     const result = String(value || 'none').toLowerCase();
     if (result === 'victory' || result === 'defeat' || result === 'escaped' || result === 'draw') return result;
@@ -1923,6 +1938,7 @@ function renderExplorationPanel(data, playFabId) {
     const ship = data?.ship || null;
     const active = data?.active || null;
     const reports = Array.isArray(data?.reports) ? data.reports : [];
+    const dailyFreeAvailable = data?.dailyFree?.available === true;
     if (!ship) {
         panel.innerHTML = '<div class="ship-exploration-empty">探索には使用中の船が必要です。</div>';
         return;
@@ -1973,9 +1989,11 @@ function renderExplorationPanel(data, playFabId) {
                     </div>
                 </div>
                 <div class="ship-exploration-badges" aria-label="探索条件">
-                    <span class="ship-exploration-badge">${Number(destination.cost || 0).toLocaleString('ja-JP')}G</span>
-                    <span class="ship-exploration-badge">${escapeHtml(formatExplorationDuration(destination.durationMs))}</span>
+                    ${dailyFreeAvailable
+                        ? `<span class="ship-exploration-badge is-free">本日無料</span><span class="ship-exploration-badge">通常${Number(destination.cost || 0).toLocaleString('ja-JP')}G</span>`
+                        : `<span class="ship-exploration-badge">${Number(destination.cost || 0).toLocaleString('ja-JP')}G</span>`}
                 </div>
+                ${renderExplorationDestinationMetaChips(destination)}
                 ${renderExplorationDestinationBossChips(destination)}
                 <button type="button" class="ship-exploration-start" data-exploration-start="${escapeHtml(destination.id)}">探索開始</button>
             </div>

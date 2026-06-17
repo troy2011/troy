@@ -1187,6 +1187,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
         ship: { shipId: 'ship-test', shipName: 'テスト船' },
         active: null,
         reports: [],
+        dailyFree: { dayKey: '2026-06-18', available: true, used: false },
         destinations: [
           {
             id: 'harbor-edge',
@@ -1194,6 +1195,10 @@ test('home exploration button loads exploration data in a popup', async ({ page 
             description: '近場の探索',
             cost: 100,
             durationMs: 3 * 60 * 60 * 1000,
+            roleLabel: '偵察',
+            riskLabel: '低リスク',
+            rewardHint: '基本報酬',
+            bossWeightHint: '標準BOSS',
             bossName: 'なし',
             bosses: [
               { id: 'treasure_slime', name: '財宝スライム', spriteId: 'treasure_slime', tier: 'weak', tierLabel: '弱' },
@@ -1217,7 +1222,8 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(panel.locator('.ship-exploration-head h3')).toHaveText('探索');
   await expect(panel.locator('.ship-exploration-meta').first()).toContainText('テスト船');
   await expect(panel.locator('.ship-exploration-destination strong')).toHaveText('港の外れ');
-  await expect(panel.locator('.ship-exploration-badge')).toContainText(['100G', '3時間']);
+  await expect(panel.locator('.ship-exploration-badge')).toHaveText(['本日無料', '通常100G']);
+  await expect(panel.locator('.ship-exploration-role-chip')).toHaveText(['偵察', '低リスク', '基本報酬', '標準BOSS']);
   await expect(panel.locator('.ship-exploration-boss-chip')).toHaveCount(3);
   await expect(panel.locator('.ship-exploration-boss-chip').nth(0)).toContainText('弱');
   await expect(panel.locator('.ship-exploration-boss-chip').nth(0)).toContainText('財宝スライム');

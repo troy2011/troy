@@ -4,14 +4,65 @@ const battleRoutes = require('./routes/battleRoutes');
 const { resolveGuildShipContext } = require('./guildShipSharing');
 
 const EXPLORATION_COLLECTION = 'player_explorations';
+const DAILY_FREE_SUBCOLLECTION = 'daily_free';
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 // 通貨未減算の早期 pending スタブをこの時間で回収する
 const PENDING_STALE_MS = 5 * 60 * 1000;
 // claiming 中にプロセスが落ちた場合、この時間後に再実行を許可する
 const CLAIMING_STALE_MS = 2 * 60 * 1000;
 const EXPLORATION_SHIP_CLASSES = ['common', 'explorer', 'merchant', 'fighter', 'defender'];
+const EXPLORATION_SHIP_ROLES = {
+    common: {
+        role: 'entry',
+        roleLabel: '入門航路',
+        riskLabel: '低リスク',
+        rewardHint: '基本報酬',
+        bossWeightHint: '弱BOSS中心',
+        categoryWeights: { Weapon: 20, Armor: 25, Shield: 20, Consumable: 35 }
+    },
+    explorer: {
+        role: 'scout',
+        roleLabel: '偵察',
+        riskLabel: '中リスク',
+        rewardHint: '幅広い海域を探索',
+        bossWeightHint: '標準BOSS',
+        categoryWeights: { Weapon: 25, Armor: 25, Shield: 20, Consumable: 30 },
+        bossWeightAdjustments: { weak: -5, medium: 5, strong: 0 }
+    },
+    fighter: {
+        role: 'assault',
+        roleLabel: '強襲',
+        riskLabel: '高リスク',
+        rewardHint: '勝利時お宝+1',
+        bossWeightHint: '強BOSS寄り',
+        categoryWeights: { Weapon: 58, Armor: 12, Shield: 15, Consumable: 15 },
+        bossWeightAdjustments: { weak: -20, medium: 5, strong: 15 },
+        victoryRewardBonus: 1
+    },
+    defender: {
+        role: 'guard',
+        roleLabel: '護衛',
+        riskLabel: '安定',
+        rewardHint: '敗北時も最低1個',
+        bossWeightHint: '強敵に耐える',
+        categoryWeights: { Weapon: 15, Armor: 40, Shield: 35, Consumable: 10 },
+        bossWeightAdjustments: { weak: -10, medium: 5, strong: 5 },
+        defeatRewardFloor: 1
+    },
+    merchant: {
+        role: 'haul',
+        roleLabel: '回収',
+        riskLabel: '中リスク',
+        rewardHint: 'お宝+1',
+        bossWeightHint: '回収優先',
+        categoryWeights: { Weapon: 18, Armor: 22, Shield: 15, Consumable: 45 },
+        bossWeightAdjustments: { weak: 5, medium: 5, strong: -10 },
+        rewardBonus: 1
+    }
+};
 
 const DESTINATIONS = {
     near_sea: {
@@ -21,7 +72,9 @@ const DESTINATIONS = {
         cost: 100,
         durationMs: 3 * HOUR_MS,
         bosses: ['treasure_slime', 'puffer_bomb', 'mimic_chest'],
-        classes: EXPLORATION_SHIP_CLASSES
+        classes: ['common', 'explorer'],
+        riskLabel: '低リスク',
+        rewardHint: '基本報酬'
     },
     coral_passage: {
         id: 'coral_passage',
@@ -30,7 +83,9 @@ const DESTINATIONS = {
         cost: 180,
         durationMs: 4 * HOUR_MS,
         bosses: ['skeletal_parrot', 'coral_goblin', 'crab_brute'],
-        classes: EXPLORATION_SHIP_CLASSES
+        classes: ['explorer', 'merchant'],
+        riskLabel: '中リスク',
+        rewardHint: '素材と消耗品'
     },
     old_lighthouse: {
         id: 'old_lighthouse',
@@ -39,7 +94,9 @@ const DESTINATIONS = {
         cost: 250,
         durationMs: 5 * HOUR_MS,
         bosses: ['lantern_wraith', 'ghost_pirate', 'cursed_shipwheel'],
-        classes: EXPLORATION_SHIP_CLASSES
+        classes: ['explorer', 'fighter'],
+        riskLabel: '中リスク',
+        rewardHint: '武器と防具'
     },
     sunken_trader: {
         id: 'sunken_trader',
@@ -48,7 +105,9 @@ const DESTINATIONS = {
         cost: 300,
         durationMs: 6 * HOUR_MS,
         bosses: ['zombie_raider', 'drowned_buccaneer', 'anchor_golem'],
-        classes: EXPLORATION_SHIP_CLASSES
+        classes: ['merchant'],
+        riskLabel: '回収向け',
+        rewardHint: '商船お宝多め'
     },
     pirate_cove: {
         id: 'pirate_cove',
@@ -57,7 +116,9 @@ const DESTINATIONS = {
         cost: 400,
         durationMs: 8 * HOUR_MS,
         bosses: ['skeleton_captain', 'shark_raider', 'cannon_mimic'],
-        classes: EXPLORATION_SHIP_CLASSES
+        classes: ['fighter'],
+        riskLabel: '高リスク',
+        rewardHint: '武器報酬狙い'
     },
     deep_maelstrom: {
         id: 'deep_maelstrom',
@@ -66,7 +127,9 @@ const DESTINATIONS = {
         cost: 550,
         durationMs: 10 * HOUR_MS,
         bosses: ['blue_kraken', 'merfolk_lancer', 'kraken_pirate'],
-        classes: EXPLORATION_SHIP_CLASSES
+        classes: ['defender'],
+        riskLabel: '高耐久向け',
+        rewardHint: '防具と盾'
     }
 };
 
@@ -112,14 +175,29 @@ function publicBoss(boss) {
     };
 }
 
-function publicDestination(destination) {
+function normalizeExplorationShipClass(shipClass) {
+    const key = String(shipClass || '').trim().toLowerCase();
+    return EXPLORATION_SHIP_CLASSES.includes(key) ? key : 'common';
+}
+
+function getExplorationShipRole(shipClass) {
+    return EXPLORATION_SHIP_ROLES[normalizeExplorationShipClass(shipClass)] || EXPLORATION_SHIP_ROLES.common;
+}
+
+function publicDestination(destination, shipClass = 'common') {
     const bosses = getDestinationBosses(destination);
+    const role = getExplorationShipRole(shipClass);
     return {
         id: destination.id,
         name: destination.name,
         description: destination.description,
         cost: destination.cost,
         durationMs: destination.durationMs,
+        role: role.role,
+        roleLabel: role.roleLabel,
+        riskLabel: destination.riskLabel || role.riskLabel,
+        rewardHint: destination.rewardHint || role.rewardHint,
+        bossWeightHint: role.bossWeightHint,
         bossName: bosses.map((boss) => boss.name).join(' / '),
         bosses: bosses.map(publicBoss)
     };
@@ -164,6 +242,25 @@ function timestampToMs(value) {
     if (typeof value.toMillis === 'function') return value.toMillis();
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getJstDayKey(nowMs = Date.now()) {
+    const jst = new Date(Number(nowMs || Date.now()) + JST_OFFSET_MS);
+    const year = jst.getUTCFullYear();
+    const month = String(jst.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(jst.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function buildDailyFreeExplorationStatus(dayKey, snap) {
+    const data = snap?.exists ? (snap.data() || {}) : null;
+    return {
+        dayKey,
+        available: !data,
+        used: !!data,
+        usedAtMs: timestampToMs(data?.usedAt) || Number(data?.usedAtMs || 0) || 0,
+        explorationId: String(data?.explorationId || '')
+    };
 }
 
 function reportDocToPayload(doc) {
@@ -664,11 +761,16 @@ function normalizeShipStage(value) {
 function getExplorationGachaOptions(destinationId, ship = {}) {
     const profile = EXPLORATION_GACHA_PROFILES[destinationId] || EXPLORATION_GACHA_PROFILES.near_sea;
     const stageLimit = EXPLORATION_SHIP_STAGE_GACHA_LIMITS[normalizeShipStage(ship.stage)] || EXPLORATION_SHIP_STAGE_GACHA_LIMITS[1];
+    const role = getExplorationShipRole(ship.shipClass);
     return {
         ...profile,
         rarityWeights: {
             ...profile.rarityWeights,
             ...stageLimit.rarityWeights
+        },
+        categoryWeights: {
+            ...profile.categoryWeights,
+            ...(role.categoryWeights || {})
         },
         maxStatsByCategory: stageLimit.maxStatsByCategory
     };
@@ -721,16 +823,24 @@ function pickWeighted(entries, random = Math.random) {
     return entries[entries.length - 1] || null;
 }
 
-function selectExplorationBoss(destination, random = Math.random) {
+function getExplorationBossWeight(boss, shipClass = '') {
+    const base = getBossTierDef(boss?.tier).weight;
+    const role = getExplorationShipRole(shipClass);
+    const delta = Number(role.bossWeightAdjustments?.[String(boss?.tier || '').trim().toLowerCase()] || 0);
+    return Math.max(1, base + delta);
+}
+
+function selectExplorationBoss(destination, random = Math.random, shipClass = '') {
     const candidates = getDestinationBosses(destination).map((boss) => ({
         ...boss,
-        weight: getBossTierDef(boss.tier).weight
+        weight: getExplorationBossWeight(boss, shipClass)
     }));
     return pickWeighted(candidates, random) || EXPLORATION_BOSSES.treasure_slime;
 }
 
-// BOSS勝利:2個 / 強BOSS勝利:+1個 / 逃走・決着なし:1個 / BOSS敗北:0個、merchant は+1
+// BOSS勝利:2個 / 強BOSS勝利:+1個 / 逃走・決着なし:1個 / BOSS敗北:0個。船種ごとに追加補正する。
 function resolveRewardCount(bossResult, shipClass) {
+    const role = getExplorationShipRole(shipClass);
     let base;
     if (!bossResult || !bossResult.bossAppeared) {
         base = 1;
@@ -742,7 +852,12 @@ function resolveRewardCount(bossResult, shipClass) {
     } else {
         base = 0;
     }
-    return shipClass === 'merchant' ? base + 1 : base;
+    if (bossResult?.playerWon) base += Number(role.victoryRewardBonus || 0);
+    base += Number(role.rewardBonus || 0);
+    if (role.defeatRewardFloor && bossResult?.bossAppeared && !bossResult.playerWon && !bossResult.escaped && !bossResult.draw) {
+        base = Math.max(base, Number(role.defeatRewardFloor || 0));
+    }
+    return Math.max(0, base);
 }
 
 async function refreshGoldBalanceAndRanking(playFabId, deps) {
@@ -963,10 +1078,18 @@ function buildReportText({ destination, ship, bossResult, rewardDisplayName, rew
     } else {
         lines.push(`${bossLabel}「${bossName}」に敗北しましたが、探索後にHPは全回復しました。`);
     }
-    if (ship.shipClass === 'merchant') lines.push('積荷スペースが広く、お宝を多く持ち帰った。');
+    const role = getExplorationShipRole(ship.shipClass);
+    if (role.rewardHint) lines.push(`船種効果: ${role.rewardHint}`);
     if (rewardCount > 0) lines.push(`発見したお宝 (${rewardCount}個): ${rewardDisplayName}`);
     else lines.push('お宝は得られませんでした。');
     return lines.join('\n');
+}
+
+function getAvailableDestinationsForShipClass(shipClass) {
+    const normalized = normalizeExplorationShipClass(shipClass);
+    return Object.values(DESTINATIONS)
+        .filter((destination) => destination.classes.includes(normalized))
+        .map((destination) => publicDestination(destination, normalized));
 }
 
 function initializeExplorationRoutes(app, deps) {
@@ -984,9 +1107,16 @@ function initializeExplorationRoutes(app, deps) {
     async function buildExplorationStatus(playFabId) {
         const ship = await resolveActiveShip(playFabId, deps);
         const availableDestinations = ship
-            ? Object.values(DESTINATIONS).filter((destination) => destination.classes.includes(ship.shipClass)).map(publicDestination)
+            ? getAvailableDestinationsForShipClass(ship.shipClass)
             : [];
         const activeSnap = await firestore.collection(EXPLORATION_COLLECTION).doc(playFabId).get();
+        const dayKey = getJstDayKey();
+        const dailyFreeSnap = await firestore
+            .collection(EXPLORATION_COLLECTION)
+            .doc(playFabId)
+            .collection(DAILY_FREE_SUBCOLLECTION)
+            .doc(dayKey)
+            .get();
         const reportsSnap = await firestore
             .collection(EXPLORATION_COLLECTION)
             .doc(playFabId)
@@ -998,6 +1128,7 @@ function initializeExplorationRoutes(app, deps) {
             success: true,
             ship,
             destinations: availableDestinations,
+            dailyFree: buildDailyFreeExplorationStatus(dayKey, dailyFreeSnap),
             active: activeSnap.exists ? explorationDocToPayload(activeSnap.data()) : null,
             reports: reportsSnap.docs.map(reportDocToPayload)
         };
@@ -1181,14 +1312,13 @@ function initializeExplorationRoutes(app, deps) {
             if (!destination.classes.includes(ship.shipClass)) {
                 return res.status(403).json({ error: 'この船では選択した行き先に向かえません。' });
             }
-            const balance = typeof getCurrencyBalance === 'function' ? await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE) : null;
-            if (Number.isFinite(balance) && balance < destination.cost) {
-                return res.status(402).json({ error: `探索には${destination.cost}G必要です。`, cost: destination.cost, balance });
-            }
-
             const now = Date.now();
+            const dayKey = getJstDayKey(now);
             const explorationId = `exp-${now}-${Math.random().toString(36).slice(2, 8)}`;
             const activeRef = firestore.collection(EXPLORATION_COLLECTION).doc(playFabId);
+            const dailyFreeRef = activeRef.collection(DAILY_FREE_SUBCOLLECTION).doc(dayKey);
+            let dailyFreeUsed = false;
+            let chargedCost = destination.cost;
 
             // フルペイロードを持つ pending を先に Firestore に確保する。
             // これにより: 通貨減算前に保存するためユーザー資産は安全。
@@ -1204,6 +1334,9 @@ function initializeExplorationRoutes(app, deps) {
                 shipClass: ship.shipClass,
                 shipStage: normalizeShipStage(ship.stage),
                 cost: destination.cost,
+                chargedCost: destination.cost,
+                dailyFreeDayKey: '',
+                dailyFreeUsed: false,
                 startedAtMs: now,
                 completesAtMs: now,
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1234,26 +1367,55 @@ function initializeExplorationRoutes(app, deps) {
                         }
                     }
                 }
-                tx.set(activeRef, fullPayload);
+                const dailyFreeSnap = await tx.get(dailyFreeRef);
+                dailyFreeUsed = !dailyFreeSnap.exists;
+                chargedCost = dailyFreeUsed ? 0 : destination.cost;
+                tx.set(activeRef, {
+                    ...fullPayload,
+                    chargedCost,
+                    dailyFreeDayKey: dailyFreeUsed ? dayKey : '',
+                    dailyFreeUsed
+                });
+                if (dailyFreeUsed) {
+                    tx.set(dailyFreeRef, {
+                        dayKey,
+                        explorationId,
+                        destinationId,
+                        destinationName: destination.name,
+                        playFabId,
+                        usedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        usedAtMs: now
+                    });
+                }
             });
             if (conflicted) {
                 return res.status(409).json({ error: '探索中です。帰還後に次の探索へ出発できます。' });
             }
 
-            // 通貨減算。失敗時は pending を削除してスロットを解放（ユーザー安全）
-            try {
-                await subtractEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, destination.cost, {
-                    idempotencyId: req.body?.requestId ? `exploration-start-${req.body.requestId}` : undefined
-                });
-            } catch (currencyError) {
-                await activeRef.delete().catch(() => {});
-                throw currencyError;
+            if (chargedCost > 0) {
+                const balance = typeof getCurrencyBalance === 'function' ? await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE) : null;
+                if (Number.isFinite(balance) && balance < chargedCost) {
+                    await activeRef.delete().catch(() => {});
+                    return res.status(402).json({ error: `探索には${chargedCost}G必要です。`, cost: chargedCost, balance });
+                }
+
+                // 通貨減算。失敗時は pending を削除してスロットを解放（ユーザー安全）
+                try {
+                    await subtractEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, chargedCost, {
+                        idempotencyId: req.body?.requestId ? `exploration-start-${req.body.requestId}` : undefined
+                    });
+                } catch (currencyError) {
+                    await activeRef.delete().catch(() => {});
+                    throw currencyError;
+                }
             }
-            const goldBalance = await refreshGoldBalanceAndRanking(playFabId, {
-                getCurrencyBalance,
-                promisifyPlayFab,
-                PlayFabServer
-            });
+            const goldBalance = dailyFreeUsed && typeof getCurrencyBalance === 'function'
+                ? await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE).catch(() => null)
+                : await refreshGoldBalanceAndRanking(playFabId, {
+                    getCurrencyBalance,
+                    promisifyPlayFab,
+                    PlayFabServer
+                });
 
             // active に昇格。失敗しても pending にフルデータが残るため claim から自動復旧可能
             try {
@@ -1263,7 +1425,7 @@ function initializeExplorationRoutes(app, deps) {
                 throw firestoreError;
             }
 
-            res.json({ ...(await buildExplorationStatus(playFabId)), started: true, balance: goldBalance });
+            res.json({ ...(await buildExplorationStatus(playFabId)), started: true, balance: goldBalance, dailyFreeUsed, chargedCost });
         } catch (error) {
             console.error('[exploration/start] failed:', error?.errorMessage || error?.message || error);
             res.status(500).json({ error: '探索の開始に失敗しました。', details: error?.errorMessage || error?.message || String(error) });
@@ -1347,7 +1509,7 @@ function initializeExplorationRoutes(app, deps) {
                 await restoreHpToFullOnce(activeRef, playFabId, { admin, promisifyPlayFab, PlayFabServer });
             } else {
                 // 初回: BOSS抽選 → BOSS戦闘 → 報酬抽選 → Firestore保存 → HP全回復
-                const selectedBoss = selectExplorationBoss(destination);
+                const selectedBoss = selectExplorationBoss(destination, Math.random, ship.shipClass);
                 bossResult = await resolveBossBattle(playFabId, destination, selectedBoss, { promisifyPlayFab, PlayFabServer });
 
                 const rewardCount = resolveRewardCount(bossResult, ship.shipClass);
@@ -1445,9 +1607,15 @@ module.exports = {
     __test: {
         DESTINATIONS,
         EXPLORATION_BOSSES,
+        EXPLORATION_SHIP_ROLES,
         BOSS_TIER_DEFS,
+        buildDailyFreeExplorationStatus,
+        getAvailableDestinationsForShipClass,
         getDestinationBosses,
+        getExplorationBossWeight,
+        getJstDayKey,
         selectExplorationBoss,
+        resolveRewardCount,
         publicDestination
     }
 };
