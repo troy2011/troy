@@ -1,4 +1,5 @@
 import { callApiWithLoader, createRequestId } from 'api';
+import { installPanelSlice25 } from './panelSlice25.js';
 import { getTroyMenuImage } from './troyMenuAssets.js';
 import { STAFF_MENU_CUSTOM_CATEGORY_ALIASES, getTroyStaffMenu } from './troyMenuData.js';
 
@@ -45,6 +46,8 @@ const soundPlayers = new Map();
 const soundBuffers = new Map();
 const soundBufferPromises = new Map();
 const soundArrayBufferPromises = new Map();
+
+installPanelSlice25();
 
 function $(id) {
     return document.getElementById(id);

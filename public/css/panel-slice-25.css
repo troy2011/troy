@@ -1,0 +1,29 @@
+.panel-slice-25-host {
+    position: relative;
+    border-image: none !important;
+}
+
+.panel-slice-25-layer {
+    position: absolute;
+    top: calc(-1 * var(--panel-slice-25-border-top, 0px));
+    right: calc(-1 * var(--panel-slice-25-border-right, 0px));
+    bottom: calc(-1 * var(--panel-slice-25-border-bottom, 0px));
+    left: calc(-1 * var(--panel-slice-25-border-left, 0px));
+    z-index: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    overflow: hidden;
+}
+
+.panel-slice-25-fill,
+.panel-slice-25-cell {
+    position: absolute;
+    display: block;
+    background-repeat: no-repeat;
+    background-origin: border-box;
+}
+
+.panel-slice-25-host > :not(.panel-slice-25-layer) {
+    position: relative;
+    z-index: 1;
+}

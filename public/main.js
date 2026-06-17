@@ -17,6 +17,7 @@ import { startNavalPvpBattle } from './js/navalPvpClient.js';
 import { renderAvatar, preloadAvatarBaseSprites } from './js/avatar.js';
 import { installPlayerProfileInteractions, openPlayerProfile, refreshFavoritePlayersList } from './js/playerProfile.js';
 import { showRpgMessage, rpgSay } from './js/rpgMessages.js';
+import { installPanelSlice25 } from './js/panelSlice25.js';
 import {
     ensureAvatarStyleDefaults as requestEnsureAvatarStyleDefaults,
     convertTroyGoldToCoin,
@@ -77,6 +78,7 @@ const LINE_FRIEND_ENTRY_PROMPT_SESSION_KEY = 'troy:line-friend-entry-prompted';
 const TROY_ENTRY_STAFF_CHIP_AMOUNT = 500;
 
 installPlayerProfileInteractions();
+installPanelSlice25();
 
 const NATION_GROUP_BY_RACE = {
     Human: { island: 'fire', groupName: 'nation_fire_island' },

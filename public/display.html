@@ -11,6 +11,7 @@
     <meta name="apple-mobile-web-app-title" content="TROY Display" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="stylesheet" href="/display.css" />
+    <link rel="stylesheet" href="/css/panel-slice-25.css?v=20260618a" />
   </head>
   <body>
     <div id="audioGate">
@@ -61,6 +62,10 @@
         <ol id="rankingList"></ol>
       </div>
     </div>
+    <script type="module">
+      import { installPanelSlice25 } from '/js/panelSlice25.js';
+      installPanelSlice25();
+    </script>
     <script src="/display.js"></script>
   </body>
 </html>
