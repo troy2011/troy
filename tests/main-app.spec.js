@@ -3540,3 +3540,193 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   expect(equippedTarotMarker.overflow).toBe('hidden');
   await expectNoPageErrors(errors);
 });
+
+test('tarot cards can toggle deck membership directly from inventory grid', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const tarotItems = [
+    {
+      itemId: 'tarot_minor_wand_7',
+      name: 'Wand Seven',
+      customData: { Category: 'TarotMinor', ArcanaSuit: 'wand', ArcanaRank: '7', CardNumber: '7' }
+    },
+    {
+      itemId: 'tarot_minor_cup_10',
+      name: 'Cup Ten',
+      customData: { Category: 'TarotMinor', ArcanaSuit: 'cup', ArcanaRank: '10', CardNumber: '10' }
+    }
+  ];
+  const equipRequests = [];
+  const unequipRequests = [];
+
+  await page.route('**/api/get-inventory', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        inventory: tarotItems,
+        virtualCurrency: { PS: 0 },
+        contribution: 0
+      })
+    });
+  });
+  await page.route('**/api/tarot-deck-get', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ok: true,
+        tarotDeck: ['tarot_minor_cup_10'],
+        tarotRole: null
+      })
+    });
+  });
+  await page.route('**/api/tarot-deck-equip', async (route) => {
+    equipRequests.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ok: true,
+        tarotDeck: ['tarot_minor_cup_10', 'tarot_minor_wand_7'],
+        tarotRole: null
+      })
+    });
+  });
+  await page.route('**/api/tarot-deck-unequip', async (route) => {
+    unequipRequests.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ok: true,
+        tarotDeck: ['tarot_minor_wand_7'],
+        tarotRole: null
+      })
+    });
+  });
+  await page.route('**/api/get-equipment', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ equipment: {} })
+    });
+  });
+  await page.route('**/api/cards', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ cards: [] })
+    });
+  });
+
+  await bootstrapMainApp(page);
+
+  await page.evaluate(async () => {
+    const inventoryTab = document.getElementById('tabContentInventory');
+    if (inventoryTab) inventoryTab.style.display = 'block';
+    const inventory = await import('/js/inventory.js');
+    await inventory.getInventory('PF_PLAYWRIGHT', { force: true });
+    inventory.switchInventoryGroup('Tarot');
+    inventory.switchInventoryTab('TarotMinor');
+  });
+
+  await expect(page.locator('#meleeDeckGrid')).toHaveAttribute('data-deck-count', '1');
+  await page.locator('#inventoryGrid .inventory-item-cell:has(.tarot-number-badge.is-wand)').click();
+  expect(equipRequests).toHaveLength(1);
+  expect(equipRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    cardItemId: 'tarot_minor_wand_7',
+    deckType: 'tarot'
+  });
+  await expect(page.locator('#meleeDeckGrid')).toHaveAttribute('data-deck-count', '2');
+
+  await page.locator('#inventoryGrid .inventory-item-cell:has(.tarot-number-badge.is-cup)').click();
+  expect(unequipRequests).toHaveLength(1);
+  expect(unequipRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    cardItemId: 'tarot_minor_cup_10',
+    deckType: 'tarot'
+  });
+  await expect(page.locator('#meleeDeckGrid')).toHaveAttribute('data-deck-count', '1');
+  await expectNoPageErrors(errors);
+});
+
+test('equipment cards can equip directly from inventory grid', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const equipmentItems = [
+    {
+      itemId: 'sword_001',
+      name: 'Iron Sword',
+      customData: { Category: 'Weapon', Power: 12, sprite_path: './Sprites/weapons/melee weapons/sword.png', sprite_index: '0' }
+    },
+    {
+      itemId: 'shield_001',
+      name: 'Round Shield',
+      customData: { Category: 'Shield', Defense: 8, sprite_path: './Sprites/weapons/melee weapons/shield.png', sprite_index: '0' }
+    }
+  ];
+  const equipRequests = [];
+  let equipmentState = {};
+
+  await page.route('**/api/get-inventory', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        inventory: equipmentItems,
+        virtualCurrency: { PS: 0 },
+        contribution: 0
+      })
+    });
+  });
+  await page.route('**/api/get-equipment', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ equipment: equipmentState })
+    });
+  });
+  await page.route('**/api/equip-item', async (route) => {
+    const body = route.request().postDataJSON();
+    equipRequests.push(body);
+    if (body.slot) {
+      equipmentState = { ...equipmentState, [body.slot]: body.itemId || null };
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ success: true, equipment: equipmentState })
+    });
+  });
+  await page.route('**/api/tarot-deck-get', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ok: true, tarotDeck: [], tarotRole: null })
+    });
+  });
+
+  await bootstrapMainApp(page);
+
+  await page.evaluate(async () => {
+    const inventoryTab = document.getElementById('tabContentInventory');
+    if (inventoryTab) inventoryTab.style.display = 'block';
+    const inventory = await import('/js/inventory.js');
+    await inventory.getInventory('PF_PLAYWRIGHT', { force: true });
+    inventory.switchInventoryGroup('Equipment');
+    inventory.switchInventoryTab('Weapon');
+  });
+
+  await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"] .inventory-item-quick-action.is-equip')).toHaveText('右手');
+  await page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]').click();
+
+  expect(equipRequests).toHaveLength(1);
+  expect(equipRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    itemId: 'sword_001',
+    slot: 'RightHand'
+  });
+  await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]')).toHaveAttribute('data-equipment-state', 'equipped');
+  await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"] .inventory-item-quick-action.is-remove')).toHaveText('外す');
+  await expectNoPageErrors(errors);
+});

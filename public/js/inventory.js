@@ -459,6 +459,11 @@ function isCardInTarotDeck(itemId) {
     return isCardInMeleeDeck(itemId) || isCardInShipDeck(itemId);
 }
 
+function isTarotInventoryCategory(category) {
+    const canonicalCategory = getCanonicalTarotCategory(category);
+    return canonicalCategory === 'TarotMajor' || canonicalCategory === 'TarotMinor';
+}
+
 function getCommonTarotDeck() {
     return sortTarotDeckItemIds(myMeleeDeck);
 }
@@ -606,12 +611,20 @@ function renderDeckGrid(gridEl, deckItemIds, deckType) {
     if (!gridEl) return;
     const playFabId = window.myPlayFabId || null;
     const MAX_SLOTS = 5;
+    const filledCount = Math.min(deckItemIds.length, MAX_SLOTS);
+    gridEl.dataset.deckCount = String(filledCount);
+    gridEl.dataset.deckComplete = filledCount >= MAX_SLOTS ? 'true' : 'false';
+    gridEl.setAttribute('aria-label', `タロットデッキ ${filledCount}/${MAX_SLOTS}`);
     const cells = [];
     for (let i = 0; i < MAX_SLOTS; i++) {
         const itemId = deckItemIds[i] || null;
         const item = itemId ? myInventory.find((inv) => inv.itemId === itemId) : null;
-        const cell = document.createElement('div');
+        const cell = document.createElement(item ? 'button' : 'div');
         cell.className = `tarot-loadout-card${item ? '' : ' is-empty'}`;
+        if (item) {
+            cell.type = 'button';
+            cell.dataset.action = 'remove-tarot-card';
+        }
         cell.setAttribute('aria-label', `タロットデッキ ${i + 1}枚目`);
         if (item) {
             cell.classList.add('is-equipped');
@@ -619,6 +632,10 @@ function renderDeckGrid(gridEl, deckItemIds, deckType) {
             if (entry.isArcana) cell.classList.add('is-arcana');
             cell.dataset.suit = entry.suitKey || 'none';
             cell.title = entry.title;
+            cell.setAttribute('aria-label', `${entry.title}をデッキから外す`);
+            if (playFabId) {
+                cell.addEventListener('click', () => unequipTarotCardFromDeck(playFabId, itemId, deckType));
+            }
             const visualEl = document.createElement('div');
             visualEl.className = 'tarot-loadout-visual';
             renderDeckCardSprite(visualEl, entry);
@@ -632,7 +649,11 @@ function renderDeckGrid(gridEl, deckItemIds, deckType) {
             removeBtn.setAttribute('aria-label', 'デッキから外す');
             removeBtn.title = 'デッキから外す';
             if (playFabId) {
-                removeBtn.addEventListener('click', () => unequipTarotCardFromDeck(playFabId, itemId, deckType));
+                removeBtn.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    unequipTarotCardFromDeck(playFabId, itemId, deckType);
+                });
             }
             actionsEl.append(removeBtn);
             cell.append(visualEl, actionsEl);
@@ -658,16 +679,25 @@ function renderTarotDeckPanels() {
 
 function getInventoryTabHint(category) {
     if (category === 'TarotMajor') {
-        return '大アルカナはタロットデッキにセットできます。';
+        return 'カードをタップするとデッキへ追加/解除できます。デッキは5枚までです。';
     }
     if (category === 'TarotMinor') {
-        return '小アルカナはタロットデッキにセットできます。';
+        return 'カードをタップするとデッキへ追加/解除できます。デッキは5枚までです。';
     }
     if (category === 'Accessory') {
-        return 'アクセサリーは通常装備として使えます。';
+        return '候補をタップすると装備/解除できます。詳細はカード下部の i ボタンから確認できます。';
     }
     if (category === 'Offhand') {
-        return '副手は左手に装備します。魔導書やオーブなど、盾とは別系統の補助装備です。';
+        return '候補をタップすると左手に装備/解除できます。副手は盾とは別系統の補助装備です。';
+    }
+    if (category === 'Weapon') {
+        return '候補をタップすると右手に装備/解除できます。詳細はカード下部の i ボタンから確認できます。';
+    }
+    if (category === 'Shield') {
+        return '候補をタップすると左手に装備/解除できます。詳細はカード下部の i ボタンから確認できます。';
+    }
+    if (category === 'Armor') {
+        return '候補をタップすると装備/解除できます。詳細はカード下部の i ボタンから確認できます。';
     }
     return '';
 }
@@ -1193,21 +1223,21 @@ function getInventoryQuickAction(item, canonicalCategory) {
             if (equippedSlots.includes('RightHand')) {
                 return { label: '外す', tone: 'remove', run: () => equipItem(playFabId, null, 'RightHand') };
             }
-            return { label: '両手装備', tone: 'equip', run: () => equipItem(playFabId, itemId, 'RightHand') };
+            return { label: '両手', tone: 'equip', run: () => equipItem(playFabId, itemId, 'RightHand') };
         }
         if (equippedSlots.includes('RightHand')) {
-            return { label: '右手解除', tone: 'remove', run: () => equipItem(playFabId, null, 'RightHand') };
+            return { label: '外す', tone: 'remove', run: () => equipItem(playFabId, null, 'RightHand') };
         }
         if (equippedSlots.includes('LeftHand')) {
-            return { label: '左手解除', tone: 'remove', run: () => equipItem(playFabId, null, 'LeftHand') };
+            return { label: '外す', tone: 'remove', run: () => equipItem(playFabId, null, 'LeftHand') };
         }
-        return { label: '右手装備', tone: 'equip', run: () => equipItem(playFabId, itemId, 'RightHand') };
+        return { label: '右手', tone: 'equip', run: () => equipItem(playFabId, itemId, 'RightHand') };
     }
     if (canonicalCategory === 'Shield' || canonicalCategory === 'Offhand') {
         if (equippedSlots.includes('LeftHand')) {
-            return { label: '左手解除', tone: 'remove', run: () => equipItem(playFabId, null, 'LeftHand') };
+            return { label: '外す', tone: 'remove', run: () => equipItem(playFabId, null, 'LeftHand') };
         }
-        return { label: '左手装備', tone: 'equip', run: () => equipItem(playFabId, itemId, 'LeftHand') };
+        return { label: '左手', tone: 'equip', run: () => equipItem(playFabId, itemId, 'LeftHand') };
     }
     if (canonicalCategory === 'Armor') {
         if (equippedSlots.includes('Armor')) {
@@ -1223,10 +1253,10 @@ function getInventoryQuickAction(item, canonicalCategory) {
     }
     if (canonicalCategory === 'TarotMajor') {
         if (isCardInTarotDeck(itemId)) {
-            return { label: 'デッキから外す', tone: 'remove', run: () => unequipTarotCardFromDeck(playFabId, itemId, 'tarot') };
+            return { label: '外す', tone: 'remove', run: () => unequipTarotCardFromDeck(playFabId, itemId, 'tarot') };
         }
         if (getCommonTarotDeck().length < 5) {
-            return { label: 'デッキに追加', tone: 'equip', run: () => equipTarotCardToDeck(playFabId, itemId, 'tarot') };
+            return { label: '追加', tone: 'equip', run: () => equipTarotCardToDeck(playFabId, itemId, 'tarot') };
         }
         const lvd = cardLevelMap[itemId];
         if (lvd && lvd.level < lvd.maxLevel) {
@@ -1236,14 +1266,14 @@ function getInventoryQuickAction(item, canonicalCategory) {
     }
     if (canonicalCategory === 'TarotMinor') {
         if (isCardInTarotDeck(itemId)) {
-            return { label: 'デッキから外す', tone: 'remove', run: () => unequipTarotCardFromDeck(playFabId, itemId, 'tarot') };
+            return { label: '外す', tone: 'remove', run: () => unequipTarotCardFromDeck(playFabId, itemId, 'tarot') };
         }
         const lvd = cardLevelMap[itemId];
         if (lvd && lvd.level < lvd.maxLevel) {
             return { label: `Lv↑ (${lvd.nextLevelCost}⚔)`, tone: 'levelup', run: () => levelUpCard(itemId) };
         }
         if (getCommonTarotDeck().length < 5) {
-            return { label: 'デッキに追加', tone: 'equip', run: () => equipTarotCardToDeck(playFabId, itemId, 'tarot') };
+            return { label: '追加', tone: 'equip', run: () => equipTarotCardToDeck(playFabId, itemId, 'tarot') };
         }
         return null;
     }
@@ -1265,8 +1295,8 @@ function getInventoryQuickActions(item, canonicalCategory) {
     const actions = [];
 
     actions.push(inDeck
-        ? { label: 'デッキから外す', tone: 'remove', run: () => unequipTarotCardFromDeck(playFabId, itemId, 'tarot') }
-        : { label: 'デッキに追加', tone: getCommonTarotDeck().length < 5 ? 'equip' : 'disabled', disabled: getCommonTarotDeck().length >= 5, run: () => equipTarotCardToDeck(playFabId, itemId, 'tarot') });
+        ? { label: '外す', tone: 'remove', run: () => unequipTarotCardFromDeck(playFabId, itemId, 'tarot') }
+        : { label: '追加', tone: getCommonTarotDeck().length < 5 ? 'equip' : 'disabled', disabled: getCommonTarotDeck().length >= 5, run: () => equipTarotCardToDeck(playFabId, itemId, 'tarot') });
 
     const lvd = cardLevelMap[itemId];
     if (lvd && lvd.level < lvd.maxLevel) {
@@ -1279,6 +1309,8 @@ function getInventoryQuickActions(item, canonicalCategory) {
 function createInventoryCell(item, requestedCategory) {
     const cd = item?.customData || {};
     const canonicalCategory = getCanonicalTarotCategory(cd.Category);
+    const isTarotCard = isTarotInventoryCategory(canonicalCategory);
+    const isEquipmentCard = isInventoryEquipmentCategory(canonicalCategory);
     const layout = requestedCategory === 'All'
         ? 'mixed'
         : getInventoryLayout(requestedCategory);
@@ -1289,17 +1321,28 @@ function createInventoryCell(item, requestedCategory) {
     cell.title = item?.name || '不明なアイテム';
     cell.setAttribute('role', 'button');
     cell.tabIndex = 0;
-    cell.onclick = () => showItemDetailModal(item);
-    cell.addEventListener('keydown', (event) => {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        event.preventDefault();
-        showItemDetailModal(item);
-    });
     const compareSummary = getInventoryComparisonSummary(item, canonicalCategory);
     const quickActions = getInventoryQuickActions(item, canonicalCategory);
     const quickAction = quickActions[0] || null;
+    const tarotDeckAction = isTarotCard
+        ? quickActions.find((action) => ['equip', 'remove', 'disabled'].includes(action?.tone))
+        : null;
+    const equipmentAction = isEquipmentCard
+        ? quickActions.find((action) => ['equip', 'remove'].includes(action?.tone))
+        : null;
     const rarityTone = getInventoryRarityTone(item);
     cell.classList.add(`is-rarity-${rarityTone}`);
+    if (isTarotCard) {
+        cell.classList.add('is-tarot-card');
+        cell.dataset.suit = getDeckCardSuitKey(item, canonicalCategory);
+        cell.dataset.deckState = isCardInTarotDeck(item?.itemId)
+            ? 'equipped'
+            : (getCommonTarotDeck().length >= 5 ? 'full' : 'available');
+    }
+    if (isEquipmentCard) {
+        cell.classList.add('is-equipment-card');
+        cell.dataset.equipmentState = isInventoryItemEquipped(item) ? 'equipped' : 'available';
+    }
     if (compareSummary?.tone) {
         cell.classList.add(`is-${compareSummary.tone}`);
     }
@@ -1316,6 +1359,31 @@ function createInventoryCell(item, requestedCategory) {
     if (isEquipmentEquipped) {
         cell.classList.add('is-equipment-equipped');
     }
+    const activateCell = async () => {
+        if (!isTarotCard) {
+            if (equipmentAction) {
+                await equipmentAction.run();
+            } else {
+                showItemDetailModal(item);
+            }
+            return;
+        }
+        if (!tarotDeckAction) {
+            showItemDetailModal(item);
+            return;
+        }
+        if (tarotDeckAction.disabled) {
+            showInventoryFeedback('デッキは5枚までです。先に1枚外してください。', true);
+            return;
+        }
+        await tarotDeckAction.run();
+    };
+    cell.addEventListener('click', () => activateCell());
+    cell.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        activateCell();
+    });
 
     const head = document.createElement('div');
     head.className = 'inventory-item-head';
@@ -1412,6 +1480,18 @@ function createInventoryCell(item, requestedCategory) {
         if (quickActions.length) {
             const actionWrap = document.createElement('div');
             actionWrap.className = 'inventory-item-actions';
+            if (isTarotCard || isEquipmentCard) {
+                const detailButton = document.createElement('button');
+                detailButton.type = 'button';
+                detailButton.className = 'inventory-item-quick-action is-detail';
+                detailButton.textContent = '詳細';
+                detailButton.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    showItemDetailModal(item);
+                });
+                actionWrap.appendChild(detailButton);
+            }
             quickActions.forEach((action) => {
                 const actionButton = document.createElement('button');
                 actionButton.type = 'button';

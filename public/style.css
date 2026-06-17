@@ -20591,16 +20591,18 @@ body[data-sea-tone] .home-hero-card {
     gap: 8px;
 }
 
-#tabContentInventory #inventoryGrid[data-layout="equipment"] {
+#tabContentInventory #inventoryGrid[data-layout="equipment"],
+#tabContentInventory #inventoryGrid[data-layout="tarot"] {
     grid-template-columns: repeat(5, minmax(0, 1fr));
     align-items: start;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="equipment"] {
     gap: 6px;
 }
 
 #tabContentInventory #inventoryGrid[data-layout="tarot"] {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    align-items: start;
-    gap: 6px;
+    gap: 8px;
 }
 
 #tabContentInventory .inventory-item-cell {
@@ -20619,6 +20621,106 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell,
 #tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell {
     aspect-ratio: 3 / 4;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell.is-equipment-card {
+    touch-action: manipulation;
+    overflow: hidden;
+    background:
+        radial-gradient(ellipse at 50% 20%, rgba(255, 226, 151, 0.14), transparent 58%),
+        linear-gradient(180deg, rgba(14, 17, 22, 0.9), rgba(3, 4, 7, 0.98));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 244, 205, 0.07),
+        0 7px 15px rgba(0, 0, 0, 0.3);
+}
+
+#tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell.is-equipment-card::before {
+    content: "";
+    position: absolute;
+    inset: 8px 8px 31px;
+    z-index: 0;
+    border: 1px solid rgba(255, 226, 151, 0.24);
+    border-radius: 6px;
+    background:
+        linear-gradient(180deg, rgba(255, 244, 207, 0.06), transparent 32%),
+        linear-gradient(180deg, rgba(9, 12, 17, 0.74), rgba(1, 2, 4, 0.9));
+    pointer-events: none;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell.is-equipment-card[data-equipment-state="equipped"] {
+    border-image-source: url("./assets/ui/panels/panel-gold-square.png");
+    filter: saturate(1.06) brightness(1.04);
+}
+
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-tarot-card {
+    --tarot-suit-glow: rgba(255, 226, 151, 0.22);
+    --tarot-suit-line: rgba(255, 226, 151, 0.46);
+    --tarot-suit-fill: rgba(85, 62, 28, 0.34);
+    touch-action: manipulation;
+    overflow: hidden;
+    border-image-source: url("./assets/ui/panels/panel-dark-gold.png");
+    background:
+        radial-gradient(ellipse at 50% 22%, var(--tarot-suit-glow), transparent 58%),
+        linear-gradient(180deg, rgba(18, 17, 19, 0.92), rgba(4, 5, 8, 0.98));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 244, 205, 0.08),
+        0 7px 15px rgba(0, 0, 0, 0.32);
+}
+
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-tarot-card::before {
+    content: "";
+    position: absolute;
+    inset: 7px 7px 31px;
+    z-index: 0;
+    border: 1px solid var(--tarot-suit-line);
+    border-radius: 6px;
+    background:
+        linear-gradient(180deg, rgba(255, 244, 207, 0.07), transparent 26%),
+        radial-gradient(ellipse at 50% 15%, var(--tarot-suit-fill), transparent 58%),
+        linear-gradient(180deg, rgba(9, 10, 13, 0.92), rgba(1, 2, 4, 0.96));
+    box-shadow:
+        inset 0 0 0 1px rgba(0, 0, 0, 0.58),
+        inset 0 7px 13px rgba(255, 232, 163, 0.04);
+    pointer-events: none;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-tarot-card::after {
+    z-index: 8;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-tarot-card[data-suit="wand"] {
+    --tarot-suit-glow: rgba(230, 81, 70, 0.32);
+    --tarot-suit-line: rgba(240, 162, 160, 0.58);
+    --tarot-suit-fill: rgba(121, 35, 30, 0.42);
+}
+
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-tarot-card[data-suit="pentacle"] {
+    --tarot-suit-glow: rgba(78, 181, 104, 0.3);
+    --tarot-suit-line: rgba(158, 215, 164, 0.58);
+    --tarot-suit-fill: rgba(32, 89, 48, 0.4);
+}
+
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-tarot-card[data-suit="sword"] {
+    --tarot-suit-glow: rgba(225, 199, 66, 0.3);
+    --tarot-suit-line: rgba(234, 213, 109, 0.62);
+    --tarot-suit-fill: rgba(104, 83, 21, 0.38);
+}
+
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-tarot-card[data-suit="cup"] {
+    --tarot-suit-glow: rgba(80, 139, 221, 0.32);
+    --tarot-suit-line: rgba(143, 188, 239, 0.62);
+    --tarot-suit-fill: rgba(34, 72, 130, 0.42);
+}
+
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-tarot-card[data-suit="all"] {
+    --tarot-suit-glow: rgba(228, 216, 168, 0.34);
+    --tarot-suit-line: rgba(245, 226, 160, 0.66);
+    --tarot-suit-fill: rgba(103, 78, 35, 0.42);
+}
+
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-tarot-card[data-deck-state="equipped"] {
+    border-image-source: url("./assets/ui/panels/panel-gold-square.png");
+    filter: saturate(1.08) brightness(1.04);
 }
 
 #tabContentInventory .inventory-item-cell:focus-visible {
@@ -20640,6 +20742,100 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory .inventory-item-copy,
 #tabContentInventory .inventory-item-tail {
     display: none !important;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell .inventory-item-tail,
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell .inventory-item-tail {
+    position: absolute;
+    left: 5px;
+    right: 5px;
+    bottom: 4px;
+    z-index: 6;
+    display: grid !important;
+    pointer-events: none;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell .inventory-item-actions,
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell .inventory-item-actions {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 3px;
+    pointer-events: auto;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell .inventory-item-quick-action,
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell .inventory-item-quick-action {
+    min-width: 0;
+    min-height: 24px;
+    padding: 2px 3px;
+    border: 1px solid rgba(255, 226, 151, 0.34);
+    border-radius: 4px;
+    background: rgba(5, 7, 10, 0.88);
+    color: #f4dfae;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0;
+    text-align: center;
+    white-space: nowrap;
+    writing-mode: horizontal-tb;
+    text-orientation: mixed;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.86);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 2px 5px rgba(0, 0, 0, 0.34);
+}
+
+#tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell .inventory-item-quick-action.is-equip {
+    background: linear-gradient(180deg, rgba(70, 181, 238, 0.86), rgba(12, 78, 118, 0.94));
+    color: #eff8ff;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell .inventory-item-quick-action.is-remove,
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell .inventory-item-quick-action.is-remove {
+    background: linear-gradient(180deg, rgba(170, 56, 49, 0.9), rgba(83, 19, 19, 0.94));
+    color: #fff1e8;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell .inventory-item-quick-action.is-detail,
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell .inventory-item-quick-action.is-detail {
+    padding: 0;
+    color: #d7c6a4;
+    font-size: 0;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell .inventory-item-quick-action.is-detail::before,
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell .inventory-item-quick-action.is-detail::before {
+    content: "i";
+    width: 14px;
+    height: 14px;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid rgba(255, 232, 166, 0.5);
+    border-radius: 999px;
+    color: #f4dfae;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell .inventory-item-quick-action.is-equip {
+    background: linear-gradient(180deg, rgba(60, 180, 126, 0.86), rgba(16, 92, 61, 0.92));
+    color: #f2fff5;
+    padding-inline: 3px;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell .inventory-item-quick-action.is-disabled {
+    opacity: 0.62;
+    color: #a89978;
+    filter: grayscale(0.35);
+}
+
+#tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell.is-equipment-card:active,
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell[data-deck-state="available"]:active,
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell[data-deck-state="equipped"]:active {
+    transform: translateY(1px);
 }
 
 #tabContentInventory .inventory-item-head-meta {
@@ -20670,6 +20866,10 @@ body[data-sea-tone] .home-hero-card {
     align-items: flex-start;
     gap: 2px;
     pointer-events: none;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell .inventory-item-stat-badges {
+    bottom: 30px;
 }
 
 #tabContentInventory .inventory-item-stat-badge {
@@ -20712,6 +20912,16 @@ body[data-sea-tone] .home-hero-card {
     display: grid;
     place-items: center;
     place-content: center;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell .inventory-item-main {
+    position: relative;
+    z-index: 1;
+    transform: translateY(-5px);
+}
+
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell .inventory-item-main {
+    margin-top: -6px;
 }
 
 #tabContentInventory .inventory-item-icon-frame {
@@ -20772,6 +20982,14 @@ body[data-sea-tone] .home-hero-card {
     max-width: 48px;
     max-height: 80px;
     overflow: visible;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-icon-frame .inventory-item-icon,
+#tabContentInventory #inventoryGrid[data-layout="mixed"] .inventory-item-cell[data-category="TarotMajor"] .inventory-item-icon-frame .inventory-item-icon,
+#tabContentInventory #inventoryGrid[data-layout="mixed"] .inventory-item-cell[data-category="TarotMinor"] .inventory-item-icon-frame .inventory-item-icon {
+    filter:
+        drop-shadow(0 5px 8px rgba(0, 0, 0, 0.56))
+        drop-shadow(0 0 7px var(--tarot-suit-glow, rgba(255, 226, 151, 0.16)));
 }
 
 #tabContentInventory .tarot-number-badge {
@@ -21307,6 +21525,12 @@ body[data-sea-tone] .home-hero-card {
     #tabContentInventory .inventory-section[data-panel="tarot"] .section-header h2,
     #tabContentInventory .tarot-loadout-header h3 {
         font-size: 18px;
+    }
+
+    #tabContentInventory #inventoryGrid[data-layout="equipment"],
+    #tabContentInventory #inventoryGrid[data-layout="tarot"] {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
     }
 
     #avatarStyleModal .avatar-style-controls {
@@ -22876,6 +23100,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .tarot-loadout-grid {
+    position: relative;
     display: grid;
     grid-template-columns: repeat(5, 48px);
     grid-auto-rows: 80px;
@@ -22884,6 +23109,34 @@ body[data-sea-tone] .home-hero-card {
     gap: 6px;
     width: 100%;
     overflow: visible;
+}
+
+#tabContentInventory .tarot-loadout-grid::before {
+    content: attr(data-deck-count) "/5";
+    position: absolute;
+    right: 0;
+    top: -30px;
+    min-width: 42px;
+    min-height: 22px;
+    padding: 3px 8px;
+    box-sizing: border-box;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255, 226, 151, 0.34);
+    border-radius: 999px;
+    background: rgba(5, 7, 10, 0.82);
+    color: #f4dfae;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.86);
+}
+
+#tabContentInventory .tarot-loadout-grid[data-deck-complete="true"]::before {
+    color: #fff7d1;
+    background: rgba(92, 63, 16, 0.9);
+    border-color: rgba(255, 226, 151, 0.58);
 }
 
 #tabContentInventory .tarot-loadout-card {
@@ -22900,6 +23153,44 @@ body[data-sea-tone] .home-hero-card {
     display: grid;
     place-items: center;
     overflow: visible;
+    appearance: none;
+    cursor: pointer;
+    --tarot-suit-glow: rgba(255, 226, 151, 0.18);
+    --tarot-suit-line: rgba(255, 226, 151, 0.42);
+}
+
+#tabContentInventory .tarot-loadout-card[data-suit="wand"] {
+    --tarot-suit-glow: rgba(230, 81, 70, 0.34);
+    --tarot-suit-line: rgba(240, 162, 160, 0.58);
+}
+
+#tabContentInventory .tarot-loadout-card[data-suit="pentacle"] {
+    --tarot-suit-glow: rgba(78, 181, 104, 0.32);
+    --tarot-suit-line: rgba(158, 215, 164, 0.58);
+}
+
+#tabContentInventory .tarot-loadout-card[data-suit="sword"] {
+    --tarot-suit-glow: rgba(225, 199, 66, 0.32);
+    --tarot-suit-line: rgba(234, 213, 109, 0.62);
+}
+
+#tabContentInventory .tarot-loadout-card[data-suit="cup"] {
+    --tarot-suit-glow: rgba(80, 139, 221, 0.34);
+    --tarot-suit-line: rgba(143, 188, 239, 0.62);
+}
+
+#tabContentInventory .tarot-loadout-card[data-suit="all"] {
+    --tarot-suit-glow: rgba(228, 216, 168, 0.34);
+    --tarot-suit-line: rgba(245, 226, 160, 0.66);
+}
+
+#tabContentInventory .tarot-loadout-card.is-empty {
+    cursor: default;
+}
+
+#tabContentInventory button.tarot-loadout-card:focus-visible {
+    outline: 2px solid rgba(255, 225, 134, 0.92);
+    outline-offset: 3px;
 }
 
 #tabContentInventory .tarot-loadout-visual {
@@ -22908,8 +23199,14 @@ body[data-sea-tone] .home-hero-card {
     height: 80px;
     border: 0;
     border-radius: 3px;
-    background: rgba(3, 5, 8, 0.72);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.42);
+    background:
+        linear-gradient(180deg, rgba(255, 244, 208, 0.08), rgba(0, 0, 0, 0.12)),
+        rgba(3, 5, 8, 0.78);
+    outline: 1px solid var(--tarot-suit-line);
+    outline-offset: -1px;
+    box-shadow:
+        0 5px 10px rgba(0, 0, 0, 0.48),
+        0 0 12px var(--tarot-suit-glow);
     overflow: hidden;
 }
 
@@ -22965,8 +23262,10 @@ body[data-sea-tone] .home-hero-card {
     border: 1px dashed rgba(255, 228, 160, 0.26);
     border-radius: 3px;
     background:
+        var(--icon-action-plus) center / 18px 18px no-repeat,
         linear-gradient(180deg, rgba(18, 20, 24, 0.42), rgba(3, 4, 6, 0.72)),
         repeating-linear-gradient(135deg, rgba(255, 228, 160, 0.05) 0 6px, transparent 6px 12px);
+    opacity: 0.86;
 }
 
 @media (max-width: 360px) {
