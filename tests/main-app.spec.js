@@ -1195,6 +1195,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
             description: '近場の探索',
             cost: 100,
             durationMs: 3 * 60 * 60 * 1000,
+            dailyFreeEligible: true,
             roleLabel: '偵察',
             riskLabel: '低リスク',
             rewardHint: '基本報酬',
@@ -1204,6 +1205,24 @@ test('home exploration button loads exploration data in a popup', async ({ page 
               { id: 'treasure_slime', name: '財宝スライム', spriteId: 'treasure_slime', tier: 'weak', tierLabel: '弱' },
               { id: 'puffer_bomb', name: '爆弾フグ', spriteId: 'puffer_bomb', tier: 'medium', tierLabel: '中' },
               { id: 'mimic_chest', name: '宝箱ミミック', spriteId: 'mimic_chest', tier: 'strong', tierLabel: '強' }
+            ]
+          },
+          {
+            id: 'coral-passage',
+            name: '珊瑚礁の抜け道',
+            description: '浅瀬を抜ける航路',
+            cost: 180,
+            durationMs: 4 * 60 * 60 * 1000,
+            dailyFreeEligible: false,
+            roleLabel: '偵察',
+            riskLabel: '中リスク',
+            rewardHint: '素材と消耗品',
+            bossWeightHint: '標準BOSS',
+            bossName: 'なし',
+            bosses: [
+              { id: 'skeletal_parrot', name: '骸骨オウム', spriteId: 'skeletal_parrot', tier: 'weak', tierLabel: '弱' },
+              { id: 'coral_goblin', name: '珊瑚ゴブリン', spriteId: 'coral_goblin', tier: 'medium', tierLabel: '中' },
+              { id: 'crab_brute', name: '大ガニ', spriteId: 'crab_brute', tier: 'strong', tierLabel: '強' }
             ]
           }
         ]
@@ -1221,19 +1240,25 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(panel).toHaveClass(/is-popup/);
   await expect(panel.locator('.ship-exploration-head h3')).toHaveText('探索');
   await expect(panel.locator('.ship-exploration-meta').first()).toContainText('テスト船');
-  await expect(panel.locator('.ship-exploration-destination strong')).toHaveText('港の外れ');
-  await expect(panel.locator('.ship-exploration-badge')).toHaveText(['本日無料', '通常100G']);
-  await expect(panel.locator('.ship-exploration-role-chip')).toHaveText(['偵察', '低リスク', '基本報酬', '標準BOSS']);
-  await expect(panel.locator('.ship-exploration-boss-chip')).toHaveCount(3);
-  await expect(panel.locator('.ship-exploration-boss-chip').nth(0)).toContainText('弱');
-  await expect(panel.locator('.ship-exploration-boss-chip').nth(0)).toContainText('財宝スライム');
-  await expect(panel.locator('.ship-exploration-boss-chip').nth(1)).toContainText('中');
-  await expect(panel.locator('.ship-exploration-boss-chip').nth(1)).toContainText('爆弾フグ');
-  await expect(panel.locator('.ship-exploration-boss-chip').nth(2)).toContainText('強');
-  await expect(panel.locator('.ship-exploration-boss-chip').nth(2)).toContainText('宝箱ミミック');
-  await expect(panel.locator('.ship-exploration-boss-image')).toHaveCount(3);
-  await expect(panel.locator('.ship-exploration-start')).toHaveText('探索開始');
-  const explorationPanelFrame = await panel.locator('.ship-exploration-destination').evaluate((element) => ({
+  const destinationCards = panel.locator('.ship-exploration-destination');
+  await expect(destinationCards).toHaveCount(2);
+  const freeDestination = destinationCards.nth(0);
+  const paidDestination = destinationCards.nth(1);
+  await expect(freeDestination.locator('strong')).toHaveText('港の外れ');
+  await expect(freeDestination.locator('.ship-exploration-badge')).toHaveText(['本日無料', '通常100G']);
+  await expect(paidDestination.locator('strong')).toHaveText('珊瑚礁の抜け道');
+  await expect(paidDestination.locator('.ship-exploration-badge')).toHaveText(['180G']);
+  await expect(freeDestination.locator('.ship-exploration-role-chip')).toHaveText(['偵察', '低リスク', '基本報酬', '標準BOSS']);
+  await expect(freeDestination.locator('.ship-exploration-boss-chip')).toHaveCount(3);
+  await expect(freeDestination.locator('.ship-exploration-boss-chip').nth(0)).toContainText('弱');
+  await expect(freeDestination.locator('.ship-exploration-boss-chip').nth(0)).toContainText('財宝スライム');
+  await expect(freeDestination.locator('.ship-exploration-boss-chip').nth(1)).toContainText('中');
+  await expect(freeDestination.locator('.ship-exploration-boss-chip').nth(1)).toContainText('爆弾フグ');
+  await expect(freeDestination.locator('.ship-exploration-boss-chip').nth(2)).toContainText('強');
+  await expect(freeDestination.locator('.ship-exploration-boss-chip').nth(2)).toContainText('宝箱ミミック');
+  await expect(freeDestination.locator('.ship-exploration-boss-image')).toHaveCount(3);
+  await expect(freeDestination.locator('.ship-exploration-start')).toHaveText('探索開始');
+  const explorationPanelFrame = await freeDestination.evaluate((element) => ({
     panelBorder: getComputedStyle(document.getElementById('shipExplorationPanel')).borderImageSource,
     destinationBorder: getComputedStyle(element).borderImageSource
   }));
@@ -1383,9 +1408,16 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
           <div class="exploration-sequence-boss"><img class="exploration-boss-image exploration-sequence-boss-image" src="./Sprites/monsters/ghost_pirate.png" alt="boss"><small>BOSS</small></div>
           <div class="exploration-sequence-avatar avatar-combat-actor"></div>
           <div class="exploration-sequence-ship is-boat"></div>
-          <div class="exploration-sequence-chests"><span class="exploration-sequence-mini-chest"></span></div>
+          <div class="exploration-sequence-chests">
+            <span class="exploration-sequence-mini-chest" data-exploration-sequence-chest></span>
+            <span class="exploration-sequence-mini-chest" data-exploration-sequence-chest></span>
+            <span class="exploration-sequence-mini-chest" data-exploration-sequence-chest></span>
+            <span class="exploration-sequence-chest-more">+2</span>
+          </div>
           <div class="exploration-sequence-log"><div>log</div></div>
         </div>
+        <div class="exploration-sequence-copy"><strong>route</strong><span>label</span></div>
+        <button type="button" class="exploration-sequence-advance" data-exploration-sequence-advance>タップで進む</button>
       </div>
     `;
     document.body.appendChild(sequence);
@@ -1479,6 +1511,8 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
       sequenceSky: styleOf('.exploration-sequence-sky'),
       sequenceRoute: styleOf('.exploration-sequence-route'),
       sequenceArrival: styleOf('.exploration-sequence-arrival'),
+      sequenceAdvance: styleOf('.exploration-sequence-advance'),
+      sequenceChestMore: styleOf('.exploration-sequence-chest-more'),
       sequenceLog: styleOf('.exploration-sequence-log div'),
       resultDialog: styleOf('.exploration-result-dialog'),
       resultClose: styleOf('.exploration-result-close'),
@@ -1517,6 +1551,8 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(audit.sequenceRoute.animationName).toBe('none');
   expect(audit.sequenceRoute.backgroundImage).not.toContain('repeating-linear-gradient');
   expect(audit.sequenceArrival.borderRadius).toBe('50%');
+  expect(audit.sequenceAdvance.borderImageSource).toContain('assets/ui/buttons/');
+  expect(audit.sequenceChestMore.borderRadius).toBe('6px');
   expect(audit.resultDialog.borderImageSource).toContain('assets/ui/panels/');
   expect(audit.resultDialog.overflowX).toBe('hidden');
   expect(audit.resultShowcase.borderImageSource).toContain('assets/ui/panels/');
@@ -1544,7 +1580,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   await expectNoPageErrors(errors);
 });
 
-test('exploration result reveals details after opening one chest', async ({ page }) => {
+test('exploration result reveals details after tapping through treasure sequence', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.route('**/api/get-ranking', async (route) => {
     await route.fulfill({
@@ -1608,24 +1644,49 @@ test('exploration result reveals details after opening one chest', async ({ page
   await page.locator('#shipExplorationPanel').waitFor({ state: 'visible' });
   await page.locator('.ship-exploration-start').click();
 
-  const result = page.locator('.exploration-result-overlay');
-  await expect(result).toHaveClass(/is-awaiting-open/, { timeout: 15_000 });
-  await expect(result.locator('.exploration-result-details')).toHaveCSS('opacity', '0');
-  await expect(result.locator('.exploration-result-reward')).toContainText('霧切りの刃');
-  await expect(result.locator('[data-exploration-result-state]')).toHaveText('宝箱を発見');
-  expect(await result.locator('.exploration-result-dialog').evaluate((element) => getComputedStyle(element).overflowX)).toBe('hidden');
+  const sequence = page.locator('.exploration-sequence-overlay');
+  const advance = sequence.locator('[data-exploration-sequence-advance]');
+  await expect(sequence).toHaveClass(/is-sail/, { timeout: 15_000 });
+  await expect(sequence.locator('[data-exploration-sequence-chest]')).toHaveCount(2);
 
-  await result.locator('[data-exploration-result-open]').click();
-  await expect(result).toHaveClass(/is-opened/, { timeout: 3_000 });
+  const advanceSequence = async (label) => {
+    await expect(advance).toHaveText(label, { timeout: 10_000 });
+    await expect(advance).toBeVisible();
+    await advance.click();
+  };
+
+  await advanceSequence('タップで海域へ');
+  await expect(sequence).toHaveClass(/is-up/);
+  await advanceSequence('タップで上陸');
+  await expect(sequence).toHaveClass(/is-left/);
+  await advanceSequence('タップで調査');
+  await expect(sequence).toHaveClass(/is-battle/);
+  await advanceSequence('タップで宝箱へ');
+  await expect(sequence).toHaveClass(/is-treasure/);
+  await advanceSequence('宝箱を開ける');
+  await expect(sequence).toHaveClass(/is-opened-chest/, { timeout: 3_000 });
+  await advanceSequence('結果を見る');
+  await expect(sequence).toBeHidden();
+
+  const result = page.locator('.exploration-result-overlay');
+  await expect(result).toHaveClass(/is-opened/, { timeout: 15_000 });
   await expect(result).not.toHaveClass(/is-awaiting-open/);
-  await expect(result.locator('[data-exploration-result-state]')).toHaveText('勝利');
   await expect(result.locator('.exploration-result-details')).toHaveCSS('opacity', '1');
+  await expect(result.locator('.exploration-result-reward')).toContainText('霧切りの刃');
+  await expect(result.locator('[data-exploration-result-state]')).toHaveText('勝利');
+  expect(await result.locator('.exploration-result-dialog').evaluate((element) => getComputedStyle(element).overflowX)).toBe('hidden');
+  await expect(result.locator('[data-exploration-result-open]')).toBeDisabled();
   await expect(result.locator('.exploration-result-boss-card')).toHaveAttribute('data-exploration-boss-id', 'ghost_pirate');
   await expect(result.locator('.exploration-result-boss-image')).toHaveAttribute('src', /Sprites\/monsters\/ghost_pirate\.png/);
   await expect(result.locator('.exploration-result-boss-image')).toHaveAttribute('alt', '海霧の番人');
   await expect(result.locator('.exploration-result-boss-copy span')).toHaveText('強BOSS / 勝利');
   await expect(result.locator('.exploration-result-reward')).toContainText('RARE×2');
   await expect(result.locator('.exploration-result-chest')).toHaveCSS('animation-name', 'none');
+
+  await result.locator('[data-exploration-result-close]').click();
+  await expect(result).toBeHidden();
+  await expect(page.locator('#shipExplorationPanel')).toBeHidden();
+  expect(await page.evaluate(() => document.body.classList.contains('modal-lock'))).toBe(false);
   await expectNoPageErrors(errors);
 });
 

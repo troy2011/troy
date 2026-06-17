@@ -1010,6 +1010,8 @@ function closeHomeExplorationPopup() {
     }
 }
 
+window.closeHomeExplorationPopup = closeHomeExplorationPopup;
+
 function ensureHomeExplorationPopupClose(panel) {
     if (!panel || panel.querySelector('[data-home-exploration-close]')) return;
     const closeButton = document.createElement('button');
@@ -1045,6 +1047,8 @@ async function openHomeExplorationPopup() {
     await Ship.loadExplorationPanel(playFabId);
     ensureHomeExplorationPopupClose(panel);
 }
+
+window.openHomeExplorationPopup = openHomeExplorationPopup;
 
 async function loadHomePlunderPublicProfiles(opponent) {
     const selfId = window.myPlayFabId;

@@ -30,17 +30,22 @@ test('exploration boss roll uses weak medium strong weighted order', () => {
   expect(__test.selectExplorationBoss(destination, () => 0.95).id).toBe('mimic_chest');
 });
 
-test('exploration destinations branch by ship role', () => {
+test('exploration destinations expand by ship evolution while keeping lower seas', () => {
   expect(__test.getAvailableDestinationsForShipClass('common').map((destination) => destination.id))
     .toEqual(['near_sea']);
   expect(__test.getAvailableDestinationsForShipClass('explorer').map((destination) => destination.id))
     .toEqual(['near_sea', 'coral_passage', 'old_lighthouse']);
   expect(__test.getAvailableDestinationsForShipClass('merchant').map((destination) => destination.id))
-    .toEqual(['coral_passage', 'sunken_trader']);
+    .toEqual(['near_sea', 'coral_passage', 'old_lighthouse', 'sunken_trader']);
   expect(__test.getAvailableDestinationsForShipClass('fighter').map((destination) => destination.id))
-    .toEqual(['old_lighthouse', 'pirate_cove']);
+    .toEqual(['near_sea', 'coral_passage', 'old_lighthouse', 'pirate_cove']);
   expect(__test.getAvailableDestinationsForShipClass('defender').map((destination) => destination.id))
-    .toEqual(['deep_maelstrom']);
+    .toEqual(['near_sea', 'coral_passage', 'old_lighthouse', 'deep_maelstrom']);
+
+  expect(__test.getExplorationShipAccessClasses('fighter')).toEqual(['common', 'explorer', 'fighter']);
+  expect(__test.canShipClassExploreDestination('fighter', __test.DESTINATIONS.near_sea)).toBe(true);
+  expect(__test.canShipClassExploreDestination('fighter', __test.DESTINATIONS.pirate_cove)).toBe(true);
+  expect(__test.canShipClassExploreDestination('common', __test.DESTINATIONS.pirate_cove)).toBe(false);
 });
 
 test('exploration ship roles change boss odds and reward counts', () => {
@@ -73,5 +78,21 @@ test('daily free exploration status resets by JST day key', () => {
     used: true,
     usedAtMs: 1234,
     explorationId: 'exp-test'
+  });
+});
+
+test('daily free exploration only applies to low-level sea areas', () => {
+  const freeDestinationIds = Object.values(__test.DESTINATIONS)
+    .filter((destination) => __test.isDailyFreeExplorationDestination(destination))
+    .map((destination) => destination.id);
+
+  expect(freeDestinationIds).toEqual(['near_sea']);
+  expect(__test.publicDestination(__test.DESTINATIONS.near_sea, 'explorer')).toMatchObject({
+    id: 'near_sea',
+    dailyFreeEligible: true
+  });
+  expect(__test.publicDestination(__test.DESTINATIONS.coral_passage, 'explorer')).toMatchObject({
+    id: 'coral_passage',
+    dailyFreeEligible: false
   });
 });

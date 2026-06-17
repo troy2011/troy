@@ -1616,9 +1616,16 @@ function getRewardItemsForReveal(data) {
 }
 
 function renderExplorationRewardChests(count) {
-    const total = Math.max(0, Number(count || 0));
+    const total = Math.max(0, Math.floor(Number(count || 0)));
     if (!total) return '<span class="exploration-sequence-no-chest">なし</span>';
-    return '<span class="exploration-sequence-mini-chest" style="--i:0;"></span>';
+    const visible = Math.min(total, 3);
+    const chests = Array.from({ length: visible }, (_, index) => (
+        `<span class="exploration-sequence-mini-chest" data-exploration-sequence-chest style="--i:${index};"></span>`
+    ));
+    if (total > visible) {
+        chests.push(`<span class="exploration-sequence-chest-more">+${(total - visible).toLocaleString('ja-JP')}</span>`);
+    }
+    return chests.join('');
 }
 
 const EXPLORATION_BATTLE_AVATAR_PREFIX = 'exploration-battle-avatar';
@@ -1695,10 +1702,13 @@ function showExplorationResultSummary(data, options = {}) {
     const bossTierKey = normalizeExplorationBossTier(report.bossTier);
     const rewards = getRewardItemsForReveal(data);
     const rewardTotal = Number(report.rewardCount || rewards.length || 0);
-    const awaitsChestOpen = rewardTotal > 0;
+    const chestAlreadyOpened = rewardTotal > 0 && options.chestOpened === true;
+    const awaitsChestOpen = rewardTotal > 0 && !chestAlreadyOpened;
     const resultLabel = getExplorationBossResultLabel(bossResult);
     const bossResultSummary = bossTierLabel ? `${bossTierLabel}BOSS / ${resultLabel}` : resultLabel;
     const resultHint = rewardTotal > 0 ? `${rewardTotal.toLocaleString('ja-JP')}個のお宝を回収` : 'お宝は見つかりませんでした';
+    const promptTitle = awaitsChestOpen ? '宝箱を開ける' : (rewardTotal > 0 ? '回収完了' : '回収なし');
+    const promptText = awaitsChestOpen ? 'クリックして中身を確認してください。' : (rewardTotal > 0 ? '宝箱を開封し、戦利品を持ち帰りました。' : '航路を確認して帰還しました。');
     const rewardHtml = rewards.length
         ? rewards.map((item) => {
             const rarity = normalizeRewardRarity(item.rarity || item.Rarity);
@@ -1741,8 +1751,8 @@ function showExplorationResultSummary(data, options = {}) {
                     <span class="exploration-result-chest ${rewardTotal > 0 ? 'has-rewards' : 'is-empty'}" aria-hidden="true"></span>
                 </button>
                 <div class="exploration-result-prompt">
-                    <b data-exploration-result-prompt-title>${awaitsChestOpen ? '宝箱を開ける' : '回収なし'}</b>
-                    <span data-exploration-result-prompt-text>${awaitsChestOpen ? 'クリックして中身を確認してください。' : '航路を確認して帰還しました。'}</span>
+                    <b data-exploration-result-prompt-title>${promptTitle}</b>
+                    <span data-exploration-result-prompt-text>${promptText}</span>
                 </div>
             </div>
             <div class="exploration-result-details" data-exploration-result-details>
@@ -1803,16 +1813,23 @@ function showExplorationResultSummary(data, options = {}) {
     overlay.querySelector('[data-exploration-result-close]')?.addEventListener('click', close);
     overlay.querySelector('[data-exploration-result-next]')?.addEventListener('click', () => {
         close();
-        loadExplorationPanel(options.playFabId);
+        if (typeof window.openHomeExplorationPopup === 'function') {
+            window.openHomeExplorationPopup();
+        } else {
+            loadExplorationPanel(options.playFabId);
+        }
     });
     overlay.addEventListener('click', (event) => {
         if (event.target === overlay) close();
     });
 }
 
-function handleExplorationClaimResult(data, playFabId) {
+function handleExplorationClaimResult(data, playFabId, options = {}) {
+    if (typeof window.closeHomeExplorationPopup === 'function') {
+        window.closeHomeExplorationPopup();
+    }
     renderExplorationPanel(data, playFabId);
-    showExplorationResultSummary(data, { playFabId });
+    showExplorationResultSummary(data, { playFabId, chestOpened: options.chestOpened === true });
 }
 
 function isExplorationStartConflict(error) {
@@ -1836,8 +1853,8 @@ async function recoverConflictedExploration(playFabId, destinationId) {
     showRpgMessage('前回の探索結果を回収しています。');
     const claimData = await requestClaimExploration(playFabId, { throwOnError: true });
     const recoveredStartData = buildRecoveredExplorationStartData(claimData, destinationId);
-    await showExplorationAutoSequence(recoveredStartData, recoveredStartData.active.destinationId || destinationId, claimData);
-    handleExplorationClaimResult(claimData, playFabId);
+    const sequenceResult = await showExplorationAutoSequence(recoveredStartData, recoveredStartData.active.destinationId || destinationId, claimData);
+    handleExplorationClaimResult(claimData, playFabId, sequenceResult);
     await loadExplorationPanel(playFabId);
 }
 
@@ -1889,6 +1906,7 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
                 <strong>${escapeHtml(destinationName)}</strong>
                 <span data-exploration-sequence-label>${escapeHtml(shipTrait.label)}</span>
             </div>
+            <button type="button" class="exploration-sequence-advance" data-exploration-sequence-advance hidden>タップで進む</button>
         </div>
     `;
     document.body.appendChild(overlay);
@@ -1900,6 +1918,7 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
     const label = overlay.querySelector('[data-exploration-sequence-label]');
     const logBox = overlay.querySelector('.exploration-sequence-log');
     const battleAvatar = overlay.querySelector(`#${EXPLORATION_BATTLE_AVATAR_PREFIX}`);
+    const advanceButton = overlay.querySelector('[data-exploration-sequence-advance]');
     const setPhase = (phase, text) => {
         overlay.className = `exploration-sequence-overlay is-${form} ${shipTrait.className} is-sky-${destinationVisual.sky} is-boss-${bossTierKey} is-${phase} is-result-${bossResult}`;
         if (label) label.textContent = text;
@@ -1910,26 +1929,59 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
         if (!logBox) return;
         logBox.innerHTML = battleLogLines.slice(0, count).map((line) => `<div>${escapeHtml(line)}</div>`).join('');
     };
+    const waitForAdvance = async (minimumMs, text = 'タップで進む') => {
+        await wait(minimumMs);
+        if (!overlay.isConnected || !advanceButton) return;
+        advanceButton.textContent = text;
+        advanceButton.hidden = false;
+        overlay.classList.add('is-awaiting-tap');
+        await new Promise((resolve) => {
+            const done = (event) => {
+                event?.preventDefault?.();
+                event?.stopPropagation?.();
+                advanceButton.hidden = true;
+                overlay.classList.remove('is-awaiting-tap');
+                overlay.removeEventListener('click', done);
+                advanceButton.removeEventListener('click', done);
+                resolve();
+            };
+            overlay.addEventListener('click', done);
+            advanceButton.addEventListener('click', done);
+        });
+    };
 
     setPhase('sail', shipTrait.label);
-    await wait(760);
+    await waitForAdvance(900, 'タップで海域へ');
     setPhase('up', `${destinationVisual.label}を発見`);
-    await wait(640);
+    await waitForAdvance(760, 'タップで上陸');
     setPhase('left', '上陸地点へ直進');
-    await wait(640);
+    await waitForAdvance(700, 'タップで調査');
     setPhase('battle', bossResult === 'none' ? 'BOSSの気配を回避' : `${bossTierLabel ? `${bossTierLabel}BOSS` : 'BOSS'}「${report.bossName || '???'}」と交戦`);
     triggerAvatarAttackMotion(battleAvatar, { direction: 'left', duration: 520 });
     setBattleLog(2);
     await wait(420);
     triggerAvatarAttackMotion(battleAvatar, { direction: 'left', duration: 520 });
     setBattleLog(4);
-    await wait(820);
+    await waitForAdvance(900, 'タップで宝箱へ');
     setPhase('treasure', rewardCount > 0 ? `宝箱${rewardCount}個を発見` : 'お宝は見つからなかった');
-    await wait(760);
+    if (rewardCount > 0) {
+        overlay.classList.add('has-sequence-rewards');
+        await waitForAdvance(700, '宝箱を開ける');
+        overlay.classList.add('is-opening-chest');
+        if (label) label.textContent = '宝箱を開封中';
+        await wait(760);
+        overlay.classList.remove('is-opening-chest');
+        overlay.classList.add('is-opened-chest');
+        if (label) label.textContent = '戦利品を確認';
+        await waitForAdvance(360, '結果を見る');
+    } else {
+        await waitForAdvance(700, '結果を見る');
+    }
 
     overlay.remove();
     homeFrame?.classList.remove('is-exploring');
     homeIcon?.classList.remove('is-exploring-sail', 'is-exploring-up', 'is-exploring-left', 'is-exploring-battle', 'is-exploring-treasure');
+    return { chestOpened: rewardCount > 0 };
 }
 
 function renderExplorationPanel(data, playFabId) {
@@ -1979,6 +2031,7 @@ function renderExplorationPanel(data, playFabId) {
     const destinationHtml = destinations.length
         ? destinations.map((destination) => {
             const visual = getExplorationDestinationVisual(destination.id);
+            const isDailyFreeDestination = destination?.dailyFreeEligible === true;
             return `
             <div class="ship-exploration-destination" data-exploration-destination-id="${escapeHtml(destination.id)}">
                 <div class="ship-exploration-card-head">
@@ -1989,7 +2042,7 @@ function renderExplorationPanel(data, playFabId) {
                     </div>
                 </div>
                 <div class="ship-exploration-badges" aria-label="探索条件">
-                    ${dailyFreeAvailable
+                    ${dailyFreeAvailable && isDailyFreeDestination
                         ? `<span class="ship-exploration-badge is-free">本日無料</span><span class="ship-exploration-badge">通常${Number(destination.cost || 0).toLocaleString('ja-JP')}G</span>`
                         : `<span class="ship-exploration-badge">${Number(destination.cost || 0).toLocaleString('ja-JP')}G</span>`}
                 </div>
@@ -2037,8 +2090,8 @@ async function startExploration(playFabId, destinationId) {
         }
         renderExplorationPanel(startData, playFabId);
         const claimData = await requestClaimExploration(playFabId, { throwOnError: true });
-        await showExplorationAutoSequence(startData, destinationId, claimData);
-        handleExplorationClaimResult(claimData, playFabId);
+        const sequenceResult = await showExplorationAutoSequence(startData, destinationId, claimData);
+        handleExplorationClaimResult(claimData, playFabId, sequenceResult);
     } catch (error) {
         if (isExplorationStartConflict(error)) {
             try {

@@ -14,6 +14,13 @@ const PENDING_STALE_MS = 5 * 60 * 1000;
 // claiming 中にプロセスが落ちた場合、この時間後に再実行を許可する
 const CLAIMING_STALE_MS = 2 * 60 * 1000;
 const EXPLORATION_SHIP_CLASSES = ['common', 'explorer', 'merchant', 'fighter', 'defender'];
+const EXPLORATION_SHIP_ACCESS_CLASSES = {
+    common: ['common'],
+    explorer: ['common', 'explorer'],
+    merchant: ['common', 'explorer', 'merchant'],
+    fighter: ['common', 'explorer', 'fighter'],
+    defender: ['common', 'explorer', 'defender']
+};
 const EXPLORATION_SHIP_ROLES = {
     common: {
         role: 'entry',
@@ -73,6 +80,7 @@ const DESTINATIONS = {
         durationMs: 3 * HOUR_MS,
         bosses: ['treasure_slime', 'puffer_bomb', 'mimic_chest'],
         classes: ['common', 'explorer'],
+        dailyFreeEligible: true,
         riskLabel: '低リスク',
         rewardHint: '基本報酬'
     },
@@ -184,6 +192,23 @@ function getExplorationShipRole(shipClass) {
     return EXPLORATION_SHIP_ROLES[normalizeExplorationShipClass(shipClass)] || EXPLORATION_SHIP_ROLES.common;
 }
 
+function getExplorationShipAccessClasses(shipClass) {
+    return EXPLORATION_SHIP_ACCESS_CLASSES[normalizeExplorationShipClass(shipClass)] || EXPLORATION_SHIP_ACCESS_CLASSES.common;
+}
+
+function canShipClassExploreDestination(shipClass, destination) {
+    const accessClasses = new Set(getExplorationShipAccessClasses(shipClass));
+    const destinationClasses = Array.isArray(destination?.classes) ? destination.classes : [];
+    return destinationClasses.some((entry) => accessClasses.has(normalizeExplorationShipClass(entry)));
+}
+
+function isDailyFreeExplorationDestination(destinationOrId) {
+    const destination = typeof destinationOrId === 'string'
+        ? DESTINATIONS[normalizeDestinationId(destinationOrId)]
+        : destinationOrId;
+    return destination?.dailyFreeEligible === true;
+}
+
 function publicDestination(destination, shipClass = 'common') {
     const bosses = getDestinationBosses(destination);
     const role = getExplorationShipRole(shipClass);
@@ -193,6 +218,7 @@ function publicDestination(destination, shipClass = 'common') {
         description: destination.description,
         cost: destination.cost,
         durationMs: destination.durationMs,
+        dailyFreeEligible: isDailyFreeExplorationDestination(destination),
         role: role.role,
         roleLabel: role.roleLabel,
         riskLabel: destination.riskLabel || role.riskLabel,
@@ -1088,7 +1114,7 @@ function buildReportText({ destination, ship, bossResult, rewardDisplayName, rew
 function getAvailableDestinationsForShipClass(shipClass) {
     const normalized = normalizeExplorationShipClass(shipClass);
     return Object.values(DESTINATIONS)
-        .filter((destination) => destination.classes.includes(normalized))
+        .filter((destination) => canShipClassExploreDestination(normalized, destination))
         .map((destination) => publicDestination(destination, normalized));
 }
 
@@ -1309,9 +1335,10 @@ function initializeExplorationRoutes(app, deps) {
             const ship = await resolveActiveShip(playFabId, deps);
             if (!ship) return res.status(400).json({ error: '探索には使用中の船が必要です。' });
             const destination = DESTINATIONS[destinationId];
-            if (!destination.classes.includes(ship.shipClass)) {
+            if (!canShipClassExploreDestination(ship.shipClass, destination)) {
                 return res.status(403).json({ error: 'この船では選択した行き先に向かえません。' });
             }
+            const dailyFreeEligible = isDailyFreeExplorationDestination(destination);
             const now = Date.now();
             const dayKey = getJstDayKey(now);
             const explorationId = `exp-${now}-${Math.random().toString(36).slice(2, 8)}`;
@@ -1367,8 +1394,8 @@ function initializeExplorationRoutes(app, deps) {
                         }
                     }
                 }
-                const dailyFreeSnap = await tx.get(dailyFreeRef);
-                dailyFreeUsed = !dailyFreeSnap.exists;
+                const dailyFreeSnap = dailyFreeEligible ? await tx.get(dailyFreeRef) : null;
+                dailyFreeUsed = dailyFreeEligible && !dailyFreeSnap.exists;
                 chargedCost = dailyFreeUsed ? 0 : destination.cost;
                 tx.set(activeRef, {
                     ...fullPayload,
@@ -1610,10 +1637,13 @@ module.exports = {
         EXPLORATION_SHIP_ROLES,
         BOSS_TIER_DEFS,
         buildDailyFreeExplorationStatus,
+        canShipClassExploreDestination,
         getAvailableDestinationsForShipClass,
         getDestinationBosses,
         getExplorationBossWeight,
+        getExplorationShipAccessClasses,
         getJstDayKey,
+        isDailyFreeExplorationDestination,
         selectExplorationBoss,
         resolveRewardCount,
         publicDestination

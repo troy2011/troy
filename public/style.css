@@ -745,6 +745,7 @@ button.home-player-ship-name {
     flex-wrap: wrap;
     opacity: 0;
     transform: scale(0.4);
+    transition: opacity 260ms ease, transform 260ms ease, filter 260ms ease;
     z-index: 5;
 }
 
@@ -780,6 +781,20 @@ button.home-player-ship-name {
     background: url("./Sprites/items/Chest/chest2_idle_strip8.png") 0 0 / 800% 100% no-repeat;
     filter: drop-shadow(0 0 18px rgba(250, 204, 21, 0.62));
     animation-delay: calc(var(--i) * 90ms);
+}
+
+.exploration-sequence-chest-more {
+    min-width: 34px;
+    padding: 3px 6px;
+    border: 1px solid rgba(250, 204, 21, 0.44);
+    border-radius: 6px;
+    background: rgba(17, 24, 39, 0.82);
+    color: #fde68a;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+    text-align: center;
+    box-shadow: 0 0 14px rgba(250, 204, 21, 0.22);
 }
 
 .exploration-sequence-no-chest {
@@ -988,14 +1003,39 @@ button.home-player-ship-name {
 .exploration-sequence-overlay.is-treasure .exploration-sequence-chests {
     left: 50%;
     right: auto;
-    bottom: 112px;
+    bottom: 104px;
+    min-width: 180px;
     opacity: 1;
-    transform: translateX(-50%) scale(1.15);
+    gap: 8px;
+    transform: translateX(-50%) scale(1.28);
+    filter: drop-shadow(0 20px 26px rgba(0, 0, 0, 0.38));
 }
 
 .exploration-sequence-overlay.is-treasure .exploration-sequence-mini-chest {
     background-position: 0 0;
     animation: none;
+}
+
+.exploration-sequence-overlay.is-treasure.has-sequence-rewards .exploration-sequence-scene::after {
+    background:
+        radial-gradient(circle at 50% 60%, rgba(250, 204, 21, 0.28), transparent 20%),
+        linear-gradient(180deg, transparent, rgba(15, 23, 42, 0.18));
+}
+
+.exploration-sequence-overlay.is-opening-chest .exploration-sequence-mini-chest {
+    background-image: url("./Sprites/items/Chest/chest2_open_strip8.png");
+    animation: explorationResultChestOpen 760ms steps(8) 1 forwards;
+}
+
+.exploration-sequence-overlay.is-opened-chest .exploration-sequence-mini-chest {
+    background-image: url("./Sprites/items/Chest/chest2_open_strip8.png");
+    background-position: 100% 0;
+    animation: none;
+}
+
+.exploration-sequence-overlay.is-opening-chest .exploration-sequence-chest-more,
+.exploration-sequence-overlay.is-opened-chest .exploration-sequence-chest-more {
+    transform: translateY(-4px);
 }
 
 .exploration-sequence-copy {
@@ -1015,6 +1055,33 @@ button.home-player-ship-name {
     min-height: 20px;
     font-size: 13px;
     font-weight: 800;
+}
+
+.exploration-sequence-advance {
+    width: min(260px, 100%);
+    min-height: 38px;
+    justify-self: center;
+    display: grid;
+    place-items: center;
+    margin: 12px auto 0;
+    padding: 7px 16px;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/buttons/button-gold-large.png") 24 fill / 10px / 0 stretch;
+    border-radius: 6px;
+    background: linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.18));
+    color: #111827;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.exploration-sequence-advance[hidden] {
+    display: none;
+}
+
+.exploration-sequence-overlay.is-awaiting-tap .exploration-sequence-advance:not([hidden]) {
+    animation: explorationSequenceAdvancePulse 920ms ease-in-out infinite;
 }
 
 @keyframes homePlayerShipSail {
@@ -1123,6 +1190,17 @@ button.home-player-ship-name {
 @keyframes explorationSequenceChest {
     from { background-position: 0 0; }
     to { background-position: 100% 0; }
+}
+
+@keyframes explorationSequenceAdvancePulse {
+    0%, 100% {
+        filter: brightness(1);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+    }
+    50% {
+        filter: brightness(1.08);
+        box-shadow: 0 12px 28px rgba(250, 204, 21, 0.28);
+    }
 }
 
 .exploration-result-overlay {
@@ -2831,6 +2909,7 @@ body.modal-lock {
 }
 
 body.modal-lock #tabContainer,
+body.modal-lock #globalStatusBar,
 body.modal-lock #bottomNav,
 body.modal-lock #phaser-container,
 body.modal-lock canvas {
