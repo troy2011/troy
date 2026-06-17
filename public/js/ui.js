@@ -15,12 +15,12 @@ const ensureTroyModule = async () => {
     return troyModule;
 };
 
-let eventModule = null;
-const EVENT_MODULE_VERSION = '20260604d';
-const ensureEventModule = async () => {
-    if (eventModule) return eventModule;
-    eventModule = await import(`./events.js?v=${EVENT_MODULE_VERSION}`);
-    return eventModule;
+let companionModule = null;
+const COMPANION_MODULE_VERSION = '20260604d';
+const ensureCompanionModule = async () => {
+    if (companionModule) return companionModule;
+    companionModule = await import(`./companions.js?v=${COMPANION_MODULE_VERSION}`);
+    return companionModule;
 };
 
 let tarotModule = null;
@@ -1079,7 +1079,7 @@ function showWorldMapModal(playerInfo) {
 
 let gameInstance = null;
 let launchGameFn = null;
-const tabLoaded = { home: false, troy: false, tarot: false, ships: false, battle: false, map: false, islands: false, qr: false, inventory: false, ranking: false, king: false };
+const tabLoaded = { home: false, troy: false, companions: false, tarot: false, ships: false, battle: false, map: false, islands: false, qr: false, inventory: false, ranking: false, king: false };
 const audioAvailabilityCache = new Map();
 const audioAvailabilityInFlight = new Set();
 let bottomNavRevealed = false;
@@ -1350,10 +1350,10 @@ export async function showTab(tabId, playerInfo, options = {}) {
                         await Troy.loadTroyPage(playerInfo.playFabId);
                     }
                     break;
-                case 'events':
+                case 'companions':
                     {
-                        const Events = await ensureEventModule();
-                        await Events.loadEventPage(playerInfo.playFabId);
+                        const Companions = await ensureCompanionModule();
+                        await Companions.loadCompanionsPage(playerInfo.playFabId);
                     }
                     break;
                 case 'tarot':
@@ -1501,9 +1501,9 @@ export async function showTab(tabId, playerInfo, options = {}) {
         } else if (tabId === 'troy') {
             const Troy = await ensureTroyModule();
             await Troy.loadTroyPage(playerInfo.playFabId);
-        } else if (tabId === 'events') {
-            const Events = await ensureEventModule();
-            await Events.loadEventPage(playerInfo.playFabId);
+        } else if (tabId === 'companions') {
+            const Companions = await ensureCompanionModule();
+            await Companions.loadCompanionsPage(playerInfo.playFabId);
         }
 
         if (tabId === 'home') {

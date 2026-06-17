@@ -2064,7 +2064,7 @@ test('panel frame assets are applied through border-image slices', async ({ page
   const errors = trackPageErrors(page);
   await bootstrapMainApp(page);
 
-  await expect(page.locator('#tabContentEvents #btnReloadEvents')).toHaveCount(0);
+  await expect(page.locator('#tabContentCompanions #btnReloadCompanions')).toHaveCount(0);
 
   const audit = await page.evaluate(() => {
     const selectors = [
@@ -2078,8 +2078,8 @@ test('panel frame assets are applied through border-image slices', async ({ page
       '#avatarStyleModal .avatar-style-panel',
       '#playerProfileStatAllocation',
       '#tabContentInventory .equip-slot',
-      '#tabContentEvents .event-list-panel',
-      '#tabContentEvents .event-card',
+      '#tabContentCompanions .companion-list-panel',
+      '#tabContentCompanions .companion-card',
       '#tabContentQr .guild-card'
     ];
     return selectors
@@ -2438,18 +2438,18 @@ test('king can found a nation guild from companions regardless of level', async 
     };
   });
   await page.evaluate(async () => {
-    await window.showTab('events', { playFabId: 'PF_PLAYWRIGHT', race: 'goblin', nation: 'water' });
+    await window.showTab('companions', { playFabId: 'PF_PLAYWRIGHT', race: 'goblin', nation: 'water' });
   });
 
   await expect(page.locator('#crewRankSummary')).toContainText('Lv.3 王 / 国ギルド勧誘可');
-  await expect(page.locator('#crewOverviewList .event-card')).toContainText('王権限');
-  await expect(page.locator('#crewOverviewList .event-card')).toContainText('国のギルドを設立できます');
-  await expect(page.locator('#eventHostFeeInfo')).toContainText('王はレベルに関係なく国ギルドを設立できます。');
+  await expect(page.locator('#crewOverviewList .companion-card')).toContainText('王権限');
+  await expect(page.locator('#crewOverviewList .companion-card')).toContainText('国のギルドを設立できます');
+  await expect(page.locator('#companionHostNote')).toContainText('王はレベルに関係なく国ギルドを設立できます。');
   await expect(page.locator('#crewCreatePreview')).toHaveText('火の国ギルド を設立します。');
   await expect(page.locator('#crewCreatePreview')).toHaveCSS('color', 'rgb(255, 241, 194)');
   await expect(page.locator('#btnCreateCrew')).toBeEnabled();
   await expect(page.locator('#btnCreateCrew')).toHaveText('1,000Gで国ギルドを設立');
-  await expect(page.locator('#crewOverviewList .event-card')).not.toContainText('Lv.21');
+  await expect(page.locator('#crewOverviewList .companion-card')).not.toContainText('Lv.21');
   await expectNoPageErrors(errors);
 });
 
@@ -2502,7 +2502,7 @@ test('ship captain can create a pirate guild with an optional custom name', asyn
     window.myPlayFabDisplayName = '青波';
   });
   await page.evaluate(async () => {
-    await window.showTab('events', { playFabId: 'PF_PLAYWRIGHT', race: 'goblin', nation: 'water' });
+    await window.showTab('companions', { playFabId: 'PF_PLAYWRIGHT', race: 'goblin', nation: 'water' });
   });
 
   await page.locator('[data-crew-section-tab="invite"]').click();
@@ -2615,8 +2615,8 @@ test('companion tab hides internal PlayFab IDs from member and application cards
   });
 
   await page.evaluate(async () => {
-    const events = await import('/js/events.js');
-    await events.loadEventPage('PF_PLAYWRIGHT');
+    const companions = await import('/js/companions.js');
+    await companions.loadCompanionsPage('PF_PLAYWRIGHT');
   });
 
   await expect(page.locator('#crewMembersList')).toContainText('海風の剣士');
@@ -2629,16 +2629,16 @@ test('companion tab hides internal PlayFab IDs from member and application cards
   await expect(page.locator('#crewApplicationsList')).toContainText('流浪の船医');
   await expect(page.locator('#crewApplicationsList')).toContainText('船医');
   await expect(page.locator('#crewApplicationsList')).toContainText('名前未設定');
-  await expect(page.locator('#tabContentEvents .crew-system-help summary')).toHaveText('海賊団とは？');
-  await expect(page.locator('#tabContentEvents .crew-system-help')).toContainText('共有ボトルキープ');
+  await expect(page.locator('#tabContentCompanions .crew-system-help summary')).toHaveText('海賊団とは？');
+  await expect(page.locator('#tabContentCompanions .crew-system-help')).toContainText('共有ボトルキープ');
   await expect(page.locator('#crewInviteRoleSelect')).toHaveValue('doctor');
   await expect(page.locator('#crewInviteRoleSelect option[value="cook"]')).toHaveText('コック / ギャンブラー（使用中）');
   await expect(page.locator('#crewInviteRoleSelect option[value="doctor"]')).toHaveText('船医 / サポート');
   await expect(page.locator('#crewInviteValue')).toContainText('guild:GUILD_OWNER:role:doctor');
-  await expect(page.locator('#tabContentEvents')).not.toContainText('ID PLAYER_MEMBER_1');
-  await expect(page.locator('#tabContentEvents')).not.toContainText('ID APPLICANT_DOCTOR');
-  await expect(page.locator('#tabContentEvents')).not.toContainText('PLAYER_MEMBER_NO_NAME');
-  await expect(page.locator('#tabContentEvents')).not.toContainText('APPLICANT_NO_NAME');
+  await expect(page.locator('#tabContentCompanions')).not.toContainText('ID PLAYER_MEMBER_1');
+  await expect(page.locator('#tabContentCompanions')).not.toContainText('ID APPLICANT_DOCTOR');
+  await expect(page.locator('#tabContentCompanions')).not.toContainText('PLAYER_MEMBER_NO_NAME');
+  await expect(page.locator('#tabContentCompanions')).not.toContainText('APPLICANT_NO_NAME');
   await expectNoPageErrors(errors);
 });
 
@@ -2715,7 +2715,7 @@ test('companion invite scan shows role confirmation before joining', async ({ pa
     window.liff.scanCodeV2 = async () => ({ value: 'guild:GUILD_INVITE:role:doctor' });
   });
   await page.evaluate(async () => {
-    await window.showTab('events', { playFabId: 'PF_PLAYWRIGHT', race: 'goblin', nation: 'water' });
+    await window.showTab('companions', { playFabId: 'PF_PLAYWRIGHT', race: 'goblin', nation: 'water' });
   });
 
   await page.locator('[data-crew-section-tab="invite"]').click();
@@ -2739,7 +2739,7 @@ test('companion invite scan shows role confirmation before joining', async ({ pa
     guildId: 'GUILD_INVITE',
     crewRoleId: 'doctor'
   });
-  await expect(page.locator('#eventPageMessage')).toContainText('船医として仲間に参加しました。');
+  await expect(page.locator('#companionPageMessage')).toContainText('船医として仲間に参加しました。');
   await expectNoPageErrors(errors);
 });
 
@@ -2891,7 +2891,7 @@ test('companion member can use shared warehouse currency and items', async ({ pa
     });
   });
   await page.evaluate(async () => {
-    await window.showTab('events', { playFabId: 'PF_PLAYWRIGHT', race: 'goblin', nation: 'water' });
+    await window.showTab('companions', { playFabId: 'PF_PLAYWRIGHT', race: 'goblin', nation: 'water' });
   });
   await page.locator('[data-crew-section-tab="warehouse"]').click();
 

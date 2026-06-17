@@ -98,7 +98,7 @@ function getSafePlayerDisplayName(value, blockedValues = []) {
 }
 
 function setMessage(text, isError = false) {
-    const el = document.getElementById('eventPageMessage');
+    const el = document.getElementById('companionPageMessage');
     if (!el) return;
     el.textContent = text || '';
     el.classList.toggle('is-error', !!isError);
@@ -595,27 +595,27 @@ function renderApplications(applications, guild) {
         const roleDef = CREW_ROLE_BY_ID[roleId] || null;
         const availableOptions = buildApplicationRoleOptionsHtml(availability, roleId);
         const card = document.createElement('article');
-        card.className = 'event-card is-pending crew-application-card';
+        card.className = 'companion-card is-pending crew-application-card';
         if (roleDef?.iconKey) card.dataset.crewIcon = roleDef.iconKey;
         card.innerHTML = `
-            <div class="event-card-head">
+            <div class="companion-card-head">
                 <span class="crew-role-icon" aria-hidden="true"></span>
                 <div>
-                    <div class="event-card-type">加入申請</div>
+                    <div class="companion-card-type">加入申請</div>
                     <h3>${buildPlayerTriggerHtml(playFabId, getSafePlayerDisplayName(app.displayName, [playFabId, app.entityId]), { className: 'player-link-inline' })}</h3>
                 </div>
-                <span class="event-status">${escapeHtml(app.crewRoleLabel || roleDef?.label || '役職未選択')}</span>
+                <span class="companion-status">${escapeHtml(app.crewRoleLabel || roleDef?.label || '役職未選択')}</span>
             </div>
-            <div class="event-card-meta">
+            <div class="companion-card-meta">
                 ${roleDef?.gameLabel ? `<span>${escapeHtml(roleDef.gameLabel)}</span>` : ''}
                 ${app.appliedAt ? `<span>${escapeHtml(formatDateTime(app.appliedAt))}</span>` : ''}
             </div>
             <div class="crew-application-role-row">
                 <label>承認役職<select data-application-role>${availableOptions}</select></label>
             </div>
-            <div class="event-card-actions">
-                <button class="event-action-btn is-approve js-approve-crew-application" type="button" data-applicant-id="${escapeHtml(playFabId)}">承認</button>
-                <button class="event-action-btn is-reject js-reject-crew-application" type="button" data-applicant-id="${escapeHtml(playFabId)}">拒否</button>
+            <div class="companion-card-actions">
+                <button class="companion-action-btn is-approve js-approve-crew-application" type="button" data-applicant-id="${escapeHtml(playFabId)}">承認</button>
+                <button class="companion-action-btn is-reject js-reject-crew-application" type="button" data-applicant-id="${escapeHtml(playFabId)}">拒否</button>
             </div>
         `;
         list.appendChild(card);
@@ -659,27 +659,27 @@ function renderRecruitmentBoard(posts, guild) {
                     ? '募集中'
                     : '申請不可';
         const card = document.createElement('article');
-        card.className = `event-card ${post.hasApplied ? 'is-pending' : 'is-approved'}`;
+        card.className = `companion-card ${post.hasApplied ? 'is-pending' : 'is-approved'}`;
         card.innerHTML = `
-            <div class="event-card-head">
+            <div class="companion-card-head">
                 <div>
-                    <div class="event-card-type">${escapeHtml(guildKindLabel)}勧誘</div>
+                    <div class="companion-card-type">${escapeHtml(guildKindLabel)}勧誘</div>
                     <h3>${escapeHtml(guildName)}</h3>
                 </div>
-                <span class="event-status">${escapeHtml(status)}</span>
+                <span class="companion-status">${escapeHtml(status)}</span>
             </div>
-            <div class="event-card-meta">
+            <div class="companion-card-meta">
                 ${post.captainName ? `<span>${escapeHtml(ownerTitle)} ${escapeHtml(post.captainName)}</span>` : ''}
                 <span>仲間 ${Number(post.companionCount || 0)} / ${Number(post.maxCompanions || 7)}人</span>
                 ${post.updatedAt ? `<span>${escapeHtml(formatDateTime(post.updatedAt))}</span>` : ''}
             </div>
-            ${post.message ? `<p class="event-card-desc">${escapeHtml(post.message)}</p>` : ''}
-            <div class="event-card-meta">
+            ${post.message ? `<p class="companion-card-desc">${escapeHtml(post.message)}</p>` : ''}
+            <div class="companion-card-meta">
                 ${(post.roles || []).map((role) => `<span>${escapeHtml(role.label)}</span>`).join('')}
             </div>
-            <div class="event-card-actions">
+            <div class="companion-card-actions">
                 <select class="crew-recruitment-role-select" data-board-role ${post.canApply ? '' : 'disabled'}>${roleOptions}</select>
-                <button class="event-action-btn is-join js-apply-crew-recruitment" type="button" data-guild-id="${escapeHtml(post.guildId)}" ${post.canApply ? '' : 'disabled'}>加入申請</button>
+                <button class="companion-action-btn is-join js-apply-crew-recruitment" type="button" data-guild-id="${escapeHtml(post.guildId)}" ${post.canApply ? '' : 'disabled'}>加入申請</button>
             </div>
         `;
         list.appendChild(card);
@@ -708,16 +708,16 @@ function renderOverview(guild) {
                 ? `王はレベルに関係なく、${getNationGuildName()}で他プレイヤーを勧誘できます。`
                 : '船長の名前で海賊団を設立すると、勧誘QRを使って他プレイヤーを招待できます。';
         const card = document.createElement('article');
-        card.className = `event-card ${locked ? 'is-pending' : 'is-approved'}`;
+        card.className = `companion-card ${locked ? 'is-pending' : 'is-approved'}`;
         card.innerHTML = `
-            <div class="event-card-head">
+            <div class="companion-card-head">
                 <div>
-                    <div class="event-card-type">${escapeHtml(typeLabel)}</div>
+                    <div class="companion-card-type">${escapeHtml(typeLabel)}</div>
                     <h3>${escapeHtml(title)}</h3>
                 </div>
-                <span class="event-status">${escapeHtml(status)}</span>
+                <span class="companion-status">${escapeHtml(status)}</span>
             </div>
-            <p class="event-card-desc">${escapeHtml(desc)}</p>
+            <p class="companion-card-desc">${escapeHtml(desc)}</p>
         `;
         list.appendChild(card);
         return;
@@ -731,22 +731,22 @@ function renderOverview(guild) {
         ? '王の国ギルドです。勧誘QRを共有すると、他プレイヤーがこの仲間に参加できます。'
         : '勧誘QRを共有すると、他プレイヤーがこの仲間に参加できます。';
     const card = document.createElement('article');
-    card.className = 'event-card is-approved';
+    card.className = 'companion-card is-approved';
     card.innerHTML = `
-        <div class="event-card-head">
+        <div class="companion-card-head">
             <div>
-                <div class="event-card-type">所属中 / ${escapeHtml(guildKindLabel)}</div>
+                <div class="companion-card-type">所属中 / ${escapeHtml(guildKindLabel)}</div>
                 <h3>${escapeHtml(guildName)}</h3>
             </div>
-            <span class="event-status">${escapeHtml(guild.role || 'メンバー')}</span>
+            <span class="companion-status">${escapeHtml(guild.role || 'メンバー')}</span>
         </div>
-        <div class="event-card-meta">
+        <div class="companion-card-meta">
             <span>仲間 ${Number(guild.companionCount || 0)} / ${Number(guild.maxCompanions || 7)}人</span>
             <span>総員 ${Number(guild.memberCount || 0)} / ${Number(guild.maxMembers || 8)}人</span>
             <span>Lv.${Number(guild.level || 1)}</span>
             <span>資金 ${Number(guild.treasury || 0).toLocaleString('ja-JP')}</span>
         </div>
-        <p class="event-card-desc">${escapeHtml(desc)}</p>
+        <p class="companion-card-desc">${escapeHtml(desc)}</p>
     `;
     list.appendChild(card);
 }
@@ -775,18 +775,18 @@ function renderMembers(members) {
         const warehouseStats = getMemberWarehouseStats(playFabId);
         const roleOptions = buildApplicationRoleOptionsHtml(availability, roleId);
         const card = document.createElement('article');
-        card.className = `event-card crew-member-card ${rankClass}`;
+        card.className = `companion-card crew-member-card ${rankClass}`;
         if (iconKey) card.dataset.crewIcon = iconKey;
         card.innerHTML = `
-            <div class="event-card-head">
+            <div class="companion-card-head">
                 <span class="crew-role-icon" aria-hidden="true"></span>
                 <div>
-                    <div class="event-card-type">${escapeHtml(member.crewRankTitle || member.crewRoleLabel || member.roleName || member.role || 'メンバー')}</div>
+                    <div class="companion-card-type">${escapeHtml(member.crewRankTitle || member.crewRoleLabel || member.roleName || member.role || 'メンバー')}</div>
                     <h3>${buildPlayerTriggerHtml(playFabId, displayName, { className: 'player-link-inline' })}</h3>
                 </div>
-                <span class="event-status">${escapeHtml(member.crewRoleLabel || member.role || '仲間')}</span>
+                <span class="companion-status">${escapeHtml(member.crewRoleLabel || member.role || '仲間')}</span>
             </div>
-            <div class="event-card-meta">
+            <div class="companion-card-meta">
                 ${gameLabel ? `<span>${escapeHtml(gameLabel)}</span>` : ''}
                 ${roleId ? `<span>役職Lv.${rankLevel}</span>` : ''}
                 ${member.level ? `<span>Lv.${Number(member.level || 1)}</span>` : ''}
@@ -796,8 +796,8 @@ function renderMembers(members) {
             ${owner && !isCaptainMember ? `
                 <div class="crew-member-tools">
                     <label>役職<select data-member-role="${escapeHtml(playFabId)}">${roleOptions}</select></label>
-                    <button class="event-action-btn is-approve js-update-crew-member-role" type="button" data-member-id="${escapeHtml(playFabId)}">変更</button>
-                    <button class="event-action-btn is-reject js-remove-crew-member" type="button" data-member-id="${escapeHtml(playFabId)}">除名</button>
+                    <button class="companion-action-btn is-approve js-update-crew-member-role" type="button" data-member-id="${escapeHtml(playFabId)}">変更</button>
+                    <button class="companion-action-btn is-reject js-remove-crew-member" type="button" data-member-id="${escapeHtml(playFabId)}">除名</button>
                 </div>
             ` : ''}
         `;
@@ -881,28 +881,28 @@ function renderJoinConfirmation(invite) {
     if (confirmBtn) confirmBtn.disabled = !canJoin;
     panel.hidden = false;
     body.innerHTML = `
-        <article class="event-card crew-join-confirm-card ${canJoin ? '' : 'is-rejected'}" data-crew-icon="${escapeHtml(iconKey)}">
-            <div class="event-card-head">
+        <article class="companion-card crew-join-confirm-card ${canJoin ? '' : 'is-rejected'}" data-crew-icon="${escapeHtml(iconKey)}">
+            <div class="companion-card-head">
                 <span class="crew-role-icon" aria-hidden="true"></span>
                 <div>
-                    <div class="event-card-type">${escapeHtml(pendingCrewInvite.ownerTitle || '船長')}からの勧誘</div>
+                    <div class="companion-card-type">${escapeHtml(pendingCrewInvite.ownerTitle || '船長')}からの勧誘</div>
                     <h3>${escapeHtml(pendingCrewInvite.guildName || 'ギルド')}</h3>
                 </div>
-                <span class="event-status">${canJoin ? '確認待ち' : '加入不可'}</span>
+                <span class="companion-status">${canJoin ? '確認待ち' : '加入不可'}</span>
             </div>
-            <div class="event-card-meta">
+            <div class="companion-card-meta">
                 <span>${escapeHtml(roleLabel)}</span>
                 ${gameLabel ? `<span>${escapeHtml(gameLabel)}</span>` : ''}
                 <span>仲間 ${Number(pendingCrewInvite.companionCount || 0)} / ${Number(pendingCrewInvite.maxCompanions || 7)}人</span>
             </div>
-            <p class="event-card-desc">${escapeHtml(canJoin ? `${roleLabel}として加入しますか？` : (pendingCrewInvite.unavailableReason || 'この勧誘は現在利用できません。'))}</p>
+            <p class="companion-card-desc">${escapeHtml(canJoin ? `${roleLabel}として加入しますか？` : (pendingCrewInvite.unavailableReason || 'この勧誘は現在利用できません。'))}</p>
         </article>
     `;
     panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function renderInvitePanel(guild) {
-    const hostFeeEl = document.getElementById('eventHostFeeInfo');
+    const hostFeeEl = document.getElementById('companionHostNote');
     const createOptions = document.getElementById('crewCreateOptions');
     const nameInput = document.getElementById('crewNameInput');
     const createPreview = document.getElementById('crewCreatePreview');
@@ -1259,7 +1259,7 @@ async function saveRecruitment(playFabId, isOpen = true) {
 
 async function applyToRecruitment(playFabId, button) {
     const guildId = String(button?.dataset?.guildId || '').trim();
-    const card = button?.closest?.('.event-card');
+    const card = button?.closest?.('.companion-card');
     const crewRoleId = String(card?.querySelector?.('[data-board-role]')?.value || '').trim();
     if (!guildId || !crewRoleId) {
         setMessage('申請するギルドと役職を選んでください。', true);
@@ -1279,7 +1279,7 @@ async function applyToRecruitment(playFabId, button) {
 async function approveApplication(playFabId, button) {
     if (!currentGuild?.guildId) return;
     const applicantId = String(button?.dataset?.applicantId || '').trim();
-    const card = button?.closest?.('.event-card');
+    const card = button?.closest?.('.companion-card');
     const crewRoleId = String(card?.querySelector?.('[data-application-role]')?.value || '').trim();
     if (!applicantId || !crewRoleId) {
         setMessage('承認する申請と役職を選んでください。', true);
@@ -1319,7 +1319,7 @@ async function rejectApplication(playFabId, button) {
 async function changeMemberRole(playFabId, button) {
     if (!currentGuild?.guildId || !isCrewOwner(currentGuild)) return;
     const memberPlayFabId = String(button?.dataset?.memberId || '').trim();
-    const card = button?.closest?.('.event-card');
+    const card = button?.closest?.('.companion-card');
     const crewRoleId = String(card?.querySelector?.('[data-member-role]')?.value || '').trim();
     if (!memberPlayFabId || !crewRoleId) {
         setMessage('変更する仲間と役職を選んでください。', true);
@@ -1356,7 +1356,7 @@ async function removeMember(playFabId, button) {
     }
 }
 
-function bindEvents(playFabId) {
+function bindCompanionHandlers(playFabId) {
     if (bound) return;
     document.getElementById('btnCreateCrew')?.addEventListener('click', () => createCrew(window.myPlayFabId || playFabId));
     document.getElementById('crewNameInput')?.addEventListener('input', updateCrewCreatePreview);
@@ -1399,7 +1399,7 @@ function bindEvents(playFabId) {
             rejectApplication(window.myPlayFabId || playFabId, rejectButton);
         }
     });
-    document.getElementById('tabContentEvents')?.addEventListener('click', (event) => {
+    document.getElementById('tabContentCompanions')?.addEventListener('click', (event) => {
         const tabButton = event.target?.closest?.('[data-crew-section-tab]');
         if (tabButton) {
             switchCrewSection(tabButton.dataset.crewSectionTab || 'overview');
@@ -1436,7 +1436,7 @@ function bindEvents(playFabId) {
     bound = true;
 }
 
-export async function loadEventPage(playFabId) {
-    bindEvents(playFabId);
+export async function loadCompanionsPage(playFabId) {
+    bindCompanionHandlers(playFabId);
     await loadCompanionPage(playFabId);
 }
