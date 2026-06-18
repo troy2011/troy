@@ -1353,7 +1353,9 @@ test('home exploration button loads exploration data in a popup', async ({ page 
     closeText: document.querySelector('[data-home-exploration-close]')?.textContent || '',
     closeParentClass: document.querySelector('[data-home-exploration-close]')?.parentElement?.className || '',
     headPosition: getComputedStyle(document.querySelector('.ship-exploration-head')).position,
-    headTop: getComputedStyle(document.querySelector('.ship-exploration-head')).top
+    headTop: getComputedStyle(document.querySelector('.ship-exploration-head')).top,
+    globalHeaderZIndex: Number.parseInt(getComputedStyle(document.getElementById('globalStatusBar')).zIndex, 10),
+    tabContainerZIndex: Number.parseInt(getComputedStyle(document.getElementById('tabContainer')).zIndex, 10)
   }));
   expect(`${explorationPanelFrame.panelBorder} ${explorationPanelFrame.panelSliceSource}`).toContain('panel-dark.png');
   expect(`${explorationPanelFrame.destinationBorder} ${explorationPanelFrame.destinationSliceSource}`).toContain('panel-parchment.png');
@@ -1362,6 +1364,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   expect(explorationPanelFrame.closeParentClass).toContain('ship-exploration-head');
   expect(explorationPanelFrame.headPosition).toBe('sticky');
   expect(explorationPanelFrame.headTop).toBe('0px');
+  expect(explorationPanelFrame.tabContainerZIndex).toBeGreaterThan(explorationPanelFrame.globalHeaderZIndex);
   expect(explorationStatusBody).toMatchObject({ playFabId: 'PF_PLAYWRIGHT' });
 
   await panel.evaluate((element) => {

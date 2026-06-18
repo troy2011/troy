@@ -10709,6 +10709,10 @@ body.home-exploration-popup-open #bottomNav {
     pointer-events: auto;
 }
 
+body.home-exploration-popup-open #tabContainer {
+    z-index: 10060;
+}
+
 body.home-exploration-popup-open #globalStatusBar {
     pointer-events: none;
 }
