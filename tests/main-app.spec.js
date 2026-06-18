@@ -3657,6 +3657,7 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
     {
       itemId: 'tarot_minor_wand_7',
       name: 'Wand Seven',
+      count: 3,
       customData: { Category: 'TarotMinor', ArcanaSuit: 'wand', ArcanaRank: '7', CardNumber: '7' }
     },
     {
@@ -3672,6 +3673,7 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
     {
       itemId: 'tarot_minor_cup_10',
       name: 'Cup Ten',
+      count: 2,
       customData: { Category: 'TarotMinor', ArcanaSuit: 'cup', ArcanaRank: '10', CardNumber: '10' }
     },
     {
@@ -3714,7 +3716,15 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({ cards: [] })
+      body: JSON.stringify({
+        cards: tarotItems.map((item, index) => ({
+          itemId: item.itemId,
+          level: index + 1,
+          maxLevel: 10,
+          quantity: item.count || 1,
+          nextLevelCost: 40
+        }))
+      })
     });
   });
 
@@ -3759,19 +3769,23 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
 
   const badgePosition = await page.locator('#inventoryGrid .tarot-number-badge.is-wand').evaluate((badge) => {
     const cell = badge.closest('.inventory-item-cell');
+    const frame = badge.closest('.inventory-item-icon-frame');
     const badgeRect = badge.getBoundingClientRect();
     const cellRect = cell.getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
     const style = window.getComputedStyle(badge);
     return {
-      rightOffset: cellRect.right - badgeRect.right,
-      topOffset: badgeRect.top - cellRect.top,
+      rightOffsetFromFrame: Math.round(frameRect.right - badgeRect.right),
+      topOffsetFromFrame: Math.round(badgeRect.top - frameRect.top),
+      insideCell: badgeRect.left >= cellRect.left && badgeRect.top >= cellRect.top && badgeRect.right <= cellRect.right && badgeRect.bottom <= cellRect.bottom,
       backgroundImage: style.backgroundImage,
       textShadow: style.textShadow,
       strokeWidth: style.webkitTextStrokeWidth || style.getPropertyValue('-webkit-text-stroke-width')
     };
   });
-  expect(badgePosition.rightOffset).toBeLessThan(8);
-  expect(badgePosition.topOffset).toBeLessThan(8);
+  expect(Math.abs(badgePosition.rightOffsetFromFrame)).toBeLessThanOrEqual(4);
+  expect(Math.abs(badgePosition.topOffsetFromFrame)).toBeLessThanOrEqual(4);
+  expect(badgePosition.insideCell).toBe(true);
   expect(badgePosition.backgroundImage).toContain('checkbox-empty.png');
   expect(badgePosition.textShadow).toMatch(/rgba?\(0, 0, 0/);
   expect(badgePosition.strokeWidth).not.toBe('0px');
@@ -3798,19 +3812,73 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
 
   const equippedTarotMarker = await page.locator('#inventoryGrid .inventory-item-cell.is-equipped[data-category="TarotMinor"]').evaluate((cell) => {
     const marker = window.getComputedStyle(cell, '::after');
+    const style = window.getComputedStyle(cell);
     return {
       content: marker.content,
-      top: Number.parseFloat(marker.top),
-      left: Number.parseFloat(marker.left),
-      transform: marker.transform,
-      overflow: window.getComputedStyle(cell).overflow
+      borderImageSource: style.borderImageSource,
+      overflow: style.overflow
     };
   });
-  expect(equippedTarotMarker.content).toBe('"E"');
-  expect(equippedTarotMarker.top).toBeLessThan(0);
-  expect(equippedTarotMarker.left).toBeLessThan(0);
-  expect(equippedTarotMarker.transform).toBe('none');
-  expect(equippedTarotMarker.overflow).toBe('hidden');
+  expect(equippedTarotMarker.content).toBe('none');
+  expect(equippedTarotMarker.borderImageSource).toContain('panel-gold-square.png');
+  expect(equippedTarotMarker.overflow).toBe('visible');
+
+  const countBadgeMetrics = await page.locator('#inventoryGrid .inventory-item-cell[data-category="TarotMinor"]:has(.inventory-item-badge.is-count)').first().evaluate((cell) => {
+    const countBadge = cell.querySelector('.inventory-item-badge.is-count');
+    const frame = cell.querySelector('.inventory-item-icon-frame');
+    const countRect = countBadge.getBoundingClientRect();
+    const cellRect = cell.getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
+    return {
+      text: countBadge.textContent,
+      centeredOffset: Math.round(((countRect.left + countRect.right) / 2) - ((cellRect.left + cellRect.right) / 2)),
+      bottomOverlap: Math.round(frameRect.bottom - countRect.top),
+      overflow: window.getComputedStyle(cell).overflow,
+      zIndex: window.getComputedStyle(countBadge).zIndex
+    };
+  });
+  expect(countBadgeMetrics.text).toBe('×3');
+  expect(Math.abs(countBadgeMetrics.centeredOffset)).toBeLessThanOrEqual(1);
+  expect(countBadgeMetrics.bottomOverlap).toBeGreaterThanOrEqual(0);
+  expect(countBadgeMetrics.bottomOverlap).toBeLessThanOrEqual(10);
+  expect(countBadgeMetrics.overflow).toBe('visible');
+  expect(Number.parseInt(countBadgeMetrics.zIndex, 10)).toBeGreaterThanOrEqual(30);
+
+  const levelBadgeMetrics = await page.locator('#inventoryGrid .inventory-item-cell[data-category="TarotMinor"] .inventory-item-stat-badge').first().evaluate((levelBadge) => {
+    const cell = levelBadge.closest('.inventory-item-cell');
+    const frame = cell.querySelector('.inventory-item-icon-frame');
+    const numberBadge = cell.querySelector('.tarot-number-badge');
+    const levelRect = levelBadge.getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
+    const numberRect = numberBadge.getBoundingClientRect();
+    const cellRect = cell.getBoundingClientRect();
+    const style = window.getComputedStyle(levelBadge);
+    return {
+      text: levelBadge.textContent,
+      leftOffsetFromFrame: Math.round(levelRect.left - frameRect.left),
+      topOverlap: Math.round(levelRect.bottom - frameRect.top),
+      overlapsNumber: levelRect.left < numberRect.right && levelRect.right > numberRect.left && levelRect.top < numberRect.bottom && levelRect.bottom > numberRect.top,
+      backgroundImage: style.backgroundImage,
+      backgroundColor: style.backgroundColor,
+      borderRadius: style.borderRadius,
+      textShadow: style.textShadow,
+      strokeWidth: style.webkitTextStrokeWidth || style.getPropertyValue('-webkit-text-stroke-width'),
+      overflow: window.getComputedStyle(cell).overflow,
+      zIndex: window.getComputedStyle(levelBadge.closest('.inventory-item-stat-badges')).zIndex
+    };
+  });
+  expect(levelBadgeMetrics.text).toBe('Lv1');
+  expect(Math.abs(levelBadgeMetrics.leftOffsetFromFrame)).toBeLessThanOrEqual(2);
+  expect(levelBadgeMetrics.topOverlap).toBeGreaterThanOrEqual(0);
+  expect(levelBadgeMetrics.topOverlap).toBeLessThanOrEqual(10);
+  expect(levelBadgeMetrics.overlapsNumber).toBe(false);
+  expect(levelBadgeMetrics.backgroundImage).toBe('none');
+  expect(levelBadgeMetrics.backgroundColor).toContain('rgba(3, 5, 8');
+  expect(Number.parseFloat(levelBadgeMetrics.borderRadius)).toBeGreaterThan(5);
+  expect(levelBadgeMetrics.textShadow).toMatch(/rgba?\(0, 0, 0/);
+  expect(levelBadgeMetrics.strokeWidth).toBe('0px');
+  expect(levelBadgeMetrics.overflow).toBe('visible');
+  expect(Number.parseInt(levelBadgeMetrics.zIndex, 10)).toBeGreaterThanOrEqual(30);
   await expectNoPageErrors(errors);
 });
 

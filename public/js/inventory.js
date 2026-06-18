@@ -115,9 +115,18 @@ function bindInventoryStickyMetrics() {
     const switcher = document.getElementById('inventoryMobileSwitch');
     if (!switcher) return;
     syncInventoryStickyMetrics();
-    if (!inventoryStickyResizeObserver && typeof ResizeObserver !== 'undefined') {
+    if (typeof ResizeObserver !== 'undefined') {
+        if (inventoryStickyResizeObserver) {
+            inventoryStickyResizeObserver.disconnect();
+        }
         inventoryStickyResizeObserver = new ResizeObserver(() => syncInventoryStickyMetrics());
         inventoryStickyResizeObserver.observe(switcher);
+        const tabContent = document.getElementById('tabContentInventory');
+        const activePinnedPanel = tabContent?.querySelector('.inventory-section.active[data-panel="tarot"]')
+            || tabContent?.querySelector('.avatar-card.inventory-section.active');
+        if (activePinnedPanel) {
+            inventoryStickyResizeObserver.observe(activePinnedPanel);
+        }
     }
     if (typeof window !== 'undefined' && window.__inventoryStickyMetricsBound !== true) {
         window.__inventoryStickyMetricsBound = true;
@@ -1061,7 +1070,7 @@ function getPrimaryInventoryCardStats(item, canonicalCategory) {
         const stats = [];
         const lvd = cardLevelMap[item?.itemId];
         if (lvd?.level) {
-            stats.push({ value: lvd.level, tone: 'level', ariaLabel: 'Level' });
+            stats.push({ value: `Lv${lvd.level}`, tone: 'level', ariaLabel: 'Level' });
         }
         return stats;
     }
@@ -1421,6 +1430,7 @@ function createInventoryCell(item, requestedCategory) {
 
     const headMeta = document.createElement('div');
     headMeta.className = 'inventory-item-head-meta';
+    let tarotCountBadge = null;
     if (isEquipmentEquipped) {
         headMeta.appendChild(createInventoryBadge('装備中', 'active'));
     }
@@ -1428,7 +1438,11 @@ function createInventoryCell(item, requestedCategory) {
         headMeta.appendChild(createInventoryBadge('E', 'equipped'));
     }
     if ((Number(item?.count || 0) || 0) > 1) {
-        headMeta.appendChild(createInventoryBadge(`x${item.count}`, 'count'));
+        if (isTarotCard) {
+            tarotCountBadge = createInventoryBadge(`×${item.count}`, 'count');
+        } else {
+            headMeta.appendChild(createInventoryBadge(`x${item.count}`, 'count'));
+        }
     }
     head.appendChild(headMeta);
     cell.appendChild(head);
@@ -1436,7 +1450,9 @@ function createInventoryCell(item, requestedCategory) {
     const statBadges = createInventoryStatBadges(item, canonicalCategory);
     if (statBadges) {
         cell.classList.add('has-stat-badges');
-        cell.appendChild(statBadges);
+        if (!isTarotCard) {
+            cell.appendChild(statBadges);
+        }
     }
 
     const main = document.createElement('div');
@@ -1457,6 +1473,8 @@ function createInventoryCell(item, requestedCategory) {
     iconFrame.appendChild(iconDiv);
     const tarotNumberBadge = createTarotNumberBadgeForItem(item, canonicalCategory);
     if (tarotNumberBadge) iconFrame.appendChild(tarotNumberBadge);
+    if (isTarotCard && statBadges) iconFrame.appendChild(statBadges);
+    if (tarotCountBadge) iconFrame.appendChild(tarotCountBadge);
     main.appendChild(iconFrame);
 
     const copy = document.createElement('div');
