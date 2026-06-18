@@ -83,6 +83,7 @@ const DESTINATIONS = {
         id: 'near_sea',
         name: '近海の漂流箱',
         description: '初期ボートでも向かえる短距離探索。',
+        imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png',
         cost: 100,
         durationMs: 3 * HOUR_MS,
         bosses: ['treasure_slime', 'puffer_bomb', 'mimic_chest'],
@@ -95,6 +96,7 @@ const DESTINATIONS = {
         id: 'coral_passage',
         name: '珊瑚礁の抜け道',
         description: '浅瀬を抜ける明るい航路。小型の魔物が多い。',
+        imagePath: './Sprites/exploration_destinations/coral_passage_reef.png',
         cost: 180,
         durationMs: 4 * HOUR_MS,
         bosses: ['skeletal_parrot', 'coral_goblin', 'crab_brute'],
@@ -106,6 +108,7 @@ const DESTINATIONS = {
         id: 'old_lighthouse',
         name: '古代灯台跡',
         description: '探索船が見つけやすい古い航路。',
+        imagePath: './Sprites/exploration_destinations/old_lighthouse_ruins.png',
         cost: 250,
         durationMs: 5 * HOUR_MS,
         bosses: ['lantern_wraith', 'ghost_pirate', 'cursed_shipwheel'],
@@ -117,6 +120,7 @@ const DESTINATIONS = {
         id: 'sunken_trader',
         name: '沈没商船',
         description: '積荷の多い商船向けの探索先。',
+        imagePath: './Sprites/exploration_destinations/sunken_trader_wreck.png',
         cost: 300,
         durationMs: 6 * HOUR_MS,
         bosses: ['zombie_raider', 'drowned_buccaneer', 'anchor_golem'],
@@ -128,6 +132,7 @@ const DESTINATIONS = {
         id: 'pirate_cove',
         name: '海賊の隠れ家',
         description: '戦闘向きの船で挑む危険な海域。',
+        imagePath: './Sprites/exploration_destinations/pirate_cove_hideout.png',
         cost: 400,
         durationMs: 8 * HOUR_MS,
         bosses: ['skeleton_captain', 'shark_raider', 'cannon_mimic'],
@@ -139,6 +144,7 @@ const DESTINATIONS = {
         id: 'deep_maelstrom',
         name: '深海の渦',
         description: '渦潮の奥へ踏み込む高難度の探索先。',
+        imagePath: './Sprites/exploration_destinations/deep_maelstrom_whirlpool.png',
         cost: 550,
         durationMs: 10 * HOUR_MS,
         bosses: ['blue_kraken', 'merfolk_lancer', 'kraken_pirate'],
@@ -236,6 +242,7 @@ function publicDestination(destination, shipClass = 'common') {
         id: destination.id,
         name: destination.name,
         description: destination.description,
+        imagePath: destination.imagePath || '',
         cost: destination.cost,
         durationMs: destination.durationMs,
         available: canShipClassExploreDestination(normalizedShipClass, destination),
@@ -271,11 +278,13 @@ function explorationDocToPayload(data = {}) {
     if (!data) return null;
     const effectiveStatus = resolveEffectiveStatus(data);
     if (effectiveStatus !== 'active') return null;
+    const destination = DESTINATIONS[String(data.destinationId || '')] || null;
     return {
         id: String(data.id || ''),
         status: 'active',
         destinationId: String(data.destinationId || ''),
         destinationName: String(data.destinationName || ''),
+        imagePath: String(data.imagePath || destination?.imagePath || ''),
         shipId: String(data.shipId || ''),
         shipName: String(data.shipName || ''),
         shipClass: String(data.shipClass || ''),
@@ -314,6 +323,7 @@ function buildDailyFreeExplorationStatus(dayKey, snap) {
 
 function reportDocToPayload(doc) {
     const data = doc.data ? (doc.data() || {}) : (doc || {});
+    const destination = DESTINATIONS[String(data.destinationId || '')] || null;
     const rewardItems = Array.isArray(data.rewardItems) ? data.rewardItems.map((item) => ({
         itemId: String(item.itemId || item.ItemId || ''),
         displayName: String(item.displayName || item.DisplayName || item.itemId || item.ItemId || ''),
@@ -324,6 +334,7 @@ function reportDocToPayload(doc) {
         id: doc.id || String(data.id || ''),
         destinationId: String(data.destinationId || ''),
         destinationName: String(data.destinationName || ''),
+        imagePath: String(data.imagePath || destination?.imagePath || ''),
         shipName: String(data.shipName || ''),
         bossId: String(data.bossId || ''),
         bossName: String(data.bossName || ''),
@@ -1385,6 +1396,7 @@ function initializeExplorationRoutes(app, deps) {
                 playFabId,
                 destinationId,
                 destinationName: destination.name,
+                imagePath: destination.imagePath || '',
                 shipId: ship.shipId,
                 shipName: ship.shipName,
                 shipClass: ship.shipClass,
@@ -1438,6 +1450,7 @@ function initializeExplorationRoutes(app, deps) {
                         explorationId,
                         destinationId,
                         destinationName: destination.name,
+                        imagePath: destination.imagePath || '',
                         playFabId,
                         usedAt: admin.firestore.FieldValue.serverTimestamp(),
                         usedAtMs: now
@@ -1622,6 +1635,7 @@ function initializeExplorationRoutes(app, deps) {
                 playFabId,
                 destinationId: destination.id,
                 destinationName: destination.name,
+                imagePath: destination.imagePath || '',
                 shipId: ship.shipId,
                 shipName: ship.shipName,
                 shipClass: ship.shipClass,

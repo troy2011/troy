@@ -8,6 +8,7 @@ test('exploration destinations have three fixed bosses ordered from weak to stro
   expect(destinations).toHaveLength(6);
 
   for (const destination of destinations) {
+    expect(destination.imagePath).toMatch(/^\.\/Sprites\/exploration_destinations\/.+\.png$/);
     const bosses = __test.getDestinationBosses(destination);
     expect(bosses).toHaveLength(3);
     expect(bosses.map((boss) => boss.tier)).toEqual(['weak', 'medium', 'strong']);
@@ -113,6 +114,7 @@ test('daily free exploration only applies to low-level sea areas', () => {
   expect(freeDestinationIds).toEqual(['near_sea']);
   expect(__test.publicDestination(__test.DESTINATIONS.near_sea, 'explorer')).toMatchObject({
     id: 'near_sea',
+    imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png',
     dailyFreeEligible: true
   });
   expect(__test.publicDestination(__test.DESTINATIONS.coral_passage, 'explorer')).toMatchObject({

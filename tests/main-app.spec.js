@@ -1239,6 +1239,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
             id: 'harbor-edge',
             name: '港の外れ',
             description: '近場の探索',
+            imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png',
             cost: 100,
             durationMs: 3 * 60 * 60 * 1000,
             available: true,
@@ -1248,6 +1249,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
             id: 'coral-passage',
             name: '珊瑚礁の抜け道',
             description: '浅瀬を抜ける航路',
+            imagePath: './Sprites/exploration_destinations/coral_passage_reef.png',
             cost: 180,
             durationMs: 4 * 60 * 60 * 1000,
             available: true,
@@ -1257,6 +1259,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
             id: 'pirate-cove',
             name: '海賊の隠れ家',
             description: '戦闘向きの海域',
+            imagePath: './Sprites/exploration_destinations/pirate_cove_hideout.png',
             cost: 400,
             durationMs: 8 * 60 * 60 * 1000,
             available: false,
@@ -1268,6 +1271,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
             id: 'harbor-edge',
             name: '港の外れ',
             description: '近場の探索',
+            imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png',
             cost: 100,
             durationMs: 3 * 60 * 60 * 1000,
             dailyFreeEligible: true,
@@ -1286,6 +1290,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
             id: 'coral-passage',
             name: '珊瑚礁の抜け道',
             description: '浅瀬を抜ける航路',
+            imagePath: './Sprites/exploration_destinations/coral_passage_reef.png',
             cost: 180,
             durationMs: 4 * 60 * 60 * 1000,
             dailyFreeEligible: false,
@@ -1300,6 +1305,17 @@ test('home exploration button loads exploration data in a popup', async ({ page 
               { id: 'crab_brute', name: '大ガニ', spriteId: 'crab_brute', tier: 'strong', tierLabel: '強' }
             ]
           }
+        ]
+      })
+    });
+  });
+  await page.route('**/api/get-ranking', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ranking: [
+          { displayName: 'Playwright Tester', score: 9000, level: 18, rankName: '航海士', playFabId: 'PF_PLAYWRIGHT' }
         ]
       })
     });
@@ -1319,9 +1335,11 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   const destinationRows = panel.locator('.ship-exploration-list-row');
   await expect(destinationRows).toHaveCount(3);
   await expect(destinationRows.nth(0).locator('.ship-exploration-list-main strong')).toHaveText('港の外れ');
+  await expect(destinationRows.nth(0).locator('.ship-exploration-list-mark img')).toHaveAttribute('src', /near_sea_drift_crate\.png/);
   await expect(destinationRows.nth(0).locator('.ship-exploration-list-side b')).toHaveText('出航可');
   await expect(destinationRows.nth(0).locator('.ship-exploration-list-main span')).toContainText('3時間 / 100G');
   await expect(destinationRows.nth(2).locator('.ship-exploration-list-main strong')).toHaveText('海賊の隠れ家');
+  await expect(destinationRows.nth(2).locator('.ship-exploration-list-mark img')).toHaveAttribute('src', /pirate_cove_hideout\.png/);
   await expect(destinationRows.nth(2).locator('.ship-exploration-list-side b')).toHaveText('未開放');
   await expect(destinationRows.nth(2).locator('.ship-exploration-list-side span')).toHaveText('戦闘船');
   const destinationCards = panel.locator('.ship-exploration-destination');
@@ -1329,8 +1347,10 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   const freeDestination = destinationCards.nth(0);
   const paidDestination = destinationCards.nth(1);
   await expect(freeDestination.locator('strong')).toHaveText('港の外れ');
+  await expect(freeDestination.locator('.ship-exploration-mapmark img')).toHaveAttribute('src', /near_sea_drift_crate\.png/);
   await expect(freeDestination.locator('.ship-exploration-badge')).toHaveText(['本日無料', '通常100G']);
   await expect(paidDestination.locator('strong')).toHaveText('珊瑚礁の抜け道');
+  await expect(paidDestination.locator('.ship-exploration-mapmark img')).toHaveAttribute('src', /coral_passage_reef\.png/);
   await expect(paidDestination.locator('.ship-exploration-badge')).toHaveText(['180G']);
   await expect(freeDestination.locator('.ship-exploration-role-chip')).toHaveText(['偵察', '低リスク', '基本報酬', '標準BOSS']);
   await expect(freeDestination.locator('.ship-exploration-boss-chip')).toHaveCount(3);
@@ -1344,14 +1364,54 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(freeDestination.locator('.ship-exploration-start')).toHaveText('探索開始');
   const explorationPanelFrame = await freeDestination.evaluate((element) => ({
     panelBorder: getComputedStyle(document.getElementById('shipExplorationPanel')).borderImageSource,
-    destinationBorder: getComputedStyle(element).borderImageSource
+    panelSliceSource: document.querySelector('#shipExplorationPanel > .panel-slice-25-layer')?.dataset.source || '',
+    destinationBorder: getComputedStyle(element).borderImageSource,
+    destinationSliceSource: element.querySelector(':scope > .panel-slice-25-layer')?.dataset.source || '',
+    closeBackground: getComputedStyle(document.querySelector('[data-home-exploration-close]')).backgroundImage,
+    closeText: document.querySelector('[data-home-exploration-close]')?.textContent || '',
+    closeParentClass: document.querySelector('[data-home-exploration-close]')?.parentElement?.className || '',
+    headPosition: getComputedStyle(document.querySelector('.ship-exploration-head')).position,
+    headTop: getComputedStyle(document.querySelector('.ship-exploration-head')).top
   }));
-  expect(explorationPanelFrame.panelBorder).toContain('assets/ui/panels/');
-  expect(explorationPanelFrame.destinationBorder).toContain('assets/ui/panels/');
+  expect(`${explorationPanelFrame.panelBorder} ${explorationPanelFrame.panelSliceSource}`).toContain('panel-dark.png');
+  expect(`${explorationPanelFrame.destinationBorder} ${explorationPanelFrame.destinationSliceSource}`).toContain('panel-parchment.png');
+  expect(explorationPanelFrame.closeBackground).toContain('assets/ui/buttons/action-close.png');
+  expect(explorationPanelFrame.closeText).toBe('');
+  expect(explorationPanelFrame.closeParentClass).toContain('ship-exploration-head');
+  expect(explorationPanelFrame.headPosition).toBe('sticky');
+  expect(explorationPanelFrame.headTop).toBe('0px');
   expect(explorationStatusBody).toMatchObject({ playFabId: 'PF_PLAYWRIGHT' });
 
+  await panel.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect(panel.locator('[data-home-exploration-close]')).toBeVisible();
+  const explorationNavState = await page.locator('#bottomNav').evaluate((nav) => {
+    const panel = document.getElementById('shipExplorationPanel');
+    const navStyle = getComputedStyle(nav);
+    const panelStyle = getComputedStyle(panel);
+    return {
+      bodyLocks: document.body.className,
+      navPointerEvents: navStyle.pointerEvents,
+      navZIndex: Number.parseInt(navStyle.zIndex, 10),
+      panelZIndex: Number.parseInt(panelStyle.zIndex, 10),
+      isPopupOpen: document.body.classList.contains('home-exploration-popup-open')
+    };
+  });
+  expect(explorationNavState.bodyLocks).not.toContain('modal-lock');
+  expect(explorationNavState.navPointerEvents).toBe('auto');
+  expect(explorationNavState.navZIndex).toBeGreaterThan(explorationNavState.panelZIndex);
+  expect(explorationNavState.isPopupOpen).toBe(true);
   await panel.locator('[data-home-exploration-close]').click();
   await expect(panel).toBeHidden();
+
+  await page.locator('#btnHomeExploration').click();
+  await expect(panel).toBeVisible();
+  await page.locator('#navRanking').click();
+  await expect(page.locator('#navRanking')).toHaveClass(/active/);
+  await expect(page.locator('#tabContentRanking')).toBeVisible();
+  await expect(panel).toBeHidden();
+  expect(await page.evaluate(() => document.body.classList.contains('home-exploration-popup-open'))).toBe(false);
   await expectNoPageErrors(errors);
 });
 
@@ -1488,7 +1548,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
           <div class="exploration-sequence-horizon"></div>
           <div class="exploration-sequence-route"></div>
           <div class="exploration-sequence-arrival"></div>
-          <div class="exploration-sequence-island">🏝️</div>
+          <div class="exploration-sequence-island has-image"><img src="./Sprites/exploration_destinations/pirate_cove_hideout.png" alt=""></div>
           <div class="exploration-sequence-boss"><img class="exploration-boss-image exploration-sequence-boss-image" src="./Sprites/monsters/ghost_pirate.png" alt="boss"><small>BOSS</small></div>
           <div class="exploration-sequence-avatar avatar-combat-actor"></div>
           <div class="exploration-sequence-ship is-boat"></div>
@@ -1501,7 +1561,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
           <div class="exploration-sequence-log"><div>log</div></div>
         </div>
         <div class="exploration-sequence-copy"><strong>route</strong><span>label</span></div>
-        <button type="button" class="exploration-sequence-advance" data-exploration-sequence-advance>タップで進む</button>
+        <div class="exploration-sequence-tap-hint" data-exploration-sequence-advance>タップで進む</div>
       </div>
     `;
     document.body.appendChild(sequence);
@@ -1539,11 +1599,17 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
         borderImageSource: style.borderImageSource,
         borderRadius: style.borderRadius,
         display: style.display,
+        fontSize: style.fontSize,
         height: style.height,
+        maxHeight: style.maxHeight,
+        maxWidth: style.maxWidth,
         minHeight: style.minHeight,
+        objectFit: style.objectFit,
         opacity: style.opacity,
         overflowX: style.overflowX,
-        pointerEvents: style.pointerEvents
+        pointerEvents: style.pointerEvents,
+        transform: style.transform,
+        transitionDuration: style.transitionDuration
       };
     };
 
@@ -1564,7 +1630,9 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
     const shipTopValues = shipSamples.map((sample) => sample.top);
     const shipVerticalDelta = Math.max(...shipTopValues) - Math.min(...shipTopValues);
     const shipFrameCount = new Set(shipSamples.map((sample) => sample.backgroundPosition)).size;
-    sequence.className = 'exploration-sequence-overlay is-boat is-sky-deep is-battle';
+    const sailIsland = styleOf('.exploration-sequence-island');
+    const sailIslandImage = styleOf('.exploration-sequence-island img');
+    sequence.className = 'exploration-sequence-overlay is-boat is-sky-deep is-battle is-result-victory';
     const battleAvatarElement = sequence.querySelector('.exploration-sequence-avatar');
     battleAvatarElement.classList.add('is-avatar-attacking', 'is-avatar-attack-left');
     const battleScene = styleOf('.exploration-sequence-scene');
@@ -1572,11 +1640,15 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
     const battleAvatar = styleOf('.exploration-sequence-avatar');
     const battleRoute = styleOf('.exploration-sequence-route');
     const battleIsland = styleOf('.exploration-sequence-island');
+    const battleBoss = styleOf('.exploration-sequence-boss');
+    const battleBossImage = styleOf('.exploration-sequence-boss-image');
     const battleBossRect = sequence.querySelector('.exploration-sequence-boss').getBoundingClientRect();
     const battleAvatarRect = battleAvatarElement.getBoundingClientRect();
     sequence.className = 'exploration-sequence-overlay is-boat is-sky-deep is-treasure';
     const treasureScene = styleOf('.exploration-sequence-scene');
     const treasureAnimationName = window.getComputedStyle(shipElement).animationName;
+    sequence.classList.add('is-opening-chest');
+    const sequenceOpeningChest = styleOf('.exploration-sequence-mini-chest');
     const openedDetails = styleOf('.exploration-result-details');
     result.className = 'exploration-result-overlay is-awaiting-open';
     await new Promise((resolve) => setTimeout(resolve, 360));
@@ -1590,12 +1662,17 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
       sequenceBattleAvatar: battleAvatar,
       sequenceBattleRoute: battleRoute,
       sequenceBattleIsland: battleIsland,
+      sequenceBattleBoss: battleBoss,
+      sequenceBattleBossImage: battleBossImage,
+      sequenceSailIsland: sailIsland,
+      sequenceSailIslandImage: sailIslandImage,
       sequenceBattleBossLeft: battleBossRect.left,
       sequenceBattleAvatarLeft: battleAvatarRect.left,
       sequenceSky: styleOf('.exploration-sequence-sky'),
       sequenceRoute: styleOf('.exploration-sequence-route'),
       sequenceArrival: styleOf('.exploration-sequence-arrival'),
-      sequenceAdvance: styleOf('.exploration-sequence-advance'),
+      sequenceTapHint: styleOf('.exploration-sequence-tap-hint'),
+      sequenceOpeningChest,
       sequenceChestMore: styleOf('.exploration-sequence-chest-more'),
       sequenceLog: styleOf('.exploration-sequence-log div'),
       resultDialog: styleOf('.exploration-result-dialog'),
@@ -1622,7 +1699,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
 
   expect(audit.sequenceDialog.borderImageSource).toContain('assets/ui/panels/');
   expect(audit.sequenceScene.borderImageSource).toContain('assets/ui/panels/');
-  expect(audit.sequenceScene.backgroundImage).toContain('Sprites/background/sea.webp');
+  expect(audit.sequenceScene.backgroundImage).toContain('Sprites/background/deck.webp');
   expect(audit.sequenceBattleScene.backgroundImage).toContain('Sprites/background/deck.webp');
   expect(audit.sequenceBattleShip.opacity).toBe('0');
   expect(audit.sequenceBattleShip.animationName).toBe('none');
@@ -1630,12 +1707,23 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(audit.sequenceBattleAvatar.animationName).toContain('avatarCombatAttack');
   expect(audit.sequenceBattleRoute.opacity).toBe('0');
   expect(audit.sequenceBattleIsland.opacity).toBe('0');
+  expect(audit.sequenceBattleBoss.animationName).toBe('none');
+  expect(audit.sequenceBattleBossImage.transform).toContain('-1');
+  expect(audit.sequenceSailIsland.opacity).toBe('0.58');
+  expect(audit.sequenceSailIsland.fontSize).toBe('88px');
+  expect(audit.sequenceSailIsland.transform).toBe('none');
+  expect(audit.sequenceSailIsland.transitionDuration).toContain('0.26s');
+  expect(audit.sequenceSailIslandImage.maxWidth).toBe('100%');
+  expect(audit.sequenceSailIslandImage.maxHeight).toBe('100%');
+  expect(audit.sequenceSailIslandImage.objectFit).toBe('contain');
   expect(audit.sequenceBattleBossLeft).toBeLessThan(audit.sequenceBattleAvatarLeft);
   expect(audit.sequenceLog.borderImageSource).toContain('assets/ui/panels/');
   expect(audit.sequenceRoute.animationName).toBe('none');
   expect(audit.sequenceRoute.backgroundImage).not.toContain('repeating-linear-gradient');
   expect(audit.sequenceArrival.borderRadius).toBe('50%');
-  expect(audit.sequenceAdvance.borderImageSource).toContain('assets/ui/buttons/');
+  expect(audit.sequenceTapHint.borderImageSource).not.toContain('assets/ui/buttons/');
+  expect(audit.sequenceOpeningChest.animationName).toContain('explorationSequenceChestPop');
+  expect(audit.sequenceOpeningChest.animationName).not.toContain('explorationResultChestOpen');
   expect(audit.sequenceChestMore.borderRadius).toBe('6px');
   expect(audit.resultDialog.borderImageSource).toContain('assets/ui/panels/');
   expect(audit.resultDialog.overflowX).toBe('hidden');
@@ -1681,7 +1769,14 @@ test('exploration result reveals details after tapping through treasure sequence
         ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'fighter' },
         active: null,
         reports: [],
-        destinations: [{ id: 'harbor-edge', name: '港の外れ', description: '近場の探索', cost: 100, bossName: '海霧の番人' }]
+        destinations: [{
+          id: 'harbor-edge',
+          name: '港の外れ',
+          description: '近場の探索',
+          imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png',
+          cost: 100,
+          bossName: '海霧の番人'
+        }]
       })
     });
   });
@@ -1692,7 +1787,12 @@ test('exploration result reveals details after tapping through treasure sequence
       body: JSON.stringify({
         balance: 9000,
         ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'fighter' },
-        active: { destinationId: 'harbor-edge', destinationName: '港の外れ', shipName: 'テスト船' },
+        active: {
+          destinationId: 'harbor-edge',
+          destinationName: '港の外れ',
+          imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png',
+          shipName: 'テスト船'
+        },
         reports: [],
         destinations: []
       })
@@ -1709,6 +1809,7 @@ test('exploration result reveals details after tapping through treasure sequence
         report: {
           destinationId: 'harbor-edge',
           destinationName: '港の外れ',
+          imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png',
           bossId: 'ghost_pirate',
           bossName: '海霧の番人',
           bossSpriteId: 'ghost_pirate',
@@ -1729,14 +1830,15 @@ test('exploration result reveals details after tapping through treasure sequence
   await page.locator('.ship-exploration-start').click();
 
   const sequence = page.locator('.exploration-sequence-overlay');
-  const advance = sequence.locator('[data-exploration-sequence-advance]');
+  const advanceHint = sequence.locator('[data-exploration-sequence-advance]');
   await expect(sequence).toHaveClass(/is-sail/, { timeout: 15_000 });
   await expect(sequence.locator('[data-exploration-sequence-chest]')).toHaveCount(2);
+  await expect(sequence.locator('.exploration-sequence-island img')).toHaveAttribute('src', /near_sea_drift_crate\.png/);
 
   const advanceSequence = async (label) => {
-    await expect(advance).toHaveText(label, { timeout: 10_000 });
-    await expect(advance).toBeVisible();
-    await advance.click();
+    await expect(advanceHint).toHaveText(label, { timeout: 10_000 });
+    await expect(advanceHint).toBeVisible();
+    await sequence.click();
   };
 
   await advanceSequence('タップで海域へ');

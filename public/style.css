@@ -482,7 +482,8 @@ button.home-player-ship-name {
         url("./Sprites/background/sea.webp") center top / auto 150% no-repeat;
 }
 
-.exploration-sequence-overlay.is-battle .exploration-sequence-scene {
+.exploration-sequence-overlay.is-battle .exploration-sequence-scene,
+.exploration-sequence-overlay.is-treasure .exploration-sequence-scene {
     background:
         linear-gradient(180deg, rgba(5, 12, 18, 0.1) 0%, rgba(7, 10, 15, 0.08) 48%, rgba(19, 12, 6, 0.2) 100%),
         url("./Sprites/background/deck.webp") center bottom / auto 150% no-repeat;
@@ -575,10 +576,10 @@ button.home-player-ship-name {
     bottom: 107px;
     width: 50px;
     height: 50px;
-    z-index: 3;
+    z-index: 2;
     border: 2px solid rgba(254, 243, 199, 0.74);
     border-radius: 50%;
-    box-shadow: inset 0 0 14px rgba(14, 165, 233, 0.22), 0 0 18px rgba(250, 204, 21, 0.3);
+    box-shadow: inset 0 0 14px rgba(14, 165, 233, 0.18), 0 0 18px rgba(250, 204, 21, 0.22);
     opacity: 0;
     transform: scale(0.56);
     transition: opacity 260ms ease, transform 420ms ease;
@@ -597,9 +598,17 @@ button.home-player-ship-name {
     font-size: 88px;
     line-height: 1;
     opacity: 0.58;
-    transform: translateX(22px) scale(0.88);
+    transform: none;
     text-shadow: 0 16px 18px rgba(0, 0, 0, 0.38);
-    transition: opacity 260ms ease, transform 520ms ease;
+    transition: opacity 260ms ease;
+}
+
+.exploration-sequence-island.has-image img {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 16px 16px rgba(0, 0, 0, 0.42));
 }
 
 .exploration-sequence-boss {
@@ -627,6 +636,7 @@ button.home-player-ship-name {
 .exploration-sequence-boss-image {
     width: 100%;
     height: 100%;
+    transform: scaleX(-1);
 }
 
 .exploration-sequence-boss small {
@@ -837,14 +847,14 @@ button.home-player-ship-name {
 .exploration-sequence-overlay.is-battle .exploration-sequence-island,
 .exploration-sequence-overlay.is-treasure .exploration-sequence-island {
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: none;
 }
 
 .exploration-sequence-overlay.is-up .exploration-sequence-arrival,
 .exploration-sequence-overlay.is-left .exploration-sequence-arrival,
 .exploration-sequence-overlay.is-battle .exploration-sequence-arrival,
 .exploration-sequence-overlay.is-treasure .exploration-sequence-arrival {
-    opacity: 0.72;
+    opacity: 0.34;
     transform: scale(1);
 }
 
@@ -886,7 +896,7 @@ button.home-player-ship-name {
     height: 134px;
     opacity: 1;
     transform: scale(1);
-    animation: explorationSequenceBoss 300ms ease-in-out infinite;
+    animation: none;
 }
 
 .exploration-sequence-overlay.is-battle .exploration-sequence-avatar {
@@ -905,7 +915,7 @@ button.home-player-ship-name {
 }
 
 .exploration-sequence-overlay.is-battle.is-result-victory .exploration-sequence-boss {
-    animation: explorationSequenceBossHit 420ms ease-in-out infinite;
+    animation: none;
 }
 
 .exploration-sequence-overlay.is-battle.is-result-defeat .exploration-sequence-ship {
@@ -1023,8 +1033,9 @@ button.home-player-ship-name {
 }
 
 .exploration-sequence-overlay.is-opening-chest .exploration-sequence-mini-chest {
-    background-image: url("./Sprites/items/Chest/chest2_open_strip8.png");
-    animation: explorationResultChestOpen 760ms steps(8) 1 forwards;
+    background-image: url("./Sprites/items/Chest/chest2_idle_strip8.png");
+    background-position: 0 0;
+    animation: explorationSequenceChestPop 560ms ease-in-out 1;
 }
 
 .exploration-sequence-overlay.is-opened-chest .exploration-sequence-mini-chest {
@@ -1057,31 +1068,22 @@ button.home-player-ship-name {
     font-weight: 800;
 }
 
-.exploration-sequence-advance {
-    width: min(260px, 100%);
-    min-height: 38px;
-    justify-self: center;
-    display: grid;
-    place-items: center;
-    margin: 12px auto 0;
-    padding: 7px 16px;
-    border: 1px solid transparent;
-    border-image: url("./assets/ui/buttons/button-gold-large.png") 24 fill / 10px / 0 stretch;
-    border-radius: 6px;
-    background: linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.18));
-    color: #111827;
-    font-size: 13px;
-    font-weight: 900;
+.exploration-sequence-tap-hint {
+    min-height: 20px;
+    margin-top: 8px;
+    color: rgba(186, 230, 253, 0.88);
+    font-size: 12px;
+    font-weight: 800;
     letter-spacing: 0;
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+    text-align: center;
 }
 
-.exploration-sequence-advance[hidden] {
+.exploration-sequence-tap-hint[hidden] {
     display: none;
 }
 
-.exploration-sequence-overlay.is-awaiting-tap .exploration-sequence-advance:not([hidden]) {
-    animation: explorationSequenceAdvancePulse 920ms ease-in-out infinite;
+.exploration-sequence-overlay.is-awaiting-tap .exploration-sequence-tap-hint:not([hidden]) {
+    opacity: 0.9;
 }
 
 @keyframes homePlayerShipSail {
@@ -1156,16 +1158,6 @@ button.home-player-ship-name {
     }
 }
 
-@keyframes explorationSequenceBoss {
-    0%, 100% { transform: scale(1) rotate(-3deg); }
-    50% { transform: scale(1.08) rotate(3deg); }
-}
-
-@keyframes explorationSequenceBossHit {
-    0%, 100% { transform: scale(1) rotate(-5deg); filter: brightness(1); }
-    50% { transform: scale(0.9) rotate(8deg); filter: brightness(1.8); }
-}
-
 @keyframes explorationSequenceShipDefeat {
     0%, 100% { transform: translateX(0) scale(1.8); filter: grayscale(0.2); }
     50% { transform: translateX(-4px) scale(1.8); filter: grayscale(0.65); }
@@ -1192,14 +1184,12 @@ button.home-player-ship-name {
     to { background-position: 100% 0; }
 }
 
-@keyframes explorationSequenceAdvancePulse {
+@keyframes explorationSequenceChestPop {
     0%, 100% {
-        filter: brightness(1);
-        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+        transform: translateY(0) scale(1);
     }
     50% {
-        filter: brightness(1.08);
-        box-shadow: 0 12px 28px rgba(250, 204, 21, 0.28);
+        transform: translateY(-8px) scale(1.08);
     }
 }
 
@@ -10698,11 +10688,11 @@ textarea {
     width: min(460px, calc(100vw - 28px));
     max-height: min(78vh, 640px);
     margin: 0;
-    padding: 48px 16px 18px;
+    padding: 0 16px 18px;
     transform: translate(-50%, -50%);
     overflow-y: auto;
     pointer-events: auto;
-    border-image-source: url("./assets/ui/panels/panel-dark-gold.png");
+    border-image: url("./assets/ui/panels/panel-dark-gold.png") 30 fill / 12px / 0 stretch;
     box-shadow:
         0 0 0 9999px rgba(0, 0, 0, 0.62),
         0 18px 42px rgba(0, 0, 0, 0.62);
@@ -10712,27 +10702,42 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     pointer-events: auto;
 }
 
+body.home-exploration-popup-open #bottomNav {
+    z-index: 10070;
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+body.home-exploration-popup-open #globalStatusBar {
+    pointer-events: none;
+}
+
 .home-exploration-popup-close {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    z-index: 1;
-    width: 32px;
-    height: 32px;
-    min-height: 32px;
-    max-height: 32px;
+    width: 38px;
+    height: 38px;
+    min-height: 38px;
+    max-height: 38px;
+    flex: 0 0 38px;
     box-sizing: border-box;
     padding: 0;
-    border: 1px solid rgba(220, 169, 82, 0.52);
-    border-radius: 50%;
-    background: rgba(3, 5, 8, 0.88);
-    color: #f8e7bc;
-    font-size: 20px;
-    font-weight: 900;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
+    border: 0;
+    border-radius: 0;
+    background: var(--icon-action-close, url("./assets/ui/buttons/action-close.png")) center / contain no-repeat;
+    color: transparent;
+    font-size: 0;
+    line-height: 0;
+    text-indent: -9999px;
+    filter: drop-shadow(0 4px 7px rgba(0, 0, 0, 0.62));
+    cursor: pointer;
+}
+
+#shipExplorationPanel.ship-exploration-panel.is-popup > .home-exploration-popup-close {
+    position: sticky;
+    top: 8px;
+    z-index: 6;
+    display: block;
+    margin: 10px -4px 8px auto;
 }
 
 .ship-exploration-head {
@@ -10743,6 +10748,45 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     margin-bottom: 12px;
     padding-bottom: 8px;
     border-bottom: 1px solid rgba(255, 224, 160, 0.14);
+}
+
+#shipExplorationPanel.ship-exploration-panel.is-popup .ship-exploration-head {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 38px;
+    column-gap: 10px;
+    row-gap: 2px;
+    align-items: center;
+    margin: 0 -16px 12px;
+    padding: 12px 12px 10px 16px;
+    border-bottom-color: rgba(255, 224, 160, 0.22);
+    background:
+        linear-gradient(180deg, rgba(16, 11, 7, 0.98), rgba(7, 8, 11, 0.96)),
+        radial-gradient(ellipse at 18% 0%, rgba(250, 204, 21, 0.14), transparent 42%);
+    box-shadow: 0 10px 18px rgba(0, 0, 0, 0.34);
+}
+
+#shipExplorationPanel.ship-exploration-panel.is-popup .ship-exploration-head h3 {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+#shipExplorationPanel.ship-exploration-panel.is-popup .ship-exploration-head .ship-exploration-meta {
+    grid-column: 1;
+    grid-row: 2;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#shipExplorationPanel.ship-exploration-panel.is-popup .ship-exploration-head .home-exploration-popup-close {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    justify-self: end;
+    align-self: center;
 }
 
 .ship-exploration-head h3 {
@@ -10834,6 +10878,14 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
     font-size: 20px;
     line-height: 1;
+    overflow: hidden;
+}
+
+.ship-exploration-list-mark.has-image img {
+    display: block;
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
 }
 
 .ship-exploration-list-main {
@@ -10934,6 +10986,15 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
     font-size: 26px;
     line-height: 1;
+    overflow: hidden;
+}
+
+.ship-exploration-mapmark.has-image img {
+    display: block;
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.2));
 }
 
 .ship-exploration-title-group {

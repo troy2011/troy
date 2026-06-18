@@ -1036,13 +1036,23 @@ const EXPLORATION_FALLBACK_BOSS_SPRITE = {
 };
 
 const EXPLORATION_DESTINATION_VISUALS = {
-    near_sea: { island: '🏝️', sky: 'day', label: '穏やかな近海' },
-    coral_passage: { island: '🪸', sky: 'day', label: '珊瑚礁の抜け道' },
-    old_lighthouse: { island: '🗼', sky: 'mist', label: '霧の灯台跡' },
-    sunken_trader: { island: '🚢', sky: 'deep', label: '沈没商船' },
-    pirate_cove: { island: '⛰️', sky: 'storm', label: '海賊の隠れ家' },
-    deep_maelstrom: { island: '🌀', sky: 'deep', label: '深海の渦' },
-    default: { island: '🏝️', sky: 'day', label: '未知の海域' }
+    near_sea: { island: '🏝️', sky: 'day', label: '近海の漂流箱', imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png' },
+    coral_passage: { island: '🪸', sky: 'day', label: '珊瑚礁の抜け道', imagePath: './Sprites/exploration_destinations/coral_passage_reef.png' },
+    old_lighthouse: { island: '🗼', sky: 'mist', label: '古代灯台跡', imagePath: './Sprites/exploration_destinations/old_lighthouse_ruins.png' },
+    sunken_trader: { island: '🚢', sky: 'deep', label: '沈没商船', imagePath: './Sprites/exploration_destinations/sunken_trader_wreck.png' },
+    pirate_cove: { island: '⛰️', sky: 'storm', label: '海賊の隠れ家', imagePath: './Sprites/exploration_destinations/pirate_cove_hideout.png' },
+    deep_maelstrom: { island: '🌀', sky: 'deep', label: '深海の渦', imagePath: './Sprites/exploration_destinations/deep_maelstrom_whirlpool.png' },
+    default: { island: '🏝️', sky: 'day', label: '未知の海域', imagePath: './Sprites/exploration_destinations/palm_islet.png' }
+};
+
+const EXPLORATION_DESTINATION_ALIASES = {
+    harbor_edge: 'near_sea',
+    harbor_edge_island: 'near_sea',
+    coral_passage_reef: 'coral_passage',
+    pirate_cove_hideout: 'pirate_cove',
+    old_lighthouse_ruins: 'old_lighthouse',
+    sunken_trader_wreck: 'sunken_trader',
+    deep_maelstrom_whirlpool: 'deep_maelstrom'
 };
 
 const EXPLORATION_SHIP_TRAITS = {
@@ -1130,9 +1140,43 @@ function renderExplorationBossImage(sprite, className = '', options = {}) {
     return `<img class="${escapeHtml(classes)}" src="${escapeHtml(sprite?.src || EXPLORATION_FALLBACK_BOSS_SPRITE.src)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async">`;
 }
 
-function getExplorationDestinationVisual(destinationId) {
-    const key = String(destinationId || '').trim();
-    return EXPLORATION_DESTINATION_VISUALS[key] || EXPLORATION_DESTINATION_VISUALS.default;
+function normalizeExplorationDestinationVisualKey(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    const underscored = raw.replace(/-/g, '_');
+    return EXPLORATION_DESTINATION_ALIASES[raw]
+        || EXPLORATION_DESTINATION_ALIASES[underscored]
+        || (EXPLORATION_DESTINATION_VISUALS[raw] ? raw : '')
+        || (EXPLORATION_DESTINATION_VISUALS[underscored] ? underscored : '')
+        || 'default';
+}
+
+function getExplorationDestinationVisual(destinationOrId) {
+    const destination = destinationOrId && typeof destinationOrId === 'object' ? destinationOrId : null;
+    const key = normalizeExplorationDestinationVisualKey(destination?.id || destination?.destinationId || destinationOrId);
+    const visual = EXPLORATION_DESTINATION_VISUALS[key] || EXPLORATION_DESTINATION_VISUALS.default;
+    const imagePath = String(
+        destination?.imagePath
+        || destination?.destinationImagePath
+        || destination?.destination_image_path
+        || destination?.image_path
+        || destination?.visualImagePath
+        || visual.imagePath
+        || ''
+    ).trim();
+    return {
+        ...visual,
+        imagePath
+    };
+}
+
+function renderExplorationDestinationVisual(destinationOrId, className, tagName = 'span') {
+    const visual = getExplorationDestinationVisual(destinationOrId);
+    const tag = tagName === 'div' ? 'div' : 'span';
+    const classes = [className, visual.imagePath ? 'has-image' : 'has-emoji'].filter(Boolean).join(' ');
+    const content = visual.imagePath
+        ? `<img src="${escapeHtml(visual.imagePath)}" alt="" loading="lazy" decoding="async">`
+        : escapeHtml(visual.island);
+    return `<${tag} class="${escapeHtml(classes)}" aria-hidden="true" data-exploration-destination-visual>${content}</${tag}>`;
 }
 
 function getPlayerShipClassName(form) {
@@ -1601,14 +1645,13 @@ function renderExplorationDestinationList(destinations, availableDestinationIds 
             <div class="ship-exploration-list-rows">
                 ${list.map((destination) => {
                     const id = String(destination?.id || '');
-                    const visual = getExplorationDestinationVisual(id);
                     const available = destination?.available === true || availableDestinationIds.has(id);
                     const cost = Number(destination?.cost || 0).toLocaleString('ja-JP');
                     const duration = formatExplorationDuration(destination?.durationMs);
                     const requirement = String(destination?.requirementLabel || '').trim();
                     return `
                         <div class="ship-exploration-list-row ${available ? 'is-available' : 'is-locked'}" data-exploration-list-destination-id="${escapeHtml(id)}">
-                            <span class="ship-exploration-list-mark" aria-hidden="true">${escapeHtml(visual.island)}</span>
+                            ${renderExplorationDestinationVisual(destination, 'ship-exploration-list-mark')}
                             <div class="ship-exploration-list-main">
                                 <strong>${escapeHtml(destination?.name || '未知の海域')}</strong>
                                 <span>${escapeHtml(duration)} / ${escapeHtml(cost)}G</span>
@@ -1880,7 +1923,8 @@ function buildRecoveredExplorationStartData(claimData, destinationId) {
         ship: claimData?.ship || currentPlayerShipProfile || {},
         active: {
             destinationId: report.destinationId || destinationId,
-            destinationName: report.destinationName || destinationVisual.label || '探索先'
+            destinationName: report.destinationName || destinationVisual.label || '探索先',
+            imagePath: report.imagePath || destinationVisual.imagePath || ''
         }
     };
 }
@@ -1902,7 +1946,7 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
     const guildLayers = form === 'guild' ? renderGuildShipLayers(ship) : '';
     const report = claimData?.report || {};
     const resolvedDestinationId = active.destinationId || report.destinationId || destinationId;
-    const destinationVisual = getExplorationDestinationVisual(resolvedDestinationId);
+    const destinationVisual = getExplorationDestinationVisual(active.destinationId ? active : resolvedDestinationId);
     const destinationName = active.destinationName || report.destinationName || destinationVisual.label || '探索先';
     const bossResult = normalizeBossResult(report.bossResult);
     const bossSprite = resolveExplorationBossSprite(resolvedDestinationId, report.bossName, report.bossSpriteId);
@@ -1927,7 +1971,7 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
                 <div class="exploration-sequence-horizon" aria-hidden="true"></div>
                 <div class="exploration-sequence-route" aria-hidden="true"></div>
                 <div class="exploration-sequence-arrival" aria-hidden="true"></div>
-                <div class="exploration-sequence-island" aria-hidden="true">${escapeHtml(destinationVisual.island)}</div>
+                ${renderExplorationDestinationVisual(active.destinationId ? active : resolvedDestinationId, 'exploration-sequence-island', 'div')}
                 <div class="exploration-sequence-boss" data-exploration-boss-id="${escapeHtml(bossSprite.id || '')}" aria-hidden="true">
                     ${renderExplorationBossImage(bossSprite, 'exploration-sequence-boss-image', { decorative: true })}
                     <small>BOSS</small>
@@ -1942,7 +1986,7 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
                 <strong>${escapeHtml(destinationName)}</strong>
                 <span data-exploration-sequence-label>${escapeHtml(shipTrait.label)}</span>
             </div>
-            <button type="button" class="exploration-sequence-advance" data-exploration-sequence-advance hidden>タップで進む</button>
+            <div class="exploration-sequence-tap-hint" data-exploration-sequence-advance hidden>タップで進む</div>
         </div>
     `;
     document.body.appendChild(overlay);
@@ -1954,7 +1998,7 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
     const label = overlay.querySelector('[data-exploration-sequence-label]');
     const logBox = overlay.querySelector('.exploration-sequence-log');
     const battleAvatar = overlay.querySelector(`#${EXPLORATION_BATTLE_AVATAR_PREFIX}`);
-    const advanceButton = overlay.querySelector('[data-exploration-sequence-advance]');
+    const advanceHint = overlay.querySelector('[data-exploration-sequence-advance]');
     const setPhase = (phase, text) => {
         overlay.className = `exploration-sequence-overlay is-${form} ${shipTrait.className} is-sky-${destinationVisual.sky} is-boss-${bossTierKey} is-${phase} is-result-${bossResult}`;
         if (label) label.textContent = text;
@@ -1967,22 +2011,20 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
     };
     const waitForAdvance = async (minimumMs, text = 'タップで進む') => {
         await wait(minimumMs);
-        if (!overlay.isConnected || !advanceButton) return;
-        advanceButton.textContent = text;
-        advanceButton.hidden = false;
+        if (!overlay.isConnected || !advanceHint) return;
+        advanceHint.textContent = text;
+        advanceHint.hidden = false;
         overlay.classList.add('is-awaiting-tap');
         await new Promise((resolve) => {
             const done = (event) => {
                 event?.preventDefault?.();
                 event?.stopPropagation?.();
-                advanceButton.hidden = true;
+                advanceHint.hidden = true;
                 overlay.classList.remove('is-awaiting-tap');
                 overlay.removeEventListener('click', done);
-                advanceButton.removeEventListener('click', done);
                 resolve();
             };
             overlay.addEventListener('click', done);
-            advanceButton.addEventListener('click', done);
         });
     };
 
@@ -2038,12 +2080,11 @@ function renderExplorationPanel(data, playFabId) {
         </div>
     `;
     if (active) {
-        const activeVisual = getExplorationDestinationVisual(active.destinationId);
         panel.innerHTML = `
             ${head}
             <div class="ship-exploration-destination is-active">
                 <div class="ship-exploration-card-head">
-                    <span class="ship-exploration-mapmark" aria-hidden="true">${escapeHtml(activeVisual.island)}</span>
+                    ${renderExplorationDestinationVisual(active, 'ship-exploration-mapmark')}
                     <div class="ship-exploration-title-group">
                         <strong>${escapeHtml(active.destinationName || '探索中')}</strong>
                         <div class="ship-exploration-meta">出航船: ${escapeHtml(active.shipName || '')}</div>
@@ -2071,12 +2112,11 @@ function renderExplorationPanel(data, playFabId) {
     const destinationListHtml = renderExplorationDestinationList(allDestinations, availableDestinationIds);
     const destinationHtml = destinations.length
         ? destinations.map((destination) => {
-            const visual = getExplorationDestinationVisual(destination.id);
             const isDailyFreeDestination = destination?.dailyFreeEligible === true;
             return `
             <div class="ship-exploration-destination" data-exploration-destination-id="${escapeHtml(destination.id)}">
                 <div class="ship-exploration-card-head">
-                    <span class="ship-exploration-mapmark" aria-hidden="true">${escapeHtml(visual.island)}</span>
+                    ${renderExplorationDestinationVisual(destination, 'ship-exploration-mapmark')}
                     <div class="ship-exploration-title-group">
                         <strong>${escapeHtml(destination.name)}</strong>
                         <div class="ship-exploration-meta">${escapeHtml(destination.description || '')}</div>

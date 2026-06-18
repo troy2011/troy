@@ -1005,7 +1005,7 @@ function closeHomeExplorationPopup() {
     panel.classList.remove('is-popup');
     panel.removeAttribute('role');
     panel.removeAttribute('aria-modal');
-    document.body.classList.remove('modal-lock');
+    document.body.classList.remove('home-exploration-popup-open');
     if (homeExplorationPopupObserver) {
         homeExplorationPopupObserver.disconnect();
         homeExplorationPopupObserver = null;
@@ -1015,15 +1015,25 @@ function closeHomeExplorationPopup() {
 window.closeHomeExplorationPopup = closeHomeExplorationPopup;
 
 function ensureHomeExplorationPopupClose(panel) {
-    if (!panel || panel.querySelector('[data-home-exploration-close]')) return;
-    const closeButton = document.createElement('button');
-    closeButton.type = 'button';
-    closeButton.className = 'home-exploration-popup-close';
-    closeButton.setAttribute('aria-label', '閉じる');
-    closeButton.setAttribute('data-home-exploration-close', 'true');
-    closeButton.textContent = '×';
-    closeButton.addEventListener('click', closeHomeExplorationPopup);
-    panel.prepend(closeButton);
+    if (!panel) return;
+    let closeButton = panel.querySelector('[data-home-exploration-close]');
+    if (!closeButton) {
+        closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.className = 'home-exploration-popup-close';
+        closeButton.setAttribute('aria-label', '閉じる');
+        closeButton.setAttribute('data-home-exploration-close', 'true');
+        closeButton.addEventListener('click', closeHomeExplorationPopup);
+    }
+    closeButton.textContent = '';
+    const head = panel.querySelector('.ship-exploration-head');
+    if (head) {
+        head.append(closeButton);
+    } else if (closeButton.parentElement !== panel) {
+        panel.prepend(closeButton);
+    } else if (panel.firstElementChild !== closeButton) {
+        panel.prepend(closeButton);
+    }
 }
 
 async function openHomeExplorationPopup() {
@@ -1032,8 +1042,8 @@ async function openHomeExplorationPopup() {
     panel.hidden = false;
     panel.classList.add('is-popup');
     panel.setAttribute('role', 'dialog');
-    panel.setAttribute('aria-modal', 'true');
-    document.body.classList.add('modal-lock');
+    panel.removeAttribute('aria-modal');
+    document.body.classList.add('home-exploration-popup-open');
     panel.innerHTML = '<div class="ship-exploration-empty">探索情報を読み込み中です。</div>';
     ensureHomeExplorationPopupClose(panel);
     if (!homeExplorationPopupObserver) {

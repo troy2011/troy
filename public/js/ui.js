@@ -1190,6 +1190,14 @@ export async function showTab(tabId, playerInfo, options = {}) {
     const currentActiveTab = document.querySelector('.nav-button.active');
     const currentTabId = document.body?.dataset.currentTab || null;
     const mapLoadLabel = null;
+    const homeExplorationPanel = document.getElementById('shipExplorationPanel');
+    if (tabId !== 'home'
+        && homeExplorationPanel
+        && !homeExplorationPanel.hidden
+        && homeExplorationPanel.classList.contains('is-popup')
+        && typeof window.closeHomeExplorationPopup === 'function') {
+        window.closeHomeExplorationPopup();
+    }
 
     const mapSelectOptions = {
         skipMapSelect: !!options.skipMapSelect,
