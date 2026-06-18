@@ -1,5 +1,4 @@
 const DECORATED_PANEL_CONFIG = new Map([
-    ['banner-plaque-gold.png', { cols: 5, rows: 3 }],
     ['panel-blue-gold.png', {}],
     ['panel-blue-large.png', {}],
     ['panel-dark.png', {}],
@@ -64,7 +63,7 @@ function getFileName(url) {
 
 function isPanelSlice25Target(element, style) {
     if (!(element instanceof Element)) return false;
-    if (element.dataset.panelSlice === '25' || element.dataset.panelSlice === '15') return true;
+    if (element.dataset.panelSlice === '25') return true;
     if (element.dataset.panelSlice === 'off') return false;
     if (element.matches(AUTO_SKIP_SELECTOR)) return false;
     const source = extractCssUrl(style.borderImageSource);
@@ -154,19 +153,6 @@ function makeCuts(total, start, end, center) {
     return [0, safeStart, centerStart, centerEnd, size - safeEnd, size];
 }
 
-function makeThreeCuts(total, start, end) {
-    const size = Math.max(0, total);
-    const safeStart = Math.min(Math.max(0, start), size / 2);
-    const safeEnd = Math.min(Math.max(0, end), Math.max(0, size - safeStart));
-    return [0, safeStart, size - safeEnd, size];
-}
-
-function makeAxisCuts(total, start, end, center, segments) {
-    return segments === 3
-        ? makeThreeCuts(total, start, end)
-        : makeCuts(total, start, end, center);
-}
-
 function getScale(a, b) {
     if (!Number.isFinite(a) || !Number.isFinite(b) || b <= 0) return 1;
     return a / b;
@@ -175,29 +161,6 @@ function getScale(a, b) {
 function getConfigForSource(url) {
     const fileName = getFileName(url);
     return DECORATED_PANEL_CONFIG.get(fileName) || {};
-}
-
-function getConfigForElement(element, sourceUrl) {
-    const base = getConfigForSource(sourceUrl);
-    const explicit = {};
-    if (element?.dataset?.panelSlice === '15') {
-        explicit.cols = 5;
-        explicit.rows = 3;
-    }
-    if (element?.dataset?.panelSlice === '25') {
-        explicit.cols = 5;
-        explicit.rows = 5;
-    }
-    const cols = Number(element?.dataset?.panelSliceCols);
-    const rows = Number(element?.dataset?.panelSliceRows);
-    if (Number.isFinite(cols) && cols >= 3) explicit.cols = cols;
-    if (Number.isFinite(rows) && rows >= 3) explicit.rows = rows;
-    return { ...base, ...explicit };
-}
-
-function normalizeSliceSegments(value, fallback) {
-    const count = Math.floor(Number(value) || fallback);
-    return count === 3 ? 3 : 5;
 }
 
 function captureRenderOptions(style) {
@@ -255,9 +218,7 @@ function buildFill(layer, sourceUrl, naturalWidth, naturalHeight, sourceRect, de
 
 function renderPanelSlice25(element, image, sourceUrl, style, options = captureRenderOptions(style)) {
     const rect = element.getBoundingClientRect();
-    const config = getConfigForElement(element, sourceUrl);
-    const cols = normalizeSliceSegments(config.cols, 5);
-    const rows = normalizeSliceSegments(config.rows, 5);
+    const config = getConfigForSource(sourceUrl);
     const fallbackSlice = Math.round(Math.min(image.naturalWidth, image.naturalHeight) * 0.12);
     const sourceSlices = parseBorderImageSlice(options.sliceText, fallbackSlice);
     const borderWidths = parseBorderWidths(style, options.widthText);
@@ -272,21 +233,21 @@ function renderPanelSlice25(element, image, sourceUrl, style, options = captureR
     ));
     if (width <= 0 || height <= 0) return;
 
-    const centerSourceWidth = cols === 5 ? getCenterSize(image.naturalWidth, 'x', element.dataset.panelSliceCenterX || config.centerX) : 0;
-    const centerSourceHeight = rows === 5 ? getCenterSize(image.naturalHeight, 'y', element.dataset.panelSliceCenterY || config.centerY) : 0;
-    const centerDestWidth = cols === 5 ? centerSourceWidth * Math.min(
+    const centerSourceWidth = getCenterSize(image.naturalWidth, 'x', element.dataset.panelSliceCenterX || config.centerX);
+    const centerSourceHeight = getCenterSize(image.naturalHeight, 'y', element.dataset.panelSliceCenterY || config.centerY);
+    const centerDestWidth = centerSourceWidth * Math.min(
         getScale(borderWidths.left, sourceSlices.left),
         getScale(borderWidths.right, sourceSlices.right)
-    ) : 0;
-    const centerDestHeight = rows === 5 ? centerSourceHeight * Math.min(
+    );
+    const centerDestHeight = centerSourceHeight * Math.min(
         getScale(borderWidths.top, sourceSlices.top),
         getScale(borderWidths.bottom, sourceSlices.bottom)
-    ) : 0;
+    );
 
-    const sourceX = makeAxisCuts(image.naturalWidth, sourceSlices.left, sourceSlices.right, centerSourceWidth, cols);
-    const sourceY = makeAxisCuts(image.naturalHeight, sourceSlices.top, sourceSlices.bottom, centerSourceHeight, rows);
-    const destX = makeAxisCuts(width, borderWidths.left, borderWidths.right, centerDestWidth, cols);
-    const destY = makeAxisCuts(height, borderWidths.top, borderWidths.bottom, centerDestHeight, rows);
+    const sourceX = makeCuts(image.naturalWidth, sourceSlices.left, sourceSlices.right, centerSourceWidth);
+    const sourceY = makeCuts(image.naturalHeight, sourceSlices.top, sourceSlices.bottom, centerSourceHeight);
+    const destX = makeCuts(width, borderWidths.left, borderWidths.right, centerDestWidth);
+    const destY = makeCuts(height, borderWidths.top, borderWidths.bottom, centerDestHeight);
 
     element.style.setProperty('--panel-slice-25-border-top', `${borderWidths.top}px`);
     element.style.setProperty('--panel-slice-25-border-right', `${borderWidths.right}px`);
@@ -303,20 +264,19 @@ function renderPanelSlice25(element, image, sourceUrl, style, options = captureR
     }
     layer.textContent = '';
     layer.dataset.source = getFileName(sourceUrl);
-    layer.dataset.sliceGrid = `${cols}x${rows}`;
 
     buildFill(
         layer,
         sourceUrl,
         image.naturalWidth,
         image.naturalHeight,
-        [sourceX[1], sourceY[1], sourceX[cols - 1] - sourceX[1], sourceY[rows - 1] - sourceY[1]],
-        [destX[1], destY[1], destX[cols - 1] - destX[1], destY[rows - 1] - destY[1]]
+        [sourceX[1], sourceY[1], sourceX[4] - sourceX[1], sourceY[4] - sourceY[1]],
+        [destX[1], destY[1], destX[4] - destX[1], destY[4] - destY[1]]
     );
 
-    for (let row = 0; row < rows; row += 1) {
-        for (let col = 0; col < cols; col += 1) {
-            const isInnerFillArea = row > 0 && row < rows - 1 && col > 0 && col < cols - 1;
+    for (let row = 0; row < 5; row += 1) {
+        for (let col = 0; col < 5; col += 1) {
+            const isInnerFillArea = row > 0 && row < 4 && col > 0 && col < 4;
             buildCell(
                 layer,
                 isInnerFillArea ? '' : sourceUrl,
