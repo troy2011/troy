@@ -21397,12 +21397,18 @@ body[data-sea-tone] .home-hero-card {
         var(--inventory-panel-bg);
 }
 
-#tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .avatar-card.inventory-section,
 #tabContentInventory[data-inventory-panel="tarot"] .inventory-section.active[data-panel="tarot"] {
     position: sticky;
     top: calc(var(--inventory-sticky-top) + var(--inventory-switch-sticky-height) + 6px);
     z-index: 70;
     box-shadow: 0 14px 24px rgba(0, 0, 0, 0.34);
+}
+
+#tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .avatar-card.inventory-section {
+    position: static;
+    top: auto;
+    z-index: auto;
+    box-shadow: none;
 }
 
 #tabContentInventory .avatar-card.inventory-section::before,
@@ -21437,6 +21443,12 @@ body[data-sea-tone] .home-hero-card {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 8px;
+}
+
+#tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .inventory-section[data-panel="items"] > .section-header,
+#tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] #inventoryListSummary,
+#tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] #inventoryTabHint {
+    display: none;
 }
 
 #avatarStyleModal .avatar-style-sheet {
@@ -21781,6 +21793,10 @@ body[data-sea-tone] .home-hero-card {
     background:
         radial-gradient(circle at 50% 18%, rgba(255, 224, 142, 0.1), transparent 48%),
         linear-gradient(180deg, rgba(10, 14, 19, 0.8), rgba(3, 4, 6, 0.94));
+}
+
+#tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .inventory-item-cell {
+    scroll-margin-top: calc(var(--inventory-sticky-top) + var(--inventory-switch-sticky-height) + 18px);
 }
 
 #tabContentInventory .inventory-item-cell.is-equipped {

@@ -4172,11 +4172,20 @@ test('equipment cards open detail before equipping from inventory grid', async (
     inventory.switchInventoryTab('Weapon');
   });
 
-  const equipmentSticky = await page.evaluate(() => ({
+  const equipmentLayout = await page.evaluate(() => ({
     switcher: window.getComputedStyle(document.getElementById('inventoryMobileSwitch')).position,
-    loadout: window.getComputedStyle(document.querySelector('#tabContentInventory .avatar-card.inventory-section')).position
+    loadout: window.getComputedStyle(document.querySelector('#tabContentInventory .avatar-card.inventory-section')).position,
+    sectionHeader: window.getComputedStyle(document.querySelector('#tabContentInventory .inventory-section[data-panel="items"] > .section-header')).display,
+    summary: window.getComputedStyle(document.getElementById('inventoryListSummary')).display,
+    hint: window.getComputedStyle(document.getElementById('inventoryTabHint')).display
   }));
-  expect(equipmentSticky).toEqual({ switcher: 'sticky', loadout: 'sticky' });
+  expect(equipmentLayout).toEqual({
+    switcher: 'sticky',
+    loadout: 'static',
+    sectionHeader: 'none',
+    summary: 'none',
+    hint: 'none'
+  });
 
   await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"] .inventory-item-stat-badge')).toHaveText('12');
   await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"] .inventory-item-quick-action')).toHaveCount(0);
