@@ -3349,6 +3349,7 @@ test('current equipment slots render equipped item sprites on the right edge', a
 
 test('inventory current equipment resolves object equipment references', async ({ page }) => {
   const errors = trackPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
   const equipmentItems = [
     {
       itemId: 'sword_001',
@@ -3422,6 +3423,29 @@ test('inventory current equipment resolves object equipment references', async (
   await expect(page.locator('#equippedLeftHand')).toHaveText('Object Ref Shield');
   await expect(page.locator('#equippedRightHandArt.has-item .equip-slot-item-sprite')).toHaveCount(1);
   await expect(page.locator('#equippedLeftHandArt.has-item .equip-slot-item-sprite')).toHaveCount(1);
+  const equippedArtMetrics = await page.locator('#equippedRightHandArt').evaluate((art) => {
+    const sprite = art.querySelector('.equip-slot-item-sprite');
+    const artRect = art.getBoundingClientRect();
+    const spriteRect = sprite?.getBoundingClientRect();
+    const artStyle = window.getComputedStyle(art);
+    const spriteStyle = sprite ? window.getComputedStyle(sprite) : null;
+    return {
+      artDisplay: artStyle.display,
+      artOpacity: artStyle.opacity,
+      artWidth: Math.round(artRect.width),
+      artHeight: Math.round(artRect.height),
+      spriteWidth: Math.round(spriteRect?.width || 0),
+      spriteHeight: Math.round(spriteRect?.height || 0),
+      spriteBackground: spriteStyle?.backgroundImage || ''
+    };
+  });
+  expect(equippedArtMetrics.artDisplay).not.toBe('none');
+  expect(equippedArtMetrics.artOpacity).toBe('1');
+  expect(equippedArtMetrics.artWidth).toBeGreaterThanOrEqual(34);
+  expect(equippedArtMetrics.artHeight).toBeGreaterThanOrEqual(34);
+  expect(equippedArtMetrics.spriteWidth).toBeGreaterThan(0);
+  expect(equippedArtMetrics.spriteHeight).toBeGreaterThan(0);
+  expect(equippedArtMetrics.spriteBackground).not.toBe('none');
   await page.evaluate(async () => {
     const inventory = await import('/js/inventory.js');
     inventory.switchInventoryTab('Weapon');
