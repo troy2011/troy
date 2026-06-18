@@ -1,0 +1,608 @@
+[
+    {
+        "id":  "near_sea_drift_crate",
+        "displayName":  "近海の漂流箱",
+        "file":  "./Sprites/exploration_destinations/near_sea_drift_crate.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  28,
+                             "y":  79,
+                             "w":  225,
+                             "h":  163
+                         },
+        "sourceRect":  {
+                           "x":  40,
+                           "y":  91,
+                           "w":  201,
+                           "h":  139
+                       },
+        "width":  225,
+        "height":  163,
+        "destinationId":  "near_sea"
+    },
+    {
+        "id":  "coral_passage_reef",
+        "displayName":  "珊瑚礁の抜け道",
+        "file":  "./Sprites/exploration_destinations/coral_passage_reef.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  272,
+                             "y":  50,
+                             "w":  238,
+                             "h":  196
+                         },
+        "sourceRect":  {
+                           "x":  284,
+                           "y":  62,
+                           "w":  214,
+                           "h":  172
+                       },
+        "width":  238,
+        "height":  196,
+        "destinationId":  "coral_passage"
+    },
+    {
+        "id":  "old_lighthouse_ruins",
+        "displayName":  "古代灯台跡",
+        "file":  "./Sprites/exploration_destinations/old_lighthouse_ruins.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  528,
+                             "y":  24,
+                             "w":  198,
+                             "h":  236
+                         },
+        "sourceRect":  {
+                           "x":  540,
+                           "y":  36,
+                           "w":  174,
+                           "h":  212
+                       },
+        "width":  198,
+        "height":  236,
+        "destinationId":  "old_lighthouse"
+    },
+    {
+        "id":  "sunken_trader_wreck",
+        "displayName":  "沈没商船",
+        "file":  "./Sprites/exploration_destinations/sunken_trader_wreck.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  741,
+                             "y":  44,
+                             "w":  229,
+                             "h":  206
+                         },
+        "sourceRect":  {
+                           "x":  753,
+                           "y":  56,
+                           "w":  205,
+                           "h":  182
+                       },
+        "width":  229,
+        "height":  206,
+        "destinationId":  "sunken_trader"
+    },
+    {
+        "id":  "pirate_cove_hideout",
+        "displayName":  "海賊の隠れ家",
+        "file":  "./Sprites/exploration_destinations/pirate_cove_hideout.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  982,
+                             "y":  21,
+                             "w":  223,
+                             "h":  228
+                         },
+        "sourceRect":  {
+                           "x":  994,
+                           "y":  33,
+                           "w":  199,
+                           "h":  204
+                       },
+        "width":  223,
+        "height":  228,
+        "destinationId":  "pirate_cove"
+    },
+    {
+        "id":  "deep_maelstrom_whirlpool",
+        "displayName":  "深海の渦",
+        "file":  "./Sprites/exploration_destinations/deep_maelstrom_whirlpool.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  1210,
+                             "y":  88,
+                             "w":  229,
+                             "h":  159
+                         },
+        "sourceRect":  {
+                           "x":  1222,
+                           "y":  100,
+                           "w":  205,
+                           "h":  135
+                       },
+        "width":  229,
+        "height":  159,
+        "destinationId":  "deep_maelstrom"
+    },
+    {
+        "id":  "palm_islet",
+        "displayName":  "椰子の小島",
+        "file":  "./Sprites/exploration_destinations/palm_islet.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  28,
+                             "y":  254,
+                             "w":  227,
+                             "h":  199
+                         },
+        "sourceRect":  {
+                           "x":  40,
+                           "y":  266,
+                           "w":  203,
+                           "h":  175
+                       },
+        "width":  227,
+        "height":  199
+    },
+    {
+        "id":  "misty_rocks",
+        "displayName":  "霧の岩礁",
+        "file":  "./Sprites/exploration_destinations/misty_rocks.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  267,
+                             "y":  279,
+                             "w":  234,
+                             "h":  171
+                         },
+        "sourceRect":  {
+                           "x":  279,
+                           "y":  291,
+                           "w":  210,
+                           "h":  147
+                       },
+        "width":  234,
+        "height":  171
+    },
+    {
+        "id":  "jagged_rocks",
+        "displayName":  "尖り岩の海域",
+        "file":  "./Sprites/exploration_destinations/jagged_rocks.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  505,
+                             "y":  269,
+                             "w":  226,
+                             "h":  181
+                         },
+        "sourceRect":  {
+                           "x":  517,
+                           "y":  281,
+                           "w":  202,
+                           "h":  157
+                       },
+        "width":  226,
+        "height":  181
+    },
+    {
+        "id":  "ship_graveyard",
+        "displayName":  "船の墓場",
+        "file":  "./Sprites/exploration_destinations/ship_graveyard.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  734,
+                             "y":  252,
+                             "w":  227,
+                             "h":  199
+                         },
+        "sourceRect":  {
+                           "x":  746,
+                           "y":  264,
+                           "w":  203,
+                           "h":  175
+                       },
+        "width":  227,
+        "height":  199
+    },
+    {
+        "id":  "hidden_lagoon",
+        "displayName":  "隠れ入り江",
+        "file":  "./Sprites/exploration_destinations/hidden_lagoon.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  963,
+                             "y":  259,
+                             "w":  252,
+                             "h":  191
+                         },
+        "sourceRect":  {
+                           "x":  975,
+                           "y":  271,
+                           "w":  228,
+                           "h":  167
+                       },
+        "width":  252,
+        "height":  191
+    },
+    {
+        "id":  "watchtower_island",
+        "displayName":  "見張り塔の島",
+        "file":  "./Sprites/exploration_destinations/watchtower_island.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  1212,
+                             "y":  247,
+                             "w":  209,
+                             "h":  212
+                         },
+        "sourceRect":  {
+                           "x":  1224,
+                           "y":  259,
+                           "w":  185,
+                           "h":  188
+                       },
+        "width":  209,
+        "height":  212
+    },
+    {
+        "id":  "kraken_tentacles",
+        "displayName":  "クラーケンの海",
+        "file":  "./Sprites/exploration_destinations/kraken_tentacles.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  26,
+                             "y":  463,
+                             "w":  230,
+                             "h":  185
+                         },
+        "sourceRect":  {
+                           "x":  38,
+                           "y":  475,
+                           "w":  206,
+                           "h":  161
+                       },
+        "width":  230,
+        "height":  185
+    },
+    {
+        "id":  "cross_current",
+        "displayName":  "交差海流",
+        "file":  "./Sprites/exploration_destinations/cross_current.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  272,
+                             "y":  479,
+                             "w":  217,
+                             "h":  163
+                         },
+        "sourceRect":  {
+                           "x":  284,
+                           "y":  491,
+                           "w":  193,
+                           "h":  139
+                       },
+        "width":  217,
+        "height":  163
+    },
+    {
+        "id":  "ancient_sea_gate",
+        "displayName":  "古代海門",
+        "file":  "./Sprites/exploration_destinations/ancient_sea_gate.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  498,
+                             "y":  448,
+                             "w":  238,
+                             "h":  207
+                         },
+        "sourceRect":  {
+                           "x":  510,
+                           "y":  460,
+                           "w":  214,
+                           "h":  183
+                       },
+        "width":  238,
+        "height":  207
+    },
+    {
+        "id":  "volcanic_island",
+        "displayName":  "火山島",
+        "file":  "./Sprites/exploration_destinations/volcanic_island.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  739,
+                             "y":  443,
+                             "w":  222,
+                             "h":  214
+                         },
+        "sourceRect":  {
+                           "x":  751,
+                           "y":  455,
+                           "w":  198,
+                           "h":  190
+                       },
+        "width":  222,
+        "height":  214
+    },
+    {
+        "id":  "shark_fin",
+        "displayName":  "鮫の背びれ",
+        "file":  "./Sprites/exploration_destinations/shark_fin.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  967,
+                             "y":  482,
+                             "w":  224,
+                             "h":  166
+                         },
+        "sourceRect":  {
+                           "x":  979,
+                           "y":  494,
+                           "w":  200,
+                           "h":  142
+                       },
+        "width":  224,
+        "height":  166
+    },
+    {
+        "id":  "sea_fortress",
+        "displayName":  "海上要塞",
+        "file":  "./Sprites/exploration_destinations/sea_fortress.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  1199,
+                             "y":  469,
+                             "w":  226,
+                             "h":  182
+                         },
+        "sourceRect":  {
+                           "x":  1211,
+                           "y":  481,
+                           "w":  202,
+                           "h":  158
+                       },
+        "width":  226,
+        "height":  182
+    },
+    {
+        "id":  "ruined_harbor",
+        "displayName":  "廃港",
+        "file":  "./Sprites/exploration_destinations/ruined_harbor.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  21,
+                             "y":  669,
+                             "w":  235,
+                             "h":  171
+                         },
+        "sourceRect":  {
+                           "x":  33,
+                           "y":  681,
+                           "w":  211,
+                           "h":  147
+                       },
+        "width":  235,
+        "height":  171
+    },
+    {
+        "id":  "haunted_marsh",
+        "displayName":  "呪われた沼海",
+        "file":  "./Sprites/exploration_destinations/haunted_marsh.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  264,
+                             "y":  660,
+                             "w":  223,
+                             "h":  173
+                         },
+        "sourceRect":  {
+                           "x":  276,
+                           "y":  672,
+                           "w":  199,
+                           "h":  149
+                       },
+        "width":  223,
+        "height":  173
+    },
+    {
+        "id":  "reef_islets",
+        "displayName":  "岩礁の小島群",
+        "file":  "./Sprites/exploration_destinations/reef_islets.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  495,
+                             "y":  673,
+                             "w":  240,
+                             "h":  170
+                         },
+        "sourceRect":  {
+                           "x":  507,
+                           "y":  685,
+                           "w":  216,
+                           "h":  146
+                       },
+        "width":  240,
+        "height":  170
+    },
+    {
+        "id":  "whitewater_rocks",
+        "displayName":  "白波の岩場",
+        "file":  "./Sprites/exploration_destinations/whitewater_rocks.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  738,
+                             "y":  671,
+                             "w":  223,
+                             "h":  169
+                         },
+        "sourceRect":  {
+                           "x":  750,
+                           "y":  683,
+                           "w":  199,
+                           "h":  145
+                       },
+        "width":  223,
+        "height":  169
+    },
+    {
+        "id":  "coral_lagoon",
+        "displayName":  "珊瑚の潟",
+        "file":  "./Sprites/exploration_destinations/coral_lagoon.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  964,
+                             "y":  662,
+                             "w":  235,
+                             "h":  177
+                         },
+        "sourceRect":  {
+                           "x":  976,
+                           "y":  674,
+                           "w":  211,
+                           "h":  153
+                       },
+        "width":  235,
+        "height":  177
+    },
+    {
+        "id":  "fog_lighthouse",
+        "displayName":  "霧灯台",
+        "file":  "./Sprites/exploration_destinations/fog_lighthouse.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  1206,
+                             "y":  655,
+                             "w":  215,
+                             "h":  192
+                         },
+        "sourceRect":  {
+                           "x":  1218,
+                           "y":  667,
+                           "w":  191,
+                           "h":  168
+                       },
+        "width":  215,
+        "height":  192
+    },
+    {
+        "id":  "treasure_cave",
+        "displayName":  "宝洞窟",
+        "file":  "./Sprites/exploration_destinations/treasure_cave.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  23,
+                             "y":  836,
+                             "w":  232,
+                             "h":  206
+                         },
+        "sourceRect":  {
+                           "x":  35,
+                           "y":  848,
+                           "w":  208,
+                           "h":  182
+                       },
+        "width":  232,
+        "height":  206
+    },
+    {
+        "id":  "whale_tail",
+        "displayName":  "鯨の海域",
+        "file":  "./Sprites/exploration_destinations/whale_tail.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  258,
+                             "y":  862,
+                             "w":  233,
+                             "h":  178
+                         },
+        "sourceRect":  {
+                           "x":  270,
+                           "y":  874,
+                           "w":  209,
+                           "h":  154
+                       },
+        "width":  233,
+        "height":  178
+    },
+    {
+        "id":  "stone_plateau",
+        "displayName":  "石畳の浅瀬",
+        "file":  "./Sprites/exploration_destinations/stone_plateau.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  493,
+                             "y":  877,
+                             "w":  243,
+                             "h":  161
+                         },
+        "sourceRect":  {
+                           "x":  505,
+                           "y":  889,
+                           "w":  219,
+                           "h":  137
+                       },
+        "width":  243,
+        "height":  161
+    },
+    {
+        "id":  "bubble_vents",
+        "displayName":  "泡立つ海底孔",
+        "file":  "./Sprites/exploration_destinations/bubble_vents.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  739,
+                             "y":  857,
+                             "w":  214,
+                             "h":  182
+                         },
+        "sourceRect":  {
+                           "x":  751,
+                           "y":  869,
+                           "w":  190,
+                           "h":  158
+                       },
+        "width":  214,
+        "height":  182
+    },
+    {
+        "id":  "twin_sea_stacks",
+        "displayName":  "双岩柱",
+        "file":  "./Sprites/exploration_destinations/twin_sea_stacks.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  964,
+                             "y":  855,
+                             "w":  235,
+                             "h":  192
+                         },
+        "sourceRect":  {
+                           "x":  976,
+                           "y":  867,
+                           "w":  211,
+                           "h":  168
+                       },
+        "width":  235,
+        "height":  192
+    },
+    {
+        "id":  "glowing_grotto",
+        "displayName":  "青光りの洞窟",
+        "file":  "./Sprites/exploration_destinations/glowing_grotto.png",
+        "source":  "./assets/ui/map_icons_alpha.png",
+        "sourceRegion":  {
+                             "x":  1202,
+                             "y":  881,
+                             "w":  229,
+                             "h":  164
+                         },
+        "sourceRect":  {
+                           "x":  1214,
+                           "y":  893,
+                           "w":  205,
+                           "h":  140
+                       },
+        "width":  229,
+        "height":  164
+    }
+]
