@@ -500,24 +500,11 @@ export function preloadAvatarBaseSprites(avatarBase) {
 
 export function preloadEquipmentSprites(equipment, itemSource, avatarColor = null) {
     if (!equipment) return;
-    const getItemDetails = (id) => {
-        if (!id) return null;
-        if (typeof id === 'object' && id.customData) return id;
-        if (Array.isArray(itemSource)) {
-            return itemSource.find(i =>
-                (i.instances && i.instances.includes(id)) || i.itemId === id
-            );
-        }
-        if (itemSource && typeof itemSource === 'object') {
-            return itemSource[id];
-        }
-        return null;
-    };
     const items = [
-        getItemDetails(equipment.RightHand),
-        getItemDetails(equipment.LeftHand),
-        getItemDetails(equipment.Armor),
-        getItemDetails(equipment.Accessory)
+        getAvatarEquipmentItemDetails(equipment.RightHand, itemSource),
+        getAvatarEquipmentItemDetails(equipment.LeftHand, itemSource),
+        getAvatarEquipmentItemDetails(equipment.Armor, itemSource),
+        getAvatarEquipmentItemDetails(equipment.Accessory, itemSource)
     ].filter(Boolean);
     items.forEach((item) => {
         const spriteMeta = getAvatarItemSpriteMeta(item);
@@ -527,6 +514,72 @@ export function preloadEquipmentSprites(equipment, itemSource, avatarColor = nul
         if (resolvedPath) loadSpriteImage(resolvedPath);
         if (path && resolvedPath && path !== resolvedPath) loadSpriteImage(path);
     });
+}
+
+function getAvatarEquipmentReferenceIds(value) {
+    if (!value) return [];
+    if (typeof value !== 'object') {
+        const id = String(value || '').trim();
+        return id ? [id] : [];
+    }
+    const refs = [
+        value.itemId,
+        value.ItemId,
+        value.id,
+        value.Id,
+        value.instanceId,
+        value.InstanceId,
+        value.instanceID,
+        value.InstanceID,
+        value.itemInstanceId,
+        value.ItemInstanceId,
+        value.ItemInstanceID,
+        value?.Item?.Id,
+        value?.Item?.itemId
+    ];
+    return refs
+        .map((ref) => String(ref || '').trim())
+        .filter(Boolean);
+}
+
+function getAvatarInventoryItemReferenceIds(item) {
+    const refs = [
+        item?.itemId,
+        item?.ItemId,
+        item?.id,
+        item?.Id,
+        ...(Array.isArray(item?.instances) ? item.instances : []),
+        item?.instanceId,
+        item?.InstanceId,
+        item?.itemInstanceId,
+        item?.ItemInstanceId
+    ];
+    return refs
+        .map((ref) => String(ref || '').trim())
+        .filter(Boolean);
+}
+
+function getAvatarEquipmentItemDetails(reference, itemSource) {
+    if (!reference) return null;
+    if (typeof reference === 'object' && reference.customData) return reference;
+    const referenceIds = getAvatarEquipmentReferenceIds(reference);
+    if (!referenceIds.length) return null;
+    if (Array.isArray(itemSource)) {
+        return itemSource.find((item) => {
+            const itemRefs = getAvatarInventoryItemReferenceIds(item);
+            return referenceIds.some((referenceId) => itemRefs.includes(referenceId));
+        }) || null;
+    }
+    if (itemSource && typeof itemSource === 'object') {
+        for (const referenceId of referenceIds) {
+            if (itemSource[referenceId]) return itemSource[referenceId];
+        }
+        return Object.values(itemSource).find((item) => {
+            const itemRefs = getAvatarInventoryItemReferenceIds(item);
+            return referenceIds.some((referenceId) => itemRefs.includes(referenceId));
+        }) || null;
+    }
+    return null;
 }
 
 const homeAvatarTimers = new Map();
@@ -624,19 +677,7 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
         : (window.myAvatarBaseInfo?.AvatarColor || null);
     const equipmentMap = equipment || {};
 
-    // 装備と手の位置判定に使うアイテム詳細ヘルパー
-    const getItemDetails = (id) => {
-        if (!id) return null;
-        if (typeof id === 'object' && id.customData) return id;
-        if (Array.isArray(itemSource)) {
-            return itemSource.find(i =>
-                (i.instances && i.instances.includes(id)) || i.itemId === id
-            );
-        }
-        return itemSource?.[id] || null;
-    };
-
-    const rightHandItem = getItemDetails(equipmentMap.RightHand);
+    const rightHandItem = getAvatarEquipmentItemDetails(equipmentMap.RightHand, itemSource);
     const isTwoHanded = isTwoHandedAvatarWeapon(rightHandItem);
 
     // 1. 素体の描画
@@ -663,9 +704,9 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
     }
 
     // 2. 装備品の描画
-    const leftHandItem = isTwoHanded ? null : getItemDetails(equipmentMap.LeftHand);
-    const armorItem = getItemDetails(equipmentMap.Armor);
-    const accessoryItem = getItemDetails(equipmentMap.Accessory);
+    const leftHandItem = isTwoHanded ? null : getAvatarEquipmentItemDetails(equipmentMap.LeftHand, itemSource);
+    const armorItem = getAvatarEquipmentItemDetails(equipmentMap.Armor, itemSource);
+    const accessoryItem = getAvatarEquipmentItemDetails(equipmentMap.Accessory, itemSource);
 
     // Opponent facing is handled by flipping the whole avatar container.
     // Keep equipment on its original hand, otherwise the flip is applied twice.

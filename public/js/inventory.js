@@ -438,10 +438,57 @@ export function bindEquipmentSlotInteractions() {
 function getInventoryItemByReference(itemRef) {
     if (!itemRef) return null;
     if (itemRef && typeof itemRef === 'object' && itemRef.customData) return itemRef;
+    const referenceIds = getEquipmentReferenceIds(itemRef);
+    if (!referenceIds.length) return null;
     const displayInventory = getDisplayInventoryEntries();
-    return displayInventory.find((inventoryItem) => inventoryItem.instances?.includes(itemRef))
-        || displayInventory.find((inventoryItem) => inventoryItem.itemId === itemRef)
+    return displayInventory.find((inventoryItem) => {
+        const itemIds = getInventoryItemReferenceIds(inventoryItem);
+        return referenceIds.some((referenceId) => itemIds.includes(referenceId));
+    })
         || null;
+}
+
+function getEquipmentReferenceIds(value) {
+    if (!value) return [];
+    if (typeof value !== 'object') {
+        const id = String(value || '').trim();
+        return id ? [id] : [];
+    }
+    const refs = [
+        value.itemId,
+        value.ItemId,
+        value.id,
+        value.Id,
+        value.instanceId,
+        value.InstanceId,
+        value.instanceID,
+        value.InstanceID,
+        value.itemInstanceId,
+        value.ItemInstanceId,
+        value.ItemInstanceID,
+        value?.Item?.Id,
+        value?.Item?.itemId
+    ];
+    return refs
+        .map((ref) => String(ref || '').trim())
+        .filter(Boolean);
+}
+
+function getInventoryItemReferenceIds(item) {
+    const refs = [
+        item?.itemId,
+        item?.ItemId,
+        item?.id,
+        item?.Id,
+        ...(Array.isArray(item?.instances) ? item.instances : []),
+        item?.instanceId,
+        item?.InstanceId,
+        item?.itemInstanceId,
+        item?.ItemInstanceId
+    ];
+    return refs
+        .map((ref) => String(ref || '').trim())
+        .filter(Boolean);
 }
 
 function getTarotDeckCardNumberValue(item) {
@@ -893,9 +940,9 @@ function isInventoryEquipmentCategory(category) {
 
 function isEquipmentReferenceMatch(item, equippedValue) {
     if (!item || !equippedValue) return false;
-    const instanceId = item.instances?.[0];
-    const itemId = item.itemId;
-    return Boolean((instanceId && equippedValue === instanceId) || (itemId && equippedValue === itemId));
+    const itemRefs = getInventoryItemReferenceIds(item);
+    const equippedRefs = getEquipmentReferenceIds(equippedValue);
+    return equippedRefs.some((equippedRef) => itemRefs.includes(equippedRef));
 }
 
 function getItemEffectSummary(effect) {
@@ -2346,10 +2393,7 @@ function getEquipmentBonuses() {
     const equippedIds = Object.values(myCurrentEquipment || {}).filter(Boolean);
 
     equippedIds.forEach((entry) => {
-        const item = (entry && typeof entry === 'object' && entry.customData)
-            ? entry
-            : myInventory.find(i => i.instances && i.instances.includes(entry))
-                || myInventory.find(i => i.itemId === entry);
+        const item = getInventoryItemByReference(entry);
         if (!item || !item.customData) return;
         const cd = item.customData;
 

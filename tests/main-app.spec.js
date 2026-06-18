@@ -3356,6 +3356,94 @@ test('current equipment slots render equipped item sprites on the right edge', a
   await expectNoPageErrors(errors);
 });
 
+test('inventory current equipment resolves object equipment references', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const equipmentItems = [
+    {
+      itemId: 'sword_001',
+      instances: ['sword-instance-1'],
+      name: 'Object Ref Sword',
+      customData: {
+        Category: 'Weapon',
+        Power: 12,
+        sprite_path: './Sprites/weapons/melee weapons/sword.png',
+        sprite_index: '1',
+        sprite_w: '32',
+        sprite_h: '32'
+      }
+    },
+    {
+      itemId: 'shield_001',
+      instances: ['shield-instance-1'],
+      name: 'Object Ref Shield',
+      customData: {
+        Category: 'Shield',
+        Defense: 8,
+        sprite_path: './Sprites/weapons/melee weapons/shield.png',
+        sprite_index: '2',
+        sprite_w: '32',
+        sprite_h: '32'
+      }
+    }
+  ];
+
+  await page.route('**/api/get-inventory', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        inventory: equipmentItems,
+        virtualCurrency: { PS: 0 },
+        contribution: 0
+      })
+    });
+  });
+  await page.route('**/api/get-equipment', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        equipment: {
+          RightHand: { itemId: 'sword_001' },
+          LeftHand: { ItemInstanceId: 'shield-instance-1' }
+        }
+      })
+    });
+  });
+  await page.route('**/api/tarot-deck-get', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ok: true, tarotDeck: [], tarotRole: null })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    const inventoryTab = document.getElementById('tabContentInventory');
+    if (inventoryTab) inventoryTab.style.display = 'block';
+    const inventory = await import('/js/inventory.js');
+    await inventory.getInventory('PF_PLAYWRIGHT', { force: true });
+    inventory.switchInventoryGroup('Equipment');
+  });
+
+  await expect(page.locator('#equippedRightHand')).toHaveText('Object Ref Sword');
+  await expect(page.locator('#equippedLeftHand')).toHaveText('Object Ref Shield');
+  await expect(page.locator('#equippedRightHandArt.has-item .equip-slot-item-sprite')).toHaveCount(1);
+  await expect(page.locator('#equippedLeftHandArt.has-item .equip-slot-item-sprite')).toHaveCount(1);
+  await page.evaluate(async () => {
+    const inventory = await import('/js/inventory.js');
+    inventory.switchInventoryTab('Weapon');
+  });
+  await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]')).toHaveAttribute('data-equipment-state', 'equipped');
+  await page.evaluate(async () => {
+    const inventory = await import('/js/inventory.js');
+    inventory.switchInventoryTab('Shield');
+  });
+  await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Shield"]')).toHaveAttribute('data-equipment-state', 'equipped');
+  await expectNoPageErrors(errors);
+});
+
 test('facial hair unlocks at level 21 and salon actions update the layer', async ({ page }) => {
   const errors = trackPageErrors(page);
   const updateRequests = [];
