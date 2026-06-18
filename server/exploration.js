@@ -14,6 +14,13 @@ const PENDING_STALE_MS = 5 * 60 * 1000;
 // claiming 中にプロセスが落ちた場合、この時間後に再実行を許可する
 const CLAIMING_STALE_MS = 2 * 60 * 1000;
 const EXPLORATION_SHIP_CLASSES = ['common', 'explorer', 'merchant', 'fighter', 'defender'];
+const EXPLORATION_SHIP_CLASS_LABELS = {
+    common: '初期ボート',
+    explorer: '探索船',
+    merchant: '商船',
+    fighter: '戦闘船',
+    defender: '守備船'
+};
 const EXPLORATION_SHIP_ACCESS_CLASSES = {
     common: ['common'],
     explorer: ['common', 'explorer'],
@@ -202,6 +209,17 @@ function canShipClassExploreDestination(shipClass, destination) {
     return destinationClasses.some((entry) => accessClasses.has(normalizeExplorationShipClass(entry)));
 }
 
+function getExplorationShipClassLabel(shipClass) {
+    return EXPLORATION_SHIP_CLASS_LABELS[normalizeExplorationShipClass(shipClass)] || EXPLORATION_SHIP_CLASS_LABELS.common;
+}
+
+function getDestinationRequirementLabels(destination) {
+    const classes = Array.isArray(destination?.classes) ? destination.classes : [];
+    return classes
+        .map((shipClass) => getExplorationShipClassLabel(shipClass))
+        .filter(Boolean);
+}
+
 function isDailyFreeExplorationDestination(destinationOrId) {
     const destination = typeof destinationOrId === 'string'
         ? DESTINATIONS[normalizeDestinationId(destinationOrId)]
@@ -212,12 +230,17 @@ function isDailyFreeExplorationDestination(destinationOrId) {
 function publicDestination(destination, shipClass = 'common') {
     const bosses = getDestinationBosses(destination);
     const role = getExplorationShipRole(shipClass);
+    const normalizedShipClass = normalizeExplorationShipClass(shipClass);
+    const requirementLabels = getDestinationRequirementLabels(destination);
     return {
         id: destination.id,
         name: destination.name,
         description: destination.description,
         cost: destination.cost,
         durationMs: destination.durationMs,
+        available: canShipClassExploreDestination(normalizedShipClass, destination),
+        requirementLabels,
+        requirementLabel: requirementLabels.join(' / '),
         dailyFreeEligible: isDailyFreeExplorationDestination(destination),
         role: role.role,
         roleLabel: role.roleLabel,
@@ -1118,6 +1141,11 @@ function getAvailableDestinationsForShipClass(shipClass) {
         .map((destination) => publicDestination(destination, normalized));
 }
 
+function getAllDestinationsForShipClass(shipClass) {
+    const normalized = normalizeExplorationShipClass(shipClass);
+    return Object.values(DESTINATIONS).map((destination) => publicDestination(destination, normalized));
+}
+
 function initializeExplorationRoutes(app, deps) {
     const { firestore, admin, promisifyPlayFab, PlayFabServer, subtractEconomyItem, addEconomyItem, getCurrencyBalance, requireAuthenticatedPlayFabId, catalogCache } = deps;
     if (!firestore || !admin) {
@@ -1154,6 +1182,7 @@ function initializeExplorationRoutes(app, deps) {
             success: true,
             ship,
             destinations: availableDestinations,
+            allDestinations: ship ? getAllDestinationsForShipClass(ship.shipClass) : [],
             dailyFree: buildDailyFreeExplorationStatus(dayKey, dailyFreeSnap),
             active: activeSnap.exists ? explorationDocToPayload(activeSnap.data()) : null,
             reports: reportsSnap.docs.map(reportDocToPayload)
@@ -1638,10 +1667,12 @@ module.exports = {
         BOSS_TIER_DEFS,
         buildDailyFreeExplorationStatus,
         canShipClassExploreDestination,
+        getAllDestinationsForShipClass,
         getAvailableDestinationsForShipClass,
         getDestinationBosses,
         getExplorationBossWeight,
         getExplorationShipAccessClasses,
+        getExplorationShipClassLabel,
         getJstDayKey,
         isDailyFreeExplorationDestination,
         selectExplorationBoss,

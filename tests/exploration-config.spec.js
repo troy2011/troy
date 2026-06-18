@@ -48,6 +48,30 @@ test('exploration destinations expand by ship evolution while keeping lower seas
   expect(__test.canShipClassExploreDestination('common', __test.DESTINATIONS.pirate_cove)).toBe(false);
 });
 
+test('exploration destination list marks locked seas by current ship class', () => {
+  const commonList = __test.getAllDestinationsForShipClass('common');
+  expect(commonList.map((destination) => destination.id)).toEqual([
+    'near_sea',
+    'coral_passage',
+    'old_lighthouse',
+    'sunken_trader',
+    'pirate_cove',
+    'deep_maelstrom'
+  ]);
+  expect(commonList.find((destination) => destination.id === 'near_sea')).toMatchObject({
+    available: true,
+    requirementLabel: '初期ボート / 探索船'
+  });
+  expect(commonList.find((destination) => destination.id === 'pirate_cove')).toMatchObject({
+    available: false,
+    requirementLabel: '戦闘船'
+  });
+
+  const fighterList = __test.getAllDestinationsForShipClass('fighter');
+  expect(fighterList.find((destination) => destination.id === 'pirate_cove')?.available).toBe(true);
+  expect(__test.getExplorationShipClassLabel('merchant')).toBe('商船');
+});
+
 test('exploration ship roles change boss odds and reward counts', () => {
   const destination = __test.DESTINATIONS.near_sea;
 

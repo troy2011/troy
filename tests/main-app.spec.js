@@ -1234,6 +1234,35 @@ test('home exploration button loads exploration data in a popup', async ({ page 
         active: null,
         reports: [],
         dailyFree: { dayKey: '2026-06-18', available: true, used: false },
+        allDestinations: [
+          {
+            id: 'harbor-edge',
+            name: '港の外れ',
+            description: '近場の探索',
+            cost: 100,
+            durationMs: 3 * 60 * 60 * 1000,
+            available: true,
+            requirementLabel: '初期ボート / 探索船'
+          },
+          {
+            id: 'coral-passage',
+            name: '珊瑚礁の抜け道',
+            description: '浅瀬を抜ける航路',
+            cost: 180,
+            durationMs: 4 * 60 * 60 * 1000,
+            available: true,
+            requirementLabel: '探索船 / 商船'
+          },
+          {
+            id: 'pirate-cove',
+            name: '海賊の隠れ家',
+            description: '戦闘向きの海域',
+            cost: 400,
+            durationMs: 8 * 60 * 60 * 1000,
+            available: false,
+            requirementLabel: '戦闘船'
+          }
+        ],
         destinations: [
           {
             id: 'harbor-edge',
@@ -1286,6 +1315,15 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(panel).toHaveClass(/is-popup/);
   await expect(panel.locator('.ship-exploration-head h3')).toHaveText('探索');
   await expect(panel.locator('.ship-exploration-meta').first()).toContainText('テスト船');
+  await expect(panel.locator('.ship-exploration-section-title span')).toHaveText('探索先リスト');
+  const destinationRows = panel.locator('.ship-exploration-list-row');
+  await expect(destinationRows).toHaveCount(3);
+  await expect(destinationRows.nth(0).locator('.ship-exploration-list-main strong')).toHaveText('港の外れ');
+  await expect(destinationRows.nth(0).locator('.ship-exploration-list-side b')).toHaveText('出航可');
+  await expect(destinationRows.nth(0).locator('.ship-exploration-list-main span')).toContainText('3時間 / 100G');
+  await expect(destinationRows.nth(2).locator('.ship-exploration-list-main strong')).toHaveText('海賊の隠れ家');
+  await expect(destinationRows.nth(2).locator('.ship-exploration-list-side b')).toHaveText('未開放');
+  await expect(destinationRows.nth(2).locator('.ship-exploration-list-side span')).toHaveText('戦闘船');
   const destinationCards = panel.locator('.ship-exploration-destination');
   await expect(destinationCards).toHaveCount(2);
   const freeDestination = destinationCards.nth(0);

@@ -1589,6 +1589,42 @@ function renderExplorationDestinationMetaChips(destination) {
     `;
 }
 
+function renderExplorationDestinationList(destinations, availableDestinationIds = new Set()) {
+    const list = Array.isArray(destinations) ? destinations : [];
+    if (!list.length) return '';
+    return `
+        <section class="ship-exploration-list" aria-label="探索先リスト">
+            <div class="ship-exploration-section-title">
+                <span>探索先リスト</span>
+                <small>行ける海域と未開放の海域</small>
+            </div>
+            <div class="ship-exploration-list-rows">
+                ${list.map((destination) => {
+                    const id = String(destination?.id || '');
+                    const visual = getExplorationDestinationVisual(id);
+                    const available = destination?.available === true || availableDestinationIds.has(id);
+                    const cost = Number(destination?.cost || 0).toLocaleString('ja-JP');
+                    const duration = formatExplorationDuration(destination?.durationMs);
+                    const requirement = String(destination?.requirementLabel || '').trim();
+                    return `
+                        <div class="ship-exploration-list-row ${available ? 'is-available' : 'is-locked'}" data-exploration-list-destination-id="${escapeHtml(id)}">
+                            <span class="ship-exploration-list-mark" aria-hidden="true">${escapeHtml(visual.island)}</span>
+                            <div class="ship-exploration-list-main">
+                                <strong>${escapeHtml(destination?.name || '未知の海域')}</strong>
+                                <span>${escapeHtml(duration)} / ${escapeHtml(cost)}G</span>
+                            </div>
+                            <div class="ship-exploration-list-side">
+                                <b>${available ? '出航可' : '未開放'}</b>
+                                ${requirement ? `<span>${escapeHtml(requirement)}</span>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </section>
+    `;
+}
+
 function normalizeBossResult(value) {
     const result = String(value || 'none').toLowerCase();
     if (result === 'victory' || result === 'defeat' || result === 'escaped' || result === 'draw') return result;
@@ -2028,6 +2064,11 @@ function renderExplorationPanel(data, playFabId) {
         return;
     }
     const destinations = Array.isArray(data?.destinations) ? data.destinations : [];
+    const availableDestinationIds = new Set(destinations.map((destination) => String(destination?.id || '')).filter(Boolean));
+    const allDestinations = Array.isArray(data?.allDestinations) && data.allDestinations.length
+        ? data.allDestinations
+        : destinations.map((destination) => ({ ...destination, available: true }));
+    const destinationListHtml = renderExplorationDestinationList(allDestinations, availableDestinationIds);
     const destinationHtml = destinations.length
         ? destinations.map((destination) => {
             const visual = getExplorationDestinationVisual(destination.id);
@@ -2055,6 +2096,7 @@ function renderExplorationPanel(data, playFabId) {
         : '<div class="ship-exploration-empty">この船で行ける探索先がありません。</div>';
     panel.innerHTML = `
         ${head}
+        ${destinationListHtml}
         <div class="ship-exploration-destinations">${destinationHtml}</div>
         ${reports.length ? `<div class="ship-exploration-reports">${reports.map(renderExplorationReport).join('')}</div>` : ''}
     `;
