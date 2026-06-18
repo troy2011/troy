@@ -20,6 +20,26 @@ const DECORATED_PANEL_CONFIG = new Map([
 const imageCache = new Map();
 const observedTargets = new WeakSet();
 const renderState = new WeakMap();
+const AUTO_SKIP_SELECTOR = [
+    'button',
+    'input',
+    'select',
+    'textarea',
+    'option',
+    'img',
+    'canvas',
+    'svg',
+    'video',
+    'audio',
+    '.currency-display',
+    '.global-rank-badge',
+    '.nav-button',
+    '.ranking-toggle-btn',
+    '.ranking-refresh-btn',
+    '.inventory-mobile-switch-btn',
+    '.inventory-primary-tab-btn',
+    '.inventory-tab-btn'
+].join(',');
 
 let resizeObserver = null;
 let mutationObserver = null;
@@ -44,6 +64,8 @@ function getFileName(url) {
 function isPanelSlice25Target(element, style) {
     if (!(element instanceof Element)) return false;
     if (element.dataset.panelSlice === '25') return true;
+    if (element.dataset.panelSlice === 'off') return false;
+    if (element.matches(AUTO_SKIP_SELECTOR)) return false;
     const source = extractCssUrl(style.borderImageSource);
     if (!source) return false;
     return DECORATED_PANEL_CONFIG.has(getFileName(source));

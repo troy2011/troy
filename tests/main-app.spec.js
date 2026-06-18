@@ -33,6 +33,28 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
       borderImageWidth: style.borderImageWidth
     };
   });
+  const headerCurrency = await page.locator('.currency-display').evaluate((element) => {
+    const style = window.getComputedStyle(element);
+    const beforeStyle = window.getComputedStyle(element, '::before');
+    return {
+      hasPanelSliceLayer: Boolean(element.querySelector('.panel-slice-25-layer')),
+      text: element.textContent.trim(),
+      display: style.display,
+      beforeContent: beforeStyle.content,
+      beforeBackgroundImage: beforeStyle.backgroundImage,
+      beforeWidth: beforeStyle.width
+    };
+  });
+  const compactPanelSliceCount = await page.evaluate(() => (
+    document.querySelectorAll([
+      '.currency-display.panel-slice-25-host',
+      'button.panel-slice-25-host',
+      'input.panel-slice-25-host',
+      'select.panel-slice-25-host',
+      'textarea.panel-slice-25-host',
+      '.global-rank-badge.panel-slice-25-host'
+    ].join(',')).length
+  ));
   const troyMapUrl = new URL(troyMapLink.href);
   expect(troyMapUrl.hostname).toBe('www.google.com');
   expect(troyMapUrl.pathname).toBe('/maps/search/');
@@ -45,6 +67,13 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
   expect(homeShipPanel.borderImageSource).toContain('panel-dark-square.png');
   expect(homeShipPanel.borderImageSlice).toContain('24');
   expect(homeShipPanel.borderImageWidth).toContain('10px');
+  expect(headerCurrency.hasPanelSliceLayer).toBe(false);
+  expect(headerCurrency.text).toContain('G');
+  expect(headerCurrency.display).toContain('flex');
+  expect(headerCurrency.beforeContent).not.toBe('none');
+  expect(headerCurrency.beforeBackgroundImage).toContain('002.png');
+  expect(headerCurrency.beforeWidth).toBe('30px');
+  expect(compactPanelSliceCount).toBe(0);
 
   expect(state.loginPlayFabBody).toMatchObject({
     lineAccessToken: 'playwright-access-token',

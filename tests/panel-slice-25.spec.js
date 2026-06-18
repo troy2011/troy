@@ -85,3 +85,67 @@ test('decorated panel border images render with 25 slice cells', async ({ page }
   expect(rerenderMetrics.cellCount).toBe(25);
   expect(rerenderMetrics.fillWidth).toBeGreaterThan(0);
 });
+
+test('compact chrome controls are not auto-upgraded to 25 slice panels', async ({ page }) => {
+  await page.route('**/main.js*', (route) => route.abort());
+  await page.goto('/index.html');
+  await page.setContent(`
+    <!doctype html>
+    <html>
+      <head>
+        <link rel="stylesheet" href="/css/panel-slice-25.css?v=test">
+        <style>
+          .currency-display,
+          button,
+          input {
+            border: 16px solid transparent;
+            border-image: url("/assets/ui/panels/panel-dark.png") 30 fill / 12px / 0 stretch;
+          }
+          .currency-display::before {
+            content: "";
+            width: 30px;
+            height: 30px;
+            display: inline-block;
+            background: url("/assets/ui/icons/002.png") center / contain no-repeat;
+          }
+          .manual-panel {
+            width: 180px;
+            height: 88px;
+            border: 24px solid transparent;
+            border-image: url("/assets/ui/panels/panel-dark.png") 30 fill / 12px / 0 stretch;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="currency-display"><b id="globalPoints">123</b>G</div>
+        <button type="button">押す</button>
+        <input value="入力">
+        <div class="manual-panel" data-panel-slice="25">manual</div>
+      </body>
+    </html>
+  `);
+
+  await page.evaluate(async () => {
+    const module = await import('/js/panelSlice25.js');
+    module.installPanelSlice25(document);
+  });
+
+  await page.waitForSelector('.manual-panel > .panel-slice-25-layer');
+  await expect(page.locator('.manual-panel > .panel-slice-25-layer > .panel-slice-25-cell')).toHaveCount(25);
+  await expect(page.locator('.currency-display > .panel-slice-25-layer')).toHaveCount(0);
+  await expect(page.locator('button > .panel-slice-25-layer')).toHaveCount(0);
+  await expect(page.locator('input > .panel-slice-25-layer')).toHaveCount(0);
+
+  const currencyBefore = await page.locator('.currency-display').evaluate((element) => {
+    const beforeStyle = window.getComputedStyle(element, '::before');
+    return {
+      content: beforeStyle.content,
+      backgroundImage: beforeStyle.backgroundImage,
+      width: beforeStyle.width
+    };
+  });
+
+  expect(currencyBefore.content).not.toBe('none');
+  expect(currencyBefore.backgroundImage).toContain('002.png');
+  expect(currencyBefore.width).toBe('30px');
+});
