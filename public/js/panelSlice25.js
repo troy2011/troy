@@ -1,4 +1,5 @@
 const DECORATED_PANEL_CONFIG = new Map([
+    ['banner-plaque-gold.png', {}],
     ['panel-blue-gold.png', {}],
     ['panel-blue-large.png', {}],
     ['panel-dark.png', {}],
