@@ -149,3 +149,65 @@ test('compact chrome controls are not auto-upgraded to 25 slice panels', async (
   expect(currencyBefore.backgroundImage).toContain('002.png');
   expect(currencyBefore.width).toBe('30px');
 });
+
+test('gold plaque banner images render as 5 by 3 slices wherever reused', async ({ page }) => {
+  await page.route('**/main.js*', (route) => route.abort());
+  await page.goto('/index.html');
+  await page.setContent(`
+    <!doctype html>
+    <html>
+      <head>
+        <link rel="stylesheet" href="/css/panel-slice-25.css?v=test">
+        <style>
+          .home-announcement-panel,
+          .section-plaque,
+          .item-detail-copy {
+            width: 320px;
+            min-height: 56px;
+            border: 18px solid transparent;
+            border-image: url("/assets/ui/banners/banner-plaque-gold.png") 38 32 30 32 fill / 18px 17px 15px 17px / 0 stretch;
+            box-sizing: border-box;
+          }
+        </style>
+      </head>
+      <body>
+        <section class="home-announcement-panel"><span>王の告知</span></section>
+        <h2 class="section-plaque">見出し</h2>
+        <div class="item-detail-copy">詳細</div>
+      </body>
+    </html>
+  `);
+
+  await page.evaluate(async () => {
+    const module = await import('/js/panelSlice25.js');
+    module.installPanelSlice25(document);
+  });
+
+  const plaques = page.locator('.home-announcement-panel, .section-plaque, .item-detail-copy');
+  await expect(plaques).toHaveCount(3);
+  await expect(page.locator('.panel-slice-25-layer[data-source="banner-plaque-gold.png"]')).toHaveCount(3);
+  await expect(page.locator('.panel-slice-25-layer[data-source="banner-plaque-gold.png"][data-slice-grid="5x3"]')).toHaveCount(3);
+  await expect(page.locator('.panel-slice-25-layer[data-source="banner-plaque-gold.png"] > .panel-slice-25-cell')).toHaveCount(45);
+
+  const plaqueMetrics = await plaques.evaluateAll((elements) => elements.map((element) => {
+    const style = window.getComputedStyle(element);
+    const layer = element.querySelector(':scope > .panel-slice-25-layer');
+    return {
+      borderImageSource: style.borderImageSource,
+      layerCount: element.querySelectorAll(':scope > .panel-slice-25-layer').length,
+      sliceGrid: layer?.dataset.sliceGrid || '',
+      fillCount: layer?.querySelectorAll(':scope > .panel-slice-25-fill').length || 0,
+      cellCount: layer?.querySelectorAll(':scope > .panel-slice-25-cell').length || 0,
+      centerColumnCount: layer?.querySelectorAll(':scope > .panel-slice-25-cell[data-slice-col="2"]').length || 0
+    };
+  }));
+
+  plaqueMetrics.forEach((metrics) => {
+    expect(metrics.borderImageSource).toBe('none');
+    expect(metrics.layerCount).toBe(1);
+    expect(metrics.sliceGrid).toBe('5x3');
+    expect(metrics.fillCount).toBe(1);
+    expect(metrics.cellCount).toBe(15);
+    expect(metrics.centerColumnCount).toBe(3);
+  });
+});

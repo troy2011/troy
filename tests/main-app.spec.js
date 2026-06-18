@@ -197,11 +197,14 @@ test('home tab shows only the latest nation announcement in the top banner panel
     const rect = element.getBoundingClientRect();
     const messageStyle = window.getComputedStyle(element.querySelector('.home-announcement-message'));
     const marqueeStyle = window.getComputedStyle(element.querySelector('.home-announcement-marquee-text'));
+    const sliceLayer = element.querySelector(':scope > .panel-slice-25-layer');
     return {
       height: rect.height,
       borderImageSource: style.borderImageSource,
-      borderImageSlice: style.borderImageSlice,
-      borderImageWidth: style.borderImageWidth,
+      sliceLayerSource: sliceLayer?.dataset.source || '',
+      sliceGrid: sliceLayer?.dataset.sliceGrid || '',
+      sliceCellCount: sliceLayer?.querySelectorAll('.panel-slice-25-cell').length || 0,
+      sliceFillCount: sliceLayer?.querySelectorAll('.panel-slice-25-fill').length || 0,
       messageWhiteSpace: messageStyle.whiteSpace,
       messageTextOverflow: messageStyle.textOverflow,
       marqueeAnimationName: marqueeStyle.animationName,
@@ -211,12 +214,11 @@ test('home tab shows only the latest nation announcement in the top banner panel
     };
   });
   expect(panelFrame.height).toBeLessThanOrEqual(52);
-  expect(panelFrame.borderImageSource).toContain('banner-plaque-gold.png');
-  expect(panelFrame.borderImageSlice).toContain('38');
-  expect(panelFrame.borderImageSlice).toContain('32');
-  expect(panelFrame.borderImageSlice).toContain('30');
-  expect(panelFrame.borderImageWidth).toContain('18px');
-  expect(panelFrame.borderImageWidth).toContain('15px');
+  expect(panelFrame.borderImageSource).toBe('none');
+  expect(panelFrame.sliceLayerSource).toBe('banner-plaque-gold.png');
+  expect(panelFrame.sliceGrid).toBe('5x3');
+  expect(panelFrame.sliceCellCount).toBe(15);
+  expect(panelFrame.sliceFillCount).toBe(1);
   expect(panelFrame.messageWhiteSpace).toBe('nowrap');
   expect(panelFrame.messageTextOverflow).toBe('clip');
   expect(panelFrame.marqueeAnimationName).toBe('homeAnnouncementMarquee');
