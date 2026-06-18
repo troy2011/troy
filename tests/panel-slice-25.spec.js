@@ -149,3 +149,68 @@ test('compact chrome controls are not auto-upgraded to 25 slice panels', async (
   expect(currencyBefore.backgroundImage).toContain('002.png');
   expect(currencyBefore.width).toBe('30px');
 });
+
+test('explicit 15 slice panels preserve horizontal center ornaments only where requested', async ({ page }) => {
+  await page.route('**/main.js*', (route) => route.abort());
+  await page.goto('/index.html');
+  await page.setContent(`
+    <!doctype html>
+    <html>
+      <head>
+        <link rel="stylesheet" href="/css/panel-slice-25.css?v=test">
+        <style>
+          .notice-panel,
+          .plain-plaque {
+            width: 430px;
+            min-height: 44px;
+            padding: 12px 24px 10px;
+            border: 1px solid transparent;
+            border-image: url("/assets/ui/banners/banner-plaque-gold.png") 38 32 30 32 fill / 18px 17px 15px 17px / 0 stretch;
+            box-sizing: border-box;
+            font-size: 12px;
+          }
+        </style>
+      </head>
+      <body>
+        <section class="notice-panel" data-panel-slice="15" data-panel-slice-center-x="64">告知</section>
+        <section class="plain-plaque">通常</section>
+      </body>
+    </html>
+  `);
+
+  await page.evaluate(async () => {
+    const module = await import('/js/panelSlice25.js');
+    module.installPanelSlice25(document);
+  });
+
+  const layer = page.locator('.notice-panel > .panel-slice-25-layer');
+  await expect(layer).toHaveCount(1);
+  await expect(layer.locator('> .panel-slice-25-cell')).toHaveCount(15);
+  await expect(page.locator('.plain-plaque > .panel-slice-25-layer')).toHaveCount(0);
+
+  const metrics = await page.locator('.notice-panel').evaluate((panel) => {
+    const style = window.getComputedStyle(panel);
+    const layerEl = panel.querySelector(':scope > .panel-slice-25-layer');
+    const centerTop = layerEl.querySelector('[data-slice-row="0"][data-slice-col="2"]');
+    const stretchTop = layerEl.querySelector('[data-slice-row="0"][data-slice-col="1"]');
+    return {
+      width: Math.round(panel.getBoundingClientRect().width),
+      height: Math.round(panel.getBoundingClientRect().height),
+      fontSize: style.fontSize,
+      borderImageSource: style.borderImageSource,
+      grid: layerEl.dataset.sliceGrid,
+      cellCount: layerEl.querySelectorAll('.panel-slice-25-cell').length,
+      centerWidth: Math.round(centerTop.getBoundingClientRect().width),
+      stretchWidth: Math.round(stretchTop.getBoundingClientRect().width)
+    };
+  });
+
+  expect(metrics.width).toBe(430);
+  expect(metrics.height).toBeGreaterThanOrEqual(44);
+  expect(metrics.fontSize).toBe('12px');
+  expect(metrics.borderImageSource).toBe('none');
+  expect(metrics.grid).toBe('5x3');
+  expect(metrics.cellCount).toBe(15);
+  expect(metrics.centerWidth).toBeGreaterThan(24);
+  expect(metrics.centerWidth).toBeLessThan(metrics.stretchWidth);
+});

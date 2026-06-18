@@ -184,6 +184,8 @@ test('home tab shows only the latest nation announcement in the top banner panel
 
   const panel = page.locator('#homeAnnouncementPanel');
   await expect(panel).toBeVisible();
+  await expect(panel.locator(':scope > .panel-slice-25-layer')).toHaveCount(1);
+  await expect(panel.locator(':scope > .panel-slice-25-layer > .panel-slice-25-cell')).toHaveCount(15);
   await expect(panel.locator('.home-announcement-title')).toHaveText('王の告知');
   await expect(panel).toContainText('全プレイヤー向けの告知です。');
   await expect(panel).not.toContainText('水の国');
@@ -195,13 +197,24 @@ test('home tab shows only the latest nation announcement in the top banner panel
   const panelFrame = await panel.evaluate((element) => {
     const style = window.getComputedStyle(element);
     const rect = element.getBoundingClientRect();
+    const titleStyle = window.getComputedStyle(element.querySelector('.home-announcement-title'));
     const messageStyle = window.getComputedStyle(element.querySelector('.home-announcement-message'));
     const marqueeStyle = window.getComputedStyle(element.querySelector('.home-announcement-marquee-text'));
+    const sliceLayer = element.querySelector(':scope > .panel-slice-25-layer');
+    const centerTopCell = sliceLayer?.querySelector('[data-slice-row="0"][data-slice-col="2"]');
+    const stretchTopCell = sliceLayer?.querySelector('[data-slice-row="0"][data-slice-col="1"]');
     return {
+      width: Math.round(rect.width),
       height: rect.height,
       borderImageSource: style.borderImageSource,
-      borderImageSlice: style.borderImageSlice,
-      borderImageWidth: style.borderImageWidth,
+      sliceLayerSource: sliceLayer?.dataset.source || '',
+      sliceGrid: sliceLayer?.dataset.sliceGrid || '',
+      sliceCellCount: sliceLayer?.querySelectorAll('.panel-slice-25-cell').length || 0,
+      sliceFillCount: sliceLayer?.querySelectorAll('.panel-slice-25-fill').length || 0,
+      centerTopWidth: centerTopCell ? Math.round(centerTopCell.getBoundingClientRect().width) : 0,
+      stretchTopWidth: stretchTopCell ? Math.round(stretchTopCell.getBoundingClientRect().width) : 0,
+      titleFontSize: titleStyle.fontSize,
+      messageFontSize: messageStyle.fontSize,
       messageWhiteSpace: messageStyle.whiteSpace,
       messageTextOverflow: messageStyle.textOverflow,
       marqueeAnimationName: marqueeStyle.animationName,
@@ -210,13 +223,17 @@ test('home tab shows only the latest nation announcement in the top banner panel
       marqueeTransform: marqueeStyle.transform
     };
   });
+  expect(panelFrame.width).toBe(430);
   expect(panelFrame.height).toBeLessThanOrEqual(52);
-  expect(panelFrame.borderImageSource).toContain('banner-plaque-gold.png');
-  expect(panelFrame.borderImageSlice).toContain('38');
-  expect(panelFrame.borderImageSlice).toContain('32');
-  expect(panelFrame.borderImageSlice).toContain('30');
-  expect(panelFrame.borderImageWidth).toContain('18px');
-  expect(panelFrame.borderImageWidth).toContain('15px');
+  expect(panelFrame.borderImageSource).toBe('none');
+  expect(panelFrame.sliceLayerSource).toBe('banner-plaque-gold.png');
+  expect(panelFrame.sliceGrid).toBe('5x3');
+  expect(panelFrame.sliceCellCount).toBe(15);
+  expect(panelFrame.sliceFillCount).toBe(1);
+  expect(panelFrame.centerTopWidth).toBeGreaterThan(24);
+  expect(panelFrame.centerTopWidth).toBeLessThan(panelFrame.stretchTopWidth);
+  expect(panelFrame.titleFontSize).toBe('11px');
+  expect(panelFrame.messageFontSize).toBe('12px');
   expect(panelFrame.messageWhiteSpace).toBe('nowrap');
   expect(panelFrame.messageTextOverflow).toBe('clip');
   expect(panelFrame.marqueeAnimationName).toBe('homeAnnouncementMarquee');
