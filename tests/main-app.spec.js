@@ -4193,6 +4193,7 @@ test('equipment cards open detail before equipping from inventory grid', async (
     {
       itemId: 'sword_001',
       name: 'Iron Sword',
+      description: 'A reliable blade with a readable detail description.',
       customData: { Category: 'Weapon', Power: 12, sprite_path: './Sprites/weapons/melee weapons/sword.png', sprite_index: '0' }
     },
     {
@@ -4274,6 +4275,21 @@ test('equipment cards open detail before equipping from inventory grid', async (
 
   expect(equipRequests).toHaveLength(0);
   await expect(page.locator('#itemDetailModal')).toBeVisible();
+  await expect(page.locator('#itemDetailDescription')).toContainText('readable detail description');
+  const descriptionStyle = await page.locator('#itemDetailDescription').evaluate((description) => {
+    const rect = description.getBoundingClientRect();
+    const style = window.getComputedStyle(description);
+    return {
+      color: style.color,
+      backgroundImage: style.backgroundImage,
+      height: Math.round(rect.height),
+      textShadow: style.textShadow
+    };
+  });
+  expect(descriptionStyle.color).toBe('rgb(43, 25, 8)');
+  expect(descriptionStyle.backgroundImage).toContain('panel-parchment-wide.png');
+  expect(descriptionStyle.height).toBeGreaterThan(24);
+  expect(descriptionStyle.textShadow).not.toBe('none');
   await page.locator('#itemDetailModal .item-detail-action.is-equip').first().click();
   expect(equipRequests).toHaveLength(1);
   expect(equipRequests[0]).toMatchObject({
