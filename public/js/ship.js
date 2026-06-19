@@ -980,16 +980,37 @@ const EXPLORATION_MONSTER_SPRITES = {
     puffer_bomb: { id: 'puffer_bomb', src: './Sprites/monsters/puffer_bomb.png', name: '爆弾フグ' },
     treasure_slime: { id: 'treasure_slime', src: './Sprites/monsters/treasure_slime.png', name: '財宝スライム' },
     coral_goblin: { id: 'coral_goblin', src: './Sprites/monsters/coral_goblin.png', name: '珊瑚ゴブリン' },
-    merfolk_lancer: { id: 'merfolk_lancer', src: './Sprites/monsters/merfolk_lancer.png', name: '人魚の槍兵' }
+    merfolk_lancer: { id: 'merfolk_lancer', src: './Sprites/monsters/merfolk_lancer.png', name: '人魚の槍兵' },
+    chained_megalodon: { id: 'chained_megalodon', src: './Sprites/monsters/chained_megalodon.png', name: '鎖縛のメガロドン' },
+    specter_whale: { id: 'specter_whale', src: './Sprites/monsters/specter_whale.png', name: '亡霊クジラ' },
+    armored_kraken: { id: 'armored_kraken', src: './Sprites/monsters/armored_kraken.png', name: '甲冑クラーケン' },
+    phantom_admiral: { id: 'phantom_admiral', src: './Sprites/monsters/phantom_admiral.png', name: '亡霊提督' },
+    abyss_angler: { id: 'abyss_angler', src: './Sprites/monsters/abyss_angler.png', name: '深淵アンコウ' },
+    cannon_hermit: { id: 'cannon_hermit', src: './Sprites/monsters/cannon_hermit.png', name: '砲台ヤドカリ' },
+    storm_serpent: { id: 'storm_serpent', src: './Sprites/monsters/storm_serpent.png', name: '嵐の海蛇' },
+    manta_wraith: { id: 'manta_wraith', src: './Sprites/monsters/manta_wraith.png', name: '亡霊マンタ' },
+    treasure_hermit: { id: 'treasure_hermit', src: './Sprites/monsters/treasure_hermit.png', name: '財宝ヤドカリ' }
 };
 
 const EXPLORATION_DESTINATION_BOSS_SPRITES = {
     near_sea: 'puffer_bomb',
+    palm_islet: 'treasure_slime',
+    coral_lagoon: 'coral_goblin',
     coral_passage: 'coral_goblin',
     old_lighthouse: 'ghost_pirate',
     sunken_trader: 'drowned_buccaneer',
+    ship_graveyard: 'anchor_golem',
     pirate_cove: 'shark_raider',
-    deep_maelstrom: 'merfolk_lancer'
+    deep_maelstrom: 'merfolk_lancer',
+    megalodon_reef: 'chained_megalodon',
+    specter_whale_sea: 'specter_whale',
+    armored_kraken_nest: 'armored_kraken',
+    phantom_admiral_marsh: 'phantom_admiral',
+    abyss_angler_vents: 'abyss_angler',
+    cannon_hermit_fort: 'cannon_hermit',
+    storm_serpent_current: 'storm_serpent',
+    manta_wraith_grotto: 'manta_wraith',
+    treasure_hermit_cave: 'treasure_hermit'
 };
 
 const EXPLORATION_BOSS_TIER_LABELS = {
@@ -1026,7 +1047,16 @@ const EXPLORATION_DEFAULT_BOSS_SPRITE_IDS = [
     'puffer_bomb',
     'treasure_slime',
     'coral_goblin',
-    'merfolk_lancer'
+    'merfolk_lancer',
+    'chained_megalodon',
+    'specter_whale',
+    'armored_kraken',
+    'phantom_admiral',
+    'abyss_angler',
+    'cannon_hermit',
+    'storm_serpent',
+    'manta_wraith',
+    'treasure_hermit'
 ];
 
 const EXPLORATION_FALLBACK_BOSS_SPRITE = {
@@ -1037,22 +1067,47 @@ const EXPLORATION_FALLBACK_BOSS_SPRITE = {
 
 const EXPLORATION_DESTINATION_VISUALS = {
     near_sea: { island: '🏝️', sky: 'day', label: '近海の漂流箱', imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png' },
+    palm_islet: { island: '🏝️', sky: 'day', label: '椰子の小島', imagePath: './Sprites/exploration_destinations/palm_islet.png' },
+    coral_lagoon: { island: '🪸', sky: 'day', label: '珊瑚の潟', imagePath: './Sprites/exploration_destinations/coral_lagoon.png' },
     coral_passage: { island: '🪸', sky: 'day', label: '珊瑚礁の抜け道', imagePath: './Sprites/exploration_destinations/coral_passage_reef.png' },
     old_lighthouse: { island: '🗼', sky: 'mist', label: '古代灯台跡', imagePath: './Sprites/exploration_destinations/old_lighthouse_ruins.png' },
     sunken_trader: { island: '🚢', sky: 'deep', label: '沈没商船', imagePath: './Sprites/exploration_destinations/sunken_trader_wreck.png' },
+    ship_graveyard: { island: '⚓', sky: 'mist', label: '船の墓場', imagePath: './Sprites/exploration_destinations/ship_graveyard.png' },
     pirate_cove: { island: '⛰️', sky: 'storm', label: '海賊の隠れ家', imagePath: './Sprites/exploration_destinations/pirate_cove_hideout.png' },
     deep_maelstrom: { island: '🌀', sky: 'deep', label: '深海の渦', imagePath: './Sprites/exploration_destinations/deep_maelstrom_whirlpool.png' },
+    megalodon_reef: { island: '🦈', sky: 'storm', label: '鎖鮫の暗礁', imagePath: './Sprites/exploration_destinations/shark_fin.png' },
+    specter_whale_sea: { island: '🐋', sky: 'mist', label: '亡霊鯨の海域', imagePath: './Sprites/exploration_destinations/whale_tail.png' },
+    armored_kraken_nest: { island: '🐙', sky: 'deep', label: '甲冑クラーケンの巣', imagePath: './Sprites/exploration_destinations/kraken_tentacles.png' },
+    phantom_admiral_marsh: { island: '👻', sky: 'mist', label: '亡霊提督の沼海', imagePath: './Sprites/exploration_destinations/haunted_marsh.png' },
+    abyss_angler_vents: { island: '💧', sky: 'deep', label: '深淵アンコウの海底孔', imagePath: './Sprites/exploration_destinations/bubble_vents.png' },
+    cannon_hermit_fort: { island: '🏰', sky: 'storm', label: '砲台ヤドカリの海上砦', imagePath: './Sprites/exploration_destinations/sea_fortress.png' },
+    storm_serpent_current: { island: '🌊', sky: 'storm', label: '嵐海蛇の交差海流', imagePath: './Sprites/exploration_destinations/cross_current.png' },
+    manta_wraith_grotto: { island: '✨', sky: 'deep', label: '亡霊マンタの青光洞', imagePath: './Sprites/exploration_destinations/glowing_grotto.png' },
+    treasure_hermit_cave: { island: '💎', sky: 'deep', label: '財宝ヤドカリの宝洞窟', imagePath: './Sprites/exploration_destinations/treasure_cave.png' },
     default: { island: '🏝️', sky: 'day', label: '未知の海域', imagePath: './Sprites/exploration_destinations/palm_islet.png' }
 };
 
 const EXPLORATION_DESTINATION_ALIASES = {
     harbor_edge: 'near_sea',
     harbor_edge_island: 'near_sea',
+    near_sea_drift_crate: 'near_sea',
+    palm_islet: 'palm_islet',
+    coral_lagoon: 'coral_lagoon',
     coral_passage_reef: 'coral_passage',
     pirate_cove_hideout: 'pirate_cove',
     old_lighthouse_ruins: 'old_lighthouse',
     sunken_trader_wreck: 'sunken_trader',
-    deep_maelstrom_whirlpool: 'deep_maelstrom'
+    ship_graveyard: 'ship_graveyard',
+    deep_maelstrom_whirlpool: 'deep_maelstrom',
+    shark_fin: 'megalodon_reef',
+    whale_tail: 'specter_whale_sea',
+    kraken_tentacles: 'armored_kraken_nest',
+    haunted_marsh: 'phantom_admiral_marsh',
+    bubble_vents: 'abyss_angler_vents',
+    sea_fortress: 'cannon_hermit_fort',
+    cross_current: 'storm_serpent_current',
+    glowing_grotto: 'manta_wraith_grotto',
+    treasure_cave: 'treasure_hermit_cave'
 };
 
 const EXPLORATION_SHIP_TRAITS = {
@@ -1620,6 +1675,7 @@ function renderExplorationDestinationBossChips(destination) {
 
 function renderExplorationDestinationMetaChips(destination) {
     const chips = [
+        destination?.slotLabel ? { className: 'is-slot', label: destination.slotLabel } : null,
         destination?.roleLabel ? { className: 'is-role', label: destination.roleLabel } : null,
         destination?.riskLabel ? { className: 'is-risk', label: destination.riskLabel } : null,
         destination?.rewardHint ? { className: 'is-reward', label: destination.rewardHint } : null,
@@ -2073,8 +2129,12 @@ function renderExplorationPanel(data, playFabId) {
     const destinationHtml = destinations.length
         ? destinations.map((destination) => {
             const isDailyFreeDestination = destination?.dailyFreeEligible === true;
+            const isAvailable = destination?.available !== false;
+            const rarityKey = String(destination?.rarity || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'low';
+            const rarityLabel = destination?.rarityLabel || destination?.slotLabel || '探索先';
+            const requirementLabel = destination?.requirementLabel || '船の進化が必要';
             return `
-            <div class="ship-exploration-destination" data-exploration-destination-id="${escapeHtml(destination.id)}">
+            <div class="ship-exploration-destination${isAvailable ? '' : ' is-locked'}" data-exploration-destination-id="${escapeHtml(destination.id)}">
                 <div class="ship-exploration-card-head">
                     ${renderExplorationDestinationVisual(destination, 'ship-exploration-mapmark')}
                     <div class="ship-exploration-title-group">
@@ -2086,10 +2146,12 @@ function renderExplorationPanel(data, playFabId) {
                     ${dailyFreeAvailable && isDailyFreeDestination
                         ? `<span class="ship-exploration-badge is-free">本日無料</span><span class="ship-exploration-badge">通常${Number(destination.cost || 0).toLocaleString('ja-JP')}G</span>`
                         : `<span class="ship-exploration-badge">${Number(destination.cost || 0).toLocaleString('ja-JP')}G</span>`}
+                    <span class="ship-exploration-badge is-rarity is-rarity-${escapeHtml(rarityKey)}">${escapeHtml(rarityLabel)}</span>
+                    ${isAvailable ? '' : `<span class="ship-exploration-badge is-locked">条件: ${escapeHtml(requirementLabel)}</span>`}
                 </div>
                 ${renderExplorationDestinationMetaChips(destination)}
                 ${renderExplorationDestinationBossChips(destination)}
-                <button type="button" class="ship-exploration-start" data-exploration-start="${escapeHtml(destination.id)}">探索開始</button>
+                <button type="button" class="ship-exploration-start" data-exploration-start="${escapeHtml(destination.id)}"${isAvailable ? '' : ' disabled aria-disabled="true"'}>${isAvailable ? '探索開始' : '条件未達'}</button>
             </div>
         `;
         }).join('')

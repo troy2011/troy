@@ -78,8 +78,53 @@ const EXPLORATION_SHIP_ROLES = {
     }
 };
 
+const EXPLORATION_DAILY_RARITY_ORDER = ['low', 'medium', 'high'];
+const EXPLORATION_DESTINATION_RARITIES = {
+    low: {
+        rarity: 'low',
+        rarityLabel: '低レア',
+        slot: 1,
+        slotLabel: '本日の近海',
+        classes: ['common'],
+        dailyFreeEligible: true,
+        gachaProfileId: 'low'
+    },
+    medium: {
+        rarity: 'medium',
+        rarityLabel: '中レア',
+        slot: 2,
+        slotLabel: '本日の航路',
+        classes: ['explorer'],
+        dailyFreeEligible: false,
+        gachaProfileId: 'medium'
+    },
+    high: {
+        rarity: 'high',
+        rarityLabel: '高レア',
+        slot: 3,
+        slotLabel: '本日の危険海域',
+        classes: ['merchant', 'fighter', 'defender'],
+        dailyFreeEligible: false,
+        gachaProfileId: 'high'
+    }
+};
+
+function defineDestination(rarity, config) {
+    const rarityDef = EXPLORATION_DESTINATION_RARITIES[rarity] || EXPLORATION_DESTINATION_RARITIES.low;
+    return {
+        ...config,
+        rarity: rarityDef.rarity,
+        rarityLabel: rarityDef.rarityLabel,
+        slot: rarityDef.slot,
+        slotLabel: rarityDef.slotLabel,
+        classes: Array.isArray(config.classes) ? config.classes : rarityDef.classes,
+        dailyFreeEligible: config.dailyFreeEligible ?? rarityDef.dailyFreeEligible,
+        gachaProfileId: config.gachaProfileId || rarityDef.gachaProfileId
+    };
+}
+
 const DESTINATIONS = {
-    near_sea: {
+    near_sea: defineDestination('low', {
         id: 'near_sea',
         name: '近海の漂流箱',
         description: '初期ボートでも向かえる短距離探索。',
@@ -87,71 +132,196 @@ const DESTINATIONS = {
         cost: 100,
         durationMs: 3 * HOUR_MS,
         bosses: ['treasure_slime', 'puffer_bomb', 'mimic_chest'],
-        classes: ['common', 'explorer'],
-        dailyFreeEligible: true,
         riskLabel: '低リスク',
         rewardHint: '基本報酬'
-    },
-    coral_passage: {
+    }),
+    palm_islet: defineDestination('low', {
+        id: 'palm_islet',
+        name: '椰子の小島',
+        description: '小さな無人島を巡る短距離探索。弱い装備を拾いやすい。',
+        imagePath: './Sprites/exploration_destinations/palm_islet.png',
+        cost: 120,
+        durationMs: 3 * HOUR_MS,
+        bosses: ['treasure_slime', 'skeletal_parrot', 'crab_brute'],
+        riskLabel: '低リスク',
+        rewardHint: '序盤装備'
+    }),
+    coral_lagoon: defineDestination('low', {
+        id: 'coral_lagoon',
+        name: '珊瑚の潟',
+        description: '穏やかな潟を進む低レア探索。装備枠を埋めやすい。',
+        imagePath: './Sprites/exploration_destinations/coral_lagoon.png',
+        cost: 140,
+        durationMs: 4 * HOUR_MS,
+        bosses: ['puffer_bomb', 'coral_goblin', 'crab_brute'],
+        riskLabel: '低リスク',
+        rewardHint: '序盤装備'
+    }),
+    coral_passage: defineDestination('medium', {
         id: 'coral_passage',
         name: '珊瑚礁の抜け道',
         description: '浅瀬を抜ける明るい航路。小型の魔物が多い。',
         imagePath: './Sprites/exploration_destinations/coral_passage_reef.png',
         cost: 180,
         durationMs: 4 * HOUR_MS,
-        bosses: ['skeletal_parrot', 'coral_goblin', 'crab_brute'],
-        classes: ['explorer', 'merchant'],
+        bosses: ['skeletal_parrot', 'coral_goblin'],
         riskLabel: '中リスク',
         rewardHint: '素材と消耗品'
-    },
-    old_lighthouse: {
+    }),
+    old_lighthouse: defineDestination('medium', {
         id: 'old_lighthouse',
         name: '古代灯台跡',
         description: '探索船が見つけやすい古い航路。',
         imagePath: './Sprites/exploration_destinations/old_lighthouse_ruins.png',
         cost: 250,
         durationMs: 5 * HOUR_MS,
-        bosses: ['lantern_wraith', 'ghost_pirate', 'cursed_shipwheel'],
-        classes: ['explorer', 'fighter'],
+        bosses: ['lantern_wraith', 'ghost_pirate'],
         riskLabel: '中リスク',
         rewardHint: '武器と防具'
-    },
-    sunken_trader: {
+    }),
+    sunken_trader: defineDestination('medium', {
         id: 'sunken_trader',
         name: '沈没商船',
-        description: '積荷の多い商船向けの探索先。',
+        description: '積荷の多い沈没船を調べる中距離探索。',
         imagePath: './Sprites/exploration_destinations/sunken_trader_wreck.png',
         cost: 300,
         durationMs: 6 * HOUR_MS,
-        bosses: ['zombie_raider', 'drowned_buccaneer', 'anchor_golem'],
-        classes: ['merchant'],
+        bosses: ['zombie_raider', 'drowned_buccaneer'],
         riskLabel: '回収向け',
-        rewardHint: '商船お宝多め'
-    },
-    pirate_cove: {
+        rewardHint: '積荷回収'
+    }),
+    ship_graveyard: defineDestination('medium', {
+        id: 'ship_graveyard',
+        name: '船の墓場',
+        description: '古い船骸が集まる海域。盾と防具の材料が多い。',
+        imagePath: './Sprites/exploration_destinations/ship_graveyard.png',
+        cost: 320,
+        durationMs: 6 * HOUR_MS,
+        bosses: ['anchor_golem', 'cursed_shipwheel'],
+        riskLabel: '中リスク',
+        rewardHint: '防具と盾'
+    }),
+    pirate_cove: defineDestination('medium', {
         id: 'pirate_cove',
         name: '海賊の隠れ家',
         description: '戦闘向きの船で挑む危険な海域。',
         imagePath: './Sprites/exploration_destinations/pirate_cove_hideout.png',
         cost: 400,
         durationMs: 8 * HOUR_MS,
-        bosses: ['skeleton_captain', 'shark_raider', 'cannon_mimic'],
-        classes: ['fighter'],
+        bosses: ['skeleton_captain', 'shark_raider'],
         riskLabel: '高リスク',
         rewardHint: '武器報酬狙い'
-    },
-    deep_maelstrom: {
+    }),
+    deep_maelstrom: defineDestination('medium', {
         id: 'deep_maelstrom',
         name: '深海の渦',
         description: '渦潮の奥へ踏み込む高難度の探索先。',
         imagePath: './Sprites/exploration_destinations/deep_maelstrom_whirlpool.png',
         cost: 550,
         durationMs: 10 * HOUR_MS,
-        bosses: ['blue_kraken', 'merfolk_lancer', 'kraken_pirate'],
-        classes: ['defender'],
+        bosses: ['blue_kraken', 'merfolk_lancer'],
         riskLabel: '高耐久向け',
         rewardHint: '防具と盾'
-    }
+    }),
+    megalodon_reef: defineDestination('high', {
+        id: 'megalodon_reef',
+        name: '鎖鮫の暗礁',
+        description: '鎖をまとった巨大鮫が回遊する危険海域。',
+        imagePath: './Sprites/exploration_destinations/shark_fin.png',
+        cost: 650,
+        durationMs: 10 * HOUR_MS,
+        bosses: ['chained_megalodon'],
+        riskLabel: '高リスク',
+        rewardHint: '高レア報酬'
+    }),
+    specter_whale_sea: defineDestination('high', {
+        id: 'specter_whale_sea',
+        name: '亡霊鯨の海域',
+        description: '霧の奥で亡霊鯨が潮を巻き上げる。',
+        imagePath: './Sprites/exploration_destinations/whale_tail.png',
+        cost: 680,
+        durationMs: 10 * HOUR_MS,
+        bosses: ['specter_whale'],
+        riskLabel: '高リスク',
+        rewardHint: '高レア報酬'
+    }),
+    armored_kraken_nest: defineDestination('high', {
+        id: 'armored_kraken_nest',
+        name: '甲冑クラーケンの巣',
+        description: '岩礁の下で甲冑のクラーケンが待つ。',
+        imagePath: './Sprites/exploration_destinations/kraken_tentacles.png',
+        cost: 720,
+        durationMs: 11 * HOUR_MS,
+        bosses: ['armored_kraken'],
+        riskLabel: '高リスク',
+        rewardHint: '高レア報酬'
+    }),
+    phantom_admiral_marsh: defineDestination('high', {
+        id: 'phantom_admiral_marsh',
+        name: '亡霊提督の沼海',
+        description: '沼のように重い海域で亡霊艦隊がさまよう。',
+        imagePath: './Sprites/exploration_destinations/haunted_marsh.png',
+        cost: 700,
+        durationMs: 11 * HOUR_MS,
+        bosses: ['phantom_admiral'],
+        riskLabel: '高リスク',
+        rewardHint: '高レア報酬'
+    }),
+    abyss_angler_vents: defineDestination('high', {
+        id: 'abyss_angler_vents',
+        name: '深淵アンコウの海底孔',
+        description: '泡立つ海底孔から深淵の灯りが漏れる。',
+        imagePath: './Sprites/exploration_destinations/bubble_vents.png',
+        cost: 740,
+        durationMs: 11 * HOUR_MS,
+        bosses: ['abyss_angler'],
+        riskLabel: '高リスク',
+        rewardHint: '高レア報酬'
+    }),
+    cannon_hermit_fort: defineDestination('high', {
+        id: 'cannon_hermit_fort',
+        name: '砲台ヤドカリの海上砦',
+        description: '海上砦の影から砲台ヤドカリが狙う。',
+        imagePath: './Sprites/exploration_destinations/sea_fortress.png',
+        cost: 760,
+        durationMs: 12 * HOUR_MS,
+        bosses: ['cannon_hermit'],
+        riskLabel: '高リスク',
+        rewardHint: '高レア報酬'
+    }),
+    storm_serpent_current: defineDestination('high', {
+        id: 'storm_serpent_current',
+        name: '嵐海蛇の交差海流',
+        description: '交差する潮の上を嵐の海蛇が走る。',
+        imagePath: './Sprites/exploration_destinations/cross_current.png',
+        cost: 800,
+        durationMs: 12 * HOUR_MS,
+        bosses: ['storm_serpent'],
+        riskLabel: '高リスク',
+        rewardHint: '高レア報酬'
+    }),
+    manta_wraith_grotto: defineDestination('high', {
+        id: 'manta_wraith_grotto',
+        name: '亡霊マンタの青光洞',
+        description: '青く光る洞窟に亡霊マンタが潜む。',
+        imagePath: './Sprites/exploration_destinations/glowing_grotto.png',
+        cost: 820,
+        durationMs: 12 * HOUR_MS,
+        bosses: ['manta_wraith'],
+        riskLabel: '高リスク',
+        rewardHint: '高レア報酬'
+    }),
+    treasure_hermit_cave: defineDestination('high', {
+        id: 'treasure_hermit_cave',
+        name: '財宝ヤドカリの宝洞窟',
+        description: '財宝の洞窟を背負うヤドカリが守る海域。',
+        imagePath: './Sprites/exploration_destinations/treasure_cave.png',
+        cost: 850,
+        durationMs: 12 * HOUR_MS,
+        bosses: ['treasure_hermit'],
+        riskLabel: '高リスク',
+        rewardHint: '高レア報酬'
+    })
 };
 
 function normalizeShipClassFromItemId(itemId) {
@@ -168,6 +338,48 @@ function normalizeShipClassFromItemId(itemId) {
 function normalizeDestinationId(value) {
     const id = String(value || '').trim().toLowerCase();
     return DESTINATIONS[id] ? id : '';
+}
+
+function hashStringToUint32(value) {
+    let hash = 2166136261;
+    const text = String(value || '');
+    for (let i = 0; i < text.length; i += 1) {
+        hash ^= text.charCodeAt(i);
+        hash = Math.imul(hash, 16777619) >>> 0;
+    }
+    return hash >>> 0;
+}
+
+function getDestinationsByRarity(rarity) {
+    return Object.values(DESTINATIONS)
+        .filter((destination) => destination.rarity === rarity)
+        .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+}
+
+function getDailyExplorationDestinationEntries(playFabId, nowMs = Date.now()) {
+    const dayKey = getJstDayKey(nowMs);
+    const playerKey = String(playFabId || 'guest').trim() || 'guest';
+    return EXPLORATION_DAILY_RARITY_ORDER
+        .map((rarity) => {
+            const candidates = getDestinationsByRarity(rarity);
+            if (!candidates.length) return null;
+            const hash = hashStringToUint32(`${dayKey}:${playerKey}:${rarity}`);
+            return candidates[hash % candidates.length];
+        })
+        .filter(Boolean);
+}
+
+function getDailyExplorationDestinations(playFabId, shipClass = 'common', nowMs = Date.now()) {
+    const normalized = normalizeExplorationShipClass(shipClass);
+    return getDailyExplorationDestinationEntries(playFabId, nowMs)
+        .map((destination) => publicDestination(destination, normalized));
+}
+
+function isDailyExplorationDestinationForPlayer(playFabId, destinationId, nowMs = Date.now()) {
+    const normalizedDestinationId = normalizeDestinationId(destinationId);
+    if (!normalizedDestinationId) return false;
+    return getDailyExplorationDestinationEntries(playFabId, nowMs)
+        .some((destination) => destination.id === normalizedDestinationId);
 }
 
 function getBossTierDef(tier) {
@@ -243,6 +455,10 @@ function publicDestination(destination, shipClass = 'common') {
         name: destination.name,
         description: destination.description,
         imagePath: destination.imagePath || '',
+        rarity: destination.rarity || 'low',
+        rarityLabel: destination.rarityLabel || '',
+        slot: Number(destination.slot || 0),
+        slotLabel: destination.slotLabel || '',
         cost: destination.cost,
         durationMs: destination.durationMs,
         available: canShipClassExploreDestination(normalizedShipClass, destination),
@@ -732,32 +948,190 @@ const EXPLORATION_BOSSES = {
             { type: 'magic', weapon: 'staff', magicKind: 'attack', name: '渦潮の呪縛', mpCost: 8, minRange: 1, maxRange: 2, powerMultiplier: 1.22 },
             { type: 'passive', weapon: 'staff', name: '深海の呪力', level: 3 }
         ]
+    },
+    chained_megalodon: {
+        id: 'chained_megalodon',
+        name: '鎖縛のメガロドン',
+        spriteId: 'chained_megalodon',
+        tier: 'strong',
+        level: 24,
+        hp: 300,
+        attack: 40,
+        defense: 18,
+        strength: 36,
+        guard: 18,
+        agility: 22,
+        weapon: 'axe',
+        skills: [
+            { type: 'weapon', weapon: 'axe', name: '鎖牙の突進', procChance: 0.2, powerMultiplier: 1.25 },
+            { type: 'passive', weapon: 'axe', name: '血潮の追跡', level: 3 }
+        ]
+    },
+    specter_whale: {
+        id: 'specter_whale',
+        name: '亡霊鯨',
+        spriteId: 'specter_whale',
+        tier: 'strong',
+        level: 25,
+        hp: 340,
+        attack: 38,
+        defense: 22,
+        strength: 32,
+        guard: 24,
+        agility: 12,
+        mp: 28,
+        weapon: 'blunt',
+        magicPower: 18,
+        skills: [
+            { type: 'magic', weapon: 'blunt', magicKind: 'attack', name: '亡霊潮吹き', mpCost: 8, minRange: 1, maxRange: 2, powerMultiplier: 1.2 },
+            { type: 'passive', weapon: 'blunt', name: '霊鯨の耐性', level: 3 }
+        ]
+    },
+    armored_kraken: {
+        id: 'armored_kraken',
+        name: '甲冑クラーケン',
+        spriteId: 'armored_kraken',
+        tier: 'strong',
+        level: 28,
+        hp: 360,
+        attack: 44,
+        defense: 24,
+        strength: 38,
+        guard: 25,
+        agility: 16,
+        weapon: 'axe',
+        skills: [
+            { type: 'weapon', weapon: 'axe', name: '装甲触腕', procChance: 0.2, powerMultiplier: 1.28 },
+            { type: 'passive', weapon: 'axe', name: '深海装甲', level: 3 }
+        ]
+    },
+    phantom_admiral: {
+        id: 'phantom_admiral',
+        name: '亡霊提督',
+        spriteId: 'phantom_admiral',
+        tier: 'strong',
+        level: 26,
+        hp: 280,
+        attack: 38,
+        defense: 20,
+        strength: 30,
+        guard: 20,
+        agility: 20,
+        mp: 40,
+        weapon: 'staff',
+        magicPower: 28,
+        skills: [
+            { type: 'magic', weapon: 'staff', magicKind: 'attack', name: '提督の号令', mpCost: 9, minRange: 1, maxRange: 2, powerMultiplier: 1.24 },
+            { type: 'passive', weapon: 'staff', name: '亡霊艦隊', level: 3 }
+        ]
+    },
+    abyss_angler: {
+        id: 'abyss_angler',
+        name: '深淵アンコウ',
+        spriteId: 'abyss_angler',
+        tier: 'strong',
+        level: 27,
+        hp: 320,
+        attack: 42,
+        defense: 21,
+        strength: 36,
+        guard: 22,
+        agility: 14,
+        mp: 24,
+        weapon: 'blunt',
+        magicPower: 20,
+        skills: [
+            { type: 'magic', weapon: 'blunt', magicKind: 'attack', name: '深淵の誘光', mpCost: 8, minRange: 1, maxRange: 2, powerMultiplier: 1.22 },
+            { type: 'weapon', weapon: 'blunt', name: '顎門の強襲', procChance: 0.2, powerMultiplier: 1.25 }
+        ]
+    },
+    cannon_hermit: {
+        id: 'cannon_hermit',
+        name: '砲台ヤドカリ',
+        spriteId: 'cannon_hermit',
+        tier: 'strong',
+        level: 26,
+        hp: 330,
+        attack: 45,
+        defense: 26,
+        strength: 36,
+        guard: 28,
+        agility: 10,
+        weapon: 'gun',
+        skills: [
+            { type: 'weapon', weapon: 'gun', name: '甲羅砲撃', procChance: 0.2, powerMultiplier: 1.28 },
+            { type: 'passive', weapon: 'gun', name: '重装甲', level: 3 }
+        ]
+    },
+    storm_serpent: {
+        id: 'storm_serpent',
+        name: '嵐海蛇',
+        spriteId: 'storm_serpent',
+        tier: 'strong',
+        level: 29,
+        hp: 310,
+        attack: 46,
+        defense: 19,
+        strength: 40,
+        guard: 19,
+        agility: 28,
+        weapon: 'polearm',
+        skills: [
+            { type: 'weapon', weapon: 'polearm', name: '嵐牙の穿ち', procChance: 0.22, powerMultiplier: 1.28 },
+            { type: 'passive', weapon: 'polearm', name: '暴風遊泳', level: 3 }
+        ]
+    },
+    manta_wraith: {
+        id: 'manta_wraith',
+        name: '亡霊マンタ',
+        spriteId: 'manta_wraith',
+        tier: 'strong',
+        level: 27,
+        hp: 290,
+        attack: 39,
+        defense: 20,
+        strength: 30,
+        guard: 22,
+        agility: 24,
+        mp: 42,
+        weapon: 'staff',
+        magicPower: 30,
+        skills: [
+            { type: 'magic', weapon: 'staff', magicKind: 'attack', name: '亡霊翼の波動', mpCost: 9, minRange: 1, maxRange: 2, powerMultiplier: 1.26 },
+            { type: 'passive', weapon: 'staff', name: '霊翼の集中', level: 3 }
+        ]
+    },
+    treasure_hermit: {
+        id: 'treasure_hermit',
+        name: '財宝ヤドカリ',
+        spriteId: 'treasure_hermit',
+        tier: 'strong',
+        level: 30,
+        hp: 390,
+        attack: 43,
+        defense: 28,
+        strength: 36,
+        guard: 30,
+        agility: 9,
+        weapon: 'shield',
+        skills: [
+            { type: 'passive', weapon: 'shield', name: '宝殻の守り', level: 4 },
+            { type: 'weapon', weapon: 'shield', name: '財宝殻撃ち', procChance: 0.2, powerMultiplier: 1.25 }
+        ]
     }
 };
 
 const DEFAULT_EXPLORATION_GACHA_PROFILES = {
-    near_sea: {
-        categoryWeights: { Weapon: 20, Armor: 25, Shield: 20, Consumable: 35 },
-        rarityWeights: { common: 92, rare: 6, epic: 1.5, legendary: 0.5 }
+    low: {
+        categoryWeights: { Weapon: 30, Armor: 25, Shield: 25, Accessory: 15, Consumable: 5 },
+        rarityWeights: { common: 94, rare: 5, epic: 0.8, legendary: 0.2 }
     },
-    coral_passage: {
-        categoryWeights: { Weapon: 24, Armor: 22, Shield: 18, Consumable: 36 },
-        rarityWeights: { common: 86, rare: 10, epic: 3, legendary: 1 }
+    medium: {
+        categoryWeights: { Weapon: 28, Armor: 24, Shield: 20, Accessory: 12, Consumable: 16 },
+        rarityWeights: { common: 78, rare: 16, epic: 5, legendary: 1 }
     },
-    old_lighthouse: {
-        categoryWeights: { Weapon: 20, Armor: 55, Shield: 20, Consumable: 5 },
-        rarityWeights: { common: 77, rare: 16, epic: 5, legendary: 2 }
-    },
-    sunken_trader: {
-        categoryWeights: { Weapon: 25, Armor: 35, Shield: 15, Consumable: 25 },
-        rarityWeights: { common: 72, rare: 18, epic: 7, legendary: 3 }
-    },
-    pirate_cove: {
-        categoryWeights: { Weapon: 55, Armor: 15, Shield: 25, Consumable: 5 },
-        rarityWeights: { common: 55, rare: 25, epic: 14, legendary: 6 }
-    },
-    deep_maelstrom: {
-        categoryWeights: { Weapon: 45, Armor: 20, Shield: 20, Consumable: 15 },
+    high: {
+        categoryWeights: { Weapon: 45, Armor: 20, Shield: 20, Accessory: 10, Consumable: 5 },
         rarityWeights: { common: 46, rare: 28, epic: 17, legendary: 9 }
     }
 };
@@ -768,7 +1142,8 @@ const EXPLORATION_SHIP_STAGE_GACHA_LIMITS = {
         maxStatsByCategory: {
             Weapon: { Power: 20 },
             Armor: { Defense: 12 },
-            Shield: { Defense: 18 }
+            Shield: { Defense: 18 },
+            Accessory: { Score: 12 }
         }
     },
     2: {
@@ -776,7 +1151,8 @@ const EXPLORATION_SHIP_STAGE_GACHA_LIMITS = {
         maxStatsByCategory: {
             Weapon: { Power: 45 },
             Armor: { Defense: 35 },
-            Shield: { Defense: 38 }
+            Shield: { Defense: 38 },
+            Accessory: { Score: 35 }
         }
     },
     3: {}
@@ -819,19 +1195,25 @@ function normalizeShipStage(value) {
 }
 
 function getExplorationGachaOptions(destinationId, ship = {}) {
-    const profile = EXPLORATION_GACHA_PROFILES[destinationId] || EXPLORATION_GACHA_PROFILES.near_sea;
+    const destination = DESTINATIONS[normalizeDestinationId(destinationId)] || null;
+    const profileId = destination?.gachaProfileId || destination?.rarity || destinationId || 'low';
+    const profile = EXPLORATION_GACHA_PROFILES[profileId] || EXPLORATION_GACHA_PROFILES.low;
     const stageLimit = EXPLORATION_SHIP_STAGE_GACHA_LIMITS[normalizeShipStage(ship.stage)] || EXPLORATION_SHIP_STAGE_GACHA_LIMITS[1];
     const role = getExplorationShipRole(ship.shipClass);
+    const categoryWeights = {
+        ...profile.categoryWeights,
+        ...(profileId === 'low' ? {} : (role.categoryWeights || {}))
+    };
     return {
         ...profile,
         rarityWeights: {
             ...profile.rarityWeights,
             ...stageLimit.rarityWeights
         },
-        categoryWeights: {
-            ...profile.categoryWeights,
-            ...(role.categoryWeights || {})
-        },
+        categoryWeights,
+        allowedCategories: Object.entries(categoryWeights)
+            .filter(([, weight]) => Number(weight || 0) > 0)
+            .map(([category]) => category),
         maxStatsByCategory: stageLimit.maxStatsByCategory
     };
 }
@@ -1145,16 +1527,14 @@ function buildReportText({ destination, ship, bossResult, rewardDisplayName, rew
     return lines.join('\n');
 }
 
-function getAvailableDestinationsForShipClass(shipClass) {
+function getAvailableDestinationsForShipClass(shipClass, playFabId = 'daily-preview', nowMs = Date.now()) {
     const normalized = normalizeExplorationShipClass(shipClass);
-    return Object.values(DESTINATIONS)
-        .filter((destination) => canShipClassExploreDestination(normalized, destination))
-        .map((destination) => publicDestination(destination, normalized));
+    return getDailyExplorationDestinations(playFabId, normalized, nowMs);
 }
 
-function getAllDestinationsForShipClass(shipClass) {
+function getAllDestinationsForShipClass(shipClass, playFabId = 'daily-preview', nowMs = Date.now()) {
     const normalized = normalizeExplorationShipClass(shipClass);
-    return Object.values(DESTINATIONS).map((destination) => publicDestination(destination, normalized));
+    return getDailyExplorationDestinations(playFabId, normalized, nowMs);
 }
 
 function initializeExplorationRoutes(app, deps) {
@@ -1171,11 +1551,12 @@ function initializeExplorationRoutes(app, deps) {
 
     async function buildExplorationStatus(playFabId) {
         const ship = await resolveActiveShip(playFabId, deps);
-        const availableDestinations = ship
-            ? getAvailableDestinationsForShipClass(ship.shipClass)
+        const now = Date.now();
+        const dailyDestinations = ship
+            ? getDailyExplorationDestinations(playFabId, ship.shipClass, now)
             : [];
         const activeSnap = await firestore.collection(EXPLORATION_COLLECTION).doc(playFabId).get();
-        const dayKey = getJstDayKey();
+        const dayKey = getJstDayKey(now);
         const dailyFreeSnap = await firestore
             .collection(EXPLORATION_COLLECTION)
             .doc(playFabId)
@@ -1192,8 +1573,8 @@ function initializeExplorationRoutes(app, deps) {
         return {
             success: true,
             ship,
-            destinations: availableDestinations,
-            allDestinations: ship ? getAllDestinationsForShipClass(ship.shipClass) : [],
+            destinations: dailyDestinations,
+            allDestinations: dailyDestinations,
             dailyFree: buildDailyFreeExplorationStatus(dayKey, dailyFreeSnap),
             active: activeSnap.exists ? explorationDocToPayload(activeSnap.data()) : null,
             reports: reportsSnap.docs.map(reportDocToPayload)
@@ -1375,11 +1756,14 @@ function initializeExplorationRoutes(app, deps) {
             const ship = await resolveActiveShip(playFabId, deps);
             if (!ship) return res.status(400).json({ error: '探索には使用中の船が必要です。' });
             const destination = DESTINATIONS[destinationId];
+            const now = Date.now();
+            if (!isDailyExplorationDestinationForPlayer(playFabId, destinationId, now)) {
+                return res.status(403).json({ error: 'この行き先は本日の探索先ではありません。' });
+            }
             if (!canShipClassExploreDestination(ship.shipClass, destination)) {
                 return res.status(403).json({ error: 'この船では選択した行き先に向かえません。' });
             }
             const dailyFreeEligible = isDailyFreeExplorationDestination(destination);
-            const now = Date.now();
             const dayKey = getJstDayKey(now);
             const explorationId = `exp-${now}-${Math.random().toString(36).slice(2, 8)}`;
             const activeRef = firestore.collection(EXPLORATION_COLLECTION).doc(playFabId);
@@ -1677,17 +2061,24 @@ module.exports = {
     __test: {
         DESTINATIONS,
         EXPLORATION_BOSSES,
+        EXPLORATION_DAILY_RARITY_ORDER,
+        EXPLORATION_DESTINATION_RARITIES,
         EXPLORATION_SHIP_ROLES,
         BOSS_TIER_DEFS,
         buildDailyFreeExplorationStatus,
         canShipClassExploreDestination,
         getAllDestinationsForShipClass,
         getAvailableDestinationsForShipClass,
+        getDailyExplorationDestinationEntries,
+        getDailyExplorationDestinations,
         getDestinationBosses,
+        getDestinationsByRarity,
         getExplorationBossWeight,
+        getExplorationGachaOptions,
         getExplorationShipAccessClasses,
         getExplorationShipClassLabel,
         getJstDayKey,
+        isDailyExplorationDestinationForPlayer,
         isDailyFreeExplorationDestination,
         selectExplorationBoss,
         resolveRewardCount,

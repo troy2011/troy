@@ -355,8 +355,188 @@
                            "w":  557,
                            "h":  355,
                            "x":  680
-                       },
+        },
         "width":  560,
         "height":  360
+    },
+    {
+        "id": "chained_megalodon",
+        "displayName": "鎖縛のメガロドン",
+        "file": "./Sprites/monsters/chained_megalodon.png",
+        "source": "./assets/ui/海賊ファンタジー_ボスモンスター集_背景透過.png",
+        "sourceRegion": {
+            "x": 0,
+            "y": 0,
+            "w": 418,
+            "h": 418
+        },
+        "sourceRect": {
+            "x": 2,
+            "y": 14,
+            "w": 416,
+            "h": 404
+        },
+        "width": 416,
+        "height": 404
+    },
+    {
+        "id": "specter_whale",
+        "displayName": "亡霊クジラ",
+        "file": "./Sprites/monsters/specter_whale.png",
+        "source": "./assets/ui/海賊ファンタジー_ボスモンスター集_背景透過.png",
+        "sourceRegion": {
+            "x": 418,
+            "y": 0,
+            "w": 418,
+            "h": 418
+        },
+        "sourceRect": {
+            "x": 418,
+            "y": 19,
+            "w": 408,
+            "h": 399
+        },
+        "width": 408,
+        "height": 399
+    },
+    {
+        "id": "armored_kraken",
+        "displayName": "甲冑クラーケン",
+        "file": "./Sprites/monsters/armored_kraken.png",
+        "source": "./assets/ui/海賊ファンタジー_ボスモンスター集_背景透過.png",
+        "sourceRegion": {
+            "x": 836,
+            "y": 0,
+            "w": 418,
+            "h": 418
+        },
+        "sourceRect": {
+            "x": 836,
+            "y": 11,
+            "w": 418,
+            "h": 407
+        },
+        "width": 418,
+        "height": 407
+    },
+    {
+        "id": "phantom_admiral",
+        "displayName": "亡霊提督",
+        "file": "./Sprites/monsters/phantom_admiral.png",
+        "source": "./assets/ui/海賊ファンタジー_ボスモンスター集_背景透過.png",
+        "sourceRegion": {
+            "x": 0,
+            "y": 418,
+            "w": 418,
+            "h": 418
+        },
+        "sourceRect": {
+            "x": 12,
+            "y": 418,
+            "w": 400,
+            "h": 416
+        },
+        "width": 400,
+        "height": 416
+    },
+    {
+        "id": "abyss_angler",
+        "displayName": "深淵アンコウ",
+        "file": "./Sprites/monsters/abyss_angler.png",
+        "source": "./assets/ui/海賊ファンタジー_ボスモンスター集_背景透過.png",
+        "sourceRegion": {
+            "x": 418,
+            "y": 418,
+            "w": 418,
+            "h": 418
+        },
+        "sourceRect": {
+            "x": 418,
+            "y": 418,
+            "w": 404,
+            "h": 416
+        },
+        "width": 404,
+        "height": 416
+    },
+    {
+        "id": "cannon_hermit",
+        "displayName": "砲台ヤドカリ",
+        "file": "./Sprites/monsters/cannon_hermit.png",
+        "source": "./assets/ui/海賊ファンタジー_ボスモンスター集_背景透過.png",
+        "sourceRegion": {
+            "x": 836,
+            "y": 418,
+            "w": 418,
+            "h": 418
+        },
+        "sourceRect": {
+            "x": 836,
+            "y": 427,
+            "w": 416,
+            "h": 409
+        },
+        "width": 416,
+        "height": 409
+    },
+    {
+        "id": "storm_serpent",
+        "displayName": "嵐の海蛇",
+        "file": "./Sprites/monsters/storm_serpent.png",
+        "source": "./assets/ui/海賊ファンタジー_ボスモンスター集_背景透過.png",
+        "sourceRegion": {
+            "x": 0,
+            "y": 836,
+            "w": 418,
+            "h": 418
+        },
+        "sourceRect": {
+            "x": 7,
+            "y": 836,
+            "w": 405,
+            "h": 405
+        },
+        "width": 405,
+        "height": 405
+    },
+    {
+        "id": "manta_wraith",
+        "displayName": "亡霊マンタ",
+        "file": "./Sprites/monsters/manta_wraith.png",
+        "source": "./assets/ui/海賊ファンタジー_ボスモンスター集_背景透過.png",
+        "sourceRegion": {
+            "x": 418,
+            "y": 836,
+            "w": 418,
+            "h": 418
+        },
+        "sourceRect": {
+            "x": 418,
+            "y": 836,
+            "w": 418,
+            "h": 399
+        },
+        "width": 418,
+        "height": 399
+    },
+    {
+        "id": "treasure_hermit",
+        "displayName": "財宝ヤドカリ",
+        "file": "./Sprites/monsters/treasure_hermit.png",
+        "source": "./assets/ui/海賊ファンタジー_ボスモンスター集_背景透過.png",
+        "sourceRegion": {
+            "x": 836,
+            "y": 836,
+            "w": 418,
+            "h": 418
+        },
+        "sourceRect": {
+            "x": 836,
+            "y": 836,
+            "w": 403,
+            "h": 407
+        },
+        "width": 403,
+        "height": 407
     }
 ]

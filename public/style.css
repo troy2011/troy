@@ -10835,6 +10835,10 @@ body.home-exploration-popup-open #globalStatusBar {
     color: #f8fafc;
 }
 
+.ship-exploration-destination.is-locked {
+    opacity: 0.78;
+}
+
 .ship-exploration-card-head {
     display: grid;
     grid-template-columns: 46px minmax(0, 1fr);
@@ -10931,6 +10935,30 @@ body.home-exploration-popup-open #globalStatusBar {
     color: #14532d;
 }
 
+.ship-exploration-badge.is-rarity-low {
+    border-color: rgba(14, 165, 233, 0.3);
+    background: rgba(186, 230, 253, 0.52);
+    color: #075985;
+}
+
+.ship-exploration-badge.is-rarity-medium {
+    border-color: rgba(217, 119, 6, 0.3);
+    background: rgba(254, 243, 199, 0.7);
+    color: #92400e;
+}
+
+.ship-exploration-badge.is-rarity-high {
+    border-color: rgba(185, 28, 28, 0.28);
+    background: rgba(254, 202, 202, 0.58);
+    color: #991b1b;
+}
+
+.ship-exploration-badge.is-locked {
+    border-color: rgba(71, 85, 105, 0.26);
+    background: rgba(226, 232, 240, 0.7);
+    color: #334155;
+}
+
 .ship-exploration-role-chips {
     display: flex;
     flex-wrap: wrap;
@@ -10957,6 +10985,11 @@ body.home-exploration-popup-open #globalStatusBar {
 .ship-exploration-role-chip.is-role {
     border-color: rgba(37, 99, 235, 0.22);
     color: #1e3a8a;
+}
+
+.ship-exploration-role-chip.is-slot {
+    border-color: rgba(15, 118, 110, 0.22);
+    color: #115e59;
 }
 
 .ship-exploration-role-chip.is-risk {
@@ -11088,6 +11121,8 @@ body.home-exploration-popup-open #globalStatusBar {
 .ship-exploration-actions button:disabled,
 .ship-exploration-start:disabled {
     opacity: 0.55;
+    cursor: not-allowed;
+    filter: grayscale(0.24);
 }
 
 .sheet-handle {

@@ -14,11 +14,10 @@ function readPngSize(filePath) {
 test('monster sprite manifest points to sliced PNG assets', () => {
   const publicDir = path.resolve(__dirname, '..', 'public');
   const manifestPath = path.join(publicDir, 'Sprites', 'monsters', 'manifest.json');
-  const sourcePath = path.join(publicDir, 'monster-sheet.png');
-  const sourceSize = readPngSize(sourcePath);
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  const sourceSizes = new Map();
 
-  expect(manifest).toHaveLength(18);
+  expect(manifest).toHaveLength(27);
   expect(new Set(manifest.map((item) => item.id)).size).toBe(manifest.length);
 
   for (const item of manifest) {
@@ -29,7 +28,16 @@ test('monster sprite manifest points to sliced PNG assets', () => {
     const size = readPngSize(assetPath);
     expect(size.width).toBe(item.width);
     expect(size.height).toBe(item.height);
+    expect(item.source).toMatch(/^\.\//);
+    const sourcePath = path.join(publicDir, item.source.replace(/^\.\//, ''));
+    expect(fs.existsSync(sourcePath), item.source).toBe(true);
+    if (!sourceSizes.has(item.source)) {
+      sourceSizes.set(item.source, readPngSize(sourcePath));
+    }
+    const sourceSize = sourceSizes.get(item.source);
     expect(item.sourceRect.x + item.sourceRect.w).toBeLessThanOrEqual(sourceSize.width);
     expect(item.sourceRect.y + item.sourceRect.h).toBeLessThanOrEqual(sourceSize.height);
+    expect(item.sourceRegion.x + item.sourceRegion.w).toBeLessThanOrEqual(sourceSize.width);
+    expect(item.sourceRegion.y + item.sourceRegion.h).toBeLessThanOrEqual(sourceSize.height);
   }
 });
