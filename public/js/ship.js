@@ -1676,10 +1676,8 @@ function renderExplorationDestinationBossChips(destination) {
 function renderExplorationDestinationMetaChips(destination) {
     const chips = [
         destination?.slotLabel ? { className: 'is-slot', label: destination.slotLabel } : null,
-        destination?.roleLabel ? { className: 'is-role', label: destination.roleLabel } : null,
         destination?.riskLabel ? { className: 'is-risk', label: destination.riskLabel } : null,
-        destination?.rewardHint ? { className: 'is-reward', label: destination.rewardHint } : null,
-        destination?.bossWeightHint ? { className: 'is-boss', label: destination.bossWeightHint } : null
+        destination?.rewardHint ? { className: 'is-reward', label: destination.rewardHint } : null
     ].filter(Boolean);
     if (!chips.length) return '';
     return `
@@ -2166,10 +2164,30 @@ function renderExplorationPanel(data, playFabId) {
     });
 }
 
+function renderExplorationLoading() {
+    return `
+        <div class="ship-exploration-loading" role="status" aria-live="polite">
+            <div class="ship-exploration-loading-head">
+                <span class="ship-exploration-loading-compass" aria-hidden="true"></span>
+                <div>
+                    <strong>探索情報を読み込み中です</strong>
+                    <span>本日の海域を確認しています</span>
+                </div>
+            </div>
+            <div class="ship-exploration-loading-route" aria-hidden="true">
+                <span></span><span></span><span></span>
+            </div>
+            <div class="ship-exploration-loading-lines" aria-hidden="true">
+                <i></i><i></i><i></i>
+            </div>
+        </div>
+    `;
+}
+
 export async function loadExplorationPanel(playFabId) {
     const panel = document.getElementById('shipExplorationPanel');
     if (!panel || !playFabId) return;
-    panel.innerHTML = '<div class="ship-exploration-empty">探索情報を読み込み中です。</div>';
+    panel.innerHTML = renderExplorationLoading();
     try {
         const data = await requestExplorationStatus(playFabId, { isSilent: true, throwOnError: true });
         renderExplorationPanel(data, playFabId);
