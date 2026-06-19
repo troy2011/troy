@@ -24142,8 +24142,8 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-exp-rank {
-    border: 12px solid transparent;
-    border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 12px / 0 stretch;
+    border: 10px solid transparent;
+    border-image: url("./assets/ui/panels/panel-gold-square.png") 24 fill / 10px / 0 stretch;
     background:
         linear-gradient(180deg, rgba(20, 16, 12, 0.96), rgba(4, 4, 5, 0.98)),
         radial-gradient(ellipse at 50% 36%, rgba(255, 206, 91, 0.18), transparent 58%);
