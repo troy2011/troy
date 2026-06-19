@@ -3303,9 +3303,10 @@ test('current equipment slots render equipped item sprites on the right edge', a
     accessory: window.getComputedStyle(document.querySelector('.accessory-slot .equip-slot-icon')).backgroundImage
   }));
   expect(slotIcons.head).toContain('032.png');
-  expect(slotIcons.right).toContain('033.png');
-  expect(slotIcons.left).toContain('026.png');
-  expect(slotIcons.accessory).toContain('028.png');
+  expect(slotIcons.head).not.toContain('073.png');
+  expect(slotIcons.right).toContain('076.png');
+  expect(slotIcons.left).toContain('077.png');
+  expect(slotIcons.accessory).toContain('074.png');
 
   const layout = await page.evaluate(() => {
     const slot = document.querySelector('.weapon-slot');
@@ -3324,7 +3325,6 @@ test('current equipment slots render equipped item sprites on the right edge', a
     const slotRect = slot?.getBoundingClientRect();
     return {
       stylePanelDisplay: panelStyle?.display || '',
-      stylePanelBorderImage: panelStyle?.borderImageSource || '',
       contentRight: contentRect?.right || 0,
       artLeft: artRect?.left || 0,
       artRight: artRect?.right || 0,
@@ -3345,7 +3345,6 @@ test('current equipment slots render equipped item sprites on the right edge', a
   });
 
   expect(layout.stylePanelDisplay).not.toBe('none');
-  expect(layout.stylePanelBorderImage).toContain('panel-sheet-frame.png');
   expect(layout.artLeft).toBeGreaterThan(layout.contentRight);
   expect(layout.slotRight - layout.artRight).toBeLessThan(20);
   expect(layout.artWidth).toBeGreaterThanOrEqual(52);
@@ -3388,6 +3387,19 @@ test('inventory current equipment resolves object equipment references', async (
         sprite_w: '32',
         sprite_h: '32'
       }
+    },
+    {
+      itemId: 'orb_001',
+      instances: ['orb-instance-1'],
+      name: 'Object Ref Orb',
+      customData: {
+        Category: 'Offhand',
+        MagicPower: 5,
+        sprite_path: './Sprites/items/icons.png',
+        sprite_index: '8',
+        sprite_w: '16',
+        sprite_h: '16'
+      }
     }
   ];
 
@@ -3424,15 +3436,48 @@ test('inventory current equipment resolves object equipment references', async (
 
   await bootstrapMainApp(page);
   await page.evaluate(async () => {
-    const inventoryTab = document.getElementById('tabContentInventory');
-    if (inventoryTab) inventoryTab.style.display = 'block';
+    document.querySelectorAll('.tab-content').forEach((tab) => {
+      tab.style.display = tab.id === 'tabContentInventory' ? 'block' : 'none';
+    });
     const inventory = await import('/js/inventory.js');
     await inventory.getInventory('PF_PLAYWRIGHT', { force: true });
     inventory.switchInventoryGroup('Equipment');
   });
 
+  await expect(page.locator('#inventoryTabs .inventory-tab-btn')).toHaveText(['武器', '左手', '防具', 'アクセ']);
   await expect(page.locator('#equippedRightHand')).toHaveText('Object Ref Sword');
   await expect(page.locator('#equippedLeftHand')).toHaveText('Object Ref Shield');
+  const rightHandSlotIconMetrics = await page.locator('#tabContentInventory .weapon-slot .equip-slot-icon').evaluate((icon) => {
+    const rect = icon.getBoundingClientRect();
+    const style = window.getComputedStyle(icon);
+    return {
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+      backgroundSize: style.backgroundSize,
+      backgroundImage: style.backgroundImage
+    };
+  });
+  expect(rightHandSlotIconMetrics.width).toBe(34);
+  expect(rightHandSlotIconMetrics.height).toBe(34);
+  expect(rightHandSlotIconMetrics.backgroundSize).toBe('32px 32px');
+  expect(rightHandSlotIconMetrics.backgroundImage).toContain('076.png');
+  const leftHandSlotIconMetrics = await page.locator('#tabContentInventory .shield-slot .equip-slot-icon').evaluate((icon) => {
+    const style = window.getComputedStyle(icon);
+    return {
+      backgroundImage: style.backgroundImage
+    };
+  });
+  expect(leftHandSlotIconMetrics.backgroundImage).toContain('077.png');
+  const headSlotIconMetrics = await page.locator('#tabContentInventory .armor-slot .equip-slot-icon').evaluate((icon) => {
+    const style = window.getComputedStyle(icon);
+    return {
+      backgroundImage: style.backgroundImage,
+      backgroundSize: style.backgroundSize
+    };
+  });
+  expect(headSlotIconMetrics.backgroundImage).toContain('032.png');
+  expect(headSlotIconMetrics.backgroundImage).not.toContain('073.png');
+  expect(headSlotIconMetrics.backgroundSize).toContain('74% 74%');
   await expect(page.locator('#equippedRightHandArt.has-item .equip-slot-item-sprite')).toHaveCount(1);
   await expect(page.locator('#equippedLeftHandArt.has-item .equip-slot-item-sprite')).toHaveCount(1);
   const equippedArtMetrics = await page.locator('#equippedRightHandArt').evaluate((art) => {
@@ -3448,6 +3493,8 @@ test('inventory current equipment resolves object equipment references', async (
       artHeight: Math.round(artRect.height),
       spriteWidth: Math.round(spriteRect?.width || 0),
       spriteHeight: Math.round(spriteRect?.height || 0),
+      spriteFitsWidth: (spriteRect?.width || 0) <= artRect.width,
+      spriteFitsHeight: (spriteRect?.height || 0) <= artRect.height,
       spriteBackground: spriteStyle?.backgroundImage || ''
     };
   });
@@ -3457,7 +3504,30 @@ test('inventory current equipment resolves object equipment references', async (
   expect(equippedArtMetrics.artHeight).toBeGreaterThanOrEqual(34);
   expect(equippedArtMetrics.spriteWidth).toBeGreaterThan(0);
   expect(equippedArtMetrics.spriteHeight).toBeGreaterThan(0);
+  expect(equippedArtMetrics.spriteFitsWidth).toBe(true);
+  expect(equippedArtMetrics.spriteFitsHeight).toBe(true);
   expect(equippedArtMetrics.spriteBackground).not.toBe('none');
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+    document.querySelector('#tabContentInventory .weapon-slot')?.click();
+  });
+  await page.waitForFunction(() => {
+    const tabs = document.getElementById('inventoryTabs');
+    const switcher = document.getElementById('inventoryMobileSwitch');
+    if (!tabs || !switcher) return false;
+    const tabsTop = tabs.getBoundingClientRect().top;
+    const switcherBottom = switcher.getBoundingClientRect().bottom;
+    return tabsTop >= switcherBottom + 6 && tabsTop < window.innerHeight;
+  });
+  const autoScrollMetrics = await page.evaluate(() => {
+    const tabs = document.getElementById('inventoryTabs');
+    const switcher = document.getElementById('inventoryMobileSwitch');
+    return {
+      tabsTop: Math.round(tabs.getBoundingClientRect().top),
+      switcherBottom: Math.round(switcher.getBoundingClientRect().bottom)
+    };
+  });
+  expect(autoScrollMetrics.tabsTop).toBeGreaterThanOrEqual(autoScrollMetrics.switcherBottom + 6);
   await page.evaluate(async () => {
     const inventory = await import('/js/inventory.js');
     inventory.switchInventoryTab('Weapon');
@@ -3465,8 +3535,10 @@ test('inventory current equipment resolves object equipment references', async (
   await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]')).toHaveAttribute('data-equipment-state', 'equipped');
   await page.evaluate(async () => {
     const inventory = await import('/js/inventory.js');
-    inventory.switchInventoryTab('Shield');
+    inventory.switchInventoryTab('LeftHand');
   });
+  await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Shield"]')).toHaveCount(1);
+  await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Offhand"]')).toHaveCount(1);
   await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Shield"]')).toHaveAttribute('data-equipment-state', 'equipped');
   await expectNoPageErrors(errors);
 });

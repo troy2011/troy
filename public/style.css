@@ -17872,19 +17872,19 @@ body {
 }
 
 #tabContentInventory .weapon-slot .equip-slot-icon {
-    background-image: url("./assets/ui/icons/075.png");
+    background-image: var(--icon-slot-weapon);
 }
 
 #tabContentInventory .shield-slot .equip-slot-icon {
-    background-image: url("./assets/ui/icons/072.png");
+    background-image: var(--icon-slot-shield);
 }
 
 #tabContentInventory .armor-slot .equip-slot-icon {
-    background-image: url("./assets/ui/icons/073.png");
+    background-image: var(--icon-slot-head);
 }
 
 #tabContentInventory .accessory-slot .equip-slot-icon {
-    background-image: url("./assets/ui/icons/074.png");
+    background-image: var(--icon-slot-accessory);
 }
 
 #tabContentInventory .equip-slot-content {
@@ -19975,10 +19975,10 @@ body[data-sea-tone] .home-hero-card {
     --icon-slot-equipment: url("./assets/ui/icons/040.png");
     --icon-slot-tarot: url("./assets/ui/icons/038.png");
     --icon-slot-head: url("./assets/ui/icons/032.png");
-    --icon-slot-weapon: url("./assets/ui/icons/033.png");
-    --icon-slot-shield: url("./assets/ui/icons/026.png");
-    --icon-slot-armor: url("./assets/ui/icons/032.png");
-    --icon-slot-accessory: url("./assets/ui/icons/028.png");
+    --icon-slot-weapon: url("./assets/ui/icons/076.png");
+    --icon-slot-shield: url("./assets/ui/icons/077.png");
+    --icon-slot-armor: url("./assets/ui/icons/073.png");
+    --icon-slot-accessory: url("./assets/ui/icons/074.png");
 }
 
 #navHome { --nav-icon-image: var(--icon-nav-home); }
@@ -20191,6 +20191,16 @@ body[data-sea-tone] .home-hero-card {
 
 #tabContentInventory .accessory-slot .equip-slot-icon {
     background-image: var(--icon-slot-accessory);
+}
+
+#tabContentInventory .armor-slot .equip-slot-icon {
+    background-image:
+        var(--icon-slot-head),
+        radial-gradient(circle at 50% 50%, rgba(255, 226, 142, 0.2), rgba(20, 14, 8, 0.92) 62%, transparent 64%),
+        linear-gradient(180deg, rgba(168, 104, 35, 0.86), rgba(74, 42, 16, 0.94));
+    background-position: center, center, center;
+    background-repeat: no-repeat, no-repeat, no-repeat;
+    background-size: 74% 74%, 100% 100%, 100% 100%;
 }
 
 @media (max-width: 640px) {
@@ -21905,7 +21915,7 @@ body[data-sea-tone] .home-hero-card {
 
     #tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .equip-slot {
         min-height: 64px;
-        grid-template-columns: 28px minmax(0, 1fr) 38px;
+        grid-template-columns: 34px minmax(0, 1fr) 38px;
         grid-template-rows: auto auto;
         gap: 3px 6px;
         padding: 7px;
@@ -21914,9 +21924,10 @@ body[data-sea-tone] .home-hero-card {
     #tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .equip-slot-icon {
         grid-column: 1;
         grid-row: 1 / 3;
-        width: 28px;
-        height: 28px;
-        background-size: 28px 28px;
+        width: 34px;
+        height: 34px;
+        background-size: 32px 32px;
+        overflow: visible;
     }
 
     #tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .equip-slot-label {
@@ -21957,6 +21968,14 @@ body[data-sea-tone] .home-hero-card {
         align-self: center;
         justify-self: end;
     }
+}
+
+#tabContentInventory .armor-slot .equip-slot-icon {
+    background-size: 74% 74%, 100% 100%, 100% 100%;
+}
+
+#tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .armor-slot .equip-slot-icon {
+    background-size: 74% 74%, 100% 100%, 100% 100%;
 }
 
 .ranking-rank-badge {

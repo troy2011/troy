@@ -203,8 +203,7 @@ const INVENTORY_GROUPS = {
         category: 'Weapon',
         tabs: [
             { category: 'Weapon', label: '武器' },
-            { category: 'Shield', label: '盾' },
-            { category: 'Offhand', label: '副手' },
+            { category: 'LeftHand', label: '左手' },
             { category: 'Armor', label: '防具' },
             { category: 'Accessory', label: 'アクセ' }
         ]
@@ -235,6 +234,12 @@ const INVENTORY_SORT_OPTIONS = {
     Shield: [
         { value: 'default', label: 'おすすめ順' },
         { value: 'defense_desc', label: '防御力順' }
+    ],
+    LeftHand: [
+        { value: 'default', label: 'おすすめ順' },
+        { value: 'defense_desc', label: '防御力順' },
+        { value: 'magic_desc', label: '術補順' },
+        { value: 'heal_desc', label: '回復順' }
     ],
     Offhand: [
         { value: 'default', label: 'おすすめ順' },
@@ -270,10 +275,18 @@ export function getActiveInventoryCategory() {
 
 
 function getInventoryGroupForCategory(category) {
-    if (['Weapon', 'Shield', 'Offhand', 'Armor', 'Accessory'].includes(category)) return 'Equipment';
+    if (['Weapon', 'Shield', 'Offhand', 'LeftHand', 'Armor', 'Accessory'].includes(category)) return 'Equipment';
     if (['TarotMajor', 'TarotMinor'].includes(category)) return 'Tarot';
     if (category === 'Consumable') return 'Consumable';
     return 'All';
+}
+
+function matchesInventoryDisplayCategory(itemCategory, selectedCategory) {
+    if (selectedCategory === 'LeftHand') {
+        const canonicalCategory = getCanonicalTarotCategory(itemCategory);
+        return canonicalCategory === 'Shield' || canonicalCategory === 'Offhand';
+    }
+    return matchesInventoryCategory(itemCategory, selectedCategory);
 }
 
 function getDefaultInventoryCategory(group) {
@@ -370,13 +383,21 @@ export function switchInventoryPanel(panel, options = {}) {
 
 export function scrollInventoryItemsIntoView(options = {}) {
     if (typeof document === 'undefined') return;
-    const target = document.querySelector('#tabContentInventory .inventory-section[data-panel="items"]')
-        || document.getElementById('inventoryGrid');
+    const tabs = document.getElementById('inventoryTabs');
+    const grid = document.getElementById('inventoryGrid');
+    const section = document.querySelector('#tabContentInventory .inventory-section[data-panel="items"]');
+    const tabsVisible = tabs
+        && tabs.hidden !== true
+        && window.getComputedStyle(tabs).display !== 'none';
+    const target = (tabsVisible ? tabs : null) || grid || section;
     if (!target) return;
     const behavior = options.behavior || 'smooth';
-    const block = options.block || 'start';
     requestAnimationFrame(() => {
-        target.scrollIntoView({ block, behavior });
+        const switcher = document.getElementById('inventoryMobileSwitch');
+        const switcherBottom = Math.max(0, Math.ceil(switcher?.getBoundingClientRect().bottom || 0));
+        const gap = Math.max(0, Number(options.gap ?? 10) || 0);
+        const targetTop = target.getBoundingClientRect().top + window.scrollY - switcherBottom - gap;
+        window.scrollTo({ top: Math.max(0, targetTop), behavior });
     });
 }
 
@@ -395,14 +416,17 @@ function getTargetInventoryCategoryForEquipmentSlot(slotElement) {
     const currentCategory = String(currentItem?.customData?.Category || '').trim();
 
     if (slotType === 'majorarcana') return 'TarotMajor';
-    if (currentCategory === 'Weapon' || currentCategory === 'Shield' || currentCategory === 'Offhand' || currentCategory === 'Armor' || currentCategory === 'Accessory') {
+    if (slotType === 'leftHand' && (currentCategory === 'Shield' || currentCategory === 'Offhand')) {
+        return 'LeftHand';
+    }
+    if (currentCategory === 'Weapon' || currentCategory === 'Armor' || currentCategory === 'Accessory') {
         return currentCategory;
     }
     if (currentCategory === 'TarotMajor' || currentCategory === 'MajorArcana' || currentCategory === 'TarotArcanaMajor') {
         return 'TarotMajor';
     }
     if (slotType === 'rightHand') return 'Weapon';
-    if (slotType === 'leftHand') return 'Offhand';
+    if (slotType === 'leftHand') return 'LeftHand';
     if (slotType === 'armor') return 'Armor';
     if (slotType === 'accessory') return 'Accessory';
     return 'All';
@@ -759,6 +783,9 @@ function getInventoryTabHint(category) {
     if (category === 'Accessory') {
         return '候補をタップすると装備/解除できます。詳細はカード下部の i ボタンから確認できます。';
     }
+    if (category === 'LeftHand') {
+        return '候補をタップすると左手に装備/解除できます。詳細はカード下部の i ボタンから確認できます。';
+    }
     if (category === 'Offhand') {
         return '候補をタップすると左手に装備/解除できます。副手は盾とは別系統の補助装備です。';
     }
@@ -806,6 +833,9 @@ function getEmptyInventoryMessage(category) {
     if (category === 'Accessory') {
         return 'このカテゴリのアクセサリーはまだありません。';
     }
+    if (category === 'LeftHand') {
+        return '左手装備はまだありません。';
+    }
     if (category === 'Offhand') {
         return 'このカテゴリの副手はまだありません。';
     }
@@ -813,6 +843,7 @@ function getEmptyInventoryMessage(category) {
 }
 
 function getInventoryCategoryLabel(category) {
+    if (category === 'LeftHand') return '左手';
     const canonicalCategory = getCanonicalTarotCategory(category);
     if (canonicalCategory === 'TarotMajor') return '大アルカナ';
     if (canonicalCategory === 'TarotMinor') return '小アルカナ';
@@ -876,7 +907,7 @@ function renderInventoryListSummary(category, filteredItems, allItems) {
 
 function getInventoryLayout(category) {
     if (category === 'TarotMajor' || category === 'TarotMinor') return 'tarot';
-    if (['Weapon', 'Shield', 'Offhand', 'Armor', 'Accessory'].includes(category)) return 'equipment';
+    if (['Weapon', 'Shield', 'Offhand', 'LeftHand', 'Armor', 'Accessory'].includes(category)) return 'equipment';
     if (category === 'Consumable') return 'consumable';
     if (category === 'All') return 'mixed';
     return 'mixed';
@@ -905,12 +936,15 @@ function compareInventoryItemsDefault(a, b, selectedCategory) {
     if (selectedCategory === 'All' && leftCategory !== rightCategory) {
         return getInventoryCategoryOrder(leftCategory) - getInventoryCategoryOrder(rightCategory);
     }
+    if (selectedCategory === 'LeftHand' && leftCategory !== rightCategory) {
+        return getInventoryCategoryOrder(leftCategory) - getInventoryCategoryOrder(rightCategory);
+    }
     if ((leftCategory === 'TarotMajor' && rightCategory === 'TarotMajor')
         || (leftCategory === 'TarotMinor' && rightCategory === 'TarotMinor')) {
         return compareTarotItems(a, b);
     }
 
-    const focusCategory = selectedCategory === 'All' ? leftCategory : selectedCategory;
+    const focusCategory = selectedCategory === 'All' || selectedCategory === 'LeftHand' ? leftCategory : selectedCategory;
     if (focusCategory === 'Weapon') {
         const powerDiff = getInventoryStatValue(b?.customData, 'Power') - getInventoryStatValue(a?.customData, 'Power');
         if (powerDiff !== 0) return powerDiff;
@@ -1934,7 +1968,7 @@ export function renderInventoryGrid(category) {
     const displayInventory = getDisplayInventoryEntries();
     const filtered = (category === 'All')
         ? displayInventory
-        : displayInventory.filter(item => matchesInventoryCategory(item.customData?.Category, category));
+        : displayInventory.filter(item => matchesInventoryDisplayCategory(item.customData?.Category, category));
     renderInventoryListSummary(category, filtered, displayInventory);
 
     const sortOrder = document.getElementById('inventorySort').value;
