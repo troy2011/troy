@@ -24141,6 +24141,17 @@ body[data-sea-tone] .home-hero-card {
         radial-gradient(ellipse at 50% 0%, rgba(66, 149, 196, 0.1), transparent 58%);
 }
 
+.home-exp-rank {
+    border: 12px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 12px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(20, 16, 12, 0.96), rgba(4, 4, 5, 0.98)),
+        radial-gradient(ellipse at 50% 36%, rgba(255, 206, 91, 0.18), transparent 58%);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 232, 158, 0.08),
+        0 8px 18px rgba(0, 0, 0, 0.28);
+}
+
 #tabContentKing .king-chip-return-panel {
     min-height: 40px;
     padding: 5px 8px;
