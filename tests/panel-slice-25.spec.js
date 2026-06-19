@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-test('decorated panel border images render with 25 slice cells', async ({ page }) => {
+test('explicit decorated panel border images render with 25 slice cells', async ({ page }) => {
   await page.route('**/main.js*', (route) => route.abort());
   await page.goto('/index.html');
   await page.setContent(`
@@ -19,7 +19,7 @@ test('decorated panel border images render with 25 slice cells', async ({ page }
         </style>
       </head>
       <body>
-        <div id="panel"><p>content</p></div>
+        <div id="panel" data-panel-slice="25"><p>content</p></div>
       </body>
     </html>
   `);
@@ -123,6 +123,12 @@ test('compact chrome controls are not auto-upgraded to 25 slice panels', async (
             border: 24px solid transparent;
             border-image: url("/assets/ui/panels/panel-dark.png") 30 fill / 12px / 0 stretch;
           }
+          .plain-panel {
+            width: 180px;
+            height: 88px;
+            border: 24px solid transparent;
+            border-image: url("/assets/ui/panels/panel-dark-gold.png") 32 fill / 14px / 0 stretch;
+          }
         </style>
       </head>
       <body>
@@ -131,6 +137,7 @@ test('compact chrome controls are not auto-upgraded to 25 slice panels', async (
         <button type="button">押す</button>
         <input value="入力">
         <div class="manual-panel" data-panel-slice="25">manual</div>
+        <div class="plain-panel">plain</div>
       </body>
     </html>
   `);
@@ -146,6 +153,7 @@ test('compact chrome controls are not auto-upgraded to 25 slice panels', async (
   await expect(page.locator('.troy-state-badge > .panel-slice-25-layer')).toHaveCount(0);
   await expect(page.locator('button > .panel-slice-25-layer')).toHaveCount(0);
   await expect(page.locator('input > .panel-slice-25-layer')).toHaveCount(0);
+  await expect(page.locator('.plain-panel > .panel-slice-25-layer')).toHaveCount(0);
 
   const currencyBefore = await page.locator('.currency-display').evaluate((element) => {
     const beforeStyle = window.getComputedStyle(element, '::before');

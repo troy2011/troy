@@ -79,9 +79,7 @@ function isPanelSlice25Target(element, style) {
     if (element.dataset.panelSlice === 'off') return false;
     if (element.matches(AUTO_SKIP_SELECTOR)) return false;
     if (hasClippingOverflow(style)) return false;
-    const source = extractCssUrl(style.borderImageSource);
-    if (!source) return false;
-    return DECORATED_PANEL_CONFIG.has(getFileName(source));
+    return false;
 }
 
 function expandSides(values, fallback = 0) {
