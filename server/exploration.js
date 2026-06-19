@@ -50,11 +50,10 @@ const EXPLORATION_SHIP_ROLES = {
         role: 'assault',
         roleLabel: '強襲',
         riskLabel: '高リスク',
-        rewardHint: '勝利時お宝+1',
+        rewardHint: '勝利時お宝1個',
         bossWeightHint: '強BOSS寄り',
         categoryWeights: { Weapon: 58, Armor: 12, Shield: 15, Consumable: 15 },
-        bossWeightAdjustments: { weak: -20, medium: 5, strong: 15 },
-        victoryRewardBonus: 1
+        bossWeightAdjustments: { weak: -20, medium: 5, strong: 15 }
     },
     defender: {
         role: 'guard',
@@ -70,11 +69,10 @@ const EXPLORATION_SHIP_ROLES = {
         role: 'haul',
         roleLabel: '回収',
         riskLabel: '中リスク',
-        rewardHint: 'お宝+1',
+        rewardHint: 'お宝1個',
         bossWeightHint: '回収優先',
         categoryWeights: { Weapon: 18, Armor: 22, Shield: 15, Consumable: 45 },
-        bossWeightAdjustments: { weak: 5, medium: 5, strong: -10 },
-        rewardBonus: 1
+        bossWeightAdjustments: { weak: 5, medium: 5, strong: -10 }
     }
 };
 
@@ -132,6 +130,7 @@ const DESTINATIONS = {
         cost: 100,
         durationMs: 3 * HOUR_MS,
         bosses: ['treasure_slime', 'puffer_bomb', 'mimic_chest'],
+        recommendedLevel: 6,
         riskLabel: '低リスク',
         rewardHint: '基本報酬'
     }),
@@ -143,6 +142,7 @@ const DESTINATIONS = {
         cost: 120,
         durationMs: 3 * HOUR_MS,
         bosses: ['treasure_slime', 'skeletal_parrot', 'crab_brute'],
+        recommendedLevel: 7,
         riskLabel: '低リスク',
         rewardHint: '序盤装備'
     }),
@@ -154,6 +154,7 @@ const DESTINATIONS = {
         cost: 140,
         durationMs: 4 * HOUR_MS,
         bosses: ['puffer_bomb', 'coral_goblin', 'crab_brute'],
+        recommendedLevel: 7,
         riskLabel: '低リスク',
         rewardHint: '序盤装備'
     }),
@@ -165,6 +166,7 @@ const DESTINATIONS = {
         cost: 180,
         durationMs: 4 * HOUR_MS,
         bosses: ['skeletal_parrot', 'coral_goblin'],
+        recommendedLevel: 7,
         riskLabel: '中リスク',
         rewardHint: '素材と消耗品'
     }),
@@ -176,6 +178,7 @@ const DESTINATIONS = {
         cost: 250,
         durationMs: 5 * HOUR_MS,
         bosses: ['lantern_wraith', 'ghost_pirate'],
+        recommendedLevel: 11,
         riskLabel: '中リスク',
         rewardHint: '武器と防具'
     }),
@@ -187,6 +190,7 @@ const DESTINATIONS = {
         cost: 300,
         durationMs: 6 * HOUR_MS,
         bosses: ['zombie_raider', 'drowned_buccaneer'],
+        recommendedLevel: 11,
         riskLabel: '回収向け',
         rewardHint: '積荷回収'
     }),
@@ -198,6 +202,7 @@ const DESTINATIONS = {
         cost: 320,
         durationMs: 6 * HOUR_MS,
         bosses: ['anchor_golem', 'cursed_shipwheel'],
+        recommendedLevel: 22,
         riskLabel: '中リスク',
         rewardHint: '防具と盾'
     }),
@@ -209,6 +214,7 @@ const DESTINATIONS = {
         cost: 400,
         durationMs: 8 * HOUR_MS,
         bosses: ['skeleton_captain', 'shark_raider'],
+        recommendedLevel: 15,
         riskLabel: '高リスク',
         rewardHint: '武器報酬狙い'
     }),
@@ -220,6 +226,7 @@ const DESTINATIONS = {
         cost: 550,
         durationMs: 10 * HOUR_MS,
         bosses: ['blue_kraken', 'merfolk_lancer'],
+        recommendedLevel: 19,
         riskLabel: '高耐久向け',
         rewardHint: '防具と盾'
     }),
@@ -231,6 +238,7 @@ const DESTINATIONS = {
         cost: 650,
         durationMs: 10 * HOUR_MS,
         bosses: ['chained_megalodon'],
+        recommendedLevel: 24,
         riskLabel: '高リスク',
         rewardHint: '高レア報酬'
     }),
@@ -242,6 +250,7 @@ const DESTINATIONS = {
         cost: 680,
         durationMs: 10 * HOUR_MS,
         bosses: ['specter_whale'],
+        recommendedLevel: 25,
         riskLabel: '高リスク',
         rewardHint: '高レア報酬'
     }),
@@ -253,6 +262,7 @@ const DESTINATIONS = {
         cost: 720,
         durationMs: 11 * HOUR_MS,
         bosses: ['armored_kraken'],
+        recommendedLevel: 28,
         riskLabel: '高リスク',
         rewardHint: '高レア報酬'
     }),
@@ -264,6 +274,7 @@ const DESTINATIONS = {
         cost: 700,
         durationMs: 11 * HOUR_MS,
         bosses: ['phantom_admiral'],
+        recommendedLevel: 26,
         riskLabel: '高リスク',
         rewardHint: '高レア報酬'
     }),
@@ -275,6 +286,7 @@ const DESTINATIONS = {
         cost: 740,
         durationMs: 11 * HOUR_MS,
         bosses: ['abyss_angler'],
+        recommendedLevel: 27,
         riskLabel: '高リスク',
         rewardHint: '高レア報酬'
     }),
@@ -286,6 +298,7 @@ const DESTINATIONS = {
         cost: 760,
         durationMs: 12 * HOUR_MS,
         bosses: ['cannon_hermit'],
+        recommendedLevel: 26,
         riskLabel: '高リスク',
         rewardHint: '高レア報酬'
     }),
@@ -297,6 +310,7 @@ const DESTINATIONS = {
         cost: 800,
         durationMs: 12 * HOUR_MS,
         bosses: ['storm_serpent'],
+        recommendedLevel: 29,
         riskLabel: '高リスク',
         rewardHint: '高レア報酬'
     }),
@@ -308,6 +322,7 @@ const DESTINATIONS = {
         cost: 820,
         durationMs: 12 * HOUR_MS,
         bosses: ['manta_wraith'],
+        recommendedLevel: 27,
         riskLabel: '高リスク',
         rewardHint: '高レア報酬'
     }),
@@ -319,6 +334,7 @@ const DESTINATIONS = {
         cost: 850,
         durationMs: 12 * HOUR_MS,
         bosses: ['treasure_hermit'],
+        recommendedLevel: 30,
         riskLabel: '高リスク',
         rewardHint: '高レア報酬'
     })
@@ -459,6 +475,7 @@ function publicDestination(destination, shipClass = 'common') {
         rarityLabel: destination.rarityLabel || '',
         slot: Number(destination.slot || 0),
         slotLabel: destination.slotLabel || '',
+        recommendedLevel: Math.max(1, Math.floor(Number(destination.recommendedLevel || 1) || 1)),
         cost: destination.cost,
         durationMs: destination.durationMs,
         available: canShipClassExploreDestination(normalizedShipClass, destination),
@@ -1280,26 +1297,23 @@ function selectExplorationBoss(destination, random = Math.random, shipClass = ''
     return pickWeighted(candidates, random) || EXPLORATION_BOSSES.treasure_slime;
 }
 
-// BOSS勝利:2個 / 強BOSS勝利:+1個 / 逃走・決着なし:1個 / BOSS敗北:0個。船種ごとに追加補正する。
+// 宝箱の中身は基本1個。通常敗北のみ0個、守備船は敗北時も最低1個。
 function resolveRewardCount(bossResult, shipClass) {
     const role = getExplorationShipRole(shipClass);
     let base;
     if (!bossResult || !bossResult.bossAppeared) {
         base = 1;
     } else if (bossResult.playerWon) {
-        base = 2;
-        base += getBossTierDef(bossResult.bossTier).rewardBonus;
+        base = 1;
     } else if (bossResult.escaped || bossResult.draw) {
         base = 1;
     } else {
         base = 0;
     }
-    if (bossResult?.playerWon) base += Number(role.victoryRewardBonus || 0);
-    base += Number(role.rewardBonus || 0);
     if (role.defeatRewardFloor && bossResult?.bossAppeared && !bossResult.playerWon && !bossResult.escaped && !bossResult.draw) {
         base = Math.max(base, Number(role.defeatRewardFloor || 0));
     }
-    return Math.max(0, base);
+    return Math.max(0, Math.min(1, base));
 }
 
 async function refreshGoldBalanceAndRanking(playFabId, deps) {

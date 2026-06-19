@@ -3,7 +3,9 @@ require('dotenv').config();
 const economy = require('../economy');
 const { getEntityKeyFromPlayFabId, withTitleEntityToken } = require('../playfab');
 const { applyDerivedPlayerLevelToStats } = require('../playerLevel');
-const { TAROT_DECK_DATA_KEY, MELEE_DECK_DATA_KEY, SHIP_DECK_DATA_KEY, evaluateDeckRole, readDecks } = require('../tarotDeck');
+const { TAROT_DECK_DATA_KEY, MELEE_DECK_DATA_KEY, SHIP_DECK_DATA_KEY, evaluateDeckRole } = require('../tarotDeck');
+const { getTarotRolePassive } = require('../tarotRoles');
+const { getTarotBattleDeck } = require('../tarotBattleSkills');
 const {
     getCanonicalTarotCategory,
     getMajorArcanaSuitInfo,
@@ -484,13 +486,11 @@ async function getPlayerFullProfile(playFabId) {
     accumulateItemStats(equipment.Armor, { replaceDefense: true });
     accumulateItemStats(equipment.Accessory);
 
-    // 白兵戦デッキのポーカーハンドボーナスを適用
+    // 白兵戦デッキの役は戦闘開始時パッシブとして扱う
     const meleeDeckItemData = meleeDeckIds.map((id) => _catalogCache?.[id] || null);
     const tarotMeleeRole = evaluateDeckRole(meleeDeckItemData);
-    equipmentStats.Power   += Number(tarotMeleeRole?.bonus?.Power   || 0) || 0;
-    equipmentStats.Defense += Number(tarotMeleeRole?.bonus?.Defense || 0) || 0;
-    equipmentStats.Agi     += Number(tarotMeleeRole?.bonus?.Agi     || 0) || 0;
-    equipmentStats.Int     += Number(tarotMeleeRole?.bonus?.Int     || 0) || 0;
+    const tarotRolePassive = getTarotRolePassive(tarotMeleeRole);
+    const tarotBattleDeck = getTarotBattleDeck(meleeDeckIds, _catalogCache);
 
     stats.すばやさ = (Number(stats.すばやさ || 0) || 0) + equipmentStats.Agi;
     stats.かしこさ = (Number(stats.かしこさ || 0) || 0) + equipmentStats.Int;
@@ -506,6 +506,8 @@ async function getPlayerFullProfile(playFabId) {
         equipment: equipment,
         equipmentStats: equipmentStats,
         tarotMeleeRole,
+        tarotRolePassive,
+        tarotBattleDeck,
         tarotShipRole,
         meleeDeckIds,
         shipDeckIds,
@@ -522,6 +524,25 @@ async function runBattle(playerA, playerB) {
         console.error('runBattle: battle.js が初期化されていません。');
         throw new Error('battle.js is not initialized.');
     }
+
+    const logs = [];
+    const sendLogToBoth = async (messageText) => {
+        logs.push(messageText);
+        // 航海中のバトルではLINE通知が過剰になる可能性があるため、通知を（任意で）無効化
+        /*
+        try {
+            if (playerA.lineUserId && playerB.lineUserId) {
+                await Promise.all([
+                    _lineClient.pushMessage(playerA.lineUserId, { type: 'text', text: messageText }),
+                    _lineClient.pushMessage(playerB.lineUserId, { type: 'text', text: messageText })
+                ]);
+            }
+        } catch (pushError) {
+            console.error("プッシュメッセージの送信に失敗:", pushError.originalError ? pushError.originalError.response.data : pushError);
+        }
+        */
+        console.log(`[バトルログ] ${messageText}`); // サーバーコンソールにはログを残す
+    };
 
     const getEquippedWeaponTypes = (player) => {
         const types = new Set();
@@ -767,8 +788,41 @@ async function runBattle(playerA, playerB) {
             })[0] || null;
     };
 
-    const tarotCaptainA = applyTarotCaptainSkillEffects(playerA);
-    const tarotCaptainB = applyTarotCaptainSkillEffects(playerB);
+    const applyBattleStartTarotRolePassive = async (player) => {
+        const passive = player?.tarotRolePassive || getTarotRolePassive(player?.tarotMeleeRole);
+        player.tarotRolePassive = passive;
+        player.tarotShield = 0;
+        if (!passive?.active) return passive;
+
+        const hpRate = Number(passive.hpRate || 0) || 0;
+        if (hpRate > 0) {
+            const oldMaxHp = Math.max(1, Number(player.stats.MaxHP || player.stats.HP || player.stats.CurrentHP || 1) || 1);
+            const newMaxHp = Math.max(1, Math.floor(oldMaxHp * (1 + hpRate)));
+            const hpDelta = Math.max(0, newMaxHp - oldMaxHp);
+            player.stats.MaxHP = newMaxHp;
+            player.stats.HP = Math.max(Number(player.stats.HP || 0) || 0, newMaxHp);
+            player.stats.CurrentHP = Math.min(newMaxHp, (Number(player.stats.CurrentHP || 0) || 0) + hpDelta);
+        }
+
+        const agilityMultiplier = Number(passive.agilityMultiplier || 1) || 1;
+        if (agilityMultiplier !== 1) {
+            const speed = Number(player.stats.すばやさ || player.stats.Agi || 1) || 1;
+            const nextSpeed = Math.max(1, Math.floor(speed * agilityMultiplier));
+            player.stats.すばやさ = nextSpeed;
+            player.stats.Agi = nextSpeed;
+        }
+
+        const shieldRate = Number(passive.startingShieldRate || 0) || 0;
+        if (shieldRate > 0) {
+            player.tarotShield = Math.max(1, Math.floor((Number(player.stats.MaxHP || 1) || 1) * shieldRate));
+        }
+
+        await sendLogToBoth(`${player.stats.DisplayName} のタロット役「${passive.roleLabel}」: ${passive.bonusText}`);
+        return passive;
+    };
+
+    await applyBattleStartTarotRolePassive(playerA);
+    await applyBattleStartTarotRolePassive(playerB);
 
     // ★★★ 改良案: 逃走判定 ★★★
     // すばやさが高い方が、その差に応じて逃げやすくなる
@@ -784,34 +838,6 @@ async function runBattle(playerA, playerB) {
         const log = `${escaper.stats.DisplayName} は ${pursuer.stats.DisplayName} からうまく逃げきった！`;
         console.log(`[バトルログ] ${log}`);
         return { winner: null, loser: null, logs: [log], escaped: true }; // 逃走成功
-    }
-
-    const logs = [];
-    const sendLogToBoth = async (messageText) => {
-        logs.push(messageText);
-        // 航海中のバトルではLINE通知が過剰になる可能性があるため、通知を（任意で）無効化
-        /*
-        try {
-            if (playerA.lineUserId && playerB.lineUserId) {
-                await Promise.all([
-                    _lineClient.pushMessage(playerA.lineUserId, { type: 'text', text: messageText }),
-                    _lineClient.pushMessage(playerB.lineUserId, { type: 'text', text: messageText })
-                ]);
-            }
-        } catch (pushError) {
-            console.error("プッシュメッセージの送信に失敗:", pushError.originalError ? pushError.originalError.response.data : pushError);
-        }
-        */
-        console.log(`[バトルログ] ${messageText}`); // サーバーコンソールにはログを残す
-    };
-
-    const tarotCaptainALog = describeTarotCaptainSkill(tarotCaptainA);
-    const tarotCaptainBLog = describeTarotCaptainSkill(tarotCaptainB);
-    if (tarotCaptainALog) {
-        await sendLogToBoth(`${playerA.stats.DisplayName} のタロット船長スキル: ${tarotCaptainALog}`);
-    }
-    if (tarotCaptainBLog) {
-        await sendLogToBoth(`${playerB.stats.DisplayName} のタロット船長スキル: ${tarotCaptainBLog}`);
     }
 
     let attacker, defender;
@@ -847,6 +873,343 @@ async function runBattle(playerA, playerB) {
         [playerB.id, applyAwakeningToPassiveBonuses(playerB, buildPassiveBonuses(passiveCountMap.get(playerB.id)))]
     ]);
     const EMPTY_PASSIVE = buildPassiveBonuses({});
+    const buildTarotRuntimeState = (player) => ({
+        charged: false,
+        tarotIndex: 0,
+        tarotCooldown: 0,
+        tarotDeck: Array.isArray(player?.tarotBattleDeck)
+            ? player.tarotBattleDeck.filter(Boolean)
+            : getTarotBattleDeck(player?.meleeDeckIds || [], _catalogCache || {}),
+        attackBuffTurns: 0,
+        attackBuffMultiplier: 1,
+        attackDownTurns: 0,
+        attackDownMultiplier: 1,
+        guardTurns: 0,
+        guardMultiplier: 1,
+        defenseDownTurns: 0,
+        defenseDownMultiplier: 1,
+        speedBuffTurns: 0,
+        speedBuffMultiplier: 1,
+        speedDownTurns: 0,
+        speedDownMultiplier: 1,
+        burnTurns: 0,
+        silenceTurns: 0,
+        counterTurns: 0,
+        counterMultiplier: 0.35
+    });
+    skillState.set(playerA.id, { ...buildTarotRuntimeState(playerA), ...(skillState.get(playerA.id) || {}) });
+    skillState.set(playerB.id, { ...buildTarotRuntimeState(playerB), ...(skillState.get(playerB.id) || {}) });
+
+    const normalizeBattleElementKey = (value) => {
+        const raw = String(value || '').trim().toLowerCase();
+        if (raw === '火' || raw === 'fire') return 'fire';
+        if (raw === '水' || raw === 'water') return 'water';
+        if (raw === '風' || raw === 'wind') return 'wind';
+        if (raw === '地' || raw === 'earth') return 'earth';
+        if (raw === '全属性' || raw === 'all') return 'all';
+        if (raw === '無' || raw === '無属性' || raw === 'none' || raw === 'neutral') return 'none';
+        return raw || 'none';
+    };
+    const getRolePassive = (player) => player?.tarotRolePassive || getTarotRolePassive(player?.tarotMeleeRole);
+    const getStateAttackMultiplier = (state) => {
+        let multiplier = 1;
+        if ((state?.attackBuffTurns || 0) > 0) multiplier *= Number(state.attackBuffMultiplier || 1) || 1;
+        if ((state?.attackDownTurns || 0) > 0) multiplier *= Number(state.attackDownMultiplier || 1) || 1;
+        return multiplier;
+    };
+    const getStateDamageTakenMultiplier = (state) => {
+        let multiplier = 1;
+        if ((state?.guardTurns || 0) > 0) multiplier *= Number(state.guardMultiplier || 1) || 1;
+        if ((state?.defenseDownTurns || 0) > 0) multiplier *= Number(state.defenseDownMultiplier || 1) || 1;
+        return multiplier;
+    };
+    const getEffectiveSpeed = (player, state) => {
+        let speed = Number(player?.stats?.すばやさ || player?.stats?.Agi || 1) || 1;
+        if ((state?.speedBuffTurns || 0) > 0) speed *= Number(state.speedBuffMultiplier || 1) || 1;
+        if ((state?.speedDownTurns || 0) > 0) speed *= Number(state.speedDownMultiplier || 1) || 1;
+        return Math.max(1, Math.floor(speed));
+    };
+    const getRoleAttackMultiplier = (player, mode, elementKey) => {
+        const passive = getRolePassive(player);
+        let multiplier = Number(passive?.attackMultiplier || 1) || 1;
+        if (mode === 'tarot') {
+            const skillElement = normalizeBattleElementKey(elementKey);
+            const roleElement = String(passive?.elementalElement || '').trim();
+            const elementalMultiplier = Number(passive?.elementalSkillMultiplier || 1) || 1;
+            if (
+                elementalMultiplier > 1
+                && skillElement !== 'none'
+                && skillElement !== ''
+                && (roleElement === 'any' || roleElement === 'all' || skillElement === 'all' || roleElement === skillElement)
+            ) {
+                multiplier *= elementalMultiplier;
+            }
+        }
+        return multiplier;
+    };
+    const getRoleDamageTakenMultiplier = (player) => Number(getRolePassive(player)?.damageTakenMultiplier || 1) || 1;
+    const getRoleAccuracyBonus = (player) => Number(getRolePassive(player)?.accuracyBonus || 0) || 0;
+    const getRoleCriticalRate = (player) => Number(getRolePassive(player)?.criticalRateBonus || 0) || 0;
+    const applyDamageToPlayer = (target, rawDamage) => {
+        const totalDamage = Math.max(0, Math.floor(Number(rawDamage) || 0));
+        let remaining = totalDamage;
+        const shield = Math.max(0, Math.floor(Number(target?.tarotShield || 0) || 0));
+        const absorbed = Math.min(shield, remaining);
+        if (absorbed > 0) {
+            target.tarotShield = shield - absorbed;
+            remaining -= absorbed;
+        }
+        target.stats.CurrentHP = (Number(target.stats.CurrentHP || 0) || 0) - remaining;
+        return {
+            totalDamage,
+            hpDamage: remaining,
+            absorbed,
+            remainingShield: Math.max(0, Math.floor(Number(target.tarotShield || 0) || 0))
+        };
+    };
+    const formatShieldSuffix = (damageResult) => damageResult?.absorbed > 0
+        ? `（シールドが ${damageResult.absorbed} 吸収 / 残り${damageResult.remainingShield}）`
+        : '';
+    const maybeApplyCritical = (player, damage, mode) => {
+        const rate = mode === 'magic' ? 0 : getRoleCriticalRate(player);
+        if (rate > 0 && rollChance(rate)) {
+            return { damage: Math.max(1, Math.floor(damage * 1.5)), critical: true };
+        }
+        return { damage, critical: false };
+    };
+    const decrementTimedState = (state) => {
+        [
+            'attackBuffTurns',
+            'attackDownTurns',
+            'guardTurns',
+            'defenseDownTurns',
+            'speedBuffTurns',
+            'speedDownTurns',
+            'silenceTurns',
+            'counterTurns'
+        ].forEach((key) => {
+            if ((state[key] || 0) > 0) state[key] -= 1;
+        });
+    };
+    const applyTurnStartTarotStatus = async (player, state) => {
+        if ((state?.burnTurns || 0) <= 0) return null;
+        const burnDamage = Math.max(1, Math.floor((Number(player.stats.MaxHP || 1) || 1) * 0.04));
+        state.burnTurns -= 1;
+        const damageResult = applyDamageToPlayer(player, burnDamage);
+        await sendLogToBoth(`${player.stats.DisplayName} は火傷で ${damageResult.totalDamage} ダメージ！${formatShieldSuffix(damageResult)} (残りHP: ${player.stats.CurrentHP})`);
+        if (player.stats.CurrentHP <= 0) {
+            await sendLogToBoth(`${player.stats.DisplayName} はたおれた！`);
+            return { defeated: true };
+        }
+        return null;
+    };
+    const getDamageTierMultiplier = (tier) => {
+        const raw = String(tier || '').trim();
+        if (raw.includes('特大')) return 1.65;
+        if (raw.includes('中〜大')) return 1.18;
+        if (raw.includes('大')) return 1.35;
+        if (raw.includes('中')) return 1.05;
+        if (raw.includes('小')) return 0.75;
+        return 0.95;
+    };
+    const getHealTierRate = (tier) => {
+        const raw = String(tier || '').trim();
+        if (raw.includes('大')) return 0.38;
+        if (raw.includes('中')) return 0.25;
+        if (raw.includes('継続') || raw.includes('小')) return 0.15;
+        return 0.18;
+    };
+    const getTarotHitCount = (skill) => {
+        const raw = `${skill?.effectClass || ''} ${skill?.damageTier || ''}`;
+        const match = raw.match(/×(\d+)/);
+        if (match) return Math.max(1, Math.min(4, Number(match[1]) || 1));
+        return raw.includes('連撃') ? 2 : 1;
+    };
+    const calculateTarotDamage = (attacker, defender, skill, attackerState, defenderState, hitMultiplier = 1) => {
+        const level = Number(attacker?.stats?.Level || attacker?.level || 1) || 1;
+        const attackStat = (Number(attacker?.stats?.こうげき || attacker?.stats?.Power || 0) || 0)
+            + (Number(attacker?.equipmentStats?.Power || 0) || 0)
+            + Math.floor(((Number(attacker?.stats?.かしこさ || 0) || 0) + (Number(attacker?.equipmentStats?.Int || 0) || 0) + (Number(attacker?.equipmentStats?.MagicPower || 0) || 0)) * 0.45)
+            + (level * 2);
+        const enemyDefense = (Number(defender?.stats?.みのまもり || defender?.stats?.Defense || 0) || 0)
+            + (Number(defender?.equipmentStats?.Defense || 0) || 0);
+        const baseDamage = Math.max(1, Math.floor(attackStat - (enemyDefense * 0.45)));
+        const tierMultiplier = getDamageTierMultiplier(skill?.damageTier);
+        const totalMultiplier = tierMultiplier
+            * hitMultiplier
+            * getRoleAttackMultiplier(attacker, 'tarot', skill?.elementKey || skill?.element)
+            * getStateAttackMultiplier(attackerState)
+            * getRoleDamageTakenMultiplier(defender)
+            * getStateDamageTakenMultiplier(defenderState);
+        return Math.max(1, Math.floor(baseDamage * totalMultiplier));
+    };
+    const calculateTarotHeal = (attacker, skill) => {
+        const maxHp = Math.max(1, Number(attacker?.stats?.MaxHP || attacker?.stats?.HP || 1) || 1);
+        const intBonus = Math.floor(((Number(attacker?.stats?.かしこさ || 0) || 0) + (Number(attacker?.equipmentStats?.HealPower || 0) || 0)) / 6);
+        return Math.max(1, Math.floor(maxHp * getHealTierRate(skill?.healTier)) + intBonus);
+    };
+    const clearNegativeTarotState = (state) => {
+        state.attackDownTurns = 0;
+        state.defenseDownTurns = 0;
+        state.speedDownTurns = 0;
+        state.burnTurns = 0;
+        state.silenceTurns = 0;
+    };
+    const clearPositiveTarotState = (state) => {
+        state.attackBuffTurns = 0;
+        state.guardTurns = 0;
+        state.speedBuffTurns = 0;
+        state.counterTurns = 0;
+    };
+    const applyTarotBuff = (attacker, state, skill, messages) => {
+        const element = normalizeBattleElementKey(skill?.elementKey || skill?.element);
+        if (element === 'earth') {
+            state.guardTurns = 2;
+            state.guardMultiplier = 0.8;
+            messages.push('守りを固めた');
+        } else if (element === 'wind') {
+            state.speedBuffTurns = 2;
+            state.speedBuffMultiplier = 1.15;
+            messages.push('素早さが上がった');
+        } else if (element === 'water') {
+            const healAmount = Math.max(1, Math.floor((Number(attacker.stats.MaxHP || 1) || 1) * 0.08));
+            attacker.stats.CurrentHP = Math.min(attacker.stats.MaxHP || attacker.stats.CurrentHP, attacker.stats.CurrentHP + healAmount);
+            messages.push(`HPが ${healAmount} 回復`);
+        } else {
+            state.attackBuffTurns = 2;
+            state.attackBuffMultiplier = 1.15;
+            messages.push('攻撃が上がった');
+        }
+    };
+    const applyTarotDebuff = (attacker, defender, defenderState, skill, messages) => {
+        const successRate = Math.max(
+            0.01,
+            (Number(skill?.successRateValue || 0) || 0.25) + ((Number(attacker?.equipmentStats?.StatusRate || 0) || 0) / 100)
+        );
+        if (!rollChance(successRate)) {
+            messages.push('妨害は外れた');
+            return;
+        }
+        const status = String(skill?.status || '').trim();
+        const element = normalizeBattleElementKey(skill?.elementKey || skill?.element);
+        if (status.includes('火傷') || element === 'fire') {
+            defenderState.burnTurns = Math.max(defenderState.burnTurns || 0, 2);
+            messages.push(`${defender.stats.DisplayName} に火傷`);
+        } else if (status.includes('沈黙')) {
+            defenderState.silenceTurns = Math.max(defenderState.silenceTurns || 0, 2);
+            messages.push(`${defender.stats.DisplayName} に沈黙`);
+        } else if (element === 'wind') {
+            defenderState.speedDownTurns = 2;
+            defenderState.speedDownMultiplier = 0.9;
+            messages.push(`${defender.stats.DisplayName} の素早さを下げた`);
+        } else if (element === 'earth') {
+            defenderState.defenseDownTurns = 2;
+            defenderState.defenseDownMultiplier = 1.12;
+            messages.push(`${defender.stats.DisplayName} の防御を崩した`);
+        } else {
+            defenderState.attackDownTurns = 2;
+            defenderState.attackDownMultiplier = 0.9;
+            messages.push(`${defender.stats.DisplayName} の攻撃を下げた`);
+        }
+    };
+    const applyTarotRisk = (attacker, skill, messages) => {
+        if (!String(skill?.effectClass || '').includes('リスク')) return;
+        const recoil = Math.max(1, Math.floor((Number(attacker.stats.MaxHP || 1) || 1) * 0.08));
+        const damageResult = applyDamageToPlayer(attacker, recoil);
+        messages.push(`反動で ${damageResult.totalDamage} ダメージ${formatShieldSuffix(damageResult)}`);
+    };
+    const triggerCounterIfReady = async (attacker, defender, attackerState, defenderState) => {
+        if ((defenderState?.counterTurns || 0) <= 0 || defender.stats.CurrentHP <= 0 || attacker.stats.CurrentHP <= 0) return null;
+        defenderState.counterTurns = 0;
+        const base = Math.max(1, Math.floor(((Number(defender.stats.こうげき || 1) || 1) + (Number(defender.equipmentStats?.Power || 0) || 0)) * (Number(defenderState.counterMultiplier || 0.35) || 0.35)));
+        const damageResult = applyDamageToPlayer(attacker, base);
+        await sendLogToBoth(`${defender.stats.DisplayName} の反撃！ ${attacker.stats.DisplayName} に ${damageResult.totalDamage} ダメージ！${formatShieldSuffix(damageResult)} (残りHP: ${attacker.stats.CurrentHP})`);
+        if (attacker.stats.CurrentHP <= 0) {
+            await sendLogToBoth(`${attacker.stats.DisplayName} はたおれた！`);
+            return { defeated: true };
+        }
+        return null;
+    };
+    const applyTarotSkillAction = async (attacker, defender, attackerState, defenderState) => {
+        const deck = Array.isArray(attackerState.tarotDeck) ? attackerState.tarotDeck : [];
+        if (!deck.length) return { used: false };
+        if ((attackerState.tarotCooldown || 0) > 0) {
+            attackerState.tarotCooldown -= 1;
+            return { used: false };
+        }
+        const skill = deck[attackerState.tarotIndex % deck.length];
+        if (!skill) return { used: false };
+        attackerState.tarotIndex = (attackerState.tarotIndex + 1) % deck.length;
+        attackerState.tarotCooldown = Math.max(0, Math.floor(Number(skill.cooldown) || 0));
+
+        const effectClass = String(skill.effectClass || '');
+        const messages = [];
+        let mode = effectClass;
+        if (effectClass === '特殊') {
+            const roll = Math.random();
+            mode = roll < 0.25 ? '攻撃' : roll < 0.5 ? '回復' : roll < 0.75 ? '強化' : '妨害';
+        }
+        const hasAttack = /攻撃|連撃|先制|万能/.test(mode) || !!skill.damageTier;
+        const hasHeal = /回復|復活|万能/.test(mode) || !!skill.healTier;
+        const hasDefense = /防御|耐性|挑発|根性/.test(mode);
+        const hasBuff = /強化|万能/.test(mode);
+        const hasDebuff = /妨害|弱体|万能/.test(mode);
+        const hasCleanse = /解除/.test(mode);
+        const hasCounter = /反撃/.test(mode);
+
+        if (hasAttack) {
+            const hitCount = getTarotHitCount(skill);
+            const perHitMultiplier = hitCount > 1 ? 0.65 : 1;
+            let totalDamage = 0;
+            let totalAbsorbed = 0;
+            for (let hit = 0; hit < hitCount; hit += 1) {
+                const rawDamage = calculateTarotDamage(attacker, defender, skill, attackerState, defenderState, perHitMultiplier);
+                const critical = maybeApplyCritical(attacker, rawDamage, 'tarot');
+                const damageResult = applyDamageToPlayer(defender, critical.damage);
+                totalDamage += damageResult.totalDamage;
+                totalAbsorbed += damageResult.absorbed;
+            }
+            messages.push(`${defender.stats.DisplayName} に ${totalDamage} ダメージ${hitCount > 1 ? `（${hitCount}連撃）` : ''}${totalAbsorbed > 0 ? ` / シールド${totalAbsorbed}吸収` : ''}`);
+        }
+        if (hasHeal) {
+            const healAmount = calculateTarotHeal(attacker, skill);
+            attacker.stats.CurrentHP = Math.min(attacker.stats.MaxHP || attacker.stats.CurrentHP, attacker.stats.CurrentHP + healAmount);
+            messages.push(`HPが ${healAmount} 回復`);
+        }
+        if (hasDefense) {
+            attackerState.guardTurns = 2;
+            attackerState.guardMultiplier = 0.78;
+            messages.push('防御態勢を取った');
+        }
+        if (hasBuff) applyTarotBuff(attacker, attackerState, skill, messages);
+        if (hasDebuff) applyTarotDebuff(attacker, defender, defenderState, skill, messages);
+        if (hasCleanse) {
+            clearNegativeTarotState(attackerState);
+            clearPositiveTarotState(defenderState);
+            messages.push('状態変化を解除した');
+        }
+        if (hasCounter) {
+            attackerState.counterTurns = 1;
+            attackerState.counterMultiplier = 0.35;
+            messages.push('反撃の構え');
+        }
+        applyTarotRisk(attacker, skill, messages);
+
+        const cardName = skill.cardName || skill.displayName || 'タロット';
+        const skillName = skill.skillName || 'カード効果';
+        await sendLogToBoth(`${attacker.stats.DisplayName} のタロット「${cardName} / ${skillName}」！ ${messages.join(' / ') || '効果はなかった'} (CT:${attackerState.tarotCooldown})`);
+        if (defender.stats.CurrentHP <= 0) {
+            await sendLogToBoth(`${defender.stats.DisplayName} はたおれた！`);
+            return { used: true, battleEnded: true, winner: attacker, loser: defender };
+        }
+        if (attacker.stats.CurrentHP <= 0) {
+            await sendLogToBoth(`${attacker.stats.DisplayName} はたおれた！`);
+            return { used: true, battleEnded: true, winner: defender, loser: attacker };
+        }
+        const counterResult = await triggerCounterIfReady(attacker, defender, attackerState, defenderState);
+        if (counterResult?.defeated) return { used: true, battleEnded: true, winner: defender, loser: attacker };
+        return { used: true };
+    };
     await sendLogToBoth(`戦闘開始！ ${attacker.stats.DisplayName} の先攻！`);
     await sendLogToBoth(`両者の距離は ${distance} マスだ！`);
 
@@ -856,8 +1219,17 @@ async function runBattle(playerA, playerB) {
         const defenderSkills = skillMap.get(defender.id) || [];
         const attackerWeapons = weaponMap.get(attacker.id) || new Set();
         const defenderWeapons = weaponMap.get(defender.id) || new Set();
-        const attackerSpeed = attacker.stats.すばやさ || 1;
-        const defenderSpeed = defender.stats.すばやさ || 1;
+        const attackerState = skillState.get(attacker.id) || buildTarotRuntimeState(attacker);
+        const defenderState = skillState.get(defender.id) || buildTarotRuntimeState(defender);
+        skillState.set(attacker.id, attackerState);
+        skillState.set(defender.id, defenderState);
+        const statusResult = await applyTurnStartTarotStatus(attacker, attackerState);
+        if (statusResult?.defeated) {
+            return { winner: defender, loser: attacker, logs: logs };
+        }
+        decrementTimedState(attackerState);
+        const attackerSpeed = getEffectiveSpeed(attacker, attackerState);
+        const defenderSpeed = getEffectiveSpeed(defender, defenderState);
         const speedDelta = clampValue((attackerSpeed - defenderSpeed) / 200, -0.1, 0.1);
         const defenderSpeedDelta = clampValue((defenderSpeed - attackerSpeed) / 200, -0.1, 0.1);
         const attackerPassive = passiveBonusMap.get(attacker.id) || EMPTY_PASSIVE;
@@ -888,7 +1260,7 @@ async function runBattle(playerA, playerB) {
             distance = Math.max(1, distance - step);
             await sendLogToBoth(`${attacker.stats.DisplayName} は前進した！ (距離: ${distance})`);
         } else {
-            const shieldKnockChance = 0.08 + defenderSpeedDelta + defenderPassive.knockbackBonus + (Number(defenderPassive.skillProcBonus || 0) || 0);
+            const shieldKnockChance = 0.08 + defenderSpeedDelta + defenderPassive.knockbackBonus + (Number(defenderPassive.skillProcBonus || 0) || 0) - getRoleAccuracyBonus(attacker);
             if (defenderWeapons.has('shield') && rollChance(shieldKnockChance)) {
                 const knockStep = rollChance(0.25 + defenderPassive.knockbackBonus) ? 2 : 1;
                 distance = Math.min(5, distance + knockStep);
@@ -896,7 +1268,7 @@ async function runBattle(playerA, playerB) {
                 [attacker, defender] = [defender, attacker];
                 continue;
             }
-            const evadeChance = 0.05 + defenderSpeedDelta + defenderPassive.evadeBonus + (Number(defenderPassive.skillProcBonus || 0) || 0);
+            const evadeChance = 0.05 + defenderSpeedDelta + defenderPassive.evadeBonus + (Number(defenderPassive.skillProcBonus || 0) || 0) - getRoleAccuracyBonus(attacker);
             if (defenderWeapons.has('dagger') && rollChance(evadeChance)) {
                 distance = Math.min(5, distance + 1);
                 await sendLogToBoth(`${defender.stats.DisplayName} は ${getPassiveLabel(defenderSkills, 'dagger', '回避')} で攻撃をかわした！ (距離: ${distance})`);
@@ -910,8 +1282,16 @@ async function runBattle(playerA, playerB) {
                 await sendLogToBoth(`${attacker.stats.DisplayName} は ${getPassiveLabel(attackerSkills, 'gun', '間合い操作')} で距離を取った！ (距離: ${distance})`);
             }
 
+            const tarotAction = await applyTarotSkillAction(attacker, defender, attackerState, defenderState);
+            if (tarotAction?.battleEnded) {
+                return { winner: tarotAction.winner, loser: tarotAction.loser, logs: logs };
+            }
+            if (tarotAction?.used) {
+                [attacker, defender] = [defender, attacker];
+                continue;
+            }
+
             const attackerChargeSkill = attackerWeapons.has('staff') ? getSkillForWeapon(attackerSkills, 'staff', 'weapon', false) : null;
-            const attackerState = skillState.get(attacker.id) || { charged: false };
             const chargeChance = normalizeBattleRate(
                 getBattleSkillNumber(attackerChargeSkill, ['procChance', 'chance', 'activationRate'], 0.15),
                 0.15
@@ -941,7 +1321,9 @@ async function runBattle(playerA, playerB) {
                 if (defenderHpRate > threshold) return 1;
                 return Number(attackerAwakeningBattle.executeMultiplier || 1) || 1;
             })();
-            const magicSkill = chooseMagicSkill(attackerSkills, attackerWeapons, attackerMagic, attacker, distance);
+            const magicSkill = (attackerState.silenceTurns || 0) > 0
+                ? null
+                : chooseMagicSkill(attackerSkills, attackerWeapons, attackerMagic, attacker, distance);
             if (magicSkill) {
                 const currentMp = Number(attacker.stats.CurrentMP ?? attacker.stats.MP ?? 0) || 0;
                 attacker.stats.CurrentMP = Math.max(0, currentMp - magicSkill.mpCost);
@@ -965,21 +1347,27 @@ async function runBattle(playerA, playerB) {
                     totalMultiplier: attackerPassive.attackMultiplier
                         * castBoost
                         * chargeMultiplier
+                        * getRoleAttackMultiplier(attacker, 'magic')
+                        * getStateAttackMultiplier(attackerState)
                         * (Number(attackerAwakeningBattle.magicAttackMultiplier || 1) || 1)
                         * defenderPassive.defenseMultiplier
+                        * getRoleDamageTakenMultiplier(defender)
+                        * getStateDamageTakenMultiplier(defenderState)
                         * executeMultiplier
                 });
-                defender.stats.CurrentHP -= magicDamage;
+                const damageResult = applyDamageToPlayer(defender, magicDamage);
                 const awakeningPhrase = buildBattleAwakeningActionPhrase(attacker, { mode: 'magic', executeActive: executeMultiplier > 1 });
                 await sendLogToBoth(
                     `${attacker.stats.DisplayName} は ${getSkillLabel(magicSkill.entry, '魔法')} を唱えた！ `
-                    + `${releasedCharge ? '溜めた魔力が炸裂し、' : ''}${awakeningPhrase}${defender.stats.DisplayName} に ${magicDamage} の魔法ダメージ！ `
+                    + `${releasedCharge ? '溜めた魔力が炸裂し、' : ''}${awakeningPhrase}${defender.stats.DisplayName} に ${damageResult.totalDamage} の魔法ダメージ！${formatShieldSuffix(damageResult)} `
                     + `(残りHP: ${defender.stats.CurrentHP}, 残りMP: ${attacker.stats.CurrentMP})`
                 );
                 if (defender.stats.CurrentHP <= 0) {
                     await sendLogToBoth(`${defender.stats.DisplayName} はたおれた！`);
                     return { winner: attacker, loser: defender, logs: logs };
                 }
+                const counterResult = await triggerCounterIfReady(attacker, defender, attackerState, defenderState);
+                if (counterResult?.defeated) return { winner: defender, loser: attacker, logs: logs };
                 [attacker, defender] = [defender, attacker];
                 continue;
             }
@@ -990,22 +1378,28 @@ async function runBattle(playerA, playerB) {
                     totalMultiplier: attackerPassive.attackMultiplier
                         * castBoost
                         * chargeMultiplier
+                        * getRoleAttackMultiplier(attacker, 'magic')
+                        * getStateAttackMultiplier(attackerState)
                         * (Number(attackerMagic.basicMagicMultiplier || 1) || 1)
                         * (Number(attackerAwakeningBattle.magicAttackMultiplier || 1) || 1)
                         * defenderPassive.defenseMultiplier
+                        * getRoleDamageTakenMultiplier(defender)
+                        * getStateDamageTakenMultiplier(defenderState)
                         * executeMultiplier
                 });
-                defender.stats.CurrentHP -= magicDamage;
+                const damageResult = applyDamageToPlayer(defender, magicDamage);
                 const awakeningPhrase = buildBattleAwakeningActionPhrase(attacker, { mode: 'basicMagic', executeActive: executeMultiplier > 1 });
                 await sendLogToBoth(
                     `${attacker.stats.DisplayName} の魔力弾！ `
-                    + `${releasedCharge ? '溜めた魔力が上乗せされ、' : ''}${awakeningPhrase}${defender.stats.DisplayName} に ${magicDamage} のダメージ！ `
+                    + `${releasedCharge ? '溜めた魔力が上乗せされ、' : ''}${awakeningPhrase}${defender.stats.DisplayName} に ${damageResult.totalDamage} のダメージ！${formatShieldSuffix(damageResult)} `
                     + `(残りHP: ${defender.stats.CurrentHP})`
                 );
                 if (defender.stats.CurrentHP <= 0) {
                     await sendLogToBoth(`${defender.stats.DisplayName} はたおれた！`);
                     return { winner: attacker, loser: defender, logs: logs };
                 }
+                const counterResult = await triggerCounterIfReady(attacker, defender, attackerState, defenderState);
+                if (counterResult?.defeated) return { winner: defender, loser: attacker, logs: logs };
                 [attacker, defender] = [defender, attacker];
                 continue;
             }
@@ -1014,8 +1408,12 @@ async function runBattle(playerA, playerB) {
             const skillPower = 1.0;
             const baseDamage = (weaponPower * skillPower) - enemyDefense;
             const multiplier = ((attacker.stats.ちから * attacker.stats.Level / 128) + 2);
-            let skillMultiplier = attackerPassive.attackMultiplier;
-            let defenseMultiplier = defenderPassive.defenseMultiplier;
+            let skillMultiplier = attackerPassive.attackMultiplier
+                * getRoleAttackMultiplier(attacker, 'physical')
+                * getStateAttackMultiplier(attackerState);
+            let defenseMultiplier = defenderPassive.defenseMultiplier
+                * getRoleDamageTakenMultiplier(defender)
+                * getStateDamageTakenMultiplier(defenderState);
             if (attackerState.charged) {
                 skillMultiplier *= 1.3 + attackerPassive.staffBonus;
                 attackerState.charged = false;
@@ -1104,17 +1502,23 @@ async function runBattle(playerA, playerB) {
                 await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(bluntSkill, '粉砕撃')} を発動！`);
             }
             // ダメージ計算結果がマイナスにならないようにし、最低でも1ダメージは保証する
-            const finalDamage = Math.max(1, Math.floor(baseDamage * multiplier * skillMultiplier * defenseMultiplier * executeMultiplier));
+            const critical = maybeApplyCritical(
+                attacker,
+                Math.max(1, Math.floor(baseDamage * multiplier * skillMultiplier * defenseMultiplier * executeMultiplier)),
+                'physical'
+            );
 
-            defender.stats.CurrentHP -= finalDamage;
+            const damageResult = applyDamageToPlayer(defender, critical.damage);
 
             const awakeningPhrase = buildBattleAwakeningActionPhrase(attacker, { mode: 'attack', executeActive: executeMultiplier > 1 });
-            await sendLogToBoth(`${attacker.stats.DisplayName} のこうげき！ ${awakeningPhrase}${defender.stats.DisplayName} に ${finalDamage} のダメージ！ (残りHP: ${defender.stats.CurrentHP})`);
+            await sendLogToBoth(`${attacker.stats.DisplayName} のこうげき！ ${critical.critical ? 'クリティカル！ ' : ''}${awakeningPhrase}${defender.stats.DisplayName} に ${damageResult.totalDamage} のダメージ！${formatShieldSuffix(damageResult)} (残りHP: ${defender.stats.CurrentHP})`);
 
             if (defender.stats.CurrentHP <= 0) {
                 await sendLogToBoth(`${defender.stats.DisplayName} はたおれた！`);
                 return { winner: attacker, loser: defender, logs: logs };
             }
+            const counterResult = await triggerCounterIfReady(attacker, defender, attackerState, defenderState);
+            if (counterResult?.defeated) return { winner: defender, loser: attacker, logs: logs };
         }
 
         [attacker, defender] = [defender, attacker];
@@ -1432,36 +1836,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
     const buildMeleeParty = async (hostId) => {
         if (!hostId) return [];
         const hostProfile = await getPlayerFullProfile(hostId);
-        const entries = [];
-        const captainSkillCards = [];
-        try {
-            const activeShipMeta = await resolvePlayerActiveShipMeta(hostId);
-            const maxCrewCards = Math.max(0, Math.min(5, Number(activeShipMeta?.crewCapacity) || 1));
-            const decks = await readDecks(hostId, _promisifyPlayFab, _PlayFabServer);
-            const meleeDeck = Array.isArray(decks?.meleeDeck) ? decks.meleeDeck : [];
-            meleeDeck.forEach((cardId, index) => {
-                const itemData = _catalogCache?.[cardId];
-                if (isTarotCaptainSkillCard(itemData)) {
-                    captainSkillCards.push({ cardId, index, itemData });
-                    return;
-                }
-                if (entries.length >= maxCrewCards) return;
-                if (!isTarotCrewCard(itemData)) return;
-                entries.push({
-                    type: 'tarotCrew',
-                    id: `tarotCrew:${hostId}:${cardId}:${index}`,
-                    ownerId: hostId,
-                    ownerProfile: hostProfile,
-                    cardId,
-                    index,
-                    itemData
-                });
-            });
-        } catch (error) {
-            console.warn('[TarotCrewBattle] Failed to load melee deck:', error?.errorMessage || error?.message || error);
-        }
-        entries.push({ type: 'player', id: hostId, profile: hostProfile, captainSkillCards });
-        return entries;
+        return [{ type: 'player', id: hostId, profile: hostProfile }];
     };
     const getPlayerNation = async (playFabId) => {
         if (!playFabId) return '';
@@ -1712,14 +2087,10 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
             const normalized = normalizePartyEntry(entry);
             if (!normalized) return null;
             if (normalized.type === 'tarotCrew') {
-                const ownerProfile = normalized.ownerProfile || await getPlayerFullProfile(normalized.ownerId);
-                return buildTarotCrewProfile(ownerProfile, normalized.cardId, normalized.itemData || _catalogCache?.[normalized.cardId], normalized.index || 0);
+                return null;
             }
             const sourceProfile = normalized.profile || await getPlayerFullProfile(normalized.id);
             const profile = sourceProfile ? JSON.parse(JSON.stringify(sourceProfile)) : null;
-            if (profile && normalized.captainSkillCards?.length) {
-                profile.tarotCaptainSkillCards = normalized.captainSkillCards;
-            }
             return profile;
         };
 

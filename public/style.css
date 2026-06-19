@@ -461,25 +461,25 @@ button.home-player-ship-name {
     border-radius: 6px;
     background:
         linear-gradient(180deg, rgba(8, 47, 73, 0.06) 0%, rgba(5, 12, 18, 0.1) 42%, rgba(6, 24, 36, 0.28) 100%),
-        url("./Sprites/background/sea.webp") center top / auto 150% no-repeat;
+        url("./Sprites/background/sea.webp") center -50px / auto 150% no-repeat;
 }
 
 .exploration-sequence-overlay.is-sky-mist .exploration-sequence-scene {
     background:
         linear-gradient(180deg, rgba(226, 232, 240, 0.2) 0%, rgba(100, 116, 139, 0.12) 42%, rgba(14, 116, 144, 0.18) 43%, rgba(15, 23, 42, 0.42) 100%),
-        url("./Sprites/background/sea.webp") center top / auto 150% no-repeat;
+        url("./Sprites/background/sea.webp") center -50px / auto 150% no-repeat;
 }
 
 .exploration-sequence-overlay.is-sky-deep .exploration-sequence-scene {
     background:
         linear-gradient(180deg, rgba(14, 165, 233, 0.08) 0%, rgba(12, 74, 110, 0.12) 42%, rgba(3, 105, 161, 0.2) 43%, rgba(8, 47, 73, 0.54) 100%),
-        url("./Sprites/background/sea.webp") center top / auto 150% no-repeat;
+        url("./Sprites/background/sea.webp") center -50px / auto 150% no-repeat;
 }
 
 .exploration-sequence-overlay.is-sky-storm .exploration-sequence-scene {
     background:
         linear-gradient(180deg, rgba(71, 85, 105, 0.34) 0%, rgba(30, 41, 59, 0.24) 42%, rgba(8, 47, 73, 0.34) 43%, rgba(15, 23, 42, 0.68) 100%),
-        url("./Sprites/background/sea.webp") center top / auto 150% no-repeat;
+        url("./Sprites/background/sea.webp") center -50px / auto 150% no-repeat;
 }
 
 .exploration-sequence-overlay.is-battle .exploration-sequence-scene,
@@ -588,7 +588,7 @@ button.home-player-ship-name {
 .exploration-sequence-island {
     position: absolute;
     right: 30px;
-    bottom: 72px;
+    bottom: 52px;
     width: 146px;
     height: 112px;
     z-index: 2;
@@ -822,7 +822,7 @@ button.home-player-ship-name {
 
 .exploration-sequence-overlay.is-sail .exploration-sequence-ship {
     animation:
-        explorationSequenceSail 1600ms linear forwards,
+        explorationSequenceSail 900ms linear forwards,
         homePlayerShipFrameStep 300ms steps(3) infinite;
 }
 
@@ -833,7 +833,7 @@ button.home-player-ship-name {
 
 .exploration-sequence-overlay.is-up .exploration-sequence-ship {
     animation:
-        explorationSequenceUp 1400ms linear forwards,
+        explorationSequenceUp 760ms linear forwards,
         homePlayerShipFrameStep 300ms steps(3) infinite;
 }
 
@@ -860,7 +860,7 @@ button.home-player-ship-name {
 
 .exploration-sequence-overlay.is-left .exploration-sequence-ship {
     animation:
-        explorationSequenceLeft 1200ms linear forwards,
+        explorationSequenceLeft 700ms linear forwards,
         homePlayerShipFrameStep 300ms steps(3) infinite;
 }
 
@@ -1068,22 +1068,19 @@ button.home-player-ship-name {
     font-weight: 800;
 }
 
-.exploration-sequence-tap-hint {
-    min-height: 20px;
-    margin-top: 8px;
-    color: rgba(186, 230, 253, 0.88);
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0;
-    text-align: center;
+.exploration-sequence-progress {
+    width: 58px;
+    height: 4px;
+    margin: 10px auto 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(125, 211, 252, 0.2), rgba(250, 204, 21, 0.95), rgba(125, 211, 252, 0.2));
+    background-size: 180% 100%;
+    opacity: 0.72;
+    animation: explorationSequenceProgress 900ms linear infinite;
 }
 
-.exploration-sequence-tap-hint[hidden] {
+.exploration-sequence-progress[hidden] {
     display: none;
-}
-
-.exploration-sequence-overlay.is-awaiting-tap .exploration-sequence-tap-hint:not([hidden]) {
-    opacity: 0.9;
 }
 
 @keyframes homePlayerShipSail {
@@ -1113,17 +1110,17 @@ button.home-player-ship-name {
 
 @keyframes explorationSequenceSail {
     from { left: 42px; bottom: 64px; transform: scale(1.8); }
-    to { left: 132px; bottom: 64px; transform: scale(1.8); }
+    to { left: 100px; bottom: 64px; transform: scale(1.8); }
 }
 
 @keyframes explorationSequenceUp {
-    from { left: 132px; bottom: 64px; transform: scale(1.8); }
-    to { left: 182px; bottom: 64px; transform: scale(1.8); }
+    from { left: 100px; bottom: 64px; transform: scale(1.8); }
+    to { left: 118px; bottom: 64px; transform: scale(1.8); }
 }
 
 @keyframes explorationSequenceLeft {
-    from { left: 182px; bottom: 64px; transform: scale(1.8); }
-    to { left: 214px; bottom: 64px; transform: scale(1.8); }
+    from { left: 118px; bottom: 64px; transform: scale(1.8); }
+    to { left: 130px; bottom: 64px; transform: scale(1.8); }
 }
 
 @keyframes explorationSequenceBattle {
@@ -1191,6 +1188,11 @@ button.home-player-ship-name {
     50% {
         transform: translateY(-8px) scale(1.08);
     }
+}
+
+@keyframes explorationSequenceProgress {
+    from { background-position: 180% 0; }
+    to { background-position: 0 0; }
 }
 
 .exploration-result-overlay {
@@ -11070,6 +11072,12 @@ body.home-exploration-popup-open #globalStatusBar {
     border-color: rgba(185, 28, 28, 0.28);
     background: rgba(254, 202, 202, 0.58);
     color: #991b1b;
+}
+
+.ship-exploration-badge.is-level {
+    border-color: rgba(79, 70, 229, 0.24);
+    background: rgba(224, 231, 255, 0.64);
+    color: #3730a3;
 }
 
 .ship-exploration-badge.is-locked {

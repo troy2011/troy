@@ -2005,7 +2005,7 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
                 <strong>${escapeHtml(destinationName)}</strong>
                 <span data-exploration-sequence-label>${escapeHtml(shipTrait.label)}</span>
             </div>
-            <div class="exploration-sequence-tap-hint" data-exploration-sequence-advance hidden>タップで進む</div>
+            <div class="exploration-sequence-progress" data-exploration-sequence-progress aria-hidden="true"></div>
         </div>
     `;
     document.body.appendChild(overlay);
@@ -2017,7 +2017,7 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
     const label = overlay.querySelector('[data-exploration-sequence-label]');
     const logBox = overlay.querySelector('.exploration-sequence-log');
     const battleAvatar = overlay.querySelector(`#${EXPLORATION_BATTLE_AVATAR_PREFIX}`);
-    const advanceHint = overlay.querySelector('[data-exploration-sequence-advance]');
+    const progressHint = overlay.querySelector('[data-exploration-sequence-progress]');
     const setPhase = (phase, text) => {
         overlay.className = `exploration-sequence-overlay is-${form} ${shipTrait.className} is-sky-${destinationVisual.sky} is-boss-${bossTierKey} is-${phase} is-result-${bossResult}`;
         if (label) label.textContent = text;
@@ -2028,51 +2028,38 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
         if (!logBox) return;
         logBox.innerHTML = battleLogLines.slice(0, count).map((line) => `<div>${escapeHtml(line)}</div>`).join('');
     };
-    const waitForAdvance = async (minimumMs, text = 'タップで進む') => {
+    const waitForSequence = async (minimumMs) => {
+        if (progressHint) progressHint.hidden = false;
         await wait(minimumMs);
-        if (!overlay.isConnected || !advanceHint) return;
-        advanceHint.textContent = text;
-        advanceHint.hidden = false;
-        overlay.classList.add('is-awaiting-tap');
-        await new Promise((resolve) => {
-            const done = (event) => {
-                event?.preventDefault?.();
-                event?.stopPropagation?.();
-                advanceHint.hidden = true;
-                overlay.classList.remove('is-awaiting-tap');
-                overlay.removeEventListener('click', done);
-                resolve();
-            };
-            overlay.addEventListener('click', done);
-        });
+        if (progressHint) progressHint.hidden = true;
     };
 
     setPhase('sail', shipTrait.label);
-    await waitForAdvance(900, 'タップで海域へ');
+    await waitForSequence(900);
     setPhase('up', `${destinationVisual.label}を発見`);
-    await waitForAdvance(760, 'タップで上陸');
+    await waitForSequence(760);
     setPhase('left', '上陸地点へ直進');
-    await waitForAdvance(700, 'タップで調査');
+    await waitForSequence(700);
     setPhase('battle', bossResult === 'none' ? 'BOSSの気配を回避' : `${bossTierLabel ? `${bossTierLabel}BOSS` : 'BOSS'}「${report.bossName || '???'}」と交戦`);
     triggerAvatarAttackMotion(battleAvatar, { direction: 'left', duration: 520 });
     setBattleLog(2);
     await wait(420);
     triggerAvatarAttackMotion(battleAvatar, { direction: 'left', duration: 520 });
     setBattleLog(4);
-    await waitForAdvance(900, 'タップで宝箱へ');
+    await waitForSequence(900);
     setPhase('treasure', rewardCount > 0 ? `宝箱${rewardCount}個を発見` : 'お宝は見つからなかった');
     if (rewardCount > 0) {
         overlay.classList.add('has-sequence-rewards');
-        await waitForAdvance(700, '宝箱を開ける');
+        await waitForSequence(700);
         overlay.classList.add('is-opening-chest');
         if (label) label.textContent = '宝箱を開封中';
         await wait(760);
         overlay.classList.remove('is-opening-chest');
         overlay.classList.add('is-opened-chest');
         if (label) label.textContent = '戦利品を確認';
-        await waitForAdvance(360, '結果を見る');
+        await waitForSequence(360);
     } else {
-        await waitForAdvance(700, '結果を見る');
+        await waitForSequence(700);
     }
 
     overlay.remove();
@@ -2131,6 +2118,7 @@ function renderExplorationPanel(data, playFabId) {
             const rarityKey = String(destination?.rarity || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'low';
             const rarityLabel = destination?.rarityLabel || destination?.slotLabel || '探索先';
             const requirementLabel = destination?.requirementLabel || '船の進化が必要';
+            const recommendedLevel = Math.max(0, Math.floor(Number(destination?.recommendedLevel || 0) || 0));
             return `
             <div class="ship-exploration-destination${isAvailable ? '' : ' is-locked'}" data-exploration-destination-id="${escapeHtml(destination.id)}">
                 <div class="ship-exploration-card-head">
@@ -2145,6 +2133,7 @@ function renderExplorationPanel(data, playFabId) {
                         ? `<span class="ship-exploration-badge is-free">本日無料</span><span class="ship-exploration-badge">通常${Number(destination.cost || 0).toLocaleString('ja-JP')}G</span>`
                         : `<span class="ship-exploration-badge">${Number(destination.cost || 0).toLocaleString('ja-JP')}G</span>`}
                     <span class="ship-exploration-badge is-rarity is-rarity-${escapeHtml(rarityKey)}">${escapeHtml(rarityLabel)}</span>
+                    ${recommendedLevel > 0 ? `<span class="ship-exploration-badge is-level">推奨Lv ${recommendedLevel.toLocaleString('ja-JP')}</span>` : ''}
                     ${isAvailable ? '' : `<span class="ship-exploration-badge is-locked">条件: ${escapeHtml(requirementLabel)}</span>`}
                 </div>
                 ${renderExplorationDestinationMetaChips(destination)}

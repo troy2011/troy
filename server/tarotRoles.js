@@ -12,7 +12,7 @@ const TAROT_ROLE_ORDER = [
     'FullHouse',
     'FourKind',
     'StraightFlush',
-    'FiveKind'
+    'RoyalFlush'
 ];
 
 const TAROT_ROLE_LABEL = {
@@ -24,7 +24,7 @@ const TAROT_ROLE_LABEL = {
     FullHouse: 'フルハウス',
     FourKind: 'フォーカード',
     StraightFlush: 'ストレートフラッシュ',
-    FiveKind: 'ファイブカード'
+    RoyalFlush: 'ロイヤルフラッシュ'
 };
 
 const TAROT_ROLE_STRENGTH = TAROT_ROLE_ORDER.reduce((acc, key, index) => {
@@ -34,15 +34,15 @@ const TAROT_ROLE_STRENGTH = TAROT_ROLE_ORDER.reduce((acc, key, index) => {
 
 const SUITS = ['Wand', 'Cup', 'Sword', 'Pentacle'];
 const TAROT_ROLE_BONUS_TABLE = {
-    OnePair: { Power: 1, Defense: 1 },
-    TwoPair: { Power: 1, Defense: 1, Agi: 1, Int: 1 },
-    ThreeKind: { Power: 3 },
-    Straight: { Agi: 3, Int: 1 },
-    Flush: { resonance: true },
-    FullHouse: { Power: 2, Defense: 2, Int: 2 },
-    FourKind: { Power: 4, Defense: 2 },
-    StraightFlush: { resonance: true, Agi: 2 },
-    FiveKind: { Power: 3, Defense: 3, Agi: 3, Int: 3 }
+    OnePair: { hpRate: 0.10, text: '最大HP +10%' },
+    TwoPair: { hpRate: 0.10, defenseRate: 0.10, text: '最大HP +10% / 防御 +10%' },
+    ThreeKind: { attackRate: 0.15, text: '攻撃 +15%' },
+    Straight: { agilityRate: 0.15, accuracyBonus: 0.10, text: '素早さ +15% / 命中 +10%' },
+    Flush: { elementalSkillRate: 0.20, sameSuitOnly: true, text: '同属性技 +20%' },
+    FullHouse: { attackRate: 0.15, defenseRate: 0.15, text: '攻撃 +15% / 防御 +15%' },
+    FourKind: { attackRate: 0.20, criticalRate: 0.10, text: '攻撃 +20% / クリティカル率 +10%' },
+    StraightFlush: { attackRate: 0.20, agilityRate: 0.20, elementalSkillRate: 0.20, elementalAny: true, text: '攻撃 +20% / 素早さ +20% / 属性技 +20%' },
+    RoyalFlush: { hpRate: 0.20, attackRate: 0.20, defenseRate: 0.20, agilityRate: 0.20, shieldRate: 0.20, text: '全能力 +20% / 戦闘開始時シールド' }
 };
 
 const TAROT_SUIT_LABELS = {
@@ -54,13 +54,13 @@ const TAROT_SUIT_LABELS = {
     None: '無属性'
 };
 
-const TAROT_SUIT_RESONANCE_BONUS = {
-    Wand: { Power: 3, Int: 1 },
-    Sword: { Power: 1, Agi: 3 },
-    Cup: { Defense: 1, Int: 3 },
-    Pentacle: { Power: 1, Defense: 3 },
-    All: { Power: 1, Defense: 1, Agi: 1, Int: 1 },
-    None: { Power: 1, Defense: 1 }
+const TAROT_SUIT_ELEMENT = {
+    Wand: 'fire',
+    Sword: 'wind',
+    Cup: 'water',
+    Pentacle: 'earth',
+    All: 'all',
+    None: 'none'
 };
 
 function createEmptyBonus() {
@@ -70,6 +70,16 @@ function createEmptyBonus() {
         Agi: 0,
         Int: 0,
         total: 0,
+        hpRate: 0,
+        attackRate: 0,
+        defenseRate: 0,
+        agilityRate: 0,
+        accuracyBonus: 0,
+        criticalRate: 0,
+        elementalSkillRate: 0,
+        elementalElement: '',
+        shieldRate: 0,
+        bonusText: '役ボーナスなし',
         resonanceSuit: '',
         resonanceSuitLabel: ''
     };
@@ -81,6 +91,14 @@ function addBonus(target, source) {
     target.Defense += Number(source.Defense ?? source.defense ?? 0) || 0;
     target.Agi += Number(source.Agi ?? source.agi ?? 0) || 0;
     target.Int += Number(source.Int ?? source.int ?? 0) || 0;
+    target.hpRate += Number(source.hpRate || 0) || 0;
+    target.attackRate += Number(source.attackRate || 0) || 0;
+    target.defenseRate += Number(source.defenseRate || 0) || 0;
+    target.agilityRate += Number(source.agilityRate || 0) || 0;
+    target.accuracyBonus += Number(source.accuracyBonus || 0) || 0;
+    target.criticalRate += Number(source.criticalRate || 0) || 0;
+    target.elementalSkillRate += Number(source.elementalSkillRate || 0) || 0;
+    target.shieldRate += Number(source.shieldRate || 0) || 0;
     return target;
 }
 
@@ -198,13 +216,13 @@ function evalRoleVariant(rows) {
     const straight = straightHigh(values);
     let key = null;
     let primary = [];
-    if ((groups[0]?.count || 0) >= 5) {
-        key = 'FiveKind';
-        primary = [groups[0].value];
+    if (straight === 15 && flush) {
+        key = 'RoyalFlush';
+        primary = [straight];
     } else if (straight && flush) {
         key = 'StraightFlush';
         primary = [straight];
-    } else if ((groups[0]?.count || 0) === 4) {
+    } else if ((groups[0]?.count || 0) >= 4) {
         key = 'FourKind';
         primary = [groups[0].value, groups.find((group) => group.value !== groups[0].value)?.value || 0];
     } else if ((groups[0]?.count || 0) === 3 && (groups[1]?.count || 0) === 2) {
@@ -324,18 +342,47 @@ function getTarotRoleBonus(role) {
     const bonus = createEmptyBonus();
     const config = TAROT_ROLE_BONUS_TABLE[role?.key];
     if (!config) return finalizeBonus(bonus);
-    if (config.resonance) {
+    if (config.sameSuitOnly) {
         const suit = role?.resolvedSuit || 'None';
-        addBonus(bonus, TAROT_SUIT_RESONANCE_BONUS[suit] || TAROT_SUIT_RESONANCE_BONUS.None);
+        bonus.elementalElement = TAROT_SUIT_ELEMENT[suit] || 'none';
         bonus.resonanceSuit = suit;
         bonus.resonanceSuitLabel = TAROT_SUIT_LABELS[suit] || TAROT_SUIT_LABELS.None;
+    } else if (config.elementalAny) {
+        bonus.elementalElement = 'any';
     }
     addBonus(bonus, config);
+    bonus.bonusText = config.text || '役ボーナスなし';
     return finalizeBonus(bonus);
+}
+
+function formatTarotRoleBonus(bonus) {
+    return String(bonus?.bonusText || '').trim() || '役ボーナスなし';
+}
+
+function getTarotRolePassive(role) {
+    const bonus = getTarotRoleBonus(role);
+    const active = !!(role?.key && TAROT_ROLE_BONUS_TABLE[role.key]);
+    return {
+        active,
+        roleKey: active ? role.key : '',
+        roleLabel: active ? (role.label || TAROT_ROLE_LABEL[role.key] || role.key) : '',
+        bonusText: formatTarotRoleBonus(bonus),
+        hpRate: Number(bonus.hpRate || 0) || 0,
+        attackMultiplier: 1 + (Number(bonus.attackRate || 0) || 0),
+        damageTakenMultiplier: Math.max(0.1, 1 - (Number(bonus.defenseRate || 0) || 0)),
+        agilityMultiplier: 1 + (Number(bonus.agilityRate || 0) || 0),
+        accuracyBonus: Number(bonus.accuracyBonus || 0) || 0,
+        criticalRateBonus: Number(bonus.criticalRate || 0) || 0,
+        elementalSkillMultiplier: 1 + (Number(bonus.elementalSkillRate || 0) || 0),
+        elementalElement: bonus.elementalElement || '',
+        startingShieldRate: Number(bonus.shieldRate || 0) || 0
+    };
 }
 
 module.exports = {
     evaluateTarotRole,
     getTarotRoleBonus,
+    getTarotRolePassive,
+    formatTarotRoleBonus,
     buildTarotRoleCard
 };

@@ -543,13 +543,6 @@ function sortTarotDeckItemIds(deckItemIds) {
     return (Array.isArray(deckItemIds) ? deckItemIds : [])
         .map((itemId, index) => ({ itemId: String(itemId || '').trim(), index }))
         .filter((entry) => entry.itemId)
-        .sort((left, right) => {
-            const leftItem = getInventoryItemByReference(left.itemId);
-            const rightItem = getInventoryItemByReference(right.itemId);
-            const numberDiff = getTarotDeckCardNumberValue(leftItem) - getTarotDeckCardNumberValue(rightItem);
-            if (numberDiff !== 0) return numberDiff;
-            return left.index - right.index;
-        })
         .map((entry) => entry.itemId);
 }
 
@@ -610,12 +603,13 @@ function renderDeckRolePanel(roleEl, deckRole) {
         return;
     }
     const bonus = deckRole.bonus || {};
+    const explicitBonusText = String(deckRole.bonusText || bonus.bonusText || '').trim();
     const bonusParts = [];
     if (bonus.Power) bonusParts.push(`攻+${bonus.Power}`);
     if (bonus.Defense) bonusParts.push(`防+${bonus.Defense}`);
     if (bonus.Agi) bonusParts.push(`敏+${bonus.Agi}`);
     if (bonus.Int) bonusParts.push(`知+${bonus.Int}`);
-    const bonusText = bonusParts.length ? bonusParts.join(' / ') : '役ボーナスなし';
+    const bonusText = explicitBonusText || (bonusParts.length ? bonusParts.join(' / ') : '役ボーナスなし');
     const suitLabel = role.resolvedSuitLabel ? ` (${role.resolvedSuitLabel})` : '';
     roleEl.innerHTML = `
         <div class="tarot-loadout-role-label">現在の役</div>

@@ -1546,7 +1546,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
           <div class="exploration-sequence-log"><div>log</div></div>
         </div>
         <div class="exploration-sequence-copy"><strong>route</strong><span>label</span></div>
-        <div class="exploration-sequence-tap-hint" data-exploration-sequence-advance>タップで進む</div>
+        <div class="exploration-sequence-progress" data-exploration-sequence-progress aria-hidden="true"></div>
       </div>
     `;
     document.body.appendChild(sequence);
@@ -1658,7 +1658,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
       sequenceSky: styleOf('.exploration-sequence-sky'),
       sequenceRoute: styleOf('.exploration-sequence-route'),
       sequenceArrival: styleOf('.exploration-sequence-arrival'),
-      sequenceTapHint: styleOf('.exploration-sequence-tap-hint'),
+      sequenceProgress: styleOf('.exploration-sequence-progress'),
       sequenceOpeningChest,
       sequenceChestMore: styleOf('.exploration-sequence-chest-more'),
       sequenceLog: styleOf('.exploration-sequence-log div'),
@@ -1711,7 +1711,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(audit.sequenceRoute.animationName).toBe('none');
   expect(audit.sequenceRoute.backgroundImage).not.toContain('repeating-linear-gradient');
   expect(audit.sequenceArrival.borderRadius).toBe('50%');
-  expect(panelFrameSource(audit.sequenceTapHint)).not.toContain('assets/ui/buttons/');
+  expect(panelFrameSource(audit.sequenceProgress)).not.toContain('assets/ui/buttons/');
   expect(audit.sequenceOpeningChest.animationName).toContain('explorationSequenceChestPop');
   expect(audit.sequenceOpeningChest.animationName).not.toContain('explorationResultChestOpen');
   expect(audit.sequenceChestMore.borderRadius).toBe('6px');
@@ -1742,7 +1742,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   await expectNoPageErrors(errors);
 });
 
-test('exploration result reveals details after tapping through treasure sequence', async ({ page }) => {
+test('exploration result reveals details after the treasure sequence auto-plays', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.route('**/api/get-ranking', async (route) => {
     await route.fulfill({
@@ -1806,8 +1806,8 @@ test('exploration result reveals details after tapping through treasure sequence
           bossTier: 'strong',
           bossTierLabel: '強',
           bossResult: 'victory',
-          rewardCount: 2,
-          rewardItems: [{ itemId: 'mist_blade', displayName: '霧切りの刃', rarity: 'rare', quantity: 2 }],
+          rewardCount: 1,
+          rewardItems: [{ itemId: 'mist_blade', displayName: '霧切りの刃', rarity: 'rare', quantity: 1 }],
           bossLog: '戦闘開始\n船が島へ接近。\n宝箱を発見した。'
         }
       })
@@ -1820,29 +1820,17 @@ test('exploration result reveals details after tapping through treasure sequence
   await page.locator('.ship-exploration-start').click();
 
   const sequence = page.locator('.exploration-sequence-overlay');
-  const advanceHint = sequence.locator('[data-exploration-sequence-advance]');
   await expect(sequence).toHaveClass(/is-sail/, { timeout: 15_000 });
-  await expect(sequence.locator('[data-exploration-sequence-chest]')).toHaveCount(2);
+  await expect(sequence.locator('[data-exploration-sequence-chest]')).toHaveCount(1);
   await expect(sequence.locator('.exploration-sequence-island img')).toHaveAttribute('src', /near_sea_drift_crate\.png/);
+  await expect(sequence.locator('[data-exploration-sequence-advance]')).toHaveCount(0);
+  await expect(sequence.locator('[data-exploration-sequence-progress]')).toBeAttached();
 
-  const advanceSequence = async (label) => {
-    await expect(advanceHint).toHaveText(label, { timeout: 10_000 });
-    await expect(advanceHint).toBeVisible();
-    await sequence.click();
-  };
-
-  await advanceSequence('タップで海域へ');
-  await expect(sequence).toHaveClass(/is-up/);
-  await advanceSequence('タップで上陸');
-  await expect(sequence).toHaveClass(/is-left/);
-  await advanceSequence('タップで調査');
-  await expect(sequence).toHaveClass(/is-battle/);
-  await advanceSequence('タップで宝箱へ');
-  await expect(sequence).toHaveClass(/is-treasure/);
-  await advanceSequence('宝箱を開ける');
-  await expect(sequence).toHaveClass(/is-opened-chest/, { timeout: 3_000 });
-  await advanceSequence('結果を見る');
-  await expect(sequence).toBeHidden();
+  await expect(sequence).toHaveClass(/is-up/, { timeout: 5_000 });
+  await expect(sequence).toHaveClass(/is-left/, { timeout: 5_000 });
+  await expect(sequence).toHaveClass(/is-battle/, { timeout: 5_000 });
+  await expect(sequence).toHaveClass(/is-treasure/, { timeout: 5_000 });
+  await expect(sequence).toBeHidden({ timeout: 5_000 });
 
   const result = page.locator('.exploration-result-overlay');
   await expect(result).toHaveClass(/is-opened/, { timeout: 15_000 });
@@ -1856,7 +1844,7 @@ test('exploration result reveals details after tapping through treasure sequence
   await expect(result.locator('.exploration-result-boss-image')).toHaveAttribute('src', /Sprites\/monsters\/ghost_pirate\.png/);
   await expect(result.locator('.exploration-result-boss-image')).toHaveAttribute('alt', '海霧の番人');
   await expect(result.locator('.exploration-result-boss-copy span')).toHaveText('強BOSS / 勝利');
-  await expect(result.locator('.exploration-result-reward')).toContainText('RARE×2');
+  await expect(result.locator('.exploration-result-reward')).toContainText('RARE');
   await expect(result.locator('.exploration-result-chest')).toHaveCSS('animation-name', 'none');
 
   await result.locator('[data-exploration-result-close]').click();

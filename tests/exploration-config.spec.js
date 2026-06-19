@@ -14,6 +14,26 @@ const ADVANCED_BOSS_IDS = [
   'manta_wraith',
   'treasure_hermit'
 ];
+const RECOMMENDED_LEVEL_BY_DESTINATION = {
+  near_sea: 6,
+  palm_islet: 7,
+  coral_lagoon: 7,
+  coral_passage: 7,
+  old_lighthouse: 11,
+  sunken_trader: 11,
+  ship_graveyard: 22,
+  pirate_cove: 15,
+  deep_maelstrom: 19,
+  megalodon_reef: 24,
+  specter_whale_sea: 25,
+  armored_kraken_nest: 28,
+  phantom_admiral_marsh: 26,
+  abyss_angler_vents: 27,
+  cannon_hermit_fort: 26,
+  storm_serpent_current: 29,
+  manta_wraith_grotto: 27,
+  treasure_hermit_cave: 30
+};
 
 function catalogItem(itemId, category, stats = {}) {
   return {
@@ -39,6 +59,14 @@ test('exploration candidates are grouped by rarity with fixed slot metadata', ()
     expect(destination.rarityLabel).toBeTruthy();
     expect(destination.slot).toBe(__test.EXPLORATION_DESTINATION_RARITIES[destination.rarity].slot);
     expect(destination.slotLabel).toBe(__test.EXPLORATION_DESTINATION_RARITIES[destination.rarity].slotLabel);
+    expect(destination.recommendedLevel).toBe(RECOMMENDED_LEVEL_BY_DESTINATION[destination.id]);
+    expect(Number.isInteger(destination.recommendedLevel)).toBe(true);
+    expect(destination.recommendedLevel).toBeGreaterThan(0);
+
+    expect(__test.publicDestination(destination, 'defender')).toMatchObject({
+      id: destination.id,
+      recommendedLevel: destination.recommendedLevel
+    });
   }
 });
 
@@ -78,6 +106,9 @@ test('daily destinations are deterministic per user and JST day in low medium hi
   expect(first.map((destination) => destination.id)).toEqual(second.map((destination) => destination.id));
   expect(first.map((destination) => destination.rarity)).toEqual(['low', 'medium', 'high']);
   expect(first.map((destination) => destination.slot)).toEqual([1, 2, 3]);
+  for (const destination of first) {
+    expect(destination.recommendedLevel).toBe(RECOMMENDED_LEVEL_BY_DESTINATION[destination.id]);
+  }
   expect(nextDay.map((destination) => destination.id)).not.toEqual(first.map((destination) => destination.id));
   expect(otherUser.map((destination) => destination.id)).not.toEqual(first.map((destination) => destination.id));
 });
@@ -122,8 +153,10 @@ test('exploration ship roles still change boss odds and reward counts', () => {
   expect(__test.selectExplorationBoss(destination, () => 0.76, 'fighter').id).toBe('mimic_chest');
   expect(__test.selectExplorationBoss(destination, () => 0.76, 'merchant').id).toBe('puffer_bomb');
 
-  expect(__test.resolveRewardCount({ bossAppeared: true, playerWon: true, bossTier: 'strong' }, 'fighter')).toBe(4);
-  expect(__test.resolveRewardCount({ bossAppeared: true, playerWon: true, bossTier: 'weak' }, 'merchant')).toBe(3);
+  expect(__test.resolveRewardCount({ bossAppeared: true, playerWon: true, bossTier: 'strong' }, 'fighter')).toBe(1);
+  expect(__test.resolveRewardCount({ bossAppeared: true, playerWon: true, bossTier: 'weak' }, 'merchant')).toBe(1);
+  expect(__test.resolveRewardCount({ bossAppeared: false }, 'common')).toBe(1);
+  expect(__test.resolveRewardCount({ bossAppeared: true, playerWon: false, escaped: true, draw: false }, 'common')).toBe(1);
   expect(__test.resolveRewardCount({ bossAppeared: true, playerWon: false, escaped: false, draw: false }, 'defender')).toBe(1);
   expect(__test.resolveRewardCount({ bossAppeared: true, playerWon: false, escaped: false, draw: false }, 'common')).toBe(0);
 });
