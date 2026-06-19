@@ -1578,10 +1578,12 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
     const styleOf = (selector) => {
       const element = document.querySelector(selector);
       const style = window.getComputedStyle(element);
+      const panelSliceSource = element.querySelector(':scope > .panel-slice-25-layer')?.dataset.source || '';
       return {
         animationName: style.animationName,
         backgroundImage: style.backgroundImage,
         borderImageSource: style.borderImageSource,
+        panelSliceSource,
         borderRadius: style.borderRadius,
         display: style.display,
         fontSize: style.fontSize,
@@ -1682,8 +1684,11 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
     return output;
   });
 
-  expect(audit.sequenceDialog.borderImageSource).toContain('assets/ui/panels/');
-  expect(audit.sequenceScene.borderImageSource).toContain('assets/ui/panels/');
+  const panelFrameSource = (entry) => `${entry.borderImageSource || ''} ${entry.panelSliceSource || ''}`;
+  const expectPanelFrame = (entry) => expect(panelFrameSource(entry)).toMatch(/assets\/ui\/panels\/|panel-.*\.png/);
+
+  expectPanelFrame(audit.sequenceDialog);
+  expectPanelFrame(audit.sequenceScene);
   expect(audit.sequenceScene.backgroundImage).toContain('Sprites/background/deck.webp');
   expect(audit.sequenceBattleScene.backgroundImage).toContain('Sprites/background/deck.webp');
   expect(audit.sequenceBattleShip.opacity).toBe('0');
@@ -1702,25 +1707,25 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(audit.sequenceSailIslandImage.maxHeight).toBe('100%');
   expect(audit.sequenceSailIslandImage.objectFit).toBe('contain');
   expect(audit.sequenceBattleBossLeft).toBeLessThan(audit.sequenceBattleAvatarLeft);
-  expect(audit.sequenceLog.borderImageSource).toContain('assets/ui/panels/');
+  expectPanelFrame(audit.sequenceLog);
   expect(audit.sequenceRoute.animationName).toBe('none');
   expect(audit.sequenceRoute.backgroundImage).not.toContain('repeating-linear-gradient');
   expect(audit.sequenceArrival.borderRadius).toBe('50%');
-  expect(audit.sequenceTapHint.borderImageSource).not.toContain('assets/ui/buttons/');
+  expect(panelFrameSource(audit.sequenceTapHint)).not.toContain('assets/ui/buttons/');
   expect(audit.sequenceOpeningChest.animationName).toContain('explorationSequenceChestPop');
   expect(audit.sequenceOpeningChest.animationName).not.toContain('explorationResultChestOpen');
   expect(audit.sequenceChestMore.borderRadius).toBe('6px');
-  expect(audit.resultDialog.borderImageSource).toContain('assets/ui/panels/');
+  expectPanelFrame(audit.resultDialog);
   expect(audit.resultDialog.overflowX).toBe('hidden');
-  expect(audit.resultShowcase.borderImageSource).toContain('assets/ui/panels/');
-  expect(audit.resultBossCard.borderImageSource).toContain('assets/ui/panels/');
+  expectPanelFrame(audit.resultShowcase);
+  expectPanelFrame(audit.resultBossCard);
   expect(audit.resultBossImage.height).not.toBe('0px');
   expect(audit.resultDetailsOpened.opacity).toBe('1');
   expect(audit.resultDetailsAwaiting.opacity).toBe('0');
   expect(audit.resultDetailsAwaiting.pointerEvents).toBe('none');
-  expect(audit.resultMetric.borderImageSource).toContain('assets/ui/panels/');
-  expect(audit.resultReward.borderImageSource).toContain('assets/ui/panels/');
-  expect(audit.resultLog.borderImageSource).toContain('assets/ui/panels/');
+  expectPanelFrame(audit.resultMetric);
+  expectPanelFrame(audit.resultReward);
+  expectPanelFrame(audit.resultLog);
   expect(audit.sequenceSky.display).toBe('none');
   expect(audit.sequenceSky.animationName).toBe('none');
   expect(audit.sequenceSky.backgroundImage).toBe('none');
@@ -2328,7 +2333,8 @@ test('panel frame assets are applied through border-image slices', async ({ page
         return {
           selector,
           backgroundImage: style.backgroundImage,
-          borderImageSource: style.borderImageSource
+          borderImageSource: style.borderImageSource,
+          panelSliceSource: element.querySelector(':scope > .panel-slice-25-layer')?.dataset.source || ''
         };
       })
       .filter(Boolean);
@@ -2336,7 +2342,10 @@ test('panel frame assets are applied through border-image slices', async ({ page
 
   expect(audit.length).toBeGreaterThanOrEqual(8);
   expect(audit.filter((entry) => /assets\/ui\/panels\//.test(entry.backgroundImage))).toEqual([]);
-  expect(audit.filter((entry) => !/assets\/ui\/panels\//.test(entry.borderImageSource))).toEqual([]);
+  expect(audit.filter((entry) => (
+    !/assets\/ui\/panels\//.test(entry.borderImageSource)
+    && !/panel-.*\.png/.test(entry.panelSliceSource)
+  ))).toEqual([]);
   await expectNoPageErrors(errors);
 });
 

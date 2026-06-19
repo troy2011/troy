@@ -38,7 +38,11 @@ const AUTO_SKIP_SELECTOR = [
     '.ranking-refresh-btn',
     '.inventory-mobile-switch-btn',
     '.inventory-primary-tab-btn',
-    '.inventory-tab-btn'
+    '.inventory-tab-btn',
+    '.troy-state-badge',
+    '.king-troy-status',
+    '.companion-status',
+    '.companion-host-note'
 ].join(',');
 
 let resizeObserver = null;
@@ -61,11 +65,20 @@ function getFileName(url) {
     }
 }
 
+function isExplicitPanelSliceTarget(element) {
+    return element?.dataset?.panelSlice === '25' || element?.dataset?.panelSlice === '15';
+}
+
+function hasClippingOverflow(style) {
+    return style.overflowX !== 'visible' || style.overflowY !== 'visible';
+}
+
 function isPanelSlice25Target(element, style) {
     if (!(element instanceof Element)) return false;
-    if (element.dataset.panelSlice === '25' || element.dataset.panelSlice === '15') return true;
+    if (isExplicitPanelSliceTarget(element)) return true;
     if (element.dataset.panelSlice === 'off') return false;
     if (element.matches(AUTO_SKIP_SELECTOR)) return false;
+    if (hasClippingOverflow(style)) return false;
     const source = extractCssUrl(style.borderImageSource);
     if (!source) return false;
     return DECORATED_PANEL_CONFIG.has(getFileName(source));
@@ -373,6 +386,16 @@ function rerenderElement(element) {
         .catch(() => {});
 }
 
+function restoreMissingLayer(element) {
+    if (!(element instanceof Element)) return false;
+    if (!element.classList.contains('panel-slice-25-host')) return false;
+    if (element.querySelector(':scope > .panel-slice-25-layer')) return false;
+    const state = renderState.get(element);
+    if (!state?.sourceUrl) return false;
+    rerenderElement(element);
+    return true;
+}
+
 export function installPanelSlice25(root = document) {
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
     if (!resizeObserver && 'ResizeObserver' in window) {
@@ -383,6 +406,9 @@ export function installPanelSlice25(root = document) {
     if (!mutationObserver && document.body) {
         mutationObserver = new MutationObserver((mutations) => {
             for (const mutation of mutations) {
+                if (mutation.type === 'childList' && mutation.target instanceof Element) {
+                    restoreMissingLayer(mutation.target);
+                }
                 mutation.addedNodes.forEach((node) => {
                     if (node instanceof Element) scheduleScan(node);
                 });

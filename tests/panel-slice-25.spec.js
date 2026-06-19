@@ -84,6 +84,14 @@ test('decorated panel border images render with 25 slice cells', async ({ page }
   expect(rerenderMetrics.fillCount).toBe(1);
   expect(rerenderMetrics.cellCount).toBe(25);
   expect(rerenderMetrics.fillWidth).toBeGreaterThan(0);
+
+  await page.locator('#panel').evaluate((panel) => {
+    panel.textContent = 'updated';
+  });
+  await page.waitForFunction(() => (
+    document.querySelectorAll('#panel > .panel-slice-25-layer > .panel-slice-25-cell').length === 25
+  ));
+  await expect(page.locator('#panel > .panel-slice-25-layer > .panel-slice-25-cell')).toHaveCount(25);
 });
 
 test('compact chrome controls are not auto-upgraded to 25 slice panels', async ({ page }) => {
@@ -96,6 +104,7 @@ test('compact chrome controls are not auto-upgraded to 25 slice panels', async (
         <link rel="stylesheet" href="/css/panel-slice-25.css?v=test">
         <style>
           .currency-display,
+          .troy-state-badge,
           button,
           input {
             border: 16px solid transparent;
@@ -118,6 +127,7 @@ test('compact chrome controls are not auto-upgraded to 25 slice panels', async (
       </head>
       <body>
         <div class="currency-display"><b id="globalPoints">123</b>G</div>
+        <div class="troy-state-badge">CLOSE</div>
         <button type="button">押す</button>
         <input value="入力">
         <div class="manual-panel" data-panel-slice="25">manual</div>
@@ -133,6 +143,7 @@ test('compact chrome controls are not auto-upgraded to 25 slice panels', async (
   await page.waitForSelector('.manual-panel > .panel-slice-25-layer');
   await expect(page.locator('.manual-panel > .panel-slice-25-layer > .panel-slice-25-cell')).toHaveCount(25);
   await expect(page.locator('.currency-display > .panel-slice-25-layer')).toHaveCount(0);
+  await expect(page.locator('.troy-state-badge > .panel-slice-25-layer')).toHaveCount(0);
   await expect(page.locator('button > .panel-slice-25-layer')).toHaveCount(0);
   await expect(page.locator('input > .panel-slice-25-layer')).toHaveCount(0);
 
@@ -148,6 +159,43 @@ test('compact chrome controls are not auto-upgraded to 25 slice panels', async (
   expect(currencyBefore.content).not.toBe('none');
   expect(currencyBefore.backgroundImage).toContain('002.png');
   expect(currencyBefore.width).toBe('30px');
+});
+
+test('auto 25 slice skips clipped panels unless explicitly requested', async ({ page }) => {
+  await page.route('**/main.js*', (route) => route.abort());
+  await page.goto('/index.html');
+  await page.setContent(`
+    <!doctype html>
+    <html>
+      <head>
+        <link rel="stylesheet" href="/css/panel-slice-25.css?v=test">
+        <style>
+          .auto-clipped,
+          .explicit-clipped {
+            width: 280px;
+            height: 120px;
+            overflow: hidden;
+            border: 24px solid transparent;
+            border-image: url("/assets/ui/panels/panel-dark-gold.png") 32 fill / 14px / 0 stretch;
+            box-sizing: border-box;
+          }
+        </style>
+      </head>
+      <body>
+        <section class="auto-clipped">auto</section>
+        <section class="explicit-clipped" data-panel-slice="25">explicit</section>
+      </body>
+    </html>
+  `);
+
+  await page.evaluate(async () => {
+    const module = await import('/js/panelSlice25.js');
+    module.installPanelSlice25(document);
+  });
+
+  await expect(page.locator('.auto-clipped > .panel-slice-25-layer')).toHaveCount(0);
+  await expect(page.locator('.auto-clipped')).not.toHaveClass(/panel-slice-25-host/);
+  await expect(page.locator('.explicit-clipped > .panel-slice-25-layer > .panel-slice-25-cell')).toHaveCount(25);
 });
 
 test('explicit 15 slice panels preserve horizontal center ornaments only where requested', async ({ page }) => {
