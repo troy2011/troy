@@ -49,6 +49,7 @@ test('exploration candidates are grouped by rarity with fixed slot metadata', ()
 
   expect(destinations).toHaveLength(18);
   expect(__test.EXPLORATION_DAILY_RARITY_ORDER).toEqual(['low', 'medium', 'high']);
+  expect(__test.EXPLORATION_CONSUMABLE_REQUIRED_BY_RARITY).toEqual({ low: 1, medium: 2, high: 3 });
   expect(__test.getDestinationsByRarity('low')).toHaveLength(3);
   expect(__test.getDestinationsByRarity('medium')).toHaveLength(6);
   expect(__test.getDestinationsByRarity('high')).toHaveLength(9);
@@ -62,12 +63,151 @@ test('exploration candidates are grouped by rarity with fixed slot metadata', ()
     expect(destination.recommendedLevel).toBe(RECOMMENDED_LEVEL_BY_DESTINATION[destination.id]);
     expect(Number.isInteger(destination.recommendedLevel)).toBe(true);
     expect(destination.recommendedLevel).toBeGreaterThan(0);
+    expect(__test.getExplorationRequiredConsumableCount(destination)).toBe(
+      __test.EXPLORATION_CONSUMABLE_REQUIRED_BY_RARITY[destination.rarity]
+    );
+    expect(__test.getExplorationRequiredSupplyUnits(destination)).toBe(
+      __test.EXPLORATION_CONSUMABLE_REQUIRED_BY_RARITY[destination.rarity]
+    );
 
     expect(__test.publicDestination(destination, 'defender')).toMatchObject({
       id: destination.id,
-      recommendedLevel: destination.recommendedLevel
+      recommendedLevel: destination.recommendedLevel,
+      requiredSupplyUnits: __test.EXPLORATION_CONSUMABLE_REQUIRED_BY_RARITY[destination.rarity],
+      requiredConsumableCount: __test.EXPLORATION_CONSUMABLE_REQUIRED_BY_RARITY[destination.rarity]
     });
   }
+});
+
+test('troy menu consumables are extracted and validated for exploration payment', () => {
+  expect(__test.getTroyMenuConsumableEffectiveUnits(999)).toBe(1);
+  expect(__test.getTroyMenuConsumableEffectiveUnits(1000)).toBe(2);
+  expect(__test.getTroyMenuConsumableEffectiveUnits(1999)).toBe(2);
+  expect(__test.getTroyMenuConsumableEffectiveUnits(2000)).toBe(3);
+  expect(__test.getTroyMenuConsumableEffectiveUnits(18000)).toBe(3);
+
+  const inventoryItems = [
+    { Id: 'catalog-drink-a', Amount: 1 },
+    { Id: 'catalog-food-b', Amount: 2 },
+    { Id: 'catalog-premium-c', Amount: 1 },
+    { Id: 'regular-potion', Amount: 9 },
+    { Id: 'empty-troy', Amount: 0 }
+  ];
+  const catalog = {
+    'catalog-drink-a': {
+      ItemId: 'catalog-drink-a',
+      FriendlyId: 'troy_menu_drink_a',
+      DisplayName: 'ラムソーダ',
+      Category: 'Consumable',
+      TroyMenuConsumable: true,
+      image_path: './Sprites/drinks/rum.png',
+      MenuCategory: 'rum',
+      MenuPrice: 900
+    },
+    'catalog-food-b': {
+      ItemId: 'catalog-food-b',
+      FriendlyId: 'troy_menu_food_b',
+      DisplayName: '港町プレート',
+      Category: 'Consumable',
+      TroyMenuConsumable: true,
+      image_path: './Sprites/food/plate.png',
+      MenuCategory: 'food',
+      MenuPrice: 1000
+    },
+    'catalog-premium-c': {
+      ItemId: 'catalog-premium-c',
+      FriendlyId: 'troy_menu_premium_c',
+      DisplayName: '提督のボトル',
+      Category: 'Consumable',
+      TroyMenuConsumable: true,
+      image_path: './Sprites/drinks/premium.png',
+      MenuCategory: 'whisky',
+      MenuPrice: 2000
+    },
+    'regular-potion': {
+      ItemId: 'regular-potion',
+      FriendlyId: 'regular_potion',
+      DisplayName: 'まほうのせいすい',
+      Category: 'Consumable'
+    },
+    'empty-troy': {
+      ItemId: 'empty-troy',
+      FriendlyId: 'troy_menu_empty',
+      DisplayName: '空の皿',
+      Category: 'Consumable',
+      TroyMenuConsumable: true
+    }
+  };
+
+  const options = __test.buildTroyMenuConsumablePaymentOptions(inventoryItems, catalog);
+  expect(options.map((item) => item.itemId).sort()).toEqual(['troy_menu_drink_a', 'troy_menu_food_b', 'troy_menu_premium_c']);
+  expect(options.find((item) => item.itemId === 'troy_menu_food_b')).toMatchObject({
+    displayName: '港町プレート',
+    amount: 2,
+    imagePath: './Sprites/food/plate.png',
+    menuCategory: 'food',
+    menuPrice: 1000,
+    effectiveUnits: 2
+  });
+  expect(options.find((item) => item.itemId === 'troy_menu_premium_c')).toMatchObject({
+    effectiveUnits: 3
+  });
+  expect(__test.isTroyMenuConsumableCatalogItem('troy_menu_direct', {})).toBe(true);
+  expect(__test.isTroyMenuConsumableCatalogItem('regular_potion', catalog['regular-potion'])).toBe(false);
+
+  const mediumValidation = __test.validateExplorationConsumablePayment([
+    { itemId: 'troy_menu_food_b', quantity: 1 }
+  ], options, 2);
+  expect(mediumValidation).toMatchObject({
+    ok: true,
+    consumedConsumables: [
+      { itemId: 'troy_menu_food_b', quantity: 1, effectiveUnits: 2, supplyUnits: 2 }
+    ]
+  });
+  expect(mediumValidation.supplyProfile).toMatchObject({
+    requiredUnits: 2,
+    totalUnits: 2,
+    surplusUnits: 0,
+    totalMenuPrice: 1000
+  });
+
+  expect(__test.validateExplorationConsumablePayment([
+    { itemId: 'troy_menu_premium_c', quantity: 1 }
+  ], options, 3)).toMatchObject({
+    ok: true,
+    consumedConsumables: [
+      { itemId: 'troy_menu_premium_c', quantity: 1, effectiveUnits: 3, supplyUnits: 3 }
+    ],
+    supplyProfile: {
+      requiredUnits: 3,
+      totalUnits: 3,
+      comboTags: expect.arrayContaining(['premium_supply'])
+    }
+  });
+
+  expect(__test.validateExplorationConsumablePayment([
+    { itemId: 'troy_menu_drink_a', quantity: 1 }
+  ], options, 2).ok).toBe(false);
+  expect(__test.validateExplorationConsumablePayment([
+    { itemId: 'troy_menu_premium_c', quantity: 1 },
+    { itemId: 'troy_menu_food_b', quantity: 2 }
+  ], options, 1).ok).toBe(false);
+
+  const comboProfile = __test.validateExplorationConsumablePayment([
+    { itemId: 'troy_menu_drink_a', quantity: 1 },
+    { itemId: 'troy_menu_food_b', quantity: 1 },
+    { itemId: 'troy_menu_premium_c', quantity: 1 }
+  ], options, 4).supplyProfile;
+  expect(comboProfile).toMatchObject({
+    totalUnits: 6,
+    surplusUnits: 2,
+    categoryCounts: {
+      rum: 1,
+      food: 1,
+      whisky: 1
+    }
+  });
+  expect(comboProfile.comboTags).toEqual(expect.arrayContaining(['food_drink', 'diverse_spirits', 'premium_supply', 'extra_supply']));
 });
 
 test('low medium high destinations expose 3 2 1 bosses respectively', () => {
@@ -159,6 +299,11 @@ test('exploration ship roles still change boss odds and reward counts', () => {
   expect(__test.resolveRewardCount({ bossAppeared: true, playerWon: false, escaped: true, draw: false }, 'common')).toBe(1);
   expect(__test.resolveRewardCount({ bossAppeared: true, playerWon: false, escaped: false, draw: false }, 'defender')).toBe(1);
   expect(__test.resolveRewardCount({ bossAppeared: true, playerWon: false, escaped: false, draw: false }, 'common')).toBe(0);
+  expect(__test.resolveRewardCount(
+    { bossAppeared: true, playerWon: false, escaped: false, draw: false },
+    'common',
+    { comboTags: ['food_drink'], effectLabels: [], requiredUnits: 2, totalUnits: 2, surplusUnits: 0 }
+  )).toBe(1);
 });
 
 test('daily free exploration status resets by JST day key', () => {
@@ -206,6 +351,16 @@ test('stage 1 exploration gacha favors weak equipment slot fillers including acc
   expect(options.allowedCategories).toEqual(['Weapon', 'Armor', 'Shield', 'Accessory', 'Consumable']);
   expect(options.rarityWeights).toMatchObject({ common: 100, rare: 0, epic: 0, legendary: 0 });
 
+  const suppliedOptions = __test.getExplorationGachaOptions('near_sea', { stage: 1, shipClass: 'common' }, {
+    comboTags: ['premium_supply', 'extra_supply'],
+    effectLabels: [],
+    requiredUnits: 1,
+    totalUnits: 4,
+    surplusUnits: 3
+  });
+  expect(suppliedOptions.rarityWeights).toMatchObject({ common: 100, rare: 0, epic: 0, legendary: 0 });
+  expect(suppliedOptions.categoryWeights.Accessory).toBeGreaterThan(options.categoryWeights.Accessory);
+
   const itemIds = buildLocalGachaCandidates(catalog, options)
     .map((candidate) => candidate.itemId)
     .sort();
@@ -226,4 +381,20 @@ test('stage 2 exploration gacha allows accessory up to score 35', () => {
     .map((candidate) => candidate.itemId)
     .sort();
   expect(itemIds).toEqual(['stage2_accessory', 'stage2_weapon']);
+});
+
+test('supply profile adjusts reward options without breaking stage rarity caps', () => {
+  const base = __test.getExplorationGachaOptions('coral_passage', { stage: 2, shipClass: 'explorer' });
+  const supplied = __test.getExplorationGachaOptions('coral_passage', { stage: 2, shipClass: 'explorer' }, {
+    comboTags: ['food_drink', 'diverse_spirits', 'premium_supply', 'extra_supply'],
+    effectLabels: [],
+    requiredUnits: 2,
+    totalUnits: 5,
+    surplusUnits: 3
+  });
+
+  expect(supplied.rarityWeights.legendary).toBeGreaterThan(base.rarityWeights.legendary);
+  expect(supplied.rarityWeights.epic).toBeGreaterThan(base.rarityWeights.epic);
+  expect(supplied.categoryWeights.Weapon).toBeGreaterThan(base.categoryWeights.Weapon);
+  expect(supplied.categoryWeights.Accessory).toBeGreaterThan(base.categoryWeights.Accessory);
 });

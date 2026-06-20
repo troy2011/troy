@@ -1687,6 +1687,260 @@ function renderExplorationDestinationMetaChips(destination) {
     `;
 }
 
+function getExplorationPaymentState(data) {
+    return data?.explorationPayment && typeof data.explorationPayment === 'object'
+        ? data.explorationPayment
+        : null;
+}
+
+function getTroyMenuSupplyUnitsFromPrice(menuPrice) {
+    const price = Math.max(0, Math.floor(Number(menuPrice || 0) || 0));
+    if (price >= 2000) return 3;
+    if (price >= 1000) return 2;
+    return 1;
+}
+
+function getExplorationPaymentConsumables(paymentState) {
+    return Array.isArray(paymentState?.consumables)
+        ? paymentState.consumables
+            .map((item) => {
+                const menuPrice = Math.max(0, Math.floor(Number(item?.menuPrice ?? item?.MenuPrice ?? 0) || 0));
+                const explicitUnits = Math.floor(Number(item?.effectiveUnits ?? item?.EffectiveUnits ?? 0) || 0);
+                return {
+                    itemId: String(item?.itemId || item?.ItemId || '').trim(),
+                    catalogItemId: String(item?.catalogItemId || item?.CatalogItemId || '').trim(),
+                    displayName: String(item?.displayName || item?.DisplayName || item?.itemId || '').trim(),
+                    amount: Math.max(0, Math.floor(Number(item?.amount ?? item?.Amount ?? 0) || 0)),
+                    imagePath: String(item?.imagePath || item?.sprite_path || item?.image_path || '').trim(),
+                    menuCategory: String(item?.menuCategory || item?.MenuCategory || '').trim().toLowerCase(),
+                    menuPrice,
+                    effectiveUnits: explicitUnits > 0
+                        ? Math.max(1, Math.min(3, explicitUnits))
+                        : getTroyMenuSupplyUnitsFromPrice(menuPrice)
+                };
+            })
+            .filter((item) => item.itemId && item.amount > 0)
+        : [];
+}
+
+function getExplorationRequiredSupplyUnits(destination, paymentState) {
+    const rarity = String(destination?.rarity || 'low').trim().toLowerCase();
+    const requiredByRarity = paymentState?.requiredByRarity || {};
+    const fromDestinationSupply = Number(destination?.requiredSupplyUnits);
+    const fromDestination = Number(destination?.requiredConsumableCount);
+    const fromPayment = Number(requiredByRarity[rarity]);
+    const value = Number.isFinite(fromDestinationSupply) && fromDestinationSupply > 0
+        ? fromDestinationSupply
+        : Number.isFinite(fromDestination) && fromDestination > 0
+        ? fromDestination
+        : fromPayment;
+    return Math.max(1, Math.floor(Number(value || 1) || 1));
+}
+
+function getExplorationRequiredConsumableCount(destination, paymentState) {
+    return getExplorationRequiredSupplyUnits(destination, paymentState);
+}
+
+function getExplorationMaxSupplyUnits(requiredSupplyUnits, paymentState) {
+    const extra = Math.max(0, Math.floor(Number(paymentState?.maxExtraSupplyUnits ?? 3) || 0));
+    return Math.max(1, Math.floor(Number(requiredSupplyUnits || 1) || 1)) + extra;
+}
+
+function getExplorationConsumableTotal(paymentState) {
+    return getExplorationPaymentConsumables(paymentState)
+        .reduce((sum, item) => sum + (item.amount * item.effectiveUnits), 0);
+}
+
+function buildExplorationPaymentPreview(consumables, selected, requiredSupplyUnits) {
+    const categoryCounts = {};
+    const alcoholCategories = new Set();
+    let totalUnits = 0;
+    let totalMenuPrice = 0;
+    let hasFood = false;
+    let hasDrink = false;
+    let hasCalmRoute = false;
+    let hasPremium = false;
+    consumables.forEach((item) => {
+        const quantity = Math.max(0, Math.floor(Number(selected.get(item.itemId) || 0) || 0));
+        if (quantity <= 0) return;
+        const category = String(item.menuCategory || '').trim().toLowerCase() || 'unknown';
+        categoryCounts[category] = (categoryCounts[category] || 0) + quantity;
+        totalUnits += quantity * item.effectiveUnits;
+        totalMenuPrice += quantity * item.menuPrice;
+        if (category === 'food') hasFood = true;
+        if (category && category !== 'food') hasDrink = true;
+        if (['beer', 'gin', 'liqueur', 'rum', 'tequila', 'vodka', 'whisky'].includes(category)) alcoholCategories.add(category);
+        if (category === 'soft' || category === 'mixer') hasCalmRoute = true;
+        if (item.effectiveUnits >= 3) hasPremium = true;
+    });
+    const labels = [];
+    if (hasFood && hasDrink) labels.push('食事と飲み物で敗北時の回収を支援');
+    if (alcoholCategories.size >= 2) labels.push('酒種の多様性で攻勢を強化');
+    if (hasCalmRoute) labels.push('割り材/ソフトで守りを安定');
+    if (hasPremium) labels.push('高級品で宝箱の質を底上げ');
+    if (totalUnits > requiredSupplyUnits) labels.push('余剰補給で探索精度を向上');
+    return {
+        totalUnits,
+        totalMenuPrice,
+        categoryCounts,
+        labels
+    };
+}
+
+function renderExplorationPaymentBadges(destination, {
+    canUseDailyFree,
+    hasPaymentState,
+    requiredSupplyUnits
+} = {}) {
+    const cost = Number(destination?.cost || 0).toLocaleString('ja-JP');
+    if (!hasPaymentState) {
+        return canUseDailyFree
+            ? `<span class="ship-exploration-badge is-free">本日無料</span><span class="ship-exploration-badge">通常${cost}G</span>`
+            : `<span class="ship-exploration-badge">${cost}G</span>`;
+    }
+    if (canUseDailyFree) {
+        return `
+            <span class="ship-exploration-badge is-free">本日無料</span>
+            <span class="ship-exploration-badge is-item">供給力${requiredSupplyUnits.toLocaleString('ja-JP')}</span>
+            <span class="ship-exploration-badge">${cost}G</span>
+        `;
+    }
+    return `
+        <span class="ship-exploration-badge is-item">供給力${requiredSupplyUnits.toLocaleString('ja-JP')}</span>
+        <span class="ship-exploration-badge">${cost}G</span>
+    `;
+}
+
+function renderExplorationPaymentActions(destination, {
+    isAvailable,
+    canUseDailyFree,
+    hasPaymentState,
+    canPayWithConsumables,
+    requiredSupplyUnits
+} = {}) {
+    const id = escapeHtml(destination?.id || '');
+    const cost = Number(destination?.cost || 0).toLocaleString('ja-JP');
+    if (!isAvailable) {
+        return '<button type="button" class="ship-exploration-start" disabled aria-disabled="true">条件未達</button>';
+    }
+    if (!hasPaymentState) {
+        return `<button type="button" class="ship-exploration-start" data-exploration-start="${id}">探索開始</button>`;
+    }
+    if (canUseDailyFree) {
+        return `<button type="button" class="ship-exploration-start" data-exploration-start="${id}" data-exploration-payment-method="free">無料で探索開始</button>`;
+    }
+    return `
+        <div class="ship-exploration-payment-actions">
+            <button type="button" class="ship-exploration-start is-consumable" data-exploration-start="${id}" data-exploration-payment-method="consumable"${canPayWithConsumables ? '' : ' disabled aria-disabled="true"'}>${canPayWithConsumables ? '消耗品で探索' : `供給力${requiredSupplyUnits.toLocaleString('ja-JP')}不足`}</button>
+            <button type="button" class="ship-exploration-start is-gold" data-exploration-start="${id}" data-exploration-payment-method="gold">${cost}Gで探索</button>
+        </div>
+    `;
+}
+
+function showExplorationConsumablePaymentDialog({ destination, paymentState }) {
+    const requiredSupplyUnits = getExplorationRequiredSupplyUnits(destination, paymentState);
+    const maxSupplyUnits = getExplorationMaxSupplyUnits(requiredSupplyUnits, paymentState);
+    const consumables = getExplorationPaymentConsumables(paymentState);
+    if (getExplorationConsumableTotal(paymentState) < requiredSupplyUnits) {
+        showRpgMessage(`探索には供給力${requiredSupplyUnits.toLocaleString('ja-JP')}以上が必要です。`);
+        return Promise.resolve(null);
+    }
+    return new Promise((resolve) => {
+        const selected = new Map();
+        const overlay = document.createElement('div');
+        overlay.className = 'ship-exploration-payment-overlay';
+        overlay.innerHTML = `
+            <div class="ship-exploration-payment-dialog" role="dialog" aria-modal="true" aria-label="探索に使う消耗品">
+                <div class="ship-exploration-payment-head">
+                    <strong>${escapeHtml(destination?.name || '探索')}</strong>
+                    <span>供給力 ${requiredSupplyUnits.toLocaleString('ja-JP')}以上を選択</span>
+                </div>
+                <div class="ship-exploration-payment-list" data-exploration-payment-list></div>
+                <div class="ship-exploration-payment-summary" data-exploration-payment-summary></div>
+                <div class="ship-exploration-payment-buttons">
+                    <button type="button" data-exploration-payment-confirm disabled>出航する</button>
+                    <button type="button" data-exploration-payment-cancel>キャンセル</button>
+                </div>
+            </div>
+        `;
+        const list = overlay.querySelector('[data-exploration-payment-list]');
+        const summary = overlay.querySelector('[data-exploration-payment-summary]');
+        const confirm = overlay.querySelector('[data-exploration-payment-confirm]');
+        const cleanup = (result) => {
+            overlay.remove();
+            document.body.classList.remove('modal-lock');
+            resolve(result);
+        };
+        const currentTotal = () => consumables.reduce((sum, item) => {
+            const quantity = Math.max(0, Math.floor(Number(selected.get(item.itemId) || 0) || 0));
+            return sum + quantity * item.effectiveUnits;
+        }, 0);
+        const render = () => {
+            const total = currentTotal();
+            const preview = buildExplorationPaymentPreview(consumables, selected, requiredSupplyUnits);
+            list.innerHTML = consumables.map((item) => {
+                const chosen = selected.get(item.itemId) || 0;
+                const image = item.imagePath
+                    ? `<span class="ship-exploration-payment-item-image"><img src="${escapeHtml(item.imagePath)}" alt=""></span>`
+                    : '<span class="ship-exploration-payment-item-image" aria-hidden="true"></span>';
+                const canAdd = chosen < item.amount && (total + item.effectiveUnits) <= maxSupplyUnits;
+                const priceLabel = item.menuPrice > 0 ? ` / ${item.menuPrice.toLocaleString('ja-JP')}G` : '';
+                return `
+                    <div class="ship-exploration-payment-item" data-payment-item-id="${escapeHtml(item.itemId)}">
+                        ${image}
+                        <div class="ship-exploration-payment-item-copy">
+                            <strong>${escapeHtml(item.displayName || item.itemId)}</strong>
+                            <span>所持 ${item.amount.toLocaleString('ja-JP')} / 供給力 +${item.effectiveUnits.toLocaleString('ja-JP')}${priceLabel}</span>
+                        </div>
+                        <div class="ship-exploration-payment-stepper" aria-label="${escapeHtml(item.displayName || item.itemId)}の使用数">
+                            <button type="button" data-payment-step="-1"${chosen <= 0 ? ' disabled' : ''}>-</button>
+                            <span>${chosen.toLocaleString('ja-JP')}</span>
+                            <button type="button" data-payment-step="1"${canAdd ? '' : ' disabled'}>+</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            const surplus = Math.max(0, total - requiredSupplyUnits);
+            const effectHtml = preview.labels.length
+                ? `<div class="ship-exploration-payment-effects">${preview.labels.map((label) => `<span>${escapeHtml(label)}</span>`).join('')}</div>`
+                : '';
+            summary.innerHTML = `
+                <div>供給力 ${total.toLocaleString('ja-JP')} / ${requiredSupplyUnits.toLocaleString('ja-JP')}（上限 ${maxSupplyUnits.toLocaleString('ja-JP')}）${surplus > 0 ? ` / 余剰 +${surplus.toLocaleString('ja-JP')}` : ''}</div>
+                ${effectHtml}
+            `;
+            confirm.disabled = total < requiredSupplyUnits || total > maxSupplyUnits;
+        };
+        list.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-payment-step]');
+            if (!button) return;
+            const row = button.closest('[data-payment-item-id]');
+            const itemId = String(row?.dataset?.paymentItemId || '');
+            const item = consumables.find((entry) => entry.itemId === itemId);
+            if (!item) return;
+            const step = Number(button.dataset.paymentStep || 0);
+            const total = currentTotal();
+            const current = selected.get(itemId) || 0;
+            const next = Math.max(0, Math.min(item.amount, current + step));
+            if (step > 0 && total + item.effectiveUnits > maxSupplyUnits) return;
+            if (next > 0) selected.set(itemId, next);
+            else selected.delete(itemId);
+            render();
+        });
+        confirm.addEventListener('click', () => {
+            const total = currentTotal();
+            if (total < requiredSupplyUnits || total > maxSupplyUnits) return;
+            cleanup(Array.from(selected.entries()).map(([itemId, quantity]) => ({ itemId, quantity })));
+        });
+        overlay.querySelector('[data-exploration-payment-cancel]')?.addEventListener('click', () => cleanup(null));
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) cleanup(null);
+        });
+        document.body.appendChild(overlay);
+        document.body.classList.add('modal-lock');
+        render();
+    });
+}
+
 function normalizeBossResult(value) {
     const result = String(value || 'none').toLowerCase();
     if (result === 'victory' || result === 'defeat' || result === 'escaped' || result === 'draw') return result;
@@ -2111,10 +2365,16 @@ function renderExplorationPanel(data, playFabId) {
         return;
     }
     const destinations = Array.isArray(data?.destinations) ? data.destinations : [];
+    const paymentState = getExplorationPaymentState(data);
+    const hasPaymentState = !!paymentState;
+    const ownedConsumableTotal = getExplorationConsumableTotal(paymentState);
     const destinationHtml = destinations.length
         ? destinations.map((destination) => {
             const isDailyFreeDestination = destination?.dailyFreeEligible === true;
             const isAvailable = destination?.available !== false;
+            const canUseDailyFree = dailyFreeAvailable && isDailyFreeDestination;
+            const requiredSupplyUnits = getExplorationRequiredSupplyUnits(destination, paymentState);
+            const canPayWithConsumables = ownedConsumableTotal >= requiredSupplyUnits;
             const rarityKey = String(destination?.rarity || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'low';
             const rarityLabel = destination?.rarityLabel || destination?.slotLabel || '探索先';
             const requirementLabel = destination?.requirementLabel || '船の進化が必要';
@@ -2129,16 +2389,14 @@ function renderExplorationPanel(data, playFabId) {
                     </div>
                 </div>
                 <div class="ship-exploration-badges" aria-label="探索条件">
-                    ${dailyFreeAvailable && isDailyFreeDestination
-                        ? `<span class="ship-exploration-badge is-free">本日無料</span><span class="ship-exploration-badge">通常${Number(destination.cost || 0).toLocaleString('ja-JP')}G</span>`
-                        : `<span class="ship-exploration-badge">${Number(destination.cost || 0).toLocaleString('ja-JP')}G</span>`}
+                    ${renderExplorationPaymentBadges(destination, { canUseDailyFree, hasPaymentState, requiredSupplyUnits })}
                     <span class="ship-exploration-badge is-rarity is-rarity-${escapeHtml(rarityKey)}">${escapeHtml(rarityLabel)}</span>
                     ${recommendedLevel > 0 ? `<span class="ship-exploration-badge is-level">推奨Lv ${recommendedLevel.toLocaleString('ja-JP')}</span>` : ''}
                     ${isAvailable ? '' : `<span class="ship-exploration-badge is-locked">条件: ${escapeHtml(requirementLabel)}</span>`}
                 </div>
                 ${renderExplorationDestinationMetaChips(destination)}
                 ${renderExplorationDestinationBossChips(destination)}
-                <button type="button" class="ship-exploration-start" data-exploration-start="${escapeHtml(destination.id)}"${isAvailable ? '' : ' disabled aria-disabled="true"'}>${isAvailable ? '探索開始' : '条件未達'}</button>
+                ${renderExplorationPaymentActions(destination, { isAvailable, canUseDailyFree, hasPaymentState, canPayWithConsumables, requiredSupplyUnits })}
             </div>
         `;
         }).join('')
@@ -2149,7 +2407,18 @@ function renderExplorationPanel(data, playFabId) {
         ${reports.length ? `<div class="ship-exploration-reports">${reports.map(renderExplorationReport).join('')}</div>` : ''}
     `;
     panel.querySelectorAll('[data-exploration-start]').forEach((button) => {
-        button.addEventListener('click', () => startExploration(playFabId, String(button.getAttribute('data-exploration-start') || '')));
+        button.addEventListener('click', async () => {
+            const destinationId = String(button.getAttribute('data-exploration-start') || '');
+            const destination = destinations.find((entry) => String(entry?.id || '') === destinationId) || null;
+            const paymentMethod = String(button.getAttribute('data-exploration-payment-method') || '').trim();
+            if (paymentMethod === 'consumable') {
+                const paymentConsumables = await showExplorationConsumablePaymentDialog({ destination, paymentState });
+                if (!paymentConsumables) return;
+                startExploration(playFabId, destinationId, { paymentMethod, paymentConsumables });
+                return;
+            }
+            startExploration(playFabId, destinationId, paymentMethod ? { paymentMethod } : {});
+        });
     });
 }
 
@@ -2185,12 +2454,15 @@ export async function loadExplorationPanel(playFabId) {
     }
 }
 
-async function startExploration(playFabId, destinationId) {
+async function startExploration(playFabId, destinationId, payment = {}) {
     if (!destinationId) return;
     if (explorationAutoRunning) return;
     explorationAutoRunning = true;
     try {
-        const startData = await requestStartExploration(playFabId, destinationId, createRequestId('exploration-start'), { throwOnError: true });
+        const startData = await requestStartExploration(playFabId, destinationId, createRequestId('exploration-start'), {
+            throwOnError: true,
+            payment
+        });
         if (Number.isFinite(Number(startData?.balance))) {
             Player.syncPointsDisplay(Number(startData.balance));
             await Player.getRanking();

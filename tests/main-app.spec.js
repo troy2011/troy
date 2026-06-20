@@ -1231,6 +1231,11 @@ test('home exploration button loads exploration data in a popup', async ({ page 
             name: '港の外れ',
             description: '近場の探索',
             imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png',
+            rarity: 'low',
+            rarityLabel: '低レア',
+            requiredSupplyUnits: 1,
+            requiredConsumableCount: 1,
+            recommendedLevel: 6,
             cost: 100,
             durationMs: 3 * 60 * 60 * 1000,
             available: true,
@@ -1241,6 +1246,11 @@ test('home exploration button loads exploration data in a popup', async ({ page 
             name: '珊瑚礁の抜け道',
             description: '浅瀬を抜ける航路',
             imagePath: './Sprites/exploration_destinations/coral_passage_reef.png',
+            rarity: 'medium',
+            rarityLabel: '中レア',
+            requiredSupplyUnits: 2,
+            requiredConsumableCount: 2,
+            recommendedLevel: 7,
             cost: 180,
             durationMs: 4 * 60 * 60 * 1000,
             available: true,
@@ -1251,6 +1261,11 @@ test('home exploration button loads exploration data in a popup', async ({ page 
             name: '海賊の隠れ家',
             description: '戦闘向きの海域',
             imagePath: './Sprites/exploration_destinations/pirate_cove_hideout.png',
+            rarity: 'high',
+            rarityLabel: '高レア',
+            requiredSupplyUnits: 3,
+            requiredConsumableCount: 3,
+            recommendedLevel: 15,
             cost: 400,
             durationMs: 8 * 60 * 60 * 1000,
             available: false,
@@ -1264,6 +1279,11 @@ test('home exploration button loads exploration data in a popup', async ({ page 
             description: '近場の探索',
             imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png',
             cost: 100,
+            rarity: 'low',
+            rarityLabel: '低レア',
+            requiredSupplyUnits: 1,
+            requiredConsumableCount: 1,
+            recommendedLevel: 6,
             durationMs: 3 * 60 * 60 * 1000,
             dailyFreeEligible: true,
             roleLabel: '偵察',
@@ -1283,6 +1303,11 @@ test('home exploration button loads exploration data in a popup', async ({ page 
             description: '浅瀬を抜ける航路',
             imagePath: './Sprites/exploration_destinations/coral_passage_reef.png',
             cost: 180,
+            rarity: 'medium',
+            rarityLabel: '中レア',
+            requiredSupplyUnits: 2,
+            requiredConsumableCount: 2,
+            recommendedLevel: 7,
             durationMs: 4 * 60 * 60 * 1000,
             dailyFreeEligible: false,
             roleLabel: '偵察',
@@ -1296,7 +1321,15 @@ test('home exploration button loads exploration data in a popup', async ({ page 
               { id: 'crab_brute', name: '大ガニ', spriteId: 'crab_brute', tier: 'strong', tierLabel: '強' }
             ]
           }
-        ]
+        ],
+        explorationPayment: {
+          requiredByRarity: { low: 1, medium: 2, high: 3 },
+          maxExtraSupplyUnits: 3,
+          consumables: [
+            { itemId: 'troy_menu_drink_a', displayName: 'ラムソーダ', amount: 1, imagePath: './Sprites/drinks/rum.png', menuCategory: 'rum', menuPrice: 900, effectiveUnits: 1 },
+            { itemId: 'troy_menu_food_b', displayName: '港町プレート', amount: 1, imagePath: './Sprites/food/plate.png', menuCategory: 'food', menuPrice: 1000, effectiveUnits: 2 }
+          ]
+        }
       })
     });
   });
@@ -1330,11 +1363,11 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   const paidDestination = destinationCards.nth(1);
   await expect(freeDestination.locator('strong')).toHaveText('港の外れ');
   await expect(freeDestination.locator('.ship-exploration-mapmark img')).toHaveAttribute('src', /near_sea_drift_crate\.png/);
-  await expect(freeDestination.locator('.ship-exploration-badge')).toHaveText(['本日無料', '通常100G']);
+  await expect(freeDestination.locator('.ship-exploration-badge')).toHaveText(['本日無料', '供給力1', '100G', '低レア', '推奨Lv 6']);
   await expect(paidDestination.locator('strong')).toHaveText('珊瑚礁の抜け道');
   await expect(paidDestination.locator('.ship-exploration-mapmark img')).toHaveAttribute('src', /coral_passage_reef\.png/);
-  await expect(paidDestination.locator('.ship-exploration-badge')).toHaveText(['180G']);
-  await expect(freeDestination.locator('.ship-exploration-role-chip')).toHaveText(['偵察', '低リスク', '基本報酬', '標準BOSS']);
+  await expect(paidDestination.locator('.ship-exploration-badge')).toHaveText(['供給力2', '180G', '中レア', '推奨Lv 7']);
+  await expect(freeDestination.locator('.ship-exploration-role-chip')).toHaveText(['低リスク', '基本報酬']);
   await expect(freeDestination.locator('.ship-exploration-boss-chip')).toHaveCount(3);
   await expect(freeDestination.locator('.ship-exploration-boss-chip').nth(0)).toContainText('弱');
   await expect(freeDestination.locator('.ship-exploration-boss-chip').nth(0)).toContainText('財宝スライム');
@@ -1343,7 +1376,8 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(freeDestination.locator('.ship-exploration-boss-chip').nth(2)).toContainText('強');
   await expect(freeDestination.locator('.ship-exploration-boss-chip').nth(2)).toContainText('宝箱ミミック');
   await expect(freeDestination.locator('.ship-exploration-boss-image')).toHaveCount(3);
-  await expect(freeDestination.locator('.ship-exploration-start')).toHaveText('探索開始');
+  await expect(freeDestination.locator('.ship-exploration-start')).toHaveText('無料で探索開始');
+  await expect(paidDestination.locator('.ship-exploration-start')).toHaveText(['消耗品で探索', '180Gで探索']);
   const explorationPanelFrame = await freeDestination.evaluate((element) => ({
     panelBorder: getComputedStyle(document.getElementById('shipExplorationPanel')).borderImageSource,
     panelSliceSource: document.querySelector('#shipExplorationPanel > .panel-slice-25-layer')?.dataset.source || '',
@@ -1357,7 +1391,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
     globalHeaderZIndex: Number.parseInt(getComputedStyle(document.getElementById('globalStatusBar')).zIndex, 10),
     tabContainerZIndex: Number.parseInt(getComputedStyle(document.getElementById('tabContainer')).zIndex, 10)
   }));
-  expect(`${explorationPanelFrame.panelBorder} ${explorationPanelFrame.panelSliceSource}`).toContain('panel-dark.png');
+  expect(`${explorationPanelFrame.panelBorder} ${explorationPanelFrame.panelSliceSource}`).toContain('panel-dark-gold.png');
   expect(`${explorationPanelFrame.destinationBorder} ${explorationPanelFrame.destinationSliceSource}`).toContain('panel-parchment.png');
   expect(explorationPanelFrame.closeBackground).toContain('assets/ui/buttons/action-close.png');
   expect(explorationPanelFrame.closeText).toBe('');
@@ -1397,6 +1431,123 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(page.locator('#tabContentRanking')).toBeVisible();
   await expect(panel).toBeHidden();
   expect(await page.evaluate(() => document.body.classList.contains('home-exploration-popup-open'))).toBe(false);
+  await expectNoPageErrors(errors);
+});
+
+test('exploration can start by selecting troy menu consumables', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  let startBody = null;
+  await page.route('**/api/get-troy-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ nation: 'fire', isOpen: true, members: [] })
+    });
+  });
+  await page.route('**/api/get-ranking', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ranking: [{ displayName: 'Playwright Tester', score: 9000, level: 18, playFabId: 'PF_PLAYWRIGHT' }] })
+    });
+  });
+  await page.route('**/api/exploration/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'explorer' },
+        active: null,
+        reports: [],
+        dailyFree: { dayKey: '2026-06-18', available: false, used: true },
+        destinations: [{
+          id: 'coral-passage',
+          name: '珊瑚礁の抜け道',
+          description: '浅瀬を抜ける航路',
+          imagePath: './Sprites/exploration_destinations/coral_passage_reef.png',
+          cost: 180,
+          rarity: 'medium',
+          rarityLabel: '中レア',
+          requiredSupplyUnits: 2,
+          requiredConsumableCount: 2,
+          recommendedLevel: 7,
+          available: true,
+          dailyFreeEligible: false,
+          bosses: []
+        }],
+        explorationPayment: {
+          requiredByRarity: { low: 1, medium: 2, high: 3 },
+          maxExtraSupplyUnits: 3,
+          consumables: [
+            { itemId: 'troy_menu_drink_a', displayName: 'ラムソーダ', amount: 1, imagePath: './Sprites/drinks/rum.png', menuCategory: 'rum', menuPrice: 900, effectiveUnits: 1 },
+            { itemId: 'troy_menu_food_b', displayName: '港町プレート', amount: 2, imagePath: './Sprites/food/plate.png', menuCategory: 'food', menuPrice: 1000, effectiveUnits: 2 }
+          ]
+        }
+      })
+    });
+  });
+  await page.route('**/api/exploration/start', async (route) => {
+    startBody = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        balance: 9000,
+        paymentMethod: 'consumable',
+        consumedConsumables: [
+          { itemId: 'troy_menu_food_b', displayName: '港町プレート', quantity: 1, effectiveUnits: 2, supplyUnits: 2 }
+        ],
+        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'explorer' },
+        active: {
+          destinationId: 'coral-passage',
+          destinationName: '珊瑚礁の抜け道',
+          imagePath: './Sprites/exploration_destinations/coral_passage_reef.png',
+          shipName: 'テスト船'
+        },
+        reports: [],
+        destinations: []
+      })
+    });
+  });
+  await page.route('**/api/exploration/claim', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'explorer' },
+        active: null,
+        reports: [],
+        report: {
+          destinationId: 'coral-passage',
+          destinationName: '珊瑚礁の抜け道',
+          imagePath: './Sprites/exploration_destinations/coral_passage_reef.png',
+          bossResult: 'victory',
+          rewardCount: 1,
+          rewardItems: [{ itemId: 'starter_shield', displayName: '見習いの盾', rarity: 'common', quantity: 1 }],
+          bossLog: '戦闘開始\n宝箱を発見した。'
+        }
+      })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.locator('#btnHomeExploration').click();
+  await page.locator('.ship-exploration-start.is-consumable').click();
+  const dialog = page.locator('.ship-exploration-payment-dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.locator('[data-payment-item-id="troy_menu_food_b"] [data-payment-step="1"]').click();
+  await expect(dialog.locator('[data-exploration-payment-summary]')).toContainText('供給力 2 / 2');
+  await dialog.locator('[data-exploration-payment-confirm]').click();
+
+  await expect.poll(() => startBody).not.toBeNull();
+  expect(startBody).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    destinationId: 'coral-passage',
+    paymentMethod: 'consumable',
+    paymentConsumables: [
+      { itemId: 'troy_menu_food_b', quantity: 1 }
+    ]
+  });
   await expectNoPageErrors(errors);
 });
 
@@ -3912,7 +4063,7 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   await expect(page.locator('#inventoryGrid .tarot-number-badge.is-cup')).toHaveText('10');
   await expect(page.locator('#meleeDeckGrid .tarot-loadout-visual .tarot-number-badge.is-sword')).toHaveText('5');
   await expect(page.locator('#meleeDeckGrid .tarot-loadout-visual .tarot-number-badge.is-cup')).toHaveText('10');
-  await expect(page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty) .tarot-number-badge')).toHaveText(['5', '10']);
+  await expect(page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty) .tarot-number-badge')).toHaveText(['10', '5']);
 
   const badgeStyles = await page.evaluate(() => {
     const read = (selector) => {
@@ -4188,6 +4339,11 @@ test('equipment cards open detail before equipping from inventory grid', async (
       itemId: 'shield_001',
       name: 'Round Shield',
       customData: { Category: 'Shield', Defense: 8, sprite_path: './Sprites/weapons/melee weapons/shield.png', sprite_index: '0' }
+    },
+    {
+      itemId: 'hat_black_001',
+      name: 'Leather Helm',
+      customData: { Category: 'Armor', Defense: 6, sprite_path: './Sprites/wardrobe/cloth/hat_black.png', sprite_index: '0', sprite_w: '32', sprite_h: '32' }
     }
   ];
   const equipRequests = [];
@@ -4255,6 +4411,25 @@ test('equipment cards open detail before equipping from inventory grid', async (
     sectionHeader: 'none',
     summary: 'none',
     hint: 'none'
+  });
+
+  await page.evaluate(async () => {
+    const inventory = await import('/js/inventory.js');
+    inventory.switchInventoryTab('Armor');
+  });
+  const armorIconMetrics = await page.locator('#inventoryGrid .inventory-item-cell[data-category="Armor"]').evaluate((cell) => {
+    const frame = cell.querySelector('.inventory-item-icon-frame');
+    const icon = cell.querySelector('.inventory-item-icon');
+    const frameRect = frame.getBoundingClientRect();
+    const iconRect = icon.getBoundingClientRect();
+    return {
+      centerDelta: Math.round((iconRect.top + iconRect.height / 2) - (frameRect.top + frameRect.height / 2))
+    };
+  });
+  expect(armorIconMetrics.centerDelta).toBeLessThan(0);
+  await page.evaluate(async () => {
+    const inventory = await import('/js/inventory.js');
+    inventory.switchInventoryTab('Weapon');
   });
 
   await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"] .inventory-item-stat-badge')).toHaveText('12');

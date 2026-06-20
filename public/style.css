@@ -11056,6 +11056,12 @@ body.home-exploration-popup-open #globalStatusBar {
     color: #14532d;
 }
 
+.ship-exploration-badge.is-item {
+    border-color: rgba(124, 58, 237, 0.24);
+    background: rgba(237, 233, 254, 0.66);
+    color: #5b21b6;
+}
+
 .ship-exploration-badge.is-rarity-low {
     border-color: rgba(14, 165, 233, 0.3);
     background: rgba(186, 230, 253, 0.52);
@@ -11228,6 +11234,17 @@ body.home-exploration-popup-open #globalStatusBar {
     margin-top: 10px;
 }
 
+.ship-exploration-payment-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.ship-exploration-payment-actions .ship-exploration-start {
+    margin-top: 0;
+}
+
 .ship-exploration-actions button,
 .ship-exploration-start {
     width: 100%;
@@ -11250,6 +11267,188 @@ body.home-exploration-popup-open #globalStatusBar {
     opacity: 0.55;
     cursor: not-allowed;
     filter: grayscale(0.24);
+}
+
+.ship-exploration-start.is-consumable {
+    border-image-source: url("./assets/ui/buttons/button-blue-large.png");
+    background:
+        linear-gradient(180deg, rgba(219, 234, 254, 0.24), rgba(30, 64, 175, 0.14)),
+        linear-gradient(180deg, #93c5fd, #2563eb);
+    color: #081225;
+    text-shadow: 0 1px 0 rgba(219, 234, 254, 0.55);
+}
+
+.ship-exploration-start.is-gold {
+    margin-top: 0;
+}
+
+.ship-exploration-payment-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10020;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: rgba(8, 13, 24, 0.72);
+}
+
+.ship-exploration-payment-dialog {
+    width: min(94vw, 430px);
+    max-height: min(82vh, 620px);
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark-gold.png") 34 fill / 14px / 0 stretch;
+    border-radius: 8px;
+    color: #f8fafc;
+    background:
+        linear-gradient(180deg, rgba(30, 20, 12, 0.94), rgba(9, 13, 20, 0.96)),
+        radial-gradient(ellipse at 50% 0%, rgba(250, 204, 21, 0.15), transparent 58%);
+    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.5);
+}
+
+.ship-exploration-payment-head {
+    display: grid;
+    gap: 4px;
+}
+
+.ship-exploration-payment-head strong {
+    color: #fff1bd;
+    font-size: 16px;
+    line-height: 1.25;
+}
+
+.ship-exploration-payment-head span,
+.ship-exploration-payment-summary {
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.ship-exploration-payment-summary {
+    display: grid;
+    gap: 6px;
+}
+
+.ship-exploration-payment-effects {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.ship-exploration-payment-effects span {
+    padding: 3px 7px;
+    border: 1px solid rgba(125, 211, 252, 0.28);
+    border-radius: 999px;
+    color: #bfdbfe;
+    background: rgba(14, 116, 144, 0.18);
+    font-size: 11px;
+    line-height: 1.2;
+}
+
+.ship-exploration-payment-list {
+    display: grid;
+    gap: 8px;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.ship-exploration-payment-item {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 92px;
+    gap: 8px;
+    align-items: center;
+    min-height: 56px;
+    padding: 7px;
+    border: 1px solid rgba(255, 224, 160, 0.18);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.56);
+}
+
+.ship-exploration-payment-item-image {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: rgba(255, 251, 235, 0.12);
+    overflow: hidden;
+}
+
+.ship-exploration-payment-item-image img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.ship-exploration-payment-item-copy {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.ship-exploration-payment-item-copy strong {
+    color: #fff7ed;
+    font-size: 12px;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ship-exploration-payment-item-copy span {
+    color: #cbd5e1;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.ship-exploration-payment-stepper {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) 28px;
+    align-items: center;
+    gap: 4px;
+}
+
+.ship-exploration-payment-stepper button,
+.ship-exploration-payment-buttons button {
+    min-height: 30px;
+    border: 1px solid rgba(255, 224, 160, 0.2);
+    border-radius: 8px;
+    background: rgba(250, 204, 21, 0.18);
+    color: #fff7ed;
+    font-weight: 900;
+}
+
+.ship-exploration-payment-stepper button:disabled,
+.ship-exploration-payment-buttons button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.ship-exploration-payment-stepper span {
+    color: #fde68a;
+    font-size: 13px;
+    font-weight: 900;
+    text-align: center;
+}
+
+.ship-exploration-payment-buttons {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+}
+
+@media (max-width: 420px) {
+    .ship-exploration-payment-actions,
+    .ship-exploration-payment-buttons {
+        grid-template-columns: 1fr;
+    }
+
+    .ship-exploration-payment-item {
+        grid-template-columns: 40px minmax(0, 1fr) 88px;
+    }
 }
 
 .sheet-handle {
@@ -21395,6 +21594,11 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory #inventoryGrid[data-layout="mixed"] .inventory-item-cell[data-category="Accessory"] .inventory-item-icon {
     transform: scale(1.28);
     transform-origin: center;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell[data-category="Armor"] .inventory-item-icon,
+#tabContentInventory #inventoryGrid[data-layout="mixed"] .inventory-item-cell[data-category="Armor"] .inventory-item-icon {
+    transform: translateY(-6px) scale(1.28);
 }
 
 #tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-icon-frame,

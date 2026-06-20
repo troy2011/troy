@@ -14,6 +14,23 @@ const PENDING_STALE_MS = 5 * 60 * 1000;
 // claiming 中にプロセスが落ちた場合、この時間後に再実行を許可する
 const CLAIMING_STALE_MS = 2 * 60 * 1000;
 const EXPLORATION_SHIP_CLASSES = ['common', 'explorer', 'merchant', 'fighter', 'defender'];
+const TROY_MENU_CONSUMABLE_ID_PREFIX = 'troy_menu_';
+const EXPLORATION_CONSUMABLE_REQUIRED_BY_RARITY = Object.freeze({
+    low: 1,
+    medium: 2,
+    high: 3
+});
+const EXPLORATION_MAX_EXTRA_SUPPLY_UNITS = 3;
+const EXPLORATION_ALCOHOL_MENU_CATEGORIES = new Set([
+    'beer',
+    'gin',
+    'liqueur',
+    'rum',
+    'tequila',
+    'vodka',
+    'whisky'
+]);
+const EXPLORATION_PAYMENT_METHODS = new Set(['free', 'consumable', 'gold']);
 const EXPLORATION_SHIP_CLASS_LABELS = {
     common: '初期ボート',
     explorer: '探索船',
@@ -461,11 +478,266 @@ function isDailyFreeExplorationDestination(destinationOrId) {
     return destination?.dailyFreeEligible === true;
 }
 
+function parseBooleanFlag(value) {
+    if (value === true || value === 1) return true;
+    const key = String(value || '').trim().toLowerCase();
+    return key === 'true' || key === '1' || key === 'yes';
+}
+
+function getExplorationRequiredSupplyUnits(destinationOrRarity) {
+    const rarity = typeof destinationOrRarity === 'string'
+        ? String(destinationOrRarity || '').trim().toLowerCase()
+        : String(destinationOrRarity?.rarity || 'low').trim().toLowerCase();
+    return EXPLORATION_CONSUMABLE_REQUIRED_BY_RARITY[rarity] || EXPLORATION_CONSUMABLE_REQUIRED_BY_RARITY.low;
+}
+
+function getExplorationRequiredConsumableCount(destinationOrRarity) {
+    return getExplorationRequiredSupplyUnits(destinationOrRarity);
+}
+
+function getExplorationMaxSupplyUnits(requiredUnits) {
+    return Math.max(0, Math.floor(Number(requiredUnits || 0) || 0)) + EXPLORATION_MAX_EXTRA_SUPPLY_UNITS;
+}
+
+function normalizeExplorationPaymentMethod(value) {
+    if (value == null || value === '') return 'gold';
+    const method = String(value || '').trim().toLowerCase();
+    return EXPLORATION_PAYMENT_METHODS.has(method) ? method : '';
+}
+
+function getInventoryItemAmount(item) {
+    return Math.max(0, Math.floor(Number(item?.Amount ?? item?.amount ?? item?.quantity ?? 0) || 0));
+}
+
+function getCatalogFriendlyId(itemData = {}, fallback = '') {
+    const direct = String(itemData?.FriendlyId || itemData?.friendlyId || '').trim();
+    if (direct) return direct;
+    if (Array.isArray(itemData?.AlternateIds)) {
+        const entry = itemData.AlternateIds.find((alt) => String(alt?.Type || '').trim().toLowerCase() === 'friendlyid');
+        if (entry?.Value) return String(entry.Value).trim();
+    }
+    return String(fallback || '').trim();
+}
+
+function isTroyMenuConsumableCatalogItem(itemId, itemData = {}) {
+    const friendlyId = getCatalogFriendlyId(itemData, itemId);
+    return String(friendlyId || '').trim().toLowerCase().startsWith(TROY_MENU_CONSUMABLE_ID_PREFIX)
+        || parseBooleanFlag(itemData?.TroyMenuConsumable)
+        || parseBooleanFlag(itemData?.IsTroyMenuConsumable);
+}
+
+function normalizeMenuCategory(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function getTroyMenuConsumableEffectiveUnits(menuPrice) {
+    const price = Math.max(0, Math.floor(Number(menuPrice || 0) || 0));
+    if (price >= 2000) return 3;
+    if (price >= 1000) return 2;
+    return 1;
+}
+
+function normalizeTroyMenuConsumableEffectiveUnits(effectiveUnits, menuPrice) {
+    const units = Math.floor(Number(effectiveUnits || 0) || 0);
+    if (units >= 1) return Math.max(1, Math.min(3, units));
+    return getTroyMenuConsumableEffectiveUnits(menuPrice);
+}
+
+function buildTroyMenuConsumablePaymentOptions(inventoryItems = [], catalogCache = {}) {
+    const byFriendlyId = new Map();
+    for (const item of Array.isArray(inventoryItems) ? inventoryItems : []) {
+        const catalogItemId = String(item?.Id || item?.ItemId || item?.itemId || '').trim();
+        if (!catalogItemId) continue;
+        const itemData = catalogCache?.[catalogItemId] || {};
+        const friendlyId = getCatalogFriendlyId(itemData, catalogItemId);
+        if (!isTroyMenuConsumableCatalogItem(friendlyId, itemData)) continue;
+        if (!String(friendlyId || '').trim().toLowerCase().startsWith(TROY_MENU_CONSUMABLE_ID_PREFIX)) continue;
+        const amount = getInventoryItemAmount(item);
+        if (amount <= 0) continue;
+        const menuPrice = Math.max(0, Math.floor(Number(itemData?.MenuPrice || 0) || 0));
+        const current = byFriendlyId.get(friendlyId) || {
+            itemId: friendlyId,
+            catalogItemId: String(itemData?.ItemId || catalogItemId),
+            displayName: String(itemData?.DisplayName || itemData?.Title || item?.DisplayName || item?.Name || friendlyId),
+            amount: 0,
+            imagePath: String(itemData?.image_path || itemData?.sprite_path || itemData?.ImagePath || ''),
+            menuCategory: normalizeMenuCategory(itemData?.MenuCategory || ''),
+            menuPrice,
+            effectiveUnits: getTroyMenuConsumableEffectiveUnits(menuPrice)
+        };
+        current.amount += amount;
+        byFriendlyId.set(friendlyId, current);
+    }
+    return Array.from(byFriendlyId.values())
+        .sort((a, b) => String(a.displayName).localeCompare(String(b.displayName), 'ja'));
+}
+
+function normalizePaymentConsumables(entries = []) {
+    const byItemId = new Map();
+    for (const entry of Array.isArray(entries) ? entries : []) {
+        const itemId = String(entry?.itemId || entry?.ItemId || entry?.friendlyId || '').trim();
+        const quantity = Math.max(0, Math.floor(Number(entry?.quantity ?? entry?.amount ?? entry?.Amount ?? 0) || 0));
+        if (!itemId || quantity <= 0) continue;
+        byItemId.set(itemId, (byItemId.get(itemId) || 0) + quantity);
+    }
+    return Array.from(byItemId.entries()).map(([itemId, quantity]) => ({ itemId, quantity }));
+}
+
+function buildExplorationSupplyProfile(consumedConsumables = [], requiredUnits = 0) {
+    const required = Math.max(0, Math.floor(Number(requiredUnits || 0) || 0));
+    const normalized = (Array.isArray(consumedConsumables) ? consumedConsumables : [])
+        .map((item) => {
+            const quantity = Math.max(0, Math.floor(Number(item?.quantity || 0) || 0));
+            const effectiveUnits = normalizeTroyMenuConsumableEffectiveUnits(item?.effectiveUnits, item?.menuPrice);
+            const supplyUnits = Math.max(0, Math.floor(Number(item?.supplyUnits ?? (quantity * effectiveUnits)) || 0));
+            const menuPrice = Math.max(0, Math.floor(Number(item?.menuPrice || 0) || 0));
+            return {
+                itemId: String(item?.itemId || '').trim(),
+                displayName: String(item?.displayName || item?.itemId || '').trim(),
+                quantity,
+                menuCategory: normalizeMenuCategory(item?.menuCategory || ''),
+                menuPrice,
+                effectiveUnits,
+                supplyUnits
+            };
+        })
+        .filter((item) => item.itemId && item.quantity > 0);
+    const categoryCounts = {};
+    const alcoholCategories = new Set();
+    let totalUnits = 0;
+    let totalMenuPrice = 0;
+    let hasFood = false;
+    let hasDrink = false;
+    let hasCalmRoute = false;
+    let hasPremium = false;
+    for (const item of normalized) {
+        const category = item.menuCategory || 'unknown';
+        categoryCounts[category] = (categoryCounts[category] || 0) + item.quantity;
+        totalUnits += item.supplyUnits;
+        totalMenuPrice += item.menuPrice * item.quantity;
+        if (category === 'food') hasFood = true;
+        if (category && category !== 'food') hasDrink = true;
+        if (EXPLORATION_ALCOHOL_MENU_CATEGORIES.has(category)) alcoholCategories.add(category);
+        if (category === 'soft' || category === 'mixer') hasCalmRoute = true;
+        if (item.effectiveUnits >= 3) hasPremium = true;
+    }
+    const surplusUnits = Math.max(0, totalUnits - required);
+    const comboTags = [];
+    const effectLabels = [];
+    const addEffect = (tag, label) => {
+        comboTags.push(tag);
+        effectLabels.push(label);
+    };
+    if (hasFood && hasDrink) addEffect('food_drink', '食事と飲み物で撤退時の回収を支援');
+    if (alcoholCategories.size >= 2) addEffect('diverse_spirits', '酒種の多様性で攻勢を強化');
+    if (hasCalmRoute) addEffect('calm_route', '割り材/ソフトで守りを安定');
+    if (hasPremium) addEffect('premium_supply', '高級品で宝箱の質を底上げ');
+    if (surplusUnits > 0) addEffect('extra_supply', '余剰補給で探索精度を向上');
+    return {
+        requiredUnits: required,
+        maxUnits: getExplorationMaxSupplyUnits(required),
+        totalUnits,
+        surplusUnits,
+        totalMenuPrice,
+        categoryCounts,
+        comboTags,
+        effectLabels
+    };
+}
+
+function normalizeExplorationSupplyProfile(profile = null) {
+    if (!profile || typeof profile !== 'object') {
+        return buildExplorationSupplyProfile([], 0);
+    }
+    const requiredUnits = Math.max(0, Math.floor(Number(profile.requiredUnits || 0) || 0));
+    const totalUnits = Math.max(0, Math.floor(Number(profile.totalUnits || 0) || 0));
+    const surplusUnits = Math.max(0, Math.floor(Number(profile.surplusUnits ?? (totalUnits - requiredUnits)) || 0));
+    return {
+        requiredUnits,
+        maxUnits: Math.max(getExplorationMaxSupplyUnits(requiredUnits), Math.floor(Number(profile.maxUnits || 0) || 0)),
+        totalUnits,
+        surplusUnits,
+        totalMenuPrice: Math.max(0, Math.floor(Number(profile.totalMenuPrice || 0) || 0)),
+        categoryCounts: profile.categoryCounts && typeof profile.categoryCounts === 'object' ? { ...profile.categoryCounts } : {},
+        comboTags: Array.isArray(profile.comboTags) ? profile.comboTags.map((tag) => String(tag || '')).filter(Boolean) : [],
+        effectLabels: Array.isArray(profile.effectLabels) ? profile.effectLabels.map((label) => String(label || '')).filter(Boolean) : []
+    };
+}
+
+function validateExplorationConsumablePayment(paymentConsumables, ownedConsumables, requiredUnits) {
+    const required = Math.max(0, Math.floor(Number(requiredUnits || 0) || 0));
+    const selected = normalizePaymentConsumables(paymentConsumables);
+    const maxUnits = getExplorationMaxSupplyUnits(required);
+    if (required <= 0) return { ok: true, consumedConsumables: [], supplyProfile: buildExplorationSupplyProfile([], 0) };
+    const ownedById = new Map((ownedConsumables || []).map((item) => [String(item.itemId || ''), item]));
+    const consumedConsumables = [];
+    let totalUnits = 0;
+    for (const entry of selected) {
+        const owned = ownedById.get(entry.itemId);
+        if (!owned || Number(owned.amount || 0) < entry.quantity) {
+            return {
+                ok: false,
+                error: '選択した消耗品の所持数が不足しています。'
+            };
+        }
+        const effectiveUnits = normalizeTroyMenuConsumableEffectiveUnits(owned.effectiveUnits, owned.menuPrice);
+        const supplyUnits = effectiveUnits * entry.quantity;
+        totalUnits += supplyUnits;
+        consumedConsumables.push({
+            itemId: entry.itemId,
+            displayName: String(owned.displayName || entry.itemId),
+            quantity: entry.quantity,
+            menuCategory: normalizeMenuCategory(owned.menuCategory || ''),
+            menuPrice: Math.max(0, Math.floor(Number(owned.menuPrice || 0) || 0)),
+            effectiveUnits,
+            supplyUnits
+        });
+    }
+    if (totalUnits < required) {
+        return {
+            ok: false,
+            error: `探索に使う供給力が不足しています。供給力${required}以上を選択してください。`
+        };
+    }
+    if (totalUnits > maxUnits) {
+        return {
+            ok: false,
+            error: `探索に投入できる供給力の上限を超えています。供給力${maxUnits}以下にしてください。`
+        };
+    }
+    return {
+        ok: true,
+        consumedConsumables,
+        supplyProfile: buildExplorationSupplyProfile(consumedConsumables, required)
+    };
+}
+
+async function buildExplorationPaymentState(playFabId, deps = {}) {
+    const state = {
+        requiredByRarity: { ...EXPLORATION_CONSUMABLE_REQUIRED_BY_RARITY },
+        maxExtraSupplyUnits: EXPLORATION_MAX_EXTRA_SUPPLY_UNITS,
+        consumables: []
+    };
+    const { getEntityKeyForPlayFabId, getAllInventoryItems, catalogCache } = deps;
+    if (typeof getEntityKeyForPlayFabId !== 'function' || typeof getAllInventoryItems !== 'function') {
+        return state;
+    }
+    try {
+        const entityKey = await getEntityKeyForPlayFabId(playFabId);
+        const inventoryItems = await getAllInventoryItems(entityKey);
+        state.consumables = buildTroyMenuConsumablePaymentOptions(inventoryItems, catalogCache);
+    } catch (error) {
+        console.warn('[exploration/payment] inventory load failed:', playFabId, error?.errorMessage || error?.message || error);
+    }
+    return state;
+}
+
 function publicDestination(destination, shipClass = 'common') {
     const bosses = getDestinationBosses(destination);
     const role = getExplorationShipRole(shipClass);
     const normalizedShipClass = normalizeExplorationShipClass(shipClass);
     const requirementLabels = getDestinationRequirementLabels(destination);
+    const requiredSupplyUnits = getExplorationRequiredSupplyUnits(destination);
     return {
         id: destination.id,
         name: destination.name,
@@ -477,6 +749,8 @@ function publicDestination(destination, shipClass = 'common') {
         slotLabel: destination.slotLabel || '',
         recommendedLevel: Math.max(1, Math.floor(Number(destination.recommendedLevel || 1) || 1)),
         cost: destination.cost,
+        requiredSupplyUnits,
+        requiredConsumableCount: requiredSupplyUnits,
         durationMs: destination.durationMs,
         available: canShipClassExploreDestination(normalizedShipClass, destination),
         requirementLabels,
@@ -512,6 +786,26 @@ function explorationDocToPayload(data = {}) {
     const effectiveStatus = resolveEffectiveStatus(data);
     if (effectiveStatus !== 'active') return null;
     const destination = DESTINATIONS[String(data.destinationId || '')] || null;
+    const requiredSupplyUnits = Math.max(0, Math.floor(Number(data.requiredSupplyUnits ?? data.requiredConsumableCount ?? 0) || 0));
+    const consumedConsumables = Array.isArray(data.consumedConsumables)
+        ? data.consumedConsumables.map((item) => {
+            const quantity = Math.max(0, Math.floor(Number(item.quantity || 0) || 0));
+            const menuPrice = Math.max(0, Math.floor(Number(item.menuPrice || 0) || 0));
+            const effectiveUnits = normalizeTroyMenuConsumableEffectiveUnits(item.effectiveUnits, menuPrice);
+            return {
+                itemId: String(item.itemId || ''),
+                displayName: String(item.displayName || item.itemId || ''),
+                quantity,
+                menuCategory: normalizeMenuCategory(item.menuCategory || ''),
+                menuPrice,
+                effectiveUnits,
+                supplyUnits: Math.max(0, Math.floor(Number(item.supplyUnits ?? (quantity * effectiveUnits)) || 0))
+            };
+        }).filter((item) => item.itemId && item.quantity > 0)
+        : [];
+    const supplyProfile = data.supplyProfile
+        ? normalizeExplorationSupplyProfile(data.supplyProfile)
+        : buildExplorationSupplyProfile(consumedConsumables, requiredSupplyUnits);
     return {
         id: String(data.id || ''),
         status: 'active',
@@ -524,7 +818,13 @@ function explorationDocToPayload(data = {}) {
         shipStage: Number(data.shipStage || data.stage || 1) || 1,
         startedAtMs: Number(data.startedAtMs || 0),
         completesAtMs: Number(data.completesAtMs || 0),
-        cost: Number(data.cost || 0)
+        cost: Number(data.cost || 0),
+        chargedCost: Number(data.chargedCost || 0),
+        paymentMethod: String(data.paymentMethod || ''),
+        requiredSupplyUnits,
+        requiredConsumableCount: requiredSupplyUnits,
+        consumedConsumables,
+        supplyProfile
     };
 }
 
@@ -563,6 +863,7 @@ function reportDocToPayload(doc) {
         rarity: String(item.rarity || 'common'),
         category: String(item.category || '')
     })) : [];
+    const supplyProfile = data.supplyProfile ? normalizeExplorationSupplyProfile(data.supplyProfile) : null;
     return {
         id: doc.id || String(data.id || ''),
         destinationId: String(data.destinationId || ''),
@@ -581,6 +882,7 @@ function reportDocToPayload(doc) {
         rewardItemName: String(data.rewardItemName || data.rewardItemId || ''),
         rewardCount: Number(data.rewardCount ?? 1),
         rewardItems,
+        supplyProfile,
         completedAtMs: Number(data.completedAtMs || 0),
         reportText: String(data.reportText || '')
     };
@@ -1211,7 +1513,63 @@ function normalizeShipStage(value) {
     return 3;
 }
 
-function getExplorationGachaOptions(destinationId, ship = {}) {
+function applyExplorationSupplyToGachaOptions(options = {}, supplyProfile = null) {
+    const profile = normalizeExplorationSupplyProfile(supplyProfile);
+    if (!profile.comboTags.length && profile.surplusUnits <= 0) {
+        return {
+            ...options,
+            rarityWeights: { ...(options.rarityWeights || {}) },
+            categoryWeights: { ...(options.categoryWeights || {}) },
+            allowedCategories: Array.isArray(options.allowedCategories) ? [...options.allowedCategories] : [],
+            supplyProfile: profile
+        };
+    }
+    const tags = new Set(profile.comboTags);
+    const rarityWeights = { ...(options.rarityWeights || {}) };
+    const qualityLevel = Math.min(5,
+        Math.max(0, Math.floor(Number(profile.surplusUnits || 0) || 0))
+        + (tags.has('premium_supply') ? 1 : 0)
+        + (tags.has('diverse_spirits') ? 1 : 0)
+    );
+    if (qualityLevel > 0) {
+        if (rarityWeights.rare > 0) rarityWeights.rare = Math.round(rarityWeights.rare * (100 + qualityLevel * 15)) / 100;
+        if (rarityWeights.epic > 0) rarityWeights.epic = Math.round(rarityWeights.epic * (100 + qualityLevel * 10)) / 100;
+        if (rarityWeights.legendary > 0) rarityWeights.legendary = Math.round(rarityWeights.legendary * (100 + qualityLevel * 5)) / 100;
+    }
+    const categoryWeights = { ...(options.categoryWeights || {}) };
+    const addCategoryWeight = (category, amount) => {
+        if (!categoryWeights[category] || Number(categoryWeights[category] || 0) <= 0) return;
+        categoryWeights[category] = Math.max(1, Number(categoryWeights[category] || 0) + amount);
+    };
+    if (tags.has('food_drink')) {
+        addCategoryWeight('Armor', 5);
+        addCategoryWeight('Shield', 5);
+        addCategoryWeight('Accessory', 5);
+    }
+    if (tags.has('diverse_spirits')) {
+        addCategoryWeight('Weapon', 8);
+        addCategoryWeight('Accessory', 4);
+    }
+    if (tags.has('calm_route')) {
+        addCategoryWeight('Armor', 6);
+        addCategoryWeight('Shield', 8);
+    }
+    if (tags.has('premium_supply')) {
+        addCategoryWeight('Accessory', 6);
+        addCategoryWeight('Weapon', 4);
+    }
+    return {
+        ...options,
+        rarityWeights,
+        categoryWeights,
+        allowedCategories: Object.entries(categoryWeights)
+            .filter(([, weight]) => Number(weight || 0) > 0)
+            .map(([category]) => category),
+        supplyProfile: profile
+    };
+}
+
+function getExplorationGachaOptions(destinationId, ship = {}, supplyProfile = null) {
     const destination = DESTINATIONS[normalizeDestinationId(destinationId)] || null;
     const profileId = destination?.gachaProfileId || destination?.rarity || destinationId || 'low';
     const profile = EXPLORATION_GACHA_PROFILES[profileId] || EXPLORATION_GACHA_PROFILES.low;
@@ -1221,7 +1579,7 @@ function getExplorationGachaOptions(destinationId, ship = {}) {
         ...profile.categoryWeights,
         ...(profileId === 'low' ? {} : (role.categoryWeights || {}))
     };
-    return {
+    return applyExplorationSupplyToGachaOptions({
         ...profile,
         rarityWeights: {
             ...profile.rarityWeights,
@@ -1232,7 +1590,7 @@ function getExplorationGachaOptions(destinationId, ship = {}) {
             .filter(([, weight]) => Number(weight || 0) > 0)
             .map(([category]) => category),
         maxStatsByCategory: stageLimit.maxStatsByCategory
-    };
+    }, supplyProfile);
 }
 
 function resolveCatalogEntryByItemId(catalogCache, itemId) {
@@ -1297,8 +1655,49 @@ function selectExplorationBoss(destination, random = Math.random, shipClass = ''
     return pickWeighted(candidates, random) || EXPLORATION_BOSSES.treasure_slime;
 }
 
-// 宝箱の中身は基本1個。通常敗北のみ0個、守備船は敗北時も最低1個。
-function resolveRewardCount(bossResult, shipClass) {
+function hasExplorationSupplyTag(supplyProfile, tag) {
+    return normalizeExplorationSupplyProfile(supplyProfile).comboTags.includes(tag);
+}
+
+function boostBattleValue(container, key, multiplier) {
+    if (!container || !key || !Number.isFinite(multiplier) || multiplier <= 1) return;
+    const current = Number(container[key] || 0);
+    if (!Number.isFinite(current) || current <= 0) return;
+    container[key] = Math.max(1, Math.round(current * multiplier));
+}
+
+function applyExplorationSupplyToBattleProfile(player, supplyProfile = null) {
+    const profile = normalizeExplorationSupplyProfile(supplyProfile);
+    if (!profile.comboTags.length && profile.surplusUnits <= 0) return [];
+    const tags = new Set(profile.comboTags);
+    player.stats = player.stats || {};
+    player.equipmentStats = player.equipmentStats || {};
+    const surplusMultiplier = 1 + Math.min(3, Math.max(0, profile.surplusUnits)) * 0.02;
+    let allMultiplier = surplusMultiplier;
+    if (tags.has('premium_supply')) allMultiplier += 0.05;
+    if (allMultiplier > 1) {
+        ['MaxHP', 'HP', 'CurrentHP', 'ちから', 'みのまもり'].forEach((key) => boostBattleValue(player.stats, key, allMultiplier));
+        ['Power', 'Defense'].forEach((key) => boostBattleValue(player.equipmentStats, key, allMultiplier));
+    }
+    if (tags.has('diverse_spirits')) {
+        boostBattleValue(player.stats, 'ちから', 1.05);
+        boostBattleValue(player.equipmentStats, 'Power', 1.05);
+    }
+    if (tags.has('calm_route')) {
+        boostBattleValue(player.stats, 'MaxHP', 1.07);
+        boostBattleValue(player.stats, 'HP', 1.07);
+        boostBattleValue(player.stats, 'CurrentHP', 1.07);
+        boostBattleValue(player.stats, 'みのまもり', 1.07);
+        boostBattleValue(player.equipmentStats, 'Defense', 1.07);
+    }
+    player.stats.CurrentHP = Math.max(1, Number(player.stats.CurrentHP || player.stats.HP || player.stats.MaxHP || 30));
+    return profile.effectLabels.length
+        ? [`補給効果: ${profile.effectLabels.join(' / ')}`]
+        : [];
+}
+
+// 宝箱の中身は基本1個。通常敗北のみ0個、守備船や補給効果は敗北時も最低1個。
+function resolveRewardCount(bossResult, shipClass, supplyProfile = null) {
     const role = getExplorationShipRole(shipClass);
     let base;
     if (!bossResult || !bossResult.bossAppeared) {
@@ -1312,6 +1711,9 @@ function resolveRewardCount(bossResult, shipClass) {
     }
     if (role.defeatRewardFloor && bossResult?.bossAppeared && !bossResult.playerWon && !bossResult.escaped && !bossResult.draw) {
         base = Math.max(base, Number(role.defeatRewardFloor || 0));
+    }
+    if (hasExplorationSupplyTag(supplyProfile, 'food_drink') && bossResult?.bossAppeared && !bossResult.playerWon && !bossResult.escaped && !bossResult.draw) {
+        base = Math.max(base, 1);
     }
     return Math.max(0, Math.min(1, base));
 }
@@ -1420,7 +1822,7 @@ async function getExplorationBattlePlayerProfile(playFabId, { promisifyPlayFab, 
 }
 
 // BOSS戦では一時的にHPを使うが、探索後に全回復する
-async function resolveBossBattle(playFabId, destination, bossBase, { promisifyPlayFab, PlayFabServer }) {
+async function resolveBossBattle(playFabId, destination, bossBase, { promisifyPlayFab, PlayFabServer }, supplyProfile = null) {
     const tierDef = getBossTierDef(bossBase?.tier);
     let player;
     try {
@@ -1439,6 +1841,7 @@ async function resolveBossBattle(playFabId, destination, bossBase, { promisifyPl
     player.stats = player.stats || {};
     player.equipmentStats = player.equipmentStats || {};
     player.stats.CurrentHP = Math.max(1, Number(player.stats.CurrentHP || player.stats.HP || 30));
+    const supplyBattleLogLines = applyExplorationSupplyToBattleProfile(player, supplyProfile);
     boss.stats.CurrentHP = boss.stats.MaxHP;
 
     const battleResult = await battleRoutes.runBattle(player, boss);
@@ -1458,6 +1861,7 @@ async function resolveBossBattle(playFabId, destination, bossBase, { promisifyPl
         hpCost: 0,
         battleLog: [
             `${tierDef.label}BOSS「${bossBase.name || 'BOSS'}」と戦闘！`,
+            ...supplyBattleLogLines,
             ...(Array.isArray(battleResult?.logs) ? battleResult.logs : []),
             escaped
                 ? '戦闘は決着せず終了した。探索後にHPは全回復した。'
@@ -1519,7 +1923,7 @@ async function restoreHpToFullOnce(activeRef, playFabId, deps) {
     });
 }
 
-function buildReportText({ destination, ship, bossResult, rewardDisplayName, rewardCount }) {
+function buildReportText({ destination, ship, bossResult, rewardDisplayName, rewardCount, supplyProfile = null }) {
     const lines = [
         `${ship.shipName}は${destination.name}の探索から帰還しました。`
     ];
@@ -1536,6 +1940,10 @@ function buildReportText({ destination, ship, bossResult, rewardDisplayName, rew
     }
     const role = getExplorationShipRole(ship.shipClass);
     if (role.rewardHint) lines.push(`船種効果: ${role.rewardHint}`);
+    const normalizedSupplyProfile = normalizeExplorationSupplyProfile(supplyProfile);
+    if (normalizedSupplyProfile.effectLabels.length) {
+        lines.push(`補給効果: ${normalizedSupplyProfile.effectLabels.join(' / ')}`);
+    }
     if (rewardCount > 0) lines.push(`発見したお宝 (${rewardCount}個): ${rewardDisplayName}`);
     else lines.push('お宝は得られませんでした。');
     return lines.join('\n');
@@ -1552,7 +1960,7 @@ function getAllDestinationsForShipClass(shipClass, playFabId = 'daily-preview', 
 }
 
 function initializeExplorationRoutes(app, deps) {
-    const { firestore, admin, promisifyPlayFab, PlayFabServer, subtractEconomyItem, addEconomyItem, getCurrencyBalance, requireAuthenticatedPlayFabId, catalogCache } = deps;
+    const { firestore, admin, promisifyPlayFab, PlayFabServer, subtractEconomyItem, addEconomyItem, getCurrencyBalance, requireAuthenticatedPlayFabId, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems } = deps;
     if (!firestore || !admin) {
         console.warn('[exploration] Firestore deps missing. Routes disabled.');
         return;
@@ -1584,11 +1992,17 @@ function initializeExplorationRoutes(app, deps) {
             .orderBy('completedAtMs', 'desc')
             .limit(5)
             .get();
+        const explorationPayment = await buildExplorationPaymentState(playFabId, {
+            getEntityKeyForPlayFabId,
+            getAllInventoryItems,
+            catalogCache
+        });
         return {
             success: true,
             ship,
             destinations: dailyDestinations,
             allDestinations: dailyDestinations,
+            explorationPayment,
             dailyFree: buildDailyFreeExplorationStatus(dayKey, dailyFreeSnap),
             active: activeSnap.exists ? explorationDocToPayload(activeSnap.data()) : null,
             reports: reportsSnap.docs.map(reportDocToPayload)
@@ -1764,6 +2178,10 @@ function initializeExplorationRoutes(app, deps) {
         let { playFabId } = req.body || {};
         const destinationId = normalizeDestinationId(req.body?.destinationId);
         if (!playFabId || !destinationId) return res.status(400).json({ error: 'playFabId and destinationId are required' });
+        const requestedPaymentMethod = normalizeExplorationPaymentMethod(req.body?.paymentMethod);
+        if (!requestedPaymentMethod) {
+            return res.status(400).json({ error: '支払い方法が不正です。' });
+        }
         playFabId = await requireAuthed(req, res, playFabId);
         if (!playFabId) return;
         try {
@@ -1783,7 +2201,12 @@ function initializeExplorationRoutes(app, deps) {
             const activeRef = firestore.collection(EXPLORATION_COLLECTION).doc(playFabId);
             const dailyFreeRef = activeRef.collection(DAILY_FREE_SUBCOLLECTION).doc(dayKey);
             let dailyFreeUsed = false;
-            let chargedCost = destination.cost;
+            let paymentMethod = requestedPaymentMethod;
+            let chargedCost = requestedPaymentMethod === 'gold' ? destination.cost : 0;
+            const requiredSupplyUnits = getExplorationRequiredSupplyUnits(destination);
+            const requiredConsumableCount = requiredSupplyUnits;
+            let consumedConsumables = [];
+            let supplyProfile = null;
 
             // フルペイロードを持つ pending を先に Firestore に確保する。
             // これにより: 通貨減算前に保存するためユーザー資産は安全。
@@ -1800,7 +2223,12 @@ function initializeExplorationRoutes(app, deps) {
                 shipClass: ship.shipClass,
                 shipStage: normalizeShipStage(ship.stage),
                 cost: destination.cost,
-                chargedCost: destination.cost,
+                chargedCost,
+                paymentMethod,
+                requiredSupplyUnits,
+                requiredConsumableCount,
+                consumedConsumables: [],
+                supplyProfile: null,
                 dailyFreeDayKey: '',
                 dailyFreeUsed: false,
                 startedAtMs: now,
@@ -1835,9 +2263,11 @@ function initializeExplorationRoutes(app, deps) {
                 }
                 const dailyFreeSnap = dailyFreeEligible ? await tx.get(dailyFreeRef) : null;
                 dailyFreeUsed = dailyFreeEligible && !dailyFreeSnap.exists;
-                chargedCost = dailyFreeUsed ? 0 : destination.cost;
+                paymentMethod = dailyFreeUsed ? 'free' : requestedPaymentMethod;
+                chargedCost = paymentMethod === 'gold' ? destination.cost : 0;
                 tx.set(activeRef, {
                     ...fullPayload,
+                    paymentMethod,
                     chargedCost,
                     dailyFreeDayKey: dailyFreeUsed ? dayKey : '',
                     dailyFreeUsed
@@ -1859,7 +2289,55 @@ function initializeExplorationRoutes(app, deps) {
                 return res.status(409).json({ error: '探索中です。帰還後に次の探索へ出発できます。' });
             }
 
-            if (chargedCost > 0) {
+            if (!dailyFreeUsed && requestedPaymentMethod === 'free') {
+                await activeRef.delete().catch(() => {});
+                return res.status(402).json({ error: '本日の無料探索枠は使用済みです。' });
+            }
+
+            if (paymentMethod === 'consumable') {
+                const explorationPayment = await buildExplorationPaymentState(playFabId, {
+                    getEntityKeyForPlayFabId,
+                    getAllInventoryItems,
+                    catalogCache
+                });
+                const validation = validateExplorationConsumablePayment(
+                    req.body?.paymentConsumables,
+                    explorationPayment.consumables,
+                    requiredSupplyUnits
+                );
+                if (!validation.ok) {
+                    await activeRef.delete().catch(() => {});
+                    return res.status(402).json({
+                        error: validation.error || '探索に使う消耗品が不足しています。',
+                        requiredSupplyUnits,
+                        requiredConsumableCount,
+                        explorationPayment
+                    });
+                }
+                consumedConsumables = validation.consumedConsumables;
+                supplyProfile = validation.supplyProfile;
+                const subtractedConsumables = [];
+                try {
+                    const requestKey = req.body?.requestId ? String(req.body.requestId) : `${playFabId}-${explorationId}`;
+                    for (const item of consumedConsumables) {
+                        await subtractEconomyItem(playFabId, item.itemId, item.quantity, {
+                            alternateIdType: 'FriendlyId',
+                            idempotencyId: `exploration-start-${requestKey}-consumable-${item.itemId}`
+                        });
+                        subtractedConsumables.push(item);
+                    }
+                } catch (consumableError) {
+                    const requestKey = req.body?.requestId ? String(req.body.requestId) : `${playFabId}-${explorationId}`;
+                    await Promise.all(subtractedConsumables.map((item) => addEconomyItem(playFabId, item.itemId, item.quantity, {
+                        alternateIdType: 'FriendlyId',
+                        idempotencyId: `exploration-start-${requestKey}-consumable-refund-${item.itemId}`
+                    }).catch((refundError) => {
+                        console.error('[exploration/start] consumable refund failed:', playFabId, item, refundError?.errorMessage || refundError?.message || refundError);
+                    })));
+                    await activeRef.delete().catch(() => {});
+                    throw consumableError;
+                }
+            } else if (chargedCost > 0) {
                 const balance = typeof getCurrencyBalance === 'function' ? await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE) : null;
                 if (Number.isFinite(balance) && balance < chargedCost) {
                     await activeRef.delete().catch(() => {});
@@ -1876,7 +2354,7 @@ function initializeExplorationRoutes(app, deps) {
                     throw currencyError;
                 }
             }
-            const goldBalance = dailyFreeUsed && typeof getCurrencyBalance === 'function'
+            const goldBalance = paymentMethod !== 'gold' && typeof getCurrencyBalance === 'function'
                 ? await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE).catch(() => null)
                 : await refreshGoldBalanceAndRanking(playFabId, {
                     getCurrencyBalance,
@@ -1886,13 +2364,33 @@ function initializeExplorationRoutes(app, deps) {
 
             // active に昇格。失敗しても pending にフルデータが残るため claim から自動復旧可能
             try {
-                await activeRef.update({ status: 'active', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+                await activeRef.update({
+                    status: 'active',
+                    paymentMethod,
+                    chargedCost,
+                    requiredSupplyUnits,
+                    requiredConsumableCount,
+                    consumedConsumables,
+                    supplyProfile,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                });
             } catch (firestoreError) {
                 console.error('[exploration/start] active昇格失敗 (通貨は減算済み、pending から claim で自動復旧可能):', playFabId, explorationId, firestoreError?.message || firestoreError);
                 throw firestoreError;
             }
 
-            res.json({ ...(await buildExplorationStatus(playFabId)), started: true, balance: goldBalance, dailyFreeUsed, chargedCost });
+            res.json({
+                ...(await buildExplorationStatus(playFabId)),
+                started: true,
+                balance: goldBalance,
+                dailyFreeUsed,
+                paymentMethod,
+                chargedCost,
+                requiredSupplyUnits,
+                requiredConsumableCount,
+                consumedConsumables,
+                supplyProfile
+            });
         } catch (error) {
             console.error('[exploration/start] failed:', error?.errorMessage || error?.message || error);
             res.status(500).json({ error: '探索の開始に失敗しました。', details: error?.errorMessage || error?.message || String(error) });
@@ -1961,6 +2459,9 @@ function initializeExplorationRoutes(app, deps) {
                 shipClass: String(activeData.shipClass || 'common'),
                 stage: normalizeShipStage(activeData.shipStage || activeData.stage || 1)
             };
+            const supplyProfile = activeData.supplyProfile
+                ? normalizeExplorationSupplyProfile(activeData.supplyProfile)
+                : buildExplorationSupplyProfile(activeData.consumedConsumables || [], activeData.requiredSupplyUnits ?? activeData.requiredConsumableCount ?? 0);
 
             let bossResult = null;
             let rolledItemIds = [];
@@ -1977,10 +2478,10 @@ function initializeExplorationRoutes(app, deps) {
             } else {
                 // 初回: BOSS抽選 → BOSS戦闘 → 報酬抽選 → Firestore保存 → HP全回復
                 const selectedBoss = selectExplorationBoss(destination, Math.random, ship.shipClass);
-                bossResult = await resolveBossBattle(playFabId, destination, selectedBoss, { promisifyPlayFab, PlayFabServer });
+                bossResult = await resolveBossBattle(playFabId, destination, selectedBoss, { promisifyPlayFab, PlayFabServer }, supplyProfile);
 
-                const rewardCount = resolveRewardCount(bossResult, ship.shipClass);
-                const gachaOptions = getExplorationGachaOptions(destination.id, ship);
+                const rewardCount = resolveRewardCount(bossResult, ship.shipClass, supplyProfile);
+                const gachaOptions = getExplorationGachaOptions(destination.id, ship, supplyProfile);
                 for (let i = 0; i < rewardCount; i++) {
                     const result = drawLocalGachaItem(catalogCache, gachaOptions);
                     if (result.itemId) {
@@ -1999,6 +2500,7 @@ function initializeExplorationRoutes(app, deps) {
                     rolledRewardIds: rolledItemIds,
                     rolledRewards,
                     bossResultData: bossResult,
+                    supplyProfile,
                     hpRestored: false,
                     updatedAt: admin.firestore.FieldValue.serverTimestamp()
                 });
@@ -2056,7 +2558,8 @@ function initializeExplorationRoutes(app, deps) {
                     rarity: item.Rarity,
                     category: item.Category
                 })),
-                reportText: buildReportText({ destination, ship, bossResult, rewardDisplayName, rewardCount: rewards.length }),
+                supplyProfile,
+                reportText: buildReportText({ destination, ship, bossResult, rewardDisplayName, rewardCount: rewards.length, supplyProfile }),
                 completedAtMs: now,
                 createdAt: admin.firestore.FieldValue.serverTimestamp()
             };
@@ -2076,9 +2579,15 @@ module.exports = {
         DESTINATIONS,
         EXPLORATION_BOSSES,
         EXPLORATION_DAILY_RARITY_ORDER,
+        EXPLORATION_CONSUMABLE_REQUIRED_BY_RARITY,
+        EXPLORATION_MAX_EXTRA_SUPPLY_UNITS,
         EXPLORATION_DESTINATION_RARITIES,
         EXPLORATION_SHIP_ROLES,
         BOSS_TIER_DEFS,
+        applyExplorationSupplyToBattleProfile,
+        applyExplorationSupplyToGachaOptions,
+        buildExplorationSupplyProfile,
+        buildTroyMenuConsumablePaymentOptions,
         buildDailyFreeExplorationStatus,
         canShipClassExploreDestination,
         getAllDestinationsForShipClass,
@@ -2087,14 +2596,23 @@ module.exports = {
         getDailyExplorationDestinations,
         getDestinationBosses,
         getDestinationsByRarity,
+        getExplorationRequiredConsumableCount,
+        getExplorationRequiredSupplyUnits,
+        getExplorationMaxSupplyUnits,
         getExplorationBossWeight,
         getExplorationGachaOptions,
         getExplorationShipAccessClasses,
         getExplorationShipClassLabel,
         getJstDayKey,
+        getTroyMenuConsumableEffectiveUnits,
+        isTroyMenuConsumableCatalogItem,
         isDailyExplorationDestinationForPlayer,
         isDailyFreeExplorationDestination,
+        normalizeExplorationSupplyProfile,
+        normalizeTroyMenuConsumableEffectiveUnits,
+        normalizePaymentConsumables,
         selectExplorationBoss,
+        validateExplorationConsumablePayment,
         resolveRewardCount,
         publicDestination
     }

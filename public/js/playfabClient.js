@@ -609,7 +609,11 @@ export function getExplorationStatus(playFabId, options) {
 }
 
 export function startExploration(playFabId, destinationId, requestId, options) {
-    return callApiWithLoader('/api/exploration/start', { playFabId, destinationId, requestId }, options);
+    const payment = options?.payment && typeof options.payment === 'object' ? options.payment : {};
+    const body = { playFabId, destinationId, requestId };
+    if (payment.paymentMethod) body.paymentMethod = payment.paymentMethod;
+    if (Array.isArray(payment.paymentConsumables)) body.paymentConsumables = payment.paymentConsumables;
+    return callApiWithLoader('/api/exploration/start', body, options);
 }
 
 export function claimExploration(playFabId, options) {
