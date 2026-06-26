@@ -9,9 +9,10 @@
 //   プレイヤーの船スキルCT一覧を返す（フロントのUI更新用）。
 
 const admin = require('firebase-admin');
-const { getShipSkillByCard, getMinorShipSkill, getMajorShipSkill } = require('../tarotShipSkills');
-const { readDecks } = require('../tarotDeck');
-const { getCanonicalTarotCategory } = require('../tarotCards');
+const { getShipSkillByCard } = require('../tarotShipSkills');
+const resourceStorage = require('../resourceStorage');
+const { getCanonicalTarotCategory, getMajorArcanaSuitInfo, getMajorArcanaTitle } = require('../tarotCards');
+const { buildMajorArcanaShipGearView } = require('../majorArcanaShipGear');
 
 // ポーカーロールボーナス倍率（tarotRoles と同定義）
 const ROLE_BONUSES = {
@@ -104,18 +105,51 @@ function initializeShipSkillRoutes(app, promisifyPlayFab, PlayFabServer, PlayFab
         return requireAuthenticatedPlayFabId(req, res, playFabId);
     }
 
-    // ────────────────────────────────────────────────────────
-    // デッキデータ取得（PlayFab 1回限り、/api/ship-skill-status 専用）
-    // ────────────────────────────────────────────────────────
-    async function resolveShipDeck(playFabId) {
-        const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer);
-        return Array.isArray(decks?.tarotDeck) ? decks.tarotDeck : [];
+    async function resolveMajorArcanaEquipment(playFabId) {
+        const ship = await resourceStorage.getPlayerShipProfile(playFabId, { promisifyPlayFab, PlayFabServer });
+        const slotLimit = resourceStorage.getPlayerShipMajorArcanaSlotLimit(ship.stage || ship.form);
+        return {
+            ship,
+            slotLimit,
+            itemIds: resourceStorage.normalizeMajorArcanaItemIds(ship.majorArcanaItemIds, slotLimit)
+        };
     }
 
-    function getShipDeckRoleKey(deckItemIds) {
-        const { evaluateDeckRole } = require('../tarotDeck');
-        const items = deckItemIds.map((id) => catalogCache?.[id] || null);
-        return evaluateDeckRole(items)?.key || 'Incomplete';
+    function buildMajorArcanaSkillInfo(cardItemId, slotIndex = 0) {
+        const itemData = catalogCache?.[cardItemId];
+        if (getCanonicalTarotCategory(itemData?.Category) !== 'TarotMajor') {
+            return { cardItemId, slotIndex, error: 'not-major-arcana' };
+        }
+        const card = parseCardFromItemData(itemData);
+        if (!card) return { cardItemId, slotIndex, error: 'parse-failed' };
+        const skillData = getShipSkillByCard(card);
+        if (!skillData) return { cardItemId, slotIndex, error: 'no-skill' };
+        const suitInfo = getMajorArcanaSuitInfo(itemData);
+        const shipGear = buildMajorArcanaShipGearView(cardItemId, itemData);
+        return {
+            cardItemId,
+            slotIndex,
+            cardName: getMajorArcanaTitle(itemData, itemData?.DisplayName || cardItemId),
+            battleType: 'navalPlunder',
+            shipGear,
+            shipGearName: shipGear?.equipmentName || shipGear?.shipGearName || getMajorArcanaTitle(itemData, itemData?.DisplayName || cardItemId),
+            ultimateName: shipGear?.ultimateName || skillData.name,
+            navalEffectDescription: shipGear?.shortDescription || skillData.description,
+            suit: suitInfo.key || 'none',
+            suitLabel: suitInfo.label || '無属性',
+            skillName: skillData.name,
+            element: skillData.element,
+            role: skillData.role,
+            activationType: skillData.activationType,
+            triggerCondition: skillData.triggerCondition || null,
+            castTime: skillData.castTime,
+            cooldownSec: skillData.cooldown,
+            range: skillData.range,
+            aoe: skillData.aoe,
+            description: skillData.description,
+            effect: skillData.effect,
+            remainingSec: 0
+        };
     }
 
     // ────────────────────────────────────────────────────────
@@ -137,6 +171,10 @@ function initializeShipSkillRoutes(app, promisifyPlayFab, PlayFabServer, PlayFab
         cardItemId = String(cardItemId).trim();
 
         try {
+            const equipment = await resolveMajorArcanaEquipment(playFabId);
+            if (!equipment.itemIds.includes(cardItemId)) {
+                return res.status(403).json({ error: 'MajorArcanaNotEquipped', cardItemId });
+            }
             // カタログからスキルデータを取得（メモリキャッシュ参照のみ）
             const itemData = catalogCache?.[cardItemId];
             if (!itemData) {
@@ -189,6 +227,10 @@ function initializeShipSkillRoutes(app, promisifyPlayFab, PlayFabServer, PlayFab
 
         try {
             const itemData = catalogCache?.[cardItemId];
+            const equipment = await resolveMajorArcanaEquipment(playFabId);
+            if (!equipment.itemIds.includes(cardItemId)) {
+                return res.json({ success: true, skipped: 'major-arcana-not-equipped' });
+            }
             if (!itemData) return res.json({ success: true, skipped: 'not-in-catalog' });
             const card = parseCardFromItemData(itemData);
             if (!card) return res.json({ success: true, skipped: 'parse-failed' });
@@ -225,37 +267,17 @@ function initializeShipSkillRoutes(app, promisifyPlayFab, PlayFabServer, PlayFab
         if (!playFabId) return;
 
         try {
-            // PlayFab デッキ取得（初回のみ）
-            const deckIds = await resolveShipDeck(playFabId);
-            const roleKey = getShipDeckRoleKey(deckIds);
+            const equipment = await resolveMajorArcanaEquipment(playFabId);
+            const skills = equipment.itemIds.map((cardItemId, index) => buildMajorArcanaSkillInfo(cardItemId, index));
 
-            const skills = deckIds.map((cardItemId) => {
-                const itemData = catalogCache?.[cardItemId];
-                if (!itemData) return { cardItemId, error: 'not-in-catalog' };
-                const card = parseCardFromItemData(itemData);
-                if (!card) return { cardItemId, error: 'parse-failed' };
-                const skillData = getShipSkillByCard(card);
-                if (!skillData) return { cardItemId, error: 'no-skill' };
-
-                const appliedCt = applyRoleBonus(skillData, roleKey).cooldown;
-                return {
-                    cardItemId,
-                    skillName: skillData.name,
-                    element: skillData.element,
-                    role: skillData.role,
-                    activationType: skillData.activationType,
-                    triggerCondition: skillData.triggerCondition || null,
-                    castTime: skillData.castTime,
-                    cooldownSec: appliedCt,
-                    range: skillData.range,
-                    aoe: skillData.aoe,
-                    description: skillData.description,
-                    // CT は返さない（クライアントの localStorage が正）
-                    remainingSec: 0
-                };
+            return res.json({
+                success: true,
+                roleKey: 'ShipMajorArcana',
+                battleType: 'navalPlunder',
+                majorArcanaSlotLimit: equipment.slotLimit,
+                majorArcanaItemIds: equipment.itemIds,
+                skills
             });
-
-            return res.json({ success: true, roleKey, skills });
 
         } catch (error) {
             console.error('[ShipSkillStatus] Error:', error);

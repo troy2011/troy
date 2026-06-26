@@ -5,14 +5,25 @@ import {
     getEquipment as fetchEquipment,
     equipItem as requestEquipItem,
     getTarotDecks as fetchTarotDecks,
+    getPlayerShipStatus as fetchPlayerShipStatus,
+    getShipSkillStatus as fetchShipSkillStatus,
     equipTarotCard as requestEquipTarotCard,
     unequipTarotCard as requestUnequipTarotCard,
     moveTarotDeckCard as requestMoveTarotDeckCard,
+    equipShipMajorArcana as requestEquipShipMajorArcana,
+    unequipShipMajorArcana as requestUnequipShipMajorArcana,
+    moveShipMajorArcana as requestMoveShipMajorArcana,
     useItem as requestUseItem,
     sellItem as requestSellItem
 } from './playfabClient.js';
 import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites, resolveSpritePathByAvatarColor } from './avatar.js';
 import * as Player from './player.js';
+import {
+    preloadTarotBattleSkills,
+    resolveTarotBattleSkill
+} from './tarotBattleSkills.js';
+import { formatTarotRoleBonus } from './tarotRoles.js';
+import { getMajorArcanaShipGear } from './majorArcanaShipGear.js';
 import {
     buildTarotCardMeta,
     compareTarotItems,
@@ -38,6 +49,10 @@ let myMeleeDeck = [];
 let myShipDeck = [];
 let myMeleeRole = null;
 let myShipRole = null;
+let myShipMajorArcana = [];
+let myShipMajorArcanaLimit = 1;
+let myShipMajorArcanaSkills = [];
+let myPlayerShipProfile = null;
 let activeInventoryPanel = 'items';
 let activeInventoryGroup = 'Equipment';
 let activeInventoryCategory = 'Weapon';
@@ -48,6 +63,7 @@ let equipmentFetchPromise = null;
 let inventoryStickyResizeObserver = null;
 // カードレベルデータ: { [itemId]: { level, maxLevel, quantity, nextLevelCost } }
 let cardLevelMap = {};
+let tarotBattleSkillsLoaded = false;
 
 async function loadCardLevels() {
     try {
@@ -59,6 +75,11 @@ async function loadCardLevels() {
     } catch (err) {
         console.warn('[inventory] loadCardLevels failed:', err);
     }
+}
+
+async function loadTarotBattleSkillCache() {
+    tarotBattleSkillsLoaded = await preloadTarotBattleSkills();
+    return tarotBattleSkillsLoaded;
 }
 
 async function levelUpCard(itemId) {
@@ -555,11 +576,11 @@ function isCardInMeleeDeck(itemId) {
 }
 
 function isCardInShipDeck(itemId) {
-    return myShipDeck.includes(String(itemId || '').trim());
+    return myShipMajorArcana.includes(String(itemId || '').trim());
 }
 
 function isCardInTarotDeck(itemId) {
-    return isCardInMeleeDeck(itemId) || isCardInShipDeck(itemId);
+    return isCardInMeleeDeck(itemId);
 }
 
 function isTarotInventoryCategory(category) {
@@ -575,6 +596,23 @@ function getCommonTarotRole() {
     return myMeleeRole || myShipRole || null;
 }
 
+function isShipMajorArcanaEquipped(itemId) {
+    return myShipMajorArcana.includes(String(itemId || '').trim());
+}
+
+function getShipMajorArcanaPosition(itemId) {
+    const index = myShipMajorArcana.findIndex((entry) => String(entry || '') === String(itemId || ''));
+    return index >= 0 ? index + 1 : 0;
+}
+
+function isShipMajorArcanaFull() {
+    return myShipMajorArcana.length >= myShipMajorArcanaLimit;
+}
+
+function getShipMajorArcanaSkill(itemId) {
+    return myShipMajorArcanaSkills.find((skill) => String(skill?.cardItemId || '') === String(itemId || '')) || null;
+}
+
 function applyTarotDeckData(deckData) {
     const commonDeck = sortTarotDeckItemIds(Array.isArray(deckData?.tarotDeck)
         ? deckData.tarotDeck
@@ -588,6 +626,26 @@ function applyTarotDeckData(deckData) {
     myShipDeck = commonDeck;
     myMeleeRole = commonRole;
     myShipRole = commonRole;
+}
+
+function applyPlayerShipStatusData(shipStatus) {
+    const ship = shipStatus?.ship || shipStatus || {};
+    myPlayerShipProfile = ship || null;
+    const limit = Number(ship?.majorArcanaSlotLimit || ship?.stage || 1) || 1;
+    myShipMajorArcanaLimit = Math.max(1, Math.min(3, Math.floor(limit)));
+    const ids = Array.isArray(ship?.majorArcanaItemIds)
+        ? ship.majorArcanaItemIds
+        : Array.isArray(ship?.majorArcana)
+            ? ship.majorArcana.map((entry) => entry?.itemId).filter(Boolean)
+            : [];
+    myShipMajorArcana = ids.map((id) => String(id || '').trim()).filter(Boolean).slice(0, myShipMajorArcanaLimit);
+    myShipDeck = [...myShipMajorArcana];
+}
+
+function applyShipSkillStatusData(skillStatus) {
+    myShipMajorArcanaSkills = Array.isArray(skillStatus?.skills)
+        ? skillStatus.skills.filter((skill) => skill && !skill.error)
+        : [];
 }
 
 function renderDeckRolePanel(roleEl, deckRole) {
@@ -760,16 +818,56 @@ function renderDeckGrid(gridEl, deckItemIds) {
     }
 }
 
+function renderShipMajorArcanaGrid(gridEl) {
+    if (!gridEl) return;
+    const maxSlots = Math.max(1, Math.min(3, Number(myShipMajorArcanaLimit || 1) || 1));
+    const filledCount = Math.min(myShipMajorArcana.length, maxSlots);
+    gridEl.dataset.deckCount = String(filledCount);
+    gridEl.dataset.deckComplete = filledCount >= maxSlots ? 'true' : 'false';
+    gridEl.setAttribute('aria-label', `船の大アルカナ装備 ${filledCount}/${maxSlots}`);
+    const cells = [];
+    for (let i = 0; i < maxSlots; i++) {
+        const itemId = myShipMajorArcana[i] || null;
+        const item = itemId ? myInventory.find((inv) => inv.itemId === itemId) : null;
+        const cell = document.createElement(item ? 'button' : 'div');
+        cell.className = `tarot-loadout-card${item ? ' is-arcana' : ' is-empty'}`;
+        cell.setAttribute('aria-label', item ? `${item.name || itemId}の詳細を開く` : `大アルカナ装備 ${i + 1}枠目 空き`);
+        if (item) {
+            cell.type = 'button';
+            cell.classList.add('is-equipped');
+            const entry = buildDeckCardEntry(item, itemId);
+            cell.dataset.suit = entry.suitKey || 'none';
+            cell.title = entry.title;
+            cell.addEventListener('click', () => showItemDetailModal(item));
+            const visualEl = document.createElement('div');
+            visualEl.className = 'tarot-loadout-visual';
+            renderDeckCardSprite(visualEl, entry);
+            const numberBadge = createTarotNumberBadge(entry.numberLabel, entry.suitKey);
+            if (numberBadge) visualEl.appendChild(numberBadge);
+            cell.append(visualEl);
+        } else {
+            const emptyEl = document.createElement('div');
+            emptyEl.className = 'tarot-loadout-cell-empty';
+            emptyEl.setAttribute('aria-hidden', 'true');
+            cell.appendChild(emptyEl);
+        }
+        cells.push(cell);
+    }
+    gridEl.innerHTML = '';
+    cells.forEach((cell) => gridEl.appendChild(cell));
+}
+
 function renderTarotDeckPanels() {
     const shipPanel = document.getElementById('shipDeckPanel');
-    if (shipPanel) shipPanel.hidden = true;
+    if (shipPanel) shipPanel.hidden = false;
     renderDeckRolePanel(document.getElementById('meleeDeckRole'), getCommonTarotRole());
     renderDeckGrid(document.getElementById('meleeDeckGrid'), getCommonTarotDeck());
+    renderShipMajorArcanaGrid(document.getElementById('shipMajorArcanaGrid'));
 }
 
 function getInventoryTabHint(category) {
     if (category === 'TarotMajor') {
-        return 'カードをタップするとデッキへ追加/解除できます。デッキは5枚までです。';
+        return '大アルカナは使用中の船に装備します。進化段階で装備枠が増えます。';
     }
     if (category === 'TarotMinor') {
         return 'カードをタップするとデッキへ追加/解除できます。デッキは5枚までです。';
@@ -819,7 +917,7 @@ function updateInventorySortOptions(category) {
 
 function getEmptyInventoryMessage(category) {
     if (category === 'TarotMajor') {
-        return '大アルカナはまだありません。獲得するとデッキに追加できます。';
+        return '大アルカナはまだありません。獲得すると船に装備できます。';
     }
     if (category === 'TarotMinor') {
         return '小アルカナはまだありません。本日の占いで正位置を引くとカードを獲得できます。';
@@ -1019,7 +1117,8 @@ function getInventoryCardChips(item, canonicalCategory) {
         if (Number.isFinite(number)) chips.push(`No.${number}`);
         const lvd = cardLevelMap[item.itemId];
         if (lvd) chips.push(`Lv.${lvd.level} / ${lvd.maxLevel}`);
-        if (isCardInTarotDeck(item.itemId)) chips.push('デッキ');
+        if (isShipMajorArcanaEquipped(item.itemId)) chips.push('船装備');
+        else chips.push('未装備');
         return chips.slice(0, 3);
     }
     if (canonicalCategory === 'TarotMinor') {
@@ -1053,9 +1152,9 @@ function getInventoryCardFooter(item, canonicalCategory) {
     if (canonicalCategory === 'TarotMajor') {
         const role = String(cd.ArcanaRole || '').trim();
         const lvd = cardLevelMap[item?.itemId];
-        const deckText = isCardInTarotDeck(item?.itemId)
-            ? 'タロットデッキにセット中'
-            : 'デッキに追加できます';
+        const deckText = isShipMajorArcanaEquipped(item?.itemId)
+            ? `船装備${getShipMajorArcanaPosition(item?.itemId)}枠目`
+            : (isShipMajorArcanaFull() ? '船装備枠が満杯' : '船に装備できます');
         if (!lvd) return role ? `${role} — ${deckText}` : deckText;
         if (lvd.level >= lvd.maxLevel) return `${deckText} — MAX LV`;
         return `${deckText} — 次Lv: ${lvd.nextLevelCost}⚔シャード`;
@@ -1391,11 +1490,11 @@ function getInventoryQuickAction(item, canonicalCategory) {
         return { label: '装備', tone: 'equip', run: () => equipItem(playFabId, itemId, 'Accessory') };
     }
     if (canonicalCategory === 'TarotMajor') {
-        if (isCardInTarotDeck(itemId)) {
-            return { label: '外す', tone: 'remove', run: () => unequipTarotCardFromDeck(playFabId, itemId, 'tarot') };
+        if (isShipMajorArcanaEquipped(itemId)) {
+            return { label: '外す', tone: 'remove', run: () => unequipShipMajorArcana(playFabId, itemId) };
         }
-        if (getCommonTarotDeck().length < 5) {
-            return { label: '追加', tone: 'equip', run: () => equipTarotCardToDeck(playFabId, itemId, 'tarot') };
+        if (!isShipMajorArcanaFull()) {
+            return { label: '船装備', tone: 'equip', run: () => equipShipMajorArcana(playFabId, itemId) };
         }
         const lvd = cardLevelMap[itemId];
         if (lvd && lvd.level < lvd.maxLevel) {
@@ -1430,9 +1529,24 @@ function getInventoryQuickActions(item, canonicalCategory) {
     }
 
     const itemId = item?.itemId;
-    const inDeck = isCardInTarotDeck(itemId);
     const actions = [];
 
+    if (canonicalCategory === 'TarotMajor') {
+        const equipped = isShipMajorArcanaEquipped(itemId);
+        actions.push(equipped
+            ? { label: '船から外す', tone: 'remove', run: () => unequipShipMajorArcana(playFabId, itemId) }
+            : { label: '船に装備', tone: isShipMajorArcanaFull() ? 'disabled' : 'equip', disabled: isShipMajorArcanaFull(), run: () => equipShipMajorArcana(playFabId, itemId) });
+        const position = getShipMajorArcanaPosition(itemId);
+        if (position > 1) actions.push({ label: '前へ', tone: 'move', run: () => moveShipMajorArcana(playFabId, itemId, 'left') });
+        if (position > 0 && position < myShipMajorArcana.length) actions.push({ label: '後へ', tone: 'move', run: () => moveShipMajorArcana(playFabId, itemId, 'right') });
+        const lvd = cardLevelMap[itemId];
+        if (lvd && lvd.level < lvd.maxLevel) {
+            actions.push({ label: `Lv↑ (${lvd.nextLevelCost}⚔)`, tone: 'levelup', run: () => levelUpCard(itemId) });
+        }
+        return actions;
+    }
+
+    const inDeck = isCardInTarotDeck(itemId);
     actions.push(inDeck
         ? { label: '外す', tone: 'remove', run: () => unequipTarotCardFromDeck(playFabId, itemId, 'tarot') }
         : { label: '追加', tone: getCommonTarotDeck().length < 5 ? 'equip' : 'disabled', disabled: getCommonTarotDeck().length >= 5, run: () => equipTarotCardToDeck(playFabId, itemId, 'tarot') });
@@ -1468,9 +1582,11 @@ function createInventoryCell(item, requestedCategory) {
     if (isTarotCard) {
         cell.classList.add('is-tarot-card');
         cell.dataset.suit = getDeckCardSuitKey(item, canonicalCategory);
-        cell.dataset.deckState = isCardInTarotDeck(item?.itemId)
+        cell.dataset.deckState = canonicalCategory === 'TarotMajor'
+            ? (isShipMajorArcanaEquipped(item?.itemId) ? 'equipped' : (isShipMajorArcanaFull() ? 'full' : 'available'))
+            : (isCardInTarotDeck(item?.itemId)
             ? 'equipped'
-            : (getCommonTarotDeck().length >= 5 ? 'full' : 'available');
+            : (getCommonTarotDeck().length >= 5 ? 'full' : 'available'));
     }
     if (isEquipmentCard) {
         cell.classList.add('is-equipment-card');
@@ -1482,9 +1598,11 @@ function createInventoryCell(item, requestedCategory) {
     if (quickAction?.tone) {
         cell.classList.add(`has-${quickAction.tone}`);
     }
-    const isTarotDeckEquipped = (canonicalCategory === 'TarotMajor' || canonicalCategory === 'TarotMinor')
+    const isTarotDeckEquipped = canonicalCategory === 'TarotMinor'
         && isCardInTarotDeck(item?.itemId);
-    const isEquipped = isInventoryItemEquipped(item) || isTarotDeckEquipped;
+    const isShipMajorEquipped = canonicalCategory === 'TarotMajor'
+        && isShipMajorArcanaEquipped(item?.itemId);
+    const isEquipped = isInventoryItemEquipped(item) || isTarotDeckEquipped || isShipMajorEquipped;
     const isEquipmentEquipped = isEquipped && isInventoryEquipmentCategory(canonicalCategory);
     if (isEquipped) {
         cell.classList.add('is-equipped');
@@ -1511,6 +1629,9 @@ function createInventoryCell(item, requestedCategory) {
     }
     if (isTarotDeckEquipped) {
         headMeta.appendChild(createInventoryBadge('E', 'equipped'));
+    }
+    if (isShipMajorEquipped) {
+        headMeta.appendChild(createInventoryBadge('船', 'equipped'));
     }
     if ((Number(item?.count || 0) || 0) > 1) {
         if (isTarotCard) {
@@ -1751,9 +1872,12 @@ export async function getInventory(playFabId, options = {}) {
     if (!force && now - lastInventoryFetchAt < 1500) return;
     inventoryFetchPromise = (async () => {
     document.getElementById('inventoryGrid').innerHTML = '<p style="grid-column: 1 / -1; text-align: center;">（持ち物を読み込んでいます...）</p>';
-    const [data, deckData] = await Promise.all([
+    const [data, deckData, shipStatus, shipSkillStatus] = await Promise.all([
         fetchInventory(playFabId),
-        fetchTarotDecks(playFabId, { isSilent: true })
+        fetchTarotDecks(playFabId, { isSilent: true }),
+        fetchPlayerShipStatus(playFabId, { isSilent: true }).catch(() => null),
+        fetchShipSkillStatus(playFabId, { isSilent: true }).catch(() => null),
+        loadTarotBattleSkillCache()
     ]);
     if (data) {
         const contributionValue = data.contribution ?? data.experience ?? 0;
@@ -1769,6 +1893,12 @@ export async function getInventory(playFabId, options = {}) {
     }
     if (deckData?.ok) {
         applyTarotDeckData(deckData);
+    }
+    if (shipStatus?.success || shipStatus?.ship) {
+        applyPlayerShipStatusData(shipStatus);
+    }
+    if (shipSkillStatus?.success) {
+        applyShipSkillStatusData(shipSkillStatus);
     }
     await getEquipment(playFabId, { isSilent: true });
     renderInventoryTabControls();
@@ -1802,10 +1932,13 @@ export async function refreshResourceSummary(playFabId, options = {}) {
             return null;
         })
         : Promise.resolve(null);
-    const [data, deckData] = await Promise.all([
+    const [data, deckData, shipStatus, shipSkillStatus] = await Promise.all([
         fetchInventory(playFabId),
         fetchTarotDecks(playFabId, { isSilent: true }),
-        equipmentRequest
+        fetchPlayerShipStatus(playFabId, { isSilent: true }).catch(() => null),
+        fetchShipSkillStatus(playFabId, { isSilent: true }).catch(() => null),
+        equipmentRequest,
+        loadTarotBattleSkillCache()
     ]);
     if (data) {
         const contributionValue = data.contribution ?? data.experience ?? 0;
@@ -1835,6 +1968,13 @@ export async function refreshResourceSummary(playFabId, options = {}) {
         applyTarotDeckData(deckData);
         renderTarotDeckPanels();
     }
+    if (shipStatus?.success || shipStatus?.ship) {
+        applyPlayerShipStatusData(shipStatus);
+    }
+    if (shipSkillStatus?.success) {
+        applyShipSkillStatusData(shipSkillStatus);
+    }
+    renderTarotDeckPanels();
 }
 
 export async function getEquipment(playFabId, options = {}) {
@@ -1894,6 +2034,59 @@ export async function moveTarotCardInDeck(playFabId, itemId, deckType, direction
         updateEquipmentBonusDisplay();
         if (typeof window.showRpgMessage === 'function') {
             window.showRpgMessage(`${deckLabel}の順番を変更した。`);
+        }
+    }
+}
+
+async function refreshShipMajorArcanaState(playFabId) {
+    const [shipStatus, shipSkillStatus] = await Promise.all([
+        fetchPlayerShipStatus(playFabId, { isSilent: true }).catch(() => null),
+        fetchShipSkillStatus(playFabId, { isSilent: true }).catch(() => null)
+    ]);
+    if (shipStatus?.success || shipStatus?.ship) {
+        applyPlayerShipStatusData(shipStatus);
+    }
+    if (shipSkillStatus?.success) {
+        applyShipSkillStatusData(shipSkillStatus);
+    }
+    renderTarotDeckPanels();
+    renderInventoryGrid(activeInventoryCategory);
+}
+
+export async function equipShipMajorArcana(playFabId, itemId, slotIndex = null) {
+    const data = await requestEquipShipMajorArcana(playFabId, itemId, Number.isInteger(slotIndex) ? slotIndex : null);
+    if (data?.success || data?.ship) {
+        applyPlayerShipStatusData(data);
+        await refreshShipMajorArcanaState(playFabId);
+        updateEquipmentBonusDisplay();
+        closeItemDetailModal();
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('船に大アルカナを装備した。');
+        }
+    }
+}
+
+export async function unequipShipMajorArcana(playFabId, itemId, slotIndex = null) {
+    const data = await requestUnequipShipMajorArcana(playFabId, itemId, Number.isInteger(slotIndex) ? slotIndex : null);
+    if (data?.success || data?.ship) {
+        applyPlayerShipStatusData(data);
+        await refreshShipMajorArcanaState(playFabId);
+        updateEquipmentBonusDisplay();
+        closeItemDetailModal();
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('船から大アルカナを外した。');
+        }
+    }
+}
+
+export async function moveShipMajorArcana(playFabId, itemId, direction) {
+    const data = await requestMoveShipMajorArcana(playFabId, itemId, direction);
+    if (data?.success || data?.ship) {
+        applyPlayerShipStatusData(data);
+        await refreshShipMajorArcanaState(playFabId);
+        updateEquipmentBonusDisplay();
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('船の大アルカナ装備順を変更した。');
         }
     }
 }
@@ -2181,6 +2374,154 @@ function appendTarotMetaStats(statsEl, itemData) {
     });
 }
 
+function getTarotDeckPosition(itemId) {
+    const deck = getCommonTarotDeck();
+    const index = deck.findIndex((entry) => String(entry || '') === String(itemId || ''));
+    return index >= 0 ? index + 1 : 0;
+}
+
+function getCurrentTarotRoleText() {
+    const deckRole = getCommonTarotRole();
+    const role = deckRole?.role || deckRole || null;
+    if (!role?.key) {
+        return {
+            roleText: '未成立',
+            bonusText: '5枚揃うと役パッシブが発動します。'
+        };
+    }
+    const suitLabel = role.resolvedSuitLabel ? ` (${role.resolvedSuitLabel})` : '';
+    const bonusText = String(deckRole?.bonusText || deckRole?.bonus?.bonusText || '').trim()
+        || formatTarotRoleBonus(deckRole?.bonus);
+    return {
+        roleText: `${role.label || role.key}${suitLabel}`,
+        bonusText
+    };
+}
+
+function createTarotCombatChip(label, tone = '') {
+    const chip = document.createElement('span');
+    chip.className = `item-detail-tarot-chip${tone ? ` is-${tone}` : ''}`;
+    chip.textContent = label;
+    return chip;
+}
+
+function appendTarotCombatRow(parent, label, value, tone = '') {
+    if (value === undefined || value === null || value === '') return;
+    const row = document.createElement('div');
+    row.className = `item-detail-tarot-row${tone ? ` is-${tone}` : ''}`;
+    const labelEl = document.createElement('span');
+    labelEl.className = 'item-detail-tarot-row-label';
+    labelEl.textContent = label;
+    const valueEl = document.createElement('strong');
+    valueEl.className = 'item-detail-tarot-row-value';
+    valueEl.textContent = String(value);
+    row.append(labelEl, valueEl);
+    parent.appendChild(row);
+}
+
+function removeTarotCombatDetailSection() {
+    document.getElementById('itemDetailTarotCombat')?.remove();
+}
+
+function renderTarotCombatDetailSection(item, itemData) {
+    removeTarotCombatDetailSection();
+    const descriptionEl = document.getElementById('itemDetailDescription');
+    if (!descriptionEl) return;
+
+    const canonicalCategory = getCanonicalTarotCategory(itemData?.Category);
+    if (canonicalCategory === 'TarotMajor') {
+        const position = getShipMajorArcanaPosition(item?.itemId);
+        const skill = getShipMajorArcanaSkill(item?.itemId);
+        const shipGear = skill?.shipGear || getMajorArcanaShipGear(item?.itemId, itemData);
+        const suitInfo = getMajorArcanaSuitInfo(itemData);
+        const section = document.createElement('section');
+        section.id = 'itemDetailTarotCombat';
+        section.className = 'item-detail-tarot-combat';
+
+        const title = document.createElement('div');
+        title.className = 'item-detail-tarot-combat-title';
+        const heading = document.createElement('strong');
+        heading.textContent = shipGear?.equipmentName || shipGear?.shipGearName || 'アルカナ艤装';
+        const state = document.createElement('span');
+        state.textContent = position > 0 ? `船装備${position}枠目` : '未装備';
+        title.append(heading, state);
+        section.appendChild(title);
+
+        const chips = document.createElement('div');
+        chips.className = 'item-detail-tarot-chips';
+        chips.appendChild(createTarotCombatChip(position > 0 ? `装備枠 ${position}/${myShipMajorArcanaLimit}` : `空き ${myShipMajorArcana.length}/${myShipMajorArcanaLimit}`, position > 0 ? 'order' : 'muted'));
+        chips.appendChild(createTarotCombatChip(`属性 ${suitInfo.label || '無属性'}`, suitInfo.key || 'none'));
+        if (shipGear?.gearPartLabel) chips.appendChild(createTarotCombatChip(`部位 ${shipGear.gearPartLabel}`, 'equip'));
+        if (shipGear?.arcanaElementLabel) chips.appendChild(createTarotCombatChip(`艤装属性 ${shipGear.arcanaElementLabel}`, shipGear.arcanaElement || 'effect'));
+        chips.appendChild(createTarotCombatChip('略奪戦用', 'cooldown'));
+        if (shipGear?.roleLabel || skill?.role) chips.appendChild(createTarotCombatChip(shipGear?.roleLabel || skill.role, 'effect'));
+        section.appendChild(chips);
+
+        const rows = document.createElement('div');
+        rows.className = 'item-detail-tarot-rows';
+        if (shipGear || skill) {
+            appendTarotCombatRow(rows, '船装備名', shipGear?.equipmentName || shipGear?.shipGearName || 'アルカナ艤装', 'skill');
+            appendTarotCombatRow(rows, '部位', shipGear?.gearPartLabel || '艤装');
+            appendTarotCombatRow(rows, '装備属性', shipGear?.arcanaElementLabel || '無属性');
+            appendTarotCombatRow(rows, '必殺艤装', shipGear?.ultimateName || skill?.ultimateName || skill?.skillName || 'アルカナ艤装', 'skill');
+            appendTarotCombatRow(rows, '発動条件', shipGear?.trigger || '略奪戦中に自動発動');
+            appendTarotCombatRow(rows, '略奪戦効果', shipGear?.shortDescription || skill?.navalEffectDescription || skill?.description || '');
+        } else {
+            appendTarotCombatRow(rows, '必殺艤装', position > 0 ? '読込中' : '船に装備すると略奪戦で有効', 'skill');
+        }
+        appendTarotCombatRow(rows, '装備枠', `ボート1 / エクスプローラー2 / 最終進化3`);
+        section.appendChild(rows);
+
+        descriptionEl.insertAdjacentElement('afterend', section);
+        return;
+    }
+
+    const skill = resolveTarotBattleSkill(item?.itemId, itemData);
+    const deckPosition = getTarotDeckPosition(item?.itemId);
+    const roleInfo = getCurrentTarotRoleText();
+    const section = document.createElement('section');
+    section.id = 'itemDetailTarotCombat';
+    section.className = 'item-detail-tarot-combat';
+
+    const title = document.createElement('div');
+    title.className = 'item-detail-tarot-combat-title';
+    const heading = document.createElement('strong');
+    heading.textContent = '戦闘での使い方';
+    const state = document.createElement('span');
+    state.textContent = deckPosition > 0 ? `デッキ${deckPosition}枚目` : '未セット';
+    title.append(heading, state);
+    section.appendChild(title);
+
+    const chips = document.createElement('div');
+    chips.className = 'item-detail-tarot-chips';
+    chips.appendChild(createTarotCombatChip(deckPosition > 0 ? `発動順 ${deckPosition}` : '未セット', deckPosition > 0 ? 'order' : 'muted'));
+    if (skill?.element) chips.appendChild(createTarotCombatChip(`属性 ${skill.element}`, skill.elementKey || 'none'));
+    if (skill?.cooldown !== undefined) chips.appendChild(createTarotCombatChip(`CT ${skill.cooldown}`, 'cooldown'));
+    if (skill?.effectClass) chips.appendChild(createTarotCombatChip(skill.effectClass, 'effect'));
+    section.appendChild(chips);
+
+    const rows = document.createElement('div');
+    rows.className = 'item-detail-tarot-rows';
+    if (skill) {
+        appendTarotCombatRow(rows, 'スキル', skill.skillName || 'カード効果', 'skill');
+        appendTarotCombatRow(rows, '効果', skill.effectClass || '特殊');
+        appendTarotCombatRow(rows, '対象', skill.target || '敵1体/自分');
+        appendTarotCombatRow(rows, '威力/回復', [skill.damageTier, skill.healTier].filter(Boolean).join(' / '));
+        appendTarotCombatRow(rows, '状態異常', [skill.status, skill.successRate].filter(Boolean).join(' / '));
+        appendTarotCombatRow(rows, '説明', skill.description || '');
+    } else {
+        appendTarotCombatRow(rows, 'スキル', tarotBattleSkillsLoaded ? '未設定' : '読込中', 'skill');
+        appendTarotCombatRow(rows, '説明', tarotBattleSkillsLoaded
+            ? 'このカードの戦闘スキルデータはまだ登録されていません。'
+            : '戦闘スキル情報を取得中です。');
+    }
+    appendTarotCombatRow(rows, '発動ルール', '戦闘開始は1枚目から。使用後CT中は通常行動。');
+    appendTarotCombatRow(rows, '現在の役', `${roleInfo.roleText} / ${roleInfo.bonusText}`);
+    section.appendChild(rows);
+
+    descriptionEl.insertAdjacentElement('afterend', section);
+}
+
 function createItemDetailActionButton(label, tone, run, options = {}) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -2221,8 +2562,15 @@ function showItemDetailModal(item) {
     document.getElementById('itemDetailName').innerText = item.name;
     document.getElementById('itemDetailCategory').innerText = getInventoryCategoryLabel(canonicalCategory);
     document.getElementById('itemDetailDescription').innerText = isTarotCard
-        ? 'タロットデッキにセットして役ボーナスに使用できます。'
+        ? (isTarotMajorCategory(canonicalCategory)
+            ? '大アルカナは船に装備し、船スキルと探索BOSS戦前の弱体化に使用します。'
+            : '小アルカナデッキの順番で発動する戦闘カードです。役は5枚構成で戦闘開始時に反映されます。')
         : (item.description || '説明がありません。');
+    if (isTarotCard) {
+        renderTarotCombatDetailSection(item, cd);
+    } else {
+        removeTarotCombatDetailSection();
+    }
 
     if (metaEl) {
         metaEl.innerHTML = '';
@@ -2231,7 +2579,11 @@ function showItemDetailModal(item) {
             metaEl.appendChild(createItemDetailMetaChip('装備中', 'equipped'));
         }
         if (isTarotCard) {
-            metaEl.appendChild(createItemDetailMetaChip(isCardInTarotDeck(item.itemId) ? 'デッキセット中' : '未セット', isCardInTarotDeck(item.itemId) ? 'equipped' : 'muted'));
+            if (isTarotMajorCategory(canonicalCategory)) {
+                metaEl.appendChild(createItemDetailMetaChip(isShipMajorArcanaEquipped(item.itemId) ? '船に装備中' : '船未装備', isShipMajorArcanaEquipped(item.itemId) ? 'equipped' : 'muted'));
+            } else {
+                metaEl.appendChild(createItemDetailMetaChip(isCardInTarotDeck(item.itemId) ? 'デッキセット中' : '未セット', isCardInTarotDeck(item.itemId) ? 'equipped' : 'muted'));
+            }
         }
         const count = Number(item?.count || 0) || 0;
         if (count > 1) {
@@ -2257,10 +2609,11 @@ function showItemDetailModal(item) {
     }
     appendTarotMetaStats(statsEl, cd);
     if (isTarotMajorCategory(canonicalCategory)) {
-        appendItemDetailStat(statsEl, 'タロットデッキ', isCardInTarotDeck(item.itemId) ? 'セット中' : '未セット', 'tarot');
+        const position = getShipMajorArcanaPosition(item.itemId);
+        appendItemDetailStat(statsEl, '船装備', position > 0 ? `${position}枠目` : '未装備', 'tarot');
     }
     if (isTarotMinorCategory(canonicalCategory)) {
-        appendItemDetailStat(statsEl, 'タロットデッキ', isCardInTarotDeck(item.itemId) ? 'セット中' : '未セット', 'tarot');
+        appendItemDetailStat(statsEl, '小アルカナデッキ', isCardInTarotDeck(item.itemId) ? 'セット中' : '未セット', 'tarot');
     }
 
     if (isTarotCard) {
@@ -2341,8 +2694,20 @@ function showItemDetailModal(item) {
         } else {
             addAction(getEquipActionLabel('Accessory', '装備'), 'equip', () => equipItem(playFabId, equipItemId, 'Accessory'));
         }
-    } else if (isTarotCard) {
-        appendActionNote('タロットデッキにセットできます。');
+    } else if (isTarotMajorCategory(canonicalCategory)) {
+        appendActionNote(`船の大アルカナ装備枠: ${myShipMajorArcana.length}/${myShipMajorArcanaLimit}`);
+        const position = getShipMajorArcanaPosition(equipItemId);
+        if (position > 0) {
+            addAction('船から外す', 'remove', () => unequipShipMajorArcana(playFabId, equipItemId));
+            if (position > 1) addAction('前へ', 'move', () => moveShipMajorArcana(playFabId, equipItemId, 'left'));
+            if (position < myShipMajorArcana.length) addAction('後へ', 'move', () => moveShipMajorArcana(playFabId, equipItemId, 'right'));
+        } else if (!isShipMajorArcanaFull()) {
+            addAction('船に装備', 'equip', () => equipShipMajorArcana(playFabId, equipItemId));
+        } else {
+            addAction('船装備枠が満杯', 'disabled', null, { disabled: true });
+        }
+    } else if (isTarotMinorCategory(canonicalCategory)) {
+        appendActionNote('小アルカナデッキにセットできます。');
         if (isCardInTarotDeck(equipItemId)) {
             addAction('デッキから外す', 'remove', () => unequipTarotCardFromDeck(playFabId, equipItemId, 'tarot'));
         } else if (getCommonTarotDeck().length < 5) {

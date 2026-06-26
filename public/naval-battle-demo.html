@@ -319,45 +319,45 @@
             <div class="demo-field">
                 <label for="demoPlayerShip">自船</label>
                 <select id="demoPlayerShip">
-                    <option value="ship_human_fighter" selected>人間 戦闘船</option>
-                    <option value="ship_elf_fighter">エルフ 戦闘船</option>
-                    <option value="ship_goblin_fighter">ゴブリン 戦闘船</option>
-                    <option value="ship_orc_fighter">オーク 戦闘船</option>
-                    <option value="ship_human_defender">人間 防衛船</option>
-                    <option value="ship_elf_defender">エルフ 防衛船</option>
-                    <option value="ship_goblin_defender">ゴブリン 防衛船</option>
-                    <option value="ship_orc_defender">オーク 防衛船</option>
-                    <option value="ship_human_merchant">人間 商船</option>
-                    <option value="ship_elf_merchant">エルフ 商船</option>
-                    <option value="ship_goblin_merchant">ゴブリン 商船</option>
-                    <option value="ship_orc_merchant">オーク 商船</option>
-                    <option value="ship_human_explorer">人間 探索船</option>
-                    <option value="ship_elf_explorer">エルフ 探索船</option>
-                    <option value="ship_goblin_explorer">ゴブリン 探索船</option>
-                    <option value="ship_orc_explorer">オーク 探索船</option>
-                    <option value="boat">ボート</option>
+                    <option value="ship_human_fighter" selected>海賊船</option>
+                    <option value="ship_elf_fighter">海賊飛空艇</option>
+                    <option value="ship_goblin_fighter">ドリルタンク</option>
+                    <option value="ship_orc_fighter">水上戦車</option>
+                    <option value="ship_human_defender">帆船</option>
+                    <option value="ship_elf_defender">海賊飛行船</option>
+                    <option value="ship_goblin_defender">潜水艦・望遠鏡</option>
+                    <option value="ship_orc_defender">潜水艦</option>
+                    <option value="ship_human_merchant">水上馬車</option>
+                    <option value="ship_elf_merchant">飛行船</option>
+                    <option value="ship_goblin_merchant">水瓶船</option>
+                    <option value="ship_orc_merchant">水上バス</option>
+                    <option value="ship_human_explorer">帆付きボート</option>
+                    <option value="ship_elf_explorer">気球</option>
+                    <option value="ship_goblin_explorer">キャタピラ・ボート</option>
+                    <option value="ship_orc_explorer">石のボート</option>
+                    <option value="boat">手漕ぎボート</option>
                 </select>
             </div>
             <div class="demo-field">
                 <label for="demoEnemyShip">敵船</label>
                 <select id="demoEnemyShip">
-                    <option value="ship_human_fighter">人間 戦闘船</option>
-                    <option value="ship_elf_fighter">エルフ 戦闘船</option>
-                    <option value="ship_goblin_fighter">ゴブリン 戦闘船</option>
-                    <option value="ship_orc_fighter">オーク 戦闘船</option>
-                    <option value="ship_human_defender" selected>人間 防衛船</option>
-                    <option value="ship_elf_defender">エルフ 防衛船</option>
-                    <option value="ship_goblin_defender">ゴブリン 防衛船</option>
-                    <option value="ship_orc_defender">オーク 防衛船</option>
-                    <option value="ship_human_merchant">人間 商船</option>
-                    <option value="ship_elf_merchant">エルフ 商船</option>
-                    <option value="ship_goblin_merchant">ゴブリン 商船</option>
-                    <option value="ship_orc_merchant">オーク 商船</option>
-                    <option value="ship_human_explorer">人間 探索船</option>
-                    <option value="ship_elf_explorer">エルフ 探索船</option>
-                    <option value="ship_goblin_explorer">ゴブリン 探索船</option>
-                    <option value="ship_orc_explorer">オーク 探索船</option>
-                    <option value="boat">ボート</option>
+                    <option value="ship_human_fighter">海賊船</option>
+                    <option value="ship_elf_fighter">海賊飛空艇</option>
+                    <option value="ship_goblin_fighter">ドリルタンク</option>
+                    <option value="ship_orc_fighter">水上戦車</option>
+                    <option value="ship_human_defender" selected>帆船</option>
+                    <option value="ship_elf_defender">海賊飛行船</option>
+                    <option value="ship_goblin_defender">潜水艦・望遠鏡</option>
+                    <option value="ship_orc_defender">潜水艦</option>
+                    <option value="ship_human_merchant">水上馬車</option>
+                    <option value="ship_elf_merchant">飛行船</option>
+                    <option value="ship_goblin_merchant">水瓶船</option>
+                    <option value="ship_orc_merchant">水上バス</option>
+                    <option value="ship_human_explorer">帆付きボート</option>
+                    <option value="ship_elf_explorer">気球</option>
+                    <option value="ship_goblin_explorer">キャタピラ・ボート</option>
+                    <option value="ship_orc_explorer">石のボート</option>
+                    <option value="boat">手漕ぎボート</option>
                 </select>
             </div>
             <div class="demo-field">
@@ -420,23 +420,23 @@
             'use strict';
 
             const shipOptions = {
-                boat: { form: 'boat', race: '', name: 'ボート' },
-                ship_human_fighter: { form: 'fighter', race: 'human', name: '人間 戦闘船' },
-                ship_elf_fighter: { form: 'fighter', race: 'elf', name: 'エルフ 戦闘船' },
-                ship_goblin_fighter: { form: 'fighter', race: 'goblin', name: 'ゴブリン 戦闘船' },
-                ship_orc_fighter: { form: 'fighter', race: 'orc', name: 'オーク 戦闘船' },
-                ship_human_defender: { form: 'defender', race: 'human', name: '人間 防衛船' },
-                ship_elf_defender: { form: 'defender', race: 'elf', name: 'エルフ 防衛船' },
-                ship_goblin_defender: { form: 'defender', race: 'goblin', name: 'ゴブリン 防衛船' },
-                ship_orc_defender: { form: 'defender', race: 'orc', name: 'オーク 防衛船' },
-                ship_human_merchant: { form: 'merchant', race: 'human', name: '人間 商船' },
-                ship_elf_merchant: { form: 'merchant', race: 'elf', name: 'エルフ 商船' },
-                ship_goblin_merchant: { form: 'merchant', race: 'goblin', name: 'ゴブリン 商船' },
-                ship_orc_merchant: { form: 'merchant', race: 'orc', name: 'オーク 商船' },
-                ship_human_explorer: { form: 'explorer', race: 'human', name: '人間 探索船' },
-                ship_elf_explorer: { form: 'explorer', race: 'elf', name: 'エルフ 探索船' },
-                ship_goblin_explorer: { form: 'explorer', race: 'goblin', name: 'ゴブリン 探索船' },
-                ship_orc_explorer: { form: 'explorer', race: 'orc', name: 'オーク 探索船' }
+                boat: { form: 'boat', race: '', name: '手漕ぎボート' },
+                ship_human_fighter: { form: 'fighter', race: 'human', name: '海賊船' },
+                ship_elf_fighter: { form: 'fighter', race: 'elf', name: '海賊飛空艇' },
+                ship_goblin_fighter: { form: 'fighter', race: 'goblin', name: 'ドリルタンク' },
+                ship_orc_fighter: { form: 'fighter', race: 'orc', name: '水上戦車' },
+                ship_human_defender: { form: 'defender', race: 'human', name: '帆船' },
+                ship_elf_defender: { form: 'defender', race: 'elf', name: '海賊飛行船' },
+                ship_goblin_defender: { form: 'defender', race: 'goblin', name: '潜水艦・望遠鏡' },
+                ship_orc_defender: { form: 'defender', race: 'orc', name: '潜水艦' },
+                ship_human_merchant: { form: 'merchant', race: 'human', name: '水上馬車' },
+                ship_elf_merchant: { form: 'merchant', race: 'elf', name: '飛行船' },
+                ship_goblin_merchant: { form: 'merchant', race: 'goblin', name: '水瓶船' },
+                ship_orc_merchant: { form: 'merchant', race: 'orc', name: '水上バス' },
+                ship_human_explorer: { form: 'explorer', race: 'human', name: '帆付きボート' },
+                ship_elf_explorer: { form: 'explorer', race: 'elf', name: '気球' },
+                ship_goblin_explorer: { form: 'explorer', race: 'goblin', name: 'キャタピラ・ボート' },
+                ship_orc_explorer: { form: 'explorer', race: 'orc', name: '石のボート' }
             };
 
             const arcanaPresets = {
@@ -473,6 +473,12 @@
                 const dodgeText = cell.playerDodgedShot
                     ? '<div class="demo-cell-detail">回避勝ち</div>'
                     : (cell.enemyDodgedShot ? '<div class="demo-cell-detail">回避される</div>' : '');
+                const cooldowns = [];
+                if (cell.playerRudderCooldown) cooldowns.push('自船操舵不可');
+                if (cell.enemyRudderCooldown) cooldowns.push('敵船操舵不可');
+                const cooldownText = cooldowns.length
+                    ? `<div class="demo-cell-detail">次手: ${escapeText(cooldowns.join(' / '))}</div>`
+                    : '';
                 return `
                     <td class="demo-matrix-cell is-${escapeText(cell.outcome)}"
                         data-matrix-cell
@@ -482,6 +488,7 @@
                         <span class="demo-cell-result">${matrixOutcomeLabel(cell.outcome)}</span>
                         <div class="demo-cell-detail">負荷差 ${formatMatrixValue(cell.score)}</div>
                         <div class="demo-cell-detail">次: ${escapeText(cell.nextPlayerFacingLabel)} / ${escapeText(cell.nextEnemyFacingLabel)}</div>
+                        ${cooldownText}
                         ${dodgeText}
                     </td>
                 `;

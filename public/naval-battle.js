@@ -6,6 +6,7 @@
 'use strict';
 
 const STEERING_MAX = 3;
+const NAVAL_DURABILITY_MAX = 4;
 const INITIAL_DISTANCE = 1;
 const BOW_DAMAGE = 1;
 const BROADSIDE_DAMAGE = 2;
@@ -16,12 +17,11 @@ const MISREAD_DAMAGE = 0;
 const RELOAD_TURNS = 1;
 const STEERING_STEP = 0.5;
 const EVASION_RATE = Object.freeze({
-    front: 0.2,
-    side: 0.05,
+    front: 0.5,
+    side: 0,
     back: 0,
     assault: 0,
-    rudderBonus: 0.15,
-    rudderMax: 0.35
+    rudderHitReduction: 0.5
 });
 
 const PLUNDER_LIMITS = {
@@ -87,26 +87,33 @@ const ELEMENT_ADVANTAGE = {
     earth: 'water',
     water: 'fire'
 };
-const NAVAL_SHIP_TRAITS = Object.freeze({
-    ship_human_explorer: { name: '追い風加速', type: 'rudder-evasion', bonus: 0.2, max: 0.55 },
-    ship_elf_explorer: { name: '高度視認', type: 'bow-evasion-pierce' },
-    ship_goblin_explorer: { name: '泥沼散布', type: 'reduce-assault-hit', reduce: 0.5 },
-    ship_orc_explorer: { name: '岩皮突進', type: 'assault-boost-guard', damageBonus: 0.5, broadsideGuard: 0.5 },
-    ship_human_defender: { name: '艦隊防壁', type: 'first-hit-reduce', reduce: 1 },
-    ship_elf_defender: { name: '疾風の渦', type: 'broadside-lock-rudder', turns: 1 },
-    ship_goblin_defender: { name: '砂嵐ノイズ', type: 'broadside-boost', damageBonus: 0.5 },
-    ship_orc_defender: { name: '水中捕捉', type: 'broadside-force-front' },
-    ship_human_fighter: { name: '火炎噴射', type: 'bow-boost', damageBonus: 0.5 },
-    ship_elf_fighter: { name: '毒ガス空爆', type: 'bow-boost-evasion-pierce', damageBonus: 0.5 },
-    ship_goblin_fighter: { name: 'ドリル突撃', type: 'assault-boost', damageBonus: 0.5 },
-    ship_orc_fighter: { name: '直撃砲', type: 'bow-boost', damageBonus: 1 },
-    ship_human_merchant: { name: '水上滑走', type: 'cannon-evasion', bonus: 0.2, max: 0.45 },
-    ship_elf_merchant: { name: '視界縮小', type: 'reduce-bow-hit', reduce: 0.5 },
-    ship_goblin_merchant: { name: '水爆設置', type: 'counter-assault-hit', damage: 0.5 },
-    ship_orc_merchant: { name: '装甲展開', type: 'assault-cannon-reduce', reduce: 1 }
+const SHIP_DOMAIN_LABEL = Object.freeze({
+    surface: '海上',
+    air: '飛行',
+    underwater: '水中'
 });
+const NAVAL_SHIP_META = Object.freeze({
+    boat: { name: '手漕ぎボート', form: 'boat', domain: 'surface', maxSteering: 1, lowFirepower: true, passiveName: '小さな船影', passiveKey: 'small-silhouette', passiveMode: 'continuous' },
+    ship_human_explorer: { name: '帆付きボート', form: 'explorer', domain: 'surface', maxSteering: 1.5, lowFirepower: true, passiveName: '素直な舵', passiveKey: 'honest-rudder', passiveMode: 'continuous' },
+    ship_human_defender: { name: '帆船', form: 'defender', domain: 'surface', maxSteering: 3, passiveName: '火炎弾', passiveKey: 'human-broadside-fire', passiveMode: 'continuous' },
+    ship_human_fighter: { name: '海賊船', form: 'fighter', domain: 'surface', maxSteering: 3, passiveName: '焼夷弾', passiveKey: 'human-bow-fire', passiveMode: 'continuous' },
+    ship_human_merchant: { name: '水上馬車', form: 'merchant', domain: 'surface', maxSteering: 3, passiveName: '馬衝角', passiveKey: 'human-assault-ram', passiveMode: 'continuous' },
+    ship_elf_explorer: { name: '気球', form: 'explorer', domain: 'air', maxSteering: 2, lowFirepower: true, passiveName: '高空退避', passiveKey: 'balloon-retreat', passiveMode: 'once' },
+    ship_elf_defender: { name: '海賊飛行船', form: 'defender', domain: 'air', maxSteering: 2, passiveName: '絨毯爆撃', passiveKey: 'elf-broadside-fear', passiveMode: 'continuous' },
+    ship_elf_fighter: { name: '海賊飛空艇', form: 'fighter', domain: 'air', maxSteering: 2, passiveName: '爆弾投下', passiveKey: 'elf-bow-bomb', passiveMode: 'continuous' },
+    ship_elf_merchant: { name: '飛行船', form: 'merchant', domain: 'air', maxSteering: 2, passiveName: '急降下', passiveKey: 'elf-assault-dive', passiveMode: 'pending' },
+    ship_orc_explorer: { name: '石のボート', form: 'explorer', domain: 'surface', maxSteering: 1.5, lowFirepower: true, passiveName: '石造船殻', passiveKey: 'stone-hull', passiveMode: 'once' },
+    ship_orc_defender: { name: '潜水艦', form: 'defender', domain: 'underwater', maxSteering: 4, passiveName: '水圧魚雷', passiveKey: 'pressure-torpedo', passiveMode: 'continuous' },
+    ship_orc_fighter: { name: '水上戦車', form: 'fighter', domain: 'surface', maxSteering: 3, passiveName: '巨大砲', passiveKey: 'bow-mirror-null', passiveMode: 'once' },
+    ship_orc_merchant: { name: '水上バス', form: 'merchant', domain: 'surface', maxSteering: 3, passiveName: '突進', passiveKey: 'assault-mirror-null', passiveMode: 'once' },
+    ship_goblin_explorer: { name: 'キャタピラ・ボート', form: 'explorer', domain: 'surface', maxSteering: 1.5, lowFirepower: true, passiveName: '波風旋回', passiveKey: 'wave-turn', passiveMode: 'pending' },
+    ship_goblin_defender: { name: '潜水艦・望遠鏡', form: 'defender', domain: 'underwater', maxSteering: 4, passiveName: '無泡魚雷', passiveKey: 'bubbleless-torpedo', passiveMode: 'continuous' },
+    ship_goblin_fighter: { name: 'ドリルタンク', form: 'fighter', domain: 'surface', maxSteering: 3, passiveName: 'ドリル', passiveKey: 'goblin-assault-flood', passiveMode: 'continuous' },
+    ship_goblin_merchant: { name: '水瓶船', form: 'merchant', domain: 'surface', maxSteering: 3, passiveName: '水爆弾', passiveKey: 'goblin-bow-flood', passiveMode: 'continuous' }
+});
+const NAVAL_SHIP_TRAITS = NAVAL_SHIP_META;
 
-const NAVAL_ARCANA_GEAR = Object.freeze({
+const NAVAL_ARCANA_GEAR_LEGACY = Object.freeze({
     'arcana-0': { equipmentName: '風まかせの予備帆', shipGearName: '風まかせの予備帆', gearPart: 'sail', gearPartLabel: '帆', ultimateName: '風まかせ離脱', roleLabel: '回避', shortDescription: '初回被弾時、1以下の負荷を回避。2以上なら0.5軽減して正面へ戻る。', activationLog: '風まかせの予備帆が風をつかみ、舵を正面へ戻した。', navalEffect: { type: 'fool-evade', evadeMax: 1, reduce: 0.5, setFacing: 'front' } },
     'arcana-1': { equipmentName: '四元素の魔導舵', shipGearName: '四元素の魔導舵', gearPart: 'rudder', gearPartLabel: '舵', ultimateName: '四元素即応', roleLabel: '操舵', shortDescription: '初回の面舵/取舵で発生する読み違い負荷を0にする。', activationLog: '四元素の魔導舵が航路を組み替え、読み違いを打ち消した。', navalEffect: { type: 'cancel-rudder-misread' } },
     'arcana-2': { equipmentName: '深潮の索敵羅針', shipGearName: '深潮の索敵羅針', gearPart: 'compass', gearPartLabel: '羅針盤', arcanaElement: 'water', ultimateName: '深潮看破', roleLabel: '索敵', shortDescription: '開幕に敵の初回防御艤装を1つ無効化する。', activationLog: '深潮の索敵羅針が敵船の守りを読み切った。', navalEffect: { type: 'opening-pierce-defense' } },
@@ -131,12 +138,41 @@ const NAVAL_ARCANA_GEAR = Object.freeze({
     'arcana-21': { equipmentName: '世界航路の環羅針', shipGearName: '世界航路の環羅針', gearPart: 'world_compass', gearPartLabel: '環羅針', ultimateName: '世界航路開通', roleLabel: '読み勝ち', shortDescription: '初回「自分だけが命中した読み勝ち」時、追加0.5負荷を与え、再装填を解除する。', activationLog: '世界航路の環羅針が次の航路を開き、読み勝ちを押し広げた。', navalEffect: { type: 'extra-action-after-command', winningReadBonus: 0.5, clearReload: true } }
 });
 
+const NAVAL_ARCANA_GEAR_BY_NUMBER = Object.freeze({
+    0: { equipmentName: '風まかせの予備舵', shipGearName: '風まかせの予備舵', gearPart: 'rudder', gearPartLabel: '舵', replacementCommand: 'portRudder', priority: 0, ultimateName: '愚者の自在取舵', roleLabel: '完全回避', shortDescription: '取舵を必ず成功させ、このターンの直接攻撃と付随効果を回避する。恐怖・混乱・ロックオンを解除する。', activationLog: '風まかせの予備舵が波を読み、攻撃を受け流した。', navalEffect: { type: 'fool-port-evade', replacementCommand: 'portRudder', forceRudderSuccess: true, avoidDirectThisTurn: true, cleanse: ['fear', 'confusion'], clearLockOn: true } },
+    1: { equipmentName: '四元素の魔導砲', shipGearName: '四元素の魔導砲', gearPart: 'bow_cannon', gearPartLabel: '船首砲', replacementCommand: 'bowCannon', priority: 1, ultimateName: '魔術師の魔砲', roleLabel: '連射', shortDescription: '船首砲と同じ威力の魔砲を撃つ。次のターンも船首砲を使用できる。', activationLog: '四元素の魔導砲が通常砲とは別系統の砲撃を放った。', navalEffect: { type: 'magician-magic-bow', replacementCommand: 'bowCannon', keepBowReady: true } },
+    2: { equipmentName: '潮祓いの聖羅針', shipGearName: '潮祓いの聖羅針', gearPart: 'compass', gearPartLabel: '羅針盤', arcanaElement: 'water', replacementCommand: 'starboardRudder', priority: 2, ultimateName: '女教皇の浄航', roleLabel: '浄化', shortDescription: '面舵成功後、炎上・浸水・恐怖・混乱を解除する。解除対象がなければ船を0.5回復する。', activationLog: '潮祓いの聖羅針が荒れた船内を鎮めた。', navalEffect: { type: 'priestess-cleanse-starboard', replacementCommand: 'starboardRudder', onRudderSuccess: { cleanse: ['fire', 'flood', 'fear', 'confusion'], fallbackHeal: 0.5 } } },
+    3: { equipmentName: '豊穣の救護船倉', shipGearName: '豊穣の救護船倉', gearPart: 'hold', gearPartLabel: '船倉', replacementCommand: 'portRudder', priority: 3, ultimateName: '女帝の大補給', roleLabel: '大回復', shortDescription: '取舵成功後、船を1.5回復し、船員を全回復する。', activationLog: '豊穣の救護船倉から補給班が一斉に飛び出した。', navalEffect: { type: 'empress-port-heal', replacementCommand: 'portRudder', onRudderSuccess: { heal: 1.5, crewFullHeal: true } } },
+    4: { equipmentName: '皇帝の鋼盾砲架', shipGearName: '皇帝の鋼盾砲架', gearPart: 'cannon_mount', gearPartLabel: '砲架', replacementCommand: 'bowCannon', priority: 4, ultimateName: '皇帝の盾砲', roleLabel: '盾化', shortDescription: '船首砲命中後、2ターンの間シールド状態になる。次に受ける直接攻撃の基本ダメージを半減する。', activationLog: '皇帝の鋼盾砲架が砲撃の反動を盾へ変えた。', navalEffect: { type: 'emperor-shield-bow', replacementCommand: 'bowCannon', onHitShield: { turns: 2, halveDirect: true } } },
+    5: { equipmentName: '教皇の封印鐘', shipGearName: '教皇の封印鐘', gearPart: 'bell', gearPartLabel: '鐘', replacementCommand: 'bowCannon', priority: 5, ultimateName: '教皇の封印砲', roleLabel: '封印', shortDescription: '船首砲命中後、相手は次の1ターンだけ置換型大アルカナを使用できない。', activationLog: '教皇の封印鐘が敵船の大アルカナを沈黙させた。', navalEffect: { type: 'hierophant-seal-bow', replacementCommand: 'bowCannon', onHitLockReplacement: 1 } },
+    6: { equipmentName: '恋人の双胴鎖', shipGearName: '恋人の双胴鎖', gearPart: 'chain', gearPartLabel: '鎖', replacementCommand: 'assault', priority: 6, ultimateName: '恋人の連結', roleLabel: '双拘束', shortDescription: '両船を連結する。次のターンは双方とも面舵・取舵を使用できない。', activationLog: '恋人の双胴鎖が両船を結び、互いの舵を封じた。', navalEffect: { type: 'lovers-bind-assault', replacementCommand: 'assault', bothRudderLock: 1 } },
+    7: { equipmentName: '戦車の破浪衝角', shipGearName: '戦車の破浪衝角', gearPart: 'ram', gearPartLabel: '衝角', replacementCommand: 'assault', priority: 7, ultimateName: '戦車の制圧突撃', roleLabel: '突撃勝利', shortDescription: '命中した敵に浸水を付与する。敵も突撃だった場合は勝利扱いとなり、自分は衝突ダメージを受けない。', activationLog: '戦車の破浪衝角が正面衝突を押し勝った。', navalEffect: { type: 'chariot-assault', replacementCommand: 'assault', onHitStatus: { flood: 2 }, winAssaultMirror: true } },
+    8: { equipmentName: '獅子の士気竜骨', shipGearName: '獅子の士気竜骨', gearPart: 'keel', gearPartLabel: '竜骨', replacementCommand: 'assault', priority: 8, ultimateName: '力の鼓舞突撃', roleLabel: '士気', shortDescription: '自分の恐怖・混乱を解除し、士気を1段階上昇。敵の旋回を止めた場合、敵の舵輪を次のターン終了まで損傷させる。', activationLog: '獅子の士気竜骨が船員を奮い立たせた。', navalEffect: { type: 'strength-assault', replacementCommand: 'assault', cleanse: ['fear', 'confusion'], morale: 1, rudderDamageOnStop: 1 } },
+    9: { equipmentName: '隠者の消灯帆', shipGearName: '隠者の消灯帆', gearPart: 'sail', gearPartLabel: '帆', replacementCommand: 'blankShot', priority: 9, ultimateName: '隠者の霧隠れ', roleLabel: '砲撃回避', shortDescription: '自分へのロックオンを解除し、次ターン終了時まで最初に受ける敵砲撃の命中率を20ポイント低下させる。', activationLog: '隠者の消灯帆が船影を消した。', navalEffect: { type: 'hermit-blank', replacementCommand: 'blankShot', clearLockOn: true, nextCannonHitDown: 0.2, turns: 1 } },
+    10: { equipmentName: '運命輪の逆潮舵', shipGearName: '運命輪の逆潮舵', gearPart: 'wheel', gearPartLabel: '輪舵', replacementCommand: 'starboardRudder', priority: 10, ultimateName: '運命輪の面舵', roleLabel: '反動', shortDescription: '面舵は必ず成功する。敵の砲撃が外れた場合、敵へ反動ダメージ0.5を与える。', activationLog: '運命輪の逆潮舵が砲撃の流れを跳ね返した。', navalEffect: { type: 'wheel-starboard', replacementCommand: 'starboardRudder', forceRudderSuccess: true, cannonMissRecoil: 0.5 } },
+    11: { equipmentName: '正義の写し衝角', shipGearName: '正義の写し衝角', gearPart: 'ram', gearPartLabel: '衝角', replacementCommand: 'assault', priority: 11, ultimateName: '正義の反照突撃', roleLabel: '状態反射', shortDescription: '命中した敵に、自分と同じ状態異常を同じ持続時間で付与する。自分の状態は解除されない。', activationLog: '正義の写し衝角が自船の災いを敵船へ映した。', navalEffect: { type: 'justice-assault', replacementCommand: 'assault', reflectOwnStatuses: true } },
+    12: { equipmentName: '吊男の身代わり錨', shipGearName: '吊男の身代わり錨', gearPart: 'anchor', gearPartLabel: '錨', replacementCommand: 'blankShot', priority: 12, ultimateName: '吊男の犠牲煙幕', roleLabel: '半減', shortDescription: '敵へ恐怖を付与する。このターンに受ける直接攻撃の基本ダメージを半減し、状態異常も受けない。', activationLog: '吊男の身代わり錨が被害を肩代わりした。', navalEffect: { type: 'hanged-blank', replacementCommand: 'blankShot', targetStatus: { fear: 2 }, halveDirectThisTurn: true, statusImmuneThisTurn: true } },
+    13: { equipmentName: '死神の時限黒砲', shipGearName: '死神の時限黒砲', gearPart: 'broadside_cannon', gearPartLabel: '舷側砲', replacementCommand: 'broadside', priority: 13, ultimateName: '死神の遅延砲', roleLabel: '遅延', shortDescription: '命中した敵へ死の刻印を付け、3ターン後に1ダメージを与える。', activationLog: '死神の時限黒砲が敵船に遅れて弾ける刻印を刻んだ。', navalEffect: { type: 'death-broadside', replacementCommand: 'broadside', delayedDamage: { turns: 3, damage: 1 } } },
+    14: { equipmentName: '節制の整備樽', shipGearName: '節制の整備樽', gearPart: 'barrel', gearPartLabel: '整備樽', replacementCommand: 'blankShot', priority: 14, ultimateName: '節制の整備号令', roleLabel: '整備', shortDescription: '自分の状態異常を解除する。士気は中立になる。', activationLog: '節制の整備樽が船内の混乱を整えた。', navalEffect: { type: 'temperance-blank', replacementCommand: 'blankShot', cleanseAllStatuses: true, moraleToNeutral: true } },
+    15: { equipmentName: '悪魔の業火舷砲', shipGearName: '悪魔の業火舷砲', gearPart: 'broadside_cannon', gearPartLabel: '舷側砲', replacementCommand: 'broadside', priority: 15, ultimateName: '悪魔の混炎砲', roleLabel: '混乱炎上', shortDescription: '命中した敵を混乱と炎上にする。', activationLog: '悪魔の業火舷砲が敵船を混乱と炎で包んだ。', navalEffect: { type: 'devil-broadside', replacementCommand: 'broadside', onHitStatus: { confusion: 2, fire: 2 } } },
+    16: { equipmentName: '塔の雷撃マスト', shipGearName: '塔の雷撃マスト', gearPart: 'mast', gearPartLabel: 'マスト', replacementCommand: 'broadside', priority: 16, ultimateName: '塔の雷撃砲', roleLabel: '設備損傷', shortDescription: '雷撃砲になる。命中時、敵船員へ10%ダメージを与え、2ターンのマスト損傷を付与する。', activationLog: '塔の雷撃マストが雷を砲弾へ落とし込んだ。', navalEffect: { type: 'tower-broadside', replacementCommand: 'broadside', crewDamagePercent: 10, mastDamage: 2 } },
+    17: { equipmentName: '星灯りの照準旗', shipGearName: '星灯りの照準旗', gearPart: 'flag', gearPartLabel: '旗', replacementCommand: 'blankShot', priority: 17, ultimateName: '星の照準祈願', roleLabel: '照準', shortDescription: '自分の霧・命中率低下を解除。2ターン以内の次砲撃の命中率+20ポイント。命中時に船体を1回復する。', activationLog: '星灯りの照準旗が次の砲撃へ道筋を示した。', navalEffect: { type: 'star-blank', replacementCommand: 'blankShot', clearAimDown: true, nextCannonHitUp: 0.2, turns: 2, healOnCannonHit: 1 } },
+    18: { equipmentName: '月影の幻霧帆', shipGearName: '月影の幻霧帆', gearPart: 'fog_sail', gearPartLabel: '霧帆', replacementCommand: 'blankShot', priority: 18, ultimateName: '月の幻影', roleLabel: '幻影', shortDescription: '幻影を1体作る。次に受ける最初の砲撃または単体妨害を50%で幻影に吸わせる。突撃には無効。', activationLog: '月影の幻霧帆が本物そっくりの船影を作った。', navalEffect: { type: 'moon-blank', replacementCommand: 'blankShot', illusionChance: 0.5, hideHp: true } },
+    19: { equipmentName: '太陽の浄火炉', shipGearName: '太陽の浄火炉', gearPart: 'deck_furnace', gearPartLabel: '甲板炉', replacementCommand: 'blankShot', priority: 19, ultimateName: '太陽の照破', roleLabel: '照破', shortDescription: 'ターン終了後、敵の隠密・幻影と戦場の霧を解除。2ターン以内の次砲撃命中で敵を炎上させる。', activationLog: '太陽の浄火炉が幻を焼き払い、次弾に熱を宿した。', navalEffect: { type: 'sun-blank', replacementCommand: 'blankShot', clearEnemyConcealment: true, nextCannonStatus: { fire: 2 }, turns: 2 } },
+    20: { equipmentName: '審判の修復号鐘', shipGearName: '審判の修復号鐘', gearPart: 'bell', gearPartLabel: '号鐘', replacementCommand: 'blankShot', priority: 20, ultimateName: '審判の復旧', roleLabel: '復旧', shortDescription: '自分の恐怖・混乱を解除し、船員を20%回復。さらに設備を修復する。炎上・浸水は解除しない。', activationLog: '審判の修復号鐘が船員と設備を立て直した。', navalEffect: { type: 'judgement-blank', replacementCommand: 'blankShot', cleanse: ['fear', 'confusion'], crewHealPercent: 20, repairEquipment: true } },
+    21: { equipmentName: '世界航路の照準環', shipGearName: '世界航路の照準環', gearPart: 'world_compass', gearPartLabel: '環羅針', replacementCommand: 'broadside', priority: 21, ultimateName: '世界の完全ロックオン', roleLabel: '完全照準', shortDescription: '敵を完全ロックオンする。3ターン以内の次砲撃は最終命中率90%未満にならず、霧・隠密・幻影を無視する。', activationLog: '世界航路の照準環が敵船の逃げ道を閉ざした。', navalEffect: { type: 'world-broadside', replacementCommand: 'broadside', completeLockOnTurns: 3, minFinalHitRate: 0.9, ignoreConcealment: true } }
+});
+const NAVAL_ARCANA_GEAR = Object.freeze(Object.fromEntries(
+    Object.entries(NAVAL_ARCANA_GEAR_BY_NUMBER).map(([number, gear]) => [`arcana-${number}`, gear])
+));
+
 const COMMAND_TYPE_LABEL = {
     cannon: '砲撃',
     move: '操船',
     rudder: '操舵',
     feint: '牽制',
-    boarding: '接舷'
+    boarding: '接舷',
+    repair: '修理'
 };
 
 const COMMANDS = {
@@ -182,6 +218,13 @@ const COMMANDS = {
         icon: './assets/ui/icons/095.png',
         desc: '回避読みの牽制。相手の無駄な操舵を誘う'
     },
+    repair: {
+        id: 'repair',
+        label: '修理',
+        type: 'repair',
+        icon: './assets/ui/icons/083.png',
+        desc: 'マスト損傷と舵輪損傷を修復する。状態異常は解除しない'
+    },
     boarding: {
         id: 'boarding',
         label: '接舷！',
@@ -200,6 +243,13 @@ const ENEMY_PLANS = [
 const NAVAL_VISUAL_EFFECT_MS = 1400;
 const NAVAL_SURGE_MOTION_MS = 1180;
 const NAVAL_BOARDING_MOTION_MS = 1550;
+const NAVAL_AUTO_BOARDING_DELAY_MS = NAVAL_VISUAL_EFFECT_MS + 120;
+const NAVAL_TAROT_SPRITE = Object.freeze({
+    path: './Sprites/Buildings/tarot.png',
+    width: 48,
+    height: 80,
+    cols: 10
+});
 const SHIP_SPRITE_FRAME_SIZE = 64;
 const SHIP_SPRITE_GROUP_X = {
     boat: 0,
@@ -210,6 +260,44 @@ const SHIP_SPRITE_GROUP_X = {
     merchant: -1536,
     guild: 0
 };
+const SHIP_SPRITE_DEFAULT_ASSET = Object.freeze({
+    path: './Sprites/Ships/ships.png',
+    frameSize: 64,
+    sheetWidth: 2048,
+    sheetHeight: 1024,
+    scale: 1.45
+});
+const SHIP_SPRITE_RACE_SHEETS = Object.freeze({
+    human: './Sprites/Ships/ships_blue.png',
+    elf: './Sprites/Ships/ships_green.png',
+    goblin: './Sprites/Ships/ships_yellow.png',
+    orc: './Sprites/Ships/ships_red.png'
+});
+const SHIP_SPRITE_BLOCK_SIZE = Object.freeze({ width: 384, height: 256 });
+const SHIP_SPRITE_BLOCKS = Object.freeze({
+    boat: { row: 0, col: 0 },
+    common: { row: 0, col: 0 },
+    explorer: { row: 0, col: 1 },
+    defender: { row: 0, col: 2 },
+    fighter: { row: 0, col: 3 },
+    merchant: { row: 0, col: 4 },
+    ship_human_explorer: { row: 0, col: 1 },
+    ship_human_defender: { row: 0, col: 2 },
+    ship_human_fighter: { row: 0, col: 3 },
+    ship_human_merchant: { row: 0, col: 4 },
+    ship_elf_explorer: { row: 1, col: 1 },
+    ship_elf_fighter: { row: 1, col: 2 },
+    ship_elf_defender: { row: 1, col: 3 },
+    ship_elf_merchant: { row: 1, col: 4 },
+    ship_orc_explorer: { row: 2, col: 1 },
+    ship_orc_defender: { row: 2, col: 2 },
+    ship_orc_fighter: { row: 2, col: 3 },
+    ship_orc_merchant: { row: 2, col: 4 },
+    ship_goblin_explorer: { row: 3, col: 1 },
+    ship_goblin_defender: { row: 3, col: 2 },
+    ship_goblin_fighter: { row: 3, col: 3 },
+    ship_goblin_merchant: { row: 3, col: 4 }
+});
 const SHIP_SPRITE_FRAMES = {
     player: {
         front: { x: -64, y: -64 },
@@ -236,6 +324,7 @@ const SHIP_SPRITE_FRAMES = {
 let battle = null;
 let navalVisualClearTimer = null;
 let navalBoardingTimer = null;
+let navalBoardingDelayTimer = null;
 
 function clampNumber(value, min, max, fallback = 0) {
     const number = Number(value);
@@ -266,6 +355,70 @@ function formatRatePercent(rate) {
 
 function asObject(value) {
     return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+
+function durationValue(entry) {
+    if (typeof entry === 'number') return Math.max(0, Math.floor(entry));
+    return Math.max(0, Math.floor(Number(asObject(entry).turns || 0) || 0));
+}
+
+function normalizeDurationMap(source = {}) {
+    const map = {};
+    Object.entries(asObject(source)).forEach(([key, value]) => {
+        const turns = durationValue(value);
+        if (turns > 0) map[key] = { ...asObject(value), turns, fresh: Boolean(asObject(value).fresh) };
+    });
+    return map;
+}
+
+function durationMapForSnapshot(source = {}) {
+    const map = {};
+    Object.entries(asObject(source)).forEach(([key, value]) => {
+        const turns = durationValue(value);
+        if (turns > 0) map[key] = { ...asObject(value), turns, fresh: Boolean(asObject(value).fresh) };
+    });
+    return map;
+}
+
+function hasDuration(source, key) {
+    return durationValue(asObject(source)[key]) > 0;
+}
+
+function setDuration(source, key, turns, extra = {}) {
+    if (!source || !key) return;
+    const nextTurns = Math.max(durationValue(source[key]), Math.floor(Number(turns) || 0));
+    if (nextTurns > 0) source[key] = { ...extra, turns: nextTurns, fresh: true };
+}
+
+function clearDuration(source, key) {
+    if (source && key) delete source[key];
+}
+
+function setPendingEffect(ship, key, value, turns = 1, extra = {}) {
+    if (!ship || !key) return;
+    ship.pendingShotEffects = { ...asObject(ship.pendingShotEffects) };
+    ship.pendingShotEffects[key] = { ...extra, value, turns: Math.max(1, Math.floor(Number(turns) || 1)), fresh: true };
+}
+
+function pendingEffectValue(ship, key, fallback = 0) {
+    const entry = asObject(ship?.pendingShotEffects)[key];
+    if (entry && typeof entry === 'object') return Number(entry.value ?? fallback) || fallback;
+    return Number(entry ?? fallback) || fallback;
+}
+
+function pendingEffectPayload(ship, key) {
+    const entry = asObject(ship?.pendingShotEffects)[key];
+    if (!entry) return null;
+    if (entry && typeof entry === 'object' && Object.prototype.hasOwnProperty.call(entry, 'value')) return entry.value;
+    return entry;
+}
+
+function consumePendingEffect(ship, key) {
+    if (ship?.pendingShotEffects) delete ship.pendingShotEffects[key];
+}
+
+function clampPercent(value, fallback = 100) {
+    return clampNumber(value, 0, 100, fallback);
 }
 
 function escapeHtml(text) {
@@ -306,8 +459,9 @@ function normalizeRace(value) {
 function normalizeShipTraitKey(value) {
     const key = String(value || '').trim().toLowerCase().replace(/-/g, '_');
     if (!key) return '';
-    if (NAVAL_SHIP_TRAITS[key]) return key;
-    const embedded = Object.keys(NAVAL_SHIP_TRAITS).find((traitKey) => key.includes(traitKey));
+    if (key === 'ship_common_boat' || key === 'common' || key === 'boat') return 'boat';
+    if (NAVAL_SHIP_META[key]) return key;
+    const embedded = Object.keys(NAVAL_SHIP_META).find((traitKey) => traitKey !== 'boat' && key.includes(traitKey));
     return embedded || '';
 }
 
@@ -332,15 +486,30 @@ function resolveShipTraitKey(publicProfile = {}, shipProfile = {}, form = '') {
         || publicProfile.Species
     );
     const normalizedForm = normalizeShipForm({ form });
+    if (normalizedForm === 'boat' || normalizedForm === 'common') return 'boat';
     const fallback = race && normalizedForm ? `ship_${race}_${normalizedForm}` : '';
-    return NAVAL_SHIP_TRAITS[fallback] ? fallback : '';
+    return NAVAL_SHIP_META[fallback] ? fallback : '';
+}
+
+function shipMetaForKey(key, form = '') {
+    const normalizedKey = normalizeShipTraitKey(key);
+    if (NAVAL_SHIP_META[normalizedKey]) return NAVAL_SHIP_META[normalizedKey];
+    if (!String(form || '').trim()) return null;
+    const normalizedForm = normalizeShipForm({ form });
+    if (normalizedForm === 'boat' || normalizedForm === 'common') return NAVAL_SHIP_META.boat;
+    return null;
 }
 
 function maxSteeringForForm(form) {
     return SHIP_FORM_MAX_STEERING[form] || SHIP_FORM_MAX_STEERING.boat;
 }
 
-function weaponClassForForm(form) {
+function maxSteeringForShip(form, meta = null) {
+    return clampSteeringValue(meta?.maxSteering ?? maxSteeringForForm(form), 0.5, NAVAL_DURABILITY_MAX, maxSteeringForForm(form));
+}
+
+function weaponClassForForm(form, meta = null) {
+    if (meta?.lowFirepower) return 'small';
     return SHIP_FORM_WEAPON_CLASS[form] || SHIP_FORM_WEAPON_CLASS.boat;
 }
 
@@ -356,10 +525,15 @@ function cannonCommandLabel(ship, commandId) {
 }
 
 function cannonDamageForShip(ship, commandId) {
-    const small = ship?.weaponClass === 'small';
-    if (commandId === 'bowCannon') return small ? LIGHT_BOW_DAMAGE : BOW_DAMAGE;
-    if (commandId === 'broadside') return small ? LIGHT_BROADSIDE_DAMAGE : BROADSIDE_DAMAGE;
+    if (commandId === 'bowCannon') return BOW_DAMAGE;
+    if (commandId === 'broadside') return BROADSIDE_DAMAGE;
     return 0;
+}
+
+function previewCannonDamageForShip(ship, commandId) {
+    const base = cannonDamageForShip(ship, commandId);
+    if (!ship?.lowFirepower || base <= 0) return base;
+    return Math.max(STEERING_STEP, roundSteeringValue(base / 2));
 }
 
 function cannonDamageLabel(ship, commandId, variant = '') {
@@ -381,11 +555,15 @@ function isAttackCommand(commandId) {
     return commandId === 'assault' || commandId === 'bowCannon' || commandId === 'broadside';
 }
 
+function isDirectAttackCommand(commandId) {
+    return isAttackCommand(commandId);
+}
+
 function isRudderCommand(commandId) {
     return commandId === 'starboardRudder' || commandId === 'portRudder';
 }
 
-function evasionRateForShip(defender, attackerCommandId, defenderCommandId = defender?.lastResolvingCommandId) {
+function evasionRateForShip(defender, attackerCommandId, defenderCommandId = defender?.lastResolvingCommandId, attacker = null) {
     if (!defender || !isCannonCommand(attackerCommandId)) return 0;
     const activeCommandId = normalizeCommandId(defenderCommandId);
     if (activeCommandId === 'assault') return EVASION_RATE.assault;
@@ -394,8 +572,18 @@ function evasionRateForShip(defender, attackerCommandId, defenderCommandId = def
     if (facing === 'front') rate = EVASION_RATE.front;
     else if (isSideFacing(facing)) rate = EVASION_RATE.side;
     if (isRudderCommand(activeCommandId)) {
-        rate = Math.min(EVASION_RATE.rudderMax, rate + EVASION_RATE.rudderBonus);
+        const baseHitRate = Math.max(0, 1 - rate);
+        let reduction = hasDuration(defender.equipmentDamage, 'mast')
+            ? EVASION_RATE.rudderHitReduction / 2
+            : EVASION_RATE.rudderHitReduction;
+        if (hasDuration(defender.statuses, 'flood')) reduction = Math.max(0, reduction - 0.1);
+        rate = 1 - Math.max(0, baseHitRate - reduction);
     }
+    if (defender.shipDomain === 'air') rate += 0.3;
+    if (defender.shipDomain === 'underwater') rate -= 0.3;
+    if (shipHasPassive(defender, 'small-silhouette')) rate += 0.05;
+    if (shipHasPassive(defender, 'honest-rudder') && isRudderCommand(activeCommandId)) rate += 0.1;
+    if (shipHasPassive(attacker, 'bubbleless-torpedo') && attackerCommandId === 'broadside') rate -= 0.2;
     return clampNumber(rate, 0, 1, 0);
 }
 
@@ -425,11 +613,55 @@ function maybeEvadeDamageByPosture(b, attacker, defender, allowRandomEvasion = t
     if (!allowRandomEvasion || !attacker || !defender) return false;
     const attackerCommandId = normalizeCommandId(attacker.lastResolvingCommandId);
     const defenderCommandId = normalizeCommandId(defender.lastResolvingCommandId);
-    let rate = evasionRateForShip(defender, attackerCommandId, defenderCommandId);
-    const hasTraitEvasion = canApplyShipTraitEvasionBonus(defender, attackerCommandId, defenderCommandId);
-    if (maybePiercePostureEvasionByShipTrait(b, attacker, attackerCommandId, rate || (hasTraitEvasion ? 1 : 0))) return false;
-    rate = applyShipTraitEvasionBonus(b, defender, attackerCommandId, defenderCommandId, rate);
+    const worldLock = asObject(attacker.pendingShotEffects?.worldLock);
+    const ignoreConcealment = Boolean(worldLock.turns > 0 && isCannonCommand(attackerCommandId));
+    if (!ignoreConcealment && defender.illusion && isCannonCommand(attackerCommandId)) {
+        const chance = clampNumber(defender.illusion.chance, 0, 1, 0.5);
+        const roll = nextEvasionRoll(b);
+        defender.illusion = null;
+        if (roll < chance) {
+            recordEvasionResult(b, attacker, defender, attackerCommandId, 1, roll);
+            log(b, `${defender.label}の幻影が砲撃を吸い込んだ`);
+            return true;
+        }
+    }
+    let rate = evasionRateForShip(defender, attackerCommandId, defenderCommandId, attacker);
+    if (hasDuration(attacker.statuses, 'fire')) rate += 0.1;
+    if (pendingEffectValue(defender, 'incomingCannonHitDown') > 0 && isCannonCommand(attackerCommandId)) {
+        rate += pendingEffectValue(defender, 'incomingCannonHitDown');
+        consumePendingEffect(defender, 'incomingCannonHitDown');
+    }
+    if (pendingEffectValue(attacker, 'nextCannonHitUp') > 0 && isCannonCommand(attackerCommandId)) {
+        rate -= pendingEffectValue(attacker, 'nextCannonHitUp');
+    }
+    if (pendingShipPassiveValue(defender, 'waveTurn') > 0 && isCannonCommand(attackerCommandId)) {
+        const value = pendingShipPassiveValue(defender, 'waveTurn');
+        consumeShipPassivePending(defender, 'waveTurn');
+        rate += value;
+        logShipPassive(b, defender, `波風旋回で砲撃命中率 -${formatRatePercent(value)}`);
+    }
+    if (shipHasPassive(defender, 'balloon-retreat')
+        && isCannonCommand(attackerCommandId)
+        && !shipPassiveWasUsed(defender, 'balloon-retreat')) {
+        markShipPassiveUsed(b, defender, 'balloon-retreat', `最初の砲撃命中率 -${formatRatePercent(0.2)}`);
+        rate += 0.2;
+    }
+    if (shipHasPassive(defender, 'pressure-torpedo')
+        && defenderCommandId === 'broadside'
+        && isCannonCommand(attackerCommandId)) {
+        rate = Math.max(rate, 0.2);
+    }
+    if (ignoreConcealment) {
+        rate = Math.min(rate, Math.max(0, 1 - Number(worldLock.minFinalHitRate || 0.9)));
+        consumePendingEffect(attacker, 'worldLock');
+    }
+    rate = clampNumber(rate, 0, 1, 0);
     if (rate <= 0) return false;
+    if (rate >= 1) {
+        recordEvasionResult(b, attacker, defender, attackerCommandId, rate, 0);
+        log(b, `${defender.label}は回避した（回避率${formatRatePercent(rate)}）`);
+        return true;
+    }
     const roll = nextEvasionRoll(b);
     if (roll >= rate) return false;
     recordEvasionResult(b, attacker, defender, attackerCommandId, rate, roll);
@@ -440,6 +672,15 @@ function maybeEvadeDamageByPosture(b, attacker, defender, allowRandomEvasion = t
 function visualShipForm(ship) {
     const form = String(ship?.shipForm || 'boat');
     return SHIP_SPRITE_GROUP_X[form] !== undefined ? form : 'boat';
+}
+
+function shipSpriteAsset(ship) {
+    const key = String(ship?.shipTraitKey || '').toLowerCase();
+    const race = key.match(/^ship_(human|elf|goblin|orc)_/)?.[1] || '';
+    return {
+        ...SHIP_SPRITE_DEFAULT_ASSET,
+        path: SHIP_SPRITE_RACE_SHEETS[race] || SHIP_SPRITE_DEFAULT_ASSET.path
+    };
 }
 
 function rudderDodgeDirection(side, commandId, currentFacing = 'front') {
@@ -493,14 +734,20 @@ function visualPoseForCommand(side, commandId, facing = 'front') {
 }
 
 function shipSpriteFrame(ship, side, visualPose = '') {
+    const asset = shipSpriteAsset(ship);
     const form = visualShipForm(ship);
-    const groupX = SHIP_SPRITE_GROUP_X[form] || 0;
+    const key = String(ship?.shipTraitKey || '').toLowerCase();
+    const block = SHIP_SPRITE_BLOCKS[key] || SHIP_SPRITE_BLOCKS[form] || SHIP_SPRITE_BLOCKS.boat;
+    const groupX = -(block.col * SHIP_SPRITE_BLOCK_SIZE.width);
+    const groupY = -(block.row * SHIP_SPRITE_BLOCK_SIZE.height);
     const frames = SHIP_SPRITE_FRAMES[side] || SHIP_SPRITE_FRAMES.player;
     const pose = visualPose || normalizeFacing(ship?.facing);
     const frame = frames[pose] || frames.front;
     return {
         x: groupX + frame.x,
-        y: frame.y
+        y: groupY + frame.y,
+        asset,
+        frameSize: asset.frameSize
     };
 }
 
@@ -511,6 +758,27 @@ function normalizeArcanaGearId(value) {
     if (direct) return `arcana-${Math.max(0, Math.min(21, Number(direct[1]) || 0))}`;
     const loose = raw.match(/(?:arcana-|_)(\d+)$/i);
     return loose ? `arcana-${Math.max(0, Math.min(21, Number(loose[1]) || 0))}` : '';
+}
+
+function normalizeArcanaSpriteIndex(value, fallback = 0) {
+    const number = Number(value);
+    if (Number.isFinite(number)) return Math.max(0, Math.floor(number));
+    return Math.max(0, Math.floor(Number(fallback) || 0));
+}
+
+function arcanaSpriteInfo(source = {}) {
+    const gear = asObject(source);
+    const width = Math.max(1, Math.floor(Number(gear.spriteWidth || NAVAL_TAROT_SPRITE.width) || NAVAL_TAROT_SPRITE.width));
+    const height = Math.max(1, Math.floor(Number(gear.spriteHeight || NAVAL_TAROT_SPRITE.height) || NAVAL_TAROT_SPRITE.height));
+    const cols = Math.max(1, Math.floor(Number(gear.spriteCols || NAVAL_TAROT_SPRITE.cols) || NAVAL_TAROT_SPRITE.cols));
+    const index = normalizeArcanaSpriteIndex(gear.spriteIndex ?? gear.sprite_index, gear.arcanaNumber);
+    return {
+        spritePath: gear.spritePath || NAVAL_TAROT_SPRITE.path,
+        spriteIndex: index,
+        spriteWidth: width,
+        spriteHeight: height,
+        spriteCols: cols
+    };
 }
 
 function buildArcanaGearState(entry, slotIndex = 0) {
@@ -527,6 +795,13 @@ function buildArcanaGearState(entry, slotIndex = 0) {
     const arcanaNumber = Number(itemId.split('-')[1]);
     const arcanaElement = normalizeElement(gear.arcanaElement || sourceGear.arcanaElement);
     const equipmentName = gear.equipmentName || sourceGear.equipmentName || gear.shipGearName || sourceGear.shipGearName || itemId;
+    const sprite = arcanaSpriteInfo({
+        ...gear,
+        ...sourceGear,
+        ...source,
+        arcanaNumber,
+        spriteIndex: source.spriteIndex ?? source.sprite_index ?? sourceGear.spriteIndex ?? sourceGear.sprite_index ?? gear.spriteIndex ?? gear.sprite_index
+    });
     return {
         itemId,
         arcanaNumber,
@@ -542,7 +817,14 @@ function buildArcanaGearState(entry, slotIndex = 0) {
         roleLabel: gear.roleLabel || sourceGear.roleLabel || '',
         shortDescription: gear.shortDescription || sourceGear.shortDescription || '',
         activationLog: gear.activationLog || sourceGear.activationLog || `${equipmentName}が発動した。`,
+        replacementCommand: normalizeCommandId(gear.replacementCommand || sourceGear.replacementCommand || gear.navalEffect?.replacementCommand),
+        priority: Number.isFinite(Number(gear.priority ?? sourceGear.priority)) ? Number(gear.priority ?? sourceGear.priority) : arcanaNumber,
         navalEffect: { ...(gear.navalEffect || {}) },
+        spritePath: sprite.spritePath,
+        spriteIndex: sprite.spriteIndex,
+        spriteWidth: sprite.spriteWidth,
+        spriteHeight: sprite.spriteHeight,
+        spriteCols: sprite.spriteCols,
         used: Boolean(source.used),
         arcanaElementUsed: Boolean(source.arcanaElementUsed)
     };
@@ -572,6 +854,151 @@ function findArcanaGear(ship, type, { includeUsed = false } = {}) {
     return (ship?.arcanaGears || []).find((gear) => (
         gear?.navalEffect?.type === type && (includeUsed || !gear.used)
     )) || null;
+}
+
+function arcanaReplacementCommand(gear) {
+    return normalizeCommandId(gear?.replacementCommand || gear?.navalEffect?.replacementCommand);
+}
+
+function isArcanaReplacementSuppressed(ship) {
+    return Number(ship?.arcanaCommandLocks?.replacement || 0) > 0;
+}
+
+function activeArcanaForCommand(ship, commandId) {
+    const normalized = normalizeCommandId(commandId);
+    if (!ship || !normalized || isArcanaReplacementSuppressed(ship)) return null;
+    return (ship.arcanaGears || [])
+        .filter((gear) => gear && !gear.used && arcanaReplacementCommand(gear) === normalized)
+        .sort((a, b) => (Number(a.priority ?? a.arcanaNumber) - Number(b.priority ?? b.arcanaNumber)) || (a.slotIndex - b.slotIndex))[0] || null;
+}
+
+function pendingArcanaForCommand(ship, commandId) {
+    const normalized = normalizeCommandId(commandId);
+    const key = ship?.pendingArcanaKey || '';
+    if (!key) return null;
+    return (ship.arcanaGears || []).find((gear) => gear?.key === key && !gear.used && arcanaReplacementCommand(gear) === normalized) || null;
+}
+
+function hasEquipmentDamage(ship) {
+    return hasDuration(ship?.equipmentDamage, 'mast') || hasDuration(ship?.equipmentDamage, 'rudder');
+}
+
+function adjustMorale(ship, delta) {
+    if (!ship || !delta) return;
+    ship.morale = clampNumber((Number(ship.morale) || 0) + delta, -2, 2, 0);
+}
+
+function damageCrew(ship, percent) {
+    if (!ship) return 0;
+    const before = clampPercent(ship.crewHpPercent, 100);
+    ship.crewHpPercent = clampPercent(before - Math.max(0, Number(percent) || 0), 100);
+    return Math.max(0, before - ship.crewHpPercent);
+}
+
+function drainCrewMp(ship, percent) {
+    if (!ship) return 0;
+    const before = clampPercent(ship.crewMpPercent, 100);
+    ship.crewMpPercent = clampPercent(before - Math.max(0, Number(percent) || 0), 100);
+    return Math.max(0, before - ship.crewMpPercent);
+}
+
+function healCrew(ship, percent) {
+    if (!ship) return 0;
+    const before = clampPercent(ship.crewHpPercent, 100);
+    ship.crewHpPercent = clampPercent(before + Math.max(0, Number(percent) || 0), 100);
+    return Math.max(0, ship.crewHpPercent - before);
+}
+
+function cleanseStatuses(ship, names = []) {
+    if (!ship) return 0;
+    ship.statuses = normalizeDurationMap(ship.statuses);
+    const targets = names.length ? names : Object.keys(ship.statuses);
+    let removed = 0;
+    targets.forEach((name) => {
+        if (hasDuration(ship.statuses, name)) {
+            delete ship.statuses[name];
+            removed += 1;
+        }
+    });
+    return removed;
+}
+
+function repairEquipment(ship) {
+    if (!ship) return 0;
+    const before = Object.keys(normalizeDurationMap(ship.equipmentDamage)).length;
+    ship.equipmentDamage = {};
+    return before;
+}
+
+function addStatus(b, ship, name, turns, source = null) {
+    if (!ship || !name || Number(ship.battleFlags?.statusImmuneThisTurn || 0) > 0) return false;
+    ship.statuses = normalizeDurationMap(ship.statuses);
+    setDuration(ship.statuses, name, turns, { source: source?.label || '' });
+    if (b) log(b, `${ship.label}に${statusLabel(name)}が付与された`);
+    return true;
+}
+
+function addStatuses(b, ship, statuses = {}, source = null) {
+    let applied = 0;
+    Object.entries(asObject(statuses)).forEach(([name, turns]) => {
+        if (addStatus(b, ship, name, turns, source)) applied += 1;
+    });
+    return applied;
+}
+
+function addEquipmentDamage(b, ship, name, turns) {
+    if (!ship || !name) return false;
+    ship.equipmentDamage = normalizeDurationMap(ship.equipmentDamage);
+    setDuration(ship.equipmentDamage, name, turns);
+    if (b) log(b, `${ship.label}の${equipmentDamageLabel(name)}が損傷した`);
+    return true;
+}
+
+function tickDurationMap(map = {}) {
+    const next = {};
+    Object.entries(normalizeDurationMap(map)).forEach(([key, value]) => {
+        if (value.fresh) {
+            next[key] = { ...value, fresh: false };
+            return;
+        }
+        const turns = durationValue(value) - 1;
+        if (turns > 0) next[key] = { ...value, turns, fresh: false };
+    });
+    return next;
+}
+
+function tickPendingEffects(effects = {}) {
+    const next = {};
+    Object.entries(asObject(effects)).forEach(([key, value]) => {
+        const entry = value && typeof value === 'object' ? { ...value } : { value };
+        const turns = Math.max(0, Math.floor(Number(entry.turns || 0) || 0));
+        if (!turns) {
+            next[key] = entry;
+            return;
+        }
+        if (entry.fresh) {
+            next[key] = { ...entry, fresh: false };
+            return;
+        }
+        if (turns > 1) next[key] = { ...entry, turns: turns - 1, fresh: false };
+    });
+    return next;
+}
+
+function statusLabel(name) {
+    return {
+        fire: '炎上',
+        flood: '浸水',
+        confusion: '混乱',
+        fear: '恐怖'
+    }[name] || name;
+}
+
+function equipmentDamageLabel(name) {
+    return {
+        mast: 'マスト',
+        rudder: '舵輪'
+    }[name] || name;
 }
 
 function normalizeShipForm(shipProfile = {}) {
@@ -654,20 +1081,27 @@ function normalizeShipProfile(profile = {}, explicitShipProfile = {}) {
     const cargo = summarizeCargo(readCargoMap(publicProfile, shipProfile), modifier.cargo);
     const label = String(shipProfile.name || shipProfile.DisplayName || SHIP_FORM_LABEL[form] || '船').slice(0, 16);
     const element = normalizeElement(publicProfile.nation || publicProfile.Nation);
-    const weaponClass = weaponClassForForm(form);
     const shipTraitKey = resolveShipTraitKey(publicProfile, shipProfile, form);
-    const shipTrait = NAVAL_SHIP_TRAITS[shipTraitKey] || null;
+    const shipMeta = shipMetaForKey(shipTraitKey, form);
+    const weaponClass = weaponClassForForm(form, shipMeta);
+    const domain = shipMeta?.domain || 'surface';
     return {
         form,
-        formLabel: SHIP_FORM_LABEL[form] || '船',
+        formLabel: shipMeta?.name || SHIP_FORM_LABEL[form] || '船',
         name: label,
         level,
         shipLevel,
-        maxSteering: maxSteeringForForm(form),
+        maxSteering: maxSteeringForShip(form, shipMeta),
         weaponClass,
         weaponLabel: weaponLabelForClass(weaponClass),
         shipTraitKey,
-        shipTraitName: shipTrait?.name || '',
+        shipTraitName: shipMeta?.passiveName || '',
+        shipDomain: domain,
+        shipDomainLabel: SHIP_DOMAIN_LABEL[domain] || SHIP_DOMAIN_LABEL.surface,
+        lowFirepower: Boolean(shipMeta?.lowFirepower || weaponClass === 'small'),
+        shipPassiveKey: shipMeta?.passiveKey || '',
+        shipPassiveName: shipMeta?.passiveName || '',
+        shipPassiveMode: shipMeta?.passiveMode || '',
         element,
         elementLabel: ELEMENT_LABEL[element] || ELEMENT_LABEL.none,
         attackBonus: clampNumber(modifier.attack + Math.floor(attackStat / 12), 0, 1, 0),
@@ -696,6 +1130,14 @@ function createShip(label, isPlayer, profile = {}, shipProfile = {}) {
         elementLabel: spec.elementLabel,
         weaponClass: spec.weaponClass,
         weaponLabel: spec.weaponLabel,
+        shipDomain: spec.shipDomain,
+        shipDomainLabel: spec.shipDomainLabel,
+        lowFirepower: spec.lowFirepower,
+        shipPassiveKey: spec.shipPassiveKey,
+        shipPassiveName: spec.shipPassiveName,
+        shipPassiveMode: spec.shipPassiveMode,
+        shipPassiveUses: {},
+        shipPassivePending: {},
         shipTraitKey: spec.shipTraitKey,
         shipTraitName: spec.shipTraitName,
         shipTraitUsed: false,
@@ -709,12 +1151,24 @@ function createShip(label, isPlayer, profile = {}, shipProfile = {}) {
         topCargo: spec.topCargo,
         arcanaGears: resolveArcanaGearsFromShipProfile(shipProfile),
         arcanaShield: 0,
+        arcanaDamageShield: null,
         arcanaNextCannonBonus: 0,
         arcanaIgnoreNextDefense: false,
         arcanaCommandLocks: {},
+        morale: 0,
+        crewHpPercent: 100,
+        crewMpPercent: 100,
+        statuses: {},
+        equipmentDamage: {},
+        lockOn: null,
+        illusion: null,
+        pendingShotEffects: {},
+        delayedEffects: [],
+        battleFlags: {},
         facing: 'front',
         reload: 0,
         pendingCommandId: null,
+        pendingArcanaKey: null,
         lastCommandId: null,
         stun: 0,
         rudderCooldown: 0,
@@ -737,9 +1191,17 @@ function cloneShipState(source, fallbackLabel, isPlayer) {
     const ship = createShip(source?.label || fallbackLabel, isPlayer);
     const rawForm = String(source?.shipForm || source?.form || source?.shipClass || source?.class || '');
     ship.shipForm = rawForm ? normalizeShipForm({ form: rawForm }) : String(ship.shipForm || 'boat');
-    ship.shipType = String(source?.shipType || SHIP_FORM_LABEL[ship.shipForm] || ship.shipType || '船');
+    const resolvedTraitKey = normalizeShipTraitKey(
+        source?.shipTraitKey
+        || source?.itemId
+        || source?.ItemId
+        || source?.friendlyId
+        || source?.FriendlyId
+    ) || (ship.shipForm === 'boat' ? 'boat' : '');
+    const shipMeta = shipMetaForKey(resolvedTraitKey, ship.shipForm);
+    ship.shipType = String(source?.shipType || shipMeta?.name || SHIP_FORM_LABEL[ship.shipForm] || ship.shipType || '船');
     ship.shipName = String(source?.shipName || ship.shipName || ship.shipType || '船');
-    ship.maxHp = clampSteeringValue(source?.maxHp ?? source?.maxSteering ?? maxSteeringForForm(ship.shipForm), 0.5, STEERING_MAX, maxSteeringForForm(ship.shipForm));
+    ship.maxHp = clampSteeringValue(source?.maxHp ?? source?.maxSteering ?? maxSteeringForShip(ship.shipForm, shipMeta), 0.5, NAVAL_DURABILITY_MAX, maxSteeringForShip(ship.shipForm, shipMeta));
     ship.hp = clampSteeringValue(source?.hp ?? source?.steering ?? ship.maxHp, 0, ship.maxHp, ship.maxHp);
     ship.shipLevel = Math.max(1, Number(source?.shipLevel || ship.shipLevel || 1) || 1);
     ship.playerLevel = Math.max(1, Number(source?.playerLevel || ship.playerLevel || 1) || 1);
@@ -747,17 +1209,20 @@ function cloneShipState(source, fallbackLabel, isPlayer) {
     ship.elementLabel = String(source?.elementLabel || ELEMENT_LABEL[ship.element] || ELEMENT_LABEL.none);
     ship.weaponClass = source?.weaponClass === 'cannon' || source?.weaponClass === 'small'
         ? source.weaponClass
-        : weaponClassForForm(ship.shipForm);
+        : weaponClassForForm(ship.shipForm, shipMeta);
     ship.weaponLabel = String(source?.weaponLabel || weaponLabelForClass(ship.weaponClass));
-    ship.shipTraitKey = normalizeShipTraitKey(
-        source?.shipTraitKey
-        || source?.itemId
-        || source?.ItemId
-        || source?.friendlyId
-        || source?.FriendlyId
-    );
-    ship.shipTraitName = String(source?.shipTraitName || NAVAL_SHIP_TRAITS[ship.shipTraitKey]?.name || '');
-    ship.shipTraitUsed = Boolean(source?.shipTraitUsed ?? (ship.shipTraitKey ? source?.roleTraitUsed : false));
+    const domain = source?.shipDomain || shipMeta?.domain || 'surface';
+    ship.shipDomain = domain;
+    ship.shipDomainLabel = String(source?.shipDomainLabel || SHIP_DOMAIN_LABEL[domain] || SHIP_DOMAIN_LABEL.surface);
+    ship.lowFirepower = Boolean(source?.lowFirepower ?? (shipMeta?.lowFirepower || ship.weaponClass === 'small'));
+    ship.shipPassiveKey = String(source?.shipPassiveKey || shipMeta?.passiveKey || '');
+    ship.shipPassiveName = String(source?.shipPassiveName || source?.shipTraitName || shipMeta?.passiveName || '');
+    ship.shipPassiveMode = String(source?.shipPassiveMode || shipMeta?.passiveMode || '');
+    ship.shipPassiveUses = { ...asObject(source?.shipPassiveUses) };
+    ship.shipPassivePending = { ...asObject(source?.shipPassivePending) };
+    ship.shipTraitKey = resolvedTraitKey;
+    ship.shipTraitName = ship.shipPassiveName;
+    ship.shipTraitUsed = Boolean(source?.shipTraitUsed ?? (source?.roleTraitUsed || Object.keys(ship.shipPassiveUses).length > 0));
     ship.roleTraitUsed = Boolean(source?.roleTraitUsed);
     ship.elementAdvantageUsed = Boolean(source?.elementAdvantageUsed);
     ship.attackBonus = clampNumber(source?.attackBonus, 0, 1, ship.attackBonus || 0);
@@ -770,12 +1235,25 @@ function cloneShipState(source, fallbackLabel, isPlayer) {
         ? source.arcanaGears.map((entry, index) => cloneArcanaGearState(entry, index)).filter(Boolean).slice(0, 3)
         : [];
     ship.arcanaShield = Math.max(0, Number(source?.arcanaShield || 0) || 0);
+    ship.arcanaDamageShield = source?.arcanaDamageShield ? { ...asObject(source.arcanaDamageShield) } : null;
     ship.arcanaNextCannonBonus = Math.max(0, Number(source?.arcanaNextCannonBonus || 0) || 0);
     ship.arcanaIgnoreNextDefense = Boolean(source?.arcanaIgnoreNextDefense);
     ship.arcanaCommandLocks = { ...asObject(source?.arcanaCommandLocks) };
+    ship.morale = clampNumber(source?.morale, -2, 2, 0);
+    ship.crewHpPercent = clampPercent(source?.crewHpPercent, 100);
+    ship.crewMpPercent = clampPercent(source?.crewMpPercent, 100);
+    ship.statuses = normalizeDurationMap(source?.statuses);
+    ship.equipmentDamage = normalizeDurationMap(source?.equipmentDamage);
+    ship.lockOn = source?.lockOn ? { ...asObject(source.lockOn) } : null;
+    ship.illusion = source?.illusion ? { ...asObject(source.illusion) } : null;
+    ship.pendingShotEffects = { ...asObject(source?.pendingShotEffects) };
+    ship.delayedEffects = Array.isArray(source?.delayedEffects) ? source.delayedEffects.map((entry) => ({ ...asObject(entry) })) : [];
+    ship.battleFlags = { ...asObject(source?.battleFlags) };
     ship.facing = normalizeFacing(source?.facing);
     ship.reload = Math.max(0, Number(source?.reload || 0) || 0);
+    ship.rudderCooldown = Math.max(0, Number(source?.rudderCooldown || 0) || 0);
     ship.pendingCommandId = source?.pendingCommandId || null;
+    ship.pendingArcanaKey = source?.pendingArcanaKey || null;
     ship.lastCommandId = source?.lastCommandId || null;
     return ship;
 }
@@ -795,10 +1273,18 @@ function serializeShipState(ship) {
         elementLabel: ship.elementLabel || ELEMENT_LABEL.none,
         weaponClass: ship.weaponClass || weaponClassForForm(ship.shipForm),
         weaponLabel: ship.weaponLabel || weaponLabelForClass(ship.weaponClass),
+        shipDomain: ship.shipDomain || 'surface',
+        shipDomainLabel: ship.shipDomainLabel || SHIP_DOMAIN_LABEL[ship.shipDomain] || SHIP_DOMAIN_LABEL.surface,
+        lowFirepower: Boolean(ship.lowFirepower),
+        shipPassiveKey: ship.shipPassiveKey || '',
+        shipPassiveName: ship.shipPassiveName || '',
+        shipPassiveMode: ship.shipPassiveMode || '',
+        shipPassiveUses: { ...asObject(ship.shipPassiveUses) },
+        shipPassivePending: { ...asObject(ship.shipPassivePending) },
         shipTraitKey: ship.shipTraitKey || '',
-        shipTraitName: ship.shipTraitName || NAVAL_SHIP_TRAITS[ship.shipTraitKey]?.name || '',
-        shipTraitUsed: Boolean(ship.shipTraitUsed),
-        roleTraitUsed: Boolean(ship.roleTraitUsed || ship.shipTraitUsed),
+        shipTraitName: ship.shipTraitName || ship.shipPassiveName || NAVAL_SHIP_TRAITS[ship.shipTraitKey]?.passiveName || '',
+        shipTraitUsed: Boolean(ship.shipTraitUsed || Object.keys(asObject(ship.shipPassiveUses)).length > 0),
+        roleTraitUsed: Boolean(ship.roleTraitUsed || ship.shipTraitUsed || Object.keys(asObject(ship.shipPassiveUses)).length > 0),
         elementAdvantageUsed: Boolean(ship.elementAdvantageUsed),
         attackBonus: ship.attackBonus,
         defenseBonus: ship.defenseBonus,
@@ -821,20 +1307,39 @@ function serializeShipState(ship) {
             roleLabel: gear.roleLabel,
             shortDescription: gear.shortDescription,
             activationLog: gear.activationLog,
+            replacementCommand: gear.replacementCommand || '',
+            priority: gear.priority ?? gear.arcanaNumber,
             navalEffect: gear.navalEffect,
+            spritePath: gear.spritePath || NAVAL_TAROT_SPRITE.path,
+            spriteIndex: normalizeArcanaSpriteIndex(gear.spriteIndex, gear.arcanaNumber),
+            spriteWidth: Math.max(1, Math.floor(Number(gear.spriteWidth || NAVAL_TAROT_SPRITE.width) || NAVAL_TAROT_SPRITE.width)),
+            spriteHeight: Math.max(1, Math.floor(Number(gear.spriteHeight || NAVAL_TAROT_SPRITE.height) || NAVAL_TAROT_SPRITE.height)),
+            spriteCols: Math.max(1, Math.floor(Number(gear.spriteCols || NAVAL_TAROT_SPRITE.cols) || NAVAL_TAROT_SPRITE.cols)),
             used: Boolean(gear.used),
             arcanaElementUsed: Boolean(gear.arcanaElementUsed)
         })),
         arcanaShield: Math.max(0, Number(ship.arcanaShield || 0) || 0),
+        arcanaDamageShield: ship.arcanaDamageShield ? { ...asObject(ship.arcanaDamageShield) } : null,
         arcanaNextCannonBonus: Math.max(0, Number(ship.arcanaNextCannonBonus || 0) || 0),
         arcanaIgnoreNextDefense: Boolean(ship.arcanaIgnoreNextDefense),
         arcanaCommandLocks: { ...asObject(ship.arcanaCommandLocks) },
+        morale: clampNumber(ship.morale, -2, 2, 0),
+        crewHpPercent: clampPercent(ship.crewHpPercent, 100),
+        crewMpPercent: clampPercent(ship.crewMpPercent, 100),
+        statuses: durationMapForSnapshot(ship.statuses),
+        equipmentDamage: durationMapForSnapshot(ship.equipmentDamage),
+        lockOn: ship.lockOn ? { ...asObject(ship.lockOn) } : null,
+        illusion: ship.illusion ? { ...asObject(ship.illusion) } : null,
+        pendingShotEffects: { ...asObject(ship.pendingShotEffects) },
+        delayedEffects: Array.isArray(ship.delayedEffects) ? ship.delayedEffects.map((entry) => ({ ...asObject(entry) })) : [],
+        battleFlags: { ...asObject(ship.battleFlags) },
         facing: ship.facing,
         reload: ship.reload,
+        rudderCooldown: Math.max(0, Number(ship.rudderCooldown || 0) || 0),
         pendingCommandId: ship.pendingCommandId || null,
+        pendingArcanaKey: ship.pendingArcanaKey || null,
         lastCommandId: ship.lastCommandId || null,
         stun: ship.hp <= 0 ? 1 : 0,
-        rudderCooldown: 0,
         command: null
     };
 }
@@ -852,6 +1357,7 @@ function serializeBattleState(b) {
         reward: b.reward || null,
         rewardResult: b.rewardResult || null,
         lastArcanaActivation: b.lastArcanaActivation || null,
+        lastTurnSummary: b.lastTurnSummary || '',
         logs: Array.isArray(b.logs) ? b.logs.slice(0, 30) : [],
         finished: Boolean(b.finished),
         outcome: b.outcome || null
@@ -927,12 +1433,24 @@ function activateArcanaGear(b, owner, gear, message = '') {
     const side = owner.isPlayer ? 'player' : 'enemy';
     const title = gear.equipmentName || gear.shipGearName || 'アルカナ艤装';
     const body = gear.ultimateName || '';
+    const sprite = arcanaSpriteInfo(gear);
     b.lastArcanaActivation = {
         id: `${b.count || 0}:${side}:${gear.key}:${Date.now()}`,
         side,
         title,
-        body
+        body,
+        ...sprite
     };
+    if (Array.isArray(b.turnArcanaVisuals)) {
+        b.turnArcanaVisuals.push({
+            type: 'arcanaCard',
+            source: side,
+            title,
+            body,
+            key: gear.key,
+            ...sprite
+        });
+    }
     log(b, `${owner.label}の${title}「${body}」！ ${message || gear.activationLog || ''}`.trim());
     showArcanaCutin(title, body, side);
     return true;
@@ -962,12 +1480,16 @@ function sideAfterRudder(commandId, currentFacing) {
 }
 
 function commandLabel(commandId, ship = null) {
+    const arcana = pendingArcanaForCommand(ship, commandId) || activeArcanaForCommand(ship, commandId);
+    if (arcana) return arcana.ultimateName || arcanaDisplayName(arcana);
     if (isCannonCommand(commandId)) return cannonCommandLabel(ship, commandId);
     return COMMANDS[commandId]?.label || commandId || '行動';
 }
 
 function commandDescription(def, ship = null) {
     if (!def) return '';
+    const arcana = activeArcanaForCommand(ship, def.id);
+    if (arcana) return arcana.shortDescription || arcana.activationLog || '';
     if (def.id === 'bowCannon' && ship?.weaponClass === 'small') {
         return '正面の基本銃撃。威力は低いが突撃を止めやすい';
     }
@@ -975,6 +1497,28 @@ function commandDescription(def, ship = null) {
         return '横向き専用の側面銃撃。砲撃船の半分の負荷を与える';
     }
     return def.desc || '';
+}
+
+function firstEffectSentence(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    const sentence = text.match(/^(.+?[。.!?])/);
+    return sentence ? sentence[1] : text;
+}
+
+function commandPreviewText(def, ship = null) {
+    const id = normalizeCommandId(def?.id);
+    const arcana = activeArcanaForCommand(ship, id);
+    if (arcana) return firstEffectSentence(arcana.shortDescription || arcana.activationLog) || arcana.ultimateName || arcanaDisplayName(arcana);
+    if (id === 'assault') return '回頭を止める / 砲撃に弱い';
+    if (id === 'bowCannon') return '突撃を止める';
+    if (id === 'broadside') return '横から大ダメージ';
+    if (id === 'starboardRudder') return '砲撃を避ける';
+    if (id === 'portRudder') return '正面へ戻る';
+    if (id === 'blankShot') return '空撃ち / 読み外し狙い';
+    if (id === 'repair') return '設備損傷を直す';
+    if (id === 'boarding') return '白兵戦へ移る';
+    return '';
 }
 
 function commandCallout(commandId, ship = null) {
@@ -989,20 +1533,37 @@ function commandCallout(commandId, ship = null) {
     if (id === 'starboardRudder') return 'おもかじいっぱああい！！';
     if (id === 'portRudder') return 'とりかじいっぱああい！！';
     if (id === 'blankShot') return '空砲、鳴らせえ！！';
+    if (id === 'repair') return '応急修理、急げえ！！';
     if (id === 'boarding') return '乗り込めええ！！';
     return '';
 }
 
 function commandTypeLabel(def, ship = null) {
+    if (activeArcanaForCommand(ship, def?.id)) return '大アルカナ';
     if (isCannonCommand(def?.id)) return ship?.weaponLabel || '砲撃';
     return COMMAND_TYPE_LABEL[def?.type] || '行動';
+}
+
+function commandAvailabilityLabel(def, ship = null) {
+    if (activeArcanaForCommand(ship, def?.id)) return '置換';
+    if (isCannonCommand(def?.id)) return Number(ship?.reload || 0) > 0 ? '再装填中' : `${ship?.weaponLabel || '砲撃'}可`;
+    if (isRudderCommand(def?.id)) {
+        if (Number(ship?.rudderCooldown || 0) > 0) return '回頭直後';
+        if (Number(ship?.arcanaCommandLocks?.rudder || 0) > 0) return '操舵封じ';
+        if (hasDuration(ship?.equipmentDamage, 'rudder')) return '舵輪損傷';
+    }
+    if (def?.id === 'repair') return hasEquipmentDamage(ship) ? '損傷あり' : '損傷なし';
+    return '制限なし';
 }
 
 function canSelect(b, self, foe, def) {
     if (!b || b.finished || !self || !def) return false;
     if (self.pendingCommandId) return false;
     if (self.hp <= 0) return false;
+    if (def.id === 'repair') return hasEquipmentDamage(self);
+    if (isRudderCommand(def.id) && Number(self.rudderCooldown || 0) > 0) return false;
     if ((def.id === 'starboardRudder' || def.id === 'portRudder') && Number(self.arcanaCommandLocks?.rudder || 0) > 0) return false;
+    if ((def.id === 'starboardRudder' || def.id === 'portRudder') && hasDuration(self.equipmentDamage, 'rudder')) return false;
     if (def.id === 'boarding') return foe?.hp <= 0;
     if (def.id === 'assault' && isSideFacing(self.facing)) return false;
     if (isCannonCommand(def.id) && self.reload > 0) return false;
@@ -1012,14 +1573,19 @@ function canSelect(b, self, foe, def) {
     return true;
 }
 
-function availableCommands(b, self, foe) {
+function commandOptionsForState(b, self, foe) {
     if (!b || b.finished) return [];
     if (foe?.hp <= 0 && self?.hp > 0) return [COMMANDS.boarding];
     if (self?.hp <= 0) return [];
     const ids = isSideFacing(self.facing)
         ? ['broadside', 'blankShot', 'portRudder']
         : ['assault', 'bowCannon', 'starboardRudder'];
-    return ids.map((id) => COMMANDS[id]).filter((def) => def && canSelect(b, self, foe, def));
+    if (hasEquipmentDamage(self)) ids.push('repair');
+    return ids.map((id) => COMMANDS[id]).filter(Boolean);
+}
+
+function availableCommands(b, self, foe) {
+    return commandOptionsForState(b, self, foe).filter((def) => canSelect(b, self, foe, def));
 }
 
 function healShip(ship, amount) {
@@ -1088,6 +1654,218 @@ function tickArcanaCommandLocks(ship) {
     if (ship) ship.arcanaCommandLocks = locks;
 }
 
+function markArcanaSuccess(b, owner, gear, target = null) {
+    if (!owner || !gear || gear.successMarked) return;
+    gear.successMarked = true;
+    adjustMorale(owner, 1);
+    if (target) adjustMorale(target, -1);
+    if (b) log(b, `${owner.label}の${arcanaDisplayName(gear)}が成功した。士気 ${owner.morale}`);
+}
+
+function applyRoundStartStatusEffects(b, ship) {
+    if (!ship) return;
+    if (hasDuration(ship.statuses, 'fire')) {
+        const drained = damageCrew(ship, 10);
+        if (drained > 0) log(b, `${ship.label}は炎上で船員HP -${drained}%`);
+    }
+    if (hasDuration(ship.statuses, 'flood')) {
+        const drained = drainCrewMp(ship, 10);
+        if (drained > 0) log(b, `${ship.label}は浸水で船員MP -${drained}%`);
+    }
+}
+
+function resetTurnBattleFlags(ship) {
+    if (!ship) return;
+    ship.battleFlags = {};
+}
+
+function maybeApplyConfusionSelfDamage(b, ship, commandId) {
+    if (!ship || !isAttackCommand(commandId) || !hasDuration(ship.statuses, 'confusion')) return 0;
+    const roll = nextEvasionRoll(b);
+    if (roll >= 0.5) return 0;
+    const damage = 0.5;
+    ship.hp = clampSteeringValue(ship.hp - damage, 0, ship.maxHp, 0);
+    log(b, `${ship.label}は混乱して自船に${formatSteeringValue(damage)}ダメージ`);
+    return damage;
+}
+
+function applySelectedArcanaStart(b, owner, target, commandId, gear) {
+    if (!gear) return;
+    activateArcanaGear(b, owner, gear);
+    owner.activeArcanaThisTurn = gear;
+    const effect = asObject(gear.navalEffect);
+    const type = effect.type;
+    if (effect.clearLockOn) owner.lockOn = null;
+    if (Array.isArray(effect.cleanse)) cleanseStatuses(owner, effect.cleanse);
+    if (type === 'fool-port-evade') {
+        owner.battleFlags.directEvadeThisTurn = true;
+        markArcanaSuccess(b, owner, gear);
+    } else if (type === 'strength-assault') {
+        adjustMorale(owner, Number(effect.morale || 0));
+        markArcanaSuccess(b, owner, gear);
+    } else if (type === 'hermit-blank') {
+        setPendingEffect(owner, 'incomingCannonHitDown', Number(effect.nextCannonHitDown || 0.2), effect.turns || 1);
+        markArcanaSuccess(b, owner, gear);
+    } else if (type === 'lovers-bind-assault') {
+        setArcanaCommandLock(owner, 'rudder', effect.bothRudderLock || 1);
+        setArcanaCommandLock(target, 'rudder', effect.bothRudderLock || 1);
+        markArcanaSuccess(b, owner, gear, target);
+    } else if (type === 'hanged-blank') {
+        addStatuses(b, target, effect.targetStatus, owner);
+        owner.battleFlags.halveDirectThisTurn = true;
+        owner.battleFlags.statusImmuneThisTurn = true;
+        markArcanaSuccess(b, owner, gear, target);
+    } else if (type === 'temperance-blank') {
+        cleanseStatuses(owner);
+        if (effect.moraleToNeutral) owner.morale = 0;
+        markArcanaSuccess(b, owner, gear);
+    } else if (type === 'star-blank') {
+        consumePendingEffect(owner, 'incomingCannonHitDown');
+        setPendingEffect(owner, 'nextCannonHitUp', Number(effect.nextCannonHitUp || 0.2), effect.turns || 2, { healOnCannonHit: effect.healOnCannonHit || 1 });
+        markArcanaSuccess(b, owner, gear);
+    } else if (type === 'moon-blank') {
+        owner.illusion = { chance: clampNumber(effect.illusionChance, 0, 1, 0.5), hideHp: Boolean(effect.hideHp) };
+        markArcanaSuccess(b, owner, gear);
+    } else if (type === 'sun-blank') {
+        if (target) {
+            target.illusion = null;
+            target.lockOn = null;
+        }
+        b.battleFog = null;
+        setPendingEffect(owner, 'nextCannonStatus', effect.nextCannonStatus || { fire: 2 }, effect.turns || 2);
+        markArcanaSuccess(b, owner, gear, target);
+    } else if (type === 'judgement-blank') {
+        cleanseStatuses(owner, effect.cleanse || ['fear', 'confusion']);
+        healCrew(owner, Number(effect.crewHealPercent || 20));
+        if (effect.repairEquipment) repairEquipment(owner);
+        markArcanaSuccess(b, owner, gear);
+    } else if (type === 'world-broadside') {
+        setPendingEffect(owner, 'worldLock', 1, effect.completeLockOnTurns || 3, {
+            minFinalHitRate: effect.minFinalHitRate || 0.9,
+            ignoreConcealment: Boolean(effect.ignoreConcealment)
+        });
+        if (target) target.lockOn = { by: owner.label, turns: effect.completeLockOnTurns || 3 };
+        markArcanaSuccess(b, owner, gear, target);
+    }
+}
+
+function forceArcanaRudderSuccess(ship, commandId, previousFacing, currentFacing, gear) {
+    if (!gear?.navalEffect?.forceRudderSuccess || !isRudderCommand(commandId)) return currentFacing;
+    return sideAfterRudder(commandId, previousFacing);
+}
+
+function applyArcanaRudderSuccessEffects(b, owner, target, commandId, previousFacing, gear) {
+    if (!gear || !isRudderCommand(commandId)) return;
+    if (normalizeFacing(owner.facing) === normalizeFacing(previousFacing)) return;
+    const effect = asObject(gear.navalEffect);
+    const payload = asObject(effect.onRudderSuccess);
+    if (!Object.keys(payload).length) {
+        markArcanaSuccess(b, owner, gear, target);
+        return;
+    }
+    const removed = Array.isArray(payload.cleanse) ? cleanseStatuses(owner, payload.cleanse) : 0;
+    let healed = 0;
+    if (payload.heal) healed = healShip(owner, payload.heal);
+    if (payload.crewFullHeal) {
+        owner.crewHpPercent = 100;
+        owner.crewMpPercent = 100;
+    }
+    if (!removed && !healed && payload.fallbackHeal) healed = healShip(owner, payload.fallbackHeal);
+    if (removed || healed || payload.crewFullHeal) markArcanaSuccess(b, owner, gear);
+}
+
+function applyArcanaAfterDamage(b, attacker, defender, commandId, defenderCommandId, gear, dealtDamage) {
+    if (!gear || dealtDamage <= 0) return;
+    const effect = asObject(gear.navalEffect);
+    const type = effect.type;
+    if (type === 'emperor-shield-bow') {
+        attacker.arcanaDamageShield = { turns: effect.onHitShield?.turns || 2, fresh: true };
+        markArcanaSuccess(b, attacker, gear, defender);
+    } else if (type === 'hierophant-seal-bow') {
+        setArcanaCommandLock(defender, 'replacement', effect.onHitLockReplacement || 1);
+        markArcanaSuccess(b, attacker, gear, defender);
+    } else if (type === 'chariot-assault') {
+        addStatuses(b, defender, effect.onHitStatus, attacker);
+        markArcanaSuccess(b, attacker, gear, defender);
+    } else if (type === 'strength-assault') {
+        if (isRudderCommand(defenderCommandId)) addEquipmentDamage(b, defender, 'rudder', effect.rudderDamageOnStop || 1);
+        markArcanaSuccess(b, attacker, gear, defender);
+    } else if (type === 'justice-assault') {
+        const reflected = {};
+        Object.entries(normalizeDurationMap(attacker.statuses)).forEach(([name, value]) => { reflected[name] = durationValue(value); });
+        if (Object.keys(reflected).length) addStatuses(b, defender, reflected, attacker);
+        markArcanaSuccess(b, attacker, gear, defender);
+    } else if (type === 'death-broadside') {
+        defender.delayedEffects = Array.isArray(defender.delayedEffects) ? defender.delayedEffects : [];
+        defender.delayedEffects.push({ type: 'damage', turns: effect.delayedDamage?.turns || 3, damage: effect.delayedDamage?.damage || 1, source: attacker.label, fresh: true });
+        markArcanaSuccess(b, attacker, gear, defender);
+    } else if (type === 'devil-broadside') {
+        addStatuses(b, defender, effect.onHitStatus, attacker);
+        markArcanaSuccess(b, attacker, gear, defender);
+    } else if (type === 'tower-broadside') {
+        damageCrew(defender, effect.crewDamagePercent || 10);
+        addEquipmentDamage(b, defender, 'mast', effect.mastDamage || 2);
+        markArcanaSuccess(b, attacker, gear, defender);
+    }
+    const shotStatus = pendingEffectPayload(attacker, 'nextCannonStatus');
+    if (isCannonCommand(commandId) && shotStatus && typeof shotStatus === 'object') {
+        addStatuses(b, defender, shotStatus, attacker);
+        consumePendingEffect(attacker, 'nextCannonStatus');
+    }
+    const hitUp = asObject(attacker.pendingShotEffects?.nextCannonHitUp);
+    if (isCannonCommand(commandId) && Object.keys(hitUp).length) {
+        const heal = Number(hitUp.healOnCannonHit || 0);
+        if (heal > 0) {
+            const healed = healShip(attacker, heal);
+            if (!healed) healCrew(attacker, 1);
+        }
+        consumePendingEffect(attacker, 'nextCannonHitUp');
+    }
+}
+
+function applyWheelRecoilIfNeeded(b, owner, attacker, ownerCommandId, attackerCommandId, ownerArcana, pendingDamageToOwner, dealtByAttacker) {
+    if (ownerArcana?.navalEffect?.type !== 'wheel-starboard') return 0;
+    if (!isCannonCommand(attackerCommandId) || pendingDamageToOwner <= 0 || dealtByAttacker > 0) return 0;
+    const damage = Math.max(0, roundSteeringValue(ownerArcana.navalEffect.cannonMissRecoil || 0.5));
+    if (damage <= 0) return 0;
+    attacker.hp = clampSteeringValue(attacker.hp - damage, 0, attacker.maxHp, 0);
+    log(b, `${owner.label}の${arcanaDisplayName(ownerArcana)}が砲撃反動を返した: ${attacker.label} -${formatSteeringValue(damage)}`);
+    markArcanaSuccess(b, owner, ownerArcana, attacker);
+    checkLowSteeringArcana(b, attacker, owner);
+    return damage;
+}
+
+function applyEndOfRoundEffects(b, ship, foe) {
+    if (!ship) return;
+    ship.statuses = tickDurationMap(ship.statuses);
+    ship.equipmentDamage = tickDurationMap(ship.equipmentDamage);
+    ship.pendingShotEffects = tickPendingEffects(ship.pendingShotEffects);
+    ship.shipPassivePending = tickShipPassivePending(ship.shipPassivePending);
+    if (ship.arcanaDamageShield) {
+        const next = tickDurationMap({ shield: ship.arcanaDamageShield }).shield;
+        ship.arcanaDamageShield = next || null;
+    }
+    const delayed = [];
+    (Array.isArray(ship.delayedEffects) ? ship.delayedEffects : []).forEach((entry) => {
+        const current = { ...asObject(entry) };
+        if (current.fresh) {
+            delayed.push({ ...current, fresh: false });
+            return;
+        }
+        const turns = Math.max(0, Math.floor(Number(current.turns || 0) || 0) - 1);
+        if (turns > 0) delayed.push({ ...current, turns, fresh: false });
+        else if (current.type === 'damage') {
+            const damage = Math.max(0, roundSteeringValue(Number(current.damage || 0)));
+            if (damage > 0) {
+                ship.hp = clampSteeringValue(ship.hp - damage, 0, ship.maxHp, 0);
+                log(b, `${ship.label}の死の刻印が発動: 操舵ゲージ -${formatSteeringValue(damage)}`);
+                checkLowSteeringArcana(b, ship, foe);
+            }
+        }
+    });
+    ship.delayedEffects = delayed;
+}
+
 function maybeCancelRudderMisread(b, defender, targetCommandId, amount, entry) {
     if (entry?.kind !== 'misread' || commandIntent(targetCommandId) !== 'rudder') return amount;
     const cancelGear = findArcanaGear(defender, 'cancel-rudder-misread');
@@ -1099,126 +1877,152 @@ function maybeCancelRudderMisread(b, defender, targetCommandId, amount, entry) {
     return amount;
 }
 
-function getAvailableShipTrait(ship, type = '') {
-    const trait = NAVAL_SHIP_TRAITS[ship?.shipTraitKey];
-    if (!trait || ship?.shipTraitUsed) return null;
-    if (type && trait.type !== type) return null;
-    return trait;
+function shipPassiveKey(ship) {
+    return String(ship?.shipPassiveKey || shipMetaForKey(ship?.shipTraitKey, ship?.shipForm)?.passiveKey || '');
 }
 
-function activateShipTrait(b, ship, message = '') {
-    const trait = getAvailableShipTrait(ship);
-    if (!b || !ship || !trait) return null;
+function shipPassiveName(ship) {
+    return String(ship?.shipPassiveName || ship?.shipTraitName || shipMetaForKey(ship?.shipTraitKey, ship?.shipForm)?.passiveName || '');
+}
+
+function shipHasPassive(ship, key) {
+    return shipPassiveKey(ship) === key;
+}
+
+function shipPassiveUseCount(ship, key = shipPassiveKey(ship)) {
+    return Math.max(0, Number(asObject(ship?.shipPassiveUses)[key] || 0) || 0);
+}
+
+function shipPassiveWasUsed(ship, key = shipPassiveKey(ship)) {
+    return shipPassiveUseCount(ship, key) > 0;
+}
+
+function markShipPassiveUsed(b, ship, key = shipPassiveKey(ship), message = '') {
+    if (!ship || !key) return false;
+    ship.shipPassiveUses = { ...asObject(ship.shipPassiveUses) };
+    ship.shipPassiveUses[key] = shipPassiveUseCount(ship, key) + 1;
     ship.shipTraitUsed = true;
     ship.roleTraitUsed = true;
-    log(b, `${ship.label}の${trait.name}: ${message || '固有能力が発動'}`);
-    return trait;
+    if (b) log(b, `${ship.label}の${shipPassiveName(ship) || '固有パッシブ'}: ${message || '発動'}`);
+    return true;
 }
 
-function maybeUseShipTraitAttackBoost(b, attacker, commandId, amount, entry) {
+function logShipPassive(b, ship, message = '') {
+    if (b && ship && message) log(b, `${ship.label}の${shipPassiveName(ship) || '固有パッシブ'}: ${message}`);
+}
+
+function setShipPassivePending(ship, key, value = true, turns = 1, extra = {}) {
+    if (!ship || !key) return;
+    ship.shipPassivePending = { ...asObject(ship.shipPassivePending) };
+    ship.shipPassivePending[key] = { ...extra, value, turns: Math.max(1, Math.floor(Number(turns) || 1)), fresh: true };
+}
+
+function consumeShipPassivePending(ship, key) {
+    if (ship?.shipPassivePending) delete ship.shipPassivePending[key];
+}
+
+function pendingShipPassiveValue(ship, key, fallback = 0) {
+    const entry = asObject(ship?.shipPassivePending)[key];
+    if (entry && typeof entry === 'object') return Number(entry.value ?? fallback) || fallback;
+    return Number(entry ?? fallback) || fallback;
+}
+
+function tickShipPassivePending(pending = {}) {
+    return tickPendingEffects(pending);
+}
+
+function rollShipPassiveChance(b, chance) {
+    return nextEvasionRoll(b) < clampNumber(chance, 0, 1, 0);
+}
+
+function maybeUseShipPassiveAttackBoost(b, attacker, commandId, amount, entry) {
     if (entry?.kind !== 'attack' || !attacker || amount <= 0) return amount;
-    const trait = getAvailableShipTrait(attacker);
-    if (!trait) return amount;
-    const bow = commandId === 'bowCannon';
-    const broadside = commandId === 'broadside';
-    const assault = commandId === 'assault';
-    if (bow && (trait.type === 'bow-boost' || trait.type === 'bow-boost-evasion-pierce')) {
-        activateShipTrait(b, attacker, `船首砲の負荷 +${formatSteeringValue(trait.damageBonus || 0)}`);
-        if (trait.type === 'bow-boost-evasion-pierce') attacker.shipTraitBypassEvasion = true;
-        return amount + arcanaBonusValue(trait.damageBonus || 0);
-    }
-    if (broadside && trait.type === 'broadside-boost') {
-        activateShipTrait(b, attacker, `舷側砲の負荷 +${formatSteeringValue(trait.damageBonus || 0)}`);
-        return amount + arcanaBonusValue(trait.damageBonus || 0);
-    }
-    if (assault && (trait.type === 'assault-boost' || trait.type === 'assault-boost-guard')) {
-        activateShipTrait(b, attacker, `突撃の負荷 +${formatSteeringValue(trait.damageBonus || 0)}`);
-        if (trait.type === 'assault-boost-guard') {
-            attacker.shipTraitAssaultBroadsideGuard = Math.max(
-                attacker.shipTraitAssaultBroadsideGuard || 0,
-                arcanaBonusValue(trait.broadsideGuard || 0)
-            );
+    if (commandId === 'assault' && shipHasPassive(attacker, 'human-assault-ram')) {
+        const turnStartHp = Number(attacker.turnStartHp ?? attacker.hp ?? 0) || 0;
+        const maxHp = Math.max(0.5, Number(attacker.maxHp || 0) || 0.5);
+        if (turnStartHp >= maxHp / 2) {
+            logShipPassive(b, attacker, `耐久50%以上の馬衝角で負荷 +${formatSteeringValue(0.5)}`);
+            return amount + 0.5;
         }
-        return amount + arcanaBonusValue(trait.damageBonus || 0);
     }
     return amount;
 }
 
-function maybePiercePostureEvasionByShipTrait(b, attacker, attackerCommandId, rate) {
-    if (!attacker || attacker.shipTraitBypassEvasion) return Boolean(attacker?.shipTraitBypassEvasion);
-    if (attackerCommandId !== 'bowCannon' || rate <= 0) return false;
-    const trait = getAvailableShipTrait(attacker, 'bow-evasion-pierce');
-    if (!trait) return false;
-    activateShipTrait(b, attacker, '相手の姿勢回避を見切った');
-    attacker.shipTraitBypassEvasion = true;
-    return true;
+function applyLowFirepowerDamage(b, attacker, commandId, amount, entry) {
+    if (!attacker?.lowFirepower || entry?.kind !== 'attack' || !isDirectAttackCommand(commandId) || amount <= 0) return amount;
+    const next = Math.max(STEERING_STEP, roundSteeringValue(amount / 2));
+    if (next < amount) logShipPassive(b, attacker, `低火力により直接負荷 ${formatSteeringValue(amount)} -> ${formatSteeringValue(next)}`);
+    return next;
 }
 
-function canApplyShipTraitEvasionBonus(defender, attackerCommandId, defenderCommandId) {
-    if (!defender || !isCannonCommand(attackerCommandId)) return false;
-    const activeCommandId = normalizeCommandId(defenderCommandId);
-    if (activeCommandId === 'assault') return false;
-    const trait = getAvailableShipTrait(defender);
-    if (!trait) return false;
-    return (trait.type === 'rudder-evasion' && isRudderCommand(activeCommandId))
-        || trait.type === 'cannon-evasion';
-}
-
-function applyShipTraitEvasionBonus(b, defender, attackerCommandId, defenderCommandId, rate) {
-    if (!defender || !isCannonCommand(attackerCommandId)) return rate;
-    const activeCommandId = normalizeCommandId(defenderCommandId);
-    if (activeCommandId === 'assault') return rate;
-    const trait = getAvailableShipTrait(defender);
-    if (!trait) return rate;
-    if (trait.type === 'rudder-evasion' && isRudderCommand(activeCommandId)) {
-        activateShipTrait(b, defender, `旋回中の回避率 +${formatRatePercent(trait.bonus || 0)}`);
-        return Math.min(Number(trait.max || rate), rate + Number(trait.bonus || 0));
-    }
-    if (trait.type === 'cannon-evasion') {
-        activateShipTrait(b, defender, `砲撃回避率 +${formatRatePercent(trait.bonus || 0)}`);
-        return Math.min(Number(trait.max || rate), rate + Number(trait.bonus || 0));
-    }
-    return rate;
-}
-
-function maybeReduceDamageByShipTrait(b, attacker, defender, value) {
+function maybeReduceDamageByShipPassive(b, attacker, defender, value) {
     if (!attacker || !defender || value <= 0) return value;
-    const trait = getAvailableShipTrait(defender);
-    if (!trait) return value;
     const attackerCommandId = normalizeCommandId(attacker.lastResolvingCommandId);
     const defenderCommandId = normalizeCommandId(defender.lastResolvingCommandId);
-    let reduce = 0;
-    if (trait.type === 'first-hit-reduce') reduce = trait.reduce || 0;
-    else if (trait.type === 'reduce-assault-hit' && attackerCommandId === 'assault') reduce = trait.reduce || 0;
-    else if (trait.type === 'reduce-bow-hit' && attackerCommandId === 'bowCannon') reduce = trait.reduce || 0;
-    else if (trait.type === 'assault-cannon-reduce' && defenderCommandId === 'assault' && isCannonCommand(attackerCommandId)) reduce = trait.reduce || 0;
-    if (reduce <= 0) return value;
-    activateShipTrait(b, defender, `被弾負荷 -${formatSteeringValue(reduce)}`);
-    return Math.max(0, roundSteeringValue(value - arcanaBonusValue(reduce)));
+    if (!isDirectAttackCommand(attackerCommandId)) return value;
+    let next = value;
+    if (shipHasPassive(defender, 'stone-hull') && !shipPassiveWasUsed(defender, 'stone-hull')) {
+        markShipPassiveUsed(b, defender, 'stone-hull', `初回直接被弾を${formatSteeringValue(0.5)}軽減`);
+        next = Math.max(STEERING_STEP, roundSteeringValue(next - 0.5));
+    }
+    const diveGuard = pendingShipPassiveValue(defender, 'diveGuard');
+    if (diveGuard > 0) {
+        consumeShipPassivePending(defender, 'diveGuard');
+        logShipPassive(b, defender, `急降下後の姿勢で直接被弾を${formatSteeringValue(diveGuard)}軽減`);
+        next = Math.max(STEERING_STEP, roundSteeringValue(next - diveGuard));
+    }
+    if (shipHasPassive(defender, 'bow-mirror-null')
+        && attackerCommandId === 'bowCannon'
+        && defenderCommandId === 'bowCannon'
+        && !shipPassiveWasUsed(defender, 'bow-mirror-null')) {
+        markShipPassiveUsed(b, defender, 'bow-mirror-null', '船首砲同士の初回被弾を無効化');
+        return 0;
+    }
+    if (shipHasPassive(defender, 'assault-mirror-null')
+        && attackerCommandId === 'assault'
+        && defenderCommandId === 'assault'
+        && !shipPassiveWasUsed(defender, 'assault-mirror-null')) {
+        markShipPassiveUsed(b, defender, 'assault-mirror-null', '突撃同士の初回被弾を無効化');
+        return 0;
+    }
+    return next;
 }
 
-function maybeCounterAssaultByShipTrait(b, attacker, defender, dealtDamage) {
+function maybeCounterAssaultByShipTrait() {}
+
+function maybeApplyShipPassiveAfterDamage(b, attacker, defender, commandId, dealtDamage) {
     if (!attacker || !defender || dealtDamage <= 0) return;
-    const trait = getAvailableShipTrait(defender, 'counter-assault-hit');
-    if (!trait || normalizeCommandId(attacker.lastResolvingCommandId) !== 'assault') return;
-    activateShipTrait(b, defender, `突撃した敵へ${formatSteeringValue(trait.damage || 0)}反撃`);
-    const counterDamage = arcanaBonusValue(trait.damage || 0.5);
-    attacker.hp = clampSteeringValue(attacker.hp - counterDamage, 0, attacker.maxHp, 0);
-    log(b, `${trait.name}: ${attacker.label}の操舵ゲージ -${formatSteeringValue(counterDamage)}`);
-    checkLowSteeringArcana(b, attacker, defender);
+    const addProcStatus = (key, chance, status, turns) => {
+        if (!shipHasPassive(attacker, key)) return;
+        if (!rollShipPassiveChance(b, chance)) return;
+        logShipPassive(b, attacker, `${statusLabel(status)}を付与`);
+        addStatus(b, defender, status, turns, attacker);
+    };
+    if (commandId === 'broadside') {
+        addProcStatus('human-broadside-fire', 0.2, 'fire', 2);
+        addProcStatus('elf-broadside-fear', 0.2, 'fear', 2);
+    }
+    if (commandId === 'bowCannon') {
+        addProcStatus('human-bow-fire', 0.15, 'fire', 2);
+        addProcStatus('goblin-bow-flood', 0.15, 'flood', 2);
+        if (shipHasPassive(attacker, 'elf-bow-bomb') && rollShipPassiveChance(b, 0.15)) {
+            const extra = 0.5;
+            defender.hp = clampSteeringValue(defender.hp - extra, 0, defender.maxHp, 0);
+            logShipPassive(b, attacker, `爆弾投下が追加負荷 ${formatSteeringValue(extra)}`);
+            checkLowSteeringArcana(b, defender, attacker);
+        }
+    }
+    if (commandId === 'assault') {
+        addProcStatus('goblin-assault-flood', 0.15, 'flood', 2);
+        if (shipHasPassive(attacker, 'elf-assault-dive')) {
+            setShipPassivePending(attacker, 'diveGuard', 0.5, 1);
+            logShipPassive(b, attacker, '次の直接被弾を0.5軽減する姿勢に入った');
+        }
+    }
 }
 
 function maybeApplyShipTraitAfterDamage(b, attacker, defender, commandId, dealtDamage) {
-    if (!attacker || !defender || dealtDamage <= 0 || commandId !== 'broadside') return;
-    const trait = getAvailableShipTrait(attacker);
-    if (!trait) return;
-    if (trait.type === 'broadside-lock-rudder') {
-        activateShipTrait(b, attacker, '敵の次の面舵/取舵を封じた');
-        setArcanaCommandLock(defender, 'rudder', trait.turns || 1);
-    } else if (trait.type === 'broadside-force-front') {
-        activateShipTrait(b, attacker, '敵船を正面へ引き戻した');
-        defender.arcanaForceFacing = 'front';
-    }
+    maybeApplyShipPassiveAfterDamage(b, attacker, defender, commandId, dealtDamage);
 }
 
 function maybeUseElementAdvantage(b, attacker, defender, commandId, amount, entry) {
@@ -1236,7 +2040,7 @@ function maybeBoostAttack(b, attacker, defender, commandId, targetCommandId, dam
     let next = damage;
     next = maybeCancelRudderMisread(b, defender, targetCommandId, next, entry);
     if (next <= 0) return 0;
-    next = maybeUseShipTraitAttackBoost(b, attacker, commandId, next, entry);
+    next = maybeUseShipPassiveAttackBoost(b, attacker, commandId, next, entry);
     next = maybeUseElementAdvantage(b, attacker, defender, commandId, next, entry);
     if (commandId === 'assault') {
         const ramGear = findArcanaGear(attacker, 'ram-boost');
@@ -1289,6 +2093,10 @@ function maybeBoostAttack(b, attacker, defender, commandId, targetCommandId, dam
             next = Math.max(0, roundSteeringValue(next - reduce));
         }
     }
+    if (hasDuration(attacker?.statuses, 'fear')) {
+        next = Math.max(0.5, roundSteeringValue(next / 2));
+    }
+    next = applyLowFirepowerDamage(b, attacker, commandId, next, entry);
     return next;
 }
 
@@ -1296,7 +2104,14 @@ function applyDamageToShip(b, attacker, defender, amount, label, { allowEvade = 
     let value = Math.max(0, roundSteeringValue(Number(amount) || 0));
     if (!defender || value <= 0) return 0;
     const attackerCommandId = attacker?.lastResolvingCommandId;
+    if (defender.battleFlags?.directEvadeThisTurn && isDirectAttackCommand(attackerCommandId)) {
+        log(b, `${defender.label}は大アルカナで直接攻撃を回避した`);
+        return 0;
+    }
     if (maybeEvadeDamageByPosture(b, attacker, defender, allowRandomEvasion)) return 0;
+    if (defender.battleFlags?.halveDirectThisTurn && isDirectAttackCommand(attackerCommandId)) {
+        value = Math.max(0.5, roundSteeringValue(value / 2));
+    }
     if (allowEvade) {
         const foolGear = findArcanaGear(defender, 'fool-evade');
         if (foolGear && !shouldPierceArcanaDefense(b, attacker, defender, foolGear)) {
@@ -1342,7 +2157,13 @@ function applyDamageToShip(b, attacker, defender, amount, label, { allowEvade = 
             arcanaBonusValue(halveGear.navalEffect.nextCannonBonus || 0.5)
         );
     }
-    value = maybeReduceDamageByShipTrait(b, attacker, defender, value);
+    value = maybeReduceDamageByShipPassive(b, attacker, defender, value);
+    if (defender.arcanaDamageShield && isDirectAttackCommand(attackerCommandId)) {
+        const before = value;
+        value = Math.max(0.5, roundSteeringValue(value / 2));
+        defender.arcanaDamageShield = null;
+        log(b, `${defender.label}の大アルカナシールドが${formatSteeringValue(before - value)}負荷を軽減した`);
+    }
     if (defender.arcanaShield > 0) {
         const blocked = Math.min(value, defender.arcanaShield);
         value = roundSteeringValue(value - blocked);
@@ -1406,6 +2227,7 @@ function actionCategory(commandId, facing) {
     if (commandId === 'bowCannon') return 'bow';
     if (commandId === 'broadside') return 'broadside';
     if (commandId === 'blankShot') return 'blank';
+    if (commandId === 'repair') return 'repair';
     if (commandId === 'portRudder') return isSideFacing(facing) ? 'return' : 'blank';
     if (commandId === 'starboardRudder') return isSideFacing(facing) ? 'return' : 'turn';
     if (commandIntent(commandId) === 'rudder') {
@@ -1468,11 +2290,15 @@ function resolveActionMatrix(b, playerCommandId, enemyCommandId) {
             addDamage(result, 'player', cannonDamage('enemy', 'bowCannon'), cannonLabel('enemy', 'bowCannon', 'exchange'), 'enemy');
             addDamage(result, 'enemy', cannonDamage('player', 'bowCannon'), cannonLabel('player', 'bowCannon', 'exchange'), 'player');
         } else if (p === 'bow' && e === 'turn') {
+            addDamage(result, 'enemy', cannonDamage('player', 'bowCannon'), cannonLabel('player', 'bowCannon', 'turning'), 'player');
             setTurnFacing('enemy', enemyCommandId, b.enemy.facing);
-            result.logs.push(`${b.enemy.label}は${cannonBase('player', 'bowCannon')}を回避した。`);
         } else if (p === 'turn' && e === 'bow') {
+            addDamage(result, 'player', cannonDamage('enemy', 'bowCannon'), cannonLabel('enemy', 'bowCannon', 'turning'), 'enemy');
             setTurnFacing('player', playerCommandId, b.player.facing);
-            result.logs.push(`${b.player.label}は${cannonBase('enemy', 'bowCannon')}を回避した。`);
+        } else if ((p === 'assault' || p === 'bow') && e === 'repair') {
+            addDamage(result, 'enemy', p === 'assault' ? ASSAULT_DAMAGE : cannonDamage('player', 'bowCannon'), p === 'assault' ? '修理中への突撃' : cannonLabel('player', 'bowCannon'), 'player');
+        } else if (p === 'repair' && (e === 'assault' || e === 'bow')) {
+            addDamage(result, 'player', e === 'assault' ? ASSAULT_DAMAGE : cannonDamage('enemy', 'bowCannon'), e === 'assault' ? '修理中への突撃' : cannonLabel('enemy', 'bowCannon'), 'enemy');
         } else if (p === 'turn' && e === 'turn') {
             setTurnFacing('player', playerCommandId, b.player.facing);
             setTurnFacing('enemy', enemyCommandId, b.enemy.facing);
@@ -1515,11 +2341,21 @@ function resolveActionMatrix(b, playerCommandId, enemyCommandId) {
         } else if (frontAction === 'bow' && sideAction === 'blank') {
             addDamage(result, sideTarget, cannonDamage(frontTarget, 'bowCannon'), cannonLabel(frontTarget, 'bowCannon'), frontTarget);
         } else if (frontAction === 'bow' && sideAction === 'return') {
+            addDamage(result, sideTarget, cannonDamage(frontTarget, 'bowCannon'), cannonLabel(frontTarget, 'bowCannon', 'turning'), frontTarget);
             setSideFacing('front');
-            result.logs.push(`${frontSide === 'player' ? b.enemy.label : b.player.label}は${cannonBase(frontTarget, 'bowCannon')}を回避して正面へ戻った。`);
+        } else if (frontAction === 'bow' && sideAction === 'repair') {
+            addDamage(result, sideTarget, cannonDamage(frontTarget, 'bowCannon'), cannonLabel(frontTarget, 'bowCannon'), frontTarget);
+        } else if (frontAction === 'assault' && sideAction === 'repair') {
+            addDamage(result, sideTarget, ASSAULT_DAMAGE, '修理中への突撃', frontTarget);
+            setFrontFacing('front');
+            setSideFacing('front');
+        } else if (frontAction === 'repair' && sideAction === 'broadside') {
+            addDamage(result, frontTarget, cannonDamage(sideTarget, 'broadside'), cannonLabel(sideTarget, 'broadside'), sideTarget);
+        } else if (frontAction === 'repair' && sideAction === 'return') {
+            setSideFacing('front');
         } else if (frontAction === 'turn' && sideAction === 'broadside') {
+            addDamage(result, frontTarget, cannonDamage(sideTarget, 'broadside'), cannonLabel(sideTarget, 'broadside', 'turning'), sideTarget);
             setFrontFacing(sideAfterRudder(frontCommandId, frontFacing));
-            result.logs.push(`${frontLabel}は${cannonBase(sideTarget, 'broadside')}を読んで回避した。`);
         } else if (frontAction === 'turn' && sideAction === 'blank') {
             addDamage(result, frontTarget, MISREAD_DAMAGE, '空砲への無駄な回避', sideTarget, 'misread');
             setFrontFacing(sideAfterRudder(frontCommandId, frontFacing));
@@ -1550,11 +2386,19 @@ function resolveActionMatrix(b, playerCommandId, enemyCommandId) {
     } else if (p === 'blank' && e === 'broadside') {
         addDamage(result, 'player', cannonDamage('enemy', 'broadside'), cannonLabel('enemy', 'broadside'), 'enemy');
     } else if (p === 'broadside' && e === 'return') {
+        addDamage(result, 'enemy', cannonDamage('player', 'broadside'), cannonLabel('player', 'broadside', 'turning'), 'player');
         setFront('enemy');
-        result.logs.push(`${b.enemy.label}は${cannonBase('player', 'broadside')}を回避して正面へ戻った。`);
     } else if (p === 'return' && e === 'broadside') {
+        addDamage(result, 'player', cannonDamage('enemy', 'broadside'), cannonLabel('enemy', 'broadside', 'turning'), 'enemy');
         setFront('player');
-        result.logs.push(`${b.player.label}は${cannonBase('enemy', 'broadside')}を回避して正面へ戻った。`);
+    } else if (p === 'broadside' && e === 'repair') {
+        addDamage(result, 'enemy', cannonDamage('player', 'broadside'), cannonLabel('player', 'broadside'), 'player');
+    } else if (p === 'repair' && e === 'broadside') {
+        addDamage(result, 'player', cannonDamage('enemy', 'broadside'), cannonLabel('enemy', 'broadside'), 'enemy');
+    } else if (p === 'repair' && e === 'return') {
+        setFront('enemy');
+    } else if (p === 'return' && e === 'repair') {
+        setFront('player');
     } else if (p === 'blank' && e === 'return') {
         addDamage(result, 'enemy', MISREAD_DAMAGE, '空砲への無駄な回避', 'player', 'misread');
         setFront('enemy');
@@ -1593,6 +2437,17 @@ function resolveActionMatrix(b, playerCommandId, enemyCommandId) {
     return result;
 }
 
+function applyChariotAssaultMirror(result, playerCommandId, enemyCommandId, playerArcana, enemyArcana) {
+    if (!result || playerCommandId !== 'assault' || enemyCommandId !== 'assault') return;
+    const playerChariot = playerArcana?.navalEffect?.type === 'chariot-assault';
+    const enemyChariot = enemyArcana?.navalEffect?.type === 'chariot-assault';
+    if (playerChariot && !enemyChariot) {
+        result.damages = result.damages.filter((entry) => !(entry.target === 'player' && entry.source === 'enemy'));
+    } else if (enemyChariot && !playerChariot) {
+        result.damages = result.damages.filter((entry) => !(entry.target === 'enemy' && entry.source === 'player'));
+    }
+}
+
 function createCommandMatrixShip(label, facing) {
     return {
         label,
@@ -1604,6 +2459,20 @@ function createCommandMatrixShip(label, facing) {
     };
 }
 
+function expectedCommandMatrixDamage(base, entry, playerCommandId, enemyCommandId) {
+    const targetSide = entry?.target === 'enemy' ? 'enemy' : 'player';
+    const sourceSide = entry?.source === 'enemy' ? 'enemy' : 'player';
+    const defender = targetSide === 'player' ? base.player : base.enemy;
+    const attackerCommandId = sourceSide === 'player' ? playerCommandId : enemyCommandId;
+    const defenderCommandId = targetSide === 'player' ? playerCommandId : enemyCommandId;
+    const rate = evasionRateForShip(
+        { ...defender, lastResolvingCommandId: defenderCommandId },
+        attackerCommandId,
+        defenderCommandId
+    );
+    return roundSteeringValue(Number(entry?.amount || 0) * Math.max(0, 1 - rate));
+}
+
 function analyzeCommandMatrixPair(playerFacing, enemyFacing, playerCommandId, enemyCommandId) {
     const base = {
         player: createCommandMatrixShip('自船', playerFacing),
@@ -1612,14 +2481,20 @@ function analyzeCommandMatrixPair(playerFacing, enemyFacing, playerCommandId, en
     const result = resolveActionMatrix(base, playerCommandId, enemyCommandId);
     const playerDamage = result.damages
         .filter((entry) => entry.target === 'player')
-        .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+        .reduce((sum, entry) => sum + expectedCommandMatrixDamage(base, entry, playerCommandId, enemyCommandId), 0);
     const enemyDamage = result.damages
         .filter((entry) => entry.target === 'enemy')
-        .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+        .reduce((sum, entry) => sum + expectedCommandMatrixDamage(base, entry, playerCommandId, enemyCommandId), 0);
     const score = roundSteeringValue(enemyDamage - playerDamage);
     const playerDodgedShot = result.firedEnemy && playerDamage <= 0 && commandIntent(playerCommandId) === 'rudder';
     const enemyDodgedShot = result.firedPlayer && enemyDamage <= 0 && commandIntent(enemyCommandId) === 'rudder';
     const tacticalScore = roundSteeringValue(score + (playerDodgedShot ? 0.5 : 0) - (enemyDodgedShot ? 0.5 : 0));
+    const nextPlayerFacing = normalizeFacing(result.playerFacing);
+    const nextEnemyFacing = normalizeFacing(result.enemyFacing);
+    const playerRudderCooldown = isRudderCommand(playerCommandId)
+        && normalizeFacing(playerFacing) !== nextPlayerFacing;
+    const enemyRudderCooldown = isRudderCommand(enemyCommandId)
+        && normalizeFacing(enemyFacing) !== nextEnemyFacing;
     let outcome = 'draw';
     if (tacticalScore > 0) outcome = 'win';
     if (tacticalScore < 0) outcome = 'loss';
@@ -1635,12 +2510,14 @@ function analyzeCommandMatrixPair(playerFacing, enemyFacing, playerCommandId, en
         outcome,
         playerDodgedShot,
         enemyDodgedShot,
-        nextPlayerFacing: normalizeFacing(result.playerFacing),
-        nextPlayerFacingLabel: FACING_LABEL[normalizeFacing(result.playerFacing)] || '正面',
-        nextEnemyFacing: normalizeFacing(result.enemyFacing),
-        nextEnemyFacingLabel: FACING_LABEL[normalizeFacing(result.enemyFacing)] || '正面',
+        nextPlayerFacing,
+        nextPlayerFacingLabel: FACING_LABEL[nextPlayerFacing] || '正面',
+        nextEnemyFacing,
+        nextEnemyFacingLabel: FACING_LABEL[nextEnemyFacing] || '正面',
         playerReload: result.firedPlayer ? RELOAD_TURNS : 0,
-        enemyReload: result.firedEnemy ? RELOAD_TURNS : 0
+        enemyReload: result.firedEnemy ? RELOAD_TURNS : 0,
+        playerRudderCooldown,
+        enemyRudderCooldown
     };
 }
 
@@ -1680,7 +2557,7 @@ function analyzeCommandMatrix() {
     ];
     return {
         mode: 'basic',
-        note: '基本ルールのみ。実戦では回避率・艤装・船能力で変化します。',
+        note: '基本ルールのみ。砲撃は回避率込みの期待負荷。大砲は再装填が必要。面舵/取舵で姿勢が変わった次の1手は連続操舵不可。実戦では艤装・船能力で変化します。',
         states: states.map((state) => {
             const enemyCommands = state.enemyCommands.map((commandId) => ({
                 id: commandId,
@@ -1734,7 +2611,7 @@ function checkBattleTransition(b) {
     checkReviveOrCancel(b, b.enemy, b.player);
     if (b.player.hp <= 0 && b.enemy.hp <= 0) {
         log(b, '両船が制御を失った。対等条件で白兵戦へ移行する。');
-        finishBattle(b, 'boarding');
+        finishBattle(b, 'boarding', { deferBoarding: true });
         return true;
     }
     if (b.enemy.hp <= 0) {
@@ -1743,7 +2620,7 @@ function checkBattleTransition(b) {
     }
     if (b.player.hp <= 0) {
         log(b, `${b.player.label}が操舵不能。敵船が接舷してくる！`);
-        finishBattle(b, 'boarded');
+        finishBattle(b, 'boarded', { deferBoarding: true });
         return true;
     }
     return false;
@@ -1754,6 +2631,17 @@ function completeReload(ship, firedThisTurn) {
         ship.reload = RELOAD_TURNS;
     } else if (ship.reload > 0) {
         ship.reload = Math.max(0, ship.reload - 1);
+    }
+}
+
+function completeRudderCooldown(b, ship, commandId, previousFacing) {
+    if (!ship) return;
+    const changedByRudder = isRudderCommand(commandId)
+        && normalizeFacing(previousFacing) !== normalizeFacing(ship.facing);
+    ship.rudderCooldown = changedByRudder ? 1 : 0;
+    if (changedByRudder && shipHasPassive(ship, 'wave-turn') && rollShipPassiveChance(b, 0.3)) {
+        setShipPassivePending(ship, 'waveTurn', 0.3, 1);
+        logShipPassive(b, ship, `次ターン最初の被砲撃命中率 -${formatRatePercent(0.3)}`);
     }
 }
 
@@ -1792,10 +2680,67 @@ function applyWorldReadingBonus(b, owner, target, dealtByOwner, dealtByTarget) {
     );
 }
 
-function createTurnVisualState(b, playerCommandId, enemyCommandId, damageByTarget = {}, dealtBySource = {}, previousFacing = {}, evadedByTarget = {}) {
+function commandSummaryLabel(commandId, ship = null) {
+    if (isCannonCommand(commandId)) return cannonCommandLabel(ship, commandId);
+    return COMMANDS[commandId]?.label || commandId || '';
+}
+
+function statusAdditionsSince(ship, previousStatuses = {}) {
+    const before = normalizeDurationMap(previousStatuses);
+    return Object.entries(normalizeDurationMap(ship?.statuses)).filter(([name, value]) => {
+        const previousTurns = durationValue(before[name]);
+        return durationValue(value) > previousTurns;
+    }).map(([name]) => statusLabel(name));
+}
+
+function buildResultChipEffects(b, damageByTarget = {}, dealtBySource = {}, evadedByTarget = {}, assaultFailed = {}, previousStatuses = {}) {
+    const chips = [];
+    const add = (target, text, tone = '') => {
+        if (!text || chips.length >= 2) return;
+        chips.push({ type: 'resultChip', target, text, tone });
+    };
+    if (Number(dealtBySource.player || 0) > 0) add('enemy', `命中 -${formatSteeringValue(dealtBySource.player)}`, 'hit');
+    if (Number(dealtBySource.enemy || 0) > 0) add('player', `命中 -${formatSteeringValue(dealtBySource.enemy)}`, 'hit');
+    if ((evadedByTarget.player || []).length) add('player', '回避', 'evade');
+    if ((evadedByTarget.enemy || []).length) add('enemy', '回避', 'evade');
+    if (assaultFailed.player) add('player', '突撃失敗', 'fail');
+    if (assaultFailed.enemy) add('enemy', '突撃失敗', 'fail');
+    statusAdditionsSince(b?.player, previousStatuses.player).forEach((label) => add('player', label, 'status'));
+    statusAdditionsSince(b?.enemy, previousStatuses.enemy).forEach((label) => add('enemy', label, 'status'));
+    if (!chips.length && (Number(damageByTarget.player || 0) > 0 || Number(damageByTarget.enemy || 0) > 0)) {
+        if (Number(damageByTarget.enemy || 0) > 0) add('enemy', `命中 -${formatSteeringValue(damageByTarget.enemy)}`, 'hit');
+        if (Number(damageByTarget.player || 0) > 0) add('player', `命中 -${formatSteeringValue(damageByTarget.player)}`, 'hit');
+    }
+    return chips;
+}
+
+function buildTurnSummary(b, playerCommandId, enemyCommandId, dealtBySource = {}, evadedByTarget = {}, assaultFailed = {}) {
+    const playerLabel = commandSummaryLabel(playerCommandId, b?.player);
+    const enemyLabel = commandSummaryLabel(enemyCommandId, b?.enemy);
+    const playerDamage = Number(dealtBySource.player || 0);
+    const enemyDamage = Number(dealtBySource.enemy || 0);
+    if (playerDamage > 0 && enemyDamage > 0) {
+        return `自船 ${playerLabel} 命中 -${formatSteeringValue(playerDamage)} / 敵 ${enemyLabel} 命中 -${formatSteeringValue(enemyDamage)}`;
+    }
+    if (playerDamage > 0) return `自船 ${playerLabel} 命中 / 敵 -${formatSteeringValue(playerDamage)}`;
+    if (enemyDamage > 0) return `敵 ${enemyLabel} 命中 / 自船 -${formatSteeringValue(enemyDamage)}`;
+    if ((evadedByTarget.player || []).length) return `敵砲撃 回避 / ${playerLabel}成功`;
+    if ((evadedByTarget.enemy || []).length) return `自船砲撃 回避された / ${enemyLabel}`;
+    if (assaultFailed.player) return `自船 突撃失敗 / ${enemyLabel}で止められた`;
+    if (assaultFailed.enemy) return `敵 突撃失敗 / ${playerLabel}で止めた`;
+    return `自船 ${playerLabel} / 敵 ${enemyLabel}`;
+}
+
+function createTurnVisualState(b, playerCommandId, enemyCommandId, damageByTarget = {}, dealtBySource = {}, previousFacing = {}, evadedByTarget = {}, previousStatuses = {}) {
     if (!b) return null;
     const playerPose = visualPoseForCommand('player', playerCommandId, previousFacing.player || b.player.facing);
     const enemyPose = visualPoseForCommand('enemy', enemyCommandId, previousFacing.enemy || b.enemy.facing);
+    const playerAssaultFailed = playerCommandId === 'assault'
+        && Number(damageByTarget.player || 0) > 0
+        && Number(dealtBySource.player || 0) <= 0;
+    const enemyAssaultFailed = enemyCommandId === 'assault'
+        && Number(damageByTarget.enemy || 0) > 0
+        && Number(dealtBySource.enemy || 0) <= 0;
     const effects = [];
     const addCallout = (source, commandId) => {
         const ship = source === 'player' ? b.player : b.enemy;
@@ -1825,20 +2770,37 @@ function createTurnVisualState(b, playerCommandId, enemyCommandId, damageByTarge
             dodgeDirection
         });
     };
+    const addAssaultFail = (source) => {
+        effects.push({
+            type: 'assaultFail',
+            source
+        });
+    };
 
     addCallout('player', playerCommandId);
     addCallout('enemy', enemyCommandId);
+    if (Array.isArray(b.turnArcanaVisuals)) {
+        effects.push(...b.turnArcanaVisuals);
+        b.turnArcanaVisuals = [];
+    }
     addShot('player', playerCommandId, 'enemy', enemyCommandId);
     addShot('enemy', enemyCommandId, 'player', playerCommandId);
+    if (playerAssaultFailed) addAssaultFail('player');
+    if (enemyAssaultFailed) addAssaultFail('enemy');
+    const assaultFailed = { player: playerAssaultFailed, enemy: enemyAssaultFailed };
+    effects.push(...buildResultChipEffects(b, damageByTarget, dealtBySource, evadedByTarget, assaultFailed, previousStatuses));
+    b.lastTurnSummary = buildTurnSummary(b, playerCommandId, enemyCommandId, dealtBySource, evadedByTarget, assaultFailed);
 
     return {
         token: `${Date.now()}:${b.turn}:${playerCommandId}:${enemyCommandId}`,
         playerPose,
         enemyPose,
-        playerHit: Number(damageByTarget.player || 0) > 0,
-        enemyHit: Number(damageByTarget.enemy || 0) > 0,
+        playerHit: Number(dealtBySource.enemy || 0) > 0,
+        enemyHit: Number(dealtBySource.player || 0) > 0,
         playerSurge: playerCommandId === 'assault',
         enemySurge: enemyCommandId === 'assault',
+        playerAssaultFailed,
+        enemyAssaultFailed,
         impactShake: Number(dealtBySource.player || 0) > 0 || Number(dealtBySource.enemy || 0) > 0,
         effects
     };
@@ -1896,6 +2858,8 @@ function resolveSimultaneousCommands(b) {
         player: normalizeFacing(b.player.facing),
         enemy: normalizeFacing(b.enemy.facing)
     };
+    const playerArcana = pendingArcanaForCommand(b.player, playerCommandId);
+    const enemyArcana = pendingArcanaForCommand(b.enemy, enemyCommandId);
 
     if (playerCommandId === 'boarding' && b.enemy.hp <= 0) {
         if (maybeBlockOpportunity(b, b.player, b.enemy, playerCommandId)) {
@@ -1923,6 +2887,16 @@ function resolveSimultaneousCommands(b) {
     }
     tickArcanaCommandLocks(b.player);
     tickArcanaCommandLocks(b.enemy);
+    resetTurnBattleFlags(b.player);
+    resetTurnBattleFlags(b.enemy);
+    b.player.turnStartHp = b.player.hp;
+    b.enemy.turnStartHp = b.enemy.hp;
+    applyRoundStartStatusEffects(b, b.player);
+    applyRoundStartStatusEffects(b, b.enemy);
+    const previousStatuses = {
+        player: durationMapForSnapshot(b.player.statuses),
+        enemy: durationMapForSnapshot(b.enemy.statuses)
+    };
     b.count += 1;
     b.turn += 1;
     b.player.lastCommandId = playerCommandId;
@@ -1931,14 +2905,24 @@ function resolveSimultaneousCommands(b) {
     b.enemy.lastResolvingCommandId = enemyCommandId;
     b.player.arcanaAssaultBroadsideGuard = 0;
     b.enemy.arcanaAssaultBroadsideGuard = 0;
-    b.player.shipTraitBypassEvasion = false;
-    b.enemy.shipTraitBypassEvasion = false;
-    b.player.shipTraitAssaultBroadsideGuard = 0;
-    b.enemy.shipTraitAssaultBroadsideGuard = 0;
     b.turnEvasions = [];
+    b.turnArcanaVisuals = [];
 
     log(b, `第${b.turn}合: ${b.player.label}「${commandLabel(playerCommandId, b.player)}」 / ${b.enemy.label}「${commandLabel(enemyCommandId, b.enemy)}」`);
+    if (playerCommandId === 'repair') {
+        const repaired = repairEquipment(b.player);
+        if (repaired) log(b, `${b.player.label}は設備を修理した`);
+    }
+    if (enemyCommandId === 'repair') {
+        const repaired = repairEquipment(b.enemy);
+        if (repaired) log(b, `${b.enemy.label}は設備を修理した`);
+    }
+    maybeApplyConfusionSelfDamage(b, b.player, playerCommandId);
+    maybeApplyConfusionSelfDamage(b, b.enemy, enemyCommandId);
+    applySelectedArcanaStart(b, b.player, b.enemy, playerCommandId, playerArcana);
+    applySelectedArcanaStart(b, b.enemy, b.player, enemyCommandId, enemyArcana);
     const result = resolveActionMatrix(b, playerCommandId, enemyCommandId);
+    applyChariotAssaultMirror(result, playerCommandId, enemyCommandId, playerArcana, enemyArcana);
     result.logs.forEach((entry) => log(b, entry));
 
     const damageByTarget = { player: 0, enemy: 0 };
@@ -1962,12 +2946,6 @@ function resolveSimultaneousCommands(b) {
                 log(b, `${targetShip.label}の衝角艤装が舷側迎撃を${formatSteeringValue(guarded)}軽減した`);
                 targetShip.arcanaAssaultBroadsideGuard = 0;
             }
-            if (targetShip.shipTraitAssaultBroadsideGuard > 0) {
-                const guarded = Math.min(nextAmount, targetShip.shipTraitAssaultBroadsideGuard);
-                nextAmount = Math.max(0, roundSteeringValue(nextAmount - guarded));
-                log(b, `${targetShip.label}の${targetShip.shipTraitName || '固有能力'}が舷側迎撃を${formatSteeringValue(guarded)}軽減した`);
-                targetShip.shipTraitAssaultBroadsideGuard = 0;
-            }
         }
         const appliedAmount = roundSteeringValue(nextAmount);
         if (appliedAmount > 0) {
@@ -1982,13 +2960,17 @@ function resolveSimultaneousCommands(b) {
         dealtBySource.enemy += dealt;
         maybeLockRudderAfterAssault(b, b.enemy, b.player, enemyCommandId, dealt);
         maybeApplyShipTraitAfterDamage(b, b.enemy, b.player, enemyCommandId, dealt);
+        applyArcanaAfterDamage(b, b.enemy, b.player, enemyCommandId, playerCommandId, enemyArcana, dealt);
     }
     if (damageByTarget.enemy > 0) {
         const dealt = applyDamageToShip(b, b.player, b.enemy, damageByTarget.enemy, labelsByTarget.enemy.join(' / ') || '海戦結果');
         dealtBySource.player += dealt;
         maybeLockRudderAfterAssault(b, b.player, b.enemy, playerCommandId, dealt);
         maybeApplyShipTraitAfterDamage(b, b.player, b.enemy, playerCommandId, dealt);
+        applyArcanaAfterDamage(b, b.player, b.enemy, playerCommandId, enemyCommandId, playerArcana, dealt);
     }
+    dealtBySource.player += applyWheelRecoilIfNeeded(b, b.player, b.enemy, playerCommandId, enemyCommandId, playerArcana, damageByTarget.player, dealtBySource.enemy);
+    dealtBySource.enemy += applyWheelRecoilIfNeeded(b, b.enemy, b.player, enemyCommandId, playerCommandId, enemyArcana, damageByTarget.enemy, dealtBySource.player);
     const evadedByTarget = { player: [], enemy: [] };
     (Array.isArray(b.turnEvasions) ? b.turnEvasions : []).forEach((entry) => {
         if (entry?.target === 'player' || entry?.target === 'enemy') {
@@ -1996,14 +2978,22 @@ function resolveSimultaneousCommands(b) {
         }
     });
 
-    b.player.facing = normalizeFacing(b.player.arcanaForceFacing || result.playerFacing);
-    b.enemy.facing = normalizeFacing(b.enemy.arcanaForceFacing || result.enemyFacing);
+    const playerResolvedFacing = forceArcanaRudderSuccess(b.player, playerCommandId, previousFacing.player, result.playerFacing, playerArcana);
+    const enemyResolvedFacing = forceArcanaRudderSuccess(b.enemy, enemyCommandId, previousFacing.enemy, result.enemyFacing, enemyArcana);
+    b.player.facing = normalizeFacing(b.player.arcanaForceFacing || playerResolvedFacing);
+    b.enemy.facing = normalizeFacing(b.enemy.arcanaForceFacing || enemyResolvedFacing);
     b.player.arcanaForceFacing = null;
     b.enemy.arcanaForceFacing = null;
     completeReload(b.player, result.firedPlayer);
     completeReload(b.enemy, result.firedEnemy);
+    if (playerArcana?.navalEffect?.keepBowReady && playerCommandId === 'bowCannon') b.player.reload = 0;
+    if (enemyArcana?.navalEffect?.keepBowReady && enemyCommandId === 'bowCannon') b.enemy.reload = 0;
+    applyArcanaRudderSuccessEffects(b, b.player, b.enemy, playerCommandId, previousFacing.player, playerArcana);
+    applyArcanaRudderSuccessEffects(b, b.enemy, b.player, enemyCommandId, previousFacing.enemy, enemyArcana);
     b.player.pendingCommandId = null;
     b.enemy.pendingCommandId = null;
+    b.player.pendingArcanaKey = null;
+    b.enemy.pendingArcanaKey = null;
     b.player.lastResolvingCommandId = null;
     b.enemy.lastResolvingCommandId = null;
 
@@ -2021,7 +3011,11 @@ function resolveSimultaneousCommands(b) {
     }
     dealtBySource.player += applyWorldReadingBonus(b, b.player, b.enemy, dealtBySource.player, dealtBySource.enemy);
     dealtBySource.enemy += applyWorldReadingBonus(b, b.enemy, b.player, dealtBySource.enemy, dealtBySource.player);
-    b.visualState = createTurnVisualState(b, playerCommandId, enemyCommandId, damageByTarget, dealtBySource, previousFacing, evadedByTarget);
+    completeRudderCooldown(b, b.player, playerCommandId, previousFacing.player);
+    completeRudderCooldown(b, b.enemy, enemyCommandId, previousFacing.enemy);
+    applyEndOfRoundEffects(b, b.player, b.enemy);
+    applyEndOfRoundEffects(b, b.enemy, b.player);
+    b.visualState = createTurnVisualState(b, playerCommandId, enemyCommandId, damageByTarget, dealtBySource, previousFacing, evadedByTarget, previousStatuses);
 
     if (checkBattleTransition(b)) return true;
     render(b);
@@ -2049,8 +3043,14 @@ function chooseAiCommand(b) {
 }
 
 function selectCommand(b, self, foe, def) {
-    if (!canSelect(b, self, foe, def)) return false;
     const commandId = normalizeCommandId(def.id);
+    if (isRudderCommand(commandId) && Number(self?.rudderCooldown || 0) > 0) {
+        log(b, `${self.label}は回頭直後のため、この手は面舵/取舵を使えない`);
+        render(b);
+        notifyStateChanged(b);
+        return false;
+    }
+    if (!canSelect(b, self, foe, def)) return false;
     if (commandId === 'boarding') {
         if (maybeBlockOpportunity(b, self, foe, commandId)) {
             render(b);
@@ -2061,12 +3061,20 @@ function selectCommand(b, self, foe, def) {
         finishBattle(b, self.isPlayer ? 'boarding' : 'boarded');
         return true;
     }
-    self.pendingCommandId = commandId;
+    if (commandId === 'repair') {
+        self.pendingCommandId = commandId;
+        self.pendingArcanaKey = null;
+    } else {
+        const arcana = activeArcanaForCommand(self, commandId);
+        self.pendingCommandId = commandId;
+        self.pendingArcanaKey = arcana?.key || null;
+    }
     log(b, `${self.label}が「${commandLabel(commandId, self)}」を選択`);
     if (!b.options.disableAi && self.isPlayer && !foe.pendingCommandId && foe.hp > 0) {
         const aiCommand = chooseAiCommand(b);
         if (aiCommand) {
             foe.pendingCommandId = aiCommand;
+            foe.pendingArcanaKey = activeArcanaForCommand(foe, aiCommand)?.key || null;
             log(b, `${foe.label}が「${commandLabel(aiCommand, foe)}」を選択`);
         }
     }
@@ -2213,19 +3221,38 @@ function showBattleResultOverlay(b) {
     }
 }
 
-function finishBattle(b, outcome) {
+function finishBattle(b, outcome, options = {}) {
     if (b.finished) return;
     b.finished = true;
     b.outcome = outcome;
     b.rewardResult = resolveOutcomeReward(b, outcome);
 
     if (outcome === 'boarding' || outcome === 'boarded') {
+        if (options.deferBoarding) {
+            scheduleBoardingTransitionAfterVisual(b, outcome);
+            return;
+        }
         playBoardingTransition(b, outcome);
         return;
     }
     render(b);
     notifyStateChanged(b);
     showBattleResultOverlay(b);
+}
+
+function scheduleBoardingTransitionAfterVisual(b, outcome) {
+    if (!b) return;
+    b.pendingBoardingOutcome = outcome;
+    if (navalBoardingDelayTimer) {
+        clearTimeout(navalBoardingDelayTimer);
+        navalBoardingDelayTimer = null;
+    }
+    navalBoardingDelayTimer = setTimeout(() => {
+        navalBoardingDelayTimer = null;
+        if (battle !== b || b.outcome !== outcome || b.pendingBoardingOutcome !== outcome) return;
+        b.pendingBoardingOutcome = null;
+        playBoardingTransition(b, outcome);
+    }, NAVAL_AUTO_BOARDING_DELAY_MS);
 }
 
 function handleResultClose() {
@@ -2252,7 +3279,7 @@ function getTacticalMessage(b) {
     if (b.player.hp <= 1) return '操舵危険：次の被弾で接舷される可能性が高い。';
     if (hasElementAdvantage(b.player.element, b.enemy.element) && !b.player.elementAdvantageUsed) return '属性優勢：初回命中に+1負荷。';
     if (hasElementAdvantage(b.enemy.element, b.player.element) && !b.enemy.elementAdvantageUsed) return '属性不利：相手の初回命中+1に注意。';
-    if (isSideFacing(b.enemy.facing) && b.enemy.reload <= 0) return `横腹警戒：相手の${cannonCommandLabel(b.enemy, 'broadside')}は${formatSteeringValue(cannonDamageForShip(b.enemy, 'broadside'))}負荷。取舵や面舵で読める。`;
+    if (isSideFacing(b.enemy.facing) && b.enemy.reload <= 0) return `横腹警戒：相手の${cannonCommandLabel(b.enemy, 'broadside')}は${formatSteeringValue(previewCannonDamageForShip(b.enemy, 'broadside'))}負荷。取舵や面舵で読める。`;
     if (isSideFacing(b.player.facing) && b.player.reload <= 0) return `${cannonCommandLabel(b.player, 'broadside')}好機：横向きから強い攻撃を狙える。`;
     if (b.player.reload > 0) return '再装填中：この手は射撃不可。突撃・操舵・空砲で読む。';
     return `読み合い：突撃は旋回に強く、${cannonCommandLabel(b.player, 'bowCannon')}は突撃に強く、面舵は正面射撃を避ける。`;
@@ -2270,7 +3297,21 @@ function startMeleeCombat() {
             source: 'navalPlunder',
             navalOutcome: b.outcome || null,
             boardedPlayerId: boardedPlayerId || null,
-            boardingPlayerId: boardingPlayerId || null
+            boardingPlayerId: boardingPlayerId || null,
+            navalBoardingState: {
+                player: {
+                    morale: b.player.morale,
+                    crewHpPercent: b.player.crewHpPercent,
+                    crewMpPercent: b.player.crewMpPercent,
+                    statuses: durationMapForSnapshot(b.player.statuses)
+                },
+                enemy: {
+                    morale: b.enemy.morale,
+                    crewHpPercent: b.enemy.crewHpPercent,
+                    crewMpPercent: b.enemy.crewMpPercent,
+                    statuses: durationMapForSnapshot(b.enemy.statuses)
+                }
+            }
         });
     }
 }
@@ -2279,6 +3320,10 @@ function closeNavalBattle() {
     const modal = document.getElementById('navalBattleModal');
     if (modal) modal.classList.remove('is-open');
     document.body.classList.remove('naval-battle-lock');
+    if (navalBoardingDelayTimer) {
+        clearTimeout(navalBoardingDelayTimer);
+        navalBoardingDelayTimer = null;
+    }
     if (navalBoardingTimer) {
         clearTimeout(navalBoardingTimer);
         navalBoardingTimer = null;
@@ -2313,7 +3358,7 @@ body.naval-battle-lock { overflow: hidden; }
 .naval-ship-sprite-wrap { position: relative; width: 88px; height: 82px; margin: 0 auto; display: grid; place-items: center; }
 .naval-ship-shadow { position: absolute; left: 14px; right: 14px; bottom: 7px; height: 18px; border-radius: 50%; background: rgba(0, 0, 0, 0.3); filter: blur(2px); transform: scaleX(1.25); }
 .naval-ship-wake { position: absolute; left: 12px; right: 12px; bottom: 4px; height: 16px; border-radius: 50%; border-top: 2px solid rgba(210, 246, 240, 0.42); opacity: 0.68; }
-.naval-ship-sprite { position: relative; width: 64px; height: 64px; z-index: 2; background: url("./Sprites/Ships/ships.png") var(--naval-ship-sprite-x, -64px) var(--naval-ship-sprite-y, -128px) / 2048px 1024px no-repeat; image-rendering: pixelated; transform: scale(1.45); transform-origin: center center; filter: drop-shadow(0 13px 12px rgba(0, 0, 0, 0.38)); }
+.naval-ship-sprite { position: relative; width: var(--naval-ship-frame-w, 64px); height: var(--naval-ship-frame-h, 64px); z-index: 2; background-image: url("./Sprites/Ships/ships.png"); background-position: var(--naval-ship-sprite-x, -64px) var(--naval-ship-sprite-y, -128px); background-size: var(--naval-ship-sheet-w, 2048px) var(--naval-ship-sheet-h, 1024px); background-repeat: no-repeat; image-rendering: pixelated; transform: scale(var(--naval-ship-scale, 1.45)); transform-origin: center center; filter: drop-shadow(0 13px 12px rgba(0, 0, 0, 0.38)); }
 .naval-ship:not(.is-surging):not(.is-hit):not(.is-stunned) .naval-ship-sprite { animation: navalShipFrameStep 360ms steps(3) infinite; }
 .naval-ship-smoke { position: absolute; left: 34px; top: 2px; width: 30px; height: 42px; opacity: 0; pointer-events: none; z-index: 4; }
 .naval-ship-smoke::before, .naval-ship-smoke::after { content: ""; position: absolute; bottom: 0; width: 18px; height: 18px; border-radius: 50%; background: rgba(42, 47, 52, 0.74); filter: blur(1px); animation: navalSmokePuff 1.25s ease-out infinite; }
@@ -2329,6 +3374,7 @@ body.naval-battle-lock { overflow: hidden; }
 .naval-ship.is-boarding-motion .naval-ship-sprite-wrap { animation: navalBoardingRock ${NAVAL_BOARDING_MOTION_MS}ms ease-out both; }
 .naval-ship.is-hit .naval-ship-sprite-wrap { animation: navalHitShake 430ms ease-out both; }
 .naval-ship.is-surging.is-hit .naval-ship-sprite-wrap { animation: navalSurge ${NAVAL_SURGE_MOTION_MS}ms cubic-bezier(0.18, 0.62, 0.18, 1) both; }
+.naval-ship.is-surging.is-assault-failed .naval-ship-sprite-wrap { animation: navalSurgeFailed ${NAVAL_SURGE_MOTION_MS}ms cubic-bezier(0.16, 0.64, 0.2, 1) both; }
 .naval-ship.is-boarding-motion.is-hit .naval-ship-sprite-wrap { animation: navalBoardingRock ${NAVAL_BOARDING_MOTION_MS}ms ease-out both; }
 .naval-ship.is-hit .naval-ship-sprite { filter: brightness(1.35) drop-shadow(0 0 10px rgba(255, 235, 168, 0.7)) drop-shadow(0 13px 12px rgba(0, 0, 0, 0.38)); }
 .naval-ship.is-stunned .naval-ship-sprite-wrap { animation: navalStunnedShake 0.46s infinite; }
@@ -2357,28 +3403,55 @@ body.naval-battle-lock { overflow: hidden; }
 .naval-command-callout::after { content: ""; position: absolute; top: 100%; width: 10px; height: 10px; background: rgba(16, 21, 18, 0.9); border-right: 1px solid rgba(255, 236, 174, 0.78); border-bottom: 1px solid rgba(255, 236, 174, 0.78); transform: translateY(-3px) rotate(45deg); }
 .naval-command-callout.is-player::after { right: 28px; }
 .naval-command-callout.is-enemy::after { left: 28px; }
+.naval-dodge-label,
+.naval-assault-fail,
+.naval-result-chip { position: absolute; z-index: 9; min-width: 54px; text-align: center; border-radius: 999px; border: 1px solid rgba(255, 244, 194, 0.72); background: rgba(5, 19, 23, 0.88); color: #e7fff7; font-size: 13px; font-weight: 900; line-height: 1.2; padding: 5px 10px; text-shadow: 0 1px 2px #000; pointer-events: none; opacity: 0; }
+.naval-dodge-label { --naval-dodge-label-offset: 0px; top: 124px; animation: navalDodgeLabel 940ms ease-out both; }
+.naval-dodge-label.is-player { right: 16%; }
+.naval-dodge-label.is-enemy { left: 16%; }
+.naval-dodge-label.miss-up { --naval-dodge-label-offset: -18px; }
+.naval-dodge-label.miss-down { --naval-dodge-label-offset: 18px; }
+.naval-assault-fail { top: 154px; color: #ffe7a6; border-color: rgba(255, 164, 118, 0.82); background: rgba(39, 17, 11, 0.9); animation: navalAssaultFailLabel 1120ms ease-out both; }
+.naval-assault-fail.is-player { right: 14%; }
+.naval-assault-fail.is-enemy { left: 14%; }
+.naval-result-chip { top: 42%; min-width: 72px; border-color: rgba(126, 227, 207, 0.72); background: rgba(3, 20, 24, 0.92); animation: navalResultChip 1200ms ease-out both; z-index: 12; }
+.naval-result-chip.is-player { right: 19%; }
+.naval-result-chip.is-enemy { left: 19%; }
+.naval-result-chip.is-hit { color: #ffe9a6; border-color: rgba(244, 211, 126, 0.82); }
+.naval-result-chip.is-evade { color: #b8fff2; border-color: rgba(126, 227, 207, 0.82); }
+.naval-result-chip.is-fail { color: #ffc2a6; border-color: rgba(255, 164, 118, 0.82); }
+.naval-result-chip.is-status { color: #ffd4e0; border-color: rgba(248, 113, 113, 0.72); }
+.naval-arcana-card-effect { position: absolute; left: 58%; top: 52%; z-index: 13; width: 92px; display: grid; justify-items: center; gap: 6px; transform: translate(-50%, -50%); pointer-events: none; opacity: 0; animation: navalArcanaCardEffect 1360ms cubic-bezier(0.18, 0.72, 0.22, 1) both; filter: drop-shadow(0 18px 22px rgba(0, 0, 0, 0.48)); }
+.naval-arcana-card-effect.is-enemy { left: 42%; }
+.naval-arcana-card-sprite { width: var(--naval-arcana-card-w, 48px); height: var(--naval-arcana-card-h, 80px); border-radius: 6px; border: 1px solid rgba(255, 236, 174, 0.86); background-image: var(--naval-arcana-card-bg); background-position: var(--naval-arcana-card-x, 0px) var(--naval-arcana-card-y, 0px); background-repeat: no-repeat; transform: scale(1.18); transform-origin: center; box-shadow: 0 0 0 2px rgba(35, 20, 8, 0.74), 0 0 18px rgba(244, 211, 126, 0.44); image-rendering: auto; }
+.naval-arcana-card-name { max-width: 120px; border: 1px solid rgba(244, 211, 126, 0.54); border-radius: 999px; background: rgba(18, 12, 5, 0.86); color: #ffe8a8; font-size: 11px; font-weight: 900; line-height: 1.2; padding: 4px 8px; text-align: center; text-shadow: 0 1px 2px #000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @keyframes navalSeaDrift { from { transform: translateX(0); } to { transform: translateX(56px); } }
 @keyframes navalImpactShake { 0%,100% { transform: translate3d(0, 0, 0); } 14% { transform: translate3d(-5px, 2px, 0); } 28% { transform: translate3d(5px, -2px, 0); } 42% { transform: translate3d(-4px, 1px, 0); } 58% { transform: translate3d(4px, 0, 0); } 74% { transform: translate3d(-2px, -1px, 0); } }
 @keyframes navalShipFrameStep { from { background-position: var(--naval-ship-animation-x, 0px) var(--naval-ship-sprite-y, -128px); } to { background-position: var(--naval-ship-animation-end-x, -192px) var(--naval-ship-sprite-y, -128px); } }
-@keyframes navalDodgeLean { 0% { transform: scale(1.45) translateY(0); } 42% { transform: scale(1.45) translateY(-5px); } 100% { transform: scale(1.45) translateY(0); } }
+@keyframes navalDodgeLean { 0% { transform: scale(var(--naval-ship-scale, 1.45)) translateY(0); } 42% { transform: scale(var(--naval-ship-scale, 1.45)) translateY(-5px); } 100% { transform: scale(var(--naval-ship-scale, 1.45)) translateY(0); } }
 @keyframes navalDodgeUp { 0%,100% { transform: none; } }
 @keyframes navalDodgeDown { 0%,100% { transform: none; } }
 @keyframes navalSurge { 0% { transform: translateX(0) translateY(0); } 22% { transform: translateX(var(--naval-surge-start-x, 12px)) translateY(1px); } 54% { transform: translateX(var(--naval-surge-mid-x, 84px)) translateY(2px); } 68% { transform: translateX(var(--naval-surge-x, 96px)) translateY(3px); } 82% { transform: translateX(var(--naval-surge-settle-x, 86px)) translateY(2px); } 100% { transform: translateX(0) translateY(0); } }
+@keyframes navalSurgeFailed { 0% { transform: translateX(0) translateY(0); } 24% { transform: translateX(var(--naval-surge-start-x, 12px)) translateY(1px); } 48% { transform: translateX(var(--naval-surge-mid-x, 84px)) translateY(2px); } 58% { transform: translateX(var(--naval-surge-x, 96px)) translateY(3px); } 70% { transform: translateX(var(--naval-surge-recoil-x, -34px)) translateY(2px); } 84% { transform: translateX(var(--naval-surge-rebound-x, 12px)) translateY(1px); } 100% { transform: translateX(0) translateY(0); } }
 @keyframes navalBoardingPlayer { 0% { transform: translateX(0); } 28% { transform: translateX(var(--naval-boarding-start-x, -32px)); } 66% { transform: translateX(var(--naval-boarding-overshoot-x, -150px)); } 84% { transform: translateX(var(--naval-boarding-bounce-x, -132px)); } 100% { transform: translateX(var(--naval-boarding-x, -144px)); } }
 @keyframes navalBoardingEnemy { 0% { transform: translateX(0); } 28% { transform: translateX(var(--naval-boarding-start-x, 32px)); } 66% { transform: translateX(var(--naval-boarding-overshoot-x, 150px)); } 84% { transform: translateX(var(--naval-boarding-bounce-x, 132px)); } 100% { transform: translateX(var(--naval-boarding-x, 144px)); } }
 @keyframes navalBoardingRock { 0% { transform: translateY(0) rotate(0); } 34% { transform: translateY(1px) rotate(0); } 66% { transform: translateY(3px) rotate(-1deg); } 84% { transform: translateY(1px) rotate(1deg); } 100% { transform: translateY(0) rotate(0); } }
 @keyframes navalBoardingLine { 0%,34% { opacity: 0; transform: scaleX(0.18); } 54%,86% { opacity: 1; transform: scaleX(1); } 100% { opacity: 0; transform: scaleX(1.04); } }
 @keyframes navalBoardingClash { 0%,40% { opacity: 0; transform: translate(-50%, -50%) scale(0.86); } 58%,86% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.03); } }
 @keyframes navalCommandCallout { 0% { opacity: 0; transform: translateY(8px) scale(0.96); } 14%,70% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-4px) scale(0.98); } }
+@keyframes navalDodgeLabel { 0%,16% { opacity: 0; transform: translateY(calc(var(--naval-dodge-label-offset, 0px) + 8px)) scale(0.92); } 30%,72% { opacity: 1; transform: translateY(var(--naval-dodge-label-offset, 0px)) scale(1); } 100% { opacity: 0; transform: translateY(calc(var(--naval-dodge-label-offset, 0px) - 10px)) scale(1.04); } }
+@keyframes navalAssaultFailLabel { 0%,24% { opacity: 0; transform: translateY(8px) scale(0.92); } 38%,78% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-8px) scale(1.04); } }
+@keyframes navalResultChip { 0%,18% { opacity: 0; transform: translateY(10px) scale(0.92); } 32%,78% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-10px) scale(1.04); } }
+@keyframes navalArcanaCardEffect { 0% { opacity: 0; transform: translate(-50%, -44%) scale(0.9) rotate(-2deg); } 18% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0); } 72% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -56%) scale(1.04) rotate(1deg); } }
 @keyframes navalHitShake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-5px); } 42% { transform: translateX(4px); } 64% { transform: translateX(-3px); } }
 @keyframes navalStunnedShake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
 @keyframes navalSmokePuff { 0% { transform: translateY(12px) scale(0.58); opacity: 0; } 18% { opacity: 0.8; } 100% { transform: translateY(-18px) scale(1.35); opacity: 0; } }
 @keyframes navalShotPlayerHit { 0% { left: 69%; top: var(--naval-shot-track-top, 58%); opacity: 0; transform: translate(0, 0) rotate(180deg); } 14% { opacity: 1; } 82% { opacity: 1; } 100% { left: 29%; top: var(--naval-shot-track-top, 58%); opacity: 0; transform: translate(0, 0) rotate(180deg); } }
 @keyframes navalShotEnemyHit { 0% { left: 26%; top: var(--naval-shot-track-top, 58%); opacity: 0; transform: translate(0, 0); } 14% { opacity: 1; } 82% { opacity: 1; } 100% { left: 66%; top: var(--naval-shot-track-top, 58%); opacity: 0; transform: translate(0, 0); } }
-@keyframes navalShotPlayerMissUp { 0% { left: 69%; top: var(--naval-shot-track-top, 58%); opacity: 0; transform: rotate(180deg); } 14% { opacity: 1; } 100% { left: 24%; top: var(--naval-shot-track-top, 58%); opacity: 0; transform: rotate(180deg); } }
-@keyframes navalShotPlayerMissDown { 0% { left: 69%; top: var(--naval-shot-track-top, 58%); opacity: 0; transform: rotate(180deg); } 14% { opacity: 1; } 100% { left: 24%; top: var(--naval-shot-track-top, 58%); opacity: 0; transform: rotate(180deg); } }
-@keyframes navalShotEnemyMissUp { 0% { left: 26%; top: var(--naval-shot-track-top, 58%); opacity: 0; transform: rotate(0deg); } 14% { opacity: 1; } 100% { left: 71%; top: var(--naval-shot-track-top, 58%); opacity: 0; transform: rotate(0deg); } }
-@keyframes navalShotEnemyMissDown { 0% { left: 26%; top: var(--naval-shot-track-top, 58%); opacity: 0; transform: rotate(0deg); } 14% { opacity: 1; } 100% { left: 71%; top: var(--naval-shot-track-top, 58%); opacity: 0; transform: rotate(0deg); } }
+@keyframes navalShotPlayerMissUp { 0% { left: 69%; top: var(--naval-shot-track-top, 58%); opacity: 0; transform: rotate(180deg); } 14% { opacity: 1; } 58% { opacity: 1; } 100% { left: -8%; top: calc(var(--naval-shot-track-top, 58%) - 12px); opacity: 0; transform: rotate(180deg); } }
+@keyframes navalShotPlayerMissDown { 0% { left: 69%; top: var(--naval-shot-track-top, 58%); opacity: 0; transform: rotate(180deg); } 14% { opacity: 1; } 58% { opacity: 1; } 100% { left: -8%; top: calc(var(--naval-shot-track-top, 58%) + 12px); opacity: 0; transform: rotate(180deg); } }
+@keyframes navalShotEnemyMissUp { 0% { left: 26%; top: var(--naval-shot-track-top, 58%); opacity: 0; transform: rotate(0deg); } 14% { opacity: 1; } 58% { opacity: 1; } 100% { left: 108%; top: calc(var(--naval-shot-track-top, 58%) - 12px); opacity: 0; transform: rotate(0deg); } }
+@keyframes navalShotEnemyMissDown { 0% { left: 26%; top: var(--naval-shot-track-top, 58%); opacity: 0; transform: rotate(0deg); } 14% { opacity: 1; } 58% { opacity: 1; } 100% { left: 108%; top: calc(var(--naval-shot-track-top, 58%) + 12px); opacity: 0; transform: rotate(0deg); } }
 .naval-status { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
 .naval-status-card { background: rgba(5, 12, 18, 0.72); border: 1px solid rgba(84, 118, 111, 0.72); border-radius: 8px; padding: 8px; min-width: 0; }
 .naval-status-card h4 { margin: 0 0 6px; font-size: 12px; line-height: 1.2; overflow-wrap: anywhere; }
@@ -2398,11 +3471,12 @@ body.naval-battle-lock { overflow: hidden; }
 .naval-arcana-chip small { margin-left: 4px; color: #9ee7ff; font-weight: 800; }
 .naval-arcana-chip.is-used { opacity: 0.45; filter: grayscale(0.25); }
 .naval-stun-badge { color: #fbbf24; font-weight: bold; }
-.naval-arcana-cutin { position: absolute; left: 50%; top: 118px; transform: translate(-50%, -50%); z-index: 4; width: min(420px, 88%); border: 1px solid rgba(244, 211, 126, 0.82); border-radius: 8px; padding: 13px 16px; background: linear-gradient(135deg, rgba(32, 21, 9, 0.96), rgba(10, 28, 31, 0.94)); color: #fff4c7; box-shadow: 0 14px 40px rgba(0,0,0,0.45); animation: navalArcanaCutin 1.4s ease both; pointer-events: none; }
+.naval-turn-summary { min-height: 24px; margin-top: -2px; margin-bottom: 7px; border: 1px solid rgba(126, 227, 207, 0.26); border-radius: 999px; background: rgba(3, 18, 23, 0.76); color: #d9fff7; font-size: 12px; font-weight: 800; line-height: 1.2; padding: 5px 10px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.naval-arcana-cutin { position: absolute; left: 50%; top: 84px; transform: translate(-50%, -50%); z-index: 4; width: min(300px, 78%); border: 1px solid rgba(244, 211, 126, 0.68); border-radius: 8px; padding: 8px 11px; background: linear-gradient(135deg, rgba(32, 21, 9, 0.9), rgba(10, 28, 31, 0.88)); color: #fff4c7; box-shadow: 0 10px 28px rgba(0,0,0,0.36); animation: navalArcanaCutin 1.4s ease both; pointer-events: none; }
 .naval-arcana-cutin[hidden] { display: none; }
 .naval-arcana-cutin.is-enemy { border-color: rgba(255, 146, 134, 0.78); color: #ffd6d1; }
 .naval-arcana-cutin-kicker { font-size: 10px; font-weight: 800; letter-spacing: 0; color: #f4d37e; }
-.naval-arcana-cutin strong { display: block; margin-top: 2px; font-size: 18px; line-height: 1.2; }
+.naval-arcana-cutin strong { display: block; margin-top: 2px; font-size: 13px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .naval-arcana-cutin span { display: block; margin-top: 4px; color: #e8d7a9; font-size: 12px; line-height: 1.35; }
 @keyframes navalArcanaCutin { 0% { opacity: 0; transform: translate(-50%, -54%) scale(0.96); } 16% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 82% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -47%) scale(1.02); } }
 .naval-win-routes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
@@ -2421,6 +3495,7 @@ body.naval-battle-lock { overflow: hidden; }
 .naval-command-icon img { width: 31px; height: 31px; object-fit: contain; image-rendering: auto; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5)); }
 .naval-command-body { min-width: 0; display: grid; gap: 4px; }
 .naval-command-btn b { display: block; font-size: 15px; line-height: 1.2; overflow-wrap: anywhere; }
+.naval-command-preview { display: block; min-width: 0; color: #b7d8d0; font-size: 10px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .naval-command-btn small { display: none; }
 .naval-command-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; color: #f4d37e; font-size: 10px; font-weight: 700; }
 .naval-command-kind { color: #0b1816; background: #f4d37e; border-radius: 999px; padding: 2px 7px; }
@@ -2429,6 +3504,9 @@ body.naval-battle-lock { overflow: hidden; }
 .naval-command-btn.is-rudder { border-color: #4f9b88; }
 .naval-command-btn.is-feint { border-color: #8b9161; }
 .naval-command-btn.is-boarding { border-color: #b76d76; }
+.naval-command-btn.is-repair { border-color: #9a8f63; }
+.naval-command-btn.is-arcana { border-color: #d8b45e; background: rgba(42, 31, 12, 0.94); }
+.naval-command-btn.is-arcana .naval-command-kind { background: #f8d77c; color: #221708; }
 .naval-command-note { font-size: 11px; color: #f4d37e; min-height: 16px; margin-bottom: 6px; overflow-wrap: anywhere; }
 #navalBattleLog { height: 92px; overflow-y: auto; background: #07141b; border: 1px solid #2f534d; border-radius: 8px; padding: 7px 9px; font-size: 11px; line-height: 1.5; color: #b8cec8; }
 #navalBattleResult { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(4, 9, 18, 0.82); border-radius: 12px; z-index: 3; }
@@ -2448,6 +3526,11 @@ body.naval-battle-lock { overflow: hidden; }
     .naval-win-routes { grid-template-columns: 1fr; }
     .naval-commands { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .naval-command-btn { min-height: 58px; }
+    .naval-arcana-card-effect { top: 50%; width: 82px; }
+    .naval-arcana-card-effect.is-player { left: 60%; }
+    .naval-arcana-card-effect.is-enemy { left: 40%; }
+    .naval-result-chip.is-player { right: 13%; }
+    .naval-result-chip.is-enemy { left: 13%; }
 }
 `;
 
@@ -2500,6 +3583,7 @@ function ensureModal() {
                         <div class="naval-ship-facing" id="navalShipPlayerFacing"></div>
                     </div>
                 </div>
+                <div class="naval-turn-summary" id="navalTurnSummary">コマンドを選ぶ</div>
                 <div class="naval-status">
                     <div class="naval-status-card is-enemy">
                         <h4 id="navalEnemyTitle">敵船</h4>
@@ -2510,6 +3594,7 @@ function ensureModal() {
                             <span class="naval-status-chip" id="navalElementEnemy"></span>
                             <span class="naval-status-chip" id="navalFacingEnemy"></span>
                             <span class="naval-status-chip" id="navalReloadEnemy"></span>
+                            <span class="naval-status-chip" id="navalStateEnemy"></span>
                         </div>
                         <div class="naval-status-row is-detail"><span>船型</span><b id="navalTypeEnemy"></b></div>
                         <div class="naval-status-row is-detail"><span>特性</span><b id="navalTraitEnemy"></b></div>
@@ -2528,6 +3613,7 @@ function ensureModal() {
                             <span class="naval-status-chip" id="navalElementPlayer"></span>
                             <span class="naval-status-chip" id="navalFacingPlayer"></span>
                             <span class="naval-status-chip" id="navalReloadPlayer"></span>
+                            <span class="naval-status-chip" id="navalStatePlayer"></span>
                         </div>
                         <div class="naval-status-row is-detail"><span>船型</span><b id="navalTypePlayer"></b></div>
                         <div class="naval-status-row is-detail"><span>特性</span><b id="navalTraitPlayer"></b></div>
@@ -2570,9 +3656,9 @@ function renderShipPositions(b) {
         seaEl.className = `naval-sea${b.visualState?.impactShake ? ' is-impact-shake' : ''}`;
     }
     enemyEl.style.left = '8%';
-    enemyEl.style.top = '96px';
+    enemyEl.style.top = `${shipVisualTop(b.enemy)}px`;
     playerEl.style.left = 'calc(92% - 112px)';
-    playerEl.style.top = '96px';
+    playerEl.style.top = `${shipVisualTop(b.player)}px`;
     if (seaEl) {
         const seaWidth = Math.max(280, seaEl.getBoundingClientRect?.().width || 620);
         const shipWidth = 112;
@@ -2587,11 +3673,13 @@ function renderShipPositions(b) {
     applyShipSprite(playerEl, b.player, 'player', playerVisual.playerPose, {
         hit: playerVisual.playerHit,
         surge: playerVisual.playerSurge,
+        assaultFailed: playerVisual.playerAssaultFailed,
         boarding: playerVisual.playerBoarding
     });
     applyShipSprite(enemyEl, b.enemy, 'enemy', enemyVisual.enemyPose, {
         hit: enemyVisual.enemyHit,
         surge: enemyVisual.enemySurge,
+        assaultFailed: enemyVisual.enemyAssaultFailed,
         boarding: enemyVisual.enemyBoarding
     });
     renderNavalVisualEffects(b);
@@ -2609,34 +3697,77 @@ function setBoardingMotionDistance(element, distance) {
     element.style.setProperty('--naval-boarding-bounce-x', `${Math.round(x * 0.92)}px`);
 }
 
+function shipVisualTop(ship) {
+    return String(ship?.shipDomain || '').toLowerCase() === 'air' ? 96 : 128;
+}
+
 function applyShipSprite(container, ship, side, visualPose = '', flags = {}) {
     if (!container || !ship) return;
     const sprite = container.querySelector('.naval-ship-sprite');
     const frame = shipSpriteFrame(ship, side, visualPose);
     if (sprite) {
+        const asset = frame.asset || SHIP_SPRITE_DEFAULT_ASSET;
+        const frameSize = frame.frameSize || asset.frameSize || SHIP_SPRITE_FRAME_SIZE;
+        sprite.style.backgroundImage = `url("${asset.path}")`;
+        sprite.style.setProperty('--naval-ship-frame-w', `${frameSize}px`);
+        sprite.style.setProperty('--naval-ship-frame-h', `${frameSize}px`);
+        sprite.style.setProperty('--naval-ship-sheet-w', `${asset.sheetWidth || SHIP_SPRITE_DEFAULT_ASSET.sheetWidth}px`);
+        sprite.style.setProperty('--naval-ship-sheet-h', `${asset.sheetHeight || SHIP_SPRITE_DEFAULT_ASSET.sheetHeight}px`);
+        sprite.style.setProperty('--naval-ship-scale', `${asset.scale || SHIP_SPRITE_DEFAULT_ASSET.scale}`);
         sprite.style.setProperty('--naval-ship-sprite-x', `${frame.x}px`);
         sprite.style.setProperty('--naval-ship-sprite-y', `${frame.y}px`);
-        sprite.style.setProperty('--naval-ship-animation-x', `${frame.x + SHIP_SPRITE_FRAME_SIZE}px`);
-        sprite.style.setProperty('--naval-ship-animation-end-x', `${frame.x - (SHIP_SPRITE_FRAME_SIZE * 2)}px`);
+        sprite.style.setProperty('--naval-ship-animation-x', `${frame.x + frameSize}px`);
+        sprite.style.setProperty('--naval-ship-animation-end-x', `${frame.x - (frameSize * 2)}px`);
     }
     const form = visualShipForm(ship);
+    const traitKey = String(ship?.shipTraitKey || '').replace(/[^a-z0-9_-]/gi, '');
     container.className = [
         'naval-ship',
         `is-${side}`,
         `is-${form}`,
+        traitKey ? `is-${traitKey}` : '',
         visualPose ? 'is-turning' : '',
         visualPose.includes('Up') ? 'is-turning-up' : '',
         visualPose.includes('Down') ? 'is-turning-down' : '',
         flags.hit ? 'is-hit' : '',
         flags.surge ? 'is-surging' : '',
+        flags.assaultFailed ? 'is-assault-failed' : '',
         flags.boarding ? 'is-boarding-motion' : '',
         ship.hp <= 0 ? 'is-stunned' : ''
     ].filter(Boolean).join(' ');
+    container.dataset.shipKey = ship?.shipTraitKey || '';
+    container.dataset.shipName = ship?.shipName || ship?.shipType || '';
+    container.title = ship?.shipName || ship?.shipType || '';
+    const nameEl = container.querySelector('.naval-ship-name');
+    if (nameEl) nameEl.textContent = ship?.shipName || ship?.shipType || (side === 'player' ? '自船' : '敵船');
     const surgeX = side === 'player' ? -156 : 156;
     container.style.setProperty('--naval-surge-x', `${surgeX}px`);
     container.style.setProperty('--naval-surge-start-x', `${Math.round(surgeX * 0.12)}px`);
     container.style.setProperty('--naval-surge-mid-x', `${Math.round(surgeX * 0.88)}px`);
     container.style.setProperty('--naval-surge-settle-x', `${Math.round(surgeX * 0.9)}px`);
+    container.style.setProperty('--naval-surge-recoil-x', `${Math.round(surgeX * -0.26)}px`);
+    container.style.setProperty('--naval-surge-rebound-x', `${Math.round(surgeX * 0.08)}px`);
+}
+
+function renderArcanaCardEffect(effect) {
+    const source = effect?.source === 'enemy' ? 'enemy' : 'player';
+    const sprite = arcanaSpriteInfo(effect);
+    const col = sprite.spriteIndex % sprite.spriteCols;
+    const row = Math.floor(sprite.spriteIndex / sprite.spriteCols);
+    const safeSpritePath = String(sprite.spritePath || NAVAL_TAROT_SPRITE.path).replace(/[)"\\\n\r]/g, '');
+    const style = [
+        `--naval-arcana-card-x: ${-(col * sprite.spriteWidth)}px`,
+        `--naval-arcana-card-y: ${-(row * sprite.spriteHeight)}px`,
+        `--naval-arcana-card-w: ${sprite.spriteWidth}px`,
+        `--naval-arcana-card-h: ${sprite.spriteHeight}px`,
+        `--naval-arcana-card-bg: url(${safeSpritePath})`
+    ].join('; ');
+    return `
+        <span class="naval-arcana-card-effect is-${source}" data-arcana-card data-arcana-side="${source}" aria-hidden="true">
+            <span class="naval-arcana-card-sprite" style="${escapeHtml(style)}"></span>
+            <span class="naval-arcana-card-name">${escapeHtml(effect.body || effect.title || '大アルカナ')}</span>
+        </span>
+    `;
 }
 
 function renderNavalVisualEffects(b) {
@@ -2651,9 +3782,19 @@ function renderNavalVisualEffects(b) {
         if (effect?.type === 'boarding') {
             return '<span class="naval-boarding-line" aria-hidden="true"></span><span class="naval-boarding-clash" aria-hidden="true">接舷</span>';
         }
+        if (effect?.type === 'assaultFail') {
+            const source = effect.source === 'enemy' ? 'enemy' : 'player';
+            return `<span class="naval-assault-fail is-${source}" aria-hidden="true">突撃失敗</span>`;
+        }
+        if (effect?.type === 'resultChip') {
+            const target = effect.target === 'enemy' ? 'enemy' : 'player';
+            const tone = effect.tone ? ` is-${effect.tone}` : '';
+            return `<span class="naval-result-chip is-${target}${tone}" data-result-chip data-result-target="${target}" aria-hidden="true">${escapeHtml(effect.text || '')}</span>`;
+        }
+        if (effect?.type === 'arcanaCard') return renderArcanaCardEffect(effect);
         if (effect?.type !== 'shot') return '';
         const shotCount = effect.commandId === 'broadside' ? 6 : 1;
-        return Array.from({ length: shotCount }, (_, index) => {
+        const shots = Array.from({ length: shotCount }, (_, index) => {
             const classes = [
                 'naval-cannon-shot',
                 `is-${effect.source === 'enemy' ? 'enemy' : 'player'}`,
@@ -2664,6 +3805,10 @@ function renderNavalVisualEffects(b) {
             ].filter(Boolean).join(' ');
             return `<span class="${classes}" aria-hidden="true"></span>`;
         }).join('');
+        if (!effect.miss) return shots;
+        const target = effect.target === 'enemy' ? 'enemy' : 'player';
+        const direction = effect.dodgeDirection ? `miss-${effect.dodgeDirection}` : '';
+        return `${shots}<span class="naval-dodge-label is-${target} ${direction}" aria-hidden="true">回避</span>`;
     }).join('');
 }
 
@@ -2674,6 +3819,7 @@ function scheduleNavalVisualClear(b) {
     }
     if (!b?.visualState?.token) return;
     if (b.visualState.type === 'boarding') return;
+    if (b.pendingBoardingOutcome) return;
     const token = b.visualState.token;
     navalVisualClearTimer = setTimeout(() => {
         if (battle === b && b.visualState?.token === token) {
@@ -2684,8 +3830,8 @@ function scheduleNavalVisualClear(b) {
 }
 
 function weaponStatusText(ship) {
-    const bow = formatSteeringValue(cannonDamageForShip(ship, 'bowCannon'));
-    const side = formatSteeringValue(cannonDamageForShip(ship, 'broadside'));
+    const bow = formatSteeringValue(previewCannonDamageForShip(ship, 'bowCannon'));
+    const side = formatSteeringValue(previewCannonDamageForShip(ship, 'broadside'));
     return `${ship?.weaponLabel || '砲撃'} 前${bow}/側${side}`;
 }
 
@@ -2699,9 +3845,13 @@ function elementStatusText(ship, foe) {
 }
 
 function shipTraitStatusText(ship) {
-    const name = ship?.shipTraitName || NAVAL_SHIP_TRAITS[ship?.shipTraitKey]?.name || '';
+    const name = shipPassiveName(ship);
     if (!name) return '-';
-    return `${name} ${ship?.shipTraitUsed ? '使用済み' : '未使用'}`;
+    const pending = Object.keys(asObject(ship?.shipPassivePending)).length > 0;
+    if (pending) return `${name} 待機中`;
+    const mode = String(ship?.shipPassiveMode || shipMetaForKey(ship?.shipTraitKey, ship?.shipForm)?.passiveMode || '');
+    if (mode === 'continuous' || mode === 'pending') return `${name} 常時`;
+    return `${name} ${shipPassiveWasUsed(ship) ? '使用済み' : '未使用'}`;
 }
 
 function renderArcanaGearText(ship, elementId) {
@@ -2725,12 +3875,33 @@ function renderArcanaGearText(ship, elementId) {
     `;
 }
 
+function shipConditionText(ship) {
+    const chunks = [
+        `領域${ship?.shipDomainLabel || SHIP_DOMAIN_LABEL[ship?.shipDomain] || SHIP_DOMAIN_LABEL.surface}`,
+        `海戦耐久${formatSteeringValue(ship?.hp || 0)}/${formatSteeringValue(ship?.maxHp || 0)}`
+    ];
+    if (ship?.lowFirepower) chunks.push('低火力');
+    chunks.push(`士気${clampNumber(ship?.morale, -2, 2, 0)}`);
+    chunks.push(`船員HP${Math.round(clampPercent(ship?.crewHpPercent, 100))}%`);
+    chunks.push(`MP${Math.round(clampPercent(ship?.crewMpPercent, 100))}%`);
+    Object.entries(normalizeDurationMap(ship?.statuses)).forEach(([name, value]) => {
+        chunks.push(`${statusLabel(name)}${durationValue(value)}`);
+    });
+    Object.entries(normalizeDurationMap(ship?.equipmentDamage)).forEach(([name, value]) => {
+        chunks.push(`${equipmentDamageLabel(name)}損傷${durationValue(value)}`);
+    });
+    if (ship?.illusion) chunks.push('幻影');
+    if (ship?.lockOn) chunks.push('ロックオン');
+    if (ship?.arcanaDamageShield) chunks.push('シールド');
+    return chunks.join(' / ');
+}
+
 function renderStatus(b) {
     const cards = [
-        { ship: b.player, foe: b.enemy, hp: 'navalHpPlayer', hpText: 'navalHpPlayerText', type: 'navalTypePlayer', weapon: 'navalWeaponPlayer', element: 'navalElementPlayer', trait: 'navalTraitPlayer', spec: 'navalSpecPlayer', cargo: 'navalCargoPlayer', arcana: 'navalArcanaPlayer', facing: 'navalFacingPlayer', reload: 'navalReloadPlayer', pending: 'navalPendingPlayer', shipFacing: 'navalShipPlayerFacing' },
-        { ship: b.enemy, foe: b.player, hp: 'navalHpEnemy', hpText: 'navalHpEnemyText', type: 'navalTypeEnemy', weapon: 'navalWeaponEnemy', element: 'navalElementEnemy', trait: 'navalTraitEnemy', spec: 'navalSpecEnemy', cargo: 'navalCargoEnemy', arcana: 'navalArcanaEnemy', facing: 'navalFacingEnemy', reload: 'navalReloadEnemy', pending: 'navalPendingEnemy', shipFacing: 'navalShipEnemyFacing' }
+        { ship: b.player, foe: b.enemy, hp: 'navalHpPlayer', hpText: 'navalHpPlayerText', type: 'navalTypePlayer', weapon: 'navalWeaponPlayer', element: 'navalElementPlayer', trait: 'navalTraitPlayer', spec: 'navalSpecPlayer', cargo: 'navalCargoPlayer', arcana: 'navalArcanaPlayer', facing: 'navalFacingPlayer', reload: 'navalReloadPlayer', state: 'navalStatePlayer', pending: 'navalPendingPlayer', shipFacing: 'navalShipPlayerFacing' },
+        { ship: b.enemy, foe: b.player, hp: 'navalHpEnemy', hpText: 'navalHpEnemyText', type: 'navalTypeEnemy', weapon: 'navalWeaponEnemy', element: 'navalElementEnemy', trait: 'navalTraitEnemy', spec: 'navalSpecEnemy', cargo: 'navalCargoEnemy', arcana: 'navalArcanaEnemy', facing: 'navalFacingEnemy', reload: 'navalReloadEnemy', state: 'navalStateEnemy', pending: 'navalPendingEnemy', shipFacing: 'navalShipEnemyFacing' }
     ];
-    cards.forEach(({ ship, foe, hp, hpText, type, weapon, element, trait, spec, cargo, arcana, facing, reload, pending, shipFacing }) => {
+    cards.forEach(({ ship, foe, hp, hpText, type, weapon, element, trait, spec, cargo, arcana, facing, reload, state, pending, shipFacing }) => {
         const fill = document.getElementById(hp);
         if (fill) {
             const ratio = ship.hp / ship.maxHp;
@@ -2756,6 +3927,8 @@ function renderStatus(b) {
         if (facingEl) facingEl.textContent = FACING_LABEL[ship.facing] || '正面';
         const reloadEl = document.getElementById(reload);
         if (reloadEl) reloadEl.textContent = ship.reload > 0 ? '再装填中' : `${ship.weaponLabel || '砲撃'}可`;
+        const stateEl = document.getElementById(state);
+        if (stateEl) stateEl.textContent = shipConditionText(ship);
         const pendingEl = document.getElementById(pending);
         if (pendingEl) pendingEl.textContent = ship.pendingCommandId ? '入力済み' : '-';
         const shipFacingEl = document.getElementById(shipFacing);
@@ -2769,6 +3942,10 @@ function renderStatus(b) {
     }
     const intel = document.getElementById('navalIntel');
     if (intel) intel.textContent = getTacticalMessage(b);
+    const turnSummary = document.getElementById('navalTurnSummary');
+    if (turnSummary) {
+        turnSummary.textContent = b.lastTurnSummary || 'コマンドを選ぶ';
+    }
     const loot = document.getElementById('navalLootPanel');
     if (loot) {
         const model = b.reward || createRewardModel(b.options, b.player, b.enemy);
@@ -2810,13 +3987,16 @@ function renderCommands(b) {
     container.innerHTML = '';
     const self = b.player;
     const foe = b.enemy;
-    const commands = availableCommands(b, self, foe);
+    const commands = commandOptionsForState(b, self, foe);
     commands.forEach((def) => {
+        const arcana = activeArcanaForCommand(self, def.id);
         const label = commandLabel(def.id, self);
         const desc = commandDescription(def, self);
+        const preview = commandPreviewText(def, self);
+        const selectable = canSelect(b, self, foe, def);
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = `naval-command-btn is-${def.type}`;
+        button.className = `naval-command-btn is-${def.type}${arcana ? ' is-arcana' : ''}`;
         button.dataset.navalCommand = def.id;
         button.innerHTML = `
             <span class="naval-command-icon" aria-hidden="true">
@@ -2825,19 +4005,20 @@ function renderCommands(b) {
             <span class="naval-command-body">
                 <span class="naval-command-meta">
                     <span class="naval-command-kind">${escapeHtml(commandTypeLabel(def, self))}</span>
-                    <span>${isCannonCommand(def.id) ? (self.reload > 0 ? '再装填中' : `${escapeHtml(self.weaponLabel || '砲撃')}可`) : '制限なし'}</span>
+                    <span>${escapeHtml(commandAvailabilityLabel(def, self))}</span>
                 </span>
                 <b>${escapeHtml(label)}</b>
-                <small>${escapeHtml(desc)}</small>
+                <span class="naval-command-preview">${escapeHtml(preview)}</span>
+                <small>${escapeHtml(arcana ? `${COMMANDS[def.id]?.label || def.id}: ${desc}` : desc)}</small>
             </span>
         `;
-        button.disabled = !canSelect(b, self, foe, def);
+        button.disabled = !selectable;
         button.setAttribute('aria-label', label);
         button.addEventListener('click', () => {
             if (typeof b.options.onCommandSelect === 'function') {
                 const handled = b.options.onCommandSelect(def.id, {
                     command: def,
-                    canSelect: canSelect(b, self, foe, def),
+                    canSelect: selectable,
                     state: serializeBattleState(b)
                 });
                 if (handled !== false) return;
@@ -2850,6 +4031,7 @@ function renderCommands(b) {
         if (b.finished) note.textContent = '';
         else if (self.hp <= 0) note.textContent = '操舵不能。白兵戦に備えてください。';
         else if (self.pendingCommandId) note.textContent = `「${commandLabel(self.pendingCommandId, self)}」入力済み。相手を待っています。`;
+        else if (Number(self.rudderCooldown || 0) > 0) note.textContent = '回頭直後: 次の一手は面舵/取舵を使えません。';
         else note.textContent = 'コマンドを選択してください';
     }
 }
@@ -2897,6 +4079,8 @@ function startNavalBattle(options = {}) {
         reward: null,
         rewardResult: null,
         visualState: null,
+        lastTurnSummary: '',
+        turnArcanaVisuals: [],
         turnEvasions: [],
         evasionRollIndex: 0,
         timer: null
@@ -2939,6 +4123,7 @@ function applyNavalBattleSnapshot(snapshot, perspective = 'player') {
     battle.reward = next.reward || createRewardModel(battle.options, battle.player, battle.enemy);
     battle.rewardResult = next.rewardResult || null;
     battle.lastArcanaActivation = next.lastArcanaActivation || null;
+    battle.lastTurnSummary = next.lastTurnSummary || '';
     battle.logs = Array.isArray(next.logs) ? next.logs.slice(0, 30) : [];
     battle.finished = Boolean(next.finished);
     battle.outcome = next.outcome || null;
@@ -2975,7 +4160,10 @@ function stepNavalBattle() {
     if (!battle || battle.finished) return false;
     if (!battle.options.disableAi && battle.player.pendingCommandId && !battle.enemy.pendingCommandId) {
         const aiCommand = chooseAiCommand(battle);
-        if (aiCommand) battle.enemy.pendingCommandId = aiCommand;
+        if (aiCommand) {
+            battle.enemy.pendingCommandId = aiCommand;
+            battle.enemy.pendingArcanaKey = activeArcanaForCommand(battle.enemy, aiCommand)?.key || null;
+        }
         resolveSimultaneousCommands(battle);
         render(battle);
         notifyStateChanged(battle);
@@ -2996,20 +4184,22 @@ window.__navalBattleDebug = {
     applyCommand: applyNavalBattleCommand,
     step: stepNavalBattle,
     getCommandMatrix: analyzeCommandMatrix,
-    resolveEvasionRate: ({ defenderFacing = 'front', defenderCommandId = '', attackerCommandId = '', defenderShipTraitKey = '' } = {}) => {
+    resolveEvasionRate: ({ defenderFacing = 'front', defenderCommandId = '', attackerCommandId = '', defenderShipTraitKey = '', defenderShipPassiveKey = '', defenderShipDomain = '', attackerShipTraitKey = '', attackerShipPassiveKey = '' } = {}) => {
+        const defenderMeta = shipMetaForKey(defenderShipTraitKey, '');
+        const attackerMeta = shipMetaForKey(attackerShipTraitKey, '');
         const defender = {
             facing: defenderFacing,
             lastResolvingCommandId: defenderCommandId,
             shipTraitKey: normalizeShipTraitKey(defenderShipTraitKey),
-            shipTraitUsed: false
+            shipPassiveKey: defenderShipPassiveKey || defenderMeta?.passiveKey || '',
+            shipDomain: defenderShipDomain || defenderMeta?.domain || 'surface',
+            shipPassiveUses: {}
         };
-        let rate = evasionRateForShip(defender, attackerCommandId, defenderCommandId);
-        const trait = getAvailableShipTrait(defender);
-        if (trait?.type === 'rudder-evasion' && isRudderCommand(normalizeCommandId(defenderCommandId)) && isCannonCommand(attackerCommandId)) {
-            rate = Math.min(Number(trait.max || rate), rate + Number(trait.bonus || 0));
-        } else if (trait?.type === 'cannon-evasion' && normalizeCommandId(defenderCommandId) !== 'assault' && isCannonCommand(attackerCommandId)) {
-            rate = Math.min(Number(trait.max || rate), rate + Number(trait.bonus || 0));
-        }
+        const attacker = {
+            shipTraitKey: normalizeShipTraitKey(attackerShipTraitKey),
+            shipPassiveKey: attackerShipPassiveKey || attackerMeta?.passiveKey || ''
+        };
+        let rate = evasionRateForShip(defender, attackerCommandId, defenderCommandId, attacker);
         return clampNumber(rate, 0, 1, 0);
     },
     mutate: (fn) => {

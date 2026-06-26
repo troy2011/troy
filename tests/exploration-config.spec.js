@@ -1,6 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { __test } = require('../server/exploration');
 const { buildLocalGachaCandidates } = require('../server/gacha');
+const resourceStorage = require('../server/resourceStorage');
 
 const FIXED_NOW_MS = Date.UTC(2026, 5, 18, 15, 30, 0);
 const ADVANCED_BOSS_IDS = [
@@ -234,6 +235,62 @@ test('low medium high destinations expose 3 2 1 bosses respectively', () => {
     expect(__test.EXPLORATION_BOSSES[bossId].level).toBeGreaterThanOrEqual(24);
     expect(__test.EXPLORATION_BOSSES[bossId].hp).toBeGreaterThanOrEqual(280);
   }
+});
+
+test('player ship major arcana slots follow evolution stage', () => {
+  expect(resourceStorage.getPlayerShipMajorArcanaSlotLimit('boat')).toBe(1);
+  expect(resourceStorage.getPlayerShipMajorArcanaSlotLimit('explorer')).toBe(2);
+  expect(resourceStorage.getPlayerShipMajorArcanaSlotLimit('fighter')).toBe(3);
+  expect(resourceStorage.getPlayerShipMajorArcanaSlotLimit('defender')).toBe(3);
+  expect(resourceStorage.getPlayerShipMajorArcanaSlotLimit('merchant')).toBe(3);
+
+  expect(resourceStorage.normalizePlayerShipProfile({
+    form: 'boat',
+    majorArcanaItemIds: ['arcana-4', 'arcana-5']
+  }).majorArcanaItemIds).toEqual(['arcana-4']);
+  expect(resourceStorage.normalizePlayerShipProfile({
+    form: 'explorer',
+    majorArcanaItemIds: ['arcana-4', 'arcana-5', 'arcana-6']
+  }).majorArcanaItemIds).toEqual(['arcana-4', 'arcana-5']);
+});
+
+test('ship major arcana weaken exploration boss before melee battle without reward changes', () => {
+  const boss = {
+    stats: {
+      MaxHP: 100,
+      HP: 100,
+      CurrentHP: 100,
+      ちから: 50,
+      みのまもり: 40,
+      すばやさ: 30
+    },
+    equipmentStats: {
+      Power: 20,
+      Defense: 10,
+      Agi: 5,
+      StatusRate: 0
+    }
+  };
+  const catalog = {
+    'arcana-wand': { Category: 'TarotMajor', DisplayName: '皇帝', ArcanaNumber: 4 },
+    'arcana-sword': { Category: 'TarotMajor', DisplayName: '法王', ArcanaNumber: 5 },
+    'arcana-cup': { Category: 'TarotMajor', DisplayName: '恋人', ArcanaNumber: 6 }
+  };
+
+  const result = __test.applyMajorArcanaPreBattleWeakening(
+    boss,
+    ['arcana-wand', 'arcana-sword', 'arcana-cup'],
+    catalog
+  );
+
+  expect(result.logs).toHaveLength(3);
+  expect(boss.stats.MaxHP).toBe(94);
+  expect(boss.stats.CurrentHP).toBe(94);
+  expect(boss.stats.ちから).toBe(47);
+  expect(boss.equipmentStats.Power).toBe(19);
+  expect(boss.stats.すばやさ).toBe(28);
+  expect(boss.equipmentStats.StatusRate).toBe(-6);
+  expect(__test.resolveRewardCount({ bossAppeared: true, playerWon: true }, 'fighter')).toBe(1);
 });
 
 test('daily destinations are deterministic per user and JST day in low medium high order', () => {

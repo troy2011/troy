@@ -2,6 +2,8 @@ const resourceStorage = require('./resourceStorage');
 const { drawLocalGachaItem } = require('./gacha');
 const battleRoutes = require('./routes/battleRoutes');
 const { resolveGuildShipContext } = require('./guildShipSharing');
+const { getCanonicalTarotCategory, getMajorArcanaSuitInfo, getMajorArcanaTitle } = require('./tarotCards');
+const { buildMajorArcanaShipGearView } = require('./majorArcanaShipGear');
 
 const EXPLORATION_COLLECTION = 'player_explorations';
 const DAILY_FREE_SUBCOLLECTION = 'daily_free';
@@ -915,7 +917,10 @@ async function resolveActiveShip(playFabId, deps) {
         guildShipId: shipContext.guildShipId,
         kingShipName: shipContext.kingShipName,
         sailColor: resolvedProfile.sailColor || shipContext.sailColor || null,
-        appearance: resolvedProfile.appearance || shipContext.appearance || null
+        appearance: resolvedProfile.appearance || shipContext.appearance || null,
+        majorArcanaItemIds: resolvedProfile.majorArcanaItemIds || [],
+        majorArcanaSlotLimit: resourceStorage.getPlayerShipMajorArcanaSlotLimit(resolvedProfile.stage || profile.stage || 1),
+        majorArcana: buildMajorArcanaEquipmentView(resolvedProfile.majorArcanaItemIds || [], deps.catalogCache || {})
     };
 }
 
@@ -1621,11 +1626,55 @@ function attachUpgradeCosts(ship, catalogCache) {
     const upgradeOptions = resourceStorage.PLAYER_SHIP_UPGRADE_OPTIONS[ship.form] || [];
     return {
         ...ship,
+        majorArcanaSlotLimit: resourceStorage.getPlayerShipMajorArcanaSlotLimit(ship.stage || ship.form),
+        majorArcana: buildMajorArcanaEquipmentView(ship.majorArcanaItemIds, catalogCache),
         upgradeOptions,
         upgradeCosts: Object.fromEntries(upgradeOptions.map((targetForm) => [
             targetForm,
             getShipUpgradeCostsForForm(targetForm, catalogCache)
         ]))
+    };
+}
+
+function getInventoryItemAmountById(items, itemId) {
+    return (items || []).reduce((total, item) => {
+        const currentId = String(item?.Id || item?.ItemId || '').trim();
+        if (currentId !== itemId) return total;
+        return total + (Number(item?.Amount ?? item?.amount ?? 0) || 0);
+    }, 0);
+}
+
+function buildMajorArcanaEquipmentView(itemIds = [], catalogCache = {}) {
+    return resourceStorage.normalizeMajorArcanaItemIds(itemIds, Math.max(1, itemIds.length || 1))
+        .map((itemId, index) => {
+            const itemData = catalogCache?.[itemId] || {};
+            const suitInfo = getMajorArcanaSuitInfo(itemData);
+            const number = Number(itemData?.ArcanaNumber ?? itemData?.CardNumber);
+            return {
+                itemId,
+                slotIndex: index,
+                displayName: getMajorArcanaTitle(itemData, itemData?.DisplayName || itemId),
+                number: Number.isFinite(number) ? number : null,
+                suit: suitInfo.key || 'none',
+                suitLabel: suitInfo.label || '無属性',
+                shipGear: buildMajorArcanaShipGearView(itemId, itemData),
+                imagePath: String(itemData?.image_path || itemData?.ImagePath || itemData?.IconUrl || '')
+            };
+        });
+}
+
+function buildPlayerShipResponse(ship, shipContext, shipOwnerPlayFabId, catalogCache) {
+    return {
+        ...attachUpgradeCosts(ship, catalogCache),
+        shipOwnerPlayFabId,
+        isSharedShip: shipContext.isSharedShip,
+        isGuildShip: shipContext.isGuildShip,
+        isNationGuild: shipContext.isNationGuild,
+        guildId: shipContext.guildId,
+        guildName: shipContext.guildName,
+        captainName: shipContext.captainName,
+        guildShipId: shipContext.guildShipId,
+        kingShipName: shipContext.kingShipName
     };
 }
 
@@ -1664,6 +1713,83 @@ function boostBattleValue(container, key, multiplier) {
     const current = Number(container[key] || 0);
     if (!Number.isFinite(current) || current <= 0) return;
     container[key] = Math.max(1, Math.round(current * multiplier));
+}
+
+function reduceBattleValue(container, key, reductionRate, minValue = 1) {
+    if (!container || !key || !Number.isFinite(reductionRate) || reductionRate <= 0) return;
+    const current = Number(container[key] || 0);
+    if (!Number.isFinite(current) || current <= 0) return;
+    container[key] = Math.max(minValue, Math.round(current * (1 - Math.min(0.95, reductionRate))));
+}
+
+function getMajorArcanaExplorationWeakening(itemData) {
+    const suitInfo = getMajorArcanaSuitInfo(itemData || {});
+    const suit = suitInfo.key || 'none';
+    if (suit === 'wand') return { hp: 0.06, labels: ['HP'] };
+    if (suit === 'sword') return { attack: 0.06, speed: 0.06, labels: ['攻撃', '素早さ'] };
+    if (suit === 'cup') return { status: 0.06, labels: ['命中/状態'] };
+    if (suit === 'pentacle') return { defense: 0.06, labels: ['防御'] };
+    if (suit === 'all') return { hp: 0.04, attack: 0.04, defense: 0.04, speed: 0.04, labels: ['全能力'] };
+    return { hp: 0.03, attack: 0.03, defense: 0.03, labels: ['基礎能力'] };
+}
+
+function applyMajorArcanaPreBattleWeakening(boss, majorArcanaItemIds = [], catalogCache = {}) {
+    const equipped = resourceStorage.normalizeMajorArcanaItemIds(majorArcanaItemIds, 3)
+        .map((itemId) => ({ itemId, itemData: catalogCache?.[itemId] || null }))
+        .filter(({ itemData }) => getCanonicalTarotCategory(itemData?.Category) === 'TarotMajor');
+    if (!equipped.length || !boss) {
+        return { totals: {}, logs: [], equipped: [] };
+    }
+    const totals = { hp: 0, attack: 0, defense: 0, speed: 0, status: 0 };
+    const logs = [];
+    const equipmentViews = [];
+    for (const { itemId, itemData } of equipped) {
+        const effect = getMajorArcanaExplorationWeakening(itemData);
+        Object.keys(totals).forEach((key) => {
+            totals[key] += Number(effect[key] || 0) || 0;
+        });
+        const name = getMajorArcanaTitle(itemData, itemData?.DisplayName || itemId);
+        logs.push(`${name}: ${effect.labels.join('・')}を弱体化`);
+        equipmentViews.push({
+            itemId,
+            displayName: name,
+            suit: getMajorArcanaSuitInfo(itemData).key || 'none',
+            labels: effect.labels
+        });
+    }
+    Object.keys(totals).forEach((key) => {
+        totals[key] = Math.min(0.18, Math.max(0, totals[key]));
+    });
+
+    boss.stats = boss.stats || {};
+    boss.equipmentStats = boss.equipmentStats || {};
+    if (totals.hp > 0) {
+        reduceBattleValue(boss.stats, 'MaxHP', totals.hp);
+        reduceBattleValue(boss.stats, 'HP', totals.hp);
+        reduceBattleValue(boss.stats, 'CurrentHP', totals.hp);
+    }
+    if (totals.attack > 0) {
+        reduceBattleValue(boss.stats, 'ちから', totals.attack);
+        reduceBattleValue(boss.stats, 'こうげき', totals.attack);
+        reduceBattleValue(boss.stats, 'Power', totals.attack);
+        reduceBattleValue(boss.equipmentStats, 'Power', totals.attack, 0);
+    }
+    if (totals.defense > 0) {
+        reduceBattleValue(boss.stats, 'みのまもり', totals.defense, 0);
+        reduceBattleValue(boss.stats, 'Defense', totals.defense, 0);
+        reduceBattleValue(boss.equipmentStats, 'Defense', totals.defense, 0);
+    }
+    if (totals.speed > 0) {
+        reduceBattleValue(boss.stats, 'すばやさ', totals.speed);
+        reduceBattleValue(boss.stats, 'Agi', totals.speed, 0);
+        reduceBattleValue(boss.equipmentStats, 'Agi', totals.speed, 0);
+    }
+    if (totals.status > 0) {
+        boss.equipmentStats.StatusRate = (Number(boss.equipmentStats.StatusRate || 0) || 0) - Math.round(totals.status * 100);
+        boss.accuracyPenalty = Math.round(totals.status * 100);
+    }
+    boss.stats.CurrentHP = Math.max(1, Math.min(Number(boss.stats.CurrentHP || 1), Number(boss.stats.MaxHP || boss.stats.CurrentHP || 1)));
+    return { totals, logs, equipped: equipmentViews };
 }
 
 function applyExplorationSupplyToBattleProfile(player, supplyProfile = null) {
@@ -1822,7 +1948,7 @@ async function getExplorationBattlePlayerProfile(playFabId, { promisifyPlayFab, 
 }
 
 // BOSS戦では一時的にHPを使うが、探索後に全回復する
-async function resolveBossBattle(playFabId, destination, bossBase, { promisifyPlayFab, PlayFabServer }, supplyProfile = null) {
+async function resolveBossBattle(playFabId, destination, bossBase, { promisifyPlayFab, PlayFabServer }, supplyProfile = null, majorArcanaItemIds = [], catalogCache = {}) {
     const tierDef = getBossTierDef(bossBase?.tier);
     let player;
     try {
@@ -1843,6 +1969,7 @@ async function resolveBossBattle(playFabId, destination, bossBase, { promisifyPl
     player.stats.CurrentHP = Math.max(1, Number(player.stats.CurrentHP || player.stats.HP || 30));
     const supplyBattleLogLines = applyExplorationSupplyToBattleProfile(player, supplyProfile);
     boss.stats.CurrentHP = boss.stats.MaxHP;
+    const arcanaWeakening = applyMajorArcanaPreBattleWeakening(boss, majorArcanaItemIds, catalogCache);
 
     const battleResult = await battleRoutes.runBattle(player, boss);
     const playerWon = battleResult?.winner?.id === player.id;
@@ -1859,9 +1986,11 @@ async function resolveBossBattle(playFabId, destination, bossBase, { promisifyPl
         escaped,
         draw,
         hpCost: 0,
+        arcanaWeakening,
         battleLog: [
             `${tierDef.label}BOSS「${bossBase.name || 'BOSS'}」と戦闘！`,
             ...supplyBattleLogLines,
+            ...(arcanaWeakening.logs.length ? [`船装備の大アルカナが白兵戦前にBOSSを弱らせた: ${arcanaWeakening.logs.join(' / ')}`] : []),
             ...(Array.isArray(battleResult?.logs) ? battleResult.logs : []),
             escaped
                 ? '戦闘は決着せず終了した。探索後にHPは全回復した。'
@@ -1943,6 +2072,9 @@ function buildReportText({ destination, ship, bossResult, rewardDisplayName, rew
     const normalizedSupplyProfile = normalizeExplorationSupplyProfile(supplyProfile);
     if (normalizedSupplyProfile.effectLabels.length) {
         lines.push(`補給効果: ${normalizedSupplyProfile.effectLabels.join(' / ')}`);
+    }
+    if (Array.isArray(bossResult?.arcanaWeakening?.logs) && bossResult.arcanaWeakening.logs.length) {
+        lines.push(`大アルカナ先制: ${bossResult.arcanaWeakening.logs.join(' / ')}`);
     }
     if (rewardCount > 0) lines.push(`発見したお宝 (${rewardCount}個): ${rewardDisplayName}`);
     else lines.push('お宝は得られませんでした。');
@@ -2036,18 +2168,7 @@ function initializeExplorationRoutes(app, deps) {
                 : attachUpgradeCosts(baseShip, catalogCache);
             res.json({
                 success: true,
-                ship: {
-                    ...ship,
-                    shipOwnerPlayFabId,
-                    isSharedShip: shipContext.isSharedShip,
-                    isGuildShip: shipContext.isGuildShip,
-                    isNationGuild: shipContext.isNationGuild,
-                    guildId: shipContext.guildId,
-                    guildName: shipContext.guildName,
-                    captainName: shipContext.captainName,
-                    guildShipId: shipContext.guildShipId,
-                    kingShipName: shipContext.kingShipName
-                }
+                ship: buildPlayerShipResponse(ship, shipContext, shipOwnerPlayFabId, catalogCache)
             });
         } catch (error) {
             console.error('[player-ship/status] failed:', error?.errorMessage || error?.message || error);
@@ -2111,18 +2232,7 @@ function initializeExplorationRoutes(app, deps) {
             }
             res.json({
                 success: true,
-                ship: {
-                    ...attachUpgradeCosts(ship, catalogCache),
-                    shipOwnerPlayFabId,
-                    isSharedShip: shipContext.isSharedShip,
-                    isGuildShip: shipContext.isGuildShip,
-                    isNationGuild: shipContext.isNationGuild,
-                    guildId: shipContext.guildId,
-                    guildName: shipContext.guildName,
-                    captainName: shipContext.captainName,
-                    guildShipId: shipContext.guildShipId,
-                    kingShipName: shipContext.kingShipName
-                },
+                ship: buildPlayerShipResponse(ship, shipContext, shipOwnerPlayFabId, catalogCache),
                 costs
             });
         } catch (error) {
@@ -2152,18 +2262,7 @@ function initializeExplorationRoutes(app, deps) {
             const ship = await resourceStorage.renamePlayerShipProfile(shipOwnerPlayFabId, name, { promisifyPlayFab, PlayFabServer });
             res.json({
                 success: true,
-                ship: {
-                    ...attachUpgradeCosts(ship, catalogCache),
-                    shipOwnerPlayFabId,
-                    isSharedShip: shipContext.isSharedShip,
-                    isGuildShip: shipContext.isGuildShip,
-                    isNationGuild: shipContext.isNationGuild,
-                    guildId: shipContext.guildId,
-                    guildName: shipContext.guildName,
-                    captainName: shipContext.captainName,
-                    guildShipId: shipContext.guildShipId,
-                    kingShipName: shipContext.kingShipName
-                }
+                ship: buildPlayerShipResponse(ship, shipContext, shipOwnerPlayFabId, catalogCache)
             });
         } catch (error) {
             if (error?.message === 'InvalidShipName') {
@@ -2171,6 +2270,152 @@ function initializeExplorationRoutes(app, deps) {
             }
             console.error('[player-ship/name] failed:', error?.errorMessage || error?.message || error);
             res.status(500).json({ error: '船の名前を変更できませんでした。' });
+        }
+    });
+
+    async function requireOwnedMajorArcana(playFabId, itemId) {
+        const cardItemId = String(itemId || '').trim();
+        const itemData = catalogCache?.[cardItemId];
+        if (getCanonicalTarotCategory(itemData?.Category) !== 'TarotMajor') {
+            return { ok: false, status: 400, error: '大アルカナカードを選択してください。' };
+        }
+        if (typeof getEntityKeyForPlayFabId !== 'function' || typeof getAllInventoryItems !== 'function') {
+            throw new Error('InventoryDepsMissing');
+        }
+        const entityKey = await getEntityKeyForPlayFabId(playFabId);
+        const inventoryItems = await getAllInventoryItems(entityKey);
+        if (getInventoryItemAmountById(inventoryItems, cardItemId) <= 0) {
+            return { ok: false, status: 403, error: '所持していない大アルカナは装備できません。' };
+        }
+        return { ok: true };
+    }
+
+    async function loadMutablePlayerShip(playFabId, res) {
+        const shipContext = await resolveGuildShipContext(playFabId, deps);
+        if (shipContext.isSharedShip || shipContext.isGuildShip) {
+            res.status(403).json({ error: shipContext.isGuildShip ? 'ギルドシップの大アルカナ装備は変更できません。' : '他プレイヤーの船装備は変更できません。' });
+            return null;
+        }
+        const shipOwnerPlayFabId = shipContext.shipOwnerPlayFabId || playFabId;
+        const ship = await resourceStorage.getPlayerShipProfile(shipOwnerPlayFabId, { promisifyPlayFab, PlayFabServer });
+        return { shipContext, shipOwnerPlayFabId, ship };
+    }
+
+    function majorArcanaShipResponse(ship, shipContext, shipOwnerPlayFabId) {
+        return {
+            success: true,
+            ship: buildPlayerShipResponse(ship, shipContext, shipOwnerPlayFabId, catalogCache)
+        };
+    }
+
+    app.post('/api/player-ship/major-arcana/equip', async (req, res) => {
+        let { playFabId } = req.body || {};
+        const itemId = String(req.body?.itemId || req.body?.cardItemId || '').trim();
+        const slotIndexRaw = req.body?.slotIndex;
+        if (!playFabId || !itemId) return res.status(400).json({ error: 'playFabId and itemId are required' });
+        playFabId = await requireAuthed(req, res, playFabId);
+        if (!playFabId) return;
+        try {
+            const ownership = await requireOwnedMajorArcana(playFabId, itemId);
+            if (!ownership.ok) return res.status(ownership.status).json({ error: ownership.error });
+            const loaded = await loadMutablePlayerShip(playFabId, res);
+            if (!loaded) return;
+            const { shipContext, shipOwnerPlayFabId, ship } = loaded;
+            const slotLimit = resourceStorage.getPlayerShipMajorArcanaSlotLimit(ship.stage || ship.form);
+            const current = resourceStorage.normalizeMajorArcanaItemIds(ship.majorArcanaItemIds, slotLimit)
+                .filter((id) => id !== itemId);
+            const slotIndex = slotIndexRaw === undefined || slotIndexRaw === null || slotIndexRaw === ''
+                ? null
+                : Math.floor(Number(slotIndexRaw));
+            let next;
+            if (Number.isInteger(slotIndex) && slotIndex >= 0 && slotIndex < slotLimit) {
+                next = [...current];
+                next[slotIndex] = itemId;
+                next = next.filter(Boolean);
+            } else {
+                if (current.length >= slotLimit) {
+                    return res.status(400).json({ error: '大アルカナ装備枠がいっぱいです。' });
+                }
+                next = [...current, itemId];
+            }
+            const saved = await resourceStorage.savePlayerShipProfile(shipOwnerPlayFabId, {
+                ...ship,
+                majorArcanaItemIds: resourceStorage.normalizeMajorArcanaItemIds(next, slotLimit),
+                updatedAtMs: Date.now()
+            }, { promisifyPlayFab, PlayFabServer });
+            res.json(majorArcanaShipResponse(saved, shipContext, shipOwnerPlayFabId));
+        } catch (error) {
+            console.error('[player-ship/major-arcana/equip] failed:', error?.errorMessage || error?.message || error);
+            res.status(500).json({ error: '大アルカナを装備できませんでした。' });
+        }
+    });
+
+    app.post('/api/player-ship/major-arcana/unequip', async (req, res) => {
+        let { playFabId } = req.body || {};
+        const itemId = String(req.body?.itemId || req.body?.cardItemId || '').trim();
+        const slotIndexRaw = req.body?.slotIndex;
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        playFabId = await requireAuthed(req, res, playFabId);
+        if (!playFabId) return;
+        try {
+            const loaded = await loadMutablePlayerShip(playFabId, res);
+            if (!loaded) return;
+            const { shipContext, shipOwnerPlayFabId, ship } = loaded;
+            const slotLimit = resourceStorage.getPlayerShipMajorArcanaSlotLimit(ship.stage || ship.form);
+            let next = resourceStorage.normalizeMajorArcanaItemIds(ship.majorArcanaItemIds, slotLimit);
+            if (itemId) {
+                next = next.filter((id) => id !== itemId);
+            } else {
+                const slotIndex = Math.floor(Number(slotIndexRaw));
+                if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= next.length) {
+                    return res.status(400).json({ error: 'itemId or valid slotIndex is required' });
+                }
+                next.splice(slotIndex, 1);
+            }
+            const saved = await resourceStorage.savePlayerShipProfile(shipOwnerPlayFabId, {
+                ...ship,
+                majorArcanaItemIds: next,
+                updatedAtMs: Date.now()
+            }, { promisifyPlayFab, PlayFabServer });
+            res.json(majorArcanaShipResponse(saved, shipContext, shipOwnerPlayFabId));
+        } catch (error) {
+            console.error('[player-ship/major-arcana/unequip] failed:', error?.errorMessage || error?.message || error);
+            res.status(500).json({ error: '大アルカナを解除できませんでした。' });
+        }
+    });
+
+    app.post('/api/player-ship/major-arcana/move', async (req, res) => {
+        let { playFabId } = req.body || {};
+        const itemId = String(req.body?.itemId || req.body?.cardItemId || '').trim();
+        const direction = String(req.body?.direction || '').trim();
+        if (!playFabId || !itemId) return res.status(400).json({ error: 'playFabId and itemId are required' });
+        if (!['left', 'right', 'up', 'down', '-1', '1'].includes(direction)) {
+            return res.status(400).json({ error: 'direction must be left or right' });
+        }
+        playFabId = await requireAuthed(req, res, playFabId);
+        if (!playFabId) return;
+        try {
+            const loaded = await loadMutablePlayerShip(playFabId, res);
+            if (!loaded) return;
+            const { shipContext, shipOwnerPlayFabId, ship } = loaded;
+            const slotLimit = resourceStorage.getPlayerShipMajorArcanaSlotLimit(ship.stage || ship.form);
+            const next = resourceStorage.normalizeMajorArcanaItemIds(ship.majorArcanaItemIds, slotLimit);
+            const index = next.indexOf(itemId);
+            if (index < 0) return res.status(400).json({ error: 'この大アルカナは船に装備されていません。' });
+            const delta = direction === 'left' || direction === 'up' || direction === '-1' ? -1 : 1;
+            const nextIndex = index + delta;
+            if (nextIndex >= 0 && nextIndex < next.length) {
+                [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+            }
+            const saved = await resourceStorage.savePlayerShipProfile(shipOwnerPlayFabId, {
+                ...ship,
+                majorArcanaItemIds: next,
+                updatedAtMs: Date.now()
+            }, { promisifyPlayFab, PlayFabServer });
+            res.json(majorArcanaShipResponse(saved, shipContext, shipOwnerPlayFabId));
+        } catch (error) {
+            console.error('[player-ship/major-arcana/move] failed:', error?.errorMessage || error?.message || error);
+            res.status(500).json({ error: '大アルカナの順番を変更できませんでした。' });
         }
     });
 
@@ -2478,7 +2723,15 @@ function initializeExplorationRoutes(app, deps) {
             } else {
                 // 初回: BOSS抽選 → BOSS戦闘 → 報酬抽選 → Firestore保存 → HP全回復
                 const selectedBoss = selectExplorationBoss(destination, Math.random, ship.shipClass);
-                bossResult = await resolveBossBattle(playFabId, destination, selectedBoss, { promisifyPlayFab, PlayFabServer }, supplyProfile);
+                bossResult = await resolveBossBattle(
+                    playFabId,
+                    destination,
+                    selectedBoss,
+                    { promisifyPlayFab, PlayFabServer },
+                    supplyProfile,
+                    ship.majorArcanaItemIds || [],
+                    catalogCache
+                );
 
                 const rewardCount = resolveRewardCount(bossResult, ship.shipClass, supplyProfile);
                 const gachaOptions = getExplorationGachaOptions(destination.id, ship, supplyProfile);
@@ -2585,6 +2838,7 @@ module.exports = {
         EXPLORATION_SHIP_ROLES,
         BOSS_TIER_DEFS,
         applyExplorationSupplyToBattleProfile,
+        applyMajorArcanaPreBattleWeakening,
         applyExplorationSupplyToGachaOptions,
         buildExplorationSupplyProfile,
         buildTroyMenuConsumablePaymentOptions,

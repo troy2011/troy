@@ -1,9 +1,9 @@
 // server/tarotDeck.js
 // タロットデッキ管理
-// 白兵戦と船スキルは同じタロットデッキを参照する
+// 白兵戦用の小アルカナデッキを管理する
 // 最大5枚、デッキ順のまま保持し、5枚役を評価する
 
-const { getCanonicalTarotCategory, getMajorArcanaSuitInfo } = require('./tarotCards');
+const { getCanonicalTarotCategory } = require('./tarotCards');
 const { evaluateTarotRole, getTarotRoleBonus } = require('./tarotRoles');
 
 const TAROT_DECK_DATA_KEY = 'TarotDeck';
@@ -65,6 +65,16 @@ function sortDeckByCardNumber(deck, catalogCache) {
     return normalizeDeckList(deck);
 }
 
+function isMinorArcanaItem(itemId, catalogCache) {
+    const itemData = catalogCache?.[itemId];
+    const category = getCanonicalTarotCategory(itemData?.Category);
+    return category === 'TarotMinor';
+}
+
+function filterMinorDeckIds(deck, catalogCache) {
+    return normalizeDeckList(deck).filter((itemId) => isMinorArcanaItem(itemId, catalogCache));
+}
+
 function mergeLegacyDecks(primaryDeck, secondaryDeck) {
     return normalizeDeckList([...(primaryDeck || []), ...(secondaryDeck || [])]);
 }
@@ -78,9 +88,7 @@ function getInventoryItemAmount(items, itemId) {
 }
 
 function isTarotCardItem(itemId, catalogCache) {
-    const itemData = catalogCache?.[itemId];
-    const category = getCanonicalTarotCategory(itemData?.Category);
-    return category === 'TarotMajor' || category === 'TarotMinor';
+    return isMinorArcanaItem(itemId, catalogCache);
 }
 
 async function readDecks(playFabId, promisifyPlayFab, PlayFabServer) {
@@ -163,17 +171,6 @@ function buildDeckRoleCards(deckItemDataList) {
     return deckItemDataList.map((itemData) => {
         if (!itemData) return null;
         const category = getCanonicalTarotCategory(itemData?.Category);
-        if (category === 'TarotMajor') {
-            const number = Number(itemData?.ArcanaNumber ?? itemData?.CardNumber);
-            if (!Number.isFinite(number)) return null;
-            const suitInfo = getMajorArcanaSuitInfo(itemData);
-            return {
-                kind: 'major',
-                number,
-                suit: SUIT_MAP[suitInfo.key] || 'None',
-                name: String(itemData?.ArcanaName || itemData?.DisplayName || '').trim()
-            };
-        }
         if (category === 'TarotMinor') {
             const raw = String(
                 itemData?.ArcanaRank || itemData?.Rank || itemData?.CardRank || itemData?.CardNumber || ''
@@ -230,7 +227,7 @@ function initializeTarotDeckRoutes(app, deps) {
 
     async function requireOwnedTarotCard(playFabId, cardItemId) {
         if (!isTarotCardItem(cardItemId, catalogCache)) {
-            return { ok: false, status: 400, error: 'CardItemRequired' };
+            return { ok: false, status: 400, error: 'MinorArcanaCardRequired' };
         }
         if (typeof getEntityKeyForPlayFabId !== 'function' || typeof getAllInventoryItems !== 'function') {
             throw new Error('InventoryDepsMissing');
@@ -244,7 +241,7 @@ function initializeTarotDeckRoutes(app, deps) {
     }
 
     function buildDeckResponse(decks) {
-        const tarotDeck = normalizeDeckList(decks?.tarotDeck || decks?.meleeDeck || decks?.shipDeck || []);
+        const tarotDeck = filterMinorDeckIds(decks?.tarotDeck || decks?.meleeDeck || decks?.shipDeck || [], catalogCache);
         const tarotRole = evaluateDeckRole(tarotDeck.map((itemId) => catalogCache?.[itemId] || null));
         return {
             tarotDeck,
@@ -264,7 +261,11 @@ function initializeTarotDeckRoutes(app, deps) {
         if (!playFabId) return;
         try {
             const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer);
-            return res.json({ ok: true, ...buildDeckResponse(decks) });
+            const response = buildDeckResponse(decks);
+            if (response.tarotDeck.length !== normalizeDeckList(decks.tarotDeck).length) {
+                await writeDecks(playFabId, { tarotDeck: response.tarotDeck }, promisifyPlayFab, PlayFabServer);
+            }
+            return res.json({ ok: true, ...response });
         } catch (error) {
             console.error('[tarot-deck-get] Error:', error?.message || error);
             return res.status(500).json({ error: 'FailedToGetTarotDecks' });
@@ -287,7 +288,7 @@ function initializeTarotDeckRoutes(app, deps) {
             const ownership = await requireOwnedTarotCard(playFabId, cardItemId);
             if (!ownership.ok) return res.status(ownership.status).json({ error: ownership.error });
             const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer);
-            const current = decks.tarotDeck;
+            const current = filterMinorDeckIds(decks.tarotDeck, catalogCache);
             const result = equipCardToDeck(current, cardItemId);
             if (!result.ok) return res.status(400).json({ error: result.error });
             const updatedDeck = normalizeDeckList(result.deck);
@@ -314,7 +315,7 @@ function initializeTarotDeckRoutes(app, deps) {
         if (!playFabId) return;
         try {
             const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer);
-            const current = decks.tarotDeck;
+            const current = filterMinorDeckIds(decks.tarotDeck, catalogCache);
             const result = unequipCardFromDeck(current, cardItemId);
             const updatedDeck = normalizeDeckList(result.deck);
             const updated = { tarotDeck: updatedDeck, meleeDeck: updatedDeck, shipDeck: updatedDeck };
@@ -343,7 +344,7 @@ function initializeTarotDeckRoutes(app, deps) {
         if (!playFabId) return;
         try {
             const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer);
-            const current = decks.tarotDeck;
+            const current = filterMinorDeckIds(decks.tarotDeck, catalogCache);
             const result = moveCardInDeck(current, cardItemId, direction);
             if (!result.ok) return res.status(400).json({ error: result.error });
             const updatedDeck = normalizeDeckList(result.deck);
@@ -371,6 +372,8 @@ module.exports = {
     unequipCardFromDeck,
     moveCardInDeck,
     sortDeckByCardNumber,
+    filterMinorDeckIds,
+    isMinorArcanaItem,
     buildDeckRoleCards,
     evaluateDeckRole,
     initializeTarotDeckRoutes

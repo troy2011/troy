@@ -567,7 +567,22 @@ async function renderOpponentAvatar(playerData, renderAvatar, callApiWithLoader)
 }
 
 // WorldMapScene 等から相手IDを指定してバトル開始する
-async function startBattleWithOpponent(opponentId) {
+function buildBattleStartPayload(opponentId, options = {}) {
+    const payload = { attackerId: myPlayFabId, defenderId: opponentId };
+    const context = options && typeof options === 'object' ? options : {};
+    if (context.source || context.navalOutcome || context.boardedPlayerId || context.boardingPlayerId) {
+        payload.battleContext = {
+            source: context.source || 'navalPlunder',
+            navalOutcome: context.navalOutcome || context.outcome || null,
+            boardedPlayerId: context.boardedPlayerId || null,
+            boardingPlayerId: context.boardingPlayerId || null,
+            navalBoardingState: context.navalBoardingState || null
+        };
+    }
+    return payload;
+}
+
+async function startBattleWithOpponent(opponentId, options = {}) {
     if (!opponentId) return;
     if (!battleDependencies || !battleDependencies.callApiWithLoader) {
         console.warn('[Battle] Dependencies not ready yet.');
@@ -593,7 +608,7 @@ async function startBattleWithOpponent(opponentId) {
 
     const attemptStartBattle = async (attempt = 1) => {
         try {
-            const data = await battleDependencies.callApiWithLoader('/api/start-battle', { attackerId: myPlayFabId, defenderId: opponentId });
+            const data = await battleDependencies.callApiWithLoader('/api/start-battle', buildBattleStartPayload(opponentId, options));
             if (data && data.battleId) {
                 if (typeof window !== 'undefined') {
                     window.__pendingIslandCommandAfterBattle = null;

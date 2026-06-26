@@ -6,6 +6,7 @@
 
 const admin = require('firebase-admin');
 const { isTarotMajorCategory, isTarotMinorCategory } = require('../tarotCards');
+const { getPublicTarotBattleSkills } = require('../tarotBattleSkills');
 
 const LEVELS_PER_STAGE = 5;
 const MAJOR_MAX_STAGES = 5;
@@ -63,6 +64,14 @@ function initializeCardRoutes(app, deps) {
             return isTarotMajorCategory(cat) || isTarotMinorCategory(cat);
         });
     }
+
+    // ── 所有カード一覧 ────────────────────────────────────────
+    app.get('/api/tarot-battle-skills', (_req, res) => {
+        res.json({
+            ok: true,
+            cards: getPublicTarotBattleSkills()
+        });
+    });
 
     // ── 所有カード一覧 ────────────────────────────────────────
     app.get('/api/cards', requireAuthenticatedPlayFabId, async (req, res) => {

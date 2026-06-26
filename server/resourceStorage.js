@@ -55,6 +55,26 @@ const PLAYER_SHIP_UPGRADE_OPTIONS = {
     merchant: []
 };
 
+function getPlayerShipMajorArcanaSlotLimit(stageOrForm) {
+    if (typeof stageOrForm === 'string' && PLAYER_SHIP_FORMS[stageOrForm]) {
+        return getPlayerShipMajorArcanaSlotLimit(PLAYER_SHIP_FORMS[stageOrForm].stage);
+    }
+    const stage = Math.max(1, Math.floor(Number(stageOrForm || 1) || 1));
+    if (stage <= 1) return 1;
+    if (stage === 2) return 2;
+    return 3;
+}
+
+function normalizeMajorArcanaItemIds(value, slotLimit = 1) {
+    const limit = getPlayerShipMajorArcanaSlotLimit(slotLimit);
+    const unique = [];
+    (Array.isArray(value) ? value : []).forEach((itemId) => {
+        const id = String(itemId || '').trim();
+        if (id && !unique.includes(id)) unique.push(id);
+    });
+    return unique.slice(0, limit);
+}
+
 function normalizeResourceMap(input) {
     const normalized = {};
     for (const itemId of RESOURCE_ITEM_IDS) {
@@ -94,6 +114,12 @@ function normalizePlayerShipProfile(input = {}) {
     const spec = PLAYER_SHIP_FORMS[form] || PLAYER_SHIP_FORMS.boat;
     const rawName = String(input.name || spec.name).trim();
     const name = LEGACY_PLAYER_SHIP_NAMES[form]?.has(rawName) ? spec.name : rawName;
+    const majorArcanaSlotLimit = getPlayerShipMajorArcanaSlotLimit(spec.stage);
+    const legacyMajorArcana = input.majorArcanaItemId || input.majorArcanaId || input.MajorArcanaId;
+    const majorArcanaItemIds = normalizeMajorArcanaItemIds(
+        Array.isArray(input.majorArcanaItemIds) ? input.majorArcanaItemIds : (legacyMajorArcana ? [legacyMajorArcana] : []),
+        majorArcanaSlotLimit
+    );
     return {
         form: spec.form,
         stage: spec.stage,
@@ -101,6 +127,8 @@ function normalizePlayerShipProfile(input = {}) {
         itemId: String(input.itemId || spec.itemId),
         name: name.slice(0, 16) || spec.name,
         level: Math.max(1, Math.floor(Number(input.level || 1) || 1)),
+        majorArcanaItemIds,
+        majorArcanaSlotLimit,
         updatedAtMs: Number(input.updatedAtMs || Date.now()) || Date.now()
     };
 }
@@ -169,6 +197,7 @@ async function upgradePlayerShipProfile(playFabId, targetForm, deps) {
         ...PLAYER_SHIP_FORMS[target],
         name: shouldCarryName ? current.name : PLAYER_SHIP_FORMS[target].name,
         level: current.level + 1,
+        majorArcanaItemIds: current.majorArcanaItemIds,
         updatedAtMs: Date.now()
     });
     return savePlayerShipProfile(playFabId, next, deps);
@@ -292,6 +321,8 @@ module.exports = {
     getShipCargoCapacity,
     getShipCargoPreset,
     saveShipCargoPreset,
+    getPlayerShipMajorArcanaSlotLimit,
+    normalizeMajorArcanaItemIds,
     getPlayerShipProfile,
     savePlayerShipProfile,
     upgradePlayerShipProfile,

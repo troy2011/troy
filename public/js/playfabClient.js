@@ -120,6 +120,10 @@ export function getTarotDecks(playFabId, options) {
     return callApiWithLoader('/api/tarot-deck-get', { playFabId }, options);
 }
 
+export function getTarotBattleSkills() {
+    return fetchJson('/api/tarot-battle-skills');
+}
+
 export function equipTarotCard(playFabId, cardItemId, deckType, options) {
     return callApiWithLoader('/api/tarot-deck-equip', { playFabId, cardItemId, deckType }, options);
 }
@@ -130,6 +134,23 @@ export function unequipTarotCard(playFabId, cardItemId, deckType, options) {
 
 export function moveTarotDeckCard(playFabId, cardItemId, deckType, direction, options) {
     return callApiWithLoader('/api/tarot-deck-move', { playFabId, cardItemId, deckType, direction }, options);
+}
+
+export function equipShipMajorArcana(playFabId, itemId, slotIndex = null, options) {
+    const body = { playFabId, itemId };
+    if (Number.isInteger(slotIndex)) body.slotIndex = slotIndex;
+    return callApiWithLoader('/api/player-ship/major-arcana/equip', body, options);
+}
+
+export function unequipShipMajorArcana(playFabId, itemId, slotIndex = null, options) {
+    const body = { playFabId };
+    if (itemId) body.itemId = itemId;
+    if (Number.isInteger(slotIndex)) body.slotIndex = slotIndex;
+    return callApiWithLoader('/api/player-ship/major-arcana/unequip', body, options);
+}
+
+export function moveShipMajorArcana(playFabId, itemId, direction, options) {
+    return callApiWithLoader('/api/player-ship/major-arcana/move', { playFabId, itemId, direction }, options);
 }
 
 export function getEvents(playFabId, options) {

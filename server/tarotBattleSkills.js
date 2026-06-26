@@ -151,6 +151,7 @@ function resolveTarotBattleSkill(itemId, itemData = null) {
 
 function getTarotBattleDeck(deckIds, catalogCache = {}) {
     return (Array.isArray(deckIds) ? deckIds : [])
+        .filter((itemId) => getCanonicalTarotCategory(catalogCache?.[itemId]?.Category) === 'TarotMinor')
         .map((itemId) => resolveTarotBattleSkill(itemId, catalogCache?.[itemId] || null))
         .filter(Boolean);
 }
@@ -170,6 +171,38 @@ function getMajorArcanaElement(itemData) {
     return getElementForTarotRoleSuit(suitInfo?.value || suitInfo?.suit || '');
 }
 
+function publicTarotBattleSkill(skill) {
+    if (!skill || typeof skill !== 'object') return null;
+    return {
+        cardId: String(skill.cardId || ''),
+        itemId: String(skill.itemId || ''),
+        classification: String(skill.classification || ''),
+        number: Number.isFinite(Number(skill.number)) ? Number(skill.number) : null,
+        cardName: String(skill.cardName || ''),
+        suit: String(skill.suit || ''),
+        element: String(skill.element || ''),
+        elementKey: String(skill.elementKey || 'none'),
+        skillName: String(skill.skillName || ''),
+        target: String(skill.target || ''),
+        effectClass: String(skill.effectClass || ''),
+        description: String(skill.description || ''),
+        damageTier: String(skill.damageTier || ''),
+        healTier: String(skill.healTier || ''),
+        special: String(skill.special || ''),
+        status: String(skill.status || ''),
+        successRate: String(skill.successRate || ''),
+        successRateValue: Number(skill.successRateValue || 0) || 0,
+        cooldown: Math.max(0, Math.floor(Number(skill.cooldown) || 0)),
+        notes: String(skill.notes || '')
+    };
+}
+
+function getPublicTarotBattleSkills() {
+    return TAROT_BATTLE_SKILLS
+        .map(publicTarotBattleSkill)
+        .filter(Boolean);
+}
+
 module.exports = {
     TAROT_BATTLE_SKILLS,
     jsonCardIdToItemId,
@@ -179,5 +212,7 @@ module.exports = {
     resolveTarotBattleSkill,
     getTarotBattleDeck,
     getElementForTarotRoleSuit,
-    getMajorArcanaElement
+    getMajorArcanaElement,
+    publicTarotBattleSkill,
+    getPublicTarotBattleSkills
 };

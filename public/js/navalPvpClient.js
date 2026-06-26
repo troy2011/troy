@@ -9,7 +9,7 @@ import {
 } from 'firebase/database';
 
 const ROOM_ROOT = 'navalPlunderRooms';
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 const TICK_MS = 500;
 const STALE_ROOM_MS = 10 * 60 * 1000;
 
@@ -43,6 +43,7 @@ function normalizeProfile(rawProfile) {
     return {
         playFabId: normalizeId(profile.playFabId || profile.PlayFabId || ''),
         displayName: String(profile.displayName || profile.DisplayName || '').slice(0, 40),
+        race: String(profile.race || profile.Race || profile.species || profile.Species || '').slice(0, 20),
         nation: String(profile.nation || profile.Nation || '').slice(0, 20),
         level: Math.max(1, Math.floor(Number(profile.level || profile.Level || profile.stats?.level || 1) || 1)),
         stats: profile.stats && typeof profile.stats === 'object' ? clone(profile.stats) : {},
@@ -119,6 +120,28 @@ function opponentNameFor(room, role, fallback) {
     return String(other?.displayName || fallback || other?.playFabId || '相手');
 }
 
+function buildBoardingContext(room, outcome, fallback = {}) {
+    const navalOutcome = String(outcome || fallback?.navalOutcome || fallback?.outcome || '').trim();
+    const attackerId = normalizeId(room?.attackerId);
+    const defenderId = normalizeId(room?.defenderId);
+    const boardedPlayerId = navalOutcome === 'boarding'
+        ? defenderId
+        : navalOutcome === 'boarded'
+            ? attackerId
+            : normalizeId(fallback?.boardedPlayerId);
+    const boardingPlayerId = boardedPlayerId && boardedPlayerId === attackerId
+        ? defenderId
+        : boardedPlayerId && boardedPlayerId === defenderId
+            ? attackerId
+            : normalizeId(fallback?.boardingPlayerId);
+    return {
+        source: 'navalPlunder',
+        navalOutcome: navalOutcome || null,
+        boardedPlayerId: boardedPlayerId || null,
+        boardingPlayerId: boardingPlayerId || null
+    };
+}
+
 async function readRoom(roomRef) {
     const snap = await get(roomRef);
     return snap.exists() ? snap.val() : null;
@@ -181,25 +204,32 @@ async function processHostCommands() {
     const room = clone(session.room);
     const pending = room.pendingCommands || {};
     const processed = room.processedSeq || {};
-    let changed = false;
-
-    ['attacker', 'defender'].forEach((role) => {
-        const command = pending[role];
-        const seq = Number(command?.seq || 0);
-        if (!command?.commandId || seq <= Number(processed[role] || 0)) return;
-        const applied = window.__navalBattleDebug?.applyCommand?.(command.commandId, roleToEngineSide(role));
-        processed[role] = seq;
-        pending[role] = null;
-        changed = true;
-        if (!applied) {
-            const state = getLocalBattleState();
-            if (state) {
-                state.logs = [`${role === 'attacker' ? '攻撃側' : '防衛側'}のコマンドは実行できなかった`, ...(state.logs || [])].slice(0, 30);
-            }
+    const attacker = pending.attacker;
+    const defender = pending.defender;
+    const attackerSeq = Number(attacker?.seq || 0);
+    const defenderSeq = Number(defender?.seq || 0);
+    const attackerReady = attacker?.commandId && attackerSeq > Number(processed.attacker || 0);
+    const defenderReady = defender?.commandId && defenderSeq > Number(processed.defender || 0);
+    if (!attackerReady || !defenderReady) {
+        if (attackerReady || defenderReady) {
+            room.state = getLocalBattleState();
+            session.room = await writeRoom(session.roomRef, room);
         }
-    });
+        return;
+    }
 
-    if (!changed) return;
+    const appliedAttacker = window.__navalBattleDebug?.applyCommand?.(attacker.commandId, roleToEngineSide('attacker'));
+    const appliedDefender = window.__navalBattleDebug?.applyCommand?.(defender.commandId, roleToEngineSide('defender'));
+    processed.attacker = attackerSeq;
+    processed.defender = defenderSeq;
+    pending.attacker = null;
+    pending.defender = null;
+    if (!appliedAttacker || !appliedDefender) {
+        const state = getLocalBattleState();
+        if (state) {
+            state.logs = ['入力の一部を実行できなかった', ...(state.logs || [])].slice(0, 30);
+        }
+    }
     room.pendingCommands = pending;
     room.processedSeq = processed;
     room.state = getLocalBattleState();
@@ -218,7 +248,6 @@ async function hostTick() {
     }
     await processHostCommands();
     if (session.room?.status === 'finished') return;
-    window.__navalBattleDebug?.step?.();
     await publishLocalState();
 }
 
@@ -236,7 +265,7 @@ async function sendCommand(commandId) {
         uid: session.uid
     };
     await writeRoom(session.roomRef, { ...room, pendingCommands });
-    updateStatus('コマンドを送信しました。相手の状態と同期中...');
+    updateStatus('入力しました。相手の入力を待っています...');
     return true;
 }
 
@@ -258,7 +287,7 @@ function applyRoomState(room) {
     if (room.status === 'finished' && !session.finishedHandled) {
         session.finishedHandled = true;
         if (room.state?.outcome === 'boarding' || room.state?.outcome === 'boarded') {
-            session.onBoarding?.(session.opponentId);
+            session.onBoarding?.(session.opponentId, buildBoardingContext(room, room.state.outcome));
         }
     }
 }
@@ -333,10 +362,15 @@ export async function startNavalPvpBattle({
         opponentProfile: opponentPlayer.profile,
         playerShipProfile: selfPlayer.shipProfile,
         opponentShipProfile: opponentPlayer.shipProfile,
+        playerId: selfId,
         disableAi: true,
         disableTimer: true,
         onCommandSelect: sendCommand,
-        onBoarding: () => onBoarding?.(opponentId)
+        onBoarding: (_opponentId, localContext = {}) => {
+            const room = session?.room || ensured.room;
+            const outcome = localContext?.navalOutcome || localContext?.outcome || window.__navalBattleDebug?.serialize?.()?.outcome;
+            onBoarding?.(opponentId, buildBoardingContext(room, outcome, localContext));
+        }
     });
     ensureStatusElement();
 

@@ -1137,8 +1137,8 @@ async function startHomePlunderBattle(options = {}) {
             opponentName: opponent.displayName || opponent.playFabId,
             opponentProfile,
             // 接舷成立時のみ既存の白兵戦へ移行する
-            onBoarding: (opponentId) => {
-                Promise.resolve(window.startBattleWithOpponent(opponentId || opponent.playFabId)).catch((error) => {
+            onBoarding: (opponentId, battleContext = null) => {
+                Promise.resolve(window.startBattleWithOpponent(opponentId || opponent.playFabId, battleContext)).catch((error) => {
                     console.warn('[HomePlunder] Failed to start melee battle:', error);
                     showRpgMessage(error?.message || '白兵戦の開始に失敗しました。');
                 });

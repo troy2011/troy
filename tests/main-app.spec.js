@@ -304,6 +304,23 @@ test('home avatar applies equipped gear during app startup', async ({ page }) =>
       body: JSON.stringify({ ok: true, tarotDeck: [], tarotRole: null })
     });
   });
+  await page.route('**/api/player-ship/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        ship: { form: 'boat', stage: 1, majorArcanaSlotLimit: 1, majorArcanaItemIds: [] }
+      })
+    });
+  });
+  await page.route('**/api/ship-skill-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ success: true, majorArcanaSlotLimit: 1, majorArcanaItemIds: [], skills: [] })
+    });
+  });
   await page.route('**/api/get-equipment', async (route) => {
     equipmentRequests.push(JSON.parse(route.request().postData() || '{}'));
     await route.fulfill({
@@ -1586,8 +1603,8 @@ test('home plunder route opens the naval battle phase and boarding starts the me
           level: isQrTarget ? 7 : 5,
           stats: isQrTarget ? { str: 7, def: 6, agi: 5, int: 4 } : { str: 5, def: 5, agi: 6, int: 3 },
           playerShip: isQrTarget
-            ? { form: 'fighter', shipClass: 'fighter', name: '赤い略奪船', level: 3, cargoResources: { RS: 4 } }
-            : { form: 'explorer', shipClass: 'explorer', name: 'テスト快速船', level: 2 },
+            ? { form: 'fighter', shipClass: 'fighter', name: '赤い略奪船', level: 3, cargoResources: { RS: 4 }, majorArcanaItemIds: ['arcana-16'] }
+            : { form: 'explorer', shipClass: 'explorer', name: 'テスト快速船', level: 2, majorArcanaItemIds: ['arcana-7'] },
           equipment: {},
           itemSource: {},
           equipmentList: [],
@@ -1608,6 +1625,7 @@ test('home plunder route opens the naval battle phase and boarding starts the me
   await bootstrapMainApp(page, { mockFirebaseDatabase: true });
   await page.evaluate(() => {
     window.__homePlunderBattleTarget = null;
+    window.__homePlunderBattleContext = null;
     window.__homePlunderScanCount = 0;
     window.__tkUid = 'UID_PLAYWRIGHT';
     window.liff.isInClient = () => true;
@@ -1615,8 +1633,9 @@ test('home plunder route opens the naval battle phase and boarding starts the me
       window.__homePlunderScanCount += 1;
       return { value: 'ABCDEF1234567890' };
     };
-    window.startBattleWithOpponent = async (opponentId) => {
+    window.startBattleWithOpponent = async (opponentId, battleContext = null) => {
       window.__homePlunderBattleTarget = opponentId;
+      window.__homePlunderBattleContext = battleContext;
       return { battleId: 'BATTLE_FROM_HOME_PLUNDER' };
     };
   });
@@ -1632,9 +1651,11 @@ test('home plunder route opens the naval battle phase and boarding starts the me
   await expect(page.locator('#navalBattleModal')).toBeVisible();
   await expect(page.locator('#navalBattleModal')).toContainText('QR Targetの船');
   await expect(page.locator('#navalBattleModal')).toContainText('赤い略奪船');
+  await expect(page.locator('#navalBattleModal')).toContainText('戦車の破浪衝角');
+  await expect(page.locator('#navalBattleModal')).toContainText('塔の雷撃マスト');
   await expect(page.locator('#navalBattleModal')).toContainText('戦利品上限');
   await expect(page.locator('#navalPvpStatus')).toContainText('相手');
-  await expect(page.locator('#navalCommands .naval-command-btn')).toHaveCount(4);
+  await expect(page.locator('#navalCommands .naval-command-btn')).toHaveCount(3);
   expect(await page.evaluate(() => window.__homePlunderBattleTarget)).toBe(null);
   const pvpRoom = await page.evaluate(() => {
     const store = window.__pwFirebaseDbStore;
@@ -1663,6 +1684,12 @@ test('home plunder route opens the naval battle phase and boarding starts the me
   await page.evaluate(() => window.__navalBattleDebug.forceBoarding());
   await expect(page.locator('#navalBattleModal')).toBeHidden();
   await expect.poll(async () => page.evaluate(() => window.__homePlunderBattleTarget)).toBe(qrTargetId);
+  await expect.poll(async () => page.evaluate(() => window.__homePlunderBattleContext)).toMatchObject({
+    source: 'navalPlunder',
+    navalOutcome: 'boarding',
+    boardedPlayerId: qrTargetId,
+    boardingPlayerId: 'PF_PLAYWRIGHT'
+  });
   expect(explorationStatusRequests).toBe(0);
 
   await expectNoPageErrors(errors);
@@ -3572,6 +3599,23 @@ test('inventory current equipment resolves object equipment references', async (
       body: JSON.stringify({ ok: true, tarotDeck: [], tarotRole: null })
     });
   });
+  await page.route('**/api/player-ship/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        ship: { form: 'boat', stage: 1, majorArcanaSlotLimit: 1, majorArcanaItemIds: [] }
+      })
+    });
+  });
+  await page.route('**/api/ship-skill-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ success: true, majorArcanaSlotLimit: 1, majorArcanaItemIds: [], skills: [] })
+    });
+  });
 
   await bootstrapMainApp(page);
   await page.evaluate(async () => {
@@ -4017,8 +4061,46 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
         ok: true,
-        tarotDeck: ['tarot_minor_cup_10', 'tarot_major_sword_5'],
+        tarotDeck: ['tarot_minor_cup_10'],
         tarotRole: null
+      })
+    });
+  });
+  await page.route('**/api/player-ship/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        ship: {
+          form: 'explorer',
+          stage: 2,
+          majorArcanaSlotLimit: 2,
+          majorArcanaItemIds: ['tarot_major_sword_5']
+        }
+      })
+    });
+  });
+  await page.route('**/api/ship-skill-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        majorArcanaSlotLimit: 2,
+        majorArcanaItemIds: ['tarot_major_sword_5'],
+        skills: [
+          {
+            cardItemId: 'tarot_major_sword_5',
+            cardName: 'Major Five',
+            skillName: '船団の号令',
+            activationType: 'active',
+            cooldownSec: 60,
+            range: 'medium',
+            aoe: 'single',
+            description: '船に装備した大アルカナの船スキル'
+          }
+        ]
       })
     });
   });
@@ -4061,9 +4143,9 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   await expect(page.locator('#inventoryGrid .tarot-number-badge.is-pentacle')).toHaveText('3');
   await expect(page.locator('#inventoryGrid .tarot-number-badge.is-sword')).toHaveText('9');
   await expect(page.locator('#inventoryGrid .tarot-number-badge.is-cup')).toHaveText('10');
-  await expect(page.locator('#meleeDeckGrid .tarot-loadout-visual .tarot-number-badge.is-sword')).toHaveText('5');
   await expect(page.locator('#meleeDeckGrid .tarot-loadout-visual .tarot-number-badge.is-cup')).toHaveText('10');
-  await expect(page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty) .tarot-number-badge')).toHaveText(['10', '5']);
+  await expect(page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty) .tarot-number-badge')).toHaveText(['10']);
+  await expect(page.locator('#shipMajorArcanaGrid .tarot-loadout-visual .tarot-number-badge.is-sword')).toHaveText('5');
 
   const badgeStyles = await page.evaluate(() => {
     const read = (selector) => {
@@ -4238,6 +4320,23 @@ test('tarot cards open detail before changing deck membership', async ({ page })
       })
     });
   });
+  await page.route('**/api/player-ship/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        ship: { form: 'boat', stage: 1, majorArcanaSlotLimit: 1, majorArcanaItemIds: [] }
+      })
+    });
+  });
+  await page.route('**/api/ship-skill-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ success: true, majorArcanaSlotLimit: 1, majorArcanaItemIds: [], skills: [] })
+    });
+  });
   await page.route('**/api/tarot-deck-equip', async (route) => {
     equipRequests.push(route.request().postDataJSON());
     await route.fulfill({
@@ -4259,6 +4358,51 @@ test('tarot cards open detail before changing deck membership', async ({ page })
         ok: true,
         tarotDeck: ['tarot_minor_wand_7'],
         tarotRole: null
+      })
+    });
+  });
+  await page.route('**/api/tarot-battle-skills', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ok: true,
+        cards: [
+          {
+            cardId: 'WAND_07',
+            itemId: 'minor-wand-7',
+            cardName: 'ワンド7',
+            suit: 'ワンド',
+            element: '火',
+            elementKey: 'fire',
+            skillName: '勝利の旗火',
+            target: '敵1体',
+            effectClass: '攻撃/条件強化',
+            description: '中ダメージ。条件達成時に攻撃UP',
+            damageTier: '中',
+            healTier: '',
+            status: '',
+            successRate: '',
+            cooldown: 3
+          },
+          {
+            cardId: 'CUP_10',
+            itemId: 'minor-cup-10',
+            cardName: 'カップ10',
+            suit: 'カップ',
+            element: '水',
+            elementKey: 'water',
+            skillName: '大回復の杯',
+            target: '自分',
+            effectClass: '回復',
+            description: '自分を大きく回復する',
+            damageTier: '',
+            healTier: '大',
+            status: '',
+            successRate: '',
+            cooldown: 4
+          }
+        ]
       })
     });
   });
@@ -4298,11 +4442,17 @@ test('tarot cards open detail before changing deck membership', async ({ page })
   await page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty)').click();
   expect(unequipRequests).toHaveLength(0);
   await expect(page.locator('#itemDetailModal')).toBeVisible();
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('大回復の杯');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('CT 4');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('デッキ1枚目');
   await page.evaluate(() => window.closeItemDetailModal && window.closeItemDetailModal());
 
   await page.locator('#inventoryGrid .inventory-item-cell:has(.tarot-number-badge.is-wand)').click();
   expect(equipRequests).toHaveLength(0);
   await expect(page.locator('#itemDetailModal')).toBeVisible();
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('勝利の旗火');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('未セット');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('戦闘開始は1枚目から');
   await page.locator('#itemDetailModal .item-detail-action.is-equip').click();
   expect(equipRequests).toHaveLength(1);
   expect(equipRequests[0]).toMatchObject({
@@ -4384,6 +4534,23 @@ test('equipment cards open detail before equipping from inventory grid', async (
       status: 200,
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({ ok: true, tarotDeck: [], tarotRole: null })
+    });
+  });
+  await page.route('**/api/player-ship/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        ship: { form: 'boat', stage: 1, majorArcanaSlotLimit: 1, majorArcanaItemIds: [] }
+      })
+    });
+  });
+  await page.route('**/api/ship-skill-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ success: true, majorArcanaSlotLimit: 1, majorArcanaItemIds: [], skills: [] })
     });
   });
 

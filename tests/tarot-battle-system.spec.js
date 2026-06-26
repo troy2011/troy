@@ -94,6 +94,25 @@ test('tarot battle skill data resolves catalog ids and cooldowns', () => {
   expect(resolveTarotBattleSkill('minor-sword-9')?.cooldown).toBeGreaterThan(0);
 });
 
+test('public tarot battle skill payload keeps UI summary fields', () => {
+  const { getPublicTarotBattleSkills } = require('../server/tarotBattleSkills');
+  const skills = getPublicTarotBattleSkills();
+  const emperor = skills.find((skill) => skill.itemId === 'arcana-4');
+  const swordNine = skills.find((skill) => skill.itemId === 'minor-sword-9');
+
+  expect(emperor).toMatchObject({
+    itemId: 'arcana-4',
+    skillName: '王の砲撃',
+    cooldown: expect.any(Number),
+    effectClass: expect.any(String),
+    element: expect.any(String)
+  });
+  expect(swordNine).toMatchObject({
+    itemId: 'minor-sword-9',
+    cooldown: expect.any(Number)
+  });
+});
+
 test('tarot role passives use percentage battle effects', () => {
   const { getTarotRolePassive } = require('../server/tarotRoles');
 
@@ -105,6 +124,7 @@ test('tarot role passives use percentage battle effects', () => {
 test('tarot deck helpers preserve user order', () => {
   const {
     equipCardToDeck,
+    filterMinorDeckIds,
     moveCardInDeck,
     sortDeckByCardNumber
   } = require('../server/tarotDeck');
@@ -113,6 +133,21 @@ test('tarot deck helpers preserve user order', () => {
   expect(equipCardToDeck(['arcana-10'], 'arcana-1').deck).toEqual(['arcana-10', 'arcana-1']);
   expect(moveCardInDeck(['arcana-10', 'arcana-1', 'minor-sword-9'], 'minor-sword-9', 'left').deck)
     .toEqual(['arcana-10', 'minor-sword-9', 'arcana-1']);
+  expect(filterMinorDeckIds(['arcana-4', 'minor-sword-9', 'minor-cup-10'], {
+    'arcana-4': { Category: 'TarotMajor' },
+    'minor-sword-9': { Category: 'TarotMinor' },
+    'minor-cup-10': { Category: 'TarotMinor' }
+  })).toEqual(['minor-sword-9', 'minor-cup-10']);
+});
+
+test('tarot battle deck ignores major arcana because they are ship equipment', () => {
+  const { getTarotBattleDeck } = require('../server/tarotBattleSkills');
+  const deck = getTarotBattleDeck(['arcana-4', 'minor-sword-9'], {
+    'arcana-4': { Category: 'TarotMajor', ArcanaNumber: 4 },
+    'minor-sword-9': { Category: 'TarotMinor', ArcanaSuit: 'sword', ArcanaRank: '9' }
+  });
+
+  expect(deck.map((skill) => skill.itemId)).toEqual(['minor-sword-9']);
 });
 
 test('runBattle uses tarot cards in deck order with cooldown turns between them', async () => {
@@ -182,6 +217,60 @@ test('royal flush passive grants a shield that absorbs damage before HP', async 
       expect(result.logs.some((line) => line.includes('タロット役「ロイヤルフラッシュ」'))).toBe(true);
       expect(result.logs.some((line) => line.includes('シールド'))).toBe(true);
       expect(defender.tarotShield).toBeLessThan(24);
+    });
+  } finally {
+    Math.random = originalRandom;
+  }
+});
+
+test('naval boarding state carries morale crew damage and statuses into melee', async () => {
+  const originalRandom = Math.random;
+  Math.random = () => 0.99;
+  try {
+    await withBattleRoutes(async (battleRoutes) => {
+      const player = makeFighter({
+        id: 'naval-a',
+        name: 'Naval',
+        hp: 100,
+        mp: 20,
+        power: 2,
+        strength: 8,
+        speed: 10,
+        weapon: 'sword'
+      });
+      player.navalBoardingState = {
+        morale: 2,
+        crewHpPercent: 70,
+        crewMpPercent: 50,
+        statuses: {
+          fire: { turns: 2 },
+          flood: { turns: 2 },
+          fear: { turns: 2 },
+          confusion: { turns: 2 }
+        }
+      };
+      const defender = makeFighter({
+        id: 'naval-b',
+        name: 'Target',
+        hp: 180,
+        power: 1,
+        strength: 4,
+        speed: 8,
+        weapon: 'blunt'
+      });
+
+      const result = await battleRoutes.runBattle(player, defender);
+      const joined = result.logs.join('\n');
+
+      expect(joined).toContain('海戦影響');
+      expect(joined).toContain('船員HP70%');
+      expect(joined).toContain('船員MP50%');
+      expect(joined).toContain('火傷');
+      expect(joined).toContain('水浸し');
+      expect(joined).toContain('恐怖');
+      expect(joined).toContain('混乱');
+      expect(joined).toContain('士気+2');
+      expect(joined).toContain('火傷で');
     });
   } finally {
     Math.random = originalRandom;
