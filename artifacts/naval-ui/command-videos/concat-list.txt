@@ -1,0 +1,8 @@
+file 'C:/Users/bartr/troy/artifacts/naval-ui/command-videos/01-assault.mp4'
+file 'C:/Users/bartr/troy/artifacts/naval-ui/command-videos/02-bow-cannon.mp4'
+file 'C:/Users/bartr/troy/artifacts/naval-ui/command-videos/03-starboard-rudder.mp4'
+file 'C:/Users/bartr/troy/artifacts/naval-ui/command-videos/04-broadside.mp4'
+file 'C:/Users/bartr/troy/artifacts/naval-ui/command-videos/05-blank-shot.mp4'
+file 'C:/Users/bartr/troy/artifacts/naval-ui/command-videos/06-port-rudder.mp4'
+file 'C:/Users/bartr/troy/artifacts/naval-ui/command-videos/07-cargo-raid.mp4'
+file 'C:/Users/bartr/troy/artifacts/naval-ui/command-videos/08-boarding.mp4'

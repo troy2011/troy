@@ -311,6 +311,83 @@ test.describe('map actions', () => {
             loserId: 'PF_ENEMY_BATTLE'
           }
         ],
+        melee: {
+          version: 1,
+          duels: [
+            {
+              round: 1,
+              attackerId: 'PF_PLAYWRIGHT',
+              defenderId: 'PF_ENEMY_BATTLE',
+              winnerId: 'PF_PLAYWRIGHT',
+              loserId: 'PF_ENEMY_BATTLE',
+              setup: {
+                version: 1,
+                combatants: [
+                  {
+                    id: 'PF_PLAYWRIGHT',
+                    name: 'Playwright Tester',
+                    weaponType: 'sword',
+                    weaponLabel: '剣',
+                    maxHp: 120,
+                    currentHp: 120,
+                    slots: [
+                      { die: 2, initialUnlocked: false, weaponForm: { name: '強撃', kind: 'attack', power: 130, accuracy: 85 }, card: null },
+                      { die: 3, initialUnlocked: false, weaponForm: { name: '突き', kind: 'attack', power: 95, accuracy: 100 }, card: null },
+                      { die: 4, initialUnlocked: false, weaponForm: { name: '連斬', kind: 'attack', power: 50, accuracy: 95 }, card: null },
+                      { die: 5, initialUnlocked: true, weaponForm: { name: '構え直し', kind: 'support', power: null, accuracy: null }, card: { cardName: 'カップ5', skillName: '潮戻し', suit: 'Cup', rank: 5 } },
+                      { die: 6, initialUnlocked: false, weaponForm: { name: '決め斬り', kind: 'attack', power: 170, accuracy: 80 }, card: null }
+                    ]
+                  },
+                  {
+                    id: 'PF_ENEMY_BATTLE',
+                    name: 'Sea Wraith',
+                    weaponType: 'axe_big',
+                    weaponLabel: '大斧',
+                    maxHp: 95,
+                    currentHp: 95,
+                    slots: [
+                      { die: 2, initialUnlocked: false, weaponForm: { name: '踏み外し', kind: 'support', power: null, accuracy: null }, card: null },
+                      { die: 3, initialUnlocked: false, weaponForm: { name: '大振り', kind: 'attack', power: 140, accuracy: 80 }, card: null },
+                      { die: 4, initialUnlocked: false, weaponForm: { name: '叩き割り', kind: 'attack', power: 180, accuracy: 70 }, card: null },
+                      { die: 5, initialUnlocked: false, weaponForm: { name: '威圧', kind: 'support', power: null, accuracy: null }, card: null },
+                      { die: 6, initialUnlocked: false, weaponForm: { name: '処刑斧', kind: 'attack', power: 230, accuracy: 60 }, card: null }
+                    ]
+                  }
+                ]
+              },
+              timeline: [
+                {
+                  round: 1,
+                  actorId: 'PF_PLAYWRIGHT',
+                  actorName: 'Playwright Tester',
+                  targetId: 'PF_ENEMY_BATTLE',
+                  targetName: 'Sea Wraith',
+                  die: 4,
+                  resultType: 'weaponForm',
+                  reason: '',
+                  action: {
+                    source: 'weapon',
+                    kind: 'attack',
+                    name: '連斬',
+                    cardName: '',
+                    power: 50,
+                    accuracy: 95,
+                    hitCount: 2
+                  },
+                  damage: 32,
+                  selfDamage: 0,
+                  healing: 0,
+                  attackerHpBefore: 120,
+                  attackerHpAfter: 120,
+                  defenderHpBefore: 95,
+                  defenderHpAfter: 63,
+                  anyHit: true,
+                  statusChanges: []
+                }
+              ]
+            }
+          ]
+        },
         log: {
           0: '【連戦 1/1】',
           1: 'Playwright Tester attacks!',
@@ -320,6 +397,38 @@ test.describe('map actions', () => {
     });
 
     await expect(page.locator('#battleLogContainer')).toContainText('勝者: Playwright Tester');
+    await expect(page.locator('#battleMeleeReplay')).toBeVisible();
+    await expect(page.locator('#battleMeleeReplay')).toContainText('出目4');
+    await expect(page.locator('#battleMeleeReplay')).toContainText('連斬');
+    await expect(page.locator('#battleMeleeReplay .melee-replay-combatant[data-weapon="sword"]')).toBeVisible();
+    await expect(page.locator('#battleMeleeReplay .melee-replay-combatant.is-enemy-side[data-weapon="axe_big"]')).toBeVisible();
+    await expect(page.locator('#battleMeleeReplay .melee-replay-combatant[data-weapon="sword"] .melee-replay-slot[data-die="1"]')).toBeVisible();
+    await expect(page.locator('#battleMeleeReplay .melee-replay-combatant[data-weapon="sword"] .melee-replay-slot')).toHaveCount(6);
+    await expect(page.locator('#battleMeleeReplay .melee-replay-slot.is-active[data-die="4"]')).toBeVisible();
+    const replayDie = page.locator('#battleMeleeReplay .melee-replay-die.dice-sprite[data-die="4"]');
+    const slotDie = page.locator('#battleMeleeReplay .melee-replay-slot.is-active[data-die="4"] .melee-replay-slot-die.dice-sprite[data-die="4"]');
+    const replayWeapon = page.locator('#battleMeleeReplay .melee-replay-slot.is-active[data-die="4"] .weapon-sprite[data-weapon="sword"]');
+    const replayTarot = page.locator('#battleMeleeReplay .melee-replay-slot[data-die="5"] .melee-slot-tarot[data-suit="cup"][data-rank="5"]');
+    const enemySlotWeapon = page.locator('#battleMeleeReplay .melee-replay-combatant.is-enemy-side[data-weapon="axe_big"] .melee-replay-slot[data-die="4"] .weapon-sprite[data-weapon="axe_big"]');
+    await expect(replayDie).toBeVisible();
+    await expect(slotDie).toBeVisible();
+    await expect(replayWeapon).toBeVisible();
+    await expect(replayTarot).toBeVisible();
+    await expect(enemySlotWeapon).toBeVisible();
+    await expect(page.locator('#battleMeleeReplay .melee-replay-combatant[data-weapon="sword"] .melee-replay-combatant-identity .weapon-sprite')).toHaveCount(0);
+    await expect(page.locator('#battleMeleeReplay .melee-replay-combatant[data-weapon="sword"] .melee-replay-slot[data-die="5"]')).not.toContainText('潮戻し');
+    const dieRatio = await replayDie.evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.height / rect.width;
+    });
+    const weaponRatio = await replayWeapon.evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.height / rect.width;
+    });
+    expect(dieRatio).toBeGreaterThan(0.9);
+    expect(dieRatio).toBeLessThan(1.1);
+    expect(weaponRatio).toBeGreaterThan(1.5);
+    expect(weaponRatio).toBeLessThan(1.8);
     await expect(page.locator('#battleCommandArea')).toContainText('YOU WIN!');
     await expect(page.locator('#battleCommandArea button')).toHaveText('戻る');
 

@@ -1,25 +1,34 @@
 const { test, expect } = require('@playwright/test');
 
+const LEGACY_STAT_KEYS = {
+  strength: '\u7e3a\uff61\u7e3a\u4e5d\uff49',
+  defense: '\u7e3a\uff7f\u7e3a\uff6e\u7e3a\uff7e\u7e67\u3085\uff4a',
+  speed: '\u7e3a\u5436\u30fb\u7e67\u30fb\uff06',
+  intelligence: '\u7e3a\u4e5d\uff20\u7e3a\u8599\uff06'
+};
+
 function makeFighter(overrides = {}) {
+  const hp = overrides.hp ?? 120;
+  const mp = overrides.mp ?? 0;
   return {
     id: overrides.id || 'fighter',
     stats: {
       DisplayName: overrides.name || overrides.id || 'Fighter',
       Level: overrides.level || 8,
-      HP: overrides.hp || 120,
-      MaxHP: overrides.hp || 120,
-      CurrentHP: overrides.currentHp || overrides.hp || 120,
-      MP: overrides.mp || 0,
-      MaxMP: overrides.mp || 0,
-      CurrentMP: overrides.mp || 0,
-      ちから: overrides.strength || 12,
-      みのまもり: overrides.guard || 0,
-      すばやさ: overrides.speed || 10,
-      かしこさ: overrides.intelligence || 0,
-      Power: overrides.strength || 12,
-      Defense: overrides.guard || 0,
-      Agi: overrides.speed || 10,
-      Int: overrides.intelligence || 0
+      HP: hp,
+      MaxHP: hp,
+      CurrentHP: overrides.currentHp ?? hp,
+      MP: mp,
+      MaxMP: mp,
+      CurrentMP: overrides.currentMp ?? mp,
+      [LEGACY_STAT_KEYS.strength]: overrides.strength ?? 12,
+      [LEGACY_STAT_KEYS.defense]: overrides.guard ?? 0,
+      [LEGACY_STAT_KEYS.speed]: overrides.speed ?? 10,
+      [LEGACY_STAT_KEYS.intelligence]: overrides.intelligence ?? 0,
+      Power: overrides.strength ?? 12,
+      Defense: overrides.guard ?? 0,
+      Agi: overrides.speed ?? 10,
+      Int: overrides.intelligence ?? 0
     },
     equipmentStats: {
       Power: overrides.power ?? 8,
@@ -33,11 +42,37 @@ function makeFighter(overrides = {}) {
     equipment: {
       RightHand: { customData: { Category: 'Weapon', ManifestWeaponType: overrides.weapon || 'sword' } }
     },
-    skills: [],
+    skills: overrides.skills || [],
     tarotBattleDeck: overrides.tarotBattleDeck || [],
     tarotMeleeRole: overrides.tarotMeleeRole || null,
     tarotRolePassive: overrides.tarotRolePassive || null
   };
+}
+
+function minor(itemId) {
+  const { resolveTarotBattleSkill } = require('../server/tarotBattleSkills');
+  return { ...resolveTarotBattleSkill(itemId) };
+}
+
+async function runDirectBattle(player, defender, options = {}) {
+  const { runMeleeBattle } = require('../server/battle/MeleeCombatSystem');
+  return runMeleeBattle(player, defender, {
+    random: () => 0,
+    maxRounds: 4,
+    ...options
+  });
+}
+
+function combatantSetup(result, fighterId) {
+  return result.meleeSetup?.combatants?.find((combatant) => combatant.id === fighterId);
+}
+
+function slotSetup(result, fighterId, die) {
+  return combatantSetup(result, fighterId)?.slots?.find((slot) => slot.die === die);
+}
+
+function timelineFor(result, fighterId, die) {
+  return (result.meleeTimeline || []).filter((entry) => entry.actorId === fighterId && entry.die === die);
 }
 
 async function withBattleRoutes(callback) {
@@ -82,7 +117,7 @@ async function withBattleRoutes(callback) {
   }
 }
 
-test('tarot battle skill data resolves catalog ids and cooldowns', () => {
+test('tarot battle skill data resolves catalog ids and dice fields', () => {
   const {
     jsonCardIdToItemId,
     resolveTarotBattleSkill
@@ -90,35 +125,78 @@ test('tarot battle skill data resolves catalog ids and cooldowns', () => {
 
   expect(jsonCardIdToItemId('MAJOR_04')).toBe('arcana-4');
   expect(jsonCardIdToItemId('SWORD_09')).toBe('minor-sword-9');
-  expect(resolveTarotBattleSkill('arcana-4')?.skillName).toBe('王の砲撃');
-  expect(resolveTarotBattleSkill('minor-sword-9')?.cooldown).toBeGreaterThan(0);
+  expect(resolveTarotBattleSkill('arcana-4')?.skillName).toEqual(expect.any(String));
+
+  const swordNine = resolveTarotBattleSkill('minor-sword-9');
+  expect(swordNine).toMatchObject({
+    itemId: 'minor-sword-9',
+    rank: 9,
+    power: null,
+    accuracy: null,
+    effectText: expect.stringContaining('回避')
+  });
 });
 
-test('public tarot battle skill payload keeps UI summary fields', () => {
+test('public tarot battle skill payload exposes dice fields without dropping old fields', () => {
   const { getPublicTarotBattleSkills } = require('../server/tarotBattleSkills');
   const skills = getPublicTarotBattleSkills();
   const emperor = skills.find((skill) => skill.itemId === 'arcana-4');
-  const swordNine = skills.find((skill) => skill.itemId === 'minor-sword-9');
+  const swordEight = skills.find((skill) => skill.itemId === 'minor-sword-8');
 
   expect(emperor).toMatchObject({
     itemId: 'arcana-4',
-    skillName: '王の砲撃',
     cooldown: expect.any(Number),
     effectClass: expect.any(String),
     element: expect.any(String)
   });
-  expect(swordNine).toMatchObject({
-    itemId: 'minor-sword-9',
-    cooldown: expect.any(Number)
+  expect(swordEight).toMatchObject({
+    itemId: 'minor-sword-8',
+    rank: 8,
+    power: 100,
+    accuracy: 90,
+    effectText: expect.stringContaining('防御')
   });
+});
+
+test('melee battle result keeps legacy fields and adds structured replay data', async () => {
+  const player = makeFighter({ id: 'player-a', name: 'A', hp: 180, speed: 20 });
+  const defender = makeFighter({ id: 'boss-b', name: 'B', hp: 180, speed: 1, weapon: 'blunt', power: 1, strength: 1 });
+
+  const result = await runDirectBattle(player, defender, { diceRolls: [2, 6], maxRounds: 1 });
+
+  expect(result.winner).toBeTruthy();
+  expect(result.loser).toBeTruthy();
+  expect(Array.isArray(result.logs)).toBe(true);
+  expect(result.meleeSetup).toMatchObject({
+    version: 1,
+    combatants: expect.arrayContaining([
+      expect.objectContaining({
+        id: 'player-a',
+        weaponType: 'sword',
+        slots: expect.arrayContaining([
+          expect.objectContaining({ die: 1 }),
+          expect.objectContaining({ die: 2 })
+        ])
+      })
+    ])
+  });
+  expect(result.meleeTimeline).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      actorId: 'player-a',
+      die: 2,
+      resultType: expect.any(String),
+      attackerHpBefore: expect.any(Number),
+      defenderHpAfter: expect.any(Number)
+    })
+  ]));
 });
 
 test('tarot role passives use percentage battle effects', () => {
   const { getTarotRolePassive } = require('../server/tarotRoles');
 
-  expect(getTarotRolePassive({ key: 'OnePair', label: 'ワンペア' }).hpRate).toBeCloseTo(0.1);
-  expect(getTarotRolePassive({ key: 'FourKind', label: 'フォーカード' }).criticalRateBonus).toBeCloseTo(0.1);
-  expect(getTarotRolePassive({ key: 'RoyalFlush', label: 'ロイヤルフラッシュ' }).startingShieldRate).toBeCloseTo(0.2);
+  expect(getTarotRolePassive({ key: 'OnePair', label: 'one pair' }).hpRate).toBeCloseTo(0.1);
+  expect(getTarotRolePassive({ key: 'FourKind', label: 'four kind' }).criticalRateBonus).toBeCloseTo(0.1);
+  expect(getTarotRolePassive({ key: 'RoyalFlush', label: 'royal flush' }).startingShieldRate).toBeCloseTo(0.2);
 });
 
 test('tarot deck helpers preserve user order', () => {
@@ -150,48 +228,117 @@ test('tarot battle deck ignores major arcana because they are ship equipment', (
   expect(deck.map((skill) => skill.itemId)).toEqual(['minor-sword-9']);
 });
 
-test('runBattle uses tarot cards in deck order with cooldown turns between them', async () => {
-  const originalRandom = Math.random;
-  Math.random = () => 0.99;
-  try {
-    await withBattleRoutes(async (battleRoutes) => {
-      const player = makeFighter({
-        id: 'player-a',
-        name: 'A',
-        hp: 160,
-        power: 2,
-        tarotBattleDeck: [
-          { cardName: '一枚目', skillName: '赤の斬撃', effectClass: '攻撃', damageTier: '小', element: '火', elementKey: 'fire', cooldown: 1 },
-          { cardName: '二枚目', skillName: '青の斬撃', effectClass: '攻撃', damageTier: '小', element: '水', elementKey: 'water', cooldown: 1 }
-        ]
-      });
-      const defender = makeFighter({
-        id: 'boss-b',
-        name: 'B',
-        hp: 400,
-        power: 0,
-        strength: 1,
-        speed: 10,
-        weapon: 'blunt'
-      });
+test('matching minor rank starts unlocked and skips the weapon form', async () => {
+  const player = makeFighter({
+    id: 'player-a',
+    name: 'A',
+    hp: 220,
+    speed: 20,
+    tarotBattleDeck: [minor('minor-cup-2'), minor('minor-cup-3'), minor('minor-cup-4')]
+  });
+  const defender = makeFighter({ id: 'boss-b', name: 'B', hp: 500, speed: 1, weapon: 'blunt', power: 1, strength: 1 });
 
-      const result = await battleRoutes.runBattle(player, defender);
-      const firstIndex = result.logs.findIndex((line) => line.includes('一枚目 / 赤の斬撃'));
-      const secondIndex = result.logs.findIndex((line) => line.includes('二枚目 / 青の斬撃'));
+  const result = await runDirectBattle(player, defender, { diceRolls: [4, 6], maxRounds: 1 });
+  const joined = result.logs.join('\n');
 
-      expect(firstIndex).toBeGreaterThan(-1);
-      expect(secondIndex).toBeGreaterThan(firstIndex);
-      expect(result.logs.slice(firstIndex + 1, secondIndex).some((line) => line.includes('A のこうげき'))).toBe(true);
-      expect(result.logs[firstIndex + 1]).toContain('B');
-    });
-  } finally {
-    Math.random = originalRandom;
-  }
+  expect(joined).toContain('A の出目4: カップ4 / ぬかるみ（小アルカナ）');
+  expect(joined).not.toContain('連斬（武器型）');
+  expect(slotSetup(result, 'player-a', 4)).toMatchObject({
+    die: 4,
+    initialUnlocked: true,
+    card: expect.objectContaining({ itemId: 'minor-cup-4', rank: 4 })
+  });
+  expect(timelineFor(result, 'player-a', 4)[0]).toMatchObject({
+    resultType: 'minorArcana',
+    action: expect.objectContaining({ cardName: 'カップ4' })
+  });
+});
+
+test('nonmatching minor rank uses weapon form first then the card on the next same die', async () => {
+  const player = makeFighter({
+    id: 'player-a',
+    name: 'A',
+    hp: 220,
+    speed: 20,
+    tarotBattleDeck: [minor('minor-cup-2'), minor('minor-cup-3'), minor('minor-wand-9')]
+  });
+  const defender = makeFighter({ id: 'boss-b', name: 'B', hp: 500, speed: 1, weapon: 'blunt', power: 1, strength: 1 });
+
+  const result = await runDirectBattle(player, defender, { diceRolls: [4, 6, 4, 6], maxRounds: 2 });
+  const firstWeapon = result.logs.findIndex((line) => line.includes('A の出目4: 連斬（武器型）'));
+  const secondMinor = result.logs.findIndex((line) => line.includes('A の出目4: ワンド9 / 火の輪（小アルカナ）'));
+
+  expect(firstWeapon).toBeGreaterThan(-1);
+  expect(secondMinor).toBeGreaterThan(firstWeapon);
+  expect(slotSetup(result, 'player-a', 4)).toMatchObject({
+    die: 4,
+    initialUnlocked: false,
+    card: expect.objectContaining({ itemId: 'minor-wand-9', rank: 9 })
+  });
+  expect(timelineFor(result, 'player-a', 4).map((entry) => entry.resultType)).toEqual(['weaponForm', 'minorArcana']);
+});
+
+test('die one becomes a miss after its weapon form has been removed', async () => {
+  const player = makeFighter({ id: 'player-a', name: 'A', hp: 220, speed: 20 });
+  const defender = makeFighter({ id: 'boss-b', name: 'B', hp: 500, speed: 1, weapon: 'blunt', power: 1, strength: 1 });
+
+  const result = await runDirectBattle(player, defender, { diceRolls: [1, 6, 1, 6], maxRounds: 2 });
+  const firstWeapon = result.logs.findIndex((line) => line.includes('A の出目1: 斬撃（武器型）'));
+  const secondMiss = result.logs.findIndex((line) => line.includes('A の出目1: ミス（1の武器型は外れている）'));
+
+  expect(firstWeapon).toBeGreaterThan(-1);
+  expect(secondMiss).toBeGreaterThan(firstWeapon);
+  expect(timelineFor(result, 'player-a', 1).map((entry) => entry.resultType)).toEqual(['weaponForm', 'miss']);
+});
+
+test('same-rank minor on axe_big die two removes the bad weapon form drawback', async () => {
+  const player = makeFighter({
+    id: 'player-a',
+    name: 'A',
+    hp: 220,
+    speed: 20,
+    weapon: 'axe_big',
+    tarotBattleDeck: [minor('minor-pentacle-2')]
+  });
+  const defender = makeFighter({ id: 'boss-b', name: 'B', hp: 500, speed: 1, weapon: 'blunt', power: 1, strength: 1 });
+
+  const result = await runDirectBattle(player, defender, { diceRolls: [2, 6], maxRounds: 1 });
+  const joined = result.logs.join('\n');
+
+  expect(joined).toContain('A の出目2: ペンタクル2 / 二重装甲（小アルカナ）');
+  expect(joined).not.toContain('踏み外し');
+  expect(slotSetup(result, 'player-a', 2)).toMatchObject({
+    die: 2,
+    initialUnlocked: true,
+    card: expect.objectContaining({ itemId: 'minor-pentacle-2', rank: 2 })
+  });
+  expect(timelineFor(result, 'player-a', 2)[0]).toMatchObject({
+    resultType: 'minorArcana',
+    action: expect.objectContaining({ cardName: 'ペンタクル2' })
+  });
+});
+
+test('empty dice slots use the weapon form once and then miss', async () => {
+  const player = makeFighter({ id: 'player-a', name: 'A', hp: 220, speed: 20 });
+  const defender = makeFighter({ id: 'boss-b', name: 'B', hp: 500, speed: 1, weapon: 'blunt', power: 1, strength: 1 });
+
+  const result = await runDirectBattle(player, defender, { diceRolls: [3, 6, 3, 6], maxRounds: 2 });
+  const firstWeapon = result.logs.findIndex((line) => line.includes('A の出目3: 突き（武器型）'));
+  const secondMiss = result.logs.findIndex((line) => line.includes('A の出目3: ミス（空スロットの武器型は外れている）'));
+
+  expect(firstWeapon).toBeGreaterThan(-1);
+  expect(secondMiss).toBeGreaterThan(firstWeapon);
+  expect(slotSetup(result, 'player-a', 3)).toMatchObject({
+    die: 3,
+    initialUnlocked: false,
+    card: null
+  });
+  expect(timelineFor(result, 'player-a', 3).map((entry) => entry.resultType)).toEqual(['weaponForm', 'miss']);
 });
 
 test('royal flush passive grants a shield that absorbs damage before HP', async () => {
   const originalRandom = Math.random;
-  Math.random = () => 0.99;
+  Math.random = () => 0;
   try {
     await withBattleRoutes(async (battleRoutes) => {
       const defender = makeFighter({

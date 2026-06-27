@@ -9,6 +9,8 @@ let battleAutoCloseTimer = null;
 const battleEventEmitted = new Set();
 const battleLogAnimatedFor = new Set();
 let battleLogRenderToken = 0;
+const MELEE_REPLAY_ROLL_STEPS = 10;
+const MELEE_REPLAY_ROLL_INTERVAL_MS = 42;
 
 // ★ v184: バトルループで常に最新の情報を参照するための変数
 let localBattleState = null;
@@ -230,7 +232,9 @@ function showBattleModal(battleId) {
         const logMeta = {
             rounds: Array.isArray(battleState.rounds) ? battleState.rounds : [],
             winnerId: battleState.winner || null,
-            players: battleState.players || {}
+            players: battleState.players || {},
+            melee: battleState.melee || null,
+            viewerId: myPlayFabId
         };
         const renderImmediate = () => {
             renderBattleLog(logContainer, battleState.log || null, { animate: false, meta: logMeta });
@@ -330,9 +334,558 @@ function resetBattleAutoClose(delayMs) {
     }, delayMs);
 }
 
+const MELEE_TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
+const MELEE_TAROT_TILE_W = 48;
+const MELEE_TAROT_TILE_H = 80;
+const MELEE_TAROT_SHEET_W = 512;
+const MELEE_TAROT_SHEET_H = 1024;
+const MELEE_TAROT_BACK_INDEX = 110;
+const MELEE_SLOT_TAROT_SCALE = 0.54;
+
+function getMeleeReplayDuel(meta) {
+    const duels = Array.isArray(meta?.melee?.duels) ? meta.melee.duels : [];
+    if (duels.length === 0) return null;
+    const viewerId = String(meta?.viewerId || '');
+    if (viewerId) {
+        const viewerDuel = duels.find((duel) => {
+            const combatants = Array.isArray(duel?.setup?.combatants) ? duel.setup.combatants : [];
+            return combatants.some((combatant) => String(combatant?.id || '') === viewerId);
+        });
+        if (viewerDuel) return viewerDuel;
+    }
+    return duels[0];
+}
+
+function formatMeleeReplayAction(event) {
+    if (!event) return '戦闘開始';
+    const die = Number(event.die) || '-';
+    if (event.resultType === 'miss') {
+        const reason = event.reason ? ` / ${event.reason}` : '';
+        return `出目${die} ミス${reason}`;
+    }
+    const action = event.action || {};
+    const source = event.resultType === 'minorArcana' ? '小アルカナ' : '武器型';
+    const names = [action.cardName, action.name].filter(Boolean);
+    const actionName = names.length > 0 ? names.join(' / ') : source;
+    return `出目${die} ${source}: ${actionName}`;
+}
+
+function normalizeMeleeSpriteWeapon(value) {
+    const key = String(value || '').trim().toLowerCase();
+    if (key === 'gun-big' || key === 'large_gun' || key === 'large-gun') return 'gun_big';
+    return key || 'sword';
+}
+
+function normalizeMeleeTarotSuit(value) {
+    const key = String(value || '').trim().toLowerCase();
+    if (key.includes('wand')) return 'wand';
+    if (key.includes('pentacle') || key.includes('coin')) return 'pentacle';
+    if (key.includes('cup')) return 'cup';
+    if (key.includes('sword')) return 'sword';
+    return '';
+}
+
+function getMeleeTarotSpriteIndexFromParts(suitValue, rankValue) {
+    const suit = normalizeMeleeTarotSuit(suitValue);
+    const rank = Math.max(1, Math.min(14, Number(rankValue) || 1)) - 1;
+    if (suit === 'wand') return rank;
+    if (suit === 'pentacle') return 20 + rank;
+    if (suit === 'cup') return 40 + rank;
+    if (suit === 'sword') return 60 + rank;
+    return MELEE_TAROT_BACK_INDEX;
+}
+
+function setMeleeTarotArtSprite(artEl, spriteIndex, scale = MELEE_SLOT_TAROT_SCALE) {
+    if (!artEl) return;
+    const col = spriteIndex % 10;
+    const row = Math.floor(spriteIndex / 10);
+    artEl.style.setProperty('--tarot-sheet-w', `${MELEE_TAROT_SHEET_W * scale}px`);
+    artEl.style.setProperty('--tarot-sheet-h', `${MELEE_TAROT_SHEET_H * scale}px`);
+    artEl.style.setProperty('--tarot-x', `${col * MELEE_TAROT_TILE_W * scale}px`);
+    artEl.style.setProperty('--tarot-y', `${row * MELEE_TAROT_TILE_H * scale}px`);
+    artEl.style.setProperty('--tarot-art-w', `${MELEE_TAROT_TILE_W * scale}px`);
+    artEl.style.setProperty('--tarot-art-h', `${MELEE_TAROT_TILE_H * scale}px`);
+    artEl.style.setProperty('--tarot-sprite-src', `url('${MELEE_TAROT_SPRITE_SRC}')`);
+}
+
+function createMeleeReplaySlotWeaponIcon(weaponType) {
+    const icon = document.createElement('span');
+    icon.className = 'melee-slot-icon weapon-sprite';
+    icon.dataset.weapon = normalizeMeleeSpriteWeapon(weaponType);
+    icon.setAttribute('aria-hidden', 'true');
+    return icon;
+}
+
+function createMeleeReplaySlotDieIcon(slotEl) {
+    const icon = document.createElement('span');
+    icon.className = 'melee-replay-slot-die dice-sprite';
+    icon.dataset.die = String(slotEl?.dataset?.die || '');
+    icon.setAttribute('aria-label', `D${slotEl?.dataset?.die || '-'}`);
+    return icon;
+}
+
+function createMeleeReplaySlotTarotIcon(slotEl) {
+    const icon = document.createElement('span');
+    icon.className = 'melee-slot-icon melee-slot-tarot';
+    icon.dataset.suit = slotEl.dataset.cardSuit || '';
+    icon.dataset.rank = slotEl.dataset.cardRank || '';
+    icon.setAttribute('aria-label', slotEl.dataset.cardName || 'minor arcana');
+
+    const art = document.createElement('span');
+    art.className = 'tarot-card-art';
+    setMeleeTarotArtSprite(art, getMeleeTarotSpriteIndexFromParts(slotEl.dataset.cardSuit, slotEl.dataset.cardRank));
+    icon.appendChild(art);
+    return icon;
+}
+
+function setMeleeReplaySlotVisual(slotEl, visualType) {
+    if (!slotEl || slotEl.dataset.slotVisual === visualType) return;
+    slotEl.dataset.slotVisual = visualType;
+    const dieIcon = createMeleeReplaySlotDieIcon(slotEl);
+    if (visualType === 'tarot' && slotEl.dataset.hasCard === 'true') {
+        slotEl.replaceChildren(dieIcon, createMeleeReplaySlotTarotIcon(slotEl));
+        return;
+    }
+    slotEl.replaceChildren(dieIcon, createMeleeReplaySlotWeaponIcon(slotEl.dataset.weapon));
+}
+
+function normalizeMeleeReplaySlots(slotList) {
+    const byDie = new Map((Array.isArray(slotList) ? slotList : [])
+        .map((slot) => [Number(slot?.die) || 0, slot])
+        .filter(([die]) => die >= 1 && die <= 6));
+    return [1, 2, 3, 4, 5, 6].map((die) => byDie.get(die) || {
+        die,
+        initialUnlocked: false,
+        weaponForm: null,
+        card: null
+    });
+}
+
+function getMeleeReplaySlotName(slot) {
+    return slot?.card?.skillName
+        || slot?.card?.name
+        || slot?.weaponForm?.name
+        || '武器型';
+}
+
+function getMeleeWeaponAnimationClass(weaponType) {
+    const weapon = normalizeMeleeSpriteWeapon(weaponType);
+    if (weapon === 'gun' || weapon === 'gun_big' || weapon === 'bow' || weapon === 'staff' || weapon === 'wand') return 'is-avatar-weapon-ranged';
+    if (weapon === 'axe_big' || weapon === 'sword_big' || weapon === 'axe' || weapon === 'blunt') return 'is-avatar-weapon-heavy';
+    if (weapon === 'dagger' || weapon === 'polearm') return 'is-avatar-weapon-pierce';
+    if (weapon === 'shield') return 'is-avatar-weapon-guard';
+    return 'is-avatar-weapon-slash';
+}
+
+function clearMeleeAvatarWeaponClass(avatar) {
+    avatar?.classList?.remove('is-avatar-weapon-heavy', 'is-avatar-weapon-pierce', 'is-avatar-weapon-ranged', 'is-avatar-weapon-guard', 'is-avatar-weapon-slash');
+}
+
+function getMeleeReplayCombatantElement(panel, combatantId) {
+    const id = String(combatantId || '');
+    return Array.from(panel?.querySelectorAll?.('.melee-replay-combatant') || [])
+        .find((element) => String(element.dataset.combatantId || '') === id) || null;
+}
+
+function flashElementClass(element, className, duration = 240) {
+    if (!element) return;
+    element.classList.remove(className);
+    void element.offsetWidth;
+    element.classList.add(className);
+    window.setTimeout(() => element.classList.remove(className), duration);
+}
+
+function createMeleeReplayFeedbackPopup(combatantId, text, viewerId = '', type = 'damage') {
+    const stage = document.getElementById('battleStage');
+    if (!stage || !text) return;
+    const isViewer = viewerId && String(combatantId || '') === viewerId;
+    const popup = document.createElement('span');
+    popup.className = `melee-damage-pop is-${type} ${isViewer ? 'is-player-side' : 'is-enemy-side'}`;
+    popup.textContent = text;
+    stage.appendChild(popup);
+    window.setTimeout(() => popup.remove(), 2300);
+}
+
+function createMeleeReplayDamagePopup(combatantId, amount = 0, viewerId = '') {
+    if (amount <= 0) return;
+    createMeleeReplayFeedbackPopup(combatantId, `-${Math.ceil(amount)}`, viewerId, 'damage');
+}
+
+function meleeReplayStatusChangeLabel(change) {
+    const key = String(change?.key || '');
+    const before = Number(change?.before);
+    const after = Number(change?.after);
+    const increased = Number.isFinite(before) && Number.isFinite(after) && after > before;
+    const decreased = Number.isFinite(before) && Number.isFinite(after) && after < before;
+    if ((key === 'burn' || key === 'flood' || key === 'fear' || key === 'confusion') && increased) {
+        return ({ burn: '火傷', flood: '水浸し', fear: '恐怖', confusion: '混乱' })[key];
+    }
+    if (key === 'attackMultiplier' && decreased) return '攻撃↓';
+    if (key === 'defenseMultiplier' && decreased) return '防御↓';
+    if (key === 'speedMultiplier' && decreased) return '素早さ↓';
+    if (key === 'accuracyBonus' && decreased) return '命中↓';
+    if (key === 'damageTakenMultiplier' && increased) return '被ダメ↑';
+    if (key === 'guardCharges' && increased) return 'ガード';
+    return '';
+}
+
+function isMeleeReplayMissEvent(event) {
+    if (!event) return false;
+    if (event.resultType === 'miss') return true;
+    const action = event.action || {};
+    const looksLikeAttack = action.kind === 'attack' || action.power != null || action.accuracy != null;
+    return looksLikeAttack && !event.anyHit && Number(event.damage) <= 0 && Number(event.healing) <= 0;
+}
+
+function createMeleeReplayPanel(duel, meta = {}) {
+    const setup = duel?.setup || {};
+    const combatants = Array.isArray(setup.combatants) ? setup.combatants : [];
+    const viewerId = String(meta?.viewerId || '');
+    const panel = document.createElement('section');
+    panel.id = 'battleMeleeReplay';
+    panel.className = 'melee-replay-panel';
+    panel.dataset.viewerId = viewerId;
+
+    const header = document.createElement('div');
+    header.className = 'melee-replay-header';
+
+    const title = document.createElement('div');
+    title.className = 'melee-replay-title';
+    title.innerText = '白兵戦リプレイ';
+
+    const roundLabel = document.createElement('div');
+    roundLabel.className = 'melee-replay-round';
+    roundLabel.innerText = `第${duel?.round || 1}戦`;
+
+    header.appendChild(title);
+    header.appendChild(roundLabel);
+    panel.appendChild(header);
+
+    const actionArea = document.createElement('div');
+    actionArea.className = 'melee-replay-action';
+
+    const die = document.createElement('div');
+    die.className = 'melee-replay-die dice-sprite';
+    die.innerText = 'D6';
+    die.setAttribute('aria-label', '出目なし');
+
+    const actionText = document.createElement('div');
+    actionText.className = 'melee-replay-action-text';
+
+    const actionTitle = document.createElement('div');
+    actionTitle.className = 'melee-replay-action-title';
+    actionTitle.innerText = '戦闘開始';
+
+    const actionMeta = document.createElement('div');
+    actionMeta.className = 'melee-replay-action-meta';
+    actionMeta.innerText = '出目2〜6は小アルカナスロット';
+
+    actionText.appendChild(actionTitle);
+    actionText.appendChild(actionMeta);
+    actionArea.appendChild(die);
+    actionArea.appendChild(actionText);
+    panel.appendChild(actionArea);
+
+    const board = document.createElement('div');
+    board.className = 'melee-replay-board';
+    combatants.slice(0, 2).forEach((combatant) => {
+        const combatantId = String(combatant?.id || '');
+        const isViewer = !!viewerId && combatantId === viewerId;
+        const card = document.createElement('div');
+        card.className = 'melee-replay-combatant';
+        card.classList.add(isViewer ? 'is-player-side' : 'is-enemy-side');
+        card.dataset.combatantId = combatantId;
+        card.dataset.side = isViewer ? 'player' : 'enemy';
+        card.dataset.weapon = normalizeMeleeSpriteWeapon(combatant?.weaponType);
+
+        const row = document.createElement('div');
+        row.className = 'melee-replay-combatant-row';
+
+        const identity = document.createElement('div');
+        identity.className = 'melee-replay-combatant-identity';
+
+        const name = document.createElement('div');
+        name.className = 'melee-replay-name';
+        name.innerText = combatant?.name || '???';
+
+        const weapon = document.createElement('div');
+        weapon.className = 'melee-replay-weapon';
+        weapon.innerText = combatant?.weaponLabel || combatant?.weaponType || '武器';
+
+        identity.appendChild(name);
+        row.appendChild(identity);
+        row.appendChild(weapon);
+
+        const hp = document.createElement('div');
+        hp.className = 'melee-replay-hp';
+        const hpFill = document.createElement('div');
+        hpFill.className = 'melee-replay-hp-fill';
+        hp.appendChild(hpFill);
+
+        const hpText = document.createElement('div');
+        hpText.className = 'melee-replay-hp-text';
+
+        const slots = document.createElement('div');
+        slots.className = 'melee-replay-slots';
+        const slotList = normalizeMeleeReplaySlots(combatant?.slots);
+        slotList.forEach((slot) => {
+            const slotEl = document.createElement('div');
+            const slotCard = slot?.card || null;
+            slotEl.className = 'melee-replay-slot';
+            slotEl.dataset.die = String(slot?.die || '');
+            slotEl.dataset.weapon = normalizeMeleeSpriteWeapon(combatant?.weaponType);
+            slotEl.dataset.hasCard = slotCard ? 'true' : 'false';
+            slotEl.dataset.initialUnlocked = slot?.initialUnlocked ? 'true' : 'false';
+            slotEl.dataset.resultType = slot?.initialUnlocked ? 'minorArcana' : 'weaponForm';
+            if (slotCard) {
+                slotEl.dataset.cardSuit = normalizeMeleeTarotSuit(slotCard.suit);
+                slotEl.dataset.cardRank = String(slotCard.rank ?? slotCard.number ?? '');
+                slotEl.dataset.cardName = slotCard.cardName || slotCard.name || slotCard.skillName || '';
+                slotEl.classList.add('has-card');
+            }
+            if (slot?.initialUnlocked) slotEl.classList.add('is-unlocked');
+            slotEl.title = `D${slot?.die || '-'}: ${slotCard?.cardName || slotCard?.skillName || slot?.weaponForm?.name || ''}`;
+            setMeleeReplaySlotVisual(slotEl, slot?.initialUnlocked ? 'tarot' : 'weapon');
+            slots.appendChild(slotEl);
+        });
+
+        card.appendChild(row);
+        card.appendChild(hp);
+        card.appendChild(hpText);
+        card.appendChild(slots);
+        board.appendChild(card);
+    });
+    panel.appendChild(board);
+
+    return panel;
+}
+
+function triggerMeleeReplayAvatarMotion(panel, event, frameIndex) {
+    if (!panel || !event || event.resultType === 'miss') return;
+    const key = String(frameIndex);
+    if (panel.dataset.motionFrame === key) return;
+    panel.dataset.motionFrame = key;
+    const viewerId = String(panel.dataset.viewerId || '');
+    const isViewer = viewerId && String(event.actorId || '') === viewerId;
+    const avatar = document.getElementById(isViewer ? 'battle-avatar-B' : 'battle-avatar-A');
+    if (!avatar) return;
+    const direction = isViewer ? 'left' : 'right';
+    const combatantEl = getMeleeReplayCombatantElement(panel, event.actorId);
+    clearMeleeAvatarWeaponClass(avatar);
+    avatar.classList.add(getMeleeWeaponAnimationClass(combatantEl?.dataset.weapon));
+    avatar.classList.remove('is-avatar-attacking', 'is-avatar-attack-left', 'is-avatar-attack-right');
+    void avatar.offsetWidth;
+    avatar.style.setProperty('--avatar-attack-duration', '460ms');
+    avatar.classList.add('is-avatar-attacking', `is-avatar-attack-${direction}`);
+    window.setTimeout(() => {
+        avatar.classList.remove('is-avatar-attacking', 'is-avatar-attack-left', 'is-avatar-attack-right');
+        clearMeleeAvatarWeaponClass(avatar);
+    }, 540);
+}
+
+function triggerMeleeReplayDamageFeedback(panel, event, frameIndex) {
+    if (!panel || !event) return;
+    const key = String(frameIndex);
+    if (panel.dataset.damageFrame === key) return;
+    panel.dataset.damageFrame = key;
+    const viewerId = String(panel.dataset.viewerId || '');
+    const flashByCombatant = (combatantId) => {
+        if (!combatantId) return;
+        const isViewer = viewerId && String(combatantId) === viewerId;
+        const avatar = document.getElementById(isViewer ? 'battle-avatar-B' : 'battle-avatar-A');
+        flashElementClass(avatar, 'is-avatar-damaged', 220);
+    };
+    if (Number(event.damage) > 0) {
+        flashByCombatant(event.targetId);
+        createMeleeReplayDamagePopup(event.targetId, Number(event.damage), viewerId);
+    }
+    if (Number(event.selfDamage) > 0) {
+        flashByCombatant(event.actorId);
+        createMeleeReplayDamagePopup(event.actorId, Number(event.selfDamage), viewerId);
+    }
+    if (Number(event.damage) > 0 || Number(event.selfDamage) > 0) {
+        flashElementClass(document.getElementById('battleStage'), 'is-damage-shake', 280);
+    }
+    if (isMeleeReplayMissEvent(event)) {
+        createMeleeReplayFeedbackPopup(event.targetId || event.actorId, 'MISS', viewerId, 'miss');
+    }
+    const shownStatus = new Set();
+    (Array.isArray(event.statusChanges) ? event.statusChanges : []).forEach((change) => {
+        const label = meleeReplayStatusChangeLabel(change);
+        if (!label || shownStatus.has(`${change.target}:${label}`)) return;
+        shownStatus.add(`${change.target}:${label}`);
+        const targetId = change.target === 'actor' ? event.actorId : event.targetId;
+        createMeleeReplayFeedbackPopup(targetId, label, viewerId, 'status');
+    });
+}
+
+function setMeleeReplayDie(panel, die, label = null) {
+    const dieEl = panel?.querySelector?.('.melee-replay-die');
+    if (!dieEl) return;
+    if (die == null) {
+        delete dieEl.dataset.die;
+        dieEl.innerText = 'D6';
+        dieEl.setAttribute('aria-label', label || '出目なし');
+        return;
+    }
+    dieEl.dataset.die = String(die);
+    dieEl.innerText = '';
+    dieEl.setAttribute('aria-label', label || `出目${die}`);
+}
+
+function animateMeleeReplayDie(panel, finalDie, token) {
+    const dieEl = panel?.querySelector?.('.melee-replay-die');
+    const normalizedFinalDie = Math.max(1, Math.min(6, Math.floor(Number(finalDie) || 1)));
+    if (!dieEl) return 0;
+    let step = 0;
+    dieEl.classList.add('is-rolling');
+    const tickRoll = () => {
+        if (token !== battleLogRenderToken) {
+            dieEl.classList.remove('is-rolling');
+            return;
+        }
+        const die = step >= MELEE_REPLAY_ROLL_STEPS - 1
+            ? normalizedFinalDie
+            : (step % 6) + 1;
+        setMeleeReplayDie(panel, die, step >= MELEE_REPLAY_ROLL_STEPS - 1 ? `出目${die}` : 'サイコロを振っている');
+        step += 1;
+        if (step >= MELEE_REPLAY_ROLL_STEPS) {
+            dieEl.classList.remove('is-rolling');
+            return;
+        }
+        setTimeout(tickRoll, MELEE_REPLAY_ROLL_INTERVAL_MS);
+    };
+    tickRoll();
+    return MELEE_REPLAY_ROLL_STEPS * MELEE_REPLAY_ROLL_INTERVAL_MS;
+}
+
+function renderMeleeReplayFrame(panel, duel, frameIndex) {
+    if (!panel || !duel) return;
+    const setup = duel.setup || {};
+    const combatants = Array.isArray(setup.combatants) ? setup.combatants : [];
+    const timeline = Array.isArray(duel.timeline) ? duel.timeline : [];
+    const lastFrame = Math.min(Math.max(-1, frameIndex), timeline.length - 1);
+    const hpById = new Map();
+    const maxHpById = new Map();
+
+    combatants.forEach((combatant) => {
+        const id = String(combatant?.id || '');
+        const maxHp = Math.max(1, Number(combatant?.maxHp) || 1);
+        const currentHp = Number(combatant?.currentHp);
+        hpById.set(id, Math.max(0, Number.isFinite(currentHp) ? currentHp : maxHp));
+        maxHpById.set(id, maxHp);
+    });
+
+    for (let index = 0; index <= lastFrame; index += 1) {
+        const event = timeline[index];
+        if (!event) continue;
+        hpById.set(String(event.actorId || ''), Math.max(0, Number(event.attackerHpAfter) || 0));
+        hpById.set(String(event.targetId || ''), Math.max(0, Number(event.defenderHpAfter) || 0));
+    }
+
+    const event = lastFrame >= 0 ? timeline[lastFrame] : null;
+    panel.dataset.resultType = event?.resultType || 'ready';
+    triggerMeleeReplayAvatarMotion(panel, event, lastFrame);
+    triggerMeleeReplayDamageFeedback(panel, event, lastFrame);
+    const roundLabel = panel.querySelector('.melee-replay-round');
+    if (roundLabel) {
+        const step = lastFrame >= 0 ? ` / ${lastFrame + 1}手目` : '';
+        roundLabel.innerText = `第${event?.round || duel.round || 1}戦${step}`;
+    }
+
+    const dieEl = panel.querySelector('.melee-replay-die');
+    if (dieEl) {
+        dieEl.classList.remove('is-rolling');
+        if (event) {
+            setMeleeReplayDie(panel, event.die);
+        } else {
+            setMeleeReplayDie(panel, null);
+        }
+    }
+
+    const titleEl = panel.querySelector('.melee-replay-action-title');
+    if (titleEl) titleEl.innerText = formatMeleeReplayAction(event);
+
+    const metaEl = panel.querySelector('.melee-replay-action-meta');
+    if (metaEl) {
+        if (!event) {
+            metaEl.innerText = '出目2〜6は小アルカナスロット';
+        } else if (event.resultType === 'miss') {
+            metaEl.innerText = 'ダメージなし';
+        } else {
+            const parts = [];
+            if (Number(event.damage) > 0) parts.push(`${event.targetName || '相手'}へ${event.damage}ダメージ`);
+            if (Number(event.healing) > 0) parts.push(`${event.actorName || '自分'}が${event.healing}回復`);
+            if (Number(event.selfDamage) > 0) parts.push(`反動${event.selfDamage}`);
+            if (isMeleeReplayMissEvent(event)) parts.push('MISS');
+            const statusLabels = [];
+            (Array.isArray(event.statusChanges) ? event.statusChanges : []).forEach((change) => {
+                const label = meleeReplayStatusChangeLabel(change);
+                if (label && !statusLabels.includes(label)) statusLabels.push(label);
+            });
+            parts.push(...statusLabels);
+            metaEl.innerText = parts.length > 0 ? parts.join(' / ') : '効果発動';
+        }
+    }
+
+    panel.querySelectorAll('.melee-replay-combatant').forEach((combatantEl) => {
+        const id = String(combatantEl.dataset.combatantId || '');
+        const hp = hpById.get(id) ?? 0;
+        const maxHp = maxHpById.get(id) || 1;
+        const percent = Math.max(0, Math.min(100, (hp / maxHp) * 100));
+        const fill = combatantEl.querySelector('.melee-replay-hp-fill');
+        if (fill) fill.style.width = `${percent}%`;
+        const text = combatantEl.querySelector('.melee-replay-hp-text');
+        if (text) text.innerText = `${Math.ceil(hp)}/${maxHp}`;
+        combatantEl.classList.toggle('is-acting', !!event && String(event.actorId || '') === id);
+        combatantEl.querySelectorAll('.melee-replay-slot').forEach((slotEl) => {
+            const die = Number(slotEl.dataset.die) || 0;
+            const hasCard = slotEl.dataset.hasCard === 'true';
+            const initialUnlocked = hasCard && slotEl.dataset.initialUnlocked === 'true';
+            let visualType = initialUnlocked ? 'tarot' : 'weapon';
+            let resultType = initialUnlocked ? 'minorArcana' : 'weaponForm';
+            slotEl.classList.remove('is-active', 'is-spent', 'is-unlocked');
+            if (initialUnlocked) slotEl.classList.add('is-unlocked');
+            for (let index = 0; index <= lastFrame; index += 1) {
+                const past = timeline[index];
+                if (!past || String(past.actorId || '') !== id || Number(past.die) !== die) continue;
+                const isCurrentFrame = index === lastFrame;
+                if (past.resultType === 'minorArcana') {
+                    slotEl.classList.add('is-unlocked');
+                    visualType = hasCard ? 'tarot' : 'weapon';
+                } else if (past.resultType === 'weaponForm') {
+                    slotEl.classList.add('is-spent');
+                    visualType = hasCard && !isCurrentFrame ? 'tarot' : 'weapon';
+                } else {
+                    visualType = hasCard && slotEl.classList.contains('is-unlocked') ? 'tarot' : 'weapon';
+                }
+                resultType = String(past.resultType || resultType || '');
+            }
+            if (event && String(event.actorId || '') === id && Number(event.die) === die) {
+                slotEl.classList.add('is-active');
+                resultType = String(event.resultType || resultType || '');
+                visualType = event.resultType === 'minorArcana' && hasCard ? 'tarot' : 'weapon';
+            }
+            slotEl.dataset.resultType = resultType;
+            setMeleeReplaySlotVisual(slotEl, visualType);
+        });
+    });
+}
+
 function renderBattleLog(container, logData, { animate = false, onComplete = null, meta = null } = {}) {
     if (!container) return;
+    battleLogRenderToken += 1;
+    const token = battleLogRenderToken;
     container.innerHTML = '';
+    const battleStage = document.getElementById('battleStage');
+    battleStage?.querySelector('#battleMeleeReplay')?.remove();
+    const meleeDuel = getMeleeReplayDuel(meta);
+    const meleePanel = meleeDuel ? createMeleeReplayPanel(meleeDuel, meta) : null;
+    if (meleePanel) {
+        (battleStage || container).appendChild(meleePanel);
+        const timeline = Array.isArray(meleeDuel.timeline) ? meleeDuel.timeline : [];
+        renderMeleeReplayFrame(meleePanel, meleeDuel, animate ? -1 : timeline.length - 1);
+    }
     if (meta && Array.isArray(meta.rounds) && meta.rounds.length > 0) {
         const header = document.createElement('div');
         header.style.display = 'flex';
@@ -391,11 +944,7 @@ function renderBattleLog(container, logData, { animate = false, onComplete = nul
         });
         container.appendChild(summary);
     }
-    if (!logData) {
-        if (typeof onComplete === 'function') onComplete();
-        return;
-    }
-    const entries = Object.keys(logData).sort().map(key => logData[key]);
+    const entries = logData ? Object.keys(logData).sort().map(key => logData[key]) : [];
     const createLineElement = (line) => {
         const p = document.createElement('p');
         p.innerText = line;
@@ -419,19 +968,39 @@ function renderBattleLog(container, logData, { animate = false, onComplete = nul
         if (typeof onComplete === 'function') onComplete();
         return;
     }
-    battleLogRenderToken += 1;
-    const token = battleLogRenderToken;
     const baseDelay = 320;
+    if (meleePanel && meleeDuel) {
+        const timeline = Array.isArray(meleeDuel.timeline) ? meleeDuel.timeline : [];
+        const rollDuration = MELEE_REPLAY_ROLL_STEPS * MELEE_REPLAY_ROLL_INTERVAL_MS;
+        const frameDelay = Math.max(820, baseDelay + rollDuration);
+        timeline.forEach((event, index) => {
+            setTimeout(() => {
+                if (token !== battleLogRenderToken) return;
+                animateMeleeReplayDie(meleePanel, event?.die, token);
+                setTimeout(() => {
+                    if (token !== battleLogRenderToken) return;
+                    renderMeleeReplayFrame(meleePanel, meleeDuel, index);
+                }, rollDuration);
+            }, frameDelay * index);
+        });
+    }
     entries.forEach((line, index) => {
         setTimeout(() => {
             if (token !== battleLogRenderToken) return;
             container.appendChild(createLineElement(line));
             container.scrollTop = container.scrollHeight;
-            if (index === entries.length - 1 && typeof onComplete === 'function') {
-                onComplete();
-            }
         }, baseDelay * index);
     });
+    const timelineLength = Array.isArray(meleeDuel?.timeline) ? meleeDuel.timeline.length : 0;
+    const logDuration = entries.length > 0 ? baseDelay * (entries.length - 1) : 0;
+    const replayFrameDelay = Math.max(820, baseDelay + (MELEE_REPLAY_ROLL_STEPS * MELEE_REPLAY_ROLL_INTERVAL_MS));
+    const meleeDuration = timelineLength > 0
+        ? (replayFrameDelay * (timelineLength - 1)) + (MELEE_REPLAY_ROLL_STEPS * MELEE_REPLAY_ROLL_INTERVAL_MS)
+        : 0;
+    setTimeout(() => {
+        if (token !== battleLogRenderToken) return;
+        if (typeof onComplete === 'function') onComplete();
+    }, Math.max(logDuration, meleeDuration) + 160);
 }
 
 function showBattleResult(commandArea, battleState, myId, myPlayerOnlineRef) {

@@ -1047,6 +1047,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const playersPayload = {};
         const logEntries = {};
         const roundResults = [];
+        const meleeDuels = [];
         let round = 1;
         let currentAIndex = 0;
         let currentBIndex = 0;
@@ -1168,6 +1169,17 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                 winnerOwnerId,
                 loserOwnerId
             });
+            meleeDuels.push({
+                round,
+                attackerId: fighterAId,
+                defenderId: fighterBId,
+                winnerId,
+                loserId,
+                winnerOwnerId,
+                loserOwnerId,
+                setup: battleResult.meleeSetup || null,
+                timeline: Array.isArray(battleResult.meleeTimeline) ? battleResult.meleeTimeline : []
+            });
 
             await Promise.all([battleResult.winner, battleResult.loser]
                 .filter((player) => !isVirtualFighter(player))
@@ -1209,6 +1221,10 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
             players: playersPayload,
             log: logEntries,
             rounds: roundResults,
+            melee: {
+                version: 1,
+                duels: meleeDuels
+            },
             rewardContext: rewardContext || null
         };
 

@@ -117,10 +117,23 @@ function parseSuccessRate(value) {
 function buildSkill(raw) {
     const itemId = normalizeItemIdToSkillKey(raw.itemId || jsonCardIdToItemId(raw.cardId));
     const elementKey = normalizeElementKey(raw.element);
+    const isMinor = /^minor-/.test(itemId);
+    const rank = isMinor ? parseRankNumber(raw.rank ?? raw.number ?? raw.ArcanaRank ?? raw.Rank) : parseRankNumber(raw.rank);
+    const hasPower = raw.power !== null && raw.power !== undefined && raw.power !== '';
+    const hasAccuracy = raw.accuracy !== null && raw.accuracy !== undefined && raw.accuracy !== '';
+    const power = Number(raw.power);
+    const accuracy = Number(raw.accuracy);
+    const hitCount = Number(raw.hitCount);
     return {
         ...raw,
         itemId,
         elementKey,
+        rank: Number.isFinite(rank) ? rank : null,
+        power: hasPower && Number.isFinite(power) ? power : null,
+        accuracy: hasAccuracy && Number.isFinite(accuracy) ? accuracy : null,
+        hitCount: Number.isFinite(hitCount) && hitCount > 0 ? Math.floor(hitCount) : 1,
+        effectText: String(raw.effectText || ''),
+        effectCodes: Array.isArray(raw.effectCodes) ? raw.effectCodes : [],
         successRateValue: parseSuccessRate(raw.successRate),
         cooldown: Math.max(0, Math.floor(Number(raw.cooldown) || 0))
     };
@@ -180,12 +193,23 @@ function publicTarotBattleSkill(skill) {
         number: Number.isFinite(Number(skill.number)) ? Number(skill.number) : null,
         cardName: String(skill.cardName || ''),
         suit: String(skill.suit || ''),
+        rank: Number.isFinite(Number(skill.rank)) ? Number(skill.rank) : null,
         element: String(skill.element || ''),
         elementKey: String(skill.elementKey || 'none'),
         skillName: String(skill.skillName || ''),
         target: String(skill.target || ''),
         effectClass: String(skill.effectClass || ''),
         description: String(skill.description || ''),
+        power: Number.isFinite(Number(skill.power)) ? Number(skill.power) : null,
+        accuracy: Number.isFinite(Number(skill.accuracy)) ? Number(skill.accuracy) : null,
+        hitCount: Math.max(1, Math.floor(Number(skill.hitCount) || 1)),
+        effectText: String(skill.effectText || ''),
+        effectCodes: Array.isArray(skill.effectCodes) ? skill.effectCodes : [],
+        ignoreDefense: Number.isFinite(Number(skill.ignoreDefense)) ? Number(skill.ignoreDefense) : 0,
+        criticalBonus: Number.isFinite(Number(skill.criticalBonus)) ? Number(skill.criticalBonus) : 0,
+        drainRate: Number.isFinite(Number(skill.drainRate)) ? Number(skill.drainRate) : 0,
+        priority: !!skill.priority,
+        conditionalPower: skill.conditionalPower && typeof skill.conditionalPower === 'object' ? skill.conditionalPower : null,
         damageTier: String(skill.damageTier || ''),
         healTier: String(skill.healTier || ''),
         special: String(skill.special || ''),
