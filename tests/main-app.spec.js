@@ -3938,6 +3938,46 @@ test('elf avatar uses yellow base sprites when stored color is yellow', async ({
   await expectNoPageErrors(errors);
 });
 
+test('unsupported avatar races fall back to human sprite assets', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const unsupportedRaceRequests = [];
+  page.on('request', (request) => {
+    const url = request.url();
+    if (url.includes('/Sprites/Characters/dwarf/')) {
+      unsupportedRaceRequests.push(url);
+    }
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    window.myAvatarBaseInfo = {
+      ...(window.myAvatarBaseInfo || {}),
+      Race: 'dwarf',
+      AvatarColor: 'brown',
+      SkinColorIndex: 4,
+      FaceIndex: 2,
+      HairStyleIndex: 2,
+      FacialHairStyleIndex: 2,
+      level: 21
+    };
+    const { preloadAvatarBaseSprites, renderAvatar } = await import('/js/avatar.js');
+    preloadAvatarBaseSprites(window.myAvatarBaseInfo);
+    renderAvatar('home-avatar', window.myAvatarBaseInfo, {}, {}, false);
+  });
+
+  await expect.poll(async () => page.locator('#home-avatar-layer-head').evaluate((layer) => (
+    window.getComputedStyle(layer).backgroundImage
+  ))).toContain('human_head_skin_4.png');
+  await expect.poll(async () => page.locator('#home-avatar-layer-hair').evaluate((layer) => (
+    window.getComputedStyle(layer).backgroundImage
+  ))).toContain('human_hair_brown.png');
+  await expect.poll(async () => page.locator('#home-avatar-layer-hand-right').evaluate((layer) => (
+    window.getComputedStyle(layer).backgroundImage
+  ))).toContain('human_hand.png');
+  expect(unsupportedRaceRequests).toHaveLength(0);
+  await expectNoPageErrors(errors);
+});
+
 test('combat avatars expose reusable body sprite motions', async ({ page }) => {
   const errors = trackPageErrors(page);
   await bootstrapMainApp(page);

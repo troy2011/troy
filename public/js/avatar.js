@@ -23,6 +23,13 @@ const AVATAR_LAYER_NAMES = Object.freeze([
     'shield-left'
 ]);
 
+const AVATAR_ASSET_RACES = Object.freeze(new Set(['human', 'elf', 'orc', 'goblin']));
+
+function resolveAvatarAssetRace(value) {
+    const race = String(value || 'human').trim().toLowerCase();
+    return AVATAR_ASSET_RACES.has(race) ? race : 'human';
+}
+
 export function buildAvatarLayerMarkup(prefix) {
     return AVATAR_LAYER_NAMES
         .map((name) => `<div id="${prefix}-layer-${name}" class="avatar-layer"></div>`)
@@ -490,7 +497,7 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
 export function preloadAvatarBaseSprites(avatarBase) {
     if (!avatarBase) return;
     const { Race, AvatarColor, SkinColorIndex, FaceIndex, HairStyleIndex, FacialHairStyleIndex, level } = avatarBase;
-    const race = (Race || 'human').toLowerCase();
+    const race = resolveAvatarAssetRace(Race);
     const color = resolveAvatarBaseSpriteColor(race, AvatarColor);
     const skinIndex = SkinColorIndex || 1;
     const faceIdx = (FaceIndex || 1) - 1;
@@ -801,7 +808,7 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
         setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth, spriteHeight, itemCategory, markLayerReady, layerAvatarColor);
     };
     const avatarColor = avatarBase
-        ? resolveAvatarBaseSpriteColor(avatarBase.Race, avatarBase.AvatarColor)
+        ? resolveAvatarBaseSpriteColor(resolveAvatarAssetRace(avatarBase.Race), avatarBase.AvatarColor)
         : (window.myAvatarBaseInfo?.AvatarColor || null);
     const equipmentMap = equipment || {};
 
@@ -811,7 +818,7 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
     // 1. 素体の描画
     if (avatarBase) {
         const { Race, AvatarColor, SkinColorIndex, FaceIndex, HairStyleIndex, FacialHairStyleIndex, level } = avatarBase;
-        const race = (Race || 'human').toLowerCase();
+        const race = resolveAvatarAssetRace(Race);
         const color = resolveAvatarBaseSpriteColor(race, AvatarColor);
         const skinIndex = SkinColorIndex || 1;
         const faceIdx = (FaceIndex || 1) - 1;
