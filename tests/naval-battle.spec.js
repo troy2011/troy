@@ -922,6 +922,10 @@ test('ship-specific metadata exposes domain durability low firepower and passive
       arcanaCount: state.player.arcanaGears.length,
       shipClassName: document.getElementById('navalShipPlayer')?.className || '',
       spriteX: getComputedStyle(document.querySelector('#navalShipPlayer .naval-ship-sprite')).getPropertyValue('--naval-ship-sprite-x'),
+      shipTop: document.getElementById('navalShipPlayer')?.style.top || '',
+      guildLayerCount: document.querySelectorAll('#navalShipPlayer .naval-guild-ship-layer').length,
+      guildLayerBackground: getComputedStyle(document.querySelector('#navalShipPlayer .naval-guild-ship-layer.is-hull') || document.body).backgroundImage,
+      guildSpriteBackground: getComputedStyle(document.querySelector('#navalShipPlayer .naval-ship-sprite')).backgroundImage,
       weaponText: document.getElementById('navalWeaponPlayer')?.textContent || '',
       stateText: document.getElementById('navalStatePlayer')?.textContent || '',
       traitText: document.getElementById('navalTraitPlayer')?.textContent || ''
@@ -944,9 +948,14 @@ test('ship-specific metadata exposes domain durability low firepower and passive
   expect(ships.find((entry) => entry.itemId === 'boat').weaponText).toContain('前0.5/側1');
   expect(ships.find((entry) => entry.itemId === 'ship_orc_defender').traitText).toContain('水圧魚雷 常時');
   expect(ships.find((entry) => entry.itemId === 'ship_orc_fighter').traitText).toContain('巨大砲 未使用');
+  expect(ships.find((entry) => entry.itemId === 'boat').shipTop).toBe('96px');
   const guildShip = ships.find((entry) => entry.itemId === 'guild_ship');
   expect(guildShip.shipClassName).toContain('is-guild');
-  expect(guildShip.spriteX).not.toBe('-64px');
+  expect(guildShip.spriteX).toBe('-64px');
+  expect(guildShip.shipTop).toBe('96px');
+  expect(guildShip.guildLayerCount).toBe(4);
+  expect(guildShip.guildLayerBackground).toContain('guildShips.png');
+  expect(guildShip.guildSpriteBackground).toBe('none');
   expect(guildShip.shipTraitKey).toBe('guild_ship');
   expect(guildShip.traitText).toBe('-');
   expect(guildShip.arcanaCount).toBe(0);

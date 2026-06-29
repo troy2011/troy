@@ -1238,7 +1238,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
       status: 200,
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
-        ship: { shipId: 'ship-test', shipName: 'テスト船' },
+        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'guild', itemId: 'guild_ship', isGuildShip: true, stage: 3 },
         active: null,
         reports: [],
         dailyFree: { dayKey: '2026-06-18', available: true, used: false },
@@ -1497,6 +1497,9 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   });
   expect(npcFlow.naval[0].opponentId).toContain('npc_exploration_naval_');
   expect(npcFlow.naval[0].playerShipProfile.name).toBe('テスト船');
+  expect(npcFlow.naval[0].playerShipProfile).toMatchObject({ form: 'guild', itemId: 'guild_ship', stage: 3, majorArcanaItemIds: [] });
+  expect(['defender', 'fighter', 'merchant']).toContain(npcFlow.naval[0].opponentShipProfile.form);
+  expect(npcFlow.naval[0].opponentShipProfile.stage).toBe(3);
   expect(npcFlow.melee[0].battleContext).toMatchObject({
     source: 'explorationNpc',
     rewardMode: 'none',

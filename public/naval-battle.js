@@ -245,8 +245,8 @@ const NAVAL_VISUAL_EFFECT_MS = 1400;
 const NAVAL_SURGE_MOTION_MS = 1180;
 const NAVAL_BOARDING_MOTION_MS = 1550;
 const NAVAL_AUTO_BOARDING_DELAY_MS = NAVAL_VISUAL_EFFECT_MS + 120;
-const NAVAL_SHIP_SURFACE_TOP = 112;
-const NAVAL_SHIP_AIR_TOP = 82;
+const NAVAL_SHIP_SURFACE_TOP = 96;
+const NAVAL_SHIP_AIR_TOP = 68;
 const NAVAL_TAROT_SPRITE = Object.freeze({
     path: './Sprites/Buildings/tarot.png',
     width: 48,
@@ -275,6 +275,32 @@ const SHIP_SPRITE_RACE_SHEETS = Object.freeze({
     elf: './Sprites/Ships/ships_green.png',
     goblin: './Sprites/Ships/ships_yellow.png',
     orc: './Sprites/Ships/ships_red.png'
+});
+const GUILD_SHIP_SPRITE_ASSET = Object.freeze({
+    path: './Sprites/Ships/guildShips.png',
+    frameSize: 64,
+    sheetWidth: 1344,
+    sheetHeight: 768,
+    scale: 1.45
+});
+const GUILD_SHIP_SAIL_COLOR_OFFSETS = Object.freeze({
+    white: 0,
+    red: 3,
+    blue: 6,
+    yellow: 9,
+    green: 12
+});
+const GUILD_SHIP_SAIL_COLOR_BY_NATION = Object.freeze({
+    fire: 'red',
+    water: 'blue',
+    wind: 'yellow',
+    earth: 'green'
+});
+const GUILD_SHIP_DIRECTION_Y = Object.freeze({
+    down: 0,
+    left: -64,
+    right: -128,
+    up: -192
 });
 const SHIP_SPRITE_BLOCK_SIZE = Object.freeze({ width: 384, height: 256 });
 const SHIP_SPRITE_BLOCKS = Object.freeze({
@@ -711,6 +737,81 @@ function facingDirectionForSide(side, facing) {
     if (normalized === 'starboard') return 'up';
     if (normalized === 'port') return 'down';
     return 'left';
+}
+
+function normalizeGuildShipSailColor(value) {
+    const key = String(value || '').trim().toLowerCase();
+    return Object.prototype.hasOwnProperty.call(GUILD_SHIP_SAIL_COLOR_OFFSETS, key) ? key : 'white';
+}
+
+function resolveNavalGuildShipSailColor(ship) {
+    const direct = normalizeGuildShipSailColor(ship?.appearance?.color || ship?.sailColor || ship?.guildSailColor);
+    if (direct !== 'white') return direct;
+    const element = String(ship?.element || ship?.nation || ship?.nationKey || '').trim().toLowerCase();
+    return normalizeGuildShipSailColor(GUILD_SHIP_SAIL_COLOR_BY_NATION[element] || direct);
+}
+
+function guildShipDirectionForPose(ship, side, visualPose = '') {
+    if (String(visualPose || '').includes('Up')) return 'up';
+    if (String(visualPose || '').includes('Down')) return 'down';
+    return facingDirectionForSide(side, ship?.facing);
+}
+
+function ensureNavalGuildShipLayers(sprite) {
+    if (!sprite) return;
+    if (sprite.dataset.guildShipLayersReady === '1') return;
+    sprite.textContent = '';
+    ['is-hull', 'is-sail-bottom', 'is-sail-middle', 'is-sail-top'].forEach((className) => {
+        const layer = document.createElement('span');
+        layer.className = `naval-guild-ship-layer ${className}`;
+        layer.setAttribute('aria-hidden', 'true');
+        sprite.appendChild(layer);
+    });
+    sprite.dataset.guildShipLayersReady = '1';
+}
+
+function clearNavalGuildShipLayers(sprite) {
+    if (!sprite || sprite.dataset.guildShipLayersReady !== '1') return;
+    sprite.textContent = '';
+    delete sprite.dataset.guildShipLayersReady;
+    delete sprite.dataset.guildSailColor;
+}
+
+function setNavalGuildShipLayerColor(sprite, color) {
+    const normalized = normalizeGuildShipSailColor(color);
+    sprite.querySelectorAll('.naval-guild-ship-layer:not(.is-hull)').forEach((layer) => {
+        Object.keys(GUILD_SHIP_SAIL_COLOR_OFFSETS).forEach((key) => {
+            layer.classList.remove(`is-${key}`);
+        });
+        layer.classList.add(`is-${normalized}`);
+    });
+    sprite.dataset.guildSailColor = normalized;
+    return normalized;
+}
+
+function applyGuildShipSprite(sprite, ship, side, visualPose = '') {
+    if (!sprite) return;
+    ensureNavalGuildShipLayers(sprite);
+    sprite.classList.add('is-guild-sprite');
+    sprite.style.backgroundImage = 'none';
+    sprite.style.setProperty('--naval-ship-frame-w', `${GUILD_SHIP_SPRITE_ASSET.frameSize}px`);
+    sprite.style.setProperty('--naval-ship-frame-h', `${GUILD_SHIP_SPRITE_ASSET.frameSize}px`);
+    sprite.style.setProperty('--naval-ship-sheet-w', `${GUILD_SHIP_SPRITE_ASSET.sheetWidth}px`);
+    sprite.style.setProperty('--naval-ship-sheet-h', `${GUILD_SHIP_SPRITE_ASSET.sheetHeight}px`);
+    sprite.style.setProperty('--naval-ship-scale', `${GUILD_SHIP_SPRITE_ASSET.scale}`);
+    const direction = guildShipDirectionForPose(ship, side, visualPose);
+    const spriteY = GUILD_SHIP_DIRECTION_Y[direction] ?? GUILD_SHIP_DIRECTION_Y.left;
+    const color = setNavalGuildShipLayerColor(sprite, resolveNavalGuildShipSailColor(ship));
+    const sailFirstFrameX = -(GUILD_SHIP_SAIL_COLOR_OFFSETS[color] || 0) * GUILD_SHIP_SPRITE_ASSET.frameSize;
+    sprite.style.setProperty('--guild-hull-animation-x', '0px');
+    sprite.style.setProperty('--guild-hull-frame-x', `-${GUILD_SHIP_SPRITE_ASSET.frameSize}px`);
+    sprite.style.setProperty('--guild-sail-animation-x', `${sailFirstFrameX}px`);
+    sprite.style.setProperty('--guild-sail-frame-x', `${sailFirstFrameX - GUILD_SHIP_SPRITE_ASSET.frameSize}px`);
+    sprite.style.setProperty('--guild-top-y', `${spriteY}px`);
+    sprite.style.setProperty('--naval-ship-sprite-x', `-${GUILD_SHIP_SPRITE_ASSET.frameSize}px`);
+    sprite.style.setProperty('--naval-ship-sprite-y', `${spriteY}px`);
+    sprite.style.setProperty('--naval-ship-animation-x', '0px');
+    sprite.style.setProperty('--naval-ship-animation-end-x', `-${GUILD_SHIP_SPRITE_ASSET.frameSize * 3}px`);
 }
 
 function diagonalPoseBetweenDirections(a, b) {
@@ -3375,7 +3476,16 @@ body.naval-battle-lock { overflow: hidden; }
 .naval-ship-shadow { position: absolute; left: 14px; right: 14px; bottom: 7px; height: 18px; border-radius: 50%; background: rgba(0, 0, 0, 0.3); filter: blur(2px); transform: scaleX(1.25); }
 .naval-ship-wake { position: absolute; left: 12px; right: 12px; bottom: 4px; height: 16px; border-radius: 50%; border-top: 2px solid rgba(210, 246, 240, 0.42); opacity: 0.68; }
 .naval-ship-sprite { position: relative; width: var(--naval-ship-frame-w, 64px); height: var(--naval-ship-frame-h, 64px); z-index: 2; background-image: url("./Sprites/Ships/ships.png"); background-position: var(--naval-ship-sprite-x, -64px) var(--naval-ship-sprite-y, -128px); background-size: var(--naval-ship-sheet-w, 2048px) var(--naval-ship-sheet-h, 1024px); background-repeat: no-repeat; image-rendering: pixelated; transform: scale(var(--naval-ship-scale, 1.45)); transform-origin: center center; filter: drop-shadow(0 13px 12px rgba(0, 0, 0, 0.38)); }
-.naval-ship:not(.is-surging):not(.is-hit):not(.is-stunned) .naval-ship-sprite { animation: navalShipFrameStep 360ms steps(3) infinite; }
+.naval-ship-sprite.is-guild-sprite { overflow: hidden; background-image: none; background-size: 1344px 768px; }
+.naval-guild-ship-layer { position: absolute; inset: 0; pointer-events: none; image-rendering: pixelated; background-image: url("./Sprites/Ships/guildShips.png"); background-repeat: no-repeat; background-size: 1344px 768px; }
+.naval-guild-ship-layer.is-hull { background-position: var(--guild-hull-frame-x, -64px) var(--guild-top-y, -64px); }
+.naval-guild-ship-layer.is-sail-top { background-position: var(--guild-sail-frame-x, -64px) var(--guild-top-y, -64px); }
+.naval-guild-ship-layer.is-sail-middle { background-position: var(--guild-sail-frame-x, -64px) calc(var(--guild-top-y, -64px) - 256px); }
+.naval-guild-ship-layer.is-sail-bottom { background-position: var(--guild-sail-frame-x, -64px) calc(var(--guild-top-y, -64px) - 512px); }
+.naval-guild-ship-layer.is-white { display: none; }
+.naval-ship:not(.is-surging):not(.is-hit):not(.is-stunned) .naval-ship-sprite:not(.is-guild-sprite) { animation: navalShipFrameStep 360ms steps(3) infinite; }
+.naval-ship:not(.is-surging):not(.is-hit):not(.is-stunned) .naval-ship-sprite.is-guild-sprite .naval-guild-ship-layer.is-hull { animation: navalGuildShipHullFrameStep 360ms steps(3) infinite; }
+.naval-ship:not(.is-surging):not(.is-hit):not(.is-stunned) .naval-ship-sprite.is-guild-sprite .naval-guild-ship-layer:not(.is-hull) { animation: navalGuildShipSailFrameStep 360ms steps(3) infinite; }
 .naval-ship-smoke { position: absolute; left: 34px; top: 2px; width: 30px; height: 42px; opacity: 0; pointer-events: none; z-index: 4; }
 .naval-ship-smoke::before, .naval-ship-smoke::after { content: ""; position: absolute; bottom: 0; width: 18px; height: 18px; border-radius: 50%; background: rgba(42, 47, 52, 0.74); filter: blur(1px); animation: navalSmokePuff 1.25s ease-out infinite; }
 .naval-ship-smoke::after { left: 12px; animation-delay: 0.42s; background: rgba(92, 95, 95, 0.58); }
@@ -3444,6 +3554,8 @@ body.naval-battle-lock { overflow: hidden; }
 @keyframes navalSeaDrift { from { transform: translateX(0); } to { transform: translateX(56px); } }
 @keyframes navalImpactShake { 0%,100% { transform: translate3d(0, 0, 0); } 14% { transform: translate3d(-5px, 2px, 0); } 28% { transform: translate3d(5px, -2px, 0); } 42% { transform: translate3d(-4px, 1px, 0); } 58% { transform: translate3d(4px, 0, 0); } 74% { transform: translate3d(-2px, -1px, 0); } }
 @keyframes navalShipFrameStep { from { background-position: var(--naval-ship-animation-x, 0px) var(--naval-ship-sprite-y, -128px); } to { background-position: var(--naval-ship-animation-end-x, -192px) var(--naval-ship-sprite-y, -128px); } }
+@keyframes navalGuildShipHullFrameStep { from { background-position-x: var(--guild-hull-animation-x, 0px); } to { background-position-x: calc(var(--guild-hull-animation-x, 0px) - 192px); } }
+@keyframes navalGuildShipSailFrameStep { from { background-position-x: var(--guild-sail-animation-x, 0px); } to { background-position-x: calc(var(--guild-sail-animation-x, 0px) - 192px); } }
 @keyframes navalDodgeLean { 0% { transform: scale(var(--naval-ship-scale, 1.45)) translateY(0); } 42% { transform: scale(var(--naval-ship-scale, 1.45)) translateY(-5px); } 100% { transform: scale(var(--naval-ship-scale, 1.45)) translateY(0); } }
 @keyframes navalDodgeUp { 0%,100% { transform: none; } }
 @keyframes navalDodgeDown { 0%,100% { transform: none; } }
@@ -3722,22 +3834,28 @@ function shipVisualTop(ship) {
 function applyShipSprite(container, ship, side, visualPose = '', flags = {}) {
     if (!container || !ship) return;
     const sprite = container.querySelector('.naval-ship-sprite');
-    const frame = shipSpriteFrame(ship, side, visualPose);
-    if (sprite) {
-        const asset = frame.asset || SHIP_SPRITE_DEFAULT_ASSET;
-        const frameSize = frame.frameSize || asset.frameSize || SHIP_SPRITE_FRAME_SIZE;
-        sprite.style.backgroundImage = `url("${asset.path}")`;
-        sprite.style.setProperty('--naval-ship-frame-w', `${frameSize}px`);
-        sprite.style.setProperty('--naval-ship-frame-h', `${frameSize}px`);
-        sprite.style.setProperty('--naval-ship-sheet-w', `${asset.sheetWidth || SHIP_SPRITE_DEFAULT_ASSET.sheetWidth}px`);
-        sprite.style.setProperty('--naval-ship-sheet-h', `${asset.sheetHeight || SHIP_SPRITE_DEFAULT_ASSET.sheetHeight}px`);
-        sprite.style.setProperty('--naval-ship-scale', `${asset.scale || SHIP_SPRITE_DEFAULT_ASSET.scale}`);
-        sprite.style.setProperty('--naval-ship-sprite-x', `${frame.x}px`);
-        sprite.style.setProperty('--naval-ship-sprite-y', `${frame.y}px`);
-        sprite.style.setProperty('--naval-ship-animation-x', `${frame.x + frameSize}px`);
-        sprite.style.setProperty('--naval-ship-animation-end-x', `${frame.x - (frameSize * 2)}px`);
-    }
     const form = visualShipForm(ship);
+    if (sprite) {
+        if (form === 'guild' || String(ship?.shipTraitKey || '').toLowerCase() === 'guild_ship') {
+            applyGuildShipSprite(sprite, ship, side, visualPose);
+        } else {
+            clearNavalGuildShipLayers(sprite);
+            sprite.classList.remove('is-guild-sprite');
+            const frame = shipSpriteFrame(ship, side, visualPose);
+            const asset = frame.asset || SHIP_SPRITE_DEFAULT_ASSET;
+            const frameSize = frame.frameSize || asset.frameSize || SHIP_SPRITE_FRAME_SIZE;
+            sprite.style.backgroundImage = `url("${asset.path}")`;
+            sprite.style.setProperty('--naval-ship-frame-w', `${frameSize}px`);
+            sprite.style.setProperty('--naval-ship-frame-h', `${frameSize}px`);
+            sprite.style.setProperty('--naval-ship-sheet-w', `${asset.sheetWidth || SHIP_SPRITE_DEFAULT_ASSET.sheetWidth}px`);
+            sprite.style.setProperty('--naval-ship-sheet-h', `${asset.sheetHeight || SHIP_SPRITE_DEFAULT_ASSET.sheetHeight}px`);
+            sprite.style.setProperty('--naval-ship-scale', `${asset.scale || SHIP_SPRITE_DEFAULT_ASSET.scale}`);
+            sprite.style.setProperty('--naval-ship-sprite-x', `${frame.x}px`);
+            sprite.style.setProperty('--naval-ship-sprite-y', `${frame.y}px`);
+            sprite.style.setProperty('--naval-ship-animation-x', `${frame.x + frameSize}px`);
+            sprite.style.setProperty('--naval-ship-animation-end-x', `${frame.x - (frameSize * 2)}px`);
+        }
+    }
     const traitKey = String(ship?.shipTraitKey || '').replace(/[^a-z0-9_-]/gi, '');
     container.className = [
         'naval-ship',

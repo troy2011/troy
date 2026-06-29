@@ -1856,6 +1856,44 @@ function hashExplorationNpcSeed(value) {
     ), 0);
 }
 
+const EXPLORATION_NPC_NAVAL_SHIPS_BY_STAGE = Object.freeze({
+    1: Object.freeze([
+        { form: 'boat', shipClass: 'boat', itemId: 'ship_common_boat', name: 'Enemy Boat', stage: 1, level: 1 }
+    ]),
+    2: Object.freeze([
+        { form: 'explorer', shipClass: 'explorer', itemId: 'ship_human_explorer', name: 'Enemy Explorer', stage: 2, level: 2 }
+    ]),
+    3: Object.freeze([
+        { form: 'defender', shipClass: 'defender', itemId: 'ship_human_defender', name: 'Enemy Defender', stage: 3, level: 3 },
+        { form: 'fighter', shipClass: 'fighter', itemId: 'ship_human_fighter', name: 'Enemy Fighter', stage: 3, level: 3 },
+        { form: 'merchant', shipClass: 'merchant', itemId: 'ship_human_merchant', name: 'Enemy Merchant', stage: 3, level: 3 }
+    ])
+});
+const EXPLORATION_NPC_NAVAL_NAMES = Object.freeze([
+    'NPC Raider',
+    'NPC Privateer',
+    'NPC Patrol'
+]);
+const EXPLORATION_NPC_NAVAL_NATIONS = Object.freeze(['water', 'wind', 'fire', 'earth']);
+
+function shipEvolutionStageFromProfile(ship = {}) {
+    const rawItemId = String(ship?.itemId || ship?.ItemId || ship?.catalogItemId || '').trim().toLowerCase();
+    const rawClass = String(ship?.form || ship?.shipClass || ship?.class || rawItemId || '').trim().toLowerCase();
+    if (rawClass.includes('guild') || rawItemId === 'guild_ship') return 3;
+    if (rawClass.includes('merchant') || rawClass.includes('fighter') || rawClass.includes('defender')) return 3;
+    if (rawItemId.includes('ship_human_merchant') || rawItemId.includes('ship_human_fighter') || rawItemId.includes('ship_human_defender')) return 3;
+    if (rawClass.includes('explorer') || rawItemId.includes('ship_human_explorer')) return 2;
+    const explicitStage = Math.floor(Number(ship?.stage || ship?.evolutionStage || 0) || 0);
+    if (explicitStage >= 1) return Math.max(1, Math.min(3, explicitStage));
+    return 1;
+}
+
+function candidateExplorationNpcNavalShips(playerShipProfile = {}) {
+    const stage = shipEvolutionStageFromProfile(playerShipProfile);
+    const stages = stage >= 3 ? [3] : [stage, stage + 1];
+    return stages.flatMap((entry) => EXPLORATION_NPC_NAVAL_SHIPS_BY_STAGE[entry] || EXPLORATION_NPC_NAVAL_SHIPS_BY_STAGE[1]);
+}
+
 function buildExplorationNpcPlayerShipProfile(ship = {}) {
     const rawItemId = String(ship?.itemId || ship?.ItemId || ship?.catalogItemId || '').trim();
     const isGuildShip = Boolean(
@@ -1868,13 +1906,15 @@ function buildExplorationNpcPlayerShipProfile(ship = {}) {
         ? 'guild'
         : normalizeShipClass(ship?.form || ship?.shipClass || ship?.class || '');
     const itemId = isGuildShip ? 'guild_ship' : rawItemId;
-    const level = Math.max(1, Math.floor(Number(ship?.level || ship?.stage || 1) || 1));
+    const stage = shipEvolutionStageFromProfile({ ...ship, form: shipClass, itemId });
+    const level = Math.max(1, Math.floor(Number(ship?.level || stage || 1) || 1));
     return {
         form: shipClass || undefined,
         shipClass: shipClass || undefined,
         class: shipClass || undefined,
         itemId: itemId || undefined,
         name: String(ship?.shipName || ship?.name || ship?.shipId || '使用中の船').slice(0, 16),
+        stage,
         level,
         majorArcanaItemIds: isGuildShip
             ? []
@@ -1882,45 +1922,26 @@ function buildExplorationNpcPlayerShipProfile(ship = {}) {
     };
 }
 
-function buildExplorationNpcNavalOpponent(requestId) {
-    const presets = [
-        {
-            name: '近海の海賊',
-            race: 'human',
-            nation: 'water',
-            ship: { form: 'fighter', shipClass: 'fighter', itemId: 'ship_human_fighter', name: '海賊船', level: 2 },
-            enemyPlan: '突撃型'
-        },
-        {
-            name: '霧帆の私掠船',
-            race: 'human',
-            nation: 'wind',
-            ship: { form: 'defender', shipClass: 'defender', itemId: 'ship_human_defender', name: '私掠船', level: 2 },
-            enemyPlan: '砲撃型'
-        },
-        {
-            name: '黒潮の追跡船',
-            race: 'human',
-            nation: 'fire',
-            ship: { form: 'merchant', shipClass: 'merchant', itemId: 'ship_human_merchant', name: '武装商船', level: 2 },
-            enemyPlan: '攪乱型'
-        }
-    ];
-    const preset = presets[hashExplorationNpcSeed(requestId) % presets.length];
+function buildExplorationNpcNavalOpponent(requestId, playerShipProfile = {}) {
+    const seed = hashExplorationNpcSeed(requestId);
+    const ships = candidateExplorationNpcNavalShips(playerShipProfile);
+    const ship = { ...(ships[seed % ships.length] || EXPLORATION_NPC_NAVAL_SHIPS_BY_STAGE[1][0]) };
+    const name = EXPLORATION_NPC_NAVAL_NAMES[(seed >>> 3) % EXPLORATION_NPC_NAVAL_NAMES.length];
+    const nation = EXPLORATION_NPC_NAVAL_NATIONS[(seed >>> 5) % EXPLORATION_NPC_NAVAL_NATIONS.length];
     return {
-        id: `npc_exploration_naval_${Date.now().toString(36)}_${hashExplorationNpcSeed(requestId).toString(36)}`,
-        name: preset.name,
+        id: `npc_exploration_naval_${Date.now().toString(36)}_${seed.toString(36)}`,
+        name,
         profile: {
             playFabId: '',
-            displayName: preset.name,
-            race: preset.race,
-            nation: preset.nation,
+            displayName: name,
+            race: 'human',
+            nation,
             level: 8,
             stats: { attack: 18, defense: 14, speed: 12 },
-            playerShip: preset.ship
+            playerShip: ship
         },
-        shipProfile: preset.ship,
-        enemyPlan: preset.enemyPlan
+        shipProfile: ship,
+        enemyPlan: ''
     };
 }
 
@@ -1950,8 +1971,8 @@ async function startExplorationNpcBattleFromPanel(playFabId, button, ship) {
     button.textContent = '索敵中...';
     try {
         const requestId = createRequestId('exploration-npc-battle');
-        const opponent = buildExplorationNpcNavalOpponent(requestId);
         const playerShipProfile = buildExplorationNpcPlayerShipProfile(ship);
+        const opponent = buildExplorationNpcNavalOpponent(requestId, playerShipProfile);
         const playerName = window.myPlayFabDisplayName || window.myLineProfile?.displayName || playFabId;
         const playerProfile = {
             playFabId,
