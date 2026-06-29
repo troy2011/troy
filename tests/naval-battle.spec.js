@@ -921,6 +921,8 @@ test('ship-specific metadata exposes domain durability low firepower and passive
       shipTraitKey: state.player.shipTraitKey,
       arcanaCount: state.player.arcanaGears.length,
       shipClassName: document.getElementById('navalShipPlayer')?.className || '',
+      spriteFrameWidth: getComputedStyle(document.querySelector('#navalShipPlayer .naval-ship-sprite')).getPropertyValue('--naval-ship-frame-w'),
+      spriteSheetWidth: getComputedStyle(document.querySelector('#navalShipPlayer .naval-ship-sprite')).getPropertyValue('--naval-ship-sheet-w'),
       spriteX: getComputedStyle(document.querySelector('#navalShipPlayer .naval-ship-sprite')).getPropertyValue('--naval-ship-sprite-x'),
       shipTop: document.getElementById('navalShipPlayer')?.style.top || '',
       guildLayerCount: document.querySelectorAll('#navalShipPlayer .naval-guild-ship-layer').length,
@@ -951,7 +953,9 @@ test('ship-specific metadata exposes domain durability low firepower and passive
   expect(ships.find((entry) => entry.itemId === 'boat').shipTop).toBe('96px');
   const guildShip = ships.find((entry) => entry.itemId === 'guild_ship');
   expect(guildShip.shipClassName).toContain('is-guild');
-  expect(guildShip.spriteX).toBe('-64px');
+  expect(guildShip.spriteFrameWidth).toBe('96px');
+  expect(guildShip.spriteSheetWidth).toBe('2016px');
+  expect(guildShip.spriteX).toBe('-96px');
   expect(guildShip.shipTop).toBe('96px');
   expect(guildShip.guildLayerCount).toBe(4);
   expect(guildShip.guildLayerBackground).toContain('guildShips.png');

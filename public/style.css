@@ -11532,7 +11532,8 @@ body.home-exploration-popup-open #globalStatusBar {
     background:
         linear-gradient(180deg, rgba(254, 202, 202, 0.24), rgba(127, 29, 29, 0.16)),
         linear-gradient(180deg, #fca5a5, #b91c1c);
-    color: #260707;
+    color: #fff8f0;
+    text-shadow: 0 2px 0 rgba(78, 8, 8, 0.86), 0 0 8px rgba(255, 255, 255, 0.18);
 }
 
 .ship-exploration-start.is-consumable {

@@ -1014,6 +1014,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                 Attack: power,
                 Defense: defense,
                 Guard: defense,
+                すばやさ: speed,
                 Agi: speed,
                 Speed: speed,
                 Int: intStat,
@@ -1230,6 +1231,10 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const appendLog = (line) => {
             logEntries[timeCursor++] = line;
         };
+        const readBattleSpeed = (player) => {
+            const value = Number(player?.stats?.すばやさ ?? player?.stats?.Agi ?? player?.stats?.Speed ?? 1);
+            return Number.isFinite(value) ? Math.max(1, Math.floor(value)) : 1;
+        };
         const rememberPlayer = (player) => {
             if (!player?.id || playersPayload[player.id]) return;
             playersPayload[player.id] = {
@@ -1240,7 +1245,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                 virtual: isVirtualFighter(player),
                 ownerId: player.ownerId || null,
                 level: player.level,
-                stats: { すばやさ: player.stats.すばやさ },
+                stats: { すばやさ: readBattleSpeed(player) },
                 avatar: player.avatar,
                 equipment: player.equipment
             };
@@ -1785,6 +1790,10 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
             // --- 1. 両プレイヤーの全ステータスを読み込む ---
             const playerA = await getPlayerFullProfile(invitation.from.id); // 攻撃者
             const playerB = await getPlayerFullProfile(invitation.to.id);   // 防御者
+            const readBattleSpeed = (player) => {
+                const value = Number(player?.stats?.すばやさ ?? player?.stats?.Agi ?? player?.stats?.Speed ?? 1);
+                return Number.isFinite(value) ? Math.max(1, Math.floor(value)) : 1;
+            };
 
             // --- 2. Firebase Realtime Databaseに「バトル部屋」を作成 ---
             const battleRef = db.ref('battles').push();
@@ -1798,7 +1807,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                     maxHp: playerA.stats.MaxHP,
                     online: true, // ★★★ 修正: オンライン状態フラグを追加
                     level: playerA.level, // ★★★ 修正: レベル情報を追加
-                    stats: { すばやさ: playerA.stats.すばやさ }, // ATB計算に必要なステータス
+                    stats: { すばやさ: readBattleSpeed(playerA) }, // ATB計算に必要なステータス
                     avatar: playerA.avatar,
                     equipment: playerA.equipment // ★ v147: アイテムIDのみを保存
                 },
@@ -1808,7 +1817,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                     maxHp: playerB.stats.MaxHP,
                     online: true, // ★★★ 修正: オンライン状態フラグを追加
                     level: playerB.level, // ★★★ 修正: レベル情報を追加
-                    stats: { すばやさ: playerB.stats.すばやさ },
+                    stats: { すばやさ: readBattleSpeed(playerB) },
                     avatar: playerB.avatar,
                     equipment: playerB.equipment // ★ v147: アイテムIDのみを保存
                 }

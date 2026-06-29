@@ -48,23 +48,23 @@ test('naval battle demo uses the selected ship race-color sprite slot', async ({
   await page.goto('/naval-battle-demo.html', { waitUntil: 'domcontentloaded' });
 
   const expectedSprites = {
-    boat: ['ships.png', '-64px', '-64px', '128px'],
-    ship_human_explorer: ['ships_blue.png', '-448px', '-64px', '128px'],
-    ship_human_defender: ['ships_blue.png', '-832px', '-64px', '128px'],
-    ship_human_fighter: ['ships_blue.png', '-1216px', '-64px', '128px'],
-    ship_human_merchant: ['ships_blue.png', '-1600px', '-64px', '128px'],
-    ship_elf_explorer: ['ships_green.png', '-448px', '-320px', '96px'],
-    ship_elf_defender: ['ships_green.png', '-1216px', '-320px', '96px'],
-    ship_elf_fighter: ['ships_green.png', '-832px', '-320px', '96px'],
-    ship_elf_merchant: ['ships_green.png', '-1600px', '-320px', '96px'],
-    ship_orc_explorer: ['ships_red.png', '-448px', '-576px', '128px'],
-    ship_orc_defender: ['ships_red.png', '-832px', '-576px', '128px'],
-    ship_orc_fighter: ['ships_red.png', '-1216px', '-576px', '128px'],
-    ship_orc_merchant: ['ships_red.png', '-1600px', '-576px', '128px'],
-    ship_goblin_explorer: ['ships_yellow.png', '-448px', '-832px', '128px'],
-    ship_goblin_defender: ['ships_yellow.png', '-832px', '-832px', '128px'],
-    ship_goblin_fighter: ['ships_yellow.png', '-1216px', '-832px', '128px'],
-    ship_goblin_merchant: ['ships_yellow.png', '-1600px', '-832px', '128px']
+    boat: ['ships.png', '-64px', '-64px', '96px'],
+    ship_human_explorer: ['ships_blue.png', '-448px', '-64px', '96px'],
+    ship_human_defender: ['ships_blue.png', '-832px', '-64px', '96px'],
+    ship_human_fighter: ['ships_blue.png', '-1216px', '-64px', '96px'],
+    ship_human_merchant: ['ships_blue.png', '-1600px', '-64px', '96px'],
+    ship_elf_explorer: ['ships_green.png', '-448px', '-320px', '68px'],
+    ship_elf_defender: ['ships_green.png', '-1216px', '-320px', '68px'],
+    ship_elf_fighter: ['ships_green.png', '-832px', '-320px', '68px'],
+    ship_elf_merchant: ['ships_green.png', '-1600px', '-320px', '68px'],
+    ship_orc_explorer: ['ships_red.png', '-448px', '-576px', '96px'],
+    ship_orc_defender: ['ships_red.png', '-832px', '-576px', '96px'],
+    ship_orc_fighter: ['ships_red.png', '-1216px', '-576px', '96px'],
+    ship_orc_merchant: ['ships_red.png', '-1600px', '-576px', '96px'],
+    ship_goblin_explorer: ['ships_yellow.png', '-448px', '-832px', '96px'],
+    ship_goblin_defender: ['ships_yellow.png', '-832px', '-832px', '96px'],
+    ship_goblin_fighter: ['ships_yellow.png', '-1216px', '-832px', '96px'],
+    ship_goblin_merchant: ['ships_yellow.png', '-1600px', '-832px', '96px']
   };
 
   for (const [shipId, [fileName, x, y, top]] of Object.entries(expectedSprites)) {
