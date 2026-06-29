@@ -1395,6 +1395,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(freeDestination.locator('.ship-exploration-boss-image')).toHaveCount(3);
   await expect(freeDestination.locator('.ship-exploration-start')).toHaveText('無料で探索開始');
   await expect(paidDestination.locator('.ship-exploration-start')).toHaveText(['消耗品で探索', '180Gで探索']);
+  await expect(panel.locator('[data-exploration-npc-battle]')).toHaveText('敵船を探す');
   const explorationPanelFrame = await freeDestination.evaluate((element) => ({
     panelBorder: getComputedStyle(document.getElementById('shipExplorationPanel')).borderImageSource,
     panelSliceSource: document.querySelector('#shipExplorationPanel > .panel-slice-25-layer')?.dataset.source || '',
@@ -1448,6 +1449,68 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(page.locator('#tabContentRanking')).toBeVisible();
   await expect(panel).toBeHidden();
   expect(await page.evaluate(() => document.body.classList.contains('home-exploration-popup-open'))).toBe(false);
+
+  await page.evaluate(() => window.showTab?.('home'));
+  await expect(page.locator('#tabContentHome')).toBeVisible();
+  await page.locator('#btnHomeExploration').click();
+  await expect(panel).toBeVisible();
+  await page.evaluate(() => {
+    window.__explorationNpcNavalCalls = [];
+    window.__explorationNpcMeleeCalls = [];
+    window.startExplorationNpcBattle = (options = {}) => {
+      window.__explorationNpcMeleeCalls.push(options);
+      return Promise.resolve({ battleId: 'battle-npc-exploration' });
+    };
+    window.startNavalBattle = (options = {}) => {
+      window.__explorationNpcNavalCalls.push({
+        playerId: options.playerId,
+        opponentId: options.opponentId,
+        opponentName: options.opponentName,
+        enemyPlan: options.enemyPlan,
+        playerShipProfile: options.playerShipProfile,
+        opponentShipProfile: options.opponentShipProfile,
+        hasOnBoarding: typeof options.onBoarding === 'function'
+      });
+      options.onBoarding?.(options.opponentId, {
+        navalOutcome: 'boarding',
+        boardedPlayerId: options.opponentId,
+        boardingPlayerId: options.playerId,
+        navalBoardingState: {
+          player: { morale: 1, crewHpPercent: 88, crewMpPercent: 76, statuses: {} },
+          enemy: { morale: -1, crewHpPercent: 42, crewMpPercent: 33, statuses: { burn: { turns: 2 } } }
+        }
+      });
+      return { finished: false };
+    };
+  });
+  await panel.locator('[data-exploration-npc-battle]').click();
+  await expect.poll(() => page.evaluate(() => window.__explorationNpcMeleeCalls?.length || 0)).toBe(1);
+  const npcFlow = await page.evaluate(() => ({
+    naval: window.__explorationNpcNavalCalls,
+    melee: window.__explorationNpcMeleeCalls,
+    popupOpen: document.body.classList.contains('home-exploration-popup-open')
+  }));
+  expect(npcFlow.naval).toHaveLength(1);
+  expect(npcFlow.naval[0]).toMatchObject({
+    playerId: 'PF_PLAYWRIGHT',
+    hasOnBoarding: true
+  });
+  expect(npcFlow.naval[0].opponentId).toContain('npc_exploration_naval_');
+  expect(npcFlow.naval[0].playerShipProfile.name).toBe('テスト船');
+  expect(npcFlow.melee[0].battleContext).toMatchObject({
+    source: 'explorationNpc',
+    rewardMode: 'none',
+    npcBattle: true,
+    navalOutcome: 'boarding',
+    navalBoardingState: {
+      enemy: { statuses: { burn: { turns: 2 } } }
+    }
+  });
+  expect(npcFlow.popupOpen).toBe(false);
+
+  await expect(panel).toBeHidden();
+  expect(await page.evaluate(() => document.body.classList.contains('home-exploration-popup-open'))).toBe(false);
+
   await expectNoPageErrors(errors);
 });
 
@@ -3865,6 +3928,85 @@ test('elf avatar uses yellow base sprites when stored color is yellow', async ({
     window.getComputedStyle(layer).backgroundImage
   ))).toContain('elf_facialhair_yellow.png');
   expect(purpleElfSpriteRequests).toHaveLength(0);
+  await expectNoPageErrors(errors);
+});
+
+test('combat avatars expose reusable body sprite motions', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await bootstrapMainApp(page);
+
+  await page.evaluate(async () => {
+    const fixture = document.createElement('div');
+    fixture.id = 'combatIdleAvatarFixture';
+    fixture.style.cssText = 'position:fixed;left:0;top:0;opacity:0;pointer-events:none;';
+    fixture.innerHTML = `
+      <div id="combatIdleAvatar" class="avatar-container avatar-combat-actor">
+        <div id="combatIdleAvatar-layer-body" class="avatar-layer"></div>
+        <div id="combatIdleAvatar-layer-head" class="avatar-layer"></div>
+        <div id="combatIdleAvatar-layer-facial-hair" class="avatar-layer"></div>
+        <div id="combatIdleAvatar-layer-hair" class="avatar-layer"></div>
+        <div id="combatIdleAvatar-layer-armor" class="avatar-layer"></div>
+        <div id="combatIdleAvatar-layer-hand-right" class="avatar-layer"></div>
+        <div id="combatIdleAvatar-layer-weapon-right" class="avatar-layer"></div>
+        <div id="combatIdleAvatar-layer-hand-left" class="avatar-layer"></div>
+        <div id="combatIdleAvatar-layer-shield-left" class="avatar-layer"></div>
+      </div>`;
+    document.body.appendChild(fixture);
+
+    const { renderAvatar } = await import('/js/avatar.js');
+    const avatar = { Race: 'human', AvatarColor: 'brown', SkinColorIndex: 1, FaceIndex: 1, HairStyleIndex: 1, FacialHairStyleIndex: 0, level: 21 };
+    renderAvatar('combatIdleAvatar', avatar, {}, {}, false);
+  });
+
+  await page.waitForFunction(() => (
+    document.getElementById('combatIdleAvatar-layer-body')?.dataset.loadState === 'ready'
+  ));
+  await expect(page.locator('#combatIdleAvatar')).toHaveAttribute('data-avatar-idle-state', 'body');
+  const initialFrame = await page.locator('#combatIdleAvatar-layer-body').evaluate((layer) => layer.dataset.spriteIndex || '');
+  await page.waitForFunction((frame) => (
+    document.getElementById('combatIdleAvatar-layer-body')?.dataset.spriteIndex !== frame
+    && document.getElementById('combatIdleAvatar-layer-head')?.style.transform.includes('translateY')
+  ), initialFrame, { timeout: 2500 });
+
+  const shiftedHeadTransform = await page.locator('#combatIdleAvatar-layer-head').evaluate((layer) => layer.style.transform);
+  expect(shiftedHeadTransform).toContain('translateY');
+
+  const motionSamples = await page.evaluate(async () => {
+    const {
+      startAvatarBodyMotion,
+      playAvatarBodyMotion
+    } = await import('/js/avatar.js');
+    const body = document.getElementById('combatIdleAvatar-layer-body');
+    const read = () => ({
+      index: Number(body?.dataset.spriteIndex || 0),
+      motion: body?.dataset.bodyMotion || '',
+      frame: Number(body?.dataset.bodyMotionFrame || 0)
+    });
+
+    startAvatarBodyMotion('combatIdleAvatar', 'walk', { intervalMs: 30 });
+    await new Promise((resolve) => setTimeout(resolve, 140));
+    const walk = read();
+
+    startAvatarBodyMotion('combatIdleAvatar', 'run', { intervalMs: 30 });
+    await new Promise((resolve) => setTimeout(resolve, 140));
+    const run = read();
+
+    await playAvatarBodyMotion('combatIdleAvatar', 'jump', { intervalMs: 30, restore: false });
+    const jump = read();
+
+    startAvatarBodyMotion('combatIdleAvatar', 'idle', { intervalMs: 30 });
+    return { walk, run, jump };
+  });
+
+  expect(motionSamples.walk.motion).toBe('walk');
+  expect(motionSamples.walk.index).toBeGreaterThanOrEqual(8);
+  expect(motionSamples.walk.index).toBeLessThan(16);
+  expect(motionSamples.run.motion).toBe('run');
+  expect(motionSamples.run.index).toBeGreaterThanOrEqual(16);
+  expect(motionSamples.run.index).toBeLessThan(24);
+  expect(motionSamples.jump.motion).toBe('jump');
+  expect(motionSamples.jump.index).toBeGreaterThanOrEqual(24);
+  expect(motionSamples.jump.index).toBeLessThan(27);
   await expectNoPageErrors(errors);
 });
 

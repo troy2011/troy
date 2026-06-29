@@ -28,6 +28,7 @@ const MELEE_TAROT_SHEET_W = 512;
 const MELEE_TAROT_SHEET_H = 1024;
 const MELEE_TAROT_BACK_INDEX = 110;
 const MELEE_SLOT_TAROT_SCALE = 0.54;
+const MELEE_MINOR_CUTIN_TAROT_SCALE = 1.86;
 
 const DEMO_AVATAR_BASES = {
     player: {
@@ -371,6 +372,39 @@ function setTarotArtSprite(artEl, spriteIndex, scale = MELEE_SLOT_TAROT_SCALE) {
     artEl.style.setProperty('--tarot-sprite-src', `url('${MELEE_TAROT_SPRITE_SRC}')`);
 }
 
+function createMinorArcanaEffect(card, side) {
+    const effect = document.createElement('div');
+    effect.className = `melee-minor-arcana-effect is-${side}-side`;
+    effect.dataset.cardName = String(card?.cardName || '');
+    effect.dataset.suit = normalizeTarotSuit(card?.suit);
+    effect.dataset.rank = String(card?.rank ?? card?.number ?? '');
+    effect.dataset.skillName = String(card?.skillName || card?.name || '');
+
+    const artWrap = document.createElement('div');
+    artWrap.className = 'melee-minor-arcana-card';
+
+    const art = document.createElement('span');
+    art.className = 'tarot-card-art melee-minor-arcana-art';
+    setTarotArtSprite(art, tarotSpriteIndex(card), MELEE_MINOR_CUTIN_TAROT_SCALE);
+    artWrap.append(art);
+
+    const name = document.createElement('div');
+    name.className = 'melee-minor-arcana-name';
+    name.textContent = [card?.cardName, card?.skillName || card?.name].filter(Boolean).join(' / ') || '小アルカナ';
+
+    effect.append(artWrap, name);
+    return effect;
+}
+
+function triggerDemoMinorArcana(unitId, card) {
+    if (!el.battleBoard) return;
+    const side = unitId === 'player' ? 'player' : 'enemy';
+    el.battleBoard.querySelectorAll(`.melee-minor-arcana-effect.is-${side}-side`).forEach((node) => node.remove());
+    const effect = createMinorArcanaEffect(card, side);
+    el.battleBoard.append(effect);
+    window.setTimeout(() => effect.remove(), 2600);
+}
+
 function createSlotWeaponIcon(weaponType) {
     const icon = document.createElement('span');
     icon.className = 'melee-slot-icon weapon-sprite';
@@ -580,6 +614,7 @@ function resolveTurn(actor, die, actionToken) {
         el.actionTitle.textContent = `${action.name}（${kindText}）`;
         el.actionDetail.textContent = action.effectText || `${action.power ?? '-'} / ${action.accuracy ?? '-'}`;
         log(`${actor.name} の出目${die}: ${displayAction(decision)}`, decision.type === 'minorArcana');
+        if (decision.type === 'minorArcana') triggerDemoMinorArcana(actor.id, action);
         triggerDemoAvatarMotion(actor);
         const result = executeAction(actor, target, action);
         if (targetHpBefore > target.hp) triggerDemoDamageFeedback(target.id, targetHpBefore - target.hp);
@@ -608,8 +643,20 @@ function triggerDemoAvatarMotion(actor) {
     const avatar = actorId === 'player' ? el.playerAvatar : el.enemyAvatar;
     const direction = actorId === 'player' ? 'left' : 'right';
     applyAvatarWeaponClass(avatar, actor?.weapon);
-    avatarModule?.triggerAvatarAttackMotion?.(avatar, { direction, duration: 460 });
+    avatarModule?.triggerAvatarAttackMotion?.(avatar, {
+        direction,
+        duration: 460,
+        bodyMotion: getDemoAvatarBodyMotion(actor?.weapon),
+        bodyMotionIntervalMs: getDemoAvatarBodyMotion(actor?.weapon) === 'jump' ? 96 : 52
+    });
     window.setTimeout(() => clearAvatarWeaponClass(avatar), 560);
+}
+
+function getDemoAvatarBodyMotion(weaponType) {
+    const weapon = normalizeWeaponType(weaponType);
+    if (weapon === 'axe_big' || weapon === 'sword_big' || weapon === 'axe' || weapon === 'blunt') return 'jump';
+    if (weapon === 'gun' || weapon === 'gun_big' || weapon === 'bow' || weapon === 'staff' || weapon === 'wand') return 'walk';
+    return 'run';
 }
 
 function triggerDemoDamageFeedback(unitId, amount = 0) {
@@ -624,10 +671,14 @@ function createDemoDamagePopup(unitId, amount = 0) {
     createDemoFeedbackPopup(unitId, `-${Math.ceil(amount)}`, 'damage');
 }
 
-function createDemoFeedbackPopup(unitId, text, type = 'damage') {
+function createDemoFeedbackPopup(unitId, text, type = 'damage', stackIndex = 0) {
     if (!el.battleBoard || !text) return;
+    const isPlayer = unitId === 'player';
+    const stack = Math.max(0, Number(stackIndex) || 0);
     const popup = document.createElement('span');
-    popup.className = `melee-damage-pop is-${type} ${unitId === 'player' ? 'is-player-side' : 'is-enemy-side'}`;
+    popup.className = `melee-damage-pop is-${type} ${isPlayer ? 'is-player-side' : 'is-enemy-side'}`;
+    popup.style.setProperty('--feedback-stack-y', `${type === 'status' ? stack * -18 : 0}px`);
+    popup.style.setProperty('--feedback-x', `${type === 'status' ? (isPlayer ? -8 : 8) : 0}px`);
     popup.textContent = text;
     el.battleBoard.append(popup);
     window.setTimeout(() => popup.remove(), 2300);
@@ -650,24 +701,26 @@ function demoStatusSnapshot(unit) {
 
 function demoStatusChangeLabel(key, before, after) {
     if (['burnTurns', 'floodTurns', 'fearTurns', 'confusionTurns'].includes(key) && after > before) {
-        return ({ burnTurns: '火傷', floodTurns: '水浸し', fearTurns: '恐怖', confusionTurns: '混乱' })[key];
+        return ({ burnTurns: 'BURN', floodTurns: 'WET', fearTurns: 'FEAR', confusionTurns: 'CONFUSE' })[key];
     }
-    if (key === 'attackMultiplier' && after < before) return '攻撃↓';
-    if (key === 'defenseMultiplier' && after < before) return '防御↓';
-    if (key === 'speedMultiplier' && after < before) return '素早さ↓';
-    if (key === 'accuracyBonus' && after < before) return '命中↓';
-    if (key === 'damageTakenMultiplier' && after > before) return '被ダメ↑';
-    if (key === 'nextDamageTakenCharges' && after > before) return 'ガード';
+    if (key === 'attackMultiplier' && after < before) return 'ATK DOWN';
+    if (key === 'defenseMultiplier' && after < before) return 'DEF DOWN';
+    if (key === 'speedMultiplier' && after < before) return 'SPEED DOWN';
+    if (key === 'accuracyBonus' && after < before) return 'ACC DOWN';
+    if (key === 'damageTakenMultiplier' && after > before) return 'VULN UP';
+    if (key === 'nextDamageTakenCharges' && after > before) return 'GUARD';
     return '';
 }
 
 function showDemoStatusFeedback(unitId, before, after) {
     const shown = new Set();
+    let stackIndex = 0;
     Object.keys(after || {}).forEach((key) => {
         const label = demoStatusChangeLabel(key, Number(before?.[key] ?? 0), Number(after?.[key] ?? 0));
         if (!label || shown.has(label)) return;
         shown.add(label);
-        createDemoFeedbackPopup(unitId, label, 'status');
+        createDemoFeedbackPopup(unitId, label, 'status', stackIndex);
+        stackIndex += 1;
     });
 }
 

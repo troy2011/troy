@@ -5,7 +5,7 @@ const { getEntityKeyFromPlayFabId, withTitleEntityToken } = require('../playfab'
 const { applyDerivedPlayerLevelToStats } = require('../playerLevel');
 const { TAROT_DECK_DATA_KEY, MELEE_DECK_DATA_KEY, SHIP_DECK_DATA_KEY, evaluateDeckRole, filterMinorDeckIds } = require('../tarotDeck');
 const { getTarotRolePassive } = require('../tarotRoles');
-const { getTarotBattleDeck } = require('../tarotBattleSkills');
+const { getTarotBattleDeck, resolveTarotBattleSkill } = require('../tarotBattleSkills');
 const {
     getCanonicalTarotCategory,
     getMajorArcanaSuitInfo,
@@ -540,6 +540,9 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const source = String(context.source || context.type || '').trim();
         const mode = String(context.rewardMode || context.mode || '').trim();
         const outcome = String(context.navalOutcome || context.outcome || '').trim();
+        if (source === 'explorationNpc' || mode === 'none' || context.npcBattle === true) {
+            return null;
+        }
         const isNavalPlunder = source === 'navalPlunder'
             || mode === 'boarded-loser-only'
             || outcome === 'boarding'
@@ -852,6 +855,168 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const hostProfile = await getPlayerFullProfile(hostId);
         return [{ type: 'player', id: hostId, profile: hostProfile }];
     };
+    const EXPLORATION_NPC_ENCOUNTERS = [
+        {
+            key: 'raider_sloop',
+            name: '流しの略奪船',
+            weapon: 'sword',
+            levelOffset: 0,
+            hpScale: 0.82,
+            powerScale: 0.86,
+            defenseScale: 0.78,
+            speedScale: 0.96,
+            avatar: { Race: 'human', Nation: 'fire', AvatarColor: 'red', SkinColorIndex: 2, FaceIndex: 2, HairStyleIndex: 3, FacialHairStyleIndex: 1 },
+            deck: ['minor-sword-2', 'minor-sword-3', 'minor-wand-4', 'minor-cup-5', 'minor-pentacle-6']
+        },
+        {
+            key: 'fog_privateer',
+            name: '霧隠れの私掠船',
+            weapon: 'dagger',
+            levelOffset: 1,
+            hpScale: 0.76,
+            powerScale: 0.82,
+            defenseScale: 0.72,
+            speedScale: 1.14,
+            avatar: { Race: 'human', Nation: 'wind', AvatarColor: 'green', SkinColorIndex: 3, FaceIndex: 4, HairStyleIndex: 5, FacialHairStyleIndex: 0 },
+            deck: ['minor-sword-2', 'minor-cup-3', 'minor-sword-4', 'minor-wand-5', 'minor-sword-6']
+        },
+        {
+            key: 'iron_barge',
+            name: '鉄張りの敵船',
+            weapon: 'blunt',
+            levelOffset: 2,
+            hpScale: 1.02,
+            powerScale: 0.9,
+            defenseScale: 1.08,
+            speedScale: 0.74,
+            avatar: { Race: 'dwarf', Nation: 'earth', AvatarColor: 'brown', SkinColorIndex: 4, FaceIndex: 2, HairStyleIndex: 2, FacialHairStyleIndex: 2 },
+            deck: ['minor-pentacle-2', 'minor-pentacle-3', 'minor-cup-4', 'minor-pentacle-5', 'minor-wand-6']
+        },
+        {
+            key: 'corsair_gunner',
+            name: '沖合の砲手船',
+            weapon: 'gun',
+            levelOffset: 1,
+            hpScale: 0.86,
+            powerScale: 1.02,
+            defenseScale: 0.78,
+            speedScale: 0.84,
+            avatar: { Race: 'human', Nation: 'water', AvatarColor: 'blue', SkinColorIndex: 2, FaceIndex: 5, HairStyleIndex: 4, FacialHairStyleIndex: 1 },
+            deck: ['minor-wand-2', 'minor-sword-3', 'minor-cup-4', 'minor-wand-5', 'minor-sword-6']
+        }
+    ];
+    const clampBattleNumber = (value, min, max, fallback = min) => {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return fallback;
+        return Math.max(min, Math.min(max, Math.floor(number)));
+    };
+    const readProfileNumber = (profile, keys, fallback = 0) => {
+        const stats = profile?.stats || {};
+        for (const key of keys) {
+            const value = Number(stats[key]);
+            if (Number.isFinite(value)) return value;
+        }
+        return fallback;
+    };
+    const readProfileCombatBasis = (profile) => {
+        const level = clampBattleNumber(profile?.level || profile?.stats?.Level, 1, 99, 1);
+        const maxHp = Math.max(30, readProfileNumber(profile, ['MaxHP', 'HP', 'CurrentHP'], 80));
+        const equipment = profile?.equipmentStats || {};
+        return {
+            level,
+            maxHp,
+            power: Math.max(8, readProfileNumber(profile, ['Power', 'Attack'], level * 3) + (Number(equipment.Power) || 0)),
+            defense: Math.max(4, readProfileNumber(profile, ['Defense', 'Guard'], level * 2) + (Number(equipment.Defense) || 0)),
+            speed: Math.max(4, readProfileNumber(profile, ['Agi', 'Speed'], level * 2) + (Number(equipment.Agi) || 0)),
+            int: Math.max(3, readProfileNumber(profile, ['Int', 'Intelligence'], level * 2) + (Number(equipment.Int) || 0))
+        };
+    };
+    const pickExplorationNpcEncounter = (basis, shipMeta = null) => {
+        const shipClass = normalizeShipClass(shipMeta?.shipClass || shipMeta?.itemId);
+        const pool = EXPLORATION_NPC_ENCOUNTERS.slice();
+        if (shipClass === 'fighter') pool.push(EXPLORATION_NPC_ENCOUNTERS[3], EXPLORATION_NPC_ENCOUNTERS[0]);
+        if (shipClass === 'defender') pool.push(EXPLORATION_NPC_ENCOUNTERS[2]);
+        if (shipClass === 'merchant') pool.push(EXPLORATION_NPC_ENCOUNTERS[0], EXPLORATION_NPC_ENCOUNTERS[2]);
+        if (shipClass === 'explorer' || shipClass === 'common') pool.push(EXPLORATION_NPC_ENCOUNTERS[1]);
+        const index = Math.floor(Math.random() * pool.length) % pool.length;
+        const template = pool[index] || EXPLORATION_NPC_ENCOUNTERS[0];
+        const levelBump = Math.random() < 0.32 ? 1 : 0;
+        return {
+            ...template,
+            level: clampBattleNumber(basis.level + template.levelOffset + levelBump, 1, 99, basis.level)
+        };
+    };
+    const buildExplorationNpcProfile = ({ playerProfile, shipMeta = null, requestId = '' }) => {
+        const basis = readProfileCombatBasis(playerProfile);
+        const encounter = pickExplorationNpcEncounter(basis, shipMeta);
+        const levelRatio = Math.max(0.75, Math.min(1.3, encounter.level / Math.max(1, basis.level)));
+        const maxHp = Math.max(36, Math.floor(basis.maxHp * encounter.hpScale * levelRatio));
+        const power = Math.max(7, Math.floor(basis.power * encounter.powerScale * levelRatio));
+        const defense = Math.max(4, Math.floor(basis.defense * encounter.defenseScale * levelRatio));
+        const speed = Math.max(4, Math.floor(basis.speed * encounter.speedScale * levelRatio));
+        const intStat = Math.max(3, Math.floor(basis.int * 0.82 * levelRatio));
+        const token = String(requestId || Date.now()).replace(/[^a-zA-Z0-9_-]/g, '').slice(-18) || String(Date.now());
+        const npcId = `npc_exploration_${encounter.key}_${token}`;
+        const tarotBattleDeck = (encounter.deck || [])
+            .map((itemId) => resolveTarotBattleSkill(itemId, {
+                Category: 'TarotMinor',
+                ArcanaSuit: String(itemId).split('-')[1],
+                ArcanaRank: String(itemId).split('-')[2]
+            }))
+            .filter(Boolean);
+        return {
+            id: npcId,
+            ownerId: null,
+            isVirtualFighter: true,
+            type: 'explorationNpc',
+            level: encounter.level,
+            lineUserId: null,
+            avatar: {
+                ...encounter.avatar,
+                level: encounter.level,
+                npc: true,
+                shipClass: normalizeShipClass(shipMeta?.shipClass || shipMeta?.itemId) || 'common'
+            },
+            equipment: {
+                RightHand: {
+                    customData: {
+                        Category: 'Weapon',
+                        ManifestWeaponType: encounter.weapon,
+                        DisplayName: `${encounter.name}の武器`
+                    }
+                },
+                LeftHand: null,
+                Armor: null,
+                Accessory: null
+            },
+            equipmentStats: { Power: 0, Defense: 0, Agi: 0, Int: 0 },
+            skills: [],
+            tarotMeleeRole: null,
+            tarotRolePassive: null,
+            tarotBattleDeck,
+            tarotShipRole: null,
+            meleeDeckIds: [],
+            shipDeckIds: [],
+            stats: {
+                DisplayName: encounter.name,
+                Level: encounter.level,
+                HP: maxHp,
+                MaxHP: maxHp,
+                CurrentHP: maxHp,
+                MP: Math.max(0, Math.floor(maxHp * 0.22)),
+                MaxMP: Math.max(0, Math.floor(maxHp * 0.22)),
+                CurrentMP: Math.max(0, Math.floor(maxHp * 0.22)),
+                Power: power,
+                Attack: power,
+                Defense: defense,
+                Guard: defense,
+                Agi: speed,
+                Speed: speed,
+                Int: intStat,
+                Intelligence: intStat
+            }
+        };
+    };
     const getPlayerNation = async (playFabId) => {
         if (!playFabId) return '';
         try {
@@ -1036,9 +1201,11 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const battleRef = db.ref('battles').push();
         const battleId = battleRef.key;
         const rewardContext = normalizeBattleRewardContext(battleContext, attackerId, defenderId);
+        const meleeNavalBoardingState = rewardContext?.navalBoardingState
+            || normalizeNavalBoardingState(battleContext?.navalBoardingState);
         const getNavalBoardingStateForPlayer = (playFabId) => {
             const id = normalizeRewardPlayerId(playFabId);
-            const state = rewardContext?.navalBoardingState;
+            const state = meleeNavalBoardingState;
             if (!id || !state) return null;
             if (id === normalizeRewardPlayerId(attackerId)) return state.player || null;
             if (id === normalizeRewardPlayerId(defenderId)) return state.enemy || null;
@@ -1337,6 +1504,51 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         } catch (error) {
             console.error('[バトル作成エラー]', error.errorMessage || error.message || error);
             res.status(500).json({ error: 'バトル作成中にエラーが発生しました。', details: error.errorMessage || error.message });
+        }
+    });
+
+    app.post('/api/exploration/npc-battle', async (req, res) => {
+        let { playFabId, requestId, battleContext } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
+
+        try {
+            const [playerProfile, shipMeta] = await Promise.all([
+                getPlayerFullProfile(playFabId),
+                resolvePlayerActiveShipMeta(playFabId)
+            ]);
+            const npcProfile = buildExplorationNpcProfile({ playerProfile, shipMeta, requestId });
+            const result = await runSequentialRideBattle({
+                attackerId: playFabId,
+                defenderId: npcProfile.id,
+                partyA: [{ type: 'player', id: playFabId, profile: playerProfile }],
+                partyB: [{ type: 'explorationNpc', id: npcProfile.id, profile: npcProfile }],
+                battleContext: {
+                    ...(battleContext && typeof battleContext === 'object' ? battleContext : {}),
+                    source: 'explorationNpc',
+                    rewardMode: 'none',
+                    npcBattle: true,
+                    navalBoardingState: normalizeNavalBoardingState(battleContext?.navalBoardingState)
+                }
+            });
+            res.json({
+                status: 'NPC Battle Finished',
+                battleId: result.battleId,
+                invitationId: result.invitationId,
+                opponent: {
+                    id: npcProfile.id,
+                    name: npcProfile.stats.DisplayName,
+                    level: npcProfile.level,
+                    weapon: npcProfile.equipment?.RightHand?.customData?.ManifestWeaponType || null
+                }
+            });
+        } catch (error) {
+            console.error('[exploration/npc-battle] failed:', error?.errorMessage || error?.message || error);
+            res.status(500).json({
+                error: 'NPC戦の開始に失敗しました。',
+                details: error?.errorMessage || error?.message || String(error || '')
+            });
         }
     });
 

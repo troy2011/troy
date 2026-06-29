@@ -362,6 +362,37 @@ test.describe('map actions', () => {
                   actorName: 'Playwright Tester',
                   targetId: 'PF_ENEMY_BATTLE',
                   targetName: 'Sea Wraith',
+                  die: 5,
+                  resultType: 'minorArcana',
+                  reason: '',
+                  action: {
+                    source: 'minor',
+                    kind: 'support',
+                    name: '潮戻し',
+                    cardName: 'カップ5',
+                    suit: 'cup',
+                    rank: 5,
+                    power: null,
+                    accuracy: null,
+                    hitCount: 1,
+                    effectText: '潮の力で立て直す'
+                  },
+                  damage: 0,
+                  selfDamage: 0,
+                  healing: 10,
+                  attackerHpBefore: 110,
+                  attackerHpAfter: 120,
+                  defenderHpBefore: 95,
+                  defenderHpAfter: 95,
+                  anyHit: true,
+                  statusChanges: []
+                },
+                {
+                  round: 1,
+                  actorId: 'PF_PLAYWRIGHT',
+                  actorName: 'Playwright Tester',
+                  targetId: 'PF_ENEMY_BATTLE',
+                  targetName: 'Sea Wraith',
                   die: 4,
                   resultType: 'weaponForm',
                   reason: '',
@@ -398,6 +429,8 @@ test.describe('map actions', () => {
 
     await expect(page.locator('#battleLogContainer')).toContainText('勝者: Playwright Tester');
     await expect(page.locator('#battleMeleeReplay')).toBeVisible();
+    await expect(page.locator('#battleStage .melee-minor-arcana-effect[data-card-name="カップ5"]')).toContainText('潮戻し');
+    await expect(page.locator('#battleStage .melee-minor-arcana-effect[data-card-name="カップ5"] .melee-minor-arcana-art')).toBeVisible();
     await expect(page.locator('#battleMeleeReplay')).toContainText('出目4');
     await expect(page.locator('#battleMeleeReplay')).toContainText('連斬');
     await expect(page.locator('#battleMeleeReplay .melee-replay-combatant[data-weapon="sword"]')).toBeVisible();

@@ -1837,6 +1837,154 @@ function renderExplorationPaymentActions(destination, {
     `;
 }
 
+function renderExplorationNpcBattleEntry(ship) {
+    const shipName = ship?.shipName || ship?.shipId || '使用中の船';
+    return `
+        <div class="ship-exploration-npc-battle" data-exploration-npc-entry>
+            <div class="ship-exploration-npc-copy">
+                <strong>敵船を探す</strong>
+                <span>${escapeHtml(shipName)}で近海を索敵し、NPC海戦から白兵戦へ移行します。</span>
+            </div>
+            <button type="button" class="ship-exploration-npc-start" data-exploration-npc-battle>敵船を探す</button>
+        </div>
+    `;
+}
+
+function hashExplorationNpcSeed(value) {
+    return String(value || '').split('').reduce((hash, ch) => (
+        ((hash << 5) - hash + ch.charCodeAt(0)) >>> 0
+    ), 0);
+}
+
+function buildExplorationNpcPlayerShipProfile(ship = {}) {
+    const shipClass = normalizeShipClass(ship?.form || ship?.shipClass || ship?.class || '');
+    const itemId = String(ship?.itemId || ship?.ItemId || ship?.catalogItemId || '').trim();
+    const level = Math.max(1, Math.floor(Number(ship?.level || ship?.stage || 1) || 1));
+    return {
+        form: shipClass || undefined,
+        shipClass: shipClass || undefined,
+        class: shipClass || undefined,
+        itemId: itemId || undefined,
+        name: String(ship?.shipName || ship?.name || ship?.shipId || '使用中の船').slice(0, 16),
+        level,
+        majorArcanaItemIds: Array.isArray(ship?.majorArcanaItemIds) ? ship.majorArcanaItemIds.slice(0, 3) : []
+    };
+}
+
+function buildExplorationNpcNavalOpponent(requestId) {
+    const presets = [
+        {
+            name: '近海の海賊',
+            race: 'human',
+            nation: 'water',
+            ship: { form: 'fighter', shipClass: 'fighter', itemId: 'ship_human_fighter', name: '海賊船', level: 2 },
+            enemyPlan: '突撃型'
+        },
+        {
+            name: '霧帆の私掠船',
+            race: 'human',
+            nation: 'wind',
+            ship: { form: 'defender', shipClass: 'defender', itemId: 'ship_human_defender', name: '私掠船', level: 2 },
+            enemyPlan: '砲撃型'
+        },
+        {
+            name: '黒潮の追跡船',
+            race: 'human',
+            nation: 'fire',
+            ship: { form: 'merchant', shipClass: 'merchant', itemId: 'ship_human_merchant', name: '武装商船', level: 2 },
+            enemyPlan: '攪乱型'
+        }
+    ];
+    const preset = presets[hashExplorationNpcSeed(requestId) % presets.length];
+    return {
+        id: `npc_exploration_naval_${Date.now().toString(36)}_${hashExplorationNpcSeed(requestId).toString(36)}`,
+        name: preset.name,
+        profile: {
+            playFabId: '',
+            displayName: preset.name,
+            race: preset.race,
+            nation: preset.nation,
+            level: 8,
+            stats: { attack: 18, defense: 14, speed: 12 },
+            playerShip: preset.ship
+        },
+        shipProfile: preset.ship,
+        enemyPlan: preset.enemyPlan
+    };
+}
+
+function buildExplorationNpcMeleeContext(requestId, battleContext = {}) {
+    return {
+        ...(battleContext && typeof battleContext === 'object' ? battleContext : {}),
+        source: 'explorationNpc',
+        rewardMode: 'none',
+        npcBattle: true,
+        requestId
+    };
+}
+
+async function startExplorationNpcBattleFromPanel(playFabId, button, ship) {
+    if (!playFabId || !button) return;
+    if (typeof window.startNavalBattle !== 'function') {
+        showRpgMessage('NPC海戦の準備ができていません。少し待ってから試してください。');
+        return;
+    }
+    if (typeof window.startExplorationNpcBattle !== 'function') {
+        showRpgMessage('NPC戦の準備ができていません。少し待ってから試してください。');
+        return;
+    }
+    const previousText = button.textContent;
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    button.textContent = '索敵中...';
+    try {
+        const requestId = createRequestId('exploration-npc-battle');
+        const opponent = buildExplorationNpcNavalOpponent(requestId);
+        const playerShipProfile = buildExplorationNpcPlayerShipProfile(ship);
+        const playerName = window.myPlayFabDisplayName || window.myLineProfile?.displayName || playFabId;
+        const playerProfile = {
+            playFabId,
+            displayName: playerName,
+            race: window.myAvatarBaseInfo?.Race || window.myAvatarBaseInfo?.race || 'human',
+            nation: normalizeNationKey(window.myAvatarBaseInfo?.Nation || window.myAvatarBaseInfo?.nation || 'none') || 'none',
+            playerShip: playerShipProfile
+        };
+        showRpgMessage('敵船を捕捉しました。海戦を開始します。');
+        window.startNavalBattle({
+            playerId: playFabId,
+            playFabId,
+            playerName,
+            opponentId: opponent.id,
+            opponentName: opponent.name,
+            playerProfile,
+            opponentProfile: opponent.profile,
+            playerShipProfile,
+            opponentShipProfile: opponent.shipProfile,
+            enemyPlan: opponent.enemyPlan,
+            onBoarding: (_opponentId, battleContext = {}) => {
+                Promise.resolve(window.startExplorationNpcBattle({
+                    source: 'exploration',
+                    requestId,
+                    battleContext: buildExplorationNpcMeleeContext(requestId, battleContext)
+                })).catch((error) => {
+                    console.warn('[Ship] Failed to start exploration NPC melee battle:', error);
+                    showRpgMessage(error?.message || '接舷後の白兵戦を開始できませんでした。');
+                });
+            }
+        });
+        if (typeof window.closeHomeExplorationPopup === 'function') {
+            window.closeHomeExplorationPopup();
+        }
+    } catch (error) {
+        console.warn('[Ship] Failed to start exploration NPC battle:', error);
+        showRpgMessage(error?.message || '敵船を捕捉できませんでした。');
+    } finally {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+        button.textContent = previousText || '敵船を探す';
+    }
+}
+
 function showExplorationConsumablePaymentDialog({ destination, paymentState }) {
     const requiredSupplyUnits = getExplorationRequiredSupplyUnits(destination, paymentState);
     const maxSupplyUnits = getExplorationMaxSupplyUnits(requiredSupplyUnits, paymentState);
@@ -2403,9 +2551,13 @@ function renderExplorationPanel(data, playFabId) {
         : '<div class="ship-exploration-empty">この船で行ける探索先がありません。</div>';
     panel.innerHTML = `
         ${head}
+        ${renderExplorationNpcBattleEntry(ship)}
         <div class="ship-exploration-destinations">${destinationHtml}</div>
         ${reports.length ? `<div class="ship-exploration-reports">${reports.map(renderExplorationReport).join('')}</div>` : ''}
     `;
+    panel.querySelector('[data-exploration-npc-battle]')?.addEventListener('click', (event) => {
+        startExplorationNpcBattleFromPanel(playFabId, event.currentTarget, ship);
+    });
     panel.querySelectorAll('[data-exploration-start]').forEach((button) => {
         button.addEventListener('click', async () => {
             const destinationId = String(button.getAttribute('data-exploration-start') || '');

@@ -19,8 +19,9 @@ test('battle route initializer wires shared runBattle dependencies', async () =>
 
   try {
     const battleRoutes = require('../server/routes/battleRoutes');
+    const registeredPosts = [];
     battleRoutes.initializeBattleRoutes(
-      { post() {} },
+      { post(path) { registeredPosts.push(path); } },
       async () => ({}),
       {},
       {},
@@ -32,6 +33,7 @@ test('battle route initializer wires shared runBattle dependencies', async () =>
       { VIRTUAL_CURRENCY_CODE: 'PS', LEADERBOARD_NAME: 'ps_ranking', BATTLE_REWARD_POINTS: 0 },
       {}
     );
+    expect(registeredPosts).toContain('/api/exploration/npc-battle');
 
     Math.random = () => 0.99;
     const result = await battleRoutes.runBattle(

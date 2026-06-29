@@ -250,7 +250,12 @@ test('matching minor rank starts unlocked and skips the weapon form', async () =
   });
   expect(timelineFor(result, 'player-a', 4)[0]).toMatchObject({
     resultType: 'minorArcana',
-    action: expect.objectContaining({ cardName: 'カップ4' })
+    action: expect.objectContaining({
+      cardName: 'カップ4',
+      name: 'ぬかるみ',
+      suit: 'cup',
+      rank: 4
+    })
   });
 });
 

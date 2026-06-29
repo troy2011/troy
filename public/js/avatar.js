@@ -4,6 +4,13 @@ import { AVATAR_PART_OFFSETS } from './config.js';
 import { buildTarotCardMeta } from './tarotCards.js';
 import { FEATURE_UNLOCK_LEVELS } from './featureUnlocks.js';
 
+const AVATAR_BODY_MOTIONS = Object.freeze({
+    idle: { row: 0, count: 4, intervalMs: 500, loop: true, layerShift: [0, 1, 2, 1] },
+    walk: { row: 1, count: 8, intervalMs: 95, loop: true, layerShift: [0, 1, 1, 2, 2, 1, 1, 0] },
+    run: { row: 2, count: 8, intervalMs: 68, loop: true, layerShift: [0, 1, 2, 1, 0, 1, 2, 1] },
+    jump: { row: 3, count: 3, intervalMs: 120, loop: false, layerShift: [0, 2, -3] }
+});
+
 const AVATAR_LAYER_NAMES = Object.freeze([
     'body',
     'head',
@@ -27,6 +34,12 @@ export function triggerAvatarAttackMotion(target, options = {}) {
     if (!element) return Promise.resolve(false);
     const direction = options.direction === 'right' ? 'right' : 'left';
     const duration = Math.max(120, Number(options.duration || 520) || 520);
+    if (options.bodyMotion !== false && element.classList.contains('avatar-combat-actor')) {
+        playAvatarBodyMotion(element, options.bodyMotion || 'run', {
+            intervalMs: options.bodyMotionIntervalMs,
+            restoreMotion: options.restoreBodyMotion || 'idle'
+        });
+    }
     const token = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     element.dataset.avatarAttackToken = token;
     element.classList.remove('is-avatar-attacking', 'is-avatar-attack-left', 'is-avatar-attack-right');
@@ -584,29 +597,58 @@ function getAvatarEquipmentItemDetails(reference, itemSource) {
     return null;
 }
 
-const homeAvatarTimers = new Map();
-const HOME_AVATAR_FRAMES = [0, 1, 2, 3];
+const avatarBodyMotionTimers = new Map();
+const avatarBodyMotionTokens = new Map();
 
-function applyHomeAvatarFrame(prefix, frameIndex) {
+function shouldAnimateAvatarIdleBody(prefix, container) {
+    if (prefix === 'home-avatar') return true;
+    if (!container) return false;
+    if (container.dataset.avatarIdle === 'true') return true;
+    if (container.dataset.avatarIdle === 'false') return false;
+    return container.classList.contains('avatar-combat-actor');
+}
+
+function resolveAvatarMotionTarget(target) {
+    const element = typeof target === 'string' ? document.getElementById(target) : target;
+    if (!element?.id) return { element: null, prefix: '' };
+    return { element, prefix: element.id };
+}
+
+function getAvatarBodyMotionDefinition(motionName) {
+    const key = String(motionName || 'idle').trim();
+    return AVATAR_BODY_MOTIONS[key] ? { key, ...AVATAR_BODY_MOTIONS[key] } : { key: 'idle', ...AVATAR_BODY_MOTIONS.idle };
+}
+
+function getAvatarBodyFrameIndex(bodyLayer, definition, frameOffset) {
+    const sheetColumns = Math.max(1, Number(bodyLayer?.dataset.sheetColumns || 1));
+    const row = Math.max(0, Number(definition.row) || 0);
+    const count = Math.max(1, Number(definition.count) || 1);
+    const col = Math.max(0, Math.min(count - 1, frameOffset));
+    return (row * sheetColumns) + col;
+}
+
+function applyAvatarBodyMotionFrame(prefix, motionName, frameOffset) {
     const container = document.getElementById(prefix);
     if (!container) return;
+    const definition = getAvatarBodyMotionDefinition(motionName);
     const bodyLayer = document.getElementById(`${prefix}-layer-body`);
+    const bodyFrameIndex = getAvatarBodyFrameIndex(bodyLayer, definition, frameOffset);
     if (bodyLayer) {
         const spriteWidth = Number(bodyLayer.dataset.spriteWidth || 32);
         const spriteHeight = Number(bodyLayer.dataset.spriteHeight || 32);
         const sheetColumns = Number(bodyLayer.dataset.sheetColumns || 1);
         const scale = Number(bodyLayer.dataset.scale || 2);
-        const col = frameIndex % sheetColumns;
-        const row = Math.floor(frameIndex / sheetColumns);
+        const col = bodyFrameIndex % sheetColumns;
+        const row = Math.floor(bodyFrameIndex / sheetColumns);
         const posX = -(col * spriteWidth * scale);
         const posY = -(row * spriteHeight * scale);
         bodyLayer.style.backgroundPosition = `${posX}px ${posY}px`;
-        bodyLayer.dataset.spriteIndex = String(frameIndex);
+        bodyLayer.dataset.spriteIndex = String(bodyFrameIndex);
+        bodyLayer.dataset.bodyMotion = definition.key;
+        bodyLayer.dataset.bodyMotionFrame = String(frameOffset);
     }
-    let shiftDown = 0;
-    if (frameIndex === 1) shiftDown = 1;
-    else if (frameIndex === 2) shiftDown = 2;
-    else if (frameIndex === 3) shiftDown = 1;
+    const shiftSequence = Array.isArray(definition.layerShift) ? definition.layerShift : [];
+    const shiftDown = Number(shiftSequence[frameOffset % Math.max(1, shiftSequence.length)] || 0);
     const layers = container.querySelectorAll('.avatar-layer');
     layers.forEach((layer) => {
         if (!layer || layer.id === `${prefix}-layer-body`) return;
@@ -621,18 +663,102 @@ function applyHomeAvatarFrame(prefix, frameIndex) {
     });
 }
 
-function startHomeAvatarAnimation(prefix) {
-    if (homeAvatarTimers.has(prefix)) {
-        clearInterval(homeAvatarTimers.get(prefix));
-        homeAvatarTimers.delete(prefix);
+export function stopAvatarBodyMotion(target, options = {}) {
+    const { element, prefix } = resolveAvatarMotionTarget(target);
+    if (!element || !prefix) return false;
+    if (avatarBodyMotionTimers.has(prefix)) {
+        clearInterval(avatarBodyMotionTimers.get(prefix));
+        avatarBodyMotionTimers.delete(prefix);
     }
-    let frameIndex = 0;
-    applyHomeAvatarFrame(prefix, HOME_AVATAR_FRAMES[frameIndex]);
+    avatarBodyMotionTokens.delete(prefix);
+    delete element.dataset.avatarIdleState;
+    delete element.dataset.avatarBodyMotion;
+    const bodyLayer = document.getElementById(`${prefix}-layer-body`);
+    if (bodyLayer) {
+        delete bodyLayer.dataset.bodyMotion;
+        delete bodyLayer.dataset.bodyMotionFrame;
+    }
+    if (options.reset !== false) {
+        applyAvatarBodyMotionFrame(prefix, options.resetMotion || 'idle', 0);
+    }
+    return true;
+}
+
+export function startAvatarBodyMotion(target, motionName = 'idle', options = {}) {
+    const { element, prefix } = resolveAvatarMotionTarget(target);
+    if (!element || !prefix) return false;
+    const definition = getAvatarBodyMotionDefinition(motionName);
+    stopAvatarBodyMotion(element, { reset: false });
+    element.dataset.avatarIdleState = 'body';
+    element.dataset.avatarBodyMotion = definition.key;
+    const intervalMs = Math.max(24, Number(options.intervalMs || definition.intervalMs) || definition.intervalMs);
+    const frameCount = Math.max(1, Number(options.frameCount || definition.count) || definition.count);
+    const shouldLoop = options.loop !== undefined ? options.loop !== false : definition.loop !== false;
+    let frameOffset = 0;
+    applyAvatarBodyMotionFrame(prefix, definition.key, frameOffset);
+    if (frameCount <= 1) {
+        return true;
+    }
     const timer = setInterval(() => {
-        frameIndex = (frameIndex + 1) % HOME_AVATAR_FRAMES.length;
-        applyHomeAvatarFrame(prefix, HOME_AVATAR_FRAMES[frameIndex]);
-    }, 500);
-    homeAvatarTimers.set(prefix, timer);
+        if (!shouldLoop && frameOffset + 1 >= frameCount) {
+            clearInterval(timer);
+            avatarBodyMotionTimers.delete(prefix);
+            applyAvatarBodyMotionFrame(prefix, definition.key, frameCount - 1);
+            return;
+        }
+        frameOffset = shouldLoop ? (frameOffset + 1) % frameCount : frameOffset + 1;
+        applyAvatarBodyMotionFrame(prefix, definition.key, frameOffset);
+    }, intervalMs);
+    avatarBodyMotionTimers.set(prefix, timer);
+    return true;
+}
+
+export function playAvatarBodyMotion(target, motionName, options = {}) {
+    const { element, prefix } = resolveAvatarMotionTarget(target);
+    if (!element || !prefix) return Promise.resolve(false);
+    const definition = getAvatarBodyMotionDefinition(motionName);
+    const token = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const intervalMs = Math.max(24, Number(options.intervalMs || definition.intervalMs) || definition.intervalMs);
+    const frameCount = Math.max(1, Number(options.frameCount || definition.count) || definition.count);
+    stopAvatarBodyMotion(element, { reset: false });
+    avatarBodyMotionTokens.set(prefix, token);
+    element.dataset.avatarIdleState = 'body';
+    element.dataset.avatarBodyMotion = definition.key;
+    applyAvatarBodyMotionFrame(prefix, definition.key, 0);
+    return new Promise((resolve) => {
+        let frameOffset = 0;
+        const finish = (result) => {
+            if (avatarBodyMotionTokens.get(prefix) !== token) {
+                resolve(false);
+                return;
+            }
+            avatarBodyMotionTokens.delete(prefix);
+            if (options.restore !== false) {
+                const restoreMotion = options.restoreMotion || (shouldAnimateAvatarIdleBody(prefix, element) ? 'idle' : '');
+                if (restoreMotion) startAvatarBodyMotion(element, restoreMotion);
+                else stopAvatarBodyMotion(element);
+            }
+            resolve(result);
+        };
+        const timer = setInterval(() => {
+            if (avatarBodyMotionTokens.get(prefix) !== token) {
+                clearInterval(timer);
+                avatarBodyMotionTimers.delete(prefix);
+                resolve(false);
+                return;
+            }
+            frameOffset += 1;
+            if (frameOffset >= frameCount) {
+                clearInterval(timer);
+                avatarBodyMotionTimers.delete(prefix);
+                applyAvatarBodyMotionFrame(prefix, definition.key, frameCount - 1);
+                finish(true);
+                return;
+            }
+            applyAvatarBodyMotionFrame(prefix, definition.key, frameOffset);
+        }, intervalMs);
+        avatarBodyMotionTimers.set(prefix, timer);
+    });
 }
 
 /**
@@ -750,8 +876,10 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
         avatarContainer.style.opacity = '1';
     }
 
-    if (prefix === 'home-avatar') {
-        startHomeAvatarAnimation(prefix);
+    if (shouldAnimateAvatarIdleBody(prefix, avatarContainer)) {
+        startAvatarBodyMotion(avatarContainer, 'idle');
+    } else {
+        stopAvatarBodyMotion(avatarContainer);
     }
 
     // 4. ホーム画面の装備名表示を更新（洗練されたUI対応）

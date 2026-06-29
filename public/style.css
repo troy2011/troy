@@ -2596,8 +2596,12 @@ button.home-player-ship-name {
     --avatar-facing-scale-x: 1;
     --avatar-slash-left: -26px;
     --avatar-slash-top: 10px;
+    --avatar-foot-shadow-width: 58px;
+    --avatar-foot-shadow-height: 12px;
+    --avatar-foot-shadow-bottom: -4px;
     transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     transform-origin: center bottom;
+    isolation: isolate;
 }
 
 .avatar-combat-actor.is-avatar-attack-right {
@@ -2625,6 +2629,23 @@ button.home-player-ship-name {
     animation-name: avatarCombatGuard;
 }
 
+.avatar-combat-actor::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: var(--avatar-foot-shadow-bottom);
+    z-index: 0;
+    width: var(--avatar-foot-shadow-width);
+    height: var(--avatar-foot-shadow-height);
+    pointer-events: none;
+    border-radius: 50%;
+    background:
+        radial-gradient(ellipse, rgba(0, 0, 0, 0.54), rgba(0, 0, 0, 0.28) 48%, transparent 72%),
+        radial-gradient(ellipse, rgba(248, 216, 136, 0.14), transparent 62%);
+    transform: translateX(-50%) scaleX(var(--avatar-foot-shadow-scale-x, 1));
+    transform-origin: center;
+}
+
 .avatar-combat-actor::after {
     content: "";
     position: absolute;
@@ -2639,6 +2660,11 @@ button.home-player-ship-name {
     border-radius: 50%;
     filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.82));
     transform: rotate(-24deg) scale(0.5);
+    z-index: 4;
+}
+
+.avatar-combat-actor .avatar-layer {
+    z-index: 2;
 }
 
 .avatar-combat-actor.is-avatar-attacking::after {
@@ -3350,6 +3376,7 @@ body.app-booting .boot-splash {
     position: absolute;
     left: 50%;
     top: 50%;
+    bottom: auto;
     transform: translate(-50%, -50%) translateY(-32px) scale(1.6);
     transform-origin: center center;
     margin: 0;
@@ -11422,6 +11449,38 @@ body.home-exploration-popup-open #globalStatusBar {
     margin-top: 8px;
 }
 
+.ship-exploration-npc-battle {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid rgba(185, 28, 28, 0.28);
+    border-radius: 8px;
+    background:
+        linear-gradient(90deg, rgba(127, 29, 29, 0.22), rgba(15, 23, 42, 0.08)),
+        rgba(255, 247, 237, 0.72);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.ship-exploration-npc-copy {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.ship-exploration-npc-copy strong {
+    color: #451a03;
+    font-size: 15px;
+    font-weight: 1000;
+}
+
+.ship-exploration-npc-copy span {
+    color: #5f3212;
+    font-size: 12px;
+    line-height: 1.35;
+}
+
 .ship-exploration-actions {
     display: flex;
     gap: 8px;
@@ -11440,6 +11499,7 @@ body.home-exploration-popup-open #globalStatusBar {
 }
 
 .ship-exploration-actions button,
+.ship-exploration-npc-start,
 .ship-exploration-start {
     width: 100%;
     min-height: 36px;
@@ -11457,10 +11517,22 @@ body.home-exploration-popup-open #globalStatusBar {
 }
 
 .ship-exploration-actions button:disabled,
+.ship-exploration-npc-start:disabled,
 .ship-exploration-start:disabled {
     opacity: 0.55;
     cursor: not-allowed;
     filter: grayscale(0.24);
+}
+
+.ship-exploration-npc-start {
+    width: auto;
+    min-width: 132px;
+    margin-top: 0;
+    border-image-source: url("./assets/ui/buttons/button-dark-large.png");
+    background:
+        linear-gradient(180deg, rgba(254, 202, 202, 0.24), rgba(127, 29, 29, 0.16)),
+        linear-gradient(180deg, #fca5a5, #b91c1c);
+    color: #260707;
 }
 
 .ship-exploration-start.is-consumable {
@@ -11635,6 +11707,14 @@ body.home-exploration-popup-open #globalStatusBar {
 }
 
 @media (max-width: 420px) {
+    .ship-exploration-npc-battle {
+        grid-template-columns: 1fr;
+    }
+
+    .ship-exploration-npc-start {
+        width: 100%;
+    }
+
     .ship-exploration-payment-actions,
     .ship-exploration-payment-buttons {
         grid-template-columns: 1fr;
@@ -12126,7 +12206,7 @@ body.home-exploration-popup-open #globalStatusBar {
     z-index: 4;
     width: min(150px, 18%);
     height: 78%;
-    display: grid;
+    display: none;
     place-items: center;
     transform: translate(-50%, -50%);
     border-left: 0;
@@ -12168,7 +12248,7 @@ body.home-exploration-popup-open #globalStatusBar {
     bottom: 0;
     display: block;
     padding: 0;
-    z-index: 2;
+    z-index: 3;
     border: 0;
 }
 
@@ -12181,7 +12261,7 @@ body.home-exploration-popup-open #globalStatusBar {
 }
 
 .battle-player-area.melee-combatant::before {
-    content: "";
+    content: none;
     position: absolute;
     left: 50%;
     bottom: 110px;
@@ -12223,6 +12303,9 @@ body.home-exploration-popup-open #globalStatusBar {
 .battle-avatar-container.melee-avatar {
     --avatar-combat-scale: 2.18;
     --avatar-combat-scale-hit: 2.26;
+    --avatar-foot-shadow-width: 70px;
+    --avatar-foot-shadow-height: 14px;
+    --avatar-foot-shadow-bottom: -5px;
     --avatar-attack-start-x: 0px;
     --avatar-attack-x: 38px;
     --avatar-attack-recoil-x: 24px;
@@ -12254,6 +12337,96 @@ body.home-exploration-popup-open #globalStatusBar {
     --avatar-facing-scale-x: 1;
     left: 60%;
     bottom: 118px;
+}
+
+.melee-minor-arcana-effect {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    bottom: auto;
+    z-index: 2;
+    display: grid;
+    justify-items: center;
+    gap: 7px;
+    width: 150px;
+    --minor-entry-x: 0px;
+    --minor-exit-x: 0px;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.52));
+    animation: meleeMinorArcanaCenter 2800ms cubic-bezier(0.16, 0.72, 0.22, 1) both;
+}
+
+.melee-minor-arcana-effect.is-enemy-side {
+    left: 50%;
+    --minor-entry-x: clamp(-220px, -18vw, -118px);
+    --minor-exit-x: -18px;
+}
+
+.melee-minor-arcana-effect.is-player-side {
+    left: 50%;
+    --minor-entry-x: clamp(118px, 18vw, 220px);
+    --minor-exit-x: 18px;
+}
+
+.melee-minor-arcana-card {
+    position: relative;
+    width: 90px;
+    aspect-ratio: 48 / 80;
+    border-radius: 8px;
+    background:
+        radial-gradient(circle at 50% 35%, rgba(255, 242, 178, 0.28), transparent 62%),
+        rgba(9, 14, 24, 0.56);
+    box-shadow:
+        0 0 0 2px rgba(35, 20, 8, 0.72),
+        0 0 24px rgba(244, 211, 126, 0.42),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    overflow: hidden;
+}
+
+.melee-minor-arcana-art {
+    border-color: rgba(255, 236, 174, 0.86);
+    border-radius: 8px;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.26),
+        0 0 16px rgba(244, 211, 126, 0.34);
+}
+
+.melee-minor-arcana-name {
+    max-width: 166px;
+    padding: 5px 9px 6px;
+    overflow: hidden;
+    border: 1px solid rgba(244, 211, 126, 0.62);
+    border-radius: 7px;
+    background: rgba(16, 10, 5, 0.9);
+    color: #ffe8a8;
+    font-size: 12px;
+    font-weight: 1000;
+    line-height: 1.15;
+    text-align: center;
+    text-overflow: ellipsis;
+    text-shadow: 0 1px 2px #000;
+    white-space: nowrap;
+}
+
+@keyframes meleeMinorArcanaCenter {
+    0% {
+        opacity: 0;
+        transform: translate(calc(-50% + var(--minor-entry-x)), calc(-50% + 12px)) scale(0.88);
+    }
+    16% {
+        opacity: 1;
+        transform: translate(-50%, calc(-50% - 2px)) scale(1.06);
+    }
+    72% {
+        opacity: 1;
+        transform: translate(-50%, calc(-50% - 8px)) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(calc(-50% + var(--minor-exit-x)), calc(-50% - 18px)) scale(0.96);
+    }
 }
 
 #battleLogContainer.melee-battle-log {
@@ -12552,7 +12725,7 @@ body.home-exploration-popup-open #globalStatusBar {
 
 .melee-damage-pop {
     position: absolute;
-    top: 44%;
+    top: calc(44% + var(--feedback-y, 0px) + var(--feedback-stack-y, 0px));
     z-index: 11;
     min-width: 52px;
     text-align: center;
@@ -12560,6 +12733,7 @@ body.home-exploration-popup-open #globalStatusBar {
     font-size: 28px;
     font-weight: 1000;
     line-height: 1;
+    white-space: nowrap;
     text-shadow:
         0 2px 0 #7f1d1d,
         0 0 14px rgba(248, 216, 136, 0.66),
@@ -12568,7 +12742,13 @@ body.home-exploration-popup-open #globalStatusBar {
     animation: meleeDamagePop 2200ms cubic-bezier(0.18, 0.78, 0.2, 1) both;
 }
 
+.melee-damage-pop.is-damage {
+    z-index: 14;
+}
+
 .melee-damage-pop.is-miss {
+    --feedback-y: -32px;
+    z-index: 13;
     color: #dbeafe;
     font-size: 22px;
     text-shadow:
@@ -12578,8 +12758,17 @@ body.home-exploration-popup-open #globalStatusBar {
 }
 
 .melee-damage-pop.is-status {
+    --feedback-y: -58px;
+    z-index: 12;
+    min-width: 0;
+    padding: 3px 7px 4px;
     color: #fca5a5;
-    font-size: 20px;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    background: rgba(29, 7, 10, 0.72);
+    border: 1px solid rgba(252, 165, 165, 0.42);
+    border-radius: 5px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.34);
     text-shadow:
         0 2px 0 #7f1d1d,
         0 0 14px rgba(248, 113, 113, 0.58),
@@ -12597,19 +12786,19 @@ body.home-exploration-popup-open #globalStatusBar {
 @keyframes meleeDamagePop {
     0% {
         opacity: 0;
-        transform: translate(-50%, 10px) scale(0.78);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), 10px) scale(0.78);
     }
     18% {
         opacity: 1;
-        transform: translate(-50%, -8px) scale(1.16);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -8px) scale(1.16);
     }
     78% {
         opacity: 1;
-        transform: translate(-50%, -26px) scale(1);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -26px) scale(1);
     }
     100% {
         opacity: 0;
-        transform: translate(-50%, -42px) scale(0.96);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -42px) scale(0.96);
     }
 }
 
@@ -14516,6 +14705,30 @@ body.home-exploration-popup-open #globalStatusBar {
 
     .melee-combatant-player .battle-avatar-container.melee-avatar {
         bottom: 142px;
+    }
+
+    .melee-minor-arcana-effect {
+        top: 52%;
+        bottom: auto;
+        width: 112px;
+    }
+
+    .melee-minor-arcana-effect.is-enemy-side {
+        left: 50%;
+        --minor-entry-x: -92px;
+        --minor-exit-x: -14px;
+    }
+
+    .melee-minor-arcana-effect.is-player-side {
+        left: 50%;
+        --minor-entry-x: 92px;
+        --minor-exit-x: 14px;
+    }
+
+    .melee-minor-arcana-name {
+        max-width: 124px;
+        padding: 4px 7px 5px;
+        font-size: 10px;
     }
 
     .battle-status-card-enemy,
