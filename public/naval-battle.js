@@ -6,7 +6,7 @@
 'use strict';
 
 const STEERING_MAX = 3;
-const NAVAL_DURABILITY_MAX = 4;
+const NAVAL_DURABILITY_MAX = 5;
 const INITIAL_DISTANCE = 1;
 const BOW_DAMAGE = 1;
 const BROADSIDE_DAMAGE = 2;
@@ -45,7 +45,7 @@ const SHIP_FORM_LABEL = {
     defender: '防衛船',
     fighter: '戦闘船',
     merchant: '商船',
-    guild: '旗艦'
+    guild: '王の船'
 };
 const SHIP_FORM_MAX_STEERING = {
     boat: 1,
@@ -54,7 +54,7 @@ const SHIP_FORM_MAX_STEERING = {
     defender: 3,
     fighter: 3,
     merchant: 3,
-    guild: 3
+    guild: 5
 };
 const SHIP_FORM_WEAPON_CLASS = {
     boat: 'small',
@@ -72,7 +72,7 @@ const SHIP_FORM_MODIFIER = {
     defender: { attack: 0, defense: 1, speed: 0, cargo: 0 },
     fighter: { attack: 1, defense: 0, speed: 0, cargo: 0 },
     merchant: { attack: 0, defense: 0, speed: 0, cargo: 2 },
-    guild: { attack: 1, defense: 1, speed: 0, cargo: 1 }
+    guild: { attack: 0, defense: 0, speed: 0, cargo: 0 }
 };
 const ELEMENT_LABEL = {
     fire: '火',
@@ -94,6 +94,7 @@ const SHIP_DOMAIN_LABEL = Object.freeze({
 });
 const NAVAL_SHIP_META = Object.freeze({
     boat: { name: '手漕ぎボート', form: 'boat', domain: 'surface', maxSteering: 1, lowFirepower: true, passiveName: '小さな船影', passiveKey: 'small-silhouette', passiveMode: 'continuous' },
+    guild_ship: { name: '王の船', form: 'guild', domain: 'surface', maxSteering: 5, passiveName: '', passiveKey: '', passiveMode: '' },
     ship_human_explorer: { name: '帆付きボート', form: 'explorer', domain: 'surface', maxSteering: 1.5, lowFirepower: true, passiveName: '素直な舵', passiveKey: 'honest-rudder', passiveMode: 'continuous' },
     ship_human_defender: { name: '帆船', form: 'defender', domain: 'surface', maxSteering: 3, passiveName: '火炎弾', passiveKey: 'human-broadside-fire', passiveMode: 'continuous' },
     ship_human_fighter: { name: '海賊船', form: 'fighter', domain: 'surface', maxSteering: 3, passiveName: '焼夷弾', passiveKey: 'human-bow-fire', passiveMode: 'continuous' },
@@ -244,6 +245,8 @@ const NAVAL_VISUAL_EFFECT_MS = 1400;
 const NAVAL_SURGE_MOTION_MS = 1180;
 const NAVAL_BOARDING_MOTION_MS = 1550;
 const NAVAL_AUTO_BOARDING_DELAY_MS = NAVAL_VISUAL_EFFECT_MS + 120;
+const NAVAL_SHIP_SURFACE_TOP = 112;
+const NAVAL_SHIP_AIR_TOP = 82;
 const NAVAL_TAROT_SPRITE = Object.freeze({
     path: './Sprites/Buildings/tarot.png',
     width: 48,
@@ -258,7 +261,7 @@ const SHIP_SPRITE_GROUP_X = {
     defender: -768,
     fighter: -1152,
     merchant: -1536,
-    guild: 0
+    guild: -768
 };
 const SHIP_SPRITE_DEFAULT_ASSET = Object.freeze({
     path: './Sprites/Ships/ships.png',
@@ -281,6 +284,8 @@ const SHIP_SPRITE_BLOCKS = Object.freeze({
     defender: { row: 0, col: 2 },
     fighter: { row: 0, col: 3 },
     merchant: { row: 0, col: 4 },
+    guild: { row: 0, col: 2 },
+    guild_ship: { row: 0, col: 2 },
     ship_human_explorer: { row: 0, col: 1 },
     ship_human_defender: { row: 0, col: 2 },
     ship_human_fighter: { row: 0, col: 3 },
@@ -486,6 +491,7 @@ function resolveShipTraitKey(publicProfile = {}, shipProfile = {}, form = '') {
         || publicProfile.Species
     );
     const normalizedForm = normalizeShipForm({ form });
+    if (normalizedForm === 'guild') return 'guild_ship';
     if (normalizedForm === 'boat' || normalizedForm === 'common') return 'boat';
     const fallback = race && normalizedForm ? `ship_${race}_${normalizedForm}` : '';
     return NAVAL_SHIP_META[fallback] ? fallback : '';
@@ -832,6 +838,7 @@ function buildArcanaGearState(entry, slotIndex = 0) {
 
 function resolveArcanaGearsFromShipProfile(shipProfile = {}) {
     const profile = asObject(shipProfile);
+    if (normalizeShipForm(profile) === 'guild') return [];
     const explicit = Array.isArray(profile.majorArcanaGear)
         ? profile.majorArcanaGear
         : Array.isArray(profile.majorArcana)
@@ -3293,26 +3300,35 @@ function startMeleeCombat() {
         const opponentId = b.options.opponentId || null;
         const boardedPlayerId = b.outcome === 'boarding' ? opponentId : playerId;
         const boardingPlayerId = b.outcome === 'boarding' ? playerId : opponentId;
-        b.options.onBoarding(opponentId, {
-            source: 'navalPlunder',
-            navalOutcome: b.outcome || null,
-            boardedPlayerId: boardedPlayerId || null,
-            boardingPlayerId: boardingPlayerId || null,
-            navalBoardingState: {
-                player: {
-                    morale: b.player.morale,
-                    crewHpPercent: b.player.crewHpPercent,
-                    crewMpPercent: b.player.crewMpPercent,
-                    statuses: durationMapForSnapshot(b.player.statuses)
-                },
-                enemy: {
-                    morale: b.enemy.morale,
-                    crewHpPercent: b.enemy.crewHpPercent,
-                    crewMpPercent: b.enemy.crewMpPercent,
-                    statuses: durationMapForSnapshot(b.enemy.statuses)
+        try {
+            const result = b.options.onBoarding(opponentId, {
+                source: 'navalPlunder',
+                navalOutcome: b.outcome || null,
+                boardedPlayerId: boardedPlayerId || null,
+                boardingPlayerId: boardingPlayerId || null,
+                navalBoardingState: {
+                    player: {
+                        morale: b.player.morale,
+                        crewHpPercent: b.player.crewHpPercent,
+                        crewMpPercent: b.player.crewMpPercent,
+                        statuses: durationMapForSnapshot(b.player.statuses)
+                    },
+                    enemy: {
+                        morale: b.enemy.morale,
+                        crewHpPercent: b.enemy.crewHpPercent,
+                        crewMpPercent: b.enemy.crewMpPercent,
+                        statuses: durationMapForSnapshot(b.enemy.statuses)
+                    }
                 }
+            });
+            if (result && typeof result.catch === 'function') {
+                result.catch((error) => {
+                    console.warn('[NavalBattle] onBoarding callback failed:', error);
+                });
             }
-        });
+        } catch (error) {
+            console.warn('[NavalBattle] onBoarding callback failed:', error);
+        }
     }
 }
 
@@ -3698,7 +3714,9 @@ function setBoardingMotionDistance(element, distance) {
 }
 
 function shipVisualTop(ship) {
-    return String(ship?.shipDomain || '').toLowerCase() === 'air' ? 96 : 128;
+    return String(ship?.shipDomain || '').toLowerCase() === 'air'
+        ? NAVAL_SHIP_AIR_TOP
+        : NAVAL_SHIP_SURFACE_TOP;
 }
 
 function applyShipSprite(container, ship, side, visualPose = '', flags = {}) {

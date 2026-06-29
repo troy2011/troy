@@ -1857,8 +1857,17 @@ function hashExplorationNpcSeed(value) {
 }
 
 function buildExplorationNpcPlayerShipProfile(ship = {}) {
-    const shipClass = normalizeShipClass(ship?.form || ship?.shipClass || ship?.class || '');
-    const itemId = String(ship?.itemId || ship?.ItemId || ship?.catalogItemId || '').trim();
+    const rawItemId = String(ship?.itemId || ship?.ItemId || ship?.catalogItemId || '').trim();
+    const isGuildShip = Boolean(
+        ship?.isGuildShip
+        || ship?.guildShip
+        || rawItemId === 'guild_ship'
+        || String(ship?.form || '').trim().toLowerCase() === 'guild'
+    );
+    const shipClass = isGuildShip
+        ? 'guild'
+        : normalizeShipClass(ship?.form || ship?.shipClass || ship?.class || '');
+    const itemId = isGuildShip ? 'guild_ship' : rawItemId;
     const level = Math.max(1, Math.floor(Number(ship?.level || ship?.stage || 1) || 1));
     return {
         form: shipClass || undefined,
@@ -1867,7 +1876,9 @@ function buildExplorationNpcPlayerShipProfile(ship = {}) {
         itemId: itemId || undefined,
         name: String(ship?.shipName || ship?.name || ship?.shipId || '使用中の船').slice(0, 16),
         level,
-        majorArcanaItemIds: Array.isArray(ship?.majorArcanaItemIds) ? ship.majorArcanaItemIds.slice(0, 3) : []
+        majorArcanaItemIds: isGuildShip
+            ? []
+            : (Array.isArray(ship?.majorArcanaItemIds) ? ship.majorArcanaItemIds.slice(0, 3) : [])
     };
 }
 
@@ -1965,8 +1976,13 @@ async function startExplorationNpcBattleFromPanel(playFabId, button, ship) {
                 Promise.resolve(window.startExplorationNpcBattle({
                     source: 'exploration',
                     requestId,
+                    continueFromNaval: true,
                     battleContext: buildExplorationNpcMeleeContext(requestId, battleContext)
-                })).catch((error) => {
+                })).then((result) => {
+                    if (!result?.battleId) {
+                        showRpgMessage('接舷しましたが、白兵戦を開始できませんでした。');
+                    }
+                }).catch((error) => {
                     console.warn('[Ship] Failed to start exploration NPC melee battle:', error);
                     showRpgMessage(error?.message || '接舷後の白兵戦を開始できませんでした。');
                 });

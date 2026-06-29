@@ -1506,6 +1506,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
       enemy: { statuses: { burn: { turns: 2 } } }
     }
   });
+  expect(npcFlow.melee[0].continueFromNaval).toBe(true);
   expect(npcFlow.popupOpen).toBe(false);
 
   await expect(panel).toBeHidden();

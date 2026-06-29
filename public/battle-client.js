@@ -1312,7 +1312,9 @@ async function startExplorationNpcBattle(options = {}) {
         return false;
     }
     const activeUntil = Number(window.__battleActiveUntil || 0);
-    if (activeUntil > Date.now()) {
+    const isNavalContinuation = options.continueFromNaval === true
+        || !!options.battleContext?.navalBoardingState;
+    if (!isNavalContinuation && activeUntil > Date.now()) {
         const msg = '戦闘中のため新しいバトルを開始できません。';
         if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
             window.showRpgMessage(msg);

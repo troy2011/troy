@@ -894,7 +894,8 @@ test('ship-specific metadata exposes domain durability low firepower and passive
     ['ship_goblin_explorer', 'explorer', 'キャタピラ・ボート', 'surface', '海上', 1.5, true, '波風旋回', 'wave-turn'],
     ['ship_goblin_defender', 'defender', '潜水艦・望遠鏡', 'underwater', '水中', 4, false, '無泡魚雷', 'bubbleless-torpedo'],
     ['ship_goblin_fighter', 'fighter', 'ドリルタンク', 'surface', '海上', 3, false, 'ドリル', 'goblin-assault-flood'],
-    ['ship_goblin_merchant', 'merchant', '水瓶船', 'surface', '海上', 3, false, '水爆弾', 'goblin-bow-flood']
+    ['ship_goblin_merchant', 'merchant', '水瓶船', 'surface', '海上', 3, false, '水爆弾', 'goblin-bow-flood'],
+    ['guild_ship', 'guild', '王の船', 'surface', '海上', 5, false, '', '']
   ];
 
   const ships = await page.evaluate((input) => input.map(([itemId, form]) => {
@@ -918,6 +919,9 @@ test('ship-specific metadata exposes domain durability low firepower and passive
       shipPassiveName: state.player.shipPassiveName,
       shipPassiveKey: state.player.shipPassiveKey,
       shipTraitKey: state.player.shipTraitKey,
+      arcanaCount: state.player.arcanaGears.length,
+      shipClassName: document.getElementById('navalShipPlayer')?.className || '',
+      spriteX: getComputedStyle(document.querySelector('#navalShipPlayer .naval-ship-sprite')).getPropertyValue('--naval-ship-sprite-x'),
       weaponText: document.getElementById('navalWeaponPlayer')?.textContent || '',
       stateText: document.getElementById('navalStatePlayer')?.textContent || '',
       traitText: document.getElementById('navalTraitPlayer')?.textContent || ''
@@ -940,6 +944,12 @@ test('ship-specific metadata exposes domain durability low firepower and passive
   expect(ships.find((entry) => entry.itemId === 'boat').weaponText).toContain('前0.5/側1');
   expect(ships.find((entry) => entry.itemId === 'ship_orc_defender').traitText).toContain('水圧魚雷 常時');
   expect(ships.find((entry) => entry.itemId === 'ship_orc_fighter').traitText).toContain('巨大砲 未使用');
+  const guildShip = ships.find((entry) => entry.itemId === 'guild_ship');
+  expect(guildShip.shipClassName).toContain('is-guild');
+  expect(guildShip.spriteX).not.toBe('-64px');
+  expect(guildShip.shipTraitKey).toBe('guild_ship');
+  expect(guildShip.traitText).toBe('-');
+  expect(guildShip.arcanaCount).toBe(0);
 
   await expectNoPageErrors(errors);
 });
