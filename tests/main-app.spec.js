@@ -1509,6 +1509,9 @@ test('home exploration button loads exploration data in a popup', async ({ page 
       enemy: { statuses: { burn: { turns: 2 } } }
     }
   });
+  expect(npcFlow.melee[0].opponentId).toBe(npcFlow.naval[0].opponentId);
+  expect(npcFlow.melee[0].opponentShipProfile).toMatchObject(npcFlow.naval[0].opponentShipProfile);
+  expect(npcFlow.melee[0].throwOnError).toBe(true);
   expect(npcFlow.melee[0].continueFromNaval).toBe(true);
   expect(npcFlow.popupOpen).toBe(false);
 

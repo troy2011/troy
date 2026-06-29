@@ -1994,9 +1994,13 @@ async function startExplorationNpcBattleFromPanel(playFabId, button, ship) {
             opponentShipProfile: opponent.shipProfile,
             enemyPlan: opponent.enemyPlan,
             onBoarding: (_opponentId, battleContext = {}) => {
-                Promise.resolve(window.startExplorationNpcBattle({
+                return Promise.resolve(window.startExplorationNpcBattle({
                     source: 'exploration',
+                    opponentId: _opponentId || opponent.id,
+                    opponentName: opponent.name,
+                    opponentShipProfile: opponent.shipProfile,
                     requestId,
+                    throwOnError: true,
                     continueFromNaval: true,
                     battleContext: buildExplorationNpcMeleeContext(requestId, battleContext)
                 })).then((result) => {

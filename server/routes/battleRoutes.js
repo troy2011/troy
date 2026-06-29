@@ -946,7 +946,11 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
             level: clampBattleNumber(basis.level + template.levelOffset + levelBump, 1, 99, basis.level)
         };
     };
-    const buildExplorationNpcProfile = ({ playerProfile, shipMeta = null, requestId = '' }) => {
+    const sanitizeExplorationNpcBattleId = (value) => {
+        const id = String(value || '').trim().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
+        return id.startsWith('npc_exploration') ? id : '';
+    };
+    const buildExplorationNpcProfile = ({ playerProfile, shipMeta = null, requestId = '', npcId = '' }) => {
         const basis = readProfileCombatBasis(playerProfile);
         const encounter = pickExplorationNpcEncounter(basis, shipMeta);
         const levelRatio = Math.max(0.75, Math.min(1.3, encounter.level / Math.max(1, basis.level)));
@@ -956,7 +960,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const speed = Math.max(4, Math.floor(basis.speed * encounter.speedScale * levelRatio));
         const intStat = Math.max(3, Math.floor(basis.int * 0.82 * levelRatio));
         const token = String(requestId || Date.now()).replace(/[^a-zA-Z0-9_-]/g, '').slice(-18) || String(Date.now());
-        const npcId = `npc_exploration_${encounter.key}_${token}`;
+        const resolvedNpcId = sanitizeExplorationNpcBattleId(npcId) || `npc_exploration_${encounter.key}_${token}`;
         const tarotBattleDeck = (encounter.deck || [])
             .map((itemId) => resolveTarotBattleSkill(itemId, {
                 Category: 'TarotMinor',
@@ -965,7 +969,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
             }))
             .filter(Boolean);
         return {
-            id: npcId,
+            id: resolvedNpcId,
             ownerId: null,
             isVirtualFighter: true,
             type: 'explorationNpc',
@@ -1508,7 +1512,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
     });
 
     app.post('/api/exploration/npc-battle', async (req, res) => {
-        let { playFabId, requestId, battleContext } = req.body || {};
+        let { playFabId, requestId, battleContext, navalOpponentId, opponentShipProfile } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
         playFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!playFabId) return;
@@ -1518,7 +1522,19 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                 getPlayerFullProfile(playFabId),
                 resolvePlayerActiveShipMeta(playFabId)
             ]);
-            const npcProfile = buildExplorationNpcProfile({ playerProfile, shipMeta, requestId });
+            const clientShipMeta = opponentShipProfile && typeof opponentShipProfile === 'object'
+                ? {
+                    itemId: String(opponentShipProfile.itemId || opponentShipProfile.ItemId || '').trim(),
+                    shipClass: normalizeShipClass(opponentShipProfile.shipClass || opponentShipProfile.form || opponentShipProfile.class || opponentShipProfile.itemId),
+                    stage: Math.max(1, Math.min(3, Math.floor(Number(opponentShipProfile.stage || 0) || 0)))
+                }
+                : null;
+            const npcProfile = buildExplorationNpcProfile({
+                playerProfile,
+                shipMeta: clientShipMeta?.shipClass ? clientShipMeta : shipMeta,
+                requestId,
+                npcId: navalOpponentId
+            });
             const result = await runSequentialRideBattle({
                 attackerId: playFabId,
                 defenderId: npcProfile.id,

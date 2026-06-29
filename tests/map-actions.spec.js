@@ -472,4 +472,98 @@ test.describe('map actions', () => {
 
     await expectNoPageErrors(errors);
   });
+
+  test('exploration npc melee start keeps the boarded naval opponent payload', async ({ page }) => {
+    const errors = trackPageErrors(page);
+    await openReadyMap(page, { mockFirebaseDatabase: true });
+
+    await page.evaluate(() => {
+      window.__battleApiCalls = [];
+      window.__pwBattleInitReady = false;
+      window.myPlayFabId = 'PF_PLAYWRIGHT';
+      if (window.__pwFirebaseDbApi && typeof window.__pwFirebaseDbApi.clear === 'function') {
+        window.__pwFirebaseDbApi.clear();
+      }
+
+      const deps = {
+        myPlayFabId: '',
+        myCurrentEquipment: {},
+        myInventory: [],
+        callApiWithLoader: async (endpoint, body, options = {}) => {
+          window.__battleApiCalls.push({ endpoint, body, options });
+          if (endpoint === '/api/exploration/npc-battle') {
+            return { battleId: 'pw-exploration-npc-battle' };
+          }
+          return {};
+        },
+        renderAvatar: () => {},
+        getMyCurrentEquipment: () => ({}),
+        getMyInventory: () => ([]),
+        db: { __mock: true }
+      };
+
+      window.initializeBattleSystem(deps);
+      import('firebase/database').then(() => {
+        setTimeout(() => {
+          window.__pwBattleInitReady = true;
+        }, 0);
+      });
+    });
+
+    await page.waitForFunction(() => window.__pwBattleInitReady === true, { timeout: 20_000 });
+
+    const result = await page.evaluate(() => window.startExplorationNpcBattle({
+      requestId: 'exploration-npc-test',
+      opponentId: 'npc_exploration_naval_alpha',
+      opponentName: '試験海賊船',
+      opponentShipProfile: {
+        itemId: 'guild_ship',
+        form: 'guild',
+        shipClass: 'guild',
+        stage: 3
+      },
+      throwOnError: true,
+      continueFromNaval: true,
+      battleContext: {
+        navalOutcome: 'boarding',
+        boardedPlayerId: 'npc_exploration_naval_alpha',
+        boardingPlayerId: 'PF_PLAYWRIGHT',
+        navalBoardingState: {
+          player: { morale: 1, crewHpPercent: 90, crewMpPercent: 80, statuses: {} },
+          enemy: { morale: -1, crewHpPercent: 45, crewMpPercent: 30, statuses: { burn: { turns: 2 } } }
+        }
+      }
+    }));
+
+    expect(result).toMatchObject({ battleId: 'pw-exploration-npc-battle' });
+    const calls = await page.evaluate(() => window.__battleApiCalls || []);
+    const npcCall = calls.find((call) => call.endpoint === '/api/exploration/npc-battle');
+    expect(npcCall).toBeTruthy();
+    expect(npcCall.options).toMatchObject({ throwOnError: true });
+    expect(npcCall.body).toMatchObject({
+      playFabId: 'PF_PLAYWRIGHT',
+      requestId: 'exploration-npc-test',
+      navalOpponentId: 'npc_exploration_naval_alpha',
+      navalOpponentName: '試験海賊船',
+      opponentShipProfile: {
+        itemId: 'guild_ship',
+        form: 'guild',
+        shipClass: 'guild',
+        stage: 3
+      },
+      battleContext: {
+        source: 'explorationNpc',
+        rewardMode: 'none',
+        npcBattle: true,
+        navalOutcome: 'boarding',
+        boardedPlayerId: 'npc_exploration_naval_alpha',
+        boardingPlayerId: 'PF_PLAYWRIGHT',
+        navalBoardingState: {
+          enemy: { statuses: { burn: { turns: 2 } } }
+        }
+      }
+    });
+
+    await expectNoPageErrors(errors);
+  });
 });
