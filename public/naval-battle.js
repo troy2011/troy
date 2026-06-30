@@ -23,6 +23,7 @@ const EVASION_RATE = Object.freeze({
     assault: 0,
     rudderHitReduction: 0.5
 });
+const AIR_ASSAULT_EVASION_RATE = 0.2;
 
 const PLUNDER_LIMITS = {
     victory: { chips: 30, cargo: 2, exploration: 1 },
@@ -593,7 +594,11 @@ function isAssaultCommand(commandId) {
 }
 
 function evasionRateForShip(defender, attackerCommandId, defenderCommandId = defender?.lastResolvingCommandId, attacker = null) {
-    if (!defender || !isCannonCommand(attackerCommandId)) return 0;
+    if (!defender) return 0;
+    if (isAssaultCommand(attackerCommandId)) {
+        return String(defender.shipDomain || '').toLowerCase() === 'air' ? AIR_ASSAULT_EVASION_RATE : 0;
+    }
+    if (!isCannonCommand(attackerCommandId)) return 0;
     const activeCommandId = normalizeCommandId(defenderCommandId);
     if (activeCommandId === 'assault') return EVASION_RATE.assault;
     const facing = normalizeFacing(defender.facing);
@@ -1619,7 +1624,10 @@ function commandHitRateText(def, ship = null, foe = null) {
         const evadeRate = foe ? evasionRateForShip(foe, id, '', ship) : 0;
         return `命中率 ${formatRatePercent(1 - evadeRate)}`;
     }
-    if (id === 'assault') return '命中率 100%';
+    if (id === 'assault') {
+        const evadeRate = foe ? evasionRateForShip(foe, id, '', ship) : 0;
+        return `命中率 ${formatRatePercent(1 - evadeRate)}`;
+    }
     if (id === 'boarding') return '命中率 100%';
     return '命中率 -';
 }

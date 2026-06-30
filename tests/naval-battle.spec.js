@@ -153,6 +153,20 @@ test('naval battle explains commands and latest results with short visual text',
   expect(chipTexts).toEqual(expect.arrayContaining(['回避']));
   await expect(page.locator('#navalTurnSummary')).toContainText('回避');
 
+  await page.evaluate(() => {
+    const profile = { nation: 'none' };
+    window.startNavalBattle({
+      opponentId: 'PF_NAVAL_AIR_ASSAULT_RATE',
+      opponentName: '飛行船',
+      disableAi: true,
+      playerProfile: profile,
+      opponentProfile: profile,
+      playerShipProfile: { form: 'merchant', shipClass: 'merchant', itemId: 'ship_human_merchant', name: '自船' },
+      opponentShipProfile: { form: 'fighter', shipClass: 'fighter', itemId: 'ship_elf_fighter', name: '飛行船' }
+    });
+  });
+  await expect(page.locator('[data-naval-command="assault"] .naval-command-preview')).toContainText('命中率 80%');
+
   await expectNoPageErrors(errors);
 });
 
@@ -1316,6 +1330,12 @@ test('ship-specific passives affect naval hit rate damage status and snapshots',
       attackerCommandId: 'bowCannon',
       defenderShipTraitKey: 'ship_elf_fighter'
     }),
+    airAssault: window.__navalBattleDebug.resolveEvasionRate({
+      defenderFacing: 'front',
+      defenderCommandId: 'starboardRudder',
+      attackerCommandId: 'assault',
+      defenderShipTraitKey: 'ship_elf_fighter'
+    }),
     underwaterFront: window.__navalBattleDebug.resolveEvasionRate({
       defenderFacing: 'front',
       defenderCommandId: 'bowCannon',
@@ -1343,10 +1363,40 @@ test('ship-specific passives affect naval hit rate damage status and snapshots',
   }));
   expect(rates.normalFront).toBe(0.5);
   expect(rates.airFront).toBe(0.8);
+  expect(rates.airAssault).toBe(0.2);
   expect(rates.underwaterFront).toBe(0.2);
   expect(rates.boatFront).toBe(0.55);
   expect(rates.humanExplorerSideTurning).toBe(0.6);
   expect(rates.goblinBroadsideHitUp).toBe(0.3);
+
+  const airAssaultDodge = await page.evaluate(() => {
+    window.startNavalBattle({
+      opponentId: 'PF_AIR_ASSAULT_DODGE',
+      opponentName: '飛行突撃回避敵',
+      disableAi: true,
+      evasionRolls: [0.1],
+      playerProfile: { nation: 'none' },
+      opponentProfile: { nation: 'none' },
+      playerShipProfile: { form: 'merchant', shipClass: 'merchant', itemId: 'ship_human_merchant', name: '自船' },
+      opponentShipProfile: { form: 'fighter', shipClass: 'fighter', itemId: 'ship_elf_fighter', name: '飛行船' }
+    });
+    window.__navalBattleDebug.applyCommand('assault', 'player');
+    window.__navalBattleDebug.applyCommand('starboardRudder', 'enemy');
+    return {
+      state: window.__navalBattleDebug.serialize(),
+      turnEvasions: window.__navalBattleDebug.getState()?.turnEvasions
+    };
+  });
+  expect(airAssaultDodge.state.enemy.hp).toBe(2);
+  expect(airAssaultDodge.turnEvasions).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      target: 'enemy',
+      source: 'player',
+      commandId: 'assault',
+      rate: 0.2,
+      roll: 0.1
+    })
+  ]));
 
   state = await page.evaluate(() => {
     window.startNavalBattle({
