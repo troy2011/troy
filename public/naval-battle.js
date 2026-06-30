@@ -235,6 +235,7 @@ const ENEMY_PLANS = [
 const NAVAL_VISUAL_EFFECT_MS = 1400;
 const NAVAL_SURGE_MOTION_MS = 1180;
 const NAVAL_BOARDING_MOTION_MS = 2200;
+const NAVAL_BOARDING_IMPACT_DELAY_MS = Math.round(NAVAL_BOARDING_MOTION_MS * 0.62);
 const NAVAL_AUTO_BOARDING_DELAY_MS = NAVAL_VISUAL_EFFECT_MS + 120;
 const NAVAL_SHIP_SURFACE_TOP = 96;
 const NAVAL_GUILD_SHIP_SURFACE_TOP = 76;
@@ -585,6 +586,10 @@ function isDirectAttackCommand(commandId) {
 
 function isRudderCommand(commandId) {
     return commandId === 'starboardRudder' || commandId === 'portRudder';
+}
+
+function isAssaultCommand(commandId) {
+    return normalizeCommandId(commandId) === 'assault';
 }
 
 function evasionRateForShip(defender, attackerCommandId, defenderCommandId = defender?.lastResolvingCommandId, attacker = null) {
@@ -2184,6 +2189,14 @@ function maybeBoostAttack(b, attacker, defender, commandId, targetCommandId, dam
     return next;
 }
 
+function applyConsecutiveAssaultPenalty(b, attacker, commandId, previousCommandId, amount, entry = {}) {
+    if (entry?.kind !== 'attack' || amount <= 0) return amount;
+    if (!isAssaultCommand(commandId) || !isAssaultCommand(previousCommandId)) return amount;
+    const next = Math.max(0, roundSteeringValue(amount - 0.5));
+    if (next < amount) log(b, `${attacker.label}は連続突撃で負荷 -${formatSteeringValue(amount - next)}`);
+    return next;
+}
+
 function applyDamageToShip(b, attacker, defender, amount, label, { allowEvade = true, allowRandomEvasion = true } = {}) {
     let value = Math.max(0, roundSteeringValue(Number(amount) || 0));
     if (!defender || value <= 0) return 0;
@@ -2901,7 +2914,8 @@ function createBoardingVisualState(b, outcome) {
         enemyBoarding: !playerBoards,
         playerHit: false,
         enemyHit: false,
-        impactShake: true,
+        impactShake: false,
+        boardingImpactShake: true,
         effects: [
             {
                 type: 'callout',
@@ -2941,6 +2955,10 @@ function resolveSimultaneousCommands(b) {
     const previousFacing = {
         player: normalizeFacing(b.player.facing),
         enemy: normalizeFacing(b.enemy.facing)
+    };
+    const previousCommandId = {
+        player: normalizeCommandId(b.player.lastCommandId),
+        enemy: normalizeCommandId(b.enemy.lastCommandId)
     };
     const playerArcana = pendingArcanaForCommand(b.player, playerCommandId);
     const enemyArcana = pendingArcanaForCommand(b.enemy, enemyCommandId);
@@ -3016,6 +3034,7 @@ function resolveSimultaneousCommands(b) {
         const targetShip = entry.target === 'player' ? b.player : b.enemy;
         const sourceCommand = entry.source === 'player' ? playerCommandId : enemyCommandId;
         const targetCommand = entry.target === 'player' ? playerCommandId : enemyCommandId;
+        const previousSourceCommand = entry.source === 'player' ? previousCommandId.player : previousCommandId.enemy;
         let nextAmount = maybeBoostAttack(b, sourceShip, targetShip, sourceCommand, targetCommand, entry.amount, entry);
         if (sourceCommand === 'broadside' && targetCommand === 'assault') {
             const ramGear = findArcanaGear(targetShip, 'ram-boost');
@@ -3031,6 +3050,7 @@ function resolveSimultaneousCommands(b) {
                 targetShip.arcanaAssaultBroadsideGuard = 0;
             }
         }
+        nextAmount = applyConsecutiveAssaultPenalty(b, sourceShip, sourceCommand, previousSourceCommand, nextAmount, entry);
         const appliedAmount = roundSteeringValue(nextAmount);
         if (appliedAmount > 0) {
             damageByTarget[entry.target] += appliedAmount;
@@ -3443,6 +3463,7 @@ body.naval-battle-lock { overflow: hidden; }
 .naval-battle-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px; }
 .naval-sea { position: relative; min-height: 306px; border: 1px solid transparent; border-image: url("./assets/ui/panels/panel-navy-wide.png") 34 / 12px / 0 stretch; border-radius: 6px; background: linear-gradient(180deg, rgba(8, 47, 73, 0.06) 0%, rgba(5, 12, 18, 0.1) 42%, rgba(6, 24, 36, 0.28) 100%), url("./Sprites/background/sea.webp") center -50px / auto 150% no-repeat; overflow: hidden; isolation: isolate; }
 .naval-sea.is-impact-shake { animation: navalImpactShake 360ms cubic-bezier(0.18, 0.84, 0.24, 1) both; }
+.naval-sea.is-boarding-impact-shake { animation: navalImpactShake 360ms cubic-bezier(0.18, 0.84, 0.24, 1) ${NAVAL_BOARDING_IMPACT_DELAY_MS}ms both; }
 .naval-sea::before { content: ""; position: absolute; inset: 8px; border-radius: 4px; box-shadow: inset 0 0 42px rgba(0, 0, 0, 0.46), inset 0 0 0 1px rgba(255, 240, 180, 0.08); pointer-events: none; z-index: 1; }
 .naval-sea::after { content: ""; position: absolute; left: -20%; right: -20%; bottom: 18px; height: 80px; background: repeating-linear-gradient(172deg, rgba(219, 246, 239, 0.18) 0 2px, transparent 2px 24px); opacity: 0.46; animation: navalSeaDrift 5s linear infinite; pointer-events: none; z-index: 0; }
 .naval-distance-label { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); min-width: 120px; text-align: center; color: #ffe5a3; background: rgba(9, 26, 31, 0.72); border: 1px solid rgba(244, 211, 126, 0.36); border-radius: 999px; font-size: 12px; font-weight: 700; padding: 3px 10px; z-index: 4; }
@@ -3450,6 +3471,7 @@ body.naval-battle-lock { overflow: hidden; }
 .naval-ship { position: absolute; width: 112px; text-align: center; transition: left 240ms ease, top 240ms ease, transform 240ms ease; z-index: 3; }
 .naval-ship-sprite-wrap { position: relative; width: 88px; height: 82px; margin: 0 auto; display: grid; place-items: center; }
 .naval-ship-shadow { position: absolute; left: 14px; right: 14px; bottom: 7px; height: 18px; border-radius: 50%; background: rgba(0, 0, 0, 0.3); filter: blur(2px); transform: scaleX(1.25); }
+.naval-ship.is-domain-air .naval-ship-shadow { bottom: -13px; height: 14px; opacity: 0.24; filter: blur(3px); transform: scaleX(1.55); }
 .naval-ship-wake { position: absolute; left: 12px; right: 12px; bottom: 4px; height: 16px; border-radius: 50%; border-top: 2px solid rgba(210, 246, 240, 0.42); opacity: 0.68; }
 .naval-ship-sprite { position: relative; width: var(--naval-ship-frame-w, 64px); height: var(--naval-ship-frame-h, 64px); z-index: 2; background-image: url("./Sprites/Ships/ships.png"); background-position: var(--naval-ship-sprite-x, -64px) var(--naval-ship-sprite-y, -128px); background-size: var(--naval-ship-sheet-w, 2048px) var(--naval-ship-sheet-h, 1024px); background-repeat: no-repeat; image-rendering: pixelated; transform: scale(var(--naval-ship-scale, 1.45)); transform-origin: center center; filter: drop-shadow(0 13px 12px rgba(0, 0, 0, 0.38)); }
 .naval-ship-sprite.is-guild-sprite { overflow: hidden; background-image: none; background-size: 2016px 1152px; }
@@ -3753,7 +3775,11 @@ function renderShipPositions(b) {
     const playerVisual = b.visualState || {};
     const enemyVisual = b.visualState || {};
     if (seaEl) {
-        seaEl.className = `naval-sea${b.visualState?.impactShake ? ' is-impact-shake' : ''}`;
+        seaEl.className = [
+            'naval-sea',
+            b.visualState?.impactShake ? 'is-impact-shake' : '',
+            b.visualState?.boardingImpactShake ? 'is-boarding-impact-shake' : ''
+        ].filter(Boolean).join(' ');
     }
     enemyEl.style.left = '8%';
     enemyEl.style.top = `${shipVisualTop(b.enemy)}px`;
@@ -3832,6 +3858,7 @@ function applyShipSprite(container, ship, side, visualPose = '', flags = {}) {
         'naval-ship',
         `is-${side}`,
         `is-${form}`,
+        ship.shipDomain ? `is-domain-${String(ship.shipDomain).replace(/[^a-z0-9_-]/gi, '')}` : '',
         traitKey ? `is-${traitKey}` : '',
         visualPose ? 'is-turning' : '',
         visualPose.includes('Up') ? 'is-turning-up' : '',
@@ -3844,6 +3871,7 @@ function applyShipSprite(container, ship, side, visualPose = '', flags = {}) {
     ].filter(Boolean).join(' ');
     container.dataset.shipKey = ship?.shipTraitKey || '';
     container.dataset.shipName = ship?.shipName || ship?.shipType || '';
+    container.dataset.shipDomain = ship?.shipDomain || '';
     container.dataset.shipFacing = normalizeFacing(ship?.facing);
     container.dataset.visualPose = visualPose || normalizeFacing(ship?.facing);
     container.title = ship?.shipName || ship?.shipType || '';

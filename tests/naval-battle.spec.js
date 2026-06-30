@@ -705,6 +705,32 @@ test('rudder, blank shot, and reload follow the simultaneous rule table', async 
   await expectNoPageErrors(errors);
 });
 
+test('consecutive assault damage is reduced by 0.5', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await bootstrapMainApp(page);
+
+  const state = await page.evaluate(() => {
+    window.startNavalBattle({
+      opponentId: 'PF_CONSECUTIVE_ASSAULT_TARGET',
+      opponentName: '連続突撃敵',
+      disableAi: true,
+      playerShipProfile: { form: 'fighter', shipClass: 'fighter', name: '戦闘船' },
+      opponentShipProfile: { form: 'fighter', shipClass: 'fighter', name: '敵戦闘船' }
+    });
+    window.__navalBattleDebug.applyCommand('assault', 'player');
+    window.__navalBattleDebug.applyCommand('starboardRudder', 'enemy');
+    window.__navalBattleDebug.applyCommand('assault', 'player');
+    window.__navalBattleDebug.applyCommand('blankShot', 'enemy');
+    return window.__navalBattleDebug.serialize();
+  });
+
+  expect(state.enemy.hp).toBe(1.5);
+  expect(state.player.lastCommandId).toBe('assault');
+  expect(state.logs.join('\n')).toContain('連続突撃で負荷 -0.5');
+
+  await expectNoPageErrors(errors);
+});
+
 test('port rudder dodges bow cannon while side-facing assault is blocked', async ({ page }) => {
   const errors = trackPageErrors(page);
   await bootstrapMainApp(page);
@@ -871,13 +897,19 @@ test('steering zero enables boarding and transitions to melee', async ({ page })
   await expect(page.locator('#navalShipEnemy')).not.toHaveClass(/is-boarding-motion/);
   await expect(page.locator('#navalEffectLayer .naval-command-callout')).toContainText('乗り込めええ！！');
   await expect(page.locator('#navalEffectLayer .naval-boarding-clash')).toBeVisible();
+  await expect(page.locator('#navalSea')).not.toHaveClass(/is-impact-shake/);
+  await expect(page.locator('#navalSea')).toHaveClass(/is-boarding-impact-shake/);
   const boardingMotion = await page.evaluate(() => {
     const player = document.querySelector('#navalShipPlayer');
     const enemy = document.querySelector('#navalShipEnemy');
+    const sea = document.getElementById('navalSea');
+    const seaStyle = getComputedStyle(sea);
     return {
       playerAnimation: getComputedStyle(player).animationName,
       playerDuration: getComputedStyle(player).animationDuration,
       enemyAnimation: getComputedStyle(enemy).animationName,
+      seaAnimation: seaStyle.animationName,
+      seaAnimationDelay: seaStyle.animationDelay,
       playerBoardingX: player.style.getPropertyValue('--naval-boarding-x'),
       enemyBoardingX: enemy.style.getPropertyValue('--naval-boarding-x'),
       playerFacing: player.dataset.shipFacing,
@@ -889,6 +921,8 @@ test('steering zero enables boarding and transitions to melee', async ({ page })
   expect(boardingMotion.playerAnimation).toContain('navalBoardingPlayer');
   expect(Number.parseFloat(boardingMotion.playerDuration)).toBeGreaterThanOrEqual(2.1);
   expect(boardingMotion.enemyAnimation).not.toContain('navalBoardingEnemy');
+  expect(boardingMotion.seaAnimation).toContain('navalImpactShake');
+  expect(Number.parseFloat(boardingMotion.seaAnimationDelay)).toBeGreaterThanOrEqual(1.3);
   expect(Number.parseInt(boardingMotion.playerBoardingX, 10)).toBeLessThan(-120);
   expect(Number.parseInt(boardingMotion.enemyBoardingX, 10)).toBeGreaterThan(120);
   expect(boardingMotion.playerFacing).toBe('starboard');
@@ -995,6 +1029,8 @@ test('ship-specific metadata exposes domain durability low firepower and passive
       shipTraitKey: state.player.shipTraitKey,
       arcanaCount: state.player.arcanaGears.length,
       shipClassName: document.getElementById('navalShipPlayer')?.className || '',
+      shipDomainData: document.getElementById('navalShipPlayer')?.dataset?.shipDomain || '',
+      shadowBottom: getComputedStyle(document.querySelector('#navalShipPlayer .naval-ship-shadow')).bottom,
       spriteFrameWidth: getComputedStyle(document.querySelector('#navalShipPlayer .naval-ship-sprite')).getPropertyValue('--naval-ship-frame-w'),
       spriteSheetWidth: getComputedStyle(document.querySelector('#navalShipPlayer .naval-ship-sprite')).getPropertyValue('--naval-ship-sheet-w'),
       spriteX: getComputedStyle(document.querySelector('#navalShipPlayer .naval-ship-sprite')).getPropertyValue('--naval-ship-sprite-x'),
@@ -1022,6 +1058,11 @@ test('ship-specific metadata exposes domain durability low firepower and passive
     expect(ship.stateText).toContain(`海戦耐久${maxHp}/${maxHp}`);
   }
   expect(ships.find((entry) => entry.itemId === 'boat').weaponText).toContain('前0.5/側1');
+  const airShip = ships.find((entry) => entry.itemId === 'ship_elf_merchant');
+  expect(airShip.shipClassName).toContain('is-domain-air');
+  expect(airShip.shipDomainData).toBe('air');
+  expect(airShip.shadowBottom).toBe('-13px');
+  expect(ships.find((entry) => entry.itemId === 'ship_human_merchant').shadowBottom).toBe('7px');
   expect(ships.find((entry) => entry.itemId === 'ship_orc_defender').traitText).toContain('水圧魚雷 常時');
   expect(ships.find((entry) => entry.itemId === 'ship_orc_fighter').traitText).toContain('巨大砲 未使用');
   expect(ships.find((entry) => entry.itemId === 'boat').shipTop).toBe('96px');
