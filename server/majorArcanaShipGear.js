@@ -129,9 +129,9 @@ const MAJOR_ARCANA_SHIP_GEAR = Object.freeze({
         ultimateName: '力の鼓舞突撃',
         roleLabel: '士気',
         trigger: '突撃',
-        shortDescription: '自分の恐怖・混乱を解除し、士気を1段階上昇。敵の旋回を止めた場合、敵の舵輪を次のターン終了まで損傷させる。',
+        shortDescription: '自分の恐怖・混乱を解除し、士気を1段階上昇。回頭中の敵に命中した場合、回頭を止めて敵の舵輪を次のターン終了まで損傷させる。',
         activationLog: '獅子の士気竜骨が船員を奮い立たせた。',
-        navalEffect: { type: 'strength-assault', replacementCommand: 'assault', cleanse: ['fear', 'confusion'], morale: 1, rudderDamageOnStop: 1 }
+        navalEffect: { type: 'strength-assault', replacementCommand: 'assault', cleanse: ['fear', 'confusion'], morale: 1, stopRudderOnHit: true, rudderDamageOnStop: 1 }
     },
     9: {
         equipmentName: '隠者の消灯帆',

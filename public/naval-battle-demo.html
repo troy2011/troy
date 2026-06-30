@@ -295,6 +295,62 @@
             background: rgba(153, 52, 35, 0.78);
         }
 
+        body.naval-demo-page #navalBattleModal {
+            align-items: stretch;
+            padding: 6px;
+        }
+
+        body.naval-demo-page #navalBattleModal .naval-shell {
+            width: min(390px, 100%);
+            max-height: 100%;
+            padding: 10px;
+        }
+
+        body.naval-demo-page #navalBattleModal .naval-battle-grid {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        body.naval-demo-page #navalBattleModal .naval-sea {
+            min-height: 218px;
+            margin-bottom: 10px;
+        }
+
+        body.naval-demo-page #navalBattleModal .naval-ship {
+            width: 100px;
+            transform: scale(0.92);
+            transform-origin: center bottom;
+        }
+
+        body.naval-demo-page #navalBattleModal .naval-win-routes {
+            grid-template-columns: 1fr;
+        }
+
+        body.naval-demo-page #navalBattleModal .naval-command-btn {
+            min-height: 58px;
+        }
+
+        body.naval-demo-page #navalBattleModal .naval-arcana-card-effect {
+            top: 50%;
+            width: 82px;
+        }
+
+        body.naval-demo-page #navalBattleModal .naval-arcana-card-effect.is-player {
+            left: 60%;
+        }
+
+        body.naval-demo-page #navalBattleModal .naval-arcana-card-effect.is-enemy {
+            left: 40%;
+        }
+
+        body.naval-demo-page #navalBattleModal .naval-result-chip.is-player {
+            right: 13%;
+        }
+
+        body.naval-demo-page #navalBattleModal .naval-result-chip.is-enemy {
+            left: 13%;
+        }
+
         @media (max-width: 540px) {
             body { padding: 8px; }
             .demo-shell { padding: 13px; }
@@ -305,7 +361,7 @@
         }
     </style>
 </head>
-<body>
+<body class="naval-demo-page">
     <main class="demo-shell">
         <header class="demo-head">
             <div>
@@ -319,6 +375,7 @@
             <div class="demo-field">
                 <label for="demoPlayerShip">自船</label>
                 <select id="demoPlayerShip">
+                    <option value="guild_ship">ギルドシップ</option>
                     <option value="ship_human_fighter" selected>海賊船</option>
                     <option value="ship_elf_fighter">海賊飛空艇</option>
                     <option value="ship_goblin_fighter">ドリルタンク</option>
@@ -341,6 +398,7 @@
             <div class="demo-field">
                 <label for="demoEnemyShip">敵船</label>
                 <select id="demoEnemyShip">
+                    <option value="guild_ship">ギルドシップ</option>
                     <option value="ship_human_fighter">海賊船</option>
                     <option value="ship_elf_fighter">海賊飛空艇</option>
                     <option value="ship_goblin_fighter">ドリルタンク</option>
@@ -420,6 +478,7 @@
             'use strict';
 
             const shipOptions = {
+                guild_ship: { form: 'guild', race: '', name: 'ギルドシップ' },
                 boat: { form: 'boat', race: '', name: '手漕ぎボート' },
                 ship_human_fighter: { form: 'fighter', race: 'human', name: '海賊船' },
                 ship_elf_fighter: { form: 'fighter', race: 'elf', name: '海賊飛空艇' },

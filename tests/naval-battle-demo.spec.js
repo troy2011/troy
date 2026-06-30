@@ -6,7 +6,7 @@ test('naval battle demo page launches the plunder battle only', async ({ page })
   await expect(page.locator('.demo-title')).toHaveText('略奪戦デモ');
   await expect(page.locator('#navalBattleModal')).not.toBeVisible();
   await expect(page.locator('#demoLog')).toContainText('自船と敵船を選んで');
-  await expect(page.locator('#demoPlayerShip option')).toHaveCount(17);
+  await expect(page.locator('#demoPlayerShip option')).toHaveCount(18);
 
   await page.locator('#demoPlayerShip').selectOption('ship_human_merchant');
   await page.locator('#demoEnemyShip').selectOption('ship_human_fighter');
@@ -29,19 +29,88 @@ test('naval battle demo page launches the plunder battle only', async ({ page })
   await expect(page.locator('#navalTraitPlayer')).toContainText('馬衝角 常時');
   await expect(page.locator('#navalShipPlayer')).toHaveAttribute('data-ship-key', 'ship_human_merchant');
   await expect(page.locator('#navalShipEnemy')).toHaveAttribute('data-ship-key', 'ship_human_fighter');
-  const selectedShipLabels = await page.evaluate(() => ({
-    player: document.querySelector('#navalShipPlayer .naval-ship-name')?.textContent?.trim(),
-    enemy: document.querySelector('#navalShipEnemy .naval-ship-name')?.textContent?.trim(),
+  const selectedShipVisuals = await page.evaluate(() => ({
+    playerNameDisplay: getComputedStyle(document.querySelector('#navalShipPlayer .naval-ship-name')).display,
+    enemyNameDisplay: getComputedStyle(document.querySelector('#navalShipEnemy .naval-ship-name')).display,
+    playerFacingDisplay: getComputedStyle(document.querySelector('#navalShipPlayer .naval-ship-facing')).display,
+    enemyFacingDisplay: getComputedStyle(document.querySelector('#navalShipEnemy .naval-ship-facing')).display,
     playerSheet: getComputedStyle(document.querySelector('#navalShipPlayer .naval-ship-sprite')).backgroundImage,
     enemySheet: getComputedStyle(document.querySelector('#navalShipEnemy .naval-ship-sprite')).backgroundImage
   }));
-  expect(selectedShipLabels.player).toBeTruthy();
-  expect(selectedShipLabels.player).not.toBe('自分の船');
-  expect(selectedShipLabels.enemy).toBeTruthy();
-  expect(selectedShipLabels.enemy).not.toBe('訓練相手の船');
-  expect(selectedShipLabels.playerSheet).toContain('ships_blue.png');
-  expect(selectedShipLabels.enemySheet).toContain('ships_blue.png');
-  await expect(page.locator('#navalShipPlayerFacing')).toContainText('正面');
+  expect(selectedShipVisuals.playerNameDisplay).toBe('none');
+  expect(selectedShipVisuals.enemyNameDisplay).toBe('none');
+  expect(selectedShipVisuals.playerFacingDisplay).toBe('none');
+  expect(selectedShipVisuals.enemyFacingDisplay).toBe('none');
+  expect(selectedShipVisuals.playerSheet).toContain('ships_blue.png');
+  expect(selectedShipVisuals.enemySheet).toContain('ships_blue.png');
+});
+
+test('naval battle demo uses the compact app sea stage height', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto('/naval-battle-demo.html', { waitUntil: 'domcontentloaded' });
+
+  await page.locator('#demoQuick').click();
+  await expect(page.locator('#navalBattleModal')).toBeVisible();
+
+  const layout = await page.evaluate(() => {
+    const modal = document.getElementById('navalBattleModal');
+    const shell = modal?.querySelector('.naval-shell');
+    const sea = document.getElementById('navalSea');
+    const seaRect = sea?.getBoundingClientRect();
+    const shellRect = shell?.getBoundingClientRect();
+    const seaStyle = sea ? window.getComputedStyle(sea) : null;
+    const modalStyle = modal ? window.getComputedStyle(modal) : null;
+    return {
+      alignItems: modalStyle?.alignItems || '',
+      seaHeight: Math.round(seaRect?.height || 0),
+      seaMinHeight: seaStyle?.minHeight || '',
+      shellWidth: Math.round(shellRect?.width || 0)
+    };
+  });
+
+  expect(layout.alignItems).toBe('stretch');
+  expect(layout.seaMinHeight).toBe('218px');
+  expect(layout.seaHeight).toBeGreaterThanOrEqual(218);
+  expect(layout.seaHeight).toBeLessThanOrEqual(222);
+  expect(layout.shellWidth).toBeLessThanOrEqual(390);
+});
+
+test('naval battle demo can launch guild ships', async ({ page }) => {
+  await page.goto('/naval-battle-demo.html', { waitUntil: 'domcontentloaded' });
+
+  await page.locator('#demoPlayerShip').selectOption('guild_ship');
+  await page.locator('#demoEnemyShip').selectOption('guild_ship');
+  await page.locator('#demoStart').click();
+  await expect(page.locator('#navalBattleModal')).toBeVisible();
+
+  const ships = await page.evaluate(() => {
+    const readShip = (id) => {
+      const container = document.getElementById(id);
+      const sprite = container?.querySelector('.naval-ship-sprite');
+      return {
+        className: container?.className || '',
+        key: container?.dataset?.shipKey || '',
+        top: container?.style?.top || '',
+        frameWidth: sprite ? window.getComputedStyle(sprite).getPropertyValue('--naval-ship-frame-w') : '',
+        layerCount: container?.querySelectorAll('.naval-guild-ship-layer').length || 0
+      };
+    };
+    return {
+      player: readShip('navalShipPlayer'),
+      enemy: readShip('navalShipEnemy')
+    };
+  });
+
+  expect(ships.player.key).toBe('guild_ship');
+  expect(ships.enemy.key).toBe('guild_ship');
+  expect(ships.player.className).toContain('is-guild');
+  expect(ships.enemy.className).toContain('is-guild');
+  expect(ships.player.top).toBe('76px');
+  expect(ships.enemy.top).toBe('76px');
+  expect(ships.player.frameWidth).toBe('96px');
+  expect(ships.enemy.frameWidth).toBe('96px');
+  expect(ships.player.layerCount).toBe(4);
+  expect(ships.enemy.layerCount).toBe(4);
 });
 
 test('naval battle demo uses the selected ship race-color sprite slot', async ({ page }) => {
@@ -159,8 +228,9 @@ test('naval battle demo shows short previews, latest summary, and arcana card cu
 
   await expect(page.locator('#navalBattleModal')).toBeVisible();
   await expect(page.locator('#navalCommands .naval-command-preview')).toHaveCount(3);
-  await expect(page.locator('[data-naval-command="assault"] .naval-command-preview')).toContainText('命中した敵に浸水');
-  await expect(page.locator('[data-naval-command="starboardRudder"] .naval-command-preview')).toContainText('砲撃を避ける');
+  await expect(page.locator('[data-naval-command="assault"] .naval-command-preview')).toContainText('命中率 100%');
+  await expect(page.locator('[data-naval-command="starboardRudder"] .naval-command-preview')).toContainText('命中率 -');
+  await expect(page.locator('#navalCommands .naval-command-preview')).toContainText(['命中率 100%', '命中率 50%', '命中率 -']);
   await expect(page.locator('#navalTurnSummary')).toContainText('コマンドを選ぶ');
 
   const state = await page.evaluate(() => {

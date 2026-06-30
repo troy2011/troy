@@ -34,6 +34,18 @@ test('naval battle uses simultaneous input instead of timeline lag', async ({ pa
     'スクラッチ敵の船',
     '自分の船'
   ]);
+  const shipLabelDisplays = await page.evaluate(() => ({
+    playerName: getComputedStyle(document.querySelector('#navalShipPlayer .naval-ship-name')).display,
+    enemyName: getComputedStyle(document.querySelector('#navalShipEnemy .naval-ship-name')).display,
+    playerFacing: getComputedStyle(document.querySelector('#navalShipPlayer .naval-ship-facing')).display,
+    enemyFacing: getComputedStyle(document.querySelector('#navalShipEnemy .naval-ship-facing')).display
+  }));
+  expect(shipLabelDisplays).toEqual({
+    playerName: 'none',
+    enemyName: 'none',
+    playerFacing: 'none',
+    enemyFacing: 'none'
+  });
 
   await page.locator('[data-naval-command="assault"]').click();
   await expect(page.locator('#navalCommandNote')).toContainText('入力済み');
@@ -103,9 +115,10 @@ test('naval battle explains commands and latest results with short visual text',
   });
 
   await expect(page.locator('#navalCommands .naval-command-preview')).toHaveCount(3);
-  await expect(page.locator('[data-naval-command="assault"] .naval-command-preview')).toContainText('回頭を止める');
-  await expect(page.locator('[data-naval-command="bowCannon"] .naval-command-preview')).toContainText('突撃を止める');
-  await expect(page.locator('[data-naval-command="starboardRudder"] .naval-command-preview')).toContainText('砲撃を避ける');
+  await expect(page.locator('[data-naval-command="assault"] .naval-command-preview')).toContainText('命中率 100%');
+  await expect(page.locator('[data-naval-command="bowCannon"] .naval-command-preview')).toContainText('命中率 50%');
+  await expect(page.locator('[data-naval-command="starboardRudder"] .naval-command-preview')).toContainText('命中率 -');
+  await expect(page.locator('#navalCommands .naval-command-meta')).toHaveCount(0);
   await expect(page.locator('#navalTurnSummary')).toContainText('コマンドを選ぶ');
 
   let state = await page.evaluate(() => {
@@ -744,7 +757,59 @@ test('port rudder dodges bow cannon while side-facing assault is blocked', async
   expect(state.enemy.hp).toBe(2);
   expect(state.player.facing).toBe('front');
   expect(state.enemy.facing).toBe('front');
-  expect(state.logs.join('\n')).toContain('突撃で方向転換中断');
+  expect(state.logs.join('\n')).toContain('回頭中への突撃');
+
+  const frontTurnAssault = await page.evaluate(() => {
+    window.startNavalBattle({
+      opponentId: 'PF_FRONT_TURN_ASSAULT_TARGET',
+      opponentName: '正面回頭敵',
+      disableAi: true,
+      playerShipProfile: { form: 'fighter', shipClass: 'fighter', name: '戦闘船' },
+      opponentShipProfile: { form: 'fighter', shipClass: 'fighter', name: '敵戦闘船' }
+    });
+    window.__navalBattleDebug.mutate((b) => {
+      b.player.hp = 3;
+      b.enemy.hp = 3;
+    });
+    window.__navalBattleDebug.applyCommand('assault', 'player');
+    window.__navalBattleDebug.applyCommand('starboardRudder', 'enemy');
+    return window.__navalBattleDebug.serialize();
+  });
+
+  expect(frontTurnAssault.enemy.hp).toBe(2);
+  expect(frontTurnAssault.enemy.facing).toBe('starboard');
+  expect(frontTurnAssault.logs.join('\n')).toContain('回頭中への突撃');
+
+  const strengthTurnStop = await page.evaluate(() => {
+    window.startNavalBattle({
+      opponentId: 'PF_STRENGTH_TURN_STOP_TARGET',
+      opponentName: '力回頭敵',
+      disableAi: true,
+      playerProfile: { nation: 'none' },
+      opponentProfile: { nation: 'none' },
+      playerShipProfile: {
+        form: 'fighter',
+        shipClass: 'fighter',
+        name: '力の船',
+        level: 3,
+        majorArcanaItemIds: ['arcana-8']
+      },
+      opponentShipProfile: { form: 'fighter', shipClass: 'fighter', name: '敵戦闘船', level: 3 }
+    });
+    window.__navalBattleDebug.mutate((b) => {
+      b.player.hp = 3;
+      b.enemy.hp = 3;
+    });
+    window.__navalBattleDebug.applyCommand('assault', 'player');
+    window.__navalBattleDebug.applyCommand('starboardRudder', 'enemy');
+    return window.__navalBattleDebug.serialize();
+  });
+
+  expect(strengthTurnStop.enemy.hp).toBe(2);
+  expect(strengthTurnStop.enemy.facing).toBe('front');
+  expect(strengthTurnStop.enemy.equipmentDamage.rudder.turns).toBe(1);
+  expect(strengthTurnStop.logs.join('\n')).toContain('力の鼓舞突撃');
+  expect(strengthTurnStop.logs.join('\n')).toContain('回頭を止めた');
 
   const sideAssault = await page.evaluate(() => {
     window.startNavalBattle({
@@ -790,10 +855,11 @@ test('steering zero enables boarding and transitions to melee', async ({ page })
   });
 
   await page.evaluate(() => {
-    for (let i = 0; i < 3; i += 1) {
-      window.__navalBattleDebug.applyCommand('assault', 'player');
-      window.__navalBattleDebug.applyCommand('starboardRudder', 'enemy');
-    }
+    window.__navalBattleDebug.mutate((b) => {
+      b.enemy.hp = 0;
+      b.player.facing = 'starboard';
+      b.enemy.facing = 'port';
+    });
   });
   const state = await page.evaluate(() => window.__navalBattleDebug.serialize());
   expect(state.enemy.hp).toBe(0);
@@ -813,14 +879,22 @@ test('steering zero enables boarding and transitions to melee', async ({ page })
       playerDuration: getComputedStyle(player).animationDuration,
       enemyAnimation: getComputedStyle(enemy).animationName,
       playerBoardingX: player.style.getPropertyValue('--naval-boarding-x'),
-      enemyBoardingX: enemy.style.getPropertyValue('--naval-boarding-x')
+      enemyBoardingX: enemy.style.getPropertyValue('--naval-boarding-x'),
+      playerFacing: player.dataset.shipFacing,
+      enemyFacing: enemy.dataset.shipFacing,
+      playerPose: player.dataset.visualPose,
+      enemyPose: enemy.dataset.visualPose
     };
   });
   expect(boardingMotion.playerAnimation).toContain('navalBoardingPlayer');
-  expect(Number.parseFloat(boardingMotion.playerDuration)).toBeGreaterThanOrEqual(1.5);
+  expect(Number.parseFloat(boardingMotion.playerDuration)).toBeGreaterThanOrEqual(2.1);
   expect(boardingMotion.enemyAnimation).not.toContain('navalBoardingEnemy');
   expect(Number.parseInt(boardingMotion.playerBoardingX, 10)).toBeLessThan(-120);
   expect(Number.parseInt(boardingMotion.enemyBoardingX, 10)).toBeGreaterThan(120);
+  expect(boardingMotion.playerFacing).toBe('starboard');
+  expect(boardingMotion.enemyFacing).toBe('port');
+  expect(boardingMotion.playerPose).toBe('front');
+  expect(boardingMotion.enemyPose).toBe('port');
   expect(await page.evaluate(() => window.__navalOutcomes)).toEqual([]);
   await expect(page.locator('#navalBattleModal')).toBeHidden();
   expect(await page.evaluate(() => window.__navalOutcomes)).toEqual([['boarding', 'PF_BOARDING_TARGET']]);
@@ -956,7 +1030,7 @@ test('ship-specific metadata exposes domain durability low firepower and passive
   expect(guildShip.spriteFrameWidth).toBe('96px');
   expect(guildShip.spriteSheetWidth).toBe('2016px');
   expect(guildShip.spriteX).toBe('-96px');
-  expect(guildShip.shipTop).toBe('96px');
+  expect(guildShip.shipTop).toBe('76px');
   expect(guildShip.guildLayerCount).toBe(4);
   expect(guildShip.guildLayerBackground).toContain('guildShips.png');
   expect(guildShip.guildSpriteBackground).toBe('none');
@@ -1349,7 +1423,8 @@ test('major arcana replacement command uses the lowest numbered card first', asy
   });
 
   await expect(page.locator('[data-naval-command="bowCannon"]')).toContainText('魔術師の魔砲');
-  await expect(page.locator('[data-naval-command="bowCannon"]')).toContainText('大アルカナ');
+  await expect(page.locator('[data-naval-command="bowCannon"]')).toHaveClass(/is-arcana/);
+  await expect(page.locator('[data-naval-command="bowCannon"] .naval-command-preview')).toContainText('命中率 50%');
 
   const state = await page.evaluate(() => {
     window.__navalBattleDebug.applyCommand('bowCannon', 'player');
