@@ -287,6 +287,69 @@ button:disabled {
     filter: drop-shadow(0 16px 12px rgba(0, 0, 0, 0.48)) brightness(1.45) saturate(1.25);
 }
 
+.avatar-combat-actor.is-avatar-victorious {
+    animation: avatarVictoryPose 1380ms cubic-bezier(0.16, 0.78, 0.2, 1) both;
+    filter: drop-shadow(0 16px 12px rgba(0, 0, 0, 0.46)) brightness(1.14) saturate(1.16);
+}
+
+.avatar-combat-actor.is-avatar-victorious::after {
+    content: "WIN";
+    left: 50%;
+    top: -34px;
+    width: auto;
+    height: auto;
+    min-width: 30px;
+    padding: 2px 8px;
+    border: 1px solid rgba(255, 232, 150, 0.9);
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(255, 246, 190, 0.96), rgba(235, 174, 52, 0.92));
+    color: #241306;
+    font-size: 9px;
+    font-weight: 900;
+    line-height: 1.2;
+    letter-spacing: 0.08em;
+    text-align: center;
+    opacity: 1;
+    filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.72)) drop-shadow(0 8px 10px rgba(0, 0, 0, 0.42));
+    transform: translateX(-50%);
+    animation: avatarVictoryBadge 1600ms cubic-bezier(0.16, 0.78, 0.2, 1) both;
+    z-index: 7;
+}
+
+.avatar-combat-actor.is-avatar-victorious .avatar-layer[id$="-layer-hand-right"],
+.avatar-combat-actor.is-avatar-victorious .avatar-layer[id$="-layer-hand-left"],
+.avatar-combat-actor.is-avatar-victorious .avatar-layer[id$="-layer-weapon-right"],
+.avatar-combat-actor.is-avatar-victorious .avatar-layer[id$="-layer-shield-left"] {
+    animation: avatarVictoryLayerBob 620ms ease-in-out 2;
+}
+
+.avatar-combat-actor.is-avatar-defeated {
+    animation: none !important;
+    filter: drop-shadow(0 12px 10px rgba(0, 0, 0, 0.5)) grayscale(0.25) brightness(0.78) saturate(0.72);
+}
+
+.avatar-combat-actor.is-avatar-defeated::after {
+    opacity: 0;
+    animation: none !important;
+}
+
+.avatar-combat-actor.is-avatar-defeated::before {
+    opacity: 0.52;
+    transform: translateX(-50%) scaleX(0.78);
+}
+
+.avatar-combat-actor.is-avatar-defeated .avatar-layer {
+    animation: none !important;
+}
+
+.avatar-combat-actor.is-avatar-defeated .avatar-layer[id$="-layer-head"],
+.avatar-combat-actor.is-avatar-defeated .avatar-layer[id$="-layer-hair"],
+.avatar-combat-actor.is-avatar-defeated .avatar-layer[id$="-layer-facial-hair"] {
+    z-index: 6;
+    transform-origin: center bottom;
+    animation: avatarHeadDrop 760ms cubic-bezier(0.17, 0.82, 0.2, 1) both !important;
+}
+
 @keyframes avatarCombatAttack {
     0%, 100% {
         transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
@@ -427,6 +490,58 @@ button:disabled {
 @keyframes avatarWeaponGuard {
     0%, 100% { rotate: 0deg; scale: 1; filter: none; }
     44% { rotate: -6deg; scale: 1.12; filter: brightness(1.45); }
+}
+
+@keyframes avatarVictoryPose {
+    0%, 100% {
+        transform: translateX(-50%) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    22% {
+        transform: translateX(calc(-50% + var(--avatar-victory-shift-x, 0px))) translateY(calc(var(--avatar-attack-y) - 15px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    44% {
+        transform: translateX(-50%) translateY(calc(var(--avatar-attack-y) - 4px)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    62% {
+        transform: translateX(calc(-50% + var(--avatar-victory-rebound-x, 0px))) translateY(calc(var(--avatar-attack-y) - 9px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+}
+
+@keyframes avatarVictoryBadge {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, 8px) scale(0.72);
+    }
+    22%, 78% {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(1);
+    }
+    100% {
+        opacity: 0.92;
+        transform: translate(-50%, -3px) scale(0.96);
+    }
+}
+
+@keyframes avatarVictoryLayerBob {
+    0%, 100% { translate: 0 0; }
+    50% { translate: 0 -3px; }
+}
+
+@keyframes avatarHeadDrop {
+    0% {
+        opacity: 1;
+        transform: translate(0, 0) rotate(0deg);
+    }
+    38% {
+        transform: translate(var(--avatar-defeat-head-x, 10px), 34px) rotate(var(--avatar-defeat-head-rotate, 34deg));
+    }
+    68% {
+        transform: translate(var(--avatar-defeat-head-bounce-x, -4px), 50px) rotate(var(--avatar-defeat-head-bounce-rotate, -11deg));
+    }
+    100% {
+        opacity: 0.96;
+        transform: translate(var(--avatar-defeat-head-rest-x, 3px), 48px) rotate(var(--avatar-defeat-head-rest-rotate, 7deg));
+    }
 }
 
 .melee-root {
@@ -1264,6 +1379,73 @@ meter::-moz-meter-bar {
     white-space: nowrap;
 }
 
+.melee-sprite-attack-effect {
+    position: absolute;
+    left: 50%;
+    top: 43%;
+    z-index: 8;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.78);
+    animation: meleeElementalAttackBurst 1320ms cubic-bezier(0.16, 0.72, 0.22, 1) both;
+}
+
+.melee-sprite-attack-effect.is-enemy-side {
+    left: 34%;
+}
+
+.melee-sprite-attack-effect.is-player-side {
+    left: 66%;
+}
+
+.melee-attack-effect-sprite {
+    display: block;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    filter:
+        drop-shadow(0 0 12px rgba(255, 242, 178, 0.28))
+        drop-shadow(0 12px 18px rgba(0, 0, 0, 0.42));
+}
+
+.melee-sprite-attack-effect[data-element="wind"] .melee-attack-effect-sprite {
+    filter:
+        drop-shadow(0 0 12px rgba(186, 230, 253, 0.34))
+        drop-shadow(0 12px 18px rgba(0, 0, 0, 0.42));
+}
+
+.melee-sprite-attack-effect[data-element="earth"] .melee-attack-effect-sprite {
+    filter:
+        drop-shadow(0 0 12px rgba(187, 247, 208, 0.3))
+        drop-shadow(0 12px 18px rgba(0, 0, 0, 0.42));
+}
+
+.melee-sprite-attack-effect[data-element="water"] .melee-attack-effect-sprite {
+    filter:
+        drop-shadow(0 0 12px rgba(125, 211, 252, 0.34))
+        drop-shadow(0 12px 18px rgba(0, 0, 0, 0.42));
+}
+
+@keyframes meleeElementalAttackBurst {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, calc(-50% + 18px)) scale(0.64);
+    }
+    12% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.08);
+    }
+    74% {
+        opacity: 1;
+        transform: translate(-50%, calc(-50% - 6px)) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, calc(-50% - 16px)) scale(0.9);
+    }
+}
+
 @keyframes meleeMinorArcanaCenter {
     0% {
         opacity: 0;
@@ -1357,54 +1539,225 @@ meter::-moz-meter-bar {
 
 .melee-damage-pop {
     position: absolute;
-    top: calc(44% + var(--feedback-y, 0px) + var(--feedback-stack-y, 0px));
+    top: calc(42% + var(--feedback-y, 0px) + var(--feedback-stack-y, 0px));
     z-index: 10;
-    min-width: 52px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 58px;
+    min-height: 34px;
+    padding: 0 4px;
     text-align: center;
     color: #fff1a6;
-    font-size: 28px;
+    font-size: 30px;
     font-weight: 1000;
     line-height: 1;
     white-space: nowrap;
     text-shadow:
-        0 2px 0 #7f1d1d,
-        0 0 14px rgba(248, 216, 136, 0.66),
-        0 8px 16px rgba(0, 0, 0, 0.42);
+        0 1px 0 #fff9c4,
+        0 3px 0 #7f1d1d,
+        0 0 14px rgba(248, 216, 136, 0.74),
+        0 10px 18px rgba(0, 0, 0, 0.48);
     pointer-events: none;
-    animation: meleeDamagePop 2200ms cubic-bezier(0.18, 0.78, 0.2, 1) both;
+    transform-origin: center;
+    isolation: isolate;
+    animation: meleeDamageNumberPop 2400ms cubic-bezier(0.15, 0.82, 0.2, 1) both;
+}
+
+.melee-damage-pop::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: -1;
+    width: 74px;
+    height: 38px;
+    border-radius: 50%;
+    opacity: 0;
+    background:
+        radial-gradient(ellipse, rgba(255, 248, 196, 0.38), rgba(250, 204, 21, 0.16) 42%, transparent 72%);
+    transform: translate(-50%, -50%) scale(0.5);
+}
+
+.melee-feedback-icon {
+    --icon-col: 0;
+    --icon-row: 0;
+    --icon-col-pos: 0%;
+    --icon-row-pos: 0%;
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+    background-image: url("../Sprites/items/icons.png");
+    background-size: 1600% 6400%;
+    background-position: var(--icon-col-pos) var(--icon-row-pos);
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    filter:
+        drop-shadow(0 1px 0 rgba(0, 0, 0, 0.88))
+        drop-shadow(0 0 6px rgba(255, 240, 175, 0.42));
+}
+
+.melee-feedback-text {
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: center;
+}
+
+.melee-feedback-digit,
+.melee-feedback-sign {
+    display: inline-block;
+    transform-origin: center bottom;
+}
+
+.melee-feedback-digit {
+    animation: meleeDamageDigitSnap 560ms cubic-bezier(0.16, 0.86, 0.2, 1) var(--digit-delay, 0ms) both;
+}
+
+.melee-feedback-sign {
+    margin-right: 1px;
+    opacity: 0.92;
 }
 
 .melee-damage-pop.is-damage {
     z-index: 13;
 }
 
+.melee-damage-pop.is-damage::before {
+    animation: meleeDamageImpactRing 520ms ease-out 70ms both;
+}
+
+.melee-damage-pop.is-heavy-hit {
+    font-size: 38px;
+    min-width: 72px;
+    text-shadow:
+        0 1px 0 #fff9c4,
+        0 4px 0 #7f1d1d,
+        0 0 18px rgba(253, 186, 116, 0.9),
+        0 12px 20px rgba(0, 0, 0, 0.56);
+}
+
+.melee-damage-pop.is-damage .melee-feedback-icon,
+.melee-damage-pop.is-heal .melee-feedback-icon {
+    width: 24px;
+    height: 24px;
+    flex-basis: 24px;
+}
+
+.melee-damage-pop.is-heal {
+    --feedback-y: -20px;
+    z-index: 12;
+    color: #bbf7d0;
+    font-size: 28px;
+    animation-name: meleeHealNumberPop;
+    text-shadow:
+        0 1px 0 #ecfccb,
+        0 3px 0 #14532d,
+        0 0 16px rgba(134, 239, 172, 0.76),
+        0 8px 16px rgba(0, 0, 0, 0.42);
+}
+
 .melee-damage-pop.is-miss {
     --feedback-y: -32px;
     z-index: 12;
+    min-width: 68px;
+    min-height: 28px;
+    padding: 4px 9px 5px;
     color: #dbeafe;
     font-size: 22px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 36%),
+        rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(147, 197, 253, 0.56);
+    border-radius: 999px;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        0 10px 18px rgba(0, 0, 0, 0.42);
+    animation-name: meleeStatusCardPop;
     text-shadow:
         0 2px 0 #1e293b,
         0 0 14px rgba(147, 197, 253, 0.58),
         0 8px 16px rgba(0, 0, 0, 0.42);
 }
 
+.melee-damage-pop.is-miss .melee-feedback-icon,
+.melee-damage-pop.is-status .melee-feedback-icon {
+    width: 18px;
+    height: 18px;
+    flex-basis: 18px;
+}
+
 .melee-damage-pop.is-status {
     --feedback-y: -58px;
     z-index: 11;
-    min-width: 0;
-    padding: 3px 7px 4px;
+    min-width: 76px;
+    min-height: 28px;
+    padding: 4px 9px 5px;
     color: #fca5a5;
-    font-size: 14px;
-    letter-spacing: 0.04em;
-    background: rgba(29, 7, 10, 0.72);
-    border: 1px solid rgba(252, 165, 165, 0.42);
-    border-radius: 5px;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.34);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 36%),
+        rgba(29, 7, 10, 0.86);
+    border: 1px solid rgba(252, 165, 165, 0.5);
+    border-radius: 999px;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        0 10px 18px rgba(0, 0, 0, 0.42);
     text-shadow:
         0 2px 0 #7f1d1d,
         0 0 14px rgba(248, 113, 113, 0.58),
         0 8px 16px rgba(0, 0, 0, 0.42);
+    animation-name: meleeStatusCardPop;
+}
+
+.melee-damage-pop[data-feedback-tone="buff"] {
+    color: #a7f3d0;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 36%),
+        rgba(4, 48, 42, 0.9);
+    border-color: rgba(94, 234, 212, 0.58);
+    text-shadow:
+        0 2px 0 #064e3b,
+        0 0 14px rgba(45, 212, 191, 0.6),
+        0 8px 16px rgba(0, 0, 0, 0.42);
+}
+
+.melee-damage-pop[data-feedback-tone="debuff"] {
+    color: #fecaca;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 36%),
+        rgba(69, 10, 10, 0.9);
+    border-color: rgba(248, 113, 113, 0.64);
+}
+
+.melee-damage-pop[data-feedback-tone="ailment"] {
+    color: #fde68a;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 36%),
+        rgba(61, 22, 53, 0.9);
+    border-color: rgba(216, 180, 254, 0.58);
+    text-shadow:
+        0 2px 0 #581c87,
+        0 0 14px rgba(216, 180, 254, 0.58),
+        0 8px 16px rgba(0, 0, 0, 0.42);
+}
+
+.melee-damage-pop[data-feedback-tone="advantage"] {
+    color: #fef3c7;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 36%),
+        rgba(92, 45, 9, 0.92);
+    border-color: rgba(251, 191, 36, 0.72);
+}
+
+.melee-damage-pop[data-feedback-tone="resist"],
+.melee-damage-pop[data-feedback-tone="miss"] {
+    color: #bfdbfe;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 36%),
+        rgba(15, 23, 42, 0.9);
+    border-color: rgba(147, 197, 253, 0.56);
 }
 
 .melee-damage-pop.is-enemy-side {
@@ -1415,22 +1768,100 @@ meter::-moz-meter-bar {
     left: 66%;
 }
 
-@keyframes meleeDamagePop {
+@keyframes meleeDamageNumberPop {
     0% {
         opacity: 0;
-        transform: translate(calc(-50% + var(--feedback-x, 0px)), 10px) scale(0.78);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), 18px) scale(0.48) rotate(-3deg);
     }
-    18% {
+    12% {
         opacity: 1;
-        transform: translate(calc(-50% + var(--feedback-x, 0px)), -8px) scale(1.16);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -14px) scale(1.36) rotate(2deg);
+    }
+    24% {
+        opacity: 1;
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -4px) scale(0.96) rotate(-1deg);
+    }
+    46% {
+        opacity: 1;
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -22px) scale(1.08) rotate(0deg);
     }
     78% {
         opacity: 1;
-        transform: translate(calc(-50% + var(--feedback-x, 0px)), -26px) scale(1);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -42px) scale(1);
     }
     100% {
         opacity: 0;
-        transform: translate(calc(-50% + var(--feedback-x, 0px)), -42px) scale(0.96);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -58px) scale(0.92);
+    }
+}
+
+@keyframes meleeHealNumberPop {
+    0% {
+        opacity: 0;
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), 16px) scale(0.7);
+    }
+    16% {
+        opacity: 1;
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -10px) scale(1.2);
+    }
+    76% {
+        opacity: 1;
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -36px) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -54px) scale(0.94);
+    }
+}
+
+@keyframes meleeStatusCardPop {
+    0% {
+        opacity: 0;
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), 10px) scale(0.74);
+    }
+    14% {
+        opacity: 1;
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -3px) scale(1.08);
+    }
+    22% {
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), 0) scale(1);
+    }
+    82% {
+        opacity: 1;
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -22px) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -36px) scale(0.96);
+    }
+}
+
+@keyframes meleeDamageDigitSnap {
+    0% {
+        transform: translateY(16px) scale(0.64);
+        opacity: 0;
+    }
+    58% {
+        transform: translateY(-5px) scale(1.18);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes meleeDamageImpactRing {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.36);
+    }
+    35% {
+        opacity: 0.9;
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1.45);
     }
 }
 
@@ -1494,6 +1925,10 @@ meter::-moz-meter-bar {
         bottom: auto;
     }
 
+    .melee-sprite-attack-effect {
+        top: 49%;
+    }
+
     .fighter.melee-replay-combatant::before {
         bottom: 128px;
     }
@@ -1503,6 +1938,10 @@ meter::-moz-meter-bar {
     .fighters.melee-replay-board {
         min-height: 386px;
         background-size: auto 138%;
+    }
+
+    .melee-attack-effect-sprite {
+        transform: scale(0.82);
     }
 
     .fighter-main {

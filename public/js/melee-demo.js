@@ -29,6 +29,64 @@ const MELEE_TAROT_SHEET_H = 1024;
 const MELEE_TAROT_BACK_INDEX = 110;
 const MELEE_SLOT_TAROT_SCALE = 0.54;
 const MELEE_MINOR_CUTIN_TAROT_SCALE = 1.86;
+const MELEE_ATTACK_EFFECT_BASE = '../Sprites/pixel_animations_gfxpack/animationsheets/';
+const MELEE_ATTACK_EFFECT_FRAME = 64;
+const MELEE_FEEDBACK_ICON_COLS = 16;
+const MELEE_FEEDBACK_ICON_ROWS = 64;
+const MELEE_FEEDBACK_ICON_INDEX = {
+    damage: 136,
+    miss: 223,
+    parry: 203,
+    weak: 136,
+    resist: 207,
+    heal: 0,
+    burn: 144,
+    wet: 149,
+    fear: 230,
+    confuse: 222,
+    atkDown: 97,
+    defDown: 74,
+    speedDown: 101,
+    accDown: 68,
+    vulnUp: 223,
+    guard: 203
+};
+const MELEE_ELEMENTAL_EFFECTS = {
+    fire: {
+        file: 'fire.png', cols: 5, rows: 6, intervalMs: 42, scale: 2.35,
+        patterns: [{ startFrame: 4, frames: 6 }, { startFrame: 10, frames: 6 }, { startFrame: 16, frames: 11 }]
+    },
+    wind: {
+        file: 'wind.png', cols: 5, rows: 5, intervalMs: 38, scale: 2.35,
+        patterns: [{ startFrame: 4, frames: 6 }, { startFrame: 10, frames: 9 }, { startFrame: 19, frames: 6 }]
+    },
+    earth: {
+        file: 'earth1.png', cols: 5, rows: 6, intervalMs: 42, scale: 2.35,
+        patterns: [{ startFrame: 0, frames: 12 }, { startFrame: 12, frames: 15 }]
+    },
+    water: {
+        file: 'water.png', cols: 5, rows: 10, intervalMs: 34, scale: 2.35,
+        patterns: [{ startFrame: 0, frames: 11 }, { startFrame: 22, frames: 12 }, { startFrame: 34, frames: 8 }, { startFrame: 42, frames: 7 }]
+    }
+};
+const MELEE_WEAPON_EFFECTS = {
+    sword: { file: 'weapons_1.png', cols: 5, rows: 7, startFrame: 22, frames: 6, intervalMs: 34, scale: 2.18 },
+    sword_big: { file: 'weapons_1.png', cols: 5, rows: 7, startFrame: 28, frames: 6, intervalMs: 38, scale: 2.34 },
+    dagger: { file: 'weapons_1.png', cols: 5, rows: 7, startFrame: 0, frames: 6, intervalMs: 30, scale: 2.0 },
+    polearm: { file: 'weapons_1.png', cols: 5, rows: 7, startFrame: 16, frames: 6, intervalMs: 34, scale: 2.16 },
+    axe: { file: 'weapons_2.png', cols: 5, rows: 6, startFrame: 0, frames: 6, intervalMs: 38, scale: 2.2 },
+    axe_big: { file: 'weapons_2.png', cols: 5, rows: 6, startFrame: 0, frames: 6, intervalMs: 42, scale: 2.42 },
+    blunt: { file: 'impact1.png', cols: 5, rows: 6, startFrame: 15, frames: 6, intervalMs: 36, scale: 2.18 },
+    shield: { file: 'impact1.png', cols: 5, rows: 6, startFrame: 20, frames: 5, intervalMs: 36, scale: 2.02 },
+    bow: { file: 'arrow.png', cols: 5, rows: 4, startFrame: 0, frames: 11, intervalMs: 32, scale: 2.0 },
+    gun: { file: 'impact2.png', cols: 5, rows: 3, startFrame: 5, frames: 5, intervalMs: 32, scale: 2.06 },
+    gun_big: { file: 'impact2.png', cols: 5, rows: 3, startFrame: 10, frames: 5, intervalMs: 34, scale: 2.24 },
+    staff: { file: 'impact1.png', cols: 5, rows: 6, startFrame: 25, frames: 5, intervalMs: 36, scale: 2.04 },
+    wand: { file: 'fire.png', cols: 5, rows: 6, startFrame: 4, frames: 6, intervalMs: 42, scale: 2.12 },
+    claw: { file: 'claw_bite.png', cols: 5, rows: 5, startFrame: 16, frames: 6, intervalMs: 34, scale: 2.08 },
+    bite: { file: 'claw_bite.png', cols: 5, rows: 5, startFrame: 0, frames: 8, intervalMs: 34, scale: 2.04 },
+    unarmed: { file: 'claw_bite.png', cols: 5, rows: 5, startFrame: 16, frames: 6, intervalMs: 34, scale: 2.08 }
+};
 const DEMO_ELEMENT_KEYS = new Set(['fire', 'wind', 'earth', 'water']);
 const DEMO_ELEMENT_BEATS = {
     fire: 'wind',
@@ -420,6 +478,8 @@ function renderDemoAvatar(side, weaponType) {
     const root = side === 'player' ? el.playerAvatar : el.enemyAvatar;
     const renderAvatar = avatarModule?.renderAvatar;
     if (!root || typeof renderAvatar !== 'function') return;
+    setDemoAvatarVictorious(side, false);
+    setDemoAvatarDefeated(side, false);
     const item = createDemoWeaponItem(weaponType);
     const equipment = { RightHand: item };
     renderAvatar(`${side}DemoAvatar`, DEMO_AVATAR_BASES[side], equipment, {}, false);
@@ -441,6 +501,16 @@ function createDemoWeaponItem(weaponType) {
 function normalizeWeaponType(weaponType) {
     const key = String(weaponType || '').trim().toLowerCase();
     return WEAPONS[key] ? key : 'sword';
+}
+
+function normalizeAttackEffectWeaponType(weaponType) {
+    const key = String(weaponType || '').trim().toLowerCase();
+    if (key === 'gun-big' || key === 'large_gun' || key === 'large-gun') return 'gun_big';
+    if (key === 'claws' || key === 'claw_bite' || key === 'claw-bite' || key === '爪') return 'claw';
+    if (key === 'fang' || key === 'fangs' || key === '牙' || key === '噛みつき') return 'bite';
+    if (MELEE_WEAPON_EFFECTS[key]) return key;
+    const weapon = normalizeWeaponType(key);
+    return MELEE_WEAPON_EFFECTS[weapon] ? weapon : 'unarmed';
 }
 
 function normalizeTarotSuit(suit) {
@@ -498,6 +568,88 @@ function createMinorArcanaEffect(card, side) {
     return effect;
 }
 
+function selectAttackEffectPattern(config, seed = 0) {
+    const patterns = Array.isArray(config?.patterns) && config.patterns.length > 0
+        ? config.patterns
+        : [{ startFrame: Number(config?.startFrame) || 0, frames: Number(config?.frames) || 1 }];
+    const index = Math.abs(Math.floor(Number(seed) || 0)) % patterns.length;
+    return {
+        ...config,
+        startFrame: Number(patterns[index]?.startFrame) || 0,
+        frames: Math.max(1, Math.floor(Number(patterns[index]?.frames) || 1))
+    };
+}
+
+function setAttackEffectFrame(sprite, config, frameIndex) {
+    if (!sprite || !config) return;
+    const frame = Math.max(0, Math.min(config.frames - 1, Math.floor(Number(frameIndex) || 0)));
+    const absoluteFrame = Math.max(0, (Number(config.startFrame) || 0) + frame);
+    const scale = Number(config.scale) || 2.35;
+    const col = absoluteFrame % config.cols;
+    const row = Math.floor(absoluteFrame / config.cols);
+    sprite.style.width = `${MELEE_ATTACK_EFFECT_FRAME * scale}px`;
+    sprite.style.height = `${MELEE_ATTACK_EFFECT_FRAME * scale}px`;
+    sprite.style.backgroundImage = `url('${MELEE_ATTACK_EFFECT_BASE}${config.file}')`;
+    sprite.style.backgroundSize = `${config.cols * MELEE_ATTACK_EFFECT_FRAME * scale}px ${config.rows * MELEE_ATTACK_EFFECT_FRAME * scale}px`;
+    sprite.style.backgroundPosition = `-${col * MELEE_ATTACK_EFFECT_FRAME * scale}px -${row * MELEE_ATTACK_EFFECT_FRAME * scale}px`;
+}
+
+function createSpriteAttackEffect(config, side, options = {}) {
+    if (!config) return null;
+    const selectedConfig = selectAttackEffectPattern(config, options.seed);
+    const effect = document.createElement('div');
+    effect.className = `melee-sprite-attack-effect ${options.className || ''} is-${side}-side`;
+    if (options.elementKey) effect.dataset.element = options.elementKey;
+    if (options.weaponType) effect.dataset.weapon = options.weaponType;
+    const sprite = document.createElement('span');
+    sprite.className = `melee-attack-effect-sprite ${options.spriteClassName || ''}`;
+    sprite.setAttribute('aria-hidden', 'true');
+    setAttackEffectFrame(sprite, selectedConfig, 0);
+    effect.append(sprite);
+    return { effect, sprite, config: selectedConfig };
+}
+
+function createElementalAttackEffect(elementKey, side, seed = 0) {
+    const key = normalizeDemoElementKey(elementKey);
+    return createSpriteAttackEffect(MELEE_ELEMENTAL_EFFECTS[key], side, {
+        seed,
+        elementKey: key,
+        className: 'melee-elemental-attack-effect',
+        spriteClassName: 'melee-elemental-effect-sprite'
+    });
+}
+
+function createWeaponAttackEffect(weaponType, side, seed = 0) {
+    const weapon = normalizeAttackEffectWeaponType(weaponType);
+    return createSpriteAttackEffect(MELEE_WEAPON_EFFECTS[weapon] || MELEE_WEAPON_EFFECTS.unarmed, side, {
+        seed,
+        weaponType: weapon,
+        className: 'melee-weapon-attack-effect',
+        spriteClassName: 'melee-weapon-effect-sprite'
+    });
+}
+
+function playSpriteAttackEffect(effectParts) {
+    if (!effectParts) return;
+    const { effect, sprite, config } = effectParts;
+    let frame = 0;
+    let timer = null;
+    const tick = () => {
+        setAttackEffectFrame(sprite, config, frame);
+        frame += 1;
+        if (frame >= config.frames) {
+            window.clearInterval(timer);
+            window.setTimeout(() => effect.remove(), 220);
+        }
+    };
+    tick();
+    timer = window.setInterval(tick, config.intervalMs);
+    window.setTimeout(() => {
+        window.clearInterval(timer);
+        effect.remove();
+    }, config.frames * config.intervalMs + 520);
+}
+
 function triggerDemoMinorArcana(unitId, card) {
     if (!el.battleBoard) return;
     const side = unitId === 'player' ? 'player' : 'enemy';
@@ -505,6 +657,31 @@ function triggerDemoMinorArcana(unitId, card) {
     const effect = createMinorArcanaEffect(card, side);
     el.battleBoard.append(effect);
     window.setTimeout(() => effect.remove(), 2600);
+}
+
+function triggerDemoElementalAttackEffect(targetId, action, result) {
+    if (!el.battleBoard || action?.source !== 'minor' || action?.kind !== 'attack') return;
+    if (!result?.hit || Number(result.total) <= 0) return;
+    const elementKey = demoActionAttackElementKey(action);
+    if (!MELEE_ELEMENTAL_EFFECTS[elementKey]) return;
+    const side = targetId === 'player' ? 'player' : 'enemy';
+    el.battleBoard.querySelectorAll(`.melee-elemental-attack-effect.is-${side}-side`).forEach((node) => node.remove());
+    const effectParts = createElementalAttackEffect(elementKey, side, action.rank || result.total || 0);
+    if (!effectParts) return;
+    el.battleBoard.append(effectParts.effect);
+    playSpriteAttackEffect(effectParts);
+}
+
+function triggerDemoWeaponAttackEffect(targetId, actor, action, result) {
+    if (!el.battleBoard || action?.source !== 'weapon' || action?.kind !== 'attack') return;
+    if (!result?.hit || Number(result.total) <= 0) return;
+    const weaponType = normalizeAttackEffectWeaponType(actor?.weapon);
+    const side = targetId === 'player' ? 'player' : 'enemy';
+    el.battleBoard.querySelectorAll(`.melee-weapon-attack-effect.is-${side}-side`).forEach((node) => node.remove());
+    const effectParts = createWeaponAttackEffect(weaponType, side, action.slot || result.total || 0);
+    if (!effectParts) return;
+    el.battleBoard.append(effectParts.effect);
+    playSpriteAttackEffect(effectParts);
 }
 
 function createSlotWeaponIcon(weaponType) {
@@ -720,10 +897,13 @@ function resolveTurn(actor, die, actionToken) {
         triggerDemoAvatarMotion(actor);
         const result = executeAction(actor, target, action);
         if (targetHpBefore > target.hp) triggerDemoDamageFeedback(target.id, targetHpBefore - target.hp);
+        triggerDemoWeaponAttackEffect(target.id, actor, action, result);
+        triggerDemoElementalAttackEffect(target.id, action, result);
         if (result.elementalLabel && targetHpBefore > target.hp) {
             createDemoFeedbackPopup(target.id, result.elementalLabel, 'status', 1);
         }
         if (actorHpBefore > actor.hp) triggerDemoDamageFeedback(actor.id, actorHpBefore - actor.hp);
+        if (actor.hp > actorHpBefore) createDemoHealingPopup(actor.id, actor.hp - actorHpBefore);
         if (action.kind === 'attack' && !result.hit && targetHpBefore <= target.hp) {
             createDemoFeedbackPopup(target.id, 'MISS', 'miss');
         }
@@ -746,6 +926,7 @@ function resolveTurn(actor, die, actionToken) {
 function triggerDemoAvatarMotion(actor) {
     const actorId = actor?.id || '';
     const avatar = actorId === 'player' ? el.playerAvatar : el.enemyAvatar;
+    if (!avatar || avatar.classList.contains('is-avatar-defeated')) return;
     const direction = actorId === 'player' ? 'left' : 'right';
     applyAvatarWeaponClass(avatar, actor?.weapon);
     avatarModule?.triggerAvatarAttackMotion?.(avatar, {
@@ -776,17 +957,98 @@ function createDemoDamagePopup(unitId, amount = 0) {
     createDemoFeedbackPopup(unitId, `-${Math.ceil(amount)}`, 'damage');
 }
 
+function createDemoHealingPopup(unitId, amount = 0) {
+    if (!el.battleBoard || amount <= 0) return;
+    createDemoFeedbackPopup(unitId, `+${Math.ceil(amount)}`, 'heal');
+}
+
+function normalizeDemoFeedbackIconKey(text, type = 'damage') {
+    const label = String(text || '').trim().toUpperCase();
+    if (type === 'damage') return 'damage';
+    if (type === 'heal') return 'heal';
+    if (label === 'MISS') return 'miss';
+    if (label === 'PARRY') return 'parry';
+    if (label.startsWith('WEAK')) return 'weak';
+    if (label.startsWith('RESIST')) return 'resist';
+    if (label === 'BURN') return 'burn';
+    if (label === 'WET') return 'wet';
+    if (label === 'FEAR') return 'fear';
+    if (label === 'CONFUSE') return 'confuse';
+    if (label === 'ATK DOWN') return 'atkDown';
+    if (label === 'DEF DOWN') return 'defDown';
+    if (label === 'SPEED DOWN') return 'speedDown';
+    if (label === 'ACC DOWN') return 'accDown';
+    if (label === 'VULN UP') return 'vulnUp';
+    if (label === 'GUARD') return 'guard';
+    return '';
+}
+
+function getDemoFeedbackTone(iconKey, type = 'damage') {
+    if (type === 'damage') return 'damage';
+    if (type === 'heal') return 'heal';
+    if (type === 'miss') return 'miss';
+    if (iconKey === 'guard' || iconKey === 'parry') return 'buff';
+    if (iconKey === 'weak') return 'advantage';
+    if (iconKey === 'resist') return 'resist';
+    if (iconKey === 'burn' || iconKey === 'wet' || iconKey === 'fear' || iconKey === 'confuse') return 'ailment';
+    if (iconKey === 'atkDown' || iconKey === 'defDown' || iconKey === 'speedDown' || iconKey === 'accDown' || iconKey === 'vulnUp') return 'debuff';
+    return type === 'status' ? 'status' : type;
+}
+
+function appendDemoFeedbackText(labelEl, text, type = 'damage') {
+    const value = String(text || '');
+    if (type !== 'damage' && type !== 'heal') {
+        labelEl.textContent = value;
+        return;
+    }
+    value.split('').forEach((char, index) => {
+        const span = document.createElement('span');
+        span.className = /[0-9]/.test(char) ? 'melee-feedback-digit' : 'melee-feedback-sign';
+        span.style.setProperty('--digit-delay', `${index * 34}ms`);
+        span.textContent = char;
+        labelEl.append(span);
+    });
+}
+
+function createDemoFeedbackIcon(iconKey) {
+    const index = MELEE_FEEDBACK_ICON_INDEX[iconKey];
+    if (!Number.isFinite(index)) return null;
+    const col = index % MELEE_FEEDBACK_ICON_COLS;
+    const row = Math.floor(index / MELEE_FEEDBACK_ICON_COLS);
+    const icon = document.createElement('span');
+    icon.className = 'melee-feedback-icon';
+    icon.dataset.iconKey = iconKey;
+    icon.dataset.iconIndex = String(index);
+    icon.style.setProperty('--icon-col', String(col));
+    icon.style.setProperty('--icon-row', String(row));
+    icon.style.setProperty('--icon-col-pos', `${(col / (MELEE_FEEDBACK_ICON_COLS - 1)) * 100}%`);
+    icon.style.setProperty('--icon-row-pos', `${(row / (MELEE_FEEDBACK_ICON_ROWS - 1)) * 100}%`);
+    return icon;
+}
+
 function createDemoFeedbackPopup(unitId, text, type = 'damage', stackIndex = 0) {
     if (!el.battleBoard || !text) return;
     const isPlayer = unitId === 'player';
     const stack = Math.max(0, Number(stackIndex) || 0);
     const popup = document.createElement('span');
     popup.className = `melee-damage-pop is-${type} ${isPlayer ? 'is-player-side' : 'is-enemy-side'}`;
+    popup.dataset.feedbackType = type;
+    const iconKey = normalizeDemoFeedbackIconKey(text, type);
+    const tone = getDemoFeedbackTone(iconKey, type);
+    if (iconKey) popup.dataset.feedbackKey = iconKey;
+    if (tone) popup.dataset.feedbackTone = tone;
+    const numericAmount = Math.abs(Number(String(text).replace(/[^0-9.-]/g, '')) || 0);
+    if (numericAmount >= 50) popup.classList.add('is-heavy-hit');
     popup.style.setProperty('--feedback-stack-y', `${type === 'status' ? stack * -18 : 0}px`);
     popup.style.setProperty('--feedback-x', `${type === 'status' ? (isPlayer ? -8 : 8) : 0}px`);
-    popup.textContent = text;
+    const icon = createDemoFeedbackIcon(iconKey);
+    if (icon) popup.append(icon);
+    const label = document.createElement('span');
+    label.className = 'melee-feedback-text';
+    appendDemoFeedbackText(label, text, type);
+    popup.append(label);
     el.battleBoard.append(popup);
-    window.setTimeout(() => popup.remove(), 2300);
+    window.setTimeout(() => popup.remove(), type === 'status' ? 2800 : 2400);
 }
 
 function demoStatusSnapshot(unit) {
@@ -837,6 +1099,63 @@ function applyAvatarWeaponClass(avatar, weaponType) {
 
 function clearAvatarWeaponClass(avatar) {
     avatar?.classList?.remove('is-avatar-weapon-heavy', 'is-avatar-weapon-pierce', 'is-avatar-weapon-ranged', 'is-avatar-weapon-guard', 'is-avatar-weapon-slash');
+}
+
+function setDemoAvatarDefeated(side, defeated) {
+    const avatar = side === 'player' ? el.playerAvatar : el.enemyAvatar;
+    if (!avatar) return;
+    if (defeated) {
+        const alreadyDefeated = avatar.dataset.avatarDefeated === 'true' && avatar.classList.contains('is-avatar-defeated');
+        avatar.dataset.avatarDefeated = 'true';
+        const direction = side === 'player' ? -1 : 1;
+        avatar.style.setProperty('--avatar-defeat-head-x', `${10 * direction}px`);
+        avatar.style.setProperty('--avatar-defeat-head-bounce-x', `${-4 * direction}px`);
+        avatar.style.setProperty('--avatar-defeat-head-rest-x', `${3 * direction}px`);
+        avatar.style.setProperty('--avatar-defeat-head-rotate', `${34 * direction}deg`);
+        avatar.style.setProperty('--avatar-defeat-head-bounce-rotate', `${-11 * direction}deg`);
+        avatar.style.setProperty('--avatar-defeat-head-rest-rotate', `${7 * direction}deg`);
+        setDemoAvatarVictorious(side, false);
+        avatar.classList.remove('is-avatar-attacking', 'is-avatar-attack-left', 'is-avatar-attack-right', 'is-avatar-damaged');
+        clearAvatarWeaponClass(avatar);
+        avatarModule?.stopAvatarBodyMotion?.(avatar, { reset: false });
+        if (!alreadyDefeated) avatar.classList.add('is-avatar-defeated');
+        return;
+    }
+    delete avatar.dataset.avatarDefeated;
+    avatar.style.removeProperty('--avatar-defeat-head-x');
+    avatar.style.removeProperty('--avatar-defeat-head-bounce-x');
+    avatar.style.removeProperty('--avatar-defeat-head-rest-x');
+    avatar.style.removeProperty('--avatar-defeat-head-rotate');
+    avatar.style.removeProperty('--avatar-defeat-head-bounce-rotate');
+    avatar.style.removeProperty('--avatar-defeat-head-rest-rotate');
+    avatar.classList.remove('is-avatar-defeated');
+}
+
+function setDemoAvatarVictorious(side, victorious) {
+    const avatar = side === 'player' ? el.playerAvatar : el.enemyAvatar;
+    if (!avatar) return;
+    if (victorious) {
+        if (avatar.classList.contains('is-avatar-defeated')) return;
+        const alreadyVictorious = avatar.dataset.avatarVictorious === 'true' && avatar.classList.contains('is-avatar-victorious');
+        avatar.dataset.avatarVictorious = 'true';
+        const direction = side === 'player' ? -1 : 1;
+        avatar.style.setProperty('--avatar-victory-shift-x', `${6 * direction}px`);
+        avatar.style.setProperty('--avatar-victory-rebound-x', `${-3 * direction}px`);
+        avatar.classList.remove('is-avatar-attacking', 'is-avatar-attack-left', 'is-avatar-attack-right', 'is-avatar-damaged');
+        clearAvatarWeaponClass(avatar);
+        if (!alreadyVictorious) {
+            avatarModule?.playAvatarBodyMotion?.(avatar, 'jump', {
+                intervalMs: 96,
+                restoreMotion: 'idle'
+            });
+            avatar.classList.add('is-avatar-victorious');
+        }
+        return;
+    }
+    delete avatar.dataset.avatarVictorious;
+    avatar.style.removeProperty('--avatar-victory-shift-x');
+    avatar.style.removeProperty('--avatar-victory-rebound-x');
+    avatar.classList.remove('is-avatar-victorious');
 }
 
 function weaponAnimationClass(weaponType) {
@@ -1200,6 +1519,7 @@ function finishBattle(winner) {
     state.current = null;
     log(`${winner?.name || '不明'} の勝利`, true);
     render();
+    setDemoAvatarVictorious(winner?.id === 'player' ? 'player' : 'enemy', true);
 }
 
 function render() {
@@ -1241,6 +1561,7 @@ function renderFighter(fighter, side) {
     el[`${prefix}HpText`].textContent = side === 'player' ? `HP ${fighter.hp}/${fighter.maxHp}` : 'HP';
     el[`${prefix}HpBar`].max = fighter.maxHp;
     el[`${prefix}HpBar`].value = fighter.hp;
+    setDemoAvatarDefeated(side, fighter.hp <= 0);
     const statusRoot = el[`${prefix}Status`];
     statusRoot.replaceChildren(...statusLabels(fighter).map((text) => {
         const chip = document.createElement('span');

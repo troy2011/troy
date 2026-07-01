@@ -14,7 +14,7 @@ import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js';
 import { initMapChat, initTroyChat } from './js/mapChat.js';
 import { startNavalPvpBattle } from './js/navalPvpClient.js';
-import { renderAvatar, preloadAvatarBaseSprites, playAvatarBodyMotion } from './js/avatar.js';
+import { renderAvatar, preloadAvatarBaseSprites, playAvatarBodyMotion, stopAvatarBodyMotion } from './js/avatar.js';
 import { installPlayerProfileInteractions, openPlayerProfile, refreshFavoritePlayersList } from './js/playerProfile.js';
 import { showRpgMessage, rpgSay } from './js/rpgMessages.js';
 import { installPanelSlice25 } from './js/panelSlice25.js';
@@ -1625,6 +1625,7 @@ async function initializeAppFeatures() {
             callApiWithLoader,
             renderAvatar,
             playAvatarBodyMotion,
+            stopAvatarBodyMotion,
             getMyCurrentEquipment: Inventory.getMyCurrentEquipment,
             getMyInventory: Inventory.getMyInventory,
             db

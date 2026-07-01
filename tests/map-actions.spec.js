@@ -212,7 +212,33 @@ test.describe('map actions', () => {
           const container = document.getElementById(prefix);
           if (container) {
             container.dataset.rendered = 'true';
+            if (!container.querySelector('.avatar-layer')) {
+              container.innerHTML = [
+                'body',
+                'head',
+                'facial-hair',
+                'hair',
+                'armor',
+                'hand-right',
+                'weapon-right',
+                'hand-left',
+                'shield-left'
+              ].map((name) => `<div id="${prefix}-layer-${name}" class="avatar-layer"></div>`).join('');
+            }
           }
+        },
+        playAvatarBodyMotion: async (target, motionName) => {
+          const container = typeof target === 'string' ? document.getElementById(target) : target;
+          if (container) container.dataset.avatarBodyMotion = String(motionName || '');
+          return true;
+        },
+        stopAvatarBodyMotion: (target) => {
+          const container = typeof target === 'string' ? document.getElementById(target) : target;
+          if (container) {
+            delete container.dataset.avatarBodyMotion;
+            container.dataset.avatarBodyMotionStopped = 'true';
+          }
+          return true;
         },
         getMyCurrentEquipment: () => ({}),
         getMyInventory: () => ([]),
@@ -362,6 +388,42 @@ test.describe('map actions', () => {
               timeline: [
                 {
                   round: 1,
+                  actorId: 'PF_ENEMY_BATTLE',
+                  actorName: 'Sea Wraith',
+                  targetId: 'PF_PLAYWRIGHT',
+                  targetName: 'Playwright Tester',
+                  die: 4,
+                  resultType: 'weaponForm',
+                  reason: '',
+                  action: {
+                    source: 'weapon',
+                    kind: 'attack',
+                    name: '叩き割り',
+                    cardName: '',
+                    elementKey: 'earth',
+                    power: 180,
+                    accuracy: 70,
+                    hitCount: 1
+                  },
+                  damage: 0,
+                  attackElementKey: 'none',
+                  defenderElementKey: 'fire',
+                  elementalRelation: 'none',
+                  elementalMultiplier: 1,
+                  elementalLabel: '',
+                  selfDamage: 0,
+                  healing: 0,
+                  attackerHpBefore: 95,
+                  attackerHpAfter: 95,
+                  defenderHpBefore: 120,
+                  defenderHpAfter: 120,
+                  anyHit: false,
+                  parried: true,
+                  parryCount: 1,
+                  statusChanges: []
+                },
+                {
+                  round: 1,
                   actorId: 'PF_PLAYWRIGHT',
                   actorName: 'Playwright Tester',
                   targetId: 'PF_ENEMY_BATTLE',
@@ -395,6 +457,76 @@ test.describe('map actions', () => {
                   defenderHpBefore: 95,
                   defenderHpAfter: 95,
                   anyHit: true,
+                  parried: false,
+                  parryCount: 0,
+                  statusChanges: []
+                },
+                {
+                  round: 1,
+                  actorId: 'PF_PLAYWRIGHT',
+                  actorName: 'Playwright Tester',
+                  targetId: 'PF_ENEMY_BATTLE',
+                  targetName: 'Sea Wraith',
+                  die: 2,
+                  resultType: 'minorArcana',
+                  reason: '',
+                  action: {
+                    source: 'minor',
+                    kind: 'attack',
+                    name: '火種の一撃',
+                    cardName: 'ワンドA',
+                    suit: 'wand',
+                    elementKey: 'fire',
+                    rank: 1,
+                    power: 90,
+                    accuracy: 100,
+                    hitCount: 1,
+                    effectText: '火傷を与える'
+                  },
+                  damage: 8,
+                  attackElementKey: 'fire',
+                  defenderElementKey: 'water',
+                  elementalRelation: 'resist',
+                  elementalMultiplier: 0.75,
+                  elementalLabel: 'RESIST...',
+                  selfDamage: 0,
+                  healing: 0,
+                  attackerHpBefore: 120,
+                  attackerHpAfter: 120,
+                  defenderHpBefore: 95,
+                  defenderHpAfter: 87,
+                  anyHit: true,
+                  parried: false,
+                  parryCount: 0,
+                  statusChanges: [
+                    { target: 'target', key: 'burn', before: 0, after: 2 }
+                  ]
+                },
+                {
+                  round: 1,
+                  actorId: 'PF_ENEMY_BATTLE',
+                  actorName: 'Sea Wraith',
+                  targetId: 'PF_PLAYWRIGHT',
+                  targetName: 'Playwright Tester',
+                  die: 2,
+                  resultType: 'miss',
+                  reason: '空スロットの武器型は外れている',
+                  action: null,
+                  damage: 0,
+                  attackElementKey: 'none',
+                  defenderElementKey: 'fire',
+                  elementalRelation: 'none',
+                  elementalMultiplier: 1,
+                  elementalLabel: '',
+                  selfDamage: 0,
+                  healing: 0,
+                  attackerHpBefore: 87,
+                  attackerHpAfter: 87,
+                  defenderHpBefore: 120,
+                  defenderHpAfter: 120,
+                  anyHit: false,
+                  parried: false,
+                  parryCount: 0,
                   statusChanges: []
                 },
                 {
@@ -416,7 +548,7 @@ test.describe('map actions', () => {
                     accuracy: 95,
                     hitCount: 2
                   },
-                  damage: 32,
+                  damage: 87,
                   attackElementKey: 'fire',
                   defenderElementKey: 'wind',
                   elementalRelation: 'weak',
@@ -426,9 +558,11 @@ test.describe('map actions', () => {
                   healing: 0,
                   attackerHpBefore: 120,
                   attackerHpAfter: 120,
-                  defenderHpBefore: 95,
-                  defenderHpAfter: 63,
+                  defenderHpBefore: 87,
+                  defenderHpAfter: 0,
                   anyHit: true,
+                  parried: false,
+                  parryCount: 0,
                   statusChanges: []
                 }
               ]
@@ -445,8 +579,15 @@ test.describe('map actions', () => {
 
     await expect(page.locator('#battleLogContainer')).toContainText('勝者: Playwright Tester');
     await expect(page.locator('#battleMeleeReplay')).toBeVisible();
+    const feedbackIcon = (key) => page.locator(`#battleStage .melee-feedback-icon[data-icon-key="${key}"]`).first();
+    await expect(feedbackIcon('parry')).toBeVisible({ timeout: 5_000 });
+    await expect(feedbackIcon('heal')).toBeVisible({ timeout: 5_000 });
     await expect(page.locator('#battleStage .melee-minor-arcana-effect[data-card-name="カップ5"]')).toContainText('潮戻し');
     await expect(page.locator('#battleStage .melee-minor-arcana-effect[data-card-name="カップ5"] .melee-minor-arcana-art')).toBeVisible();
+    await expect(feedbackIcon('burn')).toBeVisible({ timeout: 5_000 });
+    await expect(feedbackIcon('resist')).toBeVisible({ timeout: 5_000 });
+    await expect(feedbackIcon('miss')).toBeVisible({ timeout: 5_000 });
+    await expect(feedbackIcon('weak')).toBeVisible({ timeout: 5_000 });
     await expect(page.locator('#battleMeleeReplay')).toContainText('出目4');
     await expect(page.locator('#battleMeleeReplay')).toContainText('連斬');
     await expect(page.locator('#battleMeleeReplay')).toContainText('WEAK!');
@@ -479,6 +620,23 @@ test.describe('map actions', () => {
     expect(dieRatio).toBeLessThan(1.1);
     expect(weaponRatio).toBeGreaterThan(1.5);
     expect(weaponRatio).toBeLessThan(1.8);
+    await expect(page.locator('#battle-avatar-A')).toHaveClass(/is-avatar-defeated/);
+    const defeatedAvatarState = await page.locator('#battle-avatar-A').evaluate((avatar) => {
+      const head = document.getElementById('battle-avatar-A-layer-head');
+      return {
+        stopped: avatar.dataset.avatarBodyMotionStopped === 'true',
+        headAnimation: head ? window.getComputedStyle(head).animationName : ''
+      };
+    });
+    expect(defeatedAvatarState.stopped).toBe(true);
+    expect(defeatedAvatarState.headAnimation).toContain('avatarHeadDrop');
+    await expect(page.locator('#battle-avatar-B')).toHaveClass(/is-avatar-victorious/);
+    const victoriousAvatarState = await page.locator('#battle-avatar-B').evaluate((avatar) => ({
+      motion: avatar.dataset.avatarBodyMotion || '',
+      animation: window.getComputedStyle(avatar).animationName
+    }));
+    expect(victoriousAvatarState.motion).toBe('jump');
+    expect(victoriousAvatarState.animation).toContain('avatarVictoryPose');
     await expect(page.locator('#battleCommandArea')).toContainText('YOU WIN!');
     await expect(page.locator('#battleCommandArea button')).toHaveText('戻る');
 

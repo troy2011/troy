@@ -39,6 +39,7 @@ export function buildAvatarLayerMarkup(prefix) {
 export function triggerAvatarAttackMotion(target, options = {}) {
     const element = typeof target === 'string' ? document.getElementById(target) : target;
     if (!element) return Promise.resolve(false);
+    if (element.classList.contains('is-avatar-defeated')) return Promise.resolve(false);
     const direction = options.direction === 'right' ? 'right' : 'left';
     const duration = Math.max(120, Number(options.duration || 520) || 520);
     if (options.bodyMotion !== false && element.classList.contains('avatar-combat-actor')) {
