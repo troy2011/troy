@@ -95,6 +95,34 @@ function getBattleNumericStat(itemRef, keys, fallback = 0) {
     return fallback;
 }
 
+function isBattleShieldItemData(itemData) {
+    if (!itemData) return false;
+    const category = String(itemData.Category || itemData.category || '').trim().toLowerCase();
+    const weaponType = String(itemData.ManifestWeaponType || itemData.WeaponType || itemData.weaponType || '').trim().toLowerCase();
+    return category === 'shield' || weaponType === 'shield';
+}
+
+function normalizeParryRateValue(value, fallback = 0) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return fallback;
+    const rate = parsed > 1 ? parsed / 100 : parsed;
+    return Math.max(0, Math.min(0.8, rate));
+}
+
+function deriveShieldParryStats(itemData) {
+    if (!isBattleShieldItemData(itemData)) return { rate: 0, charges: 0 };
+    const defenseTier = Math.max(0, Number(itemData.Defense || itemData.Def || 0) || 0);
+    const derivedRate = Math.max(0.12, Math.min(0.38, 0.12 + defenseTier * 0.004));
+    const explicitRate = itemData.ParryRate ?? itemData.ParryChance ?? itemData.BlockRate ?? itemData.BlockChance;
+    const rate = normalizeParryRateValue(explicitRate, derivedRate);
+    const explicitCharges = Number(itemData.ParryCharges ?? itemData.ParryCount ?? itemData.BlockCharges);
+    const derivedCharges = defenseTier >= 45 ? 4 : defenseTier >= 28 ? 3 : defenseTier >= 16 ? 2 : 1;
+    const charges = Number.isFinite(explicitCharges)
+        ? Math.max(0, Math.floor(explicitCharges))
+        : derivedCharges;
+    return { rate, charges };
+}
+
 function resolveBattleWeaponType(weaponRef) {
     if (weaponRef && typeof weaponRef === 'object') {
         const manifestWeapon = String(
@@ -384,7 +412,9 @@ async function getPlayerFullProfile(playFabId) {
         HealPower: 0,
         MpEfficiency: 0,
         CastRate: 0,
-        StatusRate: 0
+        StatusRate: 0,
+        ParryRate: 0,
+        ParryCharges: 0
     };
     const accumulateItemStats = (itemRef, options = {}) => {
         if (!itemRef) return;
@@ -399,7 +429,11 @@ async function getPlayerFullProfile(playFabId) {
         const mpEfficiencyValue = Number(itemData.MpEfficiency || 0) || 0;
         const castRateValue = Number(itemData.CastRate || 0) || 0;
         const statusRateValue = Number(itemData.StatusRate || 0) || 0;
-        if (options.replaceDefense) {
+        if (isBattleShieldItemData(itemData)) {
+            const parry = deriveShieldParryStats(itemData);
+            equipmentStats.ParryRate = Math.max(equipmentStats.ParryRate, parry.rate);
+            equipmentStats.ParryCharges += parry.charges;
+        } else if (options.replaceDefense) {
             equipmentStats.Defense = defenseValue;
         } else {
             equipmentStats.Defense += defenseValue;
@@ -426,7 +460,9 @@ async function getPlayerFullProfile(playFabId) {
     const tarotRolePassive = getTarotRolePassive(tarotMeleeRole);
     const tarotBattleDeck = getTarotBattleDeck(meleeDeckIds, _catalogCache);
 
-    stats.すばやさ = (Number(stats.すばやさ || 0) || 0) + equipmentStats.Agi;
+    if (stats.すばやさ === undefined && Number.isFinite(Number(stats.Agi))) {
+        stats.すばやさ = Number(stats.Agi) || 0;
+    }
     stats.かしこさ = (Number(stats.かしこさ || 0) || 0) + equipmentStats.Int;
 
     // 船デッキロール（戦闘では参照のみ）
@@ -925,10 +961,10 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         return {
             level,
             maxHp,
-            power: Math.max(8, readProfileNumber(profile, ['Power', 'Attack'], level * 3) + (Number(equipment.Power) || 0)),
-            defense: Math.max(4, readProfileNumber(profile, ['Defense', 'Guard'], level * 2) + (Number(equipment.Defense) || 0)),
-            speed: Math.max(4, readProfileNumber(profile, ['Agi', 'Speed'], level * 2) + (Number(equipment.Agi) || 0)),
-            int: Math.max(3, readProfileNumber(profile, ['Int', 'Intelligence'], level * 2) + (Number(equipment.Int) || 0))
+            power: Math.max(8, readProfileNumber(profile, ['ちから', 'Power', 'Attack'], level * 3) + (Number(equipment.Power) || 0)),
+            defense: Math.max(4, readProfileNumber(profile, ['みのまもり', 'Defense', 'Guard'], level * 2) + (Number(equipment.Defense) || 0)),
+            speed: Math.max(4, readProfileNumber(profile, ['すばやさ', 'Agi', 'Speed'], level * 2) + (Number(equipment.Agi) || 0)),
+            int: Math.max(3, readProfileNumber(profile, ['かしこさ', 'Int', 'Intelligence'], level * 2) + (Number(equipment.Int) || 0))
         };
     };
     const pickExplorationNpcEncounter = (basis, shipMeta = null) => {
@@ -1232,8 +1268,10 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
             logEntries[timeCursor++] = line;
         };
         const readBattleSpeed = (player) => {
-            const value = Number(player?.stats?.すばやさ ?? player?.stats?.Agi ?? player?.stats?.Speed ?? 1);
-            return Number.isFinite(value) ? Math.max(1, Math.floor(value)) : 1;
+            const base = Number(player?.stats?.すばやさ ?? player?.stats?.Agi ?? player?.stats?.Speed ?? 1);
+            const equipment = Number(player?.equipmentStats?.Agi ?? player?.equipmentStats?.Speed ?? 0);
+            const value = (Number.isFinite(base) ? base : 1) + (Number.isFinite(equipment) ? equipment : 0);
+            return Math.max(1, Math.floor(value));
         };
         const rememberPlayer = (player) => {
             if (!player?.id || playersPayload[player.id]) return;
@@ -1791,8 +1829,10 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
             const playerA = await getPlayerFullProfile(invitation.from.id); // 攻撃者
             const playerB = await getPlayerFullProfile(invitation.to.id);   // 防御者
             const readBattleSpeed = (player) => {
-                const value = Number(player?.stats?.すばやさ ?? player?.stats?.Agi ?? player?.stats?.Speed ?? 1);
-                return Number.isFinite(value) ? Math.max(1, Math.floor(value)) : 1;
+                const base = Number(player?.stats?.すばやさ ?? player?.stats?.Agi ?? player?.stats?.Speed ?? 1);
+                const equipment = Number(player?.equipmentStats?.Agi ?? player?.equipmentStats?.Speed ?? 0);
+                const value = (Number.isFinite(base) ? base : 1) + (Number.isFinite(equipment) ? equipment : 0);
+                return Math.max(1, Math.floor(value));
             };
 
             // --- 2. Firebase Realtime Databaseに「バトル部屋」を作成 ---

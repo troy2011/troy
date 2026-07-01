@@ -16,7 +16,7 @@ const WEAPONS = {
 
 const DICE = [1, 2, 3, 4, 5, 6];
 const MINOR_DICE = [2, 3, 4, 5, 6];
-const MAX_ROUNDS = 12;
+const MAX_ROUNDS = 18;
 const DICE_ROLL_STEPS = 14;
 const DICE_ROLL_INTERVAL_MS = 42;
 const DICE_ROLL_WINDUP_MS = 180;
@@ -29,6 +29,108 @@ const MELEE_TAROT_SHEET_H = 1024;
 const MELEE_TAROT_BACK_INDEX = 110;
 const MELEE_SLOT_TAROT_SCALE = 0.54;
 const MELEE_MINOR_CUTIN_TAROT_SCALE = 1.86;
+const DEMO_ELEMENT_KEYS = new Set(['fire', 'wind', 'earth', 'water']);
+const DEMO_ELEMENT_BEATS = {
+    fire: 'wind',
+    wind: 'earth',
+    earth: 'water',
+    water: 'fire'
+};
+const DEMO_ELEMENT_LABELS = {
+    fire: '\u706b',
+    wind: '\u98a8',
+    earth: '\u5730',
+    water: '\u6c34',
+    none: '\u7121\u5c5e\u6027'
+};
+const DEMO_ELEMENT_ALIASES = {
+    fire: 'fire',
+    flame: 'fire',
+    wand: 'fire',
+    wands: 'fire',
+    '\u706b': 'fire',
+    '\u30ef\u30f3\u30c9': 'fire',
+    wind: 'wind',
+    air: 'wind',
+    sword: 'wind',
+    swords: 'wind',
+    '\u98a8': 'wind',
+    '\u30bd\u30fc\u30c9': 'wind',
+    '\u5263': 'wind',
+    earth: 'earth',
+    land: 'earth',
+    pentacle: 'earth',
+    pentacles: 'earth',
+    coin: 'earth',
+    coins: 'earth',
+    '\u5730': 'earth',
+    '\u30da\u30f3\u30bf\u30af\u30eb': 'earth',
+    '\u30b3\u30a4\u30f3': 'earth',
+    water: 'water',
+    aqua: 'water',
+    cup: 'water',
+    cups: 'water',
+    '\u6c34': 'water',
+    '\u30ab\u30c3\u30d7': 'water',
+    none: 'none',
+    neutral: 'none',
+    unknown: 'none',
+    '\u7121': 'none',
+    '\u7121\u5c5e\u6027': 'none'
+};
+
+const DEMO_COMBAT_PROFILES = {
+    player: {
+        stats: {
+            Nation: 'fire',
+            Level: 10,
+            HP: 120,
+            MaxHP: 120,
+            CurrentHP: 120,
+            Power: 24,
+            Attack: 24,
+            Defense: 5,
+            Guard: 5,
+            Agi: 14,
+            Speed: 14,
+            ちから: 24,
+            みのまもり: 5,
+            すばやさ: 14,
+            かしこさ: 0
+        },
+        equipmentStats: {
+            Power: 12,
+            Defense: 3,
+            Agi: 4,
+            Int: 0
+        }
+    },
+    enemy: {
+        stats: {
+            Nation: 'wind',
+            Level: 10,
+            HP: 132,
+            MaxHP: 132,
+            CurrentHP: 132,
+            Power: 27,
+            Attack: 27,
+            Defense: 7,
+            Guard: 7,
+            Agi: 8,
+            Speed: 8,
+            ちから: 27,
+            みのまもり: 7,
+            すばやさ: 8,
+            かしこさ: 0
+        },
+        equipmentStats: {
+            Power: 13,
+            Defense: 3,
+            Agi: 1,
+            Int: 0
+        }
+    }
+};
 
 const DEMO_AVATAR_BASES = {
     player: {
@@ -487,8 +589,8 @@ function startBattle() {
     const enemyDeck = preset.enemyDeck.map((id) => state.cardById.get(id)).filter(Boolean);
     renderDemoAvatars();
     state.fighters = [
-        createFighter('player', 'あなた', el.playerWeapon.value, playerDeck, { hp: 280, attack: 36, defense: 8, speed: 18 }),
-        createFighter('enemy', '甲板長', el.enemyWeapon.value, enemyDeck, { hp: 320, attack: 40, defense: 10, speed: 9 })
+        createFighter('player', 'あなた', el.playerWeapon.value, playerDeck, DEMO_COMBAT_PROFILES.player),
+        createFighter('enemy', '甲板長', el.enemyWeapon.value, enemyDeck, DEMO_COMBAT_PROFILES.enemy)
     ];
     state.round = 0;
     state.queue = [];
@@ -618,6 +720,9 @@ function resolveTurn(actor, die, actionToken) {
         triggerDemoAvatarMotion(actor);
         const result = executeAction(actor, target, action);
         if (targetHpBefore > target.hp) triggerDemoDamageFeedback(target.id, targetHpBefore - target.hp);
+        if (result.elementalLabel && targetHpBefore > target.hp) {
+            createDemoFeedbackPopup(target.id, result.elementalLabel, 'status', 1);
+        }
         if (actorHpBefore > actor.hp) triggerDemoDamageFeedback(actor.id, actorHpBefore - actor.hp);
         if (action.kind === 'attack' && !result.hit && targetHpBefore <= target.hp) {
             createDemoFeedbackPopup(target.id, 'MISS', 'miss');
@@ -791,6 +896,7 @@ function executeAction(actor, target, action) {
     const hits = Math.max(1, Number(action.hitCount) || 1);
     let total = 0;
     let hit = false;
+    const elemental = demoElementalAffinity(actor, target, action);
     for (let index = 0; index < hits; index += 1) {
         if (target.evasionChance > 0 && Math.random() < target.evasionChance) {
             target.evasionChance = 0;
@@ -813,6 +919,7 @@ function executeAction(actor, target, action) {
         total += applied;
         hit = true;
         log(`${actor.name} の${action.name}が命中。${target.name}に${applied}ダメージ`);
+        if (elemental.label) log(elemental.label);
         if (target.hp <= 0) break;
     }
     if (hit) {
@@ -827,7 +934,7 @@ function executeAction(actor, target, action) {
         applyEffects(action.effectCodes || [], actor, target, action, 'miss');
     }
     applyEffects(action.effectCodes || [], actor, target, action, 'always');
-    return { hit, total };
+    return { hit, total, elementalLabel: hit ? elemental.label : '' };
 }
 
 function actionDamage(actor, target, action) {
@@ -849,6 +956,7 @@ function actionDamage(actor, target, action) {
     damage *= actor.attackMultiplier;
     damage *= 1 + actor.morale * 0.05;
     damage *= target.damageTakenMultiplier;
+    damage *= demoElementalAffinity(actor, target, action).multiplier;
     if (target.nextDamageTakenCharges > 0) {
         damage *= target.nextDamageTakenMultiplier;
         target.nextDamageTakenCharges -= 1;
@@ -1193,7 +1301,7 @@ function statusLabels(fighter) {
     return labels;
 }
 
-function createFighter(id, name, weapon, deck, stats) {
+function createFighter(id, name, weapon, deck, profile) {
     const forms = {};
     for (const action of FORM_TABLE[weapon] || FORM_TABLE.sword) {
         forms[action.slot] = { action: cloneAction(action), removed: false };
@@ -1205,15 +1313,22 @@ function createFighter(id, name, weapon, deck, stats) {
         if (unlocked) forms[die].removed = true;
         slots[die] = { card: cardEntry, unlocked };
     }
+    const combatProfile = normalizeDemoCombatProfile(profile);
+    const maxHp = demoMaxHp(combatProfile);
+    const hp = demoCurrentHp(combatProfile);
+    const elementKey = demoCombatProfileElementKey(combatProfile);
     return {
         id,
         name,
         weapon,
-        maxHp: stats.hp,
-        hp: stats.hp,
-        attack: stats.attack,
-        defense: stats.defense,
-        speed: stats.speed,
+        profile: combatProfile,
+        elementKey,
+        elementLabel: demoElementLabel(elementKey),
+        maxHp,
+        hp,
+        attack: demoAttackStat(combatProfile),
+        defense: demoDefenseStat(combatProfile),
+        speed: demoSpeedStat(combatProfile),
         forms,
         slots,
         morale: 0,
@@ -1253,6 +1368,7 @@ function minorAction(cardEntry) {
         name: cardEntry.skillName,
         cardName: cardEntry.cardName,
         suit: cardEntry.suit,
+        elementKey: normalizeDemoElementKey(cardEntry.elementKey || cardEntry.element || cardEntry.suit),
         rank: cardEntry.rank,
         power: cardEntry.power,
         accuracy: cardEntry.accuracy,
@@ -1271,6 +1387,7 @@ function normalizeCard(entry) {
     return {
         ...entry,
         rank: Number(entry.rank ?? entry.number),
+        elementKey: normalizeDemoElementKey(entry.elementKey || entry.element || entry.suit),
         power: entry.power == null ? null : Number(entry.power),
         accuracy: entry.accuracy == null ? null : Number(entry.accuracy),
         hitCount: Math.max(1, Number(entry.hitCount) || 1),
@@ -1317,6 +1434,109 @@ function cloneAction(action) {
 
 function cloneEffects(effects) {
     return effects.map((entry) => ({ ...entry }));
+}
+
+function asNumber(value, fallback = 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeDemoElementKey(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return 'none';
+    const lower = raw.toLowerCase();
+    return DEMO_ELEMENT_ALIASES[lower] || DEMO_ELEMENT_ALIASES[raw] || 'none';
+}
+
+function demoElementLabel(value) {
+    const key = normalizeDemoElementKey(value);
+    return DEMO_ELEMENT_LABELS[key] || DEMO_ELEMENT_LABELS.none;
+}
+
+function demoCombatProfileElementKey(profile) {
+    const stats = profile?.stats || {};
+    return normalizeDemoElementKey(stats.Nation ?? stats.nation ?? profile?.nation ?? profile?.Nation);
+}
+
+function demoActionAttackElementKey(action) {
+    if (action?.source !== 'minor' || action?.kind !== 'attack') return 'none';
+    return normalizeDemoElementKey(action.elementKey || action.element || action.suit);
+}
+
+function demoElementalAffinity(actor, target, action) {
+    const attackElementKey = demoActionAttackElementKey(action);
+    const defenderElementKey = normalizeDemoElementKey(target?.elementKey);
+    const neutral = {
+        attackElementKey,
+        defenderElementKey,
+        relation: 'none',
+        multiplier: 1,
+        label: ''
+    };
+    if (!DEMO_ELEMENT_KEYS.has(attackElementKey) || !DEMO_ELEMENT_KEYS.has(defenderElementKey)) return neutral;
+    if (attackElementKey === defenderElementKey) return { ...neutral, relation: 'neutral' };
+    if (DEMO_ELEMENT_BEATS[attackElementKey] === defenderElementKey) {
+        return { ...neutral, relation: 'weak', multiplier: 1.25, label: 'WEAK!' };
+    }
+    if (DEMO_ELEMENT_BEATS[defenderElementKey] === attackElementKey) {
+        return { ...neutral, relation: 'resist', multiplier: 0.75, label: 'RESIST...' };
+    }
+    return { ...neutral, relation: 'neutral' };
+}
+
+function readDemoStat(profile, keys, fallback = 0) {
+    const stats = profile?.stats || {};
+    for (const key of keys) {
+        const value = asNumber(stats[key], Number.NaN);
+        if (Number.isFinite(value)) return value;
+    }
+    return fallback;
+}
+
+function readDemoEquipmentStat(profile, keys, fallback = 0) {
+    const equipmentStats = profile?.equipmentStats || {};
+    for (const key of keys) {
+        const value = asNumber(equipmentStats[key], Number.NaN);
+        if (Number.isFinite(value)) return value;
+    }
+    return fallback;
+}
+
+function normalizeDemoCombatProfile(profile = {}) {
+    const stats = { ...(profile.stats || {}) };
+    const equipmentStats = { ...(profile.equipmentStats || {}) };
+    const maxHp = Math.max(1, Math.floor(asNumber(stats.MaxHP, asNumber(stats.HP, asNumber(stats.CurrentHP, 1)))));
+    const currentHp = clamp(Math.floor(asNumber(stats.CurrentHP, asNumber(stats.HP, maxHp))), 0, maxHp);
+    stats.MaxHP = maxHp;
+    stats.CurrentHP = currentHp;
+    stats.HP = currentHp;
+    return { stats, equipmentStats };
+}
+
+function demoMaxHp(profile) {
+    return Math.max(1, Math.floor(readDemoStat(profile, ['MaxHP', 'HP', 'CurrentHP'], 1)));
+}
+
+function demoCurrentHp(profile) {
+    return clamp(Math.floor(readDemoStat(profile, ['CurrentHP', 'HP'], demoMaxHp(profile))), 0, demoMaxHp(profile));
+}
+
+function demoAttackStat(profile) {
+    const base = readDemoStat(profile, ['ちから', 'Power', 'Attack'], 1);
+    const equipment = readDemoEquipmentStat(profile, ['Power', 'Attack'], 0);
+    return Math.max(1, base + equipment);
+}
+
+function demoDefenseStat(profile) {
+    const base = readDemoStat(profile, ['みのまもり', 'Defense', 'Guard'], 0);
+    const equipment = readDemoEquipmentStat(profile, ['Defense', 'Guard'], 0);
+    return Math.max(0, base + equipment);
+}
+
+function demoSpeedStat(profile) {
+    const base = readDemoStat(profile, ['すばやさ', 'Agi', 'Speed'], 1);
+    const equipment = readDemoEquipmentStat(profile, ['Agi', 'Speed'], 0);
+    return Math.max(1, base + equipment);
 }
 
 function effectiveSpeed(fighter) {

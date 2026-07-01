@@ -1,15 +1,18 @@
 const { test, expect } = require('@playwright/test');
 
 const LEGACY_STAT_KEYS = {
-  strength: '\u7e3a\uff61\u7e3a\u4e5d\uff49',
-  defense: '\u7e3a\uff7f\u7e3a\uff6e\u7e3a\uff7e\u7e67\u3085\uff4a',
-  speed: '\u7e3a\u5436\u30fb\u7e67\u30fb\uff06',
-  intelligence: '\u7e3a\u4e5d\uff20\u7e3a\u8599\uff06'
+  strength: 'ちから',
+  defense: 'みのまもり',
+  speed: 'すばやさ',
+  intelligence: 'かしこさ'
 };
 
 function makeFighter(overrides = {}) {
   const hp = overrides.hp ?? 120;
   const mp = overrides.mp ?? 0;
+  const nation = overrides.nation ?? overrides.statsNation;
+  const avatar = { ...(overrides.avatar || {}) };
+  if (nation !== undefined) avatar.Nation = nation;
   return {
     id: overrides.id || 'fighter',
     stats: {
@@ -28,8 +31,11 @@ function makeFighter(overrides = {}) {
       Power: overrides.strength ?? 12,
       Defense: overrides.guard ?? 0,
       Agi: overrides.speed ?? 10,
-      Int: overrides.intelligence ?? 0
+      Int: overrides.intelligence ?? 0,
+      ...(overrides.statsNation !== undefined ? { Nation: overrides.statsNation } : {})
     },
+    avatar,
+    ...(overrides.nation !== undefined ? { nation: overrides.nation } : {}),
     equipmentStats: {
       Power: overrides.power ?? 8,
       Defense: overrides.defense ?? 0,
@@ -191,6 +197,117 @@ test('melee battle result keeps legacy fields and adds structured replay data', 
   ]));
 });
 
+test('melee combat stats use allocated Japanese stats plus equipment without direct level scaling', () => {
+  const {
+    createCombatant,
+    getCombatantStatSummary,
+    calculatePhysicalDamage
+  } = require('../server/battle/MeleeCombatSystem');
+  const makeJapaneseStatFighter = (level) => createCombatant({
+    id: `level-${level}`,
+    stats: {
+      DisplayName: `Level ${level}`,
+      Level: level,
+      HP: 100,
+      MaxHP: 100,
+      CurrentHP: 100,
+      ちから: 20,
+      みのまもり: 7,
+      すばやさ: 12,
+      かしこさ: 3
+    },
+    equipmentStats: {
+      Power: 5,
+      Defense: 3,
+      Agi: 2,
+      Int: 0
+    },
+    equipment: {
+      RightHand: { customData: { Category: 'Weapon', ManifestWeaponType: 'sword' } }
+    }
+  });
+  const lowLevel = makeJapaneseStatFighter(1);
+  const highLevel = makeJapaneseStatFighter(50);
+  const defender = createCombatant({
+    id: 'defender',
+    stats: {
+      DisplayName: 'Defender',
+      Level: 10,
+      HP: 100,
+      MaxHP: 100,
+      CurrentHP: 100,
+      みのまもり: 10,
+      すばやさ: 1
+    },
+    equipmentStats: { Power: 0, Defense: 2, Agi: 0 },
+    equipment: {
+      RightHand: { customData: { Category: 'Weapon', ManifestWeaponType: 'blunt' } }
+    }
+  });
+
+  expect(getCombatantStatSummary(lowLevel)).toEqual({
+    attack: 25,
+    defense: 10,
+    baseSpeed: 17,
+    effectiveSpeed: 17,
+    parryRate: 0,
+    parryCharges: 0
+  });
+  expect(getCombatantStatSummary(highLevel)).toEqual(getCombatantStatSummary(lowLevel));
+  expect(getCombatantStatSummary(defender).defense).toBe(12);
+  expect(calculatePhysicalDamage(lowLevel, defender, null, { power: 100 })).toBe(18);
+});
+
+test('shield parry blocks limited incoming hits without adding defense', async () => {
+  const attacker = makeFighter({
+    id: 'attacker',
+    name: 'Attacker',
+    hp: 200,
+    strength: 30,
+    power: 30,
+    speed: 20,
+    weapon: 'sword'
+  });
+  const defender = makeFighter({
+    id: 'shield-user',
+    name: 'Shield',
+    hp: 80,
+    strength: 1,
+    power: 1,
+    guard: 0,
+    defense: 0,
+    speed: 1,
+    weapon: 'shield'
+  });
+  defender.equipmentStats.ParryRate = 80;
+  defender.equipmentStats.ParryCharges = 1;
+
+  const result = await runDirectBattle(attacker, defender, {
+    diceRolls: [1, 6, 2, 6],
+    maxRounds: 2
+  });
+  const firstAttack = timelineFor(result, 'attacker', 1)[0];
+  const secondAttack = timelineFor(result, 'attacker', 2)[0];
+
+  expect(result.logs.join('\n')).toContain('Shield は盾で斬撃をパリイ（残り0回）');
+  expect(firstAttack).toMatchObject({
+    parried: true,
+    parryCount: 1,
+    damage: 0,
+    defenderHpBefore: 80,
+    defenderHpAfter: 80
+  });
+  expect(firstAttack.statusChanges).toContainEqual({
+    target: 'target',
+    key: 'parryCharges',
+    before: 1,
+    after: 0
+  });
+  expect(secondAttack.parried).toBe(false);
+  expect(secondAttack.damage).toBeGreaterThan(0);
+  expect(defender.stats.CurrentHP).toBeLessThan(80);
+});
+
 test('tarot role passives use percentage battle effects', () => {
   const { getTarotRolePassive } = require('../server/tarotRoles');
 
@@ -339,6 +456,158 @@ test('empty dice slots use the weapon form once and then miss', async () => {
     card: null
   });
   expect(timelineFor(result, 'player-a', 3).map((entry) => entry.resultType)).toEqual(['weaponForm', 'miss']);
+});
+
+test('minor arcana attacks apply suit element affinity against defender nation', async () => {
+  const runFireMinorAgainst = async (nation) => {
+    const suffix = nation || 'none';
+    const attacker = makeFighter({
+      id: `fire-attacker-${suffix}`,
+      name: 'Fire Minor',
+      hp: 500,
+      speed: 20,
+      strength: 100,
+      power: 0,
+      tarotBattleDeck: [{ ...minor('minor-wand-2'), accuracy: 100, effectCodes: [] }]
+    });
+    const defender = makeFighter({
+      id: `defender-${suffix}`,
+      name: `Defender ${suffix}`,
+      hp: 500,
+      speed: 1,
+      strength: 1,
+      power: 0,
+      guard: 0,
+      defense: 0,
+      weapon: 'blunt',
+      ...(nation ? { nation } : {})
+    });
+    const result = await runDirectBattle(attacker, defender, { diceRolls: [2, 6], maxRounds: 1 });
+    return {
+      result,
+      defenderId: defender.id,
+      entry: timelineFor(result, attacker.id, 2)[0]
+    };
+  };
+
+  const wind = await runFireMinorAgainst('wind');
+  const water = await runFireMinorAgainst('water');
+  const fire = await runFireMinorAgainst('fire');
+  const none = await runFireMinorAgainst(null);
+
+  expect(wind.entry).toMatchObject({
+    damage: 100,
+    attackElementKey: 'fire',
+    defenderElementKey: 'wind',
+    elementalRelation: 'weak',
+    elementalMultiplier: 1.25,
+    elementalLabel: 'WEAK!',
+    action: expect.objectContaining({ source: 'minor', elementKey: 'fire' })
+  });
+  expect(combatantSetup(wind.result, wind.defenderId)).toMatchObject({
+    elementKey: 'wind',
+    elementLabel: expect.any(String)
+  });
+  expect(water.entry).toMatchObject({
+    damage: 60,
+    attackElementKey: 'fire',
+    defenderElementKey: 'water',
+    elementalRelation: 'resist',
+    elementalMultiplier: 0.75,
+    elementalLabel: 'RESIST...'
+  });
+  expect(fire.entry).toMatchObject({
+    damage: 80,
+    attackElementKey: 'fire',
+    defenderElementKey: 'fire',
+    elementalRelation: 'neutral',
+    elementalMultiplier: 1,
+    elementalLabel: ''
+  });
+  expect(none.entry).toMatchObject({
+    damage: 80,
+    attackElementKey: 'fire',
+    defenderElementKey: 'none',
+    elementalRelation: 'none',
+    elementalMultiplier: 1,
+    elementalLabel: ''
+  });
+  expect(wind.result.logs.join('\n')).toContain('WEAK!');
+  expect(water.result.logs.join('\n')).toContain('RESIST...');
+});
+
+test('weapon fire forms and support minor arcana do not use elemental affinity', async () => {
+  const wandUser = makeFighter({
+    id: 'wand-user',
+    name: 'Wand',
+    hp: 500,
+    speed: 20,
+    strength: 100,
+    power: 0,
+    weapon: 'wand'
+  });
+  const windDefender = makeFighter({
+    id: 'wind-defender',
+    name: 'Wind Defender',
+    hp: 500,
+    speed: 1,
+    strength: 1,
+    power: 0,
+    guard: 0,
+    defense: 0,
+    weapon: 'blunt',
+    nation: 'wind'
+  });
+  const weaponResult = await runDirectBattle(wandUser, windDefender, { diceRolls: [1, 6], maxRounds: 1 });
+  const weaponEntry = timelineFor(weaponResult, 'wand-user', 1)[0];
+
+  expect(weaponEntry).toMatchObject({
+    resultType: 'weaponForm',
+    damage: 80,
+    attackElementKey: 'none',
+    defenderElementKey: 'wind',
+    elementalRelation: 'none',
+    elementalMultiplier: 1,
+    elementalLabel: '',
+    action: expect.objectContaining({ source: 'weapon', elementKey: 'fire' })
+  });
+  expect(weaponResult.logs.join('\n')).not.toContain('WEAK!');
+
+  const healer = makeFighter({
+    id: 'healer',
+    name: 'Healer',
+    hp: 100,
+    currentHp: 80,
+    speed: 20,
+    strength: 100,
+    power: 0,
+    tarotBattleDeck: [minor('minor-cup-2'), minor('minor-cup-3')]
+  });
+  const fireDefender = makeFighter({
+    id: 'fire-defender',
+    name: 'Fire Defender',
+    hp: 500,
+    speed: 1,
+    strength: 1,
+    power: 0,
+    guard: 0,
+    defense: 0,
+    weapon: 'blunt',
+    nation: 'fire'
+  });
+  const supportResult = await runDirectBattle(healer, fireDefender, { diceRolls: [3, 6], maxRounds: 1 });
+  const supportEntry = timelineFor(supportResult, 'healer', 3)[0];
+
+  expect(supportEntry).toMatchObject({
+    resultType: 'minorArcana',
+    damage: 0,
+    attackElementKey: 'none',
+    defenderElementKey: 'fire',
+    elementalRelation: 'none',
+    elementalMultiplier: 1,
+    elementalLabel: '',
+    action: expect.objectContaining({ source: 'minor', kind: 'support', elementKey: 'water' })
+  });
 });
 
 test('royal flush passive grants a shield that absorbs damage before HP', async () => {

@@ -7,10 +7,10 @@ const DEFAULT_MAX_ROUNDS = 18;
 const DICE_SLOTS = [1, 2, 3, 4, 5, 6];
 const MINOR_DICE = [2, 3, 4, 5, 6];
 const LEGACY_STAT_KEYS = {
-    strength: '\u7e3a\uff61\u7e3a\u4e5d\uff49',
-    defense: '\u7e3a\uff7f\u7e3a\uff6e\u7e3a\uff7e\u7e67\u3085\uff4a',
-    speed: '\u7e3a\u5436\u30fb\u7e67\u30fb\uff06',
-    intelligence: '\u7e3a\u4e5d\uff20\u7e3a\u8599\uff06'
+    strength: 'ちから',
+    defense: 'みのまもり',
+    speed: 'すばやさ',
+    intelligence: 'かしこさ'
 };
 
 const WEAPON_LABELS = {
@@ -45,6 +45,56 @@ const WEAPON_SPEED = {
     sword_big: -4,
     axe_big: -5,
     unarmed: 0
+};
+
+const ELEMENT_KEYS = new Set(['fire', 'wind', 'earth', 'water']);
+const ELEMENT_LABELS = {
+    fire: '\u706b',
+    wind: '\u98a8',
+    earth: '\u5730',
+    water: '\u6c34',
+    none: '\u7121\u5c5e\u6027'
+};
+const ELEMENT_BEATS = {
+    fire: 'wind',
+    wind: 'earth',
+    earth: 'water',
+    water: 'fire'
+};
+const ELEMENT_ALIASES = {
+    fire: 'fire',
+    flame: 'fire',
+    wand: 'fire',
+    wands: 'fire',
+    '\u706b': 'fire',
+    '\u30ef\u30f3\u30c9': 'fire',
+    wind: 'wind',
+    air: 'wind',
+    sword: 'wind',
+    swords: 'wind',
+    '\u98a8': 'wind',
+    '\u30bd\u30fc\u30c9': 'wind',
+    '\u5263': 'wind',
+    earth: 'earth',
+    land: 'earth',
+    pentacle: 'earth',
+    pentacles: 'earth',
+    coin: 'earth',
+    coins: 'earth',
+    '\u5730': 'earth',
+    '\u30da\u30f3\u30bf\u30af\u30eb': 'earth',
+    '\u30b3\u30a4\u30f3': 'earth',
+    water: 'water',
+    aqua: 'water',
+    cup: 'water',
+    cups: 'water',
+    '\u6c34': 'water',
+    '\u30ab\u30c3\u30d7': 'water',
+    none: 'none',
+    neutral: 'none',
+    unknown: 'none',
+    '\u7121': 'none',
+    '\u7121\u5c5e\u6027': 'none'
 };
 
 const WEAPON_FORMS = {
@@ -223,6 +273,23 @@ function getEquipmentStat(player, keys, fallback = 0) {
     return fallback;
 }
 
+function normalizeRate(value, fallback = 0) {
+    const parsed = number(value, Number.NaN);
+    if (!Number.isFinite(parsed)) return fallback;
+    const rate = parsed > 1 ? parsed / 100 : parsed;
+    return clamp(rate, 0, 0.8);
+}
+
+function getParryRate(player) {
+    const raw = getEquipmentStat(player, ['ParryRate', 'ParryChance', 'BlockRate', 'BlockChance'], Number.NaN);
+    return normalizeRate(raw, 0);
+}
+
+function getParryCharges(player) {
+    const raw = getEquipmentStat(player, ['ParryCharges', 'ParryCount', 'BlockCharges'], 0);
+    return Math.max(0, Math.floor(raw));
+}
+
 function ensureBattleStats(player) {
     player.stats = player.stats || {};
     const maxHp = Math.max(1, Math.floor(number(player.stats.MaxHP, number(player.stats.HP, number(player.stats.CurrentHP, 1)))));
@@ -269,27 +336,38 @@ function setCurrentMp(combatant, mp) {
 
 function getAttackStat(combatant) {
     const player = combatant.player;
-    const base = getStat(player, ['Power', 'Attack', LEGACY_STAT_KEYS.strength], 1);
+    const base = getStat(player, [LEGACY_STAT_KEYS.strength, 'Power', 'Attack'], 1);
     const equipment = getEquipmentStat(player, ['Power', 'Attack'], 0);
     return Math.max(1, base + equipment);
 }
 
 function getDefenseStat(combatant) {
     const player = combatant.player;
-    const base = getStat(player, ['Defense', 'Guard', LEGACY_STAT_KEYS.defense], 0);
+    const base = getStat(player, [LEGACY_STAT_KEYS.defense, 'Defense', 'Guard'], 0);
     const equipment = getEquipmentStat(player, ['Defense', 'Guard'], 0);
     return Math.max(0, base + equipment);
 }
 
 function getBaseSpeed(combatant) {
     const player = combatant.player;
-    const base = getStat(player, ['Agi', 'Speed', LEGACY_STAT_KEYS.speed], 1);
+    const base = getStat(player, [LEGACY_STAT_KEYS.speed, 'Agi', 'Speed'], 1);
     const equipment = getEquipmentStat(player, ['Agi', 'Speed'], 0);
     return Math.max(1, base + equipment + (WEAPON_SPEED[combatant.primaryWeapon] || 0));
 }
 
 function getEffectiveSpeed(combatant) {
     return Math.max(1, Math.floor(getBaseSpeed(combatant) * number(combatant.status.speedMultiplier, 1)));
+}
+
+function getCombatantStatSummary(combatant) {
+    return {
+        attack: getAttackStat(combatant),
+        defense: getDefenseStat(combatant),
+        baseSpeed: getBaseSpeed(combatant),
+        effectiveSpeed: getEffectiveSpeed(combatant),
+        parryRate: number(combatant.status?.parryRate, 0),
+        parryCharges: Math.max(0, Math.floor(number(combatant.status?.parryCharges, 0)))
+    };
 }
 
 function inferWeaponTypeFromText(value) {
@@ -368,6 +446,61 @@ function normalizeMinorSuit(value) {
     return raw;
 }
 
+function normalizeElementKey(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return 'none';
+    const lower = raw.toLowerCase();
+    return ELEMENT_ALIASES[lower] || ELEMENT_ALIASES[raw] || 'none';
+}
+
+function elementLabelForKey(value) {
+    const key = normalizeElementKey(value);
+    return ELEMENT_LABELS[key] || ELEMENT_LABELS.none;
+}
+
+function getPlayerElementKey(player) {
+    return normalizeElementKey(
+        player?.avatar?.Nation
+        ?? player?.avatar?.nation
+        ?? player?.nation
+        ?? player?.Nation
+        ?? player?.stats?.Nation
+        ?? player?.stats?.nation
+    );
+}
+
+function getCombatantElementKey(combatant) {
+    return normalizeElementKey(combatant?.elementKey || getPlayerElementKey(combatant?.player));
+}
+
+function getActionAttackElementKey(action) {
+    if (action?.source !== 'minor' || action?.kind !== 'attack') return 'none';
+    return normalizeElementKey(action.elementKey || action.element || action.suit);
+}
+
+function getElementalAffinity(attacker, defender, action) {
+    const attackElementKey = getActionAttackElementKey(action);
+    const defenderElementKey = getCombatantElementKey(defender);
+    const neutral = {
+        attackElementKey,
+        defenderElementKey,
+        relation: 'none',
+        multiplier: 1,
+        label: ''
+    };
+    if (!ELEMENT_KEYS.has(attackElementKey) || !ELEMENT_KEYS.has(defenderElementKey)) return neutral;
+    if (attackElementKey === defenderElementKey) {
+        return { ...neutral, relation: 'neutral' };
+    }
+    if (ELEMENT_BEATS[attackElementKey] === defenderElementKey) {
+        return { ...neutral, relation: 'weak', multiplier: 1.25, label: 'WEAK!' };
+    }
+    if (ELEMENT_BEATS[defenderElementKey] === attackElementKey) {
+        return { ...neutral, relation: 'resist', multiplier: 0.75, label: 'RESIST...' };
+    }
+    return { ...neutral, relation: 'neutral' };
+}
+
 function cloneAction(action, source = 'weapon') {
     return {
         ...action,
@@ -443,6 +576,9 @@ function createStatus() {
         counterTurns: 0,
         evasionChance: 0,
         evasionTurns: 0,
+        parryRate: 0,
+        parryCharges: 0,
+        parryMaxCharges: 0,
         burnTurns: 0,
         floodTurns: 0,
         fearTurns: 0,
@@ -458,6 +594,11 @@ function createCombatant(player, catalogCache = {}) {
     const forms = buildWeaponForms(primaryWeapon);
     const deck = getTarotDeckForPlayer(player, catalogCache);
     const slots = buildDiceSlots(forms, deck);
+    const status = createStatus();
+    const elementKey = getPlayerElementKey(player);
+    status.parryRate = getParryRate(player);
+    status.parryCharges = getParryCharges(player);
+    status.parryMaxCharges = status.parryCharges;
     return {
         player,
         id: String(player?.id || ''),
@@ -465,6 +606,8 @@ function createCombatant(player, catalogCache = {}) {
         weaponTypes,
         primaryWeapon,
         weaponLabel: WEAPON_LABELS[primaryWeapon] || primaryWeapon,
+        elementKey,
+        elementLabel: elementLabelForKey(elementKey),
         forms,
         slots,
         deck,
@@ -472,7 +615,7 @@ function createCombatant(player, catalogCache = {}) {
         navalBoarding: normalizeNavalBoardingState(player?.navalBoardingState),
         navalMoraleMultiplier: 1,
         morale: 0,
-        status: createStatus()
+        status
     };
 }
 
@@ -484,6 +627,7 @@ function publicCardForTimeline(card) {
         cardName: String(card.cardName || ''),
         skillName: String(card.skillName || ''),
         suit: String(card.suit || ''),
+        elementKey: normalizeElementKey(card.elementKey || card.element || card.suit),
         rank: getMinorRank(card),
         power: Number.isFinite(Number(card.power)) ? Number(card.power) : null,
         accuracy: Number.isFinite(Number(card.accuracy)) ? Number(card.accuracy) : null,
@@ -499,6 +643,7 @@ function publicActionForTimeline(action) {
         name: String(action.name || ''),
         cardName: String(action.cardName || ''),
         suit: String(action.suit || ''),
+        elementKey: normalizeElementKey(action.elementKey || action.element || action.suit),
         rank: Number.isFinite(Number(action.rank)) ? Number(action.rank) : null,
         power: Number.isFinite(Number(action.power)) ? Number(action.power) : null,
         accuracy: Number.isFinite(Number(action.accuracy)) ? Number(action.accuracy) : null,
@@ -526,13 +671,18 @@ function publicSlotForTimeline(combatant, die) {
 }
 
 function publicCombatantForTimeline(combatant) {
+    const elementKey = getCombatantElementKey(combatant);
     return {
         id: String(combatant.id || ''),
         name: String(combatant.name || ''),
         weaponType: String(combatant.primaryWeapon || ''),
         weaponLabel: String(combatant.weaponLabel || ''),
+        elementKey,
+        elementLabel: elementLabelForKey(elementKey),
         maxHp: getMaxHp(combatant),
         currentHp: getCurrentHp(combatant),
+        parryRate: number(combatant.status?.parryRate, 0),
+        parryCharges: Math.max(0, Math.floor(number(combatant.status?.parryCharges, 0))),
         slots: DICE_SLOTS.map((die) => publicSlotForTimeline(combatant, die))
     };
 }
@@ -564,7 +714,8 @@ function statusSnapshot(combatant) {
         damageTakenMultiplier: number(status.damageTakenMultiplier, 1),
         guardCharges: Math.max(0, Math.floor(number(status.nextDamageTakenCharges, 0))),
         counter: Math.max(0, Math.floor(number(status.counterTurns, 0))),
-        evasion: Math.max(0, Math.floor(number(status.evasionTurns, 0)))
+        evasion: Math.max(0, Math.floor(number(status.evasionTurns, 0))),
+        parryCharges: Math.max(0, Math.floor(number(status.parryCharges, 0)))
     };
 }
 
@@ -585,6 +736,7 @@ function createTimelineEntry({ round, attacker, defender, die, decision, before,
     const defenderBefore = before?.defender || {};
     const attackerAfter = after?.attacker || {};
     const defenderAfter = after?.defender || {};
+    const elemental = getElementalAffinity(attacker, defender, action);
     return {
         round: Math.max(1, Math.floor(number(round, 1))),
         actorId: String(attacker.id || ''),
@@ -595,6 +747,11 @@ function createTimelineEntry({ round, attacker, defender, die, decision, before,
         resultType: String(decision?.type || 'miss'),
         reason: String(decision?.reason || ''),
         action: publicActionForTimeline(action),
+        attackElementKey: elemental.attackElementKey,
+        defenderElementKey: elemental.defenderElementKey,
+        elementalRelation: elemental.relation,
+        elementalMultiplier: elemental.multiplier,
+        elementalLabel: elemental.label,
         damage: Math.max(0, defenderBefore.hp - defenderAfter.hp),
         selfDamage: Math.max(0, attackerBefore.hp - attackerAfter.hp),
         healing: Math.max(0, attackerAfter.hp - attackerBefore.hp),
@@ -603,6 +760,8 @@ function createTimelineEntry({ round, attacker, defender, die, decision, before,
         defenderHpBefore: defenderBefore.hp,
         defenderHpAfter: defenderAfter.hp,
         anyHit: !!execution?.anyHit,
+        parried: !!execution?.parried,
+        parryCount: Math.max(0, Math.floor(number(execution?.parryCount, 0))),
         statusChanges: [
             ...statusDiff(attackerBefore, attackerAfter).map((change) => ({ ...change, target: 'actor' })),
             ...statusDiff(defenderBefore, defenderAfter).map((change) => ({ ...change, target: 'target' }))
@@ -617,7 +776,7 @@ function normalizeActionFromMinor(card) {
         name: String(card?.skillName || card?.name || card?.cardName || '小アルカナ'),
         cardName: String(card?.cardName || ''),
         suit: normalizeMinorSuit(card?.suit),
-        elementKey: card?.elementKey || normalizeMinorSuit(card?.suit) || 'none',
+        elementKey: normalizeElementKey(card?.elementKey || card?.element || card?.suit),
         power: Number.isFinite(Number(card?.power)) ? Number(card.power) : null,
         accuracy: Number.isFinite(Number(card?.accuracy)) ? Number(card.accuracy) : null,
         rank: getMinorRank(card),
@@ -756,6 +915,7 @@ function calculateActionDamage(attacker, defender, action, consume = true) {
     raw *= roleAttackMultiplier(attacker, action);
     raw *= roleDamageTakenMultiplier(defender);
     raw *= number(defender.status.damageTakenMultiplier, 1);
+    raw *= getElementalAffinity(attacker, defender, action).multiplier;
     if (defender.status.nextDamageTakenCharges > 0) {
         raw *= number(defender.status.nextDamageTakenMultiplier, 1);
         if (consume) {
@@ -791,6 +951,16 @@ function rollChance(random, chance) {
     if (chance >= 1) return true;
     if (chance <= 0) return false;
     return random() < chance;
+}
+
+async function maybeParry(defender, action, emitLog, random) {
+    const status = defender.status || {};
+    if (action?.kind !== 'attack') return false;
+    if (number(status.parryRate, 0) <= 0 || Math.floor(number(status.parryCharges, 0)) <= 0) return false;
+    if (!rollChance(random, number(status.parryRate, 0))) return false;
+    status.parryCharges = Math.max(0, Math.floor(number(status.parryCharges, 0)) - 1);
+    await emitLog(`${defender.name} は盾で${action.name}をパリイ（残り${status.parryCharges}回）`);
+    return true;
 }
 
 async function applyDamage(defender, amount, emitLog, source = '') {
@@ -1072,6 +1242,7 @@ async function executeAttack(attacker, defender, action, emitLog, random) {
     const hitCount = Math.max(1, Math.floor(number(action.hitCount, 1)));
     let anyHit = false;
     let totalDamage = 0;
+    let parryCount = 0;
     for (let i = 0; i < hitCount; i += 1) {
         if (defender.status.evasionChance > 0 && rollChance(random, defender.status.evasionChance)) {
             defender.status.evasionChance = 0;
@@ -1084,16 +1255,22 @@ async function executeAttack(attacker, defender, action, emitLog, random) {
             await emitLog(`${action.name} は外れた`);
             continue;
         }
+        if (await maybeParry(defender, action, emitLog, random)) {
+            parryCount += 1;
+            continue;
+        }
         let damage = calculateActionDamage(attacker, defender, action, i === hitCount - 1);
         const critChance = clamp(number(action.criticalBonus, 0) + number(attacker.rolePassive?.criticalRateBonus, 0), 0, 0.8);
         if (critChance > 0 && rollChance(random, critChance)) {
             damage = Math.floor(damage * 1.5);
             await emitLog('クリティカル！');
         }
+        const elemental = getElementalAffinity(attacker, defender, action);
         const applied = await applyDamage(defender, damage, emitLog);
         totalDamage += applied;
         anyHit = true;
         await emitLog(`${attacker.name} の${action.name}が命中。${defender.name}に${applied}ダメージ`);
+        if (elemental.label) await emitLog(elemental.label);
         if (getCurrentHp(defender) <= 0) break;
     }
 
@@ -1105,11 +1282,11 @@ async function executeAttack(attacker, defender, action, emitLog, random) {
             await emitLog(`${attacker.name} は${heal}吸収`);
         }
         await maybeCounter(defender, attacker, emitLog, random);
-    } else {
+    } else if (parryCount <= 0) {
         await applyEffects(action.effectCodes, { attacker, defender, action, emitLog, random, trigger: 'miss' });
     }
     await applyEffects(action.effectCodes, { attacker, defender, action, emitLog, random, trigger: 'always' });
-    return { anyHit, totalDamage };
+    return { anyHit, totalDamage, parried: parryCount > 0, parryCount };
 }
 
 async function maybeCounter(defender, attacker, emitLog, random) {
@@ -1430,7 +1607,10 @@ module.exports = {
     resolveWeaponType,
     getEquippedWeaponTypes,
     getEffectiveSpeed,
+    getCombatantStatSummary,
     resolveDiceAction,
+    normalizeElementKey,
+    getElementalAffinity,
     calculateTarotDamage,
     calculatePhysicalDamage
 };

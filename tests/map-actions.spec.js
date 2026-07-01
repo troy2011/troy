@@ -327,6 +327,8 @@ test.describe('map actions', () => {
                     id: 'PF_PLAYWRIGHT',
                     name: 'Playwright Tester',
                     weaponType: 'sword',
+                    elementKey: 'fire',
+                    elementLabel: '火',
                     weaponLabel: '剣',
                     maxHp: 120,
                     currentHp: 120,
@@ -342,6 +344,8 @@ test.describe('map actions', () => {
                     id: 'PF_ENEMY_BATTLE',
                     name: 'Sea Wraith',
                     weaponType: 'axe_big',
+                    elementKey: 'wind',
+                    elementLabel: '風',
                     weaponLabel: '大斧',
                     maxHp: 95,
                     currentHp: 95,
@@ -371,6 +375,7 @@ test.describe('map actions', () => {
                     name: '潮戻し',
                     cardName: 'カップ5',
                     suit: 'cup',
+                    elementKey: 'water',
                     rank: 5,
                     power: null,
                     accuracy: null,
@@ -378,6 +383,11 @@ test.describe('map actions', () => {
                     effectText: '潮の力で立て直す'
                   },
                   damage: 0,
+                  attackElementKey: 'none',
+                  defenderElementKey: 'wind',
+                  elementalRelation: 'none',
+                  elementalMultiplier: 1,
+                  elementalLabel: '',
                   selfDamage: 0,
                   healing: 10,
                   attackerHpBefore: 110,
@@ -401,11 +411,17 @@ test.describe('map actions', () => {
                     kind: 'attack',
                     name: '連斬',
                     cardName: '',
+                    elementKey: 'fire',
                     power: 50,
                     accuracy: 95,
                     hitCount: 2
                   },
                   damage: 32,
+                  attackElementKey: 'fire',
+                  defenderElementKey: 'wind',
+                  elementalRelation: 'weak',
+                  elementalMultiplier: 1.25,
+                  elementalLabel: 'WEAK!',
                   selfDamage: 0,
                   healing: 0,
                   attackerHpBefore: 120,
@@ -433,6 +449,7 @@ test.describe('map actions', () => {
     await expect(page.locator('#battleStage .melee-minor-arcana-effect[data-card-name="カップ5"] .melee-minor-arcana-art')).toBeVisible();
     await expect(page.locator('#battleMeleeReplay')).toContainText('出目4');
     await expect(page.locator('#battleMeleeReplay')).toContainText('連斬');
+    await expect(page.locator('#battleMeleeReplay')).toContainText('WEAK!');
     await expect(page.locator('#battleMeleeReplay .melee-replay-combatant[data-weapon="sword"]')).toBeVisible();
     await expect(page.locator('#battleMeleeReplay .melee-replay-combatant.is-enemy-side[data-weapon="axe_big"]')).toBeVisible();
     await expect(page.locator('#battleMeleeReplay .melee-replay-combatant[data-weapon="sword"] .melee-replay-slot[data-die="1"]')).toBeVisible();

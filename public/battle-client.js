@@ -371,6 +371,15 @@ function formatMeleeReplayAction(event) {
     return `出目${die} ${source}: ${actionName}`;
 }
 
+function meleeReplayElementalLabel(event) {
+    const explicit = String(event?.elementalLabel || '').trim();
+    if (explicit) return explicit;
+    const relation = String(event?.elementalRelation || '').trim().toLowerCase();
+    if (relation === 'weak') return 'WEAK!';
+    if (relation === 'resist') return 'RESIST...';
+    return '';
+}
+
 function normalizeMeleeSpriteWeapon(value) {
     const key = String(value || '').trim().toLowerCase();
     if (key === 'gun-big' || key === 'large_gun' || key === 'large-gun') return 'gun_big';
@@ -649,6 +658,8 @@ function createMeleeReplayPanel(duel, meta = {}) {
         card.dataset.combatantId = combatantId;
         card.dataset.side = isViewer ? 'player' : 'enemy';
         card.dataset.weapon = normalizeMeleeSpriteWeapon(combatant?.weaponType);
+        card.dataset.element = combatant?.elementKey || 'none';
+        if (combatant?.elementLabel) card.dataset.elementLabel = combatant.elementLabel;
 
         const row = document.createElement('div');
         row.className = 'melee-replay-combatant-row';
@@ -788,6 +799,13 @@ function triggerMeleeReplayDamageFeedback(panel, event, frameIndex) {
     }
     const shownStatus = new Set();
     const statusStacks = new Map();
+    const elementalLabel = meleeReplayElementalLabel(event);
+    if (elementalLabel && Number(event.damage) > 0) {
+        const targetId = event.targetId || event.actorId;
+        const stackIndex = statusStacks.get(targetId) || 0;
+        statusStacks.set(targetId, stackIndex + 1);
+        createMeleeReplayFeedbackPopup(targetId, elementalLabel, viewerId, 'status', stackIndex);
+    }
     (Array.isArray(event.statusChanges) ? event.statusChanges : []).forEach((change) => {
         const label = meleeReplayStatusChangeLabel(change);
         if (!label || shownStatus.has(`${change.target}:${label}`)) return;
@@ -904,10 +922,12 @@ function renderMeleeReplayFrame(panel, duel, frameIndex) {
             metaEl.innerText = 'ダメージなし';
         } else {
             const parts = [];
+            const elementalLabel = meleeReplayElementalLabel(event);
             if (Number(event.damage) > 0) parts.push(`${event.targetName || '相手'}へ${event.damage}ダメージ`);
             if (Number(event.healing) > 0) parts.push(`${event.actorName || '自分'}が${event.healing}回復`);
             if (Number(event.selfDamage) > 0) parts.push(`反動${event.selfDamage}`);
             if (isMeleeReplayMissEvent(event)) parts.push('MISS');
+            if (elementalLabel) parts.push(elementalLabel);
             const statusLabels = [];
             (Array.isArray(event.statusChanges) ? event.statusChanges : []).forEach((change) => {
                 const label = meleeReplayStatusChangeLabel(change);
