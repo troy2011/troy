@@ -1303,6 +1303,13 @@ function getEquippedSlotsForItem(item) {
         .map(([slot]) => slot);
 }
 
+function getInventoryOwnedCount(item) {
+    const count = Number(item?.count ?? 0) || 0;
+    if (count > 0) return count;
+    if (Array.isArray(item?.instances) && item.instances.length > 0) return item.instances.length;
+    return item ? 1 : 0;
+}
+
 function isTwoHandedWeapon(item) {
     return isTwoHandedInventoryWeapon(item);
 }
@@ -2662,13 +2669,25 @@ function showItemDetailModal(item) {
                 addAction('両手装備', 'equip', () => equipItem(playFabId, equipItemId, 'RightHand'));
             }
         } else {
+            const ownedCount = getInventoryOwnedCount(item);
+            const isRightEquipped = isEquipped('RightHand');
+            const isLeftEquipped = isEquipped('LeftHand');
+            const cannotEquipRight = !isRightEquipped && isLeftEquipped && ownedCount < 2;
+            const cannotEquipLeft = !isLeftEquipped && isRightEquipped && ownedCount < 2;
+            if (cannotEquipRight || cannotEquipLeft) {
+                appendActionNote('同じ片手武器を両手に装備するには2本必要です。');
+            }
             if (isEquipped('RightHand')) {
                 addAction('右手を外す', 'remove', () => equipItem(playFabId, null, 'RightHand'));
+            } else if (cannotEquipRight) {
+                addAction('右手装備（2本必要）', 'disabled', null, { disabled: true });
             } else {
                 addAction(getEquipActionLabel('RightHand', '右手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'RightHand'));
             }
             if (isEquipped('LeftHand')) {
                 addAction('左手を外す', 'remove', () => equipItem(playFabId, null, 'LeftHand'));
+            } else if (cannotEquipLeft) {
+                addAction('左手装備（2本必要）', 'disabled', null, { disabled: true });
             } else {
                 addAction(getEquipActionLabel('LeftHand', '左手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'LeftHand'));
             }

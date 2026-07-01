@@ -558,6 +558,30 @@ function initializeInventoryRoutes(app, deps) {
         }, 0);
     }
 
+    function getStoredEquipmentItemId(rawValue) {
+        const parsed = parseStoredEquipmentValue(rawValue);
+        if (!parsed) return '';
+        if (typeof parsed !== 'object') return String(parsed || '').trim();
+        return String(
+            parsed.itemId
+            || parsed.ItemId
+            || parsed.id
+            || parsed.Id
+            || parsed?.Item?.Id
+            || parsed?.Item?.itemId
+            || ''
+        ).trim();
+    }
+
+    async function getOwnedInventoryItemCount(playFabId, itemId) {
+        if (typeof getEntityKeyForPlayFabId !== 'function' || typeof getAllInventoryItems !== 'function') {
+            return 0;
+        }
+        const entityKey = await getEntityKeyForPlayFabId(playFabId);
+        const inventoryItems = await getAllInventoryItems(entityKey);
+        return getInventoryItemTotal(inventoryItems, itemId);
+    }
+
     async function ensureStarterMajorArcanaOwned(playFabId, nation, inventoryItems = null, entityKey = null) {
         const starterMajorId = getStarterMajorArcanaItemId(String(nation || '').trim().toLowerCase());
         if (!starterMajorId) {
@@ -885,6 +909,22 @@ function initializeInventoryRoutes(app, deps) {
             } else if (slot === 'Accessory') {
                 if (normalizedCategory !== 'Accessory') {
                     return res.status(400).json({ error: 'この装備はアクセサリー枠に装備できません。' });
+                }
+            }
+            if (normalizedCategory === 'Weapon' && !isTwoHandedWeapon && (slot === 'RightHand' || slot === 'LeftHand')) {
+                const oppositeKey = slot === 'RightHand' ? 'Equipped_LeftHand' : 'Equipped_RightHand';
+                const currentEquipmentResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                    PlayFabId: playFabId,
+                    Keys: [oppositeKey]
+                });
+                const oppositeItemId = getStoredEquipmentItemId(currentEquipmentResult?.Data?.[oppositeKey]?.Value || null);
+                if (oppositeItemId && oppositeItemId === itemId) {
+                    const ownedCount = await getOwnedInventoryItemCount(playFabId, itemId);
+                    if (ownedCount < 2) {
+                        return res.status(400).json({
+                            error: '同じ片手武器を両手に装備するには2本必要です。'
+                        });
+                    }
                 }
             }
             dataToUpdate[dataKey] = itemId;
