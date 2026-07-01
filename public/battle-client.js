@@ -369,6 +369,18 @@ const MELEE_FEEDBACK_ICON_INDEX = {
     vulnUp: 223,
     guard: 203
 };
+const MELEE_PERSISTENT_STATUS_DEFS = [
+    { key: 'burn', iconKey: 'burn', label: 'BURN', tone: 'ailment', isActive: (status) => Number(status.burn) > 0 },
+    { key: 'wet', iconKey: 'wet', label: 'WET', tone: 'ailment', isActive: (status) => Number(status.flood) > 0 },
+    { key: 'fear', iconKey: 'fear', label: 'FEAR', tone: 'ailment', isActive: (status) => Number(status.fear) > 0 },
+    { key: 'confuse', iconKey: 'confuse', label: 'CONFUSE', tone: 'ailment', isActive: (status) => Number(status.confusion) > 0 },
+    { key: 'atkDown', iconKey: 'atkDown', label: 'ATK DOWN', tone: 'debuff', isActive: (status) => Number(status.attackMultiplier) < 1 },
+    { key: 'defDown', iconKey: 'defDown', label: 'DEF DOWN', tone: 'debuff', isActive: (status) => Number(status.defenseMultiplier) < 1 },
+    { key: 'speedDown', iconKey: 'speedDown', label: 'SPEED DOWN', tone: 'debuff', isActive: (status) => Number(status.speedMultiplier) < 1 },
+    { key: 'accDown', iconKey: 'accDown', label: 'ACC DOWN', tone: 'debuff', isActive: (status) => Number(status.accuracyBonus) < 0 },
+    { key: 'vulnUp', iconKey: 'vulnUp', label: 'VULN UP', tone: 'debuff', isActive: (status) => Number(status.damageTakenMultiplier) > 1 },
+    { key: 'guard', iconKey: 'guard', label: 'GUARD', tone: 'buff', isActive: (status) => Number(status.guardCharges) > 0 || Number(status.damageTakenMultiplier) < 1 }
+];
 const MELEE_ELEMENTAL_EFFECTS = {
     fire: {
         file: 'fire.png', cols: 5, rows: 6, intervalMs: 42, scale: 2.35,
@@ -901,6 +913,171 @@ function createMeleeFeedbackIcon(iconKey) {
     return icon;
 }
 
+function normalizeMeleeStatusSnapshot(source = {}) {
+    const numberOr = (value, fallback = 0) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    };
+    const positive = (value) => Math.max(0, Math.floor(numberOr(value, 0)));
+    return {
+        morale: numberOr(source.morale, 0),
+        burn: positive(source.burn ?? source.burnTurns),
+        flood: positive(source.flood ?? source.floodTurns),
+        fear: positive(source.fear ?? source.fearTurns),
+        confusion: positive(source.confusion ?? source.confusionTurns),
+        attackMultiplier: numberOr(source.attackMultiplier, 1),
+        defenseMultiplier: numberOr(source.defenseMultiplier, 1),
+        speedMultiplier: numberOr(source.speedMultiplier, 1),
+        accuracyBonus: numberOr(source.accuracyBonus, 0),
+        damageTakenMultiplier: numberOr(source.damageTakenMultiplier, 1),
+        guardCharges: positive(source.guardCharges ?? source.nextDamageTakenCharges),
+        counter: positive(source.counter ?? source.counterTurns),
+        evasion: positive(source.evasion ?? source.evasionTurns),
+        parryCharges: positive(source.parryCharges)
+    };
+}
+
+function getMeleePersistentStatusForLabel(label) {
+    const iconKey = normalizeMeleeFeedbackIconKey(label, 'status');
+    if (!iconKey || iconKey === 'parry' || iconKey === 'weak' || iconKey === 'resist') return null;
+    return MELEE_PERSISTENT_STATUS_DEFS.find((entry) => entry.iconKey === iconKey) || null;
+}
+
+function isMeleePersistentStatusLabel(label) {
+    return !!getMeleePersistentStatusForLabel(label);
+}
+
+function getMeleeActiveStatusIcons(status) {
+    const normalized = normalizeMeleeStatusSnapshot(status);
+    return MELEE_PERSISTENT_STATUS_DEFS.filter((entry) => {
+        try {
+            return entry.isActive(normalized);
+        } catch (error) {
+            return false;
+        }
+    });
+}
+
+function createMeleePersistentStatusIcon(entry) {
+    const icon = createMeleeFeedbackIcon(entry?.iconKey);
+    if (!icon) return null;
+    icon.classList.add('melee-status-icon');
+    icon.dataset.statusKey = entry.key;
+    icon.dataset.feedbackTone = entry.tone || '';
+    icon.title = entry.label;
+    icon.setAttribute('aria-label', entry.label);
+    return icon;
+}
+
+function renderMeleePersistentStatusIcons(root, status) {
+    if (!root) return;
+    const icons = getMeleeActiveStatusIcons(status)
+        .map(createMeleePersistentStatusIcon)
+        .filter(Boolean);
+    root.replaceChildren(...icons);
+    root.dataset.statusCount = String(icons.length);
+    root.classList.toggle('is-empty', icons.length === 0);
+}
+
+function ensureMeleeReplayStatusTray(stage, side) {
+    if (!stage) return null;
+    const normalizedSide = side === 'player' ? 'player' : 'enemy';
+    const selector = `.melee-status-tray.is-${normalizedSide}-side`;
+    let tray = stage.querySelector(selector);
+    if (tray) return tray;
+    tray = document.createElement('div');
+    tray.className = `melee-status-tray is-${normalizedSide}-side is-empty`;
+    tray.dataset.side = normalizedSide;
+    stage.appendChild(tray);
+    return tray;
+}
+
+function applyMeleeReplayStatusChange(status, change) {
+    if (!status || !change) return;
+    const key = String(change.key || '');
+    const value = Number(change.after);
+    if (!Number.isFinite(value)) return;
+    if (['burn', 'flood', 'fear', 'confusion'].includes(key)) {
+        status[key] = Math.max(0, Math.floor(value));
+        return;
+    }
+    if ([
+        'morale',
+        'attackMultiplier',
+        'defenseMultiplier',
+        'speedMultiplier',
+        'accuracyBonus',
+        'damageTakenMultiplier',
+        'guardCharges',
+        'counter',
+        'evasion',
+        'parryCharges'
+    ].includes(key)) {
+        status[key] = value;
+    }
+}
+
+function getMeleeReplayStatusSnapshots(duel, lastFrame) {
+    const setup = duel?.setup || {};
+    const combatants = Array.isArray(setup.combatants) ? setup.combatants : [];
+    const timeline = Array.isArray(duel?.timeline) ? duel.timeline : [];
+    const statusById = new Map();
+    combatants.forEach((combatant) => {
+        const id = String(combatant?.id || '');
+        if (id) statusById.set(id, normalizeMeleeStatusSnapshot(combatant?.status || {}));
+    });
+    const setSnapshot = (combatantId, snapshot) => {
+        const id = String(combatantId || '');
+        if (!id || !snapshot) return;
+        statusById.set(id, normalizeMeleeStatusSnapshot(snapshot));
+    };
+    const applyFallbackChanges = (event) => {
+        (Array.isArray(event?.statusChanges) ? event.statusChanges : []).forEach((change) => {
+            const combatantId = change.target === 'actor' ? event.actorId : event.targetId;
+            const id = String(combatantId || '');
+            if (!id) return;
+            const current = statusById.get(id) || normalizeMeleeStatusSnapshot();
+            applyMeleeReplayStatusChange(current, change);
+            statusById.set(id, current);
+        });
+    };
+    for (let index = 0; index <= lastFrame && index < timeline.length; index += 1) {
+        const event = timeline[index];
+        if (!event) continue;
+        setSnapshot(event.actorId, event.attackerStatusBefore);
+        setSnapshot(event.targetId, event.defenderStatusBefore);
+        if (event.attackerStatusAfter || event.defenderStatusAfter) {
+            setSnapshot(event.actorId, event.attackerStatusAfter);
+            setSnapshot(event.targetId, event.defenderStatusAfter);
+        } else {
+            applyFallbackChanges(event);
+        }
+    }
+    return statusById;
+}
+
+function syncMeleeReplayStatusIcons(panel, duel, lastFrame) {
+    if (!panel || !duel) return;
+    const stage = document.getElementById('battleStage');
+    if (!stage) return;
+    const statusById = getMeleeReplayStatusSnapshots(duel, lastFrame);
+    const activeSides = new Set();
+    panel.querySelectorAll('.melee-replay-combatant').forEach((combatantEl) => {
+        const id = String(combatantEl.dataset.combatantId || '');
+        const side = combatantEl.classList.contains('is-player-side') ? 'player' : 'enemy';
+        const tray = ensureMeleeReplayStatusTray(stage, side);
+        if (!tray) return;
+        activeSides.add(side);
+        tray.dataset.combatantId = id;
+        renderMeleePersistentStatusIcons(tray, statusById.get(id) || {});
+    });
+    ['enemy', 'player'].forEach((side) => {
+        if (activeSides.has(side)) return;
+        const tray = stage.querySelector(`.melee-status-tray.is-${side}-side`);
+        if (tray) renderMeleePersistentStatusIcons(tray, {});
+    });
+}
+
 function createMeleeReplayFeedbackPopup(combatantId, text, viewerId = '', type = 'damage', stackIndex = 0) {
     const stage = document.getElementById('battleStage');
     if (!stage || !text) return;
@@ -917,7 +1094,7 @@ function createMeleeReplayFeedbackPopup(combatantId, text, viewerId = '', type =
     if (numericAmount >= 50) popup.classList.add('is-heavy-hit');
     popup.style.setProperty('--feedback-stack-y', `${type === 'status' ? stack * -18 : 0}px`);
     popup.style.setProperty('--feedback-x', `${type === 'status' ? (isViewer ? -8 : 8) : 0}px`);
-    const icon = createMeleeFeedbackIcon(iconKey);
+    const icon = type === 'damage' ? null : createMeleeFeedbackIcon(iconKey);
     if (icon) popup.appendChild(icon);
     const label = document.createElement('span');
     label.className = 'melee-feedback-text';
@@ -1228,6 +1405,7 @@ function triggerMeleeReplayDamageFeedback(panel, event, frameIndex) {
     (Array.isArray(event.statusChanges) ? event.statusChanges : []).forEach((change) => {
         const label = meleeReplayStatusChangeLabel(change);
         if (!label || shownStatus.has(`${change.target}:${label}`)) return;
+        if (isMeleePersistentStatusLabel(label)) return;
         shownStatus.add(`${change.target}:${label}`);
         const targetId = change.target === 'actor' ? event.actorId : event.targetId;
         const stackIndex = statusStacks.get(targetId) || 0;
@@ -1401,6 +1579,7 @@ function renderMeleeReplayFrame(panel, duel, frameIndex) {
             setMeleeReplaySlotVisual(slotEl, visualType);
         });
     });
+    syncMeleeReplayStatusIcons(panel, duel, lastFrame);
     syncMeleeReplayAvatarDefeat(panel, hpById);
     syncMeleeReplayAvatarVictory(
         panel,
@@ -1417,7 +1596,7 @@ function renderBattleLog(container, logData, { animate = false, onComplete = nul
     container.innerHTML = '';
     const battleStage = document.getElementById('battleStage');
     battleStage?.querySelector('#battleMeleeReplay')?.remove();
-    battleStage?.querySelectorAll('.melee-minor-arcana-effect, .melee-elemental-attack-effect, .melee-weapon-attack-effect, .melee-damage-pop').forEach((node) => node.remove());
+    battleStage?.querySelectorAll('.melee-minor-arcana-effect, .melee-elemental-attack-effect, .melee-weapon-attack-effect, .melee-damage-pop, .melee-status-tray').forEach((node) => node.remove());
     const meleeDuel = getMeleeReplayDuel(meta);
     const meleePanel = meleeDuel ? createMeleeReplayPanel(meleeDuel, meta) : null;
     if (meleePanel) {

@@ -585,6 +585,7 @@ test.describe('map actions', () => {
     await expect(page.locator('#battleStage .melee-minor-arcana-effect[data-card-name="カップ5"]')).toContainText('潮戻し');
     await expect(page.locator('#battleStage .melee-minor-arcana-effect[data-card-name="カップ5"] .melee-minor-arcana-art')).toBeVisible();
     await expect(feedbackIcon('burn')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('#battleStage .melee-status-tray.is-enemy-side .melee-status-icon[data-status-key="burn"][data-icon-key="burn"]')).toBeVisible({ timeout: 5_000 });
     await expect(feedbackIcon('resist')).toBeVisible({ timeout: 5_000 });
     await expect(feedbackIcon('miss')).toBeVisible({ timeout: 5_000 });
     await expect(feedbackIcon('weak')).toBeVisible({ timeout: 5_000 });

@@ -4872,8 +4872,8 @@ test('single one-handed weapon cannot be equipped to both hands from detail moda
   await page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]').click();
   await expect(page.locator('#itemDetailModal')).toBeVisible();
   await expect(page.locator('#itemDetailButtons .item-detail-action.is-remove')).toContainText('右手を外す');
-  await expect(page.locator('#itemDetailButtons .item-detail-action.is-disabled')).toContainText('左手装備（2本必要）');
+  await expect(page.locator('#itemDetailButtons .item-detail-action.is-disabled')).toHaveText('左手装備');
   await expect(page.locator('#itemDetailButtons .item-detail-action.is-disabled')).toBeDisabled();
-  await expect(page.locator('#itemDetailButtons .item-detail-action-note')).toContainText('同じ片手武器を両手に装備するには2本必要です。');
+  await expect(page.locator('#itemDetailButtons .item-detail-action-note')).toHaveCount(0);
   await expectNoPageErrors(errors);
 });

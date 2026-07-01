@@ -311,7 +311,7 @@ button:disabled {
     text-align: center;
     opacity: 1;
     filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.72)) drop-shadow(0 8px 10px rgba(0, 0, 0, 0.42));
-    transform: translateX(-50%);
+    transform: translateX(-50%) scaleX(var(--avatar-facing-scale-x, 1));
     animation: avatarVictoryBadge 1600ms cubic-bezier(0.16, 0.78, 0.2, 1) both;
     z-index: 7;
 }
@@ -510,15 +510,15 @@ button:disabled {
 @keyframes avatarVictoryBadge {
     0% {
         opacity: 0;
-        transform: translate(-50%, 8px) scale(0.72);
+        transform: translate(-50%, 8px) scaleX(var(--avatar-facing-scale-x, 1)) scale(0.72);
     }
     22%, 78% {
         opacity: 1;
-        transform: translate(-50%, 0) scale(1);
+        transform: translate(-50%, 0) scaleX(var(--avatar-facing-scale-x, 1)) scale(1);
     }
     100% {
         opacity: 0.92;
-        transform: translate(-50%, -3px) scale(0.96);
+        transform: translate(-50%, -3px) scaleX(var(--avatar-facing-scale-x, 1)) scale(0.96);
     }
 }
 
@@ -725,9 +725,15 @@ meter::-moz-meter-bar {
 
 .status-row {
     display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
     min-height: 24px;
+}
+
+.status-row.is-empty {
+    opacity: 0;
 }
 
 .status-chip {
@@ -738,6 +744,12 @@ meter::-moz-meter-bar {
     padding: 3px 8px;
     font-size: 12px;
     font-weight: 800;
+}
+
+.status-row .melee-status-icon {
+    width: 21px;
+    height: 21px;
+    flex: 0 0 21px;
 }
 
 .dice-zone {
@@ -1260,18 +1272,31 @@ meter::-moz-meter-bar {
 
 .status-row {
     position: absolute;
-    top: 104px;
+    top: auto;
+    bottom: 94px;
     z-index: 6;
-    width: min(286px, calc(100% - 24px));
+    width: auto;
+    min-width: 30px;
+    max-width: min(180px, calc(100% - 24px));
+    padding: 3px 5px;
+    border: 1px solid rgba(105, 78, 45, 0.58);
+    border-radius: 5px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 44%),
+        rgba(8, 10, 14, 0.72);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 10px 18px rgba(0, 0, 0, 0.34);
+    transform: translateX(-50%);
 }
 
 .fighter-enemy .status-row {
-    left: 14px;
+    left: 42%;
 }
 
 .fighter-player .status-row {
-    right: 14px;
-    justify-content: flex-end;
+    left: 58%;
+    right: auto;
 }
 
 .demo-combat-avatar {
@@ -1549,20 +1574,23 @@ meter::-moz-meter-bar {
     min-height: 34px;
     padding: 0 4px;
     text-align: center;
-    color: #fff1a6;
-    font-size: 30px;
+    color: #f4e8bd;
+    font-size: 28px;
     font-weight: 1000;
     line-height: 1;
     white-space: nowrap;
     text-shadow:
-        0 1px 0 #fff9c4,
-        0 3px 0 #7f1d1d,
-        0 0 14px rgba(248, 216, 136, 0.74),
-        0 10px 18px rgba(0, 0, 0, 0.48);
+        0 1px 0 #3b2413,
+        1px 0 0 #140b08,
+        -1px 0 0 #140b08,
+        0 -1px 0 #140b08,
+        0 3px 0 #2a130d,
+        0 0 8px rgba(164, 120, 55, 0.42),
+        0 10px 18px rgba(0, 0, 0, 0.56);
     pointer-events: none;
     transform-origin: center;
     isolation: isolate;
-    animation: meleeDamageNumberPop 2400ms cubic-bezier(0.15, 0.82, 0.2, 1) both;
+    animation: meleeDamageNumberPop 2200ms cubic-bezier(0.2, 0.72, 0.18, 1) both;
 }
 
 .melee-damage-pop::before {
@@ -1571,12 +1599,12 @@ meter::-moz-meter-bar {
     left: 50%;
     top: 50%;
     z-index: -1;
-    width: 74px;
-    height: 38px;
+    width: 64px;
+    height: 30px;
     border-radius: 50%;
     opacity: 0;
     background:
-        radial-gradient(ellipse, rgba(255, 248, 196, 0.38), rgba(250, 204, 21, 0.16) 42%, transparent 72%);
+        radial-gradient(ellipse, rgba(215, 174, 96, 0.28), rgba(96, 54, 24, 0.16) 44%, transparent 74%);
     transform: translate(-50%, -50%) scale(0.5);
 }
 
@@ -1611,7 +1639,7 @@ meter::-moz-meter-bar {
 }
 
 .melee-feedback-digit {
-    animation: meleeDamageDigitSnap 560ms cubic-bezier(0.16, 0.86, 0.2, 1) var(--digit-delay, 0ms) both;
+    animation: meleeDamageDigitSnap 420ms cubic-bezier(0.22, 0.72, 0.2, 1) var(--digit-delay, 0ms) both;
 }
 
 .melee-feedback-sign {
@@ -1624,17 +1652,20 @@ meter::-moz-meter-bar {
 }
 
 .melee-damage-pop.is-damage::before {
-    animation: meleeDamageImpactRing 520ms ease-out 70ms both;
+    animation: meleeDamageImpactRing 420ms ease-out 80ms both;
 }
 
 .melee-damage-pop.is-heavy-hit {
-    font-size: 38px;
-    min-width: 72px;
+    font-size: 34px;
+    min-width: 68px;
     text-shadow:
-        0 1px 0 #fff9c4,
-        0 4px 0 #7f1d1d,
-        0 0 18px rgba(253, 186, 116, 0.9),
-        0 12px 20px rgba(0, 0, 0, 0.56);
+        0 1px 0 #3b2413,
+        1px 0 0 #100806,
+        -1px 0 0 #100806,
+        0 -1px 0 #100806,
+        0 4px 0 #2a130d,
+        0 0 12px rgba(180, 118, 48, 0.58),
+        0 12px 20px rgba(0, 0, 0, 0.62);
 }
 
 .melee-damage-pop.is-damage .melee-feedback-icon,
@@ -1647,29 +1678,31 @@ meter::-moz-meter-bar {
 .melee-damage-pop.is-heal {
     --feedback-y: -20px;
     z-index: 12;
-    color: #bbf7d0;
-    font-size: 28px;
+    color: #c9e8c7;
+    font-size: 26px;
     animation-name: meleeHealNumberPop;
     text-shadow:
-        0 1px 0 #ecfccb,
-        0 3px 0 #14532d,
-        0 0 16px rgba(134, 239, 172, 0.76),
-        0 8px 16px rgba(0, 0, 0, 0.42);
+        0 1px 0 #102d1e,
+        1px 0 0 #08130d,
+        -1px 0 0 #08130d,
+        0 3px 0 #102d1e,
+        0 0 10px rgba(109, 162, 107, 0.46),
+        0 8px 16px rgba(0, 0, 0, 0.5);
 }
 
 .melee-damage-pop.is-miss {
     --feedback-y: -32px;
     z-index: 12;
-    min-width: 68px;
-    min-height: 28px;
-    padding: 4px 9px 5px;
-    color: #dbeafe;
-    font-size: 22px;
+    min-width: 66px;
+    min-height: 26px;
+    padding: 4px 9px;
+    color: #c2cad8;
+    font-size: 18px;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 36%),
-        rgba(15, 23, 42, 0.9);
-    border: 1px solid rgba(147, 197, 253, 0.56);
-    border-radius: 999px;
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 42%),
+        rgba(12, 17, 28, 0.94);
+    border: 1px solid rgba(122, 137, 163, 0.62);
+    border-radius: 4px;
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.16),
         0 10px 18px rgba(0, 0, 0, 0.42);
@@ -1690,74 +1723,74 @@ meter::-moz-meter-bar {
 .melee-damage-pop.is-status {
     --feedback-y: -58px;
     z-index: 11;
-    min-width: 76px;
-    min-height: 28px;
-    padding: 4px 9px 5px;
-    color: #fca5a5;
-    font-size: 13px;
-    letter-spacing: 0.08em;
+    min-width: 78px;
+    min-height: 26px;
+    padding: 4px 9px;
+    color: #d7b2a2;
+    font-size: 12px;
+    letter-spacing: 0.06em;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 36%),
-        rgba(29, 7, 10, 0.86);
-    border: 1px solid rgba(252, 165, 165, 0.5);
-    border-radius: 999px;
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 42%),
+        rgba(30, 18, 16, 0.94);
+    border: 1px solid rgba(146, 96, 78, 0.62);
+    border-radius: 4px;
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.16),
         0 10px 18px rgba(0, 0, 0, 0.42);
     text-shadow:
-        0 2px 0 #7f1d1d,
-        0 0 14px rgba(248, 113, 113, 0.58),
-        0 8px 16px rgba(0, 0, 0, 0.42);
+        0 2px 0 #2a130d,
+        0 0 8px rgba(125, 70, 50, 0.42),
+        0 8px 16px rgba(0, 0, 0, 0.5);
     animation-name: meleeStatusCardPop;
 }
 
 .melee-damage-pop[data-feedback-tone="buff"] {
-    color: #a7f3d0;
+    color: #b6d3c7;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 36%),
-        rgba(4, 48, 42, 0.9);
-    border-color: rgba(94, 234, 212, 0.58);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 42%),
+        rgba(12, 38, 35, 0.94);
+    border-color: rgba(92, 142, 134, 0.66);
     text-shadow:
-        0 2px 0 #064e3b,
-        0 0 14px rgba(45, 212, 191, 0.6),
-        0 8px 16px rgba(0, 0, 0, 0.42);
+        0 2px 0 #0f2925,
+        0 0 8px rgba(80, 138, 128, 0.42),
+        0 8px 16px rgba(0, 0, 0, 0.5);
 }
 
 .melee-damage-pop[data-feedback-tone="debuff"] {
-    color: #fecaca;
+    color: #d7a196;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 36%),
-        rgba(69, 10, 10, 0.9);
-    border-color: rgba(248, 113, 113, 0.64);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 42%),
+        rgba(47, 16, 14, 0.94);
+    border-color: rgba(148, 82, 72, 0.66);
 }
 
 .melee-damage-pop[data-feedback-tone="ailment"] {
-    color: #fde68a;
+    color: #d9bf86;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 36%),
-        rgba(61, 22, 53, 0.9);
-    border-color: rgba(216, 180, 254, 0.58);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 42%),
+        rgba(42, 26, 42, 0.94);
+    border-color: rgba(137, 106, 158, 0.62);
     text-shadow:
-        0 2px 0 #581c87,
-        0 0 14px rgba(216, 180, 254, 0.58),
-        0 8px 16px rgba(0, 0, 0, 0.42);
+        0 2px 0 #2c1738,
+        0 0 8px rgba(133, 101, 160, 0.42),
+        0 8px 16px rgba(0, 0, 0, 0.5);
 }
 
 .melee-damage-pop[data-feedback-tone="advantage"] {
-    color: #fef3c7;
+    color: #ead9a5;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 36%),
-        rgba(92, 45, 9, 0.92);
-    border-color: rgba(251, 191, 36, 0.72);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.09), transparent 42%),
+        rgba(57, 35, 16, 0.94);
+    border-color: rgba(164, 124, 61, 0.72);
 }
 
 .melee-damage-pop[data-feedback-tone="resist"],
 .melee-damage-pop[data-feedback-tone="miss"] {
-    color: #bfdbfe;
+    color: #b6c4d7;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 36%),
-        rgba(15, 23, 42, 0.9);
-    border-color: rgba(147, 197, 253, 0.56);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 42%),
+        rgba(15, 21, 32, 0.94);
+    border-color: rgba(95, 113, 141, 0.66);
 }
 
 .melee-damage-pop.is-enemy-side {
@@ -1771,78 +1804,74 @@ meter::-moz-meter-bar {
 @keyframes meleeDamageNumberPop {
     0% {
         opacity: 0;
-        transform: translate(calc(-50% + var(--feedback-x, 0px)), 18px) scale(0.48) rotate(-3deg);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), 8px) scale(0.86);
     }
-    12% {
+    18% {
         opacity: 1;
-        transform: translate(calc(-50% + var(--feedback-x, 0px)), -14px) scale(1.36) rotate(2deg);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -7px) scale(1.08);
     }
-    24% {
+    34% {
         opacity: 1;
-        transform: translate(calc(-50% + var(--feedback-x, 0px)), -4px) scale(0.96) rotate(-1deg);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -2px) scale(1);
     }
-    46% {
+    76% {
         opacity: 1;
-        transform: translate(calc(-50% + var(--feedback-x, 0px)), -22px) scale(1.08) rotate(0deg);
-    }
-    78% {
-        opacity: 1;
-        transform: translate(calc(-50% + var(--feedback-x, 0px)), -42px) scale(1);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -26px) scale(1);
     }
     100% {
         opacity: 0;
-        transform: translate(calc(-50% + var(--feedback-x, 0px)), -58px) scale(0.92);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -38px) scale(0.98);
     }
 }
 
 @keyframes meleeHealNumberPop {
     0% {
         opacity: 0;
-        transform: translate(calc(-50% + var(--feedback-x, 0px)), 16px) scale(0.7);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), 8px) scale(0.86);
     }
-    16% {
+    20% {
         opacity: 1;
-        transform: translate(calc(-50% + var(--feedback-x, 0px)), -10px) scale(1.2);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -6px) scale(1.06);
     }
     76% {
         opacity: 1;
-        transform: translate(calc(-50% + var(--feedback-x, 0px)), -36px) scale(1);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -24px) scale(1);
     }
     100% {
         opacity: 0;
-        transform: translate(calc(-50% + var(--feedback-x, 0px)), -54px) scale(0.94);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -38px) scale(0.98);
     }
 }
 
 @keyframes meleeStatusCardPop {
     0% {
         opacity: 0;
-        transform: translate(calc(-50% + var(--feedback-x, 0px)), 10px) scale(0.74);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), 6px) scale(0.92);
     }
-    14% {
+    18% {
         opacity: 1;
-        transform: translate(calc(-50% + var(--feedback-x, 0px)), -3px) scale(1.08);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -2px) scale(1.02);
     }
-    22% {
+    28% {
         transform: translate(calc(-50% + var(--feedback-x, 0px)), 0) scale(1);
     }
     82% {
         opacity: 1;
-        transform: translate(calc(-50% + var(--feedback-x, 0px)), -22px) scale(1);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -16px) scale(1);
     }
     100% {
         opacity: 0;
-        transform: translate(calc(-50% + var(--feedback-x, 0px)), -36px) scale(0.96);
+        transform: translate(calc(-50% + var(--feedback-x, 0px)), -28px) scale(0.98);
     }
 }
 
 @keyframes meleeDamageDigitSnap {
     0% {
-        transform: translateY(16px) scale(0.64);
+        transform: translateY(8px) scale(0.88);
         opacity: 0;
     }
-    58% {
-        transform: translateY(-5px) scale(1.18);
+    60% {
+        transform: translateY(-2px) scale(1.05);
         opacity: 1;
     }
     100% {
@@ -1854,14 +1883,14 @@ meter::-moz-meter-bar {
 @keyframes meleeDamageImpactRing {
     0% {
         opacity: 0;
-        transform: translate(-50%, -50%) scale(0.36);
+        transform: translate(-50%, -50%) scale(0.5);
     }
     35% {
-        opacity: 0.9;
+        opacity: 0.42;
     }
     100% {
         opacity: 0;
-        transform: translate(-50%, -50%) scale(1.45);
+        transform: translate(-50%, -50%) scale(1.08);
     }
 }
 
@@ -1897,20 +1926,17 @@ meter::-moz-meter-bar {
     }
 
     .fighter-main,
-    .hp-line,
-    .status-row {
+    .hp-line {
         width: min(236px, calc(100% - 18px));
     }
 
     .fighter-enemy .fighter-main,
-    .fighter-enemy .hp-line,
-    .fighter-enemy .status-row {
+    .fighter-enemy .hp-line {
         left: 10px;
     }
 
     .fighter-player .fighter-main,
-    .fighter-player .hp-line,
-    .fighter-player .status-row {
+    .fighter-player .hp-line {
         right: 10px;
     }
 
@@ -1969,12 +1995,16 @@ meter::-moz-meter-bar {
     }
 
     .status-row {
-        top: 92px;
+        bottom: 86px;
+        gap: 3px;
+        min-height: 22px;
+        padding: 2px 4px;
     }
 
-    .status-chip {
-        padding: 2px 5px;
-        font-size: 10px;
+    .status-row .melee-status-icon {
+        width: 18px;
+        height: 18px;
+        flex-basis: 18px;
     }
 
     .demo-combat-avatar {

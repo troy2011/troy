@@ -683,6 +683,7 @@ function publicCombatantForTimeline(combatant) {
         currentHp: getCurrentHp(combatant),
         parryRate: number(combatant.status?.parryRate, 0),
         parryCharges: Math.max(0, Math.floor(number(combatant.status?.parryCharges, 0))),
+        status: publicStatusForTimeline(statusSnapshot(combatant)),
         slots: DICE_SLOTS.map((die) => publicSlotForTimeline(combatant, die))
     };
 }
@@ -716,6 +717,25 @@ function statusSnapshot(combatant) {
         counter: Math.max(0, Math.floor(number(status.counterTurns, 0))),
         evasion: Math.max(0, Math.floor(number(status.evasionTurns, 0))),
         parryCharges: Math.max(0, Math.floor(number(status.parryCharges, 0)))
+    };
+}
+
+function publicStatusForTimeline(snapshot = {}) {
+    return {
+        morale: number(snapshot.morale, 0),
+        burn: Math.max(0, Math.floor(number(snapshot.burn, 0))),
+        flood: Math.max(0, Math.floor(number(snapshot.flood, 0))),
+        fear: Math.max(0, Math.floor(number(snapshot.fear, 0))),
+        confusion: Math.max(0, Math.floor(number(snapshot.confusion, 0))),
+        attackMultiplier: number(snapshot.attackMultiplier, 1),
+        defenseMultiplier: number(snapshot.defenseMultiplier, 1),
+        speedMultiplier: number(snapshot.speedMultiplier, 1),
+        accuracyBonus: number(snapshot.accuracyBonus, 0),
+        damageTakenMultiplier: number(snapshot.damageTakenMultiplier, 1),
+        guardCharges: Math.max(0, Math.floor(number(snapshot.guardCharges, 0))),
+        counter: Math.max(0, Math.floor(number(snapshot.counter, 0))),
+        evasion: Math.max(0, Math.floor(number(snapshot.evasion, 0))),
+        parryCharges: Math.max(0, Math.floor(number(snapshot.parryCharges, 0)))
     };
 }
 
@@ -759,6 +779,10 @@ function createTimelineEntry({ round, attacker, defender, die, decision, before,
         attackerHpAfter: attackerAfter.hp,
         defenderHpBefore: defenderBefore.hp,
         defenderHpAfter: defenderAfter.hp,
+        attackerStatusBefore: publicStatusForTimeline(attackerBefore),
+        attackerStatusAfter: publicStatusForTimeline(attackerAfter),
+        defenderStatusBefore: publicStatusForTimeline(defenderBefore),
+        defenderStatusAfter: publicStatusForTimeline(defenderAfter),
         anyHit: !!execution?.anyHit,
         parried: !!execution?.parried,
         parryCount: Math.max(0, Math.floor(number(execution?.parryCount, 0))),

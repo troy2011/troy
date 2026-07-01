@@ -51,6 +51,18 @@ const MELEE_FEEDBACK_ICON_INDEX = {
     vulnUp: 223,
     guard: 203
 };
+const MELEE_PERSISTENT_STATUS_DEFS = [
+    { key: 'burn', iconKey: 'burn', label: 'BURN', tone: 'ailment', isActive: (unit) => Number(unit.burnTurns) > 0 },
+    { key: 'wet', iconKey: 'wet', label: 'WET', tone: 'ailment', isActive: (unit) => Number(unit.floodTurns) > 0 },
+    { key: 'fear', iconKey: 'fear', label: 'FEAR', tone: 'ailment', isActive: (unit) => Number(unit.fearTurns) > 0 },
+    { key: 'confuse', iconKey: 'confuse', label: 'CONFUSE', tone: 'ailment', isActive: (unit) => Number(unit.confusionTurns) > 0 },
+    { key: 'atkDown', iconKey: 'atkDown', label: 'ATK DOWN', tone: 'debuff', isActive: (unit) => Number(unit.attackMultiplier) < 1 },
+    { key: 'defDown', iconKey: 'defDown', label: 'DEF DOWN', tone: 'debuff', isActive: (unit) => Number(unit.defenseMultiplier) < 1 },
+    { key: 'speedDown', iconKey: 'speedDown', label: 'SPEED DOWN', tone: 'debuff', isActive: (unit) => Number(unit.speedMultiplier) < 1 },
+    { key: 'accDown', iconKey: 'accDown', label: 'ACC DOWN', tone: 'debuff', isActive: (unit) => Number(unit.accuracyBonus) < 0 },
+    { key: 'vulnUp', iconKey: 'vulnUp', label: 'VULN UP', tone: 'debuff', isActive: (unit) => Number(unit.damageTakenMultiplier) > 1 },
+    { key: 'guard', iconKey: 'guard', label: 'GUARD', tone: 'buff', isActive: (unit) => Number(unit.nextDamageTakenCharges) > 0 || Number(unit.damageTakenMultiplier) < 1 }
+];
 const MELEE_ELEMENTAL_EFFECTS = {
     fire: {
         file: 'fire.png', cols: 5, rows: 6, intervalMs: 42, scale: 2.35,
@@ -1026,6 +1038,47 @@ function createDemoFeedbackIcon(iconKey) {
     return icon;
 }
 
+function getDemoPersistentStatusForLabel(label) {
+    const iconKey = normalizeDemoFeedbackIconKey(label, 'status');
+    if (!iconKey || iconKey === 'parry' || iconKey === 'weak' || iconKey === 'resist') return null;
+    return MELEE_PERSISTENT_STATUS_DEFS.find((entry) => entry.iconKey === iconKey) || null;
+}
+
+function isDemoPersistentStatusLabel(label) {
+    return !!getDemoPersistentStatusForLabel(label);
+}
+
+function createDemoPersistentStatusIcon(entry) {
+    const icon = createDemoFeedbackIcon(entry?.iconKey);
+    if (!icon) return null;
+    icon.classList.add('melee-status-icon');
+    icon.dataset.statusKey = entry.key;
+    icon.dataset.feedbackTone = entry.tone || '';
+    icon.title = entry.label;
+    icon.setAttribute('aria-label', entry.label);
+    return icon;
+}
+
+function activeDemoStatusIcons(fighter) {
+    return MELEE_PERSISTENT_STATUS_DEFS.filter((entry) => {
+        try {
+            return entry.isActive(fighter || {});
+        } catch (error) {
+            return false;
+        }
+    });
+}
+
+function renderDemoPersistentStatusIcons(root, fighter) {
+    if (!root) return;
+    const icons = activeDemoStatusIcons(fighter)
+        .map(createDemoPersistentStatusIcon)
+        .filter(Boolean);
+    root.replaceChildren(...icons);
+    root.dataset.statusCount = String(icons.length);
+    root.classList.toggle('is-empty', icons.length === 0);
+}
+
 function createDemoFeedbackPopup(unitId, text, type = 'damage', stackIndex = 0) {
     if (!el.battleBoard || !text) return;
     const isPlayer = unitId === 'player';
@@ -1041,7 +1094,7 @@ function createDemoFeedbackPopup(unitId, text, type = 'damage', stackIndex = 0) 
     if (numericAmount >= 50) popup.classList.add('is-heavy-hit');
     popup.style.setProperty('--feedback-stack-y', `${type === 'status' ? stack * -18 : 0}px`);
     popup.style.setProperty('--feedback-x', `${type === 'status' ? (isPlayer ? -8 : 8) : 0}px`);
-    const icon = createDemoFeedbackIcon(iconKey);
+    const icon = type === 'damage' ? null : createDemoFeedbackIcon(iconKey);
     if (icon) popup.append(icon);
     const label = document.createElement('span');
     label.className = 'melee-feedback-text';
@@ -1085,6 +1138,7 @@ function showDemoStatusFeedback(unitId, before, after) {
     Object.keys(after || {}).forEach((key) => {
         const label = demoStatusChangeLabel(key, Number(before?.[key] ?? 0), Number(after?.[key] ?? 0));
         if (!label || shown.has(label)) return;
+        if (isDemoPersistentStatusLabel(label)) return;
         shown.add(label);
         createDemoFeedbackPopup(unitId, label, 'status', stackIndex);
         stackIndex += 1;
@@ -1562,13 +1616,7 @@ function renderFighter(fighter, side) {
     el[`${prefix}HpBar`].max = fighter.maxHp;
     el[`${prefix}HpBar`].value = fighter.hp;
     setDemoAvatarDefeated(side, fighter.hp <= 0);
-    const statusRoot = el[`${prefix}Status`];
-    statusRoot.replaceChildren(...statusLabels(fighter).map((text) => {
-        const chip = document.createElement('span');
-        chip.className = 'status-chip';
-        chip.textContent = text;
-        return chip;
-    }));
+    renderDemoPersistentStatusIcons(el[`${prefix}Status`], fighter);
 }
 
 function renderSlots(fighter, root) {
