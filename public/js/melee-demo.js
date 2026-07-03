@@ -16,6 +16,7 @@ const WEAPONS = {
 
 const DICE = [1, 2, 3, 4, 5, 6];
 const MINOR_DICE = [2, 3, 4, 5, 6];
+const CLEANSABLE_STATUS_KEYS = ['burn', 'slow', 'weaken', 'confusion', 'poison', 'paralysis', 'sleep', 'silence', 'blind'];
 const MAX_ROUNDS = 18;
 const DICE_ROLL_STEPS = 14;
 const DICE_ROLL_INTERVAL_MS = 42;
@@ -44,6 +45,13 @@ const MELEE_FEEDBACK_ICON_INDEX = {
     wet: 149,
     fear: 230,
     confuse: 222,
+    slow: 101,
+    weaken: 97,
+    poison: 144,
+    paralysis: 222,
+    sleep: 230,
+    silence: 68,
+    blind: 68,
     atkDown: 97,
     defDown: 74,
     speedDown: 101,
@@ -53,9 +61,14 @@ const MELEE_FEEDBACK_ICON_INDEX = {
 };
 const MELEE_PERSISTENT_STATUS_DEFS = [
     { key: 'burn', iconKey: 'burn', label: 'BURN', tone: 'ailment', isActive: (unit) => Number(unit.burnTurns) > 0 },
-    { key: 'wet', iconKey: 'wet', label: 'WET', tone: 'ailment', isActive: (unit) => Number(unit.floodTurns) > 0 },
-    { key: 'fear', iconKey: 'fear', label: 'FEAR', tone: 'ailment', isActive: (unit) => Number(unit.fearTurns) > 0 },
+    { key: 'slow', iconKey: 'slow', label: 'SLOW', tone: 'debuff', isActive: (unit) => Number(unit.slowTurns) > 0 },
+    { key: 'weaken', iconKey: 'weaken', label: 'WEAKEN', tone: 'debuff', isActive: (unit) => Number(unit.weakenTurns) > 0 },
     { key: 'confuse', iconKey: 'confuse', label: 'CONFUSE', tone: 'ailment', isActive: (unit) => Number(unit.confusionTurns) > 0 },
+    { key: 'poison', iconKey: 'poison', label: 'POISON', tone: 'ailment', isActive: (unit) => Number(unit.poisonTurns) > 0 },
+    { key: 'paralysis', iconKey: 'paralysis', label: 'PARALYSIS', tone: 'ailment', isActive: (unit) => Number(unit.paralysisTurns) > 0 },
+    { key: 'sleep', iconKey: 'sleep', label: 'SLEEP', tone: 'ailment', isActive: (unit) => Number(unit.sleepTurns) > 0 },
+    { key: 'silence', iconKey: 'silence', label: 'SILENCE', tone: 'ailment', isActive: (unit) => Number(unit.silenceTurns) > 0 },
+    { key: 'blind', iconKey: 'blind', label: 'BLIND', tone: 'debuff', isActive: (unit) => Number(unit.blindTurns) > 0 },
     { key: 'atkDown', iconKey: 'atkDown', label: 'ATK DOWN', tone: 'debuff', isActive: (unit) => Number(unit.attackMultiplier) < 1 },
     { key: 'defDown', iconKey: 'defDown', label: 'DEF DOWN', tone: 'debuff', isActive: (unit) => Number(unit.defenseMultiplier) < 1 },
     { key: 'speedDown', iconKey: 'speedDown', label: 'SPEED DOWN', tone: 'debuff', isActive: (unit) => Number(unit.speedMultiplier) < 1 },
@@ -100,11 +113,11 @@ const MELEE_WEAPON_EFFECTS = {
     unarmed: { file: 'claw_bite.png', cols: 5, rows: 5, startFrame: 16, frames: 6, intervalMs: 34, scale: 2.08 }
 };
 const DEMO_ELEMENT_KEYS = new Set(['fire', 'wind', 'earth', 'water']);
-const DEMO_ELEMENT_BEATS = {
-    fire: 'wind',
-    wind: 'earth',
-    earth: 'water',
-    water: 'fire'
+const DEMO_ELEMENT_MATRIX = {
+    fire:  { fire: 1.0, wind: 1.5, earth: 0.85, water: 0.6 },
+    wind:  { fire: 0.6, wind: 1.0, earth: 1.5,  water: 0.85 },
+    earth: { fire: 0.85, wind: 0.6, earth: 1.0, water: 1.5 },
+    water: { fire: 1.5, wind: 0.85, earth: 0.6, water: 1.0 }
 };
 const DEMO_ELEMENT_LABELS = {
     fire: '\u706b',
@@ -574,7 +587,7 @@ function createMinorArcanaEffect(card, side) {
 
     const name = document.createElement('div');
     name.className = 'melee-minor-arcana-name';
-    name.textContent = [card?.cardName, card?.skillName || card?.name].filter(Boolean).join(' / ') || '小アルカナ';
+    name.textContent = card?.skillName || card?.name || '小アルカナ';
 
     effect.append(artWrap, name);
     return effect;
@@ -884,44 +897,8 @@ function setDiceFace(die, label = null) {
     el.diceFace.setAttribute('aria-label', label || `出目${die}`);
 }
 
-function resolveTurn(actor, die, actionToken) {
+function finishResolvedTurn(actor, target, actionToken, delayMs = NEXT_TURN_DELAY_MS) {
     if (actionToken != null && actionToken !== state.actionToken) return;
-    const target = opponentOf(actor);
-    const decision = resolveDiceAction(actor, die);
-    state.lastAction = { actorId: actor.id, die, resultType: decision.type };
-    setDiceFace(die);
-    if (decision.type === 'miss') {
-        el.actionTitle.textContent = 'ミス';
-        el.actionDetail.textContent = decision.reason;
-        log(`${actor.name} の出目${die}: ミス（${decision.reason}）`);
-        createDemoFeedbackPopup(target.id, 'MISS', 'miss');
-    } else {
-        const action = decision.action;
-        const kindText = decision.type === 'weaponForm' ? '武器型' : '小アルカナ';
-        const targetHpBefore = target.hp;
-        const actorHpBefore = actor.hp;
-        const actorStatusBefore = demoStatusSnapshot(actor);
-        const targetStatusBefore = demoStatusSnapshot(target);
-        el.actionTitle.textContent = `${action.name}（${kindText}）`;
-        el.actionDetail.textContent = action.effectText || `${action.power ?? '-'} / ${action.accuracy ?? '-'}`;
-        log(`${actor.name} の出目${die}: ${displayAction(decision)}`, decision.type === 'minorArcana');
-        if (decision.type === 'minorArcana') triggerDemoMinorArcana(actor.id, action);
-        triggerDemoAvatarMotion(actor);
-        const result = executeAction(actor, target, action);
-        if (targetHpBefore > target.hp) triggerDemoDamageFeedback(target.id, targetHpBefore - target.hp);
-        triggerDemoWeaponAttackEffect(target.id, actor, action, result);
-        triggerDemoElementalAttackEffect(target.id, action, result);
-        if (result.elementalLabel && targetHpBefore > target.hp) {
-            createDemoFeedbackPopup(target.id, result.elementalLabel, 'status', 1);
-        }
-        if (actorHpBefore > actor.hp) triggerDemoDamageFeedback(actor.id, actorHpBefore - actor.hp);
-        if (actor.hp > actorHpBefore) createDemoHealingPopup(actor.id, actor.hp - actorHpBefore);
-        if (action.kind === 'attack' && !result.hit && targetHpBefore <= target.hp) {
-            createDemoFeedbackPopup(target.id, 'MISS', 'miss');
-        }
-        showDemoStatusFeedback(actor.id, actorStatusBefore, demoStatusSnapshot(actor));
-        showDemoStatusFeedback(target.id, targetStatusBefore, demoStatusSnapshot(target));
-    }
     tick(actor);
     render();
     if (target.hp <= 0) {
@@ -932,7 +909,67 @@ function resolveTurn(actor, die, actionToken) {
         finishBattle(target);
         return;
     }
-    window.setTimeout(nextTurn, NEXT_TURN_DELAY_MS);
+    window.setTimeout(nextTurn, delayMs);
+}
+
+function resolveTurn(actor, die, actionToken) {
+    if (actionToken != null && actionToken !== state.actionToken) return;
+    const target = opponentOf(actor);
+    let decision = resolveDiceAction(actor, die);
+    if (decision.type === 'minorArcana' && actor.silenceTurns > 0) {
+        decision = { type: 'miss', die, reason: '沈黙で小アルカナが封じられた' };
+    }
+    state.lastAction = { actorId: actor.id, die, resultType: decision.type };
+    setDiceFace(die);
+    if (decision.type === 'miss') {
+        el.actionTitle.textContent = 'ミス';
+        el.actionDetail.textContent = decision.reason;
+        log(`${actor.name} の出目${die}: ミス（${decision.reason}）`);
+        createDemoFeedbackPopup(target.id, 'MISS', 'miss');
+        finishResolvedTurn(actor, target, actionToken);
+    } else {
+        const action = decision.action;
+        const kindText = decision.type === 'weaponForm' ? '武器型' : '小アルカナ';
+        const targetHpBefore = target.hp;
+        const actorHpBefore = actor.hp;
+        const actorStatusBefore = demoStatusSnapshot(actor);
+        const targetStatusBefore = demoStatusSnapshot(target);
+        el.actionTitle.textContent = `${action.name}（${kindText}）`;
+        el.actionDetail.textContent = action.effectText || `${action.power ?? '-'} / ${action.accuracy ?? '-'}`;
+        log(`${actor.name} の出目${die}: ${displayAction(decision)}`, decision.type === 'minorArcana');
+        triggerDemoTechniqueBanner(actor, action);
+        if (action.kind === 'attack') {
+            triggerDemoAvatarMotion(actor);
+        }
+        const result = executeAction(actor, target, action);
+        triggerDemoWeaponAttackEffect(target.id, actor, action, result);
+        triggerDemoElementalAttackEffect(target.id, action, result);
+
+        const hitStopMs = result.isCritical ? 165 : 80;
+        window.setTimeout(() => {
+            if (actionToken != null && actionToken !== state.actionToken) return;
+            const avatar = actor.id === 'player' ? el.playerAvatar : el.enemyAvatar;
+            avatar?.getAnimations?.().forEach((anim) => anim.pause());
+            if (targetHpBefore > target.hp) {
+                flashClass(el.battleBoard, result.isCritical ? 'is-camera-hit-zoom-crit' : 'is-camera-hit-zoom', result.isCritical ? 420 : 260);
+                triggerDemoDamageFeedback(target.id, targetHpBefore - target.hp);
+            }
+            if (result.elementalLabel && targetHpBefore > target.hp) {
+                createDemoFeedbackPopup(target.id, result.elementalLabel, 'status', 1);
+            }
+            if (actorHpBefore > actor.hp) triggerDemoDamageFeedback(actor.id, actorHpBefore - actor.hp);
+            if (actor.hp > actorHpBefore) createDemoHealingPopup(actor.id, actor.hp - actorHpBefore);
+            if (action.kind === 'attack' && !result.hit && targetHpBefore <= target.hp) {
+                createDemoFeedbackPopup(target.id, 'MISS', 'miss');
+            }
+            showDemoStatusFeedback(actor.id, actorStatusBefore, demoStatusSnapshot(actor));
+            showDemoStatusFeedback(target.id, targetStatusBefore, demoStatusSnapshot(target));
+            window.setTimeout(() => {
+                avatar?.getAnimations?.().forEach((anim) => anim.play());
+            }, hitStopMs);
+            finishResolvedTurn(actor, target, actionToken);
+        }, hitStopMs);
+    }
 }
 
 function triggerDemoAvatarMotion(actor) {
@@ -940,27 +977,48 @@ function triggerDemoAvatarMotion(actor) {
     const avatar = actorId === 'player' ? el.playerAvatar : el.enemyAvatar;
     if (!avatar || avatar.classList.contains('is-avatar-defeated')) return;
     const direction = actorId === 'player' ? 'left' : 'right';
+    const duration = getDemoWeaponAttackDuration(actor?.weapon);
     applyAvatarWeaponClass(avatar, actor?.weapon);
     avatarModule?.triggerAvatarAttackMotion?.(avatar, {
         direction,
-        duration: 460,
-        bodyMotion: getDemoAvatarBodyMotion(actor?.weapon),
-        bodyMotionIntervalMs: getDemoAvatarBodyMotion(actor?.weapon) === 'jump' ? 96 : 52
+        duration,
+        bodyMotion: false
     });
-    window.setTimeout(() => clearAvatarWeaponClass(avatar), 560);
+    window.setTimeout(() => clearAvatarWeaponClass(avatar), duration + 90);
 }
 
-function getDemoAvatarBodyMotion(weaponType) {
-    const weapon = normalizeWeaponType(weaponType);
-    if (weapon === 'axe_big' || weapon === 'sword_big' || weapon === 'axe' || weapon === 'blunt') return 'jump';
-    if (weapon === 'gun' || weapon === 'gun_big' || weapon === 'bow' || weapon === 'staff' || weapon === 'wand') return 'walk';
-    return 'run';
+
+function getDemoWeaponAttackDuration(weaponType) {
+    const weapon = getDemoAvatarWeaponType(weaponType);
+    if (weapon === 'dagger') return 360;
+    if (weapon === 'sword') return 440;
+    if (weapon === 'polearm') return 500;
+    if (weapon === 'staff' || weapon === 'wand' || weapon === 'bow') return 520;
+    if (weapon === 'gun') return 470;
+    if (weapon === 'gun_big' || weapon === 'blunt') return 560;
+    if (weapon === 'sword_big') return 620;
+    if (weapon === 'axe') return 560;
+    if (weapon === 'axe_big') return 680;
+    if (weapon === 'shield') return 500;
+    return 460;
+}
+
+function triggerDemoTechniqueBanner(actor, action) {
+    if (!el.battleBoard || !action) return;
+    el.battleBoard.querySelectorAll('.melee-technique-banner').forEach(n => n.remove());
+    const isPlayer = actor?.id === 'player';
+    const side = isPlayer ? 'player' : 'enemy';
+    const techniqueText = action.name || action.skillName || '攻撃';
+    const banner = document.createElement('div');
+    banner.className = `melee-technique-banner is-${side}-side`;
+    banner.textContent = techniqueText;
+    el.battleBoard.appendChild(banner);
+    window.setTimeout(() => banner.remove(), 1100);
 }
 
 function triggerDemoDamageFeedback(unitId, amount = 0) {
     const avatar = unitId === 'player' ? el.playerAvatar : el.enemyAvatar;
     flashClass(avatar, 'is-avatar-damaged', 220);
-    flashClass(el.battleBoard, 'is-damage-shake', 280);
     createDemoDamagePopup(unitId, amount);
 }
 
@@ -986,6 +1044,13 @@ function normalizeDemoFeedbackIconKey(text, type = 'damage') {
     if (label === 'WET') return 'wet';
     if (label === 'FEAR') return 'fear';
     if (label === 'CONFUSE') return 'confuse';
+    if (label === 'SLOW') return 'slow';
+    if (label === 'WEAKEN') return 'weaken';
+    if (label === 'POISON') return 'poison';
+    if (label === 'PARALYSIS') return 'paralysis';
+    if (label === 'SLEEP') return 'sleep';
+    if (label === 'SILENCE') return 'silence';
+    if (label === 'BLIND') return 'blind';
     if (label === 'ATK DOWN') return 'atkDown';
     if (label === 'DEF DOWN') return 'defDown';
     if (label === 'SPEED DOWN') return 'speedDown';
@@ -1002,8 +1067,8 @@ function getDemoFeedbackTone(iconKey, type = 'damage') {
     if (iconKey === 'guard' || iconKey === 'parry') return 'buff';
     if (iconKey === 'weak') return 'advantage';
     if (iconKey === 'resist') return 'resist';
-    if (iconKey === 'burn' || iconKey === 'wet' || iconKey === 'fear' || iconKey === 'confuse') return 'ailment';
-    if (iconKey === 'atkDown' || iconKey === 'defDown' || iconKey === 'speedDown' || iconKey === 'accDown' || iconKey === 'vulnUp') return 'debuff';
+    if (iconKey === 'burn' || iconKey === 'wet' || iconKey === 'fear' || iconKey === 'confuse' || iconKey === 'poison' || iconKey === 'paralysis' || iconKey === 'sleep' || iconKey === 'silence') return 'ailment';
+    if (iconKey === 'slow' || iconKey === 'weaken' || iconKey === 'blind' || iconKey === 'atkDown' || iconKey === 'defDown' || iconKey === 'speedDown' || iconKey === 'accDown' || iconKey === 'vulnUp') return 'debuff';
     return type === 'status' ? 'status' : type;
 }
 
@@ -1107,9 +1172,14 @@ function createDemoFeedbackPopup(unitId, text, type = 'damage', stackIndex = 0) 
 function demoStatusSnapshot(unit) {
     return {
         burnTurns: unit.burnTurns,
-        floodTurns: unit.floodTurns,
-        fearTurns: unit.fearTurns,
+        slowTurns: unit.slowTurns,
+        weakenTurns: unit.weakenTurns,
         confusionTurns: unit.confusionTurns,
+        poisonTurns: unit.poisonTurns,
+        paralysisTurns: unit.paralysisTurns,
+        sleepTurns: unit.sleepTurns,
+        silenceTurns: unit.silenceTurns,
+        blindTurns: unit.blindTurns,
         attackMultiplier: unit.attackMultiplier,
         defenseMultiplier: unit.defenseMultiplier,
         speedMultiplier: unit.speedMultiplier,
@@ -1120,8 +1190,8 @@ function demoStatusSnapshot(unit) {
 }
 
 function demoStatusChangeLabel(key, before, after) {
-    if (['burnTurns', 'floodTurns', 'fearTurns', 'confusionTurns'].includes(key) && after > before) {
-        return ({ burnTurns: 'BURN', floodTurns: 'WET', fearTurns: 'FEAR', confusionTurns: 'CONFUSE' })[key];
+    if (['burnTurns', 'slowTurns', 'weakenTurns', 'confusionTurns', 'poisonTurns', 'paralysisTurns', 'sleepTurns', 'silenceTurns', 'blindTurns'].includes(key) && after > before) {
+        return ({ burnTurns: 'BURN', slowTurns: 'SLOW', weakenTurns: 'WEAKEN', confusionTurns: 'CONFUSE', poisonTurns: 'POISON', paralysisTurns: 'PARALYSIS', sleepTurns: 'SLEEP', silenceTurns: 'SILENCE', blindTurns: 'BLIND' })[key];
     }
     if (key === 'attackMultiplier' && after < before) return 'ATK DOWN';
     if (key === 'defenseMultiplier' && after < before) return 'DEF DOWN';
@@ -1148,11 +1218,42 @@ function showDemoStatusFeedback(unitId, before, after) {
 function applyAvatarWeaponClass(avatar, weaponType) {
     if (!avatar) return;
     clearAvatarWeaponClass(avatar);
-    avatar.classList.add(weaponAnimationClass(weaponType));
+    avatar.classList.add(...weaponAnimationClass(weaponType).split(/\s+/).filter(Boolean));
+}
+
+const DEMO_AVATAR_WEAPON_CLASS_NAMES = [
+    'is-avatar-weapon-heavy',
+    'is-avatar-weapon-pierce',
+    'is-avatar-weapon-ranged',
+    'is-avatar-weapon-guard',
+    'is-avatar-weapon-slash',
+    'is-avatar-weapon-staff',
+    'is-avatar-weapon-wand',
+    'is-avatar-weapon-axe',
+    'is-avatar-weapon-axe-big',
+    'is-avatar-weapon-blunt',
+    'is-avatar-weapon-dagger',
+    'is-avatar-weapon-polearm',
+    'is-avatar-weapon-shield',
+    'is-avatar-weapon-sword',
+    'is-avatar-weapon-sword-big',
+    'is-avatar-weapon-gun',
+    'is-avatar-weapon-gun-big',
+    'is-avatar-weapon-bow'
+];
+const DEMO_AVATAR_WEAPON_TYPES = new Set(['staff', 'wand', 'axe', 'axe_big', 'blunt', 'dagger', 'polearm', 'shield', 'sword', 'sword_big', 'gun', 'gun_big', 'bow']);
+
+function getDemoAvatarWeaponType(weaponType) {
+    const weapon = normalizeWeaponType(weaponType);
+    return DEMO_AVATAR_WEAPON_TYPES.has(weapon) ? weapon : 'sword';
+}
+
+function getDemoAvatarWeaponClassSuffix(weaponType) {
+    return getDemoAvatarWeaponType(weaponType).replace(/_/g, '-');
 }
 
 function clearAvatarWeaponClass(avatar) {
-    avatar?.classList?.remove('is-avatar-weapon-heavy', 'is-avatar-weapon-pierce', 'is-avatar-weapon-ranged', 'is-avatar-weapon-guard', 'is-avatar-weapon-slash');
+    avatar?.classList?.remove(...DEMO_AVATAR_WEAPON_CLASS_NAMES);
 }
 
 function setDemoAvatarDefeated(side, defeated) {
@@ -1213,12 +1314,14 @@ function setDemoAvatarVictorious(side, victorious) {
 }
 
 function weaponAnimationClass(weaponType) {
-    const weapon = normalizeWeaponType(weaponType);
-    if (weapon === 'gun' || weapon === 'gun_big' || weapon === 'bow' || weapon === 'staff' || weapon === 'wand') return 'is-avatar-weapon-ranged';
-    if (weapon === 'axe_big' || weapon === 'sword_big' || weapon === 'axe' || weapon === 'blunt') return 'is-avatar-weapon-heavy';
-    if (weapon === 'dagger' || weapon === 'polearm') return 'is-avatar-weapon-pierce';
-    if (weapon === 'shield') return 'is-avatar-weapon-guard';
-    return 'is-avatar-weapon-slash';
+    const weapon = getDemoAvatarWeaponType(weaponType);
+    const classes = [`is-avatar-weapon-${getDemoAvatarWeaponClassSuffix(weapon)}`];
+    if (weapon === 'gun' || weapon === 'gun_big' || weapon === 'bow' || weapon === 'staff' || weapon === 'wand') classes.unshift('is-avatar-weapon-ranged');
+    else if (weapon === 'polearm' || weapon === 'dagger') classes.unshift('is-avatar-weapon-pierce');
+    else if (weapon === 'shield') classes.unshift('is-avatar-weapon-guard');
+    else if (weapon === 'axe_big' || weapon === 'sword_big' || weapon === 'axe' || weapon === 'blunt') classes.unshift('is-avatar-weapon-heavy');
+    else classes.unshift('is-avatar-weapon-slash');
+    return classes.join(' ');
 }
 
 function flashClass(element, className, duration) {
@@ -1269,6 +1372,7 @@ function executeAction(actor, target, action) {
     const hits = Math.max(1, Number(action.hitCount) || 1);
     let total = 0;
     let hit = false;
+    let anyCritical = false;
     const elemental = demoElementalAffinity(actor, target, action);
     for (let index = 0; index < hits; index += 1) {
         if (target.evasionChance > 0 && Math.random() < target.evasionChance) {
@@ -1286,6 +1390,7 @@ function executeAction(actor, target, action) {
         const critChance = clamp((action.criticalBonus || 0), 0, 0.8);
         if (critChance > 0 && Math.random() < critChance) {
             damage = Math.floor(damage * 1.5);
+            anyCritical = true;
             log('クリティカル');
         }
         const applied = dealDamage(target, damage);
@@ -1307,7 +1412,7 @@ function executeAction(actor, target, action) {
         applyEffects(action.effectCodes || [], actor, target, action, 'miss');
     }
     applyEffects(action.effectCodes || [], actor, target, action, 'always');
-    return { hit, total, elementalLabel: hit ? elemental.label : '' };
+    return { hit, total, elementalLabel: hit ? elemental.label : '', isCritical: anyCritical };
 }
 
 function actionDamage(actor, target, action) {
@@ -1371,14 +1476,46 @@ function applyEffect(effect, actor, target, action) {
             log(`${unit.name} は火傷を負った`);
             break;
         case 'flood':
-            unit.floodTurns = Math.max(unit.floodTurns, Number(effect.turns) || 2);
+            unit.slowTurns = Math.max(unit.slowTurns, Number(effect.turns) || 2);
             setTimed(unit, 'speedMultiplier', 'speedTurns', 0.9, Number(effect.turns) || 2);
             log(`${unit.name} は水浸しになった`);
             break;
+        case 'slow':
+            unit.slowTurns = Math.max(unit.slowTurns, Number(effect.turns) || 2);
+            setTimed(unit, 'speedMultiplier', 'speedTurns', 0.9, Number(effect.turns) || 2);
+            log(`${unit.name} は鈍くなった`);
+            break;
         case 'fear':
-            unit.fearTurns = Math.max(unit.fearTurns, Number(effect.turns) || 2);
+            unit.weakenTurns = Math.max(unit.weakenTurns, Number(effect.turns) || 2);
             setTimed(unit, 'attackMultiplier', 'attackTurns', 0.8, Number(effect.turns) || 2);
             log(`${unit.name} は恐怖した`);
+            break;
+        case 'weaken':
+            unit.weakenTurns = Math.max(unit.weakenTurns, Number(effect.turns) || 2);
+            setTimed(unit, 'attackMultiplier', 'attackTurns', 0.8, Number(effect.turns) || 2);
+            log(`${unit.name} は弱体化した`);
+            break;
+        case 'poison':
+            unit.poisonTurns = Math.max(unit.poisonTurns, Number(effect.turns) || 2);
+            log(`${unit.name} は毒に侵された`);
+            break;
+        case 'paralysis':
+            unit.paralysisTurns = Math.max(unit.paralysisTurns, Number(effect.turns) || 2);
+            log(`${unit.name} は麻痺した`);
+            break;
+        case 'sleep':
+            unit.sleepTurns = Math.max(unit.sleepTurns, Math.min(Number(effect.turns) || 2, 2));
+            log(`${unit.name} は眠りに落ちた`);
+            break;
+        case 'silence':
+            unit.silenceTurns = Math.max(unit.silenceTurns, Number(effect.turns) || 2);
+            log(`${unit.name} は沈黙に陥った`);
+            break;
+        case 'blind':
+            unit.blindTurns = Math.max(unit.blindTurns, Number(effect.turns) || 2);
+            unit.accuracyBonus += (effect.value ?? -30);
+            unit.accuracyTurns = Math.max(unit.accuracyTurns, Number(effect.turns) || 2);
+            log(`${unit.name} は暗闇に包まれた`);
             break;
         case 'confusion':
             unit.confusionTurns = Math.max(unit.confusionTurns, Number(effect.turns) || 2);
@@ -1436,7 +1573,7 @@ function applyEffect(effect, actor, target, action) {
             log(`${unit.name} の構えを解除`);
             break;
         case 'cleanse':
-            cleanse(unit, effect.statuses || ['burn', 'flood', 'fear', 'confusion']);
+            cleanse(unit, effect.statuses || CLEANSABLE_STATUS_KEYS);
             log(`${unit.name} は状態を整えた`);
             break;
         case 'healPercent':
@@ -1452,7 +1589,7 @@ function applyEffect(effect, actor, target, action) {
             break;
         case 'healAndCleanseOne':
             heal(unit, Number(effect.value) || 0);
-            cleanse(unit, ['burn', 'flood', 'fear', 'confusion'], 1);
+            cleanse(unit, CLEANSABLE_STATUS_KEYS, 1);
             break;
         case 'morale':
             unit.morale = clamp(unit.morale + (Number(effect.value) || 0), -2, 2);
@@ -1513,6 +1650,21 @@ function applyStartOfTurn(actor) {
         triggerDemoDamageFeedback(actor.id);
         if (actor.hp <= 0) return false;
     }
+    if (actor.poisonTurns > 0) {
+        const damage = Math.max(1, Math.floor(actor.maxHp * 0.06));
+        dealDamage(actor, damage);
+        log(`${actor.name} は毒で${damage}ダメージ`);
+        triggerDemoDamageFeedback(actor.id);
+        if (actor.hp <= 0) return false;
+    }
+    if (actor.sleepTurns > 0) {
+        log(`${actor.name} は眠っていて行動できない`);
+        return false;
+    }
+    if (actor.paralysisTurns > 0 && Math.random() < 0.3) {
+        log(`${actor.name} は麻痺して動けない`);
+        return false;
+    }
     if (actor.confusionTurns > 0 && Math.random() < 0.2) {
         log(`${actor.name} は混乱して行動できない`);
         return false;
@@ -1544,9 +1696,14 @@ function tick(actor) {
         }
     }
     if (actor.burnTurns > 0) actor.burnTurns -= 1;
-    if (actor.floodTurns > 0) actor.floodTurns -= 1;
-    if (actor.fearTurns > 0) actor.fearTurns -= 1;
+    if (actor.slowTurns > 0) actor.slowTurns -= 1;
+    if (actor.weakenTurns > 0) actor.weakenTurns -= 1;
     if (actor.confusionTurns > 0) actor.confusionTurns -= 1;
+    if (actor.poisonTurns > 0) actor.poisonTurns -= 1;
+    if (actor.paralysisTurns > 0) actor.paralysisTurns -= 1;
+    if (actor.sleepTurns > 0) actor.sleepTurns -= 1;
+    if (actor.silenceTurns > 0) actor.silenceTurns -= 1;
+    if (actor.blindTurns > 0) actor.blindTurns -= 1;
     if (actor.counterTurns > 0) {
         actor.counterTurns -= 1;
         if (actor.counterTurns <= 0) actor.counterPower = 0;
@@ -1659,9 +1816,14 @@ function statusLabels(fighter) {
     const labels = [];
     if (fighter.morale) labels.push(`士気${fighter.morale > 0 ? '+' : ''}${fighter.morale}`);
     if (fighter.burnTurns > 0) labels.push('火傷');
-    if (fighter.floodTurns > 0) labels.push('水浸し');
-    if (fighter.fearTurns > 0) labels.push('恐怖');
+    if (fighter.slowTurns > 0) labels.push('鈍化');
+    if (fighter.weakenTurns > 0) labels.push('弱体化');
     if (fighter.confusionTurns > 0) labels.push('混乱');
+    if (fighter.poisonTurns > 0) labels.push('毒');
+    if (fighter.paralysisTurns > 0) labels.push('麻痺');
+    if (fighter.sleepTurns > 0) labels.push('睡眠');
+    if (fighter.silenceTurns > 0) labels.push('沈黙');
+    if (fighter.blindTurns > 0) labels.push('暗闇');
     if (fighter.nextDamageTakenCharges > 0) labels.push('防御');
     if (fighter.counterTurns > 0) labels.push('反撃');
     if (fighter.evasionTurns > 0) labels.push('回避');
@@ -1723,10 +1885,16 @@ function createFighter(id, name, weapon, deck, profile) {
         evasionChance: 0,
         evasionTurns: 0,
         burnTurns: 0,
-        floodTurns: 0,
-        fearTurns: 0,
+        slowTurns: 0,
+        weakenTurns: 0,
         confusionTurns: 0,
-        usedPriorityLastTurn: false
+        poisonTurns: 0,
+        paralysisTurns: 0,
+        sleepTurns: 0,
+        silenceTurns: 0,
+        blindTurns: 0,
+        usedPriorityLastTurn: false,
+        gauge: 0
     };
 }
 
@@ -1828,7 +1996,8 @@ function demoCombatProfileElementKey(profile) {
 }
 
 function demoActionAttackElementKey(action) {
-    if (action?.source !== 'minor' || action?.kind !== 'attack') return 'none';
+    if (action?.kind !== 'attack') return 'none';
+    if (!action?.elementKey) return 'none';
     return normalizeDemoElementKey(action.elementKey || action.element || action.suit);
 }
 
@@ -1843,14 +2012,17 @@ function demoElementalAffinity(actor, target, action) {
         label: ''
     };
     if (!DEMO_ELEMENT_KEYS.has(attackElementKey) || !DEMO_ELEMENT_KEYS.has(defenderElementKey)) return neutral;
-    if (attackElementKey === defenderElementKey) return { ...neutral, relation: 'neutral' };
-    if (DEMO_ELEMENT_BEATS[attackElementKey] === defenderElementKey) {
-        return { ...neutral, relation: 'weak', multiplier: 1.25, label: 'WEAK!' };
+    const multiplier = DEMO_ELEMENT_MATRIX[attackElementKey][defenderElementKey];
+    if (multiplier === 1.0) {
+        return { ...neutral, relation: 'neutral', multiplier };
     }
-    if (DEMO_ELEMENT_BEATS[defenderElementKey] === attackElementKey) {
-        return { ...neutral, relation: 'resist', multiplier: 0.75, label: 'RESIST...' };
+    if (multiplier > 1) {
+        return { ...neutral, relation: 'weak', multiplier, label: 'WEAK!' };
     }
-    return { ...neutral, relation: 'neutral' };
+    if (multiplier >= 0.8) {
+        return { ...neutral, relation: 'clash', multiplier, label: 'CLASH...' };
+    }
+    return { ...neutral, relation: 'resist', multiplier, label: 'RESIST...' };
 }
 
 function readDemoStat(profile, keys, fallback = 0) {
@@ -1919,6 +2091,10 @@ function randomDie() {
 function dealDamage(target, amount) {
     const damage = Math.max(0, Math.floor(amount));
     target.hp = clamp(target.hp - damage, 0, target.maxHp);
+    if (damage > 0 && target.sleepTurns > 0) {
+        target.sleepTurns = 0;
+        log(`${target.name} は衝撃で目を覚ました`);
+    }
     return damage;
 }
 
@@ -1942,7 +2118,7 @@ function cleanse(unit, statuses, limit = Infinity) {
     let count = 0;
     for (const status of statuses) {
         if (count >= limit) break;
-        const key = `${status}Turns`;
+        const key = statusTurnKey(status);
         if (unit[key] > 0) {
             unit[key] = 0;
             count += 1;
@@ -1966,8 +2142,14 @@ function conditionMatches(condition, actor, target) {
 }
 
 function hasStatus(unit, status) {
-    if (status === 'any') return ['burn', 'flood', 'fear', 'confusion'].some((name) => hasStatus(unit, name));
-    return Number(unit[`${status}Turns`]) > 0;
+    if (status === 'any') return CLEANSABLE_STATUS_KEYS.some((name) => hasStatus(unit, name));
+    return Number(unit[statusTurnKey(status)]) > 0;
+}
+
+function statusTurnKey(status) {
+    if (status === 'flood') return 'slowTurns';
+    if (status === 'fear') return 'weakenTurns';
+    return `${status}Turns`;
 }
 
 function byId(id) {
@@ -1980,7 +2162,7 @@ function opponentOf(actor) {
 
 function displayAction(decision) {
     if (decision.type === 'weaponForm') return `${decision.action.name}（武器型）`;
-    return `${decision.action.cardName} / ${decision.action.name}（小アルカナ）`;
+    return `${decision.action.name}（小アルカナ）`;
 }
 
 function log(text, important = false) {

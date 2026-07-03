@@ -182,6 +182,50 @@ button:disabled {
     animation-name: avatarCombatGuard;
 }
 
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-sword {
+    animation-name: avatarCombatSword;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-dagger {
+    animation-name: avatarCombatDagger;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-blunt {
+    animation-name: avatarCombatBlunt;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-axe {
+    animation-name: avatarCombatAxe;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-sword-big {
+    animation-name: avatarCombatGreatsword;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-axe-big {
+    animation-name: avatarCombatGreataxe;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-staff {
+    animation-name: avatarCombatStaff;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-wand {
+    animation-name: avatarCombatWand;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-bow {
+    animation-name: avatarCombatBow;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-gun {
+    animation-name: avatarCombatGun;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-gun-big {
+    animation-name: avatarCombatBigGun;
+}
+
 .avatar-combat-actor::before {
     content: "";
     position: absolute;
@@ -261,6 +305,161 @@ button:disabled {
     animation-name: avatarCombatMuzzle;
 }
 
+.avatar-combat-actor.is-avatar-weapon-gun::after {
+    left: -8px;
+    top: 36px;
+    width: 16px;
+    height: 16px;
+}
+
+.avatar-combat-actor.is-avatar-weapon-gun-big::after {
+    left: -18px;
+    top: 34px;
+    width: 24px;
+    height: 24px;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-gun-big::after {
+    animation-name: avatarCombatBigMuzzle;
+}
+
+.avatar-combat-actor.is-avatar-weapon-polearm::after {
+    left: -50px;
+    top: 27px;
+    width: 82px;
+    height: 7px;
+    border-top-width: 2px;
+    background: linear-gradient(90deg, transparent, rgba(254, 243, 199, 0.86) 22%, rgba(251, 191, 36, 0.72));
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-polearm::after {
+    animation-name: avatarCombatPolearmPierce;
+}
+
+.avatar-combat-actor.is-avatar-weapon-sword::after {
+    left: -34px;
+    top: 13px;
+    width: 52px;
+    height: 31px;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-sword::after {
+    animation-name: avatarCombatSwordSlash;
+}
+
+.avatar-combat-actor.is-avatar-weapon-dagger::after {
+    left: -39px;
+    top: 30px;
+    width: 42px;
+    height: 9px;
+    border-top-width: 2px;
+    border-right: 0;
+    border-radius: 999px;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-dagger::after {
+    animation-name: avatarCombatDaggerStab;
+}
+
+.avatar-combat-actor.is-avatar-weapon-blunt::after {
+    left: -26px;
+    top: 34px;
+    width: 48px;
+    height: 24px;
+    border: 0;
+    border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(255, 247, 214, 0.95), rgba(180, 83, 9, 0.64) 48%, transparent 72%);
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-blunt::after {
+    animation-name: avatarCombatBluntImpact;
+}
+
+.avatar-combat-actor.is-avatar-weapon-axe::after {
+    left: -38px;
+    top: 9px;
+    width: 58px;
+    height: 42px;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-axe::after {
+    animation-name: avatarCombatAxeCleave;
+}
+
+.avatar-combat-actor.is-avatar-weapon-sword-big::after,
+.avatar-combat-actor.is-avatar-weapon-axe-big::after {
+    left: -48px;
+    top: 3px;
+    width: 72px;
+    height: 52px;
+    border-top-width: 5px;
+    border-right-width: 4px;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-sword-big::after {
+    animation-name: avatarCombatGreatswordCleave;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-axe-big::after {
+    animation-name: avatarCombatGreataxeCleave;
+}
+
+.avatar-combat-actor.is-avatar-weapon-staff::after {
+    left: -34px;
+    top: 12px;
+    width: 50px;
+    height: 50px;
+    border: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(199, 210, 254, 0.9), rgba(59, 130, 246, 0.38) 38%, transparent 70%);
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-staff::after {
+    animation-name: avatarCombatStaffPulse;
+}
+
+.avatar-combat-actor.is-avatar-weapon-wand::after {
+    left: -22px;
+    top: 18px;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(254, 240, 138, 0.98), rgba(249, 115, 22, 0.56) 40%, transparent 72%);
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-wand::after {
+    animation-name: avatarCombatWandSpark;
+}
+
+.avatar-combat-actor.is-avatar-weapon-bow::after {
+    left: -58px;
+    top: 31px;
+    width: 76px;
+    height: 5px;
+    border: 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, transparent, rgba(255, 251, 235, 0.96) 18%, rgba(251, 191, 36, 0.8) 58%, transparent);
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-bow::after {
+    animation-name: avatarCombatArrowShot;
+}
+
+.avatar-combat-actor.is-avatar-weapon-shield::after {
+    left: -24px;
+    top: 18px;
+    width: 40px;
+    height: 42px;
+    border: 2px solid rgba(254, 243, 199, 0.9);
+    border-radius: 42% 48% 52% 48%;
+    background: radial-gradient(ellipse, rgba(255, 251, 235, 0.38), rgba(180, 83, 9, 0.18) 54%, transparent 72%);
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-shield::after {
+    animation-name: avatarCombatShieldBash;
+}
+
 .avatar-combat-actor.is-avatar-attacking .avatar-layer[id$="-layer-weapon-right"] {
     animation: avatarWeaponSwing var(--avatar-attack-duration) cubic-bezier(0.2, 0.76, 0.24, 1) both;
     transform-origin: 32px 44px;
@@ -276,6 +475,108 @@ button:disabled {
 
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-ranged .avatar-layer[id$="-layer-weapon-right"] {
     animation-name: avatarWeaponRecoil;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-gun .avatar-layer[id$="-layer-weapon-right"] {
+    animation-name: avatarWeaponGunRecoil;
+    transform-origin: 18px 27px;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-gun-big .avatar-layer[id$="-layer-weapon-right"] {
+    animation-name: avatarWeaponBigGunRecoil;
+    transform-origin: 45px 24px;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-polearm .avatar-layer[id$="-layer-weapon-right"] {
+    animation-name: avatarWeaponPolearmThrust;
+    transform-origin: 16px 55px;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-gun .avatar-layer[id$="-layer-hand-right"] {
+    animation: avatarHandGunGrip var(--avatar-attack-duration) cubic-bezier(0.2, 0.76, 0.24, 1) both;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-gun-big .avatar-layer[id$="-layer-hand-right"],
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-gun-big .avatar-layer[id$="-layer-hand-left"] {
+    animation: avatarHandBigGunGrip var(--avatar-attack-duration) cubic-bezier(0.2, 0.76, 0.24, 1) both;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-polearm .avatar-layer[id$="-layer-hand-right"],
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-polearm .avatar-layer[id$="-layer-hand-left"] {
+    animation: avatarHandPolearmGrip var(--avatar-attack-duration) cubic-bezier(0.2, 0.76, 0.24, 1) both;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-sword .avatar-layer[id$="-layer-weapon-right"] {
+    animation-name: avatarWeaponSwordCut;
+    transform-origin: 28px 43px;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-dagger .avatar-layer[id$="-layer-weapon-right"] {
+    animation-name: avatarWeaponDaggerJab;
+    transform-origin: 24px 39px;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-blunt .avatar-layer[id$="-layer-weapon-right"] {
+    animation-name: avatarWeaponBluntSmash;
+    transform-origin: 29px 44px;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-axe .avatar-layer[id$="-layer-weapon-right"] {
+    animation-name: avatarWeaponAxeChop;
+    transform-origin: 28px 47px;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-sword-big .avatar-layer[id$="-layer-weapon-right"] {
+    animation-name: avatarWeaponGreatswordDrop;
+    transform-origin: 26px 49px;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-axe-big .avatar-layer[id$="-layer-weapon-right"] {
+    animation-name: avatarWeaponGreataxeDrop;
+    transform-origin: 27px 50px;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-staff .avatar-layer[id$="-layer-weapon-right"] {
+    animation-name: avatarWeaponStaffSweep;
+    transform-origin: 30px 54px;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-wand .avatar-layer[id$="-layer-weapon-right"] {
+    animation-name: avatarWeaponWandFlick;
+    transform-origin: 26px 42px;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-bow .avatar-layer[id$="-layer-weapon-right"] {
+    animation-name: avatarWeaponBowDraw;
+    transform-origin: 24px 36px;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-dagger .avatar-layer[id$="-layer-hand-right"] {
+    animation: avatarHandDaggerJab var(--avatar-attack-duration) cubic-bezier(0.2, 0.76, 0.24, 1) both;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-blunt .avatar-layer[id$="-layer-hand-right"] {
+    animation: avatarHandBluntGrip var(--avatar-attack-duration) cubic-bezier(0.2, 0.76, 0.24, 1) both;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-axe .avatar-layer[id$="-layer-hand-right"],
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-sword-big .avatar-layer[id$="-layer-hand-right"],
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-axe-big .avatar-layer[id$="-layer-hand-right"] {
+    animation: avatarHandHeavyGrip var(--avatar-attack-duration) cubic-bezier(0.2, 0.76, 0.24, 1) both;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-staff .avatar-layer[id$="-layer-hand-right"],
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-staff .avatar-layer[id$="-layer-hand-left"] {
+    animation: avatarHandStaffCast var(--avatar-attack-duration) cubic-bezier(0.2, 0.76, 0.24, 1) both;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-wand .avatar-layer[id$="-layer-hand-right"] {
+    animation: avatarHandWandFlick var(--avatar-attack-duration) cubic-bezier(0.2, 0.76, 0.24, 1) both;
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-bow .avatar-layer[id$="-layer-hand-right"],
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-bow .avatar-layer[id$="-layer-hand-left"] {
+    animation: avatarHandBowDraw var(--avatar-attack-duration) cubic-bezier(0.2, 0.76, 0.24, 1) both;
 }
 
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-guard .avatar-layer[id$="-layer-shield-left"],
@@ -370,7 +671,7 @@ button:disabled {
         transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-recoil-x) * -0.35)) translateY(calc(var(--avatar-attack-y) - 8px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
     }
     55% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.82)) translateY(calc(var(--avatar-attack-y) + 2px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.90)) translateY(calc(var(--avatar-attack-y) + 4px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
     }
 }
 
@@ -449,6 +750,21 @@ button:disabled {
     }
 }
 
+@keyframes avatarCombatPolearmPierce {
+    0%, 26%, 100% {
+        opacity: 0;
+        transform: translateX(0) scaleX(0.18);
+    }
+    44% {
+        opacity: 1;
+        transform: translateX(-32px) scaleX(1.18);
+    }
+    62% {
+        opacity: 0;
+        transform: translateX(-54px) scaleX(1.42);
+    }
+}
+
 @keyframes avatarCombatMuzzle {
     0%, 34%, 100% {
         opacity: 0;
@@ -462,6 +778,243 @@ button:disabled {
         opacity: 0;
         transform: scale(1.8);
     }
+}
+
+@keyframes avatarCombatBigMuzzle {
+    0%, 30%, 100% {
+        opacity: 0;
+        transform: translateX(0) scale(0.26);
+    }
+    44% {
+        opacity: 1;
+        transform: translateX(-5px) scale(1.25);
+    }
+    64% {
+        opacity: 0;
+        transform: translateX(-10px) scale(2.05);
+    }
+}
+
+@keyframes avatarCombatShieldBash {
+    0%, 24%, 100% {
+        opacity: 0;
+        transform: translateX(0) scale(0.5);
+    }
+    42% {
+        opacity: 0.92;
+        transform: translateX(-9px) scale(1.04);
+    }
+    62% {
+        opacity: 0;
+        transform: translateX(-19px) scale(1.24);
+    }
+}
+
+@keyframes avatarCombatSword {
+    0%, 100% {
+        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    32% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.58)) translateY(calc(var(--avatar-attack-y) - 2px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    48% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.9)) translateY(calc(var(--avatar-attack-y) + 1px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    68% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.18)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+}
+
+@keyframes avatarCombatDagger {
+    0%, 100% {
+        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    24% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * -0.12)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    42% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 1.18)) translateY(calc(var(--avatar-attack-y) - 1px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    58% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.36)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+}
+
+@keyframes avatarCombatBlunt {
+    0%, 100% {
+        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    26% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * -0.2)) translateY(calc(var(--avatar-attack-y) - 8px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    56% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.70)) translateY(calc(var(--avatar-attack-y) + 6px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    74% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.16)) translateY(calc(var(--avatar-attack-y) + 1px)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+}
+
+@keyframes avatarCombatAxe {
+    0%, 100% {
+        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    24% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * -0.22)) translateY(calc(var(--avatar-attack-y) - 9px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    54% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.84)) translateY(calc(var(--avatar-attack-y) + 5px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    72% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.2)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+}
+
+@keyframes avatarCombatGreatsword {
+    0%, 100% {
+        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    24%, 46% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * -0.28)) translateY(calc(var(--avatar-attack-y) - 11px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    68% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.92)) translateY(calc(var(--avatar-attack-y) + 7px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    84% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.12)) translateY(calc(var(--avatar-attack-y) + 1px)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+}
+
+@keyframes avatarCombatGreataxe {
+    0%, 100% {
+        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    28%, 54% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * -0.34)) translateY(calc(var(--avatar-attack-y) - 13px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    76% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 1.04)) translateY(calc(var(--avatar-attack-y) + 9px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    90% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.08)) translateY(calc(var(--avatar-attack-y) + 2px)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+}
+
+@keyframes avatarCombatStaff {
+    0%, 100% {
+        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    34% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.16)) translateY(calc(var(--avatar-attack-y) - 4px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    58% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * -0.08)) translateY(calc(var(--avatar-attack-y) - 1px)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+}
+
+@keyframes avatarCombatWand {
+    0%, 100% {
+        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    28% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * -0.1)) translateY(calc(var(--avatar-attack-y) - 3px)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    46% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.28)) translateY(calc(var(--avatar-attack-y) - 2px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    66% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * -0.04)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+}
+
+@keyframes avatarCombatBow {
+    0%, 100% {
+        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    32% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * -0.16)) translateY(calc(var(--avatar-attack-y) - 2px)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    52% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.08)) translateY(calc(var(--avatar-attack-y) - 1px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+}
+
+@keyframes avatarCombatGun {
+    0%, 100% {
+        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    38% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * -0.18)) translateY(calc(var(--avatar-attack-y) - 1px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    58% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * -0.06)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+}
+
+@keyframes avatarCombatBigGun {
+    0%, 100% {
+        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    38% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * -0.34)) translateY(calc(var(--avatar-attack-y) - 2px)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    64% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * -0.12)) translateY(calc(var(--avatar-attack-y) + 1px)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+}
+
+@keyframes avatarCombatSwordSlash {
+    0%, 24%, 100% { opacity: 0; transform: rotate(-18deg) translateX(0) scale(0.44); }
+    42% { opacity: 1; transform: rotate(-18deg) translateX(-14px) scale(1.04); }
+    64% { opacity: 0; transform: rotate(-18deg) translateX(-26px) scale(1.18); }
+}
+
+@keyframes avatarCombatDaggerStab {
+    0%, 30%, 100% { opacity: 0; transform: translateX(0) scaleX(0.18); }
+    44% { opacity: 1; transform: translateX(-18px) scaleX(1.16); }
+    58% { opacity: 0; transform: translateX(-34px) scaleX(1.34); }
+}
+
+@keyframes avatarCombatBluntImpact {
+    0%, 42%, 100% { opacity: 0; transform: translateX(0) translateY(0) scale(0.28); }
+    58% { opacity: 0.92; transform: translateX(-18px) translateY(4px) scale(1.12); }
+    74% { opacity: 0; transform: translateX(-22px) translateY(7px) scale(1.42); }
+}
+
+@keyframes avatarCombatAxeCleave {
+    0%, 28%, 100% { opacity: 0; transform: rotate(-58deg) translateX(0) scale(0.4); }
+    54% { opacity: 1; transform: rotate(-58deg) translateX(-16px) scale(1.16); }
+    72% { opacity: 0; transform: rotate(-58deg) translateX(-28px) scale(1.32); }
+}
+
+@keyframes avatarCombatGreatswordCleave {
+    0%, 36%, 100% { opacity: 0; transform: rotate(-64deg) translateX(0) scale(0.34); }
+    68% { opacity: 1; transform: rotate(-64deg) translateX(-20px) scale(1.22); }
+    84% { opacity: 0; transform: rotate(-64deg) translateX(-36px) scale(1.46); }
+}
+
+@keyframes avatarCombatGreataxeCleave {
+    0%, 44%, 100% { opacity: 0; transform: rotate(-72deg) translateX(0) scale(0.3); }
+    76% { opacity: 1; transform: rotate(-72deg) translateX(-24px) scale(1.3); }
+    90% { opacity: 0; transform: rotate(-72deg) translateX(-42px) scale(1.56); }
+}
+
+@keyframes avatarCombatStaffPulse {
+    0%, 24%, 100% { opacity: 0; transform: translateX(0) scale(0.2); }
+    48% { opacity: 0.9; transform: translateX(-10px) scale(0.85); }
+    68% { opacity: 0; transform: translateX(-22px) scale(1.24); }
+}
+
+@keyframes avatarCombatWandSpark {
+    0%, 28%, 100% { opacity: 0; transform: translateX(0) scale(0.24); }
+    46% { opacity: 1; transform: translateX(-16px) translateY(-6px) scale(1.05); }
+    66% { opacity: 0; transform: translateX(-28px) translateY(-10px) scale(1.45); }
+}
+
+@keyframes avatarCombatArrowShot {
+    0%, 42%, 100% { opacity: 0; transform: translateX(14px) scaleX(0.28); }
+    52% { opacity: 1; transform: translateX(-22px) scaleX(1.16); }
+    62% { opacity: 0; transform: translateX(-64px) scaleX(1.3); }
 }
 
 @keyframes avatarWeaponSwing {
@@ -478,13 +1031,146 @@ button:disabled {
 
 @keyframes avatarWeaponThrust {
     0%, 100% { rotate: 0deg; translate: 0 0; }
-    42% { rotate: 5deg; translate: 8px 0; }
-    58% { rotate: -3deg; translate: 3px 0; }
+    42% { rotate: 5deg; translate: -8px 0; }
+    58% { rotate: -3deg; translate: -3px 0; }
 }
 
 @keyframes avatarWeaponRecoil {
     0%, 100% { rotate: 0deg; translate: 0 0; }
-    42% { rotate: -7deg; translate: -6px 1px; }
+    42% { rotate: -7deg; translate: 6px 1px; }
+}
+
+@keyframes avatarWeaponGunRecoil {
+    0%, 100% { rotate: -2deg; translate: 0 -4px; }
+    42% { rotate: -10deg; translate: 7px -3px; }
+    58% { rotate: 2deg; translate: 2px -4px; }
+}
+
+@keyframes avatarWeaponBigGunRecoil {
+    0%, 100% { rotate: -4deg; translate: 0 -7px; }
+    38% { rotate: -14deg; translate: 10px -6px; }
+    62% { rotate: -1deg; translate: 4px -7px; }
+}
+
+@keyframes avatarWeaponPolearmThrust {
+    0%, 100% { rotate: -66deg; translate: -3px -4px; }
+    24% { rotate: -74deg; translate: -7px -6px; }
+    44% { rotate: -84deg; translate: -28px -9px; }
+    62% { rotate: -72deg; translate: -12px -6px; }
+}
+
+@keyframes avatarHandGunGrip {
+    0%, 100% { translate: 1px -5px; rotate: -2deg; }
+    42% { translate: 6px -5px; rotate: -8deg; }
+}
+
+@keyframes avatarHandBigGunGrip {
+    0%, 100% { translate: 0 -7px; rotate: -4deg; }
+    38% { translate: 7px -6px; rotate: -11deg; }
+    62% { translate: 3px -7px; rotate: -3deg; }
+}
+
+@keyframes avatarHandPolearmGrip {
+    0%, 100% { translate: -5px -7px; rotate: -8deg; }
+    44% { translate: -17px -10px; rotate: -13deg; }
+    62% { translate: -9px -8px; rotate: -9deg; }
+}
+
+@keyframes avatarWeaponSwordCut {
+    0%, 100% { rotate: -2deg; translate: 0 0; }
+    30% { rotate: -24deg; translate: 3px -2px; }
+    48% { rotate: 36deg; translate: -6px 3px; }
+    66% { rotate: 14deg; translate: -2px 1px; }
+}
+
+@keyframes avatarWeaponDaggerJab {
+    0%, 100% { rotate: -6deg; translate: 0 0; }
+    38% { rotate: 4deg; translate: -12px -1px; }
+    54% { rotate: -10deg; translate: -4px 0; }
+}
+
+@keyframes avatarWeaponBluntSmash {
+    0%, 100% { rotate: 0deg; translate: 0 0; }
+    26% { rotate: -42deg; translate: 8px -7px; }
+    56% { rotate: 24deg; translate: -7px 7px; }
+    74% { rotate: 8deg; translate: -2px 2px; }
+}
+
+@keyframes avatarWeaponAxeChop {
+    0%, 100% { rotate: 0deg; translate: 0 0; }
+    24% { rotate: -52deg; translate: 8px -8px; }
+    54% { rotate: 44deg; translate: -8px 7px; }
+    72% { rotate: 12deg; translate: -2px 2px; }
+}
+
+@keyframes avatarWeaponGreatswordDrop {
+    0%, 100% { rotate: -3deg; translate: 0 0; }
+    24%, 46% { rotate: -64deg; translate: 10px -10px; }
+    68% { rotate: 56deg; translate: -10px 9px; }
+    84% { rotate: 12deg; translate: -2px 2px; }
+}
+
+@keyframes avatarWeaponGreataxeDrop {
+    0%, 100% { rotate: -4deg; translate: 0 0; }
+    28%, 54% { rotate: -76deg; translate: 12px -12px; }
+    76% { rotate: 66deg; translate: -13px 11px; }
+    90% { rotate: 10deg; translate: -3px 3px; }
+}
+
+@keyframes avatarWeaponStaffSweep {
+    0%, 100% { rotate: -10deg; translate: 0 0; }
+    30% { rotate: -28deg; translate: 6px -5px; }
+    54% { rotate: 18deg; translate: -9px 0; }
+    72% { rotate: -8deg; translate: -2px 0; }
+}
+
+@keyframes avatarWeaponWandFlick {
+    0%, 100% { rotate: -4deg; translate: 0 0; }
+    30% { rotate: -18deg; translate: 3px -4px; }
+    46% { rotate: 28deg; translate: -6px -3px; }
+    64% { rotate: -8deg; translate: -2px 0; }
+}
+
+@keyframes avatarWeaponBowDraw {
+    0%, 100% { rotate: 0deg; translate: 0 0; }
+    32% { rotate: -5deg; translate: 9px -1px; }
+    52% { rotate: 2deg; translate: -3px 0; }
+}
+
+@keyframes avatarHandDaggerJab {
+    0%, 100% { translate: 0 0; rotate: 0deg; }
+    38% { translate: -8px -1px; rotate: 3deg; }
+    54% { translate: -3px 0; rotate: -3deg; }
+}
+
+@keyframes avatarHandBluntGrip {
+    0%, 100% { translate: 0 0; rotate: 0deg; }
+    26% { translate: 6px -5px; rotate: -12deg; }
+    56% { translate: -5px 5px; rotate: 9deg; }
+}
+
+@keyframes avatarHandHeavyGrip {
+    0%, 100% { translate: 0 0; rotate: 0deg; }
+    32% { translate: 8px -8px; rotate: -14deg; }
+    68% { translate: -7px 6px; rotate: 10deg; }
+}
+
+@keyframes avatarHandStaffCast {
+    0%, 100% { translate: 0 0; rotate: 0deg; }
+    34% { translate: 4px -4px; rotate: -7deg; }
+    58% { translate: -6px -1px; rotate: 5deg; }
+}
+
+@keyframes avatarHandWandFlick {
+    0%, 100% { translate: 0 0; rotate: 0deg; }
+    30% { translate: 3px -4px; rotate: -8deg; }
+    46% { translate: -5px -4px; rotate: 12deg; }
+}
+
+@keyframes avatarHandBowDraw {
+    0%, 100% { translate: 0 0; rotate: 0deg; }
+    32% { translate: 8px -1px; rotate: -4deg; }
+    52% { translate: -2px 0; rotate: 2deg; }
 }
 
 @keyframes avatarWeaponGuard {
@@ -1131,6 +1817,41 @@ meter::-moz-meter-bar {
     72% { transform: translate3d(3px, 1px, 0); }
 }
 
+.fighters.melee-replay-board.is-camera-hit-zoom {
+    animation: meleeCameraHitZoom 260ms cubic-bezier(0.22, 0.8, 0.32, 1) both;
+}
+
+.fighters.melee-replay-board.is-camera-hit-zoom-crit {
+    animation: meleeCameraHitZoomCrit 420ms cubic-bezier(0.18, 0.85, 0.28, 1) both;
+}
+
+@keyframes meleeCameraHitZoom {
+    0%   { transform: scale(1); }
+    30%  { transform: scale(1.045); }
+    100% { transform: scale(1); }
+}
+
+@keyframes meleeCameraHitZoomCrit {
+    0%   { transform: translate3d(0,0,0) scale(1); }
+    12%  { transform: translate3d(-6px,1px,0) scale(1.09); }
+    28%  { transform: translate3d(6px,-1px,0) scale(1.06); }
+    46%  { transform: translate3d(-3px,0,0) scale(1.02); }
+    70%  { transform: translate3d(2px,1px,0) scale(1); }
+    100% { transform: translate3d(0,0,0) scale(1); }
+}
+
+.fighters.melee-replay-board.is-camera-hit-zoom-crit::before {
+    display: block;
+    background: radial-gradient(circle at center, rgba(255,238,180,0.55), transparent 70%);
+    animation: meleeCritFlash 420ms ease-out both;
+}
+
+@keyframes meleeCritFlash {
+    0%   { opacity: 0; }
+    12%  { opacity: 1; }
+    100% { opacity: 0; }
+}
+
 .fighter.fighter-enemy {
     order: 1;
 }
@@ -1305,7 +2026,7 @@ meter::-moz-meter-bar {
     --avatar-foot-shadow-width: 70px;
     --avatar-foot-shadow-height: 14px;
     --avatar-foot-shadow-bottom: -5px;
-    --avatar-attack-start-x: 0px;
+    --avatar-attack-start-x: -50%;
     --avatar-attack-y: 0px;
     position: absolute;
     left: 50%;
@@ -1316,7 +2037,7 @@ meter::-moz-meter-bar {
     margin: 0;
     image-rendering: pixelated;
     filter: drop-shadow(0 16px 12px rgba(0, 0, 0, 0.48));
-    transform: translateX(-50%) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    transform: translateX(var(--avatar-attack-start-x)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
 }
 
 .demo-combat-avatar-enemy {
@@ -1331,6 +2052,24 @@ meter::-moz-meter-bar {
     --avatar-attack-x: -38px;
     --avatar-attack-recoil-x: -24px;
     left: 58%;
+}
+
+.demo-combat-avatar.is-avatar-weapon-heavy.is-avatar-attacking,
+.demo-combat-avatar.is-avatar-weapon-axe.is-avatar-attacking,
+.demo-combat-avatar.is-avatar-weapon-blunt.is-avatar-attacking,
+.demo-combat-avatar.is-avatar-weapon-axe-big.is-avatar-attacking,
+.demo-combat-avatar.is-avatar-weapon-sword-big.is-avatar-attacking {
+    --avatar-combat-scale-hit: 2.32;
+}
+
+.demo-combat-avatar.is-avatar-attack-left {
+    --avatar-attack-x: -38px;
+    --avatar-attack-recoil-x: -24px;
+}
+
+.demo-combat-avatar.is-avatar-attack-right {
+    --avatar-attack-x: 38px;
+    --avatar-attack-recoil-x: 24px;
 }
 
 .melee-minor-arcana-effect {
@@ -2095,4 +2834,33 @@ meter::-moz-meter-bar {
     .action-detail {
         font-size: 11px;
     }
+}
+
+.melee-technique-banner {
+    position: absolute;
+    top: 38%;
+    left: 50%;
+    z-index: 6;
+    transform: translate(-50%, -50%) skewX(-8deg);
+    padding: 6px 22px;
+    font-size: 22px;
+    font-weight: 1000;
+    letter-spacing: 0.06em;
+    color: #fff7d6;
+    text-shadow: 0 2px 0 rgba(0,0,0,0.6), 0 0 18px rgba(248,216,136,0.5);
+    background: linear-gradient(90deg, rgba(20,10,4,0) 0%, rgba(20,10,4,0.82) 18%, rgba(20,10,4,0.82) 82%, rgba(20,10,4,0) 100%);
+    pointer-events: none;
+    animation: meleeTechniqueBannerSlam 1100ms cubic-bezier(0.16, 0.9, 0.2, 1) both;
+}
+
+.melee-technique-banner.is-enemy-side {
+    color: #ffd7d7;
+}
+
+@keyframes meleeTechniqueBannerSlam {
+    0%   { opacity: 0; transform: translate(-72%, -50%) skewX(-8deg) scale(1.3); }
+    8%   { opacity: 1; transform: translate(-50%, -50%) skewX(-8deg) scale(1.04); }
+    14%  { transform: translate(-50%, -50%) skewX(-8deg) scale(1); }
+    78%  { opacity: 1; transform: translate(-50%, -50%) skewX(-8deg) scale(1); }
+    100% { opacity: 0; transform: translate(-28%, -50%) skewX(-8deg) scale(0.96); }
 }

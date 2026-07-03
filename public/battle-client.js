@@ -362,6 +362,13 @@ const MELEE_FEEDBACK_ICON_INDEX = {
     wet: 149,
     fear: 230,
     confuse: 222,
+    slow: 101,
+    weaken: 97,
+    poison: 144,
+    paralysis: 222,
+    sleep: 230,
+    silence: 68,
+    blind: 68,
     atkDown: 97,
     defDown: 74,
     speedDown: 101,
@@ -371,9 +378,14 @@ const MELEE_FEEDBACK_ICON_INDEX = {
 };
 const MELEE_PERSISTENT_STATUS_DEFS = [
     { key: 'burn', iconKey: 'burn', label: 'BURN', tone: 'ailment', isActive: (status) => Number(status.burn) > 0 },
-    { key: 'wet', iconKey: 'wet', label: 'WET', tone: 'ailment', isActive: (status) => Number(status.flood) > 0 },
-    { key: 'fear', iconKey: 'fear', label: 'FEAR', tone: 'ailment', isActive: (status) => Number(status.fear) > 0 },
+    { key: 'slow', iconKey: 'slow', label: 'SLOW', tone: 'debuff', isActive: (status) => Number(status.slow) > 0 },
+    { key: 'weaken', iconKey: 'weaken', label: 'WEAKEN', tone: 'debuff', isActive: (status) => Number(status.weaken) > 0 },
     { key: 'confuse', iconKey: 'confuse', label: 'CONFUSE', tone: 'ailment', isActive: (status) => Number(status.confusion) > 0 },
+    { key: 'poison', iconKey: 'poison', label: 'POISON', tone: 'ailment', isActive: (status) => Number(status.poison) > 0 },
+    { key: 'paralysis', iconKey: 'paralysis', label: 'PARALYSIS', tone: 'ailment', isActive: (status) => Number(status.paralysis) > 0 },
+    { key: 'sleep', iconKey: 'sleep', label: 'SLEEP', tone: 'ailment', isActive: (status) => Number(status.sleep) > 0 },
+    { key: 'silence', iconKey: 'silence', label: 'SILENCE', tone: 'ailment', isActive: (status) => Number(status.silence) > 0 },
+    { key: 'blind', iconKey: 'blind', label: 'BLIND', tone: 'debuff', isActive: (status) => Number(status.blind) > 0 },
     { key: 'atkDown', iconKey: 'atkDown', label: 'ATK DOWN', tone: 'debuff', isActive: (status) => Number(status.attackMultiplier) < 1 },
     { key: 'defDown', iconKey: 'defDown', label: 'DEF DOWN', tone: 'debuff', isActive: (status) => Number(status.defenseMultiplier) < 1 },
     { key: 'speedDown', iconKey: 'speedDown', label: 'SPEED DOWN', tone: 'debuff', isActive: (status) => Number(status.speedMultiplier) < 1 },
@@ -441,8 +453,7 @@ function formatMeleeReplayAction(event) {
     }
     const action = event.action || {};
     const source = event.resultType === 'minorArcana' ? '小アルカナ' : '武器型';
-    const names = [action.cardName, action.name].filter(Boolean);
-    const actionName = names.length > 0 ? names.join(' / ') : source;
+    const actionName = action.name || action.skillName || source;
     return `出目${die} ${source}: ${actionName}`;
 }
 
@@ -618,7 +629,7 @@ function createMeleeReplayMinorArcanaEffect(card, side) {
 
     const name = document.createElement('div');
     name.className = 'melee-minor-arcana-name';
-    name.textContent = [card?.cardName, card?.skillName].filter(Boolean).join(' / ') || '小アルカナ';
+    name.textContent = card?.skillName || '小アルカナ';
 
     effect.appendChild(artWrap);
     effect.appendChild(name);
@@ -685,24 +696,65 @@ function getMeleeReplaySlotName(slot) {
         || '武器型';
 }
 
-function getMeleeWeaponAnimationClass(weaponType) {
+const MELEE_AVATAR_WEAPON_CLASS_NAMES = [
+    'is-avatar-weapon-heavy',
+    'is-avatar-weapon-pierce',
+    'is-avatar-weapon-ranged',
+    'is-avatar-weapon-guard',
+    'is-avatar-weapon-slash',
+    'is-avatar-weapon-staff',
+    'is-avatar-weapon-wand',
+    'is-avatar-weapon-axe',
+    'is-avatar-weapon-axe-big',
+    'is-avatar-weapon-blunt',
+    'is-avatar-weapon-dagger',
+    'is-avatar-weapon-polearm',
+    'is-avatar-weapon-shield',
+    'is-avatar-weapon-sword',
+    'is-avatar-weapon-sword-big',
+    'is-avatar-weapon-gun',
+    'is-avatar-weapon-gun-big',
+    'is-avatar-weapon-bow'
+];
+const MELEE_AVATAR_WEAPON_TYPES = new Set(['staff', 'wand', 'axe', 'axe_big', 'blunt', 'dagger', 'polearm', 'shield', 'sword', 'sword_big', 'gun', 'gun_big', 'bow']);
+
+function getMeleeAvatarWeaponType(weaponType) {
     const weapon = normalizeMeleeSpriteWeapon(weaponType);
-    if (weapon === 'gun' || weapon === 'gun_big' || weapon === 'bow' || weapon === 'staff' || weapon === 'wand') return 'is-avatar-weapon-ranged';
-    if (weapon === 'axe_big' || weapon === 'sword_big' || weapon === 'axe' || weapon === 'blunt') return 'is-avatar-weapon-heavy';
-    if (weapon === 'dagger' || weapon === 'polearm') return 'is-avatar-weapon-pierce';
-    if (weapon === 'shield') return 'is-avatar-weapon-guard';
-    return 'is-avatar-weapon-slash';
+    return MELEE_AVATAR_WEAPON_TYPES.has(weapon) ? weapon : 'sword';
 }
 
-function getMeleeWeaponBodyMotion(weaponType) {
-    const weapon = normalizeMeleeSpriteWeapon(weaponType);
-    if (weapon === 'axe_big' || weapon === 'sword_big' || weapon === 'axe' || weapon === 'blunt') return 'jump';
-    if (weapon === 'gun' || weapon === 'gun_big' || weapon === 'bow' || weapon === 'staff' || weapon === 'wand') return 'walk';
-    return 'run';
+function getMeleeAvatarWeaponClassSuffix(weaponType) {
+    return getMeleeAvatarWeaponType(weaponType).replace(/_/g, '-');
+}
+
+function getMeleeWeaponAnimationClass(weaponType) {
+    const weapon = getMeleeAvatarWeaponType(weaponType);
+    const classes = [`is-avatar-weapon-${getMeleeAvatarWeaponClassSuffix(weapon)}`];
+    if (weapon === 'gun' || weapon === 'gun_big' || weapon === 'bow' || weapon === 'staff' || weapon === 'wand') classes.unshift('is-avatar-weapon-ranged');
+    else if (weapon === 'polearm' || weapon === 'dagger') classes.unshift('is-avatar-weapon-pierce');
+    else if (weapon === 'shield') classes.unshift('is-avatar-weapon-guard');
+    else if (weapon === 'axe_big' || weapon === 'sword_big' || weapon === 'axe' || weapon === 'blunt') classes.unshift('is-avatar-weapon-heavy');
+    else classes.unshift('is-avatar-weapon-slash');
+    return classes.join(' ');
+}
+
+function getMeleeWeaponAttackDuration(weaponType) {
+    const weapon = getMeleeAvatarWeaponType(weaponType);
+    if (weapon === 'dagger') return 360;
+    if (weapon === 'sword') return 440;
+    if (weapon === 'polearm') return 500;
+    if (weapon === 'staff' || weapon === 'wand' || weapon === 'bow') return 520;
+    if (weapon === 'gun') return 470;
+    if (weapon === 'gun_big' || weapon === 'blunt') return 560;
+    if (weapon === 'sword_big') return 620;
+    if (weapon === 'axe') return 560;
+    if (weapon === 'axe_big') return 680;
+    if (weapon === 'shield') return 500;
+    return 460;
 }
 
 function clearMeleeAvatarWeaponClass(avatar) {
-    avatar?.classList?.remove('is-avatar-weapon-heavy', 'is-avatar-weapon-pierce', 'is-avatar-weapon-ranged', 'is-avatar-weapon-guard', 'is-avatar-weapon-slash');
+    avatar?.classList?.remove(...MELEE_AVATAR_WEAPON_CLASS_NAMES);
 }
 
 function getBattleAvatarForCombatant(viewerId, combatantId) {
@@ -861,6 +913,13 @@ function normalizeMeleeFeedbackIconKey(text, type = 'damage') {
     if (label === 'WET') return 'wet';
     if (label === 'FEAR') return 'fear';
     if (label === 'CONFUSE') return 'confuse';
+    if (label === 'SLOW') return 'slow';
+    if (label === 'WEAKEN') return 'weaken';
+    if (label === 'POISON') return 'poison';
+    if (label === 'PARALYSIS') return 'paralysis';
+    if (label === 'SLEEP') return 'sleep';
+    if (label === 'SILENCE') return 'silence';
+    if (label === 'BLIND') return 'blind';
     if (label === 'ATK DOWN') return 'atkDown';
     if (label === 'DEF DOWN') return 'defDown';
     if (label === 'SPEED DOWN') return 'speedDown';
@@ -877,8 +936,8 @@ function getMeleeFeedbackTone(iconKey, type = 'damage') {
     if (iconKey === 'guard' || iconKey === 'parry') return 'buff';
     if (iconKey === 'weak') return 'advantage';
     if (iconKey === 'resist') return 'resist';
-    if (iconKey === 'burn' || iconKey === 'wet' || iconKey === 'fear' || iconKey === 'confuse') return 'ailment';
-    if (iconKey === 'atkDown' || iconKey === 'defDown' || iconKey === 'speedDown' || iconKey === 'accDown' || iconKey === 'vulnUp') return 'debuff';
+    if (iconKey === 'burn' || iconKey === 'wet' || iconKey === 'fear' || iconKey === 'confuse' || iconKey === 'poison' || iconKey === 'paralysis' || iconKey === 'sleep' || iconKey === 'silence') return 'ailment';
+    if (iconKey === 'slow' || iconKey === 'weaken' || iconKey === 'blind' || iconKey === 'atkDown' || iconKey === 'defDown' || iconKey === 'speedDown' || iconKey === 'accDown' || iconKey === 'vulnUp') return 'debuff';
     return type === 'status' ? 'status' : type;
 }
 
@@ -922,9 +981,14 @@ function normalizeMeleeStatusSnapshot(source = {}) {
     return {
         morale: numberOr(source.morale, 0),
         burn: positive(source.burn ?? source.burnTurns),
-        flood: positive(source.flood ?? source.floodTurns),
-        fear: positive(source.fear ?? source.fearTurns),
+        slow: positive(source.slow ?? source.slowTurns ?? source.flood ?? source.floodTurns),
+        weaken: positive(source.weaken ?? source.weakenTurns ?? source.fear ?? source.fearTurns),
         confusion: positive(source.confusion ?? source.confusionTurns),
+        poison: positive(source.poison ?? source.poisonTurns),
+        paralysis: positive(source.paralysis ?? source.paralysisTurns),
+        sleep: positive(source.sleep ?? source.sleepTurns),
+        silence: positive(source.silence ?? source.silenceTurns),
+        blind: positive(source.blind ?? source.blindTurns),
         attackMultiplier: numberOr(source.attackMultiplier, 1),
         defenseMultiplier: numberOr(source.defenseMultiplier, 1),
         speedMultiplier: numberOr(source.speedMultiplier, 1),
@@ -940,7 +1004,8 @@ function normalizeMeleeStatusSnapshot(source = {}) {
 function getMeleePersistentStatusForLabel(label) {
     const iconKey = normalizeMeleeFeedbackIconKey(label, 'status');
     if (!iconKey || iconKey === 'parry' || iconKey === 'weak' || iconKey === 'resist') return null;
-    return MELEE_PERSISTENT_STATUS_DEFS.find((entry) => entry.iconKey === iconKey) || null;
+    const statusIconKey = iconKey === 'wet' ? 'slow' : iconKey === 'fear' ? 'weaken' : iconKey;
+    return MELEE_PERSISTENT_STATUS_DEFS.find((entry) => entry.iconKey === statusIconKey) || null;
 }
 
 function isMeleePersistentStatusLabel(label) {
@@ -994,10 +1059,11 @@ function ensureMeleeReplayStatusTray(stage, side) {
 
 function applyMeleeReplayStatusChange(status, change) {
     if (!status || !change) return;
-    const key = String(change.key || '');
+    const rawKey = String(change.key || '');
+    const key = rawKey === 'flood' ? 'slow' : rawKey === 'fear' ? 'weaken' : rawKey;
     const value = Number(change.after);
     if (!Number.isFinite(value)) return;
-    if (['burn', 'flood', 'fear', 'confusion'].includes(key)) {
+    if (['burn', 'slow', 'weaken', 'confusion', 'poison', 'paralysis', 'sleep', 'silence', 'blind'].includes(key)) {
         status[key] = Math.max(0, Math.floor(value));
         return;
     }
@@ -1115,13 +1181,14 @@ function createMeleeReplayHealingPopup(combatantId, amount = 0, viewerId = '') {
 }
 
 function meleeReplayStatusChangeLabel(change) {
-    const key = String(change?.key || '');
+    const rawKey = String(change?.key || '');
+    const key = rawKey === 'flood' ? 'slow' : rawKey === 'fear' ? 'weaken' : rawKey;
     const before = Number(change?.before);
     const after = Number(change?.after);
     const increased = Number.isFinite(before) && Number.isFinite(after) && after > before;
     const decreased = Number.isFinite(before) && Number.isFinite(after) && after < before;
-    if ((key === 'burn' || key === 'flood' || key === 'fear' || key === 'confusion') && increased) {
-        return ({ burn: 'BURN', flood: 'WET', fear: 'FEAR', confusion: 'CONFUSE' })[key];
+    if ((key === 'burn' || key === 'slow' || key === 'weaken' || key === 'confusion' || key === 'poison' || key === 'paralysis' || key === 'sleep' || key === 'silence' || key === 'blind') && increased) {
+        return ({ burn: 'BURN', slow: 'SLOW', weaken: 'WEAKEN', confusion: 'CONFUSE', poison: 'POISON', paralysis: 'PARALYSIS', sleep: 'SLEEP', silence: 'SILENCE', blind: 'BLIND' })[key];
     }
     if (key === 'attackMultiplier' && decreased) return 'ATK DOWN';
     if (key === 'defenseMultiplier' && decreased) return 'DEF DOWN';
@@ -1271,8 +1338,28 @@ function createMeleeReplayPanel(duel, meta = {}) {
     return panel;
 }
 
+function triggerMeleeReplayTechniqueBanner(panel, event, frameIndex) {
+    if (!panel || !event || !event?.action) return;
+    const key = String(frameIndex);
+    if (panel.dataset.bannerFrame === key) return;
+    panel.dataset.bannerFrame = key;
+    const stage = document.getElementById('battleStage');
+    if (!stage) return;
+    const viewerId = String(panel.dataset.viewerId || '');
+    const isViewer = viewerId && String(event.actorId || '') === viewerId;
+    const side = isViewer ? 'player' : 'enemy';
+    const techniqueText = event.action?.name || event.action?.skillName || '攻撃';
+    stage.querySelectorAll('.melee-technique-banner').forEach((node) => node.remove());
+    const banner = document.createElement('div');
+    banner.className = `melee-technique-banner is-${side}-side`;
+    banner.textContent = techniqueText;
+    stage.appendChild(banner);
+    window.setTimeout(() => banner.remove(), 1100);
+}
+
 function triggerMeleeReplayAvatarMotion(panel, event, frameIndex) {
     if (!panel || !event || event.resultType === 'miss') return;
+    if (event?.action?.kind !== 'attack') return;
     const key = String(frameIndex);
     if (panel.dataset.motionFrame === key) return;
     panel.dataset.motionFrame = key;
@@ -1283,23 +1370,17 @@ function triggerMeleeReplayAvatarMotion(panel, event, frameIndex) {
     const direction = isViewer ? 'left' : 'right';
     const combatantEl = getMeleeReplayCombatantElement(panel, event.actorId);
     const weaponType = combatantEl?.dataset.weapon;
-    const bodyMotion = getMeleeWeaponBodyMotion(weaponType);
+    const duration = getMeleeWeaponAttackDuration(weaponType);
     clearMeleeAvatarWeaponClass(avatar);
-    avatar.classList.add(getMeleeWeaponAnimationClass(weaponType));
-    if (typeof battleDependencies?.playAvatarBodyMotion === 'function') {
-        battleDependencies.playAvatarBodyMotion(avatar, bodyMotion, {
-            intervalMs: bodyMotion === 'jump' ? 96 : 52,
-            restoreMotion: 'idle'
-        });
-    }
+    avatar.classList.add(...getMeleeWeaponAnimationClass(weaponType).split(/\s+/).filter(Boolean));
     avatar.classList.remove('is-avatar-attacking', 'is-avatar-attack-left', 'is-avatar-attack-right');
     void avatar.offsetWidth;
-    avatar.style.setProperty('--avatar-attack-duration', '460ms');
+    avatar.style.setProperty('--avatar-attack-duration', `${duration}ms`);
     avatar.classList.add('is-avatar-attacking', `is-avatar-attack-${direction}`);
     window.setTimeout(() => {
         avatar.classList.remove('is-avatar-attacking', 'is-avatar-attack-left', 'is-avatar-attack-right');
         clearMeleeAvatarWeaponClass(avatar);
-    }, 540);
+    }, duration + 90);
 }
 
 function triggerMeleeReplayMinorArcanaEffect(panel, event, frameIndex) {
@@ -1382,7 +1463,8 @@ function triggerMeleeReplayDamageFeedback(panel, event, frameIndex) {
         createMeleeReplayHealingPopup(event.actorId, Number(event.healing), viewerId);
     }
     if (Number(event.damage) > 0 || Number(event.selfDamage) > 0) {
-        flashElementClass(document.getElementById('battleStage'), 'is-damage-shake', 280);
+        const stage = document.getElementById('battleStage');
+        flashElementClass(stage, event.isCritical ? 'is-camera-hit-zoom-crit' : 'is-camera-hit-zoom', event.isCritical ? 420 : 260);
     }
     const shownStatus = new Set();
     const statusStacks = new Map();
@@ -1459,6 +1541,57 @@ function animateMeleeReplayDie(panel, finalDie, token) {
     return MELEE_REPLAY_ROLL_STEPS * MELEE_REPLAY_ROLL_INTERVAL_MS;
 }
 
+function renderMeleeReplayFrameWindup(panel, duel, frameIndex) {
+    if (!panel || !duel) return;
+    const setup = duel.setup || {};
+    const timeline = Array.isArray(duel.timeline) ? duel.timeline : [];
+    const lastFrame = Math.min(Math.max(-1, frameIndex), timeline.length - 1);
+    const event = lastFrame >= 0 ? timeline[lastFrame] : null;
+    triggerMeleeReplayAvatarMotion(panel, event, lastFrame);
+    triggerMeleeReplayWeaponAttackEffect(panel, event, lastFrame);
+    triggerMeleeReplayElementalAttackEffect(panel, event, lastFrame);
+    triggerMeleeReplayTechniqueBanner(panel, event, lastFrame);
+    const roundLabel = panel.querySelector('.melee-replay-round');
+    if (roundLabel) {
+        const step = lastFrame >= 0 ? ` / ${lastFrame + 1}手目` : '';
+        roundLabel.innerText = `第${event?.round || duel.round || 1}戦${step}`;
+    }
+    const dieEl = panel.querySelector('.melee-replay-die');
+    if (dieEl) {
+        dieEl.classList.remove('is-rolling');
+        if (event) {
+            setMeleeReplayDie(panel, event.die);
+        } else {
+            setMeleeReplayDie(panel, null);
+        }
+    }
+    const titleEl = panel.querySelector('.melee-replay-action-title');
+    if (titleEl) titleEl.innerText = formatMeleeReplayAction(event);
+    const metaEl = panel.querySelector('.melee-replay-action-meta');
+    if (metaEl) {
+        if (!event) {
+            metaEl.innerText = '出目2〜6は小アルカナスロット';
+        } else if (event.resultType === 'miss') {
+            metaEl.innerText = 'ダメージなし';
+        } else {
+            const parts = [];
+            const elementalLabel = meleeReplayElementalLabel(event);
+            if (Number(event.damage) > 0) parts.push(`${event.targetName || '相手'}へ${event.damage}ダメージ`);
+            if (Number(event.healing) > 0) parts.push(`${event.actorName || '自分'}が${event.healing}回復`);
+            if (Number(event.selfDamage) > 0) parts.push(`反動${event.selfDamage}`);
+            if (isMeleeReplayMissEvent(event)) parts.push('MISS');
+            if (elementalLabel) parts.push(elementalLabel);
+            const statusLabels = [];
+            (Array.isArray(event.statusChanges) ? event.statusChanges : []).forEach((change) => {
+                const label = meleeReplayStatusChangeLabel(change);
+                if (label && !statusLabels.includes(label)) statusLabels.push(label);
+            });
+            parts.push(...statusLabels);
+            metaEl.innerText = parts.length > 0 ? parts.join(' / ') : '効果発動';
+        }
+    }
+}
+
 function renderMeleeReplayFrame(panel, duel, frameIndex) {
     if (!panel || !duel) return;
     const setup = duel.setup || {};
@@ -1489,11 +1622,20 @@ function renderMeleeReplayFrame(panel, duel, frameIndex) {
 
     const event = lastFrame >= 0 ? timeline[lastFrame] : null;
     panel.dataset.resultType = event?.resultType || 'ready';
-    triggerMeleeReplayMinorArcanaEffect(panel, event, lastFrame);
+    const actorAvatar = event ? getBattleAvatarForCombatant(String(panel.dataset.viewerId || ''), event.actorId) : null;
+    if (event?.action?.kind === 'attack') {
+        actorAvatar?.getAnimations?.().forEach((anim) => anim.pause());
+    }
     triggerMeleeReplayAvatarMotion(panel, event, lastFrame);
     triggerMeleeReplayWeaponAttackEffect(panel, event, lastFrame);
     triggerMeleeReplayElementalAttackEffect(panel, event, lastFrame);
     triggerMeleeReplayDamageFeedback(panel, event, lastFrame);
+    if (event?.action?.kind === 'attack') {
+        const hitStopMs = event?.isCritical ? 165 : 80;
+        window.setTimeout(() => {
+            actorAvatar?.getAnimations?.().forEach((anim) => anim.play());
+        }, hitStopMs);
+    }
     const roundLabel = panel.querySelector('.melee-replay-round');
     if (roundLabel) {
         const step = lastFrame >= 0 ? ` / ${lastFrame + 1}手目` : '';
@@ -1698,7 +1840,12 @@ function renderBattleLog(container, logData, { animate = false, onComplete = nul
                 animateMeleeReplayDie(meleePanel, event?.die, token);
                 setTimeout(() => {
                     if (token !== battleLogRenderToken) return;
-                    renderMeleeReplayFrame(meleePanel, meleeDuel, index);
+                    renderMeleeReplayFrameWindup(meleePanel, meleeDuel, index);
+                    const hitStopMs = event?.isCritical ? 165 : 80;
+                    setTimeout(() => {
+                        if (token !== battleLogRenderToken) return;
+                        renderMeleeReplayFrame(meleePanel, meleeDuel, index);
+                    }, hitStopMs);
                 }, rollDuration);
             }, frameDelay * index);
         });
