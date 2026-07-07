@@ -582,8 +582,10 @@ test.describe('map actions', () => {
     const feedbackIcon = (key) => page.locator(`#battleStage .melee-feedback-icon[data-icon-key="${key}"]`).first();
     await expect(feedbackIcon('parry')).toBeVisible({ timeout: 5_000 });
     await expect(feedbackIcon('heal')).toBeVisible({ timeout: 5_000 });
-    await expect(page.locator('#battleStage .melee-minor-arcana-effect[data-card-name="カップ5"]')).toContainText('潮戻し');
-    await expect(page.locator('#battleStage .melee-minor-arcana-effect[data-card-name="カップ5"] .melee-minor-arcana-art')).toBeVisible();
+    const techniqueBanner = page.locator('#battleStage .melee-technique-banner').filter({ hasText: '潮戻し' });
+    await expect(techniqueBanner).toBeVisible({ timeout: 5_000 });
+    await expect(techniqueBanner).not.toContainText('カップ5');
+    await expect(page.locator('#battleStage .melee-minor-arcana-effect')).toHaveCount(0);
     await expect(feedbackIcon('burn')).toBeVisible({ timeout: 5_000 });
     await expect(page.locator('#battleStage .melee-status-tray.is-enemy-side .melee-status-icon[data-status-key="burn"][data-icon-key="burn"]')).toBeVisible({ timeout: 5_000 });
     await expect(feedbackIcon('resist')).toBeVisible({ timeout: 5_000 });

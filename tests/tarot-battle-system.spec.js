@@ -410,7 +410,7 @@ test('die one becomes a miss after its weapon form has been removed', async () =
 
   expect(firstWeapon).toBeGreaterThan(-1);
   expect(secondMiss).toBeGreaterThan(firstWeapon);
-  expect(timelineFor(result, 'player-a', 1).map((entry) => entry.resultType)).toEqual(['weaponForm', 'miss']);
+  expect(timelineFor(result, 'player-a', 1).slice(0, 2).map((entry) => entry.resultType)).toEqual(['weaponForm', 'miss']);
 });
 
 test('same-rank minor on axe_big die two removes the bad weapon form drawback', async () => {
@@ -455,7 +455,7 @@ test('empty dice slots use the weapon form once and then miss', async () => {
     initialUnlocked: false,
     card: null
   });
-  expect(timelineFor(result, 'player-a', 3).map((entry) => entry.resultType)).toEqual(['weaponForm', 'miss']);
+  expect(timelineFor(result, 'player-a', 3).slice(0, 2).map((entry) => entry.resultType)).toEqual(['weaponForm', 'miss']);
 });
 
 test('minor arcana attacks apply suit element affinity against defender nation', async () => {
@@ -496,11 +496,11 @@ test('minor arcana attacks apply suit element affinity against defender nation',
   const none = await runFireMinorAgainst(null);
 
   expect(wind.entry).toMatchObject({
-    damage: 100,
+    damage: 120,
     attackElementKey: 'fire',
     defenderElementKey: 'wind',
     elementalRelation: 'weak',
-    elementalMultiplier: 1.25,
+    elementalMultiplier: 1.5,
     elementalLabel: 'WEAK!',
     action: expect.objectContaining({ source: 'minor', elementKey: 'fire' })
   });
@@ -509,11 +509,11 @@ test('minor arcana attacks apply suit element affinity against defender nation',
     elementLabel: expect.any(String)
   });
   expect(water.entry).toMatchObject({
-    damage: 60,
+    damage: 48,
     attackElementKey: 'fire',
     defenderElementKey: 'water',
     elementalRelation: 'resist',
-    elementalMultiplier: 0.75,
+    elementalMultiplier: 0.6,
     elementalLabel: 'RESIST...'
   });
   expect(fire.entry).toMatchObject({
@@ -536,7 +536,7 @@ test('minor arcana attacks apply suit element affinity against defender nation',
   expect(water.result.logs.join('\n')).toContain('RESIST...');
 });
 
-test('weapon fire forms and support minor arcana do not use elemental affinity', async () => {
+test('weapon fire forms use elemental affinity while support minor arcana does not', async () => {
   const wandUser = makeFighter({
     id: 'wand-user',
     name: 'Wand',
@@ -563,15 +563,15 @@ test('weapon fire forms and support minor arcana do not use elemental affinity',
 
   expect(weaponEntry).toMatchObject({
     resultType: 'weaponForm',
-    damage: 80,
-    attackElementKey: 'none',
+    damage: 120,
+    attackElementKey: 'fire',
     defenderElementKey: 'wind',
-    elementalRelation: 'none',
-    elementalMultiplier: 1,
-    elementalLabel: '',
+    elementalRelation: 'weak',
+    elementalMultiplier: 1.5,
+    elementalLabel: 'WEAK!',
     action: expect.objectContaining({ source: 'weapon', elementKey: 'fire' })
   });
-  expect(weaponResult.logs.join('\n')).not.toContain('WEAK!');
+  expect(weaponResult.logs.join('\n')).toContain('WEAK!');
 
   const healer = makeFighter({
     id: 'healer',

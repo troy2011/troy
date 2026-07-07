@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'troy-app-v20260604i';
+const CACHE_VERSION = 'troy-app-v20260707d';
 const CORE_CACHE = `troy-core-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `troy-runtime-${CACHE_VERSION}`;
 
@@ -48,9 +48,20 @@ function isFreshCodeAsset(request) {
   );
 }
 
+function shouldBypassRuntimeCache(request) {
+  if (!request) return false;
+  const url = new URL(request.url);
+  return String(url.pathname || '') === '/entry-effect.mp4';
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (!isCacheableRequest(request)) return;
+
+  if (shouldBypassRuntimeCache(request)) {
+    event.respondWith(fetch(request));
+    return;
+  }
 
   const isNavigation = request.mode === 'navigate';
   if (isNavigation || isFreshCodeAsset(request)) {
@@ -75,6 +86,7 @@ self.addEventListener('fetch', (event) => {
     caches.match(request).then((cached) => {
       if (cached) return cached;
       return fetch(request).then((response) => {
+        if (!response?.ok || response.status === 206) return response;
         const cloned = response.clone();
         caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, cloned)).catch(() => undefined);
         return response;

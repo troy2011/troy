@@ -92,8 +92,8 @@ const ITEM_SPRITE_PRESETS = Object.freeze([
     { idPrefixes: ['polearm_'], path: './Sprites/weapons/melee weapons/polearm.png', width: 32, height: 64, cols: 12, twoHanded: true, avatarOffset: { weaponRight: { x: -2, y: -42 } } },
     { idPrefixes: ['staff_'], path: './Sprites/weapons/magic weapons/staff.png', width: 32, height: 64, cols: 13, twoHanded: false, weaponType: 'staff', avatarOffset: { weaponRight: { x: -1, y: -42 } } },
     { idPrefixes: ['wand_'], path: './Sprites/weapons/magic weapons/wand.png', width: 32, height: 32, cols: 6, twoHanded: false, weaponType: 'staff', avatarOffset: { weaponRight: { x: 2, y: 4 } } },
-    { idPrefixes: ['gun_big_'], path: './Sprites/weapons/ranged weapons/pistol_big.png', width: 64, height: 32, cols: 5, twoHanded: true, avatarOffset: { weaponRight: { x: 8, y: 18 } } },
-    { idPrefixes: ['gun_'], path: './Sprites/weapons/ranged weapons/pistol.png', width: 32, height: 32, cols: 4, twoHanded: false, avatarOffset: { weaponRight: { x: -4, y: 18 } } }
+    { idPrefixes: ['gun_big_'], path: './Sprites/weapons/ranged weapons/pistol_big.png', width: 64, height: 32, cols: 5, twoHanded: true, avatarOffset: { weaponRight: { x: -34, y: 8 } } },
+    { idPrefixes: ['gun_'], path: './Sprites/weapons/ranged weapons/pistol.png', width: 32, height: 32, cols: 4, twoHanded: false, avatarOffset: { weaponRight: { x: -2, y: 9 } } }
 ]);
 
 function resolveAvatarSpritePreset(item) {
@@ -385,6 +385,7 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
         layer.dataset.scale = '';
         layer.dataset.spriteIndex = '';
         layer.dataset.baseTransform = '';
+        layer.style.removeProperty('--avatar-layer-base-transform');
         layer.dataset.loadState = 'ready';
         if (typeof onReady === 'function') onReady();
         return;
@@ -470,6 +471,10 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
             const baseTransform = transformValue.trim() || 'none';
             layer.style.transform = baseTransform;
             layer.dataset.baseTransform = baseTransform;
+            layer.style.setProperty(
+                '--avatar-layer-base-transform',
+                baseTransform === 'none' ? 'translate(0px, 0px)' : baseTransform
+            );
 
             // スプライトシートの表示位置を計算
             const imgWidth = img.naturalWidth || img.width;
@@ -780,7 +785,14 @@ export function playAvatarBodyMotion(target, motionName, options = {}) {
 export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOpponent = false) {
     const avatarContainer = document.getElementById(prefix);
     if (avatarContainer) {
-        if (isOpponent) {
+        if (avatarContainer.classList.contains('avatar-combat-actor')) {
+            avatarContainer.style.removeProperty('transform');
+            if (isOpponent) {
+                avatarContainer.style.setProperty('--avatar-facing-scale-x', '-1');
+            } else {
+                avatarContainer.style.removeProperty('--avatar-facing-scale-x');
+            }
+        } else if (isOpponent) {
             avatarContainer.style.transform = 'scaleX(-1)';
         } else {
             avatarContainer.style.removeProperty('transform');

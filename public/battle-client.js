@@ -729,28 +729,45 @@ function getMeleeAvatarWeaponClassSuffix(weaponType) {
 
 function getMeleeWeaponAnimationClass(weaponType) {
     const weapon = getMeleeAvatarWeaponType(weaponType);
-    const classes = [`is-avatar-weapon-${getMeleeAvatarWeaponClassSuffix(weapon)}`];
-    if (weapon === 'gun' || weapon === 'gun_big' || weapon === 'bow' || weapon === 'staff' || weapon === 'wand') classes.unshift('is-avatar-weapon-ranged');
-    else if (weapon === 'polearm' || weapon === 'dagger') classes.unshift('is-avatar-weapon-pierce');
-    else if (weapon === 'shield') classes.unshift('is-avatar-weapon-guard');
-    else if (weapon === 'axe_big' || weapon === 'sword_big' || weapon === 'axe' || weapon === 'blunt') classes.unshift('is-avatar-weapon-heavy');
-    else classes.unshift('is-avatar-weapon-slash');
-    return classes.join(' ');
+    return `is-avatar-weapon-${getMeleeAvatarWeaponClassSuffix(weapon)}`;
 }
 
 function getMeleeWeaponAttackDuration(weaponType) {
     const weapon = getMeleeAvatarWeaponType(weaponType);
-    if (weapon === 'dagger') return 360;
-    if (weapon === 'sword') return 440;
-    if (weapon === 'polearm') return 500;
-    if (weapon === 'staff' || weapon === 'wand' || weapon === 'bow') return 520;
-    if (weapon === 'gun') return 470;
-    if (weapon === 'gun_big' || weapon === 'blunt') return 560;
+    if (weapon === 'dagger') return 290;
+    if (weapon === 'wand' || weapon === 'gun' || weapon === 'shield') return 360;
+    if (weapon === 'sword') return 380;
+    if (weapon === 'polearm') return 420;
+    if (weapon === 'staff' || weapon === 'bow') return 460;
+    if (weapon === 'axe' || weapon === 'blunt') return 500;
+    if (weapon === 'gun_big') return 560;
     if (weapon === 'sword_big') return 620;
-    if (weapon === 'axe') return 560;
-    if (weapon === 'axe_big') return 680;
-    if (weapon === 'shield') return 500;
-    return 460;
+    if (weapon === 'axe_big') return 700;
+    return 400;
+}
+
+function getMeleeWeaponShakeProfile(weaponType) {
+    const weapon = getMeleeAvatarWeaponType(weaponType);
+    if (weapon === 'blunt') return { x: 3, y: 1, duration: 180 };
+    if (weapon === 'axe') return { x: 4, y: 1, duration: 220 };
+    if (weapon === 'sword_big') return { x: 5, y: 1, duration: 260 };
+    if (weapon === 'axe_big') return { x: 7, y: 2, duration: 320 };
+    if (weapon === 'gun_big') return { x: 6, y: 1, duration: 300 };
+    return null;
+}
+
+function triggerMeleeWeaponShake(stage, weaponType) {
+    const profile = getMeleeWeaponShakeProfile(weaponType);
+    if (!stage || !profile) return;
+    stage.style.setProperty('--melee-shake-x', `${profile.x}px`);
+    stage.style.setProperty('--melee-shake-y', `${profile.y}px`);
+    stage.style.setProperty('--melee-shake-duration', `${profile.duration}ms`);
+    flashElementClass(stage, 'is-damage-shake', profile.duration);
+    window.setTimeout(() => {
+        stage.style.removeProperty('--melee-shake-x');
+        stage.style.removeProperty('--melee-shake-y');
+        stage.style.removeProperty('--melee-shake-duration');
+    }, profile.duration + 80);
 }
 
 function clearMeleeAvatarWeaponClass(avatar) {
@@ -1465,6 +1482,8 @@ function triggerMeleeReplayDamageFeedback(panel, event, frameIndex) {
     if (Number(event.damage) > 0 || Number(event.selfDamage) > 0) {
         const stage = document.getElementById('battleStage');
         flashElementClass(stage, event.isCritical ? 'is-camera-hit-zoom-crit' : 'is-camera-hit-zoom', event.isCritical ? 420 : 260);
+        const combatantEl = getMeleeReplayCombatantElement(panel, event.actorId);
+        triggerMeleeWeaponShake(stage, combatantEl?.dataset.weapon);
     }
     const shownStatus = new Set();
     const statusStacks = new Map();

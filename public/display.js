@@ -4,6 +4,7 @@
   const rankingSub = document.getElementById('rankingSub');
   const sea = document.getElementById('sea');
   const seaVideo = document.getElementById('seaVideo');
+  const entryEffectVideo = document.getElementById('entryEffectVideo');
   const audioGate = document.getElementById('audioGate');
   const audioGateStatus = document.getElementById('audioGateStatus');
   const startDisplayBtn = document.getElementById('btnStartDisplay');
@@ -34,6 +35,8 @@
   const CUSTOMER_ORDER_NOTICE_TOPIC = 'troy-customer-order';
   const CUSTOMER_ORDER_REVIEWED_TOPIC = 'troy-customer-order-reviewed';
   const ORDER_NOTICE_SOUND_SRC = ENTRY_SOUNDS[1];
+  const ENTRY_EFFECT_VIDEO_MAX_MS = 12000;
+  const ENTRY_EFFECT_VIDEO_RESET_MS = 220;
 
   let audioUnlocked = false;
   let audioUnlocking = false;
@@ -45,6 +48,8 @@
   let seaVideoAudioReady = false;
   let lastSeaVideoTime = 0;
   let lastSeaVideoCheckAt = 0;
+  let entryEffectVideoPlayToken = 0;
+  let entryEffectVideoResetTimer = null;
   const soundBuffers = new Map();
   const soundBufferPromises = new Map();
   const soundArrayBufferPromises = new Map();
@@ -98,6 +103,111 @@
         seaVideo.webkitSetPresentationMode?.('inline');
       }
     } catch (_) {}
+  };
+
+  const configureEntryEffectVideoInlinePlayback = () => {
+    if (!entryEffectVideo) return;
+    entryEffectVideo.controls = false;
+    entryEffectVideo.autoplay = false;
+    entryEffectVideo.loop = false;
+    entryEffectVideo.playsInline = true;
+    entryEffectVideo.setAttribute('playsinline', '');
+    entryEffectVideo.setAttribute('webkit-playsinline', '');
+    entryEffectVideo.setAttribute('x-webkit-airplay', 'deny');
+    entryEffectVideo.setAttribute('disableremoteplayback', '');
+    entryEffectVideo.setAttribute('disablepictureinpicture', '');
+    entryEffectVideo.setAttribute('controlslist', 'nodownload noremoteplayback nofullscreen');
+    entryEffectVideo.removeAttribute('controls');
+    try {
+      entryEffectVideo.disableRemotePlayback = true;
+    } catch (_) {}
+    try {
+      entryEffectVideo.disablePictureInPicture = true;
+    } catch (_) {}
+    try {
+      if (entryEffectVideo.webkitPresentationMode && entryEffectVideo.webkitPresentationMode !== 'inline') {
+        entryEffectVideo.webkitSetPresentationMode?.('inline');
+      }
+    } catch (_) {}
+  };
+
+  const getEntryEffectVideoSrc = () => String(
+    entryEffectVideo?.dataset?.src
+    || entryEffectVideo?.getAttribute('src')
+    || ''
+  ).trim();
+
+  const ensureEntryEffectVideoSource = () => {
+    if (!entryEffectVideo) return '';
+    const src = getEntryEffectVideoSrc();
+    if (!src) return '';
+    if (entryEffectVideo.getAttribute('src') !== src) {
+      entryEffectVideo.setAttribute('src', src);
+      try {
+        entryEffectVideo.load();
+      } catch (_) {}
+    } else if (entryEffectVideo.error) {
+      try {
+        entryEffectVideo.load();
+      } catch (_) {}
+    }
+    return src;
+  };
+
+  const setEntryEffectVideoAudioMode = (withAudio) => {
+    if (!entryEffectVideo) return;
+    if (withAudio) {
+      entryEffectVideo.muted = false;
+      entryEffectVideo.defaultMuted = false;
+      entryEffectVideo.volume = 1;
+      entryEffectVideo.removeAttribute('muted');
+    } else {
+      entryEffectVideo.muted = true;
+      entryEffectVideo.defaultMuted = true;
+      entryEffectVideo.setAttribute('muted', '');
+    }
+  };
+
+  const beginWarmupEntryEffectVideo = () => {
+    if (!entryEffectVideo) return Promise.resolve(false);
+    configureEntryEffectVideoInlinePlayback();
+    if (!ensureEntryEffectVideoSource()) return Promise.resolve(false);
+
+    const previousVolume = entryEffectVideo.volume;
+    const previousMuted = entryEffectVideo.muted;
+    entryEffectVideo.volume = 0.01;
+    entryEffectVideo.muted = false;
+    entryEffectVideo.defaultMuted = false;
+    entryEffectVideo.removeAttribute('muted');
+    try {
+      entryEffectVideo.currentTime = 0;
+    } catch (_) {}
+
+    let result = null;
+    try {
+      result = entryEffectVideo.play();
+    } catch (_) {
+      entryEffectVideo.volume = previousVolume;
+      entryEffectVideo.muted = previousMuted;
+      entryEffectVideo.defaultMuted = previousMuted;
+      return Promise.resolve(false);
+    }
+
+    return Promise.resolve(result).then(() => {
+      entryEffectVideo.pause();
+      try {
+        entryEffectVideo.currentTime = 0;
+      } catch (_) {}
+      entryEffectVideo.volume = previousVolume;
+      entryEffectVideo.muted = previousMuted;
+      entryEffectVideo.defaultMuted = previousMuted;
+      return true;
+    }).catch(() => {
+      entryEffectVideo.volume = previousVolume;
+      entryEffectVideo.muted = previousMuted;
+      entryEffectVideo.defaultMuted = previousMuted;
+      return false;
+    });
   };
 
   const ensureSeaVideoPlayback = async (options = {}) => {
@@ -289,6 +399,7 @@
     const webAudioPromise = unlockWebAudio();
     const warmupPromises = [...soundPlayers.values()].map((audio) => beginWarmupAudioElement(audio));
     const seaVideoPromise = ensureSeaVideoPlayback({ withAudio: true });
+    const entryEffectVideoPromise = beginWarmupEntryEffectVideo();
 
     const webAudioReady = await webAudioPromise;
     if (webAudioReady) startSoundBufferPreload();
@@ -297,6 +408,7 @@
       ? await Promise.all(ENTRY_SOUNDS.map((src) => loadSoundBuffer(src)))
       : [];
     await seaVideoPromise;
+    await entryEffectVideoPromise;
     await ensureSeaVideoPlayback();
 
     const anySoundReady = warmupResults.some(Boolean);
@@ -426,6 +538,69 @@
     if (value >= 21) return 'captain';
     if (value >= 11) return 'navigator';
     return 'rookie';
+  };
+
+  const hideEntryEffectVideo = (token) => {
+    if (!entryEffectVideo || token !== entryEffectVideoPlayToken) return;
+    entryEffectVideo.classList.remove('is-playing');
+    if (entryEffectVideoResetTimer) {
+      window.clearTimeout(entryEffectVideoResetTimer);
+      entryEffectVideoResetTimer = null;
+    }
+    entryEffectVideoResetTimer = window.setTimeout(() => {
+      if (token !== entryEffectVideoPlayToken) return;
+      try {
+        entryEffectVideo.pause();
+        entryEffectVideo.currentTime = 0;
+      } catch (_) {}
+      entryEffectVideoResetTimer = null;
+    }, ENTRY_EFFECT_VIDEO_RESET_MS);
+  };
+
+  const startEntryEffectVideoPlayback = async (withAudio) => {
+    if (!entryEffectVideo) return false;
+    setEntryEffectVideoAudioMode(withAudio);
+    try {
+      const result = entryEffectVideo.play();
+      if (result?.catch) await result;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
+  const playEntryEffectVideo = async () => {
+    if (!entryEffectVideo) return false;
+    configureEntryEffectVideoInlinePlayback();
+    if (!ensureEntryEffectVideoSource()) return false;
+
+    const token = entryEffectVideoPlayToken + 1;
+    entryEffectVideoPlayToken = token;
+    if (entryEffectVideoResetTimer) {
+      window.clearTimeout(entryEffectVideoResetTimer);
+      entryEffectVideoResetTimer = null;
+    }
+    entryEffectVideo.classList.remove('is-playing');
+
+    try {
+      entryEffectVideo.pause();
+      entryEffectVideo.currentTime = 0;
+    } catch (_) {}
+
+    let played = await startEntryEffectVideoPlayback(audioUnlocked);
+    if (!played && audioUnlocked) {
+      played = await startEntryEffectVideoPlayback(false);
+    }
+    if (!played || token !== entryEffectVideoPlayToken) {
+      hideEntryEffectVideo(token);
+      return false;
+    }
+
+    entryEffectVideo.classList.add('is-playing');
+    entryEffectVideo.addEventListener('ended', () => hideEntryEffectVideo(token), { once: true });
+    entryEffectVideo.addEventListener('error', () => hideEntryEffectVideo(token), { once: true });
+    window.setTimeout(() => hideEntryEffectVideo(token), ENTRY_EFFECT_VIDEO_MAX_MS);
+    return true;
   };
 
   let reconnectTimer = null;
@@ -736,7 +911,10 @@
         if (!handledCustomerOrder && shouldRenderEffectForEvent(event)) spawnEffect(event);
         const topic = String(event?.topic || '').toLowerCase();
         if (shouldRefreshRankingForEvent(event)) shouldRefreshRanking = true;
-        if (topic === 'troy-entry') playSound(getEntrySoundSrc(event.level));
+        if (topic === 'troy-entry') {
+          void playEntryEffectVideo();
+          playSound(getEntrySoundSrc(event.level));
+        }
       });
       if (shouldRefreshRanking) scheduleRankingRefresh(120);
       return;
@@ -745,7 +923,10 @@
     const handledCustomerOrder = handleCustomerOrderDisplayEvent(payload);
     if (!handledCustomerOrder && shouldRenderEffectForEvent(payload)) spawnEffect(payload);
     const topic = String(payload.topic || '').toLowerCase();
-    if (topic === 'troy-entry') playSound(getEntrySoundSrc(payload.level));
+    if (topic === 'troy-entry') {
+      void playEntryEffectVideo();
+      playSound(getEntrySoundSrc(payload.level));
+    }
     if (shouldRefreshRankingForEvent(payload)) scheduleRankingRefresh(120);
   };
 

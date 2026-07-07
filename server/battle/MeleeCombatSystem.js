@@ -4,8 +4,15 @@ const { getTarotRolePassive } = require('../tarotRoles');
 const { getTarotBattleDeck } = require('../tarotBattleSkills');
 
 const DEFAULT_MAX_ROUNDS = 18;
+const GAUGE_MAX = 1000;
+const GAUGE_TICK_MS = 50;
+const CAST_BASE_MS = 200;
+const CAST_MS_PER_POWER = 6;
+const SUPPORT_CAST_MS = 350;
+const MAX_TIMELINE_EVENTS = 60;
 const DICE_SLOTS = [1, 2, 3, 4, 5, 6];
 const MINOR_DICE = [2, 3, 4, 5, 6];
+const CLEANSABLE_STATUS_KEYS = ['burn', 'slow', 'weaken', 'confusion', 'poison', 'paralysis', 'sleep', 'silence', 'blind'];
 const LEGACY_STAT_KEYS = {
     strength: 'ちから',
     defense: 'みのまもり',
@@ -55,11 +62,11 @@ const ELEMENT_LABELS = {
     water: '\u6c34',
     none: '\u7121\u5c5e\u6027'
 };
-const ELEMENT_BEATS = {
-    fire: 'wind',
-    wind: 'earth',
-    earth: 'water',
-    water: 'fire'
+const ELEMENT_MATRIX = {
+    fire:  { fire: 1.0, wind: 1.5, earth: 0.85, water: 0.6 },
+    wind:  { fire: 0.6, wind: 1.0, earth: 1.5,  water: 0.85 },
+    earth: { fire: 0.85, wind: 0.6, earth: 1.0, water: 1.5 },
+    water: { fire: 1.5, wind: 0.85, earth: 0.6, water: 1.0 }
 };
 const ELEMENT_ALIASES = {
     fire: 'fire',
@@ -474,7 +481,8 @@ function getCombatantElementKey(combatant) {
 }
 
 function getActionAttackElementKey(action) {
-    if (action?.source !== 'minor' || action?.kind !== 'attack') return 'none';
+    if (action?.kind !== 'attack') return 'none';
+    if (!action?.elementKey) return 'none';
     return normalizeElementKey(action.elementKey || action.element || action.suit);
 }
 
@@ -489,16 +497,17 @@ function getElementalAffinity(attacker, defender, action) {
         label: ''
     };
     if (!ELEMENT_KEYS.has(attackElementKey) || !ELEMENT_KEYS.has(defenderElementKey)) return neutral;
-    if (attackElementKey === defenderElementKey) {
-        return { ...neutral, relation: 'neutral' };
+    const multiplier = ELEMENT_MATRIX[attackElementKey][defenderElementKey];
+    if (multiplier === 1.0) {
+        return { ...neutral, relation: 'neutral', multiplier };
     }
-    if (ELEMENT_BEATS[attackElementKey] === defenderElementKey) {
-        return { ...neutral, relation: 'weak', multiplier: 1.25, label: 'WEAK!' };
+    if (multiplier > 1) {
+        return { ...neutral, relation: 'weak', multiplier, label: 'WEAK!' };
     }
-    if (ELEMENT_BEATS[defenderElementKey] === attackElementKey) {
-        return { ...neutral, relation: 'resist', multiplier: 0.75, label: 'RESIST...' };
+    if (multiplier >= 0.8) {
+        return { ...neutral, relation: 'clash', multiplier, label: 'CLASH...' };
     }
-    return { ...neutral, relation: 'neutral' };
+    return { ...neutral, relation: 'resist', multiplier, label: 'RESIST...' };
 }
 
 function cloneAction(action, source = 'weapon') {
@@ -580,9 +589,14 @@ function createStatus() {
         parryCharges: 0,
         parryMaxCharges: 0,
         burnTurns: 0,
-        floodTurns: 0,
-        fearTurns: 0,
+        slowTurns: 0,
+        weakenTurns: 0,
         confusionTurns: 0,
+        poisonTurns: 0,
+        paralysisTurns: 0,
+        sleepTurns: 0,
+        silenceTurns: 0,
+        blindTurns: 0,
         usedPriorityLastTurn: false
     };
 }
@@ -705,9 +719,14 @@ function statusSnapshot(combatant) {
         maxHp: getMaxHp(combatant),
         morale: combatMorale(combatant),
         burn: Math.max(0, Math.floor(number(status.burnTurns, 0))),
-        flood: Math.max(0, Math.floor(number(status.floodTurns, 0))),
-        fear: Math.max(0, Math.floor(number(status.fearTurns, 0))),
+        slow: Math.max(0, Math.floor(number(status.slowTurns, 0))),
+        weaken: Math.max(0, Math.floor(number(status.weakenTurns, 0))),
         confusion: Math.max(0, Math.floor(number(status.confusionTurns, 0))),
+        poison: Math.max(0, Math.floor(number(status.poisonTurns, 0))),
+        paralysis: Math.max(0, Math.floor(number(status.paralysisTurns, 0))),
+        sleep: Math.max(0, Math.floor(number(status.sleepTurns, 0))),
+        silence: Math.max(0, Math.floor(number(status.silenceTurns, 0))),
+        blind: Math.max(0, Math.floor(number(status.blindTurns, 0))),
         attackMultiplier: number(status.attackMultiplier, 1),
         defenseMultiplier: number(status.defenseMultiplier, 1),
         speedMultiplier: number(status.speedMultiplier, 1),
@@ -724,9 +743,14 @@ function publicStatusForTimeline(snapshot = {}) {
     return {
         morale: number(snapshot.morale, 0),
         burn: Math.max(0, Math.floor(number(snapshot.burn, 0))),
-        flood: Math.max(0, Math.floor(number(snapshot.flood, 0))),
-        fear: Math.max(0, Math.floor(number(snapshot.fear, 0))),
+        slow: Math.max(0, Math.floor(number(snapshot.slow, 0))),
+        weaken: Math.max(0, Math.floor(number(snapshot.weaken, 0))),
         confusion: Math.max(0, Math.floor(number(snapshot.confusion, 0))),
+        poison: Math.max(0, Math.floor(number(snapshot.poison, 0))),
+        paralysis: Math.max(0, Math.floor(number(snapshot.paralysis, 0))),
+        sleep: Math.max(0, Math.floor(number(snapshot.sleep, 0))),
+        silence: Math.max(0, Math.floor(number(snapshot.silence, 0))),
+        blind: Math.max(0, Math.floor(number(snapshot.blind, 0))),
         attackMultiplier: number(snapshot.attackMultiplier, 1),
         defenseMultiplier: number(snapshot.defenseMultiplier, 1),
         speedMultiplier: number(snapshot.speedMultiplier, 1),
@@ -750,7 +774,7 @@ function statusDiff(before, after) {
     return changes;
 }
 
-function createTimelineEntry({ round, attacker, defender, die, decision, before, after, execution }) {
+function createTimelineEntry({ round, attacker, defender, die, decision, before, after, execution, castTimeMs = 0 }) {
     const action = decision?.action || null;
     const attackerBefore = before?.attacker || {};
     const defenderBefore = before?.defender || {};
@@ -786,6 +810,8 @@ function createTimelineEntry({ round, attacker, defender, die, decision, before,
         anyHit: !!execution?.anyHit,
         parried: !!execution?.parried,
         parryCount: Math.max(0, Math.floor(number(execution?.parryCount, 0))),
+        isCritical: !!execution?.isCritical,
+        castTimeMs: Math.max(0, Math.floor(number(castTimeMs, 0))),
         statusChanges: [
             ...statusDiff(attackerBefore, attackerAfter).map((change) => ({ ...change, target: 'actor' })),
             ...statusDiff(defenderBefore, defenderAfter).map((change) => ({ ...change, target: 'target' }))
@@ -866,11 +892,18 @@ function createDieRoller(options, random) {
 }
 
 function hasStatus(combatant, status) {
-    if (status === 'any') return ['burn', 'flood', 'fear', 'confusion'].some((key) => hasStatus(combatant, key));
+    if (status === 'any') return CLEANSABLE_STATUS_KEYS.some((key) => hasStatus(combatant, key));
     if (status === 'burn') return combatant.status.burnTurns > 0;
-    if (status === 'flood') return combatant.status.floodTurns > 0;
-    if (status === 'fear') return combatant.status.fearTurns > 0;
+    if (status === 'flood') return combatant.status.slowTurns > 0;
+    if (status === 'fear') return combatant.status.weakenTurns > 0;
+    if (status === 'slow') return combatant.status.slowTurns > 0;
+    if (status === 'weaken') return combatant.status.weakenTurns > 0;
     if (status === 'confusion') return combatant.status.confusionTurns > 0;
+    if (status === 'poison') return combatant.status.poisonTurns > 0;
+    if (status === 'paralysis') return combatant.status.paralysisTurns > 0;
+    if (status === 'sleep') return combatant.status.sleepTurns > 0;
+    if (status === 'silence') return combatant.status.silenceTurns > 0;
+    if (status === 'blind') return combatant.status.blindTurns > 0;
     if (status === 'guard') return combatant.status.nextDamageTakenCharges > 0 || combatant.status.damageTakenMultiplier < 1;
     if (status === 'priority') return !!combatant.status.usedPriorityLastTurn;
     return false;
@@ -998,6 +1031,10 @@ async function applyDamage(defender, amount, emitLog, source = '') {
     }
     if (remaining > 0) {
         setCurrentHp(defender, getCurrentHp(defender) - remaining);
+        if (remaining > 0 && defender.status.sleepTurns > 0) {
+            defender.status.sleepTurns = 0;
+            await emitLog(`${defender.name} は衝撃で目を覚ました`);
+        }
     }
     return remaining;
 }
@@ -1023,17 +1060,37 @@ function cleanseStatuses(target, statuses) {
             target.status.burnTurns = 0;
             cleared.push('火傷');
         }
-        if (status === 'flood' && target.status.floodTurns > 0) {
-            target.status.floodTurns = 0;
-            cleared.push('水浸し');
+        if ((status === 'slow' || status === 'flood') && target.status.slowTurns > 0) {
+            target.status.slowTurns = 0;
+            cleared.push(status === 'flood' ? '水浸し' : '鈍化');
         }
-        if (status === 'fear' && target.status.fearTurns > 0) {
-            target.status.fearTurns = 0;
-            cleared.push('恐怖');
+        if ((status === 'weaken' || status === 'fear') && target.status.weakenTurns > 0) {
+            target.status.weakenTurns = 0;
+            cleared.push(status === 'fear' ? '恐怖' : '弱体化');
         }
         if (status === 'confusion' && target.status.confusionTurns > 0) {
             target.status.confusionTurns = 0;
             cleared.push('混乱');
+        }
+        if (status === 'poison' && target.status.poisonTurns > 0) {
+            target.status.poisonTurns = 0;
+            cleared.push('毒');
+        }
+        if (status === 'paralysis' && target.status.paralysisTurns > 0) {
+            target.status.paralysisTurns = 0;
+            cleared.push('麻痺');
+        }
+        if (status === 'sleep' && target.status.sleepTurns > 0) {
+            target.status.sleepTurns = 0;
+            cleared.push('睡眠');
+        }
+        if (status === 'silence' && target.status.silenceTurns > 0) {
+            target.status.silenceTurns = 0;
+            cleared.push('沈黙');
+        }
+        if (status === 'blind' && target.status.blindTurns > 0) {
+            target.status.blindTurns = 0;
+            cleared.push('暗闇');
         }
         if (status === 'accuracy' && target.status.accuracyBonus !== 0) {
             target.status.accuracyBonus = 0;
@@ -1099,14 +1156,46 @@ async function applyEffect(effect, context) {
             await emitLog(`${target.name} は火傷を負った`);
             break;
         case 'flood':
-            target.status.floodTurns = Math.max(target.status.floodTurns, Math.floor(number(effect.turns, 2)));
+            target.status.slowTurns = Math.max(target.status.slowTurns, Math.floor(number(effect.turns, 2)));
             setMultiplier(target.status, 'speedMultiplier', 'speedTurns', 0.9, number(effect.turns, 2));
             await emitLog(`${target.name} は水浸しになった`);
             break;
+        case 'slow':
+            target.status.slowTurns = Math.max(target.status.slowTurns, Math.floor(number(effect.turns, 2)));
+            setMultiplier(target.status, 'speedMultiplier', 'speedTurns', 0.9, number(effect.turns, 2));
+            await emitLog(`${target.name} は鈍くなった`);
+            break;
         case 'fear':
-            target.status.fearTurns = Math.max(target.status.fearTurns, Math.floor(number(effect.turns, 2)));
+            target.status.weakenTurns = Math.max(target.status.weakenTurns, Math.floor(number(effect.turns, 2)));
             setMultiplier(target.status, 'attackMultiplier', 'attackTurns', 0.8, number(effect.turns, 2));
             await emitLog(`${target.name} は恐怖した`);
+            break;
+        case 'weaken':
+            target.status.weakenTurns = Math.max(target.status.weakenTurns, Math.floor(number(effect.turns, 2)));
+            setMultiplier(target.status, 'attackMultiplier', 'attackTurns', 0.8, number(effect.turns, 2));
+            await emitLog(`${target.name} は弱体化した`);
+            break;
+        case 'poison':
+            target.status.poisonTurns = Math.max(target.status.poisonTurns, Math.floor(number(effect.turns, 2)));
+            await emitLog(`${target.name} は毒に侵された`);
+            break;
+        case 'paralysis':
+            target.status.paralysisTurns = Math.max(target.status.paralysisTurns, Math.floor(number(effect.turns, 2)));
+            await emitLog(`${target.name} は麻痺した`);
+            break;
+        case 'sleep':
+            target.status.sleepTurns = Math.max(target.status.sleepTurns, Math.min(Math.floor(number(effect.turns, 2)), 2));
+            await emitLog(`${target.name} は眠りに落ちた`);
+            break;
+        case 'silence':
+            target.status.silenceTurns = Math.max(target.status.silenceTurns, Math.floor(number(effect.turns, 2)));
+            await emitLog(`${target.name} は沈黙に陥った`);
+            break;
+        case 'blind':
+            target.status.blindTurns = Math.max(target.status.blindTurns, Math.floor(number(effect.turns, 2)));
+            target.status.accuracyBonus += (effect.value ?? -30);
+            target.status.accuracyTurns = Math.max(target.status.accuracyTurns, number(effect.turns, 2));
+            await emitLog(`${target.name} は暗闇に包まれた`);
             break;
         case 'confusion':
             target.status.confusionTurns = Math.max(target.status.confusionTurns, Math.floor(number(effect.turns, 2)));
@@ -1167,7 +1256,7 @@ async function applyEffect(effect, context) {
             await emitLog(`${target.name} の防御・ガード効果を解除`);
             break;
         case 'cleanse': {
-            const cleared = cleanseStatuses(target, effect.statuses || ['burn', 'flood', 'fear', 'confusion']);
+            const cleared = cleanseStatuses(target, effect.statuses || CLEANSABLE_STATUS_KEYS);
             await emitLog(cleared.length ? `${target.name} の${cleared.join('・')}を解除` : `${target.name} は状態を整えた`);
             break;
         }
@@ -1183,7 +1272,7 @@ async function applyEffect(effect, context) {
             }
             break;
         case 'healAndCleanseOne': {
-            const cleared = cleanseStatuses(target, ['burn', 'flood', 'fear', 'confusion']).slice(0, 1);
+            const cleared = cleanseStatuses(target, CLEANSABLE_STATUS_KEYS).slice(0, 1);
             await healPercent(target, rawValue, emitLog);
             if (cleared.length) await emitLog(`${target.name} の${cleared[0]}を解除`);
             break;
@@ -1267,6 +1356,7 @@ async function executeAttack(attacker, defender, action, emitLog, random) {
     let anyHit = false;
     let totalDamage = 0;
     let parryCount = 0;
+    let anyCritical = false;
     for (let i = 0; i < hitCount; i += 1) {
         if (defender.status.evasionChance > 0 && rollChance(random, defender.status.evasionChance)) {
             defender.status.evasionChance = 0;
@@ -1287,6 +1377,7 @@ async function executeAttack(attacker, defender, action, emitLog, random) {
         const critChance = clamp(number(action.criticalBonus, 0) + number(attacker.rolePassive?.criticalRateBonus, 0), 0, 0.8);
         if (critChance > 0 && rollChance(random, critChance)) {
             damage = Math.floor(damage * 1.5);
+            anyCritical = true;
             await emitLog('クリティカル！');
         }
         const elemental = getElementalAffinity(attacker, defender, action);
@@ -1310,7 +1401,7 @@ async function executeAttack(attacker, defender, action, emitLog, random) {
         await applyEffects(action.effectCodes, { attacker, defender, action, emitLog, random, trigger: 'miss' });
     }
     await applyEffects(action.effectCodes, { attacker, defender, action, emitLog, random, trigger: 'always' });
-    return { anyHit, totalDamage, parried: parryCount > 0, parryCount };
+    return { anyHit, totalDamage, parried: parryCount > 0, parryCount, isCritical: anyCritical };
 }
 
 async function maybeCounter(defender, attacker, emitLog, random) {
@@ -1356,6 +1447,20 @@ async function applyStartOfTurnStatus(combatant, emitLog, random) {
         await emitLog(`${combatant.name} は火傷で${damage}ダメージ`);
         if (getCurrentHp(combatant) <= 0) return false;
     }
+    if (combatant.status.poisonTurns > 0) {
+        const damage = Math.max(1, Math.floor(getMaxHp(combatant) * 0.06));
+        await applyDamage(combatant, damage, emitLog, 'poison');
+        await emitLog(`${combatant.name} は毒で${damage}ダメージ`);
+        if (getCurrentHp(combatant) <= 0) return false;
+    }
+    if (combatant.status.sleepTurns > 0) {
+        await emitLog(`${combatant.name} は眠っていて行動できない`);
+        return false;
+    }
+    if (combatant.status.paralysisTurns > 0 && rollChance(random, 0.3)) {
+        await emitLog(`${combatant.name} は麻痺して動けない`);
+        return false;
+    }
     if (combatant.status.confusionTurns > 0 && rollChance(random, 0.2)) {
         await emitLog(`${combatant.name} は混乱して行動できない`);
         return false;
@@ -1382,9 +1487,14 @@ function tickDurations(combatant) {
         }
     }
     if (status.burnTurns > 0) status.burnTurns -= 1;
-    if (status.floodTurns > 0) status.floodTurns -= 1;
-    if (status.fearTurns > 0) status.fearTurns -= 1;
+    if (status.slowTurns > 0) status.slowTurns -= 1;
+    if (status.weakenTurns > 0) status.weakenTurns -= 1;
     if (status.confusionTurns > 0) status.confusionTurns -= 1;
+    if (status.poisonTurns > 0) status.poisonTurns -= 1;
+    if (status.paralysisTurns > 0) status.paralysisTurns -= 1;
+    if (status.sleepTurns > 0) status.sleepTurns -= 1;
+    if (status.silenceTurns > 0) status.silenceTurns -= 1;
+    if (status.blindTurns > 0) status.blindTurns -= 1;
     if (status.counterTurns > 0) {
         status.counterTurns -= 1;
         if (status.counterTurns <= 0) status.counterPower = 0;
@@ -1405,7 +1515,10 @@ async function takeTurn(attacker, defender, emitLog, rollDie, random, context = 
     }
 
     const die = rollDie();
-    const decision = resolveDiceAction(attacker, die);
+    let decision = resolveDiceAction(attacker, die);
+    if (decision.type === 'minorArcana' && attacker.status.silenceTurns > 0) {
+        decision = { type: 'miss', die, reason: '沈黙で小アルカナが封じられた' };
+    }
     const before = {
         attacker: statusSnapshot(attacker),
         defender: statusSnapshot(defender)
@@ -1501,12 +1614,12 @@ function applyNavalBoardingEffects(combatant) {
         parts.push('火傷');
     }
     if (statuses.flood) {
-        combatant.status.floodTurns = Math.max(combatant.status.floodTurns, statuses.flood);
+        combatant.status.slowTurns = Math.max(combatant.status.slowTurns, statuses.flood);
         setMultiplier(combatant.status, 'speedMultiplier', 'speedTurns', 0.9, statuses.flood);
         parts.push('水浸し');
     }
     if (statuses.fear) {
-        combatant.status.fearTurns = Math.max(combatant.status.fearTurns, statuses.fear);
+        combatant.status.weakenTurns = Math.max(combatant.status.weakenTurns, statuses.fear);
         setMultiplier(combatant.status, 'attackMultiplier', 'attackTurns', 0.5, statuses.fear);
         parts.push('恐怖');
     }
@@ -1587,21 +1700,102 @@ async function runMeleeBattle(playerA, playerB, options = {}) {
     await emitLog(`戦闘開始！ ${first.name} の先攻`);
     await emitLog(`${fighterA.name} は${fighterA.weaponLabel}型、${fighterB.name} は${fighterB.weaponLabel}型で白兵戦に入る`);
 
-    const maxRounds = Math.max(1, Math.floor(number(options.maxRounds, DEFAULT_MAX_ROUNDS)));
-    for (let round = 1; round <= maxRounds; round += 1) {
-        await emitLog(`第${round}ラウンド`);
-        const order = [fighterA, fighterB].sort((left, right) => getEffectiveSpeed(right) - getEffectiveSpeed(left));
-        for (const attacker of order) {
-            const defender = attacker === fighterA ? fighterB : fighterA;
-            const result = await takeTurn(attacker, defender, emitLog, rollDie, random, { round, timeline: meleeTimeline });
-            if (result?.winner && result?.loser) {
-                await emitLog(`${result.winner.name} の勝利`);
-                return { winner: result.winner.player, loser: result.loser.player, logs, meleeSetup, meleeTimeline };
+    // ATB gauge simulation: simplified deterministic version
+    // Still compute full timeline upfront (server-authoritative)
+    let gaugeA = 0, gaugeB = 0;
+    let eventCount = 0;
+
+    while (eventCount < MAX_TIMELINE_EVENTS && getCurrentHp(fighterA) > 0 && getCurrentHp(fighterB) > 0) {
+        // Find who acts next based on gauge accumulation
+        gaugeA += getEffectiveSpeed(fighterA);
+        gaugeB += getEffectiveSpeed(fighterB);
+
+        let attacker, defender;
+        if (gaugeA >= GAUGE_MAX && gaugeB >= GAUGE_MAX) {
+            // Both ready; use speed-based priority
+            if (getEffectiveSpeed(fighterA) >= getEffectiveSpeed(fighterB)) {
+                attacker = fighterA;
+                defender = fighterB;
+                gaugeA -= GAUGE_MAX;
+            } else {
+                attacker = fighterB;
+                defender = fighterA;
+                gaugeB -= GAUGE_MAX;
             }
+        } else if (gaugeA >= GAUGE_MAX) {
+            attacker = fighterA;
+            defender = fighterB;
+            gaugeA -= GAUGE_MAX;
+        } else if (gaugeB >= GAUGE_MAX) {
+            attacker = fighterB;
+            defender = fighterA;
+            gaugeB -= GAUGE_MAX;
+        } else {
+            // No one ready yet; accumulate more
+            continue;
+        }
+
+        // Execute turn
+        const canAct = await applyStartOfTurnStatus(attacker, emitLog, random);
+        if (getCurrentHp(attacker) <= 0) {
+            await emitLog(`${defender.name} の勝利`);
+            return { winner: defender.player, loser: attacker.player, logs, meleeSetup, meleeTimeline };
+        }
+
+        if (!canAct) {
+            tickDurations(attacker);
+            continue;
+        }
+
+        const die = rollDie();
+        let decision = resolveDiceAction(attacker, die);
+        if (decision.type === 'minorArcana' && attacker.status.silenceTurns > 0) {
+            decision = { type: 'miss', die, reason: '沈黙で小アルカナが封じられた' };
+        }
+
+        const action = decision.action || {};
+        const castTimeMs = decision.type === 'minorArcana'
+            ? (action.power == null ? SUPPORT_CAST_MS : CAST_BASE_MS + Math.max(0, number(action.power, 0)) * CAST_MS_PER_POWER)
+            : 0;
+
+        const before = {
+            attacker: statusSnapshot(attacker),
+            defender: statusSnapshot(defender)
+        };
+        const execution = await executeDecision(attacker, defender, decision, emitLog, random);
+        const after = {
+            attacker: statusSnapshot(attacker),
+            defender: statusSnapshot(defender)
+        };
+
+        if (Array.isArray(meleeTimeline)) {
+            meleeTimeline.push(createTimelineEntry({
+                round: eventCount + 1,
+                attacker,
+                defender,
+                die,
+                decision,
+                before,
+                after,
+                execution,
+                castTimeMs
+            }));
+        }
+
+        tickDurations(attacker);
+        eventCount += 1;
+
+        if (getCurrentHp(defender) <= 0) {
+            await emitLog(`${attacker.name} の勝利`);
+            return { winner: attacker.player, loser: defender.player, logs, meleeSetup, meleeTimeline };
+        }
+        if (getCurrentHp(attacker) <= 0) {
+            await emitLog(`${defender.name} の勝利`);
+            return { winner: defender.player, loser: attacker.player, logs, meleeSetup, meleeTimeline };
         }
     }
 
-    await emitLog('最大ラウンド到達。残HP率と戦闘値で判定');
+    await emitLog('最大アクション到達。残HP率と戦闘値で判定');
     const judgement = decideByJudgement(fighterA, fighterB);
     await emitLog(`判定勝ち: ${judgement.winner.name}`);
     return { winner: judgement.winner.player, loser: judgement.loser.player, logs, meleeSetup, meleeTimeline };

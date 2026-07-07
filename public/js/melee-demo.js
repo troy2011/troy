@@ -505,9 +505,16 @@ function renderDemoAvatar(side, weaponType) {
     if (!root || typeof renderAvatar !== 'function') return;
     setDemoAvatarVictorious(side, false);
     setDemoAvatarDefeated(side, false);
-    const item = createDemoWeaponItem(weaponType);
-    const equipment = { RightHand: item };
+    const equipment = createDemoAvatarEquipment(weaponType);
     renderAvatar(`${side}DemoAvatar`, DEMO_AVATAR_BASES[side], equipment, {}, false);
+}
+
+function createDemoAvatarEquipment(weaponType) {
+    const item = createDemoWeaponItem(weaponType);
+    const weapon = normalizeWeaponType(weaponType);
+    return weapon === 'shield'
+        ? { LeftHand: item }
+        : { RightHand: item };
 }
 
 function createDemoWeaponItem(weaponType) {
@@ -516,7 +523,7 @@ function createDemoWeaponItem(weaponType) {
     return {
         itemId: `${weapon}_demo`,
         customData: {
-            Category: 'Weapon',
+            Category: weapon === 'shield' ? 'Shield' : 'Weapon',
             sprite_index: '0',
             ...meta
         }
@@ -952,6 +959,7 @@ function resolveTurn(actor, die, actionToken) {
             avatar?.getAnimations?.().forEach((anim) => anim.pause());
             if (targetHpBefore > target.hp) {
                 flashClass(el.battleBoard, result.isCritical ? 'is-camera-hit-zoom-crit' : 'is-camera-hit-zoom', result.isCritical ? 420 : 260);
+                triggerDemoWeaponShake(actor.weapon);
                 triggerDemoDamageFeedback(target.id, targetHpBefore - target.hp);
             }
             if (result.elementalLabel && targetHpBefore > target.hp) {
@@ -990,17 +998,40 @@ function triggerDemoAvatarMotion(actor) {
 
 function getDemoWeaponAttackDuration(weaponType) {
     const weapon = getDemoAvatarWeaponType(weaponType);
-    if (weapon === 'dagger') return 360;
-    if (weapon === 'sword') return 440;
-    if (weapon === 'polearm') return 500;
-    if (weapon === 'staff' || weapon === 'wand' || weapon === 'bow') return 520;
-    if (weapon === 'gun') return 470;
-    if (weapon === 'gun_big' || weapon === 'blunt') return 560;
+    if (weapon === 'dagger') return 290;
+    if (weapon === 'wand' || weapon === 'gun' || weapon === 'shield') return 360;
+    if (weapon === 'sword') return 380;
+    if (weapon === 'polearm') return 420;
+    if (weapon === 'staff' || weapon === 'bow') return 460;
+    if (weapon === 'axe' || weapon === 'blunt') return 500;
+    if (weapon === 'gun_big') return 560;
     if (weapon === 'sword_big') return 620;
-    if (weapon === 'axe') return 560;
-    if (weapon === 'axe_big') return 680;
-    if (weapon === 'shield') return 500;
-    return 460;
+    if (weapon === 'axe_big') return 700;
+    return 400;
+}
+
+function getDemoWeaponShakeProfile(weaponType) {
+    const weapon = getDemoAvatarWeaponType(weaponType);
+    if (weapon === 'blunt') return { x: 3, y: 1, duration: 180 };
+    if (weapon === 'axe') return { x: 4, y: 1, duration: 220 };
+    if (weapon === 'sword_big') return { x: 5, y: 1, duration: 260 };
+    if (weapon === 'axe_big') return { x: 7, y: 2, duration: 320 };
+    if (weapon === 'gun_big') return { x: 6, y: 1, duration: 300 };
+    return null;
+}
+
+function triggerDemoWeaponShake(weaponType) {
+    const profile = getDemoWeaponShakeProfile(weaponType);
+    if (!el.battleBoard || !profile) return;
+    el.battleBoard.style.setProperty('--melee-shake-x', `${profile.x}px`);
+    el.battleBoard.style.setProperty('--melee-shake-y', `${profile.y}px`);
+    el.battleBoard.style.setProperty('--melee-shake-duration', `${profile.duration}ms`);
+    flashClass(el.battleBoard, 'is-damage-shake', profile.duration);
+    window.setTimeout(() => {
+        el.battleBoard.style.removeProperty('--melee-shake-x');
+        el.battleBoard.style.removeProperty('--melee-shake-y');
+        el.battleBoard.style.removeProperty('--melee-shake-duration');
+    }, profile.duration + 80);
 }
 
 function triggerDemoTechniqueBanner(actor, action) {
@@ -1315,13 +1346,7 @@ function setDemoAvatarVictorious(side, victorious) {
 
 function weaponAnimationClass(weaponType) {
     const weapon = getDemoAvatarWeaponType(weaponType);
-    const classes = [`is-avatar-weapon-${getDemoAvatarWeaponClassSuffix(weapon)}`];
-    if (weapon === 'gun' || weapon === 'gun_big' || weapon === 'bow' || weapon === 'staff' || weapon === 'wand') classes.unshift('is-avatar-weapon-ranged');
-    else if (weapon === 'polearm' || weapon === 'dagger') classes.unshift('is-avatar-weapon-pierce');
-    else if (weapon === 'shield') classes.unshift('is-avatar-weapon-guard');
-    else if (weapon === 'axe_big' || weapon === 'sword_big' || weapon === 'axe' || weapon === 'blunt') classes.unshift('is-avatar-weapon-heavy');
-    else classes.unshift('is-avatar-weapon-slash');
-    return classes.join(' ');
+    return `is-avatar-weapon-${getDemoAvatarWeaponClassSuffix(weapon)}`;
 }
 
 function flashClass(element, className, duration) {

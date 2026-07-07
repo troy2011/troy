@@ -1,12 +1,26 @@
 const { test, expect } = require('@playwright/test');
+const path = require('path');
 
 async function installDisplayMocks(page, options = {}) {
   const autoEntryEvent = options.autoEntryEvent !== false;
   const strictAudioActivation = !!options.strictAudioActivation;
+  if (options.entryEffectVideoAvailable) {
+    const entryEffectVideoPath = path.join(__dirname, '..', 'public', 'shipvideo.mp4');
+    await page.route('**/entry-effect.mp4', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'video/mp4',
+        path: entryEffectVideoPath
+      });
+    });
+  }
   await page.addInitScript(({ autoEntryEvent: shouldEmitAutoEntry, strictAudioActivation: shouldRequireGesture }) => {
     if (shouldRequireGesture) {
       window.__displayVideoPlayStarted = false;
       HTMLMediaElement.prototype.play = function playMedia() {
+        if (this.id === 'entryEffectVideo') {
+          window.__displayEntryVideoPlayCount = Number(window.__displayEntryVideoPlayCount || 0) + 1;
+        }
         if (document.getElementById('audioGateStatus')?.textContent === '音声を準備しています...') {
           window.__displayVideoPlayStarted = true;
         }
@@ -200,6 +214,39 @@ test('display kiosk starts with audio gate and hides controls after launch', asy
   expect(audit.panelText).not.toContain('×');
   expect(audit.avatarSize).toBeGreaterThanOrEqual(40);
   expect(audit.scrollWidth).toBe(audit.clientWidth);
+});
+
+test('display plays uploaded entry effect video when troy entry arrives', async ({ page }) => {
+  await installDisplayMocks(page, {
+    autoEntryEvent: false,
+    strictAudioActivation: true,
+    entryEffectVideoAvailable: true
+  });
+  await page.goto('/display.html', { waitUntil: 'domcontentloaded' });
+
+  const video = page.locator('#entryEffectVideo');
+  await expect(video).toHaveAttribute('data-src', '/entry-effect.mp4');
+  await expect(video).not.toHaveClass(/is-playing/);
+
+  await page.locator('#btnStartDisplay').click();
+  await expect(page.locator('#audioGate')).toBeHidden();
+  const playCountBefore = await page.evaluate(() => window.__displayEntryVideoPlayCount || 0);
+
+  await page.evaluate(() => {
+    window.__emitDisplayEvent({
+      topic: 'troy-entry',
+      type: 'flare',
+      label: '入店: 動画確認',
+      level: 28,
+      rankName: '船長'
+    });
+  });
+
+  await expect.poll(async () => page.evaluate(() => window.__displayEntryVideoPlayCount || 0)).toBeGreaterThan(playCountBefore);
+  await expect(video).toHaveClass(/is-playing/);
+
+  await video.evaluate((node) => node.dispatchEvent(new Event('ended')));
+  await expect(video).not.toHaveClass(/is-playing/);
 });
 
 test('display shows TROY menu order notices until staff reviews them', async ({ page }) => {
