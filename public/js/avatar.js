@@ -24,10 +24,41 @@ const AVATAR_LAYER_NAMES = Object.freeze([
 ]);
 
 const AVATAR_ASSET_RACES = Object.freeze(new Set(['human', 'elf', 'orc', 'goblin']));
+const AVATAR_FALLBACK_RACE = 'human';
+const AVATAR_FALLBACK_COLOR = 'brown';
 
 function resolveAvatarAssetRace(value) {
     const race = String(value || 'human').trim().toLowerCase();
-    return AVATAR_ASSET_RACES.has(race) ? race : 'human';
+    return AVATAR_ASSET_RACES.has(race) ? race : AVATAR_FALLBACK_RACE;
+}
+
+function uniqueSpritePaths(paths) {
+    return Array.from(new Set(paths.filter(Boolean)));
+}
+
+function avatarCharacterSpriteFallbacks(spritePath) {
+    const rawPath = String(spritePath || '');
+    if (!rawPath.includes('/Sprites/Characters/')) return [rawPath];
+    const candidates = [rawPath];
+    const raceMatch = rawPath.match(/^(.*\/Sprites\/Characters\/)([^/]+)(\/.+)$/i);
+    if (raceMatch) {
+        const [, prefix, rawRace, suffix] = raceMatch;
+        const race = String(rawRace || '').toLowerCase();
+        const assetRace = resolveAvatarAssetRace(race);
+        if (assetRace !== race) {
+            candidates.push(`${prefix}${assetRace}${suffix}`.replace(new RegExp(`/${race}_`, 'i'), `/${assetRace}_`));
+        }
+    }
+    const expanded = [...candidates];
+    for (const path of candidates) {
+        if (/_skin_\d+(\.[a-z0-9]+)$/i.test(path)) {
+            expanded.push(path.replace(/_skin_\d+(\.[a-z0-9]+)$/i, '_skin_1$1'));
+        }
+        if (/_(black|blue|brown|gold|green|grey|orange|pink|purple|red|silver|yellow)(\.[a-z0-9]+)$/i.test(path)) {
+            expanded.push(path.replace(/_(black|blue|brown|gold|green|grey|orange|pink|purple|red|silver|yellow)(\.[a-z0-9]+)$/i, `_${AVATAR_FALLBACK_COLOR}$2`));
+        }
+    }
+    return uniqueSpritePaths(expanded);
 }
 
 export function buildAvatarLayerMarkup(prefix) {
@@ -191,7 +222,7 @@ function normalizeAvatarColor(value) {
 }
 
 function resolveAvatarBaseSpriteColor(race, value) {
-    const color = normalizeAvatarColor(value) || 'brown';
+    const color = normalizeAvatarColor(value) || AVATAR_FALLBACK_COLOR;
     return color;
 }
 
@@ -206,8 +237,10 @@ export function resolveSpritePathByAvatarColor(spritePath, itemCategory = null, 
 
 function getSpritePathCandidates(spritePath, itemCategory = null, avatarColor = null) {
     const resolved = resolveSpritePathByAvatarColor(spritePath, itemCategory, avatarColor);
-    if (!resolved || resolved === spritePath) return [spritePath];
-    return [resolved, spritePath];
+    return uniqueSpritePaths([
+        ...avatarCharacterSpriteFallbacks(resolved),
+        ...avatarCharacterSpriteFallbacks(spritePath)
+    ]);
 }
 
 function clearEquipmentSlotArt(artEl) {
@@ -799,9 +832,14 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
         }
     }
 
-    const shouldHideUntilReady = !!avatarContainer && avatarContainer.dataset.avatarReady !== 'true';
+    const shouldKeepVisibleWhileLoading = prefix === 'home-avatar';
+    const shouldHideUntilReady = !!avatarContainer
+        && !shouldKeepVisibleWhileLoading
+        && avatarContainer.dataset.avatarReady !== 'true';
     if (shouldHideUntilReady) {
         avatarContainer.style.opacity = '0';
+    } else if (shouldKeepVisibleWhileLoading && avatarContainer) {
+        avatarContainer.style.opacity = '1';
     }
     let pendingLayers = 0;
     let readyTimer = null;

@@ -344,6 +344,20 @@ test('home avatar applies equipped gear during app startup', async ({ page }) =>
     window.getComputedStyle(layer).backgroundImage
   )), { timeout: 10_000 }).toContain('sword.png');
   await expect(page.locator('#home-avatar-layer-shield-left')).toHaveCSS('background-image', 'none');
+  const homeAvatarAudit = await page.locator('#home-avatar').evaluate((avatar) => {
+    const style = window.getComputedStyle(avatar);
+    const rect = avatar.getBoundingClientRect();
+    return {
+      opacity: style.opacity,
+      visibility: style.visibility,
+      width: Math.round(rect.width),
+      height: Math.round(rect.height)
+    };
+  });
+  expect(homeAvatarAudit.opacity).not.toBe('0');
+  expect(homeAvatarAudit.visibility).not.toBe('hidden');
+  expect(homeAvatarAudit.width).toBeGreaterThan(0);
+  expect(homeAvatarAudit.height).toBeGreaterThan(0);
   await expectNoPageErrors(errors);
 });
 
@@ -3953,8 +3967,8 @@ test('unsupported avatar races fall back to human sprite assets', async ({ page 
     window.myAvatarBaseInfo = {
       ...(window.myAvatarBaseInfo || {}),
       Race: 'dwarf',
-      AvatarColor: 'brown',
-      SkinColorIndex: 4,
+      AvatarColor: 'grey',
+      SkinColorIndex: 8,
       FaceIndex: 2,
       HairStyleIndex: 2,
       FacialHairStyleIndex: 2,
@@ -3965,9 +3979,18 @@ test('unsupported avatar races fall back to human sprite assets', async ({ page 
     renderAvatar('home-avatar', window.myAvatarBaseInfo, {}, {}, false);
   });
 
+  const homeAvatarVisibility = await page.locator('#home-avatar').evaluate((avatar) => {
+    const style = window.getComputedStyle(avatar);
+    return {
+      opacity: style.opacity,
+      visibility: style.visibility
+    };
+  });
+  expect(homeAvatarVisibility.opacity).not.toBe('0');
+  expect(homeAvatarVisibility.visibility).not.toBe('hidden');
   await expect.poll(async () => page.locator('#home-avatar-layer-head').evaluate((layer) => (
     window.getComputedStyle(layer).backgroundImage
-  ))).toContain('human_head_skin_4.png');
+  ))).toContain('human_head_skin_1.png');
   await expect.poll(async () => page.locator('#home-avatar-layer-hair').evaluate((layer) => (
     window.getComputedStyle(layer).backgroundImage
   ))).toContain('human_hair_brown.png');

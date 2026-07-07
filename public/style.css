@@ -21621,14 +21621,6 @@ body[data-sea-tone] .home-hero-card {
     }
 }
 
-.home-hero-card,
-
-
-
-
-
-
-
 .home-hero-card .home-ship-image {
     display: none;
 }
@@ -21808,12 +21800,6 @@ body[data-sea-tone] .home-hero-card {
 
 
 @media (max-width: 420px) {
-    .home-hero-card,
-
-
-
-
-
     .home-ship-stage {
         min-height: 396px;
         margin-top: -10px;
