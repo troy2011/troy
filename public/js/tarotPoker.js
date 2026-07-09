@@ -256,6 +256,7 @@ const DAILY_FORTUNE_CARD_HOST_ID = 'dailyTarotFortuneCardHost';
 const DAILY_FORTUNE_TEXT_ID = 'dailyTarotFortuneText';
 const DAILY_FORTUNE_TITLE_ID = 'dailyTarotFortuneTitle';
 const DAILY_FORTUNE_SUB_ID = 'dailyTarotFortuneSub';
+const DAILY_FORTUNE_ARCANA_BADGE_ID = 'dailyTarotFortuneArcanaBadge';
 const DAILY_FORTUNE_RESULT_META_ID = 'dailyTarotFortuneResultMeta';
 const DAILY_FORTUNE_REWARD_ID = 'dailyTarotFortuneReward';
 
@@ -440,6 +441,7 @@ async function revealDailyFortuneCardElement(cardEl, card, options = {}) {
     }
     setArtSpriteByIndex(art, getTarotSpriteIndex(card));
     if (options.reversed) cardEl.classList.add('is-reversed');
+    if (card.isArcana) cardEl.classList.add('is-major-arcana');
     cardEl.classList.remove('is-clickable');
     cardEl.classList.add('is-revealed', 'is-static');
     cardEl.dataset.revealed = '1';
@@ -4675,7 +4677,8 @@ function ensureDailyFortuneOverlay() {
             <button type="button" class="tarot-fortune-close" aria-label="閉じる">×</button>
             <div class="tarot-fortune-kicker">DAILY TAROT</div>
             <div id="${DAILY_FORTUNE_TITLE_ID}" class="tarot-fortune-title">本日の運勢</div>
-            <div id="${DAILY_FORTUNE_SUB_ID}" class="tarot-fortune-sub">1日1回だけ、タロットで運勢を占えます。</div>
+            <div id="${DAILY_FORTUNE_SUB_ID}" class="tarot-fortune-sub">1日1回だけ、今日の航路を占えます。</div>
+            <div id="${DAILY_FORTUNE_ARCANA_BADGE_ID}" class="tarot-fortune-arcana-badge" hidden>MAJOR ARCANA</div>
             <div class="tarot-fortune-stage">
                 <div id="${DAILY_FORTUNE_CARD_HOST_ID}" class="tarot-fortune-card-host"></div>
                 <div class="tarot-fortune-reading">
@@ -4750,7 +4753,8 @@ function renderDailyFortuneResultLegacy(result) {
     cardHost.appendChild(cardEl);
 
     titleEl.textContent = '本日の運勢';
-    setDailyFortuneSubText('今日のカードが開かれました。');
+    setDailyFortuneSubText('今日の航路が開きました。');
+    setDailyFortuneMajorArcanaState(result, true);
     setDailyFortuneResultMeta(result);
     textEl.textContent = String(result?.fortune || '');
     setDailyFortuneReward(result);
@@ -4773,6 +4777,17 @@ function getDailyFortuneRewardText(result) {
 function setDailyFortuneSubText(text) {
     const subEl = document.getElementById(DAILY_FORTUNE_SUB_ID);
     if (subEl) subEl.textContent = String(text || '');
+}
+
+function setDailyFortuneMajorArcanaState(result, active = true) {
+    const modal = document.getElementById(DAILY_FORTUNE_MODAL_ID);
+    const badge = document.getElementById(DAILY_FORTUNE_ARCANA_BADGE_ID);
+    const isMajorArcana = !!active && !!result?.isArcana;
+    if (modal) modal.classList.toggle('is-major-arcana', isMajorArcana);
+    if (badge) {
+        badge.hidden = !isMajorArcana;
+        badge.textContent = isMajorArcana ? 'MAJOR ARCANA' : '';
+    }
 }
 
 function setDailyFortuneResultMeta(result) {
@@ -4810,7 +4825,8 @@ function setDailyFortuneReward(result) {
 }
 
 function resetDailyFortuneResultDetails() {
-    setDailyFortuneSubText('水晶球がカードを探しています。');
+    setDailyFortuneSubText('霧の中からカードを引き上げています。');
+    setDailyFortuneMajorArcanaState(null, false);
     const metaEl = document.getElementById(DAILY_FORTUNE_RESULT_META_ID);
     if (metaEl) {
         metaEl.hidden = true;
@@ -4836,7 +4852,8 @@ function renderDailyFortuneResult(result, options = {}) {
     const isReversed = String(result?.orientation || '') === 'reversed';
     const finalizeReveal = () => {
         titleEl.textContent = '本日の運勢';
-        setDailyFortuneSubText('今日のカードが開かれました。');
+        setDailyFortuneSubText('今日の航路が開きました。');
+        setDailyFortuneMajorArcanaState(result, true);
         setDailyFortuneResultMeta(result);
         textEl.textContent = String(result?.fortune || '');
         setDailyFortuneReward(result);
@@ -4861,8 +4878,8 @@ function renderDailyFortuneResult(result, options = {}) {
     cardHost.appendChild(cardEl);
     titleEl.textContent = '本日の運勢';
     resetDailyFortuneResultDetails();
-    setDailyFortuneSubText('カードをタップしてめくってください。');
-    textEl.textContent = 'まだ見えないカードに、今日の流れが眠っています。';
+    setDailyFortuneSubText('カードをめくって、今日の航路を読んでください。');
+    textEl.textContent = 'まだ伏せたカードに、今日の潮目が隠れています。';
 }
 
 function normalizeDailyBountyReward(rawReward) {
@@ -4949,7 +4966,7 @@ async function handleDailyFortuneDraw(playFabId) {
             await window.refreshInventory({ force: true });
         }
     } catch (error) {
-        setDailyFortuneSubText('カードを開けませんでした。');
+        setDailyFortuneSubText('カードを開けませんでした。航路を確認してください。');
         if (textEl) {
             textEl.textContent = `占いに失敗しました: ${error?.message || 'unknown error'}`;
         }

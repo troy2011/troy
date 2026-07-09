@@ -124,8 +124,21 @@ test('daily tarot fortune modal shows clear draw and result states on mobile', a
   const overlay = page.locator('#dailyTarotFortuneOverlay');
   const modal = page.locator('#dailyTarotFortuneModal');
   await expect(overlay).toBeVisible();
-  await expect(page.locator('#dailyTarotFortuneSub')).toHaveText('カードをタップしてめくってください。');
-  await expect(page.locator('#dailyTarotFortuneText')).toContainText('まだ見えないカード');
+  const closeButtonStyle = await page.locator('.tarot-fortune-close').evaluate((node) => {
+    const style = window.getComputedStyle(node);
+    return {
+      backgroundImage: style.backgroundImage,
+      width: style.width,
+      height: style.height,
+      fontSize: style.fontSize
+    };
+  });
+  expect(closeButtonStyle.backgroundImage).toContain('action-close.png');
+  expect(closeButtonStyle.width).toBe('38px');
+  expect(closeButtonStyle.height).toBe('38px');
+  expect(closeButtonStyle.fontSize).toBe('0px');
+  await expect(page.locator('#dailyTarotFortuneSub')).toHaveText('カードをめくって、今日の航路を読んでください。');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('まだ伏せたカード');
   await expect(page.locator('#dailyTarotFortuneReward')).toBeHidden();
 
   const beforeMetrics = await modal.evaluate((node) => {
@@ -145,9 +158,81 @@ test('daily tarot fortune modal shows clear draw and result states on mobile', a
   await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText('正位置');
   await expect(page.locator('#dailyTarotFortuneText')).toContainText('追い風に乗って');
   await expect(page.locator('#dailyTarotFortuneReward')).toContainText('+7G');
+  await expect(modal).not.toHaveClass(/is-major-arcana/);
+  await expect(page.locator('#dailyTarotFortuneArcanaBadge')).toBeHidden();
+  await expect(page.locator('#dailyTarotFortuneCardHost .tarot-fortune-card-shell')).not.toHaveClass(/is-major-arcana/);
 
   await page.locator('.tarot-fortune-done').click();
   await expect(overlay).toBeHidden();
+  await expectNoPageErrors(errors);
+});
+
+test('daily tarot fortune adds richer presentation after major arcana reveal', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/api/tarot-fortune-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ canDraw: true })
+    });
+  });
+  await page.route('**/api/tarot-fortune-draw', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        balance: 1018,
+        result: {
+          cardId: 'arcana-18',
+          cardNumber: 18,
+          suit: 'None',
+          isArcana: true,
+          effectType: 'None',
+          cardName: '月',
+          orientation: 'upright',
+          fortune: '霧が濃い日。怖さは合図です。噂ではなく一次情報で航路を確かめてください。',
+          rewardPs: 18,
+          rewardType: 'card',
+          rewardItemName: '月',
+          skillName: '霧読みの航法'
+        }
+      })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    const Tarot = await import('/js/tarotPoker.js');
+    await Tarot.showDailyFortunePromptOnLogin('PF_PLAYWRIGHT_MAJOR');
+  });
+
+  const modal = page.locator('#dailyTarotFortuneModal');
+  const arcanaBadge = page.locator('#dailyTarotFortuneArcanaBadge');
+  const fortuneCard = page.locator('#dailyTarotFortuneCardHost .tarot-fortune-card-shell');
+  await expect(modal).not.toHaveClass(/is-major-arcana/);
+  await expect(arcanaBadge).toBeHidden();
+
+  await fortuneCard.click();
+  await expect(modal).toHaveClass(/is-major-arcana/);
+  await expect(fortuneCard).toHaveClass(/is-major-arcana/);
+  await expect(arcanaBadge).toBeVisible();
+  await expect(arcanaBadge).toHaveText('MAJOR ARCANA');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('霧が濃い日');
+
+  const majorPresentation = await modal.evaluate((node) => {
+    const beforeStyle = window.getComputedStyle(node, '::before');
+    const card = document.querySelector('#dailyTarotFortuneCardHost .tarot-fortune-card-shell');
+    const cardStyle = card ? window.getComputedStyle(card) : null;
+    return {
+      beforeAnimation: beforeStyle.animationName,
+      beforeOpacity: beforeStyle.opacity,
+      cardAnimation: cardStyle?.animationName || ''
+    };
+  });
+  expect(majorPresentation.beforeAnimation).toBe('tarotFortuneArcanaRays');
+  expect(Number(majorPresentation.beforeOpacity)).toBeGreaterThan(0);
+  expect(majorPresentation.cardAnimation).toBe('tarotFortuneArcanaCard');
   await expectNoPageErrors(errors);
 });
 
