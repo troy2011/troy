@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#151315">
+    <link rel="icon" type="image/png" href="/Sprites/PirateIcon/Icon1.png">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/css/tarot-reading.css">
+    <title>TROY タロット鑑定</title>
+</head>
+<body class="tarot-reading-body">
+    <main id="tarotReadingApp" class="tarot-reading-shell">
+        <header class="tarot-reading-header">
+            <div class="tarot-reading-brand">
+                <div class="tarot-reading-brand-mark" aria-hidden="true"></div>
+                <div>
+                    <div class="tarot-reading-kicker">TROY STAFF TAROT</div>
+                    <h1>タロット航路</h1>
+                </div>
+            </div>
+            <div id="tarotReadingStatus" class="tarot-reading-status" role="status" aria-live="polite">待機中</div>
+        </header>
+
+        <section class="tarot-reading-board" aria-label="タロット鑑定入力">
+            <section class="tarot-reading-panel tarot-reading-customer">
+                <div class="tarot-reading-section-head">
+                    <div>
+                        <div class="tarot-reading-section-title">送信先</div>
+                        <div class="tarot-reading-section-sub">LINE QR / TROY ID</div>
+                    </div>
+                    <button id="tarotScanCustomer" type="button" class="tarot-reading-icon-button" title="QRを読み取る" aria-label="QRを読み取る">QR</button>
+                </div>
+                <label class="tarot-reading-field">
+                    <span>お客ID</span>
+                    <input id="tarotCustomerRef" type="text" autocomplete="off" placeholder="TROY:PLAYERID / LINE:U..." inputmode="text">
+                </label>
+                <div class="tarot-reading-field-grid">
+                    <label class="tarot-reading-field">
+                        <span>スタッフ</span>
+                        <input id="tarotStaffName" type="text" autocomplete="name" placeholder="名前">
+                    </label>
+                    <label class="tarot-reading-field">
+                        <span>PIN</span>
+                        <input id="tarotStaffPin" type="password" autocomplete="current-password" inputmode="numeric" placeholder="****">
+                    </label>
+                </div>
+            </section>
+
+            <section class="tarot-reading-panel tarot-reading-topic">
+                <div class="tarot-reading-section-head">
+                    <div>
+                        <div class="tarot-reading-section-title">占う内容</div>
+                        <div class="tarot-reading-section-sub">スタッフ選択</div>
+                    </div>
+                </div>
+                <div id="tarotTopicList" class="tarot-reading-segments" role="listbox" aria-label="占う内容"></div>
+            </section>
+
+            <section class="tarot-reading-panel tarot-reading-card-select">
+                <div class="tarot-reading-section-head">
+                    <div>
+                        <div class="tarot-reading-section-title">カード選択</div>
+                        <div class="tarot-reading-section-sub">実カードに合わせる</div>
+                    </div>
+                    <div class="tarot-reading-orientation" aria-label="カードの向き">
+                        <button type="button" data-orientation="upright">正</button>
+                        <button type="button" data-orientation="reversed">逆</button>
+                    </div>
+                </div>
+                <label class="tarot-reading-search">
+                    <span>検索</span>
+                    <input id="tarotCardSearch" type="search" autocomplete="off" placeholder="カード名 / スート">
+                </label>
+                <div id="tarotDeckTabs" class="tarot-reading-tabs" aria-label="カード種別"></div>
+                <div id="tarotCardGrid" class="tarot-reading-card-grid" aria-label="タロットカード一覧"></div>
+            </section>
+
+            <section class="tarot-reading-panel tarot-reading-result-panel">
+                <div class="tarot-reading-section-head">
+                    <div>
+                        <div class="tarot-reading-section-title">鑑定結果</div>
+                        <div class="tarot-reading-section-sub">LINE送信前プレビュー</div>
+                    </div>
+                    <div id="tarotMajorBadge" class="tarot-reading-major-badge" hidden>MAJOR ARCANA</div>
+                </div>
+                <div class="tarot-reading-result-wrap">
+                    <div id="tarotSelectedCard" class="tarot-reading-card-preview" aria-live="polite">
+                        <div class="tarot-reading-card-face">
+                            <span id="tarotSelectedNumber">-</span>
+                            <strong id="tarotSelectedName">未選択</strong>
+                            <small id="tarotSelectedMeta">カードを選択</small>
+                        </div>
+                    </div>
+                    <label class="tarot-reading-result-editor">
+                        <span>送信本文</span>
+                        <textarea id="tarotResultText" rows="12"></textarea>
+                    </label>
+                </div>
+                <label class="tarot-reading-field tarot-reading-note">
+                    <span>追記</span>
+                    <input id="tarotReadingNote" type="text" autocomplete="off" placeholder="任意">
+                </label>
+                <button id="tarotSendLine" type="button" class="tarot-reading-send">LINEへ送信</button>
+            </section>
+        </section>
+    </main>
+
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script type="module" src="/js/tarotReading.js"></script>
+</body>
+</html>
