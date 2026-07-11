@@ -74,6 +74,67 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】ペンタクル キング \/ 逆位置/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/愛情を金で買おうとしたり/);
 
+  await page.locator('#tarotTopicList [data-topic-id="relation"]').click();
+  await page.locator('#tarotDeckTabs [data-deck-id="major"]').click();
+  await page.locator('[data-card-id="major-13"]').click();
+  await page.locator('[data-orientation="reversed"]').click();
+  await expect(page.locator('#tarotResultText')).toHaveValue(/【人間関係】死神 \/ 逆位置/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/往生際が悪い/);
+  await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
+
+  await page.locator('#tarotDeckTabs [data-deck-id="wand"]').click();
+  await page.locator('[data-card-id="wand-10"]').click();
+  await expect(page.locator('#tarotResultText')).toHaveValue(/【人間関係】ワンド 10 \/ 逆位置/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/一掴みの味方/);
+
+  await page.locator('#tarotDeckTabs [data-deck-id="cup"]').click();
+  await page.locator('[data-card-id="cup-10"]').click();
+  await page.locator('[data-orientation="upright"]').click();
+  await expect(page.locator('#tarotResultText')).toHaveValue(/【人間関係】カップ 10 \/ 正位置/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/無敵の連帯感/);
+
+  await page.locator('#tarotDeckTabs [data-deck-id="sword"]').click();
+  await page.locator('[data-card-id="sword-7"]').click();
+  await page.locator('[data-orientation="reversed"]').click();
+  await expect(page.locator('#tarotResultText')).toHaveValue(/【人間関係】ソード 7 \/ 逆位置/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/最悪中の最悪のタイミング/);
+
+  await page.locator('#tarotDeckTabs [data-deck-id="pentacle"]').click();
+  await page.locator('[data-card-id="pentacle-king"]').click();
+  await expect(page.locator('#tarotResultText')).toHaveValue(/【人間関係】ペンタクル キング \/ 逆位置/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/人脈を金で買おうとしたり/);
+
+  await page.locator('#tarotTopicList [data-topic-id="future"]').click();
+  await page.locator('#tarotDeckTabs [data-deck-id="major"]').click();
+  await page.locator('[data-card-id="major-13"]').click();
+  await page.locator('[data-orientation="reversed"]').click();
+  await expect(page.locator('#tarotResultText')).toHaveValue(/【将来】死神 \/ 逆位置/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/往生際が悪い/);
+  await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
+
+  await page.locator('#tarotDeckTabs [data-deck-id="wand"]').click();
+  await page.locator('[data-card-id="wand-7"]').click();
+  await expect(page.locator('#tarotResultText')).toHaveValue(/【将来】ワンド 7 \/ 逆位置/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/すべてが中途半端/);
+
+  await page.locator('#tarotDeckTabs [data-deck-id="cup"]').click();
+  await page.locator('[data-card-id="cup-10"]').click();
+  await page.locator('[data-orientation="upright"]').click();
+  await expect(page.locator('#tarotResultText')).toHaveValue(/【将来】カップ 10 \/ 正位置/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/無敵の安定感/);
+
+  await page.locator('#tarotDeckTabs [data-deck-id="sword"]').click();
+  await page.locator('[data-card-id="sword-10"]').click();
+  await page.locator('[data-orientation="reversed"]').click();
+  await expect(page.locator('#tarotResultText')).toHaveValue(/【将来】ソード 10 \/ 逆位置/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/気づいたか/);
+
+  await page.locator('#tarotDeckTabs [data-deck-id="pentacle"]').click();
+  await page.locator('[data-card-id="pentacle-8"]').click();
+  await page.locator('[data-orientation="upright"]').click();
+  await expect(page.locator('#tarotResultText')).toHaveValue(/【将来】ペンタクル 8 \/ 正位置/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/一攫千金のハッタリ/);
+
   await page.locator('#tarotTopicList [data-topic-id="work"]').click();
   await page.locator('#tarotDeckTabs [data-deck-id="wand"]').click();
   await page.locator('[data-card-id="wand-10"]').click();
