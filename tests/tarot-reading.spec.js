@@ -59,7 +59,8 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】愚者 \/ 正位置/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/愛が味方してくれるとでも/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/結論:/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/このカードの意味（恋愛）:/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/このカードの意味: 恋愛では恋の大きな流れに「自由はあります」が出ているサイン。/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/船長からの一言:/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/次に取るべき一手:/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/やってはいけないこと:/);
   await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
@@ -144,7 +145,7 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await page.locator('[data-orientation="reversed"]').click();
   await expect(page.locator('#tarotResultText')).toHaveValue(/【将来】死神 \/ 逆位置/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/往生際が悪い/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/船長の一言:/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/船長からの一言:/);
   await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
 
   await page.locator('#tarotDeckTabs [data-deck-id="wand"]').click();
@@ -237,7 +238,8 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   expect(sendRequests[0].resultText).toContain('【仕事】塔 / 逆位置');
   expect(sendRequests[0].resultText).toContain('今日の航海コンディション: Lv.2 大時化・逆巻く怒濤');
   expect(sendRequests[0].resultText).toContain('大炎上の余波');
-  expect(sendRequests[0].resultText).toContain('このカードの意味（仕事）');
+  expect(sendRequests[0].resultText).toContain('このカードの意味: 仕事では仕事運全体の潮目');
+  expect(sendRequests[0].resultText).toContain('船長からの一言');
   expect(sendRequests[0].resultText).not.toContain('厳しい見立て');
   expect(sendRequests[0].resultText).not.toContain('スタッフ補助');
   expect(sendRequests[0].resultText).not.toContain('最初にこう伝える');

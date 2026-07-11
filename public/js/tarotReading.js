@@ -1571,6 +1571,37 @@ const MINOR_WEATHER_EXCEPTIONS = {
     'cup-5': { upright: 3 }
 };
 
+const SIMPLE_MEANING_FOCUS = {
+    love: {
+        major: '恋の大きな流れ',
+        wand: '関係を進める勢い',
+        sword: '言葉と決断',
+        cup: '感情の受け取り方',
+        pentacle: '関係の現実性'
+    },
+    work: {
+        major: '仕事運全体の潮目',
+        wand: '行動力と勝負どころ',
+        sword: '判断と問題処理',
+        cup: '職場の感情と士気',
+        pentacle: '成果と報酬の土台'
+    },
+    relation: {
+        major: '対人関係全体の流れ',
+        wand: '周囲との距離の動き',
+        sword: '本音と境界線',
+        cup: '信頼と感情の交流',
+        pentacle: '付き合いの実利と安定'
+    },
+    future: {
+        major: '未来へ向かう大きな航路',
+        wand: '挑戦と前進力',
+        sword: '進路を決める判断',
+        cup: '望む未来への感情',
+        pentacle: '将来の基盤づくり'
+    }
+};
+
 const RICH_READING_PROFILES = {
     love: {
         conclusion: {
@@ -1833,6 +1864,24 @@ function buildWeatherLines(card, orientationId) {
     ];
 }
 
+function getFirstSentence(text) {
+    const value = String(text || '').trim();
+    const first = value.match(/[^。！？!?]+[。！？!?]?/)?.[0]?.trim() || value;
+    return first.replace(/[。！？!?]+$/, '');
+}
+
+function getSimpleMeaningFocus(topicId, card) {
+    const topicFocus = SIMPLE_MEANING_FOCUS[topicId] || {};
+    const key = card.kind === 'major' ? 'major' : card.suitId;
+    return topicFocus[key] || 'この相談の中心';
+}
+
+function buildSimpleCardMeaning(topic, card, meaning) {
+    const conciseMeaning = getFirstSentence(meaning?.truth);
+    const focus = getSimpleMeaningFocus(topic.id, card);
+    return `${topic.label}では${focus}に「${conciseMeaning}」が出ているサイン。`;
+}
+
 function buildRichReading(topic, card, orientationId, meaning, specialBody) {
     const profile = RICH_READING_PROFILES[topic.id];
     const orientation = ORIENTATIONS[orientationId] || ORIENTATIONS.upright;
@@ -1841,12 +1890,12 @@ function buildRichReading(topic, card, orientationId, meaning, specialBody) {
     const contextLine = getCardContextLine(card);
     const action = meaning?.action ? `${profile.action[orientationId]} ${meaning.action}` : profile.action[orientationId];
     const weatherLines = buildWeatherLines(card, orientationId);
+    const simpleMeaning = buildSimpleCardMeaning(topic, card, meaning);
 
     return [
         title,
         '',
-        `このカードの意味（${topic.label}）:`,
-        core,
+        `このカードの意味: ${simpleMeaning}`,
         '',
         ...weatherLines,
         '',
@@ -1858,7 +1907,8 @@ function buildRichReading(topic, card, orientationId, meaning, specialBody) {
         '',
         `やってはいけないこと: ${profile.taboo[orientationId]}`,
         '',
-        `船長の一言: ${profile.closing[orientationId]}`
+        '船長からの一言:',
+        core
     ].join('\n');
 }
 
