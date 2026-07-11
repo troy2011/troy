@@ -236,7 +236,7 @@ function main() {
     const duplicates = [];
     const seen = new Map();
     const flagged = [];
-    const invalidWeather = weatherStatuses.filter((entry) => !Number.isInteger(entry.status?.level) || entry.status.level < 1 || entry.status.level > 10 || !entry.status.title || !entry.status.verdict);
+    const invalidWeather = weatherStatuses.filter((entry) => !Number.isInteger(entry.status?.level) || entry.status.level < 1 || entry.status.level > 10 || !entry.status.windLabel || !entry.status.verdict);
 
     readings.forEach((entry) => {
         if (!entry.text) return;

@@ -1486,42 +1486,52 @@ const RICH_READING_TOPIC_IDS = new Set(['love', 'work', 'relation', 'future']);
 
 const WEATHER_STATUSES = {
     10: {
+        windLabel: '最高',
         title: '快晴・完璧な追い風',
         verdict: '満帆にして突っ込め！ 海神すらお前さんの味方だ。'
     },
     9: {
+        windLabel: '絶好',
         title: '晴天・心地よい順風',
         verdict: '獲物の船がよく見える。大砲の準備をしな。'
     },
     8: {
+        windLabel: '良好',
         title: '薄曇り・安定した並風',
         verdict: '悪くない波だ。今のうちに確実に距離を稼ぎな。'
     },
     7: {
+        windLabel: '追い風',
         title: '霧晴れ・不規則な微風',
         verdict: '霧の向こうの正体が見えたぜ。先手を打ちにいくぞ。'
     },
     6: {
+        windLabel: '安定',
         title: '凪・風速ゼロ',
         verdict: '波も風もねえ。大人しく船体をメンテしておきな。'
     },
     5: {
+        windLabel: '停滞',
         title: '向かい風・潮の抵抗',
         verdict: 'ジタバタ動くな。体力を減らさず、じっと舵を掴んで耐えろ。'
     },
     4: {
+        windLabel: '不穏',
         title: '濃霧・視界不良',
         verdict: '一寸先も見えん。見張り番を増やして武器を握っておけ。'
     },
     3: {
+        windLabel: '逆風',
         title: '強風・波浪注意報',
         verdict: 'マストが軋んでるぜ。余計な荷物は海に叩き落とせ。'
     },
     2: {
+        windLabel: '荒天',
         title: '大時化・逆巻く怒濤',
         verdict: '海に呑まれたくなければ、今はマストにしがみついていろ。'
     },
     1: {
+        windLabel: '最悪',
         title: '巨大嵐・沈没寸前',
         verdict: '船が真っ二つだな。だが、お前さんの心臓はまだ動いている。'
     }
@@ -2352,7 +2362,7 @@ function getWeatherStatus(card, orientationId = state.orientation) {
     const status = WEATHER_STATUSES[level] || WEATHER_STATUSES[5];
     return {
         level,
-        levelLabel: `Lv.${level}`,
+        windLabel: status.windLabel,
         title: status.title,
         verdict: status.verdict
     };
@@ -2362,7 +2372,7 @@ function buildWeatherLines(card, orientationId) {
     const weather = getWeatherStatus(card, orientationId);
     if (!weather) return [];
     return [
-        `コンディション: ${weather.levelLabel} ${weather.title}`,
+        `風向き: ${weather.windLabel}`,
         `一言判定: ${weather.verdict}`
     ];
 }
@@ -2669,8 +2679,8 @@ function updateWeatherStatus() {
     el.hidden = false;
     el.classList.add(`is-level-${weather.level}`);
     el.style.setProperty('--weather-level', String(weather.level));
-    if (levelEl) levelEl.textContent = weather.levelLabel;
-    if (titleEl) titleEl.textContent = weather.title;
+    if (levelEl) levelEl.textContent = '風向き';
+    if (titleEl) titleEl.textContent = weather.windLabel;
     if (verdictEl) verdictEl.textContent = weather.verdict;
     if (meterEl) meterEl.style.width = `${weather.level * 10}%`;
 }
