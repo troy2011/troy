@@ -1457,6 +1457,120 @@ const DECK_TABS = [
 
 const RICH_READING_TOPIC_IDS = new Set(['love', 'work', 'relation', 'future']);
 
+const WEATHER_STATUSES = {
+    10: {
+        title: '快晴・完璧な追い風',
+        verdict: '満帆にして突っ込め！ 海神すらお前さんの味方だ。'
+    },
+    9: {
+        title: '晴天・心地よい順風',
+        verdict: '獲物の船がよく見える。大砲の準備をしな。'
+    },
+    8: {
+        title: '薄曇り・安定した並風',
+        verdict: '悪くない波だ。今のうちに確実に距離を稼ぎな。'
+    },
+    7: {
+        title: '霧晴れ・不規則な微風',
+        verdict: '霧の向こうの正体が見えたぜ。先手を打ちにいくぞ。'
+    },
+    6: {
+        title: '凪・風速ゼロ',
+        verdict: '波も風もねえ。大人しく船体をメンテしておきな。'
+    },
+    5: {
+        title: '向かい風・潮の抵抗',
+        verdict: 'ジタバタ動くな。体力を減らさず、じっと舵を掴んで耐えろ。'
+    },
+    4: {
+        title: '濃霧・視界不良',
+        verdict: '一寸先も見えん。見張り番を増やして武器を握っておけ。'
+    },
+    3: {
+        title: '強風・波浪注意報',
+        verdict: 'マストが軋んでるぜ。余計な荷物は海に叩き落とせ。'
+    },
+    2: {
+        title: '大時化・逆巻く怒濤',
+        verdict: '死にたくなければ、今はマストにしがみついていろ。'
+    },
+    1: {
+        title: '巨大嵐・沈没寸前',
+        verdict: '船が真っ二つだな。だが、お前さんの心臓はまだ動いている。'
+    }
+};
+
+const MAJOR_WEATHER_LEVELS = {
+    0: { upright: 6, reversed: 4 },
+    1: { upright: 9, reversed: 3 },
+    2: { upright: 7, reversed: 4 },
+    3: { upright: 8, reversed: 4 },
+    4: { upright: 8, reversed: 3 },
+    5: { upright: 8, reversed: 5 },
+    6: { upright: 7, reversed: 3 },
+    7: { upright: 9, reversed: 3 },
+    8: { upright: 8, reversed: 4 },
+    9: { upright: 6, reversed: 4 },
+    10: { upright: 8, reversed: 5 },
+    11: { upright: 5, reversed: 3 },
+    12: { upright: 6, reversed: 3 },
+    13: { upright: 3, reversed: 2 },
+    14: { upright: 7, reversed: 4 },
+    15: { upright: 2, reversed: 6 },
+    16: { upright: 1, reversed: 2 },
+    17: { upright: 8, reversed: 4 },
+    18: { upright: 4, reversed: 7 },
+    19: { upright: 10, reversed: 6 },
+    20: { upright: 7, reversed: 3 },
+    21: { upright: 10, reversed: 5 }
+};
+
+const MINOR_WEATHER_LEVELS = {
+    upright: {
+        1: 8,
+        2: 6,
+        3: 7,
+        4: 6,
+        5: 4,
+        6: 8,
+        7: 5,
+        8: 8,
+        9: 6,
+        10: 3,
+        page: 7,
+        knight: 8,
+        queen: 8,
+        king: 9
+    },
+    reversed: {
+        1: 4,
+        2: 3,
+        3: 3,
+        4: 4,
+        5: 3,
+        6: 5,
+        7: 3,
+        8: 4,
+        9: 4,
+        10: 5,
+        page: 4,
+        knight: 3,
+        queen: 4,
+        king: 2
+    }
+};
+
+const MINOR_WEATHER_EXCEPTIONS = {
+    'sword-10': { upright: 1, reversed: 6 },
+    'cup-10': { upright: 10 },
+    'pentacle-10': { upright: 9 },
+    'wand-6': { upright: 9 },
+    'wand-8': { upright: 9 },
+    'wand-10': { upright: 3 },
+    'pentacle-5': { upright: 3 },
+    'cup-5': { upright: 3 }
+};
+
 const RICH_READING_PROFILES = {
     love: {
         conclusion: {
@@ -1680,6 +1794,45 @@ function getCardContextLine(card) {
     return SUIT_RICH_NOTES[card.suitId] || '';
 }
 
+function normalizeWeatherLevel(level) {
+    const value = Number(level);
+    if (!Number.isFinite(value)) return 5;
+    return Math.max(1, Math.min(10, Math.round(value)));
+}
+
+function getWeatherLevel(card, orientationId) {
+    const direction = ORIENTATIONS[orientationId] ? orientationId : 'upright';
+    if (!card) return 5;
+    if (card.kind === 'major') {
+        return normalizeWeatherLevel(MAJOR_WEATHER_LEVELS[card.number]?.[direction]);
+    }
+    const exceptionKey = `${card.suitId}-${card.rankId}`;
+    const exceptionLevel = MINOR_WEATHER_EXCEPTIONS[exceptionKey]?.[direction];
+    const defaultLevel = MINOR_WEATHER_LEVELS[direction]?.[card.rankId];
+    return normalizeWeatherLevel(exceptionLevel ?? defaultLevel);
+}
+
+function getWeatherStatus(card, orientationId = state.orientation) {
+    if (!card) return null;
+    const level = getWeatherLevel(card, orientationId);
+    const status = WEATHER_STATUSES[level] || WEATHER_STATUSES[5];
+    return {
+        level,
+        levelLabel: `Lv.${level}`,
+        title: status.title,
+        verdict: status.verdict
+    };
+}
+
+function buildWeatherLines(card, orientationId) {
+    const weather = getWeatherStatus(card, orientationId);
+    if (!weather) return [];
+    return [
+        `今日の航海コンディション: ${weather.levelLabel} ${weather.title}`,
+        `一言判定: ${weather.verdict}`
+    ];
+}
+
 function buildRichReading(topic, card, orientationId, meaning, specialBody) {
     const profile = RICH_READING_PROFILES[topic.id];
     const orientation = ORIENTATIONS[orientationId] || ORIENTATIONS.upright;
@@ -1687,14 +1840,17 @@ function buildRichReading(topic, card, orientationId, meaning, specialBody) {
     const core = formatReadingBody(specialBody);
     const contextLine = getCardContextLine(card);
     const action = meaning?.action ? `${profile.action[orientationId]} ${meaning.action}` : profile.action[orientationId];
+    const weatherLines = buildWeatherLines(card, orientationId);
 
     return [
         title,
         '',
-        `結論: ${profile.conclusion[orientationId]}`,
-        '',
-        'カードが示す核心:',
+        `このカードの意味（${topic.label}）:`,
         core,
+        '',
+        ...weatherLines,
+        '',
+        `結論: ${profile.conclusion[orientationId]}`,
         '',
         `今起きていること: ${profile.situation[orientationId]}${contextLine ? ` ${contextLine}` : ''}`,
         '',
@@ -1869,12 +2025,15 @@ function buildReading() {
     const suit = card.kind === 'minor' ? SUITS[card.suitId] : null;
     const title = `【${topic.label}】${card.label} / ${orientation.label}`;
     const specialBody = getSpecialReadingBody(topic.id, card, state.orientation);
+    const weatherLines = buildWeatherLines(card, state.orientation);
     if (specialBody) {
         if (isRichReadingTopic(topic.id)) {
             return buildRichReading(topic, card, state.orientation, meaning, specialBody);
         }
         return [
             title,
+            '',
+            ...weatherLines,
             '',
             formatReadingBody(specialBody)
         ].join('\n');
@@ -1888,6 +2047,8 @@ function buildReading() {
 
     return [
         title,
+        '',
+        ...weatherLines,
         '',
         `結論: ${meaning.truth}`,
         majorLine,
@@ -1922,8 +2083,34 @@ function updateSelectedCardPreview() {
     if (metaEl) metaEl.textContent = `${card.meta} / ${ORIENTATIONS[state.orientation].label}`;
 }
 
+function updateWeatherStatus() {
+    const el = $('tarotWeatherStatus');
+    if (!el) return;
+    const levelEl = $('tarotWeatherLevel');
+    const titleEl = $('tarotWeatherTitle');
+    const verdictEl = $('tarotWeatherVerdict');
+    const meterEl = $('tarotWeatherMeter');
+    const weather = getWeatherStatus(getSelectedCard(), state.orientation);
+
+    el.classList.remove(...Array.from({ length: 10 }, (_, index) => `is-level-${index + 1}`));
+    if (!weather) {
+        el.hidden = true;
+        el.style.removeProperty('--weather-level');
+        return;
+    }
+
+    el.hidden = false;
+    el.classList.add(`is-level-${weather.level}`);
+    el.style.setProperty('--weather-level', String(weather.level));
+    if (levelEl) levelEl.textContent = weather.levelLabel;
+    if (titleEl) titleEl.textContent = weather.title;
+    if (verdictEl) verdictEl.textContent = weather.verdict;
+    if (meterEl) meterEl.style.width = `${weather.level * 10}%`;
+}
+
 function updateResult() {
     updateSelectedCardPreview();
+    updateWeatherStatus();
     updateStaffGuidance();
     const textarea = $('tarotResultText');
     if (!textarea) return;
@@ -2074,6 +2261,7 @@ function init() {
 window.TarotReadingApp = {
     getState: () => ({ ...state }),
     buildReading,
+    getWeatherStatus,
     allCards
 };
 

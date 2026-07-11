@@ -26,6 +26,18 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   });
 
   await page.goto('/tarot-reading.html', { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => window.TarotReadingApp?.getWeatherStatus);
+  const weatherSamples = await page.evaluate(() => {
+    const app = window.TarotReadingApp;
+    const tower = app.allCards.find((card) => card.id === 'major-16');
+    const sun = app.allCards.find((card) => card.id === 'major-19');
+    return {
+      tower: app.getWeatherStatus(tower, 'upright'),
+      sun: app.getWeatherStatus(sun, 'upright')
+    };
+  });
+  expect(weatherSamples.tower).toMatchObject({ level: 1, title: '巨大嵐・沈没寸前' });
+  expect(weatherSamples.sun).toMatchObject({ level: 10, title: '快晴・完璧な追い風' });
 
   await expect(page.locator('h1')).toHaveText('タロット航路');
   await page.locator('#tarotStaffName').fill('ミナト');
@@ -35,15 +47,19 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await expect(page.locator('#tarotCustomerRef')).toHaveValue('TROY:CUSTOMER123');
 
   await page.locator('[data-card-id="major-0"]').click();
+  await expect(page.locator('#tarotWeatherStatus')).toBeVisible();
+  await expect(page.locator('#tarotWeatherLevel')).toHaveText('Lv.6');
+  await expect(page.locator('#tarotWeatherTitle')).toHaveText('凪・風速ゼロ');
   await expect(page.locator('#tarotResultText')).toHaveValue(/【総合】愚者 \/ 正位置/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/今日の航海コンディション: Lv\.6 凪・風速ゼロ/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/厳しい見立て/);
-  await expect(page.locator('#tarotResultText')).not.toHaveValue(/カードが示す核心/);
+  await expect(page.locator('#tarotResultText')).not.toHaveValue(/このカードの意味/);
 
   await page.locator('#tarotTopicList [data-topic-id="love"]').click();
   await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】愚者 \/ 正位置/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/愛が味方してくれるとでも/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/結論:/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/カードが示す核心:/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/このカードの意味（恋愛）:/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/次に取るべき一手:/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/やってはいけないこと:/);
   await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
@@ -186,12 +202,18 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
 
   await page.locator('#tarotDeckTabs [data-deck-id="major"]').click();
   await page.locator('[data-card-id="major-16"]').click();
+  await expect(page.locator('#tarotWeatherLevel')).toHaveText('Lv.1');
+  await expect(page.locator('#tarotWeatherTitle')).toHaveText('巨大嵐・沈没寸前');
+  await expect(page.locator('#tarotResultText')).toHaveValue(/今日の航海コンディション: Lv\.1 巨大嵐・沈没寸前/);
   await page.locator('[data-orientation="reversed"]').click();
+  await expect(page.locator('#tarotWeatherLevel')).toHaveText('Lv.2');
+  await expect(page.locator('#tarotWeatherTitle')).toHaveText('大時化・逆巻く怒濤');
 
   await expect(page.locator('#tarotReadingApp')).toHaveClass(/is-major-selected/);
   await expect(page.locator('#tarotMajorBadge')).toBeVisible();
   await expect(page.locator('#tarotSelectedName')).toHaveText('塔');
   await expect(page.locator('#tarotResultText')).toHaveValue(/【仕事】塔 \/ 逆位置/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/今日の航海コンディション: Lv\.2 大時化・逆巻く怒濤/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/大炎上の余波/);
   await expect(page.locator('#tarotResultText')).not.toHaveValue(/大アルカナが出たので/);
   await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
@@ -213,8 +235,9 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
     note: '次回来店時に確認'
   });
   expect(sendRequests[0].resultText).toContain('【仕事】塔 / 逆位置');
+  expect(sendRequests[0].resultText).toContain('今日の航海コンディション: Lv.2 大時化・逆巻く怒濤');
   expect(sendRequests[0].resultText).toContain('大炎上の余波');
-  expect(sendRequests[0].resultText).toContain('カードが示す核心');
+  expect(sendRequests[0].resultText).toContain('このカードの意味（仕事）');
   expect(sendRequests[0].resultText).not.toContain('厳しい見立て');
   expect(sendRequests[0].resultText).not.toContain('スタッフ補助');
   expect(sendRequests[0].resultText).not.toContain('最初にこう伝える');

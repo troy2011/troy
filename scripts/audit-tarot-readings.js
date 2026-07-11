@@ -50,7 +50,9 @@ this.__tarotAudit = {
   RELATION_MAJOR_READINGS,
   RELATION_MINOR_READINGS,
   FUTURE_MAJOR_READINGS,
-  FUTURE_MINOR_READINGS
+  FUTURE_MINOR_READINGS,
+  allCards,
+  getWeatherStatus
 };`, context);
     return context.__tarotAudit;
 }
@@ -85,12 +87,29 @@ function collectReadings(tables) {
     return readings;
 }
 
+function collectWeatherStatuses(tables) {
+    const cards = Array.isArray(tables.allCards) ? tables.allCards : [];
+    const getWeatherStatus = tables.getWeatherStatus;
+    if (typeof getWeatherStatus !== 'function') return [];
+    return cards.flatMap((card) => ORIENTATIONS.map((orientation) => {
+        const status = getWeatherStatus(card, orientation);
+        return {
+            cardId: card.id,
+            orientation,
+            status
+        };
+    }));
+}
+
 function main() {
-    const readings = collectReadings(loadTables());
+    const tables = loadTables();
+    const readings = collectReadings(tables);
+    const weatherStatuses = collectWeatherStatuses(tables);
     const missing = readings.filter((entry) => !entry.text);
     const duplicates = [];
     const seen = new Map();
     const flagged = [];
+    const invalidWeather = weatherStatuses.filter((entry) => !Number.isInteger(entry.status?.level) || entry.status.level < 1 || entry.status.level > 10 || !entry.status.title || !entry.status.verdict);
 
     readings.forEach((entry) => {
         if (!entry.text) return;
@@ -117,6 +136,10 @@ function main() {
     if (missing.length) errors.push(`${missing.length} readings are missing`);
     if (duplicates.length) errors.push(`${duplicates.length} duplicate readings found`);
     if (flagged.length) errors.push(`${flagged.length} category red-flag readings found`);
+    if (weatherStatuses.length !== 156) errors.push(`weather has ${weatherStatuses.length} statuses, expected 156`);
+    if (invalidWeather.length) errors.push(`${invalidWeather.length} invalid weather statuses found`);
+    if (!weatherStatuses.some((entry) => entry.status?.level === 1)) errors.push('weather level 1 is missing');
+    if (!weatherStatuses.some((entry) => entry.status?.level === 10)) errors.push('weather level 10 is missing');
 
     if (errors.length) {
         console.error('[tarot-audit] FAILED');
@@ -124,10 +147,12 @@ function main() {
         missing.slice(0, 20).forEach((entry) => console.error(`missing: ${entry.topicId}:${entry.loc}:${entry.orientation}`));
         duplicates.slice(0, 20).forEach(([first, second]) => console.error(`duplicate: ${first} == ${second}`));
         flagged.slice(0, 20).forEach((entry) => console.error(`red-flag: ${entry.topicId}:${entry.loc}:${entry.orientation} [${entry.hits.join(', ')}]`));
+        invalidWeather.slice(0, 20).forEach((entry) => console.error(`weather: ${entry.cardId}:${entry.orientation} ${JSON.stringify(entry.status)}`));
         process.exit(1);
     }
 
-    console.log(`[tarot-audit] OK ${Object.entries(summary).map(([topicId, count]) => `${topicId}:${count}`).join(' ')}`);
+    const weatherLevels = [...new Set(weatherStatuses.map((entry) => entry.status.level))].sort((a, b) => a - b);
+    console.log(`[tarot-audit] OK ${Object.entries(summary).map(([topicId, count]) => `${topicId}:${count}`).join(' ')} weather:${weatherStatuses.length} levels:${weatherLevels.join(',')}`);
 }
 
 main();
