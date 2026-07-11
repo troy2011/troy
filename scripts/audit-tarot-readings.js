@@ -53,8 +53,12 @@ this.__tarotAudit = {
   FUTURE_MINOR_READINGS,
   allCards,
   getWeatherStatus,
+  getStanceId,
+  READING_PROFILES,
   SIMPLE_MAJOR_THEMES,
-  SIMPLE_MINOR_THEMES
+  SIMPLE_MAJOR_TOPIC_THEMES,
+  SIMPLE_MINOR_THEMES,
+  SIMPLE_STANCE_ACTIONS
 };`, context);
     return context.__tarotAudit;
 }
@@ -103,6 +107,64 @@ function collectWeatherStatuses(tables) {
     }));
 }
 
+const PROFILE_TOPICS = ['overall', 'love', 'work', 'relation', 'future', 'money', 'today'];
+const PROFILE_SECTIONS = ['conclusion', 'situation', 'action', 'taboo', 'closing'];
+const STANCE_IDS = ['charge', 'advance', 'hold', 'guard', 'cut'];
+const STAFF_PROFILE_TOPICS = ['love', 'work', 'relation', 'future'];
+const RICH_TOPIC_IDS = ['love', 'work', 'relation', 'future'];
+
+function collectProfileGaps(tables) {
+    const gaps = [];
+    PROFILE_TOPICS.forEach((topicId) => {
+        const profile = tables.READING_PROFILES?.[topicId];
+        if (!profile) {
+            gaps.push(`${topicId}: profile missing`);
+            return;
+        }
+        PROFILE_SECTIONS.forEach((section) => {
+            STANCE_IDS.forEach((stance) => {
+                if (!String(profile[section]?.[stance] || '').trim()) {
+                    gaps.push(`${topicId}.${section}.${stance}`);
+                }
+            });
+        });
+        STANCE_IDS.forEach((stance) => {
+            if (!String(tables.SIMPLE_STANCE_ACTIONS?.[topicId]?.[stance] || '').trim()) {
+                gaps.push(`${topicId}.simpleAction.${stance}`);
+            }
+        });
+        if (STAFF_PROFILE_TOPICS.includes(topicId)) {
+            STANCE_IDS.forEach((stance) => {
+                if (!String(profile.staffOpening?.[stance] || '').trim()) {
+                    gaps.push(`${topicId}.staffOpening.${stance}`);
+                }
+            });
+            if (!String(profile.staffReassure || '').trim()) gaps.push(`${topicId}.staffReassure`);
+            if (!String(profile.staffQuestion || '').trim()) gaps.push(`${topicId}.staffQuestion`);
+        }
+    });
+    return gaps;
+}
+
+function collectStanceCoverage(tables) {
+    const cards = Array.isArray(tables.allCards) ? tables.allCards : [];
+    const getStanceId = tables.getStanceId;
+    if (typeof getStanceId !== 'function') return { invalid: ['getStanceId missing'], used: [] };
+    const invalid = [];
+    const used = new Set();
+    cards.forEach((card) => {
+        ORIENTATIONS.forEach((orientation) => {
+            const stance = getStanceId(card, orientation);
+            if (!STANCE_IDS.includes(stance)) {
+                invalid.push(`${card.id}:${orientation} -> ${stance}`);
+            } else {
+                used.add(stance);
+            }
+        });
+    });
+    return { invalid, used: [...used] };
+}
+
 function collectSimpleMeaningCoverage(tables) {
     const missing = [];
     MAJOR_KEYS.forEach((number) => {
@@ -110,6 +172,15 @@ function collectSimpleMeaningCoverage(tables) {
             if (!String(tables.SIMPLE_MAJOR_THEMES?.[number]?.[orientation] || '').trim()) {
                 missing.push(`major_${number.padStart(2, '0')}:${orientation}`);
             }
+        });
+    });
+    RICH_TOPIC_IDS.forEach((topicId) => {
+        MAJOR_KEYS.forEach((number) => {
+            ORIENTATIONS.forEach((orientation) => {
+                if (!String(tables.SIMPLE_MAJOR_TOPIC_THEMES?.[topicId]?.[number]?.[orientation] || '').trim()) {
+                    missing.push(`${topicId}.major_${number.padStart(2, '0')}:${orientation}`);
+                }
+            });
         });
     });
     SUITS.forEach((suit) => {
@@ -129,6 +200,8 @@ function main() {
     const readings = collectReadings(tables);
     const weatherStatuses = collectWeatherStatuses(tables);
     const missingSimpleMeanings = collectSimpleMeaningCoverage(tables);
+    const profileGaps = collectProfileGaps(tables);
+    const stanceCoverage = collectStanceCoverage(tables);
     const missing = readings.filter((entry) => !entry.text);
     const duplicates = [];
     const seen = new Map();
@@ -165,6 +238,11 @@ function main() {
     if (!weatherStatuses.some((entry) => entry.status?.level === 1)) errors.push('weather level 1 is missing');
     if (!weatherStatuses.some((entry) => entry.status?.level === 10)) errors.push('weather level 10 is missing');
     if (missingSimpleMeanings.length) errors.push(`${missingSimpleMeanings.length} simple card meanings are missing`);
+    if (profileGaps.length) errors.push(`${profileGaps.length} reading profile entries are missing`);
+    if (stanceCoverage.invalid.length) errors.push(`${stanceCoverage.invalid.length} invalid stances found`);
+    STANCE_IDS.forEach((stance) => {
+        if (!stanceCoverage.used.includes(stance)) errors.push(`stance "${stance}" is never used`);
+    });
 
     if (errors.length) {
         console.error('[tarot-audit] FAILED');
@@ -174,11 +252,13 @@ function main() {
         flagged.slice(0, 20).forEach((entry) => console.error(`red-flag: ${entry.topicId}:${entry.loc}:${entry.orientation} [${entry.hits.join(', ')}]`));
         invalidWeather.slice(0, 20).forEach((entry) => console.error(`weather: ${entry.cardId}:${entry.orientation} ${JSON.stringify(entry.status)}`));
         missingSimpleMeanings.slice(0, 20).forEach((entry) => console.error(`simple-meaning: ${entry}`));
+        profileGaps.slice(0, 20).forEach((entry) => console.error(`profile: ${entry}`));
+        stanceCoverage.invalid.slice(0, 20).forEach((entry) => console.error(`stance: ${entry}`));
         process.exit(1);
     }
 
     const weatherLevels = [...new Set(weatherStatuses.map((entry) => entry.status.level))].sort((a, b) => a - b);
-    console.log(`[tarot-audit] OK ${Object.entries(summary).map(([topicId, count]) => `${topicId}:${count}`).join(' ')} weather:${weatherStatuses.length} simple:156 levels:${weatherLevels.join(',')}`);
+    console.log(`[tarot-audit] OK ${Object.entries(summary).map(([topicId, count]) => `${topicId}:${count}`).join(' ')} weather:${weatherStatuses.length} simple:${44 + (RICH_TOPIC_IDS.length * 44) + 112} levels:${weatherLevels.join(',')} stances:${stanceCoverage.used.sort().join(',')}`);
 }
 
 main();

@@ -52,18 +52,22 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await expect(page.locator('#tarotWeatherTitle')).toHaveText('凪・風速ゼロ');
   await expect(page.locator('#tarotResultText')).toHaveValue(/【総合】愚者 \/ 正位置/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/コンディション: Lv\.6 凪・風速ゼロ/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/厳しい見立て/);
-  await expect(page.locator('#tarotResultText')).not.toHaveValue(/このカードの意味/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/このカードの意味: 今の流れは、/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/結論: 今日は凪だ/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/海賊の掟:/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/船長の結び:/);
+  await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
 
   await page.locator('#tarotTopicList [data-topic-id="love"]').click();
   await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】愚者 \/ 正位置/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/愛が味方してくれるとでも/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/結論:/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/このカードの意味: この恋は、新しい可能性はあるが、無計画だと空回りしやすい。相手の反応を見ながら、一歩だけ進めるカード。/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/このカードの意味: この恋は、港を出たい気持ちはあるが、相手との間合いを測らないと空回りしやすい。答えを急がず、相手を見るカード。/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/船長からの一言:/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/現在地:/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/目的地:/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/海賊の掟:/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/船長の結び:/);
   await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
 
   await page.locator('[data-card-id="major-21"]').click();
@@ -84,7 +88,7 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await expect(page.locator('#tarotResultText')).toHaveValue(/新しい恋への期待/);
   await expect(page.locator('#tarotResultText')).not.toHaveValue(/人間関係への期待/);
   await expect(page.locator('#tarotStaffGuide')).toBeVisible();
-  await expect(page.locator('#tarotStaffOpening')).toContainText('押すより整える恋');
+  await expect(page.locator('#tarotStaffOpening')).toContainText('丁寧に進めるほど実る恋');
   await expect(page.locator('#tarotStaffQuestion')).toContainText('相手に一番聞きたいこと');
 
   await page.locator('[data-card-id="cup-7"]').click();
@@ -94,7 +98,7 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
 
   await page.locator('[data-card-id="cup-king"]').click();
   await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】カップ キング \/ 逆位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/器の小さい男の醜態/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/器の小さい船長の醜態/);
 
   await page.locator('#tarotDeckTabs [data-deck-id="sword"]').click();
   await page.locator('[data-card-id="sword-1"]').click();
@@ -217,6 +221,8 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await expect(page.locator('#tarotResultText')).toHaveValue(/【仕事】塔 \/ 逆位置/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/船長からの一言:[\s\S]*大炎上の余波[\s\S]*コンディション: Lv\.2 大時化・逆巻く怒濤/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/大炎上の余波/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/結論: 嵐だ。体裁もプライドも捨てて/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/船長の結び: 船は沈んでも、船乗りの腕は沈まねえ/);
   await expect(page.locator('#tarotResultText')).not.toHaveValue(/大アルカナが出たので/);
   await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
 
@@ -239,8 +245,9 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   expect(sendRequests[0].resultText).toContain('【仕事】塔 / 逆位置');
   expect(sendRequests[0].resultText).toContain('コンディション: Lv.2 大時化・逆巻く怒濤');
   expect(sendRequests[0].resultText).toContain('大炎上の余波');
-  expect(sendRequests[0].resultText).toContain('このカードの意味: この仕事は、大崩れは避けたが、まだ火種が残っている。');
+  expect(sendRequests[0].resultText).toContain('このカードの意味: この仕事は、大炎上は避けても、まだ帳簿の裏に火種が残っている。');
   expect(sendRequests[0].resultText).toContain('船長からの一言');
+  expect(sendRequests[0].resultText).toContain('船長の結び:');
   expect(sendRequests[0].resultText).not.toContain('厳しい見立て');
   expect(sendRequests[0].resultText).not.toContain('スタッフ補助');
   expect(sendRequests[0].resultText).not.toContain('最初にこう伝える');
