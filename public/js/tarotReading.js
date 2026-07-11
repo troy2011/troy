@@ -1571,54 +1571,235 @@ const MINOR_WEATHER_EXCEPTIONS = {
     'cup-5': { upright: 3 }
 };
 
-const SIMPLE_MEANING_FOCUS = {
-    love: {
-        major: '恋の大きな流れ',
-        wand: '関係を進める勢い',
-        sword: '言葉と決断',
-        cup: '感情の受け取り方',
-        pentacle: '関係の現実性'
+const SIMPLE_TOPIC_SUBJECTS = {
+    love: 'この恋',
+    work: 'この仕事',
+    relation: 'この関係',
+    future: 'この未来'
+};
+
+const SIMPLE_MAJOR_THEMES = {
+    0: {
+        upright: '新しい可能性はあるが、無計画だと空回りしやすい',
+        reversed: '怖さで止まるか、無防備に動きすぎている'
     },
-    work: {
-        major: '仕事運全体の潮目',
-        wand: '行動力と勝負どころ',
-        sword: '判断と問題処理',
-        cup: '職場の感情と士気',
-        pentacle: '成果と報酬の土台'
+    1: {
+        upright: '使える手札は揃っていて、あとは実際に動かす段階',
+        reversed: '器用に見せようとして、実力とのズレが出やすい'
     },
-    relation: {
-        major: '対人関係全体の流れ',
-        wand: '周囲との距離の動き',
-        sword: '本音と境界線',
-        cup: '信頼と感情の交流',
-        pentacle: '付き合いの実利と安定'
+    2: {
+        upright: 'すぐ動くより、相手や状況を観察するほど答えが見える',
+        reversed: '思い込みや感情で、事実の読み違いが起きやすい'
     },
-    future: {
-        major: '未来へ向かう大きな航路',
-        wand: '挑戦と前進力',
-        sword: '進路を決める判断',
-        cup: '望む未来への感情',
-        pentacle: '将来の基盤づくり'
+    3: {
+        upright: '受け取れる豊かさはあるが、甘えすぎると緩む',
+        reversed: '与えられることを当然視して、不満や停滞が増えやすい'
+    },
+    4: {
+        upright: 'ルールと主導権をはっきりさせるほど安定する',
+        reversed: '支配しようとするほど反発や孤立を招きやすい'
+    },
+    5: {
+        upright: '礼儀や手順を守るほど信頼を得やすい',
+        reversed: '古い常識に縛られて、目の前の可能性を逃しやすい'
+    },
+    6: {
+        upright: '大事な選択を避けずに、自分の本音で決める段階',
+        reversed: '迷いや誘惑で、本命の流れを壊しやすい'
+    },
+    7: {
+        upright: '勢いで突破できるが、目的地を絞る必要がある',
+        reversed: '急ぎすぎて、周囲や現実を置き去りにしやすい'
+    },
+    8: {
+        upright: '強く出るより、感情を抑えて主導権を握る段階',
+        reversed: '萎縮か押しすぎで、力の使い方が乱れている'
+    },
+    9: {
+        upright: '外の声を減らし、自分の答えを見つける時期',
+        reversed: '一人で抱え込みすぎて、現実から遠ざかっている'
+    },
+    10: {
+        upright: '流れが変わり、タイミングを掴めば進みやすい',
+        reversed: 'タイミングが噛み合わず、無理に動くほど裏目に出やすい'
+    },
+    11: {
+        upright: '感情より事実とバランスで判断する段階',
+        reversed: '不公平さや言い訳が、判断を曇らせている'
+    },
+    12: {
+        upright: '動けない時間に、見方を変える必要がある',
+        reversed: '我慢しすぎて、必要のない犠牲が増えている'
+    },
+    13: {
+        upright: '終わらせることで次の余白が生まれる',
+        reversed: '終わったものにしがみつき、前へ進みにくい'
+    },
+    14: {
+        upright: '焦らず混ぜ合わせることで、無理なく整う',
+        reversed: '距離感や配分が乱れて、全体が濁りやすい'
+    },
+    15: {
+        upright: '欲や依存が強くなり、自由を奪われやすい',
+        reversed: '悪い縛りを外し、自分の足で立ち直る段階'
+    },
+    16: {
+        upright: '隠れていた問題が崩れ、作り直しが必要になる',
+        reversed: '大崩れは避けたが、まだ火種が残っている'
+    },
+    17: {
+        upright: '希望はあるが、小さく続ける行動が必要になる',
+        reversed: '理想が大きすぎて、現実の一歩が見えにくい'
+    },
+    18: {
+        upright: '不安や噂で視界が悪く、確認なしに動くと危ない',
+        reversed: '曖昧だった不安の正体が見え、判断しやすくなる'
+    },
+    19: {
+        upright: '明るい成果や魅力が出やすく、堂々と進める',
+        reversed: '熱量はあるが、空回りや見せすぎに注意が必要'
+    },
+    20: {
+        upright: '過去の流れを回収し、やり直す機会が来ている',
+        reversed: '過去の問題を放置したツケが戻りやすい'
+    },
+    21: {
+        upright: '一つの完成が近く、次の段階へ移れる',
+        reversed: '形は整って見えるが、仕上げがまだ甘い'
     }
 };
+
+const SIMPLE_MAJOR_ACTIONS = {
+    love: {
+        upright: '相手の反応を見ながら、一歩だけ進めるカード。',
+        reversed: '追う前に、自分の不安と距離感を整えるカード。'
+    },
+    work: {
+        upright: '段取りを決め、見える成果へつなげるカード。',
+        reversed: '止血を優先し、責任範囲と損切り線を決めるカード。'
+    },
+    relation: {
+        upright: '近づく相手と距離を置く相手を見分けるカード。',
+        reversed: '無理に合わせず、守る線を引き直すカード。'
+    },
+    future: {
+        upright: '小さく始め、次の航路を現実にするカード。',
+        reversed: '焦らず穴を塞ぎ、進む条件を整えるカード。'
+    }
+};
+
+const SIMPLE_MINOR_THEMES = {
+    wand: {
+        1: { upright: '動き出す熱が生まれている', reversed: 'やる気だけで行動が追いついていない' },
+        2: { upright: '選択肢を見比べ、どこへ力を使うか決める段階', reversed: '選びきれず、どちらにも力が入らない' },
+        3: { upright: '動いた結果が少しずつ返ってくる', reversed: '反応や成果が遅れ、計画の粗さが見えやすい' },
+        4: { upright: '一度落ち着ける場所や区切りができている', reversed: '表面は安定していても、内側に緩みがある' },
+        5: { upright: '意見の衝突や競争で、立ち位置が試されている', reversed: '勝っても得の少ない争いに力を使いすぎている' },
+        6: { upright: '周囲から認められ、手応えを得やすい', reversed: '評価が空回りし、本当の実力が問われている' },
+        7: { upright: '守るべき立場があり、引かない強さが必要', reversed: '全てを守ろうとして、防衛線が崩れやすい' },
+        8: { upright: '状況が速く動き、即応が結果を分ける', reversed: '急ぎすぎて、流れを制御しにくい' },
+        9: { upright: '疲れていても、最後の警戒を続ける段階', reversed: '過去の傷を恐れすぎて、疑いが強くなっている' },
+        10: { upright: '抱えすぎで、重荷を減らす必要がある', reversed: '限界を超え、荷物を降ろすしかない' },
+        page: { upright: '新しい知らせやきっかけが入りやすい', reversed: '軽い話や思いつきに振り回されやすい' },
+        knight: { upright: '勢いよく動けば突破口が開きやすい', reversed: '独りよがりな突進で周囲を置き去りにしやすい' },
+        queen: { upright: '堂々とした魅力や影響力が出やすい', reversed: '感情的な振る舞いで信頼を落としやすい' },
+        king: { upright: '強い意思で場を導ける', reversed: '自分の正しさを押しつけ、反発を招きやすい' }
+    },
+    sword: {
+        1: { upright: 'はっきり決める力が出ている', reversed: '決断を避けて、問題が長引きやすい' },
+        2: { upright: '今は無理に選ばず、情報を見極める段階', reversed: '見ないふりをやめ、痛くても選ぶ必要がある' },
+        3: { upright: '痛みのある事実が表に出やすい', reversed: '傷は残るが、回復へ向かい始めている' },
+        4: { upright: '休むことで判断力を戻す段階', reversed: '休みすぎると、主導権を失いやすい' },
+        5: { upright: '勝っても信頼を失いやすい', reversed: '負けを認め、次の作戦へ切り替える段階' },
+        6: { upright: '荒れた場所から離れ、状況を変える必要がある', reversed: '逃げても問題がついてきやすい' },
+        7: { upright: '正面突破より、駆け引きが効きやすい', reversed: '隠していたことが表に出やすい' },
+        8: { upright: '思い込みで、自分の選択肢を狭めている', reversed: '縛りの仕組みが見え、抜け出しやすい' },
+        9: { upright: '不安が大きくなり、現実以上に怖く見えている', reversed: '恐怖のピークを越え、落ち着きを取り戻しやすい' },
+        10: { upright: '一つの終わりや限界がはっきり出ている', reversed: '最悪を越えて、再起の芽が残っている' },
+        page: { upright: '観察と情報収集が鍵になる', reversed: '疑いすぎや言葉の鋭さで孤立しやすい' },
+        knight: { upright: '素早い判断と行動が流れを変える', reversed: '急ぎすぎて、相手や現場を見落としやすい' },
+        queen: { upright: '感情を脇に置き、筋道で見極める段階', reversed: '正論が強すぎて、相手を傷つけやすい' },
+        king: { upright: '事実をもとに厳しく決める力がある', reversed: '冷たさや支配欲が前に出やすい' }
+    },
+    cup: {
+        1: { upright: '新しい感情や期待が動き始めている', reversed: '期待がしぼみ、心が乾きやすい' },
+        2: { upright: '信頼し合える結びつきが生まれやすい', reversed: 'すれ違いや約束のズレが出やすい' },
+        3: { upright: '気の合う相手との共有や喜びが増えやすい', reversed: '馴れ合いや愚痴で流れが濁りやすい' },
+        4: { upright: '目の前の好機に気づきにくい', reversed: '新しい提案や誘いを受け取りやすい' },
+        5: { upright: '失ったものばかりに意識が向きやすい', reversed: '残っているものに目を向け直せる' },
+        6: { upright: '過去の記憶や懐かしさが影響しやすい', reversed: '過去への執着を切る必要がある' },
+        7: { upright: '理想や誘惑が多く、現実が見えにくい', reversed: '幻想が晴れ、現実的な選択ができる' },
+        8: { upright: '合わないものから離れる決断が必要', reversed: '失う怖さで、終わった場所に残りやすい' },
+        9: { upright: '望んだ形を手にしやすいが、慢心に注意が必要', reversed: '形だけの満足で、心の空白が残りやすい' },
+        10: { upright: '満足できるつながりや安定が広がりやすい', reversed: '表面の平和の下に、不満が残りやすい' },
+        page: { upright: '直感や小さな提案に可能性がある', reversed: '甘い夢や未熟な期待に流されやすい' },
+        knight: { upright: '感情を整えて、穏やかに進める', reversed: '感情の波が強く、周囲を振り回しやすい' },
+        queen: { upright: '優しさや受け止める力が効きやすい', reversed: '情に流されて、必要な線を越えやすい' },
+        king: { upright: '落ち着いた器で、感情を扱える', reversed: '自分を守るための二枚舌や不安定さが出やすい' }
+    },
+    pentacle: {
+        1: { upright: '現実的なチャンスや土台が手に入りやすい', reversed: 'せっかくの土台を準備不足で逃しやすい' },
+        2: { upright: '複数のことを器用にやりくりする段階', reversed: '抱えすぎで、優先順位が崩れやすい' },
+        3: { upright: '協力や専門性で土台を作れる', reversed: '見せかけや手抜きが露見しやすい' },
+        4: { upright: '守りたいものが強くなり、動きが固くなりやすい', reversed: '守るべき力を無駄に流しやすい' },
+        5: { upright: '孤立感や不足感が強く出やすい', reversed: '支えを受け取り、立て直しへ向かえる' },
+        6: { upright: '助け合いや公平な分配が流れを良くする', reversed: '見返りや不公平さに注意が必要' },
+        7: { upright: '積み上げた努力を見直す段階', reversed: '回収できないものに時間を使いすぎている' },
+        8: { upright: '地道な継続が力になる', reversed: '飽きや手抜きで、積み上げが崩れやすい' },
+        9: { upright: '自立と余裕を味方にできる', reversed: '見栄や他人頼みで中身が薄くなりやすい' },
+        10: { upright: '長期的な基盤や身内の支えが効きやすい', reversed: '古い仕組みや身内の揉め事に巻き込まれやすい' },
+        page: { upright: '小さく堅実な話に実りがある', reversed: '目先の条件に囚われ、大局を見落としやすい' },
+        knight: { upright: '約束を守る堅実さが信頼を作る', reversed: '頑固さや惰性で、変化に遅れやすい' },
+        queen: { upright: '現実的な支えや安心感を作れる', reversed: '独占欲や不安で、抱え込みすぎやすい' },
+        king: { upright: '数字や現実を見て安定を支配できる', reversed: '欲や損得に偏り、大事な信頼を失いやすい' }
+    }
+};
+
+const SIMPLE_MINOR_ACTIONS = {
+    love: {
+        wand: { upright: '勢いを出しすぎず、相手が受け取れる形で一歩進めるカード。', reversed: '押す前に温度差を確認し、追撃を止めるカード。' },
+        sword: { upright: '言葉を短くして、曖昧な関係を整理するカード。', reversed: '相手を責める前に、事実と不安を分けるカード。' },
+        cup: { upright: '気持ちを大切にしつつ、確認を怠らないカード。', reversed: '感情に溺れず、期待を一度冷ますカード。' },
+        pentacle: { upright: '安心感や継続条件を形にするカード。', reversed: '見返りや条件だけで関係を測らないカード。' }
+    },
+    work: {
+        wand: { upright: 'すぐ小さく着手し、動きながら調整するカード。', reversed: '勢いで引き受けず、優先順位を絞るカード。' },
+        sword: { upright: '判断を文書や数字に落とし、問題を切り分けるカード。', reversed: '正論で押す前に、現場の事実を確認するカード。' },
+        cup: { upright: '職場の空気を整え、協力を引き出すカード。', reversed: '感情論に巻き込まれず、タスクへ戻すカード。' },
+        pentacle: { upright: '地道な成果や報酬につながる形を作るカード。', reversed: '見栄や惰性の作業を削るカード。' }
+    },
+    relation: {
+        wand: { upright: '自分から動き、立ち位置をはっきりさせるカード。', reversed: '騒ぎに乗らず、距離を置いて火消しするカード。' },
+        sword: { upright: '本音を短く伝え、境界線を引くカード。', reversed: '疑いをぶつけず、確認してから判断するカード。' },
+        cup: { upright: '信頼できる相手との温度を育てるカード。', reversed: '情に流されず、依存を断つカード。' },
+        pentacle: { upright: '約束や貸し借りを丁寧に積み上げるカード。', reversed: '都合よく使われないよう条件を見直すカード。' }
+    },
+    future: {
+        wand: { upright: 'まず動き、次の可能性を試すカード。', reversed: '焦らず、進む先と体力配分を整えるカード。' },
+        sword: { upright: '不要な選択肢を切り、進路を明確にするカード。', reversed: '不安で判断を急がず、事実を集めるカード。' },
+        cup: { upright: '望む未来の感情を確認し、無理なく選ぶカード。', reversed: '夢だけで決めず、現実に戻すカード。' },
+        pentacle: { upright: '将来の基盤を地道に固めるカード。', reversed: '短期的な得に流されず、続く形を選ぶカード。' }
+    }
+};
+
 
 const RICH_READING_PROFILES = {
     love: {
         conclusion: {
-            upright: 'この恋は、感情だけで押すより「相手が安心して動ける条件」を整えた者が勝つ。',
-            reversed: 'この恋は、焦りや執着を一度切らないと、相手の心より先にお前さんの余裕が沈む。'
+            upright: 'この恋は、勢いより安心感を整えることで前に進みやすいです。',
+            reversed: 'この恋は、不安や執着を整理しないと関係が重くなりやすいです。'
         },
         situation: {
-            upright: '相手の反応を追いすぎるほど、こちらの価値は安く見える。今は好意を見せる量と、引く線の両方を整える場面だ。',
-            reversed: '不安が舵を握っている。相手を見る前に、自分が何を恐れているのかを切り分けないと、同じ失敗を繰り返す。'
+            upright: '相手の反応を気にしすぎて、自分のペースが崩れやすい状態です。好意を見せる量と引く線を整える必要があります。',
+            reversed: '不安が強くなり、相手の言動を悪い方向に読みやすい状態です。まず自分が何を怖がっているのか確認してください。'
         },
         action: {
-            upright: '短い本音を一つだけ出せ。返事を急がせず、相手が動ける余白を残すことが勝ち筋だ。',
-            reversed: '今日は追撃より整理だ。連絡、詮索、試し行動を減らし、自分の尊厳を守る一線を先に決めろ。'
+            upright: '短い本音を一つ伝え、返事を急がせず相手が考える余白を残してください。',
+            reversed: '追い連絡や試す行動を減らし、自分の尊厳を守る距離を決めてください。'
         },
         taboo: {
-            upright: '相手を試す、返事の速さで愛情を測る、寂しさを恋と勘違いする。この三つはやめな。',
-            reversed: '不安をぶつける、過去の傷を相手に払わせる、都合のいい解釈に逃げる。この三つは船底に穴を開ける。'
+            upright: '相手を試すこと、返事の速さだけで愛情を判断すること、寂しさを恋と勘違いすること。',
+            reversed: '不安をぶつけること、過去の傷を相手に背負わせること、都合のいい解釈だけで動くこと。'
         },
         closing: {
             upright: '恋は奪うだけじゃ続かん。相手の心に停泊できるだけの器を見せろ。',
@@ -1633,20 +1814,20 @@ const RICH_READING_PROFILES = {
     },
     work: {
         conclusion: {
-            upright: 'この仕事は、気合いより段取りと数字で勝つ場面だ。感情ではなく成果物で主導権を握れ。',
-            reversed: 'この仕事は、無理に押すほど損失が広がる。まず止血し、守るべき成果と捨てる作業を分けろ。'
+            upright: 'この仕事は、気合いより段取りと見える成果で評価が変わります。',
+            reversed: 'この仕事は、無理に進めるほど損失が広がりやすいです。まず問題を小さく分けてください。'
         },
         situation: {
-            upright: '評価や成果は、見えない努力ではなく提出された結果で決まる。今は自分の働きを相手に分かる形へ変える時だ。',
-            reversed: '責任、期限、期待値のどれかが曖昧になっている。曖昧なまま進むほど、あとでお前さんの首が締まる。'
+            upright: '努力が相手に伝わる形になっていません。担当、期限、成果物を見える形にする必要があります。',
+            reversed: '責任、期限、期待値のどれかが曖昧です。そのまま進めると後で自分の負担になります。'
         },
         action: {
-            upright: '今日の一手は、担当、期限、成果物を一枚にまとめることだ。口約束を減らし、記録に残せ。',
-            reversed: '抱え込みをやめろ。止める作業、相談する相手、確認すべき数字を三つに分けて処理しな。'
+            upright: '今日やること、締切、提出物を一枚にまとめて、口約束を記録に変えてください。',
+            reversed: '抱え込まず、止める作業、相談する相手、確認する数字を分けてください。'
         },
         taboo: {
-            upright: '根拠のない強気、場当たりの返事、締切の先延ばし。この三つは信用を削る。',
-            reversed: '見栄で引き受ける、問題を隠す、誰かのせいにして手を止める。この三つは沈没コースだ。'
+            upright: '根拠のない強気、場当たりの返事、締切の先延ばし。',
+            reversed: '見栄で引き受けること、問題を隠すこと、誰かのせいにして手を止めること。'
         },
         closing: {
             upright: '仕事の海では、結果を見せた者が船長だ。遠慮せず旗を掲げろ。',
@@ -1661,20 +1842,20 @@ const RICH_READING_PROFILES = {
     },
     relation: {
         conclusion: {
-            upright: 'この関係は、優しさだけではなく境界線で守る場面だ。誰を味方にし、誰と距離を置くかを決めろ。',
-            reversed: 'この関係は、我慢を続けるほど舐められる。沈黙ではなく、距離と条件で自分を守れ。'
+            upright: 'この関係は、優しさだけで続けるより境界線を決めることで安定します。',
+            reversed: 'この関係は、我慢を続けるほど自分が消耗します。距離と条件を見直してください。'
         },
         situation: {
-            upright: '周囲の空気に流されるほど、本音が見えなくなる。今は相手の言葉より、行動と利害を見る時だ。',
-            reversed: '不満や誤解が溜まっている。丸く収めようとするほど、あとで大きな衝突になる。'
+            upright: '周囲の空気に合わせすぎて、本音や利害が見えにくくなっています。相手の言葉より行動を見てください。',
+            reversed: '不満や誤解が溜まっています。丸く収めようとするほど後で大きな衝突になりやすいです。'
         },
         action: {
-            upright: '守る線と譲る線を一つずつ決めろ。言うべきことは短く、ただし曖昧に濁すな。',
-            reversed: '距離を置く相手を決めな。全員に良い顔をするほど、味方まで失う。'
+            upright: '守る線と譲る線を一つずつ決め、必要なことだけ短く伝えてください。',
+            reversed: '距離を置く相手を決めてください。全員に良い顔をすると味方まで失いやすくなります。'
         },
         taboo: {
-            upright: '八方美人、陰口への便乗、相手任せの期待。この三つは信頼を薄める。',
-            reversed: '我慢のしすぎ、感情的な爆発、証拠のない疑い。この三つは関係を壊す大砲だ。'
+            upright: '八方美人、陰口への便乗、相手任せの期待。',
+            reversed: '我慢のしすぎ、感情的な爆発、証拠のない疑い。'
         },
         closing: {
             upright: '本物の仲間は、境界線を引いても残る。残らん奴は最初から荷物だ。',
@@ -1689,20 +1870,20 @@ const RICH_READING_PROFILES = {
     },
     future: {
         conclusion: {
-            upright: 'この未来は、待つものではなく舵を切って作るものだ。小さくても今日の決断が航路を変える。',
-            reversed: 'この未来は、恐れたまま先延ばしにすると狭くなる。まず現実の制約と撤退条件を見ろ。'
+            upright: 'この未来は、待つより自分で選んで動くことで形になります。',
+            reversed: 'この未来は、恐れたまま先延ばしにすると選択肢が狭くなります。'
         },
         situation: {
-            upright: '可能性はある。ただし夢だけでは帆は張れん。今は理想を、実行できる一歩へ落とし込む時だ。',
-            reversed: '選択肢が多いようで、実は迷いが視界を濁らせている。欲しい未来と捨てる未来を分ける必要がある。'
+            upright: '可能性はあります。ただし理想を語るだけでは進みません。実行できる一歩に落とし込む必要があります。',
+            reversed: '選択肢が多く見えて、迷いで視界が悪くなっています。欲しい未来と捨てる未来を分けてください。'
         },
         action: {
-            upright: '次の一手は、いつ、何を、どこまで進めるかを決めることだ。大きな覚悟より、今日の実行を優先しな。',
-            reversed: '無理に進むな。今は情報、体力、資金、時間の不足を洗い出し、穴を塞いでから帆を張れ。'
+            upright: 'いつ、何を、どこまで進めるかを決めてください。大きな覚悟より、今日の実行を優先してください。',
+            reversed: '無理に進まず、情報、体力、資金、時間の不足を洗い出してください。'
         },
         taboo: {
-            upright: '夢を語るだけ、準備を後回しにする、撤退条件を決めない。この三つは未来を食い潰す。',
-            reversed: '怖さを理由に止まる、過去の失敗を言い訳にする、他人の航路を真似る。この三つは漂流だ。'
+            upright: '夢を語るだけで終わること、準備を後回しにすること、撤退条件を決めないこと。',
+            reversed: '怖さを理由に止まること、過去の失敗を言い訳にすること、他人の進路をそのまま真似ること。'
         },
         closing: {
             upright: '未来は占いで決まるんじゃない。カードが示した潮目に、どう舵を切るかで決まる。',
@@ -1715,13 +1896,6 @@ const RICH_READING_PROFILES = {
         staffReassure: '未来を断定せず、「今の選択で変えられる部分」を強調してください。',
         staffQuestion: '半年後に一番変えたいのは、環境、仕事、人間関係、自分自身のどれですか。'
     }
-};
-
-const SUIT_RICH_NOTES = {
-    wand: 'ワンドは熱量と行動の札だ。勢いは武器になるが、向ける先を間違えるとただの火事になる。',
-    sword: 'ソードは判断と言葉の札だ。甘い感情より、事実を切り分ける冷たい刃が必要になる。',
-    cup: 'カップは感情と受け取り方の札だ。心の揺れを否定せず、溺れない距離で扱うことが鍵になる。',
-    pentacle: 'ペンタクルは現実と積み重ねの札だ。気分ではなく、形に残る行動と信頼がものを言う。'
 };
 
 const state = {
@@ -1817,14 +1991,6 @@ function isRichReadingTopic(topicId) {
     return RICH_READING_TOPIC_IDS.has(topicId);
 }
 
-function getCardContextLine(card) {
-    if (!card) return '';
-    if (card.kind === 'major') {
-        return '大アルカナなので、これは一時の気分ではなく流れそのものに出ている札だ。軽く扱うな。';
-    }
-    return SUIT_RICH_NOTES[card.suitId] || '';
-}
-
 function normalizeWeatherLevel(level) {
     const value = Number(level);
     if (!Number.isFinite(value)) return 5;
@@ -1859,7 +2025,7 @@ function buildWeatherLines(card, orientationId) {
     const weather = getWeatherStatus(card, orientationId);
     if (!weather) return [];
     return [
-        `今日の航海コンディション: ${weather.levelLabel} ${weather.title}`,
+        `コンディション: ${weather.levelLabel} ${weather.title}`,
         `一言判定: ${weather.verdict}`
     ];
 }
@@ -1870,16 +2036,21 @@ function getFirstSentence(text) {
     return first.replace(/[。！？!?]+$/, '');
 }
 
-function getSimpleMeaningFocus(topicId, card) {
-    const topicFocus = SIMPLE_MEANING_FOCUS[topicId] || {};
-    const key = card.kind === 'major' ? 'major' : card.suitId;
-    return topicFocus[key] || 'この相談の中心';
+function getSimpleTopicSubject(topicId, topicLabel) {
+    return SIMPLE_TOPIC_SUBJECTS[topicId] || `この${topicLabel}`;
 }
 
-function buildSimpleCardMeaning(topic, card, meaning) {
-    const conciseMeaning = getFirstSentence(meaning?.truth);
-    const focus = getSimpleMeaningFocus(topic.id, card);
-    return `${topic.label}では${focus}に「${conciseMeaning}」が出ているサイン。`;
+function buildSimpleCardMeaning(topic, card, orientationId, meaning) {
+    const direction = ORIENTATIONS[orientationId] ? orientationId : 'upright';
+    const subject = getSimpleTopicSubject(topic.id, topic.label);
+    if (card.kind === 'major') {
+        const theme = SIMPLE_MAJOR_THEMES[card.number]?.[direction] || getFirstSentence(meaning?.truth);
+        const action = SIMPLE_MAJOR_ACTIONS[topic.id]?.[direction] || SIMPLE_MAJOR_ACTIONS.future[direction];
+        return `${subject}は、${theme}。${action}`;
+    }
+    const theme = SIMPLE_MINOR_THEMES[card.suitId]?.[card.rankId]?.[direction] || getFirstSentence(meaning?.truth);
+    const action = SIMPLE_MINOR_ACTIONS[topic.id]?.[card.suitId]?.[direction] || SIMPLE_MINOR_ACTIONS.future[card.suitId]?.[direction] || SIMPLE_MAJOR_ACTIONS.future[direction];
+    return `${subject}は、${theme}。${action}`;
 }
 
 function buildRichReading(topic, card, orientationId, meaning, specialBody) {
@@ -1887,28 +2058,26 @@ function buildRichReading(topic, card, orientationId, meaning, specialBody) {
     const orientation = ORIENTATIONS[orientationId] || ORIENTATIONS.upright;
     const title = `【${topic.label}】${card.label} / ${orientation.label}`;
     const core = formatReadingBody(specialBody);
-    const contextLine = getCardContextLine(card);
-    const action = meaning?.action ? `${profile.action[orientationId]} ${meaning.action}` : profile.action[orientationId];
     const weatherLines = buildWeatherLines(card, orientationId);
-    const simpleMeaning = buildSimpleCardMeaning(topic, card, meaning);
+    const simpleMeaning = buildSimpleCardMeaning(topic, card, orientationId, meaning);
 
     return [
         title,
         '',
         `このカードの意味: ${simpleMeaning}`,
         '',
-        ...weatherLines,
-        '',
         `結論: ${profile.conclusion[orientationId]}`,
         '',
-        `今起きていること: ${profile.situation[orientationId]}${contextLine ? ` ${contextLine}` : ''}`,
+        `現在地: ${profile.situation[orientationId]}`,
         '',
-        `次に取るべき一手: ${action}`,
+        `目的地: ${profile.action[orientationId]}`,
         '',
-        `やってはいけないこと: ${profile.taboo[orientationId]}`,
+        `海賊の掟: ${profile.taboo[orientationId]}`,
         '',
         '船長からの一言:',
-        core
+        core,
+        '',
+        ...weatherLines
     ].join('\n');
 }
 
@@ -2083,9 +2252,9 @@ function buildReading() {
         return [
             title,
             '',
-            ...weatherLines,
+            formatReadingBody(specialBody),
             '',
-            formatReadingBody(specialBody)
+            ...weatherLines
         ].join('\n');
     }
     const majorLine = card.kind === 'major'
@@ -2098,14 +2267,14 @@ function buildReading() {
     return [
         title,
         '',
-        ...weatherLines,
-        '',
         `結論: ${meaning.truth}`,
         majorLine,
         '',
         `厳しい見立て: ${topic.bite}`,
         `次の一手: ${topic.action}。${meaning.action}。`,
-        `船長の号令: ${direction}`
+        `船長の号令: ${direction}`,
+        '',
+        ...weatherLines
     ].join('\n');
 }
 

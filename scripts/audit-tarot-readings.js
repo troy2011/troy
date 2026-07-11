@@ -52,7 +52,9 @@ this.__tarotAudit = {
   FUTURE_MAJOR_READINGS,
   FUTURE_MINOR_READINGS,
   allCards,
-  getWeatherStatus
+  getWeatherStatus,
+  SIMPLE_MAJOR_THEMES,
+  SIMPLE_MINOR_THEMES
 };`, context);
     return context.__tarotAudit;
 }
@@ -101,10 +103,32 @@ function collectWeatherStatuses(tables) {
     }));
 }
 
+function collectSimpleMeaningCoverage(tables) {
+    const missing = [];
+    MAJOR_KEYS.forEach((number) => {
+        ORIENTATIONS.forEach((orientation) => {
+            if (!String(tables.SIMPLE_MAJOR_THEMES?.[number]?.[orientation] || '').trim()) {
+                missing.push(`major_${number.padStart(2, '0')}:${orientation}`);
+            }
+        });
+    });
+    SUITS.forEach((suit) => {
+        RANKS.forEach((rank) => {
+            ORIENTATIONS.forEach((orientation) => {
+                if (!String(tables.SIMPLE_MINOR_THEMES?.[suit]?.[rank]?.[orientation] || '').trim()) {
+                    missing.push(`${suit}_${rank}:${orientation}`);
+                }
+            });
+        });
+    });
+    return missing;
+}
+
 function main() {
     const tables = loadTables();
     const readings = collectReadings(tables);
     const weatherStatuses = collectWeatherStatuses(tables);
+    const missingSimpleMeanings = collectSimpleMeaningCoverage(tables);
     const missing = readings.filter((entry) => !entry.text);
     const duplicates = [];
     const seen = new Map();
@@ -140,6 +164,7 @@ function main() {
     if (invalidWeather.length) errors.push(`${invalidWeather.length} invalid weather statuses found`);
     if (!weatherStatuses.some((entry) => entry.status?.level === 1)) errors.push('weather level 1 is missing');
     if (!weatherStatuses.some((entry) => entry.status?.level === 10)) errors.push('weather level 10 is missing');
+    if (missingSimpleMeanings.length) errors.push(`${missingSimpleMeanings.length} simple card meanings are missing`);
 
     if (errors.length) {
         console.error('[tarot-audit] FAILED');
@@ -148,11 +173,12 @@ function main() {
         duplicates.slice(0, 20).forEach(([first, second]) => console.error(`duplicate: ${first} == ${second}`));
         flagged.slice(0, 20).forEach((entry) => console.error(`red-flag: ${entry.topicId}:${entry.loc}:${entry.orientation} [${entry.hits.join(', ')}]`));
         invalidWeather.slice(0, 20).forEach((entry) => console.error(`weather: ${entry.cardId}:${entry.orientation} ${JSON.stringify(entry.status)}`));
+        missingSimpleMeanings.slice(0, 20).forEach((entry) => console.error(`simple-meaning: ${entry}`));
         process.exit(1);
     }
 
     const weatherLevels = [...new Set(weatherStatuses.map((entry) => entry.status.level))].sort((a, b) => a - b);
-    console.log(`[tarot-audit] OK ${Object.entries(summary).map(([topicId, count]) => `${topicId}:${count}`).join(' ')} weather:${weatherStatuses.length} levels:${weatherLevels.join(',')}`);
+    console.log(`[tarot-audit] OK ${Object.entries(summary).map(([topicId, count]) => `${topicId}:${count}`).join(' ')} weather:${weatherStatuses.length} simple:156 levels:${weatherLevels.join(',')}`);
 }
 
 main();
