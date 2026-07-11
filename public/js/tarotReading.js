@@ -2312,7 +2312,7 @@ function buildRichReading(topic, card, orientationId, meaning, specialBody) {
         '',
         `現在地: ${profile.situation[stance]}`,
         '',
-        `目的地: ${profile.action[stance]}`,
+        `次の一手: ${profile.action[stance]}`,
         '',
         `禁じ手: ${profile.taboo[stance]}`,
         '',
@@ -2342,7 +2342,7 @@ function buildStandardReading(topic, card, orientationId, meaning) {
         '',
         `現在地: ${profile.situation[stance]}`,
         '',
-        `目的地: ${profile.action[stance]}`,
+        `次の一手: ${profile.action[stance]}`,
         '',
         `禁じ手: ${profile.taboo[stance]}`,
         '',
@@ -2370,7 +2370,7 @@ function buildStaffGuidance() {
     if (!profile?.staffOpening) {
         return {
             opening: `${card.label}の${orientation.label}です。まず「結論」を短く伝えてから、本文を読み上げてください。`,
-            reassure: '結果を断定しすぎず、本文の「目的地」を最後にもう一度繰り返してください。',
+            reassure: '結果を断定しすぎず、本文の「次の一手」を最後にもう一度繰り返してください。',
             question: 'この結果を聞いて、今日すぐ動けそうなことは何ですか。'
         };
     }

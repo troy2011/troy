@@ -65,7 +65,7 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await expect(page.locator('#tarotResultText')).toHaveValue(/このカードの意味: この恋は、港を出たい気持ちはあるが、相手との間合いを測らないと空回りしやすい。答えを急がず、相手を見るカード。/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/船長からの一言:/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/現在地:/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/目的地:/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/次の一手:/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/禁じ手:/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/船長の結び:/);
   await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
