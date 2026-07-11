@@ -52,6 +52,12 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await expect(page.locator('#tarotResultText')).toHaveValue(/新しい恋の火種/);
 
   await page.locator('#tarotDeckTabs [data-deck-id="cup"]').click();
+  await page.locator('[data-card-id="cup-1"]').click();
+  await page.locator('[data-orientation="upright"]').click();
+  await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】カップ A \/ 正位置/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/新しい恋への期待/);
+  await expect(page.locator('#tarotResultText')).not.toHaveValue(/人間関係への期待/);
+
   await page.locator('[data-card-id="cup-7"]').click();
   await page.locator('[data-orientation="reversed"]').click();
   await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】カップ 7 \/ 逆位置/);
