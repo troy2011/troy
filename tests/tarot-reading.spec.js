@@ -54,7 +54,7 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await expect(page.locator('#tarotResultText')).toHaveValue(/コンディション: Lv\.6 凪・風速ゼロ/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/このカードの意味: 今の流れは、/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/結論: 今日は凪だ/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/海賊の掟:/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/禁じ手:/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/船長の結び:/);
   await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
 
@@ -66,7 +66,7 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await expect(page.locator('#tarotResultText')).toHaveValue(/船長からの一言:/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/現在地:/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/目的地:/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/海賊の掟:/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/禁じ手:/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/船長の結び:/);
   await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
 
@@ -119,7 +119,7 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await page.locator('[data-orientation="reversed"]').click();
   await expect(page.locator('#tarotResultText')).toHaveValue(/【人間関係】死神 \/ 逆位置/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/往生際が悪い/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/海賊の掟:/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/禁じ手:/);
   await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
 
   await page.locator('#tarotDeckTabs [data-deck-id="wand"]').click();
