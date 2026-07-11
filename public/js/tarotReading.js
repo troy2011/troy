@@ -15,6 +15,31 @@ const TOPICS = [
     { id: 'today', label: '今日の一手', short: '24時間の号令' }
 ];
 
+const MAJOR_CARD_WORDS = {
+    0: { upright: '自由、始まり', reversed: '無謀、停滞' },
+    1: { upright: '意志、創造', reversed: '口先、未熟' },
+    2: { upright: '直感、沈黙', reversed: '疑心、閉鎖' },
+    3: { upright: '豊かさ、育成', reversed: '過保護、浪費' },
+    4: { upright: '支配、秩序', reversed: '暴君、孤立' },
+    5: { upright: '伝統、導き', reversed: '石頭、反抗' },
+    6: { upright: '選択、同盟', reversed: '誘惑、優柔不断' },
+    7: { upright: '突破、勝利', reversed: '暴走、空回り' },
+    8: { upright: '忍耐、自制', reversed: '萎縮、力任せ' },
+    9: { upright: '内省、探求', reversed: '孤立、逃避' },
+    10: { upright: '転機、好機', reversed: '逆風、停滞' },
+    11: { upright: '公正、帳尻', reversed: '不公平、偏り' },
+    12: { upright: '停止、視点転換', reversed: '犠牲、執着' },
+    13: { upright: '終焉、刷新', reversed: '未練、停滞' },
+    14: { upright: '調和、節制', reversed: '不摂生、乱れ' },
+    15: { upright: '欲望、依存', reversed: '解放、断ち切り' },
+    16: { upright: '崩壊、露呈', reversed: '余波、警告' },
+    17: { upright: '希望、理想', reversed: '幻滅、高望み' },
+    18: { upright: '不安、霧', reversed: '正体、判明' },
+    19: { upright: '成功、生命力', reversed: '空回り、慢心' },
+    20: { upright: '復活、審判', reversed: '過去、因縁' },
+    21: { upright: '完成、到達', reversed: '未完成、詰め甘さ' }
+};
+
 const MAJOR_CARDS = [
     ['0', '愚者', '自由はあります。ただし、準備不足を冒険と呼ぶと浅瀬に乗り上げます。', '最初の一歩を小さく切り、撤退条件も決める。', '逃げたいだけの出航です。荷物を減らす前に責任を確認してください。', '約束を一つ守ってから次へ動く。'],
     ['1', '魔術師', '道具は足りています。足りないのは号令を出す覚悟です。', '持っている手札を一つ実演して見せる。', '器用さで誤魔化すほど信用が削れます。', '手順を公開し、できることだけを約束する。'],
@@ -46,7 +71,8 @@ const MAJOR_CARDS = [
     name,
     label: name,
     meta: `大アルカナ ${number}`,
-    search: `${name} 大アルカナ major ${number}`,
+    keywords: MAJOR_CARD_WORDS[Number(number)] || {},
+    search: `${name} 大アルカナ major ${number} ${Object.values(MAJOR_CARD_WORDS[Number(number)] || {}).join(' ')}`,
     meanings: {
         upright: { truth: uprightTruth, action: uprightAction },
         reversed: { truth: reversedTruth, action: reversedAction }
@@ -2353,6 +2379,10 @@ function getSimpleTopicSubject(topicId, topicLabel) {
 
 function getCardDisplayMeta(card, orientationId) {
     const direction = ORIENTATIONS[orientationId] ? orientationId : 'upright';
+    if (card?.kind === 'major') {
+        const words = card.keywords?.[direction] || card.keywords?.upright || `No.${String(card.number).padStart(2, '0')}`;
+        return `大アルカナ / ${words}`;
+    }
     if (card?.kind === 'minor') {
         const words = card.keywords?.[direction] || card.keywords?.upright || card.suitLabel;
         return `小アルカナ / ${words}`;

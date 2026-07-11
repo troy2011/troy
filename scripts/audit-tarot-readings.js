@@ -55,6 +55,7 @@ this.__tarotAudit = {
   getWeatherStatus,
   getStanceId,
   READING_PROFILES,
+  MAJOR_CARD_WORDS,
   SIMPLE_MAJOR_THEMES,
   SIMPLE_MAJOR_TOPIC_THEMES,
   SIMPLE_MINOR_THEMES,
@@ -210,11 +211,24 @@ function collectMinorCardWordCoverage(tables) {
     return missing;
 }
 
+function collectMajorCardWordCoverage(tables) {
+    const missing = [];
+    MAJOR_KEYS.forEach((number) => {
+        ORIENTATIONS.forEach((orientation) => {
+            if (!String(tables.MAJOR_CARD_WORDS?.[Number(number)]?.[orientation] || '').trim()) {
+                missing.push(`major_${number.padStart(2, '0')}:${orientation}`);
+            }
+        });
+    });
+    return missing;
+}
+
 function main() {
     const tables = loadTables();
     const readings = collectReadings(tables);
     const weatherStatuses = collectWeatherStatuses(tables);
     const missingSimpleMeanings = collectSimpleMeaningCoverage(tables);
+    const missingMajorCardWords = collectMajorCardWordCoverage(tables);
     const missingMinorCardWords = collectMinorCardWordCoverage(tables);
     const profileGaps = collectProfileGaps(tables);
     const stanceCoverage = collectStanceCoverage(tables);
@@ -254,6 +268,7 @@ function main() {
     if (!weatherStatuses.some((entry) => entry.status?.level === 1)) errors.push('weather level 1 is missing');
     if (!weatherStatuses.some((entry) => entry.status?.level === 10)) errors.push('weather level 10 is missing');
     if (missingSimpleMeanings.length) errors.push(`${missingSimpleMeanings.length} simple card meanings are missing`);
+    if (missingMajorCardWords.length) errors.push(`${missingMajorCardWords.length} major card words are missing`);
     if (missingMinorCardWords.length) errors.push(`${missingMinorCardWords.length} minor card words are missing`);
     if (profileGaps.length) errors.push(`${profileGaps.length} reading profile entries are missing`);
     if (stanceCoverage.invalid.length) errors.push(`${stanceCoverage.invalid.length} invalid stances found`);
@@ -269,6 +284,7 @@ function main() {
         flagged.slice(0, 20).forEach((entry) => console.error(`red-flag: ${entry.topicId}:${entry.loc}:${entry.orientation} [${entry.hits.join(', ')}]`));
         invalidWeather.slice(0, 20).forEach((entry) => console.error(`weather: ${entry.cardId}:${entry.orientation} ${JSON.stringify(entry.status)}`));
         missingSimpleMeanings.slice(0, 20).forEach((entry) => console.error(`simple-meaning: ${entry}`));
+        missingMajorCardWords.slice(0, 20).forEach((entry) => console.error(`major-card-word: ${entry}`));
         missingMinorCardWords.slice(0, 20).forEach((entry) => console.error(`minor-card-word: ${entry}`));
         profileGaps.slice(0, 20).forEach((entry) => console.error(`profile: ${entry}`));
         stanceCoverage.invalid.slice(0, 20).forEach((entry) => console.error(`stance: ${entry}`));
@@ -276,7 +292,7 @@ function main() {
     }
 
     const weatherLevels = [...new Set(weatherStatuses.map((entry) => entry.status.level))].sort((a, b) => a - b);
-    console.log(`[tarot-audit] OK ${Object.entries(summary).map(([topicId, count]) => `${topicId}:${count}`).join(' ')} weather:${weatherStatuses.length} simple:${44 + (RICH_TOPIC_IDS.length * 44) + 112} minorWords:112 levels:${weatherLevels.join(',')} stances:${stanceCoverage.used.sort().join(',')}`);
+    console.log(`[tarot-audit] OK ${Object.entries(summary).map(([topicId, count]) => `${topicId}:${count}`).join(' ')} weather:${weatherStatuses.length} simple:${44 + (RICH_TOPIC_IDS.length * 44) + 112} majorWords:44 minorWords:112 levels:${weatherLevels.join(',')} stances:${stanceCoverage.used.sort().join(',')}`);
 }
 
 main();

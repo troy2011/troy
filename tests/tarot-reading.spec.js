@@ -47,6 +47,7 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await expect(page.locator('#tarotCustomerRef')).toHaveValue('TROY:CUSTOMER123');
 
   await page.locator('[data-card-id="major-0"]').click();
+  await expect(page.locator('#tarotSelectedMeta')).toHaveText('大アルカナ / 自由、始まり / 正位置');
   await expect(page.locator('#tarotWeatherStatus')).toBeVisible();
   await expect(page.locator('#tarotWeatherLevel')).toHaveText('Lv.6');
   await expect(page.locator('#tarotWeatherTitle')).toHaveText('凪・風速ゼロ');
@@ -72,6 +73,7 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
 
   await page.locator('[data-card-id="major-21"]').click();
   await page.locator('[data-orientation="reversed"]').click();
+  await expect(page.locator('#tarotSelectedMeta')).toHaveText('大アルカナ / 未完成、詰め甘さ / 逆位置');
   await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】世界 \/ 逆位置/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/信頼の船底にヒビ/);
 
