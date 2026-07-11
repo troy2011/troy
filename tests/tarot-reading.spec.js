@@ -34,10 +34,18 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await page.locator('#tarotScanCustomer').click();
   await expect(page.locator('#tarotCustomerRef')).toHaveValue('TROY:CUSTOMER123');
 
-  await page.locator('#tarotTopicList [data-topic-id="love"]').click();
   await page.locator('[data-card-id="major-0"]').click();
+  await expect(page.locator('#tarotResultText')).toHaveValue(/【総合】愚者 \/ 正位置/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/厳しい見立て/);
+  await expect(page.locator('#tarotResultText')).not.toHaveValue(/カードが示す核心/);
+
+  await page.locator('#tarotTopicList [data-topic-id="love"]').click();
   await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】愚者 \/ 正位置/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/愛が味方してくれるとでも/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/結論:/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/カードが示す核心:/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/次に取るべき一手:/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/やってはいけないこと:/);
   await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
 
   await page.locator('[data-card-id="major-21"]').click();
@@ -57,6 +65,9 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】カップ A \/ 正位置/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/新しい恋への期待/);
   await expect(page.locator('#tarotResultText')).not.toHaveValue(/人間関係への期待/);
+  await expect(page.locator('#tarotStaffGuide')).toBeVisible();
+  await expect(page.locator('#tarotStaffOpening')).toContainText('押すより整える恋');
+  await expect(page.locator('#tarotStaffQuestion')).toContainText('相手に一番聞きたいこと');
 
   await page.locator('[data-card-id="cup-7"]').click();
   await page.locator('[data-orientation="reversed"]').click();
@@ -86,6 +97,7 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await page.locator('[data-orientation="reversed"]').click();
   await expect(page.locator('#tarotResultText')).toHaveValue(/【人間関係】死神 \/ 逆位置/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/往生際が悪い/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/やってはいけないこと:/);
   await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
 
   await page.locator('#tarotDeckTabs [data-deck-id="wand"]').click();
@@ -116,6 +128,7 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await page.locator('[data-orientation="reversed"]').click();
   await expect(page.locator('#tarotResultText')).toHaveValue(/【将来】死神 \/ 逆位置/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/往生際が悪い/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/船長の一言:/);
   await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
 
   await page.locator('#tarotDeckTabs [data-deck-id="wand"]').click();
@@ -147,6 +160,7 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await page.locator('[data-orientation="reversed"]').click();
   await expect(page.locator('#tarotResultText')).toHaveValue(/【仕事】ワンド 10 \/ 逆位置/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/強制的な損切り/);
+  await expect(page.locator('#tarotResultText')).toHaveValue(/今起きていること:/);
   await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
 
   await page.locator('#tarotDeckTabs [data-deck-id="cup"]').click();
@@ -200,6 +214,9 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   });
   expect(sendRequests[0].resultText).toContain('【仕事】塔 / 逆位置');
   expect(sendRequests[0].resultText).toContain('大炎上の余波');
+  expect(sendRequests[0].resultText).toContain('カードが示す核心');
   expect(sendRequests[0].resultText).not.toContain('厳しい見立て');
+  expect(sendRequests[0].resultText).not.toContain('スタッフ補助');
+  expect(sendRequests[0].resultText).not.toContain('最初にこう伝える');
   await expect(page.locator('#tarotReadingStatus')).toContainText('送信済み');
 });

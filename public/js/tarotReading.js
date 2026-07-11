@@ -1455,6 +1455,130 @@ const DECK_TABS = [
     { id: 'pentacle', label: '金貨' }
 ];
 
+const RICH_READING_TOPIC_IDS = new Set(['love', 'work', 'relation', 'future']);
+
+const RICH_READING_PROFILES = {
+    love: {
+        conclusion: {
+            upright: 'この恋は、感情だけで押すより「相手が安心して動ける条件」を整えた者が勝つ。',
+            reversed: 'この恋は、焦りや執着を一度切らないと、相手の心より先にお前さんの余裕が沈む。'
+        },
+        situation: {
+            upright: '相手の反応を追いすぎるほど、こちらの価値は安く見える。今は好意を見せる量と、引く線の両方を整える場面だ。',
+            reversed: '不安が舵を握っている。相手を見る前に、自分が何を恐れているのかを切り分けないと、同じ失敗を繰り返す。'
+        },
+        action: {
+            upright: '短い本音を一つだけ出せ。返事を急がせず、相手が動ける余白を残すことが勝ち筋だ。',
+            reversed: '今日は追撃より整理だ。連絡、詮索、試し行動を減らし、自分の尊厳を守る一線を先に決めろ。'
+        },
+        taboo: {
+            upright: '相手を試す、返事の速さで愛情を測る、寂しさを恋と勘違いする。この三つはやめな。',
+            reversed: '不安をぶつける、過去の傷を相手に払わせる、都合のいい解釈に逃げる。この三つは船底に穴を開ける。'
+        },
+        closing: {
+            upright: '恋は奪うだけじゃ続かん。相手の心に停泊できるだけの器を見せろ。',
+            reversed: '縋るほど安くなる。まずは自分の値札を貼り直しな。'
+        },
+        staffOpening: {
+            upright: 'このカードは、押すより整える恋だと伝えてください。',
+            reversed: 'このカードは、焦りを止める恋だと伝えてください。'
+        },
+        staffReassure: '悪い結果として断定せず、「今のまま進むと損をするから、動き方を変えるカード」と補足してください。',
+        staffQuestion: '相手に一番聞きたいことは、返事ですか、気持ちですか、それとも今後の約束ですか。'
+    },
+    work: {
+        conclusion: {
+            upright: 'この仕事は、気合いより段取りと数字で勝つ場面だ。感情ではなく成果物で主導権を握れ。',
+            reversed: 'この仕事は、無理に押すほど損失が広がる。まず止血し、守るべき成果と捨てる作業を分けろ。'
+        },
+        situation: {
+            upright: '評価や成果は、見えない努力ではなく提出された結果で決まる。今は自分の働きを相手に分かる形へ変える時だ。',
+            reversed: '責任、期限、期待値のどれかが曖昧になっている。曖昧なまま進むほど、あとでお前さんの首が締まる。'
+        },
+        action: {
+            upright: '今日の一手は、担当、期限、成果物を一枚にまとめることだ。口約束を減らし、記録に残せ。',
+            reversed: '抱え込みをやめろ。止める作業、相談する相手、確認すべき数字を三つに分けて処理しな。'
+        },
+        taboo: {
+            upright: '根拠のない強気、場当たりの返事、締切の先延ばし。この三つは信用を削る。',
+            reversed: '見栄で引き受ける、問題を隠す、誰かのせいにして手を止める。この三つは沈没コースだ。'
+        },
+        closing: {
+            upright: '仕事の海では、結果を見せた者が船長だ。遠慮せず旗を掲げろ。',
+            reversed: '勇気と無茶は別物だ。撤退線を引ける奴だけが次の商機を拾える。'
+        },
+        staffOpening: {
+            upright: 'このカードは、仕事を数字と段取りで立て直すカードだと伝えてください。',
+            reversed: 'このカードは、無理を止めて損失を小さくするカードだと伝えてください。'
+        },
+        staffReassure: '責めるより、「どこを整理すれば評価が戻るか」を一緒に見る流れにしてください。',
+        staffQuestion: '今いちばん詰まっているのは、期限、評価、人間関係、作業量のどれですか。'
+    },
+    relation: {
+        conclusion: {
+            upright: 'この関係は、優しさだけではなく境界線で守る場面だ。誰を味方にし、誰と距離を置くかを決めろ。',
+            reversed: 'この関係は、我慢を続けるほど舐められる。沈黙ではなく、距離と条件で自分を守れ。'
+        },
+        situation: {
+            upright: '周囲の空気に流されるほど、本音が見えなくなる。今は相手の言葉より、行動と利害を見る時だ。',
+            reversed: '不満や誤解が溜まっている。丸く収めようとするほど、あとで大きな衝突になる。'
+        },
+        action: {
+            upright: '守る線と譲る線を一つずつ決めろ。言うべきことは短く、ただし曖昧に濁すな。',
+            reversed: '距離を置く相手を決めな。全員に良い顔をするほど、味方まで失う。'
+        },
+        taboo: {
+            upright: '八方美人、陰口への便乗、相手任せの期待。この三つは信頼を薄める。',
+            reversed: '我慢のしすぎ、感情的な爆発、証拠のない疑い。この三つは関係を壊す大砲だ。'
+        },
+        closing: {
+            upright: '本物の仲間は、境界線を引いても残る。残らん奴は最初から荷物だ。',
+            reversed: '嫌われないための我慢は、最後に自分を裏切る。先に舵を切れ。'
+        },
+        staffOpening: {
+            upright: 'このカードは、人付き合いを境界線で整えるカードだと伝えてください。',
+            reversed: 'このカードは、我慢しすぎた関係を見直すカードだと伝えてください。'
+        },
+        staffReassure: '誰かを悪者にしすぎず、「どの距離なら自分を守れるか」に話を戻してください。',
+        staffQuestion: 'その相手とは、近づきたいですか、距離を置きたいですか、それとも条件を変えたいですか。'
+    },
+    future: {
+        conclusion: {
+            upright: 'この未来は、待つものではなく舵を切って作るものだ。小さくても今日の決断が航路を変える。',
+            reversed: 'この未来は、恐れたまま先延ばしにすると狭くなる。まず現実の制約と撤退条件を見ろ。'
+        },
+        situation: {
+            upright: '可能性はある。ただし夢だけでは帆は張れん。今は理想を、実行できる一歩へ落とし込む時だ。',
+            reversed: '選択肢が多いようで、実は迷いが視界を濁らせている。欲しい未来と捨てる未来を分ける必要がある。'
+        },
+        action: {
+            upright: '次の一手は、いつ、何を、どこまで進めるかを決めることだ。大きな覚悟より、今日の実行を優先しな。',
+            reversed: '無理に進むな。今は情報、体力、資金、時間の不足を洗い出し、穴を塞いでから帆を張れ。'
+        },
+        taboo: {
+            upright: '夢を語るだけ、準備を後回しにする、撤退条件を決めない。この三つは未来を食い潰す。',
+            reversed: '怖さを理由に止まる、過去の失敗を言い訳にする、他人の航路を真似る。この三つは漂流だ。'
+        },
+        closing: {
+            upright: '未来は占いで決まるんじゃない。カードが示した潮目に、どう舵を切るかで決まる。',
+            reversed: '遅れても終わりじゃない。だが、目を逸らしたままなら確実に沈む。'
+        },
+        staffOpening: {
+            upright: 'このカードは、未来を具体的な一歩に落とすカードだと伝えてください。',
+            reversed: 'このカードは、焦らず現実の穴を塞ぐカードだと伝えてください。'
+        },
+        staffReassure: '未来を断定せず、「今の選択で変えられる部分」を強調してください。',
+        staffQuestion: '半年後に一番変えたいのは、環境、仕事、人間関係、自分自身のどれですか。'
+    }
+};
+
+const SUIT_RICH_NOTES = {
+    wand: 'ワンドは熱量と行動の札だ。勢いは武器になるが、向ける先を間違えるとただの火事になる。',
+    sword: 'ソードは判断と言葉の札だ。甘い感情より、事実を切り分ける冷たい刃が必要になる。',
+    cup: 'カップは感情と受け取り方の札だ。心の揺れを否定せず、溺れない距離で扱うことが鍵になる。',
+    pentacle: 'ペンタクルは現実と積み重ねの札だ。気分ではなく、形に残る行動と信頼がものを言う。'
+};
+
 const state = {
     topicId: 'overall',
     orientation: 'upright',
@@ -1542,6 +1666,84 @@ function getSpecialReadingBody(topicId, card, orientationId) {
         }
     }
     return '';
+}
+
+function isRichReadingTopic(topicId) {
+    return RICH_READING_TOPIC_IDS.has(topicId);
+}
+
+function getCardContextLine(card) {
+    if (!card) return '';
+    if (card.kind === 'major') {
+        return '大アルカナなので、これは一時の気分ではなく流れそのものに出ている札だ。軽く扱うな。';
+    }
+    return SUIT_RICH_NOTES[card.suitId] || '';
+}
+
+function buildRichReading(topic, card, orientationId, meaning, specialBody) {
+    const profile = RICH_READING_PROFILES[topic.id];
+    const orientation = ORIENTATIONS[orientationId] || ORIENTATIONS.upright;
+    const title = `【${topic.label}】${card.label} / ${orientation.label}`;
+    const core = formatReadingBody(specialBody);
+    const contextLine = getCardContextLine(card);
+    const action = meaning?.action ? `${profile.action[orientationId]} ${meaning.action}` : profile.action[orientationId];
+
+    return [
+        title,
+        '',
+        `結論: ${profile.conclusion[orientationId]}`,
+        '',
+        'カードが示す核心:',
+        core,
+        '',
+        `今起きていること: ${profile.situation[orientationId]}${contextLine ? ` ${contextLine}` : ''}`,
+        '',
+        `次に取るべき一手: ${action}`,
+        '',
+        `やってはいけないこと: ${profile.taboo[orientationId]}`,
+        '',
+        `船長の一言: ${profile.closing[orientationId]}`
+    ].join('\n');
+}
+
+function buildStaffGuidance() {
+    const card = getSelectedCard();
+    const topic = getTopic();
+    const orientationId = state.orientation;
+    const orientation = ORIENTATIONS[orientationId] || ORIENTATIONS.upright;
+    const profile = RICH_READING_PROFILES[topic.id];
+
+    if (!card) {
+        return {
+            opening: 'まずカードを選んでください。選んだカード名を見せてから、結果を短く伝えると安心感が出ます。',
+            reassure: '結果を断定しすぎず、「今から変えられる部分」を一つ添えてください。',
+            question: '今日いちばん聞きたいことを、一つだけ選んでもらってください。'
+        };
+    }
+
+    if (!profile) {
+        return {
+            opening: `${card.label}の${orientation.label}です。まず結論を短く伝えてから、本文を読み上げてください。`,
+            reassure: '通常カテゴリなので、結果本文の「次の一手」を最後にもう一度繰り返してください。',
+            question: 'この結果を聞いて、今日すぐ動けそうなことは何ですか。'
+        };
+    }
+
+    return {
+        opening: `${profile.staffOpening[orientationId]} カード名は「${card.label} / ${orientation.label}」です。`,
+        reassure: profile.staffReassure,
+        question: profile.staffQuestion
+    };
+}
+
+function updateStaffGuidance() {
+    const guide = buildStaffGuidance();
+    const opening = $('tarotStaffOpening');
+    const reassure = $('tarotStaffReassure');
+    const question = $('tarotStaffQuestion');
+    if (opening) opening.textContent = guide.opening;
+    if (reassure) reassure.textContent = guide.reassure;
+    if (question) question.textContent = guide.question;
 }
 
 function setStatus(message, tone = '') {
@@ -1668,6 +1870,9 @@ function buildReading() {
     const title = `【${topic.label}】${card.label} / ${orientation.label}`;
     const specialBody = getSpecialReadingBody(topic.id, card, state.orientation);
     if (specialBody) {
+        if (isRichReadingTopic(topic.id)) {
+            return buildRichReading(topic, card, state.orientation, meaning, specialBody);
+        }
         return [
             title,
             '',
@@ -1719,6 +1924,7 @@ function updateSelectedCardPreview() {
 
 function updateResult() {
     updateSelectedCardPreview();
+    updateStaffGuidance();
     const textarea = $('tarotResultText');
     if (!textarea) return;
     const generated = buildReading();
