@@ -84,8 +84,10 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await page.locator('#tarotDeckTabs [data-deck-id="cup"]').click();
   await page.locator('[data-card-id="cup-1"]').click();
   await page.locator('[data-orientation="upright"]').click();
+  await expect(page.locator('#tarotSelectedMeta')).toHaveText('小アルカナ / 純愛、感受性 / 正位置');
   await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】カップ A \/ 正位置/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/新しい恋への期待/);
+  await expect(page.locator('#tarotSelectedMeta')).not.toHaveText(/感情、愛情、受け取り方/);
   await expect(page.locator('#tarotResultText')).not.toHaveValue(/人間関係への期待/);
   await expect(page.locator('#tarotStaffGuide')).toBeVisible();
   await expect(page.locator('#tarotStaffOpening')).toContainText('丁寧に進めるほど実る恋');
@@ -97,6 +99,7 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   await expect(page.locator('#tarotResultText')).toHaveValue(/恋愛計画が、ただのペテン/);
 
   await page.locator('[data-card-id="cup-king"]').click();
+  await expect(page.locator('#tarotSelectedMeta')).toHaveText('小アルカナ / 薄情、二枚舌 / 逆位置');
   await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】カップ キング \/ 逆位置/);
   await expect(page.locator('#tarotResultText')).toHaveValue(/器の小さい船長の醜態/);
 

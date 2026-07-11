@@ -1381,6 +1381,73 @@ const RANKS = [
     ['king', 'キング', '決める側に立つカードです。曖昧な号令は船を迷わせます。', '威厳のふりをした意地が出ています。', '結論と期限をはっきり出す']
 ];
 
+const MINOR_CARD_WORDS = {
+    wand: {
+        1: { upright: '着火、衝動', reversed: '不発、停滞' },
+        2: { upright: '展望、選択', reversed: '迷走、優柔不断' },
+        3: { upright: '拡大、待機', reversed: '遅延、見込み違い' },
+        4: { upright: '安定、祝宴', reversed: '緩み、不和' },
+        5: { upright: '競争、摩擦', reversed: '消耗、撤退' },
+        6: { upright: '勝利、称賛', reversed: '空虚な勝利、横取り' },
+        7: { upright: '防衛、主張', reversed: '劣勢、妥協' },
+        8: { upright: '急展開、伝達', reversed: '暴走、遅延' },
+        9: { upright: '警戒、持久', reversed: '被害妄想、疲弊' },
+        10: { upright: '重荷、責任', reversed: '荷下ろし、限界' },
+        page: { upright: '吉報、好奇心', reversed: '軽率、空回り' },
+        knight: { upright: '突進、行動力', reversed: '暴走、短気' },
+        queen: { upright: '魅力、自信', reversed: '嫉妬、支配欲' },
+        king: { upright: '指導力、決断', reversed: '独裁、傲慢' }
+    },
+    sword: {
+        1: { upright: '決断、真実', reversed: '迷い、混乱' },
+        2: { upright: '保留、均衡', reversed: '現実直視、決断' },
+        3: { upright: '傷心、痛み', reversed: '回復、受容' },
+        4: { upright: '休息、静養', reversed: '再始動、焦り' },
+        5: { upright: '争い、勝利の代償', reversed: '敗北、屈辱' },
+        6: { upright: '移動、避難', reversed: '停滞、逃げ遅れ' },
+        7: { upright: '策略、隠密', reversed: '露見、不誠実' },
+        8: { upright: '束縛、思い込み', reversed: '解放、突破口' },
+        9: { upright: '不安、後悔', reversed: '夜明け、回復' },
+        10: { upright: '終焉、破滅', reversed: '再起、危機回避' },
+        page: { upright: '警戒、観察', reversed: '毒舌、疑心暗鬼' },
+        knight: { upright: '迅速、突破', reversed: '無謀、暴走' },
+        queen: { upright: '冷静、分析', reversed: '批判、孤立' },
+        king: { upright: '裁き、権威', reversed: '冷酷、支配' }
+    },
+    cup: {
+        1: { upright: '純愛、感受性', reversed: '失望、心の渇き' },
+        2: { upright: '絆、共鳴', reversed: '破談、すれ違い' },
+        3: { upright: '祝福、連帯', reversed: '馴れ合い、悪評' },
+        4: { upright: '倦怠、無関心', reversed: '再開、受容' },
+        5: { upright: '喪失、後悔', reversed: '立ち直り、再生' },
+        6: { upright: '郷愁、思い出', reversed: '過去執着、幼さ' },
+        7: { upright: '空想、誘惑', reversed: '幻滅、現実直視' },
+        8: { upright: '離脱、卒業', reversed: '未練、停滞' },
+        9: { upright: '満足、願望成就', reversed: '堕落、虚しさ' },
+        10: { upright: '幸福、調和', reversed: '不和、内側の不満' },
+        page: { upright: '直感、夢見', reversed: '甘え、妄想' },
+        knight: { upright: '優しさ、提案', reversed: '気まぐれ、逃避' },
+        queen: { upright: '共感、包容', reversed: '情緒不安定、依存' },
+        king: { upright: '寛大、成熟', reversed: '薄情、二枚舌' }
+    },
+    pentacle: {
+        1: { upright: '好機、基盤', reversed: '機会損失、不安定' },
+        2: { upright: 'やりくり、変化', reversed: '自転車操業、混乱' },
+        3: { upright: '協力、技能', reversed: '手抜き、未熟' },
+        4: { upright: '所有、守り', reversed: '浪費、流出' },
+        5: { upright: '貧困、孤立', reversed: '回復、援助' },
+        6: { upright: '分配、支援', reversed: '搾取、不平等' },
+        7: { upright: '評価、忍耐', reversed: '不毛、見切り' },
+        8: { upright: '努力、熟練', reversed: '手抜き、飽き' },
+        9: { upright: '自立、洗練', reversed: '見栄、虚飾' },
+        10: { upright: '継承、安定', reversed: '内輪揉め、分裂' },
+        page: { upright: '堅実、学び', reversed: '視野狭窄、機会逃し' },
+        knight: { upright: '忠実、継続', reversed: '頑固、停滞' },
+        queen: { upright: '養育、管理', reversed: '独占欲、過保護' },
+        king: { upright: '富、支配力', reversed: '守銭奴、腐敗' }
+    }
+};
+
 const DECK_TABS = [
     { id: 'major', label: '大' },
     { id: 'wand', label: 'ワンド' },
@@ -2150,7 +2217,8 @@ const minorCards = Object.entries(SUITS).flatMap(([suitId, suit]) => RANKS.map((
     name: `${suit.label} ${rankLabel}`,
     label: `${suit.label} ${rankLabel}`,
     meta: `小アルカナ / ${suit.field}`,
-    search: `${suit.label} ${rankLabel} 小アルカナ ${suitId} ${rankId}`,
+    keywords: MINOR_CARD_WORDS[suitId]?.[rankId] || {},
+    search: `${suit.label} ${rankLabel} 小アルカナ ${suitId} ${rankId} ${Object.values(MINOR_CARD_WORDS[suitId]?.[rankId] || {}).join(' ')}`,
     meanings: {
         upright: { truth: uprightTruth, action },
         reversed: { truth: reversedTruth, action }
@@ -2281,6 +2349,15 @@ function getFirstSentence(text) {
 
 function getSimpleTopicSubject(topicId, topicLabel) {
     return SIMPLE_TOPIC_SUBJECTS[topicId] || `この${topicLabel}`;
+}
+
+function getCardDisplayMeta(card, orientationId) {
+    const direction = ORIENTATIONS[orientationId] ? orientationId : 'upright';
+    if (card?.kind === 'minor') {
+        const words = card.keywords?.[direction] || card.keywords?.upright || card.suitLabel;
+        return `小アルカナ / ${words}`;
+    }
+    return card?.meta || '';
 }
 
 function buildSimpleCardMeaning(topic, card, orientationId, meaning) {
@@ -2540,7 +2617,7 @@ function updateSelectedCardPreview() {
 
     if (numberEl) numberEl.textContent = card.kind === 'major' ? `No.${String(card.number).padStart(2, '0')}` : card.rankLabel;
     if (nameEl) nameEl.textContent = card.label;
-    if (metaEl) metaEl.textContent = `${card.meta} / ${ORIENTATIONS[state.orientation].label}`;
+    if (metaEl) metaEl.textContent = `${getCardDisplayMeta(card, state.orientation)} / ${ORIENTATIONS[state.orientation].label}`;
 }
 
 function updateWeatherStatus() {
