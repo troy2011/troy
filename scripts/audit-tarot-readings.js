@@ -112,7 +112,6 @@ function collectWeatherStatuses(tables) {
 const PROFILE_TOPICS = ['overall', 'love', 'work', 'relation', 'future', 'money', 'today'];
 const PROFILE_SECTIONS = ['conclusion', 'situation', 'action', 'taboo', 'closing'];
 const STANCE_IDS = ['charge', 'advance', 'hold', 'guard', 'cut'];
-const STAFF_PROFILE_TOPICS = ['love', 'work', 'relation', 'future'];
 const RICH_TOPIC_IDS = ['love', 'work', 'relation', 'future'];
 
 function collectProfileGaps(tables) {
@@ -135,15 +134,6 @@ function collectProfileGaps(tables) {
                 gaps.push(`${topicId}.simpleAction.${stance}`);
             }
         });
-        if (STAFF_PROFILE_TOPICS.includes(topicId)) {
-            STANCE_IDS.forEach((stance) => {
-                if (!String(profile.staffOpening?.[stance] || '').trim()) {
-                    gaps.push(`${topicId}.staffOpening.${stance}`);
-                }
-            });
-            if (!String(profile.staffReassure || '').trim()) gaps.push(`${topicId}.staffReassure`);
-            if (!String(profile.staffQuestion || '').trim()) gaps.push(`${topicId}.staffQuestion`);
-        }
     });
     return gaps;
 }

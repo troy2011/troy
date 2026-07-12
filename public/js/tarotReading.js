@@ -1971,16 +1971,7 @@ const READING_PROFILES = {
             hold: '凪の海で漕ぎ急ぐな。見えてから動く奴が、一番遠くまで行く。',
             guard: '縋るほど値が下がるのが恋の相場だ。まずは自分の値札を貼り直しな。',
             cut: '沈む船と心中する義理はねえ。お前さんの航海は、まだ終わっちゃいない。'
-        },
-        staffOpening: {
-            charge: 'このカードは、思い切って動くほど良い恋だと伝えてください。',
-            advance: 'このカードは、丁寧に進めるほど実る恋だと伝えてください。',
-            hold: 'このカードは、押すより見極める恋だと伝えてください。',
-            guard: 'このカードは、焦りを止めて整える恋だと伝えてください。',
-            cut: 'このカードは、自分を守ることが先の恋だと伝えてください。'
-        },
-        staffReassure: '悪い結果として断定せず、「今のまま進むと損をするから、動き方を変えるカード」と補足してください。',
-        staffQuestion: '相手に一番聞きたいことは、返事ですか、気持ちですか、それとも今後の約束ですか。'
+        }
     },
     work: {
         conclusion: {
@@ -2017,16 +2008,7 @@ const READING_PROFILES = {
             hold: '凪の日の整備が、追い風の日の速さを決める。地味な一日を舐めるなよ。',
             guard: '勇気と無茶は別物だ。撤退線を引ける奴だけが、次の商機を拾える。',
             cut: '船は沈んでも、船乗りの腕は沈まねえ。積んだ経験ごと次の船へ乗り換えな。'
-        },
-        staffOpening: {
-            charge: 'このカードは、成果を堂々と見せにいくカードだと伝えてください。',
-            advance: 'このカードは、段取りと記録で評価を固めるカードだと伝えてください。',
-            hold: 'このカードは、足元を整えて次に備えるカードだと伝えてください。',
-            guard: 'このカードは、守りを固めて損失を防ぐカードだと伝えてください。',
-            cut: 'このカードは、撤退線を決めて立て直すカードだと伝えてください。'
-        },
-        staffReassure: '責めるより、「どこを整理すれば評価が戻るか」を一緒に見る流れにしてください。',
-        staffQuestion: '今いちばん詰まっているのは、期限、評価、周囲との連携、作業量のどれですか。'
+        }
     },
     relation: {
         conclusion: {
@@ -2063,16 +2045,7 @@ const READING_PROFILES = {
             hold: '言葉は風、行動は錨だ。錨の方だけ信じておきな。',
             guard: '嫌われないための我慢は、最後に自分を裏切る。先に舵を切れ。',
             cut: '縁を切るのは冷たさじゃねえ、航路の整理だ。空いた席には、次の仲間が座る。'
-        },
-        staffOpening: {
-            charge: 'このカードは、堂々と輪の中心に立てるカードだと伝えてください。',
-            advance: 'このカードは、小さな義理で信頼を深めるカードだと伝えてください。',
-            hold: 'このカードは、相手を見極める時間のカードだと伝えてください。',
-            guard: 'このカードは、境界線を引き直すカードだと伝えてください。',
-            cut: 'このカードは、縁の整理で自分を守るカードだと伝えてください。'
-        },
-        staffReassure: '誰かを悪者にしすぎず、「どの距離なら自分を守れるか」に話を戻してください。',
-        staffQuestion: 'その相手とは、近づきたいですか、距離を置きたいですか、それとも条件を変えたいですか。'
+        }
     },
     future: {
         conclusion: {
@@ -2109,16 +2082,7 @@ const READING_PROFILES = {
             hold: '急がば回れも航海術のうちだ。方角さえ決まれば、船は勝手に速くなる。',
             guard: '遅れても終わりじゃない。だが、目を逸らしたままなら確実に沈む。',
             cut: '終わりってのは、海図の端に着いただけのことだ。世界の海はまだ広い。'
-        },
-        staffOpening: {
-            charge: 'このカードは、大きな一歩を踏み出せるカードだと伝えてください。',
-            advance: 'このカードは、計画を現実の一歩に変えるカードだと伝えてください。',
-            hold: 'このカードは、方角を見定める時間のカードだと伝えてください。',
-            guard: 'このカードは、足場の穴を先に塞ぐカードだと伝えてください。',
-            cut: 'このカードは、古い航路を手放して再出発するカードだと伝えてください。'
-        },
-        staffReassure: '未来を断定せず、「今の選択で変えられる部分」を強調してください。',
-        staffQuestion: '半年後に一番変えたいのは、環境、仕事、人間関係、自分自身のどれですか。'
+        }
     },
     overall: {
         conclusion: {
@@ -2423,6 +2387,8 @@ function buildRichReading(topic, card, orientationId, meaning, specialBody) {
     return [
         title,
         '',
+        ...weatherLines,
+        '',
         `このカードの意味: ${simpleMeaning}`,
         '',
         `結論: ${profile.conclusion[stance]}`,
@@ -2435,8 +2401,6 @@ function buildRichReading(topic, card, orientationId, meaning, specialBody) {
         '',
         '船長からの一言:',
         core,
-        '',
-        ...weatherLines,
         '',
         `船長の結び: ${profile.closing[stance]}`
     ].join('\n');
@@ -2453,6 +2417,8 @@ function buildStandardReading(topic, card, orientationId, meaning) {
     return [
         title,
         '',
+        ...weatherLines,
+        '',
         `このカードの意味: ${simpleMeaning}`,
         '',
         `結論: ${profile.conclusion[stance]}`,
@@ -2463,51 +2429,8 @@ function buildStandardReading(topic, card, orientationId, meaning) {
         '',
         `禁じ手: ${profile.taboo[stance]}`,
         '',
-        ...weatherLines,
-        '',
         `船長の結び: ${profile.closing[stance]}`
     ].join('\n');
-}
-
-function buildStaffGuidance() {
-    const card = getSelectedCard();
-    const topic = getTopic();
-    const orientationId = state.orientation;
-    const orientation = ORIENTATIONS[orientationId] || ORIENTATIONS.upright;
-    const profile = READING_PROFILES[topic.id];
-
-    if (!card) {
-        return {
-            opening: 'まずカードを選んでください。選んだカード名を見せてから、結果を短く伝えると安心感が出ます。',
-            reassure: '結果を断定しすぎず、「今から変えられる部分」を一つ添えてください。',
-            question: '今日いちばん聞きたいことを、一つだけ選んでもらってください。'
-        };
-    }
-
-    if (!profile?.staffOpening) {
-        return {
-            opening: `${card.label}の${orientation.label}です。まず「結論」を短く伝えてから、本文を読み上げてください。`,
-            reassure: '結果を断定しすぎず、本文の「次の一手」を最後にもう一度繰り返してください。',
-            question: 'この結果を聞いて、今日すぐ動けそうなことは何ですか。'
-        };
-    }
-
-    const stance = getStanceId(card, orientationId);
-    return {
-        opening: `${profile.staffOpening[stance]} カード名は「${card.label} / ${orientation.label}」です。`,
-        reassure: profile.staffReassure,
-        question: profile.staffQuestion
-    };
-}
-
-function updateStaffGuidance() {
-    const guide = buildStaffGuidance();
-    const opening = $('tarotStaffOpening');
-    const reassure = $('tarotStaffReassure');
-    const question = $('tarotStaffQuestion');
-    if (opening) opening.textContent = guide.opening;
-    if (reassure) reassure.textContent = guide.reassure;
-    if (question) question.textContent = guide.question;
 }
 
 function setStatus(message, tone = '') {
@@ -2688,7 +2611,6 @@ function updateWeatherStatus() {
 function updateResult() {
     updateSelectedCardPreview();
     updateWeatherStatus();
-    updateStaffGuidance();
     const textarea = $('tarotResultText');
     if (!textarea) return;
     const generated = buildReading();
