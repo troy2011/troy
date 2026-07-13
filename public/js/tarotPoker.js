@@ -267,6 +267,207 @@ let dailyFortuneInFlight = false;
 let potDisplayValue = null;
 let potRollAnimationId = 0;
 
+const DAILY_FORTUNE_WEATHER_STATUSES = {
+    10: {
+        windLabel: '最高',
+        verdict: '満帆にして進め。今日の海はお前さんの味方だ。'
+    },
+    9: {
+        windLabel: '絶好',
+        verdict: '獲物の船がよく見える。大砲の準備をしな。'
+    },
+    8: {
+        windLabel: '良好',
+        verdict: '悪くない波だ。今のうちに確実に距離を稼ぎな。'
+    },
+    7: {
+        windLabel: '追い風',
+        verdict: '霧の向こうに道が見えたぜ。先手を打ちにいくぞ。'
+    },
+    6: {
+        windLabel: '安定',
+        verdict: '波は穏やかだ。焦らず、船体を整えながら進め。'
+    },
+    5: {
+        windLabel: '停滞',
+        verdict: 'ジタバタ動くな。体力を減らさず、じっと舵を掴め。'
+    },
+    4: {
+        windLabel: '不穏',
+        verdict: '一寸先も見えん。見張り番を増やして武器を握っておけ。'
+    },
+    3: {
+        windLabel: '逆風',
+        verdict: 'マストが軋んでるぜ。余計な荷物は海に叩き落とせ。'
+    },
+    2: {
+        windLabel: '荒天',
+        verdict: '海に呑まれたくなければ、今はマストにしがみついていろ。'
+    },
+    1: {
+        windLabel: '最悪',
+        verdict: '船が真っ二つだな。だが、お前さんの心臓はまだ動いている。'
+    }
+};
+
+const DAILY_FORTUNE_MAJOR_WEATHER_LEVELS = {
+    0: { upright: 6, reversed: 4 },
+    1: { upright: 9, reversed: 3 },
+    2: { upright: 7, reversed: 4 },
+    3: { upright: 8, reversed: 4 },
+    4: { upright: 8, reversed: 3 },
+    5: { upright: 8, reversed: 5 },
+    6: { upright: 7, reversed: 3 },
+    7: { upright: 9, reversed: 3 },
+    8: { upright: 8, reversed: 4 },
+    9: { upright: 6, reversed: 4 },
+    10: { upright: 8, reversed: 5 },
+    11: { upright: 5, reversed: 3 },
+    12: { upright: 6, reversed: 3 },
+    13: { upright: 3, reversed: 2 },
+    14: { upright: 7, reversed: 4 },
+    15: { upright: 2, reversed: 6 },
+    16: { upright: 1, reversed: 2 },
+    17: { upright: 8, reversed: 4 },
+    18: { upright: 4, reversed: 7 },
+    19: { upright: 10, reversed: 6 },
+    20: { upright: 7, reversed: 3 },
+    21: { upright: 10, reversed: 5 }
+};
+
+const DAILY_FORTUNE_MINOR_WEATHER_LEVELS = {
+    upright: {
+        1: 8,
+        2: 6,
+        3: 7,
+        4: 6,
+        5: 4,
+        6: 8,
+        7: 5,
+        8: 8,
+        9: 6,
+        10: 3,
+        11: 7,
+        12: 8,
+        13: 8,
+        14: 9
+    },
+    reversed: {
+        1: 4,
+        2: 3,
+        3: 3,
+        4: 4,
+        5: 3,
+        6: 5,
+        7: 3,
+        8: 4,
+        9: 4,
+        10: 5,
+        11: 4,
+        12: 3,
+        13: 4,
+        14: 2
+    }
+};
+
+const DAILY_FORTUNE_MINOR_WEATHER_EXCEPTIONS = {
+    'sword-10': { upright: 1, reversed: 6 },
+    'sword-3': { upright: 2 },
+    'sword-8': { upright: 4 },
+    'cup-10': { upright: 10 },
+    'cup-9': { upright: 8 },
+    'pentacle-10': { upright: 9 },
+    'pentacle-9': { upright: 8 },
+    'wand-6': { upright: 9 },
+    'wand-7': { upright: 7 },
+    'wand-8': { upright: 9 },
+    'wand-10': { upright: 3 },
+    'pentacle-5': { upright: 3 },
+    'cup-5': { upright: 3 }
+};
+
+function normalizeDailyFortuneWeatherLevel(level) {
+    const value = Math.floor(Number(level) || 0);
+    if (value < 1) return 5;
+    if (value > 10) return 10;
+    return value;
+}
+
+function normalizeDailyFortuneSuit(value, fallback = '') {
+    const raw = `${String(value || '')} ${String(fallback || '')}`.toLowerCase();
+    if (raw.includes('wand')) return 'wand';
+    if (raw.includes('sword')) return 'sword';
+    if (raw.includes('cup')) return 'cup';
+    if (raw.includes('pentacle')) return 'pentacle';
+    return 'wand';
+}
+
+function getDailyFortuneWeatherStatus(result) {
+    const existing = result?.weather && typeof result.weather === 'object' ? result.weather : null;
+    if (existing?.windLabel && existing?.verdict) {
+        const level = normalizeDailyFortuneWeatherLevel(existing.level);
+        return {
+            level,
+            windLabel: String(existing.windLabel || DAILY_FORTUNE_WEATHER_STATUSES[level].windLabel),
+            verdict: String(existing.verdict || DAILY_FORTUNE_WEATHER_STATUSES[level].verdict)
+        };
+    }
+
+    const direction = String(result?.orientation || '') === 'reversed' ? 'reversed' : 'upright';
+    let level = 5;
+    if (result?.isArcana) {
+        level = DAILY_FORTUNE_MAJOR_WEATHER_LEVELS[Number(result?.cardNumber)]?.[direction] || 5;
+    } else {
+        const suit = normalizeDailyFortuneSuit(result?.suit, result?.cardId);
+        const rank = Number(result?.cardNumber) || 1;
+        const exceptionLevel = DAILY_FORTUNE_MINOR_WEATHER_EXCEPTIONS[`${suit}-${rank}`]?.[direction];
+        level = exceptionLevel || DAILY_FORTUNE_MINOR_WEATHER_LEVELS[direction]?.[rank] || 5;
+    }
+    const normalizedLevel = normalizeDailyFortuneWeatherLevel(level);
+    const status = DAILY_FORTUNE_WEATHER_STATUSES[normalizedLevel] || DAILY_FORTUNE_WEATHER_STATUSES[5];
+    return {
+        level: normalizedLevel,
+        windLabel: status.windLabel,
+        verdict: status.verdict
+    };
+}
+
+function getDailyFortuneStrikeLine(text) {
+    const sourceLines = String(text || '')
+        .split(/\n+/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+    const captainLineIndex = sourceLines.findIndex((line) => line === '船長からの一言:');
+    const contentLines = (captainLineIndex >= 0 ? sourceLines.slice(captainLineIndex + 1) : sourceLines)
+        .filter((line) => !/^風向き:/.test(line))
+        .filter((line) => !/^一言判定:/.test(line))
+        .filter((line) => line !== '船長からの一言:');
+    const sentences = contentLines
+        .flatMap((line) => line.match(/[^。！？!?]+[。！？!?]?/g) || [line])
+        .map((line) => line.trim())
+        .filter(Boolean);
+    if (sentences.length === 0) {
+        return '今日は足元を整え、次の波に備えな。';
+    }
+    const meaningfulLine = [...sentences].reverse().find((line) => {
+        const compact = line.replace(/[\s。、！？!?「」『』（）()…・]/g, '');
+        return compact.length >= 14;
+    });
+    return meaningfulLine || sentences[sentences.length - 1];
+}
+
+function buildDailyFortuneDisplayText(result) {
+    const fortune = String(result?.fortune || '').trim();
+    const weather = getDailyFortuneWeatherStatus(result);
+    const strikeLine = String(result?.strikeLine || '').replace(/\s*\n+\s*/g, ' ').trim()
+        || getDailyFortuneStrikeLine(fortune);
+    return [
+        `風向き: ${weather.windLabel}`,
+        '',
+        strikeLine
+    ].join('\n').trim();
+}
+
 function getNpcKeys() {
     return PLAYER_ORDER.filter((key) => key !== 'player');
 }
@@ -4756,7 +4957,7 @@ function renderDailyFortuneResultLegacy(result) {
     setDailyFortuneSubText('今日の航路が開きました。');
     setDailyFortuneMajorArcanaState(result, true);
     setDailyFortuneResultMeta(result);
-    textEl.textContent = String(result?.fortune || '');
+    textEl.textContent = buildDailyFortuneDisplayText(result);
     setDailyFortuneReward(result);
     showDailyFortuneRpgMessage(getDailyFortuneRewardText(result));
 }
@@ -4855,7 +5056,7 @@ function renderDailyFortuneResult(result, options = {}) {
         setDailyFortuneSubText('今日の航路が開きました。');
         setDailyFortuneMajorArcanaState(result, true);
         setDailyFortuneResultMeta(result);
-        textEl.textContent = String(result?.fortune || '');
+        textEl.textContent = buildDailyFortuneDisplayText(result);
         setDailyFortuneReward(result);
     };
 

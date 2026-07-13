@@ -109,6 +109,7 @@ test('daily tarot fortune modal shows clear draw and result states on mobile', a
           cardName: 'ワンドの7',
           orientation: 'upright',
           fortune: '追い風に乗って小さな勝負が進む日。',
+          strikeLine: '横槍が入る日だ。守る場所を一つに絞れ、そこで引かなければ主導権はお前さんに残る。',
           rewardPs: 7,
           rewardType: 'gold'
         }
@@ -156,7 +157,11 @@ test('daily tarot fortune modal shows clear draw and result states on mobile', a
   await page.locator('#dailyTarotFortuneCardHost .tarot-fortune-card-shell').click();
   await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText('ワンドの7');
   await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText('正位置');
-  await expect(page.locator('#dailyTarotFortuneText')).toContainText('追い風に乗って');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('風向き: 追い風');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('横槍が入る日だ。');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('主導権はお前さんに残る。');
+  await expect(page.locator('#dailyTarotFortuneText')).not.toContainText('一言判定:');
+  await expect(page.locator('#dailyTarotFortuneText')).not.toContainText('船長からの一言:');
   await expect(page.locator('#dailyTarotFortuneReward')).toContainText('+7G');
   await expect(modal).not.toHaveClass(/is-major-arcana/);
   await expect(page.locator('#dailyTarotFortuneArcanaBadge')).toBeHidden();
@@ -191,7 +196,15 @@ test('daily tarot fortune adds richer presentation after major arcana reveal', a
           effectType: 'None',
           cardName: '月',
           orientation: 'upright',
-          fortune: '霧が濃い日。怖さは合図です。噂ではなく一次情報で航路を確かめてください。',
+          fortune: [
+            '風向き: 不穏',
+            '一言判定: 一寸先も見えん。見張り番を増やしな。',
+            '',
+            '船長からの一言:',
+            '霧が濃い日。',
+            '怖さは合図です。',
+            '噂ではなく一次情報で航路を確かめてください。'
+          ].join('\n'),
           rewardPs: 18,
           rewardType: 'card',
           rewardItemName: '月',
@@ -218,7 +231,10 @@ test('daily tarot fortune adds richer presentation after major arcana reveal', a
   await expect(fortuneCard).toHaveClass(/is-major-arcana/);
   await expect(arcanaBadge).toBeVisible();
   await expect(arcanaBadge).toHaveText('MAJOR ARCANA');
-  await expect(page.locator('#dailyTarotFortuneText')).toContainText('霧が濃い日');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('風向き: 不穏');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('噂ではなく一次情報で航路を確かめてください。');
+  await expect(page.locator('#dailyTarotFortuneText')).not.toContainText('一言判定:');
+  await expect(page.locator('#dailyTarotFortuneText')).not.toContainText('船長からの一言:');
 
   const majorPresentation = await modal.evaluate((node) => {
     const beforeStyle = window.getComputedStyle(node, '::before');
