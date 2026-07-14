@@ -1,7 +1,9 @@
-const { randomUUID, timingSafeEqual } = require('crypto');
+const { randomUUID } = require('crypto');
 
-const LINE_USER_ID_PATTERN = /^U[0-9a-f]{32}$/i;
 const MAX_RESULT_TEXT_LENGTH = 3200;
+const TROY_GLOBAL_ROOM_ID = 'global';
+const STORE_CUSTOMER_LIMIT = 50;
+const FIRESTORE_IN_LIMIT = 30;
 
 function cleanText(value, maxLength = 200) {
     return String(value || '').trim().slice(0, maxLength);
@@ -13,73 +15,10 @@ function maskLineUserId(lineUserId) {
     return `${value.slice(0, 5)}...${value.slice(-4)}`;
 }
 
-function safeTimingEquals(left, right) {
-    const leftBuffer = Buffer.from(String(left || ''));
-    const rightBuffer = Buffer.from(String(right || ''));
-    if (leftBuffer.length !== rightBuffer.length) return false;
-    return timingSafeEqual(leftBuffer, rightBuffer);
-}
-
-function verifyStaffPin(staffPin) {
-    const configuredPin = cleanText(process.env.TAROT_READING_STAFF_PIN, 80);
-    if (!configuredPin) {
-        if (process.env.NODE_ENV === 'production') {
-            return {
-                ok: false,
-                status: 503,
-                error: 'TAROT_READING_STAFF_PIN is not configured'
-            };
-        }
-        return { ok: true };
-    }
-    if (!safeTimingEquals(cleanText(staffPin, 80), configuredPin)) {
-        return {
-            ok: false,
-            status: 401,
-            error: 'staffPin is invalid'
-        };
-    }
-    return { ok: true };
-}
-
-function extractCustomerRef(rawValue) {
-    let value = cleanText(rawValue, 500);
-    if (!value) return '';
-
-    try {
-        const url = new URL(value);
-        const dataPayload = cleanText(url.searchParams.get('data'), 500);
-        if (/^(TROY|LINE):/i.test(dataPayload)) return dataPayload;
-        const playFabId = cleanText(
-            url.searchParams.get('playFabId')
-            || url.searchParams.get('playerId')
-            || url.searchParams.get('targetPlayFabId'),
-            80
-        );
-        if (playFabId) return `TROY:${playFabId}`;
-        const lineUserId = cleanText(url.searchParams.get('lineUserId'), 80);
-        if (lineUserId) return `LINE:${lineUserId}`;
-    } catch {
-        // Not a URL. Keep the scanned value as-is.
-    }
-
-    value = value.replace(/^["']|["']$/g, '').trim();
-    return value;
-}
-
-function normalizeCustomerRef(rawValue) {
-    const value = extractCustomerRef(rawValue);
-    const typed = value.match(/^(TROY|LINE):(.+)$/i);
-    if (typed) {
-        const kind = typed[1].toUpperCase();
-        const id = cleanText(typed[2], 120);
-        if (kind === 'LINE') return { kind: 'line', lineUserId: id, original: value };
-        return { kind: 'playfab', playFabId: id, original: value };
-    }
-    if (LINE_USER_ID_PATTERN.test(value)) {
-        return { kind: 'line', lineUserId: value, original: value };
-    }
-    return { kind: 'playfab', playFabId: cleanText(value, 120), original: value };
+function normalizeStoreCustomerRef(rawValue) {
+    const value = cleanText(rawValue, 160);
+    const match = value.match(/^TROY:([^/\\?#\s]+)$/i);
+    return match ? cleanText(match[1], 120) : '';
 }
 
 async function getLineUserIdByPlayFabId(playFabId, deps) {
@@ -116,32 +55,118 @@ async function getLineUserIdByPlayFabId(playFabId, deps) {
     return '';
 }
 
-async function resolveCustomerLineUserId(customerRef, deps) {
-    const ref = normalizeCustomerRef(customerRef);
-    if (!ref.original) {
-        return { lineUserId: '', playFabId: '', source: '', error: 'customerRef is required' };
+function toEpochMs(value) {
+    if (!value) return 0;
+    if (typeof value.toMillis === 'function') return Math.max(0, Number(value.toMillis()) || 0);
+    if (value instanceof Date) return Math.max(0, value.getTime());
+    return Math.max(0, Number(value) || 0);
+}
+
+function chunkValues(values, size) {
+    const chunks = [];
+    for (let index = 0; index < values.length; index += size) {
+        chunks.push(values.slice(index, index + size));
     }
-    if (ref.kind === 'line') {
-        if (!LINE_USER_ID_PATTERN.test(ref.lineUserId)) {
-            return { lineUserId: '', playFabId: '', source: 'line', error: 'LINE user ID is invalid' };
-        }
-        return { lineUserId: ref.lineUserId, playFabId: '', source: 'line' };
+    return chunks;
+}
+
+async function getStoreTarotCustomers(deps) {
+    if (!deps?.firestore) throw new Error('Firestore is not configured');
+    const roomRef = deps.firestore.collection('troy_rooms').doc(TROY_GLOBAL_ROOM_ID);
+    const [roomSnap, membersSnap] = await Promise.all([
+        roomRef.get(),
+        roomRef.collection('members').orderBy('joinedAt', 'asc').limit(STORE_CUSTOMER_LIMIT).get()
+    ]);
+    const isOpen = !!roomSnap?.data?.()?.isOpen;
+    if (!isOpen) return { isOpen: false, customers: [] };
+
+    const members = (membersSnap?.docs || []).map((doc) => {
+        const data = doc.data?.() || {};
+        const playFabId = cleanText(doc.id || data.playFabId, 120);
+        return {
+            playFabId,
+            customerRef: playFabId ? `TROY:${playFabId}` : '',
+            displayName: cleanText(data.displayName, 40) || playFabId || 'Player',
+            joinedAtMs: toEpochMs(data.joinedAt)
+        };
+    }).filter((customer) => customer.playFabId);
+
+    const linkedPlayFabIds = new Set();
+    const batches = chunkValues(members.map((customer) => customer.playFabId), FIRESTORE_IN_LIMIT);
+    await Promise.all(batches.map(async (batch) => {
+        if (!batch.length) return;
+        const linksSnap = await deps.firestore.collection('line_user_links')
+            .where('playFabId', 'in', batch)
+            .get();
+        (linksSnap?.docs || []).forEach((doc) => {
+            const playFabId = cleanText(doc.data?.()?.playFabId, 120);
+            if (playFabId) linkedPlayFabIds.add(playFabId);
+        });
+    }));
+
+    return {
+        isOpen: true,
+        customers: members.map((customer) => ({
+            customerRef: customer.customerRef,
+            displayName: customer.displayName,
+            joinedAtMs: customer.joinedAtMs,
+            lineLinked: linkedPlayFabIds.has(customer.playFabId)
+        }))
+    };
+}
+
+async function resolveStoreCustomerLineUserId(customerRef, deps) {
+    const playFabId = normalizeStoreCustomerRef(customerRef);
+    if (!playFabId) {
+        return { lineUserId: '', playFabId: '', source: 'store', error: 'お客様を店内リストから選択してください' };
+    }
+    if (!deps?.firestore) {
+        return { lineUserId: '', playFabId, source: 'store', error: '店内リストを確認できません' };
     }
 
-    const lineUserId = await getLineUserIdByPlayFabId(ref.playFabId, deps);
+    const roomRef = deps.firestore.collection('troy_rooms').doc(TROY_GLOBAL_ROOM_ID);
+    const [roomSnap, memberSnap] = await Promise.all([
+        roomRef.get(),
+        roomRef.collection('members').doc(playFabId).get()
+    ]);
+    if (!roomSnap?.data?.()?.isOpen || !memberSnap?.exists) {
+        return { lineUserId: '', playFabId, source: 'store', error: '選択したお客様は現在の店内リストにいません' };
+    }
+
+    const lineUserId = await getLineUserIdByPlayFabId(playFabId, deps);
     if (!lineUserId) {
         return {
             lineUserId: '',
-            playFabId: ref.playFabId,
-            source: 'playfab',
-            error: 'LINE user ID was not found for this PlayFab ID'
+            playFabId,
+            source: 'store',
+            error: '選択したお客様はLINE未連携です'
         };
     }
-    return { lineUserId, playFabId: ref.playFabId, source: 'playfab' };
+    return {
+        lineUserId,
+        playFabId,
+        displayName: cleanText(memberSnap.data?.()?.displayName, 40) || playFabId,
+        source: 'store'
+    };
 }
 
 function buildTarotReadingLineMessage(payload = {}) {
     return cleanText(payload.resultText, MAX_RESULT_TEXT_LENGTH);
+}
+
+function normalizeReadingCards(cardsInput, fallback = {}) {
+    const rawCards = Array.isArray(cardsInput) && cardsInput.length
+        ? cardsInput.slice(0, 3)
+        : fallback.cardId ? [fallback] : [];
+    return rawCards.map((card, index) => ({
+        position: Math.max(1, Math.min(3, Number(card?.position) || index + 1)),
+        positionId: cleanText(card?.positionId, 60),
+        positionLabel: cleanText(card?.positionLabel, 80),
+        cardId: cleanText(card?.cardId, 80),
+        cardLabel: cleanText(card?.cardLabel, 80),
+        orientation: cleanText(card?.orientation, 20),
+        orientationLabel: cleanText(card?.orientationLabel, 20)
+    })).filter((card) => card.cardId && card.cardLabel);
 }
 
 async function logTarotReading(deps, entry) {
@@ -160,12 +185,21 @@ async function logTarotReading(deps, entry) {
 }
 
 function initializeTarotReadingRoutes(app, deps = {}) {
+    app.get('/api/tarot-reading/customers', async (_req, res) => {
+        try {
+            const result = await getStoreTarotCustomers(deps);
+            return res.json({ success: true, ...result });
+        } catch (error) {
+            console.warn('[tarot-reading] Failed to load store customers:', error?.message || error);
+            return res.status(503).json({
+                success: false,
+                error: '店内リストを読み込めませんでした'
+            });
+        }
+    });
+
     app.post('/api/tarot-reading/send', async (req, res) => {
         const body = req.body || {};
-        const pinCheck = verifyStaffPin(body.staffPin);
-        if (!pinCheck.ok) {
-            return res.status(pinCheck.status || 401).json({ success: false, error: pinCheck.error });
-        }
         if (!deps.lineClient || typeof deps.lineClient.pushMessage !== 'function') {
             return res.status(503).json({ success: false, error: 'LINE client is not configured' });
         }
@@ -175,9 +209,23 @@ function initializeTarotReadingRoutes(app, deps = {}) {
             return res.status(400).json({ success: false, error: 'resultText is required' });
         }
 
-        const resolved = await resolveCustomerLineUserId(body.customerRef, deps);
+        const spreadMode = body.spreadMode === 'triple' ? 'triple' : 'single';
+        const cards = normalizeReadingCards(body.cards, {
+            position: 1,
+            positionId: 'single',
+            positionLabel: '1枚引き',
+            cardId: body.cardId,
+            cardLabel: body.cardLabel,
+            orientation: body.orientation,
+            orientationLabel: body.orientationLabel
+        });
+        if (spreadMode === 'triple' && (cards.length !== 3 || new Set(cards.map((card) => card.cardId)).size !== 3)) {
+            return res.status(400).json({ success: false, error: 'three-card reading requires three unique cards' });
+        }
+
+        const resolved = await resolveStoreCustomerLineUserId(body.customerRef, deps);
         if (!resolved.lineUserId) {
-            return res.status(404).json({
+            return res.status(400).json({
                 success: false,
                 error: resolved.error || 'LINE user ID was not found'
             });
@@ -197,11 +245,14 @@ function initializeTarotReadingRoutes(app, deps = {}) {
                 lineUserIdMasked: maskLineUserId(resolved.lineUserId),
                 playFabId: resolved.playFabId || '',
                 source: resolved.source || '',
-                staffName: cleanText(body.staffName, 40),
+                customerDisplayName: resolved.displayName || '',
                 topicId: cleanText(body.topicId, 40),
                 topicLabel: cleanText(body.topicLabel, 40),
                 subtopicId: cleanText(body.subtopicId, 40),
                 subtopicLabel: cleanText(body.subtopicLabel, 80),
+                spreadMode,
+                spreadModeLabel: cleanText(body.spreadModeLabel, 40),
+                cards,
                 cardId: cleanText(body.cardId, 80),
                 cardLabel: cleanText(body.cardLabel, 80),
                 orientation: cleanText(body.orientation, 20),
@@ -228,9 +279,10 @@ function initializeTarotReadingRoutes(app, deps = {}) {
 module.exports = {
     initializeTarotReadingRoutes,
     buildTarotReadingLineMessage,
+    getStoreTarotCustomers,
+    normalizeReadingCards,
     cleanText,
-    extractCustomerRef,
     maskLineUserId,
-    normalizeCustomerRef,
-    resolveCustomerLineUserId
+    normalizeStoreCustomerRef,
+    resolveStoreCustomerLineUserId
 };

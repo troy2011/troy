@@ -27,24 +27,17 @@
                 <div class="tarot-reading-section-head">
                     <div>
                         <div class="tarot-reading-section-title">送信先</div>
-                        <div class="tarot-reading-section-sub">LINE QR / TROY ID</div>
+                        <div class="tarot-reading-section-sub">現在の店内リスト</div>
                     </div>
-                    <button id="tarotScanCustomer" type="button" class="tarot-reading-icon-button" title="QRを読み取る" aria-label="QRを読み取る">QR</button>
+                    <button id="tarotRefreshCustomers" type="button" class="tarot-reading-icon-button" title="店内リストを更新" aria-label="店内リストを更新">↻</button>
                 </div>
                 <label class="tarot-reading-field">
-                    <span>お客ID</span>
-                    <input id="tarotCustomerRef" type="text" autocomplete="off" placeholder="TROY:PLAYERID / LINE:U..." inputmode="text">
+                    <span>お客様</span>
+                    <select id="tarotCustomerRef" autocomplete="off" disabled>
+                        <option value="">店内リストを読み込み中</option>
+                    </select>
                 </label>
-                <div class="tarot-reading-field-grid">
-                    <label class="tarot-reading-field">
-                        <span>スタッフ</span>
-                        <input id="tarotStaffName" type="text" autocomplete="name" placeholder="名前">
-                    </label>
-                    <label class="tarot-reading-field">
-                        <span>PIN</span>
-                        <input id="tarotStaffPin" type="password" autocomplete="current-password" inputmode="numeric" placeholder="****">
-                    </label>
-                </div>
+                <div id="tarotCustomerListStatus" class="tarot-reading-customer-status" role="status" aria-live="polite">店内リストを読み込んでいます。</div>
             </section>
 
             <section class="tarot-reading-panel tarot-reading-topic">
@@ -72,6 +65,14 @@
                         <button type="button" data-orientation="reversed">逆</button>
                     </div>
                 </div>
+                <div class="tarot-reading-spread-control">
+                    <span>引き方</span>
+                    <div id="tarotSpreadMode" class="tarot-reading-spread-mode" aria-label="カードの引き方">
+                        <button type="button" data-spread-mode="single">1枚引き</button>
+                        <button type="button" data-spread-mode="triple">3枚引き</button>
+                    </div>
+                </div>
+                <div id="tarotSpreadSlots" class="tarot-reading-spread-slots" aria-label="3枚引きの配置" hidden></div>
                 <label class="tarot-reading-search">
                     <span>検索</span>
                     <input id="tarotCardSearch" type="search" autocomplete="off" placeholder="カード名 / スート">
@@ -105,6 +106,7 @@
                             <small id="tarotSelectedMeta">カードを選択</small>
                         </div>
                     </div>
+                    <div id="tarotTriplePreview" class="tarot-reading-triple-preview" aria-live="polite" hidden></div>
                     <section class="tarot-reading-staff-script" aria-live="polite">
                         <span>お客様へ伝える鑑定</span>
                         <div id="tarotStaffReadingText">カードを選択してください。</div>
@@ -119,7 +121,6 @@
         </section>
     </main>
 
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script type="module" src="/js/tarotReading.js"></script>
 </body>
 </html>
