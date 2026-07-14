@@ -2,7 +2,6 @@ const { randomUUID, timingSafeEqual } = require('crypto');
 
 const LINE_USER_ID_PATTERN = /^U[0-9a-f]{32}$/i;
 const MAX_RESULT_TEXT_LENGTH = 3200;
-const MAX_LINE_MESSAGE_LENGTH = 4900;
 
 function cleanText(value, maxLength = 200) {
     return String(value || '').trim().slice(0, maxLength);
@@ -142,27 +141,7 @@ async function resolveCustomerLineUserId(customerRef, deps) {
 }
 
 function buildTarotReadingLineMessage(payload = {}) {
-    const topicLabel = cleanText(payload.topicLabel || payload.topicId || 'タロット', 40);
-    const cardLabel = cleanText(payload.cardLabel || '未選択のカード', 80);
-    const orientationLabel = cleanText(payload.orientationLabel || '', 20);
-    const staffName = cleanText(payload.staffName, 40);
-    const resultText = cleanText(payload.resultText, MAX_RESULT_TEXT_LENGTH);
-    const note = cleanText(payload.note, 240);
-    const cardLine = [cardLabel, orientationLabel].filter(Boolean).join(' / ');
-    const lines = [
-        '【TROY 海賊タロット】',
-        `占い: ${topicLabel}`,
-        `引いたカード: ${cardLine}`,
-        staffName ? `占い手: ${staffName}` : '',
-        '',
-        resultText
-    ].filter((line, index, array) => line !== '' || array[index - 1] !== '');
-    if (note) {
-        lines.push('', `追記: ${note}`);
-    }
-    lines.push('', '甘やかさない占い。でも、見捨てない占い。');
-
-    return lines.join('\n').trim().slice(0, MAX_LINE_MESSAGE_LENGTH);
+    return cleanText(payload.resultText, MAX_RESULT_TEXT_LENGTH);
 }
 
 async function logTarotReading(deps, entry) {
@@ -206,13 +185,7 @@ function initializeTarotReadingRoutes(app, deps = {}) {
 
         const readingId = cleanText(body.requestId, 80) || `tarot-${randomUUID()}`;
         const messageText = buildTarotReadingLineMessage({
-            topicId: body.topicId,
-            topicLabel: body.topicLabel,
-            cardLabel: body.cardLabel,
-            orientationLabel: body.orientationLabel,
-            staffName: body.staffName,
-            resultText,
-            note: body.note
+            resultText
         });
 
         try {
@@ -227,12 +200,13 @@ function initializeTarotReadingRoutes(app, deps = {}) {
                 staffName: cleanText(body.staffName, 40),
                 topicId: cleanText(body.topicId, 40),
                 topicLabel: cleanText(body.topicLabel, 40),
+                subtopicId: cleanText(body.subtopicId, 40),
+                subtopicLabel: cleanText(body.subtopicLabel, 80),
                 cardId: cleanText(body.cardId, 80),
                 cardLabel: cleanText(body.cardLabel, 80),
                 orientation: cleanText(body.orientation, 20),
                 orientationLabel: cleanText(body.orientationLabel, 20),
-                resultText,
-                note: cleanText(body.note, 240)
+                resultText
             });
             return res.json({
                 success: true,

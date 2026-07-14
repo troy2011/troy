@@ -1,6 +1,18 @@
 const { test, expect } = require('@playwright/test');
+const { buildTarotReadingLineMessage } = require('../server/tarotReading');
 
-test('staff tarot page scans customer QR, generates a major arcana reading, and sends it to LINE', async ({ page }) => {
+test('LINE message contains only the generated wind and Barbossa copy', () => {
+  const resultText = '風向き: 安定\n\nお前さん、舵を切りな。';
+  expect(buildTarotReadingLineMessage({
+    resultText,
+    topicLabel: '恋愛',
+    cardLabel: '愚者',
+    staffName: '表示しない',
+    note: '表示しない'
+  })).toBe(resultText);
+});
+
+test('store tarot separates the spoken reading from the Barbossa LINE message', async ({ page }) => {
   const sendRequests = [];
 
   await page.addInitScript(() => {
@@ -16,8 +28,7 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   });
 
   await page.route('**/api/tarot-reading/send', async (route) => {
-    const body = route.request().postDataJSON();
-    sendRequests.push(body);
+    sendRequests.push(route.request().postDataJSON());
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
@@ -26,212 +37,177 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
   });
 
   await page.goto('/tarot-reading.html', { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => window.TarotReadingApp?.getWeatherStatus);
-  const weatherSamples = await page.evaluate(() => {
-    const app = window.TarotReadingApp;
-    const tower = app.allCards.find((card) => card.id === 'major-16');
-    const sun = app.allCards.find((card) => card.id === 'major-19');
-    return {
-      tower: app.getWeatherStatus(tower, 'upright'),
-      sun: app.getWeatherStatus(sun, 'upright')
-    };
-  });
-  expect(weatherSamples.tower).toMatchObject({ level: 1, windLabel: '最悪' });
-  expect(weatherSamples.sun).toMatchObject({ level: 10, windLabel: '最高' });
+  await page.waitForFunction(() => window.TarotReadingApp?.buildStaffReading);
 
   await expect(page.locator('h1')).toHaveText('タロット航路');
+  await expect(page.locator('#tarotTopicList [data-topic-id]')).toHaveCount(4);
+  await expect(page.locator('#tarotTopicList [data-topic-id="love"]')).toHaveClass(/is-active/);
+  await expect(page.locator('#tarotSubtopicList [data-subtopic-id]')).toHaveCount(5);
+  await expect(page.locator('#tarotSubtopicList [data-subtopic-id="feelings"]')).toHaveClass(/is-active/);
+  await expect(page.locator('#tarotReadingNote')).toHaveCount(0);
+
   await page.locator('#tarotStaffName').fill('ミナト');
   await page.locator('#tarotStaffPin').fill('2468');
-
   await page.locator('#tarotScanCustomer').click();
   await expect(page.locator('#tarotCustomerRef')).toHaveValue('TROY:CUSTOMER123');
 
   await page.locator('[data-card-id="major-0"]').click();
   await expect(page.locator('#tarotSelectedMeta')).toHaveText('大アルカナ / 自由、始まり / 正位置');
-  await expect(page.locator('#tarotWeatherStatus')).toBeVisible();
   await expect(page.locator('#tarotWeatherLevel')).toHaveText('風向き');
   await expect(page.locator('#tarotWeatherTitle')).toHaveText('安定');
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【総合】愚者 \/ 正位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【総合】愚者 \/ 正位置\n\n風向き: 安定\n一言判定:/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/このカードの意味: 総合運では「新しい可能性はあるが、無計画だと空回りしやすい」が出ているサイン。/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/結論: 今は凪だ/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/禁じ手:/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/船長の結び:/);
-  await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
 
-  await page.locator('#tarotTopicList [data-topic-id="love"]').click();
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】愚者 \/ 正位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/愛が味方してくれるとでも/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/結論:/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/このカードの意味: 恋愛では「港を出たい気持ちはあるが、相手との間合いを測らないと空回りしやすい」が出ているサイン。/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/船長からの一言:/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/現在地:/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/次の一手:/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/禁じ手:/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/船長の結び:/);
-  await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
+  const staffReading = page.locator('#tarotStaffReadingText');
+  await expect(staffReading).toContainText('【恋愛・相手の気持ち鑑定】愚者 / 正位置');
+  await expect(staffReading).toContainText('このカードが持つ意味は、相手の気持ちに表れる「自由・始まり」です。');
+  await expect(staffReading).toContainText('今の状態: 二人を動かす根本の感情と、相手が選ぼうとしている方向を見ます。');
+  await expect(staffReading).toContainText('港を出たい気持ちはあるが');
+  await expect(staffReading).toContainText('すすめる行動: 本音を確かめるには、次に相手が自分から選ぶ行動を一つだけ決め');
+  await expect(staffReading).not.toContainText('お前さん');
+  await expect(staffReading).not.toContainText('船長からの一言');
 
-  await page.locator('[data-card-id="major-21"]').click();
-  await page.locator('[data-orientation="reversed"]').click();
-  await expect(page.locator('#tarotSelectedMeta')).toHaveText('大アルカナ / 未完成、詰め甘さ / 逆位置');
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】世界 \/ 逆位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/信頼の船底にヒビ/);
+  const linePreview = page.locator('#tarotResultText');
+  await expect(linePreview).toHaveAttribute('readonly', '');
+  await expect(linePreview).toHaveValue(/^風向き: 安定\n\n相手の腹の底を読むなら/);
+  await expect(linePreview).toHaveValue(/何の計画も勝算もなしに/);
+  await expect(linePreview).toHaveValue(/愛が味方してくれるとでも/);
+  await expect(linePreview).not.toHaveValue(/恋愛鑑定|このカードの意味|結論:|現在地:|次の一手:|禁じ手:|一言判定|船長からの一言/);
 
-  await page.locator('#tarotDeckTabs [data-deck-id="wand"]').click();
-  await page.locator('[data-card-id="wand-1"]').click();
-  await page.locator('[data-orientation="upright"]').click();
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】ワンド A \/ 正位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/新しい恋の火種/);
-
-  await page.locator('#tarotDeckTabs [data-deck-id="cup"]').click();
-  await page.locator('[data-card-id="cup-1"]').click();
-  await page.locator('[data-orientation="upright"]').click();
-  await expect(page.locator('#tarotSelectedMeta')).toHaveText('小アルカナ / 純愛、感受性 / 正位置');
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】カップ A \/ 正位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/新しい恋への期待/);
-  await expect(page.locator('#tarotSelectedMeta')).not.toHaveText(/感情、愛情、受け取り方/);
-  await expect(page.locator('#tarotResultText')).not.toHaveValue(/人間関係への期待/);
-  await expect(page.locator('#tarotStaffGuide')).toHaveCount(0);
-
-  await page.locator('[data-card-id="cup-7"]').click();
-  await page.locator('[data-orientation="reversed"]').click();
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】カップ 7 \/ 逆位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/恋愛計画が、ただのペテン/);
-
-  await page.locator('[data-card-id="cup-king"]').click();
-  await expect(page.locator('#tarotSelectedMeta')).toHaveText('小アルカナ / 薄情、二枚舌 / 逆位置');
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】カップ キング \/ 逆位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/器の小さい船長の醜態/);
-
-  await page.locator('#tarotDeckTabs [data-deck-id="sword"]').click();
-  await page.locator('[data-card-id="sword-1"]').click();
-  await page.locator('[data-orientation="upright"]').click();
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】ソード A \/ 正位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/刃が抜かれたな/);
-  await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
-
-  await page.locator('#tarotDeckTabs [data-deck-id="pentacle"]').click();
-  await page.locator('[data-card-id="pentacle-king"]').click();
-  await page.locator('[data-orientation="reversed"]').click();
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【恋愛】ペンタクル キング \/ 逆位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/愛情を金で買おうとしたり/);
+  const feelingsStaffText = await staffReading.innerText();
+  const feelingsLineText = await linePreview.inputValue();
+  await page.locator('#tarotSubtopicList [data-subtopic-id="direction"]').click();
+  await expect(staffReading).toContainText('【恋愛・関係の行方鑑定】愚者 / 正位置');
+  await expect(staffReading).toContainText('このカードが持つ意味は、二人の関係の行方を左右する「自由・始まり」です。');
+  await expect(linePreview).toHaveValue(/^風向き: 安定\n\nこの関係がどこへ流れるかは/);
+  expect(await staffReading.innerText()).not.toBe(feelingsStaffText);
+  expect(await linePreview.inputValue()).not.toBe(feelingsLineText);
 
   await page.locator('#tarotTopicList [data-topic-id="relation"]').click();
-  await page.locator('#tarotDeckTabs [data-deck-id="major"]').click();
-  await page.locator('[data-card-id="major-13"]').click();
-  await page.locator('[data-orientation="reversed"]').click();
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【人間関係】死神 \/ 逆位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/往生際が悪い/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/禁じ手:/);
-  await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
-
-  await page.locator('#tarotDeckTabs [data-deck-id="wand"]').click();
-  await page.locator('[data-card-id="wand-10"]').click();
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【人間関係】ワンド 10 \/ 逆位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/一掴みの味方/);
-
-  await page.locator('#tarotDeckTabs [data-deck-id="cup"]').click();
-  await page.locator('[data-card-id="cup-10"]').click();
-  await page.locator('[data-orientation="upright"]').click();
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【人間関係】カップ 10 \/ 正位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/無敵の連帯感/);
-
+  await expect(page.locator('#tarotSubtopicList [data-subtopic-id="friends"]')).toHaveClass(/is-active/);
   await page.locator('#tarotDeckTabs [data-deck-id="sword"]').click();
   await page.locator('[data-card-id="sword-7"]').click();
   await page.locator('[data-orientation="reversed"]').click();
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【人間関係】ソード 7 \/ 逆位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/最悪中の最悪のタイミング/);
-
-  await page.locator('#tarotDeckTabs [data-deck-id="pentacle"]').click();
-  await page.locator('[data-card-id="pentacle-king"]').click();
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【人間関係】ペンタクル キング \/ 逆位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/人脈を金で買おうとしたり/);
+  await expect(staffReading).toContainText('【人間関係・友人・仲間鑑定】ソード 7 / 逆位置');
+  await expect(staffReading).toContainText('このカードが持つ意味は、友人や仲間との信頼に表れる「露見・不誠実」です。');
+  await expect(staffReading).toContainText('今の状態: 言葉の行き違い、裏切り、境界線を見ます。');
+  await expect(staffReading).toContainText('言葉・境界線・対立の面では、隠していたことが表に出やすい。');
+  await expect(staffReading).toContainText('すすめる行動: 信頼を深めるには、露見する前提で');
+  await expect(linePreview).toHaveValue(/最悪中の最悪のタイミング/);
+  await expect(linePreview).not.toHaveValue(/売上|案件|恋愛|恋人/);
 
   await page.locator('#tarotTopicList [data-topic-id="future"]').click();
-  await page.locator('#tarotDeckTabs [data-deck-id="major"]').click();
-  await page.locator('[data-card-id="major-13"]').click();
-  await page.locator('[data-orientation="reversed"]').click();
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【将来】死神 \/ 逆位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/往生際が悪い/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/船長からの一言:/);
-  await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
-
-  await page.locator('#tarotDeckTabs [data-deck-id="wand"]').click();
-  await page.locator('[data-card-id="wand-7"]').click();
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【将来】ワンド 7 \/ 逆位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/すべてが中途半端/);
-
-  await page.locator('#tarotDeckTabs [data-deck-id="cup"]').click();
-  await page.locator('[data-card-id="cup-10"]').click();
-  await page.locator('[data-orientation="upright"]').click();
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【将来】カップ 10 \/ 正位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/無敵の安定感/);
-
-  await page.locator('#tarotDeckTabs [data-deck-id="sword"]').click();
-  await page.locator('[data-card-id="sword-10"]').click();
-  await page.locator('[data-orientation="reversed"]').click();
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【将来】ソード 10 \/ 逆位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/気づいたか/);
-
+  await page.locator('#tarotSubtopicList [data-subtopic-id="goal"]').click();
   await page.locator('#tarotDeckTabs [data-deck-id="pentacle"]').click();
   await page.locator('[data-card-id="pentacle-8"]').click();
   await page.locator('[data-orientation="upright"]').click();
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【将来】ペンタクル 8 \/ 正位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/一攫千金のハッタリ/);
+  await expect(staffReading).toContainText('【将来・目標の実現鑑定】ペンタクル 8 / 正位置');
+  await expect(staffReading).toContainText('このカードが持つ意味は、目標の実現条件を示す「努力・熟練」です。');
+  await expect(staffReading).toContainText('今の状態: 必要な技能、資源、継続量、成果の積み上げを見ます。');
+  await expect(staffReading).toContainText('生活基盤や長期的な準備では、地道な継続が力になる。');
+  await expect(staffReading).toContainText('すすめる行動: 達成へ近づくには、伸ばす技能を一つに絞り');
+  await expect(linePreview).toHaveValue(/一攫千金のハッタリ/);
+
+  const exhaustive = await page.evaluate(() => {
+    const app = window.TarotReadingApp;
+    const forbiddenLine = ['このカードの意味', '結論:', '現在地:', '次の一手:', '禁じ手:', '一言判定', '船長からの一言', '船長の結び', 'スタッフ補助'];
+    const entries = [];
+    for (const topic of app.topics) {
+      for (const subtopic of topic.subtopics) {
+        for (const card of app.allCards) {
+          for (const orientation of ['upright', 'reversed']) {
+            const source = app.getSpecialReadingBody(topic.id, card, orientation);
+            const staff = app.buildStaffReading(topic, card, orientation, subtopic);
+            const line = app.buildLineReading(card, orientation, source, topic, subtopic);
+            entries.push({ topic: topic.id, subtopic: subtopic.id, card: card.id, orientation, source, staff, line });
+          }
+        }
+      }
+    }
+    const sections = entries.map((entry) => {
+      const parsed = {};
+      entry.staff.split(/\n{2,}/).forEach((section) => {
+        const separatorIndex = section.indexOf(':');
+        if (separatorIndex > 0) parsed[section.slice(0, separatorIndex)] = section.slice(separatorIndex + 1).trim();
+      });
+      return { ...entry, parsed };
+    });
+    const minorStates = new Map();
+    sections.filter((entry) => !entry.card.startsWith('major-')).forEach((entry) => {
+      const key = `${entry.card}:${entry.orientation}`;
+      if (!minorStates.has(key)) minorStates.set(key, new Set());
+      minorStates.get(key).add(entry.parsed['今の状態']);
+    });
+    return {
+      count: entries.length,
+      missing: entries.filter((entry) => !entry.source || !entry.staff || !entry.line).length,
+      lineMixed: entries.filter((entry) => forbiddenLine.some((word) => entry.line.includes(word))).length,
+      badLineFormat: entries.filter((entry) => !/^風向き: [^\n]+\n\n[^\n]/.test(entry.line)).length,
+      staffVoiceLeaks: entries.filter((entry) => /お前さん|ククク|船長からの一言/.test(entry.staff)).length,
+      todayLeaks: entries.filter((entry) => entry.staff.includes('今日') || entry.line.includes('今日')).length,
+      badStaffFormat: entries.filter((entry) => entry.staff.split(/\r?\n/).filter(Boolean).length !== 6).length,
+      placeholderLeaks: entries.filter((entry) => /\{[a-z]+\}/.test(entry.staff)).length,
+      minorStateCollisions: [...minorStates.values()].filter((values) => values.size !== 20).length,
+      uniquePoints: new Set(sections.map((entry) => entry.parsed['鑑定の要点'])).size,
+      uniqueActions: new Set(sections.map((entry) => entry.parsed['すすめる行動'])).size,
+      uniqueCautions: new Set(sections.map((entry) => entry.parsed['注意点'])).size
+    };
+  });
+  expect(exhaustive).toMatchObject({
+    count: 3120,
+    missing: 0,
+    lineMixed: 0,
+    badLineFormat: 0,
+    staffVoiceLeaks: 0,
+    todayLeaks: 0,
+    badStaffFormat: 0,
+    placeholderLeaks: 0,
+    minorStateCollisions: 0
+  });
+  expect(exhaustive.uniquePoints).toBeGreaterThanOrEqual(3000);
+  expect(exhaustive.uniqueActions).toBeGreaterThanOrEqual(3000);
+  expect(exhaustive.uniqueCautions).toBeGreaterThanOrEqual(3000);
+
+  const semanticSamples = await page.evaluate(() => {
+    const app = window.TarotReadingApp;
+    const card = (id) => app.allCards.find((entry) => entry.id === id);
+    return {
+      weather: {
+        cup4Reversed: app.getWeatherStatus(card('cup-4'), 'reversed'),
+        cup5Reversed: app.getWeatherStatus(card('cup-5'), 'reversed'),
+        cup7Reversed: app.getWeatherStatus(card('cup-7'), 'reversed'),
+        sword8Reversed: app.getWeatherStatus(card('sword-8'), 'reversed'),
+        sword10Upright: app.getWeatherStatus(card('sword-10'), 'upright'),
+        sword10Reversed: app.getWeatherStatus(card('sword-10'), 'reversed')
+      },
+      loveCupKnight: app.getSpecialReadingBody('love', card('cup-knight'), 'upright'),
+      workCupKnightReversed: app.getSpecialReadingBody('work', card('cup-knight'), 'reversed'),
+      relationCupQueen: app.getSpecialReadingBody('relation', card('cup-queen'), 'upright')
+    };
+  });
+  expect(semanticSamples.weather).toEqual({
+    cup4Reversed: { level: 7, windLabel: '追い風' },
+    cup5Reversed: { level: 6, windLabel: '安定' },
+    cup7Reversed: { level: 7, windLabel: '追い風' },
+    sword8Reversed: { level: 7, windLabel: '追い風' },
+    sword10Upright: { level: 1, windLabel: '最悪' },
+    sword10Reversed: { level: 6, windLabel: '安定' }
+  });
+  expect(semanticSamples.loveCupKnight).toContain('告白、誘い、歩み寄り');
+  expect(semanticSamples.loveCupKnight).not.toContain('冷静さでねじ伏せ');
+  expect(semanticSamples.workCupKnightReversed).toContain('期限までに何を出すか');
+  expect(semanticSamples.relationCupQueen).toContain('言葉にならない感情');
 
   await page.locator('#tarotTopicList [data-topic-id="work"]').click();
-  await page.locator('#tarotDeckTabs [data-deck-id="wand"]').click();
-  await page.locator('[data-card-id="wand-10"]').click();
-  await page.locator('[data-orientation="reversed"]').click();
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【仕事】ワンド 10 \/ 逆位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/強制的な損切り/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/現在地:/);
-  await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
-
-  await page.locator('#tarotDeckTabs [data-deck-id="cup"]').click();
-  await page.locator('[data-card-id="cup-7"]').click();
-  await page.locator('[data-orientation="upright"]').click();
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【仕事】カップ 7 \/ 正位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/幻影の新規事業/);
-  await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
-
-  await page.locator('#tarotDeckTabs [data-deck-id="sword"]').click();
-  await page.locator('[data-card-id="sword-king"]').click();
-  await page.locator('[data-orientation="reversed"]').click();
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【仕事】ソード キング \/ 逆位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/パワハラ上司/);
-  await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
-
-  await page.locator('#tarotDeckTabs [data-deck-id="pentacle"]').click();
-  await page.locator('[data-card-id="pentacle-8"]').click();
-  await page.locator('[data-orientation="upright"]').click();
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【仕事】ペンタクル 8 \/ 正位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/徹底的な実務の反復と継続/);
-  await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
-
+  await page.locator('#tarotSubtopicList [data-subtopic-id="business"]').click();
   await page.locator('#tarotDeckTabs [data-deck-id="major"]').click();
   await page.locator('[data-card-id="major-16"]').click();
-  await expect(page.locator('#tarotWeatherLevel')).toHaveText('風向き');
-  await expect(page.locator('#tarotWeatherTitle')).toHaveText('最悪');
-  await expect(page.locator('#tarotResultText')).toHaveValue(/風向き: 最悪/);
   await page.locator('[data-orientation="reversed"]').click();
-  await expect(page.locator('#tarotWeatherLevel')).toHaveText('風向き');
-  await expect(page.locator('#tarotWeatherTitle')).toHaveText('荒天');
+  await expect(staffReading).toContainText('【仕事・独立・事業鑑定】塔 / 逆位置');
+  await expect(staffReading).toContainText('このカードが持つ意味は、独立や事業の勝算を示す「余波・警告」です。');
+  await expect(staffReading).toContainText('すすめる行動: 勝算を形にするには、まだ残る火種を一つ特定し');
+  await expect(linePreview).toHaveValue(/^風向き: 荒天\n\n自分の旗を掲げるなら/);
+  await expect(linePreview).toHaveValue(/致命傷は免れたようだが/);
 
-  await expect(page.locator('#tarotReadingApp')).toHaveClass(/is-major-selected/);
-  await expect(page.locator('#tarotMajorBadge')).toBeVisible();
-  await expect(page.locator('#tarotSelectedName')).toHaveText('塔');
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【仕事】塔 \/ 逆位置/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/【仕事】塔 \/ 逆位置\n\n風向き: 荒天\n一言判定:[\s\S]*このカードの意味:[\s\S]*船長からの一言:[\s\S]*大炎上の余波/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/大炎上の余波/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/結論: 立て直しが必要です。体裁より、信用、体力、最低限の成果を守ってください。/);
-  await expect(page.locator('#tarotResultText')).toHaveValue(/船長の結び: 船は沈んでも、船乗りの腕は沈まねえ/);
-  await expect(page.locator('#tarotResultText')).not.toHaveValue(/大アルカナが出たので/);
-  await expect(page.locator('#tarotResultText')).not.toHaveValue(/厳しい見立て/);
-
-  await page.locator('#tarotReadingNote').fill('次回来店時に確認');
   await page.locator('#tarotSendLine').click();
-
   await expect.poll(() => sendRequests.length).toBe(1);
   expect(sendRequests[0]).toMatchObject({
     customerRef: 'TROY:CUSTOMER123',
@@ -239,20 +215,17 @@ test('staff tarot page scans customer QR, generates a major arcana reading, and 
     staffName: 'ミナト',
     topicId: 'work',
     topicLabel: '仕事',
+    subtopicId: 'business',
+    subtopicLabel: '独立・事業',
     cardId: 'major-16',
     cardLabel: '塔',
     orientation: 'reversed',
-    orientationLabel: '逆位置',
-    note: '次回来店時に確認'
+    orientationLabel: '逆位置'
   });
-  expect(sendRequests[0].resultText).toContain('【仕事】塔 / 逆位置');
-  expect(sendRequests[0].resultText).toContain('風向き: 荒天');
+  expect(sendRequests[0]).not.toHaveProperty('note');
+  expect(sendRequests[0].resultText).toMatch(/^風向き: 荒天\n\n自分の旗を掲げるなら/);
+  expect(sendRequests[0].resultText).toContain('致命傷は免れたようだが');
   expect(sendRequests[0].resultText).toContain('大炎上の余波');
-  expect(sendRequests[0].resultText).toContain('このカードの意味: 仕事では「大炎上は避けても、まだ帳簿の裏に火種が残っている」が出ているサイン。');
-  expect(sendRequests[0].resultText).toContain('船長からの一言');
-  expect(sendRequests[0].resultText).toContain('船長の結び:');
-  expect(sendRequests[0].resultText).not.toContain('厳しい見立て');
-  expect(sendRequests[0].resultText).not.toContain('スタッフ補助');
-  expect(sendRequests[0].resultText).not.toContain('最初にこう伝える');
+  expect(sendRequests[0].resultText).not.toMatch(/仕事鑑定|このカードの意味|結論:|船長からの一言|船長の結び/);
   await expect(page.locator('#tarotReadingStatus')).toContainText('送信済み');
 });

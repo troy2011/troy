@@ -55,6 +55,10 @@
                     </div>
                 </div>
                 <div id="tarotTopicList" class="tarot-reading-segments" role="listbox" aria-label="占う内容"></div>
+                <div class="tarot-reading-subtopic-block">
+                    <div class="tarot-reading-subtopic-label">相談の焦点</div>
+                    <div id="tarotSubtopicList" class="tarot-reading-subtopics" role="listbox" aria-label="相談の焦点"></div>
+                </div>
             </section>
 
             <section class="tarot-reading-panel tarot-reading-card-select">
@@ -80,7 +84,7 @@
                 <div class="tarot-reading-section-head">
                     <div>
                         <div class="tarot-reading-section-title">鑑定結果</div>
-                        <div class="tarot-reading-section-sub">LINE送信前プレビュー</div>
+                        <div class="tarot-reading-section-sub">お客様へ伝える鑑定書</div>
                     </div>
                     <div id="tarotMajorBadge" class="tarot-reading-major-badge" hidden>MAJOR ARCANA</div>
                 </div>
@@ -89,7 +93,6 @@
                         <span id="tarotWeatherLevel">風向き</span>
                         <strong id="tarotWeatherTitle">カード未選択</strong>
                     </div>
-                    <p id="tarotWeatherVerdict">カードを選ぶと、風向きを表示します。</p>
                     <div class="tarot-reading-weather-meter" aria-hidden="true">
                         <span id="tarotWeatherMeter"></span>
                     </div>
@@ -102,14 +105,14 @@
                             <small id="tarotSelectedMeta">カードを選択</small>
                         </div>
                     </div>
-                    <label class="tarot-reading-result-editor">
-                        <span>送信本文</span>
-                        <textarea id="tarotResultText" rows="12"></textarea>
-                    </label>
+                    <section class="tarot-reading-staff-script" aria-live="polite">
+                        <span>お客様へ伝える鑑定</span>
+                        <div id="tarotStaffReadingText">カードを選択してください。</div>
+                    </section>
                 </div>
-                <label class="tarot-reading-field tarot-reading-note">
-                    <span>追記</span>
-                    <input id="tarotReadingNote" type="text" autocomplete="off" placeholder="任意">
+                <label class="tarot-reading-result-editor tarot-reading-line-preview">
+                    <span>LINE送信プレビュー</span>
+                    <textarea id="tarotResultText" rows="10" readonly></textarea>
                 </label>
                 <button id="tarotSendLine" type="button" class="tarot-reading-send">LINEへ送信</button>
             </section>
