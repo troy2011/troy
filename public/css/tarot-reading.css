@@ -137,11 +137,16 @@ body.tarot-reading-body {
 .tarot-reading-board {
     display: grid;
     grid-template-columns: minmax(280px, 0.74fr) minmax(520px, 1.35fr) minmax(360px, 0.95fr);
-    grid-template-areas:
-        "customer cards result"
-        "topic cards result";
+    grid-template-areas: "controls cards result";
     gap: 14px;
     align-items: start;
+}
+
+.tarot-reading-side-controls {
+    grid-area: controls;
+    display: grid;
+    gap: 14px;
+    align-content: start;
 }
 
 .tarot-reading-panel {
@@ -155,12 +160,10 @@ body.tarot-reading-body {
 }
 
 .tarot-reading-customer {
-    grid-area: customer;
     padding: 14px;
 }
 
 .tarot-reading-topic {
-    grid-area: topic;
     padding: 14px;
 }
 
@@ -171,8 +174,7 @@ body.tarot-reading-body {
 
 .tarot-reading-result-panel {
     grid-area: result;
-    position: sticky;
-    top: 12px;
+    position: static;
     padding: 14px;
     background:
         linear-gradient(150deg, rgba(63, 123, 83, 0.12), transparent 38%),
@@ -644,7 +646,7 @@ body.tarot-reading-body {
 
 .tarot-reading-result-wrap {
     display: grid;
-    grid-template-columns: 138px minmax(0, 1fr);
+    grid-template-columns: 1fr;
     gap: 12px;
     align-items: stretch;
 }
@@ -698,7 +700,7 @@ body.tarot-reading-body {
 
 .tarot-reading-card-preview {
     position: relative;
-    min-height: 214px;
+    min-height: 148px;
     border: 1px solid rgba(216, 170, 74, 0.44);
     border-radius: 8px;
     overflow: hidden;
@@ -943,8 +945,7 @@ body.tarot-reading-body {
     .tarot-reading-board {
         grid-template-columns: minmax(280px, 0.84fr) minmax(420px, 1.16fr);
         grid-template-areas:
-            "customer result"
-            "topic result"
+            "controls result"
             "cards cards";
     }
 
@@ -977,8 +978,7 @@ body.tarot-reading-body {
     .tarot-reading-board {
         grid-template-columns: 1fr;
         grid-template-areas:
-            "customer"
-            "topic"
+            "controls"
             "cards"
             "result";
     }

@@ -23,36 +23,38 @@
         </header>
 
         <section class="tarot-reading-board" aria-label="タロット鑑定入力">
-            <section class="tarot-reading-panel tarot-reading-customer">
-                <div class="tarot-reading-section-head">
-                    <div>
-                        <div class="tarot-reading-section-title">送信先</div>
-                        <div class="tarot-reading-section-sub">現在の店内リスト</div>
+            <div class="tarot-reading-side-controls">
+                <section class="tarot-reading-panel tarot-reading-customer">
+                    <div class="tarot-reading-section-head">
+                        <div>
+                            <div class="tarot-reading-section-title">送信先</div>
+                            <div class="tarot-reading-section-sub">現在の店内リスト</div>
+                        </div>
+                        <button id="tarotRefreshCustomers" type="button" class="tarot-reading-icon-button" title="店内リストを更新" aria-label="店内リストを更新">↻</button>
                     </div>
-                    <button id="tarotRefreshCustomers" type="button" class="tarot-reading-icon-button" title="店内リストを更新" aria-label="店内リストを更新">↻</button>
-                </div>
-                <label class="tarot-reading-field">
-                    <span>お客様</span>
-                    <select id="tarotCustomerRef" autocomplete="off" disabled>
-                        <option value="">店内リストを読み込み中</option>
-                    </select>
-                </label>
-                <div id="tarotCustomerListStatus" class="tarot-reading-customer-status" role="status" aria-live="polite">店内リストを読み込んでいます。</div>
-            </section>
+                    <label class="tarot-reading-field">
+                        <span>お客様</span>
+                        <select id="tarotCustomerRef" autocomplete="off" disabled>
+                            <option value="">店内リストを読み込み中</option>
+                        </select>
+                    </label>
+                    <div id="tarotCustomerListStatus" class="tarot-reading-customer-status" role="status" aria-live="polite">店内リストを読み込んでいます。</div>
+                </section>
 
-            <section class="tarot-reading-panel tarot-reading-topic">
-                <div class="tarot-reading-section-head">
-                    <div>
-                        <div class="tarot-reading-section-title">占う内容</div>
-                        <div class="tarot-reading-section-sub">スタッフ選択</div>
+                <section class="tarot-reading-panel tarot-reading-topic">
+                    <div class="tarot-reading-section-head">
+                        <div>
+                            <div class="tarot-reading-section-title">占う内容</div>
+                            <div class="tarot-reading-section-sub">スタッフ選択</div>
+                        </div>
                     </div>
-                </div>
-                <div id="tarotTopicList" class="tarot-reading-segments" role="listbox" aria-label="占う内容"></div>
-                <div class="tarot-reading-subtopic-block">
-                    <div class="tarot-reading-subtopic-label">相談の焦点</div>
-                    <div id="tarotSubtopicList" class="tarot-reading-subtopics" role="listbox" aria-label="相談の焦点"></div>
-                </div>
-            </section>
+                    <div id="tarotTopicList" class="tarot-reading-segments" role="listbox" aria-label="占う内容"></div>
+                    <div class="tarot-reading-subtopic-block">
+                        <div class="tarot-reading-subtopic-label">相談の焦点</div>
+                        <div id="tarotSubtopicList" class="tarot-reading-subtopics" role="listbox" aria-label="相談の焦点"></div>
+                    </div>
+                </section>
+            </div>
 
             <section class="tarot-reading-panel tarot-reading-card-select">
                 <div class="tarot-reading-section-head">
