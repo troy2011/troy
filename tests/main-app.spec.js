@@ -2887,6 +2887,149 @@ test('king calendar panel shows reservation review actions', async ({ page }) =>
   await expectNoPageErrors(errors);
 });
 
+test('king calendar save reports Google Business Profile sync and surfaces API failures', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const saveRequests = [];
+  const syncStatusRequests = [];
+  let calendarEntries = [];
+  let saveShouldFail = false;
+  let syncResponse = { status: 'queued', queued: true };
+  let releaseFirstSyncStatusPoll;
+  const firstSyncStatusPollGate = new Promise((resolve) => {
+    releaseFirstSyncStatusPoll = resolve;
+  });
+
+  await bootstrapMainApp(page);
+  await page.unroute('**/api/get-nation-king-page');
+  await page.route('**/api/get-nation-king-page', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        nation: 'fire',
+        troyOpen: false,
+        troyMembers: [],
+        announcement: { message: 'Map systems nominal' }
+      })
+    });
+  });
+  await page.route('**/api/troy-calendar/list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ calendar: calendarEntries })
+    });
+  });
+  await page.route('**/api/reservations/list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ isKing: true, reservations: [] })
+    });
+  });
+  await page.route('**/api/troy-calendar/save', async (route) => {
+    const body = route.request().postDataJSON();
+    saveRequests.push(body);
+    if (saveShouldFail) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json; charset=utf-8',
+        body: JSON.stringify({ error: 'FailedToSaveTroyCalendar' })
+      });
+      return;
+    }
+    calendarEntries = [{
+      id: 'CAL-SYNCED',
+      nation: 'global',
+      date: body.date,
+      openTime: body.openTime,
+      closeTime: body.closeTime,
+      status: body.status,
+      title: body.title,
+      note: body.note,
+      startsAtMs: Date.parse(`${body.date}T${body.openTime}:00+09:00`),
+      updatedAtMs: Date.now()
+    }];
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        entry: calendarEntries[0],
+        googleBusinessProfileSync: syncResponse
+      })
+    });
+  });
+  await page.route('**/api/troy-calendar/google-sync-status', async (route) => {
+    syncStatusRequests.push(route.request().postDataJSON());
+    if (syncStatusRequests.length === 1) {
+      await firstSyncStatusPollGate;
+    }
+    const googleBusinessProfileSync = syncStatusRequests.length === 1
+      ? { status: 'synced', updated: true }
+      : { status: 'queued', queued: true };
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ success: true, googleBusinessProfileSync })
+    });
+  });
+
+  await page.evaluate(async () => {
+    window.__TROY_CALENDAR_SYNC_POLL_DELAYS_MS = [10];
+    const king = await import('/js/nationKing.js');
+    await king.refreshKingNav('PF_PLAYWRIGHT');
+    await window.showTab('king', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
+  });
+  await page.locator('[data-king-section-tab="calendar"]').click();
+  await page.locator('#kingTroyCalendarDate').fill('2026-08-01');
+  await page.locator('#kingTroyCalendarOpenTime').fill('21:00');
+  await page.locator('#kingTroyCalendarCloseTime').fill('23:59');
+  await page.locator('#kingTroyCalendarTitle').fill('通常営業');
+  await page.locator('#btnKingTroyCalendarSave').click();
+
+  await expect.poll(() => saveRequests.length).toBe(1);
+  expect(saveRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    date: '2026-08-01',
+    openTime: '21:00',
+    closeTime: '23:59',
+    status: 'open',
+    title: '通常営業'
+  });
+  expect(saveRequests[0].requestId).toMatch(/^[-a-zA-Z0-9]+$/);
+  await expect(page.locator('#kingPageMessage')).toContainText('Googleビジネスプロフィールへの反映を受け付けました');
+  await expect.poll(() => syncStatusRequests.length).toBe(1);
+  expect(syncStatusRequests[0]).toEqual({ playFabId: 'PF_PLAYWRIGHT' });
+  releaseFirstSyncStatusPoll();
+  await expect(page.locator('#kingPageMessage')).toContainText('Googleビジネスプロフィールにも反映しました');
+
+  syncResponse = { status: 'validated', updated: false, dryRun: true };
+  await page.locator('#kingTroyCalendarDate').fill('2026-08-02');
+  await page.locator('#btnKingTroyCalendarSave').click();
+  await expect.poll(() => saveRequests.length).toBe(2);
+  expect(saveRequests[1].requestId).toMatch(/^[-a-zA-Z0-9]+$/);
+  expect(saveRequests[1].requestId).not.toBe(saveRequests[0].requestId);
+  await expect(page.locator('#kingPageMessage')).toContainText('更新内容を検証しました');
+  await expect(page.locator('#kingPageMessage')).toContainText('実際の反映は行っていません');
+
+  saveShouldFail = true;
+  await page.locator('#kingTroyCalendarDate').fill('2026-08-03');
+  await page.locator('#btnKingTroyCalendarSave').click();
+  await expect.poll(() => saveRequests.length).toBe(3);
+  await expect(page.locator('#kingPageMessage')).toContainText('営業予定の保存に失敗しました');
+  await expect(page.locator('#kingPageMessage')).not.toContainText('営業予定を保存しました');
+
+  const failedRequestId = saveRequests[2].requestId;
+  saveShouldFail = false;
+  syncResponse = { status: 'queued', queued: true };
+  await page.locator('#btnKingTroyCalendarSave').click();
+  await expect.poll(() => saveRequests.length).toBe(4);
+  expect(saveRequests[3].requestId).toBe(failedRequestId);
+  await expect(page.locator('#kingPageMessage')).toContainText('Googleビジネスプロフィールへの反映を受け付けました');
+  await expectNoPageErrors(errors);
+});
+
 test('king store game scoring saves from each in-store customer row', async ({ page }) => {
   const errors = trackPageErrors(page);
   const scoreRequests = [];

@@ -1,4 +1,6 @@
 const { addGlobalChatMessage } = require('./chat');
+const { createTroyCalendarGoogleSync } = require('./troyCalendarGoogleSync');
+const { createHash } = require('node:crypto');
 
 const cron = require('node-cron');
 
@@ -8,6 +10,14 @@ const TROY_CALENDAR_COLLECTION = 'troy_business_calendar';
 const TROY_CALENDAR_GLOBAL_NATION = 'global';
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const STORE_SCHEDULE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const TROY_CALENDAR_AUDIT_COLLECTION = 'troy_business_calendar_audit';
+const TROY_CALENDAR_DATE_INDEX_COLLECTION = 'troy_business_calendar_dates';
+const TROY_CALENDAR_CONTROL_COLLECTION = 'integration_states';
+const TROY_CALENDAR_CONTROL_DOCUMENT = 'troy_business_calendar_write_control';
+const TROY_CALENDAR_MAX_VISIBLE_ENTRIES = 80;
+const TROY_CALENDAR_MAX_FUTURE_DAYS = 366;
+const TROY_CALENDAR_MUTATION_WINDOW_MS = 10 * 60 * 1000;
+const TROY_CALENDAR_MAX_MUTATIONS_PER_WINDOW = 20;
 const VIRTUAL_CURRENCY_CODE = process.env.VIRTUAL_CURRENCY_CODE || 'PS';
 const configuredHostFee = Number(process.env.EVENT_HOST_FEE_PS);
 const DEFAULT_HOST_FEE = Math.max(0, Math.floor(Number.isFinite(configuredHostFee) ? configuredHostFee : 1000));
@@ -78,9 +88,9 @@ function isEditableTroyCalendarNation(value, kingNation) {
     return raw === TROY_CALENDAR_GLOBAL_NATION || (!!kingNation && raw === kingNation);
 }
 
-function normalizeTroyCalendarStatus(value) {
+function normalizeStrictTroyCalendarStatus(value) {
     const key = normalizeString(value, 20).toLowerCase();
-    return TROY_CALENDAR_STATUSES.has(key) ? key : 'open';
+    return TROY_CALENDAR_STATUSES.has(key) ? key : '';
 }
 
 function normalizeTimeText(value, fallback = '19:00') {
@@ -91,9 +101,98 @@ function normalizeTimeText(value, fallback = '19:00') {
     return raw;
 }
 
+function normalizeStrictTimeText(value) {
+    const raw = normalizeString(value, 5);
+    if (!/^\d{2}:\d{2}$/.test(raw)) return '';
+    const [hours, minutes] = raw.split(':').map(Number);
+    if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return '';
+    return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59 ? raw : '';
+}
+
 function normalizeDateText(value) {
     const raw = normalizeString(value, 10);
-    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+    if (!match) return '';
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    if (year < 1 || month < 1 || month > 12 || day < 1) return '';
+    const daysInMonth = [
+        31,
+        year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28,
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31
+    ];
+    return day <= daysInMonth[month - 1] ? raw : '';
+}
+
+function normalizeCalendarRequestId(value) {
+    const raw = String(value || '').trim();
+    return /^[A-Za-z0-9_-]{8,92}$/.test(raw) ? raw : '';
+}
+
+function normalizeCalendarDocumentId(value) {
+    const raw = String(value || '').trim();
+    if (!raw || raw.length > 200 || raw.includes('/') || /[\u0000-\u001f\u007f]/.test(raw)) return '';
+    return raw;
+}
+
+function hasValidGoogleOpenHours(openTime, closeTime) {
+    const [openHours, openMinutes] = openTime.split(':').map(Number);
+    const [closeHours, closeMinutes] = closeTime.split(':').map(Number);
+    const openTotal = (openHours * 60) + openMinutes;
+    const closeTotal = (closeHours * 60) + closeMinutes;
+    if (closeTotal > openTotal) return true;
+    const durationMinutes = (24 * 60 - openTotal) + closeTotal;
+    return closeTotal < 12 * 60 && durationMinutes < 24 * 60;
+}
+
+function calendarPayloadMatches(existing, candidate) {
+    const fields = ['nation', 'date', 'openTime', 'closeTime', 'status', 'title', 'note'];
+    return fields.every((field) => String(existing?.[field] || '') === String(candidate?.[field] || ''));
+}
+
+function calendarAuditSnapshot(data) {
+    if (!data) return null;
+    return {
+        nation: String(data.nation || ''),
+        date: String(data.date || ''),
+        openTime: String(data.openTime || ''),
+        closeTime: String(data.closeTime || ''),
+        status: String(data.status || ''),
+        title: String(data.title || ''),
+        note: String(data.note || '')
+    };
+}
+
+function nextTroyCalendarMutationWindows(controlData, playFabId, nowMs = Date.now()) {
+    const key = createHash('sha256').update(String(playFabId || '')).digest('hex').slice(0, 32);
+    const cutoffMs = nowMs - TROY_CALENDAR_MUTATION_WINDOW_MS;
+    const source = controlData?.mutationWindows && typeof controlData.mutationWindows === 'object'
+        ? controlData.mutationWindows
+        : {};
+    const mutationWindows = {};
+    for (const [storedKey, timestamps] of Object.entries(source)) {
+        const recentTimestamps = (Array.isArray(timestamps) ? timestamps : [])
+            .map(Number)
+            .filter((timestamp) => Number.isFinite(timestamp) && timestamp >= cutoffMs);
+        if (recentTimestamps.length > 0) mutationWindows[storedKey] = recentTimestamps;
+    }
+    const recent = mutationWindows[key] || [];
+    if (recent.length >= TROY_CALENDAR_MAX_MUTATIONS_PER_WINDOW) {
+        return { allowed: false, mutationWindows };
+    }
+    recent.push(nowMs);
+    mutationWindows[key] = recent;
+    return { allowed: true, mutationWindows };
 }
 
 function troyCalendarStartsAtMs(date, openTime) {
@@ -320,10 +419,46 @@ async function deleteExpiredStoreScheduleDocs(firestore, collectionName, cutoffM
             .limit(200)
             .get();
         if (snap.empty) break;
-        const batch = firestore.batch();
-        snap.docs.forEach((doc) => batch.delete(doc.ref));
-        await batch.commit();
-        deleted += snap.size;
+        if (collectionName === TROY_CALENDAR_COLLECTION) {
+            const deletedThisPass = await firestore.runTransaction(async (transaction) => {
+                const currentSnapshots = await Promise.all(snap.docs.map((doc) => transaction.get(doc.ref)));
+                const currentDocs = currentSnapshots.filter((doc) => (
+                    doc.exists && Number(doc.data()?.startsAtMs || 0) < cutoffMs
+                ));
+                const indexRefs = currentDocs.map((doc) => {
+                    const date = normalizeDateText(doc.data()?.date);
+                    return date ? firestore.collection(TROY_CALENDAR_DATE_INDEX_COLLECTION).doc(date) : null;
+                });
+                const indexSnapshots = await Promise.all(indexRefs.map((ref) => (ref ? transaction.get(ref) : null)));
+                const controlRef = firestore
+                    .collection(TROY_CALENDAR_CONTROL_COLLECTION)
+                    .doc(TROY_CALENDAR_CONTROL_DOCUMENT);
+                const controlSnapshot = await transaction.get(controlRef);
+
+                currentDocs.forEach((doc, index) => {
+                    transaction.delete(doc.ref);
+                    const indexSnapshot = indexSnapshots[index];
+                    if (indexSnapshot?.exists && String(indexSnapshot.data()?.calendarId || '') === doc.id) {
+                        transaction.delete(indexRefs[index]);
+                    }
+                });
+                const controlData = controlSnapshot.data() || {};
+                if (controlSnapshot.exists && controlData.schemaVersion === 1 && currentDocs.length > 0) {
+                    transaction.set(controlRef, {
+                        schemaVersion: 1,
+                        entryCount: Math.max(0, Number(controlData.entryCount || 0) - currentDocs.length),
+                        updatedAtMs: Date.now()
+                    }, { merge: true });
+                }
+                return currentDocs.length;
+            });
+            deleted += deletedThisPass;
+        } else {
+            const batch = firestore.batch();
+            snap.docs.forEach((doc) => batch.delete(doc.ref));
+            await batch.commit();
+            deleted += snap.size;
+        }
         if (snap.size < 200) break;
     }
     if (deleted > 0) {
@@ -361,6 +496,11 @@ function initializeEventRoutes(app, deps) {
         return;
     }
     startStoreScheduleCleanupJob(firestore);
+    const troyCalendarGoogleSync = deps.troyCalendarGoogleSync || createTroyCalendarGoogleSync({
+        firestore,
+        admin
+    });
+    troyCalendarGoogleSync.start();
 
     async function requireAuthed(req, res, playFabId) {
         if (typeof requireAuthenticatedPlayFabId !== 'function') return playFabId;
@@ -375,13 +515,13 @@ function initializeEventRoutes(app, deps) {
             const displayFromMs = getJstStartOfTodayMs();
             const snap = await firestore
                 .collection(TROY_CALENDAR_COLLECTION)
-                .limit(200)
+                .where('startsAtMs', '>=', displayFromMs)
+                .orderBy('startsAtMs', 'asc')
+                .limit(TROY_CALENDAR_MAX_VISIBLE_ENTRIES)
                 .get();
             const calendar = snap.docs
                 .map(troyCalendarDocToPayload)
-                .filter((entry) => Number(entry.startsAtMs || 0) >= displayFromMs)
-                .sort((a, b) => Number(a.startsAtMs || 0) - Number(b.startsAtMs || 0))
-                .slice(0, 80);
+                .sort((a, b) => Number(a.startsAtMs || 0) - Number(b.startsAtMs || 0));
             res.json({
                 success: true,
                 nation: TROY_CALENDAR_GLOBAL_NATION,
@@ -390,6 +530,23 @@ function initializeEventRoutes(app, deps) {
         } catch (error) {
             console.error('[troy-calendar/list] failed:', error?.message || error);
             res.status(500).json({ error: 'FailedToLoadTroyCalendar' });
+        }
+    });
+
+    app.post('/api/troy-calendar/google-sync-status', async (req, res) => {
+        const requestedPlayFabId = normalizeString(req.body?.playFabId, 64);
+        if (!requestedPlayFabId) return res.status(400).json({ error: 'playFabId is required' });
+        const playFabId = await requireAuthed(req, res, requestedPlayFabId);
+        if (!playFabId) return;
+        try {
+            if (!await isKing(playFabId, deps)) return res.status(403).json({ error: '王のみ確認できます。' });
+            const kingNation = normalizeNationKey(await getNationForPlayer(playFabId, deps));
+            if (!kingNation) return res.status(400).json({ error: 'NationNotSet' });
+            const googleBusinessProfileSync = await troyCalendarGoogleSync.getStatus();
+            res.json({ success: true, googleBusinessProfileSync });
+        } catch (error) {
+            console.error('[troy-calendar/google-sync-status] failed:', error?.message || error);
+            res.status(500).json({ error: 'FailedToLoadGoogleBusinessProfileSyncStatus' });
         }
     });
 
@@ -405,43 +562,205 @@ function initializeEventRoutes(app, deps) {
             if (!kingNation) return res.status(400).json({ error: 'NationNotSet' });
 
             const date = normalizeDateText(req.body?.date);
-            const openTime = normalizeTimeText(req.body?.openTime, '21:00');
-            const closeTime = normalizeTimeText(req.body?.closeTime, '23:59');
-            const startsAtMs = troyCalendarStartsAtMs(date, openTime);
-            if (!date || !startsAtMs) return res.status(400).json({ error: '営業日を入力してください。' });
-
-            const calendarId = normalizeString(req.body?.calendarId || req.body?.id, 100);
-            const ref = calendarId
-                ? firestore.collection(TROY_CALENDAR_COLLECTION).doc(calendarId)
-                : firestore.collection(TROY_CALENDAR_COLLECTION).doc();
-            if (calendarId) {
-                const before = await ref.get();
-                if (!before.exists) return res.status(404).json({ error: 'CalendarEntryNotFound' });
-                if (!isEditableTroyCalendarNation(before.data()?.nation, kingNation)) {
-                    return res.status(403).json({ error: 'OtherNationCalendarEntry' });
-                }
+            const openTime = normalizeStrictTimeText(req.body?.openTime);
+            const closeTime = normalizeStrictTimeText(req.body?.closeTime);
+            const status = normalizeStrictTroyCalendarStatus(req.body?.status);
+            if (!date) return res.status(400).json({ error: '実在する営業日を入力してください。' });
+            if (!openTime || !closeTime) return res.status(400).json({ error: 'OPENとCLOSEをHH:mm形式で入力してください。' });
+            if (!status) return res.status(400).json({ error: '営業状態が不正です。' });
+            if (status === 'open' && !hasValidGoogleOpenHours(openTime, closeTime)) {
+                return res.status(400).json({ error: '日またぎ営業は24時間未満かつ翌日11:59までにしてください。' });
             }
 
-            const payload = {
+            const calendarDayMs = troyCalendarStartsAtMs(date, '00:00');
+            const displayFromMs = getJstStartOfTodayMs();
+            const lastWritableDayMs = displayFromMs + (TROY_CALENDAR_MAX_FUTURE_DAYS * 24 * 60 * 60 * 1000);
+            if (!calendarDayMs || calendarDayMs < displayFromMs || calendarDayMs > lastWritableDayMs) {
+                return res.status(400).json({ error: `営業日は今日から${TROY_CALENDAR_MAX_FUTURE_DAYS}日以内で入力してください。` });
+            }
+            const startsAtMs = troyCalendarStartsAtMs(date, openTime);
+
+            const rawCalendarId = String(req.body?.calendarId || req.body?.id || '').trim();
+            const calendarId = normalizeCalendarDocumentId(rawCalendarId);
+            if (rawCalendarId && !calendarId) return res.status(400).json({ error: 'calendarId is invalid' });
+            const requestId = calendarId ? '' : normalizeCalendarRequestId(req.body?.requestId);
+            if (!calendarId && !requestId) return res.status(400).json({ error: '新規保存には有効なrequestIdが必要です。' });
+            const requestedDocumentId = calendarId || `request-${requestId}`;
+            const ref = firestore.collection(TROY_CALENDAR_COLLECTION).doc(requestedDocumentId);
+            const auditRef = firestore.collection(TROY_CALENDAR_AUDIT_COLLECTION).doc();
+            const dateIndexRef = firestore.collection(TROY_CALENDAR_DATE_INDEX_COLLECTION).doc(date);
+            const controlRef = firestore
+                .collection(TROY_CALENDAR_CONTROL_COLLECTION)
+                .doc(TROY_CALENDAR_CONTROL_DOCUMENT);
+            const mutationAtMs = Date.now();
+            const basePayload = {
                 nation: TROY_CALENDAR_GLOBAL_NATION,
                 date,
                 openTime,
                 closeTime,
-                status: normalizeTroyCalendarStatus(req.body?.status),
+                status,
                 title: normalizeString(req.body?.title, 80) || 'TROY営業',
                 note: normalizeString(req.body?.note, 300),
                 startsAtMs,
                 updatedBy: playFabId,
-                updatedAtMs: Date.now(),
+                updatedAtMs: mutationAtMs,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             };
-            if (!calendarId) {
-                payload.createdBy = playFabId;
-                payload.createdAtMs = Date.now();
-                payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
+            const transactionResult = await firestore.runTransaction(async (transaction) => {
+                const before = await transaction.get(ref);
+                if (calendarId && !before.exists) {
+                    return { kind: 'error', httpStatus: 404, error: 'CalendarEntryNotFound' };
+                }
+                if (before.exists && !isEditableTroyCalendarNation(before.data()?.nation, kingNation)) {
+                    return { kind: 'error', httpStatus: 403, error: 'OtherNationCalendarEntry' };
+                }
+                if (!calendarId && before.exists) {
+                    if (!calendarPayloadMatches(before.data(), basePayload)) {
+                        return { kind: 'error', httpStatus: 409, error: 'CalendarRequestConflict' };
+                    }
+                    return { kind: 'duplicate', entry: troyCalendarDocToPayload(before) };
+                }
+
+                const isNewEntry = before.exists !== true;
+                const beforeData = before.data() || {};
+                const oldDate = normalizeDateText(beforeData.date);
+                const oldDateIndexRef = oldDate
+                    ? firestore.collection(TROY_CALENDAR_DATE_INDEX_COLLECTION).doc(oldDate)
+                    : null;
+                const sameDateQuery = firestore
+                    .collection(TROY_CALENDAR_COLLECTION)
+                    .where('date', '==', date)
+                    .limit(2);
+                const [dateIndexSnapshot, oldDateIndexSnapshot, controlSnapshot, sameDateSnapshot] = await Promise.all([
+                    transaction.get(dateIndexRef),
+                    oldDateIndexRef && oldDateIndexRef.id !== dateIndexRef.id
+                        ? transaction.get(oldDateIndexRef)
+                        : Promise.resolve(null),
+                    transaction.get(controlRef),
+                    transaction.get(sameDateQuery)
+                ]);
+
+                const indexedCalendarId = String(dateIndexSnapshot.data()?.calendarId || '');
+                const indexedCalendarRef = indexedCalendarId && indexedCalendarId !== ref.id
+                    ? firestore.collection(TROY_CALENDAR_COLLECTION).doc(indexedCalendarId)
+                    : null;
+                const indexedCalendarSnapshot = indexedCalendarRef
+                    ? await transaction.get(indexedCalendarRef)
+                    : null;
+                const controlData = controlSnapshot.data() || {};
+                const hasStoredCount = controlData.schemaVersion === 1
+                    && Number.isFinite(Number(controlData.entryCount));
+                const countSnapshot = hasStoredCount
+                    ? null
+                    : await transaction.get(firestore.collection(TROY_CALENDAR_COLLECTION).limit(TROY_CALENDAR_MAX_VISIBLE_ENTRIES + 1));
+                const entryCount = hasStoredCount
+                    ? Math.max(0, Number(controlData.entryCount))
+                    : countSnapshot.docs.length;
+                const quota = nextTroyCalendarMutationWindows(controlData, playFabId, mutationAtMs);
+                if (!quota.allowed) {
+                    return {
+                        kind: 'error',
+                        httpStatus: 429,
+                        error: '営業予定の更新回数が多すぎます。しばらく待ってください。'
+                    };
+                }
+                const conflictingDateEntry = sameDateSnapshot.docs.find((doc) => doc.id !== ref.id);
+                if (conflictingDateEntry || indexedCalendarSnapshot?.exists) {
+                    return {
+                        kind: 'error',
+                        httpStatus: 409,
+                        error: 'この日付には既に営業予定があります。既存予定を編集してください。'
+                    };
+                }
+                if (isNewEntry && entryCount >= TROY_CALENDAR_MAX_VISIBLE_ENTRIES) {
+                    return {
+                        kind: 'error',
+                        httpStatus: 409,
+                        error: `営業予定は最大${TROY_CALENDAR_MAX_VISIBLE_ENTRIES}件です。既存予定を整理してください。`
+                    };
+                }
+                if (!isNewEntry && oldDate !== date && entryCount > TROY_CALENDAR_MAX_VISIBLE_ENTRIES) {
+                    return {
+                        kind: 'error',
+                        httpStatus: 409,
+                        error: '営業予定が上限を超えているため、先に不要な予定を削除してください。'
+                    };
+                }
+
+                const payload = { ...basePayload };
+                if (isNewEntry) {
+                    payload.createdBy = playFabId;
+                    payload.createdAtMs = mutationAtMs;
+                    payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
+                }
+                transaction.set(ref, payload, { merge: true });
+                transaction.set(auditRef, {
+                    action: isNewEntry ? 'create' : 'update',
+                    calendarId: ref.id,
+                    actorPlayFabId: playFabId,
+                    actorNation: kingNation,
+                    before: calendarAuditSnapshot(beforeData),
+                    after: calendarAuditSnapshot(payload),
+                    occurredAtMs: mutationAtMs,
+                    occurredAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+                const googleBusinessProfileSync = troyCalendarGoogleSync.markPendingInBatch(
+                    transaction,
+                    'calendar_save',
+                    { requestedBy: playFabId, calendarId: ref.id, action: 'save' }
+                );
+                transaction.set(dateIndexRef, { calendarId: ref.id, date }, { merge: false });
+                if (oldDateIndexRef
+                    && oldDateIndexRef.id !== dateIndexRef.id
+                    && oldDateIndexSnapshot?.exists
+                    && String(oldDateIndexSnapshot.data()?.calendarId || '') === ref.id) {
+                    transaction.delete(oldDateIndexRef);
+                }
+                transaction.set(controlRef, {
+                    schemaVersion: 1,
+                    entryCount: entryCount + (isNewEntry ? 1 : 0),
+                    mutationWindows: quota.mutationWindows,
+                    updatedAtMs: mutationAtMs,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+                return {
+                    kind: 'saved',
+                    entry: troyCalendarDocToPayload({ id: ref.id, data: () => payload }),
+                    googleBusinessProfileSync
+                };
+            });
+
+            if (transactionResult.kind === 'error') {
+                return res.status(transactionResult.httpStatus).json({ error: transactionResult.error });
             }
-            await ref.set(payload, { merge: true });
-            res.json({ success: true, nation: TROY_CALENDAR_GLOBAL_NATION, entry: troyCalendarDocToPayload(await ref.get()) });
+            if (transactionResult.kind === 'duplicate') {
+                let googleBusinessProfileSync = { status: 'queued', configured: true, enabled: true, queued: true };
+                try {
+                    if (typeof troyCalendarGoogleSync.getStatus === 'function') {
+                        googleBusinessProfileSync = await troyCalendarGoogleSync.getStatus();
+                    }
+                } catch (error) {
+                    console.warn('[google-business-profile] Duplicate save status read failed:', error?.message || error);
+                }
+                return res.json({
+                    success: true,
+                    duplicate: true,
+                    nation: TROY_CALENDAR_GLOBAL_NATION,
+                    entry: transactionResult.entry,
+                    googleBusinessProfileSync
+                });
+            }
+            try {
+                troyCalendarGoogleSync.scheduleFlush();
+            } catch (error) {
+                console.warn('[google-business-profile] Calendar save queued; local wake-up failed:', error?.message || error);
+            }
+            res.json({
+                success: true,
+                nation: TROY_CALENDAR_GLOBAL_NATION,
+                entry: transactionResult.entry,
+                googleBusinessProfileSync: transactionResult.googleBusinessProfileSync
+            });
         } catch (error) {
             console.error('[troy-calendar/save] failed:', error?.message || error);
             res.status(500).json({ error: 'FailedToSaveTroyCalendar' });
@@ -450,7 +769,7 @@ function initializeEventRoutes(app, deps) {
 
     app.post('/api/troy-calendar/delete', async (req, res) => {
         const requestedPlayFabId = normalizeString(req.body?.playFabId, 64);
-        const calendarId = normalizeString(req.body?.calendarId || req.body?.id, 100);
+        const calendarId = normalizeCalendarDocumentId(req.body?.calendarId || req.body?.id);
         if (!requestedPlayFabId || !calendarId) return res.status(400).json({ error: 'playFabId and calendarId are required' });
         const playFabId = await requireAuthed(req, res, requestedPlayFabId);
         if (!playFabId) return;
@@ -460,13 +779,88 @@ function initializeEventRoutes(app, deps) {
             const kingNation = normalizeNationKey(await getNationForPlayer(playFabId, deps));
             if (!kingNation) return res.status(400).json({ error: 'NationNotSet' });
             const ref = firestore.collection(TROY_CALENDAR_COLLECTION).doc(calendarId);
-            const snap = await ref.get();
-            if (!snap.exists) return res.status(404).json({ error: 'CalendarEntryNotFound' });
-            if (!isEditableTroyCalendarNation(snap.data()?.nation, kingNation)) {
-                return res.status(403).json({ error: 'OtherNationCalendarEntry' });
+            const auditRef = firestore.collection(TROY_CALENDAR_AUDIT_COLLECTION).doc();
+            const controlRef = firestore
+                .collection(TROY_CALENDAR_CONTROL_COLLECTION)
+                .doc(TROY_CALENDAR_CONTROL_DOCUMENT);
+            const mutationAtMs = Date.now();
+            const transactionResult = await firestore.runTransaction(async (transaction) => {
+                const snap = await transaction.get(ref);
+                if (!snap.exists) return { kind: 'error', httpStatus: 404, error: 'CalendarEntryNotFound' };
+                if (!isEditableTroyCalendarNation(snap.data()?.nation, kingNation)) {
+                    return { kind: 'error', httpStatus: 403, error: 'OtherNationCalendarEntry' };
+                }
+                const beforeData = snap.data() || {};
+                const date = normalizeDateText(beforeData.date);
+                const dateIndexRef = date
+                    ? firestore.collection(TROY_CALENDAR_DATE_INDEX_COLLECTION).doc(date)
+                    : null;
+                const [dateIndexSnapshot, controlSnapshot] = await Promise.all([
+                    dateIndexRef ? transaction.get(dateIndexRef) : Promise.resolve(null),
+                    transaction.get(controlRef)
+                ]);
+                const controlData = controlSnapshot.data() || {};
+                const hasStoredCount = controlData.schemaVersion === 1
+                    && Number.isFinite(Number(controlData.entryCount));
+                const countSnapshot = hasStoredCount
+                    ? null
+                    : await transaction.get(firestore.collection(TROY_CALENDAR_COLLECTION).limit(TROY_CALENDAR_MAX_VISIBLE_ENTRIES + 1));
+                const entryCount = hasStoredCount
+                    ? Math.max(0, Number(controlData.entryCount))
+                    : countSnapshot.docs.length;
+                const quota = nextTroyCalendarMutationWindows(controlData, playFabId, mutationAtMs);
+                if (!quota.allowed) {
+                    return {
+                        kind: 'error',
+                        httpStatus: 429,
+                        error: '営業予定の更新回数が多すぎます。しばらく待ってください。'
+                    };
+                }
+
+                transaction.delete(ref);
+                if (dateIndexRef
+                    && dateIndexSnapshot?.exists
+                    && String(dateIndexSnapshot.data()?.calendarId || '') === calendarId) {
+                    transaction.delete(dateIndexRef);
+                }
+                transaction.set(auditRef, {
+                    action: 'delete',
+                    calendarId,
+                    actorPlayFabId: playFabId,
+                    actorNation: kingNation,
+                    before: calendarAuditSnapshot(beforeData),
+                    after: null,
+                    occurredAtMs: mutationAtMs,
+                    occurredAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+                const googleBusinessProfileSync = troyCalendarGoogleSync.markPendingInBatch(
+                    transaction,
+                    'calendar_delete',
+                    { requestedBy: playFabId, calendarId, action: 'delete' }
+                );
+                transaction.set(controlRef, {
+                    schemaVersion: 1,
+                    entryCount: Math.max(0, entryCount - 1),
+                    mutationWindows: quota.mutationWindows,
+                    updatedAtMs: mutationAtMs,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+                return { kind: 'deleted', googleBusinessProfileSync };
+            });
+            if (transactionResult.kind === 'error') {
+                return res.status(transactionResult.httpStatus).json({ error: transactionResult.error });
             }
-            await ref.delete();
-            res.json({ success: true, deleted: true, calendarId });
+            try {
+                troyCalendarGoogleSync.scheduleFlush();
+            } catch (error) {
+                console.warn('[google-business-profile] Calendar delete queued; local wake-up failed:', error?.message || error);
+            }
+            res.json({
+                success: true,
+                deleted: true,
+                calendarId,
+                googleBusinessProfileSync: transactionResult.googleBusinessProfileSync
+            });
         } catch (error) {
             console.error('[troy-calendar/delete] failed:', error?.message || error);
             res.status(500).json({ error: 'FailedToDeleteTroyCalendar' });

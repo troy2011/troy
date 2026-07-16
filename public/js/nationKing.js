@@ -15,6 +15,7 @@ import {
     getReservations,
     reviewReservation,
     getTroyCalendar,
+    getTroyCalendarGoogleSyncStatus,
     saveTroyCalendarEntry,
     deleteTroyCalendarEntry
 } from './playfabClient.js';
@@ -25,6 +26,8 @@ import { formatUnlockedFeatures } from './featureUnlocks.js';
 let _isKing = false;
 let _lastPageData = null;
 let _hasKingCheck = false;
+let _pendingCalendarCreateRequestId = '';
+let _calendarSyncWatchToken = 0;
 const STORE_GAME_LABELS = {
     darts_countup: 'ダーツカウントアップ',
     billiards: 'ビリヤード',
@@ -63,6 +66,121 @@ function _setMessage(text, isError = false) {
     if (!el) return;
     el.style.color = isError ? 'var(--danger-color)' : 'var(--accent-color)';
     el.innerText = text || '';
+}
+
+function _calendarSyncFeedback(baseMessage, sync) {
+    const status = String(sync?.status || '').trim().toLowerCase();
+    if (!status) return { message: baseMessage, isError: false };
+    if (status === 'validated') {
+        return {
+            message: `${baseMessage} Googleビジネスプロフィールへの更新内容を検証しました。検証モードのため、実際の反映は行っていません。`,
+            isError: false
+        };
+    }
+    if (status === 'synced') {
+        return {
+            message: `${baseMessage} Googleビジネスプロフィールにも反映しました。`,
+            isError: false
+        };
+    }
+    if (status === 'up_to_date') {
+        return {
+            message: `${baseMessage} Googleビジネスプロフィールも最新です。`,
+            isError: false
+        };
+    }
+    if (status === 'queued' && sync?.dryRun === true) {
+        return {
+            message: `${baseMessage} Googleビジネスプロフィールへの更新内容の検証を受け付けました。検証モードのため、実際には反映しません。`,
+            isError: false
+        };
+    }
+    if (status === 'queued') {
+        return {
+            message: `${baseMessage} Googleビジネスプロフィールへの反映を受け付けました。バックグラウンドで同期します。`,
+            isError: false
+        };
+    }
+    if (status === 'retrying') {
+        return {
+            message: `${baseMessage} Googleビジネスプロフィールへ一時的に反映できなかったため、自動再試行中です。`,
+            isError: false
+        };
+    }
+    if (status === 'syncing') {
+        return {
+            message: `${baseMessage} Googleビジネスプロフィールへ同期中です。`,
+            isError: false
+        };
+    }
+    if (status === 'disabled') {
+        return {
+            message: `${baseMessage} Googleビジネスプロフィール連携は無効です。`,
+            isError: false
+        };
+    }
+    if (status === 'not_configured') {
+        return {
+            message: `${baseMessage} Googleビジネスプロフィール連携の設定が不足しています。`,
+            isError: false
+        };
+    }
+    if (status === 'queue_failed') {
+        return {
+            message: `${baseMessage} Googleビジネスプロフィールの同期要求を記録できませんでした。時間をおいて再度保存してください。`,
+            isError: true
+        };
+    }
+    if (status === 'blocked') {
+        return {
+            message: `${baseMessage} Googleビジネスプロフィールへ反映できませんでした。連携設定または営業時間を確認してください。`,
+            isError: true
+        };
+    }
+    if (status === 'configuration_conflict') {
+        return {
+            message: `${baseMessage} Googleビジネスプロフィール連携の設定世代が競合しています。管理者へ連絡してください。`,
+            isError: true
+        };
+    }
+    return { message: baseMessage, isError: false };
+}
+
+function _watchCalendarGoogleSync(playFabId, baseMessage) {
+    const token = ++_calendarSyncWatchToken;
+    const configuredDelays = globalThis.__TROY_CALENDAR_SYNC_POLL_DELAYS_MS;
+    const delays = Array.isArray(configuredDelays) && configuredDelays.length
+        ? configuredDelays.slice(0, 4).map((value) => Math.max(0, Math.min(60_000, Number(value) || 0)))
+        : [10_000, 15_000, 20_000];
+    void (async () => {
+        for (const delayMs of delays) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+            if (token !== _calendarSyncWatchToken) return;
+            try {
+                const result = await getTroyCalendarGoogleSyncStatus(playFabId, {
+                    isSilent: true,
+                    throwOnError: true
+                });
+                if (token !== _calendarSyncWatchToken) return;
+                const sync = result?.googleBusinessProfileSync || result;
+                const status = String(sync?.status || '').trim().toLowerCase();
+                if (!status || status === 'status_unavailable') continue;
+                const feedback = _calendarSyncFeedback(baseMessage, sync);
+                _setMessage(feedback.message, feedback.isError);
+                if (['synced', 'up_to_date', 'validated', 'blocked', 'configuration_conflict', 'disabled', 'not_configured'].includes(status)) {
+                    return;
+                }
+            } catch {
+                // 保存済みの営業予定には影響しないため、次の短時間確認へ進む。
+            }
+        }
+    })();
+}
+
+function _shouldWatchCalendarGoogleSync(sync) {
+    return ['queued', 'syncing', 'retrying'].includes(
+        String(sync?.status || '').trim().toLowerCase()
+    );
 }
 
 function _setKingSectionActive(sectionId = 'store') {
@@ -368,6 +486,7 @@ async function _loadKingReservations(playFabId) {
 }
 
 function _clearCalendarForm() {
+    _pendingCalendarCreateRequestId = '';
     const idEl = document.getElementById('kingTroyCalendarId');
     const dateEl = document.getElementById('kingTroyCalendarDate');
     const openEl = document.getElementById('kingTroyCalendarOpenTime');
@@ -621,6 +740,8 @@ function _extractErrorMessage(error, fallback = 'ゴールドの付与に失敗�
     if (message.includes('NotKing')) return '王のみ操作できます。';
     if (message.includes('Authentication required')) return 'ログイン状態を確認できません。再ログインしてください。';
     if (message.includes('EntityKeyNotFound')) return '受取人のアカウントが見つかりません。';
+    if (message.includes('CalendarRequestConflict')) return '前回の保存内容と現在の入力が異なります。フォームをクリアして新しく保存してください。';
+    if (message.includes('FailedToSaveTroyCalendar') || message.includes('FailedToDeleteTroyCalendar')) return fallback;
     return message;
 }
 
@@ -1129,6 +1250,7 @@ function _wireHandlers(playFabId) {
 
             const editBtn = target.closest('[data-calendar-edit]');
             if (editBtn) {
+                _pendingCalendarCreateRequestId = '';
                 const id = String(editBtn.getAttribute('data-calendar-edit') || '');
                 const entry = (_lastPageData?.troyCalendar || []).find((row) => String(row.id) === id);
                 if (!entry) return;
@@ -1157,9 +1279,18 @@ function _wireHandlers(playFabId) {
                 deleteBtn.setAttribute('disabled', 'disabled');
                 deleteBtn.textContent = '削除中...';
                 try {
-                    await deleteTroyCalendarEntry(playFabId, id, { isSilent: true });
+                    const result = await deleteTroyCalendarEntry(playFabId, id, {
+                        isSilent: true,
+                        throwOnError: true
+                    });
                     await loadKingPage(playFabId);
-                    _setMessage('営業予定を削除しました。');
+                    const feedback = _calendarSyncFeedback('営業予定を削除しました。', result?.googleBusinessProfileSync);
+                    _setMessage(feedback.message, feedback.isError);
+                    if (_shouldWatchCalendarGoogleSync(result?.googleBusinessProfileSync)) {
+                        _watchCalendarGoogleSync(playFabId, '営業予定を削除しました。');
+                    } else {
+                        _calendarSyncWatchToken += 1;
+                    }
                 } catch (error) {
                     _setMessage(_extractErrorMessage(error, '営業予定の削除に失敗しました。'), true);
                     deleteBtn.removeAttribute('disabled');
@@ -1188,14 +1319,27 @@ function _wireHandlers(playFabId) {
                     _setMessage('営業日を入力してください。', true);
                     return;
                 }
+                if (!payload.calendarId) {
+                    _pendingCalendarCreateRequestId ||= createRequestId('troy-calendar');
+                    payload.requestId = _pendingCalendarCreateRequestId;
+                }
                 const previous = saveCalendarBtn.textContent;
                 saveCalendarBtn.setAttribute('disabled', 'disabled');
                 saveCalendarBtn.textContent = '保存中...';
                 try {
-                    await saveTroyCalendarEntry(playFabId, payload, { isSilent: true });
+                    const result = await saveTroyCalendarEntry(playFabId, payload, {
+                        isSilent: true,
+                        throwOnError: true
+                    });
                     _clearCalendarForm();
                     await loadKingPage(playFabId);
-                    _setMessage('営業予定を保存しました。');
+                    const feedback = _calendarSyncFeedback('営業予定を保存しました。', result?.googleBusinessProfileSync);
+                    _setMessage(feedback.message, feedback.isError);
+                    if (_shouldWatchCalendarGoogleSync(result?.googleBusinessProfileSync)) {
+                        _watchCalendarGoogleSync(playFabId, '営業予定を保存しました。');
+                    } else {
+                        _calendarSyncWatchToken += 1;
+                    }
                 } catch (error) {
                     _setMessage(_extractErrorMessage(error, '営業予定の保存に失敗しました。'), true);
                     saveCalendarBtn.removeAttribute('disabled');
