@@ -4517,7 +4517,33 @@ const THREE_CARD_SEMANTIC_TAGS = {
     support: new Set(['major-6:upright', 'cup-2:upright', 'cup-3:upright', 'cup-10:upright', 'pentacle-3:upright', 'pentacle-6:upright', 'pentacle-10:upright'])
 };
 
+const SPECIAL_ABILITY_SESSION_KEY = 'troy.specialAbilityTerminalSession.v1';
+const SPECIAL_ABILITY_BOOTSTRAP_PARAM = 'abilityTerminal';
+
+function readSpecialAbilitySession() {
+    try {
+        return String(sessionStorage.getItem(SPECIAL_ABILITY_SESSION_KEY) || '').trim();
+    } catch (_error) {
+        return '';
+    }
+}
+
+function consumeSpecialAbilityBootstrap() {
+    try {
+        const url = new URL(window.location.href);
+        const token = String(url.searchParams.get(SPECIAL_ABILITY_BOOTSTRAP_PARAM) || '').trim();
+        if (token) {
+            url.searchParams.delete(SPECIAL_ABILITY_BOOTSTRAP_PARAM);
+            history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`);
+        }
+        return token;
+    } catch (_error) {
+        return '';
+    }
+}
+
 const state = {
+    mode: 'tarot',
     topicId: 'love',
     subtopicId: 'feelings',
     orientation: 'upright',
@@ -4526,7 +4552,24 @@ const state = {
     spreadMode: 'single',
     tripleSelections: [null, null, null],
     activeTripleIndex: 0,
-    customersLoading: false
+    customersLoading: false,
+    storeData: null,
+    specialAbility: {
+        enabled: false,
+        assetsReady: false,
+        totalRounds: 12,
+        assetVersion: 3,
+        bootstrapToken: consumeSpecialAbilityBootstrap(),
+        terminalSession: readSpecialAbilitySession(),
+        state: 'idle',
+        token: '',
+        question: null,
+        questionShownAt: 0,
+        ability: null,
+        busy: false,
+        customerRef: '',
+        requestToken: 0
+    }
 };
 
 const minorCards = Object.entries(SUITS).flatMap(([suitId, suit]) => RANKS.map(([rankId, rankLabel]) => ({
@@ -5751,7 +5794,7 @@ function updateSendButtonState() {
     const button = $('tarotSendLine');
     if (!button || button.dataset.sending === 'true') return;
     const customerRef = String($('tarotCustomerRef')?.value || '').trim();
-    button.disabled = !isReadingSelectionComplete() || !customerRef || state.customersLoading;
+    button.disabled = state.mode !== 'tarot' || !isReadingSelectionComplete() || !customerRef || state.customersLoading;
 }
 
 function getResultText() {
@@ -5810,6 +5853,310 @@ function buildPayload() {
     };
 }
 
+function getSelectedCustomerRef() {
+    return String($('tarotCustomerRef')?.value || '').trim();
+}
+
+async function fetchSpecialAbilityJson(path, payload) {
+    const headers = payload === undefined
+        ? { Accept: 'application/json' }
+        : { Accept: 'application/json', 'Content-Type': 'application/json' };
+    if (state.specialAbility.terminalSession) {
+        headers['X-Troy-Ability-Session'] = state.specialAbility.terminalSession;
+    }
+    if (path === '/api/special-ability/config' && state.specialAbility.bootstrapToken) {
+        headers['X-Troy-Ability-Terminal'] = state.specialAbility.bootstrapToken;
+    }
+    const response = await fetch(path, {
+        method: payload === undefined ? 'GET' : 'POST',
+        headers,
+        body: payload === undefined ? undefined : JSON.stringify(payload),
+        cache: 'no-store'
+    });
+    const text = await response.text();
+    let data = null;
+    try {
+        data = text ? JSON.parse(text) : null;
+    } catch {
+        data = null;
+    }
+    if (!response.ok || !data?.success) {
+        const error = new Error(data?.error || '特殊能力判定を処理できませんでした');
+        error.code = data?.code || '';
+        error.status = response.status;
+        throw error;
+    }
+    return data;
+}
+
+function getSpecialAbilityAssetUrls() {
+    const totalRounds = Math.max(1, Math.min(24, Math.trunc(Number(state.specialAbility.totalRounds) || 12)));
+    const assetVersion = Math.max(1, Math.trunc(Number(state.specialAbility.assetVersion) || 3));
+    return Array.from({ length: totalRounds }, (_, roundIndex) => (
+        ['a', 'b', 'c', 'd'].map((letter) => `/assets/special-ability/r${String(roundIndex + 1).padStart(2, '0')}-${letter}.webp?v=${assetVersion}`)
+    )).flat();
+}
+
+function preloadSpecialAbilityImages() {
+    return Promise.all(getSpecialAbilityAssetUrls().map((src) => new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(src);
+        image.onerror = () => reject(new Error(`判定画像を読み込めませんでした: ${src}`));
+        image.src = src;
+    })));
+}
+
+function setSpecialAbilityIntro(message, { canStart = false } = {}) {
+    const intro = $('specialAbilityIntro');
+    const assessment = $('specialAbilityAssessment');
+    const result = $('specialAbilityResult');
+    const introText = $('specialAbilityIntroText');
+    const startButton = $('specialAbilityStart');
+    if (intro) intro.hidden = false;
+    if (assessment) assessment.hidden = true;
+    if (result) result.hidden = true;
+    if (introText) introText.textContent = message;
+    if (startButton) startButton.disabled = !canStart || state.specialAbility.busy;
+}
+
+function renderSpecialAbilityResult(ability) {
+    const publicAbility = ability && String(ability.name || '').trim() && String(ability.effect || '').trim()
+        ? { name: String(ability.name).trim(), effect: String(ability.effect).trim() }
+        : null;
+    if (!publicAbility) {
+        setSpecialAbilityIntro('判定結果を表示できませんでした。店内リストを更新して、もう一度確認してください。');
+        return;
+    }
+    state.specialAbility.state = 'completed';
+    state.specialAbility.ability = publicAbility;
+    state.specialAbility.token = '';
+    state.specialAbility.question = null;
+    if ($('specialAbilityIntro')) $('specialAbilityIntro').hidden = true;
+    if ($('specialAbilityAssessment')) $('specialAbilityAssessment').hidden = true;
+    if ($('specialAbilityResult')) $('specialAbilityResult').hidden = false;
+    if ($('specialAbilityName')) $('specialAbilityName').textContent = publicAbility.name;
+    if ($('specialAbilityEffect')) $('specialAbilityEffect').textContent = publicAbility.effect;
+    setStatus('判定済み', 'success');
+}
+
+function setSpecialAbilityOptionsDisabled(disabled) {
+    document.querySelectorAll('.special-ability-option').forEach((button) => {
+        button.disabled = !!disabled;
+    });
+}
+
+function renderSpecialAbilityQuestion(question) {
+    if (!question || !Array.isArray(question.options) || question.options.length !== 4) {
+        setSpecialAbilityIntro('判定問題を表示できませんでした。最初からやり直してください。');
+        return;
+    }
+    state.specialAbility.state = 'in_progress';
+    state.specialAbility.question = question;
+    state.specialAbility.questionShownAt = performance.now();
+    if ($('specialAbilityIntro')) $('specialAbilityIntro').hidden = true;
+    if ($('specialAbilityResult')) $('specialAbilityResult').hidden = true;
+    if ($('specialAbilityAssessment')) $('specialAbilityAssessment').hidden = false;
+    if ($('specialAbilityProgressText')) $('specialAbilityProgressText').textContent = `${question.number} / ${question.total}`;
+    if ($('specialAbilityProgressBar')) $('specialAbilityProgressBar').style.width = `${(question.number / question.total) * 100}%`;
+    if ($('specialAbilityPrompt')) $('specialAbilityPrompt').textContent = question.prompt || '直感で一つ選んでください';
+    const options = $('specialAbilityOptions');
+    if (!options) return;
+    options.replaceChildren();
+    question.options.forEach((option) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'special-ability-option';
+        button.dataset.optionId = String(option.id || '');
+        button.setAttribute('aria-label', String(option.alt || '画像を選択'));
+        const image = document.createElement('img');
+        image.src = String(option.imageUrl || '');
+        image.alt = '';
+        image.decoding = 'async';
+        image.draggable = false;
+        button.appendChild(image);
+        button.addEventListener('click', () => submitSpecialAbilityAnswer(option.id));
+        options.appendChild(button);
+    });
+    setStatus(`特殊能力判定 ${question.number}/${question.total}`);
+}
+
+function resetSpecialAbilitySession() {
+    state.specialAbility.state = 'idle';
+    state.specialAbility.token = '';
+    state.specialAbility.question = null;
+    state.specialAbility.questionShownAt = 0;
+    state.specialAbility.ability = null;
+    state.specialAbility.busy = false;
+}
+
+async function checkSpecialAbilityStatus() {
+    if (!state.specialAbility.enabled || state.mode !== 'ability') return;
+    const customerRef = getSelectedCustomerRef();
+    const requestToken = ++state.specialAbility.requestToken;
+    resetSpecialAbilitySession();
+    state.specialAbility.customerRef = customerRef;
+    if (!customerRef) {
+        setSpecialAbilityIntro('店内リストから判定するお客様を選んでください。');
+        setStatus('お客様を選択');
+        return;
+    }
+    state.specialAbility.busy = true;
+    setSpecialAbilityIntro('判定履歴を確認しています。');
+    setStatus('判定履歴を確認中');
+    try {
+        const data = await fetchSpecialAbilityJson('/api/special-ability/status', { customerRef });
+        if (requestToken !== state.specialAbility.requestToken || customerRef !== getSelectedCustomerRef()) return;
+        if (data.state === 'completed' && data.ability) {
+            renderSpecialAbilityResult(data.ability);
+            return;
+        }
+        if (data.state === 'finalizing') {
+            state.specialAbility.state = 'finalizing';
+            setSpecialAbilityIntro('判定結果を保存しています。少し待ってから店内リストを更新してください。');
+            setStatus('結果を保存中');
+            return;
+        }
+        state.specialAbility.state = 'available';
+        const ready = state.specialAbility.assetsReady;
+        setSpecialAbilityIntro(
+            ready ? '準備ができました。端末をお客様へ渡して判定を始めてください。' : '判定画像を準備しています。',
+            { canStart: ready }
+        );
+        setStatus(ready ? '判定可能' : '画像を準備中');
+    } catch (error) {
+        if (requestToken !== state.specialAbility.requestToken) return;
+        setSpecialAbilityIntro(error?.message || '判定履歴を確認できませんでした。');
+        setStatus(error?.message || '判定履歴を確認できませんでした', 'error');
+    } finally {
+        if (requestToken === state.specialAbility.requestToken) {
+            state.specialAbility.busy = false;
+            if ($('specialAbilityStart') && state.specialAbility.state === 'available') {
+                $('specialAbilityStart').disabled = !state.specialAbility.assetsReady;
+            }
+        }
+    }
+}
+
+async function startSpecialAbilityAssessment() {
+    const customerRef = getSelectedCustomerRef();
+    if (!customerRef || state.specialAbility.busy || !state.specialAbility.assetsReady) return;
+    state.specialAbility.busy = true;
+    if ($('specialAbilityStart')) $('specialAbilityStart').disabled = true;
+    setStatus('判定を開始しています');
+    try {
+        const data = await fetchSpecialAbilityJson('/api/special-ability/start', { customerRef });
+        if (customerRef !== getSelectedCustomerRef() || state.mode !== 'ability') return;
+        state.specialAbility.customerRef = customerRef;
+        state.specialAbility.token = String(data.token || '');
+        renderSpecialAbilityQuestion(data.question);
+    } catch (error) {
+        setSpecialAbilityIntro(error?.message || '判定を開始できませんでした。', {
+            canStart: error?.code !== 'already_completed' && state.specialAbility.assetsReady
+        });
+        setStatus(error?.message || '判定を開始できませんでした', 'error');
+        if (error?.code === 'already_completed') await checkSpecialAbilityStatus();
+    } finally {
+        state.specialAbility.busy = false;
+        if ($('specialAbilityStart') && state.specialAbility.state === 'available') {
+            $('specialAbilityStart').disabled = !state.specialAbility.assetsReady;
+        }
+    }
+}
+
+async function submitSpecialAbilityAnswer(optionId) {
+    const abilityState = state.specialAbility;
+    if (abilityState.busy || abilityState.state !== 'in_progress' || !abilityState.token || !abilityState.question) return;
+    const elapsedMs = Math.max(0, performance.now() - abilityState.questionShownAt);
+    abilityState.busy = true;
+    setSpecialAbilityOptionsDisabled(true);
+    setStatus('回答を記録しています');
+    try {
+        const data = await fetchSpecialAbilityJson('/api/special-ability/answer', {
+            token: abilityState.token,
+            questionId: abilityState.question.id,
+            optionId: String(optionId || ''),
+            elapsedMs
+        });
+        if (data.state === 'completed' && data.ability) {
+            renderSpecialAbilityResult(data.ability);
+            return;
+        }
+        abilityState.token = String(data.token || '');
+        renderSpecialAbilityQuestion(data.question);
+    } catch (error) {
+        if (['expired_token', 'customer_left_store', 'invalid_round_order'].includes(error?.code)) {
+            resetSpecialAbilitySession();
+            setSpecialAbilityIntro(error?.message || '判定を最初からやり直してください。', {
+                canStart: error?.code !== 'customer_left_store' && state.specialAbility.assetsReady
+            });
+        } else if (error?.code === 'finalizing') {
+            abilityState.state = 'finalizing';
+            setSpecialAbilityIntro(error.message || '判定結果を保存しています。');
+        } else {
+            setSpecialAbilityOptionsDisabled(false);
+        }
+        setStatus(error?.message || '回答を記録できませんでした', 'error');
+    } finally {
+        abilityState.busy = false;
+    }
+}
+
+function setReadingMode(mode) {
+    const nextMode = mode === 'ability' && state.specialAbility.enabled ? 'ability' : 'tarot';
+    state.mode = nextMode;
+    const isAbility = nextMode === 'ability';
+    if ($('tarotReadingBoard')) $('tarotReadingBoard').hidden = isAbility;
+    if ($('specialAbilityBoard')) $('specialAbilityBoard').hidden = !isAbility;
+    if ($('tarotCustomerSectionTitle')) $('tarotCustomerSectionTitle').textContent = isAbility ? '判定するお客様' : '送信先';
+    if ($('tarotReadingKicker')) $('tarotReadingKicker').textContent = isAbility ? 'TROY ABILITY JUDGMENT' : 'TROY STAFF TAROT';
+    if ($('tarotReadingTitle')) $('tarotReadingTitle').textContent = isAbility ? '異能航路' : 'タロット航路';
+    document.querySelectorAll('[data-reading-mode]').forEach((button) => {
+        const active = button.dataset.readingMode === nextMode;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    if (state.storeData) renderStoreCustomers(state.storeData, getSelectedCustomerRef());
+    if (isAbility) {
+        checkSpecialAbilityStatus();
+    } else {
+        setStatus('待機中');
+        updateSendButtonState();
+    }
+}
+
+async function loadSpecialAbilityConfig() {
+    try {
+        const data = await fetchSpecialAbilityJson('/api/special-ability/config');
+        if (!data.enabled) return;
+        state.specialAbility.bootstrapToken = '';
+        state.specialAbility.terminalSession = String(data.terminalSession || '').trim();
+        if (!state.specialAbility.terminalSession) return;
+        try {
+            sessionStorage.setItem(SPECIAL_ABILITY_SESSION_KEY, state.specialAbility.terminalSession);
+        } catch (_error) {
+            // The in-memory session remains valid when storage is unavailable.
+        }
+        state.specialAbility.enabled = true;
+        state.specialAbility.totalRounds = Math.max(1, Math.min(24, Math.trunc(Number(data.totalRounds) || 12)));
+        state.specialAbility.assetVersion = Math.max(1, Math.trunc(Number(data.assetVersion) || 3));
+        if ($('readingModeSwitch')) $('readingModeSwitch').hidden = false;
+        document.querySelector('[data-reading-mode="tarot"]')?.classList.add('is-active');
+        try {
+            await preloadSpecialAbilityImages();
+            state.specialAbility.assetsReady = true;
+            if (state.mode === 'ability') checkSpecialAbilityStatus();
+        } catch (error) {
+            state.specialAbility.assetsReady = false;
+            if (state.mode === 'ability') {
+                setSpecialAbilityIntro('判定画像を読み込めませんでした。画面を再読み込みしてください。');
+                setStatus(error?.message || '判定画像を読み込めませんでした', 'error');
+            }
+        }
+    } catch (_error) {
+        state.specialAbility.enabled = false;
+    }
+}
+
 function formatCustomerJoinedAt(joinedAtMs) {
     const value = Number(joinedAtMs || 0);
     if (!value) return '';
@@ -5830,8 +6177,12 @@ function setCustomerListStatus(message, tone = '') {
 function renderStoreCustomers(data, previousValue = '') {
     const select = $('tarotCustomerRef');
     if (!select) return;
+    state.storeData = data || null;
     const customers = Array.isArray(data?.customers) ? data.customers : [];
     const linkedCustomers = customers.filter((customer) => customer?.lineLinked && customer?.customerRef);
+    const selectableCustomers = state.mode === 'ability'
+        ? customers.filter((customer) => customer?.customerRef)
+        : linkedCustomers;
     select.replaceChildren();
 
     const placeholder = document.createElement('option');
@@ -5844,25 +6195,28 @@ function renderStoreCustomers(data, previousValue = '') {
     customers.forEach((customer, index) => {
         const option = document.createElement('option');
         const joinedAt = formatCustomerJoinedAt(customer.joinedAtMs);
-        option.value = customer.lineLinked ? String(customer.customerRef || '') : `unlinked-${index + 1}`;
-        option.disabled = !customer.lineLinked;
+        const selectable = state.mode === 'ability' || customer.lineLinked;
+        option.value = selectable ? String(customer.customerRef || '') : `unlinked-${index + 1}`;
+        option.disabled = !selectable;
         option.textContent = [
             String(customer.displayName || 'お客様'),
             joinedAt ? `${joinedAt}入店` : '',
-            customer.lineLinked ? '' : 'LINE未連携'
+            state.mode === 'tarot' && !customer.lineLinked ? 'LINE未連携' : ''
         ].filter(Boolean).join(' / ');
         select.appendChild(option);
     });
 
-    if (linkedCustomers.some((customer) => customer.customerRef === previousValue)) {
+    if (selectableCustomers.some((customer) => customer.customerRef === previousValue)) {
         select.value = previousValue;
     }
-    select.disabled = linkedCustomers.length === 0;
+    select.disabled = selectableCustomers.length === 0;
     const unlinkedCount = customers.length - linkedCustomers.length;
     if (!data?.isOpen) {
         setCustomerListStatus('営業開始後、入店したお客様が表示されます。');
     } else if (!customers.length) {
         setCustomerListStatus('現在、入店中のお客様はいません。');
+    } else if (state.mode === 'ability') {
+        setCustomerListStatus(`判定可能 ${customers.length}名`);
     } else {
         const unlinkedText = unlinkedCount ? ` / LINE未連携 ${unlinkedCount}名` : '';
         setCustomerListStatus(`LINE送信可 ${linkedCustomers.length}名 / 店内 ${customers.length}名${unlinkedText}`);
@@ -5912,6 +6266,7 @@ async function loadStoreCustomers() {
         state.customersLoading = false;
         if (refreshButton) refreshButton.disabled = false;
         updateSendButtonState();
+        if (state.mode === 'ability' && getSelectedCustomerRef()) checkSpecialAbilityStatus();
     }
 }
 
@@ -5971,9 +6326,16 @@ async function sendReading() {
 
 function bindEvents() {
     $('tarotCardSearch')?.addEventListener('input', renderCardGrid);
-    $('tarotCustomerRef')?.addEventListener('change', updateSendButtonState);
+    $('tarotCustomerRef')?.addEventListener('change', () => {
+        updateSendButtonState();
+        if (state.mode === 'ability') checkSpecialAbilityStatus();
+    });
     $('tarotRefreshCustomers')?.addEventListener('click', loadStoreCustomers);
     $('tarotSendLine')?.addEventListener('click', sendReading);
+    $('specialAbilityStart')?.addEventListener('click', startSpecialAbilityAssessment);
+    document.querySelectorAll('[data-reading-mode]').forEach((button) => {
+        button.addEventListener('click', () => setReadingMode(button.dataset.readingMode));
+    });
 }
 
 function init() {
@@ -5986,7 +6348,9 @@ function init() {
     renderCardGrid();
     updateResult();
     bindEvents();
+    setReadingMode('tarot');
     loadStoreCustomers();
+    loadSpecialAbilityConfig();
 }
 
 window.TarotReadingApp = {

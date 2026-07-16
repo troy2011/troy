@@ -42,6 +42,7 @@ const {
     parseJsonValue
 } = require('./tarotSkills');
 const { FEATURE_UNLOCK_LEVELS, isFeatureUnlocked } = require('./featureUnlocks');
+const { getPublicAbility } = require('./specialAbilityEngine');
 const GACHA_CATALOG_VERSION = process.env.GACHA_CATALOG_VERSION || 'main_catalog';
 const GACHA_COST = Number(process.env.GACHA_COST || 10);
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
@@ -1018,6 +1019,7 @@ function initializeInventoryRoutes(app, deps) {
                 'HairStyleIndex',
                 'FacialHairStyleIndex',
                 'HairColorIndex',
+                'SpecialAbilityJudgmentV3',
                 'Equipped_RightHand',
                 'Equipped_LeftHand',
                 'Equipped_Armor',
@@ -1054,6 +1056,10 @@ function initializeInventoryRoutes(app, deps) {
                 すばやさ: Math.max(0, Math.floor(Number(stats.すばやさ || 0) || 0)),
                 かしこさ: Math.max(0, Math.floor(Number(stats.かしこさ || 0) || 0))
             };
+            const specialAbility = getPublicAbility(parseJsonValue(
+                readOnlyData?.SpecialAbilityJudgmentV3?.Value,
+                null
+            ));
             const playerShip = await resourceStorage.getPlayerShipProfile(targetId, { promisifyPlayFab, PlayFabServer }, { persist: false }).catch(() => null);
             if (playerShip) {
                 const majorArcanaItemIds = resourceStorage.normalizeMajorArcanaItemIds(
@@ -1079,6 +1085,7 @@ function initializeInventoryRoutes(app, deps) {
                     level: avatarBase.level,
                     stats: publicStats,
                     statAllocation: isOwnProfile ? calculateStatAllocationState(stats) : null,
+                    specialAbility,
                     avatarBase,
                     playerShip,
                     equipment,

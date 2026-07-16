@@ -15,32 +15,37 @@
             <div class="tarot-reading-brand">
                 <div class="tarot-reading-brand-mark" aria-hidden="true"></div>
                 <div>
-                    <div class="tarot-reading-kicker">TROY STAFF TAROT</div>
-                    <h1>タロット航路</h1>
+                    <div id="tarotReadingKicker" class="tarot-reading-kicker">TROY STAFF TAROT</div>
+                    <h1 id="tarotReadingTitle">タロット航路</h1>
                 </div>
             </div>
             <div id="tarotReadingStatus" class="tarot-reading-status" role="status" aria-live="polite">待機中</div>
         </header>
 
-        <section class="tarot-reading-board" aria-label="タロット鑑定入力">
-            <div class="tarot-reading-side-controls">
-                <section class="tarot-reading-panel tarot-reading-customer">
-                    <div class="tarot-reading-section-head">
-                        <div>
-                            <div class="tarot-reading-section-title">送信先</div>
-                            <div class="tarot-reading-section-sub">現在の店内リスト</div>
-                        </div>
-                        <button id="tarotRefreshCustomers" type="button" class="tarot-reading-icon-button" title="店内リストを更新" aria-label="店内リストを更新">↻</button>
-                    </div>
-                    <label class="tarot-reading-field">
-                        <span>お客様</span>
-                        <select id="tarotCustomerRef" autocomplete="off" disabled>
-                            <option value="">店内リストを読み込み中</option>
-                        </select>
-                    </label>
-                    <div id="tarotCustomerListStatus" class="tarot-reading-customer-status" role="status" aria-live="polite">店内リストを読み込んでいます。</div>
-                </section>
+        <div id="readingModeSwitch" class="tarot-reading-mode-switch" role="tablist" aria-label="店舗メニュー" hidden>
+            <button type="button" role="tab" aria-selected="true" data-reading-mode="tarot">タロット鑑定</button>
+            <button type="button" role="tab" aria-selected="false" data-reading-mode="ability">特殊能力判定</button>
+        </div>
 
+        <section class="tarot-reading-panel tarot-reading-customer">
+            <div class="tarot-reading-section-head">
+                <div>
+                    <div id="tarotCustomerSectionTitle" class="tarot-reading-section-title">送信先</div>
+                    <div class="tarot-reading-section-sub">現在の店内リスト</div>
+                </div>
+                <button id="tarotRefreshCustomers" type="button" class="tarot-reading-icon-button" title="店内リストを更新" aria-label="店内リストを更新">↻</button>
+            </div>
+            <label class="tarot-reading-field">
+                <span>お客様</span>
+                <select id="tarotCustomerRef" autocomplete="off" disabled>
+                    <option value="">店内リストを読み込み中</option>
+                </select>
+            </label>
+            <div id="tarotCustomerListStatus" class="tarot-reading-customer-status" role="status" aria-live="polite">店内リストを読み込んでいます。</div>
+        </section>
+
+        <section id="tarotReadingBoard" class="tarot-reading-board" aria-label="タロット鑑定入力">
+            <div class="tarot-reading-side-controls">
                 <section class="tarot-reading-panel tarot-reading-topic">
                     <div class="tarot-reading-section-head">
                         <div>
@@ -120,6 +125,35 @@
                 </label>
                 <button id="tarotSendLine" type="button" class="tarot-reading-send">LINEへ送信</button>
             </section>
+        </section>
+
+        <section id="specialAbilityBoard" class="special-ability-board" aria-label="特殊能力判定" hidden>
+            <div id="specialAbilityIntro" class="tarot-reading-panel special-ability-intro">
+                <div class="special-ability-emblem" aria-hidden="true"></div>
+                <div class="special-ability-copy">
+                    <div class="tarot-reading-kicker">ONE-TIME JUDGMENT</div>
+                    <h2>特殊能力判定</h2>
+                    <p id="specialAbilityIntroText">店内リストから判定するお客様を選んでください。</p>
+                </div>
+                <button id="specialAbilityStart" type="button" class="tarot-reading-send" disabled>判定を始める</button>
+            </div>
+
+            <div id="specialAbilityAssessment" class="special-ability-assessment" hidden>
+                <div class="special-ability-progress" aria-live="polite">
+                    <span id="specialAbilityProgressText">1 / 12</span>
+                    <div class="special-ability-progress-track" aria-hidden="true"><span id="specialAbilityProgressBar"></span></div>
+                </div>
+                <h2 id="specialAbilityPrompt">直感で一つ選んでください</h2>
+                <div id="specialAbilityOptions" class="special-ability-options" role="group" aria-label="画像の選択肢"></div>
+            </div>
+
+            <div id="specialAbilityResult" class="tarot-reading-panel special-ability-result" aria-live="polite" hidden>
+                <div class="special-ability-result-mark" aria-hidden="true"></div>
+                <div class="tarot-reading-kicker">ABILITY AWAKENED</div>
+                <h2 id="specialAbilityName"></h2>
+                <p id="specialAbilityEffect"></p>
+                <div class="special-ability-result-note">この能力は公開プロフィールに記録されました</div>
+            </div>
         </section>
     </main>
 

@@ -115,13 +115,13 @@ async function getStoreTarotCustomers(deps) {
     };
 }
 
-async function resolveStoreCustomerLineUserId(customerRef, deps) {
+async function resolveStoreCustomer(customerRef, deps) {
     const playFabId = normalizeStoreCustomerRef(customerRef);
     if (!playFabId) {
-        return { lineUserId: '', playFabId: '', source: 'store', error: 'お客様を店内リストから選択してください' };
+        return { playFabId: '', source: 'store', error: 'お客様を店内リストから選択してください' };
     }
     if (!deps?.firestore) {
-        return { lineUserId: '', playFabId, source: 'store', error: '店内リストを確認できません' };
+        return { playFabId, source: 'store', error: '店内リストを確認できません' };
     }
 
     const roomRef = deps.firestore.collection('troy_rooms').doc(TROY_GLOBAL_ROOM_ID);
@@ -130,22 +130,34 @@ async function resolveStoreCustomerLineUserId(customerRef, deps) {
         roomRef.collection('members').doc(playFabId).get()
     ]);
     if (!roomSnap?.data?.()?.isOpen || !memberSnap?.exists) {
-        return { lineUserId: '', playFabId, source: 'store', error: '選択したお客様は現在の店内リストにいません' };
+        return { playFabId, source: 'store', error: '選択したお客様は現在の店内リストにいません' };
     }
 
-    const lineUserId = await getLineUserIdByPlayFabId(playFabId, deps);
+    return {
+        playFabId,
+        displayName: cleanText(memberSnap.data?.()?.displayName, 40) || playFabId,
+        source: 'store',
+        error: ''
+    };
+}
+
+async function resolveStoreCustomerLineUserId(customerRef, deps) {
+    const resolved = await resolveStoreCustomer(customerRef, deps);
+    if (!resolved.playFabId || resolved.error) return { ...resolved, lineUserId: '' };
+
+    const lineUserId = await getLineUserIdByPlayFabId(resolved.playFabId, deps);
     if (!lineUserId) {
         return {
             lineUserId: '',
-            playFabId,
+            playFabId: resolved.playFabId,
             source: 'store',
             error: '選択したお客様はLINE未連携です'
         };
     }
     return {
         lineUserId,
-        playFabId,
-        displayName: cleanText(memberSnap.data?.()?.displayName, 40) || playFabId,
+        playFabId: resolved.playFabId,
+        displayName: resolved.displayName,
         source: 'store'
     };
 }
@@ -284,5 +296,6 @@ module.exports = {
     cleanText,
     maskLineUserId,
     normalizeStoreCustomerRef,
+    resolveStoreCustomer,
     resolveStoreCustomerLineUserId
 };

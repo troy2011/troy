@@ -40,6 +40,7 @@ const mapModule = require('./server/map');
 const chat = require('./server/chat');
 const tarotFortune = require('./server/tarotFortune');
 const tarotReading = require('./server/tarotReading');
+const specialAbility = require('./server/specialAbility');
 const tarotDeck = require('./server/tarotDeck');
 const events = require('./server/events');
 const exploration = require('./server/exploration');
@@ -2140,6 +2141,9 @@ async function main() {
 
     // 実店舗タロット鑑定ルート
     tarotReading.initializeTarotReadingRoutes(app, deps);
+
+    // 実店舗・特殊能力判定ルート（既定では機能フラグOFF）
+    specialAbility.initializeSpecialAbilityRoutes(app, deps);
 
     // タロット予言イベントスケジューラ
     initializeProphecyScheduler();

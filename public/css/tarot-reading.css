@@ -65,6 +65,37 @@ body.tarot-reading-body {
     padding: 10px 0 18px;
 }
 
+.tarot-reading-mode-switch {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: min(100%, 420px);
+    margin: 0 0 14px;
+    padding: 4px;
+    border: 1px solid var(--tarot-line);
+    border-radius: 8px;
+    background: rgba(13, 12, 13, 0.86);
+}
+
+.tarot-reading-mode-switch[hidden] {
+    display: none;
+}
+
+.tarot-reading-mode-switch button {
+    min-height: 42px;
+    border: 0;
+    border-radius: 5px;
+    color: var(--tarot-muted);
+    background: transparent;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.tarot-reading-mode-switch button.is-active {
+    color: #161214;
+    background: #e1b85d;
+}
+
 .tarot-reading-brand {
     display: flex;
     align-items: center;
@@ -161,6 +192,7 @@ body.tarot-reading-body {
 
 .tarot-reading-customer {
     padding: 14px;
+    margin-bottom: 14px;
 }
 
 .tarot-reading-topic {
@@ -922,6 +954,189 @@ body.tarot-reading-body {
     box-shadow: inset 0 0 28px rgba(216, 170, 74, 0.08);
 }
 
+.tarot-reading-board[hidden],
+.special-ability-board[hidden],
+.special-ability-intro[hidden],
+.special-ability-assessment[hidden],
+.special-ability-result[hidden] {
+    display: none;
+}
+
+.special-ability-board {
+    min-height: 540px;
+}
+
+.special-ability-intro {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr) minmax(180px, 240px);
+    align-items: center;
+    gap: 22px;
+    padding: 24px;
+    background:
+        linear-gradient(120deg, rgba(31, 143, 138, 0.18), transparent 42%),
+        linear-gradient(300deg, rgba(142, 47, 55, 0.18), transparent 42%),
+        var(--tarot-panel-strong);
+}
+
+.special-ability-emblem,
+.special-ability-result-mark {
+    position: relative;
+    width: 72px;
+    aspect-ratio: 1;
+    margin: auto;
+    border: 2px solid rgba(255, 224, 143, 0.88);
+    transform: rotate(45deg);
+    box-shadow: inset 0 0 0 8px rgba(216, 170, 74, 0.08), 0 0 30px rgba(31, 143, 138, 0.24);
+}
+
+.special-ability-emblem::before,
+.special-ability-result-mark::before,
+.special-ability-emblem::after,
+.special-ability-result-mark::after {
+    position: absolute;
+    content: "";
+    background: rgba(255, 224, 143, 0.78);
+}
+
+.special-ability-emblem::before,
+.special-ability-result-mark::before {
+    inset: 12px 33px;
+}
+
+.special-ability-emblem::after,
+.special-ability-result-mark::after {
+    inset: 33px 12px;
+}
+
+.special-ability-copy h2,
+.special-ability-assessment h2,
+.special-ability-result h2 {
+    margin: 4px 0 8px;
+    letter-spacing: 0;
+}
+
+.special-ability-copy h2 {
+    font-size: 36px;
+}
+
+.special-ability-copy p,
+.special-ability-result p {
+    margin: 0;
+    color: #eee4ce;
+    font-size: 16px;
+    line-height: 1.8;
+}
+
+.special-ability-assessment {
+    padding: 8px 0 20px;
+}
+
+.special-ability-progress {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 22px;
+    color: var(--tarot-gold);
+    font-weight: 900;
+}
+
+.special-ability-progress-track {
+    height: 7px;
+    overflow: hidden;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.special-ability-progress-track span {
+    display: block;
+    width: 8.3333%;
+    height: 100%;
+    border-radius: inherit;
+    background: #d8aa4a;
+    transition: width 180ms ease;
+}
+
+.special-ability-assessment h2 {
+    min-height: 2.8em;
+    margin-bottom: 18px;
+    text-align: center;
+    font-size: 28px;
+    line-height: 1.4;
+}
+
+.special-ability-options {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.special-ability-option {
+    position: relative;
+    aspect-ratio: 1;
+    min-width: 0;
+    overflow: hidden;
+    padding: 0;
+    border: 2px solid rgba(216, 170, 74, 0.34);
+    border-radius: 7px;
+    background: #0d0d10;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34);
+    cursor: pointer;
+    transition: border-color 150ms ease, transform 150ms ease, filter 150ms ease;
+}
+
+.special-ability-option img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.special-ability-option:not(:disabled):hover,
+.special-ability-option:not(:disabled):focus-visible {
+    border-color: rgba(255, 224, 143, 0.96);
+    transform: translateY(-3px);
+    outline: none;
+}
+
+.special-ability-option:disabled {
+    cursor: wait;
+    filter: saturate(0.45) brightness(0.72);
+}
+
+.special-ability-result {
+    max-width: 760px;
+    margin: 30px auto 0;
+    padding: 34px;
+    text-align: center;
+    border-color: rgba(255, 224, 143, 0.72);
+    background:
+        linear-gradient(140deg, rgba(216, 170, 74, 0.16), transparent 50%),
+        var(--tarot-panel-strong);
+}
+
+.special-ability-result-mark {
+    width: 58px;
+    margin-bottom: 28px;
+}
+
+.special-ability-result h2 {
+    color: #ffe8aa;
+    font-size: 42px;
+}
+
+.special-ability-result p {
+    margin: 18px auto 0;
+    max-width: 620px;
+    font-size: 18px;
+}
+
+.special-ability-result-note {
+    margin-top: 24px;
+    color: var(--tarot-muted);
+    font-size: 13px;
+}
+
 @keyframes tarotMajorGlow {
     0%,
     100% {
@@ -1016,6 +1231,41 @@ body.tarot-reading-body {
     .tarot-reading-triple-preview-item {
         min-height: 72px;
     }
+
+    .special-ability-intro {
+        grid-template-columns: 64px minmax(0, 1fr);
+        gap: 16px;
+        padding: 18px;
+    }
+
+    .special-ability-intro .tarot-reading-send {
+        grid-column: 1 / -1;
+    }
+
+    .special-ability-emblem {
+        width: 50px;
+    }
+
+    .special-ability-copy h2 {
+        font-size: 29px;
+    }
+
+    .special-ability-assessment h2 {
+        font-size: 22px;
+    }
+
+    .special-ability-result h2 {
+        font-size: 32px;
+    }
+
+    .special-ability-options {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 9px;
+    }
+
+    .special-ability-result {
+        padding: 24px 18px;
+    }
 }
 
 @media (max-width: 420px) {
@@ -1036,6 +1286,10 @@ body.tarot-reading-body {
     .tarot-reading-card-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
+
+    .tarot-reading-mode-switch {
+        width: 100%;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1051,7 +1305,9 @@ body.tarot-reading-body {
     .tarot-reading-spread-slot-remove,
     .tarot-reading-weather-meter span,
     .tarot-reading-shell.is-major-selected .tarot-reading-card-preview,
-    .tarot-reading-shell.is-major-selected .tarot-reading-card-preview::after {
+    .tarot-reading-shell.is-major-selected .tarot-reading-card-preview::after,
+    .special-ability-option,
+    .special-ability-progress-track span {
         animation: none;
         transition: none;
         transform: none;

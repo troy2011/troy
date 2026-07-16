@@ -24743,6 +24743,43 @@ body[data-sea-tone] .home-hero-card {
     display: none;
 }
 
+#playerProfileModal .player-profile-special-ability {
+    width: 100%;
+    min-width: 0;
+    margin-bottom: 12px;
+    padding: 12px 4px;
+    border-top: 1px solid rgba(255, 226, 139, 0.38);
+    border-bottom: 1px solid rgba(125, 211, 252, 0.24);
+    background: linear-gradient(90deg, transparent, rgba(116, 65, 145, 0.16), transparent);
+}
+
+#playerProfileModal .player-profile-special-ability[hidden] {
+    display: none;
+}
+
+#playerProfileModal .player-profile-special-ability > span {
+    display: block;
+    margin-bottom: 3px;
+    color: #a9d7f4;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+#playerProfileModal .player-profile-special-ability > strong {
+    display: block;
+    color: #ffe8a8;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.35;
+}
+
+#playerProfileModal .player-profile-special-ability > p {
+    margin: 6px 0 0;
+    color: #eef6ff;
+    font-size: 12px;
+    line-height: 1.65;
+}
+
 #playerProfileModal .player-profile-stat-alloc-head {
     display: flex;
     align-items: center;

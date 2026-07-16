@@ -47,6 +47,9 @@ function getPlayerProfileModalElements() {
         beautyButton: document.getElementById('btnPlayerProfileBeauty'),
         copyIdButton: document.getElementById('btnPlayerProfileCopyId'),
         statAllocation: document.getElementById('playerProfileStatAllocation'),
+        specialAbility: document.getElementById('playerProfileSpecialAbility'),
+        specialAbilityName: document.getElementById('playerProfileSpecialAbilityName'),
+        specialAbilityEffect: document.getElementById('playerProfileSpecialAbilityEffect'),
         transferPanel: document.getElementById('playerProfileTransferPanel'),
         transferAmount: document.getElementById('playerProfileTransferAmount'),
         transferSubmit: document.getElementById('btnPlayerProfileTransferSubmit'),
@@ -597,6 +600,22 @@ function renderProfileStats(stats = {}) {
     `).join('');
 }
 
+function renderProfileSpecialAbility(ability) {
+    const { specialAbility, specialAbilityName, specialAbilityEffect } = getPlayerProfileModalElements();
+    if (!specialAbility) return;
+    const name = String(ability?.name || '').trim();
+    const effect = String(ability?.effect || '').trim();
+    if (!name || !effect) {
+        specialAbility.hidden = true;
+        if (specialAbilityName) specialAbilityName.textContent = '';
+        if (specialAbilityEffect) specialAbilityEffect.textContent = '';
+        return;
+    }
+    specialAbility.hidden = false;
+    if (specialAbilityName) specialAbilityName.textContent = name;
+    if (specialAbilityEffect) specialAbilityEffect.textContent = effect;
+}
+
 const PROFILE_SHIP_LABELS = {
     boat: 'ボート',
     explorer: 'エクスプローラー',
@@ -629,6 +648,7 @@ function renderProfile(profile = {}) {
         nation: String(profile.nation || '').trim().toLowerCase(),
         stats: profile.stats || {},
         statAllocation: profile.statAllocation || null,
+        specialAbility: profile.specialAbility || null,
         loaded: true
     };
     if (name) name.textContent = activeProfile.displayName;
@@ -643,6 +663,7 @@ function renderProfile(profile = {}) {
     }
     renderProfileStats(activeProfile.stats);
     renderStatAllocationPanel();
+    renderProfileSpecialAbility(activeProfile.specialAbility);
     renderEquipmentRows(Array.isArray(profile.equipmentList) ? profile.equipmentList : []);
     renderProfileShip(profile.playerShip || null);
     renderAvatar(
@@ -667,6 +688,7 @@ function renderLoadingState(targetPlayFabId = '') {
         nation: '',
         stats: {},
         statAllocation: null,
+        specialAbility: null,
         loaded: false
     };
     if (name) name.textContent = '読み込み中...';
@@ -677,6 +699,7 @@ function renderLoadingState(targetPlayFabId = '') {
         statAllocation.hidden = true;
         statAllocation.innerHTML = '';
     }
+    renderProfileSpecialAbility(null);
     if (equipment) {
         equipment.innerHTML = '<div class="player-profile-empty">プレイヤー情報を読み込んでいます。</div>';
     }
@@ -692,6 +715,7 @@ function renderErrorState(message) {
         statAllocation.hidden = true;
         statAllocation.innerHTML = '';
     }
+    renderProfileSpecialAbility(null);
     if (equipment) {
         equipment.innerHTML = `<div class="player-profile-empty">${escapeHtml(message || 'プレイヤー情報を取得できませんでした。')}</div>`;
     }
