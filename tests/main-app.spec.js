@@ -2252,9 +2252,11 @@ test('player profile shows public stats on the left with avatar on the right', a
           },
           specialAbility: {
             name: '星渡りの門',
+            alias: 'アストラル・ゲート',
             effect: '離れた場所を光の通路で結び、仲間や物を安全に移動させられる。',
+            rule: '行き先を見ながら両手で入口の輪を描くと発動する。',
+            affinity: '特質',
             type: 'INTJ',
-            affinity: 'specialization',
             tempo: 0.25,
             scores: { E: -1, S: -1, T: 1, J: 1 }
           },
@@ -2296,9 +2298,12 @@ test('player profile shows public stats on the left with avatar on the right', a
   await expect(page.locator('#playerProfileTransferPanel')).toBeHidden();
   await expect(page.locator('#playerProfileStatAllocation')).toBeHidden();
   await expect(page.locator('#playerProfileSpecialAbility')).toBeVisible();
+  await expect(page.locator('#playerProfileSpecialAbilityAffinity')).toHaveText('特質系');
   await expect(page.locator('#playerProfileSpecialAbilityName')).toHaveText('星渡りの門');
+  await expect(page.locator('#playerProfileSpecialAbilityAlias')).toHaveText('アストラル・ゲート');
   await expect(page.locator('#playerProfileSpecialAbilityEffect')).toContainText('光の通路');
-  await expect(page.locator('#playerProfileSpecialAbility')).not.toContainText(/INTJ|specialization|tempo|scores/);
+  await expect(page.locator('#playerProfileSpecialAbilityRule')).toContainText('入口の輪');
+  await expect(page.locator('#playerProfileSpecialAbility')).not.toContainText(/INTJ|tempo|scores/);
   await expect(page.locator('#playerProfileStats .player-profile-stat strong')).toHaveText(['12', '11', '10', '9']);
   const layout = await page.evaluate(() => {
     const stats = document.getElementById('playerProfileStats');

@@ -1125,10 +1125,67 @@ body.tarot-reading-body {
     font-size: 42px;
 }
 
+.special-ability-alias {
+    margin-top: 2px;
+    color: #d8aa4a;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.special-ability-affinity {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 18px;
+    color: #f8edcf;
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.special-ability-affinity span {
+    color: var(--tarot-muted);
+    font-size: 11px;
+}
+
+.special-ability-affinity strong {
+    color: #ffe8aa;
+    font-size: 17px;
+}
+
 .special-ability-result p {
     margin: 18px auto 0;
     max-width: 620px;
     font-size: 18px;
+}
+
+.special-ability-effect,
+.special-ability-rule {
+    max-width: 620px;
+    margin: 22px auto 0;
+    padding: 14px 16px;
+    text-align: left;
+    border: 1px solid rgba(255, 224, 143, 0.28);
+    background: rgba(7, 17, 21, 0.58);
+}
+
+.special-ability-effect > span,
+.special-ability-rule > span {
+    color: var(--tarot-muted);
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.special-ability-effect > p,
+.special-ability-rule > p {
+    margin: 5px 0 0;
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+.special-ability-rule {
+    margin-top: 10px;
 }
 
 .special-ability-result-note {
@@ -1256,6 +1313,10 @@ body.tarot-reading-body {
 
     .special-ability-result h2 {
         font-size: 32px;
+    }
+
+    .special-ability-alias {
+        font-size: 15px;
     }
 
     .special-ability-options {

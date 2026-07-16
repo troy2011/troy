@@ -3,10 +3,14 @@ const crypto = require('crypto');
 const catalog = require('./data/special-abilities.json');
 const creatureAssessment = require('./data/special-ability-creatures.json');
 
+const ABILITY_BY_ID = new Map(catalog.abilities.map((ability) => [ability.id, ability]));
+const PUBLIC_AFFINITY_LABELS = new Set(['操作', '特質', '変化', '具現化', '強化', '放出']);
+
 const AXES = Object.freeze(['E', 'S', 'T', 'J']);
 const ASSESSMENT_VERSION = 3;
 const TOTAL_ROUNDS = 12;
 const TOP_CANDIDATE_COUNT = 12;
+const ASSIGNMENT_ELIGIBLE_COUNT = 3;
 const MIN_RESPONSE_SECONDS = 1;
 const MAX_RESPONSE_SECONDS = 20;
 const MAX_WEIGHT = 1.10;
@@ -262,9 +266,12 @@ function rankAbilityCandidates(type, affinity, tempo, limit = TOP_CANDIDATE_COUN
 
 function selectLeastUsedAbility(candidates, assignmentCounts = {}, assessmentId = '') {
     if (!Array.isArray(candidates) || !candidates.length) throw new Error('No compatible abilities were found');
-    const normalized = candidates.map((entry) => entry.ability || entry).filter(Boolean);
-    const minimumCount = Math.min(...normalized.map((ability) => Math.max(0, Number(assignmentCounts[ability.id]) || 0)));
-    return normalized
+    const eligible = candidates
+        .slice(0, ASSIGNMENT_ELIGIBLE_COUNT)
+        .map((entry) => entry.ability || entry)
+        .filter(Boolean);
+    const minimumCount = Math.min(...eligible.map((ability) => Math.max(0, Number(assignmentCounts[ability.id]) || 0)));
+    return eligible
         .filter((ability) => Math.max(0, Number(assignmentCounts[ability.id]) || 0) === minimumCount)
         .sort((left, right) => (
             deterministicRank(assessmentId, left.id).localeCompare(deterministicRank(assessmentId, right.id))
@@ -273,9 +280,15 @@ function selectLeastUsedAbility(candidates, assignmentCounts = {}, assessmentId 
 }
 
 function getPublicAbility(rawAbility) {
-    const name = String(rawAbility?.name || '').trim().slice(0, 40);
-    const effect = String(rawAbility?.effect || '').trim().slice(0, 240);
-    return name && effect ? { name, effect } : null;
+    const catalogAbility = ABILITY_BY_ID.get(String(rawAbility?.abilityId || rawAbility?.id || '').trim());
+    const name = String(catalogAbility?.name || rawAbility?.name || '').trim().slice(0, 40);
+    const alias = String(catalogAbility?.alias || rawAbility?.alias || '').trim().slice(0, 60);
+    const effect = String(catalogAbility?.effect || rawAbility?.effect || '').trim().slice(0, 240);
+    const rule = String(catalogAbility?.rule || rawAbility?.rule || '').trim().slice(0, 160);
+    const affinity = String(catalogAbility?.affinityLabel || rawAbility?.affinityLabel || '').trim();
+    return name && alias && effect && rule && PUBLIC_AFFINITY_LABELS.has(affinity)
+        ? { name, alias, effect, rule, affinity }
+        : null;
 }
 
 function deriveAssessment(rawAnswers, assessmentId) {
@@ -288,6 +301,7 @@ function deriveAssessment(rawAnswers, assessmentId) {
 
 module.exports = {
     ASSESSMENT_VERSION,
+    ASSIGNMENT_ELIGIBLE_COUNT,
     AXES,
     MAX_RESPONSE_SECONDS,
     MIN_RESPONSE_SECONDS,

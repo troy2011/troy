@@ -24758,9 +24758,17 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #playerProfileModal .player-profile-special-ability > span {
-    display: block;
+    display: inline-block;
     margin-bottom: 3px;
     color: #a9d7f4;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+#playerProfileModal .player-profile-special-ability > small {
+    display: inline-block;
+    margin-left: 8px;
+    color: #ffe8a8;
     font-size: 10px;
     font-weight: 900;
 }
@@ -24773,11 +24781,48 @@ body[data-sea-tone] .home-hero-card {
     line-height: 1.35;
 }
 
+#playerProfileModal .player-profile-special-ability > em {
+    display: block;
+    margin-top: 4px;
+    color: #d8aa4a;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 900;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
 #playerProfileModal .player-profile-special-ability > p {
     margin: 6px 0 0;
     color: #eef6ff;
     font-size: 12px;
     line-height: 1.65;
+}
+
+#playerProfileModal .player-profile-special-ability-effect,
+#playerProfileModal .player-profile-special-ability-rule {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 226, 139, 0.2);
+}
+
+#playerProfileModal .player-profile-special-ability-effect > span,
+#playerProfileModal .player-profile-special-ability-rule > span {
+    color: #a9d7f4;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+#playerProfileModal .player-profile-special-ability-effect > p,
+#playerProfileModal .player-profile-special-ability-rule > p {
+    margin: 4px 0 0;
+    color: #dbe9f3;
+    font-size: 11px;
+    line-height: 1.65;
+}
+
+#playerProfileModal .player-profile-special-ability-rule {
+    margin-top: 8px;
 }
 
 #playerProfileModal .player-profile-stat-alloc-head {

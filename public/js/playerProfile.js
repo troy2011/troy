@@ -48,8 +48,11 @@ function getPlayerProfileModalElements() {
         copyIdButton: document.getElementById('btnPlayerProfileCopyId'),
         statAllocation: document.getElementById('playerProfileStatAllocation'),
         specialAbility: document.getElementById('playerProfileSpecialAbility'),
+        specialAbilityAffinity: document.getElementById('playerProfileSpecialAbilityAffinity'),
         specialAbilityName: document.getElementById('playerProfileSpecialAbilityName'),
+        specialAbilityAlias: document.getElementById('playerProfileSpecialAbilityAlias'),
         specialAbilityEffect: document.getElementById('playerProfileSpecialAbilityEffect'),
+        specialAbilityRule: document.getElementById('playerProfileSpecialAbilityRule'),
         transferPanel: document.getElementById('playerProfileTransferPanel'),
         transferAmount: document.getElementById('playerProfileTransferAmount'),
         transferSubmit: document.getElementById('btnPlayerProfileTransferSubmit'),
@@ -601,19 +604,35 @@ function renderProfileStats(stats = {}) {
 }
 
 function renderProfileSpecialAbility(ability) {
-    const { specialAbility, specialAbilityName, specialAbilityEffect } = getPlayerProfileModalElements();
+    const {
+        specialAbility,
+        specialAbilityAffinity,
+        specialAbilityName,
+        specialAbilityAlias,
+        specialAbilityEffect,
+        specialAbilityRule
+    } = getPlayerProfileModalElements();
     if (!specialAbility) return;
+    const affinity = String(ability?.affinity || '').trim();
     const name = String(ability?.name || '').trim();
+    const alias = String(ability?.alias || '').trim();
     const effect = String(ability?.effect || '').trim();
-    if (!name || !effect) {
+    const rule = String(ability?.rule || '').trim();
+    if (!affinity || !name || !alias || !effect || !rule) {
         specialAbility.hidden = true;
+        if (specialAbilityAffinity) specialAbilityAffinity.textContent = '';
         if (specialAbilityName) specialAbilityName.textContent = '';
+        if (specialAbilityAlias) specialAbilityAlias.textContent = '';
         if (specialAbilityEffect) specialAbilityEffect.textContent = '';
+        if (specialAbilityRule) specialAbilityRule.textContent = '';
         return;
     }
     specialAbility.hidden = false;
+    if (specialAbilityAffinity) specialAbilityAffinity.textContent = `${affinity}系`;
     if (specialAbilityName) specialAbilityName.textContent = name;
+    if (specialAbilityAlias) specialAbilityAlias.textContent = alias;
     if (specialAbilityEffect) specialAbilityEffect.textContent = effect;
+    if (specialAbilityRule) specialAbilityRule.textContent = rule;
 }
 
 const PROFILE_SHIP_LABELS = {

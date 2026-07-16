@@ -1,4 +1,6 @@
 const { test, expect } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
 
 const {
   ASSESSMENT_VERSION,
@@ -32,6 +34,11 @@ const {
 
 const ASSIGNMENT_STATE_PATH = `special_ability_state/${ASSIGNMENT_STATE_DOCUMENT}`;
 const TEST_TERMINAL_TOKEN = 'store-terminal-token-for-special-ability-tests';
+
+test('service worker never serves API responses from the runtime cache', () => {
+  const serviceWorker = fs.readFileSync(path.resolve(__dirname, '..', 'public', 'sw.js'), 'utf8');
+  expect(serviceWorker).toContain("path.startsWith('/api/')");
+});
 
 function choicesFromInteger(value, seconds = 5) {
   let remaining = value;
@@ -299,17 +306,27 @@ test('question order is stable within an assessment and shuffled for a new asses
 test('365 abilities have complete coverage and deterministic least-used assignment', () => {
   expect(catalog.abilities).toHaveLength(365);
   expect(new Set(catalog.abilities.map((ability) => ability.name)).size).toBe(365);
+  const reachableAbilities = new Set();
   for (const [type, affinities] of Object.entries(catalog.typeAffinities)) {
     for (const affinity of affinities) {
+      for (let tempoStep = 0; tempoStep <= 100; tempoStep += 1) {
+        rankAbilityCandidates(type, affinity, tempoStep / 100, 3)
+          .forEach(({ ability }) => reachableAbilities.add(ability.id));
+      }
       const candidates = rankAbilityCandidates(type, affinity, 0.5);
       expect(candidates).toHaveLength(12);
       expect(candidates.every(({ ability }) => ability.affinity === affinity && ability.compatibleTypes.includes(type))).toBe(true);
-      const counts = Object.fromEntries(candidates.map(({ ability }, index) => [ability.id, index === 5 ? 0 : 3]));
-      expect(selectLeastUsedAbility(candidates, counts, 'fixed-assessment').id).toBe(candidates[5].ability.id);
+      const counts = Object.fromEntries(candidates.map(({ ability }, index) => [
+        ability.id,
+        index === 2 ? 1 : index >= 3 ? 0 : 3
+      ]));
+      expect(selectLeastUsedAbility(candidates, counts, 'fixed-assessment').id).toBe(candidates[2].ability.id);
+      expect(selectLeastUsedAbility(candidates, counts, 'fixed-assessment').id).not.toBe(candidates[3].ability.id);
       expect(selectLeastUsedAbility(candidates, {}, 'fixed-assessment').id)
         .toBe(selectLeastUsedAbility(candidates, {}, 'fixed-assessment').id);
     }
   }
+  expect(reachableAbilities.size).toBe(365);
 });
 
 test('signed assessment tokens reject tampering and expiration', () => {
@@ -338,18 +355,21 @@ test('v3 storage does not revive discarded legacy ability data', () => {
     version: 1,
     abilityId: ability.id,
     name: ability.name,
-    effect: ability.effect
+    effect: ability.effect,
+    rule: ability.rule
   })).toBeNull();
   expect(parseStoredAbilityValue({
     version: ASSESSMENT_VERSION,
     abilityId: ability.id,
-    name: ability.name,
-    effect: ability.effect
+    name: '旧版の能力名',
+    effect: '旧版で保存されていた長い能力説明がここに入っています。'
   })).toEqual(expect.objectContaining({
     version: ASSESSMENT_VERSION,
     abilityId: ability.id,
     name: ability.name,
-    effect: ability.effect
+    effect: ability.effect,
+    rule: ability.rule,
+    affinity: ability.affinityLabel
   }));
 });
 
@@ -370,7 +390,7 @@ test('store UI keeps the special ability entry hidden while the feature flag is 
     contentType: 'application/json; charset=utf-8',
     body: JSON.stringify({ success: true, isOpen: true, customers: [] })
   }));
-  await page.route('**/api/special-ability/config', (route) => route.fulfill({
+  await page.route('**/api/special-ability/config*', (route) => route.fulfill({
     status: 200,
     contentType: 'application/json; charset=utf-8',
     body: JSON.stringify({ success: true, enabled: false })
@@ -510,9 +530,15 @@ test('LINE-unlinked customer can complete once and concurrent finalization store
   expect(completed).toEqual({
     success: true,
     state: 'completed',
-    ability: { name: expect.any(String), effect: expect.any(String) }
+    ability: {
+      name: expect.any(String),
+      alias: expect.any(String),
+      effect: expect.any(String),
+      rule: expect.any(String),
+      affinity: expect.stringMatching(/^(操作|特質|変化|具現化|強化|放出)$/)
+    }
   });
-  expect(JSON.stringify(completed)).not.toMatch(/INTJ|affinity|tempo|score|type/);
+  expect(JSON.stringify(completed)).not.toMatch(/INTJ|tempo|score|type/);
 
   const writesBeforeStatus = firestore.writeCount;
   const status = await invoke('POST', '/api/special-ability/status', { customerRef: 'TROY:NO_LINE' });
@@ -629,7 +655,13 @@ test('a lost PlayFab response reconciles the stored result instead of assigning 
   }
 
   expect(completed.state).toBe('completed');
-  expect(completed.ability).toEqual({ name: expect.any(String), effect: expect.any(String) });
+  expect(completed.ability).toEqual({
+    name: expect.any(String),
+    alias: expect.any(String),
+    effect: expect.any(String),
+    rule: expect.any(String),
+    affinity: expect.stringMatching(/^(操作|特質|変化|具現化|強化|放出)$/)
+  });
   expect(playFab.writeCount).toBe(1);
   expect(firestore.documents.get('special_ability_judgments/CUSTOMER123').status).toBe('confirmed');
   const blockedRestart = await invoke('POST', '/api/special-ability/start', {
@@ -649,13 +681,15 @@ test('PlayFab remains authoritative when Firestore lock data is missing or incon
     abilityId: actualAbility.id,
     name: actualAbility.name,
     effect: actualAbility.effect,
+    rule: actualAbility.rule,
     assignedAt: '2026-07-15T00:00:00.000Z'
   }));
   firestore.documents.set('special_ability_judgments/CUSTOMER123', {
     status: 'confirmed',
     abilityId: oldAbility.id,
     name: oldAbility.name,
-    effect: oldAbility.effect
+    effect: oldAbility.effect,
+    rule: oldAbility.rule
   });
   firestore.documents.set(ASSIGNMENT_STATE_PATH, {
     counts: { [oldAbility.id]: 1, [actualAbility.id]: 0 }
@@ -670,7 +704,13 @@ test('PlayFab remains authoritative when Firestore lock data is missing or incon
     customerRef: 'TROY:CUSTOMER123'
   });
   expect(status.status).toBe(200);
-  expect(status.body.ability).toEqual({ name: actualAbility.name, effect: actualAbility.effect });
+  expect(status.body.ability).toEqual({
+    name: actualAbility.name,
+    alias: actualAbility.alias,
+    effect: actualAbility.effect,
+    rule: actualAbility.rule,
+    affinity: actualAbility.affinityLabel
+  });
   expect(firestore.documents.get('special_ability_judgments/CUSTOMER123').abilityId).toBe(actualAbility.id);
   const counts = firestore.documents.get(ASSIGNMENT_STATE_PATH).counts;
   expect(counts[oldAbility.id]).toBe(0);
@@ -685,7 +725,7 @@ test('PlayFab remains authoritative when Firestore lock data is missing or incon
   expect(firestore.documents.get(ASSIGNMENT_STATE_PATH).counts[actualAbility.id]).toBe(0);
 });
 
-test('store ability UI loads all 48 original images and reveals only name and effect', async ({ page }) => {
+test('store ability UI loads all 48 original images and reveals the public affinity, name and effect', async ({ page }) => {
   await page.route('**/api/tarot-reading/customers', (route) => route.fulfill({
     status: 200,
     contentType: 'application/json; charset=utf-8',
@@ -695,7 +735,7 @@ test('store ability UI loads all 48 original images and reveals only name and ef
       customers: [{ customerRef: 'TROY:NO_LINE', displayName: 'ボブ', joinedAtMs: 1, lineLinked: false }]
     })
   }));
-  await page.route('**/api/special-ability/config', (route) => route.fulfill({
+  await page.route('**/api/special-ability/config*', (route) => route.fulfill({
     status: 200,
     contentType: 'application/json; charset=utf-8',
     body: JSON.stringify({
@@ -721,7 +761,17 @@ test('store ability UI loads all 48 original images and reveals only name and ef
     answerIndex += 1;
     const response = answerIndex < TOTAL_ROUNDS
       ? { success: true, state: 'in_progress', token: `token-${answerIndex}`, question: browserQuestion(answerIndex) }
-      : { success: true, state: 'completed', ability: { name: '星渡りの門', effect: '離れた場所を光の通路で結び、仲間や物を安全に移動させられる。' } };
+      : {
+        success: true,
+        state: 'completed',
+        ability: {
+          affinity: '特質',
+          name: '星渡りの門',
+          alias: 'アストラル・ゲート',
+          effect: '離れた場所を光の通路で結び、仲間や物を安全に移動させられる。',
+          rule: '行き先を見ながら両手で入口の輪を描くと発動する。'
+        }
+      };
     await route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(response) });
   });
 
@@ -756,9 +806,12 @@ test('store ability UI loads all 48 original images and reveals only name and ef
     await page.locator('#specialAbilityOptions .special-ability-option').first().click();
   }
   await expect(page.locator('#specialAbilityResult')).toBeVisible();
+  await expect(page.locator('#specialAbilityAffinity')).toHaveText('特質');
   await expect(page.locator('#specialAbilityName')).toHaveText('星渡りの門');
+  await expect(page.locator('#specialAbilityAlias')).toHaveText('アストラル・ゲート');
   await expect(page.locator('#specialAbilityEffect')).toContainText('光の通路');
-  await expect(page.locator('#specialAbilityResult')).not.toContainText(/INTJ|特質系|反応速度|採点/);
+  await expect(page.locator('#specialAbilityRule')).toContainText('入口の輪');
+  await expect(page.locator('#specialAbilityResult')).not.toContainText(/INTJ|反応速度|採点/);
 
   await page.setViewportSize({ width: 390, height: 844 });
   const mobile = await page.evaluate(() => ({

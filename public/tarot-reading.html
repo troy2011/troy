@@ -150,13 +150,22 @@
             <div id="specialAbilityResult" class="tarot-reading-panel special-ability-result" aria-live="polite" hidden>
                 <div class="special-ability-result-mark" aria-hidden="true"></div>
                 <div class="tarot-reading-kicker">ABILITY AWAKENED</div>
+                <div class="special-ability-affinity"><span>系統</span><strong id="specialAbilityAffinity"></strong></div>
                 <h2 id="specialAbilityName"></h2>
-                <p id="specialAbilityEffect"></p>
+                <div id="specialAbilityAlias" class="special-ability-alias"></div>
+                <div class="special-ability-effect">
+                    <span>能力効果</span>
+                    <p id="specialAbilityEffect"></p>
+                </div>
+                <div class="special-ability-rule">
+                    <span>発動条件</span>
+                    <p id="specialAbilityRule"></p>
+                </div>
                 <div class="special-ability-result-note">この能力は公開プロフィールに記録されました</div>
             </div>
         </section>
     </main>
 
-    <script type="module" src="/js/tarotReading.js"></script>
+    <script type="module" src="/js/tarotReading.js?v=20260716-ability-v5"></script>
 </body>
 </html>

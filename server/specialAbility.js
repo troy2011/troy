@@ -174,7 +174,10 @@ async function writePlayFabAbility(playFabId, ability, assignedAt, deps) {
         version: ASSESSMENT_VERSION,
         abilityId: ability.id,
         name: ability.name,
+        alias: ability.alias,
         effect: ability.effect,
+        rule: ability.rule,
+        affinityLabel: ability.affinityLabel,
         assignedAt
     };
     await deps.promisifyPlayFab(deps.PlayFabServer.UpdateUserReadOnlyData, {
@@ -226,7 +229,11 @@ async function reserveJudgment({ playFabId, assessmentId, derivation, reservatio
             playFabId,
             abilityId: selectedAbility.id,
             name: selectedAbility.name,
+            alias: selectedAbility.alias,
             effect: selectedAbility.effect,
+            rule: selectedAbility.rule,
+            affinity: selectedAbility.affinity,
+            affinityLabel: selectedAbility.affinityLabel,
             assignedAt,
             reservedAt: new Date(nowMs),
             updatedAt: new Date(nowMs),
@@ -292,7 +299,10 @@ async function repairConfirmedJudgment(playFabId, storedAbility, nowMs, deps) {
             && String(existing.playFabId || '') === playFabId
             && String(existing.abilityId || '') === abilityId
             && String(existing.name || '') === storedAbility.name
-            && String(existing.effect || '') === storedAbility.effect;
+            && String(existing.alias || '') === storedAbility.alias
+            && String(existing.effect || '') === storedAbility.effect
+            && String(existing.rule || '') === storedAbility.rule
+            && String(existing.affinityLabel || '') === storedAbility.affinity;
         if (isAlreadyConsistent) return false;
 
         const stateSnap = await transaction.get(stateRef);
@@ -315,7 +325,10 @@ async function repairConfirmedJudgment(playFabId, storedAbility, nowMs, deps) {
             playFabId,
             abilityId,
             name: storedAbility.name,
+            alias: storedAbility.alias,
             effect: storedAbility.effect,
+            rule: storedAbility.rule,
+            affinityLabel: storedAbility.affinity,
             assignedAt: storedAbility.assignedAt || existing?.assignedAt || new Date(nowMs).toISOString(),
             confirmedAt: existing?.confirmedAt || new Date(nowMs),
             updatedAt: new Date(nowMs)

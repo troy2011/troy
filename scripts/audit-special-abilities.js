@@ -9,6 +9,7 @@ const {
     TOTAL_ROUNDS
 } = require('../server/specialAbilityEngine');
 const creatureAssessment = require('../server/data/special-ability-creatures.json');
+const { SPECIAL_ABILITY_PROFILES } = require('./special-ability-profiles');
 
 const CATALOG_PATH = path.resolve(__dirname, '..', 'server', 'data', 'special-abilities.json');
 const IMAGE_DIRECTORY = path.resolve(__dirname, '..', 'public', 'assets', 'special-ability');
@@ -29,7 +30,12 @@ const EXPECTED_COUNTS = Object.freeze({
 const BANNED_TERMS = [
     'ハンター', '念能力', 'スタンド', '悪魔の実', '領域展開', '写輪眼', '卍解', 'ゴムゴム', 'ザ・ワールド'
 ];
-const LIMIT_TERMS = ['ただし', '代償', '制約', '使用できない', '使えない', '失う', '消耗する'];
+const BORROWED_ALIAS_TERMS = [
+    'ディープ・パープル', 'バンジー・ガム', 'スキル・ハンター', 'ゴッドスピード',
+    'ドラゴン・ダイヴ', 'パーフェクト・プラン', 'ハイド・アンド・シーク'
+];
+const LEGACY_FORMULA_TERMS = ['その制御により', 'その形式により', 'その形を生かし', 'その構造により', 'その強化により', 'その放ち方により'];
+const RULE_TRIGGER_PATTERN = /発動|触れ|当て|置|描|呼|言|聞|見|持|握|立|止|続|決め|選|指定|告げ|書|閉|開|入れ|放|向け|作|変|測|集|示|覆|保|使|追|返|通|歩|眠|投|鳴|打|吸|吹|踏|乗|覚|思|なぞ|並|とど|かざ|伸|しゃが|取|さら|質問|囲|付け|固定|刺|巻|確かめ|だけ|必要|すると|時に|前に|後に|まで/;
 
 function normalizeText(value) {
     return String(value || '')
@@ -103,9 +109,13 @@ if (abilities.length !== 365) fail(`expected 365 abilities, got ${abilities.leng
 
 const ids = new Set();
 const names = new Set();
+const aliases = new Set();
 const effects = new Set();
+const rules = new Set();
 const firstSentences = new Set();
 const counts = {};
+const targetTypeCounts = {};
+const tempoBandCounts = { instinctive: 0, balanced: 0, deliberate: 0 };
 const effectGrams = [];
 
 abilities.forEach((ability, index) => {
@@ -113,21 +123,40 @@ abilities.forEach((ability, index) => {
     if (!ability?.id || ids.has(ability.id)) fail(`duplicate or empty id: ${label}`);
     ids.add(ability.id);
     const normalizedName = normalizeText(ability.name);
+    const normalizedAlias = normalizeText(ability.alias);
+    const aliasLength = Array.from(String(ability.alias || '').replace(/・/g, '')).length;
     const normalizedEffect = normalizeText(ability.effect);
+    const normalizedRule = normalizeText(ability.rule);
     if (normalizedName.length < 3 || normalizedName.length > 30) fail(`invalid name length: ${label}`);
-    if (normalizedEffect.length < 25 || normalizedEffect.length > 180) fail(`invalid effect length: ${label}`);
+    if (aliasLength < 5 || aliasLength > 24) fail(`invalid alias length: ${label}`);
+    if (!/^[ァ-ヶー・]+$/.test(String(ability.alias || ''))) fail(`alias must use katakana: ${label}`);
+    if (normalizedEffect.length < 25 || normalizedEffect.length > 70) fail(`invalid effect length: ${label}`);
+    if (normalizedRule.length < 18 || normalizedRule.length > 55) fail(`invalid rule length: ${label}`);
+    if (String(ability.name).includes('・')) fail(`name still uses the retired motif/form pattern: ${label}`);
     if (names.has(normalizedName)) fail(`duplicate name: ${ability.name}`);
+    if (aliases.has(normalizedAlias)) fail(`duplicate alias: ${ability.alias}`);
     if (effects.has(normalizedEffect)) fail(`duplicate effect: ${label}`);
+    if (rules.has(normalizedRule)) fail(`duplicate activation rule: ${label}`);
     const normalizedFirstSentence = normalizeText(String(ability.effect).split('。')[0]);
     if (firstSentences.has(normalizedFirstSentence)) fail(`duplicate core mechanism: ${label}`);
     names.add(normalizedName);
+    aliases.add(normalizedAlias);
     effects.add(normalizedEffect);
+    rules.add(normalizedRule);
     firstSentences.add(normalizedFirstSentence);
     const sentenceCount = (String(ability.effect).match(/。/g) || []).length;
-    if (sentenceCount < 1 || sentenceCount > 2) fail(`effect must be one or two sentences: ${label}`);
+    if (sentenceCount !== 1) fail(`effect must be exactly one sentence: ${label}`);
     if (!String(ability.effect).endsWith('。')) fail(`effect must end with a full stop: ${label}`);
-    [...BANNED_TERMS, ...LIMIT_TERMS].forEach((term) => {
-        if (`${ability.name}${ability.effect}`.includes(term)) fail(`banned term ${term}: ${label}`);
+    const ruleSentenceCount = (String(ability.rule).match(/。/g) || []).length;
+    if (ruleSentenceCount !== 1 || !String(ability.rule).endsWith('。')) {
+        fail(`activation rule must be exactly one sentence: ${label}`);
+    }
+    if (!RULE_TRIGGER_PATTERN.test(String(ability.rule))) fail(`activation rule lacks a concrete trigger: ${label}`);
+    [...BANNED_TERMS, ...LEGACY_FORMULA_TERMS].forEach((term) => {
+        if (`${ability.name}${ability.alias}${ability.effect}${ability.rule}`.includes(term)) fail(`banned term ${term}: ${label}`);
+    });
+    BORROWED_ALIAS_TERMS.forEach((term) => {
+        if (String(ability.alias).includes(term)) fail(`borrowed ability alias ${term}: ${label}`);
     });
     if (!EXPECTED_COUNTS[ability.affinity]) fail(`unknown affinity: ${label}`);
     counts[ability.affinity] = (counts[ability.affinity] || 0) + 1;
@@ -139,11 +168,40 @@ abilities.forEach((ability, index) => {
     if (!Number.isFinite(ability.tempoTarget) || ability.tempoTarget < 0 || ability.tempoTarget > 1) {
         fail(`invalid tempo target: ${label}`);
     }
+    const profile = SPECIAL_ABILITY_PROFILES[ability.name];
+    if (!profile) fail(`missing authored source profile: ${label}`);
+    if (profile.affinity !== ability.affinity
+        || profile.alias !== ability.alias
+        || profile.rule !== ability.rule
+        || profile.targetType !== ability.targetType
+        || profile.tempoTarget !== ability.tempoTarget) {
+        fail(`generated metadata differs from authored profile: ${label}`);
+    }
+    targetTypeCounts[ability.affinity] ||= {};
+    targetTypeCounts[ability.affinity][ability.targetType] = (targetTypeCounts[ability.affinity][ability.targetType] || 0) + 1;
+    const tempoBand = ability.tempoTarget < 0.34
+        ? 'instinctive'
+        : ability.tempoTarget < 0.67 ? 'balanced' : 'deliberate';
+    tempoBandCounts[tempoBand] += 1;
     effectGrams.push({ label, grams: trigrams(ability.effect) });
 });
 
 Object.entries(EXPECTED_COUNTS).forEach(([affinity, expected]) => {
     if (counts[affinity] !== expected) fail(`${affinity} expected ${expected}, got ${counts[affinity] || 0}`);
+});
+if (Object.keys(SPECIAL_ABILITY_PROFILES).length !== abilities.length) {
+    fail(`expected one authored profile per ability, got ${Object.keys(SPECIAL_ABILITY_PROFILES).length}`);
+}
+Object.entries(targetTypeCounts).forEach(([affinity, typeCounts]) => {
+    const expectedTargetTypes = [...new Set(abilities
+        .filter((ability) => ability.affinity === affinity)
+        .flatMap((ability) => ability.compatibleTypes))];
+    expectedTargetTypes.forEach((type) => {
+        if ((typeCounts[type] || 0) < 3) fail(`${affinity}/${type} has fewer than three primary-fit abilities`);
+    });
+});
+Object.entries(tempoBandCounts).forEach(([band, count]) => {
+    if (count < 50) fail(`tempo band ${band} has only ${count} abilities`);
 });
 
 const typeAffinities = catalog?.typeAffinities || {};

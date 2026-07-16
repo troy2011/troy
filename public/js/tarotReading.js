@@ -5867,7 +5867,10 @@ async function fetchSpecialAbilityJson(path, payload) {
     if (path === '/api/special-ability/config' && state.specialAbility.bootstrapToken) {
         headers['X-Troy-Ability-Terminal'] = state.specialAbility.bootstrapToken;
     }
-    const response = await fetch(path, {
+    const requestPath = path === '/api/special-ability/config'
+        ? `${path}?request=${Date.now().toString(36)}`
+        : path;
+    const response = await fetch(requestPath, {
         method: payload === undefined ? 'GET' : 'POST',
         headers,
         body: payload === undefined ? undefined : JSON.stringify(payload),
@@ -5920,8 +5923,19 @@ function setSpecialAbilityIntro(message, { canStart = false } = {}) {
 }
 
 function renderSpecialAbilityResult(ability) {
-    const publicAbility = ability && String(ability.name || '').trim() && String(ability.effect || '').trim()
-        ? { name: String(ability.name).trim(), effect: String(ability.effect).trim() }
+    const publicAbility = ability
+        && String(ability.name || '').trim()
+        && String(ability.alias || '').trim()
+        && String(ability.effect || '').trim()
+        && String(ability.rule || '').trim()
+        && String(ability.affinity || '').trim()
+        ? {
+            name: String(ability.name).trim(),
+            alias: String(ability.alias).trim(),
+            effect: String(ability.effect).trim(),
+            rule: String(ability.rule).trim(),
+            affinity: String(ability.affinity).trim()
+        }
         : null;
     if (!publicAbility) {
         setSpecialAbilityIntro('判定結果を表示できませんでした。店内リストを更新して、もう一度確認してください。');
@@ -5934,8 +5948,11 @@ function renderSpecialAbilityResult(ability) {
     if ($('specialAbilityIntro')) $('specialAbilityIntro').hidden = true;
     if ($('specialAbilityAssessment')) $('specialAbilityAssessment').hidden = true;
     if ($('specialAbilityResult')) $('specialAbilityResult').hidden = false;
+    if ($('specialAbilityAffinity')) $('specialAbilityAffinity').textContent = publicAbility.affinity;
     if ($('specialAbilityName')) $('specialAbilityName').textContent = publicAbility.name;
+    if ($('specialAbilityAlias')) $('specialAbilityAlias').textContent = publicAbility.alias;
     if ($('specialAbilityEffect')) $('specialAbilityEffect').textContent = publicAbility.effect;
+    if ($('specialAbilityRule')) $('specialAbilityRule').textContent = publicAbility.rule;
     setStatus('判定済み', 'success');
 }
 

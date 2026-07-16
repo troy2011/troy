@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'troy-app-v20260707e';
+const CACHE_VERSION = 'troy-app-v20260716b';
 const CORE_CACHE = `troy-core-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `troy-runtime-${CACHE_VERSION}`;
 
@@ -51,7 +51,8 @@ function isFreshCodeAsset(request) {
 function shouldBypassRuntimeCache(request) {
   if (!request) return false;
   const url = new URL(request.url);
-  return String(url.pathname || '') === '/entry-effect.mp4';
+  const path = String(url.pathname || '');
+  return path.startsWith('/api/') || path === '/entry-effect.mp4';
 }
 
 self.addEventListener('fetch', (event) => {
