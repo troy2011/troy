@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://troy-xetw.onrender.com/sitemap.xml

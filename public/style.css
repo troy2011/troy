@@ -20091,6 +20091,18 @@ body.is-new-order-flash::before {
     letter-spacing: 0;
 }
 
+.app-shop-link {
+    color: #ffe7a6;
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.app-shop-link:hover,
+.app-shop-link:focus-visible {
+    color: #fff5d6;
+}
+
 
 
 
@@ -26056,4 +26068,30 @@ body[data-sea-tone] .home-hero-card {
     background:
         linear-gradient(180deg, rgba(17, 24, 39, 0.22), rgba(2, 6, 23, 0.42)),
         radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.06), transparent 58%);
+}
+.boot-shop-link {
+    position: absolute;
+    z-index: 2;
+    right: 50%;
+    bottom: max(76px, calc(env(safe-area-inset-bottom) + 68px));
+    width: max-content;
+    max-width: calc(100% - 32px);
+    padding: 9px 14px;
+    border: 1px solid rgba(255, 215, 132, 0.62);
+    border-radius: 999px;
+    color: #fff3ce;
+    background: rgba(5, 8, 12, 0.76);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-align: center;
+    text-decoration: none;
+    transform: translateX(50%);
+    backdrop-filter: blur(8px);
+}
+
+.boot-shop-link:hover,
+.boot-shop-link:focus-visible {
+    border-color: #ffd784;
+    color: #ffd784;
 }
