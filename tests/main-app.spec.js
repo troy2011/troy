@@ -1501,12 +1501,8 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(paidDestination.locator('.ship-exploration-badge')).toHaveText(['供給力2', '180G', '中レア', '推奨Lv 7']);
   await expect(freeDestination.locator('.ship-exploration-role-chip')).toHaveText(['低リスク', '基本報酬']);
   await expect(freeDestination.locator('.ship-exploration-boss-chip')).toHaveCount(3);
-  await expect(freeDestination.locator('.ship-exploration-boss-chip').nth(0)).toContainText('弱');
-  await expect(freeDestination.locator('.ship-exploration-boss-chip').nth(0)).toContainText('財宝スライム');
-  await expect(freeDestination.locator('.ship-exploration-boss-chip').nth(1)).toContainText('中');
-  await expect(freeDestination.locator('.ship-exploration-boss-chip').nth(1)).toContainText('爆弾フグ');
-  await expect(freeDestination.locator('.ship-exploration-boss-chip').nth(2)).toContainText('強');
-  await expect(freeDestination.locator('.ship-exploration-boss-chip').nth(2)).toContainText('宝箱ミミック');
+  await expect(freeDestination.locator('.ship-exploration-boss-chip b')).toHaveText(['MONSTER', 'MONSTER', 'BOSS']);
+  await expect(freeDestination.locator('.exploration-pixel-monster')).toHaveCount(3);
   await expect(freeDestination.locator('.ship-exploration-boss-image')).toHaveCount(3);
   await expect(freeDestination.locator('.ship-exploration-start')).toHaveText('無料で探索開始');
   await expect(paidDestination.locator('.ship-exploration-start')).toHaveText(['消耗品で探索', '180Gで探索']);
@@ -1639,6 +1635,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
 test('exploration can start by selecting troy menu consumables', async ({ page }) => {
   const errors = trackPageErrors(page);
   let startBody = null;
+  let claimBody = null;
   await page.route('**/api/get-troy-status', async (route) => {
     await route.fulfill({
       status: 200,
@@ -1711,7 +1708,33 @@ test('exploration can start by selecting troy menu consumables', async ({ page }
       })
     });
   });
+  await page.route('**/api/exploration/encounter', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'explorer' },
+        active: {
+          id: 'exploration-tarot-entry',
+          destinationId: 'coral-passage',
+          destinationName: '珊瑚礁の抜け道',
+          imagePath: './Sprites/exploration_destinations/coral_passage_reef.png'
+        },
+        encounter: {
+          explorationId: 'exploration-tarot-entry',
+          destinationId: 'coral-passage',
+          destinationName: '珊瑚礁の抜け道',
+          monsterId: 'ismartal-vol2-monster-16',
+          monsterName: 'オルビス',
+          isBoss: true,
+          bossTier: 'strong',
+          bossTierLabel: '強'
+        }
+      })
+    });
+  });
   await page.route('**/api/exploration/claim', async (route) => {
+    claimBody = route.request().postDataJSON();
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
@@ -1720,10 +1743,17 @@ test('exploration can start by selecting troy menu consumables', async ({ page }
         active: null,
         reports: [],
         report: {
+          id: 'exploration-tarot-entry',
           destinationId: 'coral-passage',
           destinationName: '珊瑚礁の抜け道',
           imagePath: './Sprites/exploration_destinations/coral_passage_reef.png',
+          bossId: 'ismartal-vol2-monster-16',
+          bossName: 'オルビス',
+          bossTier: 'strong',
           bossResult: 'victory',
+          monsterId: 'ismartal-vol2-monster-16',
+          monsterName: 'オルビス',
+          monsterIsBoss: true,
           rewardCount: 1,
           rewardItems: [{ itemId: 'starter_shield', displayName: '見習いの盾', rarity: 'common', quantity: 1 }],
           bossLog: '戦闘開始\n宝箱を発見した。'
@@ -1733,6 +1763,22 @@ test('exploration can start by selecting troy menu consumables', async ({ page }
   });
 
   await bootstrapMainApp(page);
+  await page.evaluate(() => {
+    window.__realExplorationKingdomLauncherAvailable = typeof window.launchTarotKingdomExplorationBattle === 'function';
+    window.__explorationKingdomLaunches = [];
+    window.launchTarotKingdomExplorationBattle = async (context) => {
+      window.__explorationKingdomLaunches.push(context);
+      return {
+        status: 'completed',
+        completed: true,
+        outcome: 'victory',
+        monsterId: context.monsterId,
+        monsterName: context.monsterName,
+        isBoss: context.isBoss,
+        explorationId: context.explorationId
+      };
+    };
+  });
   await page.locator('#btnHomeExploration').click();
   await page.locator('.ship-exploration-start.is-consumable').click();
   const dialog = page.locator('.ship-exploration-payment-dialog');
@@ -1750,6 +1796,91 @@ test('exploration can start by selecting troy menu consumables', async ({ page }
       { itemId: 'troy_menu_food_b', quantity: 1 }
     ]
   });
+  await expect.poll(() => page.evaluate(() => window.__explorationKingdomLaunches?.length || 0), { timeout: 7000 }).toBe(1);
+  const kingdomEntry = await page.evaluate(() => ({
+    launcherAvailable: window.__realExplorationKingdomLauncherAvailable,
+    context: window.__explorationKingdomLaunches[0]
+  }));
+  expect(kingdomEntry.launcherAvailable).toBe(true);
+  expect(kingdomEntry.context).toMatchObject({
+    explorationId: 'exploration-tarot-entry',
+    destinationId: 'coral-passage',
+    destinationName: '珊瑚礁の抜け道',
+    isBoss: true
+  });
+  expect(kingdomEntry.context.monsterId).toBe('ismartal-vol2-monster-16');
+  await expect.poll(() => claimBody).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    explorationId: 'exploration-tarot-entry',
+    tarotOutcome: 'victory'
+  });
+  await expect(page.locator('#tarotModeKingdom')).toBeHidden();
+  await expect(page.locator('.exploration-result-overlay')).toBeVisible();
+  await expect(page.locator('.exploration-result-boss-copy b')).toHaveText('BOSS');
+  await expect(page.locator('.exploration-result-boss-copy strong')).toHaveText(kingdomEntry.context.monsterName);
+  await expectNoPageErrors(errors);
+});
+
+test('exploration bridge opens tarot kingdom directly with the selected island monster', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await page.route('**/api/get-troy-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ nation: 'fire', isOpen: true, members: [] })
+    });
+  });
+  await page.route('**/api/exploration/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ship: null, active: null, reports: [], destinations: [] })
+    });
+  });
+  await page.route('**/api/tarot-kingdom/combat-profiles', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        characters: [{
+          version: 1,
+          source: 'playfab',
+          playFabId: 'PF_PLAYWRIGHT',
+          displayName: 'Playwright Tester',
+          level: 18,
+          rankLabel: '航海士',
+          avatarBase: { Race: 'human', SkinColorIndex: 1, HairStyleIndex: 1, HairColorIndex: 1, FaceIndex: 1 },
+          equipment: {},
+          itemSource: {},
+          combat: { maxHp: 120, power: 36, defense: 24, intelligence: 24, speed: 24, weaponType: 'sword' }
+        }]
+      })
+    });
+  });
+
+  await bootstrapMainApp(page, { mockFirebaseDatabase: true });
+  await page.evaluate(() => {
+    window.__explorationBridgePromise = window.launchTarotKingdomExplorationBattle({
+      explorationId: 'exp-direct-entry',
+      destinationId: 'abyss-route',
+      destinationName: '深淵航路',
+      monsterId: 'ismartal-vol2-monster-15',
+      monsterName: 'アビソス',
+      isBoss: true
+    });
+  });
+
+  await expect(page.locator('#tabContentTarot')).toBeVisible();
+  await expect(page.locator('#tarotGameSelectRoot')).toBeHidden();
+  await expect(page.locator('#tarotKingdomRoot')).toBeVisible();
+  await expect(page.locator('#tarotKingdomEnemyName')).toHaveText('アビソス');
+  await expect(page.getByRole('region', { name: '敵モンスター' })).toContainText('BOSS');
+  await expect(page.locator('body')).toHaveClass(/tarot-kingdom-exploration-session/);
+  await expect(page.locator('#tarotModeKingdom')).toBeHidden();
+
+  await page.evaluate(() => window.showTab?.('home'));
+  await expect(page.locator('#tabContentHome')).toBeVisible();
+  await expect(page.locator('body')).not.toHaveClass(/tarot-kingdom-exploration-session/);
   await expectNoPageErrors(errors);
 });
 
@@ -2105,7 +2236,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   await expectNoPageErrors(errors);
 });
 
-test('exploration result reveals details after the treasure sequence auto-plays', async ({ page }) => {
+test('exploration result reveals rewards after a tarot kingdom victory', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.route('**/api/get-ranking', async (route) => {
     await route.fulfill({
@@ -2151,6 +2282,31 @@ test('exploration result reveals details after the treasure sequence auto-plays'
       })
     });
   });
+  await page.route('**/api/exploration/encounter', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'fighter' },
+        active: {
+          id: 'exploration-reward-test',
+          destinationId: 'harbor-edge',
+          destinationName: '港の外れ',
+          imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png'
+        },
+        encounter: {
+          explorationId: 'exploration-reward-test',
+          destinationId: 'harbor-edge',
+          destinationName: '港の外れ',
+          monsterId: 'ismartal-vol2-monster-07',
+          monsterName: 'バルガン',
+          isBoss: true,
+          bossTier: 'strong',
+          bossTierLabel: '強'
+        }
+      })
+    });
+  });
   await page.route('**/api/exploration/claim', async (route) => {
     await route.fulfill({
       status: 200,
@@ -2163,12 +2319,15 @@ test('exploration result reveals details after the treasure sequence auto-plays'
           destinationId: 'harbor-edge',
           destinationName: '港の外れ',
           imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png',
-          bossId: 'ghost_pirate',
-          bossName: '海霧の番人',
-          bossSpriteId: 'ghost_pirate',
+          bossId: 'ismartal-vol2-monster-07',
+          bossName: 'バルガン',
+          bossSpriteId: 'ismartal-vol2-monster-07',
           bossTier: 'strong',
           bossTierLabel: '強',
           bossResult: 'victory',
+          monsterId: 'ismartal-vol2-monster-07',
+          monsterName: 'バルガン',
+          monsterIsBoss: true,
           rewardCount: 1,
           rewardItems: [{ itemId: 'mist_blade', displayName: '霧切りの刃', rarity: 'rare', quantity: 1 }],
           bossLog: '戦闘開始\n船が島へ接近。\n宝箱を発見した。'
@@ -2178,35 +2337,46 @@ test('exploration result reveals details after the treasure sequence auto-plays'
   });
 
   await bootstrapMainApp(page, { fixedHour: 18 });
+  await page.evaluate(() => {
+    window.launchTarotKingdomExplorationBattle = async (context) => ({
+      status: 'completed',
+      completed: true,
+      outcome: 'victory',
+      monsterId: context.monsterId,
+      monsterName: context.monsterName,
+      isBoss: context.isBoss,
+      explorationId: context.explorationId
+    });
+  });
   await page.locator('#btnHomeExploration').click();
   await page.locator('#shipExplorationPanel').waitFor({ state: 'visible' });
   await page.locator('.ship-exploration-start').click();
 
   const sequence = page.locator('.exploration-sequence-overlay');
   await expect(sequence).toHaveClass(/is-sail/, { timeout: 15_000 });
-  await expect(sequence.locator('[data-exploration-sequence-chest]')).toHaveCount(1);
+  await expect(sequence.locator('[data-exploration-sequence-chest]')).toHaveCount(0);
   await expect(sequence.locator('.exploration-sequence-island img')).toHaveAttribute('src', /near_sea_drift_crate\.png/);
   await expect(sequence.locator('[data-exploration-sequence-advance]')).toHaveCount(0);
   await expect(sequence.locator('[data-exploration-sequence-progress]')).toBeAttached();
 
   await expect(sequence).toHaveClass(/is-up/, { timeout: 5_000 });
   await expect(sequence).toHaveClass(/is-left/, { timeout: 5_000 });
-  await expect(sequence).toHaveClass(/is-battle/, { timeout: 5_000 });
-  await expect(sequence).toHaveClass(/is-treasure/, { timeout: 5_000 });
+  await expect(sequence).toHaveClass(/is-arrival/, { timeout: 5_000 });
   await expect(sequence).toBeHidden({ timeout: 5_000 });
 
   const result = page.locator('.exploration-result-overlay');
-  await expect(result).toHaveClass(/is-opened/, { timeout: 15_000 });
-  await expect(result).not.toHaveClass(/is-awaiting-open/);
+  await expect(result).toHaveClass(/is-awaiting-open/, { timeout: 15_000 });
+  await result.locator('[data-exploration-result-open]').click();
+  await expect(result).toHaveClass(/is-opened/, { timeout: 5_000 });
   await expect(result.locator('.exploration-result-details')).toHaveCSS('opacity', '1');
   await expect(result.locator('.exploration-result-reward')).toContainText('霧切りの刃');
   await expect(result.locator('[data-exploration-result-state]')).toHaveText('勝利');
   expect(await result.locator('.exploration-result-dialog').evaluate((element) => getComputedStyle(element).overflowX)).toBe('hidden');
   await expect(result.locator('[data-exploration-result-open]')).toBeDisabled();
-  await expect(result.locator('.exploration-result-boss-card')).toHaveAttribute('data-exploration-boss-id', 'ghost_pirate');
-  await expect(result.locator('.exploration-result-boss-image')).toHaveAttribute('src', /Sprites\/monsters\/ghost_pirate\.png/);
-  await expect(result.locator('.exploration-result-boss-image')).toHaveAttribute('alt', '海霧の番人');
-  await expect(result.locator('.exploration-result-boss-copy span')).toHaveText('強BOSS / 勝利');
+  await expect(result.locator('.exploration-result-boss-card')).toHaveAttribute('data-exploration-boss-id', 'ismartal-vol2-monster-07');
+  await expect(result.locator('.exploration-result-boss-image')).toHaveCSS('background-image', /pixel-monsters\/vol2\/monster-07\/idle\.png/);
+  await expect(result.locator('.exploration-result-boss-copy strong')).toHaveText('バルガン');
+  await expect(result.locator('.exploration-result-boss-copy span')).toHaveText('大型BOSS / 勝利');
   await expect(result.locator('.exploration-result-reward')).toContainText('RARE');
   await expect(result.locator('.exploration-result-chest')).toHaveCSS('animation-name', 'none');
 

@@ -106,6 +106,65 @@ window.QRious = class QRious {
 };
 `;
 
+const FIREBASE_APP_MOCK_MODULE = `
+let currentApp = null;
+
+export function initializeApp(options = {}) {
+  currentApp = currentApp || { options, name: '[DEFAULT]', __mock: true };
+  return currentApp;
+}
+
+export function getApp() {
+  return currentApp || initializeApp({});
+}
+
+export function getApps() {
+  return currentApp ? [currentApp] : [];
+}
+`;
+
+const FIREBASE_FIRESTORE_MOCK_MODULE = `
+const emptyQuerySnapshot = () => ({
+  empty: true,
+  size: 0,
+  docs: [],
+  forEach() {},
+  docChanges: () => []
+});
+
+const emptyDocSnapshot = (target) => ({
+  id: target?.id || '',
+  ref: target || null,
+  exists: () => false,
+  data: () => undefined
+});
+
+export function getFirestore() { return { __mock: true }; }
+export function collection(_db, ...segments) { return { type: 'collection', path: segments.join('/') }; }
+export function doc(_db, ...segments) {
+  const path = segments.join('/');
+  return { type: 'doc', path, id: segments[segments.length - 1] || '' };
+}
+export function query(target, ...constraints) { return { ...target, constraints }; }
+export function where(field, op, value) { return { type: 'where', field, op, value }; }
+export function orderBy(field, direction) { return { type: 'orderBy', field, direction }; }
+export function limit(value) { return { type: 'limit', value }; }
+export function startAt(value) { return { type: 'startAt', value }; }
+export function endAt(value) { return { type: 'endAt', value }; }
+export function serverTimestamp() { return Date.now(); }
+export function getDocs() { return Promise.resolve(emptyQuerySnapshot()); }
+export function getDoc(target) { return Promise.resolve(emptyDocSnapshot(target)); }
+export function setDoc() { return Promise.resolve(); }
+export function updateDoc() { return Promise.resolve(); }
+export function addDoc() { return Promise.resolve({ id: 'pw-firestore-doc' }); }
+export function onSnapshot(_target, next, error) {
+  queueMicrotask(() => {
+    try { next(emptyQuerySnapshot()); } catch (snapshotError) { error?.(snapshotError); }
+  });
+  return () => {};
+}
+`;
+
 const FIREBASE_AUTH_MOCK_MODULE = `
 let currentCallback = null;
 
@@ -188,9 +247,40 @@ export function set(target, value) {
   return Promise.resolve();
 }
 
+export function update(target, values = {}) {
+  const rawBase = normalizePath(target);
+  const base = rawBase.endsWith('/') ? rawBase.slice(0, -1) : rawBase;
+  const changedPaths = [];
+  Object.entries(values || {}).forEach(([relativePath, value]) => {
+    let child = String(relativePath || '');
+    while (child.startsWith('/')) child = child.slice(1);
+    const childPath = [base, child].filter(Boolean).join('/');
+    if (value == null) store.values.delete(childPath);
+    else store.values.set(childPath, value);
+    changedPaths.push(childPath);
+  });
+  changedPaths.forEach((childPath) => {
+    notify(childPath);
+  });
+  notify(base);
+  return Promise.resolve();
+}
+
 export function get(target) {
   const path = normalizePath(target);
   return Promise.resolve(makeSnapshot(path));
+}
+
+export function runTransaction(target, updater) {
+  const path = normalizePath(target);
+  const current = store.values.has(path) ? store.values.get(path) : null;
+  const next = updater(current);
+  if (next === undefined) {
+    return Promise.resolve({ committed: false, snapshot: makeSnapshot(path) });
+  }
+  store.values.set(path, next);
+  notify(path);
+  return Promise.resolve({ committed: true, snapshot: makeSnapshot(path) });
 }
 
 export function remove(target) {
@@ -480,24 +570,34 @@ async function installBaseAppMocks(page, state, options = {}) {
     });
   });
 
-  if (options.mockFirebaseDatabase) {
-    await page.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/javascript; charset=utf-8',
-        body: FIREBASE_DATABASE_MOCK_MODULE
-      });
+  await page.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/javascript; charset=utf-8',
+      body: FIREBASE_APP_MOCK_MODULE
     });
-  }
-  if (options.mockFirebaseAuth) {
-    await page.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/javascript; charset=utf-8',
-        body: FIREBASE_AUTH_MOCK_MODULE
-      });
+  });
+  await page.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/javascript; charset=utf-8',
+      body: FIREBASE_FIRESTORE_MOCK_MODULE
     });
-  }
+  });
+  await page.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/javascript; charset=utf-8',
+      body: FIREBASE_DATABASE_MOCK_MODULE
+    });
+  });
+  await page.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/javascript; charset=utf-8',
+      body: FIREBASE_AUTH_MOCK_MODULE
+    });
+  });
 
   if (options.mockGame !== false) {
     await page.route('**/Game.js', async (route) => {

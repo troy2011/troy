@@ -17,7 +17,7 @@ const {
     normalizeNationWarState
 } = require('../nationWarWeapons');
 const { getAvatarColorForNation } = require('../nation');
-const { runMeleeBattle } = require('../battle/MeleeCombatSystem');
+const { runMeleeBattle, getEquippedWeaponTypes } = require('../battle/MeleeCombatSystem');
 
 // ----------------------------------------------------
 // ★ v42: モジュールレベル変数の定義
@@ -31,6 +31,108 @@ let _catalogCache = null;
 let _catalogCurrencyMap = null;
 let _resolveItemId = null;
 
+const TAROT_KINGDOM_EQUIPMENT_SLOTS = ['RightHand', 'LeftHand', 'Armor', 'Accessory'];
+const TAROT_KINGDOM_WEAPON_PRIORITY = [
+    'axe_big', 'sword_big', 'gun_big', 'bow', 'wand', 'staff', 'dagger',
+    'sword', 'axe', 'blunt', 'polearm', 'gun', 'shield', 'unarmed'
+];
+
+function getPlayerRankLabelByLevel(level) {
+    const value = Math.max(1, Math.floor(Number(level) || 1));
+    if (value >= 51) return '海賊王';
+    if (value >= 41) return '提督';
+    if (value >= 21) return '船長';
+    if (value >= 11) return '航海士';
+    return '見習い';
+}
+
+function sanitizeTarotKingdomEquipment(equipment = {}) {
+    const sanitized = {};
+    TAROT_KINGDOM_EQUIPMENT_SLOTS.forEach((slot) => {
+        const itemRef = equipment?.[slot];
+        if (typeof itemRef === 'string' && itemRef.trim()) {
+            sanitized[slot] = itemRef.trim();
+        }
+    });
+    return sanitized;
+}
+
+function buildTarotKingdomItemSource(equipment = {}) {
+    const drawingFields = [
+        'Category', 'ManifestWeaponType', 'ManifestedWeaponType', 'WeaponType', 'weaponType',
+        'sprite_path', 'sprite_index', 'sprite_w', 'sprite_h', 'TwoHanded', 'FriendlyId', 'ItemId'
+    ];
+    const itemSource = {};
+    TAROT_KINGDOM_EQUIPMENT_SLOTS.forEach((slot) => {
+        const itemId = typeof equipment?.[slot] === 'string' ? equipment[slot].trim() : '';
+        if (!itemId || itemSource[itemId]) return;
+        const catalogData = _catalogCache?.[itemId];
+        if (!catalogData || typeof catalogData !== 'object') return;
+        const customData = {};
+        drawingFields.forEach((field) => {
+            if (catalogData[field] !== undefined && catalogData[field] !== null) customData[field] = catalogData[field];
+        });
+        itemSource[itemId] = {
+            itemId,
+            name: String(catalogData.DisplayName || itemId).trim() || itemId,
+            customData
+        };
+    });
+    return itemSource;
+}
+
+function buildTarotKingdomAvatarBase(profile = {}, level = 1) {
+    const avatar = profile?.avatar || {};
+    return {
+        Race: String(avatar.Race || 'human').trim() || 'human',
+        Nation: String(avatar.Nation || '').trim().toLowerCase() || null,
+        AvatarColor: String(avatar.AvatarColor || 'brown').trim() || 'brown',
+        SkinColorIndex: Math.max(1, Math.floor(Number(avatar.SkinColorIndex || 1) || 1)),
+        FaceIndex: Math.max(1, Math.floor(Number(avatar.FaceIndex || 1) || 1)),
+        HairStyleIndex: Math.max(1, Math.floor(Number(avatar.HairStyleIndex || 1) || 1)),
+        HairColorIndex: Math.max(1, Math.floor(Number(avatar.HairColorIndex || 1) || 1)),
+        FacialHairStyleIndex: Math.max(0, Math.floor(Number(avatar.FacialHairStyleIndex ?? 1) || 0)),
+        level
+    };
+}
+
+function buildTarotKingdomCombatCharacter(profile = {}) {
+    const stats = profile?.stats || {};
+    const equipmentStats = profile?.equipmentStats || {};
+    const equipment = sanitizeTarotKingdomEquipment(profile?.equipment);
+    const level = Math.max(1, Math.floor(Number(profile?.level || stats.Level || 1) || 1));
+    const weaponTypes = getEquippedWeaponTypes({ ...profile, equipment }, _catalogCache || {});
+    const weaponType = TAROT_KINGDOM_WEAPON_PRIORITY.find((type) => weaponTypes.has(type)) || 'unarmed';
+    const statNumber = (key, fallback = 0) => {
+        const value = Number(stats[key]);
+        return Number.isFinite(value) ? value : fallback;
+    };
+    const equipmentNumber = (key) => {
+        const value = Number(equipmentStats[key]);
+        return Number.isFinite(value) ? value : 0;
+    };
+
+    return {
+        version: 1,
+        source: 'playfab',
+        playFabId: String(profile?.id || '').trim(),
+        displayName: String(stats.DisplayName || profile?.id || '（名前なし）').trim() || '（名前なし）',
+        level,
+        rankLabel: getPlayerRankLabelByLevel(level),
+        avatarBase: buildTarotKingdomAvatarBase(profile, level),
+        equipment,
+        itemSource: buildTarotKingdomItemSource(equipment),
+        combat: {
+            maxHp: Math.max(1, Math.floor(statNumber('MaxHP', statNumber('HP', 1)))),
+            power: Math.max(0, Math.floor(statNumber('ちから', 0) + equipmentNumber('Power'))),
+            defense: Math.max(0, Math.floor(statNumber('みのまもり', 0) + equipmentNumber('Defense'))),
+            intelligence: Math.max(0, Math.floor(statNumber('かしこさ', 0))),
+            speed: Math.max(0, Math.floor(statNumber('すばやさ', 0) + equipmentNumber('Agi'))),
+            weaponType
+        }
+    };
+}
+
 async function getEntityKeyForPlayFabId(playFabId) {
     const result = await _promisifyPlayFab(_PlayFabServer.GetPlayerProfile, {
         PlayFabId: playFabId,
@@ -39,8 +141,10 @@ async function getEntityKeyForPlayFabId(playFabId) {
     return result?.PlayerProfile?.Entity || null;
 }
 
-async function getAllInventoryItems(playFabId) {
-    const entityKey = await getEntityKeyForPlayFabId(playFabId);
+async function getAllInventoryItems(playFabId, knownEntityKey = null) {
+    const entityKey = knownEntityKey?.Id && knownEntityKey?.Type
+        ? knownEntityKey
+        : await getEntityKeyForPlayFabId(playFabId);
     if (!entityKey?.Id || !entityKey?.Type) return [];
     const items = [];
     let token = null;
@@ -295,28 +399,32 @@ async function savePlayerHpMp(player) {
 // ----------------------------------------------------
 // ★ v42: プレイヤー情報を取得する共通関数 (exports)
 // ----------------------------------------------------
-async function getPlayerFullProfile(playFabId) {
+async function getPlayerFullProfile(playFabId, options = {}) {
     if (!_promisifyPlayFab || !_PlayFabServer || !_catalogCache) {
         console.error('getPlayerFullProfile: battle.js が初期化されていません。');
         throw new Error('battle.js is not initialized.');
     }
 
     const statsPromise = _promisifyPlayFab(_PlayFabServer.GetPlayerStatistics, { PlayFabId: playFabId });
+    const avatarEquipmentKeys = [
+        'Equipped_RightHand', 'Equipped_LeftHand', 'Equipped_Armor', 'Equipped_Accessory',
+        'Race', 'Nation', 'AvatarColor', 'SkinColorIndex', 'FaceIndex', 'HairStyleIndex', 'HairColorIndex', 'FacialHairStyleIndex'
+    ];
+    const readOnlyKeys = options.scope === 'tarotKingdomCombat'
+        ? avatarEquipmentKeys
+        : [...avatarEquipmentKeys, 'lineUserId', TAROT_DECK_DATA_KEY, MELEE_DECK_DATA_KEY, SHIP_DECK_DATA_KEY];
     const equipmentPromise = _promisifyPlayFab(_PlayFabServer.GetUserReadOnlyData, {
         // ★ v122: アバター情報も取得するようにキーを追加
-        PlayFabId: playFabId, Keys: [
-            "Equipped_RightHand", "Equipped_LeftHand", "Equipped_Armor", "Equipped_Accessory", "lineUserId",
-            "Race", "Nation", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex", "FacialHairStyleIndex",
-            TAROT_DECK_DATA_KEY,
-            MELEE_DECK_DATA_KEY,
-            SHIP_DECK_DATA_KEY
-        ]
+        PlayFabId: playFabId,
+        Keys: readOnlyKeys
     });
     const profilePromise = _promisifyPlayFab(_PlayFabServer.GetPlayerProfile, {
-        PlayFabId: playFabId, ProfileConstraints: { ShowDisplayName: true }
+        PlayFabId: playFabId, ProfileConstraints: { ShowDisplayName: true, ShowEntity: true }
     });
     // ★★★ 修正点: インベントリ全体を取得して、InstanceId と ItemId の対応表を作る ★★★
-    const inventoryPromise = getAllInventoryItems(playFabId);
+    const inventoryPromise = profilePromise.then((result) => (
+        getAllInventoryItems(playFabId, result?.PlayerProfile?.Entity || null)
+    ));
 
     const [statsResult, equipmentResult, profileResult, inventoryResult] = await Promise.all([statsPromise, equipmentPromise, profilePromise, inventoryPromise]);
 
@@ -377,6 +485,7 @@ async function getPlayerFullProfile(playFabId) {
         avatar.SkinColorIndex = Number(equipmentResult.Data.SkinColorIndex?.Value || 1) || 1;
         avatar.FaceIndex = Number(equipmentResult.Data.FaceIndex?.Value || 1) || 1;
         avatar.HairStyleIndex = Number(equipmentResult.Data.HairStyleIndex?.Value || 1) || 1;
+        avatar.HairColorIndex = Number(equipmentResult.Data.HairColorIndex?.Value || 1) || 1;
         {
             const rawFacialHairStyle = equipmentResult.Data.FacialHairStyleIndex?.Value;
             avatar.FacialHairStyleIndex = rawFacialHairStyle === undefined || rawFacialHairStyle === null || rawFacialHairStyle === ''
@@ -531,6 +640,102 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
     const requireAuthenticatedPlayFabId = authTools?.requireAuthenticatedPlayFabId || null;
     const battlePairCooldownMs = 60 * 1000;
     const recentBattlePairs = new Map();
+    const tarotKingdomProfileRequestWindows = new Map();
+    const tarotKingdomCombatProfileInFlight = new Map();
+    const TAROT_KINGDOM_PROFILE_WINDOW_MS = 60 * 1000;
+    const TAROT_KINGDOM_PROFILE_MAX_REQUESTS = 8;
+    const TAROT_KINGDOM_PRESENCE_STALE_MS = 90 * 1000;
+    const TAROT_KINGDOM_PRESENCE_FUTURE_TOLERANCE_MS = 15 * 1000;
+    const tarotKingdomProfileLimits = authTools?.tarotKingdomProfileLimits || {};
+    const getTarotKingdomProfileLimit = (key, fallback, minimum = 1) => {
+        const value = Number(tarotKingdomProfileLimits?.[key]);
+        return Number.isFinite(value) ? Math.max(minimum, Math.floor(value)) : fallback;
+    };
+    const TAROT_KINGDOM_PROFILE_HTTP_DEADLINE_MS = getTarotKingdomProfileLimit('httpDeadlineMs', 12 * 1000);
+    const TAROT_KINGDOM_PROFILE_QUEUE_WAIT_MS = getTarotKingdomProfileLimit('queueWaitMs', 10 * 1000);
+    const TAROT_KINGDOM_PROFILE_MAX_CONCURRENCY = getTarotKingdomProfileLimit('maxConcurrency', 4);
+    const TAROT_KINGDOM_PROFILE_MAX_QUEUE = getTarotKingdomProfileLimit('maxQueue', 32, 0);
+    const TAROT_KINGDOM_PROFILE_TIMEOUT_CODE = 'TarotKingdomCombatProfileTimeout';
+    const TAROT_KINGDOM_PROFILE_OVERLOAD_CODE = 'TarotKingdomCombatProfileOverload';
+    let tarotKingdomProfileActiveCount = 0;
+    const tarotKingdomProfileWaiters = [];
+    const createTarotKingdomProfileError = (code, message) => {
+        const error = new Error(message);
+        error.code = code;
+        return error;
+    };
+    const createTarotKingdomProfileRelease = () => {
+        let released = false;
+        return () => {
+            if (released) return;
+            released = true;
+            tarotKingdomProfileActiveCount = Math.max(0, tarotKingdomProfileActiveCount - 1);
+            while (tarotKingdomProfileWaiters.length > 0) {
+                const waiter = tarotKingdomProfileWaiters.shift();
+                if (!waiter || waiter.settled) continue;
+                waiter.settled = true;
+                if (waiter.timeoutId) clearTimeout(waiter.timeoutId);
+                // Reserve the released slot before waking the waiter so a new request cannot barge in.
+                tarotKingdomProfileActiveCount += 1;
+                waiter.resolve(createTarotKingdomProfileRelease());
+                break;
+            }
+        };
+    };
+    const acquireTarotKingdomProfileSlot = async () => {
+        if (tarotKingdomProfileActiveCount < TAROT_KINGDOM_PROFILE_MAX_CONCURRENCY) {
+            tarotKingdomProfileActiveCount += 1;
+            return createTarotKingdomProfileRelease();
+        }
+        if (tarotKingdomProfileWaiters.length >= TAROT_KINGDOM_PROFILE_MAX_QUEUE) {
+            throw createTarotKingdomProfileError(
+                TAROT_KINGDOM_PROFILE_OVERLOAD_CODE,
+                'Combat profile queue is full.'
+            );
+        }
+        return new Promise((resolve, reject) => {
+            const waiter = {
+                settled: false,
+                timeoutId: null,
+                resolve
+            };
+            waiter.timeoutId = setTimeout(() => {
+                if (waiter.settled) return;
+                waiter.settled = true;
+                const waiterIndex = tarotKingdomProfileWaiters.indexOf(waiter);
+                if (waiterIndex >= 0) tarotKingdomProfileWaiters.splice(waiterIndex, 1);
+                reject(createTarotKingdomProfileError(
+                    TAROT_KINGDOM_PROFILE_OVERLOAD_CODE,
+                    'Combat profile queue wait timed out.'
+                ));
+            }, TAROT_KINGDOM_PROFILE_QUEUE_WAIT_MS);
+            tarotKingdomProfileWaiters.push(waiter);
+        });
+    };
+    const withTarotKingdomProfileSlot = async (task) => {
+        const release = await acquireTarotKingdomProfileSlot();
+        try {
+            return await Promise.resolve().then(task);
+        } finally {
+            release();
+        }
+    };
+    const waitForTarotKingdomProfileHttp = async (inFlight) => {
+        let timeoutId = null;
+        try {
+            return await Promise.race([
+                inFlight,
+                new Promise((_, reject) => {
+                    timeoutId = setTimeout(() => reject(createTarotKingdomProfileError(
+                        TAROT_KINGDOM_PROFILE_TIMEOUT_CODE,
+                        'Combat profile HTTP wait timed out.'
+                    )), TAROT_KINGDOM_PROFILE_HTTP_DEADLINE_MS);
+                })
+            ]);
+        } finally {
+            if (timeoutId) clearTimeout(timeoutId);
+        }
+    };
     const pruneBattlePairs = () => {
         const now = Date.now();
         for (const [key, expiresAt] of recentBattlePairs.entries()) {
@@ -1502,6 +1707,193 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         };
     };
 
+    // タロットキングダム用の固定戦闘プロフィール
+    app.post('/api/tarot-kingdom/combat-profiles', async (req, res) => {
+        const body = req.body || {};
+        const playFabId = String(body.playFabId || '').trim();
+        const requesterPlayFabId = String(body.requesterPlayFabId || '').trim();
+        const roomId = String(body.roomId || '').trim();
+        if (playFabId && requesterPlayFabId && playFabId !== requesterPlayFabId) {
+            return res.status(400).json({ error: '依頼者のプレイヤーIDが一致しません。' });
+        }
+        const requestedBy = requesterPlayFabId || playFabId;
+        if (!requestedBy) {
+            return res.status(400).json({ error: 'playFabId is required' });
+        }
+        if (requestedBy.length > 128 || /[\u0000-\u001f\u007f]/u.test(requestedBy)) {
+            return res.status(400).json({ error: 'playFabId is invalid' });
+        }
+        if (typeof requireAuthenticatedPlayFabId !== 'function') {
+            return res.status(503).json({ error: '認証サービスを利用できません。' });
+        }
+
+        const targetPlayFabIds = body.targetPlayFabIds;
+        if (!Array.isArray(targetPlayFabIds) || targetPlayFabIds.length === 0) {
+            return res.status(400).json({ error: 'targetPlayFabIds must be a non-empty array' });
+        }
+        if (targetPlayFabIds.length > 4) {
+            return res.status(400).json({ error: 'targetPlayFabIds accepts at most 4 players' });
+        }
+
+        const normalizedTargetIds = targetPlayFabIds.map((value) => (
+            typeof value === 'string' ? value.trim() : ''
+        ));
+        const hasInvalidTarget = normalizedTargetIds.some((value) => (
+            !value || value.length > 128 || /[\u0000-\u001f\u007f]/u.test(value)
+        ));
+        if (hasInvalidTarget) {
+            return res.status(400).json({ error: 'targetPlayFabIds contains an invalid player ID' });
+        }
+        if (new Set(normalizedTargetIds).size !== normalizedTargetIds.length) {
+            return res.status(400).json({ error: 'targetPlayFabIds must not contain duplicates' });
+        }
+        if (roomId && (!/^[A-Za-z0-9_-]{1,96}$/u.test(roomId))) {
+            return res.status(400).json({ error: 'roomId is invalid' });
+        }
+
+        const authenticatedPlayFabId = await requireAuthedPlayFabId(req, res, requestedBy);
+        if (!authenticatedPlayFabId) return;
+
+        try {
+            const now = Date.now();
+            const recentRequests = (tarotKingdomProfileRequestWindows.get(authenticatedPlayFabId) || [])
+                .filter((requestedAt) => now - requestedAt < TAROT_KINGDOM_PROFILE_WINDOW_MS);
+            if (recentRequests.length >= TAROT_KINGDOM_PROFILE_MAX_REQUESTS) {
+                const retryAfterSeconds = Math.max(
+                    1,
+                    Math.ceil((recentRequests[0] + TAROT_KINGDOM_PROFILE_WINDOW_MS - now) / 1000)
+                );
+                res.set?.('Retry-After', String(retryAfterSeconds));
+                return res.status(429).json({ error: '戦闘プロフィールの再取得回数が多すぎます。少し待ってください。' });
+            }
+            recentRequests.push(now);
+            tarotKingdomProfileRequestWindows.set(authenticatedPlayFabId, recentRequests);
+            if (tarotKingdomProfileRequestWindows.size > 512) {
+                for (const [key, requestTimes] of tarotKingdomProfileRequestWindows.entries()) {
+                    const activeTimes = Array.isArray(requestTimes)
+                        ? requestTimes.filter((requestedAt) => now - requestedAt < TAROT_KINGDOM_PROFILE_WINDOW_MS)
+                        : [];
+                    if (activeTimes.length) tarotKingdomProfileRequestWindows.set(key, activeTimes);
+                    else tarotKingdomProfileRequestWindows.delete(key);
+                }
+            }
+
+            if (roomId) {
+                const roomRoot = `tarotKingdomRooms/${roomId}`;
+                const [hostSnapshot, seatSnapshot, seatOwnersSnapshot, presenceSnapshot] = await Promise.all([
+                    db.ref(`${roomRoot}/meta/hostUid`).once('value'),
+                    db.ref(`${roomRoot}/meta/seatByUid`).once('value'),
+                    db.ref(`${roomRoot}/meta/seatOwners`).once('value'),
+                    db.ref(`${roomRoot}/presence`).once('value')
+                ]);
+                const hostUid = hostSnapshot.exists() ? String(hostSnapshot.val() || '').trim() : '';
+                const seatByUidValue = seatSnapshot.exists() ? seatSnapshot.val() : null;
+                const seatOwnersValue = seatOwnersSnapshot.exists() ? seatOwnersSnapshot.val() : null;
+                const presenceValue = presenceSnapshot.exists() ? presenceSnapshot.val() : null;
+                if (!hostUid && !seatByUidValue && !seatOwnersValue && !presenceValue) {
+                    return res.status(404).json({ error: '対戦ルームが見つかりません。' });
+                }
+                if (!hostUid || hostUid !== authenticatedPlayFabId) {
+                    return res.status(403).json({ error: '対戦ホストだけがプロフィールを固定できます。' });
+                }
+                const seatByUid = seatByUidValue && typeof seatByUidValue === 'object'
+                    ? seatByUidValue
+                    : {};
+                const seatOwners = seatOwnersValue && typeof seatOwnersValue === 'object'
+                    ? seatOwnersValue
+                    : {};
+                const occupantBySeat = new Map();
+                let duplicateSeat = false;
+                Object.entries(presenceValue && typeof presenceValue === 'object' ? presenceValue : {})
+                    .forEach(([uidKey, presence]) => {
+                        const uid = String(uidKey || '').trim();
+                        const seat = Number(presence?.seat);
+                        const fixedSeat = Number(seatByUid?.[uid]);
+                        const lease = seatOwners?.[seat];
+                        const leaseUid = String(
+                            lease && typeof lease === 'object' ? lease.uid : lease || ''
+                        ).trim();
+                        const updatedAt = Number(presence?.updatedAt);
+                        if (!uid || !Number.isInteger(seat) || seat < 0 || seat >= 4) return;
+                        if (
+                            !Number.isFinite(updatedAt)
+                            || updatedAt <= 0
+                            || updatedAt > now + TAROT_KINGDOM_PRESENCE_FUTURE_TOLERANCE_MS
+                            || now - updatedAt > TAROT_KINGDOM_PRESENCE_STALE_MS
+                        ) return;
+                        if (Object.keys(seatByUid).length > 0 && (!Number.isInteger(fixedSeat) || fixedSeat !== seat)) return;
+                        if (!leaseUid || leaseUid !== uid) return;
+                        if (occupantBySeat.has(seat) && occupantBySeat.get(seat) !== uid) {
+                            duplicateSeat = true;
+                            return;
+                        }
+                        occupantBySeat.set(seat, uid);
+                    });
+                if (duplicateSeat) {
+                    return res.status(409).json({ error: '同じ座席に複数の参加者がいます。ルームを再同期してください。' });
+                }
+                const authoritativeIds = Array.from(occupantBySeat.entries())
+                    .sort((left, right) => left[0] - right[0])
+                    .map((entry) => entry[1]);
+                if (!authoritativeIds.includes(authenticatedPlayFabId)) {
+                    return res.status(403).json({ error: '対戦ルームへの参加を確認できません。' });
+                }
+                const requestedSet = new Set(normalizedTargetIds);
+                if (
+                    authoritativeIds.length !== normalizedTargetIds.length
+                    || authoritativeIds.some((id) => !requestedSet.has(id))
+                ) {
+                    return res.status(409).json({ error: '参加者情報が更新されています。ルームを再同期してください。' });
+                }
+            } else if (
+                normalizedTargetIds.length !== 1
+                || normalizedTargetIds[0] !== authenticatedPlayFabId
+            ) {
+                return res.status(403).json({ error: 'ルーム外では本人のプロフィールだけ取得できます。' });
+            }
+
+            const characters = await Promise.all(normalizedTargetIds.map(async (targetId) => {
+                let inFlight = tarotKingdomCombatProfileInFlight.get(targetId);
+                if (!inFlight) {
+                    inFlight = withTarotKingdomProfileSlot(async () => {
+                        const profile = await getPlayerFullProfile(targetId, { scope: 'tarotKingdomCombat' });
+                        if (!profile || String(profile.id || '').trim() !== targetId) {
+                            throw new Error(`Combat profile was not resolved: ${targetId}`);
+                        }
+                        return buildTarotKingdomCombatCharacter(profile);
+                    });
+                    tarotKingdomCombatProfileInFlight.set(targetId, inFlight);
+                    const clearInFlight = () => {
+                        if (tarotKingdomCombatProfileInFlight.get(targetId) === inFlight) {
+                            tarotKingdomCombatProfileInFlight.delete(targetId);
+                        }
+                    };
+                    // Keep the shared operation registered until the downstream PlayFab work settles,
+                    // even if every HTTP caller has already reached its response deadline.
+                    inFlight.then(clearInFlight, clearInFlight);
+                }
+                return waitForTarotKingdomProfileHttp(inFlight);
+            }));
+            return res.json({ success: true, characters });
+        } catch (error) {
+            if (error?.code === TAROT_KINGDOM_PROFILE_TIMEOUT_CODE) {
+                return res.status(504).json({
+                    error: '戦闘プロフィールの取得がタイムアウトしました。'
+                });
+            }
+            if (error?.code === TAROT_KINGDOM_PROFILE_OVERLOAD_CODE) {
+                res.set?.('Retry-After', '1');
+                return res.status(503).json({
+                    error: '戦闘プロフィールの取得が混み合っています。少し待って再試行してください。'
+                });
+            }
+            console.error('[tarot-kingdom/combat-profiles] Error:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({
+                error: '戦闘用キャラクター情報の取得に失敗しました。'
+            });
+        }
+    });
+
     // ----------------------------------------------------
     // API 11: バトル実行 (自動戦闘・即時決着)
     // ----------------------------------------------------
@@ -2206,6 +2598,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
 module.exports = {
     initializeBattleRoutes,
     getPlayerFullProfile,
+    buildTarotKingdomCombatCharacter,
     runBattle,
     savePlayerHpMp
 };

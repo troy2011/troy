@@ -9,8 +9,21 @@ let battleAutoCloseTimer = null;
 const battleEventEmitted = new Set();
 const battleLogAnimatedFor = new Set();
 let battleLogRenderToken = 0;
+let battleViewGeneration = 0;
+let battleStateRenderSequence = 0;
+let battleOpponentAvatarDetailsRequest = null;
 const MELEE_REPLAY_ROLL_STEPS = 10;
 const MELEE_REPLAY_ROLL_INTERVAL_MS = 42;
+let battleAvatarCombat = null;
+const battleAvatarCombatReady = import('./js/avatarCombat.js')
+    .then((module) => {
+        battleAvatarCombat = module;
+        return module;
+    })
+    .catch((error) => {
+        console.warn('[Battle] avatar combat module unavailable:', error);
+        return null;
+    });
 
 // ★ v184: バトルループで常に最新の情報を参照するための変数
 let localBattleState = null;
@@ -165,7 +178,25 @@ function stopBattleStateListener() {
     battleStateListener = null;
 }
 
+function advanceBattleViewGeneration() {
+    battleViewGeneration += 1;
+    battleOpponentAvatarDetailsRequest = null;
+    const opponentAvatar = document.getElementById('battle-avatar-A');
+    if (opponentAvatar) delete opponentAvatar.dataset.avatarSnapshotPending;
+    return battleViewGeneration;
+}
+
+function isBattleRenderContextCurrent(context) {
+    return Boolean(
+        context
+        && currentBattleId === context.battleId
+        && battleViewGeneration === context.generation
+        && battleStateRenderSequence === context.renderSequence
+    );
+}
+
 function showBattleModal(battleId) {
+    const viewGeneration = advanceBattleViewGeneration();
     stopBattleStateListener();
     currentBattleId = battleId;
     const battleModal = document.getElementById('battleModal');
@@ -192,6 +223,13 @@ function showBattleModal(battleId) {
     battleStateListener = dbOnValue(battleRef, async (snapshot) => {
         const battleState = snapshot.val();
         if (!battleState) return;
+        const renderContext = {
+            battleId,
+            generation: viewGeneration,
+            renderSequence: battleStateRenderSequence + 1
+        };
+        battleStateRenderSequence = renderContext.renderSequence;
+        if (!isBattleRenderContextCurrent(renderContext)) return;
         if (battleId && !battleEventEmitted.has(battleId)) {
             const playerIds = battleState?.players ? Object.keys(battleState.players) : [];
             if (playerIds.length > 0) {
@@ -222,9 +260,16 @@ function showBattleModal(battleId) {
         updateBattleStatusDisplay('battlePlayerA', opponent, opponentId);
         updateBattleStatusDisplay('battlePlayerB', me, myId);
 
-        // ★ v184: renderBattleAvatarを介さず、直接renderAvatarを呼び出す
-        await renderOpponentAvatar(opponent, battleDependencies.renderAvatar, battleDependencies.callApiWithLoader);
-        await renderMyAvatar(me, battleDependencies.renderAvatar);
+        await battleAvatarCombatReady;
+        if (!isBattleRenderContextCurrent(renderContext)) return;
+        const opponentAvatarIsCurrent = await renderOpponentAvatar(
+            opponent,
+            battleDependencies.callApiWithLoader,
+            renderContext
+        );
+        if (!opponentAvatarIsCurrent || !isBattleRenderContextCurrent(renderContext)) return;
+        renderMyAvatar(me);
+        if (!isBattleRenderContextCurrent(renderContext)) return;
 
         const logContainer = document.getElementById('battleLogContainer');
         const commandArea = document.getElementById('battleCommandArea');
@@ -242,16 +287,21 @@ function showBattleModal(battleId) {
             syncBattleAvatarDefeatFromPlayerState(opponent, me);
         }
         const renderImmediate = () => {
+            if (!isBattleRenderContextCurrent(renderContext)) return;
             renderBattleLog(logContainer, battleState.log || null, { animate: false, meta: logMeta });
         };
         const renderWithAnimation = () => {
+            if (!isBattleRenderContextCurrent(renderContext)) return;
             const logCount = battleState.log ? Object.keys(battleState.log).length : 0;
             const extraMs = Math.min(12000, Math.max(6000, logCount * 380 + 2000));
             resetBattleAutoClose(extraMs);
             renderBattleLog(logContainer, battleState.log || null, {
                 animate: true,
                 meta: logMeta,
-                onComplete: () => showBattleResult(commandArea, battleState, myId, myPlayerOnlineRef)
+                onComplete: () => {
+                    if (!isBattleRenderContextCurrent(renderContext)) return;
+                    showBattleResult(commandArea, battleState, myId, myPlayerOnlineRef);
+                }
             });
         };
 
@@ -264,7 +314,9 @@ function showBattleModal(battleId) {
                 renderWithAnimation();
             } else {
                 renderImmediate();
-                showBattleResult(commandArea, battleState, myId, myPlayerOnlineRef);
+                if (isBattleRenderContextCurrent(renderContext)) {
+                    showBattleResult(commandArea, battleState, myId, myPlayerOnlineRef);
+                }
             }
             // (勝敗表示ロジック...ここはそのまま)
             return;
@@ -273,20 +325,24 @@ function showBattleModal(battleId) {
 
         // ★★★ 修正: 手動ボタンのロジックを削除し、ATBゲージの状況やメッセージを表示する ★★★
         if (!battleInterval) {
+            if (!isBattleRenderContextCurrent(renderContext)) return;
             console.log("[Battle] Starting battle loop..."); // ★ デバッグログ
             startBattleLoop(battleState);
         }
 
         // オートバトル中であることを表示
+        if (!isBattleRenderContextCurrent(renderContext)) return;
         if (document.getElementById('battleCommandArea').innerHTML.includes('ACTION!')) return; // ACTION!表示中は上書きしない
-        commandArea.innerHTML = '<p style="color: #cbd5e0; font-size: 0.9em;">オートバトル進行中...</p>';
+        if (commandArea) commandArea.innerHTML = '<p style="color: #cbd5e0; font-size: 0.9em;">オートバトル進行中...</p>';
 
     });
 }
 
 function closeBattleModalAndHandlePending() {
+    advanceBattleViewGeneration();
     clearBattleAutoCloseTimer();
     stopBattleStateListener();
+    battleLogRenderToken += 1;
     currentBattleId = null;
     localBattleState = null;
     if (battleInterval) {
@@ -295,6 +351,12 @@ function closeBattleModalAndHandlePending() {
     }
     const battleModal = document.getElementById('battleModal');
     if (battleModal) {
+        battleModal.querySelectorAll('.avatar-combat-actor').forEach((avatar) => {
+            battleAvatarCombat?.resetCombatAvatarState?.(avatar, { resumeIdle: false });
+            delete avatar.dataset.avatarSnapshotKey;
+            delete avatar.dataset.avatarSnapshotPending;
+        });
+        battleModal.querySelectorAll('.battle-action-effect, .battle-damage-number, .battle-replay-fx').forEach((node) => node.remove());
         battleModal.style.display = 'none';
         battleModal.setAttribute('aria-hidden', 'true');
     }
@@ -696,64 +758,8 @@ function getMeleeReplaySlotName(slot) {
         || '武器型';
 }
 
-const MELEE_AVATAR_WEAPON_CLASS_NAMES = [
-    'is-avatar-weapon-heavy',
-    'is-avatar-weapon-pierce',
-    'is-avatar-weapon-ranged',
-    'is-avatar-weapon-guard',
-    'is-avatar-weapon-slash',
-    'is-avatar-weapon-staff',
-    'is-avatar-weapon-wand',
-    'is-avatar-weapon-axe',
-    'is-avatar-weapon-axe-big',
-    'is-avatar-weapon-blunt',
-    'is-avatar-weapon-dagger',
-    'is-avatar-weapon-polearm',
-    'is-avatar-weapon-shield',
-    'is-avatar-weapon-sword',
-    'is-avatar-weapon-sword-big',
-    'is-avatar-weapon-gun',
-    'is-avatar-weapon-gun-big',
-    'is-avatar-weapon-bow'
-];
-const MELEE_AVATAR_WEAPON_TYPES = new Set(['staff', 'wand', 'axe', 'axe_big', 'blunt', 'dagger', 'polearm', 'shield', 'sword', 'sword_big', 'gun', 'gun_big', 'bow']);
-
-function getMeleeAvatarWeaponType(weaponType) {
-    const weapon = normalizeMeleeSpriteWeapon(weaponType);
-    return MELEE_AVATAR_WEAPON_TYPES.has(weapon) ? weapon : 'sword';
-}
-
-function getMeleeAvatarWeaponClassSuffix(weaponType) {
-    return getMeleeAvatarWeaponType(weaponType).replace(/_/g, '-');
-}
-
-function getMeleeWeaponAnimationClass(weaponType) {
-    const weapon = getMeleeAvatarWeaponType(weaponType);
-    return `is-avatar-weapon-${getMeleeAvatarWeaponClassSuffix(weapon)}`;
-}
-
-function getMeleeWeaponAttackDuration(weaponType) {
-    const weapon = getMeleeAvatarWeaponType(weaponType);
-    if (weapon === 'dagger') return 290;
-    if (weapon === 'wand' || weapon === 'gun' || weapon === 'shield') return 360;
-    if (weapon === 'sword') return 380;
-    if (weapon === 'polearm') return 420;
-    if (weapon === 'staff' || weapon === 'bow') return 460;
-    if (weapon === 'axe' || weapon === 'blunt') return 500;
-    if (weapon === 'gun_big') return 560;
-    if (weapon === 'sword_big') return 620;
-    if (weapon === 'axe_big') return 700;
-    return 400;
-}
-
 function getMeleeWeaponShakeProfile(weaponType) {
-    const weapon = getMeleeAvatarWeaponType(weaponType);
-    if (weapon === 'blunt') return { x: 3, y: 1, duration: 180 };
-    if (weapon === 'axe') return { x: 4, y: 1, duration: 220 };
-    if (weapon === 'sword_big') return { x: 5, y: 1, duration: 260 };
-    if (weapon === 'axe_big') return { x: 7, y: 2, duration: 320 };
-    if (weapon === 'gun_big') return { x: 6, y: 1, duration: 300 };
-    return null;
+    return battleAvatarCombat?.getCombatWeaponMotionProfile?.(weaponType)?.shake || null;
 }
 
 function triggerMeleeWeaponShake(stage, weaponType) {
@@ -770,74 +776,17 @@ function triggerMeleeWeaponShake(stage, weaponType) {
     }, profile.duration + 80);
 }
 
-function clearMeleeAvatarWeaponClass(avatar) {
-    avatar?.classList?.remove(...MELEE_AVATAR_WEAPON_CLASS_NAMES);
-}
-
 function getBattleAvatarForCombatant(viewerId, combatantId) {
     const isViewer = viewerId && String(combatantId || '') === String(viewerId);
     return document.getElementById(isViewer ? 'battle-avatar-B' : 'battle-avatar-A');
 }
 
-function clearMeleeAvatarTransientClasses(avatar) {
-    if (!avatar) return;
-    avatar.classList.remove('is-avatar-attacking', 'is-avatar-attack-left', 'is-avatar-attack-right', 'is-avatar-damaged');
-    clearMeleeAvatarWeaponClass(avatar);
-}
-
 function setMeleeAvatarVictorious(avatar, victorious, side = '') {
-    if (!avatar) return;
-    if (victorious) {
-        if (avatar.classList.contains('is-avatar-defeated')) return;
-        const alreadyVictorious = avatar.dataset.avatarVictorious === 'true' && avatar.classList.contains('is-avatar-victorious');
-        avatar.dataset.avatarVictorious = 'true';
-        const direction = side === 'player' ? -1 : 1;
-        avatar.style.setProperty('--avatar-victory-shift-x', `${6 * direction}px`);
-        avatar.style.setProperty('--avatar-victory-rebound-x', `${-3 * direction}px`);
-        clearMeleeAvatarTransientClasses(avatar);
-        if (!alreadyVictorious && typeof battleDependencies?.playAvatarBodyMotion === 'function') {
-            battleDependencies.playAvatarBodyMotion(avatar, 'jump', {
-                intervalMs: 96,
-                restoreMotion: 'idle'
-            });
-        }
-        if (!alreadyVictorious) avatar.classList.add('is-avatar-victorious');
-        return;
-    }
-    delete avatar.dataset.avatarVictorious;
-    avatar.style.removeProperty('--avatar-victory-shift-x');
-    avatar.style.removeProperty('--avatar-victory-rebound-x');
-    avatar.classList.remove('is-avatar-victorious');
+    battleAvatarCombat?.setCombatAvatarVictory?.(avatar, victorious, { side });
 }
 
 function setMeleeAvatarDefeated(avatar, defeated, side = '') {
-    if (!avatar) return;
-    if (defeated) {
-        const alreadyDefeated = avatar.dataset.avatarDefeated === 'true' && avatar.classList.contains('is-avatar-defeated');
-        avatar.dataset.avatarDefeated = 'true';
-        const direction = side === 'player' ? -1 : 1;
-        avatar.style.setProperty('--avatar-defeat-head-x', `${10 * direction}px`);
-        avatar.style.setProperty('--avatar-defeat-head-bounce-x', `${-4 * direction}px`);
-        avatar.style.setProperty('--avatar-defeat-head-rest-x', `${3 * direction}px`);
-        avatar.style.setProperty('--avatar-defeat-head-rotate', `${34 * direction}deg`);
-        avatar.style.setProperty('--avatar-defeat-head-bounce-rotate', `${-11 * direction}deg`);
-        avatar.style.setProperty('--avatar-defeat-head-rest-rotate', `${7 * direction}deg`);
-        setMeleeAvatarVictorious(avatar, false, side);
-        clearMeleeAvatarTransientClasses(avatar);
-        if (typeof battleDependencies?.stopAvatarBodyMotion === 'function') {
-            battleDependencies.stopAvatarBodyMotion(avatar, { reset: false });
-        }
-        if (!alreadyDefeated) avatar.classList.add('is-avatar-defeated');
-        return;
-    }
-    delete avatar.dataset.avatarDefeated;
-    avatar.style.removeProperty('--avatar-defeat-head-x');
-    avatar.style.removeProperty('--avatar-defeat-head-bounce-x');
-    avatar.style.removeProperty('--avatar-defeat-head-rest-x');
-    avatar.style.removeProperty('--avatar-defeat-head-rotate');
-    avatar.style.removeProperty('--avatar-defeat-head-bounce-rotate');
-    avatar.style.removeProperty('--avatar-defeat-head-rest-rotate');
-    avatar.classList.remove('is-avatar-defeated');
+    battleAvatarCombat?.setCombatAvatarKo?.(avatar, defeated, { side });
 }
 
 function resetBattleAvatarDefeatedStates() {
@@ -1387,17 +1336,10 @@ function triggerMeleeReplayAvatarMotion(panel, event, frameIndex) {
     const direction = isViewer ? 'left' : 'right';
     const combatantEl = getMeleeReplayCombatantElement(panel, event.actorId);
     const weaponType = combatantEl?.dataset.weapon;
-    const duration = getMeleeWeaponAttackDuration(weaponType);
-    clearMeleeAvatarWeaponClass(avatar);
-    avatar.classList.add(...getMeleeWeaponAnimationClass(weaponType).split(/\s+/).filter(Boolean));
-    avatar.classList.remove('is-avatar-attacking', 'is-avatar-attack-left', 'is-avatar-attack-right');
-    void avatar.offsetWidth;
-    avatar.style.setProperty('--avatar-attack-duration', `${duration}ms`);
-    avatar.classList.add('is-avatar-attacking', `is-avatar-attack-${direction}`);
-    window.setTimeout(() => {
-        avatar.classList.remove('is-avatar-attacking', 'is-avatar-attack-left', 'is-avatar-attack-right');
-        clearMeleeAvatarWeaponClass(avatar);
-    }, duration + 90);
+    void battleAvatarCombat?.playCombatAvatarAttack?.(avatar, weaponType, {
+        direction,
+        bodyMotion: false
+    });
 }
 
 function triggerMeleeReplayMinorArcanaEffect(panel, event, frameIndex) {
@@ -1466,7 +1408,7 @@ function triggerMeleeReplayDamageFeedback(panel, event, frameIndex) {
     const flashByCombatant = (combatantId) => {
         if (!combatantId) return;
         const avatar = getBattleAvatarForCombatant(viewerId, combatantId);
-        flashElementClass(avatar, 'is-avatar-damaged', 220);
+        battleAvatarCombat?.flashCombatAvatarHurt?.(avatar);
     };
     if (Number(event.damage) > 0) {
         flashByCombatant(event.targetId);
@@ -1985,8 +1927,130 @@ async function sendBattleAction(actionType, callApiWithLoader) {
     }, { isSilent: true });
 }
 
-// ★ v184: 自分用のアバター描画ヘルパー
-function renderMyAvatar(playerData, renderAvatar) {
+const BATTLE_AVATAR_EQUIPMENT_SLOTS = ['RightHand', 'LeftHand', 'Armor', 'Accessory'];
+
+function getBattleAvatarEquipmentReferenceIds(value) {
+    if (!value) return [];
+    if (typeof value !== 'object') {
+        const id = String(value || '').trim();
+        return id ? [id] : [];
+    }
+    return [
+        value.itemId,
+        value.ItemId,
+        value.id,
+        value.Id,
+        value.instanceId,
+        value.InstanceId,
+        value.instanceID,
+        value.InstanceID,
+        value.itemInstanceId,
+        value.ItemInstanceId,
+        value.ItemInstanceID,
+        value?.Item?.Id,
+        value?.Item?.itemId
+    ]
+        .map((referenceId) => String(referenceId || '').trim())
+        .filter(Boolean);
+}
+
+function getBattleAvatarInventoryItemReferenceIds(item) {
+    return [
+        item?.itemId,
+        item?.ItemId,
+        item?.id,
+        item?.Id,
+        ...(Array.isArray(item?.instances) ? item.instances : []),
+        item?.instanceId,
+        item?.InstanceId,
+        item?.itemInstanceId,
+        item?.ItemInstanceId
+    ]
+        .map((referenceId) => String(referenceId || '').trim())
+        .filter(Boolean);
+}
+
+function resolveBattleAvatarEquipmentItem(reference, itemSource) {
+    if (!reference) return null;
+    if (typeof reference === 'object' && reference.customData) return reference;
+    const referenceIds = getBattleAvatarEquipmentReferenceIds(reference);
+    if (referenceIds.length === 0) return null;
+    if (Array.isArray(itemSource)) {
+        return itemSource.find((item) => {
+            const itemReferenceIds = getBattleAvatarInventoryItemReferenceIds(item);
+            return referenceIds.some((referenceId) => itemReferenceIds.includes(referenceId));
+        }) || null;
+    }
+    if (itemSource && typeof itemSource === 'object') {
+        for (const referenceId of referenceIds) {
+            if (itemSource[referenceId]) return itemSource[referenceId];
+        }
+        return Object.values(itemSource).find((item) => {
+            const itemReferenceIds = getBattleAvatarInventoryItemReferenceIds(item);
+            return referenceIds.some((referenceId) => itemReferenceIds.includes(referenceId));
+        }) || null;
+    }
+    return null;
+}
+
+function canonicalizeBattleAvatarSnapshot(value, seen = new WeakSet()) {
+    if (value === null || value === undefined) return null;
+    if (typeof value !== 'object') return value;
+    if (seen.has(value)) return '[Circular]';
+    seen.add(value);
+    let canonical;
+    if (Array.isArray(value)) {
+        canonical = value.map((entry) => canonicalizeBattleAvatarSnapshot(entry, seen));
+    } else {
+        canonical = {};
+        Object.keys(value).sort().forEach((key) => {
+            canonical[key] = canonicalizeBattleAvatarSnapshot(value[key], seen);
+        });
+    }
+    seen.delete(value);
+    return canonical;
+}
+
+function getBattleAvatarEquipmentDetailsSnapshot(equipment, itemSource) {
+    const slots = BATTLE_AVATAR_EQUIPMENT_SLOTS.map((slot) => {
+        const reference = equipment?.[slot] || null;
+        const referenceIds = getBattleAvatarEquipmentReferenceIds(reference).sort();
+        const item = resolveBattleAvatarEquipmentItem(reference, itemSource);
+        const ready = !reference || Boolean(item && item.customData && typeof item.customData === 'object');
+        return {
+            slot,
+            referenceIds,
+            ready,
+            item: item ? {
+                referenceIds: getBattleAvatarInventoryItemReferenceIds(item).sort(),
+                name: item.displayName || item.DisplayName || item.name || item.Name || null,
+                customData: item.customData || null
+            } : null
+        };
+    });
+    return {
+        ready: slots.every((slot) => slot.ready),
+        slots
+    };
+}
+
+// 自分用のアバター描画ヘルパー
+function getBattleAvatarSnapshotKey(playerData, equipment, itemSource = null, options = {}) {
+    try {
+        const snapshot = {
+            avatar: playerData?.avatar || {},
+            equipment: equipment || {}
+        };
+        if (options.includeItemDetails) {
+            snapshot.itemDetails = getBattleAvatarEquipmentDetailsSnapshot(equipment || {}, itemSource);
+        }
+        return JSON.stringify(canonicalizeBattleAvatarSnapshot(snapshot));
+    } catch (_) {
+        return '';
+    }
+}
+
+function renderMyAvatar(playerData) {
     if (!playerData || !playerData.avatar) return;
     // 自分側はローカル装備/インベントリ（後からロードされることがある）を常に最新で参照する
     const equipment = (battleDependencies && typeof battleDependencies.getMyCurrentEquipment === 'function')
@@ -1995,30 +2059,96 @@ function renderMyAvatar(playerData, renderAvatar) {
     const inventory = (battleDependencies && typeof battleDependencies.getMyInventory === 'function')
         ? battleDependencies.getMyInventory()
         : myInventory;
-    renderAvatar('battle-avatar-B', playerData.avatar, equipment || {}, inventory || [], false);
+    const avatarRoot = document.getElementById('battle-avatar-B');
+    const snapshotKey = getBattleAvatarSnapshotKey(playerData, equipment, inventory, { includeItemDetails: true });
+    if (avatarRoot?.dataset.avatarSnapshotKey === snapshotKey) return;
+    const rendered = battleAvatarCombat?.renderCombatAvatar?.(
+        'battle-avatar-B',
+        playerData.avatar,
+        equipment || {},
+        inventory || [],
+        { isOpponent: false }
+    );
+    if (rendered && avatarRoot) avatarRoot.dataset.avatarSnapshotKey = snapshotKey;
 }
 
-// ★ v184: 相手用のアバター描画ヘルパー
-async function renderOpponentAvatar(playerData, renderAvatar, callApiWithLoader) {
-    if (!playerData || !playerData.avatar) return;
+// 相手用のアバター描画ヘルパー
+async function renderOpponentAvatar(playerData, callApiWithLoader, renderContext) {
+    if (!playerData || !playerData.avatar || !isBattleRenderContextCurrent(renderContext)) return false;
 
     const equipment = playerData.equipment || {};
-    const itemIds = [equipment.RightHand, equipment.LeftHand, equipment.Armor].filter(v => v);
+    const avatarRoot = document.getElementById('battle-avatar-A');
+    const snapshotKey = getBattleAvatarSnapshotKey(playerData, equipment);
+    if (avatarRoot?.dataset.avatarSnapshotKey === snapshotKey) return true;
+    const requestToken = `${renderContext.generation}:${snapshotKey}`;
+    const itemIds = BATTLE_AVATAR_EQUIPMENT_SLOTS.flatMap((slot) => {
+        const reference = equipment[slot];
+        if (typeof reference === 'object' && reference?.customData) return [];
+        return getBattleAvatarEquipmentReferenceIds(reference);
+    }).filter((itemId, index, allItemIds) => allItemIds.indexOf(itemId) === index);
 
-    if (itemIds.length > 0) {
-        try {
-            // 相手の装備詳細はAPIから取得する
-            const details = await callApiWithLoader('/api/get-item-details', { itemIds });
-            renderAvatar('battle-avatar-A', playerData.avatar, equipment, details || {}, true);
-        } catch (e) {
-            console.error("敵装備の取得エラー", e);
-            // エラー時も素体だけは描画する
-            renderAvatar('battle-avatar-A', playerData.avatar, {}, {}, true);
-        }
-    } else {
+    if (itemIds.length === 0) {
+        if (!isBattleRenderContextCurrent(renderContext)) return false;
         // 装備なしの場合は素体だけ描画
-        renderAvatar('battle-avatar-A', playerData.avatar, {}, {}, true);
+        battleAvatarCombat?.renderCombatAvatar?.(
+            'battle-avatar-A',
+            playerData.avatar,
+            equipment,
+            {},
+            { isOpponent: true }
+        );
+        if (avatarRoot) {
+            avatarRoot.dataset.avatarSnapshotKey = snapshotKey;
+            if (avatarRoot.dataset.avatarSnapshotPending === requestToken) {
+                delete avatarRoot.dataset.avatarSnapshotPending;
+            }
+        }
+        return true;
     }
+
+    if (avatarRoot) avatarRoot.dataset.avatarSnapshotPending = requestToken;
+    let detailsRequest = battleOpponentAvatarDetailsRequest;
+    if (!detailsRequest || detailsRequest.token !== requestToken) {
+        const promise = Promise.resolve()
+            .then(() => callApiWithLoader('/api/get-item-details', { itemIds }))
+            .then((details) => ({ ok: true, details: details || {} }))
+            .catch((error) => ({ ok: false, error }));
+        detailsRequest = { token: requestToken, promise };
+        battleOpponentAvatarDetailsRequest = detailsRequest;
+    }
+    const result = await detailsRequest.promise;
+    if (
+        !isBattleRenderContextCurrent(renderContext)
+        || avatarRoot?.dataset.avatarSnapshotPending !== requestToken
+    ) return false;
+
+    if (result.ok) {
+        battleAvatarCombat?.renderCombatAvatar?.(
+            'battle-avatar-A',
+            playerData.avatar,
+            equipment,
+            result.details,
+            { isOpponent: true }
+        );
+        if (avatarRoot) avatarRoot.dataset.avatarSnapshotKey = snapshotKey;
+    } else {
+        if (battleOpponentAvatarDetailsRequest === detailsRequest) {
+            battleOpponentAvatarDetailsRequest = null;
+        }
+        console.error("敵装備の取得エラー", result.error);
+        // エラー時も素体だけは描画する。キーは確定せず、次の同期で装備詳細を再取得する。
+        battleAvatarCombat?.renderCombatAvatar?.(
+            'battle-avatar-A',
+            playerData.avatar,
+            {},
+            {},
+            { isOpponent: true }
+        );
+    }
+    if (avatarRoot?.dataset.avatarSnapshotPending === requestToken) {
+        delete avatarRoot.dataset.avatarSnapshotPending;
+    }
+    return true;
 }
 
 // WorldMapScene 等から相手IDを指定してバトル開始する

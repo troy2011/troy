@@ -4,6 +4,7 @@ const battleRoutes = require('./routes/battleRoutes');
 const { resolveGuildShipContext } = require('./guildShipSharing');
 const { getCanonicalTarotCategory, getMajorArcanaSuitInfo, getMajorArcanaTitle } = require('./tarotCards');
 const { buildMajorArcanaShipGearView } = require('./majorArcanaShipGear');
+const PIXEL_MONSTERS_ROSTER = require('../public/Sprites/pixel-monsters/manifest.json');
 
 const EXPLORATION_COLLECTION = 'player_explorations';
 const DAILY_FREE_SUBCOLLECTION = 'daily_free';
@@ -808,6 +809,7 @@ function explorationDocToPayload(data = {}) {
     const supplyProfile = data.supplyProfile
         ? normalizeExplorationSupplyProfile(data.supplyProfile)
         : buildExplorationSupplyProfile(consumedConsumables, requiredSupplyUnits);
+    const encounter = normalizeExplorationTarotEncounter(data.tarotEncounter);
     return {
         id: String(data.id || ''),
         status: 'active',
@@ -826,7 +828,8 @@ function explorationDocToPayload(data = {}) {
         requiredSupplyUnits,
         requiredConsumableCount: requiredSupplyUnits,
         consumedConsumables,
-        supplyProfile
+        supplyProfile,
+        encounter
     };
 }
 
@@ -880,6 +883,9 @@ function reportDocToPayload(doc) {
         bossAppeared: !!data.bossAppeared,
         bossResult: String(data.bossResult || ''),
         bossLog: String(data.bossLog || ''),
+        monsterId: String(data.monsterId || data.bossId || ''),
+        monsterName: String(data.monsterName || data.bossName || ''),
+        monsterIsBoss: data.monsterIsBoss === true,
         rewardItemId: String(data.rewardItemId || ''),
         rewardItemName: String(data.rewardItemName || data.rewardItemId || ''),
         rewardCount: Number(data.rewardCount ?? 1),
@@ -1704,6 +1710,94 @@ function selectExplorationBoss(destination, random = Math.random, shipClass = ''
     return pickWeighted(candidates, random) || EXPLORATION_BOSSES.treasure_slime;
 }
 
+function hashExplorationMonsterSeed(value) {
+    return String(value || '').split('').reduce((hash, ch) => (
+        ((hash << 5) - hash + ch.charCodeAt(0)) >>> 0
+    ), 0);
+}
+
+function selectExplorationTarotMonster(explorationId, destinationId, boss = {}) {
+    const tier = String(boss?.tier || 'weak').trim().toLowerCase();
+    const candidates = tier === 'strong'
+        ? PIXEL_MONSTERS_ROSTER.filter((monster) => monster?.isBoss === true)
+        : PIXEL_MONSTERS_ROSTER.filter((monster) => monster?.isBoss !== true);
+    const pool = candidates.length ? candidates : PIXEL_MONSTERS_ROSTER;
+    const seed = hashExplorationMonsterSeed([
+        explorationId,
+        destinationId,
+        boss?.id || boss?.name || '',
+        tier
+    ].join(':'));
+    return pool[seed % pool.length] || PIXEL_MONSTERS_ROSTER[0] || null;
+}
+
+function buildExplorationTarotEncounter(activeData = {}, destination, boss) {
+    const monster = selectExplorationTarotMonster(
+        activeData.id,
+        activeData.destinationId || destination?.id,
+        boss
+    );
+    if (!monster) return null;
+    const tier = String(boss?.tier || 'weak').trim().toLowerCase();
+    const tierDef = getBossTierDef(tier);
+    return {
+        version: 1,
+        explorationId: String(activeData.id || ''),
+        destinationId: String(activeData.destinationId || destination?.id || ''),
+        destinationName: String(activeData.destinationName || destination?.name || ''),
+        monsterId: String(monster.id || ''),
+        monsterName: String(monster.name || ''),
+        isBoss: monster.isBoss === true,
+        bossTier: tier,
+        bossTierLabel: String(tierDef.label || ''),
+        legacyBossId: String(boss?.id || ''),
+        selectedAtMs: Date.now()
+    };
+}
+
+function normalizeExplorationTarotEncounter(value) {
+    if (!value || typeof value !== 'object') return null;
+    const monsterId = String(value.monsterId || '').trim();
+    const monster = PIXEL_MONSTERS_ROSTER.find((entry) => entry?.id === monsterId);
+    if (!monster) return null;
+    const tier = String(value.bossTier || 'weak').trim().toLowerCase();
+    return {
+        version: 1,
+        explorationId: String(value.explorationId || ''),
+        destinationId: String(value.destinationId || ''),
+        destinationName: String(value.destinationName || ''),
+        monsterId,
+        monsterName: String(monster.name || value.monsterName || ''),
+        isBoss: monster.isBoss === true,
+        bossTier: ['weak', 'medium', 'strong'].includes(tier) ? tier : 'weak',
+        bossTierLabel: String(value.bossTierLabel || getBossTierDef(tier).label || ''),
+        selectedAtMs: Number(value.selectedAtMs || 0) || 0
+    };
+}
+
+function buildTarotKingdomBossResult(encounter, outcome) {
+    const normalized = normalizeExplorationTarotEncounter(encounter);
+    if (!normalized) return null;
+    const playerWon = String(outcome || '').trim().toLowerCase() === 'victory';
+    const typeLabel = normalized.isBoss ? 'BOSS' : 'MONSTER';
+    return {
+        bossId: normalized.monsterId,
+        bossName: normalized.monsterName,
+        bossSpriteId: normalized.monsterId,
+        bossTier: normalized.bossTier,
+        bossTierLabel: normalized.bossTierLabel,
+        bossAppeared: true,
+        playerWon,
+        escaped: false,
+        draw: false,
+        tarotKingdom: true,
+        monsterId: normalized.monsterId,
+        monsterName: normalized.monsterName,
+        monsterIsBoss: normalized.isBoss,
+        battleLog: `${typeLabel}「${normalized.monsterName}」とタロットキングダムで対決。\n${playerWon ? '勝利して探索を完了した。' : '敗北し、島から撤退した。'}`
+    };
+}
+
 function hasExplorationSupplyTag(supplyProfile, tag) {
     return normalizeExplorationSupplyProfile(supplyProfile).comboTags.includes(tag);
 }
@@ -2057,15 +2151,23 @@ function buildReportText({ destination, ship, bossResult, rewardDisplayName, rew
         `${ship.shipName}は${destination.name}の探索から帰還しました。`
     ];
     const bossName = bossResult?.bossName || 'BOSS';
-    const bossLabel = bossResult?.bossTierLabel ? `${bossResult.bossTierLabel}BOSS` : 'BOSS';
+    const isTarotKingdom = bossResult?.tarotKingdom === true;
+    const encounterType = bossResult?.monsterIsBoss === true ? 'BOSS' : 'MONSTER';
+    const bossLabel = isTarotKingdom
+        ? encounterType
+        : (bossResult?.bossTierLabel ? `${bossResult.bossTierLabel}BOSS` : 'BOSS');
     if (!bossResult || !bossResult.bossAppeared) {
         lines.push('大きな戦闘を避けながら、海域を丁寧に調査しました。');
     } else if (bossResult.playerWon) {
-        lines.push(`${bossLabel}「${bossName}」と激闘の末、勝利しました！探索後にHPは全回復しました。`);
+        lines.push(isTarotKingdom
+            ? `${bossLabel}「${bossName}」とのタロットキングダムに勝利しました！`
+            : `${bossLabel}「${bossName}」と激闘の末、勝利しました！探索後にHPは全回復しました。`);
     } else if (bossResult.escaped || bossResult.draw) {
         lines.push(`${bossLabel}「${bossName}」との戦闘は決着せず、持ち帰れるお宝だけを回収しました。探索後にHPは全回復しました。`);
     } else {
-        lines.push(`${bossLabel}「${bossName}」に敗北しましたが、探索後にHPは全回復しました。`);
+        lines.push(isTarotKingdom
+            ? `${bossLabel}「${bossName}」とのタロットキングダムに敗北し、島から撤退しました。`
+            : `${bossLabel}「${bossName}」に敗北しましたが、探索後にHPは全回復しました。`);
     }
     const role = getExplorationShipRole(ship.shipClass);
     if (role.rewardHint) lines.push(`船種効果: ${role.rewardHint}`);
@@ -2443,6 +2545,15 @@ function initializeExplorationRoutes(app, deps) {
             const dailyFreeEligible = isDailyFreeExplorationDestination(destination);
             const dayKey = getJstDayKey(now);
             const explorationId = `exp-${now}-${Math.random().toString(36).slice(2, 8)}`;
+            const selectedBoss = selectExplorationBoss(destination, Math.random, ship.shipClass);
+            const tarotEncounter = buildExplorationTarotEncounter({
+                id: explorationId,
+                destinationId,
+                destinationName: destination.name
+            }, destination, selectedBoss);
+            if (!tarotEncounter) {
+                return res.status(500).json({ error: '島のモンスターを決定できませんでした。' });
+            }
             const activeRef = firestore.collection(EXPLORATION_COLLECTION).doc(playFabId);
             const dailyFreeRef = activeRef.collection(DAILY_FREE_SUBCOLLECTION).doc(dayKey);
             let dailyFreeUsed = false;
@@ -2474,6 +2585,7 @@ function initializeExplorationRoutes(app, deps) {
                 requiredConsumableCount,
                 consumedConsumables: [],
                 supplyProfile: null,
+                tarotEncounter,
                 dailyFreeDayKey: '',
                 dailyFreeUsed: false,
                 startedAtMs: now,
@@ -2642,9 +2754,56 @@ function initializeExplorationRoutes(app, deps) {
         }
     });
 
-    app.post('/api/exploration/claim', async (req, res) => {
+    app.post('/api/exploration/encounter', async (req, res) => {
         let { playFabId } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        playFabId = await requireAuthed(req, res, playFabId);
+        if (!playFabId) return;
+        const activeRef = firestore.collection(EXPLORATION_COLLECTION).doc(playFabId);
+        try {
+            let encounter = null;
+            let encounterError = null;
+            await firestore.runTransaction(async (tx) => {
+                const snap = await tx.get(activeRef);
+                if (!snap.exists) {
+                    encounterError = { code: 400, message: '上陸できる探索がありません。' };
+                    return;
+                }
+                const activeData = snap.data() || {};
+                if (resolveEffectiveStatus(activeData) !== 'active') {
+                    encounterError = { code: 409, message: '探索結果を確認中です。少し待ってから再試行してください。' };
+                    return;
+                }
+                encounter = normalizeExplorationTarotEncounter(activeData.tarotEncounter);
+                if (encounter) return;
+                const destination = DESTINATIONS[String(activeData.destinationId || '')] || DESTINATIONS.near_sea;
+                const selectedBoss = selectExplorationBoss(destination, Math.random, activeData.shipClass);
+                encounter = buildExplorationTarotEncounter(activeData, destination, selectedBoss);
+                if (!encounter) {
+                    encounterError = { code: 500, message: '島のモンスターを決定できませんでした。' };
+                    return;
+                }
+                tx.update(activeRef, {
+                    tarotEncounter: encounter,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+            });
+            if (encounterError) return res.status(encounterError.code).json({ error: encounterError.message });
+            res.json({ ...(await buildExplorationStatus(playFabId)), encounter });
+        } catch (error) {
+            console.error('[exploration/encounter] failed:', error?.errorMessage || error?.message || error);
+            res.status(500).json({ error: '島の遭遇情報を取得できませんでした。', details: error?.errorMessage || error?.message || String(error) });
+        }
+    });
+
+    app.post('/api/exploration/claim', async (req, res) => {
+        let { playFabId, tarotOutcome, explorationId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        tarotOutcome = String(tarotOutcome || '').trim().toLowerCase();
+        explorationId = String(explorationId || '').trim();
+        if (tarotOutcome && !['victory', 'defeat'].includes(tarotOutcome)) {
+            return res.status(400).json({ error: 'tarotOutcome must be victory or defeat' });
+        }
         playFabId = await requireAuthed(req, res, playFabId);
         if (!playFabId) return;
         const activeRef = firestore.collection(EXPLORATION_COLLECTION).doc(playFabId);
@@ -2668,6 +2827,14 @@ function initializeExplorationRoutes(app, deps) {
                     // リトライ: claiming + rolledRewardIds 保存済み → 続きから処理
                     activeData = data;
                     isRetry = true;
+                    return;
+                }
+                if (explorationId && String(data.id || '') !== explorationId) {
+                    claimError = { code: 409, message: '探索情報が更新されています。探索画面から再開してください。' };
+                    return;
+                }
+                if (normalizeExplorationTarotEncounter(data.tarotEncounter) && !tarotOutcome) {
+                    claimError = { code: 409, message: 'タロットキングダムの決着後に探索結果を確認できます。' };
                     return;
                 }
                 if (effectiveStatus === 'claiming') {
@@ -2719,19 +2886,27 @@ function initializeExplorationRoutes(app, deps) {
                 rolledItemIds = rolledRewards.length
                     ? rolledRewards.map((entry) => String(entry.itemId || '')).filter(Boolean)
                     : (activeData.rolledRewardIds || []);
-                await restoreHpToFullOnce(activeRef, playFabId, { admin, promisifyPlayFab, PlayFabServer });
+                if (!bossResult?.tarotKingdom) {
+                    await restoreHpToFullOnce(activeRef, playFabId, { admin, promisifyPlayFab, PlayFabServer });
+                }
             } else {
-                // 初回: BOSS抽選 → BOSS戦闘 → 報酬抽選 → Firestore保存 → HP全回復
-                const selectedBoss = selectExplorationBoss(destination, Math.random, ship.shipClass);
-                bossResult = await resolveBossBattle(
-                    playFabId,
-                    destination,
-                    selectedBoss,
-                    { promisifyPlayFab, PlayFabServer },
-                    supplyProfile,
-                    ship.majorArcanaItemIds || [],
-                    catalogCache
-                );
+                const tarotEncounter = normalizeExplorationTarotEncounter(activeData.tarotEncounter);
+                if (tarotEncounter) {
+                    // 新探索: クライアントで完了したタロットキングダムの勝敗を報酬へ反映する。
+                    bossResult = buildTarotKingdomBossResult(tarotEncounter, tarotOutcome);
+                } else {
+                    // 旧探索との互換: 遭遇固定前に開始された探索だけは従来の白兵戦で解決する。
+                    const selectedBoss = selectExplorationBoss(destination, Math.random, ship.shipClass);
+                    bossResult = await resolveBossBattle(
+                        playFabId,
+                        destination,
+                        selectedBoss,
+                        { promisifyPlayFab, PlayFabServer },
+                        supplyProfile,
+                        ship.majorArcanaItemIds || [],
+                        catalogCache
+                    );
+                }
 
                 const rewardCount = resolveRewardCount(bossResult, ship.shipClass, supplyProfile);
                 const gachaOptions = getExplorationGachaOptions(destination.id, ship, supplyProfile);
@@ -2754,12 +2929,14 @@ function initializeExplorationRoutes(app, deps) {
                     rolledRewards,
                     bossResultData: bossResult,
                     supplyProfile,
-                    hpRestored: false,
+                    hpRestored: bossResult?.tarotKingdom === true,
                     updatedAt: admin.firestore.FieldValue.serverTimestamp()
                 });
 
-                // HP全回復は Firestore で予約を取れた1リクエストだけが反映する
-                await restoreHpToFullOnce(activeRef, playFabId, { admin, promisifyPlayFab, PlayFabServer });
+                if (!bossResult?.tarotKingdom) {
+                    // 旧白兵戦だけが通常キャラクターHPを使うため、従来どおり全回復する。
+                    await restoreHpToFullOnce(activeRef, playFabId, { admin, promisifyPlayFab, PlayFabServer });
+                }
             }
 
             // インデックスベースの idempotency キーで付与（itemId 非依存のためリトライ安全）
@@ -2802,6 +2979,9 @@ function initializeExplorationRoutes(app, deps) {
                     ? (bossResult.playerWon ? 'victory' : (bossResult.escaped || bossResult.draw ? 'escaped' : 'defeat'))
                     : 'none',
                 bossLog: bossResult?.battleLog || '',
+                monsterId: bossResult?.monsterId || bossResult?.bossId || '',
+                monsterName: bossResult?.monsterName || bossResult?.bossName || '',
+                monsterIsBoss: bossResult?.monsterIsBoss === true,
                 rewardItemId: rewardItemId || '',
                 rewardItemName: rewardDisplayName,
                 rewardCount: rewards.length,
@@ -2865,7 +3045,11 @@ module.exports = {
         normalizeExplorationSupplyProfile,
         normalizeTroyMenuConsumableEffectiveUnits,
         normalizePaymentConsumables,
+        buildExplorationTarotEncounter,
+        buildTarotKingdomBossResult,
+        normalizeExplorationTarotEncounter,
         selectExplorationBoss,
+        selectExplorationTarotMonster,
         validateExplorationConsumablePayment,
         resolveRewardCount,
         publicDestination

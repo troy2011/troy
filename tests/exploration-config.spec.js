@@ -2,6 +2,7 @@ const { test, expect } = require('@playwright/test');
 const { __test } = require('../server/exploration');
 const { buildLocalGachaCandidates } = require('../server/gacha');
 const resourceStorage = require('../server/resourceStorage');
+const pixelMonsters = require('../public/Sprites/pixel-monsters/manifest.json');
 
 const FIXED_NOW_MS = Date.UTC(2026, 5, 18, 15, 30, 0);
 const ADVANCED_BOSS_IDS = [
@@ -44,6 +45,27 @@ function catalogItem(itemId, category, stats = {}) {
     ...stats
   };
 }
+
+test('exploration tarot encounter is stable and reserves large monsters for strong tiers', () => {
+  const destination = __test.DESTINATIONS.near_sea;
+  const weakBoss = { id: 'legacy-weak', tier: 'weak' };
+  const strongBoss = { id: 'legacy-strong', tier: 'strong' };
+  const weak = __test.buildExplorationTarotEncounter({ id: 'exp-stable', destinationId: destination.id }, destination, weakBoss);
+  const weakAgain = __test.buildExplorationTarotEncounter({ id: 'exp-stable', destinationId: destination.id }, destination, weakBoss);
+  const strong = __test.buildExplorationTarotEncounter({ id: 'exp-boss', destinationId: destination.id }, destination, strongBoss);
+
+  expect(pixelMonsters).toHaveLength(50);
+  expect(pixelMonsters.filter((monster) => monster.isBoss)).toHaveLength(3);
+  expect(weak.monsterId).toBe(weakAgain.monsterId);
+  expect(weak.isBoss).toBe(false);
+  expect(strong.isBoss).toBe(true);
+  expect(strong.bossTier).toBe('strong');
+
+  const victory = __test.buildTarotKingdomBossResult(strong, 'victory');
+  const defeat = __test.buildTarotKingdomBossResult(strong, 'defeat');
+  expect(victory).toMatchObject({ tarotKingdom: true, playerWon: true, monsterId: strong.monsterId });
+  expect(defeat).toMatchObject({ tarotKingdom: true, playerWon: false, monsterId: strong.monsterId });
+});
 
 test('exploration candidates are grouped by rarity with fixed slot metadata', () => {
   const destinations = Object.values(__test.DESTINATIONS);

@@ -102,6 +102,15 @@ export function getPublicPlayerProfile(playFabId, targetPlayFabId, options) {
     return callApiWithLoader('/api/get-player-public-profile', { playFabId, targetPlayFabId }, options);
 }
 
+export function getTarotKingdomCombatProfiles(playFabId, targetPlayFabIds, options = {}) {
+    const { roomId = '', ...requestOptions } = options || {};
+    return callApiWithLoader(
+        '/api/tarot-kingdom/combat-profiles',
+        { playFabId, targetPlayFabIds, roomId: String(roomId || '').trim() },
+        requestOptions
+    );
+}
+
 export function transferPoints(fromId, toId, amount, options = {}) {
     return callApiWithLoader('/api/transfer-points', {
         fromId,
@@ -653,8 +662,17 @@ export function startExploration(playFabId, destinationId, requestId, options) {
     return callApiWithLoader('/api/exploration/start', body, options);
 }
 
+export function getExplorationEncounter(playFabId, options) {
+    return callApiWithLoader('/api/exploration/encounter', { playFabId }, options);
+}
+
 export function claimExploration(playFabId, options) {
-    return callApiWithLoader('/api/exploration/claim', { playFabId }, options);
+    const body = { playFabId };
+    const tarotOutcome = String(options?.tarotOutcome || '').trim().toLowerCase();
+    const explorationId = String(options?.explorationId || '').trim();
+    if (tarotOutcome) body.tarotOutcome = tarotOutcome;
+    if (explorationId) body.explorationId = explorationId;
+    return callApiWithLoader('/api/exploration/claim', body, options);
 }
 
 export function getPlayerShipStatus(playFabId, options) {

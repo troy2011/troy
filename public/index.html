@@ -20,7 +20,7 @@
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
     <title>TROYゴールドアプリ</title>
-    <link rel="stylesheet" href="style.css?v=20260604k">
+<link rel="stylesheet" href="style.css?v=20260723a">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
 </head>
@@ -319,7 +319,7 @@
                             <span class="tarot-mode-name">タロット・ポーカー</span>
                             <span class="tarot-mode-desc">短期決戦 · NPC対戦</span>
                         </button>
-                        <button id="tarotModeKingdom" type="button" role="tab" aria-selected="false" class="tarot-mode-card">
+                        <button id="tarotModeKingdom" type="button" role="tab" aria-selected="false" aria-hidden="true" tabindex="-1" class="tarot-mode-card" hidden>
                             <span class="tarot-mode-icon">♔</span>
                             <span class="tarot-mode-name">タロットキングダム</span>
                             <span class="tarot-mode-desc">長期戦 · オンライン対戦</span>
@@ -450,19 +450,16 @@
                     <div id="tarotResultText" class="tarot-result-text"></div>
                     <div id="tarotLog" class="tarot-log tarot-log--poker"></div>
                 </div>
-                <div id="tarotKingdomRoot" class="content-area tarot-kingdom-root" style="display:none;">
+                <div id="tarotKingdomRoot" class="content-area tarot-kingdom-root tarot-kingdom-jrpg tarot-kingdom-reference-ui tarot-kingdom-reference-v2" style="display:none;">
                     <div class="tarot-kingdom-header">
                         <div class="tarot-kingdom-title-wrap">
-                            <h2>タロットキングダム</h2>
-                            <div id="tarotKingdomOracleCardWrap" class="tarot-kingdom-oracle-card-wrap tarot-kingdom-header-oracle" aria-hidden="true">
-                                <div id="tarotKingdomOracleCard" class="tarot-kingdom-oracle-card"></div>
-                            </div>
-                            <div id="tarotKingdomHiddenOracleCardWrap" class="tarot-kingdom-oracle-card-wrap tarot-kingdom-header-oracle" aria-hidden="true">
-                                <div id="tarotKingdomHiddenOracleCard" class="tarot-kingdom-oracle-card"></div>
+                            <div class="tarot-kingdom-title-copy">
+                                <span class="tarot-kingdom-title-kicker">MONSTER CARD BATTLE</span>
+                                <h2>タロットキングダム</h2>
                             </div>
                         </div>
                         <div class="tarot-kingdom-header-meta">
-                            <span id="tarotKingdomRound" class="tarot-kingdom-chip">局 0 / 4</span>
+                            <span id="tarotKingdomRound" class="tarot-kingdom-chip">Round 0 / 4</span>
                         </div>
                     </div>
                     <div id="tarotKingdomEffectOverlay" class="tarot-effect-overlay" aria-hidden="true"></div>
@@ -477,46 +474,87 @@
                         <button id="tarotKingdomStartOfflineButton" type="button" class="is-offline-alt">オフラインで始める</button>
                         <button id="tarotKingdomRestartButton" type="button" hidden>もう一度遊ぶ</button>
                     </div>
-                    <div id="tarotKingdomActionPopup" class="tarot-bet-popup tarot-kingdom-action-popup app-action-panel">
-                        <div class="tarot-betting-actions">
-                            <button id="tarotKingdomDrawMajorButton" type="button" hidden style="display:none;" aria-hidden="true">大アルカナを引く</button>
-                            <button id="tarotKingdomDrawMinorButton" type="button" hidden style="display:none;" aria-hidden="true">小アルカナを引く</button>
-                            <button id="tarotKingdomGraveToggleButton" type="button">墓地を見る</button>
-                            <button id="tarotKingdomFoldButton" type="button">フォールド</button>
-                            <button id="tarotKingdomPassButton" type="button">パス</button>
+                    <main class="tarot-kingdom-combat-screen">
+                    <section id="tarotKingdomBattleStage" class="tarot-kingdom-battle-stage" aria-label="モンスターバトル" hidden>
+                        <div class="tarot-kingdom-battle-arena tarot-kingdom-battle-arena--moonlit">
+                            <section class="tarot-kingdom-battle-enemy is-facing-left" aria-label="敵モンスター">
+                                <div class="tarot-kingdom-battle-side-heading">
+                                    <span class="tarot-kingdom-battle-eyebrow">ENEMY</span>
+                                    <strong id="tarotKingdomEnemyName">モンスター</strong>
+                                </div>
+                                <div class="tarot-kingdom-battle-hp" role="progressbar" aria-label="敵のHP" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+                                    <div class="tarot-kingdom-battle-hp-label">
+                                        <span>HP</span>
+                                        <span id="tarotKingdomEnemyHpText">100 / 100</span>
+                                    </div>
+                                    <div class="tarot-kingdom-battle-hp-track">
+                                        <span id="tarotKingdomEnemyHpFill" class="tarot-kingdom-battle-hp-fill"></span>
+                                    </div>
+                                </div>
+                                <div class="tarot-kingdom-battle-enemy-visual">
+                                    <div id="tarotKingdomEnemySprite" class="tarot-kingdom-battle-enemy-sprite" data-facing="left" role="img" aria-label="敵モンスター"></div>
+                                </div>
+                            </section>
+                            <div class="tarot-kingdom-battle-center">
+                                <div class="tarot-kingdom-battle-turn">
+                                    <span class="tarot-kingdom-battle-cursor" aria-hidden="true">▶</span>
+                                    <span>BATTLE LOG</span>
+                                </div>
+                                <div id="tarotKingdomBattleFeed" class="tarot-kingdom-battle-feed" role="status" aria-live="polite" aria-atomic="true">
+                                    <div class="tarot-kingdom-battle-event is-info">バトル開始を待っています</div>
+                                </div>
+                            </div>
+                            <section class="tarot-kingdom-battle-party-side" aria-label="味方パーティー">
+                                <div class="tarot-kingdom-battle-side-heading">
+                                    <span class="tarot-kingdom-battle-eyebrow">PARTY</span>
+                                    <strong>冒険者</strong>
+                                </div>
+                                <div id="tarotKingdomBattleParty" class="tarot-kingdom-battle-party"></div>
+                            </section>
                         </div>
-                    </div>
+                    </section>
                     <div class="tarot-kingdom-layout">
-                        <div class="tarot-kingdom-panel">
+                        <div class="tarot-kingdom-panel tarot-kingdom-panel--trick">
                             <div class="tarot-kingdom-panel-title tarot-kingdom-trick-title">
-                                <span>場札</span>
+                                <span class="tarot-kingdom-panel-heading"><span class="tarot-kingdom-panel-eyebrow">FIELD</span><span>場札</span></span>
                                 <div class="tarot-kingdom-trick-status">
                                     <span id="tarotKingdomTrickOwner" class="tarot-kingdom-chip tarot-kingdom-chip--owner">場札主: -</span>
                                     <span id="tarotKingdomReverse" class="tarot-kingdom-chip tarot-kingdom-chip--reverse" hidden>11バック中</span>
                                     <span id="tarotKingdomLock" class="tarot-kingdom-chip tarot-kingdom-chip--lock" hidden>ロック: -</span>
+                                    <span id="tarotKingdomTurn" class="tarot-kingdom-chip tarot-kingdom-chip--turn">待機中</span>
+                                    <span id="tarotKingdomScore" class="tarot-kingdom-chip tarot-kingdom-chip--score" hidden></span>
                                 </div>
                             </div>
-                            <div id="tarotKingdomTrick" class="tarot-kingdom-trick"></div>
+                            <div class="tarot-kingdom-card-stage" aria-label="大型カード5枚の戦闘領域">
+                                <div id="tarotKingdomTrick" class="tarot-kingdom-trick tarot-card-row" aria-label="場札5枠"></div>
+                            </div>
                             <div id="tarotKingdomJudgmentArea" class="tarot-kingdom-judgment" style="display:none;">
                                 <div id="tarotKingdomJudgmentTitle" class="tarot-kingdom-judgment-title">墓地</div>
                                 <div id="tarotKingdomJudgmentOptions" class="tarot-kingdom-judgment-options"></div>
                                 <button id="tarotKingdomJudgmentSkipButton" type="button">回収しない</button>
                             </div>
                         </div>
-                        <div class="tarot-kingdom-panel">
+                        <div class="tarot-kingdom-panel tarot-kingdom-panel--hand">
                             <div class="tarot-kingdom-panel-title tarot-kingdom-hand-title">
-                                <span>あなたの手札</span>
+                                <span class="tarot-kingdom-panel-heading"><span class="tarot-kingdom-panel-eyebrow">HAND</span><span>あなたの手札</span><span id="tarotKingdomHandCount" class="tarot-kingdom-hand-count">0</span></span>
                                 <div class="tarot-kingdom-hand-actions">
                                     <span id="tarotKingdomYourTurnBadge" class="tarot-kingdom-your-turn-badge" hidden>YOUR TURN</span>
-                                    <button id="tarotKingdomClearButton" class="tarot-kingdom-clear-inline" type="button">選択解除</button>
-                                    <button id="tarotKingdomPlayButton" class="tarot-kingdom-play-inline" type="button">選択</button>
                                 </div>
                             </div>
+                            <div id="tarotKingdomSelectedEffect" class="tarot-kingdom-selected-effect" role="status" aria-live="polite">カードを選択してください</div>
                             <div id="tarotKingdomHand" class="tarot-kingdom-hand tarot-card-row"></div>
+                            <div id="tarotKingdomActionPopup" class="tarot-bet-popup tarot-kingdom-action-popup app-action-panel">
+                                <div class="tarot-betting-actions">
+                                    <button id="tarotKingdomGraveToggleButton" class="tarot-kingdom-command-grave" type="button" aria-label="墓地を見る"><span aria-hidden="true">☰</span><span class="tarot-kingdom-battle-menu-label">墓地を見る</span></button>
+                                    <button id="tarotKingdomClearButton" class="tarot-kingdom-clear-inline" type="button">選択解除</button>
+                                    <button id="tarotKingdomFoldButton" type="button">フォールド</button>
+                                    <button id="tarotKingdomPlayButton" class="tarot-kingdom-play-inline is-defense" type="button">防御</button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="tarot-kingdom-panel">
+                        <div class="tarot-kingdom-panel tarot-kingdom-panel--players">
                             <div class="tarot-kingdom-panel-title tarot-kingdom-panel-title--actions">
-                                <span>プレイヤー情報</span>
+                                <span class="tarot-kingdom-panel-heading"><span class="tarot-kingdom-panel-eyebrow">STATUS</span><span>プレイヤー情報</span></span>
                                 <div class="tarot-kingdom-player-actions">
                                     <button id="tarotKingdomSettlementConfirmButton" type="button" hidden>確認して次の局へ</button>
                                 </div>
@@ -524,6 +562,7 @@
                             <div id="tarotKingdomPlayers" class="tarot-kingdom-players"></div>
                         </div>
                     </div>
+                    </main>
                     <div id="tarotKingdomLog" class="tarot-log tarot-log--kingdom"></div>
                 </div>
             </div>
@@ -1686,7 +1725,7 @@
         "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
         "config": "./js/config.js",
         "api": "./js/api.js",
-        "ui": "./js/ui.js?v=20260604g",
+"ui": "./js/ui.js?v=20260723a",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js",
         "inventory": "./js/inventory.js?v=20260604g",
@@ -1733,6 +1772,6 @@
     <!-- Scripts -->
     <script src="battle-client.js"></script>
     <script src="naval-battle.js"></script>
-    <script type="module" src="main.js?v=20260604g"></script>
+<script type="module" src="main.js?v=20260723a"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'troy-app-v20260716b';
+const CACHE_VERSION = 'troy-app-v20260723a';
 const CORE_CACHE = `troy-core-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `troy-runtime-${CACHE_VERSION}`;
 
@@ -55,6 +55,29 @@ function shouldBypassRuntimeCache(request) {
   return path.startsWith('/api/') || path === '/entry-effect.mp4';
 }
 
+function isAppShellNavigation(request) {
+  if (!request || request.mode !== 'navigate') return false;
+  const url = new URL(request.url);
+  return url.pathname === '/' || url.pathname === '/index.html';
+}
+
+function createOfflineResponse(request) {
+  const isNavigation = request?.mode === 'navigate';
+  return new Response(
+    isNavigation
+      ? '<!doctype html><html lang="ja"><meta charset="utf-8"><title>Offline</title><body>ページを読み込めません。ローカルプレビューサーバーが起動しているか確認してください。</body></html>'
+      : 'Offline',
+    {
+      status: 503,
+      statusText: 'Service Unavailable',
+      headers: {
+        'Content-Type': isNavigation ? 'text/html; charset=utf-8' : 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-store'
+      }
+    }
+  );
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (!isCacheableRequest(request)) return;
@@ -69,15 +92,21 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const cloned = response.clone();
-          const cacheName = isNavigation ? RUNTIME_CACHE : CORE_CACHE;
-          caches.open(cacheName).then((cache) => cache.put(request, cloned)).catch(() => undefined);
+          if (response?.ok) {
+            const cloned = response.clone();
+            const cacheName = isNavigation ? RUNTIME_CACHE : CORE_CACHE;
+            caches.open(cacheName).then((cache) => cache.put(request, cloned)).catch(() => undefined);
+          }
           return response;
         })
         .catch(async () => {
           const cached = await caches.match(request);
           if (cached) return cached;
-          return caches.match('/index.html');
+          if (isAppShellNavigation(request)) {
+            const appShell = await caches.match('/index.html');
+            if (appShell) return appShell;
+          }
+          return createOfflineResponse(request);
         })
     );
     return;

@@ -62,13 +62,19 @@ function resolveFilePath(rootDir, pathname) {
 
 function createServer(rootDir) {
   return http.createServer((req, res) => {
+    const requestUrl = new URL(req.url || '/', 'http://127.0.0.1');
+    if (req.method === 'POST' && requestUrl.pathname === '/__playwright_shutdown__') {
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', Connection: 'close' });
+      res.end('shutting down');
+      setImmediate(() => process.emit('SIGTERM'));
+      return;
+    }
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.writeHead(405, { 'Content-Type': 'text/plain; charset=utf-8' });
       res.end('Method not allowed');
       return;
     }
 
-    const requestUrl = new URL(req.url || '/', 'http://127.0.0.1');
     const filePath = resolveFilePath(rootDir, requestUrl.pathname);
     if (!filePath || !fs.existsSync(filePath)) {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -104,14 +110,34 @@ async function main() {
 
   console.log(`[playwright-static-server] ${rootDir} -> http://127.0.0.1:${options.port}`);
 
+  let shuttingDown = false;
   const shutdown = () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     server.close(() => {
       process.exit(0);
     });
+    server.closeIdleConnections?.();
+    server.closeAllConnections?.();
+    const forceExitTimer = setTimeout(() => process.exit(0), 500);
+    forceExitTimer.unref?.();
   };
 
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
+  // Playwright launches webServer commands through a shell on Windows. Closing
+  // that shell does not always forward a signal to its Node child, so stop when
+  // the launch shell disappears as well.
+  const launchParentPid = process.ppid;
+  const parentWatchTimer = setInterval(() => {
+    try {
+      process.kill(launchParentPid, 0);
+    } catch (_) {
+      clearInterval(parentWatchTimer);
+      shutdown();
+    }
+  }, 500);
+  parentWatchTimer.unref?.();
 }
 
 main().catch((error) => {

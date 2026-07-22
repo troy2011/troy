@@ -406,7 +406,7 @@ const state = {
     isRolling: false
 };
 
-let avatarModule = null;
+let avatarCombatModule = null;
 
 const el = {
     playerWeapon: document.getElementById('playerWeapon'),
@@ -459,10 +459,10 @@ async function init() {
 
 async function loadAvatarModule() {
     try {
-        avatarModule = await import('./avatar.js');
+        avatarCombatModule = await import('./avatarCombat.js');
     } catch (error) {
-        avatarModule = null;
-        console.warn('[melee-demo] avatar module unavailable', error);
+        avatarCombatModule = null;
+        console.warn('[melee-demo] avatar combat module unavailable', error);
     }
 }
 
@@ -483,14 +483,6 @@ function bindEvents() {
 }
 
 function setupDemoAvatars() {
-    const buildAvatarLayerMarkup = avatarModule?.buildAvatarLayerMarkup;
-    if (typeof buildAvatarLayerMarkup !== 'function') return;
-    if (el.playerAvatar) {
-        el.playerAvatar.innerHTML = buildAvatarLayerMarkup('playerDemoAvatar');
-    }
-    if (el.enemyAvatar) {
-        el.enemyAvatar.innerHTML = buildAvatarLayerMarkup('enemyDemoAvatar');
-    }
     renderDemoAvatars();
 }
 
@@ -501,12 +493,13 @@ function renderDemoAvatars() {
 
 function renderDemoAvatar(side, weaponType) {
     const root = side === 'player' ? el.playerAvatar : el.enemyAvatar;
-    const renderAvatar = avatarModule?.renderAvatar;
-    if (!root || typeof renderAvatar !== 'function') return;
-    setDemoAvatarVictorious(side, false);
-    setDemoAvatarDefeated(side, false);
+    const renderCombatAvatar = avatarCombatModule?.renderCombatAvatar;
+    if (!root || typeof renderCombatAvatar !== 'function') return;
     const equipment = createDemoAvatarEquipment(weaponType);
-    renderAvatar(`${side}DemoAvatar`, DEMO_AVATAR_BASES[side], equipment, {}, false);
+    renderCombatAvatar(root, DEMO_AVATAR_BASES[side], equipment, {}, {
+        prefix: `${side}DemoAvatar`,
+        isOpponent: false
+    });
 }
 
 function createDemoAvatarEquipment(weaponType) {
@@ -985,39 +978,15 @@ function triggerDemoAvatarMotion(actor) {
     const avatar = actorId === 'player' ? el.playerAvatar : el.enemyAvatar;
     if (!avatar || avatar.classList.contains('is-avatar-defeated')) return;
     const direction = actorId === 'player' ? 'left' : 'right';
-    const duration = getDemoWeaponAttackDuration(actor?.weapon);
-    applyAvatarWeaponClass(avatar, actor?.weapon);
-    avatarModule?.triggerAvatarAttackMotion?.(avatar, {
+    avatarCombatModule?.playCombatAvatarAttack?.(avatar, actor?.weapon, {
         direction,
-        duration,
         bodyMotion: false
     });
-    window.setTimeout(() => clearAvatarWeaponClass(avatar), duration + 90);
 }
 
-
-function getDemoWeaponAttackDuration(weaponType) {
-    const weapon = getDemoAvatarWeaponType(weaponType);
-    if (weapon === 'dagger') return 290;
-    if (weapon === 'wand' || weapon === 'gun' || weapon === 'shield') return 360;
-    if (weapon === 'sword') return 380;
-    if (weapon === 'polearm') return 420;
-    if (weapon === 'staff' || weapon === 'bow') return 460;
-    if (weapon === 'axe' || weapon === 'blunt') return 500;
-    if (weapon === 'gun_big') return 560;
-    if (weapon === 'sword_big') return 620;
-    if (weapon === 'axe_big') return 700;
-    return 400;
-}
 
 function getDemoWeaponShakeProfile(weaponType) {
-    const weapon = getDemoAvatarWeaponType(weaponType);
-    if (weapon === 'blunt') return { x: 3, y: 1, duration: 180 };
-    if (weapon === 'axe') return { x: 4, y: 1, duration: 220 };
-    if (weapon === 'sword_big') return { x: 5, y: 1, duration: 260 };
-    if (weapon === 'axe_big') return { x: 7, y: 2, duration: 320 };
-    if (weapon === 'gun_big') return { x: 6, y: 1, duration: 300 };
-    return null;
+    return avatarCombatModule?.getCombatWeaponMotionProfile?.(weaponType)?.shake || null;
 }
 
 function triggerDemoWeaponShake(weaponType) {
@@ -1049,7 +1018,7 @@ function triggerDemoTechniqueBanner(actor, action) {
 
 function triggerDemoDamageFeedback(unitId, amount = 0) {
     const avatar = unitId === 'player' ? el.playerAvatar : el.enemyAvatar;
-    flashClass(avatar, 'is-avatar-damaged', 220);
+    avatarCombatModule?.flashCombatAvatarHurt?.(avatar);
     createDemoDamagePopup(unitId, amount);
 }
 
@@ -1246,107 +1215,14 @@ function showDemoStatusFeedback(unitId, before, after) {
     });
 }
 
-function applyAvatarWeaponClass(avatar, weaponType) {
-    if (!avatar) return;
-    clearAvatarWeaponClass(avatar);
-    avatar.classList.add(...weaponAnimationClass(weaponType).split(/\s+/).filter(Boolean));
-}
-
-const DEMO_AVATAR_WEAPON_CLASS_NAMES = [
-    'is-avatar-weapon-heavy',
-    'is-avatar-weapon-pierce',
-    'is-avatar-weapon-ranged',
-    'is-avatar-weapon-guard',
-    'is-avatar-weapon-slash',
-    'is-avatar-weapon-staff',
-    'is-avatar-weapon-wand',
-    'is-avatar-weapon-axe',
-    'is-avatar-weapon-axe-big',
-    'is-avatar-weapon-blunt',
-    'is-avatar-weapon-dagger',
-    'is-avatar-weapon-polearm',
-    'is-avatar-weapon-shield',
-    'is-avatar-weapon-sword',
-    'is-avatar-weapon-sword-big',
-    'is-avatar-weapon-gun',
-    'is-avatar-weapon-gun-big',
-    'is-avatar-weapon-bow'
-];
-const DEMO_AVATAR_WEAPON_TYPES = new Set(['staff', 'wand', 'axe', 'axe_big', 'blunt', 'dagger', 'polearm', 'shield', 'sword', 'sword_big', 'gun', 'gun_big', 'bow']);
-
-function getDemoAvatarWeaponType(weaponType) {
-    const weapon = normalizeWeaponType(weaponType);
-    return DEMO_AVATAR_WEAPON_TYPES.has(weapon) ? weapon : 'sword';
-}
-
-function getDemoAvatarWeaponClassSuffix(weaponType) {
-    return getDemoAvatarWeaponType(weaponType).replace(/_/g, '-');
-}
-
-function clearAvatarWeaponClass(avatar) {
-    avatar?.classList?.remove(...DEMO_AVATAR_WEAPON_CLASS_NAMES);
-}
-
 function setDemoAvatarDefeated(side, defeated) {
     const avatar = side === 'player' ? el.playerAvatar : el.enemyAvatar;
-    if (!avatar) return;
-    if (defeated) {
-        const alreadyDefeated = avatar.dataset.avatarDefeated === 'true' && avatar.classList.contains('is-avatar-defeated');
-        avatar.dataset.avatarDefeated = 'true';
-        const direction = side === 'player' ? -1 : 1;
-        avatar.style.setProperty('--avatar-defeat-head-x', `${10 * direction}px`);
-        avatar.style.setProperty('--avatar-defeat-head-bounce-x', `${-4 * direction}px`);
-        avatar.style.setProperty('--avatar-defeat-head-rest-x', `${3 * direction}px`);
-        avatar.style.setProperty('--avatar-defeat-head-rotate', `${34 * direction}deg`);
-        avatar.style.setProperty('--avatar-defeat-head-bounce-rotate', `${-11 * direction}deg`);
-        avatar.style.setProperty('--avatar-defeat-head-rest-rotate', `${7 * direction}deg`);
-        setDemoAvatarVictorious(side, false);
-        avatar.classList.remove('is-avatar-attacking', 'is-avatar-attack-left', 'is-avatar-attack-right', 'is-avatar-damaged');
-        clearAvatarWeaponClass(avatar);
-        avatarModule?.stopAvatarBodyMotion?.(avatar, { reset: false });
-        if (!alreadyDefeated) avatar.classList.add('is-avatar-defeated');
-        return;
-    }
-    delete avatar.dataset.avatarDefeated;
-    avatar.style.removeProperty('--avatar-defeat-head-x');
-    avatar.style.removeProperty('--avatar-defeat-head-bounce-x');
-    avatar.style.removeProperty('--avatar-defeat-head-rest-x');
-    avatar.style.removeProperty('--avatar-defeat-head-rotate');
-    avatar.style.removeProperty('--avatar-defeat-head-bounce-rotate');
-    avatar.style.removeProperty('--avatar-defeat-head-rest-rotate');
-    avatar.classList.remove('is-avatar-defeated');
+    avatarCombatModule?.setCombatAvatarKo?.(avatar, defeated, { side });
 }
 
 function setDemoAvatarVictorious(side, victorious) {
     const avatar = side === 'player' ? el.playerAvatar : el.enemyAvatar;
-    if (!avatar) return;
-    if (victorious) {
-        if (avatar.classList.contains('is-avatar-defeated')) return;
-        const alreadyVictorious = avatar.dataset.avatarVictorious === 'true' && avatar.classList.contains('is-avatar-victorious');
-        avatar.dataset.avatarVictorious = 'true';
-        const direction = side === 'player' ? -1 : 1;
-        avatar.style.setProperty('--avatar-victory-shift-x', `${6 * direction}px`);
-        avatar.style.setProperty('--avatar-victory-rebound-x', `${-3 * direction}px`);
-        avatar.classList.remove('is-avatar-attacking', 'is-avatar-attack-left', 'is-avatar-attack-right', 'is-avatar-damaged');
-        clearAvatarWeaponClass(avatar);
-        if (!alreadyVictorious) {
-            avatarModule?.playAvatarBodyMotion?.(avatar, 'jump', {
-                intervalMs: 96,
-                restoreMotion: 'idle'
-            });
-            avatar.classList.add('is-avatar-victorious');
-        }
-        return;
-    }
-    delete avatar.dataset.avatarVictorious;
-    avatar.style.removeProperty('--avatar-victory-shift-x');
-    avatar.style.removeProperty('--avatar-victory-rebound-x');
-    avatar.classList.remove('is-avatar-victorious');
-}
-
-function weaponAnimationClass(weaponType) {
-    const weapon = getDemoAvatarWeaponType(weaponType);
-    return `is-avatar-weapon-${getDemoAvatarWeaponClassSuffix(weapon)}`;
+    avatarCombatModule?.setCombatAvatarVictory?.(avatar, victorious, { side });
 }
 
 function flashClass(element, className, duration) {

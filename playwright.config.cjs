@@ -4,6 +4,7 @@ const port = Number(process.env.PLAYWRIGHT_STATIC_PORT || 4173);
 
 module.exports = defineConfig({
   testDir: './tests',
+  globalTeardown: require.resolve('./scripts/playwright-global-teardown.js'),
   testMatch: ['**/*.spec.js'],
   fullyParallel: false,
   workers: 1,

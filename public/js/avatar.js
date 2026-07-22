@@ -26,10 +26,30 @@ const AVATAR_LAYER_NAMES = Object.freeze([
 const AVATAR_ASSET_RACES = Object.freeze(new Set(['human', 'elf', 'orc', 'goblin']));
 const AVATAR_FALLBACK_RACE = 'human';
 const AVATAR_FALLBACK_COLOR = 'brown';
+const AVATAR_HAIR_COLOR_BY_INDEX = Object.freeze([
+    null,
+    null,
+    'black',
+    'blue',
+    'brown',
+    'gold',
+    'green',
+    'purple',
+    'red',
+    'silver',
+    'yellow'
+]);
+const activeAvatarAttackMotions = new WeakMap();
 
 function resolveAvatarAssetRace(value) {
     const race = String(value || 'human').trim().toLowerCase();
     return AVATAR_ASSET_RACES.has(race) ? race : AVATAR_FALLBACK_RACE;
+}
+
+function resolveAvatarHairSpriteColor(indexValue, fallbackColor) {
+    const index = Math.floor(Number(indexValue) || 1);
+    return AVATAR_HAIR_COLOR_BY_INDEX[index]
+        || resolveAvatarBaseSpriteColor(AVATAR_FALLBACK_RACE, fallbackColor);
 }
 
 function uniqueSpritePaths(paths) {
@@ -67,10 +87,19 @@ export function buildAvatarLayerMarkup(prefix) {
         .join('');
 }
 
+export function cancelAvatarAttackMotion(target) {
+    const element = typeof target === 'string' ? document.getElementById(target) : target;
+    const cancel = element ? activeAvatarAttackMotions.get(element) : null;
+    if (typeof cancel !== 'function') return false;
+    cancel();
+    return true;
+}
+
 export function triggerAvatarAttackMotion(target, options = {}) {
     const element = typeof target === 'string' ? document.getElementById(target) : target;
     if (!element) return Promise.resolve(false);
     if (element.classList.contains('is-avatar-defeated')) return Promise.resolve(false);
+    cancelAvatarAttackMotion(element);
     const direction = options.direction === 'right' ? 'right' : 'left';
     const duration = Math.max(120, Number(options.duration || 520) || 520);
     if (options.bodyMotion !== false && element.classList.contains('avatar-combat-actor')) {
@@ -87,20 +116,29 @@ export function triggerAvatarAttackMotion(target, options = {}) {
     element.classList.add('is-avatar-attacking', `is-avatar-attack-${direction}`);
     return new Promise((resolve) => {
         let finished = false;
-        const finish = () => {
+        let fallbackTimer = null;
+        const finish = (completed = true) => {
             if (finished) return;
             finished = true;
-            element.removeEventListener('animationend', finish);
+            if (fallbackTimer) {
+                window.clearTimeout(fallbackTimer);
+                fallbackTimer = null;
+            }
+            element.removeEventListener('animationend', handleAnimationEnd);
+            if (activeAvatarAttackMotions.get(element) === cancel) activeAvatarAttackMotions.delete(element);
             if (element.dataset.avatarAttackToken !== token) {
                 resolve(false);
                 return;
             }
             delete element.dataset.avatarAttackToken;
             element.classList.remove('is-avatar-attacking', 'is-avatar-attack-left', 'is-avatar-attack-right');
-            resolve(true);
+            resolve(completed);
         };
-        element.addEventListener('animationend', finish, { once: true });
-        window.setTimeout(finish, duration + 80);
+        const handleAnimationEnd = () => finish(true);
+        const cancel = () => finish(false);
+        activeAvatarAttackMotions.set(element, cancel);
+        element.addEventListener('animationend', handleAnimationEnd, { once: true });
+        fallbackTimer = window.setTimeout(handleAnimationEnd, duration + 80);
     });
 }
 
@@ -151,6 +189,12 @@ function getAvatarLayerOffset(imageUrl, layerId) {
     if (layerId.includes('weapon-right')) return preset.avatarOffset.weaponRight || { x: 0, y: 0 };
     if (layerId.includes('shield-left')) return preset.avatarOffset.shieldLeft || { x: 0, y: 0 };
     return { x: 0, y: 0 };
+}
+
+function isAvatarShieldItem(imageUrl, itemCategory) {
+    if (String(itemCategory || '').trim().toLowerCase() === 'shield') return true;
+    const preset = resolveAvatarSpritePreset({ sprite_path: imageUrl });
+    return !!preset?.idPrefixes?.some((prefix) => prefix === 'shield_');
 }
 
 function getAvatarItemSpriteMeta(item) {
@@ -443,6 +487,7 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
             const normalizedSize = normalizeSpriteFrameSize(currentUrl, spriteWidth, spriteHeight);
             spriteWidth = normalizedSize.width;
             spriteHeight = normalizedSize.height;
+            const isShieldItem = isAvatarShieldItem(currentUrl, itemCategory);
             const scale = 2; // アバターの表示倍率
             layer.style.width = `${spriteWidth * scale}px`;
             layer.style.height = `${spriteHeight * scale}px`;
@@ -483,7 +528,7 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
                 const itemOffset = getAvatarLayerOffset(currentUrl, layerId);
                 offsetX += itemOffset.x;
                 offsetY += itemOffset.y;
-                if (itemCategory === 'Shield') {
+                if (isShieldItem) {
                     offsetX += AVATAR_PART_OFFSETS.shield.x;
                     offsetY += AVATAR_PART_OFFSETS.shield.y;
                 }
@@ -494,7 +539,7 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
                 const itemOffset = getAvatarLayerOffset(currentUrl, layerId);
                 offsetX += itemOffset.x;
                 offsetY += itemOffset.y;
-                if (itemCategory === 'Shield') {
+                if (isShieldItem) {
                     offsetX += AVATAR_PART_OFFSETS.shield.x;
                     offsetY += AVATAR_PART_OFFSETS.shield.y;
                 }
@@ -719,6 +764,7 @@ export function stopAvatarBodyMotion(target, options = {}) {
     avatarBodyMotionTokens.delete(prefix);
     delete element.dataset.avatarIdleState;
     delete element.dataset.avatarBodyMotion;
+    element.dataset.avatarBodyMotionStopped = 'true';
     const bodyLayer = document.getElementById(`${prefix}-layer-body`);
     if (bodyLayer) {
         delete bodyLayer.dataset.bodyMotion;
@@ -735,6 +781,7 @@ export function startAvatarBodyMotion(target, motionName = 'idle', options = {})
     if (!element || !prefix) return false;
     const definition = getAvatarBodyMotionDefinition(motionName);
     stopAvatarBodyMotion(element, { reset: false });
+    delete element.dataset.avatarBodyMotionStopped;
     element.dataset.avatarIdleState = 'body';
     element.dataset.avatarBodyMotion = definition.key;
     const intervalMs = Math.max(24, Number(options.intervalMs || definition.intervalMs) || definition.intervalMs);
@@ -767,6 +814,7 @@ export function playAvatarBodyMotion(target, motionName, options = {}) {
     const intervalMs = Math.max(24, Number(options.intervalMs || definition.intervalMs) || definition.intervalMs);
     const frameCount = Math.max(1, Number(options.frameCount || definition.count) || definition.count);
     stopAvatarBodyMotion(element, { reset: false });
+    delete element.dataset.avatarBodyMotionStopped;
     avatarBodyMotionTokens.set(prefix, token);
     element.dataset.avatarIdleState = 'body';
     element.dataset.avatarBodyMotion = definition.key;
@@ -868,9 +916,19 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
 
     // 1. 素体の描画
     if (avatarBase) {
-        const { Race, AvatarColor, SkinColorIndex, FaceIndex, HairStyleIndex, FacialHairStyleIndex, level } = avatarBase;
+        const {
+            Race,
+            AvatarColor,
+            SkinColorIndex,
+            FaceIndex,
+            HairStyleIndex,
+            HairColorIndex,
+            FacialHairStyleIndex,
+            level
+        } = avatarBase;
         const race = resolveAvatarAssetRace(Race);
         const color = resolveAvatarBaseSpriteColor(race, AvatarColor);
+        const hairColor = resolveAvatarHairSpriteColor(HairColorIndex, color);
         const skinIndex = SkinColorIndex || 1;
         const faceIdx = (FaceIndex || 1) - 1;
         let hairIdx = (level >= FEATURE_UNLOCK_LEVELS.hairVisible && HairStyleIndex) ? (HairStyleIndex - 1) : -1;
@@ -883,8 +941,8 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
 
         drawLayer(`${prefix}-layer-body`, `./Sprites/Characters/body/body_${color}.png`, 0, 32, 32);
         drawLayer(`${prefix}-layer-head`, `./Sprites/Characters/${race}/head/${race}_head_skin_${skinIndex}.png`, faceIdx, 32, 32);
-        drawLayer(`${prefix}-layer-facial-hair`, `./Sprites/Characters/${race}/hair/facial hair/${race}_facialhair_${color}.png`, facialHairIdx, 32, 32);
-        drawLayer(`${prefix}-layer-hair`, `./Sprites/Characters/${race}/hair/hairstyle/${race}_hair_${color}.png`, hairIdx, 32, 32);
+        drawLayer(`${prefix}-layer-facial-hair`, `./Sprites/Characters/${race}/hair/facial hair/${race}_facialhair_${hairColor}.png`, facialHairIdx, 32, 32);
+        drawLayer(`${prefix}-layer-hair`, `./Sprites/Characters/${race}/hair/hairstyle/${race}_hair_${hairColor}.png`, hairIdx, 32, 32);
         drawLayer(`${prefix}-layer-hand-right`, `./Sprites/Characters/${race}/hand/${race}_hand.png`, skinIndex - 1, 16, 16);
         drawLayer(`${prefix}-layer-hand-left`, `./Sprites/Characters/${race}/hand/${race}_hand.png`, skinIndex - 1, 16, 16, isTwoHanded ? 'TwoHandedGrip' : null);
     }

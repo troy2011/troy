@@ -1214,7 +1214,14 @@ window.__tkUid = null;
 // グローバルスコープに登録（WorldMapSceneで使用）
 window.firestore = firestore;
 
+function isTarotKingdomPreviewContext() {
+    if (window.__TAROT_KINGDOM_PREVIEW__ === true) return true;
+    const pathname = String(window.location?.pathname || '').toLowerCase();
+    return pathname.endsWith('/tarot-kingdom-preview.html');
+}
+
 async function initializeLiff() {
+    if (isTarotKingdomPreviewContext()) return;
     try {
         __perfLog('initializeLiff start');
         await liff.init({ liffId: "2008427313-jg0DYMVb" });

@@ -15,6 +15,7 @@ import {
     applyShipResourcePreset as requestApplyShipResourcePreset,
     getExplorationStatus as requestExplorationStatus,
     startExploration as requestStartExploration,
+    getExplorationEncounter as requestExplorationEncounter,
     claimExploration as requestClaimExploration,
     getPlayerShipStatus as requestPlayerShipStatus,
     upgradePlayerShip as requestUpgradePlayerShip,
@@ -32,6 +33,7 @@ import { formatCurrencyLabel } from './config.js';
 import * as Player from './player.js';
 import * as Inventory from './inventory.js';
 import { buildAvatarLayerMarkup, renderAvatar, triggerAvatarAttackMotion } from './avatar.js';
+import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js';
 
 class LRUCache {
     constructor(maxSize = 100) {
@@ -1611,6 +1613,51 @@ async function upgradePlayerShipProfile(targetForm) {
     }
 }
 
+function hashExplorationMonsterSeed(value) {
+    return String(value || '').split('').reduce((hash, ch) => (
+        ((hash << 5) - hash + ch.charCodeAt(0)) >>> 0
+    ), 0);
+}
+
+function selectExplorationTarotMonster(report = {}, destinationId = '') {
+    const requestedId = String(report?.monsterId || report?.tarotMonsterId || '').trim();
+    const requested = PIXEL_MONSTERS_ROSTER.find((monster) => monster.id === requestedId);
+    if (requested) return requested;
+    const tier = normalizeExplorationBossTier(report?.bossTier || report?.tier);
+    const candidates = tier === 'strong'
+        ? PIXEL_MONSTERS_ROSTER.filter((monster) => monster.isBoss === true)
+        : PIXEL_MONSTERS_ROSTER.filter((monster) => monster.isBoss !== true);
+    const pool = candidates.length ? candidates : PIXEL_MONSTERS_ROSTER;
+    const seed = hashExplorationMonsterSeed([
+        destinationId,
+        report?.bossId || report?.id || report?.bossSpriteId || report?.name || report?.bossName,
+        tier
+    ].join(':'));
+    return pool[seed % pool.length] || PIXEL_MONSTERS_ROSTER[0] || null;
+}
+
+function renderExplorationPixelMonster(monster, className = '', { maxWidth = 120, maxHeight = 100 } = {}) {
+    const idle = monster?.animations?.idle;
+    if (!monster || !idle?.src) return '';
+    const frameWidth = Math.max(1, Number(monster.frameWidth) || 1);
+    const frameHeight = Math.max(1, Number(monster.frameHeight) || 1);
+    const pixelScale = Math.max(1, Number(monster.pixelScale) || 2);
+    const columns = Math.max(1, Number(idle.columns) || 1);
+    const rows = Math.max(1, Math.ceil((Number(idle.frameCount) || 1) / columns));
+    const displayWidth = frameWidth * pixelScale;
+    const displayHeight = frameHeight * pixelScale;
+    const previewScale = Math.min(1, maxWidth / displayWidth, maxHeight / displayHeight);
+    const style = [
+        `width:${displayWidth}px`,
+        `height:${displayHeight}px`,
+        `background-image:url('${escapeHtml(idle.src)}')`,
+        `background-size:${frameWidth * columns * pixelScale}px ${frameHeight * rows * pixelScale}px`,
+        'background-position:0 0',
+        `transform:scale(${previewScale})`
+    ].join(';');
+    return `<span class="exploration-pixel-monster ${escapeHtml(className)}${monster.isBoss === true ? ' is-boss' : ''}" style="${style}" aria-hidden="true"></span>`;
+}
+
 function renderExplorationReport(report) {
     const lines = String(report?.reportText || '').split('\n').map(escapeHtml).join('<br>');
     return `
@@ -1625,12 +1672,17 @@ function renderExplorationDestinationBossPool(destination) {
     const bosses = Array.isArray(destination?.bosses) ? destination.bosses : [];
     if (bosses.length) {
         return bosses.map((boss) => {
-            const label = boss.tierLabel || getExplorationBossTierLabel(boss.tier);
-            const name = boss.name || boss.id || 'BOSS';
-            return `${label ? `${label}: ` : ''}${name}`;
+            const monster = selectExplorationTarotMonster({
+                bossId: boss.id,
+                bossTier: boss.tier,
+                bossName: boss.name
+            }, destination?.id);
+            const type = monster?.isBoss === true ? 'BOSS' : 'MONSTER';
+            return `${type}: ${monster?.name || '???'}`;
         }).join(' / ');
     }
-    return destination?.bossName || 'あり';
+    const monster = selectExplorationTarotMonster({ bossId: destination?.id, bossTier: 'weak' }, destination?.id);
+    return `MONSTER: ${monster?.name || '???'}`;
 }
 
 function normalizeExplorationBossTier(tier) {
@@ -1642,30 +1694,36 @@ function renderExplorationDestinationBossChips(destination) {
     const bosses = Array.isArray(destination?.bosses) ? destination.bosses : [];
     const summary = renderExplorationDestinationBossPool(destination);
     if (!bosses.length) {
+        const monster = selectExplorationTarotMonster({ bossId: destination?.id, bossTier: 'weak' }, destination?.id);
         return `
-            <div class="ship-exploration-boss-list is-single" aria-label="BOSS: ${escapeHtml(summary)}">
+            <div class="ship-exploration-boss-list is-single" aria-label="遭遇候補: ${escapeHtml(summary)}">
                 <span class="ship-exploration-boss-chip is-unknown">
-                    <span class="ship-exploration-boss-avatar" aria-hidden="true"></span>
-                    <b>BOSS</b>
-                    <span>${escapeHtml(summary)}</span>
+                    <span class="ship-exploration-boss-avatar" aria-hidden="true">
+                        ${renderExplorationPixelMonster(monster, 'ship-exploration-boss-image', { maxWidth: 34, maxHeight: 34 })}
+                    </span>
+                    <b>MONSTER</b>
+                    <span>${escapeHtml(monster?.name || '???')}</span>
                 </span>
             </div>
         `;
     }
     return `
-        <div class="ship-exploration-boss-list" aria-label="BOSS: ${escapeHtml(summary)}">
+        <div class="ship-exploration-boss-list" aria-label="遭遇候補: ${escapeHtml(summary)}">
             ${bosses.map((boss) => {
                 const tier = normalizeExplorationBossTier(boss.tier);
-                const label = boss.tierLabel || getExplorationBossTierLabel(boss.tier, 'BOSS');
-                const name = String(boss.name || boss.id || 'BOSS');
-                const sprite = getExplorationMonsterSprite(boss.spriteId || boss.id, name);
+                const monster = selectExplorationTarotMonster({
+                    bossId: boss.id,
+                    bossTier: boss.tier,
+                    bossName: boss.name
+                }, destination?.id);
+                const type = monster?.isBoss === true ? 'BOSS' : 'MONSTER';
                 return `
                     <span class="ship-exploration-boss-chip is-${tier}">
                         <span class="ship-exploration-boss-avatar" aria-hidden="true">
-                            ${renderExplorationBossImage(sprite, 'ship-exploration-boss-image', { decorative: true })}
+                            ${renderExplorationPixelMonster(monster, 'ship-exploration-boss-image', { maxWidth: 34, maxHeight: 34 })}
                         </span>
-                        <b>${escapeHtml(label)}</b>
-                        <span>${escapeHtml(name)}</span>
+                        <b>${type}</b>
+                        <span>${escapeHtml(monster?.name || '???')}</span>
                     </span>
                 `;
             }).join('')}
@@ -2235,18 +2293,24 @@ function getExplorationBossResultText(report, bossResult) {
 
 function showExplorationResultSummary(data, options = {}) {
     const report = data?.report || {};
-    const bossResult = normalizeBossResult(report.bossResult);
+    const kingdomMonster = options?.kingdomMonster || null;
+    const kingdomResult = options?.kingdomResult || null;
+    const bossResult = normalizeBossResult(
+        kingdomResult?.status === 'completed' ? kingdomResult.outcome : report.bossResult
+    );
     const reportDestinationId = report.destinationId || data?.active?.destinationId || data?.destinationId || '';
-    const bossName = String(report.bossName || '遭遇なし');
+    const bossName = String(kingdomMonster?.name || kingdomResult?.monsterName || report.bossName || '遭遇なし');
     const bossSprite = resolveExplorationBossSprite(reportDestinationId, report.bossName, report.bossSpriteId);
-    const bossTierLabel = report.bossTierLabel || getExplorationBossTierLabel(report.bossTier);
-    const bossTierKey = normalizeExplorationBossTier(report.bossTier);
+    const monsterIsBoss = kingdomMonster?.isBoss === true || kingdomResult?.isBoss === true;
+    const monsterTypeLabel = monsterIsBoss ? 'BOSS' : 'MONSTER';
+    const bossTierLabel = kingdomMonster ? (monsterIsBoss ? '大型' : '') : (report.bossTierLabel || getExplorationBossTierLabel(report.bossTier));
+    const bossTierKey = kingdomMonster ? (monsterIsBoss ? 'strong' : 'weak') : normalizeExplorationBossTier(report.bossTier);
     const rewards = getRewardItemsForReveal(data);
     const rewardTotal = Number(report.rewardCount || rewards.length || 0);
     const chestAlreadyOpened = rewardTotal > 0 && options.chestOpened === true;
     const awaitsChestOpen = rewardTotal > 0 && !chestAlreadyOpened;
     const resultLabel = getExplorationBossResultLabel(bossResult);
-    const bossResultSummary = bossTierLabel ? `${bossTierLabel}BOSS / ${resultLabel}` : resultLabel;
+    const bossResultSummary = bossTierLabel ? `${bossTierLabel}${monsterTypeLabel} / ${resultLabel}` : `${monsterTypeLabel} / ${resultLabel}`;
     const resultHint = rewardTotal > 0 ? `${rewardTotal.toLocaleString('ja-JP')}個のお宝を回収` : 'お宝は見つかりませんでした';
     const promptTitle = awaitsChestOpen ? '宝箱を開ける' : (rewardTotal > 0 ? '回収完了' : '回収なし');
     const promptText = awaitsChestOpen ? 'クリックして中身を確認してください。' : (rewardTotal > 0 ? '宝箱を開封し、戦利品を持ち帰りました。' : '航路を確認して帰還しました。');
@@ -2270,7 +2334,12 @@ function showExplorationResultSummary(data, options = {}) {
                 <span>NONE</span>
             </li>
         `;
-    const logLines = getExplorationBattleLogLines(report);
+    const logLines = kingdomResult?.status === 'completed'
+        ? [
+            `${bossName}とタロットキングダムで対決。`,
+            bossResult === 'defeat' ? 'パーティは全滅し、島から撤退した。' : '4局の戦いを終え、探索を完了した。'
+        ]
+        : getExplorationBattleLogLines(report);
     const logHtml = logLines.length
         ? logLines.map((line) => `<div>${escapeHtml(line)}</div>`).join('')
         : '<div>静かな航路を抜けて探索を終えました。</div>';
@@ -2297,12 +2366,14 @@ function showExplorationResultSummary(data, options = {}) {
                 </div>
             </div>
             <div class="exploration-result-details" data-exploration-result-details>
-                <div class="exploration-result-boss-card" data-exploration-boss-id="${escapeHtml(bossSprite.id || '')}">
+                <div class="exploration-result-boss-card" data-exploration-boss-id="${escapeHtml(kingdomMonster?.id || bossSprite.id || '')}">
                     <div class="exploration-result-boss-art">
-                        ${renderExplorationBossImage(bossSprite, 'exploration-result-boss-image')}
+                        ${kingdomMonster
+                            ? renderExplorationPixelMonster(kingdomMonster, 'exploration-result-boss-image', { maxWidth: 122, maxHeight: 118 })
+                            : renderExplorationBossImage(bossSprite, 'exploration-result-boss-image')}
                     </div>
                     <div class="exploration-result-boss-copy">
-                        <b>BOSS</b>
+                        <b>${monsterTypeLabel}</b>
                         <strong>${escapeHtml(bossName)}</strong>
                         <span>${escapeHtml(bossResultSummary)}</span>
                     </div>
@@ -2310,7 +2381,9 @@ function showExplorationResultSummary(data, options = {}) {
                 <div class="exploration-result-body">
                     <div>
                         <b>結果</b>
-                        <span>${escapeHtml(getExplorationBossResultText(report, bossResult))}</span>
+                        <span>${escapeHtml(kingdomResult?.status === 'completed'
+                            ? (bossResult === 'defeat' ? 'タロットキングダム敗北' : 'タロットキングダム勝利')
+                            : getExplorationBossResultText(report, bossResult))}</span>
                     </div>
                     <div>
                         <b>お宝</b>
@@ -2370,7 +2443,12 @@ function handleExplorationClaimResult(data, playFabId, options = {}) {
         window.closeHomeExplorationPopup();
     }
     renderExplorationPanel(data, playFabId);
-    showExplorationResultSummary(data, { playFabId, chestOpened: options.chestOpened === true });
+    showExplorationResultSummary(data, {
+        playFabId,
+        chestOpened: options.chestOpened === true,
+        kingdomMonster: options.kingdomMonster || null,
+        kingdomResult: options.kingdomResult || null
+    });
 }
 
 function isExplorationStartConflict(error) {
@@ -2378,46 +2456,54 @@ function isExplorationStartConflict(error) {
     return message.includes('HTTP 409') || message.includes('探索中です');
 }
 
-function buildRecoveredExplorationStartData(claimData, destinationId) {
-    const report = claimData?.report || {};
-    const destinationVisual = getExplorationDestinationVisual(report.destinationId || destinationId);
+function buildRecoveredExplorationStartData(explorationData, destinationId) {
+    const active = explorationData?.active || {};
+    const encounter = explorationData?.encounter || active?.encounter || {};
+    const resolvedDestinationId = active.destinationId || encounter.destinationId || destinationId;
+    const destinationVisual = getExplorationDestinationVisual(resolvedDestinationId);
     return {
-        ship: claimData?.ship || currentPlayerShipProfile || {},
+        ship: explorationData?.ship || currentPlayerShipProfile || {},
         active: {
-            destinationId: report.destinationId || destinationId,
-            destinationName: report.destinationName || destinationVisual.label || '探索先',
-            imagePath: report.imagePath || destinationVisual.imagePath || ''
+            ...active,
+            destinationId: resolvedDestinationId,
+            destinationName: active.destinationName || encounter.destinationName || destinationVisual.label || '探索先',
+            imagePath: active.imagePath || destinationVisual.imagePath || ''
         }
     };
 }
 
 async function recoverConflictedExploration(playFabId, destinationId) {
-    showRpgMessage('前回の探索結果を回収しています。');
-    const claimData = await requestClaimExploration(playFabId, { throwOnError: true });
-    const recoveredStartData = buildRecoveredExplorationStartData(claimData, destinationId);
-    const sequenceResult = await showExplorationAutoSequence(recoveredStartData, recoveredStartData.active.destinationId || destinationId, claimData);
-    handleExplorationClaimResult(claimData, playFabId, sequenceResult);
+    showRpgMessage('前回の探索を再開します。');
+    const encounterData = await requestExplorationEncounter(playFabId, { throwOnError: true });
+    const recoveredStartData = buildRecoveredExplorationStartData(encounterData, destinationId);
+    const sequenceResult = await showExplorationAutoSequence(recoveredStartData, recoveredStartData.active.destinationId || destinationId, encounterData);
+    if (!sequenceResult?.cancelled) {
+        const claimData = await requestClaimExploration(playFabId, {
+            throwOnError: true,
+            tarotOutcome: sequenceResult.kingdomResult?.outcome,
+            explorationId: sequenceResult.kingdomResult?.explorationId
+        });
+        handleExplorationClaimResult(claimData, playFabId, sequenceResult);
+    } else {
+        renderExplorationPanel(encounterData, playFabId);
+    }
     await loadExplorationPanel(playFabId);
 }
 
-async function showExplorationAutoSequence(startData, destinationId, claimData = null) {
+async function showExplorationAutoSequence(startData, destinationId, encounterData = null) {
     const ship = startData?.ship || currentPlayerShipProfile || {};
     const active = startData?.active || {};
     const form = normalizePlayerShipForm(ship.form);
     const guildSailColor = form === 'guild' ? resolveGuildShipSailColor(ship) : 'white';
     const guildLayers = form === 'guild' ? renderGuildShipLayers(ship) : '';
-    const report = claimData?.report || {};
+    const report = encounterData?.encounter || encounterData?.active?.encounter || encounterData?.report || {};
     const resolvedDestinationId = active.destinationId || report.destinationId || destinationId;
     const destinationVisual = getExplorationDestinationVisual(active.destinationId ? active : resolvedDestinationId);
     const destinationName = active.destinationName || report.destinationName || destinationVisual.label || '探索先';
     const bossResult = normalizeBossResult(report.bossResult);
-    const bossSprite = resolveExplorationBossSprite(resolvedDestinationId, report.bossName, report.bossSpriteId);
-    const bossTierLabel = report.bossTierLabel || getExplorationBossTierLabel(report.bossTier);
     const bossTierKey = normalizeExplorationBossTier(report.bossTier);
-    const rewards = getRewardItemsForReveal(claimData);
-    const rewardCount = Number(report.rewardCount || rewards.length || 0);
+    const kingdomMonster = selectExplorationTarotMonster(report, resolvedDestinationId);
     const shipTrait = EXPLORATION_SHIP_TRAITS[form] || EXPLORATION_SHIP_TRAITS.boat;
-    const battleLogLines = getExplorationBattleLogLines(report);
     const homeFrame = document.getElementById('homePlayerShipFrame');
     const homeIcon = homeFrame?.querySelector('.home-player-ship-icon');
     const existing = document.querySelector('.exploration-sequence-overlay');
@@ -2434,15 +2520,8 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
                 <div class="exploration-sequence-route" aria-hidden="true"></div>
                 <div class="exploration-sequence-arrival" aria-hidden="true"></div>
                 ${renderExplorationDestinationVisual(active.destinationId ? active : resolvedDestinationId, 'exploration-sequence-island', 'div')}
-                <div class="exploration-sequence-boss" data-exploration-boss-id="${escapeHtml(bossSprite.id || '')}" aria-hidden="true">
-                    ${renderExplorationBossImage(bossSprite, 'exploration-sequence-boss-image', { decorative: true })}
-                    <small>BOSS</small>
-                </div>
-                ${renderExplorationBattleAvatarMarkup()}
                 <div class="exploration-sequence-ship-effect" aria-hidden="true"></div>
                 <div class="exploration-sequence-ship is-${form}" data-guild-sail-color="${escapeHtml(guildSailColor)}" aria-hidden="true">${guildLayers}</div>
-                <div class="exploration-sequence-chests" aria-hidden="true">${renderExplorationRewardChests(rewardCount)}</div>
-                <div class="exploration-sequence-log" aria-live="polite"></div>
             </div>
             <div class="exploration-sequence-copy">
                 <strong>${escapeHtml(destinationName)}</strong>
@@ -2458,18 +2537,12 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
     homeIcon?.classList.add('is-exploring-sail');
 
     const label = overlay.querySelector('[data-exploration-sequence-label]');
-    const logBox = overlay.querySelector('.exploration-sequence-log');
-    const battleAvatar = overlay.querySelector(`#${EXPLORATION_BATTLE_AVATAR_PREFIX}`);
     const progressHint = overlay.querySelector('[data-exploration-sequence-progress]');
     const setPhase = (phase, text) => {
         overlay.className = `exploration-sequence-overlay is-${form} ${shipTrait.className} is-sky-${destinationVisual.sky} is-boss-${bossTierKey} is-${phase} is-result-${bossResult}`;
         if (label) label.textContent = text;
         homeIcon?.classList.remove('is-exploring-sail', 'is-exploring-up', 'is-exploring-left', 'is-exploring-battle', 'is-exploring-treasure');
         homeIcon?.classList.add(`is-exploring-${phase}`);
-    };
-    const setBattleLog = (count) => {
-        if (!logBox) return;
-        logBox.innerHTML = battleLogLines.slice(0, count).map((line) => `<div>${escapeHtml(line)}</div>`).join('');
     };
     const waitForSequence = async (minimumMs) => {
         if (progressHint) progressHint.hidden = false;
@@ -2483,32 +2556,28 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
     await waitForSequence(760);
     setPhase('left', '上陸地点へ直進');
     await waitForSequence(700);
-    setPhase('battle', bossResult === 'none' ? 'BOSSの気配を回避' : `${bossTierLabel ? `${bossTierLabel}BOSS` : 'BOSS'}「${report.bossName || '???'}」と交戦`);
-    triggerAvatarAttackMotion(battleAvatar, { direction: 'left', duration: 520 });
-    setBattleLog(2);
-    await wait(420);
-    triggerAvatarAttackMotion(battleAvatar, { direction: 'left', duration: 520 });
-    setBattleLog(4);
-    await waitForSequence(900);
-    setPhase('treasure', rewardCount > 0 ? `宝箱${rewardCount}個を発見` : 'お宝は見つからなかった');
-    if (rewardCount > 0) {
-        overlay.classList.add('has-sequence-rewards');
-        await waitForSequence(700);
-        overlay.classList.add('is-opening-chest');
-        if (label) label.textContent = '宝箱を開封中';
-        await wait(760);
-        overlay.classList.remove('is-opening-chest');
-        overlay.classList.add('is-opened-chest');
-        if (label) label.textContent = '戦利品を確認';
-        await waitForSequence(360);
-    } else {
-        await waitForSequence(700);
-    }
-
+    setPhase('arrival', `${destinationVisual.label}に到着`);
+    await waitForSequence(520);
     overlay.remove();
     homeFrame?.classList.remove('is-exploring');
     homeIcon?.classList.remove('is-exploring-sail', 'is-exploring-up', 'is-exploring-left', 'is-exploring-battle', 'is-exploring-treasure');
-    return { chestOpened: rewardCount > 0 };
+    if (!kingdomMonster || typeof window.launchTarotKingdomExplorationBattle !== 'function') {
+        throw new Error('タロットキングダムの探索連携を開始できません。');
+    }
+    const kingdomResult = await window.launchTarotKingdomExplorationBattle({
+        explorationId: String(report.explorationId || report.id || active.id || ''),
+        destinationId: String(resolvedDestinationId || ''),
+        destinationName,
+        monsterId: kingdomMonster.id,
+        monsterName: kingdomMonster.name,
+        isBoss: kingdomMonster.isBoss === true
+    });
+    return {
+        chestOpened: false,
+        kingdomMonster,
+        kingdomResult,
+        cancelled: kingdomResult?.status !== 'completed'
+    };
 }
 
 function renderExplorationPanel(data, playFabId) {
@@ -2664,9 +2733,18 @@ async function startExploration(playFabId, destinationId, payment = {}) {
             await Player.getRanking();
         }
         renderExplorationPanel(startData, playFabId);
-        const claimData = await requestClaimExploration(playFabId, { throwOnError: true });
-        const sequenceResult = await showExplorationAutoSequence(startData, destinationId, claimData);
-        handleExplorationClaimResult(claimData, playFabId, sequenceResult);
+        const encounterData = await requestExplorationEncounter(playFabId, { throwOnError: true });
+        const sequenceResult = await showExplorationAutoSequence(startData, destinationId, encounterData);
+        if (!sequenceResult?.cancelled) {
+            const claimData = await requestClaimExploration(playFabId, {
+                throwOnError: true,
+                tarotOutcome: sequenceResult.kingdomResult?.outcome,
+                explorationId: sequenceResult.kingdomResult?.explorationId
+            });
+            handleExplorationClaimResult(claimData, playFabId, sequenceResult);
+        } else {
+            renderExplorationPanel(encounterData, playFabId);
+        }
     } catch (error) {
         if (isExplorationStartConflict(error)) {
             try {
@@ -2684,8 +2762,19 @@ async function startExploration(playFabId, destinationId, payment = {}) {
 
 async function claimExploration(playFabId) {
     try {
-        const data = await requestClaimExploration(playFabId, { throwOnError: true });
-        handleExplorationClaimResult(data, playFabId);
+        const encounterData = await requestExplorationEncounter(playFabId, { throwOnError: true });
+        const startData = buildRecoveredExplorationStartData(encounterData, encounterData?.encounter?.destinationId || '');
+        const sequenceResult = await showExplorationAutoSequence(startData, startData.active.destinationId || '', encounterData);
+        if (!sequenceResult?.cancelled) {
+            const claimData = await requestClaimExploration(playFabId, {
+                throwOnError: true,
+                tarotOutcome: sequenceResult.kingdomResult?.outcome,
+                explorationId: sequenceResult.kingdomResult?.explorationId
+            });
+            handleExplorationClaimResult(claimData, playFabId, sequenceResult);
+        } else {
+            renderExplorationPanel(encounterData, playFabId);
+        }
     } catch (error) {
         showRpgMessage(error?.message || '探索結果を確認できませんでした。');
     }

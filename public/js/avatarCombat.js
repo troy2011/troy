@@ -1,0 +1,311 @@
+import {
+    buildAvatarLayerMarkup,
+    cancelAvatarAttackMotion,
+    playAvatarBodyMotion,
+    renderAvatar,
+    startAvatarBodyMotion,
+    stopAvatarBodyMotion,
+    triggerAvatarAttackMotion
+} from './avatar.js';
+
+const COMBAT_WEAPON_TYPES = new Set([
+    'staff',
+    'wand',
+    'axe',
+    'axe_big',
+    'blunt',
+    'dagger',
+    'polearm',
+    'shield',
+    'sword',
+    'sword_big',
+    'gun',
+    'gun_big',
+    'bow'
+]);
+
+const COMBAT_WEAPON_CLASS_NAMES = [
+    'is-avatar-weapon-heavy',
+    'is-avatar-weapon-pierce',
+    'is-avatar-weapon-ranged',
+    'is-avatar-weapon-guard',
+    'is-avatar-weapon-slash',
+    ...Array.from(COMBAT_WEAPON_TYPES, (weapon) => `is-avatar-weapon-${weapon.replace(/_/g, '-')}`)
+];
+
+const COMBAT_WEAPON_MOTION_PROFILES = Object.freeze({
+    dagger: Object.freeze({ duration: 290, impactRatio: 0.42, shake: null }),
+    wand: Object.freeze({ duration: 360, impactRatio: 0.46, shake: null }),
+    gun: Object.freeze({ duration: 360, impactRatio: 0.43, shake: null }),
+    shield: Object.freeze({ duration: 360, impactRatio: 0.54, shake: null }),
+    sword: Object.freeze({ duration: 380, impactRatio: 0.58, shake: null }),
+    polearm: Object.freeze({ duration: 420, impactRatio: 0.55, shake: null }),
+    staff: Object.freeze({ duration: 460, impactRatio: 0.5, shake: null }),
+    bow: Object.freeze({ duration: 460, impactRatio: 0.45, shake: null }),
+    axe: Object.freeze({ duration: 500, impactRatio: 0.64, shake: Object.freeze({ x: 4, y: 1, duration: 220 }) }),
+    blunt: Object.freeze({ duration: 500, impactRatio: 0.62, shake: Object.freeze({ x: 3, y: 1, duration: 180 }) }),
+    gun_big: Object.freeze({ duration: 560, impactRatio: 0.5, shake: Object.freeze({ x: 6, y: 1, duration: 300 }) }),
+    sword_big: Object.freeze({ duration: 620, impactRatio: 0.68, shake: Object.freeze({ x: 5, y: 1, duration: 260 }) }),
+    axe_big: Object.freeze({ duration: 700, impactRatio: 0.7, shake: Object.freeze({ x: 7, y: 2, duration: 320 }) })
+});
+
+const combatAvatarTimers = new WeakMap();
+let generatedCombatAvatarId = 0;
+
+function prefersReducedCombatMotion() {
+    return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
+}
+
+function normalizeCombatWeaponType(value) {
+    const key = String(value || '').trim().toLowerCase();
+    const aliases = {
+        'gun-big': 'gun_big',
+        large_gun: 'gun_big',
+        'large-gun': 'gun_big',
+        claws: 'sword',
+        claw_bite: 'sword',
+        'claw-bite': 'sword',
+        '爪': 'sword',
+        fang: 'sword',
+        fangs: 'sword',
+        '牙': 'sword',
+        '噛みつき': 'sword'
+    };
+    const normalized = aliases[key] || key;
+    return COMBAT_WEAPON_TYPES.has(normalized) ? normalized : 'sword';
+}
+
+function resolveCombatAvatar(target) {
+    if (typeof target === 'string') return document.getElementById(target);
+    return target?.nodeType === 1 ? target : null;
+}
+
+function ensureCombatAvatarPrefix(element, requestedPrefix = '') {
+    if (!element) return '';
+    if (requestedPrefix) {
+        if (!element.id) element.id = requestedPrefix;
+        return requestedPrefix;
+    }
+    if (element.id) return element.id;
+    generatedCombatAvatarId += 1;
+    element.id = `combat-avatar-${generatedCombatAvatarId}`;
+    return element.id;
+}
+
+function getTimerState(element) {
+    let state = combatAvatarTimers.get(element);
+    if (!state) {
+        state = { hurtTimer: null };
+        combatAvatarTimers.set(element, state);
+    }
+    return state;
+}
+
+function clearCombatWeaponClass(element) {
+    element?.classList?.remove(...COMBAT_WEAPON_CLASS_NAMES);
+}
+
+function clearCombatAvatarTransientClasses(element) {
+    if (!element) return;
+    element.classList.remove(
+        'is-avatar-attacking',
+        'is-avatar-attack-left',
+        'is-avatar-attack-right',
+        'is-avatar-damaged'
+    );
+    clearCombatWeaponClass(element);
+}
+
+function setCombatSideVariables(element, side, kind) {
+    const direction = side === 'player' || side === 'right' ? -1 : 1;
+    if (kind === 'victory') {
+        element.style.setProperty('--avatar-victory-shift-x', `${6 * direction}px`);
+        element.style.setProperty('--avatar-victory-rebound-x', `${-3 * direction}px`);
+        return;
+    }
+    element.style.setProperty('--avatar-defeat-head-x', `${10 * direction}px`);
+    element.style.setProperty('--avatar-defeat-head-bounce-x', `${-4 * direction}px`);
+    element.style.setProperty('--avatar-defeat-head-rest-x', `${3 * direction}px`);
+    element.style.setProperty('--avatar-defeat-head-rotate', `${34 * direction}deg`);
+    element.style.setProperty('--avatar-defeat-head-bounce-rotate', `${-11 * direction}deg`);
+    element.style.setProperty('--avatar-defeat-head-rest-rotate', `${7 * direction}deg`);
+}
+
+function clearCombatSideVariables(element, kind) {
+    if (kind === 'victory') {
+        element.style.removeProperty('--avatar-victory-shift-x');
+        element.style.removeProperty('--avatar-victory-rebound-x');
+        return;
+    }
+    element.style.removeProperty('--avatar-defeat-head-x');
+    element.style.removeProperty('--avatar-defeat-head-bounce-x');
+    element.style.removeProperty('--avatar-defeat-head-rest-x');
+    element.style.removeProperty('--avatar-defeat-head-rotate');
+    element.style.removeProperty('--avatar-defeat-head-bounce-rotate');
+    element.style.removeProperty('--avatar-defeat-head-rest-rotate');
+}
+
+/**
+ * Return the shared white-melee animation profile for an equipped weapon.
+ */
+export function getCombatWeaponMotionProfile(weaponType) {
+    const weapon = normalizeCombatWeaponType(weaponType);
+    const profile = COMBAT_WEAPON_MOTION_PROFILES[weapon] || COMBAT_WEAPON_MOTION_PROFILES.sword;
+    return {
+        weapon,
+        className: `is-avatar-weapon-${weapon.replace(/_/g, '-')}`,
+        duration: profile.duration,
+        impactRatio: profile.impactRatio,
+        shake: profile.shake ? { ...profile.shake } : null
+    };
+}
+
+/**
+ * Build any missing layers and render an avatar using avatar.js.
+ * target may be an element or its DOM id/prefix.
+ */
+export function renderCombatAvatar(target, avatarBase, equipment = {}, itemSource = {}, options = {}) {
+    const element = resolveCombatAvatar(target);
+    if (!element) return null;
+    const prefix = ensureCombatAvatarPrefix(element, String(options.prefix || ''));
+    const expectedBodyId = `${prefix}-layer-body`;
+    if (!element.querySelector(`#${CSS.escape(expectedBodyId)}`)) {
+        element.innerHTML = buildAvatarLayerMarkup(prefix);
+    }
+    element.classList.add('avatar-combat-actor');
+    if (options.resetState !== false) resetCombatAvatarState(element, { resumeIdle: false });
+    renderAvatar(prefix, avatarBase || {}, equipment || {}, itemSource || {}, options.isOpponent === true);
+    if (prefersReducedCombatMotion()) stopAvatarBodyMotion(element, { reset: true });
+    return element;
+}
+
+/**
+ * Play the same weapon-specific lunge used by the white-melee battle screens.
+ */
+export async function playCombatAvatarAttack(target, weaponType, options = {}) {
+    const element = resolveCombatAvatar(target);
+    if (!element || element.classList.contains('is-avatar-defeated')) return false;
+    if (prefersReducedCombatMotion()) return true;
+    const profile = getCombatWeaponMotionProfile(weaponType);
+    const duration = Math.max(120, Number(options.duration || profile.duration) || profile.duration);
+    const direction = options.direction === 'right' ? 'right' : 'left';
+    const token = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    element.dataset.combatAvatarAttackToken = token;
+    clearCombatWeaponClass(element);
+    element.classList.add(profile.className);
+    try {
+        return await triggerAvatarAttackMotion(element, {
+            direction,
+            duration,
+            bodyMotion: options.bodyMotion ?? false,
+            bodyMotionIntervalMs: options.bodyMotionIntervalMs,
+            restoreBodyMotion: options.restoreBodyMotion || 'idle'
+        });
+    } finally {
+        if (element.dataset.combatAvatarAttackToken === token) {
+            delete element.dataset.combatAvatarAttackToken;
+            clearCombatWeaponClass(element);
+        }
+    }
+}
+
+/** Flash the shared white-melee hurt state. */
+export function flashCombatAvatarHurt(target, options = {}) {
+    const element = resolveCombatAvatar(target);
+    if (!element || (element.classList.contains('is-avatar-defeated') && options.allowDefeated !== true)) return false;
+    const duration = Math.max(80, Number(options.duration || 220) || 220);
+    const timerState = getTimerState(element);
+    if (timerState.hurtTimer) globalThis.clearTimeout(timerState.hurtTimer);
+    element.classList.remove('is-avatar-damaged');
+    void element.offsetWidth;
+    element.classList.add('is-avatar-damaged');
+    timerState.hurtTimer = globalThis.setTimeout(() => {
+        element.classList.remove('is-avatar-damaged');
+        timerState.hurtTimer = null;
+    }, duration);
+    return true;
+}
+
+/** Toggle the shared white-melee KO/defeat pose. */
+export function setCombatAvatarKo(target, defeated = true, options = {}) {
+    const element = resolveCombatAvatar(target);
+    if (!element) return false;
+    const side = options.side || '';
+    if (defeated) {
+        const alreadyDefeated = element.dataset.avatarDefeated === 'true'
+            && element.classList.contains('is-avatar-defeated');
+        element.dataset.avatarDefeated = 'true';
+        setCombatSideVariables(element, side, 'defeat');
+        setCombatAvatarVictory(element, false, options);
+        cancelAvatarAttackMotion(element);
+        clearCombatAvatarTransientClasses(element);
+        stopAvatarBodyMotion(element, { reset: false });
+        if (!alreadyDefeated) element.classList.add('is-avatar-defeated');
+        return true;
+    }
+    const wasDefeated = element.dataset.avatarDefeated === 'true'
+        || element.classList.contains('is-avatar-defeated');
+    delete element.dataset.avatarDefeated;
+    clearCombatSideVariables(element, 'defeat');
+    element.classList.remove('is-avatar-defeated');
+    if (
+        wasDefeated
+        && options.resumeIdle !== false
+        && !prefersReducedCombatMotion()
+        && element.classList.contains('avatar-combat-actor')
+    ) {
+        startAvatarBodyMotion(element, 'idle');
+    }
+    return true;
+}
+
+/** Toggle the shared white-melee victory jump. */
+export function setCombatAvatarVictory(target, victorious = true, options = {}) {
+    const element = resolveCombatAvatar(target);
+    if (!element) return false;
+    const side = options.side || '';
+    if (victorious) {
+        if (element.classList.contains('is-avatar-defeated')) return false;
+        const alreadyVictorious = element.dataset.avatarVictorious === 'true'
+            && element.classList.contains('is-avatar-victorious');
+        element.dataset.avatarVictorious = 'true';
+        setCombatSideVariables(element, side, 'victory');
+        clearCombatAvatarTransientClasses(element);
+        if (!alreadyVictorious) {
+            if (!prefersReducedCombatMotion()) {
+                playAvatarBodyMotion(element, 'jump', {
+                    intervalMs: Number(options.intervalMs || 96) || 96,
+                    restoreMotion: options.restoreMotion || 'idle'
+                });
+            }
+            element.classList.add('is-avatar-victorious');
+        }
+        return true;
+    }
+    delete element.dataset.avatarVictorious;
+    clearCombatSideVariables(element, 'victory');
+    element.classList.remove('is-avatar-victorious');
+    return true;
+}
+
+/** Clear transient/terminal combat state and optionally resume idle motion. */
+export function resetCombatAvatarState(target, options = {}) {
+    const element = resolveCombatAvatar(target);
+    if (!element) return false;
+    const timerState = getTimerState(element);
+    if (timerState.hurtTimer) {
+        globalThis.clearTimeout(timerState.hurtTimer);
+        timerState.hurtTimer = null;
+    }
+    delete element.dataset.avatarAttackToken;
+    delete element.dataset.combatAvatarAttackToken;
+    cancelAvatarAttackMotion(element);
+    clearCombatAvatarTransientClasses(element);
+    setCombatAvatarVictory(element, false);
+    setCombatAvatarKo(element, false);
+    stopAvatarBodyMotion(element, { reset: options.resetBody !== false });
+    if (options.resumeIdle !== false && !prefersReducedCombatMotion() && element.classList.contains('avatar-combat-actor')) {
+        playAvatarBodyMotion(element, 'idle');
+    }
+    return true;
+}

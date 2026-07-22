@@ -32,7 +32,7 @@ const ensureTarotModule = async () => {
 };
 
 let tarotKingdomModule = null;
-const TAROT_KINGDOM_MODULE_VERSION = '20260323a';
+const TAROT_KINGDOM_MODULE_VERSION = '20260723a';
 const ensureTarotKingdomModule = async () => {
     if (tarotKingdomModule) return tarotKingdomModule;
     tarotKingdomModule = await import(`./tarotKingdom.js?v=${TAROT_KINGDOM_MODULE_VERSION}`);
@@ -1282,7 +1282,8 @@ export async function showTab(tabId, playerInfo, options = {}) {
         tabLoaded.ships = false;
     }
 
-    if (currentActiveTab && currentActiveTab.id === 'navTarot' && tabId !== 'tarot') {
+    const hasExplorationKingdomSession = document.body?.classList.contains('tarot-kingdom-exploration-session') === true;
+    if ((currentTabId === 'tarot' || hasExplorationKingdomSession) && tabId !== 'tarot') {
         console.log('[showTab] Leaving tarot tab, destroying tarot games');
         try {
             if (tarotPokerLoaded) {
@@ -1292,7 +1293,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
                 }
                 tarotPokerLoaded = false;
             }
-            if (tarotKingdomLoaded) {
+            if (tarotKingdomLoaded || hasExplorationKingdomSession) {
                 const Kingdom = await ensureTarotKingdomModule();
                 if (typeof Kingdom.destroyTarotKingdomPage === 'function') {
                     Kingdom.destroyTarotKingdomPage();
@@ -1583,6 +1584,41 @@ export async function showTab(tabId, playerInfo, options = {}) {
         console.error(`Failed to load data for tab ${tabId}:`, error);
     }
     // no-op
+}
+
+export async function launchTarotKingdomExplorationBattle(context = {}, playerInfo = null) {
+    const resolvedPlayerInfo = playerInfo || {
+        playFabId: String(window.myPlayFabId || ''),
+        race: String(window.myAvatarBaseInfo?.Race || 'human'),
+        nation: String(window.myAvatarBaseInfo?.Nation || '')
+    };
+    await showTab('tarot', resolvedPlayerInfo, { explorationEntry: true });
+    bindTarotModeSwitch();
+    currentTarotMode = 'kingdom';
+    applyTarotModeUi('kingdom');
+    const Kingdom = await ensureTarotKingdomModule();
+    tarotKingdomLoaded = true;
+    if (typeof Kingdom.startTarotKingdomExplorationBattle !== 'function') {
+        throw new Error('タロットキングダムの探索連携を開始できません。');
+    }
+    try {
+        const result = await Kingdom.startTarotKingdomExplorationBattle(context);
+        if (result?.status === 'completed' && document.body?.dataset.currentTab === 'tarot') {
+            await showTab('home', resolvedPlayerInfo);
+        }
+        return result;
+    } catch (error) {
+        if (document.body?.dataset.currentTab === 'tarot') {
+            await showTab('home', resolvedPlayerInfo);
+        }
+        throw error;
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.launchTarotKingdomExplorationBattle = (context = {}) => (
+        launchTarotKingdomExplorationBattle(context)
+    );
 }
 
 export function showConfirmationModal(amount, receiverId, receiverName, onConfirm) {

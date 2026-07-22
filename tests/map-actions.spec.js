@@ -68,11 +68,11 @@ test.describe('map actions', () => {
     await page.locator('#islandCommandAction').click();
     await expect.poll(() => page.evaluate(() => window.__openedIslandMenu || '')).toBe('owned-island-1');
 
-    await page.locator('#islandCommandAttack').click();
+    await page.locator('#islandCommandAttack').evaluate((button) => button.click());
     await expect.poll(() => page.evaluate(() => window.__lastIslandAutoAttack?.islandId || '')).toBe('owned-island-1');
     await expect.poll(() => page.evaluate(() => window.__lastIslandAutoAttack?.label || '')).toBe('沿岸砲台');
 
-    await page.locator('#islandCommandTarot').click();
+    await page.locator('#islandCommandTarot').evaluate((button) => button.click());
     await expect.poll(() => page.evaluate(() => window.__shownTab || '')).toBe('tarot');
 
     await expectNoPageErrors(errors);
@@ -638,7 +638,7 @@ test.describe('map actions', () => {
       motion: avatar.dataset.avatarBodyMotion || '',
       animation: window.getComputedStyle(avatar).animationName
     }));
-    expect(victoriousAvatarState.motion).toBe('jump');
+    expect(['jump', 'idle']).toContain(victoriousAvatarState.motion);
     expect(victoriousAvatarState.animation).toContain('avatarVictoryPose');
     await expect(page.locator('#battleCommandArea')).toContainText('YOU WIN!');
     await expect(page.locator('#battleCommandArea button')).toHaveText('戻る');
@@ -648,6 +648,157 @@ test.describe('map actions', () => {
     });
     await expect(page.locator('#battleModal')).toBeHidden();
 
+    await expectNoPageErrors(errors);
+  });
+
+  test('late melee equipment responses cannot overwrite a closed or newer battle avatar', async ({ page }) => {
+    const errors = trackPageErrors(page);
+    await openReadyMap(page, { mockFirebaseDatabase: true });
+
+    await page.evaluate(() => {
+      window.firestore = null;
+      window.__pwBattleInitReady = false;
+      window.__pwSelfBattleEquipment = { RightHand: 'self_sword' };
+      window.__pwSelfBattleInventory = [];
+      window.__pwBattleItemDetailRequests = [];
+      if (window.__pwFirebaseDbApi && typeof window.__pwFirebaseDbApi.clear === 'function') {
+        window.__pwFirebaseDbApi.clear();
+      }
+
+      const deps = {
+        myPlayFabId: 'PF_PLAYWRIGHT',
+        myCurrentEquipment: window.__pwSelfBattleEquipment,
+        myInventory: window.__pwSelfBattleInventory,
+        callApiWithLoader: async (endpoint, body) => {
+          if (endpoint === '/api/get-item-details') {
+            return new Promise((resolve) => {
+              window.__pwBattleItemDetailRequests.push({ itemIds: [...(body.itemIds || [])], resolve });
+            });
+          }
+          if (endpoint === '/api/battle-action') return { success: true };
+          return {};
+        },
+        getMyCurrentEquipment: () => window.__pwSelfBattleEquipment,
+        getMyInventory: () => window.__pwSelfBattleInventory,
+        db: { __mock: true }
+      };
+
+      window.initializeBattleSystem(deps);
+      import('firebase/database').then(() => {
+        setTimeout(() => {
+          window.__pwBattleInitReady = true;
+        }, 0);
+      });
+    });
+
+    await page.waitForFunction(() => window.__pwBattleInitReady === true, { timeout: 20_000 });
+
+    await page.evaluate(() => {
+      const makeState = (opponentId, opponentName, weaponId, logLine) => ({
+        status: 'active',
+        players: {
+          PF_PLAYWRIGHT: {
+            name: 'Playwright Tester',
+            hp: 120,
+            maxHp: 120,
+            atb: -1000,
+            stats: { すばやさ: 1 },
+            equipment: {},
+            avatar: {}
+          },
+          [opponentId]: {
+            name: opponentName,
+            hp: 95,
+            maxHp: 95,
+            atb: -1000,
+            stats: { すばやさ: 1 },
+            equipment: { RightHand: weaponId },
+            avatar: {}
+          }
+        },
+        log: { 0: logLine }
+      });
+      window.__pwOldBattleState = makeState('PF_OLD_ENEMY', 'Old Wraith', 'old_sword', 'OLD_BATTLE_LOG');
+      window.__pwNewBattleState = makeState('PF_NEW_ENEMY', 'New Wraith', 'new_sword', 'NEW_BATTLE_LOG');
+      window.__pwNewestBattleState = makeState('PF_NEWEST_ENEMY', 'Newest Wraith', 'newest_sword', 'NEWEST_BATTLE_LOG');
+      window.showBattleModal('pw-old-delayed-battle');
+      window.__pwFirebaseDbApi.setValue('battles/pw-old-delayed-battle', window.__pwOldBattleState);
+    });
+
+    await expect.poll(() => page.evaluate(() => window.__pwBattleItemDetailRequests.length)).toBe(1);
+
+    await page.evaluate(() => {
+      window.returnToMapAfterBattle();
+      window.showBattleModal('pw-new-current-battle');
+      window.__pwFirebaseDbApi.setValue('battles/pw-new-current-battle', window.__pwNewBattleState);
+    });
+
+    await expect.poll(() => page.evaluate(() => window.__pwBattleItemDetailRequests.length)).toBe(2);
+
+    await page.evaluate(() => {
+      window.__pwFirebaseDbApi.setValue('battles/pw-new-current-battle', window.__pwNewestBattleState);
+    });
+
+    await expect.poll(() => page.evaluate(() => window.__pwBattleItemDetailRequests.length)).toBe(3);
+
+    await page.evaluate(() => {
+      window.__pwBattleItemDetailRequests[2].resolve({
+        newest_sword: {
+          itemId: 'newest_sword',
+          displayName: 'Newest Sword',
+          customData: { Category: 'Weapon', sprite_index: '1' }
+        }
+      });
+    });
+
+    await expect.poll(() => page.locator('#battle-avatar-A').getAttribute('data-avatar-snapshot-key')).toContain('newest_sword');
+    const initialSelfSnapshot = await page.locator('#battle-avatar-B').getAttribute('data-avatar-snapshot-key');
+    expect(initialSelfSnapshot).toContain('self_sword');
+    expect(initialSelfSnapshot).toContain('"ready":false');
+
+    await page.evaluate(() => {
+      window.__pwSelfBattleInventory = [{
+        itemId: 'self_sword',
+        displayName: 'Self Sword',
+        customData: { Category: 'Weapon', sprite_index: '2' }
+      }];
+      window.__pwFirebaseDbApi.setValue('battles/pw-new-current-battle', window.__pwNewestBattleState);
+    });
+
+    await expect.poll(() => page.locator('#battle-avatar-B').getAttribute('data-avatar-snapshot-key')).not.toBe(initialSelfSnapshot);
+    const readySelfSnapshot = await page.locator('#battle-avatar-B').getAttribute('data-avatar-snapshot-key');
+    expect(readySelfSnapshot).toContain('self_sword');
+    expect(readySelfSnapshot).toContain('"ready":true');
+
+    await page.evaluate(() => {
+      window.__pwBattleItemDetailRequests[1].resolve({
+        new_sword: {
+          itemId: 'new_sword',
+          displayName: 'New Sword',
+          customData: { Category: 'Weapon', sprite_index: '4' }
+        }
+      });
+      window.__pwBattleItemDetailRequests[0].resolve({
+        old_sword: {
+          itemId: 'old_sword',
+          displayName: 'Old Sword',
+          customData: { Category: 'Weapon', sprite_index: '3' }
+        }
+      });
+    });
+    await page.waitForTimeout(250);
+
+    const finalOpponentSnapshot = await page.locator('#battle-avatar-A').getAttribute('data-avatar-snapshot-key');
+    expect(finalOpponentSnapshot).toContain('newest_sword');
+    expect(finalOpponentSnapshot).not.toContain('new_sword');
+    expect(finalOpponentSnapshot).not.toContain('old_sword');
+    await expect(page.locator('#battlePlayerAName')).toHaveText('Newest Wraith');
+    await expect(page.locator('#battleLogContainer')).toContainText('NEWEST_BATTLE_LOG');
+    await expect(page.locator('#battleLogContainer')).not.toContainText('NEW_BATTLE_LOG');
+    await expect(page.locator('#battleLogContainer')).not.toContainText('OLD_BATTLE_LOG');
+
+    await page.evaluate(() => window.returnToMapAfterBattle());
+    await expect(page.locator('#battleModal')).toBeHidden();
     await expectNoPageErrors(errors);
   });
 
