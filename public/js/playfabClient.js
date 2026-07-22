@@ -193,12 +193,24 @@ export function getTroyCalendarGoogleSyncStatus(playFabId, options) {
     return callApiWithLoader('/api/troy-calendar/google-sync-status', { playFabId }, options);
 }
 
+export function getTroyCalendarGoogleSyncReviewDetails(playFabId, options) {
+    return callApiWithLoader('/api/troy-calendar/google-sync-review-details', { playFabId }, options);
+}
+
+export function approveTroyCalendarGoogleSyncReview(playFabId, payload = {}, options) {
+    return callApiWithLoader(
+        '/api/troy-calendar/google-sync-review-approve',
+        { playFabId, ...(payload || {}) },
+        options
+    );
+}
+
 export function saveTroyCalendarEntry(playFabId, payload = {}, options) {
     return callApiWithLoader('/api/troy-calendar/save', { playFabId, ...(payload || {}) }, options);
 }
 
-export function deleteTroyCalendarEntry(playFabId, calendarId, options) {
-    return callApiWithLoader('/api/troy-calendar/delete', { playFabId, calendarId }, options);
+export function deleteTroyCalendarEntry(playFabId, calendarId, payload = {}, options) {
+    return callApiWithLoader('/api/troy-calendar/delete', { playFabId, calendarId, ...(payload || {}) }, options);
 }
 
 export function getCapitalWarState(playFabId, targetNation, options) {

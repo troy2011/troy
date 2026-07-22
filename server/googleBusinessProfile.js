@@ -3,6 +3,7 @@ const crypto = require('node:crypto');
 const OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const BUSINESS_INFORMATION_API_BASE_URL = 'https://mybusinessbusinessinformation.googleapis.com/v1';
 const DEFAULT_TIMEOUT_MS = 10_000;
+const VALIDATED_SPECIAL_HOURS_TICKET_TTL_MS = 60_000;
 const MAX_LOCATION_PAGE_SIZE = 100;
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const LOCATION_ENV_DESCRIPTION = 'GOOGLE_BUSINESS_PROFILE_LOCATION_NAME or GOOGLE_BUSINESS_PROFILE_LOCATION_ID';
@@ -67,8 +68,12 @@ function normalizeLocationName(value) {
 
 function readGoogleBusinessProfileConfig(env = process.env) {
     const source = env && typeof env === 'object' ? env : {};
+    const enabled = parseBoolean(source.GOOGLE_BUSINESS_PROFILE_SYNC_ENABLED, false);
     const locationName = normalizeLocationName(source.GOOGLE_BUSINESS_PROFILE_LOCATION_NAME)
         || normalizeLocationName(source.GOOGLE_BUSINESS_PROFILE_LOCATION_ID);
+    const allowedLocationName = normalizeLocationName(
+        source.GOOGLE_BUSINESS_PROFILE_ALLOWED_LOCATION_NAME
+    );
     const clientId = String(source.GOOGLE_OAUTH_CLIENT_ID || '').trim();
     const clientSecret = String(source.GOOGLE_OAUTH_CLIENT_SECRET || '').trim();
     const refreshToken = String(source.GOOGLE_OAUTH_REFRESH_TOKEN || '').trim();
@@ -76,23 +81,42 @@ function readGoogleBusinessProfileConfig(env = process.env) {
     const timeoutMs = Number.isFinite(timeoutCandidate) && timeoutCandidate > 0
         ? Math.floor(timeoutCandidate)
         : DEFAULT_TIMEOUT_MS;
+    const validateOnly = parseBoolean(source.GOOGLE_BUSINESS_PROFILE_VALIDATE_ONLY, true);
+    const validateBeforeUpdate = parseBoolean(source.GOOGLE_BUSINESS_PROFILE_VALIDATE_BEFORE_UPDATE, false);
+    const productionWritesEnabled = parseBoolean(
+        source.GOOGLE_BUSINESS_PROFILE_PRODUCTION_WRITES_ENABLED,
+        false
+    );
     const missing = [];
 
     if (!locationName) missing.push(LOCATION_ENV_DESCRIPTION);
     if (!clientId) missing.push('GOOGLE_OAUTH_CLIENT_ID');
     if (!clientSecret) missing.push('GOOGLE_OAUTH_CLIENT_SECRET');
     if (!refreshToken) missing.push('GOOGLE_OAUTH_REFRESH_TOKEN');
+    if (enabled && !allowedLocationName) {
+        missing.push('GOOGLE_BUSINESS_PROFILE_ALLOWED_LOCATION_NAME');
+    } else if (enabled && locationName && allowedLocationName !== locationName) {
+        missing.push('GOOGLE_BUSINESS_PROFILE_ALLOWED_LOCATION_NAME must match the configured location');
+    }
+    if (!validateOnly && !productionWritesEnabled) {
+        missing.push('GOOGLE_BUSINESS_PROFILE_PRODUCTION_WRITES_ENABLED=true');
+    }
+    if (!validateOnly && !validateBeforeUpdate) {
+        missing.push('GOOGLE_BUSINESS_PROFILE_VALIDATE_BEFORE_UPDATE=true');
+    }
 
     return {
-        enabled: parseBoolean(source.GOOGLE_BUSINESS_PROFILE_SYNC_ENABLED, false),
+        enabled,
         configured: missing.length === 0,
         missing,
         locationName,
+        allowedLocationName,
         clientId,
         clientSecret,
         refreshToken,
-        validateOnly: parseBoolean(source.GOOGLE_BUSINESS_PROFILE_VALIDATE_ONLY, false),
-        validateBeforeUpdate: parseBoolean(source.GOOGLE_BUSINESS_PROFILE_VALIDATE_BEFORE_UPDATE, false),
+        validateOnly,
+        validateBeforeUpdate,
+        productionWritesEnabled,
         timeoutMs
     };
 }
@@ -203,13 +227,33 @@ function buildDesiredSpecialHours(entries, { nowMs = Date.now() } = {}) {
     }
 
     const todayKey = getJstTodayKey(nowMs);
+    const yesterdayKey = dateObjectToKey(addDaysToDateObject(parseDateText(todayKey), -1));
+    const numericNowMs = Number(nowMs);
+    const safeNowMs = Number.isFinite(numericNowMs) ? numericNowMs : Date.now();
     const managedDates = [];
     const specialHourPeriods = [];
 
     for (const dateKey of [...latestByDate.keys()].sort()) {
-        if (dateKey < todayKey) continue;
         const entry = latestByDate.get(dateKey);
         const status = String(entry?.status || 'open').trim().toLowerCase();
+        if (dateKey < todayKey) {
+            if (dateKey !== yesterdayKey || status !== 'open') continue;
+            const previousOpenTime = parseTimeText(entry?.openTime);
+            const previousCloseTime = parseTimeText(entry?.closeTime);
+            const previousOpenMinutes = minutesSinceMidnight(previousOpenTime);
+            const previousCloseMinutes = minutesSinceMidnight(previousCloseTime);
+            if (previousCloseMinutes > previousOpenMinutes) continue;
+            const previousStartDate = parseDateText(dateKey);
+            const previousEndDate = addDaysToDateObject(previousStartDate, 1);
+            const previousCloseAtMs = Date.UTC(
+                previousEndDate.year,
+                previousEndDate.month - 1,
+                previousEndDate.day,
+                previousCloseTime.hours,
+                previousCloseTime.minutes
+            ) - JST_OFFSET_MS;
+            if (safeNowMs >= previousCloseAtMs) continue;
+        }
         const startDate = parseDateText(dateKey);
         managedDates.push(dateKey);
 
@@ -467,7 +511,8 @@ function createGoogleBusinessProfileClient(configOrOptions, maybeOptions) {
         clientSecret: String(mergedConfig.clientSecret || mergedConfig.oauthClientSecret || '').trim(),
         refreshToken: String(mergedConfig.refreshToken || mergedConfig.oauthRefreshToken || '').trim(),
         validateOnly: parseBoolean(mergedConfig.validateOnly, false),
-        validateBeforeUpdate: parseBoolean(mergedConfig.validateBeforeUpdate, false)
+        validateBeforeUpdate: parseBoolean(mergedConfig.validateBeforeUpdate, false),
+        productionWritesEnabled: parseBoolean(mergedConfig.productionWritesEnabled, false)
     };
     const fetchImpl = options.fetchImpl || options.fetch || globalThis.fetch;
     const now = typeof options.now === 'function' ? options.now : () => Date.now();
@@ -480,6 +525,7 @@ function createGoogleBusinessProfileClient(configOrOptions, maybeOptions) {
 
     let accessTokenCache = null;
     let tokenRefreshPromise = null;
+    const validatedSpecialHoursTickets = new WeakSet();
 
     function requireFetcher() {
         if (typeof fetchImpl !== 'function') {
@@ -640,11 +686,18 @@ function createGoogleBusinessProfileClient(configOrOptions, maybeOptions) {
     async function getLocation() {
         const locationName = requireLocationName();
         return requestBusinessInformation(locationName, {
-            query: { readMask: 'regularHours,specialHours' }
+            query: { readMask: 'regularHours,specialHours,metadata' }
         });
     }
 
-    async function patchSpecialHours(periods, { validateOnly = false } = {}) {
+    async function getGoogleUpdatedLocation() {
+        const locationName = requireLocationName();
+        return requestBusinessInformation(`${locationName}:getGoogleUpdated`, {
+            query: { readMask: 'specialHours' }
+        });
+    }
+
+    async function sendSpecialHoursPatch(periods, { validateOnly = false } = {}) {
         if (!Array.isArray(periods)) throw validationError('Special-hour periods must be an array.');
         const locationName = requireLocationName();
         return requestBusinessInformation(locationName, {
@@ -662,17 +715,76 @@ function createGoogleBusinessProfileClient(configOrOptions, maybeOptions) {
         });
     }
 
-    async function updateSpecialHours(periods, updateOptions = {}) {
-        const validateOnly = updateOptions.validateOnly === undefined
-            ? config.validateOnly
-            : parseBoolean(updateOptions.validateOnly, false);
-        const validateBeforeUpdate = updateOptions.validateBeforeUpdate === undefined
-            ? config.validateBeforeUpdate
-            : parseBoolean(updateOptions.validateBeforeUpdate, false);
+    async function createValidatedSpecialHoursTicket(periods) {
+        const canonicalPeriods = canonicalizeSpecialHourPeriods(periods);
+        await sendSpecialHoursPatch(canonicalPeriods, { validateOnly: true });
+        const ticket = Object.freeze({
+            periodsHash: hashSpecialHourPeriods(canonicalPeriods),
+            validatedAtMs: now()
+        });
+        validatedSpecialHoursTickets.add(ticket);
+        return ticket;
+    }
 
-        if (validateOnly) return patchSpecialHours(periods, { validateOnly: true });
-        if (validateBeforeUpdate) await patchSpecialHours(periods, { validateOnly: true });
-        return patchSpecialHours(periods, { validateOnly: false });
+    async function sendValidatedSpecialHoursPatch(periods, ticket) {
+        const canonicalPeriods = canonicalizeSpecialHourPeriods(periods);
+        const validatedAtMs = Number(ticket?.validatedAtMs || 0);
+        const ticketIsValid = !!ticket
+            && typeof ticket === 'object'
+            && validatedSpecialHoursTickets.has(ticket)
+            && ticket.periodsHash === hashSpecialHourPeriods(canonicalPeriods)
+            && Number.isFinite(validatedAtMs)
+            && now() >= validatedAtMs
+            && now() - validatedAtMs <= VALIDATED_SPECIAL_HOURS_TICKET_TTL_MS;
+        if (!ticketIsValid) {
+            throw new GoogleBusinessProfileError(
+                'Google Business Profile production write requires a fresh validation ticket for the same payload.',
+                {
+                    code: 'GBP_VALIDATION_TICKET_REQUIRED',
+                    status: 400,
+                    retryable: false
+                }
+            );
+        }
+        validatedSpecialHoursTickets.delete(ticket);
+        return sendSpecialHoursPatch(canonicalPeriods, { validateOnly: false });
+    }
+
+    async function updateSpecialHours(periods, updateOptions = {}) {
+        const requestedValidateOnly = updateOptions.validateOnly === undefined
+            ? false
+            : parseBoolean(updateOptions.validateOnly, false);
+        const validateOnly = config.validateOnly === true || requestedValidateOnly;
+        const validateBeforeUpdate = config.validateBeforeUpdate === true;
+
+        if (validateOnly) return sendSpecialHoursPatch(periods, { validateOnly: true });
+        if (!config.productionWritesEnabled || !validateBeforeUpdate) {
+            throw new GoogleBusinessProfileError(
+                'Google Business Profile production writes require explicit enablement and validate-before-update.',
+                {
+                    code: 'GBP_PRODUCTION_WRITES_NOT_ENABLED',
+                    status: 400,
+                    retryable: false,
+                    details: {
+                        productionWritesEnabled: config.productionWritesEnabled === true,
+                        validateBeforeUpdate: validateBeforeUpdate === true
+                    }
+                }
+            );
+        }
+        const validationTicket = await createValidatedSpecialHoursTicket(periods);
+        if (typeof updateOptions.beforeProductionWrite === 'function') {
+            await updateOptions.beforeProductionWrite();
+        }
+        return sendValidatedSpecialHoursPatch(periods, validationTicket);
+    }
+
+    async function patchSpecialHours(periods, patchOptions = {}) {
+        const validateOnly = patchOptions.validateOnly === undefined
+            ? true
+            : parseBoolean(patchOptions.validateOnly, true);
+        if (validateOnly) return sendSpecialHoursPatch(periods, { validateOnly: true });
+        return updateSpecialHours(periods, { validateOnly: false });
     }
 
     async function listLocations(listOptions = {}) {
@@ -692,6 +804,7 @@ function createGoogleBusinessProfileClient(configOrOptions, maybeOptions) {
 
     return {
         getAccessToken,
+        getGoogleUpdatedLocation,
         getLocation,
         listLocations,
         patchSpecialHours,

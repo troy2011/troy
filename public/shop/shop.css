@@ -579,9 +579,113 @@ footer small {
     margin-top: 4rem;
 }
 
+.info-main {
+    width: min(880px, calc(100% - 2.5rem));
+    margin: 0 auto;
+}
+
+.info-hero {
+    padding: clamp(4.5rem, 9vw, 7rem) 0 2.5rem;
+}
+
+.info-hero h1 {
+    max-width: 760px;
+    margin-bottom: 1rem;
+    font-family: Georgia, "Yu Mincho", serif;
+    font-size: clamp(2.7rem, 7vw, 5.4rem);
+    line-height: 1.08;
+}
+
+.info-hero > p:last-child,
+.info-card p,
+.info-card li,
+.info-card dd {
+    color: var(--muted);
+}
+
+.info-stack {
+    display: grid;
+    gap: 1rem;
+    padding-bottom: 5rem;
+}
+
+.info-card {
+    padding: clamp(1.3rem, 4vw, 2.2rem);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 18px;
+    background: linear-gradient(145deg, rgba(21, 30, 41, 0.96), rgba(10, 15, 22, 0.96));
+}
+
+.info-card h2 {
+    margin-bottom: 1rem;
+    color: var(--gold-bright);
+    font-family: Georgia, "Yu Mincho", serif;
+    font-size: clamp(1.5rem, 3vw, 2.1rem);
+}
+
+.info-card h3 {
+    margin: 1.5rem 0 0.5rem;
+    font-size: 1.05rem;
+}
+
+.info-card p:last-child,
+.info-card ul:last-child,
+.info-card dl:last-child {
+    margin-bottom: 0;
+}
+
+.info-card ul {
+    padding-left: 1.3rem;
+}
+
+.info-card dl {
+    margin: 0;
+}
+
+.info-card dl > div {
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    grid-template-columns: minmax(8rem, 0.35fr) 1fr;
+}
+
+.info-card dl > div:last-child {
+    border-bottom: 0;
+}
+
+.info-card dt,
+.info-card dd {
+    margin: 0;
+}
+
+.info-card dt {
+    font-weight: 800;
+}
+
+.info-card a {
+    color: var(--gold-bright);
+}
+
+.policy-meta {
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.info-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    margin-top: 1.5rem;
+}
+
 @media (max-width: 820px) {
     body {
         padding-bottom: 64px;
+    }
+
+    body.info-page {
+        padding-bottom: 0;
     }
 
     .site-header nav {
@@ -639,6 +743,10 @@ footer small {
     }
 
     .size-guide {
+        grid-template-columns: 1fr;
+    }
+
+    .info-card dl > div {
         grid-template-columns: 1fr;
     }
 

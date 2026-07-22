@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Google ビジネス プロフィール営業時間同期について｜海賊酒場TROY</title>
+    <meta name="description" content="海賊酒場TROYが自社店舗の臨時営業時間を管理する内部ツールの目的、権限、データ利用と安全対策をご説明します。">
+    <meta name="robots" content="index,follow">
+    <meta name="theme-color" content="#0b1018">
+    <link rel="canonical" href="https://troy-xetw.onrender.com/shop/business-profile-sync.html">
+    <link rel="icon" type="image/png" href="/Sprites/PirateIcon/Icon1.png">
+    <link rel="stylesheet" href="/shop/shop.css?v=20260722a">
+</head>
+<body class="info-page">
+    <a class="skip-link" href="#main">本文へ移動</a>
+    <header class="site-header">
+        <a class="brand" href="/shop/" aria-label="海賊酒場TROY 店舗情報トップ"><span class="brand-mark" aria-hidden="true">☠</span><span><strong>海賊酒場TROY</strong><small>PIRATES BAR IN TOMISATO</small></span></a>
+        <nav aria-label="店舗情報ナビゲーション"><a href="/shop/">店舗トップ</a><a href="/shop/about.html">運営情報</a><a href="/shop/privacy.html">プライバシー</a></nav>
+    </header>
+    <main id="main" class="info-main">
+        <header class="info-hero">
+            <p class="eyebrow">INTERNAL BUSINESS TOOL</p><h1>海賊酒場TROY 営業時間同期</h1>
+            <p>海賊酒場TROYが、所有・管理する1店舗の臨時営業時間を正確に保つための内部ツールです。</p>
+        </header>
+        <div class="info-stack">
+            <section class="info-card" aria-labelledby="sync-status">
+                <h2 id="sync-status">現在の提供状況</h2>
+                <p>現在、Google Business Profile APIの利用承認を得ておらず、再申請準備中です。承認されるまで本番API更新は行わず、Google ビジネス プロフィール管理画面から営業時間を手動で管理します。</p>
+            </section>
+            <section class="info-card" aria-labelledby="sync-purpose">
+                <h2 id="sync-purpose">利用目的</h2>
+                <p>店舗営業カレンダーで確認された臨時営業、臨時休業、貸切による一般営業休止（Google上は休業）を、店舗自身のGoogle ビジネス プロフィールの特別営業時間へ反映します。第三者の店舗プロフィール、クチコミ、Q&amp;A、投稿、広告、リード獲得には使用しません。</p>
+            </section>
+            <section class="info-card" aria-labelledby="sync-access">
+                <h2 id="sync-access">利用できる人</h2>
+                <ul>
+                    <li>対象店舗のオーナーまたは明示的に許可された店舗スタッフだけが利用できます。</li>
+                    <li>サーバー側の固定許可リストで権限を確認し、一般利用者やゲーム内の役職だけでは更新できません。</li>
+                    <li>Google反映を選んだ保存・編集・削除時に、対象日・営業時間・休業状態・反映先を確認したうえで明示的に同意します。選ばない操作はアプリ内だけで完了します。</li>
+                </ul>
+            </section>
+            <section class="info-card" aria-labelledby="sync-safety">
+                <h2 id="sync-safety">安全対策</h2>
+                <ul>
+                    <li>OAuthの認証情報はサーバーの秘密情報として保管し、ブラウザや第三者へ渡しません。</li>
+                    <li>更新者、対象日、アプリに入力された変更前後、同意の有無を操作監査に残し、Google同期の状態と結果を連携状態として記録します。</li>
+                    <li>アプリが管理対象とした日付のGoogle側の値が前回同期後に変更されている場合は自動上書きせず、店舗スタッフの確認待ちで停止します。</li>
+                    <li>確認時はGoogle APIから最新の具体的な営業時間と送信予定値を表示し、承認時にも同じ内容かを再確認します。取得した具体的なGoogle営業時間は永続保存せず、承認内容が変わっていないことを照合する不可逆な値だけを最大24時間保持します。</li>
+                    <li>導入・設定変更時は検証モードで内容を確認してから実更新を有効にします。</li>
+                </ul>
+            </section>
+            <section class="info-card" aria-labelledby="sync-data">
+                <h2 id="sync-data">取り扱う情報</h2>
+                <p>OAuthスコープは <code>https://www.googleapis.com/auth/business.manage</code> です。このスコープ自体は広い権限を含みますが、サーバー側で当店が所有する1店舗へ固定し、通常営業時間と特別営業時間の読み取り、および明示同意後の特別営業時間更新だけに制限します。対象店舗のロケーション識別子、同期状態、店舗スタッフによる操作記録も営業時間同期に必要な範囲で取り扱います。詳しくは<a href="/shop/privacy.html">プライバシーポリシー</a>をご覧ください。</p>
+            </section>
+            <section class="info-card" aria-labelledby="sync-contact">
+                <h2 id="sync-contact">運営・お問い合わせ</h2>
+                <p>運営者は海賊酒場TROYです。本ツールはGoogleによる提供・推奨・提携を示すものではありません。お問い合わせは店舗電話 <a href="tel:09047120670">090-4712-0670</a> までお願いします。</p>
+            </section>
+        </div>
+    </main>
+    <footer>
+        <div><strong>海賊酒場TROY</strong><p>〒286-0212 千葉県富里市十倉310-401</p></div>
+        <nav aria-label="関連リンク"><a href="/shop/">店舗トップ</a><a href="/shop/about.html">店舗・運営情報</a><a href="/shop/privacy.html">プライバシー</a><a href="/shop/terms.html">利用規約</a></nav>
+        <small>© 海賊酒場TROY</small>
+    </footer>
+</body>
+</html>

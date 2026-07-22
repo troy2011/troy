@@ -14,7 +14,7 @@ test.describe('public shop MEO page', () => {
     await expect(phoneLinks).toHaveCount(4);
 
     const routeLink = page.getByRole('link', { name: 'Googleマップでルートを見る' });
-    await expect(routeLink).toHaveAttribute('href', /google\.com\/maps\/search/);
+    await expect(routeLink).toHaveAttribute('href', 'https://www.google.com/maps?cid=2095983393703557607');
     await expect(page.getByRole('link', { name: 'メニューをすべて見る' })).toHaveAttribute('href', '/shop/menu.html');
 
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://troy-xetw.onrender.com/shop/');
@@ -55,6 +55,33 @@ test.describe('public shop MEO page', () => {
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://troy-xetw.onrender.com/shop/menu.html');
   });
 
+  test('publishes operator, OAuth privacy, terms, and first-party GBP tool disclosures', async ({ page, request }) => {
+    const pages = [
+      '/shop/about.html',
+      '/shop/business-profile-sync.html',
+      '/shop/privacy.html',
+      '/shop/terms.html'
+    ];
+    for (const path of pages) {
+      const response = await request.get(path);
+      expect(response.ok(), `${path} should be public`).toBeTruthy();
+      expect(await response.text(), `${path} should be indexable`).toContain('name="robots" content="index,follow"');
+    }
+
+    await page.goto('/shop/business-profile-sync.html');
+    await expect(page.getByRole('heading', { name: '海賊酒場TROY 営業時間同期', level: 1 })).toBeVisible();
+    await expect(page.getByText('所有・管理する1店舗', { exact: false })).toBeVisible();
+    await expect(page.getByText('固定許可リスト', { exact: false })).toBeVisible();
+    await expect(page.getByText('明示的に同意', { exact: false })).toBeVisible();
+    await expect(page.getByText('Google Business Profile APIの利用承認を得ておらず、再申請準備中', { exact: false })).toBeVisible();
+
+    await page.goto('/shop/privacy.html');
+    await expect(page.getByRole('heading', { name: 'プライバシーポリシー', level: 1 })).toBeVisible();
+    await expect(page.getByText('Limited Use requirements', { exact: false })).toBeVisible();
+    await expect(page.getByText('不可逆な照合値だけを最大24時間保持', { exact: false })).toBeVisible();
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://troy-xetw.onrender.com/shop/privacy.html');
+  });
+
   test('keeps the public menu aligned with the ordering data', async ({ page }) => {
     await page.goto('/shop/menu.html');
 
@@ -85,7 +112,7 @@ test.describe('public shop MEO page', () => {
     await expect(mobileActions).toBeVisible();
     await expect(mobileActions.getByRole('link', { name: '電話' })).toHaveAttribute('href', 'tel:09047120670');
     await expect(mobileActions.getByRole('link', { name: 'メニュー' })).toHaveAttribute('href', '/shop/menu.html');
-    await expect(mobileActions.getByRole('link', { name: 'ルート' })).toHaveAttribute('href', /google\.com\/maps\/search/);
+    await expect(mobileActions.getByRole('link', { name: 'ルート' })).toHaveAttribute('href', 'https://www.google.com/maps?cid=2095983393703557607');
   });
 
   test('keeps visit actions visible on tablet', async ({ page }) => {
@@ -129,5 +156,9 @@ test.describe('public shop MEO page', () => {
     const sitemapText = await sitemap.text();
     expect(sitemapText).toContain('<loc>https://troy-xetw.onrender.com/shop/</loc>');
     expect(sitemapText).toContain('<loc>https://troy-xetw.onrender.com/shop/menu.html</loc>');
+    expect(sitemapText).toContain('<loc>https://troy-xetw.onrender.com/shop/about.html</loc>');
+    expect(sitemapText).toContain('<loc>https://troy-xetw.onrender.com/shop/business-profile-sync.html</loc>');
+    expect(sitemapText).toContain('<loc>https://troy-xetw.onrender.com/shop/privacy.html</loc>');
+    expect(sitemapText).toContain('<loc>https://troy-xetw.onrender.com/shop/terms.html</loc>');
   });
 });

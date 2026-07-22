@@ -1,5 +1,6 @@
 const { addGlobalChatMessage } = require('./chat');
 const { createTroyCalendarGoogleSync } = require('./troyCalendarGoogleSync');
+const { normalizeLocationName } = require('./googleBusinessProfile');
 const { createHash } = require('node:crypto');
 
 const cron = require('node-cron');
@@ -10,14 +11,17 @@ const TROY_CALENDAR_COLLECTION = 'troy_business_calendar';
 const TROY_CALENDAR_GLOBAL_NATION = 'global';
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const STORE_SCHEDULE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const TROY_CALENDAR_AUDIT_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 const TROY_CALENDAR_AUDIT_COLLECTION = 'troy_business_calendar_audit';
 const TROY_CALENDAR_DATE_INDEX_COLLECTION = 'troy_business_calendar_dates';
 const TROY_CALENDAR_CONTROL_COLLECTION = 'integration_states';
 const TROY_CALENDAR_CONTROL_DOCUMENT = 'troy_business_calendar_write_control';
+const TROY_CALENDAR_GOOGLE_SYNC_DOCUMENT = 'troy_google_business_profile_special_hours';
 const TROY_CALENDAR_MAX_VISIBLE_ENTRIES = 80;
 const TROY_CALENDAR_MAX_FUTURE_DAYS = 366;
 const TROY_CALENDAR_MUTATION_WINDOW_MS = 10 * 60 * 1000;
 const TROY_CALENDAR_MAX_MUTATIONS_PER_WINDOW = 20;
+const GBP_CONSENT_VERSION = 'gbp-special-hours-v1';
 const VIRTUAL_CURRENCY_CODE = process.env.VIRTUAL_CURRENCY_CODE || 'PS';
 const configuredHostFee = Number(process.env.EVENT_HOST_FEE_PS);
 const DEFAULT_HOST_FEE = Math.max(0, Math.floor(Number.isFinite(configuredHostFee) ? configuredHostFee : 1000));
@@ -145,6 +149,37 @@ function normalizeCalendarDocumentId(value) {
     return raw;
 }
 
+function parseGoogleBusinessProfileStaffIds(value) {
+    return new Set(
+        String(value || '')
+            .split(/[\s,;]+/)
+            .map((id) => id.trim())
+            .filter((id) => /^[A-Za-z0-9_-]{3,64}$/.test(id))
+    );
+}
+
+function normalizeGoogleBusinessProfileConsent(body) {
+    const operationId = normalizeCalendarRequestId(body?.operationId);
+    const consentVersion = normalizeString(body?.consentVersion, 64);
+    if (body?.googleBusinessProfileConsent !== true
+        || consentVersion !== GBP_CONSENT_VERSION
+        || !operationId) {
+        return null;
+    }
+    return { operationId, consentVersion };
+}
+
+function hasGoogleBusinessProfileConsentSignal(body) {
+    return body?.googleBusinessProfileConsent === true
+        || body?.consentVersion !== undefined
+        || body?.operationId !== undefined;
+}
+
+function normalizeGoogleBusinessProfileSpecialHoursHash(value) {
+    const hash = String(value || '').trim().toLowerCase();
+    return /^[a-f0-9]{64}$/.test(hash) ? hash : '';
+}
+
 function hasValidGoogleOpenHours(openTime, closeTime) {
     const [openHours, openMinutes] = openTime.split(':').map(Number);
     const [closeHours, closeMinutes] = closeTime.split(':').map(Number);
@@ -156,8 +191,23 @@ function hasValidGoogleOpenHours(openTime, closeTime) {
 }
 
 function calendarPayloadMatches(existing, candidate) {
-    const fields = ['nation', 'date', 'openTime', 'closeTime', 'status', 'title', 'note'];
-    return fields.every((field) => String(existing?.[field] || '') === String(candidate?.[field] || ''));
+    const fields = [
+        'nation',
+        'date',
+        'openTime',
+        'closeTime',
+        'status',
+        'title',
+        'note',
+        'googleBusinessProfileConsent',
+        'googleBusinessProfileOperationId',
+        'googleBusinessProfileConsentVersion',
+        'googleBusinessProfileLocationName',
+        'googleBusinessProfileAuthorization',
+        'googleBusinessProfileConfigGeneration',
+        'googleBusinessProfileConfigFingerprint'
+    ];
+    return fields.every((field) => String(existing?.[field] ?? '') === String(candidate?.[field] ?? ''));
 }
 
 function calendarAuditSnapshot(data) {
@@ -410,12 +460,18 @@ async function notifyReservationRequestToKing(reservation, deps) {
     }
 }
 
-async function deleteExpiredStoreScheduleDocs(firestore, collectionName, cutoffMs, label) {
+async function deleteExpiredStoreScheduleDocs(
+    firestore,
+    collectionName,
+    cutoffMs,
+    label,
+    timestampField = 'startsAtMs'
+) {
     let deleted = 0;
     for (let i = 0; i < 5; i += 1) {
         const snap = await firestore
             .collection(collectionName)
-            .where('startsAtMs', '<', cutoffMs)
+            .where(timestampField, '<', cutoffMs)
             .limit(200)
             .get();
         if (snap.empty) break;
@@ -468,13 +524,21 @@ async function deleteExpiredStoreScheduleDocs(firestore, collectionName, cutoffM
 }
 
 async function cleanupExpiredStoreSchedules(firestore) {
-    if (!firestore) return { calendars: 0, reservations: 0 };
+    if (!firestore) return { calendars: 0, reservations: 0, calendarAudits: 0 };
     const cutoffMs = Date.now() - STORE_SCHEDULE_RETENTION_MS;
-    const [calendars, reservations] = await Promise.all([
+    const auditCutoffMs = Date.now() - TROY_CALENDAR_AUDIT_RETENTION_MS;
+    const [calendars, reservations, calendarAudits] = await Promise.all([
         deleteExpiredStoreScheduleDocs(firestore, TROY_CALENDAR_COLLECTION, cutoffMs, 'calendar'),
-        deleteExpiredStoreScheduleDocs(firestore, RESERVATION_COLLECTION, cutoffMs, 'reservation')
+        deleteExpiredStoreScheduleDocs(firestore, RESERVATION_COLLECTION, cutoffMs, 'reservation'),
+        deleteExpiredStoreScheduleDocs(
+            firestore,
+            TROY_CALENDAR_AUDIT_COLLECTION,
+            auditCutoffMs,
+            'calendar audit',
+            'occurredAtMs'
+        )
     ]);
-    return { calendars, reservations };
+    return { calendars, reservations, calendarAudits };
 }
 
 function startStoreScheduleCleanupJob(firestore) {
@@ -496,15 +560,80 @@ function initializeEventRoutes(app, deps) {
         return;
     }
     startStoreScheduleCleanupJob(firestore);
+    const runtimeEnv = deps.env || process.env;
     const troyCalendarGoogleSync = deps.troyCalendarGoogleSync || createTroyCalendarGoogleSync({
         firestore,
-        admin
+        admin,
+        env: runtimeEnv
     });
     troyCalendarGoogleSync.start();
+    const googleBusinessProfileApprovalContext = typeof troyCalendarGoogleSync.getApprovalContext === 'function'
+        ? troyCalendarGoogleSync.getApprovalContext()
+        : null;
+    const googleBusinessProfileStaffIds = parseGoogleBusinessProfileStaffIds(
+        runtimeEnv.GOOGLE_BUSINESS_PROFILE_STAFF_PLAYFAB_IDS
+    );
+    const googleBusinessProfileLocationName = normalizeLocationName(
+        runtimeEnv.GOOGLE_BUSINESS_PROFILE_ALLOWED_LOCATION_NAME
+    );
+    const configuredGoogleBusinessProfileLocationName = normalizeLocationName(
+        runtimeEnv.GOOGLE_BUSINESS_PROFILE_LOCATION_NAME
+            || runtimeEnv.GOOGLE_BUSINESS_PROFILE_LOCATION_ID
+    );
+    const googleBusinessProfileLocationIsAllowed = !!googleBusinessProfileLocationName
+        && googleBusinessProfileLocationName === configuredGoogleBusinessProfileLocationName;
+    const googleBusinessProfileApprovalContextIsValid = googleBusinessProfileApprovalContext?.consentVersion === GBP_CONSENT_VERSION
+        && normalizeLocationName(googleBusinessProfileApprovalContext?.locationName) === googleBusinessProfileLocationName
+        && Number.isInteger(Number(googleBusinessProfileApprovalContext?.configGeneration))
+        && Number(googleBusinessProfileApprovalContext?.configGeneration) >= 1
+        && /^[a-f0-9]{32}$/.test(String(googleBusinessProfileApprovalContext?.configFingerprint || ''));
+
+    function calendarEntryHasCurrentGoogleApproval(entry) {
+        return googleBusinessProfileApprovalContextIsValid
+            && entry?.googleBusinessProfileConsent === true
+            && entry?.googleBusinessProfileConsentVersion === GBP_CONSENT_VERSION
+            && !!normalizeCalendarRequestId(entry?.googleBusinessProfileOperationId)
+            && normalizeLocationName(entry?.googleBusinessProfileLocationName) === googleBusinessProfileLocationName
+            && entry?.googleBusinessProfileAuthorization === 'staff_playfab_allowlist_and_king'
+            && Number(entry?.googleBusinessProfileConfigGeneration)
+                === Number(googleBusinessProfileApprovalContext.configGeneration)
+            && String(entry?.googleBusinessProfileConfigFingerprint || '')
+                === String(googleBusinessProfileApprovalContext.configFingerprint || '');
+    }
+
+    function activeGoogleBusinessProfileConfigMatches(snapshot) {
+        if (!snapshot?.exists || !googleBusinessProfileApprovalContextIsValid) return false;
+        const activeConfig = snapshot.data() || {};
+        return Number.isInteger(activeConfig.activeConfigGeneration)
+            && activeConfig.activeConfigGeneration
+                === Number(googleBusinessProfileApprovalContext.configGeneration)
+            && String(activeConfig.activeConfigFingerprint || '')
+                === String(googleBusinessProfileApprovalContext.configFingerprint || '')
+            && String(activeConfig.activeLocationName || '') === googleBusinessProfileLocationName;
+    }
 
     async function requireAuthed(req, res, playFabId) {
-        if (typeof requireAuthenticatedPlayFabId !== 'function') return playFabId;
+        if (typeof requireAuthenticatedPlayFabId !== 'function') {
+            res.status(503).json({ error: 'AuthenticationDependencyUnavailable' });
+            return '';
+        }
         return requireAuthenticatedPlayFabId(req, res, playFabId);
+    }
+
+    async function requireGoogleBusinessProfileStaff(playFabId, res) {
+        if (!await isKing(playFabId, deps) || !googleBusinessProfileStaffIds.has(playFabId)) {
+            res.status(403).json({ error: 'Google営業時間は許可された店舗スタッフのみ操作できます。' });
+            return false;
+        }
+        if (!googleBusinessProfileLocationIsAllowed) {
+            res.status(503).json({ error: 'Google営業時間の同期先店舗が固定許可設定と一致していません。' });
+            return false;
+        }
+        if (!googleBusinessProfileApprovalContextIsValid) {
+            res.status(503).json({ error: 'Google営業時間の同意対象設定を確認できません。' });
+            return false;
+        }
+        return true;
     }
 
     app.post('/api/troy-calendar/list', async (req, res) => {
@@ -539,7 +668,7 @@ function initializeEventRoutes(app, deps) {
         const playFabId = await requireAuthed(req, res, requestedPlayFabId);
         if (!playFabId) return;
         try {
-            if (!await isKing(playFabId, deps)) return res.status(403).json({ error: '王のみ確認できます。' });
+            if (!await requireGoogleBusinessProfileStaff(playFabId, res)) return;
             const kingNation = normalizeNationKey(await getNationForPlayer(playFabId, deps));
             if (!kingNation) return res.status(400).json({ error: 'NationNotSet' });
             const googleBusinessProfileSync = await troyCalendarGoogleSync.getStatus();
@@ -550,16 +679,99 @@ function initializeEventRoutes(app, deps) {
         }
     });
 
+    app.post('/api/troy-calendar/google-sync-review-details', async (req, res) => {
+        const requestedPlayFabId = normalizeString(req.body?.playFabId, 64);
+        if (!requestedPlayFabId) return res.status(400).json({ error: 'PlayFabIdRequired' });
+        const playFabId = await requireAuthed(req, res, requestedPlayFabId);
+        if (!playFabId) return;
+        try {
+            if (!await requireGoogleBusinessProfileStaff(playFabId, res)) return;
+            if (typeof troyCalendarGoogleSync.getReviewDetails !== 'function') {
+                return res.status(503).json({ error: 'GoogleBusinessProfileReviewUnavailable' });
+            }
+            const googleBusinessProfileReview = await troyCalendarGoogleSync.getReviewDetails();
+            if (googleBusinessProfileReview?.status !== 'review_required') {
+                const reviewChanged = googleBusinessProfileReview?.status === 'review_unavailable';
+                return res.status(reviewChanged ? 409 : 503).json({
+                    error: reviewChanged
+                        ? 'GoogleBusinessProfileReviewStateChanged'
+                        : 'GoogleBusinessProfileReviewUnavailable',
+                    googleBusinessProfileReview
+                });
+            }
+            if (typeof res.set === 'function') res.set('Cache-Control', 'no-store');
+            else if (typeof res.setHeader === 'function') res.setHeader('Cache-Control', 'no-store');
+            return res.json({ success: true, googleBusinessProfileReview });
+        } catch (error) {
+            console.error('[troy-calendar/google-sync-review-details] failed:', error?.message || error);
+            return res.status(500).json({ error: 'FailedToLoadGoogleBusinessProfileReview' });
+        }
+    });
+
+    app.post('/api/troy-calendar/google-sync-review-approve', async (req, res) => {
+        const requestedPlayFabId = normalizeString(req.body?.playFabId, 64);
+        if (!requestedPlayFabId) return res.status(400).json({ error: 'PlayFabIdRequired' });
+        const playFabId = await requireAuthed(req, res, requestedPlayFabId);
+        if (!playFabId) return;
+        try {
+            if (!await requireGoogleBusinessProfileStaff(playFabId, res)) return;
+            const googleConsent = normalizeGoogleBusinessProfileConsent(req.body);
+            if (!googleConsent) {
+                return res.status(400).json({ error: 'Googleビジネスプロフィールの差分反映への明示同意が必要です。' });
+            }
+            const reviewHash = normalizeGoogleBusinessProfileSpecialHoursHash(
+                req.body?.reviewHash || req.body?.reviewedRemoteSpecialHoursHash
+            );
+            if (!reviewHash) {
+                return res.status(400).json({ error: 'Googleビジネスプロフィールの確認済み差分が必要です。' });
+            }
+            if (typeof troyCalendarGoogleSync.approveReview !== 'function') {
+                return res.status(503).json({ error: 'GoogleBusinessProfileReviewUnavailable' });
+            }
+            const googleBusinessProfileSync = await troyCalendarGoogleSync.approveReview({
+                requestedBy: playFabId,
+                action: 'remote_special_hours_review_approve',
+                operationId: googleConsent.operationId,
+                consentVersion: googleConsent.consentVersion,
+                locationName: googleBusinessProfileLocationName,
+                reviewHash
+            });
+            if (googleBusinessProfileSync?.queued !== true) {
+                const status = googleBusinessProfileSync?.status;
+                const httpStatus = status === 'review_conflict' ? 409 : 503;
+                return res.status(httpStatus).json({
+                    error: status === 'review_conflict'
+                        ? 'GoogleBusinessProfileReviewStateChanged'
+                        : 'GoogleBusinessProfileReviewNotQueued',
+                    googleBusinessProfileSync
+                });
+            }
+            return res.json({ success: true, googleBusinessProfileSync });
+        } catch (error) {
+            console.error('[troy-calendar/google-sync-review-approve] failed:', error?.message || error);
+            return res.status(500).json({ error: 'FailedToApproveGoogleBusinessProfileReview' });
+        }
+    });
+
     app.post('/api/troy-calendar/save', async (req, res) => {
         const requestedPlayFabId = normalizeString(req.body?.playFabId, 64);
         if (!requestedPlayFabId) return res.status(400).json({ error: 'playFabId is required' });
         const playFabId = await requireAuthed(req, res, requestedPlayFabId);
         if (!playFabId) return;
         try {
-            const viewerIsKing = await isKing(playFabId, deps);
-            if (!viewerIsKing) return res.status(403).json({ error: '王のみ操作できます。' });
+            if (!await isKing(playFabId, deps)) return res.status(403).json({ error: '王のみ操作できます。' });
             const kingNation = normalizeNationKey(await getNationForPlayer(playFabId, deps));
             if (!kingNation) return res.status(400).json({ error: 'NationNotSet' });
+            const googleSyncRequested = hasGoogleBusinessProfileConsentSignal(req.body);
+            const googleConsent = googleSyncRequested
+                ? normalizeGoogleBusinessProfileConsent(req.body)
+                : null;
+            if (googleSyncRequested) {
+                if (!googleConsent) {
+                    return res.status(400).json({ error: 'Googleビジネスプロフィールへ反映する内容への明示同意が必要です。' });
+                }
+                if (!await requireGoogleBusinessProfileStaff(playFabId, res)) return;
+            }
 
             const date = normalizeDateText(req.body?.date);
             const openTime = normalizeStrictTimeText(req.body?.openTime);
@@ -592,6 +804,9 @@ function initializeEventRoutes(app, deps) {
             const controlRef = firestore
                 .collection(TROY_CALENDAR_CONTROL_COLLECTION)
                 .doc(TROY_CALENDAR_CONTROL_DOCUMENT);
+            const googleSyncStateRef = firestore
+                .collection(TROY_CALENDAR_CONTROL_COLLECTION)
+                .doc(TROY_CALENDAR_GOOGLE_SYNC_DOCUMENT);
             const mutationAtMs = Date.now();
             const basePayload = {
                 nation: TROY_CALENDAR_GLOBAL_NATION,
@@ -603,11 +818,35 @@ function initializeEventRoutes(app, deps) {
                 note: normalizeString(req.body?.note, 300),
                 startsAtMs,
                 updatedBy: playFabId,
+                googleBusinessProfileConsent: !!googleConsent,
+                googleBusinessProfileOperationId: googleConsent?.operationId || null,
+                googleBusinessProfileConsentVersion: googleConsent?.consentVersion || null,
+                googleBusinessProfileLocationName: googleConsent ? googleBusinessProfileLocationName : null,
+                googleBusinessProfileAuthorization: googleConsent
+                    ? 'staff_playfab_allowlist_and_king'
+                    : 'local_calendar_only',
+                googleBusinessProfileConfigGeneration: googleConsent
+                    ? Number(googleBusinessProfileApprovalContext.configGeneration)
+                    : null,
+                googleBusinessProfileConfigFingerprint: googleConsent
+                    ? googleBusinessProfileApprovalContext.configFingerprint
+                    : null,
+                googleBusinessProfileConsentAtMs: googleConsent ? mutationAtMs : null,
                 updatedAtMs: mutationAtMs,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             };
             const transactionResult = await firestore.runTransaction(async (transaction) => {
-                const before = await transaction.get(ref);
+                const [before, googleSyncStateSnapshot] = await Promise.all([
+                    transaction.get(ref),
+                    googleConsent ? transaction.get(googleSyncStateRef) : Promise.resolve(null)
+                ]);
+                if (googleConsent && !activeGoogleBusinessProfileConfigMatches(googleSyncStateSnapshot)) {
+                    return {
+                        kind: 'error',
+                        httpStatus: 503,
+                        error: 'Google連携の設定反映中です。少し待ってから再度確認・同意してください。'
+                    };
+                }
                 if (calendarId && !before.exists) {
                     return { kind: 'error', httpStatus: 404, error: 'CalendarEntryNotFound' };
                 }
@@ -699,16 +938,44 @@ function initializeEventRoutes(app, deps) {
                     calendarId: ref.id,
                     actorPlayFabId: playFabId,
                     actorNation: kingNation,
+                    googleBusinessProfileConsent: !!googleConsent,
+                    googleBusinessProfileConsentVersion: googleConsent?.consentVersion || null,
+                    googleBusinessProfileOperationId: googleConsent?.operationId || null,
+                    googleBusinessProfileLocationName: googleConsent ? googleBusinessProfileLocationName : null,
+                    googleBusinessProfileAuthorization: googleConsent
+                        ? 'staff_playfab_allowlist_and_king'
+                        : 'local_calendar_only',
+                    googleBusinessProfileConfigGeneration: googleConsent
+                        ? Number(googleBusinessProfileApprovalContext.configGeneration)
+                        : null,
+                    googleBusinessProfileConfigFingerprint: googleConsent
+                        ? googleBusinessProfileApprovalContext.configFingerprint
+                        : null,
                     before: calendarAuditSnapshot(beforeData),
                     after: calendarAuditSnapshot(payload),
                     occurredAtMs: mutationAtMs,
                     occurredAt: admin.firestore.FieldValue.serverTimestamp()
                 });
-                const googleBusinessProfileSync = troyCalendarGoogleSync.markPendingInBatch(
-                    transaction,
-                    'calendar_save',
-                    { requestedBy: playFabId, calendarId: ref.id, action: 'save' }
-                );
+                const googleBusinessProfileSync = googleConsent
+                    ? troyCalendarGoogleSync.markPendingInBatch(
+                        transaction,
+                        'calendar_save',
+                        {
+                            requestedBy: playFabId,
+                            calendarId: ref.id,
+                            action: 'save',
+                            operationId: googleConsent.operationId,
+                            consentVersion: googleConsent.consentVersion,
+                            locationName: googleBusinessProfileLocationName,
+                            requestedDate: date,
+                            removalDates: oldDate
+                                && oldDate !== date
+                                && calendarEntryHasCurrentGoogleApproval(beforeData)
+                                ? [oldDate]
+                                : []
+                        }
+                    )
+                    : { status: 'not_requested', configured: false, enabled: false, queued: false };
                 transaction.set(dateIndexRef, { calendarId: ref.id, date }, { merge: false });
                 if (oldDateIndexRef
                     && oldDateIndexRef.id !== dateIndexRef.id
@@ -734,9 +1001,11 @@ function initializeEventRoutes(app, deps) {
                 return res.status(transactionResult.httpStatus).json({ error: transactionResult.error });
             }
             if (transactionResult.kind === 'duplicate') {
-                let googleBusinessProfileSync = { status: 'queued', configured: true, enabled: true, queued: true };
+                let googleBusinessProfileSync = googleConsent
+                    ? { status: 'queued', configured: true, enabled: true, queued: true }
+                    : { status: 'not_requested', configured: false, enabled: false, queued: false };
                 try {
-                    if (typeof troyCalendarGoogleSync.getStatus === 'function') {
+                    if (googleConsent && typeof troyCalendarGoogleSync.getStatus === 'function') {
                         googleBusinessProfileSync = await troyCalendarGoogleSync.getStatus();
                     }
                 } catch (error) {
@@ -750,10 +1019,12 @@ function initializeEventRoutes(app, deps) {
                     googleBusinessProfileSync
                 });
             }
-            try {
-                troyCalendarGoogleSync.scheduleFlush();
-            } catch (error) {
-                console.warn('[google-business-profile] Calendar save queued; local wake-up failed:', error?.message || error);
+            if (transactionResult.googleBusinessProfileSync?.queued === true) {
+                try {
+                    troyCalendarGoogleSync.scheduleFlush();
+                } catch (error) {
+                    console.warn('[google-business-profile] Calendar save queued; local wake-up failed:', error?.message || error);
+                }
             }
             res.json({
                 success: true,
@@ -774,18 +1045,40 @@ function initializeEventRoutes(app, deps) {
         const playFabId = await requireAuthed(req, res, requestedPlayFabId);
         if (!playFabId) return;
         try {
-            const viewerIsKing = await isKing(playFabId, deps);
-            if (!viewerIsKing) return res.status(403).json({ error: '王のみ操作できます。' });
+            if (!await isKing(playFabId, deps)) return res.status(403).json({ error: '王のみ操作できます。' });
             const kingNation = normalizeNationKey(await getNationForPlayer(playFabId, deps));
             if (!kingNation) return res.status(400).json({ error: 'NationNotSet' });
+            const googleSyncRequested = hasGoogleBusinessProfileConsentSignal(req.body);
+            const googleConsent = googleSyncRequested
+                ? normalizeGoogleBusinessProfileConsent(req.body)
+                : null;
+            if (googleSyncRequested) {
+                if (!googleConsent) {
+                    return res.status(400).json({ error: 'Googleビジネスプロフィールへ反映する内容への明示同意が必要です。' });
+                }
+                if (!await requireGoogleBusinessProfileStaff(playFabId, res)) return;
+            }
             const ref = firestore.collection(TROY_CALENDAR_COLLECTION).doc(calendarId);
             const auditRef = firestore.collection(TROY_CALENDAR_AUDIT_COLLECTION).doc();
             const controlRef = firestore
                 .collection(TROY_CALENDAR_CONTROL_COLLECTION)
                 .doc(TROY_CALENDAR_CONTROL_DOCUMENT);
+            const googleSyncStateRef = firestore
+                .collection(TROY_CALENDAR_CONTROL_COLLECTION)
+                .doc(TROY_CALENDAR_GOOGLE_SYNC_DOCUMENT);
             const mutationAtMs = Date.now();
             const transactionResult = await firestore.runTransaction(async (transaction) => {
-                const snap = await transaction.get(ref);
+                const [snap, googleSyncStateSnapshot] = await Promise.all([
+                    transaction.get(ref),
+                    googleConsent ? transaction.get(googleSyncStateRef) : Promise.resolve(null)
+                ]);
+                if (googleConsent && !activeGoogleBusinessProfileConfigMatches(googleSyncStateSnapshot)) {
+                    return {
+                        kind: 'error',
+                        httpStatus: 503,
+                        error: 'Google連携の設定反映中です。少し待ってから再度確認・同意してください。'
+                    };
+                }
                 if (!snap.exists) return { kind: 'error', httpStatus: 404, error: 'CalendarEntryNotFound' };
                 if (!isEditableTroyCalendarNation(snap.data()?.nation, kingNation)) {
                     return { kind: 'error', httpStatus: 403, error: 'OtherNationCalendarEntry' };
@@ -828,16 +1121,42 @@ function initializeEventRoutes(app, deps) {
                     calendarId,
                     actorPlayFabId: playFabId,
                     actorNation: kingNation,
+                    googleBusinessProfileConsent: !!googleConsent,
+                    googleBusinessProfileConsentVersion: googleConsent?.consentVersion || null,
+                    googleBusinessProfileOperationId: googleConsent?.operationId || null,
+                    googleBusinessProfileLocationName: googleConsent ? googleBusinessProfileLocationName : null,
+                    googleBusinessProfileAuthorization: googleConsent
+                        ? 'staff_playfab_allowlist_and_king'
+                        : 'local_calendar_only',
+                    googleBusinessProfileConfigGeneration: googleConsent
+                        ? Number(googleBusinessProfileApprovalContext.configGeneration)
+                        : null,
+                    googleBusinessProfileConfigFingerprint: googleConsent
+                        ? googleBusinessProfileApprovalContext.configFingerprint
+                        : null,
                     before: calendarAuditSnapshot(beforeData),
                     after: null,
                     occurredAtMs: mutationAtMs,
                     occurredAt: admin.firestore.FieldValue.serverTimestamp()
                 });
-                const googleBusinessProfileSync = troyCalendarGoogleSync.markPendingInBatch(
-                    transaction,
-                    'calendar_delete',
-                    { requestedBy: playFabId, calendarId, action: 'delete' }
-                );
+                const googleBusinessProfileSync = googleConsent
+                    ? troyCalendarGoogleSync.markPendingInBatch(
+                        transaction,
+                        'calendar_delete',
+                        {
+                            requestedBy: playFabId,
+                            calendarId,
+                            action: 'delete',
+                            operationId: googleConsent.operationId,
+                            consentVersion: googleConsent.consentVersion,
+                            locationName: googleBusinessProfileLocationName,
+                            requestedDate: date,
+                            removalDates: date && calendarEntryHasCurrentGoogleApproval(beforeData)
+                                ? [date]
+                                : []
+                        }
+                    )
+                    : { status: 'not_requested', configured: false, enabled: false, queued: false };
                 transaction.set(controlRef, {
                     schemaVersion: 1,
                     entryCount: Math.max(0, entryCount - 1),
@@ -850,10 +1169,12 @@ function initializeEventRoutes(app, deps) {
             if (transactionResult.kind === 'error') {
                 return res.status(transactionResult.httpStatus).json({ error: transactionResult.error });
             }
-            try {
-                troyCalendarGoogleSync.scheduleFlush();
-            } catch (error) {
-                console.warn('[google-business-profile] Calendar delete queued; local wake-up failed:', error?.message || error);
+            if (transactionResult.googleBusinessProfileSync?.queued === true) {
+                try {
+                    troyCalendarGoogleSync.scheduleFlush();
+                } catch (error) {
+                    console.warn('[google-business-profile] Calendar delete queued; local wake-up failed:', error?.message || error);
+                }
             }
             res.json({
                 success: true,

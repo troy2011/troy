@@ -8,6 +8,12 @@ const DATE_INDEX_COLLECTION = 'troy_business_calendar_dates';
 const INTEGRATION_COLLECTION = 'integration_states';
 const INTEGRATION_DOCUMENT = 'troy_google_business_profile_special_hours';
 const CONTROL_DOCUMENT = 'troy_business_calendar_write_control';
+const DEFAULT_GOOGLE_APPROVAL_CONTEXT = Object.freeze({
+  consentVersion: 'gbp-special-hours-v1',
+  locationName: 'locations/123456789',
+  configGeneration: 1,
+  configFingerprint: '0123456789abcdef0123456789abcdef'
+});
 
 function clone(value) {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
@@ -236,15 +242,24 @@ function createFakeApp() {
   };
 }
 
-function createGoogleSyncStub(firestore, statusResult = {}) {
+function createGoogleSyncStub(
+  firestore,
+  statusResult = {},
+  approvalContext = DEFAULT_GOOGLE_APPROVAL_CONTEXT
+) {
   const calls = {
     start: 0,
     scheduleFlush: 0,
     markPendingInBatch: [],
-    getStatus: 0
+    getStatus: 0,
+    getReviewDetails: 0,
+    approveReview: []
   };
   return {
     calls,
+    getApprovalContext() {
+      return clone(approvalContext);
+    },
     start() {
       calls.start += 1;
     },
@@ -254,6 +269,37 @@ function createGoogleSyncStub(firestore, statusResult = {}) {
     async getStatus() {
       calls.getStatus += 1;
       return clone(statusResult);
+    },
+    async getReviewDetails() {
+      calls.getReviewDetails += 1;
+      return {
+        status: 'review_required',
+        configured: true,
+        enabled: true,
+        reviewRequired: true,
+        reviewHash: 'a'.repeat(64),
+        reason: 'remote_conflict',
+        remoteSpecialHours: [{
+          startDate: { year: 2026, month: 12, day: 14 },
+          closed: true
+        }],
+        proposedSpecialHours: [{
+          startDate: { year: 2026, month: 12, day: 14 },
+          openTime: { hours: 18, minutes: 0 },
+          endDate: { year: 2026, month: 12, day: 14 },
+          closeTime: { hours: 23, minutes: 0 }
+        }]
+      };
+    },
+    async approveReview(metadata) {
+      calls.approveReview.push(clone(metadata));
+      return {
+        status: 'queued',
+        configured: true,
+        enabled: true,
+        queued: true,
+        dryRun: true
+      };
     },
     markPendingInBatch(batch, reason, metadata) {
       calls.markPendingInBatch.push({
@@ -269,7 +315,7 @@ function createGoogleSyncStub(firestore, statusResult = {}) {
         calendarId: metadata.calendarId,
         action: metadata.action
       }, { merge: true });
-      return { status: 'pending', reason };
+      return { status: 'pending', reason, queued: true };
     }
   };
 }
@@ -281,6 +327,21 @@ function createHarness({
   authenticated = true,
   isKing = true,
   nation = 'fire',
+  staffPlayFabIds = [
+    'KING-001',
+    'KING-CONFLICT',
+    'KING-INVALID-DATE',
+    'KING-PARALLEL-CAPACITY',
+    'KING-PARALLEL-CONFLICT',
+    'KING-PARALLEL-DATE',
+    'KING-PARALLEL-DUPLICATE',
+    'KING-PARALLEL-UPDATE-DELETE',
+    'KING-REQUEST-ID',
+    'KING-STRICT'
+  ].join(','),
+  allowedLocationName = 'locations/123456789',
+  syncLocationName = 'locations/123456789',
+  googleApprovalContext,
   googleStatus = {
     status: 'up_to_date',
     configured: true,
@@ -288,12 +349,32 @@ function createHarness({
     queued: false
   }
 } = {}) {
-  const store = createFakeFirestore(initialCollections, {
+  const resolvedGoogleApprovalContext = googleApprovalContext === undefined
+    ? DEFAULT_GOOGLE_APPROVAL_CONTEXT
+    : googleApprovalContext;
+  const seededInitialCollections = clone(initialCollections) || {};
+  if (resolvedGoogleApprovalContext) {
+    const integrationDocuments = seededInitialCollections[INTEGRATION_COLLECTION] || {};
+    seededInitialCollections[INTEGRATION_COLLECTION] = {
+      ...integrationDocuments,
+      [INTEGRATION_DOCUMENT]: {
+        activeConfigGeneration: Number(resolvedGoogleApprovalContext.configGeneration),
+        activeConfigFingerprint: resolvedGoogleApprovalContext.configFingerprint,
+        activeLocationName: resolvedGoogleApprovalContext.locationName,
+        ...(integrationDocuments[INTEGRATION_DOCUMENT] || {})
+      }
+    };
+  }
+  const store = createFakeFirestore(seededInitialCollections, {
     failCommits,
     failDocumentGetsAfterCommit
   });
   const app = createFakeApp();
-  const googleSync = createGoogleSyncStub(store.firestore, googleStatus);
+  const googleSync = createGoogleSyncStub(
+    store.firestore,
+    googleStatus,
+    resolvedGoogleApprovalContext
+  );
   const getUserReadOnlyData = () => {};
   initializeEventRoutes(app, {
     firestore: store.firestore,
@@ -305,6 +386,11 @@ function createHarness({
       }
     },
     troyCalendarGoogleSync: googleSync,
+    env: {
+      GOOGLE_BUSINESS_PROFILE_STAFF_PLAYFAB_IDS: staffPlayFabIds,
+      GOOGLE_BUSINESS_PROFILE_ALLOWED_LOCATION_NAME: allowedLocationName,
+      GOOGLE_BUSINESS_PROFILE_LOCATION_NAME: syncLocationName
+    },
     requireAuthenticatedPlayFabId: async (_req, res, playFabId) => {
       if (authenticated) return playFabId;
       res.status(401).json({ error: 'Unauthorized' });
@@ -331,6 +417,9 @@ function saveBody(overrides = {}) {
     closeTime: '23:00',
     status: 'open',
     title: '通常営業',
+    googleBusinessProfileConsent: true,
+    consentVersion: 'gbp-special-hours-v1',
+    operationId: 'gbp-operation-0001',
     ...overrides
   };
 }
@@ -369,11 +458,27 @@ test('calendar save commits calendar, audit, GBP outbox, date index, and control
     ]
   });
   expect(store.commits[0].writes).toHaveLength(5);
+  expect(store.commits[0].writes[0].data).toMatchObject({
+    googleBusinessProfileConsent: true,
+    googleBusinessProfileOperationId: 'gbp-operation-0001',
+    googleBusinessProfileConsentVersion: 'gbp-special-hours-v1',
+    googleBusinessProfileLocationName: 'locations/123456789',
+    googleBusinessProfileAuthorization: 'staff_playfab_allowlist_and_king',
+    googleBusinessProfileConfigGeneration: 1,
+    googleBusinessProfileConfigFingerprint: '0123456789abcdef0123456789abcdef'
+  });
   expect(store.commits[0].writes[1].data).toMatchObject({
     action: 'create',
     calendarId: 'request-route-request-0001',
     actorPlayFabId: 'KING-001',
     actorNation: 'fire',
+    googleBusinessProfileConsent: true,
+    googleBusinessProfileConsentVersion: 'gbp-special-hours-v1',
+    googleBusinessProfileOperationId: 'gbp-operation-0001',
+    googleBusinessProfileLocationName: 'locations/123456789',
+    googleBusinessProfileAuthorization: 'staff_playfab_allowlist_and_king',
+    googleBusinessProfileConfigGeneration: 1,
+    googleBusinessProfileConfigFingerprint: '0123456789abcdef0123456789abcdef',
     before: { date: '', status: '' },
     after: { date: '2026-12-14', status: 'open' }
   });
@@ -390,11 +495,341 @@ test('calendar save commits calendar, audit, GBP outbox, date index, and control
     metadata: {
       requestedBy: 'KING-001',
       calendarId: 'request-route-request-0001',
-      action: 'save'
+      action: 'save',
+      operationId: 'gbp-operation-0001',
+      consentVersion: 'gbp-special-hours-v1',
+      locationName: 'locations/123456789',
+      requestedDate: '2026-12-14',
+      removalDates: []
     }
   }]);
   expect(googleSync.calls.start).toBe(1);
   expect(googleSync.calls.scheduleFlush).toBe(1);
+});
+
+test('calendar mutation requires the authenticated King to be in the fixed GBP staff allowlist', async () => {
+  const { app, store, googleSync } = createHarness({ staffPlayFabIds: '' });
+
+  const response = await app.invoke('/api/troy-calendar/save', saveBody());
+
+  expect(response).toEqual({
+    status: 403,
+    body: { error: 'Google営業時間は許可された店舗スタッフのみ操作できます。' }
+  });
+  expect(store.commits).toHaveLength(0);
+  expect(googleSync.calls.markPendingInBatch).toHaveLength(0);
+  expect(googleSync.calls.scheduleFlush).toBe(0);
+});
+
+test('calendar mutation fails closed when the fixed allowed location differs from the sync target', async () => {
+  const { app, store, googleSync } = createHarness({
+    allowedLocationName: 'locations/other'
+  });
+
+  const response = await app.invoke('/api/troy-calendar/save', saveBody());
+
+  expect(response).toEqual({
+    status: 503,
+    body: { error: 'Google営業時間の同期先店舗が固定許可設定と一致していません。' }
+  });
+  expect(store.commits).toHaveLength(0);
+  expect(googleSync.calls.markPendingInBatch).toHaveLength(0);
+});
+
+test('calendar mutation fails closed when the worker cannot bind consent to its configuration', async () => {
+  const { app, store, googleSync } = createHarness({ googleApprovalContext: null });
+
+  const response = await app.invoke('/api/troy-calendar/save', saveBody());
+
+  expect(response).toEqual({
+    status: 503,
+    body: { error: 'Google営業時間の同意対象設定を確認できません。' }
+  });
+  expect(store.commits).toHaveLength(0);
+  expect(googleSync.calls.markPendingInBatch).toHaveLength(0);
+});
+
+test('Google-consented save rejects an inactive config generation without staging writes', async () => {
+  const staleActiveState = {
+    activeConfigGeneration: 2,
+    activeConfigFingerprint: DEFAULT_GOOGLE_APPROVAL_CONTEXT.configFingerprint,
+    activeLocationName: DEFAULT_GOOGLE_APPROVAL_CONTEXT.locationName
+  };
+  const { app, store, googleSync } = createHarness({
+    initialCollections: {
+      [INTEGRATION_COLLECTION]: {
+        [INTEGRATION_DOCUMENT]: staleActiveState
+      }
+    }
+  });
+
+  const response = await app.invoke('/api/troy-calendar/save', saveBody({
+    requestId: 'inactive-generation-save-01'
+  }));
+
+  expect(response).toEqual({
+    status: 503,
+    body: { error: 'Google連携の設定反映中です。少し待ってから再度確認・同意してください。' }
+  });
+  expect(store.commits).toHaveLength(0);
+  expect(store.listDocuments(CALENDAR_COLLECTION)).toHaveLength(0);
+  expect(store.listDocuments(AUDIT_COLLECTION)).toHaveLength(0);
+  expect(store.listDocuments(DATE_INDEX_COLLECTION)).toHaveLength(0);
+  expect(store.getDocument(INTEGRATION_COLLECTION, CONTROL_DOCUMENT)).toBeUndefined();
+  expect(store.getDocument(INTEGRATION_COLLECTION, INTEGRATION_DOCUMENT)).toEqual(staleActiveState);
+  expect(googleSync.calls.markPendingInBatch).toHaveLength(0);
+  expect(googleSync.calls.scheduleFlush).toBe(0);
+});
+
+test('Google-consented delete rejects an inactive config generation without deleting or queuing', async () => {
+  const calendarId = 'inactive-generation-delete';
+  const existingEntry = {
+    nation: 'global',
+    date: '2026-12-15',
+    openTime: '18:00',
+    closeTime: '23:00',
+    status: 'open',
+    startsAtMs: Date.parse('2026-12-15T18:00:00+09:00')
+  };
+  const staleActiveState = {
+    activeConfigGeneration: 2,
+    activeConfigFingerprint: DEFAULT_GOOGLE_APPROVAL_CONTEXT.configFingerprint,
+    activeLocationName: DEFAULT_GOOGLE_APPROVAL_CONTEXT.locationName
+  };
+  const { app, store, googleSync } = createHarness({
+    initialCollections: {
+      [CALENDAR_COLLECTION]: { [calendarId]: existingEntry },
+      [DATE_INDEX_COLLECTION]: {
+        '2026-12-15': { calendarId, date: '2026-12-15' }
+      },
+      [INTEGRATION_COLLECTION]: {
+        [INTEGRATION_DOCUMENT]: staleActiveState,
+        [CONTROL_DOCUMENT]: { schemaVersion: 1, entryCount: 1, mutationWindows: {} }
+      }
+    }
+  });
+
+  const response = await app.invoke('/api/troy-calendar/delete', {
+    playFabId: 'KING-001',
+    calendarId,
+    googleBusinessProfileConsent: true,
+    consentVersion: 'gbp-special-hours-v1',
+    operationId: 'inactive-generation-delete-01'
+  });
+
+  expect(response).toEqual({
+    status: 503,
+    body: { error: 'Google連携の設定反映中です。少し待ってから再度確認・同意してください。' }
+  });
+  expect(store.commits).toHaveLength(0);
+  expect(store.getDocument(CALENDAR_COLLECTION, calendarId)).toEqual(existingEntry);
+  expect(store.listDocuments(AUDIT_COLLECTION)).toHaveLength(0);
+  expect(store.getDocument(DATE_INDEX_COLLECTION, '2026-12-15')).toEqual({
+    calendarId,
+    date: '2026-12-15'
+  });
+  expect(store.getDocument(INTEGRATION_COLLECTION, CONTROL_DOCUMENT)).toMatchObject({
+    entryCount: 1
+  });
+  expect(store.getDocument(INTEGRATION_COLLECTION, INTEGRATION_DOCUMENT)).toEqual(staleActiveState);
+  expect(googleSync.calls.markPendingInBatch).toHaveLength(0);
+  expect(googleSync.calls.scheduleFlush).toBe(0);
+});
+
+test('calendar mutation fails closed without specific GBP consent, version, and operation id', async () => {
+  const invalidBodies = [
+    saveBody({ googleBusinessProfileConsent: false }),
+    saveBody({ googleBusinessProfileConsent: undefined }),
+    saveBody({ consentVersion: 'old-version' }),
+    saveBody({ operationId: 'short' })
+  ];
+
+  for (const body of invalidBodies) {
+    const { app, store, googleSync } = createHarness();
+    const response = await app.invoke('/api/troy-calendar/save', body);
+    expect(response).toEqual({
+      status: 400,
+      body: { error: 'Googleビジネスプロフィールへ反映する内容への明示同意が必要です。' }
+    });
+    expect(store.commits).toHaveLength(0);
+    expect(googleSync.calls.markPendingInBatch).toHaveLength(0);
+    expect(googleSync.calls.scheduleFlush).toBe(0);
+  }
+});
+
+test('local-only calendar save remains available without GBP staff or configuration', async () => {
+  const { app, store, googleSync } = createHarness({
+    staffPlayFabIds: '',
+    allowedLocationName: '',
+    syncLocationName: '',
+    googleApprovalContext: null
+  });
+  const body = saveBody();
+  delete body.googleBusinessProfileConsent;
+  delete body.consentVersion;
+  delete body.operationId;
+
+  const response = await app.invoke('/api/troy-calendar/save', body);
+
+  expect(response).toMatchObject({
+    status: 200,
+    body: {
+      success: true,
+      googleBusinessProfileSync: { status: 'not_requested', queued: false }
+    }
+  });
+  expect(store.getDocument(CALENDAR_COLLECTION, 'request-route-request-0001')).toMatchObject({
+    googleBusinessProfileConsent: false,
+    googleBusinessProfileAuthorization: 'local_calendar_only',
+    googleBusinessProfileOperationId: null,
+    googleBusinessProfileConfigFingerprint: null
+  });
+  expect(store.commits[0].writes).toHaveLength(4);
+  expect(googleSync.calls.markPendingInBatch).toHaveLength(0);
+  expect(googleSync.calls.scheduleFlush).toBe(0);
+});
+
+test('moving a currently approved calendar row records its old date for scoped Google removal', async () => {
+  const calendarId = 'approved-date-move';
+  const { app, googleSync } = createHarness({
+    initialCollections: {
+      [CALENDAR_COLLECTION]: {
+        [calendarId]: {
+          nation: 'global',
+          date: '2026-12-13',
+          openTime: '18:00',
+          closeTime: '23:00',
+          status: 'open',
+          startsAtMs: 1,
+          googleBusinessProfileConsent: true,
+          googleBusinessProfileConsentVersion: 'gbp-special-hours-v1',
+          googleBusinessProfileOperationId: 'previous-operation-0001',
+          googleBusinessProfileLocationName: 'locations/123456789',
+          googleBusinessProfileAuthorization: 'staff_playfab_allowlist_and_king',
+          googleBusinessProfileConfigGeneration: 1,
+          googleBusinessProfileConfigFingerprint: '0123456789abcdef0123456789abcdef'
+        }
+      }
+    }
+  });
+
+  const response = await app.invoke('/api/troy-calendar/save', saveBody({
+    calendarId,
+    date: '2026-12-14'
+  }));
+
+  expect(response.status).toBe(200);
+  expect(googleSync.calls.markPendingInBatch[0].metadata).toMatchObject({
+    requestedDate: '2026-12-14',
+    removalDates: ['2026-12-13']
+  });
+});
+
+test('deleting a local-only row preserves unmanaged Google hours for that date', async () => {
+  const calendarId = 'local-only-delete';
+  const { app, googleSync } = createHarness({
+    initialCollections: {
+      [CALENDAR_COLLECTION]: {
+        [calendarId]: {
+          nation: 'global',
+          date: '2026-12-13',
+          startsAtMs: 1,
+          googleBusinessProfileConsent: false,
+          googleBusinessProfileAuthorization: 'local_calendar_only'
+        }
+      }
+    }
+  });
+
+  const response = await app.invoke('/api/troy-calendar/delete', {
+    playFabId: 'KING-001',
+    calendarId,
+    googleBusinessProfileConsent: true,
+    consentVersion: 'gbp-special-hours-v1',
+    operationId: 'gbp-local-delete-0001'
+  });
+
+  expect(response.status).toBe(200);
+  expect(googleSync.calls.markPendingInBatch[0].metadata).toMatchObject({
+    requestedDate: '2026-12-13',
+    removalDates: []
+  });
+});
+
+test('Google sync conflict review approval is staff-only, explicit, and bound to the reviewed hash', async () => {
+  const { app, googleSync } = createHarness();
+  const reviewedHash = 'b'.repeat(64);
+
+  const response = await app.invoke('/api/troy-calendar/google-sync-review-approve', {
+    playFabId: 'KING-001',
+    googleBusinessProfileConsent: true,
+    consentVersion: 'gbp-special-hours-v1',
+    operationId: 'gbp-review-operation-0001',
+    reviewHash: reviewedHash
+  });
+
+  expect(response).toMatchObject({
+    status: 200,
+    body: {
+      success: true,
+      googleBusinessProfileSync: { status: 'queued', queued: true }
+    }
+  });
+  expect(googleSync.calls.approveReview).toEqual([{
+    requestedBy: 'KING-001',
+    action: 'remote_special_hours_review_approve',
+    operationId: 'gbp-review-operation-0001',
+    consentVersion: 'gbp-special-hours-v1',
+    locationName: 'locations/123456789',
+    reviewHash: reviewedHash
+  }]);
+
+  const invalid = await app.invoke('/api/troy-calendar/google-sync-review-approve', {
+    playFabId: 'KING-001',
+    googleBusinessProfileConsent: true,
+    consentVersion: 'gbp-special-hours-v1',
+    operationId: 'gbp-review-operation-0002',
+    reviewHash: 'not-a-hash'
+  });
+  expect(invalid.status).toBe(400);
+  expect(googleSync.calls.approveReview).toHaveLength(1);
+});
+
+test('Google sync review details are staff-only and return concrete remote and proposed periods', async () => {
+  const { app, googleSync } = createHarness();
+
+  const response = await app.invoke('/api/troy-calendar/google-sync-review-details', {
+    playFabId: 'KING-001'
+  });
+
+  expect(response).toMatchObject({
+    status: 200,
+    body: {
+      success: true,
+      googleBusinessProfileReview: {
+        status: 'review_required',
+        reviewHash: 'a'.repeat(64),
+        remoteSpecialHours: [{
+          startDate: { year: 2026, month: 12, day: 14 },
+          closed: true
+        }],
+        proposedSpecialHours: [{
+          startDate: { year: 2026, month: 12, day: 14 },
+          openTime: { hours: 18, minutes: 0 },
+          endDate: { year: 2026, month: 12, day: 14 },
+          closeTime: { hours: 23, minutes: 0 }
+        }]
+      }
+    }
+  });
+  expect(googleSync.calls.getReviewDetails).toBe(1);
+
+  const nonStaff = createHarness({ staffPlayFabIds: 'SOMEONE-ELSE' });
+  const forbidden = await nonStaff.app.invoke('/api/troy-calendar/google-sync-review-details', {
+    playFabId: 'KING-001'
+  });
+  expect(forbidden.status).toBe(403);
+  expect(nonStaff.googleSync.calls.getReviewDetails).toBe(0);
 });
 
 test('calendar delete commits its mutation, audit, GBP outbox, and control atomically', async () => {
@@ -409,7 +844,10 @@ test('calendar delete commits its mutation, audit, GBP outbox, and control atomi
 
   const response = await app.invoke('/api/troy-calendar/delete', {
     playFabId: 'KING-001',
-    calendarId
+    calendarId,
+    googleBusinessProfileConsent: true,
+    consentVersion: 'gbp-special-hours-v1',
+    operationId: 'gbp-delete-operation-0001'
   });
 
   expect(response.status).toBe(200);
@@ -435,6 +873,8 @@ test('calendar delete commits its mutation, audit, GBP outbox, and control atomi
     action: 'delete',
     calendarId,
     actorPlayFabId: 'KING-001',
+    googleBusinessProfileConfigGeneration: 1,
+    googleBusinessProfileConfigFingerprint: '0123456789abcdef0123456789abcdef',
     before: { date: '2026-12-15' },
     after: null
   });
@@ -472,7 +912,13 @@ for (const scenario of [
   {
     name: 'delete',
     path: '/api/troy-calendar/delete',
-    body: { playFabId: 'KING-001', calendarId: 'calendar-to-delete' },
+    body: {
+      playFabId: 'KING-001',
+      calendarId: 'calendar-to-delete',
+      googleBusinessProfileConsent: true,
+      consentVersion: 'gbp-special-hours-v1',
+      operationId: 'gbp-delete-operation-0002'
+    },
     expectedError: 'FailedToDeleteTroyCalendar',
     expectedCollections: [
       CALENDAR_COLLECTION,
@@ -507,7 +953,11 @@ for (const scenario of [
     scenario.assertCalendarState(store);
     expect(store.listDocuments(AUDIT_COLLECTION)).toHaveLength(0);
     expect(store.listDocuments(DATE_INDEX_COLLECTION)).toHaveLength(0);
-    expect(store.getDocument(INTEGRATION_COLLECTION, INTEGRATION_DOCUMENT)).toBeUndefined();
+    expect(store.getDocument(INTEGRATION_COLLECTION, INTEGRATION_DOCUMENT)).toMatchObject({
+      activeConfigGeneration: DEFAULT_GOOGLE_APPROVAL_CONTEXT.configGeneration,
+      activeConfigFingerprint: DEFAULT_GOOGLE_APPROVAL_CONTEXT.configFingerprint,
+      activeLocationName: DEFAULT_GOOGLE_APPROVAL_CONTEXT.locationName
+    });
     expect(store.getDocument(INTEGRATION_COLLECTION, CONTROL_DOCUMENT)).toBeUndefined();
     expect(googleSync.calls.start).toBe(1);
     expect(googleSync.calls.scheduleFlush).toBe(0);
@@ -678,7 +1128,13 @@ test('parallel update and delete serialize without resurrecting a deleted entry'
       date,
       title: '更新後'
     })),
-    app.invoke('/api/troy-calendar/delete', { playFabId, calendarId })
+    app.invoke('/api/troy-calendar/delete', {
+      playFabId,
+      calendarId,
+      googleBusinessProfileConsent: true,
+      consentVersion: 'gbp-special-hours-v1',
+      operationId: 'gbp-delete-operation-parallel'
+    })
   ]);
 
   expect(deleteResponse.status).toBe(200);
@@ -804,6 +1260,39 @@ test('new save requires a requestId of at most 92 characters', async () => {
   expect(googleSync.calls.scheduleFlush).toBe(0);
 });
 
+test('reusing a requestId with different Google consent semantics returns 409', async () => {
+  const { app, store, googleSync } = createHarness();
+  const localBody = saveBody();
+  delete localBody.googleBusinessProfileConsent;
+  delete localBody.consentVersion;
+  delete localBody.operationId;
+
+  const first = await app.invoke('/api/troy-calendar/save', localBody);
+  expect(first.status).toBe(200);
+
+  const changedConsent = await app.invoke('/api/troy-calendar/save', saveBody());
+  expect(changedConsent).toEqual({
+    status: 409,
+    body: { error: 'CalendarRequestConflict' }
+  });
+  expect(store.commits).toHaveLength(1);
+  expect(googleSync.calls.markPendingInBatch).toHaveLength(0);
+  expect(googleSync.calls.scheduleFlush).toBe(0);
+
+  const googleHarness = createHarness();
+  const googleFirst = await googleHarness.app.invoke('/api/troy-calendar/save', saveBody());
+  expect(googleFirst.status).toBe(200);
+  const changedOperation = await googleHarness.app.invoke('/api/troy-calendar/save', saveBody({
+    operationId: 'gbp-operation-0002'
+  }));
+  expect(changedOperation).toEqual({
+    status: 409,
+    body: { error: 'CalendarRequestConflict' }
+  });
+  expect(googleHarness.store.commits).toHaveLength(1);
+  expect(googleHarness.googleSync.calls.markPendingInBatch).toHaveLength(1);
+});
+
 test('successful save does not depend on a document read after batch commit', async () => {
   const { app, store, googleSync } = createHarness({
     failDocumentGetsAfterCommit: true
@@ -844,7 +1333,7 @@ test('Google sync status requires an authenticated King and returns the sync res
   const nonKingHarness = createHarness({ isKing: false });
   expect(await nonKingHarness.app.invoke('/api/troy-calendar/google-sync-status', {
     playFabId: 'PLAYER-001'
-  })).toEqual({ status: 403, body: { error: '王のみ確認できます。' } });
+  })).toEqual({ status: 403, body: { error: 'Google営業時間は許可された店舗スタッフのみ操作できます。' } });
   expect(nonKingHarness.googleSync.calls.getStatus).toBe(0);
 
   const statusResult = {
@@ -977,7 +1466,11 @@ test('calendar save rejects syntactically valid but nonexistent dates before bat
 
   expect(store.commits).toHaveLength(0);
   expect(store.listDocuments(CALENDAR_COLLECTION)).toHaveLength(0);
-  expect(store.getDocument(INTEGRATION_COLLECTION, INTEGRATION_DOCUMENT)).toBeUndefined();
+  expect(store.getDocument(INTEGRATION_COLLECTION, INTEGRATION_DOCUMENT)).toMatchObject({
+    activeConfigGeneration: DEFAULT_GOOGLE_APPROVAL_CONTEXT.configGeneration,
+    activeConfigFingerprint: DEFAULT_GOOGLE_APPROVAL_CONTEXT.configFingerprint,
+    activeLocationName: DEFAULT_GOOGLE_APPROVAL_CONTEXT.locationName
+  });
   expect(googleSync.calls.markPendingInBatch).toHaveLength(0);
   expect(googleSync.calls.start).toBe(1);
   expect(googleSync.calls.scheduleFlush).toBe(0);
