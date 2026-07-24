@@ -84,7 +84,7 @@ function selectPaymentMethod(message = '支払い方法を選択してくださ�
 import * as Player from './player.js';
 import { escapeHtml, msToTime, canPlayAudioElement } from './ui.js';
 import { formatCurrencyLabel, getResourceSourceInfo, getResourceUsageInfo } from './config.js';
-import * as Ship from './ship.js';
+import * as Ship from './ship.js?v=20260724h';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 
 // Track construction timers per island

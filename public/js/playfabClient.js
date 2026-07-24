@@ -111,6 +111,18 @@ export function getTarotKingdomCombatProfiles(playFabId, targetPlayFabIds, optio
     );
 }
 
+export function getTarotKingdomPetState(playFabId, options) {
+    return callApiWithLoader('/api/tarot-kingdom/pet-state', { playFabId }, options);
+}
+
+export function chooseTarotKingdomPet(playFabId, offerId, accept, options) {
+    return callApiWithLoader('/api/tarot-kingdom/pet-choice', {
+        playFabId,
+        offerId: String(offerId || '').trim(),
+        accept: accept === true
+    }, options);
+}
+
 export function transferPoints(fromId, toId, amount, options = {}) {
     return callApiWithLoader('/api/transfer-points', {
         fromId,
@@ -672,6 +684,15 @@ export function claimExploration(playFabId, options) {
     const explorationId = String(options?.explorationId || '').trim();
     if (tarotOutcome) body.tarotOutcome = tarotOutcome;
     if (explorationId) body.explorationId = explorationId;
+    if (options?.tarotFinisher && typeof options.tarotFinisher === 'object') {
+        body.tarotFinisher = {
+            roundNo: Math.floor(Number(options.tarotFinisher.roundNo) || 0),
+            playerIndex: Math.floor(Number(options.tarotFinisher.playerIndex) || 0),
+            playFabId: String(options.tarotFinisher.playFabId || '').trim(),
+            isNpc: options.tarotFinisher.isNpc === true,
+            mode: String(options.tarotFinisher.mode || '').trim().toLowerCase()
+        };
+    }
     return callApiWithLoader('/api/exploration/claim', body, options);
 }
 

@@ -7,7 +7,11 @@ let combatModulePromise;
 function loadCombatModule() {
   if (!combatModulePromise) {
     const modulePath = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomCombat.js');
-    const source = fs.readFileSync(modulePath, 'utf8');
+    const effectsPath = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomEffects.js');
+    const effectsSource = fs.readFileSync(effectsPath, 'utf8');
+    const effectsUrl = `data:text/javascript;base64,${Buffer.from(effectsSource).toString('base64')}`;
+    const source = fs.readFileSync(modulePath, 'utf8')
+      .replace("'./tarotKingdomEffects.js'", `'${effectsUrl}'`);
     const moduleUrl = `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
     combatModulePromise = import(moduleUrl);
   }
@@ -102,6 +106,37 @@ test.describe('Tarot Kingdom combat calculations', () => {
 });
 
 test.describe('Tarot Kingdom NPC combat snapshots', () => {
+  test('pet stats follow the player level and the matching enemy archetype without equipment effects', async () => {
+    const combat = await loadCombatModule();
+    const pet = combat.createTarotKingdomPetCharacter({
+      pet: {
+        monsterId: 'ismartal-vol1-monster-01',
+        monsterName: 'トゲマル',
+        number: 1
+      },
+      level: 10
+    });
+
+    expect(pet).toMatchObject({
+      source: 'pet',
+      monsterId: 'ismartal-vol1-monster-01',
+      displayName: 'トゲマル',
+      level: 10,
+      equipment: {},
+      tarotDeck: [],
+      combat: {
+        maxHp: 130,
+        power: 34,
+        defense: 21,
+        intelligence: 19,
+        speed: 17,
+        weaponType: 'unarmed',
+        weaponTypes: ['unarmed']
+      }
+    });
+    expect(combat.getTarotKingdomPetAiStyle({ number: 1 })).toBe('aggressive');
+  });
+
   test('level formula and all three seat styles produce the intended integer stats', async () => {
     const combat = await loadCombatModule();
     const audit = {
@@ -162,8 +197,71 @@ test.describe('Tarot Kingdom NPC combat snapshots', () => {
       defense: 4,
       intelligence: 3,
       speed: 4,
-      weaponType: 'sword'
+      weaponType: 'sword',
+      weaponTypes: ['sword']
     });
+  });
+
+  test('exploration pirates randomize avatar and equipment while inheriting player body colors', async () => {
+    const combat = await loadCombatModule();
+    const playerAvatarBase = {
+      Race: 'human',
+      AvatarColor: 'purple',
+      SkinColorIndex: 6
+    };
+    const first = combat.createTarotKingdomExplorationNpcCharacter({
+      seat: 1,
+      level: 14,
+      playerAvatarBase,
+      random: () => 0
+    });
+    const last = combat.createTarotKingdomExplorationNpcCharacter({
+      seat: 3,
+      level: 14,
+      playerAvatarBase,
+      random: () => 0.999999
+    });
+
+    expect(first).toMatchObject({
+      displayName: 'はぐれ海賊1',
+      avatarBase: {
+        Race: 'human',
+        AvatarColor: 'purple',
+        SkinColorIndex: 6,
+        FaceIndex: 1,
+        HairStyleIndex: 1
+      },
+      equipment: {
+        RightHand: 'sword_0',
+        LeftHand: 'shield_0',
+        Armor: 'leather01_0'
+      },
+      combat: {
+        weaponType: 'sword',
+        weaponTypes: ['sword', 'shield']
+      }
+    });
+    expect(last).toMatchObject({
+      displayName: 'はぐれ海賊3',
+      avatarBase: {
+        Race: 'human',
+        AvatarColor: 'purple',
+        SkinColorIndex: 6,
+        FaceIndex: 10,
+        HairStyleIndex: 10
+      },
+      equipment: {
+        RightHand: 'gun_big_4',
+        Armor: 'metal_black_9'
+      },
+      combat: {
+        weaponType: 'gun_big',
+        weaponTypes: ['gun_big']
+      }
+    });
+    expect(last.equipment.LeftHand).toBeUndefined();
+    expect(first.itemSource[first.equipment.RightHand].customData.WeaponType).toBe('sword');
+    expect(last.itemSource[last.equipment.RightHand].customData.WeaponType).toBe('gun_big');
   });
 });
 
@@ -190,7 +288,8 @@ test.describe('Tarot Kingdom combat normalization', () => {
       defense: 9,
       intelligence: 12,
       speed: 7,
-      weaponType: 'sword'
+      weaponType: 'sword',
+      weaponTypes: ['sword']
     });
   });
 
@@ -219,7 +318,7 @@ test.describe('Tarot Kingdom combat normalization', () => {
     });
 
     expect(normalized).toEqual({
-      version: 1,
+      version: 2,
       source: 'npc',
       playFabId: 'PF-1',
       displayName: '冒険者',
@@ -228,13 +327,15 @@ test.describe('Tarot Kingdom combat normalization', () => {
       avatarBase: { Race: 'elf', level: 5 },
       equipment: { RightHand: 'axe_2' },
       itemSource: { axe_2: { itemId: 'axe_2' } },
+      tarotDeck: [],
       combat: {
         maxHp: 1,
         power: 15,
         defense: 0,
         intelligence: 8,
         speed: 4,
-        weaponType: 'unarmed'
+        weaponType: 'unarmed',
+        weaponTypes: ['unarmed']
       }
     });
   });

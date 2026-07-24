@@ -1634,6 +1634,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
 
 test('exploration can start by selecting troy menu consumables', async ({ page }) => {
   const errors = trackPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
   let startBody = null;
   let claimBody = null;
   await page.route('**/api/get-troy-status', async (route) => {
@@ -1796,6 +1797,13 @@ test('exploration can start by selecting troy menu consumables', async ({ page }
       { itemId: 'troy_menu_food_b', quantity: 1 }
     ]
   });
+  const modeChoice = page.locator('.exploration-battle-mode-choice');
+  await expect(modeChoice).toBeVisible({ timeout: 7000 });
+  await expect(modeChoice.locator('.exploration-battle-mode-head strong')).toHaveText('オルビス');
+  await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '救難信号（オンライン）' })).toBeVisible();
+  expect(await page.evaluate(() => window.__explorationKingdomLaunches?.length || 0)).toBe(0);
+  await page.getByRole('button', { name: '救難信号（オンライン）' }).click();
   await expect.poll(() => page.evaluate(() => window.__explorationKingdomLaunches?.length || 0), { timeout: 7000 }).toBe(1);
   const kingdomEntry = await page.evaluate(() => ({
     launcherAvailable: window.__realExplorationKingdomLauncherAvailable,
@@ -1806,7 +1814,8 @@ test('exploration can start by selecting troy menu consumables', async ({ page }
     explorationId: 'exploration-tarot-entry',
     destinationId: 'coral-passage',
     destinationName: '珊瑚礁の抜け道',
-    isBoss: true
+    isBoss: true,
+    mode: 'online'
   });
   expect(kingdomEntry.context.monsterId).toBe('ismartal-vol2-monster-16');
   await expect.poll(() => claimBody).toMatchObject({
@@ -1876,11 +1885,65 @@ test('exploration bridge opens tarot kingdom directly with the selected island m
   await expect(page.locator('#tarotKingdomEnemyName')).toHaveText('アビソス');
   await expect(page.getByRole('region', { name: '敵モンスター' })).toContainText('BOSS');
   await expect(page.locator('body')).toHaveClass(/tarot-kingdom-exploration-session/);
+  await expect(page.locator('body')).toHaveAttribute('data-tarot-kingdom-entry-mode', 'offline');
   await expect(page.locator('#tarotModeKingdom')).toBeHidden();
 
   await page.evaluate(() => window.showTab?.('home'));
   await expect(page.locator('#tabContentHome')).toBeVisible();
   await expect(page.locator('body')).not.toHaveClass(/tarot-kingdom-exploration-session/);
+  await expectNoPageErrors(errors);
+});
+
+test('exploration rescue signal creates a dedicated online lobby before combat', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await page.route('**/api/get-troy-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ nation: 'fire', isOpen: true, members: [] })
+    });
+  });
+  await page.route('**/api/exploration/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ship: null, active: null, reports: [], destinations: [] })
+    });
+  });
+
+  await bootstrapMainApp(page, { mockFirebaseDatabase: true });
+  await page.evaluate(() => {
+    window.__explorationRescuePromise = window.launchTarotKingdomExplorationBattle({
+      explorationId: 'exp-rescue-entry',
+      destinationId: 'coral-passage',
+      destinationName: '珊瑚礁の抜け道',
+      monsterId: 'ismartal-vol2-monster-16',
+      monsterName: 'オルビス',
+      isBoss: true,
+      mode: 'online'
+    });
+  });
+
+  await expect(page.locator('#tarotKingdomRoot')).toBeVisible();
+  await expect(page.locator('body')).toHaveAttribute('data-tarot-kingdom-entry-mode', 'online');
+  await expect(page.locator('#tarotKingdomStateText')).toContainText('オルビス');
+  await expect(page.locator('#tarotKingdomBattleStage')).toBeHidden();
+  await expect(page.locator('#tarotKingdomStartOnlineButton')).toContainText(/救難|救援/, { timeout: 7000 });
+  await expect(page.locator('#tarotKingdomStartOfflineButton')).toHaveText('傭兵召集へ切替');
+
+  await expect.poll(() => page.evaluate(() => {
+    const entries = Array.from(window.__pwFirebaseDbStore?.values?.entries?.() || []);
+    const roomEntry = entries.find(([path]) => String(path).startsWith('tarotKingdomMatch/openRooms/'));
+    return roomEntry?.[1] || null;
+  }), { timeout: 7000 }).toMatchObject({
+    kind: 'exploration-rescue',
+    monsterName: 'オルビス',
+    destinationName: '珊瑚礁の抜け道'
+  });
+
+  await page.evaluate(() => window.showTab?.('home'));
+  await expect(page.locator('#tabContentHome')).toBeVisible();
+  expect(await page.locator('body').getAttribute('data-tarot-kingdom-entry-mode')).toBeNull();
   await expectNoPageErrors(errors);
 });
 
@@ -2238,6 +2301,8 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
 
 test('exploration result reveals rewards after a tarot kingdom victory', async ({ page }) => {
   const errors = trackPageErrors(page);
+  let petChoiceRequest = null;
+  let explorationClaimRequest = null;
   await page.route('**/api/get-ranking', async (route) => {
     await route.fulfill({
       status: 200,
@@ -2308,6 +2373,7 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
     });
   });
   await page.route('**/api/exploration/claim', async (route) => {
+    explorationClaimRequest = route.request().postDataJSON();
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
@@ -2331,7 +2397,38 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
           rewardCount: 1,
           rewardItems: [{ itemId: 'mist_blade', displayName: '霧切りの刃', rarity: 'rare', quantity: 1 }],
           bossLog: '戦闘開始\n船が島へ接近。\n宝箱を発見した。'
+        },
+        petOffer: {
+          offerId: 'tkpet-exploration-reward-test-ismartal-vol1-monster-01',
+          monsterId: 'ismartal-vol1-monster-01',
+          monsterName: 'トゲマル',
+          explorationId: 'exploration-reward-test',
+          rolledAtMs: Date.now(),
+          currentPet: {
+            monsterId: 'ismartal-vol1-monster-02',
+            monsterName: 'グリモア',
+            explorationId: 'old-exploration',
+            acquiredAtMs: 1000
+          }
         }
+      })
+    });
+  });
+  await page.route('**/api/tarot-kingdom/pet-choice', async (route) => {
+    petChoiceRequest = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        accepted: true,
+        currentPet: {
+          monsterId: 'ismartal-vol1-monster-01',
+          monsterName: 'トゲマル',
+          explorationId: 'exploration-reward-test',
+          acquiredAtMs: Date.now()
+        },
+        pendingOffer: null
       })
     });
   });
@@ -2345,7 +2442,14 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
       monsterId: context.monsterId,
       monsterName: context.monsterName,
       isBoss: context.isBoss,
-      explorationId: context.explorationId
+      explorationId: context.explorationId,
+      finisher: {
+        roundNo: 4,
+        playerIndex: 0,
+        playFabId: 'PF_PLAYWRIGHT',
+        isNpc: false,
+        mode: 'offline'
+      }
     });
   });
   await page.locator('#btnHomeExploration').click();
@@ -2362,7 +2466,52 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await expect(sequence).toHaveClass(/is-up/, { timeout: 5_000 });
   await expect(sequence).toHaveClass(/is-left/, { timeout: 5_000 });
   await expect(sequence).toHaveClass(/is-arrival/, { timeout: 5_000 });
+  await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' })).toBeVisible({ timeout: 5_000 });
+  await page.getByRole('button', { name: '傭兵召集（オフライン）' }).click();
   await expect(sequence).toBeHidden({ timeout: 5_000 });
+
+  const petOffer = page.locator('.tarot-pet-offer-overlay');
+  await expect(petOffer).toBeVisible({ timeout: 10_000 });
+  await expect(petOffer).toContainText('なんと　トゲマルが');
+  await expect(petOffer).toContainText('グリモア と入れ替え');
+  await expect(page.locator('.exploration-result-overlay')).toHaveCount(0);
+  for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 900 }]) {
+    await page.setViewportSize(viewport);
+    const layout = await petOffer.locator('.tarot-pet-offer-dialog').evaluate((dialog) => {
+      const rect = dialog.getBoundingClientRect();
+      return {
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        pageScrollWidth: document.documentElement.scrollWidth
+      };
+    });
+    expect(layout.left).toBeGreaterThanOrEqual(0);
+    expect(layout.right).toBeLessThanOrEqual(layout.viewportWidth);
+    expect(layout.top).toBeGreaterThanOrEqual(0);
+    expect(layout.bottom).toBeLessThanOrEqual(layout.viewportHeight);
+    expect(layout.pageScrollWidth).toBeLessThanOrEqual(layout.viewportWidth);
+  }
+  const yesButton = petOffer.locator('[data-tarot-pet-choice="yes"]');
+  await expect(yesButton).toBeFocused();
+  await yesButton.click();
+  await expect(petOffer.locator('.tarot-pet-offer-status')).toHaveText('トゲマルが なかまに くわわった！');
+  await expect(petOffer).toBeHidden({ timeout: 5_000 });
+  expect(petChoiceRequest).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    offerId: 'tkpet-exploration-reward-test-ismartal-vol1-monster-01',
+    accept: true
+  });
+  expect(explorationClaimRequest.tarotFinisher).toEqual({
+    roundNo: 4,
+    playerIndex: 0,
+    playFabId: 'PF_PLAYWRIGHT',
+    isNpc: false,
+    mode: 'offline'
+  });
 
   const result = page.locator('.exploration-result-overlay');
   await expect(result).toHaveClass(/is-awaiting-open/, { timeout: 15_000 });

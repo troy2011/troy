@@ -17,6 +17,8 @@ import {
     startExploration as requestStartExploration,
     getExplorationEncounter as requestExplorationEncounter,
     claimExploration as requestClaimExploration,
+    getTarotKingdomPetState as requestTarotKingdomPetState,
+    chooseTarotKingdomPet as requestChooseTarotKingdomPet,
     getPlayerShipStatus as requestPlayerShipStatus,
     upgradePlayerShip as requestUpgradePlayerShip,
     renamePlayerShip as requestRenamePlayerShip,
@@ -33,7 +35,7 @@ import { formatCurrencyLabel } from './config.js';
 import * as Player from './player.js';
 import * as Inventory from './inventory.js';
 import { buildAvatarLayerMarkup, renderAvatar, triggerAvatarAttackMotion } from './avatar.js';
-import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js';
+import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260724h';
 
 class LRUCache {
     constructor(maxSize = 100) {
@@ -1123,6 +1125,7 @@ const EXPLORATION_SHIP_TRAITS = {
 
 let currentPlayerShipProfile = null;
 let explorationAutoRunning = false;
+let tarotKingdomPetOfferDialogPromise = null;
 const HOME_PLAYER_SHIP_FRAME_SIZE = 64;
 const HOME_PLAYER_SHIP_DIRECTION_FRAME_SPAN = HOME_PLAYER_SHIP_FRAME_SIZE * 3;
 const HOME_PLAYER_SHIP_DIRECTIONS = [
@@ -1656,6 +1659,122 @@ function renderExplorationPixelMonster(monster, className = '', { maxWidth = 120
         `transform:scale(${previewScale})`
     ].join(';');
     return `<span class="exploration-pixel-monster ${escapeHtml(className)}${monster.isBoss === true ? ' is-boss' : ''}" style="${style}" aria-hidden="true"></span>`;
+}
+
+function animateExplorationPetIdle(node, monster) {
+    const animation = monster?.animations?.idle;
+    if (!node || !animation) return () => {};
+    const frameWidth = Math.max(1, Number(monster.frameWidth) || 1);
+    const frameHeight = Math.max(1, Number(monster.frameHeight) || 1);
+    const pixelScale = Math.max(1, Number(monster.pixelScale) || 2);
+    const columns = Math.max(1, Number(animation.columns) || 1);
+    const frameCount = Math.max(1, Number(animation.frameCount) || 1);
+    const intervalMs = Math.max(60, Math.round(1000 / Math.max(1, Number(animation.fps) || 10)));
+    if (frameCount <= 1 || window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true) {
+        return () => {};
+    }
+    let frame = 0;
+    const timerId = window.setInterval(() => {
+        if (!node.isConnected) {
+            window.clearInterval(timerId);
+            return;
+        }
+        frame = (frame + 1) % frameCount;
+        const col = frame % columns;
+        const row = Math.floor(frame / columns);
+        node.style.backgroundPosition = `-${col * frameWidth * pixelScale}px -${row * frameHeight * pixelScale}px`;
+    }, intervalMs);
+    return () => window.clearInterval(timerId);
+}
+
+async function showTarotKingdomPetOffer(offer, playFabId) {
+    if (!offer?.offerId || !offer?.monsterId || !playFabId) return null;
+    if (tarotKingdomPetOfferDialogPromise) return tarotKingdomPetOfferDialogPromise;
+    const monster = PIXEL_MONSTERS_ROSTER.find((entry) => entry.id === offer.monsterId);
+    if (!monster || monster.isBoss === true) return null;
+    const currentPet = offer.currentPet && typeof offer.currentPet === 'object' ? offer.currentPet : null;
+    const currentMonster = currentPet
+        ? PIXEL_MONSTERS_ROSTER.find((entry) => entry.id === currentPet.monsterId)
+        : null;
+    const promise = new Promise((resolve) => {
+        document.querySelector('.tarot-pet-offer-overlay')?.remove();
+        const overlay = document.createElement('div');
+        overlay.className = 'tarot-pet-offer-overlay';
+        overlay.innerHTML = `
+            <div class="tarot-pet-offer-dialog" role="dialog" aria-modal="true" aria-label="モンスター加入">
+                <div class="tarot-pet-offer-stage">
+                    ${renderExplorationPixelMonster(monster, 'tarot-pet-offer-monster', { maxWidth: 150, maxHeight: 126 })}
+                </div>
+                <div class="tarot-pet-offer-message">
+                    <p>なんと　${escapeHtml(offer.monsterName || monster.name)}が<br>
+                    おきあがり　なかまに　なりたそうに<br>
+                    こちらをみている！</p>
+                    <p>なかまに　してあげますか？</p>
+                </div>
+                ${currentMonster ? `
+                    <div class="tarot-pet-offer-replace">
+                        <span class="tarot-pet-offer-current">
+                            ${renderExplorationPixelMonster(currentMonster, 'tarot-pet-offer-current-monster', { maxWidth: 58, maxHeight: 48 })}
+                        </span>
+                        <span>「はい」で ${escapeHtml(currentPet.monsterName || currentMonster.name)} と入れ替え</span>
+                    </div>
+                ` : ''}
+                <div class="tarot-pet-offer-actions">
+                    <button type="button" data-tarot-pet-choice="yes">▶ はい</button>
+                    <button type="button" data-tarot-pet-choice="no">いいえ</button>
+                </div>
+                <div class="tarot-pet-offer-status" role="status" aria-live="polite"></div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        const hadModalLock = document.body.classList.contains('modal-lock');
+        document.body.classList.add('modal-lock');
+        const animationStops = [];
+        const candidateNode = overlay.querySelector('.tarot-pet-offer-monster');
+        if (candidateNode) animationStops.push(animateExplorationPetIdle(candidateNode, monster));
+        const currentNode = overlay.querySelector('.tarot-pet-offer-current-monster');
+        if (currentNode && currentMonster) animationStops.push(animateExplorationPetIdle(currentNode, currentMonster));
+        const buttons = Array.from(overlay.querySelectorAll('[data-tarot-pet-choice]'));
+        const status = overlay.querySelector('.tarot-pet-offer-status');
+        const finish = (result) => {
+            animationStops.forEach((stop) => stop());
+            overlay.remove();
+            if (!hadModalLock) document.body.classList.remove('modal-lock');
+            resolve(result);
+        };
+        buttons.forEach((button) => {
+            button.addEventListener('click', async () => {
+                const accept = button.dataset.tarotPetChoice === 'yes';
+                buttons.forEach((candidate) => { candidate.disabled = true; });
+                if (status) status.textContent = '返事を伝えています...';
+                try {
+                    const result = await requestChooseTarotKingdomPet(playFabId, offer.offerId, accept, {
+                        isSilent: true,
+                        throwOnError: true
+                    });
+                    if (status) {
+                        status.textContent = accept
+                            ? `${offer.monsterName || monster.name}が なかまに くわわった！`
+                            : `${offer.monsterName || monster.name}は しずかに たちさった。`;
+                    }
+                    window.setTimeout(() => finish(result), 900);
+                } catch (error) {
+                    if (status) status.textContent = error?.message || '返事を伝えられませんでした。もう一度選んでください。';
+                    buttons.forEach((candidate) => { candidate.disabled = false; });
+                    overlay.querySelector('[data-tarot-pet-choice="yes"]')?.focus();
+                }
+            });
+        });
+        window.requestAnimationFrame(() => {
+            overlay.querySelector('[data-tarot-pet-choice="yes"]')?.focus();
+        });
+    });
+    tarotKingdomPetOfferDialogPromise = promise;
+    try {
+        return await promise;
+    } finally {
+        if (tarotKingdomPetOfferDialogPromise === promise) tarotKingdomPetOfferDialogPromise = null;
+    }
 }
 
 function renderExplorationReport(report) {
@@ -2481,8 +2600,10 @@ async function recoverConflictedExploration(playFabId, destinationId) {
         const claimData = await requestClaimExploration(playFabId, {
             throwOnError: true,
             tarotOutcome: sequenceResult.kingdomResult?.outcome,
-            explorationId: sequenceResult.kingdomResult?.explorationId
+            explorationId: sequenceResult.kingdomResult?.explorationId,
+            tarotFinisher: sequenceResult.kingdomResult?.finisher
         });
+        if (claimData?.petOffer) await showTarotKingdomPetOffer(claimData.petOffer, playFabId);
         handleExplorationClaimResult(claimData, playFabId, sequenceResult);
     } else {
         renderExplorationPanel(encounterData, playFabId);
@@ -2503,6 +2624,9 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
     const bossResult = normalizeBossResult(report.bossResult);
     const bossTierKey = normalizeExplorationBossTier(report.bossTier);
     const kingdomMonster = selectExplorationTarotMonster(report, resolvedDestinationId);
+    if (!kingdomMonster || typeof window.launchTarotKingdomExplorationBattle !== 'function') {
+        throw new Error('タロットキングダムの探索連携を開始できません。');
+    }
     const shipTrait = EXPLORATION_SHIP_TRAITS[form] || EXPLORATION_SHIP_TRAITS.boat;
     const homeFrame = document.getElementById('homePlayerShipFrame');
     const homeIcon = homeFrame?.querySelector('.home-player-ship-icon');
@@ -2520,6 +2644,10 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
                 <div class="exploration-sequence-route" aria-hidden="true"></div>
                 <div class="exploration-sequence-arrival" aria-hidden="true"></div>
                 ${renderExplorationDestinationVisual(active.destinationId ? active : resolvedDestinationId, 'exploration-sequence-island', 'div')}
+                <div class="exploration-sequence-boss" data-exploration-sequence-boss>
+                    ${renderExplorationPixelMonster(kingdomMonster, 'exploration-sequence-boss-image', { maxWidth: 164, maxHeight: 154 })}
+                    <small>${kingdomMonster.isBoss === true ? 'BOSS' : 'MONSTER'}</small>
+                </div>
                 <div class="exploration-sequence-ship-effect" aria-hidden="true"></div>
                 <div class="exploration-sequence-ship is-${form}" data-guild-sail-color="${escapeHtml(guildSailColor)}" aria-hidden="true">${guildLayers}</div>
             </div>
@@ -2528,6 +2656,16 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
                 <span data-exploration-sequence-label>${escapeHtml(shipTrait.label)}</span>
             </div>
             <div class="exploration-sequence-progress" data-exploration-sequence-progress aria-hidden="true"></div>
+            <section class="exploration-battle-mode-choice" data-exploration-battle-mode-choice hidden aria-label="戦闘方式を選択">
+                <div class="exploration-battle-mode-head">
+                    <span>BOSS ENCOUNTER</span>
+                    <strong>${escapeHtml(kingdomMonster.name)}</strong>
+                </div>
+                <div class="exploration-battle-mode-actions">
+                    <button type="button" class="is-offline" data-exploration-battle-mode="offline">傭兵召集（オフライン）</button>
+                    <button type="button" class="is-online" data-exploration-battle-mode="online">救難信号（オンライン）</button>
+                </div>
+            </section>
         </div>
     `;
     document.body.appendChild(overlay);
@@ -2541,7 +2679,7 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
     const setPhase = (phase, text) => {
         overlay.className = `exploration-sequence-overlay is-${form} ${shipTrait.className} is-sky-${destinationVisual.sky} is-boss-${bossTierKey} is-${phase} is-result-${bossResult}`;
         if (label) label.textContent = text;
-        homeIcon?.classList.remove('is-exploring-sail', 'is-exploring-up', 'is-exploring-left', 'is-exploring-battle', 'is-exploring-treasure');
+        homeIcon?.classList.remove('is-exploring-sail', 'is-exploring-up', 'is-exploring-left', 'is-exploring-arrival', 'is-exploring-encounter-choice', 'is-exploring-battle', 'is-exploring-treasure');
         homeIcon?.classList.add(`is-exploring-${phase}`);
     };
     const waitForSequence = async (minimumMs) => {
@@ -2558,22 +2696,44 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
     await waitForSequence(700);
     setPhase('arrival', `${destinationVisual.label}に到着`);
     await waitForSequence(520);
+    const modeChoice = overlay.querySelector('[data-exploration-battle-mode-choice]');
+    const battleMode = await new Promise((resolve) => {
+        let selected = false;
+        modeChoice.hidden = false;
+        setPhase('encounter-choice', `${kingdomMonster.name}が出現`);
+        modeChoice.querySelectorAll('[data-exploration-battle-mode]').forEach((button) => {
+            button.addEventListener('click', () => {
+                if (selected) return;
+                selected = true;
+                const mode = button.getAttribute('data-exploration-battle-mode') === 'online' ? 'online' : 'offline';
+                modeChoice.dataset.selectedMode = mode;
+                modeChoice.querySelectorAll('button').forEach((candidate) => {
+                    candidate.disabled = true;
+                });
+                button.classList.add('is-selected');
+                if (label) {
+                    label.textContent = mode === 'online' ? '救難信号を発信中' : '傭兵を召集中';
+                }
+                resolve(mode);
+            }, { once: true });
+        });
+    });
+    await wait(180);
     overlay.remove();
     homeFrame?.classList.remove('is-exploring');
-    homeIcon?.classList.remove('is-exploring-sail', 'is-exploring-up', 'is-exploring-left', 'is-exploring-battle', 'is-exploring-treasure');
-    if (!kingdomMonster || typeof window.launchTarotKingdomExplorationBattle !== 'function') {
-        throw new Error('タロットキングダムの探索連携を開始できません。');
-    }
+    homeIcon?.classList.remove('is-exploring-sail', 'is-exploring-up', 'is-exploring-left', 'is-exploring-arrival', 'is-exploring-encounter-choice', 'is-exploring-battle', 'is-exploring-treasure');
     const kingdomResult = await window.launchTarotKingdomExplorationBattle({
         explorationId: String(report.explorationId || report.id || active.id || ''),
         destinationId: String(resolvedDestinationId || ''),
         destinationName,
         monsterId: kingdomMonster.id,
         monsterName: kingdomMonster.name,
-        isBoss: kingdomMonster.isBoss === true
+        isBoss: kingdomMonster.isBoss === true,
+        mode: battleMode
     });
     return {
         chestOpened: false,
+        battleMode,
         kingdomMonster,
         kingdomResult,
         cancelled: kingdomResult?.status !== 'completed'
@@ -2709,8 +2869,14 @@ export async function loadExplorationPanel(playFabId) {
     if (!panel || !playFabId) return;
     panel.innerHTML = renderExplorationLoading();
     try {
-        const data = await requestExplorationStatus(playFabId, { isSilent: true, throwOnError: true });
+        const [data, petState] = await Promise.all([
+            requestExplorationStatus(playFabId, { isSilent: true, throwOnError: true }),
+            requestTarotKingdomPetState(playFabId, { isSilent: true, throwOnError: true }).catch(() => null)
+        ]);
         renderExplorationPanel(data, playFabId);
+        if (petState?.pendingOffer) {
+            await showTarotKingdomPetOffer(petState.pendingOffer, playFabId);
+        }
     } catch (error) {
         panel.innerHTML = `<div class="ship-exploration-empty">${escapeHtml(error?.message || '探索情報を読み込めませんでした。')}</div>`;
     }
@@ -2739,8 +2905,10 @@ async function startExploration(playFabId, destinationId, payment = {}) {
             const claimData = await requestClaimExploration(playFabId, {
                 throwOnError: true,
                 tarotOutcome: sequenceResult.kingdomResult?.outcome,
-                explorationId: sequenceResult.kingdomResult?.explorationId
+                explorationId: sequenceResult.kingdomResult?.explorationId,
+                tarotFinisher: sequenceResult.kingdomResult?.finisher
             });
+            if (claimData?.petOffer) await showTarotKingdomPetOffer(claimData.petOffer, playFabId);
             handleExplorationClaimResult(claimData, playFabId, sequenceResult);
         } else {
             renderExplorationPanel(encounterData, playFabId);
@@ -2769,8 +2937,10 @@ async function claimExploration(playFabId) {
             const claimData = await requestClaimExploration(playFabId, {
                 throwOnError: true,
                 tarotOutcome: sequenceResult.kingdomResult?.outcome,
-                explorationId: sequenceResult.kingdomResult?.explorationId
+                explorationId: sequenceResult.kingdomResult?.explorationId,
+                tarotFinisher: sequenceResult.kingdomResult?.finisher
             });
+            if (claimData?.petOffer) await showTarotKingdomPetOffer(claimData.petOffer, playFabId);
             handleExplorationClaimResult(claimData, playFabId, sequenceResult);
         } else {
             renderExplorationPanel(encounterData, playFabId);

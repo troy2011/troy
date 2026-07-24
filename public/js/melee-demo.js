@@ -459,7 +459,7 @@ async function init() {
 
 async function loadAvatarModule() {
     try {
-        avatarCombatModule = await import('./avatarCombat.js');
+        avatarCombatModule = await import('./avatarCombat.js?v=20260724-death-sheet-1');
     } catch (error) {
         avatarCombatModule = null;
         console.warn('[melee-demo] avatar combat module unavailable', error);

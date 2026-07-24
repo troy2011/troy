@@ -1777,6 +1777,23 @@ export function getMyCurrentEquipment() {
     return myCurrentEquipment;
 }
 
+export function getMyTarotBattleDeckSnapshot() {
+    return getCommonTarotDeck().map((itemId, slot) => {
+        const item = myInventory.find((entry) => String(entry?.itemId || '') === String(itemId));
+        const itemData = item?.customData || {};
+        const skill = resolveTarotBattleSkill(itemId, itemData) || {};
+        return {
+            ...skill,
+            slot,
+            itemId: String(itemId || ''),
+            suit: skill.suit || itemData.ArcanaSuit || itemData.Suit || '',
+            rank: skill.rank ?? itemData.ArcanaRank ?? itemData.Rank ?? itemData.CardNumber ?? null,
+            skillName: skill.skillName || itemData.DisplayName || item?.name || String(itemId || ''),
+            effectCodes: Array.isArray(skill.effectCodes) ? skill.effectCodes : []
+        };
+    });
+}
+
 async function loadCurrentEquipment(playFabId, options = {}) {
     const force = options && options.force === true;
     if (equipmentFetchPromise && !force) return equipmentFetchPromise;

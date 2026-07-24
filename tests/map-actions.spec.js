@@ -625,14 +625,20 @@ test.describe('map actions', () => {
     expect(weaponRatio).toBeLessThan(1.8);
     await expect(page.locator('#battle-avatar-A')).toHaveClass(/is-avatar-defeated/);
     const defeatedAvatarState = await page.locator('#battle-avatar-A').evaluate((avatar) => {
-      const head = document.getElementById('battle-avatar-A-layer-head');
+      const deathSprite = avatar.querySelector(':scope > .avatar-combat-death-sprite');
       return {
         stopped: avatar.dataset.avatarBodyMotionStopped === 'true',
-        headAnimation: head ? window.getComputedStyle(head).animationName : ''
+        deathDisplay: deathSprite ? window.getComputedStyle(deathSprite).display : '',
+        deathImage: deathSprite ? window.getComputedStyle(deathSprite).backgroundImage : '',
+        layersHidden: Array.from(avatar.querySelectorAll('.avatar-layer')).every((layer) => (
+          window.getComputedStyle(layer).visibility === 'hidden'
+        ))
       };
     });
     expect(defeatedAvatarState.stopped).toBe(true);
-    expect(defeatedAvatarState.headAnimation).toContain('avatarHeadDrop');
+    expect(defeatedAvatarState.deathDisplay).toBe('block');
+    expect(defeatedAvatarState.deathImage).toContain('/Sprites/Characters/body/death.png');
+    expect(defeatedAvatarState.layersHidden).toBe(true);
     await expect(page.locator('#battle-avatar-B')).toHaveClass(/is-avatar-victorious/);
     const victoriousAvatarState = await page.locator('#battle-avatar-B').evaluate((avatar) => ({
       motion: avatar.dataset.avatarBodyMotion || '',

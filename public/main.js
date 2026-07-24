@@ -9,7 +9,7 @@ import { showTab, showConfirmationModal, scheduleWorldMapPrefetch } from 'ui';
 import * as Player from 'player';
 import * as Inventory from 'inventory';
 import * as Guild from './js/guild.js';
-import * as Ship from './js/ship.js';
+import * as Ship from './js/ship.js?v=20260724i';
 import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js';
 import { initMapChat, initTroyChat } from './js/mapChat.js';

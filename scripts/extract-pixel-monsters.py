@@ -106,6 +106,21 @@ FLYING_MONSTER_IDS = {
     "ismartal-vol3-monster-09",
     "ismartal-vol3-monster-10",
 }
+HORIZONTAL_FLIP_IDS = {
+    "ismartal-vol2-monster-08",
+    "ismartal-vol2-monster-09",
+    "ismartal-vol2-monster-10",
+    "ismartal-vol2-monster-19",
+    "ismartal-vol3-monster-06",
+}
+VERTICAL_FLIP_IDS = {
+    "ismartal-vol2-monster-06",
+}
+BATTLE_OFFSET_Y = {
+    "ismartal-vol2-monster-05": -24,
+    "ismartal-vol2-monster-17": -56,
+    "ismartal-vol3-monster-09": -16,
+}
 
 
 @dataclass(frozen=True)
@@ -363,6 +378,9 @@ def build_volume(volume: int, entries: dict[str, PackageEntry], output_root: Pat
             "sizeClass": "large" if monster_id in LARGE_MONSTER_IDS else "normal",
             "isBoss": monster_id in LARGE_MONSTER_IDS,
             "idleAnchor": idle_anchor,
+            **({"battleOffsetY": BATTLE_OFFSET_Y[monster_id]} if monster_id in BATTLE_OFFSET_Y else {}),
+            **({"flipX": True} if monster_id in HORIZONTAL_FLIP_IDS else {}),
+            **({"flipY": True} if monster_id in VERTICAL_FLIP_IDS else {}),
             "animations": animations,
         })
     for image in image_cache.values():

@@ -49,10 +49,26 @@ test.describe('shared combat avatar motions', () => {
       combat.setCombatAvatarKo(root, true, { side: 'player' });
       const ko = root.classList.contains('is-avatar-defeated');
       const stopped = !root.dataset.avatarBodyMotion;
+      const deathSprite = root.querySelector('.avatar-combat-death-sprite');
+      const deathStart = {
+        exists: !!deathSprite,
+        display: deathSprite ? getComputedStyle(deathSprite).display : '',
+        image: deathSprite ? getComputedStyle(deathSprite).backgroundImage : '',
+        frame: deathSprite?.dataset.avatarDeathFrame || '',
+        layersHidden: Array.from(root.querySelectorAll('.avatar-layer')).every((layer) => (
+          getComputedStyle(layer).visibility === 'hidden'
+        ))
+      };
+      await new Promise((resolve) => setTimeout(resolve, 220));
+      const deathAdvancedFrame = Number(deathSprite?.dataset.avatarDeathFrame || 0);
       const victoryWhileKo = combat.setCombatAvatarVictory(root, true, { side: 'player' });
 
       combat.setCombatAvatarKo(root, false, { side: 'player' });
       const revivedIdle = root.dataset.avatarBodyMotion === 'idle';
+      const deathReset = {
+        display: deathSprite ? getComputedStyle(deathSprite).display : '',
+        frame: deathSprite?.dataset.avatarDeathFrame || ''
+      };
       const victory = combat.setCombatAvatarVictory(root, true, { side: 'player' });
       const victorious = root.classList.contains('is-avatar-victorious');
       combat.resetCombatAvatarState(root, { resumeIdle: false });
@@ -93,6 +109,9 @@ test.describe('shared combat avatar motions', () => {
         hurt,
         ko,
         stopped,
+        deathStart,
+        deathAdvancedFrame,
+        deathReset,
         victoryWhileKo,
         revivedIdle,
         victory,
@@ -118,6 +137,15 @@ test.describe('shared combat avatar motions', () => {
     expect(audit.hurt).toBe(true);
     expect(audit.ko).toBe(true);
     expect(audit.stopped).toBe(true);
+    expect(audit.deathStart).toEqual({
+      exists: true,
+      display: 'block',
+      image: expect.stringContaining('/Sprites/Characters/body/death.png'),
+      frame: '0',
+      layersHidden: true
+    });
+    expect(audit.deathAdvancedFrame).toBeGreaterThanOrEqual(2);
+    expect(audit.deathReset).toEqual({ display: 'none', frame: '0' });
     expect(audit.victoryWhileKo).toBe(false);
     expect(audit.revivedIdle).toBe(true);
     expect(audit.victory).toBe(true);

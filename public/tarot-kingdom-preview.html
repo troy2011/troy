@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="robots" content="noindex,follow">
     <title>Tarot Kingdom Preview</title>
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./style.css?v=20260724n">
     <style>
         html, body {
             margin: 0;
@@ -40,7 +40,7 @@
                 "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
                 "config": "./js/config.js",
                 "api": "./js/api.js",
-                "ui": "./js/ui.js?v=20260604g",
+                "ui": "./js/ui.js?v=20260724i",
                 "avatar": "./js/avatar.js",
                 "player": "./js/player.js",
                 "inventory": "./js/inventory.js?v=20260604g",
@@ -80,6 +80,14 @@
                 <label class="tarot-kingdom-demo-enemy-picker" for="tarotKingdomDemoEnemySelect">
                     <span>DEMO ENEMY</span>
                     <select id="tarotKingdomDemoEnemySelect" aria-label="デモの敵を選択"></select>
+                </label>
+                <label class="tarot-kingdom-demo-battlefield-picker" for="tarotKingdomDemoBattlefieldSelect">
+                    <span>DEMO FIELD</span>
+                    <select id="tarotKingdomDemoBattlefieldSelect" aria-label="デモの戦闘背景を選択"></select>
+                </label>
+                <label class="tarot-kingdom-demo-pet-picker" for="tarotKingdomDemoPetSelect">
+                    <span>DEMO PET</span>
+                    <select id="tarotKingdomDemoPetSelect" aria-label="デモのペットを選択"></select>
                 </label>
                 <section class="tarot-kingdom-battle-enemy is-facing-left" aria-label="敵モンスター">
                     <div class="tarot-kingdom-battle-side-heading">
@@ -175,7 +183,7 @@
         window.myLineProfile = { displayName: 'Preview' };
         window.__TAROT_KINGDOM_PREVIEW__ = true;
 
-        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260723a';
+        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260724n';
 
         window.TarotKingdomPreview = {
             load: () => loadTarotKingdomPage(),

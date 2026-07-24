@@ -10,7 +10,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     await openKingdomDebug(page);
   });
 
-  test('schema 4 publishes eight-card rules while schema 1-3 keep six', async ({ page }) => {
+  test('schema 9 publishes player count and major arcana specials while older matches keep their original rules', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       const current = debug.battleScenario({ withTrick: false });
@@ -28,16 +28,70 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       const schema1 = debug.battleDeserialize({ schema: 1, state: legacyState });
       const schema3 = debug.battleDeserialize({ schema: 3, state: legacyState });
       const schema4 = debug.battleDeserialize({ schema: 4, state: legacyState });
-      return { current, published, schema1, schema3, schema4 };
+      const schema5 = debug.battleDeserialize({
+        schema: 5,
+        state: {
+          ...legacyState,
+          rules: { initialHandSize: 8, handLimit: 8, combatEffectsVersion: 1 }
+        }
+      });
+      const schema6 = debug.battleDeserialize({
+        schema: 6,
+        state: {
+          ...legacyState,
+          rules: {
+            initialHandSize: 8,
+            handLimit: 8,
+            combatEffectsVersion: 1,
+            summonVersion: 1,
+            majorArcanaGateVersion: 1
+          }
+        }
+      });
+      return { current, published, schema1, schema3, schema4, schema5, schema6 };
     });
 
-    expect(audit.current.rules).toMatchObject({ initialHandSize: 8, handLimit: 8 });
+    expect(audit.current.rules).toMatchObject({
+      initialHandSize: 8,
+      handLimit: 8,
+      combatEffectsVersion: 1,
+      summonVersion: 1,
+      majorArcanaGateVersion: 1,
+      majorArcanaSpecialVersion: 1
+    });
     expect(audit.current.players.map((player) => player.hand.length)).toEqual([8, 8, 8, 8]);
-    expect(audit.published.schema).toBe(4);
-    expect(audit.published.state.rules).toMatchObject({ initialHandSize: 8, handLimit: 8 });
+    expect(audit.published.schema).toBe(9);
+    expect(audit.published.state.rules).toMatchObject({
+      initialHandSize: 8,
+      handLimit: 8,
+      playerCount: 4,
+      combatEffectsVersion: 1,
+      summonVersion: 1,
+      majorArcanaGateVersion: 1,
+      majorArcanaSpecialVersion: 1
+    });
     expect(audit.schema1.rules).toMatchObject({ initialHandSize: 6, handLimit: 6 });
     expect(audit.schema3.rules).toMatchObject({ initialHandSize: 6, handLimit: 6 });
-    expect(audit.schema4.rules).toMatchObject({ initialHandSize: 8, handLimit: 8 });
+    expect(audit.schema4.rules).toMatchObject({
+      initialHandSize: 8,
+      handLimit: 8,
+      combatEffectsVersion: 0,
+      summonVersion: 0
+    });
+    expect(audit.schema5.rules).toMatchObject({
+      initialHandSize: 8,
+      handLimit: 8,
+      combatEffectsVersion: 1,
+      summonVersion: 0
+    });
+    expect(audit.schema6.rules).toMatchObject({
+      initialHandSize: 8,
+      handLimit: 8,
+      combatEffectsVersion: 1,
+      summonVersion: 1,
+      majorArcanaGateVersion: 0,
+      majorArcanaSpecialVersion: 0
+    });
   });
 
   test('normal attack delays visible HP until impact and then reveals it over 240ms', async ({ page }) => {
@@ -79,13 +133,16 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     expect(Number(duringReveal)).toBeLessThan(420);
     expect(Number(duringReveal)).toBeGreaterThanOrEqual(event.hpAfter);
     await expect(page.locator('.tarot-kingdom-damage-number.is-show')).toHaveCount(1);
+    await expect(page.locator('.tarot-kingdom-damage-number.is-show')).toHaveText(String(event.damage));
+    expect(event.label).toContain(`${event.damage}ダメージ`);
+    expect(event.label).not.toContain(`-${event.damage}`);
 
     await page.waitForTimeout(Math.max(0, timeline.hpTweenEndsAt - Date.now() + 50));
     await expect(page.locator('#tarotKingdomBattleStage .tarot-kingdom-battle-enemy > [role="progressbar"]'))
       .toHaveAttribute('aria-valuenow', String(event.hpAfter));
   });
 
-  test('five-card role uses one synchronized 1800ms cut-in without duplicate events', async ({ page }) => {
+  test('five-card role runs one synchronized 4.5-second summon without duplicate events', async ({ page }) => {
     const cards = [
       { id: 'skill-2', kind: 'minor', suit: 'Wand', number: 2 },
       { id: 'skill-3', kind: 'minor', suit: 'Cup', number: 3 },
@@ -114,15 +171,19 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     const event = audit.state.battle.events.at(-1);
     expect(event.type).toBe('skill');
     expect(audit.state.battle.events.filter((entry) => entry.type === 'skill')).toHaveLength(1);
-    expect(audit.state.transition.endsAt - audit.state.transition.startedAt).toBe(1800);
+    expect(event.summon).toMatchObject({ id: 'skeletal_parrot', effectKey: 'command' });
+    expect(audit.state.transition.endsAt - audit.state.transition.startedAt).toBe(4500);
     expect(audit.state.transition.timeline).toMatchObject({
+      version: 2,
       variant: 'skill',
-      impactAt: audit.state.transition.startedAt + 1080,
-      hpRevealAt: audit.state.transition.startedAt + 1200,
-      hpTweenEndsAt: audit.state.transition.startedAt + 1520
+      impactAt: audit.state.transition.startedAt + 3000,
+      hpRevealAt: audit.state.transition.startedAt + 3160,
+      hpTweenEndsAt: audit.state.transition.startedAt + 3600,
+      endsAt: audit.state.transition.startedAt + 4500
     });
     expect(audit.cutinCount).toBe(1);
     expect(audit.cutinCardCount).toBe(5);
+    expect(audit.state.battle.events.at(-1).label).toContain('召喚・骸骨オウム');
     audit.artSizes.forEach((size) => {
       expect(size.width).toBeLessThanOrEqual(48.1);
       expect(size.height).toBeLessThanOrEqual(80.1);
@@ -148,12 +209,15 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       const event = state.battle.events.at(-1);
       const hpBar = document.querySelector('#tarotKingdomBattleStage .tarot-kingdom-battle-enemy > [role="progressbar"]');
       const cutin = document.querySelector('.tarot-kingdom-skill-cutin');
+      const summonFigure = cutin?.querySelector('.tarot-kingdom-summon-figure');
       const arena = document.querySelector('#tarotKingdomBattleStage');
       return {
         hpAfter: event.hpAfter,
         visibleHp: Number(hpBar?.getAttribute('aria-valuenow')),
         roleName: cutin?.querySelector('.tarot-kingdom-skill-cutin-title')?.textContent || '',
         cutinAnimation: cutin ? getComputedStyle(cutin).animationName : '',
+        summonFigureOpacity: summonFigure ? getComputedStyle(summonFigure).opacity : '',
+        summonFigureAnimation: summonFigure ? getComputedStyle(summonFigure).animationName : '',
         arenaAnimation: arena ? getComputedStyle(arena).animationName : ''
       };
     }, cards);
@@ -161,6 +225,8 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     expect(audit.visibleHp).toBe(audit.hpAfter);
     expect(audit.roleName).toContain('ストレート');
     expect(audit.cutinAnimation).toBe('none');
+    expect(audit.summonFigureOpacity).toBe('1');
+    expect(audit.summonFigureAnimation).toBe('none');
     expect(audit.arenaAnimation).toBe('none');
   });
 
@@ -240,16 +306,18 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       type: 'victory',
       finisher: true,
       deathAnimation: 'death',
-      deathDurationMs: 750,
       dustDurationMs: 330
     });
+    expect(finisher.victory.deathDurationMs).toBeGreaterThan(0);
     expect(finisher.image).toContain('death.png');
 
     await page.waitForTimeout(110);
     const animatedPosition = await page.locator('#tarotKingdomEnemySprite').evaluate((node) => getComputedStyle(node).backgroundPosition);
     expect(animatedPosition).not.toBe(finisher.firstPosition);
 
-    await expect(page.locator('#tarotKingdomEnemySprite')).toHaveClass(/is-dusting/, { timeout: 900 });
+    await expect(page.locator('#tarotKingdomEnemySprite')).toHaveClass(/is-dusting/, {
+      timeout: finisher.victory.deathDurationMs + 700
+    });
     const dustFx = await page.evaluate(() => {
       const sprite = document.querySelector('#tarotKingdomEnemySprite');
       const visual = document.querySelector('#tarotKingdomBattleStage .tarot-kingdom-battle-enemy-visual');
@@ -267,6 +335,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       const debug = window.TarotKingdomDebug;
       debug.battleScenario({
         turnIndex: 1,
+        tableCard: { id: 'npc-win-table', kind: 'minor', suit: 'Cup', number: 4 },
         handsBySeat: [
           [{ id: 'hidden-a', kind: 'major', suit: 'None', number: 21 }],
           [{ id: 'npc-win-7', kind: 'minor', suit: 'Wand', number: 7 }],
@@ -310,6 +379,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
         }));
         debug.battleScenario({
           turnIndex: 1,
+          tableCard: { id: `${hiddenPrefix}-table`, kind: 'minor', suit: 'Pentacle', number: 4 },
           handsBySeat: [[hidden[0], hidden[1]], own, [hidden[2]], [hidden[3], { ...hidden[0], id: `${hiddenPrefix}-x` }]],
           hpBySeat: hp,
           enemyHp
@@ -338,6 +408,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       const debug = window.TarotKingdomDebug;
       debug.battleScenario({
         turnIndex: 1,
+        tableCard: { id: 'control-table', kind: 'minor', suit: 'Cup', number: 4 },
         handsBySeat: [
           null,
           [
@@ -352,6 +423,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
 
       debug.battleScenario({
         turnIndex: 1,
+        tableCard: { id: 'seed-table', kind: 'minor', suit: 'Cup', number: 4 },
         handsBySeat: [null, [
           { id: 'seed-world', kind: 'major', suit: 'None', number: 21 },
           { id: 'seed-major-2', kind: 'major', suit: 'None', number: 2 },
@@ -415,7 +487,11 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
         suit: ['Wand', 'Cup', 'Sword', 'Pentacle'][index % 4],
         number
       }));
-      debug.battleScenario({ turnIndex: 1, handsBySeat: [null, eightCardHand] });
+      debug.battleScenario({
+        turnIndex: 1,
+        tableCard: { id: 'perf-table', kind: 'minor', suit: 'Wand', number: 4 },
+        handsBySeat: [null, eightCardHand]
+      });
       debug.battleNpcDecision(1, 0.4);
       const eightCardStartedAt = performance.now();
       debug.battleNpcDecision(1, 0.4);
@@ -423,6 +499,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
 
       debug.battleScenario({
         turnIndex: 1,
+        tableCard: { id: 'sim-table', kind: 'minor', suit: 'Wand', number: 4 },
         handsBySeat: [null, [
           { id: 'sim-5', kind: 'minor', suit: 'Wand', number: 5 },
           { id: 'sim-7a', kind: 'minor', suit: 'Cup', number: 7 },

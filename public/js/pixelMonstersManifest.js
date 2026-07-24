@@ -1169,6 +1169,7 @@ export const PIXEL_MONSTERS_ROSTER = [
       "y": 94,
       "mode": "air"
     },
+    "battleOffsetY": -24,
     "animations": {
       "idle": {
         "src": "./Sprites/pixel-monsters/vol2/monster-05/idle.png",
@@ -1217,6 +1218,7 @@ export const PIXEL_MONSTERS_ROSTER = [
       "y": 49,
       "mode": "air"
     },
+    "flipY": true,
     "animations": {
       "idle": {
         "src": "./Sprites/pixel-monsters/vol2/monster-06/idle.png",
@@ -1313,6 +1315,7 @@ export const PIXEL_MONSTERS_ROSTER = [
       "y": 91,
       "mode": "air"
     },
+    "flipX": true,
     "animations": {
       "idle": {
         "src": "./Sprites/pixel-monsters/vol2/monster-08/idle.png",
@@ -1361,6 +1364,7 @@ export const PIXEL_MONSTERS_ROSTER = [
       "y": 42.0,
       "mode": "ground"
     },
+    "flipX": true,
     "animations": {
       "idle": {
         "src": "./Sprites/pixel-monsters/vol2/monster-09/idle.png",
@@ -1409,6 +1413,7 @@ export const PIXEL_MONSTERS_ROSTER = [
       "y": 66.0,
       "mode": "ground"
     },
+    "flipX": true,
     "animations": {
       "idle": {
         "src": "./Sprites/pixel-monsters/vol2/monster-10/idle.png",
@@ -1745,6 +1750,7 @@ export const PIXEL_MONSTERS_ROSTER = [
       "y": 124,
       "mode": "air"
     },
+    "battleOffsetY": -56,
     "animations": {
       "idle": {
         "src": "./Sprites/pixel-monsters/vol2/monster-17/idle.png",
@@ -1841,6 +1847,7 @@ export const PIXEL_MONSTERS_ROSTER = [
       "y": 42.0,
       "mode": "ground"
     },
+    "flipX": true,
     "animations": {
       "idle": {
         "src": "./Sprites/pixel-monsters/vol2/monster-19/idle.png",
@@ -2177,6 +2184,7 @@ export const PIXEL_MONSTERS_ROSTER = [
       "y": 91,
       "mode": "air"
     },
+    "flipX": true,
     "animations": {
       "idle": {
         "src": "./Sprites/pixel-monsters/vol3/monster-06/idle.png",
@@ -2321,6 +2329,7 @@ export const PIXEL_MONSTERS_ROSTER = [
       "y": 96,
       "mode": "air"
     },
+    "battleOffsetY": -16,
     "animations": {
       "idle": {
         "src": "./Sprites/pixel-monsters/vol3/monster-09/idle.png",

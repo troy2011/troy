@@ -50,6 +50,11 @@ const COMBAT_WEAPON_MOTION_PROFILES = Object.freeze({
 });
 
 const combatAvatarTimers = new WeakMap();
+const COMBAT_AVATAR_DEATH_FRAME_WIDTH = 56;
+const COMBAT_AVATAR_DEATH_FRAME_HEIGHT = 55;
+const COMBAT_AVATAR_DEATH_COLUMNS = 8;
+const COMBAT_AVATAR_DEATH_FRAME_COUNT = 15;
+const COMBAT_AVATAR_DEATH_INTERVAL_MS = 90;
 let generatedCombatAvatarId = 0;
 
 function prefersReducedCombatMotion() {
@@ -95,10 +100,71 @@ function ensureCombatAvatarPrefix(element, requestedPrefix = '') {
 function getTimerState(element) {
     let state = combatAvatarTimers.get(element);
     if (!state) {
-        state = { hurtTimer: null };
+        state = { hurtTimer: null, deathTimer: null };
         combatAvatarTimers.set(element, state);
     }
     return state;
+}
+
+function ensureCombatAvatarDeathSprite(element) {
+    if (!element) return null;
+    let sprite = element.querySelector(':scope > .avatar-combat-death-sprite');
+    if (sprite) return sprite;
+    sprite = document.createElement('span');
+    sprite.className = 'avatar-combat-death-sprite';
+    sprite.setAttribute('aria-hidden', 'true');
+    element.appendChild(sprite);
+    return sprite;
+}
+
+function setCombatAvatarDeathFrame(sprite, frameIndex) {
+    if (!sprite) return;
+    const frame = Math.max(0, Math.min(
+        COMBAT_AVATAR_DEATH_FRAME_COUNT - 1,
+        Math.floor(Number(frameIndex) || 0)
+    ));
+    const column = frame % COMBAT_AVATAR_DEATH_COLUMNS;
+    const row = Math.floor(frame / COMBAT_AVATAR_DEATH_COLUMNS);
+    sprite.dataset.avatarDeathFrame = String(frame);
+    sprite.style.backgroundPosition = [
+        `${-(column * COMBAT_AVATAR_DEATH_FRAME_WIDTH)}px`,
+        `${-(row * COMBAT_AVATAR_DEATH_FRAME_HEIGHT)}px`
+    ].join(' ');
+}
+
+function stopCombatAvatarDeathMotion(element, { reset = false } = {}) {
+    if (!element) return;
+    const timerState = getTimerState(element);
+    if (timerState.deathTimer) {
+        globalThis.clearInterval(timerState.deathTimer);
+        timerState.deathTimer = null;
+    }
+    const sprite = element.querySelector(':scope > .avatar-combat-death-sprite');
+    if (!sprite) return;
+    delete sprite.dataset.avatarDeathStarted;
+    if (reset) setCombatAvatarDeathFrame(sprite, 0);
+}
+
+function playCombatAvatarDeathMotion(element) {
+    const sprite = ensureCombatAvatarDeathSprite(element);
+    if (!sprite) return;
+    stopCombatAvatarDeathMotion(element);
+    sprite.dataset.avatarDeathStarted = 'true';
+    if (prefersReducedCombatMotion()) {
+        setCombatAvatarDeathFrame(sprite, COMBAT_AVATAR_DEATH_FRAME_COUNT - 1);
+        return;
+    }
+    let frame = 0;
+    setCombatAvatarDeathFrame(sprite, frame);
+    const timerState = getTimerState(element);
+    timerState.deathTimer = globalThis.setInterval(() => {
+        frame += 1;
+        setCombatAvatarDeathFrame(sprite, frame);
+        if (frame >= COMBAT_AVATAR_DEATH_FRAME_COUNT - 1) {
+            globalThis.clearInterval(timerState.deathTimer);
+            timerState.deathTimer = null;
+        }
+    }, COMBAT_AVATAR_DEATH_INTERVAL_MS);
 }
 
 function clearCombatWeaponClass(element) {
@@ -175,6 +241,7 @@ export function renderCombatAvatar(target, avatarBase, equipment = {}, itemSourc
     element.classList.add('avatar-combat-actor');
     if (options.resetState !== false) resetCombatAvatarState(element, { resumeIdle: false });
     renderAvatar(prefix, avatarBase || {}, equipment || {}, itemSource || {}, options.isOpponent === true);
+    ensureCombatAvatarDeathSprite(element);
     if (prefersReducedCombatMotion()) stopAvatarBodyMotion(element, { reset: true });
     return element;
 }
@@ -240,12 +307,18 @@ export function setCombatAvatarKo(target, defeated = true, options = {}) {
         cancelAvatarAttackMotion(element);
         clearCombatAvatarTransientClasses(element);
         stopAvatarBodyMotion(element, { reset: false });
-        if (!alreadyDefeated) element.classList.add('is-avatar-defeated');
+        if (!alreadyDefeated) {
+            element.classList.add('is-avatar-defeated');
+            playCombatAvatarDeathMotion(element);
+        } else if (!element.querySelector(':scope > .avatar-combat-death-sprite')?.dataset.avatarDeathStarted) {
+            playCombatAvatarDeathMotion(element);
+        }
         return true;
     }
     const wasDefeated = element.dataset.avatarDefeated === 'true'
         || element.classList.contains('is-avatar-defeated');
     delete element.dataset.avatarDefeated;
+    stopCombatAvatarDeathMotion(element, { reset: true });
     clearCombatSideVariables(element, 'defeat');
     element.classList.remove('is-avatar-defeated');
     if (

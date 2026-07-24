@@ -104,6 +104,12 @@ async function withCombatProfilesApi(callback, options = {}) {
       Category: 'Weapon',
       ManifestWeaponType: 'axe',
       Power: 99
+    },
+    'minor-cup-1': {
+      DisplayName: 'カップA',
+      Category: 'TarotMinor',
+      ArcanaSuit: 'cup',
+      ArcanaRank: 1
     }
   };
   const promisifyPlayFab = async (fn, body = {}) => {
@@ -136,7 +142,11 @@ async function withCombatProfilesApi(callback, options = {}) {
           HairStyleIndex: { Value: '6' },
           HairColorIndex: { Value: '3' },
           FacialHairStyleIndex: { Value: '0' },
-          TarotDeckV2: { Value: '["secret-card"]' }
+          TarotDeck: { Value: '["minor-cup-1"]' },
+          TarotDeckV2: { Value: '["secret-card"]' },
+          ...(options.petState ? {
+            TarotKingdomPetState: { Value: JSON.stringify(options.petState) }
+          } : {})
         }
       };
     }
@@ -160,6 +170,7 @@ async function withCombatProfilesApi(callback, options = {}) {
           { StackId: 'stack-sword', Id: 'weapon_sword_01' },
           { StackId: 'stack-armor', Id: 'armor_coat_01' },
           { StackId: 'stack-charm', Id: 'charm_01' },
+          { StackId: 'stack-cup-a', Id: 'minor-cup-1' },
           { StackId: 'stack-unused', Id: 'unused_item' }
         ]
       };
@@ -242,8 +253,8 @@ test('combat profile API authenticates the requester and returns sanitized melee
     expect(authenticatedIds).toEqual(['PF_REQUESTER']);
     expect(result.payload).toMatchObject({ success: true });
     expect(result.payload.characters).toHaveLength(3);
-    expect(result.payload.characters[1]).toEqual({
-      version: 1,
+    expect(result.payload.characters[1]).toMatchObject({
+      version: 2,
       source: 'playfab',
       playFabId: 'PF_A',
       displayName: 'Captain PF_A',
@@ -270,13 +281,24 @@ test('combat profile API authenticates the requester and returns sanitized melee
         armor_coat_01: expect.objectContaining({ itemId: 'armor_coat_01' }),
         charm_01: expect.objectContaining({ itemId: 'charm_01' })
       },
+      tarotDeck: [{
+        slot: 0,
+        cardId: 'CUP_01',
+        itemId: 'minor-cup-1',
+        suit: 'Cup',
+        rank: 1,
+        skillName: '逆巻く杯',
+        effectClass: 'attack',
+        power: 80
+      }],
       combat: {
         maxHp: 155,
         power: 25,
         defense: 20,
         intelligence: 11,
         speed: 11,
-        weaponType: 'sword'
+        weaponType: 'sword',
+        weaponTypes: ['sword']
       }
     });
     expect(result.payload.characters[1].itemSource.unused_item).toBeUndefined();
@@ -287,6 +309,7 @@ test('combat profile API authenticates the requester and returns sanitized melee
     expect(result.payload.characters[1].itemSource.weapon_sword_01.customData.Power).toBeUndefined();
     expect(readOnlyRequests.every((request) => request.Keys.includes('HairColorIndex'))).toBe(true);
     expect(readOnlyRequests.every((request) => !request.Keys.includes('lineUserId'))).toBe(true);
+    expect(readOnlyRequests.every((request) => request.Keys.includes('TarotDeck'))).toBe(true);
     expect(readOnlyRequests.every((request) => !request.Keys.includes('TarotDeckV2'))).toBe(true);
     const serialized = JSON.stringify(result.payload);
     expect(serialized).not.toContain('line-secret');
@@ -304,6 +327,33 @@ test('combat profile API authenticates the requester and returns sanitized melee
     expect(profileRequests).toHaveLength(profileRequestCount + 3);
     expect(dbReadPaths.every((refPath) => !refPath.endsWith('/room-test'))).toBe(true);
     expect(dbReadPaths.some((refPath) => refPath.endsWith('/state'))).toBe(false);
+  });
+});
+
+test('single-player combat profile response includes the saved current pet for exploration party setup', async () => {
+  const monsterId = 'ismartal-vol1-monster-01';
+  await withCombatProfilesApi(async ({ handler }) => {
+    const result = await invoke(handler, {
+      playFabId: 'PF_REQUESTER',
+      targetPlayFabIds: ['PF_REQUESTER']
+    });
+    expect(result.statusCode).toBe(200);
+    expect(result.payload.currentPet).toMatchObject({
+      monsterId,
+      monsterName: 'トゲマル',
+      explorationId: 'explore-pet-1'
+    });
+    expect(result.payload.currentPet).not.toHaveProperty('level');
+  }, {
+    petState: {
+      version: 1,
+      currentPet: {
+        monsterId,
+        acquiredAtMs: 1000,
+        explorationId: 'explore-pet-1'
+      },
+      pendingOffer: null
+    }
   });
 });
 
@@ -566,8 +616,11 @@ test('combat profile API keeps timed-out work in-flight and bounds the queue', a
   }
 });
 
-test('playfab client exposes the Tarot Kingdom combat profile wrapper', () => {
+test('playfab client exposes Tarot Kingdom combat profile and pet wrappers', () => {
   const source = fs.readFileSync(path.join(__dirname, '../public/js/playfabClient.js'), 'utf8');
   expect(source).toContain('export function getTarotKingdomCombatProfiles(playFabId, targetPlayFabIds, options = {})');
   expect(source).toContain("{ playFabId, targetPlayFabIds, roomId: String(roomId || '').trim() }");
+  expect(source).toContain('export function getTarotKingdomPetState(playFabId, options)');
+  expect(source).toContain('export function chooseTarotKingdomPet(playFabId, offerId, accept, options)');
+  expect(source).toContain('body.tarotFinisher = {');
 });

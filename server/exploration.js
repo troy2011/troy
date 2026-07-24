@@ -4,6 +4,16 @@ const battleRoutes = require('./routes/battleRoutes');
 const { resolveGuildShipContext } = require('./guildShipSharing');
 const { getCanonicalTarotCategory, getMajorArcanaSuitInfo, getMajorArcanaTitle } = require('./tarotCards');
 const { buildMajorArcanaShipGearView } = require('./majorArcanaShipGear');
+const {
+    buildTarotKingdomPetOfferView,
+    buildTarotKingdomPetPublicRecord,
+    isTarotKingdomPetRecruitEligible,
+    normalizeTarotKingdomPendingPetOffer,
+    readTarotKingdomPetState,
+    resolveTarotKingdomPetChoice,
+    rollTarotKingdomPetOffer,
+    writeTarotKingdomPetState
+} = require('./tarotKingdomPets');
 const PIXEL_MONSTERS_ROSTER = require('../public/Sprites/pixel-monsters/manifest.json');
 
 const EXPLORATION_COLLECTION = 'player_explorations';
@@ -16,6 +26,7 @@ const HOUR_MS = 60 * 60 * 1000;
 const PENDING_STALE_MS = 5 * 60 * 1000;
 // claiming 中にプロセスが落ちた場合、この時間後に再実行を許可する
 const CLAIMING_STALE_MS = 2 * 60 * 1000;
+const tarotKingdomPetChoiceLocks = new Map();
 const EXPLORATION_SHIP_CLASSES = ['common', 'explorer', 'merchant', 'fighter', 'defender'];
 const TROY_MENU_CONSUMABLE_ID_PREFIX = 'troy_menu_';
 const EXPLORATION_CONSUMABLE_REQUIRED_BY_RARITY = Object.freeze({
@@ -2193,6 +2204,26 @@ function getAllDestinationsForShipClass(shipClass, playFabId = 'daily-preview', 
     return getDailyExplorationDestinations(playFabId, normalized, nowMs);
 }
 
+async function withTarotKingdomPetChoiceLock(playFabId, task) {
+    const key = String(playFabId || '').trim();
+    const previous = tarotKingdomPetChoiceLocks.get(key) || Promise.resolve();
+    let release;
+    const gate = new Promise((resolve) => {
+        release = resolve;
+    });
+    const lockTail = previous.catch(() => {}).then(() => gate);
+    tarotKingdomPetChoiceLocks.set(key, lockTail);
+    await previous.catch(() => {});
+    try {
+        return await task();
+    } finally {
+        release();
+        if (tarotKingdomPetChoiceLocks.get(key) === lockTail) {
+            tarotKingdomPetChoiceLocks.delete(key);
+        }
+    }
+}
+
 function initializeExplorationRoutes(app, deps) {
     const { firestore, admin, promisifyPlayFab, PlayFabServer, subtractEconomyItem, addEconomyItem, getCurrencyBalance, requireAuthenticatedPlayFabId, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems } = deps;
     if (!firestore || !admin) {
@@ -2253,6 +2284,59 @@ function initializeExplorationRoutes(app, deps) {
         } catch (error) {
             console.error('[exploration/status] failed:', error?.errorMessage || error?.message || error);
             res.status(500).json({ error: '探索情報の取得に失敗しました。' });
+        }
+    });
+
+    app.post('/api/tarot-kingdom/pet-state', async (req, res) => {
+        let { playFabId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        playFabId = await requireAuthed(req, res, playFabId);
+        if (!playFabId) return;
+        try {
+            const state = await readTarotKingdomPetState(playFabId, { promisifyPlayFab, PlayFabServer });
+            return res.json({
+                success: true,
+                currentPet: buildTarotKingdomPetPublicRecord(state.currentPet),
+                pendingOffer: buildTarotKingdomPetOfferView(state.pendingOffer, state.currentPet)
+            });
+        } catch (error) {
+            console.error('[tarot-kingdom/pet-state] failed:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({ error: 'ペット情報を取得できませんでした。' });
+        }
+    });
+
+    app.post('/api/tarot-kingdom/pet-choice', async (req, res) => {
+        let { playFabId, offerId, accept } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        if (typeof accept !== 'boolean') return res.status(400).json({ error: 'accept must be boolean' });
+        offerId = String(offerId || '').trim();
+        if (!offerId || offerId.length > 220) return res.status(400).json({ error: 'offerId is invalid' });
+        playFabId = await requireAuthed(req, res, playFabId);
+        if (!playFabId) return;
+        try {
+            const choice = await withTarotKingdomPetChoiceLock(playFabId, async () => {
+                const state = await readTarotKingdomPetState(playFabId, { promisifyPlayFab, PlayFabServer });
+                const result = resolveTarotKingdomPetChoice(state, offerId, accept);
+                if (!result.resolved) return { conflict: true };
+                const saved = result.alreadyResolved
+                    ? state
+                    : await writeTarotKingdomPetState(playFabId, result.state, { promisifyPlayFab, PlayFabServer });
+                return { result, saved };
+            });
+            if (choice.conflict) {
+                return res.status(409).json({ error: '加入候補が更新されています。最新状態を読み込んでください。' });
+            }
+            const { result, saved } = choice;
+            return res.json({
+                success: true,
+                accepted: result.accepted,
+                alreadyResolved: result.alreadyResolved,
+                currentPet: buildTarotKingdomPetPublicRecord(saved.currentPet),
+                pendingOffer: buildTarotKingdomPetOfferView(saved.pendingOffer, saved.currentPet)
+            });
+        } catch (error) {
+            console.error('[tarot-kingdom/pet-choice] failed:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({ error: 'ペットの加入を確定できませんでした。' });
         }
     });
 
@@ -2797,10 +2881,19 @@ function initializeExplorationRoutes(app, deps) {
     });
 
     app.post('/api/exploration/claim', async (req, res) => {
-        let { playFabId, tarotOutcome, explorationId } = req.body || {};
+        let { playFabId, tarotOutcome, explorationId, tarotFinisher } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
         tarotOutcome = String(tarotOutcome || '').trim().toLowerCase();
         explorationId = String(explorationId || '').trim();
+        tarotFinisher = tarotFinisher && typeof tarotFinisher === 'object'
+            ? {
+                roundNo: Math.floor(Number(tarotFinisher.roundNo) || 0),
+                playerIndex: Math.floor(Number(tarotFinisher.playerIndex) || 0),
+                playFabId: String(tarotFinisher.playFabId || '').trim(),
+                isNpc: tarotFinisher.isNpc === true,
+                mode: String(tarotFinisher.mode || '').trim().toLowerCase()
+            }
+            : null;
         if (tarotOutcome && !['victory', 'defeat'].includes(tarotOutcome)) {
             return res.status(400).json({ error: 'tarotOutcome must be victory or defeat' });
         }
@@ -2878,6 +2971,8 @@ function initializeExplorationRoutes(app, deps) {
             let bossResult = null;
             let rolledItemIds = [];
             let rolledRewards = [];
+            let petOffer = null;
+            let petStateForResponse = null;
 
             if (isRetry) {
                 // Firestore 保存済みデータを再利用（再抽選なし）
@@ -2886,6 +2981,20 @@ function initializeExplorationRoutes(app, deps) {
                 rolledItemIds = rolledRewards.length
                     ? rolledRewards.map((entry) => String(entry.itemId || '')).filter(Boolean)
                     : (activeData.rolledRewardIds || []);
+                const persistedOffer = normalizeTarotKingdomPendingPetOffer(activeData.petOffer);
+                try {
+                    petStateForResponse = await readTarotKingdomPetState(playFabId, { promisifyPlayFab, PlayFabServer });
+                    if (persistedOffer && !petStateForResponse.pendingOffer) {
+                        petStateForResponse = await writeTarotKingdomPetState(playFabId, {
+                            ...petStateForResponse,
+                            pendingOffer: persistedOffer
+                        }, { promisifyPlayFab, PlayFabServer });
+                    }
+                    petOffer = petStateForResponse.pendingOffer || persistedOffer;
+                } catch (petError) {
+                    console.warn('[exploration/claim] pet offer recovery failed:', petError?.errorMessage || petError?.message || petError);
+                    petOffer = persistedOffer;
+                }
                 if (!bossResult?.tarotKingdom) {
                     await restoreHpToFullOnce(activeRef, playFabId, { admin, promisifyPlayFab, PlayFabServer });
                 }
@@ -2894,6 +3003,33 @@ function initializeExplorationRoutes(app, deps) {
                 if (tarotEncounter) {
                     // 新探索: クライアントで完了したタロットキングダムの勝敗を報酬へ反映する。
                     bossResult = buildTarotKingdomBossResult(tarotEncounter, tarotOutcome);
+                    try {
+                        petStateForResponse = await readTarotKingdomPetState(playFabId, { promisifyPlayFab, PlayFabServer });
+                        if (isTarotKingdomPetRecruitEligible({
+                            encounter: tarotEncounter,
+                            outcome: tarotOutcome,
+                            finisher: tarotFinisher,
+                            authenticatedPlayFabId: playFabId
+                        })) {
+                            const rolled = rollTarotKingdomPetOffer({
+                                state: petStateForResponse,
+                                encounter: tarotEncounter,
+                                explorationId: activeData.id
+                            });
+                            if (rolled.created) {
+                                petStateForResponse = await writeTarotKingdomPetState(
+                                    playFabId,
+                                    rolled.state,
+                                    { promisifyPlayFab, PlayFabServer }
+                                );
+                            }
+                            petOffer = rolled.offer;
+                        } else {
+                            petOffer = petStateForResponse.pendingOffer;
+                        }
+                    } catch (petError) {
+                        console.warn('[exploration/claim] pet offer roll failed:', petError?.errorMessage || petError?.message || petError);
+                    }
                 } else {
                     // 旧探索との互換: 遭遇固定前に開始された探索だけは従来の白兵戦で解決する。
                     const selectedBoss = selectExplorationBoss(destination, Math.random, ship.shipClass);
@@ -2928,6 +3064,7 @@ function initializeExplorationRoutes(app, deps) {
                     rolledRewardIds: rolledItemIds,
                     rolledRewards,
                     bossResultData: bossResult,
+                    petOffer: petOffer || null,
                     supplyProfile,
                     hpRestored: bossResult?.tarotKingdom === true,
                     updatedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -2982,6 +3119,7 @@ function initializeExplorationRoutes(app, deps) {
                 monsterId: bossResult?.monsterId || bossResult?.bossId || '',
                 monsterName: bossResult?.monsterName || bossResult?.bossName || '',
                 monsterIsBoss: bossResult?.monsterIsBoss === true,
+                petOffer: petOffer || null,
                 rewardItemId: rewardItemId || '',
                 rewardItemName: rewardDisplayName,
                 rewardCount: rewards.length,
@@ -2998,7 +3136,14 @@ function initializeExplorationRoutes(app, deps) {
             };
             await activeRef.collection('reports').doc(report.id).set(report);
             await activeRef.delete();
-            res.json({ ...(await buildExplorationStatus(playFabId)), claimed: true, report: reportDocToPayload(report), reward });
+            res.json({
+                ...(await buildExplorationStatus(playFabId)),
+                claimed: true,
+                report: reportDocToPayload(report),
+                reward,
+                currentPet: buildTarotKingdomPetPublicRecord(petStateForResponse?.currentPet),
+                petOffer: buildTarotKingdomPetOfferView(petOffer, petStateForResponse?.currentPet)
+            });
         } catch (error) {
             console.error('[exploration/claim] failed:', error?.errorMessage || error?.message || error);
             res.status(500).json({ error: '探索結果の確認に失敗しました。', details: error?.errorMessage || error?.message || String(error) });

@@ -58,18 +58,6 @@ const TAROT_ROMAN_NUMERALS = {
     10: 'X'
 };
 const TAROT_MAJOR_SPECIAL_SUIT = {
-    2: 'cup',
-    3: 'pentacle',
-    4: 'wand',
-    5: 'sword',
-    6: 'cup',
-    7: 'sword',
-    8: 'wand',
-    9: 'pentacle',
-    11: 'sword',
-    12: 'pentacle',
-    13: 'cup',
-    14: 'wand',
     16: 'sword',
     17: 'cup',
     18: 'pentacle',
@@ -201,6 +189,17 @@ function getMajorArcanaNumber(itemData) {
 }
 
 export function getMajorArcanaSuitInfo(itemData) {
+    const number = getMajorArcanaNumber(itemData);
+    if (TAROT_MAJOR_ALL_SUIT_NUMBERS.has(number)) {
+        return { key: 'all', label: TAROT_SUIT_LABELS.all };
+    }
+    const specialSuit = TAROT_MAJOR_SPECIAL_SUIT[number];
+    if (specialSuit) {
+        return { key: specialSuit, label: TAROT_SUIT_LABELS[specialSuit] || specialSuit };
+    }
+    if (number !== null) {
+        return { key: 'none', label: TAROT_SUIT_LABELS.none };
+    }
     const explicitSuit = getSuitKey(itemData);
     if (explicitSuit === 'all') {
         return { key: 'all', label: TAROT_SUIT_LABELS.all };
@@ -210,14 +209,6 @@ export function getMajorArcanaSuitInfo(itemData) {
             key: explicitSuit,
             label: TAROT_SUIT_LABELS[explicitSuit] || String(itemData?.ArcanaSuit || itemData?.Suit || '').trim()
         };
-    }
-    const number = getMajorArcanaNumber(itemData);
-    if (TAROT_MAJOR_ALL_SUIT_NUMBERS.has(number)) {
-        return { key: 'all', label: TAROT_SUIT_LABELS.all };
-    }
-    const specialSuit = TAROT_MAJOR_SPECIAL_SUIT[number];
-    if (specialSuit) {
-        return { key: specialSuit, label: TAROT_SUIT_LABELS[specialSuit] || specialSuit };
     }
     return { key: 'none', label: TAROT_SUIT_LABELS.none };
 }

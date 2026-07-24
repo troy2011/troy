@@ -5,7 +5,7 @@ const { getEntityKeyFromPlayFabId, withTitleEntityToken } = require('../playfab'
 const { applyDerivedPlayerLevelToStats } = require('../playerLevel');
 const { TAROT_DECK_DATA_KEY, MELEE_DECK_DATA_KEY, SHIP_DECK_DATA_KEY, evaluateDeckRole, filterMinorDeckIds } = require('../tarotDeck');
 const { getTarotRolePassive } = require('../tarotRoles');
-const { getTarotBattleDeck, resolveTarotBattleSkill } = require('../tarotBattleSkills');
+const { getTarotBattleDeck, resolveTarotBattleSkill, publicTarotBattleSkill } = require('../tarotBattleSkills');
 const {
     getCanonicalTarotCategory,
     getMajorArcanaSuitInfo,
@@ -18,6 +18,10 @@ const {
 } = require('../nationWarWeapons');
 const { getAvatarColorForNation } = require('../nation');
 const { runMeleeBattle, getEquippedWeaponTypes } = require('../battle/MeleeCombatSystem');
+const {
+    buildTarotKingdomPetPublicRecord,
+    readTarotKingdomPetState
+} = require('../tarotKingdomPets');
 
 // ----------------------------------------------------
 // ★ v42: モジュールレベル変数の定義
@@ -96,6 +100,39 @@ function buildTarotKingdomAvatarBase(profile = {}, level = 1) {
     };
 }
 
+function buildTarotKingdomTarotDeck(profile = {}) {
+    return (Array.isArray(profile?.tarotBattleDeck) ? profile.tarotBattleDeck : [])
+        .slice(0, 5)
+        .map((skill, slot) => {
+            const publicSkill = publicTarotBattleSkill(skill);
+            if (!publicSkill) return null;
+            const suitRaw = String(publicSkill.suit || '').trim().toLowerCase();
+            const suit = suitRaw === 'wand'
+                ? 'Wand'
+                : suitRaw === 'cup'
+                    ? 'Cup'
+                    : suitRaw === 'sword'
+                        ? 'Sword'
+                        : suitRaw === 'pentacle'
+                            ? 'Pentacle'
+                            : '';
+            const rank = Math.max(1, Math.min(14, Math.floor(Number(publicSkill.rank) || 0)));
+            if (!suit || !rank) return null;
+            return {
+                slot,
+                cardId: String(publicSkill.cardId || '').trim(),
+                itemId: String(publicSkill.itemId || '').trim(),
+                suit,
+                rank,
+                skillName: String(publicSkill.skillName || '').trim(),
+                effectClass: String(publicSkill.effectClass || '').trim(),
+                effectCodes: Array.isArray(publicSkill.effectCodes) ? publicSkill.effectCodes : [],
+                power: Math.max(0, Number(publicSkill.power) || 0)
+            };
+        })
+        .filter(Boolean);
+}
+
 function buildTarotKingdomCombatCharacter(profile = {}) {
     const stats = profile?.stats || {};
     const equipmentStats = profile?.equipmentStats || {};
@@ -113,7 +150,7 @@ function buildTarotKingdomCombatCharacter(profile = {}) {
     };
 
     return {
-        version: 1,
+        version: 2,
         source: 'playfab',
         playFabId: String(profile?.id || '').trim(),
         displayName: String(stats.DisplayName || profile?.id || '（名前なし）').trim() || '（名前なし）',
@@ -122,13 +159,15 @@ function buildTarotKingdomCombatCharacter(profile = {}) {
         avatarBase: buildTarotKingdomAvatarBase(profile, level),
         equipment,
         itemSource: buildTarotKingdomItemSource(equipment),
+        tarotDeck: buildTarotKingdomTarotDeck(profile),
         combat: {
             maxHp: Math.max(1, Math.floor(statNumber('MaxHP', statNumber('HP', 1)))),
             power: Math.max(0, Math.floor(statNumber('ちから', 0) + equipmentNumber('Power'))),
             defense: Math.max(0, Math.floor(statNumber('みのまもり', 0) + equipmentNumber('Defense'))),
             intelligence: Math.max(0, Math.floor(statNumber('かしこさ', 0))),
             speed: Math.max(0, Math.floor(statNumber('すばやさ', 0) + equipmentNumber('Agi'))),
-            weaponType
+            weaponType,
+            weaponTypes: Array.from(weaponTypes)
         }
     };
 }
@@ -411,7 +450,7 @@ async function getPlayerFullProfile(playFabId, options = {}) {
         'Race', 'Nation', 'AvatarColor', 'SkinColorIndex', 'FaceIndex', 'HairStyleIndex', 'HairColorIndex', 'FacialHairStyleIndex'
     ];
     const readOnlyKeys = options.scope === 'tarotKingdomCombat'
-        ? avatarEquipmentKeys
+        ? [...avatarEquipmentKeys, TAROT_DECK_DATA_KEY, MELEE_DECK_DATA_KEY, SHIP_DECK_DATA_KEY]
         : [...avatarEquipmentKeys, 'lineUserId', TAROT_DECK_DATA_KEY, MELEE_DECK_DATA_KEY, SHIP_DECK_DATA_KEY];
     const equipmentPromise = _promisifyPlayFab(_PlayFabServer.GetUserReadOnlyData, {
         // ★ v122: アバター情報も取得するようにキーを追加
@@ -430,11 +469,13 @@ async function getPlayerFullProfile(playFabId, options = {}) {
 
     // InstanceId をキー、ItemId を値とするマップを作成
     const instanceIdToItemIdMap = {};
+    const ownedItemIds = new Set();
     if (Array.isArray(inventoryResult)) {
         inventoryResult.forEach(item => {
             if (item?.StackId && item?.Id) {
                 instanceIdToItemIdMap[item.StackId] = item.Id;
             }
+            if (item?.Id) ownedItemIds.add(String(item.Id));
         });
     }
 
@@ -564,6 +605,9 @@ async function getPlayerFullProfile(playFabId, options = {}) {
     // 白兵戦デッキの役は戦闘開始時パッシブとして扱う
     meleeDeckIds = filterMinorDeckIds(meleeDeckIds, _catalogCache);
     shipDeckIds = filterMinorDeckIds(shipDeckIds, _catalogCache);
+    if (options.scope === 'tarotKingdomCombat') {
+        meleeDeckIds = meleeDeckIds.filter((itemId) => ownedItemIds.has(String(itemId)));
+    }
     const meleeDeckItemData = meleeDeckIds.map((id) => _catalogCache?.[id] || null);
     const tarotMeleeRole = evaluateDeckRole(meleeDeckItemData);
     const tarotRolePassive = getTarotRolePassive(tarotMeleeRole);
@@ -1874,7 +1918,15 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                 }
                 return waitForTarotKingdomProfileHttp(inFlight);
             }));
-            return res.json({ success: true, characters });
+            let currentPet = null;
+            if (!roomId && normalizedTargetIds.length === 1 && normalizedTargetIds[0] === authenticatedPlayFabId) {
+                const petState = await readTarotKingdomPetState(authenticatedPlayFabId, {
+                    promisifyPlayFab: _promisifyPlayFab,
+                    PlayFabServer: _PlayFabServer
+                });
+                currentPet = buildTarotKingdomPetPublicRecord(petState.currentPet);
+            }
+            return res.json({ success: true, characters, currentPet });
         } catch (error) {
             if (error?.code === TAROT_KINGDOM_PROFILE_TIMEOUT_CODE) {
                 return res.status(504).json({
