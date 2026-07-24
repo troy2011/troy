@@ -20,7 +20,7 @@
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
     <title>TROYゴールドアプリ</title>
-<link rel="stylesheet" href="style.css?v=20260724n">
+<link rel="stylesheet" href="style.css?v=20260724p">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
 </head>
@@ -119,7 +119,10 @@
                                     <b id="homeStatInt">?</b>
                                 </div>
                             </div>
-                            <button id="btnHomeExploration" class="home-exploration-btn" type="button">探索に出る</button>
+                            <div class="home-exp-actions" aria-label="出航メニュー">
+                                <button id="btnHomeExploration" class="home-exploration-btn" type="button">探索に出る</button>
+                                <button id="btnHomePlunder" class="home-exploration-btn home-plunder-btn" type="button" hidden>略奪に出る</button>
+                            </div>
                         </div>
                     </div>
                     <div id="shipExplorationPanel" class="ship-exploration-panel" hidden>
@@ -1725,7 +1728,7 @@
         "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
         "config": "./js/config.js",
         "api": "./js/api.js",
-"ui": "./js/ui.js?v=20260724n",
+"ui": "./js/ui.js?v=20260724p",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js",
         "inventory": "./js/inventory.js?v=20260604g",
@@ -1772,6 +1775,6 @@
     <!-- Scripts -->
     <script src="battle-client.js?v=20260724-death-sheet-1"></script>
     <script src="naval-battle.js"></script>
-<script type="module" src="main.js?v=20260724n"></script>
+<script type="module" src="main.js?v=20260724p"></script>
 </body>
 </html>

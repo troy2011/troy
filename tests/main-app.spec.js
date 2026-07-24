@@ -5,6 +5,39 @@ const {
   expectNoPageErrors
 } = require('./helpers/main-app-harness');
 
+function makeExplorationStage(stageNo, {
+  name = `探索ステージ${stageNo}`,
+  unlocked = true,
+  bestRank = null,
+  clearCount = 0,
+  battlefieldId = 'coral-island',
+  imagePath = './assets/tarot-kingdom/battlefields/coral-island-v1.webp',
+  monsters = []
+} = {}) {
+  return {
+    version: 1,
+    stageNo,
+    id: `tarot_stage_${stageNo}`,
+    name,
+    battlefieldId,
+    atmosphereTone: 'test',
+    imagePath,
+    bestRank,
+    clearCount,
+    progressionUnlocked: unlocked,
+    shipUnlocked: unlocked,
+    unlocked,
+    lockReason: unlocked ? '' : '前のステージで2位以内に入ると解放',
+    monsters: monsters.map((monster, index) => ({
+      order: index + 1,
+      archetype: 'balanced',
+      threatLevel: ((stageNo - 1) * 4) + index + 1,
+      isBoss: false,
+      ...monster
+    }))
+  };
+}
+
 test('main app boots in limited mode with mocked LIFF login', async ({ page }) => {
   const errors = trackPageErrors(page);
   const state = await bootstrapMainApp(page);
@@ -686,10 +719,7 @@ export function onSnapshot(_ref, next) {
 
   await expect(page.locator('#tabContentTroy')).toBeVisible();
   await expect(page.locator('#troyChatDetails')).toHaveCount(0);
-  const firstTroySectionId = await page.evaluate(() => (
-    document.querySelector('#tabContentTroy')?.firstElementChild?.id || ''
-  ));
-  expect(firstTroySectionId).toBe('troyMenuBoardSection');
+  await expect(page.locator('#troyMenuBoardSection')).toBeVisible();
   const troyHeaderLayout = await page.evaluate(() => {
     const row = document.querySelector('#tabContentTroy .troy-status-row');
     const map = document.getElementById('troyMapLink');
@@ -1335,6 +1365,7 @@ test('home nation guild ship uses guild ship display for the king owner', async 
 
 test('home exploration button loads exploration data in a popup', async ({ page }) => {
   const errors = trackPageErrors(page);
+  await page.setViewportSize({ width: 900, height: 900 });
   let explorationStatusBody = null;
   await page.route('**/api/get-troy-status', async (route) => {
     await route.fulfill({
@@ -1356,112 +1387,46 @@ test('home exploration button loads exploration data in a popup', async ({ page 
         ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'guild', itemId: 'guild_ship', isGuildShip: true, stage: 3 },
         active: null,
         reports: [],
-        dailyFree: { dayKey: '2026-06-18', available: true, used: false },
-        allDestinations: [
-          {
-            id: 'harbor-edge',
-            name: '港の外れ',
-            description: '近場の探索',
-            imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png',
-            rarity: 'low',
-            rarityLabel: '低レア',
-            requiredSupplyUnits: 1,
-            requiredConsumableCount: 1,
-            recommendedLevel: 6,
-            cost: 100,
-            durationMs: 3 * 60 * 60 * 1000,
-            available: true,
-            requirementLabel: '初期ボート / 探索船'
-          },
-          {
-            id: 'coral-passage',
-            name: '珊瑚礁の抜け道',
-            description: '浅瀬を抜ける航路',
-            imagePath: './Sprites/exploration_destinations/coral_passage_reef.png',
-            rarity: 'medium',
-            rarityLabel: '中レア',
-            requiredSupplyUnits: 2,
-            requiredConsumableCount: 2,
-            recommendedLevel: 7,
-            cost: 180,
-            durationMs: 4 * 60 * 60 * 1000,
-            available: true,
-            requirementLabel: '探索船 / 商船'
-          },
-          {
-            id: 'pirate-cove',
-            name: '海賊の隠れ家',
-            description: '戦闘向きの海域',
-            imagePath: './Sprites/exploration_destinations/pirate_cove_hideout.png',
-            rarity: 'high',
-            rarityLabel: '高レア',
-            requiredSupplyUnits: 3,
-            requiredConsumableCount: 3,
-            recommendedLevel: 15,
-            cost: 400,
-            durationMs: 8 * 60 * 60 * 1000,
-            available: false,
-            requirementLabel: '戦闘船'
-          }
-        ],
-        destinations: [
-          {
-            id: 'harbor-edge',
-            name: '港の外れ',
-            description: '近場の探索',
-            imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png',
-            cost: 100,
-            rarity: 'low',
-            rarityLabel: '低レア',
-            requiredSupplyUnits: 1,
-            requiredConsumableCount: 1,
-            recommendedLevel: 6,
-            durationMs: 3 * 60 * 60 * 1000,
-            dailyFreeEligible: true,
-            roleLabel: '偵察',
-            riskLabel: '低リスク',
-            rewardHint: '基本報酬',
-            bossWeightHint: '標準BOSS',
-            bossName: 'なし',
-            bosses: [
-              { id: 'treasure_slime', name: '財宝スライム', spriteId: 'treasure_slime', tier: 'weak', tierLabel: '弱' },
-              { id: 'puffer_bomb', name: '爆弾フグ', spriteId: 'puffer_bomb', tier: 'medium', tierLabel: '中' },
-              { id: 'mimic_chest', name: '宝箱ミミック', spriteId: 'mimic_chest', tier: 'strong', tierLabel: '強' }
+        stageVersion: 1,
+        shipStageCap: 11,
+        progress: { version: 1, highestUnlockedStage: 2 },
+        stages: [
+          makeExplorationStage(1, {
+            name: '珊瑚の浅瀬',
+            monsters: [
+              { monsterId: 'ismartal-vol1-monster-07', monsterName: 'マシュロン' },
+              { monsterId: 'ismartal-vol3-monster-04', monsterName: 'プルン' },
+              { monsterId: 'ismartal-vol1-monster-01', monsterName: 'トゲマル' },
+              { monsterId: 'ismartal-vol2-monster-02', monsterName: 'パピル' }
             ]
-          },
-          {
-            id: 'coral-passage',
-            name: '珊瑚礁の抜け道',
-            description: '浅瀬を抜ける航路',
-            imagePath: './Sprites/exploration_destinations/coral_passage_reef.png',
-            cost: 180,
-            rarity: 'medium',
-            rarityLabel: '中レア',
-            requiredSupplyUnits: 2,
-            requiredConsumableCount: 2,
-            recommendedLevel: 7,
-            durationMs: 4 * 60 * 60 * 1000,
-            dailyFreeEligible: false,
-            roleLabel: '偵察',
-            riskLabel: '中リスク',
-            rewardHint: '素材と消耗品',
-            bossWeightHint: '標準BOSS',
-            bossName: 'なし',
-            bosses: [
-              { id: 'skeletal_parrot', name: '骸骨オウム', spriteId: 'skeletal_parrot', tier: 'weak', tierLabel: '弱' },
-              { id: 'coral_goblin', name: '珊瑚ゴブリン', spriteId: 'coral_goblin', tier: 'medium', tierLabel: '中' },
-              { id: 'crab_brute', name: '大ガニ', spriteId: 'crab_brute', tier: 'strong', tierLabel: '強' }
+          }),
+          makeExplorationStage(2, {
+            name: '風渡る甲板',
+            bestRank: 2,
+            clearCount: 3,
+            battlefieldId: 'ship-side',
+            imagePath: './assets/tarot-kingdom/battlefields/ship-side-v1.webp',
+            monsters: [
+              { monsterId: 'ismartal-vol3-monster-05', monsterName: 'モクモ' },
+              { monsterId: 'ismartal-vol1-monster-04', monsterName: 'ツノガイ' },
+              { monsterId: 'ismartal-vol1-monster-10', monsterName: 'リーフロ' },
+              { monsterId: 'ismartal-vol1-monster-09', monsterName: 'ホタルビ' }
             ]
-          }
+          }),
+          makeExplorationStage(3, {
+            name: '潮騒の島道',
+            unlocked: false,
+            monsters: [
+              { monsterId: 'ismartal-vol1-monster-14', monsterName: 'ポルポ' },
+              { monsterId: 'ismartal-vol2-monster-11', monsterName: 'ビズン' },
+              { monsterId: 'ismartal-vol3-monster-07', monsterName: 'グールン' },
+              { monsterId: 'ismartal-vol1-monster-20', monsterName: 'アクエル' }
+            ]
+          })
         ],
-        explorationPayment: {
-          requiredByRarity: { low: 1, medium: 2, high: 3 },
-          maxExtraSupplyUnits: 3,
-          consumables: [
-            { itemId: 'troy_menu_drink_a', displayName: 'ラムソーダ', amount: 1, imagePath: './Sprites/drinks/rum.png', menuCategory: 'rum', menuPrice: 900, effectiveUnits: 1 },
-            { itemId: 'troy_menu_food_b', displayName: '港町プレート', amount: 1, imagePath: './Sprites/food/plate.png', menuCategory: 'food', menuPrice: 1000, effectiveUnits: 2 }
-          ]
-        }
+        explorationSupplies: [
+          { itemId: 'troy_menu_drink_a', displayName: 'ラムソーダ', amount: 1, imagePath: './Sprites/drinks/rum.png', effectiveUnits: 1 }
+        ]
       })
     });
   });
@@ -1480,6 +1445,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await bootstrapMainApp(page);
 
   await expect(page.locator('#btnHomeExploration')).toHaveText('探索に出る');
+  await expect(page.locator('#btnHomePlunder')).toBeHidden();
   await page.locator('#btnHomeExploration').click();
 
   const panel = page.locator('#shipExplorationPanel');
@@ -1489,25 +1455,24 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(panel.locator('.ship-exploration-meta').first()).toContainText('テスト船');
   await expect(panel.locator('.ship-exploration-list')).toHaveCount(0);
   await expect(panel.locator('.ship-exploration-list-row')).toHaveCount(0);
-  const destinationCards = panel.locator('.ship-exploration-destination');
-  await expect(destinationCards).toHaveCount(2);
-  const freeDestination = destinationCards.nth(0);
-  const paidDestination = destinationCards.nth(1);
-  await expect(freeDestination.locator('strong')).toHaveText('港の外れ');
-  await expect(freeDestination.locator('.ship-exploration-mapmark img')).toHaveAttribute('src', /near_sea_drift_crate\.png/);
-  await expect(freeDestination.locator('.ship-exploration-badge')).toHaveText(['本日無料', '供給力1', '100G', '低レア', '推奨Lv 6']);
-  await expect(paidDestination.locator('strong')).toHaveText('珊瑚礁の抜け道');
-  await expect(paidDestination.locator('.ship-exploration-mapmark img')).toHaveAttribute('src', /coral_passage_reef\.png/);
-  await expect(paidDestination.locator('.ship-exploration-badge')).toHaveText(['供給力2', '180G', '中レア', '推奨Lv 7']);
-  await expect(freeDestination.locator('.ship-exploration-role-chip')).toHaveText(['低リスク', '基本報酬']);
-  await expect(freeDestination.locator('.ship-exploration-boss-chip')).toHaveCount(3);
-  await expect(freeDestination.locator('.ship-exploration-boss-chip b')).toHaveText(['MONSTER', 'MONSTER', 'BOSS']);
-  await expect(freeDestination.locator('.exploration-pixel-monster')).toHaveCount(3);
-  await expect(freeDestination.locator('.ship-exploration-boss-image')).toHaveCount(3);
-  await expect(freeDestination.locator('.ship-exploration-start')).toHaveText('無料で探索開始');
-  await expect(paidDestination.locator('.ship-exploration-start')).toHaveText(['消耗品で探索', '180Gで探索']);
-  await expect(panel.locator('[data-exploration-npc-battle]')).toHaveText('敵船を探す');
-  const explorationPanelFrame = await freeDestination.evaluate((element) => ({
+  const stageCards = panel.locator('.ship-exploration-stage');
+  await expect(stageCards).toHaveCount(3);
+  const firstStage = stageCards.nth(0);
+  const secondStage = stageCards.nth(1);
+  const lockedStage = stageCards.nth(2);
+  await expect(firstStage.locator('.ship-exploration-stage-label')).toHaveText('STAGE 1');
+  await expect(firstStage.locator('.ship-exploration-title-group strong')).toHaveText('珊瑚の浅瀬');
+  await expect(firstStage.locator('.ship-exploration-mapmark img')).toHaveAttribute('src', /coral-island-v1\.webp/);
+  await expect(firstStage.locator('.ship-exploration-stage-monster small')).toHaveText(['マシュロン', 'プルン', 'トゲマル', 'パピル']);
+  await expect(firstStage.locator('.ship-exploration-stage-order')).toHaveText(['1', '2', '3', '4']);
+  await expect(firstStage.locator('.ship-exploration-badge')).toHaveText(['出航無料', '4 ENEMIES']);
+  await expect(firstStage.locator('.ship-exploration-start')).toHaveText('このステージへ出航');
+  await expect(secondStage.locator('.ship-exploration-meta')).toContainText('最高 2位 / CLEAR 3');
+  await expect(lockedStage).toHaveClass(/is-locked/);
+  await expect(lockedStage.locator('.ship-exploration-start')).toBeDisabled();
+  await expect(lockedStage).toContainText('前のステージで2位以内に入ると解放');
+  await expect(panel).not.toContainText(/Gで探索|本日無料|BOSS/);
+  const explorationPanelFrame = await firstStage.evaluate((element) => ({
     panelBorder: getComputedStyle(document.getElementById('shipExplorationPanel')).borderImageSource,
     panelSliceSource: document.querySelector('#shipExplorationPanel > .panel-slice-25-layer')?.dataset.source || '',
     destinationBorder: getComputedStyle(element).borderImageSource,
@@ -1529,6 +1494,14 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   expect(explorationPanelFrame.headTop).toBe('0px');
   expect(explorationPanelFrame.tabContainerZIndex).toBeGreaterThan(explorationPanelFrame.globalHeaderZIndex);
   expect(explorationStatusBody).toMatchObject({ playFabId: 'PF_PLAYWRIGHT' });
+  const stageLayout = await panel.evaluate((element) => ({
+    panelScrollWidth: element.scrollWidth,
+    panelClientWidth: element.clientWidth,
+    pageScrollWidth: document.documentElement.scrollWidth,
+    viewportWidth: window.innerWidth
+  }));
+  expect(stageLayout.panelScrollWidth).toBeLessThanOrEqual(stageLayout.panelClientWidth);
+  expect(stageLayout.pageScrollWidth).toBeLessThanOrEqual(stageLayout.viewportWidth);
 
   await panel.evaluate((element) => {
     element.scrollTop = element.scrollHeight;
@@ -1561,78 +1534,50 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(panel).toBeHidden();
   expect(await page.evaluate(() => document.body.classList.contains('home-exploration-popup-open'))).toBe(false);
 
-  await page.evaluate(() => window.showTab?.('home'));
-  await expect(page.locator('#tabContentHome')).toBeVisible();
-  await page.locator('#btnHomeExploration').click();
-  await expect(panel).toBeVisible();
-  await page.evaluate(() => {
-    window.__explorationNpcNavalCalls = [];
-    window.__explorationNpcMeleeCalls = [];
-    window.startExplorationNpcBattle = (options = {}) => {
-      window.__explorationNpcMeleeCalls.push(options);
-      return Promise.resolve({ battleId: 'battle-npc-exploration' });
-    };
-    window.startNavalBattle = (options = {}) => {
-      window.__explorationNpcNavalCalls.push({
-        playerId: options.playerId,
-        opponentId: options.opponentId,
-        opponentName: options.opponentName,
-        enemyPlan: options.enemyPlan,
-        playerShipProfile: options.playerShipProfile,
-        opponentShipProfile: options.opponentShipProfile,
-        hasOnBoarding: typeof options.onBoarding === 'function'
-      });
-      options.onBoarding?.(options.opponentId, {
-        navalOutcome: 'boarding',
-        boardedPlayerId: options.opponentId,
-        boardingPlayerId: options.playerId,
-        navalBoardingState: {
-          player: { morale: 1, crewHpPercent: 88, crewMpPercent: 76, statuses: {} },
-          enemy: { morale: -1, crewHpPercent: 42, crewMpPercent: 33, statuses: { burn: { turns: 2 } } }
-        }
-      });
-      return { finished: false };
-    };
-  });
-  await panel.locator('[data-exploration-npc-battle]').click();
-  await expect.poll(() => page.evaluate(() => window.__explorationNpcMeleeCalls?.length || 0)).toBe(1);
-  const npcFlow = await page.evaluate(() => ({
-    naval: window.__explorationNpcNavalCalls,
-    melee: window.__explorationNpcMeleeCalls,
-    popupOpen: document.body.classList.contains('home-exploration-popup-open')
-  }));
-  expect(npcFlow.naval).toHaveLength(1);
-  expect(npcFlow.naval[0]).toMatchObject({
-    playerId: 'PF_PLAYWRIGHT',
-    hasOnBoarding: true
-  });
-  expect(npcFlow.naval[0].opponentId).toContain('npc_exploration_naval_');
-  expect(npcFlow.naval[0].playerShipProfile.name).toBe('テスト船');
-  expect(npcFlow.naval[0].playerShipProfile).toMatchObject({ form: 'guild', itemId: 'guild_ship', stage: 3, majorArcanaItemIds: [] });
-  expect(['defender', 'fighter', 'merchant']).toContain(npcFlow.naval[0].opponentShipProfile.form);
-  expect(npcFlow.naval[0].opponentShipProfile.stage).toBe(3);
-  expect(npcFlow.melee[0].battleContext).toMatchObject({
-    source: 'explorationNpc',
-    rewardMode: 'none',
-    npcBattle: true,
-    navalOutcome: 'boarding',
-    navalBoardingState: {
-      enemy: { statuses: { burn: { turns: 2 } } }
-    }
-  });
-  expect(npcFlow.melee[0].opponentId).toBe(npcFlow.naval[0].opponentId);
-  expect(npcFlow.melee[0].opponentShipProfile).toMatchObject(npcFlow.naval[0].opponentShipProfile);
-  expect(npcFlow.melee[0].throwOnError).toBe(true);
-  expect(npcFlow.melee[0].continueFromNaval).toBe(true);
-  expect(npcFlow.popupOpen).toBe(false);
-
-  await expect(panel).toBeHidden();
-  expect(await page.evaluate(() => document.body.classList.contains('home-exploration-popup-open'))).toBe(false);
-
   await expectNoPageErrors(errors);
 });
 
-test('exploration can start by selecting troy menu consumables', async ({ page }) => {
+test('exploration popup can retry after its status request fails', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  let shouldFail = true;
+  let statusRequests = 0;
+  await page.route('**/api/exploration/status', async (route) => {
+    statusRequests += 1;
+    if (shouldFail) {
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json; charset=utf-8',
+        body: JSON.stringify({ error: '海域情報を取得できません。' })
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ship: { shipId: 'ship-retry', shipName: '再試行号', form: 'boat' },
+        active: null,
+        reports: [],
+        destinations: []
+      })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.locator('#btnHomeExploration').click();
+  const panel = page.locator('#shipExplorationPanel');
+  await expect(panel.locator('[data-exploration-retry]')).toBeVisible();
+  shouldFail = false;
+  const requestsBeforeRetry = statusRequests;
+  await panel.locator('[data-exploration-retry]').click();
+  await expect(panel.locator('.ship-exploration-head')).toContainText('再試行号');
+  expect(statusRequests).toBeGreaterThan(requestsBeforeRetry);
+  await expect(panel.locator('[data-exploration-retry]')).toHaveCount(0);
+  await expectNoPageErrors(errors);
+});
+
+test('exploration stage starts for free with ordered optional supplies', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
   let startBody = null;
@@ -1656,56 +1601,51 @@ test('exploration can start by selecting troy menu consumables', async ({ page }
       status: 200,
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
-        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'explorer' },
+        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'explorer', stage: 2 },
         active: null,
         reports: [],
-        dailyFree: { dayKey: '2026-06-18', available: false, used: true },
-        destinations: [{
-          id: 'coral-passage',
-          name: '珊瑚礁の抜け道',
-          description: '浅瀬を抜ける航路',
-          imagePath: './Sprites/exploration_destinations/coral_passage_reef.png',
-          cost: 180,
-          rarity: 'medium',
-          rarityLabel: '中レア',
-          requiredSupplyUnits: 2,
-          requiredConsumableCount: 2,
-          recommendedLevel: 7,
-          available: true,
-          dailyFreeEligible: false,
-          bosses: []
-        }],
-        explorationPayment: {
-          requiredByRarity: { low: 1, medium: 2, high: 3 },
-          maxExtraSupplyUnits: 3,
-          consumables: [
-            { itemId: 'troy_menu_drink_a', displayName: 'ラムソーダ', amount: 1, imagePath: './Sprites/drinks/rum.png', menuCategory: 'rum', menuPrice: 900, effectiveUnits: 1 },
-            { itemId: 'troy_menu_food_b', displayName: '港町プレート', amount: 2, imagePath: './Sprites/food/plate.png', menuCategory: 'food', menuPrice: 1000, effectiveUnits: 2 }
+        stageVersion: 1,
+        shipStageCap: 8,
+        progress: { version: 1, highestUnlockedStage: 1 },
+        stages: [makeExplorationStage(1, {
+          name: '珊瑚の浅瀬',
+          monsters: [
+            { monsterId: 'ismartal-vol1-monster-07', monsterName: 'マシュロン' },
+            { monsterId: 'ismartal-vol3-monster-04', monsterName: 'プルン' },
+            { monsterId: 'ismartal-vol1-monster-01', monsterName: 'トゲマル' },
+            { monsterId: 'ismartal-vol2-monster-02', monsterName: 'パピル' }
           ]
-        }
+        })],
+        explorationSupplies: [
+          { itemId: 'troy_menu_drink_a', displayName: 'ラムソーダ', amount: 1, imagePath: './Sprites/drinks/rum.png', effectiveUnits: 1 },
+          { itemId: 'troy_menu_food_b', displayName: '港町プレート', amount: 2, imagePath: './Sprites/food/plate.png', effectiveUnits: 2 }
+        ]
       })
     });
   });
   await page.route('**/api/exploration/start', async (route) => {
     startBody = route.request().postDataJSON();
+    await new Promise((resolve) => setTimeout(resolve, 220));
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
-        balance: 9000,
-        paymentMethod: 'consumable',
-        consumedConsumables: [
-          { itemId: 'troy_menu_food_b', displayName: '港町プレート', quantity: 1, effectiveUnits: 2, supplyUnits: 2 }
-        ],
-        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'explorer' },
+        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'explorer', stage: 2 },
         active: {
-          destinationId: 'coral-passage',
-          destinationName: '珊瑚礁の抜け道',
-          imagePath: './Sprites/exploration_destinations/coral_passage_reef.png',
-          shipName: 'テスト船'
+          id: 'exploration-tarot-entry',
+          stageNo: 1,
+          stageId: 'tarot_stage_1',
+          destinationId: 'tarot_stage_1',
+          destinationName: '珊瑚の浅瀬',
+          imagePath: './assets/tarot-kingdom/battlefields/coral-island-v1.webp',
+          shipName: 'テスト船',
+          supplyQueue: [
+            { itemId: 'troy_menu_drink_a', displayName: 'ラムソーダ', effectiveUnits: 1 },
+            { itemId: 'troy_menu_food_b', displayName: '港町プレート', effectiveUnits: 2 }
+          ]
         },
         reports: [],
-        destinations: []
+        stages: []
       })
     });
   });
@@ -1714,22 +1654,37 @@ test('exploration can start by selecting troy menu consumables', async ({ page }
       status: 200,
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
-        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'explorer' },
+        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'explorer', stage: 2 },
         active: {
           id: 'exploration-tarot-entry',
-          destinationId: 'coral-passage',
-          destinationName: '珊瑚礁の抜け道',
-          imagePath: './Sprites/exploration_destinations/coral_passage_reef.png'
+          stageNo: 1,
+          stageId: 'tarot_stage_1',
+          destinationId: 'tarot_stage_1',
+          destinationName: '珊瑚の浅瀬',
+          imagePath: './assets/tarot-kingdom/battlefields/coral-island-v1.webp'
         },
         encounter: {
+          version: 2,
           explorationId: 'exploration-tarot-entry',
-          destinationId: 'coral-passage',
-          destinationName: '珊瑚礁の抜け道',
-          monsterId: 'ismartal-vol2-monster-16',
-          monsterName: 'オルビス',
-          isBoss: true,
-          bossTier: 'strong',
-          bossTierLabel: '強'
+          stageNo: 1,
+          stageId: 'tarot_stage_1',
+          destinationId: 'tarot_stage_1',
+          destinationName: '珊瑚の浅瀬',
+          battlefieldId: 'coral-island',
+          atmosphereTone: 'sunlit-coral',
+          monsterId: 'ismartal-vol1-monster-07',
+          monsterName: 'マシュロン',
+          isBoss: false,
+          monsters: [
+            { order: 1, monsterId: 'ismartal-vol1-monster-07', monsterName: 'マシュロン', archetype: 'balanced', threatLevel: 1, isBoss: false },
+            { order: 2, monsterId: 'ismartal-vol3-monster-04', monsterName: 'プルン', archetype: 'balanced', threatLevel: 2, isBoss: false },
+            { order: 3, monsterId: 'ismartal-vol1-monster-01', monsterName: 'トゲマル', archetype: 'guardian', threatLevel: 3, isBoss: false },
+            { order: 4, monsterId: 'ismartal-vol2-monster-02', monsterName: 'パピル', archetype: 'swift', threatLevel: 4, isBoss: false }
+          ],
+          supplyQueue: [
+            { itemId: 'troy_menu_drink_a', displayName: 'ラムソーダ', effectiveUnits: 1 },
+            { itemId: 'troy_menu_food_b', displayName: '港町プレート', effectiveUnits: 2 }
+          ]
         }
       })
     });
@@ -1745,16 +1700,24 @@ test('exploration can start by selecting troy menu consumables', async ({ page }
         reports: [],
         report: {
           id: 'exploration-tarot-entry',
-          destinationId: 'coral-passage',
-          destinationName: '珊瑚礁の抜け道',
-          imagePath: './Sprites/exploration_destinations/coral_passage_reef.png',
-          bossId: 'ismartal-vol2-monster-16',
-          bossName: 'オルビス',
-          bossTier: 'strong',
+          stageNo: 1,
+          stageId: 'tarot_stage_1',
+          destinationId: 'tarot_stage_1',
+          destinationName: '珊瑚の浅瀬',
+          imagePath: './assets/tarot-kingdom/battlefields/coral-island-v1.webp',
+          bossId: 'ismartal-vol2-monster-02',
+          bossName: 'パピル',
           bossResult: 'victory',
-          monsterId: 'ismartal-vol2-monster-16',
-          monsterName: 'オルビス',
-          monsterIsBoss: true,
+          monsterId: 'ismartal-vol2-monster-02',
+          monsterName: 'パピル',
+          monsterIsBoss: false,
+          rank: 1,
+          monsters: [
+            { order: 1, monsterId: 'ismartal-vol1-monster-07', monsterName: 'マシュロン' },
+            { order: 2, monsterId: 'ismartal-vol3-monster-04', monsterName: 'プルン' },
+            { order: 3, monsterId: 'ismartal-vol1-monster-01', monsterName: 'トゲマル' },
+            { order: 4, monsterId: 'ismartal-vol2-monster-02', monsterName: 'パピル' }
+          ],
           rewardCount: 1,
           rewardItems: [{ itemId: 'starter_shield', displayName: '見習いの盾', rarity: 'common', quantity: 1 }],
           bossLog: '戦闘開始\n宝箱を発見した。'
@@ -1776,33 +1739,88 @@ test('exploration can start by selecting troy menu consumables', async ({ page }
         monsterId: context.monsterId,
         monsterName: context.monsterName,
         isBoss: context.isBoss,
-        explorationId: context.explorationId
+        explorationId: context.explorationId,
+        finishers: [
+          { roundNo: 1, playerIndex: 0, playFabId: 'PF_PLAYWRIGHT', isNpc: false, monsterId: 'ismartal-vol1-monster-07' },
+          { roundNo: 2, playerIndex: 1, playFabId: '', isNpc: true, monsterId: 'ismartal-vol3-monster-04' },
+          { roundNo: 3, playerIndex: 0, playFabId: 'PF_PLAYWRIGHT', isNpc: false, monsterId: 'ismartal-vol1-monster-01' },
+          { roundNo: 4, playerIndex: 0, playFabId: 'PF_PLAYWRIGHT', isNpc: false, monsterId: 'ismartal-vol2-monster-02' }
+        ],
+        standings: [
+          { playerIndex: 0, playFabId: 'PF_PLAYWRIGHT', isNpc: false, rank: 1, chips: 30 }
+        ]
       };
     };
   });
   await page.locator('#btnHomeExploration').click();
-  await page.locator('.ship-exploration-start.is-consumable').click();
-  const dialog = page.locator('.ship-exploration-payment-dialog');
+  await page.locator('[data-exploration-stage="1"]').click();
+  const dialog = page.locator('.ship-exploration-payment-dialog.is-stage-supply');
   await expect(dialog).toBeVisible();
-  await dialog.locator('[data-payment-item-id="troy_menu_food_b"] [data-payment-step="1"]').click();
-  await expect(dialog.locator('[data-exploration-payment-summary]')).toContainText('供給力 2 / 2');
-  await dialog.locator('[data-exploration-payment-confirm]').click();
+  await expect(dialog).toContainText('局間に使う補給品を順番に3個まで選択（任意）');
+  await dialog.locator('[data-stage-supply-item="troy_menu_drink_a"] [data-stage-supply-add]').click();
+  await dialog.locator('[data-stage-supply-item="troy_menu_food_b"] [data-stage-supply-add]').click();
+  await expect(dialog.locator('[data-stage-supply-slots]')).toContainText('1. ラムソーダ');
+  await expect(dialog.locator('[data-stage-supply-slots]')).toContainText('2. 港町プレート');
+  await expect(dialog.locator('[data-stage-supply-confirm]')).toHaveText('2個を積んで出航');
+  const supplyDialogLayout = await dialog.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+      left: rect.left,
+      right: rect.right,
+      bottom: rect.bottom,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      pageScrollWidth: document.documentElement.scrollWidth
+    };
+  });
+  expect(supplyDialogLayout.left).toBeGreaterThanOrEqual(0);
+  expect(supplyDialogLayout.right).toBeLessThanOrEqual(supplyDialogLayout.viewportWidth);
+  expect(supplyDialogLayout.bottom).toBeLessThanOrEqual(supplyDialogLayout.viewportHeight);
+  expect(supplyDialogLayout.pageScrollWidth).toBeLessThanOrEqual(supplyDialogLayout.viewportWidth);
+  await dialog.locator('[data-stage-supply-confirm]').click();
 
   await expect.poll(() => startBody).not.toBeNull();
   expect(startBody).toMatchObject({
     playFabId: 'PF_PLAYWRIGHT',
-    destinationId: 'coral-passage',
-    paymentMethod: 'consumable',
-    paymentConsumables: [
+    destinationId: 'tarot_stage_1',
+    stageNo: 1,
+    supplies: [
+      { itemId: 'troy_menu_drink_a', quantity: 1 },
       { itemId: 'troy_menu_food_b', quantity: 1 }
     ]
   });
+  expect(startBody.paymentMethod).toBeUndefined();
+  expect(startBody.paymentConsumables).toBeUndefined();
   const modeChoice = page.locator('.exploration-battle-mode-choice');
   await expect(modeChoice).toBeVisible({ timeout: 7000 });
-  await expect(modeChoice.locator('.exploration-battle-mode-head strong')).toHaveText('オルビス');
+  await expect(modeChoice.locator('.exploration-battle-mode-head span')).toHaveText('STAGE 1 / 4 ENEMIES');
+  await expect(modeChoice.locator('.exploration-battle-mode-head strong')).toHaveText('マシュロン → プルン → トゲマル → パピル');
+  await expect(modeChoice).toContainText('マシュロン');
+  await expect(modeChoice).toContainText('プルン');
+  await expect(modeChoice).toContainText('トゲマル');
+  await expect(modeChoice).toContainText('パピル');
   await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' }).locator('small')).toHaveText('オフライン・3人編成');
   await expect(page.getByRole('button', { name: '救難信号（オンライン）' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'あとで選ぶ' })).toBeVisible();
+  const modeChoiceLayout = await modeChoice.evaluate((choice) => {
+    const rect = choice.getBoundingClientRect();
+    return {
+      left: rect.left,
+      right: rect.right,
+      viewportWidth: window.innerWidth,
+      pageScrollWidth: document.documentElement.scrollWidth
+    };
+  });
+  expect(modeChoiceLayout.left).toBeGreaterThanOrEqual(0);
+  expect(modeChoiceLayout.right).toBeLessThanOrEqual(modeChoiceLayout.viewportWidth);
+  expect(modeChoiceLayout.pageScrollWidth).toBeLessThanOrEqual(modeChoiceLayout.viewportWidth);
   expect(await page.evaluate(() => window.__explorationKingdomLaunches?.length || 0)).toBe(0);
+  await page.getByRole('button', { name: 'あとで選ぶ' }).click();
+  await expect(page.locator('.exploration-sequence-overlay')).toBeHidden();
+  await expect(page.locator('#shipExplorationPanel [data-exploration-claim]')).toHaveText('戦闘方式を選ぶ');
+  await page.locator('#shipExplorationPanel [data-exploration-claim]').click();
+  await expect(modeChoice).toBeVisible({ timeout: 7_000 });
   await page.getByRole('button', { name: '救難信号（オンライン）' }).click();
   await expect.poll(() => page.evaluate(() => window.__explorationKingdomLaunches?.length || 0), { timeout: 7000 }).toBe(1);
   const kingdomEntry = await page.evaluate(() => ({
@@ -1812,21 +1830,35 @@ test('exploration can start by selecting troy menu consumables', async ({ page }
   expect(kingdomEntry.launcherAvailable).toBe(true);
   expect(kingdomEntry.context).toMatchObject({
     explorationId: 'exploration-tarot-entry',
-    destinationId: 'coral-passage',
-    destinationName: '珊瑚礁の抜け道',
-    isBoss: true,
+    stageNo: 1,
+    destinationId: 'tarot_stage_1',
+    destinationName: '珊瑚の浅瀬',
+    isBoss: false,
     mode: 'online'
   });
-  expect(kingdomEntry.context.monsterId).toBe('ismartal-vol2-monster-16');
-  await expect.poll(() => claimBody).toMatchObject({
+  expect(kingdomEntry.context.monsterId).toBe('ismartal-vol1-monster-07');
+  expect(kingdomEntry.context.monsters).toHaveLength(4);
+  await expect.poll(() => Boolean(claimBody)).toBe(true);
+  expect(claimBody).toMatchObject({
     playFabId: 'PF_PLAYWRIGHT',
     explorationId: 'exploration-tarot-entry',
     tarotOutcome: 'victory'
   });
+  expect(claimBody.tarotFinishers).toHaveLength(4);
+  expect(claimBody.tarotFinishers[0]).toMatchObject({
+    roundNo: 1,
+    playerIndex: 0,
+    playFabId: 'PF_PLAYWRIGHT',
+    isNpc: false,
+    monsterId: 'ismartal-vol1-monster-07'
+  });
+  expect(claimBody.tarotStandings).toEqual([
+    { playerIndex: 0, playFabId: 'PF_PLAYWRIGHT', isNpc: false, rank: 1, chips: 30 }
+  ]);
   await expect(page.locator('#tarotModeKingdom')).toBeHidden();
   await expect(page.locator('.exploration-result-overlay')).toBeVisible();
-  await expect(page.locator('.exploration-result-boss-copy b')).toHaveText('BOSS');
-  await expect(page.locator('.exploration-result-boss-copy strong')).toHaveText(kingdomEntry.context.monsterName);
+  await expect(page.locator('.exploration-result-boss-copy b')).toHaveText('STAGE 1 / 4 ENEMIES');
+  await expect(page.locator('.exploration-result-boss-copy strong')).toHaveText('パピル');
   await expectNoPageErrors(errors);
 });
 
@@ -1949,6 +1981,7 @@ test('exploration rescue signal creates a dedicated online lobby before combat',
 
 test('home plunder route opens the naval battle phase and boarding starts the melee battle', async ({ page }) => {
   const errors = trackPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
   let explorationStatusRequests = 0;
   const qrTargetId = 'ABCDEF1234567890';
   const decoyTargetId = '1111111111111111';
@@ -2019,9 +2052,28 @@ test('home plunder route opens the naval battle phase and boarding starts the me
     };
   });
 
-  await expect(page.locator('#btnHomeExploration')).toHaveText('略奪に出る');
-  await expect(page.locator('#btnHomeExploration')).toHaveAttribute('data-plunder-paused', 'false');
+  await expect(page.locator('#btnHomeExploration')).toHaveText('探索に出る');
+  await expect(page.locator('#btnHomePlunder')).toHaveText('略奪に出る');
+  await expect(page.locator('#btnHomePlunder')).toHaveAttribute('data-plunder-paused', 'false');
+  const homeActionLayout = await page.locator('.home-exp-actions').evaluate((actions) => {
+    const rect = actions.getBoundingClientRect();
+    return {
+      left: rect.left,
+      right: rect.right,
+      viewportWidth: window.innerWidth,
+      pageScrollWidth: document.documentElement.scrollWidth,
+      visibleButtons: Array.from(actions.querySelectorAll('button')).filter((button) => !button.hidden).length
+    };
+  });
+  expect(homeActionLayout.left).toBeGreaterThanOrEqual(0);
+  expect(homeActionLayout.right).toBeLessThanOrEqual(homeActionLayout.viewportWidth);
+  expect(homeActionLayout.pageScrollWidth).toBeLessThanOrEqual(homeActionLayout.viewportWidth);
+  expect(homeActionLayout.visibleButtons).toBe(2);
   await page.locator('#btnHomeExploration').click();
+  await expect(page.locator('#shipExplorationPanel')).toBeVisible();
+  await page.locator('[data-home-exploration-close]').click();
+  const explorationStatusRequestsBeforePlunder = explorationStatusRequests;
+  await page.locator('#btnHomePlunder').click();
   await expect(page.locator('#shipExplorationPanel')).toBeHidden();
   await expect.poll(async () => page.evaluate(() => window.__homePlunderScanCount)).toBe(1);
   await expect(page.locator('#playerProfileModal')).not.toBeVisible();
@@ -2069,7 +2121,7 @@ test('home plunder route opens the naval battle phase and boarding starts the me
     boardedPlayerId: qrTargetId,
     boardingPlayerId: 'PF_PLAYWRIGHT'
   });
-  expect(explorationStatusRequests).toBe(0);
+  expect(explorationStatusRequests).toBe(explorationStatusRequestsBeforePlunder);
 
   await expectNoPageErrors(errors);
 });
@@ -2315,17 +2367,22 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
       status: 200,
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
-        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'fighter' },
+        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'fighter', stage: 1 },
         active: null,
         reports: [],
-        destinations: [{
-          id: 'harbor-edge',
-          name: '港の外れ',
-          description: '近場の探索',
-          imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png',
-          cost: 100,
-          bossName: '海霧の番人'
-        }]
+        stageVersion: 1,
+        shipStageCap: 4,
+        progress: { version: 1, highestUnlockedStage: 1 },
+        stages: [makeExplorationStage(1, {
+          name: '珊瑚の浅瀬',
+          monsters: [
+            { monsterId: 'ismartal-vol1-monster-07', monsterName: 'マシュロン' },
+            { monsterId: 'ismartal-vol3-monster-04', monsterName: 'プルン' },
+            { monsterId: 'ismartal-vol1-monster-01', monsterName: 'トゲマル' },
+            { monsterId: 'ismartal-vol2-monster-02', monsterName: 'パピル' }
+          ]
+        })],
+        explorationSupplies: []
       })
     });
   });
@@ -2334,16 +2391,18 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
       status: 200,
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
-        balance: 9000,
-        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'fighter' },
+        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'fighter', stage: 1 },
         active: {
-          destinationId: 'harbor-edge',
-          destinationName: '港の外れ',
-          imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png',
+          id: 'exploration-reward-test',
+          stageNo: 1,
+          stageId: 'tarot_stage_1',
+          destinationId: 'tarot_stage_1',
+          destinationName: '珊瑚の浅瀬',
+          imagePath: './assets/tarot-kingdom/battlefields/coral-island-v1.webp',
           shipName: 'テスト船'
         },
         reports: [],
-        destinations: []
+        stages: []
       })
     });
   });
@@ -2352,22 +2411,34 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
       status: 200,
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
-        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'fighter' },
+        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'fighter', stage: 1 },
         active: {
           id: 'exploration-reward-test',
-          destinationId: 'harbor-edge',
-          destinationName: '港の外れ',
-          imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png'
+          stageNo: 1,
+          stageId: 'tarot_stage_1',
+          destinationId: 'tarot_stage_1',
+          destinationName: '珊瑚の浅瀬',
+          imagePath: './assets/tarot-kingdom/battlefields/coral-island-v1.webp'
         },
         encounter: {
+          version: 2,
           explorationId: 'exploration-reward-test',
-          destinationId: 'harbor-edge',
-          destinationName: '港の外れ',
-          monsterId: 'ismartal-vol2-monster-07',
-          monsterName: 'バルガン',
-          isBoss: true,
-          bossTier: 'strong',
-          bossTierLabel: '強'
+          stageNo: 1,
+          stageId: 'tarot_stage_1',
+          destinationId: 'tarot_stage_1',
+          destinationName: '珊瑚の浅瀬',
+          battlefieldId: 'coral-island',
+          atmosphereTone: 'sunlit-coral',
+          monsterId: 'ismartal-vol1-monster-07',
+          monsterName: 'マシュロン',
+          isBoss: false,
+          monsters: [
+            { order: 1, monsterId: 'ismartal-vol1-monster-07', monsterName: 'マシュロン', archetype: 'balanced', threatLevel: 1, isBoss: false },
+            { order: 2, monsterId: 'ismartal-vol3-monster-04', monsterName: 'プルン', archetype: 'balanced', threatLevel: 2, isBoss: false },
+            { order: 3, monsterId: 'ismartal-vol1-monster-01', monsterName: 'トゲマル', archetype: 'guardian', threatLevel: 3, isBoss: false },
+            { order: 4, monsterId: 'ismartal-vol2-monster-02', monsterName: 'パピル', archetype: 'swift', threatLevel: 4, isBoss: false }
+          ],
+          supplyQueue: []
         }
       })
     });
@@ -2382,18 +2453,20 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
         active: null,
         reports: [],
         report: {
-          destinationId: 'harbor-edge',
-          destinationName: '港の外れ',
-          imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png',
-          bossId: 'ismartal-vol2-monster-07',
-          bossName: 'バルガン',
-          bossSpriteId: 'ismartal-vol2-monster-07',
-          bossTier: 'strong',
-          bossTierLabel: '強',
+          stageNo: 1,
+          stageRank: 1,
+          destinationId: 'tarot_stage_1',
+          destinationName: '珊瑚の浅瀬',
+          imagePath: './assets/tarot-kingdom/battlefields/coral-island-v1.webp',
+          bossId: 'ismartal-vol2-monster-02',
+          bossName: 'パピル',
+          bossSpriteId: 'ismartal-vol2-monster-02',
+          bossTier: 'stage-1',
+          bossTierLabel: 'STAGE 1',
           bossResult: 'victory',
-          monsterId: 'ismartal-vol2-monster-07',
-          monsterName: 'バルガン',
-          monsterIsBoss: true,
+          monsterId: 'ismartal-vol2-monster-02',
+          monsterName: 'パピル',
+          monsterIsBoss: false,
           rewardCount: 1,
           rewardItems: [{ itemId: 'mist_blade', displayName: '霧切りの刃', rarity: 'rare', quantity: 1 }],
           bossLog: '戦闘開始\n船が島へ接近。\n宝箱を発見した。'
@@ -2411,6 +2484,21 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
             acquiredAtMs: 1000
           }
         }
+      })
+    });
+  });
+  await page.route('**/api/tarot-kingdom/pet-state', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        currentPet: {
+          monsterId: 'ismartal-vol1-monster-02',
+          monsterName: 'グリモア',
+          explorationId: 'old-exploration',
+          acquiredAtMs: 1000
+        },
+        pendingOffer: null
       })
     });
   });
@@ -2439,15 +2527,27 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
       status: 'completed',
       completed: true,
       outcome: 'victory',
-      monsterId: context.monsterId,
-      monsterName: context.monsterName,
-      isBoss: context.isBoss,
+      monsterId: 'ismartal-vol2-monster-02',
+      monsterName: 'パピル',
+      isBoss: false,
       explorationId: context.explorationId,
+      finishers: [
+        { roundNo: 1, playerIndex: 1, playFabId: '', isNpc: true, monsterId: 'ismartal-vol1-monster-07', mode: 'offline' },
+        { roundNo: 2, playerIndex: 0, playFabId: 'PF_PLAYWRIGHT', isNpc: false, monsterId: 'ismartal-vol3-monster-04', mode: 'offline' },
+        { roundNo: 3, playerIndex: 0, playFabId: 'PF_PLAYWRIGHT', isNpc: false, monsterId: 'ismartal-vol1-monster-01', mode: 'offline' },
+        { roundNo: 4, playerIndex: 0, playFabId: 'PF_PLAYWRIGHT', isNpc: false, monsterId: 'ismartal-vol2-monster-02', mode: 'offline' }
+      ],
+      standings: [
+        { playerIndex: 0, playFabId: 'PF_PLAYWRIGHT', isNpc: false, chips: 45 },
+        { playerIndex: 1, playFabId: '', isNpc: true, chips: 20 },
+        { playerIndex: 2, playFabId: '', isNpc: true, chips: 5 }
+      ],
       finisher: {
         roundNo: 4,
         playerIndex: 0,
         playFabId: 'PF_PLAYWRIGHT',
         isNpc: false,
+        monsterId: 'ismartal-vol2-monster-02',
         mode: 'offline'
       }
     });
@@ -2455,11 +2555,15 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await page.locator('#btnHomeExploration').click();
   await page.locator('#shipExplorationPanel').waitFor({ state: 'visible' });
   await page.locator('.ship-exploration-start').click();
+  const supplyDialog = page.locator('.ship-exploration-payment-dialog.is-stage-supply');
+  await expect(supplyDialog).toBeVisible();
+  await expect(supplyDialog).toContainText('使用できる補給品はありません');
+  await supplyDialog.locator('[data-stage-supply-confirm]').click();
 
   const sequence = page.locator('.exploration-sequence-overlay');
   await expect(sequence).toHaveClass(/is-sail/, { timeout: 15_000 });
   await expect(sequence.locator('[data-exploration-sequence-chest]')).toHaveCount(0);
-  await expect(sequence.locator('.exploration-sequence-island img')).toHaveAttribute('src', /near_sea_drift_crate\.png/);
+  await expect(sequence.locator('.exploration-sequence-island img')).toHaveAttribute('src', /coral-island-v1\.webp/);
   await expect(sequence.locator('[data-exploration-sequence-advance]')).toHaveCount(0);
   await expect(sequence.locator('[data-exploration-sequence-progress]')).toBeAttached();
 
@@ -2467,6 +2571,7 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await expect(sequence).toHaveClass(/is-left/, { timeout: 5_000 });
   await expect(sequence).toHaveClass(/is-arrival/, { timeout: 5_000 });
   await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' })).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' }).locator('small')).toHaveText('オフライン・ペット同行4人');
   await page.getByRole('button', { name: '傭兵召集（オフライン）' }).click();
   await expect(sequence).toBeHidden({ timeout: 5_000 });
 
@@ -2510,8 +2615,11 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
     playerIndex: 0,
     playFabId: 'PF_PLAYWRIGHT',
     isNpc: false,
+    monsterId: 'ismartal-vol2-monster-02',
     mode: 'offline'
   });
+  expect(explorationClaimRequest.tarotFinishers).toHaveLength(4);
+  expect(explorationClaimRequest.tarotStandings).toHaveLength(3);
 
   const result = page.locator('.exploration-result-overlay');
   await expect(result).toHaveClass(/is-awaiting-open/, { timeout: 15_000 });
@@ -2522,10 +2630,12 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await expect(result.locator('[data-exploration-result-state]')).toHaveText('勝利');
   expect(await result.locator('.exploration-result-dialog').evaluate((element) => getComputedStyle(element).overflowX)).toBe('hidden');
   await expect(result.locator('[data-exploration-result-open]')).toBeDisabled();
-  await expect(result.locator('.exploration-result-boss-card')).toHaveAttribute('data-exploration-boss-id', 'ismartal-vol2-monster-07');
-  await expect(result.locator('.exploration-result-boss-image')).toHaveCSS('background-image', /pixel-monsters\/vol2\/monster-07\/idle\.png/);
-  await expect(result.locator('.exploration-result-boss-copy strong')).toHaveText('バルガン');
-  await expect(result.locator('.exploration-result-boss-copy span')).toHaveText('大型BOSS / 勝利');
+  await expect(result.locator('.exploration-result-boss-card')).toHaveAttribute('data-exploration-boss-id', 'ismartal-vol2-monster-02');
+  await expect(result.locator('.exploration-result-boss-image')).toHaveCSS('background-image', /pixel-monsters\/vol2\/monster-02\/idle\.png/);
+  await expect(result.locator('.exploration-result-boss-copy b')).toHaveText('STAGE 1 / 4 ENEMIES');
+  await expect(result.locator('.exploration-result-boss-copy strong')).toHaveText('パピル');
+  await expect(result.locator('.exploration-result-boss-copy span')).toHaveText('STAGE 1 / 4 ENEMIES / 勝利');
+  await expect(result.locator('.exploration-result-body')).toContainText('1位 / タロットキングダム勝利');
   await expect(result.locator('.exploration-result-reward')).toContainText('RARE');
   await expect(result.locator('.exploration-result-chest')).toHaveCSS('animation-name', 'none');
 
@@ -3031,6 +3141,7 @@ test('panel frame assets are applied through border-image slices', async ({ page
   expect(audit.filter((entry) => /assets\/ui\/panels\//.test(entry.backgroundImage))).toEqual([]);
   expect(audit.filter((entry) => (
     !/assets\/ui\/panels\//.test(entry.borderImageSource)
+    && !/assets\/ui\/buttons\//.test(entry.borderImageSource)
     && !/panel-.*\.png/.test(entry.panelSliceSource)
   ))).toEqual([]);
   await expectNoPageErrors(errors);
@@ -5023,7 +5134,8 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   await expect(page.locator('#inventoryGrid .tarot-number-badge.is-cup')).toHaveText('10');
   await expect(page.locator('#meleeDeckGrid .tarot-loadout-visual .tarot-number-badge.is-cup')).toHaveText('10');
   await expect(page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty) .tarot-number-badge')).toHaveText(['10']);
-  await expect(page.locator('#shipMajorArcanaGrid .tarot-loadout-visual .tarot-number-badge.is-sword')).toHaveText('5');
+  await expect(page.locator('#shipMajorArcanaGrid .tarot-loadout-visual .tarot-number-badge.is-none')).toHaveText('5');
+  await expect(page.locator('#shipMajorArcanaGrid .tarot-loadout-visual .tarot-number-badge.is-sword')).toHaveCount(0);
 
   const badgeStyles = await page.evaluate(() => {
     const read = (selector) => {

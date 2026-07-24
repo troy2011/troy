@@ -306,12 +306,12 @@ test('ship major arcana weaken exploration boss before melee battle without rewa
   );
 
   expect(result.logs).toHaveLength(3);
-  expect(boss.stats.MaxHP).toBe(94);
-  expect(boss.stats.CurrentHP).toBe(94);
-  expect(boss.stats.ちから).toBe(47);
-  expect(boss.equipmentStats.Power).toBe(19);
-  expect(boss.stats.すばやさ).toBe(28);
-  expect(boss.equipmentStats.StatusRate).toBe(-6);
+  expect(boss.stats.MaxHP).toBe(91);
+  expect(boss.stats.CurrentHP).toBe(91);
+  expect(boss.stats.ちから).toBe(46);
+  expect(boss.equipmentStats.Power).toBe(18);
+  expect(boss.stats.すばやさ).toBe(30);
+  expect(boss.equipmentStats.StatusRate).toBe(0);
   expect(__test.resolveRewardCount({ bossAppeared: true, playerWon: true }, 'fighter')).toBe(1);
 });
 

@@ -12,6 +12,14 @@ const ARCHETYPE_BY_NUMBER = Object.freeze({
     4: Object.freeze({ key: 'guardian', hp: 1.22, pass: 0.9, area: 1.05, defense: 1.5, speed: 0.68 })
 });
 
+const STAGE_ARCHETYPE_MODIFIERS = Object.freeze({
+    balanced: Object.freeze({ hp: 1, pass: 1, area: 1, defense: 1, speed: 1 }),
+    brute: Object.freeze({ hp: 1.08, pass: 1.08, area: 1, defense: 1.05, speed: 0.92 }),
+    caster: Object.freeze({ hp: 0.96, pass: 1, area: 1.1, defense: 0.96, speed: 1.04 }),
+    swift: Object.freeze({ hp: 0.94, pass: 1.03, area: 1, defense: 0.92, speed: 1.12 }),
+    guardian: Object.freeze({ hp: 1.1, pass: 0.96, area: 1, defense: 1.12, speed: 0.9 })
+});
+
 const ENEMY_AILMENTS = Object.freeze({
     'ismartal-vol1-monster-03': Object.freeze({ statusKey: 'poison', label: '毒', scope: 'single', chance: 0.3, potencyRate: 0.2, charges: 3 }),
     'ismartal-vol1-monster-05': Object.freeze({ statusKey: 'blind', label: '暗闇', scope: 'single', chance: 0.32, potency: 25, charges: 2 }),
@@ -50,7 +58,60 @@ export function getTarotKingdomEnemyAilmentProfile(monsterId = '') {
     return profile ? { ...profile } : null;
 }
 
-export function createTarotKingdomEnemyCombatProfile(monster = {}, roundIndex = 0) {
+function createStageAilmentProfile(monsterId, threatLevel) {
+    const ailment = getTarotKingdomEnemyAilmentProfile(monsterId);
+    if (!ailment) return null;
+    const threat = Math.max(1, Math.min(44, Math.floor(finiteNumber(threatLevel, 1))));
+    const chanceCap = Math.min(0.85, 0.14 + (threat * 0.007));
+    const potencyMultiplier = 0.6 + (threat / 110);
+    return {
+        ...ailment,
+        chance: Math.min(getTarotKingdomEnemyAilmentChance(ailment), chanceCap),
+        ...(Number.isFinite(Number(ailment.potencyRate))
+            ? { potencyRate: Math.max(0.01, finiteNumber(ailment.potencyRate) * potencyMultiplier) }
+            : {}),
+        ...(Number.isFinite(Number(ailment.potency))
+            ? { potency: Math.max(1, Math.round(finiteNumber(ailment.potency) * potencyMultiplier)) }
+            : {})
+    };
+}
+
+function createTarotKingdomStageEnemyCombatProfile(monster = {}, options = {}) {
+    const stageNo = Math.max(1, Math.min(11, Math.floor(finiteNumber(options.stageNo, 1))));
+    const roundNo = Math.max(1, Math.min(4, Math.floor(finiteNumber(options.roundNo, 1))));
+    const threatLevel = Math.max(
+        1,
+        Math.min(44, Math.floor(finiteNumber(options.threatLevel, ((stageNo - 1) * 4) + roundNo)))
+    );
+    const archetypeKey = String(options.archetype || 'balanced').trim().toLowerCase();
+    const archetype = STAGE_ARCHETYPE_MODIFIERS[archetypeKey] || STAGE_ARCHETYPE_MODIFIERS.balanced;
+    const baseHp = 220 + (threatLevel * 17);
+    const basePassDamage = 9 + Math.floor(threatLevel * 0.48);
+    const baseAreaDamage = 5 + Math.floor(threatLevel * 0.3);
+    const baseDefense = 3 + Math.floor(threatLevel * 0.65);
+    const baseSpeed = 7 + Math.floor(threatLevel * 0.35);
+    return {
+        version: 2,
+        stageNo,
+        roundNo,
+        threatLevel,
+        archetype: archetypeKey in STAGE_ARCHETYPE_MODIFIERS ? archetypeKey : 'balanced',
+        maxHp: positiveInteger(baseHp * archetype.hp),
+        passDamage: positiveInteger(basePassDamage * archetype.pass),
+        areaDamage: positiveInteger(baseAreaDamage * archetype.area),
+        defense: Math.max(0, Math.round(baseDefense * archetype.defense)),
+        speed: Math.max(1, Math.round(baseSpeed * archetype.speed)),
+        ailment: createStageAilmentProfile(monster?.id, threatLevel)
+    };
+}
+
+export function createTarotKingdomEnemyCombatProfile(monster = {}, roundIndex = 0, options = {}) {
+    if (options?.stageVersion === 1 || Number(options?.stageNo) > 0) {
+        return createTarotKingdomStageEnemyCombatProfile(monster, {
+            ...options,
+            roundNo: options.roundNo ?? (Math.floor(finiteNumber(roundIndex, 0)) + 1)
+        });
+    }
     const volume = Math.max(1, Math.min(3, Math.floor(finiteNumber(monster?.volume, 1))));
     const number = Math.max(1, Math.floor(finiteNumber(monster?.number, 1)));
     const round = Math.max(0, Math.min(3, Math.floor(finiteNumber(roundIndex, 0))));

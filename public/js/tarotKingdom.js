@@ -3,7 +3,11 @@ import { decoratePlayerTriggerElement } from './playerProfile.js';
 import { getMyPlayerStats, getMyCrewRankInfo } from './player.js';
 import { getMyInventory, getMyCurrentEquipment, getMyTarotBattleDeckSnapshot } from './inventory.js';
 import { getPlayerRankName } from './homePlayerStatus.js';
-import { getTarotKingdomCombatProfiles, getTarotKingdomPetState } from './playfabClient.js';
+import {
+  getTarotKingdomCombatProfiles,
+  getTarotKingdomPetState,
+  joinExplorationStage
+} from './playfabClient.js';
 import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260724h';
 import {
   calculateTarotKingdomIncomingDamage,
@@ -137,7 +141,7 @@ const NPC_AI_STYLE = {
 const DEFAULT_INITIAL_HAND_SIZE = 8;
 const DEFAULT_HAND_LIMIT = 8;
 const LEGACY_HAND_SIZE = 6;
-const KINGDOM_RULES_VERSION = 9;
+const KINGDOM_RULES_VERSION = 10;
 const TOTAL_HANDS = 4;
 const START_CHIPS = 100;
 const A_PENALTY = 1;
@@ -193,7 +197,7 @@ const KINGDOM_SUMMON_EFFECT_VISUALS = Object.freeze({
   aegis: Object.freeze({ category: 'support', choreography: 'golden-barrier' }),
   command: Object.freeze({ category: 'support', choreography: 'fleet-command' })
 });
-const KINGDOM_NET_SCHEMA_VERSION = 9;
+const KINGDOM_NET_SCHEMA_VERSION = 10;
 const KINGDOM_PRIVATE_STATE_VERSION = 2;
 const KINGDOM_NET_STATE_WRITE_DELAY = 90;
 const TK_MATCH_ROOT = 'tarotKingdomMatch';
@@ -290,6 +294,7 @@ let netOpenRoomsCache = {};
 let netOpenRoomIndexEnabled = true;
 let netManualOfflineMode = false;
 let netForceCreateRoom = false;
+let netJoinedExplorationMeta = null;
 let kingdomStartMode = '';
 let kingdomViewportSyncQueued = false;
 let kingdomViewportWatchBound = false;
@@ -3187,21 +3192,163 @@ function createLegacyKingdomEnemyCombatProfile(roundIndex = 0) {
   };
 }
 
-function createKingdomBattleState(roundIndex = 0, active = false, destinationId = '', enemyCombatVersion = 1, playerCount = PLAYERS.length) {
+function normalizeKingdomExplorationStageState(value = null) {
+  if (!value || typeof value !== 'object') return null;
+  const stageNo = Math.max(1, Math.min(11, Math.floor(Number(value.stageNo) || 1)));
+  const monsters = (Array.isArray(value.monsters) ? value.monsters : [])
+    .slice(0, TOTAL_HANDS)
+    .map((entry, index) => {
+      const monsterId = String(entry?.monsterId || entry?.id || '').trim();
+      const monster = KINGDOM_MONSTER_ROSTER.find((candidate) => candidate.id === monsterId);
+      if (!monster || monster.isBoss === true) return null;
+      return {
+        order: index + 1,
+        monsterId,
+        monsterName: String(entry?.monsterName || monster.name),
+        archetype: String(entry?.archetype || 'balanced'),
+        threatLevel: Math.max(1, Math.min(44, Math.floor(
+          Number(entry?.threatLevel) || (((stageNo - 1) * TOTAL_HANDS) + index + 1)
+        ))),
+        isBoss: false
+      };
+    })
+    .filter(Boolean);
+  if (monsters.length !== TOTAL_HANDS) return null;
+  const supplyQueue = (Array.isArray(value.supplyQueue) ? value.supplyQueue : [])
+    .slice(0, TOTAL_HANDS - 1)
+    .map((entry, index) => ({
+      slot: index,
+      itemId: String(entry?.itemId || ''),
+      displayName: String(entry?.displayName || entry?.name || '補給品'),
+      effectiveUnits: Math.max(1, Math.min(3, Math.floor(Number(entry?.effectiveUnits) || 1)))
+    }));
+  const appliedSupplyTransitions = Array.from(new Set(
+    (Array.isArray(value.appliedSupplyTransitions) ? value.appliedSupplyTransitions : [])
+      .map((entry) => Math.floor(Number(entry)))
+      .filter((entry) => entry >= 1 && entry < TOTAL_HANDS)
+  ));
+  const finishers = (Array.isArray(value.finishers) ? value.finishers : [])
+    .slice(0, TOTAL_HANDS)
+    .map((entry) => ({
+      roundNo: Math.max(1, Math.min(TOTAL_HANDS, Math.floor(Number(entry?.roundNo) || 1))),
+      playerIndex: Math.max(0, Math.floor(Number(entry?.playerIndex) || 0)),
+      playFabId: String(entry?.playFabId || ''),
+      isNpc: entry?.isNpc === true,
+      monsterId: String(entry?.monsterId || '')
+    }));
+  return {
+    version: 1,
+    stageNo,
+    stageId: String(value.stageId || `tarot_stage_${stageNo}`),
+    stageName: String(value.stageName || value.destinationName || `STAGE ${stageNo}`),
+    battlefieldId: String(value.battlefieldId || ''),
+    atmosphereTone: String(value.atmosphereTone || ''),
+    monsters,
+    supplyQueue,
+    appliedSupplyTransitions,
+    usedSupplies: Array.isArray(value.usedSupplies)
+      ? value.usedSupplies.slice(0, TOTAL_HANDS - 1).map((entry) => ({ ...entry }))
+      : [],
+    finishers,
+    lastSupplyResult: value.lastSupplyResult && typeof value.lastSupplyResult === 'object'
+      ? { ...value.lastSupplyResult }
+      : null
+  };
+}
+
+function getKingdomStageMonster(roundIndex = 0, stageState = s?.stage) {
+  const stage = normalizeKingdomExplorationStageState(stageState);
+  if (!stage) return null;
+  const safeRoundIndex = Math.max(0, Math.min(TOTAL_HANDS - 1, Math.floor(Number(roundIndex) || 0)));
+  return stage.monsters[safeRoundIndex] || null;
+}
+
+function applyKingdomStageTransitionSupply() {
+  const stage = normalizeKingdomExplorationStageState(s?.stage);
+  if (!stage || Number(s?.handNo || 0) <= 0) return null;
+  const transitionNo = Math.max(1, Math.min(TOTAL_HANDS - 1, Math.floor(Number(s.handNo) || 1)));
+  if (stage.appliedSupplyTransitions.includes(transitionNo)) {
+    s.stage = stage;
+    return stage.lastSupplyResult;
+  }
+  stage.appliedSupplyTransitions.push(transitionNo);
+  const supply = stage.supplyQueue[transitionNo - 1] || null;
+  if (!supply) {
+    stage.lastSupplyResult = {
+      transitionNo,
+      used: false,
+      healRate: 0
+    };
+    s.stage = stage;
+    return stage.lastSupplyResult;
+  }
+  const healRate = Math.max(0.1, Math.min(0.3, supply.effectiveUnits * 0.1));
+  const healed = s.players.map((player, playerIndex) => {
+    const maxHp = Math.max(
+      1,
+      Math.floor(Number(player?.character?.combat?.maxHp) || Number(player.maxHp) || KINGDOM_FALLBACK_PLAYER_MAX_HP)
+    );
+    const hpBefore = Math.max(0, Math.min(maxHp, Math.floor(Number(player.hp) || 0)));
+    const amount = Math.max(1, Math.round(maxHp * healRate));
+    const hpAfter = hpBefore <= 0 ? amount : Math.min(maxHp, hpBefore + amount);
+    player.maxHp = maxHp;
+    player.hp = hpAfter;
+    return { playerIndex, hpBefore, hpAfter, amount: hpAfter - hpBefore, revived: hpBefore <= 0 };
+  });
+  const result = {
+    transitionNo,
+    used: true,
+    itemId: supply.itemId,
+    displayName: supply.displayName,
+    effectiveUnits: supply.effectiveUnits,
+    healRate,
+    healed
+  };
+  stage.usedSupplies.push(result);
+  stage.lastSupplyResult = result;
+  s.stage = stage;
+  log(`${supply.displayName}: パーティーのHPを${Math.round(healRate * 100)}%回復`);
+  return result;
+}
+
+function createKingdomBattleState(
+  roundIndex = 0,
+  active = false,
+  destinationId = '',
+  enemyCombatVersion = 1,
+  playerCount = PLAYERS.length,
+  stageState = s?.stage
+) {
   const safeRoundIndex = Math.max(0, Math.min(TOTAL_HANDS - 1, Number(roundIndex) || 0));
+  const normalizedStage = normalizeKingdomExplorationStageState(stageState);
+  const stageMonster = getKingdomStageMonster(safeRoundIndex, normalizedStage);
   const resolvedDestinationId = String(
     destinationId || kingdomExplorationSession?.context?.destinationId || ''
   ).trim();
-  const battlefield = createTarotKingdomBattlefieldSnapshot(resolvedDestinationId);
+  const battlefield = createTarotKingdomBattlefieldSnapshot(
+    resolvedDestinationId,
+    normalizedStage?.battlefieldId || kingdomExplorationSession?.context?.battlefieldId || ''
+  );
   const selectedExplorationMonster = kingdomExplorationMonsterId
     ? KINGDOM_MONSTER_ROSTER.find((entry) => entry.id === kingdomExplorationMonsterId)
     : null;
   const selectedDemoMonster = window.__TAROT_KINGDOM_PREVIEW__ === true && kingdomDemoEnemyId
     ? KINGDOM_DEMO_MONSTER_ROSTER.find((entry) => entry.id === kingdomDemoEnemyId)
     : null;
-  const monster = selectedExplorationMonster || selectedDemoMonster || KINGDOM_DEFAULT_MONSTER;
+  const stageMonsterConfig = stageMonster
+    ? KINGDOM_MONSTER_ROSTER.find((entry) => entry.id === stageMonster.monsterId)
+    : null;
+  const monster = stageMonsterConfig || selectedExplorationMonster || selectedDemoMonster || KINGDOM_DEFAULT_MONSTER;
   const combatProfile = Number(enemyCombatVersion) >= 1
-    ? createTarotKingdomEnemyCombatProfile(monster, safeRoundIndex)
+    ? createTarotKingdomEnemyCombatProfile(monster, safeRoundIndex, stageMonster
+      ? {
+          stageVersion: 1,
+          stageNo: normalizedStage.stageNo,
+          roundNo: safeRoundIndex + 1,
+          threatLevel: stageMonster.threatLevel,
+          archetype: stageMonster.archetype
+        }
+      : {})
     : createLegacyKingdomEnemyCombatProfile(safeRoundIndex);
   const maxHp = combatProfile.maxHp;
   return {
@@ -3234,14 +3381,22 @@ function createKingdomBattleState(roundIndex = 0, active = false, destinationId 
       defense: combatProfile.defense,
       speed: combatProfile.speed,
       archetype: combatProfile.archetype,
+      threatLevel: Math.max(0, Math.floor(Number(combatProfile.threatLevel) || 0)),
       ailment: combatProfile.ailment
     }
   };
 }
 
-function normalizeKingdomBattleState(rawBattle, roundIndex = 0, active = false, enemyCombatVersion = 1, playerCount = PLAYERS.length) {
+function normalizeKingdomBattleState(
+  rawBattle,
+  roundIndex = 0,
+  active = false,
+  enemyCombatVersion = 1,
+  playerCount = PLAYERS.length,
+  stageState = null
+) {
   const safePlayerCount = normalizeKingdomPlayerCount(playerCount);
-  const base = createKingdomBattleState(roundIndex, active, '', enemyCombatVersion, safePlayerCount);
+  const base = createKingdomBattleState(roundIndex, active, '', enemyCombatVersion, safePlayerCount, stageState);
   const incoming = rawBattle && typeof rawBattle === 'object' ? rawBattle : {};
   const incomingBattlefield = incoming.battlefield && typeof incoming.battlefield === 'object'
     ? incoming.battlefield
@@ -3333,23 +3488,30 @@ function normalizeKingdomBattleState(rawBattle, roundIndex = 0, active = false, 
 
 function resetKingdomBattleForRound() {
   if (!s) return;
+  const preserveExplorationHp = !!normalizeKingdomExplorationStageState(s.stage) && Number(s.handNo || 0) > 0;
+  if (preserveExplorationHp) applyKingdomStageTransitionSupply();
   s.players.forEach((player) => {
     const maxHp = Math.max(
       1,
       Math.floor(Number(player?.character?.combat?.maxHp) || Number(player.maxHp) || KINGDOM_FALLBACK_PLAYER_MAX_HP)
     );
     player.maxHp = maxHp;
-    player.hp = maxHp;
+    player.hp = preserveExplorationHp
+      ? Math.max(0, Math.min(maxHp, Math.floor(Number(player.hp) || 0)))
+      : maxHp;
   });
   s.battle = createKingdomBattleState(
     s.handNo,
     true,
     '',
     Number(s.rules?.enemyCombatVersion ?? 1),
-    getKingdomPlayerCount()
+    getKingdomPlayerCount(),
+    s.stage
   );
+  kingdomExplorationMonsterId = String(s.battle?.enemy?.id || kingdomExplorationMonsterId);
   const enemy = s.battle.enemy;
-  log(`BATTLE START: ${enemy.name} HP ${enemy.hp}`);
+  const stageLabel = s.stage ? `STAGE ${s.stage.stageNo} / ENEMY ${s.handNo + 1}/${TOTAL_HANDS}` : 'BATTLE START';
+  log(`${stageLabel}: ${enemy.name} HP ${enemy.hp}`);
 }
 
 function areKingdomCombatEffectsEnabled(state = s) {
@@ -4512,6 +4674,21 @@ function markKingdomBattleVictory(winnerIndex) {
     enemy.defeatedAtSeq = victoryEvent.seq;
     enemy.finishedAt = victoryEvent.at;
   }
+  if (s.stage) {
+    const stage = normalizeKingdomExplorationStageState(s.stage);
+    const winner = s.players?.[winnerIndex];
+    const roundNo = Math.max(1, Math.min(TOTAL_HANDS, Number(s.handNo || 0) + 1));
+    if (stage && winner && !stage.finishers.some((entry) => entry.roundNo === roundNo)) {
+      stage.finishers.push({
+        roundNo,
+        playerIndex: winnerIndex,
+        playFabId: String(winner.playFabId || ''),
+        isNpc: winner.isNpc === true,
+        monsterId: String(enemy?.id || '')
+      });
+      s.stage = stage;
+    }
+  }
 }
 
 function normalizeKingdomRules(
@@ -4522,7 +4699,8 @@ function normalizeKingdomRules(
   fallbackGraveTimingVersion = 1,
   fallbackEnemyCombatVersion = 1,
   fallbackMajorArcanaGateVersion = 1,
-  fallbackMajorArcanaSpecialVersion = 1
+  fallbackMajorArcanaSpecialVersion = 1,
+  fallbackStageVersion = 0
 ) {
   const incoming = rawRules && typeof rawRules === 'object' ? rawRules : {};
   const fallback = Math.max(1, Math.min(20, Math.floor(Number(fallbackHandSize) || DEFAULT_HAND_LIMIT)));
@@ -4562,6 +4740,10 @@ function normalizeKingdomRules(
     majorArcanaSpecialVersion: Math.max(
       0,
       Math.min(1, Math.floor(Number(incoming.majorArcanaSpecialVersion ?? fallbackMajorArcanaSpecialVersion) || 0))
+    ),
+    stageVersion: Math.max(
+      0,
+      Math.min(1, Math.floor(Number(incoming.stageVersion ?? fallbackStageVersion) || 0))
     )
   };
 }
@@ -4638,7 +4820,8 @@ function initState() {
     transition: null,
     characterSnapshotReady: false,
     characterSnapshotCreatedAt: 0,
-    battle: createKingdomBattleState(0, false, '', rules.enemyCombatVersion, playerTemplates.length)
+    stage: null,
+    battle: createKingdomBattleState(0, false, '', rules.enemyCombatVersion, playerTemplates.length, null)
   };
 }
 
@@ -4840,6 +5023,9 @@ async function registerOpenRoomIndex(db, roomId, ownerUid) {
       kind: isExplorationRescue ? 'exploration-rescue' : 'match',
       monsterName: isExplorationRescue ? String(explorationContext?.monsterName || '').slice(0, 16) : '',
       destinationName: isExplorationRescue ? String(explorationContext?.destinationName || '').slice(0, 24) : '',
+      explorationId: isExplorationRescue ? String(explorationContext?.explorationId || '').slice(0, 128) : '',
+      ownerPlayFabId: isExplorationRescue ? String(window.myPlayFabId || '').slice(0, 128) : '',
+      stageNo: isExplorationRescue ? Math.max(0, Math.floor(Number(explorationContext?.stageNo) || 0)) : 0,
       createdAt: now,
       updatedAt: now
     });
@@ -4889,6 +5075,9 @@ async function pickJoinableOpenRoom(db) {
     if (inProgress || count >= 4 || count <= 0 || !hasLiveHost) {
       continue;
     }
+    netJoinedExplorationMeta = item?.kind === 'exploration-rescue'
+      ? { roomId, ...item }
+      : null;
     return roomId;
   }
   return '';
@@ -4917,6 +5106,7 @@ async function pickJoinableFallbackRoom(db) {
 async function findOrCreateAutoRoomId(db) {
   const joinable = await pickJoinableOpenRoom(db);
   if (joinable) return joinable;
+  netJoinedExplorationMeta = null;
   if (!netOpenRoomIndexEnabled) {
     return pickJoinableFallbackRoom(db);
   }
@@ -5112,6 +5302,7 @@ function deserializeStateFromNet(payload) {
   };
   if (incomingSchema < 7) incomingRules.majorArcanaGateVersion = 0;
   if (incomingSchema < 8) incomingRules.majorArcanaSpecialVersion = 0;
+  if (incomingSchema < 10) incomingRules.stageVersion = 0;
   nextState.rules = normalizeKingdomRules(
     incomingRules,
     incomingSchema < 4 ? LEGACY_HAND_SIZE : DEFAULT_HAND_LIMIT,
@@ -5120,7 +5311,8 @@ function deserializeStateFromNet(payload) {
     Object.prototype.hasOwnProperty.call(rawState.rules || {}, 'graveTimingVersion') ? 1 : 0,
     Object.prototype.hasOwnProperty.call(rawState.rules || {}, 'enemyCombatVersion') ? 1 : 0,
     incomingSchema < 7 ? 0 : 1,
-    incomingSchema < 8 ? 0 : 1
+    incomingSchema < 8 ? 0 : 1,
+    incomingSchema < 10 ? 0 : 1
   );
   [
     'graveOpen',
@@ -5246,12 +5438,16 @@ function deserializeStateFromNet(payload) {
     : null;
   nextState.characterSnapshotReady = !!rawState.characterSnapshotReady
     && nextState.players.every((player) => !!player.character);
+  nextState.stage = incomingSchema >= 10
+    ? normalizeKingdomExplorationStageState(rawState.stage)
+    : null;
   nextState.battle = normalizeKingdomBattleState(
     rawState.battle,
     nextState.handNo,
     nextState.roundActive,
     nextState.rules.enemyCombatVersion,
-    nextState.players.length
+    nextState.players.length,
+    nextState.stage
   );
   return nextState;
 }
@@ -5654,7 +5850,7 @@ async function ensureSeatAssignment() {
         uid: tkNet.uid,
         seat,
         displayName: tkNet.localPlayerName,
-        playFabId: tkNet.uid,
+        playFabId: String(window.myPlayFabId || tkNet.uid),
         updatedAt: Date.now()
       };
       return current;
@@ -6311,6 +6507,7 @@ async function ensureTarotKingdomNetwork() {
         tkNet.localSeat = 0;
         return;
       }
+      if (forceCreateRoom || explicitRoomId) netJoinedExplorationMeta = null;
       let roomId = forceCreateRoom
         ? generateTarotKingdomRoomId()
         : (explicitRoomId || await findOrCreateAutoRoomId(db));
@@ -6348,7 +6545,7 @@ async function ensureTarotKingdomNetwork() {
         uid: tkNet.uid,
         seat: tkNet.localSeat,
         displayName: tkNet.localPlayerName,
-        playFabId: tkNet.uid,
+        playFabId: String(window.myPlayFabId || tkNet.uid),
         updatedAt: serverTimestamp()
       };
       try {
@@ -6364,6 +6561,20 @@ async function ensureTarotKingdomNetwork() {
       await set(presenceRef, presencePayload);
       netPresenceByUid[tkNet.uid] = { ...presencePayload, updatedAt: Date.now() };
       schedulePresenceHeartbeat();
+      if (
+        netJoinedExplorationMeta?.kind === 'exploration-rescue'
+        && String(netJoinedExplorationMeta.roomId || '') === roomId
+      ) {
+        const localPlayFabId = String(window.myPlayFabId || tkNet.uid || '').trim();
+        const ownerPlayFabId = String(netJoinedExplorationMeta.ownerPlayFabId || '').trim();
+        const explorationId = String(netJoinedExplorationMeta.explorationId || '').trim();
+        if (localPlayFabId && ownerPlayFabId && explorationId && localPlayFabId !== ownerPlayFabId) {
+          await joinExplorationStage(localPlayFabId, ownerPlayFabId, explorationId, {
+            isSilent: true,
+            throwOnError: true
+          });
+        }
+      }
 
       await claimHostIfNeeded();
 
@@ -6610,6 +6821,12 @@ function buildTarotKingdomDebugBattleState(options = {}) {
   kingdomCombatRandom = () => 0.5;
   s = initState();
   if (options.rules) s.rules = normalizeKingdomRules(options.rules);
+  if (options.stage && typeof options.stage === 'object') {
+    s.stage = normalizeKingdomExplorationStageState(options.stage);
+    if (s.stage) {
+      s.rules = normalizeKingdomRules({ ...s.rules, stageVersion: 1 });
+    }
+  }
   const debugPlayerCount = normalizeKingdomPlayerCount(
     options.playerCount,
     Array.isArray(options.handsBySeat) && options.handsBySeat.length >= 3
@@ -7572,6 +7789,10 @@ function exposeTarotKingdomBattleDebugTools(target) {
       const index = Math.max(0, Math.min(3, Number(winnerIndex) || 0));
       markKingdomBattleVictory(index);
       finishRound(index);
+      return snapshotTarotKingdomDebugState();
+    },
+    battleNextRound: () => {
+      confirmRoundSettlement();
       return snapshotTarotKingdomDebugState();
     },
     battleDeserialize: (payload) => {
@@ -10539,6 +10760,7 @@ function buildKingdomExplorationResult(status = 'completed') {
   const localSeat = getLocalPlayerIndex();
   const monster = getKingdomMonsterConfig(String(s?.battle?.enemy?.id || kingdomExplorationMonsterId));
   const defeated = s?.battle?.outcome === 'defeat';
+  const stage = normalizeKingdomExplorationStageState(s?.stage);
   const victoryEvent = (Array.isArray(s?.battle?.events) ? s.battle.events : [])
     .slice()
     .reverse()
@@ -10546,6 +10768,30 @@ function buildKingdomExplorationResult(status = 'completed') {
   const finisherIndex = Number(victoryEvent?.actorIndex);
   const finisherPlayer = Number.isInteger(finisherIndex) ? s?.players?.[finisherIndex] : null;
   const mode = kingdomExplorationSession?.context?.mode === 'online' ? 'online' : 'offline';
+  const finishers = stage
+    ? stage.finishers.map((entry) => ({ ...entry, mode }))
+    : [];
+  const finalFinisher = stage
+    ? (finishers.find((entry) => entry.roundNo === TOTAL_HANDS) || null)
+    : (
+      status === 'completed' && !defeated && victoryEvent && finisherPlayer
+        ? {
+            roundNo: TOTAL_HANDS,
+            playerIndex: finisherIndex,
+            playFabId: String(finisherPlayer.playFabId || ''),
+            isNpc: finisherPlayer.isNpc === true,
+            monsterId: String(monster?.id || ''),
+            mode
+          }
+        : null
+    );
+  const standings = (Array.isArray(s?.players) ? s.players : []).map((player, playerIndex) => ({
+    playerIndex,
+    playFabId: String(player?.playFabId || ''),
+    displayName: String(player?.name || `P${playerIndex + 1}`),
+    isNpc: player?.isNpc === true,
+    chips: Math.floor(Number(player?.chips) || 0)
+  }));
   return {
     status,
     completed: status === 'completed',
@@ -10559,16 +10805,12 @@ function buildKingdomExplorationResult(status = 'completed') {
     explorationId: String(kingdomExplorationSession?.context?.explorationId || ''),
     destinationId: String(kingdomExplorationSession?.context?.destinationId || ''),
     destinationName: String(kingdomExplorationSession?.context?.destinationName || ''),
+    stageNo: stage?.stageNo || Number(kingdomExplorationSession?.context?.stageNo) || null,
+    stageId: String(stage?.stageId || kingdomExplorationSession?.context?.stageId || ''),
+    finishers,
+    standings,
     mode,
-    finisher: status === 'completed' && !defeated && victoryEvent && finisherPlayer
-      ? {
-          roundNo: TOTAL_HANDS,
-          playerIndex: finisherIndex,
-          playFabId: String(finisherPlayer.playFabId || ''),
-          isNpc: finisherPlayer.isNpc === true,
-          mode
-        }
-      : null
+    finisher: finalFinisher
   };
 }
 
@@ -10582,6 +10824,7 @@ function settleKingdomExplorationSession(status = 'completed') {
   document.body?.removeAttribute('data-tarot-kingdom-exploration-id');
   document.body?.removeAttribute('data-tarot-kingdom-destination-id');
   document.body?.removeAttribute('data-tarot-kingdom-battlefield-id');
+  document.body?.removeAttribute('data-tarot-kingdom-atmosphere-tone');
   document.body?.removeAttribute('data-tarot-kingdom-entry-mode');
   window.dispatchEvent(new CustomEvent('tarot-kingdom:exploration-complete', { detail: result }));
   session.resolve(result);
@@ -12521,7 +12764,10 @@ function renderSummary() {
   const localSelected = me >= 0 ? sanitizeSelected(me) : [];
   const localStateOverride = me >= 0 ? buildLocalStateTextOverride(me, localSelected) : '';
   const turnText = s.roundActive ? `\nTurn ${Math.max(1, Number(s.turnCount) || 1)}` : '';
-  ui.round.textContent = `Round ${Math.min(s.handNo + 1, TOTAL_HANDS)} / ${TOTAL_HANDS}${turnText}`;
+  const stage = normalizeKingdomExplorationStageState(s.stage);
+  ui.round.textContent = stage
+    ? `STAGE ${stage.stageNo}\nENEMY ${Math.min(s.handNo + 1, TOTAL_HANDS)} / ${TOTAL_HANDS}${turnText}`
+    : `Round ${Math.min(s.handNo + 1, TOTAL_HANDS)} / ${TOTAL_HANDS}${turnText}`;
   if (ui.turn) {
     if (s.roundActive) {
       setInlinePlayerLabel(ui.turn, '', s.turn, 'の手番');
@@ -12830,6 +13076,12 @@ function updateButtons() {
 function render() {
   if (!s) return;
   normalizeKingdomTerminalState(s);
+  const stage = normalizeKingdomExplorationStageState(s.stage);
+  if (stage?.atmosphereTone) {
+    document.body?.setAttribute('data-tarot-kingdom-atmosphere-tone', stage.atmosphereTone);
+  } else if (!kingdomExplorationSession) {
+    document.body?.removeAttribute('data-tarot-kingdom-atmosphere-tone');
+  }
   queueSyncKingdomViewportHeight();
   syncLocalAutoFoldState();
   enforceLeadTurnInvariant();
@@ -13451,12 +13703,18 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
   if (kingdomExplorationSession) {
     settleKingdomExplorationSession('replaced');
   }
-  const requestedMonsterId = String(context?.monsterId || '').trim();
+  const requestedStageMonsters = Array.isArray(context?.monsters) ? context.monsters : [];
+  const requestedMonsterId = String(
+    requestedStageMonsters[0]?.monsterId || context?.monsterId || ''
+  ).trim();
   const monster = KINGDOM_MONSTER_ROSTER.find((entry) => entry.id === requestedMonsterId) || KINGDOM_DEFAULT_MONSTER;
   kingdomExplorationMonsterId = monster.id;
   const destinationId = String(context?.destinationId || '').trim();
   const requestedMode = context?.mode === 'online' ? 'online' : 'offline';
-  const battlefield = createTarotKingdomBattlefieldSnapshot(destinationId);
+  const battlefield = createTarotKingdomBattlefieldSnapshot(
+    destinationId,
+    String(context?.battlefieldId || '')
+  );
   await preloadKingdomBattlefieldImage(battlefield.id);
   let currentPet = context?.currentPet && typeof context.currentPet === 'object'
     ? cloneKingdomSnapshotValue(context.currentPet, null)
@@ -13478,10 +13736,17 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
     explorationId: String(context?.explorationId || ''),
     destinationId,
     destinationName: String(context?.destinationName || ''),
+    stageNo: Math.max(0, Math.min(11, Math.floor(Number(context?.stageNo) || 0))),
+    stageId: String(context?.stageId || ''),
+    atmosphereTone: String(context?.atmosphereTone || ''),
     battlefieldId: battlefield.id,
     monsterId: monster.id,
     monsterName: monster.name,
     isBoss: monster.isBoss === true,
+    monsters: requestedStageMonsters.map((entry) => ({ ...entry })),
+    supplyQueue: Array.isArray(context?.supplyQueue)
+      ? context.supplyQueue.slice(0, TOTAL_HANDS - 1).map((entry) => ({ ...entry }))
+      : [],
     mode: requestedMode,
     currentPet: requestedMode === 'offline' ? currentPet : null
   };
@@ -13496,27 +13761,64 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
     document.body?.setAttribute('data-tarot-kingdom-destination-id', normalizedContext.destinationId);
   }
   document.body?.setAttribute('data-tarot-kingdom-battlefield-id', normalizedContext.battlefieldId);
+  if (normalizedContext.atmosphereTone) {
+    document.body?.setAttribute('data-tarot-kingdom-atmosphere-tone', normalizedContext.atmosphereTone);
+  }
   document.body?.setAttribute('data-tarot-kingdom-entry-mode', normalizedContext.mode);
   resetMatch();
+  const applyExplorationStageToCurrentState = () => {
+    const stage = normalizeKingdomExplorationStageState({
+      version: 1,
+      stageNo: normalizedContext.stageNo,
+      stageId: normalizedContext.stageId,
+      stageName: normalizedContext.destinationName,
+      battlefieldId: normalizedContext.battlefieldId,
+      atmosphereTone: normalizedContext.atmosphereTone,
+      monsters: normalizedContext.monsters,
+      supplyQueue: normalizedContext.supplyQueue
+    });
+    if (!stage || !s) return null;
+    s.stage = stage;
+    s.rules = normalizeKingdomRules({
+      ...s.rules,
+      stageVersion: 1
+    });
+    s.battle = createKingdomBattleState(
+      0,
+      false,
+      normalizedContext.destinationId,
+      Number(s.rules.enemyCombatVersion || 1),
+      s.players.length,
+      stage
+    );
+    return stage;
+  };
+  applyExplorationStageToCurrentState();
   try {
     if (requestedMode === 'online') {
       teardownTarotKingdomNetwork();
       netForceCreateRoom = true;
       if (s) {
-        s.message = `${normalizedContext.destinationName || '島'}で${monster.name}と遭遇。救難信号を準備しています...`;
+        s.message = `${normalizedContext.destinationName || '島'} STAGE ${normalizedContext.stageNo || 1}へ進攻。救難信号を準備しています...`;
         render();
       }
       await activateKingdomOnlineMode();
+      applyExplorationStageToCurrentState();
       if (s && isNetModeActive() && tkNet.isHost) {
-        s.message = `救難信号を発信中。${monster.name}への救援を待っています。`;
+        const rescueTarget = [normalizedContext.destinationName, monster.name]
+            .filter(Boolean)
+            .filter((value, index, values) => values.indexOf(value) === index)
+            .join('・');
+        s.message = `救難信号を発信中。${rescueTarget || '探索先'}への救援を待っています。`;
         render();
         queueStatePublish(true);
       }
     } else {
       activateKingdomOfflineMode({
         renderNow: false,
-        message: `${normalizedContext.destinationName || '島'}で${monster.name}と遭遇！`
+        message: `${normalizedContext.destinationName || '島'} STAGE ${normalizedContext.stageNo || 1}・ENEMY 1/${TOTAL_HANDS}: ${monster.name}`
       });
+      applyExplorationStageToCurrentState();
       await startOrNext();
     }
   } catch (error) {

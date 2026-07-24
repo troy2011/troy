@@ -1,0 +1,393 @@
+const PIXEL_MONSTERS_ROSTER = require('../public/Sprites/pixel-monsters/manifest.json');
+
+const TAROT_KINGDOM_EXPLORATION_PROGRESS_KEY = 'TarotKingdomExplorationProgress';
+const TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION = 1;
+const TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION = 2;
+
+const MONSTER_BY_ID = new Map(
+    PIXEL_MONSTERS_ROSTER.map((monster) => [String(monster?.id || '').trim(), monster])
+);
+
+const STAGE_ROWS = [
+    {
+        name: '珊瑚の浅瀬',
+        battlefieldId: 'coral-island',
+        atmosphereTone: 'sunlit-coral',
+        monsters: [
+            ['ismartal-vol1-monster-07', 'balanced'],
+            ['ismartal-vol3-monster-04', 'balanced'],
+            ['ismartal-vol1-monster-01', 'guardian'],
+            ['ismartal-vol2-monster-02', 'swift']
+        ]
+    },
+    {
+        name: '風渡る甲板',
+        battlefieldId: 'ship-side',
+        atmosphereTone: 'open-sea',
+        monsters: [
+            ['ismartal-vol3-monster-05', 'balanced'],
+            ['ismartal-vol1-monster-04', 'guardian'],
+            ['ismartal-vol1-monster-10', 'caster'],
+            ['ismartal-vol1-monster-09', 'swift']
+        ]
+    },
+    {
+        name: '潮騒の島道',
+        battlefieldId: 'coral-island',
+        atmosphereTone: 'tropical-wilds',
+        monsters: [
+            ['ismartal-vol1-monster-14', 'balanced'],
+            ['ismartal-vol2-monster-11', 'brute'],
+            ['ismartal-vol3-monster-07', 'balanced'],
+            ['ismartal-vol1-monster-20', 'caster']
+        ]
+    },
+    {
+        name: '月影の古城',
+        battlefieldId: 'moonlit-ruins',
+        atmosphereTone: 'moonlit-gothic',
+        monsters: [
+            ['ismartal-vol2-monster-06', 'swift'],
+            ['ismartal-vol1-monster-12', 'swift'],
+            ['ismartal-vol1-monster-03', 'guardian'],
+            ['ismartal-vol1-monster-13', 'caster']
+        ]
+    },
+    {
+        name: '翠石の密林',
+        battlefieldId: 'coral-island',
+        atmosphereTone: 'verdant-ruins',
+        monsters: [
+            ['ismartal-vol2-monster-04', 'brute'],
+            ['ismartal-vol2-monster-05', 'caster'],
+            ['ismartal-vol1-monster-08', 'guardian'],
+            ['ismartal-vol1-monster-11', 'brute']
+        ]
+    },
+    {
+        name: '幽霊沼の夜',
+        battlefieldId: 'haunted-marsh',
+        atmosphereTone: 'poison-mist',
+        monsters: [
+            ['ismartal-vol2-monster-08', 'swift'],
+            ['ismartal-vol2-monster-09', 'brute'],
+            ['ismartal-vol1-monster-17', 'swift'],
+            ['ismartal-vol2-monster-03', 'caster']
+        ]
+    },
+    {
+        name: '海上砦突破戦',
+        battlefieldId: 'sea-fortress',
+        atmosphereTone: 'siege',
+        monsters: [
+            ['ismartal-vol1-monster-18', 'balanced'],
+            ['ismartal-vol1-monster-19', 'swift'],
+            ['ismartal-vol2-monster-01', 'guardian'],
+            ['ismartal-vol2-monster-10', 'brute']
+        ]
+    },
+    {
+        name: '蒼光の洞窟',
+        battlefieldId: 'blue-grotto',
+        atmosphereTone: 'arcane-blue',
+        monsters: [
+            ['ismartal-vol1-monster-02', 'caster'],
+            ['ismartal-vol1-monster-15', 'brute'],
+            ['ismartal-vol2-monster-12', 'swift'],
+            ['ismartal-vol2-monster-20', 'caster']
+        ]
+    },
+    {
+        name: '鋼鉄船団の海',
+        battlefieldId: 'ship-side',
+        atmosphereTone: 'storm-machinery',
+        monsters: [
+            ['ismartal-vol2-monster-17', 'guardian'],
+            ['ismartal-vol1-monster-06', 'brute'],
+            ['ismartal-vol1-monster-16', 'swift'],
+            ['ismartal-vol2-monster-18', 'caster']
+        ]
+    },
+    {
+        name: '獄炎の魔沼',
+        battlefieldId: 'haunted-marsh',
+        atmosphereTone: 'infernal-red',
+        monsters: [
+            ['ismartal-vol2-monster-19', 'brute'],
+            ['ismartal-vol3-monster-02', 'caster'],
+            ['ismartal-vol3-monster-08', 'guardian'],
+            ['ismartal-vol3-monster-06', 'caster']
+        ]
+    },
+    {
+        name: '終月の王城',
+        battlefieldId: 'moonlit-ruins',
+        atmosphereTone: 'final-eclipse',
+        monsters: [
+            ['ismartal-vol3-monster-03', 'swift'],
+            ['ismartal-vol3-monster-09', 'guardian'],
+            ['ismartal-vol3-monster-01', 'brute'],
+            ['ismartal-vol3-monster-10', 'caster']
+        ]
+    }
+];
+
+function clampInteger(value, min, max, fallback = min) {
+    const number = Math.floor(Number(value));
+    if (!Number.isFinite(number)) return fallback;
+    return Math.max(min, Math.min(max, number));
+}
+
+function getTarotKingdomStageImagePath(battlefieldId = '') {
+    const paths = {
+        'moonlit-ruins': './assets/tarot-kingdom/moonlit-terrace-vertical-v3.png',
+        'coral-island': './assets/tarot-kingdom/battlefields/coral-island-v1.webp',
+        'haunted-marsh': './assets/tarot-kingdom/battlefields/haunted-marsh-v1.webp',
+        'blue-grotto': './assets/tarot-kingdom/battlefields/blue-grotto-v1.webp',
+        'sea-fortress': './assets/tarot-kingdom/battlefields/sea-fortress-v1.webp',
+        'ship-side': './assets/tarot-kingdom/battlefields/ship-side-v1.webp'
+    };
+    return paths[String(battlefieldId || '')] || paths['moonlit-ruins'];
+}
+
+const TAROT_KINGDOM_EXPLORATION_STAGES = Object.freeze(STAGE_ROWS.map((row, stageIndex) => {
+    const stageNo = stageIndex + 1;
+    return Object.freeze({
+        version: 1,
+        stageNo,
+        id: `tarot_stage_${stageNo}`,
+        name: row.name,
+        battlefieldId: row.battlefieldId,
+        atmosphereTone: row.atmosphereTone,
+        imagePath: getTarotKingdomStageImagePath(row.battlefieldId),
+        monsters: Object.freeze(row.monsters.map(([monsterId, archetype], roundIndex) => {
+            const monster = MONSTER_BY_ID.get(monsterId);
+            if (!monster || monster.isBoss === true) {
+                throw new Error(`Invalid Tarot Kingdom stage monster: ${monsterId}`);
+            }
+            return Object.freeze({
+                order: roundIndex + 1,
+                monsterId,
+                monsterName: String(monster.name || monsterId),
+                archetype,
+                threatLevel: stageIndex * 4 + roundIndex + 1,
+                isBoss: false
+            });
+        }))
+    });
+}));
+
+function getTarotKingdomExplorationStage(stageNo) {
+    const safeStageNo = clampInteger(stageNo, 1, TAROT_KINGDOM_EXPLORATION_STAGES.length, 0);
+    return TAROT_KINGDOM_EXPLORATION_STAGES[safeStageNo - 1] || null;
+}
+
+function getTarotKingdomShipStageCap(shipStage) {
+    const stage = clampInteger(shipStage, 1, 3, 1);
+    if (stage >= 3) return 11;
+    if (stage === 2) return 8;
+    return 4;
+}
+
+function normalizeTarotKingdomExplorationProgress(value) {
+    let parsed = value;
+    if (typeof parsed === 'string') {
+        try {
+            parsed = JSON.parse(parsed);
+        } catch {
+            parsed = null;
+        }
+    }
+    const rawStages = parsed?.stages && typeof parsed.stages === 'object' ? parsed.stages : {};
+    const stages = {};
+    Object.entries(rawStages).forEach(([key, raw]) => {
+        const stageNo = clampInteger(key, 1, 11, 0);
+        if (!stageNo || !raw || typeof raw !== 'object') return;
+        stages[String(stageNo)] = {
+            bestRank: clampInteger(raw.bestRank, 1, 4, 4),
+            clearCount: Math.max(0, Math.floor(Number(raw.clearCount) || 0)),
+            firstClearedAtMs: Math.max(0, Math.floor(Number(raw.firstClearedAtMs) || 0)),
+            lastClearedAtMs: Math.max(0, Math.floor(Number(raw.lastClearedAtMs) || 0)),
+            lastExplorationId: String(raw.lastExplorationId || '').trim().slice(0, 128)
+        };
+    });
+    const highestFromStages = Math.max(1, ...Object.keys(stages).map((key) => Number(key) || 1));
+    return {
+        version: TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION,
+        highestUnlockedStage: clampInteger(
+            Math.max(Number(parsed?.highestUnlockedStage) || 1, highestFromStages),
+            1,
+            11,
+            1
+        ),
+        stages
+    };
+}
+
+async function readTarotKingdomExplorationProgress(playFabId, { promisifyPlayFab, PlayFabServer } = {}) {
+    if (!playFabId || typeof promisifyPlayFab !== 'function' || !PlayFabServer?.GetUserReadOnlyData) {
+        return normalizeTarotKingdomExplorationProgress(null);
+    }
+    const response = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+        PlayFabId: playFabId,
+        Keys: [TAROT_KINGDOM_EXPLORATION_PROGRESS_KEY]
+    });
+    return normalizeTarotKingdomExplorationProgress(
+        response?.Data?.[TAROT_KINGDOM_EXPLORATION_PROGRESS_KEY]?.Value
+    );
+}
+
+async function writeTarotKingdomExplorationProgress(
+    playFabId,
+    progress,
+    { promisifyPlayFab, PlayFabServer } = {}
+) {
+    if (!playFabId || typeof promisifyPlayFab !== 'function' || !PlayFabServer?.UpdateUserReadOnlyData) {
+        throw new Error('Tarot Kingdom exploration progress storage is unavailable.');
+    }
+    const normalized = normalizeTarotKingdomExplorationProgress(progress);
+    await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+        PlayFabId: playFabId,
+        Data: {
+            [TAROT_KINGDOM_EXPLORATION_PROGRESS_KEY]: JSON.stringify(normalized)
+        }
+    });
+    return normalized;
+}
+
+function applyTarotKingdomStageClear(progress, stageNo, rank, now = Date.now(), explorationId = '') {
+    const normalized = normalizeTarotKingdomExplorationProgress(progress);
+    const stage = getTarotKingdomExplorationStage(stageNo);
+    const safeRank = clampInteger(rank, 1, 4, 4);
+    if (!stage) return normalized;
+    const key = String(stage.stageNo);
+    const previous = normalized.stages[key] || null;
+    const safeExplorationId = String(explorationId || '').trim().slice(0, 128);
+    if (safeExplorationId && previous?.lastExplorationId === safeExplorationId) return normalized;
+    const completedAtMs = Math.max(1, Math.floor(Number(now) || Date.now()));
+    const nextHighest = safeRank <= 2
+        ? Math.min(11, Math.max(normalized.highestUnlockedStage, stage.stageNo + 1))
+        : normalized.highestUnlockedStage;
+    return {
+        version: TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION,
+        highestUnlockedStage: nextHighest,
+        stages: {
+            ...normalized.stages,
+            [key]: {
+                bestRank: previous ? Math.min(previous.bestRank, safeRank) : safeRank,
+                clearCount: Math.max(0, Number(previous?.clearCount) || 0) + 1,
+                firstClearedAtMs: previous?.firstClearedAtMs || completedAtMs,
+                lastClearedAtMs: completedAtMs,
+                lastExplorationId: safeExplorationId
+            }
+        }
+    };
+}
+
+function buildTarotKingdomStageList(progress, shipStage) {
+    const normalized = normalizeTarotKingdomExplorationProgress(progress);
+    const shipStageCap = getTarotKingdomShipStageCap(shipStage);
+    return TAROT_KINGDOM_EXPLORATION_STAGES.map((stage) => {
+        const record = normalized.stages[String(stage.stageNo)] || null;
+        const progressionUnlocked = stage.stageNo <= normalized.highestUnlockedStage;
+        const shipUnlocked = stage.stageNo <= shipStageCap;
+        return {
+            ...stage,
+            monsters: stage.monsters.map((monster) => ({ ...monster })),
+            bestRank: record?.bestRank || null,
+            clearCount: record?.clearCount || 0,
+            progressionUnlocked,
+            shipUnlocked,
+            unlocked: progressionUnlocked && shipUnlocked,
+            lockReason: !progressionUnlocked
+                ? '前のステージで2位以内に入ると解放'
+                : (!shipUnlocked ? '船を進化させると解放' : '')
+        };
+    });
+}
+
+function buildTarotKingdomStageEncounter({
+    explorationId = '',
+    stageNo = 1,
+    supplyQueue = [],
+    selectedAtMs = Date.now()
+} = {}) {
+    const stage = getTarotKingdomExplorationStage(stageNo);
+    if (!stage) return null;
+    return {
+        version: TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION,
+        explorationId: String(explorationId || '').trim().slice(0, 128),
+        stageNo: stage.stageNo,
+        stageId: stage.id,
+        destinationId: stage.id,
+        destinationName: stage.name,
+        battlefieldId: stage.battlefieldId,
+        atmosphereTone: stage.atmosphereTone,
+        monsterId: stage.monsters[0].monsterId,
+        monsterName: stage.monsters[0].monsterName,
+        isBoss: false,
+        monsters: stage.monsters.map((monster) => ({ ...monster })),
+        supplyQueue: Array.isArray(supplyQueue) ? supplyQueue.slice(0, 3) : [],
+        selectedAtMs: Math.max(0, Math.floor(Number(selectedAtMs) || 0))
+    };
+}
+
+function calculateTarotKingdomStandings(entries = []) {
+    const normalized = (Array.isArray(entries) ? entries : [])
+        .map((entry, index) => ({
+            playerIndex: Math.max(0, Math.floor(Number(entry?.playerIndex ?? index) || 0)),
+            playFabId: String(entry?.playFabId || '').trim(),
+            isNpc: entry?.isNpc === true,
+            chips: Math.floor(Number(entry?.chips) || 0)
+        }));
+    return normalized.map((entry) => ({
+        ...entry,
+        rank: 1 + normalized.filter((other) => other.chips > entry.chips).length
+    }));
+}
+
+const STAGE_REWARD_WEIGHTS = Object.freeze({
+    early: Object.freeze({
+        1: { common: 65, rare: 35 },
+        2: { common: 80, rare: 20 },
+        3: { common: 92, rare: 8 },
+        4: { common: 98, rare: 2 }
+    }),
+    middle: Object.freeze({
+        1: { common: 40, rare: 42, epic: 18 },
+        2: { common: 58, rare: 32, epic: 10 },
+        3: { common: 75, rare: 21, epic: 4 },
+        4: { common: 88, rare: 10, epic: 2 }
+    }),
+    late: Object.freeze({
+        1: { common: 20, rare: 38, epic: 32, legendary: 10 },
+        2: { common: 35, rare: 40, epic: 20, legendary: 5 },
+        3: { common: 55, rare: 32, epic: 12, legendary: 1 },
+        4: { common: 72, rare: 23, epic: 4.5, legendary: 0.5 }
+    })
+});
+
+function getTarotKingdomStageRewardWeights(stageNo, rank) {
+    const safeStageNo = clampInteger(stageNo, 1, 11, 1);
+    const safeRank = clampInteger(rank, 1, 4, 4);
+    const band = safeStageNo <= 4 ? 'early' : (safeStageNo <= 8 ? 'middle' : 'late');
+    return { ...STAGE_REWARD_WEIGHTS[band][safeRank] };
+}
+
+module.exports = {
+    TAROT_KINGDOM_EXPLORATION_PROGRESS_KEY,
+    TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION,
+    TAROT_KINGDOM_EXPLORATION_STAGES,
+    TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION,
+    STAGE_REWARD_WEIGHTS,
+    applyTarotKingdomStageClear,
+    buildTarotKingdomStageEncounter,
+    buildTarotKingdomStageList,
+    calculateTarotKingdomStandings,
+    getTarotKingdomExplorationStage,
+    getTarotKingdomShipStageCap,
+    getTarotKingdomStageRewardWeights,
+    normalizeTarotKingdomExplorationProgress,
+    readTarotKingdomExplorationProgress,
+    writeTarotKingdomExplorationProgress
+};

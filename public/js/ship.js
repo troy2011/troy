@@ -1125,6 +1125,7 @@ const EXPLORATION_SHIP_TRAITS = {
 
 let currentPlayerShipProfile = null;
 let explorationAutoRunning = false;
+let currentTarotKingdomPet = null;
 let tarotKingdomPetOfferDialogPromise = null;
 const HOME_PLAYER_SHIP_FRAME_SIZE = 64;
 const HOME_PLAYER_SHIP_DIRECTION_FRAME_SPAN = HOME_PLAYER_SHIP_FRAME_SIZE * 3;
@@ -1850,6 +1851,29 @@ function renderExplorationDestinationBossChips(destination) {
     `;
 }
 
+function renderTarotKingdomStageMonsters(stage) {
+    const monsters = Array.isArray(stage?.monsters) ? stage.monsters.slice(0, 4) : [];
+    if (!monsters.length) return '';
+    return `
+        <div class="ship-exploration-stage-monsters" aria-label="出現順">
+            ${monsters.map((entry, index) => {
+                const monster = PIXEL_MONSTERS_ROSTER.find((candidate) => (
+                    candidate.id === String(entry?.monsterId || entry?.id || '')
+                ));
+                return `
+                    <div class="ship-exploration-stage-monster">
+                        <span class="ship-exploration-stage-order">${index + 1}</span>
+                        ${monster
+                            ? renderExplorationPixelMonster(monster, 'ship-exploration-stage-monster-image', { maxWidth: 42, maxHeight: 40 })
+                            : '<span class="ship-exploration-stage-monster-image" aria-hidden="true"></span>'}
+                        <small>${escapeHtml(entry?.monsterName || monster?.name || '???')}</small>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
 function renderExplorationDestinationMetaChips(destination) {
     const chips = [
         destination?.slotLabel ? { className: 'is-slot', label: destination.slotLabel } : null,
@@ -1865,6 +1889,9 @@ function renderExplorationDestinationMetaChips(destination) {
 }
 
 function getExplorationPaymentState(data) {
+    if (Array.isArray(data?.explorationSupplies)) {
+        return { consumables: data.explorationSupplies };
+    }
     return data?.explorationPayment && typeof data.explorationPayment === 'object'
         ? data.explorationPayment
         : null;
@@ -2307,6 +2334,143 @@ function showExplorationConsumablePaymentDialog({ destination, paymentState }) {
     });
 }
 
+function showExplorationStageSupplyDialog({ stage, paymentState }) {
+    const consumables = getExplorationPaymentConsumables(paymentState);
+    return new Promise((resolve) => {
+        const selectedIds = [];
+        const overlay = document.createElement('div');
+        overlay.className = 'ship-exploration-payment-overlay';
+        overlay.innerHTML = `
+            <div class="ship-exploration-payment-dialog is-stage-supply" role="dialog" aria-modal="true" aria-label="局間補給品">
+                <div class="ship-exploration-payment-head">
+                    <strong>STAGE ${Math.max(1, Number(stage?.stageNo) || 1)}　${escapeHtml(stage?.name || '')}</strong>
+                    <span>局間に使う補給品を順番に3個まで選択（任意）</span>
+                </div>
+                <div class="ship-exploration-payment-summary" data-stage-supply-slots></div>
+                <div class="ship-exploration-payment-list" data-stage-supply-list></div>
+                <div class="ship-exploration-payment-buttons">
+                    <button type="button" data-stage-supply-confirm>補給なしで出航</button>
+                    <button type="button" data-stage-supply-cancel>キャンセル</button>
+                </div>
+            </div>
+        `;
+        const list = overlay.querySelector('[data-stage-supply-list]');
+        const slots = overlay.querySelector('[data-stage-supply-slots]');
+        const confirm = overlay.querySelector('[data-stage-supply-confirm]');
+        const cleanup = (result) => {
+            overlay.remove();
+            document.body.classList.remove('modal-lock');
+            resolve(result);
+        };
+        const render = () => {
+            const selectedCounts = selectedIds.reduce((map, itemId) => {
+                map.set(itemId, (map.get(itemId) || 0) + 1);
+                return map;
+            }, new Map());
+            slots.innerHTML = `
+                <div class="ship-exploration-stage-supply-slots" aria-label="使用順">
+                    ${Array.from({ length: 3 }, (_, index) => {
+                        const itemId = selectedIds[index] || '';
+                        const item = consumables.find((entry) => entry.itemId === itemId);
+                        return `<span class="${item ? 'is-filled' : ''}">${index + 1}. ${item ? escapeHtml(item.displayName) : 'なし'}</span>`;
+                    }).join('')}
+                </div>
+            `;
+            list.innerHTML = consumables.length
+                ? consumables.map((item) => {
+                    const chosen = selectedCounts.get(item.itemId) || 0;
+                    const canAdd = selectedIds.length < 3 && chosen < item.amount;
+                    const image = item.imagePath
+                        ? `<span class="ship-exploration-payment-item-image"><img src="${escapeHtml(item.imagePath)}" alt=""></span>`
+                        : '<span class="ship-exploration-payment-item-image" aria-hidden="true"></span>';
+                    return `
+                        <div class="ship-exploration-payment-item" data-stage-supply-item="${escapeHtml(item.itemId)}">
+                            ${image}
+                            <div class="ship-exploration-payment-item-copy">
+                                <strong>${escapeHtml(item.displayName || item.itemId)}</strong>
+                                <span>所持 ${item.amount} / 全体HP ${item.effectiveUnits * 10}%回復</span>
+                            </div>
+                            <div class="ship-exploration-payment-stepper">
+                                <button type="button" data-stage-supply-remove${chosen > 0 ? '' : ' disabled'}>−</button>
+                                <span>${chosen}</span>
+                                <button type="button" data-stage-supply-add${canAdd ? '' : ' disabled'}>＋</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('')
+                : '<div class="ship-exploration-empty">使用できる補給品はありません。補給なしで出航できます。</div>';
+            confirm.textContent = selectedIds.length > 0
+                ? `${selectedIds.length}個を積んで出航`
+                : '補給なしで出航';
+        };
+        list.addEventListener('click', (event) => {
+            const row = event.target.closest('[data-stage-supply-item]');
+            if (!row) return;
+            const itemId = String(row.dataset.stageSupplyItem || '');
+            if (event.target.closest('[data-stage-supply-add]')) {
+                const item = consumables.find((entry) => entry.itemId === itemId);
+                const selectedCount = selectedIds.filter((entry) => entry === itemId).length;
+                if (item && selectedIds.length < 3 && selectedCount < item.amount) selectedIds.push(itemId);
+            } else if (event.target.closest('[data-stage-supply-remove]')) {
+                const index = selectedIds.lastIndexOf(itemId);
+                if (index >= 0) selectedIds.splice(index, 1);
+            }
+            render();
+        });
+        confirm.addEventListener('click', () => {
+            cleanup(selectedIds.map((itemId) => ({ itemId, quantity: 1 })));
+        });
+        overlay.querySelector('[data-stage-supply-cancel]')?.addEventListener('click', () => cleanup(null));
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) cleanup(null);
+        });
+        document.body.appendChild(overlay);
+        document.body.classList.add('modal-lock');
+        render();
+    });
+}
+
+function showExplorationGoldPaymentDialog({ destination }) {
+    const destinationName = String(destination?.name || '探索先');
+    const cost = Math.max(0, Math.floor(Number(destination?.cost || 0) || 0));
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'ship-exploration-payment-overlay ship-exploration-gold-confirm-overlay';
+        overlay.innerHTML = `
+            <div class="ship-exploration-payment-dialog is-gold-confirm" role="dialog" aria-modal="true" aria-label="ゴールドで探索">
+                <div class="ship-exploration-payment-head">
+                    <strong>${escapeHtml(destinationName)}</strong>
+                    <span>${cost.toLocaleString('ja-JP')}Gを使って出航しますか？</span>
+                </div>
+                <div class="ship-exploration-gold-confirm-cost" aria-label="探索費用">
+                    <span>探索費用</span>
+                    <strong>${cost.toLocaleString('ja-JP')}G</strong>
+                </div>
+                <div class="ship-exploration-payment-buttons">
+                    <button type="button" data-exploration-gold-confirm>${cost.toLocaleString('ja-JP')}Gで出航</button>
+                    <button type="button" data-exploration-gold-cancel>キャンセル</button>
+                </div>
+            </div>
+        `;
+        let settled = false;
+        const cleanup = (accepted) => {
+            if (settled) return;
+            settled = true;
+            overlay.remove();
+            document.body.classList.remove('modal-lock');
+            resolve(accepted);
+        };
+        overlay.querySelector('[data-exploration-gold-confirm]')?.addEventListener('click', () => cleanup(true));
+        overlay.querySelector('[data-exploration-gold-cancel]')?.addEventListener('click', () => cleanup(false));
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) cleanup(false);
+        });
+        document.body.appendChild(overlay);
+        document.body.classList.add('modal-lock');
+        overlay.querySelector('[data-exploration-gold-confirm]')?.focus();
+    });
+}
+
 function normalizeBossResult(value) {
     const result = String(value || 'none').toLowerCase();
     if (result === 'victory' || result === 'defeat' || result === 'escaped' || result === 'draw') return result;
@@ -2412,8 +2576,14 @@ function getExplorationBossResultText(report, bossResult) {
 
 function showExplorationResultSummary(data, options = {}) {
     const report = data?.report || {};
-    const kingdomMonster = options?.kingdomMonster || null;
     const kingdomResult = options?.kingdomResult || null;
+    const stageNo = Math.max(0, Math.floor(Number(report?.stageNo) || 0));
+    const stageRank = Math.max(0, Math.min(4, Math.floor(Number(report?.stageRank) || 0)));
+    const stageResultMonsterId = String(report?.monsterId || kingdomResult?.monsterId || '').trim();
+    const stageResultMonster = stageNo > 0
+        ? PIXEL_MONSTERS_ROSTER.find((entry) => entry.id === stageResultMonsterId)
+        : null;
+    const kingdomMonster = stageResultMonster || options?.kingdomMonster || null;
     const bossResult = normalizeBossResult(
         kingdomResult?.status === 'completed' ? kingdomResult.outcome : report.bossResult
     );
@@ -2421,7 +2591,7 @@ function showExplorationResultSummary(data, options = {}) {
     const bossName = String(kingdomMonster?.name || kingdomResult?.monsterName || report.bossName || '遭遇なし');
     const bossSprite = resolveExplorationBossSprite(reportDestinationId, report.bossName, report.bossSpriteId);
     const monsterIsBoss = kingdomMonster?.isBoss === true || kingdomResult?.isBoss === true;
-    const monsterTypeLabel = monsterIsBoss ? 'BOSS' : 'MONSTER';
+    const monsterTypeLabel = stageNo > 0 ? `STAGE ${stageNo} / 4 ENEMIES` : (monsterIsBoss ? 'BOSS' : 'MONSTER');
     const bossTierLabel = kingdomMonster ? (monsterIsBoss ? '大型' : '') : (report.bossTierLabel || getExplorationBossTierLabel(report.bossTier));
     const bossTierKey = kingdomMonster ? (monsterIsBoss ? 'strong' : 'weak') : normalizeExplorationBossTier(report.bossTier);
     const rewards = getRewardItemsForReveal(data);
@@ -2500,7 +2670,7 @@ function showExplorationResultSummary(data, options = {}) {
                 <div class="exploration-result-body">
                     <div>
                         <b>結果</b>
-                        <span>${escapeHtml(kingdomResult?.status === 'completed'
+                        <span>${stageRank > 0 ? `${stageRank}位 / ` : ''}${escapeHtml(kingdomResult?.status === 'completed'
                             ? (bossResult === 'defeat' ? 'タロットキングダム敗北' : 'タロットキングダム勝利')
                             : getExplorationBossResultText(report, bossResult))}</span>
                     </div>
@@ -2601,7 +2771,9 @@ async function recoverConflictedExploration(playFabId, destinationId) {
             throwOnError: true,
             tarotOutcome: sequenceResult.kingdomResult?.outcome,
             explorationId: sequenceResult.kingdomResult?.explorationId,
-            tarotFinisher: sequenceResult.kingdomResult?.finisher
+            tarotFinisher: sequenceResult.kingdomResult?.finisher,
+            tarotFinishers: sequenceResult.kingdomResult?.finishers,
+            tarotStandings: sequenceResult.kingdomResult?.standings
         });
         if (claimData?.petOffer) await showTarotKingdomPetOffer(claimData.petOffer, playFabId);
         handleExplorationClaimResult(claimData, playFabId, sequenceResult);
@@ -2618,6 +2790,7 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
     const guildSailColor = form === 'guild' ? resolveGuildShipSailColor(ship) : 'white';
     const guildLayers = form === 'guild' ? renderGuildShipLayers(ship) : '';
     const report = encounterData?.encounter || encounterData?.active?.encounter || encounterData?.report || {};
+    const stageMonsters = Array.isArray(report?.monsters) ? report.monsters.slice(0, 4) : [];
     const resolvedDestinationId = active.destinationId || report.destinationId || destinationId;
     const destinationVisual = getExplorationDestinationVisual(active.destinationId ? active : resolvedDestinationId);
     const destinationName = active.destinationName || report.destinationName || destinationVisual.label || '探索先';
@@ -2630,6 +2803,12 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
     const shipTrait = EXPLORATION_SHIP_TRAITS[form] || EXPLORATION_SHIP_TRAITS.boat;
     const homeFrame = document.getElementById('homePlayerShipFrame');
     const homeIcon = homeFrame?.querySelector('.home-player-ship-icon');
+    const encounterLabel = Number(report?.version) >= 2
+        ? `STAGE ${Math.max(1, Number(report?.stageNo) || 1)} / 4 ENEMIES`
+        : (kingdomMonster.isBoss === true ? 'BOSS ENCOUNTER' : 'MONSTER ENCOUNTER');
+    const offlinePartyLabel = currentTarotKingdomPet
+        ? 'オフライン・ペット同行4人'
+        : 'オフライン・3人編成';
     const existing = document.querySelector('.exploration-sequence-overlay');
     existing?.remove();
 
@@ -2658,12 +2837,21 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
             <div class="exploration-sequence-progress" data-exploration-sequence-progress aria-hidden="true"></div>
             <section class="exploration-battle-mode-choice" data-exploration-battle-mode-choice hidden aria-label="戦闘方式を選択">
                 <div class="exploration-battle-mode-head">
-                    <span>BOSS ENCOUNTER</span>
-                    <strong>${escapeHtml(kingdomMonster.name)}</strong>
+                    <span>${encounterLabel}</span>
+                    <strong>${escapeHtml(stageMonsters.length
+                        ? stageMonsters.map((entry) => entry.monsterName).join(' → ')
+                        : kingdomMonster.name)}</strong>
                 </div>
                 <div class="exploration-battle-mode-actions">
-                    <button type="button" class="is-offline" data-exploration-battle-mode="offline">傭兵召集（オフライン）</button>
-                    <button type="button" class="is-online" data-exploration-battle-mode="online">救難信号（オンライン）</button>
+                    <button type="button" class="is-offline" data-exploration-battle-mode="offline" aria-label="傭兵召集（オフライン）">
+                        <span>傭兵召集</span>
+                        <small>${offlinePartyLabel}</small>
+                    </button>
+                    <button type="button" class="is-online" data-exploration-battle-mode="online" aria-label="救難信号（オンライン）">
+                        <span>救難信号</span>
+                        <small>オンライン・救援待ち</small>
+                    </button>
+                    <button type="button" class="is-cancel" data-exploration-battle-mode="cancel">あとで選ぶ</button>
                 </div>
             </section>
         </div>
@@ -2705,14 +2893,17 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
             button.addEventListener('click', () => {
                 if (selected) return;
                 selected = true;
-                const mode = button.getAttribute('data-exploration-battle-mode') === 'online' ? 'online' : 'offline';
+                const requestedMode = button.getAttribute('data-exploration-battle-mode');
+                const mode = requestedMode === 'online' ? 'online' : (requestedMode === 'cancel' ? 'cancel' : 'offline');
                 modeChoice.dataset.selectedMode = mode;
                 modeChoice.querySelectorAll('button').forEach((candidate) => {
                     candidate.disabled = true;
                 });
                 button.classList.add('is-selected');
                 if (label) {
-                    label.textContent = mode === 'online' ? '救難信号を発信中' : '傭兵を召集中';
+                    label.textContent = mode === 'online'
+                        ? '救難信号を発信中'
+                        : (mode === 'cancel' ? '戦闘方式はあとで選べます' : '傭兵を召集中');
                 }
                 resolve(mode);
             }, { once: true });
@@ -2722,6 +2913,15 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
     overlay.remove();
     homeFrame?.classList.remove('is-exploring');
     homeIcon?.classList.remove('is-exploring-sail', 'is-exploring-up', 'is-exploring-left', 'is-exploring-arrival', 'is-exploring-encounter-choice', 'is-exploring-battle', 'is-exploring-treasure');
+    if (battleMode === 'cancel') {
+        return {
+            chestOpened: false,
+            battleMode,
+            kingdomMonster,
+            kingdomResult: { status: 'cancelled' },
+            cancelled: true
+        };
+    }
     const kingdomResult = await window.launchTarotKingdomExplorationBattle({
         explorationId: String(report.explorationId || report.id || active.id || ''),
         destinationId: String(resolvedDestinationId || ''),
@@ -2729,7 +2929,14 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
         monsterId: kingdomMonster.id,
         monsterName: kingdomMonster.name,
         isBoss: kingdomMonster.isBoss === true,
-        mode: battleMode
+        stageNo: Math.max(0, Math.floor(Number(report?.stageNo) || 0)),
+        stageId: String(report?.stageId || ''),
+        battlefieldId: String(report?.battlefieldId || active?.battlefieldId || ''),
+        atmosphereTone: String(report?.atmosphereTone || active?.atmosphereTone || ''),
+        monsters: stageMonsters,
+        supplyQueue: Array.isArray(report?.supplyQueue) ? report.supplyQueue : [],
+        mode: battleMode,
+        currentPet: battleMode === 'offline' ? currentTarotKingdomPet : null
     });
     return {
         chestOpened: false,
@@ -2758,6 +2965,13 @@ function renderExplorationPanel(data, playFabId) {
         </div>
     `;
     if (active) {
+        const encounter = data?.encounter || active?.encounter || null;
+        const isBattleModePending = Boolean(encounter?.monsterId || encounter?.monsterName);
+        const activeStateLabel = isBattleModePending ? '戦闘方式未選択' : '結果確認待ち';
+        const activeHint = isBattleModePending
+            ? `${encounter?.monsterName || '敵'}への戦闘方式を選んでください。`
+            : '演出完了後に結果を確認できます。';
+        const activeActionLabel = isBattleModePending ? '戦闘方式を選ぶ' : '結果を見る';
         panel.innerHTML = `
             ${head}
             <div class="ship-exploration-destination is-active">
@@ -2770,11 +2984,11 @@ function renderExplorationPanel(data, playFabId) {
                 </div>
                 <div class="ship-exploration-badges" aria-label="探索状態">
                     <span class="ship-exploration-badge is-active">探索中</span>
-                    <span class="ship-exploration-badge">結果確認待ち</span>
+                    <span class="ship-exploration-badge">${activeStateLabel}</span>
                 </div>
-                <div class="ship-exploration-meta">演出完了後に結果を確認できます。</div>
+                <div class="ship-exploration-meta">${escapeHtml(activeHint)}</div>
                 <div class="ship-exploration-actions">
-                    <button type="button" data-exploration-claim>結果を見る</button>
+                    <button type="button" data-exploration-claim>${activeActionLabel}</button>
                 </div>
             </div>
             ${reports.length ? `<div class="ship-exploration-reports">${reports.map(renderExplorationReport).join('')}</div>` : ''}
@@ -2782,64 +2996,55 @@ function renderExplorationPanel(data, playFabId) {
         panel.querySelector('[data-exploration-claim]')?.addEventListener('click', () => claimExploration(playFabId));
         return;
     }
-    const destinations = Array.isArray(data?.destinations) ? data.destinations : [];
+    const stages = Array.isArray(data?.stages) ? data.stages : [];
     const paymentState = getExplorationPaymentState(data);
-    const hasPaymentState = !!paymentState;
-    const ownedConsumableTotal = getExplorationConsumableTotal(paymentState);
-    const destinationHtml = destinations.length
-        ? destinations.map((destination) => {
-            const isDailyFreeDestination = destination?.dailyFreeEligible === true;
-            const isAvailable = destination?.available !== false;
-            const canUseDailyFree = dailyFreeAvailable && isDailyFreeDestination;
-            const requiredSupplyUnits = getExplorationRequiredSupplyUnits(destination, paymentState);
-            const canPayWithConsumables = ownedConsumableTotal >= requiredSupplyUnits;
-            const rarityKey = String(destination?.rarity || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'low';
-            const rarityLabel = destination?.rarityLabel || destination?.slotLabel || '探索先';
-            const requirementLabel = destination?.requirementLabel || '船の進化が必要';
-            const recommendedLevel = Math.max(0, Math.floor(Number(destination?.recommendedLevel || 0) || 0));
+    const destinationHtml = stages.length
+        ? stages.map((stage) => {
+            const isAvailable = stage?.unlocked === true;
+            const bestRank = Math.max(0, Math.floor(Number(stage?.bestRank) || 0));
+            const bestRankLabel = bestRank > 0 ? `最高 ${bestRank}位` : '未踏';
+            const stageNo = Math.max(1, Math.floor(Number(stage?.stageNo) || 1));
             return `
-            <div class="ship-exploration-destination${isAvailable ? '' : ' is-locked'}" data-exploration-destination-id="${escapeHtml(destination.id)}">
-                <div class="ship-exploration-card-head">
-                    ${renderExplorationDestinationVisual(destination, 'ship-exploration-mapmark')}
-                    <div class="ship-exploration-title-group">
-                        <strong>${escapeHtml(destination.name)}</strong>
-                        <div class="ship-exploration-meta">${escapeHtml(destination.description || '')}</div>
+                <div class="ship-exploration-destination ship-exploration-stage${isAvailable ? '' : ' is-locked'}"
+                    data-exploration-stage-no="${stageNo}"
+                    data-exploration-destination-id="${escapeHtml(stage.id || '')}">
+                    <div class="ship-exploration-card-head">
+                        ${renderExplorationDestinationVisual(stage, 'ship-exploration-mapmark')}
+                        <div class="ship-exploration-title-group">
+                            <span class="ship-exploration-stage-label">STAGE ${stageNo}</span>
+                            <strong>${escapeHtml(stage.name || `ステージ${stageNo}`)}</strong>
+                            <div class="ship-exploration-meta">${bestRankLabel} / CLEAR ${Math.max(0, Number(stage.clearCount) || 0)}</div>
+                        </div>
+                    </div>
+                    ${renderTarotKingdomStageMonsters(stage)}
+                    <div class="ship-exploration-badges" aria-label="探索条件">
+                        <span class="ship-exploration-badge is-free">出航無料</span>
+                        <span class="ship-exploration-badge">4 ENEMIES</span>
+                        ${isAvailable ? '' : `<span class="ship-exploration-badge is-locked">${escapeHtml(stage.lockReason || 'LOCKED')}</span>`}
+                    </div>
+                    <div class="ship-exploration-actions">
+                        <button type="button" class="ship-exploration-start"
+                            data-exploration-start="${escapeHtml(stage.id || '')}"
+                            data-exploration-stage="${stageNo}"
+                            ${isAvailable ? '' : 'disabled aria-disabled="true"'}>${isAvailable ? 'このステージへ出航' : 'LOCKED'}</button>
                     </div>
                 </div>
-                <div class="ship-exploration-badges" aria-label="探索条件">
-                    ${renderExplorationPaymentBadges(destination, { canUseDailyFree, hasPaymentState, requiredSupplyUnits })}
-                    <span class="ship-exploration-badge is-rarity is-rarity-${escapeHtml(rarityKey)}">${escapeHtml(rarityLabel)}</span>
-                    ${recommendedLevel > 0 ? `<span class="ship-exploration-badge is-level">推奨Lv ${recommendedLevel.toLocaleString('ja-JP')}</span>` : ''}
-                    ${isAvailable ? '' : `<span class="ship-exploration-badge is-locked">条件: ${escapeHtml(requirementLabel)}</span>`}
-                </div>
-                ${renderExplorationDestinationMetaChips(destination)}
-                ${renderExplorationDestinationBossChips(destination)}
-                ${renderExplorationPaymentActions(destination, { isAvailable, canUseDailyFree, hasPaymentState, canPayWithConsumables, requiredSupplyUnits })}
-            </div>
-        `;
+            `;
         }).join('')
-        : '<div class="ship-exploration-empty">この船で行ける探索先がありません。</div>';
+        : '<div class="ship-exploration-empty">探索ステージを読み込めませんでした。</div>';
     panel.innerHTML = `
         ${head}
-        ${renderExplorationNpcBattleEntry(ship)}
         <div class="ship-exploration-destinations">${destinationHtml}</div>
         ${reports.length ? `<div class="ship-exploration-reports">${reports.map(renderExplorationReport).join('')}</div>` : ''}
     `;
-    panel.querySelector('[data-exploration-npc-battle]')?.addEventListener('click', (event) => {
-        startExplorationNpcBattleFromPanel(playFabId, event.currentTarget, ship);
-    });
     panel.querySelectorAll('[data-exploration-start]').forEach((button) => {
         button.addEventListener('click', async () => {
             const destinationId = String(button.getAttribute('data-exploration-start') || '');
-            const destination = destinations.find((entry) => String(entry?.id || '') === destinationId) || null;
-            const paymentMethod = String(button.getAttribute('data-exploration-payment-method') || '').trim();
-            if (paymentMethod === 'consumable') {
-                const paymentConsumables = await showExplorationConsumablePaymentDialog({ destination, paymentState });
-                if (!paymentConsumables) return;
-                startExploration(playFabId, destinationId, { paymentMethod, paymentConsumables });
-                return;
-            }
-            startExploration(playFabId, destinationId, paymentMethod ? { paymentMethod } : {});
+            const stageNo = Math.max(1, Math.floor(Number(button.getAttribute('data-exploration-stage')) || 1));
+            const stage = stages.find((entry) => Number(entry?.stageNo) === stageNo) || null;
+            const supplies = await showExplorationStageSupplyDialog({ stage, paymentState });
+            if (!supplies) return;
+            void startExploration(playFabId, destinationId, { stageNo, supplies }, button);
         });
     });
 }
@@ -2851,7 +3056,7 @@ function renderExplorationLoading() {
                 <span class="ship-exploration-loading-compass" aria-hidden="true"></span>
                 <div>
                     <strong>探索情報を読み込み中です</strong>
-                    <span>本日の海域を確認しています</span>
+                    <span>解放済みステージを確認しています</span>
                 </div>
             </div>
             <div class="ship-exploration-loading-route" aria-hidden="true">
@@ -2864,6 +3069,53 @@ function renderExplorationLoading() {
     `;
 }
 
+function renderExplorationLoadError(panel, error, playFabId) {
+    if (!panel) return;
+    panel.innerHTML = `
+        <div class="ship-exploration-load-error" role="alert">
+            <span>${escapeHtml(error?.message || '探索情報を読み込めませんでした。')}</span>
+            <button type="button" data-exploration-retry>再読み込み</button>
+        </div>
+    `;
+    panel.querySelector('[data-exploration-retry]')?.addEventListener('click', (event) => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+        button.textContent = '読み込み中';
+        void loadExplorationPanel(playFabId);
+    });
+}
+
+function setExplorationStartButtonsPending(triggerButton, pending) {
+    const panel = document.getElementById('shipExplorationPanel');
+    if (!panel || !triggerButton) return;
+    if (pending) {
+        const requestKey = createRequestId('exploration-ui');
+        panel.querySelectorAll('[data-exploration-start]').forEach((button) => {
+            button.dataset.explorationPendingKey = requestKey;
+            button.dataset.explorationPreviousLabel = button.textContent || '';
+            button.dataset.explorationPreviousDisabled = button.disabled ? 'true' : 'false';
+            button.disabled = true;
+            button.setAttribute('aria-busy', 'true');
+        });
+        triggerButton.textContent = '出航準備中';
+        triggerButton.classList.add('is-loading');
+        triggerButton.dataset.explorationPendingKey = requestKey;
+        return;
+    }
+    const requestKey = triggerButton.dataset.explorationPendingKey || '';
+    if (!requestKey) return;
+    panel.querySelectorAll(`[data-exploration-pending-key="${requestKey}"]`).forEach((button) => {
+        button.disabled = button.dataset.explorationPreviousDisabled === 'true';
+        button.removeAttribute('aria-busy');
+        button.classList.remove('is-loading');
+        button.textContent = button.dataset.explorationPreviousLabel || button.textContent;
+        delete button.dataset.explorationPreviousLabel;
+        delete button.dataset.explorationPreviousDisabled;
+        delete button.dataset.explorationPendingKey;
+    });
+}
+
 export async function loadExplorationPanel(playFabId) {
     const panel = document.getElementById('shipExplorationPanel');
     if (!panel || !playFabId) return;
@@ -2873,31 +3125,30 @@ export async function loadExplorationPanel(playFabId) {
             requestExplorationStatus(playFabId, { isSilent: true, throwOnError: true }),
             requestTarotKingdomPetState(playFabId, { isSilent: true, throwOnError: true }).catch(() => null)
         ]);
+        currentTarotKingdomPet = petState?.currentPet && typeof petState.currentPet === 'object'
+            ? { ...petState.currentPet }
+            : null;
         renderExplorationPanel(data, playFabId);
         if (petState?.pendingOffer) {
             await showTarotKingdomPetOffer(petState.pendingOffer, playFabId);
         }
     } catch (error) {
-        panel.innerHTML = `<div class="ship-exploration-empty">${escapeHtml(error?.message || '探索情報を読み込めませんでした。')}</div>`;
+        renderExplorationLoadError(panel, error, playFabId);
     }
 }
 
-async function startExploration(playFabId, destinationId, payment = {}) {
+async function startExploration(playFabId, destinationId, payment = {}, triggerButton = null) {
     if (!destinationId) return;
     if (explorationAutoRunning) return;
     explorationAutoRunning = true;
+    setExplorationStartButtonsPending(triggerButton, true);
     try {
         const startData = await requestStartExploration(playFabId, destinationId, createRequestId('exploration-start'), {
             throwOnError: true,
-            payment
+            payment,
+            stageNo: Math.max(0, Math.floor(Number(payment?.stageNo) || 0)),
+            supplies: Array.isArray(payment?.supplies) ? payment.supplies : []
         });
-        if (Number.isFinite(Number(startData?.balance))) {
-            Player.syncPointsDisplay(Number(startData.balance));
-            await Player.getRanking();
-        } else {
-            await Player.getPoints(playFabId, { isSilent: true });
-            await Player.getRanking();
-        }
         renderExplorationPanel(startData, playFabId);
         const encounterData = await requestExplorationEncounter(playFabId, { throwOnError: true });
         const sequenceResult = await showExplorationAutoSequence(startData, destinationId, encounterData);
@@ -2906,7 +3157,9 @@ async function startExploration(playFabId, destinationId, payment = {}) {
                 throwOnError: true,
                 tarotOutcome: sequenceResult.kingdomResult?.outcome,
                 explorationId: sequenceResult.kingdomResult?.explorationId,
-                tarotFinisher: sequenceResult.kingdomResult?.finisher
+                tarotFinisher: sequenceResult.kingdomResult?.finisher,
+                tarotFinishers: sequenceResult.kingdomResult?.finishers,
+                tarotStandings: sequenceResult.kingdomResult?.standings
             });
             if (claimData?.petOffer) await showTarotKingdomPetOffer(claimData.petOffer, playFabId);
             handleExplorationClaimResult(claimData, playFabId, sequenceResult);
@@ -2924,6 +3177,7 @@ async function startExploration(playFabId, destinationId, payment = {}) {
             showRpgMessage(error?.message || '探索を開始できませんでした。');
         }
     } finally {
+        setExplorationStartButtonsPending(triggerButton, false);
         explorationAutoRunning = false;
     }
 }
@@ -2938,7 +3192,9 @@ async function claimExploration(playFabId) {
                 throwOnError: true,
                 tarotOutcome: sequenceResult.kingdomResult?.outcome,
                 explorationId: sequenceResult.kingdomResult?.explorationId,
-                tarotFinisher: sequenceResult.kingdomResult?.finisher
+                tarotFinisher: sequenceResult.kingdomResult?.finisher,
+                tarotFinishers: sequenceResult.kingdomResult?.finishers,
+                tarotStandings: sequenceResult.kingdomResult?.standings
             });
             if (claimData?.petOffer) await showTarotKingdomPetOffer(claimData.petOffer, playFabId);
             handleExplorationClaimResult(claimData, playFabId, sequenceResult);

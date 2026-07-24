@@ -9,7 +9,7 @@ import { showTab, showConfirmationModal, scheduleWorldMapPrefetch } from 'ui';
 import * as Player from 'player';
 import * as Inventory from 'inventory';
 import * as Guild from './js/guild.js';
-import * as Ship from './js/ship.js?v=20260724i';
+import * as Ship from './js/ship.js?v=20260724k';
 import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js';
 import { initMapChat, initTroyChat } from './js/mapChat.js';
@@ -901,16 +901,23 @@ function updateHomeCoinConvertPanel(status = window.__troyStatus) {
 }
 
 function syncHomeExplorationButtonLabel(status = window.__troyStatus) {
-    const button = document.getElementById('btnHomeExploration');
+    const explorationButton = document.getElementById('btnHomeExploration');
+    const plunderButton = document.getElementById('btnHomePlunder');
     updateHomeCoinConvertPanel(status);
-    if (!button) return;
+    if (!explorationButton && !plunderButton) return;
     const isInTroy = isCurrentPlayerInTroyStatus(status);
-    const label = isInTroy
-        ? (HOME_PLUNDER_ENTRY_ENABLED ? '略奪に出る' : '略奪準備中')
-        : '探索に出る';
-    button.textContent = label;
-    button.setAttribute('aria-label', label);
-    button.dataset.plunderPaused = isInTroy && !HOME_PLUNDER_ENTRY_ENABLED ? 'true' : 'false';
+    if (explorationButton) {
+        explorationButton.textContent = '探索に出る';
+        explorationButton.setAttribute('aria-label', '探索に出る');
+    }
+    if (plunderButton) {
+        const label = HOME_PLUNDER_ENTRY_ENABLED ? '略奪に出る' : '略奪準備中';
+        plunderButton.hidden = !isInTroy;
+        plunderButton.disabled = isInTroy && !HOME_PLUNDER_ENTRY_ENABLED;
+        plunderButton.textContent = label;
+        plunderButton.setAttribute('aria-label', label);
+        plunderButton.dataset.plunderPaused = isInTroy && !HOME_PLUNDER_ENTRY_ENABLED ? 'true' : 'false';
+    }
 }
 
 async function submitHomeCoinConvert(playFabId = window.myPlayFabId) {
@@ -1093,9 +1100,10 @@ async function loadHomePlunderPublicProfiles(opponent) {
 }
 
 async function startHomePlunderBattle(options = {}) {
-    const button = document.getElementById('btnHomeExploration');
+    const button = document.getElementById('btnHomePlunder');
     if (!isCurrentPlayerInTroyStatus(window.__troyStatus)) {
-        void openHomeExplorationPopup();
+        showRpgMessage('略奪はTROY滞在中に利用できます。');
+        syncHomeExplorationButtonLabel();
         return;
     }
 
@@ -1154,19 +1162,23 @@ async function startHomePlunderBattle(options = {}) {
 
 function initHomeExplorationButton() {
     if (homeExplorationButtonBound) return;
-    const button = document.getElementById('btnHomeExploration');
-    if (!button) return;
+    const explorationButton = document.getElementById('btnHomeExploration');
+    const plunderButton = document.getElementById('btnHomePlunder');
+    if (!explorationButton && !plunderButton) return;
     syncHomeExplorationButtonLabel();
-    button.addEventListener('click', () => {
-        if (isCurrentPlayerInTroyStatus(window.__troyStatus)) {
-            if (!HOME_PLUNDER_ENTRY_ENABLED) {
-                showRpgMessage('略奪は準備中です。');
-                return;
-            }
-            void startHomePlunderBattle();
+    explorationButton?.addEventListener('click', () => {
+        void openHomeExplorationPopup();
+    });
+    plunderButton?.addEventListener('click', () => {
+        if (!isCurrentPlayerInTroyStatus(window.__troyStatus)) {
+            syncHomeExplorationButtonLabel();
             return;
         }
-        void openHomeExplorationPopup();
+        if (!HOME_PLUNDER_ENTRY_ENABLED) {
+            showRpgMessage('略奪は準備中です。');
+            return;
+        }
+        void startHomePlunderBattle();
     });
     window.addEventListener('troy:status-updated', (event) => {
         syncHomeExplorationButtonLabel(event?.detail?.status || window.__troyStatus);

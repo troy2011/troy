@@ -669,6 +669,10 @@ export function getExplorationStatus(playFabId, options) {
 export function startExploration(playFabId, destinationId, requestId, options) {
     const payment = options?.payment && typeof options.payment === 'object' ? options.payment : {};
     const body = { playFabId, destinationId, requestId };
+    const stageNo = Math.floor(Number(options?.stageNo ?? payment.stageNo) || 0);
+    if (stageNo > 0) body.stageNo = stageNo;
+    if (Array.isArray(options?.supplies)) body.supplies = options.supplies;
+    else if (Array.isArray(payment.supplies)) body.supplies = payment.supplies;
     if (payment.paymentMethod) body.paymentMethod = payment.paymentMethod;
     if (Array.isArray(payment.paymentConsumables)) body.paymentConsumables = payment.paymentConsumables;
     return callApiWithLoader('/api/exploration/start', body, options);
@@ -690,10 +694,25 @@ export function claimExploration(playFabId, options) {
             playerIndex: Math.floor(Number(options.tarotFinisher.playerIndex) || 0),
             playFabId: String(options.tarotFinisher.playFabId || '').trim(),
             isNpc: options.tarotFinisher.isNpc === true,
+            monsterId: String(options.tarotFinisher.monsterId || '').trim(),
             mode: String(options.tarotFinisher.mode || '').trim().toLowerCase()
         };
     }
+    if (Array.isArray(options?.tarotFinishers)) {
+        body.tarotFinishers = options.tarotFinishers;
+    }
+    if (Array.isArray(options?.tarotStandings)) {
+        body.tarotStandings = options.tarotStandings;
+    }
     return callApiWithLoader('/api/exploration/claim', body, options);
+}
+
+export function joinExplorationStage(playFabId, ownerPlayFabId, explorationId, options) {
+    return callApiWithLoader('/api/exploration/stage-join', {
+        playFabId,
+        ownerPlayFabId,
+        explorationId
+    }, options);
 }
 
 export function getPlayerShipStatus(playFabId, options) {

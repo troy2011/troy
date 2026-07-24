@@ -12,8 +12,21 @@ const {
     readTarotKingdomPetState,
     resolveTarotKingdomPetChoice,
     rollTarotKingdomPetOffer,
+    selectTarotKingdomStagePetCandidate,
     writeTarotKingdomPetState
 } = require('./tarotKingdomPets');
+const {
+    TAROT_KINGDOM_EXPLORATION_STAGES,
+    applyTarotKingdomStageClear,
+    buildTarotKingdomStageEncounter,
+    buildTarotKingdomStageList,
+    calculateTarotKingdomStandings,
+    getTarotKingdomExplorationStage,
+    getTarotKingdomShipStageCap,
+    getTarotKingdomStageRewardWeights,
+    readTarotKingdomExplorationProgress,
+    writeTarotKingdomExplorationProgress
+} = require('./tarotKingdomExplorationStages');
 const PIXEL_MONSTERS_ROSTER = require('../public/Sprites/pixel-monsters/manifest.json');
 
 const EXPLORATION_COLLECTION = 'player_explorations';
@@ -746,6 +759,53 @@ async function buildExplorationPaymentState(playFabId, deps = {}) {
     return state;
 }
 
+function validateExplorationTransitionSupplies(rawSelection, availableConsumables = []) {
+    const requested = Array.isArray(rawSelection) ? rawSelection : [];
+    const expanded = [];
+    requested.forEach((entry) => {
+        const itemId = String(entry?.itemId || entry?.ItemId || entry?.id || '').trim();
+        const quantity = Math.max(1, Math.floor(Number(entry?.quantity ?? entry?.count ?? 1) || 1));
+        for (let index = 0; index < quantity; index += 1) {
+            expanded.push(itemId);
+        }
+    });
+    if (expanded.some((itemId) => !itemId)) {
+        return { ok: false, error: '補給品の指定が不正です。' };
+    }
+    if (expanded.length > 3) {
+        return { ok: false, error: '補給品は3個まで選択できます。' };
+    }
+    const availableById = new Map((Array.isArray(availableConsumables) ? availableConsumables : [])
+        .map((entry) => [String(entry?.itemId || '').trim(), entry]));
+    const requestedCounts = new Map();
+    for (const itemId of expanded) {
+        const available = availableById.get(itemId);
+        if (!available) {
+            return { ok: false, error: '選択した補給品を所持していません。' };
+        }
+        const count = (requestedCounts.get(itemId) || 0) + 1;
+        requestedCounts.set(itemId, count);
+        if (count > Math.max(0, Math.floor(Number(available.amount) || 0))) {
+            return { ok: false, error: '選択した補給品の所持数が不足しています。' };
+        }
+    }
+    return {
+        ok: true,
+        supplyQueue: expanded.map((itemId, slot) => {
+            const available = availableById.get(itemId);
+            return {
+                slot,
+                itemId,
+                displayName: String(available?.displayName || itemId),
+                effectiveUnits: normalizeTroyMenuConsumableEffectiveUnits(
+                    available?.effectiveUnits,
+                    available?.menuPrice
+                )
+            };
+        })
+    };
+}
+
 function publicDestination(destination, shipClass = 'common') {
     const bosses = getDestinationBosses(destination);
     const role = getExplorationShipRole(shipClass);
@@ -826,6 +886,11 @@ function explorationDocToPayload(data = {}) {
         status: 'active',
         destinationId: String(data.destinationId || ''),
         destinationName: String(data.destinationName || ''),
+        stageVersion: Math.max(0, Math.floor(Number(data.stageVersion) || 0)),
+        stageNo: Math.max(0, Math.floor(Number(data.stageNo) || 0)),
+        stageId: String(data.stageId || ''),
+        battlefieldId: String(data.battlefieldId || encounter?.battlefieldId || ''),
+        atmosphereTone: String(data.atmosphereTone || encounter?.atmosphereTone || ''),
         imagePath: String(data.imagePath || destination?.imagePath || ''),
         shipId: String(data.shipId || ''),
         shipName: String(data.shipName || ''),
@@ -839,6 +904,7 @@ function explorationDocToPayload(data = {}) {
         requiredSupplyUnits,
         requiredConsumableCount: requiredSupplyUnits,
         consumedConsumables,
+        supplyQueue: Array.isArray(encounter?.supplyQueue) ? encounter.supplyQueue : [],
         supplyProfile,
         encounter
     };
@@ -884,6 +950,8 @@ function reportDocToPayload(doc) {
         id: doc.id || String(data.id || ''),
         destinationId: String(data.destinationId || ''),
         destinationName: String(data.destinationName || ''),
+        stageNo: Math.max(0, Math.floor(Number(data.stageNo) || 0)),
+        stageRank: Math.max(0, Math.floor(Number(data.stageRank) || 0)),
         imagePath: String(data.imagePath || destination?.imagePath || ''),
         shipName: String(data.shipName || ''),
         bossId: String(data.bossId || ''),
@@ -1615,6 +1683,29 @@ function getExplorationGachaOptions(destinationId, ship = {}, supplyProfile = nu
     }, supplyProfile);
 }
 
+function getTarotKingdomStageGachaOptions(stageNo, rank, ship = {}) {
+    const safeStageNo = Math.max(1, Math.min(11, Math.floor(Number(stageNo) || 1)));
+    const profileId = safeStageNo <= 4 ? 'low' : (safeStageNo <= 8 ? 'medium' : 'high');
+    const profile = EXPLORATION_GACHA_PROFILES[profileId] || EXPLORATION_GACHA_PROFILES.low;
+    const role = getExplorationShipRole(ship.shipClass);
+    const categoryWeights = {
+        ...profile.categoryWeights,
+        ...(role.categoryWeights || {})
+    };
+    const statBand = safeStageNo <= 4
+        ? EXPLORATION_SHIP_STAGE_GACHA_LIMITS[1]
+        : (safeStageNo <= 8 ? EXPLORATION_SHIP_STAGE_GACHA_LIMITS[2] : EXPLORATION_SHIP_STAGE_GACHA_LIMITS[3]);
+    return {
+        ...profile,
+        rarityWeights: getTarotKingdomStageRewardWeights(safeStageNo, rank),
+        categoryWeights,
+        allowedCategories: Object.entries(categoryWeights)
+            .filter(([, weight]) => Number(weight || 0) > 0)
+            .map(([category]) => category),
+        maxStatsByCategory: statBand?.maxStatsByCategory
+    };
+}
+
 function resolveCatalogEntryByItemId(catalogCache, itemId) {
     const id = String(itemId || '').trim();
     if (!id) return null;
@@ -1768,6 +1859,26 @@ function buildExplorationTarotEncounter(activeData = {}, destination, boss) {
 
 function normalizeExplorationTarotEncounter(value) {
     if (!value || typeof value !== 'object') return null;
+    if (Number(value.version) >= 2 || Array.isArray(value.monsters)) {
+        const stageNo = Math.max(1, Math.min(11, Math.floor(Number(value.stageNo) || 1)));
+        const stage = getTarotKingdomExplorationStage(stageNo);
+        if (!stage) return null;
+        const expectedIds = stage.monsters.map((entry) => entry.monsterId);
+        const incomingIds = (Array.isArray(value.monsters) ? value.monsters : [])
+            .map((entry) => String(entry?.monsterId || entry?.id || '').trim());
+        if (
+            incomingIds.length !== expectedIds.length
+            || incomingIds.some((monsterId, index) => monsterId !== expectedIds[index])
+        ) {
+            return null;
+        }
+        return buildTarotKingdomStageEncounter({
+            explorationId: String(value.explorationId || ''),
+            stageNo,
+            supplyQueue: Array.isArray(value.supplyQueue) ? value.supplyQueue : [],
+            selectedAtMs: Number(value.selectedAtMs || 0) || 0
+        });
+    }
     const monsterId = String(value.monsterId || '').trim();
     const monster = PIXEL_MONSTERS_ROSTER.find((entry) => entry?.id === monsterId);
     if (!monster) return null;
@@ -1790,22 +1901,31 @@ function buildTarotKingdomBossResult(encounter, outcome) {
     const normalized = normalizeExplorationTarotEncounter(encounter);
     if (!normalized) return null;
     const playerWon = String(outcome || '').trim().toLowerCase() === 'victory';
+    const stageEncounter = Number(normalized.version) >= 2 && Array.isArray(normalized.monsters);
+    const finalMonster = stageEncounter
+        ? normalized.monsters[normalized.monsters.length - 1]
+        : null;
+    const resultMonsterId = String(finalMonster?.monsterId || normalized.monsterId || '');
+    const resultMonsterName = String(finalMonster?.monsterName || normalized.monsterName || '');
     const typeLabel = normalized.isBoss ? 'BOSS' : 'MONSTER';
     return {
-        bossId: normalized.monsterId,
-        bossName: normalized.monsterName,
-        bossSpriteId: normalized.monsterId,
-        bossTier: normalized.bossTier,
-        bossTierLabel: normalized.bossTierLabel,
+        bossId: resultMonsterId,
+        bossName: resultMonsterName,
+        bossSpriteId: resultMonsterId,
+        bossTier: stageEncounter ? `stage-${normalized.stageNo}` : normalized.bossTier,
+        bossTierLabel: stageEncounter ? `STAGE ${normalized.stageNo}` : normalized.bossTierLabel,
         bossAppeared: true,
         playerWon,
         escaped: false,
         draw: false,
         tarotKingdom: true,
-        monsterId: normalized.monsterId,
-        monsterName: normalized.monsterName,
+        monsterId: resultMonsterId,
+        monsterName: resultMonsterName,
         monsterIsBoss: normalized.isBoss,
-        battleLog: `${typeLabel}「${normalized.monsterName}」とタロットキングダムで対決。\n${playerWon ? '勝利して探索を完了した。' : '敗北し、島から撤退した。'}`
+        stageNo: stageEncounter ? normalized.stageNo : null,
+        battleLog: stageEncounter
+            ? `STAGE ${normalized.stageNo}の4連戦に挑戦。\n${playerWon ? '4体を突破して探索を完了した。' : '戦闘不能となり、島から撤退した。'}`
+            : `${typeLabel}「${normalized.monsterName}」とタロットキングダムで対決。\n${playerWon ? '勝利して探索を完了した。' : '敗北し、島から撤退した。'}`
     };
 }
 
@@ -2163,11 +2283,16 @@ function buildReportText({ destination, ship, bossResult, rewardDisplayName, rew
     ];
     const bossName = bossResult?.bossName || 'BOSS';
     const isTarotKingdom = bossResult?.tarotKingdom === true;
+    const stageNo = Math.max(0, Math.floor(Number(bossResult?.stageNo) || 0));
     const encounterType = bossResult?.monsterIsBoss === true ? 'BOSS' : 'MONSTER';
     const bossLabel = isTarotKingdom
         ? encounterType
         : (bossResult?.bossTierLabel ? `${bossResult.bossTierLabel}BOSS` : 'BOSS');
-    if (!bossResult || !bossResult.bossAppeared) {
+    if (stageNo > 0 && bossResult?.playerWon) {
+        lines.push(`STAGE ${stageNo}の4体を順番に突破し、探索を完了しました！`);
+    } else if (stageNo > 0) {
+        lines.push(`STAGE ${stageNo}の連戦に敗北し、島から撤退しました。`);
+    } else if (!bossResult || !bossResult.bossAppeared) {
         lines.push('大きな戦闘を避けながら、海域を丁寧に調査しました。');
     } else if (bossResult.playerWon) {
         lines.push(isTarotKingdom
@@ -2238,37 +2363,33 @@ function initializeExplorationRoutes(app, deps) {
 
     async function buildExplorationStatus(playFabId) {
         const ship = await resolveActiveShip(playFabId, deps);
-        const now = Date.now();
-        const dailyDestinations = ship
-            ? getDailyExplorationDestinations(playFabId, ship.shipClass, now)
-            : [];
-        const activeSnap = await firestore.collection(EXPLORATION_COLLECTION).doc(playFabId).get();
-        const dayKey = getJstDayKey(now);
-        const dailyFreeSnap = await firestore
-            .collection(EXPLORATION_COLLECTION)
-            .doc(playFabId)
-            .collection(DAILY_FREE_SUBCOLLECTION)
-            .doc(dayKey)
-            .get();
-        const reportsSnap = await firestore
-            .collection(EXPLORATION_COLLECTION)
-            .doc(playFabId)
-            .collection('reports')
-            .orderBy('completedAtMs', 'desc')
-            .limit(5)
-            .get();
-        const explorationPayment = await buildExplorationPaymentState(playFabId, {
-            getEntityKeyForPlayFabId,
-            getAllInventoryItems,
-            catalogCache
-        });
+        const [activeSnap, reportsSnap, progress, supplyState] = await Promise.all([
+            firestore.collection(EXPLORATION_COLLECTION).doc(playFabId).get(),
+            firestore
+                .collection(EXPLORATION_COLLECTION)
+                .doc(playFabId)
+                .collection('reports')
+                .orderBy('completedAtMs', 'desc')
+                .limit(5)
+                .get(),
+            readTarotKingdomExplorationProgress(playFabId, { promisifyPlayFab, PlayFabServer }),
+            buildExplorationPaymentState(playFabId, {
+                getEntityKeyForPlayFabId,
+                getAllInventoryItems,
+                catalogCache
+            })
+        ]);
+        const stages = buildTarotKingdomStageList(progress, ship?.stage || 1);
         return {
             success: true,
             ship,
-            destinations: dailyDestinations,
-            allDestinations: dailyDestinations,
-            explorationPayment,
-            dailyFree: buildDailyFreeExplorationStatus(dayKey, dailyFreeSnap),
+            stageVersion: 1,
+            progress,
+            shipStageCap: getTarotKingdomShipStageCap(ship?.stage || 1),
+            stages,
+            destinations: stages,
+            allDestinations: stages,
+            explorationSupplies: supplyState.consumables,
             active: activeSnap.exists ? explorationDocToPayload(activeSnap.data()) : null,
             reports: reportsSnap.docs.map(reportDocToPayload)
         };
@@ -2607,6 +2728,177 @@ function initializeExplorationRoutes(app, deps) {
 
     app.post('/api/exploration/start', async (req, res) => {
         let { playFabId } = req.body || {};
+        const requestedStageNo = Math.floor(Number(req.body?.stageNo) || 0);
+        if (requestedStageNo > 0) {
+            const stage = getTarotKingdomExplorationStage(requestedStageNo);
+            if (!playFabId || !stage) {
+                return res.status(400).json({ error: 'playFabId and valid stageNo are required' });
+            }
+            playFabId = await requireAuthed(req, res, playFabId);
+            if (!playFabId) return;
+            try {
+                const ship = await resolveActiveShip(playFabId, deps);
+                if (!ship) return res.status(400).json({ error: '探索には使用中の船が必要です。' });
+                const progress = await readTarotKingdomExplorationProgress(
+                    playFabId,
+                    { promisifyPlayFab, PlayFabServer }
+                );
+                if (stage.stageNo > progress.highestUnlockedStage) {
+                    return res.status(403).json({ error: '前のステージで2位以内に入ると解放されます。' });
+                }
+                const shipStageCap = getTarotKingdomShipStageCap(ship.stage);
+                if (stage.stageNo > shipStageCap) {
+                    return res.status(403).json({
+                        error: 'この先へ進むには船の進化が必要です。',
+                        shipStageCap
+                    });
+                }
+
+                const supplyState = await buildExplorationPaymentState(playFabId, {
+                    getEntityKeyForPlayFabId,
+                    getAllInventoryItems,
+                    catalogCache
+                });
+                const supplyValidation = validateExplorationTransitionSupplies(
+                    req.body?.supplies ?? req.body?.paymentConsumables,
+                    supplyState.consumables
+                );
+                if (!supplyValidation.ok) {
+                    return res.status(400).json({
+                        error: supplyValidation.error,
+                        explorationSupplies: supplyState.consumables
+                    });
+                }
+
+                const now = Date.now();
+                const requestKey = String(req.body?.requestId || `${playFabId}-${now}`).slice(0, 128);
+                let explorationId = `exp-${now}-${Math.random().toString(36).slice(2, 8)}`;
+                let supplyQueue = supplyValidation.supplyQueue;
+                let tarotEncounter = buildTarotKingdomStageEncounter({
+                    explorationId,
+                    stageNo: stage.stageNo,
+                    supplyQueue,
+                    selectedAtMs: now
+                });
+                const activeRef = firestore.collection(EXPLORATION_COLLECTION).doc(playFabId);
+                const existingSnap = await activeRef.get();
+                const existingData = existingSnap.exists ? (existingSnap.data() || {}) : null;
+                if (
+                    existingData
+                    && String(existingData.startRequestId || '') === requestKey
+                    && Number(existingData.stageNo) === stage.stageNo
+                ) {
+                    if (resolveEffectiveStatus(existingData) === 'active') {
+                        return res.json({
+                            ...(await buildExplorationStatus(playFabId)),
+                            started: true,
+                            replayed: true,
+                            paymentMethod: 'free',
+                            chargedCost: 0,
+                            stageNo: stage.stageNo,
+                            supplyQueue: Array.isArray(existingData.supplyQueue) ? existingData.supplyQueue : []
+                        });
+                    }
+                    if (String(existingData.status || '') === 'pending') {
+                        explorationId = String(existingData.id || explorationId);
+                        supplyQueue = Array.isArray(existingData.supplyQueue)
+                            ? existingData.supplyQueue
+                            : supplyQueue;
+                        tarotEncounter = normalizeExplorationTarotEncounter(existingData.tarotEncounter) || tarotEncounter;
+                    }
+                }
+                let conflicted = false;
+                await firestore.runTransaction(async (tx) => {
+                    const snap = await tx.get(activeRef);
+                    if (snap.exists) {
+                        const data = snap.data() || {};
+                        const status = String(data.status || '');
+                        if (
+                            status === 'pending'
+                            && String(data.startRequestId || '') === requestKey
+                            && Number(data.stageNo) === stage.stageNo
+                        ) {
+                            return;
+                        }
+                        if (['active', 'claiming'].includes(status)) {
+                            conflicted = true;
+                            return;
+                        }
+                        if (status === 'pending') {
+                            const createdAtMs = timestampToMs(data.createdAt);
+                            if (data.completesAtMs || now - createdAtMs < PENDING_STALE_MS) {
+                                conflicted = true;
+                                return;
+                            }
+                        }
+                    }
+                    tx.set(activeRef, {
+                        id: explorationId,
+                        status: 'pending',
+                        startRequestId: requestKey,
+                        playFabId,
+                        stageVersion: 1,
+                        stageNo: stage.stageNo,
+                        stageId: stage.id,
+                        destinationId: stage.id,
+                        destinationName: stage.name,
+                        imagePath: stage.imagePath || '',
+                        battlefieldId: stage.battlefieldId,
+                        atmosphereTone: stage.atmosphereTone,
+                        shipId: ship.shipId,
+                        shipName: ship.shipName,
+                        shipClass: ship.shipClass,
+                        shipStage: normalizeShipStage(ship.stage),
+                        cost: 0,
+                        chargedCost: 0,
+                        paymentMethod: 'free',
+                        supplyQueue,
+                        consumedConsumables: supplyQueue.map((entry) => ({
+                            itemId: entry.itemId,
+                            displayName: entry.displayName,
+                            quantity: 1,
+                            effectiveUnits: entry.effectiveUnits,
+                            supplyUnits: entry.effectiveUnits
+                        })),
+                        tarotEncounter,
+                        stageParticipants: [playFabId],
+                        startedAtMs: now,
+                        completesAtMs: now,
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                });
+                if (conflicted) {
+                    return res.status(409).json({ error: '探索中です。帰還後に次の探索へ出発できます。' });
+                }
+
+                for (let index = 0; index < supplyQueue.length; index += 1) {
+                    const supply = supplyQueue[index];
+                    await subtractEconomyItem(playFabId, supply.itemId, 1, {
+                        alternateIdType: 'FriendlyId',
+                        idempotencyId: `exploration-stage-start-${requestKey}-supply-${index}`
+                    });
+                }
+                await activeRef.update({
+                    status: 'active',
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+                return res.json({
+                    ...(await buildExplorationStatus(playFabId)),
+                    started: true,
+                    paymentMethod: 'free',
+                    chargedCost: 0,
+                    stageNo: stage.stageNo,
+                    supplyQueue
+                });
+            } catch (error) {
+                console.error('[exploration/start-stage] failed:', error?.errorMessage || error?.message || error);
+                return res.status(500).json({
+                    error: '探索の開始に失敗しました。',
+                    details: error?.errorMessage || error?.message || String(error)
+                });
+            }
+        }
         const destinationId = normalizeDestinationId(req.body?.destinationId);
         if (!playFabId || !destinationId) return res.status(400).json({ error: 'playFabId and destinationId are required' });
         const requestedPaymentMethod = normalizeExplorationPaymentMethod(req.body?.paymentMethod);
@@ -2838,6 +3130,57 @@ function initializeExplorationRoutes(app, deps) {
         }
     });
 
+    app.post('/api/exploration/stage-join', async (req, res) => {
+        let { playFabId, ownerPlayFabId, explorationId } = req.body || {};
+        if (!playFabId || !ownerPlayFabId || !explorationId) {
+            return res.status(400).json({ error: 'playFabId, ownerPlayFabId and explorationId are required' });
+        }
+        playFabId = await requireAuthed(req, res, playFabId);
+        if (!playFabId) return;
+        ownerPlayFabId = String(ownerPlayFabId || '').trim();
+        explorationId = String(explorationId || '').trim();
+        const activeRef = firestore.collection(EXPLORATION_COLLECTION).doc(ownerPlayFabId);
+        try {
+            let encounter = null;
+            let joinError = null;
+            await firestore.runTransaction(async (tx) => {
+                const snap = await tx.get(activeRef);
+                if (!snap.exists) {
+                    joinError = { code: 404, message: '救難信号の探索が見つかりません。' };
+                    return;
+                }
+                const data = snap.data() || {};
+                encounter = normalizeExplorationTarotEncounter(data.tarotEncounter);
+                if (
+                    resolveEffectiveStatus(data) !== 'active'
+                    || String(data.id || '') !== explorationId
+                    || Number(encounter?.version) < 2
+                ) {
+                    joinError = { code: 409, message: 'この救難信号には参加できません。' };
+                    return;
+                }
+                const participants = Array.from(new Set([
+                    ownerPlayFabId,
+                    ...(Array.isArray(data.stageParticipants) ? data.stageParticipants : []),
+                    playFabId
+                ].map((entry) => String(entry || '').trim()).filter(Boolean)));
+                if (participants.length > 4) {
+                    joinError = { code: 409, message: '参加人数が上限に達しています。' };
+                    return;
+                }
+                tx.update(activeRef, {
+                    stageParticipants: participants,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+            });
+            if (joinError) return res.status(joinError.code).json({ error: joinError.message });
+            return res.json({ success: true, encounter });
+        } catch (error) {
+            console.error('[exploration/stage-join] failed:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({ error: '救難信号へ参加できませんでした。' });
+        }
+    });
+
     app.post('/api/exploration/encounter', async (req, res) => {
         let { playFabId } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
@@ -2881,7 +3224,14 @@ function initializeExplorationRoutes(app, deps) {
     });
 
     app.post('/api/exploration/claim', async (req, res) => {
-        let { playFabId, tarotOutcome, explorationId, tarotFinisher } = req.body || {};
+        let {
+            playFabId,
+            tarotOutcome,
+            explorationId,
+            tarotFinisher,
+            tarotFinishers,
+            tarotStandings
+        } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
         tarotOutcome = String(tarotOutcome || '').trim().toLowerCase();
         explorationId = String(explorationId || '').trim();
@@ -2891,9 +3241,28 @@ function initializeExplorationRoutes(app, deps) {
                 playerIndex: Math.floor(Number(tarotFinisher.playerIndex) || 0),
                 playFabId: String(tarotFinisher.playFabId || '').trim(),
                 isNpc: tarotFinisher.isNpc === true,
+                monsterId: String(tarotFinisher.monsterId || '').trim(),
                 mode: String(tarotFinisher.mode || '').trim().toLowerCase()
             }
             : null;
+        tarotFinishers = (Array.isArray(tarotFinishers) ? tarotFinishers : [])
+            .slice(0, 4)
+            .map((entry) => ({
+                roundNo: Math.max(1, Math.min(4, Math.floor(Number(entry?.roundNo) || 1))),
+                playerIndex: Math.max(0, Math.floor(Number(entry?.playerIndex) || 0)),
+                playFabId: String(entry?.playFabId || '').trim(),
+                isNpc: entry?.isNpc === true,
+                monsterId: String(entry?.monsterId || '').trim(),
+                mode: String(entry?.mode || '').trim().toLowerCase()
+            }));
+        tarotStandings = (Array.isArray(tarotStandings) ? tarotStandings : [])
+            .slice(0, 4)
+            .map((entry, index) => ({
+                playerIndex: Math.max(0, Math.floor(Number(entry?.playerIndex ?? index) || 0)),
+                playFabId: String(entry?.playFabId || '').trim(),
+                isNpc: entry?.isNpc === true,
+                chips: Math.floor(Number(entry?.chips) || 0)
+            }));
         if (tarotOutcome && !['victory', 'defeat'].includes(tarotOutcome)) {
             return res.status(400).json({ error: 'tarotOutcome must be victory or defeat' });
         }
@@ -2957,7 +3326,15 @@ function initializeExplorationRoutes(app, deps) {
 
             if (claimError) return res.status(claimError.code).json(claimError);
 
-            const destination = DESTINATIONS[String(activeData.destinationId || '')] || DESTINATIONS.near_sea;
+            const stage = getTarotKingdomExplorationStage(activeData.stageNo);
+            const destination = stage
+                ? {
+                    id: stage.id,
+                    name: stage.name,
+                    imagePath: stage.imagePath || '',
+                    rarity: stage.stageNo <= 4 ? 'low' : (stage.stageNo <= 8 ? 'medium' : 'high')
+                }
+                : (DESTINATIONS[String(activeData.destinationId || '')] || DESTINATIONS.near_sea);
             const ship = {
                 shipId: String(activeData.shipId || ''),
                 shipName: String(activeData.shipName || '船'),
@@ -2967,10 +3344,18 @@ function initializeExplorationRoutes(app, deps) {
             const supplyProfile = activeData.supplyProfile
                 ? normalizeExplorationSupplyProfile(activeData.supplyProfile)
                 : buildExplorationSupplyProfile(activeData.consumedConsumables || [], activeData.requiredSupplyUnits ?? activeData.requiredConsumableCount ?? 0);
+            const calculatedStandings = calculateTarotKingdomStandings(tarotStandings);
+            const ownerStanding = calculatedStandings.find((entry) => entry.playFabId === playFabId && entry.isNpc !== true)
+                || calculatedStandings.find((entry) => entry.playerIndex === 0 && entry.isNpc !== true)
+                || null;
+            const stageRank = stage
+                ? Math.max(1, Math.min(4, Math.floor(Number(activeData.stageRank || ownerStanding?.rank) || 4)))
+                : null;
 
             let bossResult = null;
             let rolledItemIds = [];
             let rolledRewards = [];
+            let rolledRewardsByPlayer = {};
             let petOffer = null;
             let petStateForResponse = null;
 
@@ -2978,6 +3363,10 @@ function initializeExplorationRoutes(app, deps) {
                 // Firestore 保存済みデータを再利用（再抽選なし）
                 bossResult = activeData.bossResultData || null;
                 rolledRewards = Array.isArray(activeData.rolledRewards) ? activeData.rolledRewards : [];
+                rolledRewardsByPlayer = activeData.rolledRewardsByPlayer
+                    && typeof activeData.rolledRewardsByPlayer === 'object'
+                    ? activeData.rolledRewardsByPlayer
+                    : {};
                 rolledItemIds = rolledRewards.length
                     ? rolledRewards.map((entry) => String(entry.itemId || '')).filter(Boolean)
                     : (activeData.rolledRewardIds || []);
@@ -3005,15 +3394,35 @@ function initializeExplorationRoutes(app, deps) {
                     bossResult = buildTarotKingdomBossResult(tarotEncounter, tarotOutcome);
                     try {
                         petStateForResponse = await readTarotKingdomPetState(playFabId, { promisifyPlayFab, PlayFabServer });
-                        if (isTarotKingdomPetRecruitEligible({
+                        const stagePetCandidate = tarotOutcome === 'victory'
+                            ? selectTarotKingdomStagePetCandidate({
+                                encounter: tarotEncounter,
+                                finishers: tarotFinishers,
+                                authenticatedPlayFabId: playFabId,
+                                currentPet: petStateForResponse.currentPet
+                            })
+                            : null;
+                        const petEncounter = stagePetCandidate
+                            ? {
+                                version: 2,
+                                explorationId: tarotEncounter.explorationId,
+                                monsterId: stagePetCandidate.id,
+                                monsterName: stagePetCandidate.name,
+                                isBoss: false
+                            }
+                            : tarotEncounter;
+                        if (stagePetCandidate || (
+                            Number(tarotEncounter.version) < 2
+                            && isTarotKingdomPetRecruitEligible({
                             encounter: tarotEncounter,
                             outcome: tarotOutcome,
                             finisher: tarotFinisher,
                             authenticatedPlayFabId: playFabId
-                        })) {
+                            })
+                        )) {
                             const rolled = rollTarotKingdomPetOffer({
                                 state: petStateForResponse,
-                                encounter: tarotEncounter,
+                                encounter: petEncounter,
                                 explorationId: activeData.id
                             });
                             if (rolled.created) {
@@ -3044,18 +3453,53 @@ function initializeExplorationRoutes(app, deps) {
                     );
                 }
 
-                const rewardCount = resolveRewardCount(bossResult, ship.shipClass, supplyProfile);
-                const gachaOptions = getExplorationGachaOptions(destination.id, ship, supplyProfile);
-                for (let i = 0; i < rewardCount; i++) {
-                    const result = drawLocalGachaItem(catalogCache, gachaOptions);
-                    if (result.itemId) {
-                        rolledItemIds.push(result.itemId);
-                        rolledRewards.push({
-                            itemId: result.itemId,
-                            displayName: result.displayName || result.itemId,
-                            rarity: result.rarity || 'common',
-                            category: result.category || ''
+                if (stage) {
+                    const participantIds = Array.from(new Set([
+                        playFabId,
+                        ...(Array.isArray(activeData.stageParticipants) ? activeData.stageParticipants : [])
+                    ].map((entry) => String(entry || '').trim()).filter(Boolean))).slice(0, 4);
+                    if (bossResult?.playerWon) {
+                        participantIds.forEach((participantId) => {
+                            const participantStanding = calculatedStandings.find((entry) => (
+                                entry.playFabId === participantId && entry.isNpc !== true
+                            ));
+                            const participantRank = Math.max(
+                                1,
+                                Math.min(4, Math.floor(Number(participantStanding?.rank) || 4))
+                            );
+                            const result = drawLocalGachaItem(
+                                catalogCache,
+                                getTarotKingdomStageGachaOptions(stage.stageNo, participantRank, ship)
+                            );
+                            rolledRewardsByPlayer[participantId] = result.itemId
+                                ? [{
+                                    itemId: result.itemId,
+                                    displayName: result.displayName || result.itemId,
+                                    rarity: result.rarity || 'common',
+                                    category: result.category || '',
+                                    rank: participantRank
+                                }]
+                                : [];
                         });
+                    }
+                    rolledRewards = Array.isArray(rolledRewardsByPlayer[playFabId])
+                        ? rolledRewardsByPlayer[playFabId]
+                        : [];
+                    rolledItemIds = rolledRewards.map((entry) => String(entry.itemId || '')).filter(Boolean);
+                } else {
+                    const rewardCount = resolveRewardCount(bossResult, ship.shipClass, supplyProfile);
+                    const gachaOptions = getExplorationGachaOptions(destination.id, ship, supplyProfile);
+                    for (let i = 0; i < rewardCount; i++) {
+                        const result = drawLocalGachaItem(catalogCache, gachaOptions);
+                        if (result.itemId) {
+                            rolledItemIds.push(result.itemId);
+                            rolledRewards.push({
+                                itemId: result.itemId,
+                                displayName: result.displayName || result.itemId,
+                                rarity: result.rarity || 'common',
+                                category: result.category || ''
+                            });
+                        }
                     }
                 }
 
@@ -3063,8 +3507,12 @@ function initializeExplorationRoutes(app, deps) {
                 await activeRef.update({
                     rolledRewardIds: rolledItemIds,
                     rolledRewards,
+                    rolledRewardsByPlayer,
                     bossResultData: bossResult,
                     petOffer: petOffer || null,
+                    stageRank,
+                    tarotStandings: calculatedStandings,
+                    tarotFinishers,
                     supplyProfile,
                     hpRestored: bossResult?.tarotKingdom === true,
                     updatedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -3078,18 +3526,60 @@ function initializeExplorationRoutes(app, deps) {
 
             // インデックスベースの idempotency キーで付与（itemId 非依存のためリトライ安全）
             const rewards = [];
-            for (let i = 0; i < rolledItemIds.length; i++) {
-                const itemId = rolledItemIds[i];
-                await addEconomyItem(playFabId, itemId, 1, {
-                    idempotencyId: `exploration-reward-${activeData.id}-${i}`
-                });
-                const rolled = rolledRewards[i] || {};
-                const display = normalizeCatalogDisplayData(itemId, catalogCache?.[itemId] || {});
-                rewards.push({
-                    ...display,
-                    Rarity: String(rolled.rarity || 'common'),
-                    Category: String(rolled.category || '')
-                });
+            if (stage) {
+                const entries = Object.entries(rolledRewardsByPlayer || {});
+                for (const [participantId, participantRewards] of entries) {
+                    const safeParticipantId = String(participantId || '').trim();
+                    if (!safeParticipantId || !Array.isArray(participantRewards)) continue;
+                    for (let index = 0; index < participantRewards.length; index += 1) {
+                        const rolled = participantRewards[index] || {};
+                        const itemId = String(rolled.itemId || '').trim();
+                        if (!itemId) continue;
+                        await addEconomyItem(safeParticipantId, itemId, 1, {
+                            idempotencyId: `exploration-stage-reward-${activeData.id}-${safeParticipantId}-${index}`
+                        });
+                        if (safeParticipantId === playFabId) {
+                            const display = normalizeCatalogDisplayData(itemId, catalogCache?.[itemId] || {});
+                            rewards.push({
+                                ...display,
+                                Rarity: String(rolled.rarity || 'common'),
+                                Category: String(rolled.category || '')
+                            });
+                        }
+                    }
+                }
+            } else {
+                for (let i = 0; i < rolledItemIds.length; i++) {
+                    const itemId = rolledItemIds[i];
+                    await addEconomyItem(playFabId, itemId, 1, {
+                        idempotencyId: `exploration-reward-${activeData.id}-${i}`
+                    });
+                    const rolled = rolledRewards[i] || {};
+                    const display = normalizeCatalogDisplayData(itemId, catalogCache?.[itemId] || {});
+                    rewards.push({
+                        ...display,
+                        Rarity: String(rolled.rarity || 'common'),
+                        Category: String(rolled.category || '')
+                    });
+                }
+            }
+            let explorationProgress = null;
+            if (stage && bossResult?.playerWon) {
+                const currentProgress = await readTarotKingdomExplorationProgress(
+                    playFabId,
+                    { promisifyPlayFab, PlayFabServer }
+                );
+                explorationProgress = await writeTarotKingdomExplorationProgress(
+                    playFabId,
+                    applyTarotKingdomStageClear(
+                        currentProgress,
+                        stage.stageNo,
+                        stageRank,
+                        now,
+                        activeData.id
+                    ),
+                    { promisifyPlayFab, PlayFabServer }
+                );
             }
 
             const rewardItemId = rewards[0]?.ItemId || '';
@@ -3103,6 +3593,8 @@ function initializeExplorationRoutes(app, deps) {
                 destinationId: destination.id,
                 destinationName: destination.name,
                 imagePath: destination.imagePath || '',
+                stageNo: stage?.stageNo || null,
+                stageRank,
                 shipId: ship.shipId,
                 shipName: ship.shipName,
                 shipClass: ship.shipClass,
@@ -3142,7 +3634,8 @@ function initializeExplorationRoutes(app, deps) {
                 report: reportDocToPayload(report),
                 reward,
                 currentPet: buildTarotKingdomPetPublicRecord(petStateForResponse?.currentPet),
-                petOffer: buildTarotKingdomPetOfferView(petOffer, petStateForResponse?.currentPet)
+                petOffer: buildTarotKingdomPetOfferView(petOffer, petStateForResponse?.currentPet),
+                progress: explorationProgress
             });
         } catch (error) {
             console.error('[exploration/claim] failed:', error?.errorMessage || error?.message || error);
@@ -3180,6 +3673,7 @@ module.exports = {
         getExplorationMaxSupplyUnits,
         getExplorationBossWeight,
         getExplorationGachaOptions,
+        getTarotKingdomStageGachaOptions,
         getExplorationShipAccessClasses,
         getExplorationShipClassLabel,
         getJstDayKey,
@@ -3196,7 +3690,13 @@ module.exports = {
         selectExplorationBoss,
         selectExplorationTarotMonster,
         validateExplorationConsumablePayment,
+        validateExplorationTransitionSupplies,
         resolveRewardCount,
-        publicDestination
+        publicDestination,
+        TAROT_KINGDOM_EXPLORATION_STAGES,
+        buildTarotKingdomStageEncounter,
+        buildTarotKingdomStageList,
+        calculateTarotKingdomStandings,
+        getTarotKingdomShipStageCap
     }
 };

@@ -110,4 +110,47 @@ test.describe('Tarot Kingdom enemy combat profiles', () => {
       expect(ailment.charges).toBeGreaterThan(0);
     });
   });
+
+  test('fixed-stage enemies scale by threat instead of sprite volume', async () => {
+    const enemies = await loadEnemyModule();
+    const smallLate = { id: 'ismartal-vol3-monster-10', volume: 3, number: 10, isBoss: false };
+    const largeLookingEarly = { id: 'ismartal-vol1-monster-07', volume: 1, number: 7, isBoss: false };
+    const first = enemies.createTarotKingdomEnemyCombatProfile(largeLookingEarly, 0, {
+      stageVersion: 1,
+      stageNo: 1,
+      roundNo: 1,
+      threatLevel: 1,
+      archetype: 'balanced'
+    });
+    const last = enemies.createTarotKingdomEnemyCombatProfile(smallLate, 3, {
+      stageVersion: 1,
+      stageNo: 11,
+      roundNo: 4,
+      threatLevel: 44,
+      archetype: 'balanced'
+    });
+
+    expect(first).toMatchObject({
+      version: 2,
+      threatLevel: 1,
+      maxHp: 237,
+      passDamage: 9,
+      areaDamage: 5,
+      defense: 3,
+      speed: 7
+    });
+    expect(last).toMatchObject({
+      version: 2,
+      threatLevel: 44,
+      maxHp: 968,
+      passDamage: 30,
+      areaDamage: 18,
+      defense: 31,
+      speed: 22
+    });
+    expect(last.maxHp).toBeGreaterThan(first.maxHp);
+    expect(last.passDamage).toBeGreaterThan(first.passDamage);
+    expect(last.defense).toBeGreaterThan(first.defense);
+    expect(last.ailment.chance).toBeLessThanOrEqual(0.14 + (44 * 0.007));
+  });
 });

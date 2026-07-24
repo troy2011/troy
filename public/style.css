@@ -1321,9 +1321,35 @@ button.home-player-ship-name {
     cursor: pointer;
 }
 
+.exploration-battle-mode-actions button span,
+.exploration-battle-mode-actions button small {
+    display: block;
+}
+
+.exploration-battle-mode-actions button small {
+    margin-top: 3px;
+    color: rgba(248, 231, 176, 0.76);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0;
+    white-space: nowrap;
+}
+
 .exploration-battle-mode-actions button.is-online {
     border-image-source: url("./assets/ui/buttons/button-blue-large.png");
     color: #d7f1ff;
+}
+
+.exploration-battle-mode-actions button.is-online small {
+    color: rgba(215, 241, 255, 0.78);
+}
+
+.exploration-battle-mode-actions button.is-cancel {
+    grid-column: 1 / -1;
+    min-height: 34px;
+    border-image-source: url("./assets/ui/buttons/button-dark-compact.png");
+    color: #cfc5ad;
+    font-size: 11px;
 }
 
 .exploration-battle-mode-actions button:not(:disabled):active {
@@ -16774,6 +16800,29 @@ body.home-exploration-popup-open #globalStatusBar {
     line-height: 1.5;
 }
 
+.ship-exploration-load-error {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid rgba(205, 160, 83, 0.55);
+    border-radius: 6px;
+    background: rgba(17, 10, 7, 0.76);
+    color: #f2d7aa;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.ship-exploration-load-error button {
+    min-height: 38px;
+    border: 9px solid transparent;
+    border-image: url("./assets/ui/buttons/button-gold-large.png") 24 fill / 9px / 0 stretch;
+    background: transparent;
+    color: #211208;
+    font: inherit;
+    font-weight: 900;
+}
+
 .ship-exploration-loading {
     padding: 14px;
     border: 1px solid transparent;
@@ -17281,6 +17330,11 @@ body.home-exploration-popup-open #globalStatusBar {
     filter: grayscale(0.24);
 }
 
+.ship-exploration-start.is-loading {
+    cursor: wait;
+    filter: saturate(0.72) brightness(0.92);
+}
+
 .ship-exploration-npc-start {
     width: auto;
     min-width: 132px;
@@ -17333,6 +17387,29 @@ body.home-exploration-popup-open #globalStatusBar {
     box-shadow: 0 22px 60px rgba(0, 0, 0, 0.5);
 }
 
+.ship-exploration-payment-dialog.is-gold-confirm {
+    width: min(92vw, 360px);
+    grid-template-rows: auto auto auto;
+}
+
+.ship-exploration-gold-confirm-cost {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid rgba(232, 196, 112, 0.48);
+    border-radius: 5px;
+    background: rgba(5, 8, 13, 0.66);
+    color: #d7c8a5;
+}
+
+.ship-exploration-gold-confirm-cost strong {
+    color: #ffe28a;
+    font-size: 22px;
+    line-height: 1;
+    text-shadow: 0 1px 2px #000;
+}
 .ship-exploration-payment-head {
     display: grid;
     gap: 4px;
@@ -17480,6 +17557,153 @@ body.home-exploration-popup-open #globalStatusBar {
 
     .ship-exploration-payment-item {
         grid-template-columns: 40px minmax(0, 1fr) 88px;
+    }
+}
+
+/* Tarot Kingdom fixed exploration stages */
+.ship-exploration-stage {
+    overflow: hidden;
+}
+
+.ship-exploration-stage-label {
+    display: block;
+    color: #e5bd63;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+}
+
+.ship-exploration-stage-monsters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+    margin: 10px 0 8px;
+}
+
+.ship-exploration-stage-monster {
+    position: relative;
+    display: grid;
+    grid-template-rows: 42px auto;
+    place-items: center;
+    min-width: 0;
+    padding: 4px 2px 5px;
+    border: 1px solid rgba(205, 169, 91, 0.32);
+    background: linear-gradient(180deg, rgba(8, 12, 24, 0.72), rgba(2, 4, 11, 0.9));
+}
+
+.ship-exploration-stage-monster .exploration-pixel-monster {
+    align-self: end;
+}
+
+.ship-exploration-stage-monster small {
+    max-width: 100%;
+    overflow: hidden;
+    color: #e8dfc6;
+    font-size: 9px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ship-exploration-stage-order {
+    position: absolute;
+    top: 2px;
+    left: 3px;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 15px;
+    height: 15px;
+    border: 1px solid #b78b3c;
+    border-radius: 50%;
+    color: #fff0b5;
+    background: #191207;
+    font-size: 8px;
+    font-weight: 900;
+}
+
+.ship-exploration-stage.is-locked .ship-exploration-stage-monsters {
+    filter: grayscale(0.86) brightness(0.58);
+}
+
+.ship-exploration-stage-supply-slots {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+}
+
+.ship-exploration-stage-supply-slots span {
+    min-width: 0;
+    padding: 6px 4px;
+    overflow: hidden;
+    border: 1px dashed rgba(211, 179, 102, 0.35);
+    color: #8d846f;
+    font-size: 10px;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ship-exploration-stage-supply-slots span.is-filled {
+    border-style: solid;
+    border-color: #c79c47;
+    color: #f0dfaa;
+    background: rgba(94, 67, 18, 0.24);
+}
+
+body[data-tarot-kingdom-atmosphere-tone="tropical-wilds"] #tarotKingdomRoot .tarot-kingdom-battle-arena {
+    --tarot-kingdom-battlefield-atmosphere: linear-gradient(180deg, rgba(23, 76, 50, 0.04) 34%, rgba(33, 96, 61, 0.12) 67%, rgba(5, 19, 13, 0.5) 100%) !important;
+}
+
+body[data-tarot-kingdom-atmosphere-tone="sunlit-coral"] #tarotKingdomRoot .tarot-kingdom-battle-arena {
+    --tarot-kingdom-battlefield-atmosphere: linear-gradient(180deg, rgba(74, 159, 196, 0.03) 28%, rgba(228, 168, 83, 0.08) 65%, rgba(14, 43, 52, 0.42) 100%) !important;
+}
+
+body[data-tarot-kingdom-atmosphere-tone="open-sea"] #tarotKingdomRoot .tarot-kingdom-battle-arena {
+    --tarot-kingdom-battlefield-atmosphere: linear-gradient(180deg, rgba(61, 137, 183, 0.04) 27%, rgba(31, 88, 121, 0.1) 65%, rgba(4, 27, 42, 0.54) 100%) !important;
+}
+
+body[data-tarot-kingdom-atmosphere-tone="moonlit-gothic"] #tarotKingdomRoot .tarot-kingdom-battle-arena {
+    --tarot-kingdom-battlefield-atmosphere: linear-gradient(180deg, rgba(70, 40, 121, 0.04) 28%, rgba(53, 32, 96, 0.1) 64%, rgba(7, 4, 19, 0.62) 100%) !important;
+}
+
+body[data-tarot-kingdom-atmosphere-tone="verdant-ruins"] #tarotKingdomRoot .tarot-kingdom-battle-arena {
+    --tarot-kingdom-battlefield-atmosphere: linear-gradient(180deg, rgba(26, 100, 63, 0.05) 29%, rgba(71, 113, 43, 0.16) 66%, rgba(5, 27, 16, 0.58) 100%) !important;
+}
+
+body[data-tarot-kingdom-atmosphere-tone="poison-mist"] #tarotKingdomRoot .tarot-kingdom-battle-arena {
+    --tarot-kingdom-battlefield-atmosphere: linear-gradient(180deg, rgba(54, 11, 75, 0.04) 34%, rgba(55, 110, 46, 0.14) 67%, rgba(12, 15, 8, 0.62) 100%) !important;
+}
+
+body[data-tarot-kingdom-atmosphere-tone="siege"] #tarotKingdomRoot .tarot-kingdom-battle-arena,
+body[data-tarot-kingdom-atmosphere-tone="storm-machinery"] #tarotKingdomRoot .tarot-kingdom-battle-arena {
+    --tarot-kingdom-battlefield-atmosphere: linear-gradient(180deg, rgba(24, 31, 49, 0.05) 34%, rgba(70, 53, 32, 0.12) 68%, rgba(3, 5, 11, 0.64) 100%) !important;
+}
+
+body[data-tarot-kingdom-atmosphere-tone="arcane-blue"] #tarotKingdomRoot .tarot-kingdom-battle-arena {
+    --tarot-kingdom-battlefield-atmosphere: linear-gradient(180deg, rgba(4, 48, 116, 0.05) 30%, rgba(16, 87, 154, 0.13) 68%, rgba(1, 7, 28, 0.64) 100%) !important;
+}
+
+body[data-tarot-kingdom-atmosphere-tone="infernal-red"] #tarotKingdomRoot .tarot-kingdom-battle-arena {
+    --tarot-kingdom-battlefield-atmosphere: linear-gradient(180deg, rgba(90, 9, 9, 0.05) 30%, rgba(135, 37, 8, 0.16) 67%, rgba(23, 2, 3, 0.7) 100%) !important;
+}
+
+body[data-tarot-kingdom-atmosphere-tone="final-eclipse"] #tarotKingdomRoot .tarot-kingdom-battle-arena {
+    --tarot-kingdom-battlefield-atmosphere: linear-gradient(180deg, rgba(29, 4, 61, 0.08) 27%, rgba(65, 12, 91, 0.18) 64%, rgba(4, 1, 12, 0.76) 100%) !important;
+}
+
+@media (max-width: 420px) {
+    .ship-exploration-stage-monsters {
+        gap: 3px;
+    }
+
+    .ship-exploration-stage-monster {
+        grid-template-rows: 38px auto;
+        padding-inline: 1px;
+    }
+
+    .ship-exploration-stage-monster small {
+        font-size: 8px;
     }
 }
 
@@ -25604,6 +25828,37 @@ body.is-new-order-flash::before {
     --button-icon: var(--icon-compass);
 }
 
+.home-exp-actions {
+    grid-area: button;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
+    gap: 8px;
+    width: 100%;
+    margin-top: 14px;
+}
+
+.home-exp-actions .home-exploration-btn {
+    grid-area: auto;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    font-size: clamp(14px, 3.8vw, 18px);
+}
+
+.home-exp-actions .home-plunder-btn {
+    --button-icon: var(--icon-pirate-flag);
+    border-image-source: url("./assets/ui/buttons/button-dark-large.png");
+    background:
+        linear-gradient(180deg, rgba(254, 202, 202, 0.2), rgba(127, 29, 29, 0.16)),
+        linear-gradient(180deg, #8f352d, #3e1715);
+    color: #fff0d2;
+    text-shadow: 0 2px 0 rgba(54, 8, 8, 0.82);
+}
+
+.home-exp-actions .home-plunder-btn[hidden] {
+    display: none;
+}
+
 @media (max-width: 640px) {
     .home-hero-card,
     body[data-sea-tone] .home-hero-card {
@@ -26385,6 +26640,10 @@ body[data-sea-tone] .home-hero-card {
     .home-exploration-btn {
         min-height: 42px;
         font-size: clamp(19px, 5.6vw, 24px);
+    }
+
+    .home-exp-actions .home-exploration-btn {
+        font-size: clamp(14px, 4vw, 17px);
     }
 
     #bottomNav {

@@ -6,7 +6,8 @@ const {
   isTarotKingdomPetRecruitEligible,
   normalizeTarotKingdomPetState,
   resolveTarotKingdomPetChoice,
-  rollTarotKingdomPetOffer
+  rollTarotKingdomPetOffer,
+  selectTarotKingdomStagePetCandidate
 } = require('../server/tarotKingdomPets');
 
 const normalMonster = manifest.find((monster) => monster.isBoss !== true);
@@ -87,6 +88,45 @@ test.describe('Tarot Kingdom monster recruitment', () => {
       random: () => 0.05
     });
     expect(miss.offer).toBeNull();
+  });
+
+  test('stage recruitment uniformly chooses only monsters personally finished by the offline owner', () => {
+    const candidates = manifest.filter((monster) => monster.isBoss !== true).slice(0, 4);
+    const encounter = {
+      version: 2,
+      monsters: candidates.map((monster, index) => ({ order: index + 1, monsterId: monster.id }))
+    };
+    const finishers = [
+      { ...eligibleFinisher({ roundNo: 1 }), monsterId: candidates[0].id },
+      { ...eligibleFinisher({ roundNo: 2, isNpc: true }), monsterId: candidates[1].id },
+      { ...eligibleFinisher({ roundNo: 3, playFabId: 'PF_OTHER' }), monsterId: candidates[2].id },
+      { ...eligibleFinisher({ roundNo: 4 }), monsterId: candidates[3].id }
+    ];
+    expect(selectTarotKingdomStagePetCandidate({
+      encounter,
+      finishers,
+      authenticatedPlayFabId: 'PF_HUMAN',
+      random: () => 0
+    })?.id).toBe(candidates[0].id);
+    expect(selectTarotKingdomStagePetCandidate({
+      encounter,
+      finishers,
+      authenticatedPlayFabId: 'PF_HUMAN',
+      currentPet: { monsterId: candidates[0].id },
+      random: () => 0
+    })?.id).toBe(candidates[3].id);
+    expect(selectTarotKingdomStagePetCandidate({
+      encounter,
+      finishers: finishers.map((entry) => ({ ...entry, mode: 'online' })),
+      authenticatedPlayFabId: 'PF_HUMAN',
+      random: () => 0
+    })).toBeNull();
+    expect(selectTarotKingdomStagePetCandidate({
+      encounter,
+      finishers: [{ ...eligibleFinisher({ roundNo: 1 }), monsterId: candidates[3].id }],
+      authenticatedPlayFabId: 'PF_HUMAN',
+      random: () => 0
+    })).toBeNull();
   });
 
   test('accept replaces the one pet, decline preserves it, and response retries are idempotent', () => {

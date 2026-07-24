@@ -894,6 +894,81 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.state.champion).toBe(0);
   });
 
+  test('stage exploration switches enemies while carrying HP and consuming one ordered supply', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const stage = {
+        stageNo: 1,
+        stageId: 'tarot_stage_1',
+        stageName: '珊瑚の浅瀬',
+        battlefieldId: 'coral-island',
+        atmosphereTone: 'sunlit-coral',
+        monsters: [
+          { monsterId: 'ismartal-vol1-monster-07', monsterName: 'マシュロン', archetype: 'balanced', threatLevel: 1 },
+          { monsterId: 'ismartal-vol3-monster-04', monsterName: 'プルン', archetype: 'balanced', threatLevel: 2 },
+          { monsterId: 'ismartal-vol1-monster-01', monsterName: 'トゲマル', archetype: 'guardian', threatLevel: 3 },
+          { monsterId: 'ismartal-vol2-monster-02', monsterName: 'パピル', archetype: 'swift', threatLevel: 4 }
+        ],
+        supplyQueue: [
+          { itemId: 'troy_menu_stage_test', displayName: 'テスト補給', effectiveUnits: 2 }
+        ]
+      };
+      const first = debug.battleScenario({
+        stage,
+        handNo: 0,
+        hpBySeat: [40, 0, 80, 100],
+        handCounts: [0, 2, 2, 2],
+        withTrick: false
+      });
+      const settled = debug.battleFinishRound(0);
+      const second = debug.battleNextRound();
+      const arena = document.querySelector('.tarot-kingdom-battle-arena');
+      return {
+        first,
+        settled,
+        second,
+        publicState: debug.battlePublicState(),
+        atmosphereTone: document.body.dataset.tarotKingdomAtmosphereTone || '',
+        atmosphereCss: arena
+          ? getComputedStyle(arena).getPropertyValue('--tarot-kingdom-battlefield-atmosphere')
+          : ''
+      };
+    });
+
+    expect(audit.first.battle.enemy.id).toBe('ismartal-vol1-monster-07');
+    expect(audit.first.battle.enemy).toMatchObject({
+      maxHp: 237,
+      passDamage: 9,
+      areaDamage: 5,
+      threatLevel: 1
+    });
+    expect(audit.settled.stage.finishers).toHaveLength(1);
+    expect(audit.settled.stage.finishers[0]).toMatchObject({
+      roundNo: 1,
+      playerIndex: 0,
+      monsterId: 'ismartal-vol1-monster-07'
+    });
+    expect(audit.second.battle.enemy.id).toBe('ismartal-vol3-monster-04');
+    expect(audit.second.battle.enemy.threatLevel).toBe(2);
+    audit.second.players.forEach((player, index) => {
+      const hpBefore = [40, 0, 80, 100][index];
+      const amount = Math.max(1, Math.round(player.maxHp * 0.2));
+      const expected = hpBefore <= 0 ? amount : Math.min(player.maxHp, hpBefore + amount);
+      expect(player.hp).toBe(expected);
+    });
+    expect(audit.second.stage.usedSupplies).toHaveLength(1);
+    expect(audit.second.stage.usedSupplies[0]).toMatchObject({
+      transitionNo: 1,
+      itemId: 'troy_menu_stage_test',
+      effectiveUnits: 2,
+      healRate: 0.2
+    });
+    expect(audit.publicState.schema).toBe(10);
+    expect(audit.publicState.state.stage.monsters).toHaveLength(4);
+    expect(audit.atmosphereTone).toBe('sunlit-coral');
+    expect(audit.atmosphereCss).toContain('74, 159, 196');
+  });
+
   test('three-player exploration deals 24 cards and settles or rotates the dealer across three seats', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
@@ -917,7 +992,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.settlementStart.players).toHaveLength(3);
     expect(audit.settled.roundSettlement.rows).toHaveLength(2);
     expect(audit.settled.dealer).toBe(0);
-    expect(audit.published.schema).toBe(9);
+    expect(audit.published.schema).toBe(10);
     expect(audit.published.state.rules.playerCount).toBe(3);
     expect(audit.published.state.players).toHaveLength(3);
   });
@@ -1085,7 +1160,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.schema2.hermitPreview).toBeUndefined();
   });
 
-  test('schema 9 adds player count while preserving major arcana rules and older matches', async ({ page }) => {
+  test('schema 10 adds stage state while preserving player count, major arcana rules and older matches', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       debug.battleScenario({ withTrick: false });
@@ -1149,7 +1224,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       const current = debug.battleDeserialize(currentPublic);
       return { currentPublic, legacy, effectsOnly, summonsOnly, schema7, current };
     });
-    expect(audit.currentPublic.schema).toBe(9);
+    expect(audit.currentPublic.schema).toBe(10);
     expect(audit.currentPublic.state.rules).toMatchObject({
       playerCount: 4,
       combatEffectsVersion: 1,

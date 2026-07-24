@@ -96,6 +96,42 @@ function isTarotKingdomPetRecruitEligible({
     return String(finisher.playFabId || '').trim() === playFabId;
 }
 
+function selectTarotKingdomStagePetCandidate({
+    encounter = null,
+    finishers = [],
+    authenticatedPlayFabId = '',
+    currentPet = null,
+    random = Math.random
+} = {}) {
+    if (Number(encounter?.version) < 2 || !Array.isArray(encounter?.monsters)) return null;
+    const playFabId = String(authenticatedPlayFabId || '').trim();
+    if (!playFabId) return null;
+    const stageMonsterByRound = new Map(encounter.monsters.map((entry, index) => [
+        Math.max(1, Math.min(4, Math.floor(Number(entry?.order) || index + 1))),
+        String(entry?.monsterId || '').trim()
+    ]));
+    const currentMonsterId = String(currentPet?.monsterId || '').trim();
+    const eligibleIds = Array.from(new Set((Array.isArray(finishers) ? finishers : [])
+        .filter((entry) => (
+            entry?.isNpc !== true
+            && String(entry?.mode || '').trim().toLowerCase() === 'offline'
+            && String(entry?.playFabId || '').trim() === playFabId
+            && stageMonsterByRound.get(Math.floor(Number(entry?.roundNo) || 0))
+                === String(entry?.monsterId || '').trim()
+        ))
+        .map((entry) => String(entry?.monsterId || '').trim())
+        .filter((monsterId) => monsterId !== currentMonsterId)))
+        .filter((monsterId) => {
+            const monster = getTarotKingdomPetMonster(monsterId);
+            return !!monster && monster.isBoss !== true;
+        });
+    if (eligibleIds.length === 0) return null;
+    const roll = Math.max(0, Math.min(0.999999, Number(
+        typeof random === 'function' ? random() : Math.random()
+    ) || 0));
+    return getTarotKingdomPetMonster(eligibleIds[Math.floor(roll * eligibleIds.length)]);
+}
+
 function rollTarotKingdomPetOffer({
     state = null,
     encounter = null,
@@ -210,5 +246,6 @@ module.exports = {
     readTarotKingdomPetState,
     resolveTarotKingdomPetChoice,
     rollTarotKingdomPetOffer,
+    selectTarotKingdomStagePetCandidate,
     writeTarotKingdomPetState
 };
