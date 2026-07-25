@@ -1917,12 +1917,35 @@ test('exploration bridge opens tarot kingdom directly with the selected island m
   await expect(page.locator('#tarotKingdomEnemyName')).toHaveText('アビソス');
   await expect(page.getByRole('region', { name: '敵モンスター' })).toContainText('BOSS');
   await expect(page.locator('body')).toHaveClass(/tarot-kingdom-exploration-session/);
+  await expect(page.locator('body')).toHaveClass(/tarot-kingdom-fullscreen/);
   await expect(page.locator('body')).toHaveAttribute('data-tarot-kingdom-entry-mode', 'offline');
   await expect(page.locator('#tarotModeKingdom')).toBeHidden();
+  await expect(page.locator('#globalStatusBar')).toBeHidden();
+  await expect(page.locator('#bottomNav')).toBeHidden();
 
-  await page.evaluate(() => window.showTab?.('home'));
+  const fullscreenFrame = await page.evaluate(() => {
+    const root = document.getElementById('tarotKingdomRoot');
+    const rect = root?.getBoundingClientRect();
+    return {
+      top: rect?.top ?? -1,
+      left: rect?.left ?? -1,
+      width: rect?.width ?? 0,
+      height: rect?.height ?? 0,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight
+    };
+  });
+  expect(fullscreenFrame.top).toBeCloseTo(0, 0);
+  expect(fullscreenFrame.left).toBeCloseTo((fullscreenFrame.viewportWidth - fullscreenFrame.width) / 2, 0);
+  expect(fullscreenFrame.width).toBeCloseTo(Math.min(fullscreenFrame.viewportWidth, 640), 0);
+  expect(fullscreenFrame.height).toBeCloseTo(fullscreenFrame.viewportHeight, 0);
+
+  await page.getByRole('button', { name: 'タロットキングダムを閉じる' }).click();
   await expect(page.locator('#tabContentHome')).toBeVisible();
   await expect(page.locator('body')).not.toHaveClass(/tarot-kingdom-exploration-session/);
+  await expect(page.locator('body')).not.toHaveClass(/tarot-kingdom-fullscreen/);
+  await expect(page.locator('#globalStatusBar')).toBeVisible();
+  await expect(page.locator('#bottomNav')).toBeVisible();
   await expectNoPageErrors(errors);
 });
 

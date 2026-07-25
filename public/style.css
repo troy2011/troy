@@ -11287,9 +11287,52 @@ body.tarot-kingdom-preview-body {
     animation: tarotKingdomHealNumber 520ms ease-out both;
 }
 
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-player-damage-number {
+    position: absolute;
+    z-index: 62;
+    top: 8px;
+    right: clamp(48px, 12vw, 66px);
+    color: #fff0bd;
+    font: 900 clamp(18px, 5.2vw, 28px)/1 Georgia, serif;
+    text-shadow: 0 2px 1px #280400, 0 0 7px #ff683c, 0 0 14px rgba(255, 42, 25, 0.72);
+    opacity: 0;
+    transform: translateY(8px) scale(0.76);
+    pointer-events: none;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-player-hp-text {
+    margin-top: 1px;
+    color: #f4e7bd;
+    font-size: clamp(7px, 1.7vw, 10px);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    text-align: right;
+    text-shadow: 0 1px 1px #000;
+    white-space: nowrap;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-player-damage-number.is-miss {
+    color: #d9f2ff;
+    font-size: clamp(13px, 3.8vw, 20px);
+    letter-spacing: 0.06em;
+    text-shadow: 0 2px 1px #071c2d, 0 0 8px #7edaff;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-player-damage-number.is-show {
+    animation: tarotKingdomPlayerDamagePop 520ms cubic-bezier(0.15, 0.8, 0.25, 1) both;
+}
+
 @keyframes tarotKingdomEffectBanner {
     from { opacity: 0; transform: translate(-50%, 7px) scale(0.94); }
     to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+@keyframes tarotKingdomPlayerDamagePop {
+    0% { opacity: 0; transform: translateY(8px) scale(0.76); }
+    24% { opacity: 1; transform: translateY(-5px) scale(1.16); }
+    70% { opacity: 1; transform: translateY(-10px) scale(1); }
+    100% { opacity: 0; transform: translateY(-19px) scale(0.94); }
 }
 
 @keyframes tarotKingdomHealNumber {
@@ -11300,8 +11343,11 @@ body.tarot-kingdom-preview-body {
 
 @media (prefers-reduced-motion: reduce) {
     :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-effect-banner,
-    :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-heal-number {
+    :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-heal-number,
+    :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-player-damage-number.is-show {
         animation: none;
+        opacity: 1;
+        transform: translateY(-8px);
     }
 }
 
@@ -33789,4 +33835,117 @@ body.tarot-kingdom-preview-body {
     .tarot-pet-offer-message {
         font-size: 13px;
     }
+}
+
+/* Tarot Kingdom owns the viewport while a match screen is open. */
+body.tarot-kingdom-fullscreen {
+    width: 100%;
+    height: 100dvh;
+    min-height: 100dvh;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #020207;
+}
+
+body.tarot-kingdom-fullscreen #globalStatusBar,
+body.tarot-kingdom-fullscreen #bottomNav {
+    display: none !important;
+}
+
+body.tarot-kingdom-fullscreen #appWrapper {
+    position: fixed !important;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    min-height: 0;
+    margin: 0;
+    overflow: hidden;
+    background: #020207;
+}
+
+body.tarot-kingdom-fullscreen #tabContainer,
+body.tarot-kingdom-fullscreen #tabContentTarot {
+    position: absolute !important;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+
+body.tarot-kingdom-fullscreen #tarotGameSelectRoot,
+body.tarot-kingdom-fullscreen #tarotPokerRoot,
+body.tarot-kingdom-fullscreen #tarotSpinRoot {
+    display: none !important;
+}
+
+body.tarot-kingdom-preview-body.tarot-kingdom-fullscreen #tarotKingdomRoot.tarot-kingdom-root,
+body.tarot-kingdom-fullscreen #tabContentTarot #tarotKingdomRoot.tarot-kingdom-root {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
+    width: min(100%, 640px) !important;
+    max-width: 640px !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    max-height: 100% !important;
+    margin: 0 auto !important;
+    border: 0 !important;
+    border-image: none !important;
+    border-radius: 0 !important;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-header {
+    padding-top: max(0px, env(safe-area-inset-top));
+    padding-right: max(6px, env(safe-area-inset-right));
+    padding-left: max(6px, env(safe-area-inset-left));
+}
+
+#tabContentTarot .tarot-kingdom-header-meta {
+    align-items: center;
+}
+
+#tabContentTarot .tarot-kingdom-exit-button {
+    display: inline-grid;
+    flex: 0 0 34px;
+    place-items: center;
+    width: 34px;
+    height: 30px;
+    min-height: 30px;
+    margin: 0;
+    padding: 5px 7px;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/buttons/button-dark-small.png") 18 fill / 7px / 0 stretch;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+#tabContentTarot .tarot-kingdom-exit-button > span {
+    display: block;
+    width: 17px;
+    height: 17px;
+    background: var(--icon-action-close, url("./assets/ui/buttons/action-close.png")) center / contain no-repeat;
+    filter: drop-shadow(0 1px 1px #000);
+}
+
+#tabContentTarot .tarot-kingdom-exit-button:hover,
+#tabContentTarot .tarot-kingdom-exit-button:focus-visible {
+    border-image-source: url("./assets/ui/buttons/button-gold-small.png");
+}
+
+body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
+    position: fixed;
+    top: max(8px, env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right), calc((100vw - 640px) / 2 + 8px));
+    z-index: 1200;
+    width: 38px;
+    height: 34px;
+    min-height: 34px;
+    pointer-events: auto;
 }

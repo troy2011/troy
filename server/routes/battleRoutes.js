@@ -50,6 +50,11 @@ function getPlayerRankLabelByLevel(level) {
     return '見習い';
 }
 
+function getTarotKingdomLevelMaxHp(level) {
+    const safeLevel = Math.max(1, Math.floor(Number(level) || 1));
+    return 80 + ((safeLevel - 1) * 4);
+}
+
 function sanitizeTarotKingdomEquipment(equipment = {}) {
     const sanitized = {};
     TAROT_KINGDOM_EQUIPMENT_SLOTS.forEach((slot) => {
@@ -484,7 +489,14 @@ async function getPlayerFullProfile(playFabId, options = {}) {
         statsResult.Statistics.forEach(stat => { stats[stat.StatisticName] = stat.Value; });
     }
     Object.assign(stats, applyDerivedPlayerLevelToStats(stats).stats);
-    if (!stats.MaxHP) stats.MaxHP = stats.HP;
+    if (!stats.MaxHP) {
+        stats.MaxHP = options.scope === 'tarotKingdomCombat'
+            ? Math.max(
+                Math.max(0, Math.floor(Number(stats.HP) || 0)),
+                getTarotKingdomLevelMaxHp(stats.Level)
+            )
+            : stats.HP;
+    }
     if (!stats.MaxMP) stats.MaxMP = stats.MP;
     stats.CurrentHP = stats.HP;
     stats.CurrentMP = stats.MP;

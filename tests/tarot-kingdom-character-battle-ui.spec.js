@@ -202,7 +202,8 @@ async function readBattleLayout(page) {
           handCountFontSize: parseFloat(getComputedStyle(handCount).fontSize),
           rankFontSize: parseFloat(getComputedStyle(rank).fontSize),
           handCountVisible: getComputedStyle(handCount).display !== 'none' && handCount.getClientRects().length > 0,
-          hpTextAbsent: !row.querySelector('.tarot-kingdom-battle-player-hp-text'),
+          hpText: row.querySelector('.tarot-kingdom-battle-player-hp-text')?.textContent.trim() || '',
+          hpTextFontSize: parseFloat(getComputedStyle(row.querySelector('.tarot-kingdom-battle-player-hp-text')).fontSize),
           statsAbsent: !row.querySelector('.tarot-kingdom-battle-player-stats'),
           turnCue: {
             rowBackground: getComputedStyle(row).backgroundImage,
@@ -350,7 +351,8 @@ for (const fixture of [
       expect(row.handCountVisible).toBe(true);
       expect(row.handCountFontSize).toBeGreaterThanOrEqual(7);
       expect(row.rankFontSize).toBeGreaterThanOrEqual(7);
-      expect(row.hpTextAbsent).toBe(true);
+      expect(row.hpText).toMatch(/^HP\s+\d+\s+\/\s+\d+$/);
+      expect(row.hpTextFontSize).toBeGreaterThanOrEqual(7);
       expect(row.statsAbsent).toBe(true);
       expect(Number(row.hpAria.now)).toBeGreaterThan(0);
       expect(Number(row.hpAria.max)).toBeGreaterThanOrEqual(Number(row.hpAria.now));

@@ -115,7 +115,7 @@ async function withCombatProfilesApi(callback, options = {}) {
   const promisifyPlayFab = async (fn, body = {}) => {
     if (fn === PlayFabServer.GetPlayerStatistics) {
       return {
-        Statistics: [
+        Statistics: options.statistics || [
           { StatisticName: 'NationContribution', Value: 16500 },
           { StatisticName: 'HP', Value: 99 },
           { StatisticName: 'MaxHP', Value: 155 },
@@ -327,6 +327,32 @@ test('combat profile API authenticates the requester and returns sanitized melee
     expect(profileRequests).toHaveLength(profileRequestCount + 3);
     expect(dbReadPaths.every((refPath) => !refPath.endsWith('/room-test'))).toBe(true);
     expect(dbReadPaths.some((refPath) => refPath.endsWith('/state'))).toBe(false);
+  });
+});
+
+test('combat profile does not treat depleted legacy HP as max HP when MaxHP is missing', async () => {
+  await withCombatProfilesApi(async ({ handler }) => {
+    const result = await invoke(handler, {
+      playFabId: 'PF_REQUESTER',
+      targetPlayFabIds: ['PF_REQUESTER']
+    });
+
+    expect(result.statusCode).toBe(200);
+    expect(result.payload.characters[0]).toMatchObject({
+      level: 11,
+      combat: {
+        maxHp: 120
+      }
+    });
+  }, {
+    statistics: [
+      { StatisticName: 'NationContribution', Value: 16500 },
+      { StatisticName: 'HP', Value: 1 },
+      { StatisticName: 'ちから', Value: 20 },
+      { StatisticName: 'みのまもり', Value: 12 },
+      { StatisticName: 'すばやさ', Value: 9 },
+      { StatisticName: 'かしこさ', Value: 7 }
+    ]
   });
 });
 

@@ -211,6 +211,7 @@ const TK_SEAT_CLAIM_GRACE_MS = 15000;
 const KINGDOM_MOBILE_BREAKPOINT = 640;
 const KINGDOM_MOBILE_MIN_HEIGHT = 420;
 const KINGDOM_MOBILE_BOTTOM_GAP = 8;
+const KINGDOM_FULLSCREEN_CLASS = 'tarot-kingdom-fullscreen';
 const KINGDOM_FALLBACK_PLAYER_MAX_HP = 100;
 const KINGDOM_BATTLE_EVENT_LIMIT = 12;
 const KINGDOM_DEFAULT_MONSTER_ID = 'ismartal-vol3-monster-01';
@@ -442,6 +443,15 @@ function getVisibleBottomNavHeight() {
   if (style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none') return 0;
   const rect = nav.getBoundingClientRect();
   return Math.max(0, Math.round(rect.height || 0));
+}
+
+function setKingdomFullscreen(active) {
+  if (typeof document === 'undefined' || !document.body) return;
+  document.body.classList.toggle(KINGDOM_FULLSCREEN_CLASS, active === true);
+  if (!active) {
+    ui.root?.style.removeProperty('--tarot-kingdom-mobile-height');
+  }
+  queueSyncKingdomViewportHeight();
 }
 
 function syncKingdomViewportHeight() {
@@ -2840,6 +2850,17 @@ function resolveLoadedKingdomWeaponType(equipment, itemSource) {
   return resolveLoadedKingdomWeaponTypes(equipment, itemSource)[0] || 'unarmed';
 }
 
+function resolveLoadedKingdomMaxHp(stats = {}, level = 1) {
+  const explicitMaxHp = Number(stats.MaxHP);
+  if (Number.isFinite(explicitMaxHp) && explicitMaxHp > 0) {
+    return Math.max(1, Math.floor(explicitMaxHp));
+  }
+  const safeLevel = Math.max(1, Math.floor(Number(level) || 1));
+  const levelMaxHp = 80 + ((safeLevel - 1) * 4);
+  const legacyHp = Math.max(0, Math.floor(Number(stats.HP) || 0));
+  return Math.max(levelMaxHp, legacyHp);
+}
+
 function buildLoadedLocalKingdomCharacter() {
   const stats = getMyPlayerStats?.() || {};
   const hasLoadedStats = ['MaxHP', 'HP', 'ちから', 'みのまもり', 'かしこさ', 'すばやさ', 'Level']
@@ -2865,7 +2886,7 @@ function buildLoadedLocalKingdomCharacter() {
     itemSource,
     tarotDeck: cloneKingdomSnapshotValue(getMyTarotBattleDeckSnapshot?.() || [], []),
     combat: {
-      maxHp: Number(stats.MaxHP || stats.HP),
+      maxHp: resolveLoadedKingdomMaxHp(stats, level),
       power: (Number(stats.ちから) || 0) + equipmentStats.Power,
       defense: (Number(stats.みのまもり) || 0) + equipmentStats.Defense,
       intelligence: (Number(stats.かしこさ) || 0) + equipmentStats.Int,
@@ -11304,6 +11325,9 @@ function ensureKingdomBattlePlayerRow(playerIndex) {
   hpFill.className = 'tarot-kingdom-battle-player-hp-fill';
   hpTrack.appendChild(hpFill);
   hpWrap.appendChild(hpTrack);
+  const hpText = document.createElement('div');
+  hpText.className = 'tarot-kingdom-battle-player-hp-text';
+  hpWrap.appendChild(hpText);
 
   const handCount = document.createElement('div');
   handCount.className = 'tarot-kingdom-battle-player-hand-count';
@@ -11501,6 +11525,8 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
       hpTrack.setAttribute('aria-valuemax', String(maxHp));
       hpTrack.setAttribute('aria-valuenow', String(hp));
     }
+    const hpText = row.querySelector('.tarot-kingdom-battle-player-hp-text');
+    if (hpText) hpText.textContent = `HP ${Math.round(hp)} / ${Math.round(maxHp)}`;
     const handCount = row.querySelector('.tarot-kingdom-battle-player-hand-count');
     if (handCount) handCount.textContent = `残り手札 ${player.hand.length}枚`;
     renderKingdomStatusTray(row, getKingdomEffectBucket('player', playerIndex) || {});
@@ -11518,6 +11544,37 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
       healNumber.textContent = `+${healing.reduce((sum, entry) => sum + Math.max(0, Number(entry.amount) || 0), 0)}`;
     } else {
       healNumber?.remove();
+    }
+    const incomingDamage = eventIsActive && Array.isArray(activeEvent?.damages)
+      ? activeEvent.damages.find((entry) => Number(entry?.playerIndex) === playerIndex)
+      : null;
+    const damageAmount = Math.max(0, Math.floor(Number(incomingDamage?.damage) || 0));
+    const damageMissed = incomingDamage?.missed === true;
+    const showDamage = !!(
+      incomingDamage
+      && ['damage', 'recover'].includes(phase)
+      && (damageAmount > 0 || damageMissed)
+    );
+    let damageNumber = row.querySelector(':scope > .tarot-kingdom-player-damage-number');
+    if (showDamage) {
+      if (!damageNumber) {
+        damageNumber = document.createElement('div');
+        damageNumber.className = 'tarot-kingdom-player-damage-number';
+        damageNumber.setAttribute('aria-hidden', 'true');
+        row.appendChild(damageNumber);
+      }
+      const damageKey = `${activeEvent?.seq || 0}:${playerIndex}:${damageAmount}:${damageMissed ? 'miss' : 'hit'}`;
+      damageNumber.textContent = damageMissed ? 'MISS' : String(damageAmount);
+      damageNumber.className = `tarot-kingdom-player-damage-number${damageMissed ? ' is-miss' : ''}`;
+      if (damageNumber.dataset.eventKey !== damageKey) {
+        damageNumber.dataset.eventKey = damageKey;
+        damageNumber.classList.remove('is-show');
+        requestAnimationFrame(() => damageNumber?.classList.add('is-show'));
+      } else {
+        damageNumber.classList.add('is-show');
+      }
+    } else {
+      damageNumber?.remove();
     }
   });
   Array.from(ui.battleParty.querySelectorAll('.tarot-kingdom-battle-player')).forEach((row) => {
@@ -13446,6 +13503,7 @@ function humanPlay() {
 function bindUi() {
   if (bound) return;
   ui.root = document.getElementById('tarotKingdomRoot');
+  ui.exitButton = document.getElementById('tarotKingdomExitButton');
   ui.round = document.getElementById('tarotKingdomRound');
   ui.turn = document.getElementById('tarotKingdomTurn');
   ui.reverseChip = document.getElementById('tarotKingdomReverse');
@@ -13571,6 +13629,15 @@ function bindUi() {
       }
     });
   });
+  ui.exitButton?.addEventListener('click', () => {
+    if (typeof window.showTab === 'function') {
+      Promise.resolve(window.showTab('home')).catch((error) => {
+        console.warn('[tarotKingdom] failed to leave kingdom page:', error);
+      });
+      return;
+    }
+    destroyTarotKingdomPage();
+  });
   ui.startOfflineButton?.addEventListener('click', () => {
     handleKingdomOfflineStartClick().catch((error) => {
       console.warn('[tarotKingdom] offline start click failed:', error);
@@ -13673,6 +13740,7 @@ function bindUi() {
 
 export async function loadTarotKingdomPage() {
   bindUi();
+  setKingdomFullscreen(true);
   if (getTarotKingdomDebugMode() === 'done') {
     injectTarotKingdomDebugMatchDone({
       winnerIndex: getTarotKingdomDebugWinnerIndex()
@@ -13700,6 +13768,7 @@ export async function loadTarotKingdomPage() {
 
 export async function startTarotKingdomExplorationBattle(context = {}) {
   bindUi();
+  setKingdomFullscreen(true);
   if (kingdomExplorationSession) {
     settleKingdomExplorationSession('replaced');
   }
@@ -13829,6 +13898,7 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
 }
 
 export function destroyTarotKingdomPage() {
+  setKingdomFullscreen(false);
   if (kingdomExplorationSession) {
     settleKingdomExplorationSession('cancelled');
   }

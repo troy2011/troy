@@ -10,7 +10,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     await openKingdomDebug(page);
   });
 
-  test('schema 9 publishes player count and major arcana specials while older matches keep their original rules', async ({ page }) => {
+  test('schema 10 publishes player count and major arcana specials while older matches keep their original rules', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       const current = debug.battleScenario({ withTrick: false });
@@ -60,7 +60,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       majorArcanaSpecialVersion: 1
     });
     expect(audit.current.players.map((player) => player.hand.length)).toEqual([8, 8, 8, 8]);
-    expect(audit.published.schema).toBe(9);
+    expect(audit.published.schema).toBe(10);
     expect(audit.published.state.rules).toMatchObject({
       initialHandSize: 8,
       handLimit: 8,
@@ -140,6 +140,41 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     await page.waitForTimeout(Math.max(0, timeline.hpTweenEndsAt - Date.now() + 50));
     await expect(page.locator('#tarotKingdomBattleStage .tarot-kingdom-battle-enemy > [role="progressbar"]'))
       .toHaveAttribute('aria-valuenow', String(event.hpAfter));
+  });
+
+  test('enemy attack shows unsigned damage above the targeted player', async ({ page }) => {
+    const attack = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({
+        turnIndex: 1,
+        leaderIndex: 0,
+        hpBySeat: [120, 120, 120, 120],
+        combatBySeat: Array.from({ length: 4 }, () => ({ maxHp: 120, defense: 20 }))
+      });
+      const state = debug.battlePass(1);
+      const event = state.battle.events.find((entry) => entry.type === 'enemy-single');
+      const timeline = state.transition?.eventTimelineSpecs?.[String(event?.seq || '')]
+        || state.transition?.timeline;
+      return {
+        event,
+        damage: Number(event?.damages?.[0]?.damage || 0),
+        hpRevealAt: Number(timeline?.hpRevealAt || 0),
+        now: Date.now()
+      };
+    });
+
+    expect(attack.damage).toBeGreaterThan(0);
+    const hpText = page.locator(
+      '#tarotKingdomBattleParty [data-player-index="1"] .tarot-kingdom-battle-player-hp-text'
+    );
+    await expect(hpText).toContainText('HP 120 / 120');
+    await page.waitForTimeout(Math.max(0, attack.hpRevealAt - attack.now + 40));
+    const damage = page.locator(
+      '#tarotKingdomBattleParty [data-player-index="1"] > .tarot-kingdom-player-damage-number.is-show'
+    );
+    await expect(damage).toHaveCount(1);
+    await expect(damage).toHaveText(String(attack.damage));
+    await expect(damage).not.toContainText('-');
   });
 
   test('five-card role runs one synchronized 4.5-second summon without duplicate events', async ({ page }) => {
