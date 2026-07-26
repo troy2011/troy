@@ -1696,22 +1696,22 @@ app.post('/api/set-race', async (req, res) => {
 
     switch (raceName) {
         case 'Human':
-            initialStats = { "Level": 1, "HP": 5, "MaxHP": 5, "MP": 15, "MaxMP": 15, "ちから": 2, "みのまもり": 5, "すばやさ": 10, "かしこさ": 15, "きようさ": 10 };
+            initialStats = { "Level": 1, "HP": 80, "MaxHP": 80, "MP": 15, "MaxMP": 15, "ちから": 2, "みのまもり": 5, "すばやさ": 10, "かしこさ": 15, "たいりょく": 5, "きようさ": 10 };
             maxSkinColorIndex = 7;
             avatarData = { "AvatarColor": "red" };
             break;
         case 'Elf':
-            initialStats = { "Level": 1, "HP": 5, "MaxHP": 5, "MP": 10, "MaxMP": 10, "ちから": 5, "みのまもり": 5, "すばやさ": 15, "かしこさ": 10, "きようさ": 15 };
+            initialStats = { "Level": 1, "HP": 80, "MaxHP": 80, "MP": 10, "MaxMP": 10, "ちから": 5, "みのまもり": 5, "すばやさ": 15, "かしこさ": 10, "たいりょく": 5, "きようさ": 15 };
             maxSkinColorIndex = 8;
             avatarData = { "AvatarColor": "purple" };
             break;
         case 'Orc':
-            initialStats = { "Level": 1, "HP": 15, "MaxHP": 15, "MP": 2, "MaxMP": 2, "ちから": 15, "みのまもり": 15, "すばやさ": 2, "かしこさ": 2, "きようさ": 5 };
+            initialStats = { "Level": 1, "HP": 120, "MaxHP": 120, "MP": 2, "MaxMP": 2, "ちから": 15, "みのまもり": 15, "すばやさ": 2, "かしこさ": 2, "たいりょく": 15, "きようさ": 5 };
             maxSkinColorIndex = 4;
             avatarData = { "AvatarColor": "green" };
             break;
         case 'Goblin':
-            initialStats = { "Level": 1, "HP": 5, "MaxHP": 5, "MP": 15, "MaxMP": 15, "ちから": 2, "みのまもり": 5, "すばやさ": 10, "かしこさ": 15, "きようさ": 10 };
+            initialStats = { "Level": 1, "HP": 80, "MaxHP": 80, "MP": 15, "MaxMP": 15, "ちから": 2, "みのまもり": 5, "すばやさ": 10, "かしこさ": 15, "たいりょく": 5, "きようさ": 10 };
             maxSkinColorIndex = 4;
             avatarData = { "AvatarColor": "blue" };
             break;

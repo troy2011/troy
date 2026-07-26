@@ -2186,8 +2186,9 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                         stats[entry.StatisticName] = entry.Value;
                     });
                 }
-                const maxHp = Number(stats.MaxHP || stats.HP || 1);
-                const currentHp = Number.isFinite(Number(stats.HP)) ? Number(stats.HP) : maxHp;
+                const derivedStats = applyDerivedPlayerLevelToStats(stats).stats;
+                const maxHp = Number(derivedStats.MaxHP || derivedStats.HP || 1);
+                const currentHp = Number.isFinite(Number(derivedStats.HP)) ? Number(derivedStats.HP) : maxHp;
                 const nextHp = Math.max(1, currentHp - damageValue);
 
                 await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {

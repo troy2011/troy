@@ -72,10 +72,13 @@ function renderHomeRankBenefits(element, level, crewRoleLabel) {
 export function renderHomePlayerStatus(stats = {}, crewRankInfo = null) {
     const {
         Level = 1,
+        HP = 0,
+        MaxHP = 0,
         ちから = 0,
         みのまもり = 0,
         すばやさ = 0,
-        かしこさ = 0
+        かしこさ = 0,
+        たいりょく = 0
     } = stats || {};
     const rankName = crewRankInfo?.crewRankTitle || getPlayerRankName(Level);
 
@@ -86,10 +89,14 @@ export function renderHomePlayerStatus(stats = {}, crewRankInfo = null) {
     setText('homeStatDef', みのまもり);
     setText('homeStatAgi', すばやさ);
     setText('homeStatInt', かしこさ);
+    setText('homeStatVit', たいりょく);
+    setText('homeStatHp', `${HP}/${MaxHP}`);
     setText('currentStr', ちから);
     setText('currentDef', みのまもり);
     setText('currentAgi', すばやさ);
     setText('currentInt', かしこさ);
+    setText('currentVit', たいりょく);
+    setText('currentHp', `${HP}/${MaxHP}`);
 
     return { level: Level, rankName };
 }

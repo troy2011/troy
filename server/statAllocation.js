@@ -1,10 +1,16 @@
+const {
+    PLAYER_MAX_HP_PER_VITALITY,
+    calculatePlayerMaxHp
+} = require('./playerLevel');
+
 const STAT_ALLOCATION_POINTS_PER_LEVEL = 5;
 
 const ALLOCATABLE_STATS = Object.freeze([
     { id: 'str', stat: 'ちから', spentStat: 'StatPointSpent_Str', label: '力' },
     { id: 'def', stat: 'みのまもり', spentStat: 'StatPointSpent_Def', label: '守' },
     { id: 'agi', stat: 'すばやさ', spentStat: 'StatPointSpent_Agi', label: '速' },
-    { id: 'int', stat: 'かしこさ', spentStat: 'StatPointSpent_Int', label: '知' }
+    { id: 'int', stat: 'かしこさ', spentStat: 'StatPointSpent_Int', label: '知' },
+    { id: 'vit', stat: 'たいりょく', spentStat: 'StatPointSpent_Vit', label: '体' }
 ]);
 
 function normalizeNonNegativeInteger(value) {
@@ -44,6 +50,7 @@ function calculateStatAllocationState(statsMap = {}) {
         totalEarned,
         totalAllocated,
         availablePoints: Math.max(0, totalEarned - totalAllocated),
+        hpPerVitality: PLAYER_MAX_HP_PER_VITALITY,
         stats
     };
 }
@@ -67,6 +74,11 @@ function getStatAllocationDeltaTotal(deltas = {}) {
 function applyStatAllocationDeltas(statsMap = {}, deltas = {}) {
     const nextStats = { ...(statsMap || {}) };
     const statistics = [];
+    const previousMaxHp = calculatePlayerMaxHp(nextStats, nextStats.Level);
+    const previousHp = Math.max(0, Math.min(
+        previousMaxHp,
+        normalizeNonNegativeInteger(nextStats.HP ?? nextStats.CurrentHP ?? previousMaxHp)
+    ));
 
     ALLOCATABLE_STATS.forEach((entry) => {
         const delta = normalizeNonNegativeInteger(deltas[entry.id]);
@@ -78,6 +90,20 @@ function applyStatAllocationDeltas(statsMap = {}, deltas = {}) {
         statistics.push({ StatisticName: entry.stat, Value: nextValue });
         statistics.push({ StatisticName: entry.spentStat, Value: nextSpent });
     });
+
+    const vitalityDelta = normalizeNonNegativeInteger(deltas.vit);
+    if (vitalityDelta > 0) {
+        const nextMaxHp = calculatePlayerMaxHp(nextStats, nextStats.Level);
+        const hpGain = Math.max(0, nextMaxHp - previousMaxHp);
+        const nextHp = Math.min(nextMaxHp, previousHp + hpGain);
+        nextStats.MaxHP = nextMaxHp;
+        nextStats.HP = nextHp;
+        if (Object.prototype.hasOwnProperty.call(nextStats, 'CurrentHP')) {
+            nextStats.CurrentHP = nextHp;
+        }
+        statistics.push({ StatisticName: 'MaxHP', Value: nextMaxHp });
+        statistics.push({ StatisticName: 'HP', Value: nextHp });
+    }
 
     return { stats: nextStats, statistics };
 }

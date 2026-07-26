@@ -1051,10 +1051,13 @@ function initializeInventoryRoutes(app, deps) {
             const avatarBase = buildAvatarBaseFromReadOnly(readOnlyData, stats);
             const publicStats = {
                 Level: Math.max(1, Math.floor(Number(stats.Level || avatarBase.level || 1) || 1)),
+                HP: Math.max(0, Math.floor(Number(stats.HP || 0) || 0)),
+                MaxHP: Math.max(1, Math.floor(Number(stats.MaxHP || 1) || 1)),
                 ちから: Math.max(0, Math.floor(Number(stats.ちから || 0) || 0)),
                 みのまもり: Math.max(0, Math.floor(Number(stats.みのまもり || 0) || 0)),
                 すばやさ: Math.max(0, Math.floor(Number(stats.すばやさ || 0) || 0)),
-                かしこさ: Math.max(0, Math.floor(Number(stats.かしこさ || 0) || 0))
+                かしこさ: Math.max(0, Math.floor(Number(stats.かしこさ || 0) || 0)),
+                たいりょく: Math.max(0, Math.floor(Number(stats.たいりょく || 0) || 0))
             };
             const specialAbility = getPublicAbility(parseJsonValue(
                 readOnlyData?.SpecialAbilityJudgmentV3?.Value,
@@ -1606,8 +1609,11 @@ function initializeInventoryRoutes(app, deps) {
 
             const targetStat = effect.Target;
             const maxStat = `Max${targetStat}`;
-            const currentValue = currentStats[targetStat] || 0;
-            const maxValue = currentStats[maxStat] || currentValue;
+            const resolvedStats = targetStat === 'HP'
+                ? applyDerivedPlayerLevelToStats(currentStats).stats
+                : currentStats;
+            const currentValue = resolvedStats[targetStat] || 0;
+            const maxValue = resolvedStats[maxStat] || currentValue;
 
             if (currentValue >= maxValue) {
                 return res.status(400).json({ error: `${targetStat} は既に満タンです。` });

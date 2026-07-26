@@ -1,5 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const {
+  applyDerivedPlayerLevelToStats,
+  calculatePlayerMaxHp,
   calculateLevelFromContribution,
   PIRATE_KING_LEVEL,
   syncPirateKingNationStatus
@@ -71,4 +73,19 @@ test('player contribution totals reach admiral at level 41 and pirate king at le
   expect(calculateLevelFromContribution(247500).level).toBe(41);
   expect(calculateLevelFromContribution(511500).level).toBe(51);
   expect(PIRATE_KING_LEVEL).toBe(51);
+});
+
+test('max HP grows from level and vitality without lowering saved high values', () => {
+  expect(calculatePlayerMaxHp({ Level: 1, たいりょく: 5 })).toBe(80);
+  expect(calculatePlayerMaxHp({ Level: 11, たいりょく: 5 })).toBe(120);
+  expect(calculatePlayerMaxHp({ Level: 11, たいりょく: 8 })).toBe(132);
+  expect(calculatePlayerMaxHp({ Level: 11, たいりょく: 5, MaxHP: 155 })).toBe(155);
+});
+
+test('legacy race HP migrates to vitality while preserving current HP rate', () => {
+  const human = applyDerivedPlayerLevelToStats({ HP: 5, MaxHP: 5 }).stats;
+  const orc = applyDerivedPlayerLevelToStats({ HP: 9, MaxHP: 15 }).stats;
+
+  expect(human).toMatchObject({ Level: 1, HP: 80, MaxHP: 80, たいりょく: 5 });
+  expect(orc).toMatchObject({ Level: 1, HP: 72, MaxHP: 120, たいりょく: 15 });
 });

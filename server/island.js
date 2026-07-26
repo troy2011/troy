@@ -3,6 +3,7 @@
 
 const { geohashForLocation } = require('geofire-common');
 const { VIRTUAL_CURRENCY_CODE } = require('./economy');
+const { applyDerivedPlayerLevelToStats } = require('./playerLevel');
 const resourceStorage = require('./resourceStorage');
 const {
     getSizeTag,
@@ -1726,8 +1727,9 @@ function initializeIslandRoutes(app, deps) {
             if (statsResult.Statistics) {
                 statsResult.Statistics.forEach(stat => { currentStats[stat.StatisticName] = stat.Value; });
             }
-            const currentHp = Number(currentStats.HP || 0);
-            const maxHp = Number(currentStats.MaxHP || currentHp || 0);
+            const derivedStats = applyDerivedPlayerLevelToStats(currentStats).stats;
+            const currentHp = Number(derivedStats.HP || 0);
+            const maxHp = Number(derivedStats.MaxHP || currentHp || 0);
             if (currentHp >= maxHp) {
                 return res.status(400).json({ error: 'HpAlreadyMax' });
             }

@@ -26581,7 +26581,7 @@ body[data-sea-tone] .home-hero-card {
 .home-stat-panel {
     grid-area: vitals;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 6px;
     align-self: stretch;
 }
@@ -26617,6 +26617,10 @@ body[data-sea-tone] .home-hero-card {
     text-align: center;
     white-space: nowrap;
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
+}
+
+.home-stat-chip-hp b {
+    font-size: 15px;
 }
 
 
@@ -26666,6 +26670,7 @@ body[data-sea-tone] .home-hero-card {
     }
 
     .home-stat-panel {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 4px;
     }
 
@@ -26680,6 +26685,10 @@ body[data-sea-tone] .home-hero-card {
 
     .home-stat-chip b {
         font-size: 16px;
+    }
+
+    .home-stat-chip-hp b {
+        font-size: 12px;
     }
 
     .home-exploration-btn {
@@ -29223,7 +29232,7 @@ body[data-sea-tone] .home-hero-card {
 
 #playerProfileModal .player-profile-stats {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 4px;
     margin-top: 6px;
 }

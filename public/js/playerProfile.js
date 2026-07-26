@@ -10,7 +10,8 @@ const PROFILE_ALLOCATABLE_STATS = Object.freeze([
     { id: 'str', key: 'ちから', label: '力' },
     { id: 'def', key: 'みのまもり', label: '守' },
     { id: 'agi', key: 'すばやさ', label: '速' },
-    { id: 'int', key: 'かしこさ', label: '知' }
+    { id: 'int', key: 'かしこさ', label: '知' },
+    { id: 'vit', key: 'たいりょく', label: '体' }
 ]);
 
 let playerProfileInstalled = false;
@@ -524,7 +525,7 @@ function renderStatAllocationPanel() {
             <span>ステータスポイント</span>
             <b>${remainingPoints}pt</b>
         </div>
-        <div class="player-profile-stat-alloc-sub">Lvアップごとに${normalizeProfileStatValue(allocation.pointsPerLevel || 5)}pt獲得</div>
+        <div class="player-profile-stat-alloc-sub">Lvアップごとに${normalizeProfileStatValue(allocation.pointsPerLevel || 5)}pt獲得 / 体1ptで最大HP+${normalizeProfileStatValue(allocation.hpPerVitality || 4)}</div>
         <div class="player-profile-stat-alloc-list">${rows}</div>
         <button type="button" class="player-profile-stat-alloc-save" data-profile-stat-alloc-save="true"${saveDisabled}>
             ${statAllocationSaveInFlight ? '保存中...' : '割り振りを保存'}
@@ -593,7 +594,9 @@ function renderProfileStats(stats = {}) {
         ['力', stats?.ちから],
         ['守', stats?.みのまもり],
         ['速', stats?.すばやさ],
-        ['知', stats?.かしこさ]
+        ['知', stats?.かしこさ],
+        ['体', stats?.たいりょく],
+        ['HP', stats?.MaxHP]
     ];
     statsEl.innerHTML = rows.map(([label, value]) => `
         <div class="player-profile-stat">

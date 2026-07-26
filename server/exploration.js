@@ -1,6 +1,7 @@
 const resourceStorage = require('./resourceStorage');
 const { drawLocalGachaItem } = require('./gacha');
 const battleRoutes = require('./routes/battleRoutes');
+const { applyDerivedPlayerLevelToStats } = require('./playerLevel');
 const { resolveGuildShipContext } = require('./guildShipSharing');
 const { getCanonicalTarotCategory, getMajorArcanaSuitInfo, getMajorArcanaTitle } = require('./tarotCards');
 const { buildMajorArcanaShipGearView } = require('./majorArcanaShipGear');
@@ -2146,13 +2147,13 @@ async function getExplorationBattlePlayerProfile(playFabId, { promisifyPlayFab, 
     const result = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: playFabId });
     const st = {};
     (result?.Statistics || []).forEach((s) => { st[s.StatisticName] = s.Value; });
-    const hp = Math.max(10, Number(st.HP || 30));
-    const maxHp = Math.max(hp, Number(st.MaxHP || hp));
+    const derivedStats = applyDerivedPlayerLevelToStats(st).stats;
+    const hp = Math.max(1, Number(derivedStats.HP || 1));
+    const maxHp = Math.max(hp, Number(derivedStats.MaxHP || hp));
     return {
         id: playFabId,
         stats: {
-            ...st,
-            Level: Math.max(1, Number(st.Level || 1)),
+            ...derivedStats,
             CurrentHP: hp,
             HP: hp,
             MaxHP: maxHp
@@ -2231,7 +2232,8 @@ async function restoreHpToFull(playFabId, { promisifyPlayFab, PlayFabServer }) {
         const statResult = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: playFabId });
         const currentSt = {};
         (statResult?.Statistics || []).forEach((s) => { currentSt[s.StatisticName] = s.Value; });
-        const maxHp = Math.max(1, Number(currentSt.MaxHP || currentSt.HP || 30));
+        const derivedStats = applyDerivedPlayerLevelToStats(currentSt).stats;
+        const maxHp = Math.max(1, Number(derivedStats.MaxHP || derivedStats.HP || 1));
         await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
             PlayFabId: playFabId,
             Statistics: [{ StatisticName: 'HP', Value: maxHp }]

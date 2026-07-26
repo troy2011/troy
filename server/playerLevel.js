@@ -7,8 +7,13 @@ const {
 const { getUnlockedFeaturesBetween } = require('./featureUnlocks');
 
 const PLAYER_LEVEL_STAT = 'Level';
+const PLAYER_VITALITY_STAT = 'たいりょく';
 const BASE_CONTRIBUTION_PER_LEVEL = 1500;
 const PIRATE_KING_LEVEL = 51;
+const PLAYER_BASE_MAX_HP = 60;
+const PLAYER_MAX_HP_PER_LEVEL = 4;
+const PLAYER_MAX_HP_PER_VITALITY = 4;
+const DEFAULT_PLAYER_VITALITY = 5;
 
 function normalizeContribution(value) {
     return Math.max(0, Math.floor(Number(value) || 0));
@@ -33,11 +38,64 @@ function getPlayerContributionTotal(statsMap) {
     return normalizeContribution(statsMap?.[PLAYER_CONTRIBUTION_STAT]);
 }
 
+function normalizePlayerStat(value, fallback = 0) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : fallback;
+}
+
+function hasExplicitPlayerVitality(statsMap = {}) {
+    return [PLAYER_VITALITY_STAT, '体', 'Vitality', 'VIT']
+        .some((key) => Number.isFinite(Number(statsMap?.[key])));
+}
+
+function getPlayerVitality(statsMap = {}) {
+    for (const key of [PLAYER_VITALITY_STAT, '体', 'Vitality', 'VIT']) {
+        const numeric = Number(statsMap?.[key]);
+        if (Number.isFinite(numeric)) return Math.max(0, Math.floor(numeric));
+    }
+
+    // 旧データでは種族ごとの初期MaxHP（通常5、オーク15）が保存されていた。
+    // 低い旧MaxHPだけを体の初期値として読み替え、種族差を維持する。
+    const legacyMaxHp = normalizePlayerStat(statsMap?.MaxHP, 0);
+    if (legacyMaxHp > 0 && legacyMaxHp <= 15) return legacyMaxHp;
+    return DEFAULT_PLAYER_VITALITY;
+}
+
+function calculatePlayerMaxHp(statsMap = {}, levelOverride = null) {
+    const level = Math.max(1, normalizePlayerStat(levelOverride ?? statsMap?.[PLAYER_LEVEL_STAT], 1));
+    const vitality = getPlayerVitality(statsMap);
+    const calculated = PLAYER_BASE_MAX_HP
+        + ((level - 1) * PLAYER_MAX_HP_PER_LEVEL)
+        + (vitality * PLAYER_MAX_HP_PER_VITALITY);
+    const savedMaxHp = normalizePlayerStat(statsMap?.MaxHP, 0);
+    return Math.max(1, calculated, savedMaxHp);
+}
+
 function applyDerivedPlayerLevelToStats(statsMap) {
     const nextStats = { ...(statsMap || {}) };
     const contributionTotal = getPlayerContributionTotal(nextStats);
     const progress = calculateLevelFromContribution(contributionTotal);
     nextStats[PLAYER_LEVEL_STAT] = progress.level;
+    const hadExplicitVitality = hasExplicitPlayerVitality(nextStats);
+    const savedMaxHp = normalizePlayerStat(nextStats.MaxHP, 0);
+    const vitality = getPlayerVitality(nextStats);
+    const maxHp = calculatePlayerMaxHp({ ...nextStats, [PLAYER_VITALITY_STAT]: vitality }, progress.level);
+    const rawCurrentHp = Number(nextStats.HP ?? nextStats.CurrentHP);
+    let currentHp = Number.isFinite(rawCurrentHp)
+        ? Math.max(0, Math.min(maxHp, Math.floor(rawCurrentHp)))
+        : maxHp;
+
+    // 旧初期HPを持つプレイヤーは、現在のHP率を保って新しい最大HPへ移行する。
+    if (!hadExplicitVitality && savedMaxHp > 0 && savedMaxHp <= 15 && currentHp <= savedMaxHp) {
+        currentHp = Math.max(0, Math.min(maxHp, Math.round(maxHp * (currentHp / savedMaxHp))));
+    }
+
+    nextStats[PLAYER_VITALITY_STAT] = vitality;
+    nextStats.MaxHP = maxHp;
+    nextStats.HP = currentHp;
+    if (Object.prototype.hasOwnProperty.call(nextStats, 'CurrentHP')) {
+        nextStats.CurrentHP = currentHp;
+    }
     return {
         stats: nextStats,
         contributionTotal,
@@ -128,13 +186,26 @@ async function addPlayerNationContribution(playFabId, amount, deps, options = {}
     const nextProgress = calculateLevelFromContribution(nextTotal);
     const currentDailyTotal = normalizeContribution(statsMap?.[PLAYER_DAILY_CONTRIBUTION_STAT]);
     const nextDailyTotal = currentDailyTotal + value;
+    const currentDerivedStats = applyDerivedPlayerLevelToStats(statsMap).stats;
+    const nextDerivedStats = applyDerivedPlayerLevelToStats({
+        ...currentDerivedStats,
+        [PLAYER_CONTRIBUTION_STAT]: nextTotal
+    }).stats;
+    const maxHpGain = Math.max(0, nextDerivedStats.MaxHP - currentDerivedStats.MaxHP);
+    nextDerivedStats.HP = Math.min(
+        nextDerivedStats.MaxHP,
+        Math.max(0, Number(currentDerivedStats.HP) || 0) + maxHpGain
+    );
 
     await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
         PlayFabId: playFabId,
         Statistics: [
             { StatisticName: PLAYER_CONTRIBUTION_STAT, Value: nextTotal },
             { StatisticName: PLAYER_DAILY_CONTRIBUTION_STAT, Value: nextDailyTotal },
-            { StatisticName: PLAYER_LEVEL_STAT, Value: nextProgress.level }
+            { StatisticName: PLAYER_LEVEL_STAT, Value: nextProgress.level },
+            { StatisticName: PLAYER_VITALITY_STAT, Value: nextDerivedStats[PLAYER_VITALITY_STAT] },
+            { StatisticName: 'MaxHP', Value: nextDerivedStats.MaxHP },
+            { StatisticName: 'HP', Value: nextDerivedStats.HP }
         ]
     });
 
@@ -165,13 +236,20 @@ async function addPlayerNationContribution(playFabId, amount, deps, options = {}
 
 module.exports = {
     PLAYER_LEVEL_STAT,
+    PLAYER_VITALITY_STAT,
     PLAYER_CONTRIBUTION_STAT,
     PLAYER_DAILY_CONTRIBUTION_STAT,
     BASE_CONTRIBUTION_PER_LEVEL,
     PIRATE_KING_LEVEL,
+    PLAYER_BASE_MAX_HP,
+    PLAYER_MAX_HP_PER_LEVEL,
+    PLAYER_MAX_HP_PER_VITALITY,
+    DEFAULT_PLAYER_VITALITY,
     normalizeContribution,
     calculateLevelFromContribution,
     getPlayerContributionTotal,
+    getPlayerVitality,
+    calculatePlayerMaxHp,
     applyDerivedPlayerLevelToStats,
     buildStatsMapFromStatistics,
     syncPirateKingNationStatus,

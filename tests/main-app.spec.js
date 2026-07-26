@@ -1110,7 +1110,10 @@ test('home tab replaces HP and MP recovery controls with compact stat chips', as
           ちから: 7,
           みのまもり: 8,
           すばやさ: 9,
-          かしこさ: 10
+          かしこさ: 10,
+          たいりょく: 11,
+          HP: 152,
+          MaxHP: 160
         }
       })
     });
@@ -1126,7 +1129,19 @@ test('home tab replaces HP and MP recovery controls with compact stat chips', as
   await expect(page.locator('#globalMpBar')).toHaveCount(0);
   await expect(page.locator('#btnRecoverHP')).toHaveCount(0);
   await expect(page.locator('#btnRecoverMP')).toHaveCount(0);
-  await expect(page.locator('.home-stat-chip b')).toHaveText(['7', '8', '9', '10']);
+  await expect(page.locator('.home-stat-chip b')).toHaveText(['7', '8', '9', '10', '11', '152/160']);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const homeStatsFit = await page.locator('.home-stat-panel').evaluate((panel) => {
+    const panelRect = panel.getBoundingClientRect();
+    return Array.from(panel.children).every((chip) => {
+      const chipRect = chip.getBoundingClientRect();
+      return chipRect.left >= panelRect.left - 1
+        && chipRect.right <= panelRect.right + 1
+        && chip.scrollWidth <= chip.clientWidth + 1;
+    });
+  });
+  expect(homeStatsFit).toBe(true);
+  await page.setViewportSize({ width: 1280, height: 720 });
   await expect(page.locator('.home-transfer-card')).toHaveCount(0);
   await expect(page.locator('#btnScanPay')).toHaveCount(0);
   await expect(page.locator('#btnCoinConvert')).toHaveCount(0);
@@ -2655,7 +2670,10 @@ test('player profile shows public stats on the left with avatar on the right', a
             ちから: 12,
             みのまもり: 11,
             すばやさ: 10,
-            かしこさ: 9
+            かしこさ: 9,
+            たいりょく: 8,
+            HP: 140,
+            MaxHP: 152
           },
           avatarBase: {
             Race: 'human',
@@ -2724,7 +2742,7 @@ test('player profile shows public stats on the left with avatar on the right', a
   await expect(page.locator('#playerProfileSpecialAbilityEffect')).toContainText('光の通路');
   await expect(page.locator('#playerProfileSpecialAbilityRule')).toContainText('入口の輪');
   await expect(page.locator('#playerProfileSpecialAbility')).not.toContainText(/INTJ|tempo|scores/);
-  await expect(page.locator('#playerProfileStats .player-profile-stat strong')).toHaveText(['12', '11', '10', '9']);
+  await expect(page.locator('#playerProfileStats .player-profile-stat strong')).toHaveText(['12', '11', '10', '9', '8', '152']);
   const layout = await page.evaluate(() => {
     const stats = document.getElementById('playerProfileStats');
     const avatar = document.querySelector('#playerProfileModal .player-profile-avatar-shell');
@@ -2796,7 +2814,10 @@ test('own player profile allocates level-up stat points', async ({ page }) => {
     ちから: 4,
     みのまもり: 6,
     すばやさ: 8,
-    かしこさ: 9
+    かしこさ: 9,
+    たいりょく: 5,
+    HP: 84,
+    MaxHP: 88
   };
   const initialAllocation = {
     pointsPerLevel: 5,
@@ -2804,11 +2825,13 @@ test('own player profile allocates level-up stat points', async ({ page }) => {
     totalEarned: 10,
     totalAllocated: 5,
     availablePoints: 5,
+    hpPerVitality: 4,
     stats: {
       str: { id: 'str', stat: 'ちから', label: '力', value: 4, allocated: 2 },
       def: { id: 'def', stat: 'みのまもり', label: '守', value: 6, allocated: 1 },
       agi: { id: 'agi', stat: 'すばやさ', label: '速', value: 8, allocated: 1 },
-      int: { id: 'int', stat: 'かしこさ', label: '知', value: 9, allocated: 1 }
+      int: { id: 'int', stat: 'かしこさ', label: '知', value: 9, allocated: 1 },
+      vit: { id: 'vit', stat: 'たいりょく', label: '体', value: 5, allocated: 0 }
     }
   };
   await page.route('**/api/get-player-public-profile', async (route) => {
@@ -2851,10 +2874,14 @@ test('own player profile allocates level-up stat points', async ({ page }) => {
         allocatedPoints: 3,
         stats: {
           ...profileStats,
-          ちから: 6,
+          ちから: 5,
           みのまもり: 7,
-          StatPointSpent_Str: 4,
-          StatPointSpent_Def: 2
+          たいりょく: 6,
+          HP: 88,
+          MaxHP: 92,
+          StatPointSpent_Str: 3,
+          StatPointSpent_Def: 2,
+          StatPointSpent_Vit: 1
         },
         statAllocation: {
           ...initialAllocation,
@@ -2862,8 +2889,9 @@ test('own player profile allocates level-up stat points', async ({ page }) => {
           availablePoints: 2,
           stats: {
             ...initialAllocation.stats,
-            str: { ...initialAllocation.stats.str, value: 6, allocated: 4 },
-            def: { ...initialAllocation.stats.def, value: 7, allocated: 2 }
+            str: { ...initialAllocation.stats.str, value: 5, allocated: 3 },
+            def: { ...initialAllocation.stats.def, value: 7, allocated: 2 },
+            vit: { ...initialAllocation.stats.vit, value: 6, allocated: 1 }
           }
         }
       })
@@ -2876,8 +2904,11 @@ test('own player profile allocates level-up stat points', async ({ page }) => {
       body: JSON.stringify({
         stats: {
           ...profileStats,
-          ちから: 6,
-          みのまもり: 7
+          ちから: 5,
+          みのまもり: 7,
+          たいりょく: 6,
+          HP: 88,
+          MaxHP: 92
         }
       })
     });
@@ -2894,18 +2925,19 @@ test('own player profile allocates level-up stat points', async ({ page }) => {
   await expect(page.locator('#playerProfileStatAllocation .player-profile-stat-alloc-head b')).toHaveText('5pt');
   await page.locator('[data-profile-stat-alloc="str"][data-profile-stat-delta="1"]').click();
   await page.locator('[data-profile-stat-alloc="def"][data-profile-stat-delta="1"]').click();
-  await page.locator('[data-profile-stat-alloc="str"][data-profile-stat-delta="1"]').click();
+  await page.locator('[data-profile-stat-alloc="vit"][data-profile-stat-delta="1"]').click();
   await expect(page.locator('#playerProfileStatAllocation .player-profile-stat-alloc-head b')).toHaveText('2pt');
-  await expect(page.locator('.player-profile-stat-alloc-row').nth(0).locator('.player-profile-stat-alloc-value')).toHaveText('6');
+  await expect(page.locator('.player-profile-stat-alloc-row').nth(0).locator('.player-profile-stat-alloc-value')).toHaveText('5');
   await expect(page.locator('.player-profile-stat-alloc-row').nth(1).locator('.player-profile-stat-alloc-value')).toHaveText('7');
+  await expect(page.locator('.player-profile-stat-alloc-row').nth(4).locator('.player-profile-stat-alloc-value')).toHaveText('6');
   await page.locator('[data-profile-stat-alloc-save]').click();
 
-  await expect.poll(() => allocationRequest?.allocations?.str || 0).toBe(2);
+  await expect.poll(() => allocationRequest?.allocations?.vit || 0).toBe(1);
   expect(allocationRequest).toMatchObject({
     playFabId: 'PF_PLAYWRIGHT',
-    allocations: { str: 2, def: 1 }
+    allocations: { str: 1, def: 1, vit: 1 }
   });
-  await expect(page.locator('#playerProfileStats .player-profile-stat strong')).toHaveText(['6', '7', '8', '9']);
+  await expect(page.locator('#playerProfileStats .player-profile-stat strong')).toHaveText(['5', '7', '8', '9', '6', '92']);
   await expect(page.locator('#playerProfileStatAllocation .player-profile-stat-alloc-head b')).toHaveText('2pt');
   await expectNoPageErrors(errors);
 });
