@@ -15,6 +15,7 @@ sync-catalog-v2*.log
 tmp/
 playwright-report/
 test-results/
+debug.log
 
 config/
 
