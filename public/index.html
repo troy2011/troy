@@ -20,7 +20,7 @@
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
     <title>TROYゴールドアプリ</title>
-<link rel="stylesheet" href="style.css?v=20260725b">
+<link rel="stylesheet" href="style.css?v=20260726-retreat1">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
 </head>
@@ -121,7 +121,6 @@
                             </div>
                             <div class="home-exp-actions" aria-label="出航メニュー">
                                 <button id="btnHomeExploration" class="home-exploration-btn" type="button">探索に出る</button>
-                                <button id="btnHomePlunder" class="home-exploration-btn home-plunder-btn" type="button" hidden>略奪に出る</button>
                             </div>
                         </div>
                     </div>
@@ -1035,7 +1034,7 @@
                             <div class="tarot-loadout-header">
                                 <div>
                                     <h3>タロットデッキ</h3>
-                                    <p>小アルカナ5枚を白兵戦で順番に使用します。</p>
+                                    <p>装備した小アルカナはタロットキングダムで共鳴します。</p>
                                 </div>
                             </div>
                             <div id="meleeDeckRole" class="tarot-loadout-role">
@@ -1080,18 +1079,6 @@
 
 <!-- 5. QR/バトル/ギルドタブ -->
             <div id="tabContentQr" class="tab-content" style="display: none;">
-                <!-- QRバトル -->
-                <div class="content-area qr-battle-card">
-                    <h2>QRバトル</h2>
-                    <div id="battleArea" class="battle-entry-card">
-                        <button id="btnScanBattle" class="battle-entry-btn">
-                            <span style="font-size:24px;">⚔️</span>
-                            対戦を挑む
-                        </button>
-                        <p id="battleResult" class="battle-entry-result"></p>
-                    </div>
-                </div>
-
                 <div class="content-area equipment-gacha-card">
                     <h2>装備品ガチャ</h2>
                     <div id="equipmentGachaArea" class="equipment-gacha-entry">
@@ -1731,11 +1718,11 @@
         "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
         "config": "./js/config.js",
         "api": "./js/api.js",
-"ui": "./js/ui.js?v=20260725b",
+"ui": "./js/ui.js?v=20260726-retreat1",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js",
         "inventory": "./js/inventory.js?v=20260604g",
-        "game": "./Game.js"
+        "game": "./Game.js?v=20260726-legacy-battle-off-1"
       }
     }
     </script>
@@ -1776,8 +1763,8 @@
     </div>
 
     <!-- Scripts -->
-    <script src="battle-client.js?v=20260724-death-sheet-1"></script>
+    <script src="battle-client.js?v=20260726-legacy-battle-off-1"></script>
     <script src="naval-battle.js"></script>
-<script type="module" src="main.js?v=20260725b"></script>
+<script type="module" src="main.js?v=20260726-legacy-battle-off-1"></script>
 </body>
 </html>

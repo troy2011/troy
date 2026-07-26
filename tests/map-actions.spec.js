@@ -116,7 +116,7 @@ test.describe('map actions', () => {
     await expectNoPageErrors(errors);
   });
 
-  test('boarding from the ship command menu hands off to the battle entrypoint', async ({ page }) => {
+  test('retired boarding battle does not expose the ship command entrypoint', async ({ page }) => {
     const errors = trackPageErrors(page);
     await openReadyMap(page);
 
@@ -165,16 +165,9 @@ test.describe('map actions', () => {
       scene.showShipCommandMenu(enemyId, 'Enemy Raider');
     });
 
-    await expect(page.locator('#islandCommandPanel')).toHaveClass(/active/);
-    await expect(page.locator('#islandCommandTitle')).toHaveText('船: Enemy Raider');
-    await expect(page.locator('#islandCommandAction')).toHaveText('乗り込む');
-    await expect(page.locator('#islandCommandAttack')).toBeHidden();
-
-    await page.evaluate(() => {
-      document.getElementById('islandCommandAction')?.click();
-    });
-    await expect.poll(() => page.evaluate(() => window.__battleStartedWith || '')).toBe('PF_ENEMY_1');
-    await expect(page.locator('#battleModal')).toBeVisible();
+    await expect(page.locator('#islandCommandPanel')).not.toHaveClass(/active/);
+    expect(await page.evaluate(() => window.__battleStartedWith)).toBe(null);
+    await expect(page.locator('#battleModal')).not.toBeVisible();
 
     await expectNoPageErrors(errors);
   });

@@ -543,7 +543,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.afterPlay.transition.kind).toBe('play');
   });
 
-  test('KO skips without retaliation, hand zero wins, and party zero loses', async ({ page }) => {
+  test('KO skips without retaliation, hand zero wins, and the last survivor retreats', async ({ page }) => {
     const audit = await page.evaluate(({ combatBySeat }) => {
       const debug = window.TarotKingdomDebug;
       debug.battleScenario({
@@ -566,7 +566,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       debug.battleScenario({
         turnIndex: 1,
         leaderIndex: 0,
-        hpBySeat: [0, 1, 0, 0],
+        hpBySeat: [0, 1, 0, 100],
         combatBySeat
       });
       const partyLoss = debug.battlePass(1);
@@ -585,7 +585,11 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.forcedSkip.turn).toBe(2);
     expect(audit.handWin.battle).toMatchObject({ outcome: 'victory', resultReason: 'hand-empty' });
     expect(audit.handWin.phase).toBe('roundOutCinematic');
-    expect(audit.partyLoss.battle).toMatchObject({ outcome: 'defeat', resultReason: 'party-defeated' });
+    expect(audit.partyLoss.battle).toMatchObject({
+      outcome: 'defeat',
+      resultReason: 'party-retreated',
+      retreatingPlayerIndex: 3
+    });
     expect(audit.partyLoss.phase).toBe('resolvingEnemy');
     expect(audit.partyLoss.battle.events.map((event) => event.type)).toEqual(['enemy-single', 'defeat']);
     expect(audit.partyLoss.transition).toMatchObject({ kind: 'terminalEnemyResponse', eventSeqs: [1, 2] });
@@ -623,6 +627,25 @@ test.describe('Tarot Kingdom character battle flow', () => {
       deathDisplay: 'block',
       deathImage: expect.stringContaining('/Sprites/Characters/body/death.png'),
       layersHidden: true
+    });
+    await page.waitForFunction(() => (
+      document.querySelector('#tarotKingdomBattleParty [data-player-index="3"]')?.classList.contains('is-retreating')
+    ));
+    const retreatVisual = await page.evaluate(() => {
+      const row = document.querySelector('#tarotKingdomBattleParty [data-player-index="3"]');
+      const avatar = document.getElementById('tarotKingdomBattleAvatar-3');
+      return {
+        retreating: row?.classList.contains('is-retreating') || false,
+        motion: avatar?.dataset.avatarBodyMotion || '',
+        animationName: avatar ? getComputedStyle(avatar).animationName : '',
+        stageRetreat: document.getElementById('tarotKingdomBattleStage')?.classList.contains('is-retreat') || false
+      };
+    });
+    expect(retreatVisual).toEqual({
+      retreating: true,
+      motion: 'walk',
+      animationName: 'tarotKingdomPlayerRetreat',
+      stageRetreat: true
     });
     const settlementConfirmButton = page.locator('#tarotKingdomSettlementConfirmButton');
     await expect(settlementConfirmButton).toBeHidden();

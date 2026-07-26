@@ -435,22 +435,8 @@ export const launchGame = (containerId, playerInfo = null) => {
     },
     showShipCommandMenu(targetPlayFabId, displayName = '') {
       const panel = document.getElementById('islandCommandPanel');
-      const title = document.getElementById('islandCommandTitle');
-      const action = document.getElementById('islandCommandAction');
-      const attack = document.getElementById('islandCommandAttack');
-      if (!panel || !title || !action || !attack) return;
-      this.boardingTargetId = targetPlayFabId;
-      title.textContent = displayName ? '船: ' + displayName : '船';
-      action.textContent = '乗り込む';
-      action.className = 'island-command-btn warning';
-      attack.style.display = 'none';
-      action.onclick = () => {
-        if (typeof window.startBattleWithOpponent === 'function') {
-          window.startBattleWithOpponent(this.boardingTargetId);
-          this.hideShipCommandMenu();
-        }
-      };
-      panel.classList.add('active');
+      panel?.classList.remove('active');
+      this.boardingTargetId = null;
     },
     scene: {
       isSleeping: () => sceneState.sleeping,

@@ -31147,6 +31147,44 @@ body[data-sea-tone] .home-hero-card {
     filter: grayscale(0.85) brightness(0.68);
 }
 
+#tarotKingdomRoot #tarotKingdomBattleStage.is-retreat .tarot-kingdom-battle-player.is-retreating {
+    z-index: 12;
+    opacity: 1;
+    filter: none;
+}
+
+#tarotKingdomRoot #tarotKingdomBattleStage.is-retreat .tarot-kingdom-battle-player.is-retreating .tarot-kingdom-battle-player-avatar {
+    animation: tarotKingdomPlayerRetreat 1600ms linear both;
+}
+
+#tarotKingdomRoot #tarotKingdomBattleStage.is-retreat .tarot-kingdom-battle-player.is-retreating .tarot-kingdom-battle-player-info {
+    animation: tarotKingdomRetreatInfoFade 520ms ease-out both;
+}
+
+@keyframes tarotKingdomPlayerRetreat {
+    0% {
+        opacity: 1;
+        transform: translateX(0) scaleX(-1);
+    }
+    14% {
+        opacity: 1;
+        transform: translateX(0) scaleX(-1);
+    }
+    82% {
+        opacity: 1;
+        transform: translateX(108px) scaleX(-1);
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(148px) scaleX(-1);
+    }
+}
+
+@keyframes tarotKingdomRetreatInfoFade {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
 @keyframes tarotKingdomBattleEventIn {
     from { opacity: 0; transform: translateY(6px) scale(0.98); }
     to { opacity: 1; transform: translateY(0) scale(1); }
@@ -31167,6 +31205,23 @@ body[data-sea-tone] .home-hero-card {
     22% { transform: translateX(-10px) scale(var(--tarot-kingdom-enemy-scale)); filter: brightness(2.4) sepia(1) saturate(4) hue-rotate(315deg); }
     48% { transform: translateX(7px) scale(var(--tarot-kingdom-enemy-scale)); }
     70% { transform: translateX(-4px) scale(var(--tarot-kingdom-enemy-scale)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #tarotKingdomRoot #tarotKingdomBattleStage.is-retreat .tarot-kingdom-battle-player.is-retreating .tarot-kingdom-battle-player-avatar {
+        animation: tarotKingdomPlayerRetreatReduced 1600ms ease-out both;
+    }
+}
+
+@keyframes tarotKingdomPlayerRetreatReduced {
+    0%, 70% {
+        opacity: 1;
+        transform: scaleX(-1);
+    }
+    100% {
+        opacity: 0;
+        transform: scaleX(-1);
+    }
 }
 
 @keyframes tarotKingdomBattlePlayerHit {

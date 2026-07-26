@@ -28,6 +28,7 @@ import {
 // ========================================
 
 const RIDE_SYSTEM_ENABLED = false;
+const LEGACY_BOARDING_BATTLE_ENABLED = false;
 
 const GAME_CONFIG = {
     GRID_SIZE: 32,
@@ -2620,6 +2621,7 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     createBoardingButton() {
+        if (!LEGACY_BOARDING_BATTLE_ENABLED) return;
         const camera = this.cameras.main;
         const width = 240;
         const height = 44;
@@ -4925,6 +4927,7 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     showBoardingButton(targetPlayFabId, displayName = '') {
+        if (!LEGACY_BOARDING_BATTLE_ENABLED) return;
         this.showShipCommandMenu(targetPlayFabId, displayName);
     }
 
@@ -4933,6 +4936,10 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     showShipCommandMenu(targetPlayFabId, displayName = '') {
+        if (!LEGACY_BOARDING_BATTLE_ENABLED) {
+            this.hideShipCommandMenu();
+            return;
+        }
         const panel = document.getElementById('islandCommandPanel');
         const title = document.getElementById('islandCommandTitle');
         const actionBtn = document.getElementById('islandCommandAction');
@@ -7457,22 +7464,9 @@ export default class WorldMapScene extends Phaser.Scene {
                 onClick = () => this.showMessage('国庫襲撃は王ページから実行します。');
                 attackVisible = false;
             } else if (hasEnemyCapture && leader) {
-                buttonText = '防衛隊で迎撃';
-                buttonClass = 'danger';
-                onClick = async () => {
-                    this.hideIslandCommandMenu();
-                    if (typeof window !== 'undefined' && typeof window.startCapitalCaptureBattleWithOpponent === 'function') {
-                        const started = await window.startCapitalCaptureBattleWithOpponent(
-                            leader.playFabId,
-                            islandData.id,
-                            islandData.mapId || this.mapId
-                        );
-                        if (!started) {
-                            await this.fetchCapitalWarState(islandData, true);
-                            await this.showIslandCommandMenu(islandData);
-                        }
-                    }
-                };
+                buttonText = '防衛戦休止中';
+                buttonClass = 'disabled';
+                onClick = () => this.showMessage('白兵戦は現在休止中です。');
             } else if (isCaptureMember) {
                 if (isCaptureLeader && captureRemainingMs <= 0) {
                     buttonText = '首都制圧を完了';
@@ -7706,27 +7700,9 @@ export default class WorldMapScene extends Phaser.Scene {
                     await this.damageIslandBuildingViaApi(islandData);
                 };
             } else if (hasEnemyCapture && captureLeader) {
-                buttonText = '防衛隊に攻め込む';
-                buttonClass = 'danger';
-                onClick = async () => {
-                    this.hideIslandCommandMenu();
-                    if (typeof window !== 'undefined' && typeof window.startIslandCaptureBattleWithOpponent === 'function') {
-                        const started = await window.startIslandCaptureBattleWithOpponent(
-                            captureLeader.playFabId,
-                            islandData.id,
-                            islandData.mapId || this.mapId
-                        );
-                        if (!started) {
-                            const latestIsland = await this.reloadIslandFromFirestore(islandData.id);
-                            if (latestIsland) {
-                                this.collidingIsland = latestIsland;
-                                this.showIslandCommandMenu(latestIsland);
-                            }
-                        }
-                    } else {
-                        this.showMessage('戦闘システムを読み込めません。');
-                    }
-                };
+                buttonText = '防衛戦休止中';
+                buttonClass = 'disabled';
+                onClick = () => this.showMessage('白兵戦は現在休止中です。');
             } else if (hasEnemyCapture) {
                 buttonText = '敵が防衛中';
                 buttonClass = 'disabled';

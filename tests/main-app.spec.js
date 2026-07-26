@@ -1453,6 +1453,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(panel).toHaveClass(/is-popup/);
   await expect(panel.locator('.ship-exploration-head h3')).toHaveText('探索');
   await expect(panel.locator('.ship-exploration-meta').first()).toContainText('テスト船');
+  await expect(panel).not.toContainText('敵船を探す');
   await expect(panel.locator('.ship-exploration-list')).toHaveCount(0);
   await expect(panel.locator('.ship-exploration-list-row')).toHaveCount(0);
   const stageCards = panel.locator('.ship-exploration-stage');
@@ -2002,82 +2003,13 @@ test('exploration rescue signal creates a dedicated online lobby before combat',
   await expectNoPageErrors(errors);
 });
 
-test('home plunder route opens the naval battle phase and boarding starts the melee battle', async ({ page }) => {
+test('legacy naval and melee battle entries are retired from the app', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
-  let explorationStatusRequests = 0;
-  const qrTargetId = 'ABCDEF1234567890';
-  const decoyTargetId = '1111111111111111';
-  await page.route('**/api/get-troy-status', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({
-        nation: 'fire',
-        isOpen: true,
-        members: [
-          { playFabId: 'PF_PLAYWRIGHT', displayName: 'Playwright Tester' },
-          { playFabId: qrTargetId, displayName: 'QR Target' },
-          { playFabId: decoyTargetId, displayName: 'Decoy Player' }
-        ]
-      })
-    });
-  });
-  await page.route('**/api/get-player-public-profile', async (route) => {
-    const body = route.request().postDataJSON?.() || {};
-    const targetId = body.targetPlayFabId || qrTargetId;
-    const isQrTarget = targetId === qrTargetId;
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({
-        profile: {
-          playFabId: targetId,
-          displayName: isQrTarget ? 'QR Target' : 'Playwright Tester',
-          nation: 'fire',
-          level: isQrTarget ? 7 : 5,
-          stats: isQrTarget ? { str: 7, def: 6, agi: 5, int: 4 } : { str: 5, def: 5, agi: 6, int: 3 },
-          playerShip: isQrTarget
-            ? { form: 'fighter', shipClass: 'fighter', name: '赤い略奪船', level: 3, cargoResources: { RS: 4 }, majorArcanaItemIds: ['arcana-16'] }
-            : { form: 'explorer', shipClass: 'explorer', name: 'テスト快速船', level: 2, majorArcanaItemIds: ['arcana-7'] },
-          equipment: {},
-          itemSource: {},
-          equipmentList: [],
-          avatarBase: { Race: 'human', SkinColorIndex: 1, FacialHairStyleIndex: 0 }
-        }
-      })
-    });
-  });
-  await page.route('**/api/exploration/status', async (route) => {
-    explorationStatusRequests += 1;
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({ ship: null, active: null, reports: [], destinations: [] })
-    });
-  });
-
   await bootstrapMainApp(page, { mockFirebaseDatabase: true });
-  await page.evaluate(() => {
-    window.__homePlunderBattleTarget = null;
-    window.__homePlunderBattleContext = null;
-    window.__homePlunderScanCount = 0;
-    window.__tkUid = 'UID_PLAYWRIGHT';
-    window.liff.isInClient = () => true;
-    window.liff.scanCodeV2 = async () => {
-      window.__homePlunderScanCount += 1;
-      return { value: 'ABCDEF1234567890' };
-    };
-    window.startBattleWithOpponent = async (opponentId, battleContext = null) => {
-      window.__homePlunderBattleTarget = opponentId;
-      window.__homePlunderBattleContext = battleContext;
-      return { battleId: 'BATTLE_FROM_HOME_PLUNDER' };
-    };
-  });
 
   await expect(page.locator('#btnHomeExploration')).toHaveText('探索に出る');
-  await expect(page.locator('#btnHomePlunder')).toHaveText('略奪に出る');
-  await expect(page.locator('#btnHomePlunder')).toHaveAttribute('data-plunder-paused', 'false');
+  await expect(page.locator('#btnHomePlunder')).toHaveCount(0);
   const homeActionLayout = await page.locator('.home-exp-actions').evaluate((actions) => {
     const rect = actions.getBoundingClientRect();
     return {
@@ -2091,60 +2023,11 @@ test('home plunder route opens the naval battle phase and boarding starts the me
   expect(homeActionLayout.left).toBeGreaterThanOrEqual(0);
   expect(homeActionLayout.right).toBeLessThanOrEqual(homeActionLayout.viewportWidth);
   expect(homeActionLayout.pageScrollWidth).toBeLessThanOrEqual(homeActionLayout.viewportWidth);
-  expect(homeActionLayout.visibleButtons).toBe(2);
-  await page.locator('#btnHomeExploration').click();
-  await expect(page.locator('#shipExplorationPanel')).toBeVisible();
-  await page.locator('[data-home-exploration-close]').click();
-  const explorationStatusRequestsBeforePlunder = explorationStatusRequests;
-  await page.locator('#btnHomePlunder').click();
-  await expect(page.locator('#shipExplorationPanel')).toBeHidden();
-  await expect.poll(async () => page.evaluate(() => window.__homePlunderScanCount)).toBe(1);
-  await expect(page.locator('#playerProfileModal')).not.toBeVisible();
-
-  // 略奪ボタンからQRを読み取り、白兵戦を直接開始せずに海戦フェーズを開く
-  await expect(page.locator('#navalBattleModal')).toBeVisible();
-  await expect(page.locator('#navalBattleModal')).toContainText('QR Targetの船');
-  await expect(page.locator('#navalBattleModal')).toContainText('赤い略奪船');
-  await expect(page.locator('#navalBattleModal')).toContainText('戦車の破浪衝角');
-  await expect(page.locator('#navalBattleModal')).toContainText('塔の雷撃マスト');
-  await expect(page.locator('#navalBattleModal')).toContainText('戦利品上限');
-  await expect(page.locator('#navalPvpStatus')).toContainText('相手');
-  await expect(page.locator('#navalCommands .naval-command-btn')).toHaveCount(3);
-  expect(await page.evaluate(() => window.__homePlunderBattleTarget)).toBe(null);
-  const pvpRoom = await page.evaluate(() => {
-    const store = window.__pwFirebaseDbStore;
-    const entries = Array.from(store.values.entries()).filter(([key]) => key.startsWith('navalPlunderRooms/'));
-    return entries[0]?.[1] || null;
-  });
-  expect(pvpRoom).toMatchObject({
-    attackerId: 'PF_PLAYWRIGHT',
-    defenderId: qrTargetId,
-    players: {
-      defender: {
-        playFabId: qrTargetId,
-        displayName: 'QR Target',
-        shipProfile: { form: 'fighter', shipClass: 'fighter', name: '赤い略奪船', level: 3 }
-      }
-    }
-  });
-  await page.locator('[data-naval-command="bowCannon"]').click();
-  await expect.poll(async () => page.evaluate(() => {
-    const store = window.__pwFirebaseDbStore;
-    const entries = Array.from(store.values.entries()).filter(([key]) => key.startsWith('navalPlunderRooms/'));
-    return entries[0]?.[1]?.pendingCommands?.attacker?.commandId || '';
-  })).toBe('bowCannon');
-
-  // 接舷成立時のみ白兵戦（startBattleWithOpponent）へ移行する
-  await page.evaluate(() => window.__navalBattleDebug.forceBoarding());
-  await expect(page.locator('#navalBattleModal')).toBeHidden();
-  await expect.poll(async () => page.evaluate(() => window.__homePlunderBattleTarget)).toBe(qrTargetId);
-  await expect.poll(async () => page.evaluate(() => window.__homePlunderBattleContext)).toMatchObject({
-    source: 'navalPlunder',
-    navalOutcome: 'boarding',
-    boardedPlayerId: qrTargetId,
-    boardingPlayerId: 'PF_PLAYWRIGHT'
-  });
-  expect(explorationStatusRequests).toBe(explorationStatusRequestsBeforePlunder);
+  expect(homeActionLayout.visibleButtons).toBe(1);
+  await expect(page.locator('.qr-battle-card')).toHaveCount(0);
+  await expect(page.locator('#btnScanBattle')).toHaveCount(0);
+  await expect(page.locator('#navalBattleModal')).not.toBeVisible();
+  await expect(page.locator('#battleModal')).not.toBeVisible();
 
   await expectNoPageErrors(errors);
 });

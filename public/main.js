@@ -9,7 +9,7 @@ import { showTab, showConfirmationModal, scheduleWorldMapPrefetch } from 'ui';
 import * as Player from 'player';
 import * as Inventory from 'inventory';
 import * as Guild from './js/guild.js';
-import * as Ship from './js/ship.js?v=20260724k';
+import * as Ship from './js/ship.js?v=20260726-legacy-battle-off-1';
 import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js';
 import { initMapChat, initTroyChat } from './js/mapChat.js';
@@ -756,7 +756,7 @@ let homeCoinConvertBound = false;
 let homeQrScanBound = false;
 let homeExplorationPopupObserver = null;
 let homePlunderQrTarget = null;
-const HOME_PLUNDER_ENTRY_ENABLED = true;
+const HOME_PLUNDER_ENTRY_ENABLED = false;
 
 function revealAppWrapper() {
     document.body?.classList.remove('app-booting');
@@ -911,12 +911,12 @@ function syncHomeExplorationButtonLabel(status = window.__troyStatus) {
         explorationButton.setAttribute('aria-label', '探索に出る');
     }
     if (plunderButton) {
-        const label = HOME_PLUNDER_ENTRY_ENABLED ? '略奪に出る' : '略奪準備中';
-        plunderButton.hidden = !isInTroy;
-        plunderButton.disabled = isInTroy && !HOME_PLUNDER_ENTRY_ENABLED;
+        const label = '略奪休止中';
+        plunderButton.hidden = true;
+        plunderButton.disabled = true;
         plunderButton.textContent = label;
         plunderButton.setAttribute('aria-label', label);
-        plunderButton.dataset.plunderPaused = isInTroy && !HOME_PLUNDER_ENTRY_ENABLED ? 'true' : 'false';
+        plunderButton.dataset.plunderPaused = 'true';
     }
 }
 
@@ -1100,6 +1100,10 @@ async function loadHomePlunderPublicProfiles(opponent) {
 }
 
 async function startHomePlunderBattle(options = {}) {
+    if (!HOME_PLUNDER_ENTRY_ENABLED) {
+        showRpgMessage('船バトルと白兵戦は現在休止中です。');
+        return false;
+    }
     const button = document.getElementById('btnHomePlunder');
     if (!isCurrentPlayerInTroyStatus(window.__troyStatus)) {
         showRpgMessage('略奪はTROY滞在中に利用できます。');
@@ -2142,16 +2146,15 @@ async function startHomeQrScan(options = {}) {
         const targetPlayFabId = normalizePlayFabIdFromQrValue(qrValue);
         if (targetPlayFabId) {
             if (normalizeHomeTroyPlayFabId(targetPlayFabId) === normalizeHomeTroyPlayFabId(myPlayFabId)) {
-                showRpgMessage('自分のQRは略奪対象にできません。', 2600);
+                showRpgMessage('自分のプロフィールです。', 2600);
                 return;
             }
-            const target = setHomePlunderQrTarget(targetPlayFabId);
             if (isCurrentPlayerInTroyStatus(window.__troyStatus, myPlayFabId) && HOME_PLUNDER_ENTRY_ENABLED) {
+                const target = setHomePlunderQrTarget(targetPlayFabId);
                 showRpgMessage(`${target.displayName || target.playFabId}を捕捉しました。海戦を開始します。`, 2600);
                 await startHomePlunderBattle({ useExistingQrTarget: true });
                 return;
             }
-            showRpgMessage(`${target.displayName || target.playFabId}を略奪対象にしました。`, 2600);
             await openPlayerProfile(targetPlayFabId);
             return;
         }

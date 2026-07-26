@@ -40,6 +40,16 @@ const TAROT_KINGDOM_WEAPON_PRIORITY = [
     'axe_big', 'sword_big', 'gun_big', 'bow', 'wand', 'staff', 'dagger',
     'sword', 'axe', 'blunt', 'polearm', 'gun', 'shield', 'unarmed'
 ];
+const LEGACY_NAVAL_MELEE_BATTLES_ENABLED = false;
+
+function rejectRetiredLegacyBattle(res) {
+    if (LEGACY_NAVAL_MELEE_BATTLES_ENABLED) return false;
+    res.status(410).json({
+        error: '船バトルと白兵戦は現在休止中です。',
+        code: 'LEGACY_BATTLE_RETIRED'
+    });
+    return true;
+}
 
 function getPlayerRankLabelByLevel(level) {
     const value = Math.max(1, Math.floor(Number(level) || 1));
@@ -1962,6 +1972,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
     // API 11: バトル実行 (自動戦闘・即時決着)
     // ----------------------------------------------------
     app.post('/api/start-battle', async (req, res) => {
+        if (rejectRetiredLegacyBattle(res)) return;
         let { attackerId, defenderId, battleContext } = req.body;
         if (!attackerId || !defenderId) return res.status(400).json({ error: 'プレイヤーIDが不足しています。' });
         attackerId = await requireAuthedPlayFabId(req, res, attackerId);
@@ -2011,6 +2022,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
     });
 
     app.post('/api/exploration/npc-battle', async (req, res) => {
+        if (rejectRetiredLegacyBattle(res)) return;
         let { playFabId, requestId, battleContext, navalOpponentId, opponentShipProfile } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
         playFabId = await requireAuthedPlayFabId(req, res, playFabId);
@@ -2068,6 +2080,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
     });
 
     app.post('/api/start-island-capture-battle', async (req, res) => {
+        if (rejectRetiredLegacyBattle(res)) return;
         let { attackerId, opponentId, islandId, mapId } = req.body || {};
         if (!attackerId || !islandId || !mapId) {
             return res.status(400).json({ error: 'attackerId, islandId, mapId are required' });
@@ -2157,6 +2170,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
     });
 
     app.post('/api/start-capital-capture-battle', async (req, res) => {
+        if (rejectRetiredLegacyBattle(res)) return;
         let { attackerId, opponentId, islandId, mapId } = req.body || {};
         if (!attackerId || !islandId || !mapId) {
             return res.status(400).json({ error: 'attackerId, islandId, mapId are required' });

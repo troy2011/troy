@@ -34,6 +34,9 @@ test('battle route initializer wires shared runBattle dependencies', async () =>
       {}
     );
     expect(registeredPosts).toContain('/api/exploration/npc-battle');
+    expect(registeredPosts).toContain('/api/start-battle');
+    expect(registeredPosts).toContain('/api/start-island-capture-battle');
+    expect(registeredPosts).toContain('/api/start-capital-capture-battle');
 
     Math.random = () => 0.99;
     const result = await battleRoutes.runBattle(
@@ -178,7 +181,7 @@ test('player full profile converts shield defense into parry stats', async () =>
   }
 });
 
-test('exploration npc battle persists a numeric speed stat for naval NPCs', async () => {
+test('retired exploration npc battle rejects new legacy battle starts', async () => {
   const adminPath = require.resolve('firebase-admin');
   const playfabPath = require.resolve('../server/playfab');
   const battleRoutesPath = require.resolve('../server/routes/battleRoutes');
@@ -368,12 +371,11 @@ test('exploration npc battle persists a numeric speed stat for naval NPCs', asyn
       }
     );
 
-    expect(statusCode).toBe(200);
-    expect(body?.battleId).toBeTruthy();
-    const battlePath = Object.keys(writtenStates).find((path) => path.startsWith('battles/'));
-    const npcPlayer = writtenStates[battlePath].players.npc_exploration_naval_speed;
-    expect(Number.isFinite(npcPlayer.stats.すばやさ)).toBe(true);
-    expect(npcPlayer.stats.すばやさ).toBeGreaterThan(20);
+    expect(statusCode).toBe(410);
+    expect(body).toMatchObject({
+      code: 'LEGACY_BATTLE_RETIRED'
+    });
+    expect(Object.keys(writtenStates).filter((path) => path.startsWith('battles/'))).toHaveLength(0);
   } finally {
     Math.random = originalRandom;
     delete require.cache[battleRoutesPath];

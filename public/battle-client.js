@@ -35,6 +35,7 @@ let myInventory = [];
 let battleDependencies = null; // ★ v189: 依存関係をモジュール全体で保持する変数
 let db = null; // Firebase Realtime Database instance
 let dbRef, dbOnValue, dbSet, dbOnDisconnect; // Firebase v9 functions
+const LEGACY_MELEE_BATTLE_ENTRY_ENABLED = false;
 
 /**
  * main.jsから呼び出される初期化関数
@@ -55,14 +56,22 @@ function initializeBattleSystem(deps) {
         dbOnDisconnect = database.onDisconnect;
 
         // イベントリスナーのセットアップ
-        document.getElementById('btnScanBattle').addEventListener('click', startBattleScan);
-        initializeInvitationListener(); // Firebaseモジュール読み込み後に実行
+        if (LEGACY_MELEE_BATTLE_ENTRY_ENABLED) {
+            document.getElementById('btnScanBattle')?.addEventListener('click', startBattleScan);
+            initializeInvitationListener(); // Firebaseモジュール読み込み後に実行
+        }
     }).catch(e => console.error("Failed to load Firebase Database module in battle-client.js", e));
 }
 
 // --- バトル開始フロー ---
 
 async function startBattleScan() {
+    if (!LEGACY_MELEE_BATTLE_ENTRY_ENABLED) {
+        if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('白兵戦は現在休止中です。');
+        }
+        return false;
+    }
     const battleResultEl = document.getElementById('battleResult'); // 'deps' is not defined here, so we can't use it yet. This function is called by an event listener.
     if (!liff.isInClient()) {
         battleResultEl.innerText = 'QRスキャンはLINEアプリ内でのみ利用できます。';

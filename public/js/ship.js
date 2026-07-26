@@ -37,6 +37,8 @@ import * as Inventory from './inventory.js';
 import { buildAvatarLayerMarkup, renderAvatar, triggerAvatarAttackMotion } from './avatar.js';
 import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260724h';
 
+const LEGACY_NAVAL_MELEE_ENTRY_ENABLED = false;
+
 class LRUCache {
     constructor(maxSize = 100) {
         this.cache = new Map();
@@ -2042,6 +2044,7 @@ function renderExplorationPaymentActions(destination, {
 }
 
 function renderExplorationNpcBattleEntry(ship) {
+    if (!LEGACY_NAVAL_MELEE_ENTRY_ENABLED) return '';
     const shipName = ship?.shipName || ship?.shipId || '使用中の船';
     return `
         <div class="ship-exploration-npc-battle" data-exploration-npc-entry>
@@ -2160,6 +2163,10 @@ function buildExplorationNpcMeleeContext(requestId, battleContext = {}) {
 }
 
 async function startExplorationNpcBattleFromPanel(playFabId, button, ship) {
+    if (!LEGACY_NAVAL_MELEE_ENTRY_ENABLED) {
+        showRpgMessage('船バトルと白兵戦は現在休止中です。');
+        return false;
+    }
     if (!playFabId || !button) return;
     if (typeof window.startNavalBattle !== 'function') {
         showRpgMessage('NPC海戦の準備ができていません。少し待ってから試してください。');

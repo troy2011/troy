@@ -54,6 +54,7 @@ import {
   setCombatAvatarKo,
   setCombatAvatarVictory
 } from './avatarCombat.js?v=20260724-death-sheet-1';
+import { startAvatarBodyMotion } from './avatar.js';
 
 const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 const TAROT_TILE_W = 48;
@@ -3377,6 +3378,7 @@ function createKingdomBattleState(
     active: !!active,
     outcome: null,
     resultReason: null,
+    retreatingPlayerIndex: null,
     roundIndex: safeRoundIndex,
     eventSeq: 0,
     events: [],
@@ -3459,6 +3461,9 @@ function normalizeKingdomBattleState(
     active: outcome ? false : (incoming.active == null ? !!active : !!incoming.active),
     outcome,
     resultReason: outcome ? String(incoming.resultReason || '') : null,
+    retreatingPlayerIndex: outcome === 'defeat' && Number.isInteger(Number(incoming.retreatingPlayerIndex))
+      ? Math.max(0, Math.min(safePlayerCount - 1, Number(incoming.retreatingPlayerIndex)))
+      : null,
     roundIndex: Math.max(0, Math.floor(Number(incoming.roundIndex) || Number(roundIndex) || 0)),
     eventSeq: Math.max(0, Math.floor(Number(incoming.eventSeq) || 0)),
     events,
@@ -4620,16 +4625,23 @@ function applyKingdomEnemyAreaAttack() {
 }
 
 function isKingdomPartyDefeated(state = s) {
+  const consciousCount = Array.isArray(state?.players)
+    ? state.players.reduce((count, player) => count + (Math.max(0, Number(player?.hp) || 0) > 0 ? 1 : 0), 0)
+    : 0;
   return !!(
     isKingdomBattleActive(state)
     && Array.isArray(state?.players)
     && state.players.length > 0
-    && state.players.every((_, index) => !isKingdomBattlePlayerConscious(index, state))
+    && consciousCount <= 1
   );
 }
 
 function finishKingdomBattleDefeat() {
   if (!s?.battle || s.battle.outcome) return false;
+  const consciousIndexes = s.players
+    .map((player, playerIndex) => (Math.max(0, Number(player?.hp) || 0) > 0 ? playerIndex : null))
+    .filter((playerIndex) => playerIndex != null);
+  const retreatingPlayerIndex = consciousIndexes.length === 1 ? consciousIndexes[0] : null;
   clearNpcTimer();
   clearCallCinematicTimer();
   clearPendingTurnAdvanceAfterTrick();
@@ -4637,8 +4649,12 @@ function finishKingdomBattleDefeat() {
   s.transition = null;
   s.battle.active = false;
   s.battle.outcome = 'defeat';
-  s.battle.resultReason = 'party-defeated';
-  pushKingdomBattleEvent('defeat', { label: 'パーティ全滅' });
+  s.battle.resultReason = retreatingPlayerIndex == null ? 'party-defeated' : 'party-retreated';
+  s.battle.retreatingPlayerIndex = retreatingPlayerIndex;
+  pushKingdomBattleEvent('defeat', {
+    retreatingPlayerIndex,
+    label: retreatingPlayerIndex == null ? 'パーティ全滅' : `${pName(retreatingPlayerIndex)}が撤退`
+  });
   s.roundActive = false;
   s.phase = 'done';
   s.awaitRoundConfirm = false;
@@ -4647,7 +4663,9 @@ function finishKingdomBattleDefeat() {
   s.selected.clear();
   s.roundSettlement = null;
   s.champion = null;
-  s.message = '全員が戦闘不能になりました。モンスター戦敗北。';
+  s.message = retreatingPlayerIndex == null
+    ? '全員が戦闘不能になりました。モンスター戦敗北。'
+    : `${pName(retreatingPlayerIndex)}は一人になり、戦場から撤退しました。`;
   log(s.message);
   return true;
 }
@@ -11224,6 +11242,7 @@ function getKingdomBattleEventDuration(event) {
   if (type === 'enemy-area') return 720;
   if (type === 'enemy-single' || type === 'enemy-self') return 540;
   if (type === 'enemy-status') return 420;
+  if (type === 'defeat' && Number.isInteger(Number(event?.retreatingPlayerIndex))) return 1600;
   if (type === 'victory' || type === 'defeat') return 1200;
   return 0;
 }
@@ -11430,6 +11449,12 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
   const victoryEvent = (Array.isArray(s?.battle?.events) ? s.battle.events : [])
     .slice().reverse().find((event) => event?.type === 'victory');
   const winnerIndex = Number(victoryEvent?.actorIndex);
+  const retreatingPlayerIndex = s?.battle?.resultReason === 'party-retreated'
+    && Number.isInteger(Number(s?.battle?.retreatingPlayerIndex))
+    ? Number(s.battle.retreatingPlayerIndex)
+    : null;
+  const retreatEventVisible = retreatingPlayerIndex != null
+    && String(activeEvent?.type || '') === 'defeat';
   s.players.forEach((player, playerIndex) => {
     const row = ensureKingdomBattlePlayerRow(playerIndex);
     if (!row) return;
@@ -11448,6 +11473,8 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
     row.classList.toggle('is-hit', targetIndexes.includes(playerIndex));
     row.classList.toggle('is-battle-charging', eventIsActive && Number(activeEvent?.actorIndex) === playerIndex && phase === 'charge');
     row.classList.toggle('is-battle-hit-stop', eventIsActive && Number(activeEvent?.actorIndex) === playerIndex && phase === 'hit-stop');
+    const retreating = retreatEventVisible && retreatingPlayerIndex === playerIndex;
+    row.classList.toggle('is-retreating', retreating);
 
     const avatar = row.querySelector('.tarot-kingdom-battle-player-avatar');
     const isPet = player.isPet === true || character.source === 'pet';
@@ -11495,12 +11522,22 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
           resetState: true
         });
       }
-      setCombatAvatarKo(avatar, !conscious, { side: 'player' });
-      setCombatAvatarVictory(
-        avatar,
-        !!(s.battle?.outcome === 'victory' && Number.isInteger(winnerIndex) && winnerIndex === playerIndex),
-        { side: 'player' }
-      );
+      if (retreating) {
+        setCombatAvatarKo(avatar, false, { side: 'player', resumeIdle: false });
+        setCombatAvatarVictory(avatar, false, { side: 'player' });
+        if (avatar && avatar.dataset.kingdomRetreatMotion !== eventKey) {
+          avatar.dataset.kingdomRetreatMotion = eventKey;
+          startAvatarBodyMotion(avatar, 'walk', { intervalMs: 110 });
+        }
+      } else {
+        if (avatar) delete avatar.dataset.kingdomRetreatMotion;
+        setCombatAvatarKo(avatar, !conscious, { side: 'player' });
+        setCombatAvatarVictory(
+          avatar,
+          !!(s.battle?.outcome === 'victory' && Number.isInteger(winnerIndex) && winnerIndex === playerIndex),
+          { side: 'player' }
+        );
+      }
     }
 
     const name = row.querySelector('.tarot-kingdom-battle-player-name');
@@ -11987,8 +12024,10 @@ function renderKingdomBattleStage() {
   const terminalDefeatIsSequencing = String(s?.transition?.kind || '') === 'terminalEnemyResponse';
   const defeatPresentationVisible = battle.outcome === 'defeat'
     && (!terminalDefeatIsSequencing || String(visualEvent?.type || '') === 'defeat');
+  const retreatPresentationVisible = defeatPresentationVisible && battle.resultReason === 'party-retreated';
   ui.battleStage.classList.toggle('is-victory', battle.outcome === 'victory');
   ui.battleStage.classList.toggle('is-defeat', defeatPresentationVisible);
+  ui.battleStage.classList.toggle('is-retreat', retreatPresentationVisible);
   ui.battleStage.classList.toggle('is-battle-charging', eventIsActive && timelinePhase === 'charge');
   ui.battleStage.classList.toggle('is-battle-hit-stop', eventIsActive && timelinePhase === 'hit-stop');
   ui.battleStage.classList.toggle('is-battle-damage', eventIsActive && timelinePhase === 'damage');
@@ -11997,12 +12036,16 @@ function renderKingdomBattleStage() {
   ui.battleStage.classList.toggle('is-enemy-finisher', enemyFinisherActive);
   if (defeatPresentationVisible && kingdomBattleTerminalFxEventKey !== eventKey) {
     kingdomBattleTerminalFxEventKey = eventKey;
-    triggerKingdomActionFx(0, 'BATTLE DEFEAT', {
+    triggerKingdomActionFx(
+      retreatPresentationVisible ? Number(battle.retreatingPlayerIndex) : 0,
+      retreatPresentationVisible ? 'RETREAT' : 'BATTLE DEFEAT',
+      {
       overlay: 'roundend',
       durationMs: 1300,
       cutin: true,
       cutinClass: 'is-showdown-lose'
-    });
+      }
+    );
   }
   ui.battleEnemy?.classList.toggle('is-boss', enemyIsBoss);
   if (ui.battleEnemyEyebrow) ui.battleEnemyEyebrow.textContent = enemyIsBoss ? 'BOSS' : 'MONSTER';
