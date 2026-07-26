@@ -2363,15 +2363,8 @@ function initializeExplorationRoutes(app, deps) {
 
     async function buildExplorationStatus(playFabId) {
         const ship = await resolveActiveShip(playFabId, deps);
-        const [activeSnap, reportsSnap, progress, supplyState] = await Promise.all([
+        const [activeSnap, progress, supplyState] = await Promise.all([
             firestore.collection(EXPLORATION_COLLECTION).doc(playFabId).get(),
-            firestore
-                .collection(EXPLORATION_COLLECTION)
-                .doc(playFabId)
-                .collection('reports')
-                .orderBy('completedAtMs', 'desc')
-                .limit(5)
-                .get(),
             readTarotKingdomExplorationProgress(playFabId, { promisifyPlayFab, PlayFabServer }),
             buildExplorationPaymentState(playFabId, {
                 getEntityKeyForPlayFabId,
@@ -2390,8 +2383,7 @@ function initializeExplorationRoutes(app, deps) {
             destinations: stages,
             allDestinations: stages,
             explorationSupplies: supplyState.consumables,
-            active: activeSnap.exists ? explorationDocToPayload(activeSnap.data()) : null,
-            reports: reportsSnap.docs.map(reportDocToPayload)
+            active: activeSnap.exists ? explorationDocToPayload(activeSnap.data()) : null
         };
     }
 
@@ -2820,7 +2812,7 @@ function initializeExplorationRoutes(app, deps) {
                         ) {
                             return;
                         }
-                        if (['active', 'claiming'].includes(status)) {
+                        if (['active', 'claiming', 'retreating'].includes(status)) {
                             conflicted = true;
                             return;
                         }
@@ -2976,7 +2968,7 @@ function initializeExplorationRoutes(app, deps) {
                 if (snap.exists) {
                     const data = snap.data() || {};
                     const status = String(data.status || '');
-                    if (status === 'active' || status === 'claiming') {
+                    if (status === 'active' || status === 'claiming' || status === 'retreating') {
                         conflicted = true;
                         return;
                     }
@@ -3178,6 +3170,114 @@ function initializeExplorationRoutes(app, deps) {
         } catch (error) {
             console.error('[exploration/stage-join] failed:', error?.errorMessage || error?.message || error);
             return res.status(500).json({ error: '救難信号へ参加できませんでした。' });
+        }
+    });
+
+    app.post('/api/exploration/retreat', async (req, res) => {
+        let { playFabId, explorationId } = req.body || {};
+        playFabId = String(playFabId || '').trim();
+        explorationId = String(explorationId || '').trim();
+        if (!playFabId || !explorationId) {
+            return res.status(400).json({ error: 'playFabId and explorationId are required' });
+        }
+        playFabId = await requireAuthed(req, res, playFabId);
+        if (!playFabId) return;
+
+        const activeRef = firestore.collection(EXPLORATION_COLLECTION).doc(playFabId);
+        try {
+            let retreatData = null;
+            let retreatError = null;
+            await firestore.runTransaction(async (tx) => {
+                const snap = await tx.get(activeRef);
+                if (!snap.exists) return;
+                const data = snap.data() || {};
+                if (String(data.id || '') !== explorationId) {
+                    retreatError = { code: 409, message: '別の探索が進行中です。' };
+                    return;
+                }
+                const status = String(data.status || '');
+                const effectiveStatus = resolveEffectiveStatus(data);
+                if (effectiveStatus !== 'active' && status !== 'retreating') {
+                    retreatError = { code: 409, message: 'この探索からは撤退できません。' };
+                    return;
+                }
+                if (effectiveStatus === 'active') {
+                    const participants = Array.from(new Set(
+                        (Array.isArray(data.stageParticipants) ? data.stageParticipants : [])
+                            .map((entry) => String(entry || '').trim())
+                            .filter(Boolean)
+                    ));
+                    if (participants.some((participantId) => participantId !== playFabId)) {
+                        retreatError = { code: 409, message: '救難信号へ参加者がいるため撤退できません。' };
+                        return;
+                    }
+                    tx.update(activeRef, {
+                        status: 'retreating',
+                        retreatedAtMs: Date.now(),
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                retreatData = data;
+            });
+            if (retreatError) return res.status(retreatError.code).json({ error: retreatError.message });
+            if (!retreatData) {
+                return res.json({
+                    ...(await buildExplorationStatus(playFabId)),
+                    retreated: true,
+                    replayed: true,
+                    refundedSupplies: [],
+                    refundedGold: 0
+                });
+            }
+
+            const refundableSupplies = (Array.isArray(retreatData.consumedConsumables)
+                ? retreatData.consumedConsumables
+                : [])
+                .map((item) => ({
+                    itemId: String(item?.itemId || '').trim(),
+                    quantity: Math.max(0, Math.min(20, Math.floor(Number(item?.quantity) || 0)))
+                }))
+                .filter((item) => item.itemId && item.quantity > 0);
+            for (let index = 0; index < refundableSupplies.length; index += 1) {
+                const item = refundableSupplies[index];
+                await addEconomyItem(playFabId, item.itemId, item.quantity, {
+                    idempotencyId: `exploration-retreat-${explorationId}-supply-${index}`
+                });
+            }
+
+            const refundableGold = String(retreatData.paymentMethod || '') === 'gold'
+                ? Math.max(0, Math.floor(Number(retreatData.chargedCost) || 0))
+                : 0;
+            if (refundableGold > 0) {
+                await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, refundableGold, {
+                    idempotencyId: `exploration-retreat-${explorationId}-gold`
+                });
+            }
+
+            await firestore.runTransaction(async (tx) => {
+                const snap = await tx.get(activeRef);
+                if (!snap.exists) return;
+                const data = snap.data() || {};
+                if (
+                    String(data.id || '') === explorationId
+                    && String(data.status || '') === 'retreating'
+                ) {
+                    tx.delete(activeRef);
+                }
+            });
+            return res.json({
+                ...(await buildExplorationStatus(playFabId)),
+                retreated: true,
+                replayed: false,
+                refundedSupplies: refundableSupplies,
+                refundedGold: refundableGold
+            });
+        } catch (error) {
+            console.error('[exploration/retreat] failed:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({
+                error: '探索から撤退できませんでした。',
+                details: error?.errorMessage || error?.message || String(error)
+            });
         }
     });
 
@@ -3626,7 +3726,6 @@ function initializeExplorationRoutes(app, deps) {
                 completedAtMs: now,
                 createdAt: admin.firestore.FieldValue.serverTimestamp()
             };
-            await activeRef.collection('reports').doc(report.id).set(report);
             await activeRef.delete();
             res.json({
                 ...(await buildExplorationStatus(playFabId)),

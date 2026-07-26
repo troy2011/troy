@@ -771,13 +771,28 @@ button.home-player-ship-name {
     font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
     font-size: 88px;
     line-height: 1;
-    opacity: 0.58;
+    opacity: 1;
     transform: none;
     text-shadow: 0 16px 18px rgba(0, 0, 0, 0.38);
-    transition: opacity 260ms ease;
+    filter: brightness(0.68) saturate(0.74) blur(1.4px);
+    transition: filter 320ms ease;
+}
+
+.exploration-sequence-island::before {
+    content: "";
+    position: absolute;
+    inset: -18px -24px -12px;
+    z-index: 1;
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse at 52% 58%, rgba(226, 232, 240, 0.58), rgba(148, 163, 184, 0.24) 46%, transparent 74%);
+    filter: blur(8px);
+    opacity: 0.72;
 }
 
 .exploration-sequence-island.has-image img {
+    position: relative;
+    z-index: 2;
     display: block;
     max-width: 100%;
     max-height: 100%;
@@ -994,55 +1009,31 @@ button.home-player-ship-name {
     font-weight: 800;
 }
 
-.exploration-sequence-overlay.is-sail .exploration-sequence-ship {
+.exploration-sequence-overlay.is-voyage .exploration-sequence-ship {
     animation:
-        explorationSequenceSail 900ms linear forwards,
+        explorationSequenceVoyage 2880ms cubic-bezier(0.22, 0.62, 0.28, 1) forwards,
         homePlayerShipFrameStep 300ms steps(3) infinite;
 }
 
-.exploration-sequence-overlay.is-sail .exploration-sequence-route {
-    opacity: 0.44;
-    transform: scaleX(0.42);
+.exploration-sequence-overlay.is-voyage .exploration-sequence-route {
+    animation: explorationSequenceRoute 2880ms linear forwards;
 }
 
-.exploration-sequence-overlay.is-up .exploration-sequence-ship {
-    animation:
-        explorationSequenceUp 760ms linear forwards,
-        homePlayerShipFrameStep 300ms steps(3) infinite;
+.exploration-sequence-overlay.is-voyage .exploration-sequence-arrival {
+    animation: explorationSequenceArrival 2880ms ease-out forwards;
 }
 
-.exploration-sequence-overlay.is-up .exploration-sequence-route {
-    opacity: 0.58;
-    transform: scaleX(0.68);
+.exploration-sequence-overlay.is-voyage .exploration-sequence-island {
+    animation: explorationSequenceIslandAtmosphere 2880ms ease-out forwards;
 }
 
-.exploration-sequence-overlay.is-up .exploration-sequence-island,
-.exploration-sequence-overlay.is-left .exploration-sequence-island,
-.exploration-sequence-overlay.is-battle .exploration-sequence-island,
-.exploration-sequence-overlay.is-treasure .exploration-sequence-island {
-    opacity: 1;
-    transform: none;
+.exploration-sequence-overlay.is-voyage .exploration-sequence-island::before {
+    animation: explorationSequenceIslandFog 2880ms ease-out forwards;
 }
 
-.exploration-sequence-overlay.is-up .exploration-sequence-arrival,
-.exploration-sequence-overlay.is-left .exploration-sequence-arrival,
-.exploration-sequence-overlay.is-battle .exploration-sequence-arrival,
-.exploration-sequence-overlay.is-treasure .exploration-sequence-arrival {
-    opacity: 0.34;
-    transform: scale(1);
-}
-
-.exploration-sequence-overlay.is-left .exploration-sequence-ship {
-    animation:
-        explorationSequenceLeft 700ms linear forwards,
-        homePlayerShipFrameStep 300ms steps(3) infinite;
-}
-
-.exploration-sequence-overlay.is-left .exploration-sequence-route,
-.exploration-sequence-overlay.is-battle .exploration-sequence-route,
-.exploration-sequence-overlay.is-treasure .exploration-sequence-route {
-    opacity: 0.8;
-    transform: scaleX(1);
+.exploration-sequence-overlay.is-arrival .exploration-sequence-island,
+.exploration-sequence-overlay.is-encounter-choice .exploration-sequence-island {
+    filter: brightness(0.96) saturate(0.98) blur(0);
 }
 
 .exploration-sequence-overlay.is-battle .exploration-sequence-horizon,
@@ -1370,13 +1361,20 @@ button.home-player-ship-name {
 }
 
 .exploration-sequence-overlay.is-encounter-choice .exploration-sequence-island {
-    opacity: 0.52;
+    opacity: 1;
+    filter: brightness(0.96) saturate(0.98) blur(0);
+}
+
+.exploration-sequence-overlay.is-encounter-choice .exploration-sequence-island::before {
+    opacity: 0.14;
+    filter: blur(5px);
 }
 
 .exploration-sequence-overlay.is-encounter-choice .exploration-sequence-ship {
-    left: 34px;
-    bottom: 54px;
-    opacity: 0.86;
+    left: 130px;
+    bottom: 64px;
+    opacity: 0.92;
+    transform: scale(1.8);
     animation: none !important;
 }
 
@@ -1420,19 +1418,37 @@ button.home-player-ship-name {
     50% { transform: translateY(-2px); filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.75)); }
 }
 
-@keyframes explorationSequenceSail {
-    from { left: 42px; bottom: 64px; transform: scale(1.8); }
-    to { left: 100px; bottom: 64px; transform: scale(1.8); }
+@keyframes explorationSequenceVoyage {
+    0% { left: 42px; bottom: 64px; transform: scale(1.8); }
+    34% { left: 100px; bottom: 64px; transform: scale(1.8); }
+    63% { left: 118px; bottom: 64px; transform: scale(1.8); }
+    88% { left: 130px; bottom: 64px; transform: scale(1.8); }
+    100% { left: 130px; bottom: 64px; transform: scale(1.8); }
 }
 
-@keyframes explorationSequenceUp {
-    from { left: 100px; bottom: 64px; transform: scale(1.8); }
-    to { left: 118px; bottom: 64px; transform: scale(1.8); }
+@keyframes explorationSequenceRoute {
+    0% { opacity: 0.2; transform: scaleX(0.18); }
+    34% { opacity: 0.44; transform: scaleX(0.42); }
+    63% { opacity: 0.58; transform: scaleX(0.68); }
+    88%, 100% { opacity: 0.8; transform: scaleX(1); }
 }
 
-@keyframes explorationSequenceLeft {
-    from { left: 118px; bottom: 64px; transform: scale(1.8); }
-    to { left: 130px; bottom: 64px; transform: scale(1.8); }
+@keyframes explorationSequenceArrival {
+    0%, 34% { opacity: 0; transform: scale(0.56); }
+    72% { opacity: 0.18; transform: scale(0.82); }
+    100% { opacity: 0.34; transform: scale(1); }
+}
+
+@keyframes explorationSequenceIslandAtmosphere {
+    0% { filter: brightness(0.68) saturate(0.74) blur(1.4px); }
+    48% { filter: brightness(0.78) saturate(0.82) blur(0.9px); }
+    100% { filter: brightness(0.96) saturate(0.98) blur(0); }
+}
+
+@keyframes explorationSequenceIslandFog {
+    0% { opacity: 0.72; filter: blur(8px); }
+    54% { opacity: 0.46; filter: blur(7px); }
+    100% { opacity: 0.14; filter: blur(5px); }
 }
 
 @keyframes explorationSequenceBattle {
@@ -16839,8 +16855,7 @@ body.home-exploration-popup-open #globalStatusBar {
 }
 
 .ship-exploration-empty,
-.ship-exploration-meta,
-.ship-exploration-report {
+.ship-exploration-meta {
     color: var(--text-sub);
     font-size: 12px;
     line-height: 1.5;
@@ -16988,14 +17003,12 @@ body.home-exploration-popup-open #globalStatusBar {
     }
 }
 
-.ship-exploration-destinations,
-.ship-exploration-reports {
+.ship-exploration-destinations {
     display: grid;
     gap: 10px;
 }
 
-.ship-exploration-destination,
-.ship-exploration-report {
+.ship-exploration-destination {
     padding: 12px;
     border: 1px solid transparent;
     border-image: url("./assets/ui/panels/panel-parchment.png") 34 fill / 12px / 0 stretch;
@@ -17054,9 +17067,7 @@ body.home-exploration-popup-open #globalStatusBar {
     min-width: 0;
 }
 
-.ship-exploration-destination .ship-exploration-meta,
-.ship-exploration-report,
-.ship-exploration-report-body {
+.ship-exploration-destination .ship-exploration-meta {
     color: #5d3b1c;
 }
 
@@ -17064,8 +17075,7 @@ body.home-exploration-popup-open #globalStatusBar {
     color: #cbd5e1;
 }
 
-.ship-exploration-destination strong,
-.ship-exploration-report strong {
+.ship-exploration-destination strong {
     display: block;
     margin-bottom: 4px;
     color: #2a1608;
@@ -17288,17 +17298,6 @@ body.home-exploration-popup-open #globalStatusBar {
 
 .ship-exploration-boss-chip.is-strong {
     border-color: rgba(239, 68, 68, 0.32);
-}
-
-.ship-exploration-report summary {
-    color: #2a1608;
-    font-weight: 800;
-    cursor: pointer;
-    list-style-position: inside;
-}
-
-.ship-exploration-report-body {
-    margin-top: 8px;
 }
 
 .ship-exploration-npc-battle {

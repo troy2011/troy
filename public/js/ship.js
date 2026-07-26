@@ -16,6 +16,7 @@ import {
     getExplorationStatus as requestExplorationStatus,
     startExploration as requestStartExploration,
     getExplorationEncounter as requestExplorationEncounter,
+    retreatExploration as requestRetreatExploration,
     claimExploration as requestClaimExploration,
     getTarotKingdomPetState as requestTarotKingdomPetState,
     chooseTarotKingdomPet as requestChooseTarotKingdomPet,
@@ -1780,16 +1781,6 @@ async function showTarotKingdomPetOffer(offer, playFabId) {
     }
 }
 
-function renderExplorationReport(report) {
-    const lines = String(report?.reportText || '').split('\n').map(escapeHtml).join('<br>');
-    return `
-        <details class="ship-exploration-report">
-            <summary>${escapeHtml(report?.destinationName || '探索レポート')}</summary>
-            <div class="ship-exploration-report-body">${lines || '探索レポートを確認しました。'}</div>
-        </details>
-    `;
-}
-
 function renderExplorationDestinationBossPool(destination) {
     const bosses = Array.isArray(destination?.bosses) ? destination.bosses : [];
     if (bosses.length) {
@@ -2598,7 +2589,7 @@ function showExplorationResultSummary(data, options = {}) {
     const bossName = String(kingdomMonster?.name || kingdomResult?.monsterName || report.bossName || '遭遇なし');
     const bossSprite = resolveExplorationBossSprite(reportDestinationId, report.bossName, report.bossSpriteId);
     const monsterIsBoss = kingdomMonster?.isBoss === true || kingdomResult?.isBoss === true;
-    const monsterTypeLabel = stageNo > 0 ? `STAGE ${stageNo} / 4 ENEMIES` : (monsterIsBoss ? 'BOSS' : 'MONSTER');
+    const monsterTypeLabel = stageNo > 0 ? `STAGE ${stageNo} / 敵4体` : (monsterIsBoss ? 'BOSS' : 'MONSTER');
     const bossTierLabel = kingdomMonster ? (monsterIsBoss ? '大型' : '') : (report.bossTierLabel || getExplorationBossTierLabel(report.bossTier));
     const bossTierKey = kingdomMonster ? (monsterIsBoss ? 'strong' : 'weak') : normalizeExplorationBossTier(report.bossTier);
     const rewards = getRewardItemsForReveal(data);
@@ -2610,6 +2601,9 @@ function showExplorationResultSummary(data, options = {}) {
     const resultHint = rewardTotal > 0 ? `${rewardTotal.toLocaleString('ja-JP')}個のお宝を回収` : 'お宝は見つかりませんでした';
     const promptTitle = awaitsChestOpen ? '宝箱を開ける' : (rewardTotal > 0 ? '回収完了' : '回収なし');
     const promptText = awaitsChestOpen ? 'クリックして中身を確認してください。' : (rewardTotal > 0 ? '宝箱を開封し、戦利品を持ち帰りました。' : '航路を確認して帰還しました。');
+    const highestUnlockedStage = Math.max(0, Math.floor(Number(data?.progress?.highestUnlockedStage) || 0));
+    const canDepartNextStage = stageNo > 0 && highestUnlockedStage > stageNo && bossResult !== 'defeat';
+    const nextExplorationLabel = canDepartNextStage ? '次のステージへ出航' : 'ステージ選択へ';
     const rewardHtml = rewards.length
         ? rewards.map((item) => {
             const rarity = normalizeRewardRarity(item.rarity || item.Rarity);
@@ -2690,7 +2684,7 @@ function showExplorationResultSummary(data, options = {}) {
                 <div class="exploration-result-log">${logHtml}</div>
                 <div class="exploration-result-actions">
                     <button type="button" data-exploration-result-close>閉じる</button>
-                    ${options.playFabId ? '<button type="button" data-exploration-result-next>次の探索</button>' : ''}
+                    ${options.playFabId ? `<button type="button" data-exploration-result-next>${nextExplorationLabel}</button>` : ''}
                 </div>
             </div>
         </div>
@@ -2773,7 +2767,8 @@ async function recoverConflictedExploration(playFabId, destinationId) {
     const encounterData = await requestExplorationEncounter(playFabId, { throwOnError: true });
     const recoveredStartData = buildRecoveredExplorationStartData(encounterData, destinationId);
     const sequenceResult = await showExplorationAutoSequence(recoveredStartData, recoveredStartData.active.destinationId || destinationId, encounterData);
-    if (!sequenceResult?.cancelled) {
+    const retreated = await completeExplorationRetreat(playFabId, sequenceResult);
+    if (!retreated && !sequenceResult?.cancelled) {
         const claimData = await requestClaimExploration(playFabId, {
             throwOnError: true,
             tarotOutcome: sequenceResult.kingdomResult?.outcome,
@@ -2784,7 +2779,7 @@ async function recoverConflictedExploration(playFabId, destinationId) {
         });
         if (claimData?.petOffer) await showTarotKingdomPetOffer(claimData.petOffer, playFabId);
         handleExplorationClaimResult(claimData, playFabId, sequenceResult);
-    } else {
+    } else if (!retreated) {
         renderExplorationPanel(encounterData, playFabId);
     }
     await loadExplorationPanel(playFabId);
@@ -2811,7 +2806,7 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
     const homeFrame = document.getElementById('homePlayerShipFrame');
     const homeIcon = homeFrame?.querySelector('.home-player-ship-icon');
     const encounterLabel = Number(report?.version) >= 2
-        ? `STAGE ${Math.max(1, Number(report?.stageNo) || 1)} / 4 ENEMIES`
+        ? `STAGE ${Math.max(1, Number(report?.stageNo) || 1)} · 敵${Math.max(1, stageMonsters.length || 4)}体`
         : (kingdomMonster.isBoss === true ? 'BOSS ENCOUNTER' : 'MONSTER ENCOUNTER');
     const offlinePartyLabel = currentTarotKingdomPet
         ? 'オフライン・ペット同行4人'
@@ -2842,12 +2837,10 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
                 <span data-exploration-sequence-label>${escapeHtml(shipTrait.label)}</span>
             </div>
             <div class="exploration-sequence-progress" data-exploration-sequence-progress aria-hidden="true"></div>
-            <section class="exploration-battle-mode-choice" data-exploration-battle-mode-choice hidden aria-label="戦闘方式を選択">
+            <section class="exploration-battle-mode-choice" data-exploration-battle-mode-choice hidden aria-label="迎撃準備">
                 <div class="exploration-battle-mode-head">
                     <span>${encounterLabel}</span>
-                    <strong>${escapeHtml(stageMonsters.length
-                        ? stageMonsters.map((entry) => entry.monsterName).join(' → ')
-                        : kingdomMonster.name)}</strong>
+                    <strong>${escapeHtml(`${kingdomMonster.name}が現れた`)}</strong>
                 </div>
                 <div class="exploration-battle-mode-actions">
                     <button type="button" class="is-offline" data-exploration-battle-mode="offline" aria-label="傭兵召集（オフライン）">
@@ -2858,7 +2851,7 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
                         <span>救難信号</span>
                         <small>オンライン・救援待ち</small>
                     </button>
-                    <button type="button" class="is-cancel" data-exploration-battle-mode="cancel">あとで選ぶ</button>
+                    <button type="button" class="is-cancel" data-exploration-battle-mode="retreat">撤退</button>
                 </div>
             </section>
         </div>
@@ -2872,7 +2865,8 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
     const label = overlay.querySelector('[data-exploration-sequence-label]');
     const progressHint = overlay.querySelector('[data-exploration-sequence-progress]');
     const setPhase = (phase, text) => {
-        overlay.className = `exploration-sequence-overlay is-${form} ${shipTrait.className} is-sky-${destinationVisual.sky} is-boss-${bossTierKey} is-${phase} is-result-${bossResult}`;
+        const voyageClass = ['sail', 'up', 'left', 'arrival'].includes(phase) ? ' is-voyage' : '';
+        overlay.className = `exploration-sequence-overlay is-${form} ${shipTrait.className} is-sky-${destinationVisual.sky} is-boss-${bossTierKey}${voyageClass} is-${phase} is-result-${bossResult}`;
         if (label) label.textContent = text;
         homeIcon?.classList.remove('is-exploring-sail', 'is-exploring-up', 'is-exploring-left', 'is-exploring-arrival', 'is-exploring-encounter-choice', 'is-exploring-battle', 'is-exploring-treasure');
         homeIcon?.classList.add(`is-exploring-${phase}`);
@@ -2901,7 +2895,7 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
                 if (selected) return;
                 selected = true;
                 const requestedMode = button.getAttribute('data-exploration-battle-mode');
-                const mode = requestedMode === 'online' ? 'online' : (requestedMode === 'cancel' ? 'cancel' : 'offline');
+                const mode = requestedMode === 'online' ? 'online' : (requestedMode === 'retreat' ? 'retreat' : 'offline');
                 modeChoice.dataset.selectedMode = mode;
                 modeChoice.querySelectorAll('button').forEach((candidate) => {
                     candidate.disabled = true;
@@ -2910,7 +2904,7 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
                 if (label) {
                     label.textContent = mode === 'online'
                         ? '救難信号を発信中'
-                        : (mode === 'cancel' ? '戦闘方式はあとで選べます' : '傭兵を召集中');
+                        : (mode === 'retreat' ? '島から撤退します' : '傭兵を召集中');
                 }
                 resolve(mode);
             }, { once: true });
@@ -2920,12 +2914,14 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
     overlay.remove();
     homeFrame?.classList.remove('is-exploring');
     homeIcon?.classList.remove('is-exploring-sail', 'is-exploring-up', 'is-exploring-left', 'is-exploring-arrival', 'is-exploring-encounter-choice', 'is-exploring-battle', 'is-exploring-treasure');
-    if (battleMode === 'cancel') {
+    if (battleMode === 'retreat') {
         return {
             chestOpened: false,
             battleMode,
             kingdomMonster,
+            explorationId: String(report.explorationId || report.id || active.id || ''),
             kingdomResult: { status: 'cancelled' },
+            retreated: true,
             cancelled: true
         };
     }
@@ -2949,9 +2945,23 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
         chestOpened: false,
         battleMode,
         kingdomMonster,
+        explorationId: String(report.explorationId || report.id || active.id || ''),
         kingdomResult,
+        retreated: false,
         cancelled: kingdomResult?.status !== 'completed'
     };
+}
+
+async function completeExplorationRetreat(playFabId, sequenceResult) {
+    if (sequenceResult?.retreated !== true) return false;
+    const retreatData = await requestRetreatExploration(
+        playFabId,
+        sequenceResult.explorationId,
+        { throwOnError: true }
+    );
+    renderExplorationPanel(retreatData, playFabId);
+    showRpgMessage('探索から撤退しました。');
+    return true;
 }
 
 function renderExplorationPanel(data, playFabId) {
@@ -2959,8 +2969,6 @@ function renderExplorationPanel(data, playFabId) {
     if (!panel) return;
     const ship = data?.ship || null;
     const active = data?.active || null;
-    const reports = Array.isArray(data?.reports) ? data.reports : [];
-    const dailyFreeAvailable = data?.dailyFree?.available === true;
     if (!ship) {
         panel.innerHTML = '<div class="ship-exploration-empty">探索には使用中の船が必要です。</div>';
         return;
@@ -2973,12 +2981,7 @@ function renderExplorationPanel(data, playFabId) {
     `;
     if (active) {
         const encounter = data?.encounter || active?.encounter || null;
-        const isBattleModePending = Boolean(encounter?.monsterId || encounter?.monsterName);
-        const activeStateLabel = isBattleModePending ? '戦闘方式未選択' : '結果確認待ち';
-        const activeHint = isBattleModePending
-            ? `${encounter?.monsterName || '敵'}への戦闘方式を選んでください。`
-            : '演出完了後に結果を確認できます。';
-        const activeActionLabel = isBattleModePending ? '戦闘方式を選ぶ' : '結果を見る';
+        const encounterEnemyCount = Math.max(1, Array.isArray(encounter?.monsters) ? encounter.monsters.length : 4);
         panel.innerHTML = `
             ${head}
             <div class="ship-exploration-destination is-active">
@@ -2990,15 +2993,13 @@ function renderExplorationPanel(data, playFabId) {
                     </div>
                 </div>
                 <div class="ship-exploration-badges" aria-label="探索状態">
-                    <span class="ship-exploration-badge is-active">探索中</span>
-                    <span class="ship-exploration-badge">${activeStateLabel}</span>
+                    <span class="ship-exploration-badge is-active">航海中</span>
+                    <span class="ship-exploration-badge">敵${encounterEnemyCount}体</span>
                 </div>
-                <div class="ship-exploration-meta">${escapeHtml(activeHint)}</div>
                 <div class="ship-exploration-actions">
-                    <button type="button" data-exploration-claim>${activeActionLabel}</button>
+                    <button type="button" data-exploration-claim>出航</button>
                 </div>
             </div>
-            ${reports.length ? `<div class="ship-exploration-reports">${reports.map(renderExplorationReport).join('')}</div>` : ''}
         `;
         panel.querySelector('[data-exploration-claim]')?.addEventListener('click', () => claimExploration(playFabId));
         return;
@@ -3025,15 +3026,14 @@ function renderExplorationPanel(data, playFabId) {
                     </div>
                     ${renderTarotKingdomStageMonsters(stage)}
                     <div class="ship-exploration-badges" aria-label="探索条件">
-                        <span class="ship-exploration-badge is-free">出航無料</span>
-                        <span class="ship-exploration-badge">4 ENEMIES</span>
+                        <span class="ship-exploration-badge">敵4体</span>
                         ${isAvailable ? '' : `<span class="ship-exploration-badge is-locked">${escapeHtml(stage.lockReason || 'LOCKED')}</span>`}
                     </div>
                     <div class="ship-exploration-actions">
                         <button type="button" class="ship-exploration-start"
                             data-exploration-start="${escapeHtml(stage.id || '')}"
                             data-exploration-stage="${stageNo}"
-                            ${isAvailable ? '' : 'disabled aria-disabled="true"'}>${isAvailable ? 'このステージへ出航' : 'LOCKED'}</button>
+                            ${isAvailable ? '' : 'disabled aria-disabled="true"'}>${isAvailable ? '出航' : 'LOCKED'}</button>
                     </div>
                 </div>
             `;
@@ -3042,7 +3042,6 @@ function renderExplorationPanel(data, playFabId) {
     panel.innerHTML = `
         ${head}
         <div class="ship-exploration-destinations">${destinationHtml}</div>
-        ${reports.length ? `<div class="ship-exploration-reports">${reports.map(renderExplorationReport).join('')}</div>` : ''}
     `;
     panel.querySelectorAll('[data-exploration-start]').forEach((button) => {
         button.addEventListener('click', async () => {
@@ -3159,7 +3158,8 @@ async function startExploration(playFabId, destinationId, payment = {}, triggerB
         renderExplorationPanel(startData, playFabId);
         const encounterData = await requestExplorationEncounter(playFabId, { throwOnError: true });
         const sequenceResult = await showExplorationAutoSequence(startData, destinationId, encounterData);
-        if (!sequenceResult?.cancelled) {
+        const retreated = await completeExplorationRetreat(playFabId, sequenceResult);
+        if (!retreated && !sequenceResult?.cancelled) {
             const claimData = await requestClaimExploration(playFabId, {
                 throwOnError: true,
                 tarotOutcome: sequenceResult.kingdomResult?.outcome,
@@ -3170,7 +3170,7 @@ async function startExploration(playFabId, destinationId, payment = {}, triggerB
             });
             if (claimData?.petOffer) await showTarotKingdomPetOffer(claimData.petOffer, playFabId);
             handleExplorationClaimResult(claimData, playFabId, sequenceResult);
-        } else {
+        } else if (!retreated) {
             renderExplorationPanel(encounterData, playFabId);
         }
     } catch (error) {
@@ -3194,7 +3194,8 @@ async function claimExploration(playFabId) {
         const encounterData = await requestExplorationEncounter(playFabId, { throwOnError: true });
         const startData = buildRecoveredExplorationStartData(encounterData, encounterData?.encounter?.destinationId || '');
         const sequenceResult = await showExplorationAutoSequence(startData, startData.active.destinationId || '', encounterData);
-        if (!sequenceResult?.cancelled) {
+        const retreated = await completeExplorationRetreat(playFabId, sequenceResult);
+        if (!retreated && !sequenceResult?.cancelled) {
             const claimData = await requestClaimExploration(playFabId, {
                 throwOnError: true,
                 tarotOutcome: sequenceResult.kingdomResult?.outcome,
@@ -3205,7 +3206,7 @@ async function claimExploration(playFabId) {
             });
             if (claimData?.petOffer) await showTarotKingdomPetOffer(claimData.petOffer, playFabId);
             handleExplorationClaimResult(claimData, playFabId, sequenceResult);
-        } else {
+        } else if (!retreated) {
             renderExplorationPanel(encounterData, playFabId);
         }
     } catch (error) {

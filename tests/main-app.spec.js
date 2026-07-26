@@ -1386,7 +1386,11 @@ test('home exploration button loads exploration data in a popup', async ({ page 
       body: JSON.stringify({
         ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'guild', itemId: 'guild_ship', isGuildShip: true, stage: 3 },
         active: null,
-        reports: [],
+        reports: [{
+          id: 'legacy-report',
+          destinationName: '過去の探索',
+          reportText: 'この履歴は表示しない'
+        }],
         stageVersion: 1,
         shipStageCap: 11,
         progress: { version: 1, highestUnlockedStage: 2 },
@@ -1456,6 +1460,8 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(panel).not.toContainText('敵船を探す');
   await expect(panel.locator('.ship-exploration-list')).toHaveCount(0);
   await expect(panel.locator('.ship-exploration-list-row')).toHaveCount(0);
+  await expect(panel.locator('.ship-exploration-report')).toHaveCount(0);
+  await expect(panel).not.toContainText('過去の探索');
   const stageCards = panel.locator('.ship-exploration-stage');
   await expect(stageCards).toHaveCount(3);
   const firstStage = stageCards.nth(0);
@@ -1466,8 +1472,8 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(firstStage.locator('.ship-exploration-mapmark img')).toHaveAttribute('src', /coral-island-v1\.webp/);
   await expect(firstStage.locator('.ship-exploration-stage-monster small')).toHaveText(['マシュロン', 'プルン', 'トゲマル', 'パピル']);
   await expect(firstStage.locator('.ship-exploration-stage-order')).toHaveText(['1', '2', '3', '4']);
-  await expect(firstStage.locator('.ship-exploration-badge')).toHaveText(['出航無料', '4 ENEMIES']);
-  await expect(firstStage.locator('.ship-exploration-start')).toHaveText('このステージへ出航');
+  await expect(firstStage.locator('.ship-exploration-badge')).toHaveText(['敵4体']);
+  await expect(firstStage.locator('.ship-exploration-start')).toHaveText('出航');
   await expect(secondStage.locator('.ship-exploration-meta')).toContainText('最高 2位 / CLEAR 3');
   await expect(lockedStage).toHaveClass(/is-locked/);
   await expect(lockedStage.locator('.ship-exploration-start')).toBeDisabled();
@@ -1582,6 +1588,7 @@ test('exploration stage starts for free with ordered optional supplies', async (
   const errors = trackPageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
   let startBody = null;
+  let retreatBody = null;
   let claimBody = null;
   await page.route('**/api/get-troy-status', async (route) => {
     await route.fulfill({
@@ -1690,6 +1697,37 @@ test('exploration stage starts for free with ordered optional supplies', async (
       })
     });
   });
+  await page.route('**/api/exploration/retreat', async (route) => {
+    retreatBody = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'explorer', stage: 2 },
+        active: null,
+        reports: [],
+        retreated: true,
+        refundedSupplies: [
+          { itemId: 'troy_menu_drink_a', quantity: 1 },
+          { itemId: 'troy_menu_food_b', quantity: 1 }
+        ],
+        progress: { version: 1, highestUnlockedStage: 1 },
+        stages: [makeExplorationStage(1, {
+          name: '珊瑚の浅瀬',
+          monsters: [
+            { monsterId: 'ismartal-vol1-monster-07', monsterName: 'マシュロン' },
+            { monsterId: 'ismartal-vol3-monster-04', monsterName: 'プルン' },
+            { monsterId: 'ismartal-vol1-monster-01', monsterName: 'トゲマル' },
+            { monsterId: 'ismartal-vol2-monster-02', monsterName: 'パピル' }
+          ]
+        })],
+        explorationSupplies: [
+          { itemId: 'troy_menu_drink_a', displayName: 'ラムソーダ', amount: 1, imagePath: './Sprites/drinks/rum.png', effectiveUnits: 1 },
+          { itemId: 'troy_menu_food_b', displayName: '港町プレート', amount: 2, imagePath: './Sprites/food/plate.png', effectiveUnits: 2 }
+        ]
+      })
+    });
+  });
   await page.route('**/api/exploration/claim', async (route) => {
     claimBody = route.request().postDataJSON();
     await route.fulfill({
@@ -1699,6 +1737,7 @@ test('exploration stage starts for free with ordered optional supplies', async (
         ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'explorer' },
         active: null,
         reports: [],
+        progress: { version: 1, highestUnlockedStage: 2 },
         report: {
           id: 'exploration-tarot-entry',
           stageNo: 1,
@@ -1794,16 +1833,14 @@ test('exploration stage starts for free with ordered optional supplies', async (
   expect(startBody.paymentConsumables).toBeUndefined();
   const modeChoice = page.locator('.exploration-battle-mode-choice');
   await expect(modeChoice).toBeVisible({ timeout: 7000 });
-  await expect(modeChoice.locator('.exploration-battle-mode-head span')).toHaveText('STAGE 1 / 4 ENEMIES');
-  await expect(modeChoice.locator('.exploration-battle-mode-head strong')).toHaveText('マシュロン → プルン → トゲマル → パピル');
+  await expect(modeChoice.locator('.exploration-battle-mode-head span')).toHaveText('STAGE 1 · 敵4体');
+  await expect(modeChoice.locator('.exploration-battle-mode-head strong')).toHaveText('マシュロンが現れた');
   await expect(modeChoice).toContainText('マシュロン');
-  await expect(modeChoice).toContainText('プルン');
-  await expect(modeChoice).toContainText('トゲマル');
-  await expect(modeChoice).toContainText('パピル');
+  await expect(modeChoice).not.toContainText('プルン → トゲマル → パピル');
   await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' })).toBeVisible();
   await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' }).locator('small')).toHaveText('オフライン・3人編成');
   await expect(page.getByRole('button', { name: '救難信号（オンライン）' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'あとで選ぶ' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '撤退' })).toBeVisible();
   const modeChoiceLayout = await modeChoice.evaluate((choice) => {
     const rect = choice.getBoundingClientRect();
     return {
@@ -1817,10 +1854,19 @@ test('exploration stage starts for free with ordered optional supplies', async (
   expect(modeChoiceLayout.right).toBeLessThanOrEqual(modeChoiceLayout.viewportWidth);
   expect(modeChoiceLayout.pageScrollWidth).toBeLessThanOrEqual(modeChoiceLayout.viewportWidth);
   expect(await page.evaluate(() => window.__explorationKingdomLaunches?.length || 0)).toBe(0);
-  await page.getByRole('button', { name: 'あとで選ぶ' }).click();
+  await page.getByRole('button', { name: '撤退' }).click();
   await expect(page.locator('.exploration-sequence-overlay')).toBeHidden();
-  await expect(page.locator('#shipExplorationPanel [data-exploration-claim]')).toHaveText('戦闘方式を選ぶ');
-  await page.locator('#shipExplorationPanel [data-exploration-claim]').click();
+  await expect.poll(() => retreatBody).not.toBeNull();
+  expect(retreatBody).toEqual({
+    playFabId: 'PF_PLAYWRIGHT',
+    explorationId: 'exploration-tarot-entry'
+  });
+  await expect(page.locator('#shipExplorationPanel [data-exploration-claim]')).toHaveCount(0);
+  await expect(page.locator('#shipExplorationPanel .ship-exploration-start')).toHaveText('出航');
+  await page.locator('#shipExplorationPanel [data-exploration-stage="1"]').click();
+  const secondSupplyDialog = page.locator('.ship-exploration-payment-dialog.is-stage-supply');
+  await expect(secondSupplyDialog).toBeVisible();
+  await secondSupplyDialog.locator('[data-stage-supply-confirm]').click();
   await expect(modeChoice).toBeVisible({ timeout: 7_000 });
   await page.getByRole('button', { name: '救難信号（オンライン）' }).click();
   await expect.poll(() => page.evaluate(() => window.__explorationKingdomLaunches?.length || 0), { timeout: 7000 }).toBe(1);
@@ -1858,8 +1904,9 @@ test('exploration stage starts for free with ordered optional supplies', async (
   ]);
   await expect(page.locator('#tarotModeKingdom')).toBeHidden();
   await expect(page.locator('.exploration-result-overlay')).toBeVisible();
-  await expect(page.locator('.exploration-result-boss-copy b')).toHaveText('STAGE 1 / 4 ENEMIES');
+  await expect(page.locator('.exploration-result-boss-copy b')).toHaveText('STAGE 1 / 敵4体');
   await expect(page.locator('.exploration-result-boss-copy strong')).toHaveText('パピル');
+  await expect(page.locator('[data-exploration-result-next]')).toHaveText('次のステージへ出航');
   await expectNoPageErrors(errors);
 });
 
@@ -2040,7 +2087,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
     document.querySelectorAll('.exploration-sequence-overlay, .exploration-result-overlay').forEach((element) => element.remove());
 
     const sequence = document.createElement('div');
-    sequence.className = 'exploration-sequence-overlay is-boat is-sky-deep is-sail';
+    sequence.className = 'exploration-sequence-overlay is-boat is-sky-deep is-voyage is-sail';
     sequence.innerHTML = `
       <div class="exploration-sequence-dialog">
         <div class="exploration-sequence-scene">
@@ -2101,6 +2148,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
         panelSliceSource,
         borderRadius: style.borderRadius,
         display: style.display,
+        filter: style.filter,
         fontSize: style.fontSize,
         height: style.height,
         maxHeight: style.maxHeight,
@@ -2134,6 +2182,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
     const shipFrameCount = new Set(shipSamples.map((sample) => sample.backgroundPosition)).size;
     const sailIsland = styleOf('.exploration-sequence-island');
     const sailIslandImage = styleOf('.exploration-sequence-island img');
+    const sailRoute = styleOf('.exploration-sequence-route');
     sequence.className = 'exploration-sequence-overlay is-boat is-sky-deep is-battle is-result-victory';
     const battleAvatarElement = sequence.querySelector('.exploration-sequence-avatar');
     battleAvatarElement.classList.add('is-avatar-attacking', 'is-avatar-attack-left');
@@ -2171,7 +2220,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
       sequenceBattleBossLeft: battleBossRect.left,
       sequenceBattleAvatarLeft: battleAvatarRect.left,
       sequenceSky: styleOf('.exploration-sequence-sky'),
-      sequenceRoute: styleOf('.exploration-sequence-route'),
+      sequenceRoute: sailRoute,
       sequenceArrival: styleOf('.exploration-sequence-arrival'),
       sequenceProgress: styleOf('.exploration-sequence-progress'),
       sequenceOpeningChest,
@@ -2214,16 +2263,18 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(audit.sequenceBattleIsland.opacity).toBe('0');
   expect(audit.sequenceBattleBoss.animationName).toBe('none');
   expect(audit.sequenceBattleBossImage.transform).toContain('-1');
-  expect(audit.sequenceSailIsland.opacity).toBe('0.58');
+  expect(audit.sequenceSailIsland.opacity).toBe('1');
+  expect(audit.sequenceSailIsland.filter).toContain('brightness');
+  expect(audit.sequenceSailIsland.filter).toContain('blur');
   expect(audit.sequenceSailIsland.fontSize).toBe('88px');
   expect(audit.sequenceSailIsland.transform).toBe('none');
-  expect(audit.sequenceSailIsland.transitionDuration).toContain('0.26s');
+  expect(audit.sequenceSailIsland.transitionDuration).toContain('0.32s');
   expect(audit.sequenceSailIslandImage.maxWidth).toBe('100%');
   expect(audit.sequenceSailIslandImage.maxHeight).toBe('100%');
   expect(audit.sequenceSailIslandImage.objectFit).toBe('contain');
   expect(audit.sequenceBattleBossLeft).toBeLessThan(audit.sequenceBattleAvatarLeft);
   expectPanelFrame(audit.sequenceLog);
-  expect(audit.sequenceRoute.animationName).toBe('none');
+  expect(audit.sequenceRoute.animationName).toContain('explorationSequenceRoute');
   expect(audit.sequenceRoute.backgroundImage).not.toContain('repeating-linear-gradient');
   expect(audit.sequenceArrival.borderRadius).toBe('50%');
   expect(panelFrameSource(audit.sequenceProgress)).not.toContain('assets/ui/buttons/');
@@ -2244,7 +2295,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(audit.sequenceSky.display).toBe('none');
   expect(audit.sequenceSky.animationName).toBe('none');
   expect(audit.sequenceSky.backgroundImage).toBe('none');
-  expect(audit.sailAnimationName).toContain('explorationSequenceSail');
+  expect(audit.sailAnimationName).toContain('explorationSequenceVoyage');
   expect(audit.sailAnimationName).toContain('homePlayerShipFrameStep');
   expect(Math.abs(audit.shipMotionDelta)).toBeGreaterThan(2);
   expect(Math.abs(audit.shipVerticalDelta)).toBeLessThanOrEqual(1);
@@ -2472,11 +2523,45 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await expect(sequence.locator('.exploration-sequence-island img')).toHaveAttribute('src', /coral-island-v1\.webp/);
   await expect(sequence.locator('[data-exploration-sequence-advance]')).toHaveCount(0);
   await expect(sequence.locator('[data-exploration-sequence-progress]')).toBeAttached();
+  const readVoyageMetrics = () => sequence.evaluate((element) => {
+    const ship = element.querySelector('.exploration-sequence-ship');
+    const island = element.querySelector('.exploration-sequence-island');
+    const shipRect = ship.getBoundingClientRect();
+    const islandRect = island.getBoundingClientRect();
+    const islandStyle = getComputedStyle(island);
+    return {
+      shipLeft: shipRect.left,
+      islandWidth: islandRect.width,
+      islandHeight: islandRect.height,
+      islandOpacity: islandStyle.opacity,
+      islandFilter: islandStyle.filter
+    };
+  });
+  const sailMetrics = await readVoyageMetrics();
 
   await expect(sequence).toHaveClass(/is-up/, { timeout: 5_000 });
+  const approachMetrics = await readVoyageMetrics();
   await expect(sequence).toHaveClass(/is-left/, { timeout: 5_000 });
+  const landingMetrics = await readVoyageMetrics();
   await expect(sequence).toHaveClass(/is-arrival/, { timeout: 5_000 });
+  const arrivalMetrics = await readVoyageMetrics();
   await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' })).toBeVisible({ timeout: 5_000 });
+  const encounterMetrics = await readVoyageMetrics();
+  const shipLefts = [
+    sailMetrics.shipLeft,
+    approachMetrics.shipLeft,
+    landingMetrics.shipLeft,
+    arrivalMetrics.shipLeft,
+    encounterMetrics.shipLeft
+  ];
+  for (let index = 1; index < shipLefts.length; index += 1) {
+    expect(shipLefts[index]).toBeGreaterThanOrEqual(shipLefts[index - 1] - 1);
+  }
+  expect(sailMetrics.islandOpacity).toBe('1');
+  expect(encounterMetrics.islandOpacity).toBe('1');
+  expect(sailMetrics.islandFilter).toContain('blur');
+  expect(Math.abs(encounterMetrics.islandWidth - sailMetrics.islandWidth)).toBeLessThanOrEqual(1);
+  expect(Math.abs(encounterMetrics.islandHeight - sailMetrics.islandHeight)).toBeLessThanOrEqual(1);
   await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' }).locator('small')).toHaveText('オフライン・ペット同行4人');
   await page.getByRole('button', { name: '傭兵召集（オフライン）' }).click();
   await expect(sequence).toBeHidden({ timeout: 5_000 });
@@ -2538,9 +2623,9 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await expect(result.locator('[data-exploration-result-open]')).toBeDisabled();
   await expect(result.locator('.exploration-result-boss-card')).toHaveAttribute('data-exploration-boss-id', 'ismartal-vol2-monster-02');
   await expect(result.locator('.exploration-result-boss-image')).toHaveCSS('background-image', /pixel-monsters\/vol2\/monster-02\/idle\.png/);
-  await expect(result.locator('.exploration-result-boss-copy b')).toHaveText('STAGE 1 / 4 ENEMIES');
+  await expect(result.locator('.exploration-result-boss-copy b')).toHaveText('STAGE 1 / 敵4体');
   await expect(result.locator('.exploration-result-boss-copy strong')).toHaveText('パピル');
-  await expect(result.locator('.exploration-result-boss-copy span')).toHaveText('STAGE 1 / 4 ENEMIES / 勝利');
+  await expect(result.locator('.exploration-result-boss-copy span')).toHaveText('STAGE 1 / 敵4体 / 勝利');
   await expect(result.locator('.exploration-result-body')).toContainText('1位 / タロットキングダム勝利');
   await expect(result.locator('.exploration-result-reward')).toContainText('RARE');
   await expect(result.locator('.exploration-result-chest')).toHaveCSS('animation-name', 'none');

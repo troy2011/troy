@@ -682,6 +682,13 @@ export function getExplorationEncounter(playFabId, options) {
     return callApiWithLoader('/api/exploration/encounter', { playFabId }, options);
 }
 
+export function retreatExploration(playFabId, explorationId, options) {
+    return callApiWithLoader('/api/exploration/retreat', {
+        playFabId,
+        explorationId: String(explorationId || '').trim()
+    }, options);
+}
+
 export function claimExploration(playFabId, options) {
     const body = { playFabId };
     const tarotOutcome = String(options?.tarotOutcome || '').trim().toLowerCase();
