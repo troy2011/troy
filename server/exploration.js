@@ -8,12 +8,12 @@ const { buildMajorArcanaShipGearView } = require('./majorArcanaShipGear');
 const {
     buildTarotKingdomPetOfferView,
     buildTarotKingdomPetPublicRecord,
+    getTarotKingdomPetRecruitChance,
     isTarotKingdomPetRecruitEligible,
     normalizeTarotKingdomPendingPetOffer,
     readTarotKingdomPetState,
     resolveTarotKingdomPetChoice,
     rollTarotKingdomPetOffer,
-    selectTarotKingdomStagePetCandidate,
     writeTarotKingdomPetState
 } = require('./tarotKingdomPets');
 const {
@@ -2446,6 +2446,125 @@ function initializeExplorationRoutes(app, deps) {
         }
     });
 
+    app.post('/api/tarot-kingdom/pet-round-roll', async (req, res) => {
+        let { playFabId, explorationId, finisher } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        explorationId = String(explorationId || '').trim();
+        finisher = finisher && typeof finisher === 'object'
+            ? {
+                roundNo: Math.max(1, Math.min(4, Math.floor(Number(finisher.roundNo) || 1))),
+                playerIndex: Math.max(0, Math.floor(Number(finisher.playerIndex) || 0)),
+                playFabId: String(finisher.playFabId || '').trim(),
+                isNpc: finisher.isNpc === true,
+                monsterId: String(finisher.monsterId || '').trim(),
+                mode: String(finisher.mode || '').trim().toLowerCase()
+            }
+            : null;
+        if (!explorationId || !finisher) return res.status(400).json({ error: 'explorationId and finisher are required' });
+        playFabId = await requireAuthed(req, res, playFabId);
+        if (!playFabId) return;
+        if (finisher.mode !== 'offline') {
+            return res.json({ success: true, eligible: false, chance: 0, petOffer: null });
+        }
+
+        const activeRef = firestore.collection(EXPLORATION_COLLECTION).doc(playFabId);
+        try {
+            const petStateBeforeRoll = await readTarotKingdomPetState(playFabId, { promisifyPlayFab, PlayFabServer });
+            let rollRecord = null;
+            let rollError = null;
+            const requestRollValue = Math.max(0, Math.min(0.999999, Math.random()));
+            const rollKey = `round${finisher.roundNo}`;
+            await firestore.runTransaction(async (tx) => {
+                const snap = await tx.get(activeRef);
+                if (!snap.exists) {
+                    rollError = { code: 404, message: '探索情報が見つかりません。' };
+                    return;
+                }
+                const activeData = snap.data() || {};
+                if (String(activeData.id || '') !== explorationId || resolveEffectiveStatus(activeData) !== 'active') {
+                    rollError = { code: 409, message: '探索情報が更新されています。' };
+                    return;
+                }
+                const encounter = normalizeExplorationTarotEncounter(activeData.tarotEncounter);
+                const stageNo = Math.max(1, Math.min(11, Math.floor(Number(encounter?.stageNo || activeData.stageNo) || 1)));
+                const stageMonster = Array.isArray(encounter?.monsters)
+                    ? encounter.monsters.find((entry, index) => (
+                        Math.max(1, Math.min(4, Math.floor(Number(entry?.order) || index + 1))) === finisher.roundNo
+                    ))
+                    : null;
+                const monsterId = String(stageMonster?.monsterId || '').trim();
+                if (!encounter || Number(encounter.version) < 2 || !monsterId || monsterId !== finisher.monsterId) {
+                    rollError = { code: 409, message: 'この局のモンスター情報を確認できません。' };
+                    return;
+                }
+
+                const rollMap = activeData.tarotPetRoundRolls && typeof activeData.tarotPetRoundRolls === 'object'
+                    ? { ...activeData.tarotPetRoundRolls }
+                    : {};
+                if (rollMap[rollKey] && typeof rollMap[rollKey] === 'object') {
+                    rollRecord = { ...rollMap[rollKey] };
+                    return;
+                }
+                const chance = getTarotKingdomPetRecruitChance(stageNo);
+                const eligible = isTarotKingdomPetRecruitEligible({
+                    encounter: { monsterId },
+                    outcome: 'victory',
+                    finisher,
+                    authenticatedPlayFabId: playFabId
+                }) && !petStateBeforeRoll.pendingOffer
+                    && String(petStateBeforeRoll.currentPet?.monsterId || '') !== monsterId;
+                rollRecord = {
+                    roundNo: finisher.roundNo,
+                    monsterId,
+                    stageNo,
+                    chance,
+                    eligible,
+                    won: eligible && requestRollValue < chance,
+                    rolledAtMs: Date.now()
+                };
+                rollMap[rollKey] = rollRecord;
+                tx.update(activeRef, { tarotPetRoundRolls: rollMap });
+            });
+            if (rollError) return res.status(rollError.code).json({ error: rollError.message });
+            if (!rollRecord) return res.status(409).json({ error: '加入判定を完了できませんでした。' });
+
+            let savedState = petStateBeforeRoll;
+            if (rollRecord.won === true && rollRecord.offerDelivered !== true) {
+                savedState = await withTarotKingdomPetChoiceLock(playFabId, async () => {
+                    const latestState = await readTarotKingdomPetState(playFabId, { promisifyPlayFab, PlayFabServer });
+                    const rolled = rollTarotKingdomPetOffer({
+                        state: latestState,
+                        encounter: {
+                            monsterId: rollRecord.monsterId,
+                            stageNo: rollRecord.stageNo
+                        },
+                        explorationId,
+                        chance: 1,
+                        random: () => 0
+                    });
+                    return rolled.created
+                        ? writeTarotKingdomPetState(playFabId, rolled.state, { promisifyPlayFab, PlayFabServer })
+                        : rolled.state;
+                });
+                await activeRef.update({
+                    [`tarotPetRoundRolls.${rollKey}.offerDelivered`]: true
+                });
+                rollRecord.offerDelivered = true;
+            }
+            return res.json({
+                success: true,
+                eligible: rollRecord.eligible === true,
+                chance: Math.max(0, Number(rollRecord.chance) || 0),
+                won: rollRecord.won === true,
+                currentPet: buildTarotKingdomPetPublicRecord(savedState.currentPet),
+                petOffer: buildTarotKingdomPetOfferView(savedState.pendingOffer, savedState.currentPet)
+            });
+        } catch (error) {
+            console.error('[tarot-kingdom/pet-round-roll] failed:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({ error: 'この局のモンスター加入判定に失敗しました。' });
+        }
+    });
+
     app.post('/api/tarot-kingdom/pet-choice', async (req, res) => {
         let { playFabId, offerId, accept } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
@@ -3540,36 +3659,25 @@ function initializeExplorationRoutes(app, deps) {
                     bossResult = buildTarotKingdomBossResult(tarotEncounter, tarotOutcome);
                     try {
                         petStateForResponse = await readTarotKingdomPetState(playFabId, { promisifyPlayFab, PlayFabServer });
-                        const stagePetCandidate = tarotOutcome === 'victory'
-                            ? selectTarotKingdomStagePetCandidate({
-                                encounter: tarotEncounter,
-                                finishers: tarotFinishers,
-                                authenticatedPlayFabId: playFabId,
-                                currentPet: petStateForResponse.currentPet
-                            })
-                            : null;
-                        const petEncounter = stagePetCandidate
-                            ? {
-                                version: 2,
-                                explorationId: tarotEncounter.explorationId,
-                                monsterId: stagePetCandidate.id,
-                                monsterName: stagePetCandidate.name,
-                                isBoss: false
-                            }
-                            : tarotEncounter;
-                        if (stagePetCandidate || (
+                        // Stage encounters resolve recruitment after every round.
+                        // Only legacy encounters still need their single claim-time roll.
+                        if (
                             Number(tarotEncounter.version) < 2
                             && isTarotKingdomPetRecruitEligible({
-                            encounter: tarotEncounter,
-                            outcome: tarotOutcome,
-                            finisher: tarotFinisher,
-                            authenticatedPlayFabId: playFabId
+                                encounter: tarotEncounter,
+                                outcome: tarotOutcome,
+                                finisher: tarotFinisher,
+                                authenticatedPlayFabId: playFabId
                             })
-                        )) {
+                        ) {
                             const rolled = rollTarotKingdomPetOffer({
                                 state: petStateForResponse,
-                                encounter: petEncounter,
-                                explorationId: activeData.id
+                                encounter: {
+                                    ...tarotEncounter,
+                                    stageNo: activeData.stageNo
+                                },
+                                explorationId: activeData.id,
+                                chance: getTarotKingdomPetRecruitChance(activeData.stageNo)
                             });
                             if (rolled.created) {
                                 petStateForResponse = await writeTarotKingdomPetState(

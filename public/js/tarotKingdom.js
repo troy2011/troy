@@ -19,7 +19,6 @@ import {
   normalizeTarotKingdomCharacter
 } from './tarotKingdomCombat.js';
 import {
-  TAROT_KINGDOM_STATUS_ICON_INDEX,
   getTarotKingdomPhysicalScale,
   isTarotKingdomDeckMatch,
   normalizeTarotKingdomTarotDeck,
@@ -111,21 +110,35 @@ function getKingdomSeatIndexes(state = s) {
   return Array.from({ length: getKingdomPlayerCount(state) }, (_, index) => index);
 }
 
+function getKingdomSeatClaimOrder(hasReservedHostPet = false) {
+  return hasReservedHostPet ? [0, 2, 3, 1] : [0, 1, 2, 3];
+}
+
+function buildKingdomPetPlayerTemplate(pet) {
+  if (!pet?.monsterId) return null;
+  return {
+    id: 'pet',
+    name: String(pet.monsterName || pet.monsterId || 'ペット'),
+    isNpc: true,
+    isPet: true,
+    pet: { ...pet },
+    aiStyle: getTarotKingdomPetAiStyle(pet)
+  };
+}
+
 function getKingdomInitialPlayerTemplates() {
   const context = kingdomExplorationSession?.context || null;
-  if (context?.mode !== 'offline') return PLAYERS;
-  const pet = context.currentPet && typeof context.currentPet === 'object' ? context.currentPet : null;
-  const roster = PLAYERS.slice(0, 3).map((player) => ({ ...player }));
-  if (pet?.monsterId) {
-    roster.splice(1, 0, {
-      id: 'pet',
-      name: String(pet.monsterName || pet.monsterId || 'ペット'),
-      isNpc: true,
-      isPet: true,
-      pet: { ...pet },
-      aiStyle: getTarotKingdomPetAiStyle(pet)
-    });
+  const petTemplate = buildKingdomPetPlayerTemplate(
+    context?.currentPet && typeof context.currentPet === 'object' ? context.currentPet : null
+  );
+  if (context?.mode === 'online') {
+    const roster = PLAYERS.map((player) => ({ ...player }));
+    if (petTemplate) roster[1] = petTemplate;
+    return roster;
   }
+  if (context?.mode !== 'offline') return PLAYERS;
+  const roster = PLAYERS.slice(0, 3).map((player) => ({ ...player }));
+  if (petTemplate) roster.splice(1, 0, petTemplate);
   return roster;
 }
 
@@ -324,6 +337,8 @@ let kingdomDemoEnemyId = '';
 let kingdomDemoPetId = '';
 let kingdomExplorationMonsterId = '';
 let kingdomExplorationSession = null;
+let kingdomRoundPetOfferPromise = null;
+const kingdomRoundPetOfferChecked = new Set();
 let kingdomBattleAvatarEventKey = '';
 let kingdomBattleTerminalFxEventKey = '';
 let kingdomBattleHurtEventKey = '';
@@ -1555,6 +1570,52 @@ function buildSelectedCardInfoMessage(playerIndex, selectedIndexes) {
 
   const labels = cards.map((c) => getCardNameLabel(c)).filter(Boolean);
   return labels.length ? `選択: ${labels.join('・')}` : `選択: ${sel.length}枚`;
+}
+
+function buildKingdomSituationAnnouncement(playerIndex, canSelectCards) {
+  if (!s) return '戦闘状況を確認中';
+  const phase = String(s.phase || '');
+  const playerName = (index) => s.players?.[index]?.name || 'プレイヤー';
+  const enemyName = String(s.battle?.enemy?.name || 'モンスター');
+
+  if (phase === 'openingDeal') return '手札を配っています';
+  if (phase === 'openingCinematic') return `${enemyName}が場札をセット中`;
+  if (phase === 'callCinematic') return 'コールを処理中';
+  if (phase === 'resolvingPlay') {
+    const actorIndex = Number(s.transition?.actorIndex);
+    return Number.isInteger(actorIndex)
+      ? `${playerName(actorIndex)}が攻撃中`
+      : '攻撃を解決中';
+  }
+  if (phase === 'resolvingEnemy') return `${enemyName}が攻撃中`;
+  if (phase === 'roundOutCinematic') return '決着演出中';
+  if (phase === 'roundDraw') return '次の局を準備中';
+  if (phase === 'roundEnd') return '局終了：結果を確認してください';
+  if (phase === 'done') return '全局終了：探索結果を確認してください';
+
+  if (phase === 'judgment') {
+    const chooserIndex = Number(s.pendingJudgment);
+    return chooserIndex === playerIndex
+      ? '墓地から回収するカードを選択してください'
+      : `${playerName(chooserIndex)}が墓地を確認中`;
+  }
+
+  if (phase === 'draw') {
+    const drawerIndex = Number(s.pendingDraw);
+    return drawerIndex === playerIndex
+      ? 'ドローするか、手札を出してください'
+      : `${playerName(drawerIndex)}がドローを選択中`;
+  }
+
+  if (phase === 'turn' && s.roundActive) {
+    if (Number(s.turn) === playerIndex) {
+      if (!isKingdomBattlePlayerConscious(playerIndex)) return '戦闘不能：手番をスキップ中';
+      return canSelectCards ? 'カードを選択してください' : '行動を準備しています';
+    }
+    return `${playerName(Number(s.turn))}の行動を待っています`;
+  }
+
+  return String(s.message || '').trim() || '戦闘状況を確認中';
 }
 
 function showKingdomCardEffectInfo(card, prefix = '効果') {
@@ -6532,6 +6593,13 @@ function applyPresenceToPlayers() {
     presenceGraceTimer = null;
   }
   const fallbackNames = ['あなた', 'NPC1', 'NPC2', 'NPC3'];
+  const contextHostPet = tkNet.isHost && kingdomExplorationSession?.context?.mode === 'online'
+    ? buildKingdomPetPlayerTemplate(kingdomExplorationSession.context.currentPet)
+    : null;
+  const synchronizedHostPet = s.players?.[1]?.isPet === true
+    ? buildKingdomPetPlayerTemplate(s.players[1].pet)
+    : null;
+  const hostPet = contextHostPet || synchronizedHostPet;
   const seatTaken = [null, null, null, null];
   Object.entries(netPresenceByUid || {}).forEach(([uid, info]) => {
     if (!isFreshKingdomPresence(info)) return;
@@ -6566,6 +6634,8 @@ function applyPresenceToPlayers() {
     if (occ) {
       const occName = String(occ.displayName || occ.name || fallbackNames[i] || `P${i + 1}`);
       p.isNpc = false;
+      p.isPet = false;
+      delete p.pet;
       if (!s.characterSnapshotReady) p.name = occName;
       p.uid = occ.uid || null;
       if (!s.characterSnapshotReady) p.playFabId = String(occ.uid || '').trim();
@@ -6580,12 +6650,28 @@ function applyPresenceToPlayers() {
     const grace = presenceGraceBySeat[i];
     if (grace && Number(grace.until || 0) > now) {
       p.isNpc = false;
+      p.isPet = false;
+      delete p.pet;
       p.name = String(grace.name || fallbackNames[i] || `P${i + 1}`);
       p.uid = grace.uid || null;
       p.playFabId = String(grace.playFabId || '').trim();
       continue;
     }
+    if (i === 1 && hostPet) {
+      p.id = hostPet.id;
+      p.name = hostPet.name;
+      p.isNpc = true;
+      p.isPet = true;
+      p.pet = { ...hostPet.pet };
+      p.aiStyle = hostPet.aiStyle;
+      p.uid = null;
+      p.playFabId = '';
+      presenceGraceBySeat[i] = { uid: null, name: p.name, playFabId: '', until: 0 };
+      continue;
+    }
     p.isNpc = true;
+    p.isPet = false;
+    delete p.pet;
     if (s.characterSnapshotReady && p.character) {
       p.uid = null;
       presenceGraceBySeat[i] = { uid: null, name: p.name, playFabId: p.playFabId, until: 0 };
@@ -6770,8 +6856,13 @@ async function claimHostIfNeeded(forceTakeover = false) {
 
 async function ensureSeatAssignment() {
   if (!isNetModeActive()) return -1;
+  const reservedNpcSeats = new Set();
   const pickSeat = (usedSet) => {
-    for (let i = 0; i < 4; i += 1) {
+    const seatOrder = getKingdomSeatClaimOrder(reservedNpcSeats.has(1));
+    for (const i of seatOrder) {
+      if (!usedSet.has(i) && !reservedNpcSeats.has(i)) return i;
+    }
+    for (const i of seatOrder) {
       if (!usedSet.has(i)) return i;
     }
     return -1;
@@ -6787,6 +6878,11 @@ async function ensureSeatAssignment() {
       get(ref(tkNet.db, `${tkNet.roomPath}/presence`))
     ]);
     const existingSeat = existingSeatSnapshot.exists() ? Number(existingSeatSnapshot.val()) : -1;
+    const roomStatePayload = roomStateSnapshot.exists() ? roomStateSnapshot.val() : null;
+    const roomPlayers = roomStatePayload?.state?.players;
+    if (roomPlayers?.[1]?.isNpc === true && roomPlayers[1]?.isPet === true) {
+      reservedNpcSeats.add(1);
+    }
     if (
       (!Number.isInteger(existingSeat) || existingSeat < 0 || existingSeat >= 4)
       && roomStateSnapshot.exists()
@@ -6796,8 +6892,14 @@ async function ensureSeatAssignment() {
       return -1;
     }
     const presence = presenceSnapshot.exists() ? (presenceSnapshot.val() || {}) : {};
-    const candidates = [existingSeat, 0, 1, 2, 3]
-      .filter((seat, index, values) => Number.isInteger(seat) && seat >= 0 && seat < 4 && values.indexOf(seat) === index);
+    const preferredSeatOrder = getKingdomSeatClaimOrder(reservedNpcSeats.has(1));
+    const candidates = [existingSeat, ...preferredSeatOrder]
+      .filter((seat, index, values) => (
+        Number.isInteger(seat)
+        && seat >= 0
+        && seat < 4
+        && values.indexOf(seat) === index
+      ));
 
     for (const seat of candidates) {
       const ownerRef = ref(tkNet.db, `${tkNet.roomPath}/meta/seatOwners/${seat}`);
@@ -7631,6 +7733,8 @@ function resetMatch() {
   clearKingdomTransitionTimer();
   clearKingdomCardDealFx();
   kingdomStateGeneration += 1;
+  kingdomRoundPetOfferPromise = null;
+  kingdomRoundPetOfferChecked.clear();
   kingdomCharacterLoadPromise = null;
   kingdomRoundStartPromise = null;
   setKingdomSummonCinematicState(false);
@@ -8809,6 +8913,24 @@ function exposeTarotKingdomBattleDebugTools(target) {
   if (window.__TAROT_KINGDOM_PREVIEW__ !== true) return;
   Object.assign(target, {
     battleScenario: (options = {}) => buildTarotKingdomDebugBattleState(options),
+    battleExplorationRoster: (mode = 'offline', currentPet = null) => {
+      const previousSession = kingdomExplorationSession;
+      kingdomExplorationSession = {
+        context: {
+          mode: mode === 'online' ? 'online' : 'offline',
+          currentPet: currentPet && typeof currentPet === 'object' ? { ...currentPet } : null
+        },
+        resolve: () => {}
+      };
+      try {
+        return cloneKingdomSnapshotValue(getKingdomInitialPlayerTemplates(), []);
+      } finally {
+        kingdomExplorationSession = previousSession;
+      }
+    },
+    battleSeatClaimOrder: (hasReservedHostPet = false) => getKingdomSeatClaimOrder(
+      hasReservedHostPet === true
+    ),
     battleDealScenario: (playerCount = 4) => {
       buildTarotKingdomDebugBattleState({
         playerCount: normalizeKingdomPlayerCount(playerCount),
@@ -10287,12 +10409,14 @@ function finishRound(winnerIndex) {
     triggerKingdomGrandWinnerFx(top);
     s.message = `ゲーム終了！ 優勝: ${s.players[top].name} (${s.players[top].chips}チップ)`;
     log(s.message);
+    queueKingdomRoundPetOfferCheck(roundNo);
     render();
     return;
   }
   s.dealer = (s.dealer + 1) % getKingdomPlayerCount();
   s.awaitRoundConfirm = true;
   s.message = `${winner.name}が第${roundNo}局に勝利。清算を確認して次局へ進んでください。次局の親: ${pName(s.dealer)}。`;
+  queueKingdomRoundPetOfferCheck(roundNo);
   render();
 }
 
@@ -12053,6 +12177,46 @@ function buildKingdomExplorationResult(status = 'completed') {
   };
 }
 
+function queueKingdomRoundPetOfferCheck(roundNo) {
+  const context = kingdomExplorationSession?.context;
+  if (
+    !context
+    || context.mode !== 'offline'
+    || typeof context.onRoundFinished !== 'function'
+    || !s?.stage
+  ) return null;
+  const normalizedRoundNo = Math.max(1, Math.min(TOTAL_HANDS, Math.floor(Number(roundNo) || 1)));
+  const stage = normalizeKingdomExplorationStageState(s.stage);
+  const finisher = stage?.finishers?.find((entry) => entry.roundNo === normalizedRoundNo) || null;
+  const localPlayFabId = String(window.myPlayFabId || '').trim();
+  if (
+    !finisher
+    || finisher.isNpc === true
+    || !localPlayFabId
+    || String(finisher.playFabId || '').trim() !== localPlayFabId
+  ) return null;
+  const checkKey = `${String(context.explorationId || '')}:${normalizedRoundNo}`;
+  if (kingdomRoundPetOfferChecked.has(checkKey)) return kingdomRoundPetOfferPromise;
+  kingdomRoundPetOfferChecked.add(checkKey);
+  const promise = Promise.resolve().then(() => context.onRoundFinished({
+    ...finisher,
+    roundNo: normalizedRoundNo,
+    mode: 'offline'
+  })).catch((error) => {
+    console.warn('[tarotKingdom] round pet offer check failed:', error);
+    setLocalInfoMessage('加入判定を確認できませんでした。次の局へ進めます。', 2400);
+    return null;
+  }).finally(() => {
+    if (kingdomRoundPetOfferPromise === promise) {
+      kingdomRoundPetOfferPromise = null;
+      render();
+    }
+  });
+  kingdomRoundPetOfferPromise = promise;
+  render();
+  return promise;
+}
+
 function settleKingdomExplorationSession(status = 'completed') {
   const session = kingdomExplorationSession;
   if (!session) return null;
@@ -12072,6 +12236,13 @@ function settleKingdomExplorationSession(status = 'completed') {
 
 function getKingdomSettlementActionState(state = s) {
   if (!state) return null;
+  if (kingdomRoundPetOfferPromise) {
+    return {
+      kind: 'petOfferPending',
+      label: '加入判定中',
+      disabled: true
+    };
+  }
   const isMatchDone = isKingdomMatchDoneState(state);
   if (isMatchDone) {
     if (kingdomExplorationSession) {
@@ -12531,62 +12702,6 @@ function getKingdomBattleFeedClass(type) {
   return 'is-info';
 }
 
-const KINGDOM_STATUS_LABEL = Object.freeze({
-  burn: '火傷', wet: '水浸し', fear: '恐怖', confusion: '混乱', poison: '毒', paralysis: '攻撃不能',
-  blind: '暗闇', weaken: '弱体', vulnerable: '脆弱', break: '崩し', guard: '防御', areaGuard: '全体防御',
-  cover: '身代わり', summonGuard: '海神障壁', counter: '反撃', evasion: '回避', nextAttackUp: '攻撃強化', nextEffectUp: '効果強化',
-  nextWandUp: 'ワンド強化', nextEffectFlat: '威力強化', statusChanceUp: '付与強化', petrified: '石化', areaSeal: '全体封印',
-  regen: 'リジェネ', allStatsUp: '全能力上昇', statusImmunity: '状態異常無効', damageBarrier: '強力障壁',
-  debuffImmunity: 'デバフ無効', attackDown: '攻撃低下', defenseDown: '防御低下', intimidate: '威圧',
-  chariot: '突撃陣形', lastStand: '食いしばり', invisible: '完全回避', partyCritical: '確定クリティカル',
-  enemyCritical: '敵クリティカル', hpShield: 'シールド', bloodPact: '悪魔の契約', majorConfusion: '混乱',
-  mirageBlind: '幻惑', decoy: '分身', sunBlessing: '攻撃上昇', timeStop: '時間停止'
-});
-
-function createKingdomStatusIcon(statusKey) {
-  const normalizedKey = statusKey === 'petrified'
-    ? 'paralysis'
-    : (['areaSeal', 'summonGuard'].includes(statusKey) ? 'guard' : statusKey);
-  const index = Number(TAROT_KINGDOM_STATUS_ICON_INDEX[normalizedKey]);
-  if (!Number.isFinite(index)) return null;
-  const col = index % 16;
-  const row = Math.floor(index / 16);
-  const icon = document.createElement('span');
-  icon.className = 'melee-feedback-icon tarot-kingdom-status-icon';
-  icon.dataset.statusKey = statusKey;
-  icon.style.setProperty('--icon-col-pos', `${(col / 15) * 100}%`);
-  icon.style.setProperty('--icon-row-pos', `${(row / 63) * 100}%`);
-  icon.setAttribute('role', 'img');
-  icon.setAttribute('aria-label', KINGDOM_STATUS_LABEL[statusKey] || statusKey);
-  icon.title = KINGDOM_STATUS_LABEL[statusKey] || statusKey;
-  return icon;
-}
-
-function renderKingdomStatusTray(container, bucket = {}, extraKeys = []) {
-  if (!container) return;
-  let tray = container.querySelector(':scope > .tarot-kingdom-status-tray');
-  if (!tray) {
-    tray = document.createElement('div');
-    tray.className = 'tarot-kingdom-status-tray';
-    container.appendChild(tray);
-  }
-  const keys = [...Object.keys(bucket || {}), ...(Array.isArray(extraKeys) ? extraKeys : [])]
-    .filter((key, index, all) => all.indexOf(key) === index && Number.isFinite(Number(
-      TAROT_KINGDOM_STATUS_ICON_INDEX[key === 'petrified'
-        ? 'paralysis'
-        : (['areaSeal', 'summonGuard'].includes(key) ? 'guard' : key)]
-    )));
-  const renderKey = keys.join('|');
-  tray.classList.toggle('is-empty', keys.length === 0);
-  if (tray.dataset.renderKey === renderKey) return;
-  tray.dataset.renderKey = renderKey;
-  tray.innerHTML = '';
-  keys.forEach((key) => {
-    const icon = createKingdomStatusIcon(key);
-    if (icon) tray.appendChild(icon);
-  });
-}
-
 function ensureKingdomBattlePlayerRow(playerIndex) {
   if (!ui.battleParty) return null;
   let row = ui.battleParty.querySelector(`[data-player-index="${playerIndex}"]`);
@@ -12869,7 +12984,6 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
       );
       handCount.textContent = `残り手札 ${player.hand.length}枚${forcedDrawStreak > 0 ? ` · ☠${forcedDrawStreak}/${KINGDOM_FORCED_DRAW_DEATH_THRESHOLD}` : ''}`;
     }
-    renderKingdomStatusTray(row, getKingdomEffectBucket('player', playerIndex) || {});
     let healNumber = row.querySelector(':scope > .tarot-kingdom-heal-number');
     const healing = Array.isArray(activeEvent?.effects)
       ? activeEvent.effects.filter((entry) => (
@@ -13705,12 +13819,6 @@ function renderKingdomBattleStage() {
   renderKingdomBattleDamageNumber(visualEvent, eventIsActive, timelinePhase);
   renderKingdomBattleParty(visualEvent, eventIsActive, eventKey);
   renderKingdomChampionCeremony();
-  renderKingdomStatusTray(ui.battleParty, getKingdomEffectBucket('party') || {});
-  renderKingdomStatusTray(ui.battleEnemy, getKingdomEffectBucket('enemy') || {}, [
-    ...(enemy.petrifiedUntilClear ? ['petrified'] : []),
-    ...(enemy.areaAttackSealedUntilClear ? ['areaSeal'] : []),
-    ...(s.reverse ? ['confusion'] : [])
-  ]);
   renderKingdomBattleFeed();
 
   if (eventIsActive && kingdomBattleVisualEventKey !== eventKey) {
@@ -14508,13 +14616,13 @@ function renderSummary() {
     const hasPlayError = kingdomLocalPriorityKind === 'play-error' && !!kingdomLocalPriorityMessage;
     const canSelectCards = me >= 0 && canLocalPlayerSelectHand(me);
     const hasVisibleSelection = canSelectCards && localSelected.length > 0;
-    const shouldShowSelectionGuide = hasPlayError || canSelectCards;
-    ui.selectedEffect.textContent = hasPlayError
-      ? kingdomLocalPriorityMessage
-      : (hasVisibleSelection
+    const situationMessage = buildKingdomSituationAnnouncement(me, canSelectCards);
+    ui.selectedEffect.textContent = kingdomLocalPriorityMessage
+      || kingdomLocalInfoMessage
+      || (hasVisibleSelection
         ? (buildSelectedCardInfoMessage(me, localSelected) || `${localSelected.length}枚選択中`)
-        : (canSelectCards ? 'カードを選択してください' : ''));
-    ui.selectedEffect.hidden = !shouldShowSelectionGuide;
+        : situationMessage);
+    ui.selectedEffect.hidden = false;
     ui.selectedEffect.classList.toggle('has-selection', hasVisibleSelection);
     ui.selectedEffect.classList.toggle('is-error', hasPlayError);
   }
@@ -15525,7 +15633,10 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
       ? context.supplyQueue.slice(0, TOTAL_HANDS - 1).map((entry) => ({ ...entry }))
       : [],
     mode: requestedMode,
-    currentPet: requestedMode === 'offline' ? currentPet : null
+    currentPet,
+    onRoundFinished: requestedMode === 'offline' && typeof context?.onRoundFinished === 'function'
+      ? context.onRoundFinished
+      : null
   };
   const completion = new Promise((resolve) => {
     kingdomExplorationSession = { context: normalizedContext, resolve };
@@ -15625,6 +15736,8 @@ export function destroyTarotKingdomPage() {
   clearKingdomTransitionTimer();
   clearKingdomCardDealFx();
   kingdomStateGeneration += 1;
+  kingdomRoundPetOfferPromise = null;
+  kingdomRoundPetOfferChecked.clear();
   kingdomCharacterLoadPromise = null;
   kingdomRoundStartPromise = null;
   resetKingdomBattleAvatarVisuals({ remove: true });

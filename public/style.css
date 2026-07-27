@@ -1379,18 +1379,19 @@ button.home-player-ship-name {
 }
 
 .exploration-sequence-overlay.is-encounter-choice .exploration-sequence-boss {
-    left: 50%;
-    right: auto;
-    bottom: 62px;
-    width: 164px;
-    height: 164px;
+    left: auto;
+    right: 73px;
+    bottom: 78px;
+    width: 60px;
+    height: 60px;
     opacity: 1;
-    transform: translateX(-50%) scale(1);
+    transform: none;
     animation: none;
+    filter: drop-shadow(0 7px 6px rgba(0, 0, 0, 0.48));
 }
 
 .exploration-sequence-overlay.is-encounter-choice .exploration-sequence-boss small {
-    bottom: 2px;
+    display: none;
 }
 
 @keyframes homePlayerShipSail {
@@ -11262,7 +11263,6 @@ body.tarot-kingdom-preview-body {
 :is(body, #tabContentTarot) #tarotKingdomRoot.is-summon-cinematic #tarotKingdomBattleStage .tarot-kingdom-battle-center,
 :is(body, #tabContentTarot) #tarotKingdomRoot.is-summon-cinematic #tarotKingdomBattleStage .tarot-kingdom-battle-enemy > .tarot-kingdom-battle-side-heading,
 :is(body, #tabContentTarot) #tarotKingdomRoot.is-summon-cinematic #tarotKingdomBattleStage .tarot-kingdom-battle-enemy > .tarot-kingdom-battle-hp,
-:is(body, #tabContentTarot) #tarotKingdomRoot.is-summon-cinematic #tarotKingdomBattleStage .tarot-kingdom-battle-enemy > .tarot-kingdom-status-tray,
 :is(body, #tabContentTarot) #tarotKingdomRoot.is-summon-cinematic #tarotKingdomBattleStage .tarot-kingdom-demo-enemy-picker,
 :is(body, #tabContentTarot) #tarotKingdomRoot.is-summon-cinematic #tarotKingdomBattleStage .tarot-kingdom-demo-battlefield-picker,
 :is(body, #tabContentTarot) #tarotKingdomRoot.is-summon-cinematic #tarotKingdomBattleStage .tarot-kingdom-demo-pet-picker,
@@ -11381,7 +11381,6 @@ body.tarot-kingdom-preview-body {
     :is(body, #tabContentTarot) #tarotKingdomRoot.is-summon-cinematic #tarotKingdomBattleStage .tarot-kingdom-battle-center,
     :is(body, #tabContentTarot) #tarotKingdomRoot.is-summon-cinematic #tarotKingdomBattleStage .tarot-kingdom-battle-enemy > .tarot-kingdom-battle-side-heading,
     :is(body, #tabContentTarot) #tarotKingdomRoot.is-summon-cinematic #tarotKingdomBattleStage .tarot-kingdom-battle-enemy > .tarot-kingdom-battle-hp,
-    :is(body, #tabContentTarot) #tarotKingdomRoot.is-summon-cinematic #tarotKingdomBattleStage .tarot-kingdom-status-tray,
     :is(body, #tabContentTarot) #tarotKingdomRoot.is-summon-cinematic #tarotKingdomBattleStage .tarot-kingdom-demo-enemy-picker,
     :is(body, #tabContentTarot) #tarotKingdomRoot.is-summon-cinematic #tarotKingdomBattleStage .tarot-kingdom-demo-battlefield-picker,
     :is(body, #tabContentTarot) #tarotKingdomRoot.is-summon-cinematic #tarotKingdomBattleStage .tarot-kingdom-demo-pet-picker,
@@ -11457,53 +11456,6 @@ body.tarot-kingdom-preview-body {
 
 :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-card.is-resonant.is-selected .tarot-card-resonance-mark {
     box-shadow: 0 0 9px rgba(255, 232, 130, 0.95), inset 0 0 3px #fff7cf;
-}
-
-:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-status-tray {
-    position: absolute;
-    z-index: 34;
-    display: flex;
-    gap: 2px;
-    min-width: 20px;
-    min-height: 20px;
-    padding: 2px 3px;
-    border: 1px solid rgba(208, 173, 87, 0.48);
-    border-radius: 11px;
-    background: rgba(5, 5, 10, 0.78);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.48);
-    pointer-events: none;
-}
-
-:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-status-tray.is-empty {
-    display: none;
-}
-
-:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-status-icon {
-    width: 16px;
-    height: 16px;
-    flex: 0 0 16px;
-}
-
-:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-enemy > .tarot-kingdom-status-tray {
-    left: 48%;
-    bottom: 28%;
-    transform: translateX(-50%);
-}
-
-:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-player > .tarot-kingdom-status-tray {
-    right: calc(100% + 2px);
-    bottom: 7px;
-    display: grid;
-    grid-template-columns: repeat(2, 16px);
-    max-width: 39px;
-    min-width: 0;
-    min-height: 0;
-    padding: 2px;
-}
-
-:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleParty > .tarot-kingdom-status-tray {
-    right: 4px;
-    top: 21%;
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-effect-banner {
@@ -33436,10 +33388,6 @@ body.tarot-kingdom-preview-body {
     text-shadow: 0 1px 1px #000;
 }
 
-:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomSelectedEffect[hidden] {
-    display: none !important;
-}
-
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage {
     width: 100%;
     margin: 0;
@@ -33586,7 +33534,9 @@ body.tarot-kingdom-preview-body {
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomSelectedEffect {
     width: min(calc(100% - 24px), 540px);
+    height: 46px;
     min-height: 46px;
+    max-height: 46px;
     margin: 5px auto 3px;
     padding: 7px 18px;
     border: 2px solid #d9b54d;

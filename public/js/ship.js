@@ -19,6 +19,7 @@ import {
     retreatExploration as requestRetreatExploration,
     claimExploration as requestClaimExploration,
     getTarotKingdomPetState as requestTarotKingdomPetState,
+    rollTarotKingdomPetRound as requestRollTarotKingdomPetRound,
     chooseTarotKingdomPet as requestChooseTarotKingdomPet,
     getPlayerShipStatus as requestPlayerShipStatus,
     upgradePlayerShip as requestUpgradePlayerShip,
@@ -28,7 +29,7 @@ import {
     getShipsInView as fetchShipsInView,
     getShipAsset as fetchShipAsset,
     getShipPosition as fetchShipPosition
-} from './playfabClient.js';
+} from './playfabClient.js?v=20260727-pet-round1';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { createRequestId } from './api.js';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -2854,7 +2855,7 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
                 <div class="exploration-sequence-arrival" aria-hidden="true"></div>
                 ${renderExplorationDestinationVisual(active.destinationId ? active : resolvedDestinationId, 'exploration-sequence-island', 'div')}
                 <div class="exploration-sequence-boss" data-exploration-sequence-boss>
-                    ${renderExplorationPixelMonster(kingdomMonster, 'exploration-sequence-boss-image', { maxWidth: 164, maxHeight: 154 })}
+                    ${renderExplorationPixelMonster(kingdomMonster, 'exploration-sequence-boss-image', { maxWidth: 58, maxHeight: 54 })}
                     <small>${kingdomMonster.isBoss === true ? 'BOSS' : 'MONSTER'}</small>
                 </div>
                 <div class="exploration-sequence-ship-effect" aria-hidden="true"></div>
@@ -2953,8 +2954,10 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
             cancelled: true
         };
     }
+    const explorationId = String(report.explorationId || report.id || active.id || '');
+    const ownerPlayFabId = String(window.myPlayFabId || window.myPlayFabLoginInfo?.playFabId || '').trim();
     const kingdomResult = await window.launchTarotKingdomExplorationBattle({
-        explorationId: String(report.explorationId || report.id || active.id || ''),
+        explorationId,
         destinationId: String(resolvedDestinationId || ''),
         destinationName,
         monsterId: kingdomMonster.id,
@@ -2967,14 +2970,31 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
         monsters: stageMonsters,
         supplyQueue: Array.isArray(report?.supplyQueue) ? report.supplyQueue : [],
         mode: battleMode,
-        currentPet: battleMode === 'offline' ? currentTarotKingdomPet : null
+        currentPet: currentTarotKingdomPet,
+        onRoundFinished: battleMode === 'offline' && ownerPlayFabId
+            ? async (finisher) => {
+                const roll = await requestRollTarotKingdomPetRound(
+                    ownerPlayFabId,
+                    explorationId,
+                    { ...finisher, mode: 'offline' },
+                    { isSilent: true, throwOnError: true }
+                );
+                if (roll?.petOffer) {
+                    const choice = await showTarotKingdomPetOffer(roll.petOffer, ownerPlayFabId);
+                    if (choice?.currentPet && typeof choice.currentPet === 'object') {
+                        currentTarotKingdomPet = { ...choice.currentPet };
+                    }
+                }
+                return roll;
+            }
+            : null
     });
     const retreatedInKingdom = kingdomResult?.status === 'retreated';
     return {
         chestOpened: false,
         battleMode,
         kingdomMonster,
-        explorationId: String(report.explorationId || report.id || active.id || ''),
+        explorationId,
         kingdomResult,
         retreated: retreatedInKingdom,
         cancelled: kingdomResult?.status !== 'completed'

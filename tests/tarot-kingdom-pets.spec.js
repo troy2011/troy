@@ -1,13 +1,13 @@
 const { test, expect } = require('@playwright/test');
 const manifest = require('../public/Sprites/pixel-monsters/manifest.json');
 const {
-  TAROT_KINGDOM_PET_RECRUIT_CHANCE,
+  TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT,
   buildTarotKingdomPetOfferView,
+  getTarotKingdomPetRecruitChance,
   isTarotKingdomPetRecruitEligible,
   normalizeTarotKingdomPetState,
   resolveTarotKingdomPetChoice,
-  rollTarotKingdomPetOffer,
-  selectTarotKingdomStagePetCandidate
+  rollTarotKingdomPetOffer
 } = require('../server/tarotKingdomPets');
 
 const normalMonster = manifest.find((monster) => monster.isBoss !== true);
@@ -30,19 +30,22 @@ test.describe('Tarot Kingdom monster recruitment', () => {
     expect(manifest.filter((monster) => monster.isBoss === true)).toHaveLength(3);
   });
 
-  test('eligibility requires the normal enemy, final round, offline human finisher and matching identity', () => {
+  test('eligibility accepts every round and requires an offline human finisher with matching identity', () => {
     const encounter = { monsterId: normalMonster.id };
-    expect(isTarotKingdomPetRecruitEligible({
-      encounter,
-      outcome: 'victory',
-      finisher: eligibleFinisher(),
-      authenticatedPlayFabId: 'PF_HUMAN'
-    })).toBe(true);
+    [1, 2, 3, 4].forEach((roundNo) => {
+      expect(isTarotKingdomPetRecruitEligible({
+        encounter,
+        outcome: 'victory',
+        finisher: eligibleFinisher({ roundNo }),
+        authenticatedPlayFabId: 'PF_HUMAN'
+      })).toBe(true);
+    });
 
     const rejected = [
       { encounter: { monsterId: bossMonster.id } },
       { outcome: 'defeat' },
-      { finisher: eligibleFinisher({ roundNo: 3 }) },
+      { finisher: eligibleFinisher({ roundNo: 0 }) },
+      { finisher: eligibleFinisher({ roundNo: 5 }) },
       { finisher: eligibleFinisher({ isNpc: true }) },
       { finisher: eligibleFinisher({ mode: 'online' }) },
       { finisher: eligibleFinisher({ playFabId: 'PF_OTHER' }) }
@@ -58,13 +61,19 @@ test.describe('Tarot Kingdom monster recruitment', () => {
     });
   });
 
-  test('the five-percent roll creates one persistent offer and never rerolls while pending', () => {
-    expect(TAROT_KINGDOM_PET_RECRUIT_CHANCE).toBe(0.05);
+  test('recruitment chance decreases from 15 percent to 5 percent by stage', () => {
+    expect(TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT).toBe(16);
+    for (let stageNo = 1; stageNo <= 11; stageNo += 1) {
+      expect(getTarotKingdomPetRecruitChance(stageNo)).toBe((16 - stageNo) / 100);
+    }
+  });
+
+  test('the stage-weighted roll creates one persistent offer and never rerolls while pending', () => {
     const first = rollTarotKingdomPetOffer({
       state: null,
-      encounter: { monsterId: normalMonster.id },
+      encounter: { monsterId: normalMonster.id, stageNo: 1 },
       explorationId: 'explore-1',
-      random: () => 0.049
+      random: () => 0.149
     });
     expect(first.created).toBe(true);
     expect(first.offer).toMatchObject({
@@ -83,50 +92,11 @@ test.describe('Tarot Kingdom monster recruitment', () => {
 
     const miss = rollTarotKingdomPetOffer({
       state: null,
-      encounter: { monsterId: normalMonster.id },
+      encounter: { monsterId: normalMonster.id, stageNo: 11 },
       explorationId: 'explore-3',
       random: () => 0.05
     });
     expect(miss.offer).toBeNull();
-  });
-
-  test('stage recruitment uniformly chooses only monsters personally finished by the offline owner', () => {
-    const candidates = manifest.filter((monster) => monster.isBoss !== true).slice(0, 4);
-    const encounter = {
-      version: 2,
-      monsters: candidates.map((monster, index) => ({ order: index + 1, monsterId: monster.id }))
-    };
-    const finishers = [
-      { ...eligibleFinisher({ roundNo: 1 }), monsterId: candidates[0].id },
-      { ...eligibleFinisher({ roundNo: 2, isNpc: true }), monsterId: candidates[1].id },
-      { ...eligibleFinisher({ roundNo: 3, playFabId: 'PF_OTHER' }), monsterId: candidates[2].id },
-      { ...eligibleFinisher({ roundNo: 4 }), monsterId: candidates[3].id }
-    ];
-    expect(selectTarotKingdomStagePetCandidate({
-      encounter,
-      finishers,
-      authenticatedPlayFabId: 'PF_HUMAN',
-      random: () => 0
-    })?.id).toBe(candidates[0].id);
-    expect(selectTarotKingdomStagePetCandidate({
-      encounter,
-      finishers,
-      authenticatedPlayFabId: 'PF_HUMAN',
-      currentPet: { monsterId: candidates[0].id },
-      random: () => 0
-    })?.id).toBe(candidates[3].id);
-    expect(selectTarotKingdomStagePetCandidate({
-      encounter,
-      finishers: finishers.map((entry) => ({ ...entry, mode: 'online' })),
-      authenticatedPlayFabId: 'PF_HUMAN',
-      random: () => 0
-    })).toBeNull();
-    expect(selectTarotKingdomStagePetCandidate({
-      encounter,
-      finishers: [{ ...eligibleFinisher({ roundNo: 1 }), monsterId: candidates[3].id }],
-      authenticatedPlayFabId: 'PF_HUMAN',
-      random: () => 0
-    })).toBeNull();
   });
 
   test('accept replaces the one pet, decline preserves it, and response retries are idempotent', () => {

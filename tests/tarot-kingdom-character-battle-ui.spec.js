@@ -883,7 +883,7 @@ test('Judgment selection message is compact and fits the mobile frame', async ({
   expect(textFit.scrollHeight).toBeLessThanOrEqual(textFit.clientHeight);
 });
 
-test('card selection guide and hand input are available only on the local turn', async ({ page }) => {
+test('battle announcement stays visible without moving the hand between turns', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   const selectedEffect = page.locator('#tarotKingdomSelectedEffect');
   const firstCard = page.locator('#tarotKingdomHand > .tarot-card').first();
@@ -891,7 +891,9 @@ test('card selection guide and hand input are available only on the local turn',
   await page.evaluate(() => {
     window.TarotKingdomDebug.battleScenario({ turnIndex: 1 });
   });
-  await expect(selectedEffect).toBeHidden();
+  await expect(selectedEffect).toBeVisible();
+  await expect(selectedEffect).toContainText('の行動を待っています');
+  const waitingHandTop = await firstCard.evaluate((element) => element.getBoundingClientRect().top);
   await expect(firstCard).toHaveAttribute('aria-pressed', 'false');
   await firstCard.click({ force: true });
   await expect(firstCard).toHaveAttribute('aria-pressed', 'false');
@@ -901,6 +903,8 @@ test('card selection guide and hand input are available only on the local turn',
   });
   await expect(selectedEffect).toBeVisible();
   await expect(selectedEffect).toHaveText('カードを選択してください');
+  const activeHandTop = await firstCard.evaluate((element) => element.getBoundingClientRect().top);
+  expect(Math.abs(activeHandTop - waitingHandTop)).toBeLessThanOrEqual(0.5);
   await firstCard.click();
   await expect(firstCard).toHaveAttribute('aria-pressed', 'true');
 });
@@ -1458,6 +1462,29 @@ test('pet occupies the second seat after the player with its own monster sprite,
     /\/pixel-monsters\/vol1\/monster-01\/death\.png/
   );
   await expect(koPetRow.locator('.avatar-combat-death-sprite')).toHaveCount(0);
+});
+
+test('online rescue keeps the host pet in the second NPC seat while human helpers claim the other seats first', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const pet = {
+    monsterId: 'ismartal-vol1-monster-01',
+    monsterName: 'トゲマル',
+    number: 1
+  };
+  const audit = await page.evaluate((currentPet) => ({
+    roster: window.TarotKingdomDebug.battleExplorationRoster('online', currentPet),
+    reservedOrder: window.TarotKingdomDebug.battleSeatClaimOrder(true),
+    normalOrder: window.TarotKingdomDebug.battleSeatClaimOrder(false)
+  }), pet);
+  expect(audit.roster.map((player) => player.id)).toEqual(['you', 'pet', 'npc2', 'npc3']);
+  expect(audit.roster[1]).toMatchObject({
+    isNpc: true,
+    isPet: true,
+    name: 'トゲマル',
+    pet: { monsterId: pet.monsterId }
+  });
+  expect(audit.reservedOrder).toEqual([0, 2, 3, 1]);
+  expect(audit.normalOrder).toEqual([0, 1, 2, 3]);
 });
 
 test('round settlement confirmation remains visible after the battle stage completes', async ({ page }) => {

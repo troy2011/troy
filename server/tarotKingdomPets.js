@@ -2,7 +2,7 @@ const PIXEL_MONSTERS_ROSTER = require('../public/Sprites/pixel-monsters/manifest
 
 const TAROT_KINGDOM_PET_DATA_KEY = 'TarotKingdomPetState';
 const TAROT_KINGDOM_PET_STATE_VERSION = 1;
-const TAROT_KINGDOM_PET_RECRUIT_CHANCE = 0.05;
+const TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT = 16;
 
 const MONSTER_BY_ID = new Map(
     PIXEL_MONSTERS_ROSTER.map((monster) => [String(monster?.id || '').trim(), monster])
@@ -15,6 +15,11 @@ function finiteTimestamp(value, fallback = 0) {
 
 function getTarotKingdomPetMonster(monsterId = '') {
     return MONSTER_BY_ID.get(String(monsterId || '').trim()) || null;
+}
+
+function getTarotKingdomPetRecruitChance(stageNo = 1) {
+    const normalizedStageNo = Math.max(1, Math.min(11, Math.floor(Number(stageNo) || 1)));
+    return Math.max(0, Math.min(1, (TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT - normalizedStageNo) / 100));
 }
 
 function normalizeTarotKingdomCurrentPet(value) {
@@ -92,50 +97,16 @@ function isTarotKingdomPetRecruitEligible({
     if (!monster || monster.isBoss === true || String(outcome || '').trim().toLowerCase() !== 'victory') return false;
     if (!playFabId || !finisher || typeof finisher !== 'object') return false;
     if (String(finisher.mode || '').trim().toLowerCase() !== 'offline') return false;
-    if (finisher.isNpc === true || Number(finisher.roundNo) !== 4) return false;
+    const roundNo = Math.floor(Number(finisher.roundNo) || 0);
+    if (finisher.isNpc === true || roundNo < 1 || roundNo > 4) return false;
     return String(finisher.playFabId || '').trim() === playFabId;
-}
-
-function selectTarotKingdomStagePetCandidate({
-    encounter = null,
-    finishers = [],
-    authenticatedPlayFabId = '',
-    currentPet = null,
-    random = Math.random
-} = {}) {
-    if (Number(encounter?.version) < 2 || !Array.isArray(encounter?.monsters)) return null;
-    const playFabId = String(authenticatedPlayFabId || '').trim();
-    if (!playFabId) return null;
-    const stageMonsterByRound = new Map(encounter.monsters.map((entry, index) => [
-        Math.max(1, Math.min(4, Math.floor(Number(entry?.order) || index + 1))),
-        String(entry?.monsterId || '').trim()
-    ]));
-    const currentMonsterId = String(currentPet?.monsterId || '').trim();
-    const eligibleIds = Array.from(new Set((Array.isArray(finishers) ? finishers : [])
-        .filter((entry) => (
-            entry?.isNpc !== true
-            && String(entry?.mode || '').trim().toLowerCase() === 'offline'
-            && String(entry?.playFabId || '').trim() === playFabId
-            && stageMonsterByRound.get(Math.floor(Number(entry?.roundNo) || 0))
-                === String(entry?.monsterId || '').trim()
-        ))
-        .map((entry) => String(entry?.monsterId || '').trim())
-        .filter((monsterId) => monsterId !== currentMonsterId)))
-        .filter((monsterId) => {
-            const monster = getTarotKingdomPetMonster(monsterId);
-            return !!monster && monster.isBoss !== true;
-        });
-    if (eligibleIds.length === 0) return null;
-    const roll = Math.max(0, Math.min(0.999999, Number(
-        typeof random === 'function' ? random() : Math.random()
-    ) || 0));
-    return getTarotKingdomPetMonster(eligibleIds[Math.floor(roll * eligibleIds.length)]);
 }
 
 function rollTarotKingdomPetOffer({
     state = null,
     encounter = null,
     explorationId = '',
+    chance = getTarotKingdomPetRecruitChance(encounter?.stageNo),
     random = Math.random,
     now = Date.now()
 } = {}) {
@@ -154,7 +125,8 @@ function rollTarotKingdomPetOffer({
     const roll = Math.max(0, Math.min(0.999999, Number(
         typeof random === 'function' ? random() : Math.random()
     ) || 0));
-    if (roll >= TAROT_KINGDOM_PET_RECRUIT_CHANCE) {
+    const normalizedChance = Math.max(0, Math.min(1, Number(chance) || 0));
+    if (roll >= normalizedChance) {
         return { state: normalizedState, offer: null, created: false };
     }
     const offer = {
@@ -235,9 +207,10 @@ async function writeTarotKingdomPetState(playFabId, state, { promisifyPlayFab, P
 
 module.exports = {
     TAROT_KINGDOM_PET_DATA_KEY,
-    TAROT_KINGDOM_PET_RECRUIT_CHANCE,
+    TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT,
     buildTarotKingdomPetOfferView,
     buildTarotKingdomPetPublicRecord,
+    getTarotKingdomPetRecruitChance,
     getTarotKingdomPetMonster,
     isTarotKingdomPetRecruitEligible,
     normalizeTarotKingdomCurrentPet,
@@ -246,6 +219,5 @@ module.exports = {
     readTarotKingdomPetState,
     resolveTarotKingdomPetChoice,
     rollTarotKingdomPetOffer,
-    selectTarotKingdomStagePetCandidate,
     writeTarotKingdomPetState
 };

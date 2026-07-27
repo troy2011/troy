@@ -448,7 +448,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.guardedArea.battle.effects.party.areaGuard).toBeUndefined();
   });
 
-  test('weapon and equipped-card resonance share one event and render compact markers', async ({ page }) => {
+  test('weapon and equipped-card resonance share one event without persistent status markers', async ({ page }) => {
     const hand = [
       { id: 'resonance-sword-5', kind: 'minor', suit: 'Sword', number: 5 },
       { id: 'reserve-sword-6', kind: 'minor', suit: 'Sword', number: 6 }
@@ -468,12 +468,12 @@ test.describe('Tarot Kingdom character battle flow', () => {
     });
     expect(result.battle.effects.enemy.confusion).toBeTruthy();
     expect(result.transition.endsAt - result.transition.startedAt).toBe(1340);
-    await expect(page.locator('.tarot-kingdom-status-icon[data-status-key="confusion"]')).toHaveCount(1);
+    await expect(page.locator('.tarot-kingdom-status-tray, .tarot-kingdom-status-icon')).toHaveCount(0);
     await page.waitForTimeout(810);
     await expect(page.locator('.tarot-kingdom-effect-banner')).toHaveText('共鳴・乱気流');
   });
 
-  test('status bubbles and resonance marks stay inside 390px and 900px battle layouts', async ({ page }) => {
+  test('persistent status markers stay removed while resonance marks fit 390px and 900px layouts', async ({ page }) => {
     for (const width of [390, 900]) {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 1200 });
       const audit = await page.evaluate(() => {
@@ -490,32 +490,19 @@ test.describe('Tarot Kingdom character battle flow', () => {
           party: { areaGuard: { key: 'areaGuard', potency: 30, charges: 1 } },
           players: [{ guard: { key: 'guard', potency: 20, charges: 1 } }, {}, {}, {}]
         });
-         const nodes = Array.from(document.querySelectorAll('.tarot-kingdom-status-icon, .tarot-card-resonance-mark'));
-         const playerStatusOverlapsHand = Array.from(document.querySelectorAll('.tarot-kingdom-battle-player')).some((row) => {
-           const tray = row.querySelector(':scope > .tarot-kingdom-status-tray:not(.is-empty)');
-           const handCount = row.querySelector('.tarot-kingdom-battle-player-hand-count');
-           if (!tray || !handCount) return false;
-           const trayRect = tray.getBoundingClientRect();
-           const handRect = handCount.getBoundingClientRect();
-           return trayRect.left < handRect.right
-             && trayRect.right > handRect.left
-             && trayRect.top < handRect.bottom
-             && trayRect.bottom > handRect.top;
-         });
-         return {
-           overflowing: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-           boxes: nodes.map((node) => {
-             const rect = node.getBoundingClientRect();
-             return { left: rect.left, right: rect.right, width: rect.width, height: rect.height };
-           }),
-           playerStatusOverlapsHand,
-           longLabels: Array.from(document.querySelectorAll('.tarot-kingdom-status-tray')).some((tray) => tray.textContent.trim().length > 0)
-         };
+        const nodes = Array.from(document.querySelectorAll('.tarot-card-resonance-mark'));
+        return {
+          overflowing: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+          statusMarkerCount: document.querySelectorAll('.tarot-kingdom-status-tray, .tarot-kingdom-status-icon').length,
+          boxes: nodes.map((node) => {
+            const rect = node.getBoundingClientRect();
+            return { left: rect.left, right: rect.right, width: rect.width, height: rect.height };
+          })
+        };
        });
        expect(audit.overflowing).toBe(false);
-       expect(audit.playerStatusOverlapsHand).toBe(false);
-       expect(audit.longLabels).toBe(false);
-      expect(audit.boxes.length).toBeGreaterThanOrEqual(5);
+       expect(audit.statusMarkerCount).toBe(0);
+      expect(audit.boxes.length).toBeGreaterThanOrEqual(1);
       audit.boxes.forEach((box) => {
         expect(box.left).toBeGreaterThanOrEqual(-0.5);
         expect(box.right).toBeLessThanOrEqual(width + 0.5);

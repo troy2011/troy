@@ -2470,6 +2470,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
 test('exploration result reveals rewards after a tarot kingdom victory', async ({ page }) => {
   const errors = trackPageErrors(page);
   let petChoiceRequest = null;
+  let petRoundRollRequest = null;
   let explorationClaimRequest = null;
   await page.route('**/api/get-ranking', async (route) => {
     await route.fulfill({
@@ -2587,19 +2588,7 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
           rewardItems: [{ itemId: 'mist_blade', displayName: '霧切りの刃', rarity: 'rare', quantity: 1 }],
           bossLog: '戦闘開始\n船が島へ接近。\n宝箱を発見した。'
         },
-        petOffer: {
-          offerId: 'tkpet-exploration-reward-test-ismartal-vol1-monster-01',
-          monsterId: 'ismartal-vol1-monster-01',
-          monsterName: 'トゲマル',
-          explorationId: 'exploration-reward-test',
-          rolledAtMs: Date.now(),
-          currentPet: {
-            monsterId: 'ismartal-vol1-monster-02',
-            monsterName: 'グリモア',
-            explorationId: 'old-exploration',
-            acquiredAtMs: 1000
-          }
-        }
+        petOffer: null
       })
     });
   });
@@ -2615,6 +2604,38 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
           acquiredAtMs: 1000
         },
         pendingOffer: null
+      })
+    });
+  });
+  await page.route('**/api/tarot-kingdom/pet-round-roll', async (route) => {
+    petRoundRollRequest = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        eligible: true,
+        chance: 0.15,
+        won: true,
+        currentPet: {
+          monsterId: 'ismartal-vol1-monster-02',
+          monsterName: 'グリモア',
+          explorationId: 'old-exploration',
+          acquiredAtMs: 1000
+        },
+        petOffer: {
+          offerId: 'tkpet-exploration-reward-test-ismartal-vol1-monster-01',
+          monsterId: 'ismartal-vol1-monster-01',
+          monsterName: 'トゲマル',
+          explorationId: 'exploration-reward-test',
+          rolledAtMs: Date.now(),
+          currentPet: {
+            monsterId: 'ismartal-vol1-monster-02',
+            monsterName: 'グリモア',
+            explorationId: 'old-exploration',
+            acquiredAtMs: 1000
+          }
+        }
       })
     });
   });
@@ -2639,7 +2660,17 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
 
   await bootstrapMainApp(page, { fixedHour: 18 });
   await page.evaluate(() => {
-    window.launchTarotKingdomExplorationBattle = async (context) => ({
+    window.launchTarotKingdomExplorationBattle = async (context) => {
+      const roundFinisher = {
+        roundNo: 3,
+        playerIndex: 0,
+        playFabId: 'PF_PLAYWRIGHT',
+        isNpc: false,
+        monsterId: 'ismartal-vol1-monster-01',
+        mode: 'offline'
+      };
+      await context.onRoundFinished(roundFinisher);
+      return {
       status: 'completed',
       completed: true,
       outcome: 'victory',
@@ -2666,7 +2697,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
         monsterId: 'ismartal-vol2-monster-02',
         mode: 'offline'
       }
-    });
+      };
+    };
   });
   await page.locator('#btnHomeExploration').click();
   await page.locator('#shipExplorationPanel').waitFor({ state: 'visible' });
@@ -2706,6 +2738,24 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   const arrivalMetrics = await readVoyageMetrics();
   await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' })).toBeVisible({ timeout: 5_000 });
   const encounterMetrics = await readVoyageMetrics();
+  const encounterMonsterMetrics = await sequence.evaluate((element) => {
+    const islandRect = element.querySelector('.exploration-sequence-island').getBoundingClientRect();
+    const monsterFrame = element.querySelector('.exploration-sequence-boss');
+    const monsterRect = monsterFrame.getBoundingClientRect();
+    const spriteRect = monsterFrame.querySelector('.exploration-sequence-boss-image').getBoundingClientRect();
+    const label = monsterFrame.querySelector('small');
+    return {
+      islandCenterX: islandRect.left + (islandRect.width / 2),
+      islandCenterY: islandRect.top + (islandRect.height / 2),
+      monsterCenterX: monsterRect.left + (monsterRect.width / 2),
+      monsterCenterY: monsterRect.top + (monsterRect.height / 2),
+      monsterWidth: monsterRect.width,
+      monsterHeight: monsterRect.height,
+      spriteWidth: spriteRect.width,
+      spriteHeight: spriteRect.height,
+      labelDisplay: getComputedStyle(label).display
+    };
+  });
   const shipLefts = [
     sailMetrics.shipLeft,
     approachMetrics.shipLeft,
@@ -2721,6 +2771,13 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   expect(sailMetrics.islandFilter).toContain('blur');
   expect(Math.abs(encounterMetrics.islandWidth - sailMetrics.islandWidth)).toBeLessThanOrEqual(1);
   expect(Math.abs(encounterMetrics.islandHeight - sailMetrics.islandHeight)).toBeLessThanOrEqual(1);
+  expect(Math.abs(encounterMonsterMetrics.monsterCenterX - encounterMonsterMetrics.islandCenterX)).toBeLessThanOrEqual(2);
+  expect(Math.abs(encounterMonsterMetrics.monsterCenterY - encounterMonsterMetrics.islandCenterY)).toBeLessThanOrEqual(2);
+  expect(encounterMonsterMetrics.monsterWidth).toBeLessThanOrEqual(60);
+  expect(encounterMonsterMetrics.monsterHeight).toBeLessThanOrEqual(60);
+  expect(encounterMonsterMetrics.spriteWidth).toBeLessThanOrEqual(59);
+  expect(encounterMonsterMetrics.spriteHeight).toBeLessThanOrEqual(55);
+  expect(encounterMonsterMetrics.labelDisplay).toBe('none');
   await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' }).locator('small')).toHaveText('オフライン・ペット同行4人');
   await page.getByRole('button', { name: '傭兵召集（オフライン）' }).click();
   await expect(sequence).toBeHidden({ timeout: 5_000 });
@@ -2759,6 +2816,18 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
     playFabId: 'PF_PLAYWRIGHT',
     offerId: 'tkpet-exploration-reward-test-ismartal-vol1-monster-01',
     accept: true
+  });
+  expect(petRoundRollRequest).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    explorationId: 'exploration-reward-test',
+    finisher: {
+      roundNo: 3,
+      playerIndex: 0,
+      playFabId: 'PF_PLAYWRIGHT',
+      isNpc: false,
+      monsterId: 'ismartal-vol1-monster-01',
+      mode: 'offline'
+    }
   });
   expect(explorationClaimRequest.tarotFinisher).toEqual({
     roundNo: 4,

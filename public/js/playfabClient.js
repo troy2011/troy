@@ -115,6 +115,22 @@ export function getTarotKingdomPetState(playFabId, options) {
     return callApiWithLoader('/api/tarot-kingdom/pet-state', { playFabId }, options);
 }
 
+export function rollTarotKingdomPetRound(playFabId, explorationId, finisher, options) {
+    const source = finisher && typeof finisher === 'object' ? finisher : {};
+    return callApiWithLoader('/api/tarot-kingdom/pet-round-roll', {
+        playFabId,
+        explorationId: String(explorationId || '').trim(),
+        finisher: {
+            roundNo: Math.max(1, Math.min(4, Math.floor(Number(source.roundNo) || 1))),
+            playerIndex: Math.max(0, Math.floor(Number(source.playerIndex) || 0)),
+            playFabId: String(source.playFabId || '').trim(),
+            isNpc: source.isNpc === true,
+            monsterId: String(source.monsterId || '').trim(),
+            mode: String(source.mode || '').trim().toLowerCase()
+        }
+    }, options);
+}
+
 export function chooseTarotKingdomPet(playFabId, offerId, accept, options) {
     return callApiWithLoader('/api/tarot-kingdom/pet-choice', {
         playFabId,
