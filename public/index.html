@@ -23,7 +23,7 @@
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
     <title>TROYゴールドアプリ</title>
-<link rel="stylesheet" href="style.css?v=20260727-single-chest1">
+<link rel="stylesheet" href="style.css?v=20260727-reward-chest-fixed1">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
 </head>
@@ -131,8 +131,8 @@
                                 </div>
                             </div>
                             <div class="home-exp-actions" aria-label="出航メニュー">
-                                <button id="btnHomeExploration" class="home-exploration-btn" type="button">探索に出る</button>
-                                <button id="btnDailyFortune" class="home-exploration-btn home-fortune-btn" type="button" aria-haspopup="dialog">本日の占い</button>
+                                <button id="btnHomeExploration" class="home-exploration-btn" type="button" aria-label="探索に出る">探索</button>
+                                <button id="btnDailyFortune" class="home-exploration-btn home-fortune-btn" type="button" aria-label="本日の占い" aria-haspopup="dialog">占い</button>
                             </div>
                         </div>
                     </div>
@@ -559,7 +559,7 @@
                                     <span id="tarotKingdomYourTurnBadge" class="tarot-kingdom-your-turn-badge" hidden>YOUR TURN</span>
                                 </div>
                             </div>
-                            <div id="tarotKingdomSelectedEffect" class="tarot-kingdom-selected-effect" role="status" aria-live="polite">カードを選択してください</div>
+                            <div id="tarotKingdomSelectedEffect" class="tarot-kingdom-selected-effect" role="status" aria-live="polite" hidden></div>
                             <div id="tarotKingdomHand" class="tarot-kingdom-hand tarot-card-row"></div>
                             <div id="tarotKingdomActionPopup" class="tarot-bet-popup tarot-kingdom-action-popup app-action-panel">
                                 <div class="tarot-betting-actions">
@@ -574,7 +574,7 @@
                             <div class="tarot-kingdom-panel-title tarot-kingdom-panel-title--actions">
                                 <span class="tarot-kingdom-panel-heading"><span class="tarot-kingdom-panel-eyebrow">STATUS</span><span>プレイヤー情報</span></span>
                                 <div class="tarot-kingdom-player-actions">
-                                    <button id="tarotKingdomSettlementConfirmButton" type="button" hidden>確認して次の局へ</button>
+                                    <button id="tarotKingdomSettlementConfirmButton" type="button" hidden>次の局へ</button>
                                 </div>
                             </div>
                             <div id="tarotKingdomPlayers" class="tarot-kingdom-players"></div>
@@ -1743,11 +1743,11 @@
         "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
         "config": "./js/config.js",
         "api": "./js/api.js",
-"ui": "./js/ui.js?v=20260726-retreat1",
+"ui": "./js/ui.js?v=20260727-opening-intro1",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js",
         "inventory": "./js/inventory.js?v=20260604g",
-        "game": "./Game.js?v=20260726-legacy-battle-off-1"
+        "game": "./Game.js?v=20260727-nav-guide1"
       }
     }
     </script>
@@ -1790,6 +1790,6 @@
     <!-- Scripts -->
     <script src="battle-client.js?v=20260726-legacy-battle-off-1"></script>
     <script src="naval-battle.js"></script>
-<script type="module" src="main.js?v=20260727-single-chest1"></script>
+<script type="module" src="main.js?v=20260727-home-label1"></script>
 </body>
 </html>

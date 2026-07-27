@@ -384,6 +384,45 @@ for (const fixture of [
   });
 }
 
+test('battle opening brings the monster on screen, attacks, and deals the opening field card', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await abortFirebaseDataRequests(page);
+  await page.goto('/tarot-kingdom-preview.html?tkfixture=character-battle&tkrev=opening-intro1', {
+    waitUntil: 'domcontentloaded'
+  });
+
+  await expect(page.locator('#tarotKingdomStartOfflineButton')).toBeVisible();
+  await page.locator('#tarotKingdomStartOfflineButton').click();
+
+  const root = page.locator('#tarotKingdomRoot');
+  const stage = page.locator('#tarotKingdomBattleStage');
+  const enemySprite = page.locator('#tarotKingdomEnemySprite');
+  const fieldCard = page.locator('#tarotKingdomTrick > .tarot-card');
+  const attackButton = page.locator('#tarotKingdomPlayButton');
+
+  await expect(stage).toBeVisible({ timeout: 20_000 });
+  await expect(stage).toHaveClass(/is-opening-enemy-entering/);
+  await expect(root).toHaveAttribute('data-opening-intro-stage', 'enter');
+  await expect(fieldCard).toHaveCSS('visibility', 'hidden');
+  await expect(attackButton).toBeDisabled();
+
+  await expect(stage).toHaveClass(/is-opening-enemy-attacking/, { timeout: 2_500 });
+  await expect(enemySprite).toHaveClass(/is-attacking/);
+  await expect(root).toHaveAttribute('data-opening-intro-stage', 'attack');
+
+  await expect(stage).toHaveClass(/is-opening-field-card/, { timeout: 2_500 });
+  await expect(root).toHaveAttribute('data-opening-intro-stage', 'card');
+  await expect(page.locator('.tarot-kingdom-card-deal-ghost')).toHaveCount(1);
+  await expect(fieldCard).toHaveCSS('visibility', 'hidden');
+
+  await expect(root).toHaveAttribute('data-opening-intro-stage', 'deal', { timeout: 2_500 });
+  await expect(fieldCard).toHaveCSS('visibility', 'visible');
+  await expect.poll(
+    () => page.evaluate(() => window.TarotKingdomDebug?.battleState?.().phase),
+    { timeout: 7_500 }
+  ).not.toBe('openingDeal');
+});
+
 test('preview enemy picker switches among all purchased Pixel Monsters without changing battle rules', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
 
@@ -842,6 +881,28 @@ test('Judgment selection message is compact and fits the mobile frame', async ({
   }));
   expect(textFit.scrollWidth).toBeLessThanOrEqual(textFit.clientWidth);
   expect(textFit.scrollHeight).toBeLessThanOrEqual(textFit.clientHeight);
+});
+
+test('card selection guide and hand input are available only on the local turn', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const selectedEffect = page.locator('#tarotKingdomSelectedEffect');
+  const firstCard = page.locator('#tarotKingdomHand > .tarot-card').first();
+
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleScenario({ turnIndex: 1 });
+  });
+  await expect(selectedEffect).toBeHidden();
+  await expect(firstCard).toHaveAttribute('aria-pressed', 'false');
+  await firstCard.click({ force: true });
+  await expect(firstCard).toHaveAttribute('aria-pressed', 'false');
+
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleScenario({ turnIndex: 0 });
+  });
+  await expect(selectedEffect).toBeVisible();
+  await expect(selectedEffect).toHaveText('カードを選択してください');
+  await firstCard.click();
+  await expect(firstCard).toHaveAttribute('aria-pressed', 'true');
 });
 
 for (const fixture of [
@@ -1408,5 +1469,127 @@ test('round settlement confirmation remains visible after the battle stage compl
   const confirmButton = page.locator('#tarotKingdomSettlementConfirmButton');
   await expect(confirmButton).toBeVisible();
   await expect(confirmButton).toBeEnabled();
-  await expect(confirmButton).toContainText('次の局');
+  await expect(confirmButton).toHaveText('次の局へ');
+  const buttonFit = await confirmButton.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+    left: element.getBoundingClientRect().left,
+    right: element.getBoundingClientRect().right,
+    viewportWidth: window.innerWidth
+  }));
+  expect(buttonFit.scrollWidth).toBeLessThanOrEqual(buttonFit.clientWidth);
+  expect(buttonFit.left).toBeGreaterThanOrEqual(0);
+  expect(buttonFit.right).toBeLessThanOrEqual(buttonFit.viewportWidth);
+});
+
+test('victory pose stays grounded and the overall champion owns the final first-place ceremony', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+
+  await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    debug.battleScenario({
+      handNo: 0,
+      chipsBySeat: [100, 100, 100, 100],
+      handCounts: [3, 0, 3, 3],
+      enemyHp: 0,
+      withTrick: false
+    });
+    debug.battleFinishRound(1);
+  });
+
+  const roundWinnerRow = page.locator('#tarotKingdomBattleParty > .tarot-kingdom-battle-player[data-player-index="1"]');
+  await expect(roundWinnerRow).toHaveClass(/is-round-winner/);
+  await expect(page.locator('.tarot-kingdom-champion-ceremony')).toBeHidden();
+  const roundPose = await roundWinnerRow.locator('.tarot-kingdom-battle-player-avatar').evaluate((avatar) => ({
+    animationName: getComputedStyle(avatar).animationName,
+    bodyMotion: avatar.dataset.avatarBodyMotion || '',
+    victorious: avatar.classList.contains('is-avatar-victorious')
+  }));
+  expect(roundPose).toEqual({
+    animationName: 'tarotKingdomPlayerVictoryPose',
+    bodyMotion: 'idle',
+    victorious: true
+  });
+
+  const finalState = await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    debug.battleScenario({
+      handNo: 3,
+      chipsBySeat: [200, 60, 40, 20],
+      handCounts: [3, 0, 3, 3],
+      enemyHp: 0,
+      withTrick: false
+    });
+    return debug.battleFinishRound(1);
+  });
+  expect(finalState.champion).toBe(0);
+
+  const ceremony = page.locator('.tarot-kingdom-champion-ceremony');
+  await expect(ceremony).toBeVisible();
+  await expect(ceremony).toContainText('FINAL RANKING');
+  await expect(ceremony).toContainText('CHAMPION');
+  await expect(ceremony).toHaveAttribute('aria-label', /最終順位1位/);
+
+  const finalLayout = await page.evaluate(() => {
+    const stage = document.getElementById('tarotKingdomBattleStage');
+    const ceremony = stage?.querySelector(':scope > .tarot-kingdom-champion-ceremony');
+    const championRow = document.querySelector('#tarotKingdomBattleParty > [data-player-index="0"]');
+    const lastRoundWinnerRow = document.querySelector('#tarotKingdomBattleParty > [data-player-index="1"]');
+    const championAvatar = document.getElementById('tarotKingdomBattleAvatar-0');
+    const lastRoundWinnerAvatar = document.getElementById('tarotKingdomBattleAvatar-1');
+    const stageRect = stage?.getBoundingClientRect();
+    const ceremonyRect = ceremony?.getBoundingClientRect();
+    return {
+      stageGrandFinal: stage?.classList.contains('is-grand-final') || false,
+      championRow: championRow?.classList.contains('is-match-champion') || false,
+      championPresentedAsWinner: championRow?.classList.contains('is-round-winner') || false,
+      lastRoundWinnerStillPresented: lastRoundWinnerRow?.classList.contains('is-round-winner') || false,
+      championVictorious: championAvatar?.classList.contains('is-avatar-victorious') || false,
+      lastRoundWinnerVictorious: lastRoundWinnerAvatar?.classList.contains('is-avatar-victorious') || false,
+      ceremonyInsideStage: !!(
+        stageRect
+        && ceremonyRect
+        && ceremonyRect.left >= stageRect.left - 1
+        && ceremonyRect.right <= stageRect.right + 1
+        && ceremonyRect.top >= stageRect.top - 1
+        && ceremonyRect.bottom <= stageRect.bottom + 1
+      ),
+      overflowing: document.documentElement.scrollWidth > document.documentElement.clientWidth
+    };
+  });
+  expect(finalLayout).toEqual({
+    stageGrandFinal: true,
+    championRow: true,
+    championPresentedAsWinner: true,
+    lastRoundWinnerStillPresented: false,
+    championVictorious: true,
+    lastRoundWinnerVictorious: false,
+    ceremonyInsideStage: true,
+    overflowing: false
+  });
+
+  await page.setViewportSize({ width: 900, height: 1000 });
+  const wideFinalLayout = await page.evaluate(() => {
+    const stage = document.getElementById('tarotKingdomBattleStage');
+    const ceremony = stage?.querySelector(':scope > .tarot-kingdom-champion-ceremony');
+    const stageRect = stage?.getBoundingClientRect();
+    const ceremonyRect = ceremony?.getBoundingClientRect();
+    return {
+      visible: !!ceremony && !ceremony.hidden && getComputedStyle(ceremony).display !== 'none',
+      insideStage: !!(
+        stageRect
+        && ceremonyRect
+        && ceremonyRect.left >= stageRect.left - 1
+        && ceremonyRect.right <= stageRect.right + 1
+        && ceremonyRect.top >= stageRect.top - 1
+        && ceremonyRect.bottom <= stageRect.bottom + 1
+      ),
+      overflowing: document.documentElement.scrollWidth > document.documentElement.clientWidth
+    };
+  });
+  expect(wideFinalLayout).toEqual({
+    visible: true,
+    insideStage: true,
+    overflowing: false
+  });
 });

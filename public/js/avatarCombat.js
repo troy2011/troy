@@ -345,7 +345,7 @@ export function setCombatAvatarVictory(target, victorious = true, options = {}) 
         setCombatSideVariables(element, side, 'victory');
         clearCombatAvatarTransientClasses(element);
         if (!alreadyVictorious) {
-            if (!prefersReducedCombatMotion()) {
+            if (options.bodyMotion !== false && !prefersReducedCombatMotion()) {
                 playAvatarBodyMotion(element, 'jump', {
                     intervalMs: Number(options.intervalMs || 96) || 96,
                     restoreMotion: options.restoreMotion || 'idle'

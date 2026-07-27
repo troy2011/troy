@@ -9,7 +9,7 @@ import { showTab, showConfirmationModal, scheduleWorldMapPrefetch } from 'ui';
 import * as Player from 'player';
 import * as Inventory from 'inventory';
 import * as Guild from './js/guild.js';
-import * as Ship from './js/ship.js?v=20260727-single-chest1';
+import * as Ship from './js/ship.js?v=20260727-island-visual1';
 import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js';
 import { initMapChat, initTroyChat } from './js/mapChat.js';
@@ -332,7 +332,7 @@ function normalizePlayFabIdFromQrValue(value) {
 async function openDailyFortuneFromButton() {
     if (dailyFortuneOpenPromise) return dailyFortuneOpenPromise;
     const button = document.getElementById('btnDailyFortune');
-    const originalText = button?.textContent || '本日の占い';
+    const originalText = button?.textContent || '占い';
     if (!myPlayFabId) {
         showRpgMessage('ログイン完了後に占えます。', 2200);
         return;
@@ -937,7 +937,7 @@ function syncHomeExplorationButtonLabel(status = window.__troyStatus) {
     if (!explorationButton && !plunderButton) return;
     const isInTroy = isCurrentPlayerInTroyStatus(status);
     if (explorationButton) {
-        explorationButton.textContent = '探索に出る';
+        explorationButton.textContent = '探索';
         explorationButton.setAttribute('aria-label', '探索に出る');
     }
     if (plunderButton) {

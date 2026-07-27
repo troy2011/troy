@@ -12,6 +12,7 @@ const STAGE_ROWS = [
     {
         name: '珊瑚の浅瀬',
         battlefieldId: 'coral-island',
+        destinationImagePath: './Sprites/exploration_destinations/coral_lagoon.png',
         atmosphereTone: 'sunlit-coral',
         monsters: [
             ['ismartal-vol1-monster-07', 'balanced'],
@@ -23,6 +24,7 @@ const STAGE_ROWS = [
     {
         name: '風渡る甲板',
         battlefieldId: 'ship-side',
+        destinationImagePath: './Sprites/exploration_destinations/twin_sea_stacks.png',
         atmosphereTone: 'open-sea',
         monsters: [
             ['ismartal-vol3-monster-05', 'balanced'],
@@ -34,6 +36,7 @@ const STAGE_ROWS = [
     {
         name: '潮騒の島道',
         battlefieldId: 'coral-island',
+        destinationImagePath: './Sprites/exploration_destinations/reef_islets.png',
         atmosphereTone: 'tropical-wilds',
         monsters: [
             ['ismartal-vol1-monster-14', 'balanced'],
@@ -45,6 +48,7 @@ const STAGE_ROWS = [
     {
         name: '月影の古城',
         battlefieldId: 'moonlit-ruins',
+        destinationImagePath: './Sprites/exploration_destinations/watchtower_island.png',
         atmosphereTone: 'moonlit-gothic',
         monsters: [
             ['ismartal-vol2-monster-06', 'swift'],
@@ -56,6 +60,7 @@ const STAGE_ROWS = [
     {
         name: '翠石の密林',
         battlefieldId: 'coral-island',
+        destinationImagePath: './Sprites/exploration_destinations/hidden_lagoon.png',
         atmosphereTone: 'verdant-ruins',
         monsters: [
             ['ismartal-vol2-monster-04', 'brute'],
@@ -67,6 +72,7 @@ const STAGE_ROWS = [
     {
         name: '幽霊沼の夜',
         battlefieldId: 'haunted-marsh',
+        destinationImagePath: './Sprites/exploration_destinations/haunted_marsh.png',
         atmosphereTone: 'poison-mist',
         monsters: [
             ['ismartal-vol2-monster-08', 'swift'],
@@ -78,6 +84,7 @@ const STAGE_ROWS = [
     {
         name: '海上砦突破戦',
         battlefieldId: 'sea-fortress',
+        destinationImagePath: './Sprites/exploration_destinations/sea_fortress.png',
         atmosphereTone: 'siege',
         monsters: [
             ['ismartal-vol1-monster-18', 'balanced'],
@@ -89,6 +96,7 @@ const STAGE_ROWS = [
     {
         name: '蒼光の洞窟',
         battlefieldId: 'blue-grotto',
+        destinationImagePath: './Sprites/exploration_destinations/glowing_grotto.png',
         atmosphereTone: 'arcane-blue',
         monsters: [
             ['ismartal-vol1-monster-02', 'caster'],
@@ -100,6 +108,7 @@ const STAGE_ROWS = [
     {
         name: '鋼鉄船団の海',
         battlefieldId: 'ship-side',
+        destinationImagePath: './Sprites/exploration_destinations/ruined_harbor.png',
         atmosphereTone: 'storm-machinery',
         monsters: [
             ['ismartal-vol2-monster-17', 'guardian'],
@@ -111,6 +120,7 @@ const STAGE_ROWS = [
     {
         name: '獄炎の魔沼',
         battlefieldId: 'haunted-marsh',
+        destinationImagePath: './Sprites/exploration_destinations/volcanic_island.png',
         atmosphereTone: 'infernal-red',
         monsters: [
             ['ismartal-vol2-monster-19', 'brute'],
@@ -122,6 +132,7 @@ const STAGE_ROWS = [
     {
         name: '終月の王城',
         battlefieldId: 'moonlit-ruins',
+        destinationImagePath: './Sprites/exploration_destinations/ancient_sea_gate.png',
         atmosphereTone: 'final-eclipse',
         monsters: [
             ['ismartal-vol3-monster-03', 'swift'],
@@ -138,18 +149,6 @@ function clampInteger(value, min, max, fallback = min) {
     return Math.max(min, Math.min(max, number));
 }
 
-function getTarotKingdomStageImagePath(battlefieldId = '') {
-    const paths = {
-        'moonlit-ruins': './assets/tarot-kingdom/moonlit-terrace-vertical-v3.png',
-        'coral-island': './assets/tarot-kingdom/battlefields/coral-island-v1.webp',
-        'haunted-marsh': './assets/tarot-kingdom/battlefields/haunted-marsh-v1.webp',
-        'blue-grotto': './assets/tarot-kingdom/battlefields/blue-grotto-v1.webp',
-        'sea-fortress': './assets/tarot-kingdom/battlefields/sea-fortress-v1.webp',
-        'ship-side': './assets/tarot-kingdom/battlefields/ship-side-v1.webp'
-    };
-    return paths[String(battlefieldId || '')] || paths['moonlit-ruins'];
-}
-
 const TAROT_KINGDOM_EXPLORATION_STAGES = Object.freeze(STAGE_ROWS.map((row, stageIndex) => {
     const stageNo = stageIndex + 1;
     return Object.freeze({
@@ -159,7 +158,8 @@ const TAROT_KINGDOM_EXPLORATION_STAGES = Object.freeze(STAGE_ROWS.map((row, stag
         name: row.name,
         battlefieldId: row.battlefieldId,
         atmosphereTone: row.atmosphereTone,
-        imagePath: getTarotKingdomStageImagePath(row.battlefieldId),
+        imagePath: row.destinationImagePath,
+        destinationImagePath: row.destinationImagePath,
         monsters: Object.freeze(row.monsters.map(([monsterId, archetype], roundIndex) => {
             const monster = MONSTER_BY_ID.get(monsterId);
             if (!monster || monster.isBoss === true) {

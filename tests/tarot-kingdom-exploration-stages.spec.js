@@ -1,4 +1,6 @@
 const { test, expect } = require('@playwright/test');
+const fs = require('node:fs');
+const path = require('node:path');
 const {
   TAROT_KINGDOM_EXPLORATION_STAGES,
   applyTarotKingdomStageClear,
@@ -23,7 +25,16 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
     expect(new Set(monsters.map((entry) => entry.monsterId)).size).toBe(44);
     expect(monsters.every((entry) => entry.isBoss === false)).toBeTruthy();
     expect(new Set(TAROT_KINGDOM_EXPLORATION_STAGES.map((stage) => stage.atmosphereTone)).size).toBe(11);
-    expect(TAROT_KINGDOM_EXPLORATION_STAGES.every((stage) => stage.battlefieldId && stage.imagePath)).toBeTruthy();
+    const destinationImages = TAROT_KINGDOM_EXPLORATION_STAGES.map((stage) => stage.imagePath);
+    expect(TAROT_KINGDOM_EXPLORATION_STAGES.every((stage) => (
+      stage.battlefieldId
+      && stage.destinationImagePath === stage.imagePath
+      && /^\.\/Sprites\/exploration_destinations\/.+\.png$/.test(stage.imagePath)
+    ))).toBeTruthy();
+    expect(new Set(destinationImages).size).toBe(11);
+    destinationImages.forEach((imagePath) => {
+      expect(fs.existsSync(path.resolve(__dirname, '..', 'public', imagePath.replace(/^\.\//, '')))).toBeTruthy();
+    });
     expect(monsters.map((entry) => entry.monsterName)).toEqual([
       'マシュロン', 'プルン', 'トゲマル', 'パピル',
       'モクモ', 'ツノガイ', 'リーフロ', 'ホタルビ',

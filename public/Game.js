@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import WorldMapScene from './WorldMapScene.js?v=20260726-legacy-battle-off-1';
+import WorldMapScene from './WorldMapScene.js?v=20260727-nav-guide1';
 
 let gameInstance = null;
 

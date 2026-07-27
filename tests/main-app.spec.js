@@ -11,7 +11,7 @@ function makeExplorationStage(stageNo, {
   bestRank = null,
   clearCount = 0,
   battlefieldId = 'coral-island',
-  imagePath = './assets/tarot-kingdom/battlefields/coral-island-v1.webp',
+  imagePath = './Sprites/exploration_destinations/coral_lagoon.png',
   monsters = []
 } = {}) {
   return {
@@ -22,6 +22,7 @@ function makeExplorationStage(stageNo, {
     battlefieldId,
     atmosphereTone: 'test',
     imagePath,
+    destinationImagePath: imagePath,
     bestRank,
     clearCount,
     progressionUnlocked: unlocked,
@@ -114,6 +115,31 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
     displayName: 'Playwright Tester'
   });
 
+  await expectNoPageErrors(errors);
+});
+
+test('long bottom navigation labels shrink instead of being clipped', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await bootstrapMainApp(page);
+
+  const label = page.locator('#navHome > span:last-child');
+  const originalFontSize = await label.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
+  await label.evaluate((element) => {
+    element.textContent = '長いナビゲーション';
+  });
+  await expect.poll(() => label.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize)))
+    .toBeLessThan(originalFontSize);
+
+  const fit = await label.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+    fontSize: Number.parseFloat(getComputedStyle(element).fontSize),
+    title: element.title
+  }));
+  expect(fit.scrollWidth).toBeLessThanOrEqual(fit.clientWidth + 1);
+  expect(fit.fontSize).toBeGreaterThanOrEqual(5.5);
+  expect(fit.title).toBe('長いナビゲーション');
   await expectNoPageErrors(errors);
 });
 
@@ -1493,7 +1519,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
             bestRank: 2,
             clearCount: 3,
             battlefieldId: 'ship-side',
-            imagePath: './assets/tarot-kingdom/battlefields/ship-side-v1.webp',
+            imagePath: './Sprites/exploration_destinations/twin_sea_stacks.png',
             monsters: [
               { monsterId: 'ismartal-vol3-monster-05', monsterName: 'モクモ' },
               { monsterId: 'ismartal-vol1-monster-04', monsterName: 'ツノガイ' },
@@ -1532,7 +1558,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
 
   await bootstrapMainApp(page);
 
-  await expect(page.locator('#btnHomeExploration')).toHaveText('探索に出る');
+  await expect(page.locator('#btnHomeExploration')).toHaveText('探索');
   await expect(page.locator('#btnHomePlunder')).toBeHidden();
   await page.locator('#btnHomeExploration').click();
 
@@ -1553,9 +1579,43 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   const lockedStage = stageCards.nth(2);
   await expect(firstStage.locator('.ship-exploration-stage-label')).toHaveText('STAGE 1');
   await expect(firstStage.locator('.ship-exploration-title-group strong')).toHaveText('珊瑚の浅瀬');
-  await expect(firstStage.locator('.ship-exploration-mapmark img')).toHaveAttribute('src', /coral-island-v1\.webp/);
+  await expect(firstStage.locator('.ship-exploration-mapmark img')).toHaveAttribute('src', /Sprites\/exploration_destinations\/coral_lagoon\.png/);
   await expect(firstStage.locator('.ship-exploration-stage-monster small')).toHaveText(['マシュロン', 'プルン', 'トゲマル', 'パピル']);
   await expect(firstStage.locator('.ship-exploration-stage-order')).toHaveText(['1', '2', '3', '4']);
+  await expect(firstStage.locator('.ship-exploration-stage-monster-frame')).toHaveCount(4);
+  for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 900 }]) {
+    await page.setViewportSize(viewport);
+    const monsterFrames = await firstStage.locator('.ship-exploration-stage-monster-frame').evaluateAll((frames) => (
+      frames.map((frame) => {
+        const image = frame.querySelector('.exploration-pixel-monster');
+        const frameRect = frame.getBoundingClientRect();
+        const imageRect = image?.getBoundingClientRect();
+        return {
+          frame: {
+            left: frameRect.left,
+            right: frameRect.right,
+            top: frameRect.top,
+            bottom: frameRect.bottom
+          },
+          image: imageRect ? {
+            left: imageRect.left,
+            right: imageRect.right,
+            top: imageRect.top,
+            bottom: imageRect.bottom
+          } : null,
+          overflow: getComputedStyle(frame).overflow
+        };
+      })
+    ));
+    for (const metrics of monsterFrames) {
+      expect(metrics.image).not.toBeNull();
+      expect(metrics.overflow).toBe('hidden');
+      expect(metrics.image.left).toBeGreaterThanOrEqual(metrics.frame.left - 1);
+      expect(metrics.image.right).toBeLessThanOrEqual(metrics.frame.right + 1);
+      expect(metrics.image.top).toBeGreaterThanOrEqual(metrics.frame.top - 1);
+      expect(metrics.image.bottom).toBeLessThanOrEqual(metrics.frame.bottom + 1);
+    }
+  }
   await expect(firstStage.locator('.ship-exploration-badge')).toHaveText(['敵4体']);
   await expect(firstStage.locator('.ship-exploration-start')).toHaveText('出航');
   await expect(secondStage.locator('.ship-exploration-meta')).toContainText('最高 2位 / CLEAR 3');
@@ -2141,8 +2201,8 @@ test('legacy naval and melee battle entries are retired from the app', async ({ 
   await page.setViewportSize({ width: 390, height: 844 });
   await bootstrapMainApp(page, { mockFirebaseDatabase: true });
 
-  await expect(page.locator('#btnHomeExploration')).toHaveText('探索に出る');
-  await expect(page.locator('#btnDailyFortune')).toHaveText('本日の占い');
+  await expect(page.locator('#btnHomeExploration')).toHaveText('探索');
+  await expect(page.locator('#btnDailyFortune')).toHaveText('占い');
   await expect(page.locator('#btnHomePlunder')).toHaveCount(0);
   const homeActionLayout = await page.locator('.home-exp-actions').evaluate((actions) => {
     const rect = actions.getBoundingClientRect();
@@ -2701,10 +2761,28 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
 
   const result = page.locator('.exploration-result-overlay');
   await expect(result).toHaveClass(/is-awaiting-open/, { timeout: 15_000 });
-  await expect(result.locator('.exploration-result-chest')).toHaveCount(1);
+  const resultChest = result.locator('.exploration-result-chest');
+  await expect(resultChest).toHaveCount(1);
+  const chestBeforeOpen = await resultChest.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return { centerX: rect.left + (rect.width / 2), width: rect.width };
+  });
   await result.locator('[data-exploration-result-open]').click();
+  await expect(result).toHaveClass(/is-opening/);
+  await expect(resultChest).toHaveCSS('animation-name', 'explorationResultChestOpen');
+  const chestWhileOpening = await resultChest.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return { centerX: rect.left + (rect.width / 2), width: rect.width };
+  });
   await expect(result).toHaveClass(/is-opened/, { timeout: 5_000 });
-  await expect(result.locator('.exploration-result-chest')).toHaveCount(1);
+  const chestAfterOpen = await resultChest.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return { centerX: rect.left + (rect.width / 2), width: rect.width };
+  });
+  expect(Math.abs(chestWhileOpening.centerX - chestBeforeOpen.centerX)).toBeLessThanOrEqual(1);
+  expect(Math.abs(chestAfterOpen.centerX - chestBeforeOpen.centerX)).toBeLessThanOrEqual(1);
+  expect(chestWhileOpening.width).toBe(chestBeforeOpen.width);
+  expect(chestAfterOpen.width).toBe(chestBeforeOpen.width);
   await expect(result.locator('.exploration-result-reward-icon')).toHaveCount(0);
   await expect(result.locator('.exploration-sequence-mini-chest')).toHaveCount(0);
   await expect(result.locator('.exploration-result-details')).toHaveCSS('opacity', '1');

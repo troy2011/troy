@@ -490,18 +490,31 @@ test.describe('Tarot Kingdom character battle flow', () => {
           party: { areaGuard: { key: 'areaGuard', potency: 30, charges: 1 } },
           players: [{ guard: { key: 'guard', potency: 20, charges: 1 } }, {}, {}, {}]
         });
-        const nodes = Array.from(document.querySelectorAll('.tarot-kingdom-status-icon, .tarot-card-resonance-mark'));
-        return {
-          overflowing: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-          boxes: nodes.map((node) => {
-            const rect = node.getBoundingClientRect();
-            return { left: rect.left, right: rect.right, width: rect.width, height: rect.height };
-          }),
-          longLabels: Array.from(document.querySelectorAll('.tarot-kingdom-status-tray')).some((tray) => tray.textContent.trim().length > 0)
-        };
-      });
-      expect(audit.overflowing).toBe(false);
-      expect(audit.longLabels).toBe(false);
+         const nodes = Array.from(document.querySelectorAll('.tarot-kingdom-status-icon, .tarot-card-resonance-mark'));
+         const playerStatusOverlapsHand = Array.from(document.querySelectorAll('.tarot-kingdom-battle-player')).some((row) => {
+           const tray = row.querySelector(':scope > .tarot-kingdom-status-tray:not(.is-empty)');
+           const handCount = row.querySelector('.tarot-kingdom-battle-player-hand-count');
+           if (!tray || !handCount) return false;
+           const trayRect = tray.getBoundingClientRect();
+           const handRect = handCount.getBoundingClientRect();
+           return trayRect.left < handRect.right
+             && trayRect.right > handRect.left
+             && trayRect.top < handRect.bottom
+             && trayRect.bottom > handRect.top;
+         });
+         return {
+           overflowing: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+           boxes: nodes.map((node) => {
+             const rect = node.getBoundingClientRect();
+             return { left: rect.left, right: rect.right, width: rect.width, height: rect.height };
+           }),
+           playerStatusOverlapsHand,
+           longLabels: Array.from(document.querySelectorAll('.tarot-kingdom-status-tray')).some((tray) => tray.textContent.trim().length > 0)
+         };
+       });
+       expect(audit.overflowing).toBe(false);
+       expect(audit.playerStatusOverlapsHand).toBe(false);
+       expect(audit.longLabels).toBe(false);
       expect(audit.boxes.length).toBeGreaterThanOrEqual(5);
       audit.boxes.forEach((box) => {
         expect(box.left).toBeGreaterThanOrEqual(-0.5);
@@ -661,7 +674,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     await page.waitForFunction(() => window.TarotKingdomDebug?.battleState?.()?.phase === 'done');
     await expect(settlementConfirmButton).toBeVisible();
     await expect(settlementConfirmButton).toBeEnabled();
-    await expect(settlementConfirmButton).toHaveText('もう一度ゲームを始める');
+    await expect(settlementConfirmButton).toHaveText('もう一度遊ぶ');
     expect(audit.partyLoss.champion).toBeNull();
   });
 
@@ -805,6 +818,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.finish.tower.ok).toBe(true);
     expect(audit.finish.leaveAce.ok).toBe(true);
     expect(audit.finish.worldRole).toEqual({ ok: true, roleKey: 'TheWorld' });
+    expect(audit.worldAgainstFiveCardRole.ok).toBe(false);
+    expect(audit.worldAgainstFiveCardRole.reason).toContain('5枚役に返せません');
     expect(audit.schema7Compatibility.devilOnNumberTen.ok).toBe(true);
     expect(audit.schema7Compatibility.judgmentFinish.ok).toBe(true);
     expect(audit.schema7Compatibility.worldFinish.ok).toBe(true);

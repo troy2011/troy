@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="robots" content="noindex,follow">
     <title>Tarot Kingdom Preview</title>
-    <link rel="stylesheet" href="./style.css?v=20260727-summon-perf1">
+    <link rel="stylesheet" href="./style.css?v=20260727-reward-chest-fixed1">
     <style>
         html, body {
             margin: 0;
@@ -153,7 +153,7 @@
                         <span id="tarotKingdomYourTurnBadge" class="tarot-kingdom-your-turn-badge" hidden>YOUR TURN</span>
                     </div>
                 </div>
-                <div id="tarotKingdomSelectedEffect" class="tarot-kingdom-selected-effect" role="status" aria-live="polite">カードを選択してください</div>
+                <div id="tarotKingdomSelectedEffect" class="tarot-kingdom-selected-effect" role="status" aria-live="polite" hidden></div>
                 <div id="tarotKingdomHand" class="tarot-kingdom-hand tarot-card-row"></div>
                 <div id="tarotKingdomActionPopup" class="tarot-bet-popup tarot-kingdom-action-popup app-action-panel">
                     <div class="tarot-betting-actions">
@@ -168,7 +168,7 @@
                 <div class="tarot-kingdom-panel-title tarot-kingdom-panel-title--actions">
                     <span class="tarot-kingdom-panel-heading"><span class="tarot-kingdom-panel-eyebrow">STATUS</span><span>プレイヤー情報</span></span>
                     <div class="tarot-kingdom-player-actions">
-                        <button id="tarotKingdomSettlementConfirmButton" type="button" hidden>確認して次の局へ</button>
+                        <button id="tarotKingdomSettlementConfirmButton" type="button" hidden>次の局へ</button>
                     </div>
                 </div>
                 <div id="tarotKingdomPlayers" class="tarot-kingdom-players"></div>
@@ -183,7 +183,7 @@
         window.myLineProfile = { displayName: 'Preview' };
         window.__TAROT_KINGDOM_PREVIEW__ = true;
 
-        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260727-summon-perf1';
+        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260727-opening-intro1';
 
         window.TarotKingdomPreview = {
             load: () => loadTarotKingdomPage(),

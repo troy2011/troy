@@ -2307,7 +2307,7 @@ button.home-player-ship-name {
     transition: min-height 260ms ease, text-align 260ms ease;
 }
 
-.exploration-result-overlay.is-awaiting-open .exploration-result-showcase {
+.exploration-result-overlay:where(.is-awaiting-open, .is-opening, .is-opened) .exploration-result-showcase.has-rewards {
     min-height: 232px;
     grid-template-columns: 1fr;
     justify-items: center;
@@ -2341,7 +2341,7 @@ button.home-player-ship-name {
     cursor: default;
 }
 
-.exploration-result-overlay.is-awaiting-open .exploration-result-chest-button {
+.exploration-result-overlay:where(.is-awaiting-open, .is-opening, .is-opened) .exploration-result-chest-button {
     width: 126px;
     filter: drop-shadow(0 0 24px rgba(250, 204, 21, 0.42));
 }
@@ -2354,7 +2354,7 @@ button.home-player-ship-name {
     filter: drop-shadow(0 0 18px rgba(250, 204, 21, 0.46));
 }
 
-.exploration-result-overlay.is-awaiting-open .exploration-result-chest {
+.exploration-result-overlay:where(.is-awaiting-open, .is-opening, .is-opened) .exploration-result-chest.has-rewards {
     width: 112px;
     background-position: 0 0;
     animation: none;
@@ -2625,7 +2625,7 @@ button.home-player-ship-name {
         grid-template-columns: 68px minmax(0, 1fr);
     }
 
-    .exploration-result-overlay.is-awaiting-open .exploration-result-showcase {
+    .exploration-result-overlay:where(.is-awaiting-open, .is-opening, .is-opened) .exploration-result-showcase.has-rewards {
         grid-template-columns: 1fr;
     }
 
@@ -2633,11 +2633,11 @@ button.home-player-ship-name {
         width: 62px;
     }
 
-    .exploration-result-overlay.is-awaiting-open .exploration-result-chest-button {
+    .exploration-result-overlay:where(.is-awaiting-open, .is-opening, .is-opened) .exploration-result-chest-button {
         width: 112px;
     }
 
-    .exploration-result-overlay.is-awaiting-open .exploration-result-chest {
+    .exploration-result-overlay:where(.is-awaiting-open, .is-opening, .is-opened) .exploration-result-chest.has-rewards {
         width: 102px;
     }
 
@@ -9796,6 +9796,241 @@ body.modal-lock .troy-menu-board-order-modal {
     }
 }
 
+/* Tarot Kingdom opening: monster entrance, attack, then opening-card deal. */
+:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage.is-opening-enemy-entering #tarotKingdomEnemySprite[data-facing="left"] {
+    animation: tarotKingdomEnemyOpeningEntrance 860ms cubic-bezier(0.18, 0.72, 0.24, 1) both !important;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage.is-opening-enemy-entering .tarot-kingdom-battle-enemy-visual::after {
+    animation: tarotKingdomEnemyOpeningShadow 860ms cubic-bezier(0.18, 0.72, 0.24, 1) both;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot[data-opening-intro-stage="enter"] #tarotKingdomTrick > .tarot-card,
+:is(body, #tabContentTarot) #tarotKingdomRoot[data-opening-intro-stage="attack"] #tarotKingdomTrick > .tarot-card,
+:is(body, #tabContentTarot) #tarotKingdomRoot[data-opening-intro-stage="card"] #tarotKingdomTrick > .tarot-card {
+    opacity: 0 !important;
+    visibility: hidden;
+}
+
+@keyframes tarotKingdomEnemyOpeningEntrance {
+    0% {
+        opacity: 0;
+        transform: translateX(-68vw) scaleX(var(--tarot-kingdom-enemy-facing-scale-x, -1)) scaleY(var(--tarot-kingdom-enemy-scale-y, 1)) scale(var(--tarot-kingdom-enemy-scale));
+        filter: brightness(0.58) saturate(0.7) drop-shadow(0 7px 4px rgba(0, 0, 0, 0.82));
+    }
+    18% {
+        opacity: 1;
+    }
+    78% {
+        transform: translateX(8px) scaleX(var(--tarot-kingdom-enemy-facing-scale-x, -1)) scaleY(var(--tarot-kingdom-enemy-scale-y, 1)) scale(var(--tarot-kingdom-enemy-scale));
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0) scaleX(var(--tarot-kingdom-enemy-facing-scale-x, -1)) scaleY(var(--tarot-kingdom-enemy-scale-y, 1)) scale(var(--tarot-kingdom-enemy-scale));
+        filter: drop-shadow(0 7px 4px rgba(0, 0, 0, 0.82));
+    }
+}
+
+@keyframes tarotKingdomEnemyOpeningShadow {
+    0% {
+        opacity: 0;
+        transform: translateX(-68vw) scaleX(0.72);
+    }
+    22% {
+        opacity: 0.38;
+    }
+    100% {
+        opacity: var(--tarot-kingdom-enemy-shadow-opacity, 0.76);
+        transform: translateX(0) scaleX(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage.is-opening-enemy-entering #tarotKingdomEnemySprite,
+    :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage.is-opening-enemy-entering .tarot-kingdom-battle-enemy-visual::after {
+        animation: none !important;
+    }
+}
+
+/* Tarot Kingdom victory: keep the winner grounded and give the final champion a dedicated result layer. */
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar.is-avatar-victorious {
+    transform-origin: 50% 100%;
+    animation: tarotKingdomPlayerVictoryPose 1080ms cubic-bezier(0.18, 0.82, 0.22, 1) both;
+    filter:
+        drop-shadow(0 4px 2px rgba(0, 0, 0, 0.76))
+        drop-shadow(0 0 6px rgba(255, 224, 122, 0.86))
+        drop-shadow(0 0 13px rgba(241, 181, 45, 0.52));
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar.is-avatar-victorious::after {
+    content: "";
+    z-index: 0;
+    top: auto;
+    bottom: 8px;
+    left: 50%;
+    width: 48px;
+    min-width: 0;
+    height: 10px;
+    padding: 0;
+    border: 1px solid rgba(255, 229, 139, 0.86);
+    border-radius: 50%;
+    color: transparent;
+    background: radial-gradient(ellipse at center, rgba(255, 245, 183, 0.78), rgba(231, 177, 51, 0.34) 46%, transparent 72%);
+    box-shadow: 0 0 8px rgba(255, 219, 96, 0.7), inset 0 0 4px rgba(255, 249, 210, 0.62);
+    opacity: 1;
+    filter: none;
+    transform: translateX(-50%) scaleX(1);
+    animation: tarotKingdomWinnerGroundLight 1080ms ease-out both;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar.is-avatar-victorious .avatar-layer[id$="-layer-hand-right"],
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar.is-avatar-victorious .avatar-layer[id$="-layer-hand-left"],
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar.is-avatar-victorious .avatar-layer[id$="-layer-weapon-right"],
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar.is-avatar-victorious .avatar-layer[id$="-layer-shield-left"] {
+    animation: none;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-player.is-round-winner {
+    z-index: 42;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-player.is-round-winner .tarot-kingdom-battle-player-info {
+    border-bottom-color: rgba(255, 220, 112, 0.9);
+    background: linear-gradient(90deg, transparent, rgba(85, 54, 7, 0.12) 16%, rgba(76, 47, 4, 0.6));
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage.is-victory.is-grand-final {
+    border-color: rgba(236, 193, 79, 0.8);
+    box-shadow: inset 0 0 54px rgba(38, 21, 3, 0.48), 0 0 24px rgba(230, 177, 55, 0.22);
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage.is-grand-final .tarot-kingdom-battle-enemy {
+    filter: saturate(0.65) brightness(0.48);
+    transition: filter 520ms ease;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage.is-grand-final .tarot-kingdom-battle-player:not(.is-match-champion) {
+    opacity: 0.42;
+    filter: saturate(0.45) brightness(0.64);
+    transition: opacity 420ms ease, filter 420ms ease;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-player.is-match-champion {
+    z-index: 70;
+    opacity: 1;
+    filter: none;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-champion-ceremony {
+    position: absolute;
+    z-index: 68;
+    top: 43%;
+    left: 49%;
+    display: grid;
+    place-items: center;
+    width: min(48%, 220px);
+    min-width: 154px;
+    padding: 12px 16px 13px;
+    overflow: hidden;
+    border-top: 1px solid rgba(255, 232, 157, 0.92);
+    border-bottom: 1px solid rgba(194, 137, 35, 0.9);
+    color: #fff5ce;
+    background:
+        linear-gradient(90deg, transparent, rgba(13, 8, 3, 0.92) 16% 84%, transparent),
+        radial-gradient(circle at 50% 36%, rgba(143, 91, 17, 0.5), transparent 70%);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.58), 0 0 24px rgba(235, 184, 62, 0.2);
+    text-align: center;
+    text-shadow: 0 2px 1px #000, 0 0 9px rgba(236, 190, 75, 0.46);
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    animation: tarotKingdomChampionCeremonyIn 760ms cubic-bezier(0.16, 0.82, 0.22, 1) both;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-champion-ceremony[hidden] {
+    display: none;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-champion-eyebrow {
+    color: #d8bb73;
+    font: 800 8px/1 Arial, sans-serif;
+    letter-spacing: 0.22em;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-champion-rank {
+    display: flex;
+    align-items: flex-start;
+    color: #fff0a8;
+    font: 900 clamp(42px, 12vw, 68px)/0.88 Georgia, serif;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-champion-rank small {
+    margin-top: 5px;
+    font: 900 12px/1 Georgia, serif;
+    letter-spacing: 0;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-champion-title {
+    margin-top: 3px;
+    color: #e9c96f;
+    font: 900 11px/1 Georgia, serif;
+    letter-spacing: 0.18em;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-champion-name {
+    max-width: 100%;
+    margin-top: 7px;
+    overflow: hidden;
+    color: #fff9e5;
+    font: 900 clamp(13px, 3.8vw, 18px)/1.1 "Yu Gothic", "Noto Sans JP", sans-serif;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-champion-score {
+    margin-top: 4px;
+    color: #d5c28e;
+    font: 800 10px/1 Arial, sans-serif;
+    letter-spacing: 0.08em;
+}
+
+@keyframes tarotKingdomPlayerVictoryPose {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    24% { transform: translate3d(-2px, -6px, 0); }
+    43% { transform: translate3d(0, -1px, 0); }
+    62% { transform: translate3d(1px, -3px, 0); }
+}
+
+@keyframes tarotKingdomWinnerGroundLight {
+    0% { opacity: 0; transform: translateX(-50%) scale(0.6); }
+    38% { opacity: 1; transform: translateX(-50%) scale(1.08); }
+    100% { opacity: 0.74; transform: translateX(-50%) scale(1); }
+}
+
+@keyframes tarotKingdomChampionCeremonyIn {
+    0% {
+        opacity: 0;
+        clip-path: inset(0 50%);
+        transform: translate(-50%, calc(-50% + 8px)) scale(0.94);
+    }
+    46% {
+        opacity: 1;
+        clip-path: inset(0);
+    }
+    100% {
+        opacity: 1;
+        clip-path: inset(0);
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar.is-avatar-victorious,
+    :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar.is-avatar-victorious::after,
+    :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-champion-ceremony {
+        animation: none !important;
+    }
+}
+
 /* Tarot Kingdom — composition matched to the shared vertical battle reference */
 body.tarot-kingdom-preview-body {
     margin: 0;
@@ -11256,8 +11491,14 @@ body.tarot-kingdom-preview-body {
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-player > .tarot-kingdom-status-tray {
-    right: 2px;
-    bottom: 0;
+    right: calc(100% + 2px);
+    bottom: 7px;
+    display: grid;
+    grid-template-columns: repeat(2, 16px);
+    max-width: 39px;
+    min-width: 0;
+    min-height: 0;
+    padding: 2px;
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleParty > .tarot-kingdom-status-tray {
@@ -17819,8 +18060,20 @@ body.home-exploration-popup-open #globalStatusBar {
     background: linear-gradient(180deg, rgba(8, 12, 24, 0.72), rgba(2, 4, 11, 0.9));
 }
 
-.ship-exploration-stage-monster .exploration-pixel-monster {
-    align-self: end;
+.ship-exploration-stage-monster-frame {
+    position: relative;
+    width: 100%;
+    height: 42px;
+    overflow: hidden;
+}
+
+.ship-exploration-stage-monster-frame .exploration-pixel-monster {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    margin: 0;
+    transform: translateX(-50%) scale(var(--exploration-monster-scale)) !important;
+    transform-origin: 50% 100%;
 }
 
 .ship-exploration-stage-monster small {
@@ -17926,8 +18179,12 @@ body[data-tarot-kingdom-atmosphere-tone="final-eclipse"] #tarotKingdomRoot .taro
     }
 
     .ship-exploration-stage-monster {
-        grid-template-rows: 38px auto;
+        grid-template-rows: 42px auto;
         padding-inline: 1px;
+    }
+
+    .ship-exploration-stage-monster-frame {
+        height: 42px;
     }
 
     .ship-exploration-stage-monster small {
@@ -21795,6 +22052,16 @@ body[data-tarot-kingdom-atmosphere-tone="final-eclipse"] #tarotKingdomRoot .taro
     text-overflow: ellipsis;
 }
 
+#tabContentMap .map-nav-pill-label.is-long {
+    font-size: 10px;
+    letter-spacing: 0.02em;
+}
+
+#tabContentMap .map-nav-pill-label.is-very-long {
+    font-size: 8px;
+    letter-spacing: 0;
+}
+
 #tabContentMap .map-nav-pill-distance {
     margin-top: 1px;
     color: #94a3b8;
@@ -25118,7 +25385,7 @@ body.is-new-order-flash::before {
 .nav-button span:last-child {
     max-width: 100%;
     overflow: hidden;
-    text-overflow: ellipsis;
+    text-overflow: clip;
     white-space: nowrap;
 }
 
@@ -33167,6 +33434,10 @@ body.tarot-kingdom-preview-body {
     text-shadow: 0 1px 1px #000;
 }
 
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomSelectedEffect[hidden] {
+    display: none !important;
+}
+
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage {
     width: 100%;
     margin: 0;
@@ -33432,13 +33703,22 @@ body.tarot-kingdom-preview-body {
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomSettlementConfirmButton:not([hidden]) {
     display: block;
-    width: min(calc(100% - 12px), 520px);
+    box-sizing: border-box;
+    width: max-content;
+    max-width: min(calc(100vw - 24px), 520px);
     min-height: 48px;
     margin: 6px auto;
+    padding-inline: clamp(16px, 5vw, 28px);
     border: 2px solid #d9b54d;
     color: #f4e2aa;
     background: linear-gradient(180deg, #7e5710, #382405);
     font-weight: 800;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 .tarot-kingdom-player-actions {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
 }
 
 /* Tarot Kingdom v3: vertical floor, corrected facing, and existing image frames. */

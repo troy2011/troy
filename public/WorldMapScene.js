@@ -4907,7 +4907,14 @@ export default class WorldMapScene extends Phaser.Scene {
             hud.hidden = false;
         }
         if (labelEl) {
-            labelEl.textContent = this.navTargetLabel || islandData.name || 'NAV';
+            const navigationLabel = this.navTargetLabel || islandData.name || 'NAV';
+            if (labelEl.textContent !== navigationLabel) {
+                labelEl.textContent = navigationLabel;
+                labelEl.title = navigationLabel;
+                const labelLength = Array.from(navigationLabel).length;
+                labelEl.classList.toggle('is-long', labelLength >= 10);
+                labelEl.classList.toggle('is-very-long', labelLength >= 16);
+            }
         }
         if (distanceEl) {
             distanceEl.textContent = `距離 ${distTiles}`;

@@ -2,7 +2,7 @@
 
 import * as Player from './player.js';
 import * as Inventory from './inventory.js?v=20260604g';
-import * as Ship from './ship.js?v=20260727-single-chest1';
+import * as Ship from './ship.js?v=20260727-island-visual1';
 import * as NationKing from './nationKing.js';
 import * as Islands from './islands.js';
 import { getNationAnnouncements } from './playfabClient.js';
@@ -32,7 +32,7 @@ const ensureTarotModule = async () => {
 };
 
 let tarotKingdomModule = null;
-const TAROT_KINGDOM_MODULE_VERSION = '20260727-summon-perf1';
+const TAROT_KINGDOM_MODULE_VERSION = '20260727-opening-intro1';
 const ensureTarotKingdomModule = async () => {
     if (tarotKingdomModule) return tarotKingdomModule;
     tarotKingdomModule = await import(`./tarotKingdom.js?v=${TAROT_KINGDOM_MODULE_VERSION}`);
@@ -1083,6 +1083,37 @@ const tabLoaded = { home: false, troy: false, companions: false, tarot: false, s
 const audioAvailabilityCache = new Map();
 const audioAvailabilityInFlight = new Set();
 let bottomNavRevealed = false;
+let bottomNavLabelObserver = null;
+let bottomNavResizeBound = false;
+
+function fitBottomNavLabels(nav = document.getElementById('bottomNav')) {
+    if (!nav) return;
+    nav.querySelectorAll('.nav-button > span:last-child').forEach((label) => {
+        label.style.removeProperty('font-size');
+        const availableWidth = Math.max(1, label.parentElement?.clientWidth - 4 || label.clientWidth);
+        const naturalWidth = Math.max(1, label.scrollWidth);
+        const baseFontSize = Number.parseFloat(window.getComputedStyle(label).fontSize) || 10;
+        const fittedFontSize = Math.max(5.5, Math.min(baseFontSize, baseFontSize * availableWidth / naturalWidth));
+        if (fittedFontSize < baseFontSize - 0.1) {
+            label.style.fontSize = `${Math.floor(fittedFontSize * 10) / 10}px`;
+        }
+        const fullLabel = String(label.textContent || '').trim();
+        if (fullLabel) label.title = fullLabel;
+    });
+}
+
+function enableBottomNavLabelFitting(nav) {
+    if (!nav) return;
+    fitBottomNavLabels(nav);
+    if (!bottomNavLabelObserver && typeof MutationObserver === 'function') {
+        bottomNavLabelObserver = new MutationObserver(() => fitBottomNavLabels(nav));
+        bottomNavLabelObserver.observe(nav, { childList: true, characterData: true, subtree: true });
+    }
+    if (!bottomNavResizeBound) {
+        bottomNavResizeBound = true;
+        window.addEventListener('resize', () => fitBottomNavLabels(nav), { passive: true });
+    }
+}
 
 function revealBottomNavAfterHomeReady() {
     if (bottomNavRevealed) return;
@@ -1094,6 +1125,7 @@ function revealBottomNavAfterHomeReady() {
     const nav = document.getElementById('bottomNav');
     if (nav) {
         nav.setAttribute('aria-hidden', 'false');
+        enableBottomNavLabelFitting(nav);
     }
 }
 

@@ -1220,9 +1220,9 @@ function getExplorationDestinationVisual(destinationOrId) {
     const key = normalizeExplorationDestinationVisualKey(destination?.id || destination?.destinationId || destinationOrId);
     const visual = EXPLORATION_DESTINATION_VISUALS[key] || EXPLORATION_DESTINATION_VISUALS.default;
     const imagePath = String(
-        destination?.imagePath
-        || destination?.destinationImagePath
+        destination?.destinationImagePath
         || destination?.destination_image_path
+        || destination?.imagePath
         || destination?.image_path
         || destination?.visualImagePath
         || visual.imagePath
@@ -1661,7 +1661,8 @@ function renderExplorationPixelMonster(monster, className = '', { maxWidth = 120
         `background-image:url('${escapeHtml(idle.src)}')`,
         `background-size:${frameWidth * columns * pixelScale}px ${frameHeight * rows * pixelScale}px`,
         'background-position:0 0',
-        `transform:scale(${previewScale})`
+        `--exploration-monster-scale:${previewScale}`,
+        'transform:scale(var(--exploration-monster-scale))'
     ].join(';');
     return `<span class="exploration-pixel-monster ${escapeHtml(className)}${monster.isBoss === true ? ' is-boss' : ''}" style="${style}" aria-hidden="true"></span>`;
 }
@@ -1857,9 +1858,11 @@ function renderTarotKingdomStageMonsters(stage) {
                 return `
                     <div class="ship-exploration-stage-monster">
                         <span class="ship-exploration-stage-order">${index + 1}</span>
-                        ${monster
-                            ? renderExplorationPixelMonster(monster, 'ship-exploration-stage-monster-image', { maxWidth: 42, maxHeight: 40 })
-                            : '<span class="ship-exploration-stage-monster-image" aria-hidden="true"></span>'}
+                        <span class="ship-exploration-stage-monster-frame">
+                            ${monster
+                                ? renderExplorationPixelMonster(monster, 'ship-exploration-stage-monster-image', { maxWidth: 42, maxHeight: 40 })
+                                : '<span class="ship-exploration-stage-monster-image" aria-hidden="true"></span>'}
+                        </span>
                         <small>${escapeHtml(entry?.monsterName || monster?.name || '???')}</small>
                     </div>
                 `;
