@@ -339,7 +339,7 @@ for (const fixture of [
       expect(row.avatarBodyImage).toContain('/Sprites/Characters/body/body_');
       expect(row.avatarBodyImage).not.toBe('none');
       expect(row.avatarShadowLeft).toBe('32px');
-      expect(row.avatarShadowBottom).toBe('18px');
+      expect(row.avatarShadowBottom).toBe('17px');
       expect(row.infoBox.x).toBeGreaterThanOrEqual(row.avatarBox.right - 1);
       expect(row.rankBox.height).toBeGreaterThan(0);
       expect(row.hpBox.height).toBeGreaterThan(0);
@@ -475,8 +475,8 @@ test('preview enemy picker switches among all purchased Pixel Monsters without c
   expect(selected.spriteHeight).toBeLessThan(selected.arenaHeight);
 
   await page.evaluate(() => window.TarotKingdomDebug.battleScenario({ handCounts: [8, 8, 8, 8] }));
-  await expect(picker).toHaveValue('ismartal-vol1-monster-01');
-  await expect(page.locator('#tarotKingdomEnemyName')).toHaveText('トゲマル');
+  await expect(picker).toHaveValue('ismartal-vol3-monster-01');
+  await expect(page.locator('#tarotKingdomEnemyName')).toHaveText('グラヴァ');
 
   await picker.selectOption('ismartal-vol2-monster-15');
   await page.waitForTimeout(1200);

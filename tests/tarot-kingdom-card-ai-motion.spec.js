@@ -10,7 +10,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     await openKingdomDebug(page);
   });
 
-  test('schema 10 publishes player count and major arcana specials while older matches keep their original rules', async ({ page }) => {
+  test('schema 11 publishes major battle effects while older matches keep their original rules', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       const current = debug.battleScenario({ withTrick: false });
@@ -57,10 +57,12 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       combatEffectsVersion: 1,
       summonVersion: 1,
       majorArcanaGateVersion: 1,
-      majorArcanaSpecialVersion: 1
+      majorArcanaSpecialVersion: 1,
+      majorBattleEffectsVersion: 1,
+      elementAffinityVersion: 1
     });
     expect(audit.current.players.map((player) => player.hand.length)).toEqual([8, 8, 8, 8]);
-    expect(audit.published.schema).toBe(10);
+    expect(audit.published.schema).toBe(11);
     expect(audit.published.state.rules).toMatchObject({
       initialHandSize: 8,
       handLimit: 8,
@@ -68,7 +70,9 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       combatEffectsVersion: 1,
       summonVersion: 1,
       majorArcanaGateVersion: 1,
-      majorArcanaSpecialVersion: 1
+      majorArcanaSpecialVersion: 1,
+      majorBattleEffectsVersion: 1,
+      elementAffinityVersion: 1
     });
     expect(audit.schema1.rules).toMatchObject({ initialHandSize: 6, handLimit: 6 });
     expect(audit.schema3.rules).toMatchObject({ initialHandSize: 6, handLimit: 6 });
@@ -363,6 +367,77 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     });
     expect(dustFx.spriteAnimation).toContain('tarotKingdomEnemyDustLeft');
     expect(dustFx.particleAnimation).toContain('tarotKingdomEnemyDustParticles');
+  });
+
+  test('a surviving enemy turns away and escapes without becoming a pet finisher', async ({ page }) => {
+    const escaped = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const scenario = debug.battleScenario({
+        withTrick: false,
+        turnIndex: 0,
+        enemyHp: 180,
+        stage: {
+          version: 1,
+          stageNo: 1,
+          stageId: 'escape-test-stage',
+          battlefieldId: 'moonlit-ruins',
+          monsters: [
+            { order: 1, monsterId: 'ismartal-vol1-monster-01' },
+            { order: 2, monsterId: 'ismartal-vol1-monster-02' },
+            { order: 3, monsterId: 'ismartal-vol1-monster-03' },
+            { order: 4, monsterId: 'ismartal-vol1-monster-04' }
+          ],
+          finishers: []
+        },
+        handsBySeat: [[{ id: 'escape-2', kind: 'minor', suit: 'Wand', number: 2 }]]
+      });
+      const hpBeforePlay = scenario.battle.enemy.hp;
+      debug.battlePlayCards(0, ['escape-2']);
+      const state = debug.battleResolveTransition();
+      const sprite = document.querySelector('#tarotKingdomEnemySprite');
+      const victory = state.battle.events.find((event) => event.type === 'victory');
+      return {
+        hpBeforePlay,
+        hpAfterPlay: state.battle.enemy.hp,
+        outcome: state.battle.outcome,
+        resultReason: state.battle.resultReason,
+        victory,
+        stageFinishers: state.stage?.finishers || [],
+        image: sprite ? getComputedStyle(sprite).backgroundImage : '',
+        animationName: sprite ? getComputedStyle(sprite).animationName : '',
+        transform: sprite ? getComputedStyle(sprite).transform : '',
+        battleFacing: sprite ? getComputedStyle(sprite).getPropertyValue('--tarot-kingdom-enemy-facing-scale-x').trim() : '',
+        escapeFacing: sprite ? getComputedStyle(sprite).getPropertyValue('--tarot-kingdom-enemy-escape-facing-scale-x').trim() : '',
+        escapingClass: sprite?.classList.contains('is-escaping'),
+        finisherClass: sprite?.classList.contains('is-finisher-defeat'),
+        dustingClass: sprite?.classList.contains('is-dusting')
+      };
+    });
+
+    expect(escaped).toMatchObject({
+      outcome: 'victory',
+      resultReason: 'enemy-escaped',
+      escapingClass: true,
+      finisherClass: false,
+      dustingClass: false,
+      battleFacing: '-1',
+      escapeFacing: '1',
+      stageFinishers: []
+    });
+    expect(escaped.hpAfterPlay).toBeGreaterThan(0);
+    expect(escaped.hpAfterPlay).toBeLessThan(escaped.hpBeforePlay);
+    expect(escaped.victory).toMatchObject({
+      type: 'victory',
+      finisher: false,
+      enemyEscaped: true,
+      escapeAnimation: 'idle',
+      hpAfter: escaped.hpAfterPlay,
+      enemyHp: escaped.hpAfterPlay
+    });
+    expect(escaped.victory).not.toHaveProperty('deathAnimation');
+    expect(escaped.image).toContain('idle.png');
+    expect(escaped.animationName).toContain('tarotKingdomEnemyEscapeLeft');
+    expect(escaped.transform).not.toBe('none');
   });
 
   test('NPC observation excludes combat and hidden cards and always takes an immediate win', async ({ page }) => {

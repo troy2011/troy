@@ -611,7 +611,27 @@ export const TAROT_KINGDOM_STATUS_ICON_INDEX = Object.freeze({
     nextEffectUp: 136,
     nextWandUp: 144,
     nextEffectFlat: 136,
-    statusChanceUp: 68
+    statusChanceUp: 68,
+    regen: 149,
+    allStatsUp: 136,
+    statusImmunity: 203,
+    damageBarrier: 203,
+    debuffImmunity: 203,
+    attackDown: 97,
+    defenseDown: 97,
+    intimidate: 230,
+    chariot: 136,
+    lastStand: 136,
+    invisible: 223,
+    partyCritical: 136,
+    enemyCritical: 136,
+    hpShield: 203,
+    bloodPact: 144,
+    majorConfusion: 222,
+    mirageBlind: 68,
+    decoy: 223,
+    sunBlessing: 136,
+    timeStop: 222
 });
 
 export const __test = {

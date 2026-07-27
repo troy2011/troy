@@ -1,0 +1,259 @@
+const { test, expect } = require('@playwright/test');
+
+async function openKingdomDebug(page) {
+  await page.goto('/tarot-kingdom-preview.html?tkfixture=character-battle', { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => typeof window.TarotKingdomDebug?.battleMajorEffectsAudit === 'function');
+}
+
+test.describe('Tarot Kingdom major arcana battle effects', () => {
+  test.beforeEach(async ({ page }) => {
+    await openKingdomDebug(page);
+  });
+
+  test('all 22 skills and all 50 monster affinities are complete', async ({ page }) => {
+    const audit = await page.evaluate(() => window.TarotKingdomDebug.battleMajorEffectsAudit());
+    expect(audit.skillCount).toBe(22);
+    expect(audit.skillNames).toHaveLength(22);
+    expect(audit.skillNames.every(Boolean)).toBe(true);
+    expect(audit.affinityCount).toBe(50);
+    expect(audit.missingMonsterIds).toEqual([]);
+    expect(audit.invalidAffinities).toEqual([]);
+  });
+
+  test('a hand-played single major triggers after its normal attack and publishes the skill result', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({
+        withTrick: false,
+        hpBySeat: [40, 50, 60, 70],
+        handsBySeat: [[
+          { id: 'major-priestess', kind: 'major', suit: 'None', number: 2 },
+          { id: 'reserve-3', kind: 'minor', suit: 'Wand', number: 3 }
+        ]]
+      });
+      const before = debug.battleState();
+      const after = debug.battlePlayCards(0, ['major-priestess'], { resolve: false }).state;
+      const event = after.battle.events.at(-1);
+      return { before, after, event };
+    });
+
+    expect(audit.event.majorSkillName).toBe('ディバインサンクチュアリ');
+    expect(audit.event.baseDamage).toBeGreaterThan(0);
+    expect(audit.event.effects.filter((entry) => entry.kind === 'major-heal')).toHaveLength(4);
+    expect(audit.after.players.every((player, index) => player.hp >= audit.before.players[index].hp)).toBe(true);
+    expect(audit.after.transition.kind).toBe('play');
+  });
+
+  test('every major resolves once with deterministic host-side results', async ({ page }) => {
+    const audits = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      return Array.from({ length: 22 }, (_, number) => {
+        debug.battleScenario({
+          withTrick: true,
+          hpBySeat: [80, 0, 70, 0],
+          combatBySeat: [{ maxHp: 120, power: 60, defense: 30, intelligence: 60, speed: 30 }],
+          enemyHp: 400,
+          enemyMaxHp: 500,
+          enemyDefense: 20,
+          enemyDamageToParty: 200
+        });
+        debug.battleSetCombatRandom(number === 13 ? 0.1 : 0.2);
+        const resolved = debug.battleResolveMajorEffect(0, number);
+        return {
+          number,
+          skillName: resolved.result?.skillName,
+          resultCount: resolved.result?.results?.length || 0,
+          state: resolved.state
+        };
+      });
+    });
+
+    expect(audits).toHaveLength(22);
+    for (const audit of audits) {
+      expect(audit.skillName, `major ${audit.number}`).toBeTruthy();
+      expect(audit.resultCount, `major ${audit.number}`).toBeGreaterThan(0);
+    }
+    expect(audits[11].state.battle.enemy.hp).toBeLessThan(400);
+    expect(audits[13].state.battle.enemy.hp).toBeLessThan(400);
+    expect(audits[20].state.players.filter((player) => player.hp > 0)).toHaveLength(4);
+    expect(audits[21].state.battle.pendingWorldTimeStop).toMatchObject({ remainingTurns: 2 });
+    expect(audits[1].resultCount).toBe(4);
+    expect(audits[3].state.battle.effects.players[0]).toMatchObject({
+      regen: { remainingTurns: 3, potency: 10 },
+      allStatsUp: { remainingTurns: 3, potency: 25 }
+    });
+    expect(audits[4].state.battle.effects.enemy).toMatchObject({
+      attackDown: { remainingTurns: 2, potency: 35 },
+      defenseDown: { remainingTurns: 2, potency: 35 },
+      intimidate: { expiresOn: 'clear' }
+    });
+    expect(audits[5].state.battle.effects.party).toMatchObject({
+      damageBarrier: { remainingTurns: 2, potency: 45 },
+      debuffImmunity: { remainingTurns: 2, potency: 100 }
+    });
+    expect(audits[8].state.battle.effects.players[0].lastStand.remainingTurns).toBe(3);
+    expect(audits[10].state.battle.effects.party.partyCritical.potency).toBe(100);
+    expect(audits[15].state.players[0]).toMatchObject({ maxHp: 60, hp: 60 });
+    expect(audits[18].state.battle.effects.enemy).toMatchObject({
+      majorConfusion: { remainingTurns: 2, potency: 50 },
+      mirageBlind: { remainingTurns: 2, potency: 70 }
+    });
+  });
+
+  test('elemental combo reports only hit-time weakness and resistance reactions', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleSetDemoEnemy('ismartal-vol1-monster-09');
+      debug.battleScenario({ withTrick: true, enemyHp: 500, enemyMaxHp: 500, enemyDefense: 0 });
+      debug.battleSetCombatRandom(0.1);
+      return debug.battleResolveMajorEffect(0, 1);
+    });
+
+    const hits = audit.result.results.filter((entry) => entry.kind === 'major-damage');
+    expect(hits).toHaveLength(4);
+    expect(hits.find((entry) => entry.element === 'water')).toMatchObject({
+      affinityReaction: 'weak',
+      affinityMultiplier: 1.3
+    });
+    expect(hits.find((entry) => entry.element === 'fire')).toMatchObject({
+      affinityReaction: 'resist',
+      affinityMultiplier: 0.8
+    });
+  });
+
+  test('turn effects tick on field clear and World starts after its own forced clear', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({ withTrick: true, hpBySeat: [60, 60, 60, 60] });
+      const empress = debug.battleResolveMajorEffect(0, 3);
+      const firstClear = debug.battleClearTrick(0);
+      const firstRegen = firstClear.battle.effects.players[0].regen;
+
+      debug.battleScenario({
+        withTrick: false,
+        handsBySeat: [[
+          { id: 'major-world', kind: 'major', suit: 'None', number: 21 },
+          { id: 'world-reserve', kind: 'minor', suit: 'Wand', number: 3 }
+        ]]
+      });
+      const worldPlayed = debug.battlePlayCards(0, ['major-world'], { resolve: true }).state;
+
+      debug.battleScenario({ withTrick: true });
+      debug.battleResolveMajorEffect(0, 10);
+      const criticalFirstClear = debug.battleClearTrick(0);
+      const criticalSecondClear = debug.battleClearTrick(0);
+      const criticalBacklashFirstClear = debug.battleClearTrick(0);
+      const criticalBacklashSecondClear = debug.battleClearTrick(0);
+
+      debug.battleScenario({
+        withTrick: true,
+        hpBySeat: [80, 80, 80, 80],
+        combatBySeat: [{ maxHp: 120, power: 60, defense: 30, intelligence: 60, speed: 30 }]
+      });
+      const pact = debug.battleResolveMajorEffect(0, 15);
+      debug.battleClearTrick(0);
+      const pactExpired = debug.battleClearTrick(0);
+
+      return {
+        empress,
+        firstClear,
+        firstRegen,
+        worldPlayed,
+        criticalFirstClear,
+        criticalSecondClear,
+        criticalBacklashFirstClear,
+        criticalBacklashSecondClear,
+        pact,
+        pactExpired
+      };
+    });
+
+    expect(audit.firstClear.players[0].hp).toBeGreaterThan(audit.empress.state.players[0].hp);
+    expect(audit.firstRegen.remainingTurns).toBe(2);
+    expect(audit.worldPlayed.battle.effects.enemy.timeStop).toMatchObject({
+      remainingTurns: 2,
+      expiresOn: 'turn'
+    });
+    expect(audit.worldPlayed.battle.pendingWorldTimeStop).toBeUndefined();
+    expect(audit.criticalFirstClear.battle.effects.party.partyCritical.remainingTurns).toBe(1);
+    expect(audit.criticalSecondClear.battle.effects.party.partyCritical).toBeUndefined();
+    expect(audit.criticalSecondClear.battle.effects.enemy.enemyCritical.remainingTurns).toBe(2);
+    expect(audit.criticalBacklashFirstClear.battle.effects.enemy.enemyCritical.remainingTurns).toBe(1);
+    expect(audit.criticalBacklashSecondClear.battle.effects.enemy.enemyCritical).toBeUndefined();
+    expect(audit.pact.state.players[0]).toMatchObject({ maxHp: 60, hp: 60 });
+    expect(audit.pactExpired.players[0]).toMatchObject({ maxHp: 120, hp: 60 });
+  });
+
+  test('skill name and every elemental reaction stay inside the battle stage at 390px and 900px', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    for (const width of [390, 900]) {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 1100 });
+      await page.evaluate(() => {
+        const debug = window.TarotKingdomDebug;
+        debug.battleSetDemoEnemy('ismartal-vol1-monster-09');
+        debug.battleScenario({
+          withTrick: false,
+          enemyHp: 500,
+          enemyMaxHp: 500,
+          handsBySeat: [[
+            { id: 'major-magician', kind: 'major', suit: 'None', number: 1 },
+            { id: 'reserve-4', kind: 'minor', suit: 'Wand', number: 4 }
+          ]]
+        });
+        debug.battlePlayCards(0, ['major-magician'], { resolve: false });
+        debug.battleRender();
+      });
+
+      const layout = await page.evaluate(() => {
+        const root = document.getElementById('tarotKingdomRoot');
+        const stage = document.getElementById('tarotKingdomBattleStage');
+        const banner = stage.querySelector('.tarot-kingdom-effect-banner');
+        const badges = Array.from(stage.querySelectorAll('.tarot-kingdom-affinity-badge'));
+        const stageRect = stage.getBoundingClientRect();
+        const inside = (rect) => (
+          rect.left >= stageRect.left - 1
+          && rect.right <= stageRect.right + 1
+          && rect.top >= stageRect.top - 1
+          && rect.bottom <= stageRect.bottom + 1
+        );
+        return {
+          rootOverflow: root.scrollWidth - root.clientWidth,
+          bannerText: banner?.textContent || '',
+          bannerInside: !!banner && inside(banner.getBoundingClientRect()),
+          badges: badges.map((badge) => badge.textContent),
+          badgesInside: badges.every((badge) => inside(badge.getBoundingClientRect()))
+        };
+      });
+
+      expect(layout.rootOverflow, `${width}px overflow`).toBeLessThanOrEqual(1);
+      expect(layout.bannerText).toBe('エレメンタルコンボ');
+      expect(layout.bannerInside).toBe(true);
+      expect(layout.badges.some((text) => text.includes('WEAK'))).toBe(true);
+      expect(layout.badges.some((text) => text.includes('RESIST'))).toBe(true);
+      expect(layout.badgesInside).toBe(true);
+    }
+  });
+
+  test('schema 10 remains on the old battle rules while schema 11 enables major effects', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const current = debug.battleScenario({ withTrick: false });
+      const payload = debug.battlePublicState();
+      const legacyPayload = JSON.parse(JSON.stringify(payload));
+      legacyPayload.schema = 10;
+      delete legacyPayload.state.rules.majorBattleEffectsVersion;
+      delete legacyPayload.state.rules.elementAffinityVersion;
+      const legacy = debug.battleDeserialize(legacyPayload);
+      return { current, legacy };
+    });
+
+    expect(audit.current.rules).toMatchObject({
+      majorBattleEffectsVersion: 1,
+      elementAffinityVersion: 1
+    });
+    expect(audit.legacy.rules).toMatchObject({
+      majorBattleEffectsVersion: 0,
+      elementAffinityVersion: 0
+    });
+  });
+});

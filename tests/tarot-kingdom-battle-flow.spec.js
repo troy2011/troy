@@ -583,7 +583,14 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.forcedSkip.battle.events).toEqual([]);
     expect(audit.forcedSkip.players[1].hp).toBe(0);
     expect(audit.forcedSkip.turn).toBe(2);
-    expect(audit.handWin.battle).toMatchObject({ outcome: 'victory', resultReason: 'hand-empty' });
+    expect(audit.handWin.battle).toMatchObject({ outcome: 'victory', resultReason: 'enemy-escaped' });
+    expect(audit.handWin.battle.enemy.hp).toBeGreaterThan(0);
+    expect(audit.handWin.battle.events.at(-1)).toMatchObject({
+      type: 'victory',
+      finisher: false,
+      enemyEscaped: true,
+      escapeAnimation: 'idle'
+    });
     expect(audit.handWin.phase).toBe('roundOutCinematic');
     expect(audit.partyLoss.battle).toMatchObject({
       outcome: 'defeat',
@@ -863,12 +870,13 @@ test.describe('Tarot Kingdom character battle flow', () => {
     });
     expect(['openingDeal', 'openingCinematic']).toContain(audit.retryAfterEnemy.finalPhase);
 
-    expect(audit.descriptions['15']).toBe('コート専用 / 11バック無視');
+    expect(audit.descriptions['15']).toContain('コート専用 / 11バック無視');
+    expect(audit.descriptions['15']).toContain('ブラッドペクト');
     for (const number of [16, 17, 18, 19]) {
-      expect(audit.descriptions[String(number)]).toBe('同スート場専用 / 初手不可');
+      expect(audit.descriptions[String(number)]).toContain('同スート場専用 / 初手不可');
     }
-    expect(audit.descriptions['20']).toBe('A不可 / 11バック / 墓地回収');
-    expect(audit.descriptions['21']).toBe('単独で即クリア / 強制ドロー');
+    expect(audit.descriptions['20']).toContain('A不可 / 11バック / 墓地回収');
+    expect(audit.descriptions['21']).toContain('単独で即クリア / 強制ドロー');
   });
 
   test('Judgment 20 recovery follows the actual clearer, hand cap, finish ban, and KO rules', async ({ page }) => {
@@ -941,6 +949,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
         handNo: 0,
         hpBySeat: [40, 0, 80, 100],
         handCounts: [0, 2, 2, 2],
+        enemyHp: 0,
         withTrick: false
       });
       const settled = debug.battleFinishRound(0);
@@ -1000,7 +1009,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       effectiveUnits: 2,
       healRate: 0.2
     });
-    expect(audit.publicState.schema).toBe(10);
+    expect(audit.publicState.schema).toBe(11);
     expect(audit.publicState.state.stage.monsters).toHaveLength(4);
     expect(audit.atmosphereTone).toBe('sunlit-coral');
     expect(audit.atmosphereCss).toContain('74, 159, 196');
@@ -1029,7 +1038,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.settlementStart.players).toHaveLength(3);
     expect(audit.settled.roundSettlement.rows).toHaveLength(2);
     expect(audit.settled.dealer).toBe(0);
-    expect(audit.published.schema).toBe(10);
+    expect(audit.published.schema).toBe(11);
     expect(audit.published.state.rules.playerCount).toBe(3);
     expect(audit.published.state.players).toHaveLength(3);
   });
@@ -1197,7 +1206,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.schema2.hermitPreview).toBeUndefined();
   });
 
-  test('schema 10 adds stage state while preserving player count, major arcana rules and older matches', async ({ page }) => {
+  test('schema 11 adds major battle effects while preserving stage state and older matches', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       debug.battleScenario({ withTrick: false });
@@ -1261,14 +1270,16 @@ test.describe('Tarot Kingdom character battle flow', () => {
       const current = debug.battleDeserialize(currentPublic);
       return { currentPublic, legacy, effectsOnly, summonsOnly, schema7, current };
     });
-    expect(audit.currentPublic.schema).toBe(10);
+    expect(audit.currentPublic.schema).toBe(11);
     expect(audit.currentPublic.state.rules).toMatchObject({
       playerCount: 4,
       combatEffectsVersion: 1,
       summonVersion: 1,
       graveTimingVersion: 1,
       majorArcanaGateVersion: 1,
-      majorArcanaSpecialVersion: 1
+      majorArcanaSpecialVersion: 1,
+      majorBattleEffectsVersion: 1,
+      elementAffinityVersion: 1
     });
     expect(audit.legacy.rules.combatEffectsVersion).toBe(0);
     expect(audit.legacy.rules.summonVersion).toBe(0);
@@ -1289,6 +1300,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.current.rules.graveTimingVersion).toBe(1);
     expect(audit.current.rules.majorArcanaGateVersion).toBe(1);
     expect(audit.current.rules.majorArcanaSpecialVersion).toBe(1);
+    expect(audit.current.rules.majorBattleEffectsVersion).toBe(1);
+    expect(audit.current.rules.elementAffinityVersion).toBe(1);
   });
 
   test('場札はクリアまで保持し、小アルカナだけを所有者の墓地へまとめて送る', async ({ page }) => {

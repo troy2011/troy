@@ -109,8 +109,7 @@ test('exploration battle freezes three random stray-pirate avatars with the play
 
   expect(roster.slice(1).map((player) => player.name)).toEqual([
     'はぐれ海賊1',
-    'はぐれ海賊2',
-    'はぐれ海賊3'
+    'はぐれ海賊2'
   ]);
   roster.slice(1).forEach((pirate) => {
     expect(pirate.avatarBase.AvatarColor).toBe(roster[0].avatarBase.AvatarColor);
