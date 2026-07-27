@@ -987,6 +987,7 @@ test('field and hand identify suits with the same thin colored edge and no added
         numberBorderWidth: numberStyle.borderTopWidth,
         numberBorderImage: numberStyle.borderImageSource,
         numberBackground: numberStyle.backgroundColor,
+        numberColor: numberStyle.color,
         artWidth: artRect?.width || 0,
         artHeight: artRect?.height || 0
       };
@@ -1007,7 +1008,7 @@ test('field and hand identify suits with the same thin colored edge and no added
   const expectedColors = {
     wand: 'rgb(211, 74, 64)',
     cup: 'rgb(63, 137, 207)',
-    sword: 'rgb(213, 219, 226)',
+    sword: 'rgb(155, 114, 230)',
     pentacle: 'rgb(58, 166, 109)'
   };
   Object.entries(expectedColors).forEach(([suit, color]) => {
@@ -1020,6 +1021,8 @@ test('field and hand identify suits with the same thin colored edge and no added
     expect(handCard?.numberBorderImage).toBe('none');
     expect(handCard?.numberBackground).toBe('rgba(9, 6, 4, 0.82)');
   });
+  expect(audit.handCards.find((entry) => entry.classes.includes('sword'))?.numberColor)
+    .toBe('rgb(233, 221, 255)');
   const allSuit = audit.handCards.find((entry) => entry.classes.includes('arcana-all-corners'));
   expect(allSuit?.borderImage).toContain('conic-gradient');
   expect(allSuit?.numberBorderWidth).toBe('2px');
@@ -1061,6 +1064,9 @@ test('field and hand identify suits with the same thin colored edge and no added
     await expect(fieldNumber).toHaveCSS('border-top-width', '2px');
     await expect(fieldNumber).toHaveCSS('border-image-source', 'none');
     await expect(fieldNumber).toHaveCSS('background-color', 'rgba(9, 6, 4, 0.82)');
+    if (suit === 'sword') {
+      await expect(fieldNumber).toHaveCSS('color', 'rgb(233, 221, 255)');
+    }
   }
 });
 

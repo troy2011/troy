@@ -456,16 +456,82 @@ function getDailyFortuneStrikeLine(text) {
     return meaningfulLine || sentences[sentences.length - 1];
 }
 
-function buildDailyFortuneDisplayText(result) {
+function getDailyFortuneReading(result) {
     const fortune = String(result?.fortune || '').trim();
     const weather = getDailyFortuneWeatherStatus(result);
     const strikeLine = String(result?.strikeLine || '').replace(/\s*\n+\s*/g, ' ').trim()
         || getDailyFortuneStrikeLine(fortune);
-    return [
-        `風向き: ${weather.windLabel}`,
-        '',
-        strikeLine
-    ].join('\n').trim();
+    const tone = weather.level >= 8
+        ? 'excellent'
+        : weather.level >= 6
+            ? 'favorable'
+            : weather.level >= 4
+                ? 'caution'
+                : 'storm';
+    return {
+        weather,
+        strikeLine,
+        tone
+    };
+}
+
+function renderDailyFortuneReading(result) {
+    const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
+    if (!textEl) return;
+    const reading = getDailyFortuneReading(result);
+    const { weather, strikeLine, tone } = reading;
+
+    const summary = document.createElement('section');
+    summary.className = 'tarot-fortune-summary';
+
+    const summaryLabel = document.createElement('span');
+    summaryLabel.className = 'tarot-fortune-section-label';
+    summaryLabel.textContent = '今日の風向き';
+
+    const summaryValue = document.createElement('div');
+    summaryValue.className = 'tarot-fortune-summary-value';
+    const wind = document.createElement('strong');
+    wind.className = 'tarot-fortune-wind';
+    wind.textContent = weather.windLabel;
+    const score = document.createElement('span');
+    score.className = 'tarot-fortune-score';
+    score.textContent = `${weather.level} / 10`;
+    summaryValue.append(wind, score);
+
+    const meter = document.createElement('div');
+    meter.className = 'tarot-fortune-meter';
+    meter.setAttribute('role', 'img');
+    meter.setAttribute('aria-label', `今日の運気 ${weather.level}点／10点`);
+    for (let index = 1; index <= 10; index += 1) {
+        const segment = document.createElement('span');
+        segment.className = 'tarot-fortune-meter-segment';
+        segment.classList.toggle('is-filled', index <= weather.level);
+        segment.setAttribute('aria-hidden', 'true');
+        meter.appendChild(segment);
+    }
+    summary.append(summaryLabel, summaryValue, meter);
+
+    const flow = document.createElement('section');
+    flow.className = 'tarot-fortune-reading-section tarot-fortune-flow';
+    const flowLabel = document.createElement('span');
+    flowLabel.className = 'tarot-fortune-section-label';
+    flowLabel.textContent = '今日の流れ';
+    const flowText = document.createElement('p');
+    flowText.textContent = weather.verdict;
+    flow.append(flowLabel, flowText);
+
+    const advice = document.createElement('section');
+    advice.className = 'tarot-fortune-reading-section tarot-fortune-advice';
+    const adviceLabel = document.createElement('span');
+    adviceLabel.className = 'tarot-fortune-section-label';
+    adviceLabel.textContent = '今日のアドバイス';
+    const adviceText = document.createElement('p');
+    adviceText.textContent = strikeLine;
+    advice.append(adviceLabel, adviceText);
+
+    textEl.classList.add('is-result');
+    textEl.dataset.fortuneTone = tone;
+    textEl.replaceChildren(summary, flow, advice);
 }
 
 function getNpcKeys() {
@@ -4954,10 +5020,10 @@ function renderDailyFortuneResultLegacy(result) {
     cardHost.appendChild(cardEl);
 
     titleEl.textContent = '本日の運勢';
-    setDailyFortuneSubText('今日の航路が開きました。');
+    setDailyFortuneSubText('風向きと今日のアドバイスを確認してください。');
     setDailyFortuneMajorArcanaState(result, true);
     setDailyFortuneResultMeta(result);
-    textEl.textContent = buildDailyFortuneDisplayText(result);
+    renderDailyFortuneReading(result);
     setDailyFortuneReward(result);
     showDailyFortuneRpgMessage(getDailyFortuneRewardText(result));
 }
@@ -5018,11 +5084,17 @@ function setDailyFortuneReward(result) {
     const rewardText = getDailyFortuneRewardText(result);
     if (!rewardText) {
         rewardEl.hidden = true;
-        rewardEl.textContent = '';
+        rewardEl.replaceChildren();
         return;
     }
     rewardEl.hidden = false;
-    rewardEl.textContent = rewardText;
+    const label = document.createElement('span');
+    label.className = 'tarot-fortune-reward-label';
+    label.textContent = '今日の報酬';
+    const value = document.createElement('strong');
+    value.className = 'tarot-fortune-reward-value';
+    value.textContent = rewardText;
+    rewardEl.replaceChildren(label, value);
 }
 
 function resetDailyFortuneResultDetails() {
@@ -5036,7 +5108,12 @@ function resetDailyFortuneResultDetails() {
     const rewardEl = document.getElementById(DAILY_FORTUNE_REWARD_ID);
     if (rewardEl) {
         rewardEl.hidden = true;
-        rewardEl.textContent = '';
+        rewardEl.replaceChildren();
+    }
+    const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
+    if (textEl) {
+        textEl.classList.remove('is-result');
+        delete textEl.dataset.fortuneTone;
     }
 }
 
@@ -5053,10 +5130,10 @@ function renderDailyFortuneResult(result, options = {}) {
     const isReversed = String(result?.orientation || '') === 'reversed';
     const finalizeReveal = () => {
         titleEl.textContent = '本日の運勢';
-        setDailyFortuneSubText('今日の航路が開きました。');
+        setDailyFortuneSubText('風向きと今日のアドバイスを確認してください。');
         setDailyFortuneMajorArcanaState(result, true);
         setDailyFortuneResultMeta(result);
-        textEl.textContent = buildDailyFortuneDisplayText(result);
+        renderDailyFortuneReading(result);
         setDailyFortuneReward(result);
     };
 
@@ -5312,9 +5389,6 @@ export async function loadTarotPokerPage() {
         resetState();
     }
     render();
-    if (window?.myPlayFabId) {
-        await maybeShowDailyFortunePrompt(window.myPlayFabId, { force: false });
-    }
 }
 
 export function destroyTarotPokerPage() {
@@ -5362,4 +5436,41 @@ export function destroyTarotPokerPage() {
 
 export async function showDailyFortunePromptOnLogin(playFabId) {
     await maybeShowDailyFortunePrompt(playFabId, { force: true });
+}
+
+export async function showDailyFortune(playFabId) {
+    if (!playFabId) return;
+    openDailyFortuneOverlay();
+    const cardHost = document.getElementById(DAILY_FORTUNE_CARD_HOST_ID);
+    const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
+    const titleEl = document.getElementById(DAILY_FORTUNE_TITLE_ID);
+    if (titleEl) titleEl.textContent = '本日の運勢';
+    if (cardHost) cardHost.innerHTML = '';
+    resetDailyFortuneResultDetails();
+    setDailyFortuneSubText('今日の潮目を確かめています。');
+    if (textEl) textEl.textContent = '運勢を読み込み中...';
+
+    try {
+        const status = await requestDailyFortuneStatus(playFabId);
+        dailyFortuneCheckedSession = true;
+        dailyFortuneCanDrawSession = !!status?.canDraw;
+        dailyFortuneClaimedSession = !dailyFortuneCanDrawSession;
+        if (dailyFortuneCanDrawSession) {
+            setupDailyFortuneOverlay(playFabId);
+            return;
+        }
+        if (status?.result) {
+            renderDailyFortuneResultLegacy(status.result);
+            setDailyFortuneSubText('本日の占い結果です。');
+            return;
+        }
+        setDailyFortuneSubText('本日の占いは完了しています。');
+        if (textEl) textEl.textContent = 'また明日、次の潮目を占えます。';
+    } catch (error) {
+        setDailyFortuneSubText('占いを開けませんでした。航路を確認してください。');
+        if (textEl) {
+            textEl.textContent = `占いに失敗しました: ${error?.message || 'unknown error'}`;
+        }
+        console.warn('[dailyFortune] explicit open failed:', error);
+    }
 }

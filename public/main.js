@@ -9,7 +9,7 @@ import { showTab, showConfirmationModal, scheduleWorldMapPrefetch } from 'ui';
 import * as Player from 'player';
 import * as Inventory from 'inventory';
 import * as Guild from './js/guild.js';
-import * as Ship from './js/ship.js?v=20260726-legacy-battle-off-1';
+import * as Ship from './js/ship.js?v=20260727-single-chest1';
 import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js';
 import { initMapChat, initTroyChat } from './js/mapChat.js';
@@ -52,7 +52,8 @@ let pendingAppInviteToken = '';
 let pendingAppInviteInfo = null;
 let pendingFixedInviteNation = '';
 let lineFriendPromoState = null;
-const TAROT_MODULE_VERSION = '20260323a';
+let dailyFortuneOpenPromise = null;
+const TAROT_MODULE_VERSION = '20260727-fortune-readable1';
 const LIFF_CALLBACK_PARAM_KEYS = [
     'code',
     'state',
@@ -328,20 +329,49 @@ function normalizePlayFabIdFromQrValue(value) {
     return /^[A-F0-9]{16,32}$/.test(normalized) ? normalized : '';
 }
 
-function shouldSkipDailyFortuneOnLogin() {
-    return !!getTroyEntryRequestFromUrl();
-}
-
-async function showDailyFortunePromptAfterLogin() {
-    if (shouldSkipDailyFortuneOnLogin()) return;
-    try {
+async function openDailyFortuneFromButton() {
+    if (dailyFortuneOpenPromise) return dailyFortuneOpenPromise;
+    const button = document.getElementById('btnDailyFortune');
+    const originalText = button?.textContent || '本日の占い';
+    if (!myPlayFabId) {
+        showRpgMessage('ログイン完了後に占えます。', 2200);
+        return;
+    }
+    if (button) {
+        button.disabled = true;
+        button.textContent = '占いを準備中...';
+    }
+    dailyFortuneOpenPromise = (async () => {
         const Tarot = await import(`./js/tarotPoker.js?v=${TAROT_MODULE_VERSION}`);
+        if (Tarot && typeof Tarot.showDailyFortune === 'function') {
+            await Tarot.showDailyFortune(myPlayFabId);
+            return;
+        }
         if (Tarot && typeof Tarot.showDailyFortunePromptOnLogin === 'function') {
             await Tarot.showDailyFortunePromptOnLogin(myPlayFabId);
         }
+    })();
+    try {
+        await dailyFortuneOpenPromise;
     } catch (fortuneError) {
-        console.warn('[dailyFortune] Failed to show login prompt:', fortuneError);
+        console.warn('[dailyFortune] Failed to open fortune:', fortuneError);
+        showRpgMessage('占いを開けませんでした。もう一度お試しください。', 2600);
+    } finally {
+        dailyFortuneOpenPromise = null;
+        if (button) {
+            button.disabled = false;
+            button.textContent = originalText;
+        }
     }
+}
+
+function initDailyFortuneButton() {
+    const button = document.getElementById('btnDailyFortune');
+    if (!button || button.dataset.dailyFortuneBound === 'true') return;
+    button.dataset.dailyFortuneBound = 'true';
+    button.addEventListener('click', () => {
+        void openDailyFortuneFromButton();
+    });
 }
 
 function clearTroyEntryParamsFromUrl() {
@@ -1211,6 +1241,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initHomeExplorationButton();
     initHomeCoinConvertPanel();
     initHomeQrScanButton();
+    initDailyFortuneButton();
     initHomeAvatarStyleModal();
     updateSeaToneByTime();
     initPwaShell();
@@ -1355,7 +1386,6 @@ async function initializeLiff() {
                     await showTab('home', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race || 'human', nation: myAvatarBaseInfo.Nation });
                     __perfLog('showTab(home) done');
                     await handleTroyEntryRequest(troyEntryRequest, { clearUrl: true });
-                    await showDailyFortunePromptAfterLogin();
                     scheduleWorldMapPrefetch();
                     const prefetchHeavy = () => {
                         ensureBuildingMetaLoaded();
@@ -1576,6 +1606,7 @@ async function initializeAppFeatures() {
     document.getElementById('btnGetGameRanking')?.addEventListener('click', () => Player.getStoreGameRanking('game'));
     initHomeQrScanButton();
     initHomeExplorationButton();
+    initDailyFortuneButton();
     initHomeAvatarStyleModal();
     document.getElementById('globalPlayerName')?.addEventListener('click', promptChangeDisplayName);
     document.getElementById('btnCreateGuild').addEventListener('click', () => Guild.showCreateGuildModal());
@@ -1788,7 +1819,6 @@ async function autoAssignRace() {
         }
         await showTab('home', { playFabId: myPlayFabId, race: raceName.toLowerCase(), nation });
         await handleTroyEntryRequest(troyEntryRequest, { clearUrl: true });
-        await showDailyFortunePromptAfterLogin();
     } else {
         console.error('[autoAssignRace] set-race returned null, falling back to manual modal');
         showRaceModal();
@@ -1867,7 +1897,6 @@ function showRaceModal() {
             const playerInfo = { playFabId: myPlayFabId, race: raceName.toLowerCase(), nation };
             await showTab('home', playerInfo);
             await handleTroyEntryRequest(troyEntryRequest, { clearUrl: true });
-            await showDailyFortunePromptAfterLogin();
         } else {
             document.getElementById('raceMessage').innerText = 'エラーが発生しました。';
             raceButtonsContainer.addEventListener('click', handleRaceSelection);

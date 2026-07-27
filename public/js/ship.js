@@ -1129,6 +1129,7 @@ const EXPLORATION_SHIP_TRAITS = {
 let currentPlayerShipProfile = null;
 let explorationAutoRunning = false;
 let currentTarotKingdomPet = null;
+let currentExplorationStages = [];
 let tarotKingdomPetOfferDialogPromise = null;
 const HOME_PLAYER_SHIP_FRAME_SIZE = 64;
 const HOME_PLAYER_SHIP_DIRECTION_FRAME_SPAN = HOME_PLAYER_SHIP_FRAME_SIZE * 3;
@@ -2495,19 +2496,6 @@ function getRewardItemsForReveal(data) {
     return [];
 }
 
-function renderExplorationRewardChests(count) {
-    const total = Math.max(0, Math.floor(Number(count || 0)));
-    if (!total) return '<span class="exploration-sequence-no-chest">なし</span>';
-    const visible = Math.min(total, 3);
-    const chests = Array.from({ length: visible }, (_, index) => (
-        `<span class="exploration-sequence-mini-chest" data-exploration-sequence-chest style="--i:${index};"></span>`
-    ));
-    if (total > visible) {
-        chests.push(`<span class="exploration-sequence-chest-more">+${(total - visible).toLocaleString('ja-JP')}</span>`);
-    }
-    return chests.join('');
-}
-
 const EXPLORATION_BATTLE_AVATAR_PREFIX = 'exploration-battle-avatar';
 
 function renderExplorationBattleAvatarMarkup() {
@@ -2611,7 +2599,6 @@ function showExplorationResultSummary(data, options = {}) {
             const quantityText = quantity > 1 ? `×${quantity.toLocaleString('ja-JP')}` : '';
             return `
                 <li class="exploration-result-reward is-${rarity}">
-                    <span class="exploration-result-reward-icon" aria-hidden="true"></span>
                     <strong>${escapeHtml(getExplorationRewardName(item))}</strong>
                     <span>${escapeHtml(getExplorationRarityLabel(rarity))}${quantityText}</span>
                 </li>
@@ -2619,7 +2606,6 @@ function showExplorationResultSummary(data, options = {}) {
         }).join('')
         : `
             <li class="exploration-result-reward is-empty">
-                <span class="exploration-result-reward-icon" aria-hidden="true"></span>
                 <strong>報酬なし</strong>
                 <span>NONE</span>
             </li>
@@ -2785,14 +2771,53 @@ async function recoverConflictedExploration(playFabId, destinationId) {
     await loadExplorationPanel(playFabId);
 }
 
-async function showExplorationAutoSequence(startData, destinationId, encounterData = null) {
+async function showExplorationAutoSequence(startData, destinationId, encounterData = null, selectedStage = null) {
     const ship = startData?.ship || currentPlayerShipProfile || {};
     const active = startData?.active || {};
     const form = normalizePlayerShipForm(ship.form);
     const guildSailColor = form === 'guild' ? resolveGuildShipSailColor(ship) : 'white';
     const guildLayers = form === 'guild' ? renderGuildShipLayers(ship) : '';
-    const report = encounterData?.encounter || encounterData?.active?.encounter || encounterData?.report || {};
-    const stageMonsters = Array.isArray(report?.monsters) ? report.monsters.slice(0, 4) : [];
+    const rawReport = encounterData?.encounter || encounterData?.active?.encounter || encounterData?.report || {};
+    const requestedStageNo = Math.max(0, Math.floor(Number(
+        rawReport?.stageNo || active?.stageNo || selectedStage?.stageNo
+    ) || 0));
+    const cachedStage = currentExplorationStages.find((entry) => (
+        Number(entry?.stageNo) === requestedStageNo
+    )) || null;
+    const stageFallback = selectedStage && typeof selectedStage === 'object'
+        ? selectedStage
+        : (cachedStage || {});
+    const reportedMonsters = Array.isArray(rawReport?.monsters) ? rawReport.monsters.slice(0, 4) : [];
+    const fallbackMonsters = Array.isArray(stageFallback?.monsters) ? stageFallback.monsters.slice(0, 4) : [];
+    const stageMonsters = reportedMonsters.length === 4 ? reportedMonsters : fallbackMonsters;
+    const firstStageMonster = stageMonsters[0] || null;
+    const report = {
+        ...stageFallback,
+        ...rawReport,
+        stageNo: requestedStageNo || Math.max(0, Math.floor(Number(stageFallback?.stageNo) || 0)),
+        stageId: String(rawReport?.stageId || active?.stageId || stageFallback?.id || ''),
+        destinationId: String(
+            rawReport?.destinationId || active?.destinationId || stageFallback?.id || destinationId || ''
+        ),
+        destinationName: String(
+            rawReport?.destinationName || active?.destinationName || stageFallback?.name || ''
+        ),
+        battlefieldId: String(
+            rawReport?.battlefieldId || active?.battlefieldId || stageFallback?.battlefieldId || ''
+        ),
+        atmosphereTone: String(
+            rawReport?.atmosphereTone || active?.atmosphereTone || stageFallback?.atmosphereTone || ''
+        ),
+        monsters: stageMonsters,
+        ...(stageMonsters.length === 4
+            ? {
+                version: Math.max(2, Number(rawReport?.version) || 0),
+                monsterId: String(firstStageMonster?.monsterId || firstStageMonster?.id || ''),
+                monsterName: String(firstStageMonster?.monsterName || firstStageMonster?.name || ''),
+                isBoss: false
+            }
+            : {})
+    };
     const resolvedDestinationId = active.destinationId || report.destinationId || destinationId;
     const destinationVisual = getExplorationDestinationVisual(active.destinationId ? active : resolvedDestinationId);
     const destinationName = active.destinationName || report.destinationName || destinationVisual.label || '探索先';
@@ -3006,6 +3031,7 @@ function renderExplorationPanel(data, playFabId) {
         return;
     }
     const stages = Array.isArray(data?.stages) ? data.stages : [];
+    if (stages.length > 0) currentExplorationStages = stages.map((stage) => ({ ...stage }));
     const paymentState = getExplorationPaymentState(data);
     const destinationHtml = stages.length
         ? stages.map((stage) => {
@@ -3051,7 +3077,7 @@ function renderExplorationPanel(data, playFabId) {
             const stage = stages.find((entry) => Number(entry?.stageNo) === stageNo) || null;
             const supplies = await showExplorationStageSupplyDialog({ stage, paymentState });
             if (!supplies) return;
-            void startExploration(playFabId, destinationId, { stageNo, supplies }, button);
+            void startExploration(playFabId, destinationId, { stageNo, supplies, stage }, button);
         });
     });
 }
@@ -3158,7 +3184,12 @@ async function startExploration(playFabId, destinationId, payment = {}, triggerB
         });
         renderExplorationPanel(startData, playFabId);
         const encounterData = await requestExplorationEncounter(playFabId, { throwOnError: true });
-        const sequenceResult = await showExplorationAutoSequence(startData, destinationId, encounterData);
+        const sequenceResult = await showExplorationAutoSequence(
+            startData,
+            destinationId,
+            encounterData,
+            payment?.stage
+        );
         const retreated = await completeExplorationRetreat(playFabId, sequenceResult);
         if (!retreated && !sequenceResult?.cancelled) {
             const claimData = await requestClaimExploration(playFabId, {

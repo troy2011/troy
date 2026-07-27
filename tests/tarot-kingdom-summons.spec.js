@@ -174,7 +174,9 @@ test.describe('Tarot Kingdom summon integration', () => {
         hudReturnAt: Number(cutin?.dataset.hudReturnAt),
         rootCinematic: root?.classList.contains('is-summon-cinematic') || false,
         stageCinematic: stage?.classList.contains('is-summon-cinematic') || false,
-        shortCutinVisible: document.querySelector('#tarotKingdomCutin')?.classList.contains('show') || false
+        shortCutinVisible: document.querySelector('#tarotKingdomCutin')?.classList.contains('show') || false,
+        rootElapsed: root?.style.getPropertyValue('--summon-elapsed') || '',
+        cutinElapsed: cutin?.style.getPropertyValue('--summon-elapsed') || ''
       };
     }, cards);
 
@@ -213,6 +215,20 @@ test.describe('Tarot Kingdom summon integration', () => {
       shortCutinVisible: false
     });
     expect(audit.effectClass).toContain('is-effect-command');
+    await page.waitForTimeout(80);
+    const elapsedAfterRender = await page.evaluate(() => {
+      window.TarotKingdomDebug.battleRender();
+      return {
+        rootElapsed: document.querySelector('#tarotKingdomRoot')?.style.getPropertyValue('--summon-elapsed') || '',
+        cutinElapsed: document.querySelector('.tarot-kingdom-skill-cutin.is-summon')?.style.getPropertyValue('--summon-elapsed') || ''
+      };
+    });
+    expect(audit.rootElapsed).not.toBe('');
+    expect(audit.cutinElapsed).not.toBe('');
+    expect(elapsedAfterRender).toEqual({
+      rootElapsed: audit.rootElapsed,
+      cutinElapsed: audit.cutinElapsed
+    });
   });
 
   test('all nine effect keys expose distinct choreography classes and categories', async ({ page }) => {
@@ -245,6 +261,8 @@ test.describe('Tarot Kingdom summon integration', () => {
       debug.battlePlayCards(0, hand.slice(0, 5).map((card) => card.id));
       return debug.battleState().transition.startedAt;
     }, cards);
+    await page.waitForTimeout(Math.max(0, startedAt + 650 - Date.now()));
+    await expect(page.locator('#tarotKingdomRoot')).toHaveAttribute('data-summon-motion-paused', 'true');
     const readVisibilityAt = (offsetMs) => page.evaluate((timelineOffset) => {
       const root = document.querySelector('#tarotKingdomRoot');
       const stage = document.querySelector('#tarotKingdomBattleStage');
@@ -302,12 +320,14 @@ test.describe('Tarot Kingdom summon integration', () => {
       return {
         party: opacityOf('#tarotKingdomBattleStage .tarot-kingdom-battle-party-side'),
         hud: opacityOf('#tarotKingdomRoot .tarot-kingdom-layout'),
-        cinematic: document.querySelector('#tarotKingdomRoot')?.classList.contains('is-summon-cinematic') || false
+        cinematic: document.querySelector('#tarotKingdomRoot')?.classList.contains('is-summon-cinematic') || false,
+        motionPaused: document.querySelector('#tarotKingdomRoot')?.dataset.summonMotionPaused === 'true'
       };
     });
     expect(finished.party).toBeGreaterThan(0.9);
     expect(finished.hud).toBeGreaterThan(0.9);
     expect(finished.cinematic).toBe(false);
+    expect(finished.motionPaused).toBe(false);
     await expect(page.locator('.tarot-kingdom-skill-cutin.is-summon')).toHaveCount(0);
   });
 

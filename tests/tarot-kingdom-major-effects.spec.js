@@ -208,6 +208,7 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
         const root = document.getElementById('tarotKingdomRoot');
         const stage = document.getElementById('tarotKingdomBattleStage');
         const banner = stage.querySelector('.tarot-kingdom-effect-banner');
+        const majorVisual = stage.querySelector('.tarot-kingdom-major-visual');
         const badges = Array.from(stage.querySelectorAll('.tarot-kingdom-affinity-badge'));
         const stageRect = stage.getBoundingClientRect();
         const inside = (rect) => (
@@ -219,7 +220,12 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
         return {
           rootOverflow: root.scrollWidth - root.clientWidth,
           bannerText: banner?.textContent || '',
+          bannerIsMajor: banner?.classList.contains('is-major') || false,
           bannerInside: !!banner && inside(banner.getBoundingClientRect()),
+          visualInside: !!majorVisual && inside(majorVisual.getBoundingClientRect()),
+          visualTone: majorVisual?.dataset.majorTone || '',
+          visualScope: majorVisual?.dataset.majorScope || '',
+          visualPartCount: majorVisual?.children.length || 0,
           badges: badges.map((badge) => badge.textContent),
           badgesInside: badges.every((badge) => inside(badge.getBoundingClientRect()))
         };
@@ -227,7 +233,12 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
 
       expect(layout.rootOverflow, `${width}px overflow`).toBeLessThanOrEqual(1);
       expect(layout.bannerText).toBe('エレメンタルコンボ');
+      expect(layout.bannerIsMajor).toBe(true);
       expect(layout.bannerInside).toBe(true);
+      expect(layout.visualInside).toBe(true);
+      expect(layout.visualTone).toBe('elemental');
+      expect(layout.visualScope).toBe('enemy');
+      expect(layout.visualPartCount).toBe(5);
       expect(layout.badges.some((text) => text.includes('WEAK'))).toBe(true);
       expect(layout.badges.some((text) => text.includes('RESIST'))).toBe(true);
       expect(layout.badgesInside).toBe(true);

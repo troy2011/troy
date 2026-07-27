@@ -563,13 +563,15 @@ async function installBaseAppMocks(page, state, options = {}) {
       body: FIREBASE_APP_MOCK_MODULE
     });
   });
-  await page.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/javascript; charset=utf-8',
-      body: FIREBASE_FIRESTORE_MOCK_MODULE
+  if (options.mockFirebaseFirestore !== false) {
+    await page.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/javascript; charset=utf-8',
+        body: FIREBASE_FIRESTORE_MOCK_MODULE
+      });
     });
-  });
+  }
   await page.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js', async (route) => {
     await route.fulfill({
       status: 200,

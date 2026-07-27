@@ -117,10 +117,16 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
   await expectNoPageErrors(errors);
 });
 
-test('daily tarot fortune modal shows clear draw and result states on mobile', async ({ page }) => {
+test('daily tarot fortune loads only after its button is clicked and shows clear draw states on mobile', async ({ page }) => {
   const errors = trackPageErrors(page);
+  let fortuneStatusRequests = 0;
+  let tarotModuleRequests = 0;
+  page.on('request', (request) => {
+    if (request.url().includes('/js/tarotPoker.js')) tarotModuleRequests += 1;
+  });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/api/tarot-fortune-status', async (route) => {
+    fortuneStatusRequests += 1;
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
@@ -151,13 +157,14 @@ test('daily tarot fortune modal shows clear draw and result states on mobile', a
   });
 
   await bootstrapMainApp(page);
-  await page.evaluate(async () => {
-    const Tarot = await import('/js/tarotPoker.js');
-    await Tarot.showDailyFortunePromptOnLogin('PF_PLAYWRIGHT');
-  });
+  expect(fortuneStatusRequests).toBe(0);
+  expect(tarotModuleRequests).toBe(0);
+  await page.locator('#btnDailyFortune').click();
   const overlay = page.locator('#dailyTarotFortuneOverlay');
   const modal = page.locator('#dailyTarotFortuneModal');
   await expect(overlay).toBeVisible();
+  expect(fortuneStatusRequests).toBe(1);
+  expect(tarotModuleRequests).toBeGreaterThan(0);
   const closeButtonStyle = await page.locator('.tarot-fortune-close').evaluate((node) => {
     const style = window.getComputedStyle(node);
     return {
@@ -190,12 +197,19 @@ test('daily tarot fortune modal shows clear draw and result states on mobile', a
   await page.locator('#dailyTarotFortuneCardHost .tarot-fortune-card-shell').click();
   await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText('ワンドの7');
   await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText('正位置');
-  await expect(page.locator('#dailyTarotFortuneText')).toContainText('風向き: 追い風');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('今日の風向き');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('追い風');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('7 / 10');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('今日の流れ');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('今日のアドバイス');
   await expect(page.locator('#dailyTarotFortuneText')).toContainText('横槍が入る日だ。');
   await expect(page.locator('#dailyTarotFortuneText')).toContainText('主導権はお前さんに残る。');
+  await expect(page.locator('#dailyTarotFortuneText .tarot-fortune-meter-segment')).toHaveCount(10);
+  await expect(page.locator('#dailyTarotFortuneText .tarot-fortune-meter-segment.is-filled')).toHaveCount(7);
   await expect(page.locator('#dailyTarotFortuneText')).not.toContainText('一言判定:');
   await expect(page.locator('#dailyTarotFortuneText')).not.toContainText('船長からの一言:');
   await expect(page.locator('#dailyTarotFortuneReward')).toContainText('+7G');
+  await expect(page.locator('#dailyTarotFortuneReward')).toContainText('今日の報酬');
   await expect(modal).not.toHaveClass(/is-major-arcana/);
   await expect(page.locator('#dailyTarotFortuneArcanaBadge')).toBeHidden();
   await expect(page.locator('#dailyTarotFortuneCardHost .tarot-fortune-card-shell')).not.toHaveClass(/is-major-arcana/);
@@ -264,8 +278,11 @@ test('daily tarot fortune adds richer presentation after major arcana reveal', a
   await expect(fortuneCard).toHaveClass(/is-major-arcana/);
   await expect(arcanaBadge).toBeVisible();
   await expect(arcanaBadge).toHaveText('MAJOR ARCANA');
-  await expect(page.locator('#dailyTarotFortuneText')).toContainText('風向き: 不穏');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('今日の風向き');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('不穏');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('4 / 10');
   await expect(page.locator('#dailyTarotFortuneText')).toContainText('噂ではなく一次情報で航路を確かめてください。');
+  await expect(page.locator('#dailyTarotFortuneText .tarot-fortune-meter-segment.is-filled')).toHaveCount(4);
   await expect(page.locator('#dailyTarotFortuneText')).not.toContainText('一言判定:');
   await expect(page.locator('#dailyTarotFortuneText')).not.toContainText('船長からの一言:');
 
@@ -282,6 +299,58 @@ test('daily tarot fortune adds richer presentation after major arcana reveal', a
   expect(majorPresentation.beforeAnimation).toBe('tarotFortuneArcanaRays');
   expect(Number(majorPresentation.beforeOpacity)).toBeGreaterThan(0);
   expect(majorPresentation.cardAnimation).toBe('tarotFortuneArcanaCard');
+  await expectNoPageErrors(errors);
+});
+
+test('daily tarot fortune presents an already claimed result without drawing again', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  let drawRequests = 0;
+  await page.route('**/api/tarot-fortune-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        canDraw: false,
+        result: {
+          cardId: 'daily_claimed_cups_8',
+          cardNumber: 8,
+          suit: 'Cup',
+          isArcana: false,
+          cardName: 'カップの8',
+          orientation: 'upright',
+          weather: {
+            level: 8,
+            windLabel: '良好',
+            verdict: '落ち着いて進めば、次の港まで確実に届きます。'
+          },
+          strikeLine: '先に片づけることを一つ決め、終わってから次へ進んでください。',
+          rewardPs: 8,
+          rewardType: 'gold'
+        }
+      })
+    });
+  });
+  await page.route('**/api/tarot-fortune-draw', async (route) => {
+    drawRequests += 1;
+    await route.fulfill({
+      status: 500,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ error: 'draw should not run' })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.locator('#btnDailyFortune').click();
+
+  await expect(page.locator('#dailyTarotFortuneOverlay')).toBeVisible();
+  await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText('カップの8');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('良好');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('8 / 10');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('今日の流れ');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('今日のアドバイス');
+  await expect(page.locator('#dailyTarotFortuneText .tarot-fortune-meter-segment.is-filled')).toHaveCount(8);
+  await expect(page.locator('#dailyTarotFortuneReward')).toContainText('今日の報酬');
+  expect(drawRequests).toBe(0);
   await expectNoPageErrors(errors);
 });
 
@@ -712,7 +781,7 @@ export function onSnapshot(_ref, next) {
     });
   });
 
-  await bootstrapMainApp(page);
+  await bootstrapMainApp(page, { mockFirebaseFirestore: false });
   await page.evaluate(async () => {
     await window.showTab('troy');
   });
@@ -1687,7 +1756,7 @@ test('exploration stage starts for free with ordered optional supplies', async (
           imagePath: './assets/tarot-kingdom/battlefields/coral-island-v1.webp'
         },
         encounter: {
-          version: 2,
+          version: 1,
           explorationId: 'exploration-tarot-entry',
           stageNo: 1,
           stageId: 'tarot_stage_1',
@@ -1695,15 +1764,9 @@ test('exploration stage starts for free with ordered optional supplies', async (
           destinationName: '珊瑚の浅瀬',
           battlefieldId: 'coral-island',
           atmosphereTone: 'sunlit-coral',
-          monsterId: 'ismartal-vol1-monster-07',
-          monsterName: 'マシュロン',
+          monsterId: 'ismartal-vol2-monster-14',
+          monsterName: 'スパイナ',
           isBoss: false,
-          monsters: [
-            { order: 1, monsterId: 'ismartal-vol1-monster-07', monsterName: 'マシュロン', archetype: 'balanced', threatLevel: 1, isBoss: false },
-            { order: 2, monsterId: 'ismartal-vol3-monster-04', monsterName: 'プルン', archetype: 'balanced', threatLevel: 2, isBoss: false },
-            { order: 3, monsterId: 'ismartal-vol1-monster-01', monsterName: 'トゲマル', archetype: 'guardian', threatLevel: 3, isBoss: false },
-            { order: 4, monsterId: 'ismartal-vol2-monster-02', monsterName: 'パピル', archetype: 'swift', threatLevel: 4, isBoss: false }
-          ],
           supplyQueue: [
             { itemId: 'troy_menu_drink_a', displayName: 'ラムソーダ', effectiveUnits: 1 },
             { itemId: 'troy_menu_food_b', displayName: '港町プレート', effectiveUnits: 2 }
@@ -2079,6 +2142,7 @@ test('legacy naval and melee battle entries are retired from the app', async ({ 
   await bootstrapMainApp(page, { mockFirebaseDatabase: true });
 
   await expect(page.locator('#btnHomeExploration')).toHaveText('探索に出る');
+  await expect(page.locator('#btnDailyFortune')).toHaveText('本日の占い');
   await expect(page.locator('#btnHomePlunder')).toHaveCount(0);
   const homeActionLayout = await page.locator('.home-exp-actions').evaluate((actions) => {
     const rect = actions.getBoundingClientRect();
@@ -2093,7 +2157,7 @@ test('legacy naval and melee battle entries are retired from the app', async ({ 
   expect(homeActionLayout.left).toBeGreaterThanOrEqual(0);
   expect(homeActionLayout.right).toBeLessThanOrEqual(homeActionLayout.viewportWidth);
   expect(homeActionLayout.pageScrollWidth).toBeLessThanOrEqual(homeActionLayout.viewportWidth);
-  expect(homeActionLayout.visibleButtons).toBe(1);
+  expect(homeActionLayout.visibleButtons).toBe(2);
   await expect(page.locator('.qr-battle-card')).toHaveCount(0);
   await expect(page.locator('#btnScanBattle')).toHaveCount(0);
   await expect(page.locator('#navalBattleModal')).not.toBeVisible();
@@ -2637,8 +2701,12 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
 
   const result = page.locator('.exploration-result-overlay');
   await expect(result).toHaveClass(/is-awaiting-open/, { timeout: 15_000 });
+  await expect(result.locator('.exploration-result-chest')).toHaveCount(1);
   await result.locator('[data-exploration-result-open]').click();
   await expect(result).toHaveClass(/is-opened/, { timeout: 5_000 });
+  await expect(result.locator('.exploration-result-chest')).toHaveCount(1);
+  await expect(result.locator('.exploration-result-reward-icon')).toHaveCount(0);
+  await expect(result.locator('.exploration-sequence-mini-chest')).toHaveCount(0);
   await expect(result.locator('.exploration-result-details')).toHaveCSS('opacity', '1');
   await expect(result.locator('.exploration-result-reward')).toContainText('霧切りの刃');
   await expect(result.locator('[data-exploration-result-state]')).toHaveText('勝利');

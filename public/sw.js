@@ -48,6 +48,13 @@ function isFreshCodeAsset(request) {
   );
 }
 
+function isVersionedCodeAsset(request) {
+  if (!request) return false;
+  const url = new URL(request.url);
+  const path = String(url.pathname || '');
+  return url.searchParams.has('v') && (path.endsWith('.js') || path.endsWith('.css'));
+}
+
 function shouldBypassRuntimeCache(request) {
   if (!request) return false;
   const url = new URL(request.url);
@@ -84,6 +91,24 @@ self.addEventListener('fetch', (event) => {
 
   if (shouldBypassRuntimeCache(request)) {
     event.respondWith(fetch(request));
+    return;
+  }
+
+  if (isVersionedCodeAsset(request)) {
+    const networkUpdate = fetch(request).then((response) => {
+      if (response?.ok) {
+        const cloned = response.clone();
+        caches.open(CORE_CACHE).then((cache) => cache.put(request, cloned)).catch(() => undefined);
+      }
+      return response;
+    });
+    event.waitUntil(networkUpdate.then(() => undefined).catch(() => undefined));
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return networkUpdate.catch(() => createOfflineResponse(request));
+      })
+    );
     return;
   }
 
