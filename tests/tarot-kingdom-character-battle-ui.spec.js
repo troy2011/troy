@@ -578,18 +578,22 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1000 
           petSpriteScale: sprite?.style.getPropertyValue('--tarot-kingdom-pet-scale') || '',
           offsetY: sprite?.style.getPropertyValue('--tarot-kingdom-pet-offset-y') || '',
           bottom: sprite ? getComputedStyle(sprite).bottom : '',
+          horizontalAnchor: sprite ? parseFloat(getComputedStyle(sprite).left) : NaN,
+          hostCenter: petAvatar ? petAvatar.offsetWidth / 2 : NaN,
           playerOrder: debug.battleState().players.map((player) => player.id)
         };
       });
     });
 
     expect(audit).toHaveLength(47);
-    expect(audit.every((pet) => (
+    expect(audit.filter((pet) => !(
       !!pet.playerScale
       && pet.petHostScale === pet.playerScale
       && pet.petSpriteScale === '1'
+      && pet.horizontalAnchor <= pet.hostCenter - 3
+      && pet.horizontalAnchor >= pet.hostCenter - 5
       && pet.playerOrder.join(',') === 'you,pet,npc1,npc2'
-    ))).toBe(true);
+    ))).toEqual([]);
     for (const monsterId of [
       'ismartal-vol2-monster-05',
       'ismartal-vol2-monster-17',
@@ -644,10 +648,10 @@ test('enemy and party shadows stay grounded while flying monsters cast a lower s
   expect(grounded.opacity).toBeGreaterThanOrEqual(0.7);
   expect(grounded.background).toContain('radial-gradient');
   expect(playerShadow.content).not.toBe('none');
-  expect(playerShadow.bottom).toBe(18);
-  expect(playerShadow.width).toBe(40);
-  expect(playerShadow.height).toBe(9);
-  expect(playerShadow.opacity).toBeGreaterThanOrEqual(0.8);
+  expect(playerShadow.bottom).toBe(17);
+  expect(playerShadow.width).toBe(46);
+  expect(playerShadow.height).toBe(11);
+  expect(playerShadow.opacity).toBe(1);
   expect(playerShadow.background).toContain('radial-gradient');
 
   await picker.selectOption('ismartal-vol1-monster-09');

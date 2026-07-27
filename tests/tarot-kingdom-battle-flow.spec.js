@@ -945,11 +945,19 @@ test.describe('Tarot Kingdom character battle flow', () => {
       });
       const settled = debug.battleFinishRound(0);
       const second = debug.battleNextRound();
+      const enemyIds = [first.battle.enemy.id, second.battle.enemy.id];
+      debug.battleFinishRound(0);
+      const third = debug.battleNextRound();
+      enemyIds.push(third.battle.enemy.id);
+      debug.battleFinishRound(0);
+      const fourth = debug.battleNextRound();
+      enemyIds.push(fourth.battle.enemy.id);
       const arena = document.querySelector('.tarot-kingdom-battle-arena');
       return {
         first,
         settled,
         second,
+        enemyIds,
         publicState: debug.battlePublicState(),
         atmosphereTone: document.body.dataset.tarotKingdomAtmosphereTone || '',
         atmosphereCss: arena
@@ -973,6 +981,12 @@ test.describe('Tarot Kingdom character battle flow', () => {
     });
     expect(audit.second.battle.enemy.id).toBe('ismartal-vol3-monster-04');
     expect(audit.second.battle.enemy.threatLevel).toBe(2);
+    expect(audit.enemyIds).toEqual([
+      'ismartal-vol1-monster-07',
+      'ismartal-vol3-monster-04',
+      'ismartal-vol1-monster-01',
+      'ismartal-vol2-monster-02'
+    ]);
     audit.second.players.forEach((player, index) => {
       const hpBefore = [40, 0, 80, 100][index];
       const amount = Math.max(1, Math.round(player.maxHp * 0.2));

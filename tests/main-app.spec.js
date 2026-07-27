@@ -1982,6 +1982,9 @@ test('exploration bridge opens tarot kingdom directly with the selected island m
   await expect(page.locator('body')).toHaveClass(/tarot-kingdom-exploration-session/);
   await expect(page.locator('body')).toHaveClass(/tarot-kingdom-fullscreen/);
   await expect(page.locator('body')).toHaveAttribute('data-tarot-kingdom-entry-mode', 'offline');
+  await expect(page.locator('#tarotKingdomStartOnlineButton')).toBeHidden();
+  await expect(page.locator('#tarotKingdomStartOfflineButton')).toBeHidden();
+  await expect(page.locator('#tarotKingdomRetreatButton')).toBeHidden();
   await expect(page.locator('#tarotModeKingdom')).toBeHidden();
   await expect(page.locator('#globalStatusBar')).toBeHidden();
   await expect(page.locator('#bottomNav')).toBeHidden();
@@ -2047,7 +2050,8 @@ test('exploration rescue signal creates a dedicated online lobby before combat',
   await expect(page.locator('#tarotKingdomStateText')).toContainText('オルビス');
   await expect(page.locator('#tarotKingdomBattleStage')).toBeHidden();
   await expect(page.locator('#tarotKingdomStartOnlineButton')).toContainText(/救難|救援/, { timeout: 7000 });
-  await expect(page.locator('#tarotKingdomStartOfflineButton')).toHaveText('傭兵召集へ切替');
+  await expect(page.locator('#tarotKingdomStartOfflineButton')).toBeHidden();
+  await expect(page.locator('#tarotKingdomRetreatButton')).toBeVisible();
 
   await expect.poll(() => page.evaluate(() => {
     const entries = Array.from(window.__pwFirebaseDbStore?.values?.entries?.() || []);
@@ -2059,8 +2063,12 @@ test('exploration rescue signal creates a dedicated online lobby before combat',
     destinationName: '珊瑚礁の抜け道'
   });
 
-  await page.evaluate(() => window.showTab?.('home'));
+  await page.locator('#tarotKingdomRetreatButton').click();
   await expect(page.locator('#tabContentHome')).toBeVisible();
+  await expect.poll(() => page.evaluate(async () => window.__explorationRescuePromise)).toMatchObject({
+    status: 'retreated',
+    outcome: 'retreated'
+  });
   expect(await page.locator('body').getAttribute('data-tarot-kingdom-entry-mode')).toBeNull();
   await expectNoPageErrors(errors);
 });

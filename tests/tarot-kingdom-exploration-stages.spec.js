@@ -10,6 +10,7 @@ const {
   normalizeTarotKingdomExplorationProgress
 } = require('../server/tarotKingdomExplorationStages');
 const {
+  resolveActiveExplorationTarotEncounter,
   validateExplorationTransitionSupplies
 } = require('../server/exploration').__test;
 const roster = require('../public/Sprites/pixel-monsters/manifest.json');
@@ -71,6 +72,27 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
       'メカノ', 'ゲルバット', 'ツキバネ', 'フレマ'
     ]);
     expect(encounter.supplyQueue.map((entry) => entry.itemId)).toEqual(['s1', 's2', 's3']);
+  });
+
+  test('an active stage upgrades a legacy single-monster encounter to its ordered four enemies', () => {
+    const encounter = resolveActiveExplorationTarotEncounter({
+      id: 'exp-legacy-stage',
+      stageNo: 2,
+      supplyQueue: [{ itemId: 'heal', displayName: '回復', effectiveUnits: 1 }],
+      tarotEncounter: {
+        version: 1,
+        explorationId: 'exp-legacy-stage',
+        monsterId: 'ismartal-vol1-monster-07',
+        monsterName: 'マシュロン'
+      }
+    });
+
+    expect(encounter.version).toBe(2);
+    expect(encounter.stageNo).toBe(2);
+    expect(encounter.monsters.map((entry) => entry.monsterName)).toEqual([
+      'モクモ', 'ツノガイ', 'リーフロ', 'ホタルビ'
+    ]);
+    expect(encounter.supplyQueue).toHaveLength(1);
   });
 
   test('optional supplies retain selection order, enforce ownership and stop at three', () => {

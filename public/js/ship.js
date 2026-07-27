@@ -2941,13 +2941,14 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
         mode: battleMode,
         currentPet: battleMode === 'offline' ? currentTarotKingdomPet : null
     });
+    const retreatedInKingdom = kingdomResult?.status === 'retreated';
     return {
         chestOpened: false,
         battleMode,
         kingdomMonster,
         explorationId: String(report.explorationId || report.id || active.id || ''),
         kingdomResult,
-        retreated: false,
+        retreated: retreatedInKingdom,
         cancelled: kingdomResult?.status !== 'completed'
     };
 }

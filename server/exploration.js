@@ -1898,6 +1898,32 @@ function normalizeExplorationTarotEncounter(value) {
     };
 }
 
+function resolveActiveExplorationTarotEncounter(activeData = {}) {
+    const rawEncounter = activeData?.tarotEncounter && typeof activeData.tarotEncounter === 'object'
+        ? activeData.tarotEncounter
+        : null;
+    const normalized = normalizeExplorationTarotEncounter(rawEncounter);
+    const stageNo = Math.max(0, Math.min(11, Math.floor(
+        Number(activeData?.stageNo || rawEncounter?.stageNo || normalized?.stageNo) || 0
+    )));
+    if (stageNo <= 0) return normalized;
+    if (
+        Number(normalized?.version) >= 2
+        && Array.isArray(normalized?.monsters)
+        && normalized.monsters.length === 4
+    ) {
+        return normalized;
+    }
+    return buildTarotKingdomStageEncounter({
+        explorationId: String(activeData?.id || rawEncounter?.explorationId || ''),
+        stageNo,
+        supplyQueue: Array.isArray(activeData?.supplyQueue)
+            ? activeData.supplyQueue
+            : (Array.isArray(rawEncounter?.supplyQueue) ? rawEncounter.supplyQueue : []),
+        selectedAtMs: Number(rawEncounter?.selectedAtMs || activeData?.startedAtMs || 0) || Date.now()
+    });
+}
+
 function buildTarotKingdomBossResult(encounter, outcome) {
     const normalized = normalizeExplorationTarotEncounter(encounter);
     if (!normalized) return null;
@@ -2798,7 +2824,7 @@ function initializeExplorationRoutes(app, deps) {
                         supplyQueue = Array.isArray(existingData.supplyQueue)
                             ? existingData.supplyQueue
                             : supplyQueue;
-                        tarotEncounter = normalizeExplorationTarotEncounter(existingData.tarotEncounter) || tarotEncounter;
+                        tarotEncounter = resolveActiveExplorationTarotEncounter(existingData) || tarotEncounter;
                     }
                 }
                 let conflicted = false;
@@ -3303,8 +3329,26 @@ function initializeExplorationRoutes(app, deps) {
                     encounterError = { code: 409, message: '探索結果を確認中です。少し待ってから再試行してください。' };
                     return;
                 }
-                encounter = normalizeExplorationTarotEncounter(activeData.tarotEncounter);
-                if (encounter) return;
+                const storedEncounter = normalizeExplorationTarotEncounter(activeData.tarotEncounter);
+                encounter = resolveActiveExplorationTarotEncounter(activeData);
+                if (encounter) {
+                    const upgradedToStageEncounter = (
+                        Number(encounter.version) >= 2
+                        && Array.isArray(encounter.monsters)
+                        && (
+                            Number(storedEncounter?.version) < 2
+                            || !Array.isArray(storedEncounter?.monsters)
+                            || storedEncounter.monsters.length !== encounter.monsters.length
+                        )
+                    );
+                    if (upgradedToStageEncounter) {
+                        tx.update(activeRef, {
+                            tarotEncounter: encounter,
+                            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                        });
+                    }
+                    return;
+                }
                 const destination = DESTINATIONS[String(activeData.destinationId || '')] || DESTINATIONS.near_sea;
                 const selectedBoss = selectExplorationBoss(destination, Math.random, activeData.shipClass);
                 encounter = buildExplorationTarotEncounter(activeData, destination, selectedBoss);
@@ -3788,6 +3832,7 @@ module.exports = {
         buildExplorationTarotEncounter,
         buildTarotKingdomBossResult,
         normalizeExplorationTarotEncounter,
+        resolveActiveExplorationTarotEncounter,
         selectExplorationBoss,
         selectExplorationTarotMonster,
         validateExplorationConsumablePayment,

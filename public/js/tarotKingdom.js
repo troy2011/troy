@@ -3514,6 +3514,7 @@ function normalizeKingdomBattleState(
 
 function resetKingdomBattleForRound() {
   if (!s) return;
+  const previousEnemyId = String(s.battle?.enemy?.id || '');
   const preserveExplorationHp = !!normalizeKingdomExplorationStageState(s.stage) && Number(s.handNo || 0) > 0;
   if (preserveExplorationHp) applyKingdomStageTransitionSupply();
   s.players.forEach((player) => {
@@ -3534,6 +3535,14 @@ function resetKingdomBattleForRound() {
     getKingdomPlayerCount(),
     s.stage
   );
+  const nextEnemyId = String(s.battle?.enemy?.id || '');
+  if (previousEnemyId && nextEnemyId && previousEnemyId !== nextEnemyId) {
+    clearKingdomMonsterFrameTimer();
+    clearKingdomEnemyFinisherTimer();
+    kingdomMonsterAnimationKey = '';
+    kingdomBattleVisualEventKey = '';
+    kingdomBattleTerminalFxEventKey = '';
+  }
   kingdomExplorationMonsterId = String(s.battle?.enemy?.id || kingdomExplorationMonsterId);
   const enemy = s.battle.enemy;
   const stageLabel = s.stage ? `STAGE ${s.stage.stageNo} / ENEMY ${s.handNo + 1}/${TOTAL_HANDS}` : 'BATTLE START';
@@ -4852,7 +4861,7 @@ function initState() {
     roundSettlement: null,
     clearStreakOwner: null,
     clearStreakCount: 0,
-    message: 'オンラインかオフラインを選択してください。',
+    message: '探索から出航してください。',
     champion: null,
     revision: 0,
     processedActionIds: [],
@@ -13005,6 +13014,10 @@ function updateButtons() {
       ui.startOfflineButton.hidden = true;
       ui.startOfflineButton.disabled = true;
     }
+    if (ui.retreatButton) {
+      ui.retreatButton.hidden = true;
+      ui.retreatButton.disabled = true;
+    }
   if (ui.restartButton) {
       ui.restartButton.hidden = true;
       ui.restartButton.disabled = true;
@@ -13051,59 +13064,83 @@ function updateButtons() {
   const isConnectingOnline = isKingdomOnlineConnecting();
   const needsCharacterRetry = !s.characterSnapshotReady
     && /(取得に失敗|取得できない|未読込)/.test(String(s.message || ''));
-  const showModeControls = showModeChoice;
-  if (ui.modeControls) {
-    ui.modeControls.hidden = !showModeControls;
-  }
+  const isExplorationEntry = !!kingdomExplorationSession;
+  const isExplorationOnline = isExplorationEntry
+    && kingdomExplorationSession.context?.mode === 'online';
+  const isExplorationOffline = isExplorationEntry && !isExplorationOnline;
+  const showPreviewModeChoice = window.__TAROT_KINGDOM_PREVIEW__ === true
+    && !isExplorationEntry
+    && showModeChoice;
+  let showOnlineAction = false;
   if (ui.startOnlineButton) {
-    const showOnlineButton = window.__TAROT_KINGDOM_PREVIEW__ !== true && showModeChoice;
-    const isExplorationRescue = kingdomExplorationSession?.context?.mode === 'online';
-    let onlineLabel = isExplorationRescue ? '救難信号を発信' : 'オンライン対戦を探す';
+    showOnlineAction = showPreviewModeChoice;
+    let onlineLabel = 'オンライン対戦を探す';
     let onlineDisabled = actionLocked;
-    if (kingdomStartMode === 'online') {
+    if (isExplorationOnline && showModeChoice) {
       if (isConnectingOnline) {
-        onlineLabel = isExplorationRescue ? '救難信号を発信中' : 'オンライン接続中';
+        showOnlineAction = false;
+      } else if (!netMode) {
+        showOnlineAction = true;
+        onlineLabel = '救難信号を再送信';
+        onlineDisabled = false;
+      } else if (tkNet.isHost && isLobbyReadyToStart) {
+        showOnlineAction = true;
+        onlineLabel = needsCharacterRetry
+          ? '戦闘プロフィールを再取得'
+          : (hasVacancy ? '救難を締め切って戦闘開始' : '救援隊で戦闘開始');
+      }
+    } else if (showPreviewModeChoice && kingdomStartMode === 'online') {
+      if (isConnectingOnline) {
+        onlineLabel = 'オンライン接続中';
         onlineDisabled = true;
       } else if (!netMode) {
-        onlineLabel = isExplorationRescue ? '救難信号を再送信' : 'オンライン対戦を再試行';
+        onlineLabel = 'オンライン対戦を再試行';
       } else if (!tkNet.isHost) {
         onlineLabel = 'ホストの開始を待機中';
         onlineDisabled = true;
       } else if (isLobbyReadyToStart) {
         onlineLabel = needsCharacterRetry
           ? '戦闘プロフィールを再取得'
-          : (hasVacancy
-            ? (isExplorationRescue ? '救難を締め切って戦闘開始' : '受付を止めて戦いを始める')
-            : (isExplorationRescue ? '救援隊で戦闘開始' : 'オンライン対戦を開始'));
+          : (hasVacancy ? '受付を止めて戦いを始める' : 'オンライン対戦を開始');
       } else {
-        onlineLabel = isExplorationRescue ? '救難信号を再送信' : 'オンライン対戦を再試行';
+        onlineLabel = 'オンライン対戦を再試行';
       }
     }
-    ui.startOnlineButton.hidden = !showOnlineButton;
-    ui.startOnlineButton.disabled = !showOnlineButton || onlineDisabled;
+    ui.startOnlineButton.hidden = !showOnlineAction;
+    ui.startOnlineButton.disabled = !showOnlineAction || onlineDisabled;
     ui.startOnlineButton.textContent = onlineLabel;
     ui.startOnlineButton.classList.toggle('is-selected', kingdomStartMode === 'online');
   }
+  let showOfflineAction = false;
   if (ui.startOfflineButton) {
-    const showOfflineButton = showModeChoice;
-    const isExplorationRescue = kingdomExplorationSession?.context?.mode === 'online';
-    let offlineLabel = kingdomExplorationSession ? '傭兵召集で開始' : 'オフラインで始める';
+    showOfflineAction = showPreviewModeChoice;
+    let offlineLabel = 'オフラインで始める';
     let offlineDisabled = actionLocked;
-    if (kingdomStartMode === 'online') {
+    if (isExplorationOffline && showModeChoice && needsCharacterRetry) {
+      showOfflineAction = true;
+      offlineLabel = 'キャラクター情報を再取得';
+      offlineDisabled = false;
+    } else if (showPreviewModeChoice && kingdomStartMode === 'online') {
       if (isConnectingOnline) {
-        offlineLabel = isExplorationRescue ? '傭兵召集へ切替' : '接続をやめる';
+        offlineLabel = '接続をやめる';
       } else if (netMode) {
-        offlineLabel = isExplorationRescue
-          ? '傭兵召集へ切替'
-          : (tkNet.isHost ? 'オンライン受付をやめる' : '待機をやめる');
+        offlineLabel = tkNet.isHost ? 'オンライン受付をやめる' : '待機をやめる';
       }
-    } else if (kingdomStartMode === 'offline' && needsCharacterRetry) {
+    } else if (showPreviewModeChoice && kingdomStartMode === 'offline' && needsCharacterRetry) {
       offlineLabel = 'キャラクター情報を再取得';
     }
-    ui.startOfflineButton.hidden = !showOfflineButton;
-    ui.startOfflineButton.disabled = !showOfflineButton || offlineDisabled;
+    ui.startOfflineButton.hidden = !showOfflineAction;
+    ui.startOfflineButton.disabled = !showOfflineAction || offlineDisabled;
     ui.startOfflineButton.textContent = offlineLabel;
     ui.startOfflineButton.classList.toggle('is-selected', kingdomStartMode === 'offline');
+  }
+  const showRetreatAction = isExplorationEntry && showModeChoice;
+  if (ui.retreatButton) {
+    ui.retreatButton.hidden = !showRetreatAction;
+    ui.retreatButton.disabled = !showRetreatAction;
+  }
+  if (ui.modeControls) {
+    ui.modeControls.hidden = !(showOnlineAction || showOfflineAction || showRetreatAction);
   }
   if (ui.restartButton) {
     ui.restartButton.hidden = true;
@@ -13395,6 +13432,20 @@ async function handleKingdomOfflineStartClick() {
   await activateAndStartKingdomOfflineMode();
 }
 
+async function handleKingdomExplorationRetreatClick() {
+  if (!kingdomExplorationSession || !shouldShowKingdomModeChoice()) return;
+  if (isNetModeActive() && tkNet.isHost) {
+    await removeCurrentOpenRoomIndex();
+  }
+  settleKingdomExplorationSession('retreated');
+  teardownTarotKingdomNetwork();
+  if (typeof window.showTab === 'function') {
+    await window.showTab('home');
+    return;
+  }
+  destroyTarotKingdomPage();
+}
+
 async function handleKingdomRestartClick() {
   if (!isKingdomMatchDoneState(s)) return;
   if (kingdomStartMode === 'online') {
@@ -13644,6 +13695,7 @@ function bindUi() {
   }
   ui.startOnlineButton = document.getElementById('tarotKingdomStartOnlineButton');
   ui.startOfflineButton = document.getElementById('tarotKingdomStartOfflineButton');
+  ui.retreatButton = document.getElementById('tarotKingdomRetreatButton');
   ui.restartButton = document.getElementById('tarotKingdomRestartButton');
   ui.playButton = document.getElementById('tarotKingdomPlayButton');
   ui.clearButton = document.getElementById('tarotKingdomClearButton');
@@ -13686,6 +13738,15 @@ function bindUi() {
       console.warn('[tarotKingdom] offline start click failed:', error);
       if (s) {
         s.message = 'オフライン開始に失敗しました。能力・装備の読込を確認してください。';
+        render();
+      }
+    });
+  });
+  ui.retreatButton?.addEventListener('click', () => {
+    handleKingdomExplorationRetreatClick().catch((error) => {
+      console.warn('[tarotKingdom] exploration retreat failed:', error);
+      if (s) {
+        s.message = '撤退できませんでした。もう一度試してください。';
         render();
       }
     });
@@ -13801,7 +13862,9 @@ export async function loadTarotKingdomPage() {
   if (!s) {
     resetMatch();
   }
-  s.message = 'オンラインかオフラインを選択してください。';
+  s.message = window.__TAROT_KINGDOM_PREVIEW__ === true
+    ? 'オンラインかオフラインを選択してください。'
+    : '探索から出航してください。';
   applyPresenceToPlayers();
   render();
   refreshOpenRoomsPanel().catch((error) => {
