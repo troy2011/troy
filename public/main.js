@@ -53,7 +53,9 @@ let pendingAppInviteInfo = null;
 let pendingFixedInviteNation = '';
 let lineFriendPromoState = null;
 let dailyFortuneOpenPromise = null;
-const TAROT_MODULE_VERSION = '20260727-fortune-readable1';
+let dailyFortuneClaimEventBound = false;
+const TAROT_MODULE_VERSION = '20260727-daily-lock1';
+const DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY = 'troy:daily-fortune-claimed-day';
 const LIFF_CALLBACK_PARAM_KEYS = [
     'code',
     'state',
@@ -329,10 +331,46 @@ function normalizePlayFabIdFromQrValue(value) {
     return /^[A-F0-9]{16,32}$/.test(normalized) ? normalized : '';
 }
 
+function getJstDayKey(date = new Date()) {
+    return new Date(date.getTime() + (9 * 60 * 60 * 1000)).toISOString().slice(0, 10);
+}
+
+function hasClaimedDailyFortuneToday() {
+    try {
+        return localStorage.getItem(DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY) === getJstDayKey();
+    } catch {
+        return false;
+    }
+}
+
+function setDailyFortuneButtonClaimed(button, claimed) {
+    if (!button) return;
+    button.dataset.dailyFortuneClaimed = claimed ? 'true' : 'false';
+    button.disabled = claimed;
+    button.textContent = claimed ? '占い済み' : '占い';
+    button.setAttribute('aria-label', claimed ? '本日の占いは完了しました' : '本日の占い');
+}
+
+function markDailyFortuneClaimed(dayKey = '') {
+    const todayKey = getJstDayKey();
+    const confirmedDayKey = String(dayKey || '').trim() || todayKey;
+    if (confirmedDayKey !== todayKey) return;
+    try {
+        localStorage.setItem(DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY, todayKey);
+    } catch {
+        // The in-memory button lock still prevents repeated draws in this session.
+    }
+    setDailyFortuneButtonClaimed(document.getElementById('btnDailyFortune'), true);
+}
+
 async function openDailyFortuneFromButton() {
     if (dailyFortuneOpenPromise) return dailyFortuneOpenPromise;
     const button = document.getElementById('btnDailyFortune');
     const originalText = button?.textContent || '占い';
+    if (button?.dataset.dailyFortuneClaimed === 'true' || hasClaimedDailyFortuneToday()) {
+        setDailyFortuneButtonClaimed(button, true);
+        return;
+    }
     if (!myPlayFabId) {
         showRpgMessage('ログイン完了後に占えます。', 2200);
         return;
@@ -359,15 +397,28 @@ async function openDailyFortuneFromButton() {
     } finally {
         dailyFortuneOpenPromise = null;
         if (button) {
-            button.disabled = false;
-            button.textContent = originalText;
+            const claimed = button.dataset.dailyFortuneClaimed === 'true' || hasClaimedDailyFortuneToday();
+            if (claimed) {
+                setDailyFortuneButtonClaimed(button, true);
+            } else {
+                button.disabled = false;
+                button.textContent = originalText;
+            }
         }
     }
 }
 
 function initDailyFortuneButton() {
     const button = document.getElementById('btnDailyFortune');
-    if (!button || button.dataset.dailyFortuneBound === 'true') return;
+    if (!button) return;
+    setDailyFortuneButtonClaimed(button, hasClaimedDailyFortuneToday());
+    if (!dailyFortuneClaimEventBound) {
+        dailyFortuneClaimEventBound = true;
+        window.addEventListener('daily-fortune:claimed', (event) => {
+            markDailyFortuneClaimed(event?.detail?.dayKey);
+        });
+    }
+    if (button.dataset.dailyFortuneBound === 'true') return;
     button.dataset.dailyFortuneBound = 'true';
     button.addEventListener('click', () => {
         void openDailyFortuneFromButton();

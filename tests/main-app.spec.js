@@ -146,6 +146,7 @@ test('long bottom navigation labels shrink instead of being clipped', async ({ p
 test('daily tarot fortune loads only after its button is clicked and shows clear draw states on mobile', async ({ page }) => {
   const errors = trackPageErrors(page);
   let fortuneStatusRequests = 0;
+  let fortuneDrawRequests = 0;
   let tarotModuleRequests = 0;
   page.on('request', (request) => {
     if (request.url().includes('/js/tarotPoker.js')) tarotModuleRequests += 1;
@@ -160,6 +161,7 @@ test('daily tarot fortune loads only after its button is clicked and shows clear
     });
   });
   await page.route('**/api/tarot-fortune-draw', async (route) => {
+    fortuneDrawRequests += 1;
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
@@ -201,8 +203,8 @@ test('daily tarot fortune loads only after its button is clicked and shows clear
     };
   });
   expect(closeButtonStyle.backgroundImage).toContain('action-close.png');
-  expect(closeButtonStyle.width).toBe('38px');
-  expect(closeButtonStyle.height).toBe('38px');
+  expect(closeButtonStyle.width).toBe('52px');
+  expect(closeButtonStyle.height).toBe('52px');
   expect(closeButtonStyle.fontSize).toBe('0px');
   await expect(page.locator('#dailyTarotFortuneSub')).toHaveText('カードをめくって、今日の航路を読んでください。');
   await expect(page.locator('#dailyTarotFortuneText')).toContainText('まだ伏せたカード');
@@ -239,9 +241,17 @@ test('daily tarot fortune loads only after its button is clicked and shows clear
   await expect(modal).not.toHaveClass(/is-major-arcana/);
   await expect(page.locator('#dailyTarotFortuneArcanaBadge')).toBeHidden();
   await expect(page.locator('#dailyTarotFortuneCardHost .tarot-fortune-card-shell')).not.toHaveClass(/is-major-arcana/);
+  await expect(page.locator('#btnDailyFortune')).toBeDisabled();
+  await expect(page.locator('#btnDailyFortune')).toHaveText('占い済み');
+  expect(fortuneDrawRequests).toBe(1);
 
-  await page.locator('.tarot-fortune-done').click();
+  await page.locator('.tarot-fortune-close').click({ position: { x: 4, y: 4 } });
   await expect(overlay).toBeHidden();
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.locator('#btnDailyFortune')).toBeDisabled();
+  await expect(page.locator('#btnDailyFortune')).toHaveText('占い済み');
+  expect(fortuneStatusRequests).toBe(1);
+  expect(fortuneDrawRequests).toBe(1);
   await expectNoPageErrors(errors);
 });
 
@@ -376,6 +386,8 @@ test('daily tarot fortune presents an already claimed result without drawing aga
   await expect(page.locator('#dailyTarotFortuneText')).toContainText('今日のアドバイス');
   await expect(page.locator('#dailyTarotFortuneText .tarot-fortune-meter-segment.is-filled')).toHaveCount(8);
   await expect(page.locator('#dailyTarotFortuneReward')).toContainText('今日の報酬');
+  await expect(page.locator('#btnDailyFortune')).toBeDisabled();
+  await expect(page.locator('#btnDailyFortune')).toHaveText('占い済み');
   expect(drawRequests).toBe(0);
   await expectNoPageErrors(errors);
 });

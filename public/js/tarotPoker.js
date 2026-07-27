@@ -5210,6 +5210,14 @@ async function requestDailyFortuneDraw(playFabId) {
     return callJsonApi('/api/tarot-fortune-draw', { playFabId });
 }
 
+function notifyDailyFortuneClaimed(result = null, dayKey = '') {
+    if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
+    const confirmedDayKey = String(result?.dayKey || dayKey || '').trim();
+    window.dispatchEvent(new CustomEvent('daily-fortune:claimed', {
+        detail: { dayKey: confirmedDayKey }
+    }));
+}
+
 async function handleDailyFortuneDraw(playFabId) {
     if (!playFabId || dailyFortuneInFlight) return;
     dailyFortuneInFlight = true;
@@ -5230,6 +5238,7 @@ async function handleDailyFortuneDraw(playFabId) {
             });
             dailyFortuneClaimedSession = true;
             dailyFortuneCanDrawSession = false;
+            notifyDailyFortuneClaimed(data.result);
         }
         if (Number.isFinite(Number(data?.balance))) {
             updateGlobalPsDisplay(Number(data.balance));
@@ -5263,7 +5272,7 @@ function setupDailyFortuneOverlay(playFabId) {
     if (cardHost) cardHost.innerHTML = '';
     resetDailyFortuneResultDetails();
     if (textEl) textEl.textContent = '運勢を読み込み中...';
-    handleDailyFortuneDraw(playFabId);
+    return handleDailyFortuneDraw(playFabId);
 }
 
 async function maybeShowDailyFortunePrompt(playFabId, options = {}) {
@@ -5272,7 +5281,7 @@ async function maybeShowDailyFortunePrompt(playFabId, options = {}) {
     if (dailyFortuneClaimedSession) return;
     if (dailyFortuneCheckedSession && !force) {
         if (dailyFortuneCanDrawSession) {
-            setupDailyFortuneOverlay(playFabId);
+            await setupDailyFortuneOverlay(playFabId);
         }
         return;
     }
@@ -5281,8 +5290,11 @@ async function maybeShowDailyFortunePrompt(playFabId, options = {}) {
         dailyFortuneCheckedSession = true;
         dailyFortuneCanDrawSession = !!status?.canDraw;
         dailyFortuneClaimedSession = !dailyFortuneCanDrawSession;
-        if (!dailyFortuneCanDrawSession) return;
-        setupDailyFortuneOverlay(playFabId);
+        if (!dailyFortuneCanDrawSession) {
+            notifyDailyFortuneClaimed(status?.result, status?.dayKey);
+            return;
+        }
+        await setupDailyFortuneOverlay(playFabId);
     } catch (error) {
         console.warn('[dailyFortune] status check failed:', error);
     }
@@ -5456,9 +5468,10 @@ export async function showDailyFortune(playFabId) {
         dailyFortuneCanDrawSession = !!status?.canDraw;
         dailyFortuneClaimedSession = !dailyFortuneCanDrawSession;
         if (dailyFortuneCanDrawSession) {
-            setupDailyFortuneOverlay(playFabId);
+            await setupDailyFortuneOverlay(playFabId);
             return;
         }
+        notifyDailyFortuneClaimed(status?.result, status?.dayKey);
         if (status?.result) {
             renderDailyFortuneResultLegacy(status.result);
             setDailyFortuneSubText('本日の占い結果です。');

@@ -24,7 +24,7 @@ const ensureCompanionModule = async () => {
 };
 
 let tarotModule = null;
-const TAROT_MODULE_VERSION = '20260727-fortune-readable1';
+const TAROT_MODULE_VERSION = '20260727-daily-lock1';
 const ensureTarotModule = async () => {
     if (tarotModule) return tarotModule;
     tarotModule = await import(`./tarotPoker.js?v=${TAROT_MODULE_VERSION}`);
