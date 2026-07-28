@@ -17,7 +17,7 @@ import {
   createTarotKingdomPetCharacter,
   getTarotKingdomPetAiStyle,
   normalizeTarotKingdomCharacter
-} from './tarotKingdomCombat.js?v=20260728-npc-common1';
+} from './tarotKingdomCombat.js?v=20260728-pet-name1';
 import {
   getTarotKingdomPhysicalScale,
   isTarotKingdomDeckMatch,
@@ -119,11 +119,21 @@ function getKingdomSeatClaimOrder(hasReservedHostPet = false) {
   return hasReservedHostPet ? [0, 2, 3, 1] : [0, 1, 2, 3];
 }
 
+function getKingdomPetDisplayName(pet, fallback = 'ペット') {
+  return String(
+    pet?.displayName
+    || pet?.nickname
+    || pet?.monsterName
+    || pet?.monsterId
+    || fallback
+  ).trim() || fallback;
+}
+
 function buildKingdomPetPlayerTemplate(pet) {
   if (!pet?.monsterId) return null;
   return {
     id: 'pet',
-    name: String(pet.monsterName || pet.monsterId || 'ペット'),
+    name: getKingdomPetDisplayName(pet),
     isNpc: true,
     isPet: true,
     pet: { ...pet },
@@ -8064,7 +8074,7 @@ function resetMatch() {
         p.name = fallbackName;
         p.playFabId = String(window.myPlayFabId || '').trim();
       } else if (p.isPet) {
-        p.name = String(p.pet?.monsterName || p.name || 'ペット');
+        p.name = getKingdomPetDisplayName(p.pet, p.name || 'ペット');
         p.playFabId = '';
       } else {
         p.name = kingdomExplorationSession?.context?.mode === 'offline'
@@ -8269,7 +8279,7 @@ function buildTarotKingdomDebugBattleState(options = {}) {
       { ...s.players[0] },
       {
         id: 'pet',
-        name: String(debugPet.monsterName || debugPet.monsterId),
+        name: getKingdomPetDisplayName(debugPet),
         isNpc: true,
         isPet: true,
         pet: { ...debugPet },

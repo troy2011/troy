@@ -112,6 +112,8 @@ test.describe('Tarot Kingdom NPC combat snapshots', () => {
       pet: {
         monsterId: 'ismartal-vol1-monster-01',
         monsterName: 'トゲマル',
+        nickname: 'コハク',
+        displayName: 'コハク',
         number: 1
       },
       level: 10
@@ -120,7 +122,7 @@ test.describe('Tarot Kingdom NPC combat snapshots', () => {
     expect(pet).toMatchObject({
       source: 'pet',
       monsterId: 'ismartal-vol1-monster-01',
-      displayName: 'トゲマル',
+      displayName: 'コハク',
       level: 10,
       equipment: {},
       tarotDeck: [],

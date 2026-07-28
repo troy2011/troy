@@ -17280,6 +17280,73 @@ body.home-exploration-popup-open #globalStatusBar {
     text-shadow: 0 1px 0 #000;
 }
 
+.ship-exploration-rescue-check {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    margin: 0 0 12px;
+    padding: 10px 11px;
+    border: 1px solid rgba(77, 221, 196, 0.42);
+    border-radius: 7px;
+    background:
+        radial-gradient(circle at 12% 0%, rgba(83, 226, 201, 0.18), transparent 52%),
+        linear-gradient(180deg, rgba(17, 78, 76, 0.84), rgba(7, 34, 41, 0.92));
+    box-shadow:
+        inset 0 1px 0 rgba(225, 255, 246, 0.12),
+        0 6px 14px rgba(0, 0, 0, 0.25);
+}
+
+.ship-exploration-rescue-copy {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.ship-exploration-rescue-copy strong {
+    color: #effff8;
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1.15;
+}
+
+.ship-exploration-rescue-copy span {
+    overflow: hidden;
+    color: #a9ddd3;
+    font-size: 11px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ship-exploration-rescue-check button {
+    min-width: 112px;
+    min-height: 36px;
+    padding: 6px 10px;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/buttons/button-dark-large.png") 24 fill / 9px / 0 stretch;
+    background: linear-gradient(180deg, rgba(54, 182, 164, 0.28), rgba(5, 48, 54, 0.3));
+    color: #effff8;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.1;
+    text-shadow: 0 2px 0 rgba(0, 25, 28, 0.88);
+}
+
+@media (max-width: 420px) {
+    .ship-exploration-rescue-check {
+        gap: 7px;
+        padding: 9px;
+    }
+
+    .ship-exploration-rescue-check button {
+        min-width: 104px;
+        padding-inline: 7px;
+        font-size: 11px;
+    }
+}
+
 .ship-exploration-empty,
 .ship-exploration-meta {
     color: var(--text-sub);
@@ -26297,6 +26364,14 @@ body.is-new-order-flash::before {
     text-shadow: 0 2px 0 rgba(0, 25, 28, 0.88);
 }
 
+.home-exp-actions .home-rescue-btn[hidden] {
+    display: none !important;
+}
+
+.home-exp-actions:has(.home-rescue-btn[hidden]) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .home-rescue-overlay[hidden] {
     display: none;
 }
@@ -26739,7 +26814,7 @@ body[data-sea-tone] .home-hero-card {
 .home-hero-card .home-pet-companion {
     --pixel-monster-context-scale: 1.62;
     z-index: 3;
-    top: 49%;
+    top: calc(49% + 75px);
     left: 68%;
     transform: translate(-50%, -50%);
 }
@@ -26877,7 +26952,7 @@ body[data-sea-tone] .home-hero-card {
 
     .home-hero-card .home-pet-companion {
         --pixel-monster-context-scale: 1.36;
-        top: calc(42% + 62px);
+        top: calc(42% + 125px);
         left: 66%;
     }
 
@@ -29364,6 +29439,10 @@ body[data-sea-tone] .home-hero-card {
     transform: translate(-8px, 7px) scale(1.18);
 }
 
+#playerProfileModal .player-profile-avatar-shell.has-pet-companion {
+    margin-bottom: 54px;
+}
+
 #playerProfileModal .player-profile-pet-companion {
     --pixel-monster-context-scale: 1.18;
     z-index: 2;
@@ -29371,6 +29450,7 @@ body[data-sea-tone] .home-hero-card {
     bottom: 29px;
     width: 84px;
     height: 104px;
+    transform: translateY(54px);
 }
 
 #playerProfileModal .player-profile-pet-companion.is-renamable {
@@ -29403,6 +29483,7 @@ body[data-sea-tone] .home-hero-card {
     text-align: center;
     text-overflow: ellipsis;
     white-space: nowrap;
+    transform: translateY(54px);
 }
 
 #playerProfileModal .player-profile-pet-name:not(:disabled) {
@@ -29437,6 +29518,7 @@ body[data-sea-tone] .home-hero-card {
     border-radius: 7px;
     background: rgba(7, 9, 14, 0.97);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.78);
+    transform: translateY(54px);
 }
 
 #playerProfileModal .player-profile-pet-rename input {

@@ -14,7 +14,7 @@ import {
 import * as Player from 'player';
 import * as Inventory from 'inventory';
 import * as Guild from './js/guild.js';
-import * as Ship from './js/ship.js?v=20260728-pet-companion1';
+import * as Ship from './js/ship.js?v=20260728-rescue-notify1';
 import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js';
 import { initMapChat, initTroyChat } from './js/mapChat.js';
@@ -37,7 +37,7 @@ import {
 } from './js/playfabClient.js';
 import { FEATURE_UNLOCK_LEVELS, formatUnlockedFeatures, isFeatureUnlocked, normalizeLevel } from './js/featureUnlocks.js';
 
-import { getDatabase } from "firebase/database";
+import { getDatabase, onValue as onDatabaseValue, ref as databaseRef } from "firebase/database";
 // --- グローバル変数 ---
 window.myLineProfile = null;
 window.myPlayFabId = null;
@@ -65,7 +65,7 @@ let lineFriendPromoState = null;
 let dailyFortuneOpenPromise = null;
 let dailyFortuneClaimEventBound = false;
 const TAROT_MODULE_VERSION = '20260727-daily-lock1';
-const TAROT_KINGDOM_RESCUE_VERSION = '20260728-rescue-entry1';
+const TAROT_KINGDOM_RESCUE_VERSION = '20260728-rescue-notify1';
 const DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY = 'troy:daily-fortune-claimed-day';
 const LIFF_CALLBACK_PARAM_KEYS = [
     'code',
@@ -845,6 +845,11 @@ PlayFab.settings.titleId = '1A0BA';
 
 let homeExplorationButtonBound = false;
 let homeRescueButtonBound = false;
+let homeRescueRoomsCache = [];
+let homeRescueRoomsPromise = null;
+let homeRescueWatchUnsubscribe = null;
+let homeRescueRoomWatchUnsubscribers = [];
+let homeRescueWatchTimer = 0;
 let homeCoinConvertBound = false;
 let homeQrScanBound = false;
 let homeExplorationPopupObserver = null;
@@ -1256,6 +1261,37 @@ function renderHomeRescueRooms(rooms = []) {
     });
 }
 
+function syncHomeRescueButton(rooms = homeRescueRoomsCache) {
+    const button = document.getElementById('btnHomeRescue');
+    if (!button) return;
+    const count = Array.isArray(rooms) ? rooms.length : 0;
+    button.hidden = count <= 0;
+    button.dataset.rescueCount = String(count);
+    button.setAttribute(
+        'aria-label',
+        count > 0 ? `救難信号を確認（${count}件）` : '救難信号を確認'
+    );
+}
+
+async function loadHomeRescueRooms() {
+    if (homeRescueRoomsPromise) return homeRescueRoomsPromise;
+    homeRescueRoomsPromise = (async () => {
+        const Kingdom = await import(`./js/tarotKingdom.js?v=${TAROT_KINGDOM_RESCUE_VERSION}`);
+        if (typeof Kingdom.listTarotKingdomRescueRooms !== 'function') {
+            throw new Error('救難信号の一覧を取得できません。');
+        }
+        const rooms = await Kingdom.listTarotKingdomRescueRooms();
+        homeRescueRoomsCache = Array.isArray(rooms) ? rooms : [];
+        syncHomeRescueButton(homeRescueRoomsCache);
+        return homeRescueRoomsCache;
+    })();
+    try {
+        return await homeRescueRoomsPromise;
+    } finally {
+        homeRescueRoomsPromise = null;
+    }
+}
+
 async function refreshHomeRescueRooms() {
     const refreshButton = document.getElementById('homeRescueRefresh');
     setHomeRescueStatus('救難信号を受信中です。', 'is-loading');
@@ -1264,11 +1300,7 @@ async function refreshHomeRescueRooms() {
         refreshButton.setAttribute('aria-busy', 'true');
     }
     try {
-        const Kingdom = await import(`./js/tarotKingdom.js?v=${TAROT_KINGDOM_RESCUE_VERSION}`);
-        if (typeof Kingdom.listTarotKingdomRescueRooms !== 'function') {
-            throw new Error('救難信号の一覧を取得できません。');
-        }
-        const rooms = await Kingdom.listTarotKingdomRescueRooms();
+        const rooms = await loadHomeRescueRooms();
         renderHomeRescueRooms(rooms);
     } catch (error) {
         console.warn('[home-rescue] Failed to load rescue rooms:', error);
@@ -1292,6 +1324,58 @@ async function openHomeRescuePopup() {
 
 window.closeHomeRescuePopup = closeHomeRescuePopup;
 window.openHomeRescuePopup = openHomeRescuePopup;
+
+function scheduleHomeRescueSignalRefresh() {
+    window.clearTimeout(homeRescueWatchTimer);
+    homeRescueWatchTimer = window.setTimeout(() => {
+        homeRescueWatchTimer = 0;
+        void loadHomeRescueRooms().catch((error) => {
+            console.warn('[home-rescue] Failed to update rescue notification:', error);
+        });
+    }, 80);
+}
+
+function watchHomeRescueRoomAvailability(openRooms = {}) {
+    homeRescueRoomWatchUnsubscribers.forEach((unsubscribe) => {
+        if (typeof unsubscribe === 'function') unsubscribe();
+    });
+    homeRescueRoomWatchUnsubscribers = [];
+    Object.entries(openRooms || {}).forEach(([roomId, room]) => {
+        if (room?.kind !== 'exploration-rescue') return;
+        ['presence', 'state'].forEach((childPath) => {
+            const unsubscribe = onDatabaseValue(
+                databaseRef(db, `tarotKingdomRooms/${roomId}/${childPath}`),
+                scheduleHomeRescueSignalRefresh,
+                (error) => {
+                    console.warn(`[home-rescue] Failed to watch ${childPath}:`, error);
+                }
+            );
+            homeRescueRoomWatchUnsubscribers.push(unsubscribe);
+        });
+    });
+}
+
+function startHomeRescueSignalWatcher() {
+    if (!db || !window.__tkUid) return;
+    if (typeof homeRescueWatchUnsubscribe === 'function') {
+        homeRescueWatchUnsubscribe();
+        homeRescueWatchUnsubscribe = null;
+    }
+    homeRescueRoomWatchUnsubscribers.forEach((unsubscribe) => {
+        if (typeof unsubscribe === 'function') unsubscribe();
+    });
+    homeRescueRoomWatchUnsubscribers = [];
+    homeRescueWatchUnsubscribe = onDatabaseValue(
+        databaseRef(db, 'tarotKingdomMatch/openRooms'),
+        (snapshot) => {
+            watchHomeRescueRoomAvailability(snapshot.exists() ? (snapshot.val() || {}) : {});
+            scheduleHomeRescueSignalRefresh();
+        },
+        (error) => {
+            console.warn('[home-rescue] Rescue signal watcher stopped:', error);
+        }
+    );
+}
 
 async function loadHomePlunderPublicProfiles(opponent) {
     const selfId = window.myPlayFabId;
@@ -1535,6 +1619,7 @@ async function initializeLiff() {
                 __perfLog('firebase auth state: user');
                 console.log("Firebase authenticated successfully. User UID:", user.uid);
                 window.__tkUid = user.uid;
+                startHomeRescueSignalWatcher();
 
                 // PlayFab Client SDKにログイン（多重実行ガード）
                 if (!playFabLoginPromise) {

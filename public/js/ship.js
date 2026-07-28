@@ -3048,9 +3048,26 @@ function renderExplorationPanel(data, playFabId) {
             <span class="ship-exploration-meta">使用中: ${escapeHtml(ship.shipName || ship.shipId || '船')}</span>
         </div>
     `;
+    const rescueCheck = `
+        <div class="ship-exploration-rescue-check">
+            <div class="ship-exploration-rescue-copy">
+                <strong>救難信号</strong>
+                <span>参加できる船団を確認</span>
+            </div>
+            <button type="button" data-exploration-rescue-check>救難チェック</button>
+        </div>
+    `;
+    const bindRescueCheck = () => {
+        panel.querySelector('[data-exploration-rescue-check]')?.addEventListener('click', () => {
+            if (typeof window.openHomeRescuePopup === 'function') {
+                void window.openHomeRescuePopup();
+            }
+        });
+    };
     if (active) {
         panel.innerHTML = `
             ${head}
+            ${rescueCheck}
             <div class="ship-exploration-destination is-active">
                 <div class="ship-exploration-card-head">
                     ${renderExplorationDestinationVisual(active, 'ship-exploration-mapmark')}
@@ -3067,6 +3084,7 @@ function renderExplorationPanel(data, playFabId) {
                 </div>
             </div>
         `;
+        bindRescueCheck();
         panel.querySelector('[data-exploration-claim]')?.addEventListener('click', () => claimExploration(playFabId));
         return;
     }
@@ -3108,8 +3126,10 @@ function renderExplorationPanel(data, playFabId) {
         : '<div class="ship-exploration-empty">探索ステージを読み込めませんでした。</div>';
     panel.innerHTML = `
         ${head}
+        ${rescueCheck}
         <div class="ship-exploration-destinations">${destinationHtml}</div>
     `;
+    bindRescueCheck();
     panel.querySelectorAll('[data-exploration-start]').forEach((button) => {
         button.addEventListener('click', async () => {
             const destinationId = String(button.getAttribute('data-exploration-start') || '');

@@ -647,7 +647,7 @@ test('home avatar applies equipped gear during app startup', async ({ page }) =>
   expect(homeCompanionLayout.avatarVerticalCenter - homeCompanionLayout.mobileAnchorY)
     .toBeCloseTo(homeCompanionLayout.expectedHalfAvatarHeight, 0);
   expect(homeCompanionLayout.petVerticalCenter - homeCompanionLayout.avatarVerticalCenter)
-    .toBeCloseTo(18, 0);
+    .toBeCloseTo(81, 0);
   expect(homeCompanionLayout.avatarBottom).toBeLessThan(homeCompanionLayout.stageBottom);
   expect(homeCompanionLayout.petBottom).toBeLessThan(homeCompanionLayout.stageBottom);
   expect(Math.abs(homeCompanionLayout.avatarScale - homeCompanionLayout.petScale)).toBeLessThan(0.02);
@@ -1685,6 +1685,17 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   expect(stageLayout.panelScrollWidth).toBeLessThanOrEqual(stageLayout.panelClientWidth);
   expect(stageLayout.pageScrollWidth).toBeLessThanOrEqual(stageLayout.viewportWidth);
 
+  const rescueCheck = panel.locator('[data-exploration-rescue-check]');
+  await expect(rescueCheck).toBeVisible();
+  await expect(rescueCheck).toHaveText('救難チェック');
+  await rescueCheck.click();
+  await expect(panel).toBeHidden();
+  await expect(page.locator('#homeRescueOverlay')).toBeVisible();
+  await expect(page.locator('#homeRescueList')).toContainText('現在、救難信号はありません。');
+  await page.locator('#homeRescueClose').click();
+  await page.locator('#btnHomeExploration').click();
+  await expect(panel).toBeVisible();
+
   await panel.evaluate((element) => {
     element.scrollTop = element.scrollHeight;
   });
@@ -2117,6 +2128,7 @@ test('exploration bridge opens tarot kingdom directly with the selected island m
   });
 
   await bootstrapMainApp(page, { mockFirebaseDatabase: true });
+  await expect(page.locator('#btnHomeRescue')).toBeHidden();
   await page.evaluate(() => {
     window.__explorationBridgePromise = window.launchTarotKingdomExplorationBattle({
       explorationId: 'exp-direct-entry',
@@ -2290,7 +2302,32 @@ test('home rescue list lets a player choose and join a specific exploration room
     window.__pwFirebaseDbApi.setValue(`tarotKingdomRooms/${roomId}/meta/hostUid`, 'HOST_UID');
   });
 
+  await expect(page.locator('#btnHomeRescue')).toBeVisible();
+  await expect(page.locator('#btnHomeRescue')).toHaveAttribute('data-rescue-count', '1');
   await expect(page.locator('#btnHomeRescue')).toHaveText('救難');
+  await page.evaluate(() => {
+    const now = Date.now();
+    window.__pwFirebaseDbApi.setValue('tarotKingdomRooms/tk_rescue_target/presence', {
+      HOST_UID: { uid: 'HOST_UID', seat: 0, playFabId: 'PF_HOST', updatedAt: now },
+      GUEST_1: { uid: 'GUEST_1', seat: 1, playFabId: 'PF_GUEST_1', updatedAt: now },
+      GUEST_2: { uid: 'GUEST_2', seat: 2, playFabId: 'PF_GUEST_2', updatedAt: now },
+      GUEST_3: { uid: 'GUEST_3', seat: 3, playFabId: 'PF_GUEST_3', updatedAt: now }
+    });
+  });
+  await expect(page.locator('#btnHomeRescue')).toBeHidden();
+  await page.evaluate(() => {
+    const now = Date.now();
+    window.__pwFirebaseDbApi.setValue('tarotKingdomRooms/tk_rescue_target/presence', {
+      HOST_UID: {
+        uid: 'HOST_UID',
+        seat: 0,
+        displayName: '救難船長',
+        playFabId: 'PF_HOST',
+        updatedAt: now
+      }
+    });
+  });
+  await expect(page.locator('#btnHomeRescue')).toBeVisible();
   await page.locator('#btnHomeRescue').click();
   const overlay = page.locator('#homeRescueOverlay');
   await expect(overlay).toBeVisible();
@@ -2317,7 +2354,7 @@ test('legacy naval and melee battle entries are retired from the app', async ({ 
   await bootstrapMainApp(page, { mockFirebaseDatabase: true });
 
   await expect(page.locator('#btnHomeExploration')).toHaveText('探索');
-  await expect(page.locator('#btnHomeRescue')).toHaveText('救難');
+  await expect(page.locator('#btnHomeRescue')).toBeHidden();
   await expect(page.locator('#btnDailyFortune')).toHaveText('占い');
   await expect(page.locator('#btnHomePlunder')).toHaveCount(0);
   const homeActionLayout = await page.locator('.home-exp-actions').evaluate((actions) => {
@@ -2333,7 +2370,7 @@ test('legacy naval and melee battle entries are retired from the app', async ({ 
   expect(homeActionLayout.left).toBeGreaterThanOrEqual(0);
   expect(homeActionLayout.right).toBeLessThanOrEqual(homeActionLayout.viewportWidth);
   expect(homeActionLayout.pageScrollWidth).toBeLessThanOrEqual(homeActionLayout.viewportWidth);
-  expect(homeActionLayout.visibleButtons).toBe(3);
+  expect(homeActionLayout.visibleButtons).toBe(2);
   await expect(page.locator('.qr-battle-card')).toHaveCount(0);
   await expect(page.locator('#btnScanBattle')).toHaveCount(0);
   await expect(page.locator('#navalBattleModal')).not.toBeVisible();
@@ -3140,6 +3177,7 @@ test('player profile shows public stats on the left with avatar on the right', a
     const avatar = document.querySelector('#playerProfileModal .player-profile-avatar-shell');
     const avatarInner = document.getElementById('playerProfileAvatar');
     const pet = document.getElementById('playerProfilePetCompanion');
+    const petName = document.getElementById('playerProfilePetName');
     const ship = document.querySelector('#playerProfileModal .player-profile-ship');
     const copy = document.querySelector('#playerProfileModal .item-detail-copy');
     const firstStat = document.querySelector('#playerProfileStats .player-profile-stat');
@@ -3173,6 +3211,8 @@ test('player profile shows public stats on the left with avatar on the right', a
         ((petRect?.left || 0) + (petRect?.width || 0) / 2)
         - ((avatarRect?.left || 0) + (avatarRect?.width || 0) / 2),
       petScale: Number.parseFloat(getComputedStyle(pet).getPropertyValue('--pixel-monster-context-scale')),
+      petTranslateY: new DOMMatrixReadOnly(getComputedStyle(pet).transform).f,
+      petNameTranslateY: new DOMMatrixReadOnly(getComputedStyle(petName).transform).f,
       avatarTransform: avatarInner ? window.getComputedStyle(avatarInner).transform : '',
       avatarOverflow: avatar ? window.getComputedStyle(avatar).overflow : '',
       copyRight: copyRect?.right || 0,
@@ -3197,6 +3237,8 @@ test('player profile shows public stats on the left with avatar on the right', a
   expect(layout.avatarCenterOffset).toBeGreaterThan(-12);
   expect(layout.petCenterOffset).toBeGreaterThan(25);
   expect(Math.abs(layout.petScale - 1.18)).toBeLessThan(0.02);
+  expect(layout.petTranslateY).toBeCloseTo(54, 0);
+  expect(layout.petNameTranslateY).toBeCloseTo(54, 0);
   expect(layout.avatarTransform).toContain('matrix');
   expect(layout.avatarOverflow).toBe('visible');
   expect(layout.layerBounds.left).toBeGreaterThanOrEqual(layout.avatarLeft - 24);

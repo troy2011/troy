@@ -163,7 +163,13 @@ export function normalizeTarotKingdomCharacter(rawCharacter = {}, fallback = {})
 
 export function createTarotKingdomPetCharacter({ pet = null, level = 1 } = {}) {
     const monsterId = String(pet?.monsterId || '').trim();
-    const displayName = String(pet?.monsterName || monsterId || 'ペット').trim() || 'ペット';
+    const displayName = String(
+        pet?.displayName
+        || pet?.nickname
+        || pet?.monsterName
+        || monsterId
+        || 'ペット'
+    ).trim() || 'ペット';
     const safeLevel = positiveInteger(level, 1);
     const number = Math.max(1, Math.floor(finiteNumber(pet?.number, 1)));
     const archetype = PET_ARCHETYPE_BY_NUMBER[number % 5] || PET_ARCHETYPE_BY_NUMBER[0];

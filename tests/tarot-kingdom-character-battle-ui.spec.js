@@ -1902,6 +1902,8 @@ test('pet occupies the second seat after the player with its own monster sprite,
   const pet = {
     monsterId: 'ismartal-vol1-monster-01',
     monsterName: 'トゲマル',
+    nickname: 'コハク',
+    displayName: 'コハク',
     number: 1
   };
   const state = await page.evaluate((debugPet) => window.TarotKingdomDebug.battleScenario({
@@ -1914,7 +1916,7 @@ test('pet occupies the second seat after the player with its own monster sprite,
   expect(state.players[1]).toMatchObject({
     isPet: true,
     isNpc: true,
-    name: 'トゲマル',
+    name: 'コハク',
     character: {
       source: 'pet',
       monsterId: 'ismartal-vol1-monster-01'
@@ -1922,7 +1924,7 @@ test('pet occupies the second seat after the player with its own monster sprite,
   });
   const row = page.locator('#tarotKingdomBattleParty > .tarot-kingdom-battle-player').nth(1);
   await expect(row).toHaveClass(/is-pet/);
-  await expect(row.locator('.tarot-kingdom-battle-player-name')).toContainText('トゲマル');
+  await expect(row.locator('.tarot-kingdom-battle-player-name')).toContainText('コハク');
   await expect(row.locator('.tarot-kingdom-battle-player-rank')).toContainText('Lv12');
   await expect(row.locator('.tarot-kingdom-battle-player-hand-count')).toHaveText('残り手札 8枚');
   const sprite = row.locator('.tarot-kingdom-battle-pet-sprite');
@@ -1962,6 +1964,8 @@ test('online rescue keeps the host pet in the second NPC seat while human helper
   const pet = {
     monsterId: 'ismartal-vol1-monster-01',
     monsterName: 'トゲマル',
+    nickname: 'コハク',
+    displayName: 'コハク',
     number: 1
   };
   const audit = await page.evaluate((currentPet) => ({
@@ -1973,7 +1977,7 @@ test('online rescue keeps the host pet in the second NPC seat while human helper
   expect(audit.roster[1]).toMatchObject({
     isNpc: true,
     isPet: true,
-    name: 'トゲマル',
+    name: 'コハク',
     pet: { monsterId: pet.monsterId }
   });
   expect(audit.reservedOrder).toEqual([0, 2, 3, 1]);
