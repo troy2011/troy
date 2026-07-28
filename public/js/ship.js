@@ -1132,6 +1132,16 @@ let explorationAutoRunning = false;
 let currentTarotKingdomPet = null;
 let currentExplorationStages = [];
 let tarotKingdomPetOfferDialogPromise = null;
+
+function setCurrentTarotKingdomPet(currentPet = null) {
+    currentTarotKingdomPet = currentPet && typeof currentPet === 'object'
+        ? { ...currentPet }
+        : null;
+    window.dispatchEvent(new CustomEvent('tarot-kingdom:pet-changed', {
+        detail: { currentPet: currentTarotKingdomPet }
+    }));
+}
+
 const HOME_PLAYER_SHIP_FRAME_SIZE = 64;
 const HOME_PLAYER_SHIP_DIRECTION_FRAME_SPAN = HOME_PLAYER_SHIP_FRAME_SIZE * 3;
 const HOME_PLAYER_SHIP_DIRECTIONS = [
@@ -1645,7 +1655,16 @@ function selectExplorationTarotMonster(report = {}, destinationId = '') {
     return pool[seed % pool.length] || PIXEL_MONSTERS_ROSTER[0] || null;
 }
 
-function renderExplorationPixelMonster(monster, className = '', { maxWidth = 120, maxHeight = 100 } = {}) {
+function renderExplorationPixelMonster(
+    monster,
+    className = '',
+    {
+        maxWidth = 120,
+        maxHeight = 100,
+        compactMaxWidth = maxWidth,
+        compactMaxHeight = maxHeight
+    } = {}
+) {
     const idle = monster?.animations?.idle;
     if (!monster || !idle?.src) return '';
     const frameWidth = Math.max(1, Number(monster.frameWidth) || 1);
@@ -1656,6 +1675,22 @@ function renderExplorationPixelMonster(monster, className = '', { maxWidth = 120
     const displayWidth = frameWidth * pixelScale;
     const displayHeight = frameHeight * pixelScale;
     const previewScale = Math.min(1, maxWidth / displayWidth, maxHeight / displayHeight);
+    const compactPreviewScale = Math.min(
+        1,
+        compactMaxWidth / displayWidth,
+        compactMaxHeight / displayHeight
+    );
+    const idleAnchor = monster.idleAnchor && typeof monster.idleAnchor === 'object'
+        ? monster.idleAnchor
+        : {};
+    const anchorX = Math.max(0, Math.min(frameWidth, Number(idleAnchor.x) || (frameWidth / 2)));
+    const anchorY = Math.max(0, Math.min(frameHeight, Number(idleAnchor.y) || frameHeight));
+    const anchorMode = idleAnchor.mode === 'air' ? 'air' : 'ground';
+    const getAnchorOffsetX = (scale) => ((frameWidth / 2) - anchorX) * pixelScale * scale;
+    const getAnchorBottom = (scale, airBottom, groundBottom) => (
+        (anchorMode === 'air' ? airBottom : groundBottom)
+        - ((frameHeight - anchorY) * pixelScale * scale)
+    );
     const style = [
         `width:${displayWidth}px`,
         `height:${displayHeight}px`,
@@ -1663,9 +1698,14 @@ function renderExplorationPixelMonster(monster, className = '', { maxWidth = 120
         `background-size:${frameWidth * columns * pixelScale}px ${frameHeight * rows * pixelScale}px`,
         'background-position:0 0',
         `--exploration-monster-scale:${previewScale}`,
+        `--exploration-monster-compact-scale:${compactPreviewScale}`,
+        `--exploration-monster-anchor-offset-x:${getAnchorOffsetX(previewScale)}px`,
+        `--exploration-monster-compact-anchor-offset-x:${getAnchorOffsetX(compactPreviewScale)}px`,
+        `--exploration-monster-result-bottom:${getAnchorBottom(previewScale, 18, 5)}px`,
+        `--exploration-monster-compact-result-bottom:${getAnchorBottom(compactPreviewScale, 12, 4)}px`,
         'transform:scale(var(--exploration-monster-scale))'
     ].join(';');
-    return `<span class="exploration-pixel-monster ${escapeHtml(className)}${monster.isBoss === true ? ' is-boss' : ''}" style="${style}" aria-hidden="true"></span>`;
+    return `<span class="exploration-pixel-monster ${escapeHtml(className)}${monster.isBoss === true ? ' is-boss' : ''}" data-monster-anchor="${anchorMode}" style="${style}" aria-hidden="true"></span>`;
 }
 
 function animateExplorationPetIdle(node, monster) {
@@ -1841,31 +1881,6 @@ function renderExplorationDestinationBossChips(destination) {
                         <b>${type}</b>
                         <span>${escapeHtml(monster?.name || '???')}</span>
                     </span>
-                `;
-            }).join('')}
-        </div>
-    `;
-}
-
-function renderTarotKingdomStageMonsters(stage) {
-    const monsters = Array.isArray(stage?.monsters) ? stage.monsters.slice(0, 4) : [];
-    if (!monsters.length) return '';
-    return `
-        <div class="ship-exploration-stage-monsters" aria-label="出現順">
-            ${monsters.map((entry, index) => {
-                const monster = PIXEL_MONSTERS_ROSTER.find((candidate) => (
-                    candidate.id === String(entry?.monsterId || entry?.id || '')
-                ));
-                return `
-                    <div class="ship-exploration-stage-monster">
-                        <span class="ship-exploration-stage-order">${index + 1}</span>
-                        <span class="ship-exploration-stage-monster-frame">
-                            ${monster
-                                ? renderExplorationPixelMonster(monster, 'ship-exploration-stage-monster-image', { maxWidth: 42, maxHeight: 40 })
-                                : '<span class="ship-exploration-stage-monster-image" aria-hidden="true"></span>'}
-                        </span>
-                        <small>${escapeHtml(entry?.monsterName || monster?.name || '???')}</small>
-                    </div>
                 `;
             }).join('')}
         </div>
@@ -2581,7 +2596,7 @@ function showExplorationResultSummary(data, options = {}) {
     const bossName = String(kingdomMonster?.name || kingdomResult?.monsterName || report.bossName || '遭遇なし');
     const bossSprite = resolveExplorationBossSprite(reportDestinationId, report.bossName, report.bossSpriteId);
     const monsterIsBoss = kingdomMonster?.isBoss === true || kingdomResult?.isBoss === true;
-    const monsterTypeLabel = stageNo > 0 ? `STAGE ${stageNo} / 敵4体` : (monsterIsBoss ? 'BOSS' : 'MONSTER');
+    const monsterTypeLabel = stageNo > 0 ? `STAGE ${stageNo}` : (monsterIsBoss ? 'BOSS' : 'MONSTER');
     const bossTierLabel = kingdomMonster ? (monsterIsBoss ? '大型' : '') : (report.bossTierLabel || getExplorationBossTierLabel(report.bossTier));
     const bossTierKey = kingdomMonster ? (monsterIsBoss ? 'strong' : 'weak') : normalizeExplorationBossTier(report.bossTier);
     const rewards = getRewardItemsForReveal(data);
@@ -2649,7 +2664,12 @@ function showExplorationResultSummary(data, options = {}) {
                 <div class="exploration-result-boss-card" data-exploration-boss-id="${escapeHtml(kingdomMonster?.id || bossSprite.id || '')}">
                     <div class="exploration-result-boss-art">
                         ${kingdomMonster
-                            ? renderExplorationPixelMonster(kingdomMonster, 'exploration-result-boss-image', { maxWidth: 122, maxHeight: 118 })
+                            ? renderExplorationPixelMonster(kingdomMonster, 'exploration-result-boss-image', {
+                                maxWidth: 122,
+                                maxHeight: 104,
+                                compactMaxWidth: 80,
+                                compactMaxHeight: 82
+                            })
                             : renderExplorationBossImage(bossSprite, 'exploration-result-boss-image')}
                     </div>
                     <div class="exploration-result-boss-copy">
@@ -2835,7 +2855,7 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
     const homeFrame = document.getElementById('homePlayerShipFrame');
     const homeIcon = homeFrame?.querySelector('.home-player-ship-icon');
     const encounterLabel = Number(report?.version) >= 2
-        ? `STAGE ${Math.max(1, Number(report?.stageNo) || 1)} · 敵${Math.max(1, stageMonsters.length || 4)}体`
+        ? `STAGE ${Math.max(1, Number(report?.stageNo) || 1)}`
         : (kingdomMonster.isBoss === true ? 'BOSS ENCOUNTER' : 'MONSTER ENCOUNTER');
     const offlinePartyLabel = currentTarotKingdomPet
         ? 'オフライン・ペット同行4人'
@@ -2982,7 +3002,7 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
                 if (roll?.petOffer) {
                     const choice = await showTarotKingdomPetOffer(roll.petOffer, ownerPlayFabId);
                     if (choice?.currentPet && typeof choice.currentPet === 'object') {
-                        currentTarotKingdomPet = { ...choice.currentPet };
+                        setCurrentTarotKingdomPet(choice.currentPet);
                     }
                 }
                 return roll;
@@ -3029,8 +3049,6 @@ function renderExplorationPanel(data, playFabId) {
         </div>
     `;
     if (active) {
-        const encounter = data?.encounter || active?.encounter || null;
-        const encounterEnemyCount = Math.max(1, Array.isArray(encounter?.monsters) ? encounter.monsters.length : 4);
         panel.innerHTML = `
             ${head}
             <div class="ship-exploration-destination is-active">
@@ -3043,7 +3061,6 @@ function renderExplorationPanel(data, playFabId) {
                 </div>
                 <div class="ship-exploration-badges" aria-label="探索状態">
                     <span class="ship-exploration-badge is-active">航海中</span>
-                    <span class="ship-exploration-badge">敵${encounterEnemyCount}体</span>
                 </div>
                 <div class="ship-exploration-actions">
                     <button type="button" data-exploration-claim>出航</button>
@@ -3074,11 +3091,11 @@ function renderExplorationPanel(data, playFabId) {
                             <div class="ship-exploration-meta">${bestRankLabel} / CLEAR ${Math.max(0, Number(stage.clearCount) || 0)}</div>
                         </div>
                     </div>
-                    ${renderTarotKingdomStageMonsters(stage)}
-                    <div class="ship-exploration-badges" aria-label="探索条件">
-                        <span class="ship-exploration-badge">敵4体</span>
-                        ${isAvailable ? '' : `<span class="ship-exploration-badge is-locked">${escapeHtml(stage.lockReason || 'LOCKED')}</span>`}
-                    </div>
+                    ${isAvailable ? '' : `
+                        <div class="ship-exploration-badges" aria-label="探索条件">
+                            <span class="ship-exploration-badge is-locked">${escapeHtml(stage.lockReason || 'LOCKED')}</span>
+                        </div>
+                    `}
                     <div class="ship-exploration-actions">
                         <button type="button" class="ship-exploration-start"
                             data-exploration-start="${escapeHtml(stage.id || '')}"
@@ -3181,12 +3198,13 @@ export async function loadExplorationPanel(playFabId) {
             requestExplorationStatus(playFabId, { isSilent: true, throwOnError: true }),
             requestTarotKingdomPetState(playFabId, { isSilent: true, throwOnError: true }).catch(() => null)
         ]);
-        currentTarotKingdomPet = petState?.currentPet && typeof petState.currentPet === 'object'
-            ? { ...petState.currentPet }
-            : null;
+        setCurrentTarotKingdomPet(petState?.currentPet || null);
         renderExplorationPanel(data, playFabId);
         if (petState?.pendingOffer) {
-            await showTarotKingdomPetOffer(petState.pendingOffer, playFabId);
+            const choice = await showTarotKingdomPetOffer(petState.pendingOffer, playFabId);
+            if (choice?.currentPet && typeof choice.currentPet === 'object') {
+                setCurrentTarotKingdomPet(choice.currentPet);
+            }
         }
     } catch (error) {
         renderExplorationLoadError(panel, error, playFabId);

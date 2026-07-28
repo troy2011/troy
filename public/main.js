@@ -9,13 +9,18 @@ import { showTab, showConfirmationModal, scheduleWorldMapPrefetch } from 'ui';
 import * as Player from 'player';
 import * as Inventory from 'inventory';
 import * as Guild from './js/guild.js';
-import * as Ship from './js/ship.js?v=20260727-island-monster1';
+import * as Ship from './js/ship.js?v=20260728-pet-companion1';
 import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js';
 import { initMapChat, initTroyChat } from './js/mapChat.js';
 import { startNavalPvpBattle } from './js/navalPvpClient.js';
 import { renderAvatar, preloadAvatarBaseSprites, playAvatarBodyMotion, stopAvatarBodyMotion } from './js/avatar.js';
-import { installPlayerProfileInteractions, openPlayerProfile, refreshFavoritePlayersList } from './js/playerProfile.js';
+import {
+    installPlayerProfileInteractions,
+    openPlayerProfile,
+    refreshFavoritePlayersList,
+    refreshHomePetCompanion
+} from './js/playerProfile.js';
 import { showRpgMessage, rpgSay } from './js/rpgMessages.js';
 import { installPanelSlice25 } from './js/panelSlice25.js';
 import {
@@ -1357,6 +1362,7 @@ async function initializeLiff() {
         window.myPlayFabId = loginData.playFabId; // グローバルスコープにも設定
         window.__resolvedTroyEntryNation = loginData.troyEntryNation || null;
         void refreshHomeExplorationButtonLabel(myPlayFabId);
+        void refreshHomePetCompanion(myPlayFabId);
 
         // --- PlayFab & Firebase Login ---
         authUnsubscribe = onAuthStateChanged(auth, async (user) => {

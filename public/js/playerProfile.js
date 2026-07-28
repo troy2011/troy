@@ -1,8 +1,14 @@
 import { renderAvatar } from './avatar.js';
 import { getNationLabel } from './nationLabels.js';
-import { transferPoints, getPublicPlayerProfile, allocateStatPoints } from './playfabClient.js';
+import {
+    transferPoints,
+    getPublicPlayerProfile,
+    allocateStatPoints,
+    getTarotKingdomPetState
+} from './playfabClient.js';
 import { createRequestId } from './api.js';
 import { showRpgMessage } from './rpgMessages.js';
+import { renderPixelMonsterCompanion } from './pixelMonsterCompanion.js';
 
 const FAVORITE_PLAYERS_STORAGE_PREFIX = 'favorite-players:';
 const MAX_FAVORITE_PLAYERS = 24;
@@ -19,6 +25,7 @@ let activeProfileRequestToken = 0;
 let activeProfile = null;
 let pendingStatAllocation = {};
 let statAllocationSaveInFlight = false;
+let homePetRequestToken = 0;
 
 function escapeHtml(value) {
     return String(value || '').replace(/[&<>"']/g, (match) => ({
@@ -695,6 +702,9 @@ function renderProfile(profile = {}) {
         profile.itemSource || {},
         false
     );
+    const profilePet = document.getElementById('playerProfilePetCompanion');
+    const hasProfilePet = renderPixelMonsterCompanion(profilePet, profile.currentPet || null);
+    profilePet?.closest('.player-profile-avatar-shell')?.classList.toggle('has-pet-companion', hasProfilePet);
     if (syncFavoriteSnapshot(activeProfile)) {
         refreshFavoritePlayersList();
     }
@@ -722,6 +732,9 @@ function renderLoadingState(targetPlayFabId = '') {
         statAllocation.innerHTML = '';
     }
     renderProfileSpecialAbility(null);
+    const profilePet = document.getElementById('playerProfilePetCompanion');
+    renderPixelMonsterCompanion(profilePet, null);
+    profilePet?.closest('.player-profile-avatar-shell')?.classList.remove('has-pet-companion');
     if (equipment) {
         equipment.innerHTML = '<div class="player-profile-empty">プレイヤー情報を読み込んでいます。</div>';
     }
@@ -738,6 +751,9 @@ function renderErrorState(message) {
         statAllocation.innerHTML = '';
     }
     renderProfileSpecialAbility(null);
+    const profilePet = document.getElementById('playerProfilePetCompanion');
+    renderPixelMonsterCompanion(profilePet, null);
+    profilePet?.closest('.player-profile-avatar-shell')?.classList.remove('has-pet-companion');
     if (equipment) {
         equipment.innerHTML = `<div class="player-profile-empty">${escapeHtml(message || 'プレイヤー情報を取得できませんでした。')}</div>`;
     }
@@ -765,6 +781,34 @@ export async function openPlayerProfile(targetPlayFabId, options = {}) {
     } catch (error) {
         if (requestToken !== activeProfileRequestToken) return;
         renderErrorState(error?.message || 'プレイヤー情報を取得できませんでした。');
+    }
+}
+
+export function renderHomePetCompanion(currentPet = null) {
+    const target = document.getElementById('homePetCompanion');
+    const hasPet = renderPixelMonsterCompanion(target, currentPet);
+    document.getElementById('homeShipStage')?.classList.toggle('has-pet-companion', hasPet);
+    return hasPet;
+}
+
+export async function refreshHomePetCompanion(playFabId = getCurrentUserPlayFabId()) {
+    const ownerId = String(playFabId || '').trim();
+    const requestToken = ++homePetRequestToken;
+    if (!ownerId) {
+        renderHomePetCompanion(null);
+        return null;
+    }
+    try {
+        const result = await getTarotKingdomPetState(ownerId, { isSilent: true });
+        if (requestToken !== homePetRequestToken) return null;
+        const currentPet = result?.currentPet && typeof result.currentPet === 'object'
+            ? result.currentPet
+            : null;
+        renderHomePetCompanion(currentPet);
+        return currentPet;
+    } catch {
+        if (requestToken === homePetRequestToken) renderHomePetCompanion(null);
+        return null;
     }
 }
 
@@ -804,6 +848,9 @@ export function installPlayerProfileInteractions() {
     playerProfileInstalled = true;
     bindModalEvents();
     refreshFavoritePlayersList();
+    window.addEventListener('tarot-kingdom:pet-changed', (event) => {
+        renderHomePetCompanion(event?.detail?.currentPet || null);
+    });
     document.addEventListener('click', (event) => {
         const trigger = event.target?.closest?.('[data-player-playfab-id]');
         if (!trigger) return;
@@ -823,4 +870,5 @@ if (typeof window !== 'undefined') {
     window.openPlayerProfile = openPlayerProfile;
     window.decoratePlayerTriggerElement = decoratePlayerTriggerElement;
     window.refreshFavoritePlayersList = refreshFavoritePlayersList;
+    window.refreshHomePetCompanion = refreshHomePetCompanion;
 }

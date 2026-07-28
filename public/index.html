@@ -23,7 +23,7 @@
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
     <title>TROYゴールドアプリ</title>
-<link rel="stylesheet" href="style.css?v=20260727-battle-announcement1">
+<link rel="stylesheet" href="style.css?v=20260728-card-flip1">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
 </head>
@@ -91,6 +91,7 @@
                                 <div id="home-avatar-layer-hand-left" class="avatar-layer"></div>
                                 <div id="home-avatar-layer-shield-left" class="avatar-layer"></div>
                             </div>
+                            <div id="homePetCompanion" class="pixel-monster-companion home-pet-companion" hidden></div>
                             <div id="homePlayerShipFrame" class="home-player-ship-frame">
                                 <div class="home-player-ship-empty">船情報を読み込み中</div>
                             </div>
@@ -1452,6 +1453,7 @@
                         <div id="playerProfileAvatar-layer-hand-left" class="avatar-layer"></div>
                         <div id="playerProfileAvatar-layer-shield-left" class="avatar-layer"></div>
                     </div>
+                    <div id="playerProfilePetCompanion" class="pixel-monster-companion player-profile-pet-companion" hidden></div>
                 </div>
                 <div id="playerProfileShip" class="player-profile-ship"></div>
                 <div class="item-detail-copy">
@@ -1743,7 +1745,7 @@
         "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
         "config": "./js/config.js",
         "api": "./js/api.js",
-"ui": "./js/ui.js?v=20260727-battle-announcement1",
+"ui": "./js/ui.js?v=20260728-card-flip1",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js",
         "inventory": "./js/inventory.js?v=20260604g",
@@ -1790,6 +1792,6 @@
     <!-- Scripts -->
     <script src="battle-client.js?v=20260726-legacy-battle-off-1"></script>
     <script src="naval-battle.js"></script>
-<script type="module" src="main.js?v=20260727-island-monster1"></script>
+<script type="module" src="main.js?v=20260728-pet-companion1"></script>
 </body>
 </html>

@@ -220,6 +220,51 @@ async function readBattleLayout(page) {
   });
 }
 
+test('The World freezes the enemy sprite until time stop expires', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const enemySprite = page.locator('#tarotKingdomEnemySprite');
+
+  await expect.poll(async () => {
+    const first = await enemySprite.evaluate((node) => node.style.backgroundPosition);
+    await page.waitForTimeout(180);
+    const second = await enemySprite.evaluate((node) => node.style.backgroundPosition);
+    return first !== second;
+  }).toBe(true);
+
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleSetEffects({
+      enemy: {
+        timeStop: {
+          remainingTurns: 2,
+          expiresOn: 'turn',
+          source: 'major-21'
+        }
+      },
+      party: {},
+      players: [{}, {}, {}, {}]
+    });
+  });
+
+  await expect(enemySprite).toHaveClass(/is-time-stopped/);
+  const frozenFrame = await enemySprite.evaluate((node) => node.style.backgroundPosition);
+  await page.waitForTimeout(500);
+  await expect(enemySprite).toHaveCSS('animation-name', 'none');
+  expect(await enemySprite.evaluate((node) => node.style.backgroundPosition)).toBe(frozenFrame);
+
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleSetEffects({
+      enemy: {},
+      party: {},
+      players: [{}, {}, {}, {}]
+    });
+  });
+  await expect(enemySprite).not.toHaveClass(/is-time-stopped/);
+  await expect.poll(
+    () => enemySprite.evaluate((node) => node.style.backgroundPosition),
+    { timeout: 2_000 }
+  ).not.toBe(frozenFrame);
+});
+
 for (const fixture of [
   { label: 'preview 900px', viewport: { width: 900, height: 1000 }, productionCascade: false },
   { label: 'preview 390px', viewport: { width: 390, height: 844 }, productionCascade: false },
@@ -421,6 +466,90 @@ test('battle opening brings the monster on screen, attacks, and deals the openin
     () => page.evaluate(() => window.TarotKingdomDebug?.battleState?.().phase),
     { timeout: 7_500 }
   ).not.toBe('openingDeal');
+});
+
+test('opening hand uses the sprite-sheet flip frames without changing the card footprint', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 }, true);
+  await page.evaluate(() => window.TarotKingdomDebug.battleCardFlipPreview(0));
+
+  const flippingCard = page.locator('#tarotKingdomHand > .tarot-card.is-opening-flip');
+  await expect(flippingCard).toHaveCount(1);
+  await expect(flippingCard.locator(':scope > .tarot-card-flip-sprite')).toHaveCount(1);
+  const flipMetrics = await flippingCard.evaluate((card) => {
+    const sprite = card.querySelector(':scope > .tarot-card-flip-sprite');
+    const face = card.querySelector(':scope > .tarot-card-art:not(.tarot-card-flip-sprite)');
+    const spriteAnimation = sprite?.getAnimations?.()[0] || null;
+    const faceAnimation = face?.getAnimations?.()[0] || null;
+    spriteAnimation?.pause();
+    faceAnimation?.pause();
+    const widths = [];
+    const heights = [];
+    const positions = [];
+    [0, 120, 210, 300, 329].forEach((time) => {
+      if (spriteAnimation) spriteAnimation.currentTime = time;
+      if (faceAnimation) faceAnimation.currentTime = time;
+      const rect = card.getBoundingClientRect();
+      widths.push(rect.width);
+      heights.push(rect.height);
+      positions.push(sprite ? getComputedStyle(sprite).backgroundPosition : '');
+    });
+    const spriteStyle = sprite ? getComputedStyle(sprite) : null;
+    const faceStyle = face ? getComputedStyle(face) : null;
+    const cardStyle = getComputedStyle(card);
+    return {
+      widths,
+      heights,
+      positions: Array.from(new Set(positions)),
+      spriteImage: spriteStyle?.backgroundImage || '',
+      faceImage: faceStyle?.backgroundImage || '',
+      flipAnimationName: spriteStyle?.animationName || '',
+      cardAnimationName: cardStyle.animationName,
+      cardTransform: cardStyle.transform
+    };
+  });
+
+  expect(Math.max(...flipMetrics.widths) - Math.min(...flipMetrics.widths)).toBeLessThan(0.5);
+  expect(Math.max(...flipMetrics.heights) - Math.min(...flipMetrics.heights)).toBeLessThan(0.5);
+  expect(Math.min(...flipMetrics.widths)).toBeGreaterThan(40);
+  expect(flipMetrics.positions.length).toBeGreaterThan(3);
+  expect(flipMetrics.spriteImage).toContain('tarot.png');
+  expect(flipMetrics.faceImage).toContain('tarot.png');
+  expect(flipMetrics.flipAnimationName).toBe('tarotKingdomCardSpriteFlip');
+  expect(flipMetrics.cardAnimationName).toBe('none');
+  expect(flipMetrics.cardTransform).toBe('none');
+});
+
+test('battle opening keeps the arrived monster visible while its attack sheet finishes loading', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await abortFirebaseDataRequests(page);
+  let delayedAttackRequest = false;
+  await page.route('**/Sprites/pixel-monsters/**/attack.png', async (route) => {
+    delayedAttackRequest = true;
+    await new Promise((resolve) => setTimeout(resolve, 1_350));
+    await route.continue();
+  });
+  await page.goto('/tarot-kingdom-preview.html?tkfixture=character-battle&tkrev=opening-preload1', {
+    waitUntil: 'domcontentloaded'
+  });
+
+  await page.locator('#tarotKingdomStartOfflineButton').click();
+  const root = page.locator('#tarotKingdomRoot');
+  const stage = page.locator('#tarotKingdomBattleStage');
+  const enemySprite = page.locator('#tarotKingdomEnemySprite');
+
+  await expect(stage).toHaveClass(/is-opening-enemy-entering/);
+  await page.waitForTimeout(950);
+  expect(delayedAttackRequest).toBe(true);
+  await expect(root).toHaveAttribute('data-opening-intro-stage', 'enter');
+  await expect(enemySprite).toHaveCSS('opacity', '1');
+  await expect(enemySprite).toHaveCSS('visibility', 'visible');
+  const arrivedRect = await enemySprite.boundingBox();
+  expect(arrivedRect).not.toBeNull();
+  expect(arrivedRect.width).toBeGreaterThan(0);
+  expect(arrivedRect.height).toBeGreaterThan(0);
+
+  await expect(root).toHaveAttribute('data-opening-intro-stage', 'attack', { timeout: 3_000 });
+  await expect(enemySprite).toHaveClass(/is-attacking/);
 });
 
 test('preview enemy picker switches among all purchased Pixel Monsters without changing battle rules', async ({ page }) => {
@@ -668,10 +797,10 @@ test('enemy and party shadows stay grounded while flying monsters cast a lower s
       background: style.backgroundImage
     };
   });
-  const playerShadow = await page.locator('.tarot-kingdom-battle-player-avatar').first().evaluate((avatar) => {
-    const style = getComputedStyle(avatar, '::before');
+  const playerShadow = await page.locator('.tarot-kingdom-battle-player-floor-shadow').first().evaluate((shadow) => {
+    const style = getComputedStyle(shadow);
     return {
-      content: style.content,
+      display: style.display,
       bottom: parseFloat(style.bottom),
       width: parseFloat(style.width),
       height: parseFloat(style.height),
@@ -686,10 +815,10 @@ test('enemy and party shadows stay grounded while flying monsters cast a lower s
   expect(grounded.height).toBeGreaterThanOrEqual(9);
   expect(grounded.opacity).toBeGreaterThanOrEqual(0.7);
   expect(grounded.background).toContain('radial-gradient');
-  expect(playerShadow.content).not.toBe('none');
-  expect(playerShadow.bottom).toBe(17);
-  expect(playerShadow.width).toBe(46);
-  expect(playerShadow.height).toBe(11);
+  expect(playerShadow.display).toBe('block');
+  expect(playerShadow.bottom).toBe(15);
+  expect(playerShadow.width).toBe(52);
+  expect(playerShadow.height).toBe(12);
   expect(playerShadow.opacity).toBe(1);
   expect(playerShadow.background).toContain('radial-gradient');
 
@@ -872,8 +1001,35 @@ test('Judgment selection message is compact and fits the mobile frame', async ({
 
   await page.locator('#tarotKingdomHand > .tarot-card', { hasText: '審判' }).click();
   const selectedEffect = page.locator('#tarotKingdomSelectedEffect');
-  await expect(selectedEffect).toHaveText('選択: 審判 / A不可・11バック・墓地回収');
+  await expect(selectedEffect).toHaveText('審判 / A不可・11バック・墓地回収');
+  await expect(selectedEffect).not.toContainText('選択:');
   const textFit = await selectedEffect.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight
+  }));
+  expect(textFit.scrollWidth).toBeLessThanOrEqual(textFit.clientWidth);
+  expect(textFit.scrollHeight).toBeLessThanOrEqual(textFit.clientHeight);
+});
+
+test('long card guidance uses the fixed two-line compact layout', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleScenario({
+      turnIndex: 0,
+      handsBySeat: [[
+        { id: 'tk_fool_0', kind: 'major', suit: 'None', number: 0 },
+        { id: 'tk_fool_keep_6', kind: 'minor', suit: 'Cup', number: 6 }
+      ]]
+    });
+  });
+
+  await page.locator('#tarotKingdomHand > .tarot-card', { hasText: '愚者' }).click();
+  const guidance = page.locator('#tarotKingdomSelectedEffect');
+  await expect(guidance).not.toContainText('選択:');
+  await expect(guidance).toHaveClass(/is-compact/);
+  const textFit = await guidance.evaluate((element) => ({
     clientWidth: element.clientWidth,
     scrollWidth: element.scrollWidth,
     clientHeight: element.clientHeight,

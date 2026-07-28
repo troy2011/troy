@@ -232,9 +232,9 @@ test.describe('Tarot Kingdom NPC combat snapshots', () => {
         HairStyleIndex: 1
       },
       equipment: {
-        RightHand: 'sword_0',
-        LeftHand: 'shield_0',
-        Armor: 'leather01_0'
+        RightHand: 'sword_01',
+        LeftHand: 'shield_01',
+        Armor: 'leather01_01'
       },
       combat: {
         weaponType: 'sword',
@@ -251,17 +251,19 @@ test.describe('Tarot Kingdom NPC combat snapshots', () => {
         HairStyleIndex: 10
       },
       equipment: {
-        RightHand: 'gun_big_4',
-        Armor: 'metal_black_9'
+        RightHand: 'polearm_30',
+        Armor: 'metal_26'
       },
       combat: {
-        weaponType: 'gun_big',
-        weaponTypes: ['gun_big']
+        weaponType: 'polearm',
+        weaponTypes: ['polearm']
       }
     });
     expect(last.equipment.LeftHand).toBeUndefined();
     expect(first.itemSource[first.equipment.RightHand].customData.WeaponType).toBe('sword');
-    expect(last.itemSource[last.equipment.RightHand].customData.WeaponType).toBe('gun_big');
+    expect(last.itemSource[last.equipment.RightHand].customData.WeaponType).toBe('polearm');
+    expect(Object.values(first.itemSource).every((item) => item.customData.Rarity === 'common')).toBe(true);
+    expect(Object.values(last.itemSource).every((item) => item.customData.Rarity === 'common')).toBe(true);
   });
 });
 

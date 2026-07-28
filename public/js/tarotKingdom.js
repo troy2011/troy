@@ -17,7 +17,7 @@ import {
   createTarotKingdomPetCharacter,
   getTarotKingdomPetAiStyle,
   normalizeTarotKingdomCharacter
-} from './tarotKingdomCombat.js';
+} from './tarotKingdomCombat.js?v=20260728-npc-common1';
 import {
   getTarotKingdomPhysicalScale,
   isTarotKingdomDeckMatch,
@@ -61,12 +61,17 @@ import {
   setCombatAvatarVictory
 } from './avatarCombat.js?v=20260727-victory1';
 import { startAvatarBodyMotion, stopAvatarBodyMotion } from './avatar.js';
+import {
+  PIXEL_MONSTER_COMPANION_OFFSET_Y,
+  PIXEL_MONSTER_COMPANION_SCALE
+} from './pixelMonsterCompanion.js';
 
 const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 const TAROT_TILE_W = 48;
 const TAROT_TILE_H = 80;
 const TAROT_SHEET_W = 512;
 const TAROT_BACK_INDEX = 110;
+const TAROT_FLIP_FACE_INDEX = 105;
 
 const SUITS = ['Wand', 'Cup', 'Sword', 'Pentacle'];
 const GRAVE_RANK_ORDER = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1];
@@ -177,19 +182,15 @@ const KINGDOM_ENEMY_ESCAPE_DURATION_MS = ROUND_OUT_CINEMATIC_MS;
 const GAME_FINAL_CINEMATIC_MS = 2800;
 const PRESENCE_AWAY_GRACE_MS = 30000;
 const OPENING_HAND_FLIP_START_DELAY_MS = 90;
-const OPENING_HAND_FLIP_MS = 170;
+const OPENING_HAND_FLIP_MS = 330;
 const OPENING_HAND_FLIP_GAP_MS = 45;
 const DRAW_HAND_FLIP_REVEAL_DELAY_MS = 90;
-const DRAW_HAND_FLIP_MS = 220;
+const DRAW_HAND_FLIP_MS = 330;
 const KINGDOM_NORMAL_ATTACK_MS = 900;
 // The pet host already uses the same 1.02 combat scale as player avatars.
 // Keep the sprite at 1.0 so every pet receives that single shared multiplier.
-const KINGDOM_PET_DISPLAY_SCALE = 1;
-const KINGDOM_PET_OFFSET_Y_BY_MONSTER_ID = Object.freeze({
-  'ismartal-vol2-monster-05': 0,
-  'ismartal-vol2-monster-17': 0,
-  'ismartal-vol3-monster-09': 0
-});
+const KINGDOM_PET_DISPLAY_SCALE = PIXEL_MONSTER_COMPANION_SCALE;
+const KINGDOM_PET_OFFSET_Y_BY_MONSTER_ID = PIXEL_MONSTER_COMPANION_OFFSET_Y;
 const KINGDOM_SKILL_ATTACK_MS = 1800;
 const KINGDOM_SUMMON_ATTACK_MS = 4500;
 const KINGDOM_SUMMON_PARTY_HIDE_MS = 550;
@@ -344,6 +345,7 @@ let kingdomBattleTerminalFxEventKey = '';
 let kingdomBattleHurtEventKey = '';
 let kingdomBattleDamageEventKey = '';
 const kingdomBattlefieldPreloadPromises = new Map();
+const kingdomMonsterAnimationPreloadPromises = new Map();
 let kingdomBattlePhaseTimerKey = '';
 const kingdomBattlePhaseTimers = new Set();
 let kingdomTransitionTimer = null;
@@ -1542,21 +1544,21 @@ function buildSelectedCardInfoMessage(playerIndex, selectedIndexes) {
     const name = getCardNameLabel(card);
     if (card?.kind === 'major' && Number(card?.number) === 20) {
       return areKingdomMajorArcanaSpecialRulesEnabled()
-        ? '選択: 審判 / A不可・11バック・墓地回収'
+        ? '審判 / A不可・11バック・墓地回収'
         : '審判：11バック＋流し手が小アルカナ1枚回収';
     }
     const effect = getKingdomCardEffectDescription(card);
-    return effect ? `選択: ${name} / ${effect}` : `選択: ${name}`;
+    return effect ? `${name} / ${effect}` : name;
   }
 
   if (sel.length === 5) {
     const builtRole = buildRolePlay(playerIndex, sel);
-    if (builtRole?.ok) return `選択: ${getRoleDisplayLabel(builtRole.play)}`;
+    if (builtRole?.ok) return getRoleDisplayLabel(builtRole.play);
   }
 
   if (sel.length === 4) {
     const builtCall = buildCallPlay(playerIndex, sel);
-    if (builtCall?.ok) return `選択: ${getRoleDisplayLabel(builtCall.play)}`;
+    if (builtCall?.ok) return getRoleDisplayLabel(builtCall.play);
   }
 
   if ([1, 2, 3].includes(sel.length)) {
@@ -1564,12 +1566,11 @@ function buildSelectedCardInfoMessage(playerIndex, selectedIndexes) {
     if (builtSet?.ok) {
       const n = Number(builtSet.play?.number || 0);
       const rank = n === 1 ? 'A' : String(n || '?');
-      return `選択: ${sel.length}枚 / 数字${rank}`;
+      return `${sel.length}枚 / 数字${rank}`;
     }
   }
 
-  const labels = cards.map((c) => getCardNameLabel(c)).filter(Boolean);
-  return labels.length ? `選択: ${labels.join('・')}` : `選択: ${sel.length}枚`;
+  return `${sel.length}枚選択中`;
 }
 
 function buildKingdomSituationAnnouncement(playerIndex, canSelectCards) {
@@ -1584,10 +1585,10 @@ function buildKingdomSituationAnnouncement(playerIndex, canSelectCards) {
   if (phase === 'resolvingPlay') {
     const actorIndex = Number(s.transition?.actorIndex);
     return Number.isInteger(actorIndex)
-      ? `${playerName(actorIndex)}が攻撃中`
-      : '攻撃を解決中';
+      ? `${playerName(actorIndex)}の攻撃！`
+      : '攻撃！';
   }
-  if (phase === 'resolvingEnemy') return `${enemyName}が攻撃中`;
+  if (phase === 'resolvingEnemy') return `${enemyName}の攻撃！`;
   if (phase === 'roundOutCinematic') return '決着演出中';
   if (phase === 'roundDraw') return '次の局を準備中';
   if (phase === 'roundEnd') return '局終了：結果を確認してください';
@@ -3292,6 +3293,46 @@ function getKingdomMonsterAnimationDurationMs(monsterId = '', animationName = 'i
   const frameCount = Math.max(1, Number(animation?.frameCount) || 1);
   const fps = Math.max(1, Number(animation?.fps) || 12);
   return Math.max(1, Math.round((frameCount / fps) * 1000));
+}
+
+function preloadKingdomMonsterAnimation(animationSrc = '') {
+  const src = String(animationSrc || '').trim();
+  if (!src || typeof Image !== 'function') return Promise.resolve(false);
+  if (kingdomMonsterAnimationPreloadPromises.has(src)) {
+    return kingdomMonsterAnimationPreloadPromises.get(src);
+  }
+  const preload = new Promise((resolve) => {
+    const image = new Image();
+    image.decoding = 'async';
+    const finish = (loaded) => resolve(loaded);
+    image.addEventListener('load', async () => {
+      try {
+        if (typeof image.decode === 'function') await image.decode();
+      } catch {
+        // A loaded image can still be painted even when explicit decoding is unavailable.
+      }
+      finish(image.naturalWidth > 0);
+    }, { once: true });
+    image.addEventListener('error', () => finish(false), { once: true });
+    image.src = src;
+    if (image.complete) finish(image.naturalWidth > 0);
+  });
+  kingdomMonsterAnimationPreloadPromises.set(src, preload);
+  return preload;
+}
+
+function preloadKingdomMonsterAnimations(monsterId = '', animationNames = []) {
+  const monster = getKingdomMonsterConfig(monsterId);
+  if (!monster) return Promise.resolve([]);
+  const names = [...new Set(
+    (Array.isArray(animationNames) ? animationNames : [animationNames])
+      .map((name) => String(name || '').trim())
+      .filter(Boolean)
+  )];
+  return Promise.all(names.map((name) => {
+    const animation = monster.animations?.[name] || monster.animations?.idle;
+    return preloadKingdomMonsterAnimation(animation?.src);
+  }));
 }
 
 function createLegacyKingdomEnemyCombatProfile(roundIndex = 0) {
@@ -8998,6 +9039,20 @@ function exposeTarotKingdomBattleDebugTools(target) {
       render();
       return snapshotTarotKingdomDebugState();
     },
+    battleCardFlipPreview: (cardIndex = 0) => {
+      if (!s) buildTarotKingdomDebugBattleState();
+      clearOpeningDealTimers();
+      const me = getLocalPlayerIndex();
+      const handCount = Math.max(0, Number(s.players?.[me]?.hand?.length || 0));
+      const index = Math.max(0, Math.min(Math.max(0, handCount - 1), Math.floor(Number(cardIndex) || 0)));
+      s.roundActive = true;
+      s.phase = 'openingDeal';
+      s.openingIntroStage = 'deal';
+      s.openingDealRevealCount = index;
+      s.openingDealFlipIndex = handCount > 0 ? index : -1;
+      render();
+      return snapshotTarotKingdomDebugState();
+    },
     battleResolveTransition: () => {
       if (s?.transition) s.transition.endsAt = 0;
       resolveKingdomTransition();
@@ -9288,6 +9343,15 @@ function setupHand(options = {}) {
 function playOpeningDealCinematic() {
   clearOpeningDealTimers();
   if (!s || !s.roundActive) return;
+  const openingState = s;
+  const openingGeneration = kingdomStateGeneration;
+  const openingEnemyId = String(s.battle?.enemy?.id || '');
+  const monster = getKingdomMonsterConfig(openingEnemyId);
+  const openingWalkAnimation = monster?.animations?.walk ? 'walk' : 'idle';
+  const openingAnimationReady = preloadKingdomMonsterAnimations(
+    openingEnemyId,
+    [openingWalkAnimation, 'attack', 'idle']
+  );
   const me = getLocalPlayerIndex();
   const handCount = Math.max(0, Number(s.players?.[me]?.hand?.length || 0));
   const enemyAttackDurationMs = Math.max(
@@ -9331,9 +9395,12 @@ function playOpeningDealCinematic() {
     }, OPENING_HAND_FLIP_MS);
   };
 
-  openingDealStartTimer = setTimeout(() => {
+  openingDealStartTimer = setTimeout(async () => {
     openingDealStartTimer = null;
+    await openingAnimationReady;
+    if (s !== openingState || kingdomStateGeneration !== openingGeneration) return;
     if (!s || !s.roundActive || s.phase !== 'openingDeal') return;
+    if (s.openingIntroStage !== 'enter') return;
     s.openingIntroStage = 'attack';
     s.message = `${String(s.battle?.enemy?.name || 'モンスター')}の先制アクション`;
     render();
@@ -12001,6 +12068,10 @@ function cardNode(card, opt = {}) {
   if (opt.playable) el.classList.add('is-playable');
   if (opt.selected) el.classList.add('is-selected');
   if (opt.resonant) el.classList.add('is-resonant');
+  if (opt.flipReveal) {
+    el.classList.add('is-opening-flip');
+    el.style.setProperty('--tk-card-flip-duration', `${Math.max(120, Number(opt.flipDurationMs) || 330)}ms`);
+  }
   if (!opt.onClick) el.disabled = true;
   const art = document.createElement('span');
   art.className = 'tarot-card-art';
@@ -12024,6 +12095,21 @@ function cardNode(card, opt = {}) {
   }
   power.textContent = getCardNumberLabel(card);
   el.appendChild(art); el.appendChild(label); el.appendChild(power);
+  if (opt.flipReveal) {
+    const flipSprite = document.createElement('span');
+    flipSprite.className = 'tarot-card-art tarot-card-flip-sprite';
+    const flipStartPos = spritePos(TAROT_BACK_INDEX);
+    const flipFacePos = spritePos(TAROT_FLIP_FACE_INDEX);
+    flipSprite.style.setProperty('--tarot-sprite-src', `url("${TAROT_SPRITE_SRC}")`);
+    flipSprite.style.setProperty('--tarot-sheet-w', '512px');
+    flipSprite.style.setProperty('--tarot-sheet-h', '1024px');
+    flipSprite.style.setProperty('--tarot-x', `${flipStartPos.x}px`);
+    flipSprite.style.setProperty('--tarot-y', `${flipStartPos.y}px`);
+    flipSprite.style.setProperty('--tarot-flip-face-x', `${flipFacePos.x}px`);
+    flipSprite.style.setProperty('--tarot-flip-face-y', `${flipFacePos.y}px`);
+    flipSprite.setAttribute('aria-hidden', 'true');
+    el.appendChild(flipSprite);
+  }
   if (opt.resonant) {
     const resonance = document.createElement('span');
     resonance.className = 'tarot-card-resonance-mark';
@@ -12705,10 +12791,22 @@ function getKingdomBattleFeedClass(type) {
 function ensureKingdomBattlePlayerRow(playerIndex) {
   if (!ui.battleParty) return null;
   let row = ui.battleParty.querySelector(`[data-player-index="${playerIndex}"]`);
-  if (row) return row;
+  if (row) {
+    if (!row.querySelector(':scope > .tarot-kingdom-battle-player-floor-shadow')) {
+      const shadow = document.createElement('div');
+      shadow.className = 'tarot-kingdom-battle-player-floor-shadow';
+      shadow.setAttribute('aria-hidden', 'true');
+      row.insertBefore(shadow, row.firstChild);
+    }
+    return row;
+  }
   row = document.createElement('div');
   row.className = 'tarot-kingdom-battle-player';
   row.dataset.playerIndex = String(playerIndex);
+
+  const floorShadow = document.createElement('div');
+  floorShadow.className = 'tarot-kingdom-battle-player-floor-shadow';
+  floorShadow.setAttribute('aria-hidden', 'true');
 
   const avatar = document.createElement('div');
   avatar.id = `tarotKingdomBattleAvatar-${playerIndex}`;
@@ -12747,6 +12845,7 @@ function ensureKingdomBattlePlayerRow(playerIndex) {
   info.appendChild(header);
   info.appendChild(hpWrap);
   info.appendChild(handCount);
+  row.appendChild(floorShadow);
   row.appendChild(avatar);
   row.appendChild(info);
   ui.battleParty.appendChild(row);
@@ -13775,6 +13874,10 @@ function renderKingdomBattleStage() {
     && !enemyEscapeActive;
   const enemyDefeated = enemyFinisherActive;
   const enemyPetrified = !!enemy.petrifiedUntilClear && !enemyDefeated && !enemyRushTime && !enemyEscapeActive;
+  const enemyTimeStopped = !!getKingdomEffectBucket('enemy')?.timeStop
+    && !enemyDefeated
+    && !enemyRushTime
+    && !enemyEscapeActive;
   const enemyConfused = !!s.reverse && !enemyDefeated && !enemyRushTime && !enemyEscapeActive;
   const enemyAreaSealed = !!enemy.areaAttackSealedUntilClear && !enemyDefeated && !enemyRushTime && !enemyEscapeActive;
   [ui.battleEnemy, ui.battleEnemySprite].forEach((node) => {
@@ -13786,6 +13889,7 @@ function renderKingdomBattleStage() {
     node?.classList.toggle('is-dusting', enemyDustActive);
     node?.classList.toggle('is-escaping', enemyEscapeActive);
     node?.classList.toggle('is-petrified', enemyPetrified);
+    node?.classList.toggle('is-time-stopped', enemyTimeStopped);
     node?.classList.toggle('is-confused', enemyConfused);
     node?.classList.toggle('is-area-sealed', enemyAreaSealed);
   });
@@ -13807,7 +13911,10 @@ function renderKingdomBattleStage() {
       : (enemyRushTime
         ? `${battle.roundIndex}:rush:${Number(enemy.rushStartedAtSeq) || 0}`
         : `${battle.roundIndex}:${openingIntroStage || eventKey}:${animationName}`));
-  if (enemyPetrified) clearKingdomMonsterFrameTimer();
+  if (enemyPetrified || enemyTimeStopped) {
+    clearKingdomMonsterFrameTimer();
+    kingdomMonsterAnimationKey = '';
+  }
   else {
     playKingdomMonsterAnimation(animationName, monsterAnimationGeneration, {
       playbackRate: enemyRushTime ? KINGDOM_RUSH_MONSTER_PLAYBACK_RATE : 1,
@@ -14433,6 +14540,7 @@ function renderHand() {
   };
   hand.forEach((c, i) => {
     const isDrawFlipTarget = drawFlipActive && c?.id && String(c.id) === drawFlipCardId;
+    const isOpeningFlipTarget = inOpeningDeal && i === openingFlipIndex;
     let showCard = inOpeningDeal
       ? ((i < openingRevealCount || i === openingFlipIndex) ? c : null)
       : c;
@@ -14445,13 +14553,13 @@ function renderHand() {
       selected: selected.includes(i),
       resonant: !!showCard && normalizeTarotKingdomTarotDeck(s.players?.[me]?.character?.tarotDeck || [])
         .some((entry) => isTarotKingdomDeckMatch(showCard, entry)),
+      flipReveal: !!showCard && (isOpeningFlipTarget || (isDrawFlipTarget && now >= drawFlipRevealAt)),
+      flipDurationMs: isOpeningFlipTarget ? OPENING_HAND_FLIP_MS : DRAW_HAND_FLIP_MS,
       onClick: () => onHandTap(i)
     });
     node.dataset.cardIndex = String(i);
     node.style.setProperty('--hand-index', String(i));
     node.setAttribute('aria-pressed', selected.includes(i) ? 'true' : 'false');
-    if (inOpeningDeal && i === openingFlipIndex) node.classList.add('is-opening-flip');
-    if (isDrawFlipTarget && now >= drawFlipRevealAt) node.classList.add('is-opening-flip');
     ui.hand.appendChild(node);
   });
 }
@@ -14617,14 +14725,18 @@ function renderSummary() {
     const canSelectCards = me >= 0 && canLocalPlayerSelectHand(me);
     const hasVisibleSelection = canSelectCards && localSelected.length > 0;
     const situationMessage = buildKingdomSituationAnnouncement(me, canSelectCards);
-    ui.selectedEffect.textContent = kingdomLocalPriorityMessage
+    const announcement = kingdomLocalPriorityMessage
       || kingdomLocalInfoMessage
       || (hasVisibleSelection
         ? (buildSelectedCardInfoMessage(me, localSelected) || `${localSelected.length}枚選択中`)
         : situationMessage);
+    ui.selectedEffect.textContent = announcement;
     ui.selectedEffect.hidden = false;
     ui.selectedEffect.classList.toggle('has-selection', hasVisibleSelection);
     ui.selectedEffect.classList.toggle('is-error', hasPlayError);
+    const announcementLength = Array.from(String(announcement || '')).length;
+    ui.selectedEffect.classList.toggle('is-compact', announcementLength > 20);
+    ui.selectedEffect.classList.toggle('is-tight', announcementLength > 36);
   }
   if (ui.score) ui.score.textContent = '';
   if (ui.log) {

@@ -43,6 +43,11 @@ const {
 } = require('./tarotSkills');
 const { FEATURE_UNLOCK_LEVELS, isFeatureUnlocked } = require('./featureUnlocks');
 const { getPublicAbility } = require('./specialAbilityEngine');
+const {
+    TAROT_KINGDOM_PET_DATA_KEY,
+    buildTarotKingdomPetPublicRecord,
+    normalizeTarotKingdomPetState
+} = require('./tarotKingdomPets');
 const GACHA_CATALOG_VERSION = process.env.GACHA_CATALOG_VERSION || 'main_catalog';
 const GACHA_COST = Number(process.env.GACHA_COST || 10);
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
@@ -1020,6 +1025,7 @@ function initializeInventoryRoutes(app, deps) {
                 'FacialHairStyleIndex',
                 'HairColorIndex',
                 'SpecialAbilityJudgmentV3',
+                TAROT_KINGDOM_PET_DATA_KEY,
                 'Equipped_RightHand',
                 'Equipped_LeftHand',
                 'Equipped_Armor',
@@ -1063,6 +1069,9 @@ function initializeInventoryRoutes(app, deps) {
                 readOnlyData?.SpecialAbilityJudgmentV3?.Value,
                 null
             ));
+            const currentPet = buildTarotKingdomPetPublicRecord(
+                normalizeTarotKingdomPetState(readOnlyData?.[TAROT_KINGDOM_PET_DATA_KEY]?.Value).currentPet
+            );
             const playerShip = await resourceStorage.getPlayerShipProfile(targetId, { promisifyPlayFab, PlayFabServer }, { persist: false }).catch(() => null);
             if (playerShip) {
                 const majorArcanaItemIds = resourceStorage.normalizeMajorArcanaItemIds(
@@ -1089,6 +1098,7 @@ function initializeInventoryRoutes(app, deps) {
                     stats: publicStats,
                     statAllocation: isOwnProfile ? calculateStatAllocationState(stats) : null,
                     specialAbility,
+                    currentPet,
                     avatarBase,
                     playerShip,
                     equipment,

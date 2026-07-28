@@ -62,32 +62,50 @@ const PET_ARCHETYPE_BY_NUMBER = Object.freeze({
     4: Object.freeze({ key: 'guardian', hp: 1.22, power: 0.9, defense: 1.5, intelligence: 1.05, speed: 0.68, aiStyle: 'cautious' })
 });
 
-const EXPLORATION_NPC_WEAPONS = Object.freeze([
-    { idPrefix: 'sword_', weaponType: 'sword', frames: 7 },
-    { idPrefix: 'dagger_', weaponType: 'dagger', frames: 7 },
-    { idPrefix: 'axe_', weaponType: 'axe', frames: 10 },
-    { idPrefix: 'blunt_', weaponType: 'blunt', frames: 10 },
-    { idPrefix: 'staff_', weaponType: 'staff', frames: 13 },
-    { idPrefix: 'wand_', weaponType: 'wand', frames: 6 },
-    { idPrefix: 'gun_', weaponType: 'gun', frames: 4 },
-    {
-        idPrefix: 'bow_',
-        weaponType: 'bow',
-        frames: 7,
-        spritePath: './Sprites/weapons/ranged weapons/bow.png',
-        spriteWidth: 32,
-        spriteHeight: 32
-    },
-    { idPrefix: 'sword_big_', weaponType: 'sword_big', frames: 10, twoHanded: true },
-    { idPrefix: 'axe_big_', weaponType: 'axe_big', frames: 5, twoHanded: true },
-    { idPrefix: 'polearm_', weaponType: 'polearm', frames: 12, twoHanded: true },
-    { idPrefix: 'gun_big_', weaponType: 'gun_big', frames: 5, twoHanded: true }
+const EXPLORATION_NPC_COMMON_WEAPONS = Object.freeze([
+    { weaponType: 'sword', items: [['sword_01', 0], ['sword_02', 1], ['sword_03', 2]] },
+    { weaponType: 'dagger', items: [['dagger_01', 0], ['dagger_02', 1], ['dagger_03', 2]] },
+    { weaponType: 'axe', items: [['axe_18', 17], ['axe_19', 18]] },
+    { weaponType: 'blunt', items: [['blunt_18', 17], ['blunt_19', 18]] },
+    { weaponType: 'staff', items: [['staff_01', 0], ['staff_04', 3], ['staff_05', 4]] },
+    { weaponType: 'wand', items: [['wand_01', 0], ['wand_02', 1]] },
+    { weaponType: 'gun', items: [
+        ['gun_01', 0],
+        ['gun_01', 4],
+        ['gun_01', 8],
+        ['gun_01', 12],
+        ['gun_05', 16],
+        ['gun_06', 20]
+    ] },
+    { weaponType: 'polearm', twoHanded: true, items: [
+        ['polearm_28', 27],
+        ['polearm_29', 28],
+        ['polearm_30', 29]
+    ] }
 ]);
-const EXPLORATION_NPC_ARMORS = Object.freeze([
-    { idPrefix: 'leather01_', frames: 10 },
-    { idPrefix: 'leather02_', frames: 4 },
-    { idPrefix: 'metal_', frames: 10 },
-    { idPrefix: 'metal_black_', frames: 10 }
+const EXPLORATION_NPC_COMMON_ARMORS = Object.freeze([
+    { items: [
+        ['leather01_01', 0],
+        ['leather01_02', 1],
+        ['leather01_03', 2],
+        ['leather01_04', 3],
+        ['leather01_05', 4],
+        ['leather01_06', 5]
+    ] },
+    { items: [['leather02_01', 0], ['leather02_02', 1]] },
+    { items: [
+        ['metal_01', 0],
+        ['metal_02', 1],
+        ['metal_25', 24],
+        ['metal_26', 25]
+    ] }
+]);
+const EXPLORATION_NPC_COMMON_SHIELDS = Object.freeze([
+    ['shield_01', 0],
+    ['shield_02', 1],
+    ['shield_03', 2],
+    ['shield_04', 3],
+    ['shield_05', 4]
 ]);
 
 function finiteNumber(value, fallback = 0) {
@@ -239,6 +257,7 @@ function explorationRandomIndex(length, random) {
 function buildExplorationNpcItem(id, category, spriteIndex, weaponType = '', definition = null) {
     const customData = {
         Category: category,
+        Rarity: 'common',
         sprite_index: String(Math.max(0, Math.floor(finiteNumber(spriteIndex, 0))))
     };
     if (weaponType) customData.WeaponType = weaponType;
@@ -264,16 +283,18 @@ export function createTarotKingdomExplorationNpcCharacter({
         level,
         displayName: `はぐれ海賊${safeSeat}`
     });
-    const weapon = EXPLORATION_NPC_WEAPONS[
-        explorationRandomIndex(EXPLORATION_NPC_WEAPONS.length, randomSource)
+    const weapon = EXPLORATION_NPC_COMMON_WEAPONS[
+        explorationRandomIndex(EXPLORATION_NPC_COMMON_WEAPONS.length, randomSource)
     ];
-    const armor = EXPLORATION_NPC_ARMORS[
-        explorationRandomIndex(EXPLORATION_NPC_ARMORS.length, randomSource)
+    const armor = EXPLORATION_NPC_COMMON_ARMORS[
+        explorationRandomIndex(EXPLORATION_NPC_COMMON_ARMORS.length, randomSource)
     ];
-    const weaponFrame = explorationRandomIndex(weapon.frames, randomSource);
-    const armorFrame = explorationRandomIndex(armor.frames, randomSource);
-    const weaponId = `${weapon.idPrefix}${weaponFrame}`;
-    const armorId = `${armor.idPrefix}${armorFrame}`;
+    const [weaponId, weaponFrame] = weapon.items[
+        explorationRandomIndex(weapon.items.length, randomSource)
+    ];
+    const [armorId, armorFrame] = armor.items[
+        explorationRandomIndex(armor.items.length, randomSource)
+    ];
     const equipment = { RightHand: weaponId, Armor: armorId };
     const itemSource = {
         [weaponId]: buildExplorationNpcItem(weaponId, 'Weapon', weaponFrame, weapon.weaponType, weapon),
@@ -281,8 +302,9 @@ export function createTarotKingdomExplorationNpcCharacter({
     };
     const weaponTypes = [weapon.weaponType];
     if (!weapon.twoHanded && randomSource() < 0.45) {
-        const shieldFrame = explorationRandomIndex(10, randomSource);
-        const shieldId = `shield_${shieldFrame}`;
+        const [shieldId, shieldFrame] = EXPLORATION_NPC_COMMON_SHIELDS[
+            explorationRandomIndex(EXPLORATION_NPC_COMMON_SHIELDS.length, randomSource)
+        ];
         equipment.LeftHand = shieldId;
         itemSource[shieldId] = buildExplorationNpcItem(shieldId, 'Shield', shieldFrame, 'shield');
         weaponTypes.push('shield');

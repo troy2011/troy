@@ -477,6 +477,7 @@ test('home tab shows only the latest nation announcement in the top banner panel
 
 test('home avatar applies equipped gear during app startup', async ({ page }) => {
   const errors = trackPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
   const equipmentRequests = [];
   await page.route(/\/api\/(get-stats|player-ship\/status|exploration\/status|get-troy-status|get-global-chat|get-line-friend-bonus-status|tarot-fortune-status|get-player-display-name)$/, async (route) => {
     const url = route.request().url();
@@ -574,6 +575,21 @@ test('home avatar applies equipped gear during app startup', async ({ page }) =>
       })
     });
   });
+  await page.route('**/api/tarot-kingdom/pet-state', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        currentPet: {
+          monsterId: 'ismartal-vol1-monster-02',
+          monsterName: 'グリモア',
+          explorationId: 'home-pet-test',
+          acquiredAtMs: 1000
+        },
+        pendingOffer: null
+      })
+    });
+  });
 
   await bootstrapMainApp(page, {
     firebaseToken: 'playwright-firebase-token',
@@ -599,6 +615,25 @@ test('home avatar applies equipped gear during app startup', async ({ page }) =>
   expect(homeAvatarAudit.visibility).not.toBe('hidden');
   expect(homeAvatarAudit.width).toBeGreaterThan(0);
   expect(homeAvatarAudit.height).toBeGreaterThan(0);
+  await expect(page.locator('#homePetCompanion')).toBeVisible();
+  await expect(page.locator('#homePetCompanion')).toHaveAttribute('aria-label', 'グリモア（ペット）');
+  await expect(page.locator('#homePetCompanion .pixel-monster-companion-sprite'))
+    .toHaveCSS('background-image', /pixel-monsters\/vol1\/monster-02\/idle\.png/);
+  const homeCompanionLayout = await page.evaluate(() => {
+    const avatar = document.getElementById('home-avatar');
+    const pet = document.getElementById('homePetCompanion');
+    const avatarRect = avatar?.getBoundingClientRect();
+    const petRect = pet?.getBoundingClientRect();
+    const avatarTransform = new DOMMatrixReadOnly(getComputedStyle(avatar).transform);
+    return {
+      avatarCenter: (avatarRect?.left || 0) + ((avatarRect?.width || 0) / 2),
+      petCenter: (petRect?.left || 0) + ((petRect?.width || 0) / 2),
+      avatarScale: Math.hypot(avatarTransform.a, avatarTransform.b),
+      petScale: Number.parseFloat(getComputedStyle(pet).getPropertyValue('--pixel-monster-context-scale'))
+    };
+  });
+  expect(homeCompanionLayout.avatarCenter).toBeLessThan(homeCompanionLayout.petCenter);
+  expect(Math.abs(homeCompanionLayout.avatarScale - homeCompanionLayout.petScale)).toBeLessThan(0.02);
   await expectNoPageErrors(errors);
 });
 
@@ -1592,43 +1627,10 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(firstStage.locator('.ship-exploration-stage-label')).toHaveText('STAGE 1');
   await expect(firstStage.locator('.ship-exploration-title-group strong')).toHaveText('珊瑚の浅瀬');
   await expect(firstStage.locator('.ship-exploration-mapmark img')).toHaveAttribute('src', /Sprites\/exploration_destinations\/coral_lagoon\.png/);
-  await expect(firstStage.locator('.ship-exploration-stage-monster small')).toHaveText(['マシュロン', 'プルン', 'トゲマル', 'パピル']);
-  await expect(firstStage.locator('.ship-exploration-stage-order')).toHaveText(['1', '2', '3', '4']);
-  await expect(firstStage.locator('.ship-exploration-stage-monster-frame')).toHaveCount(4);
-  for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 900 }]) {
-    await page.setViewportSize(viewport);
-    const monsterFrames = await firstStage.locator('.ship-exploration-stage-monster-frame').evaluateAll((frames) => (
-      frames.map((frame) => {
-        const image = frame.querySelector('.exploration-pixel-monster');
-        const frameRect = frame.getBoundingClientRect();
-        const imageRect = image?.getBoundingClientRect();
-        return {
-          frame: {
-            left: frameRect.left,
-            right: frameRect.right,
-            top: frameRect.top,
-            bottom: frameRect.bottom
-          },
-          image: imageRect ? {
-            left: imageRect.left,
-            right: imageRect.right,
-            top: imageRect.top,
-            bottom: imageRect.bottom
-          } : null,
-          overflow: getComputedStyle(frame).overflow
-        };
-      })
-    ));
-    for (const metrics of monsterFrames) {
-      expect(metrics.image).not.toBeNull();
-      expect(metrics.overflow).toBe('hidden');
-      expect(metrics.image.left).toBeGreaterThanOrEqual(metrics.frame.left - 1);
-      expect(metrics.image.right).toBeLessThanOrEqual(metrics.frame.right + 1);
-      expect(metrics.image.top).toBeGreaterThanOrEqual(metrics.frame.top - 1);
-      expect(metrics.image.bottom).toBeLessThanOrEqual(metrics.frame.bottom + 1);
-    }
-  }
-  await expect(firstStage.locator('.ship-exploration-badge')).toHaveText(['敵4体']);
+  await expect(firstStage.locator('.ship-exploration-stage-monsters')).toHaveCount(0);
+  await expect(firstStage.locator('.ship-exploration-stage-monster')).toHaveCount(0);
+  await expect(firstStage.locator('.ship-exploration-badge')).toHaveCount(0);
+  await expect(firstStage).not.toContainText('敵4体');
   await expect(firstStage.locator('.ship-exploration-start')).toHaveText('出航');
   await expect(secondStage.locator('.ship-exploration-meta')).toContainText('最高 2位 / CLEAR 3');
   await expect(lockedStage).toHaveClass(/is-locked/);
@@ -1983,7 +1985,7 @@ test('exploration stage starts for free with ordered optional supplies', async (
   expect(startBody.paymentConsumables).toBeUndefined();
   const modeChoice = page.locator('.exploration-battle-mode-choice');
   await expect(modeChoice).toBeVisible({ timeout: 7000 });
-  await expect(modeChoice.locator('.exploration-battle-mode-head span')).toHaveText('STAGE 1 · 敵4体');
+  await expect(modeChoice.locator('.exploration-battle-mode-head span')).toHaveText('STAGE 1');
   await expect(modeChoice.locator('.exploration-battle-mode-head strong')).toHaveText('マシュロンが現れた');
   await expect(modeChoice).toContainText('マシュロン');
   await expect(modeChoice).not.toContainText('プルン → トゲマル → パピル');
@@ -2054,7 +2056,7 @@ test('exploration stage starts for free with ordered optional supplies', async (
   ]);
   await expect(page.locator('#tarotModeKingdom')).toBeHidden();
   await expect(page.locator('.exploration-result-overlay')).toBeVisible();
-  await expect(page.locator('.exploration-result-boss-copy b')).toHaveText('STAGE 1 / 敵4体');
+  await expect(page.locator('.exploration-result-boss-copy b')).toHaveText('STAGE 1');
   await expect(page.locator('.exploration-result-boss-copy strong')).toHaveText('パピル');
   await expect(page.locator('[data-exploration-result-next]')).toHaveText('次のステージへ出航');
   await expectNoPageErrors(errors);
@@ -2749,6 +2751,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
       islandCenterY: islandRect.top + (islandRect.height / 2),
       monsterCenterX: monsterRect.left + (monsterRect.width / 2),
       monsterCenterY: monsterRect.top + (monsterRect.height / 2),
+      spriteCenterX: spriteRect.left + (spriteRect.width / 2),
+      spriteCenterY: spriteRect.top + (spriteRect.height / 2),
       monsterWidth: monsterRect.width,
       monsterHeight: monsterRect.height,
       spriteWidth: spriteRect.width,
@@ -2773,6 +2777,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   expect(Math.abs(encounterMetrics.islandHeight - sailMetrics.islandHeight)).toBeLessThanOrEqual(1);
   expect(Math.abs(encounterMonsterMetrics.monsterCenterX - encounterMonsterMetrics.islandCenterX)).toBeLessThanOrEqual(2);
   expect(Math.abs(encounterMonsterMetrics.monsterCenterY - encounterMonsterMetrics.islandCenterY)).toBeLessThanOrEqual(2);
+  expect(Math.abs(encounterMonsterMetrics.spriteCenterX - encounterMonsterMetrics.islandCenterX)).toBeLessThanOrEqual(2);
+  expect(Math.abs(encounterMonsterMetrics.spriteCenterY - encounterMonsterMetrics.islandCenterY)).toBeLessThanOrEqual(2);
   expect(encounterMonsterMetrics.monsterWidth).toBeLessThanOrEqual(60);
   expect(encounterMonsterMetrics.monsterHeight).toBeLessThanOrEqual(60);
   expect(encounterMonsterMetrics.spriteWidth).toBeLessThanOrEqual(59);
@@ -2851,6 +2857,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await result.locator('[data-exploration-result-open]').click();
   await expect(result).toHaveClass(/is-opening/);
   await expect(resultChest).toHaveCSS('animation-name', 'explorationResultChestOpen');
+  expect(await resultChest.evaluate((element) => getComputedStyle(element).animationTimingFunction))
+    .toContain('steps(7');
   const chestWhileOpening = await resultChest.evaluate((element) => {
     const rect = element.getBoundingClientRect();
     return { centerX: rect.left + (rect.width / 2), width: rect.width };
@@ -2873,9 +2881,42 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await expect(result.locator('[data-exploration-result-open]')).toBeDisabled();
   await expect(result.locator('.exploration-result-boss-card')).toHaveAttribute('data-exploration-boss-id', 'ismartal-vol2-monster-02');
   await expect(result.locator('.exploration-result-boss-image')).toHaveCSS('background-image', /pixel-monsters\/vol2\/monster-02\/idle\.png/);
-  await expect(result.locator('.exploration-result-boss-copy b')).toHaveText('STAGE 1 / 敵4体');
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 900, height: 1100 }
+  ]) {
+    await page.setViewportSize(viewport);
+    const monsterLayout = await result.locator('.exploration-result-boss-art').evaluate((art) => {
+      const monster = art.querySelector('.exploration-result-boss-image');
+      const artRect = art.getBoundingClientRect();
+      const monsterRect = monster.getBoundingClientRect();
+      return {
+        art: {
+          left: artRect.left,
+          top: artRect.top,
+          right: artRect.right,
+          bottom: artRect.bottom,
+          centerX: artRect.left + (artRect.width / 2)
+        },
+        monster: {
+          left: monsterRect.left,
+          top: monsterRect.top,
+          right: monsterRect.right,
+          bottom: monsterRect.bottom,
+          centerX: monsterRect.left + (monsterRect.width / 2)
+        }
+      };
+    });
+    expect(Math.abs(monsterLayout.monster.centerX - monsterLayout.art.centerX)).toBeLessThanOrEqual(2);
+    expect(monsterLayout.monster.left).toBeGreaterThanOrEqual(monsterLayout.art.left - 1);
+    expect(monsterLayout.monster.right).toBeLessThanOrEqual(monsterLayout.art.right + 1);
+    expect(monsterLayout.monster.top).toBeGreaterThanOrEqual(monsterLayout.art.top - 1);
+    expect(monsterLayout.monster.bottom).toBeLessThanOrEqual(monsterLayout.art.bottom + 1);
+    await expect(result.locator('.exploration-result-boss-art')).toHaveCSS('overflow', 'hidden');
+  }
+  await expect(result.locator('.exploration-result-boss-copy b')).toHaveText('STAGE 1');
   await expect(result.locator('.exploration-result-boss-copy strong')).toHaveText('パピル');
-  await expect(result.locator('.exploration-result-boss-copy span')).toHaveText('STAGE 1 / 敵4体 / 勝利');
+  await expect(result.locator('.exploration-result-boss-copy span')).toHaveText('STAGE 1 / 勝利');
   await expect(result.locator('.exploration-result-body')).toContainText('1位 / タロットキングダム勝利');
   await expect(result.locator('.exploration-result-reward')).toContainText('RARE');
   await expect(result.locator('.exploration-result-chest')).toHaveCSS('animation-name', 'none');
@@ -2889,6 +2930,7 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
 
 test('player profile shows public stats on the left with avatar on the right', async ({ page }) => {
   const errors = trackPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/api/get-player-public-profile', async (route) => {
     await route.fulfill({
       status: 200,
@@ -2922,6 +2964,12 @@ test('player profile shows public stats on the left with avatar on the right', a
           playerShip: {
             form: 'explorer',
             stage: 2
+          },
+          currentPet: {
+            monsterId: 'ismartal-vol1-monster-02',
+            monsterName: 'グリモア',
+            explorationId: 'profile-pet-test',
+            acquiredAtMs: 1000
           },
           specialAbility: {
             name: '星渡りの門',
@@ -2978,16 +3026,22 @@ test('player profile shows public stats on the left with avatar on the right', a
   await expect(page.locator('#playerProfileSpecialAbilityRule')).toContainText('入口の輪');
   await expect(page.locator('#playerProfileSpecialAbility')).not.toContainText(/INTJ|tempo|scores/);
   await expect(page.locator('#playerProfileStats .player-profile-stat strong')).toHaveText(['12', '11', '10', '9', '8', '152']);
+  await expect(page.locator('#playerProfilePetCompanion')).toBeVisible();
+  await expect(page.locator('#playerProfilePetCompanion')).toHaveAttribute('aria-label', 'グリモア（ペット）');
+  await expect(page.locator('#playerProfilePetCompanion .pixel-monster-companion-sprite'))
+    .toHaveCSS('background-image', /pixel-monsters\/vol1\/monster-02\/idle\.png/);
   const layout = await page.evaluate(() => {
     const stats = document.getElementById('playerProfileStats');
     const avatar = document.querySelector('#playerProfileModal .player-profile-avatar-shell');
     const avatarInner = document.getElementById('playerProfileAvatar');
+    const pet = document.getElementById('playerProfilePetCompanion');
     const ship = document.querySelector('#playerProfileModal .player-profile-ship');
     const copy = document.querySelector('#playerProfileModal .item-detail-copy');
     const firstStat = document.querySelector('#playerProfileStats .player-profile-stat');
     const statsRect = stats?.getBoundingClientRect();
     const avatarRect = avatar?.getBoundingClientRect();
     const avatarInnerRect = avatarInner?.getBoundingClientRect();
+    const petRect = pet?.getBoundingClientRect();
     const avatarLayerRects = Array.from(avatarInner?.querySelectorAll('.avatar-layer') || [])
       .filter((layer) => window.getComputedStyle(layer).backgroundImage !== 'none')
       .map((layer) => layer.getBoundingClientRect());
@@ -3007,10 +3061,13 @@ test('player profile shows public stats on the left with avatar on the right', a
       avatarRight: avatarRect?.right || 0,
       avatarBottom: avatarRect?.bottom || 0,
       avatarWidth: avatarRect?.width || 0,
-      avatarCenterDelta: Math.abs(
+      avatarCenterOffset:
         ((avatarInnerRect?.left || 0) + (avatarInnerRect?.width || 0) / 2)
-        - ((avatarRect?.left || 0) + (avatarRect?.width || 0) / 2)
-      ),
+        - ((avatarRect?.left || 0) + (avatarRect?.width || 0) / 2),
+      petCenterOffset:
+        ((petRect?.left || 0) + (petRect?.width || 0) / 2)
+        - ((avatarRect?.left || 0) + (avatarRect?.width || 0) / 2),
+      petScale: Number.parseFloat(getComputedStyle(pet).getPropertyValue('--pixel-monster-context-scale')),
       avatarTransform: avatarInner ? window.getComputedStyle(avatarInner).transform : '',
       copyRight: copyRect?.right || 0,
       shipTop: shipRect?.top || 0,
@@ -3030,13 +3087,15 @@ test('player profile shows public stats on the left with avatar on the right', a
   expect(layout.shipTop).toBeGreaterThan(layout.avatarBottom);
   expect(Math.abs(layout.shipLeft - layout.avatarLeft)).toBeLessThanOrEqual(2);
   expect(Math.abs(layout.shipRight - layout.avatarRight)).toBeLessThanOrEqual(2);
-  expect(layout.avatarWidth).toBeGreaterThanOrEqual(130);
-  expect(layout.avatarCenterDelta).toBeLessThanOrEqual(12);
+  expect(layout.avatarWidth).toBeGreaterThanOrEqual(126);
+  expect(layout.avatarCenterOffset).toBeLessThan(-12);
+  expect(layout.petCenterOffset).toBeGreaterThan(15);
+  expect(Math.abs(layout.petScale - 1.18)).toBeLessThan(0.02);
   expect(layout.avatarTransform).toContain('matrix');
-  expect(layout.layerBounds.left).toBeGreaterThanOrEqual(layout.avatarLeft - 1);
-  expect(layout.layerBounds.top).toBeGreaterThanOrEqual(layout.avatarTop - 1);
-  expect(layout.layerBounds.right).toBeLessThanOrEqual(layout.avatarRight + 1);
-  expect(layout.layerBounds.bottom).toBeLessThanOrEqual(layout.avatarBottom + 1);
+  expect(layout.layerBounds.left).toBeGreaterThanOrEqual(layout.avatarLeft - 24);
+  expect(layout.layerBounds.top).toBeGreaterThanOrEqual(layout.avatarTop - 4);
+  expect(layout.layerBounds.right).toBeLessThanOrEqual(layout.avatarRight + 12);
+  expect(layout.layerBounds.bottom).toBeLessThanOrEqual(layout.avatarBottom + 4);
   expect(layout.statHeight).toBeLessThanOrEqual(36);
   await expectNoPageErrors(errors);
 });
