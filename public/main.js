@@ -5,7 +5,12 @@ import { getAuth, onAuthStateChanged, signInWithCustomToken } from "firebase/aut
 import { getFirestore, collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { firebaseConfig, RACE_COLORS, formatCurrencyLabel } from 'config';
 import { callApiWithLoader, promisifyPlayFab, buildApiUrl, createRequestId } from 'api';
-import { showTab, showConfirmationModal, scheduleWorldMapPrefetch } from 'ui';
+import {
+    showTab,
+    showConfirmationModal,
+    scheduleWorldMapPrefetch,
+    launchTarotKingdomRescueBattle
+} from 'ui';
 import * as Player from 'player';
 import * as Inventory from 'inventory';
 import * as Guild from './js/guild.js';
@@ -60,6 +65,7 @@ let lineFriendPromoState = null;
 let dailyFortuneOpenPromise = null;
 let dailyFortuneClaimEventBound = false;
 const TAROT_MODULE_VERSION = '20260727-daily-lock1';
+const TAROT_KINGDOM_RESCUE_VERSION = '20260728-rescue-entry1';
 const DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY = 'troy:daily-fortune-claimed-day';
 const LIFF_CALLBACK_PARAM_KEYS = [
     'code',
@@ -838,6 +844,7 @@ PlayFab.settings.titleId = '1A0BA';
 // --- 初期化フロー ---
 
 let homeExplorationButtonBound = false;
+let homeRescueButtonBound = false;
 let homeCoinConvertBound = false;
 let homeQrScanBound = false;
 let homeExplorationPopupObserver = null;
@@ -1155,6 +1162,137 @@ async function openHomeExplorationPopup() {
 
 window.openHomeExplorationPopup = openHomeExplorationPopup;
 
+function closeHomeRescuePopup() {
+    const overlay = document.getElementById('homeRescueOverlay');
+    if (!overlay) return;
+    overlay.hidden = true;
+    overlay.classList.remove('is-joining');
+    document.body.classList.remove('home-rescue-popup-open');
+}
+
+function setHomeRescueStatus(message, className = '') {
+    const list = document.getElementById('homeRescueList');
+    if (!list) return;
+    list.innerHTML = '';
+    const status = document.createElement('div');
+    status.className = `home-rescue-status${className ? ` ${className}` : ''}`;
+    status.textContent = message;
+    list.appendChild(status);
+}
+
+function formatHomeRescueAge(createdAt) {
+    const elapsedMs = Math.max(0, Date.now() - Number(createdAt || 0));
+    const elapsedMinutes = Math.floor(elapsedMs / 60000);
+    if (elapsedMinutes <= 0) return 'たった今';
+    return `${Math.min(99, elapsedMinutes)}分前`;
+}
+
+async function joinHomeRescueRoom(room, triggerButton) {
+    const overlay = document.getElementById('homeRescueOverlay');
+    if (!overlay || !room?.roomId) return;
+    overlay.classList.add('is-joining');
+    overlay.querySelectorAll('button').forEach((button) => {
+        button.disabled = true;
+    });
+    if (triggerButton) {
+        triggerButton.textContent = '接続中';
+        triggerButton.setAttribute('aria-busy', 'true');
+    }
+    try {
+        closeHomeRescuePopup();
+        await launchTarotKingdomRescueBattle(room);
+    } catch (error) {
+        console.warn('[home-rescue] Failed to join rescue room:', error);
+        showRpgMessage(error?.message || '救難信号へ参加できませんでした。');
+    } finally {
+        overlay.classList.remove('is-joining');
+        overlay.querySelectorAll('button').forEach((button) => {
+            button.disabled = false;
+        });
+        triggerButton?.removeAttribute('aria-busy');
+    }
+}
+
+function renderHomeRescueRooms(rooms = []) {
+    const list = document.getElementById('homeRescueList');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!rooms.length) {
+        setHomeRescueStatus('現在、救難信号はありません。', 'is-empty');
+        return;
+    }
+    rooms.forEach((room) => {
+        const article = document.createElement('article');
+        article.className = 'home-rescue-room';
+
+        const copy = document.createElement('div');
+        copy.className = 'home-rescue-room-copy';
+        const stage = document.createElement('span');
+        stage.className = 'home-rescue-room-stage';
+        stage.textContent = room.stageNo > 0 ? `STAGE ${room.stageNo}` : 'EXPLORATION';
+        const destination = document.createElement('strong');
+        destination.textContent = room.destinationName || '探索先不明';
+        const monster = document.createElement('span');
+        monster.className = 'home-rescue-room-monster';
+        monster.textContent = `${room.monsterName || 'モンスター'}が出現`;
+        const meta = document.createElement('small');
+        const hostLabel = room.hostName ? `${room.hostName}　` : '';
+        meta.textContent = `${hostLabel}${room.memberCount}/4　${formatHomeRescueAge(room.createdAt)}`;
+        copy.append(stage, destination, monster, meta);
+
+        const joinButton = document.createElement('button');
+        joinButton.type = 'button';
+        joinButton.className = 'home-rescue-join';
+        joinButton.textContent = '参加';
+        joinButton.setAttribute(
+            'aria-label',
+            `${room.destinationName || '探索先'}の${room.monsterName || 'モンスター'}戦へ参加`
+        );
+        joinButton.addEventListener('click', () => {
+            void joinHomeRescueRoom(room, joinButton);
+        });
+        article.append(copy, joinButton);
+        list.appendChild(article);
+    });
+}
+
+async function refreshHomeRescueRooms() {
+    const refreshButton = document.getElementById('homeRescueRefresh');
+    setHomeRescueStatus('救難信号を受信中です。', 'is-loading');
+    if (refreshButton) {
+        refreshButton.disabled = true;
+        refreshButton.setAttribute('aria-busy', 'true');
+    }
+    try {
+        const Kingdom = await import(`./js/tarotKingdom.js?v=${TAROT_KINGDOM_RESCUE_VERSION}`);
+        if (typeof Kingdom.listTarotKingdomRescueRooms !== 'function') {
+            throw new Error('救難信号の一覧を取得できません。');
+        }
+        const rooms = await Kingdom.listTarotKingdomRescueRooms();
+        renderHomeRescueRooms(rooms);
+    } catch (error) {
+        console.warn('[home-rescue] Failed to load rescue rooms:', error);
+        setHomeRescueStatus(error?.message || '救難信号を受信できませんでした。', 'is-error');
+    } finally {
+        if (refreshButton) {
+            refreshButton.disabled = false;
+            refreshButton.removeAttribute('aria-busy');
+        }
+    }
+}
+
+async function openHomeRescuePopup() {
+    closeHomeExplorationPopup();
+    const overlay = document.getElementById('homeRescueOverlay');
+    if (!overlay) return;
+    overlay.hidden = false;
+    document.body.classList.add('home-rescue-popup-open');
+    await refreshHomeRescueRooms();
+}
+
+window.closeHomeRescuePopup = closeHomeRescuePopup;
+window.openHomeRescuePopup = openHomeRescuePopup;
+
 async function loadHomePlunderPublicProfiles(opponent) {
     const selfId = window.myPlayFabId;
     const opponentId = opponent?.playFabId;
@@ -1251,14 +1389,32 @@ async function startHomePlunderBattle(options = {}) {
 }
 
 function initHomeExplorationButton() {
-    if (homeExplorationButtonBound) return;
+    if (homeExplorationButtonBound && homeRescueButtonBound) return;
     const explorationButton = document.getElementById('btnHomeExploration');
+    const rescueButton = document.getElementById('btnHomeRescue');
     const plunderButton = document.getElementById('btnHomePlunder');
-    if (!explorationButton && !plunderButton) return;
+    if (!explorationButton && !rescueButton && !plunderButton) return;
     syncHomeExplorationButtonLabel();
-    explorationButton?.addEventListener('click', () => {
-        void openHomeExplorationPopup();
-    });
+    if (!homeExplorationButtonBound) {
+        explorationButton?.addEventListener('click', () => {
+            closeHomeRescuePopup();
+            void openHomeExplorationPopup();
+        });
+        homeExplorationButtonBound = true;
+    }
+    if (!homeRescueButtonBound) {
+        rescueButton?.addEventListener('click', () => {
+            void openHomeRescuePopup();
+        });
+        document.getElementById('homeRescueClose')?.addEventListener('click', closeHomeRescuePopup);
+        document.getElementById('homeRescueRefresh')?.addEventListener('click', () => {
+            void refreshHomeRescueRooms();
+        });
+        document.getElementById('homeRescueOverlay')?.addEventListener('click', (event) => {
+            if (event.target === event.currentTarget) closeHomeRescuePopup();
+        });
+        homeRescueButtonBound = true;
+    }
     plunderButton?.addEventListener('click', () => {
         if (!isCurrentPlayerInTroyStatus(window.__troyStatus)) {
             syncHomeExplorationButtonLabel();
@@ -1273,7 +1429,6 @@ function initHomeExplorationButton() {
     window.addEventListener('troy:status-updated', (event) => {
         syncHomeExplorationButtonLabel(event?.detail?.status || window.__troyStatus);
     });
-    homeExplorationButtonBound = true;
 }
 
 function initHomeQrScanButton() {

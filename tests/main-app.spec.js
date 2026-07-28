@@ -622,17 +622,34 @@ test('home avatar applies equipped gear during app startup', async ({ page }) =>
   const homeCompanionLayout = await page.evaluate(() => {
     const avatar = document.getElementById('home-avatar');
     const pet = document.getElementById('homePetCompanion');
+    const bob = avatar?.closest('.home-ship-bob');
+    const stage = document.getElementById('homeShipStage');
     const avatarRect = avatar?.getBoundingClientRect();
     const petRect = pet?.getBoundingClientRect();
+    const bobRect = bob?.getBoundingClientRect();
+    const stageRect = stage?.getBoundingClientRect();
     const avatarTransform = new DOMMatrixReadOnly(getComputedStyle(avatar).transform);
     return {
       avatarCenter: (avatarRect?.left || 0) + ((avatarRect?.width || 0) / 2),
       petCenter: (petRect?.left || 0) + ((petRect?.width || 0) / 2),
+      avatarVerticalCenter: (avatarRect?.top || 0) + ((avatarRect?.height || 0) / 2),
+      petVerticalCenter: (petRect?.top || 0) + ((petRect?.height || 0) / 2),
+      mobileAnchorY: (bobRect?.top || 0) + ((bobRect?.height || 0) * 0.42),
+      expectedHalfAvatarHeight: (avatarRect?.height || 0) / 2,
+      avatarBottom: avatarRect?.bottom || 0,
+      petBottom: petRect?.bottom || 0,
+      stageBottom: stageRect?.bottom || 0,
       avatarScale: Math.hypot(avatarTransform.a, avatarTransform.b),
       petScale: Number.parseFloat(getComputedStyle(pet).getPropertyValue('--pixel-monster-context-scale'))
     };
   });
   expect(homeCompanionLayout.avatarCenter).toBeLessThan(homeCompanionLayout.petCenter);
+  expect(homeCompanionLayout.avatarVerticalCenter - homeCompanionLayout.mobileAnchorY)
+    .toBeCloseTo(homeCompanionLayout.expectedHalfAvatarHeight, 0);
+  expect(homeCompanionLayout.petVerticalCenter - homeCompanionLayout.avatarVerticalCenter)
+    .toBeCloseTo(18, 0);
+  expect(homeCompanionLayout.avatarBottom).toBeLessThan(homeCompanionLayout.stageBottom);
+  expect(homeCompanionLayout.petBottom).toBeLessThan(homeCompanionLayout.stageBottom);
   expect(Math.abs(homeCompanionLayout.avatarScale - homeCompanionLayout.petScale)).toBeLessThan(0.02);
   await expectNoPageErrors(errors);
 });
@@ -2210,12 +2227,97 @@ test('exploration rescue signal creates a dedicated online lobby before combat',
   await expectNoPageErrors(errors);
 });
 
+test('home rescue list lets a player choose and join a specific exploration room', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  let stageJoinBody = null;
+  await page.route('**/api/get-troy-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ nation: 'fire', isOpen: true, members: [] })
+    });
+  });
+  await page.route('**/api/exploration/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ship: null, active: null, reports: [], destinations: [] })
+    });
+  });
+  await page.route('**/api/exploration/stage-join', async (route) => {
+    stageJoinBody = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ success: true, encounter: { version: 2 } })
+    });
+  });
+
+  await bootstrapMainApp(page, { mockFirebaseDatabase: true });
+  await page.evaluate(() => {
+    const now = Date.now();
+    const roomId = 'tk_rescue_target';
+    const room = {
+      roomId,
+      ownerUid: 'HOST_UID',
+      kind: 'exploration-rescue',
+      monsterId: 'ismartal-vol1-monster-01',
+      monsterName: 'ホタルビ',
+      destinationName: 'はじまりの海',
+      explorationId: 'exp-host-rescue',
+      ownerPlayFabId: 'PF_HOST',
+      stageNo: 1,
+      stageId: 'tarot_stage_1',
+      battlefieldId: 'coral-island',
+      atmosphereTone: 'coral',
+      createdAt: now - 12000,
+      updatedAt: now
+    };
+    window.__pwFirebaseDbApi.setValue('tarotKingdomMatch/openRooms', { [roomId]: room });
+    window.__pwFirebaseDbApi.setValue(`tarotKingdomMatch/openRooms/${roomId}`, room);
+    window.__pwFirebaseDbApi.setValue(`tarotKingdomRooms/${roomId}/state`, {
+      state: { roundActive: false, handNo: 0, awaitRoundConfirm: false, phase: 'waiting' }
+    });
+    window.__pwFirebaseDbApi.setValue(`tarotKingdomRooms/${roomId}/presence`, {
+      HOST_UID: {
+        uid: 'HOST_UID',
+        seat: 0,
+        displayName: '救難船長',
+        playFabId: 'PF_HOST',
+        updatedAt: now
+      }
+    });
+    window.__pwFirebaseDbApi.setValue(`tarotKingdomRooms/${roomId}/meta/hostUid`, 'HOST_UID');
+  });
+
+  await expect(page.locator('#btnHomeRescue')).toHaveText('救難');
+  await page.locator('#btnHomeRescue').click();
+  const overlay = page.locator('#homeRescueOverlay');
+  await expect(overlay).toBeVisible();
+  await expect(overlay.locator('.home-rescue-room')).toHaveCount(1);
+  await expect(overlay).toContainText('はじまりの海');
+  await expect(overlay).toContainText('ホタルビが出現');
+  await expect(overlay).toContainText('救難船長');
+
+  await overlay.locator('.home-rescue-join').click();
+  await expect(page.locator('#tarotKingdomRoot')).toBeVisible();
+  await expect(page.locator('body')).toHaveAttribute('data-tarot-kingdom-rescue-role', 'guest');
+  await expect.poll(() => stageJoinBody).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    ownerPlayFabId: 'PF_HOST',
+    explorationId: 'exp-host-rescue'
+  });
+  await expect(page.locator('#tarotKingdomStateText')).toContainText('救難船長');
+  await expectNoPageErrors(errors);
+});
+
 test('legacy naval and melee battle entries are retired from the app', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await bootstrapMainApp(page, { mockFirebaseDatabase: true });
 
   await expect(page.locator('#btnHomeExploration')).toHaveText('探索');
+  await expect(page.locator('#btnHomeRescue')).toHaveText('救難');
   await expect(page.locator('#btnDailyFortune')).toHaveText('占い');
   await expect(page.locator('#btnHomePlunder')).toHaveCount(0);
   const homeActionLayout = await page.locator('.home-exp-actions').evaluate((actions) => {
@@ -2231,7 +2333,7 @@ test('legacy naval and melee battle entries are retired from the app', async ({ 
   expect(homeActionLayout.left).toBeGreaterThanOrEqual(0);
   expect(homeActionLayout.right).toBeLessThanOrEqual(homeActionLayout.viewportWidth);
   expect(homeActionLayout.pageScrollWidth).toBeLessThanOrEqual(homeActionLayout.viewportWidth);
-  expect(homeActionLayout.visibleButtons).toBe(2);
+  expect(homeActionLayout.visibleButtons).toBe(3);
   await expect(page.locator('.qr-battle-card')).toHaveCount(0);
   await expect(page.locator('#btnScanBattle')).toHaveCount(0);
   await expect(page.locator('#navalBattleModal')).not.toBeVisible();

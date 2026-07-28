@@ -330,6 +330,8 @@ let netOpenRoomsCache = {};
 let netOpenRoomIndexEnabled = true;
 let netManualOfflineMode = false;
 let netForceCreateRoom = false;
+let netRequestedRoomId = '';
+let netLastConnectError = null;
 let netJoinedExplorationMeta = null;
 let kingdomStartMode = '';
 let kingdomViewportSyncQueued = false;
@@ -6153,6 +6155,10 @@ function getTarotKingdomRoomId() {
   return room.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
 }
 
+function normalizeTarotKingdomRoomId(value) {
+  return String(value || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+}
+
 function getTarotKingdomDebugMode() {
   if (typeof window === 'undefined') return '';
   const params = new URLSearchParams(window.location.search || '');
@@ -6228,11 +6234,15 @@ async function registerOpenRoomIndex(db, roomId, ownerUid) {
       roomId,
       ownerUid: normalizedOwnerUid,
       kind: isExplorationRescue ? 'exploration-rescue' : 'match',
+      monsterId: isExplorationRescue ? String(explorationContext?.monsterId || '').slice(0, 64) : '',
       monsterName: isExplorationRescue ? String(explorationContext?.monsterName || '').slice(0, 16) : '',
       destinationName: isExplorationRescue ? String(explorationContext?.destinationName || '').slice(0, 24) : '',
       explorationId: isExplorationRescue ? String(explorationContext?.explorationId || '').slice(0, 128) : '',
       ownerPlayFabId: isExplorationRescue ? String(window.myPlayFabId || '').slice(0, 128) : '',
       stageNo: isExplorationRescue ? Math.max(0, Math.floor(Number(explorationContext?.stageNo) || 0)) : 0,
+      stageId: isExplorationRescue ? String(explorationContext?.stageId || '').slice(0, 64) : '',
+      battlefieldId: isExplorationRescue ? String(explorationContext?.battlefieldId || '').slice(0, 64) : '',
+      atmosphereTone: isExplorationRescue ? String(explorationContext?.atmosphereTone || '').slice(0, 32) : '',
       createdAt: now,
       updatedAt: now
     });
@@ -6240,6 +6250,88 @@ async function registerOpenRoomIndex(db, roomId, ownerUid) {
     if (isPermissionDeniedError(error)) netOpenRoomIndexEnabled = false;
     throw error;
   }
+}
+
+async function inspectJoinableRescueRoom(db, roomId, item = null) {
+  const normalizedRoomId = normalizeTarotKingdomRoomId(roomId);
+  if (!db || !normalizedRoomId) return null;
+  const openItem = item && typeof item === 'object'
+    ? item
+    : await get(ref(db, `${TK_MATCH_ROOT}/openRooms/${normalizedRoomId}`))
+      .then((snapshot) => (snapshot.exists() ? snapshot.val() : null));
+  if (!openItem || openItem.kind !== 'exploration-rescue') return null;
+  const now = Date.now();
+  const updatedAt = Number(openItem.updatedAt || openItem.createdAt || 0);
+  if (!updatedAt || (now - updatedAt) > TK_OPEN_ROOM_STALE_MS) return null;
+
+  const roomPath = `tarotKingdomRooms/${normalizedRoomId}`;
+  const [stateSnap, presenceSnap, hostUidSnap] = await Promise.all([
+    get(ref(db, `${roomPath}/state`)),
+    get(ref(db, `${roomPath}/presence`)),
+    get(ref(db, `${roomPath}/meta/hostUid`))
+  ]);
+  const payload = stateSnap.exists() ? stateSnap.val() : null;
+  const presenceMap = presenceSnap.exists() ? (presenceSnap.val() || {}) : {};
+  const livePresence = Object.values(presenceMap).filter((info) => isFreshKingdomPresence(info, now));
+  const hostUid = hostUidSnap.exists()
+    ? String(hostUidSnap.val() || '')
+    : String(openItem.ownerUid || '');
+  const hostPresence = hostUid ? presenceMap?.[hostUid] : null;
+  const hasLiveHost = !!hostPresence && isFreshKingdomPresence(hostPresence, now);
+  if (
+    isRoomInProgressFromStatePayload(payload)
+    || livePresence.length <= 0
+    || livePresence.length >= 4
+    || !hasLiveHost
+  ) {
+    return null;
+  }
+  return {
+    roomId: normalizedRoomId,
+    kind: 'exploration-rescue',
+    monsterId: String(openItem.monsterId || ''),
+    monsterName: String(openItem.monsterName || ''),
+    destinationName: String(openItem.destinationName || ''),
+    explorationId: String(openItem.explorationId || ''),
+    ownerPlayFabId: String(openItem.ownerPlayFabId || ''),
+    ownerUid: String(openItem.ownerUid || hostUid),
+    hostName: String(hostPresence?.displayName || ''),
+    stageNo: Math.max(0, Math.floor(Number(openItem.stageNo) || 0)),
+    stageId: String(openItem.stageId || ''),
+    battlefieldId: String(openItem.battlefieldId || ''),
+    atmosphereTone: String(openItem.atmosphereTone || ''),
+    memberCount: livePresence.length,
+    createdAt: Number(openItem.createdAt || updatedAt),
+    updatedAt
+  };
+}
+
+export async function listTarotKingdomRescueRooms() {
+  const db = window.__tkDb || null;
+  const uid = String(window.__tkUid || '').trim();
+  if (!db || !uid) {
+    throw new Error('オンライン接続を準備中です。少し待ってから再受信してください。');
+  }
+  let openSnap;
+  try {
+    openSnap = await get(ref(db, `${TK_MATCH_ROOT}/openRooms`));
+  } catch (error) {
+    if (isPermissionDeniedError(error)) {
+      throw new Error('救難信号の一覧を取得する権限がありません。');
+    }
+    throw error;
+  }
+  if (!openSnap.exists()) return [];
+  const openMap = openSnap.val() || {};
+  const localPlayFabId = String(window.myPlayFabId || '').trim();
+  const rooms = await Promise.all(Object.entries(openMap).map(async ([roomId, item]) => {
+    if (item?.kind !== 'exploration-rescue') return null;
+    if (localPlayFabId && String(item?.ownerPlayFabId || '') === localPlayFabId) return null;
+    return inspectJoinableRescueRoom(db, roomId, item).catch(() => null);
+  }));
+  return rooms
+    .filter(Boolean)
+    .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
 }
 
 async function pickJoinableOpenRoom(db) {
@@ -7749,6 +7841,8 @@ function teardownTarotKingdomNetwork() {
   netHostHydrationPromise = null;
   netHostAuthorityReady = false;
   netForceCreateRoom = false;
+  netRequestedRoomId = '';
+  netLastConnectError = null;
   renderOpenRoomsList([]);
 }
 
@@ -7762,13 +7856,17 @@ async function ensureTarotKingdomNetwork() {
   netBootPromise = (async () => {
     const forceCreateRoom = netForceCreateRoom;
     netForceCreateRoom = false;
+    const requestedRoomId = normalizeTarotKingdomRoomId(netRequestedRoomId);
+    netRequestedRoomId = '';
+    netLastConnectError = null;
     try {
       if (netManualOfflineMode) {
         teardownTarotKingdomNetwork();
         tkNet.localSeat = 0;
         return;
       }
-      const explicitRoomId = getTarotKingdomRoomId();
+      const urlRoomId = getTarotKingdomRoomId();
+      const explicitRoomId = requestedRoomId || urlRoomId;
       const db = window.__tkDb || null;
       let uid = String(window.__tkUid || '');
       if (db && !uid) uid = await waitForTkUid(4000);
@@ -7777,7 +7875,7 @@ async function ensureTarotKingdomNetwork() {
         tkNet.localSeat = 0;
         return;
       }
-      if (forceCreateRoom || explicitRoomId) netJoinedExplorationMeta = null;
+      if (forceCreateRoom || (urlRoomId && !requestedRoomId)) netJoinedExplorationMeta = null;
       let roomId = forceCreateRoom
         ? generateTarotKingdomRoomId()
         : (explicitRoomId || await findOrCreateAutoRoomId(db));
@@ -7886,7 +7984,9 @@ async function ensureTarotKingdomNetwork() {
       }
     } catch (error) {
       console.warn('[tarotKingdom] ensure network failed:', error);
+      netLastConnectError = error;
       teardownTarotKingdomNetwork();
+      netLastConnectError = error;
       tkNet.localSeat = 0;
     }
   })();
@@ -12492,6 +12592,7 @@ function settleKingdomExplorationSession(status = 'completed') {
   document.body?.removeAttribute('data-tarot-kingdom-battlefield-id');
   document.body?.removeAttribute('data-tarot-kingdom-atmosphere-tone');
   document.body?.removeAttribute('data-tarot-kingdom-entry-mode');
+  document.body?.removeAttribute('data-tarot-kingdom-rescue-role');
   window.dispatchEvent(new CustomEvent('tarot-kingdom:exploration-complete', { detail: result }));
   session.resolve(result);
   return result;
@@ -16203,6 +16304,89 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
   } catch (error) {
     settleKingdomExplorationSession('failed');
     throw error;
+  }
+  return completion;
+}
+
+export async function joinTarotKingdomRescueRoom(room = {}) {
+  bindUi();
+  const db = window.__tkDb || null;
+  const uid = String(window.__tkUid || '').trim();
+  const requestedRoomId = normalizeTarotKingdomRoomId(room?.roomId);
+  if (!db || !uid) {
+    throw new Error('オンライン接続を準備中です。少し待ってから再受信してください。');
+  }
+  if (!requestedRoomId) {
+    throw new Error('参加する救難信号を選び直してください。');
+  }
+  const rescue = await inspectJoinableRescueRoom(db, requestedRoomId, room);
+  if (!rescue) {
+    throw new Error('この救難信号は終了したか、参加人数が上限に達しました。');
+  }
+  const localPlayFabId = String(window.myPlayFabId || '').trim();
+  if (localPlayFabId && rescue.ownerPlayFabId === localPlayFabId) {
+    throw new Error('自分が発信した救難信号には救援参加できません。');
+  }
+
+  if (kingdomExplorationSession) {
+    settleKingdomExplorationSession('replaced');
+  }
+  teardownTarotKingdomNetwork();
+  setKingdomFullscreen(true);
+  const normalizedContext = {
+    explorationId: rescue.explorationId,
+    destinationId: '',
+    destinationName: rescue.destinationName,
+    stageNo: rescue.stageNo,
+    stageId: rescue.stageId,
+    atmosphereTone: rescue.atmosphereTone,
+    battlefieldId: rescue.battlefieldId,
+    monsterId: rescue.monsterId,
+    monsterName: rescue.monsterName,
+    isBoss: false,
+    monsters: [],
+    supplyQueue: [],
+    mode: 'online',
+    currentPet: null,
+    isRescueGuest: true,
+    ownerPlayFabId: rescue.ownerPlayFabId,
+    roomId: rescue.roomId,
+    onRoundFinished: null
+  };
+  kingdomExplorationMonsterId = rescue.monsterId;
+  const completion = new Promise((resolve) => {
+    kingdomExplorationSession = { context: normalizedContext, resolve };
+  });
+  document.body?.classList.add('tarot-kingdom-exploration-session');
+  document.body?.setAttribute('data-tarot-kingdom-entry-mode', 'online');
+  document.body?.setAttribute('data-tarot-kingdom-rescue-role', 'guest');
+  if (normalizedContext.explorationId) {
+    document.body?.setAttribute('data-tarot-kingdom-exploration-id', normalizedContext.explorationId);
+  }
+  if (normalizedContext.battlefieldId) {
+    document.body?.setAttribute('data-tarot-kingdom-battlefield-id', normalizedContext.battlefieldId);
+  }
+  if (normalizedContext.atmosphereTone) {
+    document.body?.setAttribute('data-tarot-kingdom-atmosphere-tone', normalizedContext.atmosphereTone);
+  }
+
+  resetMatch();
+  netForceCreateRoom = false;
+  netRequestedRoomId = rescue.roomId;
+  netJoinedExplorationMeta = { ...rescue };
+  if (s) {
+    s.message = `${rescue.destinationName || '探索先'}・${rescue.monsterName || 'モンスター'}への救援に向かっています...`;
+    render();
+  }
+  await activateKingdomOnlineMode();
+  if (!isNetModeActive() || tkNet.roomId !== rescue.roomId) {
+    const error = netLastConnectError;
+    settleKingdomExplorationSession('failed');
+    throw new Error(error?.message || '救難信号へ接続できませんでした。');
+  }
+  if (s && !s.roundActive && Number(s.handNo || 0) <= 0) {
+    s.message = `${rescue.hostName || '発信者'}の戦闘開始を待っています。`;
+    render();
   }
   return completion;
 }

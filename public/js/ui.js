@@ -32,7 +32,7 @@ const ensureTarotModule = async () => {
 };
 
 let tarotKingdomModule = null;
-const TAROT_KINGDOM_MODULE_VERSION = '20260728-hand-drag1';
+const TAROT_KINGDOM_MODULE_VERSION = '20260728-rescue-entry1';
 const ensureTarotKingdomModule = async () => {
     if (tarotKingdomModule) return tarotKingdomModule;
     tarotKingdomModule = await import(`./tarotKingdom.js?v=${TAROT_KINGDOM_MODULE_VERSION}`);
@@ -1223,6 +1223,9 @@ export async function showTab(tabId, playerInfo, options = {}) {
     const currentTabId = document.body?.dataset.currentTab || null;
     const mapLoadLabel = null;
     const homeExplorationPanel = document.getElementById('shipExplorationPanel');
+    if (tabId !== 'home' && typeof window.closeHomeRescuePopup === 'function') {
+        window.closeHomeRescuePopup();
+    }
     if (tabId !== 'home'
         && homeExplorationPanel
         && !homeExplorationPanel.hidden
@@ -1647,9 +1650,41 @@ export async function launchTarotKingdomExplorationBattle(context = {}, playerIn
     }
 }
 
+export async function launchTarotKingdomRescueBattle(room = {}, playerInfo = null) {
+    const resolvedPlayerInfo = playerInfo || {
+        playFabId: String(window.myPlayFabId || ''),
+        race: String(window.myAvatarBaseInfo?.Race || 'human'),
+        nation: String(window.myAvatarBaseInfo?.Nation || '')
+    };
+    await showTab('tarot', resolvedPlayerInfo, { explorationEntry: true });
+    bindTarotModeSwitch();
+    currentTarotMode = 'kingdom';
+    applyTarotModeUi('kingdom');
+    const Kingdom = await ensureTarotKingdomModule();
+    tarotKingdomLoaded = true;
+    if (typeof Kingdom.joinTarotKingdomRescueRoom !== 'function') {
+        throw new Error('救難信号へ参加する準備ができていません。');
+    }
+    try {
+        const result = await Kingdom.joinTarotKingdomRescueRoom(room);
+        if (document.body?.dataset.currentTab === 'tarot') {
+            await showTab('home', resolvedPlayerInfo);
+        }
+        return result;
+    } catch (error) {
+        if (document.body?.dataset.currentTab === 'tarot') {
+            await showTab('home', resolvedPlayerInfo);
+        }
+        throw error;
+    }
+}
+
 if (typeof window !== 'undefined') {
     window.launchTarotKingdomExplorationBattle = (context = {}) => (
         launchTarotKingdomExplorationBattle(context)
+    );
+    window.launchTarotKingdomRescueBattle = (room = {}) => (
+        launchTarotKingdomRescueBattle(room)
     );
 }
 

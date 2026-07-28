@@ -26259,7 +26259,7 @@ body.is-new-order-flash::before {
 .home-exp-actions {
     grid-area: button;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     width: 100%;
     margin-top: 14px;
@@ -26285,6 +26285,227 @@ body.is-new-order-flash::before {
 
 .home-exp-actions .home-plunder-btn[hidden] {
     display: none;
+}
+
+.home-exp-actions .home-rescue-btn {
+    --button-icon: var(--icon-action-crew);
+    border-image-source: url("./assets/ui/buttons/button-dark-large.png");
+    background:
+        radial-gradient(circle at 50% 0%, rgba(80, 220, 190, 0.24), transparent 58%),
+        linear-gradient(180deg, #196c68, #0c343d);
+    color: #effff8;
+    text-shadow: 0 2px 0 rgba(0, 25, 28, 0.88);
+}
+
+.home-rescue-overlay[hidden] {
+    display: none;
+}
+
+.home-rescue-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10120;
+    display: grid;
+    place-items: center;
+    padding:
+        max(18px, env(safe-area-inset-top, 0px))
+        14px
+        max(18px, env(safe-area-inset-bottom, 0px));
+    background:
+        radial-gradient(circle at 50% 28%, rgba(26, 116, 113, 0.22), transparent 36%),
+        rgba(2, 5, 8, 0.82);
+    backdrop-filter: blur(4px);
+}
+
+.home-rescue-dialog {
+    width: min(440px, 100%);
+    max-height: min(680px, calc(100dvh - 36px));
+    overflow: hidden;
+    padding: 16px;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 12px / 0 stretch;
+    background:
+        radial-gradient(ellipse at 50% 0%, rgba(49, 184, 170, 0.14), transparent 45%),
+        linear-gradient(180deg, rgba(15, 18, 20, 0.98), rgba(5, 7, 9, 0.99));
+    box-shadow:
+        0 0 0 1px rgba(234, 199, 112, 0.24),
+        0 18px 50px rgba(0, 0, 0, 0.72);
+}
+
+.home-rescue-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 2px 2px 10px;
+    border-bottom: 1px solid rgba(221, 183, 94, 0.32);
+}
+
+.home-rescue-head small {
+    display: block;
+    margin-bottom: 2px;
+    color: #64d8ca;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+}
+
+.home-rescue-head h2 {
+    margin: 0;
+    color: #fff0bd;
+    font-size: 22px;
+    line-height: 1.1;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.home-rescue-close {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    border: 0;
+    background: var(--icon-action-close) center / contain no-repeat;
+    filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.72));
+    cursor: pointer;
+}
+
+.home-rescue-lead {
+    margin: 12px 2px 9px;
+    color: #d9cba8;
+    font-size: 12px;
+}
+
+.home-rescue-list {
+    display: grid;
+    gap: 8px;
+    max-height: min(470px, calc(100dvh - 230px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 2px;
+}
+
+.home-rescue-status {
+    min-height: 110px;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    border: 1px dashed rgba(121, 204, 192, 0.32);
+    color: #c7d7d1;
+    font-size: 13px;
+    text-align: center;
+}
+
+.home-rescue-status.is-loading::before {
+    content: "";
+    width: 22px;
+    height: 22px;
+    margin-right: 8px;
+    border: 2px solid rgba(100, 216, 202, 0.22);
+    border-top-color: #64d8ca;
+    border-radius: 50%;
+    animation: home-rescue-spin 0.8s linear infinite;
+}
+
+.home-rescue-status.is-empty {
+    color: #a9a18e;
+}
+
+.home-rescue-status.is-error {
+    color: #ffc7b7;
+    border-color: rgba(239, 111, 82, 0.34);
+}
+
+.home-rescue-room {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 74px;
+    align-items: center;
+    gap: 10px;
+    min-height: 104px;
+    padding: 11px 10px 11px 13px;
+    border: 1px solid rgba(85, 197, 183, 0.42);
+    background:
+        linear-gradient(90deg, rgba(18, 76, 77, 0.54), rgba(10, 13, 17, 0.92) 62%),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 9px);
+    box-shadow: inset 3px 0 0 rgba(92, 220, 201, 0.72);
+}
+
+.home-rescue-room-copy {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.home-rescue-room-stage {
+    color: #6bddd0;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+}
+
+.home-rescue-room-copy strong {
+    overflow: hidden;
+    color: #fff0c6;
+    font-size: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.home-rescue-room-monster {
+    overflow: hidden;
+    color: #f2e5c4;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.home-rescue-room-copy small {
+    overflow: hidden;
+    margin-top: 3px;
+    color: #9eb2ad;
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.home-rescue-join,
+.home-rescue-footer button {
+    min-height: 38px;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/buttons/button-gold-large.png") 24 fill / 10px / 0 stretch;
+    background: linear-gradient(180deg, rgba(255, 235, 173, 0.34), rgba(104, 58, 14, 0.2));
+    color: #2a1708;
+    font-weight: 900;
+    text-shadow: 0 1px 0 rgba(255, 239, 183, 0.62);
+    cursor: pointer;
+}
+
+.home-rescue-join:disabled,
+.home-rescue-footer button:disabled {
+    filter: grayscale(0.7);
+    opacity: 0.66;
+    cursor: wait;
+}
+
+.home-rescue-footer {
+    display: flex;
+    justify-content: center;
+    padding-top: 12px;
+}
+
+.home-rescue-footer button {
+    min-width: 136px;
+    color: #f8efd9;
+    border-image-source: url("./assets/ui/buttons/button-dark-large.png");
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.8);
+}
+
+@keyframes home-rescue-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .home-rescue-status.is-loading::before {
+        animation: none;
+    }
 }
 
 @media (max-width: 640px) {
@@ -26646,7 +26867,7 @@ body[data-sea-tone] .home-hero-card {
 
     .home-hero-card .home-ship-avatar {
         left: 60%;
-        top: 42%;
+        top: calc(42% + 44px);
         transform: translate(-50%, -50%) translateY(0) scale(1.36);
     }
 
@@ -26656,7 +26877,7 @@ body[data-sea-tone] .home-hero-card {
 
     .home-hero-card .home-pet-companion {
         --pixel-monster-context-scale: 1.36;
-        top: 42%;
+        top: calc(42% + 62px);
         left: 66%;
     }
 

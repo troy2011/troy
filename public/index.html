@@ -23,7 +23,7 @@
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
     <title>TROYゴールドアプリ</title>
-<link rel="stylesheet" href="style.css?v=20260728-hand-drag1">
+<link rel="stylesheet" href="style.css?v=20260728-rescue-entry1">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
 </head>
@@ -133,12 +133,31 @@
                             </div>
                             <div class="home-exp-actions" aria-label="出航メニュー">
                                 <button id="btnHomeExploration" class="home-exploration-btn" type="button" aria-label="探索に出る">探索</button>
+                                <button id="btnHomeRescue" class="home-exploration-btn home-rescue-btn" type="button" aria-label="救難信号を探す">救難</button>
                                 <button id="btnDailyFortune" class="home-exploration-btn home-fortune-btn" type="button" aria-label="本日の占い" aria-haspopup="dialog">占い</button>
                             </div>
                         </div>
                     </div>
                     <div id="shipExplorationPanel" class="ship-exploration-panel" hidden>
                         <div class="ship-exploration-empty">探索情報を読み込み中です。</div>
+                    </div>
+                    <div id="homeRescueOverlay" class="home-rescue-overlay" hidden>
+                        <section class="home-rescue-dialog" role="dialog" aria-modal="true" aria-labelledby="homeRescueTitle">
+                            <header class="home-rescue-head">
+                                <div>
+                                    <small>ONLINE SUPPORT</small>
+                                    <h2 id="homeRescueTitle">救難信号</h2>
+                                </div>
+                                <button id="homeRescueClose" class="home-rescue-close" type="button" aria-label="閉じる"></button>
+                            </header>
+                            <p class="home-rescue-lead">救援する探索先を選んでください。</p>
+                            <div id="homeRescueList" class="home-rescue-list" aria-live="polite">
+                                <div class="home-rescue-status">救難信号を受信中です。</div>
+                            </div>
+                            <footer class="home-rescue-footer">
+                                <button id="homeRescueRefresh" type="button">再受信</button>
+                            </footer>
+                        </section>
                     </div>
                 </div>
                 <section id="homeCoinConvertPanel" class="content-area home-chip-card home-card" hidden>
@@ -1753,7 +1772,7 @@
         "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
         "config": "./js/config.js",
         "api": "./js/api.js",
-"ui": "./js/ui.js?v=20260728-hand-drag1",
+"ui": "./js/ui.js?v=20260728-rescue-entry1",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js",
         "inventory": "./js/inventory.js?v=20260604g",
@@ -1800,6 +1819,6 @@
     <!-- Scripts -->
     <script src="battle-client.js?v=20260726-legacy-battle-off-1"></script>
     <script src="naval-battle.js"></script>
-<script type="module" src="main.js?v=20260728-pet-rename1"></script>
+<script type="module" src="main.js?v=20260728-rescue-entry1"></script>
 </body>
 </html>
