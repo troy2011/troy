@@ -602,6 +602,218 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.legacy.rules.enemyDefeatMode).toBe('hand-empty');
   });
 
+  test('HP-zero victory ranks remaining hands and carries one last-hit star into the next hand', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const card = (id, number) => ({ id, kind: 'minor', suit: 'Cup', number });
+      const resolveWinner = (handsBySeat, lastHitIndex) => {
+        debug.battleScenario({
+          withTrick: false,
+          handsBySeat,
+          rules: { enemyDefeatMode: 'hp-zero' }
+        });
+        return debug.battleHpZeroWinner(lastHitIndex);
+      };
+      const comparisons = {
+        handCount: resolveWinner([
+          [card('count-0a', 14), card('count-0b', 13), card('count-0c', 12)],
+          [card('count-1', 2)],
+          [card('count-2a', 10), card('count-2b', 9)],
+          [card('count-3a', 8), card('count-3b', 7)]
+        ], 0),
+        highCard: resolveWinner([
+          [card('high-0a', 10), card('high-0b', 4)],
+          [card('high-1a', 11), card('high-1b', 1)],
+          [card('high-2a', 9), card('high-2b', 8)],
+          [card('high-3a', 7), card('high-3b', 6)]
+        ], 0),
+        total: resolveWinner([
+          [card('total-0a', 10), card('total-0b', 4)],
+          [card('total-1a', 10), card('total-1b', 7)],
+          [card('total-2a', 9), card('total-2b', 8)],
+          [card('total-3a', 7), card('total-3b', 6)]
+        ], 0),
+        exactTie: resolveWinner([
+          [card('tie-0a', 10), card('tie-0b', 7)],
+          [card('tie-1a', 10), card('tie-1b', 7)],
+          [card('tie-2a', 9), card('tie-2b', 8)],
+          [card('tie-3a', 7), card('tie-3b', 6)]
+        ], 1)
+      };
+
+      window.myPlayFabId = 'PF_HAND_RANK_OWNER';
+      const stage = {
+        stageNo: 1,
+        stageId: 'tarot_stage_1',
+        stageName: '珊瑚の浅瀬',
+        monsters: [
+          { monsterId: 'ismartal-vol1-monster-07', monsterName: 'マシュロン' },
+          { monsterId: 'ismartal-vol3-monster-04', monsterName: 'プルン' },
+          { monsterId: 'ismartal-vol1-monster-01', monsterName: 'トゲマル' },
+          { monsterId: 'ismartal-vol2-monster-02', monsterName: 'パピル' }
+        ]
+      };
+      debug.battleScenario({
+        stage,
+        withTrick: false,
+        enemyHp: 1,
+        enemyDefense: 0,
+        handsBySeat: [
+          [card('last-hit-attack', 14), card('last-hit-low-a', 2), card('last-hit-low-b', 3)],
+          [card('hand-winner', 10)],
+          [card('other-2a', 5), card('other-2b', 4)],
+          [card('other-3a', 7), card('other-3b', 6)]
+        ],
+        rules: { enemyDefeatMode: 'hp-zero' }
+      });
+      const roundOut = debug.battlePlayOne(0);
+      const victoryEvent = roundOut.battle.events.at(-1);
+      const stageFinisher = roundOut.stage.finishers[0];
+      const settled = debug.battleResolveTransition();
+      const nextHand = debug.battleNextRound();
+      return { comparisons, roundOut, victoryEvent, stageFinisher, settled, nextHand };
+    });
+
+    expect(audit.comparisons.handCount.winnerIndex).toBe(1);
+    expect(audit.comparisons.highCard.winnerIndex).toBe(1);
+    expect(audit.comparisons.total.winnerIndex).toBe(1);
+    expect(audit.comparisons.exactTie.winnerIndex).toBe(1);
+    expect(audit.victoryEvent).toMatchObject({
+      type: 'victory',
+      actorIndex: 1,
+      lastHitIndex: 0,
+      lastHitStarBonus: 1
+    });
+    expect(audit.stageFinisher).toMatchObject({
+      playerIndex: 0,
+      defeatMode: 'hp-zero'
+    });
+    expect(audit.stageFinisher.playFabId).not.toBe('');
+    expect(audit.settled.roundSettlement).toMatchObject({
+      winnerIndex: 1,
+      victoryMethod: 'hp-zero-hand-rank',
+      winnerHandCount: 1,
+      winnerHighCard: 10,
+      winnerNumberTotal: 10,
+      lastHitIndex: 0,
+      lastHitStarBonus: 1
+    });
+    expect(audit.settled.players.map((player) => player.stars)).toEqual([1, 0, 0, 0]);
+    expect(audit.nextHand.players.map((player) => player.stars)).toEqual([2, 1, 1, 1]);
+  });
+
+  test('an opening 8 replaces the previous death sprite before petrification freezes the new monster', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const stage = {
+        stageNo: 1,
+        stageId: 'tarot_stage_1',
+        stageName: '珊瑚の浅瀬',
+        monsters: [
+          { monsterId: 'ismartal-vol1-monster-07', monsterName: 'マシュロン' },
+          { monsterId: 'ismartal-vol3-monster-04', monsterName: 'プルン' },
+          { monsterId: 'ismartal-vol1-monster-01', monsterName: 'トゲマル' },
+          { monsterId: 'ismartal-vol2-monster-02', monsterName: 'パピル' }
+        ]
+      };
+      const sprite = document.getElementById('tarotKingdomEnemySprite');
+      debug.battleScenario({
+        stage,
+        handNo: 0,
+        enemyHp: 0,
+        withTrick: false
+      });
+      debug.battleFinishRound(0);
+      const deathImage = sprite.style.backgroundImage;
+
+      const opening = debug.battleSetupHandWithOpening(8);
+      const enterVisual = {
+        image: sprite.style.backgroundImage,
+        petrifiedClass: sprite.classList.contains('is-petrified')
+      };
+      debug.battleCardFlipPreview(0);
+      const dealtVisual = {
+        image: sprite.style.backgroundImage,
+        petrifiedClass: sprite.classList.contains('is-petrified')
+      };
+      return { deathImage, opening, enterVisual, dealtVisual };
+    });
+
+    expect(audit.deathImage).toContain('/vol1/monster-07/death.png');
+    expect(audit.opening.battle.enemy).toMatchObject({
+      id: 'ismartal-vol3-monster-04',
+      petrifiedUntilClear: true
+    });
+    expect(audit.enterVisual.image).toContain('/vol3/monster-04/idle.png');
+    expect(audit.enterVisual.image).not.toBe(audit.deathImage);
+    expect(audit.enterVisual.petrifiedClass).toBe(false);
+    expect(audit.dealtVisual.image).toContain('/vol3/monster-04/idle.png');
+    expect(audit.dealtVisual.petrifiedClass).toBe(true);
+  });
+
+  test('pet finishers retain the owner identity and the active defeat mode for recruitment', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const previousPlayFabId = window.myPlayFabId;
+      window.myPlayFabId = 'PF_PET_OWNER';
+      const stage = {
+        stageNo: 1,
+        stageId: 'tarot_stage_1',
+        stageName: '珊瑚の浅瀬',
+        monsters: [
+          { monsterId: 'ismartal-vol1-monster-07', monsterName: 'マシュロン' },
+          { monsterId: 'ismartal-vol3-monster-04', monsterName: 'プルン' },
+          { monsterId: 'ismartal-vol1-monster-01', monsterName: 'トゲマル' },
+          { monsterId: 'ismartal-vol2-monster-02', monsterName: 'パピル' }
+        ]
+      };
+      const pet = { monsterId: 'ismartal-vol3-monster-04', monsterName: 'プルン' };
+      const card = (id, number) => ({ id, kind: 'minor', suit: 'Cup', number });
+      const run = (enemyDefeatMode, enemyHp, cards) => {
+        debug.battleScenario({
+          stage,
+          pet,
+          withTrick: false,
+          turnIndex: 1,
+          enemyHp,
+          enemyDefense: 0,
+          handsBySeat: [
+            [card(`owner-${enemyDefeatMode}`, 2)],
+            cards,
+            [card(`mercenary-1-${enemyDefeatMode}`, 3)],
+            [card(`mercenary-2-${enemyDefeatMode}`, 5)]
+          ],
+          rules: { enemyDefeatMode }
+        });
+        return debug.battlePlayOne(1).stage.finishers[0];
+      };
+      const hpZero = run('hp-zero', 1, [
+        card('pet-hp-zero-attack', 14),
+        card('pet-hp-zero-reserve', 4)
+      ]);
+      const handEmpty = run('hand-empty', 0, [
+        card('pet-hand-empty-final', 4)
+      ]);
+      window.myPlayFabId = previousPlayFabId;
+      return { hpZero, handEmpty };
+    });
+
+    expect(audit.hpZero).toMatchObject({
+      playerIndex: 1,
+      playFabId: 'PF_PET_OWNER',
+      isNpc: true,
+      isPet: true,
+      defeatMode: 'hp-zero'
+    });
+    expect(audit.handEmpty).toMatchObject({
+      playerIndex: 1,
+      playFabId: 'PF_PET_OWNER',
+      isNpc: true,
+      isPet: true,
+      defeatMode: 'hand-empty'
+    });
+  });
+
   test('raid transforms after the disguise reaches zero and ends after one hand', async ({ page }) => {
     const raid = {
       attemptId: 'raid-attempt-debug',
@@ -1446,6 +1658,26 @@ test.describe('Tarot Kingdom character battle flow', () => {
         role: { key: 'FullHouse', effectiveRate: 0 }
       });
 
+      const callHand = [
+        ...flushCards.slice(1),
+        { id: 'call-remainder', kind: 'minor', suit: 'Pentacle', number: 9 }
+      ];
+      debug.battleScenario({
+        handsBySeat: [callHand],
+        tableCard: flushCards[0],
+        starsBySeat: [0],
+        turnIndex: 0
+      });
+      const freeCallBuilt = debug.battleRebuildAction(0, {
+        selectedCardIds: flushCards.slice(1).map((card) => card.id),
+        actionId: 'free-call'
+      });
+      const freeCallPlayed = debug.battlePlayCards(
+        0,
+        flushCards.slice(1).map((card) => card.id),
+        { resolve: false }
+      );
+
       debug.battleScenario({ revision: 4, handCounts: [2, 2, 2, 2] });
       const duringPlay = debug.battlePlayOne(0, { resolve: false });
       const transitionLocked = debug.battleValidateEnvelope({
@@ -1475,6 +1707,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
         stringSeat,
         callDamage,
         zeroRateCallDamage,
+        freeCallBuilt,
+        freeCallPlayed,
         duringPlay,
         transitionLocked,
         recovered,
@@ -1492,6 +1726,10 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.stringSeat.reason).toBe('seat-owner-mismatch');
     expect(audit.callDamage).toMatchObject({ kind: 'skill', baseDamage: 108, damage: 108 });
     expect(audit.zeroRateCallDamage).toMatchObject({ kind: 'skill', baseDamage: 90, damage: 90 });
+    expect(audit.freeCallBuilt).toMatchObject({ ok: true, play: { call: true } });
+    expect(audit.freeCallPlayed.ok).toBe(true);
+    expect(audit.freeCallPlayed.state.players[0].stars).toBe(0);
+    expect(audit.freeCallPlayed.state.players[0].hand).toHaveLength(1);
     expect(audit.duringPlay.transition.kind).toBe('play');
     expect(audit.transitionLocked.reason).toBe('transition-locked');
     expect(audit.recovered.transition).toBeNull();

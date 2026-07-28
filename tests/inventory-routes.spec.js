@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { initializeInventoryRoutes } = require('../server/inventory');
+const { buildPublicProfileShip, initializeInventoryRoutes } = require('../server/inventory');
 
 const getUserReadOnlyDataApi = function getUserReadOnlyDataApi() {};
 const updateUserReadOnlyDataApi = function updateUserReadOnlyDataApi() {};
@@ -57,6 +57,40 @@ function makeEquipHarness({ readOnlyData = {}, inventoryItems = [] } = {}) {
     updates
   };
 }
+
+test('public profile ship resolves the king nation guild ship instead of the personal boat', () => {
+  const ship = buildPublicProfileShip(
+    { shipId: 'KING1', name: 'ボート', form: 'boat', stage: 1 },
+    {
+      shipOwnerPlayFabId: 'KING1',
+      isSharedShip: false,
+      isGuildShip: true,
+      isNationGuild: true,
+      guildType: 'nation',
+      guildId: 'nation-fire-group',
+      guildName: '火の王直属ギルド',
+      guildShipId: 'guild_ship_nation-fire-group',
+      kingShipName: '火の王の船',
+      nationKey: 'fire',
+      sailColor: 'red',
+      appearance: { color: 'red' }
+    },
+    { stage: 3, level: 8, displayName: '火の王直属ギルド号' }
+  );
+
+  expect(ship).toMatchObject({
+    shipId: 'guild_ship_nation-fire-group',
+    name: '火の王の船',
+    form: 'guild',
+    itemId: 'guild_ship',
+    stage: 3,
+    level: 8,
+    isGuildShip: true,
+    isNationGuild: true,
+    kingShipName: '火の王の船',
+    sailColor: 'red'
+  });
+});
 
 test('equip-item rejects using one owned one-handed weapon in both hands', async () => {
   const { handler, updates } = makeEquipHarness({

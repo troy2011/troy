@@ -132,6 +132,8 @@ export function rollTarotKingdomPetRound(playFabId, explorationId, finisher, opt
             playerIndex: Math.max(0, Math.floor(Number(source.playerIndex) || 0)),
             playFabId: String(source.playFabId || '').trim(),
             isNpc: source.isNpc === true,
+            isPet: source.isPet === true,
+            defeatMode: String(source.defeatMode || '').trim().toLowerCase(),
             monsterId: String(source.monsterId || '').trim(),
             mode: String(source.mode || '').trim().toLowerCase()
         }
@@ -755,6 +757,8 @@ export function claimExploration(playFabId, options) {
             playerIndex: Math.floor(Number(options.tarotFinisher.playerIndex) || 0),
             playFabId: String(options.tarotFinisher.playFabId || '').trim(),
             isNpc: options.tarotFinisher.isNpc === true,
+            isPet: options.tarotFinisher.isPet === true,
+            defeatMode: String(options.tarotFinisher.defeatMode || '').trim().toLowerCase(),
             monsterId: String(options.tarotFinisher.monsterId || '').trim(),
             mode: String(options.tarotFinisher.mode || '').trim().toLowerCase()
         };

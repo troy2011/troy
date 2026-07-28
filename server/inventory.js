@@ -48,6 +48,7 @@ const {
     buildTarotKingdomPetPublicRecord,
     normalizeTarotKingdomPetState
 } = require('./tarotKingdomPets');
+const { resolveGuildShipContext } = require('./guildShipSharing');
 const GACHA_CATALOG_VERSION = process.env.GACHA_CATALOG_VERSION || 'main_catalog';
 const GACHA_COST = Number(process.env.GACHA_COST || 10);
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
@@ -101,6 +102,64 @@ const AVATAR_CUSTOMIZE_ACTION_OVERRIDES = {
         defaultValue: FACIAL_HAIR_STYLE_INDEX_DEFAULT
     }
 };
+
+function buildPublicProfileShip(baseShip = null, shipContext = null, guildShipData = null) {
+    const context = shipContext && typeof shipContext === 'object' ? shipContext : {};
+    const base = baseShip && typeof baseShip === 'object' ? baseShip : null;
+    if (!context.isGuildShip) {
+        if (!base) return null;
+        return {
+            ...base,
+            shipOwnerPlayFabId: context.shipOwnerPlayFabId || base.shipOwnerPlayFabId || null,
+            isSharedShip: Boolean(context.isSharedShip || base.isSharedShip),
+            guildId: context.guildId || base.guildId || null,
+            guildName: context.guildName || base.guildName || null,
+            captainName: context.captainName || base.captainName || null
+        };
+    }
+
+    const stored = guildShipData && typeof guildShipData === 'object' ? guildShipData : {};
+    const appearance = {
+        ...(base?.appearance && typeof base.appearance === 'object' ? base.appearance : {}),
+        ...(context.appearance && typeof context.appearance === 'object' ? context.appearance : {}),
+        ...(stored.appearance && typeof stored.appearance === 'object' ? stored.appearance : {})
+    };
+    const sailColor = String(stored.sailColor || appearance.color || context.sailColor || '').trim().toLowerCase();
+    if (sailColor) appearance.color = sailColor;
+    const guildName = String(context.guildName || '').trim();
+    const automaticGuildName = guildName ? `${guildName}号` : '';
+    const storedDisplayName = String(stored.displayName || '').trim();
+    const customDisplayName = storedDisplayName && storedDisplayName !== automaticGuildName
+        ? storedDisplayName
+        : '';
+    const name = customDisplayName
+        || String(context.kingShipName || '').trim()
+        || automaticGuildName
+        || String(base?.name || '').trim()
+        || 'ギルドシップ';
+
+    return {
+        ...(base || {}),
+        shipId: context.guildShipId || base?.shipId || null,
+        name,
+        form: 'guild',
+        itemId: 'guild_ship',
+        stage: Math.max(1, Math.floor(Number(stored.stage || stored.shipStage || base?.stage || 3) || 3)),
+        level: Math.max(1, Math.floor(Number(stored.level || stored.shipLevel || base?.level || 1) || 1)),
+        isSharedShip: Boolean(context.isSharedShip),
+        isGuildShip: true,
+        isNationGuild: Boolean(context.isNationGuild),
+        guildType: context.guildType || 'nation',
+        guildId: context.guildId || null,
+        guildName: guildName || null,
+        guildShipId: context.guildShipId || null,
+        kingShipName: context.kingShipName || null,
+        captainName: context.captainName || null,
+        nationKey: context.nationKey || null,
+        sailColor: sailColor || null,
+        appearance
+    };
+}
 const RESOURCE_RECOVERY_SETTINGS = {
     hp: {
         itemId: 'RY',
@@ -1072,7 +1131,27 @@ function initializeInventoryRoutes(app, deps) {
             const currentPet = buildTarotKingdomPetPublicRecord(
                 normalizeTarotKingdomPetState(readOnlyData?.[TAROT_KINGDOM_PET_DATA_KEY]?.Value).currentPet
             );
-            const playerShip = await resourceStorage.getPlayerShipProfile(targetId, { promisifyPlayFab, PlayFabServer }, { persist: false }).catch(() => null);
+            const shipDeps = {
+                promisifyPlayFab,
+                PlayFabServer,
+                PlayFabGroups,
+                PlayFabData,
+                firestore,
+                getEntityKeyFromPlayFabId: getEntityKeyForPlayFabId
+            };
+            const shipContext = await resolveGuildShipContext(targetId, shipDeps).catch(() => null);
+            const shipOwnerPlayFabId = String(shipContext?.shipOwnerPlayFabId || targetId).trim() || targetId;
+            const basePlayerShip = await resourceStorage.getPlayerShipProfile(
+                shipOwnerPlayFabId,
+                { promisifyPlayFab, PlayFabServer },
+                { persist: false }
+            ).catch(() => null);
+            let guildShipData = null;
+            if (shipContext?.isGuildShip && shipContext.guildShipId && firestore?.collection) {
+                const guildShipSnap = await firestore.collection('ships').doc(String(shipContext.guildShipId)).get().catch(() => null);
+                guildShipData = guildShipSnap?.exists ? (guildShipSnap.data() || null) : null;
+            }
+            const playerShip = buildPublicProfileShip(basePlayerShip, shipContext, guildShipData);
             if (playerShip) {
                 const majorArcanaItemIds = resourceStorage.normalizeMajorArcanaItemIds(
                     playerShip.majorArcanaItemIds || [],
@@ -1758,5 +1837,6 @@ function initializeInventoryRoutes(app, deps) {
 module.exports = {
     GACHA_CATALOG_VERSION,
     GACHA_COST,
+    buildPublicProfileShip,
     initializeInventoryRoutes
 };

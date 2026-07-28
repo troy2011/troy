@@ -2829,6 +2829,8 @@ function initializeExplorationRoutes(app, deps) {
                 playerIndex: Math.max(0, Math.floor(Number(finisher.playerIndex) || 0)),
                 playFabId: String(finisher.playFabId || '').trim(),
                 isNpc: finisher.isNpc === true,
+                isPet: finisher.isPet === true,
+                defeatMode: String(finisher.defeatMode || '').trim().toLowerCase(),
                 monsterId: String(finisher.monsterId || '').trim(),
                 mode: String(finisher.mode || '').trim().toLowerCase()
             }
@@ -3879,6 +3881,8 @@ function initializeExplorationRoutes(app, deps) {
                 playerIndex: Math.floor(Number(tarotFinisher.playerIndex) || 0),
                 playFabId: String(tarotFinisher.playFabId || '').trim(),
                 isNpc: tarotFinisher.isNpc === true,
+                isPet: tarotFinisher.isPet === true,
+                defeatMode: String(tarotFinisher.defeatMode || '').trim().toLowerCase(),
                 monsterId: String(tarotFinisher.monsterId || '').trim(),
                 mode: String(tarotFinisher.mode || '').trim().toLowerCase()
             }
@@ -3890,6 +3894,8 @@ function initializeExplorationRoutes(app, deps) {
                 playerIndex: Math.max(0, Math.floor(Number(entry?.playerIndex) || 0)),
                 playFabId: String(entry?.playFabId || '').trim(),
                 isNpc: entry?.isNpc === true,
+                isPet: entry?.isPet === true,
+                defeatMode: String(entry?.defeatMode || '').trim().toLowerCase(),
                 monsterId: String(entry?.monsterId || '').trim(),
                 mode: String(entry?.mode || '').trim().toLowerCase()
             }));

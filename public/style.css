@@ -18543,6 +18543,14 @@ body[data-tarot-kingdom-atmosphere-tone="final-eclipse"] #tarotKingdomRoot .taro
 .player-profile-ship-icon.is-defender { --player-ship-sprite-x: -832px; }
 .player-profile-ship-icon.is-fighter { --player-ship-sprite-x: -1216px; }
 .player-profile-ship-icon.is-merchant { --player-ship-sprite-x: -1600px; }
+.player-profile-ship-icon.is-guild {
+    --guild-hull-frame-x: -64px;
+    --guild-sail-frame-x: -64px;
+    --guild-top-y: -64px;
+    position: relative;
+    overflow: hidden;
+    background: none;
+}
 
 .player-profile-ship-name {
     color: #fde68a;
@@ -27046,7 +27054,7 @@ body[data-sea-tone] .home-hero-card {
 .home-hero-card .home-pet-companion {
     --pixel-monster-context-scale: 1.62;
     z-index: 3;
-    top: calc(49% + 75px);
+    top: 49%;
     left: 68%;
     transform: translate(-50%, -50%);
 }
@@ -27184,7 +27192,7 @@ body[data-sea-tone] .home-hero-card {
 
     .home-hero-card .home-pet-companion {
         --pixel-monster-context-scale: 1.36;
-        top: calc(42% + 125px);
+        top: calc(42% + 62px);
         left: 66%;
     }
 
@@ -30809,6 +30817,23 @@ body[data-sea-tone] .home-hero-card {
     #playerProfileModal .player-profile-ship-icon.is-defender { --player-ship-sprite-x: -728px; }
     #playerProfileModal .player-profile-ship-icon.is-fighter { --player-ship-sprite-x: -1064px; }
     #playerProfileModal .player-profile-ship-icon.is-merchant { --player-ship-sprite-x: -1400px; }
+    #playerProfileModal .player-profile-ship-icon.is-guild {
+        --guild-hull-frame-x: -56px;
+        --guild-sail-frame-x: -56px;
+        --guild-top-y: -56px;
+    }
+
+    #playerProfileModal .player-profile-ship-icon.is-guild .home-guild-ship-layer {
+        background-size: 1176px 672px;
+    }
+
+    #playerProfileModal .player-profile-ship-icon.is-guild .home-guild-ship-layer.is-sail-middle {
+        background-position: var(--guild-sail-frame-x, -56px) calc(var(--guild-top-y, -56px) - 224px);
+    }
+
+    #playerProfileModal .player-profile-ship-icon.is-guild .home-guild-ship-layer.is-sail-bottom {
+        background-position: var(--guild-sail-frame-x, -56px) calc(var(--guild-top-y, -56px) - 448px);
+    }
 
     #playerProfileModal .item-detail-copy {
         width: 100%;

@@ -647,7 +647,7 @@ test('home avatar applies equipped gear during app startup', async ({ page }) =>
   expect(homeCompanionLayout.avatarVerticalCenter - homeCompanionLayout.mobileAnchorY)
     .toBeCloseTo(homeCompanionLayout.expectedHalfAvatarHeight, 0);
   expect(homeCompanionLayout.petVerticalCenter - homeCompanionLayout.avatarVerticalCenter)
-    .toBeCloseTo(81, 0);
+    .toBeCloseTo(18, 0);
   expect(homeCompanionLayout.avatarBottom).toBeLessThan(homeCompanionLayout.stageBottom);
   expect(homeCompanionLayout.petBottom).toBeLessThan(homeCompanionLayout.stageBottom);
   expect(Math.abs(homeCompanionLayout.avatarScale - homeCompanionLayout.petScale)).toBeLessThan(0.02);
@@ -2842,6 +2842,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
         playerIndex: 0,
         playFabId: 'PF_PLAYWRIGHT',
         isNpc: false,
+        isPet: false,
+        defeatMode: 'hp-zero',
         monsterId: 'ismartal-vol1-monster-01',
         mode: 'offline'
       };
@@ -2855,10 +2857,10 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
       isBoss: false,
       explorationId: context.explorationId,
       finishers: [
-        { roundNo: 1, playerIndex: 1, playFabId: '', isNpc: true, monsterId: 'ismartal-vol1-monster-07', mode: 'offline' },
-        { roundNo: 2, playerIndex: 0, playFabId: 'PF_PLAYWRIGHT', isNpc: false, monsterId: 'ismartal-vol3-monster-04', mode: 'offline' },
-        { roundNo: 3, playerIndex: 0, playFabId: 'PF_PLAYWRIGHT', isNpc: false, monsterId: 'ismartal-vol1-monster-01', mode: 'offline' },
-        { roundNo: 4, playerIndex: 0, playFabId: 'PF_PLAYWRIGHT', isNpc: false, monsterId: 'ismartal-vol2-monster-02', mode: 'offline' }
+        { roundNo: 1, playerIndex: 1, playFabId: '', isNpc: true, isPet: false, defeatMode: 'hp-zero', monsterId: 'ismartal-vol1-monster-07', mode: 'offline' },
+        { roundNo: 2, playerIndex: 0, playFabId: 'PF_PLAYWRIGHT', isNpc: false, isPet: false, defeatMode: 'hp-zero', monsterId: 'ismartal-vol3-monster-04', mode: 'offline' },
+        { roundNo: 3, playerIndex: 0, playFabId: 'PF_PLAYWRIGHT', isNpc: false, isPet: false, defeatMode: 'hp-zero', monsterId: 'ismartal-vol1-monster-01', mode: 'offline' },
+        { roundNo: 4, playerIndex: 0, playFabId: 'PF_PLAYWRIGHT', isNpc: false, isPet: false, defeatMode: 'hp-zero', monsterId: 'ismartal-vol2-monster-02', mode: 'offline' }
       ],
       standings: [
         { playerIndex: 0, playFabId: 'PF_PLAYWRIGHT', isNpc: false, chips: 45 },
@@ -2870,6 +2872,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
         playerIndex: 0,
         playFabId: 'PF_PLAYWRIGHT',
         isNpc: false,
+        isPet: false,
+        defeatMode: 'hp-zero',
         monsterId: 'ismartal-vol2-monster-02',
         mode: 'offline'
       }
@@ -3005,6 +3009,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
       playerIndex: 0,
       playFabId: 'PF_PLAYWRIGHT',
       isNpc: false,
+      isPet: false,
+      defeatMode: 'hp-zero',
       monsterId: 'ismartal-vol1-monster-01',
       mode: 'offline'
     }
@@ -3014,6 +3020,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
     playerIndex: 0,
     playFabId: 'PF_PLAYWRIGHT',
     isNpc: false,
+    isPet: false,
+    defeatMode: 'hp-zero',
     monsterId: 'ismartal-vol2-monster-02',
     mode: 'offline'
   });
@@ -3136,8 +3144,15 @@ test('player profile shows public stats on the left with avatar on the right', a
             level: 18
           },
           playerShip: {
-            form: 'explorer',
-            stage: 2
+            form: 'guild',
+            name: '水の王の船',
+            kingShipName: '水の王の船',
+            isGuildShip: true,
+            isNationGuild: true,
+            nationKey: 'water',
+            sailColor: 'blue',
+            appearance: { color: 'blue' },
+            stage: 3
           },
           currentPet: {
             monsterId: 'ismartal-vol1-monster-02',
@@ -3200,6 +3215,9 @@ test('player profile shows public stats on the left with avatar on the right', a
   await expect(page.locator('#playerProfileSpecialAbilityRule')).toContainText('入口の輪');
   await expect(page.locator('#playerProfileSpecialAbility')).not.toContainText(/INTJ|tempo|scores/);
   await expect(page.locator('#playerProfileStats .player-profile-stat strong')).toHaveText(['12', '11', '10', '9', '8', '152']);
+  await expect(page.locator('#playerProfileShip .player-profile-ship-name')).toHaveText('水の王の船');
+  await expect(page.locator('#playerProfileShip .player-profile-ship-icon')).toHaveClass(/is-guild/);
+  await expect(page.locator('#playerProfileShip .home-guild-ship-layer.is-sail-top')).toHaveClass(/is-blue/);
   await expect(page.locator('#playerProfilePetCompanion')).toBeVisible();
   await expect(page.locator('#playerProfilePetCompanion')).toHaveAttribute('aria-label', 'グリモア（ペット）');
   await expect(page.locator('#playerProfilePetName')).toBeVisible();

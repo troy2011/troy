@@ -799,8 +799,30 @@ const PROFILE_SHIP_LABELS = {
     explorer: 'エクスプローラー',
     defender: 'ディフェンダー',
     fighter: 'ファイター',
-    merchant: 'マーチャント'
+    merchant: 'マーチャント',
+    guild: '王の船'
 };
+
+const PROFILE_GUILD_SHIP_COLOR_BY_NATION = {
+    fire: 'red',
+    water: 'blue',
+    wind: 'yellow',
+    earth: 'green'
+};
+
+function getProfileGuildShipLayers(ship = {}) {
+    const directColor = String(ship?.appearance?.color || ship?.sailColor || '').trim().toLowerCase();
+    const nationColor = PROFILE_GUILD_SHIP_COLOR_BY_NATION[String(ship?.nationKey || ship?.nation || '').trim().toLowerCase()];
+    const color = ['red', 'blue', 'yellow', 'green'].includes(directColor)
+        ? directColor
+        : (nationColor || 'white');
+    return `
+        <span class="home-guild-ship-layer is-hull" aria-hidden="true"></span>
+        <span class="home-guild-ship-layer is-sail-bottom is-${color}" aria-hidden="true"></span>
+        <span class="home-guild-ship-layer is-sail-middle is-${color}" aria-hidden="true"></span>
+        <span class="home-guild-ship-layer is-sail-top is-${color}" aria-hidden="true"></span>
+    `;
+}
 
 function renderProfileShip(ship) {
     const el = document.getElementById('playerProfileShip');
@@ -809,10 +831,12 @@ function renderProfileShip(ship) {
         el.innerHTML = '';
         return;
     }
-    const form = String(ship.form || 'boat').toLowerCase();
-    const label = PROFILE_SHIP_LABELS[form] || 'ボート';
+    const requestedForm = String(ship.form || 'boat').toLowerCase();
+    const form = Object.prototype.hasOwnProperty.call(PROFILE_SHIP_LABELS, requestedForm) ? requestedForm : 'boat';
+    const label = String(ship.name || ship.kingShipName || PROFILE_SHIP_LABELS[form] || 'ボート').trim();
+    const guildLayers = form === 'guild' ? getProfileGuildShipLayers(ship) : '';
     el.innerHTML = `
-        <div class="player-profile-ship-icon is-${escapeHtml(form)}" aria-hidden="true"></div>
+        <div class="player-profile-ship-icon is-${escapeHtml(form)}" aria-hidden="true">${guildLayers}</div>
         <div class="player-profile-ship-name">${escapeHtml(label)}</div>
         <div class="player-profile-ship-meta">段階 ${Number(ship.stage || 1)}</div>
     `;

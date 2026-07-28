@@ -22,6 +22,8 @@ function eligibleFinisher(overrides = {}) {
     playerIndex: 0,
     playFabId: 'PF_HUMAN',
     isNpc: false,
+    isPet: false,
+    defeatMode: 'hp-zero',
     mode: 'offline',
     ...overrides
   };
@@ -33,15 +35,23 @@ test.describe('Tarot Kingdom monster recruitment', () => {
     expect(manifest.filter((monster) => monster.isBoss === true)).toHaveLength(3);
   });
 
-  test('eligibility accepts every round and requires an offline human finisher with matching identity', () => {
+  test('eligibility accepts only the owner or owner pet as the offline finisher in either defeat mode', () => {
     const encounter = { monsterId: normalMonster.id };
     [1, 2, 3, 4].forEach((roundNo) => {
-      expect(isTarotKingdomPetRecruitEligible({
-        encounter,
-        outcome: 'victory',
-        finisher: eligibleFinisher({ roundNo }),
-        authenticatedPlayFabId: 'PF_HUMAN'
-      })).toBe(true);
+      ['hp-zero', 'hand-empty'].forEach((defeatMode) => {
+        expect(isTarotKingdomPetRecruitEligible({
+          encounter,
+          outcome: 'victory',
+          finisher: eligibleFinisher({ roundNo, defeatMode }),
+          authenticatedPlayFabId: 'PF_HUMAN'
+        })).toBe(true);
+        expect(isTarotKingdomPetRecruitEligible({
+          encounter,
+          outcome: 'victory',
+          finisher: eligibleFinisher({ roundNo, defeatMode, isNpc: true, isPet: true }),
+          authenticatedPlayFabId: 'PF_HUMAN'
+        })).toBe(true);
+      });
     });
 
     const rejected = [
@@ -50,6 +60,9 @@ test.describe('Tarot Kingdom monster recruitment', () => {
       { finisher: eligibleFinisher({ roundNo: 0 }) },
       { finisher: eligibleFinisher({ roundNo: 5 }) },
       { finisher: eligibleFinisher({ isNpc: true }) },
+      { finisher: eligibleFinisher({ isNpc: true, isPet: false }) },
+      { finisher: eligibleFinisher({ defeatMode: '' }) },
+      { finisher: eligibleFinisher({ defeatMode: 'unknown' }) },
       { finisher: eligibleFinisher({ mode: 'online' }) },
       { finisher: eligibleFinisher({ playFabId: 'PF_OTHER' }) }
     ];

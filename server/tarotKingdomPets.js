@@ -141,7 +141,10 @@ function isTarotKingdomPetRecruitEligible({
     if (!playFabId || !finisher || typeof finisher !== 'object') return false;
     if (String(finisher.mode || '').trim().toLowerCase() !== 'offline') return false;
     const roundNo = Math.floor(Number(finisher.roundNo) || 0);
-    if (finisher.isNpc === true || roundNo < 1 || roundNo > 4) return false;
+    const defeatMode = String(finisher.defeatMode || '').trim().toLowerCase();
+    const isOwnerPet = finisher.isPet === true;
+    if (!['hp-zero', 'hand-empty'].includes(defeatMode)) return false;
+    if ((finisher.isNpc === true && !isOwnerPet) || roundNo < 1 || roundNo > 4) return false;
     return String(finisher.playFabId || '').trim() === playFabId;
 }
 

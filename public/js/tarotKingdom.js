@@ -3525,6 +3525,10 @@ function normalizeKingdomExplorationStageState(value = null) {
       playerIndex: Math.max(0, Math.floor(Number(entry?.playerIndex) || 0)),
       playFabId: String(entry?.playFabId || ''),
       isNpc: entry?.isNpc === true,
+      isPet: entry?.isPet === true,
+      defeatMode: entry?.defeatMode === KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
+        ? KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
+        : KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO,
       monsterId: String(entry?.monsterId || '')
     }));
   return {
@@ -5966,6 +5970,18 @@ function markKingdomBattleVictory(winnerIndex, options = {}) {
   const enemy = s.battle.enemy;
   const hpBefore = Math.max(0, Number(enemy?.hp) || 0);
   const enemyEscaped = hpBefore > 0;
+  const hpZeroResolution = !enemyEscaped
+    && getKingdomEnemyDefeatMode(s) === KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO;
+  const requestedLastHitIndex = Number(options.lastHitIndex);
+  const lastHitIndex = hpZeroResolution
+    ? (
+        Number.isInteger(requestedLastHitIndex)
+        && requestedLastHitIndex >= 0
+        && requestedLastHitIndex < getKingdomPlayerCount()
+          ? requestedLastHitIndex
+          : winnerIndex
+      )
+    : null;
   const monster = getKingdomMonsterConfig(enemy?.id);
   const escapeAnimation = monster?.animations?.walk ? 'walk' : 'idle';
   if (enemy && !enemyEscaped) enemy.hp = 0;
@@ -5976,6 +5992,8 @@ function markKingdomBattleVictory(winnerIndex, options = {}) {
     : (String(options.resultReason || '') || 'enemy-defeated');
   const victoryEvent = pushKingdomBattleEvent('victory', {
     actorIndex: winnerIndex,
+    lastHitIndex,
+    lastHitStarBonus: lastHitIndex != null ? 1 : 0,
     finisher: !enemyEscaped,
     enemyEscaped,
     hpBefore,
@@ -6003,14 +6021,24 @@ function markKingdomBattleVictory(winnerIndex, options = {}) {
   }
   if (s.stage && !enemyEscaped) {
     const stage = normalizeKingdomExplorationStageState(s.stage);
-    const winner = s.players?.[winnerIndex];
+    const recruitmentPlayerIndex = hpZeroResolution && lastHitIndex != null
+      ? lastHitIndex
+      : winnerIndex;
+    const winner = s.players?.[recruitmentPlayerIndex];
+    const localPlayer = s.players?.[getLocalPlayerIndex()];
     const roundNo = Math.max(1, Math.min(TOTAL_HANDS, Number(s.handNo || 0) + 1));
     if (stage && winner && !stage.finishers.some((entry) => entry.roundNo === roundNo)) {
       stage.finishers.push({
         roundNo,
-        playerIndex: winnerIndex,
-        playFabId: String(winner.playFabId || ''),
+        playerIndex: recruitmentPlayerIndex,
+        playFabId: String(
+          winner.isPet === true
+            ? (window.myPlayFabId || localPlayer?.playFabId || '')
+            : (winner.playFabId || '')
+        ).trim(),
         isNpc: winner.isNpc === true,
+        isPet: winner.isPet === true,
+        defeatMode: getKingdomEnemyDefeatMode(s),
         monsterId: String(enemy?.id || '')
       });
       s.stage = stage;
@@ -6048,10 +6076,40 @@ function resolveKingdomEnemyDefeatWinner(fallbackIndex, events = []) {
   )) ?? 0;
 }
 
+function getKingdomHpZeroHandScore(player, playerIndex = 0) {
+  const numbers = (Array.isArray(player?.hand) ? player.hand : [])
+    .map((card) => Math.max(0, Math.floor(Number(idNum(card)) || 0)));
+  return {
+    playerIndex,
+    handCount: numbers.length,
+    highCard: numbers.length > 0 ? Math.max(...numbers) : 0,
+    numberTotal: numbers.reduce((total, number) => total + number, 0)
+  };
+}
+
+function resolveKingdomHpZeroRoundWinner(lastHitIndex, state = s) {
+  const players = Array.isArray(state?.players) ? state.players : [];
+  const normalizedLastHitIndex = Number.isInteger(Number(lastHitIndex))
+    ? Number(lastHitIndex)
+    : -1;
+  const ranked = players
+    .map((player, playerIndex) => getKingdomHpZeroHandScore(player, playerIndex))
+    .sort((left, right) => (
+      left.handCount - right.handCount
+      || right.highCard - left.highCard
+      || right.numberTotal - left.numberTotal
+      || (left.playerIndex === normalizedLastHitIndex ? -1 : 0)
+      || (right.playerIndex === normalizedLastHitIndex ? 1 : 0)
+      || left.playerIndex - right.playerIndex
+    ));
+  return ranked[0]?.playerIndex ?? Math.max(0, normalizedLastHitIndex);
+}
+
 function startKingdomTerminalEnemyVictoryTransition(fallbackIndex, attackEvents = []) {
   if (!isKingdomEnemyHpVictoryReady()) return false;
   const responseEvents = (Array.isArray(attackEvents) ? attackEvents : []).filter(Boolean);
-  const winnerIndex = resolveKingdomEnemyDefeatWinner(fallbackIndex, responseEvents);
+  const lastHitIndex = resolveKingdomEnemyDefeatWinner(fallbackIndex, responseEvents);
+  const winnerIndex = resolveKingdomHpZeroRoundWinner(lastHitIndex);
   const duration = responseEvents.reduce(
     (total, event) => total + getKingdomBattleEventDuration(event),
     0
@@ -6062,6 +6120,7 @@ function startKingdomTerminalEnemyVictoryTransition(fallbackIndex, attackEvents 
   s.phase = 'resolvingEnemy';
   s.message = `${s.battle.enemy.name}を　たおした！`;
   setKingdomTransition('terminalEnemyVictory', winnerIndex, duration, {
+    lastHitIndex,
     eventSeqs: responseEvents.map((event) => event.seq).filter(Number.isFinite),
     ...(primaryTimeline ? { timeline: primaryTimeline, eventTimelineSpecs } : {})
   });
@@ -8561,6 +8620,9 @@ function buildTarotKingdomDebugBattleState(options = {}) {
     if (Array.isArray(options.chipsBySeat)) {
       player.chips = Number(options.chipsBySeat[index] ?? player.chips) || 0;
     }
+    if (Array.isArray(options.starsBySeat)) {
+      player.stars = Math.max(0, Math.floor(Number(options.starsBySeat[index] ?? player.stars) || 0));
+    }
   });
   const debugPresenceTime = Date.now();
   netPresenceByUid = Object.fromEntries(s.players.map((player, seat) => [player.uid, {
@@ -9520,6 +9582,16 @@ function exposeTarotKingdomBattleDebugTools(target) {
       render();
       return snapshotTarotKingdomDebugState();
     },
+    battleSetupHandWithOpening: (majorNumber = 8) => {
+      setupHand({
+        drawDeck: buildKingdomDebugDeckWithOpening(
+          Math.max(0, Math.min(21, Math.floor(Number(majorNumber) || 0)))
+        ),
+        preserveStars: true
+      });
+      render();
+      return snapshotTarotKingdomDebugState();
+    },
     battlePass: (playerIndex) => {
       const index = Math.max(0, Math.min(3, Number(playerIndex) || 0));
       s.phase = 'turn';
@@ -9639,6 +9711,10 @@ function exposeTarotKingdomBattleDebugTools(target) {
     },
     battleValidateEnvelope: (payload = {}) => validateKingdomActionEnvelope(payload, ''),
     battleDamageForPlay: (playerIndex, play) => getKingdomBattleDamageForPlay(Number(playerIndex), play),
+    battleHpZeroWinner: (lastHitIndex = 0) => ({
+      winnerIndex: resolveKingdomHpZeroRoundWinner(Number(lastHitIndex)),
+      scores: s.players.map((player, playerIndex) => getKingdomHpZeroHandScore(player, playerIndex))
+    }),
     battleCombatTimeline: (variant = 'attack', weaponType = 'sword') => buildKingdomCombatTimeline(
       variant === 'skill' ? 'skill' : 'attack',
       weaponType
@@ -10073,8 +10149,6 @@ function buildRolePlay(pi, sel) {
 
 function buildCallPlay(pi, sel) {
   const p = s.players[pi];
-  const stars = Math.max(0, Number(p?.stars) || 0);
-  if (stars <= 0) return { ok: false, reason: '星がないためコールできません。' };
   const base = s.trick?.cardsTable?.[0];
   if (!base) return { ok: false, reason: '場札がありません。' };
   if (sel.length !== 4) return { ok: false, reason: 'コールは手札4枚です。' };
@@ -10279,9 +10353,6 @@ function validatePlay(play, mode) {
   if (isWorldSingleOverride) return { ok: true };
   if (s.callOnly && mode !== 'call') return { ok: false, reason: '8カット中: コールかパスのみ。' };
   if (mode === 'call') {
-    const actor = s.players?.[Number(play?.owner)];
-    const stars = Math.max(0, Number(actor?.stars) || 0);
-    if (stars <= 0) return { ok: false, reason: '星がないためコールできません。' };
     const base = s.trick?.cardsTable?.[0];
     if (base?.kind === 'major' && play?.role?.key !== 'TheWorld') {
       return { ok: false, reason: '場の大アルカナはザ・ワールドでのみコールできます。' };
@@ -10913,6 +10984,19 @@ function finishRound(winnerIndex) {
   }
   const chipsBeforeSettlement = s.players.map((p) => Math.max(0, Number(p?.chips) || 0));
   const roundNo = Math.max(1, Number(s.handNo || 0) + 1);
+  const victoryEvent = (Array.isArray(s?.battle?.events) ? s.battle.events : [])
+    .slice()
+    .reverse()
+    .find((event) => event?.type === 'victory') || null;
+  const lastHitIndex = Number(victoryEvent?.lastHitIndex);
+  const hasLastHitBonus = (
+    getKingdomEnemyDefeatMode(s) === KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO
+    && s?.battle?.resultReason === 'enemy-defeated'
+    && Number.isInteger(lastHitIndex)
+    && lastHitIndex >= 0
+    && lastHitIndex < getKingdomPlayerCount()
+  );
+  const winnerHandScore = getKingdomHpZeroHandScore(winner, winnerIndex);
   const starBonusBase = Math.max(0, Number(winner.stars) || 0);
   const starBonusTotal = starBonusBase;
   let fxDelayMs = 360;
@@ -10925,6 +11009,12 @@ function finishRound(winnerIndex) {
     winnerFinalChips: 0,
     displayWinnerChips: Math.max(0, Number(chipsBeforeSettlement[winnerIndex]) || 0),
     starBonus: starBonusBase,
+    victoryMethod: hasLastHitBonus ? 'hp-zero-hand-rank' : 'hand-empty',
+    winnerHandCount: winnerHandScore.handCount,
+    winnerHighCard: winnerHandScore.highCard,
+    winnerNumberTotal: winnerHandScore.numberTotal,
+    lastHitIndex: hasLastHitBonus ? lastHitIndex : null,
+    lastHitStarBonus: hasLastHitBonus ? 1 : 0,
     rows: [],
     coinEvents: [],
     coinFxDispatched: false,
@@ -11008,6 +11098,11 @@ function finishRound(winnerIndex) {
   });
   s.reverse = false;
   s.players.forEach((p) => { p.stars = 0; });
+  if (hasLastHitBonus) {
+    s.players[lastHitIndex].stars = 1;
+    log(`${pName(lastHitIndex)}: ラストヒットボーナス +1⭐`);
+    triggerKingdomRowActionFx(lastHitIndex, 'LAST HIT +1⭐', 1100);
+  }
   s.handNo += 1;
   if (s.handNo >= TOTAL_HANDS) {
     settlement.matchDone = true;
@@ -11351,7 +11446,10 @@ function resolveKingdomTransition() {
     scheduleNpc();
     render();
   } else if (transition.kind === 'terminalEnemyVictory') {
-    markKingdomBattleVictory(actorIndex, { resultReason: 'enemy-defeated' });
+    markKingdomBattleVictory(actorIndex, {
+      resultReason: 'enemy-defeated',
+      lastHitIndex: transition.lastHitIndex
+    });
     startRoundOutCinematic(actorIndex, s.lastPlay);
   } else if (transition.kind === 'terminalEnemyResponse') {
     s.phase = 'done';
@@ -11442,8 +11540,12 @@ function continueAfterPlay(pi, play) {
   if (
     isKingdomEnemyHpVictoryReady()
   ) {
-    markKingdomBattleVictory(pi, { resultReason: 'enemy-defeated' });
-    startRoundOutCinematic(pi, play);
+    const winnerIndex = resolveKingdomHpZeroRoundWinner(pi);
+    markKingdomBattleVictory(winnerIndex, {
+      resultReason: 'enemy-defeated',
+      lastHitIndex: pi
+    });
+    startRoundOutCinematic(winnerIndex, play);
     return;
   }
   if (
@@ -11504,11 +11606,17 @@ function startRoundOutCinematic(winnerIndex, play) {
   const actionLabel = getRoundFinishActionLabel(play);
   const raidEscape = isKingdomRaidBattle()
     && String(s?.battle?.resultReason || '') === 'enemy-escaped';
+  const hpZeroHandResult = !raidEscape
+    && getKingdomEnemyDefeatMode(s) === KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO
+    && String(s?.battle?.resultReason || '') === 'enemy-defeated';
+  const resultLabel = hpZeroHandResult
+    ? `勝者決定！\n手札${Math.max(0, Number(winner.hand?.length) || 0)}枚`
+    : `出し切り！\n${actionLabel}`;
   s.phase = 'roundOutCinematic';
   s.turn = winnerIndex;
   s.message = buildKingdomEnemyOutcomeAnnouncement()
     || `${winner.name}が出し切り！ 最後の一手: ${actionLabel}`;
-  triggerKingdomActionFx(winnerIndex, raidEscape ? 'BOSS ESCAPE' : `出し切り！\n${actionLabel}`, {
+  triggerKingdomActionFx(winnerIndex, raidEscape ? 'BOSS ESCAPE' : resultLabel, {
     overlay: 'roundend',
     overlayHoldMs: ROUND_OUT_CINEMATIC_MS,
     durationMs: ROUND_OUT_CINEMATIC_MS + 260,
@@ -11645,9 +11753,6 @@ function applyPlay(pi, play, retryDepth = 0) {
         log(`${p.name}: コール取り込み札を墓地へ移動`);
       }
     }
-  }
-  if (play.call) {
-    p.stars = Math.max(0, (Number(p.stars) || 0) - 1);
   }
   if (isLocalPlayer(pi)) s.selected.clear();
   s.pass = s.players.map(() => false);
@@ -12835,7 +12940,12 @@ function buildKingdomExplorationResult(status = 'completed') {
     .slice()
     .reverse()
     .find((event) => event?.type === 'victory' && event?.finisher === true);
-  const finisherIndex = Number(victoryEvent?.actorIndex);
+  const victoryDefeatMode = getKingdomEnemyDefeatMode(s);
+  const finisherIndex = Number(
+    victoryDefeatMode === KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO
+      ? (victoryEvent?.lastHitIndex ?? victoryEvent?.actorIndex)
+      : victoryEvent?.actorIndex
+  );
   const finisherPlayer = Number.isInteger(finisherIndex) ? s?.players?.[finisherIndex] : null;
   const mode = kingdomExplorationSession?.context?.mode === 'online' ? 'online' : 'offline';
   const finishers = stage
@@ -12848,8 +12958,14 @@ function buildKingdomExplorationResult(status = 'completed') {
         ? {
             roundNo: TOTAL_HANDS,
             playerIndex: finisherIndex,
-            playFabId: String(finisherPlayer.playFabId || ''),
+            playFabId: String(
+              finisherPlayer.isPet === true
+                ? (window.myPlayFabId || s?.players?.[localSeat]?.playFabId || '')
+                : (finisherPlayer.playFabId || '')
+            ).trim(),
             isNpc: finisherPlayer.isNpc === true,
+            isPet: finisherPlayer.isPet === true,
+            defeatMode: getKingdomEnemyDefeatMode(s),
             monsterId: String(monster?.id || ''),
             mode
           }
@@ -12921,7 +13037,7 @@ function queueKingdomRoundPetOfferCheck(roundNo) {
   const localPlayFabId = String(window.myPlayFabId || '').trim();
   if (
     !finisher
-    || finisher.isNpc === true
+    || (finisher.isNpc === true && finisher.isPet !== true)
     || !localPlayFabId
     || String(finisher.playFabId || '').trim() !== localPlayFabId
   ) return null;
@@ -14581,7 +14697,12 @@ function renderKingdomBattleStage() {
     && !enemyFinisherActive
     && !enemyEscapeActive;
   const enemyDefeated = enemyFinisherActive;
-  const enemyPetrified = !!enemy.petrifiedUntilClear && !enemyDefeated && !enemyRushTime && !enemyEscapeActive;
+  const openingCardEffectVisible = !['enter', 'attack'].includes(openingIntroStage);
+  const enemyPetrified = !!enemy.petrifiedUntilClear
+    && openingCardEffectVisible
+    && !enemyDefeated
+    && !enemyRushTime
+    && !enemyEscapeActive;
   const enemyTimeStopped = !!getKingdomEffectBucket('enemy')?.timeStop
     && !enemyDefeated
     && !enemyRushTime
@@ -14621,8 +14742,19 @@ function renderKingdomBattleStage() {
         ? `${battle.roundIndex}:rush:${Number(enemy.rushStartedAtSeq) || 0}`
         : `${battle.roundIndex}:${openingIntroStage || eventKey}:${animationName}`));
   if (enemyPetrified || enemyTimeStopped) {
+    const activeMonsterPrefix = `${String(monsterConfig?.id || '')}:`;
+    const hasCurrentMonsterFrame = !!activeMonsterPrefix
+      && kingdomMonsterAnimationKey.startsWith(activeMonsterPrefix);
     clearKingdomMonsterFrameTimer();
-    kingdomMonsterAnimationKey = '';
+    if (!hasCurrentMonsterFrame && monsterConfig?.animations?.idle && ui.battleEnemySprite) {
+      setKingdomMonsterFrame(
+        ui.battleEnemySprite,
+        monsterConfig,
+        monsterConfig.animations.idle,
+        0
+      );
+    }
+    kingdomMonsterAnimationKey = `${String(monsterConfig?.id || enemy.id)}:frozen:${battle.roundIndex}:${enemyPetrified ? 'petrified' : 'time-stop'}`;
   }
   else {
     playKingdomMonsterAnimation(animationName, monsterAnimationGeneration, {
@@ -14660,9 +14792,12 @@ function renderPlayers() {
     const shownGain = Math.max(0, Number(settlementData.displayTotalGain ?? settlementData.totalGain) || 0);
     const summary = document.createElement('div');
     summary.className = 'tarot-kingdom-players-summary';
+    const winnerBasis = settlementData.victoryMethod === 'hp-zero-hand-rank'
+      ? `・手札${Math.max(0, Number(settlementData.winnerHandCount) || 0)}枚`
+      : '';
     summary.textContent = isMatchDone
-      ? `最終結果: ${winnerName} +${shownGain}TP`
-      : `局結果: ${winnerName} +${shownGain}TP`;
+      ? `最終結果: ${winnerName}${winnerBasis} +${shownGain}TP`
+      : `局結果: ${winnerName}${winnerBasis} +${shownGain}TP`;
     ui.players.appendChild(summary);
   }
   const rankByIndex = new Map();
