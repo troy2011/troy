@@ -437,6 +437,37 @@ export function raidNationTreasury(playFabId, targetNation, options) {
     return callApiWithLoader('/api/nation-war-raid-treasury', { playFabId, targetNation }, options);
 }
 
+export function getTarotKingdomRaidStatus(playFabId, options) {
+    return callApiWithLoader('/api/tarot-kingdom/raid/status', { playFabId }, options);
+}
+
+export function controlTarotKingdomRaid(playFabId, action, bossId = '', options) {
+    return callApiWithLoader('/api/tarot-kingdom/raid/control', {
+        playFabId,
+        action: String(action || '').trim(),
+        bossId: String(bossId || '').trim()
+    }, options);
+}
+
+export function startTarotKingdomRaid(playFabId, options) {
+    return callApiWithLoader('/api/tarot-kingdom/raid/start', { playFabId }, options);
+}
+
+export function finishTarotKingdomRaid(playFabId, attemptId, result = {}, options) {
+    return callApiWithLoader('/api/tarot-kingdom/raid/finish', {
+        playFabId,
+        attemptId: String(attemptId || '').trim(),
+        damageDealt: Math.max(0, Math.floor(Number(result?.damageDealt) || 0)),
+        finisher: result?.finisher && typeof result.finisher === 'object'
+            ? {
+                playFabId: String(result.finisher.playFabId || '').trim(),
+                displayName: String(result.finisher.displayName || '').trim(),
+                isNpc: result.finisher.isNpc === true
+            }
+            : null
+    }, options);
+}
+
 export function setNationAnnouncement(playFabId, message, options) {
     return callApiWithLoader('/api/set-nation-announcement', { playFabId, message }, options);
 }

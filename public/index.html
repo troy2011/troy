@@ -23,7 +23,7 @@
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
     <title>TROYゴールドアプリ</title>
-<link rel="stylesheet" href="style.css?v=20260728-rescue-notify1">
+<link rel="stylesheet" href="style.css?v=20260728-raid1">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
 </head>
@@ -1303,6 +1303,7 @@
                             <button id="kingSectionTabStore" type="button" role="tab" aria-controls="kingSectionPanelStore" data-king-section-tab="store">店内</button>
                             <button id="kingSectionTabCalendar" type="button" role="tab" aria-controls="kingSectionPanelCalendar" data-king-section-tab="calendar">カレンダー</button>
                             <button id="kingSectionTabMenu" type="button" role="tab" aria-controls="kingSectionPanelMenu" data-king-section-tab="menu">メニュー</button>
+                            <button id="kingSectionTabRaid" type="button" role="tab" aria-controls="kingSectionPanelRaid" data-king-section-tab="raid">レイド</button>
                             <button id="kingSectionTabNotice" type="button" role="tab" aria-controls="kingSectionPanelNotice" data-king-section-tab="notice">告知</button>
                         </div>
                         <div id="kingPageMessage" class="king-page-message"></div>
@@ -1366,6 +1367,18 @@
                                 </div>
                                 <div class="troy-admin-actions">
                                     <button id="btnKingMenuAddCustom" class="btn-open">追加する</button>
+                                </div>
+                            </div>
+                        </section>
+                        <section id="kingSectionPanelRaid" class="king-section-panel" role="tabpanel" aria-labelledby="kingSectionTabRaid" data-king-section-panel="raid">
+                            <div class="troy-admin-card king-raid-control">
+                                <div class="troy-admin-label">タロットキングダム・レイド</div>
+                                <div id="kingRaidStatus" class="king-raid-status">レイド情報を読み込み中です。</div>
+                                <label class="king-raid-select-label" for="kingRaidBossSelect">出現させるボス</label>
+                                <select id="kingRaidBossSelect" class="admin-input"></select>
+                                <div class="troy-admin-actions">
+                                    <button id="btnKingRaidSpawn" type="button" class="btn-open">出現させる</button>
+                                    <button id="btnKingRaidWithdraw" type="button" class="btn-muted">終了する</button>
                                 </div>
                             </div>
                         </section>
@@ -1772,7 +1785,7 @@
         "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
         "config": "./js/config.js",
         "api": "./js/api.js",
-"ui": "./js/ui.js?v=20260728-rescue-notify1",
+"ui": "./js/ui.js?v=20260728-raid1",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js",
         "inventory": "./js/inventory.js?v=20260604g",
@@ -1819,6 +1832,6 @@
     <!-- Scripts -->
     <script src="battle-client.js?v=20260726-legacy-battle-off-1"></script>
     <script src="naval-battle.js"></script>
-<script type="module" src="main.js?v=20260728-rescue-notify1"></script>
+<script type="module" src="main.js?v=20260728-raid1"></script>
 </body>
 </html>

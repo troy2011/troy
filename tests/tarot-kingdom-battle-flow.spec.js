@@ -519,6 +519,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       const debug = window.TarotKingdomDebug;
       debug.battleScenario({
         enemyHp: 0,
+        rules: { enemyDefeatMode: 'hand-empty' },
         turnIndex: 1,
         leaderIndex: 0,
         hpBySeat: [100, 100, 100, 100],
@@ -528,6 +529,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
 
       debug.battleScenario({
         enemyHp: 0,
+        rules: { enemyDefeatMode: 'hand-empty' },
         turnIndex: 1,
         leaderIndex: 0,
         hpBySeat: [100, 100, 100, 100],
@@ -543,6 +545,185 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.afterPlay.battle.events).toHaveLength(1);
     expect(audit.afterPlay.battle.events[0]).toMatchObject({ type: 'attack', damage: 0, attackStopped: true });
     expect(audit.afterPlay.transition.kind).toBe('play');
+  });
+
+  test('enemy HP zero clears immediately by default while rush mode waits for hand zero', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const hand = (prefix) => [
+        { id: `${prefix}-attack`, kind: 'minor', suit: 'Cup', number: 4 },
+        { id: `${prefix}-reserve`, kind: 'minor', suit: 'Cup', number: 6 }
+      ];
+      const run = (enemyDefeatMode) => {
+        debug.battleScenario({
+          withTrick: false,
+          enemyHp: 1,
+          enemyDefense: 0,
+          handsBySeat: [hand(enemyDefeatMode)],
+          rules: { enemyDefeatMode }
+        });
+        return debug.battlePlayOne(0);
+      };
+      const immediate = run('hp-zero');
+      const rush = run('hand-empty');
+      const hostPublicState = debug.battlePublicState();
+      const legacy = debug.battleDeserialize({
+        schema: 12,
+        state: {
+          rules: {
+            initialHandSize: 8,
+            handLimit: 8,
+            playerCount: 4
+          }
+        }
+      });
+      return { immediate, rush, hostPublicState, legacy };
+    });
+
+    expect(audit.immediate.battle).toMatchObject({
+      outcome: 'victory',
+      resultReason: 'enemy-defeated'
+    });
+    expect(audit.immediate.players[0].hand).toHaveLength(1);
+    expect(audit.immediate.phase).toBe('roundOutCinematic');
+    expect(audit.immediate.battle.events.at(-1)).toMatchObject({
+      type: 'victory',
+      actorIndex: 0,
+      finisher: true,
+      enemyEscaped: false
+    });
+
+    expect(audit.rush.battle.enemy.hp).toBe(0);
+    expect(audit.rush.battle.outcome).toBeNull();
+    expect(audit.rush.players[0].hand).toHaveLength(1);
+    expect(audit.rush.rules.enemyDefeatMode).toBe('hand-empty');
+    expect(audit.hostPublicState.schema).toBe(13);
+    expect(audit.hostPublicState.state.rules.enemyDefeatMode).toBe('hand-empty');
+    expect(audit.legacy.rules.enemyDefeatMode).toBe('hand-empty');
+  });
+
+  test('raid transforms after the disguise reaches zero and ends after one hand', async ({ page }) => {
+    const raid = {
+      attemptId: 'raid-attempt-debug',
+      raidId: 'raid-debug',
+      nation: 'fire',
+      bossId: 'ismartal-vol2-monster-07',
+      bossName: 'バルガン',
+      preFormMonsterId: 'ismartal-vol3-monster-01',
+      preFormMonsterName: 'グラヴァ',
+      bossMaxHp: 250000,
+      bossHpAtStart: 250000
+    };
+    const card = (id, number) => ({ id, kind: 'minor', suit: 'Cup', number });
+    const audit = await page.evaluate(({ raid, cards }) => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({
+        withTrick: false,
+        enemyHp: 1,
+        enemyDefense: 0,
+        handsBySeat: [[cards[0], cards[1]]],
+        raid
+      });
+      const transformed = debug.battlePlayOne(0);
+      const transformVisual = {
+        stageClass: document.querySelector('#tarotKingdomBattleStage')?.className || '',
+        cutinClass: document.querySelector('#tarotKingdomCutin')?.className || '',
+        cutinText: document.querySelector('#tarotKingdomCutin')?.textContent || ''
+      };
+
+      debug.battleScenario({
+        withTrick: false,
+        enemyHp: 1,
+        enemyDefense: 0,
+        handsBySeat: [[cards[0], cards[1]]],
+        raid: { ...raid, phase: 'boss' }
+      });
+      const defeated = debug.battlePlayOne(0);
+      const defeatedResult = debug.battleExplorationResult();
+      const completedDefeat = debug.battleResolveTransition();
+
+      debug.battleScenario({
+        withTrick: false,
+        enemyHp: 250000,
+        enemyDefense: 0,
+        handsBySeat: [[cards[0]]],
+        raid: { ...raid, phase: 'boss' }
+      });
+      const escaped = debug.battlePlayOne(0);
+      const escapedResult = debug.battleExplorationResult();
+      const completedEscape = debug.battleResolveTransition();
+      return {
+        transformed,
+        transformVisual,
+        defeated,
+        defeatedResult,
+        completedDefeat,
+        escaped,
+        escapedResult,
+        completedEscape
+      };
+    }, {
+      raid,
+      cards: [card('raid-attack', 14), card('raid-reserve', 2)]
+    });
+
+    expect(audit.transformed.raid).toMatchObject({
+      phase: 'boss',
+      damageDealt: 0,
+      lastObservedBossHp: 250000
+    });
+    expect(audit.transformed.battle.enemy).toMatchObject({
+      id: 'ismartal-vol2-monster-07',
+      name: 'バルガン',
+      maxHp: 250000,
+      hp: 250000
+    });
+    expect(audit.transformed.battle.outcome).toBeNull();
+    expect(audit.transformed.battle.events.at(-1)).toMatchObject({
+      type: 'raid-transform',
+      bossId: 'ismartal-vol2-monster-07'
+    });
+    expect(audit.transformed.transition).toMatchObject({
+      kind: 'raidTransform',
+      actorIndex: 0
+    });
+    expect(audit.transformVisual.stageClass).toContain('is-raid-transforming');
+    expect(audit.transformVisual.cutinClass).toContain('is-kingdom-raid-transform');
+    expect(audit.transformVisual.cutinClass).toContain('is-tone-danger');
+    expect(audit.transformVisual.cutinText).toContain('TRANSFORM');
+
+    expect(audit.defeated.battle).toMatchObject({
+      outcome: 'victory',
+      resultReason: 'enemy-defeated'
+    });
+    expect(audit.defeated.players[0].hand).toHaveLength(1);
+    expect(audit.defeatedResult.raid).toMatchObject({
+      bossDefeatedLocally: true,
+      escaped: false,
+      damageDealt: 250000,
+      finisher: expect.objectContaining({ playerIndex: 0, isNpc: false })
+    });
+    expect(audit.completedDefeat).toMatchObject({
+      phase: 'done',
+      handNo: 1,
+      champion: null,
+      roundSettlement: expect.objectContaining({ raid: true, matchDone: true })
+    });
+
+    expect(audit.escaped.battle).toMatchObject({
+      outcome: 'victory',
+      resultReason: 'enemy-escaped'
+    });
+    expect(audit.escapedResult.raid).toMatchObject({
+      bossDefeatedLocally: false,
+      escaped: true
+    });
+    expect(audit.completedEscape).toMatchObject({
+      phase: 'done',
+      handNo: 1,
+      champion: null,
+      roundSettlement: expect.objectContaining({ raid: true, matchDone: true })
+    });
   });
 
   test('KO skips without retaliation, hand zero wins, and the last survivor retreats', async ({ page }) => {
@@ -1164,7 +1345,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       effectiveUnits: 2,
       healRate: 0.2
     });
-    expect(audit.publicState.schema).toBe(12);
+    expect(audit.publicState.schema).toBe(13);
     expect(audit.publicState.state.stage.monsters).toHaveLength(4);
     expect(audit.atmosphereTone).toBe('sunlit-coral');
     expect(audit.atmosphereCss).toContain('74, 159, 196');
@@ -1193,7 +1374,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.settlementStart.players).toHaveLength(3);
     expect(audit.settled.roundSettlement.rows).toHaveLength(2);
     expect(audit.settled.dealer).toBe(0);
-    expect(audit.published.schema).toBe(12);
+    expect(audit.published.schema).toBe(13);
     expect(audit.published.state.rules.playerCount).toBe(3);
     expect(audit.published.state.players).toHaveLength(3);
   });
@@ -1361,11 +1542,15 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.schema2.hermitPreview).toBeUndefined();
   });
 
-  test('schema 12 adds HP carry while preserving stage state and older matches', async ({ page }) => {
+  test('schema 13 adds enemy defeat mode while preserving HP carry and older matches', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       debug.battleScenario({ withTrick: false });
       const currentPublic = debug.battlePublicState();
+      const schema12Payload = JSON.parse(JSON.stringify(currentPublic));
+      schema12Payload.schema = 12;
+      delete schema12Payload.state.rules.enemyDefeatMode;
+      const schema12 = debug.battleDeserialize(schema12Payload);
       const schema11Payload = JSON.parse(JSON.stringify(currentPublic));
       schema11Payload.schema = 11;
       delete schema11Payload.state.rules.carryHpBetweenRoundsVersion;
@@ -1427,9 +1612,9 @@ test.describe('Tarot Kingdom character battle flow', () => {
         }
       });
       const current = debug.battleDeserialize(currentPublic);
-      return { currentPublic, schema11, legacy, effectsOnly, summonsOnly, schema7, current };
+      return { currentPublic, schema12, schema11, legacy, effectsOnly, summonsOnly, schema7, current };
     });
-    expect(audit.currentPublic.schema).toBe(12);
+    expect(audit.currentPublic.schema).toBe(13);
     expect(audit.currentPublic.state.rules).toMatchObject({
       playerCount: 4,
       combatEffectsVersion: 1,
@@ -1440,8 +1625,10 @@ test.describe('Tarot Kingdom character battle flow', () => {
       majorBattleEffectsVersion: 1,
       elementAffinityVersion: 1,
       carryHpBetweenRoundsVersion: 1,
-      forcedDrawDeathVersion: 1
+      forcedDrawDeathVersion: 1,
+      enemyDefeatMode: 'hp-zero'
     });
+    expect(audit.schema12.rules.enemyDefeatMode).toBe('hand-empty');
     expect(audit.schema11.rules).toMatchObject({
       majorBattleEffectsVersion: 1,
       elementAffinityVersion: 1,
@@ -1469,6 +1656,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.current.rules.majorArcanaSpecialVersion).toBe(1);
     expect(audit.current.rules.majorBattleEffectsVersion).toBe(1);
     expect(audit.current.rules.elementAffinityVersion).toBe(1);
+    expect(audit.current.rules.enemyDefeatMode).toBe('hp-zero');
   });
 
   test('場札はクリアまで保持し、小アルカナだけを所有者の墓地へまとめて送る', async ({ page }) => {

@@ -177,7 +177,9 @@ const DEFAULT_INITIAL_HAND_SIZE = 8;
 const DEFAULT_HAND_LIMIT = 8;
 const LEGACY_HAND_SIZE = 6;
 const KINGDOM_FORCED_DRAW_DEATH_THRESHOLD = 3;
-const KINGDOM_RULES_VERSION = 12;
+const KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO = 'hp-zero';
+const KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY = 'hand-empty';
+const KINGDOM_RULES_VERSION = 13;
 const TOTAL_HANDS = 4;
 const START_CHIPS = 100;
 const A_PENALTY = 1;
@@ -215,6 +217,7 @@ const KINGDOM_ENEMY_SINGLE_EVENT_MS = 860;
 const KINGDOM_ENEMY_AREA_EVENT_MS = 1060;
 const KINGDOM_ENEMY_STATUS_EVENT_MS = 840;
 const KINGDOM_JUDGMENT_RECLAIM_EVENT_MS = 1100;
+const KINGDOM_RAID_TRANSFORM_EVENT_MS = 1500;
 const ROLE_ORDER = ['Straight', 'Flush', 'FullHouse', 'FourKind', 'TheWorld', 'StraightFlush', 'FiveKind'];
 const ROLE_LABEL = {
   Straight: 'ストレート',
@@ -238,7 +241,7 @@ const KINGDOM_SUMMON_EFFECT_VISUALS = Object.freeze({
   aegis: Object.freeze({ category: 'support', choreography: 'golden-barrier' }),
   command: Object.freeze({ category: 'support', choreography: 'fleet-command' })
 });
-const KINGDOM_NET_SCHEMA_VERSION = 12;
+const KINGDOM_NET_SCHEMA_VERSION = 13;
 const KINGDOM_PRIVATE_STATE_VERSION = 2;
 const KINGDOM_NET_STATE_WRITE_DELAY = 90;
 const TK_MATCH_ROOT = 'tarotKingdomMatch';
@@ -3544,6 +3547,139 @@ function normalizeKingdomExplorationStageState(value = null) {
   };
 }
 
+function normalizeKingdomRaidState(value = null) {
+  if (!value || typeof value !== 'object') return null;
+  const attemptId = String(value.attemptId || '').trim();
+  const bossMonsterId = String(value.bossId || value.bossMonsterId || '').trim();
+  const preFormMonsterId = String(value.preFormMonsterId || '').trim();
+  const bossMonster = KINGDOM_MONSTER_ROSTER.find((monster) => monster.id === bossMonsterId);
+  const preFormMonster = KINGDOM_MONSTER_ROSTER.find((monster) => monster.id === preFormMonsterId);
+  if (!attemptId || !bossMonster || bossMonster.isBoss !== true || !preFormMonster) return null;
+  const bossMaxHp = Math.max(1, Math.floor(Number(value.bossMaxHp || value.maxHp) || 1));
+  const bossHpAtStart = Math.max(
+    1,
+    Math.min(bossMaxHp, Math.floor(Number(value.bossHpAtStart || value.currentHp) || bossMaxHp))
+  );
+  return {
+    version: 1,
+    attemptId,
+    raidId: String(value.raidId || ''),
+    nation: String(value.nation || '').trim().toLowerCase(),
+    bossMonsterId: bossMonster.id,
+    bossName: String(value.bossName || bossMonster.name),
+    preFormMonsterId: preFormMonster.id,
+    preFormMonsterName: String(value.preFormMonsterName || preFormMonster.name),
+    bossMaxHp,
+    bossHpAtStart,
+    phase: value.phase === 'boss' ? 'boss' : 'disguise',
+    damageDealt: Math.max(0, Math.floor(Number(value.damageDealt) || 0)),
+    lastObservedBossHp: Math.max(
+      0,
+      Math.min(bossHpAtStart, Math.floor(Number(value.lastObservedBossHp ?? bossHpAtStart) || 0))
+    ),
+    lastDamageSourceIndex: Number.isInteger(Number(value.lastDamageSourceIndex))
+      ? Number(value.lastDamageSourceIndex)
+      : null
+  };
+}
+
+function isKingdomRaidBattle(state = s) {
+  return !!normalizeKingdomRaidState(state?.raid);
+}
+
+function isKingdomRaidDisguisePhase(state = s) {
+  return normalizeKingdomRaidState(state?.raid)?.phase === 'disguise';
+}
+
+function getKingdomRaidTotalHands(state = s) {
+  return isKingdomRaidBattle(state) ? 1 : TOTAL_HANDS;
+}
+
+function captureKingdomRaidDamage(sourceIndex = null) {
+  const raid = normalizeKingdomRaidState(s?.raid);
+  if (!raid || raid.phase !== 'boss' || !s?.battle?.enemy) return 0;
+  const currentHp = Math.max(0, Math.min(raid.bossHpAtStart, Math.floor(Number(s.battle.enemy.hp) || 0)));
+  const damage = Math.max(0, raid.lastObservedBossHp - currentHp);
+  raid.damageDealt = Math.max(0, raid.damageDealt + damage);
+  raid.lastObservedBossHp = currentHp;
+  if (damage > 0 && Number.isInteger(Number(sourceIndex))) {
+    raid.lastDamageSourceIndex = Number(sourceIndex);
+  }
+  s.raid = raid;
+  return damage;
+}
+
+function activateKingdomRaidBossForm(sourceIndex = null) {
+  const raid = normalizeKingdomRaidState(s?.raid);
+  if (!raid || raid.phase !== 'disguise' || Number(s?.battle?.enemy?.hp) > 0) return false;
+  const monster = getKingdomMonsterConfig(raid.bossMonsterId);
+  const combatProfile = createTarotKingdomEnemyCombatProfile(monster, TOTAL_HANDS - 1, {
+    threatLevel: 50,
+    archetype: 'raid'
+  });
+  raid.phase = 'boss';
+  raid.lastObservedBossHp = raid.bossHpAtStart;
+  raid.lastDamageSourceIndex = null;
+  s.raid = raid;
+  s.battle.enemy = {
+    ...s.battle.enemy,
+    id: monster.id,
+    name: raid.bossName || monster.name,
+    maxHp: raid.bossMaxHp,
+    hp: raid.bossHpAtStart,
+    passDamage: Math.max(1, Math.floor(Number(combatProfile.passDamage) || 1)),
+    areaDamage: Math.max(1, Math.floor(Number(combatProfile.areaDamage) || 1)),
+    defense: Math.max(0, Math.floor(Number(combatProfile.defense) || 0)),
+    speed: Math.max(0, Math.floor(Number(combatProfile.speed) || 0)),
+    archetype: 'raid',
+    threatLevel: 50,
+    ailment: combatProfile.ailment || null,
+    affinity: combatProfile.affinity || getTarotKingdomEnemyAffinity(monster.id),
+    rushStartedAtSeq: null,
+    defeatedAtSeq: null,
+    finishedAt: null,
+    petrifiedUntilClear: false,
+    areaAttackSealedUntilClear: false
+  };
+  s.battle.effects.enemy = {};
+  s.battle.metrics.enemyDamageToParty = 0;
+  kingdomMonsterAnimationKey = '';
+  clearKingdomMonsterFrameTimer();
+  clearKingdomEnemyFinisherTimer();
+  const transformEvent = pushKingdomBattleEvent('raid-transform', {
+    actorIndex: Number.isInteger(Number(sourceIndex)) ? Number(sourceIndex) : null,
+    bossId: monster.id,
+    bossName: s.battle.enemy.name,
+    hpBefore: 0,
+    hpAfter: s.battle.enemy.hp,
+    label: `${s.battle.enemy.name}が　しょうたいを　あらわした！`
+  });
+  s.message = `${s.battle.enemy.name}が　しょうたいを　あらわした！`;
+  triggerKingdomActionFx(
+    Number.isInteger(Number(sourceIndex)) ? Number(sourceIndex) : 0,
+    'RAID BOSS',
+    {
+      overlay: 'action',
+      durationMs: KINGDOM_RAID_TRANSFORM_EVENT_MS,
+      cutin: true,
+      cutinClass: 'is-kingdom-raid-transform',
+      keyword: 'TRANSFORM',
+      actorName: s.battle.enemy.name,
+      tone: 'danger'
+    }
+  );
+  setKingdomTransition(
+    'raidTransform',
+    Number.isInteger(Number(sourceIndex)) ? Number(sourceIndex) : null,
+    KINGDOM_RAID_TRANSFORM_EVENT_MS,
+    {
+      eventSeqs: Number.isFinite(Number(transformEvent?.seq)) ? [Number(transformEvent.seq)] : [],
+      resumeMessage: s.message
+    }
+  );
+  return true;
+}
+
 function resolveKingdomExplorationStageState(value = s?.stage) {
   const normalized = normalizeKingdomExplorationStageState(value);
   if (normalized) return normalized;
@@ -5146,7 +5282,14 @@ function applyKingdomEnemyPreAttack(attackKind) {
     const before = Math.max(0, Number(enemy.hp) || 0);
     const damage = Math.min(before, Math.max(1, Math.floor(Number(status.potency) || 1)));
     enemy.hp = Math.max(0, before - damage);
-    effects.push({ kind: 'status-damage', statusKey, amount: damage, hpBefore: before, hpAfter: enemy.hp });
+    effects.push({
+      kind: 'status-damage',
+      statusKey,
+      sourceIndex: Number.isInteger(Number(status.sourceIndex)) ? Number(status.sourceIndex) : null,
+      amount: damage,
+      hpBefore: before,
+      hpAfter: enemy.hp
+    });
   });
   if (enemy.hp <= 0) {
     const event = pushKingdomBattleEvent('enemy-status', {
@@ -5818,7 +5961,7 @@ function startKingdomTerminalEnemyTransition(actorIndex, attackEvents = []) {
   });
 }
 
-function markKingdomBattleVictory(winnerIndex) {
+function markKingdomBattleVictory(winnerIndex, options = {}) {
   if (!s?.battle || s.battle.outcome) return;
   const enemy = s.battle.enemy;
   const hpBefore = Math.max(0, Number(enemy?.hp) || 0);
@@ -5828,7 +5971,9 @@ function markKingdomBattleVictory(winnerIndex) {
   if (enemy && !enemyEscaped) enemy.hp = 0;
   s.battle.active = false;
   s.battle.outcome = 'victory';
-  s.battle.resultReason = enemyEscaped ? 'enemy-escaped' : 'hand-empty';
+  s.battle.resultReason = enemyEscaped
+    ? 'enemy-escaped'
+    : (String(options.resultReason || '') || 'enemy-defeated');
   const victoryEvent = pushKingdomBattleEvent('victory', {
     actorIndex: winnerIndex,
     finisher: !enemyEscaped,
@@ -5873,6 +6018,56 @@ function markKingdomBattleVictory(winnerIndex) {
   }
 }
 
+function isKingdomEnemyHpVictoryReady(state = s) {
+  return !!(
+    isKingdomEnemyHpVictoryEnabled(state)
+    && !isKingdomRaidDisguisePhase(state)
+    && state?.battle
+    && !state.battle.outcome
+    && Number(state.battle.enemy?.hp) <= 0
+  );
+}
+
+function resolveKingdomEnemyDefeatWinner(fallbackIndex, events = []) {
+  const candidates = [];
+  [...(Array.isArray(events) ? events : [])].reverse().forEach((event) => {
+    [...(Array.isArray(event?.effects) ? event.effects : [])].reverse().forEach((effect) => {
+      if (effect?.sourceIndex != null) candidates.push(Number(effect.sourceIndex));
+    });
+    if (event?.actorIndex != null) candidates.push(Number(event.actorIndex));
+  });
+  const enemyEffects = getKingdomEffectBucket('enemy') || {};
+  ['poison', 'burn', 'confusion'].forEach((statusKey) => {
+    if (enemyEffects?.[statusKey]?.sourceIndex != null) {
+      candidates.push(Number(enemyEffects[statusKey].sourceIndex));
+    }
+  });
+  candidates.push(Number(fallbackIndex));
+  return candidates.find((index) => (
+    Number.isInteger(index) && index >= 0 && index < getKingdomPlayerCount()
+  )) ?? 0;
+}
+
+function startKingdomTerminalEnemyVictoryTransition(fallbackIndex, attackEvents = []) {
+  if (!isKingdomEnemyHpVictoryReady()) return false;
+  const responseEvents = (Array.isArray(attackEvents) ? attackEvents : []).filter(Boolean);
+  const winnerIndex = resolveKingdomEnemyDefeatWinner(fallbackIndex, responseEvents);
+  const duration = responseEvents.reduce(
+    (total, event) => total + getKingdomBattleEventDuration(event),
+    0
+  );
+  const eventTimelineSpecs = buildKingdomEnemyTimelineSpecs(responseEvents);
+  const primaryTimeline = eventTimelineSpecs[String(responseEvents[0]?.seq || '')] || null;
+  clearNpcTimer();
+  s.phase = 'resolvingEnemy';
+  s.message = `${s.battle.enemy.name}を　たおした！`;
+  setKingdomTransition('terminalEnemyVictory', winnerIndex, duration, {
+    eventSeqs: responseEvents.map((event) => event.seq).filter(Number.isFinite),
+    ...(primaryTimeline ? { timeline: primaryTimeline, eventTimelineSpecs } : {})
+  });
+  return true;
+}
+
 function normalizeKingdomRules(
   rawRules = null,
   fallbackHandSize = DEFAULT_HAND_LIMIT,
@@ -5903,6 +6098,9 @@ function normalizeKingdomRules(
     initialHandSize,
     handLimit,
     playerCount: normalizeKingdomPlayerCount(incoming.playerCount, PLAYERS.length),
+    enemyDefeatMode: incoming.enemyDefeatMode === KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
+      ? KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
+      : KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO,
     combatEffectsVersion: Math.max(
       0,
       Math.min(1, Math.floor(Number(incoming.combatEffectsVersion ?? fallbackCombatEffectsVersion) || 0))
@@ -5960,6 +6158,14 @@ function getKingdomInitialHandSize(state = s) {
 
 function getKingdomHandLimit(state = s) {
   return normalizeKingdomRules(state?.rules, DEFAULT_HAND_LIMIT).handLimit;
+}
+
+function getKingdomEnemyDefeatMode(state = s) {
+  return normalizeKingdomRules(state?.rules).enemyDefeatMode;
+}
+
+function isKingdomEnemyHpVictoryEnabled(state = s) {
+  return getKingdomEnemyDefeatMode(state) === KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO;
 }
 
 function initState() {
@@ -6030,6 +6236,7 @@ function initState() {
     characterSnapshotReady: false,
     characterSnapshotCreatedAt: 0,
     stage: null,
+    raid: null,
     battle: createKingdomBattleState(0, false, '', rules.enemyCombatVersion, playerTemplates.length, null)
   };
 }
@@ -6253,6 +6460,10 @@ async function registerOpenRoomIndex(db, roomId, ownerUid) {
       stageId: isExplorationRescue ? String(explorationContext?.stageId || '').slice(0, 64) : '',
       battlefieldId: isExplorationRescue ? String(explorationContext?.battlefieldId || '').slice(0, 64) : '',
       atmosphereTone: isExplorationRescue ? String(explorationContext?.atmosphereTone || '').slice(0, 32) : '',
+      enemyDefeatMode: isExplorationRescue
+        && explorationContext?.enemyDefeatMode === KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
+        ? KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
+        : KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO,
       createdAt: now,
       updatedAt: now
     });
@@ -6310,6 +6521,9 @@ async function inspectJoinableRescueRoom(db, roomId, item = null) {
     stageId: String(openItem.stageId || ''),
     battlefieldId: String(openItem.battlefieldId || ''),
     atmosphereTone: String(openItem.atmosphereTone || ''),
+    enemyDefeatMode: openItem.enemyDefeatMode === KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
+      ? KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
+      : KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO,
     memberCount: livePresence.length,
     createdAt: Number(openItem.createdAt || updatedAt),
     updatedAt
@@ -6620,6 +6834,9 @@ function deserializeStateFromNet(payload) {
     incomingRules.carryHpBetweenRoundsVersion = 0;
     incomingRules.forcedDrawDeathVersion = 0;
   }
+  if (incomingSchema < 13) {
+    incomingRules.enemyDefeatMode = KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY;
+  }
   nextState.rules = normalizeKingdomRules(
     incomingRules,
     incomingSchema < 4 ? LEGACY_HAND_SIZE : DEFAULT_HAND_LIMIT,
@@ -6635,6 +6852,7 @@ function deserializeStateFromNet(payload) {
     incomingSchema < 12 ? 0 : 1,
     incomingSchema < 12 ? 0 : 1
   );
+  nextState.raid = normalizeKingdomRaidState(rawState.raid);
   [
     'graveOpen',
     'reversePersist',
@@ -8373,6 +8591,40 @@ function buildTarotKingdomDebugBattleState(options = {}) {
     Number(s.rules?.enemyCombatVersion ?? 1),
     s.players.length
   );
+  if (options.raid && typeof options.raid === 'object') {
+    s.raid = normalizeKingdomRaidState(options.raid);
+    if (s.raid) {
+      const bossPhase = s.raid.phase === 'boss';
+      const raidMonster = getKingdomMonsterConfig(
+        bossPhase ? s.raid.bossMonsterId : s.raid.preFormMonsterId
+      );
+      const raidProfile = bossPhase
+        ? createTarotKingdomEnemyCombatProfile(raidMonster, TOTAL_HANDS - 1, {
+            threatLevel: 50,
+            archetype: 'raid'
+          })
+        : createTarotKingdomEnemyCombatProfile(raidMonster, 0);
+      const raidMaxHp = bossPhase ? s.raid.bossMaxHp : raidProfile.maxHp;
+      const raidHp = bossPhase ? s.raid.bossHpAtStart : raidProfile.maxHp;
+      s.battle.enemy = {
+        ...s.battle.enemy,
+        id: raidMonster.id,
+        name: bossPhase
+          ? (s.raid.bossName || raidMonster.name)
+          : (s.raid.preFormMonsterName || raidMonster.name),
+        maxHp: raidMaxHp,
+        hp: raidHp,
+        passDamage: raidProfile.passDamage,
+        areaDamage: raidProfile.areaDamage,
+        defense: raidProfile.defense,
+        speed: raidProfile.speed,
+        archetype: raidProfile.archetype,
+        threatLevel: bossPhase ? 50 : raidProfile.threatLevel,
+        ailment: raidProfile.ailment,
+        affinity: raidProfile.affinity || getTarotKingdomEnemyAffinity(raidMonster.id)
+      };
+    }
+  }
   if (Object.prototype.hasOwnProperty.call(options, 'enemyHp')) {
     s.battle.enemy.hp = Math.max(0, Math.min(
       s.battle.enemy.maxHp,
@@ -9235,6 +9487,11 @@ function exposeTarotKingdomBattleDebugTools(target) {
       return snapshotTarotKingdomDebugState();
     },
     battleState: () => snapshotTarotKingdomDebugState(),
+    battleExplorationResult: () => cloneKingdomSnapshotValue(buildKingdomExplorationResult('completed'), null),
+    battleActivateRaidBoss: (sourceIndex = 0) => ({
+      ok: activateKingdomRaidBossForm(sourceIndex),
+      state: snapshotTarotKingdomDebugState()
+    }),
     battleDemoEnemies: () => getKingdomDemoMonsterOptions(),
     battleSetDemoEnemy: (monsterId) => ({
       ok: setKingdomDemoEnemy(monsterId),
@@ -10623,6 +10880,37 @@ function finishRound(winnerIndex) {
   s.roundActive = false; s.phase = 'roundEnd'; s.selected.clear(); s.pendingDraw = null; s.pendingJudgment = null;
   s.awaitRoundConfirm = false;
   const winner = s.players[winnerIndex];
+  if (isKingdomRaidBattle()) {
+    captureKingdomRaidDamage(winnerIndex);
+    const bossEscaped = String(s?.battle?.resultReason || '') === 'enemy-escaped';
+    s.handNo = 1;
+    s.champion = null;
+    s.phase = 'done';
+    s.roundSettlement = {
+      roundNo: 1,
+      winnerIndex,
+      winnerName: String(winner?.name || ''),
+      winnerStartChips: Math.max(0, Number(winner?.chips) || 0),
+      winnerFinalChips: Math.max(0, Number(winner?.chips) || 0),
+      displayWinnerChips: Math.max(0, Number(winner?.chips) || 0),
+      starBonus: 0,
+      rows: [],
+      coinEvents: [],
+      coinFxDispatched: true,
+      bonusCoinFx: null,
+      potAward: 0,
+      totalGain: 0,
+      displayTotalGain: 0,
+      matchDone: true,
+      raid: true
+    };
+    s.message = bossEscaped
+      ? `${s.battle.enemy.name}は　にげだした！`
+      : `${s.battle.enemy.name}を　たおした！`;
+    log(s.message);
+    render();
+    return;
+  }
   const chipsBeforeSettlement = s.players.map((p) => Math.max(0, Number(p?.chips) || 0));
   const roundNo = Math.max(1, Number(s.handNo || 0) + 1);
   const starBonusBase = Math.max(0, Number(winner.stars) || 0);
@@ -11041,6 +11329,10 @@ function resolveKingdomTransition() {
     if (s?.roundActive) playOpeningDealCinematic();
   } else if (transition.kind === 'judgmentReclaim') {
     completeJudgmentFollowup(actorIndex);
+  } else if (transition.kind === 'raidTransform') {
+    s.message = String(transition.resumeMessage || s.message || `${pName(s.turn)}のターン`);
+    scheduleNpc();
+    render();
   } else if (transition.kind === 'enemyResponse') {
     s.phase = String(transition.resumePhase || 'turn');
     if (transition.resumeTurn != null && Number.isInteger(Number(transition.resumeTurn))) s.turn = Number(transition.resumeTurn);
@@ -11058,6 +11350,9 @@ function resolveKingdomTransition() {
     }
     scheduleNpc();
     render();
+  } else if (transition.kind === 'terminalEnemyVictory') {
+    markKingdomBattleVictory(actorIndex, { resultReason: 'enemy-defeated' });
+    startRoundOutCinematic(actorIndex, s.lastPlay);
   } else if (transition.kind === 'terminalEnemyResponse') {
     s.phase = 'done';
     s.message = '全員が戦闘不能になりました。モンスター戦敗北。';
@@ -11140,6 +11435,17 @@ function continueAfterPlay(pi, play) {
     }
     purgeKingdomBattleEffects();
   }
+  captureKingdomRaidDamage(pi);
+  if (isKingdomRaidDisguisePhase() && Number(s?.battle?.enemy?.hp) <= 0) {
+    activateKingdomRaidBossForm(pi);
+  }
+  if (
+    isKingdomEnemyHpVictoryReady()
+  ) {
+    markKingdomBattleVictory(pi, { resultReason: 'enemy-defeated' });
+    startRoundOutCinematic(pi, play);
+    return;
+  }
   if (
     areKingdomMajorArcanaSpecialRulesEnabled()
     && isSingleMajorSetPlay(play, 21)
@@ -11196,19 +11502,21 @@ function startRoundOutCinematic(winnerIndex, play) {
   clearRoundOutCinematicTimer();
   const winner = s.players[winnerIndex];
   const actionLabel = getRoundFinishActionLabel(play);
+  const raidEscape = isKingdomRaidBattle()
+    && String(s?.battle?.resultReason || '') === 'enemy-escaped';
   s.phase = 'roundOutCinematic';
   s.turn = winnerIndex;
   s.message = buildKingdomEnemyOutcomeAnnouncement()
     || `${winner.name}が出し切り！ 最後の一手: ${actionLabel}`;
-  triggerKingdomActionFx(winnerIndex, `出し切り！\n${actionLabel}`, {
+  triggerKingdomActionFx(winnerIndex, raidEscape ? 'BOSS ESCAPE' : `出し切り！\n${actionLabel}`, {
     overlay: 'roundend',
     overlayHoldMs: ROUND_OUT_CINEMATIC_MS,
     durationMs: ROUND_OUT_CINEMATIC_MS + 260,
     cutin: true,
     cutinClass: 'is-kingdom-round-out',
-    keyword: 'VICTORY',
-    actorName: winner.name,
-    tone: 'victory'
+    keyword: raidEscape ? 'ESCAPED' : 'VICTORY',
+    actorName: raidEscape ? String(s?.battle?.enemy?.name || '') : winner.name,
+    tone: raidEscape ? 'neutral' : 'victory'
   });
   setKingdomTransition('roundOut', winnerIndex, ROUND_OUT_CINEMATIC_MS);
   render();
@@ -11455,6 +11763,15 @@ function passAction(pi) {
   const passByHuman = isLocalPlayer(pi);
   triggerKingdomActionFx(pi, 'パス', { overlay: passByHuman ? 'action' : null, durationMs: 480, cutin: true });
   const singleAttackEvent = applyKingdomEnemySingleAttack(pi);
+  const singleDamageSource = resolveKingdomEnemyDefeatWinner(pi, [singleAttackEvent]);
+  captureKingdomRaidDamage(singleDamageSource);
+  if (isKingdomRaidDisguisePhase() && Number(s?.battle?.enemy?.hp) <= 0) {
+    activateKingdomRaidBossForm(singleDamageSource);
+  }
+  if (startKingdomTerminalEnemyVictoryTransition(pi, [singleAttackEvent])) {
+    render();
+    return;
+  }
   if (isKingdomPartyDefeated()) {
     finishKingdomBattleDefeat();
     startKingdomTerminalEnemyTransition(pi, [singleAttackEvent].filter(Boolean));
@@ -11465,6 +11782,15 @@ function passAction(pi) {
   if (leader != null && allOthersPassed(leader)) {
     log('全員パスでクリア');
     const areaAttackEvent = applyKingdomEnemyAreaAttack();
+    const areaDamageSource = resolveKingdomEnemyDefeatWinner(pi, [areaAttackEvent]);
+    captureKingdomRaidDamage(areaDamageSource);
+    if (isKingdomRaidDisguisePhase() && Number(s?.battle?.enemy?.hp) <= 0) {
+      activateKingdomRaidBossForm(areaDamageSource);
+    }
+    if (startKingdomTerminalEnemyVictoryTransition(pi, [singleAttackEvent, areaAttackEvent])) {
+      render();
+      return;
+    }
     if (isKingdomPartyDefeated()) {
       finishKingdomBattleDefeat();
       startKingdomTerminalEnemyTransition(pi, [singleAttackEvent, areaAttackEvent].filter(Boolean));
@@ -12472,7 +12798,13 @@ function normalizeKingdomTerminalState(state = s) {
     state.champion = null;
     changed = true;
   }
-  if (!isBattleDefeat && state.champion == null && Array.isArray(state.players) && state.players.length > 0) {
+  if (
+    !isBattleDefeat
+    && !isKingdomRaidBattle(state)
+    && state.champion == null
+    && Array.isArray(state.players)
+    && state.players.length > 0
+  ) {
     let top = 0;
     state.players.forEach((player, index) => {
       if ((Number(player?.chips) || 0) > (Number(state.players[top]?.chips) || 0)) top = index;
@@ -12494,6 +12826,8 @@ function normalizeKingdomTerminalState(state = s) {
 
 function buildKingdomExplorationResult(status = 'completed') {
   const localSeat = getLocalPlayerIndex();
+  captureKingdomRaidDamage();
+  const raid = normalizeKingdomRaidState(s?.raid);
   const monster = getKingdomMonsterConfig(String(s?.battle?.enemy?.id || kingdomExplorationMonsterId));
   const defeated = s?.battle?.outcome === 'defeat';
   const stage = normalizeKingdomExplorationStageState(s?.stage);
@@ -12528,6 +12862,28 @@ function buildKingdomExplorationResult(status = 'completed') {
     isNpc: player?.isNpc === true,
     chips: Math.floor(Number(player?.chips) || 0)
   }));
+  const raidFinisherIndex = Number(raid?.lastDamageSourceIndex);
+  const raidFinisherPlayer = Number.isInteger(raidFinisherIndex)
+    ? s?.players?.[raidFinisherIndex]
+    : null;
+  const raidResult = raid ? {
+    attemptId: raid.attemptId,
+    raidId: raid.raidId,
+    bossId: raid.bossMonsterId,
+    bossName: raid.bossName,
+    bossHpAtStart: raid.bossHpAtStart,
+    damageDealt: raid.damageDealt,
+    bossDefeatedLocally: raid.phase === 'boss' && Number(s?.battle?.enemy?.hp) <= 0,
+    escaped: String(s?.battle?.resultReason || '') === 'enemy-escaped',
+    finisher: raidFinisherPlayer
+      ? {
+          playerIndex: raidFinisherIndex,
+          playFabId: String(raidFinisherPlayer.playFabId || ''),
+          displayName: String(raidFinisherPlayer.name || ''),
+          isNpc: raidFinisherPlayer.isNpc === true
+        }
+      : null
+  } : null;
   return {
     status,
     completed: status === 'completed',
@@ -12546,7 +12902,8 @@ function buildKingdomExplorationResult(status = 'completed') {
     finishers,
     standings,
     mode,
-    finisher: finalFinisher
+    finisher: finalFinisher,
+    raid: raidResult
   };
 }
 
@@ -13074,6 +13431,7 @@ function getKingdomBattleEventDuration(event) {
   if (type === 'enemy-single' || type === 'enemy-self') return KINGDOM_ENEMY_SINGLE_EVENT_MS;
   if (type === 'enemy-status') return KINGDOM_ENEMY_STATUS_EVENT_MS;
   if (type === 'judgment-reclaim') return KINGDOM_JUDGMENT_RECLAIM_EVENT_MS;
+  if (type === 'raid-transform') return KINGDOM_RAID_TRANSFORM_EVENT_MS;
   if (type === 'forced-draw-ko') return 900;
   if (type === 'defeat' && Number.isInteger(Number(event?.retreatingPlayerIndex))) return 1600;
   if (type === 'victory' || type === 'defeat') return 1200;
@@ -13086,6 +13444,7 @@ function getKingdomBattleFeedClass(type) {
   if (key === 'attack') return 'is-attack';
   if (key === 'enemy-single' || key === 'enemy-area' || key === 'enemy-self' || key === 'enemy-status') return 'is-enemy';
   if (key === 'forced-draw-ko') return 'is-defeat';
+  if (key === 'raid-transform') return 'is-enemy';
   if (key === 'victory') return 'is-victory';
   if (key === 'defeat') return 'is-defeat';
   return 'is-info';
@@ -13219,7 +13578,9 @@ function getKingdomBattleVisualHp(playerIndex, logicalHp, maxHp, activeEvent, ev
     return Math.max(0, Math.min(maxHp, visualHp));
   }
   const transitionKind = String(s?.transition?.kind || '');
-  if (!eventIsActive || !['enemyResponse', 'terminalEnemyResponse'].includes(transitionKind)) return logicalHp;
+  if (!eventIsActive || !['enemyResponse', 'terminalEnemyResponse', 'terminalEnemyVictory'].includes(transitionKind)) {
+    return logicalHp;
+  }
   const eventSeqs = Array.isArray(s.transition?.eventSeqs) ? s.transition.eventSeqs.map(Number) : [];
   const activeSeqIndex = eventSeqs.indexOf(Number(activeEvent?.seq));
   if (activeSeqIndex < 0 || activeSeqIndex >= eventSeqs.length - 1) return logicalHp;
@@ -14064,7 +14425,8 @@ function renderKingdomBattleStage() {
     ui.battleStage.classList.remove(
       'is-opening-enemy-entering',
       'is-opening-enemy-attacking',
-      'is-opening-field-card'
+      'is-opening-field-card',
+      'is-raid-transforming'
     );
     clearKingdomMonsterFrameTimer();
     clearKingdomEnemyFinisherTimer();
@@ -14094,7 +14456,9 @@ function renderKingdomBattleStage() {
   let visualEvent = lastEvent;
   let duration = getKingdomBattleEventDuration(visualEvent);
   let elapsed = visualEvent ? Math.max(0, Date.now() - Number(visualEvent.at || 0)) : Number.POSITIVE_INFINITY;
-  const transitionEventSeqs = ['enemyResponse', 'terminalEnemyResponse'].includes(String(s?.transition?.kind || ''))
+  const transitionEventSeqs = ['enemyResponse', 'terminalEnemyResponse', 'terminalEnemyVictory'].includes(
+    String(s?.transition?.kind || '')
+  )
     && Array.isArray(s.transition.eventSeqs)
     ? s.transition.eventSeqs.map(Number).filter(Number.isFinite)
     : [];
@@ -14128,7 +14492,7 @@ function renderKingdomBattleStage() {
   const victoryEvent = events.slice().reverse().find((event) => event?.type === 'victory') || null;
   const enemyFinisherActive = !!(
     battle.outcome === 'victory'
-    && battle.resultReason === 'hand-empty'
+    && ['hand-empty', 'enemy-defeated'].includes(String(battle.resultReason || ''))
     && victoryEvent?.finisher === true
   );
   const enemyEscapeActive = !!(
@@ -14172,6 +14536,8 @@ function renderKingdomBattleStage() {
   ui.battleStage.classList.toggle('is-battle-hit-stop', eventIsActive && timelinePhase === 'hit-stop');
   ui.battleStage.classList.toggle('is-battle-damage', eventIsActive && timelinePhase === 'damage');
   ui.battleStage.classList.toggle('is-battle-skill', eventIsActive && String(visualEvent?.type || '') === 'skill');
+  const raidTransformActive = eventIsActive && String(visualEvent?.type || '') === 'raid-transform';
+  ui.battleStage.classList.toggle('is-raid-transforming', raidTransformActive);
   ui.battleStage.classList.toggle('is-rush-time', enemyRushTime);
   ui.battleStage.classList.toggle('is-enemy-finisher', enemyFinisherActive);
   ui.battleStage.classList.toggle('is-enemy-escape', enemyEscapeActive);
@@ -14234,6 +14600,7 @@ function renderKingdomBattleStage() {
     node?.classList.toggle('is-time-stopped', enemyTimeStopped);
     node?.classList.toggle('is-confused', enemyConfused);
     node?.classList.toggle('is-area-sealed', enemyAreaSealed);
+    node?.classList.toggle('is-raid-transforming', raidTransformActive);
   });
 
   const escapeAnimation = String(victoryEvent?.escapeAnimation || '')
@@ -14284,7 +14651,7 @@ function renderKingdomBattleStage() {
 }
 
 function renderPlayers() {
-  const settlementData = s?.roundSettlement || null;
+  const settlementData = s?.roundSettlement?.raid ? null : (s?.roundSettlement || null);
   const isMatchDone = isKingdomMatchDoneState(s);
   const showRankingMedals = isMatchDone && s?.battle?.outcome !== 'defeat';
   ui.players.innerHTML = '';
@@ -15176,9 +15543,10 @@ function renderSummary() {
   const localStateOverride = me >= 0 ? buildLocalStateTextOverride(me, localSelected) : '';
   const turnText = s.roundActive ? `\nTurn ${Math.max(1, Number(s.turnCount) || 1)}` : '';
   const stage = normalizeKingdomExplorationStageState(s.stage);
+  const totalHands = getKingdomRaidTotalHands();
   ui.round.textContent = stage
-    ? `STAGE ${stage.stageNo}\nENEMY ${Math.min(s.handNo + 1, TOTAL_HANDS)} / ${TOTAL_HANDS}${turnText}`
-    : `Round ${Math.min(s.handNo + 1, TOTAL_HANDS)} / ${TOTAL_HANDS}${turnText}`;
+    ? `STAGE ${stage.stageNo}\nENEMY ${Math.min(s.handNo + 1, totalHands)} / ${totalHands}${turnText}`
+    : `Round ${Math.min(s.handNo + 1, totalHands)} / ${totalHands}${turnText}`;
   if (ui.turn) {
     if (s.roundActive) {
       setInlinePlayerLabel(ui.turn, '', s.turn, 'の手番');
@@ -16195,6 +16563,7 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
     requestedStageMonsters[0]?.monsterId || context?.monsterId || ''
   ).trim();
   const monster = KINGDOM_MONSTER_ROSTER.find((entry) => entry.id === requestedMonsterId) || KINGDOM_DEFAULT_MONSTER;
+  const requestedRaid = normalizeKingdomRaidState(context?.raid);
   kingdomExplorationMonsterId = monster.id;
   const destinationId = String(context?.destinationId || '').trim();
   const requestedMode = context?.mode === 'online' ? 'online' : 'offline';
@@ -16235,6 +16604,10 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
       ? context.supplyQueue.slice(0, TOTAL_HANDS - 1).map((entry) => ({ ...entry }))
       : [],
     mode: requestedMode,
+    enemyDefeatMode: context?.enemyDefeatMode === KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
+      ? KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
+      : KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO,
+    raid: requestedRaid,
     currentPet,
     onRoundFinished: requestedMode === 'offline' && typeof context?.onRoundFinished === 'function'
       ? context.onRoundFinished
@@ -16267,12 +16640,26 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
       monsters: normalizedContext.monsters,
       supplyQueue: normalizedContext.supplyQueue
     });
-    if (!stage || !s) return null;
-    s.stage = stage;
+    if (!s) return null;
     s.rules = normalizeKingdomRules({
       ...s.rules,
-      stageVersion: 1
+      stageVersion: stage ? 1 : Number(s.rules?.stageVersion || 0),
+      enemyDefeatMode: normalizedContext.enemyDefeatMode
     });
+    s.raid = normalizeKingdomRaidState(normalizedContext.raid);
+    if (!stage) {
+      s.stage = null;
+      s.battle = createKingdomBattleState(
+        0,
+        false,
+        normalizedContext.destinationId,
+        Number(s.rules.enemyCombatVersion || 1),
+        s.players.length,
+        null
+      );
+      return null;
+    }
+    s.stage = stage;
     s.battle = createKingdomBattleState(
       0,
       false,
@@ -16306,7 +16693,9 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
     } else {
       activateKingdomOfflineMode({
         renderNow: false,
-        message: `${normalizedContext.destinationName || '島'} STAGE ${normalizedContext.stageNo || 1}・ENEMY 1/${TOTAL_HANDS}: ${monster.name}`
+        message: normalizedContext.raid
+          ? `${monster.name}が　あらわれた！`
+          : `${normalizedContext.destinationName || '島'} STAGE ${normalizedContext.stageNo || 1}・ENEMY 1/${TOTAL_HANDS}: ${monster.name}`
       });
       applyExplorationStageToCurrentState();
       await startOrNext();
@@ -16357,6 +16746,9 @@ export async function joinTarotKingdomRescueRoom(room = {}) {
     monsters: [],
     supplyQueue: [],
     mode: 'online',
+    enemyDefeatMode: rescue.enemyDefeatMode === KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
+      ? KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
+      : KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO,
     currentPet: null,
     isRescueGuest: true,
     ownerPlayFabId: rescue.ownerPlayFabId,

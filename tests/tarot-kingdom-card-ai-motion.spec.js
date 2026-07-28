@@ -10,7 +10,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     await openKingdomDebug(page);
   });
 
-  test('schema 12 publishes HP carry, forced-draw death, and major effects while older matches keep their rules', async ({ page }) => {
+  test('schema 13 publishes enemy defeat mode and current combat rules while older matches keep their rules', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       const current = debug.battleScenario({ withTrick: false });
@@ -61,10 +61,11 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       majorBattleEffectsVersion: 1,
       elementAffinityVersion: 1,
       carryHpBetweenRoundsVersion: 1,
-      forcedDrawDeathVersion: 1
+      forcedDrawDeathVersion: 1,
+      enemyDefeatMode: 'hp-zero'
     });
     expect(audit.current.players.map((player) => player.hand.length)).toEqual([8, 8, 8, 8]);
-    expect(audit.published.schema).toBe(12);
+    expect(audit.published.schema).toBe(13);
     expect(audit.published.state.rules).toMatchObject({
       initialHandSize: 8,
       handLimit: 8,
@@ -76,7 +77,8 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       majorBattleEffectsVersion: 1,
       elementAffinityVersion: 1,
       carryHpBetweenRoundsVersion: 1,
-      forcedDrawDeathVersion: 1
+      forcedDrawDeathVersion: 1,
+      enemyDefeatMode: 'hp-zero'
     });
     expect(audit.schema1.rules).toMatchObject({ initialHandSize: 6, handLimit: 6 });
     expect(audit.schema3.rules).toMatchObject({ initialHandSize: 6, handLimit: 6 });
@@ -99,7 +101,8 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       summonVersion: 1,
       majorArcanaGateVersion: 0,
       majorArcanaSpecialVersion: 0,
-      forcedDrawDeathVersion: 0
+      forcedDrawDeathVersion: 0,
+      enemyDefeatMode: 'hand-empty'
     });
   });
 

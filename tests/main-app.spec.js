@@ -1558,9 +1558,20 @@ test('home exploration button loads exploration data in a popup', async ({ page 
       status: 200,
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
-        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'guild', itemId: 'guild_ship', isGuildShip: true, stage: 3 },
-        active: null,
-        reports: [{
+         ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'guild', itemId: 'guild_ship', isGuildShip: true, stage: 3 },
+         active: null,
+         raid: {
+           active: true,
+           nation: 'fire',
+           bossId: 'ismartal-vol2-monster-07',
+           bossName: 'バルガン',
+           currentHp: 125000,
+           maxHp: 250000,
+           attemptsUsed: 2,
+           attemptsRemaining: 2,
+           dailyAttemptLimit: 4
+         },
+         reports: [{
           id: 'legacy-report',
           destinationName: '過去の探索',
           reportText: 'この履歴は表示しない'
@@ -1636,6 +1647,11 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(panel.locator('.ship-exploration-list-row')).toHaveCount(0);
   await expect(panel.locator('.ship-exploration-report')).toHaveCount(0);
   await expect(panel).not.toContainText('過去の探索');
+  await expect(panel.locator('.ship-exploration-raid')).toBeVisible();
+  await expect(panel.locator('.ship-exploration-raid-body strong')).toHaveText('バルガン');
+  await expect(panel.locator('.ship-exploration-raid-body')).toContainText('HP 125,000 / 250,000');
+  await expect(panel.locator('.ship-exploration-raid-body')).toContainText('本日の挑戦 2 / 4');
+  await expect(panel.locator('[data-tarot-kingdom-raid-start]')).toHaveText('挑戦');
   const stageCards = panel.locator('.ship-exploration-stage');
   await expect(stageCards).toHaveCount(3);
   const firstStage = stageCards.nth(0);
@@ -1653,7 +1669,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(lockedStage).toHaveClass(/is-locked/);
   await expect(lockedStage.locator('.ship-exploration-start')).toBeDisabled();
   await expect(lockedStage).toContainText('前のステージで2位以内に入ると解放');
-  await expect(panel).not.toContainText(/Gで探索|本日無料|BOSS/);
+  await expect(panel).not.toContainText(/Gで探索|本日無料/);
   const explorationPanelFrame = await firstStage.evaluate((element) => ({
     panelBorder: getComputedStyle(document.getElementById('shipExplorationPanel')).borderImageSource,
     panelSliceSource: document.querySelector('#shipExplorationPanel > .panel-slice-25-layer')?.dataset.source || '',
@@ -1973,6 +1989,14 @@ test('exploration stage starts for free with ordered optional supplies', async (
     };
   });
   await page.locator('#btnHomeExploration').click();
+  const explorationSettings = page.locator('.ship-exploration-settings');
+  await expect(explorationSettings).toBeVisible();
+  await explorationSettings.locator('summary').click();
+  await expect(explorationSettings.locator('input[value="hp-zero"]')).toBeChecked();
+  await explorationSettings.locator('input[value="hand-empty"]').check();
+  await expect.poll(() => page.evaluate(() => (
+    window.localStorage.getItem('troy:exploration-enemy-defeat-mode')
+  ))).toBe('hand-empty');
   await page.locator('[data-exploration-stage="1"]').click();
   const dialog = page.locator('.ship-exploration-payment-dialog.is-stage-supply');
   await expect(dialog).toBeVisible();
@@ -2061,7 +2085,8 @@ test('exploration stage starts for free with ordered optional supplies', async (
     destinationId: 'tarot_stage_1',
     destinationName: '珊瑚の浅瀬',
     isBoss: false,
-    mode: 'online'
+    mode: 'online',
+    enemyDefeatMode: 'hand-empty'
   });
   expect(kingdomEntry.context.monsterId).toBe('ismartal-vol1-monster-07');
   expect(kingdomEntry.context.monsters).toHaveLength(4);
@@ -2207,7 +2232,8 @@ test('exploration rescue signal creates a dedicated online lobby before combat',
       monsterId: 'ismartal-vol2-monster-16',
       monsterName: 'オルビス',
       isBoss: true,
-      mode: 'online'
+      mode: 'online',
+      enemyDefeatMode: 'hand-empty'
     });
   });
 
@@ -2226,8 +2252,17 @@ test('exploration rescue signal creates a dedicated online lobby before combat',
   }), { timeout: 7000 }).toMatchObject({
     kind: 'exploration-rescue',
     monsterName: 'オルビス',
-    destinationName: '珊瑚礁の抜け道'
+    destinationName: '珊瑚礁の抜け道',
+    enemyDefeatMode: 'hand-empty'
   });
+  await expect.poll(() => page.evaluate(() => {
+    const entries = Array.from(window.__pwFirebaseDbStore?.values?.entries?.() || []);
+    const stateEntry = entries.find(([path]) => (
+      String(path).startsWith('tarotKingdomRooms/')
+      && String(path).endsWith('/state')
+    ));
+    return stateEntry?.[1]?.state?.rules?.enemyDefeatMode || '';
+  }), { timeout: 7000 }).toBe('hand-empty');
 
   await page.locator('#tarotKingdomRetreatButton').click();
   await expect(page.locator('#tabContentHome')).toBeVisible();
@@ -3707,6 +3742,81 @@ test('king OPEN button uses the current gold button frame', async ({ page }) => 
   expect(openButton.borderImageWidth).toContain('10px');
   expect(openButton.color).toBe('rgb(29, 14, 4)');
   expect(openButton.textShadow).toContain('rgb');
+  await expectNoPageErrors(errors);
+});
+
+test('king can spawn a shared Tarot Kingdom raid boss', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const controlRequests = [];
+  await bootstrapMainApp(page);
+  await page.unroute('**/api/tarot-kingdom/raid/status');
+  await page.route('**/api/tarot-kingdom/raid/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        raid: {
+          active: false,
+          nation: 'fire',
+          attemptsUsed: 0,
+          attemptsRemaining: 4,
+          dailyAttemptLimit: 4,
+          isKing: true,
+          bosses: [{
+            id: 'ismartal-vol2-monster-07',
+            name: 'バルガン',
+            preFormMonsterId: 'ismartal-vol3-monster-01',
+            preFormMonsterName: 'グラヴァ',
+            maxHp: 250000
+          }]
+        }
+      })
+    });
+  });
+  await page.route('**/api/tarot-kingdom/raid/control', async (route) => {
+    const request = JSON.parse(route.request().postData() || '{}');
+    controlRequests.push(request);
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        raid: {
+          active: true,
+          nation: 'fire',
+          bossId: 'ismartal-vol2-monster-07',
+          bossName: 'バルガン',
+          currentHp: 250000,
+          maxHp: 250000,
+          bosses: [{
+            id: 'ismartal-vol2-monster-07',
+            name: 'バルガン',
+            maxHp: 250000
+          }]
+        }
+      })
+    });
+  });
+  page.on('dialog', (dialog) => dialog.accept());
+
+  await page.evaluate(async () => {
+    const king = await import('/js/nationKing.js?v=20260728-raid1');
+    await king.refreshKingNav('PF_PLAYWRIGHT');
+    await window.showTab('king', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
+  });
+  await page.locator('[data-king-section-tab="raid"]').click();
+  await expect(page.locator('[data-king-section-panel="raid"]')).toBeVisible();
+  await expect(page.locator('#kingRaidBossSelect')).toHaveValue('ismartal-vol2-monster-07');
+  await page.locator('#btnKingRaidSpawn').click();
+
+  await expect(page.locator('#kingRaidStatus')).toContainText('バルガン 出現中');
+  await expect(page.locator('#kingRaidStatus')).toContainText('250,000 / 250,000');
+  expect(controlRequests).toEqual([expect.objectContaining({
+    playFabId: 'PF_PLAYWRIGHT',
+    action: 'spawn',
+    bossId: 'ismartal-vol2-monster-07'
+  })]);
   await expectNoPageErrors(errors);
 });
 

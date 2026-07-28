@@ -30,6 +30,22 @@ const {
     readTarotKingdomExplorationProgress,
     writeTarotKingdomExplorationProgress
 } = require('./tarotKingdomExplorationStages');
+const {
+    TAROT_KINGDOM_RAID_BOSSES,
+    TAROT_KINGDOM_RAID_COLLECTION,
+    TAROT_KINGDOM_RAID_GLOBAL_DOC_ID,
+    TAROT_KINGDOM_RAID_DAILY_ATTEMPT_COLLECTION,
+    TAROT_KINGDOM_RAID_DAILY_ATTEMPT_LIMIT,
+    applyTarotKingdomRaidDamage,
+    buildTarotKingdomRaidPublicState,
+    createTarotKingdomRaidAttemptId,
+    createTarotKingdomRaidSpawnState,
+    getTarotKingdomRaidBoss,
+    getTarotKingdomRaidDayKey,
+    normalizeTarotKingdomRaidNation,
+    normalizeTarotKingdomRaidReportedDamage,
+    normalizeTarotKingdomRaidState
+} = require('./tarotKingdomRaid');
 const PIXEL_MONSTERS_ROSTER = require('../public/Sprites/pixel-monsters/manifest.json');
 
 const EXPLORATION_COLLECTION = 'player_explorations';
@@ -2391,16 +2407,72 @@ function initializeExplorationRoutes(app, deps) {
         return requireAuthenticatedPlayFabId(req, res, playFabId);
     }
 
+    async function getTarotKingdomRaidIdentity(playFabId) {
+        const result = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Keys: ['Nation', 'IsKing']
+        });
+        return {
+            playFabId: String(playFabId || '').trim(),
+            nation: normalizeTarotKingdomRaidNation(result?.Data?.Nation?.Value),
+            isKing: String(result?.Data?.IsKing?.Value || '').trim().toLowerCase() === 'true'
+        };
+    }
+
+    function getTarotKingdomRaidRefs(playFabId, dayKey, attemptId = '') {
+        const raidRef = firestore
+            .collection(TAROT_KINGDOM_RAID_COLLECTION)
+            .doc(TAROT_KINGDOM_RAID_GLOBAL_DOC_ID);
+        const dailyAttemptRef = firestore
+            .collection(TAROT_KINGDOM_RAID_DAILY_ATTEMPT_COLLECTION)
+            .doc(`${String(dayKey || '').trim()}_${String(playFabId || '').trim()}`);
+        const attemptRef = attemptId
+            ? raidRef.collection('combat_attempts').doc(String(attemptId || '').trim())
+            : null;
+        return { raidRef, dailyAttemptRef, attemptRef };
+    }
+
+    async function buildTarotKingdomRaidStatus(playFabId, options = {}) {
+        const identity = options.identity || await getTarotKingdomRaidIdentity(playFabId);
+        const dayKey = getTarotKingdomRaidDayKey(options.nowMs);
+        if (!identity.nation) {
+            return {
+                active: false,
+                nation: '',
+                attemptsUsed: 0,
+                attemptsRemaining: TAROT_KINGDOM_RAID_DAILY_ATTEMPT_LIMIT,
+                dailyAttemptLimit: TAROT_KINGDOM_RAID_DAILY_ATTEMPT_LIMIT,
+                dayKey,
+                bosses: TAROT_KINGDOM_RAID_BOSSES
+            };
+        }
+        const refs = getTarotKingdomRaidRefs(playFabId, dayKey);
+        const [raidSnap, dailySnap] = await Promise.all([
+            refs.raidRef.get(),
+            refs.dailyAttemptRef.get()
+        ]);
+        const attemptsUsed = Math.max(0, Math.floor(Number(dailySnap.data()?.count) || 0));
+        return {
+            ...buildTarotKingdomRaidPublicState(
+                raidSnap.exists ? raidSnap.data() : null,
+                { nation: identity.nation, attemptsUsed, dayKey }
+            ),
+            isKing: identity.isKing === true,
+            bosses: TAROT_KINGDOM_RAID_BOSSES
+        };
+    }
+
     async function buildExplorationStatus(playFabId) {
         const ship = await resolveActiveShip(playFabId, deps);
-        const [activeSnap, progress, supplyState] = await Promise.all([
+        const [activeSnap, progress, supplyState, raid] = await Promise.all([
             firestore.collection(EXPLORATION_COLLECTION).doc(playFabId).get(),
             readTarotKingdomExplorationProgress(playFabId, { promisifyPlayFab, PlayFabServer }),
             buildExplorationPaymentState(playFabId, {
                 getEntityKeyForPlayFabId,
                 getAllInventoryItems,
                 catalogCache
-            })
+            }),
+            buildTarotKingdomRaidStatus(playFabId)
         ]);
         const stages = buildTarotKingdomStageList(progress, ship?.stage || 1);
         return {
@@ -2413,6 +2485,7 @@ function initializeExplorationRoutes(app, deps) {
             destinations: stages,
             allDestinations: stages,
             explorationSupplies: supplyState.consumables,
+            raid,
             active: activeSnap.exists ? explorationDocToPayload(activeSnap.data()) : null
         };
     }
@@ -2427,6 +2500,268 @@ function initializeExplorationRoutes(app, deps) {
         } catch (error) {
             console.error('[exploration/status] failed:', error?.errorMessage || error?.message || error);
             res.status(500).json({ error: '探索情報の取得に失敗しました。' });
+        }
+    });
+
+    app.post('/api/tarot-kingdom/raid/status', async (req, res) => {
+        let { playFabId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        playFabId = await requireAuthed(req, res, playFabId);
+        if (!playFabId) return;
+        try {
+            return res.json({
+                success: true,
+                raid: await buildTarotKingdomRaidStatus(playFabId)
+            });
+        } catch (error) {
+            console.error('[tarot-kingdom/raid/status] failed:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({ error: 'レイド情報を取得できませんでした。' });
+        }
+    });
+
+    app.post('/api/tarot-kingdom/raid/control', async (req, res) => {
+        let { playFabId, action, bossId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        playFabId = await requireAuthed(req, res, playFabId);
+        if (!playFabId) return;
+        action = String(action || '').trim().toLowerCase();
+        try {
+            const identity = await getTarotKingdomRaidIdentity(playFabId);
+            if (!identity.isKing || !identity.nation) {
+                return res.status(403).json({ error: 'レイドボスを操作できるのは国王だけです。' });
+            }
+            const dayKey = getTarotKingdomRaidDayKey();
+            const { raidRef } = getTarotKingdomRaidRefs(playFabId, dayKey);
+            if (action === 'spawn') {
+                const boss = getTarotKingdomRaidBoss(bossId);
+                if (!boss) return res.status(400).json({ error: 'レイドボスが不正です。' });
+                let conflict = false;
+                const spawnState = createTarotKingdomRaidSpawnState({
+                    nation: identity.nation,
+                    bossId: boss.id,
+                    actorPlayFabId: playFabId
+                });
+                await firestore.runTransaction(async (tx) => {
+                    const snap = await tx.get(raidRef);
+                    const current = normalizeTarotKingdomRaidState(snap.exists ? snap.data() : null, identity.nation);
+                    if (current.active) {
+                        conflict = true;
+                        return;
+                    }
+                    tx.set(raidRef, {
+                        ...spawnState,
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                });
+                if (conflict) {
+                    return res.status(409).json({ error: 'すでにレイドボスが出現しています。' });
+                }
+            } else if (action === 'withdraw') {
+                await raidRef.set({
+                    active: false,
+                    withdrawnAtMs: Date.now(),
+                    withdrawnByPlayFabId: playFabId,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            } else {
+                return res.status(400).json({ error: 'action must be spawn or withdraw' });
+            }
+            return res.json({
+                success: true,
+                raid: await buildTarotKingdomRaidStatus(playFabId, { identity })
+            });
+        } catch (error) {
+            console.error('[tarot-kingdom/raid/control] failed:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({ error: 'レイドボスを更新できませんでした。' });
+        }
+    });
+
+    app.post('/api/tarot-kingdom/raid/start', async (req, res) => {
+        let { playFabId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        playFabId = await requireAuthed(req, res, playFabId);
+        if (!playFabId) return;
+        try {
+            const identity = await getTarotKingdomRaidIdentity(playFabId);
+            if (!identity.nation) return res.status(403).json({ error: '所属国が設定されていません。' });
+            const now = Date.now();
+            const dayKey = getTarotKingdomRaidDayKey(now);
+            const attemptId = createTarotKingdomRaidAttemptId();
+            const refs = getTarotKingdomRaidRefs(playFabId, dayKey, attemptId);
+            let startError = null;
+            let attempt = null;
+            await firestore.runTransaction(async (tx) => {
+                const [raidSnap, dailySnap] = await Promise.all([
+                    tx.get(refs.raidRef),
+                    tx.get(refs.dailyAttemptRef)
+                ]);
+                const raid = normalizeTarotKingdomRaidState(
+                    raidSnap.exists ? raidSnap.data() : null,
+                    identity.nation
+                );
+                if (!raid.active) {
+                    startError = { code: 409, message: '現在、挑戦できるレイドボスはいません。' };
+                    return;
+                }
+                const attemptsUsed = Math.max(0, Math.floor(Number(dailySnap.data()?.count) || 0));
+                if (attemptsUsed >= TAROT_KINGDOM_RAID_DAILY_ATTEMPT_LIMIT) {
+                    startError = { code: 429, message: '本日のレイド挑戦回数を使い切りました。' };
+                    return;
+                }
+                attempt = {
+                    version: 1,
+                    attemptId,
+                    raidId: raid.raidId,
+                    nation: identity.nation,
+                    playFabId,
+                    status: 'active',
+                    bossId: raid.bossId,
+                    bossName: raid.bossName,
+                    preFormMonsterId: raid.preFormMonsterId,
+                    preFormMonsterName: raid.preFormMonsterName,
+                    bossMaxHp: raid.maxHp,
+                    bossHpAtStart: raid.currentHp,
+                    startedAtMs: now,
+                    dayKey
+                };
+                tx.set(refs.dailyAttemptRef, {
+                    dayKey,
+                    playFabId,
+                    count: attemptsUsed + 1,
+                    lastAttemptId: attemptId,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+                tx.set(refs.attemptRef, {
+                    ...attempt,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+            });
+            if (startError) return res.status(startError.code).json({ error: startError.message });
+            return res.json({
+                success: true,
+                attempt,
+                raid: await buildTarotKingdomRaidStatus(playFabId, { identity, nowMs: now })
+            });
+        } catch (error) {
+            console.error('[tarot-kingdom/raid/start] failed:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({ error: 'レイドへ出撃できませんでした。' });
+        }
+    });
+
+    app.post('/api/tarot-kingdom/raid/finish', async (req, res) => {
+        let { playFabId, attemptId, damageDealt, finisher } = req.body || {};
+        if (!playFabId || !attemptId) {
+            return res.status(400).json({ error: 'playFabId and attemptId are required' });
+        }
+        playFabId = await requireAuthed(req, res, playFabId);
+        if (!playFabId) return;
+        attemptId = String(attemptId || '').trim();
+        damageDealt = normalizeTarotKingdomRaidReportedDamage(damageDealt);
+        finisher = finisher && typeof finisher === 'object' ? finisher : {};
+        try {
+            const identity = await getTarotKingdomRaidIdentity(playFabId);
+            if (!identity.nation) return res.status(403).json({ error: '所属国が設定されていません。' });
+            const dayKey = getTarotKingdomRaidDayKey();
+            const refs = getTarotKingdomRaidRefs(playFabId, dayKey, attemptId);
+            let rewardRoll = null;
+            let finishError = null;
+            let resolution = null;
+            await firestore.runTransaction(async (tx) => {
+                const [attemptSnap, raidSnap] = await Promise.all([
+                    tx.get(refs.attemptRef),
+                    tx.get(refs.raidRef)
+                ]);
+                if (!attemptSnap.exists) {
+                    finishError = { code: 404, message: 'レイド挑戦記録が見つかりません。' };
+                    return;
+                }
+                const storedAttempt = attemptSnap.data() || {};
+                if (
+                    String(storedAttempt.playFabId || '') !== playFabId
+                    || String(storedAttempt.nation || '') !== identity.nation
+                ) {
+                    finishError = { code: 403, message: 'このレイド挑戦を完了する権限がありません。' };
+                    return;
+                }
+                if (String(storedAttempt.status || '') === 'completed') {
+                    resolution = storedAttempt.resolution || null;
+                    return;
+                }
+                const raidData = raidSnap.exists ? raidSnap.data() : null;
+                if (String(raidData?.raidId || '') !== String(storedAttempt.raidId || '')) {
+                    finishError = { code: 409, message: '対象のレイドはすでに終了しています。' };
+                    return;
+                }
+                const eligibleFinisher = (
+                    finisher.isNpc !== true
+                    && String(finisher.playFabId || '').trim() === playFabId
+                );
+                const damageResult = applyTarotKingdomRaidDamage(
+                    raidData,
+                    damageDealt,
+                    {
+                        playFabId: eligibleFinisher ? playFabId : '',
+                        displayName: eligibleFinisher ? String(finisher.displayName || '').slice(0, 40) : ''
+                    }
+                );
+                if (damageResult.defeatedNow && eligibleFinisher && !rewardRoll) {
+                    rewardRoll = drawLocalGachaItem(
+                        catalogCache,
+                        getTarotKingdomStageGachaOptions(11, 1, { shipClass: 'fighter', stage: 3 })
+                    );
+                }
+                const rewardItemId = damageResult.defeatedNow && eligibleFinisher
+                    ? String(rewardRoll?.itemId || '')
+                    : '';
+                resolution = {
+                    version: 1,
+                    attemptId,
+                    raidId: String(storedAttempt.raidId || ''),
+                    reportedDamage: damageResult.reportedDamage,
+                    appliedDamage: damageResult.appliedDamage,
+                    hpBefore: Number(damageResult.hpBefore ?? damageResult.state.currentHp) || 0,
+                    hpAfter: Number(damageResult.hpAfter ?? damageResult.state.currentHp) || 0,
+                    defeatedNow: damageResult.defeatedNow === true,
+                    rewardPlayFabId: rewardItemId ? playFabId : '',
+                    rewardItemId,
+                    rewardDisplayName: rewardItemId
+                        ? String(rewardRoll?.displayName || rewardItemId)
+                        : '',
+                    completedAtMs: Date.now()
+                };
+                if (damageResult.writeState) {
+                    tx.set(refs.raidRef, {
+                        ...damageResult.writeState,
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                }
+                tx.update(refs.attemptRef, {
+                    status: 'completed',
+                    resolution,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+            });
+            if (finishError) return res.status(finishError.code).json({ error: finishError.message });
+            if (resolution?.rewardItemId && typeof addEconomyItem === 'function') {
+                await addEconomyItem(playFabId, resolution.rewardItemId, 1, {
+                    idempotencyId: `tarot-kingdom-raid-reward-${resolution.raidId}-${playFabId}`
+                });
+            }
+            return res.json({
+                success: true,
+                resolution,
+                reward: resolution?.rewardItemId
+                    ? {
+                        itemId: resolution.rewardItemId,
+                        displayName: resolution.rewardDisplayName
+                    }
+                    : null,
+                raid: await buildTarotKingdomRaidStatus(playFabId, { identity })
+            });
+        } catch (error) {
+            console.error('[tarot-kingdom/raid/finish] failed:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({ error: 'レイド結果を反映できませんでした。' });
         }
     });
 

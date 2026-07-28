@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="robots" content="noindex,follow">
     <title>Tarot Kingdom Preview</title>
-    <link rel="stylesheet" href="./style.css?v=20260728-rescue-notify1">
+    <link rel="stylesheet" href="./style.css?v=20260728-raid1">
     <style>
         html, body {
             margin: 0;
@@ -40,7 +40,7 @@
                 "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
                 "config": "./js/config.js",
                 "api": "./js/api.js",
-                "ui": "./js/ui.js?v=20260728-rescue-notify1",
+                "ui": "./js/ui.js?v=20260728-raid1",
                 "avatar": "./js/avatar.js",
                 "player": "./js/player.js",
                 "inventory": "./js/inventory.js?v=20260604g",
@@ -185,16 +185,37 @@
         window.myLineProfile = { displayName: 'Preview' };
         window.__TAROT_KINGDOM_PREVIEW__ = true;
 
-        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260728-rescue-notify1';
+        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260728-raid1';
 
         window.TarotKingdomPreview = {
             load: () => loadTarotKingdomPage(),
             destroy: () => destroyTarotKingdomPage()
         };
 
-        loadTarotKingdomPage().catch((error) => {
-            console.error('[tarot-kingdom-preview] failed to load:', error);
-        });
+        loadTarotKingdomPage()
+            .then(() => {
+                const fixture = new URLSearchParams(window.location.search).get('tkfixture');
+                if (fixture !== 'raid-transform') return;
+                const debug = window.TarotKingdomDebug;
+                debug?.battleScenario({
+                    withTrick: false,
+                    enemyHp: 0,
+                    raid: {
+                        attemptId: 'raid-transform-preview',
+                        raidId: 'raid-preview',
+                        bossId: 'ismartal-vol2-monster-07',
+                        bossName: 'バルガン',
+                        preFormMonsterId: 'ismartal-vol3-monster-01',
+                        preFormMonsterName: 'グラヴァ',
+                        bossMaxHp: 250000,
+                        bossHpAtStart: 184200
+                    }
+                });
+                debug?.battleActivateRaidBoss(0);
+            })
+            .catch((error) => {
+                console.error('[tarot-kingdom-preview] failed to load:', error);
+            });
     </script>
 </body>
 </html>

@@ -650,6 +650,35 @@ async function installBaseAppMocks(page, state, options = {}) {
     });
   });
 
+  await page.route('**/api/tarot-kingdom/raid/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        raid: {
+          active: false,
+          nation: 'fire',
+          currentHp: 0,
+          maxHp: 0,
+          attemptsUsed: 0,
+          attemptsRemaining: 4,
+          dailyAttemptLimit: 4,
+          isKing: true,
+          bosses: [
+            {
+              id: 'ismartal-vol2-monster-07',
+              name: 'バルガン',
+              preFormMonsterId: 'ismartal-vol3-monster-01',
+              preFormMonsterName: 'グラヴァ',
+              maxHp: 250000
+            }
+          ]
+        }
+      })
+    });
+  });
+
   await page.route('**/api/get-nation-announcements', async (route) => {
     await route.fulfill({
       status: 200,

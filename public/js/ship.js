@@ -18,6 +18,8 @@ import {
     getExplorationEncounter as requestExplorationEncounter,
     retreatExploration as requestRetreatExploration,
     claimExploration as requestClaimExploration,
+    startTarotKingdomRaid as requestStartTarotKingdomRaid,
+    finishTarotKingdomRaid as requestFinishTarotKingdomRaid,
     getTarotKingdomPetState as requestTarotKingdomPetState,
     rollTarotKingdomPetRound as requestRollTarotKingdomPetRound,
     chooseTarotKingdomPet as requestChooseTarotKingdomPet,
@@ -29,7 +31,7 @@ import {
     getShipsInView as fetchShipsInView,
     getShipAsset as fetchShipAsset,
     getShipPosition as fetchShipPosition
-} from './playfabClient.js?v=20260727-pet-round1';
+} from './playfabClient.js?v=20260728-raid1';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { createRequestId } from './api.js';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -40,6 +42,32 @@ import { buildAvatarLayerMarkup, renderAvatar, triggerAvatarAttackMotion } from 
 import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260724h';
 
 const LEGACY_NAVAL_MELEE_ENTRY_ENABLED = false;
+const EXPLORATION_ENEMY_DEFEAT_MODE_STORAGE_KEY = 'troy:exploration-enemy-defeat-mode';
+const EXPLORATION_ENEMY_DEFEAT_MODE_DEFAULT = 'hp-zero';
+
+function normalizeExplorationEnemyDefeatMode(value) {
+    return value === 'hand-empty' ? 'hand-empty' : EXPLORATION_ENEMY_DEFEAT_MODE_DEFAULT;
+}
+
+function getExplorationEnemyDefeatMode() {
+    try {
+        return normalizeExplorationEnemyDefeatMode(
+            window.localStorage?.getItem(EXPLORATION_ENEMY_DEFEAT_MODE_STORAGE_KEY)
+        );
+    } catch (_) {
+        return EXPLORATION_ENEMY_DEFEAT_MODE_DEFAULT;
+    }
+}
+
+function setExplorationEnemyDefeatMode(value) {
+    const normalized = normalizeExplorationEnemyDefeatMode(value);
+    try {
+        window.localStorage?.setItem(EXPLORATION_ENEMY_DEFEAT_MODE_STORAGE_KEY, normalized);
+    } catch (_) {
+        // Storage may be unavailable in restricted browser contexts.
+    }
+    return normalized;
+}
 
 class LRUCache {
     constructor(maxSize = 100) {
@@ -2990,6 +3018,7 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
         monsters: stageMonsters,
         supplyQueue: Array.isArray(report?.supplyQueue) ? report.supplyQueue : [],
         mode: battleMode,
+        enemyDefeatMode: getExplorationEnemyDefeatMode(),
         currentPet: currentTarotKingdomPet,
         onRoundFinished: battleMode === 'offline' && ownerPlayFabId
             ? async (finisher) => {
@@ -3033,6 +3062,88 @@ async function completeExplorationRetreat(playFabId, sequenceResult) {
     return true;
 }
 
+async function startTarotKingdomRaidBattle(playFabId, button = null) {
+    if (!playFabId || explorationAutoRunning) return;
+    if (typeof window.launchTarotKingdomExplorationBattle !== 'function') {
+        showRpgMessage('タロットキングダムを開始できません。');
+        return;
+    }
+    explorationAutoRunning = true;
+    const previousLabel = button?.textContent || '挑戦';
+    if (button) {
+        button.disabled = true;
+        button.textContent = '出撃準備中';
+    }
+    try {
+        const startData = await requestStartTarotKingdomRaid(playFabId, {
+            isSilent: true,
+            throwOnError: true
+        });
+        const attempt = startData?.attempt;
+        if (!attempt?.attemptId || !attempt?.preFormMonsterId || !attempt?.bossId) {
+            throw new Error('レイド挑戦情報を取得できませんでした。');
+        }
+        if (typeof window.closeHomeExplorationPopup === 'function') {
+            window.closeHomeExplorationPopup();
+        }
+        showRpgMessage(`${attempt.preFormMonsterName}が　あらわれた！`);
+        const kingdomResult = await window.launchTarotKingdomExplorationBattle({
+            explorationId: attempt.attemptId,
+            destinationId: `raid-${attempt.nation}`,
+            destinationName: 'レイド海域',
+            monsterId: attempt.preFormMonsterId,
+            monsterName: attempt.preFormMonsterName,
+            isBoss: false,
+            battlefieldId: '',
+            atmosphereTone: 'raid',
+            monsters: [],
+            supplyQueue: [],
+            mode: 'offline',
+            enemyDefeatMode: 'hp-zero',
+            currentPet: currentTarotKingdomPet,
+            raid: attempt
+        });
+        const raidResult = kingdomResult?.raid || {};
+        const finishData = await requestFinishTarotKingdomRaid(
+            playFabId,
+            attempt.attemptId,
+            {
+                damageDealt: raidResult.damageDealt,
+                finisher: raidResult.finisher
+            },
+            { isSilent: true, throwOnError: true }
+        );
+        const resolution = finishData?.resolution || {};
+        if (resolution.defeatedNow) {
+            const rewardName = String(finishData?.reward?.displayName || '').trim();
+            showRpgMessage(
+                rewardName
+                    ? `${attempt.bossName}を　たおした！\n${rewardName}を　てにいれた！`
+                    : `${attempt.bossName}を　たおした！`
+            );
+        } else if (raidResult.escaped) {
+            showRpgMessage(
+                `${attempt.bossName}は　にげだした！\n`
+                + `${Math.max(0, Number(resolution.appliedDamage) || 0).toLocaleString('ja-JP')}ダメージを　あたえた！`
+            );
+        } else {
+            showRpgMessage(
+                `${attempt.bossName}に ${Math.max(0, Number(resolution.appliedDamage) || 0).toLocaleString('ja-JP')}ダメージ！`
+            );
+        }
+        await loadExplorationPanel(playFabId);
+    } catch (error) {
+        showRpgMessage(error?.message || 'レイドへ出撃できませんでした。');
+        await loadExplorationPanel(playFabId).catch(() => {});
+    } finally {
+        explorationAutoRunning = false;
+        if (button?.isConnected) {
+            button.disabled = false;
+            button.textContent = previousLabel;
+        }
+    }
+}
+
 function renderExplorationPanel(data, playFabId) {
     const panel = document.getElementById('shipExplorationPanel');
     if (!panel) return;
@@ -3047,6 +3158,60 @@ function renderExplorationPanel(data, playFabId) {
             <h3>探索</h3>
             <span class="ship-exploration-meta">使用中: ${escapeHtml(ship.shipName || ship.shipId || '船')}</span>
         </div>
+    `;
+    const enemyDefeatMode = getExplorationEnemyDefeatMode();
+    const raid = data?.raid && typeof data.raid === 'object' ? data.raid : null;
+    const raidMonster = raid?.bossId
+        ? PIXEL_MONSTERS_ROSTER.find((monster) => monster.id === raid.bossId)
+        : null;
+    const raidHpPercent = Number(raid?.maxHp) > 0
+        ? Math.max(0, Math.min(100, (Number(raid.currentHp) / Number(raid.maxHp)) * 100))
+        : 0;
+    const raidPanel = raid?.active ? `
+        <section class="ship-exploration-raid" aria-label="レイドボス">
+            <div class="ship-exploration-raid-visual">
+                ${renderExplorationPixelMonster(raidMonster, 'ship-exploration-raid-monster', {
+                    maxWidth: 104,
+                    maxHeight: 92,
+                    compactMaxWidth: 84,
+                    compactMaxHeight: 74
+                })}
+            </div>
+            <div class="ship-exploration-raid-body">
+                <span class="ship-exploration-raid-kicker">RAID BOSS</span>
+                <strong>${escapeHtml(raid.bossName || 'レイドボス')}</strong>
+                <div class="ship-exploration-raid-hp" role="progressbar"
+                    aria-label="${escapeHtml(raid.bossName || 'レイドボス')} HP"
+                    aria-valuemin="0" aria-valuemax="${Math.max(1, Number(raid.maxHp) || 1)}"
+                    aria-valuenow="${Math.max(0, Number(raid.currentHp) || 0)}">
+                    <span style="width:${raidHpPercent.toFixed(2)}%"></span>
+                </div>
+                <small>HP ${Math.max(0, Number(raid.currentHp) || 0).toLocaleString('ja-JP')} / ${Math.max(1, Number(raid.maxHp) || 1).toLocaleString('ja-JP')}</small>
+                <small>本日の挑戦 ${Math.max(0, Number(raid.attemptsUsed) || 0)} / ${Math.max(1, Number(raid.dailyAttemptLimit) || 4)}</small>
+            </div>
+            <button type="button" data-tarot-kingdom-raid-start
+                ${active || Number(raid.attemptsRemaining) <= 0 ? 'disabled' : ''}>
+                ${Number(raid.attemptsRemaining) > 0 ? '挑戦' : '本日終了'}
+            </button>
+        </section>
+    ` : '';
+    const explorationSettings = `
+        <details class="ship-exploration-settings">
+            <summary>探索設定</summary>
+            <fieldset>
+                <legend>敵HPが0になった後</legend>
+                <label>
+                    <input type="radio" name="explorationEnemyDefeatMode" value="hp-zero"
+                        ${enemyDefeatMode === 'hp-zero' ? 'checked' : ''}>
+                    <span>その時点でクリア</span>
+                </label>
+                <label>
+                    <input type="radio" name="explorationEnemyDefeatMode" value="hand-empty"
+                        ${enemyDefeatMode === 'hand-empty' ? 'checked' : ''}>
+                    <span>手札0まで続行</span>
+                </label>
+            </fieldset>
+        </details>
     `;
     const rescueCheck = `
         <div class="ship-exploration-rescue-check">
@@ -3064,9 +3229,25 @@ function renderExplorationPanel(data, playFabId) {
             }
         });
     };
+    const bindExplorationSettings = () => {
+        panel.querySelectorAll('input[name="explorationEnemyDefeatMode"]').forEach((input) => {
+            input.addEventListener('change', () => {
+                if (!input.checked) return;
+                setExplorationEnemyDefeatMode(input.value);
+            });
+        });
+    };
+    const bindRaid = () => {
+        const raidButton = panel.querySelector('[data-tarot-kingdom-raid-start]');
+        raidButton?.addEventListener('click', () => startTarotKingdomRaidBattle(playFabId, raidButton));
+        const raidNode = panel.querySelector('.ship-exploration-raid-monster');
+        if (raidNode && raidMonster) animateExplorationPetIdle(raidNode, raidMonster);
+    };
     if (active) {
         panel.innerHTML = `
             ${head}
+            ${raidPanel}
+            ${explorationSettings}
             ${rescueCheck}
             <div class="ship-exploration-destination is-active">
                 <div class="ship-exploration-card-head">
@@ -3084,6 +3265,8 @@ function renderExplorationPanel(data, playFabId) {
                 </div>
             </div>
         `;
+        bindRaid();
+        bindExplorationSettings();
         bindRescueCheck();
         panel.querySelector('[data-exploration-claim]')?.addEventListener('click', () => claimExploration(playFabId));
         return;
@@ -3126,9 +3309,13 @@ function renderExplorationPanel(data, playFabId) {
         : '<div class="ship-exploration-empty">探索ステージを読み込めませんでした。</div>';
     panel.innerHTML = `
         ${head}
+        ${raidPanel}
+        ${explorationSettings}
         ${rescueCheck}
         <div class="ship-exploration-destinations">${destinationHtml}</div>
     `;
+    bindRaid();
+    bindExplorationSettings();
     bindRescueCheck();
     panel.querySelectorAll('[data-exploration-start]').forEach((button) => {
         button.addEventListener('click', async () => {
