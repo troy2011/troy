@@ -265,6 +265,66 @@ test('The World freezes the enemy sprite until time stop expires', async ({ page
   ).not.toBe(frozenFrame);
 });
 
+test('5 skip replaces the enemy blue ring with the shared silence bubble icon', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const enemySprite = page.locator('#tarotKingdomEnemySprite');
+  const silenceIcon = page.locator('.tarot-kingdom-enemy-silence-icon');
+
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleSetEnemyAreaSeal(true);
+  });
+
+  await expect(enemySprite).toHaveClass(/is-area-sealed/);
+  await expect(silenceIcon).toBeVisible();
+  await expect(enemySprite).toHaveCSS('box-shadow', 'none');
+  await expect(enemySprite).toHaveCSS('border-radius', '0px');
+
+  const iconStyle = await silenceIcon.evaluate((node) => {
+    const style = getComputedStyle(node);
+    return {
+      backgroundImage: style.backgroundImage,
+      backgroundPosition: style.backgroundPosition,
+      backgroundSize: style.backgroundSize,
+      width: style.width,
+      height: style.height
+    };
+  });
+  expect(iconStyle.backgroundImage).toMatch(/\/Sprites\/items\/icons\.png/);
+  expect(iconStyle.backgroundPosition).toBe('-288px -32px');
+  expect(iconStyle.backgroundSize).toBe('512px 2048px');
+  expect(iconStyle.width).toBe('32px');
+  expect(iconStyle.height).toBe('32px');
+
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleSetEnemyAreaSeal(false);
+  });
+  await expect(silenceIcon).toBeHidden();
+});
+
+test('fullscreen close control uses only the framed close image', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 }, true);
+  await page.evaluate(() => {
+    const button = document.createElement('button');
+    button.id = 'tarotKingdomExitButton';
+    button.className = 'tarot-kingdom-exit-button';
+    button.type = 'button';
+    button.setAttribute('aria-label', 'タロットキングダムを閉じる');
+    const icon = document.createElement('span');
+    icon.setAttribute('aria-hidden', 'true');
+    button.appendChild(icon);
+    document.querySelector('.tarot-kingdom-header-meta')?.appendChild(button);
+  });
+
+  const closeButton = page.locator('#tarotKingdomExitButton');
+  const closeIcon = closeButton.locator('span');
+  await expect(closeButton).toHaveCSS('border-top-style', 'none');
+  await expect(closeButton).toHaveCSS('border-image-source', 'none');
+  await expect(closeButton).toHaveCSS('padding', '0px');
+  await expect(closeIcon).toHaveCSS('width', '30px');
+  await expect(closeIcon).toHaveCSS('height', '28px');
+  await expect(closeIcon).toHaveCSS('background-image', /\/assets\/ui\/buttons\/action-close\.png/);
+});
+
 for (const fixture of [
   { label: 'preview 900px', viewport: { width: 900, height: 1000 }, productionCascade: false },
   { label: 'preview 390px', viewport: { width: 390, height: 844 }, productionCascade: false },
@@ -1065,6 +1125,67 @@ test('battle announcement stays visible without moving the hand between turns', 
   await expect(firstCard).toHaveAttribute('aria-pressed', 'true');
 });
 
+test('encounter and battle result announcements use short RPG-style messages', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const announcement = page.locator('#tarotKingdomSelectedEffect');
+  const setBattleAnnouncementState = async (patch) => {
+    await page.evaluate((next) => {
+      const debug = window.TarotKingdomDebug;
+      const payload = debug.battlePublicState();
+      payload.state.battle.enemy.name = 'グラヴァ';
+      Object.assign(payload.state, next.state || {});
+      Object.assign(payload.state.battle, next.battle || {});
+      debug.battleDeserialize(payload);
+      debug.battleRender();
+    }, patch);
+  };
+
+  await setBattleAnnouncementState({
+    state: { phase: 'openingDeal', openingIntroStage: 'enter' },
+    battle: { outcome: null, resultReason: null }
+  });
+  await expect(announcement).toHaveText('グラヴァが　あらわれた！');
+
+  await setBattleAnnouncementState({
+    state: { phase: 'openingDeal', openingIntroStage: 'attack' },
+    battle: { outcome: null, resultReason: null }
+  });
+  await expect(announcement).toHaveText('グラヴァの攻撃！');
+
+  await setBattleAnnouncementState({
+    state: { phase: 'openingDeal', openingIntroStage: 'card' },
+    battle: { outcome: null, resultReason: null }
+  });
+  await expect(announcement).toHaveText('グラヴァは　カードをだした！');
+
+  await setBattleAnnouncementState({
+    state: { phase: 'openingCinematic', openingIntroStage: 'ready', handNo: 1 },
+    battle: { outcome: null, resultReason: null }
+  });
+  await expect(announcement).toHaveText('第2局が　はじまった！');
+
+  await setBattleAnnouncementState({
+    state: { phase: 'roundEnd' },
+    battle: { outcome: 'victory', resultReason: 'hand-empty' }
+  });
+  await expect(announcement).toHaveText('グラヴァを　たおした！');
+
+  await setBattleAnnouncementState({
+    state: { phase: 'roundEnd' },
+    battle: { outcome: 'victory', resultReason: 'enemy-escaped' }
+  });
+  await expect(announcement).toHaveText('グラヴァは　にげだした！');
+
+  const textFit = await announcement.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight
+  }));
+  expect(textFit.scrollWidth).toBeLessThanOrEqual(textFit.clientWidth);
+  expect(textFit.scrollHeight).toBeLessThanOrEqual(textFit.clientHeight);
+});
+
 for (const fixture of [
   { label: '900px', viewport: { width: 900, height: 1000 } },
   { label: '390px', viewport: { width: 390, height: 844 } }
@@ -1088,6 +1209,49 @@ for (const fixture of [
     await expect(firstHandCard).toHaveAttribute('aria-pressed', 'false');
     await expect(page.locator('#tarotKingdomHand > .tarot-card.is-selected')).toHaveCount(0);
     expect(await fieldCards.allTextContents()).toEqual(fieldTextBefore);
+  });
+}
+
+for (const fixture of [
+  { label: '900px', viewport: { width: 900, height: 1000 } },
+  { label: '390px', viewport: { width: 390, height: 844 } }
+]) {
+  test(`selected hand card keeps sharp axis-aligned sprite rendering at ${fixture.label}`, async ({ page }) => {
+    await openOfflineBattle(page, fixture.viewport);
+    const firstHandCard = page.locator('#tarotKingdomHand > .tarot-card').first();
+    const visualBefore = await firstHandCard.evaluate((card) => {
+      const rect = card.getBoundingClientRect();
+      const art = card.querySelector('.tarot-card-art');
+      return {
+        x: rect.x,
+        width: rect.width,
+        artTransform: art ? getComputedStyle(art).transform : ''
+      };
+    });
+
+    await firstHandCard.click({ force: true });
+    await expect(firstHandCard).toHaveAttribute('aria-pressed', 'true');
+    await page.waitForTimeout(190);
+    const visualAfter = await firstHandCard.evaluate((card) => {
+      const rect = card.getBoundingClientRect();
+      const art = card.querySelector('.tarot-card-art');
+      const matrix = new DOMMatrix(getComputedStyle(card).transform);
+      return {
+        x: rect.x,
+        width: rect.width,
+        rotationB: matrix.b,
+        rotationC: matrix.c,
+        artTransform: art ? getComputedStyle(art).transform : '',
+        imageRendering: art ? getComputedStyle(art).imageRendering : ''
+      };
+    });
+
+    expect(Math.abs(visualAfter.x - visualBefore.x)).toBeLessThanOrEqual(0.01);
+    expect(Math.abs(visualAfter.width - visualBefore.width)).toBeLessThanOrEqual(0.01);
+    expect(Math.abs(visualAfter.rotationB)).toBeLessThanOrEqual(0.00001);
+    expect(Math.abs(visualAfter.rotationC)).toBeLessThanOrEqual(0.00001);
+    expect(visualAfter.artTransform).toBe(visualBefore.artTransform);
+    expect(visualAfter.imageRendering).toMatch(/pixelated|crisp-edges/);
   });
 }
 
@@ -1310,8 +1474,12 @@ test('grave menu keeps its icon and updates its accessible label when toggled', 
   await expect(graveIcon).toHaveCount(1);
   await expect(graveIcon).toHaveText('☰');
   await expect(graveButton).toHaveAttribute('aria-label', /墓地.*閉じる/);
+  const closeButton = page.locator('#tarotKingdomJudgmentCloseButton');
+  await expect(closeButton).toBeVisible();
+  await expect(closeButton).toHaveAttribute('aria-label', '墓地を閉じる');
 
-  await graveButton.click();
+  await closeButton.click();
+  await expect(page.locator('#tarotKingdomJudgmentArea')).toBeHidden();
   await expect(graveIcon).toHaveCount(1);
   await expect(graveIcon).toHaveText('☰');
   await expect(graveButton).toHaveAttribute('aria-label', closedLabel);
@@ -1350,6 +1518,7 @@ test('grave visibility stays local when another player enters Judgment', async (
   const graveArea = page.locator('#tarotKingdomJudgmentArea');
   const graveTitle = page.locator('#tarotKingdomJudgmentTitle');
   const skipButton = page.locator('#tarotKingdomJudgmentSkipButton');
+  const closeButton = page.locator('#tarotKingdomJudgmentCloseButton');
 
   await expect(graveArea).toBeHidden();
   await expect(graveButton).toBeEnabled();
@@ -1392,8 +1561,75 @@ test('grave visibility stays local when another player enters Judgment', async (
   await expect(graveTitle).toHaveText('審判: 墓地から回収するカードを選択');
   await expect(graveButton).toBeDisabled();
   await expect(graveButton).toHaveAttribute('aria-label', '墓地（審判中）');
+  await expect(closeButton).toBeHidden();
   await expect(skipButton).toBeVisible();
   await expect(skipButton).toBeEnabled();
+  await expect(skipButton).toHaveCSS('color', 'rgb(248, 250, 252)');
+});
+
+test('Judgment recovery card appears before the avatar and is synchronized once', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    debug.battleScenario({ withTrick: false, turnIndex: 0 });
+    const payload = debug.battlePublicState();
+    payload.state.phase = 'judgment';
+    payload.state.roundActive = true;
+    payload.state.pendingJudgment = 0;
+    payload.state.pendingJudgmentFollowup = 'clear';
+    payload.state.players[0].handCount = 7;
+    payload.state.players[1].discard = [
+      { id: 'judgment-reclaim-cup-9', kind: 'minor', suit: 'Cup', number: 9 }
+    ];
+    debug.battleDeserialize(payload);
+    debug.battleRender();
+  });
+
+  const candidate = page.locator('#tarotKingdomJudgmentOptions .tarot-card.cup');
+  await expect(candidate).toBeVisible();
+  await candidate.click();
+
+  const reclaimCard = page.locator(
+    '#tarotKingdomBattleParty [data-player-index="0"] > .tarot-kingdom-judgment-reclaim-card'
+  );
+  await expect(reclaimCard).toHaveCount(1);
+  await expect(reclaimCard).toHaveCSS('animation-name', 'tarotKingdomJudgmentReclaim');
+  await expect(page.locator('#tarotKingdomSelectedEffect')).toContainText('を回収した！');
+
+  const synchronized = await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    const payload = debug.battlePublicState();
+    const restored = debug.battleDeserialize(payload);
+    const event = restored.battle.events.at(-1);
+    debug.battleRender();
+    debug.battleRender();
+    const cardRect = document.querySelector('.tarot-kingdom-judgment-reclaim-card')?.getBoundingClientRect();
+    const avatarRect = document.querySelector('#tarotKingdomBattleAvatar-0')?.getBoundingClientRect();
+    return {
+      phase: restored.phase,
+      transitionKind: restored.transition?.kind || '',
+      type: event?.type || '',
+      actorIndex: event?.actorIndex,
+      cardId: event?.card?.id || '',
+      renderedCards: document.querySelectorAll('.tarot-kingdom-judgment-reclaim-card').length,
+      cardStartsBeforeAvatar: !!(
+        cardRect
+        && avatarRect
+        && cardRect.left + (cardRect.width / 2) < avatarRect.left + (avatarRect.width / 2)
+      )
+    };
+  });
+  expect(synchronized).toEqual({
+    phase: 'resolvingJudgment',
+    transitionKind: 'judgmentReclaim',
+    type: 'judgment-reclaim',
+    actorIndex: 0,
+    cardId: 'judgment-reclaim-cup-9',
+    renderedCards: 1,
+    cardStartsBeforeAvatar: true
+  });
+
+  await expect(reclaimCard).toHaveCount(0, { timeout: 2500 });
 });
 
 test('right command switches between defense and attack from card selection', async ({ page }) => {
@@ -1471,6 +1707,107 @@ test('hand selection stops at five cards without hiding an extra selection', asy
   await handCards.nth(5).click({ force: true });
   await expect(handCards.nth(5)).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('#tarotKingdomHand > .tarot-card.is-selected')).toHaveCount(5);
+});
+
+test('hand can be selected and sorted while another player is taking a turn', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleScenario({
+      turnIndex: 1,
+      leaderIndex: 1,
+      handsBySeat: [[
+        { id: 'tk_wait_w10', kind: 'minor', suit: 'Wand', number: 10 },
+        { id: 'tk_wait_c2', kind: 'minor', suit: 'Cup', number: 2 },
+        { id: 'tk_wait_s7', kind: 'minor', suit: 'Sword', number: 7 }
+      ]]
+    });
+  });
+
+  const handCards = page.locator('#tarotKingdomHand > .tarot-card');
+  const actionButton = page.locator('#tarotKingdomPlayButton');
+  const sortButton = page.locator('#tarotKingdomClearButton');
+  await expect(handCards).toHaveCount(3);
+  await expect(sortButton).toBeEnabled();
+
+  const orderBefore = await handCards.locator('.tarot-card-number').allTextContents();
+  await sortButton.click();
+  const orderAfter = await handCards.locator('.tarot-card-number').allTextContents();
+  expect(orderAfter).not.toEqual(orderBefore);
+
+  await handCards.first().click();
+  await expect(page.locator('#tarotKingdomHand > .tarot-card.is-selected')).toHaveCount(1);
+  await expect(actionButton).toHaveText('攻撃');
+  await expect(actionButton).toBeDisabled();
+  await expect(sortButton).toHaveText('選択解除');
+
+  const selectedId = await handCards.first().getAttribute('data-card-id');
+  const firstBox = await handCards.first().boundingBox();
+  const lastBox = await handCards.last().boundingBox();
+  expect(firstBox).not.toBeNull();
+  expect(lastBox).not.toBeNull();
+  await page.mouse.move(firstBox.x + (firstBox.width / 2), firstBox.y + (firstBox.height / 2));
+  await page.mouse.down();
+  await page.mouse.move(lastBox.x + lastBox.width - 2, lastBox.y + (lastBox.height / 2), { steps: 8 });
+  await page.mouse.up();
+
+  const orderAfterDrag = await handCards.evaluateAll((cards) => cards.map((card) => card.dataset.cardId));
+  expect(orderAfterDrag.at(-1)).toBe(selectedId);
+  await expect(page.locator(`#tarotKingdomHand > .tarot-card[data-card-id="${selectedId}"]`)).toHaveClass(/is-selected/);
+  await page.evaluate(() => window.TarotKingdomDebug.battleRender());
+  const orderAfterRender = await handCards.evaluateAll((cards) => cards.map((card) => card.dataset.cardId));
+  expect(orderAfterRender).toEqual(orderAfterDrag);
+
+  const state = await page.evaluate(() => window.TarotKingdomDebug.battleState());
+  expect(state.turn).toBe(1);
+  expect(state.players[0].hand).toHaveLength(3);
+});
+
+test('touch pointer drag reorders the hand without turning the gesture into a tap', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleScenario({
+      turnIndex: 1,
+      leaderIndex: 1,
+      handsBySeat: [[
+        { id: 'tk_touch_w9', kind: 'minor', suit: 'Wand', number: 9 },
+        { id: 'tk_touch_c2', kind: 'minor', suit: 'Cup', number: 2 },
+        { id: 'tk_touch_s6', kind: 'minor', suit: 'Sword', number: 6 }
+      ]]
+    });
+  });
+
+  const handCards = page.locator('#tarotKingdomHand > .tarot-card');
+  const source = handCards.first();
+  const sourceId = await source.getAttribute('data-card-id');
+  const sourceBox = await source.boundingBox();
+  const targetBox = await handCards.last().boundingBox();
+  expect(sourceBox).not.toBeNull();
+  expect(targetBox).not.toBeNull();
+  const pointer = {
+    pointerId: 17,
+    pointerType: 'touch',
+    isPrimary: true,
+    button: 0
+  };
+  await source.dispatchEvent('pointerdown', {
+    ...pointer,
+    clientX: sourceBox.x + (sourceBox.width / 2),
+    clientY: sourceBox.y + (sourceBox.height / 2)
+  });
+  await source.dispatchEvent('pointermove', {
+    ...pointer,
+    clientX: targetBox.x + targetBox.width - 2,
+    clientY: targetBox.y + (targetBox.height / 2)
+  });
+  await source.dispatchEvent('pointerup', {
+    ...pointer,
+    clientX: targetBox.x + targetBox.width - 2,
+    clientY: targetBox.y + (targetBox.height / 2)
+  });
+
+  const order = await handCards.evaluateAll((cards) => cards.map((card) => card.dataset.cardId));
+  expect(order.at(-1)).toBe(sourceId);
+  await expect(page.locator('#tarotKingdomHand > .tarot-card.is-selected')).toHaveCount(0);
 });
 
 test('removed arcana commands and oracle slots leave one compact command row at 390px', async ({ page }) => {

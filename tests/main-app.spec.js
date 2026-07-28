@@ -3028,6 +3028,9 @@ test('player profile shows public stats on the left with avatar on the right', a
   await expect(page.locator('#playerProfileStats .player-profile-stat strong')).toHaveText(['12', '11', '10', '9', '8', '152']);
   await expect(page.locator('#playerProfilePetCompanion')).toBeVisible();
   await expect(page.locator('#playerProfilePetCompanion')).toHaveAttribute('aria-label', 'グリモア（ペット）');
+  await expect(page.locator('#playerProfilePetName')).toBeVisible();
+  await expect(page.locator('#playerProfilePetName')).toHaveText('グリモア');
+  await expect(page.locator('#playerProfilePetName')).toBeDisabled();
   await expect(page.locator('#playerProfilePetCompanion .pixel-monster-companion-sprite'))
     .toHaveCSS('background-image', /pixel-monsters\/vol1\/monster-02\/idle\.png/);
   const layout = await page.evaluate(() => {
@@ -3069,6 +3072,7 @@ test('player profile shows public stats on the left with avatar on the right', a
         - ((avatarRect?.left || 0) + (avatarRect?.width || 0) / 2),
       petScale: Number.parseFloat(getComputedStyle(pet).getPropertyValue('--pixel-monster-context-scale')),
       avatarTransform: avatarInner ? window.getComputedStyle(avatarInner).transform : '',
+      avatarOverflow: avatar ? window.getComputedStyle(avatar).overflow : '',
       copyRight: copyRect?.right || 0,
       shipTop: shipRect?.top || 0,
       shipLeft: shipRect?.left || 0,
@@ -3088,15 +3092,90 @@ test('player profile shows public stats on the left with avatar on the right', a
   expect(Math.abs(layout.shipLeft - layout.avatarLeft)).toBeLessThanOrEqual(2);
   expect(Math.abs(layout.shipRight - layout.avatarRight)).toBeLessThanOrEqual(2);
   expect(layout.avatarWidth).toBeGreaterThanOrEqual(126);
-  expect(layout.avatarCenterOffset).toBeLessThan(-12);
-  expect(layout.petCenterOffset).toBeGreaterThan(15);
+  expect(layout.avatarCenterOffset).toBeGreaterThan(-12);
+  expect(layout.petCenterOffset).toBeGreaterThan(25);
   expect(Math.abs(layout.petScale - 1.18)).toBeLessThan(0.02);
   expect(layout.avatarTransform).toContain('matrix');
+  expect(layout.avatarOverflow).toBe('visible');
   expect(layout.layerBounds.left).toBeGreaterThanOrEqual(layout.avatarLeft - 24);
   expect(layout.layerBounds.top).toBeGreaterThanOrEqual(layout.avatarTop - 4);
   expect(layout.layerBounds.right).toBeLessThanOrEqual(layout.avatarRight + 12);
   expect(layout.layerBounds.bottom).toBeLessThanOrEqual(layout.avatarBottom + 4);
   expect(layout.statHeight).toBeLessThanOrEqual(36);
+  await expectNoPageErrors(errors);
+});
+
+test('own player can rename the pet by clicking it in the player profile', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  let renameRequest = null;
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/api/get-player-public-profile', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        profile: {
+          playFabId: 'PF_PLAYWRIGHT',
+          displayName: 'Playwright Tester',
+          nation: 'water',
+          level: 12,
+          stats: { Level: 12, ちから: 10, みのまもり: 10, すばやさ: 10, かしこさ: 10, たいりょく: 10, MaxHP: 120 },
+          avatarBase: { Race: 'human', Nation: 'water', AvatarColor: 'blue', level: 12 },
+          equipment: {},
+          itemSource: {},
+          equipmentList: [],
+          currentPet: {
+            monsterId: 'ismartal-vol1-monster-02',
+            monsterName: 'グリモア',
+            displayName: 'グリモア',
+            explorationId: 'profile-pet-rename',
+            acquiredAtMs: 1000
+          }
+        }
+      })
+    });
+  });
+  await page.route('**/api/tarot-kingdom/pet-name', async (route) => {
+    renameRequest = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        currentPet: {
+          monsterId: 'ismartal-vol1-monster-02',
+          monsterName: 'グリモア',
+          nickname: 'ルナ',
+          displayName: 'ルナ',
+          explorationId: 'profile-pet-rename',
+          acquiredAtMs: 1000
+        }
+      })
+    });
+  });
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    const profile = await import('/js/playerProfile.js');
+    await profile.openPlayerProfile('PF_PLAYWRIGHT');
+  });
+
+  const pet = page.locator('#playerProfilePetCompanion');
+  const petName = page.locator('#playerProfilePetName');
+  await expect(pet).toHaveAttribute('role', 'button');
+  await expect(petName).toBeEnabled();
+  await pet.click();
+  await expect(page.locator('#playerProfilePetRenameForm')).toBeVisible();
+  await page.locator('#playerProfilePetNameInput').fill('ルナ');
+  await page.locator('#playerProfilePetRenameForm button[type="submit"]').click();
+
+  await expect(petName).toHaveText('ルナ');
+  await expect(pet).toHaveAttribute('aria-label', 'ルナ（ペット）');
+  await expect(page.locator('#playerProfilePetRenameForm')).toBeHidden();
+  expect(renameRequest).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    nickname: 'ルナ'
+  });
   await expectNoPageErrors(errors);
 });
 

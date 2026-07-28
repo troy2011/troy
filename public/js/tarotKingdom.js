@@ -200,6 +200,11 @@ const KINGDOM_NORMAL_HIT_STOP_MS = 80;
 const KINGDOM_SKILL_HIT_STOP_MS = 120;
 const KINGDOM_NORMAL_HP_TWEEN_MS = 240;
 const KINGDOM_SKILL_HP_TWEEN_MS = 320;
+const KINGDOM_DAMAGE_NUMBER_HOLD_MS = 260;
+const KINGDOM_ENEMY_SINGLE_EVENT_MS = 860;
+const KINGDOM_ENEMY_AREA_EVENT_MS = 1060;
+const KINGDOM_ENEMY_STATUS_EVENT_MS = 840;
+const KINGDOM_JUDGMENT_RECLAIM_EVENT_MS = 1100;
 const ROLE_ORDER = ['Straight', 'Flush', 'FullHouse', 'FourKind', 'TheWorld', 'StraightFlush', 'FiveKind'];
 const ROLE_LABEL = {
   Straight: 'ストレート',
@@ -284,8 +289,11 @@ let settlementGainQueue = [];
 let settlementGainAnimating = false;
 let settlementCoinEventTimers = [];
 let settlementChipAnimTimers = new Map();
-const HAND_SORT_MODE = { SUIT: 'suit', VALUE: 'value' };
+const HAND_SORT_MODE = { SUIT: 'suit', VALUE: 'value', MANUAL: 'manual' };
 let localHandSortMode = HAND_SORT_MODE.VALUE;
+let localHandManualOrder = [];
+let localHandDrag = null;
+let localHandTapSuppressedUntil = 0;
 let kingdomLocalInfoMessage = '';
 let kingdomLocalInfoTimer = null;
 let kingdomLocalPriorityMessage = '';
@@ -858,6 +866,25 @@ const isMajorSuitGateCard = (card) => (
   card?.kind === 'major' && MAJOR_SUIT_GATE_NUMBERS.has(Number(card?.number))
 );
 const setRankFromNumber = (n) => (Number(n) === 1 ? 15 : Number(n || 0));
+const setPowerForCards = (number, cards = []) => {
+  const normalizedNumber = Number(number || 0);
+  const normalizedCards = Array.isArray(cards) ? cards.filter(Boolean) : [];
+  const isMagicianOnly = normalizedNumber === 1
+    && normalizedCards.length > 0
+    && normalizedCards.every((card) => card?.kind === 'major' && Number(card?.number) === 1);
+  return isMagicianOnly ? 1 : setRankFromNumber(normalizedNumber);
+};
+const normalizeKingdomSetPlayPower = (play) => {
+  if (!play || typeof play !== 'object' || play.type !== 'set') return play;
+  const cards = Array.isArray(play.cardsTable) && play.cardsTable.length
+    ? play.cardsTable
+    : play.cardsHand;
+  if (!Array.isArray(cards) || !cards.length) return play;
+  return {
+    ...play,
+    setPower: setPowerForCards(play.number, cards)
+  };
+};
 const roleNumberOptions = (card) => {
   if (!card) return [0];
   if (card.kind === 'minor') {
@@ -970,6 +997,37 @@ function flushKingdomTrickToGrave() {
 }
 const suitsForCard = (c, role = false) => c.kind === 'minor' ? [c.suit] : (c.number === 1 ? SUITS.slice() : (SPECIAL_SUIT[c.number] ? [SPECIAL_SUIT[c.number]] : ['None']));
 const HAND_SORT_SUIT_ORDER = { Sword: 0, Cup: 1, Pentacle: 2, Wand: 3, None: 4 };
+const getLocalHandCardKey = (card) => {
+  if (!card || typeof card !== 'object') return '';
+  if (card.id != null) return `id:${String(card.id)}`;
+  return [
+    card.kind || '',
+    card.suit || '',
+    card.number ?? '',
+    card.arcanaNo ?? '',
+    card.name || ''
+  ].join('|');
+};
+const getLocalSelectedCardKeys = (hand) => {
+  if (!s?.selected || !Array.isArray(hand)) return [];
+  return Array.from(s.selected)
+    .map((index) => hand[Number(index)])
+    .map(getLocalHandCardKey)
+    .filter(Boolean);
+};
+const restoreLocalSelectedCards = (hand, selectedKeys) => {
+  if (!s || !Array.isArray(hand)) return;
+  const remaining = Array.isArray(selectedKeys) ? selectedKeys.slice() : [];
+  const restored = [];
+  hand.forEach((card, index) => {
+    const key = getLocalHandCardKey(card);
+    const keyIndex = remaining.indexOf(key);
+    if (keyIndex < 0) return;
+    restored.push(index);
+    remaining.splice(keyIndex, 1);
+  });
+  s.selected = new Set(restored);
+};
 const handSortSuitKey = (card) => {
   if (!card) return 99;
   if (card.kind === 'minor') return Number(HAND_SORT_SUIT_ORDER[card.suit] ?? 9);
@@ -997,10 +1055,28 @@ function applyLocalHandSortMode(force = false) {
   if (!s) return;
   const me = getLocalPlayerIndex();
   if (me < 0 || !s.players?.[me]) return;
-  if (!force && s.selected && s.selected.size > 0) return;
   const hand = s.players[me].hand;
   if (!Array.isArray(hand) || hand.length <= 1) return;
-  hand.sort((a, b) => compareHandCardsByMode(a, b, localHandSortMode));
+  const selectedKeys = getLocalSelectedCardKeys(hand);
+  if (localHandSortMode === HAND_SORT_MODE.MANUAL) {
+    const manualRank = new Map(localHandManualOrder.map((key, index) => [key, index]));
+    const originalRank = new Map(hand.map((card, index) => [getLocalHandCardKey(card), index]));
+    hand.sort((a, b) => {
+      const aKey = getLocalHandCardKey(a);
+      const bKey = getLocalHandCardKey(b);
+      const aRank = manualRank.has(aKey)
+        ? manualRank.get(aKey)
+        : localHandManualOrder.length + Number(originalRank.get(aKey) || 0);
+      const bRank = manualRank.has(bKey)
+        ? manualRank.get(bKey)
+        : localHandManualOrder.length + Number(originalRank.get(bKey) || 0);
+      return aRank - bRank;
+    });
+    localHandManualOrder = hand.map(getLocalHandCardKey).filter(Boolean);
+  } else {
+    hand.sort((a, b) => compareHandCardsByMode(a, b, localHandSortMode));
+  }
+  restoreLocalSelectedCards(hand, selectedKeys);
 }
 
 function freezeLocalHandAutoSort(ms = 1100) {
@@ -1058,6 +1134,7 @@ function toggleLocalHandSortMode() {
   localHandSortMode = localHandSortMode === HAND_SORT_MODE.SUIT
     ? HAND_SORT_MODE.VALUE
     : HAND_SORT_MODE.SUIT;
+  localHandManualOrder = [];
   localHandSortDrawLock = false;
   applyLocalHandSortMode(true);
   setLocalInfoMessage(localHandSortMode === HAND_SORT_MODE.SUIT
@@ -1573,14 +1650,57 @@ function buildSelectedCardInfoMessage(playerIndex, selectedIndexes) {
   return `${sel.length}枚選択中`;
 }
 
+function buildKingdomEnemyOutcomeAnnouncement(state = s) {
+  if (state?.battle?.outcome !== 'victory') return '';
+  const enemyName = String(state.battle?.enemy?.name || 'モンスター');
+  return state.battle?.resultReason === 'enemy-escaped'
+    ? `${enemyName}は　にげだした！`
+    : `${enemyName}を　たおした！`;
+}
+
 function buildKingdomSituationAnnouncement(playerIndex, canSelectCards) {
   if (!s) return '戦闘状況を確認中';
   const phase = String(s.phase || '');
   const playerName = (index) => s.players?.[index]?.name || 'プレイヤー';
   const enemyName = String(s.battle?.enemy?.name || 'モンスター');
+  const enemyOutcomeAnnouncement = buildKingdomEnemyOutcomeAnnouncement();
+  const retreatingPlayerIndex = Number(s.battle?.retreatingPlayerIndex);
+  const partyRetreated = s.battle?.outcome === 'defeat'
+    && s.battle?.resultReason === 'party-retreated'
+    && Number.isInteger(retreatingPlayerIndex);
 
-  if (phase === 'openingDeal') return '手札を配っています';
-  if (phase === 'openingCinematic') return `${enemyName}が場札をセット中`;
+  if (partyRetreated) {
+    const fallenAllyCount = Math.max(
+      0,
+      (Array.isArray(s.players) ? s.players : [])
+        .filter((player, index) => index !== retreatingPlayerIndex && Math.max(0, Number(player?.hp) || 0) <= 0)
+        .length
+    );
+    return `仲間${fallenAllyCount}人が戦闘不能。${playerName(retreatingPlayerIndex)}は撤退しました`;
+  }
+
+  if (s.battle?.outcome === 'defeat' && s.battle?.resultReason === 'party-defeated') {
+    return 'パーティは　ぜんめつした…';
+  }
+
+  if (phase === 'openingDeal') {
+    const openingStage = String(s.openingIntroStage || '');
+    if (openingStage === 'enter') return `${enemyName}が　あらわれた！`;
+    if (openingStage === 'attack') return `${enemyName}の攻撃！`;
+    if (openingStage === 'card') return `${enemyName}は　カードをだした！`;
+    return 'カードを配っています';
+  }
+  if (phase === 'openingCinematic') {
+    return `第${Math.max(1, Number(s.handNo || 0) + 1)}局が　はじまった！`;
+  }
+  if (phase === 'resolvingJudgment') {
+    const event = Array.isArray(s.battle?.events)
+      ? s.battle.events.slice().reverse().find((entry) => entry?.type === 'judgment-reclaim')
+      : null;
+    const actorIndex = Number(event?.actorIndex);
+    const cardName = event?.card ? getCardNameLabel(event.card) : 'カード';
+    return `${playerName(actorIndex)}は　${cardName}を回収した！`;
+  }
   if (phase === 'callCinematic') return 'コールを処理中';
   if (phase === 'resolvingPlay') {
     const actorIndex = Number(s.transition?.actorIndex);
@@ -1589,10 +1709,10 @@ function buildKingdomSituationAnnouncement(playerIndex, canSelectCards) {
       : '攻撃！';
   }
   if (phase === 'resolvingEnemy') return `${enemyName}の攻撃！`;
-  if (phase === 'roundOutCinematic') return '決着演出中';
+  if (phase === 'roundOutCinematic') return enemyOutcomeAnnouncement || '決着演出中';
   if (phase === 'roundDraw') return '次の局を準備中';
-  if (phase === 'roundEnd') return '局終了：結果を確認してください';
-  if (phase === 'done') return '全局終了：探索結果を確認してください';
+  if (phase === 'roundEnd') return enemyOutcomeAnnouncement || '局終了：結果を確認してください';
+  if (phase === 'done') return enemyOutcomeAnnouncement || '全局終了：探索結果を確認してください';
 
   if (phase === 'judgment') {
     const chooserIndex = Number(s.pendingJudgment);
@@ -5635,6 +5755,11 @@ function finishKingdomBattleDefeat() {
     .map((player, playerIndex) => (Math.max(0, Number(player?.hp) || 0) > 0 ? playerIndex : null))
     .filter((playerIndex) => playerIndex != null);
   const retreatingPlayerIndex = consciousIndexes.length === 1 ? consciousIndexes[0] : null;
+  const fallenAllyCount = retreatingPlayerIndex == null
+    ? 0
+    : s.players.filter((player, playerIndex) => (
+      playerIndex !== retreatingPlayerIndex && Math.max(0, Number(player?.hp) || 0) <= 0
+    )).length;
   clearNpcTimer();
   clearCallCinematicTimer();
   clearPendingTurnAdvanceAfterTrick();
@@ -5658,7 +5783,7 @@ function finishKingdomBattleDefeat() {
   s.champion = null;
   s.message = retreatingPlayerIndex == null
     ? '全員が戦闘不能になりました。モンスター戦敗北。'
-    : `${pName(retreatingPlayerIndex)}は一人になり、戦場から撤退しました。`;
+    : `仲間${fallenAllyCount}人が戦闘不能。${pName(retreatingPlayerIndex)}は撤退しました`;
   log(s.message);
   return true;
 }
@@ -5711,8 +5836,8 @@ function markKingdomBattleVictory(winnerIndex) {
           dustDurationMs: KINGDOM_ENEMY_DUST_DURATION_MS
         }),
     label: enemyEscaped
-      ? `${pName(winnerIndex)}が出し切り！ ${String(enemy?.name || 'モンスター')}は逃走`
-      : `${pName(winnerIndex)}が出し切り！ BATTLE WIN`
+      ? `${String(enemy?.name || 'モンスター')}は　にげだした！`
+      : `${String(enemy?.name || 'モンスター')}を　たおした！`
   });
   if (enemy && victoryEvent && !enemyEscaped) {
     if (enemy.rushStartedAtSeq == null) enemy.rushStartedAtSeq = victoryEvent.seq;
@@ -5898,6 +6023,8 @@ function initState() {
 }
 
 function clearRoundState() {
+  cancelLocalHandDrag();
+  localHandManualOrder = [];
   clearSettlementGainFx();
   clearRoundStartCinematicTimer();
   clearOpeningDealTimers();
@@ -6508,6 +6635,8 @@ function deserializeStateFromNet(payload) {
       card: entry?.card
     })).filter((entry) => !!entry.card)
     : [];
+  nextState.trick = normalizeKingdomSetPlayPower(nextState.trick);
+  nextState.lastPlay = normalizeKingdomSetPlayPower(nextState.lastPlay);
   nextState.selected = new Set();
   nextState.revision = Math.max(0, Math.floor(Number(rawState.revision) || 0));
   nextState.processedActionIds = Array.isArray(rawState.processedActionIds)
@@ -7924,7 +8053,7 @@ function buildTarotKingdomDebugMatchDoneState(options = {}) {
     deathAnimation: 'death',
     deathDurationMs: getKingdomMonsterAnimationDurationMs(st.battle.enemy.id, 'death'),
     dustDurationMs: KINGDOM_ENEMY_DUST_DURATION_MS,
-    label: `${st.players[winnerIndex]?.name || `P${winnerIndex + 1}`}が出し切り！ BATTLE WIN`
+    label: `${String(st.battle.enemy?.name || 'モンスター')}を　たおした！`
   }];
   st.pot = 0;
   st.pass = [false, false, false, false];
@@ -8173,7 +8302,7 @@ function buildTarotKingdomDebugBattleState(options = {}) {
     const openingPlay = {
       type: 'set', owner: leaderIndex, count: 1, selected: [], selectedIds: [],
       cardsHand: [tableCard], cardsTable: [tableCard], tableOwners: [leaderIndex],
-      number: idNum(tableCard), setPower: cStrength(tableCard),
+      number: idNum(tableCard), setPower: setPowerForCards(idNum(tableCard), [tableCard]),
       suitMask: suitMaskForCards([tableCard]),
       suitTier: Math.max(...suitsForCard(tableCard, false).map((suit) => suitTierForCard(tableCard, suit)))
     };
@@ -8194,7 +8323,7 @@ function playTarotKingdomDebugCard(playerIndex, options = {}) {
   const play = {
     type: 'set', owner: index, count: 1, selected: [0], selectedIds: [card.id],
     cardsHand: [card], cardsTable: [card], tableOwners: [index],
-    number: idNum(card), setPower: cStrength(card),
+    number: idNum(card), setPower: setPowerForCards(idNum(card), [card]),
     suitMask: suitMaskForCards([card]),
     suitTier: Math.max(...suitsForCard(card, false).map((suit) => suitTierForCard(card, suit)))
   };
@@ -8307,11 +8436,17 @@ function auditKingdomMajorArcanaRules() {
   );
 
   const openingEffects = {};
-  [5, 8, 11, 14, 20].forEach((number) => {
+  [1, 5, 8, 11, 14, 20].forEach((number) => {
     buildTarotKingdomDebugBattleState({ withTrick: false, dealerIndex: 0 });
     setupHand({ drawDeck: buildKingdomDebugDeckWithOpening(number) });
+    const syncPayload = number === 1 ? serializeStateForNet() : null;
+    if (syncPayload?.state?.trick) syncPayload.state.trick.setPower = 15;
+    if (syncPayload?.state?.lastPlay) syncPayload.state.lastPlay.setPower = 15;
+    const syncedState = syncPayload ? deserializeStateFromNet(syncPayload) : null;
     openingEffects[number] = {
       openingNumber: Number(s.lastPlay?.cardsTable?.[0]?.number),
+      setPower: Number(s.trick?.setPower),
+      syncedSetPower: syncedState ? Number(syncedState.trick?.setPower) : null,
       turn: s.turn,
       callOnly: !!s.callOnly,
       reverse: !!s.reverse,
@@ -8539,6 +8674,10 @@ function auditKingdomJudgmentRules() {
     handCount: s.players[2].hand.length
   };
   applyJudgmentPick(0, 0);
+  if (s.transition?.kind === 'judgmentReclaim') {
+    s.transition.endsAt = Date.now() - 1;
+    resolveKingdomTransition();
+  }
   const afterPick = {
     pendingDraw: s.pendingDraw,
     handCount: s.players[2].hand.length,
@@ -9008,6 +9147,12 @@ function exposeTarotKingdomBattleDebugTools(target) {
       render();
       return snapshotTarotKingdomDebugState();
     },
+    battleSetEnemyAreaSeal: (active = true) => {
+      if (!s?.battle?.enemy) return null;
+      s.battle.enemy.areaAttackSealedUntilClear = active === true;
+      render();
+      return snapshotTarotKingdomDebugState();
+    },
     battlePass: (playerIndex) => {
       const index = Math.max(0, Math.min(3, Number(playerIndex) || 0));
       s.phase = 'turn';
@@ -9298,7 +9443,7 @@ function setupHand(options = {}) {
     const openingSetNumber = (
       isMajorSuitGateCard(opening) && !areKingdomMajorArcanaGateRulesEnabled()
     ) ? 14 : idNum(opening);
-    const openingSetPower = setRankFromNumber(openingSetNumber);
+    const openingSetPower = setPowerForCards(openingSetNumber, [opening]);
     if (!usesDeferredKingdomGrave() && opening.kind === 'minor') {
       s.players[s.dealer].discard.push(opening);
     }
@@ -9362,7 +9507,7 @@ function playOpeningDealCinematic() {
   s.openingIntroStage = 'enter';
   s.openingDealRevealCount = 0;
   s.openingDealFlipIndex = -1;
-  s.message = `${String(s.battle?.enemy?.name || 'モンスター')}が現れた`;
+  s.message = `${String(s.battle?.enemy?.name || 'モンスター')}が　あらわれた！`;
   traceKingdomFlow('openingDeal.start', `handCount=${handCount}`);
   render();
 
@@ -9402,13 +9547,13 @@ function playOpeningDealCinematic() {
     if (!s || !s.roundActive || s.phase !== 'openingDeal') return;
     if (s.openingIntroStage !== 'enter') return;
     s.openingIntroStage = 'attack';
-    s.message = `${String(s.battle?.enemy?.name || 'モンスター')}の先制アクション`;
+    s.message = `${String(s.battle?.enemy?.name || 'モンスター')}の攻撃！`;
     render();
     openingDealFlipTimer = setTimeout(() => {
       openingDealFlipTimer = null;
       if (!s || !s.roundActive || s.phase !== 'openingDeal') return;
       s.openingIntroStage = 'card';
-      s.message = 'モンスターが場札をセット';
+      s.message = `${String(s.battle?.enemy?.name || 'モンスター')}は　カードをだした！`;
       render();
       openingDealNextTimer = setTimeout(() => {
         openingDealNextTimer = null;
@@ -9437,7 +9582,7 @@ function playRoundStartCinematic() {
   const currentTurn = s.turn;
   s.openingIntroStage = 'ready';
   s.phase = 'openingCinematic';
-  s.message = `第${roundNo}局 開始`;
+  s.message = `第${roundNo}局が　はじまった！`;
   traceKingdomFlow('roundStartCinematic.start', `round=${roundNo} nextTurn=${currentTurn}`);
   triggerKingdomActionFx(currentTurn, `第${roundNo}局 開始`, {
     overlay: 'action',
@@ -9512,8 +9657,7 @@ function buildSetPlay(pi, sel) {
   if (s.lock?.suit && !isWorldSingle && !isTemperanceSingle && !cards.every((c) => suitsForCard(c, false).includes(s.lock.suit))) {
     return { ok: false, reason: `スート縛り: ${SUIT_LABEL[s.lock.suit]}` };
   }
-  const allMagicianOne = Number(n) === 1 && cards.every((c) => c.kind === 'major' && Number(c.number) === 1);
-  const setPower = allMagicianOne ? 1 : setRankFromNumber(n);
+  const setPower = setPowerForCards(n, cards);
   if (s.lock?.min != null && cards.length === 1 && setPower <= s.lock.min && !isWorldSingle) {
     return { ok: false, reason: `${s.lock.min}より強いカードが必要です。` };
   }
@@ -10550,8 +10694,18 @@ function applyJudgmentPick(owner, cardIndex) {
   onPlayerDrewCard(pi, 1100);
   s.pendingJudgment = null;
   log(`${pName(pi)}: 審判で ${getCardNameLabel(card)} を回収`);
-  triggerKingdomActionFx(pi, '審判回収', { overlay: 'draw', durationMs: 700, cutin: true });
-  completeJudgmentFollowup(pi);
+  const event = pushKingdomBattleEvent('judgment-reclaim', {
+    actorIndex: pi,
+    sourceOwnerIndex: owner,
+    card: { ...card },
+    label: `${pName(pi)}は ${getCardNameLabel(card)}を回収した！`
+  });
+  s.phase = 'resolvingJudgment';
+  s.message = `${pName(pi)}は　${getCardNameLabel(card)}を回収した！`;
+  setKingdomTransition('judgmentReclaim', pi, KINGDOM_JUDGMENT_RECLAIM_EVENT_MS, {
+    eventSeqs: event ? [event.seq] : []
+  });
+  render();
 }
 
 function skipJudgmentPick() {
@@ -10590,6 +10744,7 @@ function buildKingdomCombatTimeline(variant, weaponType = 'sword', effectCount =
         hpRevealOffsetMs: 3160,
         hpTweenEndOffsetMs: 3600,
         effectOffsetMs: 3600,
+        damageNumberOffsetMs: 3600,
         durationMs: KINGDOM_SUMMON_ATTACK_MS
       };
     }
@@ -10601,6 +10756,7 @@ function buildKingdomCombatTimeline(variant, weaponType = 'sword', effectCount =
       hpRevealOffsetMs: 1200,
       hpTweenEndOffsetMs: 1520,
       effectOffsetMs: 1560,
+      damageNumberOffsetMs: 1560,
       durationMs: KINGDOM_SKILL_ATTACK_MS + effectTailMs
     };
   }
@@ -10609,6 +10765,7 @@ function buildKingdomCombatTimeline(variant, weaponType = 'sword', effectCount =
   const impactRatio = Math.max(0.3, Math.min(0.78, Number(profile?.impactRatio) || 0.58));
   const impactOffsetMs = Math.min(560, Math.max(300, Math.round(180 + (weaponWindow * impactRatio))));
   const hpRevealOffsetMs = impactOffsetMs + KINGDOM_NORMAL_HIT_STOP_MS;
+  const effectOffsetMs = hpRevealOffsetMs + KINGDOM_NORMAL_HP_TWEEN_MS + 40;
   return {
     version: 1,
     variant: 'attack',
@@ -10616,8 +10773,12 @@ function buildKingdomCombatTimeline(variant, weaponType = 'sword', effectCount =
     impactOffsetMs,
     hpRevealOffsetMs,
     hpTweenEndOffsetMs: hpRevealOffsetMs + KINGDOM_NORMAL_HP_TWEEN_MS,
-    effectOffsetMs: hpRevealOffsetMs + KINGDOM_NORMAL_HP_TWEEN_MS + 40,
-    durationMs: KINGDOM_NORMAL_ATTACK_MS + effectTailMs
+    effectOffsetMs,
+    damageNumberOffsetMs: effectOffsetMs,
+    durationMs: Math.max(
+      KINGDOM_NORMAL_ATTACK_MS + effectTailMs,
+      effectOffsetMs + KINGDOM_DAMAGE_NUMBER_HOLD_MS
+    )
   };
 }
 
@@ -10628,13 +10789,18 @@ function buildKingdomEnemyTimelineSpecs(events = []) {
     const type = String(event?.type || 'enemy-single');
     const durationMs = getKingdomBattleEventDuration(event);
     const isArea = type === 'enemy-area';
+    const hpRevealOffsetMs = isArea ? 400 : 320;
+    const hurtDurationMs = isArea ? 420 : (type === 'enemy-status' ? 260 : 300);
+    const damageNumberOffsetMs = hpRevealOffsetMs + hurtDurationMs;
     specs[String(event.seq)] = {
       version: 1,
       variant: type,
       startOffsetMs: cursor,
       impactOffsetMs: isArea ? 320 : 240,
-      hpRevealOffsetMs: isArea ? 400 : 320,
+      hpRevealOffsetMs,
       hpTweenEndOffsetMs: isArea ? 640 : 520,
+      effectOffsetMs: damageNumberOffsetMs,
+      damageNumberOffsetMs,
       durationMs
     };
     cursor += durationMs;
@@ -10661,6 +10827,11 @@ function normalizeKingdomTransitionTimeline(rawTimeline, startedAt, endsAt) {
     hpRevealAt - start
   ));
   const effectAt = Math.max(hpTweenEndsAt, absolute('effectAt', 'effectOffsetMs', hpTweenEndsAt - start));
+  const damageNumberAt = Math.max(hpRevealAt, absolute(
+    'damageNumberAt',
+    'damageNumberOffsetMs',
+    effectAt - start
+  ));
   return {
     version: Math.max(1, Math.min(2, Math.floor(Number(rawTimeline.version) || 1))),
     variant: ['skill', 'attack', 'enemy-single', 'enemy-area', 'enemy-self', 'enemy-status'].includes(String(rawTimeline.variant || ''))
@@ -10672,6 +10843,7 @@ function normalizeKingdomTransitionTimeline(rawTimeline, startedAt, endsAt) {
     hpRevealAt,
     hpTweenEndsAt,
     effectAt,
+    damageNumberAt,
     endsAt: end
   };
 }
@@ -10757,6 +10929,8 @@ function resolveKingdomTransition() {
     setupHand({ preserveStars: true, retryDraw: true });
     render();
     if (s?.roundActive) playOpeningDealCinematic();
+  } else if (transition.kind === 'judgmentReclaim') {
+    completeJudgmentFollowup(actorIndex);
   } else if (transition.kind === 'enemyResponse') {
     s.phase = String(transition.resumePhase || 'turn');
     if (transition.resumeTurn != null && Number.isInteger(Number(transition.resumeTurn))) s.turn = Number(transition.resumeTurn);
@@ -10914,7 +11088,8 @@ function startRoundOutCinematic(winnerIndex, play) {
   const actionLabel = getRoundFinishActionLabel(play);
   s.phase = 'roundOutCinematic';
   s.turn = winnerIndex;
-  s.message = `${winner.name}が出し切り！ 最後の一手: ${actionLabel}`;
+  s.message = buildKingdomEnemyOutcomeAnnouncement()
+    || `${winner.name}が出し切り！ 最後の一手: ${actionLabel}`;
   triggerKingdomActionFx(winnerIndex, `出し切り！\n${actionLabel}`, {
     overlay: 'roundend',
     overlayHoldMs: ROUND_OUT_CINEMATIC_MS,
@@ -11200,7 +11375,9 @@ function passAction(pi) {
       s.phase = 'resolvingEnemy';
       s.message = `${s.battle.enemy.name}の全体攻撃...`;
       const eventSeqs = [singleAttackEvent?.seq, areaAttackEvent?.seq].filter(Number.isFinite);
-      const responseDuration = (singleAttackEvent ? 540 : 0) + (areaAttackEvent ? 720 : 0);
+      const responseDuration = [singleAttackEvent, areaAttackEvent]
+        .filter(Boolean)
+        .reduce((total, event) => total + getKingdomBattleEventDuration(event), 0);
       const responseEvents = [singleAttackEvent, areaAttackEvent].filter(Boolean);
       const eventTimelineSpecs = buildKingdomEnemyTimelineSpecs(responseEvents);
       const primaryTimeline = eventTimelineSpecs[String(responseEvents[0]?.seq || '')] || null;
@@ -11221,7 +11398,7 @@ function passAction(pi) {
     s.phase = 'resolvingEnemy';
     s.message = `${s.battle.enemy.name}の反撃...`;
     const eventTimelineSpecs = buildKingdomEnemyTimelineSpecs([singleAttackEvent]);
-    setKingdomTransition('enemyResponse', pi, 540, {
+    setKingdomTransition('enemyResponse', pi, getKingdomBattleEventDuration(singleAttackEvent), {
       resumePhase: 'turn',
       resumeTurn: s.turn,
       resumeMessage,
@@ -12659,6 +12836,12 @@ function getKingdomBattleTimelinePhase(timeline, now = Date.now()) {
   return 'final';
 }
 
+function isKingdomDamageNumberReady(timeline, now = Date.now()) {
+  return !timeline
+    || prefersKingdomReducedMotion()
+    || now >= Number(timeline.damageNumberAt || timeline.effectAt || timeline.hpTweenEndsAt || 0);
+}
+
 function updateKingdomBattleHpTweenFrame(event, timeline) {
   if (!event || !timeline || !s?.battle) return;
   const enemy = s.battle.enemy;
@@ -12717,13 +12900,21 @@ function scheduleKingdomBattleTimelineRenders(event, timeline) {
     clearKingdomBattlePhaseTimers();
     return;
   }
-  const key = `${event.seq}:${timeline.version}:${timeline.impactAt}:${timeline.hpRevealAt}:${timeline.hpTweenEndsAt}:${timeline.endsAt}`;
+  const key = `${event.seq}:${timeline.version}:${timeline.impactAt}:${timeline.hpRevealAt}:${timeline.hpTweenEndsAt}:${timeline.damageNumberAt}:${timeline.endsAt}`;
   if (kingdomBattlePhaseTimerKey === key) return;
   clearKingdomBattlePhaseTimers();
   kingdomBattlePhaseTimerKey = key;
   if (prefersKingdomReducedMotion()) return;
   const now = Date.now();
-  const boundaries = [timeline.motionAt, timeline.impactAt, timeline.hpRevealAt, timeline.hpTweenEndsAt, timeline.effectAt, timeline.endsAt];
+  const boundaries = [
+    timeline.motionAt,
+    timeline.impactAt,
+    timeline.hpRevealAt,
+    timeline.hpTweenEndsAt,
+    timeline.effectAt,
+    timeline.damageNumberAt,
+    timeline.endsAt
+  ];
   boundaries.forEach((boundary) => {
     const waitMs = Math.max(0, Number(boundary || 0) - now);
     if (waitMs <= 0) return;
@@ -12768,9 +12959,10 @@ function getKingdomBattleEventDuration(event) {
   const type = String(event?.type || '');
   if (type === 'skill') return getKingdomSkillAttackDuration(event?.effectCount);
   if (type === 'attack') return KINGDOM_NORMAL_ATTACK_MS;
-  if (type === 'enemy-area') return 720;
-  if (type === 'enemy-single' || type === 'enemy-self') return 540;
-  if (type === 'enemy-status') return 420;
+  if (type === 'enemy-area') return KINGDOM_ENEMY_AREA_EVENT_MS;
+  if (type === 'enemy-single' || type === 'enemy-self') return KINGDOM_ENEMY_SINGLE_EVENT_MS;
+  if (type === 'enemy-status') return KINGDOM_ENEMY_STATUS_EVENT_MS;
+  if (type === 'judgment-reclaim') return KINGDOM_JUDGMENT_RECLAIM_EVENT_MS;
   if (type === 'forced-draw-ko') return 900;
   if (type === 'defeat' && Number.isInteger(Number(event?.retreatingPlayerIndex))) return 1600;
   if (type === 'victory' || type === 'defeat') return 1200;
@@ -12873,6 +13065,12 @@ function playKingdomBattleAvatarEvent(event, eventIsActive, eventKey) {
     const timeline = getKingdomBattleTimelineForEvent(event);
     const phase = getKingdomBattleTimelinePhase(timeline);
     if (timeline && !prefersKingdomReducedMotion() && !['damage', 'recover'].includes(phase)) return;
+    if (timeline && !prefersKingdomReducedMotion() && isKingdomDamageNumberReady(timeline)) return;
+    const hurtDurationMs = type === 'enemy-area' ? 420 : 300;
+    const remainingHurtMs = timeline
+      ? Math.max(0, Number(timeline.damageNumberAt || 0) - Date.now())
+      : hurtDurationMs;
+    if (timeline && !prefersKingdomReducedMotion() && remainingHurtMs < 80) return;
     if (kingdomBattleHurtEventKey === eventKey) return;
     kingdomBattleHurtEventKey = eventKey;
     const targets = Array.isArray(event.targetIndexes) ? event.targetIndexes : [];
@@ -12880,7 +13078,7 @@ function playKingdomBattleAvatarEvent(event, eventIsActive, eventKey) {
       if (s?.players?.[Number(targetIndex)]?.isPet) return;
       const avatar = document.getElementById(`tarotKingdomBattleAvatar-${Number(targetIndex)}`);
       flashCombatAvatarHurt(avatar, {
-        duration: type === 'enemy-area' ? 420 : 300,
+        duration: Math.min(hurtDurationMs, remainingHurtMs),
         allowDefeated: true
       });
     });
@@ -12928,6 +13126,36 @@ function getKingdomBattleVisualHp(playerIndex, logicalHp, maxHp, activeEvent, ev
       : visualHp + Math.max(0, Number(damage.damage) || 0);
   }
   return Math.max(0, Math.min(maxHp, visualHp));
+}
+
+function renderKingdomJudgmentReclaimCard(row, playerIndex, event, eventIsActive, eventKey) {
+  if (!row) return;
+  const selector = ':scope > .tarot-kingdom-judgment-reclaim-card';
+  let node = row.querySelector(selector);
+  const show = !!(
+    eventIsActive
+    && event?.type === 'judgment-reclaim'
+    && Number(event?.actorIndex) === Number(playerIndex)
+    && event?.card
+  );
+  if (!show) {
+    node?.remove();
+    return;
+  }
+  if (node?.dataset.eventKey === eventKey) return;
+  node?.remove();
+  node = cardNode(event.card);
+  node.disabled = false;
+  node.tabIndex = -1;
+  node.setAttribute('aria-hidden', 'true');
+  node.classList.add('tarot-kingdom-judgment-reclaim-card');
+  node.dataset.eventKey = eventKey;
+  const elapsed = Math.max(
+    0,
+    Math.min(KINGDOM_JUDGMENT_RECLAIM_EVENT_MS - 1, Date.now() - Number(event.at || Date.now()))
+  );
+  node.style.setProperty('--tk-judgment-reclaim-delay', `${-elapsed}ms`);
+  row.appendChild(node);
 }
 
 function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eventKey = '') {
@@ -13047,6 +13275,7 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
         );
       }
     }
+    renderKingdomJudgmentReclaimCard(row, playerIndex, activeEvent, eventIsActive, eventKey);
 
     const name = row.querySelector('.tarot-kingdom-battle-player-name');
     const nameKey = `${character.displayName}:${character.playFabId}`;
@@ -13110,7 +13339,7 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
     const damageMissed = incomingDamage?.missed === true;
     const showDamage = !!(
       incomingDamage
-      && ['damage', 'recover'].includes(phase)
+      && isKingdomDamageNumberReady(timeline)
       && (damageAmount > 0 || damageMissed)
     );
     let damageNumber = row.querySelector(':scope > .tarot-kingdom-player-damage-number');
@@ -13568,8 +13797,10 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   }
 }
 
-function renderKingdomBattleDamageNumber(event, eventIsActive, phase) {
+function renderKingdomBattleDamageNumber(event, eventIsActive) {
   if (!ui.battleEnemy) return;
+  const timeline = getKingdomBattleTimelineForEvent(event);
+  const phase = getKingdomBattleTimelinePhase(timeline);
   let node = ui.battleEnemy.querySelector(':scope > .tarot-kingdom-damage-number');
   const missed = !!(
     ['attack', 'skill'].includes(String(event?.type || ''))
@@ -13578,7 +13809,7 @@ function renderKingdomBattleDamageNumber(event, eventIsActive, phase) {
   const show = !!(
     eventIsActive
     && ['attack', 'skill', 'enemy-self', 'enemy-status'].includes(String(event?.type || ''))
-    && ['damage', 'recover'].includes(phase)
+    && isKingdomDamageNumberReady(timeline)
     && (Number(event?.damage) > 0 || missed)
   );
   if (!show) {
@@ -13923,7 +14154,7 @@ function renderKingdomBattleStage() {
   }
   renderKingdomSkillCutin(visualEvent, eventIsActive, timelinePhase);
   renderKingdomSecondaryEffectBanner(visualEvent, eventIsActive, timelinePhase);
-  renderKingdomBattleDamageNumber(visualEvent, eventIsActive, timelinePhase);
+  renderKingdomBattleDamageNumber(visualEvent, eventIsActive);
   renderKingdomBattleParty(visualEvent, eventIsActive, eventKey);
   renderKingdomChampionCeremony();
   renderKingdomBattleFeed();
@@ -14477,12 +14708,17 @@ function getPlayableHandCardIndexes(playerIndex) {
 
 function canLocalPlayerSelectHand(playerIndex) {
   if (!s || playerIndex < 0 || !s.players?.[playerIndex]) return false;
-  const drawChoice = s.phase === 'draw' && s.pendingDraw === playerIndex;
-  const ownTurn = s.phase === 'turn' && s.turn === playerIndex;
+  const handPreparationBlocked = [
+    'idle',
+    'openingDeal',
+    'roundOutCinematic',
+    'roundDraw',
+    'roundEnd',
+    'done'
+  ].includes(String(s.phase || ''));
   return !!(
     s.roundActive
-    && !s.transition
-    && (ownTurn || drawChoice)
+    && !handPreparationBlocked
     && isKingdomLocalPrivateStateReady()
     && isKingdomBattlePlayerConscious(playerIndex)
     && Array.isArray(s.players[playerIndex]?.hand)
@@ -14490,7 +14726,123 @@ function canLocalPlayerSelectHand(playerIndex) {
   );
 }
 
+function clearLocalHandDropIndicators() {
+  if (!ui.hand) return;
+  ui.hand.classList.remove('is-reordering');
+  ui.hand.querySelectorAll('.is-dragging, .is-drop-before, .is-drop-after').forEach((node) => {
+    node.classList.remove('is-dragging', 'is-drop-before', 'is-drop-after');
+    node.style.removeProperty('--tk-hand-drag-x');
+    node.style.removeProperty('--tk-hand-drag-y');
+    node.removeAttribute('aria-grabbed');
+  });
+}
+
+function cancelLocalHandDrag() {
+  const drag = localHandDrag;
+  localHandDrag = null;
+  if (drag?.node?.hasPointerCapture?.(drag.pointerId)) {
+    try {
+      drag.node.releasePointerCapture(drag.pointerId);
+    } catch (_) {
+      // The node may already have been replaced by a synchronized render.
+    }
+  }
+  clearLocalHandDropIndicators();
+}
+
+function beginLocalHandDrag(event, cardIndex, node) {
+  const me = getLocalPlayerIndex();
+  if (
+    !event?.isPrimary
+    || (event.pointerType === 'mouse' && Number(event.button) !== 0)
+    || !canLocalPlayerSelectHand(me)
+    || !node
+  ) return;
+  const hand = s?.players?.[me]?.hand;
+  const card = Array.isArray(hand) ? hand[cardIndex] : null;
+  if (!card) return;
+  cancelLocalHandDrag();
+  localHandDrag = {
+    pointerId: event.pointerId,
+    node,
+    sourceKey: getLocalHandCardKey(card),
+    startX: Number(event.clientX) || 0,
+    startY: Number(event.clientY) || 0,
+    dragging: false,
+    dropIndex: cardIndex
+  };
+  node.setAttribute('aria-grabbed', 'false');
+  try {
+    node.setPointerCapture(event.pointerId);
+  } catch (_) {
+    // Pointer capture is optional; regular pointer events still handle the drag.
+  }
+}
+
+function moveLocalHandDrag(event) {
+  const drag = localHandDrag;
+  if (!drag || Number(event?.pointerId) !== Number(drag.pointerId)) return;
+  const dx = (Number(event.clientX) || 0) - drag.startX;
+  const dy = (Number(event.clientY) || 0) - drag.startY;
+  if (!drag.dragging && Math.hypot(dx, dy) < 7) return;
+  drag.dragging = true;
+  localHandTapSuppressedUntil = Date.now() + 400;
+  event.preventDefault();
+  drag.node.classList.add('is-dragging');
+  drag.node.setAttribute('aria-grabbed', 'true');
+  drag.node.style.setProperty('--tk-hand-drag-x', `${Math.round(dx)}px`);
+  drag.node.style.setProperty('--tk-hand-drag-y', `${Math.round(dy)}px`);
+  ui.hand?.classList.add('is-reordering');
+
+  const candidates = Array.from(ui.hand?.querySelectorAll(':scope > .tarot-card') || [])
+    .filter((node) => node !== drag.node);
+  candidates.forEach((node) => node.classList.remove('is-drop-before', 'is-drop-after'));
+  let insertionIndex = candidates.length;
+  for (let index = 0; index < candidates.length; index += 1) {
+    const rect = candidates[index].getBoundingClientRect();
+    if ((Number(event.clientX) || 0) < rect.left + (rect.width / 2)) {
+      insertionIndex = index;
+      break;
+    }
+  }
+  drag.dropIndex = insertionIndex;
+  if (candidates.length <= 0) return;
+  if (insertionIndex < candidates.length) {
+    candidates[insertionIndex].classList.add('is-drop-before');
+  } else {
+    candidates[candidates.length - 1].classList.add('is-drop-after');
+  }
+}
+
+function finishLocalHandDrag(event) {
+  const drag = localHandDrag;
+  if (!drag || Number(event?.pointerId) !== Number(drag.pointerId)) return;
+  const wasDragging = drag.dragging;
+  const dropIndex = Math.max(0, Number(drag.dropIndex) || 0);
+  if (wasDragging) {
+    event.preventDefault();
+    localHandTapSuppressedUntil = Date.now() + 400;
+  }
+  cancelLocalHandDrag();
+  if (!wasDragging || !s) return;
+
+  const me = getLocalPlayerIndex();
+  const hand = s.players?.[me]?.hand;
+  if (!Array.isArray(hand) || hand.length <= 1) return;
+  const sourceIndex = hand.findIndex((card) => getLocalHandCardKey(card) === drag.sourceKey);
+  if (sourceIndex < 0) return;
+  const selectedKeys = getLocalSelectedCardKeys(hand);
+  const [movedCard] = hand.splice(sourceIndex, 1);
+  hand.splice(Math.min(dropIndex, hand.length), 0, movedCard);
+  localHandSortMode = HAND_SORT_MODE.MANUAL;
+  localHandManualOrder = hand.map(getLocalHandCardKey).filter(Boolean);
+  restoreLocalSelectedCards(hand, selectedKeys);
+  setLocalInfoMessage('手札を並び替えました。', 1100);
+  render();
+}
+
 function renderHand() {
+  cancelLocalHandDrag();
   ui.hand.innerHTML = '';
   if (ui.handCount) ui.handCount.textContent = '0';
   ui.hand.dataset.handCount = '0';
@@ -14522,6 +14874,7 @@ function renderHand() {
   const playableIndexes = canCommit ? getPlayableHandCardIndexes(me) : new Set();
   const canSelect = !inOpeningDeal && canLocalPlayerSelectHand(me);
   const onHandTap = (idx) => {
+    if (Date.now() < localHandTapSuppressedUntil) return;
     if (!canSelect) {
       showPlayError('今は手札を選択できません。');
       return;
@@ -14558,8 +14911,18 @@ function renderHand() {
       onClick: () => onHandTap(i)
     });
     node.dataset.cardIndex = String(i);
+    node.dataset.cardId = String(c?.id || '');
     node.style.setProperty('--hand-index', String(i));
     node.setAttribute('aria-pressed', selected.includes(i) ? 'true' : 'false');
+    if (canSelect && showCard) {
+      node.addEventListener('pointerdown', (event) => beginLocalHandDrag(event, i, node));
+      node.addEventListener('pointermove', moveLocalHandDrag);
+      node.addEventListener('pointerup', finishLocalHandDrag);
+      node.addEventListener('pointercancel', cancelLocalHandDrag);
+      node.addEventListener('lostpointercapture', () => {
+        if (localHandDrag?.node === node) cancelLocalHandDrag();
+      });
+    }
     ui.hand.appendChild(node);
   });
 }
@@ -14590,6 +14953,15 @@ function toggleGraveyard() {
   render();
 }
 
+function closeGraveyard() {
+  if (!s || !kingdomLocalGraveOpen) return;
+  const localPlayerIndex = getLocalPlayerIndex();
+  if (s.pendingJudgment != null && Number(s.pendingJudgment) === Number(localPlayerIndex)) return;
+  kingdomLocalGraveOpen = false;
+  setLocalInfoMessage('墓地を閉じました。', 1200);
+  render();
+}
+
 function renderJudgment() {
   const inJudgment = s.pendingJudgment != null;
   const human = inJudgment && Number(s.pendingJudgment) === getLocalPlayerIndex();
@@ -14611,6 +14983,10 @@ function renderJudgment() {
   }
   ui.judgmentSkipButton.style.display = human ? '' : 'none';
   ui.judgmentSkipButton.disabled = !(inJudgment && human);
+  if (ui.judgmentCloseButton) {
+    ui.judgmentCloseButton.hidden = human;
+    ui.judgmentCloseButton.disabled = human;
+  }
 
   const slotMap = new Map();
   s.players.forEach((p, owner) => {
@@ -14882,6 +15258,7 @@ function updateButtons() {
   const canClearSelection = hasSelected;
   const canToggleSort = !hasSelected && myHandCount > 1;
   const canPlayNow = myTurn || drawMe;
+  const canPrepareHand = canLocalPlayerSelectHand(me);
   const isConnectingOnline = isKingdomOnlineConnecting();
   const needsCharacterRetry = !s.characterSnapshotReady
     && /(取得に失敗|取得できない|未読込)/.test(String(s.message || ''));
@@ -14983,7 +15360,7 @@ function updateButtons() {
     ui.clearButton.textContent = hasSelected
       ? '選択解除'
       : (localHandSortMode === HAND_SORT_MODE.SUIT ? '数値順' : 'スート順');
-    ui.clearButton.disabled = actionLocked || !(canClearSelection || canToggleSort);
+    ui.clearButton.disabled = !canPrepareHand || !(canClearSelection || canToggleSort);
   }
   if (ui.foldButton) {
     if (drawMe) {
@@ -15534,6 +15911,7 @@ function bindUi() {
   ui.judgmentTitle = document.getElementById('tarotKingdomJudgmentTitle');
   ui.judgmentOptions = document.getElementById('tarotKingdomJudgmentOptions');
   ui.judgmentSkipButton = document.getElementById('tarotKingdomJudgmentSkipButton');
+  ui.judgmentCloseButton = document.getElementById('tarotKingdomJudgmentCloseButton');
   exposeTarotKingdomDebugTools();
   bindKingdomViewportWatch();
   queueSyncKingdomViewportHeight();
@@ -15636,6 +16014,7 @@ function bindUi() {
     render();
   });
   ui.graveToggleButton?.addEventListener('click', () => toggleGraveyard());
+  ui.judgmentCloseButton?.addEventListener('click', () => closeGraveyard());
   ui.judgmentSkipButton?.addEventListener('click', () => {
     const me = getLocalPlayerIndex();
     requestHostAction({ type: 'judgmentSkip' }, () => {
@@ -15835,6 +16214,10 @@ export function destroyTarotKingdomPage() {
   }
   kingdomStartMode = '';
   netManualOfflineMode = false;
+  cancelLocalHandDrag();
+  localHandSortMode = HAND_SORT_MODE.VALUE;
+  localHandManualOrder = [];
+  localHandTapSuppressedUntil = 0;
   localHandSortDrawLock = false;
   clearLocalAutoFold();
   kingdomLocalAutoFoldPrevReverse = false;

@@ -11,7 +11,9 @@ const {
     getTarotKingdomPetRecruitChance,
     isTarotKingdomPetRecruitEligible,
     normalizeTarotKingdomPendingPetOffer,
+    parseTarotKingdomPetNickname,
     readTarotKingdomPetState,
+    renameTarotKingdomCurrentPet,
     resolveTarotKingdomPetChoice,
     rollTarotKingdomPetOffer,
     writeTarotKingdomPetState
@@ -2443,6 +2445,42 @@ function initializeExplorationRoutes(app, deps) {
         } catch (error) {
             console.error('[tarot-kingdom/pet-state] failed:', error?.errorMessage || error?.message || error);
             return res.status(500).json({ error: 'ペット情報を取得できませんでした。' });
+        }
+    });
+
+    app.post('/api/tarot-kingdom/pet-name', async (req, res) => {
+        let { playFabId, nickname } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        nickname = parseTarotKingdomPetNickname(nickname);
+        if (!nickname) return res.status(400).json({ error: 'ペット名は1～12文字で入力してください。' });
+        playFabId = await requireAuthed(req, res, playFabId);
+        if (!playFabId) return;
+        try {
+            const saved = await withTarotKingdomPetChoiceLock(playFabId, async () => {
+                const state = await readTarotKingdomPetState(playFabId, { promisifyPlayFab, PlayFabServer });
+                const renamed = renameTarotKingdomCurrentPet(state, nickname);
+                if (!renamed.renamed) return renamed;
+                const nextState = await writeTarotKingdomPetState(
+                    playFabId,
+                    renamed.state,
+                    { promisifyPlayFab, PlayFabServer }
+                );
+                return { ...renamed, state: nextState };
+            });
+            if (!saved.renamed) {
+                return res.status(saved.reason === 'pet-not-found' ? 404 : 400).json({
+                    error: saved.reason === 'pet-not-found'
+                        ? '名前を変更するペットがいません。'
+                        : 'ペット名を変更できませんでした。'
+                });
+            }
+            return res.json({
+                success: true,
+                currentPet: buildTarotKingdomPetPublicRecord(saved.state.currentPet)
+            });
+        } catch (error) {
+            console.error('[tarot-kingdom/pet-name] failed:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({ error: 'ペット名を変更できませんでした。' });
         }
     });
 

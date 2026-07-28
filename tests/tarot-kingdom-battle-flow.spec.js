@@ -335,7 +335,9 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(duringSingle[2]).toMatchObject({ ko: false, hp: '5' });
     expect(duringSingle[3]).toMatchObject({ ko: false, hp: '5' });
 
-    await page.waitForTimeout(1220);
+    // The area hit follows the 860ms single-target response, then reveals HP
+    // after its hurt pose and 240ms tween.
+    await page.waitForTimeout(1580);
     const duringArea = await page.evaluate(() => (
       Array.from(document.querySelectorAll('#tarotKingdomBattleParty > .tarot-kingdom-battle-player'))
         .map((row) => ({
@@ -659,6 +661,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
     await expect(settlementConfirmButton).toBeDisabled();
     await page.waitForFunction(() => document.getElementById('tarotKingdomBattleStage')?.classList.contains('is-defeat'));
     await page.waitForFunction(() => window.TarotKingdomDebug?.battleState?.()?.phase === 'done');
+    await expect(page.locator('#tarotKingdomSelectedEffect'))
+      .toHaveText(/^仲間3人が戦闘不能。.+は撤退しました$/);
     await expect(settlementConfirmButton).toBeVisible();
     await expect(settlementConfirmButton).toBeEnabled();
     await expect(settlementConfirmButton).toHaveText('もう一度遊ぶ');
@@ -726,6 +730,11 @@ test.describe('Tarot Kingdom character battle flow', () => {
       remainingCount: 45
     });
 
+    expect(audit.openingEffects['1']).toMatchObject({
+      openingNumber: 1,
+      setPower: 1,
+      syncedSetPower: 1
+    });
     expect(audit.openingEffects['5']).toMatchObject({ openingNumber: 5, turn: 2, areaSealed: true });
     expect(audit.openingEffects['8']).toMatchObject({ openingNumber: 8, callOnly: true, petrified: true });
     expect(audit.openingEffects['11']).toMatchObject({ openingNumber: 11, reverse: true });

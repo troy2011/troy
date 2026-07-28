@@ -115,6 +115,13 @@ export function getTarotKingdomPetState(playFabId, options) {
     return callApiWithLoader('/api/tarot-kingdom/pet-state', { playFabId }, options);
 }
 
+export function renameTarotKingdomPet(playFabId, nickname, options) {
+    return callApiWithLoader('/api/tarot-kingdom/pet-name', {
+        playFabId,
+        nickname: String(nickname || '').trim()
+    }, options);
+}
+
 export function rollTarotKingdomPetRound(playFabId, explorationId, finisher, options) {
     const source = finisher && typeof finisher === 'object' ? finisher : {};
     return callApiWithLoader('/api/tarot-kingdom/pet-round-roll', {

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="robots" content="noindex,follow">
     <title>Tarot Kingdom Preview</title>
-    <link rel="stylesheet" href="./style.css?v=20260728-card-flip1">
+    <link rel="stylesheet" href="./style.css?v=20260728-hand-drag1">
     <style>
         html, body {
             margin: 0;
@@ -40,7 +40,7 @@
                 "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
                 "config": "./js/config.js",
                 "api": "./js/api.js",
-                "ui": "./js/ui.js?v=20260728-card-flip1",
+                "ui": "./js/ui.js?v=20260728-hand-drag1",
                 "avatar": "./js/avatar.js",
                 "player": "./js/player.js",
                 "inventory": "./js/inventory.js?v=20260604g",
@@ -105,6 +105,7 @@
                     </div>
                     <div class="tarot-kingdom-battle-enemy-visual">
                         <div id="tarotKingdomEnemySprite" class="tarot-kingdom-battle-enemy-sprite" data-facing="left" role="img" aria-label="敵モンスター"></div>
+                        <span class="tarot-kingdom-enemy-silence-icon" role="img" aria-label="全体攻撃封印"></span>
                     </div>
                 </section>
                 <div class="tarot-kingdom-battle-center">
@@ -142,6 +143,7 @@
                 </div>
                 <div id="tarotKingdomJudgmentArea" class="tarot-kingdom-judgment" style="display:none;">
                     <div id="tarotKingdomJudgmentTitle" class="tarot-kingdom-judgment-title">墓地</div>
+                    <button id="tarotKingdomJudgmentCloseButton" class="tarot-kingdom-judgment-close" type="button" aria-label="墓地を閉じる"><span aria-hidden="true">×</span></button>
                     <div id="tarotKingdomJudgmentOptions" class="tarot-kingdom-judgment-options"></div>
                     <button id="tarotKingdomJudgmentSkipButton" type="button">回収しない</button>
                 </div>
@@ -183,7 +185,7 @@
         window.myLineProfile = { displayName: 'Preview' };
         window.__TAROT_KINGDOM_PREVIEW__ = true;
 
-        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260728-card-flip1';
+        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260728-hand-drag1';
 
         window.TarotKingdomPreview = {
             load: () => loadTarotKingdomPage(),

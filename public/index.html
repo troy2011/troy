@@ -23,7 +23,7 @@
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
     <title>TROYゴールドアプリ</title>
-<link rel="stylesheet" href="style.css?v=20260728-card-flip1">
+<link rel="stylesheet" href="style.css?v=20260728-hand-drag1">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
 </head>
@@ -512,6 +512,7 @@
                                 </div>
                                 <div class="tarot-kingdom-battle-enemy-visual">
                                     <div id="tarotKingdomEnemySprite" class="tarot-kingdom-battle-enemy-sprite" data-facing="left" role="img" aria-label="敵モンスター"></div>
+                                    <span class="tarot-kingdom-enemy-silence-icon" role="img" aria-label="全体攻撃封印"></span>
                                 </div>
                             </section>
                             <div class="tarot-kingdom-battle-center">
@@ -549,6 +550,7 @@
                             </div>
                             <div id="tarotKingdomJudgmentArea" class="tarot-kingdom-judgment" style="display:none;">
                                 <div id="tarotKingdomJudgmentTitle" class="tarot-kingdom-judgment-title">墓地</div>
+                                <button id="tarotKingdomJudgmentCloseButton" class="tarot-kingdom-judgment-close" type="button" aria-label="墓地を閉じる"><span aria-hidden="true">×</span></button>
                                 <div id="tarotKingdomJudgmentOptions" class="tarot-kingdom-judgment-options"></div>
                                 <button id="tarotKingdomJudgmentSkipButton" type="button">回収しない</button>
                             </div>
@@ -1454,6 +1456,12 @@
                         <div id="playerProfileAvatar-layer-shield-left" class="avatar-layer"></div>
                     </div>
                     <div id="playerProfilePetCompanion" class="pixel-monster-companion player-profile-pet-companion" hidden></div>
+                    <button id="playerProfilePetName" class="player-profile-pet-name" type="button" hidden></button>
+                    <form id="playerProfilePetRenameForm" class="player-profile-pet-rename" hidden>
+                        <input id="playerProfilePetNameInput" type="text" maxlength="12" autocomplete="off" aria-label="新しいペット名">
+                        <button type="submit" aria-label="ペット名を保存">決定</button>
+                        <button id="btnPlayerProfilePetRenameCancel" type="button" aria-label="名前変更をやめる">戻る</button>
+                    </form>
                 </div>
                 <div id="playerProfileShip" class="player-profile-ship"></div>
                 <div class="item-detail-copy">
@@ -1745,7 +1753,7 @@
         "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
         "config": "./js/config.js",
         "api": "./js/api.js",
-"ui": "./js/ui.js?v=20260728-card-flip1",
+"ui": "./js/ui.js?v=20260728-hand-drag1",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js",
         "inventory": "./js/inventory.js?v=20260604g",
@@ -1792,6 +1800,6 @@
     <!-- Scripts -->
     <script src="battle-client.js?v=20260726-legacy-battle-off-1"></script>
     <script src="naval-battle.js"></script>
-<script type="module" src="main.js?v=20260728-pet-companion1"></script>
+<script type="module" src="main.js?v=20260728-pet-rename1"></script>
 </body>
 </html>

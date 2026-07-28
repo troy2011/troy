@@ -1,8 +1,9 @@
 const PIXEL_MONSTERS_ROSTER = require('../public/Sprites/pixel-monsters/manifest.json');
 
 const TAROT_KINGDOM_PET_DATA_KEY = 'TarotKingdomPetState';
-const TAROT_KINGDOM_PET_STATE_VERSION = 1;
+const TAROT_KINGDOM_PET_STATE_VERSION = 2;
 const TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT = 16;
+const TAROT_KINGDOM_PET_NAME_MAX_LENGTH = 12;
 
 const MONSTER_BY_ID = new Map(
     PIXEL_MONSTERS_ROSTER.map((monster) => [String(monster?.id || '').trim(), monster])
@@ -22,6 +23,25 @@ function getTarotKingdomPetRecruitChance(stageNo = 1) {
     return Math.max(0, Math.min(1, (TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT - normalizedStageNo) / 100));
 }
 
+function normalizeTarotKingdomPetNickname(value) {
+    const normalized = String(value || '')
+        .normalize('NFKC')
+        .replace(/[\u0000-\u001f\u007f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    return Array.from(normalized).slice(0, TAROT_KINGDOM_PET_NAME_MAX_LENGTH).join('');
+}
+
+function parseTarotKingdomPetNickname(value) {
+    const normalized = String(value || '')
+        .normalize('NFKC')
+        .replace(/[\u0000-\u001f\u007f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!normalized || Array.from(normalized).length > TAROT_KINGDOM_PET_NAME_MAX_LENGTH) return null;
+    return normalized;
+}
+
 function normalizeTarotKingdomCurrentPet(value) {
     if (!value || typeof value !== 'object') return null;
     const monster = getTarotKingdomPetMonster(value.monsterId);
@@ -29,7 +49,8 @@ function normalizeTarotKingdomCurrentPet(value) {
     return {
         monsterId: monster.id,
         acquiredAtMs: finiteTimestamp(value.acquiredAtMs),
-        explorationId: String(value.explorationId || '').trim().slice(0, 128)
+        explorationId: String(value.explorationId || '').trim().slice(0, 128),
+        nickname: normalizeTarotKingdomPetNickname(value.nickname)
     };
 }
 
@@ -70,8 +91,30 @@ function buildTarotKingdomPetPublicRecord(value) {
     return {
         ...pet,
         monsterName: String(monster?.name || pet.monsterId),
+        displayName: String(pet.nickname || monster?.name || pet.monsterId),
         volume: Math.max(1, Math.min(3, Math.floor(Number(monster?.volume) || 1))),
         number: Math.max(1, Math.floor(Number(monster?.number) || 1))
+    };
+}
+
+function renameTarotKingdomCurrentPet(state, nickname) {
+    const normalizedState = normalizeTarotKingdomPetState(state);
+    const normalizedNickname = parseTarotKingdomPetNickname(nickname);
+    if (!normalizedState.currentPet) {
+        return { state: normalizedState, renamed: false, reason: 'pet-not-found' };
+    }
+    if (!normalizedNickname) {
+        return { state: normalizedState, renamed: false, reason: 'invalid-name' };
+    }
+    return {
+        state: {
+            ...normalizedState,
+            currentPet: {
+                ...normalizedState.currentPet,
+                nickname: normalizedNickname
+            }
+        },
+        renamed: true
     };
 }
 
@@ -207,6 +250,7 @@ async function writeTarotKingdomPetState(playFabId, state, { promisifyPlayFab, P
 
 module.exports = {
     TAROT_KINGDOM_PET_DATA_KEY,
+    TAROT_KINGDOM_PET_NAME_MAX_LENGTH,
     TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT,
     buildTarotKingdomPetOfferView,
     buildTarotKingdomPetPublicRecord,
@@ -214,9 +258,12 @@ module.exports = {
     getTarotKingdomPetMonster,
     isTarotKingdomPetRecruitEligible,
     normalizeTarotKingdomCurrentPet,
+    normalizeTarotKingdomPetNickname,
     normalizeTarotKingdomPendingPetOffer,
     normalizeTarotKingdomPetState,
+    parseTarotKingdomPetNickname,
     readTarotKingdomPetState,
+    renameTarotKingdomCurrentPet,
     resolveTarotKingdomPetChoice,
     rollTarotKingdomPetOffer,
     writeTarotKingdomPetState

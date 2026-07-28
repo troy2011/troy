@@ -194,6 +194,7 @@ test.describe('Tarot Kingdom summon integration', () => {
       hpRevealAt: audit.state.transition.startedAt + 3160,
       hpTweenEndsAt: audit.state.transition.startedAt + 3600,
       effectAt: audit.state.transition.startedAt + 3600,
+      damageNumberAt: audit.state.transition.startedAt + 3600,
       endsAt: audit.state.transition.startedAt + 4500
     });
     expect(audit.cutinCount).toBe(1);

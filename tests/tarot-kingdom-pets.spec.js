@@ -3,9 +3,12 @@ const manifest = require('../public/Sprites/pixel-monsters/manifest.json');
 const {
   TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT,
   buildTarotKingdomPetOfferView,
+  buildTarotKingdomPetPublicRecord,
   getTarotKingdomPetRecruitChance,
   isTarotKingdomPetRecruitEligible,
   normalizeTarotKingdomPetState,
+  parseTarotKingdomPetNickname,
+  renameTarotKingdomCurrentPet,
   resolveTarotKingdomPetChoice,
   rollTarotKingdomPetOffer
 } = require('../server/tarotKingdomPets');
@@ -134,5 +137,35 @@ test.describe('Tarot Kingdom monster recruitment', () => {
     const view = buildTarotKingdomPetOfferView(initial.pendingOffer, initial.currentPet);
     expect(view.monsterName).toBe(normalMonster.name);
     expect(view.currentPet.monsterName).toBe(oldMonster.name);
+  });
+
+  test('pet nicknames persist safely and become the public display name', () => {
+    const initial = normalizeTarotKingdomPetState({
+      version: 1,
+      currentPet: {
+        monsterId: normalMonster.id,
+        acquiredAtMs: 100,
+        explorationId: 'nickname-test'
+      }
+    });
+    const renamed = renameTarotKingdomCurrentPet(initial, '  ルナ  ');
+    expect(renamed).toMatchObject({
+      renamed: true,
+      state: {
+        version: 2,
+        currentPet: {
+          monsterId: normalMonster.id,
+          nickname: 'ルナ'
+        }
+      }
+    });
+    expect(buildTarotKingdomPetPublicRecord(renamed.state.currentPet)).toMatchObject({
+      monsterName: normalMonster.name,
+      nickname: 'ルナ',
+      displayName: 'ルナ'
+    });
+    expect(parseTarotKingdomPetNickname('１２３')).toBe('123');
+    expect(parseTarotKingdomPetNickname('')).toBeNull();
+    expect(parseTarotKingdomPetNickname('1234567890123')).toBeNull();
   });
 });

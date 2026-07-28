@@ -4,7 +4,8 @@ import {
     transferPoints,
     getPublicPlayerProfile,
     allocateStatPoints,
-    getTarotKingdomPetState
+    getTarotKingdomPetState,
+    renameTarotKingdomPet
 } from './playfabClient.js';
 import { createRequestId } from './api.js';
 import { showRpgMessage } from './rpgMessages.js';
@@ -26,6 +27,7 @@ let activeProfile = null;
 let pendingStatAllocation = {};
 let statAllocationSaveInFlight = false;
 let homePetRequestToken = 0;
+let petRenameInFlight = false;
 
 function escapeHtml(value) {
     return String(value || '').replace(/[&<>"']/g, (match) => ({
@@ -61,6 +63,11 @@ function getPlayerProfileModalElements() {
         specialAbilityAlias: document.getElementById('playerProfileSpecialAbilityAlias'),
         specialAbilityEffect: document.getElementById('playerProfileSpecialAbilityEffect'),
         specialAbilityRule: document.getElementById('playerProfileSpecialAbilityRule'),
+        pet: document.getElementById('playerProfilePetCompanion'),
+        petName: document.getElementById('playerProfilePetName'),
+        petRenameForm: document.getElementById('playerProfilePetRenameForm'),
+        petNameInput: document.getElementById('playerProfilePetNameInput'),
+        petRenameCancel: document.getElementById('btnPlayerProfilePetRenameCancel'),
         transferPanel: document.getElementById('playerProfileTransferPanel'),
         transferAmount: document.getElementById('playerProfileTransferAmount'),
         transferSubmit: document.getElementById('btnPlayerProfileTransferSubmit'),
@@ -263,10 +270,124 @@ function updateProfileActionState() {
     }
 }
 
+function getProfilePetDisplayName(currentPet = activeProfile?.currentPet) {
+    return String(
+        currentPet?.nickname
+        || currentPet?.displayName
+        || currentPet?.monsterName
+        || 'ペット'
+    ).trim() || 'ペット';
+}
+
+function canRenameActiveProfilePet() {
+    const myPlayFabId = getCurrentUserPlayFabId();
+    const targetPlayFabId = String(activeProfile?.playFabId || '').trim();
+    return !!(
+        myPlayFabId
+        && targetPlayFabId
+        && activeProfile?.loaded
+        && activeProfile?.currentPet
+        && myPlayFabId === targetPlayFabId
+    );
+}
+
+function setProfilePetRenameOpen(open) {
+    const { petName, petRenameForm, petNameInput } = getPlayerProfileModalElements();
+    const shouldOpen = open === true && canRenameActiveProfilePet() && !petRenameInFlight;
+    if (petRenameForm) petRenameForm.hidden = !shouldOpen;
+    if (petName) petName.hidden = shouldOpen || !activeProfile?.currentPet;
+    if (!shouldOpen || !petNameInput) return;
+    petNameInput.value = getProfilePetDisplayName();
+    requestAnimationFrame(() => {
+        petNameInput.focus();
+        petNameInput.select();
+    });
+}
+
+function renderProfilePet(currentPet = null) {
+    const { pet, petName, petRenameForm, petNameInput } = getPlayerProfileModalElements();
+    const hasPet = renderPixelMonsterCompanion(pet, currentPet);
+    pet?.closest('.player-profile-avatar-shell')?.classList.toggle('has-pet-companion', hasPet);
+    if (petName) {
+        petName.hidden = !hasPet;
+        petName.textContent = hasPet ? getProfilePetDisplayName(currentPet) : '';
+        petName.disabled = !hasPet || !canRenameActiveProfilePet();
+        petName.title = petName.disabled ? 'ペット名' : 'クリックして名前変更';
+        petName.setAttribute(
+            'aria-label',
+            petName.disabled ? `${getProfilePetDisplayName(currentPet)}（ペット名）` : 'ペット名を変更'
+        );
+    }
+    if (pet) {
+        pet.classList.toggle('is-renamable', hasPet && canRenameActiveProfilePet());
+        if (hasPet && canRenameActiveProfilePet()) {
+            pet.setAttribute('role', 'button');
+            pet.setAttribute('tabindex', '0');
+            pet.setAttribute('title', 'クリックして名前変更');
+        } else {
+            pet.removeAttribute('role');
+            pet.removeAttribute('tabindex');
+            pet.removeAttribute('title');
+        }
+    }
+    if (petRenameForm) petRenameForm.hidden = true;
+    if (petNameInput) {
+        petNameInput.value = hasPet ? getProfilePetDisplayName(currentPet) : '';
+        petNameInput.disabled = false;
+    }
+    return hasPet;
+}
+
+async function saveProfilePetName() {
+    const { petNameInput, petRenameForm } = getPlayerProfileModalElements();
+    if (!canRenameActiveProfilePet() || petRenameInFlight) return;
+    const nickname = String(petNameInput?.value || '')
+        .normalize('NFKC')
+        .replace(/[\u0000-\u001f\u007f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!nickname || Array.from(nickname).length > 12) {
+        showRpgMessage('ペット名は1～12文字で入力してください。', 2400);
+        petNameInput?.focus();
+        return;
+    }
+    petRenameInFlight = true;
+    if (petNameInput) petNameInput.disabled = true;
+    petRenameForm?.querySelectorAll('button').forEach((button) => {
+        button.disabled = true;
+    });
+    try {
+        const playFabId = getCurrentUserPlayFabId();
+        const result = await renameTarotKingdomPet(playFabId, nickname, {
+            throwOnError: true,
+            isSilent: true
+        });
+        const currentPet = result?.currentPet && typeof result.currentPet === 'object'
+            ? result.currentPet
+            : null;
+        if (!currentPet) throw new Error('ペット情報を更新できませんでした。');
+        activeProfile.currentPet = currentPet;
+        renderProfilePet(currentPet);
+        window.dispatchEvent(new CustomEvent('tarot-kingdom:pet-changed', {
+            detail: { currentPet }
+        }));
+        showRpgMessage(`${getProfilePetDisplayName(currentPet)} に名前を変更しました。`, 2200);
+    } catch (error) {
+        showRpgMessage(error?.message || 'ペット名を変更できませんでした。', 2600);
+        if (petNameInput) petNameInput.disabled = false;
+        petRenameForm?.querySelectorAll('button').forEach((button) => {
+            button.disabled = false;
+        });
+    } finally {
+        petRenameInFlight = false;
+    }
+}
+
 export function closePlayerProfileModal() {
     const { modal } = getPlayerProfileModalElements();
     if (!modal) return;
     setTransferPanelOpen(false);
+    setProfilePetRenameOpen(false);
     modal.style.display = 'none';
     syncModalLockState();
 }
@@ -372,7 +493,11 @@ function bindModalEvents() {
         beautyButton,
         copyIdButton,
         transferCancel,
-        transferSubmit
+        transferSubmit,
+        pet,
+        petName,
+        petRenameForm,
+        petRenameCancel
     } = getPlayerProfileModalElements();
     if (close && !close.dataset.profileBound) {
         close.dataset.profileBound = 'true';
@@ -415,6 +540,30 @@ function bindModalEvents() {
         transferSubmit.addEventListener('click', () => {
             void handleProfileTransferSubmit();
         });
+    }
+    if (pet && !pet.dataset.profileRenameBound) {
+        pet.dataset.profileRenameBound = 'true';
+        pet.addEventListener('click', () => setProfilePetRenameOpen(true));
+        pet.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            setProfilePetRenameOpen(true);
+        });
+    }
+    if (petName && !petName.dataset.profileRenameBound) {
+        petName.dataset.profileRenameBound = 'true';
+        petName.addEventListener('click', () => setProfilePetRenameOpen(true));
+    }
+    if (petRenameForm && !petRenameForm.dataset.profileRenameBound) {
+        petRenameForm.dataset.profileRenameBound = 'true';
+        petRenameForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            void saveProfilePetName();
+        });
+    }
+    if (petRenameCancel && !petRenameCancel.dataset.profileRenameBound) {
+        petRenameCancel.dataset.profileRenameBound = 'true';
+        petRenameCancel.addEventListener('click', () => setProfilePetRenameOpen(false));
     }
     if (modal && !modal.dataset.profileTransferQuickBound) {
         modal.dataset.profileTransferQuickBound = 'true';
@@ -678,6 +827,7 @@ function renderProfile(profile = {}) {
         stats: profile.stats || {},
         statAllocation: profile.statAllocation || null,
         specialAbility: profile.specialAbility || null,
+        currentPet: profile.currentPet || null,
         loaded: true
     };
     if (name) name.textContent = activeProfile.displayName;
@@ -702,9 +852,7 @@ function renderProfile(profile = {}) {
         profile.itemSource || {},
         false
     );
-    const profilePet = document.getElementById('playerProfilePetCompanion');
-    const hasProfilePet = renderPixelMonsterCompanion(profilePet, profile.currentPet || null);
-    profilePet?.closest('.player-profile-avatar-shell')?.classList.toggle('has-pet-companion', hasProfilePet);
+    renderProfilePet(activeProfile.currentPet);
     if (syncFavoriteSnapshot(activeProfile)) {
         refreshFavoritePlayersList();
     }
@@ -721,6 +869,7 @@ function renderLoadingState(targetPlayFabId = '') {
         stats: {},
         statAllocation: null,
         specialAbility: null,
+        currentPet: null,
         loaded: false
     };
     if (name) name.textContent = '読み込み中...';
@@ -732,9 +881,7 @@ function renderLoadingState(targetPlayFabId = '') {
         statAllocation.innerHTML = '';
     }
     renderProfileSpecialAbility(null);
-    const profilePet = document.getElementById('playerProfilePetCompanion');
-    renderPixelMonsterCompanion(profilePet, null);
-    profilePet?.closest('.player-profile-avatar-shell')?.classList.remove('has-pet-companion');
+    renderProfilePet(null);
     if (equipment) {
         equipment.innerHTML = '<div class="player-profile-empty">プレイヤー情報を読み込んでいます。</div>';
     }
@@ -751,9 +898,8 @@ function renderErrorState(message) {
         statAllocation.innerHTML = '';
     }
     renderProfileSpecialAbility(null);
-    const profilePet = document.getElementById('playerProfilePetCompanion');
-    renderPixelMonsterCompanion(profilePet, null);
-    profilePet?.closest('.player-profile-avatar-shell')?.classList.remove('has-pet-companion');
+    if (activeProfile) activeProfile.currentPet = null;
+    renderProfilePet(null);
     if (equipment) {
         equipment.innerHTML = `<div class="player-profile-empty">${escapeHtml(message || 'プレイヤー情報を取得できませんでした。')}</div>`;
     }

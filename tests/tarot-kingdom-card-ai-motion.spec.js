@@ -131,16 +131,21 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     expect(event.hpAfter).toBeLessThan(420);
     expect(attack.state.battle.enemy.hp).toBe(event.hpAfter);
     expect(attack.visibleHp).toBe(420);
-    expect(attack.state.transition.endsAt - attack.state.transition.startedAt).toBe(900);
+    expect(attack.state.transition.endsAt - attack.state.transition.startedAt).toBeGreaterThanOrEqual(900);
     expect(timeline).toMatchObject({ version: 1, variant: 'attack' });
     expect(timeline.hpRevealAt - timeline.impactAt).toBe(80);
     expect(timeline.hpTweenEndsAt - timeline.hpRevealAt).toBe(240);
+    expect(timeline.damageNumberAt).toBe(timeline.effectAt);
+    expect(attack.state.transition.endsAt - timeline.damageNumberAt).toBeGreaterThanOrEqual(260);
 
     await page.waitForTimeout(Math.max(0, timeline.hpRevealAt - attack.now + 70));
     const duringReveal = await page.locator('#tarotKingdomBattleStage .tarot-kingdom-battle-enemy > [role="progressbar"]')
       .getAttribute('aria-valuenow');
     expect(Number(duringReveal)).toBeLessThan(420);
     expect(Number(duringReveal)).toBeGreaterThanOrEqual(event.hpAfter);
+    await expect(page.locator('.tarot-kingdom-damage-number.is-show')).toHaveCount(0);
+
+    await page.waitForTimeout(Math.max(0, timeline.damageNumberAt - Date.now() + 30));
     await expect(page.locator('.tarot-kingdom-damage-number.is-show')).toHaveCount(1);
     await expect(page.locator('.tarot-kingdom-damage-number.is-show')).toHaveText(String(event.damage));
     expect(event.label).toContain(`${event.damage}ダメージ`);
@@ -168,6 +173,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
         event,
         damage: Number(event?.damages?.[0]?.damage || 0),
         hpRevealAt: Number(timeline?.hpRevealAt || 0),
+        damageNumberAt: Number(timeline?.damageNumberAt || 0),
         now: Date.now()
       };
     });
@@ -181,6 +187,11 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     const damage = page.locator(
       '#tarotKingdomBattleParty [data-player-index="1"] > .tarot-kingdom-player-damage-number.is-show'
     );
+    await expect(page.locator('#tarotKingdomBattleAvatar-1')).toHaveClass(/is-avatar-damaged/);
+    await expect(damage).toHaveCount(0);
+
+    await page.waitForTimeout(Math.max(0, attack.damageNumberAt - Date.now() + 30));
+    await expect(page.locator('#tarotKingdomBattleAvatar-1')).not.toHaveClass(/is-avatar-damaged/);
     await expect(damage).toHaveCount(1);
     await expect(damage).toHaveText(String(attack.damage));
     await expect(damage).not.toContainText('-');
@@ -223,6 +234,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       impactAt: audit.state.transition.startedAt + 3000,
       hpRevealAt: audit.state.transition.startedAt + 3160,
       hpTweenEndsAt: audit.state.transition.startedAt + 3600,
+      damageNumberAt: audit.state.transition.startedAt + 3600,
       endsAt: audit.state.transition.startedAt + 4500
     });
     expect(audit.cutinCount).toBe(1);
