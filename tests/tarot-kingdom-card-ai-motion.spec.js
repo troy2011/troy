@@ -616,6 +616,80 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     expect(audit.play).toBeGreaterThan(audit.pass);
   });
 
+  test('NPC protects flush and straight cards only at four-card tenpai, equal to call candidates', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const inspect = (hand, tableCard = null) => {
+        debug.battleScenario({
+          enableNpcSeats: true,
+          turnIndex: 1,
+          tableCard,
+          handsBySeat: [null, hand]
+        });
+        return Object.fromEntries(
+          debug.battleNpcReserveAudit(1).map((entry) => [entry.cardId, entry])
+        );
+      };
+      return {
+        threeFlush: inspect([
+          { id: 'three-flush-2', kind: 'minor', suit: 'Wand', number: 2 },
+          { id: 'three-flush-7', kind: 'minor', suit: 'Wand', number: 7 },
+          { id: 'three-flush-12', kind: 'minor', suit: 'Wand', number: 12 },
+          { id: 'three-flush-dead', kind: 'minor', suit: 'Cup', number: 14 }
+        ]),
+        threeStraight: inspect([
+          { id: 'three-straight-2', kind: 'minor', suit: 'Wand', number: 2 },
+          { id: 'three-straight-3', kind: 'minor', suit: 'Cup', number: 3 },
+          { id: 'three-straight-4', kind: 'minor', suit: 'Sword', number: 4 },
+          { id: 'three-straight-dead', kind: 'minor', suit: 'Pentacle', number: 10 }
+        ]),
+        fourFlush: inspect([
+          { id: 'four-flush-2', kind: 'minor', suit: 'Wand', number: 2 },
+          { id: 'four-flush-7', kind: 'minor', suit: 'Wand', number: 7 },
+          { id: 'four-flush-10', kind: 'minor', suit: 'Wand', number: 10 },
+          { id: 'four-flush-13', kind: 'minor', suit: 'Wand', number: 13 },
+          { id: 'four-flush-dead', kind: 'minor', suit: 'Cup', number: 5 }
+        ]),
+        fourStraight: inspect([
+          { id: 'four-straight-2', kind: 'minor', suit: 'Wand', number: 2 },
+          { id: 'four-straight-3', kind: 'minor', suit: 'Cup', number: 3 },
+          { id: 'four-straight-4', kind: 'minor', suit: 'Sword', number: 4 },
+          { id: 'four-straight-5', kind: 'minor', suit: 'Pentacle', number: 5 },
+          { id: 'four-straight-dead', kind: 'minor', suit: 'Wand', number: 10 }
+        ]),
+        callReady: inspect([
+          { id: 'call-ready-2', kind: 'minor', suit: 'Wand', number: 2 },
+          { id: 'call-ready-3', kind: 'minor', suit: 'Cup', number: 3 },
+          { id: 'call-ready-4', kind: 'minor', suit: 'Sword', number: 4 },
+          { id: 'call-ready-5', kind: 'minor', suit: 'Pentacle', number: 5 },
+          { id: 'call-ready-dead', kind: 'minor', suit: 'Wand', number: 12 }
+        ], { id: 'call-ready-field-6', kind: 'minor', suit: 'Cup', number: 6 })
+      };
+    });
+
+    ['three-flush-2', 'three-flush-7', 'three-flush-12'].forEach((cardId) => {
+      expect(audit.threeFlush[cardId].isProtected).toBe(false);
+      expect(audit.threeFlush[cardId].preserveBias).toBe(0);
+    });
+    ['three-straight-2', 'three-straight-3', 'three-straight-4'].forEach((cardId) => {
+      expect(audit.threeStraight[cardId].isProtected).toBe(false);
+      expect(audit.threeStraight[cardId].preserveBias).toBe(0);
+    });
+    ['four-flush-2', 'four-flush-7', 'four-flush-10', 'four-flush-13'].forEach((cardId) => {
+      expect(audit.fourFlush[cardId].isProtected).toBe(true);
+      expect(audit.fourFlush[cardId].flushTenpaiCount).toBeGreaterThan(0);
+    });
+    ['four-straight-2', 'four-straight-3', 'four-straight-4', 'four-straight-5'].forEach((cardId) => {
+      expect(audit.fourStraight[cardId].isProtected).toBe(true);
+      expect(audit.fourStraight[cardId].straightTenpaiCount).toBeGreaterThan(0);
+    });
+    ['call-ready-2', 'call-ready-3', 'call-ready-4', 'call-ready-5'].forEach((cardId) => {
+      expect(audit.callReady[cardId].isProtected).toBe(true);
+      expect(audit.callReady[cardId].callCount).toBeGreaterThan(0);
+      expect(audit.callReady[cardId].preserveBias).toBe(16);
+    });
+  });
+
   test('NPC policy seed and same-field pass memory survive public state migration without fixed types', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;

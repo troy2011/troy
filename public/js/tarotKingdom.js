@@ -10447,6 +10447,24 @@ function exposeTarotKingdomBattleDebugTools(target) {
       createNpcObservation(Math.max(0, Math.min(3, Number(playerIndex) || 0))),
       null
     ),
+    battleNpcReserveAudit: (playerIndex = 1) => {
+      const index = Math.max(0, Math.min(3, Number(playerIndex) || 0));
+      const calls = callMoves(index);
+      const roles = roleMoves(index);
+      const sets = setMoves(index);
+      const reserve = createNpcReserveContext(index, calls, roles, sets);
+      return Array.from(reserve.byCardId.entries()).map(([cardId, entry]) => ({
+        cardId,
+        callCount: Number(entry.callCount || 0),
+        roleCount: Number(entry.roleCount || 0),
+        multiSetCount: Number(entry.multiSetCount || 0),
+        flushTenpaiCount: Number(entry.flushTenpaiCount || 0),
+        straightTenpaiCount: Number(entry.straightTenpaiCount || 0),
+        isProtected: !!entry.isProtected,
+        isSingleOnly: !!entry.isSingleOnly,
+        preserveBias: Number(entry.preserveBias || 0)
+      }));
+    },
     battleNpcDecision: (playerIndex = 1, randomValue = 0.5) => {
       const index = Math.max(0, Math.min(3, Number(playerIndex) || 0));
       const decision = npcDecide(index, {
@@ -12808,12 +12826,6 @@ function isNpcOpeningPhase(pi) {
   return p.hand.length >= Math.max(5, getKingdomInitialHandSize() - 1) || turnNo <= 3;
 }
 
-function hasNpcStraightSeed(values) {
-  const list = Array.from(new Set((values || []).map((value) => Number(value) || 0).filter((value) => value > 0))).sort((a, b) => a - b);
-  if (list.length < 3) return false;
-  return (list[list.length - 1] - list[0]) <= 4;
-}
-
 function collectNpcRoleSeedInfo(pi) {
   const p = s.players?.[pi];
   if (!p) return new Map();
@@ -12825,65 +12837,25 @@ function collectNpcRoleSeedInfo(pi) {
     let entry = out.get(cardId);
     if (!entry) {
       entry = {
-        flushSeedCount: 0,
-        straightSeedCount: 0,
-        flushNearComplete: 0,
-        straightNearComplete: 0
+        flushTenpaiCount: 0,
+        straightTenpaiCount: 0
       };
       out.set(cardId, entry);
     }
     entry[key] += amount;
   };
 
-  // 3枚以上同スートがある時は、フラッシュの種として残す。
+  // フラッシュは、あと1枚で完成する同スート4枚以上だけを温存する。
   SUITS.forEach((suit) => {
     const suitCards = hand.filter((card) => suitsForCard(card, true).includes(suit));
-    if (suitCards.length >= 3) {
-      const weight = Math.max(1, suitCards.length - 2);
+    if (suitCards.length >= 4) {
       suitCards.forEach((card) => {
-        touch(card, 'flushSeedCount', weight);
-        if (suitCards.length >= 4) touch(card, 'flushNearComplete', 1);
+        touch(card, 'flushTenpaiCount', 1);
       });
     }
   });
 
-  // 3枚でストレートの芽が見えるカード群は残す。
-  const idxs = hand.map((_, index) => index);
-  comb(idxs, 3).forEach((pick) => {
-    const pickedCards = pick.map((index) => hand[index]).filter(Boolean);
-    if (pickedCards.length !== 3) return;
-    const optionRows = pickedCards.map((card) => {
-      const expanded = [];
-      roleNumberOptions(card).forEach((raw) => {
-        const value = Number(raw) || 0;
-        if (value <= 0) return;
-        expanded.push(value);
-        if (value === 15) expanded.push(1);
-      });
-      return Array.from(new Set(expanded));
-    });
-    let canSeed = false;
-    const walk = (rowIndex, values) => {
-      if (canSeed) return;
-      if (rowIndex >= optionRows.length) {
-        if (hasNpcStraightSeed(values)) canSeed = true;
-        return;
-      }
-      optionRows[rowIndex].forEach((value) => {
-        values.push(value);
-        walk(rowIndex + 1, values);
-        values.pop();
-      });
-    };
-    walk(0, []);
-    if (canSeed) {
-      pickedCards.forEach((card) => {
-        touch(card, 'straightSeedCount', 1);
-      });
-    }
-  });
-
-  // あと1枚でストレートになる4数字以上の窓だけを強い温存候補にする。
+  // ストレートも、5数字の窓に異なる4数字があるテンパイだけを温存する。
   const optionRowsByCard = hand.map((card) => {
     const expanded = [];
     roleNumberOptions(card).forEach((raw) => {
@@ -12905,7 +12877,7 @@ function collectNpcRoleSeedInfo(pi) {
     if (values.size < 4) continue;
     optionRowsByCard.forEach((row, index) => {
       if (row.some((value) => value >= start && value <= end)) {
-        touch(hand[index], 'straightNearComplete', 1);
+        touch(hand[index], 'straightTenpaiCount', 1);
       }
     });
   }
@@ -12916,7 +12888,7 @@ function collectNpcRoleSeedInfo(pi) {
 function collectNpcRoleSeedCardIds(pi) {
   const out = new Set();
   collectNpcRoleSeedInfo(pi).forEach((entry, cardId) => {
-    if ((Number(entry?.flushSeedCount || 0) + Number(entry?.straightSeedCount || 0)) > 0) {
+    if ((Number(entry?.flushTenpaiCount || 0) + Number(entry?.straightTenpaiCount || 0)) > 0) {
       out.add(cardId);
     }
   });
@@ -13012,10 +12984,8 @@ function createNpcReserveContext(pi, calls = [], roles = [], sets = []) {
         callCount: 0,
         roleCount: 0,
         multiSetCount: 0,
-        flushSeedCount: 0,
-        straightSeedCount: 0,
-        flushNearComplete: 0,
-        straightNearComplete: 0,
+        flushTenpaiCount: 0,
+        straightTenpaiCount: 0,
         isMajor: card?.kind === 'major',
         isAce: isMinorAceCard(card)
       };
@@ -13034,10 +13004,8 @@ function createNpcReserveContext(pi, calls = [], roles = [], sets = []) {
     if (!entry) return;
     const seed = roleSeedInfo.get(card.id);
     if (seed) {
-      entry.flushSeedCount = Number(seed.flushSeedCount || 0);
-      entry.straightSeedCount = Number(seed.straightSeedCount || 0);
-      entry.flushNearComplete = Number(seed.flushNearComplete || 0);
-      entry.straightNearComplete = Number(seed.straightNearComplete || 0);
+      entry.flushTenpaiCount = Number(seed.flushTenpaiCount || 0);
+      entry.straightTenpaiCount = Number(seed.straightTenpaiCount || 0);
     }
   });
   (calls || []).forEach((play) => bumpCards(play, 'callCount'));
@@ -13047,23 +13015,19 @@ function createNpcReserveContext(pi, calls = [], roles = [], sets = []) {
   });
   const singleOnlyIds = new Set();
   byCardId.forEach((entry, cardId) => {
-    const seedWeight = entry.flushSeedCount + entry.straightSeedCount;
-    const nearCompleteWeight = entry.flushNearComplete + entry.straightNearComplete;
+    const tenpaiWeight = entry.flushTenpaiCount + entry.straightTenpaiCount;
+    const hasRoleReadyCard = entry.callCount > 0 || tenpaiWeight > 0;
     entry.futureUseWeight =
       (entry.roleCount * 20)
-      + (entry.callCount * 16)
       + (entry.multiSetCount * 12)
-      + (nearCompleteWeight * 10)
-      + (entry.flushSeedCount * 2)
-      + (entry.straightSeedCount * 2);
+      + (hasRoleReadyCard ? 16 : 0);
     entry.isProtected = (
       entry.roleCount > 0
-      || entry.callCount > 0
       || entry.multiSetCount > 0
-      || nearCompleteWeight > 0
+      || hasRoleReadyCard
     );
     entry.isSingleOnly = !entry.isProtected && !entry.isMajor && !entry.isAce;
-    entry.preserveBias = entry.futureUseWeight + seedWeight + (entry.isMajor ? 5 : 0) + (entry.isAce ? 4 : 0);
+    entry.preserveBias = entry.futureUseWeight + (entry.isMajor ? 5 : 0) + (entry.isAce ? 4 : 0);
     if (entry.isSingleOnly) singleOnlyIds.add(cardId);
   });
   return {
@@ -13105,7 +13069,7 @@ function getNpcPlayReserveStats(play, reserveContext) {
     out.futureUseWeight += Number(entry.futureUseWeight || 0);
     if (entry.isProtected) out.protectedCardCount += 1;
     if (entry.isSingleOnly) out.deadSingleCount += 1;
-    if ((Number(entry.flushSeedCount || 0) + Number(entry.straightSeedCount || 0)) > 0) out.seedTouchCount += 1;
+    if ((Number(entry.flushTenpaiCount || 0) + Number(entry.straightTenpaiCount || 0)) > 0) out.seedTouchCount += 1;
     if (Number(entry.roleCount || 0) > 0) out.roleTouchCount += 1;
     if (Number(entry.callCount || 0) > 0) out.callTouchCount += 1;
     if (Number(entry.multiSetCount || 0) > 0) out.multiSetTouchCount += 1;
