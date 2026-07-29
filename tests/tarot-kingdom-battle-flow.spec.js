@@ -103,25 +103,76 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.continued.players[1].hp).toBe(audit.first.players[1].hp);
   });
 
-  test('NPC chooses fold when it has no legal response', async ({ page }) => {
-    const decision = await page.evaluate(() => {
+  test('NPC passes on the first unavailable response and only defends after waiting when the field can continue', async ({ page }) => {
+    const decisions = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
-      debug.battleScenario({
-        enableNpcSeats: true,
-        turnIndex: 1,
-        leaderIndex: 0,
-        tableCard: { id: 'npc-fold-field', kind: 'minor', suit: 'Wand', number: 14 },
-        handsBySeat: [
-          [],
-          [{ id: 'npc-fold-low', kind: 'minor', suit: 'Cup', number: 2 }],
-          [],
-          []
-        ]
-      });
-      return debug.battleNpcDecision(1, 0.5);
+      const scenario = (options = {}) => {
+        debug.battleScenario({
+          enableNpcSeats: true,
+          turnIndex: 1,
+          leaderIndex: 0,
+          tableCard: { id: 'npc-defense-field', kind: 'minor', suit: 'Wand', number: 14 },
+          handsBySeat: [
+            [],
+            [{ id: 'npc-defense-low', kind: 'minor', suit: 'Cup', number: 2 }],
+            [
+              { id: 'npc-defense-seat2-a', kind: 'minor', suit: 'Sword', number: 2 },
+              { id: 'npc-defense-seat2-b', kind: 'minor', suit: 'Sword', number: 4 }
+            ],
+            [
+              { id: 'npc-defense-seat3-a', kind: 'minor', suit: 'Pentacle', number: 2 },
+              { id: 'npc-defense-seat3-b', kind: 'minor', suit: 'Pentacle', number: 4 }
+            ]
+          ],
+          ...options
+        });
+        return debug.battleNpcDecision(1, 0.5);
+      };
+      return {
+        firstUnavailable: scenario(),
+        waitedAndContinuing: scenario({ npcPassCounts: [0, 1, 0, 0] }),
+        waitedButClearing: scenario({
+          npcPassCounts: [0, 1, 0, 0],
+          pass: [false, false, true, true]
+        })
+      };
     });
 
-    expect(decision.action).toBe('fold');
+    expect(decisions.firstUnavailable.action).toBe('pass');
+    expect(decisions.waitedAndContinuing.action).toBe('defend');
+    expect(decisions.waitedButClearing.action).toBe('pass');
+  });
+
+  test('11 back reopens NPC defense and resets its same-field pass memory', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const reverseCard = { id: 'npc-defense-reverse', kind: 'minor', suit: 'Wand', number: 11 };
+      const reverseReserve = { id: 'npc-defense-reverse-reserve', kind: 'minor', suit: 'Cup', number: 4 };
+      debug.battleScenario({
+        enableNpcSeats: true,
+        turnIndex: 2,
+        leaderIndex: 0,
+        tableCard: { id: 'npc-defense-reverse-field', kind: 'minor', suit: 'Wand', number: 3 },
+        handsBySeat: [
+          [],
+          [{ id: 'npc-defense-reserve', kind: 'minor', suit: 'Cup', number: 7 }],
+          [reverseCard, reverseReserve],
+          [{ id: 'npc-defense-reverse-seat3', kind: 'minor', suit: 'Pentacle', number: 6 }]
+        ],
+        fold: [false, true, false, false],
+        npcPassCounts: [0, 2, 0, 0]
+      });
+      const before = debug.battleState();
+      const played = debug.battlePlayCards(2, [reverseCard.id], { resolve: true });
+      return { before, played };
+    });
+
+    expect(audit.before.fold[1]).toBe(true);
+    expect(audit.before.npcPassCounts[1]).toBe(2);
+    expect(audit.played.ok).toBe(true);
+    expect(audit.played.state.reverse).toBe(true);
+    expect(audit.played.state.fold).toEqual([false, false, false, false]);
+    expect(audit.played.state.npcPassCounts).toEqual([0, 0, 0, 0]);
   });
 
   test('enemy defense reduces player damage without changing card play', async ({ page }) => {

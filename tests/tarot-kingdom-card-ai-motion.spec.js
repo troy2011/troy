@@ -583,6 +583,63 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     expect(audit.decision.play.cardsHand.map((card) => card.id)).toEqual(['npc-win-7']);
   });
 
+  test('low field three no longer makes incomplete role seeds trigger defense', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const hand = [
+        { id: 'low-field-w4', kind: 'minor', suit: 'Wand', number: 4 },
+        { id: 'low-field-w6', kind: 'minor', suit: 'Wand', number: 6 },
+        { id: 'low-field-w8', kind: 'minor', suit: 'Wand', number: 8 },
+        { id: 'low-field-c10', kind: 'minor', suit: 'Cup', number: 10 },
+        { id: 'low-field-s12', kind: 'minor', suit: 'Sword', number: 12 },
+        { id: 'low-field-p14', kind: 'minor', suit: 'Pentacle', number: 14 },
+        { id: 'low-field-major2', kind: 'major', suit: 'None', number: 2 },
+        { id: 'low-field-major9', kind: 'major', suit: 'None', number: 9 }
+      ];
+      const counts = { play: 0, pass: 0, defend: 0 };
+      for (let index = 1; index <= 256; index += 1) {
+        debug.battleScenario({
+          enableNpcSeats: true,
+          turnIndex: 1,
+          leaderIndex: 0,
+          tableCard: { id: `low-field-table-${index}`, kind: 'minor', suit: 'Cup', number: 3 },
+          handsBySeat: [null, hand],
+          npcPolicySeeds: [0, index, 0, 0]
+        });
+        const decision = debug.battleNpcDecision(1, (index % 251) / 251);
+        counts[decision?.action] = (counts[decision?.action] || 0) + 1;
+      }
+      return counts;
+    });
+
+    expect(audit.defend).toBeLessThanOrEqual(12);
+    expect(audit.play).toBeGreaterThan(audit.pass);
+  });
+
+  test('NPC policy seed and same-field pass memory survive public state migration without fixed types', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const initial = debug.battleScenario({
+        enableNpcSeats: true,
+        npcPolicySeeds: [0, 101, 202, 303],
+        npcPassCounts: [0, 1, 2, 3]
+      });
+      const payload = debug.battlePublicState();
+      const restored = debug.battleDeserialize(payload);
+      return {
+        initialSeeds: initial.npcPolicySeeds,
+        restoredSeeds: restored.npcPolicySeeds,
+        restoredPassCounts: restored.npcPassCounts,
+        aiStyles: restored.players.map((player) => player.aiStyle || null)
+      };
+    });
+
+    expect(audit.initialSeeds).toEqual([0, 101, 202, 303]);
+    expect(audit.restoredSeeds).toEqual(audit.initialSeeds);
+    expect(audit.restoredPassCounts).toEqual([0, 1, 2, 3]);
+    expect(audit.aiStyles).toEqual([null, null, null, null]);
+  });
+
   test('NPC decision is invariant to combat HP and opponents hidden cards with the same public counts', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
@@ -734,7 +791,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       const startedAt = performance.now();
       for (let index = 0; index < 5000; index += 1) {
         const decision = debug.battleNpcDecision(1, (index % 997) / 997);
-        if (!decision || !['play', 'pass'].includes(decision.action)) invalid += 1;
+        if (!decision || !['play', 'pass', 'defend'].includes(decision.action)) invalid += 1;
         if (decision?.action === 'play') {
           const count = Number(decision.play?.cardsHand?.length || 0);
           if (count <= 0 || count > 5) invalid += 1;

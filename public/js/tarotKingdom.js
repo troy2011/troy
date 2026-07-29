@@ -15,7 +15,6 @@ import {
   createTarotKingdomExplorationNpcCharacter,
   createTarotKingdomNpcCharacter,
   createTarotKingdomPetCharacter,
-  getTarotKingdomPetAiStyle,
   normalizeTarotKingdomCharacter
 } from './tarotKingdomCombat.js?v=20260729-growth1';
 import {
@@ -96,9 +95,9 @@ const ARCANA_NAME = {
 };
 const PLAYERS = [
   { id: 'you', name: 'あなた', isNpc: false },
-  { id: 'npc1', name: 'NPC1', isNpc: true, aiStyle: 'cautious' },
-  { id: 'npc2', name: 'NPC2', isNpc: true, aiStyle: 'balanced' },
-  { id: 'npc3', name: 'NPC3', isNpc: true, aiStyle: 'aggressive' }
+  { id: 'npc1', name: 'NPC1', isNpc: true },
+  { id: 'npc2', name: 'NPC2', isNpc: true },
+  { id: 'npc3', name: 'NPC3', isNpc: true }
 ];
 
 function normalizeKingdomPlayerCount(value, fallback = PLAYERS.length) {
@@ -142,8 +141,7 @@ function buildKingdomPetPlayerTemplate(pet, owner = {}) {
     pet: { ...pet },
     petOwnerPlayFabId: ownerPlayFabId,
     petOwnerUid: String(owner?.uid || ownerPlayFabId).trim(),
-    petOwnerSeat: Number.isInteger(ownerSeat) ? ownerSeat : null,
-    aiStyle: getTarotKingdomPetAiStyle(pet)
+    petOwnerSeat: Number.isInteger(ownerSeat) ? ownerSeat : null
   };
 }
 
@@ -254,11 +252,93 @@ function getKingdomMercenaryOrdinal(players, playerIndex) {
   return Math.max(1, ordinal);
 }
 
-const NPC_AI_STYLE = {
-  CAUTIOUS: 'cautious',
-  BALANCED: 'balanced',
-  AGGRESSIVE: 'aggressive'
-};
+const NPC_POLICY_VARIANCE = Object.freeze({
+  tempo: 0.07,
+  preserve: 0.08,
+  control: 0.06,
+  commit: 0.06
+});
+const NPC_NEAR_OPTIMAL_MIN_GAP = 8;
+const NPC_NEAR_OPTIMAL_RATE = 0.03;
+const NPC_FORCED_WIN_SCORE = 1000000;
+
+function hashKingdomNpcPolicySeed(value) {
+  const text = String(value ?? '');
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  hash >>>= 0;
+  return hash || 0x6d2b79f5;
+}
+
+function mixKingdomNpcPolicySeed(seed, salt = 0) {
+  let value = (Number(seed) >>> 0) ^ (Number(salt) >>> 0);
+  value = Math.imul(value ^ (value >>> 16), 0x7feb352d);
+  value = Math.imul(value ^ (value >>> 15), 0x846ca68b);
+  value = (value ^ (value >>> 16)) >>> 0;
+  return value || 0x6d2b79f5;
+}
+
+function createKingdomNpcPolicySeed(player, playerIndex, randomSource = kingdomNpcRandom) {
+  const sample = Math.max(0, Math.min(0.999999999, Number(randomSource?.()) || 0));
+  const randomBits = Math.floor(sample * 0x100000000) >>> 0;
+  const identityBits = hashKingdomNpcPolicySeed(`${player?.id || player?.name || 'npc'}:${playerIndex}`);
+  return mixKingdomNpcPolicySeed(randomBits ^ identityBits, 0x9e3779b9 + Number(playerIndex || 0));
+}
+
+function normalizeKingdomNpcPolicySeed(value, player, playerIndex, fallbackSalt = '') {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && (numeric >>> 0) !== 0) return numeric >>> 0;
+  return mixKingdomNpcPolicySeed(
+    hashKingdomNpcPolicySeed(`${fallbackSalt}:${player?.id || player?.name || 'npc'}:${playerIndex}`),
+    0x85ebca6b
+  );
+}
+
+function getKingdomNpcPolicyUnit(seed, salt) {
+  return mixKingdomNpcPolicySeed(seed, salt) / 0x100000000;
+}
+
+function ensureKingdomNpcDecisionState(targetState = s, randomSource = kingdomNpcRandom) {
+  if (!targetState || !Array.isArray(targetState.players)) return;
+  const incomingSeeds = Array.isArray(targetState.npcPolicySeeds) ? targetState.npcPolicySeeds : [];
+  targetState.npcPolicySeeds = targetState.players.map((player, playerIndex) => {
+    if (player?.isNpc !== true) return 0;
+    const current = Number(incomingSeeds[playerIndex]) >>> 0;
+    return current || createKingdomNpcPolicySeed(player, playerIndex, randomSource);
+  });
+  const incomingPassCounts = Array.isArray(targetState.npcPassCounts) ? targetState.npcPassCounts : [];
+  targetState.npcPassCounts = targetState.players.map((_, playerIndex) => (
+    Math.max(0, Math.min(8, Math.floor(Number(incomingPassCounts[playerIndex]) || 0)))
+  ));
+}
+
+function getKingdomNpcPolicy(playerIndex) {
+  ensureKingdomNpcDecisionState();
+  const seed = Number(s?.npcPolicySeeds?.[playerIndex]) >>> 0;
+  const factor = (salt, variance) => 1 + ((getKingdomNpcPolicyUnit(seed, salt) * 2 - 1) * variance);
+  return {
+    seed,
+    tempo: factor(0x13579bdf, NPC_POLICY_VARIANCE.tempo),
+    preserve: factor(0x2468ace0, NPC_POLICY_VARIANCE.preserve),
+    control: factor(0x1b873593, NPC_POLICY_VARIANCE.control),
+    commit: factor(0x5bd1e995, NPC_POLICY_VARIANCE.commit)
+  };
+}
+
+function resetKingdomNpcPassCounts(playerIndex = null) {
+  if (!s?.players) return;
+  if (!Array.isArray(s.npcPassCounts) || s.npcPassCounts.length !== s.players.length) {
+    s.npcPassCounts = s.players.map(() => 0);
+  }
+  if (Number.isInteger(playerIndex) && playerIndex >= 0 && playerIndex < s.npcPassCounts.length) {
+    s.npcPassCounts[playerIndex] = 0;
+    return;
+  }
+  s.npcPassCounts = s.players.map(() => 0);
+}
 
 const DEFAULT_INITIAL_HAND_SIZE = 8;
 const DEFAULT_HAND_LIMIT = 8;
@@ -3557,7 +3637,7 @@ async function prepareKingdomCharacterSnapshots(options = {}) {
         if (authoritativePet?.monsterId) {
           player.pet = cloneKingdomSnapshotValue(authoritativePet, null);
           player.name = getKingdomPetDisplayName(authoritativePet);
-          player.aiStyle = getTarotKingdomPetAiStyle(authoritativePet);
+          delete player.aiStyle;
           return;
         }
         player.isPet = false;
@@ -6659,6 +6739,9 @@ function initState() {
   const rules = normalizeKingdomRules({
     playerCount: playerTemplates.length
   });
+  const npcPolicySeeds = playerTemplates.map((player, playerIndex) => (
+    player?.isNpc === true ? createKingdomNpcPolicySeed(player, playerIndex) : 0
+  ));
   return {
     rules,
     players: playerTemplates.map((p) => ({
@@ -6690,6 +6773,8 @@ function initState() {
     skipNotice: null,
     pass: playerTemplates.map(() => false),
     fold: playerTemplates.map(() => false),
+    npcPolicySeeds,
+    npcPassCounts: playerTemplates.map(() => 0),
     callOnly: false,
     lock: null,
     trickForcedCount: 0,
@@ -6749,6 +6834,8 @@ function clearRoundState() {
   s.skipNotice = null;
   s.pass = s.players.map(() => false);
   s.fold = s.players.map(() => false);
+  ensureKingdomNpcDecisionState();
+  resetKingdomNpcPassCounts();
   s.callOnly = false;
   s.lock = null;
   s.trickForcedCount = 0;
@@ -6805,13 +6892,6 @@ function isNpcPlayer(index) {
   if (idx === getLocalPlayerIndex()) return false;
   const p = s?.players?.[idx];
   return !!p?.isNpc;
-}
-
-function getNpcAiStyle(playerIndex) {
-  const style = String(s?.players?.[playerIndex]?.aiStyle || PLAYERS[playerIndex]?.aiStyle || NPC_AI_STYLE.BALANCED);
-  if (style === NPC_AI_STYLE.CAUTIOUS) return NPC_AI_STYLE.CAUTIOUS;
-  if (style === NPC_AI_STYLE.AGGRESSIVE) return NPC_AI_STYLE.AGGRESSIVE;
-  return NPC_AI_STYLE.BALANCED;
 }
 
 function getActiveTurnPlayerIndex() {
@@ -7434,6 +7514,23 @@ function deserializeStateFromNet(payload) {
   nextState.pass = nextState.players.map((_, idx) => !!incomingPass[idx]);
   const incomingFold = Array.isArray(rawState.fold) ? rawState.fold : [];
   nextState.fold = nextState.players.map((_, idx) => !!incomingFold[idx]);
+  const incomingNpcPolicySeeds = Array.isArray(rawState.npcPolicySeeds) ? rawState.npcPolicySeeds : [];
+  const npcPolicyFallbackSalt = String(
+    rawState.characterSnapshotCreatedAt
+    || rawState.stage?.explorationId
+    || payload.updatedAt
+    || rawState.revision
+    || 'legacy'
+  );
+  nextState.npcPolicySeeds = nextState.players.map((player, idx) => (
+    player?.isNpc === true
+      ? normalizeKingdomNpcPolicySeed(incomingNpcPolicySeeds[idx], player, idx, npcPolicyFallbackSalt)
+      : 0
+  ));
+  const incomingNpcPassCounts = Array.isArray(rawState.npcPassCounts) ? rawState.npcPassCounts : [];
+  nextState.npcPassCounts = nextState.players.map((_, idx) => (
+    Math.max(0, Math.min(8, Math.floor(Number(incomingNpcPassCounts[idx]) || 0)))
+  ));
   nextState.blockedLeaderSeats = Array.isArray(rawState.blockedLeaderSeats)
     ? Array.from(new Set(rawState.blockedLeaderSeats
       .map((value) => Math.floor(Number(value)))
@@ -7680,7 +7777,7 @@ function applyPresenceToPlayers() {
       p.petOwnerPlayFabId = assignedPet.petOwnerPlayFabId;
       p.petOwnerUid = assignedPet.petOwnerUid;
       p.petOwnerSeat = assignedPet.petOwnerSeat;
-      p.aiStyle = assignedPet.aiStyle;
+      delete p.aiStyle;
       p.uid = null;
       p.playFabId = '';
       presenceGraceBySeat[i] = { uid: null, name: p.name, playFabId: '', until: 0 };
@@ -9088,8 +9185,7 @@ function buildTarotKingdomDebugBattleState(options = {}) {
         name: getKingdomPetDisplayName(debugPet),
         isNpc: true,
         isPet: true,
-        pet: { ...debugPet },
-        aiStyle: getTarotKingdomPetAiStyle(debugPet)
+        pet: { ...debugPet }
       },
       ...mercenaries
     ];
@@ -9169,6 +9265,20 @@ function buildTarotKingdomDebugBattleState(options = {}) {
   s.dealer = Math.max(0, Math.min(lastSeat, Math.floor(Number(options.dealerIndex) || 0)));
   s.pass = s.players.map((_, index) => !!options.pass?.[index]);
   s.fold = s.players.map((_, index) => !!options.fold?.[index]);
+  const debugNpcPolicySeeds = Array.isArray(options.npcPolicySeeds) ? options.npcPolicySeeds : [];
+  s.npcPolicySeeds = s.players.map((player, index) => (
+    player?.isNpc === true
+      ? normalizeKingdomNpcPolicySeed(
+          debugNpcPolicySeeds[index],
+          player,
+          index,
+          `debug-npc-policy-${index}`
+        )
+      : 0
+  ));
+  s.npcPassCounts = s.players.map((_, index) => (
+    Math.max(0, Math.min(8, Math.floor(Number(options.npcPassCounts?.[index]) || 0)))
+  ));
   const usedHandIds = new Set(s.players.flatMap((player) => player.hand.map((card) => String(card?.id || ''))));
   s.drawDeck = Array.isArray(options.drawDeck)
     ? options.drawDeck.map((card) => ({ ...card }))
@@ -10344,11 +10454,14 @@ function exposeTarotKingdomBattleDebugTools(target) {
       });
       return cloneKingdomSnapshotValue(decision, null);
     },
-    battleNpcDrawPlan: (playerIndex = 1) => {
+    battleNpcDrawPlan: (playerIndex = 1, randomValue = 0.5) => {
       const index = Math.max(0, Math.min(3, Number(playerIndex) || 0));
       const wasNpc = !!s?.players?.[index]?.isNpc;
       if (s?.players?.[index]) s.players[index].isNpc = true;
-      const plan = npcChooseDrawPlan(index);
+      const plan = npcChooseDrawPlan(
+        index,
+        () => Math.max(0, Math.min(0.999999, Number(randomValue) || 0))
+      );
       if (s?.players?.[index]) s.players[index].isNpc = wasNpc;
       return plan;
     },
@@ -10522,6 +10635,7 @@ function setupHand(options = {}) {
     }
     s.pass = s.players.map(() => false);
     s.fold = s.players.map(() => false);
+    resetKingdomNpcPassCounts();
     s.trick = openingPlay;
     s.lastPlay = openingPlay;
     log(`開始場札: ${getCardNameLabel(opening)}(${getCardNumberLabel(opening)})`);
@@ -11070,12 +11184,12 @@ function applyRoleRewardOnClear(playerIndex) {
   playKingdomCoinEffect(playerIndex, Math.min(8, Math.max(3, add + 2)), '🪙');
 }
 
-function npcChooseDrawPlan(playerIndex) {
+function npcChooseDrawPlan(playerIndex, randomSource = kingdomNpcRandom) {
   const actor = s?.players?.[playerIndex];
   if (!actor || !isNpcPlayer(playerIndex)) return 'draw';
   if ((s?.drawDeck?.length || 0) <= 0) return 'skip';
   if (actor.hand.length >= getKingdomHandLimit()) return 'skip';
-  const aiStyle = getNpcAiStyle(playerIndex);
+  const policy = getKingdomNpcPolicy(playerIndex);
   const observation = createNpcObservation(playerIndex);
   if (!observation) return 'draw';
   const knownIds = new Set(observation.hand.map((card) => String(card?.id || '')).filter(Boolean));
@@ -11103,9 +11217,16 @@ function npcChooseDrawPlan(playerIndex) {
   });
   const improvementChance = improved / unseen.length;
   const averageGain = improved > 0 ? gainTotal / improved : 0;
-  const threshold = aiStyle === NPC_AI_STYLE.CAUTIOUS ? 0.28 : (aiStyle === NPC_AI_STYLE.AGGRESSIVE ? 0.1 : 0.18);
-  if (base.roleCount > 0 && aiStyle !== NPC_AI_STYLE.AGGRESSIVE) return 'skip';
-  return improvementChance >= threshold || averageGain >= 50 ? 'draw' : 'skip';
+  const threshold = Math.max(0.14, Math.min(
+    0.22,
+    0.18 + ((policy.preserve - policy.tempo) * 0.25)
+  ));
+  if (base.roleCount > 0) return 'skip';
+  if (averageGain >= 50 || improvementChance >= threshold + 0.03) return 'draw';
+  if (improvementChance <= threshold - 0.03) return 'skip';
+  const drawChance = Math.max(0, Math.min(1, (improvementChance - threshold + 0.03) / 0.06));
+  const sample = Math.max(0, Math.min(0.999999, Number(randomSource?.()) || 0));
+  return sample < drawChance ? 'draw' : 'skip';
 }
 
 function resetBlockedLeaderCycle() {
@@ -11465,6 +11586,7 @@ function clearTrick(leader, options = {}) {
   }
   s.pass = s.players.map(() => false);
   s.fold = s.players.map(() => false);
+  resetKingdomNpcPassCounts();
   s.callOnly = false;
   s.lock = null;
   s.leadRequiredOwner = resolvedLeader;
@@ -11555,6 +11677,7 @@ function applySetEffects(play) {
   } else s.callOnly = false;
   if (has(11) || hasMajor(20)) {
     s.fold = s.players.map(() => false);
+    resetKingdomNpcPassCounts();
     const effectName = hasMajor(20) ? '審判' : '11バック';
     if (s.reverse) {
       s.reverse = false;
@@ -12325,6 +12448,10 @@ function applyPlay(pi, play, retryDepth = 0) {
           applyPlay(pi, fallback.play, retryDepth + 1);
           return;
         }
+        if (fallback?.action === 'defend') {
+          passAction(pi, { foldMode: 'fold-start' });
+          return;
+        }
       }
       passAction(pi);
       return;
@@ -12411,8 +12538,10 @@ function applyPlay(pi, play, retryDepth = 0) {
   }
   if (isCallPlay) {
     s.fold = s.players.map(() => false);
+    resetKingdomNpcPassCounts();
   } else {
     s.fold[pi] = false;
+    resetKingdomNpcPassCounts(pi);
   }
   if (!prevTrick) resetBlockedLeaderCycle();
   s.trick = play;
@@ -12531,10 +12660,14 @@ function passAction(pi, options = {}) {
   const requestedFoldMode = String(options?.foldMode || '');
   const continuedFold = requestedFoldMode === 'fold-auto' && s.fold[pi] === true;
   const startedFold = requestedFoldMode === 'fold-start';
+  ensureKingdomNpcDecisionState();
   if (startedFold) {
     s.fold[pi] = true;
   } else if (!continuedFold) {
     s.fold[pi] = false;
+    if (isNpcPlayer(pi)) {
+      s.npcPassCounts[pi] = Math.max(0, Number(s.npcPassCounts[pi]) || 0) + 1;
+    }
   }
   const safeFiveCardPass = isKingdomFiveCardRoleField();
   const suppressCounterAttack = safeFiveCardPass || continuedFold;
@@ -12691,7 +12824,12 @@ function collectNpcRoleSeedInfo(pi) {
     if (!cardId) return;
     let entry = out.get(cardId);
     if (!entry) {
-      entry = { flushSeedCount: 0, straightSeedCount: 0 };
+      entry = {
+        flushSeedCount: 0,
+        straightSeedCount: 0,
+        flushNearComplete: 0,
+        straightNearComplete: 0
+      };
       out.set(cardId, entry);
     }
     entry[key] += amount;
@@ -12704,6 +12842,7 @@ function collectNpcRoleSeedInfo(pi) {
       const weight = Math.max(1, suitCards.length - 2);
       suitCards.forEach((card) => {
         touch(card, 'flushSeedCount', weight);
+        if (suitCards.length >= 4) touch(card, 'flushNearComplete', 1);
       });
     }
   });
@@ -12743,6 +12882,33 @@ function collectNpcRoleSeedInfo(pi) {
       });
     }
   });
+
+  // あと1枚でストレートになる4数字以上の窓だけを強い温存候補にする。
+  const optionRowsByCard = hand.map((card) => {
+    const expanded = [];
+    roleNumberOptions(card).forEach((raw) => {
+      const value = Number(raw) || 0;
+      if (value <= 0) return;
+      expanded.push(value);
+      if (value === 15) expanded.push(1);
+    });
+    return Array.from(new Set(expanded));
+  });
+  for (let start = 1; start <= 11; start += 1) {
+    const end = start + 4;
+    const values = new Set();
+    optionRowsByCard.forEach((row) => {
+      row.forEach((value) => {
+        if (value >= start && value <= end) values.add(value);
+      });
+    });
+    if (values.size < 4) continue;
+    optionRowsByCard.forEach((row, index) => {
+      if (row.some((value) => value >= start && value <= end)) {
+        touch(hand[index], 'straightNearComplete', 1);
+      }
+    });
+  }
 
   return out;
 }
@@ -12848,6 +13014,8 @@ function createNpcReserveContext(pi, calls = [], roles = [], sets = []) {
         multiSetCount: 0,
         flushSeedCount: 0,
         straightSeedCount: 0,
+        flushNearComplete: 0,
+        straightNearComplete: 0,
         isMajor: card?.kind === 'major',
         isAce: isMinorAceCard(card)
       };
@@ -12868,6 +13036,8 @@ function createNpcReserveContext(pi, calls = [], roles = [], sets = []) {
     if (seed) {
       entry.flushSeedCount = Number(seed.flushSeedCount || 0);
       entry.straightSeedCount = Number(seed.straightSeedCount || 0);
+      entry.flushNearComplete = Number(seed.flushNearComplete || 0);
+      entry.straightNearComplete = Number(seed.straightNearComplete || 0);
     }
   });
   (calls || []).forEach((play) => bumpCards(play, 'callCount'));
@@ -12878,13 +13048,20 @@ function createNpcReserveContext(pi, calls = [], roles = [], sets = []) {
   const singleOnlyIds = new Set();
   byCardId.forEach((entry, cardId) => {
     const seedWeight = entry.flushSeedCount + entry.straightSeedCount;
+    const nearCompleteWeight = entry.flushNearComplete + entry.straightNearComplete;
     entry.futureUseWeight =
       (entry.roleCount * 20)
       + (entry.callCount * 16)
       + (entry.multiSetCount * 12)
-      + (entry.flushSeedCount * 8)
-      + (entry.straightSeedCount * 7);
-    entry.isProtected = entry.futureUseWeight > 0;
+      + (nearCompleteWeight * 10)
+      + (entry.flushSeedCount * 2)
+      + (entry.straightSeedCount * 2);
+    entry.isProtected = (
+      entry.roleCount > 0
+      || entry.callCount > 0
+      || entry.multiSetCount > 0
+      || nearCompleteWeight > 0
+    );
     entry.isSingleOnly = !entry.isProtected && !entry.isMajor && !entry.isAce;
     entry.preserveBias = entry.futureUseWeight + seedWeight + (entry.isMajor ? 5 : 0) + (entry.isAce ? 4 : 0);
     if (entry.isSingleOnly) singleOnlyIds.add(cardId);
@@ -12937,9 +13114,9 @@ function getNpcPlayReserveStats(play, reserveContext) {
   return out;
 }
 
-function compareNpcPlaysForConserve(a, b, aiStyle = NPC_AI_STYLE.BALANCED, reserveContext = null) {
+function compareNpcPlaysForConserve(a, b, policy = null, reserveContext = null) {
   if (a?.type !== b?.type) {
-    if (aiStyle === NPC_AI_STYLE.AGGRESSIVE) {
+    if ((Number(policy?.tempo) || 1) > (Number(policy?.preserve) || 1)) {
       if (a?.type === 'role' && b?.type === 'set') return -1;
       if (a?.type === 'set' && b?.type === 'role') return 1;
     } else {
@@ -12980,14 +13157,14 @@ function compareNpcPlaysForConserve(a, b, aiStyle = NPC_AI_STYLE.BALANCED, reser
 
 function pickNpcOpeningSinglePlay(pi, sets, reserveContext) {
   if (!Array.isArray(sets) || !sets.length || !reserveContext?.singleOnlyIds?.size) return null;
-  const aiStyle = getNpcAiStyle(pi);
+  const policy = getKingdomNpcPolicy(pi);
   const candidates = sets.filter((play) => {
     if (play?.type !== 'set' || Number(play.count) !== 1) return false;
     const cardId = play?.cardsHand?.[0]?.id;
     return !!cardId && reserveContext.singleOnlyIds.has(cardId);
   });
   if (!candidates.length) return null;
-  candidates.sort((a, b) => compareNpcPlaysForConserve(a, b, aiStyle, reserveContext));
+  candidates.sort((a, b) => compareNpcPlaysForConserve(a, b, policy, reserveContext));
   return candidates[0] || null;
 }
 
@@ -13043,6 +13220,7 @@ function createNpcObservation(playerIndex) {
     lock: cloneKingdomSnapshotValue(s.lock, null),
     callOnly: !!s.callOnly,
     stars: Math.max(0, Number(player.stars) || 0),
+    passCount: Math.max(0, Number(s.npcPassCounts?.[playerIndex]) || 0),
     pendingDrawReason: String(s.pendingDrawReason || '')
   };
 }
@@ -13109,7 +13287,7 @@ function getNpcHandPotential(cards, lockSuit = null) {
   };
 }
 
-function getNpcControlScore(play, observation, style) {
+function getNpcControlScore(play, observation, policy) {
   if (play?.type !== 'set' || Number(play?.count || 0) > 3) return 0;
   const numbers = new Set((play.cardsHand || []).map((card) => idNum(card)));
   const nextSeat = (Number(observation.playerIndex) + 1) % Math.max(1, observation.handCounts.length);
@@ -13129,9 +13307,7 @@ function getNpcControlScore(play, observation, style) {
   }
   if (opponentAtOne && score > 0) score += 210;
   if (nextOpponentAtOne && score > 0) score += 170;
-  if (style === NPC_AI_STYLE.CAUTIOUS) score *= 1.16;
-  if (style === NPC_AI_STYLE.AGGRESSIVE) score *= 0.88;
-  return score;
+  return score * Math.max(0.9, Math.min(1.1, Number(policy?.control) || 1));
 }
 
 function getNpcCombatEffectScore(playerIndex, play) {
@@ -13164,7 +13340,7 @@ function getNpcCombatEffectScore(playerIndex, play) {
 }
 
 function scoreNpcPlay(playerIndex, play, observation, reserveContext = null) {
-  const style = getNpcAiStyle(playerIndex);
+  const policy = getKingdomNpcPolicy(playerIndex);
   const playedIds = new Set((play?.cardsHand || []).map((card) => String(card?.id || '')).filter(Boolean));
   const remaining = observation.hand.filter((card) => !playedIds.has(String(card?.id || '')));
   const playedCount = Math.max(0, observation.hand.length - remaining.length);
@@ -13173,17 +13349,24 @@ function scoreNpcPlay(playerIndex, play, observation, reserveContext = null) {
     && Number(observation.drawDeckCount || 0) > 0
     && remaining.length < getKingdomHandLimit();
   const effectivePlayedCount = Math.max(0, playedCount - (worldRestoresOneCard ? 1 : 0));
-  if (remaining.length === 0) return { score: 1000000, immediateWin: true, remaining, potential: getNpcHandPotential([]) };
+  if (remaining.length === 0) {
+    return {
+      score: NPC_FORCED_WIN_SCORE,
+      immediateWin: true,
+      remaining,
+      potential: getNpcHandPotential([])
+    };
+  }
 
   const potential = getNpcHandPotential(remaining, observation.lock?.suit || null);
   const reserve = getNpcPlayReserveStats(play, reserveContext);
   const stats = getNpcPlayCardStats(play);
   const opponentAtOne = observation.handCounts.some((count, index) => index !== playerIndex && count === 1);
-  const shedWeight = style === NPC_AI_STYLE.AGGRESSIVE ? 205 : (style === NPC_AI_STYLE.CAUTIOUS ? 125 : 165);
-  const potentialWeight = style === NPC_AI_STYLE.CAUTIOUS ? 1.28 : (style === NPC_AI_STYLE.AGGRESSIVE ? 0.72 : 1);
+  const shedWeight = 165 * policy.tempo;
+  const potentialWeight = policy.preserve;
   let score = effectivePlayedCount * shedWeight;
   score += potential.score * potentialWeight;
-  score += getNpcControlScore(play, observation, style);
+  score += getNpcControlScore(play, observation, policy);
   score += getNpcCombatEffectScore(playerIndex, play);
   if (play?.type === 'role') score += 270 + ((Number(play?.role?.strength) || 0) * 32);
   if (opponentAtOne) {
@@ -13191,11 +13374,12 @@ function scoreNpcPlay(playerIndex, play, observation, reserveContext = null) {
     score += effectivePlayedCount >= 2 ? 80 : 0;
     score += Math.max(0, Number(play?.setPower ?? play?.number ?? 0)) * 3;
   }
-  score -= reserve.preserveBias * (style === NPC_AI_STYLE.CAUTIOUS ? 2.2 : (style === NPC_AI_STYLE.AGGRESSIVE ? 0.72 : 1.35));
-  score -= stats.majorCount * (style === NPC_AI_STYLE.AGGRESSIVE ? 12 : 30);
-  score -= stats.aceCount * (style === NPC_AI_STYLE.AGGRESSIVE ? 8 : 22);
-  if (play?.call) score -= style === NPC_AI_STYLE.AGGRESSIVE ? 8 : 26;
+  score -= reserve.preserveBias * 1.35 * policy.preserve;
+  score -= stats.majorCount * 30 * policy.preserve;
+  score -= stats.aceCount * 22 * policy.preserve;
+  if (play?.call) score -= 22 * policy.preserve;
   score -= Math.max(0, stats.totalStrength) * 0.18;
+  score += getNpcCheapOvertakeBonus(play, observation, reserveContext);
   return { score, immediateWin: false, remaining, potential };
 }
 
@@ -13203,18 +13387,31 @@ function getNpcPlayStableKey(play) {
   return `${play?.type || ''}:${(play?.cardsHand || []).map((card) => card?.id || '').sort().join(',')}:${play?.role?.key || ''}`;
 }
 
+function getNpcDecisionStableKey(entry) {
+  if (entry?.card) {
+    return `judgment:${Number(entry.owner) || 0}:${String(entry.card?.id || '')}`;
+  }
+  return `${entry?.action || 'play'}:${getNpcPlayStableKey(entry?.play)}`;
+}
+
+function getNpcNearOptimalTolerance(bestScore) {
+  return Math.max(NPC_NEAR_OPTIMAL_MIN_GAP, Math.abs(Number(bestScore) || 0) * NPC_NEAR_OPTIMAL_RATE);
+}
+
 function chooseNpcWeightedCandidate(scored, randomSource = kingdomNpcRandom) {
   if (!Array.isArray(scored) || !scored.length) return null;
   const ordered = scored.slice().sort((left, right) => (
-    right.score - left.score || getNpcPlayStableKey(left.play).localeCompare(getNpcPlayStableKey(right.play))
+    right.score - left.score || getNpcDecisionStableKey(left).localeCompare(getNpcDecisionStableKey(right))
   ));
   if (ordered[0]?.immediateWin) return ordered[0];
   const best = Number(ordered[0].score) || 0;
-  const tolerance = Math.max(2, Math.abs(best) * 0.02);
+  const tolerance = getNpcNearOptimalTolerance(best);
   const finalists = ordered.filter((entry) => best - Number(entry.score || 0) <= tolerance);
   if (finalists.length <= 1) return finalists[0] || ordered[0];
-  const floor = Math.min(...finalists.map((entry) => Number(entry.score) || 0));
-  const weights = finalists.map((entry) => 1 + Math.max(0, Number(entry.score || 0) - floor));
+  const temperature = Math.max(2, tolerance / 3);
+  const weights = finalists.map((entry) => (
+    Math.exp((Number(entry.score || 0) - best) / temperature)
+  ));
   const total = weights.reduce((sum, value) => sum + value, 0);
   const sample = Math.max(0, Math.min(0.999999, Number(randomSource?.()) || 0)) * total;
   let cursor = 0;
@@ -13225,55 +13422,119 @@ function chooseNpcWeightedCandidate(scored, randomSource = kingdomNpcRandom) {
   return finalists[finalists.length - 1];
 }
 
-function shouldNpcChooseFold(playerIndex, plays, scored, reserveContext) {
-  if (!s?.trick) return false;
-  if (!Array.isArray(plays) || plays.length <= 0) return true;
-  if ((scored || []).some((entry) => entry?.immediateWin)) return false;
-  const observation = createNpcObservation(playerIndex);
-  if (observation?.handCounts?.some((count, index) => index !== playerIndex && Number(count) === 1)) {
-    return false;
+function getNpcCheapOvertakeBonus(play, observation, reserveContext) {
+  if (play?.type !== 'set' || Number(play?.count || 0) !== 1 || !observation?.trick) return 0;
+  const card = play.cardsHand?.[0];
+  const cardStats = getNpcPlayCardStats(play);
+  const reserveStats = getNpcPlayReserveStats(play, reserveContext);
+  if (!card || card?.kind === 'major' || cardStats.aceCount > 0 || reserveStats.protectedCardCount > 0) {
+    return 0;
   }
-  if (!plays.every((play) => Number(play?.count || 0) === 1)) return false;
-  const style = getNpcAiStyle(playerIndex);
-  if (style === NPC_AI_STYLE.AGGRESSIVE) return false;
-  const allProtected = plays.every((play) => {
-    const cardStats = getNpcPlayCardStats(play);
-    const reserveStats = getNpcPlayReserveStats(play, reserveContext);
-    return cardStats.majorCount > 0
-      || cardStats.aceCount > 0
-      || reserveStats.protectedCardCount > 0;
+  const fieldPower = Number(observation.trick?.setPower ?? observation.trick?.number ?? 0);
+  const playPower = Number(play?.setPower ?? play?.number ?? 0);
+  const gap = observation.reverse ? fieldPower - playPower : playPower - fieldPower;
+  if (gap < 0 || gap > 4) return 0;
+  return Math.max(0, 68 - (gap * 12));
+}
+
+function wouldNpcPassClearTrick(playerIndex) {
+  const leader = Number(s?.lastPlay?.owner);
+  if (!Number.isInteger(leader)) return false;
+  for (let index = 0; index < getKingdomPlayerCount(); index += 1) {
+    if (index === leader) continue;
+    if (!isKingdomBattlePlayerActionable(index)) continue;
+    if (index === playerIndex) continue;
+    if (!s.pass?.[index]) return false;
+  }
+  return playerIndex !== leader;
+}
+
+function getNpcWaitCandidateScores(playerIndex, plays, observation, reserveContext) {
+  if (!s?.trick) return [];
+  const policy = getKingdomNpcPolicy(playerIndex);
+  const passCount = Math.max(0, Number(s.npcPassCounts?.[playerIndex]) || 0);
+  const handPotential = getNpcHandPotential(observation.hand, observation.lock?.suit || null);
+  const opponentAtOne = observation.handCounts.some((count, index) => (
+    index !== playerIndex && Number(count) === 1
+  ));
+  const playList = Array.isArray(plays) ? plays : [];
+  const cheapPlayableCount = playList.filter((play) => (
+    getNpcCheapOvertakeBonus(play, observation, reserveContext) > 0
+  )).length;
+  const allPlayableProtected = playList.length > 0 && playList.every((play) => {
+    const stats = getNpcPlayCardStats(play);
+    const reserve = getNpcPlayReserveStats(play, reserveContext);
+    return stats.majorCount > 0 || stats.aceCount > 0 || reserve.protectedCardCount > 0;
   });
-  if (!allProtected) return false;
-  if (style === NPC_AI_STYLE.CAUTIOUS) return true;
-  return plays.every((play) => {
-    const cardStats = getNpcPlayCardStats(play);
-    return cardStats.majorCount > 0 || cardStats.aceCount > 0;
-  });
+  const noLegalPlay = playList.length === 0;
+  const base = (handPotential.score * policy.preserve) + 24;
+  let passScore = base;
+  if (noLegalPlay) passScore += passCount === 0 ? 92 : 24;
+  if (allPlayableProtected) passScore += 58 * policy.preserve;
+  if (cheapPlayableCount > 0) passScore -= 170 * policy.tempo;
+  if (opponentAtOne) passScore -= 1200;
+  const candidates = [{ action: 'pass', score: passScore, immediateWin: false }];
+
+  if (!wouldNpcPassClearTrick(playerIndex)) {
+    let defendScore = base - (passCount === 0 ? 88 : 0);
+    if (noLegalPlay) defendScore += passCount > 0 ? 82 * policy.commit : 0;
+    if (allPlayableProtected) defendScore += (passCount > 0 ? 92 : 38) * policy.commit;
+    if (cheapPlayableCount > 0) defendScore -= 260 * policy.tempo;
+    if (isKingdomFiveCardRoleField()) defendScore -= 34;
+    if (opponentAtOne) defendScore -= 1400;
+    candidates.push({ action: 'defend', score: defendScore, immediateWin: false });
+  }
+  return candidates;
 }
 
 function npcDecide(pi, options = {}) {
-  const aiStyle = getNpcAiStyle(pi);
-  const p = s.players[pi], calls = callMoves(pi), sets = setMoves(pi), roles = roleMoves(pi);
+  ensureKingdomNpcDecisionState();
+  const calls = callMoves(pi);
+  const sets = setMoves(pi);
+  const roles = roleMoves(pi);
   const reserveContext = createNpcReserveContext(pi, calls, roles, sets);
   const observation = createNpcObservation(pi);
-  if (s.callOnly) {
-    if (!calls.length) return { action: 'fold' };
-    const scoredCalls = calls.map((play) => ({ play, ...scoreNpcPlay(pi, play, observation, reserveContext) }));
-    const pickedCall = chooseNpcWeightedCandidate(scoredCalls, options.randomSource || kingdomNpcRandom);
-    return pickedCall ? { action: 'play', play: pickedCall.play, score: pickedCall.score } : { action: 'fold' };
+  const all = s.callOnly ? calls : [...calls, ...roles, ...sets];
+  const scoredPlays = all.map((play) => ({
+    action: 'play',
+    play,
+    ...scoreNpcPlay(pi, play, observation, reserveContext)
+  }));
+  const immediateWins = scoredPlays.filter((entry) => entry.immediateWin);
+  if (immediateWins.length) {
+    const pickedWin = chooseNpcWeightedCandidate(immediateWins, options.randomSource || kingdomNpcRandom);
+    return pickedWin
+      ? { action: 'play', play: pickedWin.play, score: pickedWin.score }
+      : { action: 'pass' };
   }
-  const all = [...calls, ...roles, ...sets];
-  if (!all.length) return { action: 'fold' };
-  const scored = all.map((play) => ({ play, ...scoreNpcPlay(pi, play, observation, reserveContext) }));
-  if (shouldNpcChooseFold(pi, all, scored, reserveContext)) return { action: 'fold' };
-  const picked = chooseNpcWeightedCandidate(scored, options.randomSource || kingdomNpcRandom);
+  const opponentAtOne = observation?.handCounts?.some((count, index) => (
+    index !== pi && Number(count) === 1
+  ));
+  if (opponentAtOne && scoredPlays.length) {
+    const pickedBlock = chooseNpcWeightedCandidate(scoredPlays, options.randomSource || kingdomNpcRandom);
+    return pickedBlock
+      ? { action: 'play', play: pickedBlock.play, score: pickedBlock.score }
+      : { action: 'pass' };
+  }
+  const passCount = Math.max(0, Number(s.npcPassCounts?.[pi]) || 0);
+  if (!scoredPlays.length && passCount === 0) return { action: 'pass' };
+  const candidates = [
+    ...scoredPlays,
+    ...getNpcWaitCandidateScores(pi, all, observation, reserveContext)
+  ];
+  const picked = chooseNpcWeightedCandidate(candidates, options.randomSource || kingdomNpcRandom);
+  if (!picked) return { action: 'pass' };
   return picked
-    ? { action: 'play', play: picked.play, score: picked.score }
-    : { action: 'fold' };
+    ? {
+        action: String(picked.action || 'play'),
+        ...(picked.play ? { play: picked.play } : {}),
+        score: picked.score
+      }
+    : { action: 'pass' };
 }
 
-function sortNpcPlayCandidates(all, aiStyle = NPC_AI_STYLE.BALANCED, reserveContext = null) {
-  all.sort((a, b) => compareNpcPlaysForConserve(a, b, aiStyle, reserveContext));
+function sortNpcPlayCandidates(all, policy = null, reserveContext = null) {
+  all.sort((a, b) => compareNpcPlaysForConserve(a, b, policy, reserveContext));
   return all;
 }
 
@@ -13287,7 +13548,15 @@ function pickBestNpcLeadPlay(pi) {
   }
   const all = [...roles, ...sets];
   if (!all.length) return null;
-  return sortNpcPlayCandidates(all, getNpcAiStyle(pi), reserveContext)[0] || null;
+  const observation = createNpcObservation(pi);
+  const scored = all.map((play) => ({
+    action: 'play',
+    play,
+    ...scoreNpcPlay(pi, play, observation, reserveContext)
+  }));
+  return chooseNpcWeightedCandidate(scored, kingdomNpcRandom)?.play
+    || sortNpcPlayCandidates(all, getKingdomNpcPolicy(pi), reserveContext)[0]
+    || null;
 }
 
 function recoverNpcNoTrickState(pi) {
@@ -13327,14 +13596,7 @@ function chooseNpcJudgmentOption(playerIndex, randomSource = kingdomNpcRandom) {
   }).sort((left, right) => (
     right.score - left.score || String(left.card?.id || '').localeCompare(String(right.card?.id || ''))
   ));
-  if (!scoredOptions.length) return null;
-  const bestScore = Number(scoredOptions[0]?.score) || 0;
-  const bestCandidates = scoredOptions.filter((entry) => (
-    bestScore - Number(entry.score || 0) <= Math.max(2, Math.abs(bestScore) * 0.02)
-  ));
-  if (bestCandidates.length <= 1) return bestCandidates[0] || scoredOptions[0];
-  const sample = Math.max(0, Math.min(0.999999, Number(randomSource?.()) || 0));
-  return bestCandidates[Math.min(bestCandidates.length - 1, Math.floor(sample * bestCandidates.length))];
+  return chooseNpcWeightedCandidate(scoredOptions, randomSource);
 }
 
 function npcAct() {
@@ -13354,7 +13616,7 @@ function npcAct() {
       passAction(dpi);
       return;
     }
-    const plan = npcChooseDrawPlan(dpi);
+    const plan = npcChooseDrawPlan(dpi, kingdomNpcRandom);
     traceKingdomFlow('npcAct.drawPhase', `player=${dpi} plan=${plan} reason=${s.pendingDrawReason || 'normal'}`);
     if (plan === 'skip') {
       skipDrawChoice(dpi, s.pendingDrawReason === 'clear' ? 'クリア後は攻め継続' : '戦術');
@@ -13418,8 +13680,8 @@ function npcAct() {
     traceKingdomFlow('npcAct.recoverNoTrick.fallback', `player=${pi}`);
     return;
   } else {
-    const foldMode = d.action === 'fold' ? 'fold-start' : '';
-    traceKingdomFlow(foldMode ? 'npcAct.fold' : 'npcAct.pass', `player=${pi}`);
+    const foldMode = d.action === 'defend' ? 'fold-start' : '';
+    traceKingdomFlow(foldMode ? 'npcAct.defend' : 'npcAct.pass', `player=${pi}`);
     passAction(pi, { foldMode });
   }
   } finally {
