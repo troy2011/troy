@@ -2422,7 +2422,7 @@ button.home-player-ship-name {
     pointer-events: none;
 }
 
-.exploration-result-boss-card {
+.exploration-result-destination-card {
     min-width: 0;
     display: grid;
     grid-template-columns: 122px minmax(0, 1fr);
@@ -2437,7 +2437,7 @@ button.home-player-ship-name {
     overflow: hidden;
 }
 
-.exploration-result-boss-art {
+.exploration-result-destination-art {
     width: 122px;
     height: 128px;
     display: grid;
@@ -2447,37 +2447,35 @@ button.home-player-ship-name {
     overflow: hidden;
 }
 
-.exploration-result-boss-image {
+.exploration-result-destination-image {
     width: 100%;
     height: 100%;
-    filter: drop-shadow(0 16px 14px rgba(0, 0, 0, 0.42));
+    display: block;
+    overflow: hidden;
+    border-radius: 5px;
+    background: rgba(2, 6, 23, 0.6);
 }
 
-.exploration-result-boss-copy {
+.exploration-result-destination-image img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.exploration-result-destination-copy {
     min-width: 0;
     display: grid;
     gap: 4px;
 }
 
-.exploration-result-boss-copy b {
-    color: #fecaca;
+.exploration-result-destination-copy b {
+    color: #bfdbfe;
     font-size: 11px;
     font-weight: 900;
 }
 
-.exploration-result-overlay.is-boss-weak .exploration-result-boss-copy b {
-    color: #bbf7d0;
-}
-
-.exploration-result-overlay.is-boss-medium .exploration-result-boss-copy b {
-    color: #fed7aa;
-}
-
-.exploration-result-overlay.is-boss-strong .exploration-result-boss-copy b {
-    color: #fecaca;
-}
-
-.exploration-result-boss-copy strong {
+.exploration-result-destination-copy strong {
     min-width: 0;
     color: #f8fafc;
     font-size: 18px;
@@ -2486,7 +2484,7 @@ button.home-player-ship-name {
     overflow-wrap: anywhere;
 }
 
-.exploration-result-boss-copy span {
+.exploration-result-destination-copy span {
     color: #fde68a;
     font-size: 12px;
     font-weight: 900;
@@ -2652,17 +2650,17 @@ button.home-player-ship-name {
         width: 102px;
     }
 
-    .exploration-result-boss-card {
+    .exploration-result-destination-card {
         grid-template-columns: 86px minmax(0, 1fr);
         gap: 10px;
     }
 
-    .exploration-result-boss-art {
+    .exploration-result-destination-art {
         width: 86px;
         height: 98px;
     }
 
-    .exploration-result-boss-copy strong {
+    .exploration-result-destination-copy strong {
         font-size: 15px;
     }
 
@@ -9906,10 +9904,10 @@ body.modal-lock .troy-menu-board-order-modal {
     }
 }
 
-/* Tarot Kingdom victory: keep the winner grounded and give the final champion a dedicated result layer. */
+/* Tarot Kingdom victory: keep the winner on the same spot and repeat a joyful jump. */
 :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar.is-avatar-victorious {
     transform-origin: 50% 100%;
-    animation: tarotKingdomPlayerVictoryPose 1080ms cubic-bezier(0.18, 0.82, 0.22, 1) both;
+    animation: tarotKingdomPlayerVictoryPose 960ms cubic-bezier(0.22, 0.72, 0.26, 1) infinite;
     filter:
         drop-shadow(0 4px 2px rgba(0, 0, 0, 0.76))
         drop-shadow(0 0 6px rgba(255, 224, 122, 0.86))
@@ -9934,7 +9932,7 @@ body.modal-lock .troy-menu-board-order-modal {
     opacity: 1;
     filter: none;
     transform: translateX(-50%) scaleX(1);
-    animation: tarotKingdomWinnerGroundLight 1080ms ease-out both;
+    animation: tarotKingdomWinnerGroundLight 960ms ease-in-out infinite;
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar.is-avatar-victorious .avatar-layer[id$="-layer-hand-right"],
@@ -10048,16 +10046,15 @@ body.modal-lock .troy-menu-board-order-modal {
 }
 
 @keyframes tarotKingdomPlayerVictoryPose {
-    0%, 100% { transform: translate3d(0, 0, 0); }
-    24% { transform: translate3d(-2px, -6px, 0); }
-    43% { transform: translate3d(0, -1px, 0); }
-    62% { transform: translate3d(1px, -3px, 0); }
+    0%, 12%, 72%, 100% { transform: translate3d(0, 0, 0); }
+    38%, 46% { transform: translate3d(0, -10px, 0); }
+    80% { transform: translate3d(0, -2px, 0); }
 }
 
 @keyframes tarotKingdomWinnerGroundLight {
-    0% { opacity: 0; transform: translateX(-50%) scale(0.6); }
-    38% { opacity: 1; transform: translateX(-50%) scale(1.08); }
-    100% { opacity: 0.74; transform: translateX(-50%) scale(1); }
+    0%, 12%, 72%, 100% { opacity: 0.9; transform: translateX(-50%) scale(1); }
+    38%, 46% { opacity: 0.48; transform: translateX(-50%) scale(0.78); }
+    80% { opacity: 1; transform: translateX(-50%) scale(1.08); }
 }
 
 @keyframes tarotKingdomChampionCeremonyIn {
@@ -17938,25 +17935,6 @@ body.home-exploration-popup-open #globalStatusBar {
     filter: drop-shadow(0 8px 7px rgba(0, 0, 0, 0.42));
 }
 
-.exploration-result-boss-art .exploration-pixel-monster {
-    position: absolute;
-    left: 50%;
-    bottom: var(--exploration-monster-result-bottom, 5px);
-    margin: 0;
-    transform:
-        translateX(calc(-50% + var(--exploration-monster-anchor-offset-x, 0px)))
-        scale(var(--exploration-monster-scale, 1)) !important;
-}
-
-@media (max-width: 520px) {
-    .exploration-result-boss-art .exploration-pixel-monster {
-        bottom: var(--exploration-monster-compact-result-bottom, 4px);
-        transform:
-            translateX(calc(-50% + var(--exploration-monster-compact-anchor-offset-x, 0px)))
-            scale(var(--exploration-monster-compact-scale, 1)) !important;
-    }
-}
-
 .ship-exploration-boss-chip b {
     min-width: 28px;
     padding: 1px 6px;
@@ -17995,57 +17973,13 @@ body.home-exploration-popup-open #globalStatusBar {
     border-color: rgba(239, 68, 68, 0.32);
 }
 
-.ship-exploration-npc-battle {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    border: 1px solid rgba(185, 28, 28, 0.28);
-    border-radius: 8px;
-    background:
-        linear-gradient(90deg, rgba(127, 29, 29, 0.22), rgba(15, 23, 42, 0.08)),
-        rgba(255, 247, 237, 0.72);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
-}
-
-.ship-exploration-npc-copy {
-    min-width: 0;
-    display: grid;
-    gap: 3px;
-}
-
-.ship-exploration-npc-copy strong {
-    color: #451a03;
-    font-size: 15px;
-    font-weight: 1000;
-}
-
-.ship-exploration-npc-copy span {
-    color: #5f3212;
-    font-size: 12px;
-    line-height: 1.35;
-}
-
 .ship-exploration-actions {
     display: flex;
     gap: 8px;
     margin-top: 10px;
 }
 
-.ship-exploration-payment-actions {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 8px;
-    margin-top: 10px;
-}
-
-.ship-exploration-payment-actions .ship-exploration-start {
-    margin-top: 0;
-}
-
 .ship-exploration-actions button,
-.ship-exploration-npc-start,
 .ship-exploration-start {
     width: 100%;
     min-height: 36px;
@@ -18063,7 +17997,6 @@ body.home-exploration-popup-open #globalStatusBar {
 }
 
 .ship-exploration-actions button:disabled,
-.ship-exploration-npc-start:disabled,
 .ship-exploration-start:disabled {
     opacity: 0.55;
     cursor: not-allowed;
@@ -18073,31 +18006,6 @@ body.home-exploration-popup-open #globalStatusBar {
 .ship-exploration-start.is-loading {
     cursor: wait;
     filter: saturate(0.72) brightness(0.92);
-}
-
-.ship-exploration-npc-start {
-    width: auto;
-    min-width: 132px;
-    margin-top: 0;
-    border-image-source: url("./assets/ui/buttons/button-dark-large.png");
-    background:
-        linear-gradient(180deg, rgba(254, 202, 202, 0.24), rgba(127, 29, 29, 0.16)),
-        linear-gradient(180deg, #fca5a5, #b91c1c);
-    color: #fff8f0;
-    text-shadow: 0 2px 0 rgba(78, 8, 8, 0.86), 0 0 8px rgba(255, 255, 255, 0.18);
-}
-
-.ship-exploration-start.is-consumable {
-    border-image-source: url("./assets/ui/buttons/button-blue-large.png");
-    background:
-        linear-gradient(180deg, rgba(219, 234, 254, 0.24), rgba(30, 64, 175, 0.14)),
-        linear-gradient(180deg, #93c5fd, #2563eb);
-    color: #081225;
-    text-shadow: 0 1px 0 rgba(219, 234, 254, 0.55);
-}
-
-.ship-exploration-start.is-gold {
-    margin-top: 0;
 }
 
 .ship-exploration-payment-overlay {
@@ -18127,29 +18035,6 @@ body.home-exploration-popup-open #globalStatusBar {
     box-shadow: 0 22px 60px rgba(0, 0, 0, 0.5);
 }
 
-.ship-exploration-payment-dialog.is-gold-confirm {
-    width: min(92vw, 360px);
-    grid-template-rows: auto auto auto;
-}
-
-.ship-exploration-gold-confirm-cost {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 12px 14px;
-    border: 1px solid rgba(232, 196, 112, 0.48);
-    border-radius: 5px;
-    background: rgba(5, 8, 13, 0.66);
-    color: #d7c8a5;
-}
-
-.ship-exploration-gold-confirm-cost strong {
-    color: #ffe28a;
-    font-size: 22px;
-    line-height: 1;
-    text-shadow: 0 1px 2px #000;
-}
 .ship-exploration-payment-head {
     display: grid;
     gap: 4px;
@@ -18282,15 +18167,6 @@ body.home-exploration-popup-open #globalStatusBar {
 }
 
 @media (max-width: 420px) {
-    .ship-exploration-npc-battle {
-        grid-template-columns: 1fr;
-    }
-
-    .ship-exploration-npc-start {
-        width: 100%;
-    }
-
-    .ship-exploration-payment-actions,
     .ship-exploration-payment-buttons {
         grid-template-columns: 1fr;
     }
@@ -18311,6 +18187,94 @@ body.home-exploration-popup-open #globalStatusBar {
     font-size: 11px;
     font-weight: 900;
     letter-spacing: 0.12em;
+}
+
+.ship-exploration-stage-monsters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+    margin-top: 9px;
+    padding: 6px;
+    border: 1px solid rgba(88, 49, 19, 0.2);
+    border-radius: 7px;
+    background:
+        linear-gradient(180deg, rgba(255, 248, 218, 0.34), rgba(76, 43, 19, 0.1));
+}
+
+.ship-exploration-stage-monster {
+    min-width: 0;
+    display: grid;
+    grid-template-rows: 48px auto;
+    justify-items: center;
+    gap: 2px;
+}
+
+.ship-exploration-stage-monster-visual {
+    position: relative;
+    width: 100%;
+    height: 48px;
+    overflow: hidden;
+}
+
+.ship-exploration-stage-monster-sprite {
+    position: absolute;
+    z-index: 1;
+    bottom: var(--exploration-monster-compact-result-bottom, 4px);
+    left: 50%;
+    transform:
+        translateX(calc(-50% + var(--exploration-monster-compact-anchor-offset-x, 0px)))
+        scale(var(--exploration-monster-compact-scale, 1)) !important;
+}
+
+.ship-exploration-stage-monster.is-silhouette .ship-exploration-stage-monster-sprite {
+    opacity: 0.74;
+    filter:
+        brightness(0)
+        saturate(0)
+        drop-shadow(0 3px 2px rgba(0, 0, 0, 0.54));
+}
+
+.ship-exploration-stage-monster.is-revealed .ship-exploration-stage-monster-sprite {
+    filter: drop-shadow(0 4px 3px rgba(0, 0, 0, 0.38));
+}
+
+.ship-exploration-stage-monster-defeat {
+    position: absolute;
+    top: 0;
+    right: 1px;
+    z-index: 3;
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    border: 1px solid #f7dca1;
+    border-radius: 50%;
+    background: #9f241f;
+    color: #fff8df;
+    font-family: serif;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 1px 0 #3a0806;
+    box-shadow: 0 2px 4px rgba(42, 11, 7, 0.46);
+    transform: rotate(-8deg);
+}
+
+.ship-exploration-stage-monster-name {
+    width: 100%;
+    overflow: hidden;
+    color: #4b2b15;
+    font-size: 9px;
+    font-weight: 900;
+    line-height: 1.2;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ship-exploration-stage-monster.is-silhouette .ship-exploration-stage-monster-name {
+    color: #695642;
+    letter-spacing: 0.06em;
 }
 
 .ship-exploration-stage-supply-slots {
@@ -18336,6 +18300,15 @@ body.home-exploration-popup-open #globalStatusBar {
     border-color: #c79c47;
     color: #f0dfaa;
     background: rgba(94, 67, 18, 0.24);
+}
+
+@media (min-width: 521px) {
+    .ship-exploration-stage-monster-sprite {
+        bottom: var(--exploration-monster-result-bottom, 5px);
+        transform:
+            translateX(calc(-50% + var(--exploration-monster-anchor-offset-x, 0px)))
+            scale(var(--exploration-monster-scale, 1)) !important;
+    }
 }
 
 body[data-tarot-kingdom-atmosphere-tone="tropical-wilds"] #tarotKingdomRoot .tarot-kingdom-battle-arena {
@@ -20801,51 +20774,6 @@ body[data-tarot-kingdom-atmosphere-tone="final-eclipse"] #tarotKingdomRoot .taro
 
 .king-section-panel[hidden] {
     display: none !important;
-}
-
-.king-raid-control {
-    display: grid;
-    gap: 10px;
-}
-
-.king-raid-status {
-    display: grid;
-    gap: 5px;
-    padding: 12px;
-    border: 1px solid rgba(248, 113, 113, 0.35);
-    border-radius: 10px;
-    background: linear-gradient(145deg, rgba(69, 10, 10, 0.72), rgba(15, 23, 42, 0.82));
-    color: #fecaca;
-}
-
-.king-raid-status strong {
-    color: #fff7ed;
-    font-size: 15px;
-}
-
-.king-raid-status span {
-    font-size: 12px;
-}
-
-.king-raid-hp {
-    height: 9px;
-    overflow: hidden;
-    border: 1px solid rgba(254, 202, 202, 0.42);
-    border-radius: 999px;
-    background: rgba(0, 0, 0, 0.58);
-}
-
-.king-raid-hp span {
-    display: block;
-    height: 100%;
-    border-radius: inherit;
-    background: linear-gradient(90deg, #991b1b, #ef4444, #fb7185);
-}
-
-.king-raid-select-label {
-    color: #d8c9b2;
-    font-size: 12px;
-    font-weight: 800;
 }
 
 .king-page-message {
@@ -35099,19 +35027,19 @@ body.tarot-kingdom-preview-body {
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player-floor-shadow {
     position: absolute;
     z-index: 1;
-    bottom: 15px;
+    bottom: clamp(1px, calc(10vw - 38px), 14px);
     left: 32px;
     display: block;
     width: 52px;
-    height: 12px;
+    height: 10px;
     border-radius: 50%;
-    opacity: 1;
+    opacity: 0.76;
     pointer-events: none;
-    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.98) 0 26%, rgba(3, 2, 8, 0.9) 48%, rgba(158, 143, 188, 0.48) 68%, rgba(0, 0, 0, 0) 82%);
-    filter: blur(0.2px);
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.88) 0 20%, rgba(0, 0, 0, 0.58) 46%, rgba(0, 0, 0, 0) 74%);
+    filter: blur(2px);
     transform: translateX(-50%) scaleY(0.72);
     transform-origin: center;
-    box-shadow: 0 3px 7px rgba(0, 0, 0, 0.76);
+    box-shadow: none;
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player.is-ko .tarot-kingdom-battle-player-floor-shadow {
@@ -35148,13 +35076,17 @@ body.tarot-kingdom-preview-body {
     left: calc(50% - 4px);
     width: var(--tarot-kingdom-pet-shadow-width, 52px);
     height: 10px;
-    opacity: 0.74;
-    transform: translateX(-50%) scaleY(0.68);
+    opacity: 0.76;
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.88) 0 20%, rgba(0, 0, 0, 0.58) 46%, rgba(0, 0, 0, 0) 74%);
+    filter: blur(2px);
+    transform: translateX(-50%) scaleY(0.72);
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar.is-pet[data-monster-anchor="air"]::before {
     opacity: 0.44;
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.7) 0 16%, rgba(0, 0, 0, 0.4) 44%, rgba(0, 0, 0, 0) 74%);
     filter: blur(3px);
+    transform: translateX(-50%) scaleY(0.62);
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-pet-sprite {
@@ -35734,7 +35666,7 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
     background-image: url("./Sprites/items/icons.png");
     background-repeat: no-repeat;
     background-size: 512px 2048px;
-    background-position: -288px -32px;
+    background-position: -320px -32px;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.9));
@@ -35802,57 +35734,62 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-judgment-reclaim-card {
-    --tarot-card-w: 36px;
-    --tarot-card-h: 60px;
+    --tarot-card-w: 50px;
+    --tarot-card-h: 82px;
     position: absolute;
     z-index: 24;
     top: 50%;
     left: 35px;
-    width: 36px !important;
-    min-width: 36px !important;
-    height: 60px !important;
-    min-height: 60px !important;
+    width: 50px !important;
+    min-width: 50px !important;
+    height: 82px !important;
+    min-height: 82px !important;
     margin: 0;
     pointer-events: none;
     opacity: 0;
     transform-origin: 50% 50%;
     animation: tarotKingdomJudgmentReclaim 1100ms cubic-bezier(0.22, 0.72, 0.2, 1) both;
     animation-delay: var(--tk-judgment-reclaim-delay, 0ms);
-    filter: brightness(1.08) drop-shadow(0 0 5px rgba(255, 223, 132, 0.92));
+    filter: none;
+    image-rendering: pixelated;
+    box-shadow: 0 0 0 1px rgba(255, 223, 132, 0.72), 0 0 7px rgba(255, 223, 132, 0.76);
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-judgment-reclaim-card .tarot-card-art {
     left: 50%;
     top: 50%;
-    transform: translate(-50%, -50%) scale(0.75);
+    width: 48px;
+    height: 80px;
+    transform: translate(-50%, -50%);
     transform-origin: 50% 50%;
+    image-rendering: pixelated;
 }
 
 @keyframes tarotKingdomJudgmentReclaim {
     0% {
         opacity: 0;
-        transform: translate(-72px, -50%) scale(0.62) rotate(-5deg);
+        transform: translate(-72px, -50%) scale(0.75);
     }
     14% {
         opacity: 1;
-        transform: translate(-62px, -50%) scale(1) rotate(-2deg);
+        transform: translate(-62px, -50%) scale(1);
     }
     50% {
         opacity: 1;
-        transform: translate(-62px, -50%) scale(1) rotate(0deg);
+        transform: translate(-62px, -50%) scale(1);
     }
     78% {
         opacity: 1;
-        filter: brightness(1.42) drop-shadow(0 0 10px rgba(255, 230, 148, 1));
+        box-shadow: 0 0 0 1px rgba(255, 236, 173, 0.92), 0 0 12px rgba(255, 230, 148, 0.96);
     }
     92% {
         opacity: 0.72;
-        transform: translate(0, -50%) scale(0.16) rotate(8deg);
+        transform: translate(0, -50%) scale(0.16);
     }
     100% {
         opacity: 0;
-        transform: translate(0, -50%) scale(0) rotate(10deg);
-        filter: brightness(1.8) drop-shadow(0 0 3px rgba(255, 239, 181, 0.7));
+        transform: translate(0, -50%) scale(0);
+        box-shadow: 0 0 0 1px rgba(255, 239, 181, 0.52), 0 0 3px rgba(255, 239, 181, 0.62);
     }
 }
 

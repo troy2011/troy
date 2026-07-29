@@ -20,6 +20,7 @@ const {
 } = require('./tarotKingdomPets');
 const {
     TAROT_KINGDOM_EXPLORATION_STAGES,
+    applyTarotKingdomMonsterDefeats,
     applyTarotKingdomStageClear,
     buildTarotKingdomStageEncounter,
     buildTarotKingdomStageList,
@@ -40,8 +41,8 @@ const {
     buildTarotKingdomRaidPublicState,
     createTarotKingdomRaidAttemptId,
     createTarotKingdomRaidSpawnState,
-    getTarotKingdomRaidBoss,
     getTarotKingdomRaidDayKey,
+    isTarotKingdomRaidPartyEligible,
     normalizeTarotKingdomRaidNation,
     normalizeTarotKingdomRaidReportedDamage,
     normalizeTarotKingdomRaidState
@@ -2410,12 +2411,11 @@ function initializeExplorationRoutes(app, deps) {
     async function getTarotKingdomRaidIdentity(playFabId) {
         const result = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
             PlayFabId: playFabId,
-            Keys: ['Nation', 'IsKing']
+            Keys: ['Nation']
         });
         return {
             playFabId: String(playFabId || '').trim(),
-            nation: normalizeTarotKingdomRaidNation(result?.Data?.Nation?.Value),
-            isKing: String(result?.Data?.IsKing?.Value || '').trim().toLowerCase() === 'true'
+            nation: normalizeTarotKingdomRaidNation(result?.Data?.Nation?.Value)
         };
     }
 
@@ -2432,6 +2432,85 @@ function initializeExplorationRoutes(app, deps) {
         return { raidRef, dailyAttemptRef, attemptRef };
     }
 
+    async function ensureTarotKingdomRaidActive(identity, nowMs = Date.now()) {
+        const { raidRef } = getTarotKingdomRaidRefs(identity.playFabId, getTarotKingdomRaidDayKey(nowMs));
+        let ensuredState = null;
+        await firestore.runTransaction(async (tx) => {
+            const snap = await tx.get(raidRef);
+            const source = snap.exists ? snap.data() : null;
+            const current = normalizeTarotKingdomRaidState(source, identity.nation);
+            if (current.active) {
+                ensuredState = source;
+                return;
+            }
+            const currentIndex = TAROT_KINGDOM_RAID_BOSSES.findIndex((boss) => boss.id === current.bossId);
+            const fallbackIndex = Math.abs(String(getTarotKingdomRaidDayKey(nowMs))
+                .split('')
+                .reduce((sum, char) => sum + char.charCodeAt(0), 0)) % TAROT_KINGDOM_RAID_BOSSES.length;
+            const nextIndex = currentIndex >= 0
+                ? (currentIndex + 1) % TAROT_KINGDOM_RAID_BOSSES.length
+                : fallbackIndex;
+            ensuredState = createTarotKingdomRaidSpawnState({
+                nation: identity.nation,
+                bossId: TAROT_KINGDOM_RAID_BOSSES[nextIndex].id,
+                actorPlayFabId: 'system',
+                nowMs
+            });
+            tx.set(raidRef, {
+                ...ensuredState,
+                activationMode: 'party',
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+        });
+        return ensuredState;
+    }
+
+    async function validateTarotKingdomRaidRoom(playFabId, roomId) {
+        const normalizedRoomId = String(roomId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+        if (!normalizedRoomId || normalizedRoomId !== String(roomId || '').trim()) {
+            return { ok: false, message: 'レイド用の救難ルームが不正です。' };
+        }
+        const database = typeof admin.database === 'function' ? admin.database() : null;
+        if (!database) return { ok: false, message: 'チーム情報を確認できません。' };
+        const snapshot = await database.ref(`tarotKingdomRooms/${normalizedRoomId}`).once('value');
+        const room = snapshot.exists() ? snapshot.val() : null;
+        const players = room?.state?.state?.players;
+        if (!isTarotKingdomRaidPartyEligible(players)) {
+            return {
+                ok: false,
+                message: 'レイドは通常NPCがいない4人チーム（プレイヤー・ペットのみ）で挑戦できます。'
+            };
+        }
+        const now = Date.now();
+        const presence = room?.presence && typeof room.presence === 'object' ? room.presence : {};
+        const livePresence = Object.values(presence).filter((entry) => {
+            const updatedAt = Number(entry?.updatedAt);
+            return Number.isFinite(updatedAt) && updatedAt > 0 && now - updatedAt <= 45000;
+        });
+        const hostUid = String(room?.meta?.hostUid || '').trim();
+        const hostPresence = hostUid ? presence[hostUid] : null;
+        if (
+            !hostPresence
+            || !livePresence.includes(hostPresence)
+            || String(hostPresence.playFabId || '').trim() !== String(playFabId || '').trim()
+        ) {
+            return { ok: false, message: 'レイドバトルは救難ルームの部屋主が開始してください。' };
+        }
+        const liveBySeat = new Map(livePresence.map((entry) => [Number(entry?.seat), entry]));
+        const livePlayFabIds = new Set(livePresence.map((entry) => String(entry?.playFabId || '').trim()).filter(Boolean));
+        const rosterIsLive = players.every((player, seat) => {
+            if (player?.isPet === true) {
+                return livePlayFabIds.has(String(player.petOwnerPlayFabId || '').trim());
+            }
+            const occupant = liveBySeat.get(seat);
+            return !!occupant
+                && String(occupant.playFabId || '').trim() === String(player?.playFabId || '').trim();
+        });
+        return rosterIsLive
+            ? { ok: true, roomId: normalizedRoomId }
+            : { ok: false, message: 'チーム構成が変わりました。4人の参加状況を確認してください。' };
+    }
+
     async function buildTarotKingdomRaidStatus(playFabId, options = {}) {
         const identity = options.identity || await getTarotKingdomRaidIdentity(playFabId);
         const dayKey = getTarotKingdomRaidDayKey(options.nowMs);
@@ -2442,24 +2521,19 @@ function initializeExplorationRoutes(app, deps) {
                 attemptsUsed: 0,
                 attemptsRemaining: TAROT_KINGDOM_RAID_DAILY_ATTEMPT_LIMIT,
                 dailyAttemptLimit: TAROT_KINGDOM_RAID_DAILY_ATTEMPT_LIMIT,
-                dayKey,
-                bosses: TAROT_KINGDOM_RAID_BOSSES
+                dayKey
             };
         }
         const refs = getTarotKingdomRaidRefs(playFabId, dayKey);
-        const [raidSnap, dailySnap] = await Promise.all([
-            refs.raidRef.get(),
+        const [raidState, dailySnap] = await Promise.all([
+            ensureTarotKingdomRaidActive(identity, options.nowMs),
             refs.dailyAttemptRef.get()
         ]);
         const attemptsUsed = Math.max(0, Math.floor(Number(dailySnap.data()?.count) || 0));
-        return {
-            ...buildTarotKingdomRaidPublicState(
-                raidSnap.exists ? raidSnap.data() : null,
-                { nation: identity.nation, attemptsUsed, dayKey }
-            ),
-            isKing: identity.isKing === true,
-            bosses: TAROT_KINGDOM_RAID_BOSSES
-        };
+        return buildTarotKingdomRaidPublicState(
+            raidState,
+            { nation: identity.nation, attemptsUsed, dayKey }
+        );
     }
 
     async function buildExplorationStatus(playFabId) {
@@ -2519,75 +2593,21 @@ function initializeExplorationRoutes(app, deps) {
         }
     });
 
-    app.post('/api/tarot-kingdom/raid/control', async (req, res) => {
-        let { playFabId, action, bossId } = req.body || {};
-        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
-        playFabId = await requireAuthed(req, res, playFabId);
-        if (!playFabId) return;
-        action = String(action || '').trim().toLowerCase();
-        try {
-            const identity = await getTarotKingdomRaidIdentity(playFabId);
-            if (!identity.isKing || !identity.nation) {
-                return res.status(403).json({ error: 'レイドボスを操作できるのは国王だけです。' });
-            }
-            const dayKey = getTarotKingdomRaidDayKey();
-            const { raidRef } = getTarotKingdomRaidRefs(playFabId, dayKey);
-            if (action === 'spawn') {
-                const boss = getTarotKingdomRaidBoss(bossId);
-                if (!boss) return res.status(400).json({ error: 'レイドボスが不正です。' });
-                let conflict = false;
-                const spawnState = createTarotKingdomRaidSpawnState({
-                    nation: identity.nation,
-                    bossId: boss.id,
-                    actorPlayFabId: playFabId
-                });
-                await firestore.runTransaction(async (tx) => {
-                    const snap = await tx.get(raidRef);
-                    const current = normalizeTarotKingdomRaidState(snap.exists ? snap.data() : null, identity.nation);
-                    if (current.active) {
-                        conflict = true;
-                        return;
-                    }
-                    tx.set(raidRef, {
-                        ...spawnState,
-                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-                    });
-                });
-                if (conflict) {
-                    return res.status(409).json({ error: 'すでにレイドボスが出現しています。' });
-                }
-            } else if (action === 'withdraw') {
-                await raidRef.set({
-                    active: false,
-                    withdrawnAtMs: Date.now(),
-                    withdrawnByPlayFabId: playFabId,
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
-            } else {
-                return res.status(400).json({ error: 'action must be spawn or withdraw' });
-            }
-            return res.json({
-                success: true,
-                raid: await buildTarotKingdomRaidStatus(playFabId, { identity })
-            });
-        } catch (error) {
-            console.error('[tarot-kingdom/raid/control] failed:', error?.errorMessage || error?.message || error);
-            return res.status(500).json({ error: 'レイドボスを更新できませんでした。' });
-        }
-    });
-
     app.post('/api/tarot-kingdom/raid/start', async (req, res) => {
-        let { playFabId } = req.body || {};
+        let { playFabId, roomId } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
         playFabId = await requireAuthed(req, res, playFabId);
         if (!playFabId) return;
         try {
             const identity = await getTarotKingdomRaidIdentity(playFabId);
             if (!identity.nation) return res.status(403).json({ error: '所属国が設定されていません。' });
+            const roomValidation = await validateTarotKingdomRaidRoom(playFabId, roomId);
+            if (!roomValidation.ok) return res.status(409).json({ error: roomValidation.message });
             const now = Date.now();
             const dayKey = getTarotKingdomRaidDayKey(now);
             const attemptId = createTarotKingdomRaidAttemptId();
             const refs = getTarotKingdomRaidRefs(playFabId, dayKey, attemptId);
+            await ensureTarotKingdomRaidActive(identity, now);
             let startError = null;
             let attempt = null;
             await firestore.runTransaction(async (tx) => {
@@ -2614,6 +2634,7 @@ function initializeExplorationRoutes(app, deps) {
                     raidId: raid.raidId,
                     nation: identity.nation,
                     playFabId,
+                    roomId: roomValidation.roomId,
                     status: 'active',
                     bossId: raid.bossId,
                     bossName: raid.bossName,
@@ -3243,11 +3264,12 @@ function initializeExplorationRoutes(app, deps) {
     app.post('/api/exploration/start', async (req, res) => {
         let { playFabId } = req.body || {};
         const requestedStageNo = Math.floor(Number(req.body?.stageNo) || 0);
+        const requestedStage = getTarotKingdomExplorationStage(requestedStageNo);
+        if (!playFabId || !requestedStage) {
+            return res.status(400).json({ error: 'playFabId and valid stageNo are required' });
+        }
         if (requestedStageNo > 0) {
-            const stage = getTarotKingdomExplorationStage(requestedStageNo);
-            if (!playFabId || !stage) {
-                return res.status(400).json({ error: 'playFabId and valid stageNo are required' });
-            }
+            const stage = requestedStage;
             playFabId = await requireAuthed(req, res, playFabId);
             if (!playFabId) return;
             try {
@@ -3274,7 +3296,7 @@ function initializeExplorationRoutes(app, deps) {
                     catalogCache
                 });
                 const supplyValidation = validateExplorationTransitionSupplies(
-                    req.body?.supplies ?? req.body?.paymentConsumables,
+                    req.body?.supplies,
                     supplyState.consumables
                 );
                 if (!supplyValidation.ok) {
@@ -3412,235 +3434,6 @@ function initializeExplorationRoutes(app, deps) {
                     details: error?.errorMessage || error?.message || String(error)
                 });
             }
-        }
-        const destinationId = normalizeDestinationId(req.body?.destinationId);
-        if (!playFabId || !destinationId) return res.status(400).json({ error: 'playFabId and destinationId are required' });
-        const requestedPaymentMethod = normalizeExplorationPaymentMethod(req.body?.paymentMethod);
-        if (!requestedPaymentMethod) {
-            return res.status(400).json({ error: '支払い方法が不正です。' });
-        }
-        playFabId = await requireAuthed(req, res, playFabId);
-        if (!playFabId) return;
-        try {
-            const ship = await resolveActiveShip(playFabId, deps);
-            if (!ship) return res.status(400).json({ error: '探索には使用中の船が必要です。' });
-            const destination = DESTINATIONS[destinationId];
-            const now = Date.now();
-            if (!isDailyExplorationDestinationForPlayer(playFabId, destinationId, now)) {
-                return res.status(403).json({ error: 'この行き先は本日の探索先ではありません。' });
-            }
-            if (!canShipClassExploreDestination(ship.shipClass, destination)) {
-                return res.status(403).json({ error: 'この船では選択した行き先に向かえません。' });
-            }
-            const dailyFreeEligible = isDailyFreeExplorationDestination(destination);
-            const dayKey = getJstDayKey(now);
-            const explorationId = `exp-${now}-${Math.random().toString(36).slice(2, 8)}`;
-            const selectedBoss = selectExplorationBoss(destination, Math.random, ship.shipClass);
-            const tarotEncounter = buildExplorationTarotEncounter({
-                id: explorationId,
-                destinationId,
-                destinationName: destination.name
-            }, destination, selectedBoss);
-            if (!tarotEncounter) {
-                return res.status(500).json({ error: '島のモンスターを決定できませんでした。' });
-            }
-            const activeRef = firestore.collection(EXPLORATION_COLLECTION).doc(playFabId);
-            const dailyFreeRef = activeRef.collection(DAILY_FREE_SUBCOLLECTION).doc(dayKey);
-            let dailyFreeUsed = false;
-            let paymentMethod = requestedPaymentMethod;
-            let chargedCost = requestedPaymentMethod === 'gold' ? destination.cost : 0;
-            const requiredSupplyUnits = getExplorationRequiredSupplyUnits(destination);
-            const requiredConsumableCount = requiredSupplyUnits;
-            let consumedConsumables = [];
-            let supplyProfile = null;
-
-            // フルペイロードを持つ pending を先に Firestore に確保する。
-            // これにより: 通貨減算前に保存するためユーザー資産は安全。
-            // active flip (step3) が失敗しても pending にデータが残り claim から自動復旧可能。
-            const fullPayload = {
-                id: explorationId,
-                status: 'pending',
-                playFabId,
-                destinationId,
-                destinationName: destination.name,
-                imagePath: destination.imagePath || '',
-                shipId: ship.shipId,
-                shipName: ship.shipName,
-                shipClass: ship.shipClass,
-                shipStage: normalizeShipStage(ship.stage),
-                cost: destination.cost,
-                chargedCost,
-                paymentMethod,
-                requiredSupplyUnits,
-                requiredConsumableCount,
-                consumedConsumables: [],
-                supplyProfile: null,
-                tarotEncounter,
-                dailyFreeDayKey: '',
-                dailyFreeUsed: false,
-                startedAtMs: now,
-                completesAtMs: now,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            };
-
-            let conflicted = false;
-            await firestore.runTransaction(async (tx) => {
-                const snap = await tx.get(activeRef);
-                if (snap.exists) {
-                    const data = snap.data() || {};
-                    const status = String(data.status || '');
-                    if (status === 'active' || status === 'claiming' || status === 'retreating') {
-                        conflicted = true;
-                        return;
-                    }
-                    if (status === 'pending') {
-                        if (data.completesAtMs) {
-                            // フルペイロード pending: 通貨が減算済みの可能性がある → active として保護
-                            conflicted = true;
-                            return;
-                        }
-                        // 早期スタブ pending: PENDING_STALE_MS 未満なら保護、超えたら上書き可
-                        const createdAtMs = timestampToMs(data.createdAt);
-                        if (now - createdAtMs < PENDING_STALE_MS) {
-                            conflicted = true;
-                            return;
-                        }
-                    }
-                }
-                const dailyFreeSnap = dailyFreeEligible ? await tx.get(dailyFreeRef) : null;
-                dailyFreeUsed = dailyFreeEligible && !dailyFreeSnap.exists;
-                paymentMethod = dailyFreeUsed ? 'free' : requestedPaymentMethod;
-                chargedCost = paymentMethod === 'gold' ? destination.cost : 0;
-                tx.set(activeRef, {
-                    ...fullPayload,
-                    paymentMethod,
-                    chargedCost,
-                    dailyFreeDayKey: dailyFreeUsed ? dayKey : '',
-                    dailyFreeUsed
-                });
-                if (dailyFreeUsed) {
-                    tx.set(dailyFreeRef, {
-                        dayKey,
-                        explorationId,
-                        destinationId,
-                        destinationName: destination.name,
-                        imagePath: destination.imagePath || '',
-                        playFabId,
-                        usedAt: admin.firestore.FieldValue.serverTimestamp(),
-                        usedAtMs: now
-                    });
-                }
-            });
-            if (conflicted) {
-                return res.status(409).json({ error: '探索中です。帰還後に次の探索へ出発できます。' });
-            }
-
-            if (!dailyFreeUsed && requestedPaymentMethod === 'free') {
-                await activeRef.delete().catch(() => {});
-                return res.status(402).json({ error: '本日の無料探索枠は使用済みです。' });
-            }
-
-            if (paymentMethod === 'consumable') {
-                const explorationPayment = await buildExplorationPaymentState(playFabId, {
-                    getEntityKeyForPlayFabId,
-                    getAllInventoryItems,
-                    catalogCache
-                });
-                const validation = validateExplorationConsumablePayment(
-                    req.body?.paymentConsumables,
-                    explorationPayment.consumables,
-                    requiredSupplyUnits
-                );
-                if (!validation.ok) {
-                    await activeRef.delete().catch(() => {});
-                    return res.status(402).json({
-                        error: validation.error || '探索に使う消耗品が不足しています。',
-                        requiredSupplyUnits,
-                        requiredConsumableCount,
-                        explorationPayment
-                    });
-                }
-                consumedConsumables = validation.consumedConsumables;
-                supplyProfile = validation.supplyProfile;
-                const subtractedConsumables = [];
-                try {
-                    const requestKey = req.body?.requestId ? String(req.body.requestId) : `${playFabId}-${explorationId}`;
-                    for (const item of consumedConsumables) {
-                        await subtractEconomyItem(playFabId, item.itemId, item.quantity, {
-                            alternateIdType: 'FriendlyId',
-                            idempotencyId: `exploration-start-${requestKey}-consumable-${item.itemId}`
-                        });
-                        subtractedConsumables.push(item);
-                    }
-                } catch (consumableError) {
-                    const requestKey = req.body?.requestId ? String(req.body.requestId) : `${playFabId}-${explorationId}`;
-                    await Promise.all(subtractedConsumables.map((item) => addEconomyItem(playFabId, item.itemId, item.quantity, {
-                        alternateIdType: 'FriendlyId',
-                        idempotencyId: `exploration-start-${requestKey}-consumable-refund-${item.itemId}`
-                    }).catch((refundError) => {
-                        console.error('[exploration/start] consumable refund failed:', playFabId, item, refundError?.errorMessage || refundError?.message || refundError);
-                    })));
-                    await activeRef.delete().catch(() => {});
-                    throw consumableError;
-                }
-            } else if (chargedCost > 0) {
-                const balance = typeof getCurrencyBalance === 'function' ? await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE) : null;
-                if (Number.isFinite(balance) && balance < chargedCost) {
-                    await activeRef.delete().catch(() => {});
-                    return res.status(402).json({ error: `探索には${chargedCost}G必要です。`, cost: chargedCost, balance });
-                }
-
-                // 通貨減算。失敗時は pending を削除してスロットを解放（ユーザー安全）
-                try {
-                    await subtractEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, chargedCost, {
-                        idempotencyId: req.body?.requestId ? `exploration-start-${req.body.requestId}` : undefined
-                    });
-                } catch (currencyError) {
-                    await activeRef.delete().catch(() => {});
-                    throw currencyError;
-                }
-            }
-            const goldBalance = paymentMethod !== 'gold' && typeof getCurrencyBalance === 'function'
-                ? await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE).catch(() => null)
-                : await refreshGoldBalanceAndRanking(playFabId, {
-                    getCurrencyBalance,
-                    promisifyPlayFab,
-                    PlayFabServer
-                });
-
-            // active に昇格。失敗しても pending にフルデータが残るため claim から自動復旧可能
-            try {
-                await activeRef.update({
-                    status: 'active',
-                    paymentMethod,
-                    chargedCost,
-                    requiredSupplyUnits,
-                    requiredConsumableCount,
-                    consumedConsumables,
-                    supplyProfile,
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
-                });
-            } catch (firestoreError) {
-                console.error('[exploration/start] active昇格失敗 (通貨は減算済み、pending から claim で自動復旧可能):', playFabId, explorationId, firestoreError?.message || firestoreError);
-                throw firestoreError;
-            }
-
-            res.json({
-                ...(await buildExplorationStatus(playFabId)),
-                started: true,
-                balance: goldBalance,
-                dailyFreeUsed,
-                paymentMethod,
-                chargedCost,
-                requiredSupplyUnits,
-                requiredConsumableCount,
-                consumedConsumables,
-                supplyProfile
-            });
-        } catch (error) {
-            console.error('[exploration/start] failed:', error?.errorMessage || error?.message || error);
-            res.status(500).json({ error: '探索の開始に失敗しました。', details: error?.errorMessage || error?.message || String(error) });
         }
     });
 
@@ -4197,22 +3990,50 @@ function initializeExplorationRoutes(app, deps) {
                 }
             }
             let explorationProgress = null;
-            if (stage && bossResult?.playerWon) {
-                const currentProgress = await readTarotKingdomExplorationProgress(
+            if (stage) {
+                const progressFinishers = tarotFinishers.length
+                    ? tarotFinishers
+                    : (Array.isArray(activeData.tarotFinishers) ? activeData.tarotFinishers : []);
+                const participantIds = Array.from(new Set([
                     playFabId,
-                    { promisifyPlayFab, PlayFabServer }
-                );
-                explorationProgress = await writeTarotKingdomExplorationProgress(
-                    playFabId,
-                    applyTarotKingdomStageClear(
+                    ...(Array.isArray(activeData.stageParticipants) ? activeData.stageParticipants : [])
+                ].map((entry) => String(entry || '').trim()).filter(Boolean))).slice(0, 4);
+                for (const participantId of participantIds) {
+                    const currentProgress = await readTarotKingdomExplorationProgress(
+                        participantId,
+                        { promisifyPlayFab, PlayFabServer }
+                    );
+                    let nextProgress = applyTarotKingdomMonsterDefeats(
                         currentProgress,
                         stage.stageNo,
-                        stageRank,
-                        now,
-                        activeData.id
-                    ),
-                    { promisifyPlayFab, PlayFabServer }
-                );
+                        progressFinishers,
+                        participantId
+                    );
+                    if (bossResult?.playerWon) {
+                        const participantStanding = calculatedStandings.find((entry) => (
+                            entry.playFabId === participantId && entry.isNpc !== true
+                        ));
+                        const participantRank = Math.max(
+                            1,
+                            Math.min(4, Math.floor(Number(participantStanding?.rank) || 4))
+                        );
+                        nextProgress = applyTarotKingdomStageClear(
+                            nextProgress,
+                            stage.stageNo,
+                            participantRank,
+                            now,
+                            activeData.id
+                        );
+                    }
+                    if (JSON.stringify(nextProgress) !== JSON.stringify(currentProgress)) {
+                        nextProgress = await writeTarotKingdomExplorationProgress(
+                            participantId,
+                            nextProgress,
+                            { promisifyPlayFab, PlayFabServer }
+                        );
+                    }
+                    if (participantId === playFabId) explorationProgress = nextProgress;
+                }
             }
 
             const rewardItemId = rewards[0]?.ItemId || '';

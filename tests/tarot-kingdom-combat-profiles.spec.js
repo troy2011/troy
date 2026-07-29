@@ -310,6 +310,7 @@ test('combat profile API authenticates the requester and returns sanitized melee
     expect(readOnlyRequests.every((request) => request.Keys.includes('HairColorIndex'))).toBe(true);
     expect(readOnlyRequests.every((request) => !request.Keys.includes('lineUserId'))).toBe(true);
     expect(readOnlyRequests.every((request) => request.Keys.includes('TarotDeck'))).toBe(true);
+    expect(readOnlyRequests.every((request) => request.Keys.includes('TarotKingdomPetState'))).toBe(true);
     expect(readOnlyRequests.every((request) => !request.Keys.includes('TarotDeckV2'))).toBe(true);
     const serialized = JSON.stringify(result.payload);
     expect(serialized).not.toContain('line-secret');
@@ -369,6 +370,13 @@ test('single-player combat profile response includes the saved current pet for e
       monsterName: 'トゲマル',
       explorationId: 'explore-pet-1'
     });
+    expect(result.payload.currentPets).toEqual([{
+      playFabId: 'PF_REQUESTER',
+      currentPet: expect.objectContaining({
+        monsterId,
+        monsterName: 'トゲマル'
+      })
+    }]);
     expect(result.payload.currentPet).not.toHaveProperty('level');
   }, {
     petState: {

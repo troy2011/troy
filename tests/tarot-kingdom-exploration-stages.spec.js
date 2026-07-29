@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
   TAROT_KINGDOM_EXPLORATION_STAGES,
+  applyTarotKingdomMonsterDefeats,
   applyTarotKingdomStageClear,
   buildTarotKingdomStageEncounter,
   buildTarotKingdomStageList,
@@ -151,6 +152,59 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
     expect(second.stages['1'].clearCount).toBe(2);
     const retry = applyTarotKingdomStageClear(second, 1, 2, 3000, 'exp-second');
     expect(retry).toEqual(second);
+  });
+
+  test('personal monster defeats reveal only valid self kills and cleared stages reveal the full lineup', () => {
+    const initial = normalizeTarotKingdomExplorationProgress(null);
+    const withDefeat = applyTarotKingdomMonsterDefeats(initial, 1, [
+      {
+        roundNo: 1,
+        playFabId: 'OWNER',
+        isNpc: false,
+        isPet: false,
+        monsterId: 'ismartal-vol1-monster-07'
+      },
+      {
+        roundNo: 2,
+        playFabId: 'OTHER',
+        isNpc: false,
+        isPet: false,
+        monsterId: 'ismartal-vol3-monster-04'
+      },
+      {
+        roundNo: 3,
+        playFabId: 'OWNER',
+        isNpc: true,
+        isPet: true,
+        monsterId: 'ismartal-vol1-monster-01'
+      },
+      {
+        roundNo: 4,
+        playFabId: 'OWNER',
+        isNpc: false,
+        isPet: false,
+        monsterId: 'ismartal-vol1-monster-01'
+      }
+    ], 'OWNER');
+
+    expect(withDefeat.version).toBe(2);
+    expect(withDefeat.defeatedMonsterIds).toEqual(['ismartal-vol1-monster-07']);
+    const uncleared = buildTarotKingdomStageList(withDefeat, 1)[0];
+    expect(uncleared.monsters.map((monster) => ({
+      defeated: monster.defeatedByPlayer,
+      revealed: monster.revealed
+    }))).toEqual([
+      { defeated: true, revealed: true },
+      { defeated: false, revealed: false },
+      { defeated: false, revealed: false },
+      { defeated: false, revealed: false }
+    ]);
+
+    const clearedProgress = applyTarotKingdomStageClear(withDefeat, 1, 2, 2000, 'exp-clear');
+    const cleared = buildTarotKingdomStageList(clearedProgress, 1)[0];
+    expect(cleared.monsters.every((monster) => monster.revealed)).toBeTruthy();
+    expect(cleared.monsters.filter((monster) => monster.defeatedByPlayer).map((monster) => monster.monsterId))
+      .toEqual(['ismartal-vol1-monster-07']);
   });
 
   test('final chip ties share rank and reward weights follow stage bands', () => {

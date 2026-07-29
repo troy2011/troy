@@ -169,6 +169,16 @@ function createTarotKingdomRaidAttemptId() {
     return `raid-attempt-${randomUUID()}`;
 }
 
+function isTarotKingdomRaidPartyEligible(players = []) {
+    return Array.isArray(players)
+        && players.length === 4
+        && players.every((player) => (
+            player
+            && typeof player === 'object'
+            && (player.isNpc !== true || player.isPet === true)
+        ));
+}
+
 module.exports = {
     TAROT_KINGDOM_RAID_BOSSES,
     TAROT_KINGDOM_RAID_COLLECTION,
@@ -181,6 +191,7 @@ module.exports = {
     createTarotKingdomRaidSpawnState,
     getTarotKingdomRaidBoss,
     getTarotKingdomRaidDayKey,
+    isTarotKingdomRaidPartyEligible,
     normalizeTarotKingdomRaidNation,
     normalizeTarotKingdomRaidReportedDamage,
     normalizeTarotKingdomRaidState

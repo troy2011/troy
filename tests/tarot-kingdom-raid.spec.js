@@ -6,7 +6,8 @@ const {
   applyTarotKingdomRaidDamage,
   buildTarotKingdomRaidPublicState,
   createTarotKingdomRaidSpawnState,
-  getTarotKingdomRaidDayKey
+  getTarotKingdomRaidDayKey,
+  isTarotKingdomRaidPartyEligible
 } = require('../server/tarotKingdomRaid');
 
 test.describe('Tarot Kingdom raid server rules', () => {
@@ -44,6 +45,35 @@ test.describe('Tarot Kingdom raid server rules', () => {
     });
     expect(state.attemptsUsed).toBe(TAROT_KINGDOM_RAID_DAILY_ATTEMPT_LIMIT);
     expect(state.attemptsRemaining).toBe(0);
+  });
+
+  test('raid requires four seats containing only players or pets', () => {
+    const player = (playFabId) => ({ isNpc: false, isPet: false, playFabId });
+    const pet = (ownerPlayFabId) => ({ isNpc: true, isPet: true, petOwnerPlayFabId: ownerPlayFabId });
+    const npc = () => ({ isNpc: true, isPet: false });
+    expect(isTarotKingdomRaidPartyEligible([
+      player('P1'),
+      pet('P1'),
+      player('P2'),
+      pet('P2')
+    ])).toBe(true);
+    expect(isTarotKingdomRaidPartyEligible([
+      player('P1'),
+      player('P2'),
+      player('P3'),
+      player('P4')
+    ])).toBe(true);
+    expect(isTarotKingdomRaidPartyEligible([
+      player('P1'),
+      pet('P1'),
+      player('P2'),
+      npc()
+    ])).toBe(false);
+    expect(isTarotKingdomRaidPartyEligible([
+      player('P1'),
+      player('P2'),
+      player('P3')
+    ])).toBe(false);
   });
 
   test('shared HP applies damage once and only the zeroing update becomes the finisher', () => {

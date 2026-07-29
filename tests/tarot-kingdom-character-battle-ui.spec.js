@@ -265,7 +265,7 @@ test('The World freezes the enemy sprite until time stop expires', async ({ page
   ).not.toBe(frozenFrame);
 });
 
-test('5 skip replaces the enemy blue ring with the shared silence bubble icon', async ({ page }) => {
+test('5 skip replaces the enemy blue ring with the ellipsis speech-bubble icon', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   const enemySprite = page.locator('#tarotKingdomEnemySprite');
   const silenceIcon = page.locator('.tarot-kingdom-enemy-silence-icon');
@@ -290,7 +290,7 @@ test('5 skip replaces the enemy blue ring with the shared silence bubble icon', 
     };
   });
   expect(iconStyle.backgroundImage).toMatch(/\/Sprites\/items\/icons\.png/);
-  expect(iconStyle.backgroundPosition).toBe('-288px -32px');
+  expect(iconStyle.backgroundPosition).toBe('-320px -32px');
   expect(iconStyle.backgroundSize).toBe('512px 2048px');
   expect(iconStyle.width).toBe('32px');
   expect(iconStyle.height).toBe('32px');
@@ -859,13 +859,28 @@ test('enemy and party shadows stay grounded while flying monsters cast a lower s
   });
   const playerShadow = await page.locator('.tarot-kingdom-battle-player-floor-shadow').first().evaluate((shadow) => {
     const style = getComputedStyle(shadow);
+    const row = shadow.closest('.tarot-kingdom-battle-player');
+    const avatar = row?.querySelector('.tarot-kingdom-battle-player-avatar');
+    const bodyLayer = Array.from(avatar?.children || []).find((layer) => (
+      getComputedStyle(layer).backgroundImage.includes('/Sprites/Characters/body/')
+    ));
+    const shadowRect = shadow.getBoundingClientRect();
+    const bodyRect = bodyLayer?.getBoundingClientRect();
     return {
       display: style.display,
       bottom: parseFloat(style.bottom),
       width: parseFloat(style.width),
       height: parseFloat(style.height),
       opacity: parseFloat(style.opacity),
-      background: style.backgroundImage
+      background: style.backgroundImage,
+      filter: style.filter,
+      boxShadow: style.boxShadow,
+      centerOffsetX: bodyRect
+        ? (shadowRect.left + shadowRect.width / 2) - (bodyRect.left + bodyRect.width / 2)
+        : null,
+      groundOffsetY: bodyRect
+        ? (shadowRect.top + shadowRect.height / 2) - bodyRect.bottom
+        : null
     };
   });
 
@@ -876,11 +891,16 @@ test('enemy and party shadows stay grounded while flying monsters cast a lower s
   expect(grounded.opacity).toBeGreaterThanOrEqual(0.7);
   expect(grounded.background).toContain('radial-gradient');
   expect(playerShadow.display).toBe('block');
-  expect(playerShadow.bottom).toBe(15);
+  expect(playerShadow.bottom).toBeCloseTo(1, 1);
   expect(playerShadow.width).toBe(52);
-  expect(playerShadow.height).toBe(12);
-  expect(playerShadow.opacity).toBe(1);
-  expect(playerShadow.background).toContain('radial-gradient');
+  expect(playerShadow.height).toBe(10);
+  expect(playerShadow.opacity).toBeCloseTo(grounded.opacity, 2);
+  expect(playerShadow.background).toBe(grounded.background);
+  expect(playerShadow.filter).toContain('blur(2px)');
+  expect(playerShadow.boxShadow).toBe('none');
+  expect(Math.abs(playerShadow.centerOffsetX)).toBeLessThanOrEqual(1);
+  expect(playerShadow.groundOffsetY).toBeGreaterThanOrEqual(1);
+  expect(playerShadow.groundOffsetY).toBeLessThanOrEqual(4);
 
   await picker.selectOption('ismartal-vol1-monster-09');
   await expect(enemyVisual).toHaveAttribute('data-monster-anchor', 'air');
@@ -1099,7 +1119,7 @@ test('long card guidance uses the fixed two-line compact layout', async ({ page 
   expect(textFit.scrollHeight).toBeLessThanOrEqual(textFit.clientHeight);
 });
 
-test('battle announcement stays visible without moving the hand between turns', async ({ page }) => {
+test('battle announcement stays visible while the hand remains selectable between turns', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   const selectedEffect = page.locator('#tarotKingdomSelectedEffect');
   const firstCard = page.locator('#tarotKingdomHand > .tarot-card').first();
@@ -1112,7 +1132,7 @@ test('battle announcement stays visible without moving the hand between turns', 
   const waitingHandTop = await firstCard.evaluate((element) => element.getBoundingClientRect().top);
   await expect(firstCard).toHaveAttribute('aria-pressed', 'false');
   await firstCard.click({ force: true });
-  await expect(firstCard).toHaveAttribute('aria-pressed', 'false');
+  await expect(firstCard).toHaveAttribute('aria-pressed', 'true');
 
   await page.evaluate(() => {
     window.TarotKingdomDebug.battleScenario({ turnIndex: 0 });
@@ -1418,7 +1438,7 @@ test('field and hand identify suits with the same thin colored edge and no added
   suitlessArcana.forEach((entry) => {
     expect(entry.classes).toContain('none');
     expect(entry.classes).not.toContain('arcana-suit-hybrid');
-    expect(entry.borderColor).toBe('rgb(225, 199, 123)');
+    expect(entry.borderColor).toBe('rgb(237, 243, 251)');
     expect(entry.borderWidth).toBe('1px');
     expect(entry.borderImage).toBe('none');
   });
@@ -1594,6 +1614,13 @@ test('Judgment recovery card appears before the avatar and is synchronized once'
   );
   await expect(reclaimCard).toHaveCount(1);
   await expect(reclaimCard).toHaveCSS('animation-name', 'tarotKingdomJudgmentReclaim');
+  await expect(reclaimCard).toHaveCSS('width', '50px');
+  await expect(reclaimCard).toHaveCSS('height', '82px');
+  await expect(reclaimCard).toHaveCSS('filter', 'none');
+  const reclaimArt = reclaimCard.locator('.tarot-card-art');
+  await expect(reclaimArt).toHaveCSS('width', '48px');
+  await expect(reclaimArt).toHaveCSS('height', '80px');
+  await expect(reclaimArt).toHaveCSS('image-rendering', 'pixelated');
   await expect(page.locator('#tarotKingdomSelectedEffect')).toContainText('を回収した！');
 
   const synchronized = await page.evaluate(() => {
@@ -1959,7 +1986,7 @@ test('pet occupies the second seat after the player with its own monster sprite,
   await expect(koPetRow.locator('.avatar-combat-death-sprite')).toHaveCount(0);
 });
 
-test('online rescue keeps the host pet in the second NPC seat while human helpers claim the other seats first', async ({ page }) => {
+test('online rescue prioritizes every owner pet and places it immediately after its owner', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   const pet = {
     monsterId: 'ismartal-vol1-monster-01',
@@ -1970,6 +1997,25 @@ test('online rescue keeps the host pet in the second NPC seat while human helper
   };
   const audit = await page.evaluate((currentPet) => ({
     roster: window.TarotKingdomDebug.battleExplorationRoster('online', currentPet),
+    twoOwnerRoster: window.TarotKingdomDebug.battleOnlinePresenceRoster([
+      {
+        seat: 0,
+        uid: 'PF_OWNER_1',
+        displayName: 'プレイヤー1',
+        currentPet
+      },
+      {
+        seat: 2,
+        uid: 'PF_OWNER_2',
+        displayName: 'プレイヤー2',
+        currentPet: {
+          monsterId: 'ismartal-vol1-monster-02',
+          monsterName: 'グリモア',
+          nickname: 'ルナ',
+          displayName: 'ルナ'
+        }
+      }
+    ]),
     reservedOrder: window.TarotKingdomDebug.battleSeatClaimOrder(true),
     normalOrder: window.TarotKingdomDebug.battleSeatClaimOrder(false)
   }), pet);
@@ -1980,6 +2026,24 @@ test('online rescue keeps the host pet in the second NPC seat while human helper
     name: 'コハク',
     pet: { monsterId: pet.monsterId }
   });
+  expect(audit.twoOwnerRoster).toEqual([
+    { seat: 0, kind: 'player', name: 'プレイヤー1', playFabId: 'PF_OWNER_1' },
+    {
+      seat: 1,
+      kind: 'pet',
+      name: 'コハク',
+      ownerPlayFabId: 'PF_OWNER_1',
+      monsterId: pet.monsterId
+    },
+    { seat: 2, kind: 'player', name: 'プレイヤー2', playFabId: 'PF_OWNER_2' },
+    {
+      seat: 3,
+      kind: 'pet',
+      name: 'ルナ',
+      ownerPlayFabId: 'PF_OWNER_2',
+      monsterId: 'ismartal-vol1-monster-02'
+    }
+  ]);
   expect(audit.reservedOrder).toEqual([0, 2, 3, 1]);
   expect(audit.normalOrder).toEqual([0, 1, 2, 3]);
 });
@@ -2006,7 +2070,7 @@ test('round settlement confirmation remains visible after the battle stage compl
   expect(buttonFit.right).toBeLessThanOrEqual(buttonFit.viewportWidth);
 });
 
-test('victory pose stays grounded and the overall champion owns the final first-place ceremony', async ({ page }) => {
+test('winner repeatedly jumps in place and the overall champion owns the final first-place ceremony', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
 
   await page.evaluate(() => {
@@ -2026,11 +2090,13 @@ test('victory pose stays grounded and the overall champion owns the final first-
   await expect(page.locator('.tarot-kingdom-champion-ceremony')).toBeHidden();
   const roundPose = await roundWinnerRow.locator('.tarot-kingdom-battle-player-avatar').evaluate((avatar) => ({
     animationName: getComputedStyle(avatar).animationName,
+    animationIterationCount: getComputedStyle(avatar).animationIterationCount,
     bodyMotion: avatar.dataset.avatarBodyMotion || '',
     victorious: avatar.classList.contains('is-avatar-victorious')
   }));
   expect(roundPose).toEqual({
     animationName: 'tarotKingdomPlayerVictoryPose',
+    animationIterationCount: 'infinite',
     bodyMotion: 'idle',
     victorious: true
   });

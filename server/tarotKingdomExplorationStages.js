@@ -1,7 +1,7 @@
 const PIXEL_MONSTERS_ROSTER = require('../public/Sprites/pixel-monsters/manifest.json');
 
 const TAROT_KINGDOM_EXPLORATION_PROGRESS_KEY = 'TarotKingdomExplorationProgress';
-const TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION = 1;
+const TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION = 2;
 const TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION = 2;
 
 const MONSTER_BY_ID = new Map(
@@ -212,6 +212,16 @@ function normalizeTarotKingdomExplorationProgress(value) {
         };
     });
     const highestFromStages = Math.max(1, ...Object.keys(stages).map((key) => Number(key) || 1));
+    const validMonsterIds = new Set(
+        TAROT_KINGDOM_EXPLORATION_STAGES.flatMap((stage) => (
+            stage.monsters.map((monster) => monster.monsterId)
+        ))
+    );
+    const defeatedMonsterIds = Array.from(new Set(
+        (Array.isArray(parsed?.defeatedMonsterIds) ? parsed.defeatedMonsterIds : [])
+            .map((monsterId) => String(monsterId || '').trim())
+            .filter((monsterId) => validMonsterIds.has(monsterId))
+    ));
     return {
         version: TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION,
         highestUnlockedStage: clampInteger(
@@ -220,7 +230,8 @@ function normalizeTarotKingdomExplorationProgress(value) {
             11,
             1
         ),
-        stages
+        stages,
+        defeatedMonsterIds
     };
 }
 
@@ -271,6 +282,7 @@ function applyTarotKingdomStageClear(progress, stageNo, rank, now = Date.now(), 
     return {
         version: TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION,
         highestUnlockedStage: nextHighest,
+        defeatedMonsterIds: normalized.defeatedMonsterIds,
         stages: {
             ...normalized.stages,
             [key]: {
@@ -284,16 +296,52 @@ function applyTarotKingdomStageClear(progress, stageNo, rank, now = Date.now(), 
     };
 }
 
+function applyTarotKingdomMonsterDefeats(progress, stageNo, finishers = [], playFabId = '') {
+    const normalized = normalizeTarotKingdomExplorationProgress(progress);
+    const stage = getTarotKingdomExplorationStage(stageNo);
+    const ownerId = String(playFabId || '').trim();
+    if (!stage || !ownerId) return normalized;
+    const monsterByRound = new Map(
+        stage.monsters.map((monster) => [monster.order, monster.monsterId])
+    );
+    const defeated = new Set(normalized.defeatedMonsterIds);
+    (Array.isArray(finishers) ? finishers : []).forEach((entry) => {
+        if (!entry || typeof entry !== 'object') return;
+        if (entry.isNpc === true || entry.isPet === true) return;
+        if (String(entry.playFabId || '').trim() !== ownerId) return;
+        const roundNo = Math.floor(Number(entry.roundNo));
+        if (!Number.isInteger(roundNo) || roundNo < 1 || roundNo > 4) return;
+        const expectedMonsterId = monsterByRound.get(roundNo);
+        const monsterId = String(entry.monsterId || '').trim();
+        if (!expectedMonsterId || monsterId !== expectedMonsterId) return;
+        defeated.add(monsterId);
+    });
+    return {
+        ...normalized,
+        version: TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION,
+        defeatedMonsterIds: Array.from(defeated)
+    };
+}
+
 function buildTarotKingdomStageList(progress, shipStage) {
     const normalized = normalizeTarotKingdomExplorationProgress(progress);
     const shipStageCap = getTarotKingdomShipStageCap(shipStage);
+    const defeatedMonsterIds = new Set(normalized.defeatedMonsterIds);
     return TAROT_KINGDOM_EXPLORATION_STAGES.map((stage) => {
         const record = normalized.stages[String(stage.stageNo)] || null;
+        const stageCleared = Number(record?.clearCount) > 0;
         const progressionUnlocked = stage.stageNo <= normalized.highestUnlockedStage;
         const shipUnlocked = stage.stageNo <= shipStageCap;
         return {
             ...stage,
-            monsters: stage.monsters.map((monster) => ({ ...monster })),
+            monsters: stage.monsters.map((monster) => {
+                const defeatedByPlayer = defeatedMonsterIds.has(monster.monsterId);
+                return {
+                    ...monster,
+                    defeatedByPlayer,
+                    revealed: stageCleared || defeatedByPlayer
+                };
+            }),
             bestRank: record?.bestRank || null,
             clearCount: record?.clearCount || 0,
             progressionUnlocked,
@@ -381,6 +429,7 @@ module.exports = {
     TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION,
     STAGE_REWARD_WEIGHTS,
     applyTarotKingdomStageClear,
+    applyTarotKingdomMonsterDefeats,
     buildTarotKingdomStageEncounter,
     buildTarotKingdomStageList,
     calculateTarotKingdomStandings,

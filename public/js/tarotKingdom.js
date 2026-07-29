@@ -129,16 +129,102 @@ function getKingdomPetDisplayName(pet, fallback = 'ペット') {
   ).trim() || fallback;
 }
 
-function buildKingdomPetPlayerTemplate(pet) {
+function buildKingdomPetPlayerTemplate(pet, owner = {}) {
   if (!pet?.monsterId) return null;
+  const ownerPlayFabId = String(owner?.playFabId || owner?.uid || '').trim();
+  const ownerSeat = Number(owner?.seat);
   return {
-    id: 'pet',
+    id: ownerPlayFabId ? `pet-${ownerPlayFabId}` : 'pet',
     name: getKingdomPetDisplayName(pet),
     isNpc: true,
     isPet: true,
     pet: { ...pet },
+    petOwnerPlayFabId: ownerPlayFabId,
+    petOwnerUid: String(owner?.uid || ownerPlayFabId).trim(),
+    petOwnerSeat: Number.isInteger(ownerSeat) ? ownerSeat : null,
     aiStyle: getTarotKingdomPetAiStyle(pet)
   };
+}
+
+function getKingdomPresencePet(info) {
+  const pet = info?.currentPet;
+  return pet && typeof pet === 'object' && String(pet.monsterId || '').trim()
+    ? cloneKingdomSnapshotValue(pet, null)
+    : null;
+}
+
+function buildKingdomOnlinePetSeatAssignments(seatTaken = []) {
+  const humanSeats = new Set();
+  seatTaken.forEach((occupant, seat) => {
+    if (occupant) humanSeats.add(seat);
+  });
+  const assignments = new Map();
+  seatTaken.forEach((occupant, ownerSeat) => {
+    const pet = getKingdomPresencePet(occupant);
+    const petSeat = ownerSeat + 1;
+    if (
+      !pet
+      || petSeat >= PLAYERS.length
+      || humanSeats.has(petSeat)
+      || assignments.has(petSeat)
+    ) return;
+    const template = buildKingdomPetPlayerTemplate(pet, {
+      seat: ownerSeat,
+      uid: occupant.uid,
+      playFabId: occupant.playFabId || occupant.uid
+    });
+    if (template) assignments.set(petSeat, template);
+  });
+  return assignments;
+}
+
+function getKingdomReservedPetSeatsFromPresence(presence = {}) {
+  const seatTaken = Array.from({ length: PLAYERS.length }, () => null);
+  Object.entries(presence && typeof presence === 'object' ? presence : {}).forEach(([uid, info]) => {
+    if (!isFreshKingdomPresence(info)) return;
+    const seat = Number(info?.seat);
+    if (!Number.isInteger(seat) || seat < 0 || seat >= PLAYERS.length) return;
+    seatTaken[seat] = { uid, ...info };
+  });
+  return new Set(buildKingdomOnlinePetSeatAssignments(seatTaken).keys());
+}
+
+function buildKingdomOnlinePresenceRosterPreview(presenceRows = []) {
+  const seatTaken = Array.from({ length: PLAYERS.length }, () => null);
+  (Array.isArray(presenceRows) ? presenceRows : []).forEach((entry) => {
+    const seat = Number(entry?.seat);
+    if (!Number.isInteger(seat) || seat < 0 || seat >= PLAYERS.length) return;
+    seatTaken[seat] = {
+      uid: String(entry?.uid || entry?.playFabId || `preview-${seat}`),
+      playFabId: String(entry?.playFabId || entry?.uid || `preview-${seat}`),
+      displayName: String(entry?.displayName || entry?.name || `Player${seat + 1}`),
+      currentPet: entry?.currentPet && typeof entry.currentPet === 'object'
+        ? cloneKingdomSnapshotValue(entry.currentPet, null)
+        : null
+    };
+  });
+  const pets = buildKingdomOnlinePetSeatAssignments(seatTaken);
+  return seatTaken.map((occupant, seat) => {
+    if (occupant) {
+      return {
+        seat,
+        kind: 'player',
+        name: occupant.displayName,
+        playFabId: occupant.playFabId
+      };
+    }
+    const pet = pets.get(seat);
+    if (pet) {
+      return {
+        seat,
+        kind: 'pet',
+        name: pet.name,
+        ownerPlayFabId: pet.petOwnerPlayFabId,
+        monsterId: pet.pet?.monsterId || ''
+      };
+    }
+    return { seat, kind: 'npc', name: `NPC${seat}` };
+  });
 }
 
 function getKingdomInitialPlayerTemplates() {
@@ -3167,8 +3253,10 @@ function getKingdomCharacterRosterFingerprint(state = s) {
   return JSON.stringify(state.players.map((player, seat) => ({
     seat,
     isNpc: !!player?.isNpc,
+    isPet: !!player?.isPet,
     uid: String(player?.uid || '').trim(),
-    playFabId: String(player?.playFabId || '').trim()
+    playFabId: String(player?.playFabId || '').trim(),
+    petOwnerPlayFabId: String(player?.petOwnerPlayFabId || '').trim()
   })));
 }
 
@@ -3208,6 +3296,7 @@ async function prepareKingdomCharacterSnapshots(options = {}) {
       .map((player, index) => ({ player, index }))
       .filter(({ player }) => !player.isNpc);
     let humanCharacters = [];
+    let authoritativePetsByOwner = null;
     if (window.__TAROT_KINGDOM_PREVIEW__ === true && typeof options.profileLoader !== 'function') {
       humanCharacters = humanSeats.map(({ index }) => index === 0
         ? buildPreviewKingdomCharacter()
@@ -3230,6 +3319,14 @@ async function prepareKingdomCharacterSnapshots(options = {}) {
           const rows = Array.isArray(response?.characters) ? response.characters : [];
           const byId = new Map(rows.map((character) => [String(character?.playFabId || '').trim(), character]));
           humanCharacters = humanSeats.map(({ player }) => byId.get(String(player.playFabId || '').trim()) || null);
+          if (Array.isArray(response?.currentPets)) {
+            authoritativePetsByOwner = new Map(response.currentPets.map((entry) => [
+              String(entry?.playFabId || '').trim(),
+              entry?.currentPet && typeof entry.currentPet === 'object'
+                ? cloneKingdomSnapshotValue(entry.currentPet, null)
+                : null
+            ]));
+          }
         } catch (error) {
           console.warn('[tarotKingdom] combat profile load failed:', error);
           humanCharacters = [];
@@ -3256,8 +3353,14 @@ async function prepareKingdomCharacterSnapshots(options = {}) {
     }
 
     const levelBySeat = new Map();
+    const levelByPlayFabId = new Map();
     humanSeats.forEach(({ index }, rowIndex) => {
-      levelBySeat.set(index, Math.max(1, Number(humanCharacters[rowIndex]?.level) || 1));
+      const level = Math.max(1, Number(humanCharacters[rowIndex]?.level) || 1);
+      levelBySeat.set(index, level);
+      levelByPlayFabId.set(
+        String(targetState.players[index]?.playFabId || '').trim(),
+        level
+      );
     });
     const averageLevel = Math.max(1, Math.round(
       Array.from(levelBySeat.values()).reduce((sum, level) => sum + level, 0) / Math.max(1, levelBySeat.size)
@@ -3269,14 +3372,52 @@ async function prepareKingdomCharacterSnapshots(options = {}) {
       }
       return false;
     }
+    if (online && authoritativePetsByOwner) {
+      humanSeats.forEach(({ player, index }) => {
+        const ownerPlayFabId = String(player?.playFabId || '').trim();
+        const authoritativePet = authoritativePetsByOwner.get(ownerPlayFabId) || null;
+        const petSeat = index + 1;
+        const currentSeat = targetState.players[petSeat];
+        if (
+          !authoritativePet?.monsterId
+          || !currentSeat
+          || currentSeat.isNpc !== true
+          || currentSeat.isPet === true
+        ) return;
+        const template = buildKingdomPetPlayerTemplate(authoritativePet, {
+          seat: index,
+          uid: player.uid,
+          playFabId: ownerPlayFabId
+        });
+        if (template) Object.assign(currentSeat, template);
+      });
+      targetState.players.forEach((player, index) => {
+        if (player?.isPet !== true) return;
+        const ownerPlayFabId = String(player.petOwnerPlayFabId || '').trim();
+        const authoritativePet = authoritativePetsByOwner.get(ownerPlayFabId) || null;
+        if (authoritativePet?.monsterId) {
+          player.pet = cloneKingdomSnapshotValue(authoritativePet, null);
+          player.name = getKingdomPetDisplayName(authoritativePet);
+          player.aiStyle = getTarotKingdomPetAiStyle(authoritativePet);
+          return;
+        }
+        player.isPet = false;
+        delete player.pet;
+        delete player.petOwnerPlayFabId;
+        delete player.petOwnerUid;
+        delete player.petOwnerSeat;
+        player.name = `NPC${index}`;
+      });
+    }
     const characters = targetState.players.map((player, index) => {
       const humanRow = humanSeats.findIndex((entry) => entry.index === index);
       if (humanRow >= 0) return humanCharacters[humanRow];
       if (kingdomExplorationSession) {
         if (player?.isPet) {
+          const ownerPlayFabId = String(player.petOwnerPlayFabId || '').trim();
           return createTarotKingdomPetCharacter({
             pet: player.pet || kingdomExplorationSession.context?.currentPet,
-            level: levelBySeat.get(getLocalPlayerIndex()) || averageLevel
+            level: levelByPlayFabId.get(ownerPlayFabId) || averageLevel
           });
         }
         return createTarotKingdomExplorationNpcCharacter({
@@ -3589,6 +3730,20 @@ function normalizeKingdomRaidState(value = null) {
 
 function isKingdomRaidBattle(state = s) {
   return !!normalizeKingdomRaidState(state?.raid);
+}
+
+function isKingdomRaidLobby() {
+  return kingdomExplorationSession?.context?.raidLobby === true && !isKingdomRaidBattle();
+}
+
+export function isKingdomRaidPartyEligible(state = s) {
+  return Array.isArray(state?.players)
+    && state.players.length === 4
+    && state.players.every((player) => (
+      player
+      && typeof player === 'object'
+      && (player.isNpc !== true || player.isPet === true)
+    ));
 }
 
 function isKingdomRaidDisguisePhase(state = s) {
@@ -5806,7 +5961,7 @@ function applyKingdomEnemySingleAttack(playerIndex) {
   return event;
 }
 
-function applyKingdomEnemyAreaAttack() {
+function applyKingdomEnemyAreaAttack(clearLeaderIndex = null) {
   if (s?.battle?.enemy?.areaAttackSealedUntilClear) {
     log(`${s.battle.enemy.name}: 5スキップにより全体攻撃封印`);
     return null;
@@ -5818,6 +5973,12 @@ function applyKingdomEnemyAreaAttack() {
   if (confusionEvent) return confusionEvent;
   const damages = [];
   const knockedOutIndexes = [];
+  const protectedPlayerIndex = clearLeaderIndex != null
+    && Number.isInteger(Number(clearLeaderIndex))
+    && Number(clearLeaderIndex) >= 0
+    && Number(clearLeaderIndex) < s.players.length
+    ? Number(clearLeaderIndex)
+    : null;
   const eventEffects = [...preAttack.effects];
   const weakening = getKingdomEnemyAttackMultiplier();
   eventEffects.push(...weakening.applied);
@@ -5845,6 +6006,7 @@ function applyKingdomEnemyAreaAttack() {
     * (1 - (guardReduction / 100))
   ));
   s.players.forEach((player, playerIndex) => {
+    if (playerIndex === protectedPlayerIndex) return;
     if (!isKingdomBattlePlayerConscious(playerIndex)) return;
     const accuracy = resolveKingdomEnemyAttackAccuracy(playerIndex);
     const defended = accuracy.success
@@ -5883,6 +6045,7 @@ function applyKingdomEnemyAreaAttack() {
   });
   const event = pushKingdomBattleEvent('enemy-area', {
     targetIndexes: damages.map((entry) => entry.playerIndex),
+    protectedPlayerIndex,
     damages,
     knockedOutIndexes,
     effects: eventEffects,
@@ -7142,13 +7305,18 @@ function applyPresenceToPlayers() {
     presenceGraceTimer = null;
   }
   const fallbackNames = ['あなた', 'NPC1', 'NPC2', 'NPC3'];
-  const contextHostPet = tkNet.isHost && kingdomExplorationSession?.context?.mode === 'online'
-    ? buildKingdomPetPlayerTemplate(kingdomExplorationSession.context.currentPet)
+  const contextLocalPet = kingdomExplorationSession?.context?.mode === 'online'
+    ? cloneKingdomSnapshotValue(kingdomExplorationSession.context.currentPet, null)
     : null;
-  const synchronizedHostPet = s.players?.[1]?.isPet === true
-    ? buildKingdomPetPlayerTemplate(s.players[1].pet)
-    : null;
-  const hostPet = contextHostPet || synchronizedHostPet;
+  const synchronizedPetsByOwner = new Map(
+    s.players
+      .filter((player) => player?.isPet === true && player?.pet?.monsterId)
+      .map((player) => [
+        String(player.petOwnerPlayFabId || player.petOwnerUid || '').trim(),
+        cloneKingdomSnapshotValue(player.pet, null)
+      ])
+      .filter(([ownerId]) => !!ownerId)
+  );
   const seatTaken = [null, null, null, null];
   Object.entries(netPresenceByUid || {}).forEach(([uid, info]) => {
     if (!isFreshKingdomPresence(info)) return;
@@ -7172,9 +7340,26 @@ function applyPresenceToPlayers() {
       seat: localSeat,
       displayName: localName,
       name: localName,
-      playFabId: tkNet.uid
+      playFabId: tkNet.uid,
+      currentPet: contextLocalPet
     };
   }
+  seatTaken.forEach((occupant) => {
+    if (!occupant) return;
+    const ownerId = String(occupant.playFabId || occupant.uid || '').trim();
+    if (!getKingdomPresencePet(occupant) && synchronizedPetsByOwner.has(ownerId)) {
+      occupant.currentPet = cloneKingdomSnapshotValue(synchronizedPetsByOwner.get(ownerId), null);
+    }
+    if (
+      !getKingdomPresencePet(occupant)
+      && tkNet.isHost
+      && String(occupant.uid || '') === String(tkNet.uid || '')
+      && contextLocalPet?.monsterId
+    ) {
+      occupant.currentPet = cloneKingdomSnapshotValue(contextLocalPet, null);
+    }
+  });
+  const petAssignments = buildKingdomOnlinePetSeatAssignments(seatTaken);
 
   const now = Date.now();
   for (let i = 0; i < s.players.length; i += 1) {
@@ -7185,6 +7370,9 @@ function applyPresenceToPlayers() {
       p.isNpc = false;
       p.isPet = false;
       delete p.pet;
+      delete p.petOwnerPlayFabId;
+      delete p.petOwnerUid;
+      delete p.petOwnerSeat;
       if (!s.characterSnapshotReady) p.name = occName;
       p.uid = occ.uid || null;
       if (!s.characterSnapshotReady) p.playFabId = String(occ.uid || '').trim();
@@ -7196,31 +7384,41 @@ function applyPresenceToPlayers() {
       };
       continue;
     }
-    const grace = presenceGraceBySeat[i];
-    if (grace && Number(grace.until || 0) > now) {
-      p.isNpc = false;
-      p.isPet = false;
-      delete p.pet;
-      p.name = String(grace.name || fallbackNames[i] || `P${i + 1}`);
-      p.uid = grace.uid || null;
-      p.playFabId = String(grace.playFabId || '').trim();
-      continue;
-    }
-    if (i === 1 && hostPet) {
-      p.id = hostPet.id;
-      p.name = hostPet.name;
+    const assignedPet = petAssignments.get(i);
+    if (assignedPet) {
+      p.id = assignedPet.id;
+      p.name = assignedPet.name;
       p.isNpc = true;
       p.isPet = true;
-      p.pet = { ...hostPet.pet };
-      p.aiStyle = hostPet.aiStyle;
+      p.pet = { ...assignedPet.pet };
+      p.petOwnerPlayFabId = assignedPet.petOwnerPlayFabId;
+      p.petOwnerUid = assignedPet.petOwnerUid;
+      p.petOwnerSeat = assignedPet.petOwnerSeat;
+      p.aiStyle = assignedPet.aiStyle;
       p.uid = null;
       p.playFabId = '';
       presenceGraceBySeat[i] = { uid: null, name: p.name, playFabId: '', until: 0 };
       continue;
     }
+    const grace = presenceGraceBySeat[i];
+    if (grace && Number(grace.until || 0) > now) {
+      p.isNpc = false;
+      p.isPet = false;
+      delete p.pet;
+      delete p.petOwnerPlayFabId;
+      delete p.petOwnerUid;
+      delete p.petOwnerSeat;
+      p.name = String(grace.name || fallbackNames[i] || `P${i + 1}`);
+      p.uid = grace.uid || null;
+      p.playFabId = String(grace.playFabId || '').trim();
+      continue;
+    }
     p.isNpc = true;
     p.isPet = false;
     delete p.pet;
+    delete p.petOwnerPlayFabId;
+    delete p.petOwnerUid;
+    delete p.petOwnerSeat;
     if (s.characterSnapshotReady && p.character) {
       p.uid = null;
       presenceGraceBySeat[i] = { uid: null, name: p.name, playFabId: p.playFabId, until: 0 };
@@ -7406,8 +7604,22 @@ async function claimHostIfNeeded(forceTakeover = false) {
 async function ensureSeatAssignment() {
   if (!isNetModeActive()) return -1;
   const reservedNpcSeats = new Set();
+  const localPet = kingdomExplorationSession?.context?.mode === 'online'
+    ? kingdomExplorationSession.context.currentPet
+    : null;
+  const getPreferredSeatOrder = (usedSet = new Set()) => {
+    const available = getKingdomSeatClaimOrder(reservedNpcSeats.has(1))
+      .filter((seat) => !reservedNpcSeats.has(seat));
+    if (!localPet?.monsterId) return available;
+    const paired = available.filter((seat) => (
+      seat + 1 < PLAYERS.length
+      && !usedSet.has(seat + 1)
+      && !reservedNpcSeats.has(seat + 1)
+    ));
+    return [...paired, ...available.filter((seat) => !paired.includes(seat))];
+  };
   const pickSeat = (usedSet) => {
-    const seatOrder = getKingdomSeatClaimOrder(reservedNpcSeats.has(1));
+    const seatOrder = getPreferredSeatOrder(usedSet);
     for (const i of seatOrder) {
       if (!usedSet.has(i) && !reservedNpcSeats.has(i)) return i;
     }
@@ -7429,9 +7641,13 @@ async function ensureSeatAssignment() {
     const existingSeat = existingSeatSnapshot.exists() ? Number(existingSeatSnapshot.val()) : -1;
     const roomStatePayload = roomStateSnapshot.exists() ? roomStateSnapshot.val() : null;
     const roomPlayers = roomStatePayload?.state?.players;
-    if (roomPlayers?.[1]?.isNpc === true && roomPlayers[1]?.isPet === true) {
-      reservedNpcSeats.add(1);
-    }
+    Object.entries(roomPlayers && typeof roomPlayers === 'object' ? roomPlayers : {})
+      .forEach(([seatKey, player]) => {
+        const seat = Number(seatKey);
+        if (player?.isNpc === true && player?.isPet === true && Number.isInteger(seat)) {
+          reservedNpcSeats.add(seat);
+        }
+      });
     if (
       (!Number.isInteger(existingSeat) || existingSeat < 0 || existingSeat >= 4)
       && roomStateSnapshot.exists()
@@ -7441,12 +7657,20 @@ async function ensureSeatAssignment() {
       return -1;
     }
     const presence = presenceSnapshot.exists() ? (presenceSnapshot.val() || {}) : {};
-    const preferredSeatOrder = getKingdomSeatClaimOrder(reservedNpcSeats.has(1));
+    getKingdomReservedPetSeatsFromPresence(presence).forEach((seat) => reservedNpcSeats.add(seat));
+    const usedPresenceSeats = new Set(
+      Object.values(presence)
+        .filter((info) => isFreshKingdomPresence(info))
+        .map((info) => Number(info?.seat))
+        .filter((seat) => Number.isInteger(seat) && seat >= 0 && seat < PLAYERS.length)
+    );
+    const preferredSeatOrder = getPreferredSeatOrder(usedPresenceSeats);
     const candidates = [existingSeat, ...preferredSeatOrder]
       .filter((seat, index, values) => (
         Number.isInteger(seat)
         && seat >= 0
         && seat < 4
+        && (seat === existingSeat || !reservedNpcSeats.has(seat))
         && values.indexOf(seat) === index
       ));
 
@@ -7499,8 +7723,11 @@ async function ensureSeatAssignment() {
         uid: tkNet.uid,
         seat,
         displayName: tkNet.localPlayerName,
-        playFabId: String(window.myPlayFabId || tkNet.uid),
-        updatedAt: Date.now()
+          playFabId: String(window.myPlayFabId || tkNet.uid),
+          currentPet: localPet?.monsterId
+            ? cloneKingdomSnapshotValue(localPet, null)
+            : null,
+          updatedAt: Date.now()
       };
       return current;
     }, { applyLocally: false });
@@ -8201,6 +8428,10 @@ async function ensureTarotKingdomNetwork() {
         seat: tkNet.localSeat,
         displayName: tkNet.localPlayerName,
         playFabId: String(window.myPlayFabId || tkNet.uid),
+        currentPet: kingdomExplorationSession?.context?.mode === 'online'
+          && kingdomExplorationSession.context.currentPet?.monsterId
+          ? cloneKingdomSnapshotValue(kingdomExplorationSession.context.currentPet, null)
+          : null,
         updatedAt: serverTimestamp()
       };
       try {
@@ -9532,6 +9763,10 @@ function exposeTarotKingdomBattleDebugTools(target) {
         kingdomExplorationSession = previousSession;
       }
     },
+    battleOnlinePresenceRoster: (presenceRows = []) => cloneKingdomSnapshotValue(
+      buildKingdomOnlinePresenceRosterPreview(presenceRows),
+      []
+    ),
     battleSeatClaimOrder: (hasReservedHostPet = false) => getKingdomSeatClaimOrder(
       hasReservedHostPet === true
     ),
@@ -11577,6 +11812,8 @@ function continueAfterPlay(pi, play) {
       return;
     }
     s.phase = 'turn';
+    // 5スキップは手番を飛ばすだけ。飛ばされた席をパス扱いにせず、
+    // passAction由来の敵反撃も発生させない。
     s.turn = nextAlive(pi, 1 + Math.max(0, fx.skip), false) ?? pi;
   } else {
     s.phase = 'turn';
@@ -11886,7 +12123,7 @@ function passAction(pi) {
   const leader = s.lastPlay?.owner;
   if (leader != null && allOthersPassed(leader)) {
     log('全員パスでクリア');
-    const areaAttackEvent = applyKingdomEnemyAreaAttack();
+    const areaAttackEvent = applyKingdomEnemyAreaAttack(leader);
     const areaDamageSource = resolveKingdomEnemyDefeatWinner(pi, [areaAttackEvent]);
     captureKingdomRaidDamage(areaDamageSource);
     if (isKingdomRaidDisguisePhase() && Number(s?.battle?.enemy?.hp) <= 0) {
@@ -15880,6 +16117,8 @@ function updateButtons() {
   const isExplorationOnline = isExplorationEntry
     && kingdomExplorationSession.context?.mode === 'online';
   const isExplorationOffline = isExplorationEntry && !isExplorationOnline;
+  const raidLobby = isKingdomRaidLobby();
+  const raidPartyEligible = raidLobby && isKingdomRaidPartyEligible();
   const showPreviewModeChoice = window.__TAROT_KINGDOM_PREVIEW__ === true
     && !isExplorationEntry
     && showModeChoice;
@@ -15897,9 +16136,16 @@ function updateButtons() {
         onlineDisabled = false;
       } else if (tkNet.isHost && isLobbyReadyToStart) {
         showOnlineAction = true;
-        onlineLabel = needsCharacterRetry
-          ? '戦闘プロフィールを再取得'
-          : (hasVacancy ? '救難を締め切って戦闘開始' : '救援隊で戦闘開始');
+        if (raidLobby) {
+          onlineLabel = raidPartyEligible
+            ? 'レイドバトル開始'
+            : 'プレイヤー・ペット4枠を待機中';
+          onlineDisabled = !raidPartyEligible;
+        } else {
+          onlineLabel = needsCharacterRetry
+            ? '戦闘プロフィールを再取得'
+            : (hasVacancy ? '救難を締め切って戦闘開始' : '救援隊で戦闘開始');
+        }
       }
     } else if (showPreviewModeChoice && kingdomStartMode === 'online') {
       if (isConnectingOnline) {
@@ -16223,6 +16469,30 @@ async function handleKingdomOnlineStartClick() {
   }
   if (!tkNet.isHost) return;
   if (!canStartKingdomRoundFromLobby()) return;
+  if (isKingdomRaidLobby()) {
+    if (!isKingdomRaidPartyEligible()) {
+      s.message = 'レイドは通常NPCがいない4人チーム（プレイヤー・ペットのみ）で挑戦できます。';
+      render();
+      return;
+    }
+    const context = kingdomExplorationSession?.context;
+    if (typeof context?.onRaidStart !== 'function' || context.raidStartPending === true) return;
+    context.raidStartPending = true;
+    s.message = 'レイドバトルを準備しています...';
+    render();
+    try {
+      await publishStateToRoom(true);
+      const attempt = await context.onRaidStart(tkNet.roomId);
+      const raid = normalizeKingdomRaidState(attempt);
+      if (!raid) throw new Error('レイド挑戦情報を確認できませんでした。');
+      context.raid = raid;
+      context.raidLobby = false;
+      s.raid = raid;
+      kingdomExplorationMonsterId = raid.preFormMonsterId;
+    } finally {
+      context.raidStartPending = false;
+    }
+  }
   s.message = '対戦を開始しています...';
   render();
   await removeCurrentOpenRoomIndex();
@@ -16533,7 +16803,8 @@ function bindUi() {
     handleKingdomOnlineStartClick().catch((error) => {
       console.warn('[tarotKingdom] online start click failed:', error);
       if (s) {
-        s.message = 'オンライン開始に失敗しました。もう一度試してください。';
+        s.message = String(error?.message || '').trim()
+          || 'オンライン開始に失敗しました。もう一度試してください。';
         render();
       }
     });
@@ -16710,7 +16981,7 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
   let currentPet = context?.currentPet && typeof context.currentPet === 'object'
     ? cloneKingdomSnapshotValue(context.currentPet, null)
     : null;
-  if (requestedMode === 'offline' && !currentPet) {
+  if (!currentPet) {
     const playFabId = String(window.myPlayFabId || '').trim();
     if (playFabId) {
       try {
@@ -16719,7 +16990,7 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
           ? cloneKingdomSnapshotValue(petState.currentPet, null)
           : null;
       } catch (error) {
-        console.warn('[tarotKingdom] pet roster load failed; starting three-player exploration:', error);
+        console.warn('[tarotKingdom] pet roster load failed; continuing without a pet:', error);
       }
     }
   }
@@ -16743,6 +17014,9 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
       ? KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
       : KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO,
     raid: requestedRaid,
+    raidLobby: context?.raidLobby === true,
+    onRaidStart: typeof context?.onRaidStart === 'function' ? context.onRaidStart : null,
+    raidStartPending: false,
     currentPet,
     onRoundFinished: requestedMode === 'offline' && typeof context?.onRoundFinished === 'function'
       ? context.onRoundFinished
@@ -16811,7 +17085,9 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
       teardownTarotKingdomNetwork();
       netForceCreateRoom = true;
       if (s) {
-        s.message = `${normalizedContext.destinationName || '島'} STAGE ${normalizedContext.stageNo || 1}へ進攻。救難信号を準備しています...`;
+        s.message = normalizedContext.raidLobby
+          ? 'レイド救難信号を準備しています...'
+          : `${normalizedContext.destinationName || '島'} STAGE ${normalizedContext.stageNo || 1}へ進攻。救難信号を準備しています...`;
         render();
       }
       await activateKingdomOnlineMode();
@@ -16821,7 +17097,9 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
             .filter(Boolean)
             .filter((value, index, values) => values.indexOf(value) === index)
             .join('・');
-        s.message = `救難信号を発信中。${rescueTarget || '探索先'}への救援を待っています。`;
+        s.message = normalizedContext.raidLobby
+          ? 'レイド救難信号を発信中。プレイヤー・ペットのみの4人チームを編成してください。'
+          : `救難信号を発信中。${rescueTarget || '探索先'}への救援を待っています。`;
         render();
         queueStatePublish(true);
       }
@@ -16861,6 +17139,17 @@ export async function joinTarotKingdomRescueRoom(room = {}) {
   if (localPlayFabId && rescue.ownerPlayFabId === localPlayFabId) {
     throw new Error('自分が発信した救難信号には救援参加できません。');
   }
+  let currentPet = null;
+  if (localPlayFabId) {
+    try {
+      const petState = await getTarotKingdomPetState(localPlayFabId, { isSilent: true });
+      currentPet = petState?.currentPet && typeof petState.currentPet === 'object'
+        ? cloneKingdomSnapshotValue(petState.currentPet, null)
+        : null;
+    } catch (error) {
+      console.warn('[tarotKingdom] rescue pet roster load failed; continuing without a pet:', error);
+    }
+  }
 
   if (kingdomExplorationSession) {
     settleKingdomExplorationSession('replaced');
@@ -16884,7 +17173,7 @@ export async function joinTarotKingdomRescueRoom(room = {}) {
     enemyDefeatMode: rescue.enemyDefeatMode === KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
       ? KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
       : KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO,
-    currentPet: null,
+    currentPet,
     isRescueGuest: true,
     ownerPlayFabId: rescue.ownerPlayFabId,
     roomId: rescue.roomId,

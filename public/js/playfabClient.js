@@ -443,16 +443,11 @@ export function getTarotKingdomRaidStatus(playFabId, options) {
     return callApiWithLoader('/api/tarot-kingdom/raid/status', { playFabId }, options);
 }
 
-export function controlTarotKingdomRaid(playFabId, action, bossId = '', options) {
-    return callApiWithLoader('/api/tarot-kingdom/raid/control', {
+export function startTarotKingdomRaid(playFabId, roomId = '', options) {
+    return callApiWithLoader('/api/tarot-kingdom/raid/start', {
         playFabId,
-        action: String(action || '').trim(),
-        bossId: String(bossId || '').trim()
+        roomId: String(roomId || '').trim()
     }, options);
-}
-
-export function startTarotKingdomRaid(playFabId, options) {
-    return callApiWithLoader('/api/tarot-kingdom/raid/start', { playFabId }, options);
 }
 
 export function finishTarotKingdomRaid(playFabId, attemptId, result = {}, options) {
@@ -722,15 +717,13 @@ export function getExplorationStatus(playFabId, options) {
     return callApiWithLoader('/api/exploration/status', { playFabId }, options);
 }
 
-export function startExploration(playFabId, destinationId, requestId, options) {
-    const payment = options?.payment && typeof options.payment === 'object' ? options.payment : {};
-    const body = { playFabId, destinationId, requestId };
-    const stageNo = Math.floor(Number(options?.stageNo ?? payment.stageNo) || 0);
-    if (stageNo > 0) body.stageNo = stageNo;
+export function startExploration(playFabId, stageNo, requestId, options) {
+    const body = {
+        playFabId,
+        stageNo: Math.max(1, Math.floor(Number(stageNo) || 1)),
+        requestId
+    };
     if (Array.isArray(options?.supplies)) body.supplies = options.supplies;
-    else if (Array.isArray(payment.supplies)) body.supplies = payment.supplies;
-    if (payment.paymentMethod) body.paymentMethod = payment.paymentMethod;
-    if (Array.isArray(payment.paymentConsumables)) body.paymentConsumables = payment.paymentConsumables;
     return callApiWithLoader('/api/exploration/start', body, options);
 }
 

@@ -2,8 +2,8 @@
 
 import * as Player from './player.js';
 import * as Inventory from './inventory.js?v=20260604g';
-import * as Ship from './ship.js?v=20260728-raid1';
-import * as NationKing from './nationKing.js?v=20260728-raid1';
+import * as Ship from './ship.js?v=20260728-raid2';
+import * as NationKing from './nationKing.js?v=20260728-raid2';
 import * as Islands from './islands.js';
 import { getNationAnnouncements } from './playfabClient.js';
 import { loadHomeAnnouncements } from './homeAnnouncements.js';
@@ -32,7 +32,7 @@ const ensureTarotModule = async () => {
 };
 
 let tarotKingdomModule = null;
-const TAROT_KINGDOM_MODULE_VERSION = '20260728-raid1';
+const TAROT_KINGDOM_MODULE_VERSION = '20260728-raid2';
 const ensureTarotKingdomModule = async () => {
     if (tarotKingdomModule) return tarotKingdomModule;
     tarotKingdomModule = await import(`./tarotKingdom.js?v=${TAROT_KINGDOM_MODULE_VERSION}`);

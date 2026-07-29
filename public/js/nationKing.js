@@ -6,8 +6,6 @@ import {
     prepareNationWarStrike,
     respondNationWarIntercept,
     raidNationTreasury,
-    getTarotKingdomRaidStatus,
-    controlTarotKingdomRaid,
     setNationAnnouncement,
     directGrantPs,
     kingReturnTroyCoin,
@@ -22,7 +20,7 @@ import {
     approveTroyCalendarGoogleSyncReview,
     saveTroyCalendarEntry,
     deleteTroyCalendarEntry
-} from './playfabClient.js?v=20260728-raid1';
+} from './playfabClient.js?v=20260728-raid2';
 import { createRequestId } from './api.js';
 import { buildPlayerTriggerHtml } from './playerProfile.js';
 import { formatUnlockedFeatures } from './featureUnlocks.js';
@@ -1020,61 +1018,6 @@ export async function refreshKingNav(playFabId) {
     return _isKing;
 }
 
-function _renderKingRaidControl(raid = null) {
-    const statusEl = document.getElementById('kingRaidStatus');
-    const selectEl = document.getElementById('kingRaidBossSelect');
-    const spawnBtn = document.getElementById('btnKingRaidSpawn');
-    const withdrawBtn = document.getElementById('btnKingRaidWithdraw');
-    const bosses = Array.isArray(raid?.bosses) ? raid.bosses : [];
-    if (selectEl) {
-        const selected = String(selectEl.value || raid?.bossId || '');
-        selectEl.innerHTML = bosses.map((boss) => (
-            `<option value="${_escapeHtml(boss.id)}"${boss.id === selected ? ' selected' : ''}>`
-            + `${_escapeHtml(boss.name)}（HP ${Math.max(1, Number(boss.maxHp) || 1).toLocaleString('ja-JP')}）`
-            + '</option>'
-        )).join('');
-        selectEl.disabled = raid?.active === true;
-    }
-    if (statusEl) {
-        if (raid?.active) {
-            const currentHp = Math.max(0, Number(raid.currentHp) || 0);
-            const maxHp = Math.max(1, Number(raid.maxHp) || 1);
-            const percent = Math.max(0, Math.min(100, (currentHp / maxHp) * 100));
-            statusEl.innerHTML = `
-                <strong>${_escapeHtml(raid.bossName || 'レイドボス')} 出現中</strong>
-                <span>HP ${currentHp.toLocaleString('ja-JP')} / ${maxHp.toLocaleString('ja-JP')}</span>
-                <div class="king-raid-hp"><span style="width:${percent.toFixed(2)}%"></span></div>
-            `;
-        } else if (raid?.defeated) {
-            statusEl.innerHTML = `
-                <strong>${_escapeHtml(raid.bossName || 'レイドボス')} 討伐完了</strong>
-                <span>${raid.defeatedByDisplayName
-                    ? `${_escapeHtml(raid.defeatedByDisplayName)}が最後の一撃を与えました。`
-                    : 'レイドボスは討伐されました。'}</span>
-            `;
-        } else {
-            statusEl.innerHTML = '<strong>現在レイドボスは出現していません。</strong>';
-        }
-    }
-    if (spawnBtn) spawnBtn.disabled = raid?.active === true || bosses.length <= 0;
-    if (withdrawBtn) withdrawBtn.disabled = raid?.active !== true;
-}
-
-async function _loadKingRaidControl(playFabId) {
-    try {
-        const result = await getTarotKingdomRaidStatus(playFabId, {
-            isSilent: true,
-            throwOnError: true
-        });
-        _renderKingRaidControl(result?.raid || null);
-        return result?.raid || null;
-    } catch (error) {
-        const statusEl = document.getElementById('kingRaidStatus');
-        if (statusEl) statusEl.textContent = 'レイド情報を取得できませんでした。';
-        return null;
-    }
-}
-
 export async function loadKingPage(playFabId, options = {}) {
     _setMessage('');
 
@@ -1117,7 +1060,6 @@ export async function loadKingPage(playFabId, options = {}) {
     _renderMenuManagement(data);
     await _loadKingTroyCalendar(playFabId, data.nation);
     await _loadKingReservations(playFabId);
-    await _loadKingRaidControl(playFabId);
     const isOpen = !!data.troyOpen;
     if (troyStatusEl) {
         if (troyStatusEl) troyStatusEl.innerText = isOpen ? 'OPEN' : 'CLOSE';
@@ -1156,9 +1098,6 @@ function _wireHandlers(playFabId) {
     const calendarPanelEl = document.getElementById('kingSectionPanelCalendar');
     const troyEntryListEl = document.getElementById('kingTroyEntryList');
     const kingSectionTabsEl = document.getElementById('kingSectionTabs');
-    const raidBossSelectEl = document.getElementById('kingRaidBossSelect');
-    const raidSpawnBtn = document.getElementById('btnKingRaidSpawn');
-    const raidWithdrawBtn = document.getElementById('btnKingRaidWithdraw');
 
     if (saveBtn) {
         saveBtn.addEventListener('click', async () => {
@@ -1185,59 +1124,6 @@ function _wireHandlers(playFabId) {
             const sectionId = button.getAttribute('data-king-section-tab') || 'store';
             _setKingSectionActive(sectionId);
             if (sectionId === 'calendar') void _refreshCalendarGoogleSyncReview(playFabId);
-        });
-    }
-
-    if (raidSpawnBtn) {
-        raidSpawnBtn.addEventListener('click', async () => {
-            const bossId = String(raidBossSelectEl?.value || '').trim();
-            if (!bossId) {
-                _setMessage('出現させるレイドボスを選択してください。', true);
-                return;
-            }
-            if (!confirm('選択したレイドボスを出現させます。よろしいですか？')) return;
-            const previous = raidSpawnBtn.textContent;
-            let completed = false;
-            raidSpawnBtn.disabled = true;
-            raidSpawnBtn.textContent = '出現処理中';
-            try {
-                const result = await controlTarotKingdomRaid(playFabId, 'spawn', bossId, {
-                    isSilent: true,
-                    throwOnError: true
-                });
-                _renderKingRaidControl(result?.raid || null);
-                completed = true;
-                _setMessage(`${result?.raid?.bossName || 'レイドボス'}を出現させました。`);
-            } catch (error) {
-                _setMessage(_extractErrorMessage(error, 'レイドボスを出現させられませんでした。'), true);
-            } finally {
-                raidSpawnBtn.textContent = previous;
-                if (!completed) raidSpawnBtn.disabled = false;
-            }
-        });
-    }
-
-    if (raidWithdrawBtn) {
-        raidWithdrawBtn.addEventListener('click', async () => {
-            if (!confirm('出現中のレイドを終了します。よろしいですか？')) return;
-            const previous = raidWithdrawBtn.textContent;
-            let completed = false;
-            raidWithdrawBtn.disabled = true;
-            raidWithdrawBtn.textContent = '終了処理中';
-            try {
-                const result = await controlTarotKingdomRaid(playFabId, 'withdraw', '', {
-                    isSilent: true,
-                    throwOnError: true
-                });
-                _renderKingRaidControl(result?.raid || null);
-                completed = true;
-                _setMessage('レイドを終了しました。');
-            } catch (error) {
-                _setMessage(_extractErrorMessage(error, 'レイドを終了できませんでした。'), true);
-            } finally {
-                raidWithdrawBtn.textContent = previous;
-                if (!completed) raidWithdrawBtn.disabled = false;
-            }
         });
     }
 

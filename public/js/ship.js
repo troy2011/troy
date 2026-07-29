@@ -31,7 +31,7 @@ import {
     getShipsInView as fetchShipsInView,
     getShipAsset as fetchShipAsset,
     getShipPosition as fetchShipPosition
-} from './playfabClient.js?v=20260728-raid1';
+} from './playfabClient.js?v=20260728-raid2';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { createRequestId } from './api.js';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -41,7 +41,6 @@ import * as Inventory from './inventory.js';
 import { buildAvatarLayerMarkup, renderAvatar, triggerAvatarAttackMotion } from './avatar.js';
 import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260724h';
 
-const LEGACY_NAVAL_MELEE_ENTRY_ENABLED = false;
 const EXPLORATION_ENEMY_DEFEAT_MODE_STORAGE_KEY = 'troy:exploration-enemy-defeat-mode';
 const EXPLORATION_ENEMY_DEFEAT_MODE_DEFAULT = 'hp-zero';
 
@@ -998,109 +997,6 @@ const HOME_PLAYER_SHIP_LABELS = {
     guild: 'ギルドシップ'
 };
 
-const EXPLORATION_MONSTER_SPRITES = {
-    skeleton_captain: { id: 'skeleton_captain', src: './Sprites/monsters/skeleton_captain.png', name: '骸骨船長' },
-    ghost_pirate: { id: 'ghost_pirate', src: './Sprites/monsters/ghost_pirate.png', name: '幽霊海賊' },
-    zombie_raider: { id: 'zombie_raider', src: './Sprites/monsters/zombie_raider.png', name: 'ゾンビ海賊' },
-    drowned_buccaneer: { id: 'drowned_buccaneer', src: './Sprites/monsters/drowned_buccaneer.png', name: '濡れし海賊' },
-    shark_raider: { id: 'shark_raider', src: './Sprites/monsters/shark_raider.png', name: '鮫の略奪者' },
-    crab_brute: { id: 'crab_brute', src: './Sprites/monsters/crab_brute.png', name: '甲殻の暴れ者' },
-    anchor_golem: { id: 'anchor_golem', src: './Sprites/monsters/anchor_golem.png', name: '錨ゴーレム' },
-    cursed_shipwheel: { id: 'cursed_shipwheel', src: './Sprites/monsters/cursed_shipwheel.png', name: '呪いの舵輪' },
-    mimic_chest: { id: 'mimic_chest', src: './Sprites/monsters/mimic_chest.png', name: '宝箱ミミック' },
-    cannon_mimic: { id: 'cannon_mimic', src: './Sprites/monsters/cannon_mimic.png', name: '大砲ミミック' },
-    blue_kraken: { id: 'blue_kraken', src: './Sprites/monsters/blue_kraken.png', name: '深海クラーケン' },
-    kraken_pirate: { id: 'kraken_pirate', src: './Sprites/monsters/kraken_pirate.png', name: '海賊クラーケン' },
-    lantern_wraith: { id: 'lantern_wraith', src: './Sprites/monsters/lantern_wraith.png', name: 'ランタンの亡霊' },
-    skeletal_parrot: { id: 'skeletal_parrot', src: './Sprites/monsters/skeletal_parrot.png', name: '骸骨オウム' },
-    puffer_bomb: { id: 'puffer_bomb', src: './Sprites/monsters/puffer_bomb.png', name: '爆弾フグ' },
-    treasure_slime: { id: 'treasure_slime', src: './Sprites/monsters/treasure_slime.png', name: '財宝スライム' },
-    coral_goblin: { id: 'coral_goblin', src: './Sprites/monsters/coral_goblin.png', name: '珊瑚ゴブリン' },
-    merfolk_lancer: { id: 'merfolk_lancer', src: './Sprites/monsters/merfolk_lancer.png', name: '人魚の槍兵' },
-    chained_megalodon: { id: 'chained_megalodon', src: './Sprites/monsters/chained_megalodon.png', name: '鎖縛のメガロドン' },
-    specter_whale: { id: 'specter_whale', src: './Sprites/monsters/specter_whale.png', name: '亡霊クジラ' },
-    armored_kraken: { id: 'armored_kraken', src: './Sprites/monsters/armored_kraken.png', name: '甲冑クラーケン' },
-    phantom_admiral: { id: 'phantom_admiral', src: './Sprites/monsters/phantom_admiral.png', name: '亡霊提督' },
-    abyss_angler: { id: 'abyss_angler', src: './Sprites/monsters/abyss_angler.png', name: '深淵アンコウ' },
-    cannon_hermit: { id: 'cannon_hermit', src: './Sprites/monsters/cannon_hermit.png', name: '砲台ヤドカリ' },
-    storm_serpent: { id: 'storm_serpent', src: './Sprites/monsters/storm_serpent.png', name: '嵐の海蛇' },
-    manta_wraith: { id: 'manta_wraith', src: './Sprites/monsters/manta_wraith.png', name: '亡霊マンタ' },
-    treasure_hermit: { id: 'treasure_hermit', src: './Sprites/monsters/treasure_hermit.png', name: '財宝ヤドカリ' }
-};
-
-const EXPLORATION_DESTINATION_BOSS_SPRITES = {
-    near_sea: 'puffer_bomb',
-    palm_islet: 'treasure_slime',
-    coral_lagoon: 'coral_goblin',
-    coral_passage: 'coral_goblin',
-    old_lighthouse: 'ghost_pirate',
-    sunken_trader: 'drowned_buccaneer',
-    ship_graveyard: 'anchor_golem',
-    pirate_cove: 'shark_raider',
-    deep_maelstrom: 'merfolk_lancer',
-    megalodon_reef: 'chained_megalodon',
-    specter_whale_sea: 'specter_whale',
-    armored_kraken_nest: 'armored_kraken',
-    phantom_admiral_marsh: 'phantom_admiral',
-    abyss_angler_vents: 'abyss_angler',
-    cannon_hermit_fort: 'cannon_hermit',
-    storm_serpent_current: 'storm_serpent',
-    manta_wraith_grotto: 'manta_wraith',
-    treasure_hermit_cave: 'treasure_hermit'
-};
-
-const EXPLORATION_BOSS_TIER_LABELS = {
-    weak: '弱',
-    medium: '中',
-    strong: '強'
-};
-
-const EXPLORATION_BOSS_NAME_HINTS = [
-    { keywords: ['霧', '亡霊', '幽霊', '灯台'], spriteId: 'ghost_pirate' },
-    { keywords: ['宝箱', '箱', '漂流'], spriteId: 'mimic_chest' },
-    { keywords: ['沈没', '錨', '番人'], spriteId: 'anchor_golem' },
-    { keywords: ['大砲', '砲'], spriteId: 'cannon_mimic' },
-    { keywords: ['鮫', 'サメ'], spriteId: 'shark_raider' },
-    { keywords: ['クラーケン', '海獣'], spriteId: 'kraken_pirate' },
-    { keywords: ['海賊', 'BOSS'], spriteId: 'skeleton_captain' }
-];
-
-const EXPLORATION_DEFAULT_BOSS_SPRITE_IDS = [
-    'skeleton_captain',
-    'ghost_pirate',
-    'zombie_raider',
-    'drowned_buccaneer',
-    'shark_raider',
-    'crab_brute',
-    'anchor_golem',
-    'cursed_shipwheel',
-    'mimic_chest',
-    'cannon_mimic',
-    'blue_kraken',
-    'kraken_pirate',
-    'lantern_wraith',
-    'skeletal_parrot',
-    'puffer_bomb',
-    'treasure_slime',
-    'coral_goblin',
-    'merfolk_lancer',
-    'chained_megalodon',
-    'specter_whale',
-    'armored_kraken',
-    'phantom_admiral',
-    'abyss_angler',
-    'cannon_hermit',
-    'storm_serpent',
-    'manta_wraith',
-    'treasure_hermit'
-];
-
-const EXPLORATION_FALLBACK_BOSS_SPRITE = {
-    id: 'boss',
-    src: './Sprites/monsters/kraken_pirate.png',
-    name: 'BOSS'
-};
-
 const EXPLORATION_DESTINATION_VISUALS = {
     near_sea: { island: '🏝️', sky: 'day', label: '近海の漂流箱', imagePath: './Sprites/exploration_destinations/near_sea_drift_crate.png' },
     palm_islet: { island: '🏝️', sky: 'day', label: '椰子の小島', imagePath: './Sprites/exploration_destinations/palm_islet.png' },
@@ -1207,41 +1103,6 @@ const GUILD_SHIP_SAIL_COLOR_BY_NATION = {
 function normalizePlayerShipForm(form) {
     const key = String(form || 'boat').toLowerCase();
     return PLAYER_SHIP_LABELS[key] ? key : 'boat';
-}
-
-function getExplorationMonsterSprite(spriteId, bossName = '') {
-    const sprite = EXPLORATION_MONSTER_SPRITES[spriteId] || EXPLORATION_FALLBACK_BOSS_SPRITE;
-    return {
-        ...sprite,
-        name: String(bossName || sprite.name || 'BOSS')
-    };
-}
-
-function getExplorationBossTierLabel(tier, fallback = '') {
-    return EXPLORATION_BOSS_TIER_LABELS[String(tier || '').trim().toLowerCase()] || fallback;
-}
-
-function resolveExplorationBossSprite(destinationId, bossName, bossSpriteId = '') {
-    const explicitSpriteId = String(bossSpriteId || '').trim();
-    if (explicitSpriteId) return getExplorationMonsterSprite(explicitSpriteId, bossName);
-
-    const key = String(destinationId || '').trim().toLowerCase();
-    const normalizedName = String(bossName || '').trim();
-    const destinationSpriteId = EXPLORATION_DESTINATION_BOSS_SPRITES[key];
-    if (destinationSpriteId) return getExplorationMonsterSprite(destinationSpriteId, normalizedName);
-
-    const hinted = EXPLORATION_BOSS_NAME_HINTS.find((hint) => hint.keywords.some((keyword) => normalizedName.includes(keyword)));
-    if (hinted) return getExplorationMonsterSprite(hinted.spriteId, normalizedName);
-
-    const source = normalizedName || key || 'boss';
-    const index = Array.from(source).reduce((sum, char) => sum + char.codePointAt(0), 0) % EXPLORATION_DEFAULT_BOSS_SPRITE_IDS.length;
-    return getExplorationMonsterSprite(EXPLORATION_DEFAULT_BOSS_SPRITE_IDS[index], normalizedName);
-}
-
-function renderExplorationBossImage(sprite, className = '', options = {}) {
-    const classes = ['exploration-boss-image', className].filter(Boolean).join(' ');
-    const alt = options.decorative ? '' : String(sprite?.name || 'BOSS');
-    return `<img class="${escapeHtml(classes)}" src="${escapeHtml(sprite?.src || EXPLORATION_FALLBACK_BOSS_SPRITE.src)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async">`;
 }
 
 function normalizeExplorationDestinationVisualKey(value) {
@@ -1736,6 +1597,39 @@ function renderExplorationPixelMonster(
     return `<span class="exploration-pixel-monster ${escapeHtml(className)}${monster.isBoss === true ? ' is-boss' : ''}" data-monster-anchor="${anchorMode}" style="${style}" aria-hidden="true"></span>`;
 }
 
+function renderExplorationStageMonsters(stage = {}) {
+    const monsters = Array.isArray(stage?.monsters) ? stage.monsters.slice(0, 4) : [];
+    if (!monsters.length) return '';
+    const stageCleared = Math.max(0, Number(stage?.clearCount) || 0) > 0;
+    return `
+        <div class="ship-exploration-stage-monsters" aria-label="出現モンスター">
+            ${monsters.map((entry) => {
+                const monsterId = String(entry?.monsterId || '').trim();
+                const monster = PIXEL_MONSTERS_ROSTER.find((candidate) => candidate.id === monsterId) || null;
+                const defeated = entry?.defeatedByPlayer === true;
+                const revealed = entry?.revealed === true || stageCleared || defeated;
+                const label = revealed ? String(entry?.monsterName || monster?.name || 'モンスター') : '？？？';
+                return `
+                    <div class="ship-exploration-stage-monster${revealed ? ' is-revealed' : ' is-silhouette'}${defeated ? ' is-defeated' : ''}"
+                        data-monster-id="${escapeHtml(monsterId)}"
+                        aria-label="${escapeHtml(defeated ? `${label}・討伐済み` : label)}">
+                        <div class="ship-exploration-stage-monster-visual">
+                            ${renderExplorationPixelMonster(monster, 'ship-exploration-stage-monster-sprite', {
+                                maxWidth: 50,
+                                maxHeight: 46,
+                                compactMaxWidth: 42,
+                                compactMaxHeight: 40
+                            })}
+                            ${defeated ? '<span class="ship-exploration-stage-monster-defeat" aria-label="討伐済み">討</span>' : ''}
+                        </div>
+                        <span class="ship-exploration-stage-monster-name">${escapeHtml(label)}</span>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
 function animateExplorationPetIdle(node, monster) {
     const animation = monster?.animations?.idle;
     if (!node || !animation) return () => {};
@@ -1968,418 +1862,6 @@ function getExplorationPaymentConsumables(paymentState) {
         : [];
 }
 
-function getExplorationRequiredSupplyUnits(destination, paymentState) {
-    const rarity = String(destination?.rarity || 'low').trim().toLowerCase();
-    const requiredByRarity = paymentState?.requiredByRarity || {};
-    const fromDestinationSupply = Number(destination?.requiredSupplyUnits);
-    const fromDestination = Number(destination?.requiredConsumableCount);
-    const fromPayment = Number(requiredByRarity[rarity]);
-    const value = Number.isFinite(fromDestinationSupply) && fromDestinationSupply > 0
-        ? fromDestinationSupply
-        : Number.isFinite(fromDestination) && fromDestination > 0
-        ? fromDestination
-        : fromPayment;
-    return Math.max(1, Math.floor(Number(value || 1) || 1));
-}
-
-function getExplorationRequiredConsumableCount(destination, paymentState) {
-    return getExplorationRequiredSupplyUnits(destination, paymentState);
-}
-
-function getExplorationMaxSupplyUnits(requiredSupplyUnits, paymentState) {
-    const extra = Math.max(0, Math.floor(Number(paymentState?.maxExtraSupplyUnits ?? 3) || 0));
-    return Math.max(1, Math.floor(Number(requiredSupplyUnits || 1) || 1)) + extra;
-}
-
-function getExplorationConsumableTotal(paymentState) {
-    return getExplorationPaymentConsumables(paymentState)
-        .reduce((sum, item) => sum + (item.amount * item.effectiveUnits), 0);
-}
-
-function buildExplorationPaymentPreview(consumables, selected, requiredSupplyUnits) {
-    const categoryCounts = {};
-    const alcoholCategories = new Set();
-    let totalUnits = 0;
-    let totalMenuPrice = 0;
-    let hasFood = false;
-    let hasDrink = false;
-    let hasCalmRoute = false;
-    let hasPremium = false;
-    consumables.forEach((item) => {
-        const quantity = Math.max(0, Math.floor(Number(selected.get(item.itemId) || 0) || 0));
-        if (quantity <= 0) return;
-        const category = String(item.menuCategory || '').trim().toLowerCase() || 'unknown';
-        categoryCounts[category] = (categoryCounts[category] || 0) + quantity;
-        totalUnits += quantity * item.effectiveUnits;
-        totalMenuPrice += quantity * item.menuPrice;
-        if (category === 'food') hasFood = true;
-        if (category && category !== 'food') hasDrink = true;
-        if (['beer', 'gin', 'liqueur', 'rum', 'tequila', 'vodka', 'whisky'].includes(category)) alcoholCategories.add(category);
-        if (category === 'soft' || category === 'mixer') hasCalmRoute = true;
-        if (item.effectiveUnits >= 3) hasPremium = true;
-    });
-    const labels = [];
-    if (hasFood && hasDrink) labels.push('食事と飲み物で敗北時の回収を支援');
-    if (alcoholCategories.size >= 2) labels.push('酒種の多様性で攻勢を強化');
-    if (hasCalmRoute) labels.push('割り材/ソフトで守りを安定');
-    if (hasPremium) labels.push('高級品で宝箱の質を底上げ');
-    if (totalUnits > requiredSupplyUnits) labels.push('余剰補給で探索精度を向上');
-    return {
-        totalUnits,
-        totalMenuPrice,
-        categoryCounts,
-        labels
-    };
-}
-
-function renderExplorationPaymentBadges(destination, {
-    canUseDailyFree,
-    hasPaymentState,
-    requiredSupplyUnits
-} = {}) {
-    const cost = Number(destination?.cost || 0).toLocaleString('ja-JP');
-    if (!hasPaymentState) {
-        return canUseDailyFree
-            ? `<span class="ship-exploration-badge is-free">本日無料</span><span class="ship-exploration-badge">通常${cost}G</span>`
-            : `<span class="ship-exploration-badge">${cost}G</span>`;
-    }
-    if (canUseDailyFree) {
-        return `
-            <span class="ship-exploration-badge is-free">本日無料</span>
-            <span class="ship-exploration-badge is-item">供給力${requiredSupplyUnits.toLocaleString('ja-JP')}</span>
-            <span class="ship-exploration-badge">${cost}G</span>
-        `;
-    }
-    return `
-        <span class="ship-exploration-badge is-item">供給力${requiredSupplyUnits.toLocaleString('ja-JP')}</span>
-        <span class="ship-exploration-badge">${cost}G</span>
-    `;
-}
-
-function renderExplorationPaymentActions(destination, {
-    isAvailable,
-    canUseDailyFree,
-    hasPaymentState,
-    canPayWithConsumables,
-    requiredSupplyUnits
-} = {}) {
-    const id = escapeHtml(destination?.id || '');
-    const cost = Number(destination?.cost || 0).toLocaleString('ja-JP');
-    if (!isAvailable) {
-        return '<button type="button" class="ship-exploration-start" disabled aria-disabled="true">条件未達</button>';
-    }
-    if (!hasPaymentState) {
-        return `<button type="button" class="ship-exploration-start" data-exploration-start="${id}">探索開始</button>`;
-    }
-    if (canUseDailyFree) {
-        return `<button type="button" class="ship-exploration-start" data-exploration-start="${id}" data-exploration-payment-method="free">無料で探索開始</button>`;
-    }
-    return `
-        <div class="ship-exploration-payment-actions">
-            <button type="button" class="ship-exploration-start is-consumable" data-exploration-start="${id}" data-exploration-payment-method="consumable"${canPayWithConsumables ? '' : ' disabled aria-disabled="true"'}>${canPayWithConsumables ? '消耗品で探索' : `供給力${requiredSupplyUnits.toLocaleString('ja-JP')}不足`}</button>
-            <button type="button" class="ship-exploration-start is-gold" data-exploration-start="${id}" data-exploration-payment-method="gold">${cost}Gで探索</button>
-        </div>
-    `;
-}
-
-function renderExplorationNpcBattleEntry(ship) {
-    if (!LEGACY_NAVAL_MELEE_ENTRY_ENABLED) return '';
-    const shipName = ship?.shipName || ship?.shipId || '使用中の船';
-    return `
-        <div class="ship-exploration-npc-battle" data-exploration-npc-entry>
-            <div class="ship-exploration-npc-copy">
-                <strong>敵船を探す</strong>
-                <span>${escapeHtml(shipName)}で近海を索敵し、NPC海戦から白兵戦へ移行します。</span>
-            </div>
-            <button type="button" class="ship-exploration-npc-start" data-exploration-npc-battle>敵船を探す</button>
-        </div>
-    `;
-}
-
-function hashExplorationNpcSeed(value) {
-    return String(value || '').split('').reduce((hash, ch) => (
-        ((hash << 5) - hash + ch.charCodeAt(0)) >>> 0
-    ), 0);
-}
-
-const EXPLORATION_NPC_NAVAL_SHIPS_BY_STAGE = Object.freeze({
-    1: Object.freeze([
-        { form: 'boat', shipClass: 'boat', itemId: 'ship_common_boat', name: 'Enemy Boat', stage: 1, level: 1 }
-    ]),
-    2: Object.freeze([
-        { form: 'explorer', shipClass: 'explorer', itemId: 'ship_human_explorer', name: 'Enemy Explorer', stage: 2, level: 2 }
-    ]),
-    3: Object.freeze([
-        { form: 'defender', shipClass: 'defender', itemId: 'ship_human_defender', name: 'Enemy Defender', stage: 3, level: 3 },
-        { form: 'fighter', shipClass: 'fighter', itemId: 'ship_human_fighter', name: 'Enemy Fighter', stage: 3, level: 3 },
-        { form: 'merchant', shipClass: 'merchant', itemId: 'ship_human_merchant', name: 'Enemy Merchant', stage: 3, level: 3 }
-    ])
-});
-const EXPLORATION_NPC_NAVAL_NAMES = Object.freeze([
-    'NPC Raider',
-    'NPC Privateer',
-    'NPC Patrol'
-]);
-const EXPLORATION_NPC_NAVAL_NATIONS = Object.freeze(['water', 'wind', 'fire', 'earth']);
-
-function shipEvolutionStageFromProfile(ship = {}) {
-    const rawItemId = String(ship?.itemId || ship?.ItemId || ship?.catalogItemId || '').trim().toLowerCase();
-    const rawClass = String(ship?.form || ship?.shipClass || ship?.class || rawItemId || '').trim().toLowerCase();
-    if (rawClass.includes('guild') || rawItemId === 'guild_ship') return 3;
-    if (rawClass.includes('merchant') || rawClass.includes('fighter') || rawClass.includes('defender')) return 3;
-    if (rawItemId.includes('ship_human_merchant') || rawItemId.includes('ship_human_fighter') || rawItemId.includes('ship_human_defender')) return 3;
-    if (rawClass.includes('explorer') || rawItemId.includes('ship_human_explorer')) return 2;
-    const explicitStage = Math.floor(Number(ship?.stage || ship?.evolutionStage || 0) || 0);
-    if (explicitStage >= 1) return Math.max(1, Math.min(3, explicitStage));
-    return 1;
-}
-
-function candidateExplorationNpcNavalShips(playerShipProfile = {}) {
-    const stage = shipEvolutionStageFromProfile(playerShipProfile);
-    const stages = stage >= 3 ? [3] : [stage, stage + 1];
-    return stages.flatMap((entry) => EXPLORATION_NPC_NAVAL_SHIPS_BY_STAGE[entry] || EXPLORATION_NPC_NAVAL_SHIPS_BY_STAGE[1]);
-}
-
-function buildExplorationNpcPlayerShipProfile(ship = {}) {
-    const rawItemId = String(ship?.itemId || ship?.ItemId || ship?.catalogItemId || '').trim();
-    const isGuildShip = Boolean(
-        ship?.isGuildShip
-        || ship?.guildShip
-        || rawItemId === 'guild_ship'
-        || String(ship?.form || '').trim().toLowerCase() === 'guild'
-    );
-    const shipClass = isGuildShip
-        ? 'guild'
-        : normalizeShipClass(ship?.form || ship?.shipClass || ship?.class || '');
-    const itemId = isGuildShip ? 'guild_ship' : rawItemId;
-    const stage = shipEvolutionStageFromProfile({ ...ship, form: shipClass, itemId });
-    const level = Math.max(1, Math.floor(Number(ship?.level || stage || 1) || 1));
-    return {
-        form: shipClass || undefined,
-        shipClass: shipClass || undefined,
-        class: shipClass || undefined,
-        itemId: itemId || undefined,
-        name: String(ship?.shipName || ship?.name || ship?.shipId || '使用中の船').slice(0, 16),
-        stage,
-        level,
-        majorArcanaItemIds: isGuildShip
-            ? []
-            : (Array.isArray(ship?.majorArcanaItemIds) ? ship.majorArcanaItemIds.slice(0, 3) : [])
-    };
-}
-
-function buildExplorationNpcNavalOpponent(requestId, playerShipProfile = {}) {
-    const seed = hashExplorationNpcSeed(requestId);
-    const ships = candidateExplorationNpcNavalShips(playerShipProfile);
-    const ship = { ...(ships[seed % ships.length] || EXPLORATION_NPC_NAVAL_SHIPS_BY_STAGE[1][0]) };
-    const name = EXPLORATION_NPC_NAVAL_NAMES[(seed >>> 3) % EXPLORATION_NPC_NAVAL_NAMES.length];
-    const nation = EXPLORATION_NPC_NAVAL_NATIONS[(seed >>> 5) % EXPLORATION_NPC_NAVAL_NATIONS.length];
-    return {
-        id: `npc_exploration_naval_${Date.now().toString(36)}_${seed.toString(36)}`,
-        name,
-        profile: {
-            playFabId: '',
-            displayName: name,
-            race: 'human',
-            nation,
-            level: 8,
-            stats: { attack: 18, defense: 14, speed: 12 },
-            playerShip: ship
-        },
-        shipProfile: ship,
-        enemyPlan: ''
-    };
-}
-
-function buildExplorationNpcMeleeContext(requestId, battleContext = {}) {
-    return {
-        ...(battleContext && typeof battleContext === 'object' ? battleContext : {}),
-        source: 'explorationNpc',
-        rewardMode: 'none',
-        npcBattle: true,
-        requestId
-    };
-}
-
-async function startExplorationNpcBattleFromPanel(playFabId, button, ship) {
-    if (!LEGACY_NAVAL_MELEE_ENTRY_ENABLED) {
-        showRpgMessage('船バトルと白兵戦は現在休止中です。');
-        return false;
-    }
-    if (!playFabId || !button) return;
-    if (typeof window.startNavalBattle !== 'function') {
-        showRpgMessage('NPC海戦の準備ができていません。少し待ってから試してください。');
-        return;
-    }
-    if (typeof window.startExplorationNpcBattle !== 'function') {
-        showRpgMessage('NPC戦の準備ができていません。少し待ってから試してください。');
-        return;
-    }
-    const previousText = button.textContent;
-    button.disabled = true;
-    button.setAttribute('aria-busy', 'true');
-    button.textContent = '索敵中...';
-    try {
-        const requestId = createRequestId('exploration-npc-battle');
-        const playerShipProfile = buildExplorationNpcPlayerShipProfile(ship);
-        const opponent = buildExplorationNpcNavalOpponent(requestId, playerShipProfile);
-        const playerName = window.myPlayFabDisplayName || window.myLineProfile?.displayName || playFabId;
-        const playerProfile = {
-            playFabId,
-            displayName: playerName,
-            race: window.myAvatarBaseInfo?.Race || window.myAvatarBaseInfo?.race || 'human',
-            nation: normalizeNationKey(window.myAvatarBaseInfo?.Nation || window.myAvatarBaseInfo?.nation || 'none') || 'none',
-            playerShip: playerShipProfile
-        };
-        showRpgMessage('敵船を捕捉しました。海戦を開始します。');
-        window.startNavalBattle({
-            playerId: playFabId,
-            playFabId,
-            playerName,
-            opponentId: opponent.id,
-            opponentName: opponent.name,
-            playerProfile,
-            opponentProfile: opponent.profile,
-            playerShipProfile,
-            opponentShipProfile: opponent.shipProfile,
-            enemyPlan: opponent.enemyPlan,
-            onBoarding: (_opponentId, battleContext = {}) => {
-                return Promise.resolve(window.startExplorationNpcBattle({
-                    source: 'exploration',
-                    opponentId: _opponentId || opponent.id,
-                    opponentName: opponent.name,
-                    opponentShipProfile: opponent.shipProfile,
-                    requestId,
-                    throwOnError: true,
-                    continueFromNaval: true,
-                    battleContext: buildExplorationNpcMeleeContext(requestId, battleContext)
-                })).then((result) => {
-                    if (!result?.battleId) {
-                        showRpgMessage('接舷しましたが、白兵戦を開始できませんでした。');
-                    }
-                }).catch((error) => {
-                    console.warn('[Ship] Failed to start exploration NPC melee battle:', error);
-                    showRpgMessage(error?.message || '接舷後の白兵戦を開始できませんでした。');
-                });
-            }
-        });
-        if (typeof window.closeHomeExplorationPopup === 'function') {
-            window.closeHomeExplorationPopup();
-        }
-    } catch (error) {
-        console.warn('[Ship] Failed to start exploration NPC battle:', error);
-        showRpgMessage(error?.message || '敵船を捕捉できませんでした。');
-    } finally {
-        button.disabled = false;
-        button.removeAttribute('aria-busy');
-        button.textContent = previousText || '敵船を探す';
-    }
-}
-
-function showExplorationConsumablePaymentDialog({ destination, paymentState }) {
-    const requiredSupplyUnits = getExplorationRequiredSupplyUnits(destination, paymentState);
-    const maxSupplyUnits = getExplorationMaxSupplyUnits(requiredSupplyUnits, paymentState);
-    const consumables = getExplorationPaymentConsumables(paymentState);
-    if (getExplorationConsumableTotal(paymentState) < requiredSupplyUnits) {
-        showRpgMessage(`探索には供給力${requiredSupplyUnits.toLocaleString('ja-JP')}以上が必要です。`);
-        return Promise.resolve(null);
-    }
-    return new Promise((resolve) => {
-        const selected = new Map();
-        const overlay = document.createElement('div');
-        overlay.className = 'ship-exploration-payment-overlay';
-        overlay.innerHTML = `
-            <div class="ship-exploration-payment-dialog" role="dialog" aria-modal="true" aria-label="探索に使う消耗品">
-                <div class="ship-exploration-payment-head">
-                    <strong>${escapeHtml(destination?.name || '探索')}</strong>
-                    <span>供給力 ${requiredSupplyUnits.toLocaleString('ja-JP')}以上を選択</span>
-                </div>
-                <div class="ship-exploration-payment-list" data-exploration-payment-list></div>
-                <div class="ship-exploration-payment-summary" data-exploration-payment-summary></div>
-                <div class="ship-exploration-payment-buttons">
-                    <button type="button" data-exploration-payment-confirm disabled>出航する</button>
-                    <button type="button" data-exploration-payment-cancel>キャンセル</button>
-                </div>
-            </div>
-        `;
-        const list = overlay.querySelector('[data-exploration-payment-list]');
-        const summary = overlay.querySelector('[data-exploration-payment-summary]');
-        const confirm = overlay.querySelector('[data-exploration-payment-confirm]');
-        const cleanup = (result) => {
-            overlay.remove();
-            document.body.classList.remove('modal-lock');
-            resolve(result);
-        };
-        const currentTotal = () => consumables.reduce((sum, item) => {
-            const quantity = Math.max(0, Math.floor(Number(selected.get(item.itemId) || 0) || 0));
-            return sum + quantity * item.effectiveUnits;
-        }, 0);
-        const render = () => {
-            const total = currentTotal();
-            const preview = buildExplorationPaymentPreview(consumables, selected, requiredSupplyUnits);
-            list.innerHTML = consumables.map((item) => {
-                const chosen = selected.get(item.itemId) || 0;
-                const image = item.imagePath
-                    ? `<span class="ship-exploration-payment-item-image"><img src="${escapeHtml(item.imagePath)}" alt=""></span>`
-                    : '<span class="ship-exploration-payment-item-image" aria-hidden="true"></span>';
-                const canAdd = chosen < item.amount && (total + item.effectiveUnits) <= maxSupplyUnits;
-                const priceLabel = item.menuPrice > 0 ? ` / ${item.menuPrice.toLocaleString('ja-JP')}G` : '';
-                return `
-                    <div class="ship-exploration-payment-item" data-payment-item-id="${escapeHtml(item.itemId)}">
-                        ${image}
-                        <div class="ship-exploration-payment-item-copy">
-                            <strong>${escapeHtml(item.displayName || item.itemId)}</strong>
-                            <span>所持 ${item.amount.toLocaleString('ja-JP')} / 供給力 +${item.effectiveUnits.toLocaleString('ja-JP')}${priceLabel}</span>
-                        </div>
-                        <div class="ship-exploration-payment-stepper" aria-label="${escapeHtml(item.displayName || item.itemId)}の使用数">
-                            <button type="button" data-payment-step="-1"${chosen <= 0 ? ' disabled' : ''}>-</button>
-                            <span>${chosen.toLocaleString('ja-JP')}</span>
-                            <button type="button" data-payment-step="1"${canAdd ? '' : ' disabled'}>+</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            const surplus = Math.max(0, total - requiredSupplyUnits);
-            const effectHtml = preview.labels.length
-                ? `<div class="ship-exploration-payment-effects">${preview.labels.map((label) => `<span>${escapeHtml(label)}</span>`).join('')}</div>`
-                : '';
-            summary.innerHTML = `
-                <div>供給力 ${total.toLocaleString('ja-JP')} / ${requiredSupplyUnits.toLocaleString('ja-JP')}（上限 ${maxSupplyUnits.toLocaleString('ja-JP')}）${surplus > 0 ? ` / 余剰 +${surplus.toLocaleString('ja-JP')}` : ''}</div>
-                ${effectHtml}
-            `;
-            confirm.disabled = total < requiredSupplyUnits || total > maxSupplyUnits;
-        };
-        list.addEventListener('click', (event) => {
-            const button = event.target.closest('[data-payment-step]');
-            if (!button) return;
-            const row = button.closest('[data-payment-item-id]');
-            const itemId = String(row?.dataset?.paymentItemId || '');
-            const item = consumables.find((entry) => entry.itemId === itemId);
-            if (!item) return;
-            const step = Number(button.dataset.paymentStep || 0);
-            const total = currentTotal();
-            const current = selected.get(itemId) || 0;
-            const next = Math.max(0, Math.min(item.amount, current + step));
-            if (step > 0 && total + item.effectiveUnits > maxSupplyUnits) return;
-            if (next > 0) selected.set(itemId, next);
-            else selected.delete(itemId);
-            render();
-        });
-        confirm.addEventListener('click', () => {
-            const total = currentTotal();
-            if (total < requiredSupplyUnits || total > maxSupplyUnits) return;
-            cleanup(Array.from(selected.entries()).map(([itemId, quantity]) => ({ itemId, quantity })));
-        });
-        overlay.querySelector('[data-exploration-payment-cancel]')?.addEventListener('click', () => cleanup(null));
-        overlay.addEventListener('click', (event) => {
-            if (event.target === overlay) cleanup(null);
-        });
-        document.body.appendChild(overlay);
-        document.body.classList.add('modal-lock');
-        render();
-    });
-}
-
 function showExplorationStageSupplyDialog({ stage, paymentState }) {
     const consumables = getExplorationPaymentConsumables(paymentState);
     return new Promise((resolve) => {
@@ -2476,47 +1958,6 @@ function showExplorationStageSupplyDialog({ stage, paymentState }) {
     });
 }
 
-function showExplorationGoldPaymentDialog({ destination }) {
-    const destinationName = String(destination?.name || '探索先');
-    const cost = Math.max(0, Math.floor(Number(destination?.cost || 0) || 0));
-    return new Promise((resolve) => {
-        const overlay = document.createElement('div');
-        overlay.className = 'ship-exploration-payment-overlay ship-exploration-gold-confirm-overlay';
-        overlay.innerHTML = `
-            <div class="ship-exploration-payment-dialog is-gold-confirm" role="dialog" aria-modal="true" aria-label="ゴールドで探索">
-                <div class="ship-exploration-payment-head">
-                    <strong>${escapeHtml(destinationName)}</strong>
-                    <span>${cost.toLocaleString('ja-JP')}Gを使って出航しますか？</span>
-                </div>
-                <div class="ship-exploration-gold-confirm-cost" aria-label="探索費用">
-                    <span>探索費用</span>
-                    <strong>${cost.toLocaleString('ja-JP')}G</strong>
-                </div>
-                <div class="ship-exploration-payment-buttons">
-                    <button type="button" data-exploration-gold-confirm>${cost.toLocaleString('ja-JP')}Gで出航</button>
-                    <button type="button" data-exploration-gold-cancel>キャンセル</button>
-                </div>
-            </div>
-        `;
-        let settled = false;
-        const cleanup = (accepted) => {
-            if (settled) return;
-            settled = true;
-            overlay.remove();
-            document.body.classList.remove('modal-lock');
-            resolve(accepted);
-        };
-        overlay.querySelector('[data-exploration-gold-confirm]')?.addEventListener('click', () => cleanup(true));
-        overlay.querySelector('[data-exploration-gold-cancel]')?.addEventListener('click', () => cleanup(false));
-        overlay.addEventListener('click', (event) => {
-            if (event.target === overlay) cleanup(false);
-        });
-        document.body.appendChild(overlay);
-        document.body.classList.add('modal-lock');
-        overlay.querySelector('[data-exploration-gold-confirm]')?.focus();
-    });
-}
-
 function normalizeBossResult(value) {
     const result = String(value || 'none').toLowerCase();
     if (result === 'victory' || result === 'defeat' || result === 'escaped' || result === 'draw') return result;
@@ -2566,15 +2007,6 @@ function renderCurrentExplorationBattleAvatar() {
     renderAvatar(EXPLORATION_BATTLE_AVATAR_PREFIX, avatarBase, equipment, itemSource, false);
 }
 
-function getExplorationBattleLogLines(report) {
-    return String(report?.bossLog || '')
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .filter((line) => !line.includes('戦闘開始'))
-        .slice(0, 4);
-}
-
 function getExplorationRewardName(item) {
     return String(item?.displayName || item?.DisplayName || item?.itemId || item?.ItemId || 'お宝');
 }
@@ -2621,18 +2053,28 @@ function showExplorationResultSummary(data, options = {}) {
         kingdomResult?.status === 'completed' ? kingdomResult.outcome : report.bossResult
     );
     const reportDestinationId = report.destinationId || data?.active?.destinationId || data?.destinationId || '';
-    const bossName = String(kingdomMonster?.name || kingdomResult?.monsterName || report.bossName || '遭遇なし');
-    const bossSprite = resolveExplorationBossSprite(reportDestinationId, report.bossName, report.bossSpriteId);
     const monsterIsBoss = kingdomMonster?.isBoss === true || kingdomResult?.isBoss === true;
-    const monsterTypeLabel = stageNo > 0 ? `STAGE ${stageNo}` : (monsterIsBoss ? 'BOSS' : 'MONSTER');
-    const bossTierLabel = kingdomMonster ? (monsterIsBoss ? '大型' : '') : (report.bossTierLabel || getExplorationBossTierLabel(report.bossTier));
+    const destinationSource = {
+        id: reportDestinationId,
+        destinationId: reportDestinationId,
+        imagePath: report.imagePath || data?.active?.imagePath || data?.imagePath || ''
+    };
+    const destinationVisual = getExplorationDestinationVisual(destinationSource);
+    const destinationName = String(
+        report.destinationName
+        || data?.active?.destinationName
+        || data?.destinationName
+        || destinationVisual.label
+        || '探索先'
+    );
+    const destinationTypeLabel = stageNo > 0 ? `STAGE ${stageNo}` : 'DESTINATION';
     const bossTierKey = kingdomMonster ? (monsterIsBoss ? 'strong' : 'weak') : normalizeExplorationBossTier(report.bossTier);
     const rewards = getRewardItemsForReveal(data);
     const rewardTotal = Number(report.rewardCount || rewards.length || 0);
     const chestAlreadyOpened = rewardTotal > 0 && options.chestOpened === true;
     const awaitsChestOpen = rewardTotal > 0 && !chestAlreadyOpened;
     const resultLabel = getExplorationBossResultLabel(bossResult);
-    const bossResultSummary = bossTierLabel ? `${bossTierLabel}${monsterTypeLabel} / ${resultLabel}` : `${monsterTypeLabel} / ${resultLabel}`;
+    const destinationResultSummary = `${destinationTypeLabel} / ${resultLabel}`;
     const resultHint = rewardTotal > 0 ? `${rewardTotal.toLocaleString('ja-JP')}個のお宝を回収` : 'お宝は見つかりませんでした';
     const promptTitle = awaitsChestOpen ? '宝箱を開ける' : (rewardTotal > 0 ? '回収完了' : '回収なし');
     const promptText = awaitsChestOpen ? 'クリックして中身を確認してください。' : (rewardTotal > 0 ? '宝箱を開封し、戦利品を持ち帰りました。' : '航路を確認して帰還しました。');
@@ -2657,12 +2099,12 @@ function showExplorationResultSummary(data, options = {}) {
                 <span>NONE</span>
             </li>
         `;
-    const logLines = kingdomResult?.status === 'completed'
-        ? [
-            `${bossName}とタロットキングダムで対決。`,
-            bossResult === 'defeat' ? 'パーティは全滅し、島から撤退した。' : '4局の戦いを終え、探索を完了した。'
-        ]
-        : getExplorationBattleLogLines(report);
+    const logLines = [
+        `${destinationName}を探索。`,
+        bossResult === 'defeat'
+            ? 'パーティは全滅し、探索先から撤退した。'
+            : 'タロットキングダムを終え、探索を完了した。'
+    ];
     const logHtml = logLines.length
         ? logLines.map((line) => `<div>${escapeHtml(line)}</div>`).join('')
         : '<div>静かな航路を抜けて探索を終えました。</div>';
@@ -2676,7 +2118,7 @@ function showExplorationResultSummary(data, options = {}) {
             <button type="button" class="exploration-result-close" aria-label="閉じる">×</button>
             <div class="exploration-result-head">
                 <span data-exploration-result-state>${awaitsChestOpen ? '宝箱を発見' : resultLabel}</span>
-                <strong>${escapeHtml(report.destinationName || '探索結果')}</strong>
+                <strong>${escapeHtml(destinationName)}</strong>
                 <small data-exploration-result-hint>${awaitsChestOpen ? '宝箱を開けて探索結果を確認' : resultHint}</small>
             </div>
             <div class="exploration-result-showcase ${rewardTotal > 0 ? 'has-rewards' : 'is-empty'}">
@@ -2689,21 +2131,14 @@ function showExplorationResultSummary(data, options = {}) {
                 </div>
             </div>
             <div class="exploration-result-details" data-exploration-result-details>
-                <div class="exploration-result-boss-card" data-exploration-boss-id="${escapeHtml(kingdomMonster?.id || bossSprite.id || '')}">
-                    <div class="exploration-result-boss-art">
-                        ${kingdomMonster
-                            ? renderExplorationPixelMonster(kingdomMonster, 'exploration-result-boss-image', {
-                                maxWidth: 122,
-                                maxHeight: 104,
-                                compactMaxWidth: 80,
-                                compactMaxHeight: 82
-                            })
-                            : renderExplorationBossImage(bossSprite, 'exploration-result-boss-image')}
+                <div class="exploration-result-destination-card" data-exploration-destination-id="${escapeHtml(reportDestinationId)}">
+                    <div class="exploration-result-destination-art">
+                        ${renderExplorationDestinationVisual(destinationSource, 'exploration-result-destination-image', 'div')}
                     </div>
-                    <div class="exploration-result-boss-copy">
-                        <b>${monsterTypeLabel}</b>
-                        <strong>${escapeHtml(bossName)}</strong>
-                        <span>${escapeHtml(bossResultSummary)}</span>
+                    <div class="exploration-result-destination-copy">
+                        <b>${destinationTypeLabel}</b>
+                        <strong>${escapeHtml(destinationName)}</strong>
+                        <span>${escapeHtml(destinationResultSummary)}</span>
                     </div>
                 </div>
                 <div class="exploration-result-body">
@@ -3062,7 +2497,7 @@ async function completeExplorationRetreat(playFabId, sequenceResult) {
     return true;
 }
 
-async function startTarotKingdomRaidBattle(playFabId, button = null) {
+async function startTarotKingdomRaidBattle(playFabId, button = null, raidStatus = null) {
     if (!playFabId || explorationAutoRunning) return;
     if (typeof window.launchTarotKingdomExplorationBattle !== 'function') {
         showRpgMessage('タロットキングダムを開始できません。');
@@ -3075,38 +2510,51 @@ async function startTarotKingdomRaidBattle(playFabId, button = null) {
         button.textContent = '出撃準備中';
     }
     try {
-        const startData = await requestStartTarotKingdomRaid(playFabId, {
-            isSilent: true,
-            throwOnError: true
-        });
-        const attempt = startData?.attempt;
-        if (!attempt?.attemptId || !attempt?.preFormMonsterId || !attempt?.bossId) {
-            throw new Error('レイド挑戦情報を取得できませんでした。');
+        const raid = raidStatus && typeof raidStatus === 'object' ? raidStatus : null;
+        if (!raid?.active || !raid?.preFormMonsterId || !raid?.bossId) {
+            throw new Error('現在、挑戦できるレイドボスはいません。');
         }
         if (typeof window.closeHomeExplorationPopup === 'function') {
             window.closeHomeExplorationPopup();
         }
-        showRpgMessage(`${attempt.preFormMonsterName}が　あらわれた！`);
+        showRpgMessage('レイド救難信号を発信します。');
         const kingdomResult = await window.launchTarotKingdomExplorationBattle({
-            explorationId: attempt.attemptId,
-            destinationId: `raid-${attempt.nation}`,
+            explorationId: '',
+            destinationId: `raid-${raid.nation}`,
             destinationName: 'レイド海域',
-            monsterId: attempt.preFormMonsterId,
-            monsterName: attempt.preFormMonsterName,
+            monsterId: raid.preFormMonsterId,
+            monsterName: raid.preFormMonsterName,
             isBoss: false,
             battlefieldId: '',
             atmosphereTone: 'raid',
             monsters: [],
             supplyQueue: [],
-            mode: 'offline',
+            mode: 'online',
             enemyDefeatMode: 'hp-zero',
             currentPet: currentTarotKingdomPet,
-            raid: attempt
+            raidLobby: true,
+            onRaidStart: async (roomId) => {
+                const startData = await requestStartTarotKingdomRaid(playFabId, roomId, {
+                    isSilent: true,
+                    throwOnError: true
+                });
+                if (!startData?.attempt?.attemptId) {
+                    throw new Error('レイド挑戦情報を取得できませんでした。');
+                }
+                return startData.attempt;
+            }
         });
         const raidResult = kingdomResult?.raid || {};
+        if (!raidResult.attemptId) {
+            if (kingdomResult?.status !== 'retreated') {
+                showRpgMessage('レイドバトルは開始されませんでした。');
+            }
+            await loadExplorationPanel(playFabId);
+            return;
+        }
         const finishData = await requestFinishTarotKingdomRaid(
             playFabId,
-            attempt.attemptId,
+            raidResult.attemptId,
             {
                 damageDealt: raidResult.damageDealt,
                 finisher: raidResult.finisher
@@ -3118,17 +2566,17 @@ async function startTarotKingdomRaidBattle(playFabId, button = null) {
             const rewardName = String(finishData?.reward?.displayName || '').trim();
             showRpgMessage(
                 rewardName
-                    ? `${attempt.bossName}を　たおした！\n${rewardName}を　てにいれた！`
-                    : `${attempt.bossName}を　たおした！`
+                    ? `${raidResult.bossName}を　たおした！\n${rewardName}を　てにいれた！`
+                    : `${raidResult.bossName}を　たおした！`
             );
         } else if (raidResult.escaped) {
             showRpgMessage(
-                `${attempt.bossName}は　にげだした！\n`
+                `${raidResult.bossName}は　にげだした！\n`
                 + `${Math.max(0, Number(resolution.appliedDamage) || 0).toLocaleString('ja-JP')}ダメージを　あたえた！`
             );
         } else {
             showRpgMessage(
-                `${attempt.bossName}に ${Math.max(0, Number(resolution.appliedDamage) || 0).toLocaleString('ja-JP')}ダメージ！`
+                `${raidResult.bossName}に ${Math.max(0, Number(resolution.appliedDamage) || 0).toLocaleString('ja-JP')}ダメージ！`
             );
         }
         await loadExplorationPanel(playFabId);
@@ -3188,10 +2636,11 @@ function renderExplorationPanel(data, playFabId) {
                 </div>
                 <small>HP ${Math.max(0, Number(raid.currentHp) || 0).toLocaleString('ja-JP')} / ${Math.max(1, Number(raid.maxHp) || 1).toLocaleString('ja-JP')}</small>
                 <small>本日の挑戦 ${Math.max(0, Number(raid.attemptsUsed) || 0)} / ${Math.max(1, Number(raid.dailyAttemptLimit) || 4)}</small>
+                <small>通常NPCなし・プレイヤー／ペット4枠で挑戦可能</small>
             </div>
             <button type="button" data-tarot-kingdom-raid-start
                 ${active || Number(raid.attemptsRemaining) <= 0 ? 'disabled' : ''}>
-                ${Number(raid.attemptsRemaining) > 0 ? '挑戦' : '本日終了'}
+                ${Number(raid.attemptsRemaining) > 0 ? '救難信号' : '本日終了'}
             </button>
         </section>
     ` : '';
@@ -3239,7 +2688,7 @@ function renderExplorationPanel(data, playFabId) {
     };
     const bindRaid = () => {
         const raidButton = panel.querySelector('[data-tarot-kingdom-raid-start]');
-        raidButton?.addEventListener('click', () => startTarotKingdomRaidBattle(playFabId, raidButton));
+        raidButton?.addEventListener('click', () => startTarotKingdomRaidBattle(playFabId, raidButton, raid));
         const raidNode = panel.querySelector('.ship-exploration-raid-monster');
         if (raidNode && raidMonster) animateExplorationPetIdle(raidNode, raidMonster);
     };
@@ -3292,6 +2741,7 @@ function renderExplorationPanel(data, playFabId) {
                             <div class="ship-exploration-meta">${bestRankLabel} / CLEAR ${Math.max(0, Number(stage.clearCount) || 0)}</div>
                         </div>
                     </div>
+                    ${renderExplorationStageMonsters(stage)}
                     ${isAvailable ? '' : `
                         <div class="ship-exploration-badges" aria-label="探索条件">
                             <span class="ship-exploration-badge is-locked">${escapeHtml(stage.lockReason || 'LOCKED')}</span>
@@ -3424,10 +2874,9 @@ async function startExploration(playFabId, destinationId, payment = {}, triggerB
     explorationAutoRunning = true;
     setExplorationStartButtonsPending(triggerButton, true);
     try {
-        const startData = await requestStartExploration(playFabId, destinationId, createRequestId('exploration-start'), {
+        const stageNo = Math.max(1, Math.floor(Number(payment?.stageNo) || 1));
+        const startData = await requestStartExploration(playFabId, stageNo, createRequestId('exploration-start'), {
             throwOnError: true,
-            payment,
-            stageNo: Math.max(0, Math.floor(Number(payment?.stageNo) || 0)),
             supplies: Array.isArray(payment?.supplies) ? payment.supplies : []
         });
         renderExplorationPanel(startData, playFabId);

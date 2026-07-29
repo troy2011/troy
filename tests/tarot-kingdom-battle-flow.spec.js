@@ -12,7 +12,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     await openBattleDebug(page);
   });
 
-  test('normal pass causes one counter and the final pass adds exactly one area attack', async ({ page }) => {
+  test('normal pass causes one counter and the final pass area attack spares the player who clears the field', async ({ page }) => {
     const audit = await page.evaluate(({ combatBySeat }) => {
       const debug = window.TarotKingdomDebug;
       debug.battleScenario({
@@ -39,7 +39,11 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.normal.transition).toMatchObject({ kind: 'enemyResponse', eventSeqs: [1] });
 
     expect(audit.finalPass.battle.events.map((event) => event.type)).toEqual(['enemy-single', 'enemy-area']);
-    expect(audit.finalPass.players.map((player) => player.hp)).toEqual([90, 69, 90, 90]);
+    expect(audit.finalPass.players.map((player) => player.hp)).toEqual([100, 69, 90, 90]);
+    expect(audit.finalPass.battle.events[1]).toMatchObject({
+      targetIndexes: [1, 2, 3],
+      protectedPlayerIndex: 0
+    });
     expect(audit.finalPass.transition).toMatchObject({ kind: 'enemyResponse', eventSeqs: [1, 2] });
   });
 
@@ -336,7 +340,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(duringSingle[3]).toMatchObject({ ko: false, hp: '5' });
 
     // The area hit follows the 860ms single-target response, then reveals HP
-    // after its hurt pose and 240ms tween.
+    // after its hurt pose and 240ms tween. The field-clearing leader stays safe.
     await page.waitForTimeout(1580);
     const duringArea = await page.evaluate(() => (
       Array.from(document.querySelectorAll('#tarotKingdomBattleParty > .tarot-kingdom-battle-player'))
@@ -345,7 +349,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
           hp: row.querySelector('.tarot-kingdom-battle-player-hp-track')?.getAttribute('aria-valuenow') || ''
         }))
     ));
-    expect(duringArea[0]).toMatchObject({ ko: true, hp: '0' });
+    expect(duringArea[0]).toMatchObject({ ko: false, hp: '5' });
     expect(duringArea[2]).toMatchObject({ ko: true, hp: '0' });
     expect(duringArea[3]).toMatchObject({ ko: true, hp: '0' });
   });
@@ -394,6 +398,10 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.afterConfusedPass.battle.events.at(-1)).toMatchObject({ type: 'enemy-self', attackKind: 'single', damage: 21 });
 
     expect(audit.afterFive.battle.enemy.areaAttackSealedUntilClear).toBe(true);
+    expect(audit.afterFive.turn).toBe(2);
+    expect(audit.afterFive.pass[1]).toBe(false);
+    expect(audit.afterFive.players[1].hp).toBe(100);
+    expect(audit.afterFive.battle.events.some((event) => event.type === 'enemy-single')).toBe(false);
     expect(audit.afterFiveClear.battle.enemy.areaAttackSealedUntilClear).toBe(false);
     expect(audit.afterFiveClear.battle.events.filter((event) => event.type === 'enemy-single')).toHaveLength(3);
     expect(audit.afterFiveClear.battle.events.some((event) => event.type === 'enemy-area')).toBe(false);
@@ -445,8 +453,12 @@ test.describe('Tarot Kingdom character battle flow', () => {
       expect.objectContaining({ kind: 'cover', potency: 27 })
     ]));
 
-    expect(audit.guardedArea.players.map((player) => player.hp)).toEqual([93, 72, 93, 93]);
-    expect(audit.guardedArea.battle.events.at(-1)).toMatchObject({ type: 'enemy-area' });
+    expect(audit.guardedArea.players.map((player) => player.hp)).toEqual([100, 72, 93, 93]);
+    expect(audit.guardedArea.battle.events.at(-1)).toMatchObject({
+      type: 'enemy-area',
+      targetIndexes: [1, 2, 3],
+      protectedPlayerIndex: 0
+    });
     expect(audit.guardedArea.battle.effects.party.areaGuard).toBeUndefined();
   });
 

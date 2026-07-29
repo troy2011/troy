@@ -2236,69 +2236,6 @@ async function startBattleWithOpponent(opponentId, options = {}) {
     }
 }
 
-async function startExplorationNpcBattle(options = {}) {
-    if (!battleDependencies || !battleDependencies.callApiWithLoader) {
-        console.warn('[Battle] Dependencies not ready yet.');
-        if (options.throwOnError) throw new Error('Battle dependencies are not ready.');
-        return false;
-    }
-    const effectivePlayFabId = myPlayFabId || window.myPlayFabId || options.playFabId || '';
-    if (!effectivePlayFabId) {
-        console.warn('[Battle] myPlayFabId not initialized yet.');
-        if (options.throwOnError) throw new Error('PlayFabId is not initialized.');
-        return false;
-    }
-    if (!myPlayFabId) myPlayFabId = effectivePlayFabId;
-    const activeUntil = Number(window.__battleActiveUntil || 0);
-    const isNavalContinuation = options.continueFromNaval === true
-        || !!options.battleContext?.navalBoardingState;
-    if (!isNavalContinuation && activeUntil > Date.now()) {
-        const msg = '戦闘中のため新しいバトルを開始できません。';
-        if (!options.throwOnError && typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
-            window.showRpgMessage(msg);
-        }
-        return false;
-    }
-
-    try {
-        const payload = {
-            playFabId: effectivePlayFabId,
-            requestId: options.requestId || `exploration-npc-${Date.now()}`
-        };
-        if (options.opponentId) payload.navalOpponentId = options.opponentId;
-        if (options.opponentName) payload.navalOpponentName = options.opponentName;
-        if (options.opponentShipProfile && typeof options.opponentShipProfile === 'object') {
-            payload.opponentShipProfile = options.opponentShipProfile;
-        }
-        if (options.battleContext && typeof options.battleContext === 'object') {
-            payload.battleContext = {
-                ...options.battleContext,
-                source: 'explorationNpc',
-                rewardMode: 'none',
-                npcBattle: true
-            };
-        }
-        const data = await battleDependencies.callApiWithLoader('/api/exploration/npc-battle', {
-            ...payload
-        }, { throwOnError: !!options.throwOnError });
-        if (data && data.battleId) {
-            if (typeof window !== 'undefined') {
-                window.__pendingIslandCommandAfterBattle = null;
-            }
-            showBattleModal(data.battleId);
-            return data;
-        }
-        console.warn('[Battle] exploration npc battle returned no battleId:', data);
-    } catch (error) {
-        console.error('[Battle] startExplorationNpcBattle error:', error);
-        if (!options.throwOnError && typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
-            window.showRpgMessage(error?.message || 'NPC戦を開始できませんでした。');
-        }
-        if (options.throwOnError) throw error;
-    }
-    return false;
-}
-
 async function startIslandCaptureBattleWithOpponent(opponentId, islandId, mapId) {
     if (!opponentId || !islandId || !mapId) return false;
     if (!battleDependencies || !battleDependencies.callApiWithLoader) {
@@ -2387,6 +2324,5 @@ window.returnToMapAfterBattle = returnToMapAfterBattle;
 
 // expose helper globally
 window.startBattleWithOpponent = startBattleWithOpponent;
-window.startExplorationNpcBattle = startExplorationNpcBattle;
 window.startIslandCaptureBattleWithOpponent = startIslandCaptureBattleWithOpponent;
 window.startCapitalCaptureBattleWithOpponent = startCapitalCaptureBattleWithOpponent;

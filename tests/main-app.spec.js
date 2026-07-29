@@ -34,7 +34,9 @@ function makeExplorationStage(stageNo, {
       archetype: 'balanced',
       threatLevel: ((stageNo - 1) * 4) + index + 1,
       isBoss: false,
-      ...monster
+      ...monster,
+      defeatedByPlayer: monster.defeatedByPlayer === true,
+      revealed: monster.revealed === true || clearCount > 0 || monster.defeatedByPlayer === true
     }))
   };
 }
@@ -1578,12 +1580,20 @@ test('home exploration button loads exploration data in a popup', async ({ page 
         }],
         stageVersion: 1,
         shipStageCap: 11,
-        progress: { version: 1, highestUnlockedStage: 2 },
+        progress: {
+          version: 2,
+          highestUnlockedStage: 2,
+          defeatedMonsterIds: ['ismartal-vol1-monster-07']
+        },
         stages: [
           makeExplorationStage(1, {
             name: '珊瑚の浅瀬',
             monsters: [
-              { monsterId: 'ismartal-vol1-monster-07', monsterName: 'マシュロン' },
+              {
+                monsterId: 'ismartal-vol1-monster-07',
+                monsterName: 'マシュロン',
+                defeatedByPlayer: true
+              },
               { monsterId: 'ismartal-vol3-monster-04', monsterName: 'プルン' },
               { monsterId: 'ismartal-vol1-monster-01', monsterName: 'トゲマル' },
               { monsterId: 'ismartal-vol2-monster-02', monsterName: 'パピル' }
@@ -1651,7 +1661,8 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(panel.locator('.ship-exploration-raid-body strong')).toHaveText('バルガン');
   await expect(panel.locator('.ship-exploration-raid-body')).toContainText('HP 125,000 / 250,000');
   await expect(panel.locator('.ship-exploration-raid-body')).toContainText('本日の挑戦 2 / 4');
-  await expect(panel.locator('[data-tarot-kingdom-raid-start]')).toHaveText('挑戦');
+  await expect(panel.locator('.ship-exploration-raid-body')).toContainText('通常NPCなし・プレイヤー／ペット4枠');
+  await expect(panel.locator('[data-tarot-kingdom-raid-start]')).toHaveText('救難信号');
   const stageCards = panel.locator('.ship-exploration-stage');
   await expect(stageCards).toHaveCount(3);
   const firstStage = stageCards.nth(0);
@@ -1660,10 +1671,21 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(firstStage.locator('.ship-exploration-stage-label')).toHaveText('STAGE 1');
   await expect(firstStage.locator('.ship-exploration-title-group strong')).toHaveText('珊瑚の浅瀬');
   await expect(firstStage.locator('.ship-exploration-mapmark img')).toHaveAttribute('src', /Sprites\/exploration_destinations\/coral_lagoon\.png/);
-  await expect(firstStage.locator('.ship-exploration-stage-monsters')).toHaveCount(0);
-  await expect(firstStage.locator('.ship-exploration-stage-monster')).toHaveCount(0);
+  await expect(firstStage.locator('.ship-exploration-stage-monsters')).toBeVisible();
+  await expect(firstStage.locator('.ship-exploration-stage-monster')).toHaveCount(4);
+  await expect(firstStage.locator('.ship-exploration-stage-monster').nth(0)).toHaveClass(/is-defeated/);
+  await expect(firstStage.locator('.ship-exploration-stage-monster').nth(0)).toHaveClass(/is-revealed/);
+  await expect(firstStage.locator('.ship-exploration-stage-monster').nth(0)).toContainText('マシュロン');
+  await expect(firstStage.locator('.ship-exploration-stage-monster-defeat')).toHaveCount(1);
+  await expect(firstStage.locator('.ship-exploration-stage-monster-defeat')).toHaveText('討');
+  await expect(firstStage.locator('.ship-exploration-stage-monster.is-silhouette')).toHaveCount(3);
+  await expect(firstStage.locator('.ship-exploration-stage-monster.is-silhouette').first()).toContainText('？？？');
+  await expect(firstStage.locator('.ship-exploration-stage-monster.is-silhouette').first()
+    .locator('.ship-exploration-stage-monster-sprite')).toHaveCSS('filter', /brightness\(0\)/);
+  await expect(secondStage.locator('.ship-exploration-stage-monster.is-revealed')).toHaveCount(4);
+  await expect(secondStage.locator('.ship-exploration-stage-monster.is-silhouette')).toHaveCount(0);
+  await expect(lockedStage.locator('.ship-exploration-stage-monster.is-silhouette')).toHaveCount(4);
   await expect(firstStage.locator('.ship-exploration-badge')).toHaveCount(0);
-  await expect(firstStage).not.toContainText('敵4体');
   await expect(firstStage.locator('.ship-exploration-start')).toHaveText('出航');
   await expect(secondStage.locator('.ship-exploration-meta')).toContainText('最高 2位 / CLEAR 3');
   await expect(lockedStage).toHaveClass(/is-locked/);
@@ -1692,6 +1714,32 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   expect(explorationPanelFrame.headTop).toBe('0px');
   expect(explorationPanelFrame.tabContainerZIndex).toBeGreaterThan(explorationPanelFrame.globalHeaderZIndex);
   expect(explorationStatusBody).toMatchObject({ playFabId: 'PF_PLAYWRIGHT' });
+  const stageMonsterLayout = await firstStage.locator('.ship-exploration-stage-monsters').evaluate((element) => ({
+    scrollWidth: element.scrollWidth,
+    clientWidth: element.clientWidth,
+    columns: getComputedStyle(element).gridTemplateColumns
+  }));
+  expect(stageMonsterLayout.scrollWidth).toBeLessThanOrEqual(stageMonsterLayout.clientWidth);
+  expect(stageMonsterLayout.columns.split(' ')).toHaveLength(4);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await firstStage.scrollIntoViewIfNeeded();
+  const compactMonsterLayout = await firstStage.locator('.ship-exploration-stage-monsters').evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    const monsterBounds = Array.from(element.querySelectorAll('.ship-exploration-stage-monster'))
+      .map((monster) => {
+        const rect = monster.getBoundingClientRect();
+        return { left: rect.left, right: rect.right };
+      });
+    return {
+      scrollWidth: element.scrollWidth,
+      clientWidth: element.clientWidth,
+      withinGrid: monsterBounds.every((rect) => (
+        rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1
+      ))
+    };
+  });
+  expect(compactMonsterLayout.scrollWidth).toBeLessThanOrEqual(compactMonsterLayout.clientWidth);
+  expect(compactMonsterLayout.withinGrid).toBeTruthy();
   const stageLayout = await panel.evaluate((element) => ({
     panelScrollWidth: element.scrollWidth,
     panelClientWidth: element.clientWidth,
@@ -2026,13 +2074,13 @@ test('exploration stage starts for free with ordered optional supplies', async (
   await expect.poll(() => startBody).not.toBeNull();
   expect(startBody).toMatchObject({
     playFabId: 'PF_PLAYWRIGHT',
-    destinationId: 'tarot_stage_1',
     stageNo: 1,
     supplies: [
       { itemId: 'troy_menu_drink_a', quantity: 1 },
       { itemId: 'troy_menu_food_b', quantity: 1 }
     ]
   });
+  expect(startBody.destinationId).toBeUndefined();
   expect(startBody.paymentMethod).toBeUndefined();
   expect(startBody.paymentConsumables).toBeUndefined();
   const modeChoice = page.locator('.exploration-battle-mode-choice');
@@ -2109,8 +2157,8 @@ test('exploration stage starts for free with ordered optional supplies', async (
   ]);
   await expect(page.locator('#tarotModeKingdom')).toBeHidden();
   await expect(page.locator('.exploration-result-overlay')).toBeVisible();
-  await expect(page.locator('.exploration-result-boss-copy b')).toHaveText('STAGE 1');
-  await expect(page.locator('.exploration-result-boss-copy strong')).toHaveText('パピル');
+  await expect(page.locator('.exploration-result-destination-copy b')).toHaveText('STAGE 1');
+  await expect(page.locator('.exploration-result-destination-copy strong')).toHaveText('珊瑚の浅瀬');
   await expect(page.locator('[data-exploration-result-next]')).toHaveText('次のステージへ出航');
   await expectNoPageErrors(errors);
 });
@@ -2459,9 +2507,9 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
           <div class="exploration-result-prompt"><b>回収完了</b><span>clear</span></div>
         </div>
         <div class="exploration-result-details">
-          <div class="exploration-result-boss-card">
-            <div class="exploration-result-boss-art"><img class="exploration-boss-image exploration-result-boss-image" src="./Sprites/monsters/ghost_pirate.png" alt="boss"></div>
-            <div class="exploration-result-boss-copy"><b>BOSS</b><strong>clear</strong><span>勝利</span></div>
+          <div class="exploration-result-destination-card">
+            <div class="exploration-result-destination-art"><span class="exploration-result-destination-image has-image"><img src="./assets/tarot-kingdom/battlefields/coral-island-v1.webp" alt=""></span></div>
+            <div class="exploration-result-destination-copy"><b>STAGE 1</b><strong>珊瑚の浅瀬</strong><span>勝利</span></div>
           </div>
           <div class="exploration-result-body"><div><b>結果</b><span>clear</span></div></div>
           <ul class="exploration-result-rewards"><li class="exploration-result-reward is-rare"><span class="exploration-result-reward-icon"></span><strong>reward</strong><span>x1</span></li></ul>
@@ -2564,8 +2612,8 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
       resultDialog: styleOf('.exploration-result-dialog'),
       resultClose: styleOf('.exploration-result-close'),
       resultShowcase: styleOf('.exploration-result-showcase'),
-      resultBossCard: styleOf('.exploration-result-boss-card'),
-      resultBossImage: styleOf('.exploration-result-boss-image'),
+      resultBossCard: styleOf('.exploration-result-destination-card'),
+      resultBossImage: styleOf('.exploration-result-destination-image'),
       resultDetailsOpened: openedDetails,
       resultDetailsAwaiting: awaitingDetails,
       resultMetric: styleOf('.exploration-result-body div'),
@@ -3061,17 +3109,18 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await expect(result.locator('[data-exploration-result-state]')).toHaveText('勝利');
   expect(await result.locator('.exploration-result-dialog').evaluate((element) => getComputedStyle(element).overflowX)).toBe('hidden');
   await expect(result.locator('[data-exploration-result-open]')).toBeDisabled();
-  await expect(result.locator('.exploration-result-boss-card')).toHaveAttribute('data-exploration-boss-id', 'ismartal-vol2-monster-02');
-  await expect(result.locator('.exploration-result-boss-image')).toHaveCSS('background-image', /pixel-monsters\/vol2\/monster-02\/idle\.png/);
+  await expect(result.locator('.exploration-result-destination-card')).toHaveAttribute('data-exploration-destination-id', 'tarot_stage_1');
+  await expect(result.locator('.exploration-result-destination-image img')).toHaveAttribute('src', './assets/tarot-kingdom/battlefields/coral-island-v1.webp');
+  await expect(result.locator('[data-exploration-boss-id], .exploration-result-boss-image')).toHaveCount(0);
   for (const viewport of [
     { width: 390, height: 844 },
     { width: 900, height: 1100 }
   ]) {
     await page.setViewportSize(viewport);
-    const monsterLayout = await result.locator('.exploration-result-boss-art').evaluate((art) => {
-      const monster = art.querySelector('.exploration-result-boss-image');
+    const destinationLayout = await result.locator('.exploration-result-destination-art').evaluate((art) => {
+      const destination = art.querySelector('.exploration-result-destination-image');
       const artRect = art.getBoundingClientRect();
-      const monsterRect = monster.getBoundingClientRect();
+      const destinationRect = destination.getBoundingClientRect();
       return {
         art: {
           left: artRect.left,
@@ -3080,25 +3129,26 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
           bottom: artRect.bottom,
           centerX: artRect.left + (artRect.width / 2)
         },
-        monster: {
-          left: monsterRect.left,
-          top: monsterRect.top,
-          right: monsterRect.right,
-          bottom: monsterRect.bottom,
-          centerX: monsterRect.left + (monsterRect.width / 2)
+        destination: {
+          left: destinationRect.left,
+          top: destinationRect.top,
+          right: destinationRect.right,
+          bottom: destinationRect.bottom,
+          centerX: destinationRect.left + (destinationRect.width / 2)
         }
       };
     });
-    expect(Math.abs(monsterLayout.monster.centerX - monsterLayout.art.centerX)).toBeLessThanOrEqual(2);
-    expect(monsterLayout.monster.left).toBeGreaterThanOrEqual(monsterLayout.art.left - 1);
-    expect(monsterLayout.monster.right).toBeLessThanOrEqual(monsterLayout.art.right + 1);
-    expect(monsterLayout.monster.top).toBeGreaterThanOrEqual(monsterLayout.art.top - 1);
-    expect(monsterLayout.monster.bottom).toBeLessThanOrEqual(monsterLayout.art.bottom + 1);
-    await expect(result.locator('.exploration-result-boss-art')).toHaveCSS('overflow', 'hidden');
+    expect(Math.abs(destinationLayout.destination.centerX - destinationLayout.art.centerX)).toBeLessThanOrEqual(2);
+    expect(destinationLayout.destination.left).toBeGreaterThanOrEqual(destinationLayout.art.left - 1);
+    expect(destinationLayout.destination.right).toBeLessThanOrEqual(destinationLayout.art.right + 1);
+    expect(destinationLayout.destination.top).toBeGreaterThanOrEqual(destinationLayout.art.top - 1);
+    expect(destinationLayout.destination.bottom).toBeLessThanOrEqual(destinationLayout.art.bottom + 1);
+    await expect(result.locator('.exploration-result-destination-art')).toHaveCSS('overflow', 'hidden');
   }
-  await expect(result.locator('.exploration-result-boss-copy b')).toHaveText('STAGE 1');
-  await expect(result.locator('.exploration-result-boss-copy strong')).toHaveText('パピル');
-  await expect(result.locator('.exploration-result-boss-copy span')).toHaveText('STAGE 1 / 勝利');
+  await expect(result.locator('.exploration-result-destination-copy b')).toHaveText('STAGE 1');
+  await expect(result.locator('.exploration-result-destination-copy strong')).toHaveText('珊瑚の浅瀬');
+  await expect(result.locator('.exploration-result-destination-copy span')).toHaveText('STAGE 1 / 勝利');
+  await expect(result.locator('.exploration-result-details')).not.toContainText('パピル');
   await expect(result.locator('.exploration-result-body')).toContainText('1位 / タロットキングダム勝利');
   await expect(result.locator('.exploration-result-reward')).toContainText('RARE');
   await expect(result.locator('.exploration-result-chest')).toHaveCSS('animation-name', 'none');
@@ -3763,78 +3813,46 @@ test('king OPEN button uses the current gold button frame', async ({ page }) => 
   await expectNoPageErrors(errors);
 });
 
-test('king can spawn a shared Tarot Kingdom raid boss', async ({ page }) => {
+test('king page no longer exposes raid spawn controls', async ({ page }) => {
   const errors = trackPageErrors(page);
-  const controlRequests = [];
   await bootstrapMainApp(page);
-  await page.unroute('**/api/tarot-kingdom/raid/status');
-  await page.route('**/api/tarot-kingdom/raid/status', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({
-        success: true,
-        raid: {
-          active: false,
-          nation: 'fire',
-          attemptsUsed: 0,
-          attemptsRemaining: 4,
-          dailyAttemptLimit: 4,
-          isKing: true,
-          bosses: [{
-            id: 'ismartal-vol2-monster-07',
-            name: 'バルガン',
-            preFormMonsterId: 'ismartal-vol3-monster-01',
-            preFormMonsterName: 'グラヴァ',
-            maxHp: 250000
-          }]
-        }
-      })
-    });
-  });
-  await page.route('**/api/tarot-kingdom/raid/control', async (route) => {
-    const request = JSON.parse(route.request().postData() || '{}');
-    controlRequests.push(request);
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({
-        success: true,
-        raid: {
-          active: true,
-          nation: 'fire',
-          bossId: 'ismartal-vol2-monster-07',
-          bossName: 'バルガン',
-          currentHp: 250000,
-          maxHp: 250000,
-          bosses: [{
-            id: 'ismartal-vol2-monster-07',
-            name: 'バルガン',
-            maxHp: 250000
-          }]
-        }
-      })
-    });
-  });
-  page.on('dialog', (dialog) => dialog.accept());
 
   await page.evaluate(async () => {
-    const king = await import('/js/nationKing.js?v=20260728-raid1');
+    const king = await import('/js/nationKing.js?v=20260728-raid2');
     await king.refreshKingNav('PF_PLAYWRIGHT');
     await window.showTab('king', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
   });
-  await page.locator('[data-king-section-tab="raid"]').click();
-  await expect(page.locator('[data-king-section-panel="raid"]')).toBeVisible();
-  await expect(page.locator('#kingRaidBossSelect')).toHaveValue('ismartal-vol2-monster-07');
-  await page.locator('#btnKingRaidSpawn').click();
+  await expect(page.locator('[data-king-section-tab="raid"]')).toHaveCount(0);
+  await expect(page.locator('[data-king-section-panel="raid"]')).toHaveCount(0);
+  await expect(page.locator('#btnKingRaidSpawn')).toHaveCount(0);
+  await expect(page.locator('#btnKingRaidWithdraw')).toHaveCount(0);
+  await expectNoPageErrors(errors);
+});
 
-  await expect(page.locator('#kingRaidStatus')).toContainText('バルガン 出現中');
-  await expect(page.locator('#kingRaidStatus')).toContainText('250,000 / 250,000');
-  expect(controlRequests).toEqual([expect.objectContaining({
-    playFabId: 'PF_PLAYWRIGHT',
-    action: 'spawn',
-    bossId: 'ismartal-vol2-monster-07'
-  })]);
+test('raid party eligibility accepts players and pets but rejects ordinary NPCs', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await bootstrapMainApp(page);
+  const result = await page.evaluate(async () => {
+    const kingdom = await import('/js/tarotKingdom.js?v=20260728-raid2');
+    const player = (playFabId) => ({ isNpc: false, isPet: false, playFabId });
+    const pet = (ownerPlayFabId) => ({ isNpc: true, isPet: true, petOwnerPlayFabId: ownerPlayFabId });
+    return {
+      playersAndPets: kingdom.isKingdomRaidPartyEligible({
+        players: [player('P1'), pet('P1'), player('P2'), pet('P2')]
+      }),
+      allPlayers: kingdom.isKingdomRaidPartyEligible({
+        players: [player('P1'), player('P2'), player('P3'), player('P4')]
+      }),
+      ordinaryNpc: kingdom.isKingdomRaidPartyEligible({
+        players: [player('P1'), pet('P1'), player('P2'), { isNpc: true, isPet: false }]
+      })
+    };
+  });
+  expect(result).toEqual({
+    playersAndPets: true,
+    allPlayers: true,
+    ordinaryNpc: false
+  });
   await expectNoPageErrors(errors);
 });
 
