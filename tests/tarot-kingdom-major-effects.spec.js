@@ -100,6 +100,65 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     });
   });
 
+  test('Chariot stays below a five-card skill while retaining a short assault buff', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const combat = [{ maxHp: 120, power: 60, defense: 30, intelligence: 60, speed: 30 }];
+      debug.battleScenario({
+        withTrick: false,
+        combatBySeat: combat,
+        enemyHp: 2000,
+        enemyMaxHp: 2000,
+        enemyDefense: 20,
+        handsBySeat: [[
+          { id: 'balance-chariot', kind: 'major', suit: 'None', number: 7 },
+          { id: 'balance-chariot-reserve', kind: 'minor', suit: 'Cup', number: 2 }
+        ]]
+      });
+      debug.battleSetCombatRandom(0);
+      const chariot = debug.battlePlayCards(0, ['balance-chariot'], { resolve: false }).state;
+      const chariotEvent = chariot.battle.events.at(-1);
+
+      const roleCards = [
+        { id: 'balance-role-2', kind: 'minor', suit: 'Cup', number: 2 },
+        { id: 'balance-role-3', kind: 'minor', suit: 'Sword', number: 3 },
+        { id: 'balance-role-4', kind: 'minor', suit: 'Pentacle', number: 4 },
+        { id: 'balance-role-5', kind: 'minor', suit: 'Wand', number: 5 },
+        { id: 'balance-role-6', kind: 'minor', suit: 'Cup', number: 6 }
+      ];
+      debug.battleScenario({
+        withTrick: false,
+        combatBySeat: combat,
+        enemyHp: 2000,
+        enemyMaxHp: 2000,
+        enemyDefense: 20,
+        handsBySeat: [[
+          ...roleCards,
+          { id: 'balance-role-reserve', kind: 'minor', suit: 'Sword', number: 9 }
+        ]]
+      });
+      debug.battleSetCombatRandom(0);
+      const role = debug.battlePlayCards(0, roleCards.map((card) => card.id), { resolve: false }).state;
+      const roleEvent = role.battle.events.at(-1);
+      return {
+        chariotDamage: chariotEvent.damage,
+        chariotSecondaryDamage: chariotEvent.secondaryDamage,
+        chariotBuff: chariot.battle.effects.players[0].chariot,
+        roleDamage: roleEvent.damage,
+        roleType: roleEvent.type
+      };
+    });
+
+    expect(audit.chariotSecondaryDamage).toBe(56);
+    expect(audit.chariotBuff).toMatchObject({
+      potency: 30,
+      evasionPenalty: 0.15,
+      remainingTurns: 1
+    });
+    expect(audit.roleType).toBe('skill');
+    expect(audit.chariotDamage).toBeLessThan(audit.roleDamage);
+  });
+
   test('elemental combo reports only hit-time weakness and resistance reactions', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;

@@ -1,5 +1,89 @@
 const BATTLEFIELD_DEFINITIONS = [
   {
+    id: 'stage-01-coral-shallows',
+    label: '珊瑚の浅瀬',
+    imagePath: './assets/tarot-kingdom/battlefields/stage-01-coral-shallows-v1.webp',
+    surface: 'coral-stone',
+    shipSide: false
+  },
+  {
+    id: 'stage-02-windswept-deck',
+    label: '風渡る甲板',
+    imagePath: './assets/tarot-kingdom/battlefields/stage-02-windswept-deck-v1.webp',
+    surface: 'ship-deck',
+    shipSide: true
+  },
+  {
+    id: 'stage-03-island-causeway',
+    label: '潮騒の島道',
+    imagePath: './assets/tarot-kingdom/battlefields/stage-03-island-causeway-v1.webp',
+    surface: 'island-stone',
+    shipSide: false
+  },
+  {
+    id: 'stage-04-moon-shadow-castle',
+    label: '月影の古城',
+    imagePath: './assets/tarot-kingdom/battlefields/stage-04-moon-shadow-castle-v1.webp',
+    surface: 'castle-stone',
+    shipSide: false
+  },
+  {
+    id: 'stage-05-emerald-jungle',
+    label: '翠石の密林',
+    imagePath: './assets/tarot-kingdom/battlefields/stage-05-emerald-jungle-v1.webp',
+    surface: 'jungle-stone',
+    shipSide: false
+  },
+  {
+    id: 'stage-06-haunted-marsh',
+    label: '幽霊沼の夜',
+    imagePath: './assets/tarot-kingdom/battlefields/stage-06-haunted-marsh-v1.webp',
+    surface: 'wet-stone',
+    shipSide: false
+  },
+  {
+    id: 'stage-07-sea-fortress',
+    label: '海上砦突破戦',
+    imagePath: './assets/tarot-kingdom/battlefields/stage-07-sea-fortress-v1.webp',
+    surface: 'fortress-stone',
+    shipSide: false
+  },
+  {
+    id: 'stage-08-azure-grotto',
+    label: '蒼光の洞窟',
+    imagePath: './assets/tarot-kingdom/battlefields/stage-08-azure-grotto-v1.webp',
+    surface: 'cave-stone',
+    shipSide: false
+  },
+  {
+    id: 'stage-09-steel-fleet',
+    label: '鋼鉄船団の海',
+    imagePath: './assets/tarot-kingdom/battlefields/stage-09-steel-fleet-v1.webp',
+    surface: 'iron-deck',
+    shipSide: true
+  },
+  {
+    id: 'stage-10-infernal-marsh',
+    label: '獄炎の魔沼',
+    imagePath: './assets/tarot-kingdom/battlefields/stage-10-infernal-marsh-v1.webp',
+    surface: 'infernal-stone',
+    shipSide: false
+  },
+  {
+    id: 'stage-11-eclipse-castle',
+    label: '終月の王城',
+    imagePath: './assets/tarot-kingdom/battlefields/stage-11-eclipse-castle-v1.webp',
+    surface: 'royal-stone',
+    shipSide: false
+  },
+  {
+    id: 'raid-eclipse-altar',
+    label: '蝕海の祭壇',
+    imagePath: './assets/tarot-kingdom/battlefields/raid-eclipse-altar-v1.webp',
+    surface: 'raid-stone',
+    shipSide: false
+  },
+  {
     id: 'moonlit-ruins',
     label: '月影の遺跡',
     imagePath: './assets/tarot-kingdom/moonlit-terrace-vertical-v3.png',
@@ -56,6 +140,7 @@ export const TAROT_KINGDOM_BATTLEFIELDS = Object.freeze(Object.fromEntries(
 ));
 
 export const TAROT_KINGDOM_DEFAULT_BATTLEFIELD_ID = 'moonlit-ruins';
+export const TAROT_KINGDOM_RAID_BATTLEFIELD_ID = 'raid-eclipse-altar';
 
 export const TAROT_KINGDOM_DESTINATION_BATTLEFIELDS = Object.freeze({
   near_sea: 'ship-side',

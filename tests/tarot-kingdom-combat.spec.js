@@ -83,6 +83,38 @@ test.describe('Tarot Kingdom combat calculations', () => {
     expect(audit.minimumRate).toEqual({ kind: 'skill', baseDamage: 90, damage: 90 });
   });
 
+  test('schema 14 growth makes level and strong equipment visibly increase damage', async () => {
+    const combat = await loadCombatModule();
+    const baseAttack = combat.calculateTarotKingdomPlayerAttack({
+      cardCount: 3,
+      maxCardStrength: 14,
+      power: 100,
+      level: 1,
+      equipmentPower: 0,
+      growthVersion: 1
+    });
+    const grownAttack = combat.calculateTarotKingdomPlayerAttack({
+      cardCount: 3,
+      maxCardStrength: 14,
+      power: 100,
+      level: 51,
+      equipmentPower: 50,
+      growthVersion: 1
+    });
+    const grownSkill = combat.calculateTarotKingdomPlayerAttack({
+      isSkill: true,
+      roleRate: 5,
+      intelligence: 200,
+      level: 51,
+      equipmentMagicPower: 40,
+      growthVersion: 1
+    });
+
+    expect(baseAttack).toEqual({ kind: 'attack', baseDamage: 56, damage: 112 });
+    expect(grownAttack).toEqual({ kind: 'attack', baseDamage: 56, damage: 210 });
+    expect(grownSkill).toEqual({ kind: 'skill', baseDamage: 162, damage: 874 });
+  });
+
   test('enemy damage is reduced by defense with zero and minimum-damage handling', async () => {
     const combat = await loadCombatModule();
     const audit = {
@@ -199,6 +231,8 @@ test.describe('Tarot Kingdom NPC combat snapshots', () => {
       defense: 4,
       intelligence: 3,
       speed: 4,
+      equipmentPower: 0,
+      equipmentMagicPower: 0,
       weaponType: 'sword',
       weaponTypes: ['sword']
     });
@@ -292,6 +326,8 @@ test.describe('Tarot Kingdom combat normalization', () => {
       defense: 9,
       intelligence: 12,
       speed: 7,
+      equipmentPower: 0,
+      equipmentMagicPower: 0,
       weaponType: 'sword',
       weaponTypes: ['sword']
     });
@@ -338,6 +374,8 @@ test.describe('Tarot Kingdom combat normalization', () => {
         defense: 0,
         intelligence: 8,
         speed: 4,
+        equipmentPower: 0,
+        equipmentMagicPower: 0,
         weaponType: 'unarmed',
         weaponTypes: ['unarmed']
       }

@@ -195,14 +195,17 @@ def animation_kind(pathname: str) -> tuple[int, str, int] | None:
     if not monster or not pathname.lower().endswith(".anim"):
         return None
     stem = Path(pathname).stem.lower().replace("_", " ")
+    compact_stem = re.sub(r"[^a-z0-9]+", "", stem)
     number = int(monster.group(1))
     if stem == "idle":
         return number, "idle", 0
     if stem in {"fly", "walk"}:
         return number, "idle", 1
-    if stem == "attack":
+    if compact_stem in {"attack", "attack1", "rollattack"}:
         return number, "attack", 0
-    if stem.startswith("attack") or stem in {"rollattack", "roarattack"}:
+    if compact_stem in {"attack2", "spikeattack", "roarattack"}:
+        return number, "attack2", 0
+    if compact_stem.startswith("attack") and not compact_stem.endswith("fx"):
         return number, "attack", 1
     if stem in {"hurt", "hit"}:
         return number, "hurt", 0
@@ -330,14 +333,17 @@ def build_volume(volume: int, entries: dict[str, PackageEntry], output_root: Pat
     monsters: list[dict] = []
     for number in sorted(selections):
         selected = dict(selections[number])
-        if "idle" not in selected and "attack" in selected:
-            selected["idle"] = selected["attack"]
+        if "idle" not in selected and ("attack" in selected or "attack2" in selected):
+            selected["idle"] = selected.get("attack") or selected["attack2"]
         if "idle" not in selected:
             continue
         output_dir = output_root / f"vol{volume}" / f"monster-{number:02d}"
         animation_frames: dict[str, tuple[list[Image.Image], float]] = {}
-        for kind in ("idle", "attack", "hurt", "death"):
-            entry = selected.get(kind) or selected["idle"]
+        for kind in ("idle", "attack", "attack2", "hurt", "death"):
+            entry = selected.get(kind)
+            if entry is None and kind == "attack2":
+                continue
+            entry = entry or selected["idle"]
             refs, fps = parse_animation(entry.asset)
             frames = crop_frames(refs, entries, rect_cache, image_cache)
             if not frames and kind != "idle":

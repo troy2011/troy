@@ -11,7 +11,7 @@ const MONSTER_BY_ID = new Map(
 const STAGE_ROWS = [
     {
         name: '珊瑚の浅瀬',
-        battlefieldId: 'coral-island',
+        battlefieldId: 'stage-01-coral-shallows',
         destinationImagePath: './Sprites/exploration_destinations/coral_lagoon.png',
         atmosphereTone: 'sunlit-coral',
         monsters: [
@@ -23,7 +23,7 @@ const STAGE_ROWS = [
     },
     {
         name: '風渡る甲板',
-        battlefieldId: 'ship-side',
+        battlefieldId: 'stage-02-windswept-deck',
         destinationImagePath: './Sprites/exploration_destinations/twin_sea_stacks.png',
         atmosphereTone: 'open-sea',
         monsters: [
@@ -35,7 +35,7 @@ const STAGE_ROWS = [
     },
     {
         name: '潮騒の島道',
-        battlefieldId: 'coral-island',
+        battlefieldId: 'stage-03-island-causeway',
         destinationImagePath: './Sprites/exploration_destinations/reef_islets.png',
         atmosphereTone: 'tropical-wilds',
         monsters: [
@@ -47,7 +47,7 @@ const STAGE_ROWS = [
     },
     {
         name: '月影の古城',
-        battlefieldId: 'moonlit-ruins',
+        battlefieldId: 'stage-04-moon-shadow-castle',
         destinationImagePath: './Sprites/exploration_destinations/watchtower_island.png',
         atmosphereTone: 'moonlit-gothic',
         monsters: [
@@ -59,7 +59,7 @@ const STAGE_ROWS = [
     },
     {
         name: '翠石の密林',
-        battlefieldId: 'coral-island',
+        battlefieldId: 'stage-05-emerald-jungle',
         destinationImagePath: './Sprites/exploration_destinations/hidden_lagoon.png',
         atmosphereTone: 'verdant-ruins',
         monsters: [
@@ -71,7 +71,7 @@ const STAGE_ROWS = [
     },
     {
         name: '幽霊沼の夜',
-        battlefieldId: 'haunted-marsh',
+        battlefieldId: 'stage-06-haunted-marsh',
         destinationImagePath: './Sprites/exploration_destinations/haunted_marsh.png',
         atmosphereTone: 'poison-mist',
         monsters: [
@@ -83,7 +83,7 @@ const STAGE_ROWS = [
     },
     {
         name: '海上砦突破戦',
-        battlefieldId: 'sea-fortress',
+        battlefieldId: 'stage-07-sea-fortress',
         destinationImagePath: './Sprites/exploration_destinations/sea_fortress.png',
         atmosphereTone: 'siege',
         monsters: [
@@ -95,7 +95,7 @@ const STAGE_ROWS = [
     },
     {
         name: '蒼光の洞窟',
-        battlefieldId: 'blue-grotto',
+        battlefieldId: 'stage-08-azure-grotto',
         destinationImagePath: './Sprites/exploration_destinations/glowing_grotto.png',
         atmosphereTone: 'arcane-blue',
         monsters: [
@@ -107,7 +107,7 @@ const STAGE_ROWS = [
     },
     {
         name: '鋼鉄船団の海',
-        battlefieldId: 'ship-side',
+        battlefieldId: 'stage-09-steel-fleet',
         destinationImagePath: './Sprites/exploration_destinations/ruined_harbor.png',
         atmosphereTone: 'storm-machinery',
         monsters: [
@@ -119,7 +119,7 @@ const STAGE_ROWS = [
     },
     {
         name: '獄炎の魔沼',
-        battlefieldId: 'haunted-marsh',
+        battlefieldId: 'stage-10-infernal-marsh',
         destinationImagePath: './Sprites/exploration_destinations/volcanic_island.png',
         atmosphereTone: 'infernal-red',
         monsters: [
@@ -131,7 +131,7 @@ const STAGE_ROWS = [
     },
     {
         name: '終月の王城',
-        battlefieldId: 'moonlit-ruins',
+        battlefieldId: 'stage-11-eclipse-castle',
         destinationImagePath: './Sprites/exploration_destinations/ancient_sea_gate.png',
         atmosphereTone: 'final-eclipse',
         monsters: [

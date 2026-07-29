@@ -2,8 +2,7 @@ const { randomUUID } = require('crypto');
 
 const TAROT_KINGDOM_RAID_COLLECTION = 'tarot_kingdom_raids';
 const TAROT_KINGDOM_RAID_GLOBAL_DOC_ID = 'global';
-const TAROT_KINGDOM_RAID_DAILY_ATTEMPT_COLLECTION = 'tarot_kingdom_raid_daily_attempts';
-const TAROT_KINGDOM_RAID_DAILY_ATTEMPT_LIMIT = 4;
+const TAROT_KINGDOM_RAID_ENCOUNTER_RATE = 0.05;
 const TAROT_KINGDOM_RAID_MAX_REPORTED_DAMAGE = 1000000;
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
@@ -77,20 +76,21 @@ function normalizeTarotKingdomRaidState(value = null, nation = '') {
 
 function buildTarotKingdomRaidPublicState(value, options = {}) {
     const state = normalizeTarotKingdomRaidState(value, options.nation);
-    const attemptsUsed = Math.max(
-        0,
-        Math.min(
-            TAROT_KINGDOM_RAID_DAILY_ATTEMPT_LIMIT,
-            Math.floor(Number(options.attemptsUsed) || 0)
-        )
-    );
     return {
         ...state,
-        attemptsUsed,
-        attemptsRemaining: Math.max(0, TAROT_KINGDOM_RAID_DAILY_ATTEMPT_LIMIT - attemptsUsed),
-        dailyAttemptLimit: TAROT_KINGDOM_RAID_DAILY_ATTEMPT_LIMIT,
-        dayKey: String(options.dayKey || getTarotKingdomRaidDayKey())
+        unlimitedAttempts: true,
+        attemptsUsed: null,
+        attemptsRemaining: null,
+        dailyAttemptLimit: null
     };
+}
+
+function rollTarotKingdomRaidEncounter(randomValue = Math.random()) {
+    const numeric = Number(randomValue);
+    const normalized = Number.isFinite(numeric)
+        ? Math.max(0, Math.min(0.999999999999, numeric))
+        : 1;
+    return normalized < TAROT_KINGDOM_RAID_ENCOUNTER_RATE;
 }
 
 function createTarotKingdomRaidSpawnState({ nation, bossId, actorPlayFabId, nowMs = Date.now() } = {}) {
@@ -182,9 +182,8 @@ function isTarotKingdomRaidPartyEligible(players = []) {
 module.exports = {
     TAROT_KINGDOM_RAID_BOSSES,
     TAROT_KINGDOM_RAID_COLLECTION,
+    TAROT_KINGDOM_RAID_ENCOUNTER_RATE,
     TAROT_KINGDOM_RAID_GLOBAL_DOC_ID,
-    TAROT_KINGDOM_RAID_DAILY_ATTEMPT_COLLECTION,
-    TAROT_KINGDOM_RAID_DAILY_ATTEMPT_LIMIT,
     applyTarotKingdomRaidDamage,
     buildTarotKingdomRaidPublicState,
     createTarotKingdomRaidAttemptId,
@@ -194,5 +193,6 @@ module.exports = {
     isTarotKingdomRaidPartyEligible,
     normalizeTarotKingdomRaidNation,
     normalizeTarotKingdomRaidReportedDamage,
-    normalizeTarotKingdomRaidState
+    normalizeTarotKingdomRaidState,
+    rollTarotKingdomRaidEncounter
 };

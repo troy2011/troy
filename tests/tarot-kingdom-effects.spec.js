@@ -85,6 +85,34 @@ test.describe('Tarot Kingdom weapon-suit effects', () => {
     ));
     expect(resolved).toMatchObject({ weapon: 'axe', kind: 'effective', amount: 45 });
   });
+
+  test('level and weapon power also strengthen weapon-suit effects in current matches', async () => {
+    const effects = await loadEffectsModule();
+    const base = effects.resolveTarotKingdomWeaponEffect(
+      weaponContext(['sword'], minor('Sword', 10))
+    );
+    const grown = effects.resolveTarotKingdomWeaponEffect(weaponContext(
+      ['sword'],
+      minor('Sword', 10),
+      {
+        growthVersion: 1,
+        character: {
+          level: 51,
+          combat: {
+            power: 100,
+            intelligence: 100,
+            equipmentPower: 50,
+            weaponType: 'sword',
+            weaponTypes: ['sword']
+          },
+          tarotDeck: []
+        }
+      }
+    ));
+
+    expect(base.amount).toBe(37);
+    expect(grown.amount).toBe(70);
+  });
 });
 
 test.describe('Tarot Kingdom equipped-card resonance', () => {

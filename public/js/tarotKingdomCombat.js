@@ -1,4 +1,5 @@
 import {
+    getTarotKingdomGrowthDamageScale,
     normalizeTarotKingdomTarotDeck,
     normalizeTarotKingdomWeaponTypes
 } from './tarotKingdomEffects.js';
@@ -127,6 +128,14 @@ export function normalizeTarotKingdomCombat(rawCombat = {}, fallback = {}) {
         defense: Math.max(0, Math.floor(finiteNumber(source.defense, finiteNumber(base.defense, 0)))),
         intelligence: Math.max(0, Math.floor(finiteNumber(source.intelligence, finiteNumber(base.intelligence, 0)))),
         speed: Math.max(0, Math.floor(finiteNumber(source.speed, finiteNumber(base.speed, 0)))),
+        equipmentPower: Math.max(0, Math.floor(finiteNumber(
+            source.equipmentPower,
+            finiteNumber(base.equipmentPower, 0)
+        ))),
+        equipmentMagicPower: Math.max(0, Math.floor(finiteNumber(
+            source.equipmentMagicPower,
+            finiteNumber(base.equipmentMagicPower, 0)
+        ))),
         weaponType,
         weaponTypes: normalizeTarotKingdomWeaponTypes(source.weaponTypes || base.weaponTypes, weaponType)
     };
@@ -352,6 +361,10 @@ export function calculateTarotKingdomPlayerAttack({
     maxCardStrength = 0,
     power = 0,
     intelligence = 0,
+    level = 1,
+    equipmentPower = 0,
+    equipmentMagicPower = 0,
+    growthVersion = 0,
     isSkill = false,
     roleRate = 1
 } = {}) {
@@ -359,12 +372,28 @@ export function calculateTarotKingdomPlayerAttack({
         const safeRate = Math.max(1, Math.floor(finiteNumber(roleRate, 1)));
         const baseDamage = 72 + (safeRate * 18);
         const scaling = 1 + (Math.min(200, Math.max(0, finiteNumber(intelligence, 0))) / 100);
-        return { kind: 'skill', baseDamage, damage: Math.max(0, Math.floor(baseDamage * scaling)) };
+        const growthScale = getTarotKingdomGrowthDamageScale({
+            level,
+            combat: { equipmentMagicPower }
+        }, 'magic', growthVersion);
+        return {
+            kind: 'skill',
+            baseDamage,
+            damage: Math.max(0, Math.floor(baseDamage * scaling * growthScale))
+        };
     }
     const safeCount = Math.max(1, Math.min(5, Math.floor(finiteNumber(cardCount, 1))));
     const baseDamage = 10 + (safeCount * 14) + Math.floor(Math.max(0, finiteNumber(maxCardStrength, 0)) / 3);
     const scaling = 1 + (Math.min(200, Math.max(0, finiteNumber(power, 0))) / 100);
-    return { kind: 'attack', baseDamage, damage: Math.max(0, Math.floor(baseDamage * scaling)) };
+    const growthScale = getTarotKingdomGrowthDamageScale({
+        level,
+        combat: { equipmentPower }
+    }, 'physical', growthVersion);
+    return {
+        kind: 'attack',
+        baseDamage,
+        damage: Math.max(0, Math.floor(baseDamage * scaling * growthScale))
+    };
 }
 
 export function calculateTarotKingdomIncomingDamage(enemyBaseDamage, defense = 0) {

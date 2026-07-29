@@ -2455,6 +2455,13 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
         mode: battleMode,
         enemyDefeatMode: getExplorationEnemyDefeatMode(),
         currentPet: currentTarotKingdomPet,
+        onRaidEncounter: battleMode === 'online' && ownerPlayFabId
+            ? async (roomId) => requestStartTarotKingdomRaid(
+                ownerPlayFabId,
+                roomId,
+                { isSilent: true, throwOnError: true }
+            )
+            : null,
         onRoundFinished: battleMode === 'offline' && ownerPlayFabId
             ? async (finisher) => {
                 const roll = await requestRollTarotKingdomPetRound(
@@ -2473,6 +2480,10 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
             }
             : null
     });
+    const raidResult = kingdomResult?.raid || null;
+    if (raidResult?.attemptId) {
+        await finishTarotKingdomRaidResult(ownerPlayFabId, raidResult);
+    }
     const retreatedInKingdom = kingdomResult?.status === 'retreated';
     return {
         chestOpened: false,
@@ -2481,7 +2492,8 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
         explorationId,
         kingdomResult,
         retreated: retreatedInKingdom,
-        cancelled: kingdomResult?.status !== 'completed'
+        raidEncountered: !!raidResult?.attemptId,
+        cancelled: !!raidResult?.attemptId || kingdomResult?.status !== 'completed'
     };
 }
 
@@ -2497,99 +2509,36 @@ async function completeExplorationRetreat(playFabId, sequenceResult) {
     return true;
 }
 
-async function startTarotKingdomRaidBattle(playFabId, button = null, raidStatus = null) {
-    if (!playFabId || explorationAutoRunning) return;
-    if (typeof window.launchTarotKingdomExplorationBattle !== 'function') {
-        showRpgMessage('タロットキングダムを開始できません。');
-        return;
-    }
-    explorationAutoRunning = true;
-    const previousLabel = button?.textContent || '挑戦';
-    if (button) {
-        button.disabled = true;
-        button.textContent = '出撃準備中';
-    }
-    try {
-        const raid = raidStatus && typeof raidStatus === 'object' ? raidStatus : null;
-        if (!raid?.active || !raid?.preFormMonsterId || !raid?.bossId) {
-            throw new Error('現在、挑戦できるレイドボスはいません。');
-        }
-        if (typeof window.closeHomeExplorationPopup === 'function') {
-            window.closeHomeExplorationPopup();
-        }
-        showRpgMessage('レイド救難信号を発信します。');
-        const kingdomResult = await window.launchTarotKingdomExplorationBattle({
-            explorationId: '',
-            destinationId: `raid-${raid.nation}`,
-            destinationName: 'レイド海域',
-            monsterId: raid.preFormMonsterId,
-            monsterName: raid.preFormMonsterName,
-            isBoss: false,
-            battlefieldId: '',
-            atmosphereTone: 'raid',
-            monsters: [],
-            supplyQueue: [],
-            mode: 'online',
-            enemyDefeatMode: 'hp-zero',
-            currentPet: currentTarotKingdomPet,
-            raidLobby: true,
-            onRaidStart: async (roomId) => {
-                const startData = await requestStartTarotKingdomRaid(playFabId, roomId, {
-                    isSilent: true,
-                    throwOnError: true
-                });
-                if (!startData?.attempt?.attemptId) {
-                    throw new Error('レイド挑戦情報を取得できませんでした。');
-                }
-                return startData.attempt;
-            }
-        });
-        const raidResult = kingdomResult?.raid || {};
-        if (!raidResult.attemptId) {
-            if (kingdomResult?.status !== 'retreated') {
-                showRpgMessage('レイドバトルは開始されませんでした。');
-            }
-            await loadExplorationPanel(playFabId);
-            return;
-        }
-        const finishData = await requestFinishTarotKingdomRaid(
-            playFabId,
-            raidResult.attemptId,
-            {
-                damageDealt: raidResult.damageDealt,
-                finisher: raidResult.finisher
-            },
-            { isSilent: true, throwOnError: true }
+async function finishTarotKingdomRaidResult(playFabId, raidResult) {
+    if (!playFabId || !raidResult?.attemptId) return null;
+    const finishData = await requestFinishTarotKingdomRaid(
+        playFabId,
+        raidResult.attemptId,
+        {
+            damageDealt: raidResult.damageDealt,
+            finisher: raidResult.finisher
+        },
+        { isSilent: true, throwOnError: true }
+    );
+    const resolution = finishData?.resolution || {};
+    if (resolution.defeatedNow) {
+        const rewardName = String(finishData?.reward?.displayName || '').trim();
+        showRpgMessage(
+            rewardName
+                ? `${raidResult.bossName}を　たおした！\n${rewardName}を　てにいれた！`
+                : `${raidResult.bossName}を　たおした！`
         );
-        const resolution = finishData?.resolution || {};
-        if (resolution.defeatedNow) {
-            const rewardName = String(finishData?.reward?.displayName || '').trim();
-            showRpgMessage(
-                rewardName
-                    ? `${raidResult.bossName}を　たおした！\n${rewardName}を　てにいれた！`
-                    : `${raidResult.bossName}を　たおした！`
-            );
-        } else if (raidResult.escaped) {
-            showRpgMessage(
-                `${raidResult.bossName}は　にげだした！\n`
-                + `${Math.max(0, Number(resolution.appliedDamage) || 0).toLocaleString('ja-JP')}ダメージを　あたえた！`
-            );
-        } else {
-            showRpgMessage(
-                `${raidResult.bossName}に ${Math.max(0, Number(resolution.appliedDamage) || 0).toLocaleString('ja-JP')}ダメージ！`
-            );
-        }
-        await loadExplorationPanel(playFabId);
-    } catch (error) {
-        showRpgMessage(error?.message || 'レイドへ出撃できませんでした。');
-        await loadExplorationPanel(playFabId).catch(() => {});
-    } finally {
-        explorationAutoRunning = false;
-        if (button?.isConnected) {
-            button.disabled = false;
-            button.textContent = previousLabel;
-        }
+    } else if (raidResult.escaped) {
+        showRpgMessage(
+            `${raidResult.bossName}は　にげだした！\n`
+            + `${Math.max(0, Number(resolution.appliedDamage) || 0).toLocaleString('ja-JP')}ダメージを　あたえた！`
+        );
+    } else {
+        showRpgMessage(
+            `${raidResult.bossName}に ${Math.max(0, Number(resolution.appliedDamage) || 0).toLocaleString('ja-JP')}ダメージ！`
+        );
     }
+    return finishData;
 }
 
 function renderExplorationPanel(data, playFabId) {
@@ -2608,42 +2557,6 @@ function renderExplorationPanel(data, playFabId) {
         </div>
     `;
     const enemyDefeatMode = getExplorationEnemyDefeatMode();
-    const raid = data?.raid && typeof data.raid === 'object' ? data.raid : null;
-    const raidMonster = raid?.bossId
-        ? PIXEL_MONSTERS_ROSTER.find((monster) => monster.id === raid.bossId)
-        : null;
-    const raidHpPercent = Number(raid?.maxHp) > 0
-        ? Math.max(0, Math.min(100, (Number(raid.currentHp) / Number(raid.maxHp)) * 100))
-        : 0;
-    const raidPanel = raid?.active ? `
-        <section class="ship-exploration-raid" aria-label="レイドボス">
-            <div class="ship-exploration-raid-visual">
-                ${renderExplorationPixelMonster(raidMonster, 'ship-exploration-raid-monster', {
-                    maxWidth: 104,
-                    maxHeight: 92,
-                    compactMaxWidth: 84,
-                    compactMaxHeight: 74
-                })}
-            </div>
-            <div class="ship-exploration-raid-body">
-                <span class="ship-exploration-raid-kicker">RAID BOSS</span>
-                <strong>${escapeHtml(raid.bossName || 'レイドボス')}</strong>
-                <div class="ship-exploration-raid-hp" role="progressbar"
-                    aria-label="${escapeHtml(raid.bossName || 'レイドボス')} HP"
-                    aria-valuemin="0" aria-valuemax="${Math.max(1, Number(raid.maxHp) || 1)}"
-                    aria-valuenow="${Math.max(0, Number(raid.currentHp) || 0)}">
-                    <span style="width:${raidHpPercent.toFixed(2)}%"></span>
-                </div>
-                <small>HP ${Math.max(0, Number(raid.currentHp) || 0).toLocaleString('ja-JP')} / ${Math.max(1, Number(raid.maxHp) || 1).toLocaleString('ja-JP')}</small>
-                <small>本日の挑戦 ${Math.max(0, Number(raid.attemptsUsed) || 0)} / ${Math.max(1, Number(raid.dailyAttemptLimit) || 4)}</small>
-                <small>通常NPCなし・プレイヤー／ペット4枠で挑戦可能</small>
-            </div>
-            <button type="button" data-tarot-kingdom-raid-start
-                ${active || Number(raid.attemptsRemaining) <= 0 ? 'disabled' : ''}>
-                ${Number(raid.attemptsRemaining) > 0 ? '救難信号' : '本日終了'}
-            </button>
-        </section>
-    ` : '';
     const explorationSettings = `
         <details class="ship-exploration-settings">
             <summary>探索設定</summary>
@@ -2686,16 +2599,9 @@ function renderExplorationPanel(data, playFabId) {
             });
         });
     };
-    const bindRaid = () => {
-        const raidButton = panel.querySelector('[data-tarot-kingdom-raid-start]');
-        raidButton?.addEventListener('click', () => startTarotKingdomRaidBattle(playFabId, raidButton, raid));
-        const raidNode = panel.querySelector('.ship-exploration-raid-monster');
-        if (raidNode && raidMonster) animateExplorationPetIdle(raidNode, raidMonster);
-    };
     if (active) {
         panel.innerHTML = `
             ${head}
-            ${raidPanel}
             ${explorationSettings}
             ${rescueCheck}
             <div class="ship-exploration-destination is-active">
@@ -2714,7 +2620,6 @@ function renderExplorationPanel(data, playFabId) {
                 </div>
             </div>
         `;
-        bindRaid();
         bindExplorationSettings();
         bindRescueCheck();
         panel.querySelector('[data-exploration-claim]')?.addEventListener('click', () => claimExploration(playFabId));
@@ -2759,12 +2664,10 @@ function renderExplorationPanel(data, playFabId) {
         : '<div class="ship-exploration-empty">探索ステージを読み込めませんでした。</div>';
     panel.innerHTML = `
         ${head}
-        ${raidPanel}
         ${explorationSettings}
         ${rescueCheck}
         <div class="ship-exploration-destinations">${destinationHtml}</div>
     `;
-    bindRaid();
     bindExplorationSettings();
     bindRescueCheck();
     panel.querySelectorAll('[data-exploration-start]').forEach((button) => {

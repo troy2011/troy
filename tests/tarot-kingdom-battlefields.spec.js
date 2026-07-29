@@ -147,7 +147,7 @@ test('all exploration destinations resolve to floor-safe battlefield profiles', 
   expect(result.audit).toEqual(expect.objectContaining({
     ok: true,
     errors: [],
-    battlefieldCount: 6,
+    battlefieldCount: 18,
     destinationCount: 18,
     groundStartPercent: 36
   }));
@@ -157,6 +157,134 @@ test('all exploration destinations resolve to floor-safe battlefield profiles', 
     expect(entry.actualId).toBe(entry.expectedId);
     expect(entry.groundStartPercent).toBe(36);
     expect(entry.imagePath).toMatch(/\.(png|webp)$/);
+  }
+});
+
+test('all 11 exploration stages load distinct dedicated battlefield images', async ({ page }) => {
+  await page.goto('/tarot-kingdom-preview.html', { waitUntil: 'domcontentloaded' });
+  const stageBattlefieldIds = [
+    'stage-01-coral-shallows',
+    'stage-02-windswept-deck',
+    'stage-03-island-causeway',
+    'stage-04-moon-shadow-castle',
+    'stage-05-emerald-jungle',
+    'stage-06-haunted-marsh',
+    'stage-07-sea-fortress',
+    'stage-08-azure-grotto',
+    'stage-09-steel-fleet',
+    'stage-10-infernal-marsh',
+    'stage-11-eclipse-castle'
+  ];
+  const result = await page.evaluate(async (battlefieldIds) => {
+    const module = await import('./js/tarotKingdomBattlefields.js');
+    return Promise.all(battlefieldIds.map((battlefieldId) => new Promise((resolve) => {
+      const battlefield = module.getTarotKingdomBattlefieldById(battlefieldId);
+      const image = new Image();
+      image.addEventListener('load', () => resolve({
+        id: battlefield.id,
+        imagePath: battlefield.imagePath,
+        groundStartPercent: battlefield.groundStartPercent,
+        shipSide: battlefield.shipSide,
+        surface: battlefield.surface,
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+        loaded: true
+      }), { once: true });
+      image.addEventListener('error', () => resolve({
+        id: battlefield.id,
+        imagePath: battlefield.imagePath,
+        loaded: false
+      }), { once: true });
+      image.src = battlefield.imagePath;
+    })));
+  }, stageBattlefieldIds);
+
+  expect(result).toHaveLength(11);
+  expect(new Set(result.map((entry) => entry.id)).size).toBe(11);
+  expect(new Set(result.map((entry) => entry.imagePath)).size).toBe(11);
+  for (const entry of result) {
+    expect(entry.loaded).toBe(true);
+    expect(entry.imagePath).toMatch(/stage-\d{2}-.+-v1\.webp$/);
+    expect(entry.groundStartPercent).toBe(36);
+    expect(entry.width).toBeGreaterThan(900);
+    expect(entry.height / entry.width).toBeGreaterThan(1.7);
+  }
+  expect(result.filter((entry) => entry.shipSide).map((entry) => entry.id)).toEqual([
+    'stage-02-windswept-deck',
+    'stage-09-steel-fleet'
+  ]);
+  expect(result.filter((entry) => entry.shipSide).every((entry) => entry.surface.endsWith('-deck'))).toBe(true);
+});
+
+test('raid uses its own eclipse altar battlefield asset', async ({ page }) => {
+  await page.goto('/tarot-kingdom-preview.html', { waitUntil: 'domcontentloaded' });
+  const result = await page.evaluate(async () => {
+    const module = await import('./js/tarotKingdomBattlefields.js');
+    const battlefield = module.getTarotKingdomBattlefieldById(module.TAROT_KINGDOM_RAID_BATTLEFIELD_ID);
+    const image = new Image();
+    const loaded = await new Promise((resolve) => {
+      image.addEventListener('load', () => resolve(true), { once: true });
+      image.addEventListener('error', () => resolve(false), { once: true });
+      image.src = battlefield.imagePath;
+    });
+    return {
+      constant: module.TAROT_KINGDOM_RAID_BATTLEFIELD_ID,
+      battlefield,
+      loaded,
+      width: image.naturalWidth,
+      height: image.naturalHeight
+    };
+  });
+
+  expect(result.constant).toBe('raid-eclipse-altar');
+  expect(result.battlefield).toMatchObject({
+    id: 'raid-eclipse-altar',
+    label: '蝕海の祭壇',
+    imagePath: './assets/tarot-kingdom/battlefields/raid-eclipse-altar-v1.webp',
+    surface: 'raid-stone',
+    groundStartPercent: 36,
+    shipSide: false
+  });
+  expect(result.loaded).toBe(true);
+  expect(result.width).toBeGreaterThan(900);
+  expect(result.height / result.width).toBeGreaterThan(1.7);
+});
+
+test('enemy depth layer stays between party seats 2 and 3', async ({ page }) => {
+  await openBattle(page, { width: 390, height: 844 });
+  for (const playerCount of [3, 4]) {
+    const depth = await page.evaluate((count) => {
+      window.TarotKingdomDebug.battleScenario({
+        playerCount: count,
+        handCounts: Array(count).fill(8),
+        withTrick: false
+      });
+      const enemy = document.querySelector('#tarotKingdomBattleStage .tarot-kingdom-battle-enemy');
+      const partySide = document.querySelector('#tarotKingdomBattleStage .tarot-kingdom-battle-party-side');
+      const players = Array.from(document.querySelectorAll(
+        '#tarotKingdomBattleParty > .tarot-kingdom-battle-player'
+      ));
+      const normalPlayerDepths = players.map((row) => Number.parseInt(getComputedStyle(row).zIndex, 10));
+      players[2].classList.add('is-round-winner');
+      const roundWinnerDepth = Number.parseInt(getComputedStyle(players[2]).zIndex, 10);
+      players[2].classList.remove('is-round-winner');
+      players[2].classList.add('is-match-champion');
+      const matchChampionDepth = Number.parseInt(getComputedStyle(players[2]).zIndex, 10);
+      return {
+        enemy: Number.parseInt(getComputedStyle(enemy).zIndex, 10),
+        partySide: getComputedStyle(partySide).zIndex,
+        players: normalPlayerDepths,
+        roundWinnerDepth,
+        matchChampionDepth
+      };
+    }, playerCount);
+
+    expect(depth.partySide).toBe('auto');
+    expect(depth.players).toHaveLength(playerCount);
+    expect(depth.players[1]).toBeGreaterThan(depth.enemy);
+    expect(depth.enemy).toBeGreaterThan(depth.players[2]);
+    expect(depth.roundWinnerDepth).toBe(depth.players[2]);
+    expect(depth.matchChampionDepth).toBe(depth.players[2]);
   }
 });
 

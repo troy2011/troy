@@ -142,7 +142,15 @@ export function buildTarotKingdomSummonEffectSteps(summonState, context = {}) {
     const roleRate = Math.max(1, Math.min(5, Math.floor(finiteNumber(context.roleRate, 1))));
     const intelligence = Math.max(0, finiteNumber(context.intelligence, 0));
     const summonScale = 1 + (Math.min(200, intelligence) / 200);
-    const base = Math.max(1, Math.floor((16 + (roleRate * 8)) * summonScale));
+    const levelScale = Number(context.growthVersion) >= 1
+        ? 1 + (Math.min(100, Math.max(0, Math.floor(finiteNumber(context.level, 1)) - 1)) / 100)
+        : 1;
+    const equipmentScale = Number(context.growthVersion) >= 1
+        ? 1 + (Math.min(100, Math.max(0, finiteNumber(context.equipmentMagicPower, 0))) / 200)
+        : 1;
+    const base = Math.max(1, Math.floor(
+        (16 + (roleRate * 8)) * summonScale * levelScale * equipmentScale
+    ));
     const source = 'summon';
     const label = String(summonState?.effectName || EFFECT_PROFILES[effectKey]?.name || '召喚効果');
     if (effectKey === 'rupture') {

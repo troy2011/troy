@@ -26,6 +26,7 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
     expect(new Set(monsters.map((entry) => entry.monsterId)).size).toBe(44);
     expect(monsters.every((entry) => entry.isBoss === false)).toBeTruthy();
     expect(new Set(TAROT_KINGDOM_EXPLORATION_STAGES.map((stage) => stage.atmosphereTone)).size).toBe(11);
+    expect(new Set(TAROT_KINGDOM_EXPLORATION_STAGES.map((stage) => stage.battlefieldId)).size).toBe(11);
     const destinationImages = TAROT_KINGDOM_EXPLORATION_STAGES.map((stage) => stage.imagePath);
     expect(TAROT_KINGDOM_EXPLORATION_STAGES.every((stage) => (
       stage.battlefieldId
@@ -76,7 +77,7 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
       version: 2,
       explorationId: 'exp-stage-test',
       stageNo: 9,
-      battlefieldId: 'ship-side',
+      battlefieldId: 'stage-09-steel-fleet',
       atmosphereTone: 'storm-machinery',
       monsterName: 'メカノ'
     });

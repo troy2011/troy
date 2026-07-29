@@ -179,6 +179,23 @@ export function getTarotKingdomMagicScale(intelligence) {
     return 1 + (clamp(intelligence, 0, 200) / 200);
 }
 
+export function getTarotKingdomLevelDamageScale(level) {
+    return 1 + (clamp(Math.floor(finiteNumber(level, 1)) - 1, 0, 100) / 100);
+}
+
+export function getTarotKingdomEquipmentDamageScale(equipmentPower) {
+    return 1 + (clamp(equipmentPower, 0, 100) / 200);
+}
+
+export function getTarotKingdomGrowthDamageScale(character = {}, damageKind = 'physical', growthVersion = 0) {
+    if (Number(growthVersion) < 1) return 1;
+    const combat = character?.combat && typeof character.combat === 'object' ? character.combat : {};
+    const equipmentPower = String(damageKind || '').toLowerCase() === 'magic'
+        ? finiteNumber(combat.equipmentMagicPower, 0)
+        : finiteNumber(combat.equipmentPower, 0);
+    return getTarotKingdomLevelDamageScale(character?.level) * getTarotKingdomEquipmentDamageScale(equipmentPower);
+}
+
 export function getTarotKingdomCardIdentity(card) {
     if (!card || card.kind !== 'minor') return '';
     const suit = normalizeSuit(card.suit);
@@ -243,6 +260,16 @@ function buildWeaponCandidate(weapon, card, context = {}) {
     const combat = context.character?.combat || {};
     const physicalScale = getTarotKingdomPhysicalScale(combat.power);
     const magicScale = getTarotKingdomMagicScale(combat.intelligence);
+    const physicalGrowthScale = getTarotKingdomGrowthDamageScale(
+        context.character,
+        'physical',
+        context.growthVersion
+    );
+    const magicGrowthScale = getTarotKingdomGrowthDamageScale(
+        context.character,
+        'magic',
+        context.growthVersion
+    );
     const chance = getTarotKingdomStatusChance(rank);
     const players = Array.isArray(context.players) ? context.players : [];
     const actorIndex = Math.max(0, Math.floor(finiteNumber(context.actorIndex, 0)));
@@ -265,7 +292,7 @@ function buildWeaponCandidate(weapon, card, context = {}) {
         const living = getLivingPlayerIndexes(players, actorIndex);
         if (!living.length) return null;
         const targetIndex = living[0];
-        const fullAmount = Math.floor(rank * 2 * magicScale);
+        const fullAmount = Math.floor(rank * 2 * magicScale * magicGrowthScale);
         const amount = rank % 2 === 0 ? Math.max(1, Math.floor(fullAmount / 2)) : fullAmount;
         const missing = Math.max(0, finiteNumber(players[targetIndex]?.maxHp, 0) - finiteNumber(players[targetIndex]?.hp, 0));
         return {
@@ -274,24 +301,26 @@ function buildWeaponCandidate(weapon, card, context = {}) {
         };
     }
     if (weapon === 'wand') {
-        return createDamageEffect('magic', '魔法ダメージ', rank * 2 * magicScale, { rank, weapon, suit });
+        return createDamageEffect('magic', '魔法ダメージ', rank * 2 * magicScale * magicGrowthScale, { rank, weapon, suit });
     }
     if (weapon === 'sword' || weapon === 'sword_big') {
-        return createDamageEffect('effective', '有効打', rank * 2.5 * physicalScale, { rank, weapon, suit });
+        return createDamageEffect('effective', '有効打', rank * 2.5 * physicalScale * physicalGrowthScale, { rank, weapon, suit });
     }
     if (weapon === 'axe' || weapon === 'axe_big') {
-        return createDamageEffect('effective', '斧の大打撃', rank * 3 * physicalScale, { rank, weapon, suit });
+        return createDamageEffect('effective', '斧の大打撃', rank * 3 * physicalScale * physicalGrowthScale, { rank, weapon, suit });
     }
     if (weapon === 'polearm') {
         const hitCount = rank <= 5 ? 2 : (rank <= 10 ? 3 : 4);
-        const perHit = Math.max(1, Math.floor((rank * physicalScale) / 2));
+        const perHit = Math.max(1, Math.floor((rank * physicalScale * physicalGrowthScale) / 2));
         return createDamageEffect('multi-hit', `${hitCount}連撃`, perHit * hitCount, {
             rank, weapon, suit, hitCount, perHit
         });
     }
     if (weapon === 'dagger') {
         const statusKey = rank % 2 === 0 ? 'paralysis' : 'poison';
-        const potency = statusKey === 'poison' ? Math.max(1, Math.floor((rank * physicalScale) / 2)) : 1;
+        const potency = statusKey === 'poison'
+            ? Math.max(1, Math.floor((rank * physicalScale * physicalGrowthScale) / 2))
+            : 1;
         return {
             source: 'weapon', kind: 'status', label: statusKey === 'poison' ? '毒' : '麻痺',
             targetType: 'enemy', statusKey, potency, chance, score: chance * (statusKey === 'paralysis' ? 40 : potency * 2),
@@ -301,7 +330,7 @@ function buildWeaponCandidate(weapon, card, context = {}) {
     if (weapon === 'gun' || weapon === 'gun_big' || weapon === 'bow') {
         const statusKey = rank % 2 === 0 ? 'blind' : 'burn';
         const potency = statusKey === 'burn'
-            ? Math.max(1, Math.floor((rank * physicalScale) / 2))
+            ? Math.max(1, Math.floor((rank * physicalScale * physicalGrowthScale) / 2))
             : Math.min(50, 15 + (rank * 2));
         return {
             source: 'weapon', kind: 'status', label: statusKey === 'burn' ? '火傷' : '暗闇',
@@ -500,7 +529,13 @@ export function buildTarotKingdomResonanceCandidate(entry, card, context = {}) {
                 rawPower += Math.floor(finiteNumber(condition.value, 0) / 2);
             }
         }
-        let damage = Math.floor(rawPower * 0.2 * resonanceScaleForSuit(normalized.suit, combat));
+        const damageKind = normalized.suit === 'Wand' || normalized.suit === 'Cup' ? 'magic' : 'physical';
+        const growthScale = getTarotKingdomGrowthDamageScale(
+            context.character,
+            damageKind,
+            context.growthVersion
+        );
+        let damage = Math.floor(rawPower * 0.2 * resonanceScaleForSuit(normalized.suit, combat) * growthScale);
         damage = Math.floor(damage * (1 + Math.min(0.5, (normalized.ignoreDefense * 0.5) + normalized.criticalBonus)));
         if (normalized.priority) damage = Math.floor(damage * 1.1);
         steps.push(createResonanceStep('damage', normalized.skillName, {

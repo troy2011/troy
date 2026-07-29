@@ -1657,12 +1657,10 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(panel.locator('.ship-exploration-list-row')).toHaveCount(0);
   await expect(panel.locator('.ship-exploration-report')).toHaveCount(0);
   await expect(panel).not.toContainText('過去の探索');
-  await expect(panel.locator('.ship-exploration-raid')).toBeVisible();
-  await expect(panel.locator('.ship-exploration-raid-body strong')).toHaveText('バルガン');
-  await expect(panel.locator('.ship-exploration-raid-body')).toContainText('HP 125,000 / 250,000');
-  await expect(panel.locator('.ship-exploration-raid-body')).toContainText('本日の挑戦 2 / 4');
-  await expect(panel.locator('.ship-exploration-raid-body')).toContainText('通常NPCなし・プレイヤー／ペット4枠');
-  await expect(panel.locator('[data-tarot-kingdom-raid-start]')).toHaveText('救難信号');
+  await expect(panel.locator('.ship-exploration-raid')).toHaveCount(0);
+  await expect(panel.locator('[data-tarot-kingdom-raid-start]')).toHaveCount(0);
+  await expect(panel).not.toContainText('RAID BOSS');
+  await expect(panel).not.toContainText('本日の挑戦');
   const stageCards = panel.locator('.ship-exploration-stage');
   await expect(stageCards).toHaveCount(3);
   const firstStage = stageCards.nth(0);

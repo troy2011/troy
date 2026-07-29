@@ -134,8 +134,8 @@ test.describe('Tarot Kingdom enemy combat profiles', () => {
       version: 2,
       threatLevel: 1,
       maxHp: 237,
-      passDamage: 9,
-      areaDamage: 5,
+      passDamage: 11,
+      areaDamage: 6,
       defense: 3,
       speed: 7
     });
@@ -143,8 +143,8 @@ test.describe('Tarot Kingdom enemy combat profiles', () => {
       version: 2,
       threatLevel: 44,
       maxHp: 968,
-      passDamage: 30,
-      areaDamage: 18,
+      passDamage: 37,
+      areaDamage: 22,
       defense: 31,
       speed: 22
     });

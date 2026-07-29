@@ -1234,6 +1234,13 @@ export const PIXEL_MONSTERS_ROSTER = [
         "fps": 10,
         "loop": false
       },
+      "attack2": {
+        "src": "./Sprites/pixel-monsters/vol2/monster-06/attack2.png",
+        "frameCount": 11,
+        "columns": 10,
+        "fps": 10,
+        "loop": false
+      },
       "hurt": {
         "src": "./Sprites/pixel-monsters/vol2/monster-06/hurt.png",
         "frameCount": 11,
@@ -1277,6 +1284,13 @@ export const PIXEL_MONSTERS_ROSTER = [
       },
       "attack": {
         "src": "./Sprites/pixel-monsters/vol2/monster-07/attack.png",
+        "frameCount": 4,
+        "columns": 4,
+        "fps": 10,
+        "loop": false
+      },
+      "attack2": {
+        "src": "./Sprites/pixel-monsters/vol2/monster-07/attack2.png",
         "frameCount": 4,
         "columns": 4,
         "fps": 10,
@@ -1401,9 +1415,9 @@ export const PIXEL_MONSTERS_ROSTER = [
     "name": "ウッドラ",
     "volume": 2,
     "number": 10,
-    "frameWidth": 107,
+    "frameWidth": 115,
     "frameHeight": 66,
-    "displayWidth": 214,
+    "displayWidth": 230,
     "pixelScale": 2,
     "renderMode": "pixel",
     "sizeClass": "normal",
@@ -1424,6 +1438,13 @@ export const PIXEL_MONSTERS_ROSTER = [
       },
       "attack": {
         "src": "./Sprites/pixel-monsters/vol2/monster-10/attack.png",
+        "frameCount": 7,
+        "columns": 7,
+        "fps": 10,
+        "loop": false
+      },
+      "attack2": {
+        "src": "./Sprites/pixel-monsters/vol2/monster-10/attack2.png",
         "frameCount": 7,
         "columns": 7,
         "fps": 10,

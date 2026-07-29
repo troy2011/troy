@@ -1,13 +1,13 @@
 const { test, expect } = require('@playwright/test');
 const {
   TAROT_KINGDOM_RAID_BOSSES,
-  TAROT_KINGDOM_RAID_DAILY_ATTEMPT_LIMIT,
+  TAROT_KINGDOM_RAID_ENCOUNTER_RATE,
   TAROT_KINGDOM_RAID_GLOBAL_DOC_ID,
   applyTarotKingdomRaidDamage,
   buildTarotKingdomRaidPublicState,
   createTarotKingdomRaidSpawnState,
-  getTarotKingdomRaidDayKey,
-  isTarotKingdomRaidPartyEligible
+  isTarotKingdomRaidPartyEligible,
+  rollTarotKingdomRaidEncounter
 } = require('../server/tarotKingdomRaid');
 
 test.describe('Tarot Kingdom raid server rules', () => {
@@ -35,16 +35,22 @@ test.describe('Tarot Kingdom raid server rules', () => {
     ]);
   });
 
-  test('daily attempts reset on the JST date boundary and stop at four', () => {
-    expect(getTarotKingdomRaidDayKey(Date.UTC(2026, 6, 27, 14, 59, 59))).toBe('2026-07-27');
-    expect(getTarotKingdomRaidDayKey(Date.UTC(2026, 6, 27, 15, 0, 0))).toBe('2026-07-28');
+  test('raid attempts are unlimited and encounters use a low fixed probability', () => {
     const state = buildTarotKingdomRaidPublicState(null, {
       nation: 'fire',
-      attemptsUsed: 99,
-      dayKey: '2026-07-28'
+      attemptsUsed: 999
     });
-    expect(state.attemptsUsed).toBe(TAROT_KINGDOM_RAID_DAILY_ATTEMPT_LIMIT);
-    expect(state.attemptsRemaining).toBe(0);
+    expect(state).toMatchObject({
+      unlimitedAttempts: true,
+      attemptsUsed: null,
+      attemptsRemaining: null,
+      dailyAttemptLimit: null
+    });
+    expect(TAROT_KINGDOM_RAID_ENCOUNTER_RATE).toBe(0.05);
+    expect(rollTarotKingdomRaidEncounter(0)).toBe(true);
+    expect(rollTarotKingdomRaidEncounter(0.049999)).toBe(true);
+    expect(rollTarotKingdomRaidEncounter(0.05)).toBe(false);
+    expect(rollTarotKingdomRaidEncounter(0.9)).toBe(false);
   });
 
   test('raid requires four seats containing only players or pets', () => {
@@ -116,5 +122,52 @@ test.describe('Tarot Kingdom raid server rules', () => {
       appliedDamage: 0,
       defeatedNow: false
     });
+  });
+});
+
+test.describe('Tarot Kingdom raid battle damage protection', () => {
+  test('Death converts percentage damage and one complete player action caps at 999', async ({ page }) => {
+    await page.goto('/tarot-kingdom-preview.html?tkfixture=character-battle', {
+      waitUntil: 'domcontentloaded'
+    });
+    await page.waitForFunction(() => typeof window.TarotKingdomDebug?.battleScenario === 'function');
+
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({
+        withTrick: false,
+        turnIndex: 0,
+        combatBySeat: [{
+          intelligence: 200,
+          equipmentMagicPower: 100
+        }],
+        handsBySeat: [[
+          { id: 'raid-death', kind: 'major', suit: 'None', number: 13 },
+          { id: 'raid-reserve', kind: 'minor', suit: 'Cup', number: 2 }
+        ]],
+        raid: {
+          version: 1,
+          attemptId: 'raid-damage-cap',
+          raidId: 'global',
+          bossId: 'ismartal-vol2-monster-07',
+          preFormMonsterId: 'ismartal-vol3-monster-01',
+          bossMaxHp: 250000,
+          bossHpAtStart: 250000,
+          phase: 'boss'
+        }
+      });
+      debug.battleSetCombatRandom(0);
+      const played = debug.battlePlayCards(0, ['raid-death'], { resolve: false });
+      const events = played.state.battle.events;
+      const event = events[events.length - 1];
+      const death = event.effects.find((entry) => entry.kind === 'major-percent-damage');
+      return { event, death, rules: played.state.rules };
+    });
+
+    expect(audit.rules.damageGrowthVersion).toBe(1);
+    expect(audit.event.damage).toBe(999);
+    expect(audit.event.hpBefore - audit.event.hpAfter).toBe(999);
+    expect(audit.death.raidPercentConverted).toBe(true);
+    expect(audit.death.amount).toBeLessThanOrEqual(999);
   });
 });

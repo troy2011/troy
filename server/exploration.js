@@ -34,9 +34,8 @@ const {
 const {
     TAROT_KINGDOM_RAID_BOSSES,
     TAROT_KINGDOM_RAID_COLLECTION,
+    TAROT_KINGDOM_RAID_ENCOUNTER_RATE,
     TAROT_KINGDOM_RAID_GLOBAL_DOC_ID,
-    TAROT_KINGDOM_RAID_DAILY_ATTEMPT_COLLECTION,
-    TAROT_KINGDOM_RAID_DAILY_ATTEMPT_LIMIT,
     applyTarotKingdomRaidDamage,
     buildTarotKingdomRaidPublicState,
     createTarotKingdomRaidAttemptId,
@@ -45,7 +44,8 @@ const {
     isTarotKingdomRaidPartyEligible,
     normalizeTarotKingdomRaidNation,
     normalizeTarotKingdomRaidReportedDamage,
-    normalizeTarotKingdomRaidState
+    normalizeTarotKingdomRaidState,
+    rollTarotKingdomRaidEncounter
 } = require('./tarotKingdomRaid');
 const PIXEL_MONSTERS_ROSTER = require('../public/Sprites/pixel-monsters/manifest.json');
 
@@ -2419,21 +2419,21 @@ function initializeExplorationRoutes(app, deps) {
         };
     }
 
-    function getTarotKingdomRaidRefs(playFabId, dayKey, attemptId = '') {
+    function getTarotKingdomRaidRefs(attemptId = '', roomId = '') {
         const raidRef = firestore
             .collection(TAROT_KINGDOM_RAID_COLLECTION)
             .doc(TAROT_KINGDOM_RAID_GLOBAL_DOC_ID);
-        const dailyAttemptRef = firestore
-            .collection(TAROT_KINGDOM_RAID_DAILY_ATTEMPT_COLLECTION)
-            .doc(`${String(dayKey || '').trim()}_${String(playFabId || '').trim()}`);
         const attemptRef = attemptId
             ? raidRef.collection('combat_attempts').doc(String(attemptId || '').trim())
             : null;
-        return { raidRef, dailyAttemptRef, attemptRef };
+        const encounterRef = roomId
+            ? raidRef.collection('encounter_rolls').doc(String(roomId || '').trim())
+            : null;
+        return { raidRef, attemptRef, encounterRef };
     }
 
     async function ensureTarotKingdomRaidActive(identity, nowMs = Date.now()) {
-        const { raidRef } = getTarotKingdomRaidRefs(identity.playFabId, getTarotKingdomRaidDayKey(nowMs));
+        const { raidRef } = getTarotKingdomRaidRefs();
         let ensuredState = null;
         await firestore.runTransaction(async (tx) => {
             const snap = await tx.get(raidRef);
@@ -2513,40 +2513,33 @@ function initializeExplorationRoutes(app, deps) {
 
     async function buildTarotKingdomRaidStatus(playFabId, options = {}) {
         const identity = options.identity || await getTarotKingdomRaidIdentity(playFabId);
-        const dayKey = getTarotKingdomRaidDayKey(options.nowMs);
         if (!identity.nation) {
             return {
                 active: false,
                 nation: '',
-                attemptsUsed: 0,
-                attemptsRemaining: TAROT_KINGDOM_RAID_DAILY_ATTEMPT_LIMIT,
-                dailyAttemptLimit: TAROT_KINGDOM_RAID_DAILY_ATTEMPT_LIMIT,
-                dayKey
+                unlimitedAttempts: true,
+                attemptsUsed: null,
+                attemptsRemaining: null,
+                dailyAttemptLimit: null
             };
         }
-        const refs = getTarotKingdomRaidRefs(playFabId, dayKey);
-        const [raidState, dailySnap] = await Promise.all([
-            ensureTarotKingdomRaidActive(identity, options.nowMs),
-            refs.dailyAttemptRef.get()
-        ]);
-        const attemptsUsed = Math.max(0, Math.floor(Number(dailySnap.data()?.count) || 0));
+        const raidState = await ensureTarotKingdomRaidActive(identity, options.nowMs);
         return buildTarotKingdomRaidPublicState(
             raidState,
-            { nation: identity.nation, attemptsUsed, dayKey }
+            { nation: identity.nation }
         );
     }
 
     async function buildExplorationStatus(playFabId) {
         const ship = await resolveActiveShip(playFabId, deps);
-        const [activeSnap, progress, supplyState, raid] = await Promise.all([
+        const [activeSnap, progress, supplyState] = await Promise.all([
             firestore.collection(EXPLORATION_COLLECTION).doc(playFabId).get(),
             readTarotKingdomExplorationProgress(playFabId, { promisifyPlayFab, PlayFabServer }),
             buildExplorationPaymentState(playFabId, {
                 getEntityKeyForPlayFabId,
                 getAllInventoryItems,
                 catalogCache
-            }),
-            buildTarotKingdomRaidStatus(playFabId)
+            })
         ]);
         const stages = buildTarotKingdomStageList(progress, ship?.stage || 1);
         return {
@@ -2559,7 +2552,6 @@ function initializeExplorationRoutes(app, deps) {
             destinations: stages,
             allDestinations: stages,
             explorationSupplies: supplyState.consumables,
-            raid,
             active: activeSnap.exists ? explorationDocToPayload(activeSnap.data()) : null
         };
     }
@@ -2604,17 +2596,26 @@ function initializeExplorationRoutes(app, deps) {
             const roomValidation = await validateTarotKingdomRaidRoom(playFabId, roomId);
             if (!roomValidation.ok) return res.status(409).json({ error: roomValidation.message });
             const now = Date.now();
-            const dayKey = getTarotKingdomRaidDayKey(now);
             const attemptId = createTarotKingdomRaidAttemptId();
-            const refs = getTarotKingdomRaidRefs(playFabId, dayKey, attemptId);
+            const refs = getTarotKingdomRaidRefs(attemptId, roomValidation.roomId);
+            const rolledEncounter = rollTarotKingdomRaidEncounter();
             await ensureTarotKingdomRaidActive(identity, now);
             let startError = null;
             let attempt = null;
+            let encountered = false;
             await firestore.runTransaction(async (tx) => {
-                const [raidSnap, dailySnap] = await Promise.all([
+                const [raidSnap, encounterSnap] = await Promise.all([
                     tx.get(refs.raidRef),
-                    tx.get(refs.dailyAttemptRef)
+                    tx.get(refs.encounterRef)
                 ]);
+                if (encounterSnap.exists) {
+                    const storedEncounter = encounterSnap.data() || {};
+                    encountered = storedEncounter.encountered === true;
+                    attempt = encountered && storedEncounter.attempt && typeof storedEncounter.attempt === 'object'
+                        ? storedEncounter.attempt
+                        : null;
+                    return;
+                }
                 const raid = normalizeTarotKingdomRaidState(
                     raidSnap.exists ? raidSnap.data() : null,
                     identity.nation
@@ -2623,9 +2624,18 @@ function initializeExplorationRoutes(app, deps) {
                     startError = { code: 409, message: '現在、挑戦できるレイドボスはいません。' };
                     return;
                 }
-                const attemptsUsed = Math.max(0, Math.floor(Number(dailySnap.data()?.count) || 0));
-                if (attemptsUsed >= TAROT_KINGDOM_RAID_DAILY_ATTEMPT_LIMIT) {
-                    startError = { code: 429, message: '本日のレイド挑戦回数を使い切りました。' };
+                encountered = rolledEncounter;
+                if (!encountered) {
+                    tx.set(refs.encounterRef, {
+                        version: 1,
+                        roomId: roomValidation.roomId,
+                        raidId: raid.raidId,
+                        playFabId,
+                        encountered: false,
+                        encounterRate: TAROT_KINGDOM_RAID_ENCOUNTER_RATE,
+                        rolledAtMs: now,
+                        createdAt: admin.firestore.FieldValue.serverTimestamp()
+                    });
                     return;
                 }
                 attempt = {
@@ -2642,27 +2652,31 @@ function initializeExplorationRoutes(app, deps) {
                     preFormMonsterName: raid.preFormMonsterName,
                     bossMaxHp: raid.maxHp,
                     bossHpAtStart: raid.currentHp,
-                    startedAtMs: now,
-                    dayKey
+                    startedAtMs: now
                 };
-                tx.set(refs.dailyAttemptRef, {
-                    dayKey,
-                    playFabId,
-                    count: attemptsUsed + 1,
-                    lastAttemptId: attemptId,
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
                 tx.set(refs.attemptRef, {
                     ...attempt,
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     updatedAt: admin.firestore.FieldValue.serverTimestamp()
                 });
+                tx.set(refs.encounterRef, {
+                    version: 1,
+                    roomId: roomValidation.roomId,
+                    raidId: raid.raidId,
+                    playFabId,
+                    encountered: true,
+                    encounterRate: TAROT_KINGDOM_RAID_ENCOUNTER_RATE,
+                    rolledAtMs: now,
+                    attempt,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp()
+                });
             });
             if (startError) return res.status(startError.code).json({ error: startError.message });
             return res.json({
                 success: true,
-                attempt,
-                raid: await buildTarotKingdomRaidStatus(playFabId, { identity, nowMs: now })
+                encountered,
+                encounterRate: TAROT_KINGDOM_RAID_ENCOUNTER_RATE,
+                attempt: encountered ? attempt : null
             });
         } catch (error) {
             console.error('[tarot-kingdom/raid/start] failed:', error?.errorMessage || error?.message || error);
@@ -2683,8 +2697,7 @@ function initializeExplorationRoutes(app, deps) {
         try {
             const identity = await getTarotKingdomRaidIdentity(playFabId);
             if (!identity.nation) return res.status(403).json({ error: '所属国が設定されていません。' });
-            const dayKey = getTarotKingdomRaidDayKey();
-            const refs = getTarotKingdomRaidRefs(playFabId, dayKey, attemptId);
+            const refs = getTarotKingdomRaidRefs(attemptId);
             let rewardRoll = null;
             let finishError = null;
             let resolution = null;

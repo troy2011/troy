@@ -35,16 +35,93 @@ test.describe('Tarot Kingdom character battle flow', () => {
     }, { combatBySeat: zeroDefenseParty });
 
     expect(audit.normal.battle.events.map((event) => event.type)).toEqual(['enemy-single']);
-    expect(audit.normal.players.map((player) => player.hp)).toEqual([100, 79, 100, 100]);
+    expect(audit.normal.players.map((player) => player.hp)).toEqual([100, 73, 100, 100]);
     expect(audit.normal.transition).toMatchObject({ kind: 'enemyResponse', eventSeqs: [1] });
 
     expect(audit.finalPass.battle.events.map((event) => event.type)).toEqual(['enemy-single', 'enemy-area']);
-    expect(audit.finalPass.players.map((player) => player.hp)).toEqual([100, 69, 90, 90]);
+    expect(audit.finalPass.players.map((player) => player.hp)).toEqual([100, 60, 87, 87]);
     expect(audit.finalPass.battle.events[1]).toMatchObject({
       targetIndexes: [1, 2, 3],
       protectedPlayerIndex: 0
     });
     expect(audit.finalPass.transition).toMatchObject({ kind: 'enemyResponse', eventSeqs: [1, 2] });
+  });
+
+  test('passing or folding against a five-card role avoids counters but keeps the all-pass area attack', async ({ page }) => {
+    const audit = await page.evaluate(({ combatBySeat }) => {
+      const debug = window.TarotKingdomDebug;
+      const cards = [2, 3, 4, 5, 6, 9].map((number, index) => ({
+        id: `role-${index}`,
+        kind: 'minor',
+        suit: 'Wand',
+        number
+      }));
+      debug.battleScenario({
+        withTrick: false,
+        handsBySeat: [cards],
+        hpBySeat: [100, 100, 100, 100],
+        combatBySeat
+      });
+      debug.battlePlayCards(0, cards.slice(0, 5).map((card) => card.id), { resolve: true });
+      const passes = [
+        debug.battlePass(1, { foldMode: 'fold-start' }),
+        debug.battlePass(2),
+        debug.battlePass(3)
+      ];
+      return { passes, final: debug.battleState() };
+    }, { combatBySeat: zeroDefenseParty });
+
+    expect(audit.final.trick).toBeNull();
+    expect(audit.final.players.map((player) => player.hp)).toEqual([100, 87, 87, 87]);
+    expect(audit.final.battle.events.filter((event) => event.type === 'enemy-single')).toEqual([]);
+    expect(audit.final.battle.events.filter((event) => event.type === 'enemy-area')).toHaveLength(1);
+  });
+
+  test('fold receives one counter, then later automatic fold passes avoid further counters', async ({ page }) => {
+    const audit = await page.evaluate(({ combatBySeat }) => {
+      const debug = window.TarotKingdomDebug;
+      const responseCard = { id: 'fold-response', kind: 'minor', suit: 'Wand', number: 2 };
+      debug.battleScenario({
+        turnIndex: 1,
+        leaderIndex: 0,
+        tableCard: { id: 'fold-field', kind: 'minor', suit: 'Wand', number: 1 },
+        handsBySeat: [[], [], [responseCard], []],
+        hpBySeat: [100, 100, 100, 100],
+        combatBySeat
+      });
+      const first = debug.battlePass(1, { foldMode: 'fold-start' });
+      debug.battleResolveTransition();
+      debug.battlePlayCards(2, [responseCard.id], { resolve: true });
+      const continued = debug.battlePass(1, { foldMode: 'fold-auto' });
+      return { first, continued };
+    }, { combatBySeat: zeroDefenseParty });
+
+    expect(audit.first.fold[1]).toBe(true);
+    expect(audit.first.battle.events.filter((event) => event.type === 'enemy-single')).toHaveLength(1);
+    expect(audit.continued.fold[1]).toBe(true);
+    expect(audit.continued.battle.events.filter((event) => event.type === 'enemy-single')).toHaveLength(1);
+    expect(audit.continued.players[1].hp).toBe(audit.first.players[1].hp);
+  });
+
+  test('NPC chooses fold when it has no legal response', async ({ page }) => {
+    const decision = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({
+        enableNpcSeats: true,
+        turnIndex: 1,
+        leaderIndex: 0,
+        tableCard: { id: 'npc-fold-field', kind: 'minor', suit: 'Wand', number: 14 },
+        handsBySeat: [
+          [],
+          [{ id: 'npc-fold-low', kind: 'minor', suit: 'Cup', number: 2 }],
+          [],
+          []
+        ]
+      });
+      return debug.battleNpcDecision(1, 0.5);
+    });
+
+    expect(decision.action).toBe('fold');
   });
 
   test('enemy defense reduces player damage without changing card play', async ({ page }) => {
@@ -142,7 +219,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       hitChance: 0.66,
       accuracyRoll: 0.7
     });
-    expect(audit.slowDefender.players[1].hp).toBe(79);
+    expect(audit.slowDefender.players[1].hp).toBe(73);
     expect(audit.slowDefender.battle.events.at(-1).damages[0]).toMatchObject({
       missed: false,
       hitChance: 0.98,
@@ -164,8 +241,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
       name: 'ボーンテイル',
       maxHp: 268,
       hp: 268,
-      passDamage: 12,
-      areaDamage: 6,
+      passDamage: 15,
+      areaDamage: 7,
       defense: 4,
       speed: 14,
       ailment: {
@@ -378,13 +455,24 @@ test.describe('Tarot Kingdom character battle flow', () => {
 
       debug.battleScenario({ leaderIndex: 0, turnIndex: 0, handsBySeat: hands(5), combatBySeat });
       const afterFive = debug.battlePlayOne(0);
+      const afterFivePublic = debug.battlePublicState();
       debug.battlePass(1);
       debug.battleResolveTransition();
       debug.battlePass(2);
       debug.battleResolveTransition();
       const afterFiveClear = debug.battlePass(3);
+      const restoredSkipNotice = debug.battleDeserialize(afterFivePublic)?.skipNotice || null;
 
-      return { afterEight, afterPetrifiedPass, afterEightClear, afterEleven, afterConfusedPass, afterFive, afterFiveClear };
+      return {
+        afterEight,
+        afterPetrifiedPass,
+        afterEightClear,
+        afterEleven,
+        afterConfusedPass,
+        afterFive,
+        afterFiveClear,
+        restoredSkipNotice
+      };
     }, { combatBySeat: zeroDefenseParty });
 
     expect(audit.afterEight.battle.enemy.petrifiedUntilClear).toBe(true);
@@ -394,18 +482,24 @@ test.describe('Tarot Kingdom character battle flow', () => {
 
     expect(audit.afterEleven.reverse).toBe(true);
     expect(audit.afterConfusedPass.players[1].hp).toBe(100);
-    expect(audit.afterConfusedPass.battle.enemy.hp).toBe(audit.afterEleven.battle.enemy.hp - 21);
-    expect(audit.afterConfusedPass.battle.events.at(-1)).toMatchObject({ type: 'enemy-self', attackKind: 'single', damage: 21 });
+    expect(audit.afterConfusedPass.battle.enemy.hp).toBe(audit.afterEleven.battle.enemy.hp - 27);
+    expect(audit.afterConfusedPass.battle.events.at(-1)).toMatchObject({ type: 'enemy-self', attackKind: 'single', damage: 27 });
 
     expect(audit.afterFive.battle.enemy.areaAttackSealedUntilClear).toBe(true);
     expect(audit.afterFive.turn).toBe(2);
+    expect(audit.afterFive.skipNotice).toMatchObject({
+      actorIndex: 0,
+      targetIndexes: [1]
+    });
+    expect(audit.afterFive.skipNotice.token).toMatch(/^skip:/);
+    expect(audit.restoredSkipNotice).toEqual(audit.afterFive.skipNotice);
     expect(audit.afterFive.pass[1]).toBe(false);
     expect(audit.afterFive.players[1].hp).toBe(100);
     expect(audit.afterFive.battle.events.some((event) => event.type === 'enemy-single')).toBe(false);
     expect(audit.afterFiveClear.battle.enemy.areaAttackSealedUntilClear).toBe(false);
     expect(audit.afterFiveClear.battle.events.filter((event) => event.type === 'enemy-single')).toHaveLength(3);
     expect(audit.afterFiveClear.battle.events.some((event) => event.type === 'enemy-area')).toBe(false);
-    expect(audit.afterFiveClear.players.map((player) => player.hp)).toEqual([100, 79, 79, 79]);
+    expect(audit.afterFiveClear.players.map((player) => player.hp)).toEqual([100, 73, 73, 73]);
   });
 
   test('combat statuses resolve DoT, action stop, blind, cover and area guard in order', async ({ page }) => {
@@ -447,13 +541,13 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.stopped.battle.effects.enemy.poison).toBeTruthy();
     expect(audit.stopped.battle.effects.enemy.paralysis).toBeUndefined();
 
-    expect(audit.covered.players.map((player) => player.hp)).toEqual([89, 100, 100, 100]);
+    expect(audit.covered.players.map((player) => player.hp)).toEqual([86, 100, 100, 100]);
     expect(audit.covered.battle.events[0].effects).toEqual(expect.arrayContaining([
       expect.objectContaining({ kind: 'blind', potency: 25 }),
       expect.objectContaining({ kind: 'cover', potency: 27 })
     ]));
 
-    expect(audit.guardedArea.players.map((player) => player.hp)).toEqual([100, 72, 93, 93]);
+    expect(audit.guardedArea.players.map((player) => player.hp)).toEqual([100, 64, 91, 91]);
     expect(audit.guardedArea.battle.events.at(-1)).toMatchObject({
       type: 'enemy-area',
       targetIndexes: [1, 2, 3],
@@ -609,7 +703,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.rush.battle.outcome).toBeNull();
     expect(audit.rush.players[0].hand).toHaveLength(1);
     expect(audit.rush.rules.enemyDefeatMode).toBe('hand-empty');
-    expect(audit.hostPublicState.schema).toBe(13);
+    expect(audit.hostPublicState.schema).toBe(14);
     expect(audit.hostPublicState.state.rules.enemyDefeatMode).toBe('hand-empty');
     expect(audit.legacy.rules.enemyDefeatMode).toBe('hand-empty');
   });
@@ -902,6 +996,11 @@ test.describe('Tarot Kingdom character battle flow', () => {
       maxHp: 250000,
       hp: 250000
     });
+    expect(audit.transformed.battle.battlefield).toMatchObject({
+      id: 'raid-eclipse-altar',
+      surface: 'raid-stone',
+      groundStartPercent: 36
+    });
     expect(audit.transformed.battle.outcome).toBeNull();
     expect(audit.transformed.battle.events.at(-1)).toMatchObject({
       type: 'raid-transform',
@@ -912,6 +1011,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
       actorIndex: 0
     });
     expect(audit.transformVisual.stageClass).toContain('is-raid-transforming');
+    expect(audit.transformVisual.stageClass).toContain('is-raid-battle');
+    expect(audit.transformVisual.stageClass).toContain('is-raid-boss-phase');
     expect(audit.transformVisual.cutinClass).toContain('is-kingdom-raid-transform');
     expect(audit.transformVisual.cutinClass).toContain('is-tone-danger');
     expect(audit.transformVisual.cutinText).toContain('TRANSFORM');
@@ -1114,8 +1215,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.state.battle.enemy).toMatchObject({
       maxHp: 515,
       hp: 515,
-      passDamage: 21,
-      areaDamage: 10,
+      passDamage: 27,
+      areaDamage: 13,
       defense: 18,
       speed: 15
     });
@@ -1154,6 +1255,11 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.roles.magicianStraightFlush).toMatchObject({ key: 'StraightFlush' });
     expect(audit.roles.worldCallOk).toBe(true);
     expect(audit.roles.worldCallRole).toMatchObject({ key: 'TheWorld', baseRate: 3 });
+    expect(audit.roles.lockedCallWrongSuit.ok).toBe(false);
+    expect(audit.roles.lockedCallWrongSuit.reason).toBe(
+      '14ロック中: 場札を含む5枚すべてカップが必要です。'
+    );
+    expect(audit.roles.lockedCallSameSuit.ok).toBe(true);
     expect(audit.roles.towerSinglePower).toBe(16);
     expect(audit.roles.legacyTowerSinglePower).toBe(14);
     expect(audit.roles.worldSingleValid).toBe(true);
@@ -1221,6 +1327,11 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.finish.worldRole).toEqual({ ok: true, roleKey: 'TheWorld' });
     expect(audit.worldAgainstFiveCardRole.ok).toBe(false);
     expect(audit.worldAgainstFiveCardRole.reason).toContain('5枚役に返せません');
+    expect(audit.worldReverse.worldOverKingNormal.ok).toBe(true);
+    expect(audit.worldReverse.worldOverKingReverse.ok).toBe(false);
+    expect(audit.worldReverse.worldOverKingReverse.reason).toContain('小さい数値');
+    expect(audit.worldReverse.tenOverWorldNormal.ok).toBe(false);
+    expect(audit.worldReverse.tenOverWorldReverse.ok).toBe(true);
     expect(audit.schema7Compatibility.devilOnNumberTen.ok).toBe(true);
     expect(audit.schema7Compatibility.judgmentFinish.ok).toBe(true);
     expect(audit.schema7Compatibility.worldFinish.ok).toBe(true);
@@ -1428,6 +1539,13 @@ test.describe('Tarot Kingdom character battle flow', () => {
     });
     expect(audit.handZero.validationReason).toContain('単独上がり');
     expect(audit.koClearer).toEqual({ pendingJudgment: 3, resolvedTurn: 3 });
+    expect(audit.selfDiscardRejected).toEqual({
+      pendingJudgment: 2,
+      handCount: 4,
+      handUnchanged: true,
+      candidateRemaining: true,
+      selectableOptions: 0
+    });
   });
 
   test('profile results are discarded when the online roster changes while loading', async ({ page }) => {
@@ -1444,8 +1562,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
     const audit = await page.evaluate(() => window.TarotKingdomDebug.battleRunFourRounds());
     expect(audit.rounds.map((round) => round.completedHandNo)).toEqual([1, 2, 3, 4]);
     expect(audit.rounds.slice(0, 3).map((round) => round.nextRound.enemyMaxHp)).toEqual([595, 675, 755]);
-    expect(audit.rounds.slice(0, 3).map((round) => round.nextRound.enemyPassDamage)).toEqual([23, 25, 27]);
-    expect(audit.rounds.slice(0, 3).map((round) => round.nextRound.enemyAreaDamage)).toEqual([12, 14, 16]);
+    expect(audit.rounds.slice(0, 3).map((round) => round.nextRound.enemyPassDamage)).toEqual([29, 31, 33]);
+    expect(audit.rounds.slice(0, 3).map((round) => round.nextRound.enemyAreaDamage)).toEqual([15, 17, 19]);
     for (const round of audit.rounds.slice(0, 3)) {
       expect(round.nextRound.hpBySeat).toEqual([1, 1, 1, 1]);
       expect(round.characterSnapshotCreatedAt).toBe(audit.snapshotCreatedAt);
@@ -1538,8 +1656,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.first.battle.enemy.id).toBe('ismartal-vol1-monster-07');
     expect(audit.first.battle.enemy).toMatchObject({
       maxHp: 237,
-      passDamage: 9,
-      areaDamage: 5,
+      passDamage: 11,
+      areaDamage: 6,
       threatLevel: 1
     });
     expect(audit.settled.stage.finishers).toHaveLength(1);
@@ -1569,7 +1687,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       effectiveUnits: 2,
       healRate: 0.2
     });
-    expect(audit.publicState.schema).toBe(13);
+    expect(audit.publicState.schema).toBe(14);
     expect(audit.publicState.state.stage.monsters).toHaveLength(4);
     expect(audit.atmosphereTone).toBe('sunlit-coral');
     expect(audit.atmosphereCss).toContain('74, 159, 196');
@@ -1598,7 +1716,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.settlementStart.players).toHaveLength(3);
     expect(audit.settled.roundSettlement.rows).toHaveLength(2);
     expect(audit.settled.dealer).toBe(0);
-    expect(audit.published.schema).toBe(13);
+    expect(audit.published.schema).toBe(14);
     expect(audit.published.state.rules.playerCount).toBe(3);
     expect(audit.published.state.players).toHaveLength(3);
   });
@@ -1736,8 +1854,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.missingActionId.reason).toBe('invalid-action-id');
     expect(audit.stringRevision.reason).toBe('stale-revision');
     expect(audit.stringSeat.reason).toBe('seat-owner-mismatch');
-    expect(audit.callDamage).toMatchObject({ kind: 'skill', baseDamage: 108, damage: 108 });
-    expect(audit.zeroRateCallDamage).toMatchObject({ kind: 'skill', baseDamage: 90, damage: 90 });
+    expect(audit.callDamage).toMatchObject({ kind: 'skill', baseDamage: 108, damage: 119 });
+    expect(audit.zeroRateCallDamage).toMatchObject({ kind: 'skill', baseDamage: 90, damage: 99 });
     expect(audit.freeCallBuilt).toMatchObject({ ok: true, play: { call: true } });
     expect(audit.freeCallPlayed.ok).toBe(true);
     expect(audit.freeCallPlayed.state.players[0].stars).toBe(0);
@@ -1797,6 +1915,10 @@ test.describe('Tarot Kingdom character battle flow', () => {
       const debug = window.TarotKingdomDebug;
       debug.battleScenario({ withTrick: false });
       const currentPublic = debug.battlePublicState();
+      const schema13Payload = JSON.parse(JSON.stringify(currentPublic));
+      schema13Payload.schema = 13;
+      delete schema13Payload.state.rules.damageGrowthVersion;
+      const schema13 = debug.battleDeserialize(schema13Payload);
       const schema12Payload = JSON.parse(JSON.stringify(currentPublic));
       schema12Payload.schema = 12;
       delete schema12Payload.state.rules.enemyDefeatMode;
@@ -1862,9 +1984,19 @@ test.describe('Tarot Kingdom character battle flow', () => {
         }
       });
       const current = debug.battleDeserialize(currentPublic);
-      return { currentPublic, schema12, schema11, legacy, effectsOnly, summonsOnly, schema7, current };
+      return {
+        currentPublic,
+        schema13,
+        schema12,
+        schema11,
+        legacy,
+        effectsOnly,
+        summonsOnly,
+        schema7,
+        current
+      };
     });
-    expect(audit.currentPublic.schema).toBe(13);
+    expect(audit.currentPublic.schema).toBe(14);
     expect(audit.currentPublic.state.rules).toMatchObject({
       playerCount: 4,
       combatEffectsVersion: 1,
@@ -1876,8 +2008,10 @@ test.describe('Tarot Kingdom character battle flow', () => {
       elementAffinityVersion: 1,
       carryHpBetweenRoundsVersion: 1,
       forcedDrawDeathVersion: 1,
+      damageGrowthVersion: 1,
       enemyDefeatMode: 'hp-zero'
     });
+    expect(audit.schema13.rules.damageGrowthVersion).toBe(0);
     expect(audit.schema12.rules.enemyDefeatMode).toBe('hand-empty');
     expect(audit.schema11.rules).toMatchObject({
       majorBattleEffectsVersion: 1,

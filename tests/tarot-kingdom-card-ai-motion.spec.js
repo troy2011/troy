@@ -10,7 +10,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     await openKingdomDebug(page);
   });
 
-  test('schema 13 publishes enemy defeat mode and current combat rules while older matches keep their rules', async ({ page }) => {
+  test('schema 14 publishes damage growth and current combat rules while older matches keep their rules', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       const current = debug.battleScenario({ withTrick: false });
@@ -62,10 +62,11 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       elementAffinityVersion: 1,
       carryHpBetweenRoundsVersion: 1,
       forcedDrawDeathVersion: 1,
+      damageGrowthVersion: 1,
       enemyDefeatMode: 'hp-zero'
     });
     expect(audit.current.players.map((player) => player.hand.length)).toEqual([8, 8, 8, 8]);
-    expect(audit.published.schema).toBe(13);
+    expect(audit.published.schema).toBe(14);
     expect(audit.published.state.rules).toMatchObject({
       initialHandSize: 8,
       handLimit: 8,
@@ -78,6 +79,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       elementAffinityVersion: 1,
       carryHpBetweenRoundsVersion: 1,
       forcedDrawDeathVersion: 1,
+      damageGrowthVersion: 1,
       enemyDefeatMode: 'hp-zero'
     });
     expect(audit.schema1.rules).toMatchObject({ initialHandSize: 6, handLimit: 6 });
@@ -157,6 +159,95 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     await page.waitForTimeout(Math.max(0, timeline.hpTweenEndsAt - Date.now() + 50));
     await expect(page.locator('#tarotKingdomBattleStage .tarot-kingdom-battle-enemy > [role="progressbar"]'))
       .toHaveAttribute('aria-valuenow', String(event.hpAfter));
+  });
+
+  test('call visibly reuses the field card before the other four cards join it', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    for (const width of [390, 900]) {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 1100 });
+      const initial = await page.evaluate(() => {
+        const debug = window.TarotKingdomDebug;
+        const flushCards = [1, 2, 3, 4, 5].map((number) => ({
+          id: `call-visual-${number}`,
+          kind: 'minor',
+          suit: 'Wand',
+          number
+        }));
+        debug.battleScenario({
+          handsBySeat: [[
+            ...flushCards.slice(1),
+            { id: 'call-visual-keep', kind: 'minor', suit: 'Cup', number: 9 }
+          ]],
+          tableCard: flushCards[0],
+          starsBySeat: [0],
+          turnIndex: 0
+        });
+        const sourceArt = document.querySelector('#tarotKingdomTrick .tarot-card-art');
+        const sourceSprite = {
+          x: sourceArt?.style.getPropertyValue('--tarot-x'),
+          y: sourceArt?.style.getPropertyValue('--tarot-y')
+        };
+        const result = debug.battlePlayCards(
+          0,
+          flushCards.slice(1).map((card) => card.id),
+          { resolve: false }
+        );
+        const source = document.querySelector('#tarotKingdomTrick .tarot-card.is-call-source');
+        return {
+          ok: result.ok,
+          sourceSprite,
+          sourceMarked: !!source,
+          sourceBadge: source?.querySelector('.tarot-kingdom-call-reuse-badge')?.textContent || '',
+          sourceAnimation: source ? getComputedStyle(source).animationName : '',
+          reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+          sourceRuleLoaded: Array.from(document.styleSheets).some((sheet) => {
+            try {
+              return Array.from(sheet.cssRules || []).some((rule) => rule.selectorText === '.tarot-card.is-call-source');
+            } catch (_) {
+              return false;
+            }
+          }),
+          ghostCount: document.querySelectorAll('.tarot-kingdom-call-ghost, .tarot-kingdom-call-ghost-taunt').length
+        };
+      });
+
+      expect(initial).toMatchObject({
+        ok: true,
+        sourceMarked: true,
+        sourceBadge: '場札',
+        reducedMotion: false,
+        sourceRuleLoaded: true,
+        ghostCount: 0
+      });
+      expect(initial.sourceAnimation).toContain('tarotKingdomCallSourceLift');
+
+      await expect(page.locator('#tarotKingdomTrick .tarot-card.is-call-reused')).toHaveCount(1);
+      await expect(page.locator('#tarotKingdomTrick .tarot-card.is-call-arriving')).toHaveCount(4);
+      await expect(page.locator('#tarotKingdomTrick .tarot-card.is-call-reused .tarot-kingdom-call-reuse-badge'))
+        .toHaveText('場札 +1');
+
+      const merged = await page.evaluate(() => {
+        const firstArt = document.querySelector('#tarotKingdomTrick .tarot-card:first-child .tarot-card-art');
+        const reused = document.querySelector('#tarotKingdomTrick .tarot-card.is-call-reused');
+        const root = document.documentElement;
+        return {
+          x: firstArt?.style.getPropertyValue('--tarot-x'),
+          y: firstArt?.style.getPropertyValue('--tarot-y'),
+          reusedAnimation: reused ? getComputedStyle(reused).animationName : '',
+          cardCount: document.querySelectorAll('#tarotKingdomTrick > .tarot-card').length,
+          cloneCount: document.querySelectorAll('.tarot-kingdom-call-reuse-clone').length,
+          horizontalOverflow: Math.max(0, root.scrollWidth - root.clientWidth)
+        };
+      });
+      expect({ x: merged.x, y: merged.y }).toEqual(initial.sourceSprite);
+      expect(merged.reusedAnimation).toContain('tarotKingdomCallReuseSettle');
+      expect(merged.cardCount).toBe(5);
+      expect(merged.cloneCount).toBeLessThanOrEqual(1);
+      expect(merged.horizontalOverflow).toBeLessThanOrEqual(1);
+
+      await page.waitForTimeout(900);
+      await expect(page.locator('.tarot-kingdom-call-reuse-clone')).toHaveCount(0);
+    }
   });
 
   test('enemy attack shows unsigned damage above the targeted player', async ({ page }) => {
@@ -338,6 +429,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
         withTrick: false,
         turnIndex: 0,
         enemyHp: 0,
+        rules: { enemyDefeatMode: 'hand-empty' },
         handsBySeat: [[{ id: 'finisher-2', kind: 'minor', suit: 'Wand', number: 2 }]]
       });
       debug.battlePlayCards(0, ['finisher-2']);
@@ -357,7 +449,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
 
     expect(finisher).toMatchObject({
       outcome: 'victory',
-      resultReason: 'hand-empty',
+      resultReason: 'enemy-defeated',
       finisherClass: true,
       dustingClass: false
     });

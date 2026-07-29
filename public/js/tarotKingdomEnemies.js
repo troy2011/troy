@@ -4,6 +4,11 @@ const VOLUME_BASE_STATS = Object.freeze({
     3: Object.freeze({ hp: 460, passDamage: 19, areaDamage: 11, defense: 18, speed: 18 })
 });
 
+// 防御と5枚役への安全なパスで敵の攻撃回数が減るため、
+// 実際に発生した一撃は従来より重くする。局ごとの加算値は倍率外に置き、
+// 既存のラウンド成長幅は維持する。
+const ENEMY_ATTACK_WEIGHT_MULTIPLIER = 1.25;
+
 const ARCHETYPE_BY_NUMBER = Object.freeze({
     0: Object.freeze({ key: 'balanced', hp: 1, pass: 1, area: 1, defense: 1, speed: 1 }),
     1: Object.freeze({ key: 'brute', hp: 1.12, pass: 1.14, area: 0.95, defense: 1.05, speed: 0.85 }),
@@ -97,8 +102,8 @@ function createTarotKingdomStageEnemyCombatProfile(monster = {}, options = {}) {
         threatLevel,
         archetype: archetypeKey in STAGE_ARCHETYPE_MODIFIERS ? archetypeKey : 'balanced',
         maxHp: positiveInteger(baseHp * archetype.hp),
-        passDamage: positiveInteger(basePassDamage * archetype.pass),
-        areaDamage: positiveInteger(baseAreaDamage * archetype.area),
+        passDamage: positiveInteger(basePassDamage * archetype.pass * ENEMY_ATTACK_WEIGHT_MULTIPLIER),
+        areaDamage: positiveInteger(baseAreaDamage * archetype.area * ENEMY_ATTACK_WEIGHT_MULTIPLIER),
         defense: Math.max(0, Math.round(baseDefense * archetype.defense)),
         speed: Math.max(1, Math.round(baseSpeed * archetype.speed)),
         ailment: createStageAilmentProfile(monster?.id, threatLevel)
@@ -128,8 +133,12 @@ export function createTarotKingdomEnemyCombatProfile(monster = {}, roundIndex = 
     const bossDefense = isBoss ? 1.35 : 1;
     const bossSpeed = isBoss ? 0.85 : 1;
     const maxHp = positiveInteger((numberHp * archetype.hp * bossHp) + (round * 80));
-    const passDamage = positiveInteger((numberPass * archetype.pass * bossAttack) + (round * 2));
-    const areaDamage = positiveInteger((numberArea * archetype.area * bossAttack) + (round * 2));
+    const passDamage = positiveInteger(
+        (numberPass * archetype.pass * bossAttack * ENEMY_ATTACK_WEIGHT_MULTIPLIER) + (round * 2)
+    );
+    const areaDamage = positiveInteger(
+        (numberArea * archetype.area * bossAttack * ENEMY_ATTACK_WEIGHT_MULTIPLIER) + (round * 2)
+    );
     const defense = Math.max(0, Math.floor(
         (numberDefense * archetype.defense * bossDefense) + (round * 4)
     ));

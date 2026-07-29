@@ -297,6 +297,8 @@ test('combat profile API authenticates the requester and returns sanitized melee
         defense: 20,
         intelligence: 11,
         speed: 11,
+        equipmentPower: 5,
+        equipmentMagicPower: 4,
         weaponType: 'sword',
         weaponTypes: ['sword']
       }

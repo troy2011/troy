@@ -646,6 +646,11 @@ test('preview enemy picker switches among all purchased Pixel Monsters without c
     'ismartal-vol2-monster-15',
     'ismartal-vol2-monster-16'
   ]);
+  expect(manifest.filter((monster) => monster.animations?.attack2).map((monster) => monster.id).sort()).toEqual([
+    'ismartal-vol2-monster-06',
+    'ismartal-vol2-monster-07',
+    'ismartal-vol2-monster-10'
+  ]);
   expect(manifest.every((monster) => (
     Number.isFinite(monster.idleAnchor?.x)
     && Number.isFinite(monster.idleAnchor?.y)
@@ -787,6 +792,130 @@ test('preview pet picker adds a normal monster to the second seat and can remove
   expect(clearedState.players.map((player) => player.id)).toEqual(['you', 'npc1', 'npc2', 'npc3']);
   expect(clearedState.players.map((player) => player.isPet === true)).toEqual([false, false, false, false]);
   await expect(page.locator('#tarotKingdomBattleParty > .is-pet')).toHaveCount(0);
+});
+
+test('monsters with two attack sheets use the second one for area attacks and pet five-card skills', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+
+  const selection = await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    const dualIds = [
+      'ismartal-vol2-monster-06',
+      'ismartal-vol2-monster-07',
+      'ismartal-vol2-monster-10'
+    ];
+    return {
+      dual: dualIds.map((id) => ({
+        id,
+        single: debug.battleMonsterAttackAnimation(id, 'single'),
+        area: debug.battleMonsterAttackAnimation(id, 'area'),
+        skill: debug.battleMonsterAttackAnimation(id, 'skill')
+      })),
+      fallback: {
+        single: debug.battleMonsterAttackAnimation('ismartal-vol1-monster-01', 'single'),
+        area: debug.battleMonsterAttackAnimation('ismartal-vol1-monster-01', 'area'),
+        skill: debug.battleMonsterAttackAnimation('ismartal-vol1-monster-01', 'skill')
+      }
+    };
+  });
+  expect(selection.dual).toEqual([
+    { id: 'ismartal-vol2-monster-06', single: 'attack', area: 'attack2', skill: 'attack2' },
+    { id: 'ismartal-vol2-monster-07', single: 'attack', area: 'attack2', skill: 'attack2' },
+    { id: 'ismartal-vol2-monster-10', single: 'attack', area: 'attack2', skill: 'attack2' }
+  ]);
+  expect(selection.fallback).toEqual({ single: 'attack', area: 'attack', skill: 'attack' });
+
+  const enemySequence = await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    debug.battleScenario({
+      pass: [false, true, true, true],
+      leaderIndex: 1,
+      turnIndex: 0,
+      handCounts: [2, 2, 2, 2]
+    });
+    debug.battleSetDemoEnemy('ismartal-vol2-monster-06');
+    const state = debug.battlePass(0);
+    return {
+      eventTypes: state.battle.events.slice(-2).map((event) => event.type),
+      animationName: document.getElementById('tarotKingdomEnemySprite')?.dataset.animationName || ''
+    };
+  });
+  expect(enemySequence.eventTypes).toEqual(['enemy-single', 'enemy-area']);
+  expect(enemySequence.animationName).toBe('attack');
+  await expect(page.locator('#tarotKingdomEnemySprite')).toHaveAttribute('data-animation-name', 'attack2', {
+    timeout: 1_300
+  });
+  await expect(page.locator('#tarotKingdomEnemySprite')).toHaveCSS(
+    'background-image',
+    /\/pixel-monsters\/vol2\/monster-06\/attack2\.png/
+  );
+
+  const petAnimations = await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    const pet = {
+      monsterId: 'ismartal-vol2-monster-06',
+      monsterName: 'グリバト',
+      number: 6,
+      volume: 2
+    };
+    const normalCard = { id: 'pet-normal-2', kind: 'minor', suit: 'Wand', number: 2 };
+    debug.battleScenario({
+      pet,
+      tableCard: { id: 'pet-normal-field', kind: 'minor', suit: 'Wand', number: 1 },
+      handsBySeat: [
+        [{ id: 'pet-normal-human', kind: 'minor', suit: 'Cup', number: 3 }],
+        [normalCard, { id: 'pet-normal-keep', kind: 'minor', suit: 'Cup', number: 9 }],
+        [{ id: 'pet-normal-npc2', kind: 'minor', suit: 'Sword', number: 4 }],
+        [{ id: 'pet-normal-npc3', kind: 'minor', suit: 'Pentacle', number: 5 }]
+      ],
+      turnIndex: 1
+    });
+    debug.battlePlayOne(1, { resolve: false });
+    const normalSprite = document.querySelector(
+      '#tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(2) .tarot-kingdom-battle-pet-sprite'
+    );
+    const normal = {
+      ok: true,
+      animationName: normalSprite?.dataset.animationName || '',
+      backgroundImage: normalSprite?.style.backgroundImage || ''
+    };
+
+    const roleCards = [2, 3, 4, 5, 6].map((number) => ({
+      id: `pet-skill-${number}`,
+      kind: 'minor',
+      suit: 'Wand',
+      number
+    }));
+    debug.battleScenario({
+      pet,
+      withTrick: false,
+      handsBySeat: [
+        [{ id: 'pet-skill-human', kind: 'minor', suit: 'Cup', number: 3 }],
+        [...roleCards, { id: 'pet-skill-keep', kind: 'minor', suit: 'Cup', number: 9 }],
+        [{ id: 'pet-skill-npc2', kind: 'minor', suit: 'Sword', number: 4 }],
+        [{ id: 'pet-skill-npc3', kind: 'minor', suit: 'Pentacle', number: 5 }]
+      ],
+      turnIndex: 1
+    });
+    const skillResult = debug.battlePlayCards(1, roleCards.map((card) => card.id), { resolve: false });
+    const skillSprite = document.querySelector(
+      '#tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(2) .tarot-kingdom-battle-pet-sprite'
+    );
+    return {
+      normal,
+      skill: {
+        ok: skillResult.ok,
+        reason: skillResult.reason || '',
+        animationName: skillSprite?.dataset.animationName || '',
+        backgroundImage: skillSprite?.style.backgroundImage || ''
+      }
+    };
+  });
+
+  expect(petAnimations.normal).toMatchObject({ ok: true, animationName: 'attack' });
+  expect(petAnimations.normal.backgroundImage).toContain('/pixel-monsters/vol2/monster-06/attack.png');
+  expect(petAnimations.skill).toMatchObject({ ok: true, reason: '', animationName: 'attack2' });
+  expect(petAnimations.skill.backgroundImage).toContain('/pixel-monsters/vol2/monster-06/attack2.png');
 });
 
 for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1000 }]) {
@@ -1573,6 +1702,9 @@ test('grave visibility stays local when another player enters Judgment', async (
     payload.state.players[0].discard = [
       { id: 'local-grave-cup-9', kind: 'minor', suit: 'Cup', number: 9 }
     ];
+    payload.state.players[1].discard = [
+      { id: 'other-grave-wand-7', kind: 'minor', suit: 'Wand', number: 7 }
+    ];
     debug.battleDeserialize(payload);
     debug.battleRender();
   });
@@ -1585,6 +1717,15 @@ test('grave visibility stays local when another player enters Judgment', async (
   await expect(skipButton).toBeVisible();
   await expect(skipButton).toBeEnabled();
   await expect(skipButton).toHaveCSS('color', 'rgb(248, 250, 252)');
+  const ownDiscard = page.locator('#tarotKingdomJudgmentOptions .tarot-card.cup');
+  const otherDiscard = page.locator('#tarotKingdomJudgmentOptions .tarot-card.wand');
+  await expect(ownDiscard).toHaveClass(/is-judgment-ineligible/);
+  await expect(ownDiscard).toBeDisabled();
+  await expect(ownDiscard).toHaveAttribute('aria-label', /自分の墓地・回収不可/);
+  await expect(ownDiscard).toHaveCSS('opacity', '0.38');
+  await expect(ownDiscard).toHaveCSS('filter', /grayscale\(1\)/);
+  await expect(otherDiscard).not.toHaveClass(/is-judgment-ineligible/);
+  await expect(otherDiscard).toBeEnabled();
 });
 
 test('Judgment recovery card appears before the avatar and is synchronized once', async ({ page }) => {
@@ -1659,7 +1800,7 @@ test('Judgment recovery card appears before the avatar and is synchronized once'
   await expect(reclaimCard).toHaveCount(0, { timeout: 2500 });
 });
 
-test('right command switches between defense and attack from card selection', async ({ page }) => {
+test('right command switches between pass and attack from card selection', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   await page.evaluate(() => {
     window.TarotKingdomDebug.battleScenario({ withTrick: false, turnIndex: 0 });
@@ -1667,7 +1808,7 @@ test('right command switches between defense and attack from card selection', as
 
   const actionButton = page.locator('#tarotKingdomPlayButton');
   const firstCard = page.locator('#tarotKingdomHand > .tarot-card').first();
-  await expect(actionButton).toHaveText('防御');
+  await expect(actionButton).toHaveText('パス');
   await expect(actionButton).toHaveClass(/is-defense/);
   await expect(actionButton).not.toHaveClass(/is-attack/);
 
@@ -1677,7 +1818,7 @@ test('right command switches between defense and attack from card selection', as
   await expect(actionButton).not.toHaveClass(/is-defense/);
 
   await firstCard.click();
-  await expect(actionButton).toHaveText('防御');
+  await expect(actionButton).toHaveText('パス');
   await expect(actionButton).toHaveClass(/is-defense/);
 
   await page.evaluate(() => {
@@ -1685,11 +1826,35 @@ test('right command switches between defense and attack from card selection', as
   });
   await actionButton.click();
   await expect.poll(() => page.evaluate(() => window.TarotKingdomDebug.battleState().pass[0])).toBe(true);
-  const defenseResult = await page.evaluate(() => {
+  const passResult = await page.evaluate(() => {
     const state = window.TarotKingdomDebug.battleState();
     return { phase: state.phase, transitionKind: state.transition?.kind || '' };
   });
-  expect(defenseResult).toEqual({ phase: 'resolvingEnemy', transitionKind: 'enemyResponse' });
+  expect(passResult).toEqual({ phase: 'resolvingEnemy', transitionKind: 'enemyResponse' });
+});
+
+test('defense command pauses the defending avatar idle motion', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const result = await page.evaluate(() => {
+    window.TarotKingdomDebug.battleScenario({ turnIndex: 0, leaderIndex: 1 });
+    const button = document.getElementById('tarotKingdomFoldButton');
+    button?.click();
+    const row = document.querySelector(
+      '#tarotKingdomBattleParty > .tarot-kingdom-battle-player[data-player-index="0"]'
+    );
+    const avatar = row?.querySelector('.tarot-kingdom-battle-player-avatar');
+    return {
+      buttonText: button?.textContent || '',
+      rowDefending: row?.classList.contains('is-defending') === true,
+      avatarPaused: avatar?.dataset.kingdomDefensePaused === 'true'
+    };
+  });
+
+  expect(result).toEqual({
+    buttonText: '防御中',
+    rowDefending: true,
+    avatarPaused: true
+  });
 });
 
 test('attack explains why the selected cards cannot be played', async ({ page }) => {
@@ -2181,5 +2346,42 @@ test('winner repeatedly jumps in place and the overall champion owns the final f
     visible: true,
     insideStage: true,
     overflowing: false
+  });
+});
+
+test('a locally skipped player gets a blue-white edge cue and direct navigation message', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+
+  const notice = await page.evaluate(() => {
+    const card = (id, number) => ({ id, kind: 'minor', suit: 'Wand', number });
+    const debug = window.TarotKingdomDebug;
+    debug.battleScenario({
+      withTrick: false,
+      turnIndex: 3,
+      handsBySeat: [
+        [card('local-a', 2), card('local-b', 3)],
+        [card('seat-1-a', 6), card('seat-1-b', 7)],
+        [card('seat-2-a', 8), card('seat-2-b', 9)],
+        [card('skip-local', 5), card('skip-reserve', 14)]
+      ]
+    });
+    return debug.battlePlayOne(3).skipNotice;
+  });
+
+  expect(notice).toMatchObject({ actorIndex: 3, targetIndexes: [0] });
+  await expect(page.locator('#tarotKingdomSelectedEffect')).toHaveText('あなたは　スキップされた！');
+  const alert = page.locator('#tarotKingdomLocalSkipAlert');
+  await expect(alert).toHaveClass(/is-show/);
+  const motion = await alert.evaluate((element) => ({
+    edge: getComputedStyle(element).animationName,
+    left: getComputedStyle(element, '::before').animationName,
+    right: getComputedStyle(element, '::after').animationName,
+    pointerEvents: getComputedStyle(element).pointerEvents
+  }));
+  expect(motion).toEqual({
+    edge: 'tarotKingdomLocalSkipEdge',
+    left: 'tarotKingdomLocalSkipCloseLeft',
+    right: 'tarotKingdomLocalSkipCloseRight',
+    pointerEvents: 'none'
   });
 });

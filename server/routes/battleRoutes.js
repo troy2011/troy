@@ -182,6 +182,11 @@ function buildTarotKingdomCombatCharacter(profile = {}) {
             defense: Math.max(0, Math.floor(statNumber('みのまもり', 0) + equipmentNumber('Defense'))),
             intelligence: Math.max(0, Math.floor(statNumber('かしこさ', 0))),
             speed: Math.max(0, Math.floor(statNumber('すばやさ', 0) + equipmentNumber('Agi'))),
+            equipmentPower: Math.max(0, Math.floor(equipmentNumber('Power'))),
+            equipmentMagicPower: Math.max(
+                0,
+                Math.floor(equipmentNumber('MagicPower') + equipmentNumber('Int'))
+            ),
             weaponType,
             weaponTypes: Array.from(weaponTypes)
         }
