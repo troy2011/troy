@@ -53,6 +53,15 @@ const GACHA_CATALOG_VERSION = process.env.GACHA_CATALOG_VERSION || 'main_catalog
 const GACHA_COST = Number(process.env.GACHA_COST || 10);
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
+const INVENTORY_SELL_UNIT_PRICE = 1;
+const INVENTORY_SELL_EQUIPMENT_KEYS = [
+    'Equipped_RightHand',
+    'Equipped_LeftHand',
+    'Equipped_Armor',
+    'Equipped_Accessory',
+    ...Object.values(TAROT_EQUIPMENT_SLOT_TO_KEY)
+];
+const INVENTORY_SELL_DECK_KEYS = ['TarotDeck', 'TarotMeleeDeck', 'TarotShipDeck'];
 const DAILY_NATION_SPECIALTY_REWARD_KEY = 'DailyNationSpecialtyRewardDay';
 const FACIAL_HAIR_STYLE_INDEX_DEFAULT = 1;
 const FACIAL_HAIR_STYLE_INDEX_NONE = 0;
@@ -645,6 +654,125 @@ function initializeInventoryRoutes(app, deps) {
         const entityKey = await getEntityKeyForPlayFabId(playFabId);
         const inventoryItems = await getAllInventoryItems(entityKey);
         return getInventoryItemTotal(inventoryItems, itemId);
+    }
+
+    function isCurrencyInventoryItem(itemId) {
+        return !!getCurrencyIdFromItem({ Id: itemId }, catalogCache);
+    }
+
+    function normalizeSellRequestItems(items) {
+        const sourceItems = Array.isArray(items) ? items : [];
+        const byItemId = new Map();
+        sourceItems.forEach((entry) => {
+            const itemId = String(entry?.itemId || entry?.ItemId || entry?.id || '').trim();
+            const amount = Math.max(1, Math.floor(Number(entry?.amount ?? entry?.count ?? 1) || 1));
+            if (!itemId || isCurrencyInventoryItem(itemId)) return;
+            byItemId.set(itemId, (byItemId.get(itemId) || 0) + amount);
+        });
+        return Array.from(byItemId.entries()).map(([itemId, amount]) => ({ itemId, amount }));
+    }
+
+    function parseStoredDeckItemIds(rawValue) {
+        return (parseJsonValue(rawValue, []) || [])
+            .map((itemId) => String(itemId || '').trim())
+            .filter(Boolean);
+    }
+
+    async function getInventorySellContext(playFabId) {
+        const readOnlyResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Keys: [...INVENTORY_SELL_EQUIPMENT_KEYS, ...INVENTORY_SELL_DECK_KEYS]
+        });
+        let shipMajorArcanaItemIds = [];
+        try {
+            const playerShip = await resourceStorage.getPlayerShipProfile(
+                playFabId,
+                { promisifyPlayFab, PlayFabServer },
+                { persist: false }
+            );
+            shipMajorArcanaItemIds = (playerShip?.majorArcanaItemIds || [])
+                .map((itemId) => String(itemId || '').trim())
+                .filter(Boolean);
+        } catch (error) {
+            console.warn('[inventory-sell] ship major arcana lookup failed:', error?.errorMessage || error?.message || error);
+        }
+        return {
+            readOnlyData: readOnlyResult?.Data || {},
+            shipMajorArcanaItemIds
+        };
+    }
+
+    function getReservedSellCount(itemId, context) {
+        const targetId = String(itemId || '').trim();
+        if (!targetId) return 0;
+        let count = 0;
+        INVENTORY_SELL_EQUIPMENT_KEYS.forEach((key) => {
+            const equippedItemId = getStoredEquipmentItemId(context?.readOnlyData?.[key]?.Value || null);
+            if (equippedItemId === targetId) count += 1;
+        });
+        const deckIds = new Set();
+        INVENTORY_SELL_DECK_KEYS.forEach((key) => {
+            parseStoredDeckItemIds(context?.readOnlyData?.[key]?.Value).forEach((deckItemId) => deckIds.add(deckItemId));
+        });
+        if (deckIds.has(targetId)) count += 1;
+        (context?.shipMajorArcanaItemIds || []).forEach((shipItemId) => {
+            if (shipItemId === targetId) count += 1;
+        });
+        return count;
+    }
+
+    function getSellableInventoryItemCount(inventoryItems, itemId, context) {
+        if (isCurrencyInventoryItem(itemId)) return 0;
+        const ownedCount = getInventoryItemTotal(inventoryItems, itemId);
+        return Math.max(0, ownedCount - getReservedSellCount(itemId, context));
+    }
+
+    async function sellInventoryItems(playFabId, requestedItems) {
+        const entityKey = await getEntityKeyForPlayFabId(playFabId);
+        const inventoryItems = await getAllInventoryItems(entityKey);
+        const sellContext = await getInventorySellContext(playFabId);
+        const sellItems = normalizeSellRequestItems(requestedItems);
+        if (!sellItems.length) {
+            return { ok: false, status: 400, error: '売却するアイテムを選んでください。' };
+        }
+
+        for (const entry of sellItems) {
+            const sellableCount = getSellableInventoryItemCount(inventoryItems, entry.itemId, sellContext);
+            if (sellableCount < entry.amount) {
+                const itemData = normalizeCatalogDisplayData(entry.itemId, catalogCache[entry.itemId] || {});
+                const itemName = itemData.DisplayName || itemData.Title || entry.itemId;
+                return {
+                    ok: false,
+                    status: 400,
+                    error: `${itemName}は売却できる所持数が足りません。`
+                };
+            }
+        }
+
+        const totalAmount = sellItems.reduce((sum, entry) => sum + entry.amount, 0);
+        const totalGold = totalAmount * INVENTORY_SELL_UNIT_PRICE;
+        const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        for (const entry of sellItems) {
+            await subtractEconomyItem(playFabId, entry.itemId, entry.amount, {
+                idempotencyId: `inventory-sell-${playFabId}-${entry.itemId}-${stamp}`
+            });
+        }
+        await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, totalGold, {
+            idempotencyId: `inventory-sell-gold-${playFabId}-${stamp}`
+        });
+        const newBalance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
+        await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+            PlayFabId: playFabId,
+            Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: newBalance }]
+        });
+
+        return {
+            ok: true,
+            soldCount: totalAmount,
+            totalGold,
+            newBalance,
+            items: sellItems
+        };
     }
 
     async function ensureStarterMajorArcanaOwned(playFabId, nation, inventoryItems = null, entityKey = null) {
@@ -1742,7 +1870,7 @@ function initializeInventoryRoutes(app, deps) {
     // アイテム売却
     app.post('/api/sell-item', async (req, res) => {
         let { playFabId, itemInstanceId, itemId } = req.body;
-        if (!playFabId || !itemInstanceId || !itemId) {
+        if (!playFabId || !itemId) {
             return res.status(400).json({ error: 'IDまたはアイテム情報が不足しています。' });
         }
         playFabId = await requireAuthedPlayFabId(req, res, playFabId);
@@ -1751,32 +1879,18 @@ function initializeInventoryRoutes(app, deps) {
         console.log(`[アイテム売却] ${playFabId} がアイテム (Instance: ${itemInstanceId}) を売却します...`);
 
         try {
-            const itemData = catalogCache[itemId];
-            const sellPrice = (itemData && itemData.SellPrice)
-                ? parseInt(itemData.SellPrice, 10)
-                : 0;
-
-            if (!sellPrice || sellPrice <= 0) {
-                return res.status(400).json({ error: 'このアイテムは売却できません。' });
+            const itemData = normalizeCatalogDisplayData(itemId, catalogCache[itemId] || {});
+            const result = await sellInventoryItems(playFabId, [{ itemId, amount: 1 }]);
+            if (!result.ok) {
+                return res.status(result.status || 400).json({ error: result.error || 'このアイテムは売却できません。' });
             }
-
-            await subtractEconomyItem(playFabId, itemId, 1);
-            console.log('[アイテム売却] アイテムを消費しました');
-
-            await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, sellPrice);
-            const newBalance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
-            console.log('[アイテム売却] ゴールドを付与しました');
-
-            await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-                PlayFabId: playFabId,
-                Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: newBalance }]
-            });
-            console.log('[アイテム売却] ランキングスコアを更新しました');
 
             res.json({
                 status: 'success',
-                message: `${itemData.DisplayName || itemId}を${sellPrice}Gで売却しました。`,
-                newBalance: newBalance
+                message: `${itemData.DisplayName || itemData.Title || itemId}を${INVENTORY_SELL_UNIT_PRICE}Gで売却しました。`,
+                soldCount: result.soldCount,
+                totalGold: result.totalGold,
+                newBalance: result.newBalance
             });
 
         } catch (error) {
@@ -1786,6 +1900,42 @@ function initializeInventoryRoutes(app, deps) {
                 return res.status(400).json({ error: '指定されたアイテムが見つかりません。' });
             }
             res.status(500).json({
+                error: 'アイテムの売却に失敗しました。',
+                details: error.errorMessage || 'サーバーで予期しないエラーが発生しました。'
+            });
+        }
+    });
+
+    app.post('/api/sell-items', async (req, res) => {
+        let { playFabId, items } = req.body || {};
+        if (!playFabId || !Array.isArray(items)) {
+            return res.status(400).json({ error: '売却するアイテム情報が不足しています。' });
+        }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
+
+        console.log(`[アイテム一括売却] ${playFabId} が ${items.length} 種類を売却します...`);
+
+        try {
+            const result = await sellInventoryItems(playFabId, items);
+            if (!result.ok) {
+                return res.status(result.status || 400).json({ error: result.error || 'アイテムを売却できません。' });
+            }
+            return res.json({
+                status: 'success',
+                message: `${result.soldCount}個を${result.totalGold}Gで売却しました。`,
+                soldCount: result.soldCount,
+                totalGold: result.totalGold,
+                newBalance: result.newBalance,
+                items: result.items
+            });
+        } catch (error) {
+            console.error('[アイテム一括売却] エラー', error.errorMessage || error.message, error.apiErrorInfo);
+
+            if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'ItemNotFound') {
+                return res.status(400).json({ error: '指定されたアイテムが見つかりません。' });
+            }
+            return res.status(500).json({
                 error: 'アイテムの売却に失敗しました。',
                 details: error.errorMessage || 'サーバーで予期しないエラーが発生しました。'
             });

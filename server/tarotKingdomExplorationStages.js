@@ -22,7 +22,7 @@ const STAGE_ROWS = [
         ]
     },
     {
-        name: '風渡る甲板',
+        name: '双塔岩の海峡',
         battlefieldId: 'stage-02-windswept-deck',
         destinationImagePath: './Sprites/exploration_destinations/twin_sea_stacks.png',
         atmosphereTone: 'open-sea',
@@ -34,7 +34,7 @@ const STAGE_ROWS = [
         ]
     },
     {
-        name: '潮騒の島道',
+        name: '群礁の島道',
         battlefieldId: 'stage-03-island-causeway',
         destinationImagePath: './Sprites/exploration_destinations/reef_islets.png',
         atmosphereTone: 'tropical-wilds',
@@ -46,10 +46,10 @@ const STAGE_ROWS = [
         ]
     },
     {
-        name: '月影の古城',
+        name: '月影の望楼島',
         battlefieldId: 'stage-04-moon-shadow-castle',
         destinationImagePath: './Sprites/exploration_destinations/watchtower_island.png',
-        atmosphereTone: 'moonlit-gothic',
+        atmosphereTone: 'moonlit-watchtower',
         monsters: [
             ['ismartal-vol2-monster-06', 'swift'],
             ['ismartal-vol1-monster-12', 'swift'],
@@ -58,10 +58,10 @@ const STAGE_ROWS = [
         ]
     },
     {
-        name: '翠石の密林',
+        name: '翠石の隠れ入り江',
         battlefieldId: 'stage-05-emerald-jungle',
         destinationImagePath: './Sprites/exploration_destinations/hidden_lagoon.png',
-        atmosphereTone: 'verdant-ruins',
+        atmosphereTone: 'hidden-lagoon',
         monsters: [
             ['ismartal-vol2-monster-04', 'brute'],
             ['ismartal-vol2-monster-05', 'caster'],
@@ -106,10 +106,10 @@ const STAGE_ROWS = [
         ]
     },
     {
-        name: '鋼鉄船団の海',
+        name: '雷雨の廃港',
         battlefieldId: 'stage-09-steel-fleet',
         destinationImagePath: './Sprites/exploration_destinations/ruined_harbor.png',
-        atmosphereTone: 'storm-machinery',
+        atmosphereTone: 'storm-ruined-harbor',
         monsters: [
             ['ismartal-vol2-monster-17', 'guardian'],
             ['ismartal-vol1-monster-06', 'brute'],
@@ -118,10 +118,10 @@ const STAGE_ROWS = [
         ]
     },
     {
-        name: '獄炎の魔沼',
+        name: '獄炎の火山島',
         battlefieldId: 'stage-10-infernal-marsh',
         destinationImagePath: './Sprites/exploration_destinations/volcanic_island.png',
-        atmosphereTone: 'infernal-red',
+        atmosphereTone: 'volcanic-island',
         monsters: [
             ['ismartal-vol2-monster-19', 'brute'],
             ['ismartal-vol3-monster-02', 'caster'],
@@ -130,10 +130,10 @@ const STAGE_ROWS = [
         ]
     },
     {
-        name: '終月の王城',
+        name: '終月の古代海門',
         battlefieldId: 'stage-11-eclipse-castle',
         destinationImagePath: './Sprites/exploration_destinations/ancient_sea_gate.png',
-        atmosphereTone: 'final-eclipse',
+        atmosphereTone: 'eclipse-sea-gate',
         monsters: [
             ['ismartal-vol3-monster-03', 'swift'],
             ['ismartal-vol3-monster-09', 'guardian'],

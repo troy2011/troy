@@ -1600,7 +1600,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
             ]
           }),
           makeExplorationStage(2, {
-            name: '風渡る甲板',
+            name: '双塔岩の海峡',
             bestRank: 2,
             clearCount: 3,
             battlefieldId: 'ship-side',
@@ -1613,7 +1613,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
             ]
           }),
           makeExplorationStage(3, {
-            name: '潮騒の島道',
+            name: '群礁の島道',
             unlocked: false,
             monsters: [
               { monsterId: 'ismartal-vol1-monster-14', monsterName: 'ポルポ' },
@@ -1789,6 +1789,80 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(panel).toBeHidden();
   expect(await page.evaluate(() => document.body.classList.contains('home-exploration-popup-open'))).toBe(false);
 
+  await expectNoPageErrors(errors);
+});
+
+test('an active exploration can retreat before departing for the locked retry stage', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  let retreatBody = null;
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/api/exploration/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ship: { shipId: 'ship-retry', shipName: '再挑戦号', form: 'explorer', stage: 2 },
+        active: {
+          id: 'exploration-retry-locked',
+          stageNo: 3,
+          stageId: 'tarot_stage_3',
+          destinationId: 'tarot_stage_3',
+          destinationName: '群礁の島道',
+          imagePath: './Sprites/exploration_destinations/reef_islets.png',
+          shipName: '再挑戦号'
+        },
+        stages: [],
+        explorationSupplies: []
+      })
+    });
+  });
+  await page.route('**/api/exploration/retreat', async (route) => {
+    retreatBody = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ship: { shipId: 'ship-retry', shipName: '再挑戦号', form: 'explorer', stage: 2 },
+        active: null,
+        retreated: true,
+        progress: { version: 2, highestUnlockedStage: 3 },
+        stages: [makeExplorationStage(3, {
+          name: '群礁の島道',
+          imagePath: './Sprites/exploration_destinations/reef_islets.png'
+        })],
+        explorationSupplies: []
+      })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.locator('#btnHomeExploration').click();
+  const panel = page.locator('#shipExplorationPanel');
+  const resumeButton = panel.locator('[data-exploration-claim]');
+  const retreatButton = panel.locator('[data-exploration-retreat]');
+  await expect(resumeButton).toHaveText('出航');
+  await expect(retreatButton).toHaveText('撤退');
+  const actionsLayout = await panel.locator('.ship-exploration-actions').evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+      left: rect.left,
+      right: rect.right,
+      viewportWidth: window.innerWidth,
+      scrollWidth: document.documentElement.scrollWidth
+    };
+  });
+  expect(actionsLayout.left).toBeGreaterThanOrEqual(0);
+  expect(actionsLayout.right).toBeLessThanOrEqual(actionsLayout.viewportWidth);
+  expect(actionsLayout.scrollWidth).toBeLessThanOrEqual(actionsLayout.viewportWidth);
+
+  await retreatButton.click();
+  await expect.poll(() => retreatBody).toEqual({
+    playFabId: 'PF_PLAYWRIGHT',
+    explorationId: 'exploration-retry-locked'
+  });
+  await expect(panel.locator('[data-exploration-claim]')).toHaveCount(0);
+  await expect(panel.locator('[data-exploration-retreat]')).toHaveCount(0);
+  await expect(panel.locator('.ship-exploration-start')).toHaveText('出航');
   await expectNoPageErrors(errors);
 });
 
@@ -6360,5 +6434,107 @@ test('single one-handed weapon cannot be equipped to both hands from detail moda
   await expect(page.locator('#itemDetailButtons .item-detail-action.is-disabled')).toHaveText('左手装備');
   await expect(page.locator('#itemDetailButtons .item-detail-action.is-disabled')).toBeDisabled();
   await expect(page.locator('#itemDetailButtons .item-detail-action-note')).toHaveCount(0);
+  await expectNoPageErrors(errors);
+});
+
+test('inventory selection sell sends multiple sellable item copies at one gold each', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const sellRequests = [];
+  const inventoryItems = [
+    {
+      itemId: 'junk_001',
+      instances: ['junk-stack'],
+      count: 2,
+      name: 'Junk',
+      description: 'Sell target',
+      customData: { Category: 'Consumable', Effect: { Type: 'None' } }
+    },
+    {
+      itemId: 'potion_001',
+      instances: ['potion-stack'],
+      count: 1,
+      name: 'Potion',
+      description: 'Sell target',
+      customData: { Category: 'Consumable', Effect: { Type: 'HP', Amount: 10 } }
+    },
+    {
+      itemId: 'sword_001',
+      instances: ['sword-stack'],
+      count: 2,
+      name: 'Equipped Sword',
+      customData: { Category: 'Weapon', Power: 12, sprite_path: './Sprites/weapons/melee weapons/sword.png', sprite_index: '0' }
+    }
+  ];
+
+  page.on('dialog', async (dialog) => {
+    expect(dialog.message()).toContain('3個を3Gで売却しますか？');
+    await dialog.accept();
+  });
+  await page.route('**/api/get-inventory', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        inventory: inventoryItems,
+        virtualCurrency: { PS: 100 },
+        contribution: 0
+      })
+    });
+  });
+  await page.route('**/api/get-equipment', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ equipment: { RightHand: { itemId: 'sword_001' } } })
+    });
+  });
+  await page.route('**/api/tarot-deck-get', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ok: true, tarotDeck: [], tarotRole: null })
+    });
+  });
+  await page.route('**/api/sell-items', async (route) => {
+    sellRequests.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        status: 'success',
+        message: '3個を3Gで売却しました。',
+        soldCount: 3,
+        totalGold: 3,
+        newBalance: 103
+      })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    const inventoryTab = document.getElementById('tabContentInventory');
+    if (inventoryTab) inventoryTab.style.display = 'block';
+    const inventory = await import('/js/inventory.js');
+    await inventory.getInventory('PF_PLAYWRIGHT', { force: true });
+    inventory.switchInventoryGroup('All', { panel: 'items' });
+  });
+
+  await page.locator('#inventorySellControls .inventory-sell-control-btn', { hasText: '選択売却' }).click();
+  await page.locator('#inventorySellControls .inventory-sell-control-btn', { hasText: '全選択' }).click();
+
+  await expect(page.locator('#inventorySellControls .inventory-sell-summary')).toHaveText('2種 3個 3G');
+  await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]')).toHaveClass(/is-sellable/);
+  await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]')).not.toHaveClass(/is-sell-selected/);
+  await page.locator('#inventorySellControls .inventory-sell-control-btn.is-sell').click();
+
+  expect(sellRequests).toHaveLength(1);
+  expect(sellRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    items: [
+      { itemId: 'junk_001', amount: 2 },
+      { itemId: 'potion_001', amount: 1 }
+    ]
+  });
+  await expect(page.locator('#pointMessage')).toContainText('3個を3Gで売却しました。');
   await expectNoPageErrors(errors);
 });

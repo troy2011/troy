@@ -275,6 +275,10 @@ export function sellItem(playFabId, itemInstanceId, itemId, options) {
     return callApiWithLoader('/api/sell-item', { playFabId, itemInstanceId, itemId }, options);
 }
 
+export function sellItems(playFabId, items, options) {
+    return callApiWithLoader('/api/sell-items', { playFabId, items }, options);
+}
+
 export function getGuildInfo(playFabId, entityKey, options) {
     const resolvedEntityKey = entityKey || window.myPlayFabLoginInfo?.entityKey || null;
     return callApiWithLoader('/api/get-guild-info', { playFabId, entityKey: resolvedEntityKey }, options);

@@ -182,6 +182,7 @@ test('all 11 exploration stages load distinct dedicated battlefield images', asy
       const image = new Image();
       image.addEventListener('load', () => resolve({
         id: battlefield.id,
+        label: battlefield.label,
         imagePath: battlefield.imagePath,
         groundStartPercent: battlefield.groundStartPercent,
         shipSide: battlefield.shipSide,
@@ -202,18 +203,35 @@ test('all 11 exploration stages load distinct dedicated battlefield images', asy
   expect(result).toHaveLength(11);
   expect(new Set(result.map((entry) => entry.id)).size).toBe(11);
   expect(new Set(result.map((entry) => entry.imagePath)).size).toBe(11);
+  expect(result.map((entry) => entry.label)).toEqual([
+    '珊瑚の浅瀬',
+    '双塔岩の海峡',
+    '群礁の島道',
+    '月影の望楼島',
+    '翠石の隠れ入り江',
+    '幽霊沼の夜',
+    '海上砦突破戦',
+    '蒼光の洞窟',
+    '雷雨の廃港',
+    '獄炎の火山島',
+    '終月の古代海門'
+  ]);
   for (const entry of result) {
     expect(entry.loaded).toBe(true);
-    expect(entry.imagePath).toMatch(/stage-\d{2}-.+-v1\.webp$/);
+    expect(entry.imagePath).toMatch(/stage-\d{2}-.+-v[12]\.webp$/);
     expect(entry.groundStartPercent).toBe(36);
     expect(entry.width).toBeGreaterThan(900);
     expect(entry.height / entry.width).toBeGreaterThan(1.7);
   }
   expect(result.filter((entry) => entry.shipSide).map((entry) => entry.id)).toEqual([
-    'stage-02-windswept-deck',
-    'stage-09-steel-fleet'
+    'stage-02-windswept-deck'
   ]);
   expect(result.filter((entry) => entry.shipSide).every((entry) => entry.surface.endsWith('-deck'))).toBe(true);
+  expect(result.find((entry) => entry.id === 'stage-09-steel-fleet')).toMatchObject({
+    imagePath: './assets/tarot-kingdom/battlefields/stage-09-steel-fleet-v2.webp',
+    shipSide: false,
+    surface: 'harbor-stone'
+  });
 });
 
 test('raid uses its own eclipse altar battlefield asset', async ({ page }) => {

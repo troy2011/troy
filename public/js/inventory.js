@@ -14,7 +14,8 @@ import {
     unequipShipMajorArcana as requestUnequipShipMajorArcana,
     moveShipMajorArcana as requestMoveShipMajorArcana,
     useItem as requestUseItem,
-    sellItem as requestSellItem
+    sellItem as requestSellItem,
+    sellItems as requestSellItems
 } from './playfabClient.js';
 import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites, resolveSpritePathByAvatarColor } from './avatar.js';
 import * as Player from './player.js';
@@ -61,6 +62,8 @@ let inventoryFetchPromise = null;
 let equipmentLoaded = false;
 let equipmentFetchPromise = null;
 let inventoryStickyResizeObserver = null;
+let inventorySellSelectionMode = false;
+let selectedInventorySellItemIds = new Set();
 // カードレベルデータ: { [itemId]: { level, maxLevel, quantity, nextLevelCost } }
 let cardLevelMap = {};
 let tarotBattleSkillsLoaded = false;
@@ -997,6 +1000,104 @@ function renderInventoryListSummary(category, filteredItems, allItems) {
     }));
 }
 
+function getSelectedInventorySellEntries() {
+    return getDisplayInventoryEntries()
+        .filter((item) => selectedInventorySellItemIds.has(String(item?.itemId || '')))
+        .map((item) => ({ item, amount: getInventorySellableCount(item) }))
+        .filter((entry) => entry.amount > 0);
+}
+
+function pruneInventorySellSelection() {
+    const sellableIds = new Set(
+        getDisplayInventoryEntries()
+            .filter(isInventoryItemSellable)
+            .map((item) => String(item?.itemId || ''))
+            .filter(Boolean)
+    );
+    selectedInventorySellItemIds = new Set(
+        [...selectedInventorySellItemIds].filter((itemId) => sellableIds.has(itemId))
+    );
+}
+
+function toggleInventorySellSelection(item) {
+    const itemId = String(item?.itemId || '').trim();
+    if (!itemId) return true;
+    if (!isInventoryItemSellable(item)) {
+        showInventoryFeedback('このアイテムは売却できません。', true);
+        return true;
+    }
+    if (selectedInventorySellItemIds.has(itemId)) {
+        selectedInventorySellItemIds.delete(itemId);
+    } else {
+        selectedInventorySellItemIds.add(itemId);
+    }
+    renderInventoryGrid(activeInventoryCategory);
+    return true;
+}
+
+function renderInventorySellControls(visibleItems = []) {
+    if (typeof document === 'undefined') return;
+    const controls = document.getElementById('inventorySellControls');
+    if (!controls) return;
+    controls.innerHTML = '';
+    pruneInventorySellSelection();
+
+    const toggleButton = document.createElement('button');
+    toggleButton.type = 'button';
+    toggleButton.className = `inventory-sell-control-btn${inventorySellSelectionMode ? ' is-active' : ''}`;
+    toggleButton.textContent = inventorySellSelectionMode ? '選択終了' : '選択売却';
+    toggleButton.addEventListener('click', () => {
+        inventorySellSelectionMode = !inventorySellSelectionMode;
+        if (!inventorySellSelectionMode) selectedInventorySellItemIds.clear();
+        renderInventoryGrid(activeInventoryCategory);
+    });
+    controls.appendChild(toggleButton);
+
+    if (!inventorySellSelectionMode) return;
+
+    const selectedEntries = getSelectedInventorySellEntries();
+    const selectedKinds = selectedEntries.length;
+    const selectedCount = selectedEntries.reduce((sum, entry) => sum + entry.amount, 0);
+
+    const summary = document.createElement('span');
+    summary.className = 'inventory-sell-summary';
+    summary.textContent = `${selectedKinds}種 ${selectedCount}個 ${selectedCount}G`;
+    controls.appendChild(summary);
+
+    const selectVisibleButton = document.createElement('button');
+    selectVisibleButton.type = 'button';
+    selectVisibleButton.className = 'inventory-sell-control-btn';
+    selectVisibleButton.textContent = '全選択';
+    selectVisibleButton.addEventListener('click', () => {
+        visibleItems.filter(isInventoryItemEligibleForBulkSellSelect).forEach((item) => {
+            selectedInventorySellItemIds.add(String(item.itemId));
+        });
+        renderInventoryGrid(activeInventoryCategory);
+    });
+    controls.appendChild(selectVisibleButton);
+
+    const clearButton = document.createElement('button');
+    clearButton.type = 'button';
+    clearButton.className = 'inventory-sell-control-btn';
+    clearButton.textContent = '解除';
+    clearButton.disabled = selectedCount <= 0;
+    clearButton.addEventListener('click', () => {
+        selectedInventorySellItemIds.clear();
+        renderInventoryGrid(activeInventoryCategory);
+    });
+    controls.appendChild(clearButton);
+
+    const sellButton = document.createElement('button');
+    sellButton.type = 'button';
+    sellButton.className = 'inventory-sell-control-btn is-sell';
+    sellButton.textContent = `売却 ${selectedCount}G`;
+    sellButton.disabled = selectedCount <= 0;
+    sellButton.addEventListener('click', () => {
+        sellSelectedInventoryItems();
+    });
+    controls.appendChild(sellButton);
+}
+
 function getInventoryLayout(category) {
     if (category === 'TarotMajor' || category === 'TarotMinor') return 'tarot';
     if (['Weapon', 'Shield', 'Offhand', 'LeftHand', 'Armor', 'Accessory'].includes(category)) return 'equipment';
@@ -1310,6 +1411,31 @@ function getInventoryOwnedCount(item) {
     return item ? 1 : 0;
 }
 
+function getInventoryReservedCount(item) {
+    const itemId = String(item?.itemId || '').trim();
+    if (!itemId) return 0;
+    let reserved = Object.entries(myCurrentEquipment || {})
+        .filter(([slot]) => slot !== 'MajorArcana')
+        .filter(([, equippedValue]) => isEquipmentReferenceMatch(item, equippedValue))
+        .length;
+    if (isCardInTarotDeck(itemId)) reserved += 1;
+    if (isShipMajorArcanaEquipped(itemId)) reserved += 1;
+    return reserved;
+}
+
+function getInventorySellableCount(item) {
+    if (!item?.itemId) return 0;
+    return Math.max(0, getInventoryOwnedCount(item) - getInventoryReservedCount(item));
+}
+
+function isInventoryItemSellable(item) {
+    return getInventorySellableCount(item) > 0;
+}
+
+function isInventoryItemEligibleForBulkSellSelect(item) {
+    return isInventoryItemSellable(item) && getInventoryReservedCount(item) <= 0;
+}
+
 function isTwoHandedWeapon(item) {
     return isTwoHandedInventoryWeapon(item);
 }
@@ -1605,6 +1731,20 @@ function createInventoryCell(item, requestedCategory) {
     if (quickAction?.tone) {
         cell.classList.add(`has-${quickAction.tone}`);
     }
+    if (inventorySellSelectionMode) {
+        const sellableCount = getInventorySellableCount(item);
+        const isSellSelected = selectedInventorySellItemIds.has(String(item?.itemId || ''));
+        cell.classList.add('is-sell-mode');
+        cell.dataset.sellableCount = String(sellableCount);
+        if (sellableCount > 0) {
+            cell.classList.add('is-sellable');
+        } else {
+            cell.classList.add('is-not-sellable');
+        }
+        if (isSellSelected) {
+            cell.classList.add('is-sell-selected');
+        }
+    }
     const isTarotDeckEquipped = canonicalCategory === 'TarotMinor'
         && isCardInTarotDeck(item?.itemId);
     const isShipMajorEquipped = canonicalCategory === 'TarotMajor'
@@ -1617,12 +1757,32 @@ function createInventoryCell(item, requestedCategory) {
     if (isEquipmentEquipped) {
         cell.classList.add('is-equipment-equipped');
     }
-    cell.addEventListener('click', () => showItemDetailModal(item));
+    cell.addEventListener('click', () => {
+        if (inventorySellSelectionMode && toggleInventorySellSelection(item)) return;
+        showItemDetailModal(item);
+    });
     cell.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
+        if (inventorySellSelectionMode && toggleInventorySellSelection(item)) return;
         showItemDetailModal(item);
     });
+
+    if (inventorySellSelectionMode) {
+        const sellCheck = document.createElement('button');
+        sellCheck.type = 'button';
+        sellCheck.className = 'inventory-sell-check';
+        sellCheck.textContent = selectedInventorySellItemIds.has(String(item?.itemId || '')) ? '✓' : '';
+        sellCheck.disabled = !isInventoryItemSellable(item);
+        sellCheck.setAttribute('aria-label', `${item?.name || 'アイテム'}を売却選択`);
+        sellCheck.setAttribute('aria-pressed', selectedInventorySellItemIds.has(String(item?.itemId || '')) ? 'true' : 'false');
+        sellCheck.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleInventorySellSelection(item);
+        });
+        cell.appendChild(sellCheck);
+    }
 
     const head = document.createElement('div');
     head.className = 'inventory-item-head';
@@ -2134,6 +2294,37 @@ export async function sellItem(playFabId, itemInstanceId, itemId) {
     if (data) {
         await getInventory(playFabId, { force: true });
         await Player.getPoints(playFabId);
+        document.getElementById('pointMessage').innerText = data.message || '';
+    }
+}
+
+export async function sellSelectedInventoryItems() {
+    const playFabId = window.myPlayFabId || null;
+    if (!playFabId) return;
+    const selectedEntries = getSelectedInventorySellEntries();
+    const selectedCount = selectedEntries.reduce((sum, entry) => sum + entry.amount, 0);
+    if (selectedCount <= 0) {
+        showInventoryFeedback('売却するアイテムを選んでください。', true);
+        return;
+    }
+    const confirmed = typeof window.confirm === 'function'
+        ? window.confirm(`${selectedCount}個を${selectedCount}Gで売却しますか？`)
+        : true;
+    if (!confirmed) return;
+
+    const payload = selectedEntries.map((entry) => ({
+        itemId: entry.item.itemId,
+        amount: entry.amount
+    }));
+    const data = await requestSellItems(playFabId, payload);
+    if (data) {
+        selectedInventorySellItemIds.clear();
+        await getInventory(playFabId, { force: true });
+        await Player.getPoints(playFabId);
+        document.getElementById('pointMessage').innerText = data.message || '';
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage(data.message || `${selectedCount}個を売却した。`);
+        }
     }
 }
 
@@ -2217,6 +2408,7 @@ export function renderInventoryGrid(category) {
         }
         return compareInventoryItemsDefault(a, b, category);
     });
+    renderInventorySellControls(sorted);
 
     if (sorted.length === 0) {
         gridEl.innerHTML = `<p style="grid-column: 1 / -1; text-align: center;">${getEmptyInventoryMessage(category)}</p>`;
@@ -2759,8 +2951,8 @@ function showItemDetailModal(item) {
         }
     }
 
-    if (cd.SellPrice > 0) {
-        addAction(`売却 ${cd.SellPrice}G`, 'sell', () => showSellConfirmationModal(instanceId, item.itemId));
+    if (getInventorySellableCount(item) > 0) {
+        addAction('売却 1G', 'sell', () => showSellConfirmationModal(instanceId, item.itemId));
     }
 
     showModal(modal);
@@ -2768,10 +2960,10 @@ function showItemDetailModal(item) {
 
 export function showSellConfirmationModal(itemInstanceId, itemId) {
     const item = myInventory.find(i => i.itemId === itemId);
-    if (!item?.customData?.SellPrice) return;
+    if (!item || getInventorySellableCount(item) <= 0) return;
 
     document.getElementById('sellItemName').innerText = item.name;
-    document.getElementById('sellItemPrice').innerText = item.customData.SellPrice;
+    document.getElementById('sellItemPrice').innerText = '1';
     const modal = document.getElementById('sellConfirmationModal');
     showModal(modal);
 

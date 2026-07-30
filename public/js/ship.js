@@ -2617,12 +2617,45 @@ function renderExplorationPanel(data, playFabId) {
                 </div>
                 <div class="ship-exploration-actions">
                     <button type="button" data-exploration-claim>出航</button>
+                    <button type="button" class="ship-exploration-retreat" data-exploration-retreat
+                        aria-label="探索を中止してステージ選択へ戻る">撤退</button>
                 </div>
             </div>
         `;
         bindExplorationSettings();
         bindRescueCheck();
         panel.querySelector('[data-exploration-claim]')?.addEventListener('click', () => claimExploration(playFabId));
+        panel.querySelector('[data-exploration-retreat]')?.addEventListener('click', async (event) => {
+            if (explorationAutoRunning) return;
+            const explorationId = String(active.id || '').trim();
+            if (!explorationId) {
+                showRpgMessage('撤退する探索を確認できませんでした。');
+                return;
+            }
+            const triggerButton = event.currentTarget;
+            const actionButtons = Array.from(panel.querySelectorAll('.ship-exploration-actions button'));
+            const previousLabels = actionButtons.map((button) => button.textContent || '');
+            explorationAutoRunning = true;
+            actionButtons.forEach((button) => {
+                button.disabled = true;
+            });
+            triggerButton.textContent = '撤退中';
+            try {
+                await completeExplorationRetreat(playFabId, {
+                    explorationId,
+                    retreated: true
+                });
+            } catch (error) {
+                showRpgMessage(error?.message || '探索から撤退できませんでした。');
+            } finally {
+                explorationAutoRunning = false;
+                actionButtons.forEach((button, index) => {
+                    if (!button.isConnected) return;
+                    button.disabled = false;
+                    button.textContent = previousLabels[index] || button.textContent;
+                });
+            }
+        });
         return;
     }
     const stages = Array.isArray(data?.stages) ? data.stages : [];

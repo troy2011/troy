@@ -34,6 +34,19 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
       && /^\.\/Sprites\/exploration_destinations\/.+\.png$/.test(stage.imagePath)
     ))).toBeTruthy();
     expect(new Set(destinationImages).size).toBe(11);
+    expect(TAROT_KINGDOM_EXPLORATION_STAGES.map((stage) => stage.name)).toEqual([
+      '珊瑚の浅瀬',
+      '双塔岩の海峡',
+      '群礁の島道',
+      '月影の望楼島',
+      '翠石の隠れ入り江',
+      '幽霊沼の夜',
+      '海上砦突破戦',
+      '蒼光の洞窟',
+      '雷雨の廃港',
+      '獄炎の火山島',
+      '終月の古代海門'
+    ]);
     destinationImages.forEach((imagePath) => {
       expect(fs.existsSync(path.resolve(__dirname, '..', 'public', imagePath.replace(/^\.\//, '')))).toBeTruthy();
     });
@@ -78,7 +91,7 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
       explorationId: 'exp-stage-test',
       stageNo: 9,
       battlefieldId: 'stage-09-steel-fleet',
-      atmosphereTone: 'storm-machinery',
+      atmosphereTone: 'storm-ruined-harbor',
       monsterName: 'メカノ'
     });
     expect(encounter.monsters.map((entry) => entry.monsterName)).toEqual([

@@ -348,6 +348,29 @@ test('field backgrounds show persistent card effects behind unobscured cards', a
   }));
   await expectScene('field-world-clock');
 
+  await page.evaluate(() => window.TarotKingdomDebug.battleScenario({
+    enemyTimeStop: true,
+    reverse: true,
+    tableCard: { id: 'scene-priority-reverse', kind: 'minor', suit: 'Cup', number: 11 }
+  }));
+  await expectScene('field-reverse-whirlpool');
+
+  await page.evaluate(() => window.TarotKingdomDebug.battleScenario({
+    enemyTimeStop: true,
+    reverse: true,
+    lockSuit: 'Pentacle',
+    tableCard: { id: 'scene-priority-lock', kind: 'minor', suit: 'Pentacle', number: 14 }
+  }));
+  await expectScene('field-lock-rock');
+
+  await page.evaluate(() => window.TarotKingdomDebug.battleScenario({
+    enemyTimeStop: true,
+    reverse: true,
+    lockSuit: 'Pentacle',
+    tableCard: { id: 'scene-priority-cut', kind: 'minor', suit: 'Pentacle', number: 8 }
+  }));
+  await expectScene('field-cut-crack');
+
   const worldRoleCards = [21, 2, 3, 4, 6].map((number) => ({
     id: `scene-world-role-${number}`,
     kind: 'major',
@@ -1088,7 +1111,8 @@ test('monsters with two attack sheets use the second one for area attacks and pe
         single: debug.battleMonsterAttackAnimation('ismartal-vol1-monster-01', 'single'),
         area: debug.battleMonsterAttackAnimation('ismartal-vol1-monster-01', 'area'),
         skill: debug.battleMonsterAttackAnimation('ismartal-vol1-monster-01', 'skill')
-      }
+      },
+      motion: debug.battleMonsterAttackMotion('ismartal-vol2-monster-06', 'area')
     };
   });
   expect(selection.dual).toEqual([
@@ -1097,6 +1121,13 @@ test('monsters with two attack sheets use the second one for area attacks and pe
     { id: 'ismartal-vol2-monster-10', single: 'attack', area: 'attack2', skill: 'attack2' }
   ]);
   expect(selection.fallback).toEqual({ single: 'attack', area: 'attack', skill: 'attack' });
+  expect(selection.motion).toMatchObject({
+    animationName: 'attack2',
+    animationDurationMs: 1100,
+    advanceDurationMs: 180,
+    returnDurationMs: 180,
+    totalDurationMs: 1280
+  });
 
   const enemySequence = await page.evaluate(() => {
     const debug = window.TarotKingdomDebug;
@@ -1108,15 +1139,54 @@ test('monsters with two attack sheets use the second one for area attacks and pe
     });
     debug.battleSetDemoEnemy('ismartal-vol2-monster-06');
     const state = debug.battlePass(0);
+    const visual = document.querySelector('.tarot-kingdom-battle-enemy-visual');
+    const visualStyle = visual ? getComputedStyle(visual) : null;
     return {
       eventTypes: state.battle.events.slice(-2).map((event) => event.type),
-      animationName: document.getElementById('tarotKingdomEnemySprite')?.dataset.animationName || ''
+      events: state.battle.events.slice(-2).map((event) => ({
+        type: event.type,
+        attackAnimationName: event.attackAnimationName,
+        attackAnimationDurationMs: event.attackAnimationDurationMs,
+        attackReturnDurationMs: event.attackReturnDurationMs
+      })),
+      animationName: document.getElementById('tarotKingdomEnemySprite')?.dataset.animationName || '',
+      motionAnimationNames: visualStyle?.animationName || '',
+      motionAnimationDurations: visualStyle?.animationDuration || '',
+      motionAnimationDelays: visualStyle?.animationDelay || ''
     };
   });
   expect(enemySequence.eventTypes).toEqual(['enemy-single', 'enemy-area']);
+  expect(enemySequence.events).toEqual([
+    {
+      type: 'enemy-single',
+      attackAnimationName: 'attack',
+      attackAnimationDurationMs: 1100,
+      attackReturnDurationMs: 180
+    },
+    {
+      type: 'enemy-area',
+      attackAnimationName: 'attack2',
+      attackAnimationDurationMs: 1100,
+      attackReturnDurationMs: 180
+    }
+  ]);
   expect(enemySequence.animationName).toBe('attack');
+  expect(enemySequence.motionAnimationNames).toContain('tarotKingdomBattleEnemyAdvance');
+  expect(enemySequence.motionAnimationNames).toContain('tarotKingdomBattleEnemyReturn');
+  expect(enemySequence.motionAnimationDurations).toBe('0.18s, 0.18s');
+  const motionDelays = enemySequence.motionAnimationDelays
+    .split(',')
+    .map((value) => Number.parseFloat(value));
+  expect(motionDelays[0]).toBeLessThanOrEqual(0);
+  expect(motionDelays[1]).toBeGreaterThan(1);
+  await page.waitForTimeout(220);
+  const forwardOffset = await page.locator('.tarot-kingdom-battle-enemy-visual').evaluate((visual) => {
+    const transform = getComputedStyle(visual).transform;
+    return transform === 'none' ? 0 : new DOMMatrixReadOnly(transform).m41;
+  });
+  expect(forwardOffset).toBeGreaterThan(40);
   await expect(page.locator('#tarotKingdomEnemySprite')).toHaveAttribute('data-animation-name', 'attack2', {
-    timeout: 1_300
+    timeout: 1_800
   });
   await expect(page.locator('#tarotKingdomEnemySprite')).toHaveCSS(
     'background-image',
@@ -1191,6 +1261,72 @@ test('monsters with two attack sheets use the second one for area attacks and pe
   expect(petAnimations.skill.backgroundImage).toContain('/pixel-monsters/vol2/monster-06/attack2.png');
 });
 
+test('player attack and retreat shadows follow horizontal movement without leaving the floor', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const attackShadow = await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    debug.battleScenario({
+      turnIndex: 0,
+      leaderIndex: 1,
+      tableCard: { id: 'shadow-field-1', kind: 'minor', suit: 'Cup', number: 1 },
+      handsBySeat: [
+        [
+          { id: 'shadow-play-2', kind: 'minor', suit: 'Cup', number: 2 },
+          { id: 'shadow-keep-9', kind: 'minor', suit: 'Sword', number: 9 }
+        ],
+        [{ id: 'shadow-npc1', kind: 'minor', suit: 'Wand', number: 3 }],
+        [{ id: 'shadow-npc2', kind: 'minor', suit: 'Sword', number: 4 }],
+        [{ id: 'shadow-npc3', kind: 'minor', suit: 'Pentacle', number: 5 }]
+      ]
+    });
+    debug.battlePlayOne(0, { resolve: false });
+    const row = document.querySelector(
+      '#tarotKingdomBattleParty > .tarot-kingdom-battle-player[data-player-index="0"]'
+    );
+    const shadow = row?.querySelector('.tarot-kingdom-battle-player-floor-shadow');
+    const style = shadow ? getComputedStyle(shadow) : null;
+    return {
+      rowAttacking: row?.classList.contains('is-player-attacking') === true,
+      animationName: style?.animationName || '',
+      duration: style?.animationDuration || '',
+      delay: parseFloat(style?.animationDelay || 'NaN')
+    };
+  });
+  expect(attackShadow.rowAttacking).toBe(true);
+  expect(attackShadow.animationName).toBe('tarotKingdomPlayerAttackShadow');
+  expect(attackShadow.duration).toBe('0.38s');
+  expect(attackShadow.delay).toBeGreaterThanOrEqual(0);
+
+  const movingShadow = await page.locator(
+    '#tarotKingdomBattleParty > .tarot-kingdom-battle-player[data-player-index="0"] .tarot-kingdom-battle-player-floor-shadow'
+  ).evaluate((shadow) => {
+    const style = getComputedStyle(shadow);
+    const durationMs = parseFloat(style.animationDuration) * 1000;
+    const delayMs = Math.max(0, parseFloat(style.animationDelay) * 1000);
+    const animation = shadow.getAnimations().find((candidate) => (
+      candidate.animationName === 'tarotKingdomPlayerAttackShadow'
+    ));
+    if (animation) {
+      animation.pause();
+      animation.currentTime = delayMs + (durationMs * 0.48);
+    }
+    const transform = getComputedStyle(shadow).transform;
+    return transform === 'none' ? 0 : new DOMMatrixReadOnly(transform).m41;
+  });
+  expect(movingShadow).toBeLessThan(-40);
+
+  const retreatShadow = await page.evaluate(() => {
+    const row = document.querySelector(
+      '#tarotKingdomBattleParty > .tarot-kingdom-battle-player[data-player-index="0"]'
+    );
+    row?.classList.add('is-retreating');
+    document.getElementById('tarotKingdomBattleStage')?.classList.add('is-retreat');
+    const shadow = row?.querySelector('.tarot-kingdom-battle-player-floor-shadow');
+    return shadow ? getComputedStyle(shadow).animationName : '';
+  });
+  expect(retreatShadow).toBe('tarotKingdomPlayerRetreatShadow');
+});
+
 for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1000 }]) {
   test(`all demo pets use the player scale and corrected flying offsets at ${viewport.width}px`, async ({ page }) => {
     await openOfflineBattle(page, viewport);
@@ -1201,8 +1337,15 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1000 
         const playerAvatar = document.getElementById('tarotKingdomBattleAvatar-0');
         const petAvatar = document.getElementById('tarotKingdomBattleAvatar-1');
         const sprite = petAvatar?.querySelector(':scope > .tarot-kingdom-battle-pet-sprite');
+        const spriteRect = sprite?.getBoundingClientRect();
+        const hostRect = petAvatar?.getBoundingClientRect();
+        const shadowStyle = petAvatar ? getComputedStyle(petAvatar, '::before') : null;
+        const shadowCenterY = hostRect && shadowStyle
+          ? hostRect.bottom - parseFloat(shadowStyle.bottom) - (parseFloat(shadowStyle.height) / 2)
+          : NaN;
         return {
           id: pet.id,
+          anchor: petAvatar?.dataset.monsterAnchor || '',
           playerScale: getComputedStyle(playerAvatar).getPropertyValue('--avatar-combat-scale').trim(),
           petHostScale: getComputedStyle(petAvatar).getPropertyValue('--avatar-combat-scale').trim(),
           petSpriteScale: sprite?.style.getPropertyValue('--tarot-kingdom-pet-scale') || '',
@@ -1210,6 +1353,15 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1000 
           bottom: sprite ? getComputedStyle(sprite).bottom : '',
           horizontalAnchor: sprite ? parseFloat(getComputedStyle(sprite).left) : NaN,
           hostCenter: petAvatar ? petAvatar.offsetWidth / 2 : NaN,
+          shadow: shadowStyle ? {
+            content: shadowStyle.content,
+            bottom: parseFloat(shadowStyle.bottom),
+            width: parseFloat(shadowStyle.width),
+            opacity: parseFloat(shadowStyle.opacity),
+            background: shadowStyle.backgroundImage,
+            centerOffsetX: parseFloat(shadowStyle.left) - parseFloat(getComputedStyle(sprite).left),
+            groundGap: spriteRect ? shadowCenterY - spriteRect.bottom : NaN
+          } : null,
           playerOrder: debug.battleState().players.map((player) => player.id)
         };
       });
@@ -1222,6 +1374,14 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1000 
       && pet.petSpriteScale === '1'
       && pet.horizontalAnchor <= pet.hostCenter - 3
       && pet.horizontalAnchor >= pet.hostCenter - 5
+      && pet.shadow?.content !== 'none'
+      && pet.shadow?.width >= 36
+      && pet.shadow?.background.includes('radial-gradient')
+      && Math.abs(pet.shadow?.centerOffsetX) <= 1
+      && (pet.anchor === 'air'
+        ? pet.shadow?.bottom === -8 && pet.shadow?.opacity < 0.6 && pet.shadow?.groundGap >= 8
+        : pet.shadow?.bottom === 1 && pet.shadow?.opacity >= 0.7
+          && pet.shadow?.groundGap >= 0 && pet.shadow?.groundGap <= 4)
       && pet.playerOrder.join(',') === 'you,pet,npc1,npc2'
     ))).toEqual([]);
     for (const monsterId of [
@@ -1293,7 +1453,7 @@ test('enemy and party shadows stay grounded while flying monsters cast a lower s
   expect(grounded.opacity).toBeGreaterThanOrEqual(0.7);
   expect(grounded.background).toContain('radial-gradient');
   expect(playerShadow.display).toBe('block');
-  expect(playerShadow.bottom).toBeCloseTo(1, 1);
+  expect(playerShadow.bottom).toBeCloseTo(2, 1);
   expect(playerShadow.width).toBe(52);
   expect(playerShadow.height).toBe(10);
   expect(playerShadow.opacity).toBeCloseTo(grounded.opacity, 2);
@@ -1301,8 +1461,8 @@ test('enemy and party shadows stay grounded while flying monsters cast a lower s
   expect(playerShadow.filter).toContain('blur(2px)');
   expect(playerShadow.boxShadow).toBe('none');
   expect(Math.abs(playerShadow.centerOffsetX)).toBeLessThanOrEqual(1);
-  expect(playerShadow.groundOffsetY).toBeGreaterThanOrEqual(1);
-  expect(playerShadow.groundOffsetY).toBeLessThanOrEqual(4);
+  expect(playerShadow.groundOffsetY).toBeGreaterThanOrEqual(0);
+  expect(playerShadow.groundOffsetY).toBeLessThanOrEqual(2);
 
   await picker.selectOption('ismartal-vol1-monster-09');
   await expect(enemyVisual).toHaveAttribute('data-monster-anchor', 'air');
@@ -1321,6 +1481,82 @@ test('enemy and party shadows stay grounded while flying monsters cast a lower s
   expect(airborne.opacity).toBeLessThan(grounded.opacity);
   expect(airborne.filter).toContain('blur');
 });
+
+for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1000 }]) {
+  test(`every monster and player shadow stays visible on its foot anchor at ${viewport.width}px`, async ({ page }) => {
+    await openOfflineBattle(page, viewport);
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({ turnIndex: 0, handCounts: [8, 8, 8, 8] });
+      const enemies = debug.battleDemoEnemies().map((monster) => {
+        debug.battleSetDemoEnemy(monster.id);
+        const sprite = document.getElementById('tarotKingdomEnemySprite');
+        const visual = sprite?.closest('.tarot-kingdom-battle-enemy-visual');
+        const visualRect = visual?.getBoundingClientRect();
+        const shadow = visual ? getComputedStyle(visual, '::after') : null;
+        return {
+          id: monster.id,
+          anchor: visual?.dataset.monsterAnchor || '',
+          content: shadow?.content || 'none',
+          display: shadow?.display || 'none',
+          bottom: parseFloat(shadow?.bottom || 'NaN'),
+          width: parseFloat(shadow?.width || 'NaN'),
+          height: parseFloat(shadow?.height || 'NaN'),
+          opacity: parseFloat(shadow?.opacity || 'NaN'),
+          background: shadow?.backgroundImage || '',
+          centerOffsetX: visualRect
+            ? parseFloat(shadow?.left || 'NaN') - (visualRect.width / 2)
+            : NaN,
+          scaleY: visual?.style.getPropertyValue('--tarot-kingdom-enemy-shadow-scale-y') || ''
+        };
+      });
+      const players = Array.from(
+        document.querySelectorAll('#tarotKingdomBattleParty > .tarot-kingdom-battle-player:not(.is-pet)')
+      ).map((row) => {
+        const avatar = row.querySelector('.tarot-kingdom-battle-player-avatar');
+        const body = Array.from(avatar?.children || []).find((layer) => (
+          getComputedStyle(layer).backgroundImage.includes('/Sprites/Characters/body/')
+        ));
+        const shadow = row.querySelector('.tarot-kingdom-battle-player-floor-shadow');
+        const bodyRect = body?.getBoundingClientRect();
+        const shadowRect = shadow?.getBoundingClientRect();
+        const style = shadow ? getComputedStyle(shadow) : null;
+        return {
+          display: style?.display || 'none',
+          opacity: parseFloat(style?.opacity || 'NaN'),
+          centerOffsetX: bodyRect && shadowRect
+            ? (shadowRect.left + shadowRect.width / 2) - (bodyRect.left + bodyRect.width / 2)
+            : NaN,
+          groundOffsetY: bodyRect && shadowRect
+            ? (shadowRect.top + shadowRect.height / 2) - bodyRect.bottom
+            : NaN
+        };
+      });
+      return { enemies, players };
+    });
+
+    expect(audit.enemies).toHaveLength(50);
+    expect(audit.enemies.filter((enemy) => !(
+      enemy.content !== 'none'
+      && enemy.display !== 'none'
+      && enemy.width >= (enemy.anchor === 'air' ? 46 : 54)
+      && enemy.height >= 9
+      && enemy.background.includes('radial-gradient')
+      && Math.abs(enemy.centerOffsetX) <= 1
+      && (enemy.anchor === 'air'
+        ? enemy.bottom === -12 && enemy.opacity < 0.6 && enemy.scaleY === '0.62'
+        : enemy.bottom === -2 && enemy.opacity >= 0.7 && enemy.scaleY === '0.72')
+    ))).toEqual([]);
+    expect(audit.players).toHaveLength(4);
+    expect(audit.players.filter((player) => !(
+      player.display === 'block'
+      && player.opacity >= 0.7
+      && Math.abs(player.centerOffsetX) <= 1
+      && player.groundOffsetY >= 0
+      && player.groundOffsetY <= 2
+    ))).toEqual([]);
+  });
+}
 
 test('monster-specific offsets and flips stay consistent in the demo renderer', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
@@ -1907,6 +2143,45 @@ test('grave menu keeps its icon and updates its accessible label when toggled', 
   await expect(graveButton).toHaveAttribute('aria-label', closedLabel);
 });
 
+test('grave removes suit labels and fits all ranks without horizontal sliding at 375px', async ({ page }) => {
+  await openOfflineBattle(page, { width: 375, height: 844 });
+
+  await page.locator('#tarotKingdomGraveToggleButton').click();
+  const graveArea = page.locator('#tarotKingdomJudgmentArea');
+  const graveOptions = page.locator('#tarotKingdomJudgmentOptions');
+  await expect(graveArea).toBeVisible();
+  await expect(graveOptions.locator('.tarot-kingdom-grave-suit-label')).toHaveCount(0);
+  await expect(graveOptions.locator('.tarot-kingdom-grave-row')).toHaveCount(4);
+  await expect(graveOptions.locator('.tarot-kingdom-grave-grid').first().locator('.tarot-kingdom-grave-slot')).toHaveCount(14);
+
+  const layout = await graveOptions.evaluate((options) => {
+    const rows = [...options.querySelectorAll('.tarot-kingdom-grave-row')];
+    const grids = [...options.querySelectorAll('.tarot-kingdom-grave-grid')];
+    const lastSlots = grids.map((grid) => grid.lastElementChild?.getBoundingClientRect().right || 0);
+    const optionRight = options.getBoundingClientRect().right;
+    return {
+      optionsClientWidth: options.clientWidth,
+      optionsScrollWidth: options.scrollWidth,
+      rowWidths: rows.map((row) => ({ client: row.clientWidth, scroll: row.scrollWidth })),
+      gridWidths: grids.map((grid) => ({
+        client: grid.clientWidth,
+        scroll: grid.scrollWidth,
+        gap: getComputedStyle(grid).columnGap
+      })),
+      lastSlots,
+      optionRight,
+      bodyClientWidth: document.body.clientWidth,
+      bodyScrollWidth: document.body.scrollWidth
+    };
+  });
+
+  expect(layout.optionsScrollWidth).toBeLessThanOrEqual(layout.optionsClientWidth);
+  expect(layout.bodyScrollWidth).toBeLessThanOrEqual(layout.bodyClientWidth);
+  expect(layout.rowWidths.every(({ client, scroll }) => scroll <= client)).toBe(true);
+  expect(layout.gridWidths.every(({ client, scroll, gap }) => scroll <= client && gap === '1px')).toBe(true);
+  expect(layout.lastSlots.every((right) => right <= layout.optionRight + 1)).toBe(true);
+});
+
 test('grave visibility stays local when another player enters Judgment', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
 
@@ -2116,6 +2391,59 @@ test('defense command pauses the defending avatar idle motion', async ({ page })
       '#tarotKingdomBattleParty > .tarot-kingdom-battle-player[data-player-index="0"]'
     );
     const avatar = row?.querySelector('.tarot-kingdom-battle-player-avatar');
+    const active = {
+      buttonText: button?.textContent || '',
+      rowDefending: row?.classList.contains('is-defending') === true,
+      avatarPaused: avatar?.dataset.kingdomDefensePaused === 'true'
+    };
+    button?.click();
+    return {
+      active,
+      released: {
+        buttonText: button?.textContent || '',
+        rowDefending: row?.classList.contains('is-defending') === true,
+        avatarPaused: avatar?.dataset.kingdomDefensePaused === 'true'
+      }
+    };
+  });
+
+  expect(result).toEqual({
+    active: {
+      buttonText: '防御中',
+      rowDefending: true,
+      avatarPaused: true
+    },
+    released: {
+      buttonText: '防御',
+      rowDefending: false,
+      avatarPaused: false
+    }
+  });
+});
+
+test('shieldless defense keeps the avatar idle motion running', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const result = await page.evaluate(() => {
+    window.TarotKingdomDebug.battleScenario({
+      turnIndex: 0,
+      leaderIndex: 1,
+      charactersBySeat: [{
+        equipment: { RightHand: 'sword_2' },
+        itemSource: {
+          sword_2: {
+            itemId: 'sword_2',
+            customData: { Category: 'Weapon', WeaponType: 'sword', sprite_index: '2' }
+          }
+        },
+        combat: { weaponType: 'sword', weaponTypes: ['sword'] }
+      }]
+    });
+    const button = document.getElementById('tarotKingdomFoldButton');
+    button?.click();
+    const row = document.querySelector(
+      '#tarotKingdomBattleParty > .tarot-kingdom-battle-player[data-player-index="0"]'
+    );
+    const avatar = row?.querySelector('.tarot-kingdom-battle-player-avatar');
     return {
       buttonText: button?.textContent || '',
       rowDefending: row?.classList.contains('is-defending') === true,
@@ -2126,7 +2454,7 @@ test('defense command pauses the defending avatar idle motion', async ({ page })
   expect(result).toEqual({
     buttonText: '防御中',
     rowDefending: true,
-    avatarPaused: true
+    avatarPaused: false
   });
 });
 
@@ -2528,16 +2856,31 @@ test('winner repeatedly jumps in place and the overall champion owns the final f
   await expect(page.locator('.tarot-kingdom-champion-ceremony')).toBeHidden();
   const roundPose = await roundWinnerRow.locator('.tarot-kingdom-battle-player-avatar').evaluate((avatar) => ({
     animationName: getComputedStyle(avatar).animationName,
+    animationDuration: getComputedStyle(avatar).animationDuration,
     animationIterationCount: getComputedStyle(avatar).animationIterationCount,
+    groundLightAnimationName: getComputedStyle(avatar, '::after').animationName,
+    groundLightAnimationDuration: getComputedStyle(avatar, '::after').animationDuration,
+    groundLightIterationCount: getComputedStyle(avatar, '::after').animationIterationCount,
     bodyMotion: avatar.dataset.avatarBodyMotion || '',
     victorious: avatar.classList.contains('is-avatar-victorious')
   }));
   expect(roundPose).toEqual({
-    animationName: 'tarotKingdomPlayerVictoryPose',
-    animationIterationCount: 'infinite',
+    animationName: 'tarotKingdomPlayerVictoryPose, tarotKingdomWinnerAvatarGlow',
+    animationDuration: '0.96s, 0.9s',
+    animationIterationCount: 'infinite, 1',
+    groundLightAnimationName: 'tarotKingdomWinnerGroundLight',
+    groundLightAnimationDuration: '0.9s',
+    groundLightIterationCount: '1',
     bodyMotion: 'idle',
     victorious: true
   });
+  await page.waitForTimeout(950);
+  const settledWinnerLight = await roundWinnerRow.locator('.tarot-kingdom-battle-player-avatar').evaluate((avatar) => ({
+    groundOpacity: Number.parseFloat(getComputedStyle(avatar, '::after').opacity),
+    filter: getComputedStyle(avatar).filter
+  }));
+  expect(settledWinnerLight.groundOpacity).toBeLessThanOrEqual(0.02);
+  expect(settledWinnerLight.filter).not.toContain('255, 224, 122');
 
   const finalState = await page.evaluate(() => {
     const debug = window.TarotKingdomDebug;

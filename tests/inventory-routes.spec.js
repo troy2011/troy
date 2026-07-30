@@ -3,6 +3,7 @@ const { buildPublicProfileShip, initializeInventoryRoutes } = require('../server
 
 const getUserReadOnlyDataApi = function getUserReadOnlyDataApi() {};
 const updateUserReadOnlyDataApi = function updateUserReadOnlyDataApi() {};
+const updatePlayerStatisticsApi = function updatePlayerStatisticsApi() {};
 
 function makeResponse() {
   return {
@@ -55,6 +56,58 @@ function makeEquipHarness({ readOnlyData = {}, inventoryItems = [] } = {}) {
   return {
     handler: routes.get('/api/equip-item'),
     updates
+  };
+}
+
+function makeSellHarness({ readOnlyData = {}, inventoryItems = [] } = {}) {
+  const routes = new Map();
+  const economyAdds = [];
+  const economySubtracts = [];
+  const statisticUpdates = [];
+  const app = {
+    post(path, handler) {
+      routes.set(path, handler);
+    }
+  };
+
+  initializeInventoryRoutes(app, {
+    PlayFabServer: {
+      GetUserReadOnlyData: getUserReadOnlyDataApi,
+      UpdatePlayerStatistics: updatePlayerStatisticsApi
+    },
+    promisifyPlayFab: async (apiFunction, request) => {
+      if (apiFunction === getUserReadOnlyDataApi) {
+        return { Data: readOnlyData };
+      }
+      if (apiFunction === updatePlayerStatisticsApi) {
+        statisticUpdates.push(request);
+        return {};
+      }
+      throw new Error('Unexpected PlayFab API call');
+    },
+    catalogCache: {
+      junk_001: { Category: 'Consumable', DisplayName: 'Junk' },
+      potion_001: { Category: 'Consumable', DisplayName: 'Potion' },
+      sword_001: { Category: 'Weapon', DisplayName: 'Test Sword' }
+    },
+    getEntityKeyForPlayFabId: async () => ({ Id: 'ENTITY1', Type: 'title_player_account' }),
+    getAllInventoryItems: async () => inventoryItems,
+    getVirtualCurrencyMap: () => ({}),
+    addEconomyItem: async (playFabId, itemId, amount) => {
+      economyAdds.push({ playFabId, itemId, amount });
+    },
+    subtractEconomyItem: async (playFabId, itemId, amount) => {
+      economySubtracts.push({ playFabId, itemId, amount });
+    },
+    getCurrencyBalance: async () => 103,
+    requireAuthenticatedPlayFabId: async (_req, _res, playFabId) => playFabId
+  });
+
+  return {
+    handler: routes.get('/api/sell-items'),
+    economyAdds,
+    economySubtracts,
+    statisticUpdates
   };
 }
 
@@ -134,4 +187,97 @@ test('equip-item allows matching one-handed weapons in both hands when two are o
       Equipped_LeftHand: 'sword_001'
     }
   });
+});
+
+test('sell-items sells multiple selected item copies for one gold each', async () => {
+  const { handler, economyAdds, economySubtracts, statisticUpdates } = makeSellHarness({
+    inventoryItems: [
+      { Id: 'junk_001', Amount: 2 },
+      { Id: 'potion_001', Amount: 1 }
+    ]
+  });
+  const res = makeResponse();
+
+  await handler({
+    body: {
+      playFabId: 'PF_PLAYWRIGHT',
+      items: [
+        { itemId: 'junk_001', amount: 2 },
+        { itemId: 'potion_001', amount: 1 }
+      ]
+    }
+  }, res);
+
+  expect(res.statusCode).toBe(200);
+  expect(res.body).toMatchObject({
+    status: 'success',
+    soldCount: 3,
+    totalGold: 3,
+    newBalance: 103
+  });
+  expect(economySubtracts).toEqual([
+    { playFabId: 'PF_PLAYWRIGHT', itemId: 'junk_001', amount: 2 },
+    { playFabId: 'PF_PLAYWRIGHT', itemId: 'potion_001', amount: 1 }
+  ]);
+  expect(economyAdds).toEqual([
+    { playFabId: 'PF_PLAYWRIGHT', itemId: 'PS', amount: 3 }
+  ]);
+  expect(statisticUpdates).toHaveLength(1);
+});
+
+test('sell-items rejects selling the last equipped item copy', async () => {
+  const { handler, economyAdds, economySubtracts } = makeSellHarness({
+    readOnlyData: {
+      Equipped_RightHand: { Value: 'sword_001' }
+    },
+    inventoryItems: [
+      { Id: 'sword_001', Amount: 1 }
+    ]
+  });
+  const res = makeResponse();
+
+  await handler({
+    body: {
+      playFabId: 'PF_PLAYWRIGHT',
+      items: [{ itemId: 'sword_001', amount: 1 }]
+    }
+  }, res);
+
+  expect(res.statusCode).toBe(400);
+  expect(res.body).toMatchObject({
+    error: 'Test Swordは売却できる所持数が足りません。'
+  });
+  expect(economySubtracts).toHaveLength(0);
+  expect(economyAdds).toHaveLength(0);
+});
+
+test('sell-items allows selling a spare copy while one matching item is equipped', async () => {
+  const { handler, economyAdds, economySubtracts } = makeSellHarness({
+    readOnlyData: {
+      Equipped_RightHand: { Value: 'sword_001' }
+    },
+    inventoryItems: [
+      { Id: 'sword_001', Amount: 2 }
+    ]
+  });
+  const res = makeResponse();
+
+  await handler({
+    body: {
+      playFabId: 'PF_PLAYWRIGHT',
+      items: [{ itemId: 'sword_001', amount: 1 }]
+    }
+  }, res);
+
+  expect(res.statusCode).toBe(200);
+  expect(res.body).toMatchObject({
+    soldCount: 1,
+    totalGold: 1
+  });
+  expect(economySubtracts).toEqual([
+    { playFabId: 'PF_PLAYWRIGHT', itemId: 'sword_001', amount: 1 }
+  ]);
+  expect(economyAdds).toEqual([
+    { playFabId: 'PF_PLAYWRIGHT', itemId: 'PS', amount: 1 }
+  ]);
 });

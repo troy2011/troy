@@ -72,12 +72,22 @@ test.describe('Tarot Kingdom character battle flow', () => {
     }, { combatBySeat: zeroDefenseParty });
 
     expect(audit.final.trick).toBeNull();
-    expect(audit.final.players.map((player) => player.hp)).toEqual([100, 87, 87, 87]);
+    expect(audit.final.players.map((player) => player.hp)).toEqual([100, 88, 87, 87]);
     expect(audit.final.battle.events.filter((event) => event.type === 'enemy-single')).toEqual([]);
     expect(audit.final.battle.events.filter((event) => event.type === 'enemy-area')).toHaveLength(1);
+    expect(audit.final.battle.events.find((event) => event.type === 'enemy-area')?.damages)
+      .toContainEqual(expect.objectContaining({
+        playerIndex: 1,
+        damage: 12,
+        effects: expect.arrayContaining([{
+          kind: 'defense',
+          potency: 8,
+          source: 'shield'
+        }])
+      }));
   });
 
-  test('fold receives one counter, then later automatic fold passes avoid further counters', async ({ page }) => {
+  test('fold and every later automatic fold receive shield-mitigated counters', async ({ page }) => {
     const audit = await page.evaluate(({ combatBySeat }) => {
       const debug = window.TarotKingdomDebug;
       const responseCard = { id: 'fold-response', kind: 'minor', suit: 'Wand', number: 2 };
@@ -98,9 +108,79 @@ test.describe('Tarot Kingdom character battle flow', () => {
 
     expect(audit.first.fold[1]).toBe(true);
     expect(audit.first.battle.events.filter((event) => event.type === 'enemy-single')).toHaveLength(1);
+    expect(audit.first.players[1].hp).toBe(75);
     expect(audit.continued.fold[1]).toBe(true);
-    expect(audit.continued.battle.events.filter((event) => event.type === 'enemy-single')).toHaveLength(1);
-    expect(audit.continued.players[1].hp).toBe(audit.first.players[1].hp);
+    expect(audit.continued.battle.events.filter((event) => event.type === 'enemy-single')).toHaveLength(2);
+    expect(audit.continued.players[1].hp).toBe(50);
+  });
+
+  test('defense adds equipped shield Defense and gives shieldless characters the minimum bonus', async ({ page }) => {
+    const audit = await page.evaluate(({ combatBySeat }) => {
+      const debug = window.TarotKingdomDebug;
+      const run = (playerIndex, foldMode) => {
+        debug.battleScenario({
+          turnIndex: playerIndex,
+          leaderIndex: playerIndex === 0 ? 1 : 0,
+          hpBySeat: [100, 100, 100, 100],
+          combatBySeat
+        });
+        return debug.battlePass(playerIndex, { foldMode });
+      };
+      return {
+        shield: run(0, 'fold-start'),
+        shieldless: run(2, 'fold-start'),
+        normalPass: run(2, '')
+      };
+    }, { combatBySeat: zeroDefenseParty });
+
+    expect(audit.shield.players[0].hp).toBe(76);
+    expect(audit.shield.battle.events[0].effects).toContainEqual({
+      kind: 'defense',
+      potency: 10,
+      source: 'shield'
+    });
+    expect(audit.shieldless.players[2].hp).toBe(75);
+    expect(audit.shieldless.battle.events[0].effects).toContainEqual({
+      kind: 'defense',
+      potency: 8,
+      source: 'minimum'
+    });
+    expect(audit.normalPass.players[2].hp).toBe(73);
+    expect(audit.normalPass.battle.events[0].effects).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ kind: 'defense' })])
+    );
+  });
+
+  test('guard defense profile falls back to 8 for missing, invalid, and shieldless equipment', async ({ page }) => {
+    const profiles = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const profile = (customData, weaponTypes = ['sword', 'shield']) => (
+        debug.battleGuardDefenseProfile({
+          equipment: { RightHand: 'sword_01', LeftHand: 'shield_test' },
+          itemSource: {
+            shield_test: { itemId: 'shield_test', customData }
+          },
+          combat: { weaponType: 'sword', weaponTypes }
+        })
+      );
+      return {
+        valid: profile({ Category: 'Shield', Defense: 24 }),
+        missing: profile({ Category: 'Shield' }),
+        invalid: profile({ Category: 'Shield', Defense: 'invalid' }),
+        shieldless: debug.battleGuardDefenseProfile({
+          equipment: { RightHand: 'sword_01' },
+          itemSource: {},
+          combat: { weaponType: 'sword', weaponTypes: ['sword'] }
+        })
+      };
+    });
+
+    expect(profiles).toEqual({
+      valid: { hasShield: true, bonus: 24, source: 'shield' },
+      missing: { hasShield: true, bonus: 8, source: 'shield' },
+      invalid: { hasShield: true, bonus: 8, source: 'shield' },
+      shieldless: { hasShield: false, bonus: 8, source: 'minimum' }
+    });
   });
 
   test('NPC passes on the first unavailable response and only defends after waiting when the field can continue', async ({ page }) => {
@@ -1306,6 +1386,10 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.roles.magicianStraightFlush).toMatchObject({ key: 'StraightFlush' });
     expect(audit.roles.worldCallOk).toBe(true);
     expect(audit.roles.worldCallRole).toMatchObject({ key: 'TheWorld', baseRate: 3 });
+    expect(audit.roles.invalidMajorCall).toEqual({
+      ok: false,
+      reason: '大アルカナ場札は、ザ・ワールドのみコール可能です。'
+    });
     expect(audit.roles.lockedCallWrongSuit.ok).toBe(false);
     expect(audit.roles.lockedCallWrongSuit.reason).toBe(
       '14ロック中: 場札を含む5枚すべてカップが必要です。'

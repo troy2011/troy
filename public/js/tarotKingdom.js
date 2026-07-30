@@ -64,7 +64,7 @@ import { startAvatarBodyMotion, stopAvatarBodyMotion } from './avatar.js';
 import {
   PIXEL_MONSTER_COMPANION_OFFSET_Y,
   PIXEL_MONSTER_COMPANION_SCALE
-} from './pixelMonsterCompanion.js';
+} from './pixelMonsterCompanion.js?v=20260730-release-all1';
 
 const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 const TAROT_TILE_W = 48;
@@ -72,6 +72,7 @@ const TAROT_TILE_H = 80;
 const TAROT_SHEET_W = 512;
 const TAROT_BACK_INDEX = 110;
 const TAROT_FLIP_FACE_INDEX = 105;
+const KINGDOM_MIN_GUARD_DEFENSE = 8;
 
 const SUITS = ['Wand', 'Cup', 'Sword', 'Pentacle'];
 const GRAVE_RANK_ORDER = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1];
@@ -382,6 +383,8 @@ const KINGDOM_SKILL_HP_TWEEN_MS = 320;
 const KINGDOM_DAMAGE_NUMBER_HOLD_MS = 260;
 const KINGDOM_ENEMY_SINGLE_EVENT_MS = 860;
 const KINGDOM_ENEMY_AREA_EVENT_MS = 1060;
+const KINGDOM_ENEMY_ATTACK_ADVANCE_MS = 180;
+const KINGDOM_ENEMY_ATTACK_RETURN_MS = 180;
 const KINGDOM_ENEMY_STATUS_EVENT_MS = 840;
 const KINGDOM_JUDGMENT_RECLAIM_EVENT_MS = 1100;
 const KINGDOM_RAID_TRANSFORM_EVENT_MS = 1500;
@@ -745,9 +748,9 @@ function syncKingdomTrickSceneClass() {
   let scene = '';
   if (flashKind === 'skip') scene = 'skip';
   else if (flashKind === 'cut' || hasCutField) scene = 'cut';
-  else if (hasWorldTimeStop) scene = 'world';
   else if (hasLock) scene = 'lock';
   else if (hasReverse) scene = 'back';
+  else if (hasWorldTimeStop) scene = 'world';
   if (scene === 'cut') {
     ui.trick.classList.add('is-scene-cut');
     return;
@@ -3526,6 +3529,49 @@ function resolveLoadedKingdomWeaponType(equipment, itemSource) {
   return resolveLoadedKingdomWeaponTypes(equipment, itemSource)[0] || 'unarmed';
 }
 
+function isKingdomShieldEquipmentReference(reference, itemSource) {
+  if (!reference) return false;
+  const item = findKingdomItemReference(reference, itemSource);
+  const data = getKingdomItemData(item);
+  const category = String(data?.Category || data?.category || '').trim().toLowerCase();
+  const weaponType = String(data?.WeaponType || data?.weaponType || '').trim().toLowerCase();
+  const referenceIds = [
+    ...getKingdomEquipmentReferenceIds(reference),
+    ...getKingdomEquipmentReferenceIds(item)
+  ].map((entry) => entry.toLowerCase());
+  return category === 'shield'
+    || weaponType === 'shield'
+    || referenceIds.some((id) => id.includes('shield'));
+}
+
+function getKingdomGuardDefenseProfile(character = {}) {
+  const equipment = character?.equipment && typeof character.equipment === 'object'
+    ? character.equipment
+    : {};
+  const itemSource = character?.itemSource || {};
+  const handReferences = [equipment.RightHand, equipment.LeftHand].filter(Boolean);
+  const shieldReferences = handReferences.filter((reference) => (
+    isKingdomShieldEquipmentReference(reference, itemSource)
+  ));
+  const declaredWeaponTypes = [
+    ...(Array.isArray(character?.combat?.weaponTypes) ? character.combat.weaponTypes : []),
+    character?.combat?.weaponType
+  ].map((entry) => String(entry || '').trim().toLowerCase()).filter(Boolean);
+  const hasShield = shieldReferences.length > 0 || declaredWeaponTypes.includes('shield');
+  const shieldDefense = shieldReferences.reduce((highest, reference) => {
+    const item = findKingdomItemReference(reference, itemSource);
+    const defense = readKingdomItemNumber(item, ['Defense', 'Def']);
+    return Number.isFinite(defense) && defense > 0
+      ? Math.max(highest, Math.floor(defense))
+      : highest;
+  }, 0);
+  return {
+    hasShield,
+    bonus: shieldDefense > 0 ? shieldDefense : KINGDOM_MIN_GUARD_DEFENSE,
+    source: hasShield ? 'shield' : 'minimum'
+  };
+}
+
 function resolveLoadedKingdomMaxHp(stats = {}, level = 1) {
   const explicitMaxHp = Number(stats.MaxHP);
   if (Number.isFinite(explicitMaxHp) && explicitMaxHp > 0) {
@@ -3590,7 +3636,10 @@ function buildPreviewKingdomCharacter() {
     equipment: { RightHand: 'sword_2', LeftHand: 'shield_1' },
     itemSource: {
       sword_2: { itemId: 'sword_2', customData: { Category: 'Weapon', WeaponType: 'sword', sprite_index: '2' } },
-      shield_1: { itemId: 'shield_1', customData: { Category: 'Shield', WeaponType: 'shield', sprite_index: '1' } }
+      shield_1: {
+        itemId: 'shield_1',
+        customData: { Category: 'Shield', WeaponType: 'shield', Defense: 10, sprite_index: '1' }
+      }
     },
     tarotDeck: [
       { suit: 'Sword', rank: 1, skillName: '風切り', effectClass: 'attack', power: 80, priority: true },
@@ -4124,6 +4173,21 @@ function getKingdomMonsterAttackAnimationName(monsterOrId, attackMode = 'single'
   if (useSecondary && monster?.animations?.attack2) return 'attack2';
   if (monster?.animations?.attack) return 'attack';
   return 'idle';
+}
+
+function getKingdomEnemyAttackMotionProfile(monsterOrId, attackMode = 'single') {
+  const monster = typeof monsterOrId === 'string'
+    ? getKingdomMonsterConfig(monsterOrId)
+    : monsterOrId;
+  const animationName = getKingdomMonsterAttackAnimationName(monster, attackMode);
+  const animationDurationMs = getKingdomMonsterAnimationDurationMs(monster?.id, animationName);
+  return {
+    animationName,
+    animationDurationMs,
+    advanceDurationMs: KINGDOM_ENEMY_ATTACK_ADVANCE_MS,
+    returnDurationMs: KINGDOM_ENEMY_ATTACK_RETURN_MS,
+    totalDurationMs: animationDurationMs + KINGDOM_ENEMY_ATTACK_RETURN_MS
+  };
 }
 
 function preloadKingdomMonsterAnimation(animationSrc = '') {
@@ -6198,8 +6262,20 @@ function getKingdomEnemyAttackMultiplier() {
 function resolveKingdomPlayerDefense(playerIndex, baseDamage) {
   const player = s.players[playerIndex];
   const bucket = getKingdomEffectBucket('player', playerIndex) || {};
-  const defense = getKingdomEffectivePlayerStat(playerIndex, 'defense');
+  const baseDefense = getKingdomEffectivePlayerStat(playerIndex, 'defense');
+  const guarding = s.fold?.[playerIndex] === true;
+  const guardProfile = guarding
+    ? getKingdomGuardDefenseProfile(player?.character || {})
+    : null;
+  const defense = baseDefense + (guardProfile?.bonus || 0);
   const effects = [];
+  if (guardProfile) {
+    effects.push({
+      kind: 'defense',
+      potency: guardProfile.bonus,
+      source: guardProfile.source
+    });
+  }
   const evasion = bucket.evasion;
   if (evasion) {
     const chance = Math.max(0, Math.min(0.95, (Number(evasion.potency) || 0) / 100));
@@ -6578,7 +6654,12 @@ function applyKingdomEnemySingleAttack(playerIndex) {
   if (summonReduction > 0) effects.push({ kind: 'summonGuard', potency: summonReduction });
   if (counter) effects.push(counter);
   ensureKingdomBattleEffects().enemyAttackedSinceClear = true;
+  const attackMotion = getKingdomEnemyAttackMotionProfile(s.battle.enemy.id, 'single');
   const event = pushKingdomBattleEvent('enemy-single', {
+    attackAnimationName: attackMotion.animationName,
+    attackAnimationDurationMs: attackMotion.animationDurationMs,
+    attackAdvanceDurationMs: attackMotion.advanceDurationMs,
+    attackReturnDurationMs: attackMotion.returnDurationMs,
     targetIndexes: [targetIndex],
     damages: [{
       playerIndex: targetIndex,
@@ -6681,12 +6762,17 @@ function applyKingdomEnemyAreaAttack(clearLeaderIndex = null) {
     damages.filter((entry) => entry.damage > 0).map((entry) => entry.playerIndex)
   ));
   ensureKingdomBattleEffects().enemyAttackedSinceClear = true;
+  const attackMotion = getKingdomEnemyAttackMotionProfile(s.battle.enemy.id, 'area');
   damages.forEach((entry) => {
     if (entry.damage <= 0) return;
     const counter = applyKingdomCounter(entry.playerIndex);
     if (counter) eventEffects.push(counter);
   });
   const event = pushKingdomBattleEvent('enemy-area', {
+    attackAnimationName: attackMotion.animationName,
+    attackAnimationDurationMs: attackMotion.animationDurationMs,
+    attackAdvanceDurationMs: attackMotion.advanceDurationMs,
+    attackReturnDurationMs: attackMotion.returnDurationMs,
     targetIndexes: damages.map((entry) => entry.playerIndex),
     protectedPlayerIndex,
     damages,
@@ -9518,6 +9604,7 @@ function buildTarotKingdomDebugBattleState(options = {}) {
   const discardsBySeat = Array.isArray(options.discardsBySeat) ? options.discardsBySeat : [];
   const hpBySeat = Array.isArray(options.hpBySeat) ? options.hpBySeat : [];
   const combatBySeat = Array.isArray(options.combatBySeat) ? options.combatBySeat : [];
+  const charactersBySeat = Array.isArray(options.charactersBySeat) ? options.charactersBySeat : [];
   const forcedDrawStreakBySeat = Array.isArray(options.forcedDrawStreakBySeat)
     ? options.forcedDrawStreakBySeat
     : [];
@@ -9534,9 +9621,17 @@ function buildTarotKingdomDebugBattleState(options = {}) {
       ? index !== tkNet.localSeat
       : player.isPet === true;
     player.uid = `debug-uid-${index}`;
+    const characterOverride = charactersBySeat[index] && typeof charactersBySeat[index] === 'object'
+      ? charactersBySeat[index]
+      : {};
     player.character = normalizeTarotKingdomCharacter({
       ...player.character,
-      combat: { ...player.character.combat, ...(combatBySeat[index] || {}) }
+      ...characterOverride,
+      combat: {
+        ...player.character.combat,
+        ...(characterOverride.combat || {}),
+        ...(combatBySeat[index] || {})
+      }
     });
     player.maxHp = player.character.combat.maxHp;
     player.hp = Math.max(0, Math.min(
@@ -9920,6 +10015,29 @@ function auditKingdomMajorArcanaRules() {
   };
   s.lastPlay = s.trick;
   const worldCall = buildCallPlay(0, [0, 1, 2, 3]);
+  buildTarotKingdomDebugBattleState({
+    withTrick: false,
+    handsBySeat: [[
+      minor('major-call-invalid-2', 'Wand', 2),
+      minor('major-call-invalid-5', 'Cup', 5),
+      minor('major-call-invalid-9', 'Sword', 9),
+      minor('major-call-invalid-13', 'Pentacle', 13)
+    ]]
+  });
+  const invalidMajorCallBase = major(6);
+  s.trick = s.lastPlay = {
+    type: 'set',
+    owner: 1,
+    count: 1,
+    cardsHand: [invalidMajorCallBase],
+    cardsTable: [invalidMajorCallBase],
+    tableOwners: [1],
+    number: 6,
+    setPower: 6,
+    suitMask: suitMaskForCards([invalidMajorCallBase]),
+    suitTier: 0
+  };
+  const invalidMajorCall = buildCallPlay(0, [0, 1, 2, 3]);
   const buildLockedCall = (lastSuit = 'Cup') => {
     const lockedCallBase = minor(`locked-call-base-${lastSuit}`, 'Cup', 2);
     const lockedCallHand = [
@@ -10056,6 +10174,7 @@ function auditKingdomMajorArcanaRules() {
       magicianStraightFlush,
       worldCallOk: !!worldCall.ok,
       worldCallRole: worldCall.play?.role || null,
+      invalidMajorCall,
       lockedCallWrongSuit,
       lockedCallSameSuit,
       towerSinglePower: towerSingle.play?.setPower ?? null,
@@ -10562,6 +10681,12 @@ function exposeTarotKingdomBattleDebugTools(target) {
   if (window.__TAROT_KINGDOM_PREVIEW__ !== true) return;
   Object.assign(target, {
     battleScenario: (options = {}) => buildTarotKingdomDebugBattleState(options),
+    battleGuardDefenseProfile: (characterOrPlayerIndex = 0) => {
+      const character = Number.isInteger(Number(characterOrPlayerIndex))
+        ? s?.players?.[Number(characterOrPlayerIndex)]?.character
+        : characterOrPlayerIndex;
+      return getKingdomGuardDefenseProfile(character || {});
+    },
     battleExplorationRoster: (mode = 'offline', currentPet = null) => {
       const previousSession = kingdomExplorationSession;
       kingdomExplorationSession = {
@@ -10606,6 +10731,9 @@ function exposeTarotKingdomBattleDebugTools(target) {
     battleDemoEnemies: () => getKingdomDemoMonsterOptions(),
     battleMonsterAttackAnimation: (monsterId, attackMode = 'single') => (
       getKingdomMonsterAttackAnimationName(String(monsterId || ''), attackMode)
+    ),
+    battleMonsterAttackMotion: (monsterId, attackMode = 'single') => (
+      getKingdomEnemyAttackMotionProfile(String(monsterId || ''), attackMode)
     ),
     battleSetDemoEnemy: (monsterId) => ({
       ok: setKingdomDemoEnemy(monsterId),
@@ -11022,9 +11150,10 @@ function playOpeningDealCinematic() {
   );
   const me = getLocalPlayerIndex();
   const handCount = Math.max(0, Number(s.players?.[me]?.hand?.length || 0));
+  const openingAttackMotion = getKingdomEnemyAttackMotionProfile(monster, 'single');
   const enemyAttackDurationMs = Math.max(
     OPENING_ENEMY_ATTACK_MS,
-    Math.min(900, getKingdomMonsterAnimationDurationMs(s.battle?.enemy?.id, 'attack'))
+    openingAttackMotion.totalDurationMs
   );
   s.phase = 'openingDeal';
   s.openingIntroStage = 'enter';
@@ -11236,6 +11365,9 @@ function buildCallPlay(pi, sel) {
   if (cards.length !== 4) return { ok: false, reason: '選択が不正です。' };
   const lockSuit = s.lock?.suit || null;
   const role = evalRole([base, ...cards], lockSuit);
+  if (base.kind === 'major' && role?.key !== 'TheWorld') {
+    return { ok: false, reason: '大アルカナ場札は、ザ・ワールドのみコール可能です。' };
+  }
   if (!role || role.strength < ROLE_ST.Straight) {
     if (lockSuit) {
       return {
@@ -11244,9 +11376,6 @@ function buildCallPlay(pi, sel) {
       };
     }
     return { ok: false, reason: 'コール成立しません。' };
-  }
-  if (base.kind === 'major' && role.key !== 'TheWorld') {
-    return { ok: false, reason: '場の大アルカナはザ・ワールドでのみコールできます。' };
   }
   const baseNumber = Number(base?.number);
   const hasSameNumberInHand = Array.isArray(p?.hand)
@@ -11446,7 +11575,7 @@ function validatePlay(play, mode) {
   if (mode === 'call') {
     const base = s.trick?.cardsTable?.[0];
     if (base?.kind === 'major' && play?.role?.key !== 'TheWorld') {
-      return { ok: false, reason: '場の大アルカナはザ・ワールドでのみコールできます。' };
+      return { ok: false, reason: '大アルカナ場札は、ザ・ワールドのみコール可能です。' };
     }
     return (s.trick.type === 'set' && s.trick.count === 1) ? { ok: true } : { ok: false, reason: 'コール対象は1枚場札のみです。' };
   }
@@ -13021,7 +13150,7 @@ function passAction(pi, options = {}) {
     }
   }
   const safeFiveCardPass = isKingdomFiveCardRoleField();
-  const suppressCounterAttack = safeFiveCardPass || continuedFold;
+  const suppressCounterAttack = safeFiveCardPass;
   s.revision = Math.max(0, Number(s.revision) || 0) + 1;
   s.pass[pi] = true;
   const passLabel = continuedFold ? '防御継続' : (startedFold ? '防御' : 'パス');
@@ -14463,6 +14592,7 @@ function setKingdomPetFrame(node, monster, animation, frameIndex) {
   node.style.setProperty('--tarot-kingdom-pet-scale', String(scale));
   node.style.setProperty('--tarot-kingdom-pet-scale-x', monster.flipX === true ? '-1' : '1');
   node.style.setProperty('--tarot-kingdom-pet-scale-y', monster.flipY === true ? '-1' : '1');
+  node.style.setProperty('--tarot-kingdom-pet-origin-y', monster.flipY === true ? '50%' : '100%');
   const configuredOffsetY = Object.prototype.hasOwnProperty.call(
     KINGDOM_PET_OFFSET_Y_BY_MONSTER_ID,
     String(monster.id || '')
@@ -14480,6 +14610,7 @@ function setKingdomPetFrame(node, monster, animation, frameIndex) {
     host.dataset.monsterAnchor = anchorMode;
     host.style.setProperty('--tarot-kingdom-pet-shadow-bottom', anchorMode === 'air' ? '-8px' : '1px');
     host.style.setProperty('--tarot-kingdom-pet-shadow-width', `${Math.max(36, Math.min(68, Math.round(renderedWidth * 0.72)))}px`);
+    host.style.setProperty('--tarot-kingdom-pet-shadow-scale-y', anchorMode === 'air' ? '0.62' : '0.72');
   }
 }
 
@@ -14597,6 +14728,7 @@ function setKingdomMonsterFrame(node, monster, animation, frameIndex) {
     shadowHost.style.setProperty('--tarot-kingdom-enemy-shadow-bottom', anchorMode === 'air' ? '-12px' : '-2px');
     shadowHost.style.setProperty('--tarot-kingdom-enemy-shadow-opacity', anchorMode === 'air' ? '0.46' : '0.76');
     shadowHost.style.setProperty('--tarot-kingdom-enemy-shadow-blur', anchorMode === 'air' ? '4px' : '2px');
+    shadowHost.style.setProperty('--tarot-kingdom-enemy-shadow-scale-y', anchorMode === 'air' ? '0.62' : '0.72');
   }
   const renderMode = String(monster.renderMode || 'pixel');
   node.dataset.monsterRender = renderMode;
@@ -14816,8 +14948,23 @@ function getKingdomBattleEventDuration(event) {
   const type = String(event?.type || '');
   if (type === 'skill') return getKingdomSkillAttackDuration(event?.effectCount);
   if (type === 'attack') return KINGDOM_NORMAL_ATTACK_MS;
-  if (type === 'enemy-area') return KINGDOM_ENEMY_AREA_EVENT_MS;
-  if (type === 'enemy-single' || type === 'enemy-self') return KINGDOM_ENEMY_SINGLE_EVENT_MS;
+  if (type === 'enemy-area' || type === 'enemy-single') {
+    const attackMode = type === 'enemy-area' ? 'area' : 'single';
+    const fallback = getKingdomEnemyAttackMotionProfile(s?.battle?.enemy?.id, attackMode);
+    const animationDurationMs = Math.max(
+      1,
+      Number(event?.attackAnimationDurationMs) || fallback.animationDurationMs
+    );
+    const returnDurationMs = Math.max(
+      1,
+      Number(event?.attackReturnDurationMs) || fallback.returnDurationMs
+    );
+    const minimumDurationMs = type === 'enemy-area'
+      ? KINGDOM_ENEMY_AREA_EVENT_MS
+      : KINGDOM_ENEMY_SINGLE_EVENT_MS;
+    return Math.max(minimumDurationMs, animationDurationMs + returnDurationMs);
+  }
+  if (type === 'enemy-self') return KINGDOM_ENEMY_SINGLE_EVENT_MS;
   if (type === 'enemy-status') return KINGDOM_ENEMY_STATUS_EVENT_MS;
   if (type === 'judgment-reclaim') return KINGDOM_JUDGMENT_RECLAIM_EVENT_MS;
   if (type === 'raid-transform') return KINGDOM_RAID_TRANSFORM_EVENT_MS;
@@ -15057,12 +15204,41 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
     const conscious = hp > 0;
     const localDefense = playerIndex === getLocalPlayerIndex() && kingdomLocalAutoFold;
     const defending = conscious && (localDefense || s.fold?.[playerIndex] === true);
+    const shieldDefending = defending && getKingdomGuardDefenseProfile(character).hasShield;
+    const playerAttackEvent = eventIsActive
+      && ['attack', 'skill'].includes(String(activeEvent?.type || ''))
+      && Number(activeEvent?.actorIndex) === playerIndex
+      && !activeEvent?.summon;
+    const playerWeaponType = character?.combat?.weaponType || 'sword';
+    const playerMotionProfile = getCombatWeaponMotionProfile(playerWeaponType);
+    const playerMotionStartsAt = Math.max(
+      0,
+      Number(timeline?.motionAt) || Number(activeEvent?.at) || Date.now()
+    );
+    const playerMotionNow = Date.now();
+    const playerMotionElapsedMs = Math.max(0, playerMotionNow - playerMotionStartsAt);
+    const playerShadowAnimationDelayMs = playerMotionNow < playerMotionStartsAt
+      ? playerMotionStartsAt - playerMotionNow
+      : -playerMotionElapsedMs;
+    const playerShadowAttacking = playerAttackEvent
+      && playerMotionElapsedMs < Math.max(1, Number(playerMotionProfile?.duration) || 520);
     row.classList.toggle('is-turn', !!(s.roundActive && s.turn === playerIndex && conscious));
     row.classList.toggle('is-ko', !conscious);
     row.classList.toggle('is-defending', defending);
     row.classList.toggle('is-hit', targetIndexes.includes(playerIndex));
     row.classList.toggle('is-battle-charging', eventIsActive && Number(activeEvent?.actorIndex) === playerIndex && phase === 'charge');
     row.classList.toggle('is-battle-hit-stop', eventIsActive && Number(activeEvent?.actorIndex) === playerIndex && phase === 'hit-stop');
+    row.classList.toggle('is-player-attacking', playerShadowAttacking);
+    if (playerShadowAttacking) {
+      row.style.setProperty(
+        '--tk-player-shadow-attack-duration',
+        `${Math.max(1, Number(playerMotionProfile?.duration) || 520)}ms`
+      );
+      row.style.setProperty('--tk-player-shadow-attack-delay', `${playerShadowAnimationDelayMs}ms`);
+    } else {
+      row.style.removeProperty('--tk-player-shadow-attack-duration');
+      row.style.removeProperty('--tk-player-shadow-attack-delay');
+    }
     row.classList.toggle(
       'is-round-winner',
       !!(s.battle?.outcome === 'victory' && Number.isInteger(presentationWinnerIndex) && presentationWinnerIndex === playerIndex)
@@ -15102,7 +15278,7 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
         monster,
         animationName,
         animationName === 'idle' ? 'idle' : `${eventKey}:${conscious ? 'alive' : 'ko'}`,
-        { paused: defending && animationName === 'idle' }
+        { paused: shieldDefending && animationName === 'idle' }
       );
       setCombatAvatarVictory(
         avatar,
@@ -15144,7 +15320,7 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
       }
       if (avatar) {
         const wasDefensePaused = avatar.dataset.kingdomDefensePaused === 'true';
-        if (defending && !retreating) {
+        if (shieldDefending && !retreating) {
           if (!wasDefensePaused) {
             stopAvatarBodyMotion(avatar, { reset: false });
             avatar.dataset.kingdomDefensePaused = 'true';
@@ -16068,6 +16244,46 @@ function renderKingdomBattleStage() {
   const enemyOpeningAttack = openingIntroStage === 'attack';
   const enemyActing = enemyOpeningAttack
     || (eventIsActive && ['enemy-single', 'enemy-area'].includes(String(visualEvent?.type || '')));
+  const enemyAttackMode = !enemyOpeningAttack && String(visualEvent?.type || '') === 'enemy-area'
+    ? 'area'
+    : 'single';
+  const fallbackAttackMotion = getKingdomEnemyAttackMotionProfile(monsterConfig, enemyAttackMode);
+  const enemyAttackMotion = {
+    animationName: String(visualEvent?.attackAnimationName || fallbackAttackMotion.animationName),
+    animationDurationMs: Math.max(
+      1,
+      Number(visualEvent?.attackAnimationDurationMs) || fallbackAttackMotion.animationDurationMs
+    ),
+    advanceDurationMs: Math.max(
+      1,
+      Number(visualEvent?.attackAdvanceDurationMs) || fallbackAttackMotion.advanceDurationMs
+    ),
+    returnDurationMs: Math.max(
+      1,
+      Number(visualEvent?.attackReturnDurationMs) || fallbackAttackMotion.returnDurationMs
+    )
+  };
+  const enemyAttackElapsedMs = enemyOpeningAttack ? 0 : Math.max(0, elapsed);
+  const enemyVisualNode = ui.battleEnemy?.querySelector('.tarot-kingdom-battle-enemy-visual') || null;
+  if (enemyVisualNode && enemyActing) {
+    enemyVisualNode.style.setProperty('--tk-enemy-attack-animation-ms', `${enemyAttackMotion.animationDurationMs}ms`);
+    enemyVisualNode.style.setProperty('--tk-enemy-attack-advance-ms', `${enemyAttackMotion.advanceDurationMs}ms`);
+    enemyVisualNode.style.setProperty('--tk-enemy-attack-return-ms', `${enemyAttackMotion.returnDurationMs}ms`);
+    enemyVisualNode.style.setProperty(
+      '--tk-enemy-attack-elapsed-delay',
+      `${-Math.min(
+        enemyAttackMotion.animationDurationMs + enemyAttackMotion.returnDurationMs,
+        enemyAttackElapsedMs
+      )}ms`
+    );
+  } else if (enemyVisualNode) {
+    [
+      '--tk-enemy-attack-animation-ms',
+      '--tk-enemy-attack-advance-ms',
+      '--tk-enemy-attack-return-ms',
+      '--tk-enemy-attack-elapsed-delay'
+    ].forEach((propertyName) => enemyVisualNode.style.removeProperty(propertyName));
+  }
   const enemyHurt = eventIsActive
     && ['attack', 'skill', 'enemy-self', 'enemy-status'].includes(String(visualEvent?.type || ''))
     && (!timeline || prefersKingdomReducedMotion() || ['damage', 'recover'].includes(timelinePhase))
@@ -16104,10 +16320,7 @@ function renderKingdomBattleStage() {
   const escapeAnimation = String(victoryEvent?.escapeAnimation || '')
     || (getKingdomMonsterConfig(enemy.id)?.animations?.walk ? 'walk' : 'idle');
   const openingWalkAnimation = monsterConfig?.animations?.walk ? 'walk' : 'idle';
-  const enemyAttackAnimation = getKingdomMonsterAttackAnimationName(
-    monsterConfig,
-    String(visualEvent?.type || '') === 'enemy-area' ? 'area' : 'single'
-  );
+  const enemyAttackAnimation = enemyAttackMotion.animationName;
   const animationName = enemyFinisherActive
     ? 'death'
     : (enemyEscapeActive
@@ -16140,7 +16353,9 @@ function renderKingdomBattleStage() {
   else {
     playKingdomMonsterAnimation(animationName, monsterAnimationGeneration, {
       playbackRate: enemyRushTime ? KINGDOM_RUSH_MONSTER_PLAYBACK_RATE : 1,
-      elapsedMs: enemyFinisherActive ? finisherElapsed : (enemyEscapeActive ? escapeElapsed : 0)
+      elapsedMs: enemyFinisherActive
+        ? finisherElapsed
+        : (enemyEscapeActive ? escapeElapsed : (enemyActing ? enemyAttackElapsedMs : 0))
     });
   }
   renderKingdomSkillCutin(visualEvent, eventIsActive, timelinePhase);
@@ -16989,11 +17204,7 @@ function renderJudgment() {
   SUITS.forEach((suit) => {
     const row = document.createElement('div');
     row.className = 'tarot-kingdom-grave-row';
-
-    const suitLabel = document.createElement('div');
-    suitLabel.className = 'tarot-kingdom-grave-suit-label';
-    suitLabel.textContent = suit;
-    row.appendChild(suitLabel);
+    row.setAttribute('aria-label', `${suit}の墓地`);
 
     const grid = document.createElement('div');
     grid.className = 'tarot-kingdom-grave-grid';

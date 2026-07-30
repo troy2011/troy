@@ -95,6 +95,7 @@ export function renderPixelMonsterCompanion(targetOrId, pet = null) {
     target.style.setProperty('--pixel-monster-companion-scale', String(PIXEL_MONSTER_COMPANION_SCALE));
     target.style.setProperty('--pixel-monster-companion-scale-x', monster.flipX === true ? '-1' : '1');
     target.style.setProperty('--pixel-monster-companion-scale-y', monster.flipY === true ? '-1' : '1');
+    target.style.setProperty('--pixel-monster-companion-origin-y', monster.flipY === true ? '50%' : '100%');
 
     const shadow = document.createElement('span');
     shadow.className = 'pixel-monster-companion-shadow';

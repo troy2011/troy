@@ -8,28 +8,28 @@ const BATTLEFIELD_DEFINITIONS = [
   },
   {
     id: 'stage-02-windswept-deck',
-    label: '風渡る甲板',
-    imagePath: './assets/tarot-kingdom/battlefields/stage-02-windswept-deck-v1.webp',
+    label: '双塔岩の海峡',
+    imagePath: './assets/tarot-kingdom/battlefields/stage-02-windswept-deck-v2.webp',
     surface: 'ship-deck',
     shipSide: true
   },
   {
     id: 'stage-03-island-causeway',
-    label: '潮騒の島道',
+    label: '群礁の島道',
     imagePath: './assets/tarot-kingdom/battlefields/stage-03-island-causeway-v1.webp',
     surface: 'island-stone',
     shipSide: false
   },
   {
     id: 'stage-04-moon-shadow-castle',
-    label: '月影の古城',
-    imagePath: './assets/tarot-kingdom/battlefields/stage-04-moon-shadow-castle-v1.webp',
-    surface: 'castle-stone',
+    label: '月影の望楼島',
+    imagePath: './assets/tarot-kingdom/battlefields/stage-04-moon-shadow-castle-v2.webp',
+    surface: 'watchtower-stone',
     shipSide: false
   },
   {
     id: 'stage-05-emerald-jungle',
-    label: '翠石の密林',
+    label: '翠石の隠れ入り江',
     imagePath: './assets/tarot-kingdom/battlefields/stage-05-emerald-jungle-v1.webp',
     surface: 'jungle-stone',
     shipSide: false
@@ -57,23 +57,23 @@ const BATTLEFIELD_DEFINITIONS = [
   },
   {
     id: 'stage-09-steel-fleet',
-    label: '鋼鉄船団の海',
-    imagePath: './assets/tarot-kingdom/battlefields/stage-09-steel-fleet-v1.webp',
-    surface: 'iron-deck',
-    shipSide: true
+    label: '雷雨の廃港',
+    imagePath: './assets/tarot-kingdom/battlefields/stage-09-steel-fleet-v2.webp',
+    surface: 'harbor-stone',
+    shipSide: false
   },
   {
     id: 'stage-10-infernal-marsh',
-    label: '獄炎の魔沼',
+    label: '獄炎の火山島',
     imagePath: './assets/tarot-kingdom/battlefields/stage-10-infernal-marsh-v1.webp',
     surface: 'infernal-stone',
     shipSide: false
   },
   {
     id: 'stage-11-eclipse-castle',
-    label: '終月の王城',
-    imagePath: './assets/tarot-kingdom/battlefields/stage-11-eclipse-castle-v1.webp',
-    surface: 'royal-stone',
+    label: '終月の古代海門',
+    imagePath: './assets/tarot-kingdom/battlefields/stage-11-eclipse-castle-v2.webp',
+    surface: 'sea-gate-stone',
     shipSide: false
   },
   {
