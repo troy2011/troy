@@ -529,6 +529,8 @@ let kingdomEnemyFinisherTimer = null;
 let kingdomEnemyFinisherTimerKey = '';
 let kingdomDemoEnemyId = '';
 let kingdomDemoPetId = '';
+let kingdomDemoTrickSceneKey = 'auto';
+let kingdomDemoRoleLastError = '';
 let kingdomExplorationMonsterId = '';
 let kingdomExplorationSession = null;
 let kingdomRoundPetOfferPromise = null;
@@ -543,6 +545,7 @@ let kingdomBattlePhaseTimerKey = '';
 const kingdomBattlePhaseTimers = new Set();
 let kingdomTransitionTimer = null;
 let kingdomSummonPreloadStarted = false;
+let kingdomFieldScenePreloadStarted = false;
 let kingdomSummonCinematicKey = '';
 let kingdomSummonPartyMotionPaused = false;
 let kingdomSummonPartyPauseTimer = null;
@@ -575,7 +578,76 @@ const KINGDOM_TRICK_SCENE_CLASSES = [
   'is-scene-lock-pentacle',
   'is-scene-back',
   'is-scene-cut',
-  'is-scene-skip'
+  'is-scene-skip',
+  'is-scene-world',
+  'is-scene-role',
+  'is-scene-role-straight',
+  'is-scene-role-flush',
+  'is-scene-role-full-house',
+  'is-scene-role-four-kind',
+  'is-scene-role-world',
+  'is-scene-role-straight-flush',
+  'is-scene-role-five-kind',
+  'is-scene-role-suit-wand',
+  'is-scene-role-suit-cup',
+  'is-scene-role-suit-sword',
+  'is-scene-role-suit-pentacle'
+];
+const KINGDOM_TRICK_ROLE_SCENE_CLASSES = Object.freeze({
+  Straight: 'is-scene-role-straight',
+  Flush: 'is-scene-role-flush',
+  FullHouse: 'is-scene-role-full-house',
+  FourKind: 'is-scene-role-four-kind',
+  TheWorld: 'is-scene-role-world',
+  StraightFlush: 'is-scene-role-straight-flush',
+  FiveKind: 'is-scene-role-five-kind'
+});
+const KINGDOM_DEMO_TRICK_SCENE_OPTIONS = Object.freeze([
+  { value: 'auto', label: '自動（ゲーム進行）', classes: [] },
+  { value: 'normal', label: '通常・穏やかな海', classes: [] },
+  { value: 'lock-wand', label: '14ロック・溶岩', classes: ['is-scene-lock', 'is-scene-lock-wand'] },
+  { value: 'lock-cup', label: '14ロック・氷', classes: ['is-scene-lock', 'is-scene-lock-cup'] },
+  { value: 'lock-sword', label: '14ロック・嵐雷', classes: ['is-scene-lock', 'is-scene-lock-sword'] },
+  { value: 'lock-pentacle', label: '14ロック・岩', classes: ['is-scene-lock', 'is-scene-lock-pentacle'] },
+  { value: 'reverse', label: '11バック・大渦', classes: ['is-scene-back'] },
+  { value: 'cut', label: '8カット・海の亀裂', classes: ['is-scene-cut'] },
+  { value: 'skip', label: '5スキップ・大波', classes: ['is-scene-skip'] },
+  { value: 'world-stop', label: '世界・時間停止', classes: ['is-scene-world'] },
+  { value: 'role-straight', label: '5枚役・ストレート', classes: ['is-scene-role', 'is-scene-role-straight'] },
+  { value: 'role-flush-wand', label: '5枚役・フラッシュ（ワンド）', classes: ['is-scene-role', 'is-scene-role-flush', 'is-scene-role-suit-wand'] },
+  { value: 'role-flush-cup', label: '5枚役・フラッシュ（カップ）', classes: ['is-scene-role', 'is-scene-role-flush', 'is-scene-role-suit-cup'] },
+  { value: 'role-flush-sword', label: '5枚役・フラッシュ（ソード）', classes: ['is-scene-role', 'is-scene-role-flush', 'is-scene-role-suit-sword'] },
+  { value: 'role-flush-pentacle', label: '5枚役・フラッシュ（ペンタクル）', classes: ['is-scene-role', 'is-scene-role-flush', 'is-scene-role-suit-pentacle'] },
+  { value: 'role-full-house', label: '5枚役・フルハウス', classes: ['is-scene-role', 'is-scene-role-full-house'] },
+  { value: 'role-four-kind', label: '5枚役・フォーカード', classes: ['is-scene-role', 'is-scene-role-four-kind'] },
+  { value: 'role-world', label: '5枚役・ザ・ワールド', classes: ['is-scene-role', 'is-scene-role-world'] },
+  { value: 'role-straight-flush-wand', label: '5枚役・SF（ワンド）', classes: ['is-scene-role', 'is-scene-role-straight-flush', 'is-scene-role-suit-wand'] },
+  { value: 'role-straight-flush-cup', label: '5枚役・SF（カップ）', classes: ['is-scene-role', 'is-scene-role-straight-flush', 'is-scene-role-suit-cup'] },
+  { value: 'role-straight-flush-sword', label: '5枚役・SF（ソード）', classes: ['is-scene-role', 'is-scene-role-straight-flush', 'is-scene-role-suit-sword'] },
+  { value: 'role-straight-flush-pentacle', label: '5枚役・SF（ペンタクル）', classes: ['is-scene-role', 'is-scene-role-straight-flush', 'is-scene-role-suit-pentacle'] },
+  { value: 'role-five-kind', label: '5枚役・ファイブカード', classes: ['is-scene-role', 'is-scene-role-five-kind'] }
+]);
+const KINGDOM_DEMO_ROLE_OPTIONS = Object.freeze(ROLE_ORDER.map((roleKey) => Object.freeze({
+  roleKey,
+  label: ROLE_LABEL[roleKey] || roleKey
+})));
+const KINGDOM_FIELD_SCENE_SRCS = [
+  './assets/ui/tarot-kingdom/field-calm-sea.webp',
+  './assets/ui/tarot-kingdom/field-lock-lava.webp',
+  './assets/ui/tarot-kingdom/field-lock-ice.webp',
+  './assets/ui/tarot-kingdom/field-lock-rock.webp?v=2',
+  './assets/ui/tarot-kingdom/field-lock-storm.webp',
+  './assets/ui/tarot-kingdom/field-reverse-whirlpool.webp',
+  './assets/ui/tarot-kingdom/field-cut-crack.webp',
+  './assets/ui/tarot-kingdom/field-skip-wave.webp',
+  './assets/ui/tarot-kingdom/field-world-clock.webp',
+  './assets/ui/tarot-kingdom/field-role-straight.webp?v=2',
+  './assets/ui/tarot-kingdom/field-role-flush.webp',
+  './assets/ui/tarot-kingdom/field-role-full-house.webp',
+  './assets/ui/tarot-kingdom/field-role-four-kind.webp',
+  './assets/ui/tarot-kingdom/field-role-world.webp',
+  './assets/ui/tarot-kingdom/field-role-straight-flush.webp',
+  './assets/ui/tarot-kingdom/field-role-five-kind.webp'
 ];
 const KINGDOM_RANK_MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
@@ -605,16 +677,75 @@ function triggerKingdomTrickSceneFlash(kind, durationMs = 780) {
   render();
 }
 
+function preloadKingdomFieldScenes() {
+  if (kingdomFieldScenePreloadStarted || typeof Image !== 'function') return;
+  kingdomFieldScenePreloadStarted = true;
+  const loadNext = (index = 0) => {
+    if (index >= KINGDOM_FIELD_SCENE_SRCS.length) return;
+    const run = async () => {
+      const image = new Image();
+      image.decoding = 'async';
+      image.src = KINGDOM_FIELD_SCENE_SRCS[index];
+      try {
+        if (typeof image.decode === 'function') await image.decode();
+      } catch {
+        // The active scene retries through the normal browser cache.
+      }
+      loadNext(index + 1);
+    };
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(() => { void run(); }, { timeout: 1200 });
+    } else {
+      setTimeout(() => { void run(); }, 24);
+    }
+  };
+  loadNext();
+}
+
+function getKingdomTrickRoleSuit(play) {
+  const roleKey = String(play?.role?.key || '');
+  if (!['Flush', 'StraightFlush'].includes(roleKey)) return '';
+  const cards = Array.isArray(play?.cardsTable) ? play.cardsTable : [];
+  return SUITS.find((suit) => (
+    cards.length === 5
+    && cards.every((card) => suitsForCard(card, true).includes(suit))
+  )) || '';
+}
+
 function syncKingdomTrickSceneClass() {
   if (!ui.trick) return;
   ui.trick.classList.remove(...KINGDOM_TRICK_SCENE_CLASSES);
+  if (window.__TAROT_KINGDOM_PREVIEW__ === true && kingdomDemoTrickSceneKey !== 'auto') {
+    const demoScene = KINGDOM_DEMO_TRICK_SCENE_OPTIONS.find(
+      (option) => option.value === kingdomDemoTrickSceneKey
+    );
+    if (demoScene) {
+      if (demoScene.classes.length) ui.trick.classList.add(...demoScene.classes);
+      return;
+    }
+  }
+  const roleKey = String(s?.trick?.role?.key || '');
+  const roleSceneClass = String(s?.trick?.type || '') === 'role'
+    ? KINGDOM_TRICK_ROLE_SCENE_CLASSES[roleKey] || ''
+    : '';
+  if (roleSceneClass) {
+    ui.trick.classList.add('is-scene-role', roleSceneClass);
+    const roleSuit = getKingdomTrickRoleSuit(s.trick);
+    if (roleSuit) ui.trick.classList.add(`is-scene-role-suit-${roleSuit.toLowerCase()}`);
+    return;
+  }
   const lockSuit = s?.lock?.suit || null;
   const hasLock = !!lockSuit;
   const hasReverse = !!s?.reverse;
+  const hasCutField = String(s?.trick?.type || '') === 'set'
+    && (Array.isArray(s?.trick?.cardsTable) ? s.trick.cardsTable : [])
+      .some((card) => Number(idNum(card)) === 8);
+  const hasWorldTimeStop = !!s?.battle?.effects?.enemy?.timeStop;
   const flashKind = String(kingdomTrickSceneFlashKind || '');
   let scene = '';
-  if (flashKind === 'cut') scene = 'cut';
-  else if (flashKind === 'skip') scene = 'skip';
+  if (flashKind === 'skip') scene = 'skip';
+  else if (flashKind === 'cut' || hasCutField) scene = 'cut';
+  else if (hasWorldTimeStop) scene = 'world';
   else if (hasLock) scene = 'lock';
   else if (hasReverse) scene = 'back';
   if (scene === 'cut') {
@@ -623,6 +754,10 @@ function syncKingdomTrickSceneClass() {
   }
   if (scene === 'skip') {
     ui.trick.classList.add('is-scene-skip');
+    return;
+  }
+  if (scene === 'world') {
+    ui.trick.classList.add('is-scene-world');
     return;
   }
   if (scene === 'lock') {
@@ -3799,6 +3934,177 @@ function setKingdomDemoPet(monsterId = '') {
   if (ui.demoPetSelect && ui.demoPetSelect.value !== kingdomDemoPetId) {
     ui.demoPetSelect.value = kingdomDemoPetId;
   }
+  return true;
+}
+
+function buildKingdomDemoRoleCards(roleKey, call = false) {
+  const prefix = `tk-demo-${call ? 'call' : 'role'}-${String(roleKey || '').toLowerCase()}`;
+  const minor = (suffix, suit, number) => ({
+    id: `${prefix}-${suffix}`,
+    kind: 'minor',
+    suit,
+    number
+  });
+  const major = (number) => ({
+    id: `${prefix}-major-${number}`,
+    kind: 'major',
+    number
+  });
+  const suits = ['Wand', 'Cup', 'Sword', 'Pentacle'];
+
+  if (roleKey === 'Straight') {
+    const numbers = call ? [2, 3, 4, 5, 6] : [4, 5, 6, 7, 8];
+    return numbers.map((number, index) => minor(`straight-${index}`, suits[index % suits.length], number));
+  }
+  if (roleKey === 'Flush') {
+    return [2, 4, 6, 9, 12].map((number, index) => minor(`flush-${index}`, 'Cup', number));
+  }
+  if (roleKey === 'FullHouse') {
+    return [
+      minor('house-3-w', 'Wand', 3),
+      minor('house-3-c', 'Cup', 3),
+      minor('house-3-s', 'Sword', 3),
+      minor('house-4-w', 'Wand', 4),
+      minor('house-4-c', 'Cup', 4)
+    ];
+  }
+  if (roleKey === 'FourKind') {
+    return [
+      ...suits.map((suit, index) => minor(`four-${index}`, suit, 7)),
+      minor('four-kicker', 'Wand', 10)
+    ];
+  }
+  if (roleKey === 'TheWorld') {
+    return [major(21), major(2), major(3), major(4), major(6)];
+  }
+  if (roleKey === 'StraightFlush') {
+    return [2, 3, 4, 5, 6].map((number, index) => minor(`straight-flush-${index}`, 'Sword', number));
+  }
+  if (roleKey === 'FiveKind') {
+    return [
+      ...suits.map((suit, index) => minor(`five-${index}`, suit, 9)),
+      major(0)
+    ];
+  }
+  return [];
+}
+
+function playKingdomDemoRoleFormation(value = '') {
+  kingdomDemoRoleLastError = '';
+  if (window.__TAROT_KINGDOM_PREVIEW__ !== true) {
+    kingdomDemoRoleLastError = 'preview-only';
+    return false;
+  }
+  const [mode, roleKey] = String(value || '').split(':');
+  const isCall = mode === 'call';
+  if (!['normal', 'call'].includes(mode) || !ROLE_ORDER.includes(roleKey)) {
+    kingdomDemoRoleLastError = 'invalid-role';
+    return false;
+  }
+  const roleCards = buildKingdomDemoRoleCards(roleKey, isCall);
+  if (roleCards.length !== 5) {
+    kingdomDemoRoleLastError = 'missing-cards';
+    return false;
+  }
+
+  const battlefield = cloneKingdomSnapshotValue(s?.battle?.battlefield, null);
+  const selectedEnemyId = kingdomDemoEnemyId;
+  const petMonster = kingdomDemoPetId
+    ? KINGDOM_DEMO_MONSTER_ROSTER.find((entry) => entry.id === kingdomDemoPetId && entry.isBoss !== true)
+    : null;
+  const handCards = isCall ? roleCards.slice(1) : roleCards.slice();
+  const reserve = {
+    id: `tk-demo-${mode}-${roleKey}-reserve`,
+    kind: 'minor',
+    suit: 'Pentacle',
+    number: 10
+  };
+
+  buildTarotKingdomDebugBattleState({
+    playerCount: 4,
+    pet: petMonster
+      ? {
+          monsterId: petMonster.id,
+          monsterName: petMonster.name,
+          number: Number(petMonster.number) || 1,
+          volume: Number(petMonster.volume) || 1
+        }
+      : null,
+    handsBySeat: [[...handCards, reserve]],
+    withTrick: false,
+    turnIndex: 0,
+    enemyMaxHp: 9999,
+    enemyHp: 9999
+  });
+  if (selectedEnemyId) setKingdomDemoEnemy(selectedEnemyId);
+  if (battlefield && s?.battle) s.battle.battlefield = battlefield;
+  if (s?.battle?.enemy) {
+    s.battle.enemy.maxHp = Math.max(9999, Number(s.battle.enemy.maxHp) || 0);
+    s.battle.enemy.hp = s.battle.enemy.maxHp;
+  }
+
+  if (isCall) {
+    const base = roleCards[0];
+    const baseSuits = suitsForCard(base, false);
+    s.trick = {
+      type: 'set',
+      owner: 1,
+      count: 1,
+      selected: [],
+      selectedIds: [],
+      cardsHand: [base],
+      cardsTable: [base],
+      tableOwners: [1],
+      number: idNum(base),
+      setPower: setPowerForCards(idNum(base), [base]),
+      suitMask: suitMaskForCards([base]),
+      suitTier: Math.max(0, ...baseSuits.map((suit) => suitTierForCard(base, suit)))
+    };
+  } else {
+    const oldCards = [2, 3, 4, 5, 6].map((number, index) => ({
+      id: `tk-demo-old-straight-${index}`,
+      kind: 'minor',
+      suit: ['Wand', 'Cup', 'Sword', 'Pentacle', 'Wand'][index],
+      number
+    }));
+    s.trick = {
+      type: 'role',
+      owner: 1,
+      count: 5,
+      selected: [],
+      selectedIds: [],
+      cardsHand: oldCards.slice(),
+      cardsTable: oldCards.slice(),
+      tableOwners: oldCards.map(() => 1),
+      role: evalRole(oldCards),
+      call: false
+    };
+  }
+  s.lastPlay = s.trick;
+  s.phase = 'turn';
+  s.turn = 0;
+  kingdomDemoTrickSceneKey = 'auto';
+  if (ui.demoFieldSceneSelect) ui.demoFieldSceneSelect.value = 'auto';
+  render();
+
+  const selectedCardIds = new Set(handCards.map((card) => String(card?.id || '')));
+  const selectedIndexes = (s.players?.[0]?.hand || [])
+    .map((card, index) => (selectedCardIds.has(String(card?.id || '')) ? index : -1))
+    .filter((index) => index >= 0);
+  const built = isCall
+    ? buildCallPlay(0, selectedIndexes)
+    : buildRolePlay(0, selectedIndexes);
+  if (!built?.ok || built.play?.role?.key !== roleKey) {
+    kingdomDemoRoleLastError = built?.reason
+      || `role-mismatch:${String(built?.play?.role?.key || 'none')}`;
+    return false;
+  }
+  const valid = validatePlay(built.play, isCall ? 'call' : 'normal');
+  if (!valid?.ok) {
+    kingdomDemoRoleLastError = valid?.reason || 'invalid-play';
+    return false;
+  }
+  applyPlay(0, built.play);
   return true;
 }
 
@@ -9152,6 +9458,7 @@ function buildTarotKingdomDebugBattleState(options = {}) {
   clearRoundOutCinematicTimer();
   clearOpeningDealTimers();
   clearKingdomTransitionTimer();
+  clearKingdomTrickSceneFlash(false);
   kingdomCombatRandom = () => 0.5;
   s = initState();
   if (options.rules) s.rules = normalizeKingdomRules(options.rules);
@@ -9358,6 +9665,27 @@ function buildTarotKingdomDebugBattleState(options = {}) {
   }
   if (Object.prototype.hasOwnProperty.call(options, 'enemyDamageToParty')) {
     s.battle.metrics.enemyDamageToParty = Math.max(0, Math.floor(Number(options.enemyDamageToParty) || 0));
+  }
+  if (Object.prototype.hasOwnProperty.call(options, 'reverse')) {
+    s.reverse = options.reverse === true;
+  }
+  if (Object.prototype.hasOwnProperty.call(options, 'lockSuit')) {
+    const debugLockSuit = String(options.lockSuit || '');
+    s.lock = ['Wand', 'Cup', 'Sword', 'Pentacle'].includes(debugLockSuit)
+      ? { suit: debugLockSuit, min: null }
+      : null;
+  }
+  if (options.enemyTimeStop === true) {
+    if (!s.battle.effects || typeof s.battle.effects !== 'object') s.battle.effects = {};
+    if (!s.battle.effects.enemy || typeof s.battle.effects.enemy !== 'object') {
+      s.battle.effects.enemy = {};
+    }
+    s.battle.effects.enemy.timeStop = {
+      potency: 100,
+      remainingTurns: 2,
+      sourceIndex: 0,
+      label: '時間停止'
+    };
   }
 
   if (options.withTrick === false) {
@@ -10286,6 +10614,11 @@ function exposeTarotKingdomBattleDebugTools(target) {
     battleDemoPets: () => getKingdomDemoPetOptions(),
     battleSetDemoPet: (monsterId = '') => ({
       ok: setKingdomDemoPet(monsterId),
+      state: snapshotTarotKingdomDebugState()
+    }),
+    battleDemoRoleFormation: (value = '') => ({
+      ok: playKingdomDemoRoleFormation(value),
+      error: kingdomDemoRoleLastError,
       state: snapshotTarotKingdomDebugState()
     }),
     battleSetCombatRandom: (randomValue = 0.5) => {
@@ -12566,7 +12899,7 @@ function applyPlay(pi, play, retryDepth = 0) {
   s.trickDefeatFx = pickTrickDefeatFx(play, prevTrick);
   s.trickTransitionKind = isCallPlay
     ? 'callSteal'
-    : (play?.type === 'role' && String(prevTrick?.type || '') === 'role' ? 'roleClash' : 'normal');
+    : (isRolePlay ? 'roleFormation' : 'normal');
   play.prevLeadSuit = prevLeadSuit;
   s.leadRequiredOwner = null;
   s.lastPlay = play;
@@ -15058,6 +15391,71 @@ function getKingdomRoleVisualClass(roleKey) {
   return classes[key] || 'is-role-straight';
 }
 
+function getKingdomRoleFormationMotion(play, card, index) {
+  const roleKey = String(play?.role?.key || 'Straight');
+  const cards = Array.isArray(play?.cardsTable) ? play.cardsTable : [];
+  const safeIndex = Math.max(0, Number(index) || 0);
+  const cardRank = setRankFromNumber(Number(card?.number) || 0);
+  const primaryRank = Number(play?.role?.primary?.[0]);
+  let track = 'from-right';
+  let delayMs = safeIndex * 100;
+  let durationMs = 640;
+
+  if (roleKey === 'Flush') {
+    track = 'fade';
+    delayMs = 80;
+    durationMs = 760;
+  } else if (roleKey === 'FullHouse') {
+    const belongsToTriple = cardRank === primaryRank;
+    const matchingIndexes = cards
+      .map((entry, entryIndex) => ({
+        entryIndex,
+        rank: setRankFromNumber(Number(entry?.number) || 0)
+      }))
+      .filter((entry) => (entry.rank === primaryRank) === belongsToTriple)
+      .map((entry) => entry.entryIndex);
+    const groupIndex = Math.max(0, matchingIndexes.indexOf(safeIndex));
+    track = belongsToTriple ? 'from-top' : 'from-right';
+    delayMs = (belongsToTriple ? 60 : 140) + (groupIndex * (belongsToTriple ? 90 : 100));
+    durationMs = belongsToTriple ? 680 : 640;
+  } else if (roleKey === 'FourKind') {
+    track = cardRank === primaryRank ? 'slam' : 'fade';
+    delayMs = cardRank === primaryRank ? 60 + (safeIndex * 70) : 360;
+    durationMs = cardRank === primaryRank ? 680 : 520;
+  } else if (roleKey === 'TheWorld') {
+    track = 'orbit';
+    delayMs = safeIndex * 80;
+    durationMs = 720;
+  } else if (roleKey === 'StraightFlush') {
+    track = safeIndex % 2 === 0 ? 'fan-left' : 'fan-right';
+    delayMs = safeIndex * 75;
+    durationMs = 690;
+  } else if (roleKey === 'FiveKind') {
+    track = 'converge';
+    delayMs = safeIndex * 70;
+    durationMs = 700;
+  }
+
+  return {
+    roleKey,
+    track,
+    delayMs,
+    durationMs,
+    direction: safeIndex % 2 === 0 ? -1 : 1,
+    angle: (safeIndex - 2) * 7
+  };
+}
+
+function getKingdomRoleFormationCompleteMs(play) {
+  const cards = Array.isArray(play?.cardsTable) ? play.cardsTable.slice(0, 5) : [];
+  const latestCardMs = cards.reduce((latest, card, index) => {
+    const motion = getKingdomRoleFormationMotion(play, card, index);
+    return Math.max(latest, motion.delayMs + motion.durationMs);
+  }, 0);
+  const fieldSwapMs = play?.call === true ? 190 : 400;
+  return Math.max(900, Math.min(1700, fieldSwapMs + latestCardMs));
+}
+
 function preloadKingdomSummonArt() {
   if (kingdomSummonPreloadStarted || typeof Image !== 'function') return;
   kingdomSummonPreloadStarted = true;
@@ -15261,12 +15659,17 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   cutin.dataset.effectCategory = isSummon ? visualProfile.category : '';
   cutin.dataset.choreography = isSummon ? visualProfile.choreography : '';
   cutin.style.setProperty('--summon-elapsed', `${-Math.min(KINGDOM_SUMMON_ATTACK_MS, elapsedMs)}ms`);
+  const roleShowAtMs = getKingdomRoleFormationCompleteMs(s.lastPlay);
+  cutin.style.setProperty('--summon-role-show-at', `${roleShowAtMs}ms`);
+  cutin.dataset.roleShowAt = String(roleShowAtMs);
   cutin.innerHTML = '';
   const title = document.createElement('strong');
   title.className = 'tarot-kingdom-skill-cutin-title';
   title.textContent = getRoleDisplayLabel(s.lastPlay);
   const fan = document.createElement('div');
   fan.className = 'tarot-kingdom-skill-card-fan';
+  fan.dataset.roleFormation = roleKey;
+  fan.dataset.call = s.lastPlay?.call ? 'true' : 'false';
   cards.forEach((card, index) => {
     const node = cardNode(card, { clickable: false });
     const offset = index - 2;
@@ -15274,6 +15677,8 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
     node.style.setProperty('--skill-card-angle', `${offset * 5}deg`);
     node.style.setProperty('--skill-card-lift', `${offset * offset * 1.5}px`);
     node.style.setProperty('--skill-card-converge-x', `${-offset * 52}px`);
+    node.dataset.roleCardIndex = String(index);
+    if (s.lastPlay?.call && index === 0) node.dataset.callSource = 'true';
     fan.appendChild(node);
   });
   cutin.appendChild(title);
@@ -15515,6 +15920,7 @@ function renderKingdomBattleStage() {
     clearKingdomBattlePhaseTimers();
     return;
   }
+  preloadKingdomFieldScenes();
   preloadKingdomSummonArt();
   const battle = s.battle;
   const openingIntroStage = s.phase === 'openingDeal' ? String(s.openingIntroStage || '') : '';
@@ -15893,8 +16299,8 @@ function renderPlayers() {
 function renderTrick() {
   const cards = s.trick?.cardsTable || [];
   syncKingdomTrickSceneClass();
-  let ramSettleFirstCard = false;
   let dealSettleNextRender = false;
+  let roleFormationNextRender = false;
   const resolvePendingAfterTrick = () => {
     if (typeof pendingTurnAdvanceAfterTrick !== 'function') return;
     const fn = pendingTurnAdvanceAfterTrick;
@@ -15961,18 +16367,13 @@ function renderTrick() {
         onClick: () => showKingdomCardEffectInfo(c, '場札')
       });
       const callFxActive = s.callMergeFx?.owner != null && s.trick?.type === 'role' && s.trick?.call;
-      const callFxLevel = Math.max(1, Number(s.callMergeFx?.level) || 1);
+      const roleFormationActive = !!(
+        s.trick?.type === 'role'
+        && (roleFormationNextRender || callFxActive)
+      );
       let animDelayMs = 0;
       let animDurationMs = 240;
-      if (callFxActive && idx > 0) {
-        // コール時の4枚は右側から順に飛び込み、横一列で着地させる
-        const orderFromRight = Math.max(0, (cards.length - 1) - idx);
-        node.classList.add('is-call-arriving');
-        animDelayMs = 70 + (orderFromRight * Math.max(54, 78 - (callFxLevel * 4)));
-        animDurationMs = 300 + (callFxLevel * 28);
-        node.style.animationDelay = `${animDelayMs}ms`;
-        node.style.animationDuration = `${animDurationMs}ms`;
-      } else if (callFxActive && idx === 0) {
+      if (callFxActive && idx === 0) {
         // 先頭は直前の場札を再利用したカード。4枚が合流する核として示す。
         node.classList.add('is-call-reused');
         const badge = document.createElement('span');
@@ -15983,15 +16384,27 @@ function renderTrick() {
         animDelayMs = 0;
         animDurationMs = 460;
         node.style.animationDuration = `${animDurationMs}ms`;
+      } else if (roleFormationActive) {
+        const motion = getKingdomRoleFormationMotion(s.trick, c, idx);
+        node.classList.add(
+          'is-role-arriving',
+          `is-role-entry-${motion.track}`,
+          getKingdomRoleVisualClass(motion.roleKey)
+        );
+        if (callFxActive) node.classList.add('is-call-arriving');
+        node.dataset.roleEntry = motion.track;
+        node.style.setProperty('--role-entry-direction', String(motion.direction));
+        node.style.setProperty('--role-entry-angle', `${motion.angle}deg`);
+        animDelayMs = motion.delayMs;
+        animDurationMs = motion.durationMs;
+        node.style.animationDelay = `${animDelayMs}ms`;
+        node.style.animationDuration = `${animDurationMs}ms`;
       } else if (dealSettleNextRender) {
         node.classList.add('is-deal-settling');
         animDelayMs = idx * 44;
         animDurationMs = 220;
         node.style.animationDelay = `${animDelayMs}ms`;
         node.style.animationDuration = `${animDurationMs}ms`;
-      } else if (ramSettleFirstCard && idx === 0) {
-        animDelayMs = 0;
-        animDurationMs = 0;
       } else {
         node.classList.add('is-entering');
         animDelayMs = idx * (s.callMergeFx ? 104 : 54);
@@ -16006,10 +16419,24 @@ function renderTrick() {
         node.classList.remove('is-entering');
         node.classList.remove('is-call-arriving');
         node.classList.remove('is-call-reused');
+        node.classList.remove('is-role-arriving');
+        node.classList.remove(
+          'is-role-entry-from-right',
+          'is-role-entry-from-top',
+          'is-role-entry-fade',
+          'is-role-entry-slam',
+          'is-role-entry-orbit',
+          'is-role-entry-fan-left',
+          'is-role-entry-fan-right',
+          'is-role-entry-converge'
+        );
         node.classList.remove('is-deal-settling');
         node.querySelector('.tarot-kingdom-call-reuse-badge')?.remove();
+        delete node.dataset.roleEntry;
         node.style.animationDelay = '';
         node.style.animationDuration = '';
+        node.style.removeProperty('--role-entry-direction');
+        node.style.removeProperty('--role-entry-angle');
       };
       node.addEventListener('animationend', clearAnimState, { once: true });
       // animationend が来ない環境でも透明のまま残らないようにする。
@@ -16017,7 +16444,6 @@ function renderTrick() {
       ui.trick.appendChild(node);
     });
     appendFieldSlots(Math.min(cards.length, 5));
-    ramSettleFirstCard = false;
     dealSettleNextRender = false;
   };
 
@@ -16039,20 +16465,14 @@ function renderTrick() {
     trickSwapTimer = null;
   }
   const prevCards = Array.from(ui.trick.querySelectorAll('.tarot-card:not(.tarot-kingdom-trick-emphasis-card)'));
-  const defeatFxRaw = String(s?.trickDefeatFx?.kind || 'normal');
-  const defeatFxKind = ['normal', 'slash', 'rock', 'water', 'fire', 'arcana'].includes(defeatFxRaw)
-    ? defeatFxRaw
-    : 'normal';
-  const arcanaFx = s?.trickDefeatFx?.arcana || null;
   const transitionKind = String(s?.trickTransitionKind || '');
   const isCallTransition = transitionKind === 'callSteal';
-  const isRoleClashTransition = transitionKind === 'roleClash';
+  const isRoleFormationTransition = transitionKind === 'roleFormation';
   const callOwner = Number.isInteger(Number(s?.trick?.owner)) ? Number(s.trick.owner) : -1;
   const currentPlay = s?.trick || null;
-  const attackCard = getAttackKeyCardFromPlay(currentPlay) || cards[0] || null;
-  const shakeLevel = getKingdomDefeatShakeLevel(currentPlay, defeatFxKind, transitionKind);
   s.trickDefeatFx = null;
   s.trickTransitionKind = null;
+  roleFormationNextRender = isRoleFormationTransition || isCallTransition;
 
   const isNormalSetDeal = cards.length > 0
     && String(currentPlay?.type || '') === 'set'
@@ -16126,80 +16546,37 @@ function renderTrick() {
       }, callOpenMs + 620);
       return;
     }
-    if (isRoleClashTransition) {
-      const hitStopMs = 70;
-      const ramMs = 220;
+    if (isRoleFormationTransition) {
+      const exitDurationMs = 260;
+      const exitStaggerMs = 30;
+      const exitTailMs = Math.max(0, (prevCards.length - 1) * exitStaggerMs);
       const runIfCurrent = (fn) => {
         if (swapToken !== trickRenderToken) return;
         fn();
       };
-      ui.trick.classList.add('is-hit-stop');
-      setTimeout(() => runIfCurrent(() => ui.trick.classList.remove('is-hit-stop')), hitStopMs);
-      const ramFx = playKingdomRamAttackFx(callOwner, attackCard, prevCards[0], {
-        fromPoint: getKingdomTrickRightSourcePoint() || undefined,
-        delayMs: hitStopMs,
-        durationMs: ramMs,
-        keepAfterHit: true
+      ui.trick.classList.remove('is-hit-stop');
+      prevCards.forEach((node, idx) => {
+        if (!node) return;
+        node.classList.remove(
+          'is-entering',
+          'is-call-arriving',
+          'is-leaving',
+          'is-defeat-transition',
+          'is-field-replacing'
+        );
+        clearArcanaDefeatPatternClasses(node);
+        node.classList.add('is-role-field-clearing');
+        node.style.animationDelay = `${idx * exitStaggerMs}ms`;
+        node.style.setProperty('--role-field-clear-ms', `${exitDurationMs}ms`);
       });
-      const clashMs = playKingdomRoleClashFx(callOwner, attackCard, prevCards[0], { delayMs: hitStopMs + 8, inMs: 240, holdMs: 70, outMs: 210 });
-      const preDefeatMs = Math.max(260, clashMs);
-      const profile = getKingdomDefeatTimingProfile(defeatFxKind, { shakeLevel, roleClash: true });
-      const staggerMs = profile.staggerMs;
-      const isArcanaDefeat = isMajorAttackFx(arcanaFx);
-      const markerEmoji = getDefeatMarkerEmoji(defeatFxKind, arcanaFx);
-      const markerPerCard = !!markerEmoji;
-      const baseMs = profile.cardMs;
-      const markerMs = markerPerCard ? profile.markerMs : 0;
-      setTimeout(() => runIfCurrent(() => triggerKingdomTrickShake(Math.max(2, shakeLevel))), hitStopMs + 210);
-      setTimeout(() => runIfCurrent(() => {
-        const leadArcanaFx = isArcanaDefeat ? arcanaFx : null;
-        if (leadArcanaFx?.leadEmoji) {
-          spawnKingdomArcanaLeadFx(prevCards[0], leadArcanaFx, { delayMs: 0, durationMs: Math.max(profile.activeMs + 160, Number(leadArcanaFx.heroDurationMs) || 0) });
-        }
-        prevCards.forEach((node, idx) => {
-          if (!node) return;
-          if (defeatFxKind === 'slash') {
-            spawnKingdomSlashSplitFx(node, {
-              delayMs: (idx * staggerMs) + profile.splitLeadMs,
-              durationMs: profile.splitMs
-            });
-          } else if (defeatFxKind === 'rock' || defeatFxKind === 'water' || defeatFxKind === 'fire') {
-            spawnKingdomDefeatParticles(node, defeatFxKind, {
-              delayMs: (idx * staggerMs) + profile.particleLeadMs,
-              markerEmoji
-            });
-          }
-          node.classList.remove('is-entering', 'is-call-arriving', 'is-leaving');
-          clearArcanaDefeatPatternClasses(node);
-          node.classList.add('is-defeat-transition', `is-defeat-${defeatFxKind}`);
-          if (defeatFxKind === 'arcana') {
-            const arcanaPatternClass = getArcanaDefeatPatternClass(arcanaFx);
-            if (arcanaPatternClass) node.classList.add(arcanaPatternClass);
-          }
-          if (markerPerCard) node.classList.add('is-defeat-primary');
-          else node.classList.remove('is-defeat-primary');
-          applyKingdomDefeatMarkerEmoji(node, markerPerCard ? markerEmoji : '');
-          node.style.animationDelay = `${idx * staggerMs}ms`;
-          node.style.setProperty('--defeat-card-ms', `${baseMs}ms`);
-          if (markerPerCard) node.style.setProperty('--defeat-marker-ms', `${markerMs}ms`);
-          else node.style.removeProperty('--defeat-marker-ms');
-        });
-      }), preDefeatMs);
-      const swapHoldMs = profile.visualEndMs;
       trickSwapTimer = setTimeout(() => {
         if (swapToken !== trickRenderToken) return;
         trickSwapTimer = null;
-        settleKingdomIncomingFirstCard(
-          ramFx,
-          runIfCurrent,
-          () => {
-            ramSettleFirstCard = true;
-            renderNow();
-          },
-          resolvePendingAfterTrick,
-          profile.settleMs
-        );
-      }, preDefeatMs + swapHoldMs);
+        runIfCurrent(() => {
+          renderNow();
+          resolvePendingAfterTrick();
+        });
+      }, exitDurationMs + exitTailMs + 20);
       return;
     }
     // 同期復帰など移動元を再現できない場合も、新しい場札交代演出へ統一する。
@@ -17510,6 +17887,8 @@ function bindUi() {
   ui.demoEnemySelect = document.getElementById('tarotKingdomDemoEnemySelect');
   ui.demoBattlefieldSelect = document.getElementById('tarotKingdomDemoBattlefieldSelect');
   ui.demoPetSelect = document.getElementById('tarotKingdomDemoPetSelect');
+  ui.demoFieldSceneSelect = document.getElementById('tarotKingdomDemoFieldSceneSelect');
+  ui.demoRoleSelect = document.getElementById('tarotKingdomDemoRoleSelect');
   if (ui.demoBattlefieldSelect && window.__TAROT_KINGDOM_PREVIEW__ === true) {
     const battlefieldOptions = getKingdomDemoBattlefieldOptions().map((battlefield) => {
       const option = document.createElement('option');
@@ -17562,6 +17941,48 @@ function bindUi() {
     ui.demoPetSelect.value = kingdomDemoPetId;
     ui.demoPetSelect.addEventListener('change', () => {
       setKingdomDemoPet(ui.demoPetSelect.value);
+    });
+  }
+  if (ui.demoFieldSceneSelect && window.__TAROT_KINGDOM_PREVIEW__ === true) {
+    const sceneOptions = KINGDOM_DEMO_TRICK_SCENE_OPTIONS.map((scene) => {
+      const option = document.createElement('option');
+      option.value = scene.value;
+      option.textContent = scene.label;
+      return option;
+    });
+    ui.demoFieldSceneSelect.replaceChildren(...sceneOptions);
+    ui.demoFieldSceneSelect.value = kingdomDemoTrickSceneKey;
+    ui.demoFieldSceneSelect.addEventListener('change', () => {
+      kingdomDemoTrickSceneKey = String(ui.demoFieldSceneSelect.value || 'auto');
+      syncKingdomTrickSceneClass();
+    });
+  }
+  if (ui.demoRoleSelect && window.__TAROT_KINGDOM_PREVIEW__ === true) {
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '役を選んで再生';
+    placeholder.selected = true;
+    const buildRoleGroup = (mode, label) => {
+      const group = document.createElement('optgroup');
+      group.label = label;
+      KINGDOM_DEMO_ROLE_OPTIONS.forEach((role) => {
+        const option = document.createElement('option');
+        option.value = `${mode}:${role.roleKey}`;
+        option.textContent = role.label;
+        group.appendChild(option);
+      });
+      return group;
+    };
+    ui.demoRoleSelect.replaceChildren(
+      placeholder,
+      buildRoleGroup('normal', '通常の5枚役'),
+      buildRoleGroup('call', 'コール')
+    );
+    ui.demoRoleSelect.value = '';
+    ui.demoRoleSelect.addEventListener('change', () => {
+      const value = String(ui.demoRoleSelect.value || '');
+      if (value) playKingdomDemoRoleFormation(value);
+      ui.demoRoleSelect.value = '';
     });
   }
   ui.battleFeed = document.getElementById('tarotKingdomBattleFeed');

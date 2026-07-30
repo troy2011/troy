@@ -247,7 +247,7 @@ test.describe('Tarot Kingdom summon integration', () => {
     });
   });
 
-  test('party and HUD leave while the enemy stays, then return at synchronized offsets', async ({ page }) => {
+  test('party and hand HUD leave while the enemy and field stay, then return at synchronized offsets', async ({ page }) => {
     const cards = [
       { id: 'phase-2', kind: 'minor', suit: 'Wand', number: 2 },
       { id: 'phase-3', kind: 'minor', suit: 'Cup', number: 3 },
@@ -279,16 +279,17 @@ test.describe('Tarot Kingdom summon integration', () => {
         }
       };
       setAnimationTime('#tarotKingdomBattleStage .tarot-kingdom-battle-party-side', 'PartyVisibility');
-      setAnimationTime('#tarotKingdomRoot .tarot-kingdom-layout', 'SummonHudVisibility');
+      setAnimationTime('#tarotKingdomRoot .tarot-kingdom-panel--hand', 'SummonHudVisibility');
       const opacityOf = (selector) => Number(getComputedStyle(document.querySelector(selector)).opacity);
       return {
         party: opacityOf('#tarotKingdomBattleStage .tarot-kingdom-battle-party-side'),
-        hud: opacityOf('#tarotKingdomRoot .tarot-kingdom-layout'),
+        handHud: opacityOf('#tarotKingdomRoot .tarot-kingdom-panel--hand'),
+        field: opacityOf('#tarotKingdomRoot .tarot-kingdom-panel--trick'),
         enemy: opacityOf('#tarotKingdomEnemySprite'),
         cinematic: document.querySelector('#tarotKingdomRoot')?.classList.contains('is-summon-cinematic') || false,
         partyAnimations: Array.from(document.querySelector('#tarotKingdomBattleStage .tarot-kingdom-battle-party-side')?.getAnimations() || [])
           .map((entry) => entry.animationName),
-        hudAnimations: Array.from(document.querySelector('#tarotKingdomRoot .tarot-kingdom-layout')?.getAnimations() || [])
+        hudAnimations: Array.from(document.querySelector('#tarotKingdomRoot .tarot-kingdom-panel--hand')?.getAnimations() || [])
           .map((entry) => entry.animationName)
       };
     }, offsetMs);
@@ -297,21 +298,24 @@ test.describe('Tarot Kingdom summon integration', () => {
     expect(hidden).toMatchObject({
       cinematic: true,
       party: expect.any(Number),
-      hud: expect.any(Number)
+      handHud: expect.any(Number)
     });
     expect(hidden.party, JSON.stringify(hidden)).toBeLessThan(0.05);
-    expect(hidden.hud).toBeLessThan(0.05);
+    expect(hidden.handHud).toBeLessThan(0.05);
+    expect(hidden.field).toBeGreaterThan(0.9);
     expect(hidden.enemy).toBeGreaterThan(0.5);
     expect(hidden.cinematic).toBe(true);
 
     const partyReturn = await readVisibilityAt(4050);
     expect(partyReturn.party).toBeGreaterThan(0.2);
-    expect(partyReturn.hud).toBeLessThan(0.1);
+    expect(partyReturn.handHud).toBeLessThan(0.1);
+    expect(partyReturn.field).toBeGreaterThan(0.9);
     expect(partyReturn.enemy).toBeGreaterThan(0.5);
 
     const hudReturn = await readVisibilityAt(4300);
     expect(hudReturn.party).toBeGreaterThan(0.9);
-    expect(hudReturn.hud).toBeGreaterThan(0.2);
+    expect(hudReturn.handHud).toBeGreaterThan(0.2);
+    expect(hudReturn.field).toBeGreaterThan(0.9);
     expect(hudReturn.cinematic).toBe(true);
 
     await page.waitForTimeout(Math.max(0, startedAt + 4650 - Date.now()));
@@ -320,13 +324,15 @@ test.describe('Tarot Kingdom summon integration', () => {
       const opacityOf = (selector) => Number(getComputedStyle(document.querySelector(selector)).opacity);
       return {
         party: opacityOf('#tarotKingdomBattleStage .tarot-kingdom-battle-party-side'),
-        hud: opacityOf('#tarotKingdomRoot .tarot-kingdom-layout'),
+        handHud: opacityOf('#tarotKingdomRoot .tarot-kingdom-panel--hand'),
+        field: opacityOf('#tarotKingdomRoot .tarot-kingdom-panel--trick'),
         cinematic: document.querySelector('#tarotKingdomRoot')?.classList.contains('is-summon-cinematic') || false,
         motionPaused: document.querySelector('#tarotKingdomRoot')?.dataset.summonMotionPaused === 'true'
       };
     });
     expect(finished.party).toBeGreaterThan(0.9);
-    expect(finished.hud).toBeGreaterThan(0.9);
+    expect(finished.handHud).toBeGreaterThan(0.9);
+    expect(finished.field).toBeGreaterThan(0.9);
     expect(finished.cinematic).toBe(false);
     expect(finished.motionPaused).toBe(false);
     await expect(page.locator('.tarot-kingdom-skill-cutin.is-summon')).toHaveCount(0);

@@ -301,6 +301,279 @@ test('5 skip replaces the enemy blue ring with the ellipsis speech-bubble icon',
   await expect(silenceIcon).toBeHidden();
 });
 
+test('field backgrounds show persistent card effects behind unobscured cards', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const trick = page.locator('#tarotKingdomTrick');
+  const fieldCard = trick.locator(':scope > .tarot-card').first();
+  const card = (id, suit, number) => ({ id, kind: 'minor', suit, number });
+  const expectScene = async (fileName) => {
+    await expect(trick).toHaveCSS('background-image', new RegExp(`${fileName}\\.webp`));
+  };
+
+  await page.evaluate(() => window.TarotKingdomDebug.battleScenario({
+    tableCard: { id: 'scene-normal', kind: 'minor', suit: 'Wand', number: 1 }
+  }));
+  await expectScene('field-calm-sea');
+  await expect(fieldCard).toHaveCSS('filter', 'none');
+  await expect(fieldCard).toHaveCSS('opacity', '1');
+
+  const lockScenes = [
+    ['Wand', 'field-lock-lava'],
+    ['Cup', 'field-lock-ice'],
+    ['Sword', 'field-lock-storm'],
+    ['Pentacle', 'field-lock-rock']
+  ];
+  for (const [lockSuit, fileName] of lockScenes) {
+    await page.evaluate((suit) => window.TarotKingdomDebug.battleScenario({
+      lockSuit: suit,
+      tableCard: { id: `scene-lock-${suit}`, kind: 'minor', suit, number: 14 }
+    }), lockSuit);
+    await expectScene(fileName);
+  }
+
+  await page.evaluate(() => window.TarotKingdomDebug.battleScenario({
+    reverse: true,
+    tableCard: { id: 'scene-reverse', kind: 'minor', suit: 'Cup', number: 11 }
+  }));
+  await expectScene('field-reverse-whirlpool');
+
+  await page.evaluate(() => window.TarotKingdomDebug.battleScenario({
+    tableCard: { id: 'scene-cut', kind: 'minor', suit: 'Sword', number: 8 }
+  }));
+  await expectScene('field-cut-crack');
+
+  await page.evaluate(() => window.TarotKingdomDebug.battleScenario({
+    enemyTimeStop: true,
+    tableCard: { id: 'scene-world', kind: 'major', suit: 'None', number: 21 }
+  }));
+  await expectScene('field-world-clock');
+
+  const worldRoleCards = [21, 2, 3, 4, 6].map((number) => ({
+    id: `scene-world-role-${number}`,
+    kind: 'major',
+    suit: 'None',
+    number
+  }));
+  const worldRoleResult = await page.evaluate(({ roleCards, reserveCard }) => {
+    const debug = window.TarotKingdomDebug;
+    debug.battleScenario({
+      withTrick: false,
+      turnIndex: 0,
+      handsBySeat: [[...roleCards, reserveCard]]
+    });
+    return debug.battlePlayCards(0, roleCards.map((entry) => entry.id), { resolve: false });
+  }, {
+    roleCards: worldRoleCards,
+    reserveCard: card('scene-world-role-reserve', 'Cup', 9)
+  });
+  expect(worldRoleResult.ok).toBe(true);
+  await expectScene('field-role-world');
+
+  await page.evaluate(({ playCard, reserveCard, tableCard }) => {
+    window.TarotKingdomDebug.battleScenario({
+      tableCard,
+      turnIndex: 0,
+      handsBySeat: [[playCard, reserveCard]]
+    });
+    window.TarotKingdomDebug.battlePlayOne(0, { resolve: false });
+  }, {
+    playCard: card('scene-skip', 'Wand', 5),
+    reserveCard: card('scene-skip-reserve', 'Cup', 9),
+    tableCard: card('scene-skip-table', 'Wand', 4)
+  });
+  await expectScene('field-skip-wave');
+  await expect(fieldCard).toHaveCSS('filter', 'none');
+});
+
+test('five-card roles always use rank-specific magic circles and ignore an included 8 cut', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const trick = page.locator('#tarotKingdomTrick');
+  const minor = (id, suit, number) => ({ id, kind: 'minor', suit, number });
+  const major = (number) => ({ id: `role-major-${number}`, kind: 'major', suit: 'None', number });
+  const scenarios = [
+    {
+      key: 'straight',
+      file: 'field-role-straight',
+      cards: [
+        minor('role-straight-6', 'Wand', 6),
+        minor('role-straight-7', 'Cup', 7),
+        minor('role-straight-8', 'Sword', 8),
+        minor('role-straight-9', 'Pentacle', 9),
+        minor('role-straight-10', 'Wand', 10)
+      ]
+    },
+    {
+      key: 'flush',
+      file: 'field-role-flush',
+      suitClass: 'is-scene-role-suit-cup',
+      cards: [2, 4, 6, 9, 12].map((number) => minor(`role-flush-${number}`, 'Cup', number))
+    },
+    {
+      key: 'full-house',
+      file: 'field-role-full-house',
+      cards: [3, 3, 3, 7, 7].map((number, index) => minor(`role-full-${index}`, ['Wand', 'Cup', 'Sword', 'Pentacle'][index % 4], number))
+    },
+    {
+      key: 'four-kind',
+      file: 'field-role-four-kind',
+      cards: [8, 8, 8, 8, 9].map((number, index) => minor(`role-four-${index}`, ['Wand', 'Cup', 'Sword', 'Pentacle'][index % 4], number))
+    },
+    {
+      key: 'world',
+      file: 'field-role-world',
+      cards: [major(21), major(2), major(3), major(4), major(6)]
+    },
+    {
+      key: 'straight-flush',
+      file: 'field-role-straight-flush',
+      suitClass: 'is-scene-role-suit-wand',
+      cards: [2, 3, 4, 5, 6].map((number) => minor(`role-straight-flush-${number}`, 'Wand', number))
+    },
+    {
+      key: 'five-kind',
+      file: 'field-role-five-kind',
+      cards: Array.from({ length: 5 }, (_, index) => minor(`role-five-${index}`, ['Wand', 'Cup', 'Sword', 'Pentacle', 'Wand'][index], 9))
+    }
+  ];
+
+  for (const scenario of scenarios) {
+    const result = await page.evaluate(({ roleCards, reserveCard }) => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({
+        withTrick: false,
+        turnIndex: 0,
+        handsBySeat: [[...roleCards, reserveCard]]
+      });
+      return debug.battlePlayCards(0, roleCards.map((entry) => entry.id), { resolve: false });
+    }, {
+      roleCards: scenario.cards,
+      reserveCard: minor(`role-${scenario.key}-reserve`, 'Pentacle', 13)
+    });
+    expect(result.ok, scenario.key).toBe(true);
+    await expect(trick).toHaveClass(/is-scene-role/);
+    await expect(trick).toHaveCSS('background-image', new RegExp(`${scenario.file}\\.webp`));
+    if (scenario.suitClass) await expect(trick).toHaveClass(new RegExp(scenario.suitClass));
+    if (scenario.cards.some((entry) => Number(entry.number) === 8)) {
+      await expect(trick).not.toHaveClass(/is-scene-cut/);
+      await expect(trick).not.toHaveCSS('background-image', /field-cut-crack\.webp/);
+    }
+  }
+});
+
+test('preview can switch every field-effect background from the demo picker', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const picker = page.locator('#tarotKingdomDemoFieldSceneSelect');
+  const trick = page.locator('#tarotKingdomTrick');
+
+  await expect(picker).toBeVisible();
+  await expect(picker.locator('option')).toHaveCount(23);
+
+  await picker.selectOption('role-straight');
+  await expect(trick).toHaveClass(/is-scene-role-straight/);
+  await expect(trick).toHaveCSS('background-image', /field-role-straight\.webp/);
+
+  await picker.selectOption('role-flush-sword');
+  await expect(trick).toHaveClass(/is-scene-role-flush/);
+  await expect(trick).toHaveClass(/is-scene-role-suit-sword/);
+  await expect(trick).toHaveCSS('background-image', /field-role-flush\.webp/);
+
+  await picker.selectOption('cut');
+  await expect(trick).toHaveClass(/is-scene-cut/);
+  await expect(trick).toHaveCSS('background-image', /field-cut-crack\.webp/);
+
+  await picker.selectOption('normal');
+  await expect(trick).not.toHaveClass(/is-scene-/);
+  await expect(trick).toHaveCSS('background-image', /field-calm-sea\.webp/);
+
+  await picker.selectOption('auto');
+  await page.evaluate(() => window.TarotKingdomDebug.battleScenario({
+    tableCard: { id: 'demo-picker-auto-cut', kind: 'minor', suit: 'Cup', number: 8 }
+  }));
+  await expect(trick).toHaveClass(/is-scene-cut/);
+});
+
+test('preview can replay every normal and call five-card role cinematic', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const picker = page.locator('#tarotKingdomDemoRoleSelect');
+  await expect(picker).toBeVisible();
+  await expect(picker.locator('option')).toHaveCount(15);
+  await expect(picker.locator('optgroup')).toHaveCount(2);
+
+  await picker.selectOption('normal:FullHouse');
+  await expect(picker).toHaveValue('');
+  const initial = await page.evaluate(() => {
+    const state = window.TarotKingdomDebug.battleState();
+    const cutin = document.querySelector('.tarot-kingdom-skill-cutin.is-summon');
+    const title = cutin?.querySelector('.tarot-kingdom-skill-cutin-title');
+    const fanCard = cutin?.querySelector('.tarot-kingdom-skill-card-fan .tarot-card');
+    return {
+      roleKey: state.lastPlay?.role?.key || '',
+      call: state.lastPlay?.call === true,
+      transitionMs: Math.max(
+        0,
+        Number(state.transition?.endsAt || 0) - Number(state.transition?.startedAt || 0)
+      ),
+      clearingCount: document.querySelectorAll(
+        '#tarotKingdomTrick > .tarot-card.is-role-field-clearing'
+      ).length,
+      fanRole: document.querySelector('.tarot-kingdom-skill-card-fan')?.dataset.roleFormation || '',
+      roleShowAt: Number(cutin?.dataset.roleShowAt || 0),
+      titleDurationMs: title ? parseFloat(getComputedStyle(title).animationDuration) * 1000 : 0,
+      fanDurationMs: fanCard ? parseFloat(getComputedStyle(fanCard).animationDuration) * 1000 : 0
+    };
+  });
+  expect(initial).toEqual({
+    roleKey: 'FullHouse',
+    call: false,
+    transitionMs: 4500,
+    clearingCount: 5,
+    fanRole: 'FullHouse',
+    roleShowAt: 1320,
+    titleDurationMs: 1200,
+    fanDurationMs: 1250
+  });
+
+  await page.waitForTimeout(500);
+  const fullHouseTracks = await page.evaluate(() => Array.from(document.querySelectorAll(
+    '#tarotKingdomTrick > .tarot-card.is-role-arriving'
+  )).map((node) => node.dataset.roleEntry || ''));
+  expect(fullHouseTracks).toEqual(['from-top', 'from-top', 'from-top', 'from-right', 'from-right']);
+
+  const variants = await page.evaluate(() => {
+    const roleKeys = [
+      'Straight',
+      'Flush',
+      'FullHouse',
+      'FourKind',
+      'TheWorld',
+      'StraightFlush',
+      'FiveKind'
+    ];
+    return ['normal', 'call'].flatMap((mode) => roleKeys.map((roleKey) => {
+      const result = window.TarotKingdomDebug.battleDemoRoleFormation(`${mode}:${roleKey}`);
+      return {
+        mode,
+        roleKey,
+        ok: result.ok,
+        error: result.error || '',
+        actualRoleKey: result.state?.lastPlay?.role?.key || '',
+        call: result.state?.lastPlay?.call === true,
+        transitionMs: Math.max(
+          0,
+          Number(result.state?.transition?.endsAt || 0) - Number(result.state?.transition?.startedAt || 0)
+        )
+      };
+    }));
+  });
+  expect(variants).toHaveLength(14);
+  variants.forEach((variant) => {
+    expect(variant.ok, `${variant.mode}:${variant.roleKey}:${variant.error}`).toBe(true);
+    expect(variant.actualRoleKey).toBe(variant.roleKey);
+    expect(variant.call).toBe(variant.mode === 'call');
+    expect(variant.transitionMs).toBe(4500);
+  });
+});
+
 test('fullscreen close control uses only the framed close image', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 }, true);
   await page.evaluate(() => {

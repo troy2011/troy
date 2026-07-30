@@ -229,11 +229,17 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       const merged = await page.evaluate(() => {
         const firstArt = document.querySelector('#tarotKingdomTrick .tarot-card:first-child .tarot-card-art');
         const reused = document.querySelector('#tarotKingdomTrick .tarot-card.is-call-reused');
+        const arriving = Array.from(document.querySelectorAll(
+          '#tarotKingdomTrick .tarot-card.is-call-arriving'
+        ));
         const root = document.documentElement;
         return {
           x: firstArt?.style.getPropertyValue('--tarot-x'),
           y: firstArt?.style.getPropertyValue('--tarot-y'),
           reusedAnimation: reused ? getComputedStyle(reused).animationName : '',
+          arrivingTracks: arriving.map((node) => node.dataset.roleEntry || ''),
+          arrivingAnimations: arriving.map((node) => getComputedStyle(node).animationName),
+          arrivingPlayStates: arriving.map((node) => getComputedStyle(node).animationPlayState),
           cardCount: document.querySelectorAll('#tarotKingdomTrick > .tarot-card').length,
           cloneCount: document.querySelectorAll('.tarot-kingdom-call-reuse-clone').length,
           horizontalOverflow: Math.max(0, root.scrollWidth - root.clientWidth)
@@ -241,12 +247,125 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       });
       expect({ x: merged.x, y: merged.y }).toEqual(initial.sourceSprite);
       expect(merged.reusedAnimation).toContain('tarotKingdomCallReuseSettle');
+      expect(merged.arrivingTracks).toEqual(['fan-right', 'fan-left', 'fan-right', 'fan-left']);
+      expect(merged.arrivingAnimations).toEqual([
+        'tarotKingdomRoleCardFanRight',
+        'tarotKingdomRoleCardFanLeft',
+        'tarotKingdomRoleCardFanRight',
+        'tarotKingdomRoleCardFanLeft'
+      ]);
+      expect(merged.arrivingPlayStates).toEqual(Array(4).fill('running'));
       expect(merged.cardCount).toBe(5);
       expect(merged.cloneCount).toBeLessThanOrEqual(1);
       expect(merged.horizontalOverflow).toBeLessThanOrEqual(1);
 
       await page.waitForTimeout(900);
       await expect(page.locator('.tarot-kingdom-call-reuse-clone')).toHaveCount(0);
+    }
+  });
+
+  test('five-card roles clear the old field and use role-specific formation before summoning', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    const cases = [
+      {
+        roleKey: 'Straight',
+        cards: [4, 5, 6, 7, 8].map((number, index) => ({
+          id: `role-straight-${number}`,
+          kind: 'minor',
+          suit: ['Wand', 'Cup', 'Sword', 'Pentacle', 'Wand'][index],
+          number
+        })),
+        expectedTracks: ['from-right', 'from-right', 'from-right', 'from-right', 'from-right']
+      },
+      {
+        roleKey: 'Flush',
+        cards: [2, 4, 6, 9, 12].map((number) => ({
+          id: `role-flush-${number}`,
+          kind: 'minor',
+          suit: 'Cup',
+          number
+        })),
+        expectedTracks: ['fade', 'fade', 'fade', 'fade', 'fade']
+      },
+      {
+        roleKey: 'FullHouse',
+        cards: [
+          { id: 'role-house-3w', kind: 'minor', suit: 'Wand', number: 3 },
+          { id: 'role-house-3c', kind: 'minor', suit: 'Cup', number: 3 },
+          { id: 'role-house-3s', kind: 'minor', suit: 'Sword', number: 3 },
+          { id: 'role-house-4w', kind: 'minor', suit: 'Wand', number: 4 },
+          { id: 'role-house-4c', kind: 'minor', suit: 'Cup', number: 4 }
+        ],
+        expectedTracks: ['from-top', 'from-top', 'from-top', 'from-right', 'from-right']
+      }
+    ];
+
+    for (const roleCase of cases) {
+      const started = await page.evaluate(({ cards }) => {
+        const debug = window.TarotKingdomDebug;
+        const oldRoleCards = [2, 3, 4, 5, 6].map((number, index) => ({
+          id: `role-formation-old-${number}`,
+          kind: 'minor',
+          suit: ['Wand', 'Cup', 'Sword', 'Pentacle', 'Wand'][index],
+          number
+        }));
+        debug.battleScenario({
+          handsBySeat: [[
+            ...cards,
+            { id: 'role-formation-keep', kind: 'minor', suit: 'Pentacle', number: 10 }
+          ], [
+            ...oldRoleCards,
+            { id: 'role-formation-old-keep', kind: 'minor', suit: 'Cup', number: 10 }
+          ]],
+          withTrick: false,
+          turnIndex: 1
+        });
+        const oldResult = debug.battlePlayCards(
+          1,
+          oldRoleCards.map((card) => card.id),
+          { resolve: true }
+        );
+        const result = debug.battlePlayCards(0, cards.map((card) => card.id), { resolve: false });
+        return {
+          oldOk: oldResult.ok,
+          ok: result.ok,
+          reason: result.reason || '',
+          clearingCount: document.querySelectorAll(
+            '#tarotKingdomTrick > .tarot-card.is-role-field-clearing'
+          ).length
+        };
+      }, roleCase);
+      expect(started).toEqual({ oldOk: true, ok: true, reason: '', clearingCount: 5 });
+
+      await page.waitForTimeout(500);
+      const formation = await page.evaluate(() => ({
+        roleKey: document.querySelector(
+          '.tarot-kingdom-skill-card-fan'
+        )?.dataset.roleFormation || '',
+        isCall: document.querySelector(
+          '.tarot-kingdom-skill-card-fan'
+        )?.dataset.call || '',
+        tracks: Array.from(document.querySelectorAll(
+          '#tarotKingdomTrick > .tarot-card.is-role-arriving'
+        )).map((node) => node.dataset.roleEntry || ''),
+        animations: Array.from(document.querySelectorAll(
+          '#tarotKingdomTrick > .tarot-card.is-role-arriving'
+        )).map((node) => getComputedStyle(node).animationName),
+        playStates: Array.from(document.querySelectorAll(
+          '#tarotKingdomTrick > .tarot-card.is-role-arriving'
+        )).map((node) => getComputedStyle(node).animationPlayState),
+        durations: Array.from(document.querySelectorAll(
+          '#tarotKingdomTrick > .tarot-card.is-role-arriving'
+        )).map((node) => parseFloat(getComputedStyle(node).animationDuration) * 1000)
+      }));
+
+      expect(formation.roleKey).toBe(roleCase.roleKey);
+      expect(formation.isCall).toBe('false');
+      expect(formation.tracks).toEqual(roleCase.expectedTracks);
+      expect(formation.animations.every((name) => name.startsWith('tarotKingdomRoleCard'))).toBe(true);
+      expect(formation.playStates).toEqual(Array(5).fill('running'));
+      expect(Math.min(...formation.durations)).toBeGreaterThanOrEqual(640);
     }
   });
 
