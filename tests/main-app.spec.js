@@ -1606,8 +1606,8 @@ test('home exploration button loads exploration data in a popup', async ({ page 
             battlefieldId: 'ship-side',
             imagePath: './Sprites/exploration_destinations/twin_sea_stacks.png',
             monsters: [
-              { monsterId: 'ismartal-vol3-monster-05', monsterName: 'モクモ' },
-              { monsterId: 'ismartal-vol1-monster-04', monsterName: 'ツノガイ' },
+              { monsterId: 'ismartal-vol2-monster-05', monsterName: 'リルフィ' },
+              { monsterId: 'ismartal-vol2-monster-08', monsterName: 'ルビット' },
               { monsterId: 'ismartal-vol1-monster-10', monsterName: 'リーフロ' },
               { monsterId: 'ismartal-vol1-monster-09', monsterName: 'ホタルビ' }
             ]
@@ -1682,6 +1682,28 @@ test('home exploration button loads exploration data in a popup', async ({ page 
     .locator('.ship-exploration-stage-monster-sprite')).toHaveCSS('filter', /brightness\(0\)/);
   await expect(secondStage.locator('.ship-exploration-stage-monster.is-revealed')).toHaveCount(4);
   await expect(secondStage.locator('.ship-exploration-stage-monster.is-silhouette')).toHaveCount(0);
+  const explorationPreviewMetrics = await secondStage.evaluate((element) => {
+    const readMonster = (monsterId) => {
+      const sprite = element.querySelector(`[data-monster-id="${monsterId}"] .ship-exploration-stage-monster-sprite`);
+      const style = getComputedStyle(sprite);
+      return {
+        scale: Number(style.getPropertyValue('--exploration-monster-compact-scale')),
+        bottom: Number.parseFloat(style.bottom),
+        transformOriginY: Number.parseFloat(style.transformOrigin.split(' ')[1]),
+        height: sprite.offsetHeight
+      };
+    };
+    return {
+      lilfi: readMonster('ismartal-vol2-monster-05'),
+      rubit: readMonster('ismartal-vol2-monster-08')
+    };
+  });
+  expect(explorationPreviewMetrics.lilfi.scale).toBeGreaterThan(0.6);
+  expect(explorationPreviewMetrics.rubit.scale).toBeGreaterThan(0.45);
+  expect(explorationPreviewMetrics.lilfi.transformOriginY).toBe(explorationPreviewMetrics.lilfi.height);
+  expect(explorationPreviewMetrics.rubit.transformOriginY).toBe(explorationPreviewMetrics.rubit.height);
+  expect(explorationPreviewMetrics.lilfi.bottom).toBeLessThan(0);
+  expect(explorationPreviewMetrics.rubit.bottom).toBeLessThan(0);
   await expect(lockedStage.locator('.ship-exploration-stage-monster.is-silhouette')).toHaveCount(4);
   await expect(firstStage.locator('.ship-exploration-badge')).toHaveCount(0);
   await expect(firstStage.locator('.ship-exploration-start')).toHaveText('出航');
@@ -2162,7 +2184,7 @@ test('exploration stage starts for free with ordered optional supplies', async (
   await expect(modeChoice).toContainText('マシュロン');
   await expect(modeChoice).not.toContainText('プルン → トゲマル → パピル');
   await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' }).locator('small')).toHaveText('オフライン・3人編成');
+  await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' }).locator('small')).toHaveText('オフライン');
   await expect(page.getByRole('button', { name: '救難信号（オンライン）' })).toBeVisible();
   await expect(page.getByRole('button', { name: '撤退' })).toBeVisible();
   const modeChoiceLayout = await modeChoice.evaluate((choice) => {
@@ -2765,6 +2787,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
 
 test('exploration result reveals rewards after a tarot kingdom victory', async ({ page }) => {
   const errors = trackPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
   let petChoiceRequest = null;
   let petRoundRollRequest = null;
   let explorationClaimRequest = null;
@@ -3022,8 +3045,11 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
     const islandStyle = getComputedStyle(island);
     return {
       shipLeft: shipRect.left,
+      shipRight: shipRect.right,
+      shipAnimationTiming: getComputedStyle(ship).animationTimingFunction,
       islandWidth: islandRect.width,
       islandHeight: islandRect.height,
+      islandLeft: islandRect.left,
       islandOpacity: islandStyle.opacity,
       islandFilter: islandStyle.filter
     };
@@ -3073,6 +3099,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   expect(sailMetrics.islandFilter).toContain('blur');
   expect(Math.abs(encounterMetrics.islandWidth - sailMetrics.islandWidth)).toBeLessThanOrEqual(1);
   expect(Math.abs(encounterMetrics.islandHeight - sailMetrics.islandHeight)).toBeLessThanOrEqual(1);
+  expect(encounterMetrics.islandLeft - encounterMetrics.shipRight).toBeGreaterThanOrEqual(8);
+  expect(sailMetrics.shipAnimationTiming).toContain('cubic-bezier(0.33, 0.33, 0.55, 1)');
   expect(Math.abs(encounterMonsterMetrics.monsterCenterX - encounterMonsterMetrics.islandCenterX)).toBeLessThanOrEqual(2);
   expect(Math.abs(encounterMonsterMetrics.monsterCenterY - encounterMonsterMetrics.islandCenterY)).toBeLessThanOrEqual(2);
   expect(Math.abs(encounterMonsterMetrics.spriteCenterX - encounterMonsterMetrics.islandCenterX)).toBeLessThanOrEqual(2);
@@ -3082,7 +3110,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   expect(encounterMonsterMetrics.spriteWidth).toBeLessThanOrEqual(59);
   expect(encounterMonsterMetrics.spriteHeight).toBeLessThanOrEqual(55);
   expect(encounterMonsterMetrics.labelDisplay).toBe('none');
-  await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' }).locator('small')).toHaveText('オフライン・ペット同行4人');
+  await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' }).locator('small')).toHaveText('オフライン');
+  await expect(page.getByRole('button', { name: '救難信号（オンライン）' }).locator('small')).toHaveText('オンライン');
   await page.getByRole('button', { name: '傭兵召集（オフライン）' }).click();
   await expect(sequence).toBeHidden({ timeout: 5_000 });
 

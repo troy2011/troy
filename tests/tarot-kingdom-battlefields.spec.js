@@ -149,7 +149,9 @@ test('all exploration destinations resolve to floor-safe battlefield profiles', 
     errors: [],
     battlefieldCount: 18,
     destinationCount: 18,
-    groundStartPercent: 36
+    groundStartPercent: null,
+    minimumGroundStartPercent: 20,
+    maximumGroundStartPercent: 46
   }));
   expect(result.mappings).toHaveLength(18);
   expect(new Set(result.mappings.map((entry) => entry.actualId)).size).toBeGreaterThanOrEqual(5);
@@ -216,10 +218,11 @@ test('all 11 exploration stages load distinct dedicated battlefield images', asy
     '獄炎の火山島',
     '終月の古代海門'
   ]);
-  for (const entry of result) {
+  const expectedGroundStarts = [33, 46, 20, 46, 31, 36, 34, 27, 37, 27, 34];
+  for (const [index, entry] of result.entries()) {
     expect(entry.loaded).toBe(true);
     expect(entry.imagePath).toMatch(/stage-\d{2}-.+-v[12]\.webp$/);
-    expect(entry.groundStartPercent).toBe(36);
+    expect(entry.groundStartPercent).toBe(expectedGroundStarts[index]);
     expect(entry.width).toBeGreaterThan(900);
     expect(entry.height / entry.width).toBeGreaterThan(1.7);
   }
@@ -305,6 +308,46 @@ test('enemy depth layer stays between party seats 2 and 3', async ({ page }) => 
     expect(depth.matchChampionDepth).toBe(depth.players[2]);
   }
 });
+
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 900, height: 1000 }
+]) {
+  test(`${viewport.width}px keeps all 11 stage parties standing on their battlefield floor`, async ({ page }) => {
+    await openBattle(page, viewport);
+    const stageProfiles = [
+      ['stage-01-coral-shallows', 33],
+      ['stage-02-windswept-deck', 46],
+      ['stage-03-island-causeway', 20],
+      ['stage-04-moon-shadow-castle', 46],
+      ['stage-05-emerald-jungle', 31],
+      ['stage-06-haunted-marsh', 36],
+      ['stage-07-sea-fortress', 34],
+      ['stage-08-azure-grotto', 27],
+      ['stage-09-steel-fleet', 37],
+      ['stage-10-infernal-marsh', 27],
+      ['stage-11-eclipse-castle', 34]
+    ];
+    const battlefieldSelect = page.locator('#tarotKingdomDemoBattlefieldSelect');
+
+    for (const [battlefieldId, groundStart] of stageProfiles) {
+      await battlefieldSelect.selectOption(battlefieldId);
+      await page.waitForFunction((id) => (
+        document.getElementById('tarotKingdomBattleStage')?.dataset?.battlefieldId === id
+      ), battlefieldId);
+      const geometry = await getStageGeometry(page);
+      const floorStartY = geometry.arena.y + (geometry.arena.height * groundStart / 100);
+
+      expect(geometry.battlefieldId).toBe(battlefieldId);
+      expect(geometry.groundStart).toBe(groundStart);
+      expect(geometry.players).toHaveLength(4);
+      for (const player of geometry.players) {
+        expect(player.bottom).toBeGreaterThanOrEqual(floorStartY);
+        expect(player.bottom).toBeLessThanOrEqual(geometry.arena.bottom + 2);
+      }
+    }
+  });
+}
 
 for (const viewport of [
   { width: 390, height: 844 },

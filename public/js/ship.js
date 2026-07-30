@@ -1544,6 +1544,61 @@ function selectExplorationTarotMonster(report = {}, destinationId = '') {
     return pool[seed % pool.length] || PIXEL_MONSTERS_ROSTER[0] || null;
 }
 
+// Idle先頭フレームの不透明画素範囲。探索リストでは、攻撃・死亡モーション由来の
+// 透明余白ではなく実際のモンスター本体を基準に倍率と中央位置を揃える。
+const EXPLORATION_MONSTER_IDLE_ART_BOUNDS = Object.freeze({
+    'ismartal-vol1-monster-01': [1, 11, 39, 34],
+    'ismartal-vol1-monster-02': [11, 8, 31, 45],
+    'ismartal-vol1-monster-03': [30, 9, 49, 36],
+    'ismartal-vol1-monster-04': [10, 7, 49, 37],
+    'ismartal-vol1-monster-05': [22, 32, 33, 45],
+    'ismartal-vol1-monster-06': [30, 1, 68, 33],
+    'ismartal-vol1-monster-07': [33, 34, 52, 59],
+    'ismartal-vol1-monster-08': [15, 4, 47, 23],
+    'ismartal-vol1-monster-09': [0, 6, 32, 42],
+    'ismartal-vol1-monster-10': [17, 5, 43, 21],
+    'ismartal-vol1-monster-11': [21, 5, 67, 36],
+    'ismartal-vol1-monster-12': [10, 13, 39, 34],
+    'ismartal-vol1-monster-13': [36, 10, 64, 36],
+    'ismartal-vol1-monster-14': [25, 4, 51, 35],
+    'ismartal-vol1-monster-15': [29, 15, 71, 62],
+    'ismartal-vol1-monster-16': [9, 22, 49, 48],
+    'ismartal-vol1-monster-17': [12, 13, 37, 28],
+    'ismartal-vol1-monster-18': [27, 21, 56, 43],
+    'ismartal-vol1-monster-19': [16, 17, 36, 31],
+    'ismartal-vol1-monster-20': [1, 5, 63, 34],
+    'ismartal-vol2-monster-01': [26, 42, 62, 57],
+    'ismartal-vol2-monster-02': [36, 25, 64, 59],
+    'ismartal-vol2-monster-03': [7, 4, 59, 65],
+    'ismartal-vol2-monster-04': [21, 12, 47, 44],
+    'ismartal-vol2-monster-05': [23, 35, 57, 59],
+    'ismartal-vol2-monster-06': [0, 0, 62, 32],
+    'ismartal-vol2-monster-07': [11, 24, 157, 112],
+    'ismartal-vol2-monster-08': [24, 25, 43, 59],
+    'ismartal-vol2-monster-09': [3, 5, 32, 42],
+    'ismartal-vol2-monster-10': [19, 31, 65, 66],
+    'ismartal-vol2-monster-11': [5, 4, 32, 39],
+    'ismartal-vol2-monster-12': [52, 14, 83, 36],
+    'ismartal-vol2-monster-13': [32, 51, 60, 66],
+    'ismartal-vol2-monster-14': [20, 39, 65, 57],
+    'ismartal-vol2-monster-15': [48, 2, 241, 104],
+    'ismartal-vol2-monster-16': [53, 53, 114, 143],
+    'ismartal-vol2-monster-17': [38, 49, 78, 79],
+    'ismartal-vol2-monster-18': [31, 12, 57, 46],
+    'ismartal-vol2-monster-19': [15, 10, 59, 42],
+    'ismartal-vol2-monster-20': [7, 5, 38, 33],
+    'ismartal-vol3-monster-01': [21, 40, 58, 73],
+    'ismartal-vol3-monster-02': [3, 7, 32, 51],
+    'ismartal-vol3-monster-03': [5, 2, 42, 46],
+    'ismartal-vol3-monster-04': [8, 15, 27, 31],
+    'ismartal-vol3-monster-05': [9, 12, 49, 36],
+    'ismartal-vol3-monster-06': [24, 31, 44, 59],
+    'ismartal-vol3-monster-07': [16, 1, 42, 33],
+    'ismartal-vol3-monster-08': [12, 17, 38, 47],
+    'ismartal-vol3-monster-09': [34, 36, 62, 68],
+    'ismartal-vol3-monster-10': [14, 16, 50, 54]
+});
+
 function renderExplorationPixelMonster(
     monster,
     className = '',
@@ -1551,7 +1606,8 @@ function renderExplorationPixelMonster(
         maxWidth = 120,
         maxHeight = 100,
         compactMaxWidth = maxWidth,
-        compactMaxHeight = maxHeight
+        compactMaxHeight = maxHeight,
+        fitVisibleArt = false
     } = {}
 ) {
     const idle = monster?.animations?.idle;
@@ -1563,21 +1619,38 @@ function renderExplorationPixelMonster(
     const rows = Math.max(1, Math.ceil((Number(idle.frameCount) || 1) / columns));
     const displayWidth = frameWidth * pixelScale;
     const displayHeight = frameHeight * pixelScale;
-    const previewScale = Math.min(1, maxWidth / displayWidth, maxHeight / displayHeight);
-    const compactPreviewScale = Math.min(
-        1,
-        compactMaxWidth / displayWidth,
-        compactMaxHeight / displayHeight
-    );
+    const artBounds = fitVisibleArt
+        ? EXPLORATION_MONSTER_IDLE_ART_BOUNDS[monster.id]
+        : null;
+    const artLeft = Math.max(0, Math.min(frameWidth, Number(artBounds?.[0]) || 0));
+    const artTop = Math.max(0, Math.min(frameHeight, Number(artBounds?.[1]) || 0));
+    const artRight = Math.max(artLeft + 1, Math.min(frameWidth, Number(artBounds?.[2]) || frameWidth));
+    const artBottom = Math.max(artTop + 1, Math.min(frameHeight, Number(artBounds?.[3]) || frameHeight));
+    const artDisplayWidth = (artRight - artLeft) * pixelScale;
+    const artDisplayHeight = (artBottom - artTop) * pixelScale;
     const idleAnchor = monster.idleAnchor && typeof monster.idleAnchor === 'object'
         ? monster.idleAnchor
         : {};
-    const anchorX = Math.max(0, Math.min(frameWidth, Number(idleAnchor.x) || (frameWidth / 2)));
-    const anchorY = Math.max(0, Math.min(frameHeight, Number(idleAnchor.y) || frameHeight));
     const anchorMode = idleAnchor.mode === 'air' ? 'air' : 'ground';
+    const previewBaseline = fitVisibleArt ? (anchorMode === 'air' ? 8 : 4) : (anchorMode === 'air' ? 18 : 5);
+    const compactPreviewBaseline = fitVisibleArt ? (anchorMode === 'air' ? 7 : 4) : (anchorMode === 'air' ? 12 : 4);
+    const previewArtMaxHeight = Math.max(1, maxHeight - (fitVisibleArt ? previewBaseline : 0));
+    const compactArtMaxHeight = Math.max(1, compactMaxHeight - (fitVisibleArt ? compactPreviewBaseline : 0));
+    const previewScale = Math.min(1, maxWidth / artDisplayWidth, previewArtMaxHeight / artDisplayHeight);
+    const compactPreviewScale = Math.min(
+        1,
+        compactMaxWidth / artDisplayWidth,
+        compactArtMaxHeight / artDisplayHeight
+    );
+    const anchorX = fitVisibleArt
+        ? (artLeft + artRight) / 2
+        : Math.max(0, Math.min(frameWidth, Number(idleAnchor.x) || (frameWidth / 2)));
+    const anchorY = fitVisibleArt
+        ? artBottom
+        : Math.max(0, Math.min(frameHeight, Number(idleAnchor.y) || frameHeight));
     const getAnchorOffsetX = (scale) => ((frameWidth / 2) - anchorX) * pixelScale * scale;
-    const getAnchorBottom = (scale, airBottom, groundBottom) => (
-        (anchorMode === 'air' ? airBottom : groundBottom)
+    const getAnchorBottom = (scale, baseline) => (
+        baseline
         - ((frameHeight - anchorY) * pixelScale * scale)
     );
     const style = [
@@ -1590,8 +1663,8 @@ function renderExplorationPixelMonster(
         `--exploration-monster-compact-scale:${compactPreviewScale}`,
         `--exploration-monster-anchor-offset-x:${getAnchorOffsetX(previewScale)}px`,
         `--exploration-monster-compact-anchor-offset-x:${getAnchorOffsetX(compactPreviewScale)}px`,
-        `--exploration-monster-result-bottom:${getAnchorBottom(previewScale, 18, 5)}px`,
-        `--exploration-monster-compact-result-bottom:${getAnchorBottom(compactPreviewScale, 12, 4)}px`,
+        `--exploration-monster-result-bottom:${getAnchorBottom(previewScale, previewBaseline)}px`,
+        `--exploration-monster-compact-result-bottom:${getAnchorBottom(compactPreviewScale, compactPreviewBaseline)}px`,
         'transform:scale(var(--exploration-monster-scale))'
     ].join(';');
     return `<span class="exploration-pixel-monster ${escapeHtml(className)}${monster.isBoss === true ? ' is-boss' : ''}" data-monster-anchor="${anchorMode}" style="${style}" aria-hidden="true"></span>`;
@@ -1614,12 +1687,13 @@ function renderExplorationStageMonsters(stage = {}) {
                         data-monster-id="${escapeHtml(monsterId)}"
                         aria-label="${escapeHtml(defeated ? `${label}・討伐済み` : label)}">
                         <div class="ship-exploration-stage-monster-visual">
-                            ${renderExplorationPixelMonster(monster, 'ship-exploration-stage-monster-sprite', {
-                                maxWidth: 50,
-                                maxHeight: 46,
-                                compactMaxWidth: 42,
-                                compactMaxHeight: 40
-                            })}
+                             ${renderExplorationPixelMonster(monster, 'ship-exploration-stage-monster-sprite', {
+                                 maxWidth: 50,
+                                 maxHeight: 46,
+                                 compactMaxWidth: 42,
+                                 compactMaxHeight: 40,
+                                 fitVisibleArt: true
+                             })}
                             ${defeated ? '<span class="ship-exploration-stage-monster-defeat" aria-label="討伐済み">討</span>' : ''}
                         </div>
                         <span class="ship-exploration-stage-monster-name">${escapeHtml(label)}</span>
@@ -2320,9 +2394,6 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
     const encounterLabel = Number(report?.version) >= 2
         ? `STAGE ${Math.max(1, Number(report?.stageNo) || 1)}`
         : (kingdomMonster.isBoss === true ? 'BOSS ENCOUNTER' : 'MONSTER ENCOUNTER');
-    const offlinePartyLabel = currentTarotKingdomPet
-        ? 'オフライン・ペット同行4人'
-        : 'オフライン・3人編成';
     const existing = document.querySelector('.exploration-sequence-overlay');
     existing?.remove();
 
@@ -2357,11 +2428,11 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
                 <div class="exploration-battle-mode-actions">
                     <button type="button" class="is-offline" data-exploration-battle-mode="offline" aria-label="傭兵召集（オフライン）">
                         <span>傭兵召集</span>
-                        <small>${offlinePartyLabel}</small>
+                        <small>オフライン</small>
                     </button>
                     <button type="button" class="is-online" data-exploration-battle-mode="online" aria-label="救難信号（オンライン）">
                         <span>救難信号</span>
-                        <small>オンライン・救援待ち</small>
+                        <small>オンライン</small>
                     </button>
                     <button type="button" class="is-cancel" data-exploration-battle-mode="retreat">撤退</button>
                 </div>

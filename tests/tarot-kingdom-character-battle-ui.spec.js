@@ -305,15 +305,21 @@ test('field backgrounds show persistent card effects behind unobscured cards', a
   await openOfflineBattle(page, { width: 390, height: 844 });
   const trick = page.locator('#tarotKingdomTrick');
   const fieldCard = trick.locator(':scope > .tarot-card').first();
+  const fieldSceneLayers = trick.locator(':scope > .tarot-kingdom-field-scene-layer');
   const card = (id, suit, number) => ({ id, kind: 'minor', suit, number });
   const expectScene = async (fileName) => {
-    await expect(trick).toHaveCSS('background-image', new RegExp(`${fileName}\\.webp`));
+    await expect(trick.locator(':scope > .tarot-kingdom-field-scene-layer.is-active'))
+      .toHaveCSS('background-image', new RegExp(`${fileName}\\.webp`));
   };
+  await expect(fieldSceneLayers).toHaveCount(2);
+  await expect(fieldSceneLayers.first()).toHaveCSS('transition-duration', '0.42s');
 
   await page.evaluate(() => window.TarotKingdomDebug.battleScenario({
     tableCard: { id: 'scene-normal', kind: 'minor', suit: 'Wand', number: 1 }
   }));
   await expectScene('field-calm-sea');
+  await expect(trick.locator(':scope > .tarot-kingdom-field-scene-layer.is-active'))
+    .toHaveCSS('animation-name', 'tarotKingdomSceneGentleFlow');
   await expect(fieldCard).toHaveCSS('filter', 'none');
   await expect(fieldCard).toHaveCSS('opacity', '1');
 
@@ -329,6 +335,8 @@ test('field backgrounds show persistent card effects behind unobscured cards', a
       tableCard: { id: `scene-lock-${suit}`, kind: 'minor', suit, number: 14 }
     }), lockSuit);
     await expectScene(fileName);
+    await expect(trick.locator(':scope > .tarot-kingdom-field-scene-layer.is-active'))
+      .toHaveCSS('animation-name', 'tarotKingdomSceneGentleFlow');
   }
 
   await page.evaluate(() => window.TarotKingdomDebug.battleScenario({
@@ -336,17 +344,49 @@ test('field backgrounds show persistent card effects behind unobscured cards', a
     tableCard: { id: 'scene-reverse', kind: 'minor', suit: 'Cup', number: 11 }
   }));
   await expectScene('field-reverse-whirlpool');
+  const reverseSceneLayer = trick.locator(':scope > .tarot-kingdom-field-scene-layer.is-active');
+  await expect(reverseSceneLayer).toHaveCSS('animation-name', 'tarotKingdomSceneBackFlow');
+  await expect(reverseSceneLayer).toHaveCSS('animation-duration', '1.2s');
+  const reverseMotion = await trick.evaluate((element) => {
+    const sceneLayer = element.querySelector(':scope > .tarot-kingdom-field-scene-layer.is-active');
+    const animation = sceneLayer?.getAnimations().find((entry) => entry.animationName === 'tarotKingdomSceneBackFlow');
+    const cardElement = element.querySelector(':scope > .tarot-card');
+    if (!animation || !cardElement || !sceneLayer) return null;
+    animation.pause();
+    animation.currentTime = 0;
+    const startPosition = getComputedStyle(sceneLayer).backgroundPosition;
+    const startCard = cardElement.getBoundingClientRect();
+    animation.currentTime = 600;
+    const movedPosition = getComputedStyle(sceneLayer).backgroundPosition;
+    const movedCard = cardElement.getBoundingClientRect();
+    return {
+      startPosition,
+      movedPosition,
+      cardDeltaX: Math.abs(movedCard.x - startCard.x),
+      cardDeltaY: Math.abs(movedCard.y - startCard.y)
+    };
+  });
+  expect(reverseMotion).not.toBeNull();
+  expect(reverseMotion.movedPosition).not.toBe(reverseMotion.startPosition);
+  expect(reverseMotion.cardDeltaX).toBeLessThanOrEqual(0.1);
+  expect(reverseMotion.cardDeltaY).toBeLessThanOrEqual(0.1);
 
   await page.evaluate(() => window.TarotKingdomDebug.battleScenario({
     tableCard: { id: 'scene-cut', kind: 'minor', suit: 'Sword', number: 8 }
   }));
   await expectScene('field-cut-crack');
+  const cutSceneLayer = trick.locator(':scope > .tarot-kingdom-field-scene-layer.is-active');
+  await expect(cutSceneLayer).toHaveCSS('transition-duration', '0s');
+  await expect(cutSceneLayer).toHaveCSS('opacity', '1');
+  await expect(cutSceneLayer).toHaveCSS('animation-name', 'none');
 
   await page.evaluate(() => window.TarotKingdomDebug.battleScenario({
     enemyTimeStop: true,
     tableCard: { id: 'scene-world', kind: 'major', suit: 'None', number: 21 }
   }));
   await expectScene('field-world-clock');
+  await expect(trick.locator(':scope > .tarot-kingdom-field-scene-layer.is-active'))
+    .toHaveCSS('animation-name', 'none');
 
   await page.evaluate(() => window.TarotKingdomDebug.battleScenario({
     enemyTimeStop: true,
@@ -391,6 +431,8 @@ test('field backgrounds show persistent card effects behind unobscured cards', a
   });
   expect(worldRoleResult.ok).toBe(true);
   await expectScene('field-role-world');
+  await expect(trick.locator(':scope > .tarot-kingdom-field-scene-layer.is-active'))
+    .toHaveCSS('animation-name', 'tarotKingdomSceneGentleFlow');
 
   await page.evaluate(({ playCard, reserveCard, tableCard }) => {
     window.TarotKingdomDebug.battleScenario({
@@ -404,13 +446,69 @@ test('field backgrounds show persistent card effects behind unobscured cards', a
     reserveCard: card('scene-skip-reserve', 'Cup', 9),
     tableCard: card('scene-skip-table', 'Wand', 4)
   });
-  await expectScene('field-skip-wave');
+  await expect(trick).toHaveClass(/is-scene-skip/, { timeout: 5_000 });
+  const skipWaveStyle = await trick.evaluate((element) => {
+    const style = getComputedStyle(element, '::after');
+    return {
+      animationName: style.animationName,
+      animationDuration: style.animationDuration,
+      backgroundImage: style.backgroundImage
+    };
+  });
+  expect(skipWaveStyle.animationName).toBe('tarotKingdomSceneSkipWave');
+  expect(skipWaveStyle.animationDuration).toBe('0.9s');
+  expect(skipWaveStyle.backgroundImage).toContain('field-skip-wave.webp');
+  const skipWaveMotion = await trick.evaluate((element) => {
+    const animation = element.getAnimations({ subtree: true })
+      .find((entry) => entry.animationName === 'tarotKingdomSceneSkipWave');
+    const cardElement = element.querySelector(':scope > .tarot-card');
+    if (!animation || !cardElement) return null;
+    animation.pause();
+    animation.currentTime = 0;
+    const startStyle = getComputedStyle(element, '::after');
+    const startPosition = startStyle.backgroundPosition;
+    const startOpacity = Number(startStyle.opacity);
+    const startCard = cardElement.getBoundingClientRect();
+    animation.currentTime = 470;
+    const crestStyle = getComputedStyle(element, '::after');
+    const crestPosition = crestStyle.backgroundPosition;
+    const crestOpacity = Number(crestStyle.opacity);
+    const crestCard = cardElement.getBoundingClientRect();
+    animation.currentTime = 900;
+    const returnedStyle = getComputedStyle(element, '::after');
+    const returnedPosition = returnedStyle.backgroundPosition;
+    const returnedOpacity = Number(returnedStyle.opacity);
+    const returnedCard = cardElement.getBoundingClientRect();
+    return {
+      startPosition,
+      startOpacity,
+      crestPosition,
+      crestOpacity,
+      returnedPosition,
+      returnedOpacity,
+      crestCardDeltaX: Math.abs(crestCard.x - startCard.x),
+      crestCardDeltaY: Math.abs(crestCard.y - startCard.y),
+      returnedCardDeltaX: Math.abs(returnedCard.x - startCard.x),
+      returnedCardDeltaY: Math.abs(returnedCard.y - startCard.y)
+    };
+  });
+  expect(skipWaveMotion).not.toBeNull();
+  expect(skipWaveMotion.crestPosition).not.toBe(skipWaveMotion.startPosition);
+  expect(skipWaveMotion.returnedPosition).toBe(skipWaveMotion.startPosition);
+  expect(skipWaveMotion.startOpacity).toBeLessThanOrEqual(0.01);
+  expect(skipWaveMotion.crestOpacity).toBeGreaterThanOrEqual(0.95);
+  expect(skipWaveMotion.returnedOpacity).toBeLessThanOrEqual(0.01);
+  expect(skipWaveMotion.crestCardDeltaX).toBeLessThanOrEqual(0.1);
+  expect(skipWaveMotion.crestCardDeltaY).toBeLessThanOrEqual(0.1);
+  expect(skipWaveMotion.returnedCardDeltaX).toBeLessThanOrEqual(0.1);
+  expect(skipWaveMotion.returnedCardDeltaY).toBeLessThanOrEqual(0.1);
   await expect(fieldCard).toHaveCSS('filter', 'none');
 });
 
 test('five-card roles always use rank-specific magic circles and ignore an included 8 cut', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   const trick = page.locator('#tarotKingdomTrick');
+  const activeScene = () => trick.locator(':scope > .tarot-kingdom-field-scene-layer.is-active');
   const minor = (id, suit, number) => ({ id, kind: 'minor', suit, number });
   const major = (number) => ({ id: `role-major-${number}`, kind: 'major', suit: 'None', number });
   const scenarios = [
@@ -474,11 +572,11 @@ test('five-card roles always use rank-specific magic circles and ignore an inclu
     });
     expect(result.ok, scenario.key).toBe(true);
     await expect(trick).toHaveClass(/is-scene-role/);
-    await expect(trick).toHaveCSS('background-image', new RegExp(`${scenario.file}\\.webp`));
+    await expect(activeScene()).toHaveCSS('background-image', new RegExp(`${scenario.file}\\.webp`));
     if (scenario.suitClass) await expect(trick).toHaveClass(new RegExp(scenario.suitClass));
     if (scenario.cards.some((entry) => Number(entry.number) === 8)) {
       await expect(trick).not.toHaveClass(/is-scene-cut/);
-      await expect(trick).not.toHaveCSS('background-image', /field-cut-crack\.webp/);
+      await expect(activeScene()).not.toHaveCSS('background-image', /field-cut-crack\.webp/);
     }
   }
 });
@@ -487,26 +585,27 @@ test('preview can switch every field-effect background from the demo picker', as
   await openOfflineBattle(page, { width: 390, height: 844 });
   const picker = page.locator('#tarotKingdomDemoFieldSceneSelect');
   const trick = page.locator('#tarotKingdomTrick');
+  const activeScene = () => trick.locator(':scope > .tarot-kingdom-field-scene-layer.is-active');
 
   await expect(picker).toBeVisible();
   await expect(picker.locator('option')).toHaveCount(23);
 
   await picker.selectOption('role-straight');
   await expect(trick).toHaveClass(/is-scene-role-straight/);
-  await expect(trick).toHaveCSS('background-image', /field-role-straight\.webp/);
+  await expect(activeScene()).toHaveCSS('background-image', /field-role-straight\.webp/);
 
   await picker.selectOption('role-flush-sword');
   await expect(trick).toHaveClass(/is-scene-role-flush/);
   await expect(trick).toHaveClass(/is-scene-role-suit-sword/);
-  await expect(trick).toHaveCSS('background-image', /field-role-flush\.webp/);
+  await expect(activeScene()).toHaveCSS('background-image', /field-role-flush\.webp/);
 
   await picker.selectOption('cut');
   await expect(trick).toHaveClass(/is-scene-cut/);
-  await expect(trick).toHaveCSS('background-image', /field-cut-crack\.webp/);
+  await expect(activeScene()).toHaveCSS('background-image', /field-cut-crack\.webp/);
 
   await picker.selectOption('normal');
   await expect(trick).not.toHaveClass(/is-scene-/);
-  await expect(trick).toHaveCSS('background-image', /field-calm-sea\.webp/);
+  await expect(activeScene()).toHaveCSS('background-image', /field-calm-sea\.webp/);
 
   await picker.selectOption('auto');
   await page.evaluate(() => window.TarotKingdomDebug.battleScenario({
@@ -1614,8 +1713,29 @@ test('playing a card travels from the hand and settles into the field', async ({
   });
   await page.locator('#tarotKingdomHand > .tarot-card').first().click();
   await page.locator('#tarotKingdomPlayButton').click();
-  await expect(page.locator('.tarot-kingdom-card-deal-ghost')).toHaveCount(1);
+  const dealGhost = page.locator('.tarot-kingdom-card-deal-ghost');
+  await expect(dealGhost).toHaveCount(1);
   await expect(page.locator('.tarot-kingdom-ram-card')).toHaveCount(0);
+  const flightTarget = await dealGhost.evaluate((ghost) => {
+    const animation = ghost.getAnimations()[0];
+    const fieldSlot = document.querySelector('#tarotKingdomTrick > .tarot-kingdom-field-slot');
+    if (!animation || !fieldSlot) return null;
+    animation.pause();
+    animation.currentTime = Math.max(0, Number(animation.effect?.getComputedTiming?.().duration) - 2);
+    const ghostRect = ghost.getBoundingClientRect();
+    const slotRect = fieldSlot.getBoundingClientRect();
+    return {
+      ghostWidth: ghostRect.width,
+      ghostHeight: ghostRect.height,
+      slotWidth: slotRect.width,
+      slotHeight: slotRect.height,
+      fieldWidth: document.getElementById('tarotKingdomTrick')?.getBoundingClientRect().width || 0
+    };
+  });
+  expect(flightTarget).not.toBeNull();
+  expect(Math.abs(flightTarget.ghostWidth - flightTarget.slotWidth)).toBeLessThan(2);
+  expect(Math.abs(flightTarget.ghostHeight - flightTarget.slotHeight)).toBeLessThan(2);
+  expect(flightTarget.ghostWidth).toBeLessThan(flightTarget.fieldWidth / 3);
 
   await page.waitForTimeout(370);
   const incoming = page.locator('#tarotKingdomTrick > .tarot-card.is-deal-settling');
@@ -2381,20 +2501,28 @@ test('right command switches between pass and attack from card selection', async
   expect(passResult).toEqual({ phase: 'resolvingEnemy', transitionKind: 'enemyResponse' });
 });
 
-test('defense command pauses the defending avatar idle motion', async ({ page }) => {
+test('defense pauses idle motion and shield users raise the shield hand into a guard pose', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   const result = await page.evaluate(() => {
     window.TarotKingdomDebug.battleScenario({ turnIndex: 0, leaderIndex: 1 });
     const button = document.getElementById('tarotKingdomFoldButton');
-    button?.click();
     const row = document.querySelector(
       '#tarotKingdomBattleParty > .tarot-kingdom-battle-player[data-player-index="0"]'
     );
     const avatar = row?.querySelector('.tarot-kingdom-battle-player-avatar');
+    const hand = avatar?.querySelector('.avatar-layer[id$="-layer-hand-left"]');
+    const shield = avatar?.querySelector('.avatar-layer[id$="-layer-shield-left"]');
+    const baseHandTransform = hand ? getComputedStyle(hand).transform : '';
+    const baseShieldTransform = shield ? getComputedStyle(shield).transform : '';
+    button?.click();
     const active = {
       buttonText: button?.textContent || '',
       rowDefending: row?.classList.contains('is-defending') === true,
-      avatarPaused: avatar?.dataset.kingdomDefensePaused === 'true'
+      avatarPaused: avatar?.dataset.kingdomDefensePaused === 'true',
+      shieldPose: avatar?.classList.contains('is-kingdom-shield-defending') === true,
+      leftHandPose: avatar?.classList.contains('is-kingdom-shield-hand-left') === true,
+      handMovedForward: hand ? getComputedStyle(hand).transform !== baseHandTransform : false,
+      shieldMovedForward: shield ? getComputedStyle(shield).transform !== baseShieldTransform : false
     };
     button?.click();
     return {
@@ -2402,7 +2530,10 @@ test('defense command pauses the defending avatar idle motion', async ({ page })
       released: {
         buttonText: button?.textContent || '',
         rowDefending: row?.classList.contains('is-defending') === true,
-        avatarPaused: avatar?.dataset.kingdomDefensePaused === 'true'
+        avatarPaused: avatar?.dataset.kingdomDefensePaused === 'true',
+        shieldPose: avatar?.classList.contains('is-kingdom-shield-defending') === true,
+        handRestored: hand ? getComputedStyle(hand).transform === baseHandTransform : false,
+        shieldRestored: shield ? getComputedStyle(shield).transform === baseShieldTransform : false
       }
     };
   });
@@ -2411,17 +2542,24 @@ test('defense command pauses the defending avatar idle motion', async ({ page })
     active: {
       buttonText: '防御中',
       rowDefending: true,
-      avatarPaused: true
+      avatarPaused: true,
+      shieldPose: true,
+      leftHandPose: true,
+      handMovedForward: true,
+      shieldMovedForward: true
     },
     released: {
       buttonText: '防御',
       rowDefending: false,
-      avatarPaused: false
+      avatarPaused: false,
+      shieldPose: false,
+      handRestored: true,
+      shieldRestored: true
     }
   });
 });
 
-test('shieldless defense keeps the avatar idle motion running', async ({ page }) => {
+test('shieldless defense pauses idle motion without applying the shield guard pose', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   const result = await page.evaluate(() => {
     window.TarotKingdomDebug.battleScenario({
@@ -2447,14 +2585,66 @@ test('shieldless defense keeps the avatar idle motion running', async ({ page })
     return {
       buttonText: button?.textContent || '',
       rowDefending: row?.classList.contains('is-defending') === true,
-      avatarPaused: avatar?.dataset.kingdomDefensePaused === 'true'
+      avatarPaused: avatar?.dataset.kingdomDefensePaused === 'true',
+      shieldPose: avatar?.classList.contains('is-kingdom-shield-defending') === true
     };
   });
 
   expect(result).toEqual({
     buttonText: '防御中',
     rowDefending: true,
-    avatarPaused: false
+    avatarPaused: true,
+    shieldPose: false
+  });
+});
+
+test('a right-hand shield moves the matching hand and equipment layer into guard pose', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const result = await page.evaluate(() => {
+    window.TarotKingdomDebug.battleScenario({
+      turnIndex: 0,
+      leaderIndex: 1,
+      charactersBySeat: [{
+        equipment: { RightHand: 'shield_right_test' },
+        itemSource: {
+          shield_right_test: {
+            itemId: 'shield_right_test',
+            customData: {
+              Category: 'Shield',
+              WeaponType: 'shield',
+              Defense: 18,
+              sprite_path: './Sprites/weapons/melee weapons/shield.png',
+              sprite_index: '0'
+            }
+          }
+        },
+        combat: { weaponType: 'shield', weaponTypes: ['shield'] }
+      }]
+    });
+    const avatar = document.querySelector(
+      '#tarotKingdomBattleParty > .tarot-kingdom-battle-player[data-player-index="0"] '
+      + '.tarot-kingdom-battle-player-avatar'
+    );
+    const hand = avatar?.querySelector('.avatar-layer[id$="-layer-hand-right"]');
+    const shield = avatar?.querySelector('.avatar-layer[id$="-layer-weapon-right"]');
+    const baseHandTransform = hand ? getComputedStyle(hand).transform : '';
+    const baseShieldTransform = shield ? getComputedStyle(shield).transform : '';
+    document.getElementById('tarotKingdomFoldButton')?.click();
+    return {
+      avatarPaused: avatar?.dataset.kingdomDefensePaused === 'true',
+      rightHandPose: avatar?.classList.contains('is-kingdom-shield-hand-right') === true,
+      leftHandPose: avatar?.classList.contains('is-kingdom-shield-hand-left') === true,
+      handMovedForward: hand ? getComputedStyle(hand).transform !== baseHandTransform : false,
+      shieldMovedForward: shield ? getComputedStyle(shield).transform !== baseShieldTransform : false
+    };
+  });
+
+  expect(result).toEqual({
+    avatarPaused: true,
+    rightHandPose: true,
+    leftHandPose: false,
+    handMovedForward: true,
+    shieldMovedForward: true
   });
 });
 
@@ -2573,8 +2763,10 @@ test('touch pointer drag reorders the hand without turning the gesture into a ta
   const source = handCards.first();
   const sourceId = await source.getAttribute('data-card-id');
   const sourceBox = await source.boundingBox();
+  const secondBoxBefore = await handCards.nth(1).boundingBox();
   const targetBox = await handCards.last().boundingBox();
   expect(sourceBox).not.toBeNull();
+  expect(secondBoxBefore).not.toBeNull();
   expect(targetBox).not.toBeNull();
   const pointer = {
     pointerId: 17,
@@ -2592,6 +2784,17 @@ test('touch pointer drag reorders the hand without turning the gesture into a ta
     clientX: targetBox.x + targetBox.width - 2,
     clientY: targetBox.y + (targetBox.height / 2)
   });
+  const gap = page.locator('#tarotKingdomHand > .tarot-kingdom-hand-drop-gap');
+  await expect(gap).toHaveCount(1);
+  const gapBox = await gap.boundingBox();
+  expect(gapBox).not.toBeNull();
+  expect(Math.abs(gapBox.width - sourceBox.width)).toBeLessThanOrEqual(1);
+  expect(Math.abs(gapBox.height - sourceBox.height)).toBeLessThanOrEqual(1);
+  await expect.poll(async () => {
+    const box = await handCards.nth(1).boundingBox();
+    return box?.x ?? Number.POSITIVE_INFINITY;
+  }).toBeLessThan(secondBoxBefore.x - 10);
+  await expect(source).toHaveClass(/is-dragging/);
   await source.dispatchEvent('pointerup', {
     ...pointer,
     clientX: targetBox.x + targetBox.width - 2,
@@ -2600,6 +2803,7 @@ test('touch pointer drag reorders the hand without turning the gesture into a ta
 
   const order = await handCards.evaluateAll((cards) => cards.map((card) => card.dataset.cardId));
   expect(order.at(-1)).toBe(sourceId);
+  await expect(gap).toHaveCount(0);
   await expect(page.locator('#tarotKingdomHand > .tarot-card.is-selected')).toHaveCount(0);
 });
 
@@ -2965,7 +3169,7 @@ test('winner repeatedly jumps in place and the overall champion owns the final f
   });
 });
 
-test('a locally skipped player gets a blue-white edge cue and direct navigation message', async ({ page }) => {
+test('a locally skipped player gets two light flashes and a direct navigation message', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
 
   const notice = await page.evaluate(() => {
@@ -2986,7 +3190,31 @@ test('a locally skipped player gets a blue-white edge cue and direct navigation 
 
   expect(notice).toMatchObject({ actorIndex: 3, targetIndexes: [0] });
   await expect(page.locator('#tarotKingdomSelectedEffect')).toHaveText('あなたは　スキップされた！');
-  const alert = page.locator('#tarotKingdomLocalSkipAlert');
+  const flash = page.locator('#tarotKingdomLocalSkipFlash');
+  await expect(flash).toHaveClass(/is-show/);
+  const motion = await flash.evaluate((element) => ({
+    flash: getComputedStyle(element).animationName,
+    duration: getComputedStyle(element).animationDuration,
+    pointerEvents: getComputedStyle(element).pointerEvents
+  }));
+  expect(motion).toEqual({
+    flash: 'tarotKingdomLocalSkipDoubleFlash',
+    duration: '0.76s',
+    pointerEvents: 'none'
+  });
+  await expect(page.locator('#tarotKingdomLocalTurnAlert')).not.toHaveClass(/is-show/);
+});
+
+test('the former skip shutters now announce the start of the local turn', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+
+  await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    debug.battleScenario({ turnIndex: 1 });
+    debug.battleScenario({ turnIndex: 0 });
+  });
+
+  const alert = page.locator('#tarotKingdomLocalTurnAlert');
   await expect(alert).toHaveClass(/is-show/);
   const motion = await alert.evaluate((element) => ({
     edge: getComputedStyle(element).animationName,
@@ -2995,9 +3223,9 @@ test('a locally skipped player gets a blue-white edge cue and direct navigation 
     pointerEvents: getComputedStyle(element).pointerEvents
   }));
   expect(motion).toEqual({
-    edge: 'tarotKingdomLocalSkipEdge',
-    left: 'tarotKingdomLocalSkipCloseLeft',
-    right: 'tarotKingdomLocalSkipCloseRight',
+    edge: 'tarotKingdomLocalTurnEdge',
+    left: 'tarotKingdomLocalTurnCloseLeft',
+    right: 'tarotKingdomLocalTurnCloseRight',
     pointerEvents: 'none'
   });
 });

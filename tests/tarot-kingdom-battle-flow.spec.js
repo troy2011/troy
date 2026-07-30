@@ -176,10 +176,10 @@ test.describe('Tarot Kingdom character battle flow', () => {
     });
 
     expect(profiles).toEqual({
-      valid: { hasShield: true, bonus: 24, source: 'shield' },
-      missing: { hasShield: true, bonus: 8, source: 'shield' },
-      invalid: { hasShield: true, bonus: 8, source: 'shield' },
-      shieldless: { hasShield: false, bonus: 8, source: 'minimum' }
+      valid: { hasShield: true, shieldHand: 'left', bonus: 24, source: 'shield' },
+      missing: { hasShield: true, shieldHand: 'left', bonus: 8, source: 'shield' },
+      invalid: { hasShield: true, shieldHand: 'left', bonus: 8, source: 'shield' },
+      shieldless: { hasShield: false, shieldHand: '', bonus: 8, source: 'minimum' }
     });
   });
 

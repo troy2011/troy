@@ -342,7 +342,8 @@ test.describe('Tarot Kingdom summon integration', () => {
     await page.setViewportSize({ width: 390, height: 900 });
     const cases = [
       ['ターン 1', 'TURN'],
-      ['パス', 'DEFEND'],
+      ['パス', 'PASS'],
+      ['防御', 'DEFEND'],
       ['ドロー', 'DRAW'],
       ['5スキップ', 'SKIP'],
       ['8カット', 'CUT'],
@@ -514,7 +515,7 @@ test.describe('Tarot Kingdom summon integration', () => {
         debug.battleScenario({ withTrick: false, handsBySeat: [hand] });
         debug.battlePlayCards(0, hand.slice(0, 5).map((card) => card.id));
       }, cards);
-      await page.waitForTimeout(1500);
+      await page.waitForTimeout(2600);
       const layout = await page.evaluate(() => {
         const stage = document.querySelector('#tarotKingdomBattleStage');
         const cutin = stage?.querySelector(':scope > .tarot-kingdom-skill-cutin.is-summon');

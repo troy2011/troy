@@ -443,6 +443,10 @@ let npcTimer = null;
 let trickRenderKey = '';
 let trickRenderIdentityKey = '';
 let trickRenderToken = 0;
+let kingdomFieldSceneSignature = '';
+let kingdomFieldSceneLayerIndex = 0;
+let kingdomFieldSceneFrame = 0;
+let kingdomFieldSceneCleanupTimer = null;
 let trickSwapTimer = null;
 let pendingKingdomCardDealFx = null;
 let kingdomOpeningFieldCardFxKey = '';
@@ -484,7 +488,8 @@ let kingdomLocalPriorityMessage = '';
 let kingdomLocalPriorityKind = '';
 let kingdomLocalPriorityTimer = null;
 let kingdomHandledLocalSkipNoticeToken = '';
-let kingdomLocalSkipAlertTimer = null;
+let kingdomLocalTurnAlertTimer = null;
+let kingdomLocalSkipFlashTimer = null;
 let kingdomLocalGraveOpen = false;
 let localHandSortDrawLock = false;
 let kingdomLocalAutoFold = false;
@@ -705,6 +710,93 @@ function preloadKingdomFieldScenes() {
   loadNext();
 }
 
+function clearKingdomFieldSceneTransition({ reset = false } = {}) {
+  if (kingdomFieldSceneFrame) {
+    cancelAnimationFrame(kingdomFieldSceneFrame);
+    kingdomFieldSceneFrame = 0;
+  }
+  if (kingdomFieldSceneCleanupTimer) {
+    clearTimeout(kingdomFieldSceneCleanupTimer);
+    kingdomFieldSceneCleanupTimer = null;
+  }
+  if (!reset) return;
+  kingdomFieldSceneSignature = '';
+  kingdomFieldSceneLayerIndex = 0;
+}
+
+function ensureKingdomFieldSceneLayers() {
+  if (!ui.trick) return [];
+  let layers = Array.from(ui.trick.querySelectorAll(':scope > .tarot-kingdom-field-scene-layer'));
+  while (layers.length < 2) {
+    const layer = document.createElement('span');
+    layer.className = 'tarot-kingdom-field-scene-layer';
+    layer.setAttribute('aria-hidden', 'true');
+    ui.trick.insertBefore(layer, ui.trick.firstChild);
+    layers = Array.from(ui.trick.querySelectorAll(':scope > .tarot-kingdom-field-scene-layer'));
+  }
+  return layers.slice(0, 2);
+}
+
+function syncKingdomFieldSceneFade() {
+  if (!ui.trick || typeof getComputedStyle !== 'function') return;
+  const layers = ensureKingdomFieldSceneLayers();
+  if (layers.length < 2) return;
+  const style = getComputedStyle(ui.trick);
+  const roleSuitTint = style.getPropertyValue('--kingdom-role-suit-tint').trim() || 'transparent';
+  const tint = style.getPropertyValue('--kingdom-field-tint').trim()
+    .replaceAll('var(--kingdom-role-suit-tint)', roleSuitTint);
+  const shade = style.getPropertyValue('--kingdom-field-shade').trim();
+  const scene = style.getPropertyValue('--kingdom-field-scene').trim();
+  const position = style.getPropertyValue('--kingdom-field-position').trim() || 'center, center, center';
+  const size = style.getPropertyValue('--kingdom-field-size').trim() || '100% 100%, 100% 100%, cover';
+  const backgroundImage = [tint, shade, scene].filter(Boolean).join(', ');
+  const signature = `${backgroundImage}|${position}|${size}`;
+  const currentLayer = layers[kingdomFieldSceneLayerIndex] || layers[0];
+  if (!kingdomFieldSceneSignature || !currentLayer.style.backgroundImage) {
+    clearKingdomFieldSceneTransition();
+    layers.forEach((layer) => layer.classList.remove('is-active'));
+    currentLayer.style.backgroundImage = backgroundImage;
+    currentLayer.style.backgroundPosition = position;
+    currentLayer.style.backgroundSize = size;
+    currentLayer.classList.add('is-active');
+    kingdomFieldSceneSignature = signature;
+    return;
+  }
+  if (signature === kingdomFieldSceneSignature) return;
+
+  clearKingdomFieldSceneTransition();
+  const previousLayer = currentLayer;
+  const nextIndex = kingdomFieldSceneLayerIndex === 0 ? 1 : 0;
+  const nextLayer = layers[nextIndex];
+  const showImmediately = ui.trick.classList.contains('is-scene-cut');
+  nextLayer.classList.remove('is-active');
+  nextLayer.style.backgroundImage = backgroundImage;
+  nextLayer.style.backgroundPosition = position;
+  nextLayer.style.backgroundSize = size;
+  kingdomFieldSceneSignature = signature;
+  kingdomFieldSceneLayerIndex = nextIndex;
+  if (showImmediately) {
+    previousLayer.classList.remove('is-active');
+    nextLayer.classList.add('is-active');
+    previousLayer.style.backgroundImage = '';
+    previousLayer.style.backgroundPosition = '';
+    previousLayer.style.backgroundSize = '';
+    return;
+  }
+  void nextLayer.offsetWidth;
+  kingdomFieldSceneFrame = requestAnimationFrame(() => {
+    kingdomFieldSceneFrame = 0;
+    previousLayer.classList.remove('is-active');
+    nextLayer.classList.add('is-active');
+    kingdomFieldSceneCleanupTimer = setTimeout(() => {
+      kingdomFieldSceneCleanupTimer = null;
+      previousLayer.style.backgroundImage = '';
+      previousLayer.style.backgroundPosition = '';
+      previousLayer.style.backgroundSize = '';
+    }, 460);
+  });
+}
+
 function getKingdomTrickRoleSuit(play) {
   const roleKey = String(play?.role?.key || '');
   if (!['Flush', 'StraightFlush'].includes(roleKey)) return '';
@@ -717,62 +809,66 @@ function getKingdomTrickRoleSuit(play) {
 
 function syncKingdomTrickSceneClass() {
   if (!ui.trick) return;
-  ui.trick.classList.remove(...KINGDOM_TRICK_SCENE_CLASSES);
-  if (window.__TAROT_KINGDOM_PREVIEW__ === true && kingdomDemoTrickSceneKey !== 'auto') {
-    const demoScene = KINGDOM_DEMO_TRICK_SCENE_OPTIONS.find(
-      (option) => option.value === kingdomDemoTrickSceneKey
-    );
-    if (demoScene) {
-      if (demoScene.classes.length) ui.trick.classList.add(...demoScene.classes);
+  try {
+    ui.trick.classList.remove(...KINGDOM_TRICK_SCENE_CLASSES);
+    if (window.__TAROT_KINGDOM_PREVIEW__ === true && kingdomDemoTrickSceneKey !== 'auto') {
+      const demoScene = KINGDOM_DEMO_TRICK_SCENE_OPTIONS.find(
+        (option) => option.value === kingdomDemoTrickSceneKey
+      );
+      if (demoScene) {
+        if (demoScene.classes.length) ui.trick.classList.add(...demoScene.classes);
+        return;
+      }
+    }
+    const roleKey = String(s?.trick?.role?.key || '');
+    const roleSceneClass = String(s?.trick?.type || '') === 'role'
+      ? KINGDOM_TRICK_ROLE_SCENE_CLASSES[roleKey] || ''
+      : '';
+    if (roleSceneClass) {
+      ui.trick.classList.add('is-scene-role', roleSceneClass);
+      const roleSuit = getKingdomTrickRoleSuit(s.trick);
+      if (roleSuit) ui.trick.classList.add(`is-scene-role-suit-${roleSuit.toLowerCase()}`);
       return;
     }
-  }
-  const roleKey = String(s?.trick?.role?.key || '');
-  const roleSceneClass = String(s?.trick?.type || '') === 'role'
-    ? KINGDOM_TRICK_ROLE_SCENE_CLASSES[roleKey] || ''
-    : '';
-  if (roleSceneClass) {
-    ui.trick.classList.add('is-scene-role', roleSceneClass);
-    const roleSuit = getKingdomTrickRoleSuit(s.trick);
-    if (roleSuit) ui.trick.classList.add(`is-scene-role-suit-${roleSuit.toLowerCase()}`);
-    return;
-  }
-  const lockSuit = s?.lock?.suit || null;
-  const hasLock = !!lockSuit;
-  const hasReverse = !!s?.reverse;
-  const hasCutField = String(s?.trick?.type || '') === 'set'
-    && (Array.isArray(s?.trick?.cardsTable) ? s.trick.cardsTable : [])
-      .some((card) => Number(idNum(card)) === 8);
-  const hasWorldTimeStop = !!s?.battle?.effects?.enemy?.timeStop;
-  const flashKind = String(kingdomTrickSceneFlashKind || '');
-  let scene = '';
-  if (flashKind === 'skip') scene = 'skip';
-  else if (flashKind === 'cut' || hasCutField) scene = 'cut';
-  else if (hasLock) scene = 'lock';
-  else if (hasReverse) scene = 'back';
-  else if (hasWorldTimeStop) scene = 'world';
-  if (scene === 'cut') {
-    ui.trick.classList.add('is-scene-cut');
-    return;
-  }
-  if (scene === 'skip') {
-    ui.trick.classList.add('is-scene-skip');
-    return;
-  }
-  if (scene === 'world') {
-    ui.trick.classList.add('is-scene-world');
-    return;
-  }
-  if (scene === 'lock') {
-    ui.trick.classList.add('is-scene-lock');
-    const key = String(lockSuit || '').toLowerCase();
-    if (['wand', 'cup', 'sword', 'pentacle'].includes(key)) {
-      ui.trick.classList.add(`is-scene-lock-${key}`);
+    const lockSuit = s?.lock?.suit || null;
+    const hasLock = !!lockSuit;
+    const hasReverse = !!s?.reverse;
+    const hasCutField = String(s?.trick?.type || '') === 'set'
+      && (Array.isArray(s?.trick?.cardsTable) ? s.trick.cardsTable : [])
+        .some((card) => Number(idNum(card)) === 8);
+    const hasWorldTimeStop = !!s?.battle?.effects?.enemy?.timeStop;
+    const flashKind = String(kingdomTrickSceneFlashKind || '');
+    let scene = '';
+    if (flashKind === 'skip') scene = 'skip';
+    else if (flashKind === 'cut' || hasCutField) scene = 'cut';
+    else if (hasLock) scene = 'lock';
+    else if (hasReverse) scene = 'back';
+    else if (hasWorldTimeStop) scene = 'world';
+    if (scene === 'cut') {
+      ui.trick.classList.add('is-scene-cut');
+      return;
     }
-    return;
-  }
-  if (scene === 'back') {
-    ui.trick.classList.add('is-scene-back');
+    if (scene === 'skip') {
+      ui.trick.classList.add('is-scene-skip');
+      return;
+    }
+    if (scene === 'world') {
+      ui.trick.classList.add('is-scene-world');
+      return;
+    }
+    if (scene === 'lock') {
+      ui.trick.classList.add('is-scene-lock');
+      const key = String(lockSuit || '').toLowerCase();
+      if (['wand', 'cup', 'sword', 'pentacle'].includes(key)) {
+        ui.trick.classList.add(`is-scene-lock-${key}`);
+      }
+      return;
+    }
+    if (scene === 'back') {
+      ui.trick.classList.add('is-scene-back');
+    }
+  } finally {
+    syncKingdomFieldSceneFade();
   }
 }
 
@@ -1860,38 +1956,72 @@ function setLocalPriorityMessage(text, holdMs = 1800, kind = '') {
   }, holdMs);
 }
 
-function clearKingdomLocalSkipAlert(removeNode = false) {
-  if (kingdomLocalSkipAlertTimer) {
-    clearTimeout(kingdomLocalSkipAlertTimer);
-    kingdomLocalSkipAlertTimer = null;
+function clearKingdomLocalTurnAlert(removeNode = false) {
+  if (kingdomLocalTurnAlertTimer) {
+    clearTimeout(kingdomLocalTurnAlertTimer);
+    kingdomLocalTurnAlertTimer = null;
   }
   const alert = typeof document !== 'undefined'
-    ? document.getElementById('tarotKingdomLocalSkipAlert')
+    ? document.getElementById('tarotKingdomLocalTurnAlert')
     : null;
   if (!alert) return;
   alert.classList.remove('is-show');
   if (removeNode) alert.remove();
 }
 
-function showKingdomLocalSkipAlert() {
+function showKingdomLocalTurnAlert() {
   if (!ui.root || typeof document === 'undefined') return;
-  let alert = document.getElementById('tarotKingdomLocalSkipAlert');
+  let alert = document.getElementById('tarotKingdomLocalTurnAlert');
   if (!alert) {
     alert = document.createElement('div');
-    alert.id = 'tarotKingdomLocalSkipAlert';
-    alert.className = 'tarot-kingdom-local-skip-alert';
+    alert.id = 'tarotKingdomLocalTurnAlert';
+    alert.className = 'tarot-kingdom-local-turn-alert';
     alert.setAttribute('aria-hidden', 'true');
     ui.root.appendChild(alert);
   } else if (alert.parentElement !== ui.root) {
     ui.root.appendChild(alert);
   }
-  clearKingdomLocalSkipAlert(false);
+  clearKingdomLocalTurnAlert(false);
   void alert.offsetWidth;
   alert.classList.add('is-show');
-  kingdomLocalSkipAlertTimer = setTimeout(() => {
-    kingdomLocalSkipAlertTimer = null;
+  kingdomLocalTurnAlertTimer = setTimeout(() => {
+    kingdomLocalTurnAlertTimer = null;
     alert?.classList.remove('is-show');
   }, 1050);
+}
+
+function clearKingdomLocalSkipFlash(removeNode = false) {
+  if (kingdomLocalSkipFlashTimer) {
+    clearTimeout(kingdomLocalSkipFlashTimer);
+    kingdomLocalSkipFlashTimer = null;
+  }
+  const flash = typeof document !== 'undefined'
+    ? document.getElementById('tarotKingdomLocalSkipFlash')
+    : null;
+  if (!flash) return;
+  flash.classList.remove('is-show');
+  if (removeNode) flash.remove();
+}
+
+function showKingdomLocalSkipFlash() {
+  if (!ui.root || typeof document === 'undefined') return;
+  let flash = document.getElementById('tarotKingdomLocalSkipFlash');
+  if (!flash) {
+    flash = document.createElement('div');
+    flash.id = 'tarotKingdomLocalSkipFlash';
+    flash.className = 'tarot-kingdom-local-skip-flash';
+    flash.setAttribute('aria-hidden', 'true');
+    ui.root.appendChild(flash);
+  } else if (flash.parentElement !== ui.root) {
+    ui.root.appendChild(flash);
+  }
+  clearKingdomLocalSkipFlash(false);
+  void flash.offsetWidth;
+  flash.classList.add('is-show');
+  kingdomLocalSkipFlashTimer = setTimeout(() => {
+    kingdomLocalSkipFlashTimer = null;
+    flash?.classList.remove('is-show');
+  }, 760);
 }
 
 function syncKingdomLocalSkipNotice() {
@@ -1907,7 +2037,7 @@ function syncKingdomLocalSkipNotice() {
   if (localIndex < 0 || !targetIndexes.includes(localIndex)) return;
   const expiresAt = Math.max(0, Number(notice?.expiresAt) || 0);
   if (expiresAt > 0 && Date.now() > expiresAt) return;
-  showKingdomLocalSkipAlert();
+  showKingdomLocalSkipFlash();
   setLocalPriorityMessage('あなたは　スキップされた！', 1500, 'skip-notice');
 }
 
@@ -2210,7 +2340,8 @@ function resolveKingdomActionCutinPresentation(playerIndex, label, options = {})
     else if (/8カット|is-kingdom-cut/.test(`${cutinClass} ${text}`)) choose('CUT', 'cut');
     else if (/5スキップ|is-kingdom-skip/.test(`${cutinClass} ${text}`)) choose('SKIP', 'skip');
     else if (/コール|is-kingdom-call/.test(`${cutinClass} ${text}`)) choose('CALL', 'call');
-    else if (/パス|防御/.test(text)) choose('DEFEND', 'defend');
+    else if (/パス/.test(text)) choose('PASS', 'pass');
+    else if (/防御/.test(text)) choose('DEFEND', 'defend');
     else if (/ドロー/.test(text)) choose('DRAW', 'draw');
     else if (/ラスト|LAST/i.test(text)) choose('LAST', 'last');
     else if (/ターン|YOUR TURN/i.test(text)) choose('TURN', 'turn');
@@ -2500,6 +2631,13 @@ function clearKingdomCardDealFx() {
   kingdomCardDealFxNodes.clear();
 }
 
+function getKingdomTrickCardTargetNodes(limit = 1) {
+  if (!ui.trick) return [];
+  return Array.from(ui.trick.querySelectorAll(
+    ':scope > .tarot-card, :scope > .tarot-kingdom-field-slot'
+  )).slice(0, Math.max(1, Number(limit) || 1));
+}
+
 function captureKingdomCardDealFx(playerIndex, play) {
   if (String(play?.type || '') !== 'set') return null;
   const hand = s?.players?.[playerIndex]?.hand;
@@ -2508,7 +2646,7 @@ function captureKingdomCardDealFx(playerIndex, play) {
   const selectedIndexes = selectedIds.length > 0
     ? selectedIds.map((id) => hand.findIndex((card) => card?.id === id))
     : (Array.isArray(play?.selected) ? play.selected.map(Number) : []);
-  const targetNodes = Array.from(ui.trick?.children || []).slice(0, Math.max(1, selectedIndexes.length));
+  const targetNodes = getKingdomTrickCardTargetNodes(selectedIndexes.length);
   const targetRects = targetNodes.map(snapshotKingdomFxRect).filter(Boolean);
   const firstTarget = targetRects[0] || snapshotKingdomFxRect(ui.trick);
   const sourcePoint = getKingdomPlaySourcePoint(playerIndex);
@@ -2542,7 +2680,7 @@ function playKingdomCardDealFx(playerIndex, cards, capturedFx = null) {
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
   if (reducedMotion) return 80;
 
-  const targetNodes = Array.from(ui.trick?.children || []).slice(0, cards.length);
+  const targetNodes = getKingdomTrickCardTargetNodes(cards.length);
   const liveTargetRects = targetNodes.map(snapshotKingdomFxRect);
   const targetRects = liveTargetRects.some(Boolean)
     ? liveTargetRects
@@ -3549,17 +3687,20 @@ function getKingdomGuardDefenseProfile(character = {}) {
     ? character.equipment
     : {};
   const itemSource = character?.itemSource || {};
-  const handReferences = [equipment.RightHand, equipment.LeftHand].filter(Boolean);
-  const shieldReferences = handReferences.filter((reference) => (
-    isKingdomShieldEquipmentReference(reference, itemSource)
+  const handReferences = [
+    { hand: 'right', reference: equipment.RightHand },
+    { hand: 'left', reference: equipment.LeftHand }
+  ].filter((entry) => entry.reference);
+  const shieldReferences = handReferences.filter((entry) => (
+    isKingdomShieldEquipmentReference(entry.reference, itemSource)
   ));
   const declaredWeaponTypes = [
     ...(Array.isArray(character?.combat?.weaponTypes) ? character.combat.weaponTypes : []),
     character?.combat?.weaponType
   ].map((entry) => String(entry || '').trim().toLowerCase()).filter(Boolean);
   const hasShield = shieldReferences.length > 0 || declaredWeaponTypes.includes('shield');
-  const shieldDefense = shieldReferences.reduce((highest, reference) => {
-    const item = findKingdomItemReference(reference, itemSource);
+  const shieldDefense = shieldReferences.reduce((highest, entry) => {
+    const item = findKingdomItemReference(entry.reference, itemSource);
     const defense = readKingdomItemNumber(item, ['Defense', 'Def']);
     return Number.isFinite(defense) && defense > 0
       ? Math.max(highest, Math.floor(defense))
@@ -3567,6 +3708,7 @@ function getKingdomGuardDefenseProfile(character = {}) {
   }, 0);
   return {
     hasShield,
+    shieldHand: shieldReferences[0]?.hand || (hasShield ? 'left' : ''),
     bonus: shieldDefense > 0 ? shieldDefense : KINGDOM_MIN_GUARD_DEFENSE,
     source: hasShield ? 'shield' : 'minimum'
   };
@@ -7297,7 +7439,11 @@ function getActiveTurnPlayerIndex() {
 function isHumanTurnActiveNow() {
   const me = getLocalPlayerIndex();
   if (me < 0 || !s) return false;
-  return getActiveTurnPlayerIndex() === me;
+  if (getActiveTurnPlayerIndex() !== me) return false;
+  if (s.phase === 'turn' || s.phase === 'draw') {
+    return ui.playButton ? !ui.playButton.disabled : true;
+  }
+  return s.phase === 'judgment';
 }
 
 function clearYourTurnBadge() {
@@ -7314,6 +7460,7 @@ function clearYourTurnBadge() {
 function showHumanTurnCue() {
   if (getLocalPlayerIndex() < 0) return;
   clearYourTurnBadge();
+  showKingdomLocalTurnAlert();
   vibrateOnce(55);
 }
 
@@ -9321,7 +9468,8 @@ function resetMatch() {
   kingdomLocalPriorityMessage = '';
   kingdomLocalPriorityKind = '';
   kingdomHandledLocalSkipNoticeToken = '';
-  clearKingdomLocalSkipAlert(false);
+  clearKingdomLocalTurnAlert(false);
+  clearKingdomLocalSkipFlash(false);
   kingdomLocalGraveOpen = false;
   clearLocalAutoFold();
   kingdomLocalAutoFoldPrevReverse = false;
@@ -9524,7 +9672,8 @@ function injectTarotKingdomDebugMatchDone(options = {}) {
   kingdomLocalPriorityMessage = '';
   kingdomLocalPriorityKind = '';
   kingdomHandledLocalSkipNoticeToken = '';
-  clearKingdomLocalSkipAlert(false);
+  clearKingdomLocalTurnAlert(false);
+  clearKingdomLocalSkipFlash(false);
   lastHumanTurnActive = false;
   applyPresenceToPlayers();
   render();
@@ -12141,7 +12290,7 @@ function applySetEffects(play) {
     };
     if (s.battle?.enemy) s.battle.enemy.areaAttackSealedUntilClear = true;
     triggerKingdomActionFx(play.owner, `5スキップ x${cards.length}`, { overlay: 'action', durationMs: 780, cutin: true, cutinClass: 'is-kingdom-skip' });
-    triggerKingdomTrickSceneFlash('skip', 760 + (Math.max(1, cards.length) * 120));
+    triggerKingdomTrickSceneFlash('skip', 900);
   }
   if (has(8)) {
     if (s.battle?.enemy) s.battle.enemy.petrifiedUntilClear = true;
@@ -15204,7 +15353,8 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
     const conscious = hp > 0;
     const localDefense = playerIndex === getLocalPlayerIndex() && kingdomLocalAutoFold;
     const defending = conscious && (localDefense || s.fold?.[playerIndex] === true);
-    const shieldDefending = defending && getKingdomGuardDefenseProfile(character).hasShield;
+    const guardProfile = getKingdomGuardDefenseProfile(character);
+    const shieldDefending = defending && guardProfile.hasShield;
     const playerAttackEvent = eventIsActive
       && ['attack', 'skill'].includes(String(activeEvent?.type || ''))
       && Number(activeEvent?.actorIndex) === playerIndex
@@ -15250,7 +15400,19 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
     const avatar = row.querySelector('.tarot-kingdom-battle-player-avatar');
     const isPet = player.isPet === true || character.source === 'pet';
     row.classList.toggle('is-pet', isPet);
-    if (avatar) avatar.classList.toggle('is-pet', isPet);
+    if (avatar) {
+      avatar.classList.toggle('is-pet', isPet);
+      avatar.classList.toggle('is-kingdom-defending', defending);
+      avatar.classList.toggle('is-kingdom-shield-defending', shieldDefending);
+      avatar.classList.toggle(
+        'is-kingdom-shield-hand-left',
+        shieldDefending && guardProfile.shieldHand === 'left'
+      );
+      avatar.classList.toggle(
+        'is-kingdom-shield-hand-right',
+        shieldDefending && guardProfile.shieldHand === 'right'
+      );
+    }
     if (isPet && avatar) {
       const monsterId = String(player.pet?.monsterId || character.monsterId || '');
       const monster = getKingdomMonsterConfig(monsterId);
@@ -15278,7 +15440,7 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
         monster,
         animationName,
         animationName === 'idle' ? 'idle' : `${eventKey}:${conscious ? 'alive' : 'ko'}`,
-        { paused: shieldDefending && animationName === 'idle' }
+        { paused: defending && animationName === 'idle' }
       );
       setCombatAvatarVictory(
         avatar,
@@ -15320,7 +15482,7 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
       }
       if (avatar) {
         const wasDefensePaused = avatar.dataset.kingdomDefensePaused === 'true';
-        if (shieldDefending && !retreating) {
+        if (defending && !retreating) {
           if (!wasDefensePaused) {
             stopAvatarBodyMotion(avatar, { reset: false });
             avatar.dataset.kingdomDefensePaused = 'true';
@@ -16571,7 +16733,9 @@ function renderTrick() {
   };
   const renderNow = () => {
     ui.trick.classList.remove('is-hit-stop');
-    ui.trick.innerHTML = '';
+    Array.from(ui.trick.children).forEach((node) => {
+      if (!node.classList.contains('tarot-kingdom-field-scene-layer')) node.remove();
+    });
     if (!cards.length) {
       appendFieldSlots(0);
       return;
@@ -16924,12 +17088,58 @@ function canLocalPlayerSelectHand(playerIndex) {
 function clearLocalHandDropIndicators() {
   if (!ui.hand) return;
   ui.hand.classList.remove('is-reordering');
+  ui.hand.querySelectorAll(':scope > .tarot-kingdom-hand-drop-gap').forEach((node) => node.remove());
   ui.hand.querySelectorAll('.is-dragging, .is-drop-before, .is-drop-after').forEach((node) => {
     node.classList.remove('is-dragging', 'is-drop-before', 'is-drop-after');
     node.style.removeProperty('--tk-hand-drag-x');
     node.style.removeProperty('--tk-hand-drag-y');
+    node.style.removeProperty('--tk-hand-drag-left');
+    node.style.removeProperty('--tk-hand-drag-top');
+    node.style.removeProperty('--tk-hand-drag-width');
+    node.style.removeProperty('--tk-hand-drag-height');
     node.removeAttribute('aria-grabbed');
   });
+}
+
+function animateLocalHandGapShift(previousRects, nodes) {
+  if (
+    !(previousRects instanceof Map)
+    || !Array.isArray(nodes)
+    || window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true
+  ) return;
+  nodes.forEach((node) => {
+    const before = previousRects.get(node);
+    const after = node?.getBoundingClientRect?.();
+    if (!before || !after) return;
+    const deltaX = Math.round(before.left - after.left);
+    const deltaY = Math.round(before.top - after.top);
+    if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) return;
+    node.getAnimations?.().forEach((animation) => {
+      if (animation.id === 'tarot-kingdom-hand-gap-shift') animation.cancel();
+    });
+    const animation = node.animate([
+      { translate: `${deltaX}px ${deltaY}px` },
+      { translate: '0 0' }
+    ], {
+      duration: 140,
+      easing: 'cubic-bezier(0.2, 0.82, 0.24, 1)'
+    });
+    animation.id = 'tarot-kingdom-hand-gap-shift';
+  });
+}
+
+function moveLocalHandDropGap(drag, candidates, insertionIndex) {
+  const gap = drag?.gap;
+  if (!ui.hand || !gap || candidates.length <= 0) return;
+  const nextNode = insertionIndex < candidates.length ? candidates[insertionIndex] : null;
+  const alreadyPlaced = nextNode
+    ? gap.nextElementSibling === nextNode
+    : gap === ui.hand.lastElementChild;
+  if (alreadyPlaced) return;
+  const previousRects = new Map(candidates.map((node) => [node, node.getBoundingClientRect()]));
+  if (nextNode) ui.hand.insertBefore(gap, nextNode);
+  else ui.hand.appendChild(gap);
+  animateLocalHandGapShift(previousRects, candidates);
 }
 
 function cancelLocalHandDrag() {
@@ -16964,7 +17174,8 @@ function beginLocalHandDrag(event, cardIndex, node) {
     startX: Number(event.clientX) || 0,
     startY: Number(event.clientY) || 0,
     dragging: false,
-    dropIndex: cardIndex
+    dropIndex: cardIndex,
+    gap: null
   };
   node.setAttribute('aria-grabbed', 'false');
   try {
@@ -16980,14 +17191,29 @@ function moveLocalHandDrag(event) {
   const dx = (Number(event.clientX) || 0) - drag.startX;
   const dy = (Number(event.clientY) || 0) - drag.startY;
   if (!drag.dragging && Math.hypot(dx, dy) < 7) return;
+  const startingDrag = !drag.dragging;
   drag.dragging = true;
   localHandTapSuppressedUntil = Date.now() + 400;
   event.preventDefault();
-  drag.node.classList.add('is-dragging');
+  if (startingDrag) {
+    const rect = drag.node.getBoundingClientRect();
+    const gap = document.createElement('div');
+    gap.className = 'tarot-kingdom-hand-drop-gap';
+    gap.setAttribute('aria-hidden', 'true');
+    gap.style.setProperty('--tk-hand-gap-width', `${Math.round(rect.width)}px`);
+    gap.style.setProperty('--tk-hand-gap-height', `${Math.round(rect.height)}px`);
+    drag.gap = gap;
+    drag.node.style.setProperty('--tk-hand-drag-left', `${Math.round(rect.left)}px`);
+    drag.node.style.setProperty('--tk-hand-drag-top', `${Math.round(rect.top)}px`);
+    drag.node.style.setProperty('--tk-hand-drag-width', `${Math.round(rect.width)}px`);
+    drag.node.style.setProperty('--tk-hand-drag-height', `${Math.round(rect.height)}px`);
+    ui.hand?.insertBefore(gap, drag.node);
+    drag.node.classList.add('is-dragging');
+    ui.hand?.classList.add('is-reordering');
+  }
   drag.node.setAttribute('aria-grabbed', 'true');
   drag.node.style.setProperty('--tk-hand-drag-x', `${Math.round(dx)}px`);
   drag.node.style.setProperty('--tk-hand-drag-y', `${Math.round(dy)}px`);
-  ui.hand?.classList.add('is-reordering');
 
   const candidates = Array.from(ui.hand?.querySelectorAll(':scope > .tarot-card') || [])
     .filter((node) => node !== drag.node);
@@ -17001,6 +17227,7 @@ function moveLocalHandDrag(event) {
     }
   }
   drag.dropIndex = insertionIndex;
+  moveLocalHandDropGap(drag, candidates, insertionIndex);
   if (candidates.length <= 0) return;
   if (insertionIndex < candidates.length) {
     candidates[insertionIndex].classList.add('is-drop-before');
@@ -18683,7 +18910,8 @@ export function destroyTarotKingdomPage() {
   kingdomLocalPriorityMessage = '';
   kingdomLocalPriorityKind = '';
   kingdomHandledLocalSkipNoticeToken = '';
-  clearKingdomLocalSkipAlert(true);
+  clearKingdomLocalTurnAlert(true);
+  clearKingdomLocalSkipFlash(true);
   clearSettlementGainFx();
   clearPendingTurnAdvanceAfterTrick();
   clearKingdomTransitionTimer();
@@ -18728,6 +18956,7 @@ export function destroyTarotKingdomPage() {
     kingdomOverlayTimer = null;
   }
   clearKingdomTrickSceneFlash(false);
+  clearKingdomFieldSceneTransition({ reset: true });
   kingdomRowFxTimers.forEach((timerId) => clearTimeout(timerId));
   kingdomRowFxTimers.clear();
 
