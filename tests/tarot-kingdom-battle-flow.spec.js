@@ -547,9 +547,17 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(duringSingle[2]).toMatchObject({ ko: false, hp: '5' });
     expect(duringSingle[3]).toMatchObject({ ko: false, hp: '5' });
 
-    // The area hit follows the 860ms single-target response, then reveals HP
+    // The area hit follows the normalized 1100ms single-target response, then reveals HP
     // after its hurt pose and 240ms tween. The field-clearing leader stays safe.
-    await page.waitForTimeout(1580);
+    await page.waitForFunction(() => {
+      const rows = Array.from(document.querySelectorAll(
+        '#tarotKingdomBattleParty > .tarot-kingdom-battle-player'
+      ));
+      return [2, 3].every((index) => (
+        rows[index]?.classList.contains('is-ko')
+        && rows[index]?.querySelector('.tarot-kingdom-battle-player-hp-track')?.getAttribute('aria-valuenow') === '0'
+      ));
+    });
     const duringArea = await page.evaluate(() => (
       Array.from(document.querySelectorAll('#tarotKingdomBattleParty > .tarot-kingdom-battle-player'))
         .map((row) => ({
@@ -834,7 +842,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.rush.battle.outcome).toBeNull();
     expect(audit.rush.players[0].hand).toHaveLength(1);
     expect(audit.rush.rules.enemyDefeatMode).toBe('hand-empty');
-    expect(audit.hostPublicState.schema).toBe(14);
+    expect(audit.hostPublicState.schema).toBe(15);
     expect(audit.hostPublicState.state.rules.enemyDefeatMode).toBe('hand-empty');
     expect(audit.legacy.rules.enemyDefeatMode).toBe('hand-empty');
   });
@@ -1299,7 +1307,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     await page.waitForFunction(() => document.getElementById('tarotKingdomBattleStage')?.classList.contains('is-defeat'));
     await page.waitForFunction(() => window.TarotKingdomDebug?.battleState?.()?.phase === 'done');
     await expect(page.locator('#tarotKingdomSelectedEffect'))
-      .toHaveText(/^仲間3人が戦闘不能。.+は撤退しました$/);
+      .toHaveText(/^.+は　にげだした！$/);
     await expect(settlementConfirmButton).toBeVisible();
     await expect(settlementConfirmButton).toBeEnabled();
     await expect(settlementConfirmButton).toHaveText('もう一度遊ぶ');
@@ -1822,7 +1830,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       effectiveUnits: 2,
       healRate: 0.2
     });
-    expect(audit.publicState.schema).toBe(14);
+    expect(audit.publicState.schema).toBe(15);
     expect(audit.publicState.state.stage.monsters).toHaveLength(4);
     expect(audit.atmosphereTone).toBe('sunlit-coral');
     expect(audit.atmosphereCss).toContain('74, 159, 196');
@@ -1851,7 +1859,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.settlementStart.players).toHaveLength(3);
     expect(audit.settled.roundSettlement.rows).toHaveLength(2);
     expect(audit.settled.dealer).toBe(0);
-    expect(audit.published.schema).toBe(14);
+    expect(audit.published.schema).toBe(15);
     expect(audit.published.state.rules.playerCount).toBe(3);
     expect(audit.published.state.players).toHaveLength(3);
   });
@@ -2131,7 +2139,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
         current
       };
     });
-    expect(audit.currentPublic.schema).toBe(14);
+    expect(audit.currentPublic.schema).toBe(15);
     expect(audit.currentPublic.state.rules).toMatchObject({
       playerCount: 4,
       combatEffectsVersion: 1,
@@ -2139,7 +2147,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       graveTimingVersion: 1,
       majorArcanaGateVersion: 1,
       majorArcanaSpecialVersion: 1,
-      majorBattleEffectsVersion: 1,
+      majorBattleEffectsVersion: 2,
       elementAffinityVersion: 1,
       carryHpBetweenRoundsVersion: 1,
       forcedDrawDeathVersion: 1,
@@ -2173,7 +2181,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.current.rules.graveTimingVersion).toBe(1);
     expect(audit.current.rules.majorArcanaGateVersion).toBe(1);
     expect(audit.current.rules.majorArcanaSpecialVersion).toBe(1);
-    expect(audit.current.rules.majorBattleEffectsVersion).toBe(1);
+    expect(audit.current.rules.majorBattleEffectsVersion).toBe(2);
     expect(audit.current.rules.elementAffinityVersion).toBe(1);
     expect(audit.current.rules.enemyDefeatMode).toBe('hp-zero');
   });

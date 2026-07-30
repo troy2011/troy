@@ -2419,7 +2419,6 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
                 <strong>${escapeHtml(destinationName)}</strong>
                 <span data-exploration-sequence-label>${escapeHtml(shipTrait.label)}</span>
             </div>
-            <div class="exploration-sequence-progress" data-exploration-sequence-progress aria-hidden="true"></div>
             <section class="exploration-battle-mode-choice" data-exploration-battle-mode-choice hidden aria-label="迎撃準備">
                 <div class="exploration-battle-mode-head">
                     <span>${encounterLabel}</span>
@@ -2446,7 +2445,6 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
     homeIcon?.classList.add('is-exploring-sail');
 
     const label = overlay.querySelector('[data-exploration-sequence-label]');
-    const progressHint = overlay.querySelector('[data-exploration-sequence-progress]');
     const setPhase = (phase, text) => {
         const voyageClass = ['sail', 'up', 'left', 'arrival'].includes(phase) ? ' is-voyage' : '';
         overlay.className = `exploration-sequence-overlay is-${form} ${shipTrait.className} is-sky-${destinationVisual.sky} is-boss-${bossTierKey}${voyageClass} is-${phase} is-result-${bossResult}`;
@@ -2455,9 +2453,7 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
         homeIcon?.classList.add(`is-exploring-${phase}`);
     };
     const waitForSequence = async (minimumMs) => {
-        if (progressHint) progressHint.hidden = false;
         await wait(minimumMs);
-        if (progressHint) progressHint.hidden = true;
     };
 
     setPhase('sail', shipTrait.label);

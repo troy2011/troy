@@ -1360,6 +1360,30 @@ test('monsters with two attack sheets use the second one for area attacks and pe
   expect(petAnimations.skill.backgroundImage).toContain('/pixel-monsters/vol2/monster-06/attack2.png');
 });
 
+test('all monster attack sheets finish in the same compact battle timing', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const audit = await page.evaluate(() => window.TarotKingdomDebug.battleDemoEnemies().map((monster) => ({
+    id: monster.id,
+    name: monster.name,
+    single: window.TarotKingdomDebug.battleMonsterAttackMotion(monster.id, 'single'),
+    area: window.TarotKingdomDebug.battleMonsterAttackMotion(monster.id, 'area')
+  })));
+
+  expect(audit).toHaveLength(50);
+  audit.forEach((monster) => {
+    for (const motion of [monster.single, monster.area]) {
+      expect(motion.animationDurationMs, monster.name).toBe(1100);
+      expect(motion.advanceDurationMs, monster.name).toBe(180);
+      expect(motion.returnDurationMs, monster.name).toBe(180);
+      expect(motion.totalDurationMs, monster.name).toBe(1280);
+    }
+  });
+
+  const rubit = audit.find((monster) => monster.id === 'ismartal-vol2-monster-08');
+  expect(rubit?.name).toBe('ルビット');
+  expect(rubit?.single.animationDurationMs).toBe(1100);
+});
+
 test('player attack and retreat shadows follow horizontal movement without leaving the floor', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   const attackShadow = await page.evaluate(() => {

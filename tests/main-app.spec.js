@@ -2585,7 +2585,6 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
           <div class="exploration-sequence-log"><div>log</div></div>
         </div>
         <div class="exploration-sequence-copy"><strong>route</strong><span>label</span></div>
-        <div class="exploration-sequence-progress" data-exploration-sequence-progress aria-hidden="true"></div>
       </div>
     `;
     document.body.appendChild(sequence);
@@ -2699,7 +2698,6 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
       sequenceSky: styleOf('.exploration-sequence-sky'),
       sequenceRoute: sailRoute,
       sequenceArrival: styleOf('.exploration-sequence-arrival'),
-      sequenceProgress: styleOf('.exploration-sequence-progress'),
       sequenceOpeningChest,
       sequenceChestMore: styleOf('.exploration-sequence-chest-more'),
       sequenceLog: styleOf('.exploration-sequence-log div'),
@@ -2754,7 +2752,6 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(audit.sequenceRoute.animationName).toContain('explorationSequenceRoute');
   expect(audit.sequenceRoute.backgroundImage).not.toContain('repeating-linear-gradient');
   expect(audit.sequenceArrival.borderRadius).toBe('50%');
-  expect(panelFrameSource(audit.sequenceProgress)).not.toContain('assets/ui/buttons/');
   expect(audit.sequenceOpeningChest.animationName).toContain('explorationSequenceChestPop');
   expect(audit.sequenceOpeningChest.animationName).not.toContain('explorationResultChestOpen');
   expect(audit.sequenceChestMore.borderRadius).toBe('6px');
@@ -3036,7 +3033,7 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await expect(sequence.locator('[data-exploration-sequence-chest]')).toHaveCount(0);
   await expect(sequence.locator('.exploration-sequence-island img')).toHaveAttribute('src', /coral-island-v1\.webp/);
   await expect(sequence.locator('[data-exploration-sequence-advance]')).toHaveCount(0);
-  await expect(sequence.locator('[data-exploration-sequence-progress]')).toBeAttached();
+  await expect(sequence.locator('[data-exploration-sequence-progress]')).toHaveCount(0);
   const readVoyageMetrics = () => sequence.evaluate((element) => {
     const ship = element.querySelector('.exploration-sequence-ship');
     const island = element.querySelector('.exploration-sequence-island');
@@ -3099,7 +3096,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   expect(sailMetrics.islandFilter).toContain('blur');
   expect(Math.abs(encounterMetrics.islandWidth - sailMetrics.islandWidth)).toBeLessThanOrEqual(1);
   expect(Math.abs(encounterMetrics.islandHeight - sailMetrics.islandHeight)).toBeLessThanOrEqual(1);
-  expect(encounterMetrics.islandLeft - encounterMetrics.shipRight).toBeGreaterThanOrEqual(8);
+  expect(encounterMetrics.islandLeft - encounterMetrics.shipRight).toBeGreaterThanOrEqual(0);
+  expect(encounterMetrics.islandLeft - encounterMetrics.shipRight).toBeLessThanOrEqual(5);
   expect(sailMetrics.shipAnimationTiming).toContain('cubic-bezier(0.33, 0.33, 0.55, 1)');
   expect(Math.abs(encounterMonsterMetrics.monsterCenterX - encounterMonsterMetrics.islandCenterX)).toBeLessThanOrEqual(2);
   expect(Math.abs(encounterMonsterMetrics.monsterCenterY - encounterMonsterMetrics.islandCenterY)).toBeLessThanOrEqual(2);

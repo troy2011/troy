@@ -243,6 +243,69 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     expect(audit.pactExpired.players[0]).toMatchObject({ maxHp: 120, hp: 60 });
   });
 
+  test('regen gives the player a pale green aura and shows the recovered amount on clear', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    const active = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({
+        withTrick: true,
+        hpBySeat: [60, 60, 60, 60],
+        combatBySeat: [0, 1, 2, 3].map(() => ({
+          maxHp: 120,
+          power: 30,
+          defense: 20,
+          intelligence: 30,
+          speed: 20
+        }))
+      });
+      debug.battleSetEffects({
+        enemy: {},
+        party: {},
+        players: [
+          { regen: { potency: 10, remainingTurns: 3, expiresOn: 'turn', label: 'リジェネ' } },
+          {},
+          {},
+          {}
+        ],
+        enemyAttackedSinceClear: false
+      });
+      const row = document.querySelector(
+        '#tarotKingdomBattleParty > .tarot-kingdom-battle-player[data-player-index="0"]'
+      );
+      const aura = row?.querySelector(':scope > .tarot-kingdom-regen-aura');
+      return {
+        hasRegen: row?.classList.contains('has-regen') || false,
+        auraExists: !!aura,
+        auraAnimation: aura ? getComputedStyle(aura).animationName : ''
+      };
+    });
+
+    expect(active).toMatchObject({
+      hasRegen: true,
+      auraExists: true,
+      auraAnimation: 'tarotKingdomRegenAura'
+    });
+
+    const cleared = await page.evaluate(() => (
+      window.TarotKingdomDebug.battleClearTrick(0)
+    ));
+    expect(cleared.battle.events.at(-1)).toMatchObject({
+      type: 'turn-effects',
+      effects: [expect.objectContaining({
+        kind: 'regen',
+        targetIndex: 0,
+        amount: 12,
+        hpBefore: 60,
+        hpAfter: 72
+      })]
+    });
+    const row = page.locator(
+      '#tarotKingdomBattleParty > .tarot-kingdom-battle-player[data-player-index="0"]'
+    );
+    await expect(row.locator(':scope > .tarot-kingdom-heal-number.is-regen.is-show')).toHaveText('+12');
+    await expect(row).toHaveClass(/has-regen/);
+  });
+
   test('skill name and every elemental reaction stay inside the battle stage at 390px and 900px', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     for (const width of [390, 900]) {
@@ -304,26 +367,93 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     }
   });
 
-  test('schema 10 remains on the old battle rules while schema 11 enables major effects', async ({ page }) => {
+  test('schema 10 disables major effects, schema 14 keeps single-card effects, and schema 15 amplifies sets', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       const current = debug.battleScenario({ withTrick: false });
       const payload = debug.battlePublicState();
+      const schema14Payload = JSON.parse(JSON.stringify(payload));
+      schema14Payload.schema = 14;
+      schema14Payload.state.rules.majorBattleEffectsVersion = 2;
+      const schema14 = debug.battleDeserialize(schema14Payload);
       const legacyPayload = JSON.parse(JSON.stringify(payload));
       legacyPayload.schema = 10;
       delete legacyPayload.state.rules.majorBattleEffectsVersion;
       delete legacyPayload.state.rules.elementAffinityVersion;
       const legacy = debug.battleDeserialize(legacyPayload);
-      return { current, legacy };
+      return { current, schema14, legacy };
     });
 
     expect(audit.current.rules).toMatchObject({
-      majorBattleEffectsVersion: 1,
+      majorBattleEffectsVersion: 2,
       elementAffinityVersion: 1
     });
+    expect(audit.schema14.rules.majorBattleEffectsVersion).toBe(1);
     expect(audit.legacy.rules).toMatchObject({
       majorBattleEffectsVersion: 0,
       elementAffinityVersion: 0
     });
+  });
+
+  test('same-number pairs and triples amplify the included major while legacy rules do not', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const resolve = (cardCount, rules = null) => {
+        debug.battleScenario({
+          withTrick: false,
+          ...(rules ? { rules } : {}),
+          enemyHp: 5000,
+          enemyMaxHp: 5000,
+          enemyDefense: 0
+        });
+        return debug.battleResolveMajorEffect(0, 1, { cardCount }).result;
+      };
+      const single = resolve(1);
+      const pair = resolve(2);
+      const triple = resolve(3);
+      const legacyPair = resolve(2, { majorBattleEffectsVersion: 1 });
+      debug.battleScenario({
+        withTrick: false,
+        enemyHp: 5000,
+        enemyMaxHp: 5000,
+        enemyDefense: 0,
+        handsBySeat: [[
+          { id: 'major-magician-pair', kind: 'major', suit: 'Wand', number: 1 },
+          { id: 'minor-ace-pair', kind: 'minor', suit: 'Cup', number: 1 },
+          { id: 'pair-reserve', kind: 'minor', suit: 'Sword', number: 6 }
+        ]]
+      });
+      const pairState = debug.battlePlayCards(
+        0,
+        ['major-magician-pair', 'minor-ace-pair'],
+        { resolve: false }
+      ).state;
+      const pairEvent = pairState.battle.events.at(-1);
+      return { single, pair, triple, legacyPair, pairEvent };
+    });
+
+    const sumDamage = (entry) => (entry?.results || [])
+      .filter((result) => result.kind === 'major-damage')
+      .reduce((total, result) => total + Number(result.amount || 0), 0);
+    const singleDamage = sumDamage(audit.single);
+    const pairDamage = sumDamage(audit.pair);
+    const tripleDamage = sumDamage(audit.triple);
+
+    expect(audit.single).toMatchObject({ number: 1, cardCount: 1, strengthMultiplier: 1 });
+    expect(audit.pair).toMatchObject({ number: 1, cardCount: 2, strengthMultiplier: 1.5 });
+    expect(audit.triple).toMatchObject({ number: 1, cardCount: 3, strengthMultiplier: 2 });
+    expect(pairDamage).toBeGreaterThan(singleDamage);
+    expect(tripleDamage).toBeGreaterThan(pairDamage);
+    expect(pairDamage / singleDamage).toBeGreaterThanOrEqual(1.45);
+    expect(pairDamage / singleDamage).toBeLessThanOrEqual(1.6);
+    expect(tripleDamage / singleDamage).toBeGreaterThanOrEqual(1.9);
+    expect(tripleDamage / singleDamage).toBeLessThanOrEqual(2.1);
+    expect(audit.legacyPair).toBeNull();
+    expect(audit.pairEvent).toMatchObject({
+      majorSkillName: 'エレメンタルコンボ',
+      majorCardCount: 2,
+      majorStrengthMultiplier: 1.5
+    });
+    expect(audit.pairEvent.effects.filter((result) => result.kind === 'major-damage')).toHaveLength(4);
   });
 });

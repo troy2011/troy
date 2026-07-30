@@ -10,7 +10,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     await openKingdomDebug(page);
   });
 
-  test('schema 14 publishes damage growth and current combat rules while older matches keep their rules', async ({ page }) => {
+  test('schema 15 publishes amplified major effects and current combat rules while older matches keep their rules', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       const current = debug.battleScenario({ withTrick: false });
@@ -58,7 +58,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       summonVersion: 1,
       majorArcanaGateVersion: 1,
       majorArcanaSpecialVersion: 1,
-      majorBattleEffectsVersion: 1,
+      majorBattleEffectsVersion: 2,
       elementAffinityVersion: 1,
       carryHpBetweenRoundsVersion: 1,
       forcedDrawDeathVersion: 1,
@@ -66,7 +66,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       enemyDefeatMode: 'hp-zero'
     });
     expect(audit.current.players.map((player) => player.hand.length)).toEqual([8, 8, 8, 8]);
-    expect(audit.published.schema).toBe(14);
+    expect(audit.published.schema).toBe(15);
     expect(audit.published.state.rules).toMatchObject({
       initialHandSize: 8,
       handLimit: 8,
@@ -75,7 +75,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       summonVersion: 1,
       majorArcanaGateVersion: 1,
       majorArcanaSpecialVersion: 1,
-      majorBattleEffectsVersion: 1,
+      majorBattleEffectsVersion: 2,
       elementAffinityVersion: 1,
       carryHpBetweenRoundsVersion: 1,
       forcedDrawDeathVersion: 1,
@@ -227,7 +227,9 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
         .toHaveText('場札 +1');
 
       const merged = await page.evaluate(() => {
-        const firstArt = document.querySelector('#tarotKingdomTrick .tarot-card:first-child .tarot-card-art');
+        const firstArt = document.querySelector(
+          '#tarotKingdomTrick .tarot-card.is-call-reused .tarot-card-art'
+        );
         const reused = document.querySelector('#tarotKingdomTrick .tarot-card.is-call-reused');
         const arriving = Array.from(document.querySelectorAll(
           '#tarotKingdomTrick .tarot-card.is-call-arriving'

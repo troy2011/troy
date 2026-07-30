@@ -21,6 +21,17 @@ const EFFECT_PROFILES = Object.freeze({
 });
 
 function summon(id, name, pool, effectKey, options = {}) {
+    const motionKey = [
+        'flutter',
+        'float',
+        'bounce',
+        'dash',
+        'heavy',
+        'coil',
+        'stalk'
+    ].includes(String(options.motionKey || ''))
+        ? String(options.motionKey)
+        : 'dash';
     return Object.freeze({
         id,
         name,
@@ -28,43 +39,49 @@ function summon(id, name, pool, effectKey, options = {}) {
         pool,
         effectKey,
         flipX: options.flipX === true,
-        visualScale: Math.max(0.7, Math.min(1.2, Number(options.visualScale) || 1)),
+        motionKey,
+        visualScale: Math.max(0.7, Math.min(1.4, Number(options.visualScale) || 1)),
         anchorX: Math.max(0, Math.min(100, Number(options.anchorX) || 50)),
-        anchorY: Math.max(0, Math.min(100, Number(options.anchorY) || 100))
+        anchorY: Math.max(0, Math.min(100, Number(options.anchorY) || 100)),
+        entryLift: Math.max(-12, Math.min(24, Number(options.entryLift) || 0)),
+        attackReach: Math.max(18, Math.min(48, Number(options.attackReach) || 30)),
+        attackLift: Math.max(-10, Math.min(16, Number(options.attackLift) || 0)),
+        attackTilt: Math.max(-10, Math.min(10, Number(options.attackTilt) || -2)),
+        effectDensity: Math.max(0.85, Math.min(1.35, Number(options.effectDensity) || 1))
     });
 }
 
 export const TAROT_KINGDOM_SUMMONS = Object.freeze([
-    summon('skeletal_parrot', '骸骨オウム', 'entry', 'command', { visualScale: 0.9 }),
-    summon('lantern_wraith', 'ランタンの亡霊', 'entry', 'eclipse', { visualScale: 0.92 }),
-    summon('puffer_bomb', '爆弾フグ', 'entry', 'inferno', { visualScale: 0.9 }),
-    summon('treasure_slime', '財宝スライム', 'entry', 'tide', { visualScale: 0.94 }),
-    summon('coral_goblin', '珊瑚ゴブリン', 'entry', 'barrage', { visualScale: 0.94 }),
-    summon('mimic_chest', '宝箱ミミック', 'entry', 'rupture', { visualScale: 0.96 }),
-    summon('zombie_raider', 'ゾンビ海賊', 'entry', 'chaos', { visualScale: 0.98 }),
-    summon('drowned_buccaneer', '溺れし海賊', 'entry', 'chaos'),
-    summon('crab_brute', '甲殻の暴れ者', 'entry', 'aegis', { visualScale: 1.04 }),
+    summon('skeletal_parrot', '骸骨オウム', 'entry', 'command', { motionKey: 'flutter', visualScale: 1.02, entryLift: 15, attackReach: 34, attackLift: 9, attackTilt: -6 }),
+    summon('lantern_wraith', 'ランタンの亡霊', 'entry', 'eclipse', { motionKey: 'float', visualScale: 1.04, entryLift: 11, attackReach: 25, attackLift: 7 }),
+    summon('puffer_bomb', '爆弾フグ', 'entry', 'inferno', { motionKey: 'bounce', visualScale: 1.03, entryLift: 7, attackReach: 36, attackLift: -3, attackTilt: -7 }),
+    summon('treasure_slime', '財宝スライム', 'entry', 'tide', { motionKey: 'bounce', visualScale: 1.06, attackReach: 22, attackLift: -2, attackTilt: 2 }),
+    summon('coral_goblin', '珊瑚ゴブリン', 'entry', 'barrage', { motionKey: 'dash', visualScale: 1.06, attackReach: 42, attackLift: 2, attackTilt: -5 }),
+    summon('mimic_chest', '宝箱ミミック', 'entry', 'rupture', { motionKey: 'bounce', visualScale: 1.08, attackReach: 38, attackLift: -4, attackTilt: -8 }),
+    summon('zombie_raider', 'ゾンビ海賊', 'entry', 'chaos', { motionKey: 'stalk', visualScale: 1.09, attackReach: 31, attackTilt: -4 }),
+    summon('drowned_buccaneer', '溺れし海賊', 'entry', 'chaos', { motionKey: 'stalk', visualScale: 1.1, entryLift: -2, attackReach: 34, attackTilt: -5 }),
+    summon('crab_brute', '甲殻の暴れ者', 'entry', 'aegis', { motionKey: 'heavy', visualScale: 1.14, attackReach: 27, attackLift: -4, attackTilt: -3 }),
 
-    summon('cursed_shipwheel', '呪いの舵輪', 'middle', 'chaos', { visualScale: 0.94 }),
-    summon('cannon_mimic', '大砲ミミック', 'middle', 'inferno', { visualScale: 0.98 }),
-    summon('kraken_pirate', '海賊クラーケン', 'middle', 'bind'),
-    summon('blue_kraken', '深海クラーケン', 'middle', 'bind'),
-    summon('shark_raider', '鮫の略奪者', 'middle', 'barrage', { visualScale: 1.02 }),
-    summon('ghost_pirate', '幽霊海賊', 'middle', 'aegis'),
-    summon('merfolk_lancer', '人魚の槍兵', 'middle', 'tide', { visualScale: 1.06 }),
+    summon('cursed_shipwheel', '呪いの舵輪', 'middle', 'chaos', { motionKey: 'float', visualScale: 1.08, entryLift: 13, attackReach: 30, attackLift: 5, attackTilt: -8, effectDensity: 1.08 }),
+    summon('cannon_mimic', '大砲ミミック', 'middle', 'inferno', { motionKey: 'heavy', visualScale: 1.11, attackReach: 28, attackLift: -3, attackTilt: 3, effectDensity: 1.08 }),
+    summon('kraken_pirate', '海賊クラーケン', 'middle', 'bind', { motionKey: 'coil', visualScale: 1.12, attackReach: 35, attackLift: 3, attackTilt: -5, effectDensity: 1.08 }),
+    summon('blue_kraken', '深海クラーケン', 'middle', 'bind', { motionKey: 'coil', visualScale: 1.14, entryLift: 4, attackReach: 37, attackLift: 5, attackTilt: -6, effectDensity: 1.08 }),
+    summon('shark_raider', '鮫の略奪者', 'middle', 'barrage', { motionKey: 'dash', visualScale: 1.15, attackReach: 46, attackLift: 1, attackTilt: -7, effectDensity: 1.08 }),
+    summon('ghost_pirate', '幽霊海賊', 'middle', 'aegis', { motionKey: 'float', visualScale: 1.12, entryLift: 8, attackReach: 24, attackLift: 6, effectDensity: 1.08 }),
+    summon('merfolk_lancer', '人魚の槍兵', 'middle', 'tide', { motionKey: 'dash', visualScale: 1.16, attackReach: 45, attackLift: 2, attackTilt: -4, effectDensity: 1.08 }),
 
-    summon('treasure_hermit', '財宝ヤドカリ', 'advanced', 'aegis'),
-    summon('cannon_hermit', '砲台ヤドカリ', 'advanced', 'inferno'),
-    summon('manta_wraith', '亡霊マンタ', 'advanced', 'eclipse', { visualScale: 1.04 }),
-    summon('abyss_angler', '深淵アンコウ', 'advanced', 'eclipse'),
-    summon('skeleton_captain', '骸骨船長', 'advanced', 'command'),
-    summon('anchor_golem', '錨ゴーレム', 'advanced', 'rupture', { visualScale: 1.06 }),
+    summon('treasure_hermit', '財宝ヤドカリ', 'advanced', 'aegis', { motionKey: 'heavy', visualScale: 1.16, attackReach: 25, attackLift: -5, attackTilt: -2, effectDensity: 1.18 }),
+    summon('cannon_hermit', '砲台ヤドカリ', 'advanced', 'inferno', { motionKey: 'heavy', visualScale: 1.17, attackReach: 26, attackLift: -4, attackTilt: 4, effectDensity: 1.18 }),
+    summon('manta_wraith', '亡霊マンタ', 'advanced', 'eclipse', { motionKey: 'flutter', visualScale: 1.17, entryLift: 17, attackReach: 36, attackLift: 11, attackTilt: -8, effectDensity: 1.18 }),
+    summon('abyss_angler', '深淵アンコウ', 'advanced', 'eclipse', { motionKey: 'stalk', visualScale: 1.17, entryLift: 6, attackReach: 38, attackLift: 4, attackTilt: -5, effectDensity: 1.18 }),
+    summon('skeleton_captain', '骸骨船長', 'advanced', 'command', { motionKey: 'dash', visualScale: 1.18, attackReach: 40, attackLift: 1, attackTilt: -4, effectDensity: 1.18 }),
+    summon('anchor_golem', '錨ゴーレム', 'advanced', 'rupture', { motionKey: 'heavy', visualScale: 1.22, attackReach: 34, attackLift: -7, attackTilt: -6, effectDensity: 1.18 }),
 
-    summon('storm_serpent', '嵐の海蛇', 'legendary', 'barrage', { visualScale: 1.08 }),
-    summon('phantom_admiral', '亡霊提督', 'legendary', 'command'),
-    summon('chained_megalodon', '鎖縛のメガロドン', 'legendary', 'rupture', { visualScale: 1.08 }),
-    summon('specter_whale', '亡霊クジラ', 'legendary', 'tide', { visualScale: 1.1 }),
-    summon('armored_kraken', '甲冑クラーケン', 'legendary', 'bind', { visualScale: 1.1 })
+    summon('storm_serpent', '嵐の海蛇', 'legendary', 'barrage', { motionKey: 'coil', visualScale: 1.24, entryLift: 10, attackReach: 46, attackLift: 10, attackTilt: -9, effectDensity: 1.3 }),
+    summon('phantom_admiral', '亡霊提督', 'legendary', 'command', { motionKey: 'float', visualScale: 1.22, entryLift: 8, attackReach: 32, attackLift: 5, attackTilt: -3, effectDensity: 1.3 }),
+    summon('chained_megalodon', '鎖縛のメガロドン', 'legendary', 'rupture', { motionKey: 'dash', visualScale: 1.28, entryLift: 5, attackReach: 48, attackLift: 5, attackTilt: -7, effectDensity: 1.3 }),
+    summon('specter_whale', '亡霊クジラ', 'legendary', 'tide', { motionKey: 'float', visualScale: 1.3, entryLift: 13, attackReach: 34, attackLift: 8, attackTilt: -3, effectDensity: 1.3 }),
+    summon('armored_kraken', '甲冑クラーケン', 'legendary', 'bind', { motionKey: 'coil', visualScale: 1.3, entryLift: 3, attackReach: 42, attackLift: 6, attackTilt: -8, effectDensity: 1.3 })
 ]);
 
 const SUMMON_BY_ID = new Map(TAROT_KINGDOM_SUMMONS.map((entry) => [entry.id, entry]));
@@ -127,9 +144,15 @@ export function resolveTarotKingdomSummon(role = {}) {
         effectName: effect?.name || '',
         effectCategory: effect?.category || '',
         flipX: selected.flipX,
+        motionKey: selected.motionKey,
         visualScale: selected.visualScale,
         anchorX: selected.anchorX,
-        anchorY: selected.anchorY
+        anchorY: selected.anchorY,
+        entryLift: selected.entryLift,
+        attackReach: selected.attackReach,
+        attackLift: selected.attackLift,
+        attackTilt: selected.attackTilt,
+        effectDensity: selected.effectDensity
     };
 }
 

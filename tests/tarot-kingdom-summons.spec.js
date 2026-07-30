@@ -47,6 +47,21 @@ test.describe('Tarot Kingdom deterministic summons', () => {
       expect(fs.existsSync(imagePath), entry.id).toBe(true);
       expect(fs.statSync(imagePath).size, entry.id).toBeGreaterThan(60_000);
     });
+    expect(new Set(summons.TAROT_KINGDOM_SUMMONS.map((entry) => entry.motionKey))).toEqual(new Set([
+      'flutter',
+      'float',
+      'bounce',
+      'dash',
+      'heavy',
+      'coil',
+      'stalk'
+    ]));
+    summons.TAROT_KINGDOM_SUMMONS.forEach((entry) => {
+      expect(entry.attackReach, entry.id).toBeGreaterThanOrEqual(18);
+      expect(entry.attackReach, entry.id).toBeLessThanOrEqual(48);
+      expect(entry.effectDensity, entry.id).toBeGreaterThanOrEqual(0.85);
+      expect(entry.effectDensity, entry.id).toBeLessThanOrEqual(1.35);
+    });
   });
 
   test('role strength—not randomness—selects the summon from weak to strong', async () => {
@@ -155,6 +170,9 @@ test.describe('Tarot Kingdom summon integration', () => {
       const cutin = document.querySelector('.tarot-kingdom-skill-cutin.is-summon');
       const root = document.querySelector('#tarotKingdomRoot');
       const stage = document.querySelector('#tarotKingdomBattleStage');
+      const figure = cutin?.querySelector('.tarot-kingdom-summon-figure');
+      const effectCore = cutin?.querySelector('.tarot-kingdom-summon-effect-core');
+      const effectNode = cutin?.querySelector('.tarot-kingdom-summon-effect-node');
       return {
         state,
         event,
@@ -166,8 +184,19 @@ test.describe('Tarot Kingdom summon integration', () => {
         effectKey: cutin?.dataset.effectKey || '',
         effectCategory: cutin?.dataset.effectCategory || '',
         choreography: cutin?.dataset.choreography || '',
+        effectCue: cutin?.dataset.effectCue || '',
+        effectImpact: cutin?.dataset.effectImpact || '',
+        summonMotion: cutin?.dataset.summonMotion || '',
+        summonPool: cutin?.dataset.summonPool || '',
+        summonId: cutin?.dataset.summonId || '',
         effectClass: cutin?.querySelector('.tarot-kingdom-summon-effect')?.className || '',
         effectNodeCount: cutin?.querySelectorAll('.tarot-kingdom-summon-effect-node').length || 0,
+        effectLayerCount: cutin?.querySelectorAll(
+          '.tarot-kingdom-summon-effect-core, .tarot-kingdom-summon-effect-ring, .tarot-kingdom-summon-effect-trail'
+        ).length || 0,
+        figureAnimationName: figure ? getComputedStyle(figure).animationName : '',
+        effectCoreAnimationName: effectCore ? getComputedStyle(effectCore).animationName : '',
+        effectNodeAnimationName: effectNode ? getComputedStyle(effectNode).animationName : '',
         sealCount: cutin?.querySelectorAll('.tarot-kingdom-summon-seal').length || 0,
         partyHideAt: Number(cutin?.dataset.partyHideAt),
         partyReturnAt: Number(cutin?.dataset.partyReturnAt),
@@ -206,7 +235,16 @@ test.describe('Tarot Kingdom summon integration', () => {
       effectKey: 'command',
       effectCategory: 'support',
       choreography: 'fleet-command',
-      effectNodeCount: 7,
+      effectCue: 'signal-rise',
+      effectImpact: 'fleet-salvo',
+      summonMotion: 'flutter',
+      summonPool: 'entry',
+      summonId: 'skeletal_parrot',
+      effectNodeCount: 11,
+      effectLayerCount: 3,
+      figureAnimationName: 'tarotKingdomSummonFlutterRich',
+      effectCoreAnimationName: 'tarotKingdomCommandMast',
+      effectNodeAnimationName: 'tarotKingdomCommandShot',
       sealCount: 1,
       partyHideAt: 550,
       partyReturnAt: 3900,
@@ -235,15 +273,15 @@ test.describe('Tarot Kingdom summon integration', () => {
   test('all nine effect keys expose distinct choreography classes and categories', async ({ page }) => {
     const visuals = await page.evaluate(() => window.TarotKingdomDebug.battleSummonVisuals());
     expect(visuals).toEqual({
-      rupture: { category: 'attack', choreography: 'ground-break' },
-      inferno: { category: 'attack', choreography: 'fire-projectile' },
-      barrage: { category: 'attack', choreography: 'multi-strike' },
-      bind: { category: 'debuff', choreography: 'water-bind' },
-      eclipse: { category: 'debuff', choreography: 'shadow-eclipse' },
-      chaos: { category: 'debuff', choreography: 'ghost-spiral' },
-      tide: { category: 'support', choreography: 'life-wave' },
-      aegis: { category: 'support', choreography: 'golden-barrier' },
-      command: { category: 'support', choreography: 'fleet-command' }
+      rupture: { category: 'attack', choreography: 'ground-break', cue: 'fault-charge', impact: 'rock-burst' },
+      inferno: { category: 'attack', choreography: 'fire-projectile', cue: 'ember-charge', impact: 'fire-bloom' },
+      barrage: { category: 'attack', choreography: 'multi-strike', cue: 'target-lock', impact: 'cross-salvo' },
+      bind: { category: 'debuff', choreography: 'water-bind', cue: 'tidal-ring', impact: 'chain-collapse' },
+      eclipse: { category: 'debuff', choreography: 'shadow-eclipse', cue: 'umbra-lens', impact: 'shadow-pulse' },
+      chaos: { category: 'debuff', choreography: 'ghost-spiral', cue: 'spirit-orbit', impact: 'vortex-collapse' },
+      tide: { category: 'support', choreography: 'life-wave', cue: 'tide-gather', impact: 'restoring-surge' },
+      aegis: { category: 'support', choreography: 'golden-barrier', cue: 'rune-forge', impact: 'shield-lock' },
+      command: { category: 'support', choreography: 'fleet-command', cue: 'signal-rise', impact: 'fleet-salvo' }
     });
   });
 
@@ -492,7 +530,7 @@ test.describe('Tarot Kingdom summon integration', () => {
     });
     summonEntries.forEach((entry) => {
       expect(entry.visualScale, entry.id).toBeGreaterThanOrEqual(0.7);
-      expect(entry.visualScale, entry.id).toBeLessThanOrEqual(1.2);
+      expect(entry.visualScale, entry.id).toBeLessThanOrEqual(1.4);
       expect(entry.anchorX, entry.id).toBeGreaterThanOrEqual(0);
       expect(entry.anchorX, entry.id).toBeLessThanOrEqual(100);
       expect(entry.anchorY, entry.id).toBeGreaterThanOrEqual(0);
