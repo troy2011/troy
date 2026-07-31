@@ -1,0 +1,1274 @@
+{
+  "public/css/melee-demo.css": [
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".action-detail\" (no-duplicate-selectors)",
+      "fingerprint": "ac0b0a0b2727e041",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".action-title\" (no-duplicate-selectors)",
+      "fingerprint": "3c10ad751825cb83",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".battle-log\" (no-duplicate-selectors)",
+      "fingerprint": "3faf38e2fd28ebc1",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".dice-actions\" (no-duplicate-selectors)",
+      "fingerprint": "a240bc6b4ebd2749",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".dice-face\" (no-duplicate-selectors)",
+      "fingerprint": "7d270d0b54fce109",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".dice-readout\" (no-duplicate-selectors)",
+      "fingerprint": "965c634572186cee",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".dice-zone\" (no-duplicate-selectors)",
+      "fingerprint": "1f54ff776064003e",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".fighter h2\" (no-duplicate-selectors)",
+      "fingerprint": "7ca5ccbfbf6fc653",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".fighter p\" (no-duplicate-selectors)",
+      "fingerprint": "5cbe1a544e148fa3",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".fighter-main\" (no-duplicate-selectors)",
+      "fingerprint": "6cf5e70c129d26a3",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".fixed-dice button\" (no-duplicate-selectors)",
+      "fingerprint": "3bb3065eedf11e42",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".hp-line\" (no-duplicate-selectors)",
+      "fingerprint": "7321c46fa31000c2",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".slot-die\" (no-duplicate-selectors)",
+      "fingerprint": "fdbc1fc4d8c4819a",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".slot-name\" (no-duplicate-selectors)",
+      "fingerprint": "990eff3150cd7aa2",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".slot.is-active\" (no-duplicate-selectors)",
+      "fingerprint": "04ad685e1cf6f69e",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".slot\" (no-duplicate-selectors)",
+      "fingerprint": "8439dbcf7e54c132",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".status-row\" (no-duplicate-selectors)",
+      "fingerprint": "1f622723ada6d999",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".weapon-icon\" (no-duplicate-selectors)",
+      "fingerprint": "100ac6734efcbc32",
+      "count": 1
+    }
+  ],
+  "public/css/spin-tarot.css": [
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-action-row\" (no-duplicate-selectors)",
+      "fingerprint": "08dac5d7be7cf1b8",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-arcana-kicker\" (no-duplicate-selectors)",
+      "fingerprint": "075f8cf1242791e1",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-arcana-panel\" (no-duplicate-selectors)",
+      "fingerprint": "c968b9e0f77d9c5e",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-bet-btn,\n.tarot-spin-root .spin-tarot-ghost-btn,\n.tarot-spin-root .spin-tarot-hold-btn\" (no-duplicate-selectors)",
+      "fingerprint": "5248847f562f979d",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-board .tarot-card-number\" (no-duplicate-selectors)",
+      "fingerprint": "178182fff4c516e0",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-board .tarot-card.is-held-core\" (no-duplicate-selectors)",
+      "fingerprint": "c227795b3301ca04",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-board .tarot-card.is-hit\" (no-duplicate-selectors)",
+      "fingerprint": "f2664090544e4e58",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-board .tarot-card\" (no-duplicate-selectors)",
+      "fingerprint": "14ab1685071ce7f3",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-board-wrap\" (no-duplicate-selectors)",
+      "fingerprint": "25d37c1f7a22b76b",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-board-wrap\" (no-duplicate-selectors)",
+      "fingerprint": "d9a9340806f30fec",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-board,\n.tarot-spin-root .spin-tarot-hold-row\" (no-duplicate-selectors)",
+      "fingerprint": "f300496159624c00",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-board\" (no-duplicate-selectors)",
+      "fingerprint": "2429d182bb858507",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-board\" (no-duplicate-selectors)",
+      "fingerprint": "2a9af3f7abca7ccc",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-controls\" (no-duplicate-selectors)",
+      "fingerprint": "1e923d0be22cf103",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-cutin-art\" (no-duplicate-selectors)",
+      "fingerprint": "60fb07bf28c1e6b8",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-cutin-text\" (no-duplicate-selectors)",
+      "fingerprint": "dbfcdc7df356b9f1",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-cutin-title\" (no-duplicate-selectors)",
+      "fingerprint": "e31eb44bdfa4fcf1",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-cutin\" (no-duplicate-selectors)",
+      "fingerprint": "5fe1353a0c1f6dfa",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-ghost-btn\" (no-duplicate-selectors)",
+      "fingerprint": "d772702960cf474f",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-hold-btn.is-held\" (no-duplicate-selectors)",
+      "fingerprint": "5f49dd27aa4bde8f",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-hold-btn\" (no-duplicate-selectors)",
+      "fingerprint": "9803d720599c0587",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-hold-row\" (no-duplicate-selectors)",
+      "fingerprint": "199621c89b04115e",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-hold-row\" (no-duplicate-selectors)",
+      "fingerprint": "47cff29d67cfa54d",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-hud-chip,\n.tarot-spin-root .spin-tarot-line-list span,\n.tarot-spin-root .spin-tarot-arcana-tags span\" (no-duplicate-selectors)",
+      "fingerprint": "5c9007f994dc8c74",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-log\" (no-duplicate-selectors)",
+      "fingerprint": "68f84248061d0239",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-mini-chip\" (no-duplicate-selectors)",
+      "fingerprint": "b2467014bc2e2a17",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-mini-key\" (no-duplicate-selectors)",
+      "fingerprint": "fb91f5acfd2aec50",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-mini-value\" (no-duplicate-selectors)",
+      "fingerprint": "2725234f5f99f9d8",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-quick-grid\" (no-duplicate-selectors)",
+      "fingerprint": "e8af3bae92b8fa78",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-shell\" (no-duplicate-selectors)",
+      "fingerprint": "65137fc79a190ee4",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-shell\" (no-duplicate-selectors)",
+      "fingerprint": "c8f44acc902545a1",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-spin-btn\" (no-duplicate-selectors)",
+      "fingerprint": "61ba811d2dba6f9b",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root .spin-tarot-spin-btn\" (no-duplicate-selectors)",
+      "fingerprint": "fe2aca0db4ecbd03",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root.is-spinning .spin-tarot-board .tarot-card\" (no-duplicate-selectors)",
+      "fingerprint": "ea76c7e713888d61",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root.spin-tarot-mounted\" (no-duplicate-selectors)",
+      "fingerprint": "eb2b9e81fe2549b8",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-spin-root.spin-tarot-mounted\" (no-duplicate-selectors)",
+      "fingerprint": "fa9dd269a698119c",
+      "count": 1
+    }
+  ],
+  "public/style.css": [
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage\n    .tarot-kingdom-heal-number\" (no-duplicate-selectors)",
+      "fingerprint": "73fbddeb9612ac04",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage\n    > .tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-skill-card-fan .tarot-card\" (no-duplicate-selectors)",
+      "fingerprint": "b6e85b0123ea8394",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage\n    > .tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-skill-cutin-title\" (no-duplicate-selectors)",
+      "fingerprint": "996b96ceea515162",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage\n    > .tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-summon-figure\" (no-duplicate-selectors)",
+      "fingerprint": "5a8953eaa2f90f92",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage\n    > .tarot-kingdom-skill-cutin.is-summon.is-pool-legendary .tarot-kingdom-summon-figure\" (no-duplicate-selectors)",
+      "fingerprint": "3d75b8b0693d97a2",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-summon-figure\" (no-duplicate-selectors)",
+      "fingerprint": "b877f4d6348173f5",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-summon-impact\" (no-duplicate-selectors)",
+      "fingerprint": "7723dc0bc2b9f404",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon::after\" (no-duplicate-selectors)",
+      "fingerprint": "081452154a6ab597",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon::before\" (no-duplicate-selectors)",
+      "fingerprint": "68c0fb5c3c25ea68",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon\" (no-duplicate-selectors)",
+      "fingerprint": "126661b77b5bfa67",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui .tarot-kingdom-panel--hand .tarot-kingdom-hand-title\" (no-duplicate-selectors)",
+      "fingerprint": "0c69f0a0c40e8bad",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui .tarot-kingdom-panel--hand .tarot-kingdom-hand-title\" (no-duplicate-selectors)",
+      "fingerprint": "92f8f2f64c27ae7c",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui .tarot-kingdom-panel--hand\" (no-duplicate-selectors)",
+      "fingerprint": "11e70b4a3ea302bf",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui .tarot-kingdom-panel--hand\" (no-duplicate-selectors)",
+      "fingerprint": "f725684e57536977",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui .tarot-kingdom-panel--trick .tarot-kingdom-chip\" (no-duplicate-selectors)",
+      "fingerprint": "f906817ba84597df",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui .tarot-kingdom-panel--trick .tarot-kingdom-panel-heading\" (no-duplicate-selectors)",
+      "fingerprint": "a1167cbf4056dcde",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui .tarot-kingdom-panel--trick .tarot-kingdom-trick-status\" (no-duplicate-selectors)",
+      "fingerprint": "983391041dc7a68a",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui .tarot-kingdom-panel--trick .tarot-kingdom-trick-title\" (no-duplicate-selectors)",
+      "fingerprint": "28cb674d876f1dc3",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui .tarot-kingdom-panel--trick > #tarotKingdomSelectedCards\" (no-duplicate-selectors)",
+      "fingerprint": "d117b229ea3721ce",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui .tarot-kingdom-panel--trick\" (no-duplicate-selectors)",
+      "fingerprint": "9b3a368ee76459c9",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomActionPopup .tarot-betting-actions > button\" (no-duplicate-selectors)",
+      "fingerprint": "9521d09a26b64200",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomActionPopup .tarot-betting-actions > button\" (no-duplicate-selectors)",
+      "fingerprint": "a6026aff09879bc8",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomActionPopup .tarot-betting-actions\" (no-duplicate-selectors)",
+      "fingerprint": "78667096da243059",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomActionPopup .tarot-betting-actions\" (no-duplicate-selectors)",
+      "fingerprint": "95645b5cce3a2aef",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomActionPopup.tarot-kingdom-action-popup,\n#tabContentTarot #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomActionPopup.tarot-kingdom-action-popup\" (no-duplicate-selectors)",
+      "fingerprint": "ebad10e5ac2a7e47",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(1)\" (no-duplicate-selectors)",
+      "fingerprint": "cb6ce3c70d11fef4",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(2)\" (no-duplicate-selectors)",
+      "fingerprint": "de2eeaf6c9d43c40",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(3)\" (no-duplicate-selectors)",
+      "fingerprint": "b06c5e3387ac92e7",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(4)\" (no-duplicate-selectors)",
+      "fingerprint": "6afaf5e722ca01c2",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleParty.tarot-kingdom-battle-party\" (no-duplicate-selectors)",
+      "fingerprint": "997aa76659188074",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleParty.tarot-kingdom-battle-party\" (no-duplicate-selectors)",
+      "fingerprint": "f6800e0183b79c95",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-arena\" (no-duplicate-selectors)",
+      "fingerprint": "479656d7f656680f",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-arena\" (no-duplicate-selectors)",
+      "fingerprint": "d49752128429b6ea",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-center\" (no-duplicate-selectors)",
+      "fingerprint": "21bf8a4a7f04206e",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-center\" (no-duplicate-selectors)",
+      "fingerprint": "e4e7444257e9aa16",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-enemy-visual\" (no-duplicate-selectors)",
+      "fingerprint": "2c2c2530151d33df",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-enemy-visual\" (no-duplicate-selectors)",
+      "fingerprint": "aa7e87f1e7b84132",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-enemy,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-party-side\" (no-duplicate-selectors)",
+      "fingerprint": "312f61a3a510660b",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-enemy,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-party-side\" (no-duplicate-selectors)",
+      "fingerprint": "6a7bff3785f4f56a",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-enemy\" (no-duplicate-selectors)",
+      "fingerprint": "9d2a72934ef21315",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-enemy\" (no-duplicate-selectors)",
+      "fingerprint": "f3fca019928739d6",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-event\" (no-duplicate-selectors)",
+      "fingerprint": "3f1c74eb1842b34c",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-event\" (no-duplicate-selectors)",
+      "fingerprint": "a45ce74bc42d42f7",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-feed\" (no-duplicate-selectors)",
+      "fingerprint": "4bfbe4d3e45eea99",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-feed\" (no-duplicate-selectors)",
+      "fingerprint": "d5f153ed7fb1e525",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-hp-label\" (no-duplicate-selectors)",
+      "fingerprint": "2bacd4256ed0246e",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-hp-track\" (no-duplicate-selectors)",
+      "fingerprint": "3bdca4e5b42500e1",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-party-side\" (no-duplicate-selectors)",
+      "fingerprint": "58fb6f28389da718",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-party-side\" (no-duplicate-selectors)",
+      "fingerprint": "e8941e6e7ae34355",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar\" (no-duplicate-selectors)",
+      "fingerprint": "136dd5a338c3d3ae",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar\" (no-duplicate-selectors)",
+      "fingerprint": "e36f5e2d993a6c89",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar[data-facing=\"left\"]\" (no-duplicate-selectors)",
+      "fingerprint": "dd94e28d461daf93",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player-header\" (no-duplicate-selectors)",
+      "fingerprint": "4ff93e8bd003845a",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player-hp-track\" (no-duplicate-selectors)",
+      "fingerprint": "0f9417f0c090b775",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player-hp-track\" (no-duplicate-selectors)",
+      "fingerprint": "38b8dae76566eb7a",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player-info\" (no-duplicate-selectors)",
+      "fingerprint": "0d5b46db3e4d059a",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player-info\" (no-duplicate-selectors)",
+      "fingerprint": "99fdb9c7174bddfa",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player-name\" (no-duplicate-selectors)",
+      "fingerprint": "25b9614e9e84ed5b",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player-name\" (no-duplicate-selectors)",
+      "fingerprint": "52c29a9009950963",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player-rank,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player-stats,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player-hp-text\" (no-duplicate-selectors)",
+      "fingerprint": "5457c7f02fac7df8",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player-rank,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player-stats,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player-hp-text\" (no-duplicate-selectors)",
+      "fingerprint": "9d46270b421e860e",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player-status\" (no-duplicate-selectors)",
+      "fingerprint": "bd433a25795fba98",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player.is-turn .tarot-kingdom-battle-player-avatar\" (no-duplicate-selectors)",
+      "fingerprint": "fb7dcbbfcc061f01",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player.is-turn .tarot-kingdom-battle-player-info\" (no-duplicate-selectors)",
+      "fingerprint": "4c69c8d688ab948c",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player.is-turn\" (no-duplicate-selectors)",
+      "fingerprint": "40b72503a4bc0871",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player\" (no-duplicate-selectors)",
+      "fingerprint": "4f94e0da47f06637",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-player\" (no-duplicate-selectors)",
+      "fingerprint": "5c90be77b6d98624",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-side-heading strong\" (no-duplicate-selectors)",
+      "fingerprint": "5ac9545f5ce35da3",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-turn\" (no-duplicate-selectors)",
+      "fingerprint": "e31a513c561746f7",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage .tarot-kingdom-battle-turn\" (no-duplicate-selectors)",
+      "fingerprint": "e493817761513bf0",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage::before\" (no-duplicate-selectors)",
+      "fingerprint": "739c442f17c5b6d9",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage\" (no-duplicate-selectors)",
+      "fingerprint": "b82439e1b0c6f789",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomBattleStage\" (no-duplicate-selectors)",
+      "fingerprint": "faeaab9ddc6f0cb1",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomHand .tarot-card-art\" (no-duplicate-selectors)",
+      "fingerprint": "a2803c2c913f2f43",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomHand .tarot-card-art\" (no-duplicate-selectors)",
+      "fingerprint": "de917f17f7937ffd",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomHand > .tarot-card,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomHand > .tarot-card + .tarot-card\" (no-duplicate-selectors)",
+      "fingerprint": "b251ff0c2ffc186d",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomHand > .tarot-card,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomHand > .tarot-card + .tarot-card\" (no-duplicate-selectors)",
+      "fingerprint": "f020ba4f9669cc6c",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomHand.tarot-kingdom-hand\" (no-duplicate-selectors)",
+      "fingerprint": "5f21a82e1cbdaccc",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomHand.tarot-kingdom-hand\" (no-duplicate-selectors)",
+      "fingerprint": "633a2f7ac03badb4",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomSelectedEffect.tarot-kingdom-selected-effect\" (no-duplicate-selectors)",
+      "fingerprint": "13dfa82794a95aaa",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomSelectedEffect.tarot-kingdom-selected-effect\" (no-duplicate-selectors)",
+      "fingerprint": "efa1c0a655d49325",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomTrick > .tarot-card,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui .tarot-kingdom-panel--trick > #tarotKingdomSelectedCards > .tarot-card,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui .tarot-kingdom-panel--trick .tarot-kingdom-selected-slot\" (no-duplicate-selectors)",
+      "fingerprint": "b6acb8af2ab12fb9",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomTrick > .tarot-card,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui .tarot-kingdom-panel--trick > #tarotKingdomSelectedCards > .tarot-card\" (no-duplicate-selectors)",
+      "fingerprint": "cf3b515a087f4ac6",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui #tarotKingdomTrick.tarot-kingdom-trick,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui .tarot-kingdom-panel--trick > #tarotKingdomSelectedCards\" (no-duplicate-selectors)",
+      "fingerprint": "6151f22e73b03e0d",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.is-battle-active .tarot-kingdom-header-meta\" (no-duplicate-selectors)",
+      "fingerprint": "2496239ebae73cfe",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.is-battle-active .tarot-kingdom-header-meta\" (no-duplicate-selectors)",
+      "fingerprint": "651d7a7f95851dec",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.is-battle-active .tarot-kingdom-header\" (no-duplicate-selectors)",
+      "fingerprint": "8a0b982fb78b211e",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.is-battle-active .tarot-kingdom-header\" (no-duplicate-selectors)",
+      "fingerprint": "effc4eba4385f54c",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.is-battle-active .tarot-kingdom-layout\" (no-duplicate-selectors)",
+      "fingerprint": "1717e59a681caae0",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.is-battle-active .tarot-kingdom-panel--hand\" (no-duplicate-selectors)",
+      "fingerprint": "807053debd386f2c",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.is-battle-active .tarot-kingdom-panel--hand\" (no-duplicate-selectors)",
+      "fingerprint": "e6a050c268d1f721",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.is-battle-active .tarot-kingdom-panel--trick\" (no-duplicate-selectors)",
+      "fingerprint": "2e09f6a913a96d31",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.is-battle-active .tarot-kingdom-panel--trick\" (no-duplicate-selectors)",
+      "fingerprint": "33a8714dc63ca88e",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.is-battle-active .tarot-kingdom-title-wrap,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.is-battle-active .tarot-kingdom-title-copy\" (no-duplicate-selectors)",
+      "fingerprint": "a7b253663d434f4f",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.is-battle-active #tarotKingdomRound.tarot-kingdom-chip\" (no-duplicate-selectors)",
+      "fingerprint": "78d801406342fe8a",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.is-battle-active #tarotKingdomRound.tarot-kingdom-chip\" (no-duplicate-selectors)",
+      "fingerprint": "fdca1bc1863e9eee",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.is-battle-active #tarotKingdomStateText.tarot-state-text\" (no-duplicate-selectors)",
+      "fingerprint": "6fab949d85f75217",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.is-battle-active #tarotKingdomStateText.tarot-state-text\" (no-duplicate-selectors)",
+      "fingerprint": "db7c8674b0e4c1a2",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 .tarot-card,\n.tarot-kingdom-card-deal-ghost.tarot-card\" (no-duplicate-selectors)",
+      "fingerprint": "4baf179593de453e",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 .tarot-kingdom-field-slot,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 .tarot-kingdom-selected-slot\" (no-duplicate-selectors)",
+      "fingerprint": "110032d7a5478289",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 .tarot-kingdom-field-slot,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 .tarot-kingdom-selected-slot\" (no-duplicate-selectors)",
+      "fingerprint": "d4f322bb45e03027",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomActionPopup .tarot-betting-actions > button\" (no-duplicate-selectors)",
+      "fingerprint": "0ae271dbd4a52641",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(1)\" (no-duplicate-selectors)",
+      "fingerprint": "bc52e7374df4cf15",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(2)\" (no-duplicate-selectors)",
+      "fingerprint": "64d1b9e1910f2103",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(3)\" (no-duplicate-selectors)",
+      "fingerprint": "91be2d60609a39f0",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(4)\" (no-duplicate-selectors)",
+      "fingerprint": "31882e63a7edd715",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-arena\" (no-duplicate-selectors)",
+      "fingerprint": "a2c6fd3068c71521",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-enemy-visual\" (no-duplicate-selectors)",
+      "fingerprint": "b92d16dda3636c0d",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-enemy\" (no-duplicate-selectors)",
+      "fingerprint": "8c731d5c0d32e3a8",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-party-side\" (no-duplicate-selectors)",
+      "fingerprint": "6961bfb091863ef0",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar\" (no-duplicate-selectors)",
+      "fingerprint": "e16184caee3f3a12",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar\" (no-duplicate-selectors)",
+      "fingerprint": "f70bf2c461028f34",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player-hp\" (no-duplicate-selectors)",
+      "fingerprint": "0d315b7f6843fac5",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player-info\" (no-duplicate-selectors)",
+      "fingerprint": "09992019ddef7ec9",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player.is-turn .tarot-kingdom-battle-player-avatar\" (no-duplicate-selectors)",
+      "fingerprint": "e223420a81c674dc",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player.is-turn,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player.is-turn .tarot-kingdom-battle-player-info\" (no-duplicate-selectors)",
+      "fingerprint": "8f0af2d02e93b007",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player.is-turn::before,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player.is-turn::after\" (no-duplicate-selectors)",
+      "fingerprint": "8ae03b53d60cd5b1",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player\" (no-duplicate-selectors)",
+      "fingerprint": "79e50692808be718",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand .tarot-card-art\" (no-duplicate-selectors)",
+      "fingerprint": "16556a896cea16e6",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand .tarot-card-art\" (no-duplicate-selectors)",
+      "fingerprint": "4d5dac1f02c340f3",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand .tarot-card-art\" (no-duplicate-selectors)",
+      "fingerprint": "aaa1515a9457023c",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand > .tarot-card,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand > .tarot-card + .tarot-card\" (no-duplicate-selectors)",
+      "fingerprint": "70f5b9adb9f2e759",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand > .tarot-card,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand > .tarot-card + .tarot-card\" (no-duplicate-selectors)",
+      "fingerprint": "775d7bef577b34c5",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand > .tarot-card,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand > .tarot-card + .tarot-card\" (no-duplicate-selectors)",
+      "fingerprint": "96ef4fd55077e70b",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand > .tarot-card.is-selected\" (no-duplicate-selectors)",
+      "fingerprint": "a97679c0db4247d0",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand > .tarot-card.is-selected\" (no-duplicate-selectors)",
+      "fingerprint": "e6b3f164ba34495e",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand.tarot-kingdom-hand\" (no-duplicate-selectors)",
+      "fingerprint": "918e0f1d70223267",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand.tarot-kingdom-hand\" (no-duplicate-selectors)",
+      "fingerprint": "c7a5a36bab4a8d03",
+      "count": 2
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomTrick .tarot-card-art,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomSelectedCards .tarot-card-art\" (no-duplicate-selectors)",
+      "fingerprint": "3fafc86355214811",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomTrick .tarot-card-art,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomSelectedCards .tarot-card-art\" (no-duplicate-selectors)",
+      "fingerprint": "c1a2acccd1ec4da8",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomTrick > .tarot-card,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomSelectedCards > .tarot-card,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 .tarot-kingdom-field-slot,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 .tarot-kingdom-selected-slot\" (no-duplicate-selectors)",
+      "fingerprint": "15b9e0da87c58c14",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomTrick > .tarot-card,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomSelectedCards > .tarot-card,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 .tarot-kingdom-field-slot,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 .tarot-kingdom-selected-slot\" (no-duplicate-selectors)",
+      "fingerprint": "9089a6af4ff1f02f",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomTrick,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomSelectedCards\" (no-duplicate-selectors)",
+      "fingerprint": "9f9dc293a6e68ad7",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomTrick,\n:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomSelectedCards\" (no-duplicate-selectors)",
+      "fingerprint": "cdf5227160dce151",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui\" (no-duplicate-selectors)",
+      "fingerprint": "2a3886ea12db1ee5",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \":is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui\" (no-duplicate-selectors)",
+      "fingerprint": "c45a5b458f01b5e4",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".home-hero-card\" (no-duplicate-selectors)",
+      "fingerprint": "",
+      "count": 2
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".home-player-ship-final\" (no-duplicate-selectors)",
+      "fingerprint": "",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".home-player-ship-head strong\" (no-duplicate-selectors)",
+      "fingerprint": "",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-kingdom-skill-card-fan .tarot-card\" (no-duplicate-selectors)",
+      "fingerprint": "9e15db595618adef",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-skill-card-fan\" (no-duplicate-selectors)",
+      "fingerprint": "0e31b2ad52022fda",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-skill-cutin-title\" (no-duplicate-selectors)",
+      "fingerprint": "65bead106d3d7ac9",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-kingdom-summon-copy\" (no-duplicate-selectors)",
+      "fingerprint": "c0505ccd127330c6",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-kingdom-summon-effect.is-effect-bind .tarot-kingdom-summon-effect-node\" (no-duplicate-selectors)",
+      "fingerprint": "ac7cea72b9df3277",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-kingdom-summon-effect.is-effect-chaos .tarot-kingdom-summon-effect-node\" (no-duplicate-selectors)",
+      "fingerprint": "608827ad24fe47be",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \".tarot-kingdom-summon-impact\" (no-duplicate-selectors)",
+      "fingerprint": "803f7d3cee3ce2bc",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \"#itemDetailModal .item-detail-sheet\" (no-duplicate-selectors)",
+      "fingerprint": "",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \"#tabContentBattle .content-area\" (no-duplicate-selectors)",
+      "fingerprint": "",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \"#tabContentCompanions .content-area\" (no-duplicate-selectors)",
+      "fingerprint": "",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \"#tabContentInventory #inventoryGrid[data-layout=\"consumable\"]\" (no-duplicate-selectors)",
+      "fingerprint": "",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \"#tabContentQr .content-area\" (no-duplicate-selectors)",
+      "fingerprint": "",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \"#tabContentTarot .content-area\" (no-duplicate-selectors)",
+      "fingerprint": "",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \"#tabContentTroy .content-area\" (no-duplicate-selectors)",
+      "fingerprint": "",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \"#tarotKingdomRoot.tarot-kingdom-jrpg #tarotKingdomBattleStage .tarot-kingdom-battle-center\" (no-duplicate-selectors)",
+      "fingerprint": "3bb4065f85d03a69",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \"#tarotKingdomRoot.tarot-kingdom-jrpg #tarotKingdomBattleStage .tarot-kingdom-battle-enemy\" (no-duplicate-selectors)",
+      "fingerprint": "0e1384eb97958c9c",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \"body.tarot-kingdom-preview-body\" (no-duplicate-selectors)",
+      "fingerprint": "2eb7dd0bc031c481",
+      "count": 1
+    },
+    {
+      "rule": "no-duplicate-selectors",
+      "text": "Duplicate selector \"body.tarot-kingdom-preview-body\" (no-duplicate-selectors)",
+      "fingerprint": "5cc65d75bda6b1e7",
+      "count": 1
+    }
+  ]
+}

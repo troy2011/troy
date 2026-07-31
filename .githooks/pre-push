@@ -4,3 +4,5 @@ set -eu
 echo "[pre-push] encoding check (tracked files)"
 node scripts/check-encoding.js
 
+echo "[pre-push] CSS duplicate-selector check"
+npm run lint:css

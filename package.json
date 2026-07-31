@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {
+    "scripts": {
     "test": "npm run test:e2e",
+    "pretest:e2e": "npm run lint:css",
     "test:e2e": "playwright test",
     "tarot:audit": "node scripts/audit-tarot-readings.js",
     "special-ability:generate": "node scripts/generate-special-abilities.js",
@@ -12,6 +13,9 @@
     "special-ability:quality": "node scripts/review-special-abilities.js",
     "special-ability:test": "playwright test tests/special-ability.spec.js",
     "special-ability:demo": "node scripts/run-special-ability-demo.js",
+    "lint:css": "node scripts/lint-css.cjs",
+    "lint:css:all": "stylelint \"public/**/*.css\"",
+    "test:css-rules": "node --test tests/stylelint-rules.test.cjs",
     "check:encoding": "node scripts/check-encoding.js",
     "check:encoding:staged": "node scripts/check-encoding.js --staged",
     "setup:hooks": "git config core.hooksPath .githooks",
@@ -46,6 +50,9 @@
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "playwright": "^1.60.0",
+    "postcss": "^8.5.25",
+    "postcss-selector-parser": "^7.1.4",
+    "stylelint": "^17.14.1",
     "typescript": "^5.9.3"
   }
 }

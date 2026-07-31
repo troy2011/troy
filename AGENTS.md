@@ -55,6 +55,20 @@ Write-Utf8NoBom -Path $file -Content ($old+"`nYOUR_TEXT_HERE`n")
 
 ---
 
+## CSS Maintenance Policy
+
+- Before changing CSS, find and inspect every existing rule that targets the affected element or component.
+- Modify the canonical existing rule in place. Do not append a later duplicate selector merely to override an earlier declaration.
+- Never increase specificity by repeating the same simple selector (for example, `.btn.btn`, `#dialog#dialog`, or `[data-x][data-x]`).
+- Remove obsolete declarations and dead rules as part of the same change; do not leave superseded CSS behind.
+- Do not solve conflicts by increasing selector specificity or adding `!important`. Fix the original rule or the underlying selector structure.
+- Consolidate duplicate selectors and repeated declarations when encountered in the edited scope.
+- A later override is allowed only when the cascade is intentional, such as a documented state, breakpoint, theme, or feature variant. Keep it next to the base rule when practical.
+- After editing CSS, run `npm run lint:css`. Treat every lint error as a required fix; do not disable or bypass the rule.
+- `stylelint-baseline.json` records pre-existing debt only. Never update it merely to make a new CSS change pass; baseline changes require explicit user approval.
+
+---
+
 ## PlayFab Economy V2 Rules (Node.js/JavaScript)
 
 - Use `PlayFabEconomy` from `playfab-sdk` for Economy V2 operations.
@@ -80,4 +94,3 @@ Write-Utf8NoBom -Path $file -Content ($old+"`nYOUR_TEXT_HERE`n")
 ## Firestore Load Policy
 
 - Prefer PlayFab when possible; avoid increasing Firestore load.
-

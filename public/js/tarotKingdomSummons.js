@@ -21,6 +21,16 @@ const EFFECT_PROFILES = Object.freeze({
 });
 
 function summon(id, name, pool, effectKey, options = {}) {
+    const animationName = `tkSummon${String(id)
+        .split('_')
+        .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+        .join('')}`;
+    const motionWeight = {
+        entry: 'light',
+        middle: 'measured',
+        advanced: 'heavy',
+        legendary: 'monumental'
+    }[pool] || 'measured';
     const motionKey = [
         'flutter',
         'float',
@@ -38,6 +48,9 @@ function summon(id, name, pool, effectKey, options = {}) {
         src: `./Sprites/monsters/${id}.png`,
         pool,
         effectKey,
+        choreographyKey: String(options.choreographyKey || id).replace(/_/g, '-'),
+        animationName,
+        motionWeight,
         flipX: options.flipX === true,
         motionKey,
         visualScale: Math.max(0.7, Math.min(1.4, Number(options.visualScale) || 1)),
@@ -143,6 +156,9 @@ export function resolveTarotKingdomSummon(role = {}) {
         effectKey: selected.effectKey,
         effectName: effect?.name || '',
         effectCategory: effect?.category || '',
+        choreographyKey: selected.choreographyKey,
+        animationName: selected.animationName,
+        motionWeight: selected.motionWeight,
         flipX: selected.flipX,
         motionKey: selected.motionKey,
         visualScale: selected.visualScale,
@@ -158,6 +174,39 @@ export function resolveTarotKingdomSummon(role = {}) {
 
 export function getTarotKingdomSummonById(id) {
     return SUMMON_BY_ID.get(String(id || '').trim()) || null;
+}
+
+export function createTarotKingdomSummonStateById(id, role = {}) {
+    const selected = getTarotKingdomSummonById(id);
+    if (!selected) return null;
+    const pool = SUMMON_POOLS.get(selected.pool) || [];
+    const effect = EFFECT_PROFILES[selected.effectKey] || null;
+    return {
+        version: 1,
+        id: selected.id,
+        name: selected.name,
+        src: selected.src,
+        pool: selected.pool,
+        poolIndex: Math.max(0, pool.indexOf(selected)),
+        roleKey: String(role?.key || '').trim(),
+        roleNumber: getTarotKingdomSummonRoleNumber(role),
+        effectKey: selected.effectKey,
+        effectName: effect?.name || '',
+        effectCategory: effect?.category || '',
+        choreographyKey: selected.choreographyKey,
+        animationName: selected.animationName,
+        motionWeight: selected.motionWeight,
+        flipX: selected.flipX,
+        motionKey: selected.motionKey,
+        visualScale: selected.visualScale,
+        anchorX: selected.anchorX,
+        anchorY: selected.anchorY,
+        entryLift: selected.entryLift,
+        attackReach: selected.attackReach,
+        attackLift: selected.attackLift,
+        attackTilt: selected.attackTilt,
+        effectDensity: selected.effectDensity
+    };
 }
 
 export function buildTarotKingdomSummonEffectSteps(summonState, context = {}) {

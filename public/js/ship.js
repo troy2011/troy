@@ -2405,7 +2405,6 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
                 <div class="exploration-sequence-compass" aria-hidden="true"></div>
                 <div class="exploration-sequence-sky"></div>
                 <div class="exploration-sequence-horizon" aria-hidden="true"></div>
-                <div class="exploration-sequence-route" aria-hidden="true"></div>
                 <div class="exploration-sequence-arrival" aria-hidden="true"></div>
                 ${renderExplorationDestinationVisual(active.destinationId ? active : resolvedDestinationId, 'exploration-sequence-island', 'div')}
                 <div class="exploration-sequence-boss" data-exploration-sequence-boss>

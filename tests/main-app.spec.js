@@ -2570,7 +2570,6 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
         <div class="exploration-sequence-scene">
           <div class="exploration-sequence-sky"></div>
           <div class="exploration-sequence-horizon"></div>
-          <div class="exploration-sequence-route"></div>
           <div class="exploration-sequence-arrival"></div>
           <div class="exploration-sequence-island has-image"><img src="./Sprites/exploration_destinations/pirate_cove_hideout.png" alt=""></div>
           <div class="exploration-sequence-boss"><img class="exploration-boss-image exploration-sequence-boss-image" src="./Sprites/monsters/ghost_pirate.png" alt="boss"><small>BOSS</small></div>
@@ -2658,14 +2657,13 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
     const shipFrameCount = new Set(shipSamples.map((sample) => sample.backgroundPosition)).size;
     const sailIsland = styleOf('.exploration-sequence-island');
     const sailIslandImage = styleOf('.exploration-sequence-island img');
-    const sailRoute = styleOf('.exploration-sequence-route');
+    const routeCount = sequence.querySelectorAll('.exploration-sequence-route').length;
     sequence.className = 'exploration-sequence-overlay is-boat is-sky-deep is-battle is-result-victory';
     const battleAvatarElement = sequence.querySelector('.exploration-sequence-avatar');
     battleAvatarElement.classList.add('is-avatar-attacking', 'is-avatar-attack-left');
     const battleScene = styleOf('.exploration-sequence-scene');
     const battleShip = styleOf('.exploration-sequence-ship');
     const battleAvatar = styleOf('.exploration-sequence-avatar');
-    const battleRoute = styleOf('.exploration-sequence-route');
     const battleIsland = styleOf('.exploration-sequence-island');
     const battleBoss = styleOf('.exploration-sequence-boss');
     const battleBossImage = styleOf('.exploration-sequence-boss-image');
@@ -2687,7 +2685,6 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
       sequenceBattleScene: battleScene,
       sequenceBattleShip: battleShip,
       sequenceBattleAvatar: battleAvatar,
-      sequenceBattleRoute: battleRoute,
       sequenceBattleIsland: battleIsland,
       sequenceBattleBoss: battleBoss,
       sequenceBattleBossImage: battleBossImage,
@@ -2696,7 +2693,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
       sequenceBattleBossLeft: battleBossRect.left,
       sequenceBattleAvatarLeft: battleAvatarRect.left,
       sequenceSky: styleOf('.exploration-sequence-sky'),
-      sequenceRoute: sailRoute,
+      sequenceRouteCount: routeCount,
       sequenceArrival: styleOf('.exploration-sequence-arrival'),
       sequenceOpeningChest,
       sequenceChestMore: styleOf('.exploration-sequence-chest-more'),
@@ -2734,7 +2731,6 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(audit.sequenceBattleShip.animationName).toBe('none');
   expect(audit.sequenceBattleAvatar.opacity).toBe('1');
   expect(audit.sequenceBattleAvatar.animationName).toContain('avatarCombatAttack');
-  expect(audit.sequenceBattleRoute.opacity).toBe('0');
   expect(audit.sequenceBattleIsland.opacity).toBe('0');
   expect(audit.sequenceBattleBoss.animationName).toBe('none');
   expect(audit.sequenceBattleBossImage.transform).toContain('-1');
@@ -2749,8 +2745,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(audit.sequenceSailIslandImage.objectFit).toBe('contain');
   expect(audit.sequenceBattleBossLeft).toBeLessThan(audit.sequenceBattleAvatarLeft);
   expectPanelFrame(audit.sequenceLog);
-  expect(audit.sequenceRoute.animationName).toContain('explorationSequenceRoute');
-  expect(audit.sequenceRoute.backgroundImage).not.toContain('repeating-linear-gradient');
+  expect(audit.sequenceRouteCount).toBe(0);
   expect(audit.sequenceArrival.borderRadius).toBe('50%');
   expect(audit.sequenceOpeningChest.animationName).toContain('explorationSequenceChestPop');
   expect(audit.sequenceOpeningChest.animationName).not.toContain('explorationResultChestOpen');
@@ -3034,6 +3029,7 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await expect(sequence.locator('.exploration-sequence-island img')).toHaveAttribute('src', /coral-island-v1\.webp/);
   await expect(sequence.locator('[data-exploration-sequence-advance]')).toHaveCount(0);
   await expect(sequence.locator('[data-exploration-sequence-progress]')).toHaveCount(0);
+  await expect(sequence.locator('.exploration-sequence-route')).toHaveCount(0);
   const readVoyageMetrics = () => sequence.evaluate((element) => {
     const ship = element.querySelector('.exploration-sequence-ship');
     const island = element.querySelector('.exploration-sequence-island');
@@ -3096,8 +3092,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   expect(sailMetrics.islandFilter).toContain('blur');
   expect(Math.abs(encounterMetrics.islandWidth - sailMetrics.islandWidth)).toBeLessThanOrEqual(1);
   expect(Math.abs(encounterMetrics.islandHeight - sailMetrics.islandHeight)).toBeLessThanOrEqual(1);
-  expect(encounterMetrics.islandLeft - encounterMetrics.shipRight).toBeGreaterThanOrEqual(0);
-  expect(encounterMetrics.islandLeft - encounterMetrics.shipRight).toBeLessThanOrEqual(5);
+  expect(encounterMetrics.islandLeft - encounterMetrics.shipRight).toBeGreaterThanOrEqual(-24);
+  expect(encounterMetrics.islandLeft - encounterMetrics.shipRight).toBeLessThanOrEqual(-10);
   expect(sailMetrics.shipAnimationTiming).toContain('cubic-bezier(0.33, 0.33, 0.55, 1)');
   expect(Math.abs(encounterMonsterMetrics.monsterCenterX - encounterMonsterMetrics.islandCenterX)).toBeLessThanOrEqual(2);
   expect(Math.abs(encounterMonsterMetrics.monsterCenterY - encounterMonsterMetrics.islandCenterY)).toBeLessThanOrEqual(2);

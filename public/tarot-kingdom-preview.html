@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="robots" content="noindex,follow">
     <title>Tarot Kingdom Preview</title>
-    <link rel="stylesheet" href="./style.css?v=20260730-summon-rich2">
+    <link rel="stylesheet" href="./style.css?v=20260731-summon-cinematic27-v1">
+    <link rel="stylesheet" href="./tarot-kingdom-summons.css?v=20260731-summon-cinematic27-v1">
     <style>
         html, body {
             margin: 0;
@@ -96,6 +97,10 @@
                 <label class="tarot-kingdom-demo-role-picker" for="tarotKingdomDemoRoleSelect">
                     <span>DEMO 5-CARD ROLE</span>
                     <select id="tarotKingdomDemoRoleSelect" aria-label="デモの5枚役演出を選択"></select>
+                </label>
+                <label class="tarot-kingdom-demo-summon-picker" for="tarotKingdomDemoSummonSelect">
+                    <span>DEMO SUMMON</span>
+                    <select id="tarotKingdomDemoSummonSelect" aria-label="デモの召喚獣を選択"></select>
                 </label>
                 <section class="tarot-kingdom-battle-enemy is-facing-left" aria-label="敵モンスター">
                     <div class="tarot-kingdom-battle-side-heading">
@@ -193,7 +198,7 @@
         window.myLineProfile = { displayName: 'Preview' };
         window.__TAROT_KINGDOM_PREVIEW__ = true;
 
-        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260730-summon-rich2';
+        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260731-summon-cinematic27-v1';
 
         window.TarotKingdomPreview = {
             load: () => loadTarotKingdomPage(),

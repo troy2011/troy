@@ -1,0 +1,1392 @@
+/*
+ * Tarot Kingdom summon cinematic — dedicated 27-creature edition.
+ *
+ * Every summon is a single still image. The figure is moved only as one rigid
+ * object; personality comes from its own timeline and from independent
+ * battlefield FX. Keep this file isolated from the normal battle CSS so an old
+ * summon rule can never silently win the cascade again.
+ */
+
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon {
+    --summon-effect: var(--skill-accent, #8fd8ff);
+    --summon-fx-primary: var(--summon-effect);
+    --summon-fx-secondary: #fff4c2;
+    position: absolute;
+    z-index: 72;
+    inset: 0;
+    display: block;
+    overflow: hidden;
+    opacity: 1;
+    background:
+        radial-gradient(circle at 70% 48%, color-mix(in srgb, var(--summon-fx-primary) 14%, transparent), transparent 36%),
+        linear-gradient(180deg, rgba(2, 5, 13, 0.08), rgba(1, 3, 9, 0.3));
+    pointer-events: none;
+    isolation: isolate;
+    animation: tkSummonOverlay 4500ms linear both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    border: 0;
+    background:
+        linear-gradient(104deg, transparent 0 38%, color-mix(in srgb, var(--summon-fx-primary) 13%, transparent) 48%, transparent 58%),
+        radial-gradient(ellipse at 70% 76%, transparent 0 28%, rgba(0, 0, 0, 0.26) 70%);
+    filter: none;
+    transform: none;
+    animation: tkSummonAtmosphere 4500ms linear both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon::after {
+    content: "";
+    position: absolute;
+    z-index: 14;
+    inset: 0;
+    border: 0;
+    background:
+        radial-gradient(circle at 25% 56%, transparent 0 13%, rgba(255, 255, 255, 0.05) 14%, transparent 22%),
+        radial-gradient(ellipse at center, transparent 46%, rgba(0, 0, 0, 0.36) 100%);
+    opacity: 0;
+    filter: none;
+    transform: none;
+    animation: tkSummonImpactFlash 4500ms steps(2, end) both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-skill-cutin-title {
+    position: absolute;
+    z-index: 22;
+    top: 7%;
+    left: 50%;
+    width: min(92%, 560px);
+    margin: 0;
+    color: #fff8d8;
+    font-family: Georgia, "Yu Mincho", serif;
+    font-size: clamp(22px, 6.7vw, 42px);
+    line-height: 1;
+    letter-spacing: 0.1em;
+    text-align: center;
+    text-shadow:
+        0 3px 2px #02030a,
+        0 0 9px var(--summon-fx-primary),
+        0 0 22px color-mix(in srgb, var(--summon-fx-primary) 70%, transparent);
+    transform: translateX(-50%);
+    animation: tkSummonRoleTitle 1200ms ease both;
+    animation-delay: calc(var(--summon-elapsed, 0ms) + var(--summon-role-show-at, 1300ms));
+}
+
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-skill-card-fan {
+    position: absolute;
+    z-index: 21;
+    top: 16%;
+    left: 50%;
+    display: flex;
+    width: min(92%, 360px);
+    height: 92px;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    transform: translateX(-50%);
+}
+
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-skill-card-fan .tarot-card {
+    width: 50px !important;
+    height: 82px !important;
+    animation: tkSummonCardFan 1250ms cubic-bezier(0.2, 0.72, 0.2, 1) both !important;
+    animation-delay: calc(var(--summon-elapsed, 0ms) + var(--summon-role-show-at, 1300ms)) !important;
+}
+
+.tarot-kingdom-summon-seal,
+.tarot-kingdom-summon-portal {
+    position: absolute;
+    z-index: 3;
+    right: 12%;
+    bottom: 11%;
+    width: min(43%, 270px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    opacity: 0;
+    pointer-events: none;
+    transform-origin: 50% 50%;
+}
+
+.tarot-kingdom-summon-seal {
+    z-index: 5;
+    border: 2px solid color-mix(in srgb, var(--summon-fx-primary) 88%, white);
+    background:
+        repeating-conic-gradient(from 0deg, transparent 0 11deg, color-mix(in srgb, var(--summon-fx-primary) 72%, transparent) 12deg 13deg),
+        radial-gradient(circle, transparent 0 26%, color-mix(in srgb, var(--summon-fx-primary) 35%, transparent) 27% 30%, transparent 31% 45%, color-mix(in srgb, var(--summon-fx-primary) 65%, transparent) 46% 48%, transparent 49%);
+    box-shadow:
+        inset 0 0 24px color-mix(in srgb, var(--summon-fx-primary) 46%, transparent),
+        0 0 24px color-mix(in srgb, var(--summon-fx-primary) 65%, transparent);
+    animation: tkSummonSeal 4500ms ease-in-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+.tarot-kingdom-summon-portal {
+    border: 2px solid color-mix(in srgb, var(--summon-fx-primary) 74%, white);
+    background:
+        conic-gradient(from 45deg, transparent, color-mix(in srgb, var(--summon-fx-primary) 58%, transparent), transparent 32%, color-mix(in srgb, var(--summon-fx-secondary) 50%, transparent), transparent 70%),
+        radial-gradient(circle, color-mix(in srgb, var(--summon-fx-primary) 22%, transparent), transparent 66%);
+    box-shadow:
+        inset 0 0 32px color-mix(in srgb, var(--summon-fx-primary) 42%, transparent),
+        0 0 28px color-mix(in srgb, var(--summon-fx-primary) 48%, transparent);
+    animation: tkSummonPortal 4500ms ease-in-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+.tarot-kingdom-summon-figure {
+    position: absolute;
+    z-index: 10;
+    right: 1%;
+    bottom: 4%;
+    width: min(61%, 390px);
+    height: 76%;
+    margin: 0;
+    opacity: 0;
+    transform-origin: var(--summon-anchor-x, 50%) var(--summon-anchor-y, 100%);
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+    contain: layout style;
+}
+
+.tarot-kingdom-summon-art {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: var(--summon-anchor-x, 50%) var(--summon-anchor-y, 100%);
+    filter:
+        drop-shadow(0 12px 7px rgba(0, 0, 0, 0.92))
+        drop-shadow(0 0 9px color-mix(in srgb, var(--summon-fx-primary) 48%, transparent));
+    transform: scale(var(--summon-scale, 1));
+    transform-origin: var(--summon-anchor-x, 50%) var(--summon-anchor-y, 100%);
+    image-rendering: auto;
+    will-change: filter;
+}
+
+.tarot-kingdom-summon-figure.is-flipped .tarot-kingdom-summon-art {
+    transform: scaleX(-1) scale(var(--summon-scale, 1));
+}
+
+.tarot-kingdom-summon-copy {
+    position: absolute;
+    z-index: 23;
+    right: 3%;
+    bottom: 8%;
+    display: grid;
+    min-width: min(54%, 290px);
+    max-width: 64%;
+    padding: 7px 12px 8px;
+    border-right: 3px solid var(--summon-fx-primary);
+    color: #fff7da;
+    background: linear-gradient(90deg, transparent, rgba(3, 7, 18, 0.82) 25%);
+    text-align: right;
+    opacity: 0;
+    animation: tkSummonCopy 4500ms ease both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+.tarot-kingdom-summon-name {
+    font-family: Georgia, "Yu Mincho", serif;
+    font-size: clamp(18px, 5vw, 30px);
+    line-height: 1.1;
+    letter-spacing: 0.05em;
+    text-shadow: 0 2px 2px #000, 0 0 8px var(--summon-fx-primary);
+}
+
+.tarot-kingdom-summon-technique {
+    margin-top: 3px;
+    color: color-mix(in srgb, var(--summon-fx-primary) 45%, white);
+    font-size: clamp(10px, 2.8vw, 14px);
+    font-weight: 900;
+    letter-spacing: 0.12em;
+}
+
+.tarot-kingdom-summon-effect,
+.tarot-kingdom-summon-impact {
+    position: absolute;
+    z-index: 8;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    contain: layout style;
+}
+
+.tarot-kingdom-summon-impact {
+    z-index: 13;
+    opacity: 0;
+    background:
+        radial-gradient(circle at 25% 57%, #fff 0 1.5%, color-mix(in srgb, var(--summon-fx-primary) 82%, white) 2% 5%, transparent 17%),
+        conic-gradient(from 0deg at 25% 57%, transparent 0 8%, rgba(255, 255, 255, 0.88) 9% 10%, transparent 11% 22%, rgba(255, 255, 255, 0.6) 23% 24%, transparent 25%);
+    mix-blend-mode: screen;
+    animation: tkSummonImpact 4500ms steps(2, end) both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+.tarot-kingdom-summon-fx {
+    position: absolute;
+    display: block;
+    box-sizing: border-box;
+    opacity: 0;
+    pointer-events: none;
+    will-change: transform, opacity;
+}
+
+.tarot-kingdom-summon-fx-backdrop {
+    inset: 0;
+    z-index: 0;
+}
+
+.tarot-kingdom-summon-fx-floor {
+    z-index: 2;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 46%;
+    transform-origin: 50% 100%;
+}
+
+.tarot-kingdom-summon-fx-shadow {
+    z-index: 4;
+    left: 7%;
+    top: 31%;
+    width: 38%;
+    height: 40%;
+    border-radius: 50%;
+}
+
+.tarot-kingdom-summon-fx-sigil {
+    z-index: 5;
+    right: 10%;
+    bottom: 13%;
+    width: min(45%, 270px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+}
+
+.tarot-kingdom-summon-fx-aura {
+    z-index: 7;
+    right: 5%;
+    bottom: 5%;
+    width: 56%;
+    height: 72%;
+}
+
+.tarot-kingdom-summon-fx-projectile {
+    z-index: 11;
+    left: 20%;
+    top: 47%;
+    width: 55%;
+    height: 12%;
+    transform-origin: 100% 50%;
+}
+
+.tarot-kingdom-summon-fx-impact {
+    z-index: 12;
+    left: 6%;
+    top: 33%;
+    width: 38%;
+    height: 48%;
+    border-radius: 50%;
+}
+
+.tarot-kingdom-summon-fx-support {
+    z-index: 12;
+    right: 2%;
+    top: 22%;
+    width: 44%;
+    height: 66%;
+}
+
+.tarot-kingdom-summon-effect-node {
+    position: absolute;
+    z-index: 9;
+    display: block;
+    width: 12px;
+    height: 12px;
+    border: 1px solid color-mix(in srgb, var(--summon-fx-primary) 75%, white);
+    border-radius: 50%;
+    opacity: 0;
+    background: var(--summon-fx-primary);
+    box-shadow: 0 0 8px var(--summon-fx-primary);
+    pointer-events: none;
+}
+
+/* During the summon the enemy and battlefield remain. Party and HUD leave only temporarily. */
+#tarotKingdomBattleStage.is-summon-cinematic .tarot-kingdom-battle-party-side {
+    animation: tkSummonPartyVisibility 4500ms linear both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+#tarotKingdomBattleStage.is-summon-cinematic .tarot-kingdom-battle-center,
+#tarotKingdomBattleStage.is-summon-cinematic .tarot-kingdom-battle-side-heading,
+#tarotKingdomBattleStage.is-summon-cinematic .tarot-kingdom-battle-hp,
+#tarotKingdomRoot.is-summon-cinematic .tarot-kingdom-panel--hand,
+#tarotKingdomRoot.is-summon-cinematic .tarot-kingdom-panel--players {
+    animation: tkSummonHudVisibility 4500ms linear both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* A hard 120ms visual lock at impact, followed by weight-specific camera recoil. */
+#tarotKingdomBattleStage.is-battle-skill.is-battle-hit-stop:has(> .tarot-kingdom-skill-cutin.is-summon) {
+    animation: tkSummonCameraHit 120ms steps(4, end) both;
+}
+
+#tarotKingdomBattleStage.is-battle-skill.is-battle-hit-stop:has(
+    > .tarot-kingdom-skill-cutin:is(
+        .is-weight-heavy,
+        .is-weight-monumental,
+        .is-summon-id-cannon_mimic,
+        .is-summon-id-cannon_hermit
+    )
+) {
+    animation-name: tkSummonCameraHeavyHit;
+}
+
+#tarotKingdomBattleStage.is-battle-skill.is-battle-damage:has(
+    > .tarot-kingdom-skill-cutin.is-summon
+) .tarot-kingdom-battle-arena {
+    animation: tkSummonCameraRecover 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* -------------------------------------------------------------------------- */
+/* 27 independent figure timelines                                            */
+/* -------------------------------------------------------------------------- */
+
+.is-summon-id-skeletal_parrot {
+    --summon-fx-primary: #76e8ff;
+    --summon-fx-secondary: #ffe48a;
+}
+.is-summon-id-skeletal_parrot .tarot-kingdom-summon-figure { animation: tkSummonSkeletalParrot 4500ms cubic-bezier(.18,.72,.2,1) both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-lantern_wraith {
+    --summon-fx-primary: #a87cff;
+    --summon-fx-secondary: #79d8ff;
+}
+.is-summon-id-lantern_wraith .tarot-kingdom-summon-figure { animation: tkSummonLanternWraith 4500ms ease-in-out both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-puffer_bomb {
+    --summon-fx-primary: #ff552f;
+    --summon-fx-secondary: #ffd45c;
+}
+.is-summon-id-puffer_bomb .tarot-kingdom-summon-figure { animation: tkSummonPufferBomb 4500ms cubic-bezier(.2,.78,.2,1) both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-treasure_slime {
+    --summon-fx-primary: #56f5d0;
+    --summon-fx-secondary: #ffe071;
+}
+.is-summon-id-treasure_slime .tarot-kingdom-summon-figure { animation: tkSummonTreasureSlime 4500ms cubic-bezier(.2,.76,.22,1) both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-coral_goblin {
+    --summon-fx-primary: #74eeff;
+    --summon-fx-secondary: #ffda73;
+}
+.is-summon-id-coral_goblin .tarot-kingdom-summon-figure { animation: tkSummonCoralGoblin 4500ms cubic-bezier(.1,.82,.2,1) both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-mimic_chest {
+    --summon-fx-primary: #ffb33f;
+    --summon-fx-secondary: #fff0ae;
+}
+.is-summon-id-mimic_chest .tarot-kingdom-summon-figure { animation: tkSummonMimicChest 4500ms cubic-bezier(.22,.72,.2,1) both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-zombie_raider {
+    --summon-fx-primary: #b36cff;
+    --summon-fx-secondary: #73ffc5;
+}
+.is-summon-id-zombie_raider .tarot-kingdom-summon-figure { animation: tkSummonZombieRaider 4500ms ease-out both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-drowned_buccaneer {
+    --summon-fx-primary: #487aff;
+    --summon-fx-secondary: #73ffd4;
+}
+.is-summon-id-drowned_buccaneer .tarot-kingdom-summon-figure { animation: tkSummonDrownedBuccaneer 4500ms ease-out both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-crab_brute {
+    --summon-fx-primary: #ffd464;
+    --summon-fx-secondary: #73cfff;
+}
+.is-summon-id-crab_brute .tarot-kingdom-summon-figure { animation: tkSummonCrabBrute 4500ms cubic-bezier(.18,.7,.22,1) both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-cursed_shipwheel {
+    --summon-fx-primary: #b069ff;
+    --summon-fx-secondary: #58d8ff;
+}
+.is-summon-id-cursed_shipwheel .tarot-kingdom-summon-figure { animation: tkSummonCursedShipwheel 4500ms ease-in-out both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-cannon_mimic {
+    --summon-fx-primary: #ff5e2f;
+    --summon-fx-secondary: #ffdd72;
+}
+.is-summon-id-cannon_mimic .tarot-kingdom-summon-figure { animation: tkSummonCannonMimic 4500ms cubic-bezier(.18,.68,.2,1) both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-kraken_pirate {
+    --summon-fx-primary: #58bfff;
+    --summon-fx-secondary: #a27aff;
+}
+.is-summon-id-kraken_pirate .tarot-kingdom-summon-figure { animation: tkSummonKrakenPirate 4500ms ease-out both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-blue_kraken {
+    --summon-fx-primary: #4c79ff;
+    --summon-fx-secondary: #72eaff;
+}
+.is-summon-id-blue_kraken .tarot-kingdom-summon-figure { animation: tkSummonBlueKraken 4500ms cubic-bezier(.18,.66,.22,1) both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-shark_raider {
+    --summon-fx-primary: #77eaff;
+    --summon-fx-secondary: #fff0ac;
+}
+.is-summon-id-shark_raider .tarot-kingdom-summon-figure { animation: tkSummonSharkRaider 4500ms cubic-bezier(.14,.78,.2,1) both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-ghost_pirate {
+    --summon-fx-primary: #8d8cff;
+    --summon-fx-secondary: #ffd868;
+}
+.is-summon-id-ghost_pirate .tarot-kingdom-summon-figure { animation: tkSummonGhostPirate 4500ms ease-in-out both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-merfolk_lancer {
+    --summon-fx-primary: #4ef4db;
+    --summon-fx-secondary: #76bfff;
+}
+.is-summon-id-merfolk_lancer .tarot-kingdom-summon-figure { animation: tkSummonMerfolkLancer 4500ms cubic-bezier(.16,.76,.2,1) both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-treasure_hermit {
+    --summon-fx-primary: #ffd45f;
+    --summon-fx-secondary: #76dfff;
+}
+.is-summon-id-treasure_hermit .tarot-kingdom-summon-figure { animation: tkSummonTreasureHermit 4500ms cubic-bezier(.2,.68,.2,1) both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-cannon_hermit {
+    --summon-fx-primary: #ff622f;
+    --summon-fx-secondary: #ffe071;
+}
+.is-summon-id-cannon_hermit .tarot-kingdom-summon-figure { animation: tkSummonCannonHermit 4500ms cubic-bezier(.2,.65,.2,1) both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-manta_wraith {
+    --summon-fx-primary: #735fff;
+    --summon-fx-secondary: #80eaff;
+}
+.is-summon-id-manta_wraith .tarot-kingdom-summon-figure { animation: tkSummonMantaWraith 4500ms linear both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-abyss_angler {
+    --summon-fx-primary: #6960ff;
+    --summon-fx-secondary: #d9ff73;
+}
+.is-summon-id-abyss_angler .tarot-kingdom-summon-figure { animation: tkSummonAbyssAngler 4500ms ease-in-out both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-skeleton_captain {
+    --summon-fx-primary: #ffd76b;
+    --summon-fx-secondary: #73d4ff;
+}
+.is-summon-id-skeleton_captain .tarot-kingdom-summon-figure { animation: tkSummonSkeletonCaptain 4500ms cubic-bezier(.18,.64,.2,1) both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-anchor_golem {
+    --summon-fx-primary: #ffb34f;
+    --summon-fx-secondary: #83cfff;
+}
+.is-summon-id-anchor_golem .tarot-kingdom-summon-figure { animation: tkSummonAnchorGolem 4500ms cubic-bezier(.2,.62,.2,1) both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-storm_serpent {
+    --summon-fx-primary: #aab7ff;
+    --summon-fx-secondary: #75edff;
+}
+.is-summon-id-storm_serpent .tarot-kingdom-summon-figure { animation: tkSummonStormSerpent 4500ms ease-in-out both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-phantom_admiral {
+    --summon-fx-primary: #d8d1ff;
+    --summon-fx-secondary: #ffd66a;
+}
+.is-summon-id-phantom_admiral .tarot-kingdom-summon-figure { animation: tkSummonPhantomAdmiral 4500ms ease-out both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-chained_megalodon {
+    --summon-fx-primary: #8acbff;
+    --summon-fx-secondary: #ffbc67;
+}
+.is-summon-id-chained_megalodon .tarot-kingdom-summon-figure { animation: tkSummonChainedMegalodon 4500ms cubic-bezier(.16,.68,.17,1) both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-specter_whale {
+    --summon-fx-primary: #8deeff;
+    --summon-fx-secondary: #d5ffce;
+}
+.is-summon-id-specter_whale .tarot-kingdom-summon-figure { animation: tkSummonSpecterWhale 4500ms linear both; animation-delay: var(--summon-elapsed, 0ms); }
+
+.is-summon-id-armored_kraken {
+    --summon-fx-primary: #7d8bff;
+    --summon-fx-secondary: #b674ff;
+}
+.is-summon-id-armored_kraken .tarot-kingdom-summon-figure { animation: tkSummonArmoredKraken 4500ms cubic-bezier(.2,.6,.2,1) both; animation-delay: var(--summon-elapsed, 0ms); }
+
+/* Entry pool: lively, but each still settles before its single attack. */
+@keyframes tkSummonSkeletalParrot {
+    0%, 46% { opacity: 0; transform: translate3d(46%, -34%, 0) rotate(6deg) scale(.82); }
+    54% { opacity: 1; transform: translate3d(-3%, 1%, 0) rotate(-2deg) scale(1.02); }
+    58%, 63% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-18%, -4%, 0) rotate(-4deg) scale(1.05); }
+    76%, 90% { opacity: 1; transform: translate3d(-3%, 0, 0) rotate(0) scale(1); }
+    100% { opacity: 0; transform: translate3d(22%, -20%, 0) rotate(3deg) scale(.88); }
+}
+
+@keyframes tkSummonLanternWraith {
+    0%, 45% { opacity: 0; transform: translate3d(18%, 14%, 0) scale(.88); }
+    52% { opacity: .45; transform: translate3d(5%, -5%, 0) scale(.97); }
+    57%, 63% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-7%, -2%, 0) scale(1.025); }
+    77%, 91% { opacity: .94; transform: translate3d(0, 0, 0) scale(1); }
+    100% { opacity: 0; transform: translate3d(12%, -8%, 0) scale(.9); }
+}
+
+@keyframes tkSummonPufferBomb {
+    0%, 47% { opacity: 0; transform: translate3d(34%, 7%, 0) rotate(4deg) scale(.72); }
+    54% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(.95); }
+    62% { opacity: 1; transform: translate3d(0, 0, 0) scale(1.12); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-9%, 0, 0) rotate(-3deg) scale(1.16); }
+    72% { opacity: 1; transform: translate3d(13%, 1%, 0) rotate(2deg) scale(.96); }
+    80%, 91% { opacity: 1; transform: translate3d(1%, 0, 0) rotate(0) scale(1); }
+    100% { opacity: 0; transform: translate3d(25%, -8%, 0) scale(.78); }
+}
+
+@keyframes tkSummonTreasureSlime {
+    0%, 46% { opacity: 0; transform: translate3d(30%, 7%, 0) scale(.84); }
+    50% { opacity: 1; transform: translate3d(16%, -8%, 0) scale(.94); }
+    53% { opacity: 1; transform: translate3d(8%, 0, 0) scale(1.02,.95); }
+    56% { opacity: 1; transform: translate3d(2%, -4%, 0) scale(.98,1.02); }
+    59%, 63% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-4%, -2%, 0) scale(1.045); }
+    77%, 91% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    100% { opacity: 0; transform: translate3d(20%, 4%, 0) scale(.86); }
+}
+
+@keyframes tkSummonCoralGoblin {
+    0%, 48% { opacity: 0; transform: translate3d(52%, 2%, 0) rotate(5deg) scale(.84); }
+    54% { opacity: 1; transform: translate3d(-2%, 0, 0) rotate(-1deg) scale(1.02); }
+    56%, 63% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-30%, -1%, 0) rotate(-5deg) scale(1.04); }
+    75%, 90% { opacity: 1; transform: translate3d(-4%, 0, 0) rotate(0) scale(1); }
+    100% { opacity: 0; transform: translate3d(30%, 0, 0) scale(.88); }
+}
+
+@keyframes tkSummonMimicChest {
+    0%, 47% { opacity: 0; transform: translate3d(28%, 8%, 0) scale(.84); }
+    53% { opacity: 1; transform: translate3d(0, -11%, 0) rotate(-2deg) scale(.98); }
+    57% { opacity: 1; transform: translate3d(0, 0, 0) rotate(1deg) scale(1.04,.96); }
+    60%, 63% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-6%, 2%, 0) rotate(-2deg) scale(1.04,.94); }
+    76%, 91% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    100% { opacity: 0; transform: translate3d(20%, 6%, 0) scale(.86); }
+}
+
+@keyframes tkSummonZombieRaider {
+    0%, 45% { opacity: 0; transform: translate3d(38%, 4%, 0) rotate(5deg) scale(.9); }
+    57%, 63% { opacity: 1; transform: translate3d(0, 0, 0) rotate(-1deg) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-14%, 0, 0) rotate(-4deg) scale(1.025); }
+    78%, 91% { opacity: .96; transform: translate3d(-3%, 0, 0) rotate(-1deg) scale(1); }
+    100% { opacity: 0; transform: translate3d(17%, -3%, 0) rotate(2deg) scale(.9); }
+}
+
+@keyframes tkSummonDrownedBuccaneer {
+    0%, 44% { opacity: 0; transform: translate3d(24%, 24%, 0) rotate(3deg) scale(.9); }
+    52% { opacity: .6; transform: translate3d(12%, 8%, 0) rotate(1deg) scale(.96); }
+    58%, 63% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-13%, 1%, 0) rotate(-3deg) scale(1.03); }
+    77%, 91% { opacity: .98; transform: translate3d(-2%, 0, 0) rotate(0) scale(1); }
+    100% { opacity: 0; transform: translate3d(12%, 14%, 0) scale(.9); }
+}
+
+@keyframes tkSummonCrabBrute {
+    0%, 45% { opacity: 0; transform: translate3d(46%, 8%, 0) rotate(2deg) scale(.9); }
+    56% { opacity: 1; transform: translate3d(0, 1%, 0) rotate(0) scale(1.02,.98); }
+    59%, 64% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-5%, 2%, 0) rotate(-2deg) scale(1.025,.975); }
+    77%, 92% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    100% { opacity: 0; transform: translate3d(18%, 4%, 0) scale(.9); }
+}
+
+/* Full house pool: one decelerating entrance, no bounce. */
+@keyframes tkSummonCursedShipwheel {
+    0%, 43% { opacity: 0; transform: translate3d(24%, -5%, 0) rotate(3deg) scale(.82); }
+    56%, 63% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-5%, 0, 0) rotate(-3deg) scale(1.04); }
+    78%, 92% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    100% { opacity: 0; transform: translate3d(13%, -5%, 0) rotate(2deg) scale(.9); }
+}
+
+@keyframes tkSummonCannonMimic {
+    0%, 43% { opacity: 0; transform: translate3d(42%, 5%, 0) rotate(2deg) scale(.9); }
+    56%, 61% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    65% { opacity: 1; transform: translate3d(1%, 0, 0) scale(.985); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-1%, 0, 0) rotate(-1deg) scale(1.015); }
+    71.5% { opacity: 1; transform: translate3d(12%, 1%, 0) rotate(2deg) scale(.98); }
+    79%, 92% { opacity: 1; transform: translate3d(1%, 0, 0) rotate(0) scale(1); }
+    100% { opacity: 0; transform: translate3d(17%, 3%, 0) scale(.9); }
+}
+
+@keyframes tkSummonKrakenPirate {
+    0%, 42% { opacity: 0; transform: translate3d(13%, 30%, 0) rotate(2deg) scale(.9); }
+    57%, 63% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-5%, -1%, 0) rotate(-2deg) scale(1.025); }
+    78%, 92% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    100% { opacity: 0; transform: translate3d(10%, 14%, 0) scale(.9); }
+}
+
+@keyframes tkSummonBlueKraken {
+    0%, 41% { opacity: 0; transform: translate3d(9%, 10%, 0) scale(.74); }
+    49% { opacity: .25; transform: translate3d(5%, 6%, 0) scale(.84); }
+    58%, 64% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-4%, -1%, 0) rotate(-2deg) scale(1.02); }
+    79%, 92% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    100% { opacity: 0; transform: translate3d(8%, 7%, 0) scale(.88); }
+}
+
+@keyframes tkSummonSharkRaider {
+    0%, 45% { opacity: 0; transform: translate3d(50%, -8%, 0) rotate(3deg) scale(.72); }
+    57%, 63% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-42%, 0, 0) rotate(-3deg) scale(1.04); }
+    75% { opacity: 1; transform: translate3d(-6%, 0, 0) rotate(0) scale(1); }
+    80%, 92% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    100% { opacity: 0; transform: translate3d(24%, -4%, 0) scale(.88); }
+}
+
+@keyframes tkSummonGhostPirate {
+    0%, 42% { opacity: 0; transform: translate3d(34%, -2%, 0) rotate(2deg) scale(.9); }
+    51% { opacity: .38; transform: translate3d(15%, -2%, 0) rotate(1deg) scale(.96); }
+    58%, 64% { opacity: .94; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-3%, -2%, 0) rotate(-1deg) scale(1.025); }
+    78%, 92% { opacity: .88; transform: translate3d(0, 0, 0) scale(1); }
+    100% { opacity: 0; transform: translate3d(14%, -5%, 0) scale(.9); }
+}
+
+@keyframes tkSummonMerfolkLancer {
+    0%, 44% { opacity: 0; transform: translate3d(40%, 8%, 0) rotate(3deg) scale(.88); }
+    57%, 63% { opacity: 1; transform: translate3d(0, 0, 0) rotate(-1deg) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-38%, -1%, 0) rotate(-3deg) scale(1.04); }
+    76%, 92% { opacity: 1; transform: translate3d(-4%, 0, 0) rotate(0) scale(1); }
+    100% { opacity: 0; transform: translate3d(16%, 4%, 0) scale(.9); }
+}
+
+/* Four-kind pool: the world reacts; the still art barely moves. */
+@keyframes tkSummonTreasureHermit {
+    0%, 40% { opacity: 0; transform: translate3d(20%, 5%, 0) rotate(1.5deg) scale(.92); }
+    57%, 64% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-3%, 1%, 0) rotate(-1deg) scale(1.015,.985); }
+    78%, 93% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    100% { opacity: 0; transform: translate3d(9%, 2%, 0) scale(.93); }
+}
+
+@keyframes tkSummonCannonHermit {
+    0%, 40% { opacity: 0; transform: translate3d(18%, 3%, 0) rotate(1deg) scale(.92); }
+    56%, 62% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    65% { opacity: 1; transform: translate3d(0, 0, 0) scale(.99); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-1%, 0, 0) rotate(-.5deg) scale(1.01); }
+    71.5% { opacity: 1; transform: translate3d(8%, 1%, 0) rotate(1.5deg) scale(.985); }
+    80%, 93% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    100% { opacity: 0; transform: translate3d(8%, 2%, 0) scale(.93); }
+}
+
+@keyframes tkSummonMantaWraith {
+    0%, 38% { opacity: 0; transform: translate3d(32%, -18%, 0) rotate(1deg) scale(.9); }
+    58%, 64% { opacity: .92; transform: translate3d(0, -5%, 0) rotate(0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-5%, -5%, 0) rotate(-1deg) scale(1.015); }
+    78%, 93% { opacity: .92; transform: translate3d(-1%, -5%, 0) rotate(0) scale(1); }
+    100% { opacity: 0; transform: translate3d(-15%, -13%, 0) scale(.94); }
+}
+
+@keyframes tkSummonAbyssAngler {
+    0%, 42% { opacity: 0; transform: translate3d(14%, 3%, 0) scale(.88); }
+    50% { opacity: .22; transform: translate3d(7%, 1%, 0) scale(.94); }
+    59%, 64% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-3%, 0, 0) scale(1.015); }
+    80%, 93% { opacity: .96; transform: translate3d(0, 0, 0) scale(1); }
+    100% { opacity: 0; transform: translate3d(7%, 1%, 0) scale(.92); }
+}
+
+@keyframes tkSummonSkeletonCaptain {
+    0%, 40% { opacity: 0; transform: translate3d(20%, 2%, 0) rotate(1.5deg) scale(.92); }
+    58%, 64% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-2%, 0, 0) rotate(-1deg) scale(1.015); }
+    80%, 93% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    100% { opacity: 0; transform: translate3d(8%, 0, 0) scale(.94); }
+}
+
+@keyframes tkSummonAnchorGolem {
+    0%, 39% { opacity: 0; transform: translate3d(4%, 27%, 0) rotate(1deg) scale(.93); }
+    58%, 64% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-2%, 1%, 0) rotate(-1deg) scale(1.012,.988); }
+    80%, 93% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    100% { opacity: 0; transform: translate3d(3%, 8%, 0) scale(.94); }
+}
+
+/* Legendary pool: quiet giants; weather, sea and light carry the motion. */
+@keyframes tkSummonStormSerpent {
+    0%, 35% { opacity: 0; transform: translate3d(12%, 25%, 0) rotate(1deg) scale(.9); }
+    58%, 64% { opacity: 1; transform: translate3d(0, -2%, 0) rotate(0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-3%, -3%, 0) rotate(-1deg) scale(1.012); }
+    81%, 94% { opacity: 1; transform: translate3d(0, -2%, 0) rotate(0) scale(1); }
+    100% { opacity: 0; transform: translate3d(5%, 6%, 0) scale(.95); }
+}
+
+@keyframes tkSummonPhantomAdmiral {
+    0%, 35% { opacity: 0; transform: translate3d(9%, 0, 0) scale(.92); }
+    50% { opacity: .36; transform: translate3d(4%, 0, 0) scale(.97); }
+    59%, 65% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-1%, 0, 0) rotate(-.5deg) scale(1.01); }
+    82%, 94% { opacity: .96; transform: translate3d(0, 0, 0) scale(1); }
+    100% { opacity: 0; transform: translate3d(4%, 0, 0) scale(.95); }
+}
+
+@keyframes tkSummonChainedMegalodon {
+    0%, 38% { opacity: 0; transform: translate3d(45%, 2%, 0) rotate(1deg) scale(.86); }
+    58%, 64% { opacity: 1; transform: translate3d(3%, 0, 0) rotate(0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-42%, 0, 0) rotate(-1deg) scale(1.035); }
+    75% { opacity: 1; transform: translate3d(-6%, 0, 0) rotate(0) scale(1); }
+    82%, 94% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    100% { opacity: 0; transform: translate3d(10%, 0, 0) scale(.95); }
+}
+
+@keyframes tkSummonSpecterWhale {
+    0%, 32% { opacity: 0; transform: translate3d(32%, -12%, 0) scale(.92); }
+    59%, 65% { opacity: .96; transform: translate3d(0, -12%, 0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-2%, -12%, 0) scale(1.008); }
+    82%, 94% { opacity: .95; transform: translate3d(-5%, -12%, 0) scale(1); }
+    100% { opacity: 0; transform: translate3d(-14%, -12%, 0) scale(.95); }
+}
+
+@keyframes tkSummonArmoredKraken {
+    0%, 34% { opacity: 0; transform: translate3d(2%, 30%, 0) rotate(.5deg) scale(.92); }
+    59%, 65% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    66.67%, 69.33% { opacity: 1; transform: translate3d(-2%, 0, 0) rotate(-.5deg) scale(1.01); }
+    82%, 94% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    100% { opacity: 0; transform: translate3d(1%, 8%, 0) scale(.95); }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Per-creature signature FX — no generic nine-effect animation substitution. */
+/* -------------------------------------------------------------------------- */
+
+/* 1. Pirate emblem and command rays. */
+.is-summon-id-skeletal_parrot .tarot-kingdom-summon-fx-sigil {
+    border: 2px solid #ffe48a;
+    background: conic-gradient(from 45deg, transparent 0 12%, #76e8ff 13% 15%, transparent 16% 37%, #ffe48a 38% 40%, transparent 41%);
+    box-shadow: inset 0 0 18px #76e8ff, 0 0 18px #ffe48a;
+    animation: tkFxSkeletalParrot 4500ms ease-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-skeletal_parrot .tarot-kingdom-summon-fx-projectile {
+    height: 4px;
+    background: linear-gradient(90deg, transparent, #fff, #76e8ff);
+    box-shadow: 0 -16px 0 -1px #ffe48a, 0 16px 0 -1px #76e8ff, 0 0 15px #76e8ff;
+    animation: tkFxCommandRay 4500ms ease-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 2. Lantern darkness and enemy shadow. */
+.is-summon-id-lantern_wraith .tarot-kingdom-summon-fx-backdrop {
+    background: radial-gradient(circle at 72% 45%, transparent 0 8%, rgba(5, 1, 22, .86) 38%, rgba(0, 0, 8, .94) 78%);
+    animation: tkFxLanternWraith 4500ms ease-in-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-lantern_wraith .tarot-kingdom-summon-fx-shadow {
+    background: radial-gradient(ellipse, rgba(0, 0, 0, .92), rgba(75, 34, 145, .54) 48%, transparent 72%);
+    filter: drop-shadow(0 0 18px #8a65ff);
+    animation: tkFxEnemyShadow 4500ms ease-in both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 3. Red charge, explosion and body recoil. */
+.is-summon-id-puffer_bomb .tarot-kingdom-summon-fx-aura {
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 242, 154, .8), rgba(255, 52, 20, .38) 38%, transparent 68%);
+    mix-blend-mode: screen;
+    animation: tkFxPufferCharge 4500ms ease-in both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-puffer_bomb .tarot-kingdom-summon-fx-impact {
+    background:
+        radial-gradient(circle, #fff 0 5%, #ffdf62 6% 15%, #ff5326 16% 38%, rgba(105, 6, 0, .72) 45%, transparent 68%);
+    box-shadow: 0 0 25px #ff4c22;
+    animation: tkFxPufferExplosion 4500ms steps(3, end) both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 4. Gold/cyan healing tide. */
+.is-summon-id-treasure_slime .tarot-kingdom-summon-fx-support {
+    border: 3px solid #56f5d0;
+    border-radius: 50%;
+    box-shadow: inset 0 0 20px #ffe071, 0 0 22px #56f5d0;
+    animation: tkFxTreasureSlime 4500ms ease-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 5. Multiple slash afterimages. */
+.is-summon-id-coral_goblin .tarot-kingdom-summon-fx-projectile {
+    height: 5px;
+    background: linear-gradient(90deg, transparent, #fff 35%, #74eeff 70%, transparent);
+    box-shadow: 0 -21px 0 -1px #ffda73, 0 21px 0 -1px #74eeff, 0 0 16px #74eeff;
+    transform: rotate(-13deg);
+    animation: tkFxCoralGoblin 4500ms steps(4, end) both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 6. Single body drop and a crack racing toward the enemy. */
+.is-summon-id-mimic_chest .tarot-kingdom-summon-fx-floor {
+    background:
+        linear-gradient(112deg, transparent 0 31%, #ffe0a0 32% 33%, transparent 34% 42%, #ff9b35 43% 45%, transparent 46%),
+        radial-gradient(ellipse at 72% 100%, rgba(255, 179, 63, .4), transparent 46%);
+    clip-path: polygon(100% 65%, 78% 60%, 67% 72%, 51% 64%, 42% 83%, 20% 72%, 0 100%, 100% 100%);
+    animation: tkFxMimicChest 4500ms ease-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 7. Ghost copies cross the target and leave a chaos vortex. */
+.is-summon-id-zombie_raider .tarot-kingdom-summon-fx-shadow {
+    border: 2px solid #b36cff;
+    background: repeating-conic-gradient(from 0deg, transparent 0 20deg, rgba(179,108,255,.45) 22deg 28deg);
+    box-shadow: inset 0 0 22px #73ffc5, 0 0 24px #b36cff;
+    animation: tkFxZombieRaider 4500ms ease-in-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-zombie_raider .tarot-kingdom-summon-effect-node {
+    left: calc(60% + var(--effect-node-index) * -6%);
+    top: calc(28% + var(--effect-node-index) * 5%);
+    background: #73ffc5;
+    animation: tkFxGhostCross 4500ms ease-out both;
+    animation-delay: calc(var(--summon-elapsed, 0ms) + var(--effect-node-delay, 0ms));
+}
+
+/* 8. Black seawater and drowned spirits erupt below the target. */
+.is-summon-id-drowned_buccaneer .tarot-kingdom-summon-fx-floor {
+    background:
+        radial-gradient(ellipse at 24% 100%, rgba(14, 8, 43, .96), rgba(32, 66, 136, .62) 35%, transparent 68%),
+        repeating-radial-gradient(ellipse at 24% 100%, transparent 0 9%, rgba(72, 122, 255, .55) 10% 12%, transparent 13% 22%);
+    animation: tkFxDrownedBuccaneer 4500ms ease-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 9. Floor impact and shell barrier. */
+.is-summon-id-crab_brute .tarot-kingdom-summon-fx-support {
+    border: 4px solid #ffd464;
+    border-radius: 50% 50% 16% 16%;
+    background: repeating-linear-gradient(135deg, transparent 0 18px, rgba(255,212,100,.22) 19px 22px);
+    box-shadow: inset 0 0 22px rgba(115,207,255,.5), 0 0 24px #ffd464;
+    animation: tkFxCrabBrute 4500ms cubic-bezier(.2,.74,.2,1) both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 10. Wheel stops; only the huge target vortex continues. */
+.is-summon-id-cursed_shipwheel .tarot-kingdom-summon-fx-shadow {
+    border: 4px double #b069ff;
+    background: repeating-conic-gradient(from 0deg, rgba(88,216,255,.58) 0 8deg, transparent 9deg 22deg);
+    box-shadow: inset 0 0 28px #090018, 0 0 28px #b069ff;
+    animation: tkFxCursedShipwheel 4500ms cubic-bezier(.2,.65,.2,1) both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 11. Aim, muzzle flash, shell trace and target blast. */
+.is-summon-id-cannon_mimic .tarot-kingdom-summon-fx-aura,
+.is-summon-id-cannon_hermit .tarot-kingdom-summon-fx-aura {
+    right: auto;
+    left: 34%;
+    width: 34%;
+    background: radial-gradient(circle at 50% 54%, #fff 0 2%, #ffdd72 3% 8%, rgba(255,94,47,.55) 9% 15%, transparent 24%);
+    animation: tkFxCannonAim 4500ms ease-in both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-cannon_mimic .tarot-kingdom-summon-fx-projectile {
+    height: 8px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, transparent, #ff5e2f, #fff 70%, #ffdd72);
+    box-shadow: 0 0 18px #ff5e2f;
+    animation: tkFxCannonMimic 4500ms cubic-bezier(.1,.84,.16,1) both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 12. Water rise and separate chain/water enclosure. */
+.is-summon-id-kraken_pirate .tarot-kingdom-summon-fx-floor {
+    background: repeating-radial-gradient(ellipse at 65% 100%, transparent 0 10%, rgba(88,191,255,.6) 11% 14%, transparent 15% 24%);
+    animation: tkFxKrakenPirate 4500ms ease-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-kraken_pirate .tarot-kingdom-summon-effect-node {
+    left: calc(8% + var(--effect-node-index) * 4%);
+    top: calc(30% + var(--effect-node-index) * 3%);
+    width: 28%;
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #58bfff, transparent);
+    transform-origin: 0 50%;
+    animation: tkFxWaterChain 4500ms ease-in-out both;
+    animation-delay: calc(var(--summon-elapsed, 0ms) + var(--effect-node-delay, 0ms));
+}
+
+/* 13. Deep shadow first, then converging pressure rings. */
+.is-summon-id-blue_kraken .tarot-kingdom-summon-fx-backdrop {
+    background: radial-gradient(circle at 70% 58%, rgba(27,40,104,.25), rgba(0,2,18,.88) 62%);
+    animation: tkFxBlueKrakenDepth 4500ms ease-in-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-blue_kraken .tarot-kingdom-summon-fx-shadow {
+    border: 3px solid #72eaff;
+    box-shadow: 0 0 0 10px rgba(76,121,255,.2), 0 0 0 24px rgba(114,234,255,.1), inset 0 0 25px #4c79ff;
+    animation: tkFxBlueKrakenPressure 4500ms ease-in both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 14. One clean puncture line, held at contact. */
+.is-summon-id-shark_raider .tarot-kingdom-summon-fx-projectile {
+    top: 50%;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, #fff, #77eaff 58%, transparent);
+    box-shadow: 0 0 15px #77eaff;
+    animation: tkFxSharkRaider 4500ms cubic-bezier(.08,.88,.12,1) both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 15. Ghost ship silhouette and party barrier. */
+.is-summon-id-ghost_pirate .tarot-kingdom-summon-fx-backdrop {
+    background:
+        linear-gradient(168deg, transparent 0 48%, rgba(58,42,118,.64) 49% 55%, transparent 56%),
+        radial-gradient(ellipse at 70% 54%, rgba(141,140,255,.25), transparent 42%);
+    animation: tkFxGhostPirateShip 4500ms ease both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-ghost_pirate .tarot-kingdom-summon-fx-support {
+    border: 3px solid #ffd868;
+    border-radius: 52% 52% 22% 22%;
+    box-shadow: inset 0 0 25px rgba(141,140,255,.6), 0 0 22px #ffd868;
+    animation: tkFxGhostPirateBarrier 4500ms ease-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 16. Wave-carried thrust and life stream returning to the party. */
+.is-summon-id-merfolk_lancer .tarot-kingdom-summon-fx-projectile {
+    height: 5px;
+    background: linear-gradient(90deg, transparent, #fff, #4ef4db 66%, transparent);
+    box-shadow: 0 0 18px #4ef4db;
+    animation: tkFxMerfolkThrust 4500ms ease-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-merfolk_lancer .tarot-kingdom-summon-fx-support {
+    border: 3px solid #4ef4db;
+    border-radius: 50%;
+    animation: tkFxMerfolkReturn 4500ms ease-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 17. The floor sinks and jewel/metal plates lock together. */
+.is-summon-id-treasure_hermit .tarot-kingdom-summon-fx-floor {
+    background: radial-gradient(ellipse at 70% 100%, rgba(0,0,0,.7) 0 18%, rgba(255,212,95,.45) 20% 38%, transparent 60%);
+    animation: tkFxTreasureHermitFloor 4500ms ease-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-treasure_hermit .tarot-kingdom-summon-fx-support {
+    border: 5px double #ffd45f;
+    border-radius: 48% 48% 14% 14%;
+    background: repeating-linear-gradient(120deg, rgba(118,223,255,.18) 0 13px, rgba(255,212,95,.24) 14px 17px);
+    box-shadow: inset 0 0 30px rgba(118,223,255,.5), 0 0 28px #ffd45f;
+    animation: tkFxTreasureHermitBarrier 4500ms cubic-bezier(.16,.76,.2,1) both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 18. Long charge and one oversized shell. */
+.is-summon-id-cannon_hermit .tarot-kingdom-summon-fx-projectile {
+    height: 13px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, transparent, #ff622f 10%, #fff 58%, #ffe071 75%, transparent);
+    box-shadow: 0 0 22px #ff622f, 0 0 38px rgba(255,224,113,.55);
+    animation: tkFxCannonHermit 4500ms cubic-bezier(.08,.86,.14,1) both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-cannon_hermit .tarot-kingdom-summon-fx-impact {
+    background: radial-gradient(circle, #fff 0 5%, #ffe071 6% 14%, #ff622f 15% 37%, transparent 66%);
+    animation: tkFxCannonHermitBlast 4500ms steps(3, end) both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 19. Overhead trail darkens the sky, then its shadow drops on the enemy. */
+.is-summon-id-manta_wraith .tarot-kingdom-summon-fx-backdrop {
+    background: linear-gradient(175deg, rgba(24,13,68,.9), transparent 62%);
+    animation: tkFxMantaSky 4500ms ease both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-manta_wraith .tarot-kingdom-summon-fx-shadow {
+    background: radial-gradient(ellipse, rgba(0,0,0,.88), rgba(115,95,255,.38) 52%, transparent 72%);
+    animation: tkFxMantaShadow 4500ms ease-in both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 20. A lone lure appears; surrounding light is swallowed. */
+.is-summon-id-abyss_angler .tarot-kingdom-summon-fx-aura {
+    background: radial-gradient(circle at 42% 33%, #efffb7 0 2%, #d9ff73 3% 6%, rgba(105,96,255,.2) 8%, transparent 28%);
+    animation: tkFxAnglerLure 4500ms ease-in-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-abyss_angler .tarot-kingdom-summon-fx-backdrop {
+    background: radial-gradient(circle at 68% 44%, transparent 0 8%, rgba(0,0,12,.95) 42%, rgba(0,0,4,.98) 78%);
+    animation: tkFxAbyssAngler 4500ms ease-in both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 21. Flag, fleet, reticle and salvo arrive in strict order. */
+.is-summon-id-skeleton_captain .tarot-kingdom-summon-fx-sigil {
+    border: 2px solid #ffd76b;
+    background:
+        linear-gradient(90deg, transparent 46%, #ffd76b 47% 52%, transparent 53%),
+        linear-gradient(24deg, transparent 45%, rgba(115,212,255,.65) 46% 63%, transparent 64%);
+    box-shadow: 0 0 18px #ffd76b;
+    animation: tkFxCaptainFlag 4500ms ease both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-skeleton_captain .tarot-kingdom-summon-fx-projectile {
+    height: 5px;
+    background: linear-gradient(90deg, transparent, #fff, #ffd76b);
+    box-shadow: 0 -20px 0 -1px #73d4ff, 0 20px 0 -1px #ffd76b, 0 0 17px #ffd76b;
+    animation: tkFxCaptainSalvo 4500ms steps(4, end) both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 22. Crack-born body, giant anchor shadow, battlefield fracture. */
+.is-summon-id-anchor_golem .tarot-kingdom-summon-fx-shadow {
+    border-radius: 10% 10% 48% 48%;
+    background:
+        linear-gradient(90deg, transparent 43%, rgba(0,0,0,.88) 44% 55%, transparent 56%),
+        radial-gradient(ellipse at 50% 78%, transparent 0 25%, rgba(0,0,0,.88) 26% 38%, transparent 39%);
+    filter: drop-shadow(0 0 12px #ffb34f);
+    animation: tkFxAnchorShadow 4500ms ease-in both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-anchor_golem .tarot-kingdom-summon-fx-floor {
+    background: repeating-conic-gradient(from 16deg at 25% 100%, transparent 0 13deg, rgba(255,179,79,.72) 14deg 16deg, transparent 17deg 31deg);
+    clip-path: polygon(0 100%, 5% 70%, 18% 82%, 29% 46%, 39% 79%, 55% 58%, 67% 88%, 83% 69%, 100% 100%);
+    animation: tkFxAnchorGolem 4500ms steps(3, end) both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 23. Environment-first storm, then lightning and wind converge. */
+.is-summon-id-storm_serpent .tarot-kingdom-summon-fx-backdrop {
+    background:
+        repeating-linear-gradient(112deg, transparent 0 19%, rgba(180,205,255,.34) 20% 21%, transparent 22% 39%),
+        radial-gradient(ellipse at 52% 18%, rgba(28,27,90,.94), rgba(2,5,22,.7) 58%, transparent);
+    animation: tkFxStormSky 4500ms steps(5, end) both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-storm_serpent .tarot-kingdom-summon-effect-node {
+    left: calc(10% + var(--effect-node-index) * 4%);
+    top: 9%;
+    width: 3px;
+    height: 62%;
+    border: 0;
+    border-radius: 0;
+    background: linear-gradient(#fff, #75edff 55%, transparent);
+    box-shadow: 0 0 12px #aab7ff;
+    transform: rotate(var(--effect-node-angle, 0deg));
+    animation: tkFxStormStrike 4500ms steps(3, end) both;
+    animation-delay: calc(var(--summon-elapsed, 0ms) + var(--effect-node-delay, 0ms));
+}
+
+/* 24. Fog reveal, ghost fleet formation, synchronized broadside. */
+.is-summon-id-phantom_admiral .tarot-kingdom-summon-fx-backdrop {
+    background:
+        repeating-linear-gradient(176deg, transparent 0 12%, rgba(215,209,255,.14) 14% 19%, transparent 21% 32%),
+        radial-gradient(ellipse at 68% 50%, rgba(103,89,160,.36), transparent 48%);
+    animation: tkFxAdmiralFog 4500ms ease both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-phantom_admiral .tarot-kingdom-summon-fx-projectile {
+    height: 6px;
+    background: linear-gradient(90deg, transparent, #fff, #ffd66a);
+    box-shadow: 0 -24px 0 -1px #d8d1ff, 0 24px 0 -1px #ffd66a, 0 0 20px #d8d1ff;
+    animation: tkFxAdmiralBroadside 4500ms steps(4, end) both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 25. Giant shadow crosses first; only the final distance is violent. */
+.is-summon-id-chained_megalodon .tarot-kingdom-summon-fx-shadow {
+    left: -8%;
+    top: 30%;
+    width: 75%;
+    height: 28%;
+    background: linear-gradient(100deg, transparent, rgba(0,0,0,.9) 28% 70%, transparent);
+    filter: drop-shadow(0 0 15px #8acbff);
+    animation: tkFxMegalodonShadow 4500ms linear both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-chained_megalodon .tarot-kingdom-summon-fx-projectile {
+    top: 40%;
+    height: 24%;
+    border-top: 4px solid #8acbff;
+    border-bottom: 3px solid #ffbc67;
+    background: linear-gradient(90deg, transparent, rgba(138,203,255,.45), transparent);
+    clip-path: polygon(0 50%, 100% 0, 76% 50%, 100% 100%);
+    animation: tkFxMegalodonRush 4500ms cubic-bezier(.08,.88,.12,1) both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 26. Silent overhead passage, then one giant wave and life light. */
+.is-summon-id-specter_whale .tarot-kingdom-summon-fx-floor {
+    height: 62%;
+    background:
+        repeating-radial-gradient(ellipse at 35% 100%, transparent 0 10%, rgba(141,238,255,.42) 11% 13%, transparent 14% 23%),
+        linear-gradient(0deg, rgba(213,255,206,.24), transparent 70%);
+    animation: tkFxWhaleWave 4500ms ease-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-specter_whale .tarot-kingdom-summon-fx-support {
+    background: radial-gradient(ellipse, rgba(213,255,206,.72), rgba(141,238,255,.24) 42%, transparent 70%);
+    animation: tkFxWhaleLife 4500ms ease-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+/* 27. Sea surface sinks; pressure, chains and dark limbs converge. */
+.is-summon-id-armored_kraken .tarot-kingdom-summon-fx-floor {
+    background:
+        radial-gradient(ellipse at 65% 100%, rgba(0,0,16,.92) 0 22%, rgba(125,139,255,.48) 24% 43%, transparent 62%),
+        repeating-radial-gradient(ellipse at 65% 100%, transparent 0 10%, rgba(182,116,255,.45) 11% 13%, transparent 14% 23%);
+    animation: tkFxArmoredSeaSink 4500ms ease-in-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+.is-summon-id-armored_kraken .tarot-kingdom-summon-effect-node {
+    left: calc(7% + var(--effect-node-index) * 4%);
+    top: calc(24% + var(--effect-node-index) * 5%);
+    width: 32%;
+    height: 5px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #b674ff, #7d8bff, transparent);
+    box-shadow: 0 0 10px #7d8bff;
+    transform-origin: 0 50%;
+    animation: tkFxArmoredChains 4500ms ease-in-out both;
+    animation-delay: calc(var(--summon-elapsed, 0ms) + var(--effect-node-delay, 0ms));
+}
+
+/* Dedicated FX timelines. */
+@keyframes tkFxSkeletalParrot { 0%, 52% { opacity: 0; transform: scale(.5) rotate(-18deg); } 57%, 64% { opacity: 1; transform: scale(1) rotate(0); } 70%, 100% { opacity: 0; transform: scale(1.2) rotate(12deg); } }
+@keyframes tkFxCommandRay { 0%, 63% { opacity: 0; transform: translateX(45%) scaleX(.1); } 66.67%, 69.33% { opacity: 1; transform: translateX(-60%) scaleX(1.4); } 73%, 100% { opacity: 0; transform: translateX(-90%) scaleX(.4); } }
+@keyframes tkFxLanternWraith { 0%, 43% { opacity: 0; } 52%, 68% { opacity: 1; } 82% { opacity: .72; } 100% { opacity: 0; } }
+@keyframes tkFxEnemyShadow { 0%, 61% { opacity: 0; transform: scale(1.35); } 66.67%, 75% { opacity: 1; transform: scale(.92); } 88%, 100% { opacity: 0; transform: scale(.75); } }
+@keyframes tkFxPufferCharge { 0%, 54% { opacity: 0; transform: scale(.45); } 62% { opacity: .9; transform: scale(.9); } 66.67% { opacity: 1; transform: scale(1.12); } 70%, 100% { opacity: 0; transform: scale(1.3); } }
+@keyframes tkFxPufferExplosion { 0%, 66.5% { opacity: 0; transform: scale(.25); } 66.67%, 69.33% { opacity: 1; transform: scale(1.25); } 73%, 100% { opacity: 0; transform: scale(1.75); } }
+@keyframes tkFxTreasureSlime { 0%, 64% { opacity: 0; transform: scale(.25); } 68% { opacity: .95; transform: scale(1); } 76% { opacity: .6; transform: scale(1.45); } 85%, 100% { opacity: 0; transform: scale(1.8); } }
+@keyframes tkFxCoralGoblin { 0%, 64% { opacity: 0; transform: translateX(55%) rotate(-13deg) scaleX(.2); } 66.67%, 69.33% { opacity: 1; transform: translateX(-66%) rotate(-13deg) scaleX(1.5); } 72%, 100% { opacity: 0; transform: translateX(-92%) rotate(-13deg) scaleX(.5); } }
+@keyframes tkFxMimicChest { 0%, 58% { opacity: 0; clip-path: inset(0 100% 0 0); } 64% { opacity: .45; clip-path: inset(0 70% 0 0); } 66.67%, 71% { opacity: 1; clip-path: inset(0 0 0 0); } 82%, 100% { opacity: 0; clip-path: inset(0 0 0 0); } }
+@keyframes tkFxZombieRaider { 0%, 58% { opacity: 0; transform: scale(1.45) rotate(-90deg); } 66.67%, 76% { opacity: 1; transform: scale(.85) rotate(0); } 88%, 100% { opacity: 0; transform: scale(.55) rotate(85deg); } }
+@keyframes tkFxGhostCross { 0%, 61% { opacity: 0; transform: translateX(58vw) scale(.5); } 66.67%, 71% { opacity: .88; transform: translateX(-8vw) scale(1.4); } 76%, 100% { opacity: 0; transform: translateX(-32vw) scale(.7); } }
+@keyframes tkFxDrownedBuccaneer { 0%, 48% { opacity: 0; transform: translateY(30%) scaleY(.55); } 57%, 63% { opacity: .62; transform: translateY(0) scaleY(1); } 66.67%, 75% { opacity: 1; transform: translateY(-12%) scaleY(1.24); } 88%, 100% { opacity: 0; transform: translateY(-28%) scaleY(.8); } }
+@keyframes tkFxCrabBrute { 0%, 62% { opacity: 0; transform: translateY(18%) scale(.62); } 69%, 82% { opacity: 1; transform: translateY(0) scale(1); } 94%, 100% { opacity: 0; transform: scale(1.08); } }
+@keyframes tkFxCursedShipwheel { 0%, 56% { opacity: 0; transform: scale(1.4) rotate(-40deg); } 64% { opacity: .65; transform: scale(1.05) rotate(-8deg); } 66.67%, 78% { opacity: 1; transform: scale(.82) rotate(0); } 92%, 100% { opacity: 0; transform: scale(.55) rotate(24deg); } }
+@keyframes tkFxCannonAim { 0%, 55% { opacity: 0; transform: scale(.4); } 63%, 66.4% { opacity: 1; transform: scale(1); } 66.67%, 100% { opacity: 0; transform: scale(1.55); } }
+@keyframes tkFxCannonMimic { 0%, 66.4% { opacity: 0; transform: translateX(60%) scaleX(.08); } 66.67%, 69.33% { opacity: 1; transform: translateX(-72%) scaleX(1.5); } 72%, 100% { opacity: 0; transform: translateX(-94%) scaleX(.4); } }
+@keyframes tkFxKrakenPirate { 0%, 41% { opacity: 0; transform: translateY(28%) scaleY(.55); } 56%, 64% { opacity: .8; transform: translateY(0) scaleY(1); } 69%, 81% { opacity: 1; transform: translateY(-8%) scaleY(1.12); } 94%, 100% { opacity: 0; transform: translateY(0); } }
+@keyframes tkFxWaterChain { 0%, 61% { opacity: 0; transform: rotate(24deg) scaleX(.1); } 66.67%, 75% { opacity: .95; transform: rotate(-18deg) scaleX(1.15); } 84%, 100% { opacity: 0; transform: rotate(-42deg) scaleX(.7); } }
+@keyframes tkFxBlueKrakenDepth { 0%, 36% { opacity: 0; } 47%, 74% { opacity: 1; } 90%, 100% { opacity: 0; } }
+@keyframes tkFxBlueKrakenPressure { 0%, 58% { opacity: 0; transform: scale(1.8); } 66.67%, 72% { opacity: 1; transform: scale(.72); } 82%, 100% { opacity: 0; transform: scale(.4); } }
+@keyframes tkFxSharkRaider { 0%, 64% { opacity: 0; transform: translateX(70%) scaleX(.08); } 66.67%, 69.33% { opacity: 1; transform: translateX(-78%) scaleX(1.7); } 73%, 100% { opacity: 0; transform: translateX(-96%) scaleX(.4); } }
+@keyframes tkFxGhostPirateShip { 0%, 43% { opacity: 0; transform: translateX(18%); } 57%, 82% { opacity: .82; transform: translateX(0); } 95%, 100% { opacity: 0; transform: translateX(-5%); } }
+@keyframes tkFxGhostPirateBarrier { 0%, 63% { opacity: 0; transform: scale(.65); } 70%, 85% { opacity: 1; transform: scale(1); } 96%, 100% { opacity: 0; transform: scale(1.08); } }
+@keyframes tkFxMerfolkThrust { 0%, 64% { opacity: 0; transform: translateX(65%) scaleX(.1); } 66.67%, 69.33% { opacity: 1; transform: translateX(-74%) scaleX(1.6); } 73%, 100% { opacity: 0; transform: translateX(-94%) scaleX(.45); } }
+@keyframes tkFxMerfolkReturn { 0%, 70% { opacity: 0; transform: translateX(-65%) scale(.4); } 76%, 88% { opacity: .9; transform: translateX(0) scale(1); } 96%, 100% { opacity: 0; transform: scale(1.2); } }
+@keyframes tkFxTreasureHermitFloor { 0%, 48% { opacity: 0; transform: scaleY(.35); } 58%, 73% { opacity: .9; transform: scaleY(1); } 88%, 100% { opacity: 0; transform: scaleY(.7); } }
+@keyframes tkFxTreasureHermitBarrier { 0%, 62% { opacity: 0; transform: translateY(24%) scale(.68); } 70%, 88% { opacity: 1; transform: translateY(0) scale(1); } 97%, 100% { opacity: 0; transform: scale(1.05); } }
+@keyframes tkFxCannonHermit { 0%, 66.45% { opacity: 0; transform: translateX(72%) scaleX(.04); } 66.67%, 69.33% { opacity: 1; transform: translateX(-78%) scaleX(1.9); } 72%, 100% { opacity: 0; transform: translateX(-100%) scaleX(.5); } }
+@keyframes tkFxCannonHermitBlast { 0%, 66.5% { opacity: 0; transform: scale(.18); } 66.67%, 69.33% { opacity: 1; transform: scale(1.45); } 74%, 100% { opacity: 0; transform: scale(2); } }
+@keyframes tkFxMantaSky { 0%, 36% { opacity: 0; transform: translateX(35%); } 55%, 80% { opacity: 1; transform: translateX(-5%); } 96%, 100% { opacity: 0; transform: translateX(-24%); } }
+@keyframes tkFxMantaShadow { 0%, 58% { opacity: 0; transform: translateY(-35%) scale(1.4); } 66.67%, 78% { opacity: .95; transform: translateY(0) scale(.86); } 92%, 100% { opacity: 0; transform: scale(.62); } }
+@keyframes tkFxAnglerLure { 0%, 38% { opacity: 0; transform: scale(.1); } 46%, 64% { opacity: 1; transform: scale(1); } 66.67%, 74% { opacity: .25; transform: scale(.55); } 86%, 100% { opacity: 0; transform: scale(.1); } }
+@keyframes tkFxAbyssAngler { 0%, 42% { opacity: 0; } 53%, 67% { opacity: .92; } 73%, 91% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes tkFxCaptainFlag { 0%, 52% { opacity: 0; transform: translateY(20%) scale(.7); } 58%, 64% { opacity: 1; transform: translateY(0) scale(1); } 72%, 84% { opacity: .72; transform: translateY(0) scale(1.08); } 95%, 100% { opacity: 0; } }
+@keyframes tkFxCaptainSalvo { 0%, 64% { opacity: 0; transform: translateX(58%) scaleX(.1); } 66.67%, 72% { opacity: 1; transform: translateX(-72%) scaleX(1.6); } 78%, 100% { opacity: 0; transform: translateX(-95%) scaleX(.4); } }
+@keyframes tkFxAnchorShadow { 0%, 58% { opacity: 0; transform: translateY(-45%) scale(1.35); } 66.67%, 72% { opacity: .96; transform: translateY(0) scale(.82); } 85%, 100% { opacity: 0; transform: translateY(8%) scale(.7); } }
+@keyframes tkFxAnchorGolem { 0%, 61% { opacity: 0; transform: scaleY(.25); } 66.67%, 73% { opacity: 1; transform: scaleY(1.08); } 84%, 100% { opacity: 0; transform: scaleY(.8); } }
+@keyframes tkFxStormSky { 0%, 25% { opacity: 0; } 40%, 64% { opacity: .9; } 66.67%, 78% { opacity: 1; } 96%, 100% { opacity: 0; } }
+@keyframes tkFxStormStrike { 0%, 63% { opacity: 0; transform: translateY(-22%) rotate(var(--effect-node-angle, 0deg)) scaleY(.2); } 66.67%, 72% { opacity: 1; transform: translateY(0) rotate(var(--effect-node-angle, 0deg)) scaleY(1.15); } 78%, 100% { opacity: 0; transform: translateY(18%) rotate(var(--effect-node-angle, 0deg)) scaleY(.5); } }
+@keyframes tkFxAdmiralFog { 0%, 27% { opacity: 0; transform: translateX(12%); } 46%, 82% { opacity: .92; transform: translateX(0); } 97%, 100% { opacity: 0; transform: translateX(-5%); } }
+@keyframes tkFxAdmiralBroadside { 0%, 64% { opacity: 0; transform: translateX(62%) scaleX(.08); } 66.67%, 72% { opacity: 1; transform: translateX(-76%) scaleX(1.75); } 79%, 100% { opacity: 0; transform: translateX(-98%) scaleX(.45); } }
+@keyframes tkFxMegalodonShadow { 0%, 31% { opacity: 0; transform: translateX(80%); } 42%, 52% { opacity: .9; transform: translateX(-75%); } 58%, 100% { opacity: 0; transform: translateX(-110%); } }
+@keyframes tkFxMegalodonRush { 0%, 64% { opacity: 0; transform: translateX(68%) scaleX(.16); } 66.67%, 69.33% { opacity: 1; transform: translateX(-72%) scaleX(1.55); } 74%, 100% { opacity: 0; transform: translateX(-100%) scaleX(.45); } }
+@keyframes tkFxWhaleWave { 0%, 48% { opacity: 0; transform: translateY(24%) scaleY(.45); } 64%, 80% { opacity: .92; transform: translateY(-8%) scaleY(1.25); } 96%, 100% { opacity: 0; transform: translateY(-24%) scaleY(.8); } }
+@keyframes tkFxWhaleLife { 0%, 68% { opacity: 0; transform: scale(.4); } 76%, 90% { opacity: .95; transform: scale(1.2); } 100% { opacity: 0; transform: scale(1.6); } }
+@keyframes tkFxArmoredSeaSink { 0%, 26% { opacity: 0; transform: translateY(-8%) scaleY(1.2); } 45%, 65% { opacity: .9; transform: translateY(12%) scaleY(.72); } 72%, 90% { opacity: 1; transform: translateY(0) scaleY(1); } 100% { opacity: 0; } }
+@keyframes tkFxArmoredChains { 0%, 59% { opacity: 0; transform: rotate(28deg) scaleX(.1); } 66.67%, 78% { opacity: 1; transform: rotate(-20deg) scaleX(1.25); } 90%, 100% { opacity: 0; transform: rotate(-38deg) scaleX(.7); } }
+
+/* Shared cinematic timing and impact primitives. */
+@keyframes tkSummonOverlay {
+    0%, 8% { opacity: 0; }
+    12%, 90% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+@keyframes tkSummonAtmosphere {
+    0%, 34% { opacity: 0; }
+    48%, 88% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+@keyframes tkSummonImpactFlash {
+    0%, 66.5% { opacity: 0; }
+    66.67%, 69.33% { opacity: 1; }
+    70%, 100% { opacity: 0; }
+}
+
+@keyframes tkSummonRoleTitle {
+    0% { opacity: 0; transform: translateX(-50%) translateY(10px) scale(.92); }
+    7%, 75% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-16px) scale(.95); }
+}
+
+@keyframes tkSummonCardFan {
+    0% { opacity: 0; transform: translateY(10px) rotate(var(--skill-card-angle, 0deg)) scale(.68); }
+    7%, 73% { opacity: 1; transform: translateY(var(--skill-card-lift, 0px)) rotate(var(--skill-card-angle, 0deg)) scale(.76); }
+    100% { opacity: 0; transform: translateX(var(--skill-card-converge-x, 0px)) translateY(14px) rotate(0) scale(.12); }
+}
+
+@keyframes tkSummonSeal {
+    0%, 38% { opacity: 0; transform: scale(.1) rotate(-34deg); }
+    45%, 52% { opacity: .95; transform: scale(.76) rotate(0); }
+    58% { opacity: .7; transform: scale(1.05) rotate(42deg); }
+    64%, 100% { opacity: 0; transform: scale(1.2) rotate(85deg); }
+}
+
+@keyframes tkSummonPortal {
+    0%, 39% { opacity: 0; transform: scale(.16) rotate(-28deg); }
+    48% { opacity: .8; transform: scale(.78) rotate(0); }
+    56%, 72% { opacity: .92; transform: scale(1) rotate(46deg); }
+    90% { opacity: .35; transform: scale(1.08) rotate(82deg); }
+    100% { opacity: 0; transform: scale(.5) rotate(108deg); }
+}
+
+@keyframes tkSummonCopy {
+    0%, 48% { opacity: 0; transform: translateX(22px); }
+    53%, 61% { opacity: 1; transform: translateX(0); }
+    65%, 100% { opacity: 0; transform: translateX(10px); }
+}
+
+@keyframes tkSummonImpact {
+    0%, 66.5% { opacity: 0; transform: scale(.2) rotate(0); }
+    66.67%, 69.33% { opacity: 1; transform: scale(1.05) rotate(4deg); }
+    73%, 100% { opacity: 0; transform: scale(1.7) rotate(12deg); }
+}
+
+@keyframes tkSummonPartyVisibility {
+    0%, 10% { opacity: 1; visibility: visible; }
+    13%, 85% { opacity: 0; visibility: hidden; }
+    88%, 100% { opacity: 1; visibility: visible; }
+}
+
+@keyframes tkSummonHudVisibility {
+    0%, 10% { opacity: 1; visibility: visible; }
+    13%, 91% { opacity: 0; visibility: hidden; }
+    94%, 100% { opacity: 1; visibility: visible; }
+}
+
+@keyframes tkSummonCameraHit {
+    0% { transform: translate3d(0, 0, 0); filter: brightness(1); }
+    25% { transform: translate3d(-3px, 1px, 0); filter: brightness(1.55); }
+    50% { transform: translate3d(3px, -1px, 0); }
+    75% { transform: translate3d(-2px, 1px, 0); }
+    100% { transform: translate3d(0, 0, 0); filter: brightness(1); }
+}
+
+@keyframes tkSummonCameraHeavyHit {
+    0% { transform: translate3d(0, 0, 0); filter: brightness(1); }
+    20% { transform: translate3d(-7px, 3px, 0); filter: brightness(1.8); }
+    40% { transform: translate3d(6px, -3px, 0); }
+    60% { transform: translate3d(-5px, 2px, 0); }
+    80% { transform: translate3d(3px, -1px, 0); }
+    100% { transform: translate3d(0, 0, 0); filter: brightness(1); }
+}
+
+@keyframes tkSummonCameraRecover {
+    0% { transform: translate3d(-3px, 1px, 0); filter: brightness(1.35); }
+    35% { transform: translate3d(3px, -1px, 0); }
+    68% { transform: translate3d(-1px, 0, 0); }
+    100% { transform: translate3d(0, 0, 0); filter: brightness(1); }
+}
+
+@media (max-width: 640px) {
+    .tarot-kingdom-summon-figure {
+        right: -5%;
+        bottom: 3%;
+        width: min(72%, 330px);
+        height: 69%;
+    }
+
+    .tarot-kingdom-summon-seal,
+    .tarot-kingdom-summon-portal {
+        right: 3%;
+        bottom: 10%;
+        width: min(58%, 250px);
+    }
+
+    .tarot-kingdom-summon-copy {
+        right: 2%;
+        bottom: 7%;
+        min-width: min(68%, 265px);
+        max-width: 76%;
+        padding: 5px 8px 6px;
+    }
+
+    #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-skill-cutin-title {
+        top: 5%;
+        font-size: clamp(19px, 6vw, 28px);
+    }
+
+    #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-skill-card-fan {
+        top: 13%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon,
+    #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon::before,
+    #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon::after,
+    #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-skill-cutin-title,
+    #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-skill-card-fan .tarot-card,
+    .tarot-kingdom-summon-seal,
+    .tarot-kingdom-summon-portal,
+    .tarot-kingdom-summon-figure,
+    .tarot-kingdom-summon-copy,
+    .tarot-kingdom-summon-impact,
+    .tarot-kingdom-summon-fx,
+    .tarot-kingdom-summon-effect-node,
+    #tarotKingdomBattleStage.is-summon-cinematic .tarot-kingdom-battle-party-side,
+    #tarotKingdomBattleStage.is-summon-cinematic .tarot-kingdom-battle-center,
+    #tarotKingdomBattleStage.is-summon-cinematic .tarot-kingdom-battle-side-heading,
+    #tarotKingdomBattleStage.is-summon-cinematic .tarot-kingdom-battle-hp,
+    #tarotKingdomRoot.is-summon-cinematic .tarot-kingdom-panel--hand,
+    #tarotKingdomRoot.is-summon-cinematic .tarot-kingdom-panel--players {
+        animation: none !important;
+        transition: none !important;
+    }
+
+    #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon {
+        opacity: .96;
+    }
+
+    #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-skill-cutin-title,
+    #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-skill-card-fan {
+        opacity: 0;
+    }
+
+    .tarot-kingdom-summon-figure {
+        opacity: 1;
+        transform: none;
+    }
+
+    .tarot-kingdom-summon-copy {
+        opacity: 1;
+        transform: none;
+    }
+
+    .tarot-kingdom-summon-portal {
+        opacity: .45;
+        transform: none;
+    }
+
+    .tarot-kingdom-summon-fx-impact {
+        opacity: .5;
+    }
+}

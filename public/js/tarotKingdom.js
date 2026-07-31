@@ -29,9 +29,10 @@ import {
   TAROT_KINGDOM_SUMMONS,
   auditTarotKingdomSummonRegistry,
   buildTarotKingdomSummonEffectSteps,
+  createTarotKingdomSummonStateById,
   getTarotKingdomSummonById,
   resolveTarotKingdomSummon
-} from './tarotKingdomSummons.js?v=20260730-summon-rich2';
+} from './tarotKingdomSummons.js?v=20260731-summon-cinematic27-v1';
 import {
   TAROT_KINGDOM_BATTLEFIELDS,
   TAROT_KINGDOM_RAID_BATTLEFIELD_ID,
@@ -540,6 +541,7 @@ let kingdomDemoEnemyId = '';
 let kingdomDemoPetId = '';
 let kingdomDemoTrickSceneKey = 'auto';
 let kingdomDemoRoleLastError = '';
+let kingdomDemoSummonId = '';
 let kingdomExplorationMonsterId = '';
 let kingdomExplorationSession = null;
 let kingdomRoundPetOfferPromise = null;
@@ -550,12 +552,14 @@ let kingdomBattleHurtEventKey = '';
 let kingdomBattleDamageEventKey = '';
 const kingdomBattlefieldPreloadPromises = new Map();
 const kingdomMonsterAnimationPreloadPromises = new Map();
+const kingdomSummonImageCache = new Map();
 let kingdomBattlePhaseTimerKey = '';
 const kingdomBattlePhaseTimers = new Set();
 let kingdomTransitionTimer = null;
 let kingdomSummonPreloadStarted = false;
 let kingdomFieldScenePreloadStarted = false;
 let kingdomSummonCinematicKey = '';
+let kingdomSummonHapticEventKey = '';
 let kingdomSummonPartyMotionPaused = false;
 let kingdomSummonPartyPauseTimer = null;
 let kingdomSummonPartyResumeTimer = null;
@@ -4294,6 +4298,31 @@ function playKingdomDemoRoleFormation(value = '') {
   return true;
 }
 
+function getKingdomDemoRoleForSummon(summon = null) {
+  if (summon?.pool === 'middle') return 'normal:FullHouse';
+  if (summon?.pool === 'advanced') return 'normal:FourKind';
+  if (summon?.pool === 'legendary') return 'normal:FiveKind';
+  return 'normal:Straight';
+}
+
+function playKingdomDemoSummon(summonId = '') {
+  kingdomDemoRoleLastError = '';
+  if (window.__TAROT_KINGDOM_PREVIEW__ !== true) {
+    kingdomDemoRoleLastError = 'preview-only';
+    return false;
+  }
+  const summon = getTarotKingdomSummonById(summonId);
+  if (!summon) {
+    kingdomDemoRoleLastError = 'invalid-summon';
+    return false;
+  }
+  kingdomDemoSummonId = summon.id;
+  if (ui.demoSummonSelect && ui.demoSummonSelect.value !== summon.id) {
+    ui.demoSummonSelect.value = summon.id;
+  }
+  return playKingdomDemoRoleFormation(getKingdomDemoRoleForSummon(summon));
+}
+
 function getKingdomMonsterAnimationDurationMs(monsterId = '', animationName = 'idle') {
   const monster = getKingdomMonsterConfig(monsterId);
   const animation = monster?.animations?.[animationName] || monster?.animations?.idle;
@@ -6192,9 +6221,14 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
   const rebuiltRole = String(play?.type || '') === 'role' && roleCards.length === 5
     ? (evalRole(roleCards, null) || play?.role || null)
     : null;
-  const summon = areKingdomSummonsEnabled() && rebuiltRole
+  const resolvedSummon = areKingdomSummonsEnabled() && rebuiltRole
     ? resolveTarotKingdomSummon(rebuiltRole)
     : null;
+  const summon = resolvedSummon
+    && window.__TAROT_KINGDOM_PREVIEW__ === true
+    && kingdomDemoSummonId
+      ? (createTarotKingdomSummonStateById(kingdomDemoSummonId, rebuiltRole) || resolvedSummon)
+      : resolvedSummon;
   const context = {
     actorIndex: playerIndex,
     playType: String(play?.type || ''),
@@ -9571,6 +9605,7 @@ function resetMatch() {
   kingdomMonsterAnimationKey = '';
   kingdomBattleVisualEventKey = '';
   kingdomBattleTerminalFxEventKey = '';
+  kingdomSummonHapticEventKey = '';
   if (kingdomBattleVisualResetTimer) {
     clearTimeout(kingdomBattleVisualResetTimer);
     kingdomBattleVisualResetTimer = null;
@@ -11143,6 +11178,12 @@ function exposeTarotKingdomBattleDebugTools(target) {
       resolveTarotKingdomSummon(role),
       null
     ),
+    battleDemoSummons: () => cloneKingdomSnapshotValue(TAROT_KINGDOM_SUMMONS, []),
+    battleDemoSummon: (summonId = '') => ({
+      ok: playKingdomDemoSummon(summonId),
+      error: kingdomDemoRoleLastError,
+      state: snapshotTarotKingdomDebugState()
+    }),
     battleSummonEffectSteps: (summonState = {}, context = {}) => cloneKingdomSnapshotValue(
       buildTarotKingdomSummonEffectSteps(summonState, context),
       []
@@ -15954,38 +15995,63 @@ function getKingdomRoleFormationCompleteMs(play) {
   return Math.max(900, Math.min(1700, fieldSwapMs + latestCardMs));
 }
 
+function preloadKingdomSummonImage(summon) {
+  const src = String(summon?.src || '').trim();
+  if (!src || typeof Image !== 'function') return Promise.resolve(false);
+  const cached = kingdomSummonImageCache.get(src);
+  if (cached?.promise) return cached.promise;
+
+  const image = new Image();
+  image.decoding = 'async';
+  const promise = new Promise((resolve) => {
+    let started = false;
+    const finish = async (loaded) => {
+      if (started) return;
+      started = true;
+      if (loaded && typeof image.decode === 'function') {
+        try {
+          await image.decode();
+        } catch {
+          // A decoded surface is an optimization; the visible image can still load normally.
+        }
+      }
+      resolve(loaded);
+    };
+    image.addEventListener('load', () => { void finish(true); }, { once: true });
+    image.addEventListener('error', () => { void finish(false); }, { once: true });
+    image.src = src;
+    if (image.complete) {
+      queueMicrotask(() => { void finish(image.naturalWidth > 0); });
+    }
+  });
+  // Keep the decoded Image alive so the compositor can reuse its surface during the cut-in.
+  kingdomSummonImageCache.set(src, { image, promise });
+  return promise;
+}
+
 function preloadKingdomSummonArt() {
   if (kingdomSummonPreloadStarted || typeof Image !== 'function') return;
   kingdomSummonPreloadStarted = true;
-  const summons = [...TAROT_KINGDOM_SUMMONS];
-  const loadNext = (index = 0) => {
-    if (index >= summons.length) return;
-    const run = async () => {
-      const summon = summons[index];
-      const image = new Image();
-      image.decoding = 'async';
-      image.src = summon.src;
-      try {
-        if (typeof image.decode === 'function') {
-          await image.decode();
-        } else if (!image.complete) {
-          await new Promise((resolve) => {
-            image.addEventListener('load', resolve, { once: true });
-            image.addEventListener('error', resolve, { once: true });
-          });
-        }
-      } catch {
-        // The visible summon image retries through the normal browser cache.
-      }
-      loadNext(index + 1);
-    };
+  const pools = ['legendary', 'advanced', 'middle', 'entry']
+    .map((pool) => TAROT_KINGDOM_SUMMONS.filter((summon) => summon.pool === pool))
+    .filter((summons) => summons.length > 0);
+  const scheduleIdle = (callback) => {
     if (typeof requestIdleCallback === 'function') {
-      requestIdleCallback(() => { void run(); }, { timeout: 1800 });
+      requestIdleCallback(callback, { timeout: 900 });
     } else {
-      setTimeout(() => { void run(); }, 24);
+      setTimeout(callback, 24);
     }
   };
-  loadNext();
+  pools.forEach((summons) => {
+    const loadNext = (index = 0) => {
+      if (index >= summons.length) return;
+      scheduleIdle(() => {
+        void preloadKingdomSummonImage(summons[index])
+          .finally(() => loadNext(index + 1));
+      });
+    };
+    loadNext();
+  });
 }
 
 function getKingdomSummonVisualProfile(effectKey) {
@@ -16122,6 +16188,7 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   const effectKey = String(summonState?.effectKey || summonArt?.effectKey || '').trim();
   const visualProfile = getKingdomSummonVisualProfile(effectKey);
   const isSummon = !!(show && summonArt && areKingdomSummonsEnabled());
+  if (isSummon) void preloadKingdomSummonImage(summonArt);
   const timeline = show ? getKingdomBattleTimelineForEvent(event) : null;
   const elapsedMs = show
     ? Math.max(0, Date.now() - Number(timeline?.startedAt || event?.at || Date.now()))
@@ -16152,7 +16219,9 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   const summonMotionKey = String(summonArt?.motionKey || 'dash').replace(/[^a-z0-9-]/gi, '');
   const summonPoolKey = String(summonArt?.pool || 'entry').replace(/[^a-z0-9-]/gi, '');
   const summonIdKey = String(summonArt?.id || '').replace(/[^a-z0-9-_]/gi, '');
-  const nextClassName = `tarot-kingdom-skill-cutin ${getKingdomRoleVisualClass(roleKey)} is-phase-${phase}${isSummon ? ` is-summon is-summon-${effectKey} is-summon-${visualProfile.category} is-motion-${summonMotionKey} is-pool-${summonPoolKey} is-summon-id-${summonIdKey}` : ''}`;
+  const summonChoreographyKey = String(summonArt?.choreographyKey || summonIdKey).replace(/[^a-z0-9-]/gi, '');
+  const summonWeightKey = String(summonArt?.motionWeight || 'measured').replace(/[^a-z0-9-]/gi, '');
+  const nextClassName = `tarot-kingdom-skill-cutin ${getKingdomRoleVisualClass(roleKey)} is-phase-${phase}${isSummon ? ` is-summon is-summon-${effectKey} is-summon-${visualProfile.category} is-motion-${summonMotionKey} is-pool-${summonPoolKey} is-weight-${summonWeightKey} is-choreo-${summonChoreographyKey} is-summon-id-${summonIdKey}` : ''}`;
   if (cutin.className !== nextClassName) cutin.className = nextClassName;
   if (cutin.dataset.renderKey === renderKey) return;
   cutin.dataset.renderKey = renderKey;
@@ -16162,6 +16231,8 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   cutin.dataset.summonMotion = isSummon ? summonMotionKey : '';
   cutin.dataset.summonPool = isSummon ? summonPoolKey : '';
   cutin.dataset.summonId = isSummon ? summonIdKey : '';
+  cutin.dataset.summonChoreography = isSummon ? summonChoreographyKey : '';
+  cutin.dataset.summonWeight = isSummon ? summonWeightKey : '';
   cutin.dataset.effectCue = isSummon ? String(visualProfile.cue || '') : '';
   cutin.dataset.effectImpact = isSummon ? String(visualProfile.impact || '') : '';
   cutin.style.setProperty('--summon-elapsed', `${-Math.min(KINGDOM_SUMMON_ATTACK_MS, elapsedMs)}ms`);
@@ -16169,7 +16240,7 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   const roleShowAtMs = getKingdomRoleFormationCompleteMs(s.lastPlay);
   cutin.style.setProperty('--summon-role-show-at', `${roleShowAtMs}ms`);
   cutin.dataset.roleShowAt = String(roleShowAtMs);
-  cutin.innerHTML = '';
+  const content = document.createDocumentFragment();
   const title = document.createElement('strong');
   title.className = 'tarot-kingdom-skill-cutin-title';
   title.textContent = getRoleDisplayLabel(s.lastPlay);
@@ -16188,8 +16259,7 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
     if (s.lastPlay?.call && index === 0) node.dataset.callSource = 'true';
     fan.appendChild(node);
   });
-  cutin.appendChild(title);
-  cutin.appendChild(fan);
+  content.append(title, fan);
   if (isSummon) {
     cutin.dataset.partyHideAt = String(KINGDOM_SUMMON_PARTY_HIDE_MS);
     cutin.dataset.partyReturnAt = String(KINGDOM_SUMMON_PARTY_RETURN_MS);
@@ -16222,10 +16292,8 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
     image.decoding = 'async';
     image.loading = 'eager';
     image.fetchPriority = 'high';
+    image.draggable = false;
     figure.appendChild(image);
-    if (typeof image.decode === 'function') {
-      void image.decode().catch(() => {});
-    }
     const copy = document.createElement('div');
     copy.className = 'tarot-kingdom-summon-copy';
     const summonName = document.createElement('strong');
@@ -16238,14 +16306,26 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
     const effectField = document.createElement('div');
     effectField.className = `tarot-kingdom-summon-effect is-effect-${effectKey}`;
     effectField.setAttribute('aria-hidden', 'true');
-    const effectCore = document.createElement('b');
-    effectCore.className = 'tarot-kingdom-summon-effect-core';
-    const effectRing = document.createElement('b');
-    effectRing.className = 'tarot-kingdom-summon-effect-ring';
-    const effectTrail = document.createElement('b');
-    effectTrail.className = 'tarot-kingdom-summon-effect-trail';
-    effectField.append(effectCore, effectRing, effectTrail);
-    for (let index = 0; index < 11; index += 1) {
+    [
+      'backdrop',
+      'floor',
+      'shadow',
+      'sigil',
+      'aura',
+      'projectile',
+      'impact',
+      'support'
+    ].forEach((layerName) => {
+      const layer = document.createElement('b');
+      layer.className = `tarot-kingdom-summon-fx tarot-kingdom-summon-fx-${layerName}`;
+      effectField.appendChild(layer);
+    });
+    const effectNodeCount = Math.max(
+      6,
+      Math.min(8, Math.round(6 * (Number(summonArt?.effectDensity) || 1)))
+    );
+    const effectNodes = document.createDocumentFragment();
+    for (let index = 0; index < effectNodeCount; index += 1) {
       const node = document.createElement('i');
       node.className = `tarot-kingdom-summon-effect-node is-node-${index % 4}`;
       node.style.setProperty('--effect-node-index', String(index));
@@ -16260,15 +16340,17 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
       node.style.setProperty('--effect-node-chaos-size', `${18 + (index * 2)}px`);
       node.style.setProperty('--effect-node-chaos-x', `${index * -6}px`);
       node.style.setProperty('--effect-node-chaos-y', `${index * 3}px`);
-      effectField.appendChild(node);
+      effectNodes.appendChild(node);
     }
+    effectField.appendChild(effectNodes);
     const impact = document.createElement('div');
     impact.className = 'tarot-kingdom-summon-impact';
     impact.setAttribute('aria-hidden', 'true');
-    cutin.append(seal, portal, figure, copy, effectField, impact);
+    content.append(seal, portal, figure, copy, effectField, impact);
   } else {
     cutin.removeAttribute('aria-label');
   }
+  cutin.replaceChildren(content);
 }
 
 function renderKingdomBattleDamageNumber(event, eventIsActive) {
@@ -16543,6 +16625,23 @@ function renderKingdomBattleStage() {
   ui.battleStage.classList.toggle('is-battle-hit-stop', eventIsActive && timelinePhase === 'hit-stop');
   ui.battleStage.classList.toggle('is-battle-damage', eventIsActive && timelinePhase === 'damage');
   ui.battleStage.classList.toggle('is-battle-skill', eventIsActive && String(visualEvent?.type || '') === 'skill');
+  const summonHapticKey = (
+    eventIsActive
+    && timelinePhase === 'hit-stop'
+    && String(visualEvent?.type || '') === 'skill'
+    && visualEvent?.summon?.id
+  )
+    ? `${eventKey}:${String(visualEvent.summon.id)}`
+    : '';
+  if (
+    summonHapticKey
+    && kingdomSummonHapticEventKey !== summonHapticKey
+    && !prefersKingdomReducedMotion()
+  ) {
+    kingdomSummonHapticEventKey = summonHapticKey;
+    const summonPool = getTarotKingdomSummonById(visualEvent.summon.id)?.pool;
+    vibrateOnce(['advanced', 'legendary'].includes(String(summonPool)) ? 90 : 55);
+  }
   const raidState = normalizeKingdomRaidState(s?.raid);
   const raidBattlefieldActive = raidState != null
     || String(battle?.battlefield?.id || '') === TAROT_KINGDOM_RAID_BATTLEFIELD_ID;
@@ -18508,6 +18607,7 @@ function bindUi() {
   ui.demoPetSelect = document.getElementById('tarotKingdomDemoPetSelect');
   ui.demoFieldSceneSelect = document.getElementById('tarotKingdomDemoFieldSceneSelect');
   ui.demoRoleSelect = document.getElementById('tarotKingdomDemoRoleSelect');
+  ui.demoSummonSelect = document.getElementById('tarotKingdomDemoSummonSelect');
   if (ui.demoBattlefieldSelect && window.__TAROT_KINGDOM_PREVIEW__ === true) {
     const battlefieldOptions = getKingdomDemoBattlefieldOptions().map((battlefield) => {
       const option = document.createElement('option');
@@ -18602,6 +18702,34 @@ function bindUi() {
       const value = String(ui.demoRoleSelect.value || '');
       if (value) playKingdomDemoRoleFormation(value);
       ui.demoRoleSelect.value = '';
+    });
+  }
+  if (ui.demoSummonSelect && window.__TAROT_KINGDOM_PREVIEW__ === true) {
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '召喚獣を選んで再生';
+    const poolLabels = {
+      entry: 'ストレート／フラッシュ級',
+      middle: 'フルハウス級',
+      advanced: 'フォーカード級',
+      legendary: '最上位役級'
+    };
+    const groups = ['entry', 'middle', 'advanced', 'legendary'].map((pool) => {
+      const group = document.createElement('optgroup');
+      group.label = poolLabels[pool];
+      TAROT_KINGDOM_SUMMONS.filter((summon) => summon.pool === pool).forEach((summon) => {
+        const option = document.createElement('option');
+        option.value = summon.id;
+        option.textContent = summon.name;
+        group.appendChild(option);
+      });
+      return group;
+    });
+    ui.demoSummonSelect.replaceChildren(placeholder, ...groups);
+    ui.demoSummonSelect.value = kingdomDemoSummonId;
+    ui.demoSummonSelect.addEventListener('change', () => {
+      const summonId = String(ui.demoSummonSelect.value || '');
+      if (summonId) playKingdomDemoSummon(summonId);
     });
   }
   ui.battleFeed = document.getElementById('tarotKingdomBattleFeed');

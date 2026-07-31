@@ -56,12 +56,155 @@ test.describe('Tarot Kingdom deterministic summons', () => {
       'coil',
       'stalk'
     ]));
+    expect(new Set(summons.TAROT_KINGDOM_SUMMONS.map((entry) => entry.animationName)).size).toBe(27);
+    const summonCss = fs.readFileSync(
+      path.join(__dirname, '..', 'public', 'tarot-kingdom-summons.css'),
+      'utf8'
+    );
+    const legacyCss = fs.readFileSync(path.join(__dirname, '..', 'public', 'style.css'), 'utf8');
     summons.TAROT_KINGDOM_SUMMONS.forEach((entry) => {
       expect(entry.attackReach, entry.id).toBeGreaterThanOrEqual(18);
       expect(entry.attackReach, entry.id).toBeLessThanOrEqual(48);
       expect(entry.effectDensity, entry.id).toBeGreaterThanOrEqual(0.85);
       expect(entry.effectDensity, entry.id).toBeLessThanOrEqual(1.35);
+      expect(summonCss, entry.id).toContain(`.is-summon-id-${entry.id}`);
+      expect(summonCss, entry.animationName).toContain(`@keyframes ${entry.animationName}`);
     });
+    expect(legacyCss).not.toMatch(/tarotKingdomSummon|skill-cutin\.is-summon|tarot-kingdom-summon-/);
+    expect(summonCss).toContain('@keyframes tkSummonCannonMimic');
+    expect(summonCss).toContain('@keyframes tkSummonCannonHermit');
+    expect(summonCss).toContain('@keyframes tkSummonCameraHeavyHit');
+  });
+
+  test('preview summon states can be built directly for every still image', async () => {
+    const summons = await loadSummonsModule();
+    const states = summons.TAROT_KINGDOM_SUMMONS.map((entry) => (
+      summons.createTarotKingdomSummonStateById(entry.id, {
+        key: entry.pool === 'legendary' ? 'FiveKind' : 'Straight',
+        primary: [9]
+      })
+    ));
+
+    expect(states).toHaveLength(27);
+    expect(new Set(states.map((state) => state.choreographyKey)).size).toBe(27);
+    expect(states.reduce((counts, state) => {
+      counts[state.motionWeight] = (counts[state.motionWeight] || 0) + 1;
+      return counts;
+    }, {})).toEqual({
+      light: 9,
+      measured: 7,
+      heavy: 6,
+      monumental: 5
+    });
+    states.forEach((state, index) => {
+      expect(state).toMatchObject({
+        id: summons.TAROT_KINGDOM_SUMMONS[index].id,
+        src: summons.TAROT_KINGDOM_SUMMONS[index].src,
+        effectKey: summons.TAROT_KINGDOM_SUMMONS[index].effectKey,
+        choreographyKey: summons.TAROT_KINGDOM_SUMMONS[index].id.replace(/_/g, '-'),
+        animationName: summons.TAROT_KINGDOM_SUMMONS[index].animationName
+      });
+      expect(state.effectName).not.toBe('');
+      expect(state.effectCategory).not.toBe('');
+    });
+  });
+
+  test('preview picker exposes all 27 summons and replays the selected still image', async ({ page }) => {
+    await openKingdomDebug(page);
+    await page.evaluate(() => window.TarotKingdomDebug.battleScenario({
+      withTrick: false,
+      turnIndex: 0
+    }));
+    const picker = page.locator('#tarotKingdomDemoSummonSelect');
+    await expect(picker).toBeVisible();
+    await expect(picker.locator('option:not([value=""])')).toHaveCount(27);
+    await expect(picker.locator('optgroup')).toHaveCount(4);
+
+    const audits = await page.evaluate(() => window.TarotKingdomDebug.battleDemoSummons().map((summon) => {
+      const result = window.TarotKingdomDebug.battleDemoSummon(summon.id);
+      const event = [...(result.state?.battle?.events || [])]
+        .reverse()
+        .find((entry) => entry?.summon?.id);
+      const cutin = document.querySelector('.tarot-kingdom-skill-cutin.is-summon');
+      const figure = cutin?.querySelector('.tarot-kingdom-summon-figure');
+      return {
+        requestedId: summon.id,
+        requestedPool: summon.pool,
+        ok: result.ok,
+        error: result.error || '',
+        actualId: event?.summon?.id || '',
+        choreography: cutin?.dataset.summonChoreography || '',
+        weight: cutin?.dataset.summonWeight || '',
+        animationName: figure ? getComputedStyle(figure).animationName : '',
+        expectedAnimationName: summon.animationName,
+        stillImageCount: figure?.querySelectorAll(':scope > img.tarot-kingdom-summon-art').length || 0,
+        figureChildCount: figure?.children.length || 0
+      };
+    }));
+    expect(audits).toHaveLength(27);
+    audits.forEach((audit) => {
+      expect(audit.ok, `${audit.requestedId}:${audit.error}`).toBe(true);
+      expect(audit.actualId).toBe(audit.requestedId);
+      expect(audit.choreography).toBe(audit.requestedId.replace(/_/g, '-'));
+      expect(audit.weight).toBe({
+        entry: 'light',
+        middle: 'measured',
+        advanced: 'heavy',
+        legendary: 'monumental'
+      }[audit.requestedPool]);
+      expect(audit.animationName).toBe(audit.expectedAnimationName);
+      expect(audit.stillImageCount).toBe(1);
+      expect(audit.figureChildCount).toBe(1);
+    });
+
+    await picker.selectOption('anchor_golem');
+    await expect(picker).toHaveValue('anchor_golem');
+    await expect(page.locator('.tarot-kingdom-skill-cutin.is-summon')).toHaveAttribute(
+      'data-summon-id',
+      'anchor_golem'
+    );
+  });
+
+  test('cannon summons hold the impact pose, recoil backward, and use heavy camera shake', async ({ page }) => {
+    await openKingdomDebug(page);
+    const audit = await page.evaluate(() => {
+      window.TarotKingdomDebug.battleScenario({ withTrick: false, turnIndex: 0 });
+      window.TarotKingdomDebug.battleDemoSummon('cannon_mimic');
+      const stage = document.querySelector('#tarotKingdomBattleStage');
+      const cutin = document.querySelector('.tarot-kingdom-skill-cutin.is-summon');
+      const figure = cutin?.querySelector('.tarot-kingdom-summon-figure');
+      cutin?.style.setProperty('--summon-elapsed', '0ms');
+      stage?.style.setProperty('--summon-elapsed', '0ms');
+      const figureAnimation = figure?.getAnimations().find((animation) => (
+        animation.animationName === 'tkSummonCannonMimic'
+      ));
+      const xAt = (time) => {
+        figureAnimation.currentTime = time;
+        figureAnimation.pause();
+        return new DOMMatrixReadOnly(getComputedStyle(figure).transform).m41;
+      };
+      const impactX = xAt(3002);
+      const heldX = xAt(3117);
+      const recoilX = xAt(3218);
+      stage?.classList.add('is-battle-skill', 'is-battle-hit-stop');
+      const stageAnimations = Array.from(stage?.getAnimations() || []).map((animation) => animation.animationName);
+      return {
+        impactX,
+        heldX,
+        recoilX,
+        stageAnimations,
+        muzzleLeft: getComputedStyle(cutin.querySelector('.tarot-kingdom-summon-fx-aura')).left,
+        projectileAnimation: getComputedStyle(
+          cutin.querySelector('.tarot-kingdom-summon-fx-projectile')
+        ).animationName
+      };
+    });
+
+    expect(Math.abs(audit.heldX - audit.impactX)).toBeLessThan(2);
+    expect(audit.recoilX).toBeGreaterThan(audit.heldX + 20);
+    expect(audit.stageAnimations).toContain('tkSummonCameraHeavyHit');
+    expect(audit.projectileAnimation).toBe('tkFxCannonMimic');
+    expect(Number.parseFloat(audit.muzzleLeft)).toBeGreaterThan(0);
   });
 
   test('role strength—not randomness—selects the summon from weak to strong', async () => {
@@ -171,8 +314,10 @@ test.describe('Tarot Kingdom summon integration', () => {
       const root = document.querySelector('#tarotKingdomRoot');
       const stage = document.querySelector('#tarotKingdomBattleStage');
       const figure = cutin?.querySelector('.tarot-kingdom-summon-figure');
-      const effectCore = cutin?.querySelector('.tarot-kingdom-summon-effect-core');
-      const effectNode = cutin?.querySelector('.tarot-kingdom-summon-effect-node');
+      const summonArt = cutin?.querySelector('.tarot-kingdom-summon-art');
+      const effectField = cutin?.querySelector('.tarot-kingdom-summon-effect');
+      const effectSigil = cutin?.querySelector('.tarot-kingdom-summon-fx-sigil');
+      const effectProjectile = cutin?.querySelector('.tarot-kingdom-summon-fx-projectile');
       return {
         state,
         event,
@@ -192,11 +337,15 @@ test.describe('Tarot Kingdom summon integration', () => {
         effectClass: cutin?.querySelector('.tarot-kingdom-summon-effect')?.className || '',
         effectNodeCount: cutin?.querySelectorAll('.tarot-kingdom-summon-effect-node').length || 0,
         effectLayerCount: cutin?.querySelectorAll(
-          '.tarot-kingdom-summon-effect-core, .tarot-kingdom-summon-effect-ring, .tarot-kingdom-summon-effect-trail'
+          '.tarot-kingdom-summon-fx'
         ).length || 0,
         figureAnimationName: figure ? getComputedStyle(figure).animationName : '',
-        effectCoreAnimationName: effectCore ? getComputedStyle(effectCore).animationName : '',
-        effectNodeAnimationName: effectNode ? getComputedStyle(effectNode).animationName : '',
+        effectSigilAnimationName: effectSigil ? getComputedStyle(effectSigil).animationName : '',
+        effectProjectileAnimationName: effectProjectile ? getComputedStyle(effectProjectile).animationName : '',
+        figureFilter: figure ? getComputedStyle(figure).filter : '',
+        artFilter: summonArt ? getComputedStyle(summonArt).filter : '',
+        promotedDescendantCount: Array.from(cutin?.querySelectorAll('*') || [])
+          .filter((node) => getComputedStyle(node).willChange !== 'auto').length,
         sealCount: cutin?.querySelectorAll('.tarot-kingdom-summon-seal').length || 0,
         partyHideAt: Number(cutin?.dataset.partyHideAt),
         partyReturnAt: Number(cutin?.dataset.partyReturnAt),
@@ -240,11 +389,11 @@ test.describe('Tarot Kingdom summon integration', () => {
       summonMotion: 'flutter',
       summonPool: 'entry',
       summonId: 'skeletal_parrot',
-      effectNodeCount: 11,
-      effectLayerCount: 3,
-      figureAnimationName: 'tarotKingdomSummonFlutterRich',
-      effectCoreAnimationName: 'tarotKingdomCommandMast',
-      effectNodeAnimationName: 'tarotKingdomCommandShot',
+      effectNodeCount: 6,
+      effectLayerCount: 8,
+      figureAnimationName: 'tkSummonSkeletalParrot',
+      effectSigilAnimationName: 'tkFxSkeletalParrot',
+      effectProjectileAnimationName: 'tkFxCommandRay',
       sealCount: 1,
       partyHideAt: 550,
       partyReturnAt: 3900,
@@ -253,6 +402,9 @@ test.describe('Tarot Kingdom summon integration', () => {
       stageCinematic: true,
       shortCutinVisible: false
     });
+    expect(audit.figureFilter).toBe('none');
+    expect(audit.artFilter).toContain('drop-shadow');
+    expect(audit.promotedDescendantCount).toBeLessThanOrEqual(16);
     expect(audit.effectClass).toContain('is-effect-command');
     await page.waitForTimeout(80);
     const elapsedAfterRender = await page.evaluate(() => {
