@@ -28814,7 +28814,7 @@ body[data-sea-tone] .home-hero-card {
     opacity: 0.55;
 }
 
-#tabContentInventory .black-market-panel {
+.black-market-panel {
     position: fixed;
     inset: 0;
     z-index: 10080;
@@ -28824,11 +28824,11 @@ body[data-sea-tone] .home-hero-card {
     background: rgba(0, 0, 0, 0.58);
 }
 
-#tabContentInventory .black-market-panel[hidden] {
+.black-market-panel[hidden] {
     display: none;
 }
 
-#tabContentInventory .black-market-sheet {
+.black-market-sheet {
     width: min(520px, calc(100vw - 24px));
     max-height: min(82dvh, 640px);
     margin: 0 auto;
@@ -28841,7 +28841,7 @@ body[data-sea-tone] .home-hero-card {
     box-shadow: 0 22px 48px rgba(0, 0, 0, 0.58);
 }
 
-#tabContentInventory .black-market-panel-head {
+.black-market-panel-head {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto auto;
     align-items: center;
@@ -28849,23 +28849,23 @@ body[data-sea-tone] .home-hero-card {
     margin: 0 0 8px;
 }
 
-#tabContentInventory .black-market-panel-head h3 {
+.black-market-panel-head h3 {
     margin: 0;
     color: #241205;
     font-size: 15px;
     font-weight: 900;
 }
 
-#tabContentInventory .black-market-panel-head span {
+.black-market-panel-head span {
     min-width: 44px;
     text-align: center;
     font-size: 12px;
     font-weight: 900;
 }
 
-#tabContentInventory .black-market-refresh,
-#tabContentInventory .black-market-close,
-#tabContentInventory .black-market-listing-action {
+.black-market-refresh,
+.black-market-close,
+.black-market-listing-action {
     min-height: 32px;
     padding: 4px 10px;
     border: 1px solid transparent;
@@ -28879,27 +28879,24 @@ body[data-sea-tone] .home-hero-card {
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
 }
 
-#tabContentInventory .black-market-refresh:disabled,
-#tabContentInventory .black-market-close:disabled,
-#tabContentInventory .black-market-listing-action:disabled {
+.black-market-refresh:disabled,
+.black-market-close:disabled,
+.black-market-listing-action:disabled {
     opacity: 0.62;
     filter: grayscale(0.3);
 }
 
-#tabContentInventory .black-market-close {
-    width: 34px;
-    min-width: 34px;
-    padding: 0;
-    border-radius: 50%;
-    font-size: 17px;
+.black-market-close {
+    min-width: 56px;
+    padding-inline: 10px;
 }
 
-#tabContentInventory .black-market-list {
+.black-market-list {
     display: grid;
     gap: 8px;
 }
 
-#tabContentInventory .black-market-listing {
+.black-market-listing {
     display: grid;
     grid-template-columns: 46px minmax(0, 1fr) auto;
     align-items: center;
@@ -28911,7 +28908,7 @@ body[data-sea-tone] .home-hero-card {
     border-image: url("./assets/ui/panels/panel-light-square.png") 24 fill / 8px / 0 stretch;
 }
 
-#tabContentInventory .black-market-listing-icon {
+.black-market-listing-icon {
     width: 42px;
     height: 42px;
     display: grid;
@@ -28919,35 +28916,35 @@ body[data-sea-tone] .home-hero-card {
     overflow: hidden;
 }
 
-#tabContentInventory .black-market-listing-body {
+.black-market-listing-body {
     min-width: 0;
     display: grid;
     gap: 2px;
 }
 
-#tabContentInventory .black-market-listing-body strong,
-#tabContentInventory .black-market-listing-body span,
-#tabContentInventory .black-market-listing-body small {
+.black-market-listing-body strong,
+.black-market-listing-body span,
+.black-market-listing-body small {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-#tabContentInventory .black-market-listing-body strong {
+.black-market-listing-body strong {
     color: #241205;
     font-size: 13px;
     font-weight: 900;
 }
 
-#tabContentInventory .black-market-listing-body span,
-#tabContentInventory .black-market-listing-body small,
-#tabContentInventory .black-market-empty {
+.black-market-listing-body span,
+.black-market-listing-body small,
+.black-market-empty {
     color: #4d2b10;
     font-size: 12px;
     font-weight: 800;
 }
 
-#tabContentInventory .black-market-listing-action.is-buy {
+.black-market-listing-action.is-buy {
     border-image-source: url("./assets/ui/buttons/button-blue-large.png");
 }
 

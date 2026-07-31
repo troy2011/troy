@@ -6714,6 +6714,9 @@ test('inventory black market creates listing and shows owner-aware actions', asy
     { playFabId: 'PF_PLAYWRIGHT', itemId: 'sword_001', price: 88 }
   ]);
   await expect(page.locator('#blackMarketPanel')).toBeVisible();
+  await expect(page.locator('body > #blackMarketPanel')).toBeVisible();
+  await expect(page.locator('#blackMarketPanel .black-market-sheet')).toBeVisible();
+  await expect(page.locator('#blackMarketPanel .black-market-close')).toBeVisible();
   await expect(page.locator('#blackMarketPanel .black-market-panel-head')).toContainText('出品 1/5');
   await expect(page.locator('#blackMarketPanel .black-market-listing')).toHaveCount(2);
   await expect(page.locator('#blackMarketPanel .black-market-listing-action.is-cancel')).toHaveCount(1);

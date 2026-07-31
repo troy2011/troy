@@ -1301,10 +1301,22 @@ function renderInventorySellControls(visibleItems = []) {
 
 function getBlackMarketPanelElement() {
     const panel = document.getElementById('blackMarketPanel');
+    if (panel && panel.parentElement !== document.body) {
+        document.body.appendChild(panel);
+    }
     if (panel && panel.dataset.dismissBound !== 'true') {
         panel.dataset.dismissBound = 'true';
+        panel.setAttribute('role', 'dialog');
+        panel.setAttribute('aria-modal', 'true');
+        panel.setAttribute('aria-labelledby', 'blackMarketTitle');
         panel.addEventListener('click', (event) => {
             if (event.target !== panel) return;
+            blackMarketVisible = false;
+            renderInventoryGrid(activeInventoryCategory);
+        });
+        panel.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
             blackMarketVisible = false;
             renderInventoryGrid(activeInventoryCategory);
         });
@@ -1386,6 +1398,7 @@ function renderBlackMarketPanel() {
     const head = document.createElement('div');
     head.className = 'black-market-panel-head';
     const title = document.createElement('h3');
+    title.id = 'blackMarketTitle';
     title.textContent = '闇市';
     const count = document.createElement('span');
     count.textContent = `出品 ${blackMarketMyActiveCount}/${blackMarketMaxActiveListings}`;
@@ -1398,7 +1411,7 @@ function renderBlackMarketPanel() {
     const close = document.createElement('button');
     close.type = 'button';
     close.className = 'black-market-close';
-    close.textContent = '×';
+    close.textContent = '閉じる';
     close.setAttribute('aria-label', '闇市を閉じる');
     close.addEventListener('click', () => {
         blackMarketVisible = false;
@@ -1406,6 +1419,7 @@ function renderBlackMarketPanel() {
     });
     head.append(title, count, refresh, close);
     sheet.appendChild(head);
+    requestAnimationFrame(() => close.focus());
 
     if (blackMarketLoading) {
         const loading = document.createElement('p');
