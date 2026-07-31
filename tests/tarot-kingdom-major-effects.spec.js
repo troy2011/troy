@@ -395,7 +395,7 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     });
   });
 
-  test('same-number pairs and triples amplify the included major while legacy rules do not', async ({ page }) => {
+  test('same-number pairs and triples amplify majors except the prohibited Magician and Ace pair', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       const resolve = (cardCount, rules = null) => {
@@ -406,7 +406,7 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
           enemyMaxHp: 5000,
           enemyDefense: 0
         });
-        return debug.battleResolveMajorEffect(0, 1, { cardCount }).result;
+        return debug.battleResolveMajorEffect(0, 7, { cardCount }).result;
       };
       const single = resolve(1);
       const pair = resolve(2);
@@ -418,18 +418,32 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
         enemyMaxHp: 5000,
         enemyDefense: 0,
         handsBySeat: [[
-          { id: 'major-magician-pair', kind: 'major', suit: 'Wand', number: 1 },
-          { id: 'minor-ace-pair', kind: 'minor', suit: 'Cup', number: 1 },
+          { id: 'major-chariot-pair', kind: 'major', suit: 'None', number: 7 },
+          { id: 'minor-seven-pair', kind: 'minor', suit: 'Cup', number: 7 },
           { id: 'pair-reserve', kind: 'minor', suit: 'Sword', number: 6 }
         ]]
       });
-      const pairState = debug.battlePlayCards(
+      const pairPlay = debug.battlePlayCards(
         0,
-        ['major-magician-pair', 'minor-ace-pair'],
+        ['major-chariot-pair', 'minor-seven-pair'],
         { resolve: false }
-      ).state;
-      const pairEvent = pairState.battle.events.at(-1);
-      return { single, pair, triple, legacyPair, pairEvent };
+      );
+      const pairEvent = pairPlay.state.battle.events.at(-1);
+
+      const magician = { id: 'major-magician-pair', kind: 'major', suit: 'Wand', number: 1 };
+      const cupAce = { id: 'minor-cup-ace-pair', kind: 'minor', suit: 'Cup', number: 1 };
+      const swordAce = { id: 'minor-sword-ace-triple', kind: 'minor', suit: 'Sword', number: 1 };
+      debug.battleScenario({
+        withTrick: false,
+        handsBySeat: [[magician, cupAce, swordAce, { id: 'magician-reserve', kind: 'minor', suit: 'Wand', number: 6 }]]
+      });
+      const magicianPair = debug.battleRebuildAction(0, {
+        selectedCardIds: [magician.id, cupAce.id]
+      });
+      const magicianTriple = debug.battleRebuildAction(0, {
+        selectedCardIds: [magician.id, cupAce.id, swordAce.id]
+      });
+      return { single, pair, triple, legacyPair, pairEvent, magicianPair, magicianTriple };
     });
 
     const sumDamage = (entry) => (entry?.results || [])
@@ -439,9 +453,9 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     const pairDamage = sumDamage(audit.pair);
     const tripleDamage = sumDamage(audit.triple);
 
-    expect(audit.single).toMatchObject({ number: 1, cardCount: 1, strengthMultiplier: 1 });
-    expect(audit.pair).toMatchObject({ number: 1, cardCount: 2, strengthMultiplier: 1.5 });
-    expect(audit.triple).toMatchObject({ number: 1, cardCount: 3, strengthMultiplier: 2 });
+    expect(audit.single).toMatchObject({ number: 7, cardCount: 1, strengthMultiplier: 1 });
+    expect(audit.pair).toMatchObject({ number: 7, cardCount: 2, strengthMultiplier: 1.5 });
+    expect(audit.triple).toMatchObject({ number: 7, cardCount: 3, strengthMultiplier: 2 });
     expect(pairDamage).toBeGreaterThan(singleDamage);
     expect(tripleDamage).toBeGreaterThan(pairDamage);
     expect(pairDamage / singleDamage).toBeGreaterThanOrEqual(1.45);
@@ -450,10 +464,15 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     expect(tripleDamage / singleDamage).toBeLessThanOrEqual(2.1);
     expect(audit.legacyPair).toBeNull();
     expect(audit.pairEvent).toMatchObject({
-      majorSkillName: 'エレメンタルコンボ',
+      majorSkillName: '突撃陣形',
       majorCardCount: 2,
       majorStrengthMultiplier: 1.5
     });
-    expect(audit.pairEvent.effects.filter((result) => result.kind === 'major-damage')).toHaveLength(4);
+    expect(audit.pairEvent.effects.filter((result) => result.kind === 'major-damage')).toHaveLength(1);
+    expect(audit.magicianPair).toEqual({
+      ok: false,
+      reason: '魔術師IとAは2枚組にできません。'
+    });
+    expect(audit.magicianTriple).toMatchObject({ ok: true, play: { type: 'set', count: 3 } });
   });
 });

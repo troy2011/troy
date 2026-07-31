@@ -77,6 +77,8 @@ let blackMarketOriginsByItemId = {};
 let blackMarketLoading = false;
 let blackMarketPendingListingId = '';
 let blackMarketCreatingItemId = '';
+let blackMarketErrorMessage = '';
+let blackMarketReturnFocusElement = null;
 // カードレベルデータ: { [itemId]: { level, maxLevel, quantity, nextLevelCost } }
 let cardLevelMap = {};
 let tarotBattleSkillsLoaded = false;
@@ -135,8 +137,8 @@ function showInventoryFeedback(msg, isError = false) {
 }
 
 function normalizeBlackMarketPrice(value) {
-    const price = Math.floor(Number(value));
-    if (!Number.isFinite(price) || price < 1 || price > 9999) return 0;
+    const price = Number(value);
+    if (!Number.isInteger(price) || price < 1 || price > 9999) return 0;
     return price;
 }
 
@@ -191,6 +193,7 @@ function ensureInventoryActionDialog() {
 function showInventoryActionDialog(options = {}) {
     const dialog = ensureInventoryActionDialog();
     if (!dialog) return Promise.resolve({ confirmed: true, value: options.defaultValue || '' });
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
     const titleEl = dialog.querySelector('#inventoryActionDialogTitle');
     const messageEl = dialog.querySelector('.inventory-action-dialog-message');
@@ -234,10 +237,11 @@ function showInventoryActionDialog(options = {}) {
         const cleanup = (result) => {
             dialog.hidden = true;
             dialog.removeEventListener('click', handleBackdropClick);
-            dialog.removeEventListener('keydown', handleKeydown);
+            document.removeEventListener('keydown', handleKeydown, true);
             cancelBtn.removeEventListener('click', handleCancel);
             confirmBtn.removeEventListener('click', handleConfirm);
             syncModalLockState();
+            if (previousFocus?.isConnected) previousFocus.focus();
             resolve(result);
         };
         const handleCancel = () => cleanup({ confirmed: false, value: '' });
@@ -247,11 +251,26 @@ function showInventoryActionDialog(options = {}) {
         const handleKeydown = (event) => {
             if (event.key === 'Escape') {
                 event.preventDefault();
+                event.stopPropagation();
                 handleCancel();
             }
             if (event.key === 'Enter' && wantsInput) {
                 event.preventDefault();
                 handleConfirm();
+            }
+            if (event.key === 'Tab') {
+                const focusable = wantsInput
+                    ? [inputEl, cancelBtn, confirmBtn]
+                    : [cancelBtn, confirmBtn];
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (event.shiftKey && document.activeElement === first) {
+                    event.preventDefault();
+                    last.focus();
+                } else if (!event.shiftKey && document.activeElement === last) {
+                    event.preventDefault();
+                    first.focus();
+                }
             }
         };
         const handleConfirm = () => {
@@ -272,7 +291,7 @@ function showInventoryActionDialog(options = {}) {
         cancelBtn.addEventListener('click', handleCancel);
         confirmBtn.addEventListener('click', handleConfirm);
         dialog.addEventListener('click', handleBackdropClick);
-        dialog.addEventListener('keydown', handleKeydown);
+        document.addEventListener('keydown', handleKeydown, true);
     });
 }
 
@@ -485,11 +504,16 @@ function renderInventoryTabControls() {
 
 function getVisibleModalCount() {
     if (typeof document === 'undefined') return 0;
-    return Array.from(document.querySelectorAll('.modal-overlay')).filter((modal) => {
+    const overlayCount = Array.from(document.querySelectorAll('.modal-overlay')).filter((modal) => {
         if (!modal) return false;
         const display = String(modal.style?.display || '').trim().toLowerCase();
         return display === 'flex' || modal.classList.contains('active');
     }).length;
+    const inventoryDialog = document.getElementById('inventoryActionDialog');
+    const blackMarketPanel = document.getElementById('blackMarketPanel');
+    return overlayCount
+        + (inventoryDialog && !inventoryDialog.hidden ? 1 : 0)
+        + (blackMarketPanel && !blackMarketPanel.hidden ? 1 : 0);
 }
 
 function syncModalLockState() {
@@ -1236,9 +1260,11 @@ function renderInventorySellControls(visibleItems = []) {
     controls.innerHTML = '';
     pruneInventorySellSelection();
 
-    const marketButton = createBlackMarketButton('闇市', blackMarketVisible ? 'is-active' : '', async () => {
+    const marketButton = createBlackMarketButton('闇市', '', async () => {
+        blackMarketReturnFocusElement = marketButton;
         blackMarketVisible = true;
-        renderInventoryGrid(activeInventoryCategory);
+        blackMarketErrorMessage = '';
+        renderBlackMarketPanel();
         await loadBlackMarketListings({ force: true });
     });
     controls.appendChild(marketButton);
@@ -1300,7 +1326,14 @@ function renderInventorySellControls(visibleItems = []) {
 }
 
 function getBlackMarketPanelElement() {
-    const panel = document.getElementById('blackMarketPanel');
+    let panel = document.getElementById('blackMarketPanel');
+    if (!panel) {
+        panel = document.createElement('section');
+        panel.id = 'blackMarketPanel';
+        panel.className = 'black-market-panel';
+        panel.hidden = true;
+        panel.setAttribute('aria-live', 'polite');
+    }
     if (panel && panel.parentElement !== document.body) {
         document.body.appendChild(panel);
     }
@@ -1311,17 +1344,42 @@ function getBlackMarketPanelElement() {
         panel.setAttribute('aria-labelledby', 'blackMarketTitle');
         panel.addEventListener('click', (event) => {
             if (event.target !== panel) return;
-            blackMarketVisible = false;
-            renderInventoryGrid(activeInventoryCategory);
+            closeBlackMarketPanel();
         });
         panel.addEventListener('keydown', (event) => {
-            if (event.key !== 'Escape') return;
-            event.preventDefault();
-            blackMarketVisible = false;
-            renderInventoryGrid(activeInventoryCategory);
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeBlackMarketPanel();
+                return;
+            }
+            if (event.key !== 'Tab') return;
+            const focusable = Array.from(panel.querySelectorAll('button:not(:disabled), [href], input:not(:disabled)'))
+                .filter((element) => !element.hidden);
+            if (!focusable.length) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
         });
     }
     return panel;
+}
+
+function closeBlackMarketPanel() {
+    blackMarketVisible = false;
+    blackMarketErrorMessage = '';
+    renderBlackMarketPanel();
+    const returnFocus = blackMarketReturnFocusElement;
+    blackMarketReturnFocusElement = null;
+    const focusTarget = returnFocus?.isConnected
+        ? returnFocus
+        : document.querySelector('#inventorySellControls .inventory-sell-control-btn');
+    if (focusTarget instanceof HTMLElement) focusTarget.focus();
 }
 
 function createBlackMarketListingItem(listing) {
@@ -1338,13 +1396,19 @@ function createBlackMarketListingItem(listing) {
     const iconFrame = document.createElement('div');
     iconFrame.className = 'black-market-listing-icon';
     const icon = document.createElement('div');
-    setInventoryIcon(
-        icon,
-        getInventorySpriteFrame(item),
-        1,
-        item.customData?.Category,
-        window.myAvatarBaseInfo?.AvatarColor
-    );
+    try {
+        setInventoryIcon(
+            icon,
+            getInventorySpriteFrame(item),
+            1,
+            item.customData?.Category,
+            window.myAvatarBaseInfo?.AvatarColor
+        );
+    } catch (error) {
+        console.warn('[black-market] item icon render failed:', error);
+        icon.className = 'black-market-listing-icon-fallback';
+        icon.textContent = '?';
+    }
     iconFrame.appendChild(icon);
 
     const body = document.createElement('div');
@@ -1360,13 +1424,24 @@ function createBlackMarketListingItem(listing) {
         origin.textContent = `初代所有者: ${originText}`;
         body.appendChild(origin);
     }
+    const pendingLabel = {
+        creating: '出品処理を再試行中',
+        cancelling: '返却処理を再試行中',
+        buying: '精算処理を再試行中'
+    }[listing.status] || '';
+    if (pendingLabel) {
+        const pending = document.createElement('small');
+        pending.className = 'black-market-listing-pending';
+        pending.textContent = pendingLabel;
+        body.appendChild(pending);
+    }
 
     const action = document.createElement('button');
     action.type = 'button';
-    action.className = `black-market-listing-action${listing.isMine ? ' is-cancel' : ' is-buy'}`;
+    action.className = `black-market-listing-action${pendingLabel ? ' is-pending' : (listing.isMine ? ' is-cancel' : ' is-buy')}`;
     const isPending = blackMarketPendingListingId === String(listing.listingId || '');
-    action.textContent = isPending ? '処理中' : (listing.isMine ? '取り消す' : '購入');
-    action.disabled = blackMarketLoading || isPending;
+    action.textContent = pendingLabel ? '復旧中' : (isPending ? '処理中' : (listing.isMine ? '取り消す' : '購入'));
+    action.disabled = blackMarketLoading || isPending || !!pendingLabel;
     if (isPending) action.setAttribute('aria-busy', 'true');
     action.addEventListener('click', async () => {
         if (action.disabled) return;
@@ -1388,10 +1463,13 @@ function renderBlackMarketPanel() {
     panel.hidden = !blackMarketVisible;
     if (!blackMarketVisible) {
         panel.innerHTML = '';
+        syncModalLockState();
         return;
     }
 
+    document.body.classList.add('modal-lock');
     panel.innerHTML = '';
+    panel.setAttribute('aria-busy', blackMarketLoading ? 'true' : 'false');
     const sheet = document.createElement('div');
     sheet.className = 'black-market-sheet';
 
@@ -1413,20 +1491,29 @@ function renderBlackMarketPanel() {
     close.className = 'black-market-close';
     close.textContent = '閉じる';
     close.setAttribute('aria-label', '闇市を閉じる');
-    close.addEventListener('click', () => {
-        blackMarketVisible = false;
-        renderInventoryGrid(activeInventoryCategory);
-    });
+    close.addEventListener('click', closeBlackMarketPanel);
     head.append(title, count, refresh, close);
     sheet.appendChild(head);
+
+    const body = document.createElement('div');
+    body.className = 'black-market-body';
+    sheet.appendChild(body);
+    panel.appendChild(sheet);
     requestAnimationFrame(() => close.focus());
 
     if (blackMarketLoading) {
         const loading = document.createElement('p');
         loading.className = 'black-market-empty';
         loading.textContent = '読み込み中...';
-        sheet.appendChild(loading);
-        panel.appendChild(sheet);
+        body.appendChild(loading);
+        return;
+    }
+
+    if (blackMarketErrorMessage) {
+        const error = document.createElement('p');
+        error.className = 'black-market-empty is-error';
+        error.textContent = blackMarketErrorMessage;
+        body.appendChild(error);
         return;
     }
 
@@ -1434,24 +1521,35 @@ function renderBlackMarketPanel() {
         const empty = document.createElement('p');
         empty.className = 'black-market-empty';
         empty.textContent = '出品はありません。';
-        sheet.appendChild(empty);
-        panel.appendChild(sheet);
+        body.appendChild(empty);
         return;
     }
 
     const list = document.createElement('div');
     list.className = 'black-market-list';
     blackMarketListings.forEach((listing) => {
-        list.appendChild(createBlackMarketListingItem(listing));
+        try {
+            list.appendChild(createBlackMarketListingItem(listing));
+        } catch (error) {
+            console.warn('[black-market] listing render failed:', error);
+            const fallback = document.createElement('article');
+            fallback.className = 'black-market-listing is-error';
+            fallback.textContent = `${listing?.itemName || listing?.itemId || '商品'}を表示できません。`;
+            list.appendChild(fallback);
+        }
     });
-    sheet.appendChild(list);
-    panel.appendChild(sheet);
+    body.appendChild(list);
 }
 
 async function loadBlackMarketListings(options = {}) {
     const playFabId = window.myPlayFabId || null;
-    if (!playFabId) return null;
+    if (!playFabId) {
+        blackMarketErrorMessage = 'ログイン情報を取得できません。';
+        renderBlackMarketPanel();
+        return null;
+    }
     blackMarketLoading = true;
+    blackMarketErrorMessage = '';
     renderBlackMarketPanel();
     try {
         const data = await requestBlackMarketListings(playFabId, { isSilent: options.isSilent === true });
@@ -1460,7 +1558,8 @@ async function loadBlackMarketListings(options = {}) {
         blackMarketMaxActiveListings = Number(data?.maxActiveListings ?? blackMarketMaxActiveListings) || 5;
         return data;
     } catch (error) {
-        showInventoryFeedback(error?.message || '闇市の取得に失敗しました。', true);
+        blackMarketErrorMessage = error?.message || '闇市の取得に失敗しました。';
+        showInventoryFeedback(blackMarketErrorMessage, true);
         return null;
     } finally {
         blackMarketLoading = false;
@@ -2697,19 +2796,19 @@ async function showBlackMarketListingPrompt(item) {
     }
     const result = await showInventoryActionDialog({
         title: '闇市に出品',
-        message: `${item.name || 'アイテム'}の価格を1-9999Gで入力してください。`,
+        message: `${item.name || 'アイテム'}の価格を1-9999Gの整数で入力してください。`,
         input: true,
         inputLabel: '価格',
         defaultValue: '1',
         min: 1,
         max: 9999,
         confirmLabel: '出品',
-        validate: (value) => (normalizeBlackMarketPrice(value) ? '' : '価格は1-9999Gで入力してください。')
+        validate: (value) => (normalizeBlackMarketPrice(value) ? '' : '価格は1-9999Gの整数で入力してください。')
     });
     if (!result.confirmed) return;
     const price = normalizeBlackMarketPrice(result.value);
     if (!price) {
-        showInventoryFeedback('価格は1-9999Gで入力してください。', true);
+        showInventoryFeedback('価格は1-9999Gの整数で入力してください。', true);
         return;
     }
     blackMarketCreatingItemId = String(item.itemId || '');

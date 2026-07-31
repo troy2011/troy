@@ -7052,6 +7052,28 @@ body.modal-lock .troy-menu-board-order-modal {
     white-space: nowrap;
 }
 
+.tarot-kingdom-chip--chain {
+    border-color: rgba(250, 204, 21, 0.82);
+    background: linear-gradient(180deg, rgba(88, 28, 135, 0.9), rgba(49, 10, 101, 0.94));
+    color: #fff7c2;
+    font-family: "Times New Roman", serif;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-shadow: 0 1px 2px #000, 0 0 7px rgba(250, 204, 21, 0.72);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12), 0 0 10px rgba(168, 85, 247, 0.38);
+}
+
+.tarot-kingdom-chip--chain[data-chain-level="3"] {
+    border-color: rgba(216, 180, 254, 0.9);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 0 13px rgba(192, 132, 252, 0.58);
+}
+
+.tarot-kingdom-chip--chain[data-chain-level="4"] {
+    border-color: rgba(254, 240, 138, 0.96);
+    background: linear-gradient(180deg, rgba(153, 27, 27, 0.94), rgba(76, 5, 25, 0.96));
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2), 0 0 16px rgba(251, 113, 133, 0.64);
+}
+
 .tarot-kingdom-root.is-reverse .tarot-kingdom-panel {
     border-color: rgba(251, 191, 36, 0.4);
     box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.14);
@@ -8139,6 +8161,8 @@ body.modal-lock .troy-menu-board-order-modal {
     --kingdom-field-position: center, center, center;
     --kingdom-field-size: 100% 100%, 100% 100%, cover;
     --kingdom-field-motion-y: 50%;
+    --kingdom-role-chain-ring-width: 0px;
+    --kingdom-role-chain-ring-color: transparent;
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
@@ -8198,6 +8222,21 @@ body.modal-lock .troy-menu-board-order-modal {
     --kingdom-field-position: center, center, center 58%;
     --kingdom-field-motion-y: 58%;
     animation: tarotKingdomSceneRolePulse 1.65s ease-in-out infinite alternate;
+}
+
+.tarot-kingdom-trick.is-scene-role[data-role-chain="2"] {
+    --kingdom-role-chain-ring-width: 1px;
+    --kingdom-role-chain-ring-color: rgba(250, 204, 21, 0.34);
+}
+
+.tarot-kingdom-trick.is-scene-role[data-role-chain="3"] {
+    --kingdom-role-chain-ring-width: 2px;
+    --kingdom-role-chain-ring-color: rgba(216, 180, 254, 0.46);
+}
+
+.tarot-kingdom-trick.is-scene-role[data-role-chain]:not([data-role-chain=""]):not([data-role-chain="2"]):not([data-role-chain="3"]) {
+    --kingdom-role-chain-ring-width: 3px;
+    --kingdom-role-chain-ring-color: rgba(254, 240, 138, 0.58);
 }
 
 .tarot-kingdom-trick.is-scene-role-straight {
@@ -8402,17 +8441,27 @@ body.modal-lock .troy-menu-board-order-modal {
         background-position: center;
         opacity: 0.72;
     }
+
+    .tarot-kingdom-trick.is-scene-role {
+        animation: none;
+        box-shadow:
+            inset 0 0 0 var(--kingdom-role-chain-ring-width) var(--kingdom-role-chain-ring-color),
+            inset 0 -12px 22px rgba(2, 6, 23, 0.18),
+            0 0 14px var(--kingdom-field-glow);
+    }
 }
 
 @keyframes tarotKingdomSceneRolePulse {
     from {
         box-shadow:
+            inset 0 0 0 var(--kingdom-role-chain-ring-width) var(--kingdom-role-chain-ring-color),
             inset 0 0 0 1px rgba(186, 230, 253, 0.12),
             inset 0 -12px 22px rgba(2, 6, 23, 0.18),
             0 0 12px var(--kingdom-field-glow);
     }
     to {
         box-shadow:
+            inset 0 0 0 calc(var(--kingdom-role-chain-ring-width) + 1px) var(--kingdom-role-chain-ring-color),
             inset 0 0 0 1px rgba(224, 242, 254, 0.25),
             inset 0 -12px 24px rgba(2, 6, 23, 0.28),
             0 0 24px var(--kingdom-field-glow);
@@ -11455,6 +11504,7 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-bat
 body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-pet-picker,
 body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-field-scene-picker,
 body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-role-picker,
+body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-chain-picker,
 body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-summon-picker {
     position: absolute;
     top: 8px;
@@ -11488,6 +11538,10 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-rol
 }
 
 body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-summon-picker {
+    top: 308px;
+}
+
+body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-chain-picker {
     top: 258px;
 }
 
@@ -11496,6 +11550,7 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-bat
 body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-pet-picker > span,
 body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-field-scene-picker > span,
 body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-role-picker > span,
+body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-chain-picker > span,
 body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-summon-picker > span {
     overflow: hidden;
     font: 700 8px/1.15 "Times New Roman", serif;
@@ -11509,6 +11564,7 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-bat
 body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-pet-picker > select,
 body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-field-scene-picker > select,
 body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-role-picker > select,
+body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-chain-picker > select,
 body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-summon-picker > select {
     width: 100%;
     min-width: 0;
@@ -11527,6 +11583,7 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-bat
 body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-pet-picker > select:focus-visible,
 body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-field-scene-picker > select:focus-visible,
 body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-role-picker > select:focus-visible,
+body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-chain-picker > select:focus-visible,
 body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-summon-picker > select:focus-visible {
     outline: 2px solid rgba(246, 213, 114, 0.9);
     outline-offset: 2px;
@@ -11538,6 +11595,7 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-sum
     body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-pet-picker,
     body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-field-scene-picker,
     body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-role-picker,
+    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-chain-picker,
     body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-summon-picker {
         top: 6px;
         right: 6px;
@@ -11562,6 +11620,10 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-sum
     }
 
     body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-summon-picker {
+        top: 294px;
+    }
+
+    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-chain-picker {
         top: 246px;
     }
 
@@ -11570,6 +11632,7 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-sum
     body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-pet-picker > select,
     body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-field-scene-picker > select,
     body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-role-picker > select,
+    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-chain-picker > select,
     body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-summon-picker > select {
         height: 26px;
         font-size: 10px;
@@ -28837,6 +28900,7 @@ body[data-sea-tone] .home-hero-card {
     border: 10px solid transparent;
     border-radius: 8px;
     border-image: url("./assets/ui/panels/panel-parchment-square.png") 24 fill / 10px / 0 stretch;
+    background: #f2dfb8;
     color: #241205;
     box-shadow: 0 22px 48px rgba(0, 0, 0, 0.58);
 }
@@ -28891,6 +28955,12 @@ body[data-sea-tone] .home-hero-card {
     padding-inline: 10px;
 }
 
+.black-market-body {
+    min-height: 68px;
+    display: grid;
+    gap: 8px;
+}
+
 .black-market-list {
     display: grid;
     gap: 8px;
@@ -28906,6 +28976,14 @@ body[data-sea-tone] .home-hero-card {
     border: 8px solid transparent;
     border-radius: 8px;
     border-image: url("./assets/ui/panels/panel-light-square.png") 24 fill / 8px / 0 stretch;
+    background: rgba(255, 245, 220, 0.72);
+}
+
+.black-market-listing.is-error {
+    display: block;
+    color: #7c1d14;
+    font-size: 12px;
+    font-weight: 900;
 }
 
 .black-market-listing-icon {
@@ -28914,6 +28992,18 @@ body[data-sea-tone] .home-hero-card {
     display: grid;
     place-items: center;
     overflow: hidden;
+}
+
+.black-market-listing-icon-fallback {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(63, 39, 18, 0.18);
+    color: #4d2b10;
+    font-size: 16px;
+    font-weight: 900;
 }
 
 .black-market-listing-body {
@@ -28944,6 +29034,16 @@ body[data-sea-tone] .home-hero-card {
     font-weight: 800;
 }
 
+.black-market-empty {
+    margin: 0;
+    padding: 12px;
+    text-align: center;
+}
+
+.black-market-empty.is-error {
+    color: #8b1e15;
+}
+
 .black-market-listing-action.is-buy {
     border-image-source: url("./assets/ui/buttons/button-blue-large.png");
 }
@@ -28951,7 +29051,7 @@ body[data-sea-tone] .home-hero-card {
 .inventory-action-dialog {
     position: fixed;
     inset: 0;
-    z-index: 4600;
+    z-index: 10120;
     display: grid;
     place-items: center;
     padding: 18px;

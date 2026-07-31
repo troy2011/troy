@@ -87,6 +87,201 @@ test.describe('Tarot Kingdom character battle flow', () => {
       }));
   });
 
+  test('successive five-card roles build a capped chain and clearing the field resets it', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const minor = (id, suit, number) => ({ id, kind: 'minor', suit, number });
+      const handsBySeat = [
+        [
+          minor('chain-straight-2', 'Wand', 2),
+          minor('chain-straight-3', 'Cup', 3),
+          minor('chain-straight-4', 'Sword', 4),
+          minor('chain-straight-5', 'Pentacle', 5),
+          minor('chain-straight-6', 'Wand', 6),
+          minor('chain-straight-keep', 'Cup', 14)
+        ],
+        [
+          minor('chain-flush-2', 'Cup', 2),
+          minor('chain-flush-4', 'Cup', 4),
+          minor('chain-flush-6', 'Cup', 6),
+          minor('chain-flush-8', 'Cup', 8),
+          minor('chain-flush-10', 'Cup', 10),
+          minor('chain-flush-keep', 'Wand', 14)
+        ],
+        [
+          minor('chain-house-7a', 'Wand', 7),
+          minor('chain-house-7b', 'Cup', 7),
+          minor('chain-house-7c', 'Sword', 7),
+          minor('chain-house-9a', 'Wand', 9),
+          minor('chain-house-9b', 'Cup', 9),
+          minor('chain-house-keep', 'Pentacle', 14)
+        ],
+        [
+          minor('chain-four-10a', 'Wand', 10),
+          minor('chain-four-10b', 'Cup', 10),
+          minor('chain-four-10c', 'Sword', 10),
+          minor('chain-four-10d', 'Pentacle', 10),
+          minor('chain-four-kicker', 'Wand', 3),
+          minor('chain-four-keep', 'Sword', 14)
+        ]
+      ];
+      debug.battleScenario({
+        withTrick: false,
+        handsBySeat,
+        rules: { enemyDefeatMode: 'hand-empty' },
+        enemyDefense: 0
+      });
+      const played = handsBySeat.map((hand, playerIndex) => {
+        const result = debug.battlePlayCards(
+          playerIndex,
+          hand.slice(0, 5).map((card) => card.id),
+          { resolve: true }
+        );
+        const state = result.state;
+        return {
+          ok: result.ok,
+          roleKey: state.trick?.role?.key || '',
+          chain: state.trick?.roleChain || null,
+          eventChain: state.battle.events.at(-1)?.roleChain || null,
+          transitionChain: state.transition?.roleChain || null
+        };
+      });
+      const published = debug.battlePublicState();
+      const sampleRole = JSON.parse(JSON.stringify(played[0] && debug.battleState().lastPlay));
+      const cleared = debug.battleClearTrick(3);
+      const legacyPayload = JSON.parse(JSON.stringify(published));
+      legacyPayload.schema = 16;
+      const legacy = debug.battleDeserialize(legacyPayload);
+
+      debug.battleScenario({
+        withTrick: false,
+        rules: { enemyDefeatMode: 'hand-empty' },
+        enemyDefense: 0
+      });
+      const roleDamage = [1, 2, 3, 4].map((count) => debug.battleDamageForPlay(0, {
+        ...sampleRole,
+        roleChain: { count, multiplier: debug.battleRoleChainMultiplier(count) }
+      }));
+
+      const callLead = minor('chain-call-lead', 'Cup', 2);
+      const callHand = [4, 6, 8, 10].map((number) => minor(`chain-call-${number}`, 'Cup', number));
+      callHand.push(minor('chain-call-keep', 'Wand', 14));
+      const answerHand = [
+        minor('chain-call-answer-7a', 'Wand', 7),
+        minor('chain-call-answer-7b', 'Cup', 7),
+        minor('chain-call-answer-7c', 'Sword', 7),
+        minor('chain-call-answer-9a', 'Wand', 9),
+        minor('chain-call-answer-9b', 'Cup', 9),
+        minor('chain-call-answer-keep', 'Pentacle', 14)
+      ];
+      debug.battleScenario({
+        tableCard: callLead,
+        handsBySeat: [callHand, answerHand],
+        rules: { enemyDefeatMode: 'hand-empty' }
+      });
+      const callStart = debug.battlePlayCards(
+        0,
+        callHand.slice(0, 4).map((card) => card.id),
+        { resolve: true }
+      );
+      const callAnswer = debug.battlePlayCards(
+        1,
+        answerHand.slice(0, 5).map((card) => card.id),
+        { resolve: true }
+      );
+      return {
+        played,
+        multipliers: [1, 2, 3, 4, 5].map((count) => debug.battleRoleChainMultiplier(count)),
+        roleDamage,
+        published,
+        cleared,
+        legacy,
+        callStart: callStart.state.lastPlay,
+        callAnswer: callAnswer.state.lastPlay
+      };
+    });
+
+    expect(audit.played.map((entry) => entry.ok)).toEqual([true, true, true, true]);
+    expect(audit.played.map((entry) => entry.roleKey)).toEqual([
+      'Straight',
+      'Flush',
+      'FullHouse',
+      'FourKind'
+    ]);
+    expect(audit.played.map((entry) => entry.chain)).toEqual([
+      { count: 1, multiplier: 1 },
+      { count: 2, multiplier: 1.25 },
+      { count: 3, multiplier: 1.5 },
+      { count: 4, multiplier: 1.75 }
+    ]);
+    expect(audit.played.map((entry) => entry.eventChain)).toEqual(
+      audit.played.map((entry) => entry.chain)
+    );
+    expect(audit.multipliers).toEqual([1, 1.25, 1.5, 1.75, 1.75]);
+    const baseDamage = audit.roleDamage[0].baseDamage;
+    expect(audit.roleDamage.map((entry) => entry.baseDamage)).toEqual([
+      baseDamage,
+      Math.floor(baseDamage * 1.25),
+      Math.floor(baseDamage * 1.5),
+      Math.floor(baseDamage * 1.75)
+    ]);
+    expect(audit.published.schema).toBe(17);
+    expect(audit.published.state.rules.roleChainVersion).toBe(1);
+    expect(audit.published.state.trick.roleChain).toEqual({ count: 4, multiplier: 1.75 });
+    expect(audit.cleared.trick).toBeNull();
+    expect(audit.cleared.lastPlay).toBeNull();
+    expect(audit.legacy.rules.roleChainVersion).toBe(0);
+    expect(audit.legacy.trick.roleChain).toBeUndefined();
+    expect(audit.callStart).toMatchObject({
+      type: 'role',
+      call: true,
+      roleChain: { count: 1, multiplier: 1 }
+    });
+    expect(audit.callAnswer).toMatchObject({
+      type: 'role',
+      call: false,
+      roleChain: { count: 2, multiplier: 1.25 }
+    });
+  });
+
+  test('Magician I and a minor Ace cannot form a two-card set', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const magician = { id: 'magician-pair-major', kind: 'major', suit: 'Wand', number: 1 };
+      const cupAce = { id: 'magician-pair-cup-ace', kind: 'minor', suit: 'Cup', number: 1 };
+      const swordAce = { id: 'magician-pair-sword-ace', kind: 'minor', suit: 'Sword', number: 1 };
+      const reserve = { id: 'magician-pair-reserve', kind: 'minor', suit: 'Wand', number: 6 };
+      debug.battleScenario({
+        withTrick: false,
+        handsBySeat: [[magician, cupAce, swordAce, reserve]]
+      });
+      const pair = debug.battleRebuildAction(0, {
+        selectedCardIds: [magician.id, cupAce.id]
+      });
+      const reversedPair = debug.battleRebuildAction(0, {
+        selectedCardIds: [swordAce.id, magician.id]
+      });
+      const minorPair = debug.battleRebuildAction(0, {
+        selectedCardIds: [cupAce.id, swordAce.id]
+      });
+      const triple = debug.battleRebuildAction(0, {
+        selectedCardIds: [magician.id, cupAce.id, swordAce.id]
+      });
+      const played = debug.battlePlayCards(0, [magician.id, cupAce.id], { resolve: false });
+      return { pair, reversedPair, minorPair, triple, played };
+    });
+
+    expect(audit.pair).toEqual({ ok: false, reason: '魔術師IとAは2枚組にできません。' });
+    expect(audit.reversedPair).toEqual(audit.pair);
+    expect(audit.minorPair).toMatchObject({ ok: true, play: { type: 'set', count: 2 } });
+    expect(audit.triple).toMatchObject({ ok: true, play: { type: 'set', count: 3 } });
+    expect(audit.played).toMatchObject({
+      ok: false,
+      reason: '魔術師IとAは2枚組にできません。'
+    });
+    expect(audit.played.state.players[0].hand).toHaveLength(4);
+  });
+
   test('fold and every later automatic fold receive shield-mitigated counters', async ({ page }) => {
     const audit = await page.evaluate(({ combatBySeat }) => {
       const debug = window.TarotKingdomDebug;
@@ -890,7 +1085,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.rush.battle.outcome).toBeNull();
     expect(audit.rush.players[0].hand).toHaveLength(1);
     expect(audit.rush.rules.enemyDefeatMode).toBe('hand-empty');
-    expect(audit.hostPublicState.schema).toBe(16);
+    expect(audit.hostPublicState.schema).toBe(17);
     expect(audit.hostPublicState.state.rules.enemyDefeatMode).toBe('hand-empty');
     expect(audit.legacy.rules.enemyDefeatMode).toBe('hand-empty');
   });
@@ -1882,7 +2077,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       effectiveUnits: 2,
       healRate: 0.2
     });
-    expect(audit.publicState.schema).toBe(16);
+    expect(audit.publicState.schema).toBe(17);
     expect(audit.publicState.state.stage.monsters).toHaveLength(4);
     expect(audit.atmosphereTone).toBe('sunlit-coral');
     expect(audit.atmosphereCss).toContain('74, 159, 196');
@@ -1911,7 +2106,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.settlementStart.players).toHaveLength(3);
     expect(audit.settled.roundSettlement.rows).toHaveLength(2);
     expect(audit.settled.dealer).toBe(0);
-    expect(audit.published.schema).toBe(16);
+    expect(audit.published.schema).toBe(17);
     expect(audit.published.state.rules.playerCount).toBe(3);
     expect(audit.published.state.players).toHaveLength(3);
   });
@@ -2191,11 +2386,12 @@ test.describe('Tarot Kingdom character battle flow', () => {
         current
       };
     });
-    expect(audit.currentPublic.schema).toBe(16);
+    expect(audit.currentPublic.schema).toBe(17);
     expect(audit.currentPublic.state.rules).toMatchObject({
       playerCount: 4,
       combatEffectsVersion: 1,
       arcanaLoadoutEffectsVersion: 1,
+      roleChainVersion: 1,
       summonVersion: 1,
       graveTimingVersion: 1,
       majorArcanaGateVersion: 1,

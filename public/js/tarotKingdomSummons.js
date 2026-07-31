@@ -212,6 +212,7 @@ export function createTarotKingdomSummonStateById(id, role = {}) {
 export function buildTarotKingdomSummonEffectSteps(summonState, context = {}) {
     const effectKey = String(summonState?.effectKey || '').trim();
     const roleRate = Math.max(1, Math.min(5, Math.floor(finiteNumber(context.roleRate, 1))));
+    const roleChainMultiplier = Math.max(1, Math.min(1.75, finiteNumber(context.roleChainMultiplier, 1)));
     const intelligence = Math.max(0, finiteNumber(context.intelligence, 0));
     const summonScale = 1 + (Math.min(200, intelligence) / 200);
     const levelScale = Number(context.growthVersion) >= 1
@@ -225,9 +226,13 @@ export function buildTarotKingdomSummonEffectSteps(summonState, context = {}) {
     ));
     const source = 'summon';
     const label = String(summonState?.effectName || EFFECT_PROFILES[effectKey]?.name || '召喚効果');
+    const chainDamage = (amount) => Math.max(
+        1,
+        Math.floor(Math.max(1, Math.floor(finiteNumber(amount, 0))) * roleChainMultiplier)
+    );
     if (effectKey === 'rupture') {
         return [
-            { source, kind: 'damage', label, targetType: 'enemy', amount: base },
+            { source, kind: 'damage', label, targetType: 'enemy', amount: chainDamage(base) },
             {
                 source,
                 kind: 'status',
@@ -242,7 +247,7 @@ export function buildTarotKingdomSummonEffectSteps(summonState, context = {}) {
     }
     if (effectKey === 'inferno') {
         return [
-            { source, kind: 'damage', label, targetType: 'enemy', amount: Math.max(1, Math.floor(base * 0.8)) },
+            { source, kind: 'damage', label, targetType: 'enemy', amount: chainDamage(base * 0.8) },
             {
                 source,
                 kind: 'status',
@@ -260,7 +265,7 @@ export function buildTarotKingdomSummonEffectSteps(summonState, context = {}) {
             kind: 'multi-hit',
             label,
             targetType: 'enemy',
-            amount: Math.max(1, Math.floor(base * 1.2)),
+            amount: chainDamage(base * 1.2),
             hitCount: Math.min(4, 2 + Math.floor(roleRate / 2))
         }];
     }

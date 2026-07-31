@@ -11,6 +11,8 @@
     --summon-effect: var(--skill-accent, #8fd8ff);
     --summon-fx-primary: var(--summon-effect);
     --summon-fx-secondary: #fff4c2;
+    --role-chain-color: transparent;
+    --role-chain-glow: 0px;
     position: absolute;
     z-index: 72;
     inset: 0;
@@ -24,6 +26,10 @@
     isolation: isolate;
     animation: tkSummonOverlay 4500ms linear both;
     animation-delay: var(--summon-elapsed, 0ms);
+}
+
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon.is-role-chain {
+    --role-chain-color: rgba(254, 240, 138, 0.72);
 }
 
 #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon::before {
@@ -118,11 +124,12 @@
     z-index: 5;
     border: 2px solid color-mix(in srgb, var(--summon-fx-primary) 88%, white);
     background:
+        radial-gradient(circle, transparent 0 35%, var(--role-chain-color) 36% 37%, transparent 38% 54%, var(--role-chain-color) 55% 56%, transparent 57%),
         repeating-conic-gradient(from 0deg, transparent 0 11deg, color-mix(in srgb, var(--summon-fx-primary) 72%, transparent) 12deg 13deg),
         radial-gradient(circle, transparent 0 26%, color-mix(in srgb, var(--summon-fx-primary) 35%, transparent) 27% 30%, transparent 31% 45%, color-mix(in srgb, var(--summon-fx-primary) 65%, transparent) 46% 48%, transparent 49%);
     box-shadow:
         inset 0 0 24px color-mix(in srgb, var(--summon-fx-primary) 46%, transparent),
-        0 0 24px color-mix(in srgb, var(--summon-fx-primary) 65%, transparent);
+        0 0 calc(24px + var(--role-chain-glow)) color-mix(in srgb, var(--summon-fx-primary) 65%, transparent);
     animation: tkSummonSeal 4500ms ease-in-out both;
     animation-delay: var(--summon-elapsed, 0ms);
 }
@@ -227,7 +234,37 @@
         radial-gradient(circle at 25% 57%, #fff 0 1.5%, color-mix(in srgb, var(--summon-fx-primary) 82%, white) 2% 5%, transparent 17%),
         conic-gradient(from 0deg at 25% 57%, transparent 0 8%, rgba(255, 255, 255, 0.88) 9% 10%, transparent 11% 22%, rgba(255, 255, 255, 0.6) 23% 24%, transparent 25%);
     mix-blend-mode: screen;
+    box-shadow: inset 0 0 calc(28px + var(--role-chain-glow)) var(--role-chain-color);
     animation: tkSummonImpact 4500ms steps(2, end) both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+.tarot-kingdom-summon-chain-label,
+.tarot-kingdom-summon-chain-impact {
+    position: absolute;
+    z-index: 24;
+    left: 50%;
+    margin: 0;
+    color: #fff7c2;
+    font-family: "Times New Roman", serif;
+    font-weight: 900;
+    letter-spacing: 0.09em;
+    white-space: nowrap;
+    pointer-events: none;
+    text-shadow: 0 2px 2px #000, 0 0 10px rgba(250, 204, 21, 0.86), 0 0 20px rgba(168, 85, 247, 0.72);
+}
+
+.tarot-kingdom-summon-chain-label {
+    top: 14%;
+    font-size: clamp(13px, 3.8vw, 20px);
+    animation: tkSummonChainLabel 4500ms ease-out both;
+    animation-delay: var(--summon-elapsed, 0ms);
+}
+
+.tarot-kingdom-summon-chain-impact {
+    top: 43%;
+    font-size: clamp(34px, 10vw, 72px);
+    animation: tkSummonChainImpact 4500ms cubic-bezier(0.18, 0.78, 0.18, 1) both;
     animation-delay: var(--summon-elapsed, 0ms);
 }
 
@@ -1243,6 +1280,19 @@
     100% { opacity: 0; transform: translateX(var(--skill-card-converge-x, 0px)) translateY(14px) rotate(0) scale(.12); }
 }
 
+@keyframes tkSummonChainLabel {
+    0%, 8% { opacity: 0; transform: translate(-50%, 8px) scale(.88); }
+    13%, 58% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    66%, 100% { opacity: 0; transform: translate(-50%, -4px) scale(1.04); }
+}
+
+@keyframes tkSummonChainImpact {
+    0%, 65% { opacity: 0; transform: translate(-50%, 10px) scale(.55); }
+    67% { opacity: 1; transform: translate(-50%, 0) scale(1.12); }
+    70% { opacity: .92; transform: translate(-50%, -2px) scale(1.02); }
+    76%, 100% { opacity: 0; transform: translate(-50%, -10px) scale(1.08); }
+}
+
 @keyframes tkSummonSeal {
     0%, 38% { opacity: 0; transform: scale(.1) rotate(-34deg); }
     45%, 52% { opacity: .95; transform: scale(.76) rotate(0); }
@@ -1388,5 +1438,18 @@
 
     .tarot-kingdom-summon-fx-impact {
         opacity: .5;
+    }
+
+    .tarot-kingdom-summon-chain-label {
+        top: 7%;
+        opacity: 1;
+        transform: translateX(-50%);
+        animation: none;
+        transition: none;
+    }
+
+    .tarot-kingdom-summon-chain-impact {
+        display: none;
+        animation: none;
     }
 }

@@ -287,6 +287,35 @@ test.describe('Tarot Kingdom deterministic summons', () => {
       { kind: 'buff', statusKey: 'nextAttackUp', potency: 40, charges: 1 }
     ]);
   });
+
+  test('role chains amplify only attack-type summon damage and cap at 1.75', async () => {
+    const summons = await loadSummonsModule();
+    const stepsFor = (id, roleChainMultiplier) => {
+      const summon = summons.TAROT_KINGDOM_SUMMONS.find((entry) => entry.id === id);
+      return summons.buildTarotKingdomSummonEffectSteps(
+        { ...summon, effectName: summon.effectKey },
+        { roleRate: 5, intelligence: 100, roleChainMultiplier }
+      );
+    };
+
+    expect(stepsFor('mimic_chest', 1.75)).toMatchObject([
+      { kind: 'damage', amount: 147 },
+      { kind: 'status', statusKey: 'break', potency: 40, chance: 1 }
+    ]);
+    expect(stepsFor('puffer_bomb', 2)).toMatchObject([
+      { kind: 'damage', amount: 117 },
+      { kind: 'status', statusKey: 'burn', potency: 29, chance: 1 }
+    ]);
+    expect(stepsFor('coral_goblin', 1.5)).toMatchObject([
+      { kind: 'multi-hit', amount: 150, hitCount: 4 }
+    ]);
+    expect(stepsFor('treasure_slime', 1.75)).toMatchObject([
+      { kind: 'heal-party-percent', percent: 14 }
+    ]);
+    expect(stepsFor('crab_brute', 1.75)).toMatchObject([
+      { kind: 'guard', statusKey: 'summonGuard', potency: 45, charges: 1 }
+    ]);
+  });
 });
 
 test.describe('Tarot Kingdom summon integration', () => {

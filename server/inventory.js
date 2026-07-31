@@ -56,9 +56,11 @@ const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
 const INVENTORY_SELL_UNIT_PRICE = 1;
 const BLACK_MARKET_LISTINGS_COLLECTION = 'black_market_listings';
 const BLACK_MARKET_OWNERSHIP_COLLECTION = 'black_market_item_origins';
+const BLACK_MARKET_SLOTS_COLLECTION = 'black_market_listing_slots';
 const BLACK_MARKET_MAX_ACTIVE_LISTINGS = 5;
 const BLACK_MARKET_MIN_PRICE = 1;
 const BLACK_MARKET_MAX_PRICE = 9999;
+const BLACK_MARKET_OCCUPIED_STATUSES = new Set(['creating', 'active', 'buying', 'cancelling']);
 const INVENTORY_SELL_EQUIPMENT_KEYS = [
     'Equipped_RightHand',
     'Equipped_LeftHand',
@@ -675,9 +677,14 @@ function initializeInventoryRoutes(app, deps) {
         return firestore.collection(BLACK_MARKET_OWNERSHIP_COLLECTION);
     }
 
+    function getBlackMarketSlotsCollection() {
+        if (!firestore || typeof firestore.collection !== 'function') return null;
+        return firestore.collection(BLACK_MARKET_SLOTS_COLLECTION);
+    }
+
     function normalizeBlackMarketPrice(value) {
-        const price = Math.floor(Number(value));
-        if (!Number.isFinite(price) || price < BLACK_MARKET_MIN_PRICE || price > BLACK_MARKET_MAX_PRICE) {
+        const price = Number(value);
+        if (!Number.isInteger(price) || price < BLACK_MARKET_MIN_PRICE || price > BLACK_MARKET_MAX_PRICE) {
             return 0;
         }
         return price;
@@ -722,7 +729,18 @@ function initializeInventoryRoutes(app, deps) {
             originDisplayName: String(data.originDisplayName || '').trim(),
             itemData: data.itemData && typeof data.itemData === 'object' ? data.itemData : {},
             settlementStatus: String(data.settlementStatus || '').trim(),
-            lastError: String(data.lastError || '').trim()
+            lastError: String(data.lastError || '').trim(),
+            slotIndex: Number.isInteger(data.slotIndex) ? data.slotIndex : -1,
+            originTracked: data.originTracked === true,
+            itemDebited: data.itemDebited === true,
+            ownershipDebited: data.ownershipDebited === true,
+            returnGranted: data.returnGranted === true,
+            ownershipReturned: data.ownershipReturned === true,
+            buyerCharged: data.buyerCharged === true,
+            buyerItemGranted: data.buyerItemGranted === true,
+            buyerOwnershipGranted: data.buyerOwnershipGranted === true,
+            buyerRefunded: data.buyerRefunded === true,
+            sellerPaid: data.sellerPaid === true
         };
     }
 
@@ -737,17 +755,109 @@ function initializeInventoryRoutes(app, deps) {
         };
     }
 
-    async function getBlackMarketActiveListingsForSeller(playFabId) {
+    async function getBlackMarketOccupiedListingsForSeller(playFabId) {
         const collection = getBlackMarketCollection();
         if (!collection) return [];
         const snap = await collection.where('sellerPlayFabId', '==', playFabId).limit(200).get();
         return (snap?.docs || [])
             .map(getListingSnapshotFromDoc)
-            .filter((listing) => listing.status === 'active');
+            .filter((listing) => BLACK_MARKET_OCCUPIED_STATUSES.has(listing.status));
     }
 
     async function getBlackMarketActiveListingCount(playFabId) {
-        return (await getBlackMarketActiveListingsForSeller(playFabId)).length;
+        return (await getBlackMarketOccupiedListingsForSeller(playFabId)).length;
+    }
+
+    function getBlackMarketSlotRef(playFabId, slotIndex) {
+        const collection = getBlackMarketSlotsCollection();
+        if (!collection) return null;
+        const ownerKey = encodeURIComponent(String(playFabId || '').trim());
+        return collection.doc(`${ownerKey}__${slotIndex}`);
+    }
+
+    function requireBlackMarketTransactions() {
+        if (!firestore || typeof firestore.runTransaction !== 'function') {
+            const error = new Error('闇市の取引ロックを利用できません。');
+            error.status = 503;
+            throw error;
+        }
+    }
+
+    async function reserveBlackMarketListingSlot(listingRef, listing) {
+        requireBlackMarketTransactions();
+        const existingListings = await getBlackMarketOccupiedListingsForSeller(listing.sellerPlayFabId);
+        return firestore.runTransaction(async (tx) => {
+            const slotRefs = Array.from({ length: BLACK_MARKET_MAX_ACTIVE_LISTINGS }, (_entry, index) => (
+                getBlackMarketSlotRef(listing.sellerPlayFabId, index)
+            ));
+            const slotSnaps = [];
+            for (const slotRef of slotRefs) {
+                slotSnaps.push(await tx.get(slotRef));
+            }
+
+            const claimedListingIds = new Set(slotSnaps.map((snap) => (
+                snap?.exists ? String(snap.data()?.listingId || '').trim() : ''
+            )).filter(Boolean));
+            const freeSlotIndexes = slotSnaps
+                .map((snap, index) => ({ snap, index }))
+                .filter(({ snap }) => !snap?.exists || !String(snap.data()?.listingId || '').trim())
+                .map(({ index }) => index);
+
+            const legacyListings = existingListings.filter((entry) => (
+                entry.listingId
+                && entry.slotIndex < 0
+                && !claimedListingIds.has(entry.listingId)
+            ));
+            for (const legacyListing of legacyListings) {
+                const legacySlotIndex = freeSlotIndexes.shift();
+                if (!Number.isInteger(legacySlotIndex)) break;
+                tx.set(slotRefs[legacySlotIndex], {
+                    sellerPlayFabId: listing.sellerPlayFabId,
+                    listingId: legacyListing.listingId,
+                    status: 'occupied',
+                    updatedAtMs: Date.now()
+                }, { merge: true });
+                tx.set(getBlackMarketCollection().doc(legacyListing.listingId), {
+                    slotIndex: legacySlotIndex,
+                    updatedAtMs: Date.now()
+                }, { merge: true });
+            }
+
+            const slotIndex = freeSlotIndexes.shift();
+            if (!Number.isInteger(slotIndex)) return null;
+            const nowMs = Date.now();
+            tx.set(listingRef, {
+                ...listing,
+                slotIndex,
+                createdAtMs: nowMs,
+                updatedAtMs: nowMs
+            });
+            tx.set(slotRefs[slotIndex], {
+                sellerPlayFabId: listing.sellerPlayFabId,
+                listingId: listing.listingId,
+                status: 'occupied',
+                updatedAtMs: nowMs
+            }, { merge: true });
+            return slotIndex;
+        });
+    }
+
+    async function getBlackMarketListing(listingId) {
+        const collection = getBlackMarketCollection();
+        if (!collection) return null;
+        const ref = collection.doc(String(listingId || '').trim());
+        const snap = await ref.get();
+        if (!snap?.exists) return null;
+        return getListingSnapshotFromDoc({ id: ref.id, data: () => snap.data() });
+    }
+
+    async function patchBlackMarketListing(listingId, patch = {}) {
+        const collection = getBlackMarketCollection();
+        if (!collection) return;
+        await collection.doc(listingId).set({
+            ...patch,
+            updatedAtMs: Date.now()
+        }, { merge: true });
     }
 
     async function getBlackMarketOwnershipEntries(ownerPlayFabId, itemId = '') {
@@ -761,27 +871,6 @@ function initializeInventoryRoutes(app, deps) {
                 return Math.max(0, Math.floor(Number(entry.count) || 0)) > 0;
             })
             .sort((a, b) => (Number(a.createdAtMs || 0) || 0) - (Number(b.createdAtMs || 0) || 0));
-    }
-
-    async function adjustBlackMarketOwnership(ownerPlayFabId, itemId, origin, delta) {
-        const collection = getBlackMarketOwnershipCollection();
-        if (!collection || !ownerPlayFabId || !itemId || !origin?.playFabId) return;
-        const nowMs = Date.now();
-        const ref = collection.doc(makeBlackMarketOwnershipId(ownerPlayFabId, itemId, origin.playFabId));
-        const snap = await ref.get();
-        const current = snap?.exists ? (snap.data() || {}) : {};
-        const currentCount = Math.max(0, Math.floor(Number(current.count) || 0));
-        const nextCount = Math.max(0, currentCount + Math.floor(Number(delta) || 0));
-        const patch = {
-            ownerPlayFabId,
-            itemId,
-            originPlayFabId: origin.playFabId,
-            originDisplayName: String(origin.displayName || origin.playFabId).trim() || origin.playFabId,
-            count: nextCount,
-            updatedAtMs: nowMs
-        };
-        if (!snap?.exists) patch.createdAtMs = nowMs;
-        await ref.set(patch, { merge: true });
     }
 
     async function pickBlackMarketOriginForListing(sellerPlayFabId, itemId, itemData) {
@@ -947,40 +1036,113 @@ function initializeInventoryRoutes(app, deps) {
         };
     }
 
+    function getBlackMarketErrorMessage(error) {
+        return error?.errorMessage || error?.message || String(error || '');
+    }
+
+    function isBlackMarketApiError(error, code) {
+        return error?.apiErrorInfo?.apiError === code || error?.errorCode === code;
+    }
+
     async function listBlackMarketListings(playFabId) {
         const collection = getBlackMarketCollection();
         if (!collection) {
             return { ok: false, status: 503, error: '闇市は現在利用できません。' };
         }
+        const pendingListings = await recoverBlackMarketListingsForUser(playFabId);
         const snap = await collection.where('status', '==', 'active').limit(100).get();
-        const listings = (snap?.docs || [])
+        const activeListings = (snap?.docs || [])
             .map(getListingSnapshotFromDoc)
             .filter((listing) => listing.status === 'active')
-            .sort((a, b) => b.createdAtMs - a.createdAtMs)
+            .sort((a, b) => b.createdAtMs - a.createdAtMs);
+        const listings = [...activeListings, ...(pendingListings || [])]
+            .filter((listing, index, source) => source.findIndex((entry) => entry.listingId === listing.listingId) === index)
             .map((listing) => ({
                 ...listing,
-                isMine: String(listing.sellerPlayFabId || '') === String(playFabId || '')
+                isMine: String(listing.sellerPlayFabId || '') === String(playFabId || ''),
+                isPending: listing.status !== 'active'
             }));
-        const myActiveCount = listings.filter((listing) => listing.isMine).length;
+        const myActiveCount = await getBlackMarketActiveListingCount(playFabId);
         return { ok: true, listings, myActiveCount, maxActiveListings: BLACK_MARKET_MAX_ACTIVE_LISTINGS };
+    }
+
+    async function finalizeCreatingBlackMarketListing(listingId) {
+        requireBlackMarketTransactions();
+        const listingRef = getBlackMarketCollection().doc(listingId);
+        return firestore.runTransaction(async (tx) => {
+            const listingSnap = await tx.get(listingRef);
+            if (!listingSnap?.exists) return null;
+            const listing = getListingSnapshotFromDoc({ id: listingRef.id, data: () => listingSnap.data() });
+            if (listing.status !== 'creating') return listing;
+            if (!listing.itemDebited) throw new Error('出品アイテムの預かり処理が完了していません。');
+
+            let ownershipRef = null;
+            let ownershipSnap = null;
+            if (listing.originTracked && listing.originPlayFabId && !listing.ownershipDebited) {
+                ownershipRef = getBlackMarketOwnershipCollection().doc(makeBlackMarketOwnershipId(
+                    listing.sellerPlayFabId,
+                    listing.itemId,
+                    listing.originPlayFabId
+                ));
+                ownershipSnap = await tx.get(ownershipRef);
+            }
+
+            const nowMs = Date.now();
+            if (ownershipRef) {
+                const current = ownershipSnap?.exists ? (ownershipSnap.data() || {}) : {};
+                tx.set(ownershipRef, {
+                    ownerPlayFabId: listing.sellerPlayFabId,
+                    itemId: listing.itemId,
+                    originPlayFabId: listing.originPlayFabId,
+                    originDisplayName: listing.originDisplayName || listing.originPlayFabId,
+                    count: Math.max(0, Math.floor(Number(current.count) || 0) - 1),
+                    createdAtMs: Number(current.createdAtMs || nowMs) || nowMs,
+                    updatedAtMs: nowMs
+                }, { merge: true });
+            }
+            tx.update(listingRef, {
+                status: 'active',
+                ownershipDebited: true,
+                settlementStatus: '',
+                lastError: '',
+                updatedAtMs: nowMs
+            });
+            return { ...listing, status: 'active', ownershipDebited: true, updatedAtMs: nowMs };
+        });
+    }
+
+    async function resumeCreatingBlackMarketListing(listingId) {
+        let listing = await getBlackMarketListing(listingId);
+        if (!listing || listing.status !== 'creating') return listing;
+        if (!listing.itemDebited) {
+            try {
+                await subtractEconomyItem(listing.sellerPlayFabId, listing.itemId, 1, {
+                    idempotencyId: `black-market-list-item-${listing.listingId}`
+                });
+                await patchBlackMarketListing(listing.listingId, { itemDebited: true, lastError: '' });
+            } catch (error) {
+                await patchBlackMarketListing(listing.listingId, {
+                    settlementStatus: 'itemDebitPending',
+                    lastError: getBlackMarketErrorMessage(error)
+                }).catch(() => {});
+                throw error;
+            }
+        }
+        return finalizeCreatingBlackMarketListing(listing.listingId);
     }
 
     async function createBlackMarketListing(playFabId, itemId, priceValue) {
         const collection = getBlackMarketCollection();
-        if (!collection) {
+        if (!collection || !getBlackMarketSlotsCollection()) {
             return { ok: false, status: 503, error: '闇市は現在利用できません。' };
         }
         const safeItemId = String(itemId || '').trim();
         const price = normalizeBlackMarketPrice(priceValue);
         if (!safeItemId || !price) {
-            return { ok: false, status: 400, error: '出品するアイテムと価格を確認してください。' };
+            return { ok: false, status: 400, error: '価格は1-9999Gの整数で入力してください。' };
         }
         if (isCurrencyInventoryItem(safeItemId)) {
             return { ok: false, status: 400, error: 'Gは出品できません。' };
-        }
-        const activeListings = await getBlackMarketActiveListingsForSeller(playFabId);
-        if (activeListings.length >= BLACK_MARKET_MAX_ACTIVE_LISTINGS) {
-            return { ok: false, status: 400, error: `闇市に出せるのは${BLACK_MARKET_MAX_ACTIVE_LISTINGS}個までです。` };
         }
 
         const entityKey = await getEntityKeyForPlayFabId(playFabId);
@@ -995,126 +1157,391 @@ function initializeInventoryRoutes(app, deps) {
 
         const snapshot = buildBlackMarketItemSnapshot(safeItemId);
         const origin = await pickBlackMarketOriginForListing(playFabId, safeItemId, snapshot.itemData);
+        const sellerDisplayName = await getPlayerDisplayName(playFabId);
         const listingRef = collection.doc();
-        const listingId = listingRef.id;
-        const stamp = `${listingId}-${Date.now()}`;
-        await subtractEconomyItem(playFabId, safeItemId, 1, {
-            idempotencyId: `black-market-list-item-${playFabId}-${safeItemId}-${stamp}`
-        });
-        let originAdjusted = false;
-        try {
-            if (origin?.tracked) {
-                await adjustBlackMarketOwnership(playFabId, safeItemId, origin, -1);
-                originAdjusted = true;
+        const listing = {
+            listingId: listingRef.id,
+            sellerPlayFabId: playFabId,
+            sellerDisplayName: sellerDisplayName || playFabId,
+            itemId: safeItemId,
+            itemName: snapshot.itemName,
+            description: snapshot.description,
+            category: snapshot.category,
+            itemData: snapshot.itemData,
+            price,
+            status: 'creating',
+            originPlayFabId: origin?.playFabId || '',
+            originDisplayName: origin?.displayName || origin?.playFabId || '',
+            originTracked: origin?.tracked === true,
+            itemDebited: false,
+            ownershipDebited: false,
+            settlementStatus: 'itemDebitPending',
+            lastError: ''
+        };
+        const slotIndex = await reserveBlackMarketListingSlot(listingRef, listing);
+        if (!Number.isInteger(slotIndex)) {
+            return { ok: false, status: 400, error: `闇市に出せるのは${BLACK_MARKET_MAX_ACTIVE_LISTINGS}個までです。` };
+        }
+        const activeListing = await resumeCreatingBlackMarketListing(listing.listingId);
+        return {
+            ok: true,
+            listing: activeListing,
+            myActiveCount: await getBlackMarketActiveListingCount(playFabId),
+            maxActiveListings: BLACK_MARKET_MAX_ACTIVE_LISTINGS
+        };
+    }
+
+    async function beginBlackMarketCancellation(playFabId, listingId) {
+        requireBlackMarketTransactions();
+        const listingRef = getBlackMarketCollection().doc(listingId);
+        return firestore.runTransaction(async (tx) => {
+            const snap = await tx.get(listingRef);
+            if (!snap?.exists) return { ok: false, status: 404, error: '出品が見つかりません。' };
+            const listing = getListingSnapshotFromDoc({ id: listingRef.id, data: () => snap.data() });
+            if (listing.sellerPlayFabId !== playFabId) {
+                return { ok: false, status: 403, error: '自分の出品だけキャンセルできます。' };
+            }
+            if (listing.status === 'cancelling') return { ok: true, listing };
+            if (listing.status !== 'active') {
+                return { ok: false, status: 400, error: 'この出品は操作できません。' };
             }
             const nowMs = Date.now();
-            const sellerDisplayName = await getPlayerDisplayName(playFabId);
-            const listing = {
-                listingId,
-                sellerPlayFabId: playFabId,
-                sellerDisplayName: sellerDisplayName || playFabId,
-                itemId: safeItemId,
-                itemName: snapshot.itemName,
-                description: snapshot.description,
-                category: snapshot.category,
-                itemData: snapshot.itemData,
-                price,
-                status: 'active',
-                createdAtMs: nowMs,
+            tx.update(listingRef, {
+                status: 'cancelling',
+                returnGranted: false,
+                ownershipReturned: false,
+                settlementStatus: 'returnPending',
+                lastError: '',
                 updatedAtMs: nowMs
-            };
-            if (origin) {
-                listing.originPlayFabId = origin.playFabId;
-                listing.originDisplayName = origin.displayName || origin.playFabId;
-            }
-            await listingRef.set(listing);
-            return {
-                ok: true,
-                listing: getListingSnapshotFromDoc({ id: listingId, data: () => listing }),
-                myActiveCount: activeListings.length + 1,
-                maxActiveListings: BLACK_MARKET_MAX_ACTIVE_LISTINGS
-            };
-        } catch (error) {
-            if (originAdjusted) {
-                await adjustBlackMarketOwnership(playFabId, safeItemId, origin, 1).catch((originError) => {
-                    console.error('[black-market] origin restore failed:', originError?.errorMessage || originError?.message || originError);
-                });
-            }
-            await addEconomyItem(playFabId, safeItemId, 1, {
-                idempotencyId: `black-market-list-refund-${playFabId}-${safeItemId}-${stamp}`
-            }).catch((refundError) => {
-                console.error('[black-market] listing refund failed:', refundError?.errorMessage || refundError?.message || refundError);
             });
-            throw error;
-        }
-    }
-
-    async function lockBlackMarketListing(listingId, expectedStatus, nextStatus, extraPatch = {}) {
-        const collection = getBlackMarketCollection();
-        if (!collection) return null;
-        const ref = collection.doc(listingId);
-        if (firestore && typeof firestore.runTransaction === 'function') {
-            return firestore.runTransaction(async (tx) => {
-                const snap = await tx.get(ref);
-                if (!snap?.exists) return null;
-                const listing = getListingSnapshotFromDoc({ id: ref.id, data: () => snap.data() });
-                if (listing.status !== expectedStatus) return { locked: false, listing };
-                tx.update(ref, {
-                    status: nextStatus,
-                    updatedAtMs: Date.now(),
-                    ...extraPatch
-                });
-                return { locked: true, listing };
-            });
-        }
-        const snap = await ref.get();
-        if (!snap?.exists) return null;
-        const listing = getListingSnapshotFromDoc({ id: ref.id, data: () => snap.data() });
-        if (listing.status !== expectedStatus) return { locked: false, listing };
-        await ref.update({
-            status: nextStatus,
-            updatedAtMs: Date.now(),
-            ...extraPatch
+            return { ok: true, listing: { ...listing, status: 'cancelling' } };
         });
-        return { locked: true, listing };
     }
 
-    async function setBlackMarketListingStatus(listingId, status, patch = {}) {
-        const collection = getBlackMarketCollection();
-        if (!collection) return;
-        await collection.doc(listingId).set({
-            status,
-            updatedAtMs: Date.now(),
-            ...patch
-        }, { merge: true });
+    async function finalizeBlackMarketCancellation(listingId) {
+        requireBlackMarketTransactions();
+        const listingRef = getBlackMarketCollection().doc(listingId);
+        return firestore.runTransaction(async (tx) => {
+            const listingSnap = await tx.get(listingRef);
+            if (!listingSnap?.exists) return null;
+            const listing = getListingSnapshotFromDoc({ id: listingRef.id, data: () => listingSnap.data() });
+            if (listing.status !== 'cancelling') return listing;
+            if (!listing.returnGranted) throw new Error('出品アイテムの返却処理が完了していません。');
+
+            let ownershipRef = null;
+            let ownershipSnap = null;
+            if (listing.originPlayFabId && !listing.ownershipReturned) {
+                ownershipRef = getBlackMarketOwnershipCollection().doc(makeBlackMarketOwnershipId(
+                    listing.sellerPlayFabId,
+                    listing.itemId,
+                    listing.originPlayFabId
+                ));
+                ownershipSnap = await tx.get(ownershipRef);
+            }
+            const slotRef = listing.slotIndex >= 0
+                ? getBlackMarketSlotRef(listing.sellerPlayFabId, listing.slotIndex)
+                : null;
+            const slotSnap = slotRef ? await tx.get(slotRef) : null;
+            const nowMs = Date.now();
+            if (ownershipRef) {
+                const current = ownershipSnap?.exists ? (ownershipSnap.data() || {}) : {};
+                tx.set(ownershipRef, {
+                    ownerPlayFabId: listing.sellerPlayFabId,
+                    itemId: listing.itemId,
+                    originPlayFabId: listing.originPlayFabId,
+                    originDisplayName: listing.originDisplayName || listing.originPlayFabId,
+                    count: Math.max(0, Math.floor(Number(current.count) || 0)) + 1,
+                    createdAtMs: Number(current.createdAtMs || nowMs) || nowMs,
+                    updatedAtMs: nowMs
+                }, { merge: true });
+            }
+            tx.update(listingRef, {
+                status: 'cancelled',
+                ownershipReturned: true,
+                cancelledAtMs: nowMs,
+                settlementStatus: 'settled',
+                lastError: '',
+                updatedAtMs: nowMs
+            });
+            if (slotRef && String(slotSnap?.data()?.listingId || '') === listing.listingId) {
+                tx.set(slotRef, { listingId: '', status: 'free', updatedAtMs: nowMs }, { merge: true });
+            }
+            return { ...listing, status: 'cancelled', ownershipReturned: true };
+        });
+    }
+
+    async function resumeBlackMarketCancellation(listingId) {
+        let listing = await getBlackMarketListing(listingId);
+        if (!listing || listing.status !== 'cancelling') return listing;
+        if (!listing.returnGranted) {
+            try {
+                await addEconomyItem(listing.sellerPlayFabId, listing.itemId, 1, {
+                    idempotencyId: `black-market-cancel-return-${listing.listingId}`
+                });
+                await patchBlackMarketListing(listing.listingId, { returnGranted: true, lastError: '' });
+            } catch (error) {
+                await patchBlackMarketListing(listing.listingId, {
+                    settlementStatus: 'returnPending',
+                    lastError: getBlackMarketErrorMessage(error)
+                }).catch(() => {});
+                throw error;
+            }
+        }
+        return finalizeBlackMarketCancellation(listing.listingId);
     }
 
     async function cancelBlackMarketListing(playFabId, listingId) {
         const safeListingId = String(listingId || '').trim();
         if (!safeListingId) return { ok: false, status: 400, error: '出品が見つかりません。' };
-        const lock = await lockBlackMarketListing(safeListingId, 'active', 'cancelling');
-        if (!lock) return { ok: false, status: 404, error: '出品が見つかりません。' };
-        const listing = lock.listing;
-        if (!lock.locked) return { ok: false, status: 400, error: 'この出品は操作できません。' };
-        if (listing.sellerPlayFabId !== playFabId) {
-            await setBlackMarketListingStatus(safeListingId, 'active');
-            return { ok: false, status: 403, error: '自分の出品だけキャンセルできます。' };
-        }
-        try {
-            await addEconomyItem(playFabId, listing.itemId, 1, {
-                idempotencyId: `black-market-cancel-return-${safeListingId}`
-            });
-            if (listing.originPlayFabId) {
-                await adjustBlackMarketOwnership(playFabId, listing.itemId, {
-                    playFabId: listing.originPlayFabId,
-                    displayName: listing.originDisplayName || listing.originPlayFabId
-                }, 1);
+        const started = await beginBlackMarketCancellation(playFabId, safeListingId);
+        if (!started.ok) return started;
+        await resumeBlackMarketCancellation(safeListingId);
+        return { ok: true, listingId: safeListingId };
+    }
+
+    async function beginBlackMarketPurchase(playFabId, listingId) {
+        requireBlackMarketTransactions();
+        const listingRef = getBlackMarketCollection().doc(listingId);
+        return firestore.runTransaction(async (tx) => {
+            const snap = await tx.get(listingRef);
+            if (!snap?.exists) return { ok: false, status: 404, error: '出品が見つかりません。' };
+            const listing = getListingSnapshotFromDoc({ id: listingRef.id, data: () => snap.data() });
+            if (listing.sellerPlayFabId === playFabId) {
+                return { ok: false, status: 400, error: '自分の出品は購入できません。' };
             }
-            await setBlackMarketListingStatus(safeListingId, 'cancelled', { cancelledAtMs: Date.now() });
-            return { ok: true, listingId: safeListingId };
+            if (listing.status === 'buying' && listing.buyerPlayFabId === playFabId) {
+                return { ok: true, listing };
+            }
+            if (listing.status !== 'active') {
+                return { ok: false, status: 400, error: 'この出品は購入できません。' };
+            }
+            const nowMs = Date.now();
+            const buyingListing = {
+                ...listing,
+                status: 'buying',
+                buyerPlayFabId: playFabId,
+                buyerCharged: false,
+                buyerItemGranted: false,
+                buyerOwnershipGranted: false,
+                buyerRefunded: false,
+                sellerPaid: false,
+                settlementStatus: 'chargePending',
+                lastError: '',
+                updatedAtMs: nowMs
+            };
+            tx.update(listingRef, {
+                status: buyingListing.status,
+                buyerPlayFabId: buyingListing.buyerPlayFabId,
+                buyerCharged: false,
+                buyerItemGranted: false,
+                buyerOwnershipGranted: false,
+                buyerRefunded: false,
+                sellerPaid: false,
+                settlementStatus: buyingListing.settlementStatus,
+                lastError: '',
+                updatedAtMs: nowMs
+            });
+            return { ok: true, listing: buyingListing };
+        });
+    }
+
+    async function resetBlackMarketListingAfterRefund(listingId) {
+        requireBlackMarketTransactions();
+        const listingRef = getBlackMarketCollection().doc(listingId);
+        return firestore.runTransaction(async (tx) => {
+            const snap = await tx.get(listingRef);
+            if (!snap?.exists) return null;
+            const listing = getListingSnapshotFromDoc({ id: listingRef.id, data: () => snap.data() });
+            if (listing.status !== 'buying') return listing;
+            if (listing.buyerCharged && !listing.buyerRefunded) {
+                throw new Error('購入者への返金処理が完了していません。');
+            }
+            const nowMs = Date.now();
+            tx.update(listingRef, {
+                status: 'active',
+                buyerPlayFabId: '',
+                buyerCharged: false,
+                buyerItemGranted: false,
+                buyerOwnershipGranted: false,
+                buyerRefunded: false,
+                sellerPaid: false,
+                settlementStatus: '',
+                lastError: '',
+                updatedAtMs: nowMs
+            });
+            return { ...listing, status: 'active', buyerPlayFabId: '' };
+        });
+    }
+
+    async function refundBlackMarketBuyer(listing) {
+        if (listing.buyerCharged && !listing.buyerRefunded) {
+            await addEconomyItem(listing.buyerPlayFabId, VIRTUAL_CURRENCY_CODE, listing.price, {
+                idempotencyId: `black-market-buy-refund-${listing.listingId}-${listing.buyerPlayFabId}`
+            });
+            await patchBlackMarketListing(listing.listingId, { buyerRefunded: true, lastError: '' });
+        }
+        return resetBlackMarketListingAfterRefund(listing.listingId);
+    }
+
+    async function grantBlackMarketBuyerOwnership(listingId) {
+        requireBlackMarketTransactions();
+        const listingRef = getBlackMarketCollection().doc(listingId);
+        return firestore.runTransaction(async (tx) => {
+            const listingSnap = await tx.get(listingRef);
+            if (!listingSnap?.exists) return null;
+            const listing = getListingSnapshotFromDoc({ id: listingRef.id, data: () => listingSnap.data() });
+            if (listing.status !== 'buying' || listing.buyerOwnershipGranted) return listing;
+            let ownershipRef = null;
+            let ownershipSnap = null;
+            if (listing.originPlayFabId) {
+                ownershipRef = getBlackMarketOwnershipCollection().doc(makeBlackMarketOwnershipId(
+                    listing.buyerPlayFabId,
+                    listing.itemId,
+                    listing.originPlayFabId
+                ));
+                ownershipSnap = await tx.get(ownershipRef);
+            }
+            const nowMs = Date.now();
+            if (ownershipRef) {
+                const current = ownershipSnap?.exists ? (ownershipSnap.data() || {}) : {};
+                tx.set(ownershipRef, {
+                    ownerPlayFabId: listing.buyerPlayFabId,
+                    itemId: listing.itemId,
+                    originPlayFabId: listing.originPlayFabId,
+                    originDisplayName: listing.originDisplayName || listing.originPlayFabId,
+                    count: Math.max(0, Math.floor(Number(current.count) || 0)) + 1,
+                    createdAtMs: Number(current.createdAtMs || nowMs) || nowMs,
+                    updatedAtMs: nowMs
+                }, { merge: true });
+            }
+            tx.update(listingRef, {
+                buyerOwnershipGranted: true,
+                settlementStatus: 'sellerPaymentPending',
+                updatedAtMs: nowMs
+            });
+            return { ...listing, buyerOwnershipGranted: true };
+        });
+    }
+
+    async function finalizeBlackMarketPurchase(listingId) {
+        requireBlackMarketTransactions();
+        const listingRef = getBlackMarketCollection().doc(listingId);
+        return firestore.runTransaction(async (tx) => {
+            const listingSnap = await tx.get(listingRef);
+            if (!listingSnap?.exists) return null;
+            const listing = getListingSnapshotFromDoc({ id: listingRef.id, data: () => listingSnap.data() });
+            if (listing.status !== 'buying') return listing;
+            if (!listing.buyerItemGranted || !listing.buyerOwnershipGranted || !listing.sellerPaid) {
+                throw new Error('闇市の精算処理が完了していません。');
+            }
+            const slotRef = listing.slotIndex >= 0
+                ? getBlackMarketSlotRef(listing.sellerPlayFabId, listing.slotIndex)
+                : null;
+            const slotSnap = slotRef ? await tx.get(slotRef) : null;
+            const nowMs = Date.now();
+            tx.update(listingRef, {
+                status: 'sold',
+                soldAtMs: nowMs,
+                settlementStatus: 'settled',
+                lastError: '',
+                updatedAtMs: nowMs
+            });
+            if (slotRef && String(slotSnap?.data()?.listingId || '') === listing.listingId) {
+                tx.set(slotRef, { listingId: '', status: 'free', updatedAtMs: nowMs }, { merge: true });
+            }
+            return { ...listing, status: 'sold', settlementStatus: 'settled' };
+        });
+    }
+
+    async function resumeBlackMarketPurchase(listingId) {
+        let listing = await getBlackMarketListing(listingId);
+        if (!listing || listing.status !== 'buying') return { ok: false, status: 400, error: 'この出品は購入できません。' };
+        if (listing.settlementStatus === 'refundPending') {
+            try {
+                await refundBlackMarketBuyer(listing);
+                return { ok: false, status: 500, error: '購入処理に失敗したため、Gを返却しました。' };
+            } catch (error) {
+                await patchBlackMarketListing(listing.listingId, { lastError: getBlackMarketErrorMessage(error) }).catch(() => {});
+                throw error;
+            }
+        }
+
+        if (!listing.buyerCharged) {
+            try {
+                await subtractEconomyItem(listing.buyerPlayFabId, VIRTUAL_CURRENCY_CODE, listing.price, {
+                    idempotencyId: `black-market-buy-pay-${listing.listingId}-${listing.buyerPlayFabId}`
+                });
+                await patchBlackMarketListing(listing.listingId, {
+                    buyerCharged: true,
+                    settlementStatus: 'itemGrantPending',
+                    lastError: ''
+                });
+            } catch (error) {
+                if (isBlackMarketApiError(error, 'InsufficientFunds')) {
+                    await resetBlackMarketListingAfterRefund(listing.listingId);
+                    return { ok: false, status: 400, error: 'Gが足りません。' };
+                }
+                await patchBlackMarketListing(listing.listingId, {
+                    settlementStatus: 'chargePending',
+                    lastError: getBlackMarketErrorMessage(error)
+                }).catch(() => {});
+                throw error;
+            }
+            listing = await getBlackMarketListing(listing.listingId);
+        }
+
+        if (!listing.buyerItemGranted) {
+            try {
+                await addEconomyItem(listing.buyerPlayFabId, listing.itemId, 1, {
+                    idempotencyId: `black-market-buy-item-${listing.listingId}-${listing.buyerPlayFabId}`
+                });
+                await patchBlackMarketListing(listing.listingId, {
+                    buyerItemGranted: true,
+                    settlementStatus: 'ownershipPending',
+                    lastError: ''
+                });
+            } catch (error) {
+                await patchBlackMarketListing(listing.listingId, {
+                    settlementStatus: 'refundPending',
+                    lastError: getBlackMarketErrorMessage(error)
+                }).catch(() => {});
+                const refundListing = await getBlackMarketListing(listing.listingId);
+                try {
+                    await refundBlackMarketBuyer(refundListing || listing);
+                    return { ok: false, status: 500, error: '商品の受け渡しに失敗したため、Gを返却しました。' };
+                } catch (refundError) {
+                    await patchBlackMarketListing(listing.listingId, {
+                        settlementStatus: 'refundPending',
+                        lastError: getBlackMarketErrorMessage(refundError)
+                    }).catch(() => {});
+                    throw refundError;
+                }
+            }
+            listing = await getBlackMarketListing(listing.listingId);
+        }
+
+        try {
+            if (!listing.buyerOwnershipGranted) {
+                await grantBlackMarketBuyerOwnership(listing.listingId);
+                listing = await getBlackMarketListing(listing.listingId);
+            }
+            if (!listing.sellerPaid) {
+                await addEconomyItem(listing.sellerPlayFabId, VIRTUAL_CURRENCY_CODE, listing.price, {
+                    idempotencyId: `black-market-buy-seller-gold-${listing.listingId}`
+                });
+                await patchBlackMarketListing(listing.listingId, {
+                    sellerPaid: true,
+                    settlementStatus: 'finalizing',
+                    lastError: ''
+                });
+            }
+            await finalizeBlackMarketPurchase(listing.listingId);
+            const newBalance = await getCurrencyBalance(listing.buyerPlayFabId, VIRTUAL_CURRENCY_CODE).catch(() => null);
+            return { ok: true, listingId: listing.listingId, newBalance };
         } catch (error) {
-            await setBlackMarketListingStatus(safeListingId, 'active', {
-                lastError: error?.errorMessage || error?.message || String(error || '')
+            await patchBlackMarketListing(listing.listingId, {
+                settlementStatus: 'settlementFailed',
+                lastError: getBlackMarketErrorMessage(error)
             }).catch(() => {});
             throw error;
         }
@@ -1123,67 +1550,42 @@ function initializeInventoryRoutes(app, deps) {
     async function buyBlackMarketListing(playFabId, listingId) {
         const safeListingId = String(listingId || '').trim();
         if (!safeListingId) return { ok: false, status: 400, error: '出品が見つかりません。' };
-        const lock = await lockBlackMarketListing(safeListingId, 'active', 'buying', { buyerPlayFabId: playFabId });
-        if (!lock) return { ok: false, status: 404, error: '出品が見つかりません。' };
-        const listing = lock.listing;
-        if (!lock.locked) return { ok: false, status: 400, error: 'この出品は購入できません。' };
-        if (listing.sellerPlayFabId === playFabId) {
-            await setBlackMarketListingStatus(safeListingId, 'active', { buyerPlayFabId: '' });
-            return { ok: false, status: 400, error: '自分の出品は購入できません。' };
-        }
+        const started = await beginBlackMarketPurchase(playFabId, safeListingId);
+        if (!started.ok) return started;
+        return resumeBlackMarketPurchase(safeListingId);
+    }
 
-        let buyerCharged = false;
-        let itemGranted = false;
-        try {
-            await subtractEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, listing.price, {
-                idempotencyId: `black-market-buy-pay-${safeListingId}-${playFabId}`
-            });
-            buyerCharged = true;
-            await addEconomyItem(playFabId, listing.itemId, 1, {
-                idempotencyId: `black-market-buy-item-${safeListingId}-${playFabId}`
-            });
-            itemGranted = true;
-            if (listing.originPlayFabId) {
-                await adjustBlackMarketOwnership(playFabId, listing.itemId, {
-                    playFabId: listing.originPlayFabId,
-                    displayName: listing.originDisplayName || listing.originPlayFabId
-                }, 1);
+    async function recoverBlackMarketListingsForUser(playFabId) {
+        const collection = getBlackMarketCollection();
+        if (!collection) return [];
+        const recoverable = new Map();
+        const pendingListings = [];
+        const sellerSnap = await collection.where('sellerPlayFabId', '==', playFabId).limit(200).get();
+        const buyerSnap = await collection.where('buyerPlayFabId', '==', playFabId).limit(200).get();
+        [...(sellerSnap?.docs || []), ...(buyerSnap?.docs || [])].forEach((doc) => {
+            const listing = getListingSnapshotFromDoc(doc);
+            if (['creating', 'cancelling', 'buying'].includes(listing.status)) {
+                recoverable.set(listing.listingId, listing);
             }
-            await addEconomyItem(listing.sellerPlayFabId, VIRTUAL_CURRENCY_CODE, listing.price, {
-                idempotencyId: `black-market-buy-seller-gold-${safeListingId}`
-            });
-            const newBalance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE).catch(() => null);
-            await setBlackMarketListingStatus(safeListingId, 'sold', {
-                soldAtMs: Date.now(),
-                buyerPlayFabId: playFabId,
-                settlementStatus: 'settled',
-                lastError: ''
-            });
-            return { ok: true, listingId: safeListingId, newBalance };
-        } catch (error) {
-            const message = error?.errorMessage || error?.message || String(error || '');
-            if (buyerCharged && !itemGranted) {
-                await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, listing.price, {
-                    idempotencyId: `black-market-buy-refund-${safeListingId}-${playFabId}`
-                }).catch((refundError) => {
-                    console.error('[black-market] buyer refund failed:', refundError?.errorMessage || refundError?.message || refundError);
-                });
+        });
+        for (const listing of recoverable.values()) {
+            try {
+                if (listing.status === 'creating' && listing.sellerPlayFabId === playFabId) {
+                    await resumeCreatingBlackMarketListing(listing.listingId);
+                } else if (listing.status === 'cancelling' && listing.sellerPlayFabId === playFabId) {
+                    await resumeBlackMarketCancellation(listing.listingId);
+                } else if (listing.status === 'buying') {
+                    await resumeBlackMarketPurchase(listing.listingId);
+                }
+            } catch (error) {
+                console.error('[black-market] recovery pending:', listing.listingId, getBlackMarketErrorMessage(error));
             }
-            if (!itemGranted) {
-                await setBlackMarketListingStatus(safeListingId, 'active', {
-                    buyerPlayFabId: '',
-                    lastError: message
-                }).catch(() => {});
-            } else {
-                await setBlackMarketListingStatus(safeListingId, 'sold', {
-                    soldAtMs: Date.now(),
-                    buyerPlayFabId: playFabId,
-                    settlementStatus: 'settlementFailed',
-                    lastError: message
-                }).catch(() => {});
+            const refreshed = await getBlackMarketListing(listing.listingId).catch(() => null);
+            if (refreshed && ['creating', 'cancelling', 'buying'].includes(refreshed.status)) {
+                pendingListings.push(refreshed);
             }
-            throw error;
         }
+        return pendingListings;
     }
 
     async function ensureStarterMajorArcanaOwned(playFabId, nation, inventoryItems = null, entityKey = null) {
@@ -2409,7 +2811,7 @@ function initializeInventoryRoutes(app, deps) {
             if (error?.apiErrorInfo?.apiError === 'ItemNotFound') {
                 return res.status(400).json({ error: '出品するアイテムが見つかりません。' });
             }
-            return res.status(500).json({ error: '闇市への出品に失敗しました。', details: error?.errorMessage || error?.message });
+            return res.status(error?.status || 500).json({ error: '闇市への出品に失敗しました。', details: error?.errorMessage || error?.message });
         }
     });
 
@@ -2424,7 +2826,7 @@ function initializeInventoryRoutes(app, deps) {
             return res.json({ status: 'success', message: '出品を取り消しました。', ...result });
         } catch (error) {
             console.error('[black-market/cancel] error:', error?.errorMessage || error?.message || error);
-            return res.status(500).json({ error: '出品の取り消しに失敗しました。', details: error?.errorMessage || error?.message });
+            return res.status(error?.status || 500).json({ error: '出品の取り消しに失敗しました。', details: error?.errorMessage || error?.message });
         }
     });
 
@@ -2442,7 +2844,7 @@ function initializeInventoryRoutes(app, deps) {
             if (error?.apiErrorInfo?.apiError === 'InsufficientFunds') {
                 return res.status(400).json({ error: 'Gが足りません。' });
             }
-            return res.status(500).json({ error: '闇市での購入に失敗しました。', details: error?.errorMessage || error?.message });
+            return res.status(error?.status || 500).json({ error: '闇市での購入に失敗しました。', details: error?.errorMessage || error?.message });
         }
     });
 

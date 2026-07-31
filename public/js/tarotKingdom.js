@@ -40,7 +40,7 @@ import {
   createTarotKingdomSummonStateById,
   getTarotKingdomSummonById,
   resolveTarotKingdomSummon
-} from './tarotKingdomSummons.js?v=20260731-summon-cinematic27-v1';
+} from './tarotKingdomSummons.js?v=20260801-role-chain1';
 import {
   TAROT_KINGDOM_BATTLEFIELDS,
   TAROT_KINGDOM_RAID_BATTLEFIELD_ID,
@@ -410,6 +410,9 @@ const ROLE_LABEL = {
 };
 const ROLE_RATE = { Straight: 1, Flush: 1, FullHouse: 2, FourKind: 3, TheWorld: 3, StraightFlush: 4, FiveKind: 5 };
 const ROLE_ST = ROLE_ORDER.reduce((a, k, i) => ((a[k] = i + 1), a), {});
+const KINGDOM_ROLE_CHAIN_STEP = 0.25;
+const KINGDOM_ROLE_CHAIN_MAX_STEPS = 3;
+const KINGDOM_ROLE_CHAIN_MAX_COUNT = 99;
 const KINGDOM_SUMMON_EFFECT_VISUALS = Object.freeze({
   rupture: Object.freeze({ category: 'attack', choreography: 'ground-break', cue: 'fault-charge', impact: 'rock-burst' }),
   inferno: Object.freeze({ category: 'attack', choreography: 'fire-projectile', cue: 'ember-charge', impact: 'fire-bloom' }),
@@ -421,7 +424,7 @@ const KINGDOM_SUMMON_EFFECT_VISUALS = Object.freeze({
   aegis: Object.freeze({ category: 'support', choreography: 'golden-barrier', cue: 'rune-forge', impact: 'shield-lock' }),
   command: Object.freeze({ category: 'support', choreography: 'fleet-command', cue: 'signal-rise', impact: 'fleet-salvo' })
 });
-const KINGDOM_NET_SCHEMA_VERSION = 16;
+const KINGDOM_NET_SCHEMA_VERSION = 17;
 const KINGDOM_PRIVATE_STATE_VERSION = 2;
 const KINGDOM_NET_STATE_WRITE_DELAY = 90;
 const TK_MATCH_ROOT = 'tarotKingdomMatch';
@@ -552,6 +555,7 @@ let kingdomDemoPetId = '';
 let kingdomDemoTrickSceneKey = 'auto';
 let kingdomDemoRoleLastError = '';
 let kingdomDemoSummonId = '';
+let kingdomDemoRoleChainCount = 1;
 let kingdomExplorationMonsterId = '';
 let kingdomExplorationSession = null;
 let kingdomRoundPetOfferPromise = null;
@@ -824,6 +828,12 @@ function getKingdomTrickRoleSuit(play) {
 
 function syncKingdomTrickSceneClass() {
   if (!ui.trick) return;
+  const roleChain = getKingdomRoleChain(s?.trick);
+  const visibleChainCount = String(s?.trick?.type || '') === 'role' && roleChain.count >= 2
+    ? roleChain.count
+    : 0;
+  ui.trick.dataset.roleChain = visibleChainCount ? String(visibleChainCount) : '';
+  ui.trick.style.setProperty('--role-chain-level', String(Math.min(3, Math.max(0, roleChain.count - 1))));
   try {
     ui.trick.classList.remove(...KINGDOM_TRICK_SCENE_CLASSES);
     if (window.__TAROT_KINGDOM_PREVIEW__ === true && kingdomDemoTrickSceneKey !== 'auto') {
@@ -1307,6 +1317,12 @@ const setPowerForCards = (number, cards = []) => {
     && normalizedCards.length > 0
     && normalizedCards.every((card) => card?.kind === 'major' && Number(card?.number) === 1);
   return isMagicianOnly ? 1 : setRankFromNumber(normalizedNumber);
+};
+const isKingdomMagicianAcePair = (cards = []) => {
+  const normalizedCards = Array.isArray(cards) ? cards.filter(Boolean) : [];
+  if (normalizedCards.length !== 2) return false;
+  return normalizedCards.some((card) => card?.kind === 'major' && Number(card?.number) === 1)
+    && normalizedCards.some((card) => card?.kind === 'minor' && Number(card?.number) === 1);
 };
 const normalizeKingdomSetPlayPower = (play) => {
   if (!play || typeof play !== 'object' || play.type !== 'set') return play;
@@ -4305,6 +4321,7 @@ function playKingdomDemoRoleFormation(value = '') {
     kingdomDemoRoleLastError = valid?.reason || 'invalid-play';
     return false;
   }
+  built.play.demoRoleChainCount = kingdomDemoRoleChainCount;
   applyPlay(0, built.play);
   return true;
 }
@@ -4986,6 +5003,57 @@ function areKingdomDamageGrowthRulesEnabled(state = s) {
 
 function areKingdomArcanaLoadoutEffectsEnabled(state = s) {
   return Number(state?.rules?.arcanaLoadoutEffectsVersion || 0) >= 1;
+}
+
+function areKingdomRoleChainsEnabled(state = s) {
+  return Number(state?.rules?.roleChainVersion || 0) >= 1;
+}
+
+function normalizeKingdomRoleChainCount(value = 1) {
+  return Math.max(1, Math.min(KINGDOM_ROLE_CHAIN_MAX_COUNT, Math.floor(Number(value) || 1)));
+}
+
+function getKingdomRoleChainMultiplier(count = 1) {
+  const steps = Math.min(
+    KINGDOM_ROLE_CHAIN_MAX_STEPS,
+    Math.max(0, normalizeKingdomRoleChainCount(count) - 1)
+  );
+  return 1 + (steps * KINGDOM_ROLE_CHAIN_STEP);
+}
+
+function getKingdomRoleChain(play = null, state = s) {
+  if (!areKingdomRoleChainsEnabled(state) || String(play?.type || '') !== 'role') {
+    return { count: 1, multiplier: 1 };
+  }
+  const count = normalizeKingdomRoleChainCount(play?.roleChain?.count);
+  return { count, multiplier: getKingdomRoleChainMultiplier(count) };
+}
+
+function getKingdomNextRoleChain(previousTrick = null, state = s) {
+  if (!areKingdomRoleChainsEnabled(state)) return { count: 1, multiplier: 1 };
+  const previousCount = String(previousTrick?.type || '') === 'role'
+    ? getKingdomRoleChain(previousTrick, state).count
+    : 0;
+  const count = normalizeKingdomRoleChainCount(previousCount + 1);
+  return { count, multiplier: getKingdomRoleChainMultiplier(count) };
+}
+
+function applyKingdomRoleChain(play, previousTrick = null, state = s) {
+  if (!play || String(play.type || '') !== 'role' || !areKingdomRoleChainsEnabled(state)) {
+    if (play && typeof play === 'object') delete play.roleChain;
+    return { count: 1, multiplier: 1 };
+  }
+  const nextChain = getKingdomNextRoleChain(previousTrick, state);
+  const hasDemoCount = window.__TAROT_KINGDOM_PREVIEW__ === true
+    && Object.prototype.hasOwnProperty.call(play, 'demoRoleChainCount');
+  const demoCount = hasDemoCount ? normalizeKingdomRoleChainCount(play.demoRoleChainCount) : 1;
+  delete play.demoRoleChainCount;
+  const count = hasDemoCount ? demoCount : nextChain.count;
+  play.roleChain = {
+    count,
+    multiplier: getKingdomRoleChainMultiplier(count)
+  };
+  return play.roleChain;
 }
 
 function doesKingdomCarryHpBetweenRounds(state = s) {
@@ -6624,6 +6692,7 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
     );
     const summonSteps = buildTarotKingdomSummonEffectSteps(summon, {
       roleRate,
+      roleChainMultiplier: getKingdomRoleChain(play).multiplier,
       intelligence: Number(character?.combat?.intelligence) || 0,
       level: Number(character?.level) || 1,
       equipmentMagicPower: Number(character?.combat?.equipmentMagicPower) || 0,
@@ -7143,6 +7212,7 @@ function getKingdomBattleDamageForPlay(playerIndex, play) {
   const growthVersion = areKingdomDamageGrowthRulesEnabled() ? 1 : 0;
   if (String(play?.type || '') === 'role' && tableCards.length === 5) {
     const rebuiltRole = evalRole(tableCards, null) || play?.role || null;
+    const roleChain = getKingdomRoleChain(play);
     const declaredRate = Number(play?.role?.effectiveRate);
     const rebuiltRate = Number(rebuiltRole?.effectiveRate);
     const tableRate = Number(ROLE_RATE[rebuiltRole?.key]);
@@ -7160,7 +7230,10 @@ function getKingdomBattleDamageForPlay(playerIndex, play) {
     });
     return {
       ...result,
+      baseDamage: Math.max(1, Math.floor((Number(result.baseDamage) || 0) * roleChain.multiplier)),
+      damage: Math.max(1, Math.floor((Number(result.damage) || 0) * roleChain.multiplier)),
       kind: 'skill',
+      roleChain,
       label: `${getRoleDisplayLabel({ ...play, role: rebuiltRole || play?.role })}スキル`
     };
   }
@@ -7245,6 +7318,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
       guardianCardLevel: secondary.major?.cardLevel || 1,
       awakeningId: secondary.major?.awakeningId || '',
       summon: secondary.summon,
+      roleChain: attack.roleChain ? { ...attack.roleChain } : null,
       summonEffectName: secondary.summon?.effectName || '',
       label: impairment.blocked
         ? `${pName(playerIndex)} ${impairment.label}（カード提出成立）`
@@ -7326,6 +7400,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
     awakeningId: secondary.major?.awakeningId || '',
     weaponEffectName: secondary.weapon?.label || '',
     summon: secondary.summon,
+    roleChain: attack.roleChain ? { ...attack.roleChain } : null,
     summonEffectName: secondary.summon?.effectName || '',
     appliedBonuses: outgoing.applied,
     label: impairment.blocked
@@ -7772,7 +7847,8 @@ function normalizeKingdomRules(
   fallbackCarryHpBetweenRoundsVersion = 1,
   fallbackForcedDrawDeathVersion = 1,
   fallbackDamageGrowthVersion = 1,
-  fallbackArcanaLoadoutEffectsVersion = 1
+  fallbackArcanaLoadoutEffectsVersion = 1,
+  fallbackRoleChainVersion = 1
 ) {
   const incoming = rawRules && typeof rawRules === 'object' ? rawRules : {};
   const fallback = Math.max(1, Math.min(20, Math.floor(Number(fallbackHandSize) || DEFAULT_HAND_LIMIT)));
@@ -7846,6 +7922,12 @@ function normalizeKingdomRules(
       0,
       Math.min(1, Math.floor(Number(
         incoming.arcanaLoadoutEffectsVersion ?? fallbackArcanaLoadoutEffectsVersion
+      ) || 0))
+    ),
+    roleChainVersion: Math.max(
+      0,
+      Math.min(1, Math.floor(Number(
+        incoming.roleChainVersion ?? fallbackRoleChainVersion
       ) || 0))
     ),
     stageVersion: Math.max(
@@ -8613,6 +8695,7 @@ function deserializeStateFromNet(payload) {
     );
   }
   if (incomingSchema < 16) incomingRules.arcanaLoadoutEffectsVersion = 0;
+  if (incomingSchema < 17) incomingRules.roleChainVersion = 0;
   nextState.rules = normalizeKingdomRules(
     incomingRules,
     incomingSchema < 4 ? LEGACY_HAND_SIZE : DEFAULT_HAND_LIMIT,
@@ -8628,8 +8711,18 @@ function deserializeStateFromNet(payload) {
     incomingSchema < 12 ? 0 : 1,
     incomingSchema < 12 ? 0 : 1,
     incomingSchema < 14 ? 0 : 1,
-    incomingSchema < 16 ? 0 : 1
+    incomingSchema < 16 ? 0 : 1,
+    incomingSchema < 17 ? 0 : 1
   );
+  [nextState.trick, nextState.lastPlay].forEach((play) => {
+    if (!play || typeof play !== 'object') return;
+    if (!areKingdomRoleChainsEnabled(nextState) || String(play.type || '') !== 'role') {
+      delete play.roleChain;
+      return;
+    }
+    const count = normalizeKingdomRoleChainCount(play.roleChain?.count);
+    play.roleChain = { count, multiplier: getKingdomRoleChainMultiplier(count) };
+  });
   nextState.raid = normalizeKingdomRaidState(rawState.raid);
   [
     'graveOpen',
@@ -9707,13 +9800,33 @@ function applyRemoteRoomState(payload) {
   if (!next) return;
   clearLocalInfoMessage(false);
   const localSeat = Number(tkNet.localSeat);
+  const gestureHand = localHandDrag
+    && Number.isInteger(localSeat)
+    && localSeat >= 0
+    && Array.isArray(s?.players?.[localSeat]?.hand)
+    && s.players[localSeat].hand.map(getLocalHandCardKey).every(Boolean)
+    ? s.players[localSeat].hand.slice()
+    : null;
+  let privateHandApplied = false;
   if (
     Number(next.privateStateVersion) > 0
     && Number.isInteger(localSeat)
     && localSeat >= 0
     && localSeat < next.players.length
   ) {
-    applyKingdomPrivateHandPayload(next, netLocalPrivateHandPayload, localSeat);
+    privateHandApplied = applyKingdomPrivateHandPayload(next, netLocalPrivateHandPayload, localSeat);
+  }
+  if (
+    !privateHandApplied
+    && gestureHand
+    && localSeat < next.players.length
+    && Number(next.players[localSeat]?.handCount ?? next.players[localSeat]?.hand?.length) === gestureHand.length
+    && String(next.players[localSeat]?.uid || '') === String(s?.players?.[localSeat]?.uid || '')
+  ) {
+    // Public state and the private hand arrive independently online. If another player's
+    // action advances only the public revision, keep the unchanged local hand alive until
+    // its matching private payload arrives so an in-progress pointer gesture is not lost.
+    next.players[localSeat].hand = gestureHand;
   }
   const prevSelectedKeys = [];
   if (
@@ -11785,6 +11898,7 @@ function exposeTarotKingdomBattleDebugTools(target) {
       buildTarotKingdomSummonEffectSteps(summonState, context),
       []
     ),
+    battleRoleChainMultiplier: (count = 1) => getKingdomRoleChainMultiplier(count),
     battleSummonVisuals: () => cloneKingdomSnapshotValue(KINGDOM_SUMMON_EFFECT_VISUALS, {}),
     battleShowActionCutin: (playerIndex = 0, label = 'ターン', options = {}) => {
       const index = playerIndex == null
@@ -12202,6 +12316,9 @@ function buildSetPlay(pi, sel) {
   if (![1, 2, 3].includes(sel.length)) return { ok: false, reason: '通常出しは1〜3枚です。' };
   const cards = sel.map((i) => p.hand[i]).filter(Boolean);
   if (cards.length !== sel.length) return { ok: false, reason: '選択が不正です。' };
+  if (isKingdomMagicianAcePair(cards)) {
+    return { ok: false, reason: '魔術師IとAは2枚組にできません。' };
+  }
   const isWorldSingle = cards.length === 1
     && cards[0]?.kind === 'major'
     && Number(cards[0]?.number) === 21;
@@ -13889,6 +14006,7 @@ function applyPlay(pi, play, retryDepth = 0) {
     play.cardsTable = removed.slice();
     play.tableOwners = play.cardsTable.map(() => pi);
   }
+  const roleChain = applyKingdomRoleChain(play, prevTrick);
   // Clear stale, transient number labels before applying the current-play label hints.
   const clearTransientNumberLabel = (card) => {
     if (!card || typeof card !== 'object') return;
@@ -13964,7 +14082,13 @@ function applyPlay(pi, play, retryDepth = 0) {
   const effectCount = Math.max(0, Number(attackEvent?.effectCount) || 0);
   const callCinematicMs = isCallPlay ? getKingdomSkillAttackDuration(effectCount) : 0;
   s.callMergeFx = isCallPlay
-    ? { owner: pi, startedAt: Date.now(), level: callFxLevel, roleKey: String(play?.role?.key || '') }
+    ? {
+        owner: pi,
+        startedAt: Date.now(),
+        level: callFxLevel,
+        roleKey: String(play?.role?.key || ''),
+        roleChain: { ...roleChain }
+      }
     : null;
   log(`${p.name}: ${play.type === 'set' ? `${play.count}枚出し` : getRoleDisplayLabel(play)}`);
   const actionLabel = play.type === 'set'
@@ -13992,6 +14116,7 @@ function applyPlay(pi, play, retryDepth = 0) {
       eventSeqs: attackEvent ? [attackEvent.seq] : [],
       roleKey: String(play?.role?.key || ''),
       summonId: String(attackEvent?.summon?.id || ''),
+      roleChain: { ...roleChain },
       timeline: buildKingdomCombatTimeline('skill', p?.character?.combat?.weaponType || 'sword', effectCount)
     });
     render();
@@ -14006,6 +14131,7 @@ function applyPlay(pi, play, retryDepth = 0) {
     eventSeqs: attackEvent ? [attackEvent.seq] : [],
     roleKey: String(play?.role?.key || ''),
     summonId: String(attackEvent?.summon?.id || ''),
+    roleChain: isRolePlay ? { ...roleChain } : null,
     timeline: attackTimeline
   });
   render();
@@ -14717,7 +14843,19 @@ function scoreNpcPlay(playerIndex, play, observation, reserveContext = null) {
   score += potential.score * potentialWeight;
   score += getNpcControlScore(play, observation, policy);
   score += getNpcCombatEffectScore(playerIndex, play);
-  if (play?.type === 'role') score += 270 + ((Number(play?.role?.strength) || 0) * 32);
+  if (play?.type === 'role') {
+    score += 270 + ((Number(play?.role?.strength) || 0) * 32);
+    const projectedChain = getKingdomNextRoleChain(s?.trick);
+    if (projectedChain.count > 1) {
+      const projectedAttack = getKingdomBattleDamageForPlay(playerIndex, {
+        ...play,
+        roleChain: projectedChain
+      });
+      const chainedDamage = Math.max(0, Number(projectedAttack?.damage) || 0);
+      const unchainedDamage = Math.floor(chainedDamage / projectedChain.multiplier);
+      score += Math.max(0, chainedDamage - unchainedDamage) * 0.35;
+    }
+  }
   if (opponentAtOne) {
     score += play?.type === 'role' ? 185 : 0;
     score += effectivePlayedCount >= 2 ? 80 : 0;
@@ -16809,6 +16947,10 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   );
   const summonState = event?.summon && typeof event.summon === 'object' ? event.summon : null;
   const summonArt = summonState ? getTarotKingdomSummonById(summonState.id) : null;
+  const roleChainCount = areKingdomRoleChainsEnabled()
+    ? normalizeKingdomRoleChainCount(event?.roleChain?.count ?? s?.lastPlay?.roleChain?.count)
+    : 1;
+  const roleChainLevel = Math.min(3, Math.max(0, roleChainCount - 1));
   const effectKey = String(summonState?.effectKey || summonArt?.effectKey || '').trim();
   const visualProfile = getKingdomSummonVisualProfile(effectKey);
   const isSummon = !!(show && summonArt && areKingdomSummonsEnabled());
@@ -16833,7 +16975,7 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   }
   const roleKey = String(s.lastPlay?.role?.key || s.transition?.roleKey || 'Straight');
   const cards = (Array.isArray(s.lastPlay?.cardsTable) ? s.lastPlay.cardsTable : []).slice(0, 5);
-  const renderKey = `${event.seq}:${roleKey}:${summonArt?.id || ''}:${cards.map((card) => card?.id || '').join(',')}`;
+  const renderKey = `${event.seq}:${roleKey}:${summonArt?.id || ''}:chain-${roleChainCount}:${cards.map((card) => card?.id || '').join(',')}`;
   if (!cutin) {
     cutin = document.createElement('div');
     cutin.className = 'tarot-kingdom-skill-cutin';
@@ -16845,7 +16987,7 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   const summonIdKey = String(summonArt?.id || '').replace(/[^a-z0-9-_]/gi, '');
   const summonChoreographyKey = String(summonArt?.choreographyKey || summonIdKey).replace(/[^a-z0-9-]/gi, '');
   const summonWeightKey = String(summonArt?.motionWeight || 'measured').replace(/[^a-z0-9-]/gi, '');
-  const nextClassName = `tarot-kingdom-skill-cutin ${getKingdomRoleVisualClass(roleKey)} is-phase-${phase}${isSummon ? ` is-summon is-summon-${effectKey} is-summon-${visualProfile.category} is-motion-${summonMotionKey} is-pool-${summonPoolKey} is-weight-${summonWeightKey} is-choreo-${summonChoreographyKey} is-summon-id-${summonIdKey}` : ''}`;
+  const nextClassName = `tarot-kingdom-skill-cutin ${getKingdomRoleVisualClass(roleKey)} is-phase-${phase}${roleChainCount >= 2 ? ' is-role-chain' : ''}${isSummon ? ` is-summon is-summon-${effectKey} is-summon-${visualProfile.category} is-motion-${summonMotionKey} is-pool-${summonPoolKey} is-weight-${summonWeightKey} is-choreo-${summonChoreographyKey} is-summon-id-${summonIdKey}` : ''}`;
   if (cutin.className !== nextClassName) cutin.className = nextClassName;
   if (cutin.dataset.renderKey === renderKey) return;
   cutin.dataset.renderKey = renderKey;
@@ -16859,8 +17001,11 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   cutin.dataset.summonWeight = isSummon ? summonWeightKey : '';
   cutin.dataset.effectCue = isSummon ? String(visualProfile.cue || '') : '';
   cutin.dataset.effectImpact = isSummon ? String(visualProfile.impact || '') : '';
+  cutin.dataset.roleChain = roleChainCount >= 2 ? String(roleChainCount) : '';
   cutin.style.setProperty('--summon-elapsed', `${-Math.min(KINGDOM_SUMMON_ATTACK_MS, elapsedMs)}ms`);
   cutin.style.setProperty('--summon-effect-density', String(summonArt?.effectDensity || 1));
+  cutin.style.setProperty('--role-chain-level', String(roleChainLevel));
+  cutin.style.setProperty('--role-chain-glow', `${roleChainLevel * 7}px`);
   const roleShowAtMs = getKingdomRoleFormationCompleteMs(s.lastPlay);
   cutin.style.setProperty('--summon-role-show-at', `${roleShowAtMs}ms`);
   cutin.dataset.roleShowAt = String(roleShowAtMs);
@@ -16868,6 +17013,12 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   const title = document.createElement('strong');
   title.className = 'tarot-kingdom-skill-cutin-title';
   title.textContent = getRoleDisplayLabel(s.lastPlay);
+  const chainLabel = roleChainCount >= 2 ? document.createElement('span') : null;
+  if (chainLabel) {
+    chainLabel.className = 'tarot-kingdom-summon-chain-label';
+    chainLabel.textContent = `${roleChainCount} CHAIN`;
+    chainLabel.setAttribute('aria-hidden', 'true');
+  }
   const fan = document.createElement('div');
   fan.className = 'tarot-kingdom-skill-card-fan';
   fan.dataset.roleFormation = roleKey;
@@ -16883,14 +17034,16 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
     if (s.lastPlay?.call && index === 0) node.dataset.callSource = 'true';
     fan.appendChild(node);
   });
-  content.append(title, fan);
+  content.append(title);
+  if (chainLabel) content.append(chainLabel);
+  content.append(fan);
   if (isSummon) {
     cutin.dataset.partyHideAt = String(KINGDOM_SUMMON_PARTY_HIDE_MS);
     cutin.dataset.partyReturnAt = String(KINGDOM_SUMMON_PARTY_RETURN_MS);
     cutin.dataset.hudReturnAt = String(KINGDOM_SUMMON_HUD_RETURN_MS);
     cutin.setAttribute(
       'aria-label',
-      `${getRoleDisplayLabel(s.lastPlay)} 召喚 ${summonArt.name} ${String(summonState.effectName || '')}`.trim()
+      `${getRoleDisplayLabel(s.lastPlay)} ${roleChainCount >= 2 ? `${roleChainCount}チェイン ` : ''}召喚 ${summonArt.name} ${String(summonState.effectName || '')}`.trim()
     );
     const seal = document.createElement('div');
     seal.className = 'tarot-kingdom-summon-seal';
@@ -16970,7 +17123,14 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
     const impact = document.createElement('div');
     impact.className = 'tarot-kingdom-summon-impact';
     impact.setAttribute('aria-hidden', 'true');
+    const chainImpact = roleChainCount >= 2 ? document.createElement('strong') : null;
+    if (chainImpact) {
+      chainImpact.className = 'tarot-kingdom-summon-chain-impact';
+      chainImpact.textContent = `${roleChainCount} CHAIN`;
+      chainImpact.setAttribute('aria-hidden', 'true');
+    }
     content.append(seal, portal, figure, copy, effectField, impact);
+    if (chainImpact) content.append(chainImpact);
   } else {
     cutin.removeAttribute('aria-label');
   }
@@ -17265,7 +17425,9 @@ function renderKingdomBattleStage() {
   ) {
     kingdomSummonHapticEventKey = summonHapticKey;
     const summonPool = getTarotKingdomSummonById(visualEvent.summon.id)?.pool;
-    vibrateOnce(['advanced', 'legendary'].includes(String(summonPool)) ? 90 : 55);
+    const baseHapticMs = ['advanced', 'legendary'].includes(String(summonPool)) ? 90 : 55;
+    const chainLevel = Math.min(3, Math.max(0, normalizeKingdomRoleChainCount(visualEvent?.roleChain?.count) - 1));
+    vibrateOnce(baseHapticMs + (chainLevel * 15));
   }
   const raidState = normalizeKingdomRaidState(s?.raid);
   const raidBattlefieldActive = raidState != null
@@ -17608,6 +17770,14 @@ function renderTrick() {
         setInlinePlayerLabel(ui.trickOwner, '場札主: ', owner, ` 手札${handCount}${roleSuffix}`);
       }
     }
+  }
+  if (ui.roleChain) {
+    const roleChain = getKingdomRoleChain(s?.trick);
+    const showRoleChain = String(s?.trick?.type || '') === 'role' && roleChain.count >= 2;
+    ui.roleChain.hidden = !showRoleChain;
+    ui.roleChain.style.display = showRoleChain ? '' : 'none';
+    ui.roleChain.textContent = showRoleChain ? `${roleChain.count} CHAIN` : '';
+    ui.roleChain.dataset.chainLevel = String(Math.min(4, roleChain.count));
   }
   const nextIdentityKey = cards.length
     ? cards.map((c) => [
@@ -18060,6 +18230,42 @@ function cancelLocalHandDrag() {
   clearLocalHandDropIndicators();
 }
 
+function canPreserveLocalHandDrag(hand, playerIndex) {
+  const drag = localHandDrag;
+  const blockedPhase = [
+    'idle',
+    'openingDeal',
+    'roundOutCinematic',
+    'roundDraw',
+    'roundEnd',
+    'done'
+  ].includes(String(s?.phase || ''));
+  if (
+    !drag
+    || !ui.hand
+    || !drag.node?.isConnected
+    || !ui.hand.contains(drag.node)
+    || !s?.roundActive
+    || blockedPhase
+    || !isKingdomBattlePlayerConscious(playerIndex)
+    || !Array.isArray(hand)
+  ) return false;
+  const currentKeys = hand.map(getLocalHandCardKey);
+  if (!Array.isArray(drag.handKeys) || currentKeys.length !== drag.handKeys.length) return false;
+  if (currentKeys.every((key, index) => key === drag.handKeys[index])) return true;
+  const cardsByKey = new Map();
+  hand.forEach((card) => {
+    const key = getLocalHandCardKey(card);
+    if (!key) return;
+    if (!cardsByKey.has(key)) cardsByKey.set(key, []);
+    cardsByKey.get(key).push(card);
+  });
+  const restored = drag.handKeys.map((key) => cardsByKey.get(key)?.shift()).filter(Boolean);
+  if (restored.length !== hand.length) return false;
+  hand.splice(0, hand.length, ...restored);
+  return true;
+}
+
 function beginLocalHandDrag(event, cardIndex, node) {
   const me = getLocalPlayerIndex();
   if (
@@ -18076,6 +18282,7 @@ function beginLocalHandDrag(event, cardIndex, node) {
     pointerId: event.pointerId,
     node,
     sourceKey: getLocalHandCardKey(card),
+    handKeys: hand.map(getLocalHandCardKey),
     startX: Number(event.clientX) || 0,
     startY: Number(event.clientY) || 0,
     dragging: false,
@@ -18169,17 +18376,17 @@ function finishLocalHandDrag(event) {
 }
 
 function renderHand() {
-  cancelLocalHandDrag();
-  ui.hand.innerHTML = '';
-  if (ui.handCount) ui.handCount.textContent = '0';
-  ui.hand.dataset.handCount = '0';
-  ui.hand.setAttribute('aria-label', 'あなたの手札 0枚');
   const me = getLocalPlayerIndex();
-  if (me < 0 || !s.players?.[me]) return;
-  const hand = Array.isArray(s.players[me].hand) ? s.players[me].hand : [];
+  const hand = me >= 0 && s.players?.[me] && Array.isArray(s.players[me].hand)
+    ? s.players[me].hand
+    : [];
   if (ui.handCount) ui.handCount.textContent = String(hand.length);
   ui.hand.dataset.handCount = String(hand.length);
   ui.hand.setAttribute('aria-label', `あなたの手札 ${hand.length}枚`);
+  if (canPreserveLocalHandDrag(hand, me)) return;
+  cancelLocalHandDrag();
+  ui.hand.innerHTML = '';
+  if (me < 0 || !s.players?.[me]) return;
   const now = Date.now();
   const inOpeningDeal = s.roundActive && s.phase === 'openingDeal';
   const openingRevealCount = Math.max(0, Number(s.openingDealRevealCount || 0));
@@ -19228,6 +19435,7 @@ function bindUi() {
   ui.reverseChip = document.getElementById('tarotKingdomReverse');
   ui.lockChip = document.getElementById('tarotKingdomLock');
   ui.trickOwner = document.getElementById('tarotKingdomTrickOwner');
+  ui.roleChain = document.getElementById('tarotKingdomRoleChain');
   ui.score = document.getElementById('tarotKingdomScore');
   ui.kingdomOverlay = document.getElementById('tarotKingdomEffectOverlay');
   ui.kingdomCutin = document.getElementById('tarotKingdomCutin');
@@ -19246,6 +19454,7 @@ function bindUi() {
   ui.demoPetSelect = document.getElementById('tarotKingdomDemoPetSelect');
   ui.demoFieldSceneSelect = document.getElementById('tarotKingdomDemoFieldSceneSelect');
   ui.demoRoleSelect = document.getElementById('tarotKingdomDemoRoleSelect');
+  ui.demoChainSelect = document.getElementById('tarotKingdomDemoChainSelect');
   ui.demoSummonSelect = document.getElementById('tarotKingdomDemoSummonSelect');
   if (ui.demoBattlefieldSelect && window.__TAROT_KINGDOM_PREVIEW__ === true) {
     const battlefieldOptions = getKingdomDemoBattlefieldOptions().map((battlefield) => {
@@ -19341,6 +19550,20 @@ function bindUi() {
       const value = String(ui.demoRoleSelect.value || '');
       if (value) playKingdomDemoRoleFormation(value);
       ui.demoRoleSelect.value = '';
+    });
+  }
+  if (ui.demoChainSelect && window.__TAROT_KINGDOM_PREVIEW__ === true) {
+    const chainOptions = Array.from({ length: 5 }, (_, index) => {
+      const count = index + 1;
+      const option = document.createElement('option');
+      option.value = String(count);
+      option.textContent = count === 1 ? '通常（1段目）' : `${count} CHAIN・×${getKingdomRoleChainMultiplier(count).toFixed(2)}`;
+      return option;
+    });
+    ui.demoChainSelect.replaceChildren(...chainOptions);
+    ui.demoChainSelect.value = String(kingdomDemoRoleChainCount);
+    ui.demoChainSelect.addEventListener('change', () => {
+      kingdomDemoRoleChainCount = normalizeKingdomRoleChainCount(ui.demoChainSelect.value);
     });
   }
   if (ui.demoSummonSelect && window.__TAROT_KINGDOM_PREVIEW__ === true) {

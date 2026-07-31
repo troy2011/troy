@@ -622,10 +622,14 @@ test('preview can switch every field-effect background from the demo picker', as
 test('preview can replay every normal and call five-card role cinematic', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   const picker = page.locator('#tarotKingdomDemoRoleSelect');
+  const chainPicker = page.locator('#tarotKingdomDemoChainSelect');
   await expect(picker).toBeVisible();
+  await expect(chainPicker).toBeVisible();
   await expect(picker.locator('option')).toHaveCount(15);
   await expect(picker.locator('optgroup')).toHaveCount(2);
+  await expect(chainPicker.locator('option')).toHaveCount(5);
 
+  await chainPicker.selectOption('4');
   await picker.selectOption('normal:FullHouse');
   await expect(picker).toHaveValue('');
   const initial = await page.evaluate(() => {
@@ -646,7 +650,12 @@ test('preview can replay every normal and call five-card role cinematic', async 
       fanRole: document.querySelector('.tarot-kingdom-skill-card-fan')?.dataset.roleFormation || '',
       roleShowAt: Number(cutin?.dataset.roleShowAt || 0),
       titleDurationMs: title ? parseFloat(getComputedStyle(title).animationDuration) * 1000 : 0,
-      fanDurationMs: fanCard ? parseFloat(getComputedStyle(fanCard).animationDuration) * 1000 : 0
+      fanDurationMs: fanCard ? parseFloat(getComputedStyle(fanCard).animationDuration) * 1000 : 0,
+      chainCount: state.lastPlay?.roleChain?.count || 0,
+      chainMultiplier: state.lastPlay?.roleChain?.multiplier || 0,
+      fieldChainText: document.querySelector('#tarotKingdomRoleChain')?.textContent || '',
+      cutinChainText: cutin?.querySelector('.tarot-kingdom-summon-chain-label')?.textContent || '',
+      impactChainText: cutin?.querySelector('.tarot-kingdom-summon-chain-impact')?.textContent || ''
     };
   });
   expect(initial).toEqual({
@@ -657,7 +666,12 @@ test('preview can replay every normal and call five-card role cinematic', async 
     fanRole: 'FullHouse',
     roleShowAt: 1320,
     titleDurationMs: 1200,
-    fanDurationMs: 1250
+    fanDurationMs: 1250,
+    chainCount: 4,
+    chainMultiplier: 1.75,
+    fieldChainText: '4 CHAIN',
+    cutinChainText: '4 CHAIN',
+    impactChainText: '4 CHAIN'
   });
 
   await page.waitForTimeout(500);
@@ -698,6 +712,71 @@ test('preview can replay every normal and call five-card role cinematic', async 
     expect(variant.actualRoleKey).toBe(variant.roleKey);
     expect(variant.call).toBe(variant.mode === 'call');
     expect(variant.transitionMs).toBe(4500);
+  });
+});
+
+test('chain indicators stay inside the battlefield and reduced motion keeps a static result', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const inspect = async (width, height) => {
+    await page.setViewportSize({ width, height });
+    await page.locator('#tarotKingdomDemoChainSelect').selectOption('5');
+    await page.locator('#tarotKingdomDemoRoleSelect').selectOption('normal:Straight');
+    return page.evaluate(() => {
+      const inside = (child, parent) => {
+        const childRect = child?.getBoundingClientRect();
+        const parentRect = parent?.getBoundingClientRect();
+        return !!(
+          childRect
+          && parentRect
+          && childRect.left >= parentRect.left - 1
+          && childRect.right <= parentRect.right + 1
+          && childRect.top >= parentRect.top - 1
+          && childRect.bottom <= parentRect.bottom + 1
+        );
+      };
+      const stage = document.querySelector('#tarotKingdomBattleStage');
+      const chain = document.querySelector('#tarotKingdomRoleChain');
+      const label = document.querySelector('.tarot-kingdom-summon-chain-label');
+      const impact = document.querySelector('.tarot-kingdom-summon-chain-impact');
+      return {
+        fieldText: chain?.textContent || '',
+        cutinText: label?.textContent || '',
+        impactText: impact?.textContent || '',
+        labelInside: inside(label, stage),
+        impactInside: inside(impact, stage),
+        overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
+      };
+    });
+  };
+
+  for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1000 }]) {
+    const layout = await inspect(viewport.width, viewport.height);
+    expect(layout).toMatchObject({
+      fieldText: '5 CHAIN',
+      cutinText: '5 CHAIN',
+      impactText: '5 CHAIN',
+      labelInside: true,
+      impactInside: true
+    });
+    expect(layout.overflow).toBeLessThanOrEqual(1);
+  }
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.locator('#tarotKingdomDemoRoleSelect').selectOption('normal:Flush');
+  const reduced = await page.evaluate(() => {
+    const label = document.querySelector('.tarot-kingdom-summon-chain-label');
+    const impact = document.querySelector('.tarot-kingdom-summon-chain-impact');
+    const field = document.querySelector('#tarotKingdomRoleChain');
+    return {
+      fieldVisible: !!field && !field.hidden && getComputedStyle(field).display !== 'none',
+      labelAnimation: label ? getComputedStyle(label).animationName : '',
+      impactDisplay: impact ? getComputedStyle(impact).display : ''
+    };
+  });
+  expect(reduced).toEqual({
+    fieldVisible: true,
+    labelAnimation: 'none',
+    impactDisplay: 'none'
   });
 });
 
@@ -2862,6 +2941,66 @@ test('touch pointer drag reorders the hand without turning the gesture into a ta
   expect(order.at(-1)).toBe(sourceId);
   await expect(gap).toHaveCount(0);
   await expect(page.locator('#tarotKingdomHand > .tarot-card.is-selected')).toHaveCount(0);
+});
+
+test('another player render does not cancel an in-progress local hand reorder', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleScenario({
+      withTrick: false,
+      turnIndex: 1,
+      handsBySeat: [[
+        { id: 'tk_remote_drag_w9', kind: 'minor', suit: 'Wand', number: 9 },
+        { id: 'tk_remote_drag_c2', kind: 'minor', suit: 'Cup', number: 2 },
+        { id: 'tk_remote_drag_s6', kind: 'minor', suit: 'Sword', number: 6 }
+      ], [
+        { id: 'tk_remote_actor_w3', kind: 'minor', suit: 'Wand', number: 3 },
+        { id: 'tk_remote_actor_keep', kind: 'minor', suit: 'Cup', number: 8 }
+      ]]
+    });
+  });
+
+  const handCards = page.locator('#tarotKingdomHand > .tarot-card');
+  const source = handCards.first();
+  const sourceId = await source.getAttribute('data-card-id');
+  const sourceBox = await source.boundingBox();
+  const targetBox = await handCards.last().boundingBox();
+  expect(sourceBox).not.toBeNull();
+  expect(targetBox).not.toBeNull();
+  const pointer = {
+    pointerId: 23,
+    pointerType: 'touch',
+    isPrimary: true,
+    button: 0
+  };
+  await source.dispatchEvent('pointerdown', {
+    ...pointer,
+    clientX: sourceBox.x + (sourceBox.width / 2),
+    clientY: sourceBox.y + (sourceBox.height / 2)
+  });
+  await source.dispatchEvent('pointermove', {
+    ...pointer,
+    clientX: targetBox.x + targetBox.width - 2,
+    clientY: targetBox.y + (targetBox.height / 2)
+  });
+  await expect(source).toHaveClass(/is-dragging/);
+  await expect(page.locator('#tarotKingdomHand > .tarot-kingdom-hand-drop-gap')).toHaveCount(1);
+
+  const remoteAction = await page.evaluate(() => (
+    window.TarotKingdomDebug.battlePlayOne(1, { resolve: false })
+  ));
+  expect(remoteAction.transition).toMatchObject({ kind: 'play', actorIndex: 1 });
+  await expect(source).toHaveClass(/is-dragging/);
+  await expect(page.locator('#tarotKingdomHand > .tarot-kingdom-hand-drop-gap')).toHaveCount(1);
+
+  await source.dispatchEvent('pointerup', {
+    ...pointer,
+    clientX: targetBox.x + targetBox.width - 2,
+    clientY: targetBox.y + (targetBox.height / 2)
+  });
+  const order = await handCards.evaluateAll((cards) => cards.map((card) => card.dataset.cardId));
+  expect(order.at(-1)).toBe(sourceId);
+  await expect(page.locator('#tarotKingdomHand > .tarot-kingdom-hand-drop-gap')).toHaveCount(0);
 });
 
 test('removed arcana commands and oracle slots leave one compact command row at 390px', async ({ page }) => {

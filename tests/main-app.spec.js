@@ -6591,6 +6591,7 @@ test('inventory selection sell sends multiple sellable item copies at one gold e
 });
 
 test('inventory black market creates listing and shows owner-aware actions', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   const errors = trackPageErrors(page);
   const createRequests = [];
   const inventoryItems = [
@@ -6700,12 +6701,52 @@ test('inventory black market creates listing and shows owner-aware actions', asy
     inventory.switchInventoryTab('Weapon');
   });
 
+  await page.locator('#inventorySellControls .inventory-sell-control-btn', { hasText: '闇市' }).click();
+  await expect(page.locator('#blackMarketPanel')).toBeVisible();
+  await expect(page.locator('body > #blackMarketPanel')).toBeVisible();
+  await expect(page.locator('#blackMarketPanel .black-market-sheet')).toBeVisible();
+  const marketBox = await page.locator('#blackMarketPanel .black-market-sheet').boundingBox();
+  expect(marketBox).not.toBeNull();
+  expect(marketBox.x).toBeGreaterThanOrEqual(0);
+  expect(marketBox.y).toBeGreaterThanOrEqual(0);
+  expect(marketBox.x + marketBox.width).toBeLessThanOrEqual(390);
+  expect(marketBox.y + marketBox.height).toBeLessThanOrEqual(844);
+  await expect(page.locator('#blackMarketPanel .black-market-close')).toBeVisible();
+  await expect(page.locator('#blackMarketPanel .black-market-listing')).toHaveCount(2);
+  await expect(page.locator('#blackMarketPanel')).toContainText('Bob');
+  await expect(page.locator('body')).toHaveClass(/modal-lock/);
+
+  await page.locator('#blackMarketPanel .black-market-listing-action.is-buy').click();
+  await expect(page.locator('#inventoryActionDialog')).toBeVisible();
+  const modalLayers = await page.evaluate(() => ({
+    market: Number(getComputedStyle(document.getElementById('blackMarketPanel')).zIndex),
+    confirmation: Number(getComputedStyle(document.getElementById('inventoryActionDialog')).zIndex)
+  }));
+  expect(modalLayers.confirmation).toBeGreaterThan(modalLayers.market);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#inventoryActionDialog')).toBeHidden();
+  await expect(page.locator('#blackMarketPanel')).toBeVisible();
+
+  await page.locator('#blackMarketPanel .black-market-listing-action.is-cancel').click();
+  await expect(page.locator('#inventoryActionDialog')).toBeVisible();
+  await page.locator('#inventoryActionDialog .inventory-action-dialog-cancel').click();
+  await expect(page.locator('#inventoryActionDialog')).toBeHidden();
+
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#blackMarketPanel')).toBeHidden();
+  await expect(page.locator('#inventorySellControls .inventory-sell-control-btn', { hasText: '闇市' })).toBeFocused();
+  await expect(page.locator('body')).not.toHaveClass(/modal-lock/);
+
   await page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]').click();
   await expect(page.locator('#itemDetailStats')).toContainText('初代所有者');
   await expect(page.locator('#itemDetailStats')).toContainText('Alice');
   await page.locator('#itemDetailButtons .item-detail-action', { hasText: '闇市に出す' }).click();
   await expect(page.locator('#inventoryActionDialog')).toBeVisible();
   await expect(page.locator('#inventoryActionDialog')).toContainText('1-9999G');
+  await page.locator('#inventoryActionDialog .inventory-action-dialog-input').fill('1.5');
+  await page.locator('#inventoryActionDialog .inventory-action-dialog-confirm').click();
+  await expect(page.locator('#inventoryActionDialog')).toContainText('整数');
+  await expect(page.locator('#inventoryActionDialog')).toBeVisible();
   await page.locator('#inventoryActionDialog .inventory-action-dialog-input').fill('88');
   await page.locator('#inventoryActionDialog .inventory-action-dialog-confirm').click();
 

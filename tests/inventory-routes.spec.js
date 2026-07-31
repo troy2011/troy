@@ -114,6 +114,7 @@ function makeSellHarness({ readOnlyData = {}, inventoryItems = [] } = {}) {
 
 function makeMemoryFirestore(initialData = {}) {
   let autoId = 1;
+  let transactionQueue = Promise.resolve();
   const stores = new Map(Object.entries(initialData).map(([name, docs]) => [
     name,
     new Map(Object.entries(docs || {}).map(([id, data]) => [id, { ...data }]))
@@ -174,12 +175,14 @@ function makeMemoryFirestore(initialData = {}) {
         }
       };
     },
-    async runTransaction(callback) {
-      return callback({
+    runTransaction(callback) {
+      const run = transactionQueue.then(() => callback({
         get: (ref) => ref.get(),
         update: (ref, data) => ref.update(data),
         set: (ref, data, options) => ref.set(data, options)
-      });
+      }));
+      transactionQueue = run.catch(() => {});
+      return run;
     },
     dump(name) {
       return Array.from(getStore(name).entries()).map(([id, data]) => ({ id, ...data }));
@@ -193,7 +196,9 @@ function makeBlackMarketHarness({
   inventoryItems = [],
   firestore = makeMemoryFirestore(),
   currencyBalance = 99,
-  subtractError = null
+  subtractError = null,
+  addEconomyItemImpl = null,
+  subtractEconomyItemImpl = null
 } = {}) {
   const routes = new Map();
   const economyAdds = [];
@@ -226,12 +231,18 @@ function makeBlackMarketHarness({
     getEntityKeyForPlayFabId: async () => ({ Id: 'ENTITY1', Type: 'title_player_account' }),
     getAllInventoryItems: async () => inventoryItems,
     getVirtualCurrencyMap: () => ({}),
-    addEconomyItem: async (playFabId, itemId, amount) => {
+    addEconomyItem: async (playFabId, itemId, amount, options) => {
       economyAdds.push({ playFabId, itemId, amount });
+      if (typeof addEconomyItemImpl === 'function') {
+        await addEconomyItemImpl(playFabId, itemId, amount, options);
+      }
     },
-    subtractEconomyItem: async (playFabId, itemId, amount) => {
+    subtractEconomyItem: async (playFabId, itemId, amount, options) => {
       economySubtracts.push({ playFabId, itemId, amount });
       if (subtractError && itemId === 'PS') throw subtractError;
+      if (typeof subtractEconomyItemImpl === 'function') {
+        await subtractEconomyItemImpl(playFabId, itemId, amount, options);
+      }
     },
     getCurrencyBalance: async () => currencyBalance,
     requireAuthenticatedPlayFabId: async (_req, _res, playFabId) => playFabId
@@ -613,4 +624,313 @@ test('black-market buy transfers gold and item', async () => {
     buyerPlayFabId: 'PF_BUYER',
     settlementStatus: 'settled'
   });
+});
+
+test('black-market create rejects decimal prices', async () => {
+  const { routes, economySubtracts } = makeBlackMarketHarness({
+    inventoryItems: [{ Id: 'sword_001', Amount: 1 }]
+  });
+  const res = makeResponse();
+
+  await routes.get('/api/black-market/create')({
+    body: { playFabId: 'PF_SELLER', itemId: 'sword_001', price: 1.5 }
+  }, res);
+
+  expect(res.statusCode).toBe(400);
+  expect(res.body.error).toContain('整数');
+  expect(economySubtracts).toHaveLength(0);
+});
+
+test('black-market slot reservation prevents concurrent sixth listings', async () => {
+  const firestore = makeMemoryFirestore({
+    black_market_listings: Object.fromEntries(Array.from({ length: 4 }, (_entry, index) => [`listing-${index}`, {
+      listingId: `listing-${index}`,
+      sellerPlayFabId: 'PF_SELLER',
+      itemId: 'sword_001',
+      itemName: 'Test Sword',
+      price: 1,
+      status: 'active',
+      createdAtMs: index + 1
+    }]))
+  });
+  const { routes, economySubtracts } = makeBlackMarketHarness({
+    firestore,
+    inventoryItems: [{ Id: 'sword_001', Amount: 2 }]
+  });
+  const firstRes = makeResponse();
+  const secondRes = makeResponse();
+  const create = routes.get('/api/black-market/create');
+
+  await Promise.all([
+    create({ body: { playFabId: 'PF_SELLER', itemId: 'sword_001', price: 10 } }, firstRes),
+    create({ body: { playFabId: 'PF_SELLER', itemId: 'sword_001', price: 11 } }, secondRes)
+  ]);
+
+  expect([firstRes.statusCode, secondRes.statusCode].sort()).toEqual([200, 400]);
+  expect(economySubtracts).toHaveLength(1);
+  expect(firestore.dump('black_market_listing_slots').filter((slot) => slot.status === 'occupied')).toHaveLength(5);
+});
+
+test('black-market list resumes a creating listing after a transient debit failure', async () => {
+  let failDebit = true;
+  const { routes, firestore, economySubtracts } = makeBlackMarketHarness({
+    inventoryItems: [{ Id: 'sword_001', Amount: 1 }],
+    subtractEconomyItemImpl: async (_playFabId, itemId) => {
+      if (itemId === 'sword_001' && failDebit) {
+        failDebit = false;
+        throw new Error('temporary debit failure');
+      }
+    }
+  });
+  const createRes = makeResponse();
+
+  await routes.get('/api/black-market/create')({
+    body: { playFabId: 'PF_SELLER', itemId: 'sword_001', price: 20 }
+  }, createRes);
+
+  expect(createRes.statusCode).toBe(500);
+  expect(firestore.dump('black_market_listings')[0]).toMatchObject({
+    status: 'creating',
+    itemDebited: false,
+    settlementStatus: 'itemDebitPending'
+  });
+
+  const listRes = makeResponse();
+  await routes.get('/api/black-market/list')({ body: { playFabId: 'PF_SELLER' } }, listRes);
+
+  expect(listRes.statusCode).toBe(200);
+  expect(listRes.body.listings).toHaveLength(1);
+  expect(firestore.dump('black_market_listings')[0]).toMatchObject({ status: 'active', itemDebited: true });
+  expect(economySubtracts).toHaveLength(2);
+});
+
+test('black-market purchase recovery pays the seller after a settlement failure', async () => {
+  const firestore = makeMemoryFirestore({
+    black_market_listings: {
+      listing1: {
+        listingId: 'listing1',
+        sellerPlayFabId: 'PF_SELLER',
+        itemId: 'sword_001',
+        itemName: 'Test Sword',
+        price: 25,
+        status: 'active',
+        originPlayFabId: 'PF_ORIGIN',
+        originDisplayName: 'Origin'
+      }
+    }
+  });
+  let failSellerPayment = true;
+  const { routes, economyAdds, economySubtracts } = makeBlackMarketHarness({
+    firestore,
+    addEconomyItemImpl: async (playFabId, itemId) => {
+      if (playFabId === 'PF_SELLER' && itemId === 'PS' && failSellerPayment) {
+        throw new Error('temporary seller payment failure');
+      }
+    }
+  });
+  const buyRes = makeResponse();
+
+  await routes.get('/api/black-market/buy')({
+    body: { playFabId: 'PF_BUYER', listingId: 'listing1' }
+  }, buyRes);
+
+  expect(buyRes.statusCode).toBe(500);
+  expect(firestore.dump('black_market_listings')[0]).toMatchObject({
+    status: 'buying',
+    buyerItemGranted: true,
+    buyerOwnershipGranted: true,
+    sellerPaid: false,
+    settlementStatus: 'settlementFailed'
+  });
+
+  failSellerPayment = false;
+  const listRes = makeResponse();
+  await routes.get('/api/black-market/list')({ body: { playFabId: 'PF_SELLER' } }, listRes);
+
+  expect(listRes.statusCode).toBe(200);
+  expect(firestore.dump('black_market_listings')[0]).toMatchObject({
+    status: 'sold',
+    sellerPaid: true,
+    settlementStatus: 'settled'
+  });
+  expect(economySubtracts).toEqual([{ playFabId: 'PF_BUYER', itemId: 'PS', amount: 25 }]);
+  expect(economyAdds.filter((entry) => entry.playFabId === 'PF_BUYER' && entry.itemId === 'sword_001')).toHaveLength(1);
+  expect(economyAdds.filter((entry) => entry.playFabId === 'PF_SELLER' && entry.itemId === 'PS')).toHaveLength(2);
+});
+
+test('black-market refund failure keeps the listing locked until recovery succeeds', async () => {
+  const firestore = makeMemoryFirestore({
+    black_market_listings: {
+      listing1: {
+        listingId: 'listing1',
+        sellerPlayFabId: 'PF_SELLER',
+        itemId: 'sword_001',
+        itemName: 'Test Sword',
+        price: 25,
+        status: 'active'
+      }
+    }
+  });
+  let allowRefund = false;
+  const { routes } = makeBlackMarketHarness({
+    firestore,
+    addEconomyItemImpl: async (playFabId, itemId) => {
+      if (playFabId === 'PF_BUYER' && itemId === 'sword_001') throw new Error('item grant failure');
+      if (playFabId === 'PF_BUYER' && itemId === 'PS' && !allowRefund) throw new Error('refund failure');
+    }
+  });
+  const buyRes = makeResponse();
+
+  await routes.get('/api/black-market/buy')({
+    body: { playFabId: 'PF_BUYER', listingId: 'listing1' }
+  }, buyRes);
+
+  expect(buyRes.statusCode).toBe(500);
+  expect(firestore.dump('black_market_listings')[0]).toMatchObject({
+    status: 'buying',
+    buyerCharged: true,
+    buyerItemGranted: false,
+    buyerRefunded: false,
+    settlementStatus: 'refundPending'
+  });
+
+  const pendingListRes = makeResponse();
+  await routes.get('/api/black-market/list')({ body: { playFabId: 'PF_BUYER' } }, pendingListRes);
+  expect(pendingListRes.statusCode).toBe(200);
+  expect(pendingListRes.body.listings).toContainEqual(expect.objectContaining({
+    listingId: 'listing1',
+    status: 'buying',
+    isPending: true
+  }));
+
+  allowRefund = true;
+  const listRes = makeResponse();
+  await routes.get('/api/black-market/list')({ body: { playFabId: 'PF_BUYER' } }, listRes);
+
+  expect(listRes.statusCode).toBe(200);
+  expect(firestore.dump('black_market_listings')[0]).toMatchObject({
+    status: 'active',
+    buyerPlayFabId: '',
+    buyerCharged: false
+  });
+});
+
+test('black-market cancellation remains recoverable when the first return fails', async () => {
+  const firestore = makeMemoryFirestore({
+    black_market_listings: {
+      listing1: {
+        listingId: 'listing1',
+        sellerPlayFabId: 'PF_SELLER',
+        itemId: 'sword_001',
+        itemName: 'Test Sword',
+        price: 25,
+        status: 'active',
+        originPlayFabId: 'PF_ORIGIN',
+        originDisplayName: 'Origin'
+      }
+    }
+  });
+  let failReturn = true;
+  const { routes } = makeBlackMarketHarness({
+    firestore,
+    addEconomyItemImpl: async (playFabId, itemId) => {
+      if (playFabId === 'PF_SELLER' && itemId === 'sword_001' && failReturn) {
+        failReturn = false;
+        throw new Error('temporary return failure');
+      }
+    }
+  });
+  const cancelRes = makeResponse();
+
+  await routes.get('/api/black-market/cancel')({
+    body: { playFabId: 'PF_SELLER', listingId: 'listing1' }
+  }, cancelRes);
+
+  expect(cancelRes.statusCode).toBe(500);
+  expect(firestore.dump('black_market_listings')[0]).toMatchObject({
+    status: 'cancelling',
+    returnGranted: false,
+    settlementStatus: 'returnPending'
+  });
+
+  const listRes = makeResponse();
+  await routes.get('/api/black-market/list')({ body: { playFabId: 'PF_SELLER' } }, listRes);
+
+  expect(listRes.statusCode).toBe(200);
+  expect(firestore.dump('black_market_listings')[0]).toMatchObject({
+    status: 'cancelled',
+    returnGranted: true,
+    ownershipReturned: true,
+    settlementStatus: 'settled'
+  });
+});
+
+test('black-market rejects cancelling another seller listing without locking it', async () => {
+  const firestore = makeMemoryFirestore({
+    black_market_listings: {
+      listing1: {
+        listingId: 'listing1',
+        sellerPlayFabId: 'PF_SELLER',
+        itemId: 'sword_001',
+        itemName: 'Test Sword',
+        price: 25,
+        status: 'active'
+      }
+    }
+  });
+  const { routes, economyAdds } = makeBlackMarketHarness({ firestore });
+  const res = makeResponse();
+
+  await routes.get('/api/black-market/cancel')({
+    body: { playFabId: 'PF_OTHER', listingId: 'listing1' }
+  }, res);
+
+  expect(res.statusCode).toBe(403);
+  expect(economyAdds).toHaveLength(0);
+  expect(firestore.dump('black_market_listings')[0]).toMatchObject({ status: 'active' });
+});
+
+test('black-market ownership counts remain correct across concurrent purchases', async () => {
+  const firestore = makeMemoryFirestore({
+    black_market_listings: {
+      listing1: {
+        listingId: 'listing1',
+        sellerPlayFabId: 'PF_SELLER_1',
+        itemId: 'sword_001',
+        itemName: 'Test Sword',
+        price: 10,
+        status: 'active',
+        originPlayFabId: 'PF_ORIGIN',
+        originDisplayName: 'Origin'
+      },
+      listing2: {
+        listingId: 'listing2',
+        sellerPlayFabId: 'PF_SELLER_2',
+        itemId: 'sword_001',
+        itemName: 'Test Sword',
+        price: 11,
+        status: 'active',
+        originPlayFabId: 'PF_ORIGIN',
+        originDisplayName: 'Origin'
+      }
+    }
+  });
+  const { routes } = makeBlackMarketHarness({ firestore });
+  const firstRes = makeResponse();
+  const secondRes = makeResponse();
+  const buy = routes.get('/api/black-market/buy');
+
+  await Promise.all([
+    buy({ body: { playFabId: 'PF_BUYER', listingId: 'listing1' } }, firstRes),
+    buy({ body: { playFabId: 'PF_BUYER', listingId: 'listing2' } }, secondRes)
+  ]);
+
+  expect(firstRes.statusCode).toBe(200);
+  expect(secondRes.statusCode).toBe(200);
+  expect(firestore.dump('black_market_item_origins')).toContainEqual(expect.objectContaining({
+    ownerPlayFabId: 'PF_BUYER',
+    itemId: 'sword_001',
+    originPlayFabId: 'PF_ORIGIN',
+    count: 2
+  }));
 });

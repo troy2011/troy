@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex,follow">
     <title>Tarot Kingdom Preview</title>
     <link rel="stylesheet" href="./style.css?v=20260731-skip-wet3">
-    <link rel="stylesheet" href="./tarot-kingdom-summons.css?v=20260731-summon-cinematic27-v1">
+    <link rel="stylesheet" href="./tarot-kingdom-summons.css?v=20260801-role-chain1">
     <style>
         html, body {
             margin: 0;
@@ -98,6 +98,10 @@
                     <span>DEMO 5-CARD ROLE</span>
                     <select id="tarotKingdomDemoRoleSelect" aria-label="デモの5枚役演出を選択"></select>
                 </label>
+                <label class="tarot-kingdom-demo-chain-picker" for="tarotKingdomDemoChainSelect">
+                    <span>DEMO CHAIN</span>
+                    <select id="tarotKingdomDemoChainSelect" aria-label="デモのチェイン数を選択"></select>
+                </label>
                 <label class="tarot-kingdom-demo-summon-picker" for="tarotKingdomDemoSummonSelect">
                     <span>DEMO SUMMON</span>
                     <select id="tarotKingdomDemoSummonSelect" aria-label="デモの召喚獣を選択"></select>
@@ -145,6 +149,7 @@
                     <span class="tarot-kingdom-panel-heading"><span class="tarot-kingdom-panel-eyebrow">FIELD</span><span>場札</span></span>
                     <div class="tarot-kingdom-trick-status">
                         <span id="tarotKingdomTrickOwner" class="tarot-kingdom-chip tarot-kingdom-chip--owner">場札主: -</span>
+                        <span id="tarotKingdomRoleChain" class="tarot-kingdom-chip tarot-kingdom-chip--chain" hidden>2 CHAIN</span>
                         <span id="tarotKingdomReverse" class="tarot-kingdom-chip tarot-kingdom-chip--reverse" hidden>11バック中</span>
                         <span id="tarotKingdomLock" class="tarot-kingdom-chip tarot-kingdom-chip--lock" hidden>ロック中</span>
                         <span id="tarotKingdomTurn" class="tarot-kingdom-chip tarot-kingdom-chip--turn">手番: -</span>
@@ -198,7 +203,7 @@
         window.myLineProfile = { displayName: 'Preview' };
         window.__TAROT_KINGDOM_PREVIEW__ = true;
 
-        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260731-world-single1';
+        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260801-role-chain1';
 
         window.TarotKingdomPreview = {
             load: () => loadTarotKingdomPage(),
