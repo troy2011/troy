@@ -279,6 +279,26 @@ export function sellItems(playFabId, items, options) {
     return callApiWithLoader('/api/sell-items', { playFabId, items }, options);
 }
 
+export function getBlackMarketListings(playFabId, options) {
+    return callApiWithLoader('/api/black-market/list', { playFabId }, options);
+}
+
+export function getBlackMarketOrigins(playFabId, itemIds, options) {
+    return callApiWithLoader('/api/black-market/origins', { playFabId, itemIds }, options);
+}
+
+export function createBlackMarketListing(playFabId, itemId, price, options) {
+    return callApiWithLoader('/api/black-market/create', { playFabId, itemId, price }, options);
+}
+
+export function cancelBlackMarketListing(playFabId, listingId, options) {
+    return callApiWithLoader('/api/black-market/cancel', { playFabId, listingId }, options);
+}
+
+export function buyBlackMarketListing(playFabId, listingId, options) {
+    return callApiWithLoader('/api/black-market/buy', { playFabId, listingId }, options);
+}
+
 export function getGuildInfo(playFabId, entityKey, options) {
     const resolvedEntityKey = entityKey || window.myPlayFabLoginInfo?.entityKey || null;
     return callApiWithLoader('/api/get-guild-info', { playFabId, entityKey: resolvedEntityKey }, options);

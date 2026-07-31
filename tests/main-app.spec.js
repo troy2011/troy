@@ -6549,7 +6549,11 @@ test('inventory selection sell sends multiple sellable item copies at one gold e
   await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]')).toHaveClass(/is-sellable/);
   await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]')).not.toHaveClass(/is-sell-selected/);
   await page.locator('#inventorySellControls .inventory-sell-control-btn.is-sell').click();
+  await expect(page.locator('#inventoryActionDialog')).toBeVisible();
+  await expect(page.locator('#inventoryActionDialog')).toContainText('3個を3Gで売却しますか？');
+  await page.locator('#inventoryActionDialog .inventory-action-dialog-confirm').click();
 
+  await expect.poll(() => sellRequests.length).toBe(1);
   expect(sellRequests).toHaveLength(1);
   expect(sellRequests[0]).toMatchObject({
     playFabId: 'PF_PLAYWRIGHT',
@@ -6559,5 +6563,136 @@ test('inventory selection sell sends multiple sellable item copies at one gold e
     ]
   });
   await expect(page.locator('#pointMessage')).toContainText('3個を3Gで売却しました。');
+  await expectNoPageErrors(errors);
+});
+
+test('inventory black market creates listing and shows owner-aware actions', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const createRequests = [];
+  const inventoryItems = [
+    {
+      itemId: 'sword_001',
+      instances: ['sword-stack'],
+      count: 1,
+      name: 'Founder Sword',
+      description: 'Tracked equipment',
+      customData: { Category: 'Weapon', Power: 12, sprite_path: './Sprites/weapons/melee weapons/sword.png', sprite_index: '0' }
+    }
+  ];
+  const listings = [
+    {
+      listingId: 'mine-1',
+      sellerPlayFabId: 'PF_PLAYWRIGHT',
+      sellerDisplayName: 'Me',
+      itemId: 'sword_001',
+      itemName: 'Founder Sword',
+      itemData: inventoryItems[0].customData,
+      price: 88,
+      status: 'active',
+      isMine: true,
+      originDisplayName: 'Alice'
+    },
+    {
+      listingId: 'other-1',
+      sellerPlayFabId: 'PF_OTHER',
+      sellerDisplayName: 'Other',
+      itemId: 'sword_001',
+      itemName: 'Founder Sword',
+      itemData: inventoryItems[0].customData,
+      price: 99,
+      status: 'active',
+      isMine: false,
+      originDisplayName: 'Bob'
+    }
+  ];
+
+  await page.route('**/api/get-inventory', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        inventory: inventoryItems,
+        virtualCurrency: { PS: 100 },
+        contribution: 0,
+        blackMarketOrigins: {
+          sword_001: {
+            itemId: 'sword_001',
+            displayText: 'Alice',
+            entries: [{ playFabId: 'PF_ALICE', displayName: 'Alice', count: 1 }]
+          }
+        },
+        blackMarketMyActiveCount: 0,
+        blackMarketMaxActiveListings: 5
+      })
+    });
+  });
+  await page.route('**/api/get-equipment', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ equipment: {} })
+    });
+  });
+  await page.route('**/api/tarot-deck-get', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ok: true, tarotDeck: [], tarotRole: null })
+    });
+  });
+  await page.route('**/api/black-market/list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        status: 'success',
+        listings,
+        myActiveCount: 1,
+        maxActiveListings: 5
+      })
+    });
+  });
+  await page.route('**/api/black-market/create', async (route) => {
+    createRequests.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        status: 'success',
+        message: '闇市に出品しました。',
+        listing: listings[0],
+        myActiveCount: 1,
+        maxActiveListings: 5
+      })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    const inventoryTab = document.getElementById('tabContentInventory');
+    if (inventoryTab) inventoryTab.style.display = 'block';
+    const inventory = await import('/js/inventory.js');
+    await inventory.getInventory('PF_PLAYWRIGHT', { force: true });
+    inventory.switchInventoryTab('Weapon');
+  });
+
+  await page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]').click();
+  await expect(page.locator('#itemDetailStats')).toContainText('初代所有者');
+  await expect(page.locator('#itemDetailStats')).toContainText('Alice');
+  await page.locator('#itemDetailButtons .item-detail-action', { hasText: '闇市に出す' }).click();
+  await expect(page.locator('#inventoryActionDialog')).toBeVisible();
+  await expect(page.locator('#inventoryActionDialog')).toContainText('1-9999G');
+  await page.locator('#inventoryActionDialog .inventory-action-dialog-input').fill('88');
+  await page.locator('#inventoryActionDialog .inventory-action-dialog-confirm').click();
+
+  await expect.poll(() => createRequests.length).toBe(1);
+  expect(createRequests).toEqual([
+    { playFabId: 'PF_PLAYWRIGHT', itemId: 'sword_001', price: 88 }
+  ]);
+  await expect(page.locator('#blackMarketPanel')).toBeVisible();
+  await expect(page.locator('#blackMarketPanel .black-market-panel-head')).toContainText('出品 1/5');
+  await expect(page.locator('#blackMarketPanel .black-market-listing')).toHaveCount(2);
+  await expect(page.locator('#blackMarketPanel .black-market-listing-action.is-cancel')).toHaveCount(1);
+  await expect(page.locator('#blackMarketPanel .black-market-listing-action.is-buy')).toHaveCount(1);
   await expectNoPageErrors(errors);
 });

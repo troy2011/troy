@@ -54,6 +54,11 @@ const GACHA_COST = Number(process.env.GACHA_COST || 10);
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
 const INVENTORY_SELL_UNIT_PRICE = 1;
+const BLACK_MARKET_LISTINGS_COLLECTION = 'black_market_listings';
+const BLACK_MARKET_OWNERSHIP_COLLECTION = 'black_market_item_origins';
+const BLACK_MARKET_MAX_ACTIVE_LISTINGS = 5;
+const BLACK_MARKET_MIN_PRICE = 1;
+const BLACK_MARKET_MAX_PRICE = 9999;
 const INVENTORY_SELL_EQUIPMENT_KEYS = [
     'Equipped_RightHand',
     'Equipped_LeftHand',
@@ -660,6 +665,173 @@ function initializeInventoryRoutes(app, deps) {
         return !!getCurrencyIdFromItem({ Id: itemId }, catalogCache);
     }
 
+    function getBlackMarketCollection() {
+        if (!firestore || typeof firestore.collection !== 'function') return null;
+        return firestore.collection(BLACK_MARKET_LISTINGS_COLLECTION);
+    }
+
+    function getBlackMarketOwnershipCollection() {
+        if (!firestore || typeof firestore.collection !== 'function') return null;
+        return firestore.collection(BLACK_MARKET_OWNERSHIP_COLLECTION);
+    }
+
+    function normalizeBlackMarketPrice(value) {
+        const price = Math.floor(Number(value));
+        if (!Number.isFinite(price) || price < BLACK_MARKET_MIN_PRICE || price > BLACK_MARKET_MAX_PRICE) {
+            return 0;
+        }
+        return price;
+    }
+
+    function normalizeBlackMarketCategory(category) {
+        const raw = String(category || '').trim();
+        if (raw === 'TarotArcanaMajor' || raw === 'MajorArcana') return 'TarotMajor';
+        if (raw === 'TarotArcanaMinor' || raw === 'MinorArcana') return 'TarotMinor';
+        return raw;
+    }
+
+    function isBlackMarketOriginTrackedItem(itemId, itemData = null) {
+        if (!itemId || isCurrencyInventoryItem(itemId)) return false;
+        const catalogData = itemData || normalizeCatalogDisplayData(itemId, catalogCache[itemId] || {});
+        const category = normalizeBlackMarketCategory(catalogData?.Category);
+        return category !== 'Consumable';
+    }
+
+    function makeBlackMarketOwnershipId(ownerPlayFabId, itemId, originPlayFabId) {
+        return [ownerPlayFabId, itemId, originPlayFabId]
+            .map((part) => encodeURIComponent(String(part || '').trim()))
+            .join('__');
+    }
+
+    function getListingSnapshotFromDoc(doc) {
+        const data = typeof doc?.data === 'function' ? doc.data() : (doc || {});
+        return {
+            listingId: String(data.listingId || doc?.id || '').trim(),
+            sellerPlayFabId: String(data.sellerPlayFabId || '').trim(),
+            sellerDisplayName: String(data.sellerDisplayName || data.sellerPlayFabId || '').trim(),
+            buyerPlayFabId: String(data.buyerPlayFabId || '').trim(),
+            itemId: String(data.itemId || '').trim(),
+            itemName: String(data.itemName || data.itemId || '').trim(),
+            price: Math.max(0, Math.floor(Number(data.price) || 0)),
+            status: String(data.status || 'active').trim(),
+            createdAtMs: Math.max(0, Math.floor(Number(data.createdAtMs) || 0)),
+            updatedAtMs: Math.max(0, Math.floor(Number(data.updatedAtMs) || 0)),
+            soldAtMs: Math.max(0, Math.floor(Number(data.soldAtMs) || 0)),
+            cancelledAtMs: Math.max(0, Math.floor(Number(data.cancelledAtMs) || 0)),
+            originPlayFabId: String(data.originPlayFabId || '').trim(),
+            originDisplayName: String(data.originDisplayName || '').trim(),
+            itemData: data.itemData && typeof data.itemData === 'object' ? data.itemData : {},
+            settlementStatus: String(data.settlementStatus || '').trim(),
+            lastError: String(data.lastError || '').trim()
+        };
+    }
+
+    function buildBlackMarketItemSnapshot(itemId) {
+        const catalogData = normalizeCatalogDisplayData(itemId, catalogCache[itemId] || {});
+        return {
+            itemId,
+            itemName: String(catalogData.DisplayName || catalogData.Title || itemId).trim() || itemId,
+            description: String(catalogData.Description || '').trim(),
+            category: normalizeBlackMarketCategory(catalogData.Category),
+            itemData: catalogData
+        };
+    }
+
+    async function getBlackMarketActiveListingsForSeller(playFabId) {
+        const collection = getBlackMarketCollection();
+        if (!collection) return [];
+        const snap = await collection.where('sellerPlayFabId', '==', playFabId).limit(200).get();
+        return (snap?.docs || [])
+            .map(getListingSnapshotFromDoc)
+            .filter((listing) => listing.status === 'active');
+    }
+
+    async function getBlackMarketActiveListingCount(playFabId) {
+        return (await getBlackMarketActiveListingsForSeller(playFabId)).length;
+    }
+
+    async function getBlackMarketOwnershipEntries(ownerPlayFabId, itemId = '') {
+        const collection = getBlackMarketOwnershipCollection();
+        if (!collection) return [];
+        const snap = await collection.where('ownerPlayFabId', '==', ownerPlayFabId).limit(500).get();
+        return (snap?.docs || [])
+            .map((doc) => ({ id: doc.id, ...(typeof doc.data === 'function' ? doc.data() : {}) }))
+            .filter((entry) => {
+                if (String(entry.itemId || '').trim() !== String(itemId || entry.itemId || '').trim()) return false;
+                return Math.max(0, Math.floor(Number(entry.count) || 0)) > 0;
+            })
+            .sort((a, b) => (Number(a.createdAtMs || 0) || 0) - (Number(b.createdAtMs || 0) || 0));
+    }
+
+    async function adjustBlackMarketOwnership(ownerPlayFabId, itemId, origin, delta) {
+        const collection = getBlackMarketOwnershipCollection();
+        if (!collection || !ownerPlayFabId || !itemId || !origin?.playFabId) return;
+        const nowMs = Date.now();
+        const ref = collection.doc(makeBlackMarketOwnershipId(ownerPlayFabId, itemId, origin.playFabId));
+        const snap = await ref.get();
+        const current = snap?.exists ? (snap.data() || {}) : {};
+        const currentCount = Math.max(0, Math.floor(Number(current.count) || 0));
+        const nextCount = Math.max(0, currentCount + Math.floor(Number(delta) || 0));
+        const patch = {
+            ownerPlayFabId,
+            itemId,
+            originPlayFabId: origin.playFabId,
+            originDisplayName: String(origin.displayName || origin.playFabId).trim() || origin.playFabId,
+            count: nextCount,
+            updatedAtMs: nowMs
+        };
+        if (!snap?.exists) patch.createdAtMs = nowMs;
+        await ref.set(patch, { merge: true });
+    }
+
+    async function pickBlackMarketOriginForListing(sellerPlayFabId, itemId, itemData) {
+        if (!isBlackMarketOriginTrackedItem(itemId, itemData)) return null;
+        const existingOrigins = await getBlackMarketOwnershipEntries(sellerPlayFabId, itemId);
+        if (existingOrigins.length > 0) {
+            const origin = existingOrigins[0];
+            return {
+                playFabId: String(origin.originPlayFabId || sellerPlayFabId).trim() || sellerPlayFabId,
+                displayName: String(origin.originDisplayName || origin.originPlayFabId || sellerPlayFabId).trim() || sellerPlayFabId,
+                tracked: true
+            };
+        }
+        const displayName = await getPlayerDisplayName(sellerPlayFabId);
+        return {
+            playFabId: sellerPlayFabId,
+            displayName: displayName || sellerPlayFabId,
+            tracked: false
+        };
+    }
+
+    async function buildBlackMarketOriginSummaries(playFabId, itemIds = []) {
+        const ids = new Set((Array.isArray(itemIds) ? itemIds : [])
+            .map((itemId) => String(itemId || '').trim())
+            .filter(Boolean));
+        if (!ids.size) return {};
+        const entries = await getBlackMarketOwnershipEntries(playFabId);
+        const grouped = {};
+        entries.forEach((entry) => {
+            const itemId = String(entry.itemId || '').trim();
+            if (!ids.has(itemId)) return;
+            const count = Math.max(0, Math.floor(Number(entry.count) || 0));
+            if (count <= 0) return;
+            if (!grouped[itemId]) grouped[itemId] = [];
+            grouped[itemId].push({
+                playFabId: String(entry.originPlayFabId || '').trim(),
+                displayName: String(entry.originDisplayName || entry.originPlayFabId || '').trim(),
+                count
+            });
+        });
+        return Object.fromEntries(Object.entries(grouped).map(([itemId, originEntries]) => {
+            const names = [...new Set(originEntries.map((entry) => entry.displayName || entry.playFabId).filter(Boolean))];
+            return [itemId, {
+                itemId,
+                entries: originEntries,
+                displayText: names.length > 1 ? `${names[0]} ほか` : (names[0] || '')
+            }];
+        }));
+    }
+
     function normalizeSellRequestItems(items) {
         const sourceItems = Array.isArray(items) ? items : [];
         const byItemId = new Map();
@@ -773,6 +945,245 @@ function initializeInventoryRoutes(app, deps) {
             newBalance,
             items: sellItems
         };
+    }
+
+    async function listBlackMarketListings(playFabId) {
+        const collection = getBlackMarketCollection();
+        if (!collection) {
+            return { ok: false, status: 503, error: '闇市は現在利用できません。' };
+        }
+        const snap = await collection.where('status', '==', 'active').limit(100).get();
+        const listings = (snap?.docs || [])
+            .map(getListingSnapshotFromDoc)
+            .filter((listing) => listing.status === 'active')
+            .sort((a, b) => b.createdAtMs - a.createdAtMs)
+            .map((listing) => ({
+                ...listing,
+                isMine: String(listing.sellerPlayFabId || '') === String(playFabId || '')
+            }));
+        const myActiveCount = listings.filter((listing) => listing.isMine).length;
+        return { ok: true, listings, myActiveCount, maxActiveListings: BLACK_MARKET_MAX_ACTIVE_LISTINGS };
+    }
+
+    async function createBlackMarketListing(playFabId, itemId, priceValue) {
+        const collection = getBlackMarketCollection();
+        if (!collection) {
+            return { ok: false, status: 503, error: '闇市は現在利用できません。' };
+        }
+        const safeItemId = String(itemId || '').trim();
+        const price = normalizeBlackMarketPrice(priceValue);
+        if (!safeItemId || !price) {
+            return { ok: false, status: 400, error: '出品するアイテムと価格を確認してください。' };
+        }
+        if (isCurrencyInventoryItem(safeItemId)) {
+            return { ok: false, status: 400, error: 'Gは出品できません。' };
+        }
+        const activeListings = await getBlackMarketActiveListingsForSeller(playFabId);
+        if (activeListings.length >= BLACK_MARKET_MAX_ACTIVE_LISTINGS) {
+            return { ok: false, status: 400, error: `闇市に出せるのは${BLACK_MARKET_MAX_ACTIVE_LISTINGS}個までです。` };
+        }
+
+        const entityKey = await getEntityKeyForPlayFabId(playFabId);
+        const inventoryItems = await getAllInventoryItems(entityKey);
+        const sellContext = await getInventorySellContext(playFabId);
+        const sellableCount = getSellableInventoryItemCount(inventoryItems, safeItemId, sellContext);
+        if (sellableCount < 1) {
+            const itemData = normalizeCatalogDisplayData(safeItemId, catalogCache[safeItemId] || {});
+            const itemName = itemData.DisplayName || itemData.Title || safeItemId;
+            return { ok: false, status: 400, error: `${itemName}は出品できる所持数が足りません。` };
+        }
+
+        const snapshot = buildBlackMarketItemSnapshot(safeItemId);
+        const origin = await pickBlackMarketOriginForListing(playFabId, safeItemId, snapshot.itemData);
+        const listingRef = collection.doc();
+        const listingId = listingRef.id;
+        const stamp = `${listingId}-${Date.now()}`;
+        await subtractEconomyItem(playFabId, safeItemId, 1, {
+            idempotencyId: `black-market-list-item-${playFabId}-${safeItemId}-${stamp}`
+        });
+        let originAdjusted = false;
+        try {
+            if (origin?.tracked) {
+                await adjustBlackMarketOwnership(playFabId, safeItemId, origin, -1);
+                originAdjusted = true;
+            }
+            const nowMs = Date.now();
+            const sellerDisplayName = await getPlayerDisplayName(playFabId);
+            const listing = {
+                listingId,
+                sellerPlayFabId: playFabId,
+                sellerDisplayName: sellerDisplayName || playFabId,
+                itemId: safeItemId,
+                itemName: snapshot.itemName,
+                description: snapshot.description,
+                category: snapshot.category,
+                itemData: snapshot.itemData,
+                price,
+                status: 'active',
+                createdAtMs: nowMs,
+                updatedAtMs: nowMs
+            };
+            if (origin) {
+                listing.originPlayFabId = origin.playFabId;
+                listing.originDisplayName = origin.displayName || origin.playFabId;
+            }
+            await listingRef.set(listing);
+            return {
+                ok: true,
+                listing: getListingSnapshotFromDoc({ id: listingId, data: () => listing }),
+                myActiveCount: activeListings.length + 1,
+                maxActiveListings: BLACK_MARKET_MAX_ACTIVE_LISTINGS
+            };
+        } catch (error) {
+            if (originAdjusted) {
+                await adjustBlackMarketOwnership(playFabId, safeItemId, origin, 1).catch((originError) => {
+                    console.error('[black-market] origin restore failed:', originError?.errorMessage || originError?.message || originError);
+                });
+            }
+            await addEconomyItem(playFabId, safeItemId, 1, {
+                idempotencyId: `black-market-list-refund-${playFabId}-${safeItemId}-${stamp}`
+            }).catch((refundError) => {
+                console.error('[black-market] listing refund failed:', refundError?.errorMessage || refundError?.message || refundError);
+            });
+            throw error;
+        }
+    }
+
+    async function lockBlackMarketListing(listingId, expectedStatus, nextStatus, extraPatch = {}) {
+        const collection = getBlackMarketCollection();
+        if (!collection) return null;
+        const ref = collection.doc(listingId);
+        if (firestore && typeof firestore.runTransaction === 'function') {
+            return firestore.runTransaction(async (tx) => {
+                const snap = await tx.get(ref);
+                if (!snap?.exists) return null;
+                const listing = getListingSnapshotFromDoc({ id: ref.id, data: () => snap.data() });
+                if (listing.status !== expectedStatus) return { locked: false, listing };
+                tx.update(ref, {
+                    status: nextStatus,
+                    updatedAtMs: Date.now(),
+                    ...extraPatch
+                });
+                return { locked: true, listing };
+            });
+        }
+        const snap = await ref.get();
+        if (!snap?.exists) return null;
+        const listing = getListingSnapshotFromDoc({ id: ref.id, data: () => snap.data() });
+        if (listing.status !== expectedStatus) return { locked: false, listing };
+        await ref.update({
+            status: nextStatus,
+            updatedAtMs: Date.now(),
+            ...extraPatch
+        });
+        return { locked: true, listing };
+    }
+
+    async function setBlackMarketListingStatus(listingId, status, patch = {}) {
+        const collection = getBlackMarketCollection();
+        if (!collection) return;
+        await collection.doc(listingId).set({
+            status,
+            updatedAtMs: Date.now(),
+            ...patch
+        }, { merge: true });
+    }
+
+    async function cancelBlackMarketListing(playFabId, listingId) {
+        const safeListingId = String(listingId || '').trim();
+        if (!safeListingId) return { ok: false, status: 400, error: '出品が見つかりません。' };
+        const lock = await lockBlackMarketListing(safeListingId, 'active', 'cancelling');
+        if (!lock) return { ok: false, status: 404, error: '出品が見つかりません。' };
+        const listing = lock.listing;
+        if (!lock.locked) return { ok: false, status: 400, error: 'この出品は操作できません。' };
+        if (listing.sellerPlayFabId !== playFabId) {
+            await setBlackMarketListingStatus(safeListingId, 'active');
+            return { ok: false, status: 403, error: '自分の出品だけキャンセルできます。' };
+        }
+        try {
+            await addEconomyItem(playFabId, listing.itemId, 1, {
+                idempotencyId: `black-market-cancel-return-${safeListingId}`
+            });
+            if (listing.originPlayFabId) {
+                await adjustBlackMarketOwnership(playFabId, listing.itemId, {
+                    playFabId: listing.originPlayFabId,
+                    displayName: listing.originDisplayName || listing.originPlayFabId
+                }, 1);
+            }
+            await setBlackMarketListingStatus(safeListingId, 'cancelled', { cancelledAtMs: Date.now() });
+            return { ok: true, listingId: safeListingId };
+        } catch (error) {
+            await setBlackMarketListingStatus(safeListingId, 'active', {
+                lastError: error?.errorMessage || error?.message || String(error || '')
+            }).catch(() => {});
+            throw error;
+        }
+    }
+
+    async function buyBlackMarketListing(playFabId, listingId) {
+        const safeListingId = String(listingId || '').trim();
+        if (!safeListingId) return { ok: false, status: 400, error: '出品が見つかりません。' };
+        const lock = await lockBlackMarketListing(safeListingId, 'active', 'buying', { buyerPlayFabId: playFabId });
+        if (!lock) return { ok: false, status: 404, error: '出品が見つかりません。' };
+        const listing = lock.listing;
+        if (!lock.locked) return { ok: false, status: 400, error: 'この出品は購入できません。' };
+        if (listing.sellerPlayFabId === playFabId) {
+            await setBlackMarketListingStatus(safeListingId, 'active', { buyerPlayFabId: '' });
+            return { ok: false, status: 400, error: '自分の出品は購入できません。' };
+        }
+
+        let buyerCharged = false;
+        let itemGranted = false;
+        try {
+            await subtractEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, listing.price, {
+                idempotencyId: `black-market-buy-pay-${safeListingId}-${playFabId}`
+            });
+            buyerCharged = true;
+            await addEconomyItem(playFabId, listing.itemId, 1, {
+                idempotencyId: `black-market-buy-item-${safeListingId}-${playFabId}`
+            });
+            itemGranted = true;
+            if (listing.originPlayFabId) {
+                await adjustBlackMarketOwnership(playFabId, listing.itemId, {
+                    playFabId: listing.originPlayFabId,
+                    displayName: listing.originDisplayName || listing.originPlayFabId
+                }, 1);
+            }
+            await addEconomyItem(listing.sellerPlayFabId, VIRTUAL_CURRENCY_CODE, listing.price, {
+                idempotencyId: `black-market-buy-seller-gold-${safeListingId}`
+            });
+            const newBalance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE).catch(() => null);
+            await setBlackMarketListingStatus(safeListingId, 'sold', {
+                soldAtMs: Date.now(),
+                buyerPlayFabId: playFabId,
+                settlementStatus: 'settled',
+                lastError: ''
+            });
+            return { ok: true, listingId: safeListingId, newBalance };
+        } catch (error) {
+            const message = error?.errorMessage || error?.message || String(error || '');
+            if (buyerCharged && !itemGranted) {
+                await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, listing.price, {
+                    idempotencyId: `black-market-buy-refund-${safeListingId}-${playFabId}`
+                }).catch((refundError) => {
+                    console.error('[black-market] buyer refund failed:', refundError?.errorMessage || refundError?.message || refundError);
+                });
+            }
+            if (!itemGranted) {
+                await setBlackMarketListingStatus(safeListingId, 'active', {
+                    buyerPlayFabId: '',
+                    lastError: message
+                }).catch(() => {});
+            } else {
+                await setBlackMarketListingStatus(safeListingId, 'sold', {
+                    soldAtMs: Date.now(),
+                    buyerPlayFabId: playFabId,
+                    settlementStatus: 'settlementFailed',
+                    lastError: message
+                }).catch(() => {});
+            }
+            throw error;
+        }
     }
 
     async function ensureStarterMajorArcanaOwned(playFabId, nation, inventoryItems = null, entityKey = null) {
@@ -1015,6 +1426,15 @@ function initializeInventoryRoutes(app, deps) {
             });
             const inventoryList = Array.from(itemMap.values());
             const virtualCurrency = getVirtualCurrencyMap(items);
+            const itemIds = inventoryList.map((item) => item.itemId).filter(Boolean);
+            const blackMarketOrigins = await buildBlackMarketOriginSummaries(playFabId, itemIds).catch((error) => {
+                console.warn('[black-market] origin summary failed:', error?.errorMessage || error?.message || error);
+                return {};
+            });
+            const blackMarketMyActiveCount = await getBlackMarketActiveListingCount(playFabId).catch((error) => {
+                console.warn('[black-market] active count failed:', error?.errorMessage || error?.message || error);
+                return 0;
+            });
             const { awakenings: tarotAwakenings } = await getPlayerTarotProgress(playFabId);
             let isKing = false;
             try {
@@ -1044,7 +1464,10 @@ function initializeInventoryRoutes(app, deps) {
                 tarotSkills: {},
                 tarotSkillByCard: {},
                 tarotAwakenings,
-                activeTarotAwakening: null
+                activeTarotAwakening: null,
+                blackMarketOrigins,
+                blackMarketMyActiveCount,
+                blackMarketMaxActiveListings: BLACK_MARKET_MAX_ACTIVE_LISTINGS
             });
         } catch (error) {
             console.error('[インベントリ取得] 取得失敗', error.errorMessage || error.message || error);
@@ -1943,6 +2366,86 @@ function initializeInventoryRoutes(app, deps) {
     });
 
     // ガチャ
+    app.post('/api/black-market/list', async (req, res) => {
+        let { playFabId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'PlayFab IDがありません。' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
+        try {
+            const result = await listBlackMarketListings(playFabId);
+            if (!result.ok) return res.status(result.status || 400).json({ error: result.error });
+            return res.json({ status: 'success', ...result });
+        } catch (error) {
+            console.error('[black-market/list] error:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({ error: '闇市の一覧取得に失敗しました。', details: error?.errorMessage || error?.message });
+        }
+    });
+
+    app.post('/api/black-market/origins', async (req, res) => {
+        let { playFabId, itemIds } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'PlayFab IDがありません。' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
+        try {
+            const origins = await buildBlackMarketOriginSummaries(playFabId, itemIds);
+            return res.json({ status: 'success', origins });
+        } catch (error) {
+            console.error('[black-market/origins] error:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({ error: '初代所有者の取得に失敗しました。', details: error?.errorMessage || error?.message });
+        }
+    });
+
+    app.post('/api/black-market/create', async (req, res) => {
+        let { playFabId, itemId, price } = req.body || {};
+        if (!playFabId || !itemId) return res.status(400).json({ error: '出品するアイテムを選んでください。' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
+        try {
+            const result = await createBlackMarketListing(playFabId, itemId, price);
+            if (!result.ok) return res.status(result.status || 400).json({ error: result.error });
+            return res.json({ status: 'success', message: '闇市に出品しました。', ...result });
+        } catch (error) {
+            console.error('[black-market/create] error:', error?.errorMessage || error?.message || error);
+            if (error?.apiErrorInfo?.apiError === 'ItemNotFound') {
+                return res.status(400).json({ error: '出品するアイテムが見つかりません。' });
+            }
+            return res.status(500).json({ error: '闇市への出品に失敗しました。', details: error?.errorMessage || error?.message });
+        }
+    });
+
+    app.post('/api/black-market/cancel', async (req, res) => {
+        let { playFabId, listingId } = req.body || {};
+        if (!playFabId || !listingId) return res.status(400).json({ error: '出品が見つかりません。' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
+        try {
+            const result = await cancelBlackMarketListing(playFabId, listingId);
+            if (!result.ok) return res.status(result.status || 400).json({ error: result.error });
+            return res.json({ status: 'success', message: '出品を取り消しました。', ...result });
+        } catch (error) {
+            console.error('[black-market/cancel] error:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({ error: '出品の取り消しに失敗しました。', details: error?.errorMessage || error?.message });
+        }
+    });
+
+    app.post('/api/black-market/buy', async (req, res) => {
+        let { playFabId, listingId } = req.body || {};
+        if (!playFabId || !listingId) return res.status(400).json({ error: '購入する出品が見つかりません。' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
+        try {
+            const result = await buyBlackMarketListing(playFabId, listingId);
+            if (!result.ok) return res.status(result.status || 400).json({ error: result.error });
+            return res.json({ status: 'success', message: '闇市で購入しました。', ...result });
+        } catch (error) {
+            console.error('[black-market/buy] error:', error?.errorMessage || error?.message || error);
+            if (error?.apiErrorInfo?.apiError === 'InsufficientFunds') {
+                return res.status(400).json({ error: 'Gが足りません。' });
+            }
+            return res.status(500).json({ error: '闇市での購入に失敗しました。', details: error?.errorMessage || error?.message });
+        }
+    });
+
     app.post('/api/pull-gacha', async (req, res) => {
         let { playFabId } = req.body;
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });

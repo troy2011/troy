@@ -15,7 +15,11 @@ import {
     moveShipMajorArcana as requestMoveShipMajorArcana,
     useItem as requestUseItem,
     sellItem as requestSellItem,
-    sellItems as requestSellItems
+    sellItems as requestSellItems,
+    getBlackMarketListings as requestBlackMarketListings,
+    createBlackMarketListing as requestCreateBlackMarketListing,
+    cancelBlackMarketListing as requestCancelBlackMarketListing,
+    buyBlackMarketListing as requestBuyBlackMarketListing
 } from './playfabClient.js';
 import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites, resolveSpritePathByAvatarColor } from './avatar.js';
 import * as Player from './player.js';
@@ -64,6 +68,14 @@ let equipmentFetchPromise = null;
 let inventoryStickyResizeObserver = null;
 let inventorySellSelectionMode = false;
 let selectedInventorySellItemIds = new Set();
+let blackMarketVisible = false;
+let blackMarketListings = [];
+let blackMarketMyActiveCount = 0;
+let blackMarketMaxActiveListings = 5;
+let blackMarketOriginsByItemId = {};
+let blackMarketLoading = false;
+let blackMarketPendingListingId = '';
+let blackMarketCreatingItemId = '';
 // カードレベルデータ: { [itemId]: { level, maxLevel, quantity, nextLevelCost } }
 let cardLevelMap = {};
 let tarotBattleSkillsLoaded = false;
@@ -121,17 +133,155 @@ function showInventoryFeedback(msg, isError = false) {
     setTimeout(() => fb.remove(), 3000);
 }
 
+function normalizeBlackMarketPrice(value) {
+    const price = Math.floor(Number(value));
+    if (!Number.isFinite(price) || price < 1 || price > 9999) return 0;
+    return price;
+}
+
+function getBlackMarketOriginSummary(itemId) {
+    return blackMarketOriginsByItemId?.[String(itemId || '').trim()] || null;
+}
+
+function getBlackMarketOriginDisplay(itemId) {
+    const summary = getBlackMarketOriginSummary(itemId);
+    return String(summary?.displayText || '').trim();
+}
+
+function createBlackMarketButton(label, className, onClick) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `inventory-sell-control-btn ${className || ''}`.trim();
+    button.textContent = label;
+    if (typeof onClick === 'function') {
+        button.addEventListener('click', onClick);
+    }
+    return button;
+}
+
+function ensureInventoryActionDialog() {
+    if (typeof document === 'undefined') return null;
+    let dialog = document.getElementById('inventoryActionDialog');
+    if (dialog) return dialog;
+
+    dialog = document.createElement('div');
+    dialog.id = 'inventoryActionDialog';
+    dialog.className = 'inventory-action-dialog';
+    dialog.hidden = true;
+    dialog.innerHTML = `
+        <div class="inventory-action-dialog-sheet" role="dialog" aria-modal="true" aria-labelledby="inventoryActionDialogTitle">
+            <h3 id="inventoryActionDialogTitle"></h3>
+            <p class="inventory-action-dialog-message"></p>
+            <label class="inventory-action-dialog-field">
+                <span></span>
+                <input class="inventory-action-dialog-input" type="number" min="1" max="9999" inputmode="numeric">
+            </label>
+            <div class="inventory-action-dialog-error" aria-live="polite"></div>
+            <div class="inventory-action-dialog-actions">
+                <button type="button" class="inventory-action-dialog-cancel">キャンセル</button>
+                <button type="button" class="inventory-action-dialog-confirm">OK</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(dialog);
+    return dialog;
+}
+
+function showInventoryActionDialog(options = {}) {
+    const dialog = ensureInventoryActionDialog();
+    if (!dialog) return Promise.resolve({ confirmed: true, value: options.defaultValue || '' });
+
+    const titleEl = dialog.querySelector('#inventoryActionDialogTitle');
+    const messageEl = dialog.querySelector('.inventory-action-dialog-message');
+    const fieldEl = dialog.querySelector('.inventory-action-dialog-field');
+    const fieldLabelEl = fieldEl?.querySelector('span');
+    const inputEl = dialog.querySelector('.inventory-action-dialog-input');
+    const errorEl = dialog.querySelector('.inventory-action-dialog-error');
+    const cancelBtn = dialog.querySelector('.inventory-action-dialog-cancel');
+    const confirmBtn = dialog.querySelector('.inventory-action-dialog-confirm');
+
+    titleEl.textContent = options.title || '確認';
+    messageEl.textContent = options.message || '';
+    errorEl.textContent = '';
+    cancelBtn.textContent = options.cancelLabel || 'キャンセル';
+    confirmBtn.textContent = options.confirmLabel || 'OK';
+    confirmBtn.disabled = false;
+
+    const wantsInput = options.input === true;
+    fieldEl.hidden = !wantsInput;
+    if (wantsInput) {
+        fieldLabelEl.textContent = options.inputLabel || '価格';
+        inputEl.value = String(options.defaultValue ?? '1');
+        inputEl.min = String(options.min ?? 1);
+        inputEl.max = String(options.max ?? 9999);
+    } else {
+        inputEl.value = '';
+    }
+
+    dialog.hidden = false;
+    document.body.classList.add('modal-lock');
+    if (wantsInput) {
+        requestAnimationFrame(() => {
+            inputEl.focus();
+            inputEl.select();
+        });
+    } else {
+        requestAnimationFrame(() => confirmBtn.focus());
+    }
+
+    return new Promise((resolve) => {
+        const cleanup = (result) => {
+            dialog.hidden = true;
+            dialog.removeEventListener('click', handleBackdropClick);
+            dialog.removeEventListener('keydown', handleKeydown);
+            cancelBtn.removeEventListener('click', handleCancel);
+            confirmBtn.removeEventListener('click', handleConfirm);
+            syncModalLockState();
+            resolve(result);
+        };
+        const handleCancel = () => cleanup({ confirmed: false, value: '' });
+        const handleBackdropClick = (event) => {
+            if (event.target === dialog) handleCancel();
+        };
+        const handleKeydown = (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                handleCancel();
+            }
+            if (event.key === 'Enter' && wantsInput) {
+                event.preventDefault();
+                handleConfirm();
+            }
+        };
+        const handleConfirm = () => {
+            const value = wantsInput ? inputEl.value : '';
+            if (typeof options.validate === 'function') {
+                const error = options.validate(value);
+                if (error) {
+                    errorEl.textContent = error;
+                    inputEl.focus();
+                    inputEl.select();
+                    return;
+                }
+            }
+            confirmBtn.disabled = true;
+            cleanup({ confirmed: true, value });
+        };
+
+        cancelBtn.addEventListener('click', handleCancel);
+        confirmBtn.addEventListener('click', handleConfirm);
+        dialog.addEventListener('click', handleBackdropClick);
+        dialog.addEventListener('keydown', handleKeydown);
+    });
+}
+
 function syncInventoryStickyMetrics() {
     if (typeof document === 'undefined') return;
     const tabContent = document.getElementById('tabContentInventory');
     const switcher = document.getElementById('inventoryMobileSwitch');
     if (!tabContent || !switcher) return;
     const switchHeight = Math.ceil(switcher.getBoundingClientRect().height || 0);
-    const activePinnedPanel = tabContent.querySelector('.inventory-section.active[data-panel="tarot"]')
-        || tabContent.querySelector('.avatar-card.inventory-section.active');
-    const pinnedPanelHeight = Math.ceil(activePinnedPanel?.getBoundingClientRect().height || 0);
     tabContent.style.setProperty('--inventory-switch-sticky-height', `${switchHeight}px`);
-    tabContent.style.setProperty('--inventory-loadout-sticky-height', `${pinnedPanelHeight}px`);
 }
 
 function bindInventoryStickyMetrics() {
@@ -145,12 +295,6 @@ function bindInventoryStickyMetrics() {
         }
         inventoryStickyResizeObserver = new ResizeObserver(() => syncInventoryStickyMetrics());
         inventoryStickyResizeObserver.observe(switcher);
-        const tabContent = document.getElementById('tabContentInventory');
-        const activePinnedPanel = tabContent?.querySelector('.inventory-section.active[data-panel="tarot"]')
-            || tabContent?.querySelector('.avatar-card.inventory-section.active');
-        if (activePinnedPanel) {
-            inventoryStickyResizeObserver.observe(activePinnedPanel);
-        }
     }
     if (typeof window !== 'undefined' && window.__inventoryStickyMetricsBound !== true) {
         window.__inventoryStickyMetricsBound = true;
@@ -972,32 +1116,8 @@ function renderInventoryListSummary(category, filteredItems, allItems) {
 
     const summaryEl = document.getElementById('inventoryListSummary');
     if (!summaryEl) return;
-
-    const filtered = Array.isArray(filteredItems) ? filteredItems : [];
-    const all = Array.isArray(allItems) ? allItems : [];
-    const equippedCount = Object.values(myCurrentEquipment || {}).filter(Boolean).length;
-    const deckCount = getCommonTarotDeck().length;
-    const chips = [
-        ['表示', category === 'All' ? '全部' : getInventoryCategoryLabel(category)],
-        ['種類', `${filtered.length}`],
-        ['総数', `${countInventoryEntriesForDisplay(filtered)}`],
-        ['装備', `${equippedCount}/4`],
-        ['デッキ', `${deckCount}/5`]
-    ];
-    if (category !== 'All') {
-        chips.splice(3, 0, ['全体', `${all.length}`]);
-    }
-
-    summaryEl.replaceChildren(...chips.map(([label, value]) => {
-        const chip = document.createElement('span');
-        chip.className = 'inventory-summary-chip';
-        const labelEl = document.createElement('small');
-        labelEl.textContent = label;
-        const valueEl = document.createElement('strong');
-        valueEl.textContent = value;
-        chip.append(labelEl, valueEl);
-        return chip;
-    }));
+    summaryEl.replaceChildren();
+    summaryEl.hidden = true;
 }
 
 function getSelectedInventorySellEntries() {
@@ -1041,6 +1161,15 @@ function renderInventorySellControls(visibleItems = []) {
     if (!controls) return;
     controls.innerHTML = '';
     pruneInventorySellSelection();
+
+    const marketButton = createBlackMarketButton(blackMarketVisible ? '闇市を閉じる' : '闇市', blackMarketVisible ? 'is-active' : '', async () => {
+        blackMarketVisible = !blackMarketVisible;
+        renderInventoryGrid(activeInventoryCategory);
+        if (blackMarketVisible) {
+            await loadBlackMarketListings({ force: true });
+        }
+    });
+    controls.appendChild(marketButton);
 
     const toggleButton = document.createElement('button');
     toggleButton.type = 'button';
@@ -1096,6 +1225,137 @@ function renderInventorySellControls(visibleItems = []) {
         sellSelectedInventoryItems();
     });
     controls.appendChild(sellButton);
+}
+
+function getBlackMarketPanelElement() {
+    return document.getElementById('blackMarketPanel');
+}
+
+function createBlackMarketListingItem(listing) {
+    const item = {
+        itemId: listing.itemId,
+        name: listing.itemName || listing.itemId,
+        description: listing.description || listing.itemData?.Description || '',
+        customData: listing.itemData || {}
+    };
+    const row = document.createElement('article');
+    row.className = 'black-market-listing';
+    row.dataset.listingId = listing.listingId;
+
+    const iconFrame = document.createElement('div');
+    iconFrame.className = 'black-market-listing-icon';
+    const icon = document.createElement('div');
+    setInventoryIcon(
+        icon,
+        getInventorySpriteFrame(item),
+        1,
+        item.customData?.Category,
+        window.myAvatarBaseInfo?.AvatarColor
+    );
+    iconFrame.appendChild(icon);
+
+    const body = document.createElement('div');
+    body.className = 'black-market-listing-body';
+    const title = document.createElement('strong');
+    title.textContent = item.name;
+    const meta = document.createElement('span');
+    meta.textContent = `${listing.sellerDisplayName || listing.sellerPlayFabId || 'Player'} / ${listing.price}G`;
+    body.append(title, meta);
+    const originText = String(listing.originDisplayName || '').trim();
+    if (originText) {
+        const origin = document.createElement('small');
+        origin.textContent = `初代所有者: ${originText}`;
+        body.appendChild(origin);
+    }
+
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.className = `black-market-listing-action${listing.isMine ? ' is-cancel' : ' is-buy'}`;
+    const isPending = blackMarketPendingListingId === String(listing.listingId || '');
+    action.textContent = isPending ? '処理中' : (listing.isMine ? '取り消す' : '購入');
+    action.disabled = blackMarketLoading || isPending;
+    if (isPending) action.setAttribute('aria-busy', 'true');
+    action.addEventListener('click', async () => {
+        if (action.disabled) return;
+        if (listing.isMine) {
+            await cancelBlackMarketListing(listing.listingId);
+        } else {
+            await buyBlackMarketListing(listing.listingId, listing.price);
+        }
+    });
+
+    row.append(iconFrame, body, action);
+    return row;
+}
+
+function renderBlackMarketPanel() {
+    if (typeof document === 'undefined') return;
+    const panel = getBlackMarketPanelElement();
+    if (!panel) return;
+    panel.hidden = !blackMarketVisible;
+    if (!blackMarketVisible) {
+        panel.innerHTML = '';
+        return;
+    }
+
+    panel.innerHTML = '';
+    const head = document.createElement('div');
+    head.className = 'black-market-panel-head';
+    const title = document.createElement('h3');
+    title.textContent = '闇市';
+    const count = document.createElement('span');
+    count.textContent = `出品 ${blackMarketMyActiveCount}/${blackMarketMaxActiveListings}`;
+    const refresh = document.createElement('button');
+    refresh.type = 'button';
+    refresh.className = 'black-market-refresh';
+    refresh.textContent = '更新';
+    refresh.disabled = blackMarketLoading;
+    refresh.addEventListener('click', () => loadBlackMarketListings({ force: true }));
+    head.append(title, count, refresh);
+    panel.appendChild(head);
+
+    if (blackMarketLoading) {
+        const loading = document.createElement('p');
+        loading.className = 'black-market-empty';
+        loading.textContent = '読み込み中...';
+        panel.appendChild(loading);
+        return;
+    }
+
+    if (!blackMarketListings.length) {
+        const empty = document.createElement('p');
+        empty.className = 'black-market-empty';
+        empty.textContent = '出品はありません。';
+        panel.appendChild(empty);
+        return;
+    }
+
+    const list = document.createElement('div');
+    list.className = 'black-market-list';
+    blackMarketListings.forEach((listing) => {
+        list.appendChild(createBlackMarketListingItem(listing));
+    });
+    panel.appendChild(list);
+}
+
+async function loadBlackMarketListings(options = {}) {
+    const playFabId = window.myPlayFabId || null;
+    if (!playFabId) return null;
+    blackMarketLoading = true;
+    renderBlackMarketPanel();
+    try {
+        const data = await requestBlackMarketListings(playFabId, { isSilent: options.isSilent === true });
+        blackMarketListings = Array.isArray(data?.listings) ? data.listings : [];
+        blackMarketMyActiveCount = Number(data?.myActiveCount ?? blackMarketMyActiveCount) || 0;
+        blackMarketMaxActiveListings = Number(data?.maxActiveListings ?? blackMarketMaxActiveListings) || 5;
+        return data;
+    } catch (error) {
+        showInventoryFeedback(error?.message || '闇市の取得に失敗しました。', true);
+        return null;
+    } finally {
+        blackMarketLoading = false;
+        renderBlackMarketPanel();
+    }
 }
 
 function getInventoryLayout(category) {
@@ -1708,7 +1968,9 @@ function createInventoryCell(item, requestedCategory) {
     cell.setAttribute('role', 'button');
     cell.tabIndex = 0;
     const compareSummary = getInventoryComparisonSummary(item, canonicalCategory);
-    const quickActions = getInventoryQuickActions(item, canonicalCategory);
+    const quickActions = (!isTarotCard && !isEquipmentCard)
+        ? getInventoryQuickActions(item, canonicalCategory)
+        : [];
     const quickAction = quickActions[0] || null;
     const rarityTone = getInventoryRarityTone(item);
     cell.classList.add(`is-rarity-${rarityTone}`);
@@ -1891,18 +2153,6 @@ function createInventoryCell(item, requestedCategory) {
         if (quickActions.length) {
             const actionWrap = document.createElement('div');
             actionWrap.className = 'inventory-item-actions';
-            if (isTarotCard || isEquipmentCard) {
-                const detailButton = document.createElement('button');
-                detailButton.type = 'button';
-                detailButton.className = 'inventory-item-quick-action is-detail';
-                detailButton.textContent = '詳細';
-                detailButton.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    showItemDetailModal(item);
-                });
-                actionWrap.appendChild(detailButton);
-            }
             quickActions.forEach((action) => {
                 const actionButton = document.createElement('button');
                 actionButton.type = 'button';
@@ -2067,6 +2317,9 @@ export async function getInventory(playFabId, options = {}) {
         const contributionValue = data.contribution ?? data.experience ?? 0;
         myInventory = data.inventory;
         myVirtualCurrency = data.virtualCurrency || {};
+        blackMarketOriginsByItemId = data.blackMarketOrigins || {};
+        blackMarketMyActiveCount = Number(data.blackMarketMyActiveCount ?? blackMarketMyActiveCount) || 0;
+        blackMarketMaxActiveListings = Number(data.blackMarketMaxActiveListings ?? blackMarketMaxActiveListings) || 5;
         myExperience = Number(contributionValue || 0);
         myExperienceProgress = normalizeExperienceProgress(data.contributionProgress, myExperience);
         myIsKing = !!data.isKing;
@@ -2130,6 +2383,9 @@ export async function refreshResourceSummary(playFabId, options = {}) {
             myInventory = data.inventory;
         }
         myVirtualCurrency = data.virtualCurrency || {};
+        blackMarketOriginsByItemId = data.blackMarketOrigins || {};
+        blackMarketMyActiveCount = Number(data.blackMarketMyActiveCount ?? blackMarketMyActiveCount) || 0;
+        blackMarketMaxActiveListings = Number(data.blackMarketMaxActiveListings ?? blackMarketMaxActiveListings) || 5;
         myExperience = Number(contributionValue || 0);
         myExperienceProgress = normalizeExperienceProgress(data.contributionProgress, myExperience);
         myIsKing = !!data.isKing;
@@ -2307,10 +2563,12 @@ export async function sellSelectedInventoryItems() {
         showInventoryFeedback('売却するアイテムを選んでください。', true);
         return;
     }
-    const confirmed = typeof window.confirm === 'function'
-        ? window.confirm(`${selectedCount}個を${selectedCount}Gで売却しますか？`)
-        : true;
-    if (!confirmed) return;
+    const confirmed = await showInventoryActionDialog({
+        title: 'まとめて売却',
+        message: `${selectedCount}個を${selectedCount}Gで売却しますか？`,
+        confirmLabel: '売却'
+    });
+    if (!confirmed.confirmed) return;
 
     const payload = selectedEntries.map((entry) => ({
         itemId: entry.item.itemId,
@@ -2325,6 +2583,101 @@ export async function sellSelectedInventoryItems() {
         if (typeof window.showRpgMessage === 'function') {
             window.showRpgMessage(data.message || `${selectedCount}個を売却した。`);
         }
+    }
+}
+
+async function refreshInventoryAfterBlackMarketAction(message = '') {
+    const playFabId = window.myPlayFabId || null;
+    if (!playFabId) return;
+    await getInventory(playFabId, { force: true });
+    await Player.getPoints(playFabId);
+    if (blackMarketVisible) {
+        await loadBlackMarketListings({ force: true, isSilent: true });
+    }
+    if (message) {
+        showInventoryFeedback(message);
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage(message);
+        }
+    }
+}
+
+async function showBlackMarketListingPrompt(item) {
+    const playFabId = window.myPlayFabId || null;
+    if (!playFabId || !item?.itemId) return;
+    if (getInventorySellableCount(item) <= 0) {
+        showInventoryFeedback('このアイテムは出品できません。', true);
+        return;
+    }
+    if (blackMarketMyActiveCount >= blackMarketMaxActiveListings) {
+        showInventoryFeedback(`闇市に出せるのは${blackMarketMaxActiveListings}個までです。`, true);
+        return;
+    }
+    const result = await showInventoryActionDialog({
+        title: '闇市に出品',
+        message: `${item.name || 'アイテム'}の価格を1-9999Gで入力してください。`,
+        input: true,
+        inputLabel: '価格',
+        defaultValue: '1',
+        min: 1,
+        max: 9999,
+        confirmLabel: '出品',
+        validate: (value) => (normalizeBlackMarketPrice(value) ? '' : '価格は1-9999Gで入力してください。')
+    });
+    if (!result.confirmed) return;
+    const price = normalizeBlackMarketPrice(result.value);
+    if (!price) {
+        showInventoryFeedback('価格は1-9999Gで入力してください。', true);
+        return;
+    }
+    blackMarketCreatingItemId = String(item.itemId || '');
+    try {
+        const data = await requestCreateBlackMarketListing(playFabId, item.itemId, price);
+        blackMarketVisible = true;
+        closeItemDetailModal();
+        await refreshInventoryAfterBlackMarketAction(data?.message || '闇市に出品しました。');
+    } finally {
+        blackMarketCreatingItemId = '';
+    }
+}
+
+async function cancelBlackMarketListing(listingId) {
+    const playFabId = window.myPlayFabId || null;
+    if (!playFabId || !listingId) return;
+    const result = await showInventoryActionDialog({
+        title: '出品取り消し',
+        message: 'この出品を取り消しますか？',
+        confirmLabel: '取り消す'
+    });
+    if (!result.confirmed) return;
+    blackMarketPendingListingId = String(listingId);
+    renderBlackMarketPanel();
+    try {
+        const data = await requestCancelBlackMarketListing(playFabId, listingId);
+        await refreshInventoryAfterBlackMarketAction(data?.message || '出品を取り消しました。');
+    } finally {
+        blackMarketPendingListingId = '';
+        renderBlackMarketPanel();
+    }
+}
+
+async function buyBlackMarketListing(listingId, price) {
+    const playFabId = window.myPlayFabId || null;
+    if (!playFabId || !listingId) return;
+    const result = await showInventoryActionDialog({
+        title: '闇市で購入',
+        message: `${price}Gで購入しますか？`,
+        confirmLabel: '購入'
+    });
+    if (!result.confirmed) return;
+    blackMarketPendingListingId = String(listingId);
+    renderBlackMarketPanel();
+    try {
+        const data = await requestBuyBlackMarketListing(playFabId, listingId);
+        await refreshInventoryAfterBlackMarketAction(data?.message || '闇市で購入しました。');
+    } finally {
+        blackMarketPendingListingId = '';
+        renderBlackMarketPanel();
     }
 }
 
@@ -2409,6 +2762,7 @@ export function renderInventoryGrid(category) {
         return compareInventoryItemsDefault(a, b, category);
     });
     renderInventorySellControls(sorted);
+    renderBlackMarketPanel();
 
     if (sorted.length === 0) {
         gridEl.innerHTML = `<p style="grid-column: 1 / -1; text-align: center;">${getEmptyInventoryMessage(category)}</p>`;
@@ -2824,6 +3178,10 @@ function showItemDetailModal(item) {
         appendItemDetailStat(statsEl, '効果', effectText);
     }
     appendTarotMetaStats(statsEl, cd);
+    const originDisplay = getBlackMarketOriginDisplay(item.itemId);
+    if (originDisplay) {
+        appendItemDetailStat(statsEl, '初代所有者', originDisplay, 'origin');
+    }
     if (isTarotMajorCategory(canonicalCategory)) {
         const position = getShipMajorArcanaPosition(item.itemId);
         appendItemDetailStat(statsEl, '船装備', position > 0 ? `${position}枠目` : '未装備', 'tarot');
@@ -2952,6 +3310,12 @@ function showItemDetailModal(item) {
     }
 
     if (getInventorySellableCount(item) > 0) {
+        const marketDisabled = blackMarketMyActiveCount >= blackMarketMaxActiveListings;
+        const marketBusy = blackMarketCreatingItemId === String(item.itemId || '');
+        if (marketDisabled) {
+            appendActionNote(`闇市 出品 ${blackMarketMyActiveCount}/${blackMarketMaxActiveListings}`);
+        }
+        addAction(marketBusy ? '出品中' : '闇市に出す', marketDisabled || marketBusy ? 'disabled' : 'market', () => showBlackMarketListingPrompt(item), { disabled: marketDisabled || marketBusy });
         addAction('売却 1G', 'sell', () => showSellConfirmationModal(instanceId, item.itemId));
     }
 
