@@ -265,7 +265,7 @@ test('The World freezes the enemy sprite until time stop expires', async ({ page
   ).not.toBe(frozenFrame);
 });
 
-test('5 skip drenches the enemy with a wave without showing a silence icon', async ({ page }) => {
+test('5 skip leaves a wet film and droplets without raising a wave or showing a silence icon', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   const enemySprite = page.locator('#tarotKingdomEnemySprite');
   const skipSoak = page.locator('.tarot-kingdom-enemy-skip-soak');
@@ -281,19 +281,22 @@ test('5 skip drenches the enemy with a wave without showing a silence icon', asy
 
   const soakStyle = await skipSoak.evaluate((node) => {
     const style = getComputedStyle(node);
-    const waveStyle = getComputedStyle(node, '::before');
+    const filmStyle = getComputedStyle(node, '::before');
+    const dropsStyle = getComputedStyle(node, '::after');
     return {
-      waveBackgroundImage: waveStyle.backgroundImage,
-      waveAnimationName: waveStyle.animationName,
+      filmBackgroundImage: filmStyle.backgroundImage,
+      filmAnimationName: filmStyle.animationName,
+      dropsAnimationName: dropsStyle.animationName,
       animationName: style.animationName,
       width: style.width,
       height: style.height
     };
   });
-  expect(soakStyle.waveBackgroundImage).toMatch(/field-skip-wave\.webp/);
-  expect(soakStyle.waveBackgroundImage).not.toMatch(/icons\.png/);
-  expect(soakStyle.animationName).toContain('tarotKingdomEnemySkipSoakIn');
-  expect(soakStyle.waveAnimationName).toContain('tarotKingdomEnemySkipWaveWash');
+  expect(soakStyle.filmBackgroundImage).toContain('gradient');
+  expect(soakStyle.filmBackgroundImage).not.toMatch(/field-skip-wave\.webp|icons\.png/);
+  expect(soakStyle.animationName).toBe('none');
+  expect(soakStyle.filmAnimationName).toBe('none');
+  expect(soakStyle.dropsAnimationName).toBe('tarotKingdomEnemySkipWaterDrops');
   expect(parseFloat(soakStyle.width)).toBeGreaterThan(80);
   expect(parseFloat(soakStyle.height)).toBeGreaterThan(60);
 

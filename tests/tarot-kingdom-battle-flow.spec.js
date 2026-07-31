@@ -1517,12 +1517,16 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.finish.leaveAce.ok).toBe(true);
     expect(audit.finish.worldRole).toEqual({ ok: true, roleKey: 'TheWorld' });
     expect(audit.worldAgainstFiveCardRole.ok).toBe(false);
-    expect(audit.worldAgainstFiveCardRole.reason).toContain('5枚役に返せません');
-    expect(audit.worldReverse.worldOverKingNormal.ok).toBe(true);
-    expect(audit.worldReverse.worldOverKingReverse.ok).toBe(false);
-    expect(audit.worldReverse.worldOverKingReverse.reason).toContain('小さい数値');
-    expect(audit.worldReverse.tenOverWorldNormal.ok).toBe(false);
-    expect(audit.worldReverse.tenOverWorldReverse.ok).toBe(true);
+    expect(audit.worldAgainstFiveCardRole.reason).toContain('大アルカナ1枚');
+    expect(audit.worldReverse.worldOverMinorNormal.ok).toBe(false);
+    expect(audit.worldReverse.worldOverMinorNormal.reason).toContain('大アルカナ1枚');
+    expect(audit.worldReverse.worldOverMinorReverse.ok).toBe(false);
+    expect(audit.worldReverse.worldOverMajorNormal.ok).toBe(true);
+    expect(audit.worldReverse.worldOverMajorReverse.ok).toBe(true);
+    expect(audit.worldReverse.worldOverMajorPair.ok).toBe(false);
+    expect(audit.worldReverse.worldOverMajorPair.reason).toContain('大アルカナ1枚');
+    expect(audit.worldReverse.minorOverWorldNormal.ok).toBe(false);
+    expect(audit.worldReverse.minorOverWorldReverse.ok).toBe(true);
     expect(audit.schema7Compatibility.devilOnNumberTen.ok).toBe(true);
     expect(audit.schema7Compatibility.judgmentFinish.ok).toBe(true);
     expect(audit.schema7Compatibility.worldFinish.ok).toBe(true);
@@ -1531,9 +1535,9 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.worldSingle).toMatchObject({
       ok: true,
       handBefore: 2,
-      handAfter: 2,
+      handAfter: 1,
       deckBefore: 1,
-      deckAfter: 0,
+      deckAfter: 1,
       starsBefore: 0,
       starsAfter: 1,
       trickCleared: true,
@@ -1548,8 +1552,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
       phase: 'turn'
     });
     expect(audit.worldJudgmentOrder).toEqual({
-      handCountAfterForcedDraw: 2,
-      deckCount: 0,
+      handCountAfterClear: 1,
+      deckCount: 1,
       pendingJudgment: 0,
       followup: 'world'
     });
@@ -1600,7 +1604,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       expect(audit.descriptions[String(number)]).toContain('同スート場専用 / 初手不可');
     }
     expect(audit.descriptions['20']).toContain('A不可 / 11バック / 墓地回収');
-    expect(audit.descriptions['21']).toContain('単独で即クリア / 強制ドロー');
+    expect(audit.descriptions['21']).toContain('大アルカナ1枚に返して即クリア');
   });
 
   test('three consecutive blocked-leader draws knock out the player and a successful play resets the count', async ({ page }) => {

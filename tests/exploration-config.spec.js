@@ -56,7 +56,8 @@ test('online exploration reward receipts are scoped to each participant', () => 
         itemId: 'reward_guest',
         displayName: '救援の宝',
         rarity: 'rare',
-        category: 'material'
+        category: 'material',
+        quantity: 2
       }]
     },
     progress: { highestUnlockedStage: 2 }
@@ -69,12 +70,17 @@ test('online exploration reward receipts are scoped to each participant', () => 
     reward: {
       ItemId: 'reward_guest',
       DisplayName: '救援の宝',
-      Rarity: 'rare'
+      Rarity: 'rare',
+      Quantity: 2
     },
     report: {
       id: 'exp-online-1',
       stageRank: 2,
-      rewardCount: 1
+      rewardCount: 1,
+      rewardItems: [{
+        itemId: 'reward_guest',
+        quantity: 2
+      }]
     },
     progress: { highestUnlockedStage: 2 }
   });

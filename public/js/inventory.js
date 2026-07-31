@@ -1236,12 +1236,10 @@ function renderInventorySellControls(visibleItems = []) {
     controls.innerHTML = '';
     pruneInventorySellSelection();
 
-    const marketButton = createBlackMarketButton(blackMarketVisible ? '闇市を閉じる' : '闇市', blackMarketVisible ? 'is-active' : '', async () => {
-        blackMarketVisible = !blackMarketVisible;
+    const marketButton = createBlackMarketButton('闇市', blackMarketVisible ? 'is-active' : '', async () => {
+        blackMarketVisible = true;
         renderInventoryGrid(activeInventoryCategory);
-        if (blackMarketVisible) {
-            await loadBlackMarketListings({ force: true });
-        }
+        await loadBlackMarketListings({ force: true });
     });
     controls.appendChild(marketButton);
 
@@ -1399,7 +1397,7 @@ function renderBlackMarketPanel() {
     refresh.addEventListener('click', () => loadBlackMarketListings({ force: true }));
     const close = document.createElement('button');
     close.type = 'button';
-    close.className = 'black-market-refresh';
+    close.className = 'black-market-close';
     close.textContent = '×';
     close.setAttribute('aria-label', '闇市を閉じる');
     close.addEventListener('click', () => {

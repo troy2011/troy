@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="robots" content="noindex,follow">
     <title>Tarot Kingdom Preview</title>
-    <link rel="stylesheet" href="./style.css?v=20260731-lock-pentacle-green1">
+    <link rel="stylesheet" href="./style.css?v=20260731-skip-wet3">
     <link rel="stylesheet" href="./tarot-kingdom-summons.css?v=20260731-summon-cinematic27-v1">
     <style>
         html, body {
@@ -198,7 +198,7 @@
         window.myLineProfile = { displayName: 'Preview' };
         window.__TAROT_KINGDOM_PREVIEW__ = true;
 
-        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260731-skip-soak1';
+        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260731-world-single1';
 
         window.TarotKingdomPreview = {
             load: () => loadTarotKingdomPage(),
@@ -208,8 +208,13 @@
         loadTarotKingdomPage()
             .then(() => {
                 const fixture = new URLSearchParams(window.location.search).get('tkfixture');
-                if (fixture !== 'raid-transform') return;
                 const debug = window.TarotKingdomDebug;
+                if (fixture === 'skip-soak') {
+                    debug?.battleScenario({ withTrick: true });
+                    debug?.battleSetEnemyAreaSeal(true);
+                    return;
+                }
+                if (fixture !== 'raid-transform') return;
                 debug?.battleScenario({
                     withTrick: false,
                     enemyHp: 0,

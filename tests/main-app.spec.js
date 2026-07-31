@@ -2900,7 +2900,7 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
           monsterName: 'パピル',
           monsterIsBoss: false,
           rewardCount: 1,
-          rewardItems: [{ itemId: 'mist_blade', displayName: '霧切りの刃', rarity: 'rare', quantity: 1 }],
+          rewardItems: [{ itemId: 'mist_blade', displayName: '霧切りの刃', rarity: 'rare', quantity: 2 }],
           bossLog: '戦闘開始\n船が島へ接近。\n宝箱を発見した。'
         },
         petOffer: null
@@ -2975,6 +2975,12 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
 
   await bootstrapMainApp(page, { fixedHour: 18 });
   await page.evaluate(() => {
+    const refreshInventory = window.refreshInventory;
+    window.__explorationRewardInventoryRefreshes = [];
+    window.refreshInventory = async (options = {}) => {
+      window.__explorationRewardInventoryRefreshes.push(options);
+      return refreshInventory(options);
+    };
     window.launchTarotKingdomExplorationBattle = async (context) => {
       const roundFinisher = {
         roundNo: 3,
@@ -3035,12 +3041,16 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await expect(sequence.locator('[data-exploration-sequence-progress]')).toHaveCount(0);
   await expect(sequence.locator('.exploration-sequence-route')).toHaveCount(0);
   const readVoyageMetrics = () => sequence.evaluate((element) => {
+    const scene = element.querySelector('.exploration-sequence-scene');
     const ship = element.querySelector('.exploration-sequence-ship');
     const island = element.querySelector('.exploration-sequence-island');
+    const sceneRect = scene.getBoundingClientRect();
     const shipRect = ship.getBoundingClientRect();
     const islandRect = island.getBoundingClientRect();
     const islandStyle = getComputedStyle(island);
     return {
+      sceneLeft: sceneRect.left,
+      sceneRight: sceneRect.right,
       shipLeft: shipRect.left,
       shipRight: shipRect.right,
       shipAnimationTiming: getComputedStyle(ship).animationTimingFunction,
@@ -3091,13 +3101,17 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   for (let index = 1; index < shipLefts.length; index += 1) {
     expect(shipLefts[index]).toBeGreaterThanOrEqual(shipLefts[index - 1] - 1);
   }
+  for (const metrics of [sailMetrics, approachMetrics, landingMetrics, arrivalMetrics, encounterMetrics]) {
+    expect(metrics.shipLeft).toBeGreaterThanOrEqual(metrics.sceneLeft);
+    expect(metrics.shipRight).toBeLessThanOrEqual(metrics.sceneRight);
+  }
   expect(sailMetrics.islandOpacity).toBe('1');
   expect(encounterMetrics.islandOpacity).toBe('1');
   expect(sailMetrics.islandFilter).toContain('blur');
   expect(Math.abs(encounterMetrics.islandWidth - sailMetrics.islandWidth)).toBeLessThanOrEqual(1);
   expect(Math.abs(encounterMetrics.islandHeight - sailMetrics.islandHeight)).toBeLessThanOrEqual(1);
-  expect(encounterMetrics.islandLeft - encounterMetrics.shipRight).toBeGreaterThanOrEqual(-24);
-  expect(encounterMetrics.islandLeft - encounterMetrics.shipRight).toBeLessThanOrEqual(-10);
+  expect(encounterMetrics.islandLeft - encounterMetrics.shipRight).toBeGreaterThanOrEqual(-38);
+  expect(encounterMetrics.islandLeft - encounterMetrics.shipRight).toBeLessThanOrEqual(-24);
   expect(sailMetrics.shipAnimationTiming).toContain('cubic-bezier(0.33, 0.33, 0.55, 1)');
   expect(Math.abs(encounterMonsterMetrics.monsterCenterX - encounterMonsterMetrics.islandCenterX)).toBeLessThanOrEqual(2);
   expect(Math.abs(encounterMonsterMetrics.monsterCenterY - encounterMonsterMetrics.islandCenterY)).toBeLessThanOrEqual(2);
@@ -3205,6 +3219,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await expect(result.locator('.exploration-sequence-mini-chest')).toHaveCount(0);
   await expect(result.locator('.exploration-result-details')).toHaveCSS('opacity', '1');
   await expect(result.locator('.exploration-result-reward')).toContainText('霧切りの刃');
+  await expect(result.locator('.exploration-result-reward')).toContainText('×2');
+  await expect.poll(() => page.evaluate(() => window.__explorationRewardInventoryRefreshes)).toContainEqual({ force: true });
   await expect(result.locator('[data-exploration-result-state]')).toHaveText('勝利');
   expect(await result.locator('.exploration-result-dialog').evaluate((element) => getComputedStyle(element).overflowX)).toBe('hidden');
   await expect(result.locator('[data-exploration-result-open]')).toBeDisabled();
@@ -6702,5 +6718,7 @@ test('inventory black market creates listing and shows owner-aware actions', asy
   await expect(page.locator('#blackMarketPanel .black-market-listing')).toHaveCount(2);
   await expect(page.locator('#blackMarketPanel .black-market-listing-action.is-cancel')).toHaveCount(1);
   await expect(page.locator('#blackMarketPanel .black-market-listing-action.is-buy')).toHaveCount(1);
+  await page.locator('#blackMarketPanel .black-market-close').click();
+  await expect(page.locator('#blackMarketPanel')).toBeHidden();
   await expectNoPageErrors(errors);
 });

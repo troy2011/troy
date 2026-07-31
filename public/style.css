@@ -872,8 +872,10 @@ button.home-player-ship-name {
 }
 
 .exploration-sequence-ship {
+    --exploration-ship-start-left: clamp(28px, calc(100% - 540px), 42px);
+    --exploration-ship-docked-left: calc(100% - 236px);
     position: absolute;
-    left: max(-54px, calc(100% - 540px));
+    left: var(--exploration-ship-start-left);
     bottom: 64px;
     width: 64px;
     height: 64px;
@@ -1320,7 +1322,7 @@ button.home-player-ship-name {
 }
 
 .exploration-sequence-overlay.is-encounter-choice .exploration-sequence-ship {
-    left: calc(100% - 248px);
+    left: var(--exploration-ship-docked-left);
     bottom: 64px;
     opacity: 0.92;
     transform: scale(1.8);
@@ -1378,12 +1380,12 @@ button.home-player-ship-name {
 
 @keyframes explorationSequenceVoyage {
     from {
-        left: max(-54px, calc(100% - 540px));
+        left: var(--exploration-ship-start-left);
         bottom: 64px;
         transform: scale(1.8);
     }
     to {
-        left: calc(100% - 248px);
+        left: var(--exploration-ship-docked-left);
         bottom: 64px;
         transform: scale(1.8);
     }
@@ -28815,12 +28817,11 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory .black-market-panel {
     position: fixed;
     inset: 0;
-    z-index: 4100;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    padding: 16px max(8px, env(safe-area-inset-right)) calc(var(--nav-height) + env(safe-area-inset-bottom) + 18px) max(8px, env(safe-area-inset-left));
-    background: rgba(0, 0, 0, 0.42);
+    z-index: 10080;
+    display: grid;
+    place-items: center;
+    padding: max(18px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    background: rgba(0, 0, 0, 0.58);
 }
 
 #tabContentInventory .black-market-panel[hidden] {
@@ -28828,8 +28829,8 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .black-market-sheet {
-    width: min(480px, calc(100vw - 16px));
-    max-height: min(74dvh, 620px);
+    width: min(520px, calc(100vw - 24px));
+    max-height: min(82dvh, 640px);
     margin: 0 auto;
     padding: 10px;
     overflow: auto;
@@ -28837,7 +28838,7 @@ body[data-sea-tone] .home-hero-card {
     border-radius: 8px;
     border-image: url("./assets/ui/panels/panel-parchment-square.png") 24 fill / 10px / 0 stretch;
     color: #241205;
-    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.42);
+    box-shadow: 0 22px 48px rgba(0, 0, 0, 0.58);
 }
 
 #tabContentInventory .black-market-panel-head {
@@ -28863,6 +28864,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .black-market-refresh,
+#tabContentInventory .black-market-close,
 #tabContentInventory .black-market-listing-action {
     min-height: 32px;
     padding: 4px 10px;
@@ -28878,9 +28880,18 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .black-market-refresh:disabled,
+#tabContentInventory .black-market-close:disabled,
 #tabContentInventory .black-market-listing-action:disabled {
     opacity: 0.62;
     filter: grayscale(0.3);
+}
+
+#tabContentInventory .black-market-close {
+    width: 34px;
+    min-width: 34px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 17px;
 }
 
 #tabContentInventory .black-market-list {
@@ -35562,7 +35573,7 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
     }
 }
 
-/* 5 skip: drench the enemy with the field wave, then leave a light wet sheen. */
+/* 5 skip: keep only the wet film and dripping water left after the wave. */
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomEnemySprite.is-area-sealed {
     box-shadow: none;
     border-radius: 0;
@@ -35571,7 +35582,7 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 .tarot-kingdom-enemy-skip-soak {
     position: absolute;
     z-index: 2;
-    bottom: -5%;
+    bottom: -1%;
     left: 50%;
     width: clamp(108px, 31vw, 188px);
     height: clamp(84px, 24vw, 142px);
@@ -35579,7 +35590,6 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
     visibility: hidden;
     opacity: 0;
     transform: translateX(-50%);
-    isolation: isolate;
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 .tarot-kingdom-enemy-skip-soak::before,
@@ -35590,53 +35600,38 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 .tarot-kingdom-enemy-skip-soak::before {
-    inset: 0;
-    opacity: 0.72;
-    background: url("./assets/ui/tarot-kingdom/field-skip-wave.webp") center 42% / cover no-repeat;
-    filter: saturate(1.28) brightness(1.2) drop-shadow(0 3px 5px rgba(0, 12, 28, 0.72));
-    mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.42) 21%, #000 42%, #000 86%, transparent 100%);
-    transform-origin: 50% 100%;
+    inset: 3% 7% 8%;
+    opacity: 0.76;
+    background:
+        radial-gradient(ellipse, rgba(240, 249, 255, 0.76) 0 5%, rgba(125, 211, 252, 0.28) 11%, transparent 34%) 24% 18% / 28% 34% no-repeat,
+        radial-gradient(ellipse, rgba(224, 242, 254, 0.62) 0 4%, rgba(56, 189, 248, 0.22) 10%, transparent 32%) 72% 28% / 25% 31% no-repeat,
+        radial-gradient(ellipse, rgba(186, 230, 253, 0.52) 0 4%, rgba(14, 165, 233, 0.2) 10%, transparent 34%) 38% 76% / 22% 32% no-repeat,
+        linear-gradient(106deg, transparent 36%, rgba(224, 242, 254, 0.5) 47%, rgba(125, 211, 252, 0.12) 53%, transparent 64%) 52% 46% / 34% 58% no-repeat;
+    filter:
+        drop-shadow(0 1px 1px rgba(125, 211, 252, 0.5))
+        drop-shadow(0 3px 2px rgba(14, 116, 144, 0.22));
+    mask-image: radial-gradient(ellipse at 50% 54%, #000 0 48%, rgba(0, 0, 0, 0.76) 65%, transparent 84%);
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 .tarot-kingdom-enemy-skip-soak::after {
-    inset: 9% 14% 4%;
+    inset: 3% 11% 0;
     opacity: 0;
     background:
         radial-gradient(circle at 13% 13%, rgba(220, 248, 255, 0.96) 0 2px, transparent 3px),
         radial-gradient(circle at 32% 4%, rgba(122, 218, 255, 0.88) 0 3px, transparent 4px),
         radial-gradient(circle at 52% 19%, rgba(224, 250, 255, 0.94) 0 2px, transparent 3px),
         radial-gradient(circle at 72% 7%, rgba(106, 207, 250, 0.9) 0 3px, transparent 4px),
-        radial-gradient(circle at 90% 22%, rgba(220, 248, 255, 0.88) 0 2px, transparent 3px),
-        linear-gradient(100deg, transparent 18%, rgba(172, 231, 255, 0.3) 48%, transparent 70%);
+        radial-gradient(circle at 90% 22%, rgba(220, 248, 255, 0.88) 0 2px, transparent 3px);
     filter: drop-shadow(0 2px 1px rgba(19, 112, 154, 0.72));
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 .tarot-kingdom-battle-enemy.is-area-sealed .tarot-kingdom-enemy-skip-soak {
     visibility: visible;
     opacity: 1;
-    animation: tarotKingdomEnemySkipSoakIn 840ms cubic-bezier(0.14, 0.76, 0.18, 1) both;
-}
-
-:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 .tarot-kingdom-battle-enemy.is-area-sealed .tarot-kingdom-enemy-skip-soak::before {
-    animation: tarotKingdomEnemySkipWaveWash 840ms cubic-bezier(0.14, 0.76, 0.18, 1) both;
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 .tarot-kingdom-battle-enemy.is-area-sealed .tarot-kingdom-enemy-skip-soak::after {
-    animation: tarotKingdomEnemySkipWaterDrops 1650ms ease-out 340ms infinite;
-}
-
-@keyframes tarotKingdomEnemySkipSoakIn {
-    0% { opacity: 0; transform: translate(-50%, 38%) scale(0.84, 0.52); }
-    48% { opacity: 1; transform: translate(-50%, -7%) scale(1.08, 1.12); }
-    72% { transform: translate(-50%, 2%) scale(0.98, 0.96); }
-    100% { opacity: 0.58; transform: translateX(-50%) scale(1); }
-}
-
-@keyframes tarotKingdomEnemySkipWaveWash {
-    0% { opacity: 0; transform: translateY(48%) scale(0.72, 0.46); }
-    42% { opacity: 0.96; transform: translateY(-10%) scale(1.08, 1.12); }
-    68% { opacity: 0.82; transform: translateY(2%) scale(1.02, 0.96); }
-    100% { opacity: 0.38; transform: translateY(28%) scale(1, 0.7); }
+    animation: tarotKingdomEnemySkipWaterDrops 1650ms ease-out infinite;
 }
 
 @keyframes tarotKingdomEnemySkipWaterDrops {

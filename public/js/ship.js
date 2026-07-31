@@ -2052,7 +2052,8 @@ function getRewardItemsForReveal(data) {
             itemId: data.reward.ItemId || data.reward.itemId || '',
             displayName: data.reward.DisplayName || data.reward.displayName || data.reward.ItemId || 'お宝',
             rarity: data.reward.Rarity || data.reward.rarity || 'common',
-            category: data.reward.Category || data.reward.category || ''
+            category: data.reward.Category || data.reward.category || '',
+            quantity: data.reward.Quantity ?? data.reward.quantity ?? 1
         }];
     }
     return [];
@@ -2275,10 +2276,20 @@ function showExplorationResultSummary(data, options = {}) {
     });
 }
 
-function handleExplorationClaimResult(data, playFabId, options = {}) {
+async function refreshExplorationRewardInventory(data) {
+    if (!getRewardItemsForReveal(data).length || typeof window.refreshInventory !== 'function') return;
+    try {
+        await window.refreshInventory({ force: true });
+    } catch (error) {
+        console.warn('[exploration] reward inventory refresh failed:', error);
+    }
+}
+
+async function handleExplorationClaimResult(data, playFabId, options = {}) {
     if (typeof window.closeHomeExplorationPopup === 'function') {
         window.closeHomeExplorationPopup();
     }
+    await refreshExplorationRewardInventory(data);
     renderExplorationPanel(data, playFabId);
     showExplorationResultSummary(data, {
         playFabId,
@@ -2313,7 +2324,7 @@ export async function claimOnlineExplorationReward(playFabId, ownerPlayFabId, ki
                 tarotFinishers: kingdomResult.finishers,
                 tarotStandings: kingdomResult.standings
             });
-            handleExplorationClaimResult(claimData, safePlayFabId, { kingdomResult });
+            await handleExplorationClaimResult(claimData, safePlayFabId, { kingdomResult });
             return claimData;
         } catch (error) {
             lastError = error;
@@ -2943,7 +2954,7 @@ async function startExploration(playFabId, destinationId, payment = {}, triggerB
                 tarotStandings: sequenceResult.kingdomResult?.standings
             });
             if (claimData?.petOffer) await showTarotKingdomPetOffer(claimData.petOffer, playFabId);
-            handleExplorationClaimResult(claimData, playFabId, sequenceResult);
+            await handleExplorationClaimResult(claimData, playFabId, sequenceResult);
         } else if (!retreated) {
             renderExplorationPanel(encounterData, playFabId);
         }
@@ -2979,7 +2990,7 @@ async function claimExploration(playFabId) {
                 tarotStandings: sequenceResult.kingdomResult?.standings
             });
             if (claimData?.petOffer) await showTarotKingdomPetOffer(claimData.petOffer, playFabId);
-            handleExplorationClaimResult(claimData, playFabId, sequenceResult);
+            await handleExplorationClaimResult(claimData, playFabId, sequenceResult);
         } else if (!retreated) {
             renderExplorationPanel(encounterData, playFabId);
         }

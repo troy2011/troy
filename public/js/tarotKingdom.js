@@ -1914,7 +1914,7 @@ function getKingdomCardEffectDescription(card) {
       20: usesMajorSpecialRules
         ? 'A不可 / 11バック / 墓地回収'
         : '11バック / この場を流した人が墓地から小アルカナ1枚回収',
-      21: usesMajorSpecialRules ? '単独で即クリア / 強制ドロー' : '単騎でどんな場札にも返せる'
+      21: usesMajorSpecialRules ? '大アルカナ1枚に返して即クリア' : '単騎でどんな場札にも返せる'
     };
     return majorEffectMap[n] || '';
   }
@@ -10949,7 +10949,7 @@ function auditKingdomMajorArcanaRules() {
   buildTarotKingdomDebugBattleState({ withTrick: false, handsBySeat: [[major(16), major(21)]] });
   const towerSingle = buildSetPlay(0, [0]);
   const worldSingle = buildSetPlay(0, [1]);
-  const strongTable = minor('strong-table', 'Cup', 14);
+  const strongTable = major(4, '-strong-table');
   s.trick = {
     type: 'set', owner: 1, count: 1, cardsHand: [strongTable], cardsTable: [strongTable], tableOwners: [1],
     number: 14, setPower: 14, suitMask: suitMaskForCards([strongTable]), suitTier: SUIT_TIER.Cup
@@ -11287,20 +11287,34 @@ function auditKingdomMajorArcanaSpecialRules() {
     })
   };
   const worldReverse = {
-    worldOverKingNormal: validateSingle({
+    worldOverMinorNormal: validateSingle({
       hand: [major(21, '-normal'), minor('special-world-normal-reserve', 'Wand', 2)],
       field: minor('special-world-normal-field', 'Cup', 14)
     }),
-    worldOverKingReverse: validateSingle({
+    worldOverMinorReverse: validateSingle({
       hand: [major(21, '-reverse'), minor('special-world-reverse-reserve', 'Wand', 2)],
       field: minor('special-world-reverse-field', 'Cup', 14),
       reverse: true
     }),
-    tenOverWorldNormal: validateSingle({
+    worldOverMajorNormal: validateSingle({
+      hand: [major(21, '-major-normal'), minor('special-world-major-normal-reserve', 'Wand', 2)],
+      field: major(4, '-normal-field')
+    }),
+    worldOverMajorReverse: validateSingle({
+      hand: [major(21, '-major-reverse'), minor('special-world-major-reverse-reserve', 'Wand', 2)],
+      field: major(0, '-reverse-field'),
+      reverse: true
+    }),
+    worldOverMajorPair: validateSingle({
+      hand: [major(21, '-major-pair'), minor('special-world-major-pair-reserve', 'Wand', 2)],
+      field: major(4, '-pair-field-a'),
+      fieldCards: [major(4, '-pair-field-a'), major(4, '-pair-field-b')]
+    }),
+    minorOverWorldNormal: validateSingle({
       hand: [minor('special-ten-normal', 'Sword', 10), minor('special-ten-normal-reserve', 'Wand', 2)],
       field: major(21, '-normal-field')
     }),
-    tenOverWorldReverse: validateSingle({
+    minorOverWorldReverse: validateSingle({
       hand: [minor('special-ten-reverse', 'Sword', 10), minor('special-ten-reverse-reserve', 'Wand', 2)],
       field: major(21, '-reverse-field'),
       reverse: true
@@ -11369,7 +11383,7 @@ function auditKingdomMajorArcanaSpecialRules() {
   const worldReserve = minor('special-world-reserve', 'Wand', 3);
   const forcedCard = minor('special-world-forced', 'Cup', 9);
   buildTarotKingdomDebugBattleState({
-    tableCard: minor('special-world-field', 'Sword', 14),
+    tableCard: major(4, '-world-field'),
     handsBySeat: [[worldCard, worldReserve]],
     drawDeck: [forcedCard]
   });
@@ -11398,12 +11412,13 @@ function auditKingdomMajorArcanaSpecialRules() {
   };
 
   buildTarotKingdomDebugBattleState({
-    tableCard: minor('special-world-empty-field', 'Sword', 14),
+    tableCard: major(6, '-world-empty-field'),
     handsBySeat: [[major(21), minor('special-world-empty-reserve', 'Wand', 3)]],
     drawDeck: []
   });
+  const emptyDeckWorldCard = s.players[0].hand.find((card) => isMajorNumberCard(card, 21));
   const emptyDeckWorld = rebuildKingdomPlayFromAction(0, {
-    selectedCardIds: [s.players[0].hand[0].id]
+    selectedCardIds: [emptyDeckWorldCard?.id]
   });
   if (emptyDeckWorld.ok) {
     applyPlay(0, emptyDeckWorld.play);
@@ -11419,14 +11434,15 @@ function auditKingdomMajorArcanaSpecialRules() {
   };
 
   buildTarotKingdomDebugBattleState({
-    tableCard: minor('special-world-judgment-field', 'Sword', 14),
+    tableCard: major(20, '-world-judgment-field'),
     handsBySeat: [[major(21), minor('special-world-judgment-reserve', 'Wand', 3)]],
     discardsBySeat: [[], [minor('special-world-judgment-candidate', 'Cup', 6)]],
     drawDeck: [minor('special-world-judgment-forced', 'Pentacle', 7)]
   });
   s.judgmentRecoveryPending = true;
+  const judgmentWorldCard = s.players[0].hand.find((card) => isMajorNumberCard(card, 21));
   const judgmentWorldPlay = rebuildKingdomPlayFromAction(0, {
-    selectedCardIds: [s.players[0].hand[0].id]
+    selectedCardIds: [judgmentWorldCard?.id]
   });
   if (judgmentWorldPlay.ok) {
     applyPlay(0, judgmentWorldPlay.play);
@@ -11434,7 +11450,7 @@ function auditKingdomMajorArcanaSpecialRules() {
     resolveKingdomTransition();
   }
   const worldJudgmentOrder = {
-    handCountAfterForcedDraw: s.players[0].hand.length,
+    handCountAfterClear: s.players[0].hand.length,
     deckCount: s.drawDeck.length,
     pendingJudgment: s.pendingJudgment,
     followup: s.pendingJudgmentFollowup
@@ -12385,6 +12401,21 @@ function getMajorSpecialPlayViolation(play, mode) {
   if (!areKingdomMajorArcanaSpecialRulesEnabled()) return null;
   if (mode === 'call' || play?.type !== 'set') return null;
   const played = Array.isArray(play?.cardsHand) ? play.cardsHand.filter(Boolean) : [];
+  const worldCards = played.filter((card) => isMajorNumberCard(card, 21));
+  if (worldCards.length) {
+    if (played.length !== 1 || worldCards.length !== 1) {
+      return '世界21は通常出しでは1枚だけ選択してください。';
+    }
+    const fieldCards = Array.isArray(s.trick?.cardsTable) ? s.trick.cardsTable.filter(Boolean) : [];
+    if (
+      s.trick?.type !== 'set'
+      || Number(s.trick?.count) !== 1
+      || fieldCards.length !== 1
+      || fieldCards[0]?.kind !== 'major'
+    ) {
+      return '世界21は大アルカナ1枚の場札にだけ出せます。';
+    }
+  }
   const devilCards = played.filter((card) => isMajorNumberCard(card, 15));
   if (devilCards.length) {
     if (played.length !== 1 || devilCards.length !== 1) {
@@ -12463,12 +12494,9 @@ function validatePlay(play, mode) {
   if (!s.trick) return mode === 'call' ? { ok: false, reason: '初手でコールは不可です。' } : { ok: true };
   const playCards = Array.isArray(play?.cardsTable) ? play.cardsTable : [];
   const isWorldSingleOverride = mode !== 'call' && isSingleMajorSetPlay(play, 21);
-  if (isWorldSingleOverride && s.trick?.type === 'role') {
-    return { ok: false, reason: 'ザ・ワールド1枚では5枚役に返せません。' };
-  }
-  // 世界21の単独出しは通常時だけ最強札として扱う。
-  // 11バック中は他の数字札と同じ比較へ進め、21が弱い側になる。
-  if (isWorldSingleOverride && !s.reverse) return { ok: true };
+  // 世界21の単独出しは、11バック中も大アルカナ1枚へ必ず返せる。
+  // 小アルカナ・複数枚・5枚役は getMajorSpecialPlayViolation で拒否する。
+  if (isWorldSingleOverride) return { ok: true };
   if (s.callOnly && mode !== 'call') return { ok: false, reason: '8カット中: コールかパスのみ。' };
   if (mode === 'call') {
     const base = s.trick?.cardsTable?.[0];
@@ -12912,8 +12940,8 @@ function judgmentStart(playerIndex, options = {}) {
 
 function clearTrick(leader, options = {}) {
   clearCallCinematicTimer();
-  const worldForcedDraw = !!options.worldForcedDraw && areKingdomMajorArcanaSpecialRulesEnabled();
-  const pendingWorldTimeStop = worldForcedDraw && s?.battle?.pendingWorldTimeStop
+  const worldResolution = !!options.worldResolution && areKingdomMajorArcanaSpecialRulesEnabled();
+  const pendingWorldTimeStop = worldResolution && s?.battle?.pendingWorldTimeStop
     ? { ...s.battle.pendingWorldTimeStop }
     : null;
   const resolvedLeader = isKingdomBattlePlayerActionable(leader)
@@ -12996,16 +13024,12 @@ function clearTrick(leader, options = {}) {
     delayMs: Number(s.clearStreakCount) >= 2 ? 200 : 120
   });
 
-  if (worldForcedDraw) {
-    const worldCard = drawOneKingdomMixedCard(resolvedLeader, 'world');
-    if (!worldCard) log(`${pName(resolvedLeader)}: 世界の強制ドローなし（山札切れ）`);
-  }
   if (hadJudgment) {
     traceKingdomFlow('clearTrick.next', 'judgmentStart');
-    judgmentStart(resolvedLeader, { followup: worldForcedDraw ? 'world' : 'clear' });
+    judgmentStart(resolvedLeader, { followup: worldResolution ? 'world' : 'clear' });
     return;
   }
-  if (worldForcedDraw) {
+  if (worldResolution) {
     traceKingdomFlow('clearTrick.next', 'worldLeaderFlow');
     resolveEmptyFieldLeader(resolvedLeader);
     return;
@@ -13702,7 +13726,7 @@ function continueAfterPlay(pi, play) {
     && isSingleMajorSetPlay(play, 21)
   ) {
     applySetEffects(play);
-    clearTrick(pi, { worldForcedDraw: true });
+    clearTrick(pi, { worldResolution: true });
     return;
   }
   if (p.hand.length <= 0) {

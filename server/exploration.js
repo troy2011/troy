@@ -967,7 +967,8 @@ function reportDocToPayload(doc) {
         itemId: String(item.itemId || item.ItemId || ''),
         displayName: String(item.displayName || item.DisplayName || item.itemId || item.ItemId || ''),
         rarity: String(item.rarity || 'common'),
-        category: String(item.category || '')
+        category: String(item.category || ''),
+        quantity: Math.max(1, Math.floor(Number(item.quantity ?? item.Quantity ?? 1) || 1))
     })) : [];
     const supplyProfile = data.supplyProfile ? normalizeExplorationSupplyProfile(data.supplyProfile) : null;
     return {
@@ -1019,7 +1020,8 @@ function explorationRewardReceiptToResponse(receipt = {}) {
                 ItemId: firstReward.itemId,
                 DisplayName: firstReward.displayName,
                 Rarity: firstReward.rarity,
-                Category: firstReward.category
+                Category: firstReward.category,
+                Quantity: firstReward.quantity
             }
             : null,
         currentPet: receipt.currentPet || null,
@@ -3996,6 +3998,7 @@ function initializeExplorationRoutes(app, deps) {
                                     displayName: result.displayName || result.itemId,
                                     rarity: result.rarity || 'common',
                                     category: result.category || '',
+                                    quantity: 1,
                                     rank: participantRank
                                 }]
                                 : [];
@@ -4016,7 +4019,8 @@ function initializeExplorationRoutes(app, deps) {
                                 itemId: result.itemId,
                                 displayName: result.displayName || result.itemId,
                                 rarity: result.rarity || 'common',
-                                category: result.category || ''
+                                category: result.category || '',
+                                quantity: 1
                             });
                         }
                     }
@@ -4053,7 +4057,8 @@ function initializeExplorationRoutes(app, deps) {
                         const rolled = participantRewards[index] || {};
                         const itemId = String(rolled.itemId || '').trim();
                         if (!itemId) continue;
-                        await addEconomyItem(safeParticipantId, itemId, 1, {
+                        const quantity = Math.max(1, Math.floor(Number(rolled.quantity ?? 1) || 1));
+                        await addEconomyItem(safeParticipantId, itemId, quantity, {
                             idempotencyId: `exploration-stage-reward-${activeData.id}-${safeParticipantId}-${index}`
                         });
                     }
@@ -4061,7 +4066,8 @@ function initializeExplorationRoutes(app, deps) {
             } else {
                 for (let i = 0; i < rolledItemIds.length; i++) {
                     const itemId = rolledItemIds[i];
-                    await addEconomyItem(playFabId, itemId, 1, {
+                    const quantity = Math.max(1, Math.floor(Number(rolledRewards[i]?.quantity ?? 1) || 1));
+                    await addEconomyItem(playFabId, itemId, quantity, {
                         idempotencyId: `exploration-reward-${activeData.id}-${i}`
                     });
                 }
@@ -4140,7 +4146,8 @@ function initializeExplorationRoutes(app, deps) {
                     return {
                         ...display,
                         Rarity: String(rolled?.rarity || 'common'),
-                        Category: String(rolled?.category || '')
+                        Category: String(rolled?.category || ''),
+                        Quantity: Math.max(1, Math.floor(Number(rolled?.quantity ?? 1) || 1))
                     };
                 }).filter(Boolean)
             );
@@ -4195,7 +4202,8 @@ function initializeExplorationRoutes(app, deps) {
                         itemId: item.ItemId,
                         displayName: item.DisplayName,
                         rarity: item.Rarity,
-                        category: item.Category
+                        category: item.Category,
+                        quantity: item.Quantity
                     })),
                     supplyProfile,
                     reportText: buildReportText({
