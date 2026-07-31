@@ -13,8 +13,7 @@ export const STORE_GAME_RANKING_UI = {
     },
     game: {
         listId: 'gameRankingList',
-        label: 'ゲーム',
-        isRating: true
+        label: 'タロットキングダム'
     },
     karaoke: {
         listId: 'karaokeRankingList',

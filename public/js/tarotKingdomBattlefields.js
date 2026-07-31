@@ -13,7 +13,9 @@ const BATTLEFIELD_DEFINITIONS = [
     imagePath: './assets/tarot-kingdom/battlefields/stage-02-windswept-deck-v2.webp',
     surface: 'ship-deck',
     shipSide: true,
-    groundStartPercent: 46
+    groundStartPercent: 46,
+    backgroundPosition: 'center -24px',
+    backgroundSize: '100% calc(100% + 24px)'
   },
   {
     id: 'stage-03-island-causeway',
@@ -147,7 +149,8 @@ export const TAROT_KINGDOM_BATTLEFIELDS = Object.freeze(Object.fromEntries(
       groundStartPercent: Number.isFinite(Number(entry.groundStartPercent))
         ? Number(entry.groundStartPercent)
         : 36,
-      backgroundPosition: 'center center'
+      backgroundPosition: String(entry.backgroundPosition || 'center center'),
+      backgroundSize: String(entry.backgroundSize || '100% 100%')
     })
   ])
 ));

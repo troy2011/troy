@@ -46,7 +46,7 @@ import {
   TAROT_KINGDOM_RAID_BATTLEFIELD_ID,
   createTarotKingdomBattlefieldSnapshot,
   getTarotKingdomBattlefieldById
-} from './tarotKingdomBattlefields.js';
+} from './tarotKingdomBattlefields.js?v=20260731-skip-soak1';
 import {
   calculateTarotKingdomHitChance,
   calculateTarotKingdomEnemyMitigatedDamage,
@@ -17037,6 +17037,7 @@ function renderKingdomBattlefield(battle = null) {
   arena.classList.toggle('is-ship-side-battlefield', battlefield.shipSide);
   arena.style.setProperty('--tarot-kingdom-battlefield-image', `url("${imagePath}")`);
   arena.style.setProperty('--tarot-kingdom-battlefield-position', battlefield.backgroundPosition);
+  arena.style.setProperty('--tarot-kingdom-battlefield-size', battlefield.backgroundSize);
   arena.style.setProperty('--tarot-kingdom-ground-start', `${battlefield.groundStartPercent}%`);
   arena.setAttribute('aria-label', `${battlefield.label}の戦場`);
 

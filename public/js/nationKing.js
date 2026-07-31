@@ -36,10 +36,9 @@ const GBP_CONSENT_VERSION = 'gbp-special-hours-v1';
 const STORE_GAME_LABELS = {
     darts_countup: 'ダーツカウントアップ',
     billiards: 'ビリヤード',
-    game: 'ゲーム',
     karaoke: 'カラオケ採点'
 };
-const STORE_GAME_RATING_TYPES = new Set(['billiards', 'game']);
+const STORE_GAME_RATING_TYPES = new Set(['billiards']);
 const KING_SECTION_IDS = new Set(['ops', 'store', 'calendar', 'menu', 'raid', 'notice']);
 
 function _getStoreGameOptionsHtml(selected = 'darts_countup') {

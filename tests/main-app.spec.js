@@ -9,6 +9,7 @@ function makeExplorationStage(stageNo, {
   name = `探索ステージ${stageNo}`,
   unlocked = true,
   bestRank = null,
+  bestChips = 0,
   clearCount = 0,
   battlefieldId = 'coral-island',
   imagePath = './Sprites/exploration_destinations/coral_lagoon.png',
@@ -24,6 +25,7 @@ function makeExplorationStage(stageNo, {
     imagePath,
     destinationImagePath: imagePath,
     bestRank,
+    bestChips,
     clearCount,
     progressionUnlocked: unlocked,
     shipUnlocked: unlocked,
@@ -743,7 +745,7 @@ test('ranking tab shows bounty billiards and game as top category buttons', asyn
         { displayName: '玉突き名人', score: 800, scoreScale: 1, level: 12, rankName: '航海士', playFabId: 'PF_BILLIARDS' }
       ],
       game: [
-        { displayName: '遊技王', score: 42, scoreScale: 1, level: 41, rankName: '提督', playFabId: 'PF_GAME' }
+        { displayName: '遊技王', score: 555, scoreScale: 1, level: 41, rankName: '提督', playFabId: 'PF_GAME' }
       ]
     };
     await route.fulfill({
@@ -786,8 +788,9 @@ test('ranking tab shows bounty billiards and game as top category buttons', asyn
 
   await page.locator('#btnShowGameRanking').click();
   await expect(page.locator('#gameRankingArea')).toBeVisible();
+  await expect(page.locator('.ranking-game-caption')).toHaveText('タロットキングダム・ステージ別BESTチップ合計');
   await expect(page.locator('#gameRankingList')).toContainText('遊技王');
-  await expect(page.locator('#gameRankingList')).toContainText('レート 42');
+  await expect(page.locator('#gameRankingList')).toContainText('555点');
   expect([...storeGameRequests].sort()).toEqual(['billiards', 'game']);
 
   await expectNoPageErrors(errors);
@@ -1602,6 +1605,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
           makeExplorationStage(2, {
             name: '双塔岩の海峡',
             bestRank: 2,
+            bestChips: 420,
             clearCount: 3,
             battlefieldId: 'ship-side',
             imagePath: './Sprites/exploration_destinations/twin_sea_stacks.png',
@@ -1707,7 +1711,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(lockedStage.locator('.ship-exploration-stage-monster.is-silhouette')).toHaveCount(4);
   await expect(firstStage.locator('.ship-exploration-badge')).toHaveCount(0);
   await expect(firstStage.locator('.ship-exploration-start')).toHaveText('出航');
-  await expect(secondStage.locator('.ship-exploration-meta')).toContainText('最高 2位 / CLEAR 3');
+  await expect(secondStage.locator('.ship-exploration-meta')).toContainText('最高 2位 / BEST 420チップ / CLEAR 3');
   await expect(lockedStage).toHaveClass(/is-locked/);
   await expect(lockedStage.locator('.ship-exploration-start')).toBeDisabled();
   await expect(lockedStage).toContainText('前のステージで2位以内に入ると解放');
@@ -3913,7 +3917,7 @@ test('king page no longer exposes raid spawn controls', async ({ page }) => {
   await bootstrapMainApp(page);
 
   await page.evaluate(async () => {
-    const king = await import('/js/nationKing.js?v=20260728-raid2');
+    const king = await import('/js/nationKing.js?v=20260731-stage-score1');
     await king.refreshKingNav('PF_PLAYWRIGHT');
     await window.showTab('king', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
   });
@@ -3969,7 +3973,7 @@ test('king page shows TROY entry QR from priority controls', async ({ page }) =>
   });
 
   await page.evaluate(async () => {
-    const king = await import('/js/nationKing.js');
+    const king = await import('/js/nationKing.js?v=20260731-stage-score1');
     await king.refreshKingNav('PF_PLAYWRIGHT');
     await window.showTab('king', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
   });
@@ -3990,7 +3994,7 @@ test('king page shows TROY entry QR from priority controls', async ({ page }) =>
     });
   });
   await page.evaluate(async () => {
-    const king = await import('/js/nationKing.js');
+    const king = await import('/js/nationKing.js?v=20260731-stage-score1');
     await king.loadKingPage('PF_PLAYWRIGHT');
   });
   await expect(page.locator('[data-king-section-tab="ops"]')).toHaveClass(/is-active/);
@@ -4072,7 +4076,7 @@ test('king calendar panel shows reservation review actions', async ({ page }) =>
   });
 
   await page.evaluate(async () => {
-    const king = await import('/js/nationKing.js');
+    const king = await import('/js/nationKing.js?v=20260731-stage-score1');
     await king.refreshKingNav('PF_PLAYWRIGHT');
     await window.showTab('king', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
   });
@@ -4220,7 +4224,7 @@ test('king calendar save reports Google Business Profile sync and surfaces API f
 
   await page.evaluate(async () => {
     window.__TROY_CALENDAR_SYNC_POLL_DELAYS_MS = [10];
-    const king = await import('/js/nationKing.js');
+    const king = await import('/js/nationKing.js?v=20260731-stage-score1');
     await king.refreshKingNav('PF_PLAYWRIGHT');
     await window.showTab('king', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
   });
@@ -4389,7 +4393,7 @@ test('king store game scoring saves from each in-store customer row', async ({ p
   });
 
   await page.evaluate(async () => {
-    const king = await import('/js/nationKing.js');
+    const king = await import('/js/nationKing.js?v=20260731-stage-score1');
     await king.refreshKingNav('PF_PLAYWRIGHT');
     await window.showTab('king', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
   });
@@ -4417,7 +4421,7 @@ test('king store game scoring saves from each in-store customer row', async ({ p
   await expect(playerRow.locator('[data-chip-return-amount="PLAYER1"]')).toHaveValue('0');
   await expect(playerRow.locator('.king-store-game-inline summary')).toHaveText('店内ゲーム採点');
   await expect(playerRow.locator('[data-store-game-type] option[value="billiards"]')).toHaveText('ビリヤード');
-  await expect(playerRow.locator('[data-store-game-type] option[value="game"]')).toHaveText('ゲーム');
+  await expect(playerRow.locator('[data-store-game-type] option[value="game"]')).toHaveCount(0);
 
   await playerRow.locator('.king-store-game-inline summary').click();
   await expect.poll(async () => playerRow.locator('.king-store-game-inline').evaluate((details) => details.open)).toBe(true);

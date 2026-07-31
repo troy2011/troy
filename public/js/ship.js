@@ -2773,6 +2773,8 @@ function renderExplorationPanel(data, playFabId) {
             const isAvailable = stage?.unlocked === true;
             const bestRank = Math.max(0, Math.floor(Number(stage?.bestRank) || 0));
             const bestRankLabel = bestRank > 0 ? `最高 ${bestRank}位` : '未踏';
+            const bestChips = Math.max(0, Math.floor(Number(stage?.bestChips) || 0));
+            const bestChipsLabel = bestChips > 0 ? `BEST ${bestChips.toLocaleString('ja-JP')}チップ` : 'BEST ---';
             const stageNo = Math.max(1, Math.floor(Number(stage?.stageNo) || 1));
             return `
                 <div class="ship-exploration-destination ship-exploration-stage${isAvailable ? '' : ' is-locked'}"
@@ -2783,7 +2785,7 @@ function renderExplorationPanel(data, playFabId) {
                         <div class="ship-exploration-title-group">
                             <span class="ship-exploration-stage-label">STAGE ${stageNo}</span>
                             <strong>${escapeHtml(stage.name || `ステージ${stageNo}`)}</strong>
-                            <div class="ship-exploration-meta">${bestRankLabel} / CLEAR ${Math.max(0, Number(stage.clearCount) || 0)}</div>
+                            <div class="ship-exploration-meta">${bestRankLabel} / ${bestChipsLabel} / CLEAR ${Math.max(0, Number(stage.clearCount) || 0)}</div>
                         </div>
                     </div>
                     ${renderExplorationStageMonsters(stage)}

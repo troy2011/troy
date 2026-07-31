@@ -65,6 +65,21 @@ test('adds economy items by FriendlyId alternate id without catalog resolution',
   }
 });
 
+test('game ranking uses the Tarot Kingdom total best chips statistic', () => {
+  const { economy, restore } = loadEconomyWithPlayFabMock();
+  try {
+    expect(economy.STORE_GAME_RANKING_STATS.game).toMatchObject({
+      statisticName: 'troy_tarot_kingdom_chip_total',
+      label: 'タロットキングダム',
+      scoreScale: 1,
+      automatic: true
+    });
+    expect(economy.STORE_GAME_RANKING_STATS.game.isRating).toBeUndefined();
+  } finally {
+    restore();
+  }
+});
+
 test('adds economy items by resolved catalog id by default', async () => {
   const { economy, restore } = loadEconomyWithPlayFabMock();
   try {

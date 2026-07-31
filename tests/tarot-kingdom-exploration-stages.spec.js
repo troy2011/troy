@@ -3,13 +3,16 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
   TAROT_KINGDOM_EXPLORATION_STAGES,
+  TAROT_KINGDOM_TOTAL_BEST_CHIPS_STAT,
   applyTarotKingdomMonsterDefeats,
   applyTarotKingdomStageClear,
+  applyTarotKingdomStageBestChips,
   buildTarotKingdomStageEncounter,
   buildTarotKingdomStageList,
   calculateTarotKingdomStandings,
   getTarotKingdomShipStageCap,
   getTarotKingdomStageRewardWeights,
+  getTarotKingdomTotalBestChips,
   normalizeTarotKingdomExplorationProgress
 } = require('../server/tarotKingdomExplorationStages');
 const {
@@ -201,7 +204,7 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
       }
     ], 'OWNER');
 
-    expect(withDefeat.version).toBe(2);
+    expect(withDefeat.version).toBe(3);
     expect(withDefeat.defeatedMonsterIds).toEqual(['ismartal-vol1-monster-07']);
     const uncleared = buildTarotKingdomStageList(withDefeat, 1)[0];
     expect(uncleared.monsters.map((monster) => ({
@@ -237,5 +240,30 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
       epic: 32,
       legendary: 10
     });
+  });
+
+  test('stage best chips only improve and their sum becomes the game ranking score', () => {
+    const initial = normalizeTarotKingdomExplorationProgress({
+      version: 2,
+      highestUnlockedStage: 3,
+      stages: {
+        1: { bestRank: 2, clearCount: 1 },
+        2: { bestRank: 1, clearCount: 1 }
+      }
+    });
+    expect(initial.totalBestChips).toBe(0);
+
+    const stageOne = applyTarotKingdomStageBestChips(initial, 1, 240);
+    const lowerRetry = applyTarotKingdomStageBestChips(stageOne, 1, 180);
+    const stageTwo = applyTarotKingdomStageBestChips(lowerRetry, 2, 315);
+
+    expect(lowerRetry).toEqual(stageOne);
+    expect(stageTwo.stages['1'].bestChips).toBe(240);
+    expect(stageTwo.stages['2'].bestChips).toBe(315);
+    expect(getTarotKingdomTotalBestChips(stageTwo)).toBe(555);
+    expect(stageTwo.totalBestChips).toBe(555);
+    expect(buildTarotKingdomStageList(stageTwo, 1).slice(0, 2).map((stage) => stage.bestChips))
+      .toEqual([240, 315]);
+    expect(TAROT_KINGDOM_TOTAL_BEST_CHIPS_STAT).toBe('troy_tarot_kingdom_chip_total');
   });
 });

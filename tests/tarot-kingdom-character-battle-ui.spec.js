@@ -265,40 +265,42 @@ test('The World freezes the enemy sprite until time stop expires', async ({ page
   ).not.toBe(frozenFrame);
 });
 
-test('5 skip replaces the enemy blue ring with the ellipsis speech-bubble icon', async ({ page }) => {
+test('5 skip drenches the enemy with a wave without showing a silence icon', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   const enemySprite = page.locator('#tarotKingdomEnemySprite');
-  const silenceIcon = page.locator('.tarot-kingdom-enemy-silence-icon');
+  const skipSoak = page.locator('.tarot-kingdom-enemy-skip-soak');
 
   await page.evaluate(() => {
     window.TarotKingdomDebug.battleSetEnemyAreaSeal(true);
   });
 
   await expect(enemySprite).toHaveClass(/is-area-sealed/);
-  await expect(silenceIcon).toBeVisible();
+  await expect(skipSoak).toBeVisible();
   await expect(enemySprite).toHaveCSS('box-shadow', 'none');
   await expect(enemySprite).toHaveCSS('border-radius', '0px');
 
-  const iconStyle = await silenceIcon.evaluate((node) => {
+  const soakStyle = await skipSoak.evaluate((node) => {
     const style = getComputedStyle(node);
+    const waveStyle = getComputedStyle(node, '::before');
     return {
-      backgroundImage: style.backgroundImage,
-      backgroundPosition: style.backgroundPosition,
-      backgroundSize: style.backgroundSize,
+      waveBackgroundImage: waveStyle.backgroundImage,
+      waveAnimationName: waveStyle.animationName,
+      animationName: style.animationName,
       width: style.width,
       height: style.height
     };
   });
-  expect(iconStyle.backgroundImage).toMatch(/\/Sprites\/items\/icons\.png/);
-  expect(iconStyle.backgroundPosition).toBe('-320px -32px');
-  expect(iconStyle.backgroundSize).toBe('512px 2048px');
-  expect(iconStyle.width).toBe('32px');
-  expect(iconStyle.height).toBe('32px');
+  expect(soakStyle.waveBackgroundImage).toMatch(/field-skip-wave\.webp/);
+  expect(soakStyle.waveBackgroundImage).not.toMatch(/icons\.png/);
+  expect(soakStyle.animationName).toContain('tarotKingdomEnemySkipSoakIn');
+  expect(soakStyle.waveAnimationName).toContain('tarotKingdomEnemySkipWaveWash');
+  expect(parseFloat(soakStyle.width)).toBeGreaterThan(80);
+  expect(parseFloat(soakStyle.height)).toBeGreaterThan(60);
 
   await page.evaluate(() => {
     window.TarotKingdomDebug.battleSetEnemyAreaSeal(false);
   });
-  await expect(silenceIcon).toBeHidden();
+  await expect(skipSoak).toBeHidden();
 });
 
 test('field backgrounds show persistent card effects behind unobscured cards', async ({ page }) => {
@@ -2308,7 +2310,7 @@ test('grave menu keeps its icon and updates its accessible label when toggled', 
   await expect(graveButton).toHaveAttribute('aria-label', closedLabel);
 });
 
-test('grave removes suit labels and fits all ranks without horizontal sliding at 375px', async ({ page }) => {
+test('grave centers its card list and fits all ranks without horizontal sliding at 375px', async ({ page }) => {
   await openOfflineBattle(page, { width: 375, height: 844 });
 
   await page.locator('#tarotKingdomGraveToggleButton').click();
@@ -2323,23 +2325,30 @@ test('grave removes suit labels and fits all ranks without horizontal sliding at
     const rows = [...options.querySelectorAll('.tarot-kingdom-grave-row')];
     const grids = [...options.querySelectorAll('.tarot-kingdom-grave-grid')];
     const lastSlots = grids.map((grid) => grid.lastElementChild?.getBoundingClientRect().right || 0);
-    const optionRight = options.getBoundingClientRect().right;
+    const optionRect = options.getBoundingClientRect();
     return {
+      alignItems: getComputedStyle(options).alignItems,
       optionsClientWidth: options.clientWidth,
       optionsScrollWidth: options.scrollWidth,
       rowWidths: rows.map((row) => ({ client: row.clientWidth, scroll: row.scrollWidth })),
+      rowCenterDeltas: rows.map((row) => {
+        const rect = row.getBoundingClientRect();
+        return Math.abs((rect.left + rect.right) / 2 - (optionRect.left + optionRect.right) / 2);
+      }),
       gridWidths: grids.map((grid) => ({
         client: grid.clientWidth,
         scroll: grid.scrollWidth,
         gap: getComputedStyle(grid).columnGap
       })),
       lastSlots,
-      optionRight,
+      optionRight: optionRect.right,
       bodyClientWidth: document.body.clientWidth,
       bodyScrollWidth: document.body.scrollWidth
     };
   });
 
+  expect(layout.alignItems).toBe('center');
+  expect(layout.rowCenterDeltas.every((delta) => delta <= 1)).toBe(true);
   expect(layout.optionsScrollWidth).toBeLessThanOrEqual(layout.optionsClientWidth);
   expect(layout.bodyScrollWidth).toBeLessThanOrEqual(layout.bodyClientWidth);
   expect(layout.rowWidths.every(({ client, scroll }) => scroll <= client)).toBe(true);

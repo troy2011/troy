@@ -75,6 +75,8 @@ async function getStageGeometry(page) {
         getComputedStyle(arena).getPropertyValue('--tarot-kingdom-ground-start')
       ),
       backgroundImage: getComputedStyle(arena).backgroundImage,
+      backgroundPosition: getComputedStyle(arena).backgroundPosition,
+      backgroundSize: getComputedStyle(arena).backgroundSize,
       overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth
     };
   });
@@ -187,6 +189,8 @@ test('all 11 exploration stages load distinct dedicated battlefield images', asy
         label: battlefield.label,
         imagePath: battlefield.imagePath,
         groundStartPercent: battlefield.groundStartPercent,
+        backgroundPosition: battlefield.backgroundPosition,
+        backgroundSize: battlefield.backgroundSize,
         shipSide: battlefield.shipSide,
         surface: battlefield.surface,
         width: image.naturalWidth,
@@ -229,6 +233,10 @@ test('all 11 exploration stages load distinct dedicated battlefield images', asy
   expect(result.filter((entry) => entry.shipSide).map((entry) => entry.id)).toEqual([
     'stage-02-windswept-deck'
   ]);
+  expect(result.find((entry) => entry.id === 'stage-02-windswept-deck')).toMatchObject({
+    backgroundPosition: 'center -24px',
+    backgroundSize: '100% calc(100% + 24px)'
+  });
   expect(result.filter((entry) => entry.shipSide).every((entry) => entry.surface.endsWith('-deck'))).toBe(true);
   expect(result.find((entry) => entry.id === 'stage-09-steel-fleet')).toMatchObject({
     imagePath: './assets/tarot-kingdom/battlefields/stage-09-steel-fleet-v2.webp',
@@ -341,6 +349,10 @@ for (const viewport of [
       expect(geometry.battlefieldId).toBe(battlefieldId);
       expect(geometry.groundStart).toBe(groundStart);
       expect(geometry.players).toHaveLength(4);
+      if (battlefieldId === 'stage-02-windswept-deck') {
+        expect(geometry.backgroundPosition).toBe('50% 50%, 50% -24px');
+        expect(geometry.backgroundSize).toBe('cover, 100% calc(100% + 24px)');
+      }
       for (const player of geometry.players) {
         expect(player.bottom).toBeGreaterThanOrEqual(floorStartY);
         expect(player.bottom).toBeLessThanOrEqual(geometry.arena.bottom + 2);

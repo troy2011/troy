@@ -20,14 +20,17 @@ const {
 } = require('./tarotKingdomPets');
 const {
     TAROT_KINGDOM_EXPLORATION_STAGES,
+    TAROT_KINGDOM_TOTAL_BEST_CHIPS_STAT,
     applyTarotKingdomMonsterDefeats,
     applyTarotKingdomStageClear,
+    applyTarotKingdomStageBestChips,
     buildTarotKingdomStageEncounter,
     buildTarotKingdomStageList,
     calculateTarotKingdomStandings,
     getTarotKingdomExplorationStage,
     getTarotKingdomShipStageCap,
     getTarotKingdomStageRewardWeights,
+    getTarotKingdomTotalBestChips,
     readTarotKingdomExplorationProgress,
     writeTarotKingdomExplorationProgress
 } = require('./tarotKingdomExplorationStages');
@@ -2438,6 +2441,26 @@ function initializeExplorationRoutes(app, deps) {
         return requireAuthenticatedPlayFabId(req, res, playFabId);
     }
 
+    async function updateTarotKingdomTotalBestChipsStatistic(playFabId, progress) {
+        const totalBestChips = Math.max(0, Math.min(
+            2147483647,
+            Math.floor(Number(getTarotKingdomTotalBestChips(progress)) || 0)
+        ));
+        try {
+            await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                PlayFabId: playFabId,
+                Statistics: [{
+                    StatisticName: TAROT_KINGDOM_TOTAL_BEST_CHIPS_STAT,
+                    Value: totalBestChips
+                }]
+            });
+        } catch (error) {
+            console.error('[exploration] Tarot Kingdom ranking update failed:', error?.errorMessage || error?.message || error);
+            throw error;
+        }
+        return totalBestChips;
+    }
+
     async function getTarotKingdomRaidIdentity(playFabId) {
         const result = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
             PlayFabId: playFabId,
@@ -3848,7 +3871,10 @@ function initializeExplorationRoutes(app, deps) {
             const supplyProfile = activeData.supplyProfile
                 ? normalizeExplorationSupplyProfile(activeData.supplyProfile)
                 : buildExplorationSupplyProfile(activeData.consumedConsumables || [], activeData.requiredSupplyUnits ?? activeData.requiredConsumableCount ?? 0);
-            const calculatedStandings = calculateTarotKingdomStandings(tarotStandings);
+            const standingsSource = tarotStandings.length > 0
+                ? tarotStandings
+                : (Array.isArray(activeData.tarotStandings) ? activeData.tarotStandings : []);
+            const calculatedStandings = calculateTarotKingdomStandings(standingsSource);
             const ownerStanding = calculatedStandings.find((entry) => entry.playFabId === ownerPlayFabId && entry.isNpc !== true)
                 || calculatedStandings.find((entry) => entry.playerIndex === 0 && entry.isNpc !== true)
                 || null;
@@ -4063,10 +4089,17 @@ function initializeExplorationRoutes(app, deps) {
                         progressFinishers,
                         participantId
                     );
+                    const participantStanding = calculatedStandings.find((entry) => (
+                        entry.playFabId === participantId && entry.isNpc !== true
+                    ));
                     if (bossResult?.playerWon) {
-                        const participantStanding = calculatedStandings.find((entry) => (
-                            entry.playFabId === participantId && entry.isNpc !== true
-                        ));
+                        if (participantStanding) {
+                            nextProgress = applyTarotKingdomStageBestChips(
+                                nextProgress,
+                                stage.stageNo,
+                                participantStanding.chips
+                            );
+                        }
                         const participantRank = Math.max(
                             1,
                             Math.min(4, Math.floor(Number(participantStanding?.rank) || 4))
@@ -4085,6 +4118,9 @@ function initializeExplorationRoutes(app, deps) {
                             nextProgress,
                             { promisifyPlayFab, PlayFabServer }
                         );
+                    }
+                    if (bossResult?.playerWon && participantStanding) {
+                        await updateTarotKingdomTotalBestChipsStatistic(participantId, nextProgress);
                     }
                     explorationProgressByPlayer[participantId] = nextProgress;
                     if (participantId === playFabId) explorationProgress = nextProgress;
@@ -4119,6 +4155,10 @@ function initializeExplorationRoutes(app, deps) {
                 const rewardDisplayName = participantRewards.length > 0
                     ? participantRewards.map((entry) => entry.DisplayName).join('、')
                     : '（なし）';
+                const participantProgress = explorationProgressByPlayer[participantId] || null;
+                const stageBestChips = stage
+                    ? Math.max(0, Number(participantProgress?.stages?.[String(stage.stageNo)]?.bestChips) || 0)
+                    : null;
                 return {
                     id: String(activeData.id || `exp-${now}`),
                     playFabId: participantId,
@@ -4127,6 +4167,10 @@ function initializeExplorationRoutes(app, deps) {
                     imagePath: destination.imagePath || '',
                     stageNo: stage?.stageNo || null,
                     stageRank: getParticipantRank(participantId),
+                    stageBestChips,
+                    totalBestChips: participantProgress
+                        ? Math.max(0, Number(participantProgress.totalBestChips) || 0)
+                        : null,
                     shipId: ship.shipId,
                     shipName: ship.shipName,
                     shipClass: ship.shipClass,

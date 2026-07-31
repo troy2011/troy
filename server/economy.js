@@ -8,6 +8,7 @@ const {
     buildStatsMapFromStatistics,
     PLAYER_CONTRIBUTION_STAT
 } = require('./playerLevel');
+const { TAROT_KINGDOM_TOTAL_BEST_CHIPS_STAT } = require('./tarotKingdomExplorationStages');
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
 const ENABLE_LEGACY_POINT_ROUTES = String(process.env.ENABLE_LEGACY_POINT_ROUTES || '').trim().toLowerCase() === 'true';
@@ -40,12 +41,11 @@ const STORE_GAME_RANKING_STATS = {
         kFactor: STORE_GAME_ELO_K_FACTOR
     },
     game: {
-        statisticName: 'troy_game_rating',
-        label: 'ゲーム',
+        statisticName: TAROT_KINGDOM_TOTAL_BEST_CHIPS_STAT,
+        label: 'タロットキングダム',
         scoreScale: 1,
-        isRating: true,
-        initialRating: STORE_GAME_ELO_INITIAL_RATING,
-        kFactor: STORE_GAME_ELO_K_FACTOR
+        maxScore: 10999989,
+        automatic: true
     },
     karaoke: {
         statisticName: 'troy_karaoke_score',
@@ -657,6 +657,9 @@ function initializeEconomyRoutes(app, deps) {
             const gameType = normalizeStoreGameType(req.body?.gameType || req.body?.type);
             const game = STORE_GAME_RANKING_STATS[gameType];
             if (!game) return res.status(400).json({ error: 'InvalidGameType' });
+            if (game.automatic === true) {
+                return res.status(400).json({ error: 'タロットキングダムの記録は探索結果から自動更新されます。' });
+            }
             if (isStoreGameRatingGame(game)) {
                 const opponentPlayFabId = String(req.body?.opponentPlayFabId || req.body?.opponentId || '').trim();
                 if (!opponentPlayFabId) return res.status(400).json({ error: '負けた相手を選択してください。' });
@@ -894,6 +897,7 @@ module.exports = {
     VIRTUAL_CURRENCY_CODE,
     LEADERBOARD_NAME,
     ECONOMY_CURRENCY_IDS,
+    STORE_GAME_RANKING_STATS,
     getEntityKeyForPlayFabId,
     getAllInventoryItems,
     getItemAmount,

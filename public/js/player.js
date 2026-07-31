@@ -23,7 +23,7 @@ import {
     normalizeStoreGameRankingType,
     renderRankingRows,
     renderRankingState
-} from './rankingUi.js';
+} from './rankingUi.js?v=20260731-stage-score1';
 
 let myPlayerStats = {};
 let myCrewRankInfo = null;

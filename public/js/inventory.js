@@ -1302,7 +1302,16 @@ function renderInventorySellControls(visibleItems = []) {
 }
 
 function getBlackMarketPanelElement() {
-    return document.getElementById('blackMarketPanel');
+    const panel = document.getElementById('blackMarketPanel');
+    if (panel && panel.dataset.dismissBound !== 'true') {
+        panel.dataset.dismissBound = 'true';
+        panel.addEventListener('click', (event) => {
+            if (event.target !== panel) return;
+            blackMarketVisible = false;
+            renderInventoryGrid(activeInventoryCategory);
+        });
+    }
+    return panel;
 }
 
 function createBlackMarketListingItem(listing) {
@@ -1373,6 +1382,9 @@ function renderBlackMarketPanel() {
     }
 
     panel.innerHTML = '';
+    const sheet = document.createElement('div');
+    sheet.className = 'black-market-sheet';
+
     const head = document.createElement('div');
     head.className = 'black-market-panel-head';
     const title = document.createElement('h3');
@@ -1385,14 +1397,24 @@ function renderBlackMarketPanel() {
     refresh.textContent = '更新';
     refresh.disabled = blackMarketLoading;
     refresh.addEventListener('click', () => loadBlackMarketListings({ force: true }));
-    head.append(title, count, refresh);
-    panel.appendChild(head);
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'black-market-refresh';
+    close.textContent = '×';
+    close.setAttribute('aria-label', '闇市を閉じる');
+    close.addEventListener('click', () => {
+        blackMarketVisible = false;
+        renderInventoryGrid(activeInventoryCategory);
+    });
+    head.append(title, count, refresh, close);
+    sheet.appendChild(head);
 
     if (blackMarketLoading) {
         const loading = document.createElement('p');
         loading.className = 'black-market-empty';
         loading.textContent = '読み込み中...';
-        panel.appendChild(loading);
+        sheet.appendChild(loading);
+        panel.appendChild(sheet);
         return;
     }
 
@@ -1400,7 +1422,8 @@ function renderBlackMarketPanel() {
         const empty = document.createElement('p');
         empty.className = 'black-market-empty';
         empty.textContent = '出品はありません。';
-        panel.appendChild(empty);
+        sheet.appendChild(empty);
+        panel.appendChild(sheet);
         return;
     }
 
@@ -1409,7 +1432,8 @@ function renderBlackMarketPanel() {
     blackMarketListings.forEach((listing) => {
         list.appendChild(createBlackMarketListingItem(listing));
     });
-    panel.appendChild(list);
+    sheet.appendChild(list);
+    panel.appendChild(sheet);
 }
 
 async function loadBlackMarketListings(options = {}) {

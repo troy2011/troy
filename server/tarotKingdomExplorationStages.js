@@ -1,8 +1,10 @@
 const PIXEL_MONSTERS_ROSTER = require('../public/Sprites/pixel-monsters/manifest.json');
 
 const TAROT_KINGDOM_EXPLORATION_PROGRESS_KEY = 'TarotKingdomExplorationProgress';
-const TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION = 2;
+const TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION = 3;
 const TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION = 2;
+const TAROT_KINGDOM_STAGE_BEST_CHIPS_MAX = 999999;
+const TAROT_KINGDOM_TOTAL_BEST_CHIPS_STAT = 'troy_tarot_kingdom_chip_total';
 
 const MONSTER_BY_ID = new Map(
     PIXEL_MONSTERS_ROSTER.map((monster) => [String(monster?.id || '').trim(), monster])
@@ -205,6 +207,7 @@ function normalizeTarotKingdomExplorationProgress(value) {
         if (!stageNo || !raw || typeof raw !== 'object') return;
         stages[String(stageNo)] = {
             bestRank: clampInteger(raw.bestRank, 1, 4, 4),
+            bestChips: clampInteger(raw.bestChips, 0, TAROT_KINGDOM_STAGE_BEST_CHIPS_MAX, 0),
             clearCount: Math.max(0, Math.floor(Number(raw.clearCount) || 0)),
             firstClearedAtMs: Math.max(0, Math.floor(Number(raw.firstClearedAtMs) || 0)),
             lastClearedAtMs: Math.max(0, Math.floor(Number(raw.lastClearedAtMs) || 0)),
@@ -222,6 +225,9 @@ function normalizeTarotKingdomExplorationProgress(value) {
             .map((monsterId) => String(monsterId || '').trim())
             .filter((monsterId) => validMonsterIds.has(monsterId))
     ));
+    const totalBestChips = Object.values(stages).reduce((sum, stage) => (
+        sum + clampInteger(stage?.bestChips, 0, TAROT_KINGDOM_STAGE_BEST_CHIPS_MAX, 0)
+    ), 0);
     return {
         version: TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION,
         highestUnlockedStage: clampInteger(
@@ -231,7 +237,8 @@ function normalizeTarotKingdomExplorationProgress(value) {
             1
         ),
         stages,
-        defeatedMonsterIds
+        defeatedMonsterIds,
+        totalBestChips
     };
 }
 
@@ -279,7 +286,7 @@ function applyTarotKingdomStageClear(progress, stageNo, rank, now = Date.now(), 
     const nextHighest = safeRank <= 2
         ? Math.min(11, Math.max(normalized.highestUnlockedStage, stage.stageNo + 1))
         : normalized.highestUnlockedStage;
-    return {
+    return normalizeTarotKingdomExplorationProgress({
         version: TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION,
         highestUnlockedStage: nextHighest,
         defeatedMonsterIds: normalized.defeatedMonsterIds,
@@ -287,13 +294,42 @@ function applyTarotKingdomStageClear(progress, stageNo, rank, now = Date.now(), 
             ...normalized.stages,
             [key]: {
                 bestRank: previous ? Math.min(previous.bestRank, safeRank) : safeRank,
+                bestChips: previous?.bestChips || 0,
                 clearCount: Math.max(0, Number(previous?.clearCount) || 0) + 1,
                 firstClearedAtMs: previous?.firstClearedAtMs || completedAtMs,
                 lastClearedAtMs: completedAtMs,
                 lastExplorationId: safeExplorationId
             }
         }
-    };
+    });
+}
+
+function applyTarotKingdomStageBestChips(progress, stageNo, chips) {
+    const normalized = normalizeTarotKingdomExplorationProgress(progress);
+    const stage = getTarotKingdomExplorationStage(stageNo);
+    if (!stage) return normalized;
+    const key = String(stage.stageNo);
+    const previous = normalized.stages[key] || null;
+    const bestChips = clampInteger(chips, 0, TAROT_KINGDOM_STAGE_BEST_CHIPS_MAX, 0);
+    if (bestChips <= Number(previous?.bestChips || 0)) return normalized;
+    return normalizeTarotKingdomExplorationProgress({
+        ...normalized,
+        stages: {
+            ...normalized.stages,
+            [key]: {
+                bestRank: previous?.bestRank || 4,
+                bestChips,
+                clearCount: Math.max(0, Number(previous?.clearCount) || 0),
+                firstClearedAtMs: Math.max(0, Number(previous?.firstClearedAtMs) || 0),
+                lastClearedAtMs: Math.max(0, Number(previous?.lastClearedAtMs) || 0),
+                lastExplorationId: String(previous?.lastExplorationId || '')
+            }
+        }
+    });
+}
+
+function getTarotKingdomTotalBestChips(progress) {
+    return normalizeTarotKingdomExplorationProgress(progress).totalBestChips;
 }
 
 function applyTarotKingdomMonsterDefeats(progress, stageNo, finishers = [], playFabId = '') {
@@ -343,6 +379,7 @@ function buildTarotKingdomStageList(progress, shipStage) {
                 };
             }),
             bestRank: record?.bestRank || null,
+            bestChips: record?.bestChips || 0,
             clearCount: record?.clearCount || 0,
             progressionUnlocked,
             shipUnlocked,
@@ -425,10 +462,13 @@ function getTarotKingdomStageRewardWeights(stageNo, rank) {
 module.exports = {
     TAROT_KINGDOM_EXPLORATION_PROGRESS_KEY,
     TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION,
+    TAROT_KINGDOM_STAGE_BEST_CHIPS_MAX,
     TAROT_KINGDOM_EXPLORATION_STAGES,
     TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION,
+    TAROT_KINGDOM_TOTAL_BEST_CHIPS_STAT,
     STAGE_REWARD_WEIGHTS,
     applyTarotKingdomStageClear,
+    applyTarotKingdomStageBestChips,
     applyTarotKingdomMonsterDefeats,
     buildTarotKingdomStageEncounter,
     buildTarotKingdomStageList,
@@ -436,6 +476,7 @@ module.exports = {
     getTarotKingdomExplorationStage,
     getTarotKingdomShipStageCap,
     getTarotKingdomStageRewardWeights,
+    getTarotKingdomTotalBestChips,
     normalizeTarotKingdomExplorationProgress,
     readTarotKingdomExplorationProgress,
     writeTarotKingdomExplorationProgress
