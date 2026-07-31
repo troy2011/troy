@@ -1211,7 +1211,12 @@ test('monsters with two attack sheets use the second one for area attacks and pe
         area: debug.battleMonsterAttackAnimation('ismartal-vol1-monster-01', 'area'),
         skill: debug.battleMonsterAttackAnimation('ismartal-vol1-monster-01', 'skill')
       },
-      motion: debug.battleMonsterAttackMotion('ismartal-vol2-monster-06', 'area')
+      motion: debug.battleMonsterAttackMotion('ismartal-vol2-monster-06', 'area'),
+      timing: {
+        short: debug.battleMonsterAttackMotion('ismartal-vol3-monster-03', 'single'),
+        medium: debug.battleMonsterAttackMotion('ismartal-vol1-monster-03', 'single'),
+        capped: debug.battleMonsterAttackMotion('ismartal-vol2-monster-08', 'single')
+      }
     };
   });
   expect(selection.dual).toEqual([
@@ -1226,6 +1231,18 @@ test('monsters with two attack sheets use the second one for area attacks and pe
     advanceDurationMs: 180,
     returnDurationMs: 180,
     totalDurationMs: 1280
+  });
+  expect(selection.timing.short).toMatchObject({
+    animationDurationMs: 400,
+    totalDurationMs: 580
+  });
+  expect(selection.timing.medium).toMatchObject({
+    animationDurationMs: 1600,
+    totalDurationMs: 1780
+  });
+  expect(selection.timing.capped).toMatchObject({
+    animationDurationMs: 1800,
+    totalDurationMs: 1980
   });
 
   const enemySequence = await page.evaluate(() => {
@@ -1360,7 +1377,7 @@ test('monsters with two attack sheets use the second one for area attacks and pe
   expect(petAnimations.skill.backgroundImage).toContain('/pixel-monsters/vol2/monster-06/attack2.png');
 });
 
-test('all monster attack sheets finish in the same compact battle timing', async ({ page }) => {
+test('all monster attack sheets use their native timing up to the compact battle cap', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   const audit = await page.evaluate(() => window.TarotKingdomDebug.battleDemoEnemies().map((monster) => ({
     id: monster.id,
@@ -1370,18 +1387,22 @@ test('all monster attack sheets finish in the same compact battle timing', async
   })));
 
   expect(audit).toHaveLength(50);
+  const observedDurations = new Set();
   audit.forEach((monster) => {
     for (const motion of [monster.single, monster.area]) {
-      expect(motion.animationDurationMs, monster.name).toBe(1100);
+      expect(motion.animationDurationMs, monster.name).toBeGreaterThan(0);
+      expect(motion.animationDurationMs, monster.name).toBeLessThanOrEqual(1800);
       expect(motion.advanceDurationMs, monster.name).toBe(180);
       expect(motion.returnDurationMs, monster.name).toBe(180);
-      expect(motion.totalDurationMs, monster.name).toBe(1280);
+      expect(motion.totalDurationMs, monster.name).toBe(motion.animationDurationMs + 180);
+      observedDurations.add(motion.animationDurationMs);
     }
   });
+  expect(observedDurations.size).toBeGreaterThan(1);
 
   const rubit = audit.find((monster) => monster.id === 'ismartal-vol2-monster-08');
   expect(rubit?.name).toBe('ルビット');
-  expect(rubit?.single.animationDurationMs).toBe(1100);
+  expect(rubit?.single.animationDurationMs).toBe(1800);
 });
 
 test('player attack and retreat shadows follow horizontal movement without leaving the floor', async ({ page }) => {

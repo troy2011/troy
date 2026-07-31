@@ -355,7 +355,7 @@ const A_PENALTY = 1;
 const ROUND_START_CINEMATIC_MS = 980;
 const OPENING_ENEMY_ENTER_MS = 860;
 const OPENING_ENEMY_ATTACK_MS = 720;
-const KINGDOM_MONSTER_ATTACK_ANIMATION_MS = 1100;
+const KINGDOM_MONSTER_ATTACK_ANIMATION_MAX_MS = 1800;
 const OPENING_FIELD_CARD_MS = 520;
 const ROUND_OUT_CINEMATIC_MS = 1080;
 const KINGDOM_RUSH_MONSTER_PLAYBACK_RATE = 0.32;
@@ -4328,10 +4328,11 @@ function getKingdomMonsterAnimationDurationMs(monsterId = '', animationName = 'i
   const animation = monster?.animations?.[animationName] || monster?.animations?.idle;
   const frameCount = Math.max(1, Number(animation?.frameCount) || 1);
   const fps = Math.max(1, Number(animation?.fps) || 12);
+  const nativeDurationMs = Math.max(1, Math.round((frameCount / fps) * 1000));
   if (String(animationName || '').startsWith('attack')) {
-    return KINGDOM_MONSTER_ATTACK_ANIMATION_MS;
+    return Math.min(nativeDurationMs, KINGDOM_MONSTER_ATTACK_ANIMATION_MAX_MS);
   }
-  return Math.max(1, Math.round((frameCount / fps) * 1000));
+  return nativeDurationMs;
 }
 
 function getKingdomMonsterAttackAnimationName(monsterOrId, attackMode = 'single') {
