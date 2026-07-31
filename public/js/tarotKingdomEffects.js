@@ -32,31 +32,28 @@ const NEGATIVE_STATUS_PRIORITY = Object.freeze([
     'paralysis', 'poison', 'burn', 'blind', 'fear', 'confusion', 'wet', 'weaken', 'vulnerable'
 ]);
 
-const KNOWN_RESONANCE_EFFECT_CODES = Object.freeze(new Set([
-    'accuracyBonus',
-    'burn',
-    'cleanse',
-    'clearEnemyEvasion',
-    'clearGuard',
-    'confusion',
-    'counter',
-    'defenseDown',
-    'evasion',
-    'extraHpPercentDamage',
-    'fear',
-    'flood',
-    'healAndCleanseOne',
-    'healOrCleanseBurn',
-    'healPercent',
-    'morale',
-    'moraleOrPower',
-    'mpPercent',
-    'nextDamageTaken',
-    'nextMinorEffectMultiplier',
-    'nextMinorPower',
-    'nextWandsPower',
-    'speedChange'
-]));
+async function loadTarotKingdomArcanaEffects() {
+    const injected = globalThis.__TAROT_KINGDOM_ARCANA_EFFECTS__;
+    if (injected && typeof injected === 'object') return injected;
+    if (String(import.meta.url || '').startsWith('data:')) {
+        return { version: 1, minor: [], guardian: [] };
+    }
+    const url = new URL('../data/tarot-kingdom-arcana-effects.json', import.meta.url);
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Arcana effects could not be loaded: ${response.status}`);
+    return response.json();
+}
+
+export const TAROT_KINGDOM_ARCANA_EFFECTS = await loadTarotKingdomArcanaEffects();
+export const TAROT_KINGDOM_ARCANA_EFFECT_CATALOG = TAROT_KINGDOM_ARCANA_EFFECTS;
+const MINOR_RESONANCE_BY_KEY = new Map(
+    (Array.isArray(TAROT_KINGDOM_ARCANA_EFFECTS.minor) ? TAROT_KINGDOM_ARCANA_EFFECTS.minor : [])
+        .map((entry) => [`${entry.suit}:${entry.rank}`, entry])
+);
+const GUARDIAN_BY_NUMBER = new Map(
+    (Array.isArray(TAROT_KINGDOM_ARCANA_EFFECTS.guardian) ? TAROT_KINGDOM_ARCANA_EFFECTS.guardian : [])
+        .map((entry) => [Number(entry.number), entry])
+);
 
 function finiteNumber(value, fallback = 0) {
     const parsed = Number(value);
@@ -89,56 +86,25 @@ function normalizeWeapon(value) {
     return WEAPON_ALIASES[raw] || raw || 'unarmed';
 }
 
-function normalizeEffectCode(raw = {}) {
-    if (!raw || typeof raw !== 'object') return null;
-    const type = String(raw.type || '').trim();
-    if (!type) return null;
-    const normalized = { type };
-    [
-        'target', 'trigger', 'conditionStatus', 'status'
-    ].forEach((key) => {
-        if (raw[key] != null && String(raw[key]).trim()) normalized[key] = String(raw[key]).trim();
-    });
-    [
-        'value', 'chance', 'multiplier', 'charges', 'turns', 'powerBonus', 'power'
-    ].forEach((key) => {
-        const value = Number(raw[key]);
-        if (Number.isFinite(value)) normalized[key] = value;
-    });
-    if (Array.isArray(raw.statuses)) {
-        normalized.statuses = raw.statuses.map((status) => String(status || '').trim()).filter(Boolean);
-    }
-    return normalized;
-}
-
 export function normalizeTarotKingdomDeckEntry(raw = {}, slot = 0) {
     const suit = normalizeSuit(raw.suit || raw.ArcanaSuit);
     const rank = positiveRank(raw.rank ?? raw.number ?? raw.ArcanaRank);
     if (!suit || !rank) return null;
     const itemId = String(raw.itemId || raw.ItemId || `minor-${SUIT_KEYS[suit]}-${rank}`).trim();
     const cardId = String(raw.cardId || `${SUIT_KEYS[suit].toUpperCase()}_${String(rank).padStart(2, '0')}`).trim();
-    const power = Number(raw.power);
+    const definition = MINOR_RESONANCE_BY_KEY.get(`${suit}:${rank}`) || null;
+    const rawSteps = Array.isArray(raw.steps) ? raw.steps : definition?.steps;
     return {
         slot: Math.max(0, Math.min(4, Math.floor(finiteNumber(raw.slot, slot)))),
         cardId,
         itemId,
         suit,
         rank,
-        skillName: String(raw.skillName || raw.cardName || `${suit} ${rank}`).trim(),
-        effectClass: String(raw.effectClass || '').trim(),
-        target: String(raw.target || '').trim(),
-        power: Number.isFinite(power) ? Math.max(0, power) : null,
-        accuracy: Number.isFinite(Number(raw.accuracy)) ? Number(raw.accuracy) : null,
-        hitCount: Math.max(1, Math.floor(finiteNumber(raw.hitCount, 1))),
-        effectCodes: (Array.isArray(raw.effectCodes) ? raw.effectCodes : []).map(normalizeEffectCode).filter(Boolean),
-        ignoreDefense: clamp(raw.ignoreDefense, 0, 1),
-        criticalBonus: clamp(raw.criticalBonus, 0, 1),
-        drainRate: clamp(raw.drainRate, 0, 1),
-        priority: !!raw.priority,
-        conditionalPower: raw.conditionalPower && typeof raw.conditionalPower === 'object'
-            ? { ...raw.conditionalPower }
-            : null,
-        effectText: String(raw.effectText || '').trim()
+        cardLevel: Math.max(1, Math.min(15, Math.floor(finiteNumber(raw.cardLevel, 1)))),
+        resonanceId: String(raw.resonanceId || definition?.id || `${SUIT_KEYS[suit]}-${rank}`).trim(),
+        skillName: String(definition?.name || raw.skillName || raw.cardName || `${suit} ${rank}`).trim(),
+        effectText: String(definition?.effect || raw.effectText || '').trim(),
+        steps: (Array.isArray(rawSteps) ? rawSteps : []).map((step) => ({ ...step }))
     };
 }
 
@@ -155,6 +121,33 @@ export function normalizeTarotKingdomTarotDeck(rawDeck = []) {
         })
         .slice(0, 5)
         .map((entry, slot) => ({ ...entry, slot }));
+}
+
+export function normalizeTarotKingdomGuardian(raw = null) {
+    if (!raw || typeof raw !== 'object') return null;
+    const parsedNumber = Math.floor(finiteNumber(raw.number, -1));
+    if (parsedNumber < 0 || parsedNumber > 21 || !GUARDIAN_BY_NUMBER.has(parsedNumber)) return null;
+    const number = parsedNumber;
+    const definition = GUARDIAN_BY_NUMBER.get(number);
+    return {
+        itemId: String(raw.itemId || '').trim(),
+        number,
+        name: String(raw.name || '').trim(),
+        cardLevel: Math.max(1, Math.min(25, Math.floor(finiteNumber(raw.cardLevel, 1)))),
+        passiveId: String(raw.passiveId || definition.passiveId).trim(),
+        passiveName: String(raw.passiveName || definition.passiveName).trim(),
+        awakeningId: String(raw.awakeningId || definition.awakeningId).trim()
+    };
+}
+
+export function getTarotKingdomGuardianDefinition(number) {
+    const definition = GUARDIAN_BY_NUMBER.get(Math.floor(finiteNumber(number, -1)));
+    return definition ? { ...definition } : null;
+}
+
+export function getTarotKingdomMinorDefinition(suit, rank) {
+    const definition = MINOR_RESONANCE_BY_KEY.get(`${normalizeSuit(suit)}:${positiveRank(rank)}`);
+    return definition ? { ...definition, steps: definition.steps.map((step) => ({ ...step })) } : null;
 }
 
 export function normalizeTarotKingdomWeaponTypes(rawTypes, fallback = 'unarmed') {
@@ -386,173 +379,231 @@ export function resolveTarotKingdomWeaponEffect(context = {}) {
     return candidates[0] || null;
 }
 
-function resonanceScaleForSuit(suit, combat = {}) {
-    return suit === 'Wand' || suit === 'Cup'
-        ? getTarotKingdomMagicScale(combat.intelligence)
-        : getTarotKingdomPhysicalScale(combat.power);
-}
-
 function createResonanceStep(kind, label, extras = {}) {
     return { source: 'resonance', kind, label, ...extras };
 }
 
-function addEffectCodeSteps(steps, entry, code, context) {
-    const rank = entry.rank;
-    const chance = getTarotKingdomStatusChance(rank);
-    const targetSelf = String(code.target || entry.target || '').toLowerCase() === 'self';
-    const playerTarget = { targetType: 'player', targetIndex: context.actorIndex };
-    const enemyTarget = { targetType: 'enemy' };
-    const target = targetSelf ? playerTarget : enemyTarget;
-    const value = finiteNumber(code.value, 0);
-    const multiplier = finiteNumber(code.multiplier, 0);
-    if (code.type === 'burn' || code.type === 'flood' || code.type === 'fear' || code.type === 'confusion') {
-        const statusKey = code.type === 'flood' ? 'wet' : code.type;
-        const potency = statusKey === 'burn'
-            ? Math.max(1, Math.floor((rank * resonanceScaleForSuit(entry.suit, context.character?.combat)) / 2))
-            : (statusKey === 'wet' ? 20 : 1);
-        steps.push(createResonanceStep('status', entry.skillName, {
-            ...enemyTarget, statusKey, potency, chance, score: chance * (statusKey === 'fear' || statusKey === 'confusion' ? 30 : 18)
-        }));
-        return;
+export function getTarotKingdomCardLevelScale(level) {
+    return 1 + (Math.max(1, Math.floor(finiteNumber(level, 1))) - 1) * 0.02;
+}
+
+function getContextLivingPlayerIndexes(context = {}) {
+    return (Array.isArray(context.players) ? context.players : [])
+        .map((player, index) => ({ player, index }))
+        .filter(({ player }) => Number(player?.hp) > 0)
+        .map(({ index }) => index);
+}
+
+function getLowestHpIndex(context = {}, excludeIndex = null) {
+    const actorIndex = Math.max(0, Math.floor(finiteNumber(context.actorIndex, 0)));
+    const count = Math.max(1, context.players?.length || 1);
+    return getContextLivingPlayerIndexes(context)
+        .filter((index) => index !== excludeIndex)
+        .sort((left, right) => {
+            const leftPlayer = context.players[left] || {};
+            const rightPlayer = context.players[right] || {};
+            const leftRate = Math.max(0, finiteNumber(leftPlayer.hp, 0)) / Math.max(1, finiteNumber(leftPlayer.maxHp, 1));
+            const rightRate = Math.max(0, finiteNumber(rightPlayer.hp, 0)) / Math.max(1, finiteNumber(rightPlayer.maxHp, 1));
+            if (leftRate !== rightRate) return leftRate - rightRate;
+            return ((left - actorIndex + count) % count) - ((right - actorIndex + count) % count);
+        })[0] ?? null;
+}
+
+function getNextLivingIndex(context = {}, fromIndex = 0) {
+    const living = new Set(getContextLivingPlayerIndexes(context));
+    const count = Math.max(1, context.players?.length || 1);
+    for (let offset = 1; offset < count; offset += 1) {
+        const candidate = (fromIndex + offset) % count;
+        if (living.has(candidate)) return candidate;
     }
-    if (code.type === 'healPercent') {
-        steps.push(createResonanceStep('heal-percent', entry.skillName, { ...playerTarget, percent: Math.max(0, value), score: Math.max(0, value) }));
-        return;
-    }
-    if (code.type === 'healOrCleanseBurn') {
-        steps.push(createResonanceStep('heal-or-cleanse', entry.skillName, { ...playerTarget, percent: Math.max(0, value), statusKey: 'burn', score: 20 }));
-        return;
-    }
-    if (code.type === 'healAndCleanseOne') {
-        steps.push(createResonanceStep('heal-cleanse', entry.skillName, { ...playerTarget, percent: Math.max(0, value), score: 28 }));
-        return;
-    }
-    if (code.type === 'cleanse') {
-        steps.push(createResonanceStep('cleanse', entry.skillName, {
-            ...playerTarget,
-            statusKey: String(code.status || ''),
-            statusKeys: Array.isArray(code.statuses) ? code.statuses : [],
-            score: 24
-        }));
-        return;
-    }
-    if (code.type === 'nextDamageTaken') {
-        const potency = Math.round((1 - (multiplier || 1)) * 100);
-        steps.push(createResonanceStep('guard', entry.skillName, {
-            ...target, statusKey: targetSelf ? 'guard' : 'break', potency: Math.abs(potency),
-            charges: Math.max(1, Math.floor(finiteNumber(code.charges, 1))), score: Math.abs(potency)
-        }));
-        return;
-    }
-    if (code.type === 'defenseDown') {
-        const potency = Math.max(1, Math.round((1 - (multiplier || 0.9)) * 100));
-        steps.push(createResonanceStep('status', entry.skillName, { ...enemyTarget, statusKey: 'break', potency, chance, charges: 1, score: potency }));
-        return;
-    }
-    if (code.type === 'speedChange' || code.type === 'nextMinorEffectMultiplier') {
-        const potency = Math.max(10, Math.round(Math.abs(1 - (multiplier || 0.8)) * 100));
-        if (targetSelf) {
-            steps.push(createResonanceStep('buff', entry.skillName, { ...playerTarget, statusKey: 'nextEffectUp', potency, charges: 1, score: potency }));
-        } else {
-            steps.push(createResonanceStep('status', entry.skillName, { ...enemyTarget, statusKey: 'weaken', potency, chance: 1, charges: 1, score: potency }));
+    return null;
+}
+
+function getResonanceValue(entry, context, kind) {
+    const combat = context.character?.combat || {};
+    const scale = kind === 'magic'
+        ? getTarotKingdomMagicScale(combat.intelligence)
+        : getTarotKingdomPhysicalScale(combat.power);
+    const growth = getTarotKingdomGrowthDamageScale(context.character, kind, context.growthVersion);
+    return Math.max(1, Math.floor(
+        (5 + (entry.rank * 0.75))
+        * scale
+        * growth
+        * getTarotKingdomCardLevelScale(entry.cardLevel)
+    ));
+}
+
+function scaledNumeric(value, levelScale, cap = Infinity) {
+    return Math.min(cap, Math.max(0, Math.round(finiteNumber(value, 0) * levelScale)));
+}
+
+function addPlayerStatus(steps, entry, raw, targetType, targetIndex, levelScale) {
+    const potency = raw.potencyFromResonance != null
+        ? Math.max(1, Math.floor(getResonanceValue(entry, raw.__context, 'physical') * finiteNumber(raw.potencyFromResonance, 0)))
+        : scaledNumeric(raw.potency, levelScale, 50);
+    steps.push(createResonanceStep(raw.statusKey === 'guard' ? 'guard' : 'buff', entry.skillName, {
+        targetType,
+        targetIndex,
+        statusKey: raw.statusKey,
+        potency,
+        charges: raw.charges,
+        turns: raw.turns,
+        untilClear: raw.untilClear === true,
+        score: Math.max(1, potency)
+    }));
+}
+
+function expandResonanceDefinition(entry, context = {}) {
+    const steps = [];
+    const levelScale = getTarotKingdomCardLevelScale(entry.cardLevel);
+    const actorIndex = Math.max(0, Math.floor(finiteNumber(context.actorIndex, 0)));
+    const living = getContextLivingPlayerIndexes(context);
+    const lowest = getLowestHpIndex(context);
+    const lowestOther = getLowestHpIndex(context, actorIndex);
+    const addHeal = (targetIndex, percent, raw = {}) => {
+        if (!Number.isInteger(targetIndex)) return;
+        let scaledPercent = scaledNumeric(percent, levelScale, 40);
+        const player = context.players?.[targetIndex] || {};
+        const hpRate = Math.max(0, finiteNumber(player.hp, 0)) / Math.max(1, finiteNumber(player.maxHp, 1));
+        if (raw.thresholdPercent != null && hpRate * 100 <= finiteNumber(raw.thresholdPercent, 0)) {
+            scaledPercent = Math.min(40, scaledPercent + scaledNumeric(raw.bonusPercent, levelScale, 40));
         }
-        return;
-    }
-    if (code.type === 'accuracyBonus') {
-        steps.push(createResonanceStep('buff', entry.skillName, {
-            ...playerTarget, statusKey: 'statusChanceUp', potency: finiteNumber(code.value, 10), charges: 1, score: 10
+        steps.push(createResonanceStep(raw.cleanseBelowPercent != null && hpRate * 100 <= raw.cleanseBelowPercent ? 'heal-cleanse' : 'heal-percent', entry.skillName, {
+            targetType: 'player',
+            targetIndex,
+            percent: scaledPercent,
+            score: scaledPercent
         }));
-        return;
-    }
-    if (code.type === 'mpPercent') {
-        if (finiteNumber(code.value, 0) > 0 || String(code.target || '') === 'self') {
-            steps.push(createResonanceStep('buff', entry.skillName, {
-                ...playerTarget, statusKey: 'nextEffectUp', potency: Math.max(5, Math.abs(value)), charges: 1, score: Math.max(5, Math.abs(value))
+    };
+    const addShield = (targetIndex, percent) => {
+        if (!Number.isInteger(targetIndex)) return;
+        const scaledPercent = scaledNumeric(percent, levelScale, 40);
+        const maxHp = Math.max(1, finiteNumber(context.players?.[targetIndex]?.maxHp, 1));
+        steps.push(createResonanceStep('buff', entry.skillName, {
+            targetType: 'player',
+            targetIndex,
+            statusKey: 'hpShield',
+            potency: scaledPercent,
+            shieldHp: Math.max(1, Math.floor(maxHp * scaledPercent / 100)),
+            score: scaledPercent
+        }));
+    };
+    entry.steps.forEach((sourceStep) => {
+        const raw = { ...sourceStep, __context: context };
+        const magic = ['magic-damage', 'elemental-barrage', 'weakness-damage'].includes(raw.kind);
+        const physical = raw.kind === 'physical-damage';
+        if (magic || physical) {
+            let multiplier = finiteNumber(raw.multiplier, 1);
+            const enemyHp = Math.max(0, finiteNumber(context.enemy?.hp, 0));
+            const enemyMaxHp = Math.max(1, finiteNumber(context.enemy?.maxHp, 1));
+            if (raw.thresholdPercent != null && enemyHp / enemyMaxHp * 100 <= raw.thresholdPercent) {
+                multiplier = finiteNumber(raw.thresholdMultiplier, multiplier);
+            }
+            const base = getResonanceValue(entry, context, magic ? 'magic' : 'physical');
+            const elements = raw.kind === 'elemental-barrage'
+                ? raw.elements
+                : [raw.kind === 'weakness-damage' ? String(context.enemyAffinity?.weak || '') : raw.element];
+            const hitCount = raw.kind === 'elemental-barrage'
+                ? Math.max(1, elements.length)
+                : Math.max(1, Math.floor(finiteNumber(raw.hitCount, 1)));
+            steps.push(createResonanceStep(magic ? 'magic' : 'damage', entry.skillName, {
+                targetType: 'enemy',
+                amount: Math.max(1, Math.floor(base * multiplier)),
+                element: elements.filter(Boolean)[0] || '',
+                elements: elements.filter(Boolean),
+                hitCount,
+                ignoreDefense: clamp(raw.ignoreDefense, 0, 1),
+                score: Math.max(1, Math.floor(base * multiplier))
             }));
-        } else {
-            steps.push(createResonanceStep('status', entry.skillName, { ...enemyTarget, statusKey: 'weaken', potency: Math.abs(value), chance: 1, charges: 1, score: Math.abs(value) }));
+            return;
         }
-        return;
-    }
-    if (code.type === 'morale' || code.type === 'moraleOrPower') {
-        steps.push(createResonanceStep('buff', entry.skillName, {
-            targetType: 'party', statusKey: 'nextAttackUp', potency: Math.max(15, finiteNumber(code.powerBonus, 15)), charges: 1, score: 18
-        }));
-        return;
-    }
-    if (code.type === 'nextWandsPower' || code.type === 'nextMinorPower') {
-        steps.push(createResonanceStep('buff', entry.skillName, {
-            ...playerTarget, statusKey: code.type === 'nextWandsPower' ? 'nextWandUp' : 'nextEffectFlat',
-            potency: Math.max(1, value), charges: 1, score: Math.max(10, value)
-        }));
-        return;
-    }
-    if (code.type === 'clearGuard' || code.type === 'clearEnemyEvasion') {
-        steps.push(createResonanceStep('dispel', entry.skillName, { ...enemyTarget, statusKey: code.type === 'clearGuard' ? 'guard' : 'evasion', score: 18 }));
-        return;
-    }
-    if (code.type === 'extraHpPercentDamage') {
-        steps.push(createResonanceStep('conditional-percent-damage', entry.skillName, {
-            ...enemyTarget, percent: Math.max(0, value), conditionStatus: String(code.conditionStatus || ''), score: Math.max(0, value) * 3
-        }));
-        return;
-    }
-    if (code.type === 'counter') {
-        steps.push(createResonanceStep('buff', entry.skillName, {
-            ...playerTarget, statusKey: 'counter', potency: Math.max(1, finiteNumber(code.power, value || 60)), charges: 1, score: 20
-        }));
-        return;
-    }
-    if (code.type === 'evasion') {
-        steps.push(createResonanceStep('buff', entry.skillName, {
-            ...playerTarget, statusKey: 'evasion', potency: Math.round(getTarotKingdomStatusChance(rank) * 100), charges: 1, score: 24
-        }));
-    }
+        if (raw.kind === 'heal-lowest') addHeal(lowest, raw.percent, raw);
+        else if (raw.kind === 'heal-self') addHeal(actorIndex, raw.percent, raw);
+        else if (raw.kind === 'heal-lowest-other') addHeal(lowestOther, raw.percent, raw);
+        else if (raw.kind === 'heal-party') living.forEach((index) => addHeal(index, raw.percent, raw));
+        else if (raw.kind === 'shield-self') addShield(actorIndex, raw.percent);
+        else if (raw.kind === 'shield-lowest-other') addShield(lowestOther, raw.percent);
+        else if (raw.kind === 'shield-party') living.forEach((index) => addShield(index, raw.percent));
+        else if (raw.kind === 'cleanse-lowest') {
+            const affected = living.find((index) => NEGATIVE_STATUS_PRIORITY.some((key) => context.effects?.players?.[index]?.[key]));
+            if (Number.isInteger(affected)) {
+                steps.push(createResonanceStep('cleanse', entry.skillName, {
+                    targetType: 'player', targetIndex: affected, score: 20
+                }));
+            } else addHeal(lowest, raw.fallbackPercent, raw);
+        } else if (raw.kind === 'heal-last-damage') {
+            const maxHp = Math.max(1, finiteNumber(context.players?.[actorIndex]?.maxHp, 1));
+            const amount = Math.min(
+                Math.floor(maxHp * scaledNumeric(raw.capPercent, levelScale, 40) / 100),
+                Math.floor(finiteNumber(context.lastEnemyDirectDamage, 0) * finiteNumber(raw.rate, 0) / 100)
+            );
+            steps.push(createResonanceStep('heal', entry.skillName, {
+                targetType: 'player', targetIndex: actorIndex, amount, score: amount
+            }));
+        } else if (raw.kind === 'enemy-status') {
+            const potency = raw.potencyFromResonance != null
+                ? Math.max(1, Math.floor(getResonanceValue(entry, context, entry.suit === 'Wand' ? 'magic' : 'physical') * raw.potencyFromResonance))
+                : scaledNumeric(raw.potency, levelScale, 50);
+            steps.push(createResonanceStep('status', entry.skillName, {
+                targetType: 'enemy',
+                statusKey: raw.statusKey,
+                potency,
+                chance: raw.chance,
+                charges: raw.charges,
+                turns: raw.turns,
+                untilClear: raw.untilClear === true,
+                score: Math.max(1, potency)
+            }));
+        } else if (raw.kind === 'party-status') {
+            addPlayerStatus(steps, entry, raw, 'party', null, levelScale);
+        } else if (raw.kind === 'player-status-self') {
+            addPlayerStatus(steps, entry, raw, 'player', actorIndex, levelScale);
+        } else if (raw.kind === 'player-status-lowest') {
+            addPlayerStatus(steps, entry, raw, 'player', lowest, levelScale);
+        } else if (raw.kind === 'crit-pair') {
+            [actorIndex, getNextLivingIndex(context, actorIndex)].filter(Number.isInteger).forEach((targetIndex) => {
+                addPlayerStatus(steps, entry, { ...raw, statusKey: 'criticalUp' }, 'player', targetIndex, levelScale);
+            });
+        } else if (raw.kind === 'cover-lowest') {
+            steps.push(createResonanceStep('buff', entry.skillName, {
+                targetType: 'party',
+                statusKey: 'cover',
+                potency: scaledNumeric(raw.potency, levelScale, 50),
+                coverIndex: actorIndex,
+                targetIndex: lowestOther,
+                charges: raw.charges,
+                score: raw.potency
+            }));
+        } else if (raw.kind === 'defense-counter') {
+            const defense = Math.max(0, finiteNumber(context.character?.combat?.defense, 0));
+            const amount = Math.max(1, Math.floor((5 + entry.rank * 0.75) * (1 + Math.min(200, defense) / 200) * levelScale));
+            steps.push(createResonanceStep('buff', entry.skillName, {
+                targetType: 'player', targetIndex: actorIndex, statusKey: 'counter',
+                potency: amount, charges: raw.charges, score: amount
+            }));
+        } else if (raw.kind === 'dispel-enemy-guard') {
+            steps.push(createResonanceStep('dispel', entry.skillName, {
+                targetType: 'enemy', statusKey: 'guard', score: 18
+            }));
+        } else if (raw.kind === 'cleanse-debuff-shield') {
+            const affected = living.find((index) => ['weaken', 'attackDown', 'defenseDown', 'speedDown'].some((key) => context.effects?.players?.[index]?.[key]));
+            const targetIndex = Number.isInteger(affected) ? affected : lowest;
+            if (Number.isInteger(affected)) {
+                steps.push(createResonanceStep('cleanse', entry.skillName, {
+                    targetType: 'player', targetIndex: affected, score: 20
+                }));
+            }
+            addShield(targetIndex, raw.percent);
+        }
+    });
+    return steps;
 }
 
 export function buildTarotKingdomResonanceCandidate(entry, card, context = {}) {
     const normalized = normalizeTarotKingdomDeckEntry(entry, entry?.slot || 0);
     if (!normalized || !isTarotKingdomDeckMatch(card, normalized)) return null;
-    const steps = [];
-    const combat = context.character?.combat || {};
-    if (Number.isFinite(normalized.power) && normalized.power > 0) {
-        let rawPower = normalized.power;
-        const condition = normalized.conditionalPower;
-        if (condition && typeof condition === 'object') {
-            const status = String(condition.status || '').toLowerCase();
-            if ((status === 'any' && Object.keys(context.effects?.enemy || {}).length)
-                || (status && context.effects?.enemy?.[status])
-                || (condition.enemyGuarding && context.effects?.enemy?.guard)
-                || (condition.enemyUsedPriority && context.enemyAttackedSinceClear)) {
-                rawPower += finiteNumber(condition.value, 0);
-            } else if (condition.selfSpeedAtLeastEnemy) {
-                rawPower += Math.floor(finiteNumber(condition.value, 0) / 2);
-            }
-        }
-        const damageKind = normalized.suit === 'Wand' || normalized.suit === 'Cup' ? 'magic' : 'physical';
-        const growthScale = getTarotKingdomGrowthDamageScale(
-            context.character,
-            damageKind,
-            context.growthVersion
-        );
-        let damage = Math.floor(rawPower * 0.2 * resonanceScaleForSuit(normalized.suit, combat) * growthScale);
-        damage = Math.floor(damage * (1 + Math.min(0.5, (normalized.ignoreDefense * 0.5) + normalized.criticalBonus)));
-        if (normalized.priority) damage = Math.floor(damage * 1.1);
-        steps.push(createResonanceStep('damage', normalized.skillName, {
-            targetType: 'enemy', amount: Math.max(1, damage), score: Math.max(1, damage), hitCount: normalized.hitCount
-        }));
-    }
-    normalized.effectCodes.forEach((code) => addEffectCodeSteps(steps, normalized, code, context));
-    if (normalized.drainRate > 0) {
-        steps.push(createResonanceStep('drain', normalized.skillName, {
-            targetType: 'player', targetIndex: context.actorIndex, rate: normalized.drainRate, score: 12
-        }));
-    }
-    if (!steps.length) {
-        steps.push(createResonanceStep('buff', normalized.skillName, {
-            targetType: 'party', statusKey: 'nextAttackUp', potency: 10, charges: 1, score: 10
-        }));
-    }
+    const steps = expandResonanceDefinition(normalized, context);
+    if (!steps.length) return null;
     return {
         source: 'resonance',
         cardId: normalized.cardId,
@@ -560,39 +611,12 @@ export function buildTarotKingdomResonanceCandidate(entry, card, context = {}) {
         slot: normalized.slot,
         suit: normalized.suit,
         rank: normalized.rank,
+        cardLevel: normalized.cardLevel,
+        resonanceId: normalized.resonanceId,
         skillName: normalized.skillName,
         steps,
         score: steps.reduce((sum, step) => sum + Math.max(0, finiteNumber(step.score, 0)), 0)
     };
-}
-
-function getResonancePriority(candidate, context = {}) {
-    const steps = Array.isArray(candidate?.steps) ? candidate.steps : [];
-    const damage = steps
-        .filter((step) => ['damage', 'magic', 'effective', 'multi-hit', 'conditional-percent-damage'].includes(step.kind))
-        .reduce((sum, step) => sum + Math.max(0, finiteNumber(step.amount, 0)), 0);
-    const enemyHp = Math.max(0, finiteNumber(context.enemy?.hp, 0));
-    let actualHeal = 0;
-    let cleanse = 0;
-    let actionStop = 0;
-    let defense = 0;
-    steps.forEach((step) => {
-        const targetIndex = Math.max(0, Math.floor(finiteNumber(step.targetIndex, context.actorIndex || 0)));
-        const target = context.players?.[targetIndex] || {};
-        const maxHp = Math.max(1, finiteNumber(target.maxHp, 1));
-        const missing = Math.max(0, maxHp - Math.max(0, finiteNumber(target.hp, 0)));
-        if (step.kind === 'heal') actualHeal += Math.min(missing, Math.max(0, finiteNumber(step.amount, 0)));
-        if (step.kind === 'heal-percent' || step.kind === 'heal-or-cleanse' || step.kind === 'heal-cleanse') {
-            actualHeal += Math.min(missing, Math.floor(maxHp * (Math.max(0, finiteNumber(step.percent, 0)) / 100)));
-        }
-        if (step.kind === 'drain') actualHeal += Math.min(missing, Math.floor(damage * Math.max(0, finiteNumber(step.rate, 0))));
-        if (step.kind === 'cleanse' || step.kind === 'heal-or-cleanse' || step.kind === 'heal-cleanse' || step.kind === 'dispel') cleanse += 1;
-        if (step.kind === 'status' && ['paralysis', 'fear', 'confusion'].includes(String(step.statusKey || ''))) actionStop += Math.max(1, finiteNumber(step.score, 1));
-        if (step.kind === 'guard' || step.kind === 'buff' || ['guard', 'areaGuard', 'cover', 'counter', 'evasion'].includes(String(step.statusKey || ''))) {
-            defense += Math.max(1, finiteNumber(step.potency, finiteNumber(step.score, 1)));
-        }
-    });
-    return [enemyHp > 0 && damage >= enemyHp ? 1 : 0, actualHeal, damage, actionStop, cleanse, defense, candidate.score];
 }
 
 export function resolveTarotKingdomResonance(context = {}) {
@@ -605,25 +629,32 @@ export function resolveTarotKingdomResonance(context = {}) {
             if (candidate) candidates.push(candidate);
         });
     });
-    candidates.sort((left, right) => {
-        const leftPriority = getResonancePriority(left, context);
-        const rightPriority = getResonancePriority(right, context);
-        for (let index = 0; index < leftPriority.length; index += 1) {
-            if (rightPriority[index] !== leftPriority[index]) return rightPriority[index] - leftPriority[index];
-        }
-        return left.slot - right.slot;
-    });
-    return candidates[0] || null;
+    candidates.sort((left, right) => left.slot - right.slot);
+    if (!candidates.length) return null;
+    return {
+        source: 'resonance',
+        candidates,
+        cardId: candidates[0].cardId,
+        resonanceIds: candidates.map((candidate) => candidate.resonanceId),
+        skillName: candidates.map((candidate) => candidate.skillName).join('・'),
+        skillNames: candidates.map((candidate) => candidate.skillName),
+        steps: candidates.flatMap((candidate) => (
+            candidate.steps.map((step) => ({
+                ...step,
+                cardId: candidate.cardId,
+                resonanceId: candidate.resonanceId,
+                skillName: candidate.skillName
+            }))
+        )),
+        score: candidates.reduce((sum, candidate) => sum + candidate.score, 0)
+    };
 }
 
 export function getUnsupportedTarotKingdomEffectCodes(deck = []) {
-    const unsupported = new Set();
-    (Array.isArray(deck) ? deck : []).map((entry, index) => normalizeTarotKingdomDeckEntry(entry, index)).filter(Boolean).forEach((entry) => {
-        entry.effectCodes.forEach((code) => {
-            if (!KNOWN_RESONANCE_EFFECT_CODES.has(code.type)) unsupported.add(code.type);
-        });
-    });
-    return Array.from(unsupported).sort();
+    return (Array.isArray(deck) ? deck : [])
+        .map((entry, index) => normalizeTarotKingdomDeckEntry(entry, index))
+        .filter((entry) => entry && entry.steps.length === 0)
+        .map((entry) => entry.resonanceId);
 }
 
 export const TAROT_KINGDOM_STATUS_ICON_INDEX = Object.freeze({
@@ -670,10 +701,8 @@ export const TAROT_KINGDOM_STATUS_ICON_INDEX = Object.freeze({
 });
 
 export const __test = {
-    KNOWN_RESONANCE_EFFECT_CODES,
     buildWeaponCandidate,
     findNegativeStatusKey,
-    normalizeEffectCode,
     normalizeSuit,
     normalizeWeapon
 };

@@ -1,5 +1,6 @@
 import {
     getTarotKingdomGrowthDamageScale,
+    normalizeTarotKingdomGuardian,
     normalizeTarotKingdomTarotDeck,
     normalizeTarotKingdomWeaponTypes
 } from './tarotKingdomEffects.js';
@@ -12,25 +13,25 @@ const NPC_STYLE_BY_SEAT = Object.freeze({
 
 const NPC_TAROT_DECK_BY_SEAT = Object.freeze({
     1: Object.freeze([
-        { suit: 'Pentacle', rank: 2, skillName: '二重装甲', effectClass: 'support', effectCodes: [{ type: 'nextDamageTaken', target: 'self', multiplier: 0.6 }] },
-        { suit: 'Pentacle', rank: 4, skillName: '護符', effectClass: 'support', effectCodes: [{ type: 'cleanse', target: 'self' }, { type: 'nextDamageTaken', target: 'self', multiplier: 0.9 }] },
-        { suit: 'Pentacle', rank: 7, skillName: '鉄根', effectClass: 'support', effectCodes: [{ type: 'healPercent', target: 'self', value: 10 }, { type: 'nextDamageTaken', target: 'self', multiplier: 0.8 }] },
-        { suit: 'Pentacle', rank: 10, skillName: '要塞化', effectClass: 'support', effectCodes: [{ type: 'nextDamageTaken', target: 'self', multiplier: 0.75, charges: 2 }] },
-        { suit: 'Pentacle', rank: 13, skillName: '豊穣の環', effectClass: 'support', effectCodes: [{ type: 'cleanse', target: 'self', status: 'wet' }, { type: 'healPercent', target: 'self', value: 15 }] }
+        { suit: 'Pentacle', rank: 2, cardLevel: 1 },
+        { suit: 'Pentacle', rank: 4, cardLevel: 1 },
+        { suit: 'Pentacle', rank: 7, cardLevel: 1 },
+        { suit: 'Pentacle', rank: 10, cardLevel: 1 },
+        { suit: 'Pentacle', rank: 13, cardLevel: 1 }
     ]),
     2: Object.freeze([
-        { suit: 'Sword', rank: 1, skillName: '風切り', effectClass: 'attack', power: 80, priority: true },
-        { suit: 'Sword', rank: 5, skillName: '乱気流', effectClass: 'attack', power: 60, effectCodes: [{ type: 'confusion', chance: 0.3 }] },
-        { suit: 'Sword', rank: 8, skillName: '鎌鼬', effectClass: 'attack', power: 100, ignoreDefense: 0.2 },
-        { suit: 'Sword', rank: 11, skillName: '索敵の風', effectClass: 'support', effectCodes: [{ type: 'accuracyBonus', target: 'self', value: 20, charges: 2 }, { type: 'clearEnemyEvasion', target: 'enemy' }] },
-        { suit: 'Sword', rank: 14, skillName: '天剣', effectClass: 'attack', power: 140, criticalBonus: 0.3 }
+        { suit: 'Sword', rank: 1, cardLevel: 1 },
+        { suit: 'Sword', rank: 5, cardLevel: 1 },
+        { suit: 'Sword', rank: 8, cardLevel: 1 },
+        { suit: 'Sword', rank: 11, cardLevel: 1 },
+        { suit: 'Sword', rank: 14, cardLevel: 1 }
     ]),
     3: Object.freeze([
-        { suit: 'Pentacle', rank: 1, skillName: '石拳', effectClass: 'attack', power: 90, effectCodes: [{ type: 'nextDamageTaken', target: 'self', multiplier: 0.9 }] },
-        { suit: 'Pentacle', rank: 3, skillName: '土槍', effectClass: 'attack', power: 80, effectCodes: [{ type: 'defenseDown', target: 'enemy', multiplier: 0.9 }] },
-        { suit: 'Pentacle', rank: 6, skillName: '岩砕き', effectClass: 'attack', power: 100, conditionalPower: { enemyGuarding: true, value: 40 } },
-        { suit: 'Pentacle', rank: 12, skillName: '重騎突', effectClass: 'attack', power: 120, conditionalPower: { enemyUsedPriority: true, value: 40 } },
-        { suit: 'Pentacle', rank: 14, skillName: '巨岩王', effectClass: 'attack', power: 140, effectCodes: [{ type: 'defenseDown', target: 'enemy', multiplier: 0.8 }] }
+        { suit: 'Pentacle', rank: 1, cardLevel: 1 },
+        { suit: 'Pentacle', rank: 3, cardLevel: 1 },
+        { suit: 'Pentacle', rank: 6, cardLevel: 1 },
+        { suit: 'Pentacle', rank: 12, cardLevel: 1 },
+        { suit: 'Pentacle', rank: 14, cardLevel: 1 }
     ])
 });
 
@@ -147,7 +148,7 @@ export function normalizeTarotKingdomCharacter(rawCharacter = {}, fallback = {})
     const level = positiveInteger(source.level, positiveInteger(base.level, 1));
     const monsterId = String(source.monsterId || base.monsterId || '').trim();
     return {
-        version: 2,
+        version: 3,
         source: source.source === 'playfab'
             ? 'playfab'
             : (source.source === 'preview' ? 'preview' : (source.source === 'pet' ? 'pet' : 'npc')),
@@ -166,6 +167,7 @@ export function normalizeTarotKingdomCharacter(rawCharacter = {}, fallback = {})
             ? source.itemSource
             : (base.itemSource || {}),
         tarotDeck: normalizeTarotKingdomTarotDeck(source.tarotDeck || base.tarotDeck || []),
+        guardianArcana: normalizeTarotKingdomGuardian(source.guardianArcana || base.guardianArcana),
         combat: normalizeTarotKingdomCombat(source.combat, base.combat)
     };
 }

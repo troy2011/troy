@@ -6,6 +6,10 @@ let effectsModulePromise;
 
 function loadEffectsModule() {
   if (!effectsModulePromise) {
+    globalThis.__TAROT_KINGDOM_ARCANA_EFFECTS__ = JSON.parse(fs.readFileSync(
+      path.join(__dirname, '..', 'public', 'data', 'tarot-kingdom-arcana-effects.json'),
+      'utf8'
+    ));
     const modulePath = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomEffects.js');
     const source = fs.readFileSync(modulePath, 'utf8');
     effectsModulePromise = import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
@@ -124,34 +128,33 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
       cardId: 'CUP_05',
       suit: 'Cup',
       rank: 5,
-      skillName: '潮の共鳴',
-      effectClass: 'attack',
-      power: 100,
-      effectCodes: [{ type: 'flood' }]
+      cardLevel: 1
     }];
     const context = weaponContext(['unarmed'], minor('Cup', 5), {
       playType: 'role',
       character: { combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] }, tarotDeck: deck }
     });
     expect(effects.resolveTarotKingdomResonance(context)).toMatchObject({
+      candidates: [{
       slot: 0,
-      skillName: '潮の共鳴',
+      skillName: '清流の祈り',
       suit: 'Cup',
       rank: 5
+      }]
     });
     expect(effects.resolveTarotKingdomResonance({ ...context, cards: [minor('Cup', 6)] })).toBeNull();
     expect(effects.resolveTarotKingdomResonance({ ...context, cards: [{ kind: 'major', number: 5 }] })).toBeNull();
   });
 
-  test('best candidate uses defeat, healing, damage and then deck order priorities', async () => {
+  test('every exact match resolves in equipped-slot order', async () => {
     const effects = await loadEffectsModule();
     const card = minor('Sword', 5);
     const strongerCard = minor('Sword', 6);
     const character = {
       combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
       tarotDeck: [
-        { slot: 0, cardId: 'SWORD_05', suit: 'Sword', rank: 5, skillName: '弱撃', power: 50 },
-        { slot: 1, cardId: 'SWORD_06', suit: 'Sword', rank: 6, skillName: '決着撃', power: 100 }
+        { slot: 0, cardId: 'SWORD_05', suit: 'Sword', rank: 5, cardLevel: 1 },
+        { slot: 1, cardId: 'SWORD_06', suit: 'Sword', rank: 6, cardLevel: 1 }
       ]
     };
     const resolved = effects.resolveTarotKingdomResonance({
@@ -160,24 +163,24 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
       character,
       enemy: { hp: 25, maxHp: 100 }
     });
-    expect(resolved.skillName).toBe('決着撃');
+    expect(resolved.candidates).toHaveLength(2);
+    expect(resolved.candidates.map((entry) => entry.slot)).toEqual([0, 1]);
+    expect(resolved.candidates.map((entry) => entry.skillName)).toEqual(['砕甲剣', '白銀の歩法']);
   });
 
-  test('all 56 saved minor-card effect codes have a structured conversion', async () => {
+  test('all 56 dedicated definitions are complete without legacy effect codes', async () => {
     const effects = await loadEffectsModule();
-    const skillData = JSON.parse(fs.readFileSync(path.join(__dirname, '../server/data/tarot-battle-skills.json'), 'utf8'));
-    const minorDeck = skillData.cards.filter((card) => card.classification === '小アルカナ');
+    const minorDeck = globalThis.__TAROT_KINGDOM_ARCANA_EFFECTS__.minor;
     expect(minorDeck).toHaveLength(56);
     expect(effects.getUnsupportedTarotKingdomEffectCodes(minorDeck)).toEqual([]);
     minorDeck.forEach((entry, slot) => {
-      const suit = `${entry.suit.charAt(0).toUpperCase()}${entry.suit.slice(1).toLowerCase()}`;
       const candidate = effects.buildTarotKingdomResonanceCandidate(
-        { ...entry, slot },
-        minor(suit, entry.rank),
-        weaponContext(['unarmed'], minor(suit, entry.rank))
+        { ...entry, slot, cardLevel: 1 },
+        minor(entry.suit, entry.rank),
+        weaponContext(['unarmed'], minor(entry.suit, entry.rank))
       );
-      expect(candidate, entry.itemId).toBeTruthy();
-      expect(candidate.steps.length, entry.itemId).toBeGreaterThan(0);
+      expect(candidate, entry.id).toBeTruthy();
+      expect(candidate.steps.length, entry.id).toBeGreaterThan(0);
     });
   });
 });

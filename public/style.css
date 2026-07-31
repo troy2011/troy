@@ -11252,6 +11252,13 @@ body.tarot-kingdom-preview-body {
     box-shadow: 0 0 9px rgba(255, 232, 130, 0.95), inset 0 0 3px #fff7cf;
 }
 
+:is(body, #tabContentTarot) #tarotKingdomRoot .tarot-card-resonance-mark.is-awakening {
+    border-color: rgba(241, 247, 255, 0.96);
+    color: #fff;
+    background: radial-gradient(circle, #9db5d5 8%, #26364d 70%);
+    box-shadow: 0 0 7px rgba(218, 235, 255, 0.92), inset 0 0 2px #fff;
+}
+
 :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-effect-banner {
     position: absolute;
     z-index: 46;
@@ -11272,6 +11279,49 @@ body.tarot-kingdom-preview-body {
     transform: translateX(-50%);
     pointer-events: none;
     animation: tarotKingdomEffectBanner 420ms ease-out both;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-effect-banner.is-awakened {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
+    border-color: #e8f2ff;
+    color: #fff;
+    background: linear-gradient(90deg, rgba(12, 18, 32, 0.06), rgba(32, 45, 67, 0.96) 18%, rgba(43, 35, 65, 0.96) 82%, rgba(12, 18, 32, 0.06));
+    box-shadow: 0 0 18px rgba(199, 220, 255, 0.58);
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-awaken-card {
+    flex: 0 0 24px;
+    width: 24px;
+    height: 40px;
+    border: 1px solid rgba(238, 246, 255, 0.95);
+    border-radius: 2px;
+    background-image: url("/tarot.png");
+    background-position: var(--tarot-x) var(--tarot-y);
+    background-size: 256px 512px;
+    box-shadow: 0 0 8px rgba(217, 232, 255, 0.75);
+    image-rendering: auto;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-awaken-copy {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+    text-align: left;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-awaken-copy small {
+    color: #cfe3ff;
+    font-size: 8px;
+    letter-spacing: 0.12em;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-awaken-copy strong {
+    overflow: hidden;
+    font-size: 12px;
+    text-overflow: ellipsis;
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-effect-banner[data-major-tone]:not([data-major-tone=""]) {
@@ -28448,6 +28498,123 @@ body[data-sea-tone] .home-hero-card {
         linear-gradient(180deg, rgba(6, 10, 15, 0.82), rgba(2, 3, 5, 0.94));
 }
 
+.tarot-loadout-catalog-button {
+    align-self: center;
+    min-width: 92px;
+    min-height: 36px;
+    padding: 5px 12px;
+    border: 9px solid transparent;
+    border-image: url("./assets/ui/buttons/button-blue-large.png") 28 fill / 9px / 0 stretch;
+    color: #fff1c7;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.82);
+}
+
+.arcana-resonance-catalog {
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.84);
+}
+
+.arcana-resonance-sheet {
+    width: min(540px, calc(100vw - 20px));
+    max-height: min(86dvh, 760px);
+    padding: 12px;
+    border: 14px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 14px / 0 stretch;
+    overflow: hidden;
+    color: #f4e4bd;
+    background: linear-gradient(180deg, rgba(8, 12, 18, 0.98), rgba(2, 3, 5, 0.99));
+}
+
+.arcana-resonance-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.arcana-resonance-head h3 {
+    margin: 0;
+    color: #ffe4a0;
+    font-size: 20px;
+}
+
+.arcana-resonance-close {
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgba(255, 224, 154, 0.6);
+    border-radius: 50%;
+    color: #fff7df;
+    background: rgba(8, 10, 14, 0.88);
+    font-size: 22px;
+}
+
+.arcana-resonance-tabs {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+    margin: 10px 0;
+}
+
+.arcana-resonance-tabs button {
+    min-width: 0;
+    min-height: 34px;
+    padding: 4px 2px;
+    border: 1px solid rgba(211, 175, 104, 0.4);
+    color: #d8c8a7;
+    background: rgba(12, 18, 27, 0.9);
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.arcana-resonance-tabs button.is-active {
+    border-color: #f4d07a;
+    color: #241508;
+    background: #e4bd63;
+}
+
+.arcana-resonance-list {
+    display: grid;
+    gap: 7px;
+    max-height: calc(min(86dvh, 760px) - 112px);
+    overflow: auto;
+}
+
+.arcana-resonance-row {
+    padding: 8px 9px;
+    border: 1px solid rgba(213, 181, 112, 0.24);
+    border-radius: 5px;
+    background: rgba(11, 16, 23, 0.84);
+}
+
+.arcana-resonance-row.is-equipped {
+    border-color: rgba(255, 218, 120, 0.84);
+    box-shadow: inset 0 0 14px rgba(221, 166, 58, 0.16);
+}
+
+.arcana-resonance-title {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    color: #ffe6a7;
+}
+
+.arcana-resonance-row p {
+    margin: 4px 0 0;
+    color: #e7dcc6;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.arcana-resonance-row small {
+    display: block;
+    margin-top: 4px;
+    color: #a9c9df;
+    font-size: 11px;
+}
+
 
 
 
@@ -30962,6 +31129,13 @@ body[data-sea-tone] .home-hero-card {
     display: none;
 }
 
+#tabContentInventory[data-inventory-panel="tarot"] #guardianArcanaPanel .tarot-loadout-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+}
+
 #tabContentInventory[data-inventory-panel="tarot"] .tarot-loadout-header h3 {
     margin: 0;
     font-size: 15px;
@@ -31034,6 +31208,10 @@ body[data-sea-tone] .home-hero-card {
     overflow: visible;
 }
 
+#tabContentInventory .tarot-loadout-grid.is-guardian {
+    grid-template-columns: 48px;
+}
+
 #tabContentInventory .tarot-loadout-grid::before {
     content: attr(data-deck-count) "/5";
     position: absolute;
@@ -31054,6 +31232,10 @@ body[data-sea-tone] .home-hero-card {
     line-height: 1;
     letter-spacing: 0;
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.86);
+}
+
+#tabContentInventory .tarot-loadout-grid.is-guardian::before {
+    content: attr(data-deck-count) "/1";
 }
 
 #tabContentInventory .tarot-loadout-grid[data-deck-complete="true"]::before {

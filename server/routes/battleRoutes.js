@@ -23,6 +23,12 @@ const {
     buildTarotKingdomPetPublicRecord,
     normalizeTarotKingdomPetState
 } = require('../tarotKingdomPets');
+const {
+    TAROT_GUARDIAN_DATA_KEY,
+    buildTarotKingdomGuardian,
+    buildTarotKingdomMinorLoadout,
+    parseTarotGuardian
+} = require('../tarotKingdomArcanaLoadout');
 
 // ----------------------------------------------------
 // ★ v42: モジュールレベル変数の定義
@@ -116,40 +122,15 @@ function buildTarotKingdomAvatarBase(profile = {}, level = 1) {
     };
 }
 
-function buildTarotKingdomTarotDeck(profile = {}) {
-    return (Array.isArray(profile?.tarotBattleDeck) ? profile.tarotBattleDeck : [])
-        .slice(0, 5)
-        .map((skill, slot) => {
-            const publicSkill = publicTarotBattleSkill(skill);
-            if (!publicSkill) return null;
-            const suitRaw = String(publicSkill.suit || '').trim().toLowerCase();
-            const suit = suitRaw === 'wand'
-                ? 'Wand'
-                : suitRaw === 'cup'
-                    ? 'Cup'
-                    : suitRaw === 'sword'
-                        ? 'Sword'
-                        : suitRaw === 'pentacle'
-                            ? 'Pentacle'
-                            : '';
-            const rank = Math.max(1, Math.min(14, Math.floor(Number(publicSkill.rank) || 0)));
-            if (!suit || !rank) return null;
-            return {
-                slot,
-                cardId: String(publicSkill.cardId || '').trim(),
-                itemId: String(publicSkill.itemId || '').trim(),
-                suit,
-                rank,
-                skillName: String(publicSkill.skillName || '').trim(),
-                effectClass: String(publicSkill.effectClass || '').trim(),
-                effectCodes: Array.isArray(publicSkill.effectCodes) ? publicSkill.effectCodes : [],
-                power: Math.max(0, Number(publicSkill.power) || 0)
-            };
-        })
-        .filter(Boolean);
+function buildTarotKingdomTarotDeck(profile = {}, cardLevels = {}) {
+    return buildTarotKingdomMinorLoadout(
+        profile?.meleeDeckIds || [],
+        _catalogCache || {},
+        cardLevels
+    );
 }
 
-function buildTarotKingdomCombatCharacter(profile = {}) {
+function buildTarotKingdomCombatCharacter(profile = {}, cardLevels = {}) {
     const stats = profile?.stats || {};
     const equipmentStats = profile?.equipmentStats || {};
     const equipment = sanitizeTarotKingdomEquipment(profile?.equipment);
@@ -166,7 +147,7 @@ function buildTarotKingdomCombatCharacter(profile = {}) {
     };
 
     return {
-        version: 2,
+        version: 3,
         source: 'playfab',
         playFabId: String(profile?.id || '').trim(),
         displayName: String(stats.DisplayName || profile?.id || '（名前なし）').trim() || '（名前なし）',
@@ -175,7 +156,12 @@ function buildTarotKingdomCombatCharacter(profile = {}) {
         avatarBase: buildTarotKingdomAvatarBase(profile, level),
         equipment,
         itemSource: buildTarotKingdomItemSource(equipment),
-        tarotDeck: buildTarotKingdomTarotDeck(profile),
+        tarotDeck: buildTarotKingdomTarotDeck(profile, cardLevels),
+        guardianArcana: buildTarotKingdomGuardian(
+            profile?.guardianArcanaItemId,
+            _catalogCache || {},
+            cardLevels
+        ),
         combat: {
             maxHp: Math.max(1, Math.floor(statNumber('MaxHP', statNumber('HP', 1)))),
             power: Math.max(0, Math.floor(statNumber('ちから', 0) + equipmentNumber('Power'))),
@@ -476,6 +462,7 @@ async function getPlayerFullProfile(playFabId, options = {}) {
             TAROT_DECK_DATA_KEY,
             MELEE_DECK_DATA_KEY,
             SHIP_DECK_DATA_KEY,
+            TAROT_GUARDIAN_DATA_KEY,
             TAROT_KINGDOM_PET_DATA_KEY
         ]
         : [...avatarEquipmentKeys, 'lineUserId', TAROT_DECK_DATA_KEY, MELEE_DECK_DATA_KEY, SHIP_DECK_DATA_KEY];
@@ -529,6 +516,7 @@ async function getPlayerFullProfile(playFabId, options = {}) {
     let lineUserId = null;
     let meleeDeckIds = [];
     let shipDeckIds = [];
+    let guardianArcanaItemId = null;
     let currentPet = null;
     if (equipmentResult.Data) {
         const resolveEquippedValue = (rawValue) => {
@@ -587,6 +575,12 @@ async function getPlayerFullProfile(playFabId, options = {}) {
             shipDeckIds = [];
         }
         if (options.scope === 'tarotKingdomCombat') {
+            const guardian = parseTarotGuardian(
+                equipmentResult.Data[TAROT_GUARDIAN_DATA_KEY]?.Value
+            );
+            if (guardian.itemId && ownedItemIds.has(String(guardian.itemId))) {
+                guardianArcanaItemId = guardian.itemId;
+            }
             currentPet = buildTarotKingdomPetPublicRecord(
                 normalizeTarotKingdomPetState(
                     equipmentResult.Data[TAROT_KINGDOM_PET_DATA_KEY]?.Value
@@ -676,6 +670,7 @@ async function getPlayerFullProfile(playFabId, options = {}) {
         tarotShipRole,
         meleeDeckIds,
         shipDeckIds,
+        guardianArcanaItemId,
         currentPet,
         avatar: avatar,
         level: stats.Level
@@ -806,6 +801,30 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         } finally {
             release();
         }
+    };
+    const getTarotKingdomCardLevels = async (playFabIds = []) => {
+        const uniqueIds = Array.from(new Set(
+            (Array.isArray(playFabIds) ? playFabIds : [])
+                .map((value) => String(value || '').trim())
+                .filter(Boolean)
+        ));
+        if (!uniqueIds.length) return new Map();
+        if (
+            typeof firestore?.collection !== 'function'
+            || typeof firestore?.getAll !== 'function'
+        ) {
+            return new Map(uniqueIds.map((playFabId) => [playFabId, {}]));
+        }
+        const refs = uniqueIds.map((playFabId) => (
+            firestore.collection('playerCards').doc(playFabId)
+        ));
+        const snapshots = await firestore.getAll(...refs);
+        const result = new Map();
+        snapshots.forEach((snapshot, index) => {
+            const playFabId = uniqueIds[index];
+            result.set(playFabId, snapshot.exists ? (snapshot.data()?.cards || {}) : {});
+        });
+        return result;
     };
     const waitForTarotKingdomProfileHttp = async (inFlight) => {
         let timeoutId = null;
@@ -1772,7 +1791,8 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                 return res.status(403).json({ error: 'ルーム外では本人のプロフィールだけ取得できます。' });
             }
 
-            const profileSnapshots = await Promise.all(normalizedTargetIds.map(async (targetId) => {
+            const [profiles, cardLevelsByPlayer] = await Promise.all([
+                Promise.all(normalizedTargetIds.map(async (targetId) => {
                 let inFlight = tarotKingdomCombatProfileInFlight.get(targetId);
                 if (!inFlight) {
                     inFlight = withTarotKingdomProfileSlot(async () => {
@@ -1780,10 +1800,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                         if (!profile || String(profile.id || '').trim() !== targetId) {
                             throw new Error(`Combat profile was not resolved: ${targetId}`);
                         }
-                        return {
-                            character: buildTarotKingdomCombatCharacter(profile),
-                            currentPet: profile.currentPet || null
-                        };
+                        return profile;
                     });
                     tarotKingdomCombatProfileInFlight.set(targetId, inFlight);
                     const clearInFlight = () => {
@@ -1796,7 +1813,19 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                     inFlight.then(clearInFlight, clearInFlight);
                 }
                 return waitForTarotKingdomProfileHttp(inFlight);
-            }));
+                })),
+                getTarotKingdomCardLevels(normalizedTargetIds)
+            ]);
+            const profileSnapshots = profiles.map((profile, index) => {
+                const targetId = normalizedTargetIds[index];
+                return {
+                    character: buildTarotKingdomCombatCharacter(
+                        profile,
+                        cardLevelsByPlayer.get(targetId) || {}
+                    ),
+                    currentPet: profile.currentPet || null
+                };
+            });
             const characters = profileSnapshots.map((snapshot) => snapshot.character);
             const currentPets = profileSnapshots.map((snapshot, index) => ({
                 playFabId: normalizedTargetIds[index],

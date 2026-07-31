@@ -182,6 +182,14 @@ export function moveTarotDeckCard(playFabId, cardItemId, deckType, direction, op
     return callApiWithLoader('/api/tarot-deck-move', { playFabId, cardItemId, deckType, direction }, options);
 }
 
+export function equipTarotGuardian(playFabId, cardItemId, options) {
+    return callApiWithLoader('/api/tarot-guardian-equip', { playFabId, cardItemId }, options);
+}
+
+export function unequipTarotGuardian(playFabId, options) {
+    return callApiWithLoader('/api/tarot-guardian-unequip', { playFabId }, options);
+}
+
 export function equipShipMajorArcana(playFabId, itemId, slotIndex = null, options) {
     const body = { playFabId, itemId };
     if (Number.isInteger(slotIndex)) body.slotIndex = slotIndex;

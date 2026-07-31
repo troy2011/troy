@@ -110,6 +110,11 @@ async function withCombatProfilesApi(callback, options = {}) {
       Category: 'TarotMinor',
       ArcanaSuit: 'cup',
       ArcanaRank: 1
+    },
+    tarot_major_01: {
+      DisplayName: '魔術師',
+      Category: 'TarotMajor',
+      ArcanaNumber: 1
     }
   };
   const promisifyPlayFab = async (fn, body = {}) => {
@@ -143,6 +148,7 @@ async function withCombatProfilesApi(callback, options = {}) {
           HairColorIndex: { Value: '3' },
           FacialHairStyleIndex: { Value: '0' },
           TarotDeck: { Value: '["minor-cup-1"]' },
+          TarotGuardianArcana: { Value: JSON.stringify({ version: 1, itemId: 'tarot_major_01' }) },
           TarotDeckV2: { Value: '["secret-card"]' },
           ...(options.petState ? {
             TarotKingdomPetState: { Value: JSON.stringify(options.petState) }
@@ -171,6 +177,7 @@ async function withCombatProfilesApi(callback, options = {}) {
           { StackId: 'stack-armor', Id: 'armor_coat_01' },
           { StackId: 'stack-charm', Id: 'charm_01' },
           { StackId: 'stack-cup-a', Id: 'minor-cup-1' },
+          { StackId: 'stack-major-1', Id: 'tarot_major_01' },
           { StackId: 'stack-unused', Id: 'unused_item' }
         ]
       };
@@ -254,7 +261,7 @@ test('combat profile API authenticates the requester and returns sanitized melee
     expect(result.payload).toMatchObject({ success: true });
     expect(result.payload.characters).toHaveLength(3);
     expect(result.payload.characters[1]).toMatchObject({
-      version: 2,
+      version: 3,
       source: 'playfab',
       playFabId: 'PF_A',
       displayName: 'Captain PF_A',
@@ -283,14 +290,19 @@ test('combat profile API authenticates the requester and returns sanitized melee
       },
       tarotDeck: [{
         slot: 0,
-        cardId: 'CUP_01',
         itemId: 'minor-cup-1',
         suit: 'Cup',
         rank: 1,
-        skillName: '逆巻く杯',
-        effectClass: 'attack',
-        power: 80
+        cardLevel: 1,
+        resonanceId: 'cup-1'
       }],
+      guardianArcana: {
+        itemId: 'tarot_major_01',
+        number: 1,
+        cardLevel: 1,
+        passiveId: 'magician-elements',
+        awakeningId: 'magician-awaken'
+      },
       combat: {
         maxHp: 155,
         power: 25,
@@ -312,6 +324,7 @@ test('combat profile API authenticates the requester and returns sanitized melee
     expect(readOnlyRequests.every((request) => request.Keys.includes('HairColorIndex'))).toBe(true);
     expect(readOnlyRequests.every((request) => !request.Keys.includes('lineUserId'))).toBe(true);
     expect(readOnlyRequests.every((request) => request.Keys.includes('TarotDeck'))).toBe(true);
+    expect(readOnlyRequests.every((request) => request.Keys.includes('TarotGuardianArcana'))).toBe(true);
     expect(readOnlyRequests.every((request) => request.Keys.includes('TarotKingdomPetState'))).toBe(true);
     expect(readOnlyRequests.every((request) => !request.Keys.includes('TarotDeckV2'))).toBe(true);
     const serialized = JSON.stringify(result.payload);

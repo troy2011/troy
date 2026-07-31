@@ -5832,7 +5832,11 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
       body: JSON.stringify({
         ok: true,
         tarotDeck: ['tarot_minor_cup_10'],
-        tarotRole: null
+        tarotRole: null,
+        guardian: {
+          version: 1,
+          itemId: 'tarot_major_sword_5'
+        }
       })
     });
   });
@@ -5915,8 +5919,8 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   await expect(page.locator('#inventoryGrid .tarot-number-badge.is-cup')).toHaveText('10');
   await expect(page.locator('#meleeDeckGrid .tarot-loadout-visual .tarot-number-badge.is-cup')).toHaveText('10');
   await expect(page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty) .tarot-number-badge')).toHaveText(['10']);
-  await expect(page.locator('#shipMajorArcanaGrid .tarot-loadout-visual .tarot-number-badge.is-none')).toHaveText('5');
-  await expect(page.locator('#shipMajorArcanaGrid .tarot-loadout-visual .tarot-number-badge.is-sword')).toHaveCount(0);
+  await expect(page.locator('#guardianArcanaGrid .tarot-loadout-visual .tarot-number-badge.is-none')).toHaveText('5');
+  await expect(page.locator('#guardianArcanaGrid .tarot-loadout-visual .tarot-number-badge.is-sword')).toHaveCount(0);
 
   const badgeStyles = await page.evaluate(() => {
     const read = (selector) => {

@@ -6,6 +6,10 @@ let combatModulePromise;
 
 function loadCombatModule() {
   if (!combatModulePromise) {
+    globalThis.__TAROT_KINGDOM_ARCANA_EFFECTS__ = JSON.parse(fs.readFileSync(
+      path.join(__dirname, '..', 'public', 'data', 'tarot-kingdom-arcana-effects.json'),
+      'utf8'
+    ));
     const modulePath = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomCombat.js');
     const effectsPath = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomEffects.js');
     const effectsSource = fs.readFileSync(effectsPath, 'utf8');
@@ -358,7 +362,7 @@ test.describe('Tarot Kingdom combat normalization', () => {
     });
 
     expect(normalized).toEqual({
-      version: 2,
+      version: 3,
       source: 'npc',
       playFabId: 'PF-1',
       displayName: '冒険者',
@@ -368,6 +372,7 @@ test.describe('Tarot Kingdom combat normalization', () => {
       equipment: { RightHand: 'axe_2' },
       itemSource: { axe_2: { itemId: 'axe_2' } },
       tarotDeck: [],
+      guardianArcana: null,
       combat: {
         maxHp: 1,
         power: 15,

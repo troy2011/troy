@@ -710,14 +710,62 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(result.battle.events.at(-1)).toMatchObject({
       type: 'attack',
       effectCount: 2,
-      resonanceName: '乱気流',
+      resonanceName: '砕甲剣',
       weaponEffectName: '有効打'
     });
-    expect(result.battle.effects.enemy.confusion).toBeTruthy();
+    expect(result.battle.effects.enemy.break).toMatchObject({ potency: 20, charges: 1 });
     expect(result.transition.endsAt - result.transition.startedAt).toBe(1340);
     await expect(page.locator('.tarot-kingdom-status-tray, .tarot-kingdom-status-icon')).toHaveCount(0);
     await page.waitForTimeout(810);
-    await expect(page.locator('.tarot-kingdom-effect-banner')).toHaveText('共鳴・乱気流');
+    await expect(page.locator('.tarot-kingdom-effect-banner')).toHaveText('共鳴・砕甲剣');
+  });
+
+  test('matching guardian arcana awakens only in schema 16 loadout battles', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const major = { id: 'guardian-major-1', kind: 'major', suit: 'None', number: 1 };
+      const character = {
+        version: 3,
+        guardianArcana: {
+          itemId: 'tarot_major_01',
+          number: 1,
+          cardLevel: 10,
+          passiveId: 'magician-elements',
+          awakeningId: 'magician-awaken'
+        }
+      };
+      debug.battleScenario({
+        withTrick: false,
+        handsBySeat: [[major]],
+        charactersBySeat: [character]
+      });
+      const current = debug.battlePlayCards(0, [major.id], { resolve: false }).state;
+
+      debug.battleScenario({
+        withTrick: false,
+        handsBySeat: [[major]],
+        charactersBySeat: [character],
+        rules: { arcanaLoadoutEffectsVersion: 0 }
+      });
+      const legacy = debug.battlePlayCards(0, [major.id], { resolve: false }).state;
+      return {
+        currentEvent: current.battle.events.at(-1),
+        legacyEvent: legacy.battle.events.at(-1),
+        currentRules: current.rules,
+        legacyRules: legacy.rules
+      };
+    });
+
+    expect(audit.currentRules.arcanaLoadoutEffectsVersion).toBe(1);
+    expect(audit.currentEvent).toMatchObject({
+      majorAwakened: true,
+      guardianItemId: 'tarot_major_01',
+      guardianCardLevel: 10,
+      awakeningId: 'magician-awaken'
+    });
+    expect(audit.legacyRules.arcanaLoadoutEffectsVersion).toBe(0);
+    expect(audit.legacyEvent.majorAwakened).toBe(false);
+    expect(audit.legacyEvent.awakeningId).toBe('');
   });
 
   test('persistent status markers stay removed while resonance marks fit 390px and 900px layouts', async ({ page }) => {
@@ -842,7 +890,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.rush.battle.outcome).toBeNull();
     expect(audit.rush.players[0].hand).toHaveLength(1);
     expect(audit.rush.rules.enemyDefeatMode).toBe('hand-empty');
-    expect(audit.hostPublicState.schema).toBe(15);
+    expect(audit.hostPublicState.schema).toBe(16);
     expect(audit.hostPublicState.state.rules.enemyDefeatMode).toBe('hand-empty');
     expect(audit.legacy.rules.enemyDefeatMode).toBe('hand-empty');
   });
@@ -1830,7 +1878,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       effectiveUnits: 2,
       healRate: 0.2
     });
-    expect(audit.publicState.schema).toBe(15);
+    expect(audit.publicState.schema).toBe(16);
     expect(audit.publicState.state.stage.monsters).toHaveLength(4);
     expect(audit.atmosphereTone).toBe('sunlit-coral');
     expect(audit.atmosphereCss).toContain('74, 159, 196');
@@ -1859,7 +1907,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.settlementStart.players).toHaveLength(3);
     expect(audit.settled.roundSettlement.rows).toHaveLength(2);
     expect(audit.settled.dealer).toBe(0);
-    expect(audit.published.schema).toBe(15);
+    expect(audit.published.schema).toBe(16);
     expect(audit.published.state.rules.playerCount).toBe(3);
     expect(audit.published.state.players).toHaveLength(3);
   });
@@ -2139,10 +2187,11 @@ test.describe('Tarot Kingdom character battle flow', () => {
         current
       };
     });
-    expect(audit.currentPublic.schema).toBe(15);
+    expect(audit.currentPublic.schema).toBe(16);
     expect(audit.currentPublic.state.rules).toMatchObject({
       playerCount: 4,
       combatEffectsVersion: 1,
+      arcanaLoadoutEffectsVersion: 1,
       summonVersion: 1,
       graveTimingVersion: 1,
       majorArcanaGateVersion: 1,
@@ -2274,5 +2323,34 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.hostHydrated).toBe(true);
     expect(audit.hostHandCounts).toEqual([0, 2, 3, 4]);
     expect(audit.hostDeckCount).toBe(0);
+  });
+
+  test('unchanged private hands and authority collections publish revision-only deltas', async ({ page }) => {
+    await openBattleDebug(page);
+    const audit = await page.evaluate(() => {
+      window.TarotKingdomDebug.battleScenario({ revision: 12, handCounts: [8, 8, 8, 8] });
+      return window.TarotKingdomDebug.battleSecretWritePlanAudit();
+    });
+
+    expect(audit.initialKeys).toEqual([
+      'authorityState',
+      'privateHands/0',
+      'privateHands/1',
+      'privateHands/2',
+      'privateHands/3'
+    ]);
+    expect(audit.unchangedKeys).toEqual([
+      'authorityState/revision',
+      'privateHands/0/revision',
+      'privateHands/1/revision',
+      'privateHands/2/revision',
+      'privateHands/3/revision'
+    ]);
+    expect(audit.changedKeys).toContain('authorityState/handsBySeat/seat0');
+    expect(audit.changedKeys).toContain('authorityState/drawDeck');
+    expect(audit.changedKeys).toContain('privateHands/0');
+    expect(audit.changedKeys).toContain('privateHands/1/revision');
+    expect(audit.changedKeys).not.toContain('authorityState');
+    expect(audit.unchangedBytes).toBeLessThan(audit.initialBytes / 10);
   });
 });
