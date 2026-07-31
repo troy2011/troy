@@ -772,8 +772,10 @@ export function retreatExploration(playFabId, explorationId, options) {
 
 export function claimExploration(playFabId, options) {
     const body = { playFabId };
+    const ownerPlayFabId = String(options?.ownerPlayFabId || '').trim();
     const tarotOutcome = String(options?.tarotOutcome || '').trim().toLowerCase();
     const explorationId = String(options?.explorationId || '').trim();
+    if (ownerPlayFabId) body.ownerPlayFabId = ownerPlayFabId;
     if (tarotOutcome) body.tarotOutcome = tarotOutcome;
     if (explorationId) body.explorationId = explorationId;
     if (options?.tarotFinisher && typeof options.tarotFinisher === 'object') {

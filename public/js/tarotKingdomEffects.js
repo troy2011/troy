@@ -33,26 +33,49 @@ const NEGATIVE_STATUS_PRIORITY = Object.freeze([
 ]);
 
 async function loadTarotKingdomArcanaEffects() {
-    const injected = globalThis.__TAROT_KINGDOM_ARCANA_EFFECTS__;
-    if (injected && typeof injected === 'object') return injected;
-    if (String(import.meta.url || '').startsWith('data:')) {
-        return { version: 1, minor: [], guardian: [] };
-    }
+    if (String(import.meta.url || '').startsWith('data:')) return null;
     const url = new URL('../data/tarot-kingdom-arcana-effects.json', import.meta.url);
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Arcana effects could not be loaded: ${response.status}`);
     return response.json();
 }
 
-export const TAROT_KINGDOM_ARCANA_EFFECTS = await loadTarotKingdomArcanaEffects();
+export const TAROT_KINGDOM_ARCANA_EFFECTS = { version: 1, minor: [], guardian: [] };
 export const TAROT_KINGDOM_ARCANA_EFFECT_CATALOG = TAROT_KINGDOM_ARCANA_EFFECTS;
-const MINOR_RESONANCE_BY_KEY = new Map(
-    (Array.isArray(TAROT_KINGDOM_ARCANA_EFFECTS.minor) ? TAROT_KINGDOM_ARCANA_EFFECTS.minor : [])
-        .map((entry) => [`${entry.suit}:${entry.rank}`, entry])
-);
-const GUARDIAN_BY_NUMBER = new Map(
-    (Array.isArray(TAROT_KINGDOM_ARCANA_EFFECTS.guardian) ? TAROT_KINGDOM_ARCANA_EFFECTS.guardian : [])
-        .map((entry) => [Number(entry.number), entry])
+const MINOR_RESONANCE_BY_KEY = new Map();
+const GUARDIAN_BY_NUMBER = new Map();
+
+function applyTarotKingdomArcanaEffects(data) {
+    if (!data || typeof data !== 'object') return TAROT_KINGDOM_ARCANA_EFFECTS;
+    Object.keys(TAROT_KINGDOM_ARCANA_EFFECTS).forEach((key) => {
+        delete TAROT_KINGDOM_ARCANA_EFFECTS[key];
+    });
+    Object.assign(TAROT_KINGDOM_ARCANA_EFFECTS, data);
+    MINOR_RESONANCE_BY_KEY.clear();
+    (Array.isArray(data.minor) ? data.minor : []).forEach((entry) => {
+        MINOR_RESONANCE_BY_KEY.set(`${entry.suit}:${entry.rank}`, entry);
+    });
+    GUARDIAN_BY_NUMBER.clear();
+    (Array.isArray(data.guardian) ? data.guardian : []).forEach((entry) => {
+        GUARDIAN_BY_NUMBER.set(Number(entry.number), entry);
+    });
+    return TAROT_KINGDOM_ARCANA_EFFECTS;
+}
+
+const injectedArcanaEffects = globalThis.__TAROT_KINGDOM_ARCANA_EFFECTS__;
+if (injectedArcanaEffects && typeof injectedArcanaEffects === 'object') {
+    applyTarotKingdomArcanaEffects(injectedArcanaEffects);
+}
+
+export const TAROT_KINGDOM_ARCANA_EFFECTS_READY = (
+    injectedArcanaEffects && typeof injectedArcanaEffects === 'object'
+        ? Promise.resolve(TAROT_KINGDOM_ARCANA_EFFECTS)
+        : loadTarotKingdomArcanaEffects()
+            .then(applyTarotKingdomArcanaEffects)
+            .catch((error) => {
+                console.error('[tarot-kingdom] Failed to load arcana effects:', error);
+                return TAROT_KINGDOM_ARCANA_EFFECTS;
+            })
 );
 
 function finiteNumber(value, fallback = 0) {

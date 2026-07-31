@@ -767,7 +767,7 @@ async function bootstrapMainApp(page, options = {}) {
     const appWrapper = document.getElementById('appWrapper');
     if (!appWrapper) return false;
     return window.getComputedStyle(appWrapper).display !== 'none';
-  }, { timeout: 20_000 });
+  }, null, { timeout: 20_000 });
   return state;
 }
 

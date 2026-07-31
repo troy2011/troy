@@ -50,6 +50,7 @@ const {
 const PIXEL_MONSTERS_ROSTER = require('../public/Sprites/pixel-monsters/manifest.json');
 
 const EXPLORATION_COLLECTION = 'player_explorations';
+const EXPLORATION_REWARD_RECEIPT_COLLECTION = 'exploration_reward_receipts';
 const DAILY_FREE_SUBCOLLECTION = 'daily_free';
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
@@ -992,6 +993,35 @@ function reportDocToPayload(doc) {
         supplyProfile,
         completedAtMs: Number(data.completedAtMs || 0),
         reportText: String(data.reportText || '')
+    };
+}
+
+function getExplorationRewardReceiptId(explorationId, playFabId) {
+    const safeExplorationId = encodeURIComponent(String(explorationId || '').trim()).slice(0, 512);
+    const safePlayFabId = encodeURIComponent(String(playFabId || '').trim()).slice(0, 256);
+    return `${safeExplorationId}__${safePlayFabId}`;
+}
+
+function explorationRewardReceiptToResponse(receipt = {}) {
+    const report = reportDocToPayload(receipt.report || {});
+    const rewardItems = Array.isArray(report.rewardItems) ? report.rewardItems : [];
+    const firstReward = rewardItems[0] || null;
+    return {
+        claimed: true,
+        participantReward: true,
+        replayed: true,
+        report,
+        reward: firstReward
+            ? {
+                ItemId: firstReward.itemId,
+                DisplayName: firstReward.displayName,
+                Rarity: firstReward.rarity,
+                Category: firstReward.category
+            }
+            : null,
+        currentPet: receipt.currentPet || null,
+        petOffer: receipt.petOffer || null,
+        progress: receipt.progress || null
     };
 }
 
@@ -3672,6 +3702,7 @@ function initializeExplorationRoutes(app, deps) {
     app.post('/api/exploration/claim', async (req, res) => {
         let {
             playFabId,
+            ownerPlayFabId,
             tarotOutcome,
             explorationId,
             tarotFinisher,
@@ -3718,12 +3749,27 @@ function initializeExplorationRoutes(app, deps) {
         }
         playFabId = await requireAuthed(req, res, playFabId);
         if (!playFabId) return;
-        const activeRef = firestore.collection(EXPLORATION_COLLECTION).doc(playFabId);
+        ownerPlayFabId = String(ownerPlayFabId || playFabId).trim();
+        const activeRef = firestore.collection(EXPLORATION_COLLECTION).doc(ownerPlayFabId);
+        const receiptRef = explorationId
+            ? firestore.collection(EXPLORATION_REWARD_RECEIPT_COLLECTION)
+                .doc(getExplorationRewardReceiptId(explorationId, playFabId))
+            : null;
         try {
             const now = Date.now();
             let activeData = null;
             let isRetry = false;
             let claimError = null;
+
+            if (receiptRef) {
+                const receiptSnap = await receiptRef.get();
+                if (receiptSnap.exists) {
+                    return res.json({
+                        ...(await buildExplorationStatus(playFabId)),
+                        ...explorationRewardReceiptToResponse(receiptSnap.data() || {})
+                    });
+                }
+            }
 
             // Firestoreトランザクションで active/pending → claiming へ排他遷移（並行claim防止）
             await firestore.runTransaction(async (tx) => {
@@ -3734,6 +3780,14 @@ function initializeExplorationRoutes(app, deps) {
                 }
                 const data = snap.data() || {};
                 const effectiveStatus = resolveEffectiveStatus(data);
+                const participants = Array.from(new Set([
+                    ownerPlayFabId,
+                    ...(Array.isArray(data.stageParticipants) ? data.stageParticipants : [])
+                ].map((entry) => String(entry || '').trim()).filter(Boolean)));
+                if (playFabId !== ownerPlayFabId && !participants.includes(playFabId)) {
+                    claimError = { code: 403, message: 'この探索の報酬を受け取る権限がありません。' };
+                    return;
+                }
 
                 if (effectiveStatus === 'claiming' && Array.isArray(data.rolledRewardIds)) {
                     // リトライ: claiming + rolledRewardIds 保存済み → 続きから処理
@@ -3795,7 +3849,7 @@ function initializeExplorationRoutes(app, deps) {
                 ? normalizeExplorationSupplyProfile(activeData.supplyProfile)
                 : buildExplorationSupplyProfile(activeData.consumedConsumables || [], activeData.requiredSupplyUnits ?? activeData.requiredConsumableCount ?? 0);
             const calculatedStandings = calculateTarotKingdomStandings(tarotStandings);
-            const ownerStanding = calculatedStandings.find((entry) => entry.playFabId === playFabId && entry.isNpc !== true)
+            const ownerStanding = calculatedStandings.find((entry) => entry.playFabId === ownerPlayFabId && entry.isNpc !== true)
                 || calculatedStandings.find((entry) => entry.playerIndex === 0 && entry.isNpc !== true)
                 || null;
             const stageRank = stage
@@ -3822,9 +3876,9 @@ function initializeExplorationRoutes(app, deps) {
                     : (activeData.rolledRewardIds || []);
                 const persistedOffer = normalizeTarotKingdomPendingPetOffer(activeData.petOffer);
                 try {
-                    petStateForResponse = await readTarotKingdomPetState(playFabId, { promisifyPlayFab, PlayFabServer });
+                    petStateForResponse = await readTarotKingdomPetState(ownerPlayFabId, { promisifyPlayFab, PlayFabServer });
                     if (persistedOffer && !petStateForResponse.pendingOffer) {
-                        petStateForResponse = await writeTarotKingdomPetState(playFabId, {
+                        petStateForResponse = await writeTarotKingdomPetState(ownerPlayFabId, {
                             ...petStateForResponse,
                             pendingOffer: persistedOffer
                         }, { promisifyPlayFab, PlayFabServer });
@@ -3835,7 +3889,7 @@ function initializeExplorationRoutes(app, deps) {
                     petOffer = persistedOffer;
                 }
                 if (!bossResult?.tarotKingdom) {
-                    await restoreHpToFullOnce(activeRef, playFabId, { admin, promisifyPlayFab, PlayFabServer });
+                    await restoreHpToFullOnce(activeRef, ownerPlayFabId, { admin, promisifyPlayFab, PlayFabServer });
                 }
             } else {
                 const tarotEncounter = normalizeExplorationTarotEncounter(activeData.tarotEncounter);
@@ -3843,7 +3897,7 @@ function initializeExplorationRoutes(app, deps) {
                     // 新探索: クライアントで完了したタロットキングダムの勝敗を報酬へ反映する。
                     bossResult = buildTarotKingdomBossResult(tarotEncounter, tarotOutcome);
                     try {
-                        petStateForResponse = await readTarotKingdomPetState(playFabId, { promisifyPlayFab, PlayFabServer });
+                        petStateForResponse = await readTarotKingdomPetState(ownerPlayFabId, { promisifyPlayFab, PlayFabServer });
                         // Stage encounters resolve recruitment after every round.
                         // Only legacy encounters still need their single claim-time roll.
                         if (
@@ -3852,7 +3906,7 @@ function initializeExplorationRoutes(app, deps) {
                                 encounter: tarotEncounter,
                                 outcome: tarotOutcome,
                                 finisher: tarotFinisher,
-                                authenticatedPlayFabId: playFabId
+                                authenticatedPlayFabId: ownerPlayFabId
                             })
                         ) {
                             const rolled = rollTarotKingdomPetOffer({
@@ -3866,7 +3920,7 @@ function initializeExplorationRoutes(app, deps) {
                             });
                             if (rolled.created) {
                                 petStateForResponse = await writeTarotKingdomPetState(
-                                    playFabId,
+                                    ownerPlayFabId,
                                     rolled.state,
                                     { promisifyPlayFab, PlayFabServer }
                                 );
@@ -3882,7 +3936,7 @@ function initializeExplorationRoutes(app, deps) {
                     // 旧探索との互換: 遭遇固定前に開始された探索だけは従来の白兵戦で解決する。
                     const selectedBoss = selectExplorationBoss(destination, Math.random, ship.shipClass);
                     bossResult = await resolveBossBattle(
-                        playFabId,
+                        ownerPlayFabId,
                         destination,
                         selectedBoss,
                         { promisifyPlayFab, PlayFabServer },
@@ -3894,7 +3948,7 @@ function initializeExplorationRoutes(app, deps) {
 
                 if (stage) {
                     const participantIds = Array.from(new Set([
-                        playFabId,
+                        ownerPlayFabId,
                         ...(Array.isArray(activeData.stageParticipants) ? activeData.stageParticipants : [])
                     ].map((entry) => String(entry || '').trim()).filter(Boolean))).slice(0, 4);
                     if (bossResult?.playerWon) {
@@ -3959,12 +4013,11 @@ function initializeExplorationRoutes(app, deps) {
 
                 if (!bossResult?.tarotKingdom) {
                     // 旧白兵戦だけが通常キャラクターHPを使うため、従来どおり全回復する。
-                    await restoreHpToFullOnce(activeRef, playFabId, { admin, promisifyPlayFab, PlayFabServer });
+                    await restoreHpToFullOnce(activeRef, ownerPlayFabId, { admin, promisifyPlayFab, PlayFabServer });
                 }
             }
 
             // インデックスベースの idempotency キーで付与（itemId 非依存のためリトライ安全）
-            const rewards = [];
             if (stage) {
                 const entries = Object.entries(rolledRewardsByPlayer || {});
                 for (const [participantId, participantRewards] of entries) {
@@ -3977,14 +4030,6 @@ function initializeExplorationRoutes(app, deps) {
                         await addEconomyItem(safeParticipantId, itemId, 1, {
                             idempotencyId: `exploration-stage-reward-${activeData.id}-${safeParticipantId}-${index}`
                         });
-                        if (safeParticipantId === playFabId) {
-                            const display = normalizeCatalogDisplayData(itemId, catalogCache?.[itemId] || {});
-                            rewards.push({
-                                ...display,
-                                Rarity: String(rolled.rarity || 'common'),
-                                Category: String(rolled.category || '')
-                            });
-                        }
                     }
                 }
             } else {
@@ -3993,25 +4038,21 @@ function initializeExplorationRoutes(app, deps) {
                     await addEconomyItem(playFabId, itemId, 1, {
                         idempotencyId: `exploration-reward-${activeData.id}-${i}`
                     });
-                    const rolled = rolledRewards[i] || {};
-                    const display = normalizeCatalogDisplayData(itemId, catalogCache?.[itemId] || {});
-                    rewards.push({
-                        ...display,
-                        Rarity: String(rolled.rarity || 'common'),
-                        Category: String(rolled.category || '')
-                    });
                 }
             }
             let explorationProgress = null;
+            const explorationProgressByPlayer = {};
+            const stageParticipantIds = stage
+                ? Array.from(new Set([
+                    ownerPlayFabId,
+                    ...(Array.isArray(activeData.stageParticipants) ? activeData.stageParticipants : [])
+                ].map((entry) => String(entry || '').trim()).filter(Boolean))).slice(0, 4)
+                : [playFabId];
             if (stage) {
                 const progressFinishers = tarotFinishers.length
                     ? tarotFinishers
                     : (Array.isArray(activeData.tarotFinishers) ? activeData.tarotFinishers : []);
-                const participantIds = Array.from(new Set([
-                    playFabId,
-                    ...(Array.isArray(activeData.stageParticipants) ? activeData.stageParticipants : [])
-                ].map((entry) => String(entry || '').trim()).filter(Boolean))).slice(0, 4);
-                for (const participantId of participantIds) {
+                for (const participantId of stageParticipantIds) {
                     const currentProgress = await readTarotKingdomExplorationProgress(
                         participantId,
                         { promisifyPlayFab, PlayFabServer }
@@ -4045,62 +4086,131 @@ function initializeExplorationRoutes(app, deps) {
                             { promisifyPlayFab, PlayFabServer }
                         );
                     }
+                    explorationProgressByPlayer[participantId] = nextProgress;
                     if (participantId === playFabId) explorationProgress = nextProgress;
                 }
             }
 
-            const rewardItemId = rewards[0]?.ItemId || '';
-            const reward = rewards[0] || null;
-            const rewardDisplayName = rewards.length > 0
-                ? rewards.map((r) => r.DisplayName).join('、')
-                : '（なし）';
-            const report = {
-                id: String(activeData.id || `exp-${now}`),
-                playFabId,
-                destinationId: destination.id,
-                destinationName: destination.name,
-                imagePath: destination.imagePath || '',
-                stageNo: stage?.stageNo || null,
-                stageRank,
-                shipId: ship.shipId,
-                shipName: ship.shipName,
-                shipClass: ship.shipClass,
-                bossId: bossResult?.bossId || '',
-                bossName: bossResult?.bossName || '',
-                bossSpriteId: bossResult?.bossSpriteId || '',
-                bossTier: bossResult?.bossTier || '',
-                bossTierLabel: bossResult?.bossTierLabel || '',
-                bossAppeared: bossResult?.bossAppeared || false,
-                bossResult: bossResult
-                    ? (bossResult.playerWon ? 'victory' : (bossResult.escaped || bossResult.draw ? 'escaped' : 'defeat'))
-                    : 'none',
-                bossLog: bossResult?.battleLog || '',
-                monsterId: bossResult?.monsterId || bossResult?.bossId || '',
-                monsterName: bossResult?.monsterName || bossResult?.bossName || '',
-                monsterIsBoss: bossResult?.monsterIsBoss === true,
-                petOffer: petOffer || null,
-                rewardItemId: rewardItemId || '',
-                rewardItemName: rewardDisplayName,
-                rewardCount: rewards.length,
-                rewardItems: rewards.map((item) => ({
-                    itemId: item.ItemId,
-                    displayName: item.DisplayName,
-                    rarity: item.Rarity,
-                    category: item.Category
-                })),
-                supplyProfile,
-                reportText: buildReportText({ destination, ship, bossResult, rewardDisplayName, rewardCount: rewards.length, supplyProfile }),
-                completedAtMs: now,
-                createdAt: admin.firestore.FieldValue.serverTimestamp()
+            const buildParticipantRewards = (participantId) => (
+                (stage
+                    ? (Array.isArray(rolledRewardsByPlayer?.[participantId])
+                        ? rolledRewardsByPlayer[participantId]
+                        : [])
+                    : rolledRewards
+                ).map((rolled) => {
+                    const itemId = String(rolled?.itemId || '').trim();
+                    if (!itemId) return null;
+                    const display = normalizeCatalogDisplayData(itemId, catalogCache?.[itemId] || {});
+                    return {
+                        ...display,
+                        Rarity: String(rolled?.rarity || 'common'),
+                        Category: String(rolled?.category || '')
+                    };
+                }).filter(Boolean)
+            );
+            const getParticipantRank = (participantId) => {
+                if (!stage) return null;
+                const standing = calculatedStandings.find((entry) => (
+                    entry.playFabId === participantId && entry.isNpc !== true
+                ));
+                return Math.max(1, Math.min(4, Math.floor(Number(standing?.rank) || 4)));
             };
+            const buildParticipantReport = (participantId, participantRewards) => {
+                const rewardDisplayName = participantRewards.length > 0
+                    ? participantRewards.map((entry) => entry.DisplayName).join('、')
+                    : '（なし）';
+                return {
+                    id: String(activeData.id || `exp-${now}`),
+                    playFabId: participantId,
+                    destinationId: destination.id,
+                    destinationName: destination.name,
+                    imagePath: destination.imagePath || '',
+                    stageNo: stage?.stageNo || null,
+                    stageRank: getParticipantRank(participantId),
+                    shipId: ship.shipId,
+                    shipName: ship.shipName,
+                    shipClass: ship.shipClass,
+                    bossId: bossResult?.bossId || '',
+                    bossName: bossResult?.bossName || '',
+                    bossSpriteId: bossResult?.bossSpriteId || '',
+                    bossTier: bossResult?.bossTier || '',
+                    bossTierLabel: bossResult?.bossTierLabel || '',
+                    bossAppeared: bossResult?.bossAppeared || false,
+                    bossResult: bossResult
+                        ? (bossResult.playerWon ? 'victory' : (bossResult.escaped || bossResult.draw ? 'escaped' : 'defeat'))
+                        : 'none',
+                    bossLog: bossResult?.battleLog || '',
+                    monsterId: bossResult?.monsterId || bossResult?.bossId || '',
+                    monsterName: bossResult?.monsterName || bossResult?.bossName || '',
+                    monsterIsBoss: bossResult?.monsterIsBoss === true,
+                    petOffer: participantId === ownerPlayFabId ? (petOffer || null) : null,
+                    rewardItemId: participantRewards[0]?.ItemId || '',
+                    rewardItemName: rewardDisplayName,
+                    rewardCount: participantRewards.length,
+                    rewardItems: participantRewards.map((item) => ({
+                        itemId: item.ItemId,
+                        displayName: item.DisplayName,
+                        rarity: item.Rarity,
+                        category: item.Category
+                    })),
+                    supplyProfile,
+                    reportText: buildReportText({
+                        destination,
+                        ship,
+                        bossResult,
+                        rewardDisplayName,
+                        rewardCount: participantRewards.length,
+                        supplyProfile
+                    }),
+                    completedAtMs: now
+                };
+            };
+            const participantRewards = buildParticipantRewards(playFabId);
+            const report = buildParticipantReport(playFabId, participantRewards);
+            const reward = participantRewards[0] || null;
+            const currentPetView = playFabId === ownerPlayFabId
+                ? buildTarotKingdomPetPublicRecord(petStateForResponse?.currentPet)
+                : null;
+            const petOfferView = playFabId === ownerPlayFabId
+                ? buildTarotKingdomPetOfferView(petOffer, petStateForResponse?.currentPet)
+                : null;
+
+            if (stage) {
+                for (const participantId of stageParticipantIds) {
+                    const participantReport = buildParticipantReport(
+                        participantId,
+                        buildParticipantRewards(participantId)
+                    );
+                    const participantReceiptRef = firestore
+                        .collection(EXPLORATION_REWARD_RECEIPT_COLLECTION)
+                        .doc(getExplorationRewardReceiptId(activeData.id, participantId));
+                    await participantReceiptRef.set({
+                        version: 1,
+                        explorationId: String(activeData.id || ''),
+                        ownerPlayFabId,
+                        playFabId: participantId,
+                        report: reportDocToPayload(participantReport),
+                        progress: explorationProgressByPlayer[participantId] || null,
+                        currentPet: participantId === ownerPlayFabId
+                            ? buildTarotKingdomPetPublicRecord(petStateForResponse?.currentPet)
+                            : null,
+                        petOffer: participantId === ownerPlayFabId
+                            ? buildTarotKingdomPetOfferView(petOffer, petStateForResponse?.currentPet)
+                            : null,
+                        createdAtMs: now,
+                        createdAt: admin.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                }
+            }
             await activeRef.delete();
             res.json({
                 ...(await buildExplorationStatus(playFabId)),
                 claimed: true,
+                participantReward: playFabId !== ownerPlayFabId,
                 report: reportDocToPayload(report),
                 reward,
-                currentPet: buildTarotKingdomPetPublicRecord(petStateForResponse?.currentPet),
-                petOffer: buildTarotKingdomPetOfferView(petOffer, petStateForResponse?.currentPet),
+                currentPet: currentPetView,
+                petOffer: petOfferView,
                 progress: explorationProgress
             });
         } catch (error) {
@@ -4127,6 +4237,7 @@ module.exports = {
         buildExplorationSupplyProfile,
         buildTroyMenuConsumablePaymentOptions,
         buildDailyFreeExplorationStatus,
+        explorationRewardReceiptToResponse,
         canShipClassExploreDestination,
         getAllDestinationsForShipClass,
         getAvailableDestinationsForShipClass,
@@ -4143,6 +4254,7 @@ module.exports = {
         getExplorationShipAccessClasses,
         getExplorationShipClassLabel,
         getJstDayKey,
+        getExplorationRewardReceiptId,
         getTroyMenuConsumableEffectiveUnits,
         isTroyMenuConsumableCatalogItem,
         isDailyExplorationDestinationForPlayer,

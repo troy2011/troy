@@ -1033,7 +1033,7 @@
                         <div class="equip-slot armor-slot" data-slot="armor" data-tooltip="頭装備">
                             <div class="equip-slot-icon">💀</div>
                             <div class="equip-slot-content">
-                                <label class="equip-slot-label">頭</label>
+                                <span class="equip-slot-label">頭</span>
                                 <span id="equippedArmor" class="equip-slot-name">なし</span>
                                 <div id="equippedArmorStats" class="equip-slot-stats"></div>
                             </div>
@@ -1043,7 +1043,7 @@
                         <div class="equip-slot weapon-slot" data-slot="rightHand" data-tooltip="右手装備">
                             <div class="equip-slot-icon">🦴</div>
                             <div class="equip-slot-content">
-                                <label class="equip-slot-label">右手</label>
+                                <span class="equip-slot-label">右手</span>
                                 <span id="equippedRightHand" class="equip-slot-name">なし</span>
                                 <div id="equippedRightHandStats" class="equip-slot-stats"></div>
                             </div>
@@ -1053,7 +1053,7 @@
                         <div class="equip-slot shield-slot" data-slot="leftHand" data-tooltip="左手装備">
                             <div class="equip-slot-icon is-mirrored">🦴</div>
                             <div class="equip-slot-content">
-                                <label class="equip-slot-label">左手</label>
+                                <span class="equip-slot-label">左手</span>
                                 <span id="equippedLeftHand" class="equip-slot-name">なし</span>
                                 <div id="equippedLeftHandStats" class="equip-slot-stats"></div>
                             </div>
@@ -1063,7 +1063,7 @@
                         <div class="equip-slot accessory-slot" data-slot="accessory" data-tooltip="アクセサリー装備">
                             <div class="equip-slot-icon">❂</div>
                             <div class="equip-slot-content">
-                                <label class="equip-slot-label">アクセサリー</label>
+                                <span class="equip-slot-label">アクセサリー</span>
                                 <span id="equippedAccessory" class="equip-slot-name">なし</span>
                                 <div id="equippedAccessoryStats" class="equip-slot-stats"></div>
                             </div>
@@ -1663,7 +1663,7 @@
             <p id="raceModalDescription" style="font-size:12px; color:var(--text-sub);">一度選ぶと変更できません</p>
             <p id="raceInviteMessage" style="display:none; margin-top:10px; padding:10px 12px; border-radius:10px; background:rgba(14,165,233,0.12); border:1px solid rgba(14,165,233,0.3); color:#bfdbfe; font-size:12px; line-height:1.5;"></p>
             <div style="margin-top:16px;">
-                <label style="display:block; font-size:12px; color:var(--text-sub); margin-bottom:6px;">名前</label>
+                <label for="raceDisplayNameInput" style="display:block; font-size:12px; color:var(--text-sub); margin-bottom:6px;">名前</label>
                 <input type="text" id="raceDisplayNameInput" placeholder="名前を入力" maxlength="30" style="width:100%; padding:10px; border-radius:6px; border:1px solid var(--border-color); background:#374151; color:#fff; font-size:14px;">
             </div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:20px;" id="raceButtons">
@@ -1681,7 +1681,7 @@
         <div class="modal-content">
             <h2>ギルド作成</h2>
             <div style="margin: 20px 0;">
-                <label style="display: block; margin-bottom: 8px; color: var(--text-sub);">ギルド名</label>
+                <label for="guildNameInput" style="display: block; margin-bottom: 8px; color: var(--text-sub);">ギルド名</label>
                 <input type="text" id="guildNameInput" placeholder="ギルド名を入力" maxlength="30" style="width: 100%; padding: 12px; border-radius: 4px; border: 1px solid var(--border-color); background: #374151; color: #fff; font-size: 16px;">
             </div>
             <p id="guildCreateMessage" style="color: var(--accent-color); min-height: 20px;"></p>
@@ -1762,7 +1762,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <script src="https://download.playfab.com/PlayFabClientApi.js"></script>
     <script src="https://download.playfab.com/PlayFabGroupsApi.js"></script>
-    <script src="https://download.playfab.com/PlayFabEconomyApi.js"></script>
 
     <!-- importmap を使用してFirebaseモジュールを定義 -->
     <script type="importmap">
@@ -1790,7 +1789,7 @@
         <div class="modal-content">
             <h2>新しい船を建造</h2>
             <div style="margin: 20px 0;">
-                <label style="display: block; margin-bottom: 8px; color: var(--text-sub);">船種を選択:</label>
+                <label for="shipTypeSelect" style="display: block; margin-bottom: 8px; color: var(--text-sub);">船種を選択:</label>
                 <select id="shipTypeSelect" style="width: 100%; padding: 10px; border-radius: 4px; background: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-color);">
                     <option value="Sloop">スループ (小型・高速) - 1000G</option>
                     <option value="Brigantine">ブリガンティン (中型・バランス) - 3000G</option>
@@ -1823,6 +1822,6 @@
     <!-- Scripts -->
     <script src="battle-client.js?v=20260726-legacy-battle-off-1"></script>
     <script src="naval-battle.js"></script>
-<script type="module" src="main.js?v=20260731-summon-cinematic27-v1"></script>
+<script type="module" src="main.js?v=20260731-online-rewards1"></script>
 </body>
 </html>

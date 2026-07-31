@@ -37,6 +37,49 @@ const RECOMMENDED_LEVEL_BY_DESTINATION = {
   treasure_hermit_cave: 30
 };
 
+test('online exploration reward receipts are scoped to each participant', () => {
+  const hostReceiptId = __test.getExplorationRewardReceiptId('exp-online-1', 'HOST');
+  const guestReceiptId = __test.getExplorationRewardReceiptId('exp-online-1', 'GUEST');
+  expect(hostReceiptId).not.toBe(guestReceiptId);
+  expect(guestReceiptId).toBe('exp-online-1__GUEST');
+
+  const response = __test.explorationRewardReceiptToResponse({
+    report: {
+      id: 'exp-online-1',
+      playFabId: 'GUEST',
+      destinationId: 'stage_1',
+      destinationName: '試練の島',
+      stageNo: 1,
+      stageRank: 2,
+      rewardCount: 1,
+      rewardItems: [{
+        itemId: 'reward_guest',
+        displayName: '救援の宝',
+        rarity: 'rare',
+        category: 'material'
+      }]
+    },
+    progress: { highestUnlockedStage: 2 }
+  });
+
+  expect(response).toMatchObject({
+    claimed: true,
+    participantReward: true,
+    replayed: true,
+    reward: {
+      ItemId: 'reward_guest',
+      DisplayName: '救援の宝',
+      Rarity: 'rare'
+    },
+    report: {
+      id: 'exp-online-1',
+      stageRank: 2,
+      rewardCount: 1
+    },
+    progress: { highestUnlockedStage: 2 }
+  });
+});
+
 function catalogItem(itemId, category, stats = {}) {
   return {
     ItemId: itemId,

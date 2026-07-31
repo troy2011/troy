@@ -14,7 +14,7 @@ import {
 import * as Player from 'player';
 import * as Inventory from 'inventory';
 import * as Guild from './js/guild.js';
-import * as Ship from './js/ship.js?v=20260731-docking2';
+import * as Ship from './js/ship.js?v=20260731-online-rewards1';
 import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js?v=20260728-raid2';
 import { initMapChat, initTroyChat } from './js/mapChat.js';
@@ -1205,7 +1205,19 @@ async function joinHomeRescueRoom(room, triggerButton) {
     }
     try {
         closeHomeRescuePopup();
-        await launchTarotKingdomRescueBattle(room);
+        const kingdomResult = await launchTarotKingdomRescueBattle(room);
+        if (kingdomResult?.status === 'completed' && kingdomResult?.mode === 'online') {
+            try {
+                await Ship.claimOnlineExplorationReward(
+                    String(window.myPlayFabId || ''),
+                    String(room.ownerPlayFabId || ''),
+                    kingdomResult
+                );
+            } catch (rewardError) {
+                console.warn('[home-rescue] Failed to show participant reward:', rewardError);
+                showRpgMessage('報酬の確認に失敗しました。探索画面からもう一度確認してください。');
+            }
+        }
     } catch (error) {
         console.warn('[home-rescue] Failed to join rescue room:', error);
         showRpgMessage(error?.message || '救難信号へ参加できませんでした。');

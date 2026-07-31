@@ -31,7 +31,7 @@ import {
     getShipsInView as fetchShipsInView,
     getShipAsset as fetchShipAsset,
     getShipPosition as fetchShipPosition
-} from './playfabClient.js?v=20260728-raid2';
+} from './playfabClient.js?v=20260731-online-rewards1';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { createRequestId } from './api.js';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -2286,6 +2286,47 @@ function handleExplorationClaimResult(data, playFabId, options = {}) {
         kingdomMonster: options.kingdomMonster || null,
         kingdomResult: options.kingdomResult || null
     });
+}
+
+export async function claimOnlineExplorationReward(playFabId, ownerPlayFabId, kingdomResult = {}) {
+    const safePlayFabId = String(playFabId || '').trim();
+    const safeOwnerPlayFabId = String(ownerPlayFabId || '').trim();
+    const explorationId = String(kingdomResult?.explorationId || '').trim();
+    if (
+        !safePlayFabId
+        || !safeOwnerPlayFabId
+        || !explorationId
+        || kingdomResult?.mode !== 'online'
+        || kingdomResult?.status !== 'completed'
+    ) return null;
+
+    let lastError = null;
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+        try {
+            const claimData = await requestClaimExploration(safePlayFabId, {
+                throwOnError: true,
+                isSilent: true,
+                ownerPlayFabId: safeOwnerPlayFabId,
+                tarotOutcome: kingdomResult.outcome,
+                explorationId,
+                tarotFinisher: kingdomResult.finisher,
+                tarotFinishers: kingdomResult.finishers,
+                tarotStandings: kingdomResult.standings
+            });
+            handleExplorationClaimResult(claimData, safePlayFabId, { kingdomResult });
+            return claimData;
+        } catch (error) {
+            lastError = error;
+            const message = String(error?.message || '');
+            const retryable = message.includes('HTTP 400')
+                || message.includes('HTTP 409')
+                || message.includes('確認中')
+                || message.includes('探索がありません');
+            if (!retryable || attempt >= 5) break;
+            await wait(450 + attempt * 150);
+        }
+    }
+    throw lastError || new Error('探索報酬を確認できませんでした。');
 }
 
 function isExplorationStartConflict(error) {
