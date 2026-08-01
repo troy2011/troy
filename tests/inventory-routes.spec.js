@@ -5,6 +5,7 @@ const getUserReadOnlyDataApi = function getUserReadOnlyDataApi() {};
 const updateUserReadOnlyDataApi = function updateUserReadOnlyDataApi() {};
 const updatePlayerStatisticsApi = function updatePlayerStatisticsApi() {};
 const getPlayerProfileApi = function getPlayerProfileApi() {};
+const executeInventoryOperationsApi = function executeInventoryOperationsApi() {};
 
 function makeResponse() {
   return {
@@ -60,7 +61,7 @@ function makeEquipHarness({ readOnlyData = {}, inventoryItems = [] } = {}) {
   };
 }
 
-function makeSellHarness({ readOnlyData = {}, inventoryItems = [] } = {}) {
+function makeSellHarness({ readOnlyData = {}, inventoryItems = [], executeInventoryOperationsImpl = null } = {}) {
   const routes = new Map();
   const economyAdds = [];
   const economySubtracts = [];
@@ -84,8 +85,12 @@ function makeSellHarness({ readOnlyData = {}, inventoryItems = [] } = {}) {
         statisticUpdates.push(request);
         return {};
       }
+      if (apiFunction === executeInventoryOperationsApi && typeof executeInventoryOperationsImpl === 'function') {
+        return executeInventoryOperationsImpl(request);
+      }
       throw new Error('Unexpected PlayFab API call');
     },
+    PlayFabEconomy: executeInventoryOperationsImpl ? { ExecuteInventoryOperations: executeInventoryOperationsApi } : undefined,
     catalogCache: {
       junk_001: { Category: 'Consumable', DisplayName: 'Junk' },
       potion_001: { Category: 'Consumable', DisplayName: 'Potion' },
@@ -101,6 +106,7 @@ function makeSellHarness({ readOnlyData = {}, inventoryItems = [] } = {}) {
       economySubtracts.push({ playFabId, itemId, amount });
     },
     getCurrencyBalance: async () => 103,
+    withTitleEntityToken: async (operation) => operation(),
     requireAuthenticatedPlayFabId: async (_req, _res, playFabId) => playFabId
   });
 
@@ -195,10 +201,15 @@ function makeBlackMarketHarness({
   readOnlyData = {},
   inventoryItems = [],
   firestore = makeMemoryFirestore(),
+  catalogCache = {
+    potion_001: { Category: 'Consumable', DisplayName: 'Potion' },
+    sword_001: { Category: 'Weapon', DisplayName: 'Test Sword' }
+  },
   currencyBalance = 99,
   subtractError = null,
   addEconomyItemImpl = null,
-  subtractEconomyItemImpl = null
+  subtractEconomyItemImpl = null,
+  executeInventoryOperationsImpl = null
 } = {}) {
   const routes = new Map();
   const economyAdds = [];
@@ -221,13 +232,14 @@ function makeBlackMarketHarness({
       if (apiFunction === getPlayerProfileApi) {
         return { PlayerProfile: { DisplayName: `${request.PlayFabId}-name` } };
       }
+      if (apiFunction === executeInventoryOperationsApi && typeof executeInventoryOperationsImpl === 'function') {
+        return executeInventoryOperationsImpl(request);
+      }
       throw new Error('Unexpected PlayFab API call');
     },
+    PlayFabEconomy: executeInventoryOperationsImpl ? { ExecuteInventoryOperations: executeInventoryOperationsApi } : undefined,
     firestore,
-    catalogCache: {
-      potion_001: { Category: 'Consumable', DisplayName: 'Potion' },
-      sword_001: { Category: 'Weapon', DisplayName: 'Test Sword' }
-    },
+    catalogCache,
     getEntityKeyForPlayFabId: async () => ({ Id: 'ENTITY1', Type: 'title_player_account' }),
     getAllInventoryItems: async () => inventoryItems,
     getVirtualCurrencyMap: () => ({}),
@@ -245,6 +257,7 @@ function makeBlackMarketHarness({
       }
     },
     getCurrencyBalance: async () => currencyBalance,
+    withTitleEntityToken: async (operation) => operation(),
     requireAuthenticatedPlayFabId: async (_req, _res, playFabId) => playFabId
   });
 
@@ -307,6 +320,29 @@ test('equip-item rejects using one owned one-handed weapon in both hands', async
   expect(res.body).toMatchObject({
     error: '同じ片手武器を両手に装備するには2本必要です。'
   });
+  expect(updates).toHaveLength(0);
+});
+
+test('equip-item rejects reusing one exact stack against a legacy opposite-hand reference', async () => {
+  const { handler, updates } = makeEquipHarness({
+    readOnlyData: {
+      Equipped_LeftHand: { Value: 'sword_001' }
+    },
+    inventoryItems: [
+      { Id: 'sword_001', StackId: 'only-sword-stack', Amount: 1 }
+    ]
+  });
+  const res = makeResponse();
+  await handler({
+    body: {
+      playFabId: 'PF_PLAYWRIGHT',
+      itemId: 'sword_001',
+      stackId: 'only-sword-stack',
+      slot: 'RightHand'
+    }
+  }, res);
+
+  expect(res.statusCode).toBe(400);
   expect(updates).toHaveLength(0);
 });
 
@@ -427,6 +463,43 @@ test('sell-items allows selling a spare copy while one matching item is equipped
   ]);
 });
 
+test('sell-items keeps an enhanced stack when selling a grouped unenhanced copy', async () => {
+  const executeRequests = [];
+  const { handler } = makeSellHarness({
+    inventoryItems: [
+      { Id: 'sword_001', StackId: 'plain-sword', Amount: 1 },
+      {
+        Id: 'sword_001',
+        StackId: 'enhanced-sword',
+        Amount: 1,
+        DisplayProperties: { equipmentEnhancement: { version: 1, bonus: 4 } }
+      }
+    ],
+    executeInventoryOperationsImpl: async (request) => {
+      executeRequests.push(request);
+      return {};
+    }
+  });
+  const res = makeResponse();
+
+  await handler({
+    body: {
+      playFabId: 'PF_PLAYWRIGHT',
+      items: [{ itemId: 'sword_001', amount: 1 }]
+    }
+  }, res);
+
+  expect(res.statusCode).toBe(200);
+  expect(executeRequests).toHaveLength(1);
+  expect(executeRequests[0].Operations).toEqual([{
+    Subtract: {
+      Item: { Id: 'sword_001', StackId: 'plain-sword' },
+      Amount: 1,
+      DeleteEmptyStacks: true
+    }
+  }]);
+});
+
 test('black-market create lists one item and records first owner for equipment', async () => {
   const { routes, firestore, economySubtracts } = makeBlackMarketHarness({
     inventoryItems: [
@@ -456,6 +529,85 @@ test('black-market create lists one item and records first owner for equipment',
     { playFabId: 'PF_SELLER', itemId: 'sword_001', amount: 1 }
   ]);
   expect(firestore.dump('black_market_listings')).toHaveLength(1);
+});
+
+test('black-market cancel restores the exact enhancement properties', async () => {
+  const economyRequests = [];
+  const { routes, firestore } = makeBlackMarketHarness({
+    inventoryItems: [{
+      Id: 'sword_001',
+      StackId: 'enhanced-sword-stack',
+      Amount: 1,
+      DisplayProperties: { equipmentEnhancement: { version: 1, bonus: 6 } }
+    }],
+    catalogCache: {
+      sword_001: { Category: 'Weapon', WeaponType: 'sword', DisplayName: 'Test Sword', Power: 10 }
+    },
+    executeInventoryOperationsImpl: async (request) => {
+      economyRequests.push(request);
+      return {};
+    }
+  });
+  const createResponse = makeResponse();
+  await routes.get('/api/black-market/create')({
+    body: {
+      playFabId: 'PF_SELLER',
+      itemId: 'sword_001',
+      stackId: 'enhanced-sword-stack',
+      price: 77
+    }
+  }, createResponse);
+
+  expect(createResponse.statusCode).toBe(200);
+  const listing = firestore.dump('black_market_listings')[0];
+  expect(listing.displayProperties).toMatchObject({
+    equipmentEnhancement: { version: 1, bonus: 6 }
+  });
+  expect(listing.itemData.Power).toBe(16);
+  expect(economyRequests[0].Operations[0].Subtract.Item).toEqual({
+    Id: 'sword_001',
+    StackId: 'enhanced-sword-stack'
+  });
+
+  const cancelResponse = makeResponse();
+  await routes.get('/api/black-market/cancel')({
+    body: { playFabId: 'PF_SELLER', listingId: listing.listingId }
+  }, cancelResponse);
+  expect(cancelResponse.statusCode).toBe(200);
+  expect(economyRequests[1].Operations[0].Add.NewStackValues.DisplayProperties).toMatchObject({
+    equipmentEnhancement: { version: 1, bonus: 6 }
+  });
+});
+
+test('black-market create removes undefined catalog fields before Firestore storage', async () => {
+  const { routes, firestore } = makeBlackMarketHarness({
+    inventoryItems: [{ Id: 'sword_001', Amount: 1 }],
+    catalogCache: {
+      sword_001: {
+        Category: 'Weapon',
+        DisplayName: 'Test Sword',
+        PriceOptions: undefined,
+        DisplayProperties: {
+          rarity: 'common',
+          subtitle: undefined
+        }
+      }
+    }
+  });
+  const res = makeResponse();
+
+  await routes.get('/api/black-market/create')({
+    body: {
+      playFabId: 'PF_SELLER',
+      itemId: 'sword_001',
+      price: 10
+    }
+  }, res);
+
+  expect(res.statusCode).toBe(200);
+  const [listing] = firestore.dump('black_market_listings');
+  expect(Object.hasOwn(listing.itemData, 'PriceOptions')).toBe(false);
+  expect(listing.itemData.DisplayProperties).toEqual({ rarity: 'common' });
 });
 
 test('black-market create rejects the sixth active listing', async () => {
@@ -623,6 +775,44 @@ test('black-market buy transfers gold and item', async () => {
     status: 'sold',
     buyerPlayFabId: 'PF_BUYER',
     settlementStatus: 'settled'
+  });
+});
+
+test('black-market buy preserves enhancement properties on the transferred stack', async () => {
+  const firestore = makeMemoryFirestore({
+    black_market_listings: {
+      listing1: {
+        listingId: 'listing1',
+        sellerPlayFabId: 'PF_SELLER',
+        itemId: 'sword_001',
+        itemName: 'Test Sword +6',
+        price: 25,
+        status: 'active',
+        displayProperties: { equipmentEnhancement: { version: 1, bonus: 6 } },
+        originPlayFabId: 'PF_ORIGIN',
+        originDisplayName: 'Origin'
+      }
+    }
+  });
+  const executeRequests = [];
+  const { routes } = makeBlackMarketHarness({
+    firestore,
+    currencyBalance: 74,
+    executeInventoryOperationsImpl: async (request) => {
+      executeRequests.push(request);
+      return {};
+    }
+  });
+  const res = makeResponse();
+
+  await routes.get('/api/black-market/buy')({
+    body: { playFabId: 'PF_BUYER', listingId: 'listing1' }
+  }, res);
+
+  expect(res.statusCode).toBe(200);
+  expect(executeRequests).toHaveLength(1);
+  expect(executeRequests[0].Operations[0].Add.NewStackValues.DisplayProperties).toMatchObject({
+    equipmentEnhancement: { version: 1, bonus: 6 }
   });
 });
 

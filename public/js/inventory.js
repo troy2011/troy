@@ -13,6 +13,8 @@ import {
     useItem as requestUseItem,
     sellItem as requestSellItem,
     sellItems as requestSellItems,
+    previewEquipmentEnhancement as requestPreviewEquipmentEnhancement,
+    applyEquipmentEnhancement as requestApplyEquipmentEnhancement,
     getBlackMarketListings as requestBlackMarketListings,
     createBlackMarketListing as requestCreateBlackMarketListing,
     cancelBlackMarketListing as requestCancelBlackMarketListing,
@@ -79,6 +81,9 @@ let blackMarketPendingListingId = '';
 let blackMarketCreatingItemId = '';
 let blackMarketErrorMessage = '';
 let blackMarketReturnFocusElement = null;
+let equipmentEnhancementPreviewTimer = null;
+let equipmentEnhancementRequestSerial = 0;
+let equipmentEnhancementKeydownHandler = null;
 // カードレベルデータ: { [itemId]: { level, maxLevel, quantity, nextLevelCost } }
 let cardLevelMap = {};
 let tarotBattleSkillsLoaded = false;
@@ -658,11 +663,43 @@ function getInventoryItemByReference(itemRef) {
     const referenceIds = getEquipmentReferenceIds(itemRef);
     if (!referenceIds.length) return null;
     const displayInventory = getDisplayInventoryEntries();
+    const stackId = getEquipmentReferenceStackId(itemRef);
+    if (stackId) {
+        const exact = displayInventory.find((inventoryItem) => getInventoryStackIds(inventoryItem).includes(stackId));
+        if (exact) return exact;
+    }
     return displayInventory.find((inventoryItem) => {
         const itemIds = getInventoryItemReferenceIds(inventoryItem);
         return referenceIds.some((referenceId) => itemIds.includes(referenceId));
     })
         || null;
+}
+
+function getEquipmentReferenceStackId(value) {
+    if (!value || typeof value !== 'object') return '';
+    return String(
+        value.stackId
+        || value.StackId
+        || value.instanceId
+        || value.InstanceId
+        || value.itemInstanceId
+        || value.ItemInstanceId
+        || ''
+    ).trim();
+}
+
+function getEquipmentReferenceItemId(value) {
+    if (!value) return '';
+    if (typeof value !== 'object') return String(value || '').trim();
+    return String(value.itemId || value.ItemId || value.id || value.Id || value?.Item?.Id || '').trim();
+}
+
+function getInventoryStackIds(item) {
+    return [
+        item?.stackId,
+        ...(Array.isArray(item?.instances) ? item.instances : []),
+        ...(Array.isArray(item?.stacks) ? item.stacks.map((stack) => stack?.stackId) : [])
+    ].map((value) => String(value || '').trim()).filter(Boolean);
 }
 
 function getEquipmentReferenceIds(value) {
@@ -1231,7 +1268,7 @@ function renderInventoryListSummary(category, filteredItems, allItems) {
 
 function getSelectedInventorySellEntries() {
     return getDisplayInventoryEntries()
-        .filter((item) => selectedInventorySellItemIds.has(String(item?.itemId || '')))
+        .filter((item) => selectedInventorySellItemIds.has(getInventoryEntryKey(item)))
         .map((item) => ({ item, amount: getInventorySellableCount(item) }))
         .filter((entry) => entry.amount > 0);
 }
@@ -1240,25 +1277,26 @@ function pruneInventorySellSelection() {
     const sellableIds = new Set(
         getDisplayInventoryEntries()
             .filter(isInventoryItemSellable)
-            .map((item) => String(item?.itemId || ''))
+            .map(getInventoryEntryKey)
             .filter(Boolean)
     );
     selectedInventorySellItemIds = new Set(
-        [...selectedInventorySellItemIds].filter((itemId) => sellableIds.has(itemId))
+        [...selectedInventorySellItemIds].filter((itemKey) => sellableIds.has(itemKey))
     );
 }
 
 function toggleInventorySellSelection(item) {
     const itemId = String(item?.itemId || '').trim();
+    const itemKey = getInventoryEntryKey(item);
     if (!itemId) return true;
     if (!isInventoryItemSellable(item)) {
         showInventoryFeedback('このアイテムは売却できません。', true);
         return true;
     }
-    if (selectedInventorySellItemIds.has(itemId)) {
-        selectedInventorySellItemIds.delete(itemId);
+    if (selectedInventorySellItemIds.has(itemKey)) {
+        selectedInventorySellItemIds.delete(itemKey);
     } else {
-        selectedInventorySellItemIds.add(itemId);
+        selectedInventorySellItemIds.add(itemKey);
     }
     renderInventoryGrid(activeInventoryCategory);
     return true;
@@ -1308,7 +1346,7 @@ function renderInventorySellControls(visibleItems = []) {
     selectVisibleButton.textContent = '全選択';
     selectVisibleButton.addEventListener('click', () => {
         visibleItems.filter(isInventoryItemEligibleForBulkSellSelect).forEach((item) => {
-            selectedInventorySellItemIds.add(String(item.itemId));
+            selectedInventorySellItemIds.add(getInventoryEntryKey(item));
         });
         renderInventoryGrid(activeInventoryCategory);
     });
@@ -1425,10 +1463,12 @@ function createBlackMarketListingItem(listing) {
     const body = document.createElement('div');
     body.className = 'black-market-listing-body';
     const title = document.createElement('strong');
-    title.textContent = item.name;
-    const meta = document.createElement('span');
-    meta.textContent = `${listing.sellerDisplayName || listing.sellerPlayFabId || 'Player'} / ${listing.price}G`;
-    body.append(title, meta);
+    const enhancementBonus = Math.max(0, Math.floor(Number(listing?.displayProperties?.equipmentEnhancement?.bonus) || 0));
+    title.textContent = `${item.name}${enhancementBonus > 0 ? ` +${enhancementBonus}` : ''}`;
+    const seller = document.createElement('span');
+    seller.className = 'black-market-listing-seller';
+    seller.textContent = `出品者: ${listing.sellerDisplayName || listing.sellerPlayFabId || 'Player'}`;
+    body.append(title, seller);
     const originText = String(listing.originDisplayName || '').trim();
     if (originText) {
         const origin = document.createElement('small');
@@ -1463,7 +1503,14 @@ function createBlackMarketListingItem(listing) {
         }
     });
 
-    row.append(iconFrame, body, action);
+    const trade = document.createElement('div');
+    trade.className = 'black-market-listing-trade';
+    const price = document.createElement('strong');
+    price.className = 'black-market-listing-price';
+    price.textContent = `${listing.price}G`;
+    trade.append(price, action);
+
+    row.append(iconFrame, body, trade);
     return row;
 }
 
@@ -1490,18 +1537,20 @@ function renderBlackMarketPanel() {
     title.id = 'blackMarketTitle';
     title.textContent = '闇市';
     const count = document.createElement('span');
+    count.className = 'black-market-listing-count';
     count.textContent = `出品 ${blackMarketMyActiveCount}/${blackMarketMaxActiveListings}`;
     const refresh = document.createElement('button');
     refresh.type = 'button';
     refresh.className = 'black-market-refresh';
-    refresh.textContent = '更新';
+    refresh.setAttribute('aria-label', '闇市を更新');
+    refresh.title = '更新';
     refresh.disabled = blackMarketLoading;
     refresh.addEventListener('click', () => loadBlackMarketListings({ force: true }));
     const close = document.createElement('button');
     close.type = 'button';
     close.className = 'black-market-close';
-    close.textContent = '閉じる';
     close.setAttribute('aria-label', '闇市を閉じる');
+    close.title = '閉じる';
     close.addEventListener('click', closeBlackMarketPanel);
     head.append(title, count, refresh, close);
     sheet.appendChild(head);
@@ -1647,9 +1696,9 @@ function isInventoryEquipmentCategory(category) {
 
 function isEquipmentReferenceMatch(item, equippedValue) {
     if (!item || !equippedValue) return false;
-    const itemRefs = getInventoryItemReferenceIds(item);
-    const equippedRefs = getEquipmentReferenceIds(equippedValue);
-    return equippedRefs.some((equippedRef) => itemRefs.includes(equippedRef));
+    const equippedStackId = getEquipmentReferenceStackId(equippedValue);
+    if (equippedStackId) return getInventoryStackIds(item).includes(equippedStackId);
+    return getEquipmentReferenceItemId(equippedValue) === String(item?.itemId || '').trim();
 }
 
 function getItemEffectSummary(effect) {
@@ -1891,6 +1940,27 @@ function getInventoryOwnedCount(item) {
     return item ? 1 : 0;
 }
 
+function getEquippedInventoryStackIds() {
+    return new Set(Object.values(myCurrentEquipment || {})
+        .map(getEquipmentReferenceStackId)
+        .filter(Boolean));
+}
+
+function getPreferredInventoryStackId(item, options = {}) {
+    const equippedStackIds = getEquippedInventoryStackIds();
+    const stackIds = getInventoryStackIds(item);
+    if (options.preferEquipped === true) {
+        const equipped = stackIds.find((stackId) => equippedStackIds.has(stackId));
+        if (equipped) return equipped;
+    }
+    const available = stackIds.find((stackId) => options.allowEquipped === true || !equippedStackIds.has(stackId));
+    return available || stackIds[0] || '';
+}
+
+function getInventoryEntryKey(item) {
+    return `${String(item?.itemId || '').trim()}::${String(item?.stackId || '').trim() || 'group'}`;
+}
+
 function getInventoryReservedCount(item) {
     const itemId = String(item?.itemId || '').trim();
     if (!itemId) return 0;
@@ -2068,13 +2138,14 @@ function getInventoryQuickAction(item, canonicalCategory) {
     const equippedSlots = getEquippedSlotsForItem(item);
     const itemId = item?.itemId;
     const instanceId = item?.instances?.[0];
+    const stackId = getPreferredInventoryStackId(item);
 
     if (canonicalCategory === 'Weapon') {
         if (isTwoHandedWeapon(item)) {
             if (equippedSlots.includes('RightHand')) {
                 return { label: '外す', tone: 'remove', run: () => equipItem(playFabId, null, 'RightHand') };
             }
-            return { label: '両手', tone: 'equip', run: () => equipItem(playFabId, itemId, 'RightHand') };
+            return { label: '両手', tone: 'equip', run: () => equipItem(playFabId, itemId, 'RightHand', stackId) };
         }
         if (equippedSlots.includes('RightHand')) {
             return { label: '外す', tone: 'remove', run: () => equipItem(playFabId, null, 'RightHand') };
@@ -2082,25 +2153,25 @@ function getInventoryQuickAction(item, canonicalCategory) {
         if (equippedSlots.includes('LeftHand')) {
             return { label: '外す', tone: 'remove', run: () => equipItem(playFabId, null, 'LeftHand') };
         }
-        return { label: '右手', tone: 'equip', run: () => equipItem(playFabId, itemId, 'RightHand') };
+        return { label: '右手', tone: 'equip', run: () => equipItem(playFabId, itemId, 'RightHand', stackId) };
     }
     if (canonicalCategory === 'Shield' || canonicalCategory === 'Offhand') {
         if (equippedSlots.includes('LeftHand')) {
             return { label: '外す', tone: 'remove', run: () => equipItem(playFabId, null, 'LeftHand') };
         }
-        return { label: '左手', tone: 'equip', run: () => equipItem(playFabId, itemId, 'LeftHand') };
+        return { label: '左手', tone: 'equip', run: () => equipItem(playFabId, itemId, 'LeftHand', stackId) };
     }
     if (canonicalCategory === 'Armor') {
         if (equippedSlots.includes('Armor')) {
             return { label: '外す', tone: 'remove', run: () => equipItem(playFabId, null, 'Armor') };
         }
-        return { label: '装備', tone: 'equip', run: () => equipItem(playFabId, itemId, 'Armor') };
+        return { label: '装備', tone: 'equip', run: () => equipItem(playFabId, itemId, 'Armor', stackId) };
     }
     if (canonicalCategory === 'Accessory') {
         if (equippedSlots.includes('Accessory')) {
             return { label: '外す', tone: 'remove', run: () => equipItem(playFabId, null, 'Accessory') };
         }
-        return { label: '装備', tone: 'equip', run: () => equipItem(playFabId, itemId, 'Accessory') };
+        return { label: '装備', tone: 'equip', run: () => equipItem(playFabId, itemId, 'Accessory', stackId) };
     }
     if (canonicalCategory === 'TarotMajor') {
         if (isShipMajorArcanaEquipped(itemId)) {
@@ -2205,7 +2276,7 @@ function createInventoryCell(item, requestedCategory) {
     }
     if (inventorySellSelectionMode) {
         const sellableCount = getInventorySellableCount(item);
-        const isSellSelected = selectedInventorySellItemIds.has(String(item?.itemId || ''));
+        const isSellSelected = selectedInventorySellItemIds.has(getInventoryEntryKey(item));
         cell.classList.add('is-sell-mode');
         cell.dataset.sellableCount = String(sellableCount);
         if (sellableCount > 0) {
@@ -2244,10 +2315,10 @@ function createInventoryCell(item, requestedCategory) {
         const sellCheck = document.createElement('button');
         sellCheck.type = 'button';
         sellCheck.className = 'inventory-sell-check';
-        sellCheck.textContent = selectedInventorySellItemIds.has(String(item?.itemId || '')) ? '✓' : '';
+        sellCheck.textContent = selectedInventorySellItemIds.has(getInventoryEntryKey(item)) ? '✓' : '';
         sellCheck.disabled = !isInventoryItemSellable(item);
         sellCheck.setAttribute('aria-label', `${item?.name || 'アイテム'}を売却選択`);
-        sellCheck.setAttribute('aria-pressed', selectedInventorySellItemIds.has(String(item?.itemId || '')) ? 'true' : 'false');
+        sellCheck.setAttribute('aria-pressed', selectedInventorySellItemIds.has(getInventoryEntryKey(item)) ? 'true' : 'false');
         sellCheck.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -2263,6 +2334,11 @@ function createInventoryCell(item, requestedCategory) {
     const headMeta = document.createElement('div');
     headMeta.className = 'inventory-item-head-meta';
     let tarotCountBadge = null;
+    const enhancementBonus = Math.max(0, Math.floor(Number(item?.enhancement?.bonus) || 0));
+    if (enhancementBonus > 0) {
+        headMeta.appendChild(createInventoryBadge(`+${enhancementBonus}`, 'enhanced'));
+        cell.classList.add('is-enhanced');
+    }
     if (isEquipmentEquipped) {
         headMeta.appendChild(createInventoryBadge('装備中', 'active'));
     }
@@ -2628,8 +2704,8 @@ export async function getEquipment(playFabId, options = {}) {
     updateEquipmentAndAvatarDisplay();
 }
 
-export async function equipItem(playFabId, itemId, slot) {
-    const data = await requestEquipItem(playFabId, itemId, slot);
+export async function equipItem(playFabId, itemId, slot, stackId = '') {
+    const data = await requestEquipItem(playFabId, itemId, slot, { stackId });
     if (data !== null) {
         await getInventory(playFabId, { force: true }); // インベントリと装備を再取得して表示を更新
         // アイテム詳細モーダルを閉じる
@@ -2765,6 +2841,7 @@ export async function sellSelectedInventoryItems() {
 
     const payload = selectedEntries.map((entry) => ({
         itemId: entry.item.itemId,
+        stackId: String(entry.item.stackId || '').trim() || undefined,
         amount: entry.amount
     }));
     const data = await requestSellItems(playFabId, payload);
@@ -2823,9 +2900,14 @@ async function showBlackMarketListingPrompt(item) {
         showInventoryFeedback('価格は1-9999Gの整数で入力してください。', true);
         return;
     }
-    blackMarketCreatingItemId = String(item.itemId || '');
+    const stackId = getPreferredInventoryStackId(item);
+    if (!stackId) {
+        showInventoryFeedback('出品する個体を特定できません。再読み込みしてください。', true);
+        return;
+    }
+    blackMarketCreatingItemId = getInventoryEntryKey(item);
     try {
-        const data = await requestCreateBlackMarketListing(playFabId, item.itemId, price);
+        const data = await requestCreateBlackMarketListing(playFabId, item.itemId, stackId, price);
         blackMarketVisible = true;
         closeItemDetailModal();
         await refreshInventoryAfterBlackMarketAction(data?.message || '闇市に出品しました。');
@@ -3286,6 +3368,331 @@ function createItemDetailActionButton(label, tone, run, options = {}) {
     return button;
 }
 
+function ensureEquipmentEnhancementModal() {
+    let modal = document.getElementById('equipmentEnhancementModal');
+    if (modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'equipmentEnhancementModal';
+    modal.className = 'equipment-enhancement-modal';
+    modal.hidden = true;
+    modal.innerHTML = `
+        <section class="equipment-enhancement-sheet" role="dialog" aria-modal="true" aria-labelledby="equipmentEnhancementTitle">
+            <header class="equipment-enhancement-head">
+                <h3 id="equipmentEnhancementTitle">装備強化</h3>
+                <button type="button" class="equipment-enhancement-close" aria-label="閉じる" title="閉じる">×</button>
+            </header>
+            <div class="equipment-enhancement-base"></div>
+            <div class="equipment-enhancement-result" aria-live="polite"></div>
+            <div class="equipment-enhancement-materials"></div>
+            <div class="equipment-enhancement-error" aria-live="polite"></div>
+            <footer class="equipment-enhancement-actions">
+                <button type="button" class="equipment-enhancement-cancel">キャンセル</button>
+                <button type="button" class="equipment-enhancement-apply">強化する</button>
+            </footer>
+        </section>
+    `;
+    document.body.appendChild(modal);
+    return modal;
+}
+
+function closeEquipmentEnhancementModal() {
+    const modal = document.getElementById('equipmentEnhancementModal');
+    if (!modal || modal.hidden) return;
+    modal.hidden = true;
+    if (equipmentEnhancementPreviewTimer) clearTimeout(equipmentEnhancementPreviewTimer);
+    equipmentEnhancementPreviewTimer = null;
+    equipmentEnhancementRequestSerial += 1;
+    if (equipmentEnhancementKeydownHandler) {
+        document.removeEventListener('keydown', equipmentEnhancementKeydownHandler, true);
+        equipmentEnhancementKeydownHandler = null;
+    }
+    document.body.classList.remove('modal-lock');
+}
+
+function isSameInventoryEntry(left, right) {
+    return getInventoryEntryKey(left) === getInventoryEntryKey(right);
+}
+
+function getEquipmentEnhancementCandidates(baseItem) {
+    const baseEnhancement = baseItem?.enhancement || {};
+    return myInventory
+        .filter((item) => item?.materialEligible === true)
+        .filter((item) => item?.enhancement?.category === baseEnhancement.category)
+        .filter((item) => item?.enhancement?.family === baseEnhancement.family)
+        .map((item) => {
+            const ownedCount = getInventoryOwnedCount(item);
+            const reservedCount = getInventoryReservedCount(item);
+            const baseReserve = isSameInventoryEntry(item, baseItem) && !isInventoryItemEquipped(baseItem) ? 1 : 0;
+            return {
+                item,
+                key: getInventoryEntryKey(item),
+                available: Math.max(0, ownedCount - reservedCount - baseReserve),
+                contribution: 1 + Math.max(0, Math.floor(Number(item?.enhancement?.storedBonus ?? item?.enhancement?.bonus) || 0))
+            };
+        })
+        .filter((candidate) => candidate.available > 0)
+        .sort((left, right) => {
+            const contributionDiff = left.contribution - right.contribution;
+            if (contributionDiff !== 0) return contributionDiff;
+            return String(left.item?.name || '').localeCompare(String(right.item?.name || ''), 'ja');
+        });
+}
+
+function buildEquipmentEnhancementMaterialSelections(candidates, selectedByKey, baseStackId) {
+    const equippedStackIds = getEquippedInventoryStackIds();
+    const selections = [];
+    for (const candidate of candidates) {
+        let remaining = Math.max(0, Math.floor(Number(selectedByKey.get(candidate.key)) || 0));
+        if (remaining <= 0) continue;
+        const stacks = Array.isArray(candidate.item?.stacks) ? candidate.item.stacks : [];
+        for (const stack of stacks) {
+            const stackId = String(stack?.stackId || '').trim();
+            if (!stackId) continue;
+            const stackCount = Math.max(0, Math.floor(Number(stack?.count) || 0));
+            const baseReserve = stackId === baseStackId ? 1 : 0;
+            const equippedReserve = equippedStackIds.has(stackId) && stackId !== baseStackId ? stackCount : 0;
+            const usable = Math.max(0, stackCount - baseReserve - equippedReserve);
+            const amount = Math.min(remaining, usable);
+            if (amount > 0) {
+                selections.push({ stackId, amount });
+                remaining -= amount;
+            }
+            if (remaining <= 0) break;
+        }
+        if (remaining > 0) return [];
+    }
+    return selections;
+}
+
+function createEquipmentEnhancementIcon(item) {
+    const frame = document.createElement('div');
+    frame.className = 'equipment-enhancement-icon';
+    const icon = document.createElement('div');
+    const spriteFrame = getInventorySpriteFrame(item);
+    setInventoryIcon(icon, spriteFrame, 1, spriteFrame.category, window.myAvatarBaseInfo?.AvatarColor);
+    frame.appendChild(icon);
+    return frame;
+}
+
+function makeEquipmentEnhancementRequestId() {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+    return `enhance_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function showEquipmentEnhancementModal(baseItem) {
+    const playFabId = window.myPlayFabId || null;
+    const baseEnhancement = baseItem?.enhancement || {};
+    const baseStackId = getPreferredInventoryStackId(baseItem, { preferEquipped: true, allowEquipped: true });
+    if (!playFabId || !baseItem?.materialEligible || !baseStackId) {
+        showInventoryFeedback('この装備は強化できません。', true);
+        return;
+    }
+
+    const modal = ensureEquipmentEnhancementModal();
+    const baseEl = modal.querySelector('.equipment-enhancement-base');
+    const resultEl = modal.querySelector('.equipment-enhancement-result');
+    const materialsEl = modal.querySelector('.equipment-enhancement-materials');
+    const errorEl = modal.querySelector('.equipment-enhancement-error');
+    const closeButton = modal.querySelector('.equipment-enhancement-close');
+    const cancelButton = modal.querySelector('.equipment-enhancement-cancel');
+    const applyButton = modal.querySelector('.equipment-enhancement-apply');
+    const candidates = getEquipmentEnhancementCandidates(baseItem);
+    const selectedByKey = new Map();
+    let serverPreview = null;
+    let previewPending = false;
+    let applying = false;
+
+    const baseName = document.createElement('div');
+    baseName.className = 'equipment-enhancement-base-name';
+    baseName.appendChild(createEquipmentEnhancementIcon(baseItem));
+    const baseCopy = document.createElement('div');
+    const title = document.createElement('strong');
+    title.textContent = `${baseItem.name}${baseEnhancement.bonus > 0 ? ` +${baseEnhancement.bonus}` : ''}`;
+    const stat = document.createElement('span');
+    stat.textContent = `${baseEnhancement.primaryStat === 'Power' ? '攻撃力' : '防御力'} ${baseEnhancement.effectiveValue}`;
+    baseCopy.append(title, stat);
+    baseName.appendChild(baseCopy);
+    baseEl.replaceChildren(baseName);
+
+    const getLocalContribution = () => candidates.reduce((total, candidate) => (
+        total + ((selectedByKey.get(candidate.key) || 0) * candidate.contribution)
+    ), 0);
+
+    const updateResult = () => {
+        const contribution = getLocalContribution();
+        const target = serverPreview?.targetValue ?? (Number(baseEnhancement.effectiveValue || 0) + contribution);
+        const statLabel = baseEnhancement.primaryStat === 'Power' ? '攻撃力' : '防御力';
+        resultEl.innerHTML = '';
+        const current = document.createElement('span');
+        current.textContent = `${statLabel} ${baseEnhancement.effectiveValue}`;
+        const arrow = document.createElement('span');
+        arrow.className = 'equipment-enhancement-arrow';
+        arrow.textContent = '→';
+        const next = document.createElement('strong');
+        next.textContent = contribution > 0 ? String(target) : '-';
+        const bonus = document.createElement('span');
+        bonus.className = 'equipment-enhancement-gain';
+        bonus.textContent = contribution > 0 ? `+${contribution}` : '素材未選択';
+        resultEl.append(current, arrow, next, bonus);
+        applyButton.disabled = applying || previewPending || contribution <= 0 || !serverPreview;
+    };
+
+    const schedulePreview = () => {
+        if (equipmentEnhancementPreviewTimer) clearTimeout(equipmentEnhancementPreviewTimer);
+        serverPreview = null;
+        errorEl.textContent = '';
+        const selections = buildEquipmentEnhancementMaterialSelections(candidates, selectedByKey, baseStackId);
+        if (!selections.length) {
+            previewPending = false;
+            updateResult();
+            return;
+        }
+        previewPending = true;
+        updateResult();
+        const requestSerial = ++equipmentEnhancementRequestSerial;
+        equipmentEnhancementPreviewTimer = setTimeout(async () => {
+            try {
+                const preview = await requestPreviewEquipmentEnhancement(playFabId, baseStackId, selections, { isSilent: true });
+                if (requestSerial !== equipmentEnhancementRequestSerial || modal.hidden) return;
+                serverPreview = preview?.ok ? preview : null;
+            } catch (error) {
+                if (requestSerial !== equipmentEnhancementRequestSerial || modal.hidden) return;
+                errorEl.textContent = error?.message || '強化内容を確認できません。';
+            } finally {
+                if (requestSerial === equipmentEnhancementRequestSerial) {
+                    previewPending = false;
+                    updateResult();
+                }
+            }
+        }, 180);
+    };
+
+    const renderMaterials = () => {
+        materialsEl.innerHTML = '';
+        const heading = document.createElement('h4');
+        heading.textContent = '素材';
+        materialsEl.appendChild(heading);
+        if (!candidates.length) {
+            const empty = document.createElement('p');
+            empty.className = 'equipment-enhancement-empty';
+            empty.textContent = '使用できる同系統装備がありません。';
+            materialsEl.appendChild(empty);
+            return;
+        }
+        const list = document.createElement('div');
+        list.className = 'equipment-enhancement-material-list';
+        candidates.forEach((candidate) => {
+            const row = document.createElement('div');
+            row.className = 'equipment-enhancement-material';
+            row.appendChild(createEquipmentEnhancementIcon(candidate.item));
+            const copy = document.createElement('div');
+            copy.className = 'equipment-enhancement-material-copy';
+            const name = document.createElement('strong');
+            const materialBonus = Math.max(0, Number(candidate.item?.enhancement?.bonus) || 0);
+            name.textContent = `${candidate.item.name}${materialBonus > 0 ? ` +${materialBonus}` : ''}`;
+            const meta = document.createElement('span');
+            meta.textContent = `所持 ${candidate.available} / 強化 +${candidate.contribution}`;
+            copy.append(name, meta);
+            row.appendChild(copy);
+
+            const stepper = document.createElement('div');
+            stepper.className = 'equipment-enhancement-stepper';
+            const decrease = document.createElement('button');
+            decrease.type = 'button';
+            decrease.textContent = '−';
+            decrease.setAttribute('aria-label', `${candidate.item.name}を減らす`);
+            const count = document.createElement('output');
+            const selected = Math.max(0, Number(selectedByKey.get(candidate.key)) || 0);
+            count.textContent = String(selected);
+            const increase = document.createElement('button');
+            increase.type = 'button';
+            increase.textContent = '+';
+            increase.setAttribute('aria-label', `${candidate.item.name}を増やす`);
+            const remainingCapacity = 99 - Number(baseEnhancement.effectiveValue || 0) - getLocalContribution();
+            decrease.disabled = applying || selected <= 0;
+            increase.disabled = applying || selected >= candidate.available || candidate.contribution > remainingCapacity;
+            decrease.addEventListener('click', () => {
+                selectedByKey.set(candidate.key, Math.max(0, selected - 1));
+                serverPreview = null;
+                renderMaterials();
+                schedulePreview();
+            });
+            increase.addEventListener('click', () => {
+                selectedByKey.set(candidate.key, selected + 1);
+                serverPreview = null;
+                renderMaterials();
+                schedulePreview();
+            });
+            stepper.append(decrease, count, increase);
+            row.appendChild(stepper);
+            list.appendChild(row);
+        });
+        materialsEl.appendChild(list);
+    };
+
+    const close = () => closeEquipmentEnhancementModal();
+    closeButton.onclick = close;
+    cancelButton.onclick = close;
+    modal.onclick = (event) => {
+        if (event.target === modal && !applying) close();
+    };
+    applyButton.onclick = async () => {
+        const selections = buildEquipmentEnhancementMaterialSelections(candidates, selectedByKey, baseStackId);
+        if (!serverPreview || !selections.length || applying) return;
+        applying = true;
+        applyButton.textContent = '強化中...';
+        renderMaterials();
+        updateResult();
+        errorEl.textContent = '';
+        try {
+            const result = await requestApplyEquipmentEnhancement(
+                playFabId,
+                baseStackId,
+                selections,
+                makeEquipmentEnhancementRequestId()
+            );
+            close();
+            await getInventory(playFabId, { force: true });
+            const message = `${baseItem.name}を+${result?.targetBonus ?? serverPreview.targetBonus}に強化しました。`;
+            showInventoryFeedback(message);
+            if (typeof window.showRpgMessage === 'function') window.showRpgMessage(message);
+        } catch (error) {
+            applying = false;
+            applyButton.textContent = '強化する';
+            errorEl.textContent = error?.message || '装備の強化に失敗しました。';
+            renderMaterials();
+            updateResult();
+        }
+    };
+
+    closeItemDetailModal();
+    modal.hidden = false;
+    document.body.classList.add('modal-lock');
+    equipmentEnhancementKeydownHandler = (event) => {
+        if (event.key === 'Escape' && !applying) {
+            event.preventDefault();
+            close();
+            return;
+        }
+        if (event.key !== 'Tab') return;
+        const focusable = Array.from(modal.querySelectorAll('button:not(:disabled)')).filter((element) => !element.hidden);
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    };
+    document.addEventListener('keydown', equipmentEnhancementKeydownHandler, true);
+    renderMaterials();
+    updateResult();
+    requestAnimationFrame(() => closeButton.focus());
+}
+
 function showItemDetailModal(item) {
     const modal = document.getElementById('itemDetailModal');
     const cd = item.customData || {};
@@ -3308,7 +3715,8 @@ function showItemDetailModal(item) {
         spriteFrame.category,
         window.myAvatarBaseInfo?.AvatarColor
     );
-    document.getElementById('itemDetailName').innerText = item.name;
+    const enhancementBonus = Math.max(0, Math.floor(Number(item?.enhancement?.bonus) || 0));
+    document.getElementById('itemDetailName').innerText = `${item.name}${enhancementBonus > 0 ? ` +${enhancementBonus}` : ''}`;
     document.getElementById('itemDetailCategory').innerText = getInventoryCategoryLabel(canonicalCategory);
     document.getElementById('itemDetailDescription').innerText = isTarotCard
         ? (isTarotMajorCategory(canonicalCategory)
@@ -3326,6 +3734,9 @@ function showItemDetailModal(item) {
         metaEl.appendChild(createItemDetailMetaChip(getInventoryCategoryLabel(canonicalCategory), detailKind));
         if (isEquipmentItem && isInventoryItemEquipped(item)) {
             metaEl.appendChild(createItemDetailMetaChip('装備中', 'equipped'));
+        }
+        if (enhancementBonus > 0) {
+            metaEl.appendChild(createItemDetailMetaChip(`強化 +${enhancementBonus}`, 'enhanced'));
         }
         if (isTarotCard) {
             if (isTarotMajorCategory(canonicalCategory)) {
@@ -3350,6 +3761,11 @@ function showItemDetailModal(item) {
     appendItemDetailStat(statsEl, '詠唱補正', cd.CastRate);
     appendItemDetailStat(statsEl, 'MP効率', cd.MpEfficiency);
     appendItemDetailStat(statsEl, '状態付与', cd.StatusRate);
+    if (enhancementBonus > 0 && item?.enhancement?.primaryStat) {
+        const statLabel = item.enhancement.primaryStat === 'Power' ? '基本攻撃力' : '基本防御力';
+        appendItemDetailStat(statsEl, statLabel, item.enhancement.baseValue, 'enhancement');
+        appendItemDetailStat(statsEl, '強化値', `+${enhancementBonus}`, 'enhancement');
+    }
     if (cd.Effect) {
         const effectText = typeof cd.Effect === 'object'
             ? [cd.Effect.Type, cd.Effect.Amount].filter(Boolean).join(' ')
@@ -3400,6 +3816,7 @@ function showItemDetailModal(item) {
         buttonsEl.appendChild(createItemDetailActionButton(label, tone, run, options));
     };
     const equipItemId = item.itemId;
+    const equipStackId = getPreferredInventoryStackId(item);
     const playFabId = window.myPlayFabId || null;
     const isEquipped = (slot) => {
         const equippedValue = myCurrentEquipment[slot];
@@ -3412,7 +3829,7 @@ function showItemDetailModal(item) {
             if (isEquipped('RightHand')) {
                 addAction('外す', 'remove', () => equipItem(playFabId, null, 'RightHand'));
             } else {
-                addAction('両手装備', 'equip', () => equipItem(playFabId, equipItemId, 'RightHand'));
+                addAction('両手装備', 'equip', () => equipItem(playFabId, equipItemId, 'RightHand', equipStackId));
             }
         } else {
             const ownedCount = getInventoryOwnedCount(item);
@@ -3425,14 +3842,14 @@ function showItemDetailModal(item) {
             } else if (cannotEquipRight) {
                 addAction('右手装備', 'disabled', null, { disabled: true });
             } else {
-                addAction(getEquipActionLabel('RightHand', '右手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'RightHand'));
+                addAction(getEquipActionLabel('RightHand', '右手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'RightHand', getPreferredInventoryStackId(item)));
             }
             if (isEquipped('LeftHand')) {
                 addAction('左手を外す', 'remove', () => equipItem(playFabId, null, 'LeftHand'));
             } else if (cannotEquipLeft) {
                 addAction('左手装備', 'disabled', null, { disabled: true });
             } else {
-                addAction(getEquipActionLabel('LeftHand', '左手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'LeftHand'));
+                addAction(getEquipActionLabel('LeftHand', '左手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'LeftHand', getPreferredInventoryStackId(item)));
             }
         }
     } else if (cd.Category === 'Shield' || cd.Category === 'Offhand') {
@@ -3442,19 +3859,19 @@ function showItemDetailModal(item) {
         if (isEquipped('LeftHand')) {
             addAction('左手を外す', 'remove', () => equipItem(playFabId, null, 'LeftHand'));
         } else {
-            addAction(getEquipActionLabel('LeftHand', '左手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'LeftHand'));
+            addAction(getEquipActionLabel('LeftHand', '左手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'LeftHand', equipStackId));
         }
     } else if (cd.Category === 'Armor') {
         if (isEquipped('Armor')) {
             addAction('外す', 'remove', () => equipItem(playFabId, null, 'Armor'));
         } else {
-            addAction(getEquipActionLabel('Armor', '装備'), 'equip', () => equipItem(playFabId, equipItemId, 'Armor'));
+            addAction(getEquipActionLabel('Armor', '装備'), 'equip', () => equipItem(playFabId, equipItemId, 'Armor', equipStackId));
         }
     } else if (cd.Category === 'Accessory') {
         if (isEquipped('Accessory')) {
             addAction('外す', 'remove', () => equipItem(playFabId, null, 'Accessory'));
         } else {
-            addAction(getEquipActionLabel('Accessory', '装備'), 'equip', () => equipItem(playFabId, equipItemId, 'Accessory'));
+            addAction(getEquipActionLabel('Accessory', '装備'), 'equip', () => equipItem(playFabId, equipItemId, 'Accessory', equipStackId));
         }
     } else if (isTarotMajorCategory(canonicalCategory)) {
         appendActionNote(`守護アルカナ: ${myTarotGuardian ? '装備中' : '未装備'}`);
@@ -3491,6 +3908,14 @@ function showItemDetailModal(item) {
         addAction('使う', 'use', () => useItem(playFabId, instanceId, item.itemId));
     }
 
+    if (['Weapon', 'Armor'].includes(cd.Category)) {
+        if (item?.materialEligible === true && Number(item?.enhancement?.effectiveValue || 0) < 99) {
+            addAction('強化', 'enhance', () => showEquipmentEnhancementModal(item));
+        } else if (Number(item?.enhancement?.effectiveValue || 0) >= 99) {
+            appendActionNote('強化上限 99');
+        }
+    }
+
     if (isTarotCard) {
         const lvd = cardLevelMap[equipItemId];
         if (lvd && lvd.level < lvd.maxLevel) {
@@ -3500,7 +3925,7 @@ function showItemDetailModal(item) {
 
     if (getInventorySellableCount(item) > 0) {
         const marketDisabled = blackMarketMyActiveCount >= blackMarketMaxActiveListings;
-        const marketBusy = blackMarketCreatingItemId === String(item.itemId || '');
+        const marketBusy = blackMarketCreatingItemId === getInventoryEntryKey(item);
         if (marketDisabled) {
             appendActionNote(`闇市 出品 ${blackMarketMyActiveCount}/${blackMarketMaxActiveListings}`);
         }
@@ -3512,10 +3937,16 @@ function showItemDetailModal(item) {
 }
 
 export function showSellConfirmationModal(itemInstanceId, itemId) {
-    const item = myInventory.find(i => i.itemId === itemId);
+    const item = myInventory.find((entry) => (
+        entry.itemId === itemId
+        && (!itemInstanceId || getInventoryStackIds(entry).includes(String(itemInstanceId)))
+    )) || myInventory.find((entry) => entry.itemId === itemId);
     if (!item || getInventorySellableCount(item) <= 0) return;
 
-    document.getElementById('sellItemName').innerText = item.name;
+    const enhancementBonus = Math.max(0, Math.floor(Number(item?.enhancement?.bonus) || 0));
+    document.getElementById('sellItemName').innerText = enhancementBonus > 0
+        ? `${item.name} +${enhancementBonus}（強化値も失われます）`
+        : item.name;
     document.getElementById('sellItemPrice').innerText = '1';
     const modal = document.getElementById('sellConfirmationModal');
     showModal(modal);

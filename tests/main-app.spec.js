@@ -3331,7 +3331,10 @@ test('player profile shows public stats on the left with avatar on the right', a
             effect: '離れた場所を光の通路で結び、仲間や物を安全に移動させられる。',
             rule: '行き先を見ながら両手で入口の輪を描くと発動する。',
             affinity: '特質',
-            type: 'INTJ',
+            personalityType: {
+              code: 'INTJ',
+              traits: '内向・直感・思考・判断'
+            },
             tempo: 0.25,
             scores: { E: -1, S: -1, T: 1, J: 1 }
           },
@@ -3374,11 +3377,14 @@ test('player profile shows public stats on the left with avatar on the right', a
   await expect(page.locator('#playerProfileStatAllocation')).toBeHidden();
   await expect(page.locator('#playerProfileSpecialAbility')).toBeVisible();
   await expect(page.locator('#playerProfileSpecialAbilityAffinity')).toHaveText('特質系');
+  await expect(page.locator('#playerProfilePersonalityType')).toBeVisible();
+  await expect(page.locator('#playerProfilePersonalityTypeCode')).toHaveText('INTJ');
+  await expect(page.locator('#playerProfilePersonalityTypeTraits')).toHaveText('内向・直感・思考・判断');
   await expect(page.locator('#playerProfileSpecialAbilityName')).toHaveText('星渡りの門');
   await expect(page.locator('#playerProfileSpecialAbilityAlias')).toHaveText('アストラル・ゲート');
   await expect(page.locator('#playerProfileSpecialAbilityEffect')).toContainText('光の通路');
   await expect(page.locator('#playerProfileSpecialAbilityRule')).toContainText('入口の輪');
-  await expect(page.locator('#playerProfileSpecialAbility')).not.toContainText(/INTJ|tempo|scores/);
+  await expect(page.locator('#playerProfileSpecialAbility')).not.toContainText(/tempo|scores/);
   await expect(page.locator('#playerProfileStats .player-profile-stat strong')).toHaveText(['12', '11', '10', '9', '8', '152']);
   await expect(page.locator('#playerProfileShip .player-profile-ship-name')).toHaveText('水の王の船');
   await expect(page.locator('#playerProfileShip .player-profile-ship-icon')).toHaveClass(/is-guild/);
@@ -5388,6 +5394,167 @@ test('inventory current equipment resolves object equipment references', async (
   await expectNoPageErrors(errors);
 });
 
+test('inventory equipment enhancement modal previews and applies multiple materials on mobile', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const previewRequests = [];
+  const applyRequests = [];
+  await page.setViewportSize({ width: 390, height: 844 });
+  const inventoryItems = [
+    {
+      itemId: 'sword_001',
+      stackId: 'base-stack',
+      instances: ['base-stack'],
+      stacks: [{ stackId: 'base-stack', count: 1, enhancement: { bonus: 0, contribution: 1 } }],
+      count: 1,
+      name: '強化用の剣',
+      materialEligible: true,
+      enhancement: {
+        category: 'Weapon', family: 'sword', primaryStat: 'Power', baseValue: 10,
+        bonus: 0, storedBonus: 0, effectiveValue: 10, eligible: true, materialEligible: true
+      },
+      customData: {
+        Category: 'Weapon', WeaponType: 'sword', Power: 10,
+        sprite_path: './Sprites/weapons/melee weapons/sword.png', sprite_index: '1', sprite_w: '32', sprite_h: '32'
+      }
+    },
+    {
+      itemId: 'sword_002',
+      instances: ['plain-stack'],
+      stacks: [{ stackId: 'plain-stack', count: 2, enhancement: { bonus: 0, contribution: 1 } }],
+      count: 2,
+      name: '素材の剣',
+      materialEligible: true,
+      enhancement: {
+        category: 'Weapon', family: 'sword', primaryStat: 'Power', baseValue: 12,
+        bonus: 0, storedBonus: 0, effectiveValue: 12, eligible: true, materialEligible: true
+      },
+      customData: {
+        Category: 'Weapon', WeaponType: 'sword', Power: 12,
+        sprite_path: './Sprites/weapons/melee weapons/sword.png', sprite_index: '2', sprite_w: '32', sprite_h: '32'
+      }
+    },
+    {
+      itemId: 'sword_003',
+      stackId: 'enhanced-material-stack',
+      instances: ['enhanced-material-stack'],
+      stacks: [{ stackId: 'enhanced-material-stack', count: 1, enhancement: { bonus: 3, contribution: 4 } }],
+      count: 1,
+      name: '鍛えた素材剣',
+      materialEligible: true,
+      enhancement: {
+        category: 'Weapon', family: 'sword', primaryStat: 'Power', baseValue: 9,
+        bonus: 3, storedBonus: 3, effectiveValue: 12, eligible: true, materialEligible: true
+      },
+      customData: {
+        Category: 'Weapon', WeaponType: 'sword', Power: 12,
+        sprite_path: './Sprites/weapons/melee weapons/sword.png', sprite_index: '3', sprite_w: '32', sprite_h: '32'
+      }
+    }
+  ];
+
+  await page.route('**/api/get-inventory', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ inventory: inventoryItems, virtualCurrency: { PS: 0 }, contribution: 0 })
+    });
+  });
+  await page.route('**/api/get-equipment', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify({ equipment: {} }) });
+  });
+  await page.route('**/api/tarot-deck-get', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify({ ok: true, tarotDeck: [] }) });
+  });
+  await page.route('**/api/equipment-enhancement/preview', async (route) => {
+    const body = route.request().postDataJSON();
+    previewRequests.push(body);
+    const contribution = body.materials.reduce((total, material) => (
+      total + (material.stackId === 'enhanced-material-stack' ? 4 : material.amount)
+    ), 0);
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ok: true, contribution, targetBonus: contribution, targetValue: 10 + contribution, maxValue: 99 })
+    });
+  });
+  await page.route('**/api/equipment-enhancement/apply', async (route) => {
+    const body = route.request().postDataJSON();
+    applyRequests.push(body);
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ok: true, targetBonus: 5, targetValue: 15, targetStackId: 'base-stack' })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    document.querySelectorAll('.tab-content').forEach((tab) => {
+      tab.style.display = tab.id === 'tabContentInventory' ? 'block' : 'none';
+    });
+    const inventory = await import('/js/inventory.js');
+    await inventory.getInventory('PF_PLAYWRIGHT', { force: true });
+    inventory.switchInventoryGroup('Equipment');
+    inventory.switchInventoryTab('Weapon');
+  });
+
+  const enhancedCard = page.locator('#inventoryGrid .inventory-item-cell[title="鍛えた素材剣"]');
+  await expect(enhancedCard.locator('.inventory-item-badge.is-enhanced')).toHaveText('+3');
+  await page.locator('#inventoryGrid .inventory-item-cell[title="強化用の剣"]').click();
+  await page.getByRole('button', { name: '強化', exact: true }).click();
+  await expect(page.locator('#equipmentEnhancementModal')).toBeVisible();
+  await page.getByRole('button', { name: '素材の剣を増やす' }).click();
+  await page.getByRole('button', { name: '鍛えた素材剣を増やす' }).click();
+  await expect.poll(() => previewRequests.length).toBeGreaterThan(0);
+  await expect(page.locator('.equipment-enhancement-result')).toContainText('15');
+  await expect(page.locator('.equipment-enhancement-apply')).toBeEnabled();
+
+  const layout = await page.locator('.equipment-enhancement-sheet').evaluate((sheet) => {
+    const rect = sheet.getBoundingClientRect();
+    const footer = sheet.querySelector('.equipment-enhancement-actions')?.getBoundingClientRect();
+    const rows = Array.from(sheet.querySelectorAll('.equipment-enhancement-material'));
+    return {
+      left: rect.left,
+      right: rect.right,
+      top: rect.top,
+      bottom: rect.bottom,
+      footerBottom: footer?.bottom || 0,
+      rowOverflow: rows.some((row) => row.scrollWidth > row.clientWidth + 1)
+    };
+  });
+  expect(layout.left).toBeGreaterThanOrEqual(0);
+  expect(layout.right).toBeLessThanOrEqual(390);
+  expect(layout.top).toBeGreaterThanOrEqual(0);
+  expect(layout.bottom).toBeLessThanOrEqual(844);
+  expect(layout.footerBottom).toBeLessThanOrEqual(layout.bottom);
+  expect(layout.rowOverflow).toBe(false);
+  await page.screenshot({ path: 'test-results/equipment-enhancement-mobile.png', fullPage: true });
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const desktopLayout = await page.locator('.equipment-enhancement-sheet').evaluate((sheet) => {
+    const rect = sheet.getBoundingClientRect();
+    return { width: rect.width, top: rect.top, bottom: rect.bottom, viewportHeight: window.innerHeight };
+  });
+  expect(desktopLayout.width).toBeLessThanOrEqual(540);
+  expect(desktopLayout.top).toBeGreaterThanOrEqual(0);
+  expect(desktopLayout.bottom).toBeLessThanOrEqual(desktopLayout.viewportHeight);
+  await page.screenshot({ path: 'test-results/equipment-enhancement-desktop.png', fullPage: true });
+
+  await page.locator('.equipment-enhancement-apply').click();
+  await expect.poll(() => applyRequests.length).toBe(1);
+  expect(applyRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    baseStackId: 'base-stack',
+    materials: [
+      { stackId: 'plain-stack', amount: 1 },
+      { stackId: 'enhanced-material-stack', amount: 1 }
+    ]
+  });
+  expect(String(applyRequests[0].idempotencyId)).not.toBe('');
+  await expect(page.locator('#equipmentEnhancementModal')).toBeHidden();
+  await expectNoPageErrors(errors);
+});
+
 test('facial hair unlocks at level 21 and salon actions update the layer', async ({ page }) => {
   const errors = trackPageErrors(page);
   const updateRequests = [];
@@ -6637,6 +6804,13 @@ test('inventory selection sell sends multiple sellable item copies at one gold e
 test('inventory black market creates listing and shows owner-aware actions', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const errors = trackPageErrors(page);
+  const missingMarketPanelAssets = [];
+  page.on('response', (response) => {
+    if (response.status() !== 404) return;
+    if (/panel-(?:parchment|light)-square\.png/.test(response.url())) {
+      missingMarketPanelAssets.push(response.url());
+    }
+  });
   const createRequests = [];
   const inventoryItems = [
     {
@@ -6758,6 +6932,16 @@ test('inventory black market creates listing and shows owner-aware actions', asy
   await expect(page.locator('#blackMarketPanel .black-market-close')).toBeVisible();
   await expect(page.locator('#blackMarketPanel .black-market-listing')).toHaveCount(2);
   await expect(page.locator('#blackMarketPanel')).toContainText('Bob');
+  await expect(page.locator('#blackMarketPanel')).toContainText('88G');
+  await expect(page.locator('#blackMarketPanel')).toContainText('99G');
+  const marketTheme = await page.evaluate(() => ({
+    sheet: getComputedStyle(document.querySelector('#blackMarketPanel .black-market-sheet')).borderImageSource,
+    listing: getComputedStyle(document.querySelector('#blackMarketPanel .black-market-listing')).borderImageSource,
+    sheetColor: getComputedStyle(document.querySelector('#blackMarketPanel .black-market-sheet')).color
+  }));
+  expect(marketTheme.sheet).toContain('panel-dark-gold.png');
+  expect(marketTheme.listing).toContain('panel-blue-square.png');
+  expect(marketTheme.sheetColor).toBe('rgb(244, 228, 189)');
   await expect(page.locator('body')).toHaveClass(/modal-lock/);
 
   await page.locator('#blackMarketPanel .black-market-listing-action.is-buy').click();
@@ -6767,6 +6951,10 @@ test('inventory black market creates listing and shows owner-aware actions', asy
     confirmation: Number(getComputedStyle(document.getElementById('inventoryActionDialog')).zIndex)
   }));
   expect(modalLayers.confirmation).toBeGreaterThan(modalLayers.market);
+  const confirmationTheme = await page.evaluate(() => (
+    getComputedStyle(document.querySelector('#inventoryActionDialog .inventory-action-dialog-sheet')).borderImageSource
+  ));
+  expect(confirmationTheme).toContain('panel-dark-gold.png');
   await page.keyboard.press('Escape');
   await expect(page.locator('#inventoryActionDialog')).toBeHidden();
   await expect(page.locator('#blackMarketPanel')).toBeVisible();
@@ -6796,7 +6984,7 @@ test('inventory black market creates listing and shows owner-aware actions', asy
 
   await expect.poll(() => createRequests.length).toBe(1);
   expect(createRequests).toEqual([
-    { playFabId: 'PF_PLAYWRIGHT', itemId: 'sword_001', price: 88 }
+    { playFabId: 'PF_PLAYWRIGHT', itemId: 'sword_001', stackId: 'sword-stack', price: 88 }
   ]);
   await expect(page.locator('#blackMarketPanel')).toBeVisible();
   await expect(page.locator('body > #blackMarketPanel')).toBeVisible();
@@ -6808,5 +6996,6 @@ test('inventory black market creates listing and shows owner-aware actions', asy
   await expect(page.locator('#blackMarketPanel .black-market-listing-action.is-buy')).toHaveCount(1);
   await page.locator('#blackMarketPanel .black-market-close').click();
   await expect(page.locator('#blackMarketPanel')).toBeHidden();
+  expect(missingMarketPanelAssets).toEqual([]);
   await expectNoPageErrors(errors);
 });

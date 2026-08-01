@@ -10,8 +10,10 @@ const {
     getCanonicalTarotCategory,
     getMajorArcanaSuitInfo,
     getMajorArcanaTitle,
-    getTarotRankLabel
+    getTarotRankLabel,
+    parseStoredEquipmentValue
 } = require('../tarotCards');
+const { applyEquipmentEnhancementToCatalogData } = require('../equipmentEnhancement');
 const {
     CAPITAL_CAPTURE_BREACH_WALLS,
     normalizeNationWarState
@@ -483,11 +485,13 @@ async function getPlayerFullProfile(playFabId, options = {}) {
 
     // InstanceId をキー、ItemId を値とするマップを作成
     const instanceIdToItemIdMap = {};
+    const instanceIdToInventoryItemMap = {};
     const ownedItemIds = new Set();
     if (Array.isArray(inventoryResult)) {
         inventoryResult.forEach(item => {
             if (item?.StackId && item?.Id) {
                 instanceIdToItemIdMap[item.StackId] = item.Id;
+                instanceIdToInventoryItemMap[item.StackId] = item;
             }
             if (item?.Id) ownedItemIds.add(String(item.Id));
         });
@@ -512,6 +516,7 @@ async function getPlayerFullProfile(playFabId, options = {}) {
     stats.DisplayName = profileResult.PlayerProfile.DisplayName || '（名前なし）';
 
     const equipment = {}; // ここには最終的に ItemId を格納する
+    const equippedInventoryItems = {};
     const avatar = {}; // ★ v122: アバター情報を格納するオブジェクト
     let lineUserId = null;
     let meleeDeckIds = [];
@@ -520,22 +525,39 @@ async function getPlayerFullProfile(playFabId, options = {}) {
     let currentPet = null;
     if (equipmentResult.Data) {
         const resolveEquippedValue = (rawValue) => {
-            const value = rawValue ? String(rawValue).trim() : '';
+            const parsed = parseStoredEquipmentValue(rawValue);
+            if (!parsed) return null;
+            if (typeof parsed === 'object') {
+                const stackId = String(parsed.stackId || parsed.StackId || parsed.instanceId || parsed.InstanceId || '').trim();
+                const itemId = String(parsed.itemId || parsed.ItemId || parsed.id || parsed.Id || instanceIdToItemIdMap[stackId] || '').trim();
+                if (!itemId) return null;
+                return { itemId, inventoryItem: stackId ? instanceIdToInventoryItemMap[stackId] || null : null };
+            }
+            const value = String(parsed).trim();
             if (!value) return null;
-            return instanceIdToItemIdMap[value] || value;
+            return {
+                itemId: instanceIdToItemIdMap[value] || value,
+                inventoryItem: instanceIdToInventoryItemMap[value] || null
+            };
+        };
+        const assignEquipment = (slot, rawValue) => {
+            const resolved = resolveEquippedValue(rawValue);
+            if (!resolved?.itemId) return;
+            equipment[slot] = resolved.itemId;
+            if (resolved.inventoryItem) equippedInventoryItems[slot] = resolved.inventoryItem;
         };
         // ★★★ 修正点: InstanceId から ItemId に変換して格納する ★★★
         const rightHandInstanceId = equipmentResult.Data.Equipped_RightHand ? equipmentResult.Data.Equipped_RightHand.Value : null;
-        if (rightHandInstanceId) equipment.RightHand = resolveEquippedValue(rightHandInstanceId);
+        if (rightHandInstanceId) assignEquipment('RightHand', rightHandInstanceId);
 
         const leftHandInstanceId = equipmentResult.Data.Equipped_LeftHand ? equipmentResult.Data.Equipped_LeftHand.Value : null;
-        if (leftHandInstanceId) equipment.LeftHand = resolveEquippedValue(leftHandInstanceId);
+        if (leftHandInstanceId) assignEquipment('LeftHand', leftHandInstanceId);
 
         const armorInstanceId = equipmentResult.Data.Equipped_Armor ? equipmentResult.Data.Equipped_Armor.Value : null;
-        if (armorInstanceId) equipment.Armor = resolveEquippedValue(armorInstanceId);
+        if (armorInstanceId) assignEquipment('Armor', armorInstanceId);
 
         const accessoryInstanceId = equipmentResult.Data.Equipped_Accessory ? equipmentResult.Data.Equipped_Accessory.Value : null;
-        if (accessoryInstanceId) equipment.Accessory = resolveEquippedValue(accessoryInstanceId);
+        if (accessoryInstanceId) assignEquipment('Accessory', accessoryInstanceId);
 
         if (equipmentResult.Data.lineUserId) lineUserId = equipmentResult.Data.lineUserId.Value;
 
@@ -604,8 +626,14 @@ async function getPlayerFullProfile(playFabId, options = {}) {
     };
     const accumulateItemStats = (itemRef, options = {}) => {
         if (!itemRef) return;
-        const itemData = getBattleItemData(itemRef);
-        if (!itemData) return;
+        const baseItemData = getBattleItemData(itemRef);
+        if (!baseItemData) return;
+        const itemId = typeof itemRef === 'string' ? itemRef : String(itemRef?.itemId || '').trim();
+        const itemData = applyEquipmentEnhancementToCatalogData(
+            itemId,
+            baseItemData,
+            equippedInventoryItems[options.slot] || {}
+        ).catalogData;
         const powerValue = Number(itemData.Power || itemData.Atk || 0) || 0;
         const defenseValue = Number(itemData.Defense || itemData.Def || 0) || 0;
         const agilityValue = Number(itemData.Agi || itemData.Speed || 0) || 0;
@@ -633,10 +661,10 @@ async function getPlayerFullProfile(playFabId, options = {}) {
         equipmentStats.CastRate += castRateValue;
         equipmentStats.StatusRate += statusRateValue;
     };
-    accumulateItemStats(equipment.RightHand);
-    accumulateItemStats(equipment.LeftHand);
-    accumulateItemStats(equipment.Armor, { replaceDefense: true });
-    accumulateItemStats(equipment.Accessory);
+    accumulateItemStats(equipment.RightHand, { slot: 'RightHand' });
+    accumulateItemStats(equipment.LeftHand, { slot: 'LeftHand' });
+    accumulateItemStats(equipment.Armor, { slot: 'Armor', replaceDefense: true });
+    accumulateItemStats(equipment.Accessory, { slot: 'Accessory' });
 
     // 白兵戦デッキの役は戦闘開始時パッシブとして扱う
     meleeDeckIds = filterMinorDeckIds(meleeDeckIds, _catalogCache);

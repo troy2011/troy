@@ -158,8 +158,30 @@ export function transferPoints(fromId, toId, amount, options = {}) {
     }, options);
 }
 
-export function equipItem(playFabId, itemId, slot, options) {
-    return callApiWithLoader('/api/equip-item', { playFabId, itemId, slot }, options);
+export function equipItem(playFabId, itemId, slot, options = {}) {
+    return callApiWithLoader('/api/equip-item', {
+        playFabId,
+        itemId,
+        stackId: String(options.stackId || '').trim() || undefined,
+        slot
+    }, options);
+}
+
+export function previewEquipmentEnhancement(playFabId, baseStackId, materials, options) {
+    return callApiWithLoader('/api/equipment-enhancement/preview', {
+        playFabId,
+        baseStackId,
+        materials
+    }, options);
+}
+
+export function applyEquipmentEnhancement(playFabId, baseStackId, materials, idempotencyId, options) {
+    return callApiWithLoader('/api/equipment-enhancement/apply', {
+        playFabId,
+        baseStackId,
+        materials,
+        idempotencyId
+    }, options);
 }
 
 export function getTarotDecks(playFabId, options) {
@@ -295,8 +317,8 @@ export function getBlackMarketOrigins(playFabId, itemIds, options) {
     return callApiWithLoader('/api/black-market/origins', { playFabId, itemIds }, options);
 }
 
-export function createBlackMarketListing(playFabId, itemId, price, options) {
-    return callApiWithLoader('/api/black-market/create', { playFabId, itemId, price }, options);
+export function createBlackMarketListing(playFabId, itemId, stackId, price, options) {
+    return callApiWithLoader('/api/black-market/create', { playFabId, itemId, stackId, price }, options);
 }
 
 export function cancelBlackMarketListing(playFabId, listingId, options) {

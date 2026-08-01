@@ -173,7 +173,11 @@ async function withCombatProfilesApi(callback, options = {}) {
     if (fn === PlayFabEconomy.GetInventoryItems) {
       return {
         Items: [
-          { StackId: 'stack-sword', Id: 'weapon_sword_01' },
+          {
+            StackId: 'stack-sword',
+            Id: 'weapon_sword_01',
+            DisplayProperties: { equipmentEnhancement: { version: 1, bonus: 3 } }
+          },
           { StackId: 'stack-armor', Id: 'armor_coat_01' },
           { StackId: 'stack-charm', Id: 'charm_01' },
           { StackId: 'stack-cup-a', Id: 'minor-cup-1' },
@@ -305,11 +309,11 @@ test('combat profile API authenticates the requester and returns sanitized melee
       },
       combat: {
         maxHp: 155,
-        power: 25,
+        power: 28,
         defense: 20,
         intelligence: 11,
         speed: 11,
-        equipmentPower: 5,
+        equipmentPower: 8,
         equipmentMagicPower: 4,
         weaponType: 'sword',
         weaponTypes: ['sword']

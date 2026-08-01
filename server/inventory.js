@@ -1,8 +1,9 @@
 // server/inventory.js
 // インベントリ・装備関連のAPI
 
+const { randomUUID } = require('node:crypto');
 const { getItemAmount, getCurrencyIdFromItem } = require('./economy');
-const { withTitleEntityToken } = require('./playfab');
+const { withTitleEntityToken: defaultWithTitleEntityToken } = require('./playfab');
 const { drawLocalGachaItem } = require('./gacha');
 const resourceStorage = require('./resourceStorage');
 const { buildMajorArcanaShipGearView } = require('./majorArcanaShipGear');
@@ -44,6 +45,14 @@ const {
 const { FEATURE_UNLOCK_LEVELS, isFeatureUnlocked } = require('./featureUnlocks');
 const { getPublicAbility } = require('./specialAbilityEngine');
 const {
+    EQUIPMENT_ENHANCEMENT_MAX_STAT,
+    applyEquipmentEnhancementToCatalogData,
+    buildEquipmentEnhancementDescriptor,
+    buildEquipmentEnhancementDisplayProperties,
+    getEquipmentEnhancementBonus,
+    normalizeDisplayProperties
+} = require('./equipmentEnhancement');
+const {
     TAROT_KINGDOM_PET_DATA_KEY,
     buildTarotKingdomPetPublicRecord,
     normalizeTarotKingdomPetState
@@ -61,6 +70,8 @@ const BLACK_MARKET_MAX_ACTIVE_LISTINGS = 5;
 const BLACK_MARKET_MIN_PRICE = 1;
 const BLACK_MARKET_MAX_PRICE = 9999;
 const BLACK_MARKET_OCCUPIED_STATUSES = new Set(['creating', 'active', 'buying', 'cancelling']);
+const EQUIPMENT_ENHANCEMENT_PENDING_KEY = 'EquipmentEnhancementPending';
+const EQUIPMENT_ENHANCEMENT_MAX_MATERIAL_STACKS = 40;
 const INVENTORY_SELL_EQUIPMENT_KEYS = [
     'Equipped_RightHand',
     'Equipped_LeftHand',
@@ -384,12 +395,79 @@ function parseAvatarStyleReadOnlyValue(readOnlyData, styleKey) {
 // APIルートを初期化
 function initializeInventoryRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, PlayFabData, PlayFabEconomy, firestore, admin, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance, requireAuthenticatedPlayFabId } = deps;
+    const runWithTitleEntityToken = typeof deps.withTitleEntityToken === 'function'
+        ? deps.withTitleEntityToken
+        : defaultWithTitleEntityToken;
 
     async function requireAuthedPlayFabId(req, res, playFabId) {
         if (typeof requireAuthenticatedPlayFabId !== 'function') {
             return playFabId;
         }
         return requireAuthenticatedPlayFabId(req, res, playFabId);
+    }
+
+    async function executeInventoryOperations(entityKey, operations, options = {}) {
+        if (!PlayFabEconomy?.ExecuteInventoryOperations) {
+            throw new Error('PlayFab Economy inventory operations are unavailable.');
+        }
+        const request = {
+            Entity: entityKey,
+            Operations: operations
+        };
+        if (options.eTag) request.ETag = String(options.eTag);
+        if (options.idempotencyId) request.IdempotencyId = String(options.idempotencyId);
+        return runWithTitleEntityToken(() => promisifyPlayFab(PlayFabEconomy.ExecuteInventoryOperations, request));
+    }
+
+    async function getInventorySnapshot(entityKey) {
+        if (!PlayFabEconomy?.GetInventoryItems) {
+            return { items: await getAllInventoryItems(entityKey), eTag: '' };
+        }
+        const items = [];
+        let continuationToken = null;
+        let eTag = '';
+        do {
+            const result = await runWithTitleEntityToken(() => promisifyPlayFab(PlayFabEconomy.GetInventoryItems, {
+                Entity: entityKey,
+                Count: 50,
+                ContinuationToken: continuationToken || undefined
+            }));
+            items.push(...(Array.isArray(result?.Items) ? result.Items : []));
+            eTag = String(result?.ETag || eTag || '');
+            continuationToken = result?.ContinuationToken || null;
+        } while (continuationToken);
+        return { items, eTag };
+    }
+
+    async function subtractEconomyStack(playFabId, itemId, stackId, amount, options = {}) {
+        if (!PlayFabEconomy?.ExecuteInventoryOperations) {
+            return subtractEconomyItem(playFabId, itemId, amount, options);
+        }
+        const entityKey = options.entityKey || await getEntityKeyForPlayFabId(playFabId);
+        return executeInventoryOperations(entityKey, [{
+            Subtract: {
+                Item: { Id: itemId, StackId: stackId },
+                Amount: amount,
+                DeleteEmptyStacks: true
+            }
+        }], options);
+    }
+
+    async function addEconomyStack(playFabId, itemId, displayProperties = {}, options = {}) {
+        if (!PlayFabEconomy?.ExecuteInventoryOperations) {
+            await addEconomyItem(playFabId, itemId, Math.max(1, Math.floor(Number(options.amount) || 1)), options);
+            return '';
+        }
+        const entityKey = options.entityKey || await getEntityKeyForPlayFabId(playFabId);
+        const stackId = String(options.stackId || randomUUID()).trim();
+        await executeInventoryOperations(entityKey, [{
+            Add: {
+                Item: { Id: itemId, StackId: stackId },
+                Amount: Math.max(1, Math.floor(Number(options.amount) || 1)),
+                NewStackValues: { DisplayProperties: normalizeDisplayProperties(displayProperties) }
+            }
+        }], options);
+        return stackId;
     }
 
     async function getPlayerReadOnlyData(playFabId, keys) {
@@ -442,7 +520,7 @@ function initializeInventoryRoutes(app, deps) {
         if (!PlayFabGroups || !PlayFabData || !playFabId) return null;
         try {
             const entityKey = await getEntityKeyForPlayFabId(playFabId);
-            const membershipResult = await withTitleEntityToken(() => promisifyPlayFab(PlayFabGroups.ListMembership, {
+            const membershipResult = await runWithTitleEntityToken(() => promisifyPlayFab(PlayFabGroups.ListMembership, {
                 Entity: entityKey
             }));
             const groups = Array.isArray(membershipResult?.Groups) ? membershipResult.Groups : [];
@@ -452,7 +530,7 @@ function initializeInventoryRoutes(app, deps) {
                 const guildId = group?.Group?.Id;
                 if (!guildId || isSystemNationGroupEntry(group)) continue;
 
-                const guildDataResult = await withTitleEntityToken(() => promisifyPlayFab(PlayFabData.GetObjects, {
+                const guildDataResult = await runWithTitleEntityToken(() => promisifyPlayFab(PlayFabData.GetObjects, {
                     Entity: { Id: guildId, Type: 'group' },
                     EscapeObject: false
                 }));
@@ -561,17 +639,30 @@ function initializeInventoryRoutes(app, deps) {
         };
     }
 
-    function buildPublicEquipmentItem(itemRef) {
+    function buildPublicEquipmentItem(itemRef, inventoryItems = []) {
         if (!itemRef) return null;
         if (typeof itemRef === 'object' && itemRef.customData) return itemRef;
-        const itemId = String(itemRef || '').trim();
+        const parsed = parseStoredEquipmentValue(itemRef);
+        const requestedStackId = getStoredEquipmentStackId(parsed);
+        const rawString = typeof parsed === 'string' ? parsed.trim() : '';
+        const inventoryItem = (inventoryItems || []).find((item) => (
+            (requestedStackId && getInventoryStackId(item) === requestedStackId)
+            || (!requestedStackId && rawString && getInventoryStackId(item) === rawString)
+        )) || null;
+        const itemId = getStoredEquipmentItemId(parsed)
+            || getInventoryItemId(inventoryItem)
+            || rawString;
         if (!itemId) return null;
-        const catalogData = normalizeCatalogDisplayData(itemId, catalogCache[itemId] || {});
+        const baseCatalogData = normalizeCatalogDisplayData(itemId, catalogCache[itemId] || {});
+        const enhanced = applyEquipmentEnhancementToCatalogData(itemId, baseCatalogData, inventoryItem || {});
+        const stackId = getInventoryStackId(inventoryItem) || requestedStackId;
         return {
             itemId,
-            name: catalogData.DisplayName || itemId,
-            description: catalogData.Description || '',
-            customData: catalogData
+            stackId: stackId || undefined,
+            name: enhanced.catalogData.DisplayName || itemId,
+            description: enhanced.catalogData.Description || '',
+            customData: enhanced.catalogData,
+            enhancement: enhanced.enhancement
         };
     }
 
@@ -591,10 +682,10 @@ function initializeInventoryRoutes(app, deps) {
         const itemSource = {};
         ['RightHand', 'LeftHand', 'Armor', 'Accessory'].forEach((slot) => {
             const itemRef = equipment?.[slot];
-            if (!itemRef || typeof itemRef !== 'string') return;
+            if (!itemRef) return;
             const item = buildPublicEquipmentItem(itemRef);
             if (!item) return;
-            itemSource[itemRef] = item;
+            itemSource[item.itemId] = item;
         });
         return itemSource;
     }
@@ -654,6 +745,41 @@ function initializeInventoryRoutes(app, deps) {
         ).trim();
     }
 
+    function getStoredEquipmentStackId(rawValue) {
+        const parsed = parseStoredEquipmentValue(rawValue);
+        if (!parsed || typeof parsed !== 'object') return '';
+        return String(
+            parsed.stackId
+            || parsed.StackId
+            || parsed.instanceId
+            || parsed.InstanceId
+            || parsed.itemInstanceId
+            || parsed.ItemInstanceId
+            || ''
+        ).trim();
+    }
+
+    function buildStoredEquipmentValue(itemId, stackId = '') {
+        const safeItemId = String(itemId || '').trim();
+        const safeStackId = String(stackId || '').trim();
+        if (!safeItemId) return null;
+        if (!safeStackId) return safeItemId;
+        return JSON.stringify({ itemId: safeItemId, stackId: safeStackId });
+    }
+
+    function getInventoryItemId(item) {
+        return String(item?.Id || item?.ItemId || '').trim();
+    }
+
+    function getInventoryStackId(item) {
+        return String(item?.StackId || item?.stackId || '').trim();
+    }
+
+    function getInventoryStackAmount(item) {
+        const rawAmount = item?.Amount ?? item?.amount;
+        return Math.max(0, Math.floor(rawAmount == null ? 1 : (Number(rawAmount) || 0)));
+    }
+
     async function getOwnedInventoryItemCount(playFabId, itemId) {
         if (typeof getEntityKeyForPlayFabId !== 'function' || typeof getAllInventoryItems !== 'function') {
             return 0;
@@ -697,6 +823,22 @@ function initializeInventoryRoutes(app, deps) {
         return raw;
     }
 
+    function sanitizeFirestoreValue(value, inArray = false) {
+        if (value === undefined || typeof value === 'function' || typeof value === 'symbol') {
+            return inArray ? null : undefined;
+        }
+        if (value === null || typeof value !== 'object') return value;
+        if (value instanceof Date) return value;
+        if (Array.isArray(value)) {
+            return value.map((entry) => sanitizeFirestoreValue(entry, true));
+        }
+        return Object.entries(value).reduce((result, [key, entry]) => {
+            const sanitized = sanitizeFirestoreValue(entry);
+            if (sanitized !== undefined) result[key] = sanitized;
+            return result;
+        }, {});
+    }
+
     function isBlackMarketOriginTrackedItem(itemId, itemData = null) {
         if (!itemId || isCurrencyInventoryItem(itemId)) return false;
         const catalogData = itemData || normalizeCatalogDisplayData(itemId, catalogCache[itemId] || {});
@@ -718,6 +860,7 @@ function initializeInventoryRoutes(app, deps) {
             sellerDisplayName: String(data.sellerDisplayName || data.sellerPlayFabId || '').trim(),
             buyerPlayFabId: String(data.buyerPlayFabId || '').trim(),
             itemId: String(data.itemId || '').trim(),
+            stackId: String(data.stackId || '').trim(),
             itemName: String(data.itemName || data.itemId || '').trim(),
             price: Math.max(0, Math.floor(Number(data.price) || 0)),
             status: String(data.status || 'active').trim(),
@@ -728,6 +871,7 @@ function initializeInventoryRoutes(app, deps) {
             originPlayFabId: String(data.originPlayFabId || '').trim(),
             originDisplayName: String(data.originDisplayName || '').trim(),
             itemData: data.itemData && typeof data.itemData === 'object' ? data.itemData : {},
+            displayProperties: normalizeDisplayProperties(data.displayProperties),
             settlementStatus: String(data.settlementStatus || '').trim(),
             lastError: String(data.lastError || '').trim(),
             slotIndex: Number.isInteger(data.slotIndex) ? data.slotIndex : -1,
@@ -744,14 +888,18 @@ function initializeInventoryRoutes(app, deps) {
         };
     }
 
-    function buildBlackMarketItemSnapshot(itemId) {
-        const catalogData = normalizeCatalogDisplayData(itemId, catalogCache[itemId] || {});
+    function buildBlackMarketItemSnapshot(itemId, inventoryItem = null) {
+        const baseCatalogData = normalizeCatalogDisplayData(itemId, catalogCache[itemId] || {});
+        const enhanced = applyEquipmentEnhancementToCatalogData(itemId, baseCatalogData, inventoryItem || {});
+        const catalogData = enhanced.catalogData;
         return {
             itemId,
             itemName: String(catalogData.DisplayName || catalogData.Title || itemId).trim() || itemId,
             description: String(catalogData.Description || '').trim(),
             category: normalizeBlackMarketCategory(catalogData.Category),
-            itemData: catalogData
+            itemData: sanitizeFirestoreValue(catalogData) || {},
+            enhancement: enhanced.enhancement,
+            displayProperties: sanitizeFirestoreValue(normalizeDisplayProperties(inventoryItem?.DisplayProperties)) || {}
         };
     }
 
@@ -923,14 +1071,18 @@ function initializeInventoryRoutes(app, deps) {
 
     function normalizeSellRequestItems(items) {
         const sourceItems = Array.isArray(items) ? items : [];
-        const byItemId = new Map();
+        const byReference = new Map();
         sourceItems.forEach((entry) => {
             const itemId = String(entry?.itemId || entry?.ItemId || entry?.id || '').trim();
+            const stackId = String(entry?.stackId || entry?.StackId || entry?.itemInstanceId || '').trim();
             const amount = Math.max(1, Math.floor(Number(entry?.amount ?? entry?.count ?? 1) || 1));
             if (!itemId || isCurrencyInventoryItem(itemId)) return;
-            byItemId.set(itemId, (byItemId.get(itemId) || 0) + amount);
+            const key = `${itemId}::${stackId}`;
+            const current = byReference.get(key) || { itemId, stackId, amount: 0 };
+            current.amount += amount;
+            byReference.set(key, current);
         });
-        return Array.from(byItemId.entries()).map(([itemId, amount]) => ({ itemId, amount }));
+        return Array.from(byReference.values());
     }
 
     function parseStoredDeckItemIds(rawValue) {
@@ -988,6 +1140,350 @@ function initializeInventoryRoutes(app, deps) {
         return Math.max(0, ownedCount - getReservedSellCount(itemId, context));
     }
 
+    function createInventoryRequestError(message, status = 400) {
+        const error = new Error(message);
+        error.status = status;
+        return error;
+    }
+
+    function normalizeEnhancementMaterialSelections(value) {
+        const source = Array.isArray(value) ? value : [];
+        const byStackId = new Map();
+        source.forEach((entry) => {
+            const stackId = String(entry?.stackId || entry?.StackId || '').trim();
+            const amount = Math.max(0, Math.floor(Number(entry?.amount ?? 1) || 0));
+            if (!stackId || amount <= 0) return;
+            byStackId.set(stackId, (byStackId.get(stackId) || 0) + amount);
+        });
+        return Array.from(byStackId.entries()).map(([stackId, amount]) => ({ stackId, amount }));
+    }
+
+    function getEnhancementEquippedSlotKeys(baseItem, sellContext) {
+        const itemId = getInventoryItemId(baseItem);
+        const stackId = getInventoryStackId(baseItem);
+        const exactMatches = [];
+        const legacyMatches = [];
+        INVENTORY_SELL_EQUIPMENT_KEYS.slice(0, 4).forEach((key) => {
+            const rawValue = sellContext?.readOnlyData?.[key]?.Value || null;
+            const storedItemId = getStoredEquipmentItemId(rawValue);
+            const storedStackId = getStoredEquipmentStackId(rawValue);
+            if (storedStackId && storedStackId === stackId) exactMatches.push(key);
+            else if (!storedStackId && storedItemId === itemId) legacyMatches.push(key);
+        });
+        if (exactMatches.length) return exactMatches;
+        return legacyMatches.slice(0, 1);
+    }
+
+    function isExactEquipmentStackReserved(stackId, sellContext) {
+        if (!stackId) return false;
+        return INVENTORY_SELL_EQUIPMENT_KEYS.slice(0, 4).some((key) => (
+            getStoredEquipmentStackId(sellContext?.readOnlyData?.[key]?.Value || null) === stackId
+        ));
+    }
+
+    function getLegacyReservedSellCount(itemId, context) {
+        const targetId = String(itemId || '').trim();
+        if (!targetId) return 0;
+        let count = 0;
+        INVENTORY_SELL_EQUIPMENT_KEYS.forEach((key) => {
+            const rawValue = context?.readOnlyData?.[key]?.Value || null;
+            if (!getStoredEquipmentStackId(rawValue) && getStoredEquipmentItemId(rawValue) === targetId) {
+                count += 1;
+            }
+        });
+        const deckIds = new Set();
+        INVENTORY_SELL_DECK_KEYS.forEach((key) => {
+            parseStoredDeckItemIds(context?.readOnlyData?.[key]?.Value).forEach((deckItemId) => deckIds.add(deckItemId));
+        });
+        if (deckIds.has(targetId)) count += 1;
+        (context?.shipMajorArcanaItemIds || []).forEach((shipItemId) => {
+            if (shipItemId === targetId) count += 1;
+        });
+        return count;
+    }
+
+    function selectUnenhancedInventoryStacks(inventoryItems, itemId, amount, sellContext, claimedByStackId = new Map()) {
+        const targetAmount = Math.max(0, Math.floor(Number(amount) || 0));
+        let reservedRemaining = getLegacyReservedSellCount(itemId, sellContext);
+        let selectionRemaining = targetAmount;
+        const selections = [];
+        const candidates = (Array.isArray(inventoryItems) ? inventoryItems : []).filter((item) => (
+            getInventoryItemId(item) === itemId
+            && getInventoryStackAmount(item) > 0
+            && getEquipmentEnhancementBonus(item) <= 0
+            && !isExactEquipmentStackReserved(getInventoryStackId(item), sellContext)
+        ));
+
+        for (const item of candidates) {
+            const stackId = getInventoryStackId(item);
+            const alreadyClaimed = stackId ? (claimedByStackId.get(stackId) || 0) : 0;
+            let available = Math.max(0, getInventoryStackAmount(item) - alreadyClaimed);
+            const reservedHere = Math.min(reservedRemaining, available);
+            reservedRemaining -= reservedHere;
+            available -= reservedHere;
+            const selectedAmount = Math.min(selectionRemaining, available);
+            if (selectedAmount > 0) {
+                selections.push({ stackId, amount: selectedAmount });
+                selectionRemaining -= selectedAmount;
+            }
+            if (selectionRemaining <= 0) break;
+        }
+        return selectionRemaining > 0 ? null : selections;
+    }
+
+    async function buildEquipmentEnhancementContext(playFabId, payload = {}) {
+        const baseStackId = String(payload.baseStackId || '').trim();
+        if (!baseStackId) throw createInventoryRequestError('強化する装備個体を選んでください。');
+
+        const materialSelections = normalizeEnhancementMaterialSelections(payload.materials);
+        if (!materialSelections.length) throw createInventoryRequestError('素材を1個以上選んでください。');
+        if (materialSelections.length > EQUIPMENT_ENHANCEMENT_MAX_MATERIAL_STACKS) {
+            throw createInventoryRequestError('一度に選べる素材の種類が多すぎます。');
+        }
+
+        const entityKey = await getEntityKeyForPlayFabId(playFabId);
+        const [snapshot, sellContext] = await Promise.all([
+            getInventorySnapshot(entityKey),
+            getInventorySellContext(playFabId)
+        ]);
+        const inventoryItems = snapshot.items;
+        const stackMap = new Map(inventoryItems.map((item) => [getInventoryStackId(item), item]).filter(([stackId]) => stackId));
+        const baseItem = stackMap.get(baseStackId);
+        if (!baseItem || getInventoryStackAmount(baseItem) <= 0) {
+            throw createInventoryRequestError('強化する装備が見つかりません。', 409);
+        }
+
+        const baseItemId = getInventoryItemId(baseItem);
+        const baseCatalogData = normalizeCatalogDisplayData(baseItemId, catalogCache[baseItemId] || {});
+        const baseEnhancement = buildEquipmentEnhancementDescriptor(baseItemId, baseCatalogData, baseItem);
+        if (!baseEnhancement.eligible) {
+            const message = baseEnhancement.capped
+                ? 'この装備の能力は上限に達しています。'
+                : 'この装備は強化対象ではありません。';
+            throw createInventoryRequestError(message);
+        }
+
+        const materials = [];
+        const materialAmountByItemId = new Map();
+        let contribution = 0;
+        for (const selection of materialSelections) {
+            const materialItem = stackMap.get(selection.stackId);
+            if (!materialItem || getInventoryStackAmount(materialItem) < selection.amount) {
+                throw createInventoryRequestError('素材の所持数が変わりました。再読み込みしてください。', 409);
+            }
+            if (selection.stackId === baseStackId && getInventoryStackAmount(baseItem) - selection.amount < 1) {
+                throw createInventoryRequestError('ベース個体そのものは素材にできません。');
+            }
+            if (isExactEquipmentStackReserved(selection.stackId, sellContext) && selection.stackId !== baseStackId) {
+                throw createInventoryRequestError('装備中の個体は素材にできません。');
+            }
+
+            const itemId = getInventoryItemId(materialItem);
+            const catalogData = normalizeCatalogDisplayData(itemId, catalogCache[itemId] || {});
+            const enhancement = buildEquipmentEnhancementDescriptor(itemId, catalogData, materialItem);
+            if (!enhancement.materialEligible || enhancement.family !== baseEnhancement.family || enhancement.category !== baseEnhancement.category) {
+                throw createInventoryRequestError('ベースと同じ系統の装備だけを素材にできます。');
+            }
+            const stackContribution = enhancement.contribution * selection.amount;
+            contribution += stackContribution;
+            materialAmountByItemId.set(itemId, (materialAmountByItemId.get(itemId) || 0) + selection.amount);
+            materials.push({
+                item: materialItem,
+                itemId,
+                stackId: selection.stackId,
+                amount: selection.amount,
+                enhancement,
+                contribution: stackContribution,
+                name: catalogData.DisplayName || catalogData.Title || itemId
+            });
+        }
+
+        for (const [itemId, selectedAmount] of materialAmountByItemId.entries()) {
+            const ownedCount = getInventoryItemTotal(inventoryItems, itemId);
+            const reservedCount = getReservedSellCount(itemId, sellContext);
+            const requiredRemaining = itemId === baseItemId ? Math.max(1, reservedCount) : reservedCount;
+            if (selectedAmount > Math.max(0, ownedCount - requiredRemaining)) {
+                throw createInventoryRequestError('装備中または予約中の個体は素材にできません。');
+            }
+        }
+
+        const targetBonus = baseEnhancement.storedBonus + contribution;
+        const capacity = EQUIPMENT_ENHANCEMENT_MAX_STAT - baseEnhancement.baseValue;
+        if (targetBonus > capacity) {
+            throw createInventoryRequestError(`強化後の${baseEnhancement.primaryStat === 'Power' ? '攻撃力' : '防御力'}は99を超えられません。`);
+        }
+
+        return {
+            entityKey,
+            eTag: snapshot.eTag,
+            inventoryItems,
+            sellContext,
+            baseItem,
+            baseItemId,
+            baseStackId,
+            baseCatalogData,
+            baseEnhancement,
+            materials,
+            contribution,
+            targetBonus,
+            targetValue: baseEnhancement.baseValue + targetBonus,
+            equippedSlotKeys: getEnhancementEquippedSlotKeys(baseItem, sellContext)
+        };
+    }
+
+    function buildEquipmentEnhancementPreview(context) {
+        return {
+            ok: true,
+            base: {
+                itemId: context.baseItemId,
+                stackId: context.baseStackId,
+                name: context.baseCatalogData.DisplayName || context.baseCatalogData.Title || context.baseItemId,
+                category: context.baseEnhancement.category,
+                family: context.baseEnhancement.family,
+                primaryStat: context.baseEnhancement.primaryStat,
+                baseValue: context.baseEnhancement.baseValue,
+                currentValue: context.baseEnhancement.effectiveValue,
+                currentBonus: context.baseEnhancement.storedBonus
+            },
+            materials: context.materials.map((material) => ({
+                itemId: material.itemId,
+                stackId: material.stackId,
+                name: material.name,
+                amount: material.amount,
+                bonus: material.enhancement.storedBonus,
+                contribution: material.contribution
+            })),
+            contribution: context.contribution,
+            targetBonus: context.targetBonus,
+            targetValue: context.targetValue,
+            maxValue: EQUIPMENT_ENHANCEMENT_MAX_STAT
+        };
+    }
+
+    async function writeEnhancementPendingMarker(playFabId, marker) {
+        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Data: { [EQUIPMENT_ENHANCEMENT_PENDING_KEY]: marker ? JSON.stringify(marker) : null },
+            Permission: 'Public'
+        });
+    }
+
+    async function reconcilePendingEquipmentEnhancement(playFabId, inventoryItems = null) {
+        const result = await getPlayerReadOnlyData(playFabId, [EQUIPMENT_ENHANCEMENT_PENDING_KEY]);
+        const marker = parseJsonValue(result?.Data?.[EQUIPMENT_ENHANCEMENT_PENDING_KEY]?.Value, null);
+        if (!marker?.targetStackId || !marker?.itemId) return false;
+        const items = Array.isArray(inventoryItems)
+            ? inventoryItems
+            : await getAllInventoryItems(await getEntityKeyForPlayFabId(playFabId));
+        const targetExists = items.some((item) => (
+            getInventoryStackId(item) === String(marker.targetStackId)
+            && getInventoryItemId(item) === String(marker.itemId)
+            && getInventoryStackAmount(item) > 0
+        ));
+        const data = { [EQUIPMENT_ENHANCEMENT_PENDING_KEY]: null };
+        if (targetExists) {
+            const storedValue = buildStoredEquipmentValue(marker.itemId, marker.targetStackId);
+            (Array.isArray(marker.slotKeys) ? marker.slotKeys : []).forEach((key) => {
+                if (INVENTORY_SELL_EQUIPMENT_KEYS.includes(key)) data[key] = storedValue;
+            });
+        }
+        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Data: data,
+            Permission: 'Public'
+        });
+        return targetExists;
+    }
+
+    async function applyEquipmentEnhancement(playFabId, payload = {}) {
+        const idempotencyId = String(payload.idempotencyId || '').trim();
+        if (!/^[A-Za-z0-9:_-]{8,120}$/.test(idempotencyId)) {
+            throw createInventoryRequestError('強化リクエストIDが不正です。');
+        }
+        const context = await buildEquipmentEnhancementContext(playFabId, payload);
+        const baseAmount = getInventoryStackAmount(context.baseItem);
+        const shouldSplitBase = baseAmount > 1;
+        const targetStackId = shouldSplitBase ? randomUUID() : context.baseStackId;
+        const targetDisplayProperties = buildEquipmentEnhancementDisplayProperties(
+            context.baseItem,
+            context.targetBonus
+        );
+        const subtractionByStack = new Map();
+        context.materials.forEach((material) => {
+            subtractionByStack.set(material.stackId, {
+                itemId: material.itemId,
+                amount: (subtractionByStack.get(material.stackId)?.amount || 0) + material.amount
+            });
+        });
+        if (shouldSplitBase) {
+            subtractionByStack.set(context.baseStackId, {
+                itemId: context.baseItemId,
+                amount: (subtractionByStack.get(context.baseStackId)?.amount || 0) + 1
+            });
+        }
+
+        const operations = Array.from(subtractionByStack.entries()).map(([stackId, entry]) => ({
+            Subtract: {
+                Item: { Id: entry.itemId, StackId: stackId },
+                Amount: entry.amount,
+                DeleteEmptyStacks: true
+            }
+        }));
+        if (shouldSplitBase) {
+            operations.push({
+                Add: {
+                    Item: { Id: context.baseItemId, StackId: targetStackId },
+                    Amount: 1,
+                    NewStackValues: { DisplayProperties: targetDisplayProperties }
+                }
+            });
+        } else {
+            operations.push({
+                Update: {
+                    Item: {
+                        Id: context.baseItemId,
+                        StackId: context.baseStackId,
+                        DisplayProperties: targetDisplayProperties
+                    }
+                }
+            });
+        }
+
+        const slotKeys = context.equippedSlotKeys;
+        const marker = slotKeys.length ? {
+            itemId: context.baseItemId,
+            sourceStackId: context.baseStackId,
+            targetStackId,
+            slotKeys,
+            createdAtMs: Date.now()
+        } : null;
+        if (marker) await writeEnhancementPendingMarker(playFabId, marker);
+        try {
+            await executeInventoryOperations(context.entityKey, operations, {
+                eTag: context.eTag,
+                idempotencyId: `equipment-enhancement:${playFabId}:${idempotencyId}`
+            });
+        } catch (error) {
+            if (marker) await writeEnhancementPendingMarker(playFabId, null).catch(() => {});
+            throw error;
+        }
+
+        let equipmentSyncPending = false;
+        if (marker) {
+            try {
+                await reconcilePendingEquipmentEnhancement(playFabId);
+            } catch (error) {
+                equipmentSyncPending = true;
+                console.warn('[equipment-enhancement] equipment sync pending:', error?.errorMessage || error?.message || error);
+            }
+        }
+        return {
+            ...buildEquipmentEnhancementPreview(context),
+            targetStackId,
+            equipmentSyncPending
+        };
+    }
+
     async function sellInventoryItems(playFabId, requestedItems) {
         const entityKey = await getEntityKeyForPlayFabId(playFabId);
         const inventoryItems = await getAllInventoryItems(entityKey);
@@ -997,26 +1493,77 @@ function initializeInventoryRoutes(app, deps) {
             return { ok: false, status: 400, error: '売却するアイテムを選んでください。' };
         }
 
-        for (const entry of sellItems) {
+        const claimedByStackId = new Map();
+        const claimedByItemId = new Map();
+        for (const entry of sellItems.filter((item) => item.stackId)) {
             const sellableCount = getSellableInventoryItemCount(inventoryItems, entry.itemId, sellContext);
-            if (sellableCount < entry.amount) {
+            const claimedItemAmount = (claimedByItemId.get(entry.itemId) || 0) + entry.amount;
+            if (sellableCount < claimedItemAmount) {
                 const itemData = normalizeCatalogDisplayData(entry.itemId, catalogCache[entry.itemId] || {});
                 const itemName = itemData.DisplayName || itemData.Title || entry.itemId;
-                return {
-                    ok: false,
-                    status: 400,
-                    error: `${itemName}は売却できる所持数が足りません。`
-                };
+                return { ok: false, status: 400, error: `${itemName}は売却できる所持数が足りません。` };
             }
+            const alreadyClaimed = claimedByStackId.get(entry.stackId) || 0;
+            const requiredAmount = alreadyClaimed + entry.amount;
+            const stack = inventoryItems.find((item) => (
+                getInventoryItemId(item) === entry.itemId
+                && getInventoryStackId(item) === entry.stackId
+            ));
+            if (!stack || getInventoryStackAmount(stack) < requiredAmount) {
+                return { ok: false, status: 409, error: '売却する個体の所持数が変わりました。' };
+            }
+            if (isExactEquipmentStackReserved(entry.stackId, sellContext)) {
+                return { ok: false, status: 400, error: '装備中の個体は売却できません。' };
+            }
+            claimedByStackId.set(entry.stackId, requiredAmount);
+            claimedByItemId.set(entry.itemId, claimedItemAmount);
+        }
+
+        for (const entry of sellItems.filter((item) => !item.stackId)) {
+            const stackSelections = selectUnenhancedInventoryStacks(
+                inventoryItems,
+                entry.itemId,
+                entry.amount,
+                sellContext,
+                claimedByStackId
+            );
+            if (!stackSelections) {
+                const itemData = normalizeCatalogDisplayData(entry.itemId, catalogCache[entry.itemId] || {});
+                const itemName = itemData.DisplayName || itemData.Title || entry.itemId;
+                return { ok: false, status: 400, error: `${itemName}は売却できる所持数が足りません。` };
+            }
+            entry.stackSelections = stackSelections;
+            stackSelections.forEach((selection) => {
+                if (selection.stackId) {
+                    claimedByStackId.set(
+                        selection.stackId,
+                        (claimedByStackId.get(selection.stackId) || 0) + selection.amount
+                    );
+                }
+            });
         }
 
         const totalAmount = sellItems.reduce((sum, entry) => sum + entry.amount, 0);
         const totalGold = totalAmount * INVENTORY_SELL_UNIT_PRICE;
         const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
         for (const entry of sellItems) {
-            await subtractEconomyItem(playFabId, entry.itemId, entry.amount, {
-                idempotencyId: `inventory-sell-${playFabId}-${entry.itemId}-${stamp}`
-            });
+            if (entry.stackId) {
+                await subtractEconomyStack(playFabId, entry.itemId, entry.stackId, entry.amount, {
+                    idempotencyId: `inventory-sell-${playFabId}-${entry.stackId}-${stamp}`
+                });
+            } else {
+                for (const [index, selection] of entry.stackSelections.entries()) {
+                    if (selection.stackId) {
+                        await subtractEconomyStack(playFabId, entry.itemId, selection.stackId, selection.amount, {
+                            idempotencyId: `inventory-sell-${playFabId}-${selection.stackId}-${stamp}`
+                        });
+                    } else {
+                        await subtractEconomyItem(playFabId, entry.itemId, selection.amount, {
+                            idempotencyId: `inventory-sell-${playFabId}-${entry.itemId}-${index}-${stamp}`
+                        });
+                    }
+                }
+            }
         }
         await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, totalGold, {
             idempotencyId: `inventory-sell-gold-${playFabId}-${stamp}`
@@ -1116,9 +1663,15 @@ function initializeInventoryRoutes(app, deps) {
         if (!listing || listing.status !== 'creating') return listing;
         if (!listing.itemDebited) {
             try {
-                await subtractEconomyItem(listing.sellerPlayFabId, listing.itemId, 1, {
-                    idempotencyId: `black-market-list-item-${listing.listingId}`
-                });
+                if (listing.stackId) {
+                    await subtractEconomyStack(listing.sellerPlayFabId, listing.itemId, listing.stackId, 1, {
+                        idempotencyId: `black-market-list-item-${listing.listingId}`
+                    });
+                } else {
+                    await subtractEconomyItem(listing.sellerPlayFabId, listing.itemId, 1, {
+                        idempotencyId: `black-market-list-item-${listing.listingId}`
+                    });
+                }
                 await patchBlackMarketListing(listing.listingId, { itemDebited: true, lastError: '' });
             } catch (error) {
                 await patchBlackMarketListing(listing.listingId, {
@@ -1131,12 +1684,13 @@ function initializeInventoryRoutes(app, deps) {
         return finalizeCreatingBlackMarketListing(listing.listingId);
     }
 
-    async function createBlackMarketListing(playFabId, itemId, priceValue) {
+    async function createBlackMarketListing(playFabId, itemId, stackId, priceValue) {
         const collection = getBlackMarketCollection();
         if (!collection || !getBlackMarketSlotsCollection()) {
             return { ok: false, status: 503, error: '闇市は現在利用できません。' };
         }
         const safeItemId = String(itemId || '').trim();
+        const safeStackId = String(stackId || '').trim();
         const price = normalizeBlackMarketPrice(priceValue);
         if (!safeItemId || !price) {
             return { ok: false, status: 400, error: '価格は1-9999Gの整数で入力してください。' };
@@ -1155,7 +1709,26 @@ function initializeInventoryRoutes(app, deps) {
             return { ok: false, status: 400, error: `${itemName}は出品できる所持数が足りません。` };
         }
 
-        const snapshot = buildBlackMarketItemSnapshot(safeItemId);
+        const selectedInventoryItem = safeStackId
+            ? inventoryItems.find((item) => (
+                getInventoryItemId(item) === safeItemId
+                && getInventoryStackId(item) === safeStackId
+                && getInventoryStackAmount(item) > 0
+            ))
+            : inventoryItems.find((item) => (
+                getInventoryItemId(item) === safeItemId
+                && getInventoryStackAmount(item) > 0
+                && getEquipmentEnhancementBonus(item) <= 0
+                && !isExactEquipmentStackReserved(getInventoryStackId(item), sellContext)
+            ));
+        if (!selectedInventoryItem) {
+            return { ok: false, status: 400, error: '指定した商品個体は出品できません。' };
+        }
+        if (isExactEquipmentStackReserved(getInventoryStackId(selectedInventoryItem), sellContext)) {
+            return { ok: false, status: 400, error: '装備中の個体は出品できません。' };
+        }
+
+        const snapshot = buildBlackMarketItemSnapshot(safeItemId, selectedInventoryItem);
         const origin = await pickBlackMarketOriginForListing(playFabId, safeItemId, snapshot.itemData);
         const sellerDisplayName = await getPlayerDisplayName(playFabId);
         const listingRef = collection.doc();
@@ -1164,10 +1737,12 @@ function initializeInventoryRoutes(app, deps) {
             sellerPlayFabId: playFabId,
             sellerDisplayName: sellerDisplayName || playFabId,
             itemId: safeItemId,
+            stackId: getInventoryStackId(selectedInventoryItem),
             itemName: snapshot.itemName,
             description: snapshot.description,
             category: snapshot.category,
             itemData: snapshot.itemData,
+            displayProperties: snapshot.displayProperties,
             price,
             status: 'creating',
             originPlayFabId: origin?.playFabId || '',
@@ -1275,9 +1850,15 @@ function initializeInventoryRoutes(app, deps) {
         if (!listing || listing.status !== 'cancelling') return listing;
         if (!listing.returnGranted) {
             try {
-                await addEconomyItem(listing.sellerPlayFabId, listing.itemId, 1, {
-                    idempotencyId: `black-market-cancel-return-${listing.listingId}`
-                });
+                if (Object.keys(listing.displayProperties || {}).length) {
+                    await addEconomyStack(listing.sellerPlayFabId, listing.itemId, listing.displayProperties, {
+                        idempotencyId: `black-market-cancel-return-${listing.listingId}`
+                    });
+                } else {
+                    await addEconomyItem(listing.sellerPlayFabId, listing.itemId, 1, {
+                        idempotencyId: `black-market-cancel-return-${listing.listingId}`
+                    });
+                }
                 await patchBlackMarketListing(listing.listingId, { returnGranted: true, lastError: '' });
             } catch (error) {
                 await patchBlackMarketListing(listing.listingId, {
@@ -1492,9 +2073,15 @@ function initializeInventoryRoutes(app, deps) {
 
         if (!listing.buyerItemGranted) {
             try {
-                await addEconomyItem(listing.buyerPlayFabId, listing.itemId, 1, {
-                    idempotencyId: `black-market-buy-item-${listing.listingId}-${listing.buyerPlayFabId}`
-                });
+                if (Object.keys(listing.displayProperties || {}).length) {
+                    await addEconomyStack(listing.buyerPlayFabId, listing.itemId, listing.displayProperties, {
+                        idempotencyId: `black-market-buy-item-${listing.listingId}-${listing.buyerPlayFabId}`
+                    });
+                } else {
+                    await addEconomyItem(listing.buyerPlayFabId, listing.itemId, 1, {
+                        idempotencyId: `black-market-buy-item-${listing.listingId}-${listing.buyerPlayFabId}`
+                    });
+                }
                 await patchBlackMarketListing(listing.listingId, {
                     buyerItemGranted: true,
                     settlementStatus: 'ownershipPending',
@@ -1789,6 +2376,45 @@ function initializeInventoryRoutes(app, deps) {
         };
     }
 
+    app.post('/api/equipment-enhancement/preview', async (req, res) => {
+        let { playFabId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
+        try {
+            const context = await buildEquipmentEnhancementContext(playFabId, req.body || {});
+            return res.json(buildEquipmentEnhancementPreview(context));
+        } catch (error) {
+            console.error('[equipment-enhancement/preview] error:', error?.errorMessage || error?.message || error);
+            const statusCode = Number.isInteger(error?.status) ? error.status : 500;
+            return res.status(statusCode).json({
+                error: statusCode < 500 ? error.message : '強化内容の確認に失敗しました。',
+                details: error?.errorMessage || error?.message || String(error)
+            });
+        }
+    });
+
+    app.post('/api/equipment-enhancement/apply', async (req, res) => {
+        let { playFabId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
+        try {
+            return res.json(await applyEquipmentEnhancement(playFabId, req.body || {}));
+        } catch (error) {
+            console.error('[equipment-enhancement/apply] error:', error?.errorMessage || error?.message || error);
+            const isConflict = ['ETagMismatch', 'ConcurrentWrite', 'PreconditionFailed'].includes(error?.apiErrorInfo?.apiError)
+                || /etag|concurrent|precondition/i.test(String(error?.errorMessage || error?.message || ''));
+            const statusCode = Number.isInteger(error?.status) ? error.status : (isConflict ? 409 : 500);
+            return res.status(statusCode).json({
+                error: Number.isInteger(error?.status)
+                    ? error.message
+                    : (isConflict ? '持ち物が更新されました。再読み込みしてやり直してください。' : '装備の強化に失敗しました。'),
+                details: error?.errorMessage || error?.message || String(error)
+            });
+        }
+    });
+
     // インベントリ取得
     app.post('/api/get-inventory', async (req, res) => {
         let { playFabId } = req.body;
@@ -1802,27 +2428,48 @@ function initializeInventoryRoutes(app, deps) {
             const contributionProgress = calculateLevelFromContribution(experience);
             const entityKey = await getEntityKeyForPlayFabId(playFabId);
             const items = await getAllInventoryItems(entityKey);
+            await reconcilePendingEquipmentEnhancement(playFabId, items).catch((error) => {
+                console.warn('[equipment-enhancement] pending equipment reconciliation failed:', error?.errorMessage || error?.message || error);
+            });
             const itemMap = new Map();
             items.forEach((item) => {
                 const itemId = item?.Id || item?.ItemId;
                 if (!itemId || getCurrencyIdFromItem(item, catalogCache)) return;
-                const catalogData = normalizeCatalogDisplayData(itemId, catalogCache[itemId] || {});
+                const baseCatalogData = normalizeCatalogDisplayData(itemId, catalogCache[itemId] || {});
+                const enhanced = applyEquipmentEnhancementToCatalogData(itemId, baseCatalogData, item);
+                const catalogData = enhanced.catalogData;
+                const enhancement = enhanced.enhancement;
                 const name = catalogData.DisplayName || catalogData.Title || itemId;
-                const rawAmount = item?.Amount ?? item?.amount;
-                const amount = rawAmount == null ? 1 : (Number(rawAmount) || 0);
+                const amount = getInventoryStackAmount(item);
                 if (amount <= 0) return;
-                if (itemMap.has(itemId)) {
-                    const existing = itemMap.get(itemId);
+                const stackId = getInventoryStackId(item);
+                const isEnhancedStack = enhancement.storedBonus > 0 && !!stackId;
+                const mapKey = isEnhancedStack ? `${itemId}::${stackId}` : itemId;
+                const stackRecord = {
+                    stackId,
+                    count: amount,
+                    enhancement: {
+                        bonus: enhancement.storedBonus,
+                        contribution: enhancement.contribution
+                    }
+                };
+                if (itemMap.has(mapKey)) {
+                    const existing = itemMap.get(mapKey);
                     existing.count += amount;
-                    if (item?.StackId) existing.instances.push(item.StackId);
+                    if (stackId) existing.instances.push(stackId);
+                    if (stackId) existing.stacks.push(stackRecord);
                 } else {
-                    itemMap.set(itemId, {
+                    itemMap.set(mapKey, {
                         name,
                         count: amount,
                         itemId,
                         description: catalogData.Description || '',
-                        instances: item?.StackId ? [item.StackId] : [],
-                        customData: catalogData
+                        stackId: isEnhancedStack ? stackId : '',
+                        instances: stackId ? [stackId] : [],
+                        stacks: stackId ? [stackRecord] : [],
+                        customData: catalogData,
+                        enhancement,
+                        materialEligible: enhancement.materialEligible
                     });
                 }
             });
@@ -1879,10 +2526,11 @@ function initializeInventoryRoutes(app, deps) {
 
     // 装備設定
     app.post('/api/equip-item', async (req, res) => {
-        let { playFabId, itemId, slot } = req.body;
+        let { playFabId, itemId, stackId, slot } = req.body;
         if (!playFabId || !slot) return res.status(400).json({ error: 'IDまたはスロット情報がありません。' });
         playFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!playFabId) return;
+        stackId = String(stackId || '').trim();
 
         const validSlots = {
             RightHand: 'Equipped_RightHand',
@@ -1902,6 +2550,18 @@ function initializeInventoryRoutes(app, deps) {
         const dataToUpdate = {};
 
         if (itemId) {
+            if (stackId) {
+                const entityKey = await getEntityKeyForPlayFabId(playFabId);
+                const inventoryItems = await getAllInventoryItems(entityKey);
+                const ownedStack = inventoryItems.find((entry) => (
+                    getInventoryStackId(entry) === stackId
+                    && getInventoryItemId(entry) === String(itemId)
+                    && getInventoryStackAmount(entry) > 0
+                ));
+                if (!ownedStack) {
+                    return res.status(400).json({ error: '指定した装備個体を所持していません。' });
+                }
+            }
             const itemData = normalizeCatalogDisplayData(itemId, catalogCache[itemId]);
             const normalizedCategory = String(itemData?.Category || '').trim();
             const isTwoHandedWeapon = isTwoHandedCatalogWeapon(itemId, itemData);
@@ -1935,25 +2595,33 @@ function initializeInventoryRoutes(app, deps) {
                     PlayFabId: playFabId,
                     Keys: [oppositeKey]
                 });
-                const oppositeItemId = getStoredEquipmentItemId(currentEquipmentResult?.Data?.[oppositeKey]?.Value || null);
+                const oppositeRawValue = currentEquipmentResult?.Data?.[oppositeKey]?.Value || null;
+                const oppositeItemId = getStoredEquipmentItemId(oppositeRawValue);
+                const oppositeStackId = getStoredEquipmentStackId(oppositeRawValue);
+                if (stackId && oppositeStackId && stackId === oppositeStackId) {
+                    return res.status(400).json({ error: '同じ装備個体を両手に装備することはできません。' });
+                }
                 if (oppositeItemId && oppositeItemId === itemId) {
                     const ownedCount = await getOwnedInventoryItemCount(playFabId, itemId);
-                    if (ownedCount < 2) {
+                    const hasDistinctExactStacks = !!stackId && !!oppositeStackId && stackId !== oppositeStackId;
+                    if (!hasDistinctExactStacks && ownedCount < 2) {
                         return res.status(400).json({
                             error: '同じ片手武器を両手に装備するには2本必要です。'
                         });
                     }
                 }
             }
-            dataToUpdate[dataKey] = itemId;
+            const storedEquipmentValue = buildStoredEquipmentValue(itemId, stackId);
+            dataToUpdate[dataKey] = storedEquipmentValue;
             if (itemData && isTwoHandedWeapon) {
                 console.log(`[装備] 両手武器 (${itemId}) を装備します`);
-                dataToUpdate['Equipped_RightHand'] = itemId;
+                dataToUpdate['Equipped_RightHand'] = storedEquipmentValue;
                 dataToUpdate['Equipped_LeftHand'] = null;
             }
         } else {
             const currentEquipmentResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, { PlayFabId: playFabId, Keys: ["Equipped_RightHand"] });
-            const currentRightHandId = currentEquipmentResult.Data && currentEquipmentResult.Data.Equipped_RightHand ? currentEquipmentResult.Data.Equipped_RightHand.Value : null;
+            const currentRightHandValue = currentEquipmentResult.Data && currentEquipmentResult.Data.Equipped_RightHand ? currentEquipmentResult.Data.Equipped_RightHand.Value : null;
+            const currentRightHandId = getStoredEquipmentItemId(currentRightHandValue);
             const itemData = currentRightHandId ? normalizeCatalogDisplayData(currentRightHandId, catalogCache[currentRightHandId]) : null;
 
             if (slot === 'RightHand' && isTwoHandedCatalogWeapon(currentRightHandId, itemData)) {
@@ -1974,7 +2642,7 @@ function initializeInventoryRoutes(app, deps) {
                 Permission: "Public"
             });
             console.log('[装備] 更新完了');
-            res.json({ status: 'success', equippedItem: itemId });
+            res.json({ status: 'success', equippedItem: itemId, stackId: stackId || null });
         } catch (error) {
             console.error('[装備] エラー', error.errorMessage);
             res.status(500).json({ error: '装備の更新に失敗しました。', details: error.errorMessage });
@@ -1989,6 +2657,9 @@ function initializeInventoryRoutes(app, deps) {
         if (!playFabId) return;
         console.log(`[装備取得] ${playFabId} の装備を取得します...`);
         try {
+            await reconcilePendingEquipmentEnhancement(playFabId).catch((error) => {
+                console.warn('[equipment-enhancement] equipment reconciliation failed:', error?.errorMessage || error?.message || error);
+            });
             const equipmentKeys = [
                 'Equipped_RightHand',
                 'Equipped_LeftHand',
@@ -2043,13 +2714,16 @@ function initializeInventoryRoutes(app, deps) {
                 'Equipped_Armor',
                 'Equipped_Accessory'
             ];
-            const [profileResult, readOnlyResult, statsResult] = await Promise.all([
+            const [profileResult, readOnlyResult, statsResult, targetInventoryItems] = await Promise.all([
                 promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
                     PlayFabId: targetId,
                     ProfileConstraints: { ShowDisplayName: true, ShowAvatarUrl: true }
                 }),
                 getPlayerReadOnlyData(targetId, readOnlyKeys),
-                promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: targetId })
+                promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: targetId }),
+                getEntityKeyForPlayFabId(targetId)
+                    .then((entityKey) => getAllInventoryItems(entityKey))
+                    .catch(() => [])
             ]);
             const readOnlyData = readOnlyResult?.Data || {};
             const stats = buildStatsMapFromStatistics(statsResult?.Statistics || []);
@@ -2059,7 +2733,7 @@ function initializeInventoryRoutes(app, deps) {
             const assignEquipmentValue = (slotName, rawValue) => {
                 const parsed = parseStoredEquipmentValue(rawValue);
                 if (parsed === null || parsed === undefined || parsed === '') return;
-                equipment[slotName] = parsed;
+                equipment[slotName] = buildPublicEquipmentItem(parsed, targetInventoryItems) || parsed;
             };
             assignEquipmentValue('RightHand', readOnlyData?.Equipped_RightHand?.Value || null);
             assignEquipmentValue('LeftHand', readOnlyData?.Equipped_LeftHand?.Value || null);
@@ -2705,7 +3379,7 @@ function initializeInventoryRoutes(app, deps) {
 
         try {
             const itemData = normalizeCatalogDisplayData(itemId, catalogCache[itemId] || {});
-            const result = await sellInventoryItems(playFabId, [{ itemId, amount: 1 }]);
+            const result = await sellInventoryItems(playFabId, [{ itemId, stackId: itemInstanceId, amount: 1 }]);
             if (!result.ok) {
                 return res.status(result.status || 400).json({ error: result.error || 'このアイテムは売却できません。' });
             }
@@ -2798,12 +3472,12 @@ function initializeInventoryRoutes(app, deps) {
     });
 
     app.post('/api/black-market/create', async (req, res) => {
-        let { playFabId, itemId, price } = req.body || {};
+        let { playFabId, itemId, stackId, price } = req.body || {};
         if (!playFabId || !itemId) return res.status(400).json({ error: '出品するアイテムを選んでください。' });
         playFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!playFabId) return;
         try {
-            const result = await createBlackMarketListing(playFabId, itemId, price);
+            const result = await createBlackMarketListing(playFabId, itemId, stackId, price);
             if (!result.ok) return res.status(result.status || 400).json({ error: result.error });
             return res.json({ status: 'success', message: '闇市に出品しました。', ...result });
         } catch (error) {
