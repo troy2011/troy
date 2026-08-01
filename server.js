@@ -11,6 +11,10 @@ const admin = require('firebase-admin');
 const { geohashForLocation } = require('geofire-common');
 const { buildAuthHelpers } = require('./server/auth');
 const { normalizeDisplayEvent } = require('./server/displayEvents');
+const {
+    loadLineFriendBonusStatus,
+    normalizeServiceErrorMessage
+} = require('./server/lineFriendBonus');
 
 // PlayFab モジュール
 const {
@@ -1543,28 +1547,19 @@ app.post('/api/get-line-friend-bonus-status', async (req, res) => {
     const authenticatedPlayFabId = await requireAuthenticatedPlayFabId(req, res, playFabId);
     if (!authenticatedPlayFabId) return;
 
-    try {
-        const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-            PlayFabId: authenticatedPlayFabId,
-            Keys: ['LineFriendBonusClaimedAt', 'LineFriendBonusAmount', 'lineUserId']
-        });
-        const claimedAt = String(readOnly?.Data?.LineFriendBonusClaimedAt?.Value || '').trim();
-        const claimedAmount = Math.max(0, Math.floor(Number(readOnly?.Data?.LineFriendBonusAmount?.Value || 0) || 0));
-        const linkedLineUserId = String(readOnly?.Data?.lineUserId?.Value || '').trim();
-        return res.json({
-            eligible: !!linkedLineUserId && LINE_FRIEND_BONUS_PS > 0,
-            linkedLineUserId: !!linkedLineUserId,
-            rewardAmount: LINE_FRIEND_BONUS_PS,
-            claimed: !!claimedAt,
-            claimedAt: claimedAt || '',
-            claimedAmount,
-            addFriendUrl: LINE_OFFICIAL_ADD_FRIEND_URL
-        });
-    } catch (error) {
-        const message = error?.errorMessage || error?.message || String(error);
-        console.error('[get-line-friend-bonus-status] Error:', message);
-        return res.status(500).json({ error: 'Failed to get line friend bonus status', details: message });
+    const result = await loadLineFriendBonusStatus(authenticatedPlayFabId, {
+        promisifyPlayFab,
+        PlayFabServer,
+        rewardAmount: LINE_FRIEND_BONUS_PS,
+        addFriendUrl: LINE_OFFICIAL_ADD_FRIEND_URL
+    });
+    if (result.error) {
+        console.warn(
+            '[get-line-friend-bonus-status] Temporarily unavailable:',
+            normalizeServiceErrorMessage(result.error)
+        );
     }
+    return res.json(result.status);
 });
 
 app.post('/api/claim-line-friend-bonus', async (req, res) => {
