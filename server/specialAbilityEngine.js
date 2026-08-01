@@ -5,6 +5,16 @@ const creatureAssessment = require('./data/special-ability-creatures.json');
 
 const ABILITY_BY_ID = new Map(catalog.abilities.map((ability) => [ability.id, ability]));
 const PUBLIC_AFFINITY_LABELS = new Set(['操作', '特質', '変化', '具現化', '強化', '放出']);
+const PERSONALITY_AXIS_LABELS = Object.freeze({
+    E: '外向',
+    I: '内向',
+    S: '感覚',
+    N: '直感',
+    T: '思考',
+    F: '感情',
+    J: '判断',
+    P: '知覚'
+});
 
 const AXES = Object.freeze(['E', 'S', 'T', 'J']);
 const ASSESSMENT_VERSION = 3;
@@ -279,6 +289,15 @@ function selectLeastUsedAbility(candidates, assignmentCounts = {}, assessmentId 
         ))[0];
 }
 
+function getPublicPersonalityType(rawType) {
+    const code = String(rawType?.code || rawType || '').trim().toUpperCase();
+    if (!/^(E|I)(S|N)(T|F)(J|P)$/.test(code)) return null;
+    return {
+        code,
+        traits: [...code].map((letter) => PERSONALITY_AXIS_LABELS[letter]).join('・')
+    };
+}
+
 function getPublicAbility(rawAbility) {
     const catalogAbility = ABILITY_BY_ID.get(String(rawAbility?.abilityId || rawAbility?.id || '').trim());
     const name = String(catalogAbility?.name || rawAbility?.name || '').trim().slice(0, 40);
@@ -286,8 +305,11 @@ function getPublicAbility(rawAbility) {
     const effect = String(catalogAbility?.effect || rawAbility?.effect || '').trim().slice(0, 240);
     const rule = String(catalogAbility?.rule || rawAbility?.rule || '').trim().slice(0, 160);
     const affinity = String(catalogAbility?.affinityLabel || rawAbility?.affinityLabel || '').trim();
+    const personalityType = getPublicPersonalityType(
+        rawAbility?.personalityType || rawAbility?.internal?.type || rawAbility?.type
+    );
     return name && alias && effect && rule && PUBLIC_AFFINITY_LABELS.has(affinity)
-        ? { name, alias, effect, rule, affinity }
+        ? { name, alias, effect, rule, affinity, personalityType }
         : null;
 }
 
@@ -314,6 +336,7 @@ module.exports = {
     evaluateAnswers,
     getComplexityAdjustedRatio,
     getPublicAbility,
+    getPublicPersonalityType,
     getQuestion,
     getResponseRatio,
     getResponseWeight,

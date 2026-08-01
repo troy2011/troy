@@ -59,6 +59,9 @@ function getPlayerProfileModalElements() {
         statAllocation: document.getElementById('playerProfileStatAllocation'),
         specialAbility: document.getElementById('playerProfileSpecialAbility'),
         specialAbilityAffinity: document.getElementById('playerProfileSpecialAbilityAffinity'),
+        personalityType: document.getElementById('playerProfilePersonalityType'),
+        personalityTypeCode: document.getElementById('playerProfilePersonalityTypeCode'),
+        personalityTypeTraits: document.getElementById('playerProfilePersonalityTypeTraits'),
         specialAbilityName: document.getElementById('playerProfileSpecialAbilityName'),
         specialAbilityAlias: document.getElementById('playerProfileSpecialAbilityAlias'),
         specialAbilityEffect: document.getElementById('playerProfileSpecialAbilityEffect'),
@@ -766,6 +769,9 @@ function renderProfileSpecialAbility(ability) {
     const {
         specialAbility,
         specialAbilityAffinity,
+        personalityType,
+        personalityTypeCode,
+        personalityTypeTraits,
         specialAbilityName,
         specialAbilityAlias,
         specialAbilityEffect,
@@ -777,9 +783,15 @@ function renderProfileSpecialAbility(ability) {
     const alias = String(ability?.alias || '').trim();
     const effect = String(ability?.effect || '').trim();
     const rule = String(ability?.rule || '').trim();
+    const typeCode = String(ability?.personalityType?.code || '').trim().toUpperCase();
+    const typeTraits = String(ability?.personalityType?.traits || '').trim();
+    const hasPersonalityType = /^(E|I)(S|N)(T|F)(J|P)$/.test(typeCode) && typeTraits;
     if (!affinity || !name || !alias || !effect || !rule) {
         specialAbility.hidden = true;
         if (specialAbilityAffinity) specialAbilityAffinity.textContent = '';
+        if (personalityType) personalityType.hidden = true;
+        if (personalityTypeCode) personalityTypeCode.textContent = '';
+        if (personalityTypeTraits) personalityTypeTraits.textContent = '';
         if (specialAbilityName) specialAbilityName.textContent = '';
         if (specialAbilityAlias) specialAbilityAlias.textContent = '';
         if (specialAbilityEffect) specialAbilityEffect.textContent = '';
@@ -788,6 +800,9 @@ function renderProfileSpecialAbility(ability) {
     }
     specialAbility.hidden = false;
     if (specialAbilityAffinity) specialAbilityAffinity.textContent = `${affinity}系`;
+    if (personalityType) personalityType.hidden = !hasPersonalityType;
+    if (personalityTypeCode) personalityTypeCode.textContent = hasPersonalityType ? typeCode : '';
+    if (personalityTypeTraits) personalityTypeTraits.textContent = hasPersonalityType ? typeTraits : '';
     if (specialAbilityName) specialAbilityName.textContent = name;
     if (specialAbilityAlias) specialAbilityAlias.textContent = alias;
     if (specialAbilityEffect) specialAbilityEffect.textContent = effect;

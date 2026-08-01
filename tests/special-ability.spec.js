@@ -10,6 +10,7 @@ const {
   catalog,
   evaluateAnswers,
   getComplexityAdjustedRatio,
+  getPublicPersonalityType,
   getQuestion,
   getResponseRatio,
   getResponseWeight,
@@ -329,6 +330,18 @@ test('365 abilities have complete coverage and deterministic least-used assignme
   expect(reachableAbilities.size).toBe(365);
 });
 
+test('public personality types expose only the code and four readable axes', () => {
+  expect(getPublicPersonalityType('INTJ')).toEqual({
+    code: 'INTJ',
+    traits: '内向・直感・思考・判断'
+  });
+  expect(getPublicPersonalityType('ESFP')).toEqual({
+    code: 'ESFP',
+    traits: '外向・感覚・感情・知覚'
+  });
+  expect(getPublicPersonalityType('INVALID')).toBeNull();
+});
+
 test('signed assessment tokens reject tampering and expiration', () => {
   const secret = 'test-secret-that-is-long-enough';
   const now = 10_000;
@@ -371,6 +384,51 @@ test('v3 storage does not revive discarded legacy ability data', () => {
     rule: ability.rule,
     affinity: ability.affinityLabel
   }));
+});
+
+test('existing V3 judgments backfill the public personality type once', async () => {
+  const ability = catalog.abilities[0];
+  const firestore = createFirestore(['LEGACY_TYPE']);
+  const playFab = createPlayFab();
+  const assignedAt = '2026-07-01T00:00:00.000Z';
+  playFab.values.set('LEGACY_TYPE', JSON.stringify({
+    version: ASSESSMENT_VERSION,
+    abilityId: ability.id,
+    assignedAt
+  }));
+  firestore.documents.set('special_ability_judgments/LEGACY_TYPE', {
+    version: ASSESSMENT_VERSION,
+    status: 'confirmed',
+    playFabId: 'LEGACY_TYPE',
+    abilityId: ability.id,
+    name: ability.name,
+    alias: ability.alias,
+    effect: ability.effect,
+    rule: ability.rule,
+    affinityLabel: ability.affinityLabel,
+    assignedAt,
+    internal: { type: 'INTJ' }
+  });
+  const invoke = createRouteHarness({ firestore, ...playFab }, {
+    enabled: true,
+    signingSecret: 'legacy-type-backfill-secret'
+  });
+
+  const firstStatus = await invoke('POST', '/api/special-ability/status', {
+    customerRef: 'TROY:LEGACY_TYPE'
+  });
+  expect(firstStatus.status).toBe(200);
+  expect(firstStatus.body.ability.personalityType).toEqual({
+    code: 'INTJ',
+    traits: '内向・直感・思考・判断'
+  });
+  expect(playFab.writeCount).toBe(1);
+
+  const secondStatus = await invoke('POST', '/api/special-ability/status', {
+    customerRef: 'TROY:LEGACY_TYPE'
+  });
+  expect(secondStatus.body.ability.personalityType.code).toBe('INTJ');
+  expect(playFab.writeCount).toBe(1);
 });
 
 test('disabled feature only exposes a disabled config response', async () => {
@@ -535,10 +593,14 @@ test('LINE-unlinked customer can complete once and concurrent finalization store
       alias: expect.any(String),
       effect: expect.any(String),
       rule: expect.any(String),
-      affinity: expect.stringMatching(/^(操作|特質|変化|具現化|強化|放出)$/)
+      affinity: expect.stringMatching(/^(操作|特質|変化|具現化|強化|放出)$/),
+      personalityType: {
+        code: expect.stringMatching(/^(E|I)(S|N)(T|F)(J|P)$/),
+        traits: expect.any(String)
+      }
     }
   });
-  expect(JSON.stringify(completed)).not.toMatch(/INTJ|tempo|score|type/);
+  expect(JSON.stringify(completed)).not.toMatch(/tempo|scores?/);
 
   const writesBeforeStatus = firestore.writeCount;
   const status = await invoke('POST', '/api/special-ability/status', { customerRef: 'TROY:NO_LINE' });
@@ -660,7 +722,11 @@ test('a lost PlayFab response reconciles the stored result instead of assigning 
     alias: expect.any(String),
     effect: expect.any(String),
     rule: expect.any(String),
-    affinity: expect.stringMatching(/^(操作|特質|変化|具現化|強化|放出)$/)
+    affinity: expect.stringMatching(/^(操作|特質|変化|具現化|強化|放出)$/),
+    personalityType: {
+      code: expect.stringMatching(/^(E|I)(S|N)(T|F)(J|P)$/),
+      traits: expect.any(String)
+    }
   });
   expect(playFab.writeCount).toBe(1);
   expect(firestore.documents.get('special_ability_judgments/CUSTOMER123').status).toBe('confirmed');
@@ -709,7 +775,8 @@ test('PlayFab remains authoritative when Firestore lock data is missing or incon
     alias: actualAbility.alias,
     effect: actualAbility.effect,
     rule: actualAbility.rule,
-    affinity: actualAbility.affinityLabel
+    affinity: actualAbility.affinityLabel,
+    personalityType: null
   });
   expect(firestore.documents.get('special_ability_judgments/CUSTOMER123').abilityId).toBe(actualAbility.id);
   const counts = firestore.documents.get(ASSIGNMENT_STATE_PATH).counts;

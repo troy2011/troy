@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'troy-app-v20260724n';
+const CACHE_VERSION = 'troy-app-v20260801a';
 const CORE_CACHE = `troy-core-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `troy-runtime-${CACHE_VERSION}`;
 

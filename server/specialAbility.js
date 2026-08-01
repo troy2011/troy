@@ -6,6 +6,7 @@ const {
     catalog,
     deriveAssessment,
     getPublicAbility,
+    getPublicPersonalityType,
     getQuestion,
     selectLeastUsedAbility
 } = require('./specialAbilityEngine');
@@ -166,7 +167,7 @@ async function readPlayFabAbility(playFabId, deps) {
     return parseStoredAbilityValue(result?.Data?.[PLAYFAB_DATA_KEY]?.Value);
 }
 
-async function writePlayFabAbility(playFabId, ability, assignedAt, deps) {
+async function writePlayFabAbility(playFabId, ability, assignedAt, personalityType, deps) {
     if (!deps?.promisifyPlayFab || !deps?.PlayFabServer?.UpdateUserReadOnlyData) {
         throw new Error('PlayFab read-only data is not configured');
     }
@@ -178,6 +179,7 @@ async function writePlayFabAbility(playFabId, ability, assignedAt, deps) {
         effect: ability.effect,
         rule: ability.rule,
         affinityLabel: ability.affinityLabel,
+        personalityType: getPublicPersonalityType(personalityType)?.code || undefined,
         assignedAt
     };
     await deps.promisifyPlayFab(deps.PlayFabServer.UpdateUserReadOnlyData, {
@@ -234,6 +236,7 @@ async function reserveJudgment({ playFabId, assessmentId, derivation, reservatio
             rule: selectedAbility.rule,
             affinity: selectedAbility.affinity,
             affinityLabel: selectedAbility.affinityLabel,
+            personalityType: derivation.type,
             assignedAt,
             reservedAt: new Date(nowMs),
             updatedAt: new Date(nowMs),
@@ -294,6 +297,9 @@ async function repairConfirmedJudgment(playFabId, storedAbility, nowMs, deps) {
         const judgmentSnap = await transaction.get(judgmentRef);
         const existing = judgmentSnap?.exists ? (judgmentSnap.data?.() || {}) : null;
         const abilityId = String(storedAbility.abilityId || existing?.abilityId || '').trim();
+        const storedPersonalityType = getPublicPersonalityType(storedAbility.personalityType);
+        const existingPersonalityType = getPublicPersonalityType(existing?.personalityType || existing?.internal?.type);
+        const personalityTypeCode = storedPersonalityType?.code || existingPersonalityType?.code || '';
         const isAlreadyConsistent = existing?.status === 'confirmed'
             && Number(existing.version) === ASSESSMENT_VERSION
             && String(existing.playFabId || '') === playFabId
@@ -302,7 +308,8 @@ async function repairConfirmedJudgment(playFabId, storedAbility, nowMs, deps) {
             && String(existing.alias || '') === storedAbility.alias
             && String(existing.effect || '') === storedAbility.effect
             && String(existing.rule || '') === storedAbility.rule
-            && String(existing.affinityLabel || '') === storedAbility.affinity;
+            && String(existing.affinityLabel || '') === storedAbility.affinity
+            && String(existing.personalityType || '') === personalityTypeCode;
         if (isAlreadyConsistent) return false;
 
         const stateSnap = await transaction.get(stateRef);
@@ -329,12 +336,35 @@ async function repairConfirmedJudgment(playFabId, storedAbility, nowMs, deps) {
             effect: storedAbility.effect,
             rule: storedAbility.rule,
             affinityLabel: storedAbility.affinity,
+            ...(personalityTypeCode ? { personalityType: personalityTypeCode } : {}),
             assignedAt: storedAbility.assignedAt || existing?.assignedAt || new Date(nowMs).toISOString(),
             confirmedAt: existing?.confirmedAt || new Date(nowMs),
             updatedAt: new Date(nowMs)
         });
         return true;
     });
+}
+
+async function backfillPlayFabPersonalityType(playFabId, storedAbility, deps) {
+    if (!storedAbility || storedAbility.personalityType?.code || !deps?.firestore) return storedAbility;
+    try {
+        const { judgmentRef } = getFirestoreRefs(playFabId, deps);
+        const snapshot = await judgmentRef.get();
+        const judgment = snapshot?.exists ? (snapshot.data?.() || {}) : null;
+        const personalityType = getPublicPersonalityType(judgment?.personalityType || judgment?.internal?.type);
+        const catalogAbility = catalog.abilities.find((ability) => ability.id === storedAbility.abilityId);
+        if (!personalityType || !catalogAbility) return storedAbility;
+        return await writePlayFabAbility(
+            playFabId,
+            catalogAbility,
+            storedAbility.assignedAt || judgment?.assignedAt || new Date().toISOString(),
+            personalityType.code,
+            deps
+        );
+    } catch (error) {
+        console.warn('[special-ability] Personality type backfill failed:', error?.errorMessage || error?.message || error);
+        return storedAbility;
+    }
 }
 
 async function clearStaleReservation(playFabId, nowMs, deps) {
@@ -441,8 +471,9 @@ function initializeSpecialAbilityRoutes(app, deps = {}, options = {}) {
             const customer = await resolveStoreCustomer(req.body?.customerRef, deps);
             if (!customer.playFabId || customer.error) throw new SpecialAbilityError(400, customer.error || 'お客様を選択してください', 'invalid_customer');
             const nowMs = now();
-            const ability = await readPlayFabAbility(customer.playFabId, deps);
+            let ability = await readPlayFabAbility(customer.playFabId, deps);
             if (ability) {
+                ability = await backfillPlayFabPersonalityType(customer.playFabId, ability, deps);
                 await repairConfirmedJudgment(customer.playFabId, ability, nowMs, deps);
                 return res.json({ success: true, state: 'completed', ability: getPublicAbility(ability) });
             }
@@ -462,8 +493,9 @@ function initializeSpecialAbilityRoutes(app, deps = {}, options = {}) {
             const customer = await resolveStoreCustomer(req.body?.customerRef, deps);
             if (!customer.playFabId || customer.error) throw new SpecialAbilityError(400, customer.error || 'お客様を選択してください', 'invalid_customer');
             const nowMs = now();
-            const existingAbility = await readPlayFabAbility(customer.playFabId, deps);
+            let existingAbility = await readPlayFabAbility(customer.playFabId, deps);
             if (existingAbility) {
+                existingAbility = await backfillPlayFabPersonalityType(customer.playFabId, existingAbility, deps);
                 await repairConfirmedJudgment(customer.playFabId, existingAbility, nowMs, deps);
                 throw new SpecialAbilityError(409, 'このお客様はすでに特殊能力判定を完了しています', 'already_completed');
             }
@@ -565,6 +597,7 @@ function initializeSpecialAbilityRoutes(app, deps = {}, options = {}) {
                     payload.playFabId,
                     reservation.ability,
                     reservation.judgment.assignedAt,
+                    reservation.judgment.personalityType,
                     deps
                 );
             } catch (writeError) {
@@ -598,6 +631,7 @@ module.exports = {
     TOKEN_TTL_MS,
     SpecialAbilityError,
     clearStaleReservation,
+    backfillPlayFabPersonalityType,
     confirmJudgment,
     initializeSpecialAbilityRoutes,
     isFeatureEnabled,
