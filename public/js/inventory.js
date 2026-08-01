@@ -932,11 +932,10 @@ function renderDeckGrid(gridEl, deckItemIds) {
     for (let i = 0; i < MAX_SLOTS; i++) {
         const itemId = deckItemIds[i] || null;
         const item = itemId ? myInventory.find((inv) => inv.itemId === itemId) : null;
-        const cell = document.createElement(item ? 'button' : 'div');
+        const cell = document.createElement('button');
         cell.className = `tarot-loadout-card${item ? '' : ' is-empty'}`;
-        if (item) {
-            cell.type = 'button';
-        }
+        cell.type = 'button';
+        cell.dataset.slotIndex = String(i);
         cell.setAttribute('aria-label', `タロットデッキ ${i + 1}枚目`);
         if (item) {
             cell.classList.add('is-equipped');
@@ -953,7 +952,12 @@ function renderDeckGrid(gridEl, deckItemIds) {
             if (numberBadge) visualEl.appendChild(numberBadge);
             cell.append(visualEl);
         } else {
-            cell.setAttribute('aria-label', `タロットデッキ ${i + 1}枚目 空き`);
+            cell.dataset.targetCategory = 'TarotMinor';
+            cell.setAttribute('aria-label', `タロットデッキ ${i + 1}枚目に追加するカードを選ぶ`);
+            cell.addEventListener('click', () => {
+                switchInventoryTab('TarotMinor');
+                scrollInventoryItemsIntoView({ behavior: 'smooth' });
+            });
             const emptyEl = document.createElement('div');
             emptyEl.className = 'tarot-loadout-cell-empty';
             emptyEl.setAttribute('aria-hidden', 'true');
@@ -981,11 +985,12 @@ function renderShipMajorArcanaGrid(gridEl) {
     for (let i = 0; i < maxSlots; i++) {
         const itemId = myTarotGuardian?.itemId || null;
         const item = itemId ? myInventory.find((inv) => inv.itemId === itemId) : null;
-        const cell = document.createElement(item ? 'button' : 'div');
+        const cell = document.createElement('button');
         cell.className = `tarot-loadout-card${item ? ' is-arcana' : ' is-empty'}`;
+        cell.type = 'button';
+        cell.dataset.slotIndex = String(i);
         cell.setAttribute('aria-label', item ? `${item.name || itemId}の詳細を開く` : '守護アルカナ 空き');
         if (item) {
-            cell.type = 'button';
             cell.classList.add('is-equipped');
             const entry = buildDeckCardEntry(item, itemId);
             cell.dataset.suit = entry.suitKey || 'none';
@@ -998,6 +1003,12 @@ function renderShipMajorArcanaGrid(gridEl) {
             if (numberBadge) visualEl.appendChild(numberBadge);
             cell.append(visualEl);
         } else {
+            cell.dataset.targetCategory = 'TarotMajor';
+            cell.setAttribute('aria-label', '守護アルカナに設定するカードを選ぶ');
+            cell.addEventListener('click', () => {
+                switchInventoryTab('TarotMajor');
+                scrollInventoryItemsIntoView({ behavior: 'smooth' });
+            });
             const emptyEl = document.createElement('div');
             emptyEl.className = 'tarot-loadout-cell-empty';
             emptyEl.setAttribute('aria-hidden', 'true');
@@ -1112,28 +1123,28 @@ function renderTarotDeckPanels() {
 
 function getInventoryTabHint(category) {
     if (category === 'TarotMajor') {
-        return '大アルカナは1枚だけ守護アルカナに設定できます。同じ札を出すと固有スキルが覚醒します。';
+        return '大アルカナは1枚だけ守護アルカナに設定できます。';
     }
     if (category === 'TarotMinor') {
-        return 'カードをタップするとデッキへ追加/解除できます。デッキは5枚までです。';
+        return '小アルカナは5枚までデッキに編成できます。';
     }
     if (category === 'Accessory') {
-        return '候補をタップすると装備/解除できます。詳細はカード下部の i ボタンから確認できます。';
+        return 'アクセサリーは1個装備できます。';
     }
     if (category === 'LeftHand') {
-        return '候補をタップすると左手に装備/解除できます。詳細はカード下部の i ボタンから確認できます。';
+        return '左手用の武器・盾・補助装備です。';
     }
     if (category === 'Offhand') {
-        return '候補をタップすると左手に装備/解除できます。副手は盾とは別系統の補助装備です。';
+        return '副手は左手に装備する補助装備です。';
     }
     if (category === 'Weapon') {
-        return '候補をタップすると右手に装備/解除できます。詳細はカード下部の i ボタンから確認できます。';
+        return '右手と左手に装備できる武器です。';
     }
     if (category === 'Shield') {
-        return '候補をタップすると左手に装備/解除できます。詳細はカード下部の i ボタンから確認できます。';
+        return '盾は左手に装備できます。';
     }
     if (category === 'Armor') {
-        return '候補をタップすると装備/解除できます。詳細はカード下部の i ボタンから確認できます。';
+        return '防具は頭装備として1個装備できます。';
     }
     return '';
 }
@@ -2667,6 +2678,7 @@ export async function moveTarotCardInDeck(playFabId, itemId, deckType, direction
         renderTarotDeckPanels();
         renderInventoryGrid(activeInventoryCategory);
         updateEquipmentBonusDisplay();
+        closeItemDetailModal();
         if (typeof window.showRpgMessage === 'function') {
             window.showRpgMessage(`${deckLabel}の順番を変更した。`);
         }
@@ -3263,6 +3275,8 @@ function createItemDetailActionButton(label, tone, run, options = {}) {
     button.className = `item-detail-action${tone ? ` is-${tone}` : ''}`;
     button.textContent = label;
     button.disabled = !!options.disabled;
+    if (options.ariaLabel) button.setAttribute('aria-label', options.ariaLabel);
+    if (options.title) button.title = options.title;
     if (typeof run === 'function') {
         button.addEventListener('click', async () => {
             if (button.disabled) return;
@@ -3453,6 +3467,20 @@ function showItemDetailModal(item) {
     } else if (isTarotMinorCategory(canonicalCategory)) {
         appendActionNote('小アルカナデッキにセットできます。');
         if (isCardInTarotDeck(equipItemId)) {
+            const tarotDeck = getCommonTarotDeck();
+            const deckIndex = tarotDeck.indexOf(equipItemId);
+            const canMoveLeft = deckIndex > 0;
+            const canMoveRight = deckIndex >= 0 && deckIndex < tarotDeck.length - 1;
+            addAction('←', 'move', () => moveTarotCardInDeck(playFabId, equipItemId, 'tarot', 'left'), {
+                disabled: !canMoveLeft,
+                ariaLabel: 'デッキ内で左へ移動',
+                title: '左へ移動'
+            });
+            addAction('→', 'move', () => moveTarotCardInDeck(playFabId, equipItemId, 'tarot', 'right'), {
+                disabled: !canMoveRight,
+                ariaLabel: 'デッキ内で右へ移動',
+                title: '右へ移動'
+            });
             addAction('デッキから外す', 'remove', () => unequipTarotCardFromDeck(playFabId, equipItemId, 'tarot'));
         } else if (getCommonTarotDeck().length < 5) {
             addAction('デッキに追加', 'equip', () => equipTarotCardToDeck(playFabId, equipItemId, 'tarot'));

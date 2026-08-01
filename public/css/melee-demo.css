@@ -144,6 +144,9 @@ button:disabled {
     --avatar-attack-x: -34px;
     --avatar-attack-recoil-x: -24px;
     --avatar-attack-y: 0px;
+    --avatar-motion-forward-x: -16px;
+    --avatar-motion-recoil-x: 4px;
+    --avatar-motion-lift-y: 0px;
     --avatar-combat-scale: 1;
     --avatar-combat-scale-hit: var(--avatar-combat-scale);
     --avatar-facing-scale-x: 1;
@@ -164,22 +167,6 @@ button:disabled {
 
 .avatar-combat-actor.is-avatar-attacking {
     animation: avatarCombatAttack var(--avatar-attack-duration) cubic-bezier(0.2, 0.76, 0.24, 1) both;
-}
-
-.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-heavy {
-    animation-name: avatarCombatHeavy;
-}
-
-.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-pierce {
-    animation-name: avatarCombatThrust;
-}
-
-.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-ranged {
-    animation-name: avatarCombatRanged;
-}
-
-.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-guard {
-    animation-name: avatarCombatGuard;
 }
 
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-sword {
@@ -276,48 +263,19 @@ button:disabled {
     animation: avatarCombatSlash var(--avatar-attack-duration) ease-out both;
 }
 
-.avatar-combat-actor.is-avatar-weapon-heavy::after {
-    width: 58px;
-    height: 42px;
-    border-top-width: 4px;
-    border-right-width: 3px;
-}
-
-.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-heavy::after {
-    animation-name: avatarCombatHeavySlash;
-}
-
-.avatar-combat-actor.is-avatar-weapon-pierce::after {
-    width: 58px;
-    height: 12px;
-    border-top-width: 2px;
-    border-right: 0;
-    border-radius: 999px;
-}
-
-.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-pierce::after {
-    animation-name: avatarCombatPierceSlash;
-}
-
-.avatar-combat-actor.is-avatar-weapon-ranged::after {
-    left: 32px;
-    top: 26px;
-    width: 22px;
-    height: 22px;
-    border: 0;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 248, 199, 0.98), rgba(251, 191, 36, 0.58) 38%, transparent 70%);
-}
-
-.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-ranged::after {
-    animation-name: avatarCombatMuzzle;
-}
-
 .avatar-combat-actor.is-avatar-weapon-gun::after {
     left: -10px;
     top: 27px;
     width: 14px;
     height: 14px;
+    border: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fffdf0 0 18%, #ffd45d 24%, rgba(255, 132, 32, 0.88) 46%, transparent 72%);
+    filter: drop-shadow(0 0 5px rgba(255, 178, 47, 0.9));
+}
+
+.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-gun::after {
+    animation-name: avatarCombatMuzzle;
 }
 
 .avatar-combat-actor.is-avatar-weapon-gun-big::after {
@@ -325,6 +283,12 @@ button:disabled {
     top: 28px;
     width: 30px;
     height: 30px;
+    border: 0;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle, #fff 0 12%, #fff1a8 18%, #ffb52e 34%, rgba(255, 87, 18, 0.9) 52%, transparent 72%),
+        conic-gradient(from 22deg, transparent 0 8%, rgba(255, 232, 129, 0.92) 10% 14%, transparent 16% 34%, rgba(255, 143, 35, 0.82) 36% 42%, transparent 44% 100%);
+    filter: drop-shadow(0 0 8px rgba(255, 152, 31, 0.96));
 }
 
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-gun-big::after {
@@ -496,18 +460,6 @@ button:disabled {
     transform-origin: 32px 44px;
 }
 
-.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-heavy .avatar-layer[id$="-layer-weapon-right"] {
-    animation-name: avatarWeaponHeavySwing;
-}
-
-.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-pierce .avatar-layer[id$="-layer-weapon-right"] {
-    animation-name: avatarWeaponThrust;
-}
-
-.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-ranged .avatar-layer[id$="-layer-weapon-right"] {
-    animation-name: avatarWeaponRecoil;
-}
-
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-gun .avatar-layer[id$="-layer-weapon-right"] {
     animation-name: avatarWeaponGunRecoil;
     transform-origin: 18px 27px;
@@ -642,11 +594,6 @@ button:disabled {
     animation: avatarHandBowDraw var(--avatar-attack-duration) cubic-bezier(0.2, 0.76, 0.24, 1) both;
 }
 
-.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-guard .avatar-layer[id$="-layer-shield-left"],
-.avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-guard .avatar-layer[id$="-layer-weapon-right"] {
-    animation: avatarWeaponGuard var(--avatar-attack-duration) ease-out both;
-}
-
 .avatar-combat-actor.is-avatar-damaged {
     filter: drop-shadow(0 16px 12px rgba(0, 0, 0, 0.48)) brightness(1.45) saturate(1.25);
 }
@@ -746,54 +693,18 @@ button:disabled {
     }
 }
 
-@keyframes avatarCombatHeavy {
-    0%, 100% {
-        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
-    }
-    30% {
-        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
-    }
-    55% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.12)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
-    }
-}
-
-@keyframes avatarCombatThrust {
-    0%, 100% {
-        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
-    }
-    42% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.14)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
-    }
-    56% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.04)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
-    }
-}
-
-@keyframes avatarCombatRanged {
-    0%, 100% {
-        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
-    }
-    38% {
-        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
-    }
-}
-
-@keyframes avatarCombatGuard {
-    0%, 100% {
-        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
-    }
-    42% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.18)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
-    }
-}
-
 @keyframes avatarCombatPolearm {
     0%, 100% {
         transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    44%, 62% {
-        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    22% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x))) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    46%, 53% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x))) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    70% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x) * 0.16)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
 }
 
@@ -809,36 +720,6 @@ button:disabled {
     62% {
         opacity: 0;
         transform: rotate(-24deg) translateX(-18px) scale(1.12);
-    }
-}
-
-@keyframes avatarCombatHeavySlash {
-    0%, 24%, 100% {
-        opacity: 0;
-        transform: rotate(-48deg) translateX(0) scale(0.42);
-    }
-    44% {
-        opacity: 1;
-        transform: rotate(-48deg) translateX(-8px) scale(1.18);
-    }
-    68% {
-        opacity: 0;
-        transform: rotate(-48deg) translateX(-18px) scale(1.28);
-    }
-}
-
-@keyframes avatarCombatPierceSlash {
-    0%, 30%, 100% {
-        opacity: 0;
-        transform: translateX(0) scaleX(0.24);
-    }
-    48% {
-        opacity: 1;
-        transform: translateX(-14px) scaleX(1.1);
-    }
-    62% {
-        opacity: 0;
-        transform: translateX(-28px) scaleX(1.28);
     }
 }
 
@@ -858,32 +739,32 @@ button:disabled {
 }
 
 @keyframes avatarCombatMuzzle {
-    0%, 34%, 100% {
+    0%, 42%, 100% {
         opacity: 0;
         transform: scale(0.3);
     }
-    46% {
+    46%, 49% {
         opacity: 1;
-        transform: scale(1.1);
+        transform: translateX(-3px) scale(1.28);
     }
-    60% {
+    62% {
         opacity: 0;
-        transform: scale(1.8);
+        transform: translateX(-12px) scale(2);
     }
 }
 
 @keyframes avatarCombatBigMuzzle {
-    0%, 30%, 100% {
+    0%, 43%, 100% {
         opacity: 0;
         transform: translateX(0) scale(0.26);
     }
-    42%, 50% {
+    47%, 55% {
         opacity: 1;
-        transform: translateX(-7px) scale(1.38);
+        transform: translateX(-10px) scale(1.58);
     }
-    66% {
+    68% {
         opacity: 0;
-        transform: translateX(-14px) scale(2.28);
+        transform: translateX(-25px) scale(2.62);
     }
 }
 
@@ -906,17 +787,17 @@ button:disabled {
     0%, 100% {
         transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    20% {
-        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    22% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x) * 0.55)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    36% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.18)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    40% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x) * 0.5)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    46%, 52% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.42)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    50%, 56% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x))) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
     }
-    68% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.10)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    72% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x) * 0.22)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
 }
 
@@ -924,20 +805,17 @@ button:disabled {
     0%, 100% {
         transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    16% {
-        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    12% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x))) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    28%, 36% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.20)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    25% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x) * 0.45)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    48% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.07)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    31%, 36% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x))) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
     }
-    56%, 62% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.14)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
-    }
-    72% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.04)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    50% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x) * 0.18)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
 }
 
@@ -945,17 +823,17 @@ button:disabled {
     0%, 100% {
         transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    22% {
-        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    24% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x))) translateY(calc(var(--avatar-attack-y) + var(--avatar-motion-lift-y))) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    40% {
-        transform: translateX(calc(var(--avatar-attack-start-x) - var(--avatar-attack-x) * 0.03)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    44% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x) * 0.28)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    56%, 64% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.10)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    56%, 63% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x))) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
     }
-    74% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.02)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    78% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x) * 0.16)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
 }
 
@@ -964,16 +842,16 @@ button:disabled {
         transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
     22% {
-        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x))) translateY(calc(var(--avatar-attack-y) + var(--avatar-motion-lift-y))) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    40% {
-        transform: translateX(calc(var(--avatar-attack-start-x) - var(--avatar-attack-x) * 0.02)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    44% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x) * 0.22)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    54%, 62% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.14)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    58%, 64% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x))) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
     }
-    72% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.03)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    78% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x) * 0.18)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
 }
 
@@ -981,14 +859,17 @@ button:disabled {
     0%, 100% {
         transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    24%, 50% {
-        transform: translateX(calc(var(--avatar-attack-start-x) - var(--avatar-attack-x) * 0.03)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    24% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x) * 0.45)) translateY(calc(var(--avatar-attack-y) + var(--avatar-motion-lift-y))) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    66%, 76% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.12)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    48% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x))) translateY(calc(var(--avatar-attack-y) + var(--avatar-motion-lift-y))) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    88% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.03)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    64%, 71% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x))) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    86% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x) * 0.22)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
 }
 
@@ -996,14 +877,17 @@ button:disabled {
     0%, 100% {
         transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    28%, 56% {
-        transform: translateX(calc(var(--avatar-attack-start-x) - var(--avatar-attack-x) * 0.02)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    26% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x) * 0.4)) translateY(calc(var(--avatar-attack-y) + var(--avatar-motion-lift-y))) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    76%, 84% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.12)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    52% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x))) translateY(calc(var(--avatar-attack-y) + var(--avatar-motion-lift-y))) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    94% {
-        transform: translateX(calc(var(--avatar-attack-start-x) - var(--avatar-attack-x) * 0.04)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    68%, 75% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x))) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    88% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x) * 0.3)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
 }
 
@@ -1011,11 +895,14 @@ button:disabled {
     0%, 100% {
         transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    34%, 58% {
-        transform: translateX(var(--avatar-attack-start-x)) translateY(calc(var(--avatar-attack-y) - 2px)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    28% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x))) translateY(calc(var(--avatar-attack-y) + var(--avatar-motion-lift-y))) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    74% {
-        transform: translateX(var(--avatar-attack-start-x)) translateY(calc(var(--avatar-attack-y) - 1px)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    52%, 60% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x))) translateY(calc(var(--avatar-attack-y) + var(--avatar-motion-lift-y))) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    76% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x) * 0.2)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
 }
 
@@ -1023,14 +910,14 @@ button:disabled {
     0%, 100% {
         transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    26% {
-        transform: translateX(calc(var(--avatar-attack-start-x) - var(--avatar-attack-x) * 0.04)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    24% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x))) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    40%, 50% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.36)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    48%, 55% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x))) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
     }
-    66% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.10)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    72% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x) * 0.2)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
 }
 
@@ -1038,14 +925,14 @@ button:disabled {
     0%, 100% {
         transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    24% {
-        transform: translateX(var(--avatar-attack-start-x)) translateY(calc(var(--avatar-attack-y) - 1px)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    22% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x))) translateY(calc(var(--avatar-attack-y) + var(--avatar-motion-lift-y))) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    40%, 48% {
-        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-attack-x) * 0.07)) translateY(calc(var(--avatar-attack-y) - 1px)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    46%, 52% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x))) translateY(calc(var(--avatar-attack-y) + var(--avatar-motion-lift-y))) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
     }
-    66% {
-        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    68% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x) * 0.2)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
 }
 
@@ -1054,13 +941,16 @@ button:disabled {
         transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
     24% {
-        transform: translateX(calc(var(--avatar-attack-start-x) - var(--avatar-attack-x) * 0.06)) translateY(calc(var(--avatar-attack-y) + 1px)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x) * 0.45)) translateY(calc(var(--avatar-attack-y) - var(--avatar-motion-lift-y))) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    42%, 54% {
-        transform: translateX(calc(var(--avatar-attack-start-x) - var(--avatar-attack-x) * 0.11)) translateY(calc(var(--avatar-attack-y) + 2px)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    42%, 51% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x))) translateY(calc(var(--avatar-attack-y) - var(--avatar-motion-lift-y))) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    66% {
-        transform: translateX(calc(var(--avatar-attack-start-x) - var(--avatar-attack-x) * 0.02)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    54% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x) * 0.25)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
+    }
+    72% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x) * 0.08)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
 }
 
@@ -1068,14 +958,17 @@ button:disabled {
     0%, 100% {
         transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    22% {
-        transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    26% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x))) translateY(calc(var(--avatar-attack-y) + var(--avatar-motion-lift-y))) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    38%, 48% {
-        transform: translateX(calc(var(--avatar-attack-start-x) - var(--avatar-attack-x) * 0.13)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    45%, 49% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x))) translateY(calc(var(--avatar-attack-y) - var(--avatar-motion-lift-y))) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
     }
-    64% {
-        transform: translateX(calc(var(--avatar-attack-start-x) - var(--avatar-attack-x) * 0.04)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    63% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x) * 0.36)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    80% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x) * 0.1)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
 }
 
@@ -1083,17 +976,23 @@ button:disabled {
     0%, 100% {
         transform: translateX(var(--avatar-attack-start-x)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    24% {
-        transform: translateX(calc(var(--avatar-attack-start-x) - var(--avatar-attack-x) * 0.03)) translateY(calc(var(--avatar-attack-y) + 1px)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    20% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x) * 0.5)) translateY(calc(var(--avatar-attack-y) - var(--avatar-motion-lift-y))) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    38%, 52% {
-        transform: translateX(calc(var(--avatar-attack-start-x) - var(--avatar-attack-x) * 0.24)) translateY(calc(var(--avatar-attack-y) + 1px)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    40%, 47% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x))) translateY(calc(var(--avatar-attack-y) - var(--avatar-motion-lift-y))) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
-    70% {
-        transform: translateX(calc(var(--avatar-attack-start-x) - var(--avatar-attack-x) * 0.10)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    48%, 56% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x))) translateY(calc(var(--avatar-attack-y) - var(--avatar-motion-lift-y))) scale(var(--avatar-combat-scale-hit)) scaleX(var(--avatar-facing-scale-x));
     }
-    86% {
-        transform: translateX(calc(var(--avatar-attack-start-x) - var(--avatar-attack-x) * 0.03)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    66% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x) * 0.55)) translateY(calc(var(--avatar-attack-y) - var(--avatar-motion-lift-y) * 0.5)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    78% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-forward-x) * 0.18)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
+    }
+    90% {
+        transform: translateX(calc(var(--avatar-attack-start-x) + var(--avatar-motion-recoil-x) * 0.12)) translateY(var(--avatar-attack-y)) scale(var(--avatar-combat-scale)) scaleX(var(--avatar-facing-scale-x));
     }
 }
 
@@ -1163,36 +1062,22 @@ button:disabled {
     54% { rotate: 26deg; translate: 2px 2px; }
 }
 
-@keyframes avatarWeaponHeavySwing {
-    0%, 100% { rotate: 0deg; translate: 0 0; }
-    28% { rotate: -34deg; translate: -3px -5px; }
-    56% { rotate: 38deg; translate: 4px 5px; }
-}
-
-@keyframes avatarWeaponThrust {
-    0%, 100% { rotate: 0deg; translate: 0 0; }
-    42% { rotate: 5deg; translate: -8px 0; }
-    58% { rotate: -3deg; translate: -3px 0; }
-}
-
-@keyframes avatarWeaponRecoil {
-    0%, 100% { rotate: 0deg; translate: 0 0; }
-    42% { rotate: -7deg; translate: 6px 1px; }
-}
-
 @keyframes avatarWeaponGunRecoil {
     0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, -4px) rotate(-2deg); filter: none; }
-    24% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-1px, -4px) rotate(-3deg); filter: brightness(1.05); }
-    40%, 48% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(6px, -3px) rotate(-10deg); filter: brightness(1.28) drop-shadow(0 0 4px rgba(251, 191, 36, 0.72)); }
-    64% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(2px, -4px) rotate(1deg); filter: brightness(1.06); }
+    26% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-2px, -4px) rotate(-4deg); filter: brightness(1.05); }
+    45%, 49% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(9px, -2px) rotate(-13deg); filter: brightness(1.34) drop-shadow(0 0 5px rgba(251, 191, 36, 0.78)); }
+    63% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(3px, -4px) rotate(2deg); filter: brightness(1.08); }
+    80% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(1px, -4px) rotate(-2deg); filter: none; }
 }
 
 @keyframes avatarWeaponBigGunRecoil {
     0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, -7px) rotate(-4deg); filter: none; }
-    24% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-2px, -7px) rotate(-6deg); filter: brightness(1.04); }
-    40%, 52% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(12px, -6px) rotate(-16deg); filter: brightness(1.36) drop-shadow(0 0 6px rgba(251, 191, 36, 0.78)); }
-    70% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(5px, -7px) rotate(-2deg); filter: brightness(1.08); }
-    86% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(2px, -7px) rotate(-4deg); filter: none; }
+    20% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-3px, -6px) rotate(-7deg); filter: brightness(1.04); }
+    40%, 47% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-5px, -5px) rotate(-8deg); filter: brightness(1.08); }
+    48%, 56% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(19px, -3px) rotate(-20deg); filter: brightness(1.48) drop-shadow(0 0 9px rgba(251, 191, 36, 0.88)); }
+    66% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(10px, -5px) rotate(-7deg); filter: brightness(1.12); }
+    78% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-2px, -7px) rotate(-2deg); filter: none; }
+    90% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(3px, -7px) rotate(-5deg); filter: none; }
 }
 
 @keyframes avatarWeaponPolearmThrust {
@@ -1204,17 +1089,20 @@ button:disabled {
 
 @keyframes avatarHandGunGrip {
     0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(1px, -5px) rotate(-2deg); }
-    24% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, -5px) rotate(-3deg); }
-    40%, 48% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(5px, -5px) rotate(-8deg); }
-    64% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(2px, -5px) rotate(1deg); }
+    26% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-1px, -5px) rotate(-4deg); }
+    45%, 49% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(7px, -4px) rotate(-11deg); }
+    63% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(3px, -5px) rotate(1deg); }
+    80% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(1px, -5px) rotate(-2deg); }
 }
 
 @keyframes avatarHandBigGunGrip {
     0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, -7px) rotate(-4deg); }
-    24% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-1px, -7px) rotate(-5deg); }
-    40%, 52% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(8px, -6px) rotate(-11deg); }
-    70% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(4px, -7px) rotate(-3deg); }
-    86% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(1px, -7px) rotate(-4deg); }
+    20% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-2px, -6px) rotate(-6deg); }
+    40%, 47% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-3px, -5px) rotate(-7deg); }
+    48%, 56% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(13px, -4px) rotate(-15deg); }
+    66% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(7px, -6px) rotate(-6deg); }
+    78% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-1px, -7px) rotate(-2deg); }
+    90% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(2px, -7px) rotate(-4deg); }
 }
 
 @keyframes avatarHandPolearmGrip {
@@ -1390,11 +1278,6 @@ button:disabled {
     24% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(1px, 0) rotate(-1deg); }
     42%, 54% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(1px, 1px) rotate(-2deg); }
     66% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-1px, 0) rotate(1deg); }
-}
-
-@keyframes avatarWeaponGuard {
-    0%, 100% { rotate: 0deg; scale: 1; filter: none; }
-    44% { rotate: -6deg; scale: 1.12; filter: brightness(1.45); }
 }
 
 @keyframes avatarVictoryPose {
@@ -2288,7 +2171,6 @@ meter::-moz-meter-bar {
     left: 58%;
 }
 
-.demo-combat-avatar.is-avatar-weapon-heavy.is-avatar-attacking,
 .demo-combat-avatar.is-avatar-weapon-axe.is-avatar-attacking,
 .demo-combat-avatar.is-avatar-weapon-blunt.is-avatar-attacking,
 .demo-combat-avatar.is-avatar-weapon-axe-big.is-avatar-attacking,

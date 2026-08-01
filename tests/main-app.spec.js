@@ -6091,6 +6091,7 @@ test('tarot cards open detail before changing deck membership', async ({ page })
     }
   ];
   const equipRequests = [];
+  const moveRequests = [];
   const unequipRequests = [];
 
   await page.route('**/api/get-inventory', async (route) => {
@@ -6140,6 +6141,18 @@ test('tarot cards open detail before changing deck membership', async ({ page })
       body: JSON.stringify({
         ok: true,
         tarotDeck: ['tarot_minor_cup_10', 'tarot_minor_wand_7'],
+        tarotRole: null
+      })
+    });
+  });
+  await page.route('**/api/tarot-deck-move', async (route) => {
+    moveRequests.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ok: true,
+        tarotDeck: ['tarot_minor_wand_7', 'tarot_minor_cup_10'],
         tarotRole: null
       })
     });
@@ -6232,22 +6245,40 @@ test('tarot cards open detail before changing deck membership', async ({ page })
     switcher: window.getComputedStyle(document.getElementById('inventoryMobileSwitch')).position,
     deck: window.getComputedStyle(document.querySelector('#tabContentInventory .inventory-section[data-panel="tarot"]')).position
   }));
-  expect(tarotSticky).toEqual({ switcher: 'sticky', deck: 'sticky' });
+  expect(tarotSticky).toEqual({ switcher: 'sticky', deck: 'static' });
+
+  const guardianEmptySlot = page.locator('#guardianArcanaGrid [data-target-category="TarotMajor"]');
+  await expect(guardianEmptySlot).toHaveRole('button');
+  await guardianEmptySlot.click();
+  await expect(page.locator('#inventoryTabs [data-category="TarotMajor"]')).toHaveClass(/active/);
+
+  const deckEmptySlot = page.locator('#meleeDeckGrid [data-slot-index="1"]');
+  await expect(deckEmptySlot).toHaveRole('button');
+  await deckEmptySlot.click();
+  await expect(page.locator('#inventoryTabs [data-category="TarotMinor"]')).toHaveClass(/active/);
+  await expect.poll(() => page.evaluate(() => {
+    const switcherBottom = document.getElementById('inventoryMobileSwitch')?.getBoundingClientRect().bottom || 0;
+    const tabsTop = document.getElementById('inventoryTabs')?.getBoundingClientRect().top || 0;
+    const gridTop = document.getElementById('inventoryGrid')?.getBoundingClientRect().top || 0;
+    return tabsTop >= switcherBottom + 8
+      && tabsTop < window.innerHeight - 180
+      && gridTop < window.innerHeight;
+  })).toBe(true);
 
   await page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty)').click();
   expect(unequipRequests).toHaveLength(0);
   await expect(page.locator('#itemDetailModal')).toBeVisible();
-  await expect(page.locator('#itemDetailTarotCombat')).toContainText('大回復の杯');
-  await expect(page.locator('#itemDetailTarotCombat')).toContainText('CT 4');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('豊穣の大杯');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('生存味方全員を8%回復');
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('デッキ1枚目');
   await page.evaluate(() => window.closeItemDetailModal && window.closeItemDetailModal());
 
   await page.locator('#inventoryGrid .inventory-item-cell:has(.tarot-number-badge.is-wand)').click();
   expect(equipRequests).toHaveLength(0);
   await expect(page.locator('#itemDetailModal')).toBeVisible();
-  await expect(page.locator('#itemDetailTarotCombat')).toContainText('勝利の旗火');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('天翔の風杖');
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('未セット');
-  await expect(page.locator('#itemDetailTarotCombat')).toContainText('戦闘開始は1枚目から');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('風属性×1.05');
   await page.locator('#itemDetailModal .item-detail-action.is-equip').click();
   expect(equipRequests).toHaveLength(1);
   expect(equipRequests[0]).toMatchObject({
@@ -6256,6 +6287,19 @@ test('tarot cards open detail before changing deck membership', async ({ page })
     deckType: 'tarot'
   });
   await expect(page.locator('#meleeDeckGrid')).toHaveAttribute('data-deck-count', '2');
+
+  await page.locator('#inventoryGrid .inventory-item-cell:has(.tarot-number-badge.is-cup)').click();
+  await expect(page.locator('#itemDetailModal [aria-label="デッキ内で左へ移動"]')).toBeDisabled();
+  await expect(page.locator('#itemDetailModal [aria-label="デッキ内で右へ移動"]')).toBeEnabled();
+  await page.locator('#itemDetailModal [aria-label="デッキ内で右へ移動"]').click();
+  expect(moveRequests).toHaveLength(1);
+  expect(moveRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    cardItemId: 'tarot_minor_cup_10',
+    deckType: 'tarot',
+    direction: 'right'
+  });
+  await expect(page.locator('#itemDetailModal')).toBeHidden();
 
   await page.locator('#inventoryGrid .inventory-item-cell:has(.tarot-number-badge.is-cup)').click();
   expect(unequipRequests).toHaveLength(0);

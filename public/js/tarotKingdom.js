@@ -68,7 +68,7 @@ import {
   resetCombatAvatarState,
   setCombatAvatarKo,
   setCombatAvatarVictory
-} from './avatarCombat.js?v=20260727-victory1';
+} from './avatarCombat.js?v=20260801-weapon-motion1';
 import { startAvatarBodyMotion, stopAvatarBodyMotion } from './avatar.js';
 import {
   PIXEL_MONSTER_COMPANION_OFFSET_Y,
@@ -564,6 +564,8 @@ let kingdomBattleAvatarEventKey = '';
 let kingdomBattleTerminalFxEventKey = '';
 let kingdomBattleHurtEventKey = '';
 let kingdomBattleDamageEventKey = '';
+let kingdomWeaponImpactEventKey = '';
+let kingdomWeaponImpactTimer = null;
 const kingdomBattlefieldPreloadPromises = new Map();
 const kingdomMonsterAnimationPreloadPromises = new Map();
 const kingdomSummonImageCache = new Map();
@@ -10243,6 +10245,15 @@ function resetMatch() {
   kingdomBattleVisualEventKey = '';
   kingdomBattleTerminalFxEventKey = '';
   kingdomSummonHapticEventKey = '';
+  kingdomWeaponImpactEventKey = '';
+  if (kingdomWeaponImpactTimer) {
+    clearTimeout(kingdomWeaponImpactTimer);
+    kingdomWeaponImpactTimer = null;
+  }
+  ui.battleStage?.classList.remove('is-weapon-impact-shake');
+  ui.battleStage?.style.removeProperty('--tk-weapon-impact-x');
+  ui.battleStage?.style.removeProperty('--tk-weapon-impact-y');
+  ui.battleStage?.style.removeProperty('--tk-weapon-impact-duration');
   if (kingdomBattleVisualResetTimer) {
     clearTimeout(kingdomBattleVisualResetTimer);
     kingdomBattleVisualResetTimer = null;
@@ -13544,15 +13555,16 @@ function buildKingdomCombatTimeline(variant, weaponType = 'sword', effectCount =
     };
   }
   const profile = getCombatWeaponMotionProfile(weaponType || 'sword');
-  const weaponWindow = Math.min(540, Math.max(240, Number(profile?.duration) || 380));
+  const weaponWindow = Math.min(780, Math.max(240, Number(profile?.duration) || 380));
   const impactRatio = Math.max(0.3, Math.min(0.78, Number(profile?.impactRatio) || 0.58));
-  const impactOffsetMs = Math.min(560, Math.max(300, Math.round(180 + (weaponWindow * impactRatio))));
+  const impactOffsetMs = Math.min(760, Math.max(260, Math.round(180 + (weaponWindow * impactRatio))));
   const hpRevealOffsetMs = impactOffsetMs + KINGDOM_NORMAL_HIT_STOP_MS;
   const effectOffsetMs = hpRevealOffsetMs + KINGDOM_NORMAL_HP_TWEEN_MS + 40;
   return {
     version: 1,
     variant: 'attack',
     motionOffsetMs: 180,
+    weaponMotionDurationMs: weaponWindow,
     impactOffsetMs,
     hpRevealOffsetMs,
     hpTweenEndOffsetMs: hpRevealOffsetMs + KINGDOM_NORMAL_HP_TWEEN_MS,
@@ -17410,6 +17422,43 @@ function renderKingdomBattleStage() {
   ui.battleStage.classList.toggle('is-battle-hit-stop', eventIsActive && timelinePhase === 'hit-stop');
   ui.battleStage.classList.toggle('is-battle-damage', eventIsActive && timelinePhase === 'damage');
   ui.battleStage.classList.toggle('is-battle-skill', eventIsActive && String(visualEvent?.type || '') === 'skill');
+  const weaponImpactActorIndex = Number(visualEvent?.actorIndex);
+  const weaponImpactProfile = Number.isInteger(weaponImpactActorIndex)
+    && !s?.players?.[weaponImpactActorIndex]?.isPet
+    ? getCombatWeaponMotionProfile(
+        s?.players?.[weaponImpactActorIndex]?.character?.combat?.weaponType || 'sword'
+      )
+    : null;
+  const weaponImpactShake = weaponImpactProfile?.shake || null;
+  const weaponImpactActive = !!(
+    eventIsActive
+    && timelinePhase === 'hit-stop'
+    && String(visualEvent?.type || '') === 'attack'
+    && weaponImpactShake
+    && !prefersKingdomReducedMotion()
+  );
+  const weaponImpactHapticKey = weaponImpactActive
+    ? `${eventKey}:${weaponImpactProfile.weapon}`
+    : '';
+  if (weaponImpactHapticKey && kingdomWeaponImpactEventKey !== weaponImpactHapticKey) {
+    kingdomWeaponImpactEventKey = weaponImpactHapticKey;
+    if (kingdomWeaponImpactTimer) clearTimeout(kingdomWeaponImpactTimer);
+    const impactDurationMs = Math.max(100, Number(weaponImpactShake.duration) || 160);
+    ui.battleStage.style.setProperty('--tk-weapon-impact-x', `${Math.max(1, Number(weaponImpactShake.x) || 1)}px`);
+    ui.battleStage.style.setProperty('--tk-weapon-impact-y', `${Math.max(1, Number(weaponImpactShake.y) || 1)}px`);
+    ui.battleStage.style.setProperty('--tk-weapon-impact-duration', `${impactDurationMs}ms`);
+    ui.battleStage.classList.remove('is-weapon-impact-shake');
+    void ui.battleStage.offsetWidth;
+    ui.battleStage.classList.add('is-weapon-impact-shake');
+    vibrateOnce(Math.min(80, Math.max(18, Math.round((Number(weaponImpactShake.x) || 1) * 10))));
+    kingdomWeaponImpactTimer = setTimeout(() => {
+      kingdomWeaponImpactTimer = null;
+      ui.battleStage?.classList.remove('is-weapon-impact-shake');
+      ui.battleStage?.style.removeProperty('--tk-weapon-impact-x');
+      ui.battleStage?.style.removeProperty('--tk-weapon-impact-y');
+      ui.battleStage?.style.removeProperty('--tk-weapon-impact-duration');
+    }, impactDurationMs + 24);
+  }
   const summonHapticKey = (
     eventIsActive
     && timelinePhase === 'hit-stop'

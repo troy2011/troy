@@ -43,6 +43,10 @@ test.describe('shared combat avatar motions', () => {
       const dagger = combat.getCombatWeaponMotionProfile('dagger');
       const heavy = combat.getCombatWeaponMotionProfile('axe_big');
       const alias = combat.getCombatWeaponMotionProfile('large-gun');
+      const profiles = Object.fromEntries([
+        'dagger', 'wand', 'gun', 'shield', 'sword', 'polearm', 'staff',
+        'bow', 'axe', 'blunt', 'gun_big', 'sword_big', 'axe_big'
+      ].map((weapon) => [weapon, combat.getCombatWeaponMotionProfile(weapon)]));
 
       combat.flashCombatAvatarHurt(root, { duration: 100 });
       const hurt = root.classList.contains('is-avatar-damaged');
@@ -96,6 +100,39 @@ test.describe('shared combat avatar motions', () => {
       const cancelledResult = await cancelledPromise;
       const cancelCleared = !root.classList.contains('is-avatar-attacking')
         && !root.classList.contains('is-avatar-weapon-axe-big');
+      const bigGunPromise = combat.playCombatAvatarAttack(root, 'gun_big', {
+        direction: 'left',
+        duration: 180,
+        bodyMotion: false
+      });
+      const bigGunMotion = {
+        actorAnimation: getComputedStyle(root).animationName,
+        muzzleAnimation: getComputedStyle(root, '::after').animationName,
+        muzzleBorder: getComputedStyle(root, '::after').borderStyle,
+        muzzleBackground: getComputedStyle(root, '::after').backgroundImage,
+        weaponAnimation: getComputedStyle(root.querySelector('#shared-combat-avatar-test-layer-weapon-right')).animationName,
+        rightHandAnimation: getComputedStyle(root.querySelector('#shared-combat-avatar-test-layer-hand-right')).animationName,
+        leftHandAnimation: getComputedStyle(root.querySelector('#shared-combat-avatar-test-layer-hand-left')).animationName,
+        forward: root.style.getPropertyValue('--avatar-motion-forward-x'),
+        recoil: root.style.getPropertyValue('--avatar-motion-recoil-x'),
+        lift: root.style.getPropertyValue('--avatar-motion-lift-y')
+      };
+      const bigGunActorAnimation = root.getAnimations().find((animation) => (
+        animation.animationName === 'avatarCombatBigGun'
+      ));
+      bigGunActorAnimation.pause();
+      bigGunActorAnimation.currentTime = 180 * 0.47;
+      const bigGunBraceX = new DOMMatrix(getComputedStyle(root).transform).m41;
+      bigGunActorAnimation.currentTime = 180 * 0.5;
+      const bigGunRecoilX = new DOMMatrix(getComputedStyle(root).transform).m41;
+      bigGunActorAnimation.play();
+      await bigGunPromise;
+      const bigGunMotionCleared = {
+        className: root.classList.contains('is-avatar-weapon-gun-big'),
+        forward: root.style.getPropertyValue('--avatar-motion-forward-x'),
+        recoil: root.style.getPropertyValue('--avatar-motion-recoil-x'),
+        lift: root.style.getPropertyValue('--avatar-motion-lift-y')
+      };
       root.remove();
       coloredRoot.remove();
 
@@ -106,6 +143,7 @@ test.describe('shared combat avatar motions', () => {
         dagger,
         heavy,
         alias,
+        profiles,
         hurt,
         ko,
         stopped,
@@ -120,20 +158,41 @@ test.describe('shared combat avatar motions', () => {
         attacking,
         attackCleared,
         cancelledResult,
-        cancelCleared
+        cancelCleared,
+        bigGunMotion,
+        bigGunTravel: { braceX: bigGunBraceX, recoilX: bigGunRecoilX },
+        bigGunMotionCleared
       };
     });
 
     expect(audit.layers).toBe(9);
     expect(audit.hairColorPath).toContain('human_hair_blue.png');
     expect(audit.facialHairColorPath).toContain('human_facialhair_blue.png');
-    expect(audit.dagger).toMatchObject({ weapon: 'dagger', duration: 290 });
+    expect(audit.dagger).toMatchObject({ weapon: 'dagger', duration: 300 });
     expect(audit.heavy).toMatchObject({
       weapon: 'axe_big',
-      duration: 700,
-      shake: { x: 7, y: 2, duration: 320 }
+      duration: 740,
+      forwardPx: 16,
+      recoilPx: 10,
+      shake: { x: 8, y: 2, duration: 340 }
     });
-    expect(audit.alias).toMatchObject({ weapon: 'gun_big', duration: 560 });
+    expect(audit.alias).toMatchObject({
+      weapon: 'gun_big',
+      duration: 620,
+      impactRatio: 0.48,
+      forwardPx: 2,
+      recoilPx: 24,
+      liftPx: 2,
+      shake: { x: 8, y: 2, duration: 320 }
+    });
+    expect(Object.keys(audit.profiles)).toHaveLength(13);
+    expect(Object.values(audit.profiles).every((profile) => (
+      profile.duration >= 300
+      && profile.impactRatio >= 0.3
+      && profile.impactRatio <= 0.7
+      && profile.forwardPx >= 1
+      && profile.recoilPx >= 2
+    ))).toBe(true);
     expect(audit.hurt).toBe(true);
     expect(audit.ko).toBe(true);
     expect(audit.stopped).toBe(true);
@@ -155,6 +214,104 @@ test.describe('shared combat avatar motions', () => {
     expect(audit.attackCleared).toBe(true);
     expect(audit.cancelledResult).toBe(false);
     expect(audit.cancelCleared).toBe(true);
+    expect(audit.bigGunMotion).toEqual({
+      actorAnimation: 'avatarCombatBigGun',
+      muzzleAnimation: 'avatarCombatBigMuzzle',
+      muzzleBorder: 'none',
+      muzzleBackground: expect.stringContaining('radial-gradient'),
+      weaponAnimation: 'avatarWeaponBigGunRecoil',
+      rightHandAnimation: 'avatarHandBigGunGrip',
+      leftHandAnimation: 'avatarHandBigGunGrip',
+      forward: '-2px',
+      recoil: '24px',
+      lift: '-2px'
+    });
+    expect(audit.bigGunMotionCleared).toEqual({
+      className: false,
+      forward: '',
+      recoil: '',
+      lift: ''
+    });
+    expect(audit.bigGunTravel.braceX).toBeLessThan(0);
+    expect(audit.bigGunTravel.recoilX).toBeGreaterThan(20);
+    expect(audit.bigGunTravel.recoilX - audit.bigGunTravel.braceX).toBeGreaterThan(24);
+  });
+
+  test('removes superseded generic weapon motion overrides from both combat stylesheets', async ({ page }) => {
+    await page.goto('/melee-demo.html');
+    const audit = await page.evaluate(async () => {
+      const [appCss, demoCss] = await Promise.all([
+        fetch('/style.css').then((response) => response.text()),
+        fetch('/css/melee-demo.css').then((response) => response.text())
+      ]);
+      const obsoleteTokens = [
+        'is-avatar-weapon-heavy',
+        'is-avatar-weapon-pierce',
+        'is-avatar-weapon-ranged',
+        'is-avatar-weapon-guard',
+        '@keyframes avatarCombatHeavy',
+        '@keyframes avatarCombatThrust',
+        '@keyframes avatarCombatRanged',
+        '@keyframes avatarCombatGuard',
+        '@keyframes avatarCombatHeavySlash',
+        '@keyframes avatarCombatPierceSlash',
+        '@keyframes avatarWeaponHeavySwing',
+        '@keyframes avatarWeaponThrust',
+        '@keyframes avatarWeaponRecoil',
+        '@keyframes avatarWeaponGuard'
+      ];
+      return Object.fromEntries(obsoleteTokens.map((token) => [token, {
+        app: appCss.includes(token),
+        demo: demoCss.includes(token)
+      }]));
+    });
+
+    expect(Object.values(audit).every(({ app, demo }) => !app && !demo)).toBe(true);
+  });
+
+  test('assigns a dedicated body motion to every supported player weapon', async ({ page }) => {
+    await page.goto('/melee-demo.html');
+    const audit = await page.evaluate(async () => {
+      const combat = await import('/js/avatarCombat.js');
+      const root = document.createElement('div');
+      root.id = 'all-weapon-motion-audit';
+      root.className = 'avatar-combat-actor';
+      document.body.appendChild(root);
+      combat.renderCombatAvatar(root, {
+        Race: 'human', AvatarColor: 'brown', SkinColorIndex: 1,
+        FaceIndex: 1, HairStyleIndex: 1, FacialHairStyleIndex: 0, level: 1
+      });
+      const expected = {
+        sword: 'avatarCombatSword',
+        dagger: 'avatarCombatDagger',
+        polearm: 'avatarCombatPolearm',
+        blunt: 'avatarCombatBlunt',
+        axe: 'avatarCombatAxe',
+        sword_big: 'avatarCombatGreatsword',
+        axe_big: 'avatarCombatGreataxe',
+        staff: 'avatarCombatStaff',
+        wand: 'avatarCombatWand',
+        bow: 'avatarCombatBow',
+        gun: 'avatarCombatGun',
+        gun_big: 'avatarCombatBigGun',
+        shield: 'avatarCombatShield'
+      };
+      const actual = {};
+      for (const weapon of Object.keys(expected)) {
+        const attack = combat.playCombatAvatarAttack(root, weapon, {
+          direction: 'left',
+          duration: 120,
+          bodyMotion: false
+        });
+        actual[weapon] = getComputedStyle(root).animationName;
+        await attack;
+      }
+      combat.resetCombatAvatarState(root, { resumeIdle: false });
+      root.remove();
+      return { expected, actual };
+    });
+
+    expect(audit.actual).toEqual(audit.expected);
   });
 
   test('keeps home and combat equipment offsets identical when a shield arrives as Offhand', async ({ page }) => {

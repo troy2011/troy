@@ -685,6 +685,25 @@ test.describe('Tarot Kingdom summon integration', () => {
     });
   });
 
+  test('normal attack timelines follow each shared weapon impact profile', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      return {
+        dagger: debug.battleCombatTimeline('attack', 'dagger'),
+        gun: debug.battleCombatTimeline('attack', 'gun'),
+        gunBig: debug.battleCombatTimeline('attack', 'gun_big'),
+        axeBig: debug.battleCombatTimeline('attack', 'axe_big')
+      };
+    });
+
+    expect(audit.dagger).toMatchObject({ weaponMotionDurationMs: 300, impactOffsetMs: 276 });
+    expect(audit.gun).toMatchObject({ weaponMotionDurationMs: 420, impactOffsetMs: 373 });
+    expect(audit.gunBig).toMatchObject({ weaponMotionDurationMs: 620, impactOffsetMs: 478 });
+    expect(audit.axeBig).toMatchObject({ weaponMotionDurationMs: 740, impactOffsetMs: 698 });
+    expect(audit.gunBig.durationMs).toBeGreaterThan(audit.gun.durationMs);
+    expect(audit.axeBig.durationMs).toBeGreaterThan(audit.gunBig.durationMs);
+  });
+
   test('summon art and short labels stay clipped to the battle stage at 390px and 900px', async ({ page }) => {
     const summons = await loadSummonsModule();
     const summonEntries = summons.TAROT_KINGDOM_SUMMONS.map((entry) => ({

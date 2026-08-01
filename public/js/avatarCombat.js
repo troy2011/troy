@@ -25,29 +25,30 @@ const COMBAT_WEAPON_TYPES = new Set([
 ]);
 
 const COMBAT_WEAPON_CLASS_NAMES = [
-    'is-avatar-weapon-heavy',
-    'is-avatar-weapon-pierce',
-    'is-avatar-weapon-ranged',
-    'is-avatar-weapon-guard',
-    'is-avatar-weapon-slash',
     ...Array.from(COMBAT_WEAPON_TYPES, (weapon) => `is-avatar-weapon-${weapon.replace(/_/g, '-')}`)
 ];
 
 const COMBAT_WEAPON_MOTION_PROFILES = Object.freeze({
-    dagger: Object.freeze({ duration: 290, impactRatio: 0.42, shake: null }),
-    wand: Object.freeze({ duration: 360, impactRatio: 0.46, shake: null }),
-    gun: Object.freeze({ duration: 360, impactRatio: 0.43, shake: null }),
-    shield: Object.freeze({ duration: 360, impactRatio: 0.54, shake: null }),
-    sword: Object.freeze({ duration: 380, impactRatio: 0.58, shake: null }),
-    polearm: Object.freeze({ duration: 420, impactRatio: 0.55, shake: null }),
-    staff: Object.freeze({ duration: 460, impactRatio: 0.5, shake: null }),
-    bow: Object.freeze({ duration: 460, impactRatio: 0.45, shake: null }),
-    axe: Object.freeze({ duration: 500, impactRatio: 0.64, shake: Object.freeze({ x: 4, y: 1, duration: 220 }) }),
-    blunt: Object.freeze({ duration: 500, impactRatio: 0.62, shake: Object.freeze({ x: 3, y: 1, duration: 180 }) }),
-    gun_big: Object.freeze({ duration: 560, impactRatio: 0.5, shake: Object.freeze({ x: 6, y: 1, duration: 300 }) }),
-    sword_big: Object.freeze({ duration: 620, impactRatio: 0.68, shake: Object.freeze({ x: 5, y: 1, duration: 260 }) }),
-    axe_big: Object.freeze({ duration: 700, impactRatio: 0.7, shake: Object.freeze({ x: 7, y: 2, duration: 320 }) })
+    dagger: Object.freeze({ duration: 300, impactRatio: 0.32, forwardPx: 19, recoilPx: 2, liftPx: 0, shake: null }),
+    wand: Object.freeze({ duration: 380, impactRatio: 0.48, forwardPx: 5, recoilPx: 2, liftPx: 2, shake: null }),
+    gun: Object.freeze({ duration: 420, impactRatio: 0.46, forwardPx: 1, recoilPx: 11, liftPx: 1, shake: Object.freeze({ x: 2, y: 1, duration: 130 }) }),
+    shield: Object.freeze({ duration: 410, impactRatio: 0.5, forwardPx: 17, recoilPx: 3, liftPx: 0, shake: Object.freeze({ x: 2, y: 1, duration: 140 }) }),
+    sword: Object.freeze({ duration: 430, impactRatio: 0.52, forwardPx: 17, recoilPx: 4, liftPx: 0, shake: null }),
+    polearm: Object.freeze({ duration: 470, impactRatio: 0.48, forwardPx: 25, recoilPx: 4, liftPx: 0, shake: Object.freeze({ x: 2, y: 1, duration: 150 }) }),
+    staff: Object.freeze({ duration: 500, impactRatio: 0.55, forwardPx: 4, recoilPx: 2, liftPx: 3, shake: null }),
+    bow: Object.freeze({ duration: 500, impactRatio: 0.52, forwardPx: 1, recoilPx: 5, liftPx: 1, shake: null }),
+    axe: Object.freeze({ duration: 540, impactRatio: 0.6, forwardPx: 13, recoilPx: 6, liftPx: 2, shake: Object.freeze({ x: 4, y: 1, duration: 220 }) }),
+    blunt: Object.freeze({ duration: 520, impactRatio: 0.58, forwardPx: 12, recoilPx: 6, liftPx: 1, shake: Object.freeze({ x: 4, y: 1, duration: 200 }) }),
+    gun_big: Object.freeze({ duration: 620, impactRatio: 0.48, forwardPx: 2, recoilPx: 24, liftPx: 2, shake: Object.freeze({ x: 8, y: 2, duration: 320 }) }),
+    sword_big: Object.freeze({ duration: 680, impactRatio: 0.66, forwardPx: 16, recoilPx: 8, liftPx: 3, shake: Object.freeze({ x: 6, y: 2, duration: 280 }) }),
+    axe_big: Object.freeze({ duration: 740, impactRatio: 0.7, forwardPx: 16, recoilPx: 10, liftPx: 4, shake: Object.freeze({ x: 8, y: 2, duration: 340 }) })
 });
+
+const COMBAT_WEAPON_MOTION_VARIABLES = Object.freeze([
+    '--avatar-motion-forward-x',
+    '--avatar-motion-recoil-x',
+    '--avatar-motion-lift-y'
+]);
 
 const combatAvatarTimers = new WeakMap();
 const COMBAT_AVATAR_DEATH_FRAME_WIDTH = 56;
@@ -171,6 +172,19 @@ function clearCombatWeaponClass(element) {
     element?.classList?.remove(...COMBAT_WEAPON_CLASS_NAMES);
 }
 
+function setCombatWeaponMotionVariables(element, profile, direction) {
+    if (!element || !profile) return;
+    const facing = direction === 'right' ? 1 : -1;
+    element.style.setProperty('--avatar-motion-forward-x', `${profile.forwardPx * facing}px`);
+    element.style.setProperty('--avatar-motion-recoil-x', `${profile.recoilPx * -facing}px`);
+    element.style.setProperty('--avatar-motion-lift-y', `${profile.liftPx * -1}px`);
+}
+
+function clearCombatWeaponMotionVariables(element) {
+    if (!element) return;
+    COMBAT_WEAPON_MOTION_VARIABLES.forEach((property) => element.style.removeProperty(property));
+}
+
 function clearCombatAvatarTransientClasses(element) {
     if (!element) return;
     element.classList.remove(
@@ -180,6 +194,7 @@ function clearCombatAvatarTransientClasses(element) {
         'is-avatar-damaged'
     );
     clearCombatWeaponClass(element);
+    clearCombatWeaponMotionVariables(element);
 }
 
 function setCombatSideVariables(element, side, kind) {
@@ -222,6 +237,9 @@ export function getCombatWeaponMotionProfile(weaponType) {
         className: `is-avatar-weapon-${weapon.replace(/_/g, '-')}`,
         duration: profile.duration,
         impactRatio: profile.impactRatio,
+        forwardPx: profile.forwardPx,
+        recoilPx: profile.recoilPx,
+        liftPx: profile.liftPx,
         shake: profile.shake ? { ...profile.shake } : null
     };
 }
@@ -260,6 +278,7 @@ export async function playCombatAvatarAttack(target, weaponType, options = {}) {
     element.dataset.combatAvatarAttackToken = token;
     clearCombatWeaponClass(element);
     element.classList.add(profile.className);
+    setCombatWeaponMotionVariables(element, profile, direction);
     try {
         return await triggerAvatarAttackMotion(element, {
             direction,
@@ -272,6 +291,7 @@ export async function playCombatAvatarAttack(target, weaponType, options = {}) {
         if (element.dataset.combatAvatarAttackToken === token) {
             delete element.dataset.combatAvatarAttackToken;
             clearCombatWeaponClass(element);
+            clearCombatWeaponMotionVariables(element);
         }
     }
 }
