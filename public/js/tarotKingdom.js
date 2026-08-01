@@ -68,7 +68,7 @@ import {
   resetCombatAvatarState,
   setCombatAvatarKo,
   setCombatAvatarVictory
-} from './avatarCombat.js?v=20260801-weapon-motion1';
+} from './avatarCombat.js?v=20260801-weapon-motion4';
 import { startAvatarBodyMotion, stopAvatarBodyMotion } from './avatar.js';
 import {
   PIXEL_MONSTER_COMPANION_OFFSET_Y,

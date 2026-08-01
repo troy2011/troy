@@ -459,7 +459,7 @@ async function init() {
 
 async function loadAvatarModule() {
     try {
-        avatarCombatModule = await import('./avatarCombat.js?v=20260801-weapon-motion1');
+        avatarCombatModule = await import('./avatarCombat.js?v=20260801-weapon-motion4');
     } catch (error) {
         avatarCombatModule = null;
         console.warn('[melee-demo] avatar combat module unavailable', error);

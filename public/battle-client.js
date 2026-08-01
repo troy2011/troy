@@ -15,7 +15,7 @@ let battleOpponentAvatarDetailsRequest = null;
 const MELEE_REPLAY_ROLL_STEPS = 10;
 const MELEE_REPLAY_ROLL_INTERVAL_MS = 42;
 let battleAvatarCombat = null;
-const battleAvatarCombatReady = import('./js/avatarCombat.js?v=20260801-weapon-motion1')
+const battleAvatarCombatReady = import('./js/avatarCombat.js?v=20260801-weapon-motion4')
     .then((module) => {
         battleAvatarCombat = module;
         return module;

@@ -9,6 +9,7 @@ import {
 } from './avatar.js';
 
 const COMBAT_WEAPON_TYPES = new Set([
+    'unarmed',
     'staff',
     'wand',
     'axe',
@@ -29,6 +30,7 @@ const COMBAT_WEAPON_CLASS_NAMES = [
 ];
 
 const COMBAT_WEAPON_MOTION_PROFILES = Object.freeze({
+    unarmed: Object.freeze({ duration: 340, impactRatio: 0.42, forwardPx: 15, recoilPx: 3, liftPx: 1, shake: Object.freeze({ x: 2, y: 1, duration: 120 }) }),
     dagger: Object.freeze({ duration: 300, impactRatio: 0.32, forwardPx: 19, recoilPx: 2, liftPx: 0, shake: null }),
     wand: Object.freeze({ duration: 380, impactRatio: 0.48, forwardPx: 5, recoilPx: 2, liftPx: 2, shake: null }),
     gun: Object.freeze({ duration: 420, impactRatio: 0.46, forwardPx: 1, recoilPx: 11, liftPx: 1, shake: Object.freeze({ x: 2, y: 1, duration: 130 }) }),
@@ -36,12 +38,12 @@ const COMBAT_WEAPON_MOTION_PROFILES = Object.freeze({
     sword: Object.freeze({ duration: 430, impactRatio: 0.52, forwardPx: 17, recoilPx: 4, liftPx: 0, shake: null }),
     polearm: Object.freeze({ duration: 470, impactRatio: 0.48, forwardPx: 25, recoilPx: 4, liftPx: 0, shake: Object.freeze({ x: 2, y: 1, duration: 150 }) }),
     staff: Object.freeze({ duration: 500, impactRatio: 0.55, forwardPx: 4, recoilPx: 2, liftPx: 3, shake: null }),
-    bow: Object.freeze({ duration: 500, impactRatio: 0.52, forwardPx: 1, recoilPx: 5, liftPx: 1, shake: null }),
+    bow: Object.freeze({ duration: 540, impactRatio: 0.66, forwardPx: 1, recoilPx: 5, liftPx: 1, shake: null }),
     axe: Object.freeze({ duration: 540, impactRatio: 0.6, forwardPx: 13, recoilPx: 6, liftPx: 2, shake: Object.freeze({ x: 4, y: 1, duration: 220 }) }),
     blunt: Object.freeze({ duration: 520, impactRatio: 0.58, forwardPx: 12, recoilPx: 6, liftPx: 1, shake: Object.freeze({ x: 4, y: 1, duration: 200 }) }),
     gun_big: Object.freeze({ duration: 620, impactRatio: 0.48, forwardPx: 2, recoilPx: 24, liftPx: 2, shake: Object.freeze({ x: 8, y: 2, duration: 320 }) }),
     sword_big: Object.freeze({ duration: 680, impactRatio: 0.66, forwardPx: 16, recoilPx: 8, liftPx: 3, shake: Object.freeze({ x: 6, y: 2, duration: 280 }) }),
-    axe_big: Object.freeze({ duration: 740, impactRatio: 0.7, forwardPx: 16, recoilPx: 10, liftPx: 4, shake: Object.freeze({ x: 8, y: 2, duration: 340 }) })
+    axe_big: Object.freeze({ duration: 740, impactRatio: 0.74, forwardPx: 16, recoilPx: 10, liftPx: 4, shake: Object.freeze({ x: 8, y: 2, duration: 340 }) })
 });
 
 const COMBAT_WEAPON_MOTION_VARIABLES = Object.freeze([
