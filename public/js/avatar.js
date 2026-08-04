@@ -161,7 +161,7 @@ const ITEM_SPRITE_PRESETS = Object.freeze([
     { idPrefixes: ['polearm_'], path: './Sprites/weapons/melee weapons/polearm.png', width: 32, height: 64, cols: 12, twoHanded: true, avatarOffset: { weaponRight: { x: -2, y: -42 } } },
     { idPrefixes: ['staff_'], path: './Sprites/weapons/magic weapons/staff.png', width: 32, height: 64, cols: 13, twoHanded: false, weaponType: 'staff', avatarOffset: { weaponRight: { x: -1, y: -42 } } },
     { idPrefixes: ['wand_'], path: './Sprites/weapons/magic weapons/wand.png', width: 32, height: 32, cols: 6, twoHanded: false, weaponType: 'staff', avatarOffset: { weaponRight: { x: 2, y: 4 } } },
-    { idPrefixes: ['gun_big_'], path: './Sprites/weapons/ranged weapons/pistol_big.png', width: 64, height: 32, cols: 5, twoHanded: true, avatarOffset: { weaponRight: { x: -34, y: 8 } } },
+    { idPrefixes: ['gun_big_'], path: './Sprites/weapons/ranged weapons/pistol_big.png', width: 64, height: 32, cols: 5, twoHanded: true, avatarOffset: { weaponRight: { x: -34, y: 12 } } },
     { idPrefixes: ['gun_'], path: './Sprites/weapons/ranged weapons/pistol.png', width: 32, height: 32, cols: 4, twoHanded: false, avatarOffset: { weaponRight: { x: -2, y: 9 } } }
 ]);
 

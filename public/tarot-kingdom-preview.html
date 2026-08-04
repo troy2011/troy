@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="robots" content="noindex,follow">
     <title>Tarot Kingdom Preview</title>
-    <link rel="stylesheet" href="./style.css?v=20260801-weapon-motion4">
+    <link rel="stylesheet" href="./style.css?v=20260804-resonance-hud10">
     <link rel="stylesheet" href="./tarot-kingdom-summons.css?v=20260801-role-chain1">
     <style>
         html, body {
@@ -41,10 +41,10 @@
                 "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
                 "config": "./js/config.js",
                 "api": "./js/api.js",
-                "ui": "./js/ui.js?v=20260801-weapon-motion4",
+                "ui": "./js/ui.js?v=20260804-tarot-loadout-ui1",
                 "avatar": "./js/avatar.js",
                 "player": "./js/player.js",
-                "inventory": "./js/inventory.js?v=20260604g",
+                "inventory": "./js/inventory.js?v=20260804-tarot-loadout-ui1",
                 "game": "./Game.js"
             }
         }
@@ -173,7 +173,16 @@
                         <span id="tarotKingdomYourTurnBadge" class="tarot-kingdom-your-turn-badge" hidden>YOUR TURN</span>
                     </div>
                 </div>
-                <div id="tarotKingdomSelectedEffect" class="tarot-kingdom-selected-effect" role="status" aria-live="polite">戦闘状況を確認中</div>
+                <div id="tarotKingdomArcanaNav" class="tarot-kingdom-arcana-nav" aria-label="守護アルカナ" hidden>
+                    <div id="tarotKingdomGuardianPassive" class="tarot-kingdom-guardian-passive" hidden>
+                        <span id="tarotKingdomGuardianPassiveLabel" class="tarot-kingdom-guardian-passive-label">守護</span>
+                        <strong id="tarotKingdomGuardianPassiveName"></strong>
+                        <span id="tarotKingdomGuardianPassiveText"></span>
+                    </div>
+                </div>
+                <div id="tarotKingdomSelectedEffect" class="tarot-kingdom-selected-effect" role="status" aria-live="polite">
+                    <span id="tarotKingdomSelectedEffectText" class="tarot-kingdom-selected-effect-text">戦闘状況を確認中</span>
+                </div>
                 <div id="tarotKingdomHand" class="tarot-kingdom-hand tarot-card-row"></div>
                 <div id="tarotKingdomActionPopup" class="tarot-bet-popup tarot-kingdom-action-popup app-action-panel">
                     <div class="tarot-betting-actions">
@@ -203,7 +212,7 @@
         window.myLineProfile = { displayName: 'Preview' };
         window.__TAROT_KINGDOM_PREVIEW__ = true;
 
-        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260801-role-chain1';
+        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260804-resonance-hud10';
 
         window.TarotKingdomPreview = {
             load: () => loadTarotKingdomPage(),
@@ -213,7 +222,43 @@
         loadTarotKingdomPage()
             .then(() => {
                 const fixture = new URLSearchParams(window.location.search).get('tkfixture');
+                const showcase = new URLSearchParams(window.location.search).get('tkshowcase');
                 const debug = window.TarotKingdomDebug;
+                if (showcase === 'resonance') {
+                    debug?.battleScenario({
+                        withTrick: false,
+                        turnIndex: 0,
+                        enableNpcSeats: true,
+                        handsBySeat: [[
+                            { id: 'showcase-sword-5', kind: 'minor', suit: 'Sword', number: 5 },
+                            { id: 'showcase-cup-5', kind: 'minor', suit: 'Cup', number: 5 },
+                            { id: 'showcase-wand-5', kind: 'minor', suit: 'Wand', number: 5 },
+                            { id: 'showcase-major-5', kind: 'major', suit: 'None', number: 5 },
+                            { id: 'showcase-cup-3', kind: 'minor', suit: 'Cup', number: 3 },
+                            { id: 'showcase-pentacle-8', kind: 'minor', suit: 'Pentacle', number: 8 },
+                            { id: 'showcase-wand-10', kind: 'minor', suit: 'Wand', number: 10 },
+                            { id: 'showcase-sword-7', kind: 'minor', suit: 'Sword', number: 7 }
+                        ]],
+                        charactersBySeat: [{
+                            version: 3,
+                            tarotDeck: [
+                                { slot: 0, itemId: 'tarot_minor_sword_05', suit: 'Sword', rank: 5, cardLevel: 1, resonanceId: 'sword-5' },
+                                { slot: 1, itemId: 'tarot_minor_cup_05', suit: 'Cup', rank: 5, cardLevel: 1, resonanceId: 'cup-5' },
+                                { slot: 2, itemId: 'tarot_minor_cup_03', suit: 'Cup', rank: 3, cardLevel: 1, resonanceId: 'cup-3' },
+                                { slot: 3, itemId: 'tarot_minor_pentacle_08', suit: 'Pentacle', rank: 8, cardLevel: 1, resonanceId: 'pentacle-8' },
+                                { slot: 4, itemId: 'tarot_minor_wand_10', suit: 'Wand', rank: 10, cardLevel: 1, resonanceId: 'wand-10' }
+                            ],
+                            guardianArcana: {
+                                itemId: 'tarot_major_05',
+                                number: 5,
+                                cardLevel: 1,
+                                passiveId: 'hierophant-skip',
+                                awakeningId: 'hierophant-awaken'
+                            }
+                        }]
+                    });
+                    return;
+                }
                 if (fixture === 'skip-soak') {
                     debug?.battleScenario({ withTrick: true });
                     debug?.battleSetEnemyAreaSeal(true);

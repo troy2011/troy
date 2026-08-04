@@ -6108,6 +6108,20 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   await expect(page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty) .tarot-number-badge')).toHaveText(['10']);
   await expect(page.locator('#guardianArcanaGrid .tarot-loadout-visual .tarot-number-badge.is-none')).toHaveText('5');
   await expect(page.locator('#guardianArcanaGrid .tarot-loadout-visual .tarot-number-badge.is-sword')).toHaveCount(0);
+  await expect(page.locator('#meleeDeckEffectList .tarot-loadout-effect-row')).toHaveCount(1);
+  await expect(page.locator('#meleeDeckEffectList')).toContainText('窮地の大杯');
+  await expect(page.locator('#meleeDeckEffectList')).toContainText('提出後の手札が3枚以下');
+  await expect(page.locator('#guardianArcanaEffectList')).toContainText('聖律の封波');
+  await expect(page.locator('#guardianArcanaEffectList')).toContainText('常時');
+  await expect(page.locator('#guardianArcanaEffectList')).toContainText('覚醒');
+
+  await page.locator('#openArcanaResonanceCatalog').click();
+  await expect(page.locator('#arcanaResonanceCatalogTitle')).toHaveText('タロット効果一覧');
+  await expect(page.locator('#arcanaResonanceCatalogModal')).toBeVisible();
+  await page.locator('.arcana-resonance-tabs [data-tab="Major"]').click();
+  await expect(page.locator('.arcana-resonance-row[data-suit="major"]')).toHaveCount(22);
+  await expect(page.locator('.arcana-resonance-row[data-suit="major"].is-equipped')).toContainText('聖律の封波');
+  await page.locator('.arcana-resonance-close').click();
 
   const badgeStyles = await page.evaluate(() => {
     const read = (selector) => {
@@ -6240,6 +6254,17 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   expect(levelBadgeMetrics.strokeWidth).toBe('0px');
   expect(levelBadgeMetrics.overflow).toBe('visible');
   expect(Number.parseInt(levelBadgeMetrics.zIndex, 10)).toBeGreaterThanOrEqual(30);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const tarotEffectLayout = await page.evaluate(() => ({
+    viewportWidth: window.innerWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+    minorWidth: Math.round(document.getElementById('meleeDeckEffectList')?.getBoundingClientRect().width || 0),
+    guardianWidth: Math.round(document.getElementById('guardianArcanaEffectList')?.getBoundingClientRect().width || 0)
+  }));
+  expect(tarotEffectLayout.scrollWidth).toBeLessThanOrEqual(tarotEffectLayout.viewportWidth);
+  expect(tarotEffectLayout.minorWidth).toBeGreaterThan(250);
+  expect(tarotEffectLayout.guardianWidth).toBeGreaterThan(200);
   await expectNoPageErrors(errors);
 });
 
@@ -6435,17 +6460,17 @@ test('tarot cards open detail before changing deck membership', async ({ page })
   await page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty)').click();
   expect(unequipRequests).toHaveLength(0);
   await expect(page.locator('#itemDetailModal')).toBeVisible();
-  await expect(page.locator('#itemDetailTarotCombat')).toContainText('豊穣の大杯');
-  await expect(page.locator('#itemDetailTarotCombat')).toContainText('生存味方全員を8%回復');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('窮地の大杯');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('提出後の手札が3枚以下');
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('デッキ1枚目');
   await page.evaluate(() => window.closeItemDetailModal && window.closeItemDetailModal());
 
   await page.locator('#inventoryGrid .inventory-item-cell:has(.tarot-number-badge.is-wand)').click();
   expect(equipRequests).toHaveLength(0);
   await expect(page.locator('#itemDetailModal')).toBeVisible();
-  await expect(page.locator('#itemDetailTarotCombat')).toContainText('天翔の風杖');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('グリモリア');
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('未セット');
-  await expect(page.locator('#itemDetailTarotCombat')).toContainText('風属性×1.05');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('手札にあるワンドが多いほど大ダメージ');
   await page.locator('#itemDetailModal .item-detail-action.is-equip').click();
   expect(equipRequests).toHaveLength(1);
   expect(equipRequests[0]).toMatchObject({

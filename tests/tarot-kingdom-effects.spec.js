@@ -120,30 +120,32 @@ test.describe('Tarot Kingdom weapon-suit effects', () => {
 });
 
 test.describe('Tarot Kingdom equipped-card resonance', () => {
-  test('matches by minor suit and rank, works with role submissions, and ignores item identity', async () => {
+  test('exact matches work in role submissions and ignore item identity', async () => {
     const effects = await loadEffectsModule();
     const deck = [{
       slot: 0,
       itemId: 'owned-instance-does-not-matter',
-      cardId: 'CUP_05',
+      cardId: 'CUP_13',
       suit: 'Cup',
-      rank: 5,
+      rank: 13,
       cardLevel: 1
     }];
-    const context = weaponContext(['unarmed'], minor('Cup', 5), {
+    const context = weaponContext(['unarmed'], minor('Cup', 13), {
       playType: 'role',
       character: { combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] }, tarotDeck: deck }
     });
     expect(effects.resolveTarotKingdomResonance(context)).toMatchObject({
       candidates: [{
       slot: 0,
-      skillName: '清流の祈り',
+      skillName: '慈潮の女王',
       suit: 'Cup',
-      rank: 5
+      rank: 13,
+      matchKind: 'exact',
+      matchMultiplier: 1
       }]
     });
-    expect(effects.resolveTarotKingdomResonance({ ...context, cards: [minor('Cup', 6)] })).toBeNull();
-    expect(effects.resolveTarotKingdomResonance({ ...context, cards: [{ kind: 'major', number: 5 }] })).toBeNull();
+    expect(effects.resolveTarotKingdomResonance({ ...context, cards: [minor('Cup', 12)] })).toBeNull();
+    expect(effects.resolveTarotKingdomResonance({ ...context, cards: [{ kind: 'major', number: 15 }] })).toBeNull();
   });
 
   test('every exact match resolves in equipped-slot order', async () => {
@@ -165,7 +167,72 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
     });
     expect(resolved.candidates).toHaveLength(2);
     expect(resolved.candidates.map((entry) => entry.slot)).toEqual([0, 1]);
-    expect(resolved.candidates.map((entry) => entry.skillName)).toEqual(['砕甲剣', '白銀の歩法']);
+    expect(resolved.candidates.map((entry) => entry.skillName)).toEqual(['五歩詰め', '六道駆け']);
+  });
+
+  test('same-rank resonance is 50%, exact match takes priority, and each engraving activates once', async () => {
+    const effects = await loadEffectsModule();
+    const character = {
+      combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
+      tarotDeck: [{ slot: 0, cardId: 'PENTACLE_01', suit: 'Pentacle', rank: 1, cardLevel: 1 }]
+    };
+    const base = weaponContext(['unarmed'], minor('Sword', 1), {
+      character,
+      handBefore: [minor('Sword', 1)],
+      handAfter: []
+    });
+    const sameRank = effects.resolveTarotKingdomResonance(base);
+    expect(sameRank.candidates).toHaveLength(1);
+    expect(sameRank.candidates[0]).toMatchObject({ matchKind: 'same-rank', matchMultiplier: 0.5 });
+    expect(sameRank.steps[0]).toMatchObject({ kind: 'buff', potency: 5 });
+
+    const majorRank = effects.resolveTarotKingdomResonance({ ...base, cards: [{ id: 'major-1', kind: 'major', number: 1 }] });
+    expect(majorRank.candidates[0]).toMatchObject({ matchKind: 'major-rank', matchMultiplier: 0.5, sourceAttribute: 'neutral' });
+
+    const exactWins = effects.resolveTarotKingdomResonance({
+      ...base,
+      cards: [minor('Sword', 1), minor('Pentacle', 1), minor('Pentacle', 1, 'duplicate')]
+    });
+    expect(exactWins.candidates).toHaveLength(1);
+    expect(exactWins.candidates[0]).toMatchObject({ matchKind: 'exact', matchMultiplier: 1 });
+
+    const binarySameRank = effects.resolveTarotKingdomResonance({
+      ...base,
+      cards: [{ id: 'major-13', kind: 'major', number: 13 }],
+      character: {
+        ...character,
+        tarotDeck: [{ slot: 0, cardId: 'SWORD_13', suit: 'Sword', rank: 13, cardLevel: 1 }]
+      }
+    });
+    expect(binarySameRank.steps[0]).toMatchObject({ kind: 'register-trigger', activationChance: 0.5 });
+  });
+
+  test('new conditions read field, hand, reverse, leader, and control events', async () => {
+    const effects = await loadEffectsModule();
+    expect(effects.isTarotKingdomResonanceConditionMet(
+      { kind: 'field-rank-gap-min', gap: 7 },
+      { cards: [minor('Sword', 14)], fieldCard: minor('Cup', 7) }
+    )).toBe(true);
+    expect(effects.isTarotKingdomResonanceConditionMet(
+      { kind: 'reverse-overtake' },
+      { cards: [minor('Sword', 9)], fieldCard: minor('Cup', 10), reverseBefore: true }
+    )).toBe(true);
+    expect(effects.isTarotKingdomResonanceConditionMet(
+      { kind: 'leader-after-optional-draw' },
+      { cards: [minor('Wand', 6)], isLeader: true, optionalDrawUsed: true }
+    )).toBe(true);
+    expect(effects.isTarotKingdomResonanceConditionMet(
+      { kind: 'causes-lock' },
+      { playType: 'set', cards: [minor('Wand', 14)], fieldCard: minor('Wand', 10) }
+    )).toBe(true);
+    expect(effects.isTarotKingdomResonanceConditionMet(
+      { kind: 'enemy-guarded' },
+      { effects: { enemy: { defenseUp: { potency: 25 } } } }
+    )).toBe(true);
+    expect(effects.isTarotKingdomResonanceConditionMet(
+      { kind: 'previous-pass-ko' },
+      { previousPassKoIndex: null }
+    )).toBe(false);
   });
 
   test('all 56 dedicated definitions are complete without legacy effect codes', async () => {
@@ -173,14 +240,18 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
     const minorDeck = globalThis.__TAROT_KINGDOM_ARCANA_EFFECTS__.minor;
     expect(minorDeck).toHaveLength(56);
     expect(effects.getUnsupportedTarotKingdomEffectCodes(minorDeck)).toEqual([]);
-    minorDeck.forEach((entry, slot) => {
-      const candidate = effects.buildTarotKingdomResonanceCandidate(
-        { ...entry, slot, cardLevel: 1 },
-        minor(entry.suit, entry.rank),
-        weaponContext(['unarmed'], minor(entry.suit, entry.rank))
-      );
-      expect(candidate, entry.id).toBeTruthy();
-      expect(candidate.steps.length, entry.id).toBeGreaterThan(0);
+    const supportedKinds = new Set([
+      'magic-damage', 'elemental-barrage', 'physical-damage', 'heal-lowest', 'heal-self',
+      'heal-field-owner', 'heal-previous-player', 'shield-self', 'shield-lowest-other', 'shield-party',
+      'cleanse-field-owner', 'cleanse-party', 'revive-previous-passer', 'enemy-status', 'party-status',
+      'player-status-self', 'cover-lowest', 'dispel-enemy-guard', 'hand-suit-damage', 'pile-barrage',
+      'dual-history-damage', 'base-attack-bonus', 'submitted-count-damage', 'hand-count-damage',
+      'court-card-shield', 'shield-scaled-damage', 'delayed-damage', 'delayed-buff', 'field-aura'
+    ]);
+    minorDeck.forEach((entry) => {
+      expect(entry.condition?.kind, `${entry.id} condition`).toBeTruthy();
+      expect(entry.steps.length, entry.id).toBeGreaterThan(0);
+      entry.steps.forEach((step) => expect(supportedKinds.has(step.kind), `${entry.id}:${step.kind}`).toBe(true));
     });
   });
 });

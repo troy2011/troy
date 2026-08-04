@@ -23,7 +23,7 @@
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
     <title>TROYゴールドアプリ</title>
-<link rel="stylesheet" href="style.css?v=20260801-equipment-enhancement1">
+<link rel="stylesheet" href="style.css?v=20260804-resonance-hud10">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
     <link rel="stylesheet" href="tarot-kingdom-summons.css?v=20260801-role-chain1">
@@ -583,7 +583,16 @@
                                     <span id="tarotKingdomYourTurnBadge" class="tarot-kingdom-your-turn-badge" hidden>YOUR TURN</span>
                                 </div>
                             </div>
-                            <div id="tarotKingdomSelectedEffect" class="tarot-kingdom-selected-effect" role="status" aria-live="polite">戦闘状況を確認中</div>
+                            <div id="tarotKingdomArcanaNav" class="tarot-kingdom-arcana-nav" aria-label="守護アルカナ" hidden>
+                                <div id="tarotKingdomGuardianPassive" class="tarot-kingdom-guardian-passive" hidden>
+                                    <span id="tarotKingdomGuardianPassiveLabel" class="tarot-kingdom-guardian-passive-label">守護</span>
+                                    <strong id="tarotKingdomGuardianPassiveName"></strong>
+                                    <span id="tarotKingdomGuardianPassiveText"></span>
+                                </div>
+                            </div>
+                            <div id="tarotKingdomSelectedEffect" class="tarot-kingdom-selected-effect" role="status" aria-live="polite">
+                                <span id="tarotKingdomSelectedEffectText" class="tarot-kingdom-selected-effect-text">戦闘状況を確認中</span>
+                            </div>
                             <div id="tarotKingdomHand" class="tarot-kingdom-hand tarot-card-row"></div>
                             <div id="tarotKingdomActionPopup" class="tarot-bet-popup tarot-kingdom-action-popup app-action-panel">
                                 <div class="tarot-betting-actions">
@@ -1076,14 +1085,18 @@
 
                 <div class="content-area inventory-section inventory-tarot-section" data-panel="tarot" hidden>
                     <div class="section-header">
-                        <h2>タロット管理</h2>
+                        <div class="tarot-inventory-heading">
+                            <h2>タロット装備</h2>
+                            <p>装備中の共鳴効果と守護能力を確認できます。</p>
+                        </div>
+                        <button id="openArcanaResonanceCatalog" class="tarot-loadout-catalog-button" type="button">全効果を見る</button>
                     </div>
                     <div class="tarot-deck-panels">
                         <div class="tarot-deck-panel" id="meleeDeckPanel">
                             <div class="tarot-loadout-header">
                                 <div>
-                                    <h3>タロットデッキ</h3>
-                                    <p>装備した小アルカナはタロットキングダムで共鳴します。</p>
+                                    <h3>共鳴デッキ</h3>
+                                    <p>同じ数字は50%、完全一致は100%の効果で発動します。</p>
                                 </div>
                             </div>
                             <div id="meleeDeckRole" class="tarot-loadout-role">
@@ -1093,16 +1106,19 @@
                                 <div class="tarot-loadout-role-hint">5枚の札が揃うと役判定されます。</div>
                             </div>
                             <div id="meleeDeckGrid" class="tarot-loadout-grid"></div>
+                            <div id="meleeDeckEffectList" class="tarot-loadout-effect-list" aria-live="polite"></div>
                         </div>
                         <div class="tarot-deck-panel" id="guardianArcanaPanel">
                             <div class="tarot-loadout-header">
                                 <div>
                                     <h3>守護アルカナ</h3>
-                                    <p>常時パッシブを得て、同じ大アルカナを出すと覚醒します。</p>
+                                    <p>装備中は常時効果。同じ大アルカナを出すと覚醒します。</p>
                                 </div>
-                                <button id="openArcanaResonanceCatalog" class="tarot-loadout-catalog-button" type="button">共鳴一覧</button>
                             </div>
-                            <div id="guardianArcanaGrid" class="tarot-loadout-grid is-guardian"></div>
+                            <div class="tarot-guardian-loadout">
+                                <div id="guardianArcanaGrid" class="tarot-loadout-grid is-guardian"></div>
+                                <div id="guardianArcanaEffectList" class="tarot-loadout-effect-list is-guardian" aria-live="polite"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1782,10 +1798,10 @@
         "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
         "config": "./js/config.js",
         "api": "./js/api.js",
-"ui": "./js/ui.js?v=20260801-weapon-motion4",
+"ui": "./js/ui.js?v=20260804-tarot-loadout-ui1",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js",
-        "inventory": "./js/inventory.js?v=20260801-equipment-enhancement1",
+        "inventory": "./js/inventory.js?v=20260804-tarot-loadout-ui1",
         "game": "./Game.js?v=20260727-nav-guide1"
       }
     }
@@ -1829,6 +1845,6 @@
     <!-- Scripts -->
     <script src="battle-client.js?v=20260801-weapon-motion4"></script>
     <script src="naval-battle.js"></script>
-<script type="module" src="main.js?v=20260801-weapon-motion4"></script>
+<script type="module" src="main.js?v=20260804-tarot-loadout-ui1"></script>
 </body>
 </html>

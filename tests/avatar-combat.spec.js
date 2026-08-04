@@ -721,6 +721,61 @@ test.describe('shared combat avatar motions', () => {
     expect(audit.combat['shield-left'].baseTransform).toBe('translateX(12px) translateY(18px)');
   });
 
+  test('places the large gun at its lowered shared offset in home and combat avatars', async ({ page }) => {
+    await page.goto('/melee-demo.html');
+
+    const audit = await page.evaluate(async () => {
+      const avatar = await import('/js/avatar.js');
+      const combat = await import('/js/avatarCombat.js');
+      const avatarBase = {
+        Race: 'human', AvatarColor: 'brown', SkinColorIndex: 1,
+        FaceIndex: 1, HairStyleIndex: 1, FacialHairStyleIndex: 0, level: 12
+      };
+      const equipment = { RightHand: 'gun_big_1' };
+      const items = {
+        gun_big_1: {
+          itemId: 'gun_big_1',
+          customData: { Category: 'Weapon', WeaponType: 'gun_big', sprite_index: '1' }
+        }
+      };
+      const createRoot = (id, className) => {
+        const root = document.createElement('div');
+        root.id = id;
+        root.className = className;
+        root.innerHTML = avatar.buildAvatarLayerMarkup(id);
+        document.body.appendChild(root);
+        return root;
+      };
+      const homeRoot = createRoot('large-gun-home-offset', 'avatar-container');
+      const combatRoot = createRoot('large-gun-combat-offset', 'avatar-combat-actor');
+      avatar.renderAvatar(homeRoot.id, avatarBase, equipment, items, false);
+      combat.renderCombatAvatar(combatRoot, avatarBase, equipment, items, { resetState: false });
+
+      for (let attempt = 0; attempt < 80; attempt += 1) {
+        const ready = [homeRoot, combatRoot].every((root) => (
+          root.querySelector(`#${root.id}-layer-weapon-right`)?.dataset.loadState === 'ready'
+        ));
+        if (ready) break;
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      const baseTransform = (root) => (
+        root.querySelector(`#${root.id}-layer-weapon-right`)?.dataset.baseTransform || ''
+      );
+      const result = {
+        home: baseTransform(homeRoot),
+        combat: baseTransform(combatRoot)
+      };
+      avatar.stopAvatarBodyMotion(homeRoot);
+      combat.resetCombatAvatarState(combatRoot, { resumeIdle: false });
+      homeRoot.remove();
+      combatRoot.remove();
+      return result;
+    });
+
+    expect(audit.home).toBe('translateX(-52px) translateY(12px)');
+    expect(audit.combat).toBe(audit.home);
+  });
+
   test('honors reduced motion for JS-driven idle and attack animation', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/melee-demo.html');

@@ -1072,6 +1072,136 @@ function findInventoryTarotCard(definition, type) {
     }) || null;
 }
 
+const TAROT_LOADOUT_SUIT_LABELS = Object.freeze({
+    Cup: '杯',
+    Wand: '杖',
+    Sword: '剣',
+    Pentacle: '貨'
+});
+
+const TAROT_GUARDIAN_ATTRIBUTE_LABELS = Object.freeze({
+    light: '光属性',
+    dark: '闇属性',
+    neutral: '無属性'
+});
+
+function getInventoryCardLevel(itemId) {
+    return Math.max(1, Number(cardLevelMap[String(itemId || '')]?.level) || 1);
+}
+
+function renderTarotLoadoutEmpty(root, message) {
+    if (!root) return;
+    const empty = document.createElement('p');
+    empty.className = 'tarot-loadout-effect-empty';
+    empty.textContent = message;
+    root.replaceChildren(empty);
+}
+
+function createTarotLoadoutEffectRow(item, itemId, slotIndex) {
+    const data = item?.customData || {};
+    const suit = String(data.ArcanaSuit || data.Suit || '');
+    const rank = Number(data.ArcanaRank ?? data.Rank ?? data.Number);
+    const definition = getTarotKingdomMinorDefinition(suit, rank);
+    const level = getInventoryCardLevel(itemId);
+    const scale = getTarotKingdomCardLevelScale(level);
+    const suitName = String(definition?.suit || suit || 'None');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'tarot-loadout-effect-row';
+    button.dataset.suit = suitName.toLowerCase();
+    button.setAttribute('aria-label', `${item?.name || definition?.name || '装備カード'}の共鳴効果を詳しく見る`);
+    button.addEventListener('click', () => showItemDetailModal(item));
+
+    const marker = document.createElement('span');
+    marker.className = 'tarot-loadout-effect-marker';
+    marker.textContent = `${TAROT_LOADOUT_SUIT_LABELS[definition?.suit] || '札'}${getTarotRankLabel({ ArcanaRank: rank })}`;
+
+    const copy = document.createElement('span');
+    copy.className = 'tarot-loadout-effect-copy';
+    const heading = document.createElement('span');
+    heading.className = 'tarot-loadout-effect-heading';
+    const name = document.createElement('strong');
+    name.textContent = definition?.name || item?.name || '共鳴効果';
+    const meta = document.createElement('small');
+    meta.textContent = `枠${slotIndex + 1} · Lv${level}${level > 1 ? ` · 数値×${scale.toFixed(2)}` : ''}`;
+    heading.append(name, meta);
+    const effect = document.createElement('span');
+    effect.className = 'tarot-loadout-effect-text';
+    effect.textContent = definition?.effect || '効果データ未登録';
+    copy.append(heading, effect);
+
+    const chevron = document.createElement('span');
+    chevron.className = 'tarot-loadout-effect-chevron';
+    chevron.setAttribute('aria-hidden', 'true');
+    chevron.textContent = '›';
+    button.append(marker, copy, chevron);
+    return button;
+}
+
+function renderTarotDeckEffectList(root, deckItemIds) {
+    if (!root) return;
+    const rows = (Array.isArray(deckItemIds) ? deckItemIds : [])
+        .slice(0, 5)
+        .map((itemId, slotIndex) => {
+            const item = myInventory.find((entry) => entry.itemId === itemId);
+            return item ? createTarotLoadoutEffectRow(item, itemId, slotIndex) : null;
+        })
+        .filter(Boolean);
+    if (!rows.length) {
+        renderTarotLoadoutEmpty(root, '小アルカナをセットすると、ここに共鳴効果が表示されます。');
+        return;
+    }
+    root.replaceChildren(...rows);
+}
+
+function renderGuardianArcanaEffectList(root) {
+    if (!root) return;
+    const itemId = String(myTarotGuardian?.itemId || '');
+    const item = itemId ? myInventory.find((entry) => entry.itemId === itemId) : null;
+    if (!item) {
+        renderTarotLoadoutEmpty(root, '大アルカナを1枚セットすると、常時効果と覚醒能力が表示されます。');
+        return;
+    }
+    const data = item.customData || {};
+    const matchedNumber = itemId.match(/(?:major|arcana)[_-]?0*(\d{1,2})/i)?.[1];
+    const number = Number(data.ArcanaNumber ?? data.Number ?? matchedNumber);
+    const definition = getTarotKingdomGuardianDefinition(number);
+    const level = getInventoryCardLevel(itemId);
+    const scale = getTarotKingdomCardLevelScale(level);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'tarot-guardian-effect-summary';
+    button.dataset.attribute = String(definition?.attribute || 'neutral');
+    button.setAttribute('aria-label', `${item.name || '守護アルカナ'}の守護能力を詳しく見る`);
+    button.addEventListener('click', () => showItemDetailModal(item));
+
+    const head = document.createElement('span');
+    head.className = 'tarot-guardian-effect-head';
+    const title = document.createElement('strong');
+    title.textContent = item.name || `大アルカナ ${number}`;
+    const meta = document.createElement('small');
+    meta.textContent = `${TAROT_GUARDIAN_ATTRIBUTE_LABELS[definition?.attribute] || '無属性'} · Lv${level}${level > 1 ? ` · 数値×${scale.toFixed(2)}` : ''}`;
+    head.append(title, meta);
+
+    const passive = document.createElement('span');
+    passive.className = 'tarot-guardian-effect-line is-passive';
+    const passiveLabel = document.createElement('b');
+    passiveLabel.textContent = '常時';
+    const passiveText = document.createElement('span');
+    passiveText.textContent = `${definition?.passiveName || '守護効果'}：${definition?.passive || '効果データ未登録'}`;
+    passive.append(passiveLabel, passiveText);
+
+    const awakening = document.createElement('span');
+    awakening.className = 'tarot-guardian-effect-line is-awakening';
+    const awakeningLabel = document.createElement('b');
+    awakeningLabel.textContent = '覚醒';
+    const awakeningText = document.createElement('span');
+    awakeningText.textContent = definition?.awakening || '効果データ未登録';
+    awakening.append(awakeningLabel, awakeningText);
+    button.append(head, passive, awakening);
+    root.replaceChildren(button);
+}
+
 function openArcanaResonanceCatalog() {
     let modal = document.getElementById('arcanaResonanceCatalogModal');
     if (!modal) {
@@ -1081,8 +1211,11 @@ function openArcanaResonanceCatalog() {
         modal.innerHTML = `
             <section class="arcana-resonance-sheet" role="dialog" aria-modal="true" aria-labelledby="arcanaResonanceCatalogTitle">
                 <header class="arcana-resonance-head">
-                    <h3 id="arcanaResonanceCatalogTitle">共鳴一覧</h3>
-                    <button type="button" class="arcana-resonance-close" aria-label="共鳴一覧を閉じる">×</button>
+                    <div>
+                        <h3 id="arcanaResonanceCatalogTitle">タロット効果一覧</h3>
+                        <p>小アルカナの共鳴と大アルカナの守護能力</p>
+                    </div>
+                    <button type="button" class="arcana-resonance-close" aria-label="タロット効果一覧を閉じる">×</button>
                 </header>
                 <nav class="arcana-resonance-tabs" aria-label="アルカナ分類"></nav>
                 <div class="arcana-resonance-list"></div>
@@ -1119,15 +1252,17 @@ function openArcanaResonanceCatalog() {
                 ? isShipMajorArcanaEquipped(item?.itemId)
                 : isCardInTarotDeck(item?.itemId);
             const row = document.createElement('article');
-            row.className = `arcana-resonance-row${equipped ? ' is-equipped' : ''}`;
+            row.className = `arcana-resonance-row${equipped ? ' is-equipped' : ''}${item ? '' : ' is-unowned'}`;
+            row.dataset.suit = tabKey.toLowerCase();
+            const stateLabel = equipped ? '装備中' : (item ? `Lv${level}` : '未所持');
             row.innerHTML = tabKey === 'Major'
-                ? `<div class="arcana-resonance-title"><strong>${definition.number}. ${definition.passiveName}</strong><span>${equipped ? '装備中' : `Lv${level}`}</span></div>
+                ? `<div class="arcana-resonance-title"><strong>${definition.number}. ${definition.passiveName}</strong><span>${stateLabel}</span></div>
                    <p><b>${definition.passiveName}</b>：${definition.passive}</p>
                    <p><b>覚醒</b>：${definition.awakening}</p>
-                   <small>現在Lv 数値倍率 ×${scale.toFixed(2)}</small>`
-                : `<div class="arcana-resonance-title"><strong>${getTarotRankLabel({ ArcanaRank: definition.rank })} ${definition.name}</strong><span>${equipped ? '装備中' : `Lv${level}`}</span></div>
-                   <p>Lv1：${definition.effect}</p>
-                   <small>現在Lv 数値倍率 ×${scale.toFixed(2)}</small>`;
+                   <small>${item ? `現在Lvの数値倍率 ×${scale.toFixed(2)}` : '入手後に守護アルカナへ設定できます'}</small>`
+                : `<div class="arcana-resonance-title"><strong>${getTarotRankLabel({ ArcanaRank: definition.rank })} ${definition.name}</strong><span>${stateLabel}</span></div>
+                   <p>${definition.effect}</p>
+                   <small>${item ? `現在Lvの数値倍率 ×${scale.toFixed(2)} · 同数字50% / 完全一致100%` : '入手後に共鳴デッキへ設定できます'}</small>`;
             listRoot.appendChild(row);
         });
     };
@@ -1151,6 +1286,8 @@ function renderTarotDeckPanels() {
     renderDeckRolePanel(document.getElementById('meleeDeckRole'), getCommonTarotRole());
     renderDeckGrid(document.getElementById('meleeDeckGrid'), getCommonTarotDeck());
     renderShipMajorArcanaGrid(document.getElementById('guardianArcanaGrid'));
+    renderTarotDeckEffectList(document.getElementById('meleeDeckEffectList'), getCommonTarotDeck());
+    renderGuardianArcanaEffectList(document.getElementById('guardianArcanaEffectList'));
     const catalogButton = document.getElementById('openArcanaResonanceCatalog');
     if (catalogButton && catalogButton.dataset.catalogBound !== 'true') {
         catalogButton.dataset.catalogBound = 'true';

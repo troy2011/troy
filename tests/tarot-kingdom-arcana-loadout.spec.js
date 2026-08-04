@@ -11,13 +11,14 @@ const {
 
 test('dedicated arcana catalog contains 56 unique minor resonances and 22 guardians', () => {
   const catalog = getArcanaEffectsCatalog();
-  expect(catalog.version).toBe(1);
+  expect(catalog.version).toBe(2);
   expect(catalog.minor).toHaveLength(56);
   expect(catalog.guardian).toHaveLength(22);
   expect(new Set(catalog.minor.map((entry) => entry.id)).size).toBe(56);
   expect(new Set(catalog.minor.map((entry) => entry.name)).size).toBe(56);
   expect(new Set(catalog.guardian.map((entry) => entry.passiveId)).size).toBe(22);
   expect(new Set(catalog.guardian.map((entry) => entry.awakeningId)).size).toBe(22);
+  expect(catalog.guardian.every((entry) => ['neutral', 'light', 'dark'].includes(entry.attribute))).toBe(true);
   expect(JSON.stringify(catalog)).not.toContain('effectCodes');
 });
 
@@ -57,8 +58,9 @@ test('minor and guardian snapshots use canonical IDs and clamp their own level r
     itemId: 'tarot_major_21',
     number: 21,
     cardLevel: 25,
-    passiveId: 'world-ring',
-    awakeningId: 'world-awaken'
+    passiveId: 'world-role',
+    awakeningId: 'world-awaken',
+    attribute: 'neutral'
   });
   expect(clampCardLevel(15, false)).toBe(15);
   expect(clampCardLevel(25, true)).toBe(25);
@@ -84,10 +86,11 @@ test('card levels strengthen numeric values by two percent without changing fixe
   expect(scale(15)).toBeCloseTo(1.28);
   expect(scale(25)).toBeCloseTo(1.48);
 
-  const burn = getArcanaEffectsCatalog().minor.find((entry) => entry.id === 'wand-5');
-  expect(burn.steps.find((step) => step.kind === 'enemy-status')).toMatchObject({
-    chance: 0.7,
-    charges: 2
+  const wandFive = getArcanaEffectsCatalog().minor.find((entry) => entry.id === 'wand-5');
+  expect(wandFive).toMatchObject({
+    name: 'ディディネ',
+    condition: { kind: 'after-five-skip' },
+    steps: [{ kind: 'magic-damage', element: 'field', multiplier: 2.2 }]
   });
   const empress = getArcanaEffectsCatalog().guardian.find((entry) => entry.number === 3);
   expect(empress.awakening).toContain('4ターン');

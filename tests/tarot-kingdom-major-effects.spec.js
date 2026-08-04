@@ -16,6 +16,15 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     expect(audit.skillNames).toHaveLength(22);
     expect(audit.skillNames.every(Boolean)).toBe(true);
     expect(audit.affinityCount).toBe(50);
+    expect(audit.elements).toEqual(['fire', 'water', 'wind', 'earth', 'light', 'dark', 'neutral']);
+    expect(new Set(Object.values(audit.affinities).map((affinity) => affinity.native)))
+      .toEqual(new Set(audit.elements));
+    expect(Object.values(audit.affinities).filter((affinity) => affinity.native === 'light'))
+      .toHaveLength(4);
+    expect(Object.values(audit.affinities).filter((affinity) => affinity.native === 'dark'))
+      .toHaveLength(8);
+    expect(Object.values(audit.affinities).filter((affinity) => affinity.native === 'neutral'))
+      .toHaveLength(2);
     expect(audit.missingMonsterIds).toEqual([]);
     expect(audit.invalidAffinities).toEqual([]);
   });
@@ -189,7 +198,8 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
       const firstRegen = firstClear.battle.effects.players[0].regen;
 
       debug.battleScenario({
-        withTrick: false,
+        withTrick: true,
+        tableCard: { id: 'world-major-field', kind: 'major', suit: 'None', number: 5 },
         handsBySeat: [[
           { id: 'major-world', kind: 'major', suit: 'None', number: 21 },
           { id: 'world-reserve', kind: 'minor', suit: 'Wand', number: 3 }
@@ -386,7 +396,7 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
 
     expect(audit.current.rules).toMatchObject({
       majorBattleEffectsVersion: 2,
-      elementAffinityVersion: 1
+      elementAffinityVersion: 2
     });
     expect(audit.schema14.rules.majorBattleEffectsVersion).toBe(1);
     expect(audit.legacy.rules).toMatchObject({

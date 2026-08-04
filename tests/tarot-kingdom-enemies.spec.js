@@ -93,15 +93,24 @@ test.describe('Tarot Kingdom enemy combat profiles', () => {
     expect(enemies.getTarotKingdomEnemyAilmentChance({ chance: 0.4 }, 999)).toBe(0.4);
   });
 
-  test('only combat-safe poison, burn, blind and attack-stop ailments are assigned', async () => {
+  test('all monsters use combat-safe ailments while legacy battles keep the original set', async () => {
     const enemies = await loadEnemyModule();
     const { PIXEL_MONSTERS_ROSTER } = await loadMonsterManifest();
     const ailments = PIXEL_MONSTERS_ROSTER
       .map((monster) => enemies.getTarotKingdomEnemyAilmentProfile(monster.id))
       .filter(Boolean);
+    const legacyAilments = PIXEL_MONSTERS_ROSTER
+      .map((monster) => enemies.getTarotKingdomEnemyAilmentProfile(monster.id, 1))
+      .filter(Boolean);
 
-    expect(ailments).toHaveLength(21);
+    expect(ailments).toHaveLength(50);
     expect(new Set(ailments.map((ailment) => ailment.statusKey)))
+      .toEqual(new Set([
+        'poison', 'burn', 'blind', 'paralysis', 'fear', 'confusion',
+        'wet', 'weaken', 'vulnerable', 'slow', 'silence'
+      ]));
+    expect(legacyAilments).toHaveLength(21);
+    expect(new Set(legacyAilments.map((ailment) => ailment.statusKey)))
       .toEqual(new Set(['poison', 'burn', 'blind', 'paralysis']));
     ailments.forEach((ailment) => {
       expect(['single', 'area', 'both']).toContain(ailment.scope);

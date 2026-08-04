@@ -306,6 +306,52 @@ test('5 skip leaves a wet film and droplets without raising a wave or showing a 
   await expect(skipSoak).toBeHidden();
 });
 
+test('player ailments appear below the hand count and animate on the avatar without covering either', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleSetEffects({
+      enemy: {},
+      party: {},
+      players: [{
+        paralysis: { label: '麻痺', charges: 1, expiresOn: 'action' },
+        poison: { label: '毒', potency: 5, charges: 2, expiresOn: 'action' },
+        silence: { label: '沈黙', charges: 1, expiresOn: 'action' }
+      }, {}, {}, {}]
+    });
+  });
+
+  const row = page.locator('.tarot-kingdom-battle-player[data-player-index="0"]');
+  const handCount = row.locator('.tarot-kingdom-battle-player-hand-count');
+  const tray = row.locator('.tarot-kingdom-battle-status-tray');
+  const aura = row.locator('.tarot-kingdom-status-aura');
+  await expect(handCount).toContainText('残り手札');
+  await expect(tray.locator('.tarot-kingdom-battle-status-icon')).toHaveCount(3);
+  await expect(aura).toHaveAttribute('data-status', 'paralysis');
+
+  const layout = await row.evaluate((node) => {
+    const hand = node.querySelector('.tarot-kingdom-battle-player-hand-count')?.getBoundingClientRect();
+    const trayRect = node.querySelector('.tarot-kingdom-battle-status-tray')?.getBoundingClientRect();
+    const icons = Array.from(node.querySelectorAll('.tarot-kingdom-battle-status-icon'));
+    const auraStyle = getComputedStyle(node.querySelector('.tarot-kingdom-status-aura'));
+    return {
+      handBottom: hand?.bottom || 0,
+      trayTop: trayRect?.top || 0,
+      iconSizes: icons.map((icon) => {
+        const rect = icon.getBoundingClientRect();
+        return [rect.width, rect.height];
+      }),
+      iconImages: icons.map((icon) => getComputedStyle(icon).backgroundImage),
+      auraAnimation: auraStyle.animationName,
+      rowRight: node.getBoundingClientRect().right
+    };
+  });
+  expect(layout.trayTop).toBeGreaterThanOrEqual(layout.handBottom - 1);
+  expect(layout.iconSizes.every(([width, height]) => width <= 12 && height <= 12)).toBe(true);
+  expect(layout.iconImages.every((value) => value.includes('icons.png'))).toBe(true);
+  expect(layout.auraAnimation).toBe('tarotKingdomStatusFlicker');
+  expect(layout.rowRight).toBeLessThanOrEqual(390);
+});
+
 test('field backgrounds show persistent card effects behind unobscured cards', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   const trick = page.locator('#tarotKingdomTrick');
@@ -1522,7 +1568,7 @@ test('player attack and retreat shadows follow horizontal movement without leavi
   });
   expect(attackShadow.rowAttacking).toBe(true);
   expect(attackShadow.animationName).toBe('tarotKingdomPlayerAttackShadow');
-  expect(attackShadow.duration).toBe('0.38s');
+  expect(attackShadow.duration).toBe('0.43s');
   expect(attackShadow.delay).toBeGreaterThanOrEqual(0);
 
   const movingShadow = await page.locator(
@@ -1967,7 +2013,7 @@ test('Judgment selection message is compact and fits the mobile frame', async ({
   });
 
   await page.locator('#tarotKingdomHand > .tarot-card', { hasText: '審判' }).click();
-  const selectedEffect = page.locator('#tarotKingdomSelectedEffect');
+  const selectedEffect = page.locator('#tarotKingdomSelectedEffectText');
   await expect(selectedEffect).toHaveText('審判 / A不可・11バック・墓地回収');
   await expect(selectedEffect).not.toContainText('選択:');
   const textFit = await selectedEffect.evaluate((element) => ({
@@ -1994,7 +2040,7 @@ test('long card guidance uses the fixed two-line compact layout', async ({ page 
 
   await page.locator('#tarotKingdomHand > .tarot-card', { hasText: '愚者' }).click();
   const guidance = page.locator('#tarotKingdomSelectedEffect');
-  await expect(guidance).not.toContainText('選択:');
+  await expect(page.locator('#tarotKingdomSelectedEffectText')).not.toContainText('選択:');
   await expect(guidance).toHaveClass(/is-compact/);
   const textFit = await guidance.evaluate((element) => ({
     clientWidth: element.clientWidth,
@@ -2006,9 +2052,40 @@ test('long card guidance uses the fixed two-line compact layout', async ({ page 
   expect(textFit.scrollHeight).toBeLessThanOrEqual(textFit.clientHeight);
 });
 
+test('resonance showcase opens with equipped marks, guardian passive and selectable effects', async ({ page }) => {
+  await page.goto('/tarot-kingdom-preview.html?tkfixture=character-battle&tkshowcase=resonance&tkrev=resonance-hud10');
+
+  const npcSeats = await page.evaluate(() => (
+    window.TarotKingdomDebug.battleState().players.slice(1).map((player) => player.isNpc)
+  ));
+  expect(npcSeats).toEqual([true, true, true]);
+  await expect(page.locator('#tarotKingdomArcanaNav')).toBeVisible();
+  const guardian = page.locator('#tarotKingdomGuardianPassive');
+  await expect(guardian).toBeVisible();
+  await expect(guardian).toContainText('聖律の封波');
+  await expect(guardian).toContainText('5スキップ成立時');
+  await expect(page.locator('#tarotKingdomHand .tarot-card-resonance-mark')).toHaveCount(8);
+
+  const hierophant = page.locator('#tarotKingdomHand [data-card-id="showcase-major-5"]');
+  await expect(hierophant.locator('[aria-label="同じ数字の装備カード共鳴 50%"]')).toHaveText('共');
+  await expect(hierophant.locator('[aria-label="守護アルカナ覚醒"]')).toHaveText('覚');
+  await hierophant.click();
+  await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText('法王 / 5スキップ');
+  await expect(page.locator('#tarotKingdomSelectedEffectText')).not.toContainText('共鳴');
+  await expect(page.locator('#tarotKingdomGuardianPassiveLabel')).toHaveText('共鳴・覚醒 ＋2');
+  await expect(page.locator('#tarotKingdomGuardianPassiveName')).toBeHidden();
+  await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('五歩詰め');
+  await expect(page.locator('#tarotKingdomGuardianPassiveText')).toContainText('防御無視で追撃');
+  await expect(page.locator('#tarotKingdomGuardianPassiveText')).not.toContainText('敵の命中率を30低下');
+  await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('共鳴50%');
+  await expect(page.locator('#tarotKingdomGuardianPassive')).toHaveAttribute('title', /敵の命中率を30低下/);
+  await expect(page.locator('#tarotKingdomGuardianPassive')).not.toHaveAttribute('title', /五歩詰め|水縛の杯|守護覚醒/);
+  await expect(page.locator('.tarot-kingdom-hand-title')).toBeHidden();
+});
+
 test('battle announcement stays visible while the hand remains selectable between turns', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
-  const selectedEffect = page.locator('#tarotKingdomSelectedEffect');
+  const selectedEffect = page.locator('#tarotKingdomSelectedEffectText');
   const firstCard = page.locator('#tarotKingdomHand > .tarot-card').first();
 
   await page.evaluate(() => {
@@ -2034,7 +2111,7 @@ test('battle announcement stays visible while the hand remains selectable betwee
 
 test('encounter and battle result announcements use short RPG-style messages', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
-  const announcement = page.locator('#tarotKingdomSelectedEffect');
+  const announcement = page.locator('#tarotKingdomSelectedEffectText');
   const setBattleAnnouncementState = async (patch) => {
     await page.evaluate((next) => {
       const debug = window.TarotKingdomDebug;
@@ -2181,13 +2258,13 @@ test('only cards that can participate in a legal play glow in the hand', async (
   const hand = page.locator('#tarotKingdomHand');
   const playableCards = hand.locator(':scope > .tarot-card.is-playable');
   const playableLabels = (await playableCards.allTextContents()).map((label) => label.replace(/\s+/g, ' ').trim());
-  expect(playableLabels).toHaveLength(2);
+  expect(playableLabels).toHaveLength(1);
   expect(playableLabels.some((label) => label.includes('Ace'))).toBe(true);
-  expect(playableLabels.some((label) => label.includes('世界'))).toBe(true);
+  expect(playableLabels.some((label) => label.includes('世界'))).toBe(false);
 
   const worldNumber = hand.locator(':scope > .tarot-card', { hasText: '世界' }).locator('.tarot-card-number');
   const foolNumber = hand.locator(':scope > .tarot-card', { hasText: '愚者' }).locator('.tarot-card-number');
-  await expect(worldNumber).toHaveCSS('animation-name', 'tarotKingdomPlayableNumberGlow');
+  await expect(worldNumber).toHaveCSS('animation-name', 'none');
   await expect(foolNumber).toHaveCSS('animation-name', 'none');
 
   await page.evaluate((hand) => {
@@ -2219,7 +2296,7 @@ test('major 15, 20 and 21 glow and explain errors using their schema 8 restricti
   await expect(judgment).not.toHaveClass(/is-playable/);
   await judgment.click();
   await page.locator('#tarotKingdomPlayButton').click();
-  await expect(page.locator('#tarotKingdomSelectedEffect')).toHaveText('審判20はAには出せません。');
+  await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText('審判20はAには出せません。');
 
   await debugScenario({
     turnIndex: 0,
@@ -2693,6 +2770,71 @@ test('defense pauses idle motion and shield users raise the shield hand into a g
       shieldRestored: true
     }
   });
+});
+
+test('current-turn glow does not override any weapon motion or the visible large-gun recoil', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+
+  const result = await page.evaluate(async () => {
+    const combat = await import('/js/avatarCombat.js');
+    window.TarotKingdomDebug.battleScenario({ turnIndex: 0, leaderIndex: 1 });
+    const row = document.querySelector(
+      '#tarotKingdomBattleParty > .tarot-kingdom-battle-player[data-player-index="0"]'
+    );
+    const avatar = row?.querySelector('.tarot-kingdom-battle-player-avatar');
+    const expected = {
+      unarmed: 'avatarCombatUnarmed',
+      sword: 'avatarCombatSword',
+      dagger: 'avatarCombatDagger',
+      polearm: 'avatarCombatPolearm',
+      blunt: 'avatarCombatBlunt',
+      axe: 'avatarCombatAxe',
+      sword_big: 'avatarCombatGreatsword',
+      axe_big: 'avatarCombatGreataxe',
+      staff: 'avatarCombatStaff',
+      wand: 'avatarCombatWand',
+      bow: 'avatarCombatBow',
+      gun: 'avatarCombatGun',
+      gun_big: 'avatarCombatBigGun',
+      shield: 'avatarCombatShield'
+    };
+    const animations = {};
+    for (const weapon of Object.keys(expected)) {
+      const motion = combat.playCombatAvatarAttack(avatar, weapon, {
+        direction: 'left',
+        duration: 120,
+        bodyMotion: false
+      });
+      animations[weapon] = avatar ? getComputedStyle(avatar).animationName : '';
+      await motion;
+    }
+    const attack = combat.playCombatAvatarAttack(avatar, 'gun_big', {
+      direction: 'left',
+      duration: 1000,
+      bodyMotion: false
+    });
+    const animationName = avatar ? getComputedStyle(avatar).animationName : '';
+    const recoil = avatar?.getAnimations().find((entry) => entry.animationName === 'avatarCombatBigGun');
+    recoil?.pause();
+    if (recoil) recoil.currentTime = 520;
+    const recoilX = avatar
+      ? new DOMMatrix(getComputedStyle(avatar).transform).m41
+      : 0;
+    combat.resetCombatAvatarState(avatar, { resumeIdle: false });
+    await attack;
+    return {
+      currentTurn: row?.classList.contains('is-turn') === true,
+      animations,
+      expected,
+      animationName,
+      recoilX
+    };
+  });
+
+  expect(result.currentTurn).toBe(true);
+  expect(result.animations).toEqual(result.expected);
+  expect(result.animationName).toBe('avatarCombatBigGun');
+  expect(result.recoilX).toBeGreaterThanOrEqual(20);
 });
 
 test('shieldless defense pauses idle motion without applying the shield guard pose', async ({ page }) => {
@@ -3385,7 +3527,7 @@ test('a locally skipped player gets two light flashes and a direct navigation me
   });
 
   expect(notice).toMatchObject({ actorIndex: 3, targetIndexes: [0] });
-  await expect(page.locator('#tarotKingdomSelectedEffect')).toHaveText('あなたは　スキップされた！');
+  await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText('あなたは　スキップされた！');
   const flash = page.locator('#tarotKingdomLocalSkipFlash');
   await expect(flash).toHaveClass(/is-show/);
   const motion = await flash.evaluate((element) => ({

@@ -25,7 +25,7 @@ const STAGE_ARCHETYPE_MODIFIERS = Object.freeze({
     guardian: Object.freeze({ hp: 1.1, pass: 0.96, area: 1, defense: 1.12, speed: 0.9 })
 });
 
-const ENEMY_AILMENTS = Object.freeze({
+const LEGACY_ENEMY_AILMENTS = Object.freeze({
     'ismartal-vol1-monster-03': Object.freeze({ statusKey: 'poison', label: '毒', scope: 'single', chance: 0.3, potencyRate: 0.2, charges: 3 }),
     'ismartal-vol1-monster-05': Object.freeze({ statusKey: 'blind', label: '暗闇', scope: 'single', chance: 0.32, potency: 25, charges: 2 }),
     'ismartal-vol1-monster-09': Object.freeze({ statusKey: 'burn', label: '火傷', scope: 'both', chance: 0.28, potencyRate: 0.16, charges: 2 }),
@@ -49,6 +49,59 @@ const ENEMY_AILMENTS = Object.freeze({
     'ismartal-vol3-monster-10': Object.freeze({ statusKey: 'blind', label: '深闇', scope: 'both', chance: 0.48, potency: 45, charges: 2 })
 });
 
+const ENEMY_AILMENTS = Object.freeze({
+    'ismartal-vol1-monster-01': Object.freeze({ statusKey: 'vulnerable', label: '脆弱', scope: 'single', chance: 0.25, potency: 25, charges: 1 }),
+    'ismartal-vol1-monster-02': Object.freeze({ statusKey: 'silence', label: '沈黙', scope: 'both', chance: 0.24, potency: 1, charges: 1 }),
+    'ismartal-vol1-monster-03': LEGACY_ENEMY_AILMENTS['ismartal-vol1-monster-03'],
+    'ismartal-vol1-monster-04': Object.freeze({ statusKey: 'slow', label: '鈍足', scope: 'single', chance: 0.28, potency: 25, charges: 2 }),
+    'ismartal-vol1-monster-05': LEGACY_ENEMY_AILMENTS['ismartal-vol1-monster-05'],
+    'ismartal-vol1-monster-06': Object.freeze({ statusKey: 'fear', label: '恐怖', scope: 'both', chance: 0.25, potency: 1, charges: 1 }),
+    'ismartal-vol1-monster-07': Object.freeze({ statusKey: 'weaken', label: '弱体', scope: 'both', chance: 0.26, potency: 20, charges: 2 }),
+    'ismartal-vol1-monster-08': Object.freeze({ statusKey: 'slow', label: '鈍足', scope: 'single', chance: 0.25, potency: 22, charges: 2 }),
+    'ismartal-vol1-monster-09': LEGACY_ENEMY_AILMENTS['ismartal-vol1-monster-09'],
+    'ismartal-vol1-monster-10': Object.freeze({ statusKey: 'silence', label: '沈黙', scope: 'single', chance: 0.25, potency: 1, charges: 1 }),
+    'ismartal-vol1-monster-11': LEGACY_ENEMY_AILMENTS['ismartal-vol1-monster-11'],
+    'ismartal-vol1-monster-12': Object.freeze({ statusKey: 'confusion', label: '混乱', scope: 'single', chance: 0.25, potency: 50, charges: 1 }),
+    'ismartal-vol1-monster-13': LEGACY_ENEMY_AILMENTS['ismartal-vol1-monster-13'],
+    'ismartal-vol1-monster-14': Object.freeze({ statusKey: 'wet', label: '水浸し', scope: 'both', chance: 0.35, potency: 20, charges: 2 }),
+    'ismartal-vol1-monster-15': Object.freeze({ statusKey: 'burn', label: '火傷', scope: 'single', chance: 0.32, potencyRate: 0.18, charges: 2 }),
+    'ismartal-vol1-monster-16': LEGACY_ENEMY_AILMENTS['ismartal-vol1-monster-16'],
+    'ismartal-vol1-monster-17': Object.freeze({ statusKey: 'fear', label: '恐怖', scope: 'single', chance: 0.28, potency: 1, charges: 1 }),
+    'ismartal-vol1-monster-18': Object.freeze({ statusKey: 'confusion', label: '混乱', scope: 'single', chance: 0.27, potency: 50, charges: 1 }),
+    'ismartal-vol1-monster-19': Object.freeze({ statusKey: 'slow', label: '鈍足', scope: 'both', chance: 0.3, potency: 24, charges: 2 }),
+    'ismartal-vol1-monster-20': Object.freeze({ statusKey: 'wet', label: '水浸し', scope: 'area', chance: 0.32, potency: 24, charges: 2 }),
+    'ismartal-vol2-monster-01': Object.freeze({ statusKey: 'slow', label: '凍結', scope: 'both', chance: 0.32, potency: 30, charges: 2 }),
+    'ismartal-vol2-monster-02': Object.freeze({ statusKey: 'confusion', label: '混乱', scope: 'single', chance: 0.28, potency: 50, charges: 1 }),
+    'ismartal-vol2-monster-03': LEGACY_ENEMY_AILMENTS['ismartal-vol2-monster-03'],
+    'ismartal-vol2-monster-04': Object.freeze({ statusKey: 'vulnerable', label: '脆弱', scope: 'single', chance: 0.28, potency: 25, charges: 1 }),
+    'ismartal-vol2-monster-05': Object.freeze({ statusKey: 'silence', label: '沈黙', scope: 'both', chance: 0.3, potency: 1, charges: 1 }),
+    'ismartal-vol2-monster-06': Object.freeze({ statusKey: 'fear', label: '恐怖', scope: 'area', chance: 0.25, potency: 1, charges: 1 }),
+    'ismartal-vol2-monster-07': Object.freeze({ statusKey: 'vulnerable', label: '脆弱', scope: 'both', chance: 0.32, potency: 30, charges: 1 }),
+    'ismartal-vol2-monster-08': Object.freeze({ statusKey: 'wet', label: '水浸し', scope: 'single', chance: 0.32, potency: 22, charges: 2 }),
+    'ismartal-vol2-monster-09': LEGACY_ENEMY_AILMENTS['ismartal-vol2-monster-09'],
+    'ismartal-vol2-monster-10': Object.freeze({ statusKey: 'weaken', label: '弱体', scope: 'both', chance: 0.32, potency: 24, charges: 2 }),
+    'ismartal-vol2-monster-11': Object.freeze({ statusKey: 'burn', label: '火傷', scope: 'single', chance: 0.32, potencyRate: 0.18, charges: 2 }),
+    'ismartal-vol2-monster-12': Object.freeze({ statusKey: 'wet', label: '水浸し', scope: 'both', chance: 0.34, potency: 25, charges: 2 }),
+    'ismartal-vol2-monster-13': Object.freeze({ statusKey: 'vulnerable', label: '脆弱', scope: 'area', chance: 0.28, potency: 28, charges: 1 }),
+    'ismartal-vol2-monster-14': LEGACY_ENEMY_AILMENTS['ismartal-vol2-monster-14'],
+    'ismartal-vol2-monster-15': LEGACY_ENEMY_AILMENTS['ismartal-vol2-monster-15'],
+    'ismartal-vol2-monster-16': LEGACY_ENEMY_AILMENTS['ismartal-vol2-monster-16'],
+    'ismartal-vol2-monster-17': Object.freeze({ statusKey: 'paralysis', label: '攻撃不能', scope: 'both', chance: 0.3, potency: 1, charges: 1 }),
+    'ismartal-vol2-monster-18': LEGACY_ENEMY_AILMENTS['ismartal-vol2-monster-18'],
+    'ismartal-vol2-monster-19': Object.freeze({ statusKey: 'fear', label: '恐怖', scope: 'both', chance: 0.32, potency: 1, charges: 1 }),
+    'ismartal-vol2-monster-20': Object.freeze({ statusKey: 'confusion', label: '混乱', scope: 'both', chance: 0.34, potency: 50, charges: 1 }),
+    'ismartal-vol3-monster-01': LEGACY_ENEMY_AILMENTS['ismartal-vol3-monster-01'],
+    'ismartal-vol3-monster-02': LEGACY_ENEMY_AILMENTS['ismartal-vol3-monster-02'],
+    'ismartal-vol3-monster-03': LEGACY_ENEMY_AILMENTS['ismartal-vol3-monster-03'],
+    'ismartal-vol3-monster-04': Object.freeze({ statusKey: 'wet', label: '水浸し', scope: 'both', chance: 0.38, potency: 28, charges: 2 }),
+    'ismartal-vol3-monster-05': Object.freeze({ statusKey: 'weaken', label: '弱体', scope: 'area', chance: 0.3, potency: 26, charges: 2 }),
+    'ismartal-vol3-monster-06': LEGACY_ENEMY_AILMENTS['ismartal-vol3-monster-06'],
+    'ismartal-vol3-monster-07': LEGACY_ENEMY_AILMENTS['ismartal-vol3-monster-07'],
+    'ismartal-vol3-monster-08': Object.freeze({ statusKey: 'weaken', label: '弱体', scope: 'both', chance: 0.36, potency: 30, charges: 2 }),
+    'ismartal-vol3-monster-09': LEGACY_ENEMY_AILMENTS['ismartal-vol3-monster-09'],
+    'ismartal-vol3-monster-10': Object.freeze({ statusKey: 'confusion', label: '混乱', scope: 'both', chance: 0.45, potency: 55, charges: 1 })
+});
+
 function finiteNumber(value, fallback = 0) {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
@@ -58,13 +111,14 @@ function positiveInteger(value, fallback = 1) {
     return Math.max(1, Math.floor(finiteNumber(value, fallback)));
 }
 
-export function getTarotKingdomEnemyAilmentProfile(monsterId = '') {
-    const profile = ENEMY_AILMENTS[String(monsterId || '').trim()];
+export function getTarotKingdomEnemyAilmentProfile(monsterId = '', version = 2) {
+    const registry = Number(version) >= 2 ? ENEMY_AILMENTS : LEGACY_ENEMY_AILMENTS;
+    const profile = registry[String(monsterId || '').trim()];
     return profile ? { ...profile } : null;
 }
 
-function createStageAilmentProfile(monsterId, threatLevel) {
-    const ailment = getTarotKingdomEnemyAilmentProfile(monsterId);
+function createStageAilmentProfile(monsterId, threatLevel, version = 2) {
+    const ailment = getTarotKingdomEnemyAilmentProfile(monsterId, version);
     if (!ailment) return null;
     const threat = Math.max(1, Math.min(44, Math.floor(finiteNumber(threatLevel, 1))));
     const chanceCap = Math.min(0.85, 0.14 + (threat * 0.007));
@@ -106,7 +160,7 @@ function createTarotKingdomStageEnemyCombatProfile(monster = {}, options = {}) {
         areaDamage: positiveInteger(baseAreaDamage * archetype.area * ENEMY_ATTACK_WEIGHT_MULTIPLIER),
         defense: Math.max(0, Math.round(baseDefense * archetype.defense)),
         speed: Math.max(1, Math.round(baseSpeed * archetype.speed)),
-        ailment: createStageAilmentProfile(monster?.id, threatLevel)
+        ailment: createStageAilmentProfile(monster?.id, threatLevel, options.ailmentVersion)
     };
 }
 
@@ -153,7 +207,7 @@ export function createTarotKingdomEnemyCombatProfile(monster = {}, roundIndex = 
         areaDamage,
         defense,
         speed,
-        ailment: getTarotKingdomEnemyAilmentProfile(monster?.id)
+        ailment: getTarotKingdomEnemyAilmentProfile(monster?.id, options.ailmentVersion)
     };
 }
 

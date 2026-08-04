@@ -1,7 +1,7 @@
 // c:/Users/ikeda/my-liff-app/public/js/ui.js
 
 import * as Player from './player.js';
-import * as Inventory from './inventory.js?v=20260604g';
+import * as Inventory from './inventory.js?v=20260804-tarot-loadout-ui1';
 import * as Ship from './ship.js?v=20260731-stage-score1';
 import * as NationKing from './nationKing.js?v=20260731-stage-score1';
 import * as Islands from './islands.js';
@@ -32,7 +32,7 @@ const ensureTarotModule = async () => {
 };
 
 let tarotKingdomModule = null;
-const TAROT_KINGDOM_MODULE_VERSION = '20260801-weapon-motion4';
+const TAROT_KINGDOM_MODULE_VERSION = '20260804-resonance-hud10';
 const ensureTarotKingdomModule = async () => {
     if (tarotKingdomModule) return tarotKingdomModule;
     tarotKingdomModule = await import(`./tarotKingdom.js?v=${TAROT_KINGDOM_MODULE_VERSION}`);
