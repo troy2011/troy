@@ -23,7 +23,7 @@
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
     <title>TROYゴールドアプリ</title>
-<link rel="stylesheet" href="style.css?v=20260804-resonance-hud10">
+<link rel="stylesheet" href="style.css?v=20260804-tarot-inventory3">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
     <link rel="stylesheet" href="tarot-kingdom-summons.css?v=20260801-role-chain1">
@@ -1087,7 +1087,7 @@
                     <div class="section-header">
                         <div class="tarot-inventory-heading">
                             <h2>タロット装備</h2>
-                            <p>装備中の共鳴効果と守護能力を確認できます。</p>
+                            <p>札を選んで確認。装備札は左右へドラッグできます。</p>
                         </div>
                         <button id="openArcanaResonanceCatalog" class="tarot-loadout-catalog-button" type="button">全効果を見る</button>
                     </div>
@@ -1096,7 +1096,7 @@
                             <div class="tarot-loadout-header">
                                 <div>
                                     <h3>共鳴デッキ</h3>
-                                    <p>同じ数字は50%、完全一致は100%の効果で発動します。</p>
+                                    <p>同数字50%・完全一致100%</p>
                                 </div>
                             </div>
                             <div id="meleeDeckRole" class="tarot-loadout-role">
@@ -1106,13 +1106,13 @@
                                 <div class="tarot-loadout-role-hint">5枚の札が揃うと役判定されます。</div>
                             </div>
                             <div id="meleeDeckGrid" class="tarot-loadout-grid"></div>
-                            <div id="meleeDeckEffectList" class="tarot-loadout-effect-list" aria-live="polite"></div>
+                            <div id="meleeDeckEffectList" class="tarot-loadout-effect-list" aria-live="polite" aria-label="選択中の共鳴効果"></div>
                         </div>
                         <div class="tarot-deck-panel" id="guardianArcanaPanel">
                             <div class="tarot-loadout-header">
                                 <div>
                                     <h3>守護アルカナ</h3>
-                                    <p>装備中は常時効果。同じ大アルカナを出すと覚醒します。</p>
+                                    <p>常時効果・同札で覚醒</p>
                                 </div>
                             </div>
                             <div class="tarot-guardian-loadout">
@@ -1459,6 +1459,7 @@
     <div id="itemDetailModal" class="modal-overlay">
         <div class="modal-content item-detail-sheet">
             <div class="sheet-handle" aria-hidden="true"></div>
+            <button class="item-detail-corner-close" type="button" aria-label="詳細を閉じる" onclick="window.closeItemDetailModal && window.closeItemDetailModal()">×</button>
             <div class="item-detail-head">
                 <div class="item-detail-icon-frame">
                     <div id="itemDetailIcon"></div>
@@ -1801,7 +1802,7 @@
 "ui": "./js/ui.js?v=20260804-tarot-loadout-ui1",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js",
-        "inventory": "./js/inventory.js?v=20260804-tarot-loadout-ui1",
+        "inventory": "./js/inventory.js?v=20260804-tarot-inventory3",
         "game": "./Game.js?v=20260727-nav-guide1"
       }
     }

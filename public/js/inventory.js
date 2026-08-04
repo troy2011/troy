@@ -87,6 +87,9 @@ let equipmentEnhancementKeydownHandler = null;
 // カードレベルデータ: { [itemId]: { level, maxLevel, quantity, nextLevelCost } }
 let cardLevelMap = {};
 let tarotBattleSkillsLoaded = false;
+let selectedTarotLoadoutItemId = '';
+let tarotDeckMovePending = false;
+let suppressTarotLoadoutClickUntil = 0;
 
 async function loadCardLevels() {
     try {
@@ -121,6 +124,7 @@ async function levelUpCard(itemId) {
             nextLevelCost: data.newLevel < data.maxLevel ? (data.newLevel + 1) * 10 : null,
         };
         renderInventoryGrid(activeInventoryCategory);
+        renderTarotDeckPanels();
         showInventoryFeedback(`Lv.${data.newLevel} に上昇！（残シャード: ${data.shardsAfter}）`);
     } catch (err) {
         showInventoryFeedback(err.message, true);
@@ -958,10 +962,131 @@ function renderDeckCardSprite(visualEl, entry) {
     visualEl.appendChild(artEl);
 }
 
+function createTarotLoadoutVisual(entry, className = 'tarot-loadout-visual') {
+    const visualEl = document.createElement('span');
+    visualEl.className = className;
+    renderDeckCardSprite(visualEl, entry);
+    const numberBadge = createTarotNumberBadge(entry?.numberLabel, entry?.suitKey);
+    if (numberBadge) visualEl.appendChild(numberBadge);
+    return visualEl;
+}
+
+function normalizeSelectedTarotLoadout(deckItemIds) {
+    const deck = Array.isArray(deckItemIds) ? deckItemIds.filter(Boolean) : [];
+    if (!deck.includes(selectedTarotLoadoutItemId)) {
+        selectedTarotLoadoutItemId = deck[0] || '';
+    }
+    return selectedTarotLoadoutItemId;
+}
+
+async function moveTarotCardToSlot(itemId, targetIndex) {
+    if (tarotDeckMovePending) return;
+    const playFabId = window.myPlayFabId || null;
+    const deck = getCommonTarotDeck();
+    const sourceIndex = deck.indexOf(itemId);
+    const boundedTarget = Math.max(0, Math.min(deck.length - 1, Number(targetIndex) || 0));
+    if (!playFabId || sourceIndex < 0 || sourceIndex === boundedTarget) return;
+
+    tarotDeckMovePending = true;
+    document.getElementById('meleeDeckGrid')?.classList.add('is-busy');
+    const direction = boundedTarget < sourceIndex ? 'left' : 'right';
+    const steps = Math.abs(boundedTarget - sourceIndex);
+    let moved = false;
+    try {
+        for (let index = 0; index < steps; index += 1) {
+            const data = await requestMoveTarotDeckCard(playFabId, itemId, 'tarot', direction);
+            if (!data?.ok) break;
+            applyTarotDeckData(data);
+            moved = true;
+        }
+        if (moved) {
+            selectedTarotLoadoutItemId = itemId;
+            renderTarotDeckPanels();
+            renderInventoryGrid(activeInventoryCategory);
+            updateEquipmentBonusDisplay();
+            showInventoryFeedback('デッキの順番を変更した。');
+        }
+    } catch (error) {
+        const message = error?.message || 'デッキの順番を変更できませんでした。';
+        showInventoryFeedback(message, true);
+        if (typeof window.showRpgMessage === 'function') window.showRpgMessage(message);
+    } finally {
+        tarotDeckMovePending = false;
+        document.getElementById('meleeDeckGrid')?.classList.remove('is-busy');
+    }
+}
+
+function bindTarotLoadoutPointerReorder(cell, gridEl, itemId, slotIndex, filledCount) {
+    let pointerId = null;
+    let startX = 0;
+    let startY = 0;
+    let dragging = false;
+    let targetIndex = slotIndex;
+
+    const clearTarget = () => {
+        gridEl.querySelectorAll('.is-drop-target').forEach((target) => target.classList.remove('is-drop-target'));
+    };
+    const finish = (event, cancelled = false) => {
+        if (pointerId === null || (event?.pointerId !== undefined && event.pointerId !== pointerId)) return;
+        if (cell.hasPointerCapture?.(pointerId)) cell.releasePointerCapture(pointerId);
+        cell.classList.remove('is-dragging');
+        cell.style.removeProperty('--tarot-loadout-drag-x');
+        cell.style.removeProperty('--tarot-loadout-drag-y');
+        gridEl.classList.remove('is-reordering');
+        clearTarget();
+        pointerId = null;
+        if (!dragging || cancelled) return;
+        suppressTarotLoadoutClickUntil = Date.now() + 350;
+        moveTarotCardToSlot(itemId, targetIndex);
+    };
+
+    cell.addEventListener('pointerdown', (event) => {
+        if (tarotDeckMovePending || event.button > 0) return;
+        pointerId = event.pointerId;
+        startX = event.clientX;
+        startY = event.clientY;
+        dragging = false;
+        targetIndex = slotIndex;
+        cell.setPointerCapture?.(pointerId);
+    });
+    cell.addEventListener('pointermove', (event) => {
+        if (event.pointerId !== pointerId) return;
+        const deltaX = event.clientX - startX;
+        const deltaY = event.clientY - startY;
+        if (!dragging) {
+            if (Math.abs(deltaX) < 8) return;
+            if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
+            dragging = true;
+            gridEl.classList.add('is-reordering');
+            cell.classList.add('is-dragging');
+        }
+        event.preventDefault();
+        cell.style.setProperty('--tarot-loadout-drag-x', `${deltaX}px`);
+        cell.style.setProperty('--tarot-loadout-drag-y', `${Math.max(-8, Math.min(8, deltaY))}px`);
+        const slots = [...gridEl.querySelectorAll('.tarot-loadout-card')];
+        let closestIndex = slotIndex;
+        let closestDistance = Number.POSITIVE_INFINITY;
+        slots.forEach((slot, index) => {
+            const rect = slot.getBoundingClientRect();
+            const distance = Math.abs(event.clientX - (rect.left + rect.width / 2));
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestIndex = index;
+            }
+        });
+        targetIndex = Math.min(Math.max(0, closestIndex), Math.max(0, filledCount - 1));
+        clearTarget();
+        slots[targetIndex]?.classList.add('is-drop-target');
+    });
+    cell.addEventListener('pointerup', (event) => finish(event));
+    cell.addEventListener('pointercancel', (event) => finish(event, true));
+}
+
 function renderDeckGrid(gridEl, deckItemIds) {
     if (!gridEl) return;
     const MAX_SLOTS = 5;
     const filledCount = Math.min(deckItemIds.length, MAX_SLOTS);
+    const selectedItemId = normalizeSelectedTarotLoadout(deckItemIds);
     gridEl.dataset.deckCount = String(filledCount);
     gridEl.dataset.deckComplete = filledCount >= MAX_SLOTS ? 'true' : 'false';
     gridEl.setAttribute('aria-label', `タロットデッキ ${filledCount}/${MAX_SLOTS}`);
@@ -980,14 +1105,22 @@ function renderDeckGrid(gridEl, deckItemIds) {
             if (entry.isArcana) cell.classList.add('is-arcana');
             cell.dataset.suit = entry.suitKey || 'none';
             cell.title = entry.title;
-            cell.setAttribute('aria-label', `${entry.title}の詳細を開く`);
-            cell.addEventListener('click', () => showItemDetailModal(item));
-            const visualEl = document.createElement('div');
-            visualEl.className = 'tarot-loadout-visual';
-            renderDeckCardSprite(visualEl, entry);
-            const numberBadge = createTarotNumberBadge(entry.numberLabel, entry.suitKey);
-            if (numberBadge) visualEl.appendChild(numberBadge);
-            cell.append(visualEl);
+            cell.classList.toggle('is-selected', itemId === selectedItemId);
+            cell.setAttribute('aria-label', `${entry.title}の共鳴効果を表示`);
+            cell.setAttribute('aria-pressed', itemId === selectedItemId ? 'true' : 'false');
+            cell.addEventListener('click', () => {
+                if (Date.now() < suppressTarotLoadoutClickUntil) return;
+                selectedTarotLoadoutItemId = itemId;
+                renderDeckGrid(gridEl, getCommonTarotDeck());
+                renderTarotDeckEffectList(document.getElementById('meleeDeckEffectList'), getCommonTarotDeck());
+            });
+            bindTarotLoadoutPointerReorder(cell, gridEl, itemId, i, filledCount);
+            cell.append(createTarotLoadoutVisual(entry));
+            const slotBadge = document.createElement('span');
+            slotBadge.className = 'tarot-loadout-slot-badge';
+            slotBadge.textContent = String(i + 1);
+            slotBadge.setAttribute('aria-hidden', 'true');
+            cell.appendChild(slotBadge);
         } else {
             cell.dataset.targetCategory = 'TarotMinor';
             cell.setAttribute('aria-label', `タロットデッキ ${i + 1}枚目に追加するカードを選ぶ`);
@@ -1015,6 +1148,7 @@ function renderShipMajorArcanaGrid(gridEl) {
     if (!gridEl) return;
     const maxSlots = 1;
     const filledCount = myTarotGuardian?.itemId ? 1 : 0;
+    gridEl.hidden = filledCount > 0;
     gridEl.dataset.deckCount = String(filledCount);
     gridEl.dataset.deckComplete = filledCount >= maxSlots ? 'true' : 'false';
     gridEl.setAttribute('aria-label', `守護アルカナ ${filledCount}/${maxSlots}`);
@@ -1033,12 +1167,7 @@ function renderShipMajorArcanaGrid(gridEl) {
             cell.dataset.suit = entry.suitKey || 'none';
             cell.title = entry.title;
             cell.addEventListener('click', () => showItemDetailModal(item));
-            const visualEl = document.createElement('div');
-            visualEl.className = 'tarot-loadout-visual';
-            renderDeckCardSprite(visualEl, entry);
-            const numberBadge = createTarotNumberBadge(entry.numberLabel, entry.suitKey);
-            if (numberBadge) visualEl.appendChild(numberBadge);
-            cell.append(visualEl);
+            cell.append(createTarotLoadoutVisual(entry));
         } else {
             cell.dataset.targetCategory = 'TarotMajor';
             cell.setAttribute('aria-label', '守護アルカナに設定するカードを選ぶ');
@@ -1105,53 +1234,61 @@ function createTarotLoadoutEffectRow(item, itemId, slotIndex) {
     const level = getInventoryCardLevel(itemId);
     const scale = getTarotKingdomCardLevelScale(level);
     const suitName = String(definition?.suit || suit || 'None');
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'tarot-loadout-effect-row';
-    button.dataset.suit = suitName.toLowerCase();
-    button.setAttribute('aria-label', `${item?.name || definition?.name || '装備カード'}の共鳴効果を詳しく見る`);
-    button.addEventListener('click', () => showItemDetailModal(item));
-
-    const marker = document.createElement('span');
-    marker.className = 'tarot-loadout-effect-marker';
-    marker.textContent = `${TAROT_LOADOUT_SUIT_LABELS[definition?.suit] || '札'}${getTarotRankLabel({ ArcanaRank: rank })}`;
-
+    const preview = document.createElement('article');
+    preview.className = 'tarot-loadout-effect-row';
+    preview.dataset.suit = suitName.toLowerCase();
+    preview.dataset.slotIndex = String(slotIndex);
     const copy = document.createElement('span');
     copy.className = 'tarot-loadout-effect-copy';
-    const heading = document.createElement('span');
-    heading.className = 'tarot-loadout-effect-heading';
+    const kicker = document.createElement('span');
+    kicker.className = 'tarot-loadout-effect-kicker';
+    kicker.textContent = `${TAROT_LOADOUT_SUIT_LABELS[definition?.suit] || '札'} ${getTarotRankLabel({ ArcanaRank: rank })}`;
     const name = document.createElement('strong');
+    name.className = 'tarot-loadout-effect-name';
     name.textContent = definition?.name || item?.name || '共鳴効果';
     const meta = document.createElement('small');
+    meta.className = 'tarot-loadout-effect-meta';
     meta.textContent = `枠${slotIndex + 1} · Lv${level}${level > 1 ? ` · 数値×${scale.toFixed(2)}` : ''}`;
-    heading.append(name, meta);
     const effect = document.createElement('span');
     effect.className = 'tarot-loadout-effect-text';
     effect.textContent = definition?.effect || '効果データ未登録';
-    copy.append(heading, effect);
+    copy.append(kicker, name, meta, effect);
 
-    const chevron = document.createElement('span');
-    chevron.className = 'tarot-loadout-effect-chevron';
-    chevron.setAttribute('aria-hidden', 'true');
-    chevron.textContent = '›';
-    button.append(marker, copy, chevron);
-    return button;
+    const actions = document.createElement('div');
+    actions.className = 'tarot-loadout-effect-actions';
+    const deck = getCommonTarotDeck();
+    const playFabId = window.myPlayFabId || null;
+    const actionSpecs = [
+        ['←', '左へ移動', slotIndex > 0, () => moveTarotCardInDeck(playFabId, itemId, 'tarot', 'left')],
+        ['詳細', 'カード詳細を開く', true, () => showItemDetailModal(item)],
+        ['→', '右へ移動', slotIndex < deck.length - 1, () => moveTarotCardInDeck(playFabId, itemId, 'tarot', 'right')],
+        ['外す', 'デッキから外す', true, () => unequipTarotCardFromDeck(playFabId, itemId, 'tarot')]
+    ];
+    actionSpecs.forEach(([label, ariaLabel, enabled, run]) => {
+        const action = document.createElement('button');
+        action.type = 'button';
+        action.className = `tarot-loadout-effect-action${label === '外す' ? ' is-remove' : ''}${label === '詳細' ? ' is-detail' : ''}`;
+        action.textContent = label;
+        action.disabled = !enabled;
+        action.setAttribute('aria-label', ariaLabel);
+        action.addEventListener('click', run);
+        actions.appendChild(action);
+    });
+    preview.append(copy, actions);
+    return preview;
 }
 
 function renderTarotDeckEffectList(root, deckItemIds) {
     if (!root) return;
-    const rows = (Array.isArray(deckItemIds) ? deckItemIds : [])
-        .slice(0, 5)
-        .map((itemId, slotIndex) => {
-            const item = myInventory.find((entry) => entry.itemId === itemId);
-            return item ? createTarotLoadoutEffectRow(item, itemId, slotIndex) : null;
-        })
-        .filter(Boolean);
-    if (!rows.length) {
+    const deck = (Array.isArray(deckItemIds) ? deckItemIds : []).slice(0, 5);
+    const selectedItemId = normalizeSelectedTarotLoadout(deck);
+    const slotIndex = deck.indexOf(selectedItemId);
+    const item = myInventory.find((entry) => entry.itemId === selectedItemId);
+    if (!item || slotIndex < 0) {
         renderTarotLoadoutEmpty(root, '小アルカナをセットすると、ここに共鳴効果が表示されます。');
         return;
     }
-    root.replaceChildren(...rows);
+    root.replaceChildren(createTarotLoadoutEffectRow(item, selectedItemId, slotIndex));
 }
 
 function renderGuardianArcanaEffectList(root) {
@@ -1167,7 +1304,6 @@ function renderGuardianArcanaEffectList(root) {
     const number = Number(data.ArcanaNumber ?? data.Number ?? matchedNumber);
     const definition = getTarotKingdomGuardianDefinition(number);
     const level = getInventoryCardLevel(itemId);
-    const scale = getTarotKingdomCardLevelScale(level);
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'tarot-guardian-effect-summary';
@@ -1175,20 +1311,27 @@ function renderGuardianArcanaEffectList(root) {
     button.setAttribute('aria-label', `${item.name || '守護アルカナ'}の守護能力を詳しく見る`);
     button.addEventListener('click', () => showItemDetailModal(item));
 
-    const head = document.createElement('span');
-    head.className = 'tarot-guardian-effect-head';
+    const entry = buildDeckCardEntry(item, itemId);
+    const visual = createTarotLoadoutVisual(entry, 'tarot-loadout-effect-card is-guardian');
+
+    const copy = document.createElement('span');
+    copy.className = 'tarot-guardian-effect-copy';
+    const kicker = document.createElement('span');
+    kicker.className = 'tarot-guardian-effect-kicker';
+    kicker.textContent = TAROT_GUARDIAN_ATTRIBUTE_LABELS[definition?.attribute] || '無属性';
     const title = document.createElement('strong');
-    title.textContent = item.name || `大アルカナ ${number}`;
+    title.className = 'tarot-guardian-effect-name';
+    title.textContent = definition?.passiveName || item.name || `大アルカナ ${number}`;
     const meta = document.createElement('small');
-    meta.textContent = `${TAROT_GUARDIAN_ATTRIBUTE_LABELS[definition?.attribute] || '無属性'} · Lv${level}${level > 1 ? ` · 数値×${scale.toFixed(2)}` : ''}`;
-    head.append(title, meta);
+    meta.className = 'tarot-guardian-effect-meta';
+    meta.textContent = `守護中 · Lv${level}`;
 
     const passive = document.createElement('span');
     passive.className = 'tarot-guardian-effect-line is-passive';
     const passiveLabel = document.createElement('b');
-    passiveLabel.textContent = '常時';
+    passiveLabel.textContent = '守護';
     const passiveText = document.createElement('span');
-    passiveText.textContent = `${definition?.passiveName || '守護効果'}：${definition?.passive || '効果データ未登録'}`;
+    passiveText.textContent = definition?.passive || '効果データ未登録';
     passive.append(passiveLabel, passiveText);
 
     const awakening = document.createElement('span');
@@ -1198,7 +1341,13 @@ function renderGuardianArcanaEffectList(root) {
     const awakeningText = document.createElement('span');
     awakeningText.textContent = definition?.awakening || '効果データ未登録';
     awakening.append(awakeningLabel, awakeningText);
-    button.append(head, passive, awakening);
+    copy.append(kicker, title, meta, passive, awakening);
+
+    const chevron = document.createElement('span');
+    chevron.className = 'tarot-loadout-effect-chevron';
+    chevron.setAttribute('aria-hidden', 'true');
+    chevron.textContent = '›';
+    button.append(visual, copy, chevron);
     root.replaceChildren(button);
 }
 
@@ -1216,9 +1365,10 @@ function openArcanaResonanceCatalog() {
                         <p>小アルカナの共鳴と大アルカナの守護能力</p>
                     </div>
                     <button type="button" class="arcana-resonance-close" aria-label="タロット効果一覧を閉じる">×</button>
-                </header>
-                <nav class="arcana-resonance-tabs" aria-label="アルカナ分類"></nav>
-                <div class="arcana-resonance-list"></div>
+                 </header>
+                 <nav class="arcana-resonance-tabs" aria-label="アルカナ分類"></nav>
+                 <nav class="arcana-resonance-filters" aria-label="所持状態"></nav>
+                 <div class="arcana-resonance-list"></div>
             </section>
         `;
         document.body.appendChild(modal);
@@ -1235,10 +1385,17 @@ function openArcanaResonanceCatalog() {
         ['Major', '大アルカナ']
     ];
     const tabRoot = modal.querySelector('.arcana-resonance-tabs');
+    const filterRoot = modal.querySelector('.arcana-resonance-filters');
     const listRoot = modal.querySelector('.arcana-resonance-list');
+    let activeTab = 'Cup';
+    let activeFilter = 'all';
     const renderTab = (tabKey) => {
+        activeTab = tabKey;
         tabRoot.querySelectorAll('button').forEach((button) => {
             button.classList.toggle('is-active', button.dataset.tab === tabKey);
+        });
+        filterRoot.querySelectorAll('button').forEach((button) => {
+            button.classList.toggle('is-active', button.dataset.filter === activeFilter);
         });
         const definitions = tabKey === 'Major'
             ? TAROT_KINGDOM_ARCANA_EFFECT_CATALOG.guardian
@@ -1251,6 +1408,8 @@ function openArcanaResonanceCatalog() {
             const equipped = tabKey === 'Major'
                 ? isShipMajorArcanaEquipped(item?.itemId)
                 : isCardInTarotDeck(item?.itemId);
+            if (activeFilter === 'owned' && !item) return;
+            if (activeFilter === 'equipped' && !equipped) return;
             const row = document.createElement('article');
             row.className = `arcana-resonance-row${equipped ? ' is-equipped' : ''}${item ? '' : ' is-unowned'}`;
             row.dataset.suit = tabKey.toLowerCase();
@@ -1263,8 +1422,25 @@ function openArcanaResonanceCatalog() {
                 : `<div class="arcana-resonance-title"><strong>${getTarotRankLabel({ ArcanaRank: definition.rank })} ${definition.name}</strong><span>${stateLabel}</span></div>
                    <p>${definition.effect}</p>
                    <small>${item ? `現在Lvの数値倍率 ×${scale.toFixed(2)} · 同数字50% / 完全一致100%` : '入手後に共鳴デッキへ設定できます'}</small>`;
+            if (item) {
+                row.tabIndex = 0;
+                row.setAttribute('role', 'button');
+                row.setAttribute('aria-label', `${item.name || definition.name}の詳細を開く`);
+                row.addEventListener('click', () => showItemDetailModal(item));
+                row.addEventListener('keydown', (event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    showItemDetailModal(item);
+                });
+            }
             listRoot.appendChild(row);
         });
+        if (!listRoot.children.length) {
+            const empty = document.createElement('p');
+            empty.className = 'arcana-resonance-empty';
+            empty.textContent = activeFilter === 'equipped' ? 'この分類には装備中の札がありません。' : '該当する札がありません。';
+            listRoot.appendChild(empty);
+        }
     };
     tabRoot.innerHTML = '';
     tabs.forEach(([key, label], index) => {
@@ -1275,6 +1451,19 @@ function openArcanaResonanceCatalog() {
         button.addEventListener('click', () => renderTab(key));
         tabRoot.appendChild(button);
         if (index === 0) button.classList.add('is-active');
+    });
+    filterRoot.innerHTML = '';
+    [['all', '全て'], ['owned', '所持'], ['equipped', '装備中']].forEach(([key, label]) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.filter = key;
+        button.textContent = label;
+        button.classList.toggle('is-active', key === activeFilter);
+        button.addEventListener('click', () => {
+            activeFilter = key;
+            renderTab(activeTab);
+        });
+        filterRoot.appendChild(button);
     });
     renderTab('Cup');
     modal.classList.add('active');
@@ -2480,10 +2669,10 @@ function createInventoryCell(item, requestedCategory) {
         headMeta.appendChild(createInventoryBadge('装備中', 'active'));
     }
     if (isTarotDeckEquipped) {
-        headMeta.appendChild(createInventoryBadge('E', 'equipped'));
+        headMeta.appendChild(createInventoryBadge(`枠${getTarotDeckPosition(item.itemId)}`, 'equipped'));
     }
     if (isShipMajorEquipped) {
-        headMeta.appendChild(createInventoryBadge('船', 'equipped'));
+        headMeta.appendChild(createInventoryBadge('守護', 'equipped'));
     }
     if ((Number(item?.count || 0) || 0) > 1) {
         if (isTarotCard) {
@@ -3380,13 +3569,6 @@ function getCurrentTarotRoleText() {
     };
 }
 
-function createTarotCombatChip(label, tone = '') {
-    const chip = document.createElement('span');
-    chip.className = `item-detail-tarot-chip${tone ? ` is-${tone}` : ''}`;
-    chip.textContent = label;
-    return chip;
-}
-
 function appendTarotCombatRow(parent, label, value, tone = '') {
     if (value === undefined || value === null || value === '') return;
     const row = document.createElement('div');
@@ -3418,7 +3600,6 @@ function renderTarotCombatDetailSection(item, itemData) {
         const number = Number(itemData?.ArcanaNumber ?? itemData?.Number ?? matchedNumber);
         const definition = getTarotKingdomGuardianDefinition(number);
         const level = Math.max(1, Number(cardLevelMap[itemId]?.level) || 1);
-        const levelScale = getTarotKingdomCardLevelScale(level);
         const section = document.createElement('section');
         section.id = 'itemDetailTarotCombat';
         section.className = 'item-detail-tarot-combat';
@@ -3428,23 +3609,14 @@ function renderTarotCombatDetailSection(item, itemData) {
         const heading = document.createElement('strong');
         heading.textContent = definition?.passiveName || '守護アルカナ';
         const state = document.createElement('span');
-        state.textContent = position > 0 ? '守護装備中' : '未装備';
+        state.textContent = `Lv${level} · ${position > 0 ? '守護中' : '未装備'}`;
         title.append(heading, state);
         section.appendChild(title);
 
-        const chips = document.createElement('div');
-        chips.className = 'item-detail-tarot-chips';
-        chips.appendChild(createTarotCombatChip(position > 0 ? '守護装備中' : '守護枠 0/1', position > 0 ? 'order' : 'muted'));
-        chips.appendChild(createTarotCombatChip(`カードLv ${level}`, 'cooldown'));
-        chips.appendChild(createTarotCombatChip(`数値 ×${levelScale.toFixed(2)}`, 'effect'));
-        section.appendChild(chips);
-
         const rows = document.createElement('div');
         rows.className = 'item-detail-tarot-rows';
-        appendTarotCombatRow(rows, 'パッシブ', definition?.passive || '効果データ未登録', 'skill');
+        appendTarotCombatRow(rows, '守護', definition?.passive || '効果データ未登録', 'skill');
         appendTarotCombatRow(rows, '覚醒', definition?.awakening || '効果データ未登録', 'skill');
-        appendTarotCombatRow(rows, '発動条件', '守護中、同じ大アルカナを通常1～3枚出し');
-        appendTarotCombatRow(rows, '現在Lv効果', `確率・回数・持続は固定 / 数値部分のみ ×${levelScale.toFixed(2)}`);
         section.appendChild(rows);
 
         descriptionEl.insertAdjacentElement('afterend', section);
@@ -3455,7 +3627,6 @@ function renderTarotCombatDetailSection(item, itemData) {
     const rank = Number(itemData?.ArcanaRank ?? itemData?.Rank ?? itemData?.Number);
     const resonance = getTarotKingdomMinorDefinition(suit, rank);
     const level = Math.max(1, Number(cardLevelMap[item?.itemId]?.level) || 1);
-    const levelScale = getTarotKingdomCardLevelScale(level);
     const deckPosition = getTarotDeckPosition(item?.itemId);
     const section = document.createElement('section');
     section.id = 'itemDetailTarotCombat';
@@ -3466,23 +3637,13 @@ function renderTarotCombatDetailSection(item, itemData) {
     const heading = document.createElement('strong');
     heading.textContent = resonance?.name || '小アルカナ共鳴';
     const state = document.createElement('span');
-    state.textContent = deckPosition > 0 ? `デッキ${deckPosition}枚目` : '未セット';
+    state.textContent = `Lv${level} · ${deckPosition > 0 ? `枠${deckPosition}` : '未セット'}`;
     title.append(heading, state);
     section.appendChild(title);
 
-    const chips = document.createElement('div');
-    chips.className = 'item-detail-tarot-chips';
-    chips.appendChild(createTarotCombatChip(deckPosition > 0 ? `発動順 ${deckPosition}` : '未セット', deckPosition > 0 ? 'order' : 'muted'));
-    chips.appendChild(createTarotCombatChip(`カードLv ${level}`, 'cooldown'));
-    chips.appendChild(createTarotCombatChip(`数値 ×${levelScale.toFixed(2)}`, 'effect'));
-    section.appendChild(chips);
-
     const rows = document.createElement('div');
     rows.className = 'item-detail-tarot-rows';
-    appendTarotCombatRow(rows, '共鳴名', resonance?.name || '効果データ未登録', 'skill');
-    appendTarotCombatRow(rows, 'Lv1効果', resonance?.effect || '効果データ未登録');
-    appendTarotCombatRow(rows, '現在Lv効果', `確率・回数・持続は固定 / 数値部分のみ ×${levelScale.toFixed(2)}`);
-    appendTarotCombatRow(rows, '発動条件', '装備札と同じスート＋数字を提出');
+    appendTarotCombatRow(rows, '発動と効果', resonance?.effect || '効果データ未登録', 'skill');
     section.appendChild(rows);
 
     descriptionEl.insertAdjacentElement('afterend', section);
@@ -3841,9 +4002,15 @@ function showItemDetailModal(item) {
     const spriteFrame = getInventorySpriteFrame(item);
     const iconEl = document.getElementById('itemDetailIcon');
     const metaEl = document.getElementById('itemDetailMeta');
+    const categoryEl = document.getElementById('itemDetailCategory');
 
     modal.dataset.detailKind = detailKind;
     modal.dataset.detailCategory = canonicalCategory || 'Unknown';
+    if (isTarotCard) {
+        modal.dataset.tarotSuit = normalizeTarotSuitKeyForBadge(getDeckCardSuitKey(item, canonicalCategory));
+    } else {
+        delete modal.dataset.tarotSuit;
+    }
 
     setInventoryIcon(
         iconEl,
@@ -3854,12 +4021,14 @@ function showItemDetailModal(item) {
     );
     const enhancementBonus = Math.max(0, Math.floor(Number(item?.enhancement?.bonus) || 0));
     document.getElementById('itemDetailName').innerText = `${item.name}${enhancementBonus > 0 ? ` +${enhancementBonus}` : ''}`;
-    document.getElementById('itemDetailCategory').innerText = getInventoryCategoryLabel(canonicalCategory);
-    document.getElementById('itemDetailDescription').innerText = isTarotCard
-        ? (isTarotMajorCategory(canonicalCategory)
-            ? '大アルカナは守護アルカナに設定し、常時パッシブと同札覚醒に使用します。'
-            : '小アルカナデッキの順番で発動する戦闘カードです。役は5枚構成で戦闘開始時に反映されます。')
-        : (item.description || '説明がありません。');
+    if (categoryEl) {
+        categoryEl.innerText = isTarotMajorCategory(canonicalCategory)
+            ? `大アルカナ · ${getTarotNumberBadge(cd) || '―'}`
+            : isTarotMinorCategory(canonicalCategory)
+                ? `${getTarotSuitLabel(cd) || '小アルカナ'} · ${getTarotRankLabel(cd) || '―'}`
+                : getInventoryCategoryLabel(canonicalCategory);
+    }
+    document.getElementById('itemDetailDescription').innerText = isTarotCard ? '' : (item.description || '説明がありません。');
     if (isTarotCard) {
         renderTarotCombatDetailSection(item, cd);
     } else {
@@ -3868,7 +4037,9 @@ function showItemDetailModal(item) {
 
     if (metaEl) {
         metaEl.innerHTML = '';
-        metaEl.appendChild(createItemDetailMetaChip(getInventoryCategoryLabel(canonicalCategory), detailKind));
+        if (!isTarotCard) {
+            metaEl.appendChild(createItemDetailMetaChip(getInventoryCategoryLabel(canonicalCategory), detailKind));
+        }
         if (isEquipmentItem && isInventoryItemEquipped(item)) {
             metaEl.appendChild(createItemDetailMetaChip('装備中', 'equipped'));
         }
@@ -3876,10 +4047,13 @@ function showItemDetailModal(item) {
             metaEl.appendChild(createItemDetailMetaChip(`強化 +${enhancementBonus}`, 'enhanced'));
         }
         if (isTarotCard) {
+            const cardLevel = getInventoryCardLevel(item.itemId);
+            metaEl.appendChild(createItemDetailMetaChip(`Lv${cardLevel}`, 'tarot'));
             if (isTarotMajorCategory(canonicalCategory)) {
-                metaEl.appendChild(createItemDetailMetaChip(isShipMajorArcanaEquipped(item.itemId) ? '守護装備中' : '守護未装備', isShipMajorArcanaEquipped(item.itemId) ? 'equipped' : 'muted'));
+                metaEl.appendChild(createItemDetailMetaChip(isShipMajorArcanaEquipped(item.itemId) ? '守護中' : '未装備', isShipMajorArcanaEquipped(item.itemId) ? 'equipped' : 'muted'));
             } else {
-                metaEl.appendChild(createItemDetailMetaChip(isCardInTarotDeck(item.itemId) ? 'デッキセット中' : '未セット', isCardInTarotDeck(item.itemId) ? 'equipped' : 'muted'));
+                const deckPosition = getTarotDeckPosition(item.itemId);
+                metaEl.appendChild(createItemDetailMetaChip(deckPosition > 0 ? `枠${deckPosition}` : '未セット', deckPosition > 0 ? 'equipped' : 'muted'));
             }
         }
         const count = Number(item?.count || 0) || 0;
@@ -3890,55 +4064,37 @@ function showItemDetailModal(item) {
 
     const statsEl = document.getElementById('itemDetailStats');
     statsEl.innerHTML = '';
-    appendItemDetailStat(statsEl, '攻撃力', cd.Power, 'power');
-    appendItemDetailStat(statsEl, '防御力', cd.Defense, 'defense');
-    appendItemDetailStat(statsEl, 'かしこさ', cd.Int, 'magic');
-    appendItemDetailStat(statsEl, '術補', cd.MagicPower, 'magic');
-    appendItemDetailStat(statsEl, '回復補正', cd.HealPower, 'heal');
-    appendItemDetailStat(statsEl, '詠唱補正', cd.CastRate);
-    appendItemDetailStat(statsEl, 'MP効率', cd.MpEfficiency);
-    appendItemDetailStat(statsEl, '状態付与', cd.StatusRate);
-    if (enhancementBonus > 0 && item?.enhancement?.primaryStat) {
-        const statLabel = item.enhancement.primaryStat === 'Power' ? '基本攻撃力' : '基本防御力';
-        appendItemDetailStat(statsEl, statLabel, item.enhancement.baseValue, 'enhancement');
-        appendItemDetailStat(statsEl, '強化値', `+${enhancementBonus}`, 'enhancement');
-    }
-    if (cd.Effect) {
-        const effectText = typeof cd.Effect === 'object'
-            ? [cd.Effect.Type, cd.Effect.Amount].filter(Boolean).join(' ')
-            : String(cd.Effect);
-        appendItemDetailStat(statsEl, '効果', effectText);
-    }
-    appendTarotMetaStats(statsEl, cd);
-    const originDisplay = getBlackMarketOriginDisplay(item.itemId);
-    if (originDisplay) {
-        appendItemDetailStat(statsEl, '初代所有者', originDisplay, 'origin');
-    }
-    if (isTarotMajorCategory(canonicalCategory)) {
-        const position = getShipMajorArcanaPosition(item.itemId);
-        appendItemDetailStat(statsEl, '守護アルカナ', position > 0 ? '装備中' : '未装備', 'tarot');
-    }
-    if (isTarotMinorCategory(canonicalCategory)) {
-        appendItemDetailStat(statsEl, '小アルカナデッキ', isCardInTarotDeck(item.itemId) ? 'セット中' : '未セット', 'tarot');
-    }
-
-    if (isTarotCard) {
-        const lvd = cardLevelMap[item.itemId];
-        if (lvd) {
-            appendItemDetailStat(statsEl, 'カードLv', `Lv.${lvd.level} / MaxLv.${lvd.maxLevel}`, 'level');
-            appendItemDetailStat(statsEl, '重複数', `${lvd.quantity}枚`);
-            if (lvd.level < lvd.maxLevel) {
-                appendItemDetailStat(statsEl, '次Lvコスト', `${lvd.nextLevelCost}⚔シャード`, 'level');
-            } else {
-                appendItemDetailStat(statsEl, '育成', 'MAX LV 到達', 'level');
-            }
+    if (!isTarotCard) {
+        appendItemDetailStat(statsEl, '攻撃力', cd.Power, 'power');
+        appendItemDetailStat(statsEl, '防御力', cd.Defense, 'defense');
+        appendItemDetailStat(statsEl, 'かしこさ', cd.Int, 'magic');
+        appendItemDetailStat(statsEl, '術補', cd.MagicPower, 'magic');
+        appendItemDetailStat(statsEl, '回復補正', cd.HealPower, 'heal');
+        appendItemDetailStat(statsEl, '詠唱補正', cd.CastRate);
+        appendItemDetailStat(statsEl, 'MP効率', cd.MpEfficiency);
+        appendItemDetailStat(statsEl, '状態付与', cd.StatusRate);
+        if (enhancementBonus > 0 && item?.enhancement?.primaryStat) {
+            const statLabel = item.enhancement.primaryStat === 'Power' ? '基本攻撃力' : '基本防御力';
+            appendItemDetailStat(statsEl, statLabel, item.enhancement.baseValue, 'enhancement');
+            appendItemDetailStat(statsEl, '強化値', `+${enhancementBonus}`, 'enhancement');
         }
-    }
-    if (!statsEl.children.length) {
-        const empty = document.createElement('div');
-        empty.className = 'item-detail-empty';
-        empty.textContent = '表示できるステータスはありません。';
-        statsEl.appendChild(empty);
+        if (cd.Effect) {
+            const effectText = typeof cd.Effect === 'object'
+                ? [cd.Effect.Type, cd.Effect.Amount].filter(Boolean).join(' ')
+                : String(cd.Effect);
+            appendItemDetailStat(statsEl, '効果', effectText);
+        }
+        appendTarotMetaStats(statsEl, cd);
+        const originDisplay = getBlackMarketOriginDisplay(item.itemId);
+        if (originDisplay) {
+            appendItemDetailStat(statsEl, '初代所有者', originDisplay, 'origin');
+        }
+        if (!statsEl.children.length) {
+            const empty = document.createElement('div');
+            empty.className = 'item-detail-empty';
+            empty.textContent = '表示できるステータスはありません。';
+            statsEl.appendChild(empty);
+        }
     }
 
     const buttonsEl = document.getElementById('itemDetailButtons');
@@ -4011,7 +4167,6 @@ function showItemDetailModal(item) {
             addAction(getEquipActionLabel('Accessory', '装備'), 'equip', () => equipItem(playFabId, equipItemId, 'Accessory', equipStackId));
         }
     } else if (isTarotMajorCategory(canonicalCategory)) {
-        appendActionNote(`守護アルカナ: ${myTarotGuardian ? '装備中' : '未装備'}`);
         const position = getShipMajorArcanaPosition(equipItemId);
         if (position > 0) {
             addAction('守護から外す', 'remove', () => unequipShipMajorArcana(playFabId, equipItemId));
@@ -4019,7 +4174,6 @@ function showItemDetailModal(item) {
             addAction(isShipMajorArcanaFull() ? '守護を入れ替え' : '守護に設定', 'equip', () => equipShipMajorArcana(playFabId, equipItemId));
         }
     } else if (isTarotMinorCategory(canonicalCategory)) {
-        appendActionNote('小アルカナデッキにセットできます。');
         if (isCardInTarotDeck(equipItemId)) {
             const tarotDeck = getCommonTarotDeck();
             const deckIndex = tarotDeck.indexOf(equipItemId);
@@ -4060,7 +4214,31 @@ function showItemDetailModal(item) {
         }
     }
 
-    if (getInventorySellableCount(item) > 0) {
+    if (getInventorySellableCount(item) > 0 && isTarotCard) {
+        const management = document.createElement('details');
+        management.className = 'item-detail-management';
+        const summary = document.createElement('summary');
+        summary.textContent = 'カード管理';
+        const managementActions = document.createElement('div');
+        managementActions.className = 'item-detail-management-actions';
+        const marketDisabled = blackMarketMyActiveCount >= blackMarketMaxActiveListings;
+        const marketBusy = blackMarketCreatingItemId === getInventoryEntryKey(item);
+        if (marketDisabled) {
+            const note = document.createElement('div');
+            note.className = 'item-detail-action-note';
+            note.textContent = `闇市 出品 ${blackMarketMyActiveCount}/${blackMarketMaxActiveListings}`;
+            managementActions.appendChild(note);
+        }
+        managementActions.appendChild(createItemDetailActionButton(
+            marketBusy ? '出品中' : '闇市に出す',
+            marketDisabled || marketBusy ? 'disabled' : 'market',
+            () => showBlackMarketListingPrompt(item),
+            { disabled: marketDisabled || marketBusy }
+        ));
+        managementActions.appendChild(createItemDetailActionButton('売却 1G', 'sell', () => showSellConfirmationModal(instanceId, item.itemId)));
+        management.append(summary, managementActions);
+        buttonsEl.appendChild(management);
+    } else if (getInventorySellableCount(item) > 0) {
         const marketDisabled = blackMarketMyActiveCount >= blackMarketMaxActiveListings;
         const marketBusy = blackMarketCreatingItemId === getInventoryEntryKey(item);
         if (marketDisabled) {
