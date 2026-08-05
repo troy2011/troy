@@ -3828,7 +3828,7 @@ function showEquipmentEnhancementModal(baseItem) {
         bonus.className = 'equipment-enhancement-gain';
         bonus.textContent = contribution > 0 ? `+${contribution}` : '素材未選択';
         resultEl.append(current, arrow, next, bonus);
-        applyButton.disabled = applying || previewPending || contribution <= 0 || !serverPreview;
+        applyButton.disabled = applying || contribution <= 0;
     };
 
     const schedulePreview = () => {
@@ -3846,7 +3846,10 @@ function showEquipmentEnhancementModal(baseItem) {
         const requestSerial = ++equipmentEnhancementRequestSerial;
         equipmentEnhancementPreviewTimer = setTimeout(async () => {
             try {
-                const preview = await requestPreviewEquipmentEnhancement(playFabId, baseStackId, selections, { isSilent: true });
+                const preview = await requestPreviewEquipmentEnhancement(playFabId, baseStackId, selections, {
+                    isSilent: true,
+                    throwOnError: true
+                });
                 if (requestSerial !== equipmentEnhancementRequestSerial || modal.hidden) return;
                 serverPreview = preview?.ok ? preview : null;
             } catch (error) {
@@ -3932,7 +3935,7 @@ function showEquipmentEnhancementModal(baseItem) {
     };
     applyButton.onclick = async () => {
         const selections = buildEquipmentEnhancementMaterialSelections(candidates, selectedByKey, baseStackId);
-        if (!serverPreview || !selections.length || applying) return;
+        if (!selections.length || applying) return;
         applying = true;
         applyButton.textContent = '強化中...';
         renderMaterials();
@@ -3943,11 +3946,13 @@ function showEquipmentEnhancementModal(baseItem) {
                 playFabId,
                 baseStackId,
                 selections,
-                makeEquipmentEnhancementRequestId()
+                makeEquipmentEnhancementRequestId(),
+                { throwOnError: true }
             );
             close();
             await getInventory(playFabId, { force: true });
-            const message = `${baseItem.name}を+${result?.targetBonus ?? serverPreview.targetBonus}に強化しました。`;
+            const targetBonus = result?.targetBonus ?? serverPreview?.targetBonus ?? baseEnhancement.bonus;
+            const message = `${baseItem.name}を+${targetBonus}に強化しました。`;
             showInventoryFeedback(message);
             if (typeof window.showRpgMessage === 'function') window.showRpgMessage(message);
         } catch (error) {

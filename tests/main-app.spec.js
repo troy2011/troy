@@ -5468,6 +5468,14 @@ test('inventory equipment enhancement modal previews and applies multiple materi
   await page.route('**/api/equipment-enhancement/preview', async (route) => {
     const body = route.request().postDataJSON();
     previewRequests.push(body);
+    if (previewRequests.length === 1) {
+      await route.fulfill({
+        status: 409,
+        contentType: 'application/json; charset=utf-8',
+        body: JSON.stringify({ error: '持ち物を再読み込みしてください。' })
+      });
+      return;
+    }
     const contribution = body.materials.reduce((total, material) => (
       total + (material.stackId === 'enhanced-material-stack' ? 4 : material.amount)
     ), 0);
@@ -5480,6 +5488,14 @@ test('inventory equipment enhancement modal previews and applies multiple materi
   await page.route('**/api/equipment-enhancement/apply', async (route) => {
     const body = route.request().postDataJSON();
     applyRequests.push(body);
+    if (applyRequests.length === 1) {
+      await route.fulfill({
+        status: 409,
+        contentType: 'application/json; charset=utf-8',
+        body: JSON.stringify({ error: '持ち物が更新されました。' })
+      });
+      return;
+    }
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
@@ -5504,8 +5520,17 @@ test('inventory equipment enhancement modal previews and applies multiple materi
   await page.getByRole('button', { name: '強化', exact: true }).click();
   await expect(page.locator('#equipmentEnhancementModal')).toBeVisible();
   await page.getByRole('button', { name: '素材の剣を増やす' }).click();
+  expect(await page.locator('.equipment-enhancement-apply').isEnabled()).toBe(true);
+  await expect.poll(() => previewRequests.length).toBe(1);
+  await expect(page.locator('.equipment-enhancement-error')).toContainText('持ち物を再読み込みしてください。');
+  await expect(page.locator('.equipment-enhancement-apply')).toBeEnabled();
+  await page.locator('.equipment-enhancement-apply').click();
+  await expect.poll(() => applyRequests.length).toBe(1);
+  await expect(page.locator('#equipmentEnhancementModal')).toBeVisible();
+  await expect(page.locator('.equipment-enhancement-error')).toContainText('持ち物が更新されました。');
+  await expect(page.locator('.equipment-enhancement-apply')).toBeEnabled();
   await page.getByRole('button', { name: '鍛えた素材剣を増やす' }).click();
-  await expect.poll(() => previewRequests.length).toBeGreaterThan(0);
+  await expect.poll(() => previewRequests.length).toBe(2);
   await expect(page.locator('.equipment-enhancement-result')).toContainText('15');
   await expect(page.locator('.equipment-enhancement-apply')).toBeEnabled();
 
@@ -5541,8 +5566,8 @@ test('inventory equipment enhancement modal previews and applies multiple materi
   await page.screenshot({ path: 'test-results/equipment-enhancement-desktop.png', fullPage: true });
 
   await page.locator('.equipment-enhancement-apply').click();
-  await expect.poll(() => applyRequests.length).toBe(1);
-  expect(applyRequests[0]).toMatchObject({
+  await expect.poll(() => applyRequests.length).toBe(2);
+  expect(applyRequests[1]).toMatchObject({
     playFabId: 'PF_PLAYWRIGHT',
     baseStackId: 'base-stack',
     materials: [
@@ -5550,7 +5575,7 @@ test('inventory equipment enhancement modal previews and applies multiple materi
       { stackId: 'enhanced-material-stack', amount: 1 }
     ]
   });
-  expect(String(applyRequests[0].idempotencyId)).not.toBe('');
+  expect(String(applyRequests[1].idempotencyId)).not.toBe('');
   await expect(page.locator('#equipmentEnhancementModal')).toBeHidden();
   await expectNoPageErrors(errors);
 });
