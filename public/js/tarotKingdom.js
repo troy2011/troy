@@ -20,8 +20,10 @@ import {
   createTarotKingdomExplorationNpcCharacter,
   createTarotKingdomNpcCharacter,
   createTarotKingdomPetCharacter,
+  getTarotKingdomMajorSecondaryDamageScale,
+  getTarotKingdomResonanceDamageFloor,
   normalizeTarotKingdomCharacter
-} from './tarotKingdomCombat.js?v=20260804-effects-ready1';
+} from './tarotKingdomCombat.js?v=20260805-damage-balance1';
 import {
   TAROT_KINGDOM_ARCANA_EFFECTS_READY,
   getTarotKingdomPhysicalScale,
@@ -382,7 +384,7 @@ const LEGACY_HAND_SIZE = 6;
 const KINGDOM_FORCED_DRAW_DEATH_THRESHOLD = 3;
 const KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO = 'hp-zero';
 const KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY = 'hand-empty';
-const KINGDOM_RULES_VERSION = 15;
+const KINGDOM_RULES_VERSION = 16;
 const TOTAL_HANDS = 4;
 const START_CHIPS = 100;
 const A_PENALTY = 1;
@@ -451,7 +453,7 @@ const KINGDOM_SUMMON_EFFECT_VISUALS = Object.freeze({
   aegis: Object.freeze({ category: 'support', choreography: 'golden-barrier', cue: 'rune-forge', impact: 'shield-lock' }),
   command: Object.freeze({ category: 'support', choreography: 'fleet-command', cue: 'signal-rise', impact: 'fleet-salvo' })
 });
-const KINGDOM_NET_SCHEMA_VERSION = 20;
+const KINGDOM_NET_SCHEMA_VERSION = 21;
 const KINGDOM_PRIVATE_STATE_VERSION = 2;
 const KINGDOM_NET_STATE_WRITE_DELAY = 90;
 const TK_MATCH_ROOT = 'tarotKingdomMatch';
@@ -5106,6 +5108,10 @@ function areKingdomDamageGrowthRulesEnabled(state = s) {
   return Number(state?.rules?.damageGrowthVersion || 0) >= 1;
 }
 
+function areKingdomDamageBalanceRulesEnabled(state = s) {
+  return Number(state?.rules?.damageBalanceVersion || 0) >= 1;
+}
+
 function areKingdomArcanaLoadoutEffectsEnabled(state = s) {
   return Number(state?.rules?.arcanaLoadoutEffectsVersion || 0) >= 1;
 }
@@ -6905,6 +6911,9 @@ function resolveKingdomMajorBattleEffect(playerIndex, play, options = {}) {
   const skill = getKingdomMajorDisplaySkill(number);
   const actor = s.players?.[playerIndex];
   if (!skill || !actor) return null;
+  const majorSecondaryScale = getTarotKingdomMajorSecondaryDamageScale(
+    areKingdomDamageBalanceRulesEnabled() ? 1 : 0
+  );
   const results = [];
   const enemyMissed = options.enemyAttackMissed === true;
   const growthVersion = areKingdomDamageGrowthRulesEnabled() ? 1 : 0;
@@ -6956,7 +6965,7 @@ function resolveKingdomMajorBattleEffect(playerIndex, play, options = {}) {
     return healed;
   };
   const addDamage = (rawDamage, damageOptions = {}) => {
-    const dealt = applyKingdomMajorEnemyDamage(playerIndex, rawDamage, {
+    const dealt = applyKingdomMajorEnemyDamage(playerIndex, rawDamage * majorSecondaryScale, {
       ...damageOptions,
       damageBudget: options.damageBudget,
       missed: enemyMissed
@@ -7048,9 +7057,14 @@ function resolveKingdomMajorBattleEffect(playerIndex, play, options = {}) {
       });
     } else if (number === 11) {
       const ledger = Math.max(0, Number(s.battle.metrics?.enemyDamageToParty) || 0);
-      const dealt = applyKingdomMajorEnemyDamage(playerIndex, ledger * Math.min(1, 0.5 * m), {
-        fixed: true, ignoreDefense: true, damageKind: 'fixed', damageBudget: options.damageBudget, missed: enemyMissed
-      });
+      const dealt = applyKingdomMajorEnemyDamage(
+        playerIndex,
+        ledger * Math.min(1, 0.5 * m) * majorSecondaryScale,
+        {
+        fixed: true, ignoreDefense: true, damageKind: 'fixed', damageBudget: options.damageBudget,
+        missed: enemyMissed
+        }
+      );
       s.battle.metrics.enemyDamageToParty = 0;
       addResult({ kind: 'major-fixed-damage', ...dealt, ledgerDamage: ledger, ledgerReset: true });
     } else if (number === 12) {
@@ -7076,7 +7090,12 @@ function resolveKingdomMajorBattleEffect(playerIndex, play, options = {}) {
         if (effect.targetType === 'player' && (!s.players[targetIndex] || (effect.kind !== 'revive-percent' && Number(s.players[targetIndex].hp) <= 0))) {
           targetIndex = living[0] ?? playerIndex;
         }
-        const replayStep = buildKingdomConfirmedEffectReplay(effect, m, 'major-14-copy', targetIndex);
+        const replayStep = buildKingdomConfirmedEffectReplay(
+          effect,
+          m * majorSecondaryScale,
+          'major-14-copy',
+          targetIndex
+        );
         const replay = replayStep
           ? applyKingdomEffectStep(replayStep, playerIndex, { source: 'major-14-copy', damageBudget: options.damageBudget })
           : null;
@@ -7983,6 +8002,52 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
         resonanceDamageBudget.remaining = Math.max(0, resonanceDamageBudget.remaining - Number(result.amount));
       }
     });
+    const strongestMatch = Math.max(
+      0,
+      ...(Array.isArray(resonance.candidates) ? resonance.candidates : [])
+        .map((candidate) => Number(candidate?.matchMultiplier) || 0)
+    );
+    const resonanceDamageFloor = getTarotKingdomResonanceDamageFloor(
+      context.baseAttackDamage,
+      strongestMatch,
+      areKingdomDamageBalanceRulesEnabled() ? 1 : 0
+    );
+    if (
+      resonanceDamage > 0
+      && resonanceDamage < resonanceDamageFloor
+      && resonanceDamageBudget.remaining > 0
+      && Number(s.battle.enemy?.hp) > 0
+    ) {
+      const topUp = Math.min(
+        resonanceDamageFloor - resonanceDamage,
+        resonanceDamageBudget.remaining
+      );
+      const result = applyKingdomEffectStep({
+        source: 'resonance',
+        kind: 'damage',
+        label: resonance.skillNames?.[0] || resonance.skillName || '共鳴',
+        targetType: 'enemy',
+        amount: topUp,
+        confirmedResult: true
+      }, playerIndex, {
+        source: 'resonance',
+        damageBudget: options.damageBudget
+      });
+      if (result && Number(result.amount) > 0) {
+        results.push({
+          ...result,
+          skillName: resonance.skillNames?.[0] || resonance.skillName || '',
+          resonanceId: resonance.resonanceIds?.[0] || '',
+          damageFloor: resonanceDamageFloor,
+          balanceTopUp: true
+        });
+        resonanceDamage += Number(result.amount);
+        resonanceDamageBudget.remaining = Math.max(
+          0,
+          resonanceDamageBudget.remaining - Number(result.amount)
+        );
+      }
+    }
   }
   const guardianPassiveResults = applyKingdomGuardianPlayPassive(
     playerIndex,
@@ -8585,7 +8650,8 @@ function getKingdomBattleDamageForPlay(playerIndex, play) {
       intelligence: getKingdomEffectivePlayerStat(playerIndex, 'intelligence'),
       level: character.level,
       equipmentMagicPower: combat.equipmentMagicPower,
-      growthVersion
+      growthVersion,
+      damageBalanceVersion: areKingdomDamageBalanceRulesEnabled() ? 1 : 0
     });
     return {
       ...result,
@@ -8605,7 +8671,9 @@ function getKingdomBattleDamageForPlay(playerIndex, play) {
     power: getKingdomEffectivePlayerStat(playerIndex, 'power'),
     level: character.level,
     equipmentPower: combat.equipmentPower,
-    growthVersion
+    growthVersion,
+    damageBalanceVersion: areKingdomDamageBalanceRulesEnabled() ? 1 : 0,
+    isMajor: count === 1 && handCards[0]?.kind === 'major'
   });
   return {
     ...result,
@@ -9276,7 +9344,8 @@ function normalizeKingdomRules(
   fallbackForcedDrawDeathVersion = 1,
   fallbackDamageGrowthVersion = 1,
   fallbackArcanaLoadoutEffectsVersion = 3,
-  fallbackRoleChainVersion = 1
+  fallbackRoleChainVersion = 1,
+  fallbackDamageBalanceVersion = 1
 ) {
   const incoming = rawRules && typeof rawRules === 'object' ? rawRules : {};
   const fallback = Math.max(1, Math.min(20, Math.floor(Number(fallbackHandSize) || DEFAULT_HAND_LIMIT)));
@@ -9344,6 +9413,12 @@ function normalizeKingdomRules(
       0,
       Math.min(1, Math.floor(Number(
         incoming.damageGrowthVersion ?? fallbackDamageGrowthVersion
+      ) || 0))
+    ),
+    damageBalanceVersion: Math.max(
+      0,
+      Math.min(1, Math.floor(Number(
+        incoming.damageBalanceVersion ?? fallbackDamageBalanceVersion
       ) || 0))
     ),
     arcanaLoadoutEffectsVersion: Math.max(
@@ -10116,6 +10191,7 @@ function deserializeStateFromNet(payload) {
     incomingRules.enemyDefeatMode = KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY;
   }
   if (incomingSchema < 14) incomingRules.damageGrowthVersion = 0;
+  if (incomingSchema < 21) incomingRules.damageBalanceVersion = 0;
   if (incomingSchema < 15) {
     incomingRules.majorBattleEffectsVersion = Math.min(
       1,
@@ -10158,7 +10234,8 @@ function deserializeStateFromNet(payload) {
     incomingSchema < 12 ? 0 : 1,
     incomingSchema < 14 ? 0 : 1,
     incomingSchema < 16 ? 0 : (incomingSchema < 18 ? 1 : (incomingSchema < 20 ? 2 : 3)),
-    incomingSchema < 17 ? 0 : 1
+    incomingSchema < 17 ? 0 : 1,
+    incomingSchema < 21 ? 0 : 1
   );
   [nextState.trick, nextState.lastPlay].forEach((play) => {
     if (!play || typeof play !== 'object') return;

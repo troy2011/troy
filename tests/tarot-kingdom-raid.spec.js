@@ -126,7 +126,7 @@ test.describe('Tarot Kingdom raid server rules', () => {
 });
 
 test.describe('Tarot Kingdom raid battle damage protection', () => {
-  test('Death converts percentage damage and one complete player action caps at 999', async ({ page }) => {
+  test('Death uses its grave-based major tier in raids and stays below the 999 cap', async ({ page }) => {
     await page.goto('/tarot-kingdom-preview.html?tkfixture=character-battle', {
       waitUntil: 'domcontentloaded'
     });
@@ -160,14 +160,15 @@ test.describe('Tarot Kingdom raid battle damage protection', () => {
       const played = debug.battlePlayCards(0, ['raid-death'], { resolve: false });
       const events = played.state.battle.events;
       const event = events[events.length - 1];
-      const death = event.effects.find((entry) => entry.kind === 'major-percent-damage');
+      const death = event.effects.find((entry) => entry.kind === 'major-damage');
       return { event, death, rules: played.state.rules };
     });
 
     expect(audit.rules.damageGrowthVersion).toBe(1);
-    expect(audit.event.damage).toBe(999);
-    expect(audit.event.hpBefore - audit.event.hpAfter).toBe(999);
-    expect(audit.death.raidPercentConverted).toBe(true);
+    expect(audit.event.damage).toBeGreaterThan(0);
+    expect(audit.event.damage).toBeLessThanOrEqual(999);
+    expect(audit.event.hpBefore - audit.event.hpAfter).toBe(audit.event.damage);
+    expect(audit.death).toBeTruthy();
     expect(audit.death.amount).toBeLessThanOrEqual(999);
   });
 });

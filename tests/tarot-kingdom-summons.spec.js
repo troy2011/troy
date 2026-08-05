@@ -679,7 +679,7 @@ test.describe('Tarot Kingdom summon integration', () => {
     expect(audit.rules).toMatchObject({ combatEffectsVersion: 1, summonVersion: 0 });
     expect(audit.timeline).toMatchObject({
       version: 1,
-      durationMs: 1800,
+      durationMs: 1920,
       impactOffsetMs: 1080,
       hpRevealOffsetMs: 1200
     });

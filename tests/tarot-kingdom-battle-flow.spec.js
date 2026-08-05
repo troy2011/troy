@@ -60,6 +60,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
         withTrick: false,
         handsBySeat: [cards],
         hpBySeat: [100, 100, 100, 100],
+        enemyDefense: 10000,
         combatBySeat
       });
       debug.battlePlayCards(0, cards.slice(0, 5).map((card) => card.id), { resolve: true });
@@ -225,7 +226,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       Math.floor(baseDamage * 1.5),
       Math.floor(baseDamage * 1.75)
     ]);
-    expect(audit.published.schema).toBe(20);
+    expect(audit.published.schema).toBe(21);
     expect(audit.published.state.rules.roleChainVersion).toBe(1);
     expect(audit.published.state.trick.roleChain).toEqual({ count: 4, multiplier: 1.75 });
     expect(audit.cleared.trick).toBeNull();
@@ -1412,7 +1413,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.rush.battle.outcome).toBeNull();
     expect(audit.rush.players[0].hand).toHaveLength(1);
     expect(audit.rush.rules.enemyDefeatMode).toBe('hand-empty');
-    expect(audit.hostPublicState.schema).toBe(20);
+    expect(audit.hostPublicState.schema).toBe(21);
     expect(audit.hostPublicState.state.rules.enemyDefeatMode).toBe('hand-empty');
     expect(audit.legacy.rules.enemyDefeatMode).toBe('hand-empty');
   });
@@ -2404,7 +2405,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       effectiveUnits: 2,
       healRate: 0.2
     });
-    expect(audit.publicState.schema).toBe(20);
+    expect(audit.publicState.schema).toBe(21);
     expect(audit.publicState.state.stage.monsters).toHaveLength(4);
     expect(audit.atmosphereTone).toBe('sunlit-coral');
     expect(audit.atmosphereCss).toContain('74, 159, 196');
@@ -2433,7 +2434,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.settlementStart.players).toHaveLength(3);
     expect(audit.settled.roundSettlement.rows).toHaveLength(2);
     expect(audit.settled.dealer).toBe(0);
-    expect(audit.published.schema).toBe(20);
+    expect(audit.published.schema).toBe(21);
     expect(audit.published.state.rules.playerCount).toBe(3);
     expect(audit.published.state.players).toHaveLength(3);
   });
@@ -2571,8 +2572,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.missingActionId.reason).toBe('invalid-action-id');
     expect(audit.stringRevision.reason).toBe('stale-revision');
     expect(audit.stringSeat.reason).toBe('seat-owner-mismatch');
-    expect(audit.callDamage).toMatchObject({ kind: 'skill', baseDamage: 108, damage: 119 });
-    expect(audit.zeroRateCallDamage).toMatchObject({ kind: 'skill', baseDamage: 90, damage: 99 });
+    expect(audit.callDamage).toMatchObject({ kind: 'skill', baseDamage: 172, damage: 190 });
+    expect(audit.zeroRateCallDamage).toMatchObject({ kind: 'skill', baseDamage: 144, damage: 159 });
     expect(audit.freeCallBuilt).toMatchObject({ ok: true, play: { call: true } });
     expect(audit.freeCallPlayed.ok).toBe(true);
     expect(audit.freeCallPlayed.state.players[0].stars).toBe(0);
@@ -2713,7 +2714,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
         current
       };
     });
-    expect(audit.currentPublic.schema).toBe(20);
+    expect(audit.currentPublic.schema).toBe(21);
     expect(audit.currentPublic.state.rules).toMatchObject({
       playerCount: 4,
       combatEffectsVersion: 1,

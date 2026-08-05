@@ -150,7 +150,7 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
       };
     });
 
-    expect(audit.chariotSecondaryDamage).toBe(112);
+    expect(audit.chariotSecondaryDamage).toBe(12);
     expect(audit.chariotBuff).toMatchObject({
       potency: 30,
       evasionPenalty: 0.15,

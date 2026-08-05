@@ -10,11 +10,12 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     await openKingdomDebug(page);
   });
 
-  test('schema 20 publishes current combat rules while older matches keep their rules', async ({ page }) => {
+  test('schema 21 publishes current combat rules while older matches keep their rules', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       const current = debug.battleScenario({ withTrick: false });
       const published = debug.battlePublicState();
+      const schema20 = debug.battleDeserialize({ schema: 20, state: current });
       const legacyState = {
         handNo: 1,
         roundActive: true,
@@ -48,7 +49,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
           }
         }
       });
-      return { current, published, schema1, schema3, schema4, schema5, schema6 };
+      return { current, published, schema20, schema1, schema3, schema4, schema5, schema6 };
     });
 
     expect(audit.current.rules).toMatchObject({
@@ -64,12 +65,13 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       carryHpBetweenRoundsVersion: 1,
       forcedDrawDeathVersion: 1,
       damageGrowthVersion: 1,
+      damageBalanceVersion: 1,
       roleChainVersion: 1,
       arcanaLoadoutEffectsVersion: 3,
       enemyDefeatMode: 'hp-zero'
     });
     expect(audit.current.players.map((player) => player.hand.length)).toEqual([8, 8, 8, 8]);
-    expect(audit.published.schema).toBe(20);
+    expect(audit.published.schema).toBe(21);
     expect(audit.published.state.rules).toMatchObject({
       initialHandSize: 8,
       handLimit: 8,
@@ -84,10 +86,12 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       carryHpBetweenRoundsVersion: 1,
       forcedDrawDeathVersion: 1,
       damageGrowthVersion: 1,
+      damageBalanceVersion: 1,
       roleChainVersion: 1,
       arcanaLoadoutEffectsVersion: 3,
       enemyDefeatMode: 'hp-zero'
     });
+    expect(audit.schema20.rules.damageBalanceVersion).toBe(0);
     expect(audit.schema1.rules).toMatchObject({ initialHandSize: 6, handLimit: 6 });
     expect(audit.schema3.rules).toMatchObject({ initialHandSize: 6, handLimit: 6 });
     expect(audit.schema4.rules).toMatchObject({

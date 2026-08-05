@@ -126,6 +126,42 @@ test.describe('Tarot Kingdom combat calculations', () => {
     expect(grownSkill).toEqual({ kind: 'skill', baseDamage: 162, damage: 874 });
   });
 
+  test('schema 21 damage tiers keep five-card roles above resonance, multi-card, major, and normal attacks', async () => {
+    const combat = await loadCombatModule();
+    const shared = {
+      maxCardStrength: 10,
+      power: 80,
+      intelligence: 80,
+      level: 30,
+      equipmentPower: 30,
+      equipmentMagicPower: 30,
+      growthVersion: 1,
+      damageBalanceVersion: 1
+    };
+    const normal = combat.calculateTarotKingdomPlayerAttack({ ...shared, cardCount: 1 });
+    const major = combat.calculateTarotKingdomPlayerAttack({ ...shared, cardCount: 1, isMajor: true });
+    const pair = combat.calculateTarotKingdomPlayerAttack({ ...shared, cardCount: 2 });
+    const triple = combat.calculateTarotKingdomPlayerAttack({ ...shared, cardCount: 3 });
+    const resonanceDamage = normal.damage + combat.getTarotKingdomResonanceDamageFloor(
+      normal.damage,
+      1,
+      1
+    );
+    const role = combat.calculateTarotKingdomPlayerAttack({
+      ...shared,
+      isSkill: true,
+      roleRate: 1
+    });
+
+    expect(normal.damage).toBeLessThan(major.damage);
+    expect(major.damage).toBeLessThan(pair.damage);
+    expect(pair.damage).toBeLessThan(triple.damage);
+    expect(triple.damage).toBeLessThan(resonanceDamage);
+    expect(resonanceDamage).toBeLessThan(role.damage);
+    expect(combat.getTarotKingdomMajorSecondaryDamageScale(1)).toBe(0.12);
+    expect(combat.getTarotKingdomMajorSecondaryDamageScale(0)).toBe(1);
+  });
+
   test('enemy damage is reduced by defense with zero and minimum-damage handling', async () => {
     const combat = await loadCombatModule();
     const audit = {

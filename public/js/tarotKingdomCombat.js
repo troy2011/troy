@@ -11,6 +11,38 @@ const NPC_STYLE_BY_SEAT = Object.freeze({
     3: { key: 'aggressive', hp: 0.90, power: 1.20, defense: 0.80, weaponType: 'axe' }
 });
 
+export const TAROT_KINGDOM_DAMAGE_TIER_BALANCE = Object.freeze({
+    normal: 1,
+    majorSingle: 1.12,
+    pair: 1.08,
+    triple: 1.16,
+    fiveCardRole: 1.6,
+    resonanceExactFloor: 1.5,
+    resonancePartialFloor: 0.75,
+    majorSecondary: 0.12
+});
+
+export function getTarotKingdomResonanceDamageFloor(
+    baseAttackDamage,
+    matchMultiplier = 1,
+    damageBalanceVersion = 0
+) {
+    if (Number(damageBalanceVersion) < 1) return 0;
+    const base = Math.max(0, Math.floor(finiteNumber(baseAttackDamage, 0)));
+    const match = Math.max(0, Math.min(1, finiteNumber(matchMultiplier, 0)));
+    if (base <= 0 || match <= 0) return 0;
+    const ratio = match >= 1
+        ? TAROT_KINGDOM_DAMAGE_TIER_BALANCE.resonanceExactFloor
+        : TAROT_KINGDOM_DAMAGE_TIER_BALANCE.resonancePartialFloor * match / 0.5;
+    return Math.max(1, Math.floor(base * ratio));
+}
+
+export function getTarotKingdomMajorSecondaryDamageScale(damageBalanceVersion = 0) {
+    return Number(damageBalanceVersion) >= 1
+        ? TAROT_KINGDOM_DAMAGE_TIER_BALANCE.majorSecondary
+        : 1;
+}
+
 const NPC_TAROT_DECK_BY_SEAT = Object.freeze({
     1: Object.freeze([
         { suit: 'Pentacle', rank: 2, cardLevel: 1 },
@@ -367,12 +399,17 @@ export function calculateTarotKingdomPlayerAttack({
     equipmentPower = 0,
     equipmentMagicPower = 0,
     growthVersion = 0,
+    damageBalanceVersion = 0,
+    isMajor = false,
     isSkill = false,
     roleRate = 1
 } = {}) {
     if (isSkill) {
         const safeRate = Math.max(1, Math.floor(finiteNumber(roleRate, 1)));
-        const baseDamage = 72 + (safeRate * 18);
+        const rawBaseDamage = 72 + (safeRate * 18);
+        const baseDamage = Number(damageBalanceVersion) >= 1
+            ? Math.max(1, Math.floor(rawBaseDamage * TAROT_KINGDOM_DAMAGE_TIER_BALANCE.fiveCardRole))
+            : rawBaseDamage;
         const scaling = 1 + (Math.min(200, Math.max(0, finiteNumber(intelligence, 0))) / 100);
         const growthScale = getTarotKingdomGrowthDamageScale({
             level,
@@ -385,7 +422,14 @@ export function calculateTarotKingdomPlayerAttack({
         };
     }
     const safeCount = Math.max(1, Math.min(5, Math.floor(finiteNumber(cardCount, 1))));
-    const baseDamage = 10 + (safeCount * 14) + Math.floor(Math.max(0, finiteNumber(maxCardStrength, 0)) / 3);
+    const rawBaseDamage = 10 + (safeCount * 14) + Math.floor(Math.max(0, finiteNumber(maxCardStrength, 0)) / 3);
+    let tierScale = 1;
+    if (Number(damageBalanceVersion) >= 1) {
+        if (safeCount >= 3) tierScale = TAROT_KINGDOM_DAMAGE_TIER_BALANCE.triple;
+        else if (safeCount === 2) tierScale = TAROT_KINGDOM_DAMAGE_TIER_BALANCE.pair;
+        else if (isMajor) tierScale = TAROT_KINGDOM_DAMAGE_TIER_BALANCE.majorSingle;
+    }
+    const baseDamage = Math.max(1, Math.floor(rawBaseDamage * tierScale));
     const scaling = 1 + (Math.min(200, Math.max(0, finiteNumber(power, 0))) / 100);
     const growthScale = getTarotKingdomGrowthDamageScale({
         level,
