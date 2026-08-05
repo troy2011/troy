@@ -10,12 +10,19 @@ function loadCombatModule() {
       path.join(__dirname, '..', 'public', 'data', 'tarot-kingdom-arcana-effects.json'),
       'utf8'
     ));
+    globalThis.__TAROT_KINGDOM_LEGACY_ARCANA_EFFECTS__ = JSON.parse(fs.readFileSync(
+      path.join(__dirname, '..', 'public', 'data', 'tarot-kingdom-arcana-effects-v2.json'),
+      'utf8'
+    ));
+    const v3Path = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomEffectsV3.js');
+    const v3Url = `data:text/javascript;base64,${Buffer.from(fs.readFileSync(v3Path, 'utf8')).toString('base64')}`;
     const modulePath = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomCombat.js');
     const effectsPath = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomEffects.js');
-    const effectsSource = fs.readFileSync(effectsPath, 'utf8');
+    const effectsSource = fs.readFileSync(effectsPath, 'utf8')
+      .replace("'./tarotKingdomEffectsV3.js?v=20260805-arcana-v3-full2'", `'${v3Url}'`);
     const effectsUrl = `data:text/javascript;base64,${Buffer.from(effectsSource).toString('base64')}`;
     const source = fs.readFileSync(modulePath, 'utf8')
-      .replace("'./tarotKingdomEffects.js'", `'${effectsUrl}'`);
+      .replace(/'\.\/tarotKingdomEffects\.js[^']*'/, `'${effectsUrl}'`);
     const moduleUrl = `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
     combatModulePromise = import(moduleUrl);
   }
@@ -362,7 +369,7 @@ test.describe('Tarot Kingdom combat normalization', () => {
     });
 
     expect(normalized).toEqual({
-      version: 3,
+      version: 4,
       source: 'npc',
       playFabId: 'PF-1',
       displayName: '冒険者',

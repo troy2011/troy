@@ -2062,24 +2062,22 @@ test('resonance showcase opens with equipped marks, guardian passive and selecta
   await expect(page.locator('#tarotKingdomArcanaNav')).toBeVisible();
   const guardian = page.locator('#tarotKingdomGuardianPassive');
   await expect(guardian).toBeVisible();
-  await expect(guardian).toContainText('聖律の封波');
-  await expect(guardian).toContainText('5スキップ成立時');
-  await expect(page.locator('#tarotKingdomHand .tarot-card-resonance-mark')).toHaveCount(8);
+  await expect(guardian).toContainText('魔導士');
+  await expect(guardian.locator('#tarotKingdomGuardianPassiveText')).toHaveText('');
+  await expect(page.locator('#tarotKingdomHand .tarot-card-resonance-mark')).toHaveCount(7);
 
   const hierophant = page.locator('#tarotKingdomHand [data-card-id="showcase-major-5"]');
   await expect(hierophant.locator('[aria-label="同じ数字の装備カード共鳴 50%"]')).toHaveText('共');
-  await expect(hierophant.locator('[aria-label="守護アルカナ覚醒"]')).toHaveText('覚');
+  await expect(hierophant.locator('[aria-label="守護アルカナ覚醒"]')).toHaveCount(0);
   await hierophant.click();
   await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText('法王 / 5スキップ');
   await expect(page.locator('#tarotKingdomSelectedEffectText')).not.toContainText('共鳴');
-  await expect(page.locator('#tarotKingdomGuardianPassiveLabel')).toHaveText('共鳴・覚醒 ＋2');
+  await expect(page.locator('#tarotKingdomGuardianPassiveLabel')).toHaveText('共鳴 ＋1');
   await expect(page.locator('#tarotKingdomGuardianPassiveName')).toBeHidden();
-  await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('五歩詰め');
-  await expect(page.locator('#tarotKingdomGuardianPassiveText')).toContainText('防御無視で追撃');
-  await expect(page.locator('#tarotKingdomGuardianPassiveText')).not.toContainText('敵の命中率を30低下');
+  await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('盾割り');
+  await expect(page.locator('#tarotKingdomGuardianPassiveText')).toHaveText(/R\d+：/);
   await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('共鳴50%');
-  await expect(page.locator('#tarotKingdomGuardianPassive')).toHaveAttribute('title', /敵の命中率を30低下/);
-  await expect(page.locator('#tarotKingdomGuardianPassive')).not.toHaveAttribute('title', /五歩詰め|水縛の杯|守護覚醒/);
+  await expect(page.locator('#tarotKingdomGuardianPassive')).not.toHaveAttribute('title', /盾割り|守護覚醒|覚醒/);
   await expect(page.locator('.tarot-kingdom-hand-title')).toBeHidden();
 });
 

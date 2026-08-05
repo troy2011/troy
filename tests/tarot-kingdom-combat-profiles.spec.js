@@ -265,7 +265,7 @@ test('combat profile API authenticates the requester and returns sanitized melee
     expect(result.payload).toMatchObject({ success: true });
     expect(result.payload.characters).toHaveLength(3);
     expect(result.payload.characters[1]).toMatchObject({
-      version: 3,
+      version: 4,
       source: 'playfab',
       playFabId: 'PF_A',
       displayName: 'Captain PF_A',
@@ -304,8 +304,7 @@ test('combat profile API authenticates the requester and returns sanitized melee
         itemId: 'tarot_major_01',
         number: 1,
         cardLevel: 1,
-        passiveId: 'magician-elements',
-        awakeningId: 'magician-awaken'
+        passiveId: 'guardian-v3-1'
       },
       combat: {
         maxHp: 155,

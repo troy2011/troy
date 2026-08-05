@@ -149,7 +149,7 @@ function buildTarotKingdomCombatCharacter(profile = {}, cardLevels = {}) {
     };
 
     return {
-        version: 3,
+        version: 4,
         source: 'playfab',
         playFabId: String(profile?.id || '').trim(),
         displayName: String(stats.DisplayName || profile?.id || '（名前なし）').trim() || '（名前なし）',

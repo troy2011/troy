@@ -10,8 +10,15 @@ function loadEffectsModule() {
       path.join(__dirname, '..', 'public', 'data', 'tarot-kingdom-arcana-effects.json'),
       'utf8'
     ));
+    globalThis.__TAROT_KINGDOM_LEGACY_ARCANA_EFFECTS__ = JSON.parse(fs.readFileSync(
+      path.join(__dirname, '..', 'public', 'data', 'tarot-kingdom-arcana-effects-v2.json'),
+      'utf8'
+    ));
+    const v3Path = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomEffectsV3.js');
+    const v3Url = `data:text/javascript;base64,${Buffer.from(fs.readFileSync(v3Path, 'utf8')).toString('base64')}`;
     const modulePath = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomEffects.js');
-    const source = fs.readFileSync(modulePath, 'utf8');
+    const source = fs.readFileSync(modulePath, 'utf8')
+      .replace("'./tarotKingdomEffectsV3.js?v=20260805-arcana-v3-full2'", `'${v3Url}'`);
     effectsModulePromise = import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
   }
   return effectsModulePromise;
@@ -120,6 +127,26 @@ test.describe('Tarot Kingdom weapon-suit effects', () => {
 });
 
 test.describe('Tarot Kingdom equipped-card resonance', () => {
+  test('schema 19 keeps the version 2 resonance table while schema 20 uses version 3', async () => {
+    const effects = await loadEffectsModule();
+    const character = {
+      combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
+      tarotDeck: [{ slot: 0, cardId: 'CUP_01', suit: 'Cup', rank: 1, cardLevel: 1 }]
+    };
+    const base = weaponContext(['unarmed'], minor('Cup', 1), {
+      character,
+      isLeader: true,
+      handBefore: [minor('Cup', 1)],
+      handAfter: []
+    });
+    const legacy = effects.resolveTarotKingdomResonance({ ...base, arcanaLoadoutEffectsVersion: 2 });
+    const current = effects.resolveTarotKingdomResonance({ ...base, arcanaLoadoutEffectsVersion: 3 });
+    expect(legacy.candidates[0]).toMatchObject({ skillName: 'はじまりの雫', resonanceId: 'cup-1' });
+    expect(legacy.steps[0]).toMatchObject({ kind: 'heal-percent', percent: 12 });
+    expect(current.candidates[0].skillName).not.toBe('はじまりの雫');
+    expect(current.steps[0]).toMatchObject({ effectVersion: 3 });
+  });
+
   test('exact matches work in role submissions and ignore item identity', async () => {
     const effects = await loadEffectsModule();
     const deck = [{
@@ -137,7 +164,7 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
     expect(effects.resolveTarotKingdomResonance(context)).toMatchObject({
       candidates: [{
       slot: 0,
-      skillName: '慈潮の女王',
+      skillName: '黄泉返りの霊水',
       suit: 'Cup',
       rank: 13,
       matchKind: 'exact',
@@ -167,7 +194,7 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
     });
     expect(resolved.candidates).toHaveLength(2);
     expect(resolved.candidates.map((entry) => entry.slot)).toEqual([0, 1]);
-    expect(resolved.candidates.map((entry) => entry.skillName)).toEqual(['五歩詰め', '六道駆け']);
+    expect(resolved.candidates.map((entry) => entry.skillName)).toEqual(['盾割り', '六道連環']);
   });
 
   test('same-rank resonance is 50%, exact match takes priority, and each engraving activates once', async () => {
@@ -184,7 +211,7 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
     const sameRank = effects.resolveTarotKingdomResonance(base);
     expect(sameRank.candidates).toHaveLength(1);
     expect(sameRank.candidates[0]).toMatchObject({ matchKind: 'same-rank', matchMultiplier: 0.5 });
-    expect(sameRank.steps[0]).toMatchObject({ kind: 'buff', potency: 5 });
+    expect(sameRank.steps[0]).toMatchObject({ kind: 'buff', potency: 2, resolvedR: 2 });
 
     const majorRank = effects.resolveTarotKingdomResonance({ ...base, cards: [{ id: 'major-1', kind: 'major', number: 1 }] });
     expect(majorRank.candidates[0]).toMatchObject({ matchKind: 'major-rank', matchMultiplier: 0.5, sourceAttribute: 'neutral' });
@@ -204,7 +231,7 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
         tarotDeck: [{ slot: 0, cardId: 'SWORD_13', suit: 'Sword', rank: 13, cardLevel: 1 }]
       }
     });
-    expect(binarySameRank.steps[0]).toMatchObject({ kind: 'register-trigger', activationChance: 0.5 });
+    expect(binarySameRank.steps[0]).toMatchObject({ kind: 'damage', effectVersion: 3 });
   });
 
   test('new conditions read field, hand, reverse, leader, and control events', async () => {
@@ -241,7 +268,7 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
     expect(minorDeck).toHaveLength(56);
     expect(effects.getUnsupportedTarotKingdomEffectCodes(minorDeck)).toEqual([]);
     const supportedKinds = new Set([
-      'magic-damage', 'elemental-barrage', 'physical-damage', 'heal-lowest', 'heal-self',
+      'r-effect', 'magic-damage', 'elemental-barrage', 'physical-damage', 'heal-lowest', 'heal-self',
       'heal-field-owner', 'heal-previous-player', 'shield-self', 'shield-lowest-other', 'shield-party',
       'cleanse-field-owner', 'cleanse-party', 'revive-previous-passer', 'enemy-status', 'party-status',
       'player-status-self', 'cover-lowest', 'dispel-enemy-guard', 'hand-suit-damage', 'pile-barrage',
@@ -253,5 +280,75 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
       expect(entry.steps.length, entry.id).toBeGreaterThan(0);
       entry.steps.forEach((step) => expect(supportedKinds.has(step.kind), `${entry.id}:${step.kind}`).toBe(true));
     });
+  });
+
+  test('all 56 definitions resolve R 0/5/10 and exact or half resonance deterministically', async () => {
+    const effects = await loadEffectsModule();
+    const definitions = globalThis.__TAROT_KINGDOM_ARCANA_EFFECTS__.minor;
+    const alternateSuit = { Wand: 'Cup', Cup: 'Sword', Sword: 'Pentacle', Pentacle: 'Wand' };
+    const basePlayers = [
+      { hp: 80, maxHp: 100 },
+      { hp: 35, maxHp: 100 },
+      { hp: 60, maxHp: 100 },
+      { hp: 0, maxHp: 100 }
+    ];
+
+    for (const definition of definitions) {
+      for (const resolvedR of [0, 5, 10]) {
+        const text = effects.getTarotKingdomResolvedEffectText(definition, {
+          actorIndex: 0,
+          resolvedR,
+          players: basePlayers,
+          enemy: { hp: 70, maxHp: 100 },
+          effects: { enemy: { poison: { remainingTurns: 1 } }, party: {}, players: [{}, {}, {}, {}] },
+          character: { combat: { power: 100, intelligence: 100 } },
+          fieldCard: minor('Cup', Math.max(1, definition.rank - 1)),
+          fieldOwnerIndex: 1,
+          koPlayerIndex: 3,
+          resonanceMatch: { multiplier: 1, submittedCard: minor(definition.suit, definition.rank) }
+        });
+        expect(text, `${definition.id} R${resolvedR}`).toMatch(new RegExp(`^(R${resolvedR}：|今回は効果なし)`));
+      }
+
+      const deckEntry = {
+        slot: 0,
+        suit: definition.suit,
+        rank: definition.rank,
+        cardLevel: 1,
+        resonanceId: definition.id
+      };
+      const context = {
+        ...weaponContext(['unarmed'], minor(definition.suit, definition.rank)),
+        resolvedR: 5,
+        fieldCard: minor('Cup', Math.max(1, definition.rank - 1)),
+        fieldOwnerIndex: 1,
+        koPlayerIndex: 3,
+        character: {
+          combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
+          tarotDeck: [deckEntry]
+        }
+      };
+      const exact = effects.resolveTarotKingdomResonance(context);
+      expect(exact?.candidates?.[0], `${definition.id} exact`).toMatchObject({
+        resonanceId: definition.id,
+        matchKind: 'exact',
+        matchMultiplier: 1
+      });
+      const half = effects.resolveTarotKingdomResonance({
+        ...context,
+        cards: [minor(alternateSuit[definition.suit], definition.rank)]
+      });
+      expect(half?.candidates?.[0], `${definition.id} half`).toMatchObject({
+        resonanceId: definition.id,
+        matchKind: 'same-rank',
+        matchMultiplier: 0.5
+      });
+      [...exact.candidates[0].steps, ...half.candidates[0].steps].forEach((step) => {
+        expect(step.resolvedR, `${definition.id} shared R`).toBe(5);
+        ['amount', 'percent', 'potency', 'chance'].forEach((key) => {
+          if (step[key] != null) expect(Number.isFinite(Number(step[key])), `${definition.id} ${key}`).toBe(true);
+        });
+      });
+    }
   });
 });

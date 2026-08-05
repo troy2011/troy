@@ -11,13 +11,14 @@ const {
 
 test('dedicated arcana catalog contains 56 unique minor resonances and 22 guardians', () => {
   const catalog = getArcanaEffectsCatalog();
-  expect(catalog.version).toBe(2);
+  expect(catalog.version).toBe(3);
   expect(catalog.minor).toHaveLength(56);
   expect(catalog.guardian).toHaveLength(22);
+  expect(catalog.major).toHaveLength(22);
   expect(new Set(catalog.minor.map((entry) => entry.id)).size).toBe(56);
   expect(new Set(catalog.minor.map((entry) => entry.name)).size).toBe(56);
   expect(new Set(catalog.guardian.map((entry) => entry.passiveId)).size).toBe(22);
-  expect(new Set(catalog.guardian.map((entry) => entry.awakeningId)).size).toBe(22);
+  expect(catalog.guardian.every((entry) => !Object.hasOwn(entry, 'awakeningId'))).toBe(true);
   expect(catalog.guardian.every((entry) => ['neutral', 'light', 'dark'].includes(entry.attribute))).toBe(true);
   expect(JSON.stringify(catalog)).not.toContain('effectCodes');
 });
@@ -58,8 +59,7 @@ test('minor and guardian snapshots use canonical IDs and clamp their own level r
     itemId: 'tarot_major_21',
     number: 21,
     cardLevel: 25,
-    passiveId: 'world-role',
-    awakeningId: 'world-awaken',
+    passiveId: 'guardian-v3-21',
     attribute: 'neutral'
   });
   expect(clampCardLevel(15, false)).toBe(15);
@@ -88,10 +88,12 @@ test('card levels strengthen numeric values by two percent without changing fixe
 
   const wandFive = getArcanaEffectsCatalog().minor.find((entry) => entry.id === 'wand-5');
   expect(wandFive).toMatchObject({
-    name: 'ディディネ',
-    condition: { kind: 'after-five-skip' },
-    steps: [{ kind: 'magic-damage', element: 'field', multiplier: 2.2 }]
+    name: 'アンチバリア',
+    condition: { kind: 'resonance-v3' },
+    steps: [{ kind: 'r-effect', effectId: 'wand-5' }]
   });
   const empress = getArcanaEffectsCatalog().guardian.find((entry) => entry.number === 3);
-  expect(empress.awakening).toContain('4ターン');
+  expect(empress.passiveName).toBe('結界師');
+  expect(empress.passive).toContain('ペンタクル');
+  expect(empress.awakening).toBeUndefined();
 });

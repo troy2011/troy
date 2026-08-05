@@ -65,7 +65,7 @@ let lineFriendPromoState = null;
 let dailyFortuneOpenPromise = null;
 let dailyFortuneClaimEventBound = false;
 const TAROT_MODULE_VERSION = '20260727-daily-lock1';
-const TAROT_KINGDOM_RESCUE_VERSION = '20260804-resonance-hud10';
+const TAROT_KINGDOM_RESCUE_VERSION = '20260805-arcana-v3-full2';
 const DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY = 'troy:daily-fortune-claimed-day';
 const LIFF_CALLBACK_PARAM_KEYS = [
     'code',

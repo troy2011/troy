@@ -105,7 +105,6 @@ function buildTarotKingdomGuardian(itemId, catalogCache = {}, cardLevels = {}) {
         cardLevel: clampCardLevel(cardLevels?.[normalizedItemId]?.level ?? cardLevels?.[normalizedItemId], true),
         passiveId: definition.passiveId,
         passiveName: definition.passiveName,
-        awakeningId: definition.awakeningId,
         attribute: String(definition.attribute || 'neutral')
     };
 }

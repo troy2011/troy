@@ -1,88 +1,1605 @@
 {
-  "version": 2,
+  "version": 3,
   "minor": [
-    { "id": "cup-1", "suit": "Cup", "rank": 1, "name": "はじまりの雫", "effect": "親の初手として出すと、最少HPの味方を12%回復", "condition": { "kind": "lead" }, "steps": [{ "kind": "heal-lowest", "percent": 12 }] },
-    { "id": "cup-2", "suit": "Cup", "rank": 2, "name": "双杯の契り", "effect": "2枚出しすると、自分と場札主を各8%回復", "condition": { "kind": "play-count", "count": 2 }, "steps": [{ "kind": "heal-self", "percent": 8 }, { "kind": "heal-field-owner", "percent": 8 }] },
-    { "id": "cup-3", "suit": "Cup", "rank": 3, "name": "追憶の雫", "effect": "直前のプレイヤーがパスしていると、そのプレイヤーを12%回復", "condition": { "kind": "previous-player-passed" }, "steps": [{ "kind": "heal-previous-player", "percent": 12 }] },
-    { "id": "cup-4", "suit": "Cup", "rank": 4, "name": "静水の鏡", "effect": "場札と同じスートへ出すと、場札主の状態異常を1件解除", "condition": { "kind": "same-suit-as-field" }, "steps": [{ "kind": "cleanse-field-owner" }] },
-    { "id": "cup-5", "suit": "Cup", "rank": 5, "name": "水縛の杯", "effect": "5スキップを成立させると、場が流れるまで敵の命中率を30低下", "condition": { "kind": "causes-skip" }, "steps": [{ "kind": "enemy-status", "statusKey": "accuracyDown", "potency": 30, "untilClear": true }] },
-    { "id": "cup-6", "suit": "Cup", "rank": 6, "name": "慈愛の波紋", "effect": "1枚出しすると、この局の自分だけの回復が味方全員へ広がる", "condition": { "kind": "play-count", "count": 1 }, "steps": [{ "kind": "player-status-self", "statusKey": "selfHealSpread", "potency": 100, "expiresOn": "round" }] },
-    { "id": "cup-7", "suit": "Cup", "rank": 7, "name": "逆流の清杯", "effect": "11バック中に出すと、生存味方全員の状態異常を1件解除", "condition": { "kind": "reverse-active" }, "steps": [{ "kind": "cleanse-party" }] },
-    { "id": "cup-8", "suit": "Cup", "rank": 8, "name": "待望の聖杯", "effect": "1枚の8でコール待ちを作ると、味方全員に10%シールド", "condition": { "kind": "single-eight-call-window" }, "steps": [{ "kind": "shield-party", "percent": 10 }] },
-    { "id": "cup-9", "suit": "Cup", "rank": 9, "name": "星雫の宴", "effect": "提出前の手札が5枚以上なら、味方全員へ2ターン4%リジェネ", "condition": { "kind": "hand-before-min", "count": 5 }, "steps": [{ "kind": "party-status", "statusKey": "regen", "potency": 4, "turns": 2 }] },
-    { "id": "cup-10", "suit": "Cup", "rank": 10, "name": "窮地の大杯", "effect": "提出後の手札が3枚以下なら、最少HPの味方を14%回復", "condition": { "kind": "hand-after-max", "count": 3 }, "steps": [{ "kind": "heal-lowest", "percent": 14 }] },
-    { "id": "cup-11", "suit": "Cup", "rank": 11, "name": "眠りの献杯", "effect": "コールに使用すると、敵を攻撃されるまで眠らせる", "condition": { "kind": "call" }, "steps": [{ "kind": "enemy-status", "statusKey": "sleep", "charges": 1, "expiresOn": "damage" }] },
-    { "id": "cup-12", "suit": "Cup", "rank": 12, "name": "白波の救騎", "effect": "直前のパス反撃でKOした味方をHP20%で復活", "condition": { "kind": "previous-pass-ko" }, "steps": [{ "kind": "revive-previous-passer", "percent": 20 }] },
-    { "id": "cup-13", "suit": "Cup", "rank": 13, "name": "慈潮の女王", "effect": "5枚役に含めると、生存味方全員の状態異常を1件解除", "condition": { "kind": "role" }, "steps": [{ "kind": "cleanse-party" }] },
-    { "id": "cup-14", "suit": "Cup", "rank": 14, "name": "海恵の王", "effect": "5枚役に含めると、味方全員へ2ターン4%リジェネ", "condition": { "kind": "role" }, "steps": [{ "kind": "party-status", "statusKey": "regen", "potency": 4, "turns": 2 }] },
-
-    { "id": "wand-1", "suit": "Wand", "rank": 1, "name": "レジサイド", "effect": "1枚場のKへAを出すと、札の属性で極大ダメージ", "condition": { "kind": "field-single-rank", "rank": 14 }, "steps": [{ "kind": "magic-damage", "element": "source", "multiplier": 3 }] },
-    { "id": "wand-2", "suit": "Wand", "rank": 2, "name": "プミルス", "effect": "この札が場札主のまま場を流すと、札の属性で大ダメージ", "condition": { "kind": "register-trigger" }, "steps": [{ "kind": "delayed-damage", "trigger": "clear-owner", "damageKind": "magic", "element": "source", "multiplier": 2.2 }] },
-    { "id": "wand-3", "suit": "Wand", "rank": 3, "name": "ネオニポ", "effect": "親ではない時に出すと、札の属性で大ダメージ", "condition": { "kind": "not-leader" }, "steps": [{ "kind": "magic-damage", "element": "source", "multiplier": 2.2 }] },
-    { "id": "wand-4", "suit": "Wand", "rank": 4, "name": "テトラバ", "effect": "4の1枚場へ返すと、火・水・風・地の4連撃", "condition": { "kind": "field-single-rank", "rank": 4 }, "steps": [{ "kind": "elemental-barrage", "elements": ["fire", "water", "wind", "earth"], "multiplier": 3 }] },
-    { "id": "wand-5", "suit": "Wand", "rank": 5, "name": "ディディネ", "effect": "5スキップ直後に出すと、場札属性で大ダメージ", "condition": { "kind": "after-five-skip" }, "steps": [{ "kind": "magic-damage", "element": "field", "multiplier": 2.2 }] },
-    { "id": "wand-6", "suit": "Wand", "rank": 6, "name": "ハルパ", "effect": "場を流した親が任意ドロー後の初手に出すと、札の属性で大ダメージ", "condition": { "kind": "leader-after-optional-draw" }, "steps": [{ "kind": "magic-damage", "element": "source", "multiplier": 2.2 }] },
-    { "id": "wand-7", "suit": "Wand", "rank": 7, "name": "グリモリア", "effect": "提出前の手札にあるワンドが多いほど大ダメージ", "condition": { "kind": "always" }, "steps": [{ "kind": "hand-suit-damage", "suit": "Wand", "element": "source", "baseMultiplier": 1.2, "perCardMultiplier": 0.35, "maxMultiplier": 3.3 }] },
-    { "id": "wand-8", "suit": "Wand", "rank": 8, "name": "プリマギア", "effect": "場の最初の札として出すと、札の属性で大ダメージ", "condition": { "kind": "lead" }, "steps": [{ "kind": "magic-damage", "element": "source", "multiplier": 2.2 }] },
-    { "id": "wand-9", "suit": "Wand", "rank": 9, "name": "カテナ", "effect": "場に蓄積されたカード枚数分、連続魔法攻撃", "condition": { "kind": "always" }, "steps": [{ "kind": "pile-barrage", "element": "source", "perCardMultiplier": 0.42, "maxHits": 8 }] },
-    { "id": "wand-10", "suit": "Wand", "rank": 10, "name": "デュアリオン", "effect": "同じ場で以前に1枚札を一度だけ出していると、2属性で極大ダメージ", "condition": { "kind": "one-prior-single-by-actor" }, "steps": [{ "kind": "dual-history-damage", "multiplier": 3 }] },
-    { "id": "wand-11", "suit": "Wand", "rank": 11, "name": "リヴェルシア", "effect": "この札で11バックを解除すると、札の属性で極大ダメージ", "condition": { "kind": "reverse-active" }, "steps": [{ "kind": "magic-damage", "element": "source", "multiplier": 3 }] },
-    { "id": "wand-12", "suit": "Wand", "rank": 12, "name": "アルカノヴァ", "effect": "大アルカナの場札へ出すと、札の属性で大ダメージ", "condition": { "kind": "field-major" }, "steps": [{ "kind": "magic-damage", "element": "source", "multiplier": 2.2 }] },
-    { "id": "wand-13", "suit": "Wand", "rank": 13, "name": "ソリタリア", "effect": "提出後の手札に同じスートがなければ、場札属性で大ダメージ", "condition": { "kind": "no-source-suit-after" }, "steps": [{ "kind": "magic-damage", "element": "field", "multiplier": 2.2 }] },
-    { "id": "wand-14", "suit": "Wand", "rank": 14, "name": "シギルム", "effect": "この札で14ロックを成立させると、ロック属性で大ダメージ", "condition": { "kind": "causes-lock" }, "steps": [{ "kind": "magic-damage", "element": "field", "multiplier": 2.2 }] },
-
-    { "id": "sword-1", "suit": "Sword", "rank": 1, "name": "先駆の一閃", "effect": "親の初手として出すと、通常攻撃がクリティカル", "condition": { "kind": "lead" }, "steps": [{ "kind": "base-attack-bonus", "rate": 50 }] },
-    { "id": "sword-2", "suit": "Sword", "rank": 2, "name": "双牙連斬", "effect": "2枚出しに含めると追加2連撃", "condition": { "kind": "play-count", "count": 2 }, "steps": [{ "kind": "physical-damage", "multiplier": 1.2, "hitCount": 2 }] },
-    { "id": "sword-3", "suit": "Sword", "rank": 3, "name": "残刃の傷", "effect": "別のカードで上書きされると、その攻撃後に自分が追撃", "condition": { "kind": "register-trigger" }, "steps": [{ "kind": "delayed-damage", "trigger": "overwritten", "damageKind": "physical", "multiplier": 1.8 }] },
-    { "id": "sword-4", "suit": "Sword", "rank": 4, "name": "返刃の構え", "effect": "場が流れる前に自分が再びカードを出すと追撃", "condition": { "kind": "register-trigger" }, "steps": [{ "kind": "delayed-damage", "trigger": "actor-next-play", "damageKind": "physical", "multiplier": 1.8 }] },
-    { "id": "sword-5", "suit": "Sword", "rank": 5, "name": "五歩詰め", "effect": "5スキップされた席が同じ場でカードを出すと、防御無視で追撃", "condition": { "kind": "causes-skip" }, "steps": [{ "kind": "delayed-damage", "trigger": "skipped-player-play", "damageKind": "physical", "multiplier": 2.2, "ignoreDefense": 1 }] },
-    { "id": "sword-6", "suit": "Sword", "rank": 6, "name": "六道駆け", "effect": "2枚以上出すと、提出枚数分の連続攻撃", "condition": { "kind": "play-count-min", "count": 2 }, "steps": [{ "kind": "submitted-count-damage", "damageKind": "physical", "perCardMultiplier": 0.8 }] },
-    { "id": "sword-7", "suit": "Sword", "rank": 7, "name": "追刃の七手", "effect": "直前の場札との数字差が2以内なら追撃", "condition": { "kind": "field-rank-gap-max", "gap": 2 }, "steps": [{ "kind": "physical-damage", "multiplier": 1.5 }] },
-    { "id": "sword-8", "suit": "Sword", "rank": 8, "name": "八閃断", "effect": "8カットを成立させると、合計威力を分割した8連撃", "condition": { "kind": "causes-cut" }, "steps": [{ "kind": "physical-damage", "multiplier": 2.2, "hitCount": 8 }] },
-    { "id": "sword-9", "suit": "Sword", "rank": 9, "name": "逆境の黒刃", "effect": "11バック中に場より小さい数字で出すと大ダメージ", "condition": { "kind": "reverse-overtake" }, "steps": [{ "kind": "physical-damage", "multiplier": 2.2 }] },
-    { "id": "sword-10", "suit": "Sword", "rank": 10, "name": "十字の残光", "effect": "この札が場にある間、最初のパスで強力な十字斬り", "condition": { "kind": "register-trigger" }, "steps": [{ "kind": "delayed-damage", "trigger": "first-pass-while-field", "damageKind": "physical", "multiplier": 2.2 }] },
-    { "id": "sword-11", "suit": "Sword", "rank": 11, "name": "疾駆の小剣", "effect": "提出後の手札が2枚以下なら、次の攻撃が必中", "condition": { "kind": "hand-after-max", "count": 2 }, "steps": [{ "kind": "player-status-self", "statusKey": "sureHit", "charges": 1, "expiresOn": "action" }] },
-    { "id": "sword-12", "suit": "Sword", "rank": 12, "name": "騎士の追撃", "effect": "次の味方の攻撃へ自分が追撃", "condition": { "kind": "register-trigger" }, "steps": [{ "kind": "delayed-damage", "trigger": "next-ally-play", "damageKind": "physical", "multiplier": 1.8 }] },
-    { "id": "sword-13", "suit": "Sword", "rank": 13, "name": "戦姫の号令", "effect": "この札が場にある間、味方の連撃回数を1回増やす", "condition": { "kind": "register-trigger" }, "steps": [{ "kind": "field-aura", "statusKey": "extraHit", "potency": 1 }] },
-    { "id": "sword-14", "suit": "Sword", "rank": 14, "name": "覇王断", "effect": "場札との数字差が7以上なら、強力な防御無視攻撃", "condition": { "kind": "field-rank-gap-min", "gap": 7 }, "steps": [{ "kind": "physical-damage", "multiplier": 2.5, "ignoreDefense": 0.5 }] },
-
-    { "id": "pentacle-1", "suit": "Pentacle", "rank": 1, "name": "守りの金貨", "effect": "自分に最大HP10%のシールド", "condition": { "kind": "always" }, "steps": [{ "kind": "shield-self", "percent": 10 }] },
-    { "id": "pentacle-2", "suit": "Pentacle", "rank": 2, "name": "双壁の金貨", "effect": "2枚出しすると、自分と最少HPの味方へ各8%シールド", "condition": { "kind": "play-count", "count": 2 }, "steps": [{ "kind": "shield-self", "percent": 8 }, { "kind": "shield-lowest-other", "percent": 8 }] },
-    { "id": "pentacle-3", "suit": "Pentacle", "rank": 3, "name": "財貨の一撃", "effect": "提出前の手札が多いほど追加ダメージ", "condition": { "kind": "always" }, "steps": [{ "kind": "hand-count-damage", "damageKind": "physical", "baseMultiplier": 0.8, "perCardMultiplier": 0.25, "maxMultiplier": 2.8 }] },
-    { "id": "pentacle-4", "suit": "Pentacle", "rank": 4, "name": "不動の護符", "effect": "次に受ける単体攻撃を35%軽減", "condition": { "kind": "always" }, "steps": [{ "kind": "player-status-self", "statusKey": "guard", "potency": 35, "charges": 1 }] },
-    { "id": "pentacle-5", "suit": "Pentacle", "rank": 5, "name": "五芒の結界", "effect": "提出前の手札が5枚なら、味方全員へ8%シールド", "condition": { "kind": "hand-before-exact", "count": 5 }, "steps": [{ "kind": "shield-party", "percent": 8 }] },
-    { "id": "pentacle-6", "suit": "Pentacle", "rank": 6, "name": "身代わりの環", "effect": "最少HPの味方への次の単体攻撃を身代わりし25%軽減", "condition": { "kind": "always" }, "steps": [{ "kind": "cover-lowest", "potency": 25, "charges": 1 }] },
-    { "id": "pentacle-7", "suit": "Pentacle", "rank": 7, "name": "七宝の備え", "effect": "手札に残したP・N・Q・Kの枚数に応じて自分へシールド", "condition": { "kind": "court-cards-after-min", "count": 1 }, "steps": [{ "kind": "court-card-shield", "percentPerCard": 4, "maxPercent": 16 }] },
-    { "id": "pentacle-8", "suit": "Pentacle", "rank": 8, "name": "返礼の金貨", "effect": "この札で場を流すと、次に受けるダメージを50%軽減", "condition": { "kind": "register-trigger" }, "steps": [{ "kind": "delayed-buff", "trigger": "clear-owner", "statusKey": "guard", "potency": 50, "charges": 1 }] },
-    { "id": "pentacle-9", "suit": "Pentacle", "rank": 9, "name": "報復の宝珠", "effect": "自分にシールドがあると、残量に応じた追加ダメージ", "condition": { "kind": "self-shielded" }, "steps": [{ "kind": "shield-scaled-damage", "damageKind": "physical", "baseMultiplier": 1, "maxMultiplier": 3 }] },
-    { "id": "pentacle-10", "suit": "Pentacle", "rank": 10, "name": "十重の城壁", "effect": "提出後も手札が5枚以上なら、次の敵全体攻撃を30%軽減", "condition": { "kind": "hand-after-min", "count": 5 }, "steps": [{ "kind": "party-status", "statusKey": "areaGuard", "potency": 30, "charges": 1 }] },
-    { "id": "pentacle-11", "suit": "Pentacle", "rank": 11, "name": "護衛の従者", "effect": "次に味方がパスして受ける単体反撃を身代わりし25%軽減", "condition": { "kind": "register-trigger" }, "steps": [{ "kind": "delayed-buff", "trigger": "next-ally-pass-retaliation", "statusKey": "passCover", "potency": 25, "charges": 1 }] },
-    { "id": "pentacle-12", "suit": "Pentacle", "rank": 12, "name": "破城の騎印", "effect": "敵のシールド・防御効果を1件解除して大地属性攻撃", "condition": { "kind": "enemy-guarded" }, "steps": [{ "kind": "dispel-enemy-guard" }, { "kind": "physical-damage", "element": "earth", "multiplier": 1.6 }] },
-    { "id": "pentacle-13", "suit": "Pentacle", "rank": 13, "name": "黄金女王の加護", "effect": "味方全員へ次の状態異常を1回無効化", "condition": { "kind": "always" }, "steps": [{ "kind": "party-status", "statusKey": "statusImmune", "charges": 1, "expiresOn": "action" }] },
-    { "id": "pentacle-14", "suit": "Pentacle", "rank": 14, "name": "王城の大結界", "effect": "自分が防御するまで、味方への単体攻撃を自分のシールドで肩代わり", "condition": { "kind": "always" }, "steps": [{ "kind": "party-status", "statusKey": "royalCover", "coverIndex": "actor", "expiresOn": "round" }] }
+    {
+      "id": "cup-1",
+      "suit": "Cup",
+      "rank": 1,
+      "name": "五彩の雫",
+      "effect": "HP割合が最も低い味方1人を、最大HPの（2＋0.4R）％回復する。",
+      "range": "R=0～10／回復量2～6％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "現在の手札にあるスートの種類数",
+        "basis": "ワンド・カップ・ソード・ペンタクル・スートなし（大アルカナ）を数える（1～5種類）",
+        "formula": "min（10, スート種類数×2）",
+        "reset": "共鳴のたびに現在の手札から再計算"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "cup-1"
+        }
+      ]
+    },
+    {
+      "id": "cup-2",
+      "suit": "Cup",
+      "rank": 2,
+      "name": "悠久の霊薬",
+      "effect": "HP割合が最も低い味方1人へ再生を付与する。対象の行動後に最大HPの（0.8＋0.2R）％を回復し、2回発動する。",
+      "range": "R=0～10／1回0.8～2.8％／固定2回／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "この局で実際に回復したHP累計",
+        "basis": "対象最大HPの10％を実回復するごとに＋1。過剰回復は数えない",
+        "formula": "min（10, 回復ポイント累計）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "cup-2"
+        }
+      ]
+    },
+    {
+      "id": "cup-3",
+      "suit": "Cup",
+      "rank": 3,
+      "name": "清めの薬瓶",
+      "effect": "味方1人の毒・火傷・沈黙のうち1つを、（40＋6R）％で取り除く。",
+      "range": "R=0～10／成功率40～100％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "この局で任意ドローしたカード枚数",
+        "basis": "任意ドロー1枚につき＋1",
+        "formula": "min（10, 任意ドロー枚数×3）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "cup-3"
+        }
+      ]
+    },
+    {
+      "id": "cup-4",
+      "suit": "Cup",
+      "rank": 4,
+      "name": "王杯の聖水",
+      "effect": "次に攻撃を受けた直後、自分を最大HPの（1＋0.3R）％回復する。次の自分の手番まで有効。",
+      "range": "R=0～10／回復量1～4％／待機1回／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "現在のターン数",
+        "basis": "局内の現在ターン番号。1ターン目を1として数える",
+        "formula": "min（10, 現在ターン数）",
+        "reset": "ターン開始時に再計算"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "cup-4"
+        }
+      ]
+    },
+    {
+      "id": "cup-5",
+      "suit": "Cup",
+      "rank": 5,
+      "name": "痺れ薬の小瓶",
+      "effect": "敵へ（10＋3R）％で麻痺を付与する。成功時、敵は次の行動を1回休む。",
+      "range": "R=0～10／成功率10～40％／固定1行動／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "シールドを付与した回数",
+        "basis": "シールド付与に成功した1行動につき＋1。全体付与も＋1",
+        "formula": "min（10, シールド付与成功回数）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "cup-5"
+        }
+      ]
+    },
+    {
+      "id": "cup-6",
+      "suit": "Cup",
+      "rank": 6,
+      "name": "分かち合いの水差し",
+      "effect": "HP割合が低い味方2人を、それぞれ最大HPの（1＋0.25R）％回復する。",
+      "range": "R=0～10／各1～3.5％／対象2人／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "全プレイヤーの複数枚出し回数",
+        "basis": "自分・他者を問わず、2枚以上の提出1回につき＋1。提出枚数は問わない",
+        "formula": "min（10, 全員の複数枚提出回数）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "cup-6"
+        }
+      ]
+    },
+    {
+      "id": "cup-7",
+      "suit": "Cup",
+      "rank": 7,
+      "name": "不屈の気付け薬",
+      "effect": "自分の麻痺・睡眠・凍結・混乱のうち1つを、（40＋6R）％で取り除く。",
+      "range": "R=0～10／成功率40～100％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "自分が提出を続けた連続回数",
+        "basis": "提出で＋1。パス後に他者が提出したら0。誰も提出せず場が流れた場合は継続",
+        "formula": "min（10, 連続提出回数×2）",
+        "reset": "他者の提出で0。局開始時にも0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "cup-7"
+        }
+      ]
+    },
+    {
+      "id": "cup-8",
+      "suit": "Cup",
+      "rank": 8,
+      "name": "巡礼の泉瓶",
+      "effect": "生存している味方全員を、それぞれ最大HPの（0.5＋0.1R）％回復する。",
+      "range": "R=0～10／各0.5～1.5％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "このターン中のプレイヤーチェンジ回数",
+        "basis": "実際の行動者が別プレイヤーへ替わるたび＋1。飛ばされた席は個別に数えない",
+        "formula": "min（10, プレイヤーチェンジ回数）",
+        "reset": "ターン開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "cup-8"
+        }
+      ]
+    },
+    {
+      "id": "cup-9",
+      "suit": "Cup",
+      "rank": 9,
+      "name": "霞隠れの香水",
+      "effect": "敵の次の攻撃1回の命中率を（5＋2R）ポイント低下させる。",
+      "range": "R=0～10／命中低下5～25ポイント／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "攻撃をかわした回数",
+        "basis": "敵の1行動を全回避したら＋1。多段攻撃も1行動で＋1",
+        "formula": "min（10, 全回避成功回数）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "cup-9"
+        }
+      ]
+    },
+    {
+      "id": "cup-10",
+      "suit": "Cup",
+      "rank": 10,
+      "name": "運命の霊酒",
+      "effect": "R=0は空瓶。1～3は最少HPの味方を3％回復。4～6は毒・火傷を70％で1つ解除。7～9は敵へ70％で毒を2行動付与。10は3効果すべて。",
+      "range": "Rは発動時に0～10を均等抽選／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "発動時の乱数",
+        "basis": "発動するたび、0～10の整数を均等に抽選する",
+        "formula": "乱数0～10（0を含む）",
+        "reset": "発動のたびに再抽選"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "cup-10"
+        }
+      ]
+    },
+    {
+      "id": "cup-11",
+      "suit": "Cup",
+      "rank": 11,
+      "name": "転写の万能薬",
+      "effect": "味方1人の状態異常1つを（30＋5R）％で解除する。解除成功時、同じ状態異常を敵へ（10＋4R）％で付与する。",
+      "range": "R=0～10／解除30～80％／転写10～50％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "状態異常を与えた回数／取り除いた回数の多い方",
+        "basis": "成功した1行動につき＋1。全体付与・全体解除も＋1として、2種類を別々に記録",
+        "formula": "min（10, max（付与成功回数, 解除成功回数））",
+        "reset": "局開始時に両方0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "cup-11"
+        }
+      ]
+    },
+    {
+      "id": "cup-12",
+      "suit": "Cup",
+      "rank": 12,
+      "name": "報復の毒液",
+      "effect": "最後に自分を攻撃した敵へ（15＋4R）％で毒を付与する。毒は敵の行動後に最大HP1％のダメージを2回与える。",
+      "range": "R=0～10／成功率15～55％／固定2回／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "攻撃を受けた回数",
+        "basis": "敵の1行動を受けたら＋1。多段攻撃も＋1。全回避した行動は数えない",
+        "formula": "min（10, 被攻撃回数）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "cup-12"
+        }
+      ]
+    },
+    {
+      "id": "cup-13",
+      "suit": "Cup",
+      "rank": 13,
+      "name": "黄泉返りの霊水",
+      "effect": "戦闘不能の味方1人を、（10＋4R）％でHP1の状態で復活させる。復活成功は1局1回まで。",
+      "range": "R=0～10／成功率10～50％／成功1局1回／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "自分が場を流して墓地へ送ったカード枚数",
+        "basis": "自分の提出で場を流した時、その場から墓地へ送った枚数を加算する",
+        "formula": "min（10, 自分が墓地へ送った枚数累計）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "cup-13"
+        }
+      ]
+    },
+    {
+      "id": "cup-14",
+      "suit": "Cup",
+      "rank": 14,
+      "name": "深度睡眠薬",
+      "effect": "敵へ（10＋4R）％で睡眠を付与する。次の行動前まで継続するが、ダメージを受けると解除される。",
+      "range": "R=0～10／成功率10～50％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "提出前の場札と、今回出す札の数字差",
+        "basis": "｜提出前の場札－提出札｜。A=1、P=11、N=12、Q=13、K=14。場が空なら0",
+        "formula": "min（10, 数字差の絶対値）",
+        "reset": "共鳴のたびに再計算"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "cup-14"
+        }
+      ]
+    },
+    {
+      "id": "wand-1",
+      "suit": "Wand",
+      "rank": 1,
+      "name": "エレメンタルヘイズ",
+      "effect": "威力（20＋2R）の魔法攻撃。さらに（10＋2R）％で属性対応の状態異常を付与する。火=火傷、水=凍結、風・雷=麻痺、地=毒。",
+      "range": "R=0～10／威力20～40／付与率10～30％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "現在の手札にあるスートの種類数",
+        "basis": "ワンド・カップ・ソード・ペンタクル・スートなし（大アルカナ）を数える（1～5種類）",
+        "formula": "min（10, スート種類数×2）",
+        "reset": "共鳴のたびに現在の手札から再計算"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "wand-1"
+        }
+      ]
+    },
+    {
+      "id": "wand-2",
+      "suit": "Wand",
+      "rank": 2,
+      "name": "サイレンスミスト",
+      "effect": "威力（20＋2R）の魔法攻撃。さらに敵へ（10＋3R）％で沈黙を付与する。",
+      "range": "R=0～10／威力20～40／付与率10～40％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "この局で実際に回復したHP累計",
+        "basis": "対象最大HPの10％を実回復するごとに＋1。過剰回復は数えない",
+        "formula": "min（10, 回復ポイント累計）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "wand-2"
+        }
+      ]
+    },
+    {
+      "id": "wand-3",
+      "suit": "Wand",
+      "rank": 3,
+      "name": "ルーンシード",
+      "effect": "威力（15＋R）の魔法攻撃を行い、重複しない魔印を置く。次に同属性の札が出ると、威力（10＋2R）で1回追撃する。",
+      "range": "R=0～10／初撃15～25／追撃10～30／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "この局で任意ドローしたカード枚数",
+        "basis": "任意ドロー1枚につき＋1",
+        "formula": "min（10, 任意ドロー枚数×3）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "wand-3"
+        }
+      ]
+    },
+    {
+      "id": "wand-4",
+      "suit": "Wand",
+      "rank": 4,
+      "name": "グラビティフォール",
+      "effect": "威力（20＋R）の魔法攻撃。敵が次に魔法攻撃を1回受けるまで、魔法防御を（5＋R）％低下させる。",
+      "range": "R=0～10／威力20～30／低下5～15％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "現在のターン数",
+        "basis": "局内の現在ターン番号。1ターン目を1として数える",
+        "formula": "min（10, 現在ターン数）",
+        "reset": "ターン開始時に再計算"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "wand-4"
+        }
+      ]
+    },
+    {
+      "id": "wand-5",
+      "suit": "Wand",
+      "rank": 5,
+      "name": "アンチバリア",
+      "effect": "威力（25＋2R）の魔法攻撃。そのダメージの（10＋2R）％はシールドを無視する。",
+      "range": "R=0～10／威力25～45／無視10～30％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "シールドを付与した回数",
+        "basis": "シールド付与に成功した1行動につき＋1。全体付与も＋1",
+        "formula": "min（10, シールド付与成功回数）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "wand-5"
+        }
+      ]
+    },
+    {
+      "id": "wand-6",
+      "suit": "Wand",
+      "rank": 6,
+      "name": "アークバインド",
+      "effect": "威力（15＋2R）の魔法攻撃。さらに敵へ（10＋3R）％で麻痺を付与する。",
+      "range": "R=0～10／威力15～35／付与率10～40％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "全プレイヤーの複数枚出し回数",
+        "basis": "自分・他者を問わず、2枚以上の提出1回につき＋1。提出枚数は問わない",
+        "formula": "min（10, 全員の複数枚提出回数）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "wand-6"
+        }
+      ]
+    },
+    {
+      "id": "wand-7",
+      "suit": "Wand",
+      "rank": 7,
+      "name": "マギアドライブ",
+      "effect": "威力（20＋3R）の魔法攻撃。追加効果はない。",
+      "range": "R=0～10／威力20～50／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "自分が提出を続けた連続回数",
+        "basis": "提出で＋1。パス後に他者が提出したら0。誰も提出せず場が流れた場合は継続",
+        "formula": "min（10, 連続提出回数×2）",
+        "reset": "他者の提出で0。局開始時にも0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "wand-7"
+        }
+      ]
+    },
+    {
+      "id": "wand-8",
+      "suit": "Wand",
+      "rank": 8,
+      "name": "カオスマインド",
+      "effect": "威力（15＋R）の魔法攻撃。さらに敵へ（10＋4R）％で混乱を付与する。",
+      "range": "R=0～10／威力15～25／付与率10～50％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "このターン中のプレイヤーチェンジ回数",
+        "basis": "実際の行動者が別プレイヤーへ替わるたび＋1。飛ばされた席は個別に数えない",
+        "formula": "min（10, プレイヤーチェンジ回数）",
+        "reset": "ターン開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "wand-8"
+        }
+      ]
+    },
+    {
+      "id": "wand-9",
+      "suit": "Wand",
+      "rank": 9,
+      "name": "ファントムヘイズ",
+      "effect": "威力（15＋R）の魔法攻撃。敵の次の攻撃1回の命中率を（5＋R）ポイント低下させる。",
+      "range": "R=0～10／威力15～25／低下5～15ポイント／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "攻撃をかわした回数",
+        "basis": "敵の1行動を全回避したら＋1。多段攻撃も1行動で＋1",
+        "formula": "min（10, 全回避成功回数）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "wand-9"
+        }
+      ]
+    },
+    {
+      "id": "wand-10",
+      "suit": "Wand",
+      "rank": 10,
+      "name": "フォーチュンノヴァ",
+      "effect": "威力（R×6）の魔法攻撃。R=0なら不発。",
+      "range": "R=0～10／威力0～60／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "発動時の乱数",
+        "basis": "発動するたび、0～10の整数を均等に抽選する",
+        "formula": "乱数0～10（0を含む）",
+        "reset": "発動のたびに再抽選"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "wand-10"
+        }
+      ]
+    },
+    {
+      "id": "wand-11",
+      "suit": "Wand",
+      "rank": 11,
+      "name": "ヘックスリフレイン",
+      "effect": "威力（15＋R）の魔法攻撃。敵に付与中の状態異常1つを、（20＋3R）％で1行動延長する。",
+      "range": "R=0～10／威力15～25／延長率20～50％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "状態異常を与えた回数／取り除いた回数の多い方",
+        "basis": "成功した1行動につき＋1。全体付与・全体解除も＋1として、2種類を別々に記録",
+        "formula": "min（10, max（付与成功回数, 解除成功回数））",
+        "reset": "局開始時に両方0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "wand-11"
+        }
+      ]
+    },
+    {
+      "id": "wand-12",
+      "suit": "Wand",
+      "rank": 12,
+      "name": "ペインカース",
+      "effect": "威力（20＋R）の魔法攻撃。敵の次の攻撃1回のダメージを（5＋R）％低下させる。",
+      "range": "R=0～10／威力20～30／低下5～15％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "攻撃を受けた回数",
+        "basis": "敵の1行動を受けたら＋1。多段攻撃も＋1。全回避した行動は数えない",
+        "formula": "min（10, 被攻撃回数）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "wand-12"
+        }
+      ]
+    },
+    {
+      "id": "wand-13",
+      "suit": "Wand",
+      "rank": 13,
+      "name": "ネクロヴェノム",
+      "effect": "威力（15＋R）の魔法攻撃。さらに敵へ（20＋3R）％で毒を付与する。",
+      "range": "R=0～10／威力15～25／付与率20～50％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "自分が場を流して墓地へ送ったカード枚数",
+        "basis": "自分の提出で場を流した時、その場から墓地へ送った枚数を加算する",
+        "formula": "min（10, 自分が墓地へ送った枚数累計）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "wand-13"
+        }
+      ]
+    },
+    {
+      "id": "wand-14",
+      "suit": "Wand",
+      "rank": 14,
+      "name": "アストラルメテオ",
+      "effect": "敵の次の手番終了時に、威力（30＋3R）の魔法攻撃を行う。",
+      "range": "R=0～10／威力30～60／遅延発動／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "提出前の場札と、今回出す札の数字差",
+        "basis": "｜提出前の場札－提出札｜。A=1、P=11、N=12、Q=13、K=14。場が空なら0",
+        "formula": "min（10, 数字差の絶対値）",
+        "reset": "共鳴のたびに再計算"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "wand-14"
+        }
+      ]
+    },
+    {
+      "id": "sword-1",
+      "suit": "Sword",
+      "rank": 1,
+      "name": "五相一閃",
+      "effect": "威力（40＋2R）の物理攻撃。命中率をRポイント上昇させる。",
+      "range": "R=0～10／威力40～60／命中+0～10／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "現在の手札にあるスートの種類数",
+        "basis": "ワンド・カップ・ソード・ペンタクル・スートなし（大アルカナ）を数える（1～5種類）",
+        "formula": "min（10, スート種類数×2）",
+        "reset": "共鳴のたびに現在の手札から再計算"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "sword-1"
+        }
+      ]
+    },
+    {
+      "id": "sword-2",
+      "suit": "Sword",
+      "rank": 2,
+      "name": "双燕返し",
+      "effect": "威力（22＋R）の物理攻撃を2回行う。命中は1回ごとに判定する。",
+      "range": "R=0～10／1撃22～32／固定2撃／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "この局で実際に回復したHP累計",
+        "basis": "対象最大HPの10％を実回復するごとに＋1。過剰回復は数えない",
+        "formula": "min（10, 回復ポイント累計）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "sword-2"
+        }
+      ]
+    },
+    {
+      "id": "sword-3",
+      "suit": "Sword",
+      "rank": 3,
+      "name": "三段突き",
+      "effect": "威力（15＋⌊R÷2⌋）の物理攻撃を3回行う。命中は1回ごとに判定する。",
+      "range": "R=0～10／1撃15～20／固定3撃／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "この局で任意ドローしたカード枚数",
+        "basis": "任意ドロー1枚につき＋1",
+        "formula": "min（10, 任意ドロー枚数×3）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "sword-3"
+        }
+      ]
+    },
+    {
+      "id": "sword-4",
+      "suit": "Sword",
+      "rank": 4,
+      "name": "先陣抜刀",
+      "effect": "威力（40＋R）の物理攻撃。次回の行動順を2R％前進させる。",
+      "range": "R=0～10／威力40～50／行動順0～20％前進／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "現在のターン数",
+        "basis": "局内の現在ターン番号。1ターン目を1として数える",
+        "formula": "min（10, 現在ターン数）",
+        "reset": "ターン開始時に再計算"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "sword-4"
+        }
+      ]
+    },
+    {
+      "id": "sword-5",
+      "suit": "Sword",
+      "rank": 5,
+      "name": "盾割り",
+      "effect": "威力（45＋R）の物理攻撃。敵の防御を2R％無視する。",
+      "range": "R=0～10／威力45～55／防御無視0～20％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "シールドを付与した回数",
+        "basis": "シールド付与に成功した1行動につき＋1。全体付与も＋1",
+        "formula": "min（10, シールド付与成功回数）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "sword-5"
+        }
+      ]
+    },
+    {
+      "id": "sword-6",
+      "suit": "Sword",
+      "rank": 6,
+      "name": "六道連環",
+      "effect": "威力30の物理攻撃。場が流れる前に他のプレイヤーが複数枚を提出すると、威力（20＋2R）で1回追撃する。",
+      "range": "R=0～10／初撃30／追撃20～40／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "全プレイヤーの複数枚出し回数",
+        "basis": "自分・他者を問わず、2枚以上の提出1回につき＋1。提出枚数は問わない",
+        "formula": "min（10, 全員の複数枚提出回数）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "sword-6"
+        }
+      ]
+    },
+    {
+      "id": "sword-7",
+      "suit": "Sword",
+      "rank": 7,
+      "name": "疾風連刃",
+      "effect": "威力（35＋R）の物理攻撃。自分の連続提出が切れるまで、AGIを2R％上昇させる。",
+      "range": "R=0～10／威力35～45／AGI+0～20％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "自分が提出を続けた連続回数",
+        "basis": "提出で＋1。パス後に他者が提出したら0。誰も提出せず場が流れた場合は継続",
+        "formula": "min（10, 連続提出回数×2）",
+        "reset": "他者の提出で0。局開始時にも0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "sword-7"
+        }
+      ]
+    },
+    {
+      "id": "sword-8",
+      "suit": "Sword",
+      "rank": 8,
+      "name": "八艘飛び",
+      "effect": "威力（30＋R）の物理攻撃。次の敵1行動に対する回避率を2Rポイント上昇させる。",
+      "range": "R=0～10／威力30～40／回避+0～20／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "このターン中のプレイヤーチェンジ回数",
+        "basis": "実際の行動者が別プレイヤーへ替わるたび＋1。飛ばされた席は個別に数えない",
+        "formula": "min（10, プレイヤーチェンジ回数）",
+        "reset": "ターン開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "sword-8"
+        }
+      ]
+    },
+    {
+      "id": "sword-9",
+      "suit": "Sword",
+      "rank": 9,
+      "name": "霞返し",
+      "effect": "反撃の構えを取る。次の敵1行動を全回避した場合、威力（30＋3R）の物理攻撃で反撃する。",
+      "range": "R=0～10／反撃威力30～60／待機1回／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "攻撃をかわした回数",
+        "basis": "敵の1行動を全回避したら＋1。多段攻撃も1行動で＋1",
+        "formula": "min（10, 全回避成功回数）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "sword-9"
+        }
+      ]
+    },
+    {
+      "id": "sword-10",
+      "suit": "Sword",
+      "rank": 10,
+      "name": "天運一刀",
+      "effect": "威力（25＋5R）の物理攻撃。",
+      "range": "R=0～10／威力25～75／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "発動時の乱数",
+        "basis": "発動するたび、0～10の整数を均等に抽選する",
+        "formula": "乱数0～10（0を含む）",
+        "reset": "発動のたびに再抽選"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "sword-10"
+        }
+      ]
+    },
+    {
+      "id": "sword-11",
+      "suit": "Sword",
+      "rank": 11,
+      "name": "破邪一文字",
+      "effect": "威力（40＋R）の物理攻撃。命中率を2Rポイント上昇させる。敵が状態異常中なら威力をさらに10加える。",
+      "range": "R=0～10／威力40～50（条件時+10）／命中+0～20／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "状態異常を与えた回数／取り除いた回数の多い方",
+        "basis": "成功した1行動につき＋1。全体付与・全体解除も＋1として、2種類を別々に記録",
+        "formula": "min（10, max（付与成功回数, 解除成功回数））",
+        "reset": "局開始時に両方0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "sword-11"
+        }
+      ]
+    },
+    {
+      "id": "sword-12",
+      "suit": "Sword",
+      "rank": 12,
+      "name": "不退逆袈裟",
+      "effect": "威力（40＋2R）の物理攻撃。自分のHPが50％以下なら威力をさらに15加える。",
+      "range": "R=0～10／威力40～60（条件時+15）／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "攻撃を受けた回数",
+        "basis": "敵の1行動を受けたら＋1。多段攻撃も＋1。全回避した行動は数えない",
+        "formula": "min（10, 被攻撃回数）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "sword-12"
+        }
+      ]
+    },
+    {
+      "id": "sword-13",
+      "suit": "Sword",
+      "rank": 13,
+      "name": "葬送断ち",
+      "effect": "威力（45＋R）の物理攻撃。敵のHPが30％以下なら威力をさらに2R加える。",
+      "range": "R=0～10／威力45～55（条件時+0～20）／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "自分が場を流して墓地へ送ったカード枚数",
+        "basis": "自分の提出で場を流した時、その場から墓地へ送った枚数を加算する",
+        "formula": "min（10, 自分が墓地へ送った枚数累計）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "sword-13"
+        }
+      ]
+    },
+    {
+      "id": "sword-14",
+      "suit": "Sword",
+      "rank": 14,
+      "name": "間合抜き",
+      "effect": "威力（45＋R）の物理攻撃。命中率をRポイント、クリティカル率を2Rポイント上昇させる。",
+      "range": "R=0～10／威力45～55／命中+0～10／会心+0～20／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "提出前の場札と、今回出す札の数字差",
+        "basis": "｜提出前の場札－提出札｜。A=1、P=11、N=12、Q=13、K=14。場が空なら0",
+        "formula": "min（10, 数字差の絶対値）",
+        "reset": "共鳴のたびに再計算"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "sword-14"
+        }
+      ]
+    },
+    {
+      "id": "pentacle-1",
+      "suit": "Pentacle",
+      "rank": 1,
+      "name": "五行受け",
+      "effect": "自分へ最大HPの（3＋0.5R）％分のシールドを付与する。",
+      "range": "R=0～10／シールド3～8％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "現在の手札にあるスートの種類数",
+        "basis": "ワンド・カップ・ソード・ペンタクル・スートなし（大アルカナ）を数える（1～5種類）",
+        "formula": "min（10, スート種類数×2）",
+        "reset": "共鳴のたびに現在の手札から再計算"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "pentacle-1"
+        }
+      ]
+    },
+    {
+      "id": "pentacle-2",
+      "suit": "Pentacle",
+      "rank": 2,
+      "name": "活人受け",
+      "effect": "HP割合が最も低い味方1人が次に受ける単体攻撃のダメージを（10＋R）％軽減する。",
+      "range": "R=0～10／軽減10～20％／待機1回／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "この局で実際に回復したHP累計",
+        "basis": "対象最大HPの10％を実回復するごとに＋1。過剰回復は数えない",
+        "formula": "min（10, 回復ポイント累計）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "pentacle-2"
+        }
+      ]
+    },
+    {
+      "id": "pentacle-3",
+      "suit": "Pentacle",
+      "rank": 3,
+      "name": "三戦立ち",
+      "effect": "次の敵2行動まで、自分が受けるダメージを（5＋0.5R）％軽減する。",
+      "range": "R=0～10／軽減5～10％／固定2行動／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "この局で任意ドローしたカード枚数",
+        "basis": "任意ドロー1枚につき＋1",
+        "formula": "min（10, 任意ドロー枚数×3）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "pentacle-3"
+        }
+      ]
+    },
+    {
+      "id": "pentacle-4",
+      "suit": "Pentacle",
+      "rank": 4,
+      "name": "四門固め",
+      "effect": "提出前の場札主へ最大HPの（2＋0.5R）％分のシールドを付与する。場が空なら自分へ付与する。",
+      "range": "R=0～10／シールド2～7％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "現在のターン数",
+        "basis": "局内の現在ターン番号。1ターン目を1として数える",
+        "formula": "min（10, 現在ターン数）",
+        "reset": "ターン開始時に再計算"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "pentacle-4"
+        }
+      ]
+    },
+    {
+      "id": "pentacle-5",
+      "suit": "Pentacle",
+      "rank": 5,
+      "name": "金剛締め",
+      "effect": "味方に残っているシールドが次に受けるダメージを（10＋R）％軽減する。",
+      "range": "R=0～10／シールド損耗軽減10～20％／待機1回／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "シールドを付与した回数",
+        "basis": "シールド付与に成功した1行動につき＋1。全体付与も＋1",
+        "formula": "min（10, シールド付与成功回数）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "pentacle-5"
+        }
+      ]
+    },
+    {
+      "id": "pentacle-6",
+      "suit": "Pentacle",
+      "rank": 6,
+      "name": "連環受け",
+      "effect": "味方への次の単体攻撃を8％軽減する。軽減できる回数は（1＋⌊R÷5⌋）回。",
+      "range": "R=0～10／軽減8％／1～3回／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "全プレイヤーの複数枚出し回数",
+        "basis": "自分・他者を問わず、2枚以上の提出1回につき＋1。提出枚数は問わない",
+        "formula": "min（10, 全員の複数枚提出回数）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "pentacle-6"
+        }
+      ]
+    },
+    {
+      "id": "pentacle-7",
+      "suit": "Pentacle",
+      "rank": 7,
+      "name": "不動構え",
+      "effect": "敵の次の単体攻撃を自分が身代わりし、そのダメージを（5＋R）％軽減する。",
+      "range": "R=0～10／軽減5～15％／身代わり1回／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "自分が提出を続けた連続回数",
+        "basis": "提出で＋1。パス後に他者が提出したら0。誰も提出せず場が流れた場合は継続",
+        "formula": "min（10, 連続提出回数×2）",
+        "reset": "他者の提出で0。局開始時にも0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "pentacle-7"
+        }
+      ]
+    },
+    {
+      "id": "pentacle-8",
+      "suit": "Pentacle",
+      "rank": 8,
+      "name": "八方受け",
+      "effect": "敵の次の全体攻撃1回について、味方全員が受けるダメージを（3＋0.5R）％軽減する。",
+      "range": "R=0～10／全体軽減3～8％／待機1回／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "このターン中のプレイヤーチェンジ回数",
+        "basis": "実際の行動者が別プレイヤーへ替わるたび＋1。飛ばされた席は個別に数えない",
+        "formula": "min（10, プレイヤーチェンジ回数）",
+        "reset": "ターン開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "pentacle-8"
+        }
+      ]
+    },
+    {
+      "id": "pentacle-9",
+      "suit": "Pentacle",
+      "rank": 9,
+      "name": "残心盾",
+      "effect": "HP割合が最も低い味方1人へ、最大HPの（2＋0.5R）％分のシールドを付与する。",
+      "range": "R=0～10／シールド2～7％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "攻撃をかわした回数",
+        "basis": "敵の1行動を全回避したら＋1。多段攻撃も1行動で＋1",
+        "formula": "min（10, 全回避成功回数）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "pentacle-9"
+        }
+      ]
+    },
+    {
+      "id": "pentacle-10",
+      "suit": "Pentacle",
+      "rank": 10,
+      "name": "無想転身",
+      "effect": "自分が次に受けるダメージをR％軽減する。R=0なら軽減しない。",
+      "range": "R=0～10／軽減0～10％／待機1回／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "発動時の乱数",
+        "basis": "発動するたび、0～10の整数を均等に抽選する",
+        "formula": "乱数0～10（0を含む）",
+        "reset": "発動のたびに再抽選"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "pentacle-10"
+        }
+      ]
+    },
+    {
+      "id": "pentacle-11",
+      "suit": "Pentacle",
+      "rank": 11,
+      "name": "封脈掌",
+      "effect": "次に状態異常を伴う敵攻撃1回のダメージを（5＋R）％軽減し、状態異常成功率を（5＋R）ポイント低下させる。",
+      "range": "R=0～10／軽減5～15％／付与率低下5～15／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "状態異常を与えた回数／取り除いた回数の多い方",
+        "basis": "成功した1行動につき＋1。全体付与・全体解除も＋1として、2種類を別々に記録",
+        "formula": "min（10, max（付与成功回数, 解除成功回数））",
+        "reset": "局開始時に両方0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "pentacle-11"
+        }
+      ]
+    },
+    {
+      "id": "pentacle-12",
+      "suit": "Pentacle",
+      "rank": 12,
+      "name": "鉄布衫",
+      "effect": "次の自分の手番まで、自分の防御力を（5＋R）％上昇させる。",
+      "range": "R=0～10／防御+5～15％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "攻撃を受けた回数",
+        "basis": "敵の1行動を受けたら＋1。多段攻撃も＋1。全回避した行動は数えない",
+        "formula": "min（10, 被攻撃回数）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "pentacle-12"
+        }
+      ]
+    },
+    {
+      "id": "pentacle-13",
+      "suit": "Pentacle",
+      "rank": 13,
+      "name": "地功陣",
+      "effect": "生存している味方全員へ、それぞれ最大HPの（1＋0.3R）％分のシールドを付与する。",
+      "range": "R=0～10／各1～4％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "自分が場を流して墓地へ送ったカード枚数",
+        "basis": "自分の提出で場を流した時、その場から墓地へ送った枚数を加算する",
+        "formula": "min（10, 自分が墓地へ送った枚数累計）",
+        "reset": "局開始時に0"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "pentacle-13"
+        }
+      ]
+    },
+    {
+      "id": "pentacle-14",
+      "suit": "Pentacle",
+      "rank": 14,
+      "name": "天地返し",
+      "effect": "自分と提出前の場札主へ、それぞれ最大HPの（2＋0.4R）％分のシールドを付与する。同じ対象なら1回だけ付与する。",
+      "range": "R=0～10／各2～6％／同数字50％時は数値部分を半減",
+      "r": {
+        "source": "提出前の場札と、今回出す札の数字差",
+        "basis": "｜提出前の場札－提出札｜。A=1、P=11、N=12、Q=13、K=14。場が空なら0",
+        "formula": "min（10, 数字差の絶対値）",
+        "reset": "共鳴のたびに再計算"
+      },
+      "condition": {
+        "kind": "resonance-v3"
+      },
+      "steps": [
+        {
+          "kind": "r-effect",
+          "effectId": "pentacle-14"
+        }
+      ]
+    }
   ],
   "guardian": [
-    { "number": 0, "attribute": "neutral", "passiveId": "fool-survivor", "passiveName": "旅人の幸運", "passive": "パス反撃を生き残ると味方全員を6%回復", "awakeningId": "fool-awaken", "awakening": "敵なら最大HP50%回復、味方なら全回復と15%シールド" },
-    { "number": 1, "attribute": "neutral", "passiveId": "magician-wand-link", "passiveName": "魔術連結", "passive": "ワンドの場へワンドを出すと属性追撃", "awakeningId": "magician-awaken", "awakening": "4属性攻撃後、弱点属性でもう1回攻撃" },
-    { "number": 2, "attribute": "light", "passiveId": "priestess-cup", "passiveName": "聖杯の叡智", "passive": "カップを出すと、その数字%だけ自分を回復", "awakeningId": "priestess-awaken", "awakening": "全体回復60%、状態無効2回、10%シールド" },
-    { "number": 3, "attribute": "light", "passiveId": "empress-full-hand", "passiveName": "豊穣の手", "passive": "手札6枚以上でカードを出すと、味方全員へ2ターン3%リジェネ", "awakeningId": "empress-awaken", "awakening": "リジェネ15%、能力上昇35%、4ターン" },
-    { "number": 4, "attribute": "dark", "passiveId": "emperor-lead", "passiveName": "王の先陣", "passive": "親としてカードを出すと、場が流れるまで敵防御20%低下", "awakeningId": "emperor-awaken", "awakening": "敵攻防45%低下、威圧成功率65%" },
-    { "number": 5, "attribute": "light", "passiveId": "hierophant-skip", "passiveName": "聖律の封波", "passive": "5スキップ成立時、味方全員へ8%シールドと状態異常1件解除", "awakeningId": "hierophant-awaken", "awakening": "軽減55%、3ターン、状態異常を1件解除" },
-    { "number": 6, "attribute": "light", "passiveId": "lovers-field-suit", "passiveName": "同調の絆", "passive": "場札と同スートを出すと、自分と場札主を6%回復", "awakeningId": "lovers-awaken", "awakening": "回復50%、リジェネ12%、単独時15%シールド" },
-    { "number": 7, "attribute": "neutral", "passiveId": "chariot-gap", "passiveName": "突破の間合い", "passive": "場札との数字差が5以上なら通常攻撃が防御無視", "awakeningId": "chariot-awaken", "awakening": "防御無視110、力・速75%上昇、回避低下なし" },
-    { "number": 8, "attribute": "neutral", "passiveId": "strength-skipped", "passiveName": "不屈の反発", "passive": "5スキップで飛ばされると次の攻撃40%上昇", "awakeningId": "strength-awaken", "awakening": "食いしばり4ターン、最大倍率2.1、初回HP10%回復" },
-    { "number": 9, "attribute": "dark", "passiveId": "hermit-lowest", "passiveName": "最小の灯", "passive": "提出前の手札で最小数字の札を出すと分身1回", "awakeningId": "hermit-awaken", "awakening": "最少HPの他味方にも直接攻撃MISSを1回付与" },
-    { "number": 10, "attribute": "neutral", "passiveId": "fortune-draw", "passiveName": "運命の偶奇", "passive": "任意ドローした札が奇数なら回復、偶数なら追加ダメージ", "awakeningId": "fortune-awaken", "awakening": "味方100%クリティカル3ターン、敵強化なし" },
-    { "number": 11, "attribute": "light", "passiveId": "justice-gap", "passiveName": "正差の秤", "passive": "場札との数字差が1なら固定20ダメージ", "awakeningId": "justice-awaken", "awakening": "敵与ダメージ累計の75%を固定ダメージ化" },
-    { "number": 12, "attribute": "dark", "passiveId": "hanged-defend", "passiveName": "献身の守り", "passive": "防御すると最少HPの味方を8%回復", "awakeningId": "hanged-awaken", "awakening": "犠牲HP回復1.5倍、対象へ10%シールド" },
-    { "number": 13, "attribute": "dark", "passiveId": "death-grave", "passiveName": "墓標の刃", "passive": "自分が場を流すと、墓地へ送る枚数に応じてダメージ", "awakeningId": "death-awaken", "awakening": "半減成功率55%、失敗時に次の味方攻撃20%増加" },
-    { "number": 14, "attribute": "neutral", "passiveId": "temperance-equal", "passiveName": "等価の調和", "passive": "場札と同じ数字を出すと味方全員を15%回復し15%シールド", "awakeningId": "temperance-awaken", "awakening": "均等化後30%シールド、味方全体を追加10%回復" },
-    { "number": 15, "attribute": "dark", "passiveId": "devil-court", "passiveName": "絵札の契約", "passive": "P・N・Q・Kを出すと自分へ3%ダメージ、敵へ固定20ダメージ", "awakeningId": "devil-awaken", "awakening": "最大HP制限65%、物理3.3倍、3ターン" },
-    { "number": 16, "attribute": "dark", "passiveId": "tower-cut", "passiveName": "断界の兆し", "passive": "8カット成立時、敵へ地属性60ダメージ", "awakeningId": "tower-awaken", "awakening": "地属性140、味方へ状態異常無効1回" },
-    { "number": 17, "attribute": "light", "passiveId": "star-no-draw", "passiveName": "星の選択", "passive": "場を流した後に任意ドローを辞退すると味方全員を10%回復", "awakeningId": "star-awaken", "awakening": "全回復、全状態解除、2ターン10%リジェネ" },
-    { "number": 18, "attribute": "dark", "passiveId": "moon-reverse", "passiveName": "逆月の幻", "passive": "11バック中にカードを出すと敵へ混乱", "awakeningId": "moon-awaken", "awakening": "混乱・命中低下3ターン、分身2回" },
-    { "number": 19, "attribute": "light", "passiveId": "sun-highest", "passiveName": "日輪の頂", "passive": "提出前の手札で最大数字の札を出すと味方の次の攻撃15%上昇", "awakeningId": "sun-awaken", "awakening": "火属性130、全体攻撃45%上昇、暗闇解除" },
-    { "number": 20, "attribute": "light", "passiveId": "judgment-revive", "passiveName": "再起の鐘", "passive": "局1回、KO後の次の自分の手番にHP1で復活", "awakeningId": "judgment-awaken", "awakening": "復活HP75%、15%シールド、攻撃基礎値45" },
-    { "number": 21, "attribute": "neutral", "passiveId": "world-role", "passiveName": "完成の停止", "passive": "5枚役を出すと敵の次の攻撃を1回停止", "awakeningId": "world-awaken", "awakening": "時間停止3回、停止中は味方与ダメージ20%上昇" }
+    {
+      "number": 0,
+      "attribute": "neutral",
+      "passiveId": "guardian-v3-0",
+      "passiveName": "トリックスター",
+      "passive": "攻撃がミスするたび、自分の命中率と攻撃力が上がる。"
+    },
+    {
+      "number": 1,
+      "attribute": "neutral",
+      "passiveId": "guardian-v3-1",
+      "passiveName": "呪術師",
+      "passive": "状態異常の付与を試みるたび、成功率と効果時間が上がる。"
+    },
+    {
+      "number": 2,
+      "attribute": "light",
+      "passiveId": "guardian-v3-2",
+      "passiveName": "白魔道士",
+      "passive": "カップを出すと、その数字％だけ自分を回復する。"
+    },
+    {
+      "number": 3,
+      "attribute": "light",
+      "passiveId": "guardian-v3-3",
+      "passiveName": "結界師",
+      "passive": "ペンタクルを出すと、その数字％のシールドを自分に付与する。"
+    },
+    {
+      "number": 4,
+      "attribute": "dark",
+      "passiveId": "guardian-v3-4",
+      "passiveName": "剣士",
+      "passive": "ソードを出すと、攻撃力をその数字％強化する。"
+    },
+    {
+      "number": 5,
+      "attribute": "light",
+      "passiveId": "guardian-v3-5",
+      "passiveName": "魔導士",
+      "passive": "ワンドを出すと、賢さをその数字％強化する。"
+    },
+    {
+      "number": 6,
+      "attribute": "light",
+      "passiveId": "guardian-v3-6",
+      "passiveName": "吟遊詩人",
+      "passive": "自分が小アルカナの単体回復・単体シールドを受けると、すべての味方にも25％分を付与する。"
+    },
+    {
+      "number": 7,
+      "attribute": "neutral",
+      "passiveId": "guardian-v3-7",
+      "passiveName": "双剣士",
+      "passive": "共鳴するたび、自分の素早さと攻撃力が上がる。"
+    },
+    {
+      "number": 8,
+      "attribute": "neutral",
+      "passiveId": "guardian-v3-8",
+      "passiveName": "格闘家",
+      "passive": "敵の攻撃を受けるとき、10％の確率でかわし、通常攻撃で反撃する。"
+    },
+    {
+      "number": 9,
+      "attribute": "dark",
+      "passiveId": "guardian-v3-9",
+      "passiveName": "忍者",
+      "passive": "局開始時に回避＋50を得る。攻撃するたびに回避が10下がる。"
+    },
+    {
+      "number": 10,
+      "attribute": "neutral",
+      "passiveId": "guardian-v3-10",
+      "passiveName": "ギャンブラー",
+      "passive": "乱数は0～10で、前回の値以上が出る。10が出ると下限を0に戻す。"
+    },
+    {
+      "number": 11,
+      "attribute": "light",
+      "passiveId": "guardian-v3-11",
+      "passiveName": "学者",
+      "passive": "11バック中、小アルカナのRだけを「10－本来のR」で計算する。カードの強さ・提出条件・11バック自体は変更しない。"
+    },
+    {
+      "number": 12,
+      "attribute": "dark",
+      "passiveId": "guardian-v3-12",
+      "passiveName": "守護騎士",
+      "passive": "自分にシールドがある間、HP割合が最も低い他の味方への単体攻撃を身代わりする。1ターンにつき1回。"
+    },
+    {
+      "number": 13,
+      "attribute": "dark",
+      "passiveId": "guardian-v3-13",
+      "passiveName": "死霊術師",
+      "passive": "自分が場流しで墓地へ送ったカードが多いほど、小アルカナ攻撃で与えたダメージのHP吸収率が上がる。"
+    },
+    {
+      "number": 14,
+      "attribute": "neutral",
+      "passiveId": "guardian-v3-14",
+      "passiveName": "ものまねし",
+      "passive": "数字14の小アルカナが発動すると、直前に他者が発動した小アルカナの効果を、半分の強さでもう一度発動する。"
+    },
+    {
+      "number": 15,
+      "attribute": "dark",
+      "passiveId": "guardian-v3-15",
+      "passiveName": "暗黒騎士",
+      "passive": "場にP・N・Q・Kが出されるたび、自分の最大HPが下がり、攻撃力と魔法攻撃力が上がる。"
+    },
+    {
+      "number": 16,
+      "attribute": "dark",
+      "passiveId": "guardian-v3-16",
+      "passiveName": "魔法剣士",
+      "passive": "自分がソードを2枚出すごとに、次の小アルカナ攻撃を雷属性にし、命中した敵に麻痺を付与する。"
+    },
+    {
+      "number": 17,
+      "attribute": "light",
+      "passiveId": "guardian-v3-17",
+      "passiveName": "ドルイド",
+      "passive": "自分がカップを2枚出すごとに、味方全員へリジェネを付与し、最大HPを上げる。"
+    },
+    {
+      "number": 18,
+      "attribute": "dark",
+      "passiveId": "guardian-v3-18",
+      "passiveName": "幻影騎士",
+      "passive": "自分がペンタクルを2枚出すごとに、味方全員へ幻影を付与する。"
+    },
+    {
+      "number": 19,
+      "attribute": "light",
+      "passiveId": "guardian-v3-19",
+      "passiveName": "戦魔導師",
+      "passive": "自分がワンドを2枚出すごとに、敵へやけどを付与し、味方全員の攻撃力と魔法攻撃力を上げる。"
+    },
+    {
+      "number": 20,
+      "attribute": "light",
+      "passiveId": "guardian-v3-20",
+      "passiveName": "司祭",
+      "passive": "11バックを発動すると、KOされた味方1体を最大HP10％で復活させる。対象がいなければ、HP割合が最も低い味方に自動復活を付与する。1局1回。"
+    },
+    {
+      "number": 21,
+      "attribute": "neutral",
+      "passiveId": "guardian-v3-21",
+      "passiveName": "勇者",
+      "passive": "5回共鳴すると、味方全員のHPを最大まで回復し、敵の次の戦闘行動を1回止める。1局1回。"
+    }
+  ],
+  "major": [
+    {
+      "number": 0,
+      "attribute": "neutral",
+      "skillName": "カオスディレクション",
+      "effect": "このターン、敵味方全員の攻撃がミスになる。",
+      "effectId": "major-v3-0"
+    },
+    {
+      "number": 1,
+      "attribute": "neutral",
+      "skillName": "カースサークル",
+      "effect": "敵へ毒・やけど・麻痺・沈黙の中からランダムな2種類の付与を試みる。すでに付与されている状態異常は効果時間を1ターン延長する。",
+      "effectId": "major-v3-1"
+    },
+    {
+      "number": 2,
+      "attribute": "light",
+      "skillName": "ディバインサンクチュアリ",
+      "effect": "味方全員を30％回復する。",
+      "effectId": "major-v3-2"
+    },
+    {
+      "number": 3,
+      "attribute": "light",
+      "skillName": "アイギスフォート",
+      "effect": "味方全員に10％シールドを付与し、状態異常をすべて解除する。",
+      "effectId": "major-v3-3"
+    },
+    {
+      "number": 4,
+      "attribute": "dark",
+      "skillName": "インペリアルブレイド",
+      "effect": "敵へ防御を一部無視する物理攻撃を行い、2ターン自分の攻撃力と命中率を30％上げる。",
+      "effectId": "major-v3-4"
+    },
+    {
+      "number": 5,
+      "attribute": "light",
+      "skillName": "エレメンタルコンボ",
+      "effect": "敵へ場札の属性の5連続魔法攻撃を行う。",
+      "effectId": "major-v3-5"
+    },
+    {
+      "number": 6,
+      "attribute": "light",
+      "skillName": "シンクロリンク",
+      "effect": "自分とHP割合が最も低い味方を30％回復し、味方全員へ3ターン8％リジェネを付与する。",
+      "effectId": "major-v3-6"
+    },
+    {
+      "number": 7,
+      "attribute": "neutral",
+      "skillName": "突撃陣形",
+      "effect": "敵へ防御無視の2連続物理攻撃を行い、1ターン自分の攻撃力と素早さを30％上げる。代わりに回避が15下がる。",
+      "effectId": "major-v3-7"
+    },
+    {
+      "number": 8,
+      "attribute": "neutral",
+      "skillName": "インミュータブル・ウィル",
+      "effect": "3ターン食いしばりを得る。残りHPが少ないほど物理攻撃力とカウンター率が上がる。",
+      "effectId": "major-v3-8"
+    },
+    {
+      "number": 9,
+      "attribute": "dark",
+      "skillName": "無影",
+      "effect": "1ターン、自分を対象とする直接攻撃をすべてかわす。次の物理攻撃は必ずクリティカルになる。",
+      "effectId": "major-v3-9"
+    },
+    {
+      "number": 10,
+      "attribute": "neutral",
+      "skillName": "ジャックポット",
+      "effect": "0～10の乱数を出し、2ターン、味方全員のクリティカル率を「出目×10％」、クリティカル威力を「出目×5％」上げる。",
+      "effectId": "major-v3-10"
+    },
+    {
+      "number": 11,
+      "attribute": "light",
+      "skillName": "カルマリターン",
+      "effect": "敵が味方へ与えた実HPダメージ累計の50％を固定ダメージで返し、累計をリセットする。",
+      "effectId": "major-v3-11"
+    },
+    {
+      "number": 12,
+      "attribute": "dark",
+      "skillName": "ペナンス・コンバート",
+      "effect": "このターンに自分が受けたダメージ分だけ、次のターン開始時に自分を回復する。",
+      "effectId": "major-v3-12"
+    },
+    {
+      "number": 13,
+      "attribute": "dark",
+      "skillName": "グレイヴドレイン",
+      "effect": "墓地のカード枚数に応じた闇属性魔法攻撃を行い、与えたダメージの50％だけ自分を回復する。",
+      "effectId": "major-v3-13"
+    },
+    {
+      "number": 14,
+      "attribute": "neutral",
+      "skillName": "パーフェクトコピー",
+      "effect": "直前に他者が発動した小アルカナの効果を、同じ強さでもう一度発動する。",
+      "effectId": "major-v3-14"
+    },
+    {
+      "number": 15,
+      "attribute": "dark",
+      "skillName": "ブラッドペクト",
+      "effect": "2ターン最大HPを50％にし、物理攻撃と魔法攻撃の威力を2倍にする。",
+      "effectId": "major-v3-15"
+    },
+    {
+      "number": 16,
+      "attribute": "dark",
+      "skillName": "サンダーブレイク",
+      "effect": "敵のシールドと防御上昇を解除して雷属性攻撃を行い、麻痺を付与する。",
+      "effectId": "major-v3-16"
+    },
+    {
+      "number": 17,
+      "attribute": "light",
+      "skillName": "ガイアの恵み",
+      "effect": "3ターン、味方全員の最大HPと現在HPを25％上げ、10％リジェネを付与する。",
+      "effectId": "major-v3-17"
+    },
+    {
+      "number": 18,
+      "attribute": "dark",
+      "skillName": "ミラージュ・幻影陣",
+      "effect": "敵へ混乱と命中低下を2ターン付与し、味方全員へ直接攻撃を1回無効化する幻影を付与する。",
+      "effectId": "major-v3-18"
+    },
+    {
+      "number": 19,
+      "attribute": "light",
+      "skillName": "ソーラーフレア",
+      "effect": "敵へ火属性魔法攻撃とやけどを与え、2ターン味方全員の攻撃力と魔法攻撃力を25％上げる。",
+      "effectId": "major-v3-19"
+    },
+    {
+      "number": 20,
+      "attribute": "light",
+      "skillName": "ラスト・レクイエム",
+      "effect": "KOされた味方全員を最大HP20％で復活させ、復活させた人数分の聖属性魔法攻撃を行う。",
+      "effectId": "major-v3-20"
+    },
+    {
+      "number": 21,
+      "attribute": "neutral",
+      "skillName": "タイム・ストップ",
+      "effect": "敵の次の戦闘行動を2回止める。時間停止中は味方全員の与えるダメージが20％上がる。",
+      "effectId": "major-v3-21"
+    }
   ]
 }

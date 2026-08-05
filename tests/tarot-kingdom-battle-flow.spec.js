@@ -225,7 +225,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       Math.floor(baseDamage * 1.5),
       Math.floor(baseDamage * 1.75)
     ]);
-    expect(audit.published.schema).toBe(19);
+    expect(audit.published.schema).toBe(20);
     expect(audit.published.state.rules.roleChainVersion).toBe(1);
     expect(audit.published.state.trick.roleChain).toEqual({ count: 4, multiplier: 1.75 });
     expect(audit.cleared.trick).toBeNull();
@@ -1029,16 +1029,14 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(result.battle.events.at(-1)).toMatchObject({
       type: 'attack',
       effectCount: 2,
-      resonanceName: '五歩詰め',
+      resonanceName: '盾割り',
       weaponEffectName: '有効打'
     });
-    expect(result.battle.resonanceTriggers).toEqual(expect.arrayContaining([
-      expect.objectContaining({ trigger: 'skipped-player-play', skillName: '五歩詰め' })
-    ]));
+    expect(result.battle.resonanceTriggers).toEqual([]);
     expect(result.transition.endsAt - result.transition.startedAt).toBe(1204);
     await expect(page.locator('.tarot-kingdom-status-tray, .tarot-kingdom-status-icon')).toHaveCount(0);
     await page.waitForTimeout(810);
-    await expect(page.locator('.tarot-kingdom-effect-banner')).toHaveText('五歩詰め');
+    await expect(page.locator('.tarot-kingdom-effect-banner')).toHaveText('盾割り');
   });
 
   test('selected card effects replace the guardian passive in the compact arcana navigation', async ({ page }) => {
@@ -1075,8 +1073,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
 
     const guardian = page.locator('#tarotKingdomGuardianPassive');
     await expect(guardian).toBeVisible();
-    await expect(guardian.locator('#tarotKingdomGuardianPassiveName')).toHaveText('聖律の封波');
-    await expect(guardian.locator('#tarotKingdomGuardianPassiveText')).toContainText('5スキップ成立時');
+    await expect(guardian.locator('#tarotKingdomGuardianPassiveName')).toHaveText('魔導士');
+    await expect(guardian.locator('#tarotKingdomGuardianPassiveText')).toHaveText('');
 
     const exactCard = page.locator('#tarotKingdomHand [data-card-id="hud-sword-5"]');
     await expect(exactCard.locator('.tarot-card-resonance-mark')).toHaveText('共');
@@ -1085,22 +1083,22 @@ test.describe('Tarot Kingdom character battle flow', () => {
     await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText('V / 5スキップ');
     await expect(page.locator('#tarotKingdomGuardianPassiveLabel')).toHaveText('共鳴');
     await expect(page.locator('#tarotKingdomGuardianPassiveName')).toBeHidden();
-    await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('五歩詰め');
+    await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('盾割り');
     await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('共鳴100%');
-    await expect(page.locator('#tarotKingdomArcanaNav')).toContainText('5スキップされた席');
+    await expect(page.locator('#tarotKingdomArcanaNav')).toContainText('R0：54ダメージ');
 
     await exactCard.click();
     const awakenedCard = page.locator('#tarotKingdomHand [data-card-id="hud-major-5"]');
-    await expect(awakenedCard.locator('.tarot-card-resonance-mark')).toHaveCount(2);
+    await expect(awakenedCard.locator('.tarot-card-resonance-mark')).toHaveCount(1);
     await expect(awakenedCard.locator('[aria-label="同じ数字の装備カード共鳴 50%"]')).toHaveText('共');
-    await expect(awakenedCard.locator('[aria-label="守護アルカナ覚醒"]')).toHaveText('覚');
+    await expect(awakenedCard.locator('[aria-label="守護アルカナ覚醒"]')).toHaveCount(0);
     await awakenedCard.click();
     await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText('法王 / 5スキップ');
     await expect(page.locator('#tarotKingdomSelectedEffectText')).not.toContainText('共鳴');
-    await expect(page.locator('#tarotKingdomGuardianPassiveLabel')).toHaveText('共鳴・覚醒 ＋1');
+    await expect(page.locator('#tarotKingdomGuardianPassiveLabel')).toHaveText('共鳴');
     await expect(page.locator('#tarotKingdomGuardianPassiveName')).toBeHidden();
-    await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('五歩詰め');
-    await expect(page.locator('#tarotKingdomGuardianPassiveText')).toContainText('防御無視で追撃');
+    await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('盾割り');
+    await expect(page.locator('#tarotKingdomGuardianPassiveText')).toContainText('R0：27ダメージ');
     await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('共鳴50%');
     await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('軽減55%');
 
@@ -1137,7 +1135,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     await expect(page.locator('#tarotKingdomArcanaNav')).toBeHidden();
   });
 
-  test('matching guardian arcana awakens only when arcana loadout effects are enabled', async ({ page }) => {
+  test('schema 20 disables guardian awakening while schema 19 keeps the legacy result', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       const major = { id: 'guardian-major-1', kind: 'major', suit: 'None', number: 1 };
@@ -1162,7 +1160,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
         withTrick: false,
         handsBySeat: [[major]],
         charactersBySeat: [character],
-        rules: { arcanaLoadoutEffectsVersion: 0 }
+        rules: { arcanaLoadoutEffectsVersion: 2 }
       });
       const legacy = debug.battlePlayCards(0, [major.id], { resolve: false }).state;
       return {
@@ -1173,16 +1171,18 @@ test.describe('Tarot Kingdom character battle flow', () => {
       };
     });
 
-    expect(audit.currentRules.arcanaLoadoutEffectsVersion).toBe(2);
+    expect(audit.currentRules.arcanaLoadoutEffectsVersion).toBe(3);
     expect(audit.currentEvent).toMatchObject({
+      majorAwakened: false,
+      awakeningId: ''
+    });
+    expect(audit.legacyRules.arcanaLoadoutEffectsVersion).toBe(2);
+    expect(audit.legacyEvent).toMatchObject({
       majorAwakened: true,
       guardianItemId: 'tarot_major_01',
       guardianCardLevel: 10,
       awakeningId: 'magician-awaken'
     });
-    expect(audit.legacyRules.arcanaLoadoutEffectsVersion).toBe(0);
-    expect(audit.legacyEvent.majorAwakened).toBe(false);
-    expect(audit.legacyEvent.awakeningId).toBe('');
   });
 
   test('guardian passives heal on Cup play and reward the harder same-rank field response', async ({ page }) => {
@@ -1206,7 +1206,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
         handsBySeat: [[cupFive, { id: 'guardian-reserve-8', kind: 'minor', suit: 'Cup', number: 8 }]],
         hpBySeat: [50, 100, 100, 100],
         combatBySeat: [{ maxHp: 100 }],
-        charactersBySeat: [guardian(2)]
+        charactersBySeat: [guardian(2)],
+        rules: { arcanaLoadoutEffectsVersion: 2 }
       });
       const priestess = debug.battlePlayCards(0, [cupFive.id], { resolve: false }).state;
 
@@ -1218,7 +1219,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
         handsBySeat: [[pentacleFive, { id: 'guardian-reserve-9', kind: 'minor', suit: 'Cup', number: 9 }]],
         hpBySeat: [50, 50, 50, 50],
         combatBySeat: [{ maxHp: 100 }, { maxHp: 100 }, { maxHp: 100 }, { maxHp: 100 }],
-        charactersBySeat: [guardian(14)]
+        charactersBySeat: [guardian(14)],
+        rules: { arcanaLoadoutEffectsVersion: 2 }
       });
       const temperanceAttempt = debug.battlePlayCards(0, [pentacleFive.id], { resolve: false });
       const temperance = temperanceAttempt.state;
@@ -1234,7 +1236,53 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.temperance.battle.effects.players.every((effects) => effects.hpShield?.shieldHp === 15)).toBe(true);
   });
 
-  test('persistent status markers stay removed while resonance marks fit 390px and 900px layouts', async ({ page }) => {
+  test('guardian Temperance copies the previous confirmed minor result once at half strength', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const swordFive = { id: 'copy-source-sword-5', kind: 'minor', suit: 'Sword', number: 5 };
+      const swordFourteen = { id: 'copy-guardian-sword-14', kind: 'minor', suit: 'Sword', number: 14 };
+      const character = (tarotDeck, guardianArcana = null) => ({ version: 4, tarotDeck, guardianArcana });
+      debug.battleScenario({
+        withTrick: false,
+        leaderIndex: 1,
+        turnIndex: 1,
+        handsBySeat: [
+          [swordFourteen, { id: 'copy-guardian-reserve', kind: 'minor', suit: 'Cup', number: 2 }],
+          [swordFive, { id: 'copy-source-reserve', kind: 'minor', suit: 'Cup', number: 3 }]
+        ],
+        charactersBySeat: [
+          character([{ slot: 0, suit: 'Sword', rank: 14, cardLevel: 1, resonanceId: 'sword-14' }], {
+            itemId: 'tarot_major_14', number: 14, cardLevel: 1, passiveId: 'guardian-v3-14'
+          }),
+          character([{ slot: 0, suit: 'Sword', rank: 5, cardLevel: 1, resonanceId: 'sword-5' }])
+        ]
+      });
+      debug.battleSetCombatRandom(0);
+      const source = debug.battlePlayCards(1, [swordFive.id], { resolve: true }).state;
+      const sourceEffect = source.battle.events.at(-1).effects.find((effect) => effect.source === 'resonance' && effect.amount > 0);
+      debug.battlePass(2);
+      debug.battleResolveTransition();
+      debug.battlePass(3);
+      debug.battleResolveTransition();
+      const copiedAttempt = debug.battlePlayCards(0, [swordFourteen.id], { resolve: false });
+      const copied = copiedAttempt.state;
+      return {
+        sourceEffect,
+        copiedAttemptOk: copiedAttempt.ok,
+        copiedAttemptReason: copiedAttempt.reason,
+        copiedEventEffects: copied.battle.events.at(-1).effects,
+        copiedEffects: copied.battle.events.at(-1).effects.filter((effect) => effect.source === 'guardian-14-copy')
+      };
+    });
+
+    expect(audit.sourceEffect.amount).toBeGreaterThan(0);
+    expect({ ok: audit.copiedAttemptOk, reason: audit.copiedAttemptReason }).toEqual({ ok: true, reason: undefined });
+    expect(audit.copiedEffects).toHaveLength(1);
+    expect(audit.copiedEffects[0]).toMatchObject({ copied: true, success: true });
+    expect(audit.copiedEffects[0].displayAmount).toBe(Math.max(1, Math.floor(audit.sourceEffect.displayAmount * 0.5)));
+  });
+
+  test('compact ailments and resonance marks fit 390px and 900px layouts', async ({ page }) => {
     for (const width of [390, 900]) {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 1200 });
       const audit = await page.evaluate(() => {
@@ -1249,12 +1297,18 @@ test.describe('Tarot Kingdom character battle flow', () => {
         debug.battleSetEffects({
           enemy: { poison: { key: 'poison', potency: 4 }, blind: { key: 'blind', potency: 25 } },
           party: { areaGuard: { key: 'areaGuard', potency: 30, charges: 1 } },
-          players: [{ guard: { key: 'guard', potency: 20, charges: 1 } }, {}, {}, {}]
+          players: [{
+            guard: { key: 'guard', potency: 20, charges: 1 },
+            sleep: { key: 'sleep', label: '睡眠', charges: 1 },
+            freeze: { key: 'freeze', label: '凍結', charges: 1 }
+          }, {}, {}, {}]
         });
         const nodes = Array.from(document.querySelectorAll('.tarot-card-resonance-mark'));
         return {
           overflowing: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-          statusMarkerCount: document.querySelectorAll('.tarot-kingdom-status-tray, .tarot-kingdom-status-icon').length,
+          legacyStatusMarkerCount: document.querySelectorAll('.tarot-kingdom-status-tray, .tarot-kingdom-status-icon').length,
+          ailmentLabels: Array.from(document.querySelectorAll('.tarot-kingdom-battle-status-icon')).map((node) => node.getAttribute('aria-label')),
+          primaryStatus: document.querySelector('[data-player-index="0"] .tarot-kingdom-status-aura')?.dataset.status || '',
           boxes: nodes.map((node) => {
             const rect = node.getBoundingClientRect();
             return { left: rect.left, right: rect.right, width: rect.width, height: rect.height };
@@ -1262,7 +1316,9 @@ test.describe('Tarot Kingdom character battle flow', () => {
         };
        });
        expect(audit.overflowing).toBe(false);
-       expect(audit.statusMarkerCount).toBe(0);
+       expect(audit.legacyStatusMarkerCount).toBe(0);
+       expect(audit.ailmentLabels).toEqual(['睡眠', '凍結']);
+       expect(audit.primaryStatus).toBe('sleep');
       expect(audit.boxes.length).toBeGreaterThanOrEqual(1);
       audit.boxes.forEach((box) => {
         expect(box.left).toBeGreaterThanOrEqual(-0.5);
@@ -1356,7 +1412,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.rush.battle.outcome).toBeNull();
     expect(audit.rush.players[0].hand).toHaveLength(1);
     expect(audit.rush.rules.enemyDefeatMode).toBe('hand-empty');
-    expect(audit.hostPublicState.schema).toBe(19);
+    expect(audit.hostPublicState.schema).toBe(20);
     expect(audit.hostPublicState.state.rules.enemyDefeatMode).toBe('hand-empty');
     expect(audit.legacy.rules.enemyDefeatMode).toBe('hand-empty');
   });
@@ -2348,7 +2404,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       effectiveUnits: 2,
       healRate: 0.2
     });
-    expect(audit.publicState.schema).toBe(19);
+    expect(audit.publicState.schema).toBe(20);
     expect(audit.publicState.state.stage.monsters).toHaveLength(4);
     expect(audit.atmosphereTone).toBe('sunlit-coral');
     expect(audit.atmosphereCss).toContain('74, 159, 196');
@@ -2377,7 +2433,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.settlementStart.players).toHaveLength(3);
     expect(audit.settled.roundSettlement.rows).toHaveLength(2);
     expect(audit.settled.dealer).toBe(0);
-    expect(audit.published.schema).toBe(19);
+    expect(audit.published.schema).toBe(20);
     expect(audit.published.state.rules.playerCount).toBe(3);
     expect(audit.published.state.players).toHaveLength(3);
   });
@@ -2657,11 +2713,11 @@ test.describe('Tarot Kingdom character battle flow', () => {
         current
       };
     });
-    expect(audit.currentPublic.schema).toBe(19);
+    expect(audit.currentPublic.schema).toBe(20);
     expect(audit.currentPublic.state.rules).toMatchObject({
       playerCount: 4,
       combatEffectsVersion: 1,
-      arcanaLoadoutEffectsVersion: 2,
+      arcanaLoadoutEffectsVersion: 3,
       roleChainVersion: 1,
       summonVersion: 1,
       graveTimingVersion: 1,

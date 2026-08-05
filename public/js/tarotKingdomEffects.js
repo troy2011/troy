@@ -1,3 +1,11 @@
+import {
+    createTarotKingdomRHistory,
+    normalizeTarotKingdomRHistory,
+    resolveTarotKingdomR,
+    expandTarotKingdomV3Resonance,
+    getTarotKingdomResolvedEffectText
+} from './tarotKingdomEffectsV3.js?v=20260805-arcana-v3-full2';
+
 const SUIT_KEYS = Object.freeze({
     Wand: 'wand',
     Cup: 'cup',
@@ -29,20 +37,26 @@ const WEAPON_ALIASES = Object.freeze({
 });
 
 const NEGATIVE_STATUS_PRIORITY = Object.freeze([
-    'paralysis', 'poison', 'burn', 'blind', 'fear', 'confusion', 'wet', 'weaken', 'vulnerable'
+    'paralysis', 'sleep', 'freeze', 'poison', 'burn', 'silence', 'blind', 'fear',
+    'confusion', 'wet', 'weaken', 'vulnerable'
 ]);
 
-async function loadTarotKingdomArcanaEffects() {
+const TAROT_KINGDOM_ARCANA_CACHE_VERSION = '20260805-arcana-v3-full2';
+
+async function loadTarotKingdomArcanaEffects(fileName) {
     if (String(import.meta.url || '').startsWith('data:')) return null;
-    const url = new URL('../data/tarot-kingdom-arcana-effects.json', import.meta.url);
+    const url = new URL(`../data/${fileName}`, import.meta.url);
+    url.searchParams.set('v', TAROT_KINGDOM_ARCANA_CACHE_VERSION);
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Arcana effects could not be loaded: ${response.status}`);
     return response.json();
 }
 
-export const TAROT_KINGDOM_ARCANA_EFFECTS = { version: 2, minor: [], guardian: [] };
+export const TAROT_KINGDOM_ARCANA_EFFECTS = { version: 3, minor: [], guardian: [], major: [] };
 export const TAROT_KINGDOM_ARCANA_EFFECT_CATALOG = TAROT_KINGDOM_ARCANA_EFFECTS;
+export const TAROT_KINGDOM_LEGACY_ARCANA_EFFECTS = { version: 2, minor: [], guardian: [], major: [] };
 const MINOR_RESONANCE_BY_KEY = new Map();
+const LEGACY_MINOR_RESONANCE_BY_KEY = new Map();
 const GUARDIAN_BY_NUMBER = new Map();
 
 function applyTarotKingdomArcanaEffects(data) {
@@ -62,21 +76,63 @@ function applyTarotKingdomArcanaEffects(data) {
     return TAROT_KINGDOM_ARCANA_EFFECTS;
 }
 
+function applyTarotKingdomLegacyArcanaEffects(data) {
+    if (!data || typeof data !== 'object') return TAROT_KINGDOM_LEGACY_ARCANA_EFFECTS;
+    Object.keys(TAROT_KINGDOM_LEGACY_ARCANA_EFFECTS).forEach((key) => {
+        delete TAROT_KINGDOM_LEGACY_ARCANA_EFFECTS[key];
+    });
+    Object.assign(TAROT_KINGDOM_LEGACY_ARCANA_EFFECTS, data);
+    LEGACY_MINOR_RESONANCE_BY_KEY.clear();
+    (Array.isArray(data.minor) ? data.minor : []).forEach((entry) => {
+        LEGACY_MINOR_RESONANCE_BY_KEY.set(`${entry.suit}:${entry.rank}`, entry);
+    });
+    return TAROT_KINGDOM_LEGACY_ARCANA_EFFECTS;
+}
+
 const injectedArcanaEffects = globalThis.__TAROT_KINGDOM_ARCANA_EFFECTS__;
+const injectedLegacyArcanaEffects = globalThis.__TAROT_KINGDOM_LEGACY_ARCANA_EFFECTS__;
 if (injectedArcanaEffects && typeof injectedArcanaEffects === 'object') {
     applyTarotKingdomArcanaEffects(injectedArcanaEffects);
+}
+if (injectedLegacyArcanaEffects && typeof injectedLegacyArcanaEffects === 'object') {
+    applyTarotKingdomLegacyArcanaEffects(injectedLegacyArcanaEffects);
 }
 
 export const TAROT_KINGDOM_ARCANA_EFFECTS_READY = (
     injectedArcanaEffects && typeof injectedArcanaEffects === 'object'
         ? Promise.resolve(TAROT_KINGDOM_ARCANA_EFFECTS)
-        : loadTarotKingdomArcanaEffects()
-            .then(applyTarotKingdomArcanaEffects)
+        : Promise.all([
+            loadTarotKingdomArcanaEffects('tarot-kingdom-arcana-effects.json')
+                .then(applyTarotKingdomArcanaEffects),
+            loadTarotKingdomArcanaEffects('tarot-kingdom-arcana-effects-v2.json')
+                .then(applyTarotKingdomLegacyArcanaEffects)
+        ]).then(() => TAROT_KINGDOM_ARCANA_EFFECTS)
             .catch((error) => {
                 console.error('[tarot-kingdom] Failed to load arcana effects:', error);
                 return TAROT_KINGDOM_ARCANA_EFFECTS;
             })
 );
+
+function getTarotKingdomEffectsVersion(context = {}) {
+    const requested = Number(context.arcanaLoadoutEffectsVersion ?? context.rules?.arcanaLoadoutEffectsVersion);
+    return Number.isFinite(requested) ? requested : Number(TAROT_KINGDOM_ARCANA_EFFECTS.version || 3);
+}
+
+function applyContextualMinorDefinition(entry, context = {}) {
+    if (!entry) return null;
+    const useLegacy = getTarotKingdomEffectsVersion(context) < 3;
+    const definition = (useLegacy ? LEGACY_MINOR_RESONANCE_BY_KEY : MINOR_RESONANCE_BY_KEY)
+        .get(`${entry.suit}:${entry.rank}`);
+    if (!definition) return entry;
+    return {
+        ...entry,
+        resonanceId: String(definition.id || entry.resonanceId || '').trim(),
+        skillName: String(definition.name || entry.skillName || '').trim(),
+        effectText: String(definition.effect || entry.effectText || '').trim(),
+        condition: { ...(definition.condition || entry.condition || { kind: 'always' }) },
+        steps: (Array.isArray(definition.steps) ? definition.steps : entry.steps || []).map((step) => ({ ...step }))
+    };
+}
 
 function finiteNumber(value, fallback = 0) {
     const parsed = Number(value);
@@ -153,20 +209,31 @@ export function normalizeTarotKingdomGuardian(raw = null) {
     if (parsedNumber < 0 || parsedNumber > 21 || !GUARDIAN_BY_NUMBER.has(parsedNumber)) return null;
     const number = parsedNumber;
     const definition = GUARDIAN_BY_NUMBER.get(number);
-    return {
+    const guardian = {
         itemId: String(raw.itemId || '').trim(),
         number,
         name: String(raw.name || '').trim(),
         cardLevel: Math.max(1, Math.min(25, Math.floor(finiteNumber(raw.cardLevel, 1)))),
         passiveId: String(raw.passiveId || definition.passiveId).trim(),
         passiveName: String(raw.passiveName || definition.passiveName).trim(),
-        awakeningId: String(raw.awakeningId || definition.awakeningId).trim(),
         attribute: String(raw.attribute || definition.attribute || 'neutral').trim().toLowerCase()
     };
+    if (raw.awakeningId || Number(TAROT_KINGDOM_ARCANA_EFFECTS.version) < 3) {
+        guardian.awakeningId = String(raw.awakeningId || definition.awakeningId || '').trim();
+    }
+    return guardian;
 }
 
 export function getTarotKingdomGuardianDefinition(number) {
     const definition = GUARDIAN_BY_NUMBER.get(Math.floor(finiteNumber(number, -1)));
+    return definition ? { ...definition } : null;
+}
+
+export function getTarotKingdomMajorDefinition(number) {
+    const target = Math.max(0, Math.min(21, Math.floor(Number(number) || 0)));
+    const definition = (Array.isArray(TAROT_KINGDOM_ARCANA_EFFECTS.major)
+        ? TAROT_KINGDOM_ARCANA_EFFECTS.major
+        : []).find((entry) => Number(entry?.number) === target);
     return definition ? { ...definition } : null;
 }
 
@@ -180,7 +247,7 @@ export function getTarotKingdomMinorDefinition(suit, rank) {
     return definition ? {
         ...definition,
         condition: { ...(definition.condition || { kind: 'always' }) },
-        steps: definition.steps.map((step) => ({ ...step }))
+        steps: (Array.isArray(definition.steps) ? definition.steps : []).map((step) => ({ ...step }))
     } : null;
 }
 
@@ -550,7 +617,7 @@ export function isTarotKingdomResonanceConditionMet(condition = {}, context = {}
     const sourceRank = getCardRank(sourceCard);
     const playCount = cards.length;
     const fieldCount = Math.max(0, Number(context.previousTrick?.count) || context.previousTrick?.cardsTable?.length || (fieldCard ? 1 : 0));
-    if (kind === 'always' || kind === 'register-trigger') return true;
+    if (kind === 'always' || kind === 'register-trigger' || kind === 'resonance-v3') return true;
     if (kind === 'play-count') return playCount === Number(condition.count);
     if (kind === 'play-count-min') return playCount >= Number(condition.count);
     if (kind === 'lead') return context.isLeader === true || !fieldCard;
@@ -603,9 +670,11 @@ function scaleResonanceStep(step, multiplier) {
         .includes(String(step.statusKey || ''));
     const hasScalableValue = !binaryStatus && ['amount', 'percent', 'potency', 'shieldHp']
         .some((key) => Number.isFinite(Number(step[key])) && Number(step[key]) > 0);
-    ['amount', 'percent', 'potency', 'shieldHp', 'score'].forEach((key) => {
+    ['amount', 'percent', 'potency', 'shieldHp', 'score', 'accuracyBonus', 'criticalBonus', 'shieldPierce', 'statusChanceDown'].forEach((key) => {
         if (Number.isFinite(Number(scaled[key]))) scaled[key] = Math.max(1, Math.floor(Number(scaled[key]) * scale));
     });
+    if (Number.isFinite(Number(scaled.chance))) scaled.chance = Math.max(0, Number(scaled.chance) * scale);
+    if (Number.isFinite(Number(scaled.transferChance))) scaled.transferChance = Math.max(0, Number(scaled.transferChance) * scale);
     if (!hasScalableValue) scaled.activationChance = scale;
     return scaled;
 }
@@ -678,6 +747,10 @@ function expandResonanceDefinition(entry, context = {}) {
             score: scaledPercent
         }));
     };
+    if (Number(TAROT_KINGDOM_ARCANA_EFFECTS.version) >= 3
+        && entry.steps.some((sourceStep) => sourceStep?.kind === 'r-effect')) {
+        return expandTarotKingdomV3Resonance(entry, context);
+    }
     entry.steps.forEach((sourceStep) => {
         const raw = { ...sourceStep, __context: context };
         const magic = ['magic-damage', 'elemental-barrage', 'weakness-damage'].includes(raw.kind);
@@ -900,7 +973,10 @@ function expandResonanceDefinition(entry, context = {}) {
 }
 
 export function buildTarotKingdomResonanceCandidate(entry, card, context = {}) {
-    const normalized = normalizeTarotKingdomDeckEntry(entry, entry?.slot || 0);
+    const normalized = applyContextualMinorDefinition(
+        normalizeTarotKingdomDeckEntry(entry, entry?.slot || 0),
+        context
+    );
     const match = normalized ? getTarotKingdomResonanceMatch(card, normalized) : null;
     if (!normalized || !match) return null;
     const resolvedContext = { ...context, resonanceMatch: match, resonanceEntry: normalized };
@@ -975,6 +1051,8 @@ export const TAROT_KINGDOM_STATUS_ICON_INDEX = Object.freeze({
     confusion: 222,
     poison: 144,
     paralysis: 222,
+    sleep: 228,
+    freeze: 149,
     blind: 68,
     weaken: 97,
     vulnerable: 223,
@@ -1018,4 +1096,11 @@ export const __test = {
     findNegativeStatusKey,
     normalizeSuit,
     normalizeWeapon
+};
+
+export {
+    createTarotKingdomRHistory,
+    normalizeTarotKingdomRHistory,
+    resolveTarotKingdomR,
+    getTarotKingdomResolvedEffectText
 };

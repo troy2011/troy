@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="robots" content="noindex,follow">
     <title>Tarot Kingdom Preview</title>
-    <link rel="stylesheet" href="./style.css?v=20260804-resonance-hud10">
+    <link rel="stylesheet" href="./style.css?v=20260805-arcana-v3-full2">
     <link rel="stylesheet" href="./tarot-kingdom-summons.css?v=20260801-role-chain1">
     <style>
         html, body {
@@ -212,7 +212,7 @@
         window.myLineProfile = { displayName: 'Preview' };
         window.__TAROT_KINGDOM_PREVIEW__ = true;
 
-        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260804-resonance-hud10';
+        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260805-arcana-v3-full2';
 
         window.TarotKingdomPreview = {
             load: () => loadTarotKingdomPage(),
@@ -240,7 +240,7 @@
                             { id: 'showcase-sword-7', kind: 'minor', suit: 'Sword', number: 7 }
                         ]],
                         charactersBySeat: [{
-                            version: 3,
+                            version: 4,
                             tarotDeck: [
                                 { slot: 0, itemId: 'tarot_minor_sword_05', suit: 'Sword', rank: 5, cardLevel: 1, resonanceId: 'sword-5' },
                                 { slot: 1, itemId: 'tarot_minor_cup_05', suit: 'Cup', rank: 5, cardLevel: 1, resonanceId: 'cup-5' },
@@ -252,8 +252,7 @@
                                 itemId: 'tarot_major_05',
                                 number: 5,
                                 cardLevel: 1,
-                                passiveId: 'hierophant-skip',
-                                awakeningId: 'hierophant-awaken'
+                                passiveId: 'guardian-v3-5'
                             }
                         }]
                     });

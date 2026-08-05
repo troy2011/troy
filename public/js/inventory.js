@@ -32,7 +32,7 @@ import {
     getTarotKingdomGuardianDefinition,
     getTarotKingdomMinorDefinition,
     getTarotKingdomCardLevelScale
-} from './tarotKingdomEffects.js';
+} from './tarotKingdomEffects.js?v=20260805-arcana-v3-full2';
 import {
     buildTarotCardMeta,
     compareTarotItems,
@@ -1252,7 +1252,10 @@ function createTarotLoadoutEffectRow(item, itemId, slotIndex) {
     const effect = document.createElement('span');
     effect.className = 'tarot-loadout-effect-text';
     effect.textContent = definition?.effect || '効果データ未登録';
-    copy.append(kicker, name, meta, effect);
+    const rSummary = document.createElement('small');
+    rSummary.className = 'tarot-loadout-effect-r';
+    rSummary.textContent = [definition?.r?.formula, definition?.range].filter(Boolean).join(' · ');
+    copy.append(kicker, name, meta, effect, rSummary);
 
     const actions = document.createElement('div');
     actions.className = 'tarot-loadout-effect-actions';
@@ -1296,7 +1299,7 @@ function renderGuardianArcanaEffectList(root) {
     const itemId = String(myTarotGuardian?.itemId || '');
     const item = itemId ? myInventory.find((entry) => entry.itemId === itemId) : null;
     if (!item) {
-        renderTarotLoadoutEmpty(root, '大アルカナを1枚セットすると、常時効果と覚醒能力が表示されます。');
+        renderTarotLoadoutEmpty(root, '大アルカナを1枚セットすると、守護パッシブが表示されます。');
         return;
     }
     const data = item.customData || {};
@@ -1334,14 +1337,7 @@ function renderGuardianArcanaEffectList(root) {
     passiveText.textContent = definition?.passive || '効果データ未登録';
     passive.append(passiveLabel, passiveText);
 
-    const awakening = document.createElement('span');
-    awakening.className = 'tarot-guardian-effect-line is-awakening';
-    const awakeningLabel = document.createElement('b');
-    awakeningLabel.textContent = '覚醒';
-    const awakeningText = document.createElement('span');
-    awakeningText.textContent = definition?.awakening || '効果データ未登録';
-    awakening.append(awakeningLabel, awakeningText);
-    copy.append(kicker, title, meta, passive, awakening);
+    copy.append(kicker, title, meta, passive);
 
     const chevron = document.createElement('span');
     chevron.className = 'tarot-loadout-effect-chevron';
@@ -1417,11 +1413,10 @@ function openArcanaResonanceCatalog() {
             row.innerHTML = tabKey === 'Major'
                 ? `<div class="arcana-resonance-title"><strong>${definition.number}. ${definition.passiveName}</strong><span>${stateLabel}</span></div>
                    <p><b>${definition.passiveName}</b>：${definition.passive}</p>
-                   <p><b>覚醒</b>：${definition.awakening}</p>
                    <small>${item ? `現在Lvの数値倍率 ×${scale.toFixed(2)}` : '入手後に守護アルカナへ設定できます'}</small>`
                 : `<div class="arcana-resonance-title"><strong>${getTarotRankLabel({ ArcanaRank: definition.rank })} ${definition.name}</strong><span>${stateLabel}</span></div>
                    <p>${definition.effect}</p>
-                   <small>${item ? `現在Lvの数値倍率 ×${scale.toFixed(2)} · 同数字50% / 完全一致100%` : '入手後に共鳴デッキへ設定できます'}</small>`;
+                   <small>${definition.r?.formula || ''}${definition.range ? ` · ${definition.range}` : ''}${item ? ` · 現在Lvの数値倍率 ×${scale.toFixed(2)}` : ' · 入手後に共鳴デッキへ設定できます'}</small>`;
             if (item) {
                 row.tabIndex = 0;
                 row.setAttribute('role', 'button');
@@ -3616,7 +3611,6 @@ function renderTarotCombatDetailSection(item, itemData) {
         const rows = document.createElement('div');
         rows.className = 'item-detail-tarot-rows';
         appendTarotCombatRow(rows, '守護', definition?.passive || '効果データ未登録', 'skill');
-        appendTarotCombatRow(rows, '覚醒', definition?.awakening || '効果データ未登録', 'skill');
         section.appendChild(rows);
 
         descriptionEl.insertAdjacentElement('afterend', section);
@@ -3643,7 +3637,9 @@ function renderTarotCombatDetailSection(item, itemData) {
 
     const rows = document.createElement('div');
     rows.className = 'item-detail-tarot-rows';
-    appendTarotCombatRow(rows, '発動と効果', resonance?.effect || '効果データ未登録', 'skill');
+    appendTarotCombatRow(rows, '効果', resonance?.effect || '効果データ未登録', 'skill');
+    if (resonance?.r?.formula) appendTarotCombatRow(rows, 'R', resonance.r.formula, 'stat');
+    if (resonance?.range) appendTarotCombatRow(rows, '範囲', resonance.range, 'stat');
     section.appendChild(rows);
 
     descriptionEl.insertAdjacentElement('afterend', section);

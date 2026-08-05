@@ -3,7 +3,7 @@ import {
     normalizeTarotKingdomGuardian,
     normalizeTarotKingdomTarotDeck,
     normalizeTarotKingdomWeaponTypes
-} from './tarotKingdomEffects.js?v=20260804-status-affinity1';
+} from './tarotKingdomEffects.js?v=20260805-arcana-v3-full2';
 
 const NPC_STYLE_BY_SEAT = Object.freeze({
     1: { key: 'cautious', hp: 1.10, power: 0.85, defense: 1.20, weaponType: 'shield' },
@@ -148,7 +148,7 @@ export function normalizeTarotKingdomCharacter(rawCharacter = {}, fallback = {})
     const level = positiveInteger(source.level, positiveInteger(base.level, 1));
     const monsterId = String(source.monsterId || base.monsterId || '').trim();
     return {
-        version: 3,
+        version: 4,
         source: source.source === 'playfab'
             ? 'playfab'
             : (source.source === 'preview' ? 'preview' : (source.source === 'pet' ? 'pet' : 'npc')),
