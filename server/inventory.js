@@ -775,6 +775,21 @@ function initializeInventoryRoutes(app, deps) {
         return String(item?.StackId || item?.stackId || '').trim();
     }
 
+    function getInventoryReferenceKey(itemId, stackId) {
+        return `${String(itemId || '').trim()}::${String(stackId || '').trim()}`;
+    }
+
+    function findInventoryStack(inventoryItems, itemId, stackId) {
+        const safeItemId = String(itemId || '').trim();
+        const safeStackId = String(stackId || '').trim();
+        if (!safeStackId) return null;
+        const matches = (Array.isArray(inventoryItems) ? inventoryItems : []).filter((item) => (
+            getInventoryStackId(item) === safeStackId
+            && (!safeItemId || getInventoryItemId(item) === safeItemId)
+        ));
+        return matches.length === 1 ? matches[0] : null;
+    }
+
     function getInventoryStackAmount(item) {
         const rawAmount = item?.Amount ?? item?.amount;
         return Math.max(0, Math.floor(rawAmount == null ? 1 : (Number(rawAmount) || 0)));
@@ -1148,14 +1163,18 @@ function initializeInventoryRoutes(app, deps) {
 
     function normalizeEnhancementMaterialSelections(value) {
         const source = Array.isArray(value) ? value : [];
-        const byStackId = new Map();
+        const byReference = new Map();
         source.forEach((entry) => {
+            const itemId = String(entry?.itemId || entry?.ItemId || '').trim();
             const stackId = String(entry?.stackId || entry?.StackId || '').trim();
             const amount = Math.max(0, Math.floor(Number(entry?.amount ?? 1) || 0));
             if (!stackId || amount <= 0) return;
-            byStackId.set(stackId, (byStackId.get(stackId) || 0) + amount);
+            const key = getInventoryReferenceKey(itemId, stackId);
+            const current = byReference.get(key) || { itemId, stackId, amount: 0 };
+            current.amount += amount;
+            byReference.set(key, current);
         });
-        return Array.from(byStackId.entries()).map(([stackId, amount]) => ({ stackId, amount }));
+        return Array.from(byReference.values());
     }
 
     function getEnhancementEquippedSlotKeys(baseItem, sellContext) {
@@ -1167,18 +1186,23 @@ function initializeInventoryRoutes(app, deps) {
             const rawValue = sellContext?.readOnlyData?.[key]?.Value || null;
             const storedItemId = getStoredEquipmentItemId(rawValue);
             const storedStackId = getStoredEquipmentStackId(rawValue);
-            if (storedStackId && storedStackId === stackId) exactMatches.push(key);
+            if (storedStackId && storedStackId === stackId && (!storedItemId || storedItemId === itemId)) exactMatches.push(key);
             else if (!storedStackId && storedItemId === itemId) legacyMatches.push(key);
         });
         if (exactMatches.length) return exactMatches;
         return legacyMatches.slice(0, 1);
     }
 
-    function isExactEquipmentStackReserved(stackId, sellContext) {
+    function isExactEquipmentStackReserved(itemId, stackId, sellContext) {
+        const safeItemId = String(itemId || '').trim();
         if (!stackId) return false;
-        return INVENTORY_SELL_EQUIPMENT_KEYS.slice(0, 4).some((key) => (
-            getStoredEquipmentStackId(sellContext?.readOnlyData?.[key]?.Value || null) === stackId
-        ));
+        return INVENTORY_SELL_EQUIPMENT_KEYS.slice(0, 4).some((key) => {
+            const rawValue = sellContext?.readOnlyData?.[key]?.Value || null;
+            const storedStackId = getStoredEquipmentStackId(rawValue);
+            if (storedStackId !== stackId) return false;
+            const storedItemId = getStoredEquipmentItemId(rawValue);
+            return !safeItemId || !storedItemId || storedItemId === safeItemId;
+        });
     }
 
     function getLegacyReservedSellCount(itemId, context) {
@@ -1211,7 +1235,7 @@ function initializeInventoryRoutes(app, deps) {
             getInventoryItemId(item) === itemId
             && getInventoryStackAmount(item) > 0
             && getEquipmentEnhancementBonus(item) <= 0
-            && !isExactEquipmentStackReserved(getInventoryStackId(item), sellContext)
+            && !isExactEquipmentStackReserved(itemId, getInventoryStackId(item), sellContext)
         ));
 
         for (const item of candidates) {
@@ -1232,6 +1256,7 @@ function initializeInventoryRoutes(app, deps) {
     }
 
     async function buildEquipmentEnhancementContext(playFabId, payload = {}) {
+        const requestedBaseItemId = String(payload.baseItemId || '').trim();
         const baseStackId = String(payload.baseStackId || '').trim();
         if (!baseStackId) throw createInventoryRequestError('強化する装備個体を選んでください。');
 
@@ -1247,8 +1272,7 @@ function initializeInventoryRoutes(app, deps) {
             getInventorySellContext(playFabId)
         ]);
         const inventoryItems = snapshot.items;
-        const stackMap = new Map(inventoryItems.map((item) => [getInventoryStackId(item), item]).filter(([stackId]) => stackId));
-        const baseItem = stackMap.get(baseStackId);
+        const baseItem = findInventoryStack(inventoryItems, requestedBaseItemId, baseStackId);
         if (!baseItem || getInventoryStackAmount(baseItem) <= 0) {
             throw createInventoryRequestError('強化する装備が見つかりません。', 409);
         }
@@ -1267,18 +1291,20 @@ function initializeInventoryRoutes(app, deps) {
         const materialAmountByItemId = new Map();
         let contribution = 0;
         for (const selection of materialSelections) {
-            const materialItem = stackMap.get(selection.stackId);
+            const materialItem = findInventoryStack(inventoryItems, selection.itemId, selection.stackId);
             if (!materialItem || getInventoryStackAmount(materialItem) < selection.amount) {
                 throw createInventoryRequestError('素材の所持数が変わりました。再読み込みしてください。', 409);
             }
-            if (selection.stackId === baseStackId && getInventoryStackAmount(baseItem) - selection.amount < 1) {
+            const selectedItemId = getInventoryItemId(materialItem);
+            if (selection.stackId === baseStackId && selectedItemId === baseItemId && getInventoryStackAmount(baseItem) - selection.amount < 1) {
                 throw createInventoryRequestError('ベース個体そのものは素材にできません。');
             }
-            if (isExactEquipmentStackReserved(selection.stackId, sellContext) && selection.stackId !== baseStackId) {
+            const isBaseReference = selection.stackId === baseStackId && selectedItemId === baseItemId;
+            if (isExactEquipmentStackReserved(selectedItemId, selection.stackId, sellContext) && !isBaseReference) {
                 throw createInventoryRequestError('装備中の個体は素材にできません。');
             }
 
-            const itemId = getInventoryItemId(materialItem);
+            const itemId = selectedItemId;
             const catalogData = normalizeCatalogDisplayData(itemId, catalogCache[itemId] || {});
             const enhancement = buildEquipmentEnhancementDescriptor(itemId, catalogData, materialItem);
             if (!enhancement.materialEligible || enhancement.family !== baseEnhancement.family || enhancement.category !== baseEnhancement.category) {
@@ -1410,21 +1436,25 @@ function initializeInventoryRoutes(app, deps) {
         );
         const subtractionByStack = new Map();
         context.materials.forEach((material) => {
-            subtractionByStack.set(material.stackId, {
+            const key = getInventoryReferenceKey(material.itemId, material.stackId);
+            subtractionByStack.set(key, {
                 itemId: material.itemId,
-                amount: (subtractionByStack.get(material.stackId)?.amount || 0) + material.amount
+                stackId: material.stackId,
+                amount: (subtractionByStack.get(key)?.amount || 0) + material.amount
             });
         });
         if (shouldSplitBase) {
-            subtractionByStack.set(context.baseStackId, {
+            const key = getInventoryReferenceKey(context.baseItemId, context.baseStackId);
+            subtractionByStack.set(key, {
                 itemId: context.baseItemId,
-                amount: (subtractionByStack.get(context.baseStackId)?.amount || 0) + 1
+                stackId: context.baseStackId,
+                amount: (subtractionByStack.get(key)?.amount || 0) + 1
             });
         }
 
-        const operations = Array.from(subtractionByStack.entries()).map(([stackId, entry]) => ({
+        const operations = Array.from(subtractionByStack.values()).map((entry) => ({
             Subtract: {
-                Item: { Id: entry.itemId, StackId: stackId },
+                Item: { Id: entry.itemId, StackId: entry.stackId },
                 Amount: entry.amount,
                 DeleteEmptyStacks: true
             }
@@ -1512,7 +1542,7 @@ function initializeInventoryRoutes(app, deps) {
             if (!stack || getInventoryStackAmount(stack) < requiredAmount) {
                 return { ok: false, status: 409, error: '売却する個体の所持数が変わりました。' };
             }
-            if (isExactEquipmentStackReserved(entry.stackId, sellContext)) {
+            if (isExactEquipmentStackReserved(entry.itemId, entry.stackId, sellContext)) {
                 return { ok: false, status: 400, error: '装備中の個体は売却できません。' };
             }
             claimedByStackId.set(entry.stackId, requiredAmount);
@@ -1719,12 +1749,12 @@ function initializeInventoryRoutes(app, deps) {
                 getInventoryItemId(item) === safeItemId
                 && getInventoryStackAmount(item) > 0
                 && getEquipmentEnhancementBonus(item) <= 0
-                && !isExactEquipmentStackReserved(getInventoryStackId(item), sellContext)
+                && !isExactEquipmentStackReserved(safeItemId, getInventoryStackId(item), sellContext)
             ));
         if (!selectedInventoryItem) {
             return { ok: false, status: 400, error: '指定した商品個体は出品できません。' };
         }
-        if (isExactEquipmentStackReserved(getInventoryStackId(selectedInventoryItem), sellContext)) {
+        if (isExactEquipmentStackReserved(safeItemId, getInventoryStackId(selectedInventoryItem), sellContext)) {
             return { ok: false, status: 400, error: '装備中の個体は出品できません。' };
         }
 

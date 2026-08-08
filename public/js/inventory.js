@@ -19,7 +19,7 @@ import {
     createBlackMarketListing as requestCreateBlackMarketListing,
     cancelBlackMarketListing as requestCancelBlackMarketListing,
     buyBlackMarketListing as requestBuyBlackMarketListing
-} from './playfabClient.js';
+} from './playfabClient.js?v=20260808-enhancement-stack-ref1';
 import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites, resolveSpritePathByAvatarColor } from './avatar.js';
 import * as Player from './player.js';
 import {
@@ -2308,20 +2308,28 @@ function getInventoryOwnedCount(item) {
     return item ? 1 : 0;
 }
 
-function getEquippedInventoryStackIds() {
-    return new Set(Object.values(myCurrentEquipment || {})
-        .map(getEquipmentReferenceStackId)
-        .filter(Boolean));
+function isInventoryStackEquipped(itemId, stackId) {
+    const safeItemId = String(itemId || '').trim();
+    const safeStackId = String(stackId || '').trim();
+    if (!safeStackId) return false;
+    return Object.values(myCurrentEquipment || {}).some((equippedValue) => {
+        const equippedStackId = getEquipmentReferenceStackId(equippedValue);
+        if (equippedStackId !== safeStackId) return false;
+        const equippedItemId = getEquipmentReferenceItemId(equippedValue);
+        return !equippedItemId || equippedItemId === safeItemId;
+    });
 }
 
 function getPreferredInventoryStackId(item, options = {}) {
-    const equippedStackIds = getEquippedInventoryStackIds();
+    const itemId = String(item?.itemId || '').trim();
     const stackIds = getInventoryStackIds(item);
     if (options.preferEquipped === true) {
-        const equipped = stackIds.find((stackId) => equippedStackIds.has(stackId));
+        const equipped = stackIds.find((stackId) => isInventoryStackEquipped(itemId, stackId));
         if (equipped) return equipped;
     }
-    const available = stackIds.find((stackId) => options.allowEquipped === true || !equippedStackIds.has(stackId));
+    const available = stackIds.find((stackId) => (
+        options.allowEquipped === true || !isInventoryStackEquipped(itemId, stackId)
+    ));
     return available || stackIds[0] || '';
 }
 
@@ -3779,8 +3787,7 @@ function getEquipmentEnhancementCandidates(baseItem) {
         });
 }
 
-function buildEquipmentEnhancementMaterialSelections(candidates, selectedByKey, baseStackId) {
-    const equippedStackIds = getEquippedInventoryStackIds();
+function buildEquipmentEnhancementMaterialSelections(candidates, selectedByKey, baseItemId, baseStackId) {
     const selections = [];
     for (const candidate of candidates) {
         let remaining = Math.max(0, Math.floor(Number(selectedByKey.get(candidate.key)) || 0));
@@ -3790,12 +3797,14 @@ function buildEquipmentEnhancementMaterialSelections(candidates, selectedByKey, 
             const stackId = String(stack?.stackId || '').trim();
             if (!stackId) continue;
             const stackCount = Math.max(0, Math.floor(Number(stack?.count) || 0));
-            const baseReserve = stackId === baseStackId ? 1 : 0;
-            const equippedReserve = equippedStackIds.has(stackId) && stackId !== baseStackId ? stackCount : 0;
+            const itemId = String(candidate.item?.itemId || '').trim();
+            const isBaseStack = itemId === baseItemId && stackId === baseStackId;
+            const baseReserve = isBaseStack ? 1 : 0;
+            const equippedReserve = isInventoryStackEquipped(itemId, stackId) && !isBaseStack ? stackCount : 0;
             const usable = Math.max(0, stackCount - baseReserve - equippedReserve);
             const amount = Math.min(remaining, usable);
             if (amount > 0) {
-                selections.push({ stackId, amount });
+                selections.push({ itemId, stackId, amount });
                 remaining -= amount;
             }
             if (remaining <= 0) break;
@@ -3823,8 +3832,9 @@ function makeEquipmentEnhancementRequestId() {
 function showEquipmentEnhancementModal(baseItem) {
     const playFabId = window.myPlayFabId || null;
     const baseEnhancement = baseItem?.enhancement || {};
+    const baseItemId = String(baseItem?.itemId || '').trim();
     const baseStackId = getPreferredInventoryStackId(baseItem, { preferEquipped: true, allowEquipped: true });
-    if (!playFabId || !baseItem?.materialEligible || !baseStackId) {
+    if (!playFabId || !baseItem?.materialEligible || !baseItemId || !baseStackId) {
         showInventoryFeedback('この装備は強化できません。', true);
         return;
     }
@@ -3882,7 +3892,7 @@ function showEquipmentEnhancementModal(baseItem) {
         if (equipmentEnhancementPreviewTimer) clearTimeout(equipmentEnhancementPreviewTimer);
         serverPreview = null;
         errorEl.textContent = '';
-        const selections = buildEquipmentEnhancementMaterialSelections(candidates, selectedByKey, baseStackId);
+        const selections = buildEquipmentEnhancementMaterialSelections(candidates, selectedByKey, baseItemId, baseStackId);
         if (!selections.length) {
             previewPending = false;
             updateResult();
@@ -3893,7 +3903,7 @@ function showEquipmentEnhancementModal(baseItem) {
         const requestSerial = ++equipmentEnhancementRequestSerial;
         equipmentEnhancementPreviewTimer = setTimeout(async () => {
             try {
-                const preview = await requestPreviewEquipmentEnhancement(playFabId, baseStackId, selections, {
+                const preview = await requestPreviewEquipmentEnhancement(playFabId, baseItemId, baseStackId, selections, {
                     isSilent: true,
                     throwOnError: true
                 });
@@ -3981,7 +3991,7 @@ function showEquipmentEnhancementModal(baseItem) {
         if (event.target === modal && !applying) close();
     };
     applyButton.onclick = async () => {
-        const selections = buildEquipmentEnhancementMaterialSelections(candidates, selectedByKey, baseStackId);
+        const selections = buildEquipmentEnhancementMaterialSelections(candidates, selectedByKey, baseItemId, baseStackId);
         if (!selections.length || applying) return;
         applying = true;
         applyButton.textContent = '強化中...';
@@ -3991,6 +4001,7 @@ function showEquipmentEnhancementModal(baseItem) {
         try {
             const result = await requestApplyEquipmentEnhancement(
                 playFabId,
+                baseItemId,
                 baseStackId,
                 selections,
                 makeEquipmentEnhancementRequestId(),

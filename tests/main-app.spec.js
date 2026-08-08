@@ -5402,9 +5402,9 @@ test('inventory equipment enhancement modal previews and applies multiple materi
   const inventoryItems = [
     {
       itemId: 'sword_001',
-      stackId: 'base-stack',
-      instances: ['base-stack'],
-      stacks: [{ stackId: 'base-stack', count: 1, enhancement: { bonus: 0, contribution: 1 } }],
+      stackId: 'default',
+      instances: ['default'],
+      stacks: [{ stackId: 'default', count: 1, enhancement: { bonus: 0, contribution: 1 } }],
       count: 1,
       name: '強化用の剣',
       materialEligible: true,
@@ -5419,8 +5419,8 @@ test('inventory equipment enhancement modal previews and applies multiple materi
     },
     {
       itemId: 'sword_002',
-      instances: ['plain-stack'],
-      stacks: [{ stackId: 'plain-stack', count: 2, enhancement: { bonus: 0, contribution: 1 } }],
+      instances: ['default'],
+      stacks: [{ stackId: 'default', count: 2, enhancement: { bonus: 0, contribution: 1 } }],
       count: 2,
       name: '素材の剣',
       materialEligible: true,
@@ -5499,7 +5499,7 @@ test('inventory equipment enhancement modal previews and applies multiple materi
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({ ok: true, targetBonus: 5, targetValue: 15, targetStackId: 'base-stack' })
+      body: JSON.stringify({ ok: true, targetBonus: 5, targetValue: 15, targetStackId: 'default' })
     });
   });
 
@@ -5569,10 +5569,11 @@ test('inventory equipment enhancement modal previews and applies multiple materi
   await expect.poll(() => applyRequests.length).toBe(2);
   expect(applyRequests[1]).toMatchObject({
     playFabId: 'PF_PLAYWRIGHT',
-    baseStackId: 'base-stack',
+    baseItemId: 'sword_001',
+    baseStackId: 'default',
     materials: [
-      { stackId: 'plain-stack', amount: 1 },
-      { stackId: 'enhanced-material-stack', amount: 1 }
+      { itemId: 'sword_002', stackId: 'default', amount: 1 },
+      { itemId: 'sword_003', stackId: 'enhanced-material-stack', amount: 1 }
     ]
   });
   expect(String(applyRequests[1].idempotencyId)).not.toBe('');

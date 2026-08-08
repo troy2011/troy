@@ -167,17 +167,19 @@ export function equipItem(playFabId, itemId, slot, options = {}) {
     }, options);
 }
 
-export function previewEquipmentEnhancement(playFabId, baseStackId, materials, options) {
+export function previewEquipmentEnhancement(playFabId, baseItemId, baseStackId, materials, options) {
     return callApiWithLoader('/api/equipment-enhancement/preview', {
         playFabId,
+        baseItemId,
         baseStackId,
         materials
     }, options);
 }
 
-export function applyEquipmentEnhancement(playFabId, baseStackId, materials, idempotencyId, options) {
+export function applyEquipmentEnhancement(playFabId, baseItemId, baseStackId, materials, idempotencyId, options) {
     return callApiWithLoader('/api/equipment-enhancement/apply', {
         playFabId,
+        baseItemId,
         baseStackId,
         materials,
         idempotencyId

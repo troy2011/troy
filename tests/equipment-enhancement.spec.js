@@ -130,6 +130,8 @@ const catalog = {
   sword_001: { Category: 'Weapon', WeaponType: 'sword', DisplayName: '片手剣', Power: 10 },
   sword_002: { Category: 'Weapon', WeaponType: 'sword', DisplayName: '鋼の剣', Power: 14 },
   sword_big_001: { Category: 'Weapon', WeaponType: 'sword_big', DisplayName: '大剣', Power: 20 },
+  gun_05: { Category: 'Weapon', WeaponType: 'gun', DisplayName: 'フリントロック', Power: 14 },
+  gun_06: { Category: 'Weapon', WeaponType: 'gun', DisplayName: 'ペッパーボックス', Power: 14 },
   leather01_001: { Category: 'Armor', DisplayName: '革鎧', Defense: 8, sprite_path: './Sprites/wardrobe/leather/leather01.png' },
   metal_001: { Category: 'Armor', DisplayName: '鉄鎧', Defense: 12, sprite_path: './Sprites/wardrobe/metal/metal.png' }
 };
@@ -186,6 +188,58 @@ test('enhancement apply consumes multiple stacks and inherits an enhanced materi
   });
   expect(replay.statusCode).toBe(409);
   expect(harness.executeRequests).toHaveLength(1);
+});
+
+test('enhancement distinguishes different items that share the default Economy stack id', async () => {
+  const harness = makeEnhancementHarness({
+    catalogCache: catalog,
+    readOnlyData: {
+      Equipped_RightHand: {
+        Value: JSON.stringify({ itemId: 'gun_06', stackId: 'default' })
+      }
+    },
+    inventoryItems: [
+      { Id: 'gun_06', StackId: 'default', Amount: 1 },
+      { Id: 'gun_05', StackId: 'default', Amount: 2 }
+    ]
+  });
+
+  const response = await invoke(harness.routes.get('/api/equipment-enhancement/apply'), {
+    playFabId: 'PF1',
+    baseItemId: 'gun_06',
+    baseStackId: 'default',
+    materials: [{ itemId: 'gun_05', stackId: 'default', amount: 1 }],
+    idempotencyId: 'request-default-stack'
+  });
+
+  expect(response.statusCode).toBe(200);
+  expect(response.body).toMatchObject({
+    base: { itemId: 'gun_06', stackId: 'default', family: 'gun' },
+    contribution: 1,
+    targetBonus: 1,
+    targetValue: 15
+  });
+  expect(harness.state.find((item) => item.Id === 'gun_06')).toMatchObject({
+    StackId: 'default',
+    Amount: 1,
+    DisplayProperties: { equipmentEnhancement: { version: 1, bonus: 1 } }
+  });
+  expect(harness.state.find((item) => item.Id === 'gun_05')).toMatchObject({
+    StackId: 'default',
+    Amount: 1
+  });
+  expect(JSON.parse(harness.readOnly.Equipped_RightHand.Value)).toEqual({
+    itemId: 'gun_06',
+    stackId: 'default'
+  });
+  expect(harness.executeRequests[0].Operations).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      Subtract: expect.objectContaining({ Item: { Id: 'gun_05', StackId: 'default' }, Amount: 1 })
+    }),
+    expect.objectContaining({
+      Update: expect.objectContaining({ Item: expect.objectContaining({ Id: 'gun_06', StackId: 'default' }) })
+    })
+  ]));
 });
 
 test('enhancement rejects another weapon variant and a value over 99 without mutation', async () => {
