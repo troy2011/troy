@@ -69,6 +69,17 @@ function getPlayerRankLabelByLevel(level) {
     return '見習い';
 }
 
+function resolveBattleCatalogItemId(itemId) {
+    const normalized = String(itemId || '').trim();
+    if (!normalized) return '';
+    if (typeof _resolveItemId !== 'function') return normalized;
+    return String(_resolveItemId(normalized) || normalized).trim() || normalized;
+}
+
+function resolveBattleCatalogItemIds(itemIds = []) {
+    return (Array.isArray(itemIds) ? itemIds : []).map(resolveBattleCatalogItemId);
+}
+
 function getTarotKingdomLevelMaxHp(level) {
     const safeLevel = Math.max(1, Math.floor(Number(level) || 1));
     return 80 + ((safeLevel - 1) * 4);
@@ -596,12 +607,15 @@ async function getPlayerFullProfile(playFabId, options = {}) {
             meleeDeckIds = [];
             shipDeckIds = [];
         }
+        meleeDeckIds = resolveBattleCatalogItemIds(meleeDeckIds);
+        shipDeckIds = resolveBattleCatalogItemIds(shipDeckIds);
         if (options.scope === 'tarotKingdomCombat') {
             const guardian = parseTarotGuardian(
                 equipmentResult.Data[TAROT_GUARDIAN_DATA_KEY]?.Value
             );
-            if (guardian.itemId && ownedItemIds.has(String(guardian.itemId))) {
-                guardianArcanaItemId = guardian.itemId;
+            const guardianItemId = resolveBattleCatalogItemId(guardian.itemId);
+            if (guardianItemId && ownedItemIds.has(guardianItemId)) {
+                guardianArcanaItemId = guardianItemId;
             }
             currentPet = buildTarotKingdomPetPublicRecord(
                 normalizeTarotKingdomPetState(

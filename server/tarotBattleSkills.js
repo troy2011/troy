@@ -1,5 +1,5 @@
 const tarotSkillData = require('./data/tarot-battle-skills.json');
-const { getCanonicalTarotCategory, getMajorArcanaSuitInfo } = require('./tarotCards');
+const { enrichTarotCatalogData, getCanonicalTarotCategory, getMajorArcanaSuitInfo } = require('./tarotCards');
 
 const MINOR_SUIT_ALIASES = {
     wand: 'wand',
@@ -164,8 +164,9 @@ function resolveTarotBattleSkill(itemId, itemData = null) {
 
 function getTarotBattleDeck(deckIds, catalogCache = {}) {
     return (Array.isArray(deckIds) ? deckIds : [])
-        .filter((itemId) => getCanonicalTarotCategory(catalogCache?.[itemId]?.Category) === 'TarotMinor')
-        .map((itemId) => resolveTarotBattleSkill(itemId, catalogCache?.[itemId] || null))
+        .map((itemId) => ({ itemId, itemData: enrichTarotCatalogData(itemId, catalogCache?.[itemId] || {}) }))
+        .filter(({ itemData }) => getCanonicalTarotCategory(itemData.Category) === 'TarotMinor')
+        .map(({ itemId, itemData }) => resolveTarotBattleSkill(itemId, itemData))
         .filter(Boolean);
 }
 

@@ -5,7 +5,7 @@
 // POST /api/cards/levelup  シャード消費でカードをレベルアップ
 
 const admin = require('firebase-admin');
-const { isTarotMajorCategory, isTarotMinorCategory } = require('../tarotCards');
+const { enrichTarotCatalogData, isTarotMajorCategory, isTarotMinorCategory } = require('../tarotCards');
 const { getPublicTarotBattleSkills } = require('../tarotBattleSkills');
 
 const LEVELS_PER_STAGE = 5;
@@ -60,7 +60,7 @@ function initializeCardRoutes(app, deps) {
 
         // タロットカードのみ抽出
         return items.filter((item) => {
-            const cat = String(catalogCache[item.Id]?.Category || '').trim();
+            const cat = String(enrichTarotCatalogData(item.Id, catalogCache[item.Id] || {}).Category || '').trim();
             return isTarotMajorCategory(cat) || isTarotMinorCategory(cat);
         });
     }
@@ -87,7 +87,8 @@ function initializeCardRoutes(app, deps) {
             const cards = inventoryItems.map((item) => {
                 const itemId   = item.Id;
                 const quantity = Number(item.Amount ?? 0);
-                const cat      = String(catalogCache[itemId]?.Category || '').trim();
+                const catalogData = enrichTarotCatalogData(itemId, catalogCache[itemId] || {});
+                const cat      = String(catalogData.Category || '').trim();
                 const isMajor  = isTarotMajorCategory(cat);
                 const level    = levels[itemId]?.level ?? 0;
                 const maxLevel = getMaxLevel(isMajor, quantity);
@@ -100,7 +101,7 @@ function initializeCardRoutes(app, deps) {
                     maxLevel,
                     isMajor,
                     nextLevelCost: nextCost,
-                    displayName: catalogCache[itemId]?.DisplayName ?? itemId,
+                    displayName: catalogData.DisplayName ?? itemId,
                 };
             });
 
@@ -126,7 +127,7 @@ function initializeCardRoutes(app, deps) {
             if (!owned) return res.status(404).json({ error: 'カードを所持していません' });
 
             const quantity = Number(owned.Amount ?? 0);
-            const cat      = String(catalogCache[itemId]?.Category || '').trim();
+            const cat      = String(enrichTarotCatalogData(itemId, catalogCache[itemId] || {}).Category || '').trim();
             const isMajor  = isTarotMajorCategory(cat);
             const maxLevel = getMaxLevel(isMajor, quantity);
 

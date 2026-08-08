@@ -1040,6 +1040,54 @@ test.describe('Tarot Kingdom character battle flow', () => {
     await expect(page.locator('.tarot-kingdom-effect-banner')).toHaveText('盾割り');
   });
 
+  test('battle start freezes the API tarot deck and activates its matching resonance', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const character = {
+        version: 4,
+        displayName: 'Profile Player',
+        level: 12,
+        avatarBase: { Race: 'human', AvatarColor: 'brown', level: 12 },
+        equipment: {},
+        itemSource: {},
+        tarotDeck: [
+          { slot: 0, itemId: 'tarot_minor_wand_01', suit: 'Wand', rank: 1, cardLevel: 1, resonanceId: 'wand-1' },
+          { slot: 1, itemId: 'tarot_minor_cup_05', suit: 'Cup', rank: 5, cardLevel: 1, resonanceId: 'cup-5' },
+          { slot: 2, itemId: 'tarot_minor_sword_10', suit: 'Sword', rank: 10, cardLevel: 1, resonanceId: 'sword-10' },
+          { slot: 3, itemId: 'tarot_minor_pentacle_13', suit: 'Pentacle', rank: 13, cardLevel: 1, resonanceId: 'pentacle-13' },
+          { slot: 4, itemId: 'minor-sword-14', suit: 'Sword', rank: 14, cardLevel: 1, resonanceId: 'sword-14' }
+        ],
+        combat: {
+          maxHp: 120,
+          power: 20,
+          defense: 10,
+          intelligence: 10,
+          speed: 10,
+          weaponType: 'unarmed',
+          weaponTypes: ['unarmed']
+        }
+      };
+      return window.TarotKingdomDebug.battleLoadProfileAndPlay(character, {
+        id: 'loaded-cup-five',
+        suit: 'Cup',
+        number: 5
+      });
+    });
+
+    expect(result.applied).toBe(true);
+    expect(result.played).toBe(true);
+    expect(result.state.players[0].character.source).toBe('playfab');
+    expect(result.state.players[0].character.tarotDeck).toHaveLength(5);
+    expect(result.state.players[0].character.tarotDeck[1]).toMatchObject({
+      itemId: 'tarot_minor_cup_05',
+      suit: 'Cup',
+      rank: 5
+    });
+    expect(result.state.battle.events.at(-1)).toMatchObject({
+      type: 'attack',
+      resonanceName: '痺れ薬の小瓶'
+    });
+  });
+
   test('selected minor resonance and major dedicated effects use the compact arcana navigation correctly', async ({ page }) => {
     const character = {
       version: 3,
@@ -1787,6 +1835,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
         hpBySeat: [0, 1, 0, 100],
         combatBySeat
       });
+      debug.battleSetExplorationSession(true);
       const partyLoss = debug.battlePass(1);
       const lethalAvatar = document.getElementById('tarotKingdomBattleAvatar-1');
       const lethalVisual = {
@@ -1881,8 +1930,49 @@ test.describe('Tarot Kingdom character battle flow', () => {
       .toHaveText(/^.+は　にげだした！$/);
     await expect(settlementConfirmButton).toBeVisible();
     await expect(settlementConfirmButton).toBeEnabled();
-    await expect(settlementConfirmButton).toHaveText('もう一度遊ぶ');
+    await expect(settlementConfirmButton).toHaveText('撤退');
     expect(audit.partyLoss.champion).toBeNull();
+  });
+
+  test('exploration party wipe also offers a retreat action', async ({ page }) => {
+    await page.evaluate(({ combatBySeat }) => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({
+        turnIndex: 1,
+        leaderIndex: 0,
+        hpBySeat: [0, 1, 0, 0],
+        combatBySeat
+      });
+      debug.battleSetExplorationSession(true);
+      debug.battlePass(1);
+    }, { combatBySeat: zeroDefenseParty });
+
+    await page.waitForFunction(() => window.TarotKingdomDebug?.battleState?.()?.phase === 'done');
+    const state = await page.evaluate(() => window.TarotKingdomDebug.battleState());
+    expect(state.battle).toMatchObject({
+      outcome: 'defeat',
+      resultReason: 'party-defeated',
+      retreatingPlayerIndex: null
+    });
+    await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText('パーティは　ぜんめつした…');
+    const retreatButton = page.locator('#tarotKingdomSettlementConfirmButton');
+    await expect(retreatButton).toBeVisible();
+    await expect(retreatButton).toBeEnabled();
+    await expect(retreatButton).toHaveText('撤退');
+
+    await page.evaluate(() => {
+      window.__tarotKingdomRetreatResult = null;
+      window.addEventListener('tarot-kingdom:exploration-complete', (event) => {
+        window.__tarotKingdomRetreatResult = event.detail;
+      }, { once: true });
+    });
+    await retreatButton.click();
+    await page.waitForFunction(() => window.__tarotKingdomRetreatResult?.status === 'retreated');
+    const retreatResult = await page.evaluate(() => window.__tarotKingdomRetreatResult);
+    expect(retreatResult).toMatchObject({
+      status: 'retreated',
+      outcome: 'defeat'
+    });
   });
 
   test('speed never changes seat order and negative chips do not stop the four-hand match', async ({ page }) => {
@@ -1963,6 +2053,9 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.roles.fourMajors).toBeNull();
     expect(audit.roles.foolStraight).toMatchObject({ key: 'Straight' });
     expect(audit.roles.magicianStraightFlush).toMatchObject({ key: 'StraightFlush' });
+    expect(audit.roles.devilFalseAceStraight).toBeNull();
+    expect(audit.roles.minorAceStraight).toMatchObject({ key: 'Straight', primary: [5] });
+    expect(audit.roles.devilHighStraight).toMatchObject({ key: 'Straight', primary: [15] });
     expect(audit.roles.worldCallOk).toBe(true);
     expect(audit.roles.worldCallRole).toMatchObject({ key: 'TheWorld', baseRate: 3 });
     expect(audit.roles.invalidMajorCall).toEqual({

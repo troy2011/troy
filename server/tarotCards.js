@@ -46,6 +46,18 @@ const TAROT_FACE_LABELS = {
     QUEEN: 'クイーン',
     KING: 'キング'
 };
+const TAROT_CARD_SPRITE = Object.freeze({
+    path: './Sprites/Buildings/tarot.png',
+    width: 48,
+    height: 80,
+    cols: 10
+});
+const TAROT_MINOR_SPRITE_BASE = Object.freeze({
+    wand: 0,
+    pentacle: 20,
+    cup: 40,
+    sword: 60
+});
 const ITEM_SPRITE_PRESETS = Object.freeze([
     { idPrefixes: ['accessory_', 'offhand_'], path: './Sprites/items/icons.png', width: 16, height: 16, cols: 16 },
     { idPrefixes: ['hat_black_'], path: './Sprites/wardrobe/cloth/hat_black.png', width: 32, height: 32, cols: 10 },
@@ -308,6 +320,63 @@ const TAROT_MANIFEST_TEMPLATE_CACHE = new WeakMap();
 
 function normalizeCategory(category) {
     return String(category || '').trim();
+}
+
+function inferTarotCatalogData(itemId) {
+    const value = String(itemId || '').trim();
+    const minor = value.match(/^(?:tarot[_-])?minor[_-](wand|sword|cup|pentacle)[_-]0*(\d{1,2})$/i)
+        || value.match(/^(wand|sword|cup|pentacle)[_-]0*(\d{1,2})$/i);
+    if (minor) {
+        const suitKey = minor[1].toLowerCase();
+        const rank = Number(minor[2]);
+        if (rank < 1 || rank > 14) return null;
+        const suit = suitKey.charAt(0).toUpperCase() + suitKey.slice(1);
+        const spriteIndex = TAROT_MINOR_SPRITE_BASE[suitKey] + (rank <= 10 ? rank - 1 : 10 + (rank - 11));
+        return {
+            Category: 'TarotMinor',
+            ArcanaSuit: suit,
+            Suit: suit,
+            ArcanaRank: rank,
+            Rank: rank,
+            CardNumber: rank,
+            DisplayName: `${TAROT_SUIT_LABELS[suitKey] || suit}${rank === 1 ? 'A' : rank}`,
+            sprite_path: TAROT_CARD_SPRITE.path,
+            sprite_index: spriteIndex,
+            sprite_w: TAROT_CARD_SPRITE.width,
+            sprite_h: TAROT_CARD_SPRITE.height,
+            sprite_cols: TAROT_CARD_SPRITE.cols
+        };
+    }
+
+    const major = value.match(/^arcana[_-]0*(\d{1,2})$/i)
+        || value.match(/^major[_-]0*(\d{1,2})$/i)
+        || value.match(/^tarot[_-]major(?:[_-][a-z]+)?[_-]0*(\d{1,2})$/i);
+    if (!major) return null;
+    const number = Number(major[1]);
+    if (number < 0 || number > 21) return null;
+    return {
+        Category: 'TarotMajor',
+        ArcanaNumber: number,
+        CardNumber: number,
+        DisplayName: `大アルカナ ${number}`,
+        sprite_path: TAROT_CARD_SPRITE.path,
+        sprite_index: number < 10 ? 80 + number : 90 + (number - 10),
+        sprite_w: TAROT_CARD_SPRITE.width,
+        sprite_h: TAROT_CARD_SPRITE.height,
+        sprite_cols: TAROT_CARD_SPRITE.cols
+    };
+}
+
+function enrichTarotCatalogData(itemId, itemData = {}) {
+    const source = itemData && typeof itemData === 'object' ? itemData : {};
+    const inferred = inferTarotCatalogData(source.FriendlyId || itemId)
+        || inferTarotCatalogData(itemId);
+    if (!inferred) return source;
+    const merged = { ...inferred };
+    Object.entries(source).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') merged[key] = value;
+    });
+    return merged;
 }
 
 function isTarotMajorCategory(category) {
@@ -794,6 +863,8 @@ module.exports = {
     isTarotMinorCategory,
     isTarotCardCategory,
     getCanonicalTarotCategory,
+    inferTarotCatalogData,
+    enrichTarotCatalogData,
     isTarotEquipmentSlot,
     getTarotEquipmentReadOnlyKeys,
     getTarotManifestationReadOnlyKeys,

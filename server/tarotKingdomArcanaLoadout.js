@@ -1,7 +1,8 @@
 const arcanaEffects = require('../public/data/tarot-kingdom-arcana-effects.json');
 const {
     getCanonicalTarotCategory,
-    getMajorArcanaTitle
+    getMajorArcanaTitle,
+    enrichTarotCatalogData
 } = require('./tarotCards');
 
 const TAROT_GUARDIAN_DATA_KEY = 'TarotGuardianArcana';
@@ -72,7 +73,7 @@ function buildTarotKingdomMinorLoadout(itemIds = [], catalogCache = {}, cardLeve
         .slice(0, 5)
         .map((rawItemId, slot) => {
             const itemId = String(rawItemId || '').trim();
-            const itemData = catalogCache[itemId] || {};
+            const itemData = enrichTarotCatalogData(itemId, catalogCache[itemId] || {});
             if (!itemId || !isMinorItem(itemData)) return null;
             const suit = normalizeMinorSuit(itemData.ArcanaSuit || itemData.Suit);
             const rank = getMinorRank(itemData);
@@ -93,7 +94,7 @@ function buildTarotKingdomMinorLoadout(itemIds = [], catalogCache = {}, cardLeve
 
 function buildTarotKingdomGuardian(itemId, catalogCache = {}, cardLevels = {}) {
     const normalizedItemId = String(itemId || '').trim();
-    const itemData = catalogCache[normalizedItemId] || {};
+    const itemData = enrichTarotCatalogData(normalizedItemId, catalogCache[normalizedItemId] || {});
     if (!normalizedItemId || !isMajorItem(itemData)) return null;
     const number = getMajorNumber(normalizedItemId, itemData);
     const definition = GUARDIAN_EFFECT_BY_NUMBER.get(number);

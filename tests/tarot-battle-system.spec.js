@@ -333,6 +333,8 @@ test('tarot deck helpers preserve user order', () => {
     'minor-sword-9': { Category: 'TarotMinor' },
     'minor-cup-10': { Category: 'TarotMinor' }
   })).toEqual(['minor-sword-9', 'minor-cup-10']);
+  expect(filterMinorDeckIds(['arcana-4', 'minor-sword-9', 'minor-cup-10'], {}))
+    .toEqual(['minor-sword-9', 'minor-cup-10']);
 });
 
 test('tarot battle deck ignores major arcana because they are ship equipment', () => {
@@ -343,6 +345,8 @@ test('tarot battle deck ignores major arcana because they are ship equipment', (
   });
 
   expect(deck.map((skill) => skill.itemId)).toEqual(['minor-sword-9']);
+  expect(getTarotBattleDeck(['arcana-4', 'minor-sword-9'], {}).map((skill) => skill.itemId))
+    .toEqual(['minor-sword-9']);
 });
 
 test('matching minor rank starts unlocked and skips the weapon form', async () => {

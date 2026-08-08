@@ -788,6 +788,18 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
           { id: 'four-straight-5', kind: 'minor', suit: 'Pentacle', number: 5 },
           { id: 'four-straight-dead', kind: 'minor', suit: 'Wand', number: 10 }
         ]),
+        devilFalseAce: inspect([
+          { id: 'devil-false-ace-15', kind: 'major', suit: 'None', number: 15 },
+          { id: 'devil-false-ace-2', kind: 'minor', suit: 'Wand', number: 2 },
+          { id: 'devil-false-ace-3', kind: 'minor', suit: 'Cup', number: 3 },
+          { id: 'devil-false-ace-4', kind: 'minor', suit: 'Sword', number: 4 }
+        ]),
+        trueAceWheel: inspect([
+          { id: 'true-ace-wheel-1', kind: 'minor', suit: 'Pentacle', number: 1 },
+          { id: 'true-ace-wheel-2', kind: 'minor', suit: 'Wand', number: 2 },
+          { id: 'true-ace-wheel-3', kind: 'minor', suit: 'Cup', number: 3 },
+          { id: 'true-ace-wheel-4', kind: 'minor', suit: 'Sword', number: 4 }
+        ]),
         callReady: inspect([
           { id: 'call-ready-2', kind: 'minor', suit: 'Wand', number: 2 },
           { id: 'call-ready-3', kind: 'minor', suit: 'Cup', number: 3 },
@@ -813,6 +825,12 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     ['four-straight-2', 'four-straight-3', 'four-straight-4', 'four-straight-5'].forEach((cardId) => {
       expect(audit.fourStraight[cardId].isProtected).toBe(true);
       expect(audit.fourStraight[cardId].straightTenpaiCount).toBeGreaterThan(0);
+    });
+    ['devil-false-ace-15', 'devil-false-ace-2', 'devil-false-ace-3', 'devil-false-ace-4'].forEach((cardId) => {
+      expect(audit.devilFalseAce[cardId].straightTenpaiCount).toBe(0);
+    });
+    ['true-ace-wheel-1', 'true-ace-wheel-2', 'true-ace-wheel-3', 'true-ace-wheel-4'].forEach((cardId) => {
+      expect(audit.trueAceWheel[cardId].straightTenpaiCount).toBeGreaterThan(0);
     });
     ['call-ready-2', 'call-ready-3', 'call-ready-4', 'call-ready-5'].forEach((cardId) => {
       expect(audit.callReady[cardId].isProtected).toBe(true);

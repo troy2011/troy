@@ -35,7 +35,8 @@ const {
     getStarterMajorArcanaItemId,
     getTarotSlotLabel,
     parseStoredEquipmentValue,
-    isTarotMajorCategory
+    isTarotMajorCategory,
+    enrichTarotCatalogData
 } = require('./tarotCards');
 const {
     TAROT_AWAKENINGS_DATA_KEY,
@@ -269,15 +270,16 @@ function resolveCatalogSpritePreset(itemId, itemData = {}) {
 function normalizeCatalogDisplayData(itemId, itemData = {}) {
     const normalized = { ...(itemData || {}) };
     const preset = resolveCatalogSpritePreset(itemId, normalized);
-    if (!preset) return normalized;
-    normalized.sprite_path = preset.path;
-    normalized.sprite_w = preset.width;
-    normalized.sprite_h = preset.height;
-    normalized.sprite_cols = preset.cols;
-    if (preset.weaponType && !normalized.WeaponType) {
-        normalized.WeaponType = preset.weaponType;
+    if (preset) {
+        normalized.sprite_path = preset.path;
+        normalized.sprite_w = preset.width;
+        normalized.sprite_h = preset.height;
+        normalized.sprite_cols = preset.cols;
+        if (preset.weaponType && !normalized.WeaponType) {
+            normalized.WeaponType = preset.weaponType;
+        }
     }
-    return normalized;
+    return enrichTarotCatalogData(itemId, normalized);
 }
 
 function isTwoHandedCatalogWeapon(itemId, itemData = {}) {

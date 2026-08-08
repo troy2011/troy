@@ -3,7 +3,7 @@
 // 白兵戦用の小アルカナデッキを管理する
 // 最大5枚、デッキ順のまま保持し、5枚役を評価する
 
-const { getCanonicalTarotCategory } = require('./tarotCards');
+const { enrichTarotCatalogData, getCanonicalTarotCategory } = require('./tarotCards');
 const { evaluateTarotRole, getTarotRoleBonus } = require('./tarotRoles');
 const {
     TAROT_GUARDIAN_DATA_KEY,
@@ -43,7 +43,7 @@ function normalizeDeckList(deck) {
 }
 
 function getTarotDeckCardNumber(itemId, catalogCache) {
-    const itemData = catalogCache?.[itemId] || {};
+    const itemData = enrichTarotCatalogData(itemId, catalogCache?.[itemId] || {});
     const category = getCanonicalTarotCategory(itemData?.Category);
     if (category === 'TarotMajor') {
         const number = Number(itemData?.ArcanaNumber ?? itemData?.CardNumber);
@@ -73,7 +73,7 @@ function sortDeckByCardNumber(deck, catalogCache) {
 }
 
 function isMinorArcanaItem(itemId, catalogCache) {
-    const itemData = catalogCache?.[itemId];
+    const itemData = enrichTarotCatalogData(itemId, catalogCache?.[itemId] || {});
     const category = getCanonicalTarotCategory(itemData?.Category);
     return category === 'TarotMinor';
 }
@@ -259,7 +259,7 @@ function initializeTarotDeckRoutes(app, deps) {
     }
 
     async function requireOwnedGuardianCard(playFabId, cardItemId) {
-        const itemData = catalogCache?.[cardItemId];
+        const itemData = enrichTarotCatalogData(cardItemId, catalogCache?.[cardItemId] || {});
         if (!isMajorItem(itemData)) {
             return { ok: false, status: 400, error: 'MajorArcanaCardRequired' };
         }
@@ -276,7 +276,7 @@ function initializeTarotDeckRoutes(app, deps) {
 
     function buildDeckResponse(decks) {
         const tarotDeck = filterMinorDeckIds(decks?.tarotDeck || decks?.meleeDeck || decks?.shipDeck || [], catalogCache);
-        const tarotRole = evaluateDeckRole(tarotDeck.map((itemId) => catalogCache?.[itemId] || null));
+        const tarotRole = evaluateDeckRole(tarotDeck.map((itemId) => enrichTarotCatalogData(itemId, catalogCache?.[itemId] || {})));
         const guardian = buildTarotKingdomGuardian(decks?.guardian?.itemId, catalogCache);
         return {
             tarotDeck,

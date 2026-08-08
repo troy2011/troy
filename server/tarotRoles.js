@@ -173,6 +173,11 @@ function roleNumberOptions(card) {
     return [number];
 }
 
+function canRepresentLowAce(card) {
+    return (card?.kind === 'minor' && Number(card?.number) === 1)
+        || (card?.kind === 'major' && Number(card?.number) === 0);
+}
+
 function roleSuitOptions(card) {
     if (!card) return ['None'];
     if (card.kind === 'minor') return [String(card.suit || 'None')];
@@ -180,10 +185,11 @@ function roleSuitOptions(card) {
     return [String(card.suit || 'None')];
 }
 
-function straightHigh(values) {
+function straightHigh(values, rows = []) {
     const unique = Array.from(new Set(values.slice().sort((a, b) => b - a)));
     if (unique.length !== 5) return null;
-    if (unique.includes(15)) {
+    const hasLowAce = rows.some((row) => canRepresentLowAce(row?.src));
+    if (hasLowAce && unique.includes(15)) {
         const lowWheel = [5, 4, 3, 2].every((number) => unique.includes(number));
         if (lowWheel) return 5;
     }
@@ -213,7 +219,7 @@ function evalRoleVariant(rows) {
         .map(([value, list]) => ({ value: Number(value), count: list.length }))
         .sort((a, b) => b.count - a.count || b.value - a.value);
     const flush = rows.every((row) => row.suit !== 'None' && row.suit === rows[0].suit);
-    const straight = straightHigh(values);
+    const straight = straightHigh(values, rows);
     let key = null;
     let primary = [];
     if (straight === 15 && flush) {

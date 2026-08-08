@@ -1378,6 +1378,10 @@ const roleNumberOptions = (card) => {
   if (n === 14) return [14];
   return [n];
 };
+const canRepresentKingdomLowAce = (card) => (
+  (card?.kind === 'minor' && Number(card?.number) === 1)
+  || (card?.kind === 'major' && Number(card?.number) === 0)
+);
 const setNumberOptions = (card) => {
   if (!card) return [0];
   return [Number(card.number || 0)];
@@ -3589,11 +3593,12 @@ function spritePos(index) {
   return { x, y };
 }
 
-function straightHigh(vals) {
+function straightHigh(vals, rows = []) {
   const u = Array.from(new Set(vals.slice().sort((a, b) => b - a)));
   if (u.length !== 5) return null;
   // Wheel straight support: A(15)-2-3-4-5
-  if (u.includes(15)) {
+  const hasLowAce = rows.some((row) => canRepresentKingdomLowAce(row?.src));
+  if (hasLowAce && u.includes(15)) {
     const lowWheel = [5, 4, 3, 2].every((n) => u.includes(n));
     if (lowWheel) return 5;
   }
@@ -3615,7 +3620,7 @@ function evalRoleVariant(res, src) {
   res.forEach((r) => { const list = by.get(r.v) || []; list.push(r); by.set(r.v, list); });
   const grp = Array.from(by.entries()).map(([v, list]) => ({ v: Number(v), n: list.length })).sort((a, b) => b.n - a.n || b.v - a.v);
   const flush = res.every((r) => r.suit !== 'None' && r.suit === res[0].suit);
-  const st = straightHigh(vals);
+  const st = straightHigh(vals, res);
   const theWorld = Array.isArray(src)
     && src.length === 5
     && src.every((card) => card?.kind === 'major')
@@ -12484,6 +12489,27 @@ function auditKingdomMajorArcanaRules() {
     minor('magician-4', 'Wand', 4),
     minor('magician-5', 'Wand', 5)
   ]);
+  const devilFalseAceStraight = evalRole([
+    major(15),
+    minor('devil-2', 'Wand', 2),
+    minor('devil-3', 'Cup', 3),
+    minor('devil-4', 'Sword', 4),
+    minor('devil-5', 'Pentacle', 5)
+  ]);
+  const minorAceStraight = evalRole([
+    minor('ace-wheel-1', 'Wand', 1),
+    minor('ace-wheel-2', 'Cup', 2),
+    minor('ace-wheel-3', 'Sword', 3),
+    minor('ace-wheel-4', 'Pentacle', 4),
+    minor('ace-wheel-5', 'Wand', 5)
+  ]);
+  const devilHighStraight = evalRole([
+    major(15),
+    minor('devil-high-11', 'Wand', 11),
+    minor('devil-high-12', 'Cup', 12),
+    minor('devil-high-13', 'Sword', 13),
+    minor('devil-high-14', 'Pentacle', 14)
+  ]);
   const majorSuits = Object.fromEntries(
     Array.from({ length: 22 }, (_, number) => [number, suitsForCard(major(number), false)])
   );
@@ -12736,6 +12762,9 @@ function auditKingdomMajorArcanaRules() {
       fourMajors: evalRole(validWorldCards.slice(0, 4)),
       foolStraight,
       magicianStraightFlush,
+      devilFalseAceStraight,
+      minorAceStraight,
+      devilHighStraight,
       worldCallOk: !!worldCall.ok,
       worldCallRole: worldCall.play?.role || null,
       invalidMajorCall,
@@ -13303,6 +13332,16 @@ function exposeTarotKingdomBattleDebugTools(target) {
       return snapshotTarotKingdomDebugState();
     },
     battleState: () => snapshotTarotKingdomDebugState(),
+    battleSetExplorationSession: (active = true, mode = 'offline') => {
+      kingdomExplorationSession = active
+        ? {
+            context: { mode: mode === 'online' ? 'online' : 'offline' },
+            resolve: () => {}
+          }
+        : null;
+      render();
+      return cloneKingdomSnapshotValue(getKingdomSettlementActionState(s), null);
+    },
     battleExplorationResult: () => cloneKingdomSnapshotValue(buildKingdomExplorationResult('completed'), null),
     battleActivateRaidBoss: (sourceIndex = 0) => ({
       ok: activateKingdomRaidBossForm(sourceIndex),
@@ -13382,6 +13421,54 @@ function exposeTarotKingdomBattleDebugTools(target) {
         resolveKingdomTransition();
       }
       return { ok: true, state: snapshotTarotKingdomDebugState() };
+    },
+    battleLoadProfileAndPlay: async (character = {}, card = {}) => {
+      const submittedCard = {
+        id: String(card.id || 'profile-resonance-card'),
+        kind: 'minor',
+        suit: String(card.suit || 'Cup'),
+        number: Math.max(1, Math.min(14, Math.floor(Number(card.number) || 1)))
+      };
+      buildTarotKingdomDebugBattleState({
+        enableNpcSeats: true,
+        turnIndex: 0,
+        withTrick: false,
+        handsBySeat: [[submittedCard, {
+          id: 'profile-resonance-reserve',
+          kind: 'minor',
+          suit: 'Wand',
+          number: 14
+        }]]
+      });
+      s.players[0].uid = 'profile-player';
+      s.players[0].playFabId = 'profile-player';
+      s.characterSnapshotReady = false;
+      const applied = await prepareKingdomCharacterSnapshots({
+        force: true,
+        online: false,
+        requesterPlayFabId: 'profile-player',
+        profileLoader: async () => ({
+          characters: [{
+            ...character,
+            source: 'playfab',
+            playFabId: 'profile-player'
+          }]
+        })
+      });
+      if (!applied) return { applied: false, state: snapshotTarotKingdomDebugState() };
+      const rebuilt = rebuildKingdomPlayFromAction(0, { selectedCardIds: [submittedCard.id] });
+      if (!rebuilt.ok) {
+        return {
+          applied: true,
+          played: false,
+          reason: rebuilt.reason || 'invalid-play',
+          state: snapshotTarotKingdomDebugState()
+        };
+      }
+      s.phase = 'turn';
+      s.turn = 0;
+      applyPlay(0, rebuilt.play);
+      return { applied: true, played: true, state: snapshotTarotKingdomDebugState() };
     },
     battlePublicState: () => cloneKingdomSnapshotValue(serializeStateForNet(), null),
     battleRender: () => {
@@ -16202,7 +16289,7 @@ function collectNpcRoleSeedInfo(pi) {
       const value = Number(raw) || 0;
       if (value <= 0) return;
       expanded.push(value);
-      if (value === 15) expanded.push(1);
+      if (value === 15 && canRepresentKingdomLowAce(card)) expanded.push(1);
     });
     return Array.from(new Set(expanded));
   });
@@ -16534,7 +16621,9 @@ function getNpcHandPotential(cards, lockSuit = null) {
   const numberCounts = new Map();
   const suitCounts = new Map(SUITS.map((suit) => [suit, 0]));
   const values = new Set();
+  let hasLowAce = false;
   hand.forEach((card) => {
+    if (canRepresentKingdomLowAce(card)) hasLowAce = true;
     roleNumberOptions(card).forEach((raw) => {
       const value = setRankFromNumber(raw);
       if (value > 0) values.add(value);
@@ -16563,7 +16652,7 @@ function getNpcHandPotential(cards, lockSuit = null) {
   for (let start = 1; start <= 11; start += 1) {
     let matches = 0;
     for (let value = start; value < start + 5; value += 1) {
-      if (values.has(value) || (value === 1 && values.has(15))) matches += 1;
+      if (values.has(value) || (value === 1 && hasLowAce)) matches += 1;
     }
     straightSeed = Math.max(straightSeed, matches);
   }
@@ -17416,6 +17505,14 @@ function settleKingdomExplorationSession(status = 'completed') {
   return result;
 }
 
+function isKingdomExplorationDefeatState(state = s) {
+  return !!(
+    kingdomExplorationSession
+    && state?.battle?.outcome === 'defeat'
+    && ['party-retreated', 'party-defeated'].includes(String(state?.battle?.resultReason || ''))
+  );
+}
+
 function getKingdomSettlementActionState(state = s) {
   if (!state) return null;
   if (kingdomRoundPetOfferPromise) {
@@ -17427,6 +17524,13 @@ function getKingdomSettlementActionState(state = s) {
   }
   const isMatchDone = isKingdomMatchDoneState(state);
   if (isMatchDone) {
+    if (isKingdomExplorationDefeatState(state)) {
+      return {
+        kind: 'explorationRetreat',
+        label: '撤退',
+        disabled: false
+      };
+    }
     if (kingdomExplorationSession) {
       return {
         kind: 'explorationComplete',
@@ -20750,8 +20854,7 @@ function renderSettlement() {
   const confirmButton = ui.settlementConfirmButton;
   const data = s.roundSettlement;
   const actionState = getKingdomSettlementActionState(s);
-  const isMatchDone = actionState?.kind === 'restart';
-  const show = !!data || isMatchDone;
+  const show = !!data || !!actionState;
   ui.root?.classList.remove('is-settlement-open');
   ui.root?.classList.toggle('has-settlement-action', !!actionState);
   if (!show) {
@@ -21285,7 +21388,10 @@ async function handleKingdomOfflineStartClick() {
 }
 
 async function handleKingdomExplorationRetreatClick() {
-  if (!kingdomExplorationSession || !shouldShowKingdomModeChoice()) return;
+  if (
+    !kingdomExplorationSession
+    || (!shouldShowKingdomModeChoice() && !isKingdomExplorationDefeatState(s))
+  ) return;
   if (isNetModeActive() && tkNet.isHost) {
     await removeCurrentOpenRoomIndex();
   }
@@ -21777,6 +21883,12 @@ function bindUi() {
     if (!actionState) return;
     if (actionState.kind === 'explorationComplete') {
       settleKingdomExplorationSession('completed');
+      return;
+    }
+    if (actionState.kind === 'explorationRetreat') {
+      handleKingdomExplorationRetreatClick().catch((error) => {
+        console.warn('[tarotKingdom] settlement retreat failed:', error);
+      });
       return;
     }
     if (actionState.kind === 'restart') {

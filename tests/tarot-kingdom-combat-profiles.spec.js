@@ -80,7 +80,7 @@ async function withCombatProfilesApi(callback, options = {}) {
   const PlayFabEconomy = {
     GetInventoryItems: Symbol('GetInventoryItems')
   };
-  const catalogCache = {
+  const catalogCache = options.catalogCache || {
     weapon_sword_01: {
       DisplayName: '海賊の剣',
       Description: 'テスト用の剣',
@@ -147,7 +147,7 @@ async function withCombatProfilesApi(callback, options = {}) {
           HairStyleIndex: { Value: '6' },
           HairColorIndex: { Value: '3' },
           FacialHairStyleIndex: { Value: '0' },
-          TarotDeck: { Value: '["minor-cup-1"]' },
+          TarotDeck: { Value: JSON.stringify(options.tarotDeckIds || ['minor-cup-1']) },
           TarotGuardianArcana: { Value: JSON.stringify({ version: 1, itemId: 'tarot_major_01' }) },
           TarotDeckV2: { Value: '["secret-card"]' },
           ...(options.petState ? {
@@ -172,7 +172,7 @@ async function withCombatProfilesApi(callback, options = {}) {
     }
     if (fn === PlayFabEconomy.GetInventoryItems) {
       return {
-        Items: [
+        Items: options.inventoryItems || [
           {
             StackId: 'stack-sword',
             Id: 'weapon_sword_01',
@@ -206,7 +206,7 @@ async function withCombatProfilesApi(callback, options = {}) {
       { pushMessage: async () => null },
       catalogCache,
       {},
-      (id) => id,
+      options.resolveItemId || ((id) => id),
       { VIRTUAL_CURRENCY_CODE: 'PS', LEADERBOARD_NAME: 'ps_ranking', BATTLE_REWARD_POINTS: 0 },
       {
         requireAuthenticatedPlayFabId,
@@ -346,6 +346,72 @@ test('combat profile API authenticates the requester and returns sanitized melee
     expect(profileRequests).toHaveLength(profileRequestCount + 3);
     expect(dbReadPaths.every((refPath) => !refPath.endsWith('/room-test'))).toBe(true);
     expect(dbReadPaths.some((refPath) => refPath.endsWith('/state'))).toBe(false);
+  });
+});
+
+test('combat profile restores all five saved legacy tarot ids before battle starts', async () => {
+  const tarotDeckIds = [
+    'tarot_minor_wand_01',
+    'tarot_minor_cup_05',
+    'tarot_minor_sword_10',
+    'tarot_minor_pentacle_13',
+    'minor-sword-14'
+  ];
+  const catalogItemIds = tarotDeckIds.map((_itemId, index) => `catalog-tarot-${index}`);
+  const inventoryItems = [
+    { StackId: 'stack-sword', Id: 'weapon_sword_01' },
+    { StackId: 'stack-armor', Id: 'armor_coat_01' },
+    { StackId: 'stack-charm', Id: 'charm_01' },
+    ...catalogItemIds.map((itemId, index) => ({ StackId: `stack-tarot-${index}`, Id: itemId }))
+  ];
+
+  await withCombatProfilesApi(async ({ handler }) => {
+    const result = await invoke(handler, {
+      playFabId: 'PF_REQUESTER',
+      targetPlayFabIds: ['PF_REQUESTER']
+    });
+
+    expect(result.statusCode).toBe(200);
+    expect(result.payload.characters[0].tarotDeck).toEqual([
+      expect.objectContaining({ slot: 0, itemId: catalogItemIds[0], suit: 'Wand', rank: 1 }),
+      expect.objectContaining({ slot: 1, itemId: catalogItemIds[1], suit: 'Cup', rank: 5 }),
+      expect.objectContaining({ slot: 2, itemId: catalogItemIds[2], suit: 'Sword', rank: 10 }),
+      expect.objectContaining({ slot: 3, itemId: catalogItemIds[3], suit: 'Pentacle', rank: 13 }),
+      expect.objectContaining({ slot: 4, itemId: catalogItemIds[4], suit: 'Sword', rank: 14 })
+    ]);
+  }, {
+    tarotDeckIds,
+    inventoryItems,
+    resolveItemId: (itemId) => {
+      const index = tarotDeckIds.indexOf(itemId);
+      return index >= 0 ? catalogItemIds[index] : itemId;
+    },
+    catalogCache: {
+      weapon_sword_01: {
+        DisplayName: '海賊の剣',
+        Category: 'Weapon',
+        ManifestWeaponType: 'sword',
+        Power: 5
+      },
+      armor_coat_01: { DisplayName: '船長のコート', Category: 'Armor', Defense: 8 },
+      charm_01: { DisplayName: '知恵のお守り', Category: 'Accessory', Int: 4 },
+      ...Object.fromEntries(catalogItemIds.map((itemId, index) => {
+        const [suit, rank] = [
+          ['Wand', 1],
+          ['Cup', 5],
+          ['Sword', 10],
+          ['Pentacle', 13],
+          ['Sword', 14]
+        ][index];
+        return [itemId, {
+          FriendlyId: tarotDeckIds[index],
+          DisplayName: `${suit} ${rank}`,
+          Category: 'TarotMinor',
+          ArcanaSuit: suit,
+          ArcanaRank: rank
+        }];
+      }))
+    }
   });
 });
 
