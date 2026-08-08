@@ -41,7 +41,7 @@ export const TROY_BOTTLE_ITEMS = [
     { concept: 'キンミヤボトル', content: '割物はスタッフまで', price: 2500, emoji: '🍶' },
     { concept: '黒霧ボトル', content: '割物はスタッフまで', price: 3000, emoji: '🍾' },
     { concept: 'ワインボトル', content: '', price: 3000, emoji: '🍷' },
-    { concept: 'モエ・エ・シャンドン', content: '', price: 18000, emoji: '🍾' },
+    { concept: 'モエ・エ・シャンドン', content: '', price: 20000, emoji: '🍾' },
     { concept: '角ボトル', content: '割物はスタッフまで', price: 4000, emoji: '🥃' }
 ];
 

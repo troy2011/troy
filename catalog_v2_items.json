@@ -4198,7 +4198,7 @@
         "ShopSeedable": false,
         "ShopCraftable": false,
         "MenuCategory": "whisky",
-        "MenuPrice": 18000,
+        "MenuPrice": 20000,
         "image_path": "./Sprites/drinks/troy_champagne_bottle_flute.png",
         "sprite_path": "./Sprites/drinks/troy_champagne_bottle_flute.png",
         "sprite_index": 0,

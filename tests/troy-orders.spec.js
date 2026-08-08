@@ -196,7 +196,7 @@ test('staff register creates a checkout from an in-store member and settles with
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="ワインボトル"]')).toContainText('¥3,000');
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="グラスワイン（赤） S"]')).toContainText('¥500');
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="グラスワイン（白） S"]')).toContainText('¥500');
-  await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="モエ・エ・シャンドン"]')).toContainText('¥18,000');
+  await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="モエ・エ・シャンドン"]')).toContainText('¥20,000');
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="角ボトル"]')).toContainText('¥4,000');
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="ワインボトル"] .troy-orders-pos-thumb img')).toHaveAttribute('src', /Sprites\/drinks\/pirate_red_wine_bottle\.png/);
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="グラスワイン（赤） S"] .troy-orders-pos-thumb img')).toHaveAttribute('src', /Sprites\/drinks\/pirate_red_wine_glass\.png/);

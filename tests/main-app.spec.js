@@ -1004,7 +1004,7 @@ export function onSnapshot(_ref, next) {
   await expect(wineBottleItem.locator('.troy-menu-board-price')).toHaveText('¥3,000');
   await expect(wineBottleItem.locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/drinks\/pirate_red_wine_bottle\.png/);
   const moetItem = page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: /^モエ・エ・シャンドン$/ }) });
-  await expect(moetItem.locator('.troy-menu-board-price')).toHaveText('¥18,000');
+  await expect(moetItem.locator('.troy-menu-board-price')).toHaveText('¥20,000');
   await expect(moetItem.locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/drinks\/troy_champagne_bottle_flute\.png/);
   const kakuBottleItem = page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: /^角ボトル$/ }) });
   await expect(kakuBottleItem.locator('.troy-menu-board-price')).toHaveText('¥4,000');
@@ -6161,6 +6161,49 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   await page.locator('#openArcanaResonanceCatalog').click();
   await expect(page.locator('#arcanaResonanceCatalogTitle')).toHaveText('タロット効果一覧');
   await expect(page.locator('#arcanaResonanceCatalogModal')).toBeVisible();
+  await expect(page.locator('#arcanaResonanceCatalogModal')).toHaveCSS('opacity', '1');
+  await expect(page.locator('body')).toHaveClass(/modal-lock/);
+  await page.locator('.arcana-resonance-tabs [data-tab="Wand"]').click();
+  await expect(page.locator('.arcana-resonance-row[data-suit="wand"].is-equipped')).toHaveCount(3);
+  await expect(page.locator('.arcana-resonance-row[data-suit="wand"].is-equipped .arcana-resonance-title span')).toHaveText([
+    '装備中',
+    '装備中',
+    '装備中'
+  ]);
+  await page.locator('.arcana-resonance-row[data-suit="wand"].is-equipped').first().click();
+  await expect(page.locator('#arcanaResonanceCatalogModal')).toBeHidden();
+  await expect(page.locator('#itemDetailModal')).toBeVisible();
+  await expect(page.locator('#itemDetailMeta')).toContainText('枠1');
+  await page.locator('#itemDetailModal .item-detail-corner-close').click();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('#openArcanaResonanceCatalog').click();
+  const catalogLayout = await page.locator('#arcanaResonanceCatalogModal').evaluate((modal) => {
+    const sheet = modal.querySelector('.arcana-resonance-sheet');
+    const closeButton = modal.querySelector('.arcana-resonance-close');
+    const sheetRect = sheet.getBoundingClientRect();
+    const closeRect = closeButton.getBoundingClientRect();
+    const hitTarget = document.elementFromPoint(
+      closeRect.left + closeRect.width / 2,
+      closeRect.top + closeRect.height / 2
+    );
+    return {
+      sheetInsideViewport: sheetRect.left >= 0
+        && sheetRect.top >= 0
+        && sheetRect.right <= window.innerWidth
+        && sheetRect.bottom <= window.innerHeight,
+      closeInsideViewport: closeRect.left >= 0
+        && closeRect.top >= 0
+        && closeRect.right <= window.innerWidth
+        && closeRect.bottom <= window.innerHeight,
+      closeIsTopTarget: hitTarget === closeButton || closeButton.contains(hitTarget)
+    };
+  });
+  expect(catalogLayout).toEqual({
+    sheetInsideViewport: true,
+    closeInsideViewport: true,
+    closeIsTopTarget: true
+  });
   await page.locator('.arcana-resonance-tabs [data-tab="Major"]').click();
   await expect(page.locator('.arcana-resonance-row[data-suit="major"]')).toHaveCount(22);
   await expect(page.locator('.arcana-resonance-row[data-suit="major"].is-equipped')).toContainText('魔導士');
@@ -6168,6 +6211,9 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   await page.locator('.arcana-resonance-filters [data-filter="equipped"]').click();
   await expect(page.locator('.arcana-resonance-row[data-suit="major"]')).toHaveCount(1);
   await page.locator('.arcana-resonance-close').click();
+  await expect(page.locator('#arcanaResonanceCatalogModal')).toBeHidden();
+  await expect(page.locator('body')).not.toHaveClass(/modal-lock/);
+  await page.setViewportSize({ width: 1280, height: 720 });
 
   const badgeStyles = await page.evaluate(() => {
     const read = (selector) => {

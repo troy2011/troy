@@ -90,6 +90,7 @@ let tarotBattleSkillsLoaded = false;
 let selectedTarotLoadoutItemId = '';
 let tarotDeckMovePending = false;
 let suppressTarotLoadoutClickUntil = 0;
+let arcanaResonanceCatalogReturnFocusElement = null;
 
 async function loadCardLevels() {
     try {
@@ -1347,12 +1348,26 @@ function renderGuardianArcanaEffectList(root) {
     root.replaceChildren(button);
 }
 
+function closeArcanaResonanceCatalog(options = {}) {
+    const modal = document.getElementById('arcanaResonanceCatalogModal');
+    if (!modal) return;
+    const restoreFocus = options.restoreFocus !== false;
+    const returnFocusElement = arcanaResonanceCatalogReturnFocusElement;
+    modal.setAttribute('aria-hidden', 'true');
+    hideModal(modal);
+    if (restoreFocus && returnFocusElement?.isConnected) {
+        requestAnimationFrame(() => returnFocusElement.focus());
+    }
+    arcanaResonanceCatalogReturnFocusElement = null;
+}
+
 function openArcanaResonanceCatalog() {
     let modal = document.getElementById('arcanaResonanceCatalogModal');
     if (!modal) {
         modal = document.createElement('div');
         modal.id = 'arcanaResonanceCatalogModal';
         modal.className = 'modal-overlay arcana-resonance-catalog';
+        modal.setAttribute('aria-hidden', 'true');
         modal.innerHTML = `
             <section class="arcana-resonance-sheet" role="dialog" aria-modal="true" aria-labelledby="arcanaResonanceCatalogTitle">
                 <header class="arcana-resonance-head">
@@ -1368,9 +1383,30 @@ function openArcanaResonanceCatalog() {
             </section>
         `;
         document.body.appendChild(modal);
-        modal.querySelector('.arcana-resonance-close')?.addEventListener('click', () => modal.classList.remove('active'));
+        modal.querySelector('.arcana-resonance-close')?.addEventListener('click', () => closeArcanaResonanceCatalog());
         modal.addEventListener('click', (event) => {
-            if (event.target === modal) modal.classList.remove('active');
+            if (event.target === modal) closeArcanaResonanceCatalog();
+        });
+        modal.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                closeArcanaResonanceCatalog();
+                return;
+            }
+            if (event.key !== 'Tab') return;
+            const focusable = Array.from(modal.querySelectorAll('button:not(:disabled), [tabindex="0"]'))
+                .filter((element) => !element.closest('[hidden]'));
+            if (!focusable.length) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
         });
     }
     const tabs = [
@@ -1418,14 +1454,18 @@ function openArcanaResonanceCatalog() {
                    <p>${definition.effect}</p>
                    <small>${definition.r?.formula || ''}${definition.range ? ` · ${definition.range}` : ''}${item ? ` · 現在Lvの数値倍率 ×${scale.toFixed(2)}` : ' · 入手後に共鳴デッキへ設定できます'}</small>`;
             if (item) {
+                const openDetail = () => {
+                    closeArcanaResonanceCatalog({ restoreFocus: false });
+                    showItemDetailModal(item);
+                };
                 row.tabIndex = 0;
                 row.setAttribute('role', 'button');
                 row.setAttribute('aria-label', `${item.name || definition.name}の詳細を開く`);
-                row.addEventListener('click', () => showItemDetailModal(item));
+                row.addEventListener('click', openDetail);
                 row.addEventListener('keydown', (event) => {
                     if (event.key !== 'Enter' && event.key !== ' ') return;
                     event.preventDefault();
-                    showItemDetailModal(item);
+                    openDetail();
                 });
             }
             listRoot.appendChild(row);
@@ -1461,7 +1501,11 @@ function openArcanaResonanceCatalog() {
         filterRoot.appendChild(button);
     });
     renderTab('Cup');
-    modal.classList.add('active');
+    arcanaResonanceCatalogReturnFocusElement = document.activeElement;
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'false');
+    showModal(modal);
+    requestAnimationFrame(() => modal.querySelector('.arcana-resonance-close')?.focus());
 }
 
 function renderTarotDeckPanels() {
