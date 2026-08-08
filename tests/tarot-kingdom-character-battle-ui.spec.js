@@ -1357,22 +1357,22 @@ test('monsters with two attack sheets use the second one for area attacks and pe
   expect(selection.fallback).toEqual({ single: 'attack', area: 'attack', skill: 'attack' });
   expect(selection.motion).toMatchObject({
     animationName: 'attack2',
-    animationDurationMs: 1100,
+    animationDurationMs: 900,
     advanceDurationMs: 180,
     returnDurationMs: 180,
-    totalDurationMs: 1280
+    totalDurationMs: 1080
   });
   expect(selection.timing.short).toMatchObject({
     animationDurationMs: 400,
     totalDurationMs: 580
   });
   expect(selection.timing.medium).toMatchObject({
-    animationDurationMs: 1600,
-    totalDurationMs: 1780
+    animationDurationMs: 900,
+    totalDurationMs: 1080
   });
   expect(selection.timing.capped).toMatchObject({
-    animationDurationMs: 1800,
-    totalDurationMs: 1980
+    animationDurationMs: 900,
+    totalDurationMs: 1080
   });
 
   const enemySequence = await page.evaluate(() => {
@@ -1406,13 +1406,13 @@ test('monsters with two attack sheets use the second one for area attacks and pe
     {
       type: 'enemy-single',
       attackAnimationName: 'attack',
-      attackAnimationDurationMs: 1100,
+      attackAnimationDurationMs: 900,
       attackReturnDurationMs: 180
     },
     {
       type: 'enemy-area',
       attackAnimationName: 'attack2',
-      attackAnimationDurationMs: 1100,
+      attackAnimationDurationMs: 900,
       attackReturnDurationMs: 180
     }
   ]);
@@ -1424,7 +1424,7 @@ test('monsters with two attack sheets use the second one for area attacks and pe
     .split(',')
     .map((value) => Number.parseFloat(value));
   expect(motionDelays[0]).toBeLessThanOrEqual(0);
-  expect(motionDelays[1]).toBeGreaterThan(1);
+  expect(motionDelays[1]).toBeGreaterThan(0.75);
   await page.waitForTimeout(220);
   const forwardOffset = await page.locator('.tarot-kingdom-battle-enemy-visual').evaluate((visual) => {
     const transform = getComputedStyle(visual).transform;
@@ -1521,7 +1521,7 @@ test('all monster attack sheets use their native timing up to the compact battle
   audit.forEach((monster) => {
     for (const motion of [monster.single, monster.area]) {
       expect(motion.animationDurationMs, monster.name).toBeGreaterThan(0);
-      expect(motion.animationDurationMs, monster.name).toBeLessThanOrEqual(1800);
+      expect(motion.animationDurationMs, monster.name).toBeLessThanOrEqual(900);
       expect(motion.advanceDurationMs, monster.name).toBe(180);
       expect(motion.returnDurationMs, monster.name).toBe(180);
       expect(motion.totalDurationMs, monster.name).toBe(motion.animationDurationMs + 180);
@@ -1532,7 +1532,7 @@ test('all monster attack sheets use their native timing up to the compact battle
 
   const rubit = audit.find((monster) => monster.id === 'ismartal-vol2-monster-08');
   expect(rubit?.name).toBe('ルビット');
-  expect(rubit?.single.animationDurationMs).toBe(1800);
+  expect(rubit?.single.animationDurationMs).toBe(900);
 });
 
 test('player attack and retreat shadows follow horizontal movement without leaving the floor', async ({ page }) => {

@@ -237,6 +237,11 @@ test('all 11 exploration stages load distinct dedicated battlefield images', asy
     backgroundPosition: 'center -24px',
     backgroundSize: '100% calc(100% + 24px)'
   });
+  expect(result.find((entry) => entry.id === 'stage-06-haunted-marsh')).toMatchObject({
+    imagePath: './assets/tarot-kingdom/battlefields/stage-06-haunted-marsh-v2.webp',
+    groundStartPercent: 36,
+    surface: 'wet-stone'
+  });
   expect(result.filter((entry) => entry.shipSide).every((entry) => entry.surface.endsWith('-deck'))).toBe(true);
   expect(result.find((entry) => entry.id === 'stage-09-steel-fleet')).toMatchObject({
     imagePath: './assets/tarot-kingdom/battlefields/stage-09-steel-fleet-v2.webp',

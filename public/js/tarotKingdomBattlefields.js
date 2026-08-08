@@ -44,7 +44,7 @@ const BATTLEFIELD_DEFINITIONS = [
   {
     id: 'stage-06-haunted-marsh',
     label: '幽霊沼の夜',
-    imagePath: './assets/tarot-kingdom/battlefields/stage-06-haunted-marsh-v1.webp',
+    imagePath: './assets/tarot-kingdom/battlefields/stage-06-haunted-marsh-v2.webp',
     surface: 'wet-stone',
     shipSide: false,
     groundStartPercent: 36

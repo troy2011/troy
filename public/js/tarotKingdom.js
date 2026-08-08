@@ -57,7 +57,7 @@ import {
   TAROT_KINGDOM_RAID_BATTLEFIELD_ID,
   createTarotKingdomBattlefieldSnapshot,
   getTarotKingdomBattlefieldById
-} from './tarotKingdomBattlefields.js?v=20260731-skip-soak1';
+} from './tarotKingdomBattlefields.js?v=20260808-stage6-bg1';
 import {
   calculateTarotKingdomHitChance,
   calculateTarotKingdomEnemyMitigatedDamage,
@@ -391,7 +391,7 @@ const A_PENALTY = 1;
 const ROUND_START_CINEMATIC_MS = 980;
 const OPENING_ENEMY_ENTER_MS = 860;
 const OPENING_ENEMY_ATTACK_MS = 720;
-const KINGDOM_MONSTER_ATTACK_ANIMATION_MAX_MS = 1800;
+const KINGDOM_MONSTER_ATTACK_ANIMATION_MAX_MS = 900;
 const OPENING_FIELD_CARD_MS = 520;
 const ROUND_OUT_CINEMATIC_MS = 1080;
 const KINGDOM_RUSH_MONSTER_PLAYBACK_RATE = 0.32;
