@@ -2061,9 +2061,12 @@ function isInventoryEquipmentCategory(category) {
 
 function isEquipmentReferenceMatch(item, equippedValue) {
     if (!item || !equippedValue) return false;
+    const itemId = String(item?.itemId || '').trim();
+    const equippedItemId = getEquipmentReferenceItemId(equippedValue);
+    if (equippedItemId && equippedItemId !== itemId) return false;
     const equippedStackId = getEquipmentReferenceStackId(equippedValue);
     if (equippedStackId) return getInventoryStackIds(item).includes(equippedStackId);
-    return getEquipmentReferenceItemId(equippedValue) === String(item?.itemId || '').trim();
+    return !!equippedItemId && equippedItemId === itemId;
 }
 
 function getItemEffectSummary(effect) {

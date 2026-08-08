@@ -304,27 +304,16 @@ export function isTarotKingdomDeckMatch(card, deckEntry) {
 
 export function getTarotKingdomResonanceMatch(card, deckEntry) {
     const rank = positiveRank(deckEntry?.rank);
-    if (!card || !rank || Number(card.number) !== rank) return null;
-    if (card.kind === 'minor') {
-        const suit = normalizeSuit(card.suit);
-        if (!suit) return null;
-        const exact = suit === normalizeSuit(deckEntry?.suit);
-        return {
-            kind: exact ? 'exact' : 'same-rank',
-            multiplier: exact ? 1 : 0.5,
-            attribute: '',
-            submittedCard: card
-        };
-    }
-    if (card.kind === 'major' && rank >= 1 && rank <= 14) {
-        return {
-            kind: 'major-rank',
-            multiplier: 0.5,
-            attribute: getTarotKingdomMajorAttribute(rank),
-            submittedCard: card
-        };
-    }
-    return null;
+    if (!card || card.kind !== 'minor' || !rank || Number(card.number) !== rank) return null;
+    const suit = normalizeSuit(card.suit);
+    if (!suit) return null;
+    const exact = suit === normalizeSuit(deckEntry?.suit);
+    return {
+        kind: exact ? 'exact' : 'same-rank',
+        multiplier: exact ? 1 : 0.5,
+        attribute: '',
+        submittedCard: card
+    };
 }
 
 function getLivingPlayerIndexes(players = [], actorIndex = 0, predicate = null) {
@@ -586,8 +575,6 @@ function getOptionalPlayerIndex(value) {
 }
 
 function getSourceElement(entry, context = {}) {
-    const match = context.resonanceMatch || {};
-    if (match.kind === 'major-rank') return String(match.attribute || 'neutral');
     return TAROT_SUIT_ELEMENT[entry.suit] || '';
 }
 
@@ -1003,7 +990,7 @@ export function buildTarotKingdomResonanceCandidate(entry, card, context = {}) {
 
 export function resolveTarotKingdomResonance(context = {}) {
     const cards = (Array.isArray(context.cards) ? context.cards : [])
-        .filter((card) => card?.kind === 'minor' || (card?.kind === 'major' && Number(card.number) >= 1 && Number(card.number) <= 14));
+        .filter((card) => card?.kind === 'minor');
     const deck = normalizeTarotKingdomTarotDeck(context.character?.tarotDeck || []);
     const candidates = [];
     deck.forEach((entry) => {

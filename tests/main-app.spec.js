@@ -6824,6 +6824,74 @@ test('equipment cards open detail before equipping from inventory grid', async (
   await expectNoPageErrors(errors);
 });
 
+test('equipment marker matches item id when Economy stacks share the default stack id', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const equipmentItems = [
+    {
+      itemId: 'sword_001',
+      stackId: '',
+      instances: ['default'],
+      stacks: [{ stackId: 'default', count: 1 }],
+      count: 1,
+      name: 'Iron Sword',
+      customData: { Category: 'Weapon', Power: 12 }
+    },
+    {
+      itemId: 'musket_001',
+      stackId: '',
+      instances: ['default'],
+      stacks: [{ stackId: 'default', count: 1 }],
+      count: 1,
+      name: 'Musket',
+      customData: { Category: 'Weapon', Power: 22 }
+    }
+  ];
+
+  await page.route('**/api/get-inventory', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ inventory: equipmentItems, virtualCurrency: { PS: 0 }, contribution: 0 })
+    });
+  });
+  await page.route('**/api/get-equipment', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        equipment: {
+          RightHand: { itemId: 'musket_001', stackId: 'default', customData: { Category: 'Weapon', Power: 22 } }
+        }
+      })
+    });
+  });
+  await page.route('**/api/tarot-deck-get', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ok: true, tarotDeck: [], tarotRole: null })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    const inventoryTab = document.getElementById('tabContentInventory');
+    if (inventoryTab) inventoryTab.style.display = 'block';
+    const inventory = await import('/js/inventory.js');
+    await inventory.getInventory('PF_PLAYWRIGHT', { force: true });
+    inventory.switchInventoryGroup('Equipment');
+    inventory.switchInventoryTab('Weapon');
+  });
+
+  const cards = page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]');
+  await expect(cards).toHaveCount(2);
+  await expect(cards.filter({ hasText: 'Musket' })).toHaveAttribute('data-equipment-state', 'equipped');
+  await expect(cards.filter({ hasText: 'Iron Sword' })).toHaveAttribute('data-equipment-state', 'available');
+  await expect(cards.locator('.inventory-item-badge.is-active')).toHaveCount(1);
+  await expect(page.locator('#inventoryGrid .inventory-item-cell.is-equipment-equipped')).toHaveCount(1);
+  await expectNoPageErrors(errors);
+});
+
 test('single one-handed weapon cannot be equipped to both hands from detail modal', async ({ page }) => {
   const errors = trackPageErrors(page);
   const equipmentItems = [

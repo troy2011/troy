@@ -243,6 +243,46 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     expect(audit.pactExpired.players[0]).toMatchObject({ maxHp: 120, hp: 60 });
   });
 
+  test('The World five-card role stops the enemy and keeps two turns after its own clear', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const played = debug.battleDemoRoleFormation('normal:TheWorld');
+      const playEvent = played.state.battle.events.at(-1);
+      const hpBeforePasses = played.state.players.map((player) => player.hp);
+      debug.battleResolveTransition();
+      debug.battlePass(1);
+      debug.battlePass(2);
+      const cleared = debug.battlePass(3);
+      const stopEvent = cleared.battle.events.findLast((event) => (
+        event.type === 'enemy-status' && event.attackKind === 'area'
+      ));
+      return { played, playEvent, hpBeforePasses, cleared, stopEvent };
+    });
+
+    expect(audit.played).toMatchObject({ ok: true, error: '' });
+    expect(audit.played.state.battle.effects.enemy.timeStop).toMatchObject({
+      remainingTurns: 2,
+      expiresOn: 'turn',
+      source: 'role-TheWorld'
+    });
+    expect(audit.playEvent.effects).toContainEqual(expect.objectContaining({
+      kind: 'role-debuff',
+      roleKey: 'TheWorld',
+      statusKey: 'timeStop',
+      success: true
+    }));
+    expect(audit.cleared.battle.effects.enemy.timeStop).toMatchObject({
+      remainingTurns: 2,
+      source: 'role-TheWorld'
+    });
+    expect(audit.stopEvent).toMatchObject({
+      attackStopped: true,
+      effects: [expect.objectContaining({ kind: 'skip', statusKey: 'timeStop' })]
+    });
+    expect(audit.cleared.players.map((player) => player.hp)).toEqual(audit.hpBeforePasses);
+    expect(audit.cleared.battle.pendingWorldTimeStop).toBeUndefined();
+  });
+
   test('regen gives the player a pale green aura and shows the recovered amount on clear', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     const active = await page.evaluate(() => {

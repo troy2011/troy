@@ -1040,7 +1040,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     await expect(page.locator('.tarot-kingdom-effect-banner')).toHaveText('盾割り');
   });
 
-  test('selected card effects replace the guardian passive in the compact arcana navigation', async ({ page }) => {
+  test('selected minor resonance and major dedicated effects use the compact arcana navigation correctly', async ({ page }) => {
     const character = {
       version: 3,
       tarotDeck: [{
@@ -1090,16 +1090,16 @@ test.describe('Tarot Kingdom character battle flow', () => {
 
     await exactCard.click();
     const awakenedCard = page.locator('#tarotKingdomHand [data-card-id="hud-major-5"]');
-    await expect(awakenedCard.locator('.tarot-card-resonance-mark')).toHaveCount(1);
-    await expect(awakenedCard.locator('[aria-label="同じ数字の装備カード共鳴 50%"]')).toHaveText('共');
+    await expect(awakenedCard.locator('.tarot-card-resonance-mark')).toHaveCount(0);
     await expect(awakenedCard.locator('[aria-label="守護アルカナ覚醒"]')).toHaveCount(0);
     await awakenedCard.click();
     await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText('法王 / 5スキップ');
     await expect(page.locator('#tarotKingdomSelectedEffectText')).not.toContainText('共鳴');
-    await expect(page.locator('#tarotKingdomGuardianPassiveLabel')).toHaveText('共鳴');
-    await expect(page.locator('#tarotKingdomGuardianPassiveName')).toBeHidden();
+    await expect(page.locator('#tarotKingdomGuardianPassiveLabel')).toHaveText('守護');
+    await expect(page.locator('#tarotKingdomGuardianPassiveName')).toHaveText('魔導士');
+    await expect(page.locator('#tarotKingdomGuardianPassiveName')).toBeVisible();
     await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('盾割り');
-    await expect(page.locator('#tarotKingdomGuardianPassiveText')).toContainText('R0：27ダメージ');
+    await expect(page.locator('#tarotKingdomGuardianPassiveText')).not.toContainText('R0：27ダメージ');
     await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('共鳴50%');
     await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('軽減55%');
 

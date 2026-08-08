@@ -6846,6 +6846,34 @@ function setKingdomMajorTimedEffect(targetType, key, effect, targetIndex = null)
   }, targetIndex);
 }
 
+function applyKingdomWorldRoleTimeStop(playerIndex, role) {
+  if (String(role?.key || '') !== 'TheWorld' || !s?.battle) return null;
+  const remainingTurns = 2;
+  setKingdomMajorTimedEffect('enemy', 'timeStop', {
+    potency: 100,
+    remainingTurns,
+    sourceIndex: playerIndex,
+    source: 'role-TheWorld',
+    label: '時間停止'
+  });
+  s.battle.pendingWorldTimeStop = {
+    sourceIndex: playerIndex,
+    remainingTurns,
+    source: 'role-TheWorld'
+  };
+  return {
+    source: 'role',
+    kind: 'role-debuff',
+    roleKey: 'TheWorld',
+    targetType: 'enemy',
+    statusKey: 'timeStop',
+    potency: 100,
+    remainingTurns,
+    success: true,
+    label: '時間停止'
+  };
+}
+
 function cleanseKingdomMajorNegativeEffects(playerIndex) {
   const bucket = getKingdomEffectBucket('player', playerIndex);
   if (!bucket) return [];
@@ -7857,7 +7885,7 @@ function emitKingdomGuardianPassive(playerIndex, label, results = []) {
 
 function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
   if (!areKingdomCombatEffectsEnabled() || !s?.battle || !s.players?.[playerIndex]) {
-    return { results: [], damage: 0, heal: 0, effectCount: 0, resonance: null, weapon: null, summon: null, major: null };
+    return { results: [], damage: 0, heal: 0, effectCount: 0, resonance: null, weapon: null, summon: null, major: null, worldRole: null };
   }
   const character = s.players[playerIndex].character || {};
   const submittedCards = Array.isArray(play?.cardsHand) ? play.cardsHand : [];
@@ -8058,6 +8086,8 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
   if (guardianPassiveResults.length) results.push(...guardianPassiveResults);
   const major = resolveKingdomMajorBattleEffect(playerIndex, play, options);
   if (major) results.push(...major.results);
+  const worldRole = applyKingdomWorldRoleTimeStop(playerIndex, rebuiltRole);
+  if (worldRole) results.push(worldRole);
   return {
     results,
     damage: results.filter((entry) => entry.targetType === 'enemy').reduce((sum, entry) => sum + Math.max(0, Number(entry.amount) || 0), 0),
@@ -8067,11 +8097,12 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
     heal: results.filter((entry) => entry.targetType === 'player' && ['heal', 'heal-percent', 'major-heal'].includes(entry.kind))
       .reduce((sum, entry) => sum + Math.max(0, Number(entry.amount) || 0), 0),
     effectCount: (weapon ? 1 : 0) + (resonance ? 1 : 0) + (summon ? 1 : 0)
-      + (major ? 1 : 0) + guardianPassiveResults.length,
+      + (major ? 1 : 0) + (worldRole ? 1 : 0) + guardianPassiveResults.length,
     resonance,
     weapon,
     summon,
-    major
+    major,
+    worldRole
   };
 }
 
@@ -8310,6 +8341,7 @@ function applyKingdomEnemyPreAttack(attackKind) {
       attackKind,
       effects,
       damage: statusDamage,
+      attackStopped: true,
       hpBefore: effects.find((entry) => entry.hpBefore != null)?.hpBefore,
       hpAfter: enemy.hp,
       label: `${enemy.name}は${label}で攻撃できない`
@@ -8694,7 +8726,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
   recordKingdomGuardianAttackAttempt(playerIndex, impairment);
   if (before <= 0) {
     const secondary = impairment.cancelsAllEffects
-      ? { results: [], damage: 0, heal: 0, effectCount: 0, resonance: null, weapon: null, summon: null, major: null }
+      ? { results: [], damage: 0, heal: 0, effectCount: 0, resonance: null, weapon: null, summon: null, major: null, worldRole: null }
       : applyKingdomSecondaryEffects(playerIndex, play, {
           enemyAttackMissed: impairment.missed,
           baseAttackDamage: 0,
@@ -8790,7 +8822,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
   const baseDamage = Math.min(before, displayBaseDamage);
   enemy.hp = Math.max(0, before - baseDamage);
   const secondary = impairment.cancelsAllEffects
-    ? { results: [], damage: 0, heal: 0, effectCount: 0, resonance: null, weapon: null, summon: null, major: null }
+    ? { results: [], damage: 0, heal: 0, effectCount: 0, resonance: null, weapon: null, summon: null, major: null, worldRole: null }
     : applyKingdomSecondaryEffects(playerIndex, play, {
         enemyAttackMissed: impairment.missed,
         baseAttackDamage: displayBaseDamage,
@@ -14616,7 +14648,9 @@ function judgmentStart(playerIndex, options = {}) {
 function clearTrick(leader, options = {}) {
   clearCallCinematicTimer();
   const worldResolution = !!options.worldResolution && areKingdomMajorArcanaSpecialRulesEnabled();
-  const pendingWorldTimeStop = worldResolution && s?.battle?.pendingWorldTimeStop
+  const clearsWorldRole = String(s?.lastPlay?.type || '') === 'role'
+    && String(s?.lastPlay?.role?.key || '') === 'TheWorld';
+  const pendingWorldTimeStop = (worldResolution || clearsWorldRole) && s?.battle?.pendingWorldTimeStop
     ? { ...s.battle.pendingWorldTimeStop }
     : null;
   const resolvedLeader = isKingdomBattlePlayerActionable(leader)
@@ -14708,6 +14742,7 @@ function clearTrick(leader, options = {}) {
       potency: 100,
       remainingTurns: Math.max(1, Number(pendingWorldTimeStop.remainingTurns) || 2),
       sourceIndex: Number(pendingWorldTimeStop.sourceIndex),
+      source: String(pendingWorldTimeStop.source || 'major-21'),
       label: '時間停止'
     });
   }

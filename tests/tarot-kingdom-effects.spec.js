@@ -197,7 +197,7 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
     expect(resolved.candidates.map((entry) => entry.skillName)).toEqual(['盾割り', '六道連環']);
   });
 
-  test('same-rank resonance is 50%, exact match takes priority, and each engraving activates once', async () => {
+  test('minor same-rank resonance is 50%, major cards do not resonate, and exact match takes priority', async () => {
     const effects = await loadEffectsModule();
     const character = {
       combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
@@ -214,7 +214,7 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
     expect(sameRank.steps[0]).toMatchObject({ kind: 'buff', potency: 2, resolvedR: 2 });
 
     const majorRank = effects.resolveTarotKingdomResonance({ ...base, cards: [{ id: 'major-1', kind: 'major', number: 1 }] });
-    expect(majorRank.candidates[0]).toMatchObject({ matchKind: 'major-rank', matchMultiplier: 0.5, sourceAttribute: 'neutral' });
+    expect(majorRank).toBeNull();
 
     const exactWins = effects.resolveTarotKingdomResonance({
       ...base,
@@ -231,7 +231,7 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
         tarotDeck: [{ slot: 0, cardId: 'SWORD_13', suit: 'Sword', rank: 13, cardLevel: 1 }]
       }
     });
-    expect(binarySameRank.steps[0]).toMatchObject({ kind: 'damage', effectVersion: 3 });
+    expect(binarySameRank).toBeNull();
   });
 
   test('new conditions read field, hand, reverse, leader, and control events', async () => {

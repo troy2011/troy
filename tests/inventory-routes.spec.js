@@ -22,7 +22,11 @@ function makeResponse() {
   };
 }
 
-function makeEquipHarness({ readOnlyData = {}, inventoryItems = [] } = {}) {
+function makeEquipHarness({
+  readOnlyData = {},
+  inventoryItems = [],
+  catalogCache = { sword_001: { Category: 'Weapon', DisplayName: 'Test Sword' } }
+} = {}) {
   const routes = new Map();
   const updates = [];
   const app = {
@@ -46,9 +50,7 @@ function makeEquipHarness({ readOnlyData = {}, inventoryItems = [] } = {}) {
       }
       throw new Error('Unexpected PlayFab API call');
     },
-    catalogCache: {
-      sword_001: { Category: 'Weapon', DisplayName: 'Test Sword' }
-    },
+    catalogCache,
     getEntityKeyForPlayFabId: async () => ({ Id: 'ENTITY1', Type: 'title_player_account' }),
     getAllInventoryItems: async () => inventoryItems,
     getVirtualCurrencyMap: () => ({}),
@@ -367,6 +369,104 @@ test('equip-item allows matching one-handed weapons in both hands when two are o
     Data: {
       Equipped_LeftHand: 'sword_001'
     }
+  });
+});
+
+test('equip-item allows different items whose Economy stack ids are both default', async () => {
+  const { handler, updates } = makeEquipHarness({
+    readOnlyData: {
+      Equipped_RightHand: { Value: JSON.stringify({ itemId: 'sword_001', stackId: 'default' }) }
+    },
+    inventoryItems: [
+      { Id: 'sword_001', StackId: 'default', Amount: 1 },
+      { Id: 'shield_001', StackId: 'default', Amount: 1 }
+    ],
+    catalogCache: {
+      sword_001: { Category: 'Weapon', DisplayName: 'Test Sword' },
+      shield_001: { Category: 'Shield', DisplayName: 'Test Shield' }
+    }
+  });
+  const res = makeResponse();
+
+  await handler({
+    body: {
+      playFabId: 'PF_PLAYWRIGHT',
+      itemId: 'shield_001',
+      stackId: 'default',
+      slot: 'LeftHand'
+    }
+  }, res);
+
+  expect(res.statusCode).toBe(200);
+  expect(updates).toHaveLength(1);
+  expect(updates[0].Data).toMatchObject({
+    Equipped_LeftHand: JSON.stringify({ itemId: 'shield_001', stackId: 'default' })
+  });
+});
+
+test('equip-item removes a current two-handed weapon when equipping the left hand', async () => {
+  const { handler, updates } = makeEquipHarness({
+    readOnlyData: {
+      Equipped_RightHand: { Value: JSON.stringify({ itemId: 'polearm_001', stackId: 'default' }) }
+    },
+    inventoryItems: [
+      { Id: 'polearm_001', StackId: 'default', Amount: 1 },
+      { Id: 'shield_001', StackId: 'default', Amount: 1 }
+    ],
+    catalogCache: {
+      polearm_001: { Category: 'Weapon', DisplayName: 'Test Polearm', TwoHanded: true },
+      shield_001: { Category: 'Shield', DisplayName: 'Test Shield' }
+    }
+  });
+  const res = makeResponse();
+
+  await handler({
+    body: {
+      playFabId: 'PF_PLAYWRIGHT',
+      itemId: 'shield_001',
+      stackId: 'default',
+      slot: 'LeftHand'
+    }
+  }, res);
+
+  expect(res.statusCode).toBe(200);
+  expect(updates).toHaveLength(1);
+  expect(updates[0].Data).toMatchObject({
+    Equipped_RightHand: null,
+    Equipped_LeftHand: JSON.stringify({ itemId: 'shield_001', stackId: 'default' })
+  });
+});
+
+test('equip-item removes the current left hand when equipping a two-handed weapon', async () => {
+  const { handler, updates } = makeEquipHarness({
+    readOnlyData: {
+      Equipped_LeftHand: { Value: JSON.stringify({ itemId: 'shield_001', stackId: 'default' }) }
+    },
+    inventoryItems: [
+      { Id: 'polearm_001', StackId: 'default', Amount: 1 },
+      { Id: 'shield_001', StackId: 'default', Amount: 1 }
+    ],
+    catalogCache: {
+      polearm_001: { Category: 'Weapon', DisplayName: 'Test Polearm', TwoHanded: true },
+      shield_001: { Category: 'Shield', DisplayName: 'Test Shield' }
+    }
+  });
+  const res = makeResponse();
+
+  await handler({
+    body: {
+      playFabId: 'PF_PLAYWRIGHT',
+      itemId: 'polearm_001',
+      stackId: 'default',
+      slot: 'RightHand'
+    }
+  }, res);
+
+  expect(res.statusCode).toBe(200);
+  expect(updates).toHaveLength(1);
+  expect(updates[0].Data).toMatchObject({
+    Equipped_RightHand: JSON.stringify({ itemId: 'polearm_001', stackId: 'default' }),
+    Equipped_LeftHand: null
   });
 });
 

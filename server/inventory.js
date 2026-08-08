@@ -2589,21 +2589,34 @@ function initializeInventoryRoutes(app, deps) {
                     return res.status(400).json({ error: 'この装備はアクセサリー枠に装備できません。' });
                 }
             }
+            let currentHandData = null;
+            if (slot === 'RightHand' || slot === 'LeftHand') {
+                const currentHandResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                    PlayFabId: playFabId,
+                    Keys: ['Equipped_RightHand', 'Equipped_LeftHand']
+                });
+                currentHandData = currentHandResult?.Data || {};
+            }
             if (normalizedCategory === 'Weapon' && !isTwoHandedWeapon && (slot === 'RightHand' || slot === 'LeftHand')) {
                 const oppositeKey = slot === 'RightHand' ? 'Equipped_LeftHand' : 'Equipped_RightHand';
-                const currentEquipmentResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-                    PlayFabId: playFabId,
-                    Keys: [oppositeKey]
-                });
-                const oppositeRawValue = currentEquipmentResult?.Data?.[oppositeKey]?.Value || null;
+                const oppositeRawValue = currentHandData?.[oppositeKey]?.Value || null;
                 const oppositeItemId = getStoredEquipmentItemId(oppositeRawValue);
                 const oppositeStackId = getStoredEquipmentStackId(oppositeRawValue);
-                if (stackId && oppositeStackId && stackId === oppositeStackId) {
+                const sameItem = !!oppositeItemId && oppositeItemId === itemId;
+                const sameSpecificStack = sameItem
+                    && stackId
+                    && stackId !== 'default'
+                    && oppositeStackId === stackId;
+                if (sameSpecificStack) {
                     return res.status(400).json({ error: '同じ装備個体を両手に装備することはできません。' });
                 }
-                if (oppositeItemId && oppositeItemId === itemId) {
+                if (sameItem) {
                     const ownedCount = await getOwnedInventoryItemCount(playFabId, itemId);
-                    const hasDistinctExactStacks = !!stackId && !!oppositeStackId && stackId !== oppositeStackId;
+                    const hasDistinctExactStacks = !!stackId
+                        && stackId !== 'default'
+                        && !!oppositeStackId
+                        && oppositeStackId !== 'default'
+                        && stackId !== oppositeStackId;
                     if (!hasDistinctExactStacks && ownedCount < 2) {
                         return res.status(400).json({
                             error: '同じ片手武器を両手に装備するには2本必要です。'
@@ -2617,6 +2630,15 @@ function initializeInventoryRoutes(app, deps) {
                 console.log(`[装備] 両手武器 (${itemId}) を装備します`);
                 dataToUpdate['Equipped_RightHand'] = storedEquipmentValue;
                 dataToUpdate['Equipped_LeftHand'] = null;
+            } else if (slot === 'LeftHand') {
+                const currentRightHandValue = currentHandData?.Equipped_RightHand?.Value || null;
+                const currentRightHandId = getStoredEquipmentItemId(currentRightHandValue);
+                const currentRightHandData = currentRightHandId
+                    ? normalizeCatalogDisplayData(currentRightHandId, catalogCache[currentRightHandId])
+                    : null;
+                if (isTwoHandedCatalogWeapon(currentRightHandId, currentRightHandData)) {
+                    dataToUpdate['Equipped_RightHand'] = null;
+                }
             }
         } else {
             const currentEquipmentResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, { PlayFabId: playFabId, Keys: ["Equipped_RightHand"] });
