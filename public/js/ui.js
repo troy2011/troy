@@ -1,7 +1,7 @@
 // c:/Users/ikeda/my-liff-app/public/js/ui.js
 
 import * as Player from './player.js';
-import * as Inventory from './inventory.js?v=20260805-arcana-v3-full2';
+import * as Inventory from 'inventory';
 import * as Ship from './ship.js?v=20260731-stage-score1';
 import * as NationKing from './nationKing.js?v=20260731-stage-score1';
 import * as Islands from './islands.js';
