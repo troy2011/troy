@@ -23,19 +23,15 @@ const {
 const {
   ASSESSMENT_COLLECTION,
   PLAYFAB_DATA_KEY,
-  TERMINAL_BOOTSTRAP_HEADER,
-  TERMINAL_SESSION_HEADER,
   TOKEN_TTL_MS,
   initializePersonalityAssessmentRoutes,
   isFeatureEnabled,
   parseStoredDestinyValue,
-  signTerminalSession,
   signToken,
   validateElapsedTime,
   verifyToken
 } = require('../server/personalityAssessment');
 
-const TEST_TERMINAL_TOKEN = 'store-terminal-token-for-personality-tests';
 const TEST_SIGNING_SECRET = 'personality-test-signing-secret-that-is-long-enough';
 
 function choicesFromSeed(seed, seconds = 5) {
@@ -167,14 +163,11 @@ function createRouteHarness(deps, options = {}) {
     post(routePath, ...handlers) { routes.set(`POST ${routePath}`, handlers); }
   };
   const routeOptions = options.enabled
-    ? { terminalToken: TEST_TERMINAL_TOKEN, signingSecret: TEST_SIGNING_SECRET, ...options }
+    ? { signingSecret: TEST_SIGNING_SECRET, ...options }
     : options;
   initializePersonalityAssessmentRoutes(app, deps, routeOptions);
-  const sessionToken = routeOptions.enabled
-    ? signTerminalSession(routeOptions.signingSecret, routeOptions.now?.() ?? Date.now())
-    : '';
 
-  return async function invoke(method, routePath, body = {}, requestOptions = {}) {
+  return async function invoke(method, routePath, body = {}) {
     const handlers = routes.get(`${method} ${routePath}`);
     if (!handlers) throw new Error(`Missing route: ${method} ${routePath}`);
     let status = 200;
@@ -183,12 +176,7 @@ function createRouteHarness(deps, options = {}) {
       status(value) { status = value; return this; },
       json(value) { payload = value; return value; }
     };
-    const headers = Object.fromEntries(Object.entries(requestOptions.headers || {}).map(([name, value]) => (
-      [String(name).toLowerCase(), String(value)]
-    )));
-    if (requestOptions.authenticated !== false && sessionToken && !headers[TERMINAL_SESSION_HEADER]) {
-      headers[TERMINAL_SESSION_HEADER] = sessionToken;
-    }
+    const headers = {};
     const req = { body, headers, get(name) { return headers[String(name).toLowerCase()] || ''; } };
     async function dispatch(index) {
       const handler = handlers[index];
@@ -336,20 +324,16 @@ test('tokens detect tampering, expiry and invalid elapsed time', () => {
   expect(() => validateElapsedTime(payload, 60_000, now + 1_000)).toThrow(/確認できません/);
 });
 
-test('feature remains hidden without a valid store terminal bootstrap', async () => {
+test('feature visibility follows the deployment flag without a staff PIN or secret URL', async () => {
   const disabled = createRouteHarness({}, { enabled: false });
   await expect(disabled('GET', '/api/personality-assessment/config')).resolves.toEqual({ status: 200, body: { success: true, enabled: false } });
 
   const firestore = createFirestore();
   const playFab = createPlayFab();
   const invoke = createRouteHarness({ firestore, ...playFab }, { enabled: true });
-  const hidden = await invoke('GET', '/api/personality-assessment/config', {}, { authenticated: false });
-  expect(hidden.body).toEqual({ success: true, enabled: false });
-  const opened = await invoke('GET', '/api/personality-assessment/config', {}, {
-    authenticated: false,
-    headers: { [TERMINAL_BOOTSTRAP_HEADER]: TEST_TERMINAL_TOKEN }
-  });
-  expect(opened.body).toEqual(expect.objectContaining({ success: true, enabled: true, totalRounds: 12, terminalSession: expect.any(String) }));
+  const opened = await invoke('GET', '/api/personality-assessment/config');
+  expect(opened.body).toEqual(expect.objectContaining({ success: true, enabled: true, totalRounds: 12, assetVersion: expect.any(Number) }));
+  expect(opened.body).not.toHaveProperty('terminalSession');
 });
 
 test('store flow saves once, returns the full reading and forbids replay', async () => {
@@ -503,7 +487,7 @@ test('store diagnosis UI completes 12 questions and renders the full V3 reading'
   const destinyProfile = getDestinyProfile({ animalId: 'animal-001' }, { detail: 'full' });
   await page.route('**/api/personality-assessment/config*', (route) => route.fulfill({
     contentType: 'application/json',
-    body: JSON.stringify({ success: true, enabled: true, totalRounds: 12, assetVersion: 4, terminalSession: 'demo-session' })
+    body: JSON.stringify({ success: true, enabled: true, totalRounds: 12, assetVersion: 4 })
   }));
   await page.route('**/api/tarot-reading/customers', (route) => route.fulfill({
     contentType: 'application/json',
@@ -534,7 +518,7 @@ test('store diagnosis UI completes 12 questions and renders the full V3 reading'
   });
 
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto('/tarot-reading.html?personalityTerminal=demo-terminal');
+  await page.goto('/tarot-reading.html');
   await page.locator('[data-reading-mode="personality"]').click();
   await page.locator('#tarotCustomerRef').selectOption('TROY:CUSTOMER123');
   await expect(page.locator('#personalityStart')).toBeEnabled();

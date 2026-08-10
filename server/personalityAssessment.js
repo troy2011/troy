@@ -17,11 +17,7 @@ const { resolveStoreCustomer } = require('./tarotReading');
 
 const PLAYFAB_DATA_KEY = 'PersonalityDestinyV2';
 const TOKEN_AUDIENCE = 'troy-personality-assessment';
-const TERMINAL_SESSION_AUDIENCE = 'troy-personality-assessment-terminal';
-const TERMINAL_BOOTSTRAP_HEADER = 'x-troy-personality-terminal';
-const TERMINAL_SESSION_HEADER = 'x-troy-personality-session';
 const TOKEN_TTL_MS = 20 * 60 * 1000;
-const TERMINAL_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const RESERVATION_TTL_MS = 2 * 60 * 1000;
 const MAX_TOKEN_LENGTH = 24_000;
 const MIN_CLIENT_ELAPSED_MS = 0;
@@ -47,10 +43,6 @@ function getSigningSecret(env = process.env) {
     return String(env?.PERSONALITY_ASSESSMENT_SIGNING_SECRET ?? env?.SPECIAL_ABILITY_SIGNING_SECRET ?? '').trim();
 }
 
-function getTerminalToken(env = process.env) {
-    return String(env?.PERSONALITY_ASSESSMENT_TERMINAL_TOKEN ?? env?.SPECIAL_ABILITY_TERMINAL_TOKEN ?? '').trim();
-}
-
 function encodeBase64Url(value) {
     return Buffer.from(value, 'utf8').toString('base64url');
 }
@@ -63,34 +55,6 @@ function constantTimeEqual(left, right) {
     const leftBuffer = Buffer.from(String(left || ''), 'utf8');
     const rightBuffer = Buffer.from(String(right || ''), 'utf8');
     return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
-}
-
-function signTerminalSession(secret, nowMs = Date.now()) {
-    const payload = {
-        aud: TERMINAL_SESSION_AUDIENCE,
-        issuedAt: nowMs,
-        expiresAt: nowMs + TERMINAL_SESSION_TTL_MS,
-        nonce: crypto.randomUUID()
-    };
-    const encodedPayload = encodeBase64Url(JSON.stringify(payload));
-    const signature = crypto.createHmac('sha256', secret).update(encodedPayload).digest('base64url');
-    return `${encodedPayload}.${signature}`;
-}
-
-function verifyTerminalSession(token, secret, nowMs = Date.now()) {
-    const value = String(token || '').trim();
-    const [encodedPayload, providedSignature, extra] = value.split('.');
-    if (!encodedPayload || !providedSignature || extra) return false;
-    const expectedSignature = crypto.createHmac('sha256', secret).update(encodedPayload).digest('base64url');
-    if (!constantTimeEqual(expectedSignature, providedSignature)) return false;
-    try {
-        const payload = JSON.parse(decodeBase64Url(encodedPayload));
-        return payload?.aud === TERMINAL_SESSION_AUDIENCE
-            && Number.isFinite(payload?.expiresAt)
-            && nowMs <= payload.expiresAt;
-    } catch (_error) {
-        return false;
-    }
 }
 
 function signToken(payload, secret) {
@@ -375,13 +339,9 @@ function initializePersonalityAssessmentRoutes(app, deps = {}, options = {}) {
     const env = options.env || process.env;
     const enabled = options.enabled ?? isFeatureEnabled(env);
     const signingSecret = options.signingSecret || getSigningSecret(env);
-    const terminalToken = options.terminalToken || getTerminalToken(env);
     const now = typeof options.now === 'function' ? options.now : () => Date.now();
     if (enabled && !signingSecret) {
         throw new Error('PERSONALITY_ASSESSMENT_SIGNING_SECRET is required when PERSONALITY_ASSESSMENT_ENABLED=true');
-    }
-    if (enabled && terminalToken.length < 24) {
-        throw new Error('PERSONALITY_ASSESSMENT_TERMINAL_TOKEN with at least 24 characters is required when PERSONALITY_ASSESSMENT_ENABLED=true');
     }
     if (enabled && (!deps?.firestore || !deps?.promisifyPlayFab || !deps?.PlayFabServer)) {
         throw new Error('Firestore and PlayFab are required for personality assessment');
@@ -392,35 +352,17 @@ function initializePersonalityAssessmentRoutes(app, deps = {}, options = {}) {
         return next();
     }
 
-    function requireTerminalSession(req, res, next) {
-        const token = req.get?.(TERMINAL_SESSION_HEADER) || req.headers?.[TERMINAL_SESSION_HEADER] || '';
-        if (!verifyTerminalSession(token, signingSecret, now())) {
-            return res.status(403).json({
-                success: false,
-                error: 'この操作は登録された店舗端末からのみ実行できます',
-                code: 'terminal_authorization_required'
-            });
-        }
-        return next();
-    }
-
-    app.get('/api/personality-assessment/config', (req, res) => {
+    app.get('/api/personality-assessment/config', (_req, res) => {
         if (!enabled) return res.json({ success: true, enabled: false });
-        const sessionToken = req.get?.(TERMINAL_SESSION_HEADER) || req.headers?.[TERMINAL_SESSION_HEADER] || '';
-        const bootstrapToken = req.get?.(TERMINAL_BOOTSTRAP_HEADER) || req.headers?.[TERMINAL_BOOTSTRAP_HEADER] || '';
-        const authorized = verifyTerminalSession(sessionToken, signingSecret, now())
-            || constantTimeEqual(bootstrapToken, terminalToken);
-        if (!authorized) return res.json({ success: true, enabled: false });
         return res.json({
             success: true,
             enabled: true,
             totalRounds: TOTAL_ROUNDS,
-            assetVersion: ASSET_VERSION,
-            terminalSession: signTerminalSession(signingSecret, now())
+            assetVersion: ASSET_VERSION
         });
     });
 
-    app.post('/api/personality-assessment/status', requireEnabled, requireTerminalSession, async (req, res) => {
+    app.post('/api/personality-assessment/status', requireEnabled, async (req, res) => {
         try {
             const customer = await resolveStoreCustomer(req.body?.customerRef, deps);
             if (!customer.playFabId || customer.error) {
@@ -455,7 +397,7 @@ function initializePersonalityAssessmentRoutes(app, deps = {}, options = {}) {
         }
     });
 
-    app.post('/api/personality-assessment/start', requireEnabled, requireTerminalSession, async (req, res) => {
+    app.post('/api/personality-assessment/start', requireEnabled, async (req, res) => {
         try {
             const customer = await resolveStoreCustomer(req.body?.customerRef, deps);
             if (!customer.playFabId || customer.error) {
@@ -498,7 +440,7 @@ function initializePersonalityAssessmentRoutes(app, deps = {}, options = {}) {
         }
     });
 
-    app.post('/api/personality-assessment/answer', requireEnabled, requireTerminalSession, async (req, res) => {
+    app.post('/api/personality-assessment/answer', requireEnabled, async (req, res) => {
         try {
             const nowMs = now();
             const payload = verifyToken(req.body?.token, signingSecret, nowMs);
@@ -616,9 +558,6 @@ module.exports = {
     ASSESSMENT_VERSION,
     PLAYFAB_DATA_KEY,
     RESERVATION_TTL_MS,
-    TERMINAL_BOOTSTRAP_HEADER,
-    TERMINAL_SESSION_HEADER,
-    TERMINAL_SESSION_TTL_MS,
     TOKEN_TTL_MS,
     PersonalityAssessmentError,
     buildStoredPayload,
@@ -632,10 +571,8 @@ module.exports = {
     repairConfirmedAssessment,
     reserveAssessment,
     restorePlayFabDestiny,
-    signTerminalSession,
     signToken,
     validateElapsedTime,
-    verifyTerminalSession,
     verifyToken,
     writePlayFabDestiny
 };

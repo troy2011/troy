@@ -4517,37 +4517,6 @@ const THREE_CARD_SEMANTIC_TAGS = {
     support: new Set(['major-6:upright', 'cup-2:upright', 'cup-3:upright', 'cup-10:upright', 'pentacle-3:upright', 'pentacle-6:upright', 'pentacle-10:upright'])
 };
 
-const PERSONALITY_SESSION_KEY = 'troy.personalityTerminalSession.v1';
-const PERSONALITY_BOOTSTRAP_PARAM = 'personalityTerminal';
-const LEGACY_PERSONALITY_BOOTSTRAP_PARAM = 'abilityTerminal';
-
-function readPersonalitySession() {
-    try {
-        return String(sessionStorage.getItem(PERSONALITY_SESSION_KEY) || '').trim();
-    } catch (_error) {
-        return '';
-    }
-}
-
-function consumePersonalityBootstrap() {
-    try {
-        const url = new URL(window.location.href);
-        const token = String(
-            url.searchParams.get(PERSONALITY_BOOTSTRAP_PARAM)
-            || url.searchParams.get(LEGACY_PERSONALITY_BOOTSTRAP_PARAM)
-            || ''
-        ).trim();
-        if (token) {
-            url.searchParams.delete(PERSONALITY_BOOTSTRAP_PARAM);
-            url.searchParams.delete(LEGACY_PERSONALITY_BOOTSTRAP_PARAM);
-            history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`);
-        }
-        return token;
-    } catch (_error) {
-        return '';
-    }
-}
-
 const state = {
     mode: 'tarot',
     topicId: 'love',
@@ -4565,8 +4534,6 @@ const state = {
         assetsReady: false,
         totalRounds: 12,
         assetVersion: 3,
-        bootstrapToken: consumePersonalityBootstrap(),
-        terminalSession: readPersonalitySession(),
         state: 'idle',
         token: '',
         question: null,
@@ -5867,12 +5834,6 @@ async function fetchPersonalityJson(path, payload) {
     const headers = payload === undefined
         ? { Accept: 'application/json' }
         : { Accept: 'application/json', 'Content-Type': 'application/json' };
-    if (state.personality.terminalSession) {
-        headers['X-Troy-Personality-Session'] = state.personality.terminalSession;
-    }
-    if (path === '/api/personality-assessment/config' && state.personality.bootstrapToken) {
-        headers['X-Troy-Personality-Terminal'] = state.personality.bootstrapToken;
-    }
     const requestPath = path === '/api/personality-assessment/config'
         ? `${path}?request=${Date.now().toString(36)}`
         : path;
@@ -6156,14 +6117,6 @@ async function loadPersonalityConfig() {
     try {
         const data = await fetchPersonalityJson('/api/personality-assessment/config');
         if (!data.enabled) return;
-        state.personality.bootstrapToken = '';
-        state.personality.terminalSession = String(data.terminalSession || '').trim();
-        if (!state.personality.terminalSession) return;
-        try {
-            sessionStorage.setItem(PERSONALITY_SESSION_KEY, state.personality.terminalSession);
-        } catch (_error) {
-            // The in-memory session remains valid when storage is unavailable.
-        }
         state.personality.enabled = true;
         state.personality.totalRounds = Math.max(1, Math.min(24, Math.trunc(Number(data.totalRounds) || 12)));
         state.personality.assetVersion = Math.max(1, Math.trunc(Number(data.assetVersion) || 3));

@@ -14,15 +14,13 @@
 
 - `PERSONALITY_ASSESSMENT_ENABLED=true`
 - `PERSONALITY_ASSESSMENT_SIGNING_SECRET`: 回答トークン署名用の十分に長いランダム文字列
-- `PERSONALITY_ASSESSMENT_TERMINAL_TOKEN`: 店舗端末確認用の24文字以上のランダム文字列
 
-旧版からの無停止移行のため、従来の`SPECIAL_ABILITY_*`も一時的な予備値として読み込みます。Render側を上記3項へ移行した後は、従来キーを削除できます。診断結果の旧データは読み込みません。
-従来の店舗端末URLに含まれる`abilityTerminal`も移行期間は受け付け、読み込み後すぐURLから除去します。
+旧版からの無停止移行のため、従来の`SPECIAL_ABILITY_ENABLED`と`SPECIAL_ABILITY_SIGNING_SECRET`も一時的な予備値として読み込みます。Render側を上記2項へ移行した後は、従来キーを削除できます。診断結果の旧データは読み込みません。
 
-機能を有効にした店舗端末では、次のURLを一度開きます。端末セッションはブラウザへ保存されます。
+機能を有効にすると、通常の店舗用占い画面へ「前世動物診断」タブが表示されます。スタッフPINや秘密URLは不要です。判定対象はサーバー側で現在の店内リストに在籍しているお客様だけに制限されます。
 
 ```text
-https://troy-xetw.onrender.com/tarot-reading.html?personalityTerminal=<PERSONALITY_ASSESSMENT_TERMINAL_TOKEN>
+https://troy-xetw.onrender.com/tarot-reading.html
 ```
 
 ## 保存
