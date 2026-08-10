@@ -1,5 +1,6 @@
 const tarotSkillData = require('./data/tarot-battle-skills.json');
 const { enrichTarotCatalogData, getCanonicalTarotCategory, getMajorArcanaSuitInfo } = require('./tarotCards');
+const { normalizeTarotCatalogFriendlyId } = require('./tarotItemIds');
 
 const MINOR_SUIT_ALIASES = {
     wand: 'wand',
@@ -71,22 +72,7 @@ function jsonCardIdToItemId(cardId) {
 }
 
 function normalizeItemIdToSkillKey(itemId) {
-    const id = String(itemId || '').trim();
-    if (!id) return '';
-    const major = id.match(/^MAJOR_(\d+)$/i);
-    if (major) return `arcana-${Number(major[1])}`;
-    const arcana = id.match(/^arcana-(\d+)$/i);
-    if (arcana) return `arcana-${Number(arcana[1])}`;
-    const legacyMajor = id.match(/^tarot[_-]major[_-][a-z]+[_-](\d+)$/i);
-    if (legacyMajor) return `arcana-${Number(legacyMajor[1])}`;
-
-    const minor = id.match(/^(WAND|SWORD|CUP|PENTACLE)_(\d+)$/i);
-    if (minor) return `minor-${minor[1].toLowerCase()}-${Number(minor[2])}`;
-    const modernMinor = id.match(/^minor-(wand|sword|cup|pentacle)-(\d+)$/i);
-    if (modernMinor) return `minor-${modernMinor[1].toLowerCase()}-${Number(modernMinor[2])}`;
-    const legacyMinor = id.match(/^tarot[_-]minor[_-](wand|sword|cup|pentacle)[_-](\d+)$/i);
-    if (legacyMinor) return `minor-${legacyMinor[1].toLowerCase()}-${Number(legacyMinor[2])}`;
-    return id;
+    return normalizeTarotCatalogFriendlyId(itemId);
 }
 
 function itemDataToSkillKey(itemData) {

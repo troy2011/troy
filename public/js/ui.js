@@ -32,7 +32,7 @@ const ensureTarotModule = async () => {
 };
 
 let tarotKingdomModule = null;
-const TAROT_KINGDOM_MODULE_VERSION = '20260810-arcana-runtime1';
+const TAROT_KINGDOM_MODULE_VERSION = '20260810-arcana-id-fix1';
 const ensureTarotKingdomModule = async () => {
     if (tarotKingdomModule) return tarotKingdomModule;
     tarotKingdomModule = await import(`./tarotKingdom.js?v=${TAROT_KINGDOM_MODULE_VERSION}`);

@@ -1056,6 +1056,13 @@ test.describe('Tarot Kingdom character battle flow', () => {
           { slot: 3, itemId: 'tarot_minor_pentacle_13', suit: 'Pentacle', rank: 13, cardLevel: 1, resonanceId: 'pentacle-13' },
           { slot: 4, itemId: 'minor-sword-14', suit: 'Sword', rank: 14, cardLevel: 1, resonanceId: 'sword-14' }
         ],
+        guardianArcana: {
+          itemId: 'tarot_major_05',
+          number: 5,
+          cardLevel: 1,
+          passiveId: 'guardian-v3-5',
+          passiveName: '魔導士'
+        },
         combat: {
           maxHp: 120,
           power: 20,
@@ -1067,9 +1074,9 @@ test.describe('Tarot Kingdom character battle flow', () => {
         }
       };
       return window.TarotKingdomDebug.battleLoadProfileAndPlay(character, {
-        id: 'loaded-cup-five',
-        suit: 'Cup',
-        number: 5
+        id: 'loaded-wand-one',
+        suit: 'Wand',
+        number: 1
       });
     });
 
@@ -1077,15 +1084,120 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(result.played).toBe(true);
     expect(result.state.players[0].character.source).toBe('playfab');
     expect(result.state.players[0].character.tarotDeck).toHaveLength(5);
-    expect(result.state.players[0].character.tarotDeck[1]).toMatchObject({
-      itemId: 'tarot_minor_cup_05',
-      suit: 'Cup',
-      rank: 5
+    expect(result.state.players[0].character.tarotDeck[0]).toMatchObject({
+      itemId: 'tarot_minor_wand_01',
+      suit: 'Wand',
+      rank: 1
+    });
+    expect(result.state.players[0].character.guardianArcana).toMatchObject({
+      itemId: 'tarot_major_05',
+      number: 5,
+      passiveName: '魔導士'
     });
     expect(result.state.battle.events.at(-1)).toMatchObject({
       type: 'attack',
-      resonanceName: '痺れ薬の小瓶'
+      resonanceName: 'エレメンタルヘイズ',
+      guardianPassiveName: '魔導士'
     });
+    await expect(page.locator('.tarot-kingdom-effect-banner')).toContainText('守護・魔導士');
+  });
+
+  test('profile loading rejects missing equipped Arcana, falls back offline, and permits a truly empty loadout', async ({ page }) => {
+    const audit = await page.evaluate(async () => {
+      const debug = window.TarotKingdomDebug;
+      const emptyProfile = {
+        version: 4,
+        displayName: 'Profile Player',
+        level: 12,
+        tarotDeck: [],
+        guardianArcana: null,
+        combat: {
+          maxHp: 120,
+          power: 20,
+          defense: 10,
+          intelligence: 10,
+          speed: 10,
+          weaponType: 'unarmed',
+          weaponTypes: ['unarmed']
+        }
+      };
+      const card = { id: 'empty-profile-card', suit: 'Cup', number: 1 };
+      const equippedLocal = {
+        tarotDeck: [{ slot: 0, itemId: 'tarot_minor_cup_01', suit: 'Cup', rank: 1 }],
+        guardianArcana: { itemId: 'tarot_major_05', number: 5, passiveName: '魔導士' }
+      };
+      const loadedLocalProfile = {
+        ...emptyProfile,
+        tarotDeck: equippedLocal.tarotDeck,
+        guardianArcana: equippedLocal.guardianArcana
+      };
+      const missingLoadout = await debug.battleLoadProfileAndPlay(
+        emptyProfile,
+        card,
+        { localLoadout: equippedLocal }
+      );
+      const partialLoadout = await debug.battleLoadProfileAndPlay(
+        {
+          ...emptyProfile,
+          tarotDeck: [equippedLocal.tarotDeck[0]]
+        },
+        card,
+        {
+          localLoadout: {
+            ...equippedLocal,
+            tarotDeck: [
+              ...equippedLocal.tarotDeck,
+              { slot: 1, itemId: 'tarot_minor_wand_02', suit: 'Wand', rank: 2 }
+            ]
+          }
+        }
+      );
+      const offlineFallback = await debug.battleLoadProfileAndPlay(
+        emptyProfile,
+        card,
+        {
+          localLoadout: equippedLocal,
+          localCharacter: loadedLocalProfile,
+          profileFailure: true
+        }
+      );
+      const failedRequest = await debug.battleLoadProfileAndPlay(
+        emptyProfile,
+        card,
+        { localLoadout: equippedLocal, localCharacter: null, profileFailure: true }
+      );
+      const trulyUnequipped = await debug.battleLoadProfileAndPlay(
+        emptyProfile,
+        card,
+        { localLoadout: { tarotDeck: [], guardianArcana: null } }
+      );
+      return { missingLoadout, partialLoadout, offlineFallback, failedRequest, trulyUnequipped };
+    });
+
+    expect(audit.missingLoadout.applied).toBe(false);
+    expect(audit.missingLoadout.state.characterSnapshotReady).toBe(false);
+    expect(audit.missingLoadout.state.message).toContain('タロット装備を取得できない');
+    expect(audit.partialLoadout.applied).toBe(false);
+    expect(audit.partialLoadout.state.characterSnapshotReady).toBe(false);
+    expect(audit.partialLoadout.state.message).toContain('タロット装備を取得できない');
+    expect(audit.offlineFallback).toMatchObject({ applied: true, played: true });
+    expect(audit.offlineFallback.state.players[0].character.tarotDeck).toHaveLength(1);
+    expect(audit.offlineFallback.state.players[0].character.tarotDeck[0]).toMatchObject({
+      itemId: 'tarot_minor_cup_01',
+      suit: 'Cup',
+      rank: 1
+    });
+    expect(audit.offlineFallback.state.players[0].character.guardianArcana).toMatchObject({
+      itemId: 'tarot_major_05',
+      number: 5,
+      passiveName: '魔導士'
+    });
+    expect(audit.failedRequest.applied).toBe(false);
+    expect(audit.failedRequest.state.characterSnapshotReady).toBe(false);
+    expect(audit.failedRequest.state.message).toContain('戦闘プロフィールの取得に失敗');
+    expect(audit.trulyUnequipped).toMatchObject({ applied: true, played: true });
+    expect(audit.trulyUnequipped.state.players[0].character.tarotDeck).toEqual([]);
+    expect(audit.trulyUnequipped.state.players[0].character.guardianArcana).toBeNull();
   });
 
   test('selected minor resonance and major dedicated effects use the compact arcana navigation correctly', async ({ page }) => {
@@ -1231,6 +1343,62 @@ test.describe('Tarot Kingdom character battle flow', () => {
       guardianItemId: 'tarot_major_01',
       guardianCardLevel: 10,
       awakeningId: 'magician-awaken'
+    });
+  });
+
+  test('schema 19 keeps legacy guardian hooks while schema 20 and 21 do not run them', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const character = {
+        version: 4,
+        guardianArcana: {
+          itemId: 'tarot_major_13',
+          number: 13,
+          cardLevel: 1,
+          passiveId: 'guardian-v3-13'
+        }
+      };
+      debug.battleScenario({
+        tableCard: { id: 'legacy-guardian-clear-card', kind: 'minor', suit: 'Sword', number: 5 },
+        leaderIndex: 0,
+        turnIndex: 0,
+        enemyHp: 400,
+        enemyDefense: 0,
+        charactersBySeat: [character]
+      });
+      const template = debug.battlePublicState();
+      const run = (schema) => {
+        const payload = JSON.parse(JSON.stringify(template));
+        payload.schema = schema;
+        delete payload.state.rules.arcanaLoadoutEffectsVersion;
+        const migrated = debug.battleDeserialize(payload);
+        const hpBefore = migrated.battle.enemy.hp;
+        const cleared = debug.battleClearTrick(0);
+        return {
+          effectsVersion: cleared.rules.arcanaLoadoutEffectsVersion,
+          damage: hpBefore - cleared.battle.enemy.hp,
+          hasLegacyGraveBlade: cleared.battle.events.some((event) => (
+            event?.type === 'guardian-passive'
+            && String(event.label || '').includes('墓標の刃')
+          ))
+        };
+      };
+      return {
+        schema19: run(19),
+        schema20: run(20),
+        schema21: run(21)
+      };
+    });
+
+    expect(audit.schema19).toEqual({
+      effectsVersion: 2,
+      damage: 8,
+      hasLegacyGraveBlade: true
+    });
+    [audit.schema20, audit.schema21].forEach((current) => {
+      expect(current.effectsVersion).toBe(3);
+      expect(current.damage).toBe(0);
+      expect(current.hasLegacyGraveBlade).toBe(false);
     });
   });
 

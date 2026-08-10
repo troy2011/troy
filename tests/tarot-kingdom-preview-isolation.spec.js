@@ -22,6 +22,25 @@ test('Tarot Kingdom shares the canonical inventory module with the app shell', (
   expect(previewSource).toContain('"inventory": "./js/inventory.js?v=20260808-enhancement-stack-ref1"');
 });
 
+test('Tarot Kingdom release advances its entry modules and service-worker cache together', () => {
+  const release = '20260810-arcana-id-fix1';
+  const indexSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'index.html'), 'utf8');
+  const mainSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'main.js'), 'utf8');
+  const uiSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'ui.js'), 'utf8');
+  const previewSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'tarot-kingdom-preview.html'),
+    'utf8'
+  );
+  const serviceWorkerSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'sw.js'), 'utf8');
+
+  expect(indexSource).toContain(`"ui": "./js/ui.js?v=${release}"`);
+  expect(indexSource).toContain(`src="main.js?v=${release}"`);
+  expect(mainSource).toContain(`const TAROT_KINGDOM_RESCUE_VERSION = '${release}';`);
+  expect(uiSource).toContain(`const TAROT_KINGDOM_MODULE_VERSION = '${release}';`);
+  expect(previewSource).toContain(`./js/tarotKingdom.js?v=${release}`);
+  expect(serviceWorkerSource).toContain("const CACHE_VERSION = 'troy-app-v20260810b';");
+});
+
 function loadServiceWorkerHarness() {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'sw.js'), 'utf8');
   const listeners = new Map();

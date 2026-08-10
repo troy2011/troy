@@ -4,6 +4,10 @@ const {
     getMajorArcanaTitle,
     enrichTarotCatalogData
 } = require('./tarotCards');
+const {
+    getStoredTarotItemId,
+    normalizeTarotCatalogFriendlyId
+} = require('./tarotItemIds');
 
 const TAROT_GUARDIAN_DATA_KEY = 'TarotGuardianArcana';
 const TAROT_GUARDIAN_VERSION = 1;
@@ -68,6 +72,26 @@ function isMajorItem(itemData = {}) {
     return getCanonicalTarotCategory(itemData.Category) === 'TarotMajor';
 }
 
+function getTarotCardLevel(cardLevels = {}, itemId, itemData = {}) {
+    const directKeys = new Set([
+        String(itemId || '').trim(),
+        String(itemData?.FriendlyId || '').trim(),
+        normalizeTarotCatalogFriendlyId(itemId),
+        normalizeTarotCatalogFriendlyId(itemData?.FriendlyId)
+    ].filter(Boolean));
+    for (const key of directKeys) {
+        if (!Object.prototype.hasOwnProperty.call(cardLevels, key)) continue;
+        return cardLevels[key]?.level ?? cardLevels[key];
+    }
+    const friendlyKeys = new Set(Array.from(directKeys).map(normalizeTarotCatalogFriendlyId));
+    for (const [key, value] of Object.entries(cardLevels && typeof cardLevels === 'object' ? cardLevels : {})) {
+        if (friendlyKeys.has(normalizeTarotCatalogFriendlyId(key))) {
+            return value?.level ?? value;
+        }
+    }
+    return 1;
+}
+
 function buildTarotKingdomMinorLoadout(itemIds = [], catalogCache = {}, cardLevels = {}) {
     return (Array.isArray(itemIds) ? itemIds : [])
         .slice(0, 5)
@@ -84,7 +108,7 @@ function buildTarotKingdomMinorLoadout(itemIds = [], catalogCache = {}, cardLeve
                 itemId,
                 suit,
                 rank,
-                cardLevel: clampCardLevel(cardLevels?.[itemId]?.level ?? cardLevels?.[itemId], false),
+                cardLevel: clampCardLevel(getTarotCardLevel(cardLevels, itemId, itemData), false),
                 resonanceId: definition.id,
                 skillName: definition.name
             };
@@ -103,7 +127,7 @@ function buildTarotKingdomGuardian(itemId, catalogCache = {}, cardLevels = {}) {
         itemId: normalizedItemId,
         number,
         name: getMajorArcanaTitle(number),
-        cardLevel: clampCardLevel(cardLevels?.[normalizedItemId]?.level ?? cardLevels?.[normalizedItemId], true),
+        cardLevel: clampCardLevel(getTarotCardLevel(cardLevels, normalizedItemId, itemData), true),
         passiveId: definition.passiveId,
         passiveName: definition.passiveName,
         attribute: String(definition.attribute || 'neutral')
@@ -113,10 +137,19 @@ function buildTarotKingdomGuardian(itemId, catalogCache = {}, cardLevels = {}) {
 function parseTarotGuardian(raw) {
     if (!raw) return { version: TAROT_GUARDIAN_VERSION, itemId: null };
     try {
-        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        let parsed = raw;
+        if (typeof raw === 'string') {
+            const trimmed = raw.trim();
+            if (!trimmed) return { version: TAROT_GUARDIAN_VERSION, itemId: null };
+            try {
+                parsed = JSON.parse(trimmed);
+            } catch {
+                parsed = trimmed;
+            }
+        }
         return {
             version: TAROT_GUARDIAN_VERSION,
-            itemId: String(parsed?.itemId || '').trim() || null
+            itemId: getStoredTarotItemId(parsed) || null
         };
     } catch {
         return { version: TAROT_GUARDIAN_VERSION, itemId: null };

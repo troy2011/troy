@@ -3889,6 +3889,41 @@ function buildLoadedLocalKingdomCharacter() {
   });
 }
 
+function readLoadedLocalKingdomArcanaLoadout(options = {}) {
+  try {
+    if (typeof options.localArcanaLoadoutReader === 'function') {
+      const loaded = options.localArcanaLoadoutReader() || {};
+      return {
+        tarotDeck: Array.isArray(loaded.tarotDeck) ? loaded.tarotDeck.filter(Boolean) : [],
+        guardianArcana: loaded.guardianArcana && typeof loaded.guardianArcana === 'object'
+          ? loaded.guardianArcana
+          : null
+      };
+    }
+    const tarotDeck = getMyTarotBattleDeckSnapshot?.();
+    const guardianArcana = getMyTarotGuardianSnapshot?.();
+    return {
+      tarotDeck: Array.isArray(tarotDeck) ? tarotDeck.filter(Boolean) : [],
+      guardianArcana: guardianArcana && typeof guardianArcana === 'object' ? guardianArcana : null
+    };
+  } catch (error) {
+    console.warn('[tarotKingdom] local Arcana loadout inspection failed:', error);
+    return { tarotDeck: [], guardianArcana: null };
+  }
+}
+
+function getMissingKingdomArcanaLoadoutParts(character, localLoadout) {
+  if (!character || typeof character !== 'object') return [];
+  const localDeck = Array.isArray(localLoadout?.tarotDeck) ? localLoadout.tarotDeck : [];
+  const localGuardianItemId = String(localLoadout?.guardianArcana?.itemId || '').trim();
+  const profileDeck = Array.isArray(character.tarotDeck) ? character.tarotDeck.filter(Boolean) : [];
+  const profileGuardianItemId = String(character.guardianArcana?.itemId || '').trim();
+  return [
+    ...(localDeck.length > profileDeck.length ? ['deck'] : []),
+    ...(localGuardianItemId && !profileGuardianItemId ? ['guardian'] : [])
+  ];
+}
+
 function buildPreviewKingdomCharacter() {
   return normalizeTarotKingdomCharacter({
     version: 2,
@@ -3983,11 +4018,25 @@ async function prepareKingdomCharacterSnapshots(options = {}) {
     const profileLoader = typeof options.profileLoader === 'function'
       ? options.profileLoader
       : getTarotKingdomCombatProfiles;
+    const localCharacterBuilder = typeof options.localCharacterBuilder === 'function'
+      ? options.localCharacterBuilder
+      : buildLoadedLocalKingdomCharacter;
+    const buildLocalCharacter = () => {
+      try {
+        return localCharacterBuilder() || null;
+      } catch (error) {
+        console.warn('[tarotKingdom] local character fallback failed:', error);
+        return null;
+      }
+    };
     const humanSeats = targetState.players
       .map((player, index) => ({ player, index }))
       .filter(({ player }) => !player.isNpc);
     let humanCharacters = [];
     let authoritativePetsByOwner = null;
+    let profileRequestAttempted = false;
+    let profileRequestError = null;
+    let usedLocalCharacterFallback = false;
     if (window.__TAROT_KINGDOM_PREVIEW__ === true && typeof options.profileLoader !== 'function') {
       humanCharacters = humanSeats.map(({ index }) => index === 0
         ? buildPreviewKingdomCharacter()
@@ -4002,12 +4051,16 @@ async function prepareKingdomCharacterSnapshots(options = {}) {
         return false;
       }
       if (requesterPlayFabId && targetPlayFabIds.length > 0 && targetPlayFabIds.every(Boolean)) {
+        profileRequestAttempted = true;
         try {
           const response = await profileLoader(requesterPlayFabId, targetPlayFabIds, {
             isSilent: true,
             roomId: online ? tkNet.roomId : ''
           });
-          const rows = Array.isArray(response?.characters) ? response.characters : [];
+          if (!Array.isArray(response?.characters)) {
+            throw new Error('Combat profile response did not include characters.');
+          }
+          const rows = response.characters;
           const byId = new Map(rows.map((character) => [String(character?.playFabId || '').trim(), character]));
           humanCharacters = humanSeats.map(({ player }) => byId.get(String(player.playFabId || '').trim()) || null);
           if (Array.isArray(response?.currentPets)) {
@@ -4020,6 +4073,7 @@ async function prepareKingdomCharacterSnapshots(options = {}) {
           }
         } catch (error) {
           console.warn('[tarotKingdom] combat profile load failed:', error);
+          profileRequestError = error;
           humanCharacters = [];
         }
         if (!isCurrentRoster()) {
@@ -4029,9 +4083,42 @@ async function prepareKingdomCharacterSnapshots(options = {}) {
           }
           return false;
         }
+        const canUseOfflineLocalFallback = profileRequestError
+          && !online
+          && humanSeats.length === 1
+          && String(humanSeats[0]?.player?.playFabId || '').trim() === requesterPlayFabId;
+        if (canUseOfflineLocalFallback) {
+          const localCharacter = buildLocalCharacter();
+          if (localCharacter) {
+            humanCharacters = [localCharacter];
+            profileRequestError = null;
+            usedLocalCharacterFallback = true;
+          }
+        }
+        if (profileRequestError || humanCharacters.length !== humanSeats.length || humanCharacters.some((character) => !character)) {
+          if (!isCurrentState()) return false;
+          targetState.characterSnapshotReady = false;
+          targetState.message = '戦闘プロフィールの取得に失敗しました。通信状態を確認して再取得してください。';
+          return false;
+        }
+        const requesterRowIndex = humanSeats.findIndex(({ player }) => (
+          String(player.playFabId || '').trim() === requesterPlayFabId
+        ));
+        if (!usedLocalCharacterFallback && requesterRowIndex >= 0) {
+          const localLoadout = readLoadedLocalKingdomArcanaLoadout(options);
+          const missingLoadoutParts = getMissingKingdomArcanaLoadoutParts(
+            humanCharacters[requesterRowIndex],
+            localLoadout
+          );
+          if (missingLoadoutParts.length > 0) {
+            targetState.characterSnapshotReady = false;
+            targetState.message = '戦闘プロフィールからタロット装備を取得できないため、再取得してください。';
+            return false;
+          }
+        }
       }
-      if (!online && humanSeats.length === 1 && (!humanCharacters[0])) {
-        humanCharacters = [buildLoadedLocalKingdomCharacter()];
+      if (!profileRequestAttempted && !online && humanSeats.length === 1 && (!humanCharacters[0])) {
+        humanCharacters = [buildLocalCharacter()];
       }
       if (humanCharacters.length !== humanSeats.length || humanCharacters.some((character) => !character)) {
         if (!isCurrentState()) return false;
@@ -5127,6 +5214,11 @@ function areKingdomArcanaLoadoutV2EffectsEnabled(state = s) {
 
 function areKingdomArcanaLoadoutV3EffectsEnabled(state = s) {
   return Number(state?.rules?.arcanaLoadoutEffectsVersion || 0) >= 3;
+}
+
+function areKingdomArcanaLoadoutV2OnlyEffectsEnabled(state = s) {
+  return areKingdomArcanaLoadoutV2EffectsEnabled(state)
+    && !areKingdomArcanaLoadoutV3EffectsEnabled(state);
 }
 
 function getKingdomRHistory(state = s) {
@@ -7888,6 +7980,18 @@ function emitKingdomGuardianPassive(playerIndex, label, results = []) {
   });
 }
 
+function getKingdomGuardianPassiveDisplayName(playerIndex, results = []) {
+  if (!(Array.isArray(results) && results.some(Boolean))) return '';
+  const guardian = getKingdomGuardianArcana(playerIndex);
+  const definition = guardian ? getTarotKingdomGuardianDefinition(guardian.number) : null;
+  return String(
+    definition?.passiveName
+    || guardian?.passiveName
+    || results.find((entry) => String(entry?.label || '').trim())?.label
+    || ''
+  ).trim();
+}
+
 function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
   if (!areKingdomCombatEffectsEnabled() || !s?.battle || !s.players?.[playerIndex]) {
     return { results: [], damage: 0, heal: 0, effectCount: 0, resonance: null, weapon: null, summon: null, major: null, worldRole: null };
@@ -8089,6 +8193,7 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
     options
   );
   if (guardianPassiveResults.length) results.push(...guardianPassiveResults);
+  const guardianPassiveName = getKingdomGuardianPassiveDisplayName(playerIndex, guardianPassiveResults);
   const major = resolveKingdomMajorBattleEffect(playerIndex, play, options);
   if (major) results.push(...major.results);
   const worldRole = applyKingdomWorldRoleTimeStop(playerIndex, rebuiltRole);
@@ -8107,7 +8212,8 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
     weapon,
     summon,
     major,
-    worldRole
+    worldRole,
+    guardianPassiveName
   };
 }
 
@@ -8121,8 +8227,7 @@ function tryReviveKingdomJudgmentGuardian(playerIndex, state = s) {
     state !== s
     || !player
     || Math.max(0, Number(player.hp) || 0) > 0
-    || !areKingdomArcanaLoadoutV2EffectsEnabled(state)
-    || areKingdomArcanaLoadoutV3EffectsEnabled(state)
+    || !areKingdomArcanaLoadoutV2OnlyEffectsEnabled(state)
     || Number(getKingdomGuardianArcana(playerIndex, state)?.number) !== 20
   ) return false;
   const guardianState = getKingdomGuardianState(playerIndex, state);
@@ -8146,7 +8251,7 @@ function isKingdomBattlePlayerConscious(playerIndex, state = s) {
     state === s
     && Math.max(0, Number(player.hp) || 0) <= 0
     && Number(state.turn) === Number(playerIndex)
-    && areKingdomArcanaLoadoutV2EffectsEnabled(state)
+    && areKingdomArcanaLoadoutV2OnlyEffectsEnabled(state)
     && Number(getKingdomGuardianArcana(playerIndex, state)?.number) === 20
   ) {
     tryReviveKingdomJudgmentGuardian(playerIndex, state);
@@ -8240,7 +8345,7 @@ function applyKingdomPlayerHpDamage(playerIndex, requestedDamage, options = {}) 
       after = Math.max(1, Math.floor(Math.max(1, Number(player.maxHp) || 1) * percent / 100));
       player.hp = after;
       consumeKingdomBattleEffect('player', 'autoRevive', playerIndex);
-    } else if (areKingdomArcanaLoadoutV2EffectsEnabled() && !areKingdomArcanaLoadoutV3EffectsEnabled()) {
+    } else if (areKingdomArcanaLoadoutV2OnlyEffectsEnabled()) {
       if (Number(getKingdomGuardianArcana(playerIndex)?.number) === 20) {
         const guardianState = getKingdomGuardianState(playerIndex);
         if (!guardianState.reviveUsed) guardianState.revivePending = true;
@@ -8779,6 +8884,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
       effects,
       effectCount: secondary.effectCount,
       resonanceName: secondary.resonance?.skillName || '',
+      guardianPassiveName: secondary.guardianPassiveName || '',
       majorSkillName: secondary.major?.skillName || '',
       majorNumber: secondary.major?.number ?? null,
       majorTone: secondary.major?.tone || '',
@@ -8809,7 +8915,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
   const guardian = getKingdomGuardianArcana(playerIndex);
   const fieldRank = Number(play?.resonanceContext?.fieldCard?.number);
   const submittedRank = Number(play?.cardsHand?.[0]?.number);
-  const guardianBreakthrough = areKingdomArcanaLoadoutV2EffectsEnabled()
+  const guardianBreakthrough = areKingdomArcanaLoadoutV2OnlyEffectsEnabled()
     && Number(guardian?.number) === 7
     && Number.isFinite(fieldRank)
     && Number.isFinite(submittedRank)
@@ -8884,6 +8990,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
     effects,
     effectCount: secondary.effectCount,
     resonanceName: secondary.resonance?.skillName || '',
+    guardianPassiveName: secondary.guardianPassiveName || '',
     majorSkillName: secondary.major?.skillName || '',
     majorNumber: secondary.major?.number ?? null,
     majorTone: secondary.major?.tone || '',
@@ -13422,7 +13529,7 @@ function exposeTarotKingdomBattleDebugTools(target) {
       }
       return { ok: true, state: snapshotTarotKingdomDebugState() };
     },
-    battleLoadProfileAndPlay: async (character = {}, card = {}) => {
+    battleLoadProfileAndPlay: async (character = {}, card = {}, options = {}) => {
       const submittedCard = {
         id: String(card.id || 'profile-resonance-card'),
         kind: 'minor',
@@ -13447,13 +13554,37 @@ function exposeTarotKingdomBattleDebugTools(target) {
         force: true,
         online: false,
         requesterPlayFabId: 'profile-player',
-        profileLoader: async () => ({
-          characters: [{
-            ...character,
-            source: 'playfab',
-            playFabId: 'profile-player'
-          }]
-        })
+        profileLoader: async () => {
+          if (options.profileFailure === true) throw new Error('Debug combat profile failure.');
+          return {
+            characters: [{
+              ...character,
+              source: 'playfab',
+              playFabId: 'profile-player'
+            }]
+          };
+        },
+        ...(options.localLoadout && typeof options.localLoadout === 'object'
+          ? {
+              localArcanaLoadoutReader: () => cloneKingdomSnapshotValue(options.localLoadout, {
+                tarotDeck: [],
+                guardianArcana: null
+              })
+            }
+          : {}),
+        ...(Object.prototype.hasOwnProperty.call(options, 'localCharacter')
+          ? {
+              localCharacterBuilder: () => (
+                options.localCharacter && typeof options.localCharacter === 'object'
+                  ? normalizeTarotKingdomCharacter({
+                      ...cloneKingdomSnapshotValue(options.localCharacter, {}),
+                      source: 'playfab',
+                      playFabId: 'profile-player'
+                    })
+                  : null
+              )
+            }
+          : {})
       });
       if (!applied) return { applied: false, state: snapshotTarotKingdomDebugState() };
       const rebuilt = rebuildKingdomPlayFromAction(0, { selectedCardIds: [submittedCard.id] });
@@ -14658,7 +14789,7 @@ function skipDrawChoice(playerIndex, note = '') {
     drew: false
   };
   if (
-    areKingdomArcanaLoadoutV2EffectsEnabled()
+    areKingdomArcanaLoadoutV2OnlyEffectsEnabled()
     && Number(getKingdomGuardianArcana(playerIndex)?.number) === 17
   ) {
     const results = getKingdomSeatIndexes()
@@ -14785,7 +14916,7 @@ function clearTrick(leader, options = {}) {
   }
   let clearGuardianEvent = null;
   if (
-    areKingdomArcanaLoadoutV2EffectsEnabled()
+    areKingdomArcanaLoadoutV2OnlyEffectsEnabled()
     && Number(getKingdomGuardianArcana(leader)?.number) === 13
     && Number(s?.battle?.enemy?.hp) > 0
   ) {
@@ -14905,7 +15036,7 @@ function applySetEffects(play) {
       targetIndexes: Array.from(new Set(targetIndexes)),
       expiresAt: Date.now() + 2400
     };
-    if (areKingdomArcanaLoadoutV2EffectsEnabled()) {
+    if (areKingdomArcanaLoadoutV2OnlyEffectsEnabled()) {
       targetIndexes.forEach((targetIndex) => {
         if (Number(getKingdomGuardianArcana(targetIndex)?.number) !== 8) return;
         setKingdomBattleEffect('player', 'nextEffectUp', {
@@ -15197,7 +15328,7 @@ function applyDrawChoice() {
     onPlayerDrewCard(pi, 1200);
     log(`${pName(pi)}: ${c.kind === 'major' ? '大' : '小'}アルカナをドロー`);
     if (
-      areKingdomArcanaLoadoutV2EffectsEnabled()
+      areKingdomArcanaLoadoutV2OnlyEffectsEnabled()
       && Number(getKingdomGuardianArcana(pi)?.number) === 10
     ) {
       const rank = Math.max(0, Number(c.number) || 0);
@@ -16075,7 +16206,7 @@ function passAction(pi, options = {}) {
   const passGuardianEvents = [];
   if (
     startedFold
-    && areKingdomArcanaLoadoutV2EffectsEnabled()
+    && areKingdomArcanaLoadoutV2OnlyEffectsEnabled()
     && Number(getKingdomGuardianArcana(pi)?.number) === 12
   ) {
     const lowest = getKingdomSeatIndexes()
@@ -16098,7 +16229,7 @@ function passAction(pi, options = {}) {
   if (
     singleAttackEvent
     && Number(s.players?.[pi]?.hp) > 0
-    && areKingdomArcanaLoadoutV2EffectsEnabled()
+    && areKingdomArcanaLoadoutV2OnlyEffectsEnabled()
     && Number(getKingdomGuardianArcana(pi)?.number) === 0
   ) {
     const results = getKingdomSeatIndexes()
@@ -18618,13 +18749,18 @@ function renderKingdomSecondaryEffectBanner(event, eventIsActive, phase) {
   let majorVisual = ui.battleStage.querySelector(':scope > .tarot-kingdom-major-visual');
   const resonanceName = String(event?.resonanceName || '').trim();
   const weaponName = String(event?.weaponEffectName || '').trim();
+  const guardianPassiveName = String(event?.guardianPassiveName || '').trim();
   const majorSkillName = String(event?.majorSkillName || '').trim();
+  const regularEffectName = [
+    guardianPassiveName ? `守護・${guardianPassiveName}` : '',
+    resonanceName || weaponName
+  ].filter(Boolean).join(' / ');
   const reducedMotion = prefersKingdomReducedMotion();
   const majorSkillVisible = Boolean(majorSkillName)
     && (phase === 'damage' || phase === 'recover' || phase === 'effect');
   const regularEffectVisible = !majorSkillName
     && (phase === 'damage' || phase === 'recover' || phase === 'effect');
-  const show = !!(eventIsActive && (majorSkillName || resonanceName || weaponName) && (
+  const show = !!(eventIsActive && (majorSkillName || regularEffectName) && (
     majorSkillVisible || regularEffectVisible || reducedMotion
   ));
   if (!show) {
@@ -18644,7 +18780,7 @@ function renderKingdomSecondaryEffectBanner(event, eventIsActive, phase) {
   node.classList.toggle('is-awakened', !!event?.majorAwakened);
   node.dataset.majorTone = majorTone;
   node.dataset.eventKey = String(event?.seq || '');
-  node.textContent = majorSkillName || resonanceName || weaponName;
+  node.textContent = majorSkillName || regularEffectName;
   if (majorSkillName) {
     const scope = getKingdomMajorVisualScope(event);
     const visualKey = `${event?.seq || 0}:${majorTone}:${scope}`;

@@ -8,6 +8,10 @@ const {
   parseTarotGuardian,
   serializeTarotGuardian
 } = require('../server/tarotKingdomArcanaLoadout');
+const {
+  normalizeTarotCatalogFriendlyId,
+  resolveTarotCatalogItemId
+} = require('../server/tarotItemIds');
 
 test('dedicated arcana catalog contains 56 unique minor resonances and 22 guardians', () => {
   const catalog = getArcanaEffectsCatalog();
@@ -78,6 +82,37 @@ test('guardian storage is independent and never reads an old ship loadout', () =
     itemId: 'tarot_major_08'
   });
   expect(JSON.parse(serializeTarotGuardian(null))).toEqual({ version: 1, itemId: null });
+});
+
+test('legacy tarot ids normalize before the production catalog resolver runs', () => {
+  expect(normalizeTarotCatalogFriendlyId('tarot_major_01')).toBe('arcana-1');
+  expect(normalizeTarotCatalogFriendlyId('tarot_major_sword_16')).toBe('arcana-16');
+  expect(normalizeTarotCatalogFriendlyId('tarot-minor-wands-01')).toBe('minor-wand-1');
+  expect(normalizeTarotCatalogFriendlyId('tarot_minor_pentacle_K')).toBe('minor-pentacle-14');
+  expect(resolveTarotCatalogItemId('tarot_minor_wand_01', (itemId) => (
+    itemId === 'minor-wand-1' ? 'production-uuid-wand-a' : itemId
+  ))).toBe('production-uuid-wand-a');
+});
+
+test('guardian parser accepts legacy strings and ItemId objects safely', () => {
+  expect(parseTarotGuardian('tarot_major_01').itemId).toBe('tarot_major_01');
+  expect(parseTarotGuardian(JSON.stringify('tarot_major_sword_16')).itemId).toBe('tarot_major_sword_16');
+  expect(parseTarotGuardian({ ItemId: 'arcana-21' }).itemId).toBe('arcana-21');
+});
+
+test('loadout card level lookup follows legacy aliases without requiring re-equipment', () => {
+  const itemId = 'production-uuid-wand-a';
+  const catalog = {
+    [itemId]: {
+      FriendlyId: 'minor-wand-1',
+      Category: 'TarotMinor',
+      ArcanaSuit: 'Wand',
+      ArcanaRank: 1
+    }
+  };
+  expect(buildTarotKingdomMinorLoadout([itemId], catalog, {
+    tarot_minor_wand_01: { level: 7 }
+  })[0]).toMatchObject({ itemId, cardLevel: 7, resonanceId: 'wand-1' });
 });
 
 test('card levels strengthen numeric values by two percent without changing fixed fields', () => {

@@ -46,6 +46,10 @@ const tarotFortune = require('./server/tarotFortune');
 const tarotReading = require('./server/tarotReading');
 const personalityAssessment = require('./server/personalityAssessment');
 const tarotDeck = require('./server/tarotDeck');
+const {
+    normalizeTarotCatalogFriendlyId,
+    resolveTarotCatalogItemId
+} = require('./server/tarotItemIds');
 const events = require('./server/events');
 const exploration = require('./server/exploration');
 
@@ -894,6 +898,10 @@ async function loadCatalogCache() {
                 if (alias && !aliasMap[alias]) {
                     aliasMap[alias] = item.Id;
                 }
+                const canonicalTarotAlias = normalizeTarotCatalogFriendlyId(alias);
+                if (canonicalTarotAlias && !aliasMap[canonicalTarotAlias]) {
+                    aliasMap[canonicalTarotAlias] = item.Id;
+                }
             });
         });
 
@@ -912,8 +920,9 @@ async function loadCatalogCache() {
 
 function resolveCatalogItemId(itemId) {
     if (!itemId) return itemId;
-    const key = String(itemId);
-    return catalogAliasMap[key] || itemId;
+    return resolveTarotCatalogItemId(itemId, (candidate) => (
+        catalogAliasMap[String(candidate)] || candidate
+    ));
 }
 
 // 依存関係オブジェクト
@@ -935,6 +944,7 @@ function createDependencies() {
         setGroupDataValues,
         getEntityKeyFromPlayFabId,
         requireAuthenticatedPlayFabId,
+        resolveItemId: resolveCatalogItemId,
         NATION_GROUP_BY_RACE: nation.NATION_GROUP_BY_RACE,
         // economy関数
         getEntityKeyForPlayFabId: (playFabId) => economy.getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId }),

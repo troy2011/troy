@@ -71,11 +71,13 @@ async function withCombatProfilesApi(callback, options = {}) {
 
   const posts = new Map();
   const readOnlyRequests = [];
+  const readOnlyUpdateRequests = [];
   const profileRequests = [];
   const PlayFabServer = {
     GetPlayerStatistics: Symbol('GetPlayerStatistics'),
     GetUserReadOnlyData: Symbol('GetUserReadOnlyData'),
-    GetPlayerProfile: Symbol('GetPlayerProfile')
+    GetPlayerProfile: Symbol('GetPlayerProfile'),
+    UpdateUserReadOnlyData: Symbol('UpdateUserReadOnlyData')
   };
   const PlayFabEconomy = {
     GetInventoryItems: Symbol('GetInventoryItems')
@@ -111,9 +113,10 @@ async function withCombatProfilesApi(callback, options = {}) {
       ArcanaSuit: 'cup',
       ArcanaRank: 1
     },
-    tarot_major_01: {
+    'arcana-1': {
       DisplayName: '魔術師',
       Category: 'TarotMajor',
+      FriendlyId: 'arcana-1',
       ArcanaNumber: 1
     }
   };
@@ -147,11 +150,24 @@ async function withCombatProfilesApi(callback, options = {}) {
           HairStyleIndex: { Value: '6' },
           HairColorIndex: { Value: '3' },
           FacialHairStyleIndex: { Value: '0' },
-          TarotDeck: { Value: JSON.stringify(options.tarotDeckIds || ['minor-cup-1']) },
-          TarotGuardianArcana: { Value: JSON.stringify({
-            version: 1,
-            itemId: options.guardianItemId || 'tarot_major_01'
-          }) },
+          ...(!options.omitCommonTarotDeck ? {
+            TarotDeck: {
+              Value: options.tarotDeckStoredValue
+                ?? JSON.stringify(options.tarotDeckIds || ['minor-cup-1'])
+            }
+          } : {}),
+          ...(options.meleeDeckIds ? {
+            TarotMeleeDeck: { Value: JSON.stringify(options.meleeDeckIds) }
+          } : {}),
+          ...(options.shipDeckIds ? {
+            TarotShipDeck: { Value: JSON.stringify(options.shipDeckIds) }
+          } : {}),
+          TarotGuardianArcana: {
+            Value: options.guardianStoredValue ?? JSON.stringify({
+              version: 1,
+              itemId: options.guardianItemId || 'tarot_major_01'
+            })
+          },
           TarotDeckV2: { Value: '["secret-card"]' },
           ...(options.petState ? {
             TarotKingdomPetState: { Value: JSON.stringify(options.petState) }
@@ -189,6 +205,10 @@ async function withCombatProfilesApi(callback, options = {}) {
         ]
       };
     }
+    if (fn === PlayFabServer.UpdateUserReadOnlyData) {
+      readOnlyUpdateRequests.push(body);
+      return {};
+    }
     return {};
   };
 
@@ -220,6 +240,7 @@ async function withCombatProfilesApi(callback, options = {}) {
       handler: posts.get('/api/tarot-kingdom/combat-profiles'),
       authenticatedIds,
       readOnlyRequests,
+      readOnlyUpdateRequests,
       profileRequests,
       dbReadPaths
     });
@@ -304,7 +325,7 @@ test('combat profile API authenticates the requester and returns sanitized melee
         resonanceId: 'cup-1'
       }],
       guardianArcana: {
-        itemId: 'tarot_major_01',
+        itemId: 'arcana-1',
         number: 1,
         cardLevel: 1,
         passiveId: 'guardian-v3-1'
@@ -360,15 +381,24 @@ test('combat profile restores all five saved legacy tarot ids before battle star
     'tarot_minor_pentacle_13',
     'minor-sword-14'
   ];
+  const canonicalFriendlyIds = [
+    'minor-wand-1',
+    'minor-cup-5',
+    'minor-sword-10',
+    'minor-pentacle-13',
+    'minor-sword-14'
+  ];
   const catalogItemIds = tarotDeckIds.map((_itemId, index) => `catalog-tarot-${index}`);
+  const guardianCatalogItemId = 'catalog-major-tower';
   const inventoryItems = [
     { StackId: 'stack-sword', Id: 'weapon_sword_01' },
     { StackId: 'stack-armor', Id: 'armor_coat_01' },
     { StackId: 'stack-charm', Id: 'charm_01' },
-    ...catalogItemIds.map((itemId, index) => ({ StackId: `stack-tarot-${index}`, Id: itemId }))
+    ...catalogItemIds.map((itemId, index) => ({ StackId: `stack-tarot-${index}`, Id: itemId })),
+    { StackId: 'stack-major-tower', Id: guardianCatalogItemId }
   ];
 
-  await withCombatProfilesApi(async ({ handler }) => {
+  await withCombatProfilesApi(async ({ handler, readOnlyUpdateRequests }) => {
     const result = await invoke(handler, {
       playFabId: 'PF_REQUESTER',
       targetPlayFabIds: ['PF_REQUESTER']
@@ -382,12 +412,25 @@ test('combat profile restores all five saved legacy tarot ids before battle star
       expect.objectContaining({ slot: 3, itemId: catalogItemIds[3], suit: 'Pentacle', rank: 13 }),
       expect.objectContaining({ slot: 4, itemId: catalogItemIds[4], suit: 'Sword', rank: 14 })
     ]);
+    expect(result.payload.characters[0].guardianArcana).toMatchObject({
+      itemId: guardianCatalogItemId,
+      number: 16,
+      passiveId: 'guardian-v3-16'
+    });
+    expect(readOnlyUpdateRequests.some((request) => (
+      JSON.parse(request.Data.TarotDeck || '[]').join('|') === catalogItemIds.join('|')
+    ))).toBe(true);
+    expect(readOnlyUpdateRequests.some((request) => (
+      JSON.parse(request.Data.TarotGuardianArcana || '{}').itemId === guardianCatalogItemId
+    ))).toBe(true);
   }, {
     tarotDeckIds,
+    guardianStoredValue: JSON.stringify({ ItemId: 'tarot_major_sword_16' }),
     inventoryItems,
     resolveItemId: (itemId) => {
-      const index = tarotDeckIds.indexOf(itemId);
-      return index >= 0 ? catalogItemIds[index] : itemId;
+      const index = canonicalFriendlyIds.indexOf(itemId);
+      if (index >= 0) return catalogItemIds[index];
+      return itemId === 'arcana-16' ? guardianCatalogItemId : itemId;
     },
     catalogCache: {
       weapon_sword_01: {
@@ -398,6 +441,12 @@ test('combat profile restores all five saved legacy tarot ids before battle star
       },
       armor_coat_01: { DisplayName: '船長のコート', Category: 'Armor', Defense: 8 },
       charm_01: { DisplayName: '知恵のお守り', Category: 'Accessory', Int: 4 },
+      [guardianCatalogItemId]: {
+        FriendlyId: 'arcana-16',
+        DisplayName: '塔',
+        Category: 'TarotMajor',
+        ArcanaNumber: 16
+      },
       ...Object.fromEntries(catalogItemIds.map((itemId, index) => {
         const [suit, rank] = [
           ['Wand', 1],
@@ -407,13 +456,49 @@ test('combat profile restores all five saved legacy tarot ids before battle star
           ['Sword', 14]
         ][index];
         return [itemId, {
-          FriendlyId: tarotDeckIds[index],
+          FriendlyId: canonicalFriendlyIds[index],
           DisplayName: `${suit} ${rank}`,
           Category: 'TarotMinor',
           ArcanaSuit: suit,
           ArcanaRank: rank
         }];
       }))
+    }
+  });
+});
+
+test('combat profile recovers a legacy deck when an empty common key was saved prematurely', async () => {
+  const catalogItemId = 'catalog-minor-wand-a';
+  await withCombatProfilesApi(async ({ handler, readOnlyUpdateRequests }) => {
+    const result = await invoke(handler, {
+      playFabId: 'PF_REQUESTER',
+      targetPlayFabIds: ['PF_REQUESTER']
+    });
+
+    expect(result.statusCode).toBe(200);
+    expect(result.payload.characters[0].tarotDeck).toEqual([
+      expect.objectContaining({ itemId: catalogItemId, suit: 'Wand', rank: 1 })
+    ]);
+    expect(readOnlyUpdateRequests.some((request) => (
+      JSON.parse(request.Data.TarotDeck || '[]')[0] === catalogItemId
+    ))).toBe(true);
+  }, {
+    tarotDeckStoredValue: '[]',
+    meleeDeckIds: ['tarot_minor_wand_01'],
+    shipDeckIds: [],
+    guardianStoredValue: '',
+    resolveItemId: (itemId) => (itemId === 'minor-wand-1' ? catalogItemId : itemId),
+    inventoryItems: [
+      { StackId: 'stack-minor', Id: catalogItemId }
+    ],
+    catalogCache: {
+      [catalogItemId]: {
+        FriendlyId: 'minor-wand-1',
+        DisplayName: 'ワンドA',
+        Category: 'TarotMinor',
+        ArcanaSuit: 'Wand',
+        ArcanaRank: 1
+      }
     }
   });
 });

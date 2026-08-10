@@ -3,7 +3,16 @@ require('dotenv').config();
 const economy = require('../economy');
 const { getEntityKeyFromPlayFabId, withTitleEntityToken } = require('../playfab');
 const { applyDerivedPlayerLevelToStats } = require('../playerLevel');
-const { TAROT_DECK_DATA_KEY, MELEE_DECK_DATA_KEY, SHIP_DECK_DATA_KEY, evaluateDeckRole, filterMinorDeckIds } = require('../tarotDeck');
+const {
+    TAROT_DECK_DATA_KEY,
+    MELEE_DECK_DATA_KEY,
+    SHIP_DECK_DATA_KEY,
+    evaluateDeckRole,
+    filterMinorDeckIds,
+    readDecksFromData,
+    writeDecks,
+    writeGuardian
+} = require('../tarotDeck');
 const { getTarotRolePassive } = require('../tarotRoles');
 const { getTarotBattleDeck, resolveTarotBattleSkill, publicTarotBattleSkill } = require('../tarotBattleSkills');
 const {
@@ -14,6 +23,11 @@ const {
     parseStoredEquipmentValue
 } = require('../tarotCards');
 const { applyEquipmentEnhancementToCatalogData } = require('../equipmentEnhancement');
+const {
+    getTarotItemIdAliases,
+    normalizeTarotCardLevelMap,
+    resolveTarotCatalogItemId
+} = require('../tarotItemIds');
 const {
     CAPITAL_CAPTURE_BREACH_WALLS,
     normalizeNationWarState
@@ -28,8 +42,7 @@ const {
 const {
     TAROT_GUARDIAN_DATA_KEY,
     buildTarotKingdomGuardian,
-    buildTarotKingdomMinorLoadout,
-    parseTarotGuardian
+    buildTarotKingdomMinorLoadout
 } = require('../tarotKingdomArcanaLoadout');
 
 // ----------------------------------------------------
@@ -70,14 +83,7 @@ function getPlayerRankLabelByLevel(level) {
 }
 
 function resolveBattleCatalogItemId(itemId) {
-    const normalized = String(itemId || '').trim();
-    if (!normalized) return '';
-    if (typeof _resolveItemId !== 'function') return normalized;
-    return String(_resolveItemId(normalized) || normalized).trim() || normalized;
-}
-
-function resolveBattleCatalogItemIds(itemIds = []) {
-    return (Array.isArray(itemIds) ? itemIds : []).map(resolveBattleCatalogItemId);
+    return resolveTarotCatalogItemId(itemId, _resolveItemId);
 }
 
 function getTarotKingdomLevelMaxHp(level) {
@@ -507,11 +513,9 @@ async function getPlayerFullProfile(playFabId, options = {}) {
             if (item?.Id) {
                 const inventoryItemId = String(item.Id).trim();
                 if (inventoryItemId) {
-                    ownedItemIds.add(inventoryItemId);
-                    // Saved loadouts can outlive a catalog ID migration. Compare
-                    // ownership in the same canonical ID space used for deck and
-                    // guardian entries, while retaining the raw inventory ID.
-                    ownedItemIds.add(resolveBattleCatalogItemId(inventoryItemId));
+                    getTarotItemIdAliases(inventoryItemId, _resolveItemId).forEach((alias) => {
+                        ownedItemIds.add(alias);
+                    });
                 }
             }
         });
@@ -600,31 +604,37 @@ async function getPlayerFullProfile(playFabId, options = {}) {
         }
         avatar.level = Number(stats.Level || 1) || 1;
 
-        // タロットデッキ読み込み
-        try {
-            const commonDeckIds = JSON.parse(equipmentResult.Data[TAROT_DECK_DATA_KEY]?.Value || 'null');
-            if (Array.isArray(commonDeckIds)) {
-                meleeDeckIds = commonDeckIds;
-                shipDeckIds = commonDeckIds;
-            } else {
-                meleeDeckIds = JSON.parse(equipmentResult.Data[MELEE_DECK_DATA_KEY]?.Value || '[]');
-                if (!Array.isArray(meleeDeckIds)) meleeDeckIds = [];
-                shipDeckIds = JSON.parse(equipmentResult.Data[SHIP_DECK_DATA_KEY]?.Value || '[]');
-                if (!Array.isArray(shipDeckIds)) shipDeckIds = [];
-            }
-        } catch {
-            meleeDeckIds = [];
-            shipDeckIds = [];
-        }
-        meleeDeckIds = resolveBattleCatalogItemIds(meleeDeckIds);
-        shipDeckIds = resolveBattleCatalogItemIds(shipDeckIds);
+        const storedTarotLoadout = readDecksFromData(equipmentResult.Data, _resolveItemId);
+        meleeDeckIds = storedTarotLoadout.meleeDeck;
+        shipDeckIds = storedTarotLoadout.shipDeck;
         if (options.scope === 'tarotKingdomCombat') {
-            const guardian = parseTarotGuardian(
-                equipmentResult.Data[TAROT_GUARDIAN_DATA_KEY]?.Value
-            );
-            const guardianItemId = resolveBattleCatalogItemId(guardian.itemId);
+            const guardianItemId = resolveBattleCatalogItemId(storedTarotLoadout.guardian?.itemId);
             if (guardianItemId && ownedItemIds.has(guardianItemId)) {
                 guardianArcanaItemId = guardianItemId;
+            }
+            if (storedTarotLoadout.needsDeckMigration || storedTarotLoadout.needsGuardianMigration) {
+                try {
+                    if (storedTarotLoadout.needsDeckMigration) {
+                        await writeDecks(
+                            playFabId,
+                            { tarotDeck: storedTarotLoadout.tarotDeck },
+                            _promisifyPlayFab,
+                            _PlayFabServer,
+                            _resolveItemId
+                        );
+                    }
+                    if (storedTarotLoadout.needsGuardianMigration && guardianItemId) {
+                        await writeGuardian(
+                            playFabId,
+                            guardianItemId,
+                            _promisifyPlayFab,
+                            _PlayFabServer,
+                            _resolveItemId
+                        );
+                    }
+                } catch (migrationError) {
+                    console.warn('[tarot-kingdom] loadout migration failed:', migrationError?.message || migrationError);
+                }
             }
             currentPet = buildTarotKingdomPetPublicRecord(
                 normalizeTarotKingdomPetState(
@@ -873,7 +883,10 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const result = new Map();
         snapshots.forEach((snapshot, index) => {
             const playFabId = uniqueIds[index];
-            result.set(playFabId, snapshot.exists ? (snapshot.data()?.cards || {}) : {});
+            result.set(
+                playFabId,
+                normalizeTarotCardLevelMap(snapshot.exists ? (snapshot.data()?.cards || {}) : {}, _resolveItemId)
+            );
         });
         return result;
     };
