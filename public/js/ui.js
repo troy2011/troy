@@ -32,7 +32,7 @@ const ensureTarotModule = async () => {
 };
 
 let tarotKingdomModule = null;
-const TAROT_KINGDOM_MODULE_VERSION = '20260808-devil-straight1';
+const TAROT_KINGDOM_MODULE_VERSION = '20260810-arcana-runtime1';
 const ensureTarotKingdomModule = async () => {
     if (tarotKingdomModule) return tarotKingdomModule;
     tarotKingdomModule = await import(`./tarotKingdom.js?v=${TAROT_KINGDOM_MODULE_VERSION}`);
@@ -1219,6 +1219,12 @@ function updateHomeAvatarSeaTone() {
 
 export async function showTab(tabId, playerInfo, options = {}) {
     console.log('[showTab] Called with tabId:', tabId, 'playerInfo:', playerInfo);
+    if (tabId !== 'tarot' && document.body) {
+        // The exploration promise and its home transition can finish in either
+        // order. The selected tab is the source of truth for app chrome, so no
+        // non-Tarot tab may retain Tarot Kingdom's fullscreen shell.
+        document.body.classList.remove('tarot-kingdom-fullscreen');
+    }
     const currentActiveTab = document.querySelector('.nav-button.active');
     const currentTabId = document.body?.dataset.currentTab || null;
     const mapLoadLabel = null;

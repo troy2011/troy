@@ -2770,6 +2770,38 @@ test('defense pauses idle motion and shield users raise the shield hand into a g
   });
 });
 
+test('defense can be queued during another player action and commits when the local turn arrives', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const immediate = await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    debug.battleScenario({ turnIndex: 3, leaderIndex: 1 });
+    const response = debug.battlePass(3);
+    const button = document.getElementById('tarotKingdomFoldButton');
+    const disabledBeforeClick = button?.disabled === true;
+    button?.click();
+    const state = debug.battleState();
+    return {
+      responsePhase: response.phase,
+      transitionKind: response.transition?.kind || '',
+      disabledBeforeClick,
+      buttonText: button?.textContent || '',
+      foldedTooEarly: state.fold?.[0] === true
+    };
+  });
+
+  expect(immediate).toEqual({
+    responsePhase: 'resolvingEnemy',
+    transitionKind: 'enemyResponse',
+    disabledBeforeClick: false,
+    buttonText: '防御中',
+    foldedTooEarly: false
+  });
+  await expect.poll(
+    () => page.evaluate(() => window.TarotKingdomDebug.battleState().fold?.[0] === true),
+    { timeout: 5000 }
+  ).toBe(true);
+});
+
 test('current-turn glow does not override any weapon motion or the visible large-gun recoil', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
 

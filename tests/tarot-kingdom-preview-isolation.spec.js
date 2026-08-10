@@ -5,6 +5,23 @@ const { test, expect } = require('@playwright/test');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 
+test('Tarot Kingdom shares the canonical inventory module with the app shell', () => {
+  const kingdomSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'tarotKingdom.js'),
+    'utf8'
+  );
+  const indexSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'index.html'), 'utf8');
+  const previewSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'tarot-kingdom-preview.html'),
+    'utf8'
+  );
+
+  expect(kingdomSource).toContain("} from 'inventory';");
+  expect(kingdomSource).not.toContain("} from './inventory.js';");
+  expect(indexSource).toContain('"inventory": "./js/inventory.js?v=20260808-enhancement-stack-ref1"');
+  expect(previewSource).toContain('"inventory": "./js/inventory.js?v=20260808-enhancement-stack-ref1"');
+});
+
 function loadServiceWorkerHarness() {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'sw.js'), 'utf8');
   const listeners = new Map();

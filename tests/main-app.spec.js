@@ -2352,6 +2352,27 @@ test('exploration bridge opens tarot kingdom directly with the selected island m
   await expectNoPageErrors(errors);
 });
 
+test('home tab restores the bottom navigation after a resolved Kingdom retreat', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await bootstrapMainApp(page, { mockFirebaseDatabase: true });
+
+  await page.evaluate(() => {
+    document.body.classList.add('tarot-kingdom-fullscreen');
+    document.body.dataset.currentTab = 'home';
+    const home = document.getElementById('tabContentHome');
+    if (home) home.style.display = 'block';
+  });
+  await expect(page.locator('#bottomNav')).toBeHidden();
+
+  await page.evaluate(() => window.showTab('home'));
+
+  await expect(page.locator('#tabContentHome')).toBeVisible();
+  await expect(page.locator('body')).not.toHaveClass(/tarot-kingdom-fullscreen/);
+  await expect(page.locator('#globalStatusBar')).toBeVisible();
+  await expect(page.locator('#bottomNav')).toBeVisible();
+  await expectNoPageErrors(errors);
+});
+
 test('exploration rescue signal creates a dedicated online lobby before combat', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.route('**/api/get-troy-status', async (route) => {

@@ -6,7 +6,7 @@ import {
   getMyCurrentEquipment,
   getMyTarotBattleDeckSnapshot,
   getMyTarotGuardianSnapshot
-} from './inventory.js';
+} from 'inventory';
 import { getPlayerRankName } from './homePlayerStatus.js';
 import {
   getTarotKingdomCombatProfiles,
@@ -20931,6 +20931,16 @@ function updateButtons() {
   const myTurn = battleConscious && s.roundActive && s.phase === 'turn' && s.turn === me;
   const drawMe = battleConscious && s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
   const canDraw = drawMe && s.drawDeck.length > 0 && myHandCount < getKingdomHandLimit();
+  const canQueueDefense = battleConscious
+    && s.roundActive
+    && !!s.trick
+    && !drawMe
+    && !isMatchDone
+    && !inOpeningCinematic
+    && !inOpeningDeal
+    && s.phase !== 'roundOutCinematic'
+    && !kingdomCharacterLoadPromise
+    && isKingdomLocalPrivateStateReady();
   const hasSelected = !!(s.selected && s.selected.size > 0);
   const canClearSelection = hasSelected;
   const canToggleSort = !hasSelected && myHandCount > 1;
@@ -21056,7 +21066,7 @@ function updateButtons() {
       ui.foldButton.textContent = kingdomLocalAutoFold ? '防御中' : '防御';
       ui.foldButton.disabled = kingdomLocalAutoFold
         ? false
-        : (actionLocked || !(s.roundActive && s.phase === 'turn' && !!s.trick));
+        : !canQueueDefense;
     }
     ui.foldButton.classList.toggle('is-ready', !!(!ui.foldButton.disabled && (drawMe || kingdomLocalAutoFold || myTurn)));
     ui.foldButton.classList.toggle('is-active', !drawMe && kingdomLocalAutoFold);
@@ -21397,6 +21407,10 @@ async function handleKingdomExplorationRetreatClick() {
   }
   settleKingdomExplorationSession('retreated');
   teardownTarotKingdomNetwork();
+  // Exploration completion resolves before the outer navigation flow resumes.
+  // Restore the app chrome immediately so a concurrent home transition cannot
+  // leave the fullscreen class behind and keep the bottom navigation hidden.
+  setKingdomFullscreen(false);
   if (typeof window.showTab === 'function') {
     await window.showTab('home');
     return;
@@ -21856,7 +21870,7 @@ function bindUi() {
       render();
       return;
     }
-    if (!s?.roundActive || s.phase !== 'turn') return;
+    if (!s?.roundActive || isKingdomMatchDoneState(s) || !isKingdomBattlePlayerConscious(me)) return;
     if (!s.trick) {
       showPlayError('場がある時だけ防御できます。');
       return;
