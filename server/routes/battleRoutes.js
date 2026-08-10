@@ -504,7 +504,16 @@ async function getPlayerFullProfile(playFabId, options = {}) {
                 instanceIdToItemIdMap[item.StackId] = item.Id;
                 instanceIdToInventoryItemMap[item.StackId] = item;
             }
-            if (item?.Id) ownedItemIds.add(String(item.Id));
+            if (item?.Id) {
+                const inventoryItemId = String(item.Id).trim();
+                if (inventoryItemId) {
+                    ownedItemIds.add(inventoryItemId);
+                    // Saved loadouts can outlive a catalog ID migration. Compare
+                    // ownership in the same canonical ID space used for deck and
+                    // guardian entries, while retaining the raw inventory ID.
+                    ownedItemIds.add(resolveBattleCatalogItemId(inventoryItemId));
+                }
+            }
         });
     }
 

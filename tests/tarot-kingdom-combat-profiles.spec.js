@@ -148,7 +148,10 @@ async function withCombatProfilesApi(callback, options = {}) {
           HairColorIndex: { Value: '3' },
           FacialHairStyleIndex: { Value: '0' },
           TarotDeck: { Value: JSON.stringify(options.tarotDeckIds || ['minor-cup-1']) },
-          TarotGuardianArcana: { Value: JSON.stringify({ version: 1, itemId: 'tarot_major_01' }) },
+          TarotGuardianArcana: { Value: JSON.stringify({
+            version: 1,
+            itemId: options.guardianItemId || 'tarot_major_01'
+          }) },
           TarotDeckV2: { Value: '["secret-card"]' },
           ...(options.petState ? {
             TarotKingdomPetState: { Value: JSON.stringify(options.petState) }
@@ -411,6 +414,71 @@ test('combat profile restores all five saved legacy tarot ids before battle star
           ArcanaRank: rank
         }];
       }))
+    }
+  });
+});
+
+test('combat profile keeps deck and guardian ownership across catalog id migration', async () => {
+  const legacyMinorId = 'legacy-minor-cup-a';
+  const legacyGuardianId = 'legacy-major-magician';
+  const canonicalMinorId = 'catalog-minor-cup-a';
+  const canonicalGuardianId = 'catalog-major-magician';
+  const resolveItemId = (itemId) => ({
+    [legacyMinorId]: canonicalMinorId,
+    [legacyGuardianId]: canonicalGuardianId
+  }[itemId] || itemId);
+
+  await withCombatProfilesApi(async ({ handler }) => {
+    const result = await invoke(handler, {
+      playFabId: 'PF_REQUESTER',
+      targetPlayFabIds: ['PF_REQUESTER']
+    });
+
+    expect(result.statusCode).toBe(200);
+    expect(result.payload.characters[0]).toMatchObject({
+      tarotDeck: [expect.objectContaining({
+        itemId: canonicalMinorId,
+        suit: 'Cup',
+        rank: 1
+      })],
+      guardianArcana: expect.objectContaining({
+        itemId: canonicalGuardianId,
+        number: 1
+      })
+    });
+  }, {
+    tarotDeckIds: [legacyMinorId],
+    guardianItemId: legacyGuardianId,
+    resolveItemId,
+    inventoryItems: [
+      { StackId: 'stack-sword', Id: 'weapon_sword_01' },
+      { StackId: 'stack-armor', Id: 'armor_coat_01' },
+      { StackId: 'stack-charm', Id: 'charm_01' },
+      { StackId: 'stack-minor', Id: legacyMinorId },
+      { StackId: 'stack-guardian', Id: legacyGuardianId }
+    ],
+    catalogCache: {
+      weapon_sword_01: {
+        DisplayName: '海賊の剣',
+        Category: 'Weapon',
+        ManifestWeaponType: 'sword',
+        Power: 5
+      },
+      armor_coat_01: { DisplayName: '船長のコート', Category: 'Armor', Defense: 8 },
+      charm_01: { DisplayName: '知恵のお守り', Category: 'Accessory', Int: 4 },
+      [canonicalMinorId]: {
+        FriendlyId: legacyMinorId,
+        DisplayName: 'カップA',
+        Category: 'TarotMinor',
+        ArcanaSuit: 'Cup',
+        ArcanaRank: 1
+      },
+      [canonicalGuardianId]: {
+        FriendlyId: legacyGuardianId,
+        DisplayName: '魔術師',
+        Category: 'TarotMajor',
+        ArcanaNumber: 1
+      }
     }
   });
 });
