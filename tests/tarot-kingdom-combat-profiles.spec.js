@@ -2,6 +2,16 @@ const fs = require('fs');
 const path = require('path');
 const { test, expect } = require('@playwright/test');
 
+async function waitForCondition(predicate, timeoutMs = 1000) {
+  const startedAt = Date.now();
+  while (!predicate()) {
+    if ((Date.now() - startedAt) >= timeoutMs) {
+      throw new Error('Timed out waiting for asynchronous combat-profile work');
+    }
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+}
+
 async function withCombatProfilesApi(callback, options = {}) {
   const adminPath = require.resolve('firebase-admin');
   const playfabPath = require.resolve('../server/playfab');
@@ -207,6 +217,9 @@ async function withCombatProfilesApi(callback, options = {}) {
     }
     if (fn === PlayFabServer.UpdateUserReadOnlyData) {
       readOnlyUpdateRequests.push(body);
+      if (options.readOnlyUpdateGate && typeof options.readOnlyUpdateGate.then === 'function') {
+        await options.readOnlyUpdateGate;
+      }
       return {};
     }
     return {};
@@ -373,7 +386,7 @@ test('combat profile API authenticates the requester and returns sanitized melee
   });
 });
 
-test('combat profile restores all five saved legacy tarot ids before battle starts', async () => {
+test('combat profile restores saved legacy tarot ids without waiting for inventory refresh or migration writes', async () => {
   const tarotDeckIds = [
     'tarot_minor_wand_01',
     'tarot_minor_cup_05',
@@ -393,30 +406,43 @@ test('combat profile restores all five saved legacy tarot ids before battle star
   const inventoryItems = [
     { StackId: 'stack-sword', Id: 'weapon_sword_01' },
     { StackId: 'stack-armor', Id: 'armor_coat_01' },
-    { StackId: 'stack-charm', Id: 'charm_01' },
-    ...catalogItemIds.map((itemId, index) => ({ StackId: `stack-tarot-${index}`, Id: itemId })),
-    { StackId: 'stack-major-tower', Id: guardianCatalogItemId }
+    { StackId: 'stack-charm', Id: 'charm_01' }
   ];
+  let releaseMigration;
+  const migrationGate = new Promise((resolve) => {
+    releaseMigration = resolve;
+  });
 
   await withCombatProfilesApi(async ({ handler, readOnlyUpdateRequests }) => {
-    const result = await invoke(handler, {
-      playFabId: 'PF_REQUESTER',
-      targetPlayFabIds: ['PF_REQUESTER']
-    });
+    try {
+      const result = await Promise.race([
+        invoke(handler, {
+          playFabId: 'PF_REQUESTER',
+          targetPlayFabIds: ['PF_REQUESTER']
+        }),
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Combat profile waited for migration persistence')), 1000);
+        })
+      ]);
 
-    expect(result.statusCode).toBe(200);
-    expect(result.payload.characters[0].tarotDeck).toEqual([
-      expect.objectContaining({ slot: 0, itemId: catalogItemIds[0], suit: 'Wand', rank: 1 }),
-      expect.objectContaining({ slot: 1, itemId: catalogItemIds[1], suit: 'Cup', rank: 5 }),
-      expect.objectContaining({ slot: 2, itemId: catalogItemIds[2], suit: 'Sword', rank: 10 }),
-      expect.objectContaining({ slot: 3, itemId: catalogItemIds[3], suit: 'Pentacle', rank: 13 }),
-      expect.objectContaining({ slot: 4, itemId: catalogItemIds[4], suit: 'Sword', rank: 14 })
-    ]);
-    expect(result.payload.characters[0].guardianArcana).toMatchObject({
-      itemId: guardianCatalogItemId,
-      number: 16,
-      passiveId: 'guardian-v3-16'
-    });
+      expect(result.statusCode).toBe(200);
+      expect(result.payload.characters[0].tarotDeck).toEqual([
+        expect.objectContaining({ slot: 0, itemId: catalogItemIds[0], suit: 'Wand', rank: 1 }),
+        expect.objectContaining({ slot: 1, itemId: catalogItemIds[1], suit: 'Cup', rank: 5 }),
+        expect.objectContaining({ slot: 2, itemId: catalogItemIds[2], suit: 'Sword', rank: 10 }),
+        expect.objectContaining({ slot: 3, itemId: catalogItemIds[3], suit: 'Pentacle', rank: 13 }),
+        expect.objectContaining({ slot: 4, itemId: catalogItemIds[4], suit: 'Sword', rank: 14 })
+      ]);
+      expect(result.payload.characters[0].guardianArcana).toMatchObject({
+        itemId: guardianCatalogItemId,
+        number: 16,
+        passiveId: 'guardian-v3-16'
+      });
+      expect(readOnlyUpdateRequests).toHaveLength(1);
+    } finally {
+      releaseMigration();
+    }
+    await waitForCondition(() => readOnlyUpdateRequests.length === 2);
     expect(readOnlyUpdateRequests.some((request) => (
       JSON.parse(request.Data.TarotDeck || '[]').join('|') === catalogItemIds.join('|')
     ))).toBe(true);
@@ -427,6 +453,7 @@ test('combat profile restores all five saved legacy tarot ids before battle star
     tarotDeckIds,
     guardianStoredValue: JSON.stringify({ ItemId: 'tarot_major_sword_16' }),
     inventoryItems,
+    readOnlyUpdateGate: migrationGate,
     resolveItemId: (itemId) => {
       const index = canonicalFriendlyIds.indexOf(itemId);
       if (index >= 0) return catalogItemIds[index];

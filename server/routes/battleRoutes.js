@@ -24,7 +24,6 @@ const {
 } = require('../tarotCards');
 const { applyEquipmentEnhancementToCatalogData } = require('../equipmentEnhancement');
 const {
-    getTarotItemIdAliases,
     normalizeTarotCardLevelMap,
     resolveTarotCatalogItemId
 } = require('../tarotItemIds');
@@ -56,6 +55,7 @@ let _lineClient = null;
 let _catalogCache = null;
 let _catalogCurrencyMap = null;
 let _resolveItemId = null;
+const tarotKingdomLoadoutMigrationInFlight = new Map();
 
 const TAROT_KINGDOM_EQUIPMENT_SLOTS = ['RightHand', 'LeftHand', 'Armor', 'Accessory'];
 const TAROT_KINGDOM_WEAPON_PRIORITY = [
@@ -84,6 +84,48 @@ function getPlayerRankLabelByLevel(level) {
 
 function resolveBattleCatalogItemId(itemId) {
     return resolveTarotCatalogItemId(itemId, _resolveItemId);
+}
+
+function scheduleTarotKingdomLoadoutMigration(playFabId, storedLoadout, guardianItemId) {
+    const normalizedPlayFabId = String(playFabId || '').trim();
+    if (
+        !normalizedPlayFabId
+        || !(storedLoadout?.needsDeckMigration || storedLoadout?.needsGuardianMigration)
+        || tarotKingdomLoadoutMigrationInFlight.has(normalizedPlayFabId)
+    ) return;
+    const promisifyPlayFab = _promisifyPlayFab;
+    const PlayFabServer = _PlayFabServer;
+    const resolveItemId = _resolveItemId;
+    const migration = (async () => {
+        if (storedLoadout.needsDeckMigration) {
+            await writeDecks(
+                normalizedPlayFabId,
+                { tarotDeck: storedLoadout.tarotDeck },
+                promisifyPlayFab,
+                PlayFabServer,
+                resolveItemId
+            );
+        }
+        if (storedLoadout.needsGuardianMigration && guardianItemId) {
+            await writeGuardian(
+                normalizedPlayFabId,
+                guardianItemId,
+                promisifyPlayFab,
+                PlayFabServer,
+                resolveItemId
+            );
+        }
+    })();
+    tarotKingdomLoadoutMigrationInFlight.set(normalizedPlayFabId, migration);
+    migration
+        .catch((migrationError) => {
+            console.warn('[tarot-kingdom] loadout migration failed:', migrationError?.message || migrationError);
+        })
+        .finally(() => {
+            if (tarotKingdomLoadoutMigrationInFlight.get(normalizedPlayFabId) === migration) {
+                tarotKingdomLoadoutMigrationInFlight.delete(normalizedPlayFabId);
+            }
+        });
 }
 
 function getTarotKingdomLevelMaxHp(level) {
@@ -503,20 +545,11 @@ async function getPlayerFullProfile(playFabId, options = {}) {
     // InstanceId をキー、ItemId を値とするマップを作成
     const instanceIdToItemIdMap = {};
     const instanceIdToInventoryItemMap = {};
-    const ownedItemIds = new Set();
     if (Array.isArray(inventoryResult)) {
         inventoryResult.forEach(item => {
             if (item?.StackId && item?.Id) {
                 instanceIdToItemIdMap[item.StackId] = item.Id;
                 instanceIdToInventoryItemMap[item.StackId] = item;
-            }
-            if (item?.Id) {
-                const inventoryItemId = String(item.Id).trim();
-                if (inventoryItemId) {
-                    getTarotItemIdAliases(inventoryItemId, _resolveItemId).forEach((alias) => {
-                        ownedItemIds.add(alias);
-                    });
-                }
             }
         });
     }
@@ -609,33 +642,8 @@ async function getPlayerFullProfile(playFabId, options = {}) {
         shipDeckIds = storedTarotLoadout.shipDeck;
         if (options.scope === 'tarotKingdomCombat') {
             const guardianItemId = resolveBattleCatalogItemId(storedTarotLoadout.guardian?.itemId);
-            if (guardianItemId && ownedItemIds.has(guardianItemId)) {
-                guardianArcanaItemId = guardianItemId;
-            }
-            if (storedTarotLoadout.needsDeckMigration || storedTarotLoadout.needsGuardianMigration) {
-                try {
-                    if (storedTarotLoadout.needsDeckMigration) {
-                        await writeDecks(
-                            playFabId,
-                            { tarotDeck: storedTarotLoadout.tarotDeck },
-                            _promisifyPlayFab,
-                            _PlayFabServer,
-                            _resolveItemId
-                        );
-                    }
-                    if (storedTarotLoadout.needsGuardianMigration && guardianItemId) {
-                        await writeGuardian(
-                            playFabId,
-                            guardianItemId,
-                            _promisifyPlayFab,
-                            _PlayFabServer,
-                            _resolveItemId
-                        );
-                    }
-                } catch (migrationError) {
-                    console.warn('[tarot-kingdom] loadout migration failed:', migrationError?.message || migrationError);
-                }
-            }
+            guardianArcanaItemId = guardianItemId || null;
+            scheduleTarotKingdomLoadoutMigration(playFabId, storedTarotLoadout, guardianItemId);
             currentPet = buildTarotKingdomPetPublicRecord(
                 normalizeTarotKingdomPetState(
                     equipmentResult.Data[TAROT_KINGDOM_PET_DATA_KEY]?.Value
@@ -702,9 +710,6 @@ async function getPlayerFullProfile(playFabId, options = {}) {
     // 白兵戦デッキの役は戦闘開始時パッシブとして扱う
     meleeDeckIds = filterMinorDeckIds(meleeDeckIds, _catalogCache);
     shipDeckIds = filterMinorDeckIds(shipDeckIds, _catalogCache);
-    if (options.scope === 'tarotKingdomCombat') {
-        meleeDeckIds = meleeDeckIds.filter((itemId) => ownedItemIds.has(String(itemId)));
-    }
     const meleeDeckItemData = meleeDeckIds.map((id) => _catalogCache?.[id] || null);
     const tarotMeleeRole = evaluateDeckRole(meleeDeckItemData);
     const tarotRolePassive = getTarotRolePassive(tarotMeleeRole);
