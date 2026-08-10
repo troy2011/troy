@@ -42,14 +42,41 @@ const NEGATIVE_STATUS_PRIORITY = Object.freeze([
 ]);
 
 const TAROT_KINGDOM_ARCANA_CACHE_VERSION = '20260805-arcana-v3-full2';
+const TAROT_KINGDOM_ARCANA_LOAD_ATTEMPTS = 3;
+
+function validateTarotKingdomArcanaEffects(data, fileName) {
+    const isLegacy = fileName.includes('-v2');
+    const minorCount = Array.isArray(data?.minor) ? data.minor.length : 0;
+    const guardianCount = Array.isArray(data?.guardian) ? data.guardian.length : 0;
+    const majorCount = Array.isArray(data?.major) ? data.major.length : 0;
+    if (minorCount !== 56 || guardianCount !== 22 || (!isLegacy && majorCount !== 22)) {
+        throw new Error(
+            `Arcana effects are incomplete: ${fileName} `
+            + `(minor=${minorCount}, guardian=${guardianCount}, major=${majorCount})`
+        );
+    }
+    return data;
+}
 
 async function loadTarotKingdomArcanaEffects(fileName) {
     if (String(import.meta.url || '').startsWith('data:')) return null;
-    const url = new URL(`../data/${fileName}`, import.meta.url);
-    url.searchParams.set('v', TAROT_KINGDOM_ARCANA_CACHE_VERSION);
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Arcana effects could not be loaded: ${response.status}`);
-    return response.json();
+    let lastError = null;
+    for (let attempt = 0; attempt < TAROT_KINGDOM_ARCANA_LOAD_ATTEMPTS; attempt += 1) {
+        const url = new URL(`../data/${fileName}`, import.meta.url);
+        url.searchParams.set('v', TAROT_KINGDOM_ARCANA_CACHE_VERSION);
+        if (attempt > 0) url.searchParams.set('retry', String(attempt));
+        try {
+            const response = await fetch(url, attempt > 0 ? { cache: 'reload' } : undefined);
+            if (!response.ok) throw new Error(`Arcana effects could not be loaded: ${response.status}`);
+            return validateTarotKingdomArcanaEffects(await response.json(), fileName);
+        } catch (error) {
+            lastError = error;
+            if (attempt + 1 < TAROT_KINGDOM_ARCANA_LOAD_ATTEMPTS) {
+                await new Promise((resolve) => setTimeout(resolve, 180 * (attempt + 1)));
+            }
+        }
+    }
+    throw lastError || new Error(`Arcana effects could not be loaded: ${fileName}`);
 }
 
 export const TAROT_KINGDOM_ARCANA_EFFECTS = { version: 3, minor: [], guardian: [], major: [] };
@@ -109,7 +136,7 @@ export const TAROT_KINGDOM_ARCANA_EFFECTS_READY = (
         ]).then(() => TAROT_KINGDOM_ARCANA_EFFECTS)
             .catch((error) => {
                 console.error('[tarot-kingdom] Failed to load arcana effects:', error);
-                return TAROT_KINGDOM_ARCANA_EFFECTS;
+                throw error;
             })
 );
 

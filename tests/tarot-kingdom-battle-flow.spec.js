@@ -1418,6 +1418,48 @@ test.describe('Tarot Kingdom character battle flow', () => {
 
       const cupFive = { id: 'guardian-cup-5', kind: 'minor', suit: 'Cup', number: 5 };
       debug.battleScenario({
+        tableCard: { id: 'guardian-v3-field-3', kind: 'minor', suit: 'Sword', number: 3 },
+        turnIndex: 0,
+        handsBySeat: [[cupFive, { id: 'guardian-v3-reserve-8', kind: 'minor', suit: 'Cup', number: 8 }]],
+        hpBySeat: [50, 100, 100, 100],
+        combatBySeat: [{ maxHp: 100 }],
+        charactersBySeat: [guardian(2)],
+        rules: { arcanaLoadoutEffectsVersion: 3 }
+      });
+      const priestessV3 = debug.battlePlayCards(0, [cupFive.id], { resolve: false }).state;
+
+      const fullHpCupFive = { id: 'guardian-v3-full-hp-cup-5', kind: 'minor', suit: 'Cup', number: 5 };
+      debug.battleScenario({
+        tableCard: { id: 'guardian-v3-full-hp-field-3', kind: 'minor', suit: 'Sword', number: 3 },
+        turnIndex: 0,
+        handsBySeat: [[fullHpCupFive, { id: 'guardian-v3-full-hp-reserve-8', kind: 'minor', suit: 'Cup', number: 8 }]],
+        hpBySeat: [100, 100, 100, 100],
+        combatBySeat: [{ maxHp: 100 }],
+        charactersBySeat: [guardian(2)],
+        rules: { arcanaLoadoutEffectsVersion: 3 }
+      });
+      const priestessV3AtFullHp = debug.battlePlayCards(0, [fullHpCupFive.id], { resolve: false }).state;
+
+      const silencedCupFive = { id: 'guardian-v3-silenced-cup-5', kind: 'minor', suit: 'Cup', number: 5 };
+      debug.battleScenario({
+        tableCard: { id: 'guardian-v3-silenced-field-3', kind: 'minor', suit: 'Sword', number: 3 },
+        turnIndex: 0,
+        handsBySeat: [[silencedCupFive, { id: 'guardian-v3-silenced-reserve-8', kind: 'minor', suit: 'Cup', number: 8 }]],
+        hpBySeat: [50, 100, 100, 100],
+        combatBySeat: [{ maxHp: 100 }],
+        charactersBySeat: [guardian(2)],
+        rules: { arcanaLoadoutEffectsVersion: 3 }
+      });
+      debug.battleSetEffects({
+        enemy: {},
+        party: {},
+        players: [{
+          silence: { key: 'silence', label: '沈黙', potency: 1, charges: 1, expiresOn: 'action' }
+        }, {}, {}, {}]
+      });
+      const priestessV3Silenced = debug.battlePlayCards(0, [silencedCupFive.id], { resolve: false }).state;
+
+      debug.battleScenario({
         tableCard: { id: 'guardian-field-3', kind: 'minor', suit: 'Sword', number: 3 },
         turnIndex: 0,
         handsBySeat: [[cupFive, { id: 'guardian-reserve-8', kind: 'minor', suit: 'Cup', number: 8 }]],
@@ -1441,9 +1483,30 @@ test.describe('Tarot Kingdom character battle flow', () => {
       });
       const temperanceAttempt = debug.battlePlayCards(0, [pentacleFive.id], { resolve: false });
       const temperance = temperanceAttempt.state;
-      return { priestess, temperance, temperanceAttemptOk: temperanceAttempt.ok, temperanceAttemptReason: temperanceAttempt.reason };
+      return { priestessV3, priestessV3AtFullHp, priestessV3Silenced, priestess, temperance, temperanceAttemptOk: temperanceAttempt.ok, temperanceAttemptReason: temperanceAttempt.reason };
     });
 
+    expect(audit.priestessV3.players[0].hp).toBe(55);
+    expect(audit.priestessV3.battle.events.at(-1)).toMatchObject({ guardianPassiveName: '白魔道士' });
+    expect(audit.priestessV3.battle.events.at(-1).effects).toEqual(expect.arrayContaining([
+      expect.objectContaining({ source: 'guardian-passive', label: '白魔道士', amount: 5 })
+    ]));
+    expect(audit.priestessV3AtFullHp.players[0].hp).toBe(100);
+    expect(audit.priestessV3AtFullHp.battle.events.at(-1)).toMatchObject({ guardianPassiveName: '白魔道士' });
+    expect(audit.priestessV3AtFullHp.battle.events.at(-1).effects).toEqual(expect.arrayContaining([
+      expect.objectContaining({ source: 'guardian-passive', label: '白魔道士', amount: 0 })
+    ]));
+    expect(audit.priestessV3Silenced.players[0].hp).toBe(50);
+    expect(audit.priestessV3Silenced.battle.events.at(-1)).toMatchObject({
+      attackBlocked: false,
+      guardianPassiveName: ''
+    });
+    expect(audit.priestessV3Silenced.battle.events.at(-1).effects).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'attack-impairment', statusKey: 'silence' })
+    ]));
+    expect(audit.priestessV3Silenced.battle.events.at(-1).effects).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ source: 'guardian-passive' })
+    ]));
     expect(audit.priestess.players[0].hp).toBe(55);
     expect(audit.priestess.battle.events.at(-1).effects).toEqual(expect.arrayContaining([
       expect.objectContaining({ source: 'guardian-passive', label: '聖杯の叡智', amount: 5 })

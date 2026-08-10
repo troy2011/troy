@@ -23,7 +23,7 @@ import {
   getTarotKingdomMajorSecondaryDamageScale,
   getTarotKingdomResonanceDamageFloor,
   normalizeTarotKingdomCharacter
-} from './tarotKingdomCombat.js?v=20260805-damage-balance1';
+} from './tarotKingdomCombat.js?v=20260811-arcana-ready1';
 import {
   TAROT_KINGDOM_ARCANA_EFFECTS_READY,
   getTarotKingdomPhysicalScale,
@@ -43,7 +43,7 @@ import {
   normalizeTarotKingdomWeaponTypes,
   resolveTarotKingdomResonance,
   resolveTarotKingdomWeaponEffect
-} from './tarotKingdomEffects.js?v=20260805-arcana-v3-full2';
+} from './tarotKingdomEffects.js?v=20260811-arcana-ready1';
 import {
   TAROT_KINGDOM_SUMMONS,
   auditTarotKingdomSummonRegistry,
@@ -8836,7 +8836,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
   recordKingdomGuardianAttackAttempt(playerIndex, impairment);
   if (before <= 0) {
     const secondary = impairment.cancelsAllEffects
-      ? { results: [], damage: 0, heal: 0, effectCount: 0, resonance: null, weapon: null, summon: null, major: null, worldRole: null }
+      ? { results: [], damage: 0, heal: 0, effectCount: 0, resonance: null, weapon: null, summon: null, major: null, worldRole: null, guardianPassiveName: '' }
       : applyKingdomSecondaryEffects(playerIndex, play, {
           enemyAttackMissed: impairment.missed,
           baseAttackDamage: 0,
@@ -8933,7 +8933,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
   const baseDamage = Math.min(before, displayBaseDamage);
   enemy.hp = Math.max(0, before - baseDamage);
   const secondary = impairment.cancelsAllEffects
-    ? { results: [], damage: 0, heal: 0, effectCount: 0, resonance: null, weapon: null, summon: null, major: null, worldRole: null }
+    ? { results: [], damage: 0, heal: 0, effectCount: 0, resonance: null, weapon: null, summon: null, major: null, worldRole: null, guardianPassiveName: '' }
     : applyKingdomSecondaryEffects(playerIndex, play, {
         enemyAttackMissed: impairment.missed,
         baseAttackDamage: displayBaseDamage,

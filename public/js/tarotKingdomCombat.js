@@ -3,7 +3,7 @@ import {
     normalizeTarotKingdomGuardian,
     normalizeTarotKingdomTarotDeck,
     normalizeTarotKingdomWeaponTypes
-} from './tarotKingdomEffects.js?v=20260805-arcana-v3-full2';
+} from './tarotKingdomEffects.js?v=20260811-arcana-ready1';
 
 const NPC_STYLE_BY_SEAT = Object.freeze({
     1: { key: 'cautious', hp: 1.10, power: 0.85, defense: 1.20, weaponType: 'shield' },

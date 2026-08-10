@@ -494,6 +494,62 @@ test('combat profile restores saved legacy tarot ids without waiting for invento
   });
 });
 
+test('combat profile resolves tarot loadouts saved as Economy V2 stack ids on the first response', async () => {
+  const minorCatalogItemId = 'catalog-minor-cup-five';
+  const guardianCatalogItemId = 'catalog-major-priestess';
+
+  await withCombatProfilesApi(async ({ handler, readOnlyUpdateRequests }) => {
+    const result = await invoke(handler, {
+      playFabId: 'PF_REQUESTER',
+      targetPlayFabIds: ['PF_REQUESTER']
+    });
+
+    expect(result.statusCode).toBe(200);
+    expect(result.payload.characters[0]).toMatchObject({
+      tarotDeck: [{
+        slot: 0,
+        itemId: minorCatalogItemId,
+        suit: 'Cup',
+        rank: 5
+      }],
+      guardianArcana: {
+        itemId: guardianCatalogItemId,
+        number: 2,
+        passiveId: 'guardian-v3-2'
+      }
+    });
+    await waitForCondition(() => readOnlyUpdateRequests.length >= 2);
+    expect(readOnlyUpdateRequests.some((request) => (
+      JSON.parse(request.Data.TarotDeck || '[]')[0] === minorCatalogItemId
+    ))).toBe(true);
+    expect(readOnlyUpdateRequests.some((request) => (
+      JSON.parse(request.Data.TarotGuardianArcana || '{}').itemId === guardianCatalogItemId
+    ))).toBe(true);
+  }, {
+    tarotDeckIds: ['stack-cup-five'],
+    guardianStoredValue: JSON.stringify({ itemId: 'stack-major-priestess' }),
+    inventoryItems: [
+      { StackId: 'stack-cup-five', Id: minorCatalogItemId },
+      { StackId: 'stack-major-priestess', Id: guardianCatalogItemId }
+    ],
+    catalogCache: {
+      [minorCatalogItemId]: {
+        FriendlyId: 'minor-cup-5',
+        DisplayName: 'カップ5',
+        Category: 'TarotMinor',
+        ArcanaSuit: 'Cup',
+        ArcanaRank: 5
+      },
+      [guardianCatalogItemId]: {
+        FriendlyId: 'arcana-2',
+        DisplayName: '女教皇',
+        Category: 'TarotMajor',
+        ArcanaNumber: 2
+      }
+    }
+  });
+});
+
 test('combat profile recovers a legacy deck when an empty common key was saved prematurely', async () => {
   const catalogItemId = 'catalog-minor-wand-a';
   await withCombatProfilesApi(async ({ handler, readOnlyUpdateRequests }) => {

@@ -18,12 +18,29 @@ test('Tarot Kingdom shares the canonical inventory module with the app shell', (
 
   expect(kingdomSource).toContain("} from 'inventory';");
   expect(kingdomSource).not.toContain("} from './inventory.js';");
-  expect(indexSource).toContain('"inventory": "./js/inventory.js?v=20260808-enhancement-stack-ref1"');
-  expect(previewSource).toContain('"inventory": "./js/inventory.js?v=20260808-enhancement-stack-ref1"');
+  expect(indexSource).toContain('"inventory": "./js/inventory.js?v=20260811-arcana-ready1"');
+  expect(previewSource).toContain('"inventory": "./js/inventory.js?v=20260811-arcana-ready1"');
+});
+
+test('Tarot Kingdom retries a transient Arcana catalog failure before starting', async ({ page }) => {
+  let currentCatalogRequests = 0;
+  await page.route(/tarot-kingdom-arcana-effects\.json(?:\?|$)/, async (route) => {
+    currentCatalogRequests += 1;
+    if (currentCatalogRequests === 1) {
+      await route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto('/tarot-kingdom-preview.html?tkfixture=character-battle&tkrev=arcana-retry1');
+
+  await expect.poll(() => currentCatalogRequests).toBe(2);
+  await expect(page.locator('#tarotKingdomRoot')).toBeVisible();
 });
 
 test('Tarot Kingdom release advances its entry modules and service-worker cache together', () => {
-  const release = '20260810-arcana-id-fix1';
+  const release = '20260811-guardian-passive-fix1';
   const indexSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'index.html'), 'utf8');
   const mainSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'main.js'), 'utf8');
   const uiSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'ui.js'), 'utf8');
@@ -38,7 +55,7 @@ test('Tarot Kingdom release advances its entry modules and service-worker cache 
   expect(mainSource).toContain(`const TAROT_KINGDOM_RESCUE_VERSION = '${release}';`);
   expect(uiSource).toContain(`const TAROT_KINGDOM_MODULE_VERSION = '${release}';`);
   expect(previewSource).toContain(`./js/tarotKingdom.js?v=${release}`);
-  expect(serviceWorkerSource).toContain("const CACHE_VERSION = 'troy-app-v20260810b';");
+  expect(serviceWorkerSource).toContain("const CACHE_VERSION = 'troy-app-v20260811a';");
 });
 
 function loadServiceWorkerHarness() {

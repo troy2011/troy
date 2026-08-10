@@ -32,7 +32,7 @@ import {
     getTarotKingdomGuardianDefinition,
     getTarotKingdomMinorDefinition,
     getTarotKingdomCardLevelScale
-} from './tarotKingdomEffects.js?v=20260805-arcana-v3-full2';
+} from './tarotKingdomEffects.js?v=20260811-arcana-ready1';
 import {
     buildTarotCardMeta,
     compareTarotItems,

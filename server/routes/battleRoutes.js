@@ -637,7 +637,16 @@ async function getPlayerFullProfile(playFabId, options = {}) {
         }
         avatar.level = Number(stats.Level || 1) || 1;
 
-        const storedTarotLoadout = readDecksFromData(equipmentResult.Data, _resolveItemId);
+        // Very early loadout builds could persist an Economy V2 StackId instead of
+        // the catalog item id. Resolve that representation before applying the
+        // legacy-friendly-id migration so the first combat-profile response is
+        // already usable; persistence can continue asynchronously afterwards.
+        const resolveStoredTarotItemId = (itemId) => {
+            const storedId = String(itemId || '').trim();
+            if (!storedId) return '';
+            return resolveBattleCatalogItemId(instanceIdToItemIdMap[storedId] || storedId);
+        };
+        const storedTarotLoadout = readDecksFromData(equipmentResult.Data, resolveStoredTarotItemId);
         meleeDeckIds = storedTarotLoadout.meleeDeck;
         shipDeckIds = storedTarotLoadout.shipDeck;
         if (options.scope === 'tarotKingdomCombat') {
