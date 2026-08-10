@@ -1,0 +1,1465 @@
+{
+  "version": 1,
+  "species": [
+    {
+      "name": "ライオン",
+      "category": "mammal"
+    },
+    {
+      "name": "トラ",
+      "category": "mammal"
+    },
+    {
+      "name": "ヒョウ",
+      "category": "mammal"
+    },
+    {
+      "name": "ジャガー",
+      "category": "mammal"
+    },
+    {
+      "name": "チーター",
+      "category": "mammal"
+    },
+    {
+      "name": "ユキヒョウ",
+      "category": "mammal"
+    },
+    {
+      "name": "ピューマ",
+      "category": "mammal"
+    },
+    {
+      "name": "オオヤマネコ",
+      "category": "mammal"
+    },
+    {
+      "name": "カラカル",
+      "category": "mammal"
+    },
+    {
+      "name": "サーバル",
+      "category": "mammal"
+    },
+    {
+      "name": "オオカミ",
+      "category": "mammal"
+    },
+    {
+      "name": "コヨーテ",
+      "category": "mammal"
+    },
+    {
+      "name": "アカギツネ",
+      "category": "mammal"
+    },
+    {
+      "name": "ホッキョクギツネ",
+      "category": "mammal"
+    },
+    {
+      "name": "タヌキ",
+      "category": "mammal"
+    },
+    {
+      "name": "リカオン",
+      "category": "mammal"
+    },
+    {
+      "name": "ドール",
+      "category": "mammal"
+    },
+    {
+      "name": "ブチハイエナ",
+      "category": "mammal"
+    },
+    {
+      "name": "キンイロジャッカル",
+      "category": "mammal"
+    },
+    {
+      "name": "ヒグマ",
+      "category": "mammal"
+    },
+    {
+      "name": "ホッキョクグマ",
+      "category": "mammal"
+    },
+    {
+      "name": "ツキノワグマ",
+      "category": "mammal"
+    },
+    {
+      "name": "ジャイアントパンダ",
+      "category": "mammal"
+    },
+    {
+      "name": "レッサーパンダ",
+      "category": "mammal"
+    },
+    {
+      "name": "アライグマ",
+      "category": "mammal"
+    },
+    {
+      "name": "ユーラシアカワウソ",
+      "category": "mammal"
+    },
+    {
+      "name": "ラッコ",
+      "category": "mammal"
+    },
+    {
+      "name": "ニホンアナグマ",
+      "category": "mammal"
+    },
+    {
+      "name": "クズリ",
+      "category": "mammal"
+    },
+    {
+      "name": "シマスカンク",
+      "category": "mammal"
+    },
+    {
+      "name": "アフリカゾウ",
+      "category": "mammal"
+    },
+    {
+      "name": "インドゾウ",
+      "category": "mammal"
+    },
+    {
+      "name": "シロサイ",
+      "category": "mammal"
+    },
+    {
+      "name": "クロサイ",
+      "category": "mammal"
+    },
+    {
+      "name": "カバ",
+      "category": "mammal"
+    },
+    {
+      "name": "キリン",
+      "category": "mammal"
+    },
+    {
+      "name": "サバンナシマウマ",
+      "category": "mammal"
+    },
+    {
+      "name": "オカピ",
+      "category": "mammal"
+    },
+    {
+      "name": "マレーバク",
+      "category": "mammal"
+    },
+    {
+      "name": "イノシシ",
+      "category": "mammal"
+    },
+    {
+      "name": "カピバラ",
+      "category": "mammal"
+    },
+    {
+      "name": "アメリカビーバー",
+      "category": "mammal"
+    },
+    {
+      "name": "ヤマアラシ",
+      "category": "mammal"
+    },
+    {
+      "name": "ニホンリス",
+      "category": "mammal"
+    },
+    {
+      "name": "モモンガ",
+      "category": "mammal"
+    },
+    {
+      "name": "ムササビ",
+      "category": "mammal"
+    },
+    {
+      "name": "ゴールデンハムスター",
+      "category": "mammal"
+    },
+    {
+      "name": "チンチラ",
+      "category": "mammal"
+    },
+    {
+      "name": "ユキウサギ",
+      "category": "mammal"
+    },
+    {
+      "name": "ナキウサギ",
+      "category": "mammal"
+    },
+    {
+      "name": "コアラ",
+      "category": "mammal"
+    },
+    {
+      "name": "アカカンガルー",
+      "category": "mammal"
+    },
+    {
+      "name": "ワラビー",
+      "category": "mammal"
+    },
+    {
+      "name": "ウォンバット",
+      "category": "mammal"
+    },
+    {
+      "name": "タスマニアデビル",
+      "category": "mammal"
+    },
+    {
+      "name": "フクロモモンガ",
+      "category": "mammal"
+    },
+    {
+      "name": "カモノハシ",
+      "category": "mammal"
+    },
+    {
+      "name": "ハリモグラ",
+      "category": "mammal"
+    },
+    {
+      "name": "ニシゴリラ",
+      "category": "mammal"
+    },
+    {
+      "name": "チンパンジー",
+      "category": "mammal"
+    },
+    {
+      "name": "ボノボ",
+      "category": "mammal"
+    },
+    {
+      "name": "ボルネオオランウータン",
+      "category": "mammal"
+    },
+    {
+      "name": "シロテテナガザル",
+      "category": "mammal"
+    },
+    {
+      "name": "ニホンザル",
+      "category": "mammal"
+    },
+    {
+      "name": "マンドリル",
+      "category": "mammal"
+    },
+    {
+      "name": "ワオキツネザル",
+      "category": "mammal"
+    },
+    {
+      "name": "スローロリス",
+      "category": "mammal"
+    },
+    {
+      "name": "ミナミゾウアザラシ",
+      "category": "mammal"
+    },
+    {
+      "name": "ゴマフアザラシ",
+      "category": "mammal"
+    },
+    {
+      "name": "カリフォルニアアシカ",
+      "category": "mammal"
+    },
+    {
+      "name": "セイウチ",
+      "category": "mammal"
+    },
+    {
+      "name": "ジュゴン",
+      "category": "mammal"
+    },
+    {
+      "name": "アメリカマナティー",
+      "category": "mammal"
+    },
+    {
+      "name": "シロナガスクジラ",
+      "category": "mammal"
+    },
+    {
+      "name": "ザトウクジラ",
+      "category": "mammal"
+    },
+    {
+      "name": "マッコウクジラ",
+      "category": "mammal"
+    },
+    {
+      "name": "シャチ",
+      "category": "mammal"
+    },
+    {
+      "name": "ハンドウイルカ",
+      "category": "mammal"
+    },
+    {
+      "name": "イッカク",
+      "category": "mammal"
+    },
+    {
+      "name": "シロイルカ",
+      "category": "mammal"
+    },
+    {
+      "name": "モウコノウマ",
+      "category": "mammal"
+    },
+    {
+      "name": "ロバ",
+      "category": "mammal"
+    },
+    {
+      "name": "ヒトコブラクダ",
+      "category": "mammal"
+    },
+    {
+      "name": "アルパカ",
+      "category": "mammal"
+    },
+    {
+      "name": "ラマ",
+      "category": "mammal"
+    },
+    {
+      "name": "シロイワヤギ",
+      "category": "mammal"
+    },
+    {
+      "name": "オオツノヒツジ",
+      "category": "mammal"
+    },
+    {
+      "name": "トナカイ",
+      "category": "mammal"
+    },
+    {
+      "name": "ヘラジカ",
+      "category": "mammal"
+    },
+    {
+      "name": "ニホンジカ",
+      "category": "mammal"
+    },
+    {
+      "name": "ニホンカモシカ",
+      "category": "mammal"
+    },
+    {
+      "name": "トムソンガゼル",
+      "category": "mammal"
+    },
+    {
+      "name": "アメリカバイソン",
+      "category": "mammal"
+    },
+    {
+      "name": "ヤク",
+      "category": "mammal"
+    },
+    {
+      "name": "アフリカスイギュウ",
+      "category": "mammal"
+    },
+    {
+      "name": "ミユビナマケモノ",
+      "category": "mammal"
+    },
+    {
+      "name": "ココノオビアルマジロ",
+      "category": "mammal"
+    },
+    {
+      "name": "オオアリクイ",
+      "category": "mammal"
+    },
+    {
+      "name": "ツチブタ",
+      "category": "mammal"
+    },
+    {
+      "name": "ミーアキャット",
+      "category": "mammal"
+    },
+    {
+      "name": "センザンコウ",
+      "category": "mammal"
+    },
+    {
+      "name": "フェネック",
+      "category": "mammal"
+    },
+    {
+      "name": "プレーリードッグ",
+      "category": "mammal"
+    },
+    {
+      "name": "マーモット",
+      "category": "mammal"
+    },
+    {
+      "name": "ジャコウウシ",
+      "category": "mammal"
+    },
+    {
+      "name": "オジロワシ",
+      "category": "bird"
+    },
+    {
+      "name": "イヌワシ",
+      "category": "bird"
+    },
+    {
+      "name": "ハクトウワシ",
+      "category": "bird"
+    },
+    {
+      "name": "オオワシ",
+      "category": "bird"
+    },
+    {
+      "name": "ハヤブサ",
+      "category": "bird"
+    },
+    {
+      "name": "チョウゲンボウ",
+      "category": "bird"
+    },
+    {
+      "name": "オオタカ",
+      "category": "bird"
+    },
+    {
+      "name": "トビ",
+      "category": "bird"
+    },
+    {
+      "name": "メンフクロウ",
+      "category": "bird"
+    },
+    {
+      "name": "ワシミミズク",
+      "category": "bird"
+    },
+    {
+      "name": "シロフクロウ",
+      "category": "bird"
+    },
+    {
+      "name": "ハシブトガラス",
+      "category": "bird"
+    },
+    {
+      "name": "ワタリガラス",
+      "category": "bird"
+    },
+    {
+      "name": "カササギ",
+      "category": "bird"
+    },
+    {
+      "name": "キバタン",
+      "category": "bird"
+    },
+    {
+      "name": "ルリコンゴウインコ",
+      "category": "bird"
+    },
+    {
+      "name": "ヨウム",
+      "category": "bird"
+    },
+    {
+      "name": "セキセイインコ",
+      "category": "bird"
+    },
+    {
+      "name": "ベニイロフラミンゴ",
+      "category": "bird"
+    },
+    {
+      "name": "インドクジャク",
+      "category": "bird"
+    },
+    {
+      "name": "コブハクチョウ",
+      "category": "bird"
+    },
+    {
+      "name": "ハイイロガン",
+      "category": "bird"
+    },
+    {
+      "name": "マガモ",
+      "category": "bird"
+    },
+    {
+      "name": "オシドリ",
+      "category": "bird"
+    },
+    {
+      "name": "フンボルトペンギン",
+      "category": "bird"
+    },
+    {
+      "name": "コウテイペンギン",
+      "category": "bird"
+    },
+    {
+      "name": "アデリーペンギン",
+      "category": "bird"
+    },
+    {
+      "name": "ワタリアホウドリ",
+      "category": "bird"
+    },
+    {
+      "name": "ユリカモメ",
+      "category": "bird"
+    },
+    {
+      "name": "ウミネコ",
+      "category": "bird"
+    },
+    {
+      "name": "モモイロペリカン",
+      "category": "bird"
+    },
+    {
+      "name": "アオアシカツオドリ",
+      "category": "bird"
+    },
+    {
+      "name": "カワウ",
+      "category": "bird"
+    },
+    {
+      "name": "マナヅル",
+      "category": "bird"
+    },
+    {
+      "name": "タンチョウ",
+      "category": "bird"
+    },
+    {
+      "name": "シュバシコウ",
+      "category": "bird"
+    },
+    {
+      "name": "アオサギ",
+      "category": "bird"
+    },
+    {
+      "name": "トキ",
+      "category": "bird"
+    },
+    {
+      "name": "ヘラサギ",
+      "category": "bird"
+    },
+    {
+      "name": "カワセミ",
+      "category": "bird"
+    },
+    {
+      "name": "ノドアカハチドリ",
+      "category": "bird"
+    },
+    {
+      "name": "ツバメ",
+      "category": "bird"
+    },
+    {
+      "name": "スズメ",
+      "category": "bird"
+    },
+    {
+      "name": "メジロ",
+      "category": "bird"
+    },
+    {
+      "name": "ウグイス",
+      "category": "bird"
+    },
+    {
+      "name": "ヨーロッパコマドリ",
+      "category": "bird"
+    },
+    {
+      "name": "ルリビタキ",
+      "category": "bird"
+    },
+    {
+      "name": "シジュウカラ",
+      "category": "bird"
+    },
+    {
+      "name": "カナリア",
+      "category": "bird"
+    },
+    {
+      "name": "ブンチョウ",
+      "category": "bird"
+    },
+    {
+      "name": "ムクドリ",
+      "category": "bird"
+    },
+    {
+      "name": "ヒヨドリ",
+      "category": "bird"
+    },
+    {
+      "name": "アカゲラ",
+      "category": "bird"
+    },
+    {
+      "name": "オニオオハシ",
+      "category": "bird"
+    },
+    {
+      "name": "オオサイチョウ",
+      "category": "bird"
+    },
+    {
+      "name": "カッコウ",
+      "category": "bird"
+    },
+    {
+      "name": "ホトトギス",
+      "category": "bird"
+    },
+    {
+      "name": "キジ",
+      "category": "bird"
+    },
+    {
+      "name": "ウズラ",
+      "category": "bird"
+    },
+    {
+      "name": "セキショクヤケイ",
+      "category": "bird"
+    },
+    {
+      "name": "シチメンチョウ",
+      "category": "bird"
+    },
+    {
+      "name": "ダチョウ",
+      "category": "bird"
+    },
+    {
+      "name": "エミュー",
+      "category": "bird"
+    },
+    {
+      "name": "ヒクイドリ",
+      "category": "bird"
+    },
+    {
+      "name": "キーウィ",
+      "category": "bird"
+    },
+    {
+      "name": "ハシビロコウ",
+      "category": "bird"
+    },
+    {
+      "name": "ヨタカ",
+      "category": "bird"
+    },
+    {
+      "name": "ツノメドリ",
+      "category": "bird"
+    },
+    {
+      "name": "ライチョウ",
+      "category": "bird"
+    },
+    {
+      "name": "ヤマドリ",
+      "category": "bird"
+    },
+    {
+      "name": "カケス",
+      "category": "bird"
+    },
+    {
+      "name": "ホシガラス",
+      "category": "bird"
+    },
+    {
+      "name": "ハクセキレイ",
+      "category": "bird"
+    },
+    {
+      "name": "ヒバリ",
+      "category": "bird"
+    },
+    {
+      "name": "モズ",
+      "category": "bird"
+    },
+    {
+      "name": "ツグミ",
+      "category": "bird"
+    },
+    {
+      "name": "シマエナガ",
+      "category": "bird"
+    },
+    {
+      "name": "アマツバメ",
+      "category": "bird"
+    },
+    {
+      "name": "オオグンカンドリ",
+      "category": "bird"
+    },
+    {
+      "name": "ウミガラス",
+      "category": "bird"
+    },
+    {
+      "name": "エトピリカ",
+      "category": "bird"
+    },
+    {
+      "name": "カイツブリ",
+      "category": "bird"
+    },
+    {
+      "name": "ハシボソミズナギドリ",
+      "category": "bird"
+    },
+    {
+      "name": "クロツラヘラサギ",
+      "category": "bird"
+    },
+    {
+      "name": "ヤツガシラ",
+      "category": "bird"
+    },
+    {
+      "name": "コモドオオトカゲ",
+      "category": "reptile"
+    },
+    {
+      "name": "グリーンイグアナ",
+      "category": "reptile"
+    },
+    {
+      "name": "パンサーカメレオン",
+      "category": "reptile"
+    },
+    {
+      "name": "トッケイヤモリ",
+      "category": "reptile"
+    },
+    {
+      "name": "ニホントカゲ",
+      "category": "reptile"
+    },
+    {
+      "name": "ミズオオトカゲ",
+      "category": "reptile"
+    },
+    {
+      "name": "エリマキトカゲ",
+      "category": "reptile"
+    },
+    {
+      "name": "フトアゴヒゲトカゲ",
+      "category": "reptile"
+    },
+    {
+      "name": "アオジタトカゲ",
+      "category": "reptile"
+    },
+    {
+      "name": "ナイルワニ",
+      "category": "reptile"
+    },
+    {
+      "name": "ミシシッピワニ",
+      "category": "reptile"
+    },
+    {
+      "name": "インドガビアル",
+      "category": "reptile"
+    },
+    {
+      "name": "アオウミガメ",
+      "category": "reptile"
+    },
+    {
+      "name": "ガラパゴスゾウガメ",
+      "category": "reptile"
+    },
+    {
+      "name": "スッポン",
+      "category": "reptile"
+    },
+    {
+      "name": "カミツキガメ",
+      "category": "reptile"
+    },
+    {
+      "name": "ビルマニシキヘビ",
+      "category": "reptile"
+    },
+    {
+      "name": "ボアコンストリクター",
+      "category": "reptile"
+    },
+    {
+      "name": "キングコブラ",
+      "category": "reptile"
+    },
+    {
+      "name": "ガラガラヘビ",
+      "category": "reptile"
+    },
+    {
+      "name": "エラブウミヘビ",
+      "category": "reptile"
+    },
+    {
+      "name": "アオダイショウ",
+      "category": "reptile"
+    },
+    {
+      "name": "シマヘビ",
+      "category": "reptile"
+    },
+    {
+      "name": "ニホンマムシ",
+      "category": "reptile"
+    },
+    {
+      "name": "サンゴヘビ",
+      "category": "reptile"
+    },
+    {
+      "name": "ヒョウモントカゲモドキ",
+      "category": "reptile"
+    },
+        {
+            "name": "メキシコサラマンダー",
+            "category": "amphibian"
+        },
+        {
+            "name": "オオサンショウウオ",
+            "category": "amphibian"
+        },
+        {
+            "name": "アカハライモリ",
+            "category": "amphibian"
+        },
+        {
+            "name": "ファイアサラマンダー",
+            "category": "amphibian"
+        },
+        {
+            "name": "ニホンアマガエル",
+            "category": "amphibian"
+        },
+        {
+            "name": "ヤドクガエル",
+            "category": "amphibian"
+        },
+        {
+            "name": "ウシガエル",
+            "category": "amphibian"
+        },
+        {
+            "name": "ベルツノガエル",
+            "category": "amphibian"
+        },
+        {
+            "name": "アカメアマガエル",
+            "category": "amphibian"
+        },
+        {
+            "name": "トノサマガエル",
+            "category": "amphibian"
+        },
+        {
+            "name": "ニホンヒキガエル",
+            "category": "amphibian"
+    },
+    {
+      "name": "ムカシトカゲ",
+      "category": "reptile"
+    },
+    {
+      "name": "クサガメ",
+      "category": "reptile"
+    },
+    {
+      "name": "ニホンイシガメ",
+      "category": "reptile"
+    },
+    {
+      "name": "マタマタ",
+      "category": "reptile"
+    },
+        {
+            "name": "ゴライアスガエル",
+            "category": "amphibian"
+        },
+        {
+            "name": "トビガエル",
+            "category": "amphibian"
+    },
+    {
+      "name": "モロクトカゲ",
+      "category": "reptile"
+    },
+    {
+      "name": "グリーンバシリスク",
+      "category": "reptile"
+    },
+    {
+      "name": "ホホジロザメ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ジンベエザメ",
+      "category": "aquatic"
+    },
+    {
+      "name": "シュモクザメ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ネコザメ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ノコギリザメ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ミツクリザメ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ラブカ",
+      "category": "aquatic"
+    },
+    {
+      "name": "オニイトマキエイ",
+      "category": "aquatic"
+    },
+    {
+      "name": "アカエイ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ノコギリエイ",
+      "category": "aquatic"
+    },
+    {
+      "name": "シーラカンス",
+      "category": "aquatic"
+    },
+    {
+      "name": "リュウグウノツカイ",
+      "category": "aquatic"
+    },
+    {
+      "name": "クロマグロ",
+      "category": "aquatic"
+    },
+    {
+      "name": "カツオ",
+      "category": "aquatic"
+    },
+    {
+      "name": "メカジキ",
+      "category": "aquatic"
+    },
+    {
+      "name": "バショウカジキ",
+      "category": "aquatic"
+    },
+    {
+      "name": "シロザケ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ニジマス",
+      "category": "aquatic"
+    },
+    {
+      "name": "アユ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ニホンウナギ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ウツボ",
+      "category": "aquatic"
+    },
+    {
+      "name": "マアナゴ",
+      "category": "aquatic"
+    },
+    {
+      "name": "タツノオトシゴ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ヨウジウオ",
+      "category": "aquatic"
+    },
+    {
+      "name": "カクレクマノミ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ナンヨウハギ",
+      "category": "aquatic"
+    },
+    {
+      "name": "チョウチョウウオ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ハリセンボン",
+      "category": "aquatic"
+    },
+    {
+      "name": "トラフグ",
+      "category": "aquatic"
+    },
+    {
+      "name": "マンボウ",
+      "category": "aquatic"
+    },
+    {
+      "name": "トビウオ",
+      "category": "aquatic"
+    },
+    {
+      "name": "テッポウウオ",
+      "category": "aquatic"
+    },
+    {
+      "name": "デンキウナギ",
+      "category": "aquatic"
+    },
+    {
+      "name": "デンキナマズ",
+      "category": "aquatic"
+    },
+    {
+      "name": "マナマズ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ニシキゴイ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ワキン",
+      "category": "aquatic"
+    },
+    {
+      "name": "ベタ",
+      "category": "aquatic"
+    },
+    {
+      "name": "グッピー",
+      "category": "aquatic"
+    },
+    {
+      "name": "アジアアロワナ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ピラルク",
+      "category": "aquatic"
+    },
+    {
+      "name": "ピラニア",
+      "category": "aquatic"
+    },
+    {
+      "name": "アリゲーターガー",
+      "category": "aquatic"
+    },
+    {
+      "name": "ハイギョ",
+      "category": "aquatic"
+    },
+    {
+      "name": "トビハゼ",
+      "category": "aquatic"
+    },
+    {
+      "name": "キアンコウ",
+      "category": "aquatic"
+    },
+    {
+      "name": "チョウチンアンコウ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ハナミノカサゴ",
+      "category": "aquatic"
+    },
+    {
+      "name": "オニオコゼ",
+      "category": "aquatic"
+    },
+    {
+      "name": "カサゴ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ムツゴロウ",
+      "category": "aquatic"
+    },
+    {
+      "name": "メバル",
+      "category": "aquatic"
+    },
+    {
+      "name": "マダイ",
+      "category": "aquatic"
+    },
+    {
+      "name": "イシダイ",
+      "category": "aquatic"
+    },
+    {
+      "name": "マサバ",
+      "category": "aquatic"
+    },
+    {
+      "name": "マイワシ",
+      "category": "aquatic"
+    },
+    {
+      "name": "サンマ",
+      "category": "aquatic"
+    },
+    {
+      "name": "オニカマス",
+      "category": "aquatic"
+    },
+    {
+      "name": "ナンヨウブダイ",
+      "category": "aquatic"
+    },
+    {
+      "name": "コブダイ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ダンゴウオ",
+      "category": "aquatic"
+    },
+    {
+      "name": "フウセンウオ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ハダカカメガイ",
+      "category": "aquatic"
+    },
+    {
+      "name": "オウムガイ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ダイオウイカ",
+      "category": "aquatic"
+    },
+    {
+      "name": "コウイカ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ミズダコ",
+      "category": "aquatic"
+    },
+    {
+      "name": "メンダコ",
+      "category": "aquatic"
+    },
+    {
+      "name": "ミズクラゲ",
+      "category": "aquatic"
+    },
+    {
+      "name": "カツオノエボシ",
+      "category": "aquatic"
+    },
+    {
+      "name": "カブトムシ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "オオクワガタ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ナナホシテントウ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ゲンジボタル",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ヤマトタマムシ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "オサムシ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ハンミョウ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ゾウムシ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "オオカマキリ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "トノサマバッタ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "キリギリス",
+      "category": "invertebrate"
+    },
+    {
+      "name": "エンマコオロギ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "スズムシ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ナナフシ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ミンミンゼミ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "オニヤンマ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "アオモンイトトンボ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ナミアゲハ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "モルフォチョウ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "オオムラサキ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ヤママユガ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "カイコ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "セイヨウミツバチ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "マルハナバチ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "オオスズメバチ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "クロオオアリ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ヤマトシロアリ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ミズアブ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ショウジョウバエ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ヒトスジシマカ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ミズスマシ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ゲンゴロウ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "タガメ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "アメンボ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "カゲロウ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ウスバカゲロウ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "クサカゲロウ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ハサミムシ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "セイヨウシミ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ネコノミ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "マダニ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "コガネグモ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "オオツチグモ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ハエトリグモ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ダイオウサソリ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ズワイガニ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "タラバガニ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ホンヤドカリ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "クルマエビ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "アメリカンロブスター",
+      "category": "invertebrate"
+    },
+    {
+      "name": "モンハナシャコ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "オカダンゴムシ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "トビズムカデ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "ヤスデ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "フトミミズ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "チスイビル",
+      "category": "invertebrate"
+    },
+    {
+      "name": "カタツムリ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "アメフラシ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "アオウミウシ",
+      "category": "invertebrate"
+    },
+    {
+      "name": "マナマコ",
+      "category": "invertebrate"
+    }
+  ]
+}

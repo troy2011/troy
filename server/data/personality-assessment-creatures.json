@@ -1,0 +1,1397 @@
+{
+  "version": 4,
+  "rounds": [
+    {
+      "id": "r01",
+      "axis": "E",
+      "secondaryAxis": "S",
+      "complexityTier": "symbolic",
+      "options": [
+        {
+          "id": "r01-a",
+          "creatureId": "tideglow-ribbonbeast",
+          "creatureName": "光潮リボン獣",
+          "traitVector": {
+            "E": 1,
+            "S": -1,
+            "T": -1,
+            "J": -1
+          },
+          "concept": "多数の発光する帯状のひれで周囲の水流と活発に呼応する群青色の浮遊獣",
+          "motifVector": {
+            "beast": 0.2,
+            "wing": 0.25,
+            "scale": 0.1,
+            "water": 1,
+            "swarm": 0.8
+          },
+          "archetypeVector": {
+            "guardian": 0.1,
+            "explorer": 0.85,
+            "nurturer": 0.35,
+            "strategist": 0.25,
+            "transformer": 0.7
+          },
+          "tempo": 0.86
+        },
+        {
+          "id": "r01-b",
+          "creatureId": "starcrown-aetherwing",
+          "creatureName": "星冠オーロラ翼獣",
+          "traitVector": {
+            "E": 1,
+            "S": -1,
+            "T": -1,
+            "J": 1
+          },
+          "concept": "星冠と半透明の翼を広げ、抽象的な光の流れを外へ放つ天空獣",
+          "motifVector": {
+            "beast": 0.3,
+            "wing": 1,
+            "scale": 0.05,
+            "water": 0.1,
+            "swarm": 0.35
+          },
+          "archetypeVector": {
+            "guardian": 0.2,
+            "explorer": 1,
+            "nurturer": 0.35,
+            "strategist": 0.35,
+            "transformer": 0.65
+          },
+          "tempo": 0.82
+        },
+        {
+          "id": "r01-c",
+          "creatureId": "moonear-cairngrazer",
+          "creatureName": "月耳ケルン獣",
+          "traitVector": {
+            "E": -1,
+            "S": 1,
+            "T": -1,
+            "J": 1
+          },
+          "concept": "大きな月形の耳と石紋の毛皮を持ち、静かな岩原に立つ四足獣",
+          "motifVector": {
+            "beast": 1,
+            "wing": 0.1,
+            "scale": 0.35,
+            "water": 0.05,
+            "swarm": 0.1
+          },
+          "archetypeVector": {
+            "guardian": 0.75,
+            "explorer": 0.25,
+            "nurturer": 0.65,
+            "strategist": 0.55,
+            "transformer": 0.15
+          },
+          "tempo": 0.34
+        },
+        {
+          "id": "r01-d",
+          "creatureId": "smokeglass-corefin",
+          "creatureName": "煙晶コアフィン",
+          "traitVector": {
+            "E": -1,
+            "S": -1,
+            "T": 1,
+            "J": -1
+          },
+          "concept": "煙ガラスの体内に細い光核を一つだけ宿し、余白の中を漂う深層生物",
+          "motifVector": {
+            "beast": 0.1,
+            "wing": 0.05,
+            "scale": 0.2,
+            "water": 1,
+            "swarm": 0.05
+          },
+          "archetypeVector": {
+            "guardian": 0.25,
+            "explorer": 0.2,
+            "nurturer": 0.15,
+            "strategist": 0.75,
+            "transformer": 0.9
+          },
+          "tempo": 0.18
+        }
+      ]
+    },
+    {
+      "id": "r02",
+      "axis": "S",
+      "secondaryAxis": "T",
+      "complexityTier": "symbolic",
+      "options": [
+        {
+          "id": "r02-a",
+          "creatureId": "forgeplate-rootburrower",
+          "creatureName": "鍛甲根掘り獣",
+          "traitVector": {
+            "E": -1,
+            "S": 1,
+            "T": 1,
+            "J": -1
+          },
+          "concept": "鍛造板のような甲殻と機能的な掘削肢を持つ大地の獣",
+          "motifVector": {
+            "beast": 0.75,
+            "wing": 0.05,
+            "scale": 1,
+            "water": 0.05,
+            "swarm": 0.1
+          },
+          "archetypeVector": {
+            "guardian": 0.75,
+            "explorer": 0.25,
+            "nurturer": 0.1,
+            "strategist": 0.9,
+            "transformer": 0.35
+          },
+          "tempo": 0.42
+        },
+        {
+          "id": "r02-b",
+          "creatureId": "mossgarden-nurturehorn",
+          "creatureName": "苔庭ナーチャーホーン",
+          "traitVector": {
+            "E": -1,
+            "S": 1,
+            "T": -1,
+            "J": -1
+          },
+          "concept": "角と背中に小さな苔庭を育て、幼い芽を守る温厚な草食獣",
+          "motifVector": {
+            "beast": 1,
+            "wing": 0.05,
+            "scale": 0.15,
+            "water": 0.1,
+            "swarm": 0.2
+          },
+          "archetypeVector": {
+            "guardian": 0.7,
+            "explorer": 0.15,
+            "nurturer": 1,
+            "strategist": 0.2,
+            "transformer": 0.35
+          },
+          "tempo": 0.26
+        },
+        {
+          "id": "r02-c",
+          "creatureId": "starchart-fractalkite",
+          "creatureName": "星図フラクタル鳶",
+          "traitVector": {
+            "E": -1,
+            "S": -1,
+            "T": 1,
+            "J": 1
+          },
+          "concept": "星図とフラクタルの翼面で空間の規則を読む幾何学的な飛翔生物",
+          "motifVector": {
+            "beast": 0.2,
+            "wing": 1,
+            "scale": 0.45,
+            "water": 0.05,
+            "swarm": 0.2
+          },
+          "archetypeVector": {
+            "guardian": 0.2,
+            "explorer": 0.75,
+            "nurturer": 0.1,
+            "strategist": 1,
+            "transformer": 0.65
+          },
+          "tempo": 0.68
+        },
+        {
+          "id": "r02-d",
+          "creatureId": "cloudheart-skyleviathan",
+          "creatureName": "雲心スカイリヴァイアサン",
+          "traitVector": {
+            "E": -1,
+            "S": -1,
+            "T": -1,
+            "J": -1
+          },
+          "concept": "雲と体の境界が溶け合い、柔らかな光を抱えて漂う巨大天空生物",
+          "motifVector": {
+            "beast": 0.65,
+            "wing": 0.45,
+            "scale": 0.05,
+            "water": 1,
+            "swarm": 0.1
+          },
+          "archetypeVector": {
+            "guardian": 0.15,
+            "explorer": 0.85,
+            "nurturer": 0.75,
+            "strategist": 0.2,
+            "transformer": 0.85
+          },
+          "tempo": 0.38
+        }
+      ]
+    },
+    {
+      "id": "r03",
+      "axis": "T",
+      "secondaryAxis": "J",
+      "complexityTier": "symbolic",
+      "options": [
+        {
+          "id": "r03-a",
+          "creatureId": "chronoring-spinesentinel",
+          "creatureName": "時環スパインセンチネル",
+          "traitVector": {
+            "E": -1,
+            "S": 1,
+            "T": 1,
+            "J": 1
+          },
+          "concept": "時環状の骨格と左右対称の結晶棘を持ち、完全静止する番獣",
+          "motifVector": {
+            "beast": 0.8,
+            "wing": 0.05,
+            "scale": 1,
+            "water": 0.05,
+            "swarm": 0.05
+          },
+          "archetypeVector": {
+            "guardian": 1,
+            "explorer": 0.1,
+            "nurturer": 0.05,
+            "strategist": 0.85,
+            "transformer": 0.2
+          },
+          "tempo": 0.16
+        },
+        {
+          "id": "r03-b",
+          "creatureId": "mercury-logicglider",
+          "creatureName": "水銀ロジックグライダー",
+          "traitVector": {
+            "E": 1,
+            "S": -1,
+            "T": 1,
+            "J": -1
+          },
+          "concept": "水銀質の関節を即座に組み替え、最短軌道を滑る可変生物",
+          "motifVector": {
+            "beast": 0.45,
+            "wing": 0.75,
+            "scale": 0.4,
+            "water": 0.3,
+            "swarm": 0.1
+          },
+          "archetypeVector": {
+            "guardian": 0.1,
+            "explorer": 0.9,
+            "nurturer": 0.05,
+            "strategist": 0.85,
+            "transformer": 1
+          },
+          "tempo": 0.9
+        },
+        {
+          "id": "r03-c",
+          "creatureId": "hearthbloom-shellwarden",
+          "creatureName": "炉花シェルワーデン",
+          "traitVector": {
+            "E": 1,
+            "S": 1,
+            "T": -1,
+            "J": 1
+          },
+          "concept": "炉のように温かな花殻を閉じ、内側の小さな生命を守る守護獣",
+          "motifVector": {
+            "beast": 0.85,
+            "wing": 0.1,
+            "scale": 0.65,
+            "water": 0.05,
+            "swarm": 0.2
+          },
+          "archetypeVector": {
+            "guardian": 1,
+            "explorer": 0.1,
+            "nurturer": 0.95,
+            "strategist": 0.25,
+            "transformer": 0.25
+          },
+          "tempo": 0.22
+        },
+        {
+          "id": "r03-d",
+          "creatureId": "tidewhisper-nestfin",
+          "creatureName": "潮囁きネストフィン",
+          "traitVector": {
+            "E": -1,
+            "S": 1,
+            "T": -1,
+            "J": -1
+          },
+          "concept": "柔らかなひれで漂う卵を包み、潮に合わせて巣を移す水棲生物",
+          "motifVector": {
+            "beast": 0.35,
+            "wing": 0.1,
+            "scale": 0.1,
+            "water": 1,
+            "swarm": 0.15
+          },
+          "archetypeVector": {
+            "guardian": 0.65,
+            "explorer": 0.3,
+            "nurturer": 1,
+            "strategist": 0.15,
+            "transformer": 0.55
+          },
+          "tempo": 0.38
+        }
+      ]
+    },
+    {
+      "id": "r04",
+      "axis": "J",
+      "secondaryAxis": "E",
+      "complexityTier": "symbolic",
+      "options": [
+        {
+          "id": "r04-a",
+          "creatureId": "bannercrest-strider",
+          "creatureName": "旗冠ストライダー",
+          "traitVector": {
+            "E": 1,
+            "S": 1,
+            "T": 1,
+            "J": 1
+          },
+          "concept": "規則正しく開く旗状の冠羽で群れの進路を示す長脚獣",
+          "motifVector": {
+            "beast": 0.9,
+            "wing": 0.8,
+            "scale": 0.25,
+            "water": 0.05,
+            "swarm": 0.65
+          },
+          "archetypeVector": {
+            "guardian": 1,
+            "explorer": 0.65,
+            "nurturer": 0.2,
+            "strategist": 0.75,
+            "transformer": 0.2
+          },
+          "tempo": 0.7
+        },
+        {
+          "id": "r04-b",
+          "creatureId": "gatefold-watcher",
+          "creatureName": "門折りウォッチャー",
+          "traitVector": {
+            "E": -1,
+            "S": 1,
+            "T": 1,
+            "J": 1
+          },
+          "concept": "折り畳まれた門のような甲殻に身を収め、単独で境界を守る生物",
+          "motifVector": {
+            "beast": 0.7,
+            "wing": 0.05,
+            "scale": 1,
+            "water": 0.05,
+            "swarm": 0.05
+          },
+          "archetypeVector": {
+            "guardian": 1,
+            "explorer": 0.1,
+            "nurturer": 0.05,
+            "strategist": 0.9,
+            "transformer": 0.25
+          },
+          "tempo": 0.12
+        },
+        {
+          "id": "r04-c",
+          "creatureId": "sparkstream-hopper",
+          "creatureName": "火花流ホッパー",
+          "traitVector": {
+            "E": 1,
+            "S": 1,
+            "T": -1,
+            "J": -1
+          },
+          "concept": "仲間の間を跳ね回り、不規則な火花の軌跡を広げる小型跳躍獣",
+          "motifVector": {
+            "beast": 1,
+            "wing": 0.4,
+            "scale": 0.15,
+            "water": 0.2,
+            "swarm": 0.75
+          },
+          "archetypeVector": {
+            "guardian": 0.15,
+            "explorer": 1,
+            "nurturer": 0.7,
+            "strategist": 0.2,
+            "transformer": 0.75
+          },
+          "tempo": 0.95
+        },
+        {
+          "id": "r04-d",
+          "creatureId": "misttail-drifter",
+          "creatureName": "霧尾ドリフター",
+          "traitVector": {
+            "E": -1,
+            "S": -1,
+            "T": -1,
+            "J": -1
+          },
+          "concept": "形を変える長い霧の尾で風を読み、一匹で自由に漂う浮遊獣",
+          "motifVector": {
+            "beast": 0.45,
+            "wing": 0.35,
+            "scale": 0.05,
+            "water": 0.55,
+            "swarm": 0.05
+          },
+          "archetypeVector": {
+            "guardian": 0.1,
+            "explorer": 0.85,
+            "nurturer": 0.25,
+            "strategist": 0.25,
+            "transformer": 1
+          },
+          "tempo": 0.48
+        }
+      ]
+    },
+    {
+      "id": "r05",
+      "axis": "E",
+      "secondaryAxis": "T",
+      "complexityTier": "environmental",
+      "options": [
+        {
+          "id": "r05-a",
+          "creatureId": "crystal-signalcolony",
+          "creatureName": "水晶信号群体",
+          "traitVector": {
+            "E": 1,
+            "S": -1,
+            "T": 1,
+            "J": 1
+          },
+          "concept": "複数の結晶体が光信号を高速交換し、一体の大きな生命として動く群体生物",
+          "motifVector": {
+            "beast": 0.1,
+            "wing": 0.2,
+            "scale": 0.9,
+            "water": 0.05,
+            "swarm": 1
+          },
+          "archetypeVector": {
+            "guardian": 0.65,
+            "explorer": 0.45,
+            "nurturer": 0.1,
+            "strategist": 1,
+            "transformer": 0.65
+          },
+          "tempo": 0.78
+        },
+        {
+          "id": "r05-b",
+          "creatureId": "fruitlight-reveler",
+          "creatureName": "果灯レヴェラー",
+          "traitVector": {
+            "E": 1,
+            "S": -1,
+            "T": -1,
+            "J": 1
+          },
+          "concept": "肩の果灯器官で仲間へ合図を送り、六本の長い肢で発光樹林を巡る成熟した森林種",
+          "motifVector": {
+            "beast": 0.85,
+            "wing": 0.2,
+            "scale": 0.1,
+            "water": 0.05,
+            "swarm": 0.7
+          },
+          "archetypeVector": {
+            "guardian": 0.35,
+            "explorer": 0.85,
+            "nurturer": 0.8,
+            "strategist": 0.3,
+            "transformer": 0.55
+          },
+          "tempo": 0.74
+        },
+        {
+          "id": "r05-c",
+          "creatureId": "frostlattice-prowler",
+          "creatureName": "氷格子プロウラー",
+          "traitVector": {
+            "E": -1,
+            "S": -1,
+            "T": 1,
+            "J": 1
+          },
+          "concept": "氷格子の感覚器で地形を解析し、静かに単独行動する細身の狩猟獣",
+          "motifVector": {
+            "beast": 1,
+            "wing": 0.1,
+            "scale": 0.7,
+            "water": 0.05,
+            "swarm": 0.05
+          },
+          "archetypeVector": {
+            "guardian": 0.65,
+            "explorer": 0.3,
+            "nurturer": 0.1,
+            "strategist": 1,
+            "transformer": 0.3
+          },
+          "tempo": 0.38
+        },
+        {
+          "id": "r05-d",
+          "creatureId": "dreamcap-listener",
+          "creatureName": "夢茸リスナー",
+          "traitVector": {
+            "E": -1,
+            "S": -1,
+            "T": -1,
+            "J": 1
+          },
+          "concept": "巨大な茸状の耳で森の感情の揺らぎを聴き、一匹で寄り添う温厚な獣",
+          "motifVector": {
+            "beast": 0.9,
+            "wing": 0.15,
+            "scale": 0.1,
+            "water": 0.15,
+            "swarm": 0.1
+          },
+          "archetypeVector": {
+            "guardian": 0.35,
+            "explorer": 0.15,
+            "nurturer": 1,
+            "strategist": 0.45,
+            "transformer": 0.45
+          },
+          "tempo": 0.24
+        }
+      ]
+    },
+    {
+      "id": "r06",
+      "axis": "S",
+      "secondaryAxis": "J",
+      "complexityTier": "environmental",
+      "options": [
+        {
+          "id": "r06-a",
+          "creatureId": "tilehide-coilback",
+          "creatureName": "瓦鱗コイルバック",
+          "traitVector": {
+            "E": -1,
+            "S": 1,
+            "T": 1,
+            "J": 1
+          },
+          "concept": "瓦のように整列した鱗を持ち、決まった石道を進む巻き胴の陸生獣",
+          "motifVector": {
+            "beast": 0.8,
+            "wing": 0.05,
+            "scale": 1,
+            "water": 0.05,
+            "swarm": 0.05
+          },
+          "archetypeVector": {
+            "guardian": 0.85,
+            "explorer": 0.15,
+            "nurturer": 0.05,
+            "strategist": 0.9,
+            "transformer": 0.25
+          },
+          "tempo": 0.28
+        },
+        {
+          "id": "r06-b",
+          "creatureId": "riverstone-slipfin",
+          "creatureName": "川石スリップフィン",
+          "traitVector": {
+            "E": 1,
+            "S": 1,
+            "T": 1,
+            "J": -1
+          },
+          "concept": "濡れた川石の皮膚と可変のひれを持ち、水路に合わせて身を変える両生獣",
+          "motifVector": {
+            "beast": 0.7,
+            "wing": 0.1,
+            "scale": 0.55,
+            "water": 1,
+            "swarm": 0.1
+          },
+          "archetypeVector": {
+            "guardian": 0.15,
+            "explorer": 0.9,
+            "nurturer": 0.15,
+            "strategist": 0.45,
+            "transformer": 1
+          },
+          "tempo": 0.88
+        },
+        {
+          "id": "r06-c",
+          "creatureId": "mazeshell-nautiloid",
+          "creatureName": "迷宮殻ノーチロイド",
+          "traitVector": {
+            "E": -1,
+            "S": -1,
+            "T": 1,
+            "J": 1
+          },
+          "concept": "内部に無限迷宮を抱えた殻を持ち、一定の螺旋軌道を進む空中軟体生物",
+          "motifVector": {
+            "beast": 0.25,
+            "wing": 0.35,
+            "scale": 1,
+            "water": 0.3,
+            "swarm": 0.05
+          },
+          "archetypeVector": {
+            "guardian": 0.55,
+            "explorer": 0.35,
+            "nurturer": 0.1,
+            "strategist": 0.95,
+            "transformer": 0.65
+          },
+          "tempo": 0.36
+        },
+        {
+          "id": "r06-d",
+          "creatureId": "nebula-ribbonling",
+          "creatureName": "星雲リボンリング",
+          "traitVector": {
+            "E": 1,
+            "S": -1,
+            "T": -1,
+            "J": -1
+          },
+          "concept": "星雲の帯が生き物になったような体で、境界なく流路を変える漂流生物",
+          "motifVector": {
+            "beast": 0.1,
+            "wing": 0.45,
+            "scale": 0.05,
+            "water": 0.7,
+            "swarm": 0.3
+          },
+          "archetypeVector": {
+            "guardian": 0.05,
+            "explorer": 1,
+            "nurturer": 0.4,
+            "strategist": 0.15,
+            "transformer": 1
+          },
+          "tempo": 0.8
+        }
+      ]
+    },
+    {
+      "id": "r07",
+      "axis": "T",
+      "secondaryAxis": "E",
+      "complexityTier": "environmental",
+      "options": [
+        {
+          "id": "r07-a",
+          "creatureId": "prism-pulsebeetle",
+          "creatureName": "稜光パルスビートル",
+          "traitVector": {
+            "E": 1,
+            "S": 1,
+            "T": 1,
+            "J": 1
+          },
+          "concept": "稜光の甲殻から規則的な信号を放ち、周囲の群れを同期させる節足生物",
+          "motifVector": {
+            "beast": 0.15,
+            "wing": 0.55,
+            "scale": 1,
+            "water": 0.05,
+            "swarm": 0.85
+          },
+          "archetypeVector": {
+            "guardian": 0.8,
+            "explorer": 0.45,
+            "nurturer": 0.1,
+            "strategist": 1,
+            "transformer": 0.5
+          },
+          "tempo": 0.76
+        },
+        {
+          "id": "r07-b",
+          "creatureId": "obsidian-calculuslynx",
+          "creatureName": "黒曜演算リンクス",
+          "traitVector": {
+            "E": -1,
+            "S": -1,
+            "T": 1,
+            "J": -1
+          },
+          "concept": "黒曜石の眼で軌道を計算し、静かな高所から一匹で世界を観察する獣",
+          "motifVector": {
+            "beast": 1,
+            "wing": 0.05,
+            "scale": 0.75,
+            "water": 0.05,
+            "swarm": 0.05
+          },
+          "archetypeVector": {
+            "guardian": 0.35,
+            "explorer": 0.2,
+            "nurturer": 0.05,
+            "strategist": 1,
+            "transformer": 0.35
+          },
+          "tempo": 0.28
+        },
+        {
+          "id": "r07-c",
+          "creatureId": "lanterngrove-hostbeast",
+          "creatureName": "灯樹ホストビースト",
+          "traitVector": {
+            "E": 1,
+            "S": 1,
+            "T": -1,
+            "J": 1
+          },
+          "concept": "背中の灯樹に小さな生物を集め、温かな光で群れを導く大型獣",
+          "motifVector": {
+            "beast": 1,
+            "wing": 0.1,
+            "scale": 0.2,
+            "water": 0.05,
+            "swarm": 0.7
+          },
+          "archetypeVector": {
+            "guardian": 0.85,
+            "explorer": 0.45,
+            "nurturer": 1,
+            "strategist": 0.25,
+            "transformer": 0.35
+          },
+          "tempo": 0.52
+        },
+        {
+          "id": "r07-d",
+          "creatureId": "moonwell-keeper",
+          "creatureName": "月泉キーパー",
+          "traitVector": {
+            "E": -1,
+            "S": -1,
+            "T": -1,
+            "J": 1
+          },
+          "concept": "胸の月泉で傷ついた生命を静かに癒やし、森の奥で単独に暮らす精霊獣",
+          "motifVector": {
+            "beast": 0.85,
+            "wing": 0.1,
+            "scale": 0.1,
+            "water": 0.55,
+            "swarm": 0.05
+          },
+          "archetypeVector": {
+            "guardian": 0.55,
+            "explorer": 0.15,
+            "nurturer": 1,
+            "strategist": 0.35,
+            "transformer": 0.5
+          },
+          "tempo": 0.18
+        }
+      ]
+    },
+    {
+      "id": "r08",
+      "axis": "J",
+      "secondaryAxis": "S",
+      "complexityTier": "environmental",
+      "options": [
+        {
+          "id": "r08-a",
+          "creatureId": "honeycrown-walker",
+          "creatureName": "蜂巣冠クラウンウォーカー",
+          "traitVector": {
+            "E": 1,
+            "S": 1,
+            "T": 1,
+            "J": 1
+          },
+          "concept": "蜜色に透ける王冠殻と四本の柱肢を持ち、六角庭園の中心を守る非昆虫型の大型種",
+          "motifVector": {
+            "beast": 0.65,
+            "wing": 0.2,
+            "scale": 0.9,
+            "water": 0.05,
+            "swarm": 1
+          },
+          "archetypeVector": {
+            "guardian": 1,
+            "explorer": 0.35,
+            "nurturer": 0.4,
+            "strategist": 0.75,
+            "transformer": 0.2
+          },
+          "tempo": 0.46
+        },
+        {
+          "id": "r08-b",
+          "creatureId": "stairfold-sphinx",
+          "creatureName": "階段折りスフィンクス",
+          "traitVector": {
+            "E": -1,
+            "S": -1,
+            "T": -1,
+            "J": 1
+          },
+          "concept": "体内で不可能な階段が折り重なり、決められた中心を守る抽象幻獣",
+          "motifVector": {
+            "beast": 0.75,
+            "wing": 0.15,
+            "scale": 0.8,
+            "water": 0.05,
+            "swarm": 0.05
+          },
+          "archetypeVector": {
+            "guardian": 0.95,
+            "explorer": 0.15,
+            "nurturer": 0.15,
+            "strategist": 0.85,
+            "transformer": 0.55
+          },
+          "tempo": 0.2
+        },
+        {
+          "id": "r08-c",
+          "creatureId": "splashwing-delfin",
+          "creatureName": "飛沫翼デルフィン",
+          "traitVector": {
+            "E": 1,
+            "S": 1,
+            "T": -1,
+            "J": -1
+          },
+          "concept": "水面と空を自由に跳び移り、物理的な飛沫を四方へ散らす翼持つ水獣",
+          "motifVector": {
+            "beast": 0.65,
+            "wing": 0.85,
+            "scale": 0.1,
+            "water": 1,
+            "swarm": 0.55
+          },
+          "archetypeVector": {
+            "guardian": 0.1,
+            "explorer": 1,
+            "nurturer": 0.7,
+            "strategist": 0.15,
+            "transformer": 0.7
+          },
+          "tempo": 0.96
+        },
+        {
+          "id": "r08-d",
+          "creatureId": "vectorstream-jelly",
+          "creatureName": "矢流クラゲ",
+          "traitVector": {
+            "E": 1,
+            "S": -1,
+            "T": 1,
+            "J": -1
+          },
+          "concept": "複数方向へ伸びる光の流線を組み替え、予測不能に泳ぐ深空クラゲ",
+          "motifVector": {
+            "beast": 0.1,
+            "wing": 0.35,
+            "scale": 0.1,
+            "water": 1,
+            "swarm": 0.45
+          },
+          "archetypeVector": {
+            "guardian": 0.05,
+            "explorer": 0.95,
+            "nurturer": 0.3,
+            "strategist": 0.35,
+            "transformer": 1
+          },
+          "tempo": 0.84
+        }
+      ]
+    },
+    {
+      "id": "r09",
+      "axis": "E",
+      "secondaryAxis": "J",
+      "complexityTier": "intricate",
+      "options": [
+        {
+          "id": "r09-a",
+          "creatureId": "thunder-processiondrake",
+          "creatureName": "雷列プロセッションドレイク",
+          "traitVector": {
+            "E": 1,
+            "S": -1,
+            "T": 1,
+            "J": 1
+          },
+          "concept": "雷の背骨と儀礼的な冠角を持ち、整然とした光列の先頭を進む翼竜型生物",
+          "motifVector": {
+            "beast": 0.85,
+            "wing": 1,
+            "scale": 0.65,
+            "water": 0.05,
+            "swarm": 0.65
+          },
+          "archetypeVector": {
+            "guardian": 0.7,
+            "explorer": 1,
+            "nurturer": 0.1,
+            "strategist": 0.85,
+            "transformer": 0.45
+          },
+          "tempo": 0.88
+        },
+        {
+          "id": "r09-b",
+          "creatureId": "comet-confettimoth",
+          "creatureName": "彗彩コンフェッティモス",
+          "traitVector": {
+            "E": 1,
+            "S": -1,
+            "T": -1,
+            "J": -1
+          },
+          "concept": "彗星色の鱗粉を自由に振り撒き、多数の光点と戯れる巨大蛾型生物",
+          "motifVector": {
+            "beast": 0.3,
+            "wing": 1,
+            "scale": 0.15,
+            "water": 0.05,
+            "swarm": 0.85
+          },
+          "archetypeVector": {
+            "guardian": 0.05,
+            "explorer": 1,
+            "nurturer": 0.65,
+            "strategist": 0.1,
+            "transformer": 0.95
+          },
+          "tempo": 0.92
+        },
+        {
+          "id": "r09-c",
+          "creatureId": "ivory-archivecarapace",
+          "creatureName": "象牙記録甲獣",
+          "traitVector": {
+            "E": -1,
+            "S": 1,
+            "T": -1,
+            "J": 1
+          },
+          "concept": "象牙の記録殻と四枚の歩行びれを持ち、静かな書庫洞で記憶片を分類する甲殻種",
+          "motifVector": {
+            "beast": 0.75,
+            "wing": 0.1,
+            "scale": 1,
+            "water": 0.3,
+            "swarm": 0.05
+          },
+          "archetypeVector": {
+            "guardian": 0.85,
+            "explorer": 0.1,
+            "nurturer": 0.65,
+            "strategist": 1,
+            "transformer": 0.25
+          },
+          "tempo": 0.2
+        },
+        {
+          "id": "r09-d",
+          "creatureId": "silent-horizonstilter",
+          "creatureName": "静界スティルトレッカー",
+          "traitVector": {
+            "E": -1,
+            "S": -1,
+            "T": -1,
+            "J": -1
+          },
+          "concept": "極端に長い脚で霧の地平を一匹で渡り、進路を風に委ねる細身の幻獣",
+          "motifVector": {
+            "beast": 1,
+            "wing": 0.1,
+            "scale": 0.05,
+            "water": 0.15,
+            "swarm": 0.05
+          },
+          "archetypeVector": {
+            "guardian": 0.1,
+            "explorer": 0.85,
+            "nurturer": 0.25,
+            "strategist": 0.55,
+            "transformer": 0.65
+          },
+          "tempo": 0.34
+        }
+      ]
+    },
+    {
+      "id": "r10",
+      "axis": "S",
+      "secondaryAxis": "E",
+      "complexityTier": "intricate",
+      "options": [
+        {
+          "id": "r10-a",
+          "creatureId": "rootmarket-mimicbeast",
+          "creatureName": "根市ミミックビースト",
+          "traitVector": {
+            "E": 1,
+            "S": 1,
+            "T": 1,
+            "J": -1
+          },
+          "concept": "木の根、葉、果実の実在感ある質感をまとい、賑やかな森と活発に物を交換する擬態獣",
+          "motifVector": {
+            "beast": 1,
+            "wing": 0.1,
+            "scale": 0.25,
+            "water": 0.05,
+            "swarm": 0.85
+          },
+          "archetypeVector": {
+            "guardian": 0.35,
+            "explorer": 0.8,
+            "nurturer": 0.5,
+            "strategist": 0.7,
+            "transformer": 0.75
+          },
+          "tempo": 0.78
+        },
+        {
+          "id": "r10-b",
+          "creatureId": "porcelain-burrowkin",
+          "creatureName": "白磁バロウキン",
+          "traitVector": {
+            "E": -1,
+            "S": 1,
+            "T": 1,
+            "J": -1
+          },
+          "concept": "白磁板に覆われた六肢と細い感覚裂を持ち、地中の流れを読みながら単独で巡る成体種",
+          "motifVector": {
+            "beast": 0.85,
+            "wing": 0.05,
+            "scale": 0.9,
+            "water": 0.05,
+            "swarm": 0.05
+          },
+          "archetypeVector": {
+            "guardian": 0.65,
+            "explorer": 0.25,
+            "nurturer": 0.1,
+            "strategist": 1,
+            "transformer": 0.35
+          },
+          "tempo": 0.3
+        },
+        {
+          "id": "r10-c",
+          "creatureId": "orbitchorus-chimera",
+          "creatureName": "軌道歌キメラ",
+          "traitVector": {
+            "E": 1,
+            "S": -1,
+            "T": 1,
+            "J": -1
+          },
+          "concept": "複数の異質な体節が光軌道で結ばれ、空間全体へ共鳴を広げる集合幻獣",
+          "motifVector": {
+            "beast": 0.75,
+            "wing": 0.65,
+            "scale": 0.3,
+            "water": 0.1,
+            "swarm": 1
+          },
+          "archetypeVector": {
+            "guardian": 0.1,
+            "explorer": 0.95,
+            "nurturer": 0.4,
+            "strategist": 0.65,
+            "transformer": 1
+          },
+          "tempo": 0.86
+        },
+        {
+          "id": "r10-d",
+          "creatureId": "mobius-dreamworm",
+          "creatureName": "無限輪ドリームワーム",
+          "traitVector": {
+            "E": -1,
+            "S": -1,
+            "T": 1,
+            "J": -1
+          },
+          "concept": "継ぎ目のない無限輪の体を静かに循環させ、内側に夢の宇宙を抱く概念生物",
+          "motifVector": {
+            "beast": 0.2,
+            "wing": 0.15,
+            "scale": 0.3,
+            "water": 0.25,
+            "swarm": 0.05
+          },
+          "archetypeVector": {
+            "guardian": 0.15,
+            "explorer": 0.45,
+            "nurturer": 0.1,
+            "strategist": 1,
+            "transformer": 0.95
+          },
+          "tempo": 0.24
+        }
+      ]
+    },
+    {
+      "id": "r11",
+      "axis": "T",
+      "secondaryAxis": "S",
+      "complexityTier": "intricate",
+      "options": [
+        {
+          "id": "r11-a",
+          "creatureId": "bluegrid-iceback",
+          "creatureName": "青格子アイスバック",
+          "traitVector": {
+            "E": -1,
+            "S": 1,
+            "T": 1,
+            "J": -1
+          },
+          "concept": "青灰の氷板と精密な格子骨格を持ち、実在する氷原で熱流を計算する大型獣",
+          "motifVector": {
+            "beast": 0.9,
+            "wing": 0.05,
+            "scale": 0.95,
+            "water": 0.15,
+            "swarm": 0.05
+          },
+          "archetypeVector": {
+            "guardian": 0.8,
+            "explorer": 0.2,
+            "nurturer": 0.05,
+            "strategist": 1,
+            "transformer": 0.25
+          },
+          "tempo": 0.25
+        },
+        {
+          "id": "r11-b",
+          "creatureId": "goldenspiral-shellwing",
+          "creatureName": "黄金螺旋シェルウィング",
+          "traitVector": {
+            "E": 1,
+            "S": -1,
+            "T": 1,
+            "J": 1
+          },
+          "concept": "黄金比の殻と半透明の翼を持ち、抽象空間で数列の軌跡を描く飛翔軟体生物",
+          "motifVector": {
+            "beast": 0.25,
+            "wing": 0.85,
+            "scale": 1,
+            "water": 0.1,
+            "swarm": 0.15
+          },
+          "archetypeVector": {
+            "guardian": 0.25,
+            "explorer": 0.75,
+            "nurturer": 0.05,
+            "strategist": 1,
+            "transformer": 0.55
+          },
+          "tempo": 0.62
+        },
+        {
+          "id": "r11-c",
+          "creatureId": "sunfelt-puffhorn",
+          "creatureName": "陽綿パフホーン",
+          "traitVector": {
+            "E": -1,
+            "S": 1,
+            "T": -1,
+            "J": 1
+          },
+          "concept": "陽だまりを蓄える綿毛と丸い角を持ち、触れられる温もりで小さな生命を包む獣",
+          "motifVector": {
+            "beast": 1,
+            "wing": 0.1,
+            "scale": 0.15,
+            "water": 0.05,
+            "swarm": 0.25
+          },
+          "archetypeVector": {
+            "guardian": 0.85,
+            "explorer": 0.1,
+            "nurturer": 1,
+            "strategist": 0.2,
+            "transformer": 0.3
+          },
+          "tempo": 0.3
+        },
+        {
+          "id": "r11-d",
+          "creatureId": "rosetide-veilfin",
+          "creatureName": "薔薇潮ヴェイルフィン",
+          "traitVector": {
+            "E": -1,
+            "S": 1,
+            "T": -1,
+            "J": -1
+          },
+          "concept": "薔薇色の光潮と境界が溶け合う薄いひれで、周囲の感情に共鳴する幻想水棲生物",
+          "motifVector": {
+            "beast": 0.45,
+            "wing": 0.25,
+            "scale": 0.05,
+            "water": 1,
+            "swarm": 0.2
+          },
+          "archetypeVector": {
+            "guardian": 0.2,
+            "explorer": 0.45,
+            "nurturer": 1,
+            "strategist": 0.15,
+            "transformer": 0.8
+          },
+          "tempo": 0.42
+        }
+      ]
+    },
+    {
+      "id": "r12",
+      "axis": "J",
+      "secondaryAxis": "T",
+      "complexityTier": "intricate",
+      "options": [
+        {
+          "id": "r12-a",
+          "creatureId": "archframe-gatebeast",
+          "creatureName": "門枠アーチガーディアン",
+          "traitVector": {
+            "E": 1,
+            "S": -1,
+            "T": -1,
+            "J": 1
+          },
+          "concept": "厳格なアーチ状骨格と直角関節を持ち、中央軸から一歩も動かず門を守る番獣",
+          "motifVector": {
+            "beast": 0.85,
+            "wing": 0.2,
+            "scale": 0.9,
+            "water": 0.05,
+            "swarm": 0.05
+          },
+          "archetypeVector": {
+            "guardian": 1,
+            "explorer": 0.1,
+            "nurturer": 0.05,
+            "strategist": 0.95,
+            "transformer": 0.2
+          },
+          "tempo": 0.1
+        },
+        {
+          "id": "r12-b",
+          "creatureId": "circlebound-hearthwarden",
+          "creatureName": "円環炉ハースワーデン",
+          "traitVector": {
+            "E": 1,
+            "S": 1,
+            "T": -1,
+            "J": 1
+          },
+          "concept": "完全な円環の柔らかな殻で共同体の火を囲み、決まった場所を守る温厚な守護獣",
+          "motifVector": {
+            "beast": 1,
+            "wing": 0.1,
+            "scale": 0.55,
+            "water": 0.05,
+            "swarm": 0.55
+          },
+          "archetypeVector": {
+            "guardian": 1,
+            "explorer": 0.2,
+            "nurturer": 0.95,
+            "strategist": 0.35,
+            "transformer": 0.2
+          },
+          "tempo": 0.2
+        },
+        {
+          "id": "r12-c",
+          "creatureId": "quicksilver-fluxspider",
+          "creatureName": "水銀変相スパイダー",
+          "traitVector": {
+            "E": 1,
+            "S": 1,
+            "T": 1,
+            "J": -1
+          },
+          "concept": "水銀の脚を状況に応じて論理的に組み替え、複数の経路を試す可変節足生物",
+          "motifVector": {
+            "beast": 0.2,
+            "wing": 0.15,
+            "scale": 0.7,
+            "water": 0.1,
+            "swarm": 0.3
+          },
+          "archetypeVector": {
+            "guardian": 0.1,
+            "explorer": 0.8,
+            "nurturer": 0.05,
+            "strategist": 1,
+            "transformer": 1
+          },
+          "tempo": 0.9
+        },
+        {
+          "id": "r12-d",
+          "creatureId": "dawnvapor-aurorafawn",
+          "creatureName": "曙気オーロラフォーン",
+          "traitVector": {
+            "E": 1,
+            "S": 1,
+            "T": -1,
+            "J": -1
+          },
+          "concept": "煙とオーロラが混ざる体を絶えず変化させ、感情の風に沿って上昇する幼獣型精霊",
+          "motifVector": {
+            "beast": 0.75,
+            "wing": 0.7,
+            "scale": 0.05,
+            "water": 0.15,
+            "swarm": 0.2
+          },
+          "archetypeVector": {
+            "guardian": 0.1,
+            "explorer": 0.95,
+            "nurturer": 0.75,
+            "strategist": 0.1,
+            "transformer": 1
+          },
+          "tempo": 0.82
+        }
+      ]
+    }
+  ]
+}

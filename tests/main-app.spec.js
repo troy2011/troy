@@ -3325,18 +3325,20 @@ test('player profile shows public stats on the left with avatar on the right', a
             explorationId: 'profile-pet-test',
             acquiredAtMs: 1000
           },
-          specialAbility: {
-            name: '星渡りの門',
-            alias: 'アストラル・ゲート',
-            effect: '離れた場所を光の通路で結び、仲間や物を安全に移動させられる。',
-            rule: '行き先を見ながら両手で入口の輪を描くと発動する。',
-            affinity: '特質',
-            personalityType: {
-              code: 'INTJ',
-              traits: '内向・直感・思考・判断'
+          destinyProfile: {
+              traits: '独立心が強く、複雑な状況を長期的な視点で整理します。感情より論理と一貫性を重視し、自分で計画を立てて進める傾向があります。',
+            animal: {
+              id: 'animal-001',
+              name: 'ライオン',
+              imageUrl: '/assets/personality-animals/animal-001.webp',
+              core: '前世のライオンから受け継いだのは、先を読んで道筋を作る気質です。'
             },
-            tempo: 0.25,
-            scores: { E: -1, S: -1, T: 1, J: 1 }
+            arcanaDay: {
+              value: '01-01',
+              label: '1月1日',
+              omen: '仲間へ役割を任せることが鍵になる転機が近づいています。'
+            },
+            disclaimer: 'MBTI公式診断ではなく、MBTIの4つの性格軸を参考にしたTROY独自のエンタメ診断です。'
           },
           equipment: {
             RightHand: 'polearm_001'
@@ -3359,6 +3361,29 @@ test('player profile shows public stats on the left with avatar on the right', a
       })
     });
   });
+  await page.route('**/api/player-compatibility', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        available: true,
+        compatibility: {
+          overall: 84,
+          summary: '違いを力に変えられる、伸びしろの大きい組み合わせです。',
+          categories: {
+            love: { label: '恋愛', score: 82, summary: '気持ちを言葉にすると信頼が深まります。' },
+            friendship: { label: '友情', score: 88, summary: '異なる視点を自然に交換できます。' },
+            work: { label: '仕事', score: 86, summary: '役割を分けるほど成果が出ます。' },
+            conflict: { label: '衝突時', score: 80, summary: '時間を置けば論点を整理できます。' }
+          },
+          strength: '互いにない視点を補えます。',
+          friction: '決断の速度に違いがあります。',
+          advice: '期限と守りたいものを先に確認してください。'
+        }
+      })
+    });
+  });
   await bootstrapMainApp(page);
 
   await page.evaluate(async () => {
@@ -3375,16 +3400,26 @@ test('player profile shows public stats on the left with avatar on the right', a
   await expect(page.locator('#btnPlayerProfileBeauty')).toBeHidden();
   await expect(page.locator('#playerProfileTransferPanel')).toBeHidden();
   await expect(page.locator('#playerProfileStatAllocation')).toBeHidden();
-  await expect(page.locator('#playerProfileSpecialAbility')).toBeVisible();
-  await expect(page.locator('#playerProfileSpecialAbilityAffinity')).toHaveText('特質系');
-  await expect(page.locator('#playerProfilePersonalityType')).toBeVisible();
-  await expect(page.locator('#playerProfilePersonalityTypeCode')).toHaveText('INTJ');
-  await expect(page.locator('#playerProfilePersonalityTypeTraits')).toHaveText('内向・直感・思考・判断');
-  await expect(page.locator('#playerProfileSpecialAbilityName')).toHaveText('星渡りの門');
-  await expect(page.locator('#playerProfileSpecialAbilityAlias')).toHaveText('アストラル・ゲート');
-  await expect(page.locator('#playerProfileSpecialAbilityEffect')).toContainText('光の通路');
-  await expect(page.locator('#playerProfileSpecialAbilityRule')).toContainText('入口の輪');
-  await expect(page.locator('#playerProfileSpecialAbility')).not.toContainText(/tempo|scores/);
+  await expect(page.locator('#btnPlayerProfileCompatibility')).toBeVisible();
+  await expect(page.locator('#playerProfileDestiny')).toBeVisible();
+  await expect(page.locator('#playerProfilePersonalityTraits')).toContainText('独立心が強く');
+  await expect(page.locator('#playerProfileAnimalName')).toHaveText('ライオン');
+  await expect(page.locator('#playerProfileArcanaDay')).toHaveText('1月1日');
+  await expect(page.locator('#playerProfileArcanaDayOmen')).toContainText('転機が近づいています');
+  await expect(page.locator('#playerProfileDestiny')).not.toContainText(/この動物になった理由|守護アルカナ/);
+  await expect(page.locator('#playerProfileDestinyDetail')).toBeHidden();
+  await expect(page.locator('#playerProfileAnimalMemory')).toHaveText('');
+  await expect(page.locator('#playerProfileCompatibilitySummary')).toBeVisible();
+  await expect(page.locator('#playerProfileCompatibilityScore')).toHaveText('84点');
+  await page.locator('#btnPlayerProfileCompatibilityDetail').click();
+  await expect(page.locator('#playerCompatibilityModal')).toBeVisible();
+  await expect(page.locator('#playerCompatibilityTitle')).toHaveText('あなた × Other Player');
+  await expect(page.locator('#playerCompatibilityOverall')).toHaveText('84点');
+  await expect(page.locator('#playerCompatibilityScores .player-compatibility-score')).toHaveCount(4);
+  await expect(page.locator('#playerCompatibilityStrength')).toHaveText('互いにない視点を補えます。');
+  await page.locator('#btnClosePlayerCompatibility').click();
+  await expect(page.locator('#playerCompatibilityModal')).toBeHidden();
+  await expect(page.locator('#playerProfileDestiny')).not.toContainText(/INTJ|深謀の海図師|TROY式16タイプ|夜明けを先取る|tempo|scores|特殊能力/);
   await expect(page.locator('#playerProfileStats .player-profile-stat strong')).toHaveText(['12', '11', '10', '9', '8', '152']);
   await expect(page.locator('#playerProfileShip .player-profile-ship-name')).toHaveText('水の王の船');
   await expect(page.locator('#playerProfileShip .player-profile-ship-icon')).toHaveClass(/is-guild/);

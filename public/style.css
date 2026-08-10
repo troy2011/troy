@@ -30728,7 +30728,7 @@ body[data-sea-tone] .home-hero-card {
     display: none;
 }
 
-#playerProfileModal .player-profile-special-ability {
+#playerProfileModal .player-profile-destiny {
     width: 100%;
     min-width: 0;
     margin-bottom: 12px;
@@ -30738,11 +30738,11 @@ body[data-sea-tone] .home-hero-card {
     background: linear-gradient(90deg, transparent, rgba(116, 65, 145, 0.16), transparent);
 }
 
-#playerProfileModal .player-profile-special-ability[hidden] {
+#playerProfileModal .player-profile-destiny[hidden] {
     display: none;
 }
 
-#playerProfileModal .player-profile-special-ability > span {
+#playerProfileModal .player-profile-destiny > span {
     display: inline-block;
     margin-bottom: 3px;
     color: #a9d7f4;
@@ -30750,92 +30750,311 @@ body[data-sea-tone] .home-hero-card {
     font-weight: 900;
 }
 
-#playerProfileModal .player-profile-special-ability > small {
-    display: inline-block;
-    margin-left: 8px;
-    color: #ffe8a8;
-    font-size: 10px;
-    font-weight: 900;
-}
-
-#playerProfileModal .player-profile-special-ability > strong {
-    display: block;
-    color: #ffe8a8;
-    font-size: 18px;
-    font-weight: 900;
-    line-height: 1.35;
-}
-
-#playerProfileModal .player-profile-special-ability > em {
-    display: block;
-    margin-top: 4px;
-    color: #d8aa4a;
-    font-size: 11px;
-    font-style: normal;
-    font-weight: 900;
-    line-height: 1.4;
-    overflow-wrap: anywhere;
-}
-
-#playerProfileModal .player-profile-personality-type {
-    display: grid;
-    grid-template-columns: auto auto minmax(0, 1fr);
-    align-items: baseline;
-    gap: 4px 8px;
+#playerProfileModal .player-profile-personality-features {
     margin: 8px 0 10px;
     padding: 7px 0;
     border-top: 1px solid rgba(125, 211, 252, 0.18);
     border-bottom: 1px solid rgba(255, 226, 139, 0.2);
 }
 
-#playerProfileModal .player-profile-personality-type[hidden] {
-    display: none;
-}
-
-#playerProfileModal .player-profile-personality-type > span {
+#playerProfileModal .player-profile-personality-features > span {
     color: #a9d7f4;
     font-size: 10px;
     font-weight: 900;
 }
 
-#playerProfileModal .player-profile-personality-type > strong {
-    color: #fff2c6;
-    font-size: 16px;
-    line-height: 1.2;
-}
-
-#playerProfileModal .player-profile-personality-type > small {
-    min-width: 0;
+#playerProfileModal .player-profile-personality-features > p {
+    margin: 5px 0 0;
     color: #dbe9f3;
-    font-size: 10px;
-    line-height: 1.4;
+    font-size: 12px;
+    line-height: 1.65;
     overflow-wrap: anywhere;
 }
 
-#playerProfileModal .player-profile-special-ability-effect,
-#playerProfileModal .player-profile-special-ability-rule {
+#playerProfileModal .player-profile-destiny-core {
     margin-top: 12px;
     padding-top: 10px;
     border-top: 1px solid rgba(255, 226, 139, 0.2);
 }
 
-#playerProfileModal .player-profile-special-ability-effect > span,
-#playerProfileModal .player-profile-special-ability-rule > span {
+#playerProfileModal .player-profile-destiny-animal {
+    display: grid;
+    grid-template-columns: 72px auto minmax(0, 1fr);
+    gap: 3px 8px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 226, 139, 0.2);
+}
+
+#playerProfileModal .player-profile-destiny-animal > img {
+    grid-row: 1 / span 2;
+    width: 72px;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border: 1px solid rgba(255, 226, 139, 0.34);
+    border-radius: 6px;
+    background: #080d12;
+}
+
+#playerProfileModal .player-profile-destiny-animal > span,
+#playerProfileModal .player-profile-destiny-core > span,
+#playerProfileModal .player-profile-arcana-day > span,
+#playerProfileModal .player-profile-compatibility-summary > span {
     color: #a9d7f4;
     font-size: 10px;
     font-weight: 900;
 }
 
-#playerProfileModal .player-profile-special-ability-effect > p,
-#playerProfileModal .player-profile-special-ability-rule > p {
+#playerProfileModal .player-profile-destiny-animal > strong {
+    align-self: center;
+    color: #ffe8a8;
+    font-size: 15px;
+}
+
+#playerProfileModal .player-profile-destiny-core > p,
+#playerProfileModal .player-profile-compatibility-summary > p {
     margin: 4px 0 0;
     color: #dbe9f3;
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.65;
 }
 
-#playerProfileModal .player-profile-special-ability-rule {
+#playerProfileModal .player-profile-arcana-day {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: baseline;
+    gap: 4px 10px;
+    margin-top: 10px;
+    padding: 8px 10px;
+    border: 1px solid rgba(255, 226, 139, 0.24);
+    border-radius: 6px;
+    background: rgba(4, 10, 15, 0.54);
+}
+
+#playerProfileModal .player-profile-arcana-day > strong {
+    color: #ffe8a8;
+    font-size: 13px;
+    text-align: right;
+}
+
+#playerProfileModal .player-profile-arcana-day > p {
+    grid-column: 1 / -1;
+    margin: 2px 0 0;
+    color: #dbe9f3;
+    font-size: 12px;
+    line-height: 1.65;
+}
+
+#playerProfileModal .player-profile-destiny-detail[hidden],
+#playerProfileModal .player-profile-destiny-actions[hidden] {
+    display: none;
+}
+
+#playerProfileModal .player-profile-destiny-detail {
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(125, 211, 252, 0.22);
+}
+
+#playerProfileModal .player-profile-destiny-detail dl {
+    margin: 0;
+}
+
+#playerProfileModal .player-profile-destiny-detail dl > div {
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 226, 139, 0.14);
+}
+
+#playerProfileModal .player-profile-destiny-detail dt {
+    color: #a9d7f4;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+#playerProfileModal .player-profile-destiny-detail dd,
+#playerProfileModal .player-profile-destiny-disclaimer {
+    margin: 4px 0 0;
+    color: #dbe9f3;
+    font-size: 12px;
+    line-height: 1.65;
+}
+
+#playerProfileModal .player-profile-destiny-disclaimer {
+    color: #91a4b2;
+    font-size: 10px;
+}
+
+#playerProfileModal .player-profile-destiny-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+#playerProfileModal .player-profile-destiny-actions > button {
+    min-height: 34px;
+    padding: 7px 10px;
+    color: #f5e8c0;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 900;
+    border: 1px solid rgba(255, 226, 139, 0.35);
+    border-radius: 6px;
+    background: rgba(13, 31, 42, 0.8);
+    cursor: pointer;
+}
+
+#playerProfileModal .player-profile-compatibility-summary {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(125, 211, 252, 0.22);
+}
+
+#playerProfileModal .player-profile-compatibility-summary[hidden] {
+    display: none;
+}
+
+#playerProfileModal .player-profile-compatibility-summary > strong {
+    display: block;
+    margin-top: 2px;
+    color: #ffe8a8;
+    font-size: 19px;
+}
+
+#playerProfileModal .player-profile-compatibility-summary > button {
     margin-top: 8px;
+    padding: 7px 10px;
+    color: #f5e8c0;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 900;
+    border: 1px solid rgba(255, 226, 139, 0.35);
+    border-radius: 6px;
+    background: rgba(13, 31, 42, 0.8);
+    cursor: pointer;
+}
+
+#playerCompatibilityModal .player-compatibility-sheet {
+    width: min(94vw, 620px);
+    max-height: min(88vh, 760px);
+    overflow-y: auto;
+}
+
+#playerCompatibilityModal .player-compatibility-sheet > h3 {
+    margin: 4px 0 14px;
+    color: #fff2c6;
+    letter-spacing: 0;
+}
+
+#playerCompatibilityModal .player-compatibility-target {
+    display: grid;
+    gap: 5px;
+    margin-bottom: 12px;
+}
+
+#playerCompatibilityModal .player-compatibility-target[hidden],
+#playerCompatibilityModal #playerCompatibilityResult[hidden] {
+    display: none;
+}
+
+#playerCompatibilityModal .player-compatibility-target > span,
+#playerCompatibilityModal .player-compatibility-overall > span {
+    color: #a9d7f4;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+#playerCompatibilityModal .player-compatibility-target > select {
+    width: 100%;
+    min-height: 38px;
+    color: #f5e8c0;
+    border: 1px solid rgba(255, 226, 139, 0.3);
+    border-radius: 6px;
+    background: #101820;
+}
+
+#playerCompatibilityModal .player-compatibility-status {
+    min-height: 22px;
+    color: #dbe9f3;
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+#playerCompatibilityModal .player-compatibility-overall {
+    padding: 14px 0;
+    text-align: center;
+    border-top: 1px solid rgba(255, 226, 139, 0.26);
+    border-bottom: 1px solid rgba(255, 226, 139, 0.26);
+}
+
+#playerCompatibilityModal .player-compatibility-overall > strong {
+    display: block;
+    margin-top: 2px;
+    color: #ffe8a8;
+    font-size: 36px;
+}
+
+#playerCompatibilityModal .player-compatibility-overall > p {
+    margin: 4px auto 0;
+    max-width: 480px;
+    color: #dbe9f3;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+#playerCompatibilityModal .player-compatibility-scores {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 14px;
+}
+
+#playerCompatibilityModal .player-compatibility-score {
+    min-width: 0;
+    padding: 9px 10px;
+    border-bottom: 1px solid rgba(125, 211, 252, 0.22);
+}
+
+#playerCompatibilityModal .player-compatibility-score > span {
+    color: #a9d7f4;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+#playerCompatibilityModal .player-compatibility-score > strong {
+    float: right;
+    color: #ffe8a8;
+    font-size: 15px;
+}
+
+#playerCompatibilityModal .player-compatibility-score > p {
+    clear: both;
+    margin: 5px 0 0;
+    color: #dbe9f3;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+#playerCompatibilityModal .player-compatibility-reading {
+    margin: 14px 0 0;
+}
+
+#playerCompatibilityModal .player-compatibility-reading > div {
+    padding: 10px 0;
+    border-top: 1px solid rgba(255, 226, 139, 0.18);
+}
+
+#playerCompatibilityModal .player-compatibility-reading dt {
+    color: #a9d7f4;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+#playerCompatibilityModal .player-compatibility-reading dd {
+    margin: 4px 0 0;
+    color: #dbe9f3;
+    font-size: 12px;
+    line-height: 1.65;
 }
 
 #playerProfileModal .player-profile-stat-alloc-head {

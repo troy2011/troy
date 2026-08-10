@@ -25,7 +25,7 @@
 
         <div id="readingModeSwitch" class="tarot-reading-mode-switch" role="tablist" aria-label="店舗メニュー" hidden>
             <button type="button" role="tab" aria-selected="true" data-reading-mode="tarot">タロット鑑定</button>
-            <button type="button" role="tab" aria-selected="false" data-reading-mode="ability">特殊能力判定</button>
+            <button type="button" role="tab" aria-selected="false" data-reading-mode="personality">前世動物診断</button>
         </div>
 
         <section class="tarot-reading-panel tarot-reading-customer">
@@ -128,45 +128,60 @@
             </section>
         </section>
 
-        <section id="specialAbilityBoard" class="special-ability-board" aria-label="特殊能力判定" hidden>
-            <div id="specialAbilityIntro" class="tarot-reading-panel special-ability-intro">
-                <div class="special-ability-emblem" aria-hidden="true"></div>
-                <div class="special-ability-copy">
-                    <div class="tarot-reading-kicker">ONE-TIME JUDGMENT</div>
-                    <h2>特殊能力判定</h2>
-                    <p id="specialAbilityIntroText">店内リストから判定するお客様を選んでください。</p>
+        <section id="personalityBoard" class="personality-board" aria-label="前世動物診断" hidden>
+            <div id="personalityIntro" class="tarot-reading-panel personality-intro">
+                <div class="personality-emblem" aria-hidden="true"></div>
+                <div class="personality-copy">
+                    <div class="tarot-reading-kicker">ONE-TIME PERSONALITY VOYAGE</div>
+                    <h2>前世動物診断</h2>
+                    <p id="personalityIntroText">店内リストから診断するお客様を選んでください。</p>
+                    <p class="personality-intro-disclaimer">心理検査ではなく、画像への直感をMBTIの4軸を参考に読み解くTROY独自のエンタメ診断です。</p>
                 </div>
-                <button id="specialAbilityStart" type="button" class="tarot-reading-send" disabled>判定を始める</button>
+                <button id="personalityStart" type="button" class="tarot-reading-send" disabled>診断を始める</button>
             </div>
 
-            <div id="specialAbilityAssessment" class="special-ability-assessment" hidden>
-                <div class="special-ability-progress" aria-live="polite">
-                    <span id="specialAbilityProgressText">1 / 12</span>
-                    <div class="special-ability-progress-track" aria-hidden="true"><span id="specialAbilityProgressBar"></span></div>
+            <div id="personalityAssessment" class="personality-assessment" hidden>
+                <div class="personality-progress" aria-live="polite">
+                    <span id="personalityProgressText">1 / 12</span>
+                    <div class="personality-progress-track" aria-hidden="true"><span id="personalityProgressBar"></span></div>
                 </div>
-                <h2 id="specialAbilityPrompt">直感で一つ選んでください</h2>
-                <div id="specialAbilityOptions" class="special-ability-options" role="group" aria-label="画像の選択肢"></div>
+                <h2 id="personalityPrompt">直感で一つ選んでください</h2>
+                <div id="personalityOptions" class="personality-options" role="group" aria-label="画像の選択肢"></div>
             </div>
 
-            <div id="specialAbilityResult" class="tarot-reading-panel special-ability-result" aria-live="polite" hidden>
-                <div class="special-ability-result-mark" aria-hidden="true"></div>
-                <div class="tarot-reading-kicker">ABILITY AWAKENED</div>
-                <div class="special-ability-affinity"><span>系統</span><strong id="specialAbilityAffinity"></strong></div>
-                <h2 id="specialAbilityName"></h2>
-                <div id="specialAbilityAlias" class="special-ability-alias"></div>
-                <div class="special-ability-effect">
-                    <span>能力効果</span>
-                    <p id="specialAbilityEffect"></p>
+            <div id="personalityResult" class="tarot-reading-panel personality-result" aria-live="polite" hidden>
+                <div class="personality-result-mark" aria-hidden="true"></div>
+                <div class="tarot-reading-kicker">YOUR DESTINY PROFILE</div>
+                <figure class="personality-animal-portrait">
+                    <img id="personalityAnimalImage" alt="" loading="lazy" decoding="async">
+                </figure>
+                <div class="personality-traits">
+                    <span>特徴</span>
+                    <p id="personalityTraits"></p>
                 </div>
-                <div class="special-ability-rule">
-                    <span>発動条件</span>
-                    <p id="specialAbilityRule"></p>
+                <div class="personality-animal-heading">
+                    <span>前世の動物</span>
+                    <strong id="personalityAnimalName"></strong>
                 </div>
-                <div class="special-ability-result-note">この能力は公開プロフィールに記録されました</div>
+                <dl class="personality-reading-list">
+                    <div><dt>前世の記憶</dt><dd id="personalityAnimalMemory"></dd></div>
+                    <div><dt>性格の核心</dt><dd id="personalityAnimalCore"></dd></div>
+                    <div><dt>強み</dt><dd id="personalityAnimalStrength"></dd></div>
+                    <div><dt>偏りやすい点</dt><dd id="personalityAnimalWeakness"></dd></div>
+                    <div><dt>人との関わり方</dt><dd id="personalityAnimalRelationships"></dd></div>
+                    <div><dt>今の人生で活かす方法</dt><dd id="personalityAnimalAdvice"></dd></div>
+                </dl>
+                <div class="personality-arcana-day">
+                    <span>アルカナの日</span>
+                    <strong id="personalityArcanaDay"></strong>
+                    <p id="personalityArcanaDayProphecy"></p>
+                </div>
+                <p id="personalityDisclaimer" class="personality-disclaimer"></p>
+                <div class="personality-result-note">この診断結果は公開プロフィールに記録されました</div>
             </div>
         </section>
     </main>
 
-    <script type="module" src="/js/tarotReading.js?v=20260716-ability-v5"></script>
+    <script type="module" src="/js/tarotReading.js?v=20260810-personality-v3"></script>
 </body>
 </html>

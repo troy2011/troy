@@ -3,16 +3,16 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-    "scripts": {
+  "scripts": {
     "test": "npm run test:e2e",
     "pretest:e2e": "npm run lint:css",
     "test:e2e": "playwright test",
     "tarot:audit": "node scripts/audit-tarot-readings.js",
-    "special-ability:generate": "node scripts/generate-special-abilities.js",
-    "special-ability:audit": "node scripts/audit-special-abilities.js",
-    "special-ability:quality": "node scripts/review-special-abilities.js",
-    "special-ability:test": "playwright test tests/special-ability.spec.js",
-    "special-ability:demo": "node scripts/run-special-ability-demo.js",
+    "personality:generate": "node scripts/generate-personality-destiny.js",
+    "personality:images": "node scripts/process-personality-animal-images.js",
+    "personality:audit": "node scripts/audit-personality-destiny.js",
+    "personality:test": "playwright test tests/personality-assessment.spec.js",
+    "personality:demo": "node scripts/run-personality-demo.js",
     "lint:css": "node scripts/lint-css.cjs",
     "lint:css:all": "stylelint \"public/**/*.css\"",
     "test:css-rules": "node --test tests/stylelint-rules.test.cjs",
@@ -52,6 +52,7 @@
     "playwright": "^1.60.0",
     "postcss": "^8.5.25",
     "postcss-selector-parser": "^7.1.4",
+    "sharp": "^0.35.3",
     "stylelint": "^17.14.1",
     "typescript": "^5.9.3"
   }

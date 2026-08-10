@@ -3,6 +3,7 @@ import { getNationLabel } from './nationLabels.js';
 import {
     transferPoints,
     getPublicPlayerProfile,
+    getPlayerCompatibility,
     allocateStatPoints,
     getTarotKingdomPetState,
     renameTarotKingdomPet
@@ -28,6 +29,7 @@ let pendingStatAllocation = {};
 let statAllocationSaveInFlight = false;
 let homePetRequestToken = 0;
 let petRenameInFlight = false;
+let compatibilityRequestToken = 0;
 
 function escapeHtml(value) {
     return String(value || '').replace(/[&<>"']/g, (match) => ({
@@ -54,18 +56,32 @@ function getPlayerProfileModalElements() {
         close: document.getElementById('btnClosePlayerProfile'),
         transferButton: document.getElementById('btnPlayerProfileTransfer'),
         favoriteButton: document.getElementById('btnPlayerProfileFavorite'),
+        compatibilityButton: document.getElementById('btnPlayerProfileCompatibility'),
         beautyButton: document.getElementById('btnPlayerProfileBeauty'),
         copyIdButton: document.getElementById('btnPlayerProfileCopyId'),
         statAllocation: document.getElementById('playerProfileStatAllocation'),
-        specialAbility: document.getElementById('playerProfileSpecialAbility'),
-        specialAbilityAffinity: document.getElementById('playerProfileSpecialAbilityAffinity'),
-        personalityType: document.getElementById('playerProfilePersonalityType'),
-        personalityTypeCode: document.getElementById('playerProfilePersonalityTypeCode'),
-        personalityTypeTraits: document.getElementById('playerProfilePersonalityTypeTraits'),
-        specialAbilityName: document.getElementById('playerProfileSpecialAbilityName'),
-        specialAbilityAlias: document.getElementById('playerProfileSpecialAbilityAlias'),
-        specialAbilityEffect: document.getElementById('playerProfileSpecialAbilityEffect'),
-        specialAbilityRule: document.getElementById('playerProfileSpecialAbilityRule'),
+        destiny: document.getElementById('playerProfileDestiny'),
+        personalityTraits: document.getElementById('playerProfilePersonalityTraits'),
+        animalImage: document.getElementById('playerProfileAnimalImage'),
+        animalName: document.getElementById('playerProfileAnimalName'),
+        animalCore: document.getElementById('playerProfileAnimalCore'),
+        animalMemory: document.getElementById('playerProfileAnimalMemory'),
+        animalStrength: document.getElementById('playerProfileAnimalStrength'),
+        animalWeakness: document.getElementById('playerProfileAnimalWeakness'),
+        animalRelationships: document.getElementById('playerProfileAnimalRelationships'),
+        animalAdvice: document.getElementById('playerProfileAnimalAdvice'),
+        arcanaDay: document.getElementById('playerProfileArcanaDay'),
+        arcanaDayOmen: document.getElementById('playerProfileArcanaDayOmen'),
+        arcanaDayProphecy: document.getElementById('playerProfileArcanaDayProphecy'),
+        destinyDetail: document.getElementById('playerProfileDestinyDetail'),
+        destinyDisclaimer: document.getElementById('playerProfileDestinyDisclaimer'),
+        destinyActions: document.getElementById('playerProfileDestinyActions'),
+        destinyDetailButton: document.getElementById('btnPlayerProfileDestinyDetail'),
+        destinyCopyButton: document.getElementById('btnPlayerProfileDestinyCopy'),
+        compatibilitySummary: document.getElementById('playerProfileCompatibilitySummary'),
+        compatibilityScore: document.getElementById('playerProfileCompatibilityScore'),
+        compatibilityText: document.getElementById('playerProfileCompatibilityText'),
+        compatibilityDetail: document.getElementById('btnPlayerProfileCompatibilityDetail'),
         pet: document.getElementById('playerProfilePetCompanion'),
         petName: document.getElementById('playerProfilePetName'),
         petRenameForm: document.getElementById('playerProfilePetRenameForm'),
@@ -75,6 +91,24 @@ function getPlayerProfileModalElements() {
         transferAmount: document.getElementById('playerProfileTransferAmount'),
         transferSubmit: document.getElementById('btnPlayerProfileTransferSubmit'),
         transferCancel: document.getElementById('btnPlayerProfileTransferCancel')
+    };
+}
+
+function getCompatibilityModalElements() {
+    return {
+        modal: document.getElementById('playerCompatibilityModal'),
+        title: document.getElementById('playerCompatibilityTitle'),
+        close: document.getElementById('btnClosePlayerCompatibility'),
+        targetField: document.getElementById('playerCompatibilityTargetField'),
+        target: document.getElementById('playerCompatibilityTarget'),
+        status: document.getElementById('playerCompatibilityStatus'),
+        result: document.getElementById('playerCompatibilityResult'),
+        overall: document.getElementById('playerCompatibilityOverall'),
+        overallText: document.getElementById('playerCompatibilityOverallText'),
+        scores: document.getElementById('playerCompatibilityScores'),
+        strength: document.getElementById('playerCompatibilityStrength'),
+        friction: document.getElementById('playerCompatibilityFriction'),
+        advice: document.getElementById('playerCompatibilityAdvice')
     };
 }
 
@@ -236,6 +270,7 @@ function updateProfileActionState() {
     const {
         transferButton,
         favoriteButton,
+        compatibilityButton,
         beautyButton,
         copyIdButton
     } = getPlayerProfileModalElements();
@@ -260,6 +295,9 @@ function updateProfileActionState() {
         favoriteButton.setAttribute('aria-pressed', favoriteActive ? 'true' : 'false');
         favoriteButton.setAttribute('aria-label', favoriteActive ? 'お気に入りから外す' : 'お気に入りに追加');
         favoriteButton.setAttribute('title', favoriteActive ? 'お気に入り済み' : 'お気に入り');
+    }
+    if (compatibilityButton) {
+        compatibilityButton.disabled = !loaded;
     }
     if (beautyButton) {
         beautyButton.hidden = !isTargetSelf;
@@ -389,6 +427,7 @@ async function saveProfilePetName() {
 export function closePlayerProfileModal() {
     const { modal } = getPlayerProfileModalElements();
     if (!modal) return;
+    closeCompatibilityModal();
     setTransferPanelOpen(false);
     setProfilePetRenameOpen(false);
     modal.style.display = 'none';
@@ -422,6 +461,35 @@ async function handleCopyProfileId() {
         showRpgMessage('PlayFab ID をコピーしました。', 2200);
     } catch (error) {
         showRpgMessage(`IDコピーに失敗しました: ${error?.message || error}`, 2600);
+    }
+}
+
+function buildDestinyReadingText(destinyProfile) {
+    const animal = destinyProfile?.animal || {};
+    const day = destinyProfile?.arcanaDay || {};
+    return [
+        '前世動物診断',
+        `特徴: ${destinyProfile?.traits || ''}`,
+        `前世の動物: ${animal.name || ''}`,
+        `前世の記憶: ${animal.pastLifeMemory || ''}`,
+        `性格の核心: ${animal.core || ''}`,
+        `強み: ${animal.strength || ''}`,
+        `偏りやすい点: ${animal.weakness || ''}`,
+        `人との関わり方: ${animal.relationships || ''}`,
+        `今の人生で活かす方法: ${animal.advice || ''}`,
+        `アルカナの日: ${day.label || ''}`,
+        `人生の分岐点の予言: ${day.prophecy || ''}`,
+        destinyProfile?.disclaimer || ''
+    ].filter((line) => !line.endsWith(': ')).join('\n');
+}
+
+async function handleCopyDestinyReading() {
+    if (!activeProfile?.destinyProfile?.animal?.pastLifeMemory) return;
+    try {
+        await copyText(buildDestinyReadingText(activeProfile.destinyProfile));
+        showRpgMessage('鑑定書をコピーしました。', 2200);
+    } catch (error) {
+        showRpgMessage(`鑑定書のコピーに失敗しました: ${error?.message || error}`, 2600);
     }
 }
 
@@ -493,6 +561,11 @@ function bindModalEvents() {
         close,
         transferButton,
         favoriteButton,
+        compatibilityButton,
+        compatibilityDetail,
+        destinyDetail,
+        destinyDetailButton,
+        destinyCopyButton,
         beautyButton,
         copyIdButton,
         transferCancel,
@@ -523,6 +596,26 @@ function bindModalEvents() {
     if (favoriteButton && !favoriteButton.dataset.profileBound) {
         favoriteButton.dataset.profileBound = 'true';
         favoriteButton.addEventListener('click', () => handleFavoriteToggle());
+    }
+    if (compatibilityButton && !compatibilityButton.dataset.profileBound) {
+        compatibilityButton.dataset.profileBound = 'true';
+        compatibilityButton.addEventListener('click', openCompatibilityModal);
+    }
+    if (compatibilityDetail && !compatibilityDetail.dataset.profileBound) {
+        compatibilityDetail.dataset.profileBound = 'true';
+        compatibilityDetail.addEventListener('click', openCompatibilityModal);
+    }
+    if (destinyDetailButton && !destinyDetailButton.dataset.profileBound) {
+        destinyDetailButton.dataset.profileBound = 'true';
+        destinyDetailButton.addEventListener('click', () => {
+            if (!destinyDetail) return;
+            destinyDetail.hidden = !destinyDetail.hidden;
+            destinyDetailButton.textContent = destinyDetail.hidden ? '詳しい鑑定を見る' : '詳しい鑑定を閉じる';
+        });
+    }
+    if (destinyCopyButton && !destinyCopyButton.dataset.profileBound) {
+        destinyCopyButton.dataset.profileBound = 'true';
+        destinyCopyButton.addEventListener('click', () => void handleCopyDestinyReading());
     }
     if (beautyButton && !beautyButton.dataset.profileBound) {
         beautyButton.dataset.profileBound = 'true';
@@ -592,6 +685,30 @@ function bindModalEvents() {
             const statId = String(button.dataset.profileStatAlloc || '');
             const delta = Number.parseInt(String(button.dataset.profileStatDelta || '0'), 10) || 0;
             adjustPendingStatAllocation(statId, delta);
+        });
+    }
+
+    const compatibilityElements = getCompatibilityModalElements();
+    if (compatibilityElements.close && !compatibilityElements.close.dataset.compatibilityBound) {
+        compatibilityElements.close.dataset.compatibilityBound = 'true';
+        compatibilityElements.close.addEventListener('click', closeCompatibilityModal);
+    }
+    if (compatibilityElements.modal && !compatibilityElements.modal.dataset.compatibilityBound) {
+        compatibilityElements.modal.dataset.compatibilityBound = 'true';
+        compatibilityElements.modal.addEventListener('click', (event) => {
+            if (event.target === compatibilityElements.modal) closeCompatibilityModal();
+        });
+    }
+    if (compatibilityElements.target && !compatibilityElements.target.dataset.compatibilityBound) {
+        compatibilityElements.target.dataset.compatibilityBound = 'true';
+        compatibilityElements.target.addEventListener('change', () => {
+            const selectedName = compatibilityElements.target.selectedOptions?.[0]?.textContent || '';
+            if (compatibilityElements.title) {
+                compatibilityElements.title.textContent = selectedName && compatibilityElements.target.value
+                    ? `あなた × ${selectedName}`
+                    : 'プレイヤー相性';
+            }
+            void loadCompatibility(compatibilityElements.target.value, { showDetail: true });
         });
     }
 }
@@ -765,48 +882,195 @@ function renderProfileStats(stats = {}) {
     `).join('');
 }
 
-function renderProfileSpecialAbility(ability) {
+function clearProfileCompatibilitySummary() {
+    const { compatibilitySummary, compatibilityScore, compatibilityText } = getPlayerProfileModalElements();
+    if (compatibilitySummary) compatibilitySummary.hidden = true;
+    if (compatibilityScore) compatibilityScore.textContent = '';
+    if (compatibilityText) compatibilityText.textContent = '';
+}
+
+function renderProfileDestiny(destinyProfile) {
     const {
-        specialAbility,
-        specialAbilityAffinity,
-        personalityType,
-        personalityTypeCode,
-        personalityTypeTraits,
-        specialAbilityName,
-        specialAbilityAlias,
-        specialAbilityEffect,
-        specialAbilityRule
+        destiny,
+        personalityTraits,
+        animalImage,
+        animalName,
+        animalCore,
+        animalMemory,
+        animalStrength,
+        animalWeakness,
+        animalRelationships,
+        animalAdvice,
+        arcanaDay,
+        arcanaDayOmen,
+        arcanaDayProphecy,
+        destinyDetail,
+        destinyDisclaimer,
+        destinyActions,
+        destinyDetailButton
     } = getPlayerProfileModalElements();
-    if (!specialAbility) return;
-    const affinity = String(ability?.affinity || '').trim();
-    const name = String(ability?.name || '').trim();
-    const alias = String(ability?.alias || '').trim();
-    const effect = String(ability?.effect || '').trim();
-    const rule = String(ability?.rule || '').trim();
-    const typeCode = String(ability?.personalityType?.code || '').trim().toUpperCase();
-    const typeTraits = String(ability?.personalityType?.traits || '').trim();
-    const hasPersonalityType = /^(E|I)(S|N)(T|F)(J|P)$/.test(typeCode) && typeTraits;
-    if (!affinity || !name || !alias || !effect || !rule) {
-        specialAbility.hidden = true;
-        if (specialAbilityAffinity) specialAbilityAffinity.textContent = '';
-        if (personalityType) personalityType.hidden = true;
-        if (personalityTypeCode) personalityTypeCode.textContent = '';
-        if (personalityTypeTraits) personalityTypeTraits.textContent = '';
-        if (specialAbilityName) specialAbilityName.textContent = '';
-        if (specialAbilityAlias) specialAbilityAlias.textContent = '';
-        if (specialAbilityEffect) specialAbilityEffect.textContent = '';
-        if (specialAbilityRule) specialAbilityRule.textContent = '';
+    if (!destiny) return;
+    const traits = String(destinyProfile?.traits || '').trim();
+    const animal = destinyProfile?.animal || {};
+    const day = destinyProfile?.arcanaDay || {};
+    const dayLabel = String(day.label || '').trim();
+    const valid = traits
+        && String(animal.name || '').trim()
+        && String(animal.core || '').trim()
+        && dayLabel
+        && String(day.omen || '').trim();
+    if (!valid) {
+        destiny.hidden = true;
+        if (personalityTraits) personalityTraits.textContent = '';
+        if (animalImage) animalImage.removeAttribute('src');
+        if (animalName) animalName.textContent = '';
+        if (animalCore) animalCore.textContent = '';
+        if (arcanaDay) arcanaDay.textContent = '';
+        if (arcanaDayOmen) arcanaDayOmen.textContent = '';
+        if (destinyDetail) destinyDetail.hidden = true;
+        if (destinyActions) destinyActions.hidden = true;
+        clearProfileCompatibilitySummary();
         return;
     }
-    specialAbility.hidden = false;
-    if (specialAbilityAffinity) specialAbilityAffinity.textContent = `${affinity}系`;
-    if (personalityType) personalityType.hidden = !hasPersonalityType;
-    if (personalityTypeCode) personalityTypeCode.textContent = hasPersonalityType ? typeCode : '';
-    if (personalityTypeTraits) personalityTypeTraits.textContent = hasPersonalityType ? typeTraits : '';
-    if (specialAbilityName) specialAbilityName.textContent = name;
-    if (specialAbilityAlias) specialAbilityAlias.textContent = alias;
-    if (specialAbilityEffect) specialAbilityEffect.textContent = effect;
-    if (specialAbilityRule) specialAbilityRule.textContent = rule;
+    destiny.hidden = false;
+    if (personalityTraits) personalityTraits.textContent = traits;
+    if (animalImage) {
+        animalImage.src = String(animal.imageUrl || '');
+        animalImage.alt = `${animal.name}の前世動物画`;
+    }
+    if (animalName) animalName.textContent = animal.name;
+    if (animalCore) animalCore.textContent = animal.core;
+    if (arcanaDay) arcanaDay.textContent = dayLabel;
+    if (arcanaDayOmen) arcanaDayOmen.textContent = String(day.omen || '');
+    const hasFullReading = Boolean(animal.pastLifeMemory && animal.strength && animal.weakness && animal.relationships && animal.advice && day.prophecy);
+    if (animalMemory) animalMemory.textContent = hasFullReading ? animal.pastLifeMemory : '';
+    if (animalStrength) animalStrength.textContent = hasFullReading ? animal.strength : '';
+    if (animalWeakness) animalWeakness.textContent = hasFullReading ? animal.weakness : '';
+    if (animalRelationships) animalRelationships.textContent = hasFullReading ? animal.relationships : '';
+    if (animalAdvice) animalAdvice.textContent = hasFullReading ? animal.advice : '';
+    if (arcanaDayProphecy) arcanaDayProphecy.textContent = hasFullReading ? String(day.prophecy || '') : '';
+    if (destinyDisclaimer) destinyDisclaimer.textContent = hasFullReading ? String(destinyProfile?.disclaimer || '') : '';
+    if (destinyDetail) destinyDetail.hidden = true;
+    if (destinyActions) destinyActions.hidden = !hasFullReading;
+    if (destinyDetailButton) destinyDetailButton.textContent = '詳しい鑑定を見る';
+}
+
+function renderCompatibilitySummary(compatibility) {
+    const { compatibilitySummary, compatibilityScore, compatibilityText } = getPlayerProfileModalElements();
+    if (!compatibilitySummary || !compatibility) {
+        clearProfileCompatibilitySummary();
+        return;
+    }
+    compatibilitySummary.hidden = false;
+    if (compatibilityScore) compatibilityScore.textContent = `${Math.round(Number(compatibility.overall) || 0)}点`;
+    if (compatibilityText) compatibilityText.textContent = String(compatibility.summary || '');
+}
+
+function renderCompatibilityDetail(compatibility) {
+    const { result, status, overall, overallText, scores, strength, friction, advice } = getCompatibilityModalElements();
+    if (!compatibility) {
+        if (result) result.hidden = true;
+        return;
+    }
+    if (result) result.hidden = false;
+    if (status) status.textContent = '';
+    if (overall) overall.textContent = `${Math.round(Number(compatibility.overall) || 0)}点`;
+    if (overallText) overallText.textContent = String(compatibility.summary || '');
+    if (scores) {
+        scores.innerHTML = Object.values(compatibility.categories || {}).map((entry) => `
+            <div class="player-compatibility-score">
+                <span>${escapeHtml(entry?.label || '')}</span>
+                <strong>${Math.round(Number(entry?.score) || 0)}点</strong>
+                <p>${escapeHtml(entry?.summary || '')}</p>
+            </div>
+        `).join('');
+    }
+    if (strength) strength.textContent = String(compatibility.strength || '');
+    if (friction) friction.textContent = String(compatibility.friction || '');
+    if (advice) advice.textContent = String(compatibility.advice || '');
+}
+
+async function loadCompatibility(targetPlayFabId, { showDetail = false, showSummary = false } = {}) {
+    const myPlayFabId = getCurrentUserPlayFabId();
+    const targetId = String(targetPlayFabId || '').trim();
+    const requestToken = ++compatibilityRequestToken;
+    const { status, result } = getCompatibilityModalElements();
+    if (!myPlayFabId || !targetId || myPlayFabId === targetId) {
+        if (showDetail && status) status.textContent = '相手を選んでください。';
+        if (showDetail && result) result.hidden = true;
+        if (showSummary) clearProfileCompatibilitySummary();
+        return null;
+    }
+    if (showDetail && status) status.textContent = '相性を読み解いています。';
+    if (showDetail && result) result.hidden = true;
+    try {
+        const response = await getPlayerCompatibility(myPlayFabId, targetId, { isSilent: true });
+        if (requestToken !== compatibilityRequestToken) return null;
+        if (!response?.available || !response?.compatibility) {
+            const reason = String(response?.reason || '相性を表示できません。');
+            if (showDetail && status) status.textContent = reason;
+            if (showSummary) clearProfileCompatibilitySummary();
+            return null;
+        }
+        if (showDetail) renderCompatibilityDetail(response.compatibility);
+        if (showSummary) renderCompatibilitySummary(response.compatibility);
+        return response.compatibility;
+    } catch (error) {
+        if (requestToken !== compatibilityRequestToken) return null;
+        if (showDetail && status) status.textContent = error?.message || '相性を表示できません。';
+        if (showSummary) clearProfileCompatibilitySummary();
+        return null;
+    }
+}
+
+function closeCompatibilityModal() {
+    const { modal } = getCompatibilityModalElements();
+    if (!modal) return;
+    compatibilityRequestToken += 1;
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+    syncModalLockState();
+}
+
+function populateCompatibilityTargets() {
+    const { target, targetField, title, status, result } = getCompatibilityModalElements();
+    if (!target || !targetField) return '';
+    const favorites = loadFavoritePlayers();
+    target.replaceChildren();
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = favorites.length ? 'お気に入りから選択' : 'お気に入りがありません';
+    target.appendChild(placeholder);
+    favorites.forEach((entry) => {
+        const option = document.createElement('option');
+        option.value = entry.playFabId;
+        option.textContent = entry.displayName || entry.playFabId;
+        target.appendChild(option);
+    });
+    target.disabled = favorites.length === 0;
+    targetField.hidden = false;
+    if (title) title.textContent = 'プレイヤー相性';
+    if (status) status.textContent = favorites.length ? '相手を選んでください。' : '先に相手のプロフィールをお気に入りへ追加してください。';
+    if (result) result.hidden = true;
+    return '';
+}
+
+function openCompatibilityModal() {
+    const { modal, title, targetField, status, result } = getCompatibilityModalElements();
+    if (!modal || !activeProfile?.loaded) return;
+    showModal(modal);
+    modal.setAttribute('aria-hidden', 'false');
+    if (result) result.hidden = true;
+    const myPlayFabId = getCurrentUserPlayFabId();
+    const targetId = String(activeProfile.playFabId || '').trim();
+    if (targetId === myPlayFabId) {
+        populateCompatibilityTargets();
+        return;
+    }
+    if (title) title.textContent = `あなた × ${activeProfile.displayName || targetId}`;
+    if (targetField) targetField.hidden = true;
+    if (status) status.textContent = '相性を読み解いています。';
+    void loadCompatibility(targetId, { showDetail: true });
 }
 
 const PROFILE_SHIP_LABELS = {
@@ -865,7 +1129,7 @@ function renderProfile(profile = {}) {
         nation: String(profile.nation || '').trim().toLowerCase(),
         stats: profile.stats || {},
         statAllocation: profile.statAllocation || null,
-        specialAbility: profile.specialAbility || null,
+        destinyProfile: profile.destinyProfile || null,
         currentPet: profile.currentPet || null,
         loaded: true
     };
@@ -881,7 +1145,7 @@ function renderProfile(profile = {}) {
     }
     renderProfileStats(activeProfile.stats);
     renderStatAllocationPanel();
-    renderProfileSpecialAbility(activeProfile.specialAbility);
+    renderProfileDestiny(activeProfile.destinyProfile);
     renderEquipmentRows(Array.isArray(profile.equipmentList) ? profile.equipmentList : []);
     renderProfileShip(profile.playerShip || null);
     renderAvatar(
@@ -896,6 +1160,12 @@ function renderProfile(profile = {}) {
         refreshFavoritePlayersList();
     }
     updateProfileActionState();
+    const myPlayFabId = getCurrentUserPlayFabId();
+    if (activeProfile.playFabId && activeProfile.playFabId !== myPlayFabId) {
+        void loadCompatibility(activeProfile.playFabId, { showSummary: true });
+    } else {
+        clearProfileCompatibilitySummary();
+    }
 }
 
 function renderLoadingState(targetPlayFabId = '') {
@@ -907,7 +1177,7 @@ function renderLoadingState(targetPlayFabId = '') {
         nation: '',
         stats: {},
         statAllocation: null,
-        specialAbility: null,
+        destinyProfile: null,
         currentPet: null,
         loaded: false
     };
@@ -919,7 +1189,9 @@ function renderLoadingState(targetPlayFabId = '') {
         statAllocation.hidden = true;
         statAllocation.innerHTML = '';
     }
-    renderProfileSpecialAbility(null);
+    renderProfileDestiny(null);
+    compatibilityRequestToken += 1;
+    clearProfileCompatibilitySummary();
     renderProfilePet(null);
     if (equipment) {
         equipment.innerHTML = '<div class="player-profile-empty">プレイヤー情報を読み込んでいます。</div>';
@@ -936,7 +1208,9 @@ function renderErrorState(message) {
         statAllocation.hidden = true;
         statAllocation.innerHTML = '';
     }
-    renderProfileSpecialAbility(null);
+    renderProfileDestiny(null);
+    compatibilityRequestToken += 1;
+    clearProfileCompatibilitySummary();
     if (activeProfile) activeProfile.currentPet = null;
     renderProfilePet(null);
     if (equipment) {

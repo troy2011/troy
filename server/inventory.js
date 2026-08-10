@@ -44,7 +44,7 @@ const {
     parseJsonValue
 } = require('./tarotSkills');
 const { FEATURE_UNLOCK_LEVELS, isFeatureUnlocked } = require('./featureUnlocks');
-const { getPublicAbility } = require('./specialAbilityEngine');
+const { getDestinyProfile } = require('./personalityAssessmentEngine');
 const {
     EQUIPMENT_ENHANCEMENT_MAX_STAT,
     applyEquipmentEnhancementToCatalogData,
@@ -2761,7 +2761,7 @@ function initializeInventoryRoutes(app, deps) {
                 'HairStyleIndex',
                 'FacialHairStyleIndex',
                 'HairColorIndex',
-                'SpecialAbilityJudgmentV3',
+                'PersonalityDestinyV2',
                 TAROT_KINGDOM_PET_DATA_KEY,
                 'Equipped_RightHand',
                 'Equipped_LeftHand',
@@ -2805,10 +2805,10 @@ function initializeInventoryRoutes(app, deps) {
                 かしこさ: Math.max(0, Math.floor(Number(stats.かしこさ || 0) || 0)),
                 たいりょく: Math.max(0, Math.floor(Number(stats.たいりょく || 0) || 0))
             };
-            const specialAbility = getPublicAbility(parseJsonValue(
-                readOnlyData?.SpecialAbilityJudgmentV3?.Value,
+            const destinyProfile = getDestinyProfile(parseJsonValue(
+                readOnlyData?.PersonalityDestinyV2?.Value,
                 null
-            ));
+            ), { detail: isOwnProfile ? 'full' : 'summary' });
             const currentPet = buildTarotKingdomPetPublicRecord(
                 normalizeTarotKingdomPetState(readOnlyData?.[TAROT_KINGDOM_PET_DATA_KEY]?.Value).currentPet
             );
@@ -2857,7 +2857,7 @@ function initializeInventoryRoutes(app, deps) {
                     level: avatarBase.level,
                     stats: publicStats,
                     statAllocation: isOwnProfile ? calculateStatAllocationState(stats) : null,
-                    specialAbility,
+                    destinyProfile,
                     currentPet,
                     avatarBase,
                     playerShip,

@@ -1517,26 +1517,50 @@
                 <button id="btnPlayerProfileTransfer" type="button" class="player-profile-action-btn player-profile-action-btn-icon player-profile-action-btn-gold" aria-label="ゴールド送金" title="ゴールド送金">G</button>
                 <button id="btnPlayerProfileFavorite" type="button" class="player-profile-action-btn player-profile-action-btn-icon player-profile-action-btn-heart" aria-label="お気に入りに追加" title="お気に入り">♡</button>
                 <button id="btnPlayerProfileBeauty" type="button" class="player-profile-action-btn" hidden>美容室</button>
+                <button id="btnPlayerProfileCompatibility" type="button" class="player-profile-action-btn player-profile-action-btn-secondary">相性</button>
                 <button id="btnPlayerProfileCopyId" type="button" class="player-profile-action-btn player-profile-action-btn-secondary">IDコピー</button>
             </div>
             <div id="playerProfileStatAllocation" class="player-profile-stat-allocation" hidden></div>
-            <section id="playerProfileSpecialAbility" class="player-profile-special-ability" aria-label="特殊能力" hidden>
-                <span>特殊能力</span>
-                <small id="playerProfileSpecialAbilityAffinity"></small>
-                <div id="playerProfilePersonalityType" class="player-profile-personality-type" hidden>
-                    <span>性格タイプ</span>
-                    <strong id="playerProfilePersonalityTypeCode"></strong>
-                    <small id="playerProfilePersonalityTypeTraits"></small>
+            <section id="playerProfileDestiny" class="player-profile-destiny" aria-label="前世動物診断" hidden>
+                <span>前世動物診断</span>
+                <div class="player-profile-personality-features">
+                    <span>特徴</span>
+                    <p id="playerProfilePersonalityTraits"></p>
                 </div>
-                <strong id="playerProfileSpecialAbilityName"></strong>
-                <em id="playerProfileSpecialAbilityAlias"></em>
-                <div class="player-profile-special-ability-effect">
-                    <span>能力効果</span>
-                    <p id="playerProfileSpecialAbilityEffect"></p>
+                <div class="player-profile-destiny-animal">
+                    <img id="playerProfileAnimalImage" alt="" loading="lazy" decoding="async">
+                    <span>前世の動物</span>
+                    <strong id="playerProfileAnimalName"></strong>
                 </div>
-                <div class="player-profile-special-ability-rule">
-                    <span>発動条件</span>
-                    <p id="playerProfileSpecialAbilityRule"></p>
+                <div class="player-profile-destiny-core">
+                    <span>性格の核心</span>
+                    <p id="playerProfileAnimalCore"></p>
+                </div>
+                <div class="player-profile-arcana-day">
+                    <span>アルカナの日</span>
+                    <strong id="playerProfileArcanaDay"></strong>
+                    <p id="playerProfileArcanaDayOmen"></p>
+                </div>
+                <div id="playerProfileDestinyDetail" class="player-profile-destiny-detail" hidden>
+                    <dl>
+                        <div><dt>前世の記憶</dt><dd id="playerProfileAnimalMemory"></dd></div>
+                        <div><dt>強み</dt><dd id="playerProfileAnimalStrength"></dd></div>
+                        <div><dt>偏りやすい点</dt><dd id="playerProfileAnimalWeakness"></dd></div>
+                        <div><dt>人との関わり方</dt><dd id="playerProfileAnimalRelationships"></dd></div>
+                        <div><dt>今の人生で活かす方法</dt><dd id="playerProfileAnimalAdvice"></dd></div>
+                        <div><dt>人生の分岐点の予言</dt><dd id="playerProfileArcanaDayProphecy"></dd></div>
+                    </dl>
+                    <p id="playerProfileDestinyDisclaimer" class="player-profile-destiny-disclaimer"></p>
+                </div>
+                <div id="playerProfileDestinyActions" class="player-profile-destiny-actions" hidden>
+                    <button id="btnPlayerProfileDestinyDetail" type="button">詳しい鑑定を見る</button>
+                    <button id="btnPlayerProfileDestinyCopy" type="button">鑑定書をコピー</button>
+                </div>
+                <div id="playerProfileCompatibilitySummary" class="player-profile-compatibility-summary" hidden>
+                    <span>このプレイヤーとの相性</span>
+                    <strong id="playerProfileCompatibilityScore"></strong>
+                    <p id="playerProfileCompatibilityText"></p>
+                    <button id="btnPlayerProfileCompatibilityDetail" type="button">詳しく見る</button>
                 </div>
             </section>
             <div id="playerProfileTransferPanel" class="player-profile-transfer-panel" hidden>
@@ -1557,6 +1581,32 @@
             </div>
             <div id="playerProfileEquipment" class="player-profile-equipment"></div>
             <button id="btnClosePlayerProfile" class="item-detail-close">閉じる</button>
+        </div>
+    </div>
+
+    <div id="playerCompatibilityModal" class="modal-overlay" aria-hidden="true">
+        <div class="modal-content item-detail-sheet player-compatibility-sheet" role="dialog" aria-modal="true" aria-labelledby="playerCompatibilityTitle">
+            <div class="sheet-handle" aria-hidden="true"></div>
+            <h3 id="playerCompatibilityTitle">プレイヤー相性</h3>
+            <label id="playerCompatibilityTargetField" class="player-compatibility-target" hidden>
+                <span>相手を選ぶ</span>
+                <select id="playerCompatibilityTarget"></select>
+            </label>
+            <div id="playerCompatibilityStatus" class="player-compatibility-status" role="status" aria-live="polite"></div>
+            <div id="playerCompatibilityResult" hidden>
+                <div class="player-compatibility-overall">
+                    <span>総合相性</span>
+                    <strong id="playerCompatibilityOverall"></strong>
+                    <p id="playerCompatibilityOverallText"></p>
+                </div>
+                <div id="playerCompatibilityScores" class="player-compatibility-scores"></div>
+                <dl class="player-compatibility-reading">
+                    <div><dt>二人の強み</dt><dd id="playerCompatibilityStrength"></dd></div>
+                    <div><dt>すれ違いやすい点</dt><dd id="playerCompatibilityFriction"></dd></div>
+                    <div><dt>関係を育てる一手</dt><dd id="playerCompatibilityAdvice"></dd></div>
+                </dl>
+            </div>
+            <button id="btnClosePlayerCompatibility" class="item-detail-close" type="button">閉じる</button>
         </div>
     </div>
 

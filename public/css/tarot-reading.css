@@ -955,18 +955,18 @@ body.tarot-reading-body {
 }
 
 .tarot-reading-board[hidden],
-.special-ability-board[hidden],
-.special-ability-intro[hidden],
-.special-ability-assessment[hidden],
-.special-ability-result[hidden] {
+.personality-board[hidden],
+.personality-intro[hidden],
+.personality-assessment[hidden],
+.personality-result[hidden] {
     display: none;
 }
 
-.special-ability-board {
+.personality-board {
     min-height: 540px;
 }
 
-.special-ability-intro {
+.personality-intro {
     display: grid;
     grid-template-columns: 92px minmax(0, 1fr) minmax(180px, 240px);
     align-items: center;
@@ -978,8 +978,8 @@ body.tarot-reading-body {
         var(--tarot-panel-strong);
 }
 
-.special-ability-emblem,
-.special-ability-result-mark {
+.personality-emblem,
+.personality-result-mark {
     position: relative;
     width: 72px;
     aspect-ratio: 1;
@@ -989,49 +989,56 @@ body.tarot-reading-body {
     box-shadow: inset 0 0 0 8px rgba(216, 170, 74, 0.08), 0 0 30px rgba(31, 143, 138, 0.24);
 }
 
-.special-ability-emblem::before,
-.special-ability-result-mark::before,
-.special-ability-emblem::after,
-.special-ability-result-mark::after {
+.personality-emblem::before,
+.personality-result-mark::before,
+.personality-emblem::after,
+.personality-result-mark::after {
     position: absolute;
     content: "";
     background: rgba(255, 224, 143, 0.78);
 }
 
-.special-ability-emblem::before,
-.special-ability-result-mark::before {
+.personality-emblem::before,
+.personality-result-mark::before {
     inset: 12px 33px;
 }
 
-.special-ability-emblem::after,
-.special-ability-result-mark::after {
+.personality-emblem::after,
+.personality-result-mark::after {
     inset: 33px 12px;
 }
 
-.special-ability-copy h2,
-.special-ability-assessment h2,
-.special-ability-result h2 {
+.personality-copy h2,
+.personality-assessment h2,
+.personality-result h2 {
     margin: 4px 0 8px;
     letter-spacing: 0;
 }
 
-.special-ability-copy h2 {
+.personality-copy h2 {
     font-size: 36px;
 }
 
-.special-ability-copy p,
-.special-ability-result p {
+.personality-copy p,
+.personality-result p {
     margin: 0;
     color: #eee4ce;
     font-size: 16px;
     line-height: 1.8;
 }
 
-.special-ability-assessment {
+.personality-copy .personality-intro-disclaimer {
+    margin-top: 8px;
+    color: var(--tarot-muted);
+    font-size: 11px;
+    line-height: 1.55;
+}
+
+.personality-assessment {
     padding: 8px 0 20px;
 }
 
-.special-ability-progress {
+.personality-progress {
     display: grid;
     grid-template-columns: 64px minmax(0, 1fr);
     align-items: center;
@@ -1041,14 +1048,14 @@ body.tarot-reading-body {
     font-weight: 900;
 }
 
-.special-ability-progress-track {
+.personality-progress-track {
     height: 7px;
     overflow: hidden;
     border-radius: 4px;
     background: rgba(255, 255, 255, 0.12);
 }
 
-.special-ability-progress-track span {
+.personality-progress-track span {
     display: block;
     width: 8.3333%;
     height: 100%;
@@ -1057,7 +1064,7 @@ body.tarot-reading-body {
     transition: width 180ms ease;
 }
 
-.special-ability-assessment h2 {
+.personality-assessment h2 {
     min-height: 2.8em;
     margin-bottom: 18px;
     text-align: center;
@@ -1065,13 +1072,13 @@ body.tarot-reading-body {
     line-height: 1.4;
 }
 
-.special-ability-options {
+.personality-options {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 12px;
 }
 
-.special-ability-option {
+.personality-option {
     position: relative;
     aspect-ratio: 1;
     min-width: 0;
@@ -1085,26 +1092,26 @@ body.tarot-reading-body {
     transition: border-color 150ms ease, transform 150ms ease, filter 150ms ease;
 }
 
-.special-ability-option img {
+.personality-option img {
     display: block;
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
 
-.special-ability-option:not(:disabled):hover,
-.special-ability-option:not(:disabled):focus-visible {
+.personality-option:not(:disabled):hover,
+.personality-option:not(:disabled):focus-visible {
     border-color: rgba(255, 224, 143, 0.96);
     transform: translateY(-3px);
     outline: none;
 }
 
-.special-ability-option:disabled {
+.personality-option:disabled {
     cursor: wait;
     filter: saturate(0.45) brightness(0.72);
 }
 
-.special-ability-result {
+.personality-result {
     max-width: 760px;
     margin: 30px auto 0;
     padding: 34px;
@@ -1115,80 +1122,135 @@ body.tarot-reading-body {
         var(--tarot-panel-strong);
 }
 
-.special-ability-result-mark {
+.personality-result-mark {
     width: 58px;
     margin-bottom: 28px;
 }
 
-.special-ability-result h2 {
-    color: #ffe8aa;
-    font-size: 42px;
+.personality-animal-portrait {
+    width: min(100%, 360px);
+    aspect-ratio: 1;
+    margin: 24px auto 0;
+    overflow: hidden;
+    border: 1px solid rgba(255, 224, 143, 0.52);
+    border-radius: 7px;
+    background: #090b0d;
+    box-shadow: 0 18px 38px rgba(0, 0, 0, 0.36);
 }
 
-.special-ability-alias {
-    margin-top: 2px;
-    color: #d8aa4a;
-    font-size: 18px;
-    font-weight: 900;
-    line-height: 1.4;
-    overflow-wrap: anywhere;
+.personality-animal-portrait img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
-.special-ability-affinity {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 18px;
+.personality-arcana-day {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: baseline;
+    gap: 5px 10px;
+    max-width: 620px;
+    margin: 22px auto 0;
+    padding: 12px 14px;
+    text-align: left;
+    border: 1px solid rgba(255, 224, 143, 0.38);
+    border-radius: 6px;
+    background: rgba(7, 17, 21, 0.58);
     color: #f8edcf;
     font-size: 15px;
     font-weight: 900;
 }
 
-.special-ability-affinity span {
+.personality-animal-heading span,
+.personality-arcana-day span {
     color: var(--tarot-muted);
     font-size: 11px;
 }
 
-.special-ability-affinity strong {
+.personality-animal-heading strong,
+.personality-arcana-day strong {
     color: #ffe8aa;
     font-size: 17px;
 }
 
-.special-ability-result p {
-    margin: 18px auto 0;
-    max-width: 620px;
-    font-size: 18px;
+.personality-arcana-day p {
+    grid-column: 1 / -1;
+    color: #eee4ce;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.7;
 }
 
-.special-ability-effect,
-.special-ability-rule {
+.personality-traits {
     max-width: 620px;
     margin: 22px auto 0;
-    padding: 14px 16px;
     text-align: left;
-    border: 1px solid rgba(255, 224, 143, 0.28);
-    background: rgba(7, 17, 21, 0.58);
 }
 
-.special-ability-effect > span,
-.special-ability-rule > span {
+.personality-traits span {
     color: var(--tarot-muted);
     font-size: 11px;
     font-weight: 900;
 }
 
-.special-ability-effect > p,
-.special-ability-rule > p {
+.personality-traits p {
+    margin: 6px 0 0;
+    color: #f8edcf;
+    font-size: 16px;
+    line-height: 1.8;
+}
+
+.personality-animal-heading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 26px auto 0;
+    padding-top: 22px;
+    color: #f8edcf;
+    font-size: 15px;
+    font-weight: 900;
+    border-top: 1px solid rgba(255, 224, 143, 0.28);
+}
+
+.personality-animal-heading strong {
+    font-size: 24px;
+}
+
+.personality-reading-list {
+    max-width: 620px;
+    margin: 22px auto 0;
+    text-align: left;
+}
+
+.personality-reading-list > div {
+    padding: 13px 0;
+    border-top: 1px solid rgba(255, 224, 143, 0.18);
+}
+
+.personality-reading-list dt {
+    color: var(--tarot-muted);
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.personality-reading-list dd {
     margin: 5px 0 0;
+    color: #eee4ce;
     font-size: 15px;
     line-height: 1.7;
 }
 
-.special-ability-rule {
-    margin-top: 10px;
+.personality-disclaimer {
+    margin: 16px auto 0;
+    max-width: 620px;
+    color: var(--tarot-muted);
+    font-size: 11px;
+    line-height: 1.6;
 }
 
-.special-ability-result-note {
+.personality-result-note {
     margin-top: 24px;
     color: var(--tarot-muted);
     font-size: 13px;
@@ -1289,42 +1351,38 @@ body.tarot-reading-body {
         min-height: 72px;
     }
 
-    .special-ability-intro {
+    .personality-intro {
         grid-template-columns: 64px minmax(0, 1fr);
         gap: 16px;
         padding: 18px;
     }
 
-    .special-ability-intro .tarot-reading-send {
+    .personality-intro .tarot-reading-send {
         grid-column: 1 / -1;
     }
 
-    .special-ability-emblem {
+    .personality-emblem {
         width: 50px;
     }
 
-    .special-ability-copy h2 {
+    .personality-copy h2 {
         font-size: 29px;
     }
 
-    .special-ability-assessment h2 {
+    .personality-assessment h2 {
         font-size: 22px;
     }
 
-    .special-ability-result h2 {
-        font-size: 32px;
+    .personality-result h2 {
+        font-size: 28px;
     }
 
-    .special-ability-alias {
-        font-size: 15px;
-    }
-
-    .special-ability-options {
+    .personality-options {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 9px;
     }
 
-    .special-ability-result {
+    .personality-result {
         padding: 24px 18px;
     }
 }
@@ -1367,8 +1425,8 @@ body.tarot-reading-body {
     .tarot-reading-weather-meter span,
     .tarot-reading-shell.is-major-selected .tarot-reading-card-preview,
     .tarot-reading-shell.is-major-selected .tarot-reading-card-preview::after,
-    .special-ability-option,
-    .special-ability-progress-track span {
+    .personality-option,
+    .personality-progress-track span {
         animation: none;
         transition: none;
         transform: none;

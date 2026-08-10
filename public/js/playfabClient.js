@@ -102,6 +102,10 @@ export function getPublicPlayerProfile(playFabId, targetPlayFabId, options) {
     return callApiWithLoader('/api/get-player-public-profile', { playFabId, targetPlayFabId }, options);
 }
 
+export function getPlayerCompatibility(playFabId, targetPlayFabId, options) {
+    return callApiWithLoader('/api/player-compatibility', { playFabId, targetPlayFabId }, options);
+}
+
 export function getTarotKingdomCombatProfiles(playFabId, targetPlayFabIds, options = {}) {
     const { roomId = '', ...requestOptions } = options || {};
     return callApiWithLoader(

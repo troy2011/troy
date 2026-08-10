@@ -4517,23 +4517,29 @@ const THREE_CARD_SEMANTIC_TAGS = {
     support: new Set(['major-6:upright', 'cup-2:upright', 'cup-3:upright', 'cup-10:upright', 'pentacle-3:upright', 'pentacle-6:upright', 'pentacle-10:upright'])
 };
 
-const SPECIAL_ABILITY_SESSION_KEY = 'troy.specialAbilityTerminalSession.v1';
-const SPECIAL_ABILITY_BOOTSTRAP_PARAM = 'abilityTerminal';
+const PERSONALITY_SESSION_KEY = 'troy.personalityTerminalSession.v1';
+const PERSONALITY_BOOTSTRAP_PARAM = 'personalityTerminal';
+const LEGACY_PERSONALITY_BOOTSTRAP_PARAM = 'abilityTerminal';
 
-function readSpecialAbilitySession() {
+function readPersonalitySession() {
     try {
-        return String(sessionStorage.getItem(SPECIAL_ABILITY_SESSION_KEY) || '').trim();
+        return String(sessionStorage.getItem(PERSONALITY_SESSION_KEY) || '').trim();
     } catch (_error) {
         return '';
     }
 }
 
-function consumeSpecialAbilityBootstrap() {
+function consumePersonalityBootstrap() {
     try {
         const url = new URL(window.location.href);
-        const token = String(url.searchParams.get(SPECIAL_ABILITY_BOOTSTRAP_PARAM) || '').trim();
+        const token = String(
+            url.searchParams.get(PERSONALITY_BOOTSTRAP_PARAM)
+            || url.searchParams.get(LEGACY_PERSONALITY_BOOTSTRAP_PARAM)
+            || ''
+        ).trim();
         if (token) {
-            url.searchParams.delete(SPECIAL_ABILITY_BOOTSTRAP_PARAM);
+            url.searchParams.delete(PERSONALITY_BOOTSTRAP_PARAM);
+            url.searchParams.delete(LEGACY_PERSONALITY_BOOTSTRAP_PARAM);
             history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`);
         }
         return token;
@@ -4554,18 +4560,18 @@ const state = {
     activeTripleIndex: 0,
     customersLoading: false,
     storeData: null,
-    specialAbility: {
+    personality: {
         enabled: false,
         assetsReady: false,
         totalRounds: 12,
         assetVersion: 3,
-        bootstrapToken: consumeSpecialAbilityBootstrap(),
-        terminalSession: readSpecialAbilitySession(),
+        bootstrapToken: consumePersonalityBootstrap(),
+        terminalSession: readPersonalitySession(),
         state: 'idle',
         token: '',
         question: null,
         questionShownAt: 0,
-        ability: null,
+        destinyProfile: null,
         busy: false,
         customerRef: '',
         requestToken: 0
@@ -5857,17 +5863,17 @@ function getSelectedCustomerRef() {
     return String($('tarotCustomerRef')?.value || '').trim();
 }
 
-async function fetchSpecialAbilityJson(path, payload) {
+async function fetchPersonalityJson(path, payload) {
     const headers = payload === undefined
         ? { Accept: 'application/json' }
         : { Accept: 'application/json', 'Content-Type': 'application/json' };
-    if (state.specialAbility.terminalSession) {
-        headers['X-Troy-Ability-Session'] = state.specialAbility.terminalSession;
+    if (state.personality.terminalSession) {
+        headers['X-Troy-Personality-Session'] = state.personality.terminalSession;
     }
-    if (path === '/api/special-ability/config' && state.specialAbility.bootstrapToken) {
-        headers['X-Troy-Ability-Terminal'] = state.specialAbility.bootstrapToken;
+    if (path === '/api/personality-assessment/config' && state.personality.bootstrapToken) {
+        headers['X-Troy-Personality-Terminal'] = state.personality.bootstrapToken;
     }
-    const requestPath = path === '/api/special-ability/config'
+    const requestPath = path === '/api/personality-assessment/config'
         ? `${path}?request=${Date.now().toString(36)}`
         : path;
     const response = await fetch(requestPath, {
@@ -5884,7 +5890,7 @@ async function fetchSpecialAbilityJson(path, payload) {
         data = null;
     }
     if (!response.ok || !data?.success) {
-        const error = new Error(data?.error || '特殊能力判定を処理できませんでした');
+        const error = new Error(data?.error || '性格診断を処理できませんでした');
         error.code = data?.code || '';
         error.status = response.status;
         throw error;
@@ -5892,16 +5898,16 @@ async function fetchSpecialAbilityJson(path, payload) {
     return data;
 }
 
-function getSpecialAbilityAssetUrls() {
-    const totalRounds = Math.max(1, Math.min(24, Math.trunc(Number(state.specialAbility.totalRounds) || 12)));
-    const assetVersion = Math.max(1, Math.trunc(Number(state.specialAbility.assetVersion) || 3));
+function getPersonalityAssetUrls() {
+    const totalRounds = Math.max(1, Math.min(24, Math.trunc(Number(state.personality.totalRounds) || 12)));
+    const assetVersion = Math.max(1, Math.trunc(Number(state.personality.assetVersion) || 3));
     return Array.from({ length: totalRounds }, (_, roundIndex) => (
-        ['a', 'b', 'c', 'd'].map((letter) => `/assets/special-ability/r${String(roundIndex + 1).padStart(2, '0')}-${letter}.webp?v=${assetVersion}`)
+        ['a', 'b', 'c', 'd'].map((letter) => `/assets/personality-assessment/r${String(roundIndex + 1).padStart(2, '0')}-${letter}.webp?v=${assetVersion}`)
     )).flat();
 }
 
-function preloadSpecialAbilityImages() {
-    return Promise.all(getSpecialAbilityAssetUrls().map((src) => new Promise((resolve, reject) => {
+function preloadPersonalityImages() {
+    return Promise.all(getPersonalityAssetUrls().map((src) => new Promise((resolve, reject) => {
         const image = new Image();
         image.onload = () => resolve(src);
         image.onerror = () => reject(new Error(`判定画像を読み込めませんでした: ${src}`));
@@ -5909,80 +5915,85 @@ function preloadSpecialAbilityImages() {
     })));
 }
 
-function setSpecialAbilityIntro(message, { canStart = false } = {}) {
-    const intro = $('specialAbilityIntro');
-    const assessment = $('specialAbilityAssessment');
-    const result = $('specialAbilityResult');
-    const introText = $('specialAbilityIntroText');
-    const startButton = $('specialAbilityStart');
+function setPersonalityIntro(message, { canStart = false } = {}) {
+    const intro = $('personalityIntro');
+    const assessment = $('personalityAssessment');
+    const result = $('personalityResult');
+    const introText = $('personalityIntroText');
+    const startButton = $('personalityStart');
     if (intro) intro.hidden = false;
     if (assessment) assessment.hidden = true;
     if (result) result.hidden = true;
     if (introText) introText.textContent = message;
-    if (startButton) startButton.disabled = !canStart || state.specialAbility.busy;
+    if (startButton) startButton.disabled = !canStart || state.personality.busy;
 }
 
-function renderSpecialAbilityResult(ability) {
-    const publicAbility = ability
-        && String(ability.name || '').trim()
-        && String(ability.alias || '').trim()
-        && String(ability.effect || '').trim()
-        && String(ability.rule || '').trim()
-        && String(ability.affinity || '').trim()
-        ? {
-            name: String(ability.name).trim(),
-            alias: String(ability.alias).trim(),
-            effect: String(ability.effect).trim(),
-            rule: String(ability.rule).trim(),
-            affinity: String(ability.affinity).trim()
-        }
-        : null;
-    if (!publicAbility) {
-        setSpecialAbilityIntro('判定結果を表示できませんでした。店内リストを更新して、もう一度確認してください。');
+function renderPersonalityResult(destinyProfile) {
+    const animal = destinyProfile?.animal;
+    const arcanaDay = destinyProfile?.arcanaDay;
+    const traits = String(destinyProfile?.traits || '').trim();
+    const valid = traits
+        && String(animal?.name || '').trim()
+        && String(animal?.pastLifeMemory || '').trim()
+        && String(animal?.core || '').trim()
+        && String(arcanaDay?.label || '').trim()
+        && String(arcanaDay?.prophecy || '').trim();
+    if (!valid) {
+        setPersonalityIntro('診断結果を表示できませんでした。店内リストを更新して、もう一度確認してください。');
         return;
     }
-    state.specialAbility.state = 'completed';
-    state.specialAbility.ability = publicAbility;
-    state.specialAbility.token = '';
-    state.specialAbility.question = null;
-    if ($('specialAbilityIntro')) $('specialAbilityIntro').hidden = true;
-    if ($('specialAbilityAssessment')) $('specialAbilityAssessment').hidden = true;
-    if ($('specialAbilityResult')) $('specialAbilityResult').hidden = false;
-    if ($('specialAbilityAffinity')) $('specialAbilityAffinity').textContent = publicAbility.affinity;
-    if ($('specialAbilityName')) $('specialAbilityName').textContent = publicAbility.name;
-    if ($('specialAbilityAlias')) $('specialAbilityAlias').textContent = publicAbility.alias;
-    if ($('specialAbilityEffect')) $('specialAbilityEffect').textContent = publicAbility.effect;
-    if ($('specialAbilityRule')) $('specialAbilityRule').textContent = publicAbility.rule;
-    setStatus('判定済み', 'success');
+    state.personality.state = 'completed';
+    state.personality.destinyProfile = destinyProfile;
+    state.personality.token = '';
+    state.personality.question = null;
+    if ($('personalityIntro')) $('personalityIntro').hidden = true;
+    if ($('personalityAssessment')) $('personalityAssessment').hidden = true;
+    if ($('personalityResult')) $('personalityResult').hidden = false;
+    if ($('personalityTraits')) $('personalityTraits').textContent = traits;
+    if ($('personalityAnimalImage')) {
+        $('personalityAnimalImage').src = String(animal.imageUrl || '');
+        $('personalityAnimalImage').alt = `${animal.name}の前世動物画`;
+    }
+    if ($('personalityAnimalName')) $('personalityAnimalName').textContent = animal.name;
+    if ($('personalityAnimalMemory')) $('personalityAnimalMemory').textContent = animal.pastLifeMemory;
+    if ($('personalityAnimalCore')) $('personalityAnimalCore').textContent = animal.core;
+    if ($('personalityAnimalStrength')) $('personalityAnimalStrength').textContent = animal.strength;
+    if ($('personalityAnimalWeakness')) $('personalityAnimalWeakness').textContent = animal.weakness;
+    if ($('personalityAnimalRelationships')) $('personalityAnimalRelationships').textContent = animal.relationships;
+    if ($('personalityAnimalAdvice')) $('personalityAnimalAdvice').textContent = animal.advice;
+    if ($('personalityArcanaDay')) $('personalityArcanaDay').textContent = arcanaDay.label;
+    if ($('personalityArcanaDayProphecy')) $('personalityArcanaDayProphecy').textContent = arcanaDay.prophecy;
+    if ($('personalityDisclaimer')) $('personalityDisclaimer').textContent = destinyProfile.disclaimer || '';
+    setStatus('診断済み', 'success');
 }
 
-function setSpecialAbilityOptionsDisabled(disabled) {
-    document.querySelectorAll('.special-ability-option').forEach((button) => {
+function setPersonalityOptionsDisabled(disabled) {
+    document.querySelectorAll('.personality-option').forEach((button) => {
         button.disabled = !!disabled;
     });
 }
 
-function renderSpecialAbilityQuestion(question) {
+function renderPersonalityQuestion(question) {
     if (!question || !Array.isArray(question.options) || question.options.length !== 4) {
-        setSpecialAbilityIntro('判定問題を表示できませんでした。最初からやり直してください。');
+        setPersonalityIntro('判定問題を表示できませんでした。最初からやり直してください。');
         return;
     }
-    state.specialAbility.state = 'in_progress';
-    state.specialAbility.question = question;
-    state.specialAbility.questionShownAt = performance.now();
-    if ($('specialAbilityIntro')) $('specialAbilityIntro').hidden = true;
-    if ($('specialAbilityResult')) $('specialAbilityResult').hidden = true;
-    if ($('specialAbilityAssessment')) $('specialAbilityAssessment').hidden = false;
-    if ($('specialAbilityProgressText')) $('specialAbilityProgressText').textContent = `${question.number} / ${question.total}`;
-    if ($('specialAbilityProgressBar')) $('specialAbilityProgressBar').style.width = `${(question.number / question.total) * 100}%`;
-    if ($('specialAbilityPrompt')) $('specialAbilityPrompt').textContent = question.prompt || '直感で一つ選んでください';
-    const options = $('specialAbilityOptions');
+    state.personality.state = 'in_progress';
+    state.personality.question = question;
+    state.personality.questionShownAt = performance.now();
+    if ($('personalityIntro')) $('personalityIntro').hidden = true;
+    if ($('personalityResult')) $('personalityResult').hidden = true;
+    if ($('personalityAssessment')) $('personalityAssessment').hidden = false;
+    if ($('personalityProgressText')) $('personalityProgressText').textContent = `${question.number} / ${question.total}`;
+    if ($('personalityProgressBar')) $('personalityProgressBar').style.width = `${(question.number / question.total) * 100}%`;
+    if ($('personalityPrompt')) $('personalityPrompt').textContent = question.prompt || '直感で一つ選んでください';
+    const options = $('personalityOptions');
     if (!options) return;
     options.replaceChildren();
     question.options.forEach((option) => {
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'special-ability-option';
+        button.className = 'personality-option';
         button.dataset.optionId = String(option.id || '');
         button.setAttribute('aria-label', String(option.alt || '画像を選択'));
         const image = document.createElement('img');
@@ -5991,186 +6002,186 @@ function renderSpecialAbilityQuestion(question) {
         image.decoding = 'async';
         image.draggable = false;
         button.appendChild(image);
-        button.addEventListener('click', () => submitSpecialAbilityAnswer(option.id));
+        button.addEventListener('click', () => submitPersonalityAnswer(option.id));
         options.appendChild(button);
     });
-    setStatus(`特殊能力判定 ${question.number}/${question.total}`);
+    setStatus(`性格診断 ${question.number}/${question.total}`);
 }
 
-function resetSpecialAbilitySession() {
-    state.specialAbility.state = 'idle';
-    state.specialAbility.token = '';
-    state.specialAbility.question = null;
-    state.specialAbility.questionShownAt = 0;
-    state.specialAbility.ability = null;
-    state.specialAbility.busy = false;
+function resetPersonalitySession() {
+    state.personality.state = 'idle';
+    state.personality.token = '';
+    state.personality.question = null;
+    state.personality.questionShownAt = 0;
+    state.personality.destinyProfile = null;
+    state.personality.busy = false;
 }
 
-async function checkSpecialAbilityStatus() {
-    if (!state.specialAbility.enabled || state.mode !== 'ability') return;
+async function checkPersonalityStatus() {
+    if (!state.personality.enabled || state.mode !== 'personality') return;
     const customerRef = getSelectedCustomerRef();
-    const requestToken = ++state.specialAbility.requestToken;
-    resetSpecialAbilitySession();
-    state.specialAbility.customerRef = customerRef;
+    const requestToken = ++state.personality.requestToken;
+    resetPersonalitySession();
+    state.personality.customerRef = customerRef;
     if (!customerRef) {
-        setSpecialAbilityIntro('店内リストから判定するお客様を選んでください。');
+        setPersonalityIntro('店内リストから診断するお客様を選んでください。');
         setStatus('お客様を選択');
         return;
     }
-    state.specialAbility.busy = true;
-    setSpecialAbilityIntro('判定履歴を確認しています。');
+    state.personality.busy = true;
+    setPersonalityIntro('診断履歴を確認しています。');
     setStatus('判定履歴を確認中');
     try {
-        const data = await fetchSpecialAbilityJson('/api/special-ability/status', { customerRef });
-        if (requestToken !== state.specialAbility.requestToken || customerRef !== getSelectedCustomerRef()) return;
-        if (data.state === 'completed' && data.ability) {
-            renderSpecialAbilityResult(data.ability);
+        const data = await fetchPersonalityJson('/api/personality-assessment/status', { customerRef });
+        if (requestToken !== state.personality.requestToken || customerRef !== getSelectedCustomerRef()) return;
+        if (data.state === 'completed' && data.destinyProfile) {
+            renderPersonalityResult(data.destinyProfile);
             return;
         }
         if (data.state === 'finalizing') {
-            state.specialAbility.state = 'finalizing';
-            setSpecialAbilityIntro('判定結果を保存しています。少し待ってから店内リストを更新してください。');
+            state.personality.state = 'finalizing';
+            setPersonalityIntro('判定結果を保存しています。少し待ってから店内リストを更新してください。');
             setStatus('結果を保存中');
             return;
         }
-        state.specialAbility.state = 'available';
-        const ready = state.specialAbility.assetsReady;
-        setSpecialAbilityIntro(
+        state.personality.state = 'available';
+        const ready = state.personality.assetsReady;
+        setPersonalityIntro(
             ready ? '準備ができました。端末をお客様へ渡して判定を始めてください。' : '判定画像を準備しています。',
             { canStart: ready }
         );
         setStatus(ready ? '判定可能' : '画像を準備中');
     } catch (error) {
-        if (requestToken !== state.specialAbility.requestToken) return;
-        setSpecialAbilityIntro(error?.message || '判定履歴を確認できませんでした。');
-        setStatus(error?.message || '判定履歴を確認できませんでした', 'error');
+        if (requestToken !== state.personality.requestToken) return;
+        setPersonalityIntro(error?.message || '診断履歴を確認できませんでした。');
+        setStatus(error?.message || '診断履歴を確認できませんでした', 'error');
     } finally {
-        if (requestToken === state.specialAbility.requestToken) {
-            state.specialAbility.busy = false;
-            if ($('specialAbilityStart') && state.specialAbility.state === 'available') {
-                $('specialAbilityStart').disabled = !state.specialAbility.assetsReady;
+        if (requestToken === state.personality.requestToken) {
+            state.personality.busy = false;
+            if ($('personalityStart') && state.personality.state === 'available') {
+                $('personalityStart').disabled = !state.personality.assetsReady;
             }
         }
     }
 }
 
-async function startSpecialAbilityAssessment() {
+async function startPersonalityAssessment() {
     const customerRef = getSelectedCustomerRef();
-    if (!customerRef || state.specialAbility.busy || !state.specialAbility.assetsReady) return;
-    state.specialAbility.busy = true;
-    if ($('specialAbilityStart')) $('specialAbilityStart').disabled = true;
-    setStatus('判定を開始しています');
+    if (!customerRef || state.personality.busy || !state.personality.assetsReady) return;
+    state.personality.busy = true;
+    if ($('personalityStart')) $('personalityStart').disabled = true;
+    setStatus('診断を開始しています');
     try {
-        const data = await fetchSpecialAbilityJson('/api/special-ability/start', { customerRef });
-        if (customerRef !== getSelectedCustomerRef() || state.mode !== 'ability') return;
-        state.specialAbility.customerRef = customerRef;
-        state.specialAbility.token = String(data.token || '');
-        renderSpecialAbilityQuestion(data.question);
+        const data = await fetchPersonalityJson('/api/personality-assessment/start', { customerRef });
+        if (customerRef !== getSelectedCustomerRef() || state.mode !== 'personality') return;
+        state.personality.customerRef = customerRef;
+        state.personality.token = String(data.token || '');
+        renderPersonalityQuestion(data.question);
     } catch (error) {
-        setSpecialAbilityIntro(error?.message || '判定を開始できませんでした。', {
-            canStart: error?.code !== 'already_completed' && state.specialAbility.assetsReady
+        setPersonalityIntro(error?.message || '診断を開始できませんでした。', {
+            canStart: error?.code !== 'already_completed' && state.personality.assetsReady
         });
-        setStatus(error?.message || '判定を開始できませんでした', 'error');
-        if (error?.code === 'already_completed') await checkSpecialAbilityStatus();
+        setStatus(error?.message || '診断を開始できませんでした', 'error');
+        if (error?.code === 'already_completed') await checkPersonalityStatus();
     } finally {
-        state.specialAbility.busy = false;
-        if ($('specialAbilityStart') && state.specialAbility.state === 'available') {
-            $('specialAbilityStart').disabled = !state.specialAbility.assetsReady;
+        state.personality.busy = false;
+        if ($('personalityStart') && state.personality.state === 'available') {
+            $('personalityStart').disabled = !state.personality.assetsReady;
         }
     }
 }
 
-async function submitSpecialAbilityAnswer(optionId) {
-    const abilityState = state.specialAbility;
-    if (abilityState.busy || abilityState.state !== 'in_progress' || !abilityState.token || !abilityState.question) return;
-    const elapsedMs = Math.max(0, performance.now() - abilityState.questionShownAt);
-    abilityState.busy = true;
-    setSpecialAbilityOptionsDisabled(true);
+async function submitPersonalityAnswer(optionId) {
+    const personalityState = state.personality;
+    if (personalityState.busy || personalityState.state !== 'in_progress' || !personalityState.token || !personalityState.question) return;
+    const elapsedMs = Math.max(0, performance.now() - personalityState.questionShownAt);
+    personalityState.busy = true;
+    setPersonalityOptionsDisabled(true);
     setStatus('回答を記録しています');
     try {
-        const data = await fetchSpecialAbilityJson('/api/special-ability/answer', {
-            token: abilityState.token,
-            questionId: abilityState.question.id,
+        const data = await fetchPersonalityJson('/api/personality-assessment/answer', {
+            token: personalityState.token,
+            questionId: personalityState.question.id,
             optionId: String(optionId || ''),
             elapsedMs
         });
-        if (data.state === 'completed' && data.ability) {
-            renderSpecialAbilityResult(data.ability);
+        if (data.state === 'completed' && data.destinyProfile) {
+            renderPersonalityResult(data.destinyProfile);
             return;
         }
-        abilityState.token = String(data.token || '');
-        renderSpecialAbilityQuestion(data.question);
+        personalityState.token = String(data.token || '');
+        renderPersonalityQuestion(data.question);
     } catch (error) {
         if (['expired_token', 'customer_left_store', 'invalid_round_order'].includes(error?.code)) {
-            resetSpecialAbilitySession();
-            setSpecialAbilityIntro(error?.message || '判定を最初からやり直してください。', {
-                canStart: error?.code !== 'customer_left_store' && state.specialAbility.assetsReady
+            resetPersonalitySession();
+            setPersonalityIntro(error?.message || '判定を最初からやり直してください。', {
+                canStart: error?.code !== 'customer_left_store' && state.personality.assetsReady
             });
         } else if (error?.code === 'finalizing') {
-            abilityState.state = 'finalizing';
-            setSpecialAbilityIntro(error.message || '判定結果を保存しています。');
+            personalityState.state = 'finalizing';
+            setPersonalityIntro(error.message || '判定結果を保存しています。');
         } else {
-            setSpecialAbilityOptionsDisabled(false);
+            setPersonalityOptionsDisabled(false);
         }
         setStatus(error?.message || '回答を記録できませんでした', 'error');
     } finally {
-        abilityState.busy = false;
+        personalityState.busy = false;
     }
 }
 
 function setReadingMode(mode) {
-    const nextMode = mode === 'ability' && state.specialAbility.enabled ? 'ability' : 'tarot';
+    const nextMode = mode === 'personality' && state.personality.enabled ? 'personality' : 'tarot';
     state.mode = nextMode;
-    const isAbility = nextMode === 'ability';
-    if ($('tarotReadingBoard')) $('tarotReadingBoard').hidden = isAbility;
-    if ($('specialAbilityBoard')) $('specialAbilityBoard').hidden = !isAbility;
-    if ($('tarotCustomerSectionTitle')) $('tarotCustomerSectionTitle').textContent = isAbility ? '判定するお客様' : '送信先';
-    if ($('tarotReadingKicker')) $('tarotReadingKicker').textContent = isAbility ? 'TROY ABILITY JUDGMENT' : 'TROY STAFF TAROT';
-    if ($('tarotReadingTitle')) $('tarotReadingTitle').textContent = isAbility ? '異能航路' : 'タロット航路';
+    const isPersonality = nextMode === 'personality';
+    if ($('tarotReadingBoard')) $('tarotReadingBoard').hidden = isPersonality;
+    if ($('personalityBoard')) $('personalityBoard').hidden = !isPersonality;
+    if ($('tarotCustomerSectionTitle')) $('tarotCustomerSectionTitle').textContent = isPersonality ? '診断するお客様' : '送信先';
+    if ($('tarotReadingKicker')) $('tarotReadingKicker').textContent = isPersonality ? 'TROY PERSONALITY VOYAGE' : 'TROY STAFF TAROT';
+    if ($('tarotReadingTitle')) $('tarotReadingTitle').textContent = isPersonality ? '魂の航路' : 'タロット航路';
     document.querySelectorAll('[data-reading-mode]').forEach((button) => {
         const active = button.dataset.readingMode === nextMode;
         button.classList.toggle('is-active', active);
         button.setAttribute('aria-selected', active ? 'true' : 'false');
     });
     if (state.storeData) renderStoreCustomers(state.storeData, getSelectedCustomerRef());
-    if (isAbility) {
-        checkSpecialAbilityStatus();
+    if (isPersonality) {
+        checkPersonalityStatus();
     } else {
         setStatus('待機中');
         updateSendButtonState();
     }
 }
 
-async function loadSpecialAbilityConfig() {
+async function loadPersonalityConfig() {
     try {
-        const data = await fetchSpecialAbilityJson('/api/special-ability/config');
+        const data = await fetchPersonalityJson('/api/personality-assessment/config');
         if (!data.enabled) return;
-        state.specialAbility.bootstrapToken = '';
-        state.specialAbility.terminalSession = String(data.terminalSession || '').trim();
-        if (!state.specialAbility.terminalSession) return;
+        state.personality.bootstrapToken = '';
+        state.personality.terminalSession = String(data.terminalSession || '').trim();
+        if (!state.personality.terminalSession) return;
         try {
-            sessionStorage.setItem(SPECIAL_ABILITY_SESSION_KEY, state.specialAbility.terminalSession);
+            sessionStorage.setItem(PERSONALITY_SESSION_KEY, state.personality.terminalSession);
         } catch (_error) {
             // The in-memory session remains valid when storage is unavailable.
         }
-        state.specialAbility.enabled = true;
-        state.specialAbility.totalRounds = Math.max(1, Math.min(24, Math.trunc(Number(data.totalRounds) || 12)));
-        state.specialAbility.assetVersion = Math.max(1, Math.trunc(Number(data.assetVersion) || 3));
+        state.personality.enabled = true;
+        state.personality.totalRounds = Math.max(1, Math.min(24, Math.trunc(Number(data.totalRounds) || 12)));
+        state.personality.assetVersion = Math.max(1, Math.trunc(Number(data.assetVersion) || 3));
         if ($('readingModeSwitch')) $('readingModeSwitch').hidden = false;
         document.querySelector('[data-reading-mode="tarot"]')?.classList.add('is-active');
         try {
-            await preloadSpecialAbilityImages();
-            state.specialAbility.assetsReady = true;
-            if (state.mode === 'ability') checkSpecialAbilityStatus();
+            await preloadPersonalityImages();
+            state.personality.assetsReady = true;
+            if (state.mode === 'personality') checkPersonalityStatus();
         } catch (error) {
-            state.specialAbility.assetsReady = false;
-            if (state.mode === 'ability') {
-                setSpecialAbilityIntro('判定画像を読み込めませんでした。画面を再読み込みしてください。');
+            state.personality.assetsReady = false;
+            if (state.mode === 'personality') {
+                setPersonalityIntro('判定画像を読み込めませんでした。画面を再読み込みしてください。');
                 setStatus(error?.message || '判定画像を読み込めませんでした', 'error');
             }
         }
     } catch (_error) {
-        state.specialAbility.enabled = false;
+        state.personality.enabled = false;
     }
 }
 
@@ -6197,7 +6208,7 @@ function renderStoreCustomers(data, previousValue = '') {
     state.storeData = data || null;
     const customers = Array.isArray(data?.customers) ? data.customers : [];
     const linkedCustomers = customers.filter((customer) => customer?.lineLinked && customer?.customerRef);
-    const selectableCustomers = state.mode === 'ability'
+    const selectableCustomers = state.mode === 'personality'
         ? customers.filter((customer) => customer?.customerRef)
         : linkedCustomers;
     select.replaceChildren();
@@ -6212,7 +6223,7 @@ function renderStoreCustomers(data, previousValue = '') {
     customers.forEach((customer, index) => {
         const option = document.createElement('option');
         const joinedAt = formatCustomerJoinedAt(customer.joinedAtMs);
-        const selectable = state.mode === 'ability' || customer.lineLinked;
+        const selectable = state.mode === 'personality' || customer.lineLinked;
         option.value = selectable ? String(customer.customerRef || '') : `unlinked-${index + 1}`;
         option.disabled = !selectable;
         option.textContent = [
@@ -6232,8 +6243,8 @@ function renderStoreCustomers(data, previousValue = '') {
         setCustomerListStatus('営業開始後、入店したお客様が表示されます。');
     } else if (!customers.length) {
         setCustomerListStatus('現在、入店中のお客様はいません。');
-    } else if (state.mode === 'ability') {
-        setCustomerListStatus(`判定可能 ${customers.length}名`);
+    } else if (state.mode === 'personality') {
+        setCustomerListStatus(`診断可能 ${customers.length}名`);
     } else {
         const unlinkedText = unlinkedCount ? ` / LINE未連携 ${unlinkedCount}名` : '';
         setCustomerListStatus(`LINE送信可 ${linkedCustomers.length}名 / 店内 ${customers.length}名${unlinkedText}`);
@@ -6283,7 +6294,7 @@ async function loadStoreCustomers() {
         state.customersLoading = false;
         if (refreshButton) refreshButton.disabled = false;
         updateSendButtonState();
-        if (state.mode === 'ability' && getSelectedCustomerRef()) checkSpecialAbilityStatus();
+        if (state.mode === 'personality' && getSelectedCustomerRef()) checkPersonalityStatus();
     }
 }
 
@@ -6345,11 +6356,11 @@ function bindEvents() {
     $('tarotCardSearch')?.addEventListener('input', renderCardGrid);
     $('tarotCustomerRef')?.addEventListener('change', () => {
         updateSendButtonState();
-        if (state.mode === 'ability') checkSpecialAbilityStatus();
+        if (state.mode === 'personality') checkPersonalityStatus();
     });
     $('tarotRefreshCustomers')?.addEventListener('click', loadStoreCustomers);
     $('tarotSendLine')?.addEventListener('click', sendReading);
-    $('specialAbilityStart')?.addEventListener('click', startSpecialAbilityAssessment);
+    $('personalityStart')?.addEventListener('click', startPersonalityAssessment);
     document.querySelectorAll('[data-reading-mode]').forEach((button) => {
         button.addEventListener('click', () => setReadingMode(button.dataset.readingMode));
     });
@@ -6367,7 +6378,7 @@ function init() {
     bindEvents();
     setReadingMode('tarot');
     loadStoreCustomers();
-    loadSpecialAbilityConfig();
+    loadPersonalityConfig();
 }
 
 window.TarotReadingApp = {
