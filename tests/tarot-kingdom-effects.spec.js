@@ -14,11 +14,16 @@ function loadEffectsModule() {
       path.join(__dirname, '..', 'public', 'data', 'tarot-kingdom-arcana-effects-v2.json'),
       'utf8'
     ));
+    const statusesPath = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomStatuses.js');
+    const statusesUrl = `data:text/javascript;base64,${Buffer.from(fs.readFileSync(statusesPath, 'utf8')).toString('base64')}`;
     const v3Path = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomEffectsV3.js');
-    const v3Url = `data:text/javascript;base64,${Buffer.from(fs.readFileSync(v3Path, 'utf8')).toString('base64')}`;
+    const v3Source = fs.readFileSync(v3Path, 'utf8')
+      .replace("'./tarotKingdomStatuses.js?v=20260811-status-v1'", `'${statusesUrl}'`);
+    const v3Url = `data:text/javascript;base64,${Buffer.from(v3Source).toString('base64')}`;
     const modulePath = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomEffects.js');
     const source = fs.readFileSync(modulePath, 'utf8')
-      .replace("'./tarotKingdomEffectsV3.js?v=20260805-arcana-v3-full2'", `'${v3Url}'`);
+      .replace("'./tarotKingdomEffectsV3.js?v=20260805-arcana-v3-full2'", `'${v3Url}'`)
+      .replace("'./tarotKingdomStatuses.js?v=20260811-status-v1'", `'${statusesUrl}'`);
     effectsModulePromise = import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
   }
   return effectsModulePromise;
@@ -197,7 +202,7 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
     expect(resolved.candidates.map((entry) => entry.skillName)).toEqual(['盾割り', '六道連環']);
   });
 
-  test('minor same-rank resonance is 50%, major cards do not resonate, and exact match takes priority', async () => {
+  test('minor and major same-rank resonance are 50%, and exact match takes priority', async () => {
     const effects = await loadEffectsModule();
     const character = {
       combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
@@ -214,7 +219,9 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
     expect(sameRank.steps[0]).toMatchObject({ kind: 'buff', potency: 2, resolvedR: 2 });
 
     const majorRank = effects.resolveTarotKingdomResonance({ ...base, cards: [{ id: 'major-1', kind: 'major', number: 1 }] });
-    expect(majorRank).toBeNull();
+    expect(majorRank.candidates).toHaveLength(1);
+    expect(majorRank.candidates[0]).toMatchObject({ matchKind: 'same-rank', matchMultiplier: 0.5 });
+    expect(majorRank.steps[0]).toMatchObject({ kind: 'buff', potency: 2, resolvedR: 2 });
 
     const exactWins = effects.resolveTarotKingdomResonance({
       ...base,
@@ -231,7 +238,8 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
         tarotDeck: [{ slot: 0, cardId: 'SWORD_13', suit: 'Sword', rank: 13, cardLevel: 1 }]
       }
     });
-    expect(binarySameRank).toBeNull();
+    expect(binarySameRank.candidates).toHaveLength(1);
+    expect(binarySameRank.candidates[0]).toMatchObject({ matchKind: 'same-rank', matchMultiplier: 0.5 });
   });
 
   test('new conditions read field, hand, reverse, leader, and control events', async () => {

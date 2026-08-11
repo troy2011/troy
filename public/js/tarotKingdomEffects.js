@@ -5,6 +5,9 @@ import {
     expandTarotKingdomV3Resonance,
     getTarotKingdomResolvedEffectText
 } from './tarotKingdomEffectsV3.js?v=20260805-arcana-v3-full2';
+import { TAROT_KINGDOM_STATUS_ICON_INDEX } from './tarotKingdomStatuses.js?v=20260811-status-v1';
+
+export { TAROT_KINGDOM_STATUS_ICON_INDEX };
 
 const SUIT_KEYS = Object.freeze({
     Wand: 'wand',
@@ -331,7 +334,16 @@ export function isTarotKingdomDeckMatch(card, deckEntry) {
 
 export function getTarotKingdomResonanceMatch(card, deckEntry) {
     const rank = positiveRank(deckEntry?.rank);
-    if (!card || card.kind !== 'minor' || !rank || Number(card.number) !== rank) return null;
+    if (!card || !rank || Number(card.number) !== rank) return null;
+    if (card.kind === 'major') {
+        return {
+            kind: 'same-rank',
+            multiplier: 0.5,
+            attribute: '',
+            submittedCard: card
+        };
+    }
+    if (card.kind !== 'minor') return null;
     const suit = normalizeSuit(card.suit);
     if (!suit) return null;
     const exact = suit === normalizeSuit(deckEntry?.suit);
@@ -1017,7 +1029,7 @@ export function buildTarotKingdomResonanceCandidate(entry, card, context = {}) {
 
 export function resolveTarotKingdomResonance(context = {}) {
     const cards = (Array.isArray(context.cards) ? context.cards : [])
-        .filter((card) => card?.kind === 'minor');
+        .filter((card) => card?.kind === 'minor' || card?.kind === 'major');
     const deck = normalizeTarotKingdomTarotDeck(context.character?.tarotDeck || []);
     const candidates = [];
     deck.forEach((entry) => {
@@ -1057,53 +1069,6 @@ export function getUnsupportedTarotKingdomEffectCodes(deck = []) {
         .filter((entry) => entry && entry.steps.length === 0)
         .map((entry) => entry.resonanceId);
 }
-
-export const TAROT_KINGDOM_STATUS_ICON_INDEX = Object.freeze({
-    burn: 144,
-    wet: 149,
-    fear: 230,
-    confusion: 222,
-    poison: 144,
-    paralysis: 222,
-    sleep: 228,
-    freeze: 149,
-    blind: 68,
-    weaken: 97,
-    vulnerable: 223,
-    slow: 101,
-    silence: 229,
-    break: 74,
-    guard: 203,
-    areaGuard: 203,
-    cover: 203,
-    counter: 136,
-    evasion: 223,
-    nextAttackUp: 136,
-    nextEffectUp: 136,
-    nextWandUp: 144,
-    nextEffectFlat: 136,
-    statusChanceUp: 68,
-    regen: 149,
-    allStatsUp: 136,
-    statusImmunity: 203,
-    damageBarrier: 203,
-    debuffImmunity: 203,
-    attackDown: 97,
-    defenseDown: 97,
-    intimidate: 230,
-    chariot: 136,
-    lastStand: 136,
-    invisible: 223,
-    partyCritical: 136,
-    enemyCritical: 136,
-    hpShield: 203,
-    bloodPact: 144,
-    majorConfusion: 222,
-    mirageBlind: 68,
-    decoy: 223,
-    sunBlessing: 136,
-    timeStop: 222
-});
 
 export const __test = {
     buildWeaponCandidate,

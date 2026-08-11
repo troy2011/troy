@@ -70,7 +70,7 @@ const ENEMY_AILMENTS = Object.freeze({
     'ismartal-vol1-monster-18': Object.freeze({ statusKey: 'confusion', label: '混乱', scope: 'single', chance: 0.27, potency: 50, charges: 1 }),
     'ismartal-vol1-monster-19': Object.freeze({ statusKey: 'slow', label: '鈍足', scope: 'both', chance: 0.3, potency: 24, charges: 2 }),
     'ismartal-vol1-monster-20': Object.freeze({ statusKey: 'wet', label: '水浸し', scope: 'area', chance: 0.32, potency: 24, charges: 2 }),
-    'ismartal-vol2-monster-01': Object.freeze({ statusKey: 'slow', label: '凍結', scope: 'both', chance: 0.32, potency: 30, charges: 2 }),
+    'ismartal-vol2-monster-01': Object.freeze({ statusKey: 'freeze', label: '凍結', scope: 'both', chance: 0.32, potency: 30, charges: 1 }),
     'ismartal-vol2-monster-02': Object.freeze({ statusKey: 'confusion', label: '混乱', scope: 'single', chance: 0.28, potency: 50, charges: 1 }),
     'ismartal-vol2-monster-03': LEGACY_ENEMY_AILMENTS['ismartal-vol2-monster-03'],
     'ismartal-vol2-monster-04': Object.freeze({ statusKey: 'vulnerable', label: '脆弱', scope: 'single', chance: 0.28, potency: 25, charges: 1 }),

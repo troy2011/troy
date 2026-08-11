@@ -102,6 +102,17 @@
                     <span>DEMO CHAIN</span>
                     <select id="tarotKingdomDemoChainSelect" aria-label="デモのチェイン数を選択"></select>
                 </label>
+                <label class="tarot-kingdom-demo-status-target-picker" for="tarotKingdomDemoStatusTargetSelect">
+                    <span>DEMO STATUS TARGET</span>
+                    <select id="tarotKingdomDemoStatusTargetSelect" aria-label="状態異常の表示対象を選択">
+                        <option value="enemy">敵</option>
+                        <option value="player-0">プレイヤー</option>
+                    </select>
+                </label>
+                <label class="tarot-kingdom-demo-status-picker" for="tarotKingdomDemoStatusSelect">
+                    <span>DEMO STATUS</span>
+                    <select id="tarotKingdomDemoStatusSelect" aria-label="表示する状態異常を選択"></select>
+                </label>
                 <label class="tarot-kingdom-demo-summon-picker" for="tarotKingdomDemoSummonSelect">
                     <span>DEMO SUMMON</span>
                     <select id="tarotKingdomDemoSummonSelect" aria-label="デモの召喚獣を選択"></select>
@@ -120,7 +131,9 @@
                             <span id="tarotKingdomEnemyHpFill" class="tarot-kingdom-battle-hp-fill"></span>
                         </div>
                     </div>
+                    <div class="tarot-kingdom-battle-status-tray is-enemy" data-status-target="enemy" aria-label="敵の状態異常"></div>
                     <div class="tarot-kingdom-battle-enemy-visual">
+                        <div class="tarot-kingdom-combat-status-fx is-enemy" aria-hidden="true"></div>
                         <div id="tarotKingdomEnemySprite" class="tarot-kingdom-battle-enemy-sprite" data-facing="left" role="img" aria-label="敵モンスター"></div>
                         <span class="tarot-kingdom-enemy-skip-soak" aria-hidden="true"></span>
                     </div>
@@ -212,7 +225,7 @@
         window.myLineProfile = { displayName: 'Preview' };
         window.__TAROT_KINGDOM_PREVIEW__ = true;
 
-        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260811-guardian-passive-fix1';
+        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260811-status-effects-v1';
 
         window.TarotKingdomPreview = {
             load: () => loadTarotKingdomPage(),

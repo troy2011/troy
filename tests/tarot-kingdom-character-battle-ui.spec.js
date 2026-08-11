@@ -310,7 +310,7 @@ test('player ailments appear below the hand count and animate on the avatar with
   await openOfflineBattle(page, { width: 390, height: 844 });
   await page.evaluate(() => {
     window.TarotKingdomDebug.battleSetEffects({
-      enemy: {},
+      enemy: { burn: { label: '火傷', potency: 8, charges: 2, expiresOn: 'action' } },
       party: {},
       players: [{
         paralysis: { label: '麻痺', charges: 1, expiresOn: 'action' },
@@ -323,16 +323,29 @@ test('player ailments appear below the hand count and animate on the avatar with
   const row = page.locator('.tarot-kingdom-battle-player[data-player-index="0"]');
   const handCount = row.locator('.tarot-kingdom-battle-player-hand-count');
   const tray = row.locator('.tarot-kingdom-battle-status-tray');
-  const aura = row.locator('.tarot-kingdom-status-aura');
+  const statusFx = row.locator('.tarot-kingdom-combat-status-fx.is-player');
   await expect(handCount).toContainText('残り手札');
   await expect(tray.locator('.tarot-kingdom-battle-status-icon')).toHaveCount(3);
-  await expect(aura).toHaveAttribute('data-status', 'paralysis');
+  await expect(statusFx).toHaveAttribute('data-status', 'paralysis');
+  const enemyTray = page.locator('.tarot-kingdom-battle-status-tray.is-enemy');
+  const enemyStatusFx = page.locator('.tarot-kingdom-combat-status-fx.is-enemy');
+  await expect(enemyTray.locator('.tarot-kingdom-battle-status-icon')).toHaveCount(1);
+  await expect(enemyStatusFx).toHaveAttribute('data-status', 'burn');
+
+  await tray.locator('.tarot-kingdom-battle-status-icon').first().dispatchEvent('click');
+  const detail = page.locator('.tarot-kingdom-status-detail-backdrop');
+  await expect(detail).toBeVisible();
+  await expect(detail.locator('h3')).toContainText('状態');
+  await expect(detail.locator('.tarot-kingdom-status-detail-row')).toHaveCount(3);
+  await expect(detail).toContainText('次の戦闘攻撃');
+  await detail.locator('header button').dispatchEvent('click');
+  await expect(detail).toBeHidden();
 
   const layout = await row.evaluate((node) => {
     const hand = node.querySelector('.tarot-kingdom-battle-player-hand-count')?.getBoundingClientRect();
     const trayRect = node.querySelector('.tarot-kingdom-battle-status-tray')?.getBoundingClientRect();
     const icons = Array.from(node.querySelectorAll('.tarot-kingdom-battle-status-icon'));
-    const auraStyle = getComputedStyle(node.querySelector('.tarot-kingdom-status-aura'));
+    const statusFxStyle = getComputedStyle(node.querySelector('.tarot-kingdom-combat-status-fx.is-player'));
     return {
       handBottom: hand?.bottom || 0,
       trayTop: trayRect?.top || 0,
@@ -341,14 +354,14 @@ test('player ailments appear below the hand count and animate on the avatar with
         return [rect.width, rect.height];
       }),
       iconImages: icons.map((icon) => getComputedStyle(icon).backgroundImage),
-      auraAnimation: auraStyle.animationName,
+      statusFxAnimation: statusFxStyle.animationName,
       rowRight: node.getBoundingClientRect().right
     };
   });
   expect(layout.trayTop).toBeGreaterThanOrEqual(layout.handBottom - 1);
-  expect(layout.iconSizes.every(([width, height]) => width <= 12 && height <= 12)).toBe(true);
+  expect(layout.iconSizes.every(([width, height]) => width <= 18 && height <= 18)).toBe(true);
   expect(layout.iconImages.every((value) => value.includes('icons.png'))).toBe(true);
-  expect(layout.auraAnimation).toBe('tarotKingdomStatusFlicker');
+  expect(layout.statusFxAnimation).toBe('tarotKingdomStatusFlicker');
   expect(layout.rowRight).toBeLessThanOrEqual(390);
 });
 

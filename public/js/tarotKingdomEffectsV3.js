@@ -1,8 +1,7 @@
+import { TAROT_KINGDOM_NEGATIVE_STATUS_KEYS } from './tarotKingdomStatuses.js?v=20260811-status-v1';
+
 const SUIT_ELEMENT = Object.freeze({ Wand: 'fire', Cup: 'water', Sword: 'wind', Pentacle: 'earth' });
-const NEGATIVE_STATUSES = Object.freeze([
-  'paralysis', 'sleep', 'freeze', 'confusion', 'poison', 'burn', 'silence',
-  'blind', 'fear', 'wet', 'weaken', 'vulnerable', 'slow'
-]);
+const NEGATIVE_STATUSES = TAROT_KINGDOM_NEGATIVE_STATUS_KEYS;
 
 function finite(value, fallback = 0) {
   const parsed = Number(value);
