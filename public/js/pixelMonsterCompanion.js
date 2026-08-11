@@ -1,13 +1,9 @@
-import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260724h';
+import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260811-monster-grounding2';
 
 // Tarot Kingdom renders both player avatars and pet sprites inside the same
 // combat-scale host. Keep this base multiplier shared by every companion view.
 export const PIXEL_MONSTER_COMPANION_SCALE = 1;
-export const PIXEL_MONSTER_COMPANION_OFFSET_Y = Object.freeze({
-    'ismartal-vol2-monster-05': 0,
-    'ismartal-vol2-monster-17': 0,
-    'ismartal-vol3-monster-09': 0
-});
+export const PIXEL_MONSTER_COMPANION_OFFSET_Y = Object.freeze({});
 
 const MONSTER_BY_ID = new Map(PIXEL_MONSTERS_ROSTER.map((monster) => [String(monster.id || ''), monster]));
 const animationTimers = new WeakMap();
@@ -77,6 +73,8 @@ export function renderPixelMonsterCompanion(targetOrId, pet = null) {
     }
 
     const anchorMode = monster.idleAnchor?.mode === 'air' ? 'air' : 'ground';
+    const frameHeight = Math.max(1, Number(monster.frameHeight) || 48);
+    const anchorY = Math.max(0, Math.min(frameHeight, Number(monster.idleAnchor?.y) || frameHeight));
     const configuredOffset = Object.prototype.hasOwnProperty.call(
         PIXEL_MONSTER_COMPANION_OFFSET_Y,
         String(monster.id || '')
@@ -92,6 +90,8 @@ export function renderPixelMonsterCompanion(targetOrId, pet = null) {
     );
     target.style.setProperty('--pixel-monster-companion-shadow-width', `${Math.max(34, Math.min(68, Math.round(renderedWidth * 0.72)))}px`);
     target.style.setProperty('--pixel-monster-companion-offset-y', `${Math.max(-24, Math.min(24, configuredOffset))}px`);
+    target.style.setProperty('--pixel-monster-companion-frame-height', `${frameHeight}px`);
+    target.style.setProperty('--pixel-monster-companion-anchor-y', `${anchorY}px`);
     target.style.setProperty('--pixel-monster-companion-scale', String(PIXEL_MONSTER_COMPANION_SCALE));
     target.style.setProperty('--pixel-monster-companion-scale-x', monster.flipX === true ? '-1' : '1');
     target.style.setProperty('--pixel-monster-companion-scale-y', monster.flipY === true ? '-1' : '1');

@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "minor": [
     {
       "id": "cup-1",
@@ -1357,9 +1357,9 @@
     {
       "number": 9,
       "attribute": "dark",
-      "passiveId": "guardian-v3-9",
+      "passiveId": "guardian-v4-9",
       "passiveName": "忍者",
-      "passive": "局開始時に回避＋50を得る。攻撃するたびに回避が10下がる。"
+      "passive": "局開始時に回避＋40を得る。攻撃するたびに回避が10下がる。"
     },
     {
       "number": 10,
@@ -1392,9 +1392,9 @@
     {
       "number": 14,
       "attribute": "neutral",
-      "passiveId": "guardian-v3-14",
+      "passiveId": "guardian-v4-14",
       "passiveName": "ものまねし",
-      "passive": "数字14の小アルカナが発動すると、直前に他者が発動した小アルカナの効果を、半分の強さでもう一度発動する。"
+      "passive": "数字14の小アルカナが発動すると、直前に自分か味方が発動した小アルカナの効果を、半分の強さでもう一度発動する。"
     },
     {
       "number": 15,
@@ -1434,9 +1434,9 @@
     {
       "number": 20,
       "attribute": "light",
-      "passiveId": "guardian-v3-20",
+      "passiveId": "guardian-v4-20",
       "passiveName": "司祭",
-      "passive": "11バックを発動すると、KOされた味方1体を最大HP10％で復活させる。対象がいなければ、HP割合が最も低い味方に自動復活を付与する。1局1回。"
+      "passive": "11バックを発動すると、最も早くKOされた味方1体を最大HP10％で復活させる。対象がいなければ発動しない。1局1回。"
     },
     {
       "number": 21,
@@ -1451,155 +1451,155 @@
       "number": 0,
       "attribute": "neutral",
       "skillName": "カオスディレクション",
-      "effect": "このターン、敵味方全員の攻撃がミスになる。",
-      "effectId": "major-v3-0"
+      "effect": "次の場流れまで、敵味方全員の戦闘攻撃がミスになる。継続ダメージは止めない。",
+      "effectId": "major-v4-0"
     },
     {
       "number": 1,
       "attribute": "neutral",
       "skillName": "カースサークル",
-      "effect": "敵へ毒・やけど・麻痺・沈黙の中からランダムな2種類の付与を試みる。すでに付与されている状態異常は効果時間を1ターン延長する。",
-      "effectId": "major-v3-1"
+      "effect": "敵へ毒・火傷・麻痺・沈黙から異なる2種類を確定付与する。すでにある状態は効果時間を延長する。",
+      "effectId": "major-v4-1"
     },
     {
       "number": 2,
       "attribute": "light",
       "skillName": "ディバインサンクチュアリ",
       "effect": "味方全員を30％回復する。",
-      "effectId": "major-v3-2"
+      "effectId": "major-v4-2"
     },
     {
       "number": 3,
       "attribute": "light",
       "skillName": "アイギスフォート",
-      "effect": "味方全員に10％シールドを付与し、状態異常をすべて解除する。",
-      "effectId": "major-v3-3"
+      "effect": "味方全員の状態異常と能力低下を解除し、12％シールドを付与する。",
+      "effectId": "major-v4-3"
     },
     {
       "number": 4,
       "attribute": "dark",
       "skillName": "インペリアルブレイド",
-      "effect": "敵へ防御を一部無視する物理攻撃を行い、2ターン自分の攻撃力と命中率を30％上げる。",
-      "effectId": "major-v3-4"
+      "effect": "敵へ防御を40％無視する物理攻撃を行う。命中すると恐怖を付与し、自分の力と命中を強化する。",
+      "effectId": "major-v4-4"
     },
     {
       "number": 5,
       "attribute": "light",
-      "skillName": "エレメンタルコンボ",
-      "effect": "敵へ場札の属性の5連続魔法攻撃を行う。",
-      "effectId": "major-v3-5"
+      "skillName": "ドグマティックバリア",
+      "effect": "味方全員へ2回の場流れまでダメージ25％軽減と能力低下無効を付与する。",
+      "effectId": "major-v4-5"
     },
     {
       "number": 6,
       "attribute": "light",
       "skillName": "シンクロリンク",
       "effect": "自分とHP割合が最も低い味方を30％回復し、味方全員へ3ターン8％リジェネを付与する。",
-      "effectId": "major-v3-6"
+      "effectId": "major-v4-6"
     },
     {
       "number": 7,
       "attribute": "neutral",
       "skillName": "突撃陣形",
-      "effect": "敵へ防御無視の2連続物理攻撃を行い、1ターン自分の攻撃力と素早さを30％上げる。代わりに回避が15下がる。",
-      "effectId": "major-v3-7"
+      "effect": "敵へ防御を40％無視する2連続物理攻撃を行う。命中すると脆弱を付与し、自分の力と素早さを上げる代わりに回避を下げる。",
+      "effectId": "major-v4-7"
     },
     {
       "number": 8,
       "attribute": "neutral",
       "skillName": "インミュータブル・ウィル",
-      "effect": "3ターン食いしばりを得る。残りHPが少ないほど物理攻撃力とカウンター率が上がる。",
-      "effectId": "major-v3-8"
+      "effect": "3回の場流れまで食いしばりを得る。残りHPが少ないほど物理攻撃力とカウンター率が上がる。",
+      "effectId": "major-v4-8"
     },
     {
       "number": 9,
       "attribute": "dark",
       "skillName": "無影",
-      "effect": "1ターン、自分を対象とする直接攻撃をすべてかわす。次の物理攻撃は必ずクリティカルになる。",
-      "effectId": "major-v3-9"
+      "effect": "次の場流れまで自分を対象とする直接攻撃をすべてかわす。次の物理攻撃は必ずクリティカルになる。",
+      "effectId": "major-v4-9"
     },
     {
       "number": 10,
       "attribute": "neutral",
       "skillName": "ジャックポット",
-      "effect": "0～10の乱数を出し、2ターン、味方全員のクリティカル率を「出目×10％」、クリティカル威力を「出目×5％」上げる。",
-      "effectId": "major-v3-10"
+      "effect": "0～10を抽選し、味方全員のクリティカル率と威力を出目に応じて上げる。0なら何も起こらない。",
+      "effectId": "major-v4-10"
     },
     {
       "number": 11,
       "attribute": "light",
       "skillName": "カルマリターン",
-      "effect": "敵が味方へ与えた実HPダメージ累計の50％を固定ダメージで返し、累計をリセットする。",
-      "effectId": "major-v3-11"
+      "effect": "敵が味方へ与えた実HPダメージ累計の50％を固定ダメージで返す。命中すると次の敵攻撃を沈黙させる。",
+      "effectId": "major-v4-11"
     },
     {
       "number": 12,
       "attribute": "dark",
       "skillName": "ペナンス・コンバート",
-      "effect": "このターンに自分が受けたダメージ分だけ、次のターン開始時に自分を回復する。",
-      "effectId": "major-v3-12"
+      "effect": "最後に受けた敵の直接ダメージ分だけ、次の場流れ時に自分を回復する。被弾履歴がなければ不発。",
+      "effectId": "major-v4-12"
     },
     {
       "number": 13,
       "attribute": "dark",
       "skillName": "グレイヴドレイン",
-      "effect": "墓地のカード枚数に応じた闇属性魔法攻撃を行い、与えたダメージの50％だけ自分を回復する。",
-      "effectId": "major-v3-13"
+      "effect": "墓地枚数に応じた闇魔法で攻撃し、50％を吸収する。命中すると回復を封じ、闇ダメージを増やす呪いを付与する。",
+      "effectId": "major-v4-13"
     },
     {
       "number": 14,
       "attribute": "neutral",
-      "skillName": "パーフェクトコピー",
-      "effect": "直前に他者が発動した小アルカナの効果を、同じ強さでもう一度発動する。",
-      "effectId": "major-v3-14"
+      "skillName": "トランスミュート",
+      "effect": "HP割合が最も低い生存味方を全回復する。2枚・3枚出しでは対象人数が増える。",
+      "effectId": "major-v4-14"
     },
     {
       "number": 15,
       "attribute": "dark",
       "skillName": "ブラッドペクト",
-      "effect": "2ターン最大HPを50％にし、物理攻撃と魔法攻撃の威力を2倍にする。",
-      "effectId": "major-v3-15"
+      "effect": "2回の場流れまで最大HPを50％にし、物理攻撃と魔法攻撃の威力を2倍にする。",
+      "effectId": "major-v4-15"
     },
     {
       "number": 16,
       "attribute": "dark",
       "skillName": "サンダーブレイク",
-      "effect": "敵のシールドと防御上昇を解除して雷属性攻撃を行い、麻痺を付与する。",
-      "effectId": "major-v3-16"
+      "effect": "敵のシールドと防御上昇を解除して風属性の雷攻撃を行う。命中すると次の敵攻撃を麻痺で止める。",
+      "effectId": "major-v4-16"
     },
     {
       "number": 17,
       "attribute": "light",
       "skillName": "ガイアの恵み",
-      "effect": "3ターン、味方全員の最大HPと現在HPを25％上げ、10％リジェネを付与する。",
-      "effectId": "major-v3-17"
+      "effect": "現在の局が終わるまで味方全員の最大HPと現在HPを25％上げ、10％リジェネを付与する。",
+      "effectId": "major-v4-17"
     },
     {
       "number": 18,
       "attribute": "dark",
       "skillName": "ミラージュ・幻影陣",
-      "effect": "敵へ混乱と命中低下を2ターン付与し、味方全員へ直接攻撃を1回無効化する幻影を付与する。",
-      "effectId": "major-v3-18"
+      "effect": "敵へ混乱40％と命中－40を付与し、味方全員へ直接攻撃を1回無効化する幻影を付与する。",
+      "effectId": "major-v4-18"
     },
     {
       "number": 19,
       "attribute": "light",
       "skillName": "ソーラーフレア",
-      "effect": "敵へ火属性魔法攻撃とやけどを与え、2ターン味方全員の攻撃力と魔法攻撃力を25％上げる。",
-      "effectId": "major-v3-19"
+      "effect": "敵へ火属性魔法攻撃を行う。命中すると火傷を付与し、味方全員の物理・魔法ダメージを強化する。",
+      "effectId": "major-v4-19"
     },
     {
       "number": 20,
       "attribute": "light",
       "skillName": "ラスト・レクイエム",
-      "effect": "KOされた味方全員を最大HP20％で復活させ、復活させた人数分の聖属性魔法攻撃を行う。",
-      "effectId": "major-v3-20"
+      "effect": "KO味方全員を20％で復活させ、人数分の光魔法で攻撃する。命中すると暗闇を付与。KOがいなければ不発。",
+      "effectId": "major-v4-20"
     },
     {
       "number": 21,
       "attribute": "neutral",
       "skillName": "タイム・ストップ",
-      "effect": "敵の次の戦闘行動を2回止める。時間停止中は味方全員の与えるダメージが20％上がる。",
-      "effectId": "major-v3-21"
+      "effect": "敵の次の戦闘行動を2回止める。",
+      "effectId": "major-v4-21"
     }
   ]
 }

@@ -19,15 +19,18 @@ async function openKingdomDebug(page) {
 }
 
 test.describe('Tarot Kingdom deterministic summons', () => {
-  test('all 27 high-resolution monsters are unique, reachable, and backed by an image', async () => {
+  test('all 57 summon illustrations are unique and the legacy 27 remain reachable', async () => {
     const summons = await loadSummonsModule();
     const audit = summons.auditTarotKingdomSummonRegistry();
     expect(audit).toMatchObject({
-      count: 27,
-      uniqueCount: 27,
-      pools: { entry: 9, middle: 7, advanced: 6, legendary: 5 }
+      count: 57,
+      uniqueCount: 57,
+      legacyCount: 27,
+      flushCount: 8,
+      majorCount: 22,
+      pools: { entry: 9, middle: 7, advanced: 6, legendary: 5, flush: 8, major: 22 }
     });
-    expect(audit.effectCounts).toEqual({ attack: 9, debuff: 9, support: 9 });
+    expect(audit.effectCounts).toEqual({ attack: 9, debuff: 9, support: 9, hybrid: 8, unknown: 22 });
 
     const selected = new Set();
     for (let rank = 5; rank <= 15; rank += 1) {
@@ -109,7 +112,7 @@ test.describe('Tarot Kingdom deterministic summons', () => {
     });
   });
 
-  test('preview picker exposes all 27 summons and replays the selected still image', async ({ page }) => {
+  test('preview picker exposes all 57 summons and replays the selected action illustration', async ({ page }) => {
     await openKingdomDebug(page);
     await page.evaluate(() => window.TarotKingdomDebug.battleScenario({
       withTrick: false,
@@ -117,8 +120,8 @@ test.describe('Tarot Kingdom deterministic summons', () => {
     }));
     const picker = page.locator('#tarotKingdomDemoSummonSelect');
     await expect(picker).toBeVisible();
-    await expect(picker.locator('option:not([value=""])')).toHaveCount(27);
-    await expect(picker.locator('optgroup')).toHaveCount(4);
+    await expect(picker.locator('option:not([value=""])')).toHaveCount(57);
+    await expect(picker.locator('optgroup')).toHaveCount(6);
 
     const audits = await page.evaluate(() => window.TarotKingdomDebug.battleDemoSummons().map((summon) => {
       const result = window.TarotKingdomDebug.battleDemoSummon(summon.id);
@@ -141,16 +144,18 @@ test.describe('Tarot Kingdom deterministic summons', () => {
         figureChildCount: figure?.children.length || 0
       };
     }));
-    expect(audits).toHaveLength(27);
+    expect(audits).toHaveLength(57);
     audits.forEach((audit) => {
       expect(audit.ok, `${audit.requestedId}:${audit.error}`).toBe(true);
       expect(audit.actualId).toBe(audit.requestedId);
       expect(audit.choreography).toBe(audit.requestedId.replace(/_/g, '-'));
       expect(audit.weight).toBe({
         entry: 'light',
+        flush: 'measured',
         middle: 'measured',
         advanced: 'heavy',
-        legendary: 'monumental'
+        legendary: 'monumental',
+        major: 'measured'
       }[audit.requestedPool]);
       expect(audit.animationName).toBe(audit.expectedAnimationName);
       expect(audit.stillImageCount).toBe(1);
@@ -163,6 +168,145 @@ test.describe('Tarot Kingdom deterministic summons', () => {
       'data-summon-id',
       'anchor_golem'
     );
+  });
+
+  test('selection v2 separates Flush tiers and lets Major Arcana replace only the artwork', async () => {
+    const summons = await loadSummonsModule();
+    const flushRole = { key: 'Flush', primary: [10] };
+    const low = summons.resolveTarotKingdomSummon(flushRole, {
+      selectionVersion: 2,
+      flushSuit: 'Cup',
+      highCard: 10
+    });
+    const high = summons.resolveTarotKingdomSummon({ key: 'Flush', primary: [11] }, {
+      selectionVersion: 2,
+      flushSuit: 'Cup',
+      highCard: 11
+    });
+    const major = summons.resolveTarotKingdomSummon({ key: 'FullHouse', primary: [9, 4] }, {
+      selectionVersion: 2,
+      majorNumber: 21
+    });
+
+    expect(low).toMatchObject({
+      id: 'flush_cup_low', artSource: 'flush-suit', tier: 'low', flushSuit: 'Cup', highCard: 10,
+      roleEffectKey: 'flushElemental'
+    });
+    expect(high).toMatchObject({
+      id: 'flush_cup_high', artSource: 'flush-suit', tier: 'high', flushSuit: 'Cup', highCard: 11,
+      roleEffectKey: 'flushElemental'
+    });
+    expect(major).toMatchObject({
+      id: 'major_summon_21', artSource: 'major', majorNumber: 21,
+      roleKey: 'FullHouse', roleEffectKey: expect.any(String)
+    });
+    expect(major.roleEffectKey).not.toBe('');
+  });
+
+  test('Flush suit effects use the fixed element and high-card support values', async () => {
+    const summons = await loadSummonsModule();
+    const resolve = (suit, highCard) => summons.resolveTarotKingdomSummon(
+      { key: 'Flush', primary: [highCard] },
+      { selectionVersion: 2, flushSuit: suit, highCard }
+    );
+    const steps = (suit, highCard) => summons.buildTarotKingdomSummonEffectSteps(
+      resolve(suit, highCard),
+      { roleRate: 1, intelligence: 0, flushSuit: suit, highCard }
+    );
+
+    expect(steps('Cup', 5)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'magic', element: 'water' }),
+      expect.objectContaining({ kind: 'heal-party-percent', percent: 25 })
+    ]));
+    expect(steps('Cup', 10)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'heal-party-percent', percent: 40 })
+    ]));
+    expect(steps('Cup', 14)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'heal-party-percent', percent: 50 })
+    ]));
+    expect(steps('Cup', 15)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'heal-party-percent', percent: 50 })
+    ]));
+    expect(steps('Pentacle', 15)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'shield-party-percent', percent: 35, turns: 2 })
+    ]));
+    expect(steps('Sword', 15)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'buff-party', statusKey: 'speedUp', potency: 40, turns: 2 })
+    ]));
+    expect(steps('Wand', 15)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'buff-party', statusKey: 'flushMagicUp', potency: 40, turns: 2 })
+    ]));
+  });
+
+  test('new portrait summon assets are transparent and never exceed 512px', async ({ page }) => {
+    const summons = await loadSummonsModule();
+    const newSummons = [
+      ...summons.TAROT_KINGDOM_FLUSH_SUMMONS,
+      ...summons.TAROT_KINGDOM_MAJOR_SUMMONS
+    ];
+    expect(newSummons).toHaveLength(30);
+    await page.goto('/tarot-kingdom-preview.html?tkfixture=character-battle', { waitUntil: 'domcontentloaded' });
+    const assets = await page.evaluate(async (entries) => Promise.all(entries.map(async (entry) => {
+      const image = new Image();
+      image.src = entry.src;
+      await image.decode();
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      context.drawImage(image, 0, 0);
+      const corners = [
+        context.getImageData(0, 0, 1, 1).data[3],
+        context.getImageData(canvas.width - 1, 0, 1, 1).data[3],
+        context.getImageData(0, canvas.height - 1, 1, 1).data[3],
+        context.getImageData(canvas.width - 1, canvas.height - 1, 1, 1).data[3]
+      ];
+      return { id: entry.id, width: image.naturalWidth, height: image.naturalHeight, corners };
+    })), newSummons);
+    assets.forEach((asset) => {
+      expect(asset.width, asset.id).toBeLessThanOrEqual(512);
+      expect(asset.height, asset.id).toBeLessThanOrEqual(512);
+      expect(asset.width, asset.id).toBeGreaterThan(0);
+      expect(asset.height, asset.id).toBeGreaterThan(0);
+      expect(asset.corners, asset.id).toEqual([0, 0, 0, 0]);
+    });
+  });
+
+  test('new action-pose Flush and Major summons stay compact inside portrait battlefields', async ({ page }) => {
+    await openKingdomDebug(page);
+    for (const width of [390, 900]) {
+      await page.setViewportSize({ width, height: width === 390 ? 900 : 1100 });
+      for (const summonId of ['flush_cup_high', 'major_summon_21']) {
+        const layout = await page.evaluate(async (id) => {
+          const debug = window.TarotKingdomDebug;
+          debug.battleScenario({ withTrick: false, turnIndex: 0 });
+          const result = debug.battleDemoSummon(id);
+          const stage = document.querySelector('#tarotKingdomBattleStage');
+          const cutin = stage?.querySelector(':scope > .tarot-kingdom-skill-cutin.is-summon');
+          const figure = cutin?.querySelector('.tarot-kingdom-summon-figure');
+          figure?.getAnimations().forEach((animation) => {
+            animation.currentTime = 2300;
+            animation.pause();
+          });
+          await new Promise((resolve) => requestAnimationFrame(resolve));
+          const rect = (node) => {
+            const box = node?.getBoundingClientRect();
+            return box ? { left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width } : null;
+          };
+          return {
+            ok: result.ok,
+            stage: rect(stage),
+            figure: rect(figure),
+            horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth
+          };
+        }, summonId);
+        expect(layout.ok, `${width}:${summonId}`).toBe(true);
+        expect(layout.figure.left, `${width}:${summonId}`).toBeGreaterThanOrEqual(layout.stage.left);
+        expect(layout.figure.right, `${width}:${summonId}`).toBeLessThanOrEqual(layout.stage.right);
+        expect(layout.figure.width, `${width}:${summonId}`).toBeLessThanOrEqual(layout.stage.width * 0.72);
+        expect(layout.horizontalOverflow, `${width}:${summonId}`).toBe(false);
+      }
+    }
   });
 
   test('cannon summons hold the impact pose, recoil backward, and use heavy camera shake', async ({ page }) => {
@@ -451,7 +595,7 @@ test.describe('Tarot Kingdom summon integration', () => {
     });
   });
 
-  test('all nine effect keys expose distinct choreography classes and categories', async ({ page }) => {
+  test('all ten effect keys expose distinct choreography classes and categories', async ({ page }) => {
     const visuals = await page.evaluate(() => window.TarotKingdomDebug.battleSummonVisuals());
     expect(visuals).toEqual({
       rupture: { category: 'attack', choreography: 'ground-break', cue: 'fault-charge', impact: 'rock-burst' },
@@ -462,7 +606,8 @@ test.describe('Tarot Kingdom summon integration', () => {
       chaos: { category: 'debuff', choreography: 'ghost-spiral', cue: 'spirit-orbit', impact: 'vortex-collapse' },
       tide: { category: 'support', choreography: 'life-wave', cue: 'tide-gather', impact: 'restoring-surge' },
       aegis: { category: 'support', choreography: 'golden-barrier', cue: 'rune-forge', impact: 'shield-lock' },
-      command: { category: 'support', choreography: 'fleet-command', cue: 'signal-rise', impact: 'fleet-salvo' }
+      command: { category: 'support', choreography: 'fleet-command', cue: 'signal-rise', impact: 'fleet-salvo' },
+      flushElemental: { category: 'hybrid', choreography: 'elemental-surge', cue: 'elemental-charge', impact: 'elemental-burst' }
     });
   });
 
@@ -645,12 +790,43 @@ test.describe('Tarot Kingdom summon integration', () => {
       type: 'skill',
       attackStopped: true,
       damage: 0,
-      summon: { id: 'treasure_slime', effectKey: 'tide' }
+      summon: { id: 'flush_cup_low', effectKey: 'flushElemental' }
     });
     expect(audit.after[0]).toBeGreaterThan(audit.before[0]);
     expect(audit.after[1]).toBeGreaterThan(audit.before[1]);
     expect(audit.after[2]).toBeGreaterThan(audit.before[2]);
     expect(audit.after[3]).toBe(0);
+  });
+
+  test('a five-card role with Major Arcana keeps the role effect and invokes the highest Major artwork and RPG effect', async ({ page }) => {
+    const hand = [
+      { id: 'major-emperor', kind: 'major', suit: 'None', number: 4 },
+      { id: 'minor-four-sword', kind: 'minor', suit: 'Sword', number: 4 },
+      { id: 'minor-four-wand', kind: 'minor', suit: 'Wand', number: 4 },
+      { id: 'minor-seven-cup', kind: 'minor', suit: 'Cup', number: 7 },
+      { id: 'minor-seven-pentacle', kind: 'minor', suit: 'Pentacle', number: 7 },
+      { id: 'keep-card', kind: 'minor', suit: 'Cup', number: 2 }
+    ];
+    const audit = await page.evaluate((cards) => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({ withTrick: false, turnIndex: 0, handsBySeat: [cards] });
+      const result = debug.battlePlayCards(0, cards.slice(0, 5).map((card) => card.id), { resolve: false });
+      return result.state.battle.events.at(-1);
+    }, hand);
+
+    expect(audit).toMatchObject({
+      type: 'skill',
+      summon: {
+        version: 2,
+        id: 'major_summon_04',
+        artSource: 'major',
+        majorNumber: 4,
+        roleKey: 'FullHouse'
+      },
+      majorNumber: 4
+    });
+    expect(audit.summon.roleEffectKey).not.toBe('');
+    expect(audit.majorSkillName).not.toBe('');
   });
 
   test('schema 5 completes without summons and keeps the former skill duration', async ({ page }) => {
@@ -683,6 +859,25 @@ test.describe('Tarot Kingdom summon integration', () => {
       impactOffsetMs: 1080,
       hpRevealOffsetMs: 1200
     });
+  });
+
+  test('schema 24 keeps legacy summon selection while schema 25 enables suit and Major artwork', async ({ page }) => {
+    const versions = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({ withTrick: false });
+      const base = debug.battleState();
+      const state = {
+        ...base,
+        rules: { ...base.rules, summonSelectionVersion: 2 }
+      };
+      const legacy = debug.battleDeserialize({ schema: 24, revision: 1, state });
+      const current = debug.battleDeserialize({ schema: 25, revision: 2, state });
+      return {
+        legacy: legacy.rules.summonSelectionVersion,
+        current: current.rules.summonSelectionVersion
+      };
+    });
+    expect(versions).toEqual({ legacy: 1, current: 2 });
   });
 
   test('normal attack timelines follow each shared weapon impact profile', async ({ page }) => {

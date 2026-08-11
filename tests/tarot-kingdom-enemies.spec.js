@@ -93,7 +93,7 @@ test.describe('Tarot Kingdom enemy combat profiles', () => {
     expect(enemies.getTarotKingdomEnemyAilmentChance({ chance: 0.4 }, 999)).toBe(0.4);
   });
 
-  test('all monsters use combat-safe ailments while legacy battles keep the original set', async () => {
+  test('status V2 replaces weaken with curse, seal and petrify while older battles keep their registry', async () => {
     const enemies = await loadEnemyModule();
     const { PIXEL_MONSTERS_ROSTER } = await loadMonsterManifest();
     const ailments = PIXEL_MONSTERS_ROSTER
@@ -102,13 +102,26 @@ test.describe('Tarot Kingdom enemy combat profiles', () => {
     const legacyAilments = PIXEL_MONSTERS_ROSTER
       .map((monster) => enemies.getTarotKingdomEnemyAilmentProfile(monster.id, 1))
       .filter(Boolean);
+    const statusV2Ailments = PIXEL_MONSTERS_ROSTER
+      .map((monster) => enemies.getTarotKingdomEnemyAilmentProfile(monster.id, 3))
+      .filter(Boolean);
 
     expect(ailments).toHaveLength(50);
     expect(new Set(ailments.map((ailment) => ailment.statusKey)))
       .toEqual(new Set([
         'poison', 'burn', 'blind', 'paralysis', 'fear', 'confusion',
-        'wet', 'weaken', 'vulnerable', 'slow', 'silence'
+        'wet', 'weaken', 'vulnerable', 'slow', 'silence', 'freeze'
       ]));
+    expect(new Set(statusV2Ailments.map((ailment) => ailment.statusKey)))
+      .toEqual(new Set([
+        'poison', 'burn', 'blind', 'paralysis', 'fear', 'confusion',
+        'wet', 'curse', 'seal', 'petrify', 'vulnerable', 'slow', 'silence', 'freeze'
+      ]));
+    expect(enemies.getTarotKingdomEnemyAilmentProfile('ismartal-vol1-monster-07', 3).statusKey).toBe('curse');
+    expect(enemies.getTarotKingdomEnemyAilmentProfile('ismartal-vol2-monster-10', 3).statusKey).toBe('seal');
+    expect(enemies.getTarotKingdomEnemyAilmentProfile('ismartal-vol3-monster-08', 3)).toMatchObject({
+      statusKey: 'petrify', scope: 'single', chance: 0.18
+    });
     expect(legacyAilments).toHaveLength(21);
     expect(new Set(legacyAilments.map((ailment) => ailment.statusKey)))
       .toEqual(new Set(['poison', 'burn', 'blind', 'paralysis']));
@@ -117,6 +130,11 @@ test.describe('Tarot Kingdom enemy combat profiles', () => {
       expect(ailment.chance).toBeGreaterThan(0);
       expect(ailment.chance).toBeLessThanOrEqual(0.5);
       expect(ailment.charges).toBeGreaterThan(0);
+    });
+    statusV2Ailments.forEach((ailment) => {
+      expect(['single', 'area', 'both']).toContain(ailment.scope);
+      expect(ailment.chance).toBeGreaterThan(0);
+      expect(ailment.chance).toBeLessThanOrEqual(0.5);
     });
   });
 

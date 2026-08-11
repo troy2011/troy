@@ -1,4 +1,4 @@
-import { TAROT_KINGDOM_NEGATIVE_STATUS_KEYS } from './tarotKingdomStatuses.js?v=20260811-status-v1';
+import { TAROT_KINGDOM_NEGATIVE_STATUS_KEYS } from './tarotKingdomStatuses.js?v=20260812-status-v2';
 
 const SUIT_ELEMENT = Object.freeze({ Wand: 'fire', Cup: 'water', Sword: 'wind', Pentacle: 'earth' });
 const NEGATIVE_STATUSES = TAROT_KINGDOM_NEGATIVE_STATUS_KEYS;
@@ -269,7 +269,7 @@ function cupSteps(entry, context, r) {
     const pa = context.players[a]; const pb = context.players[b];
     return pa.hp / pa.maxHp - pb.hp / pb.maxHp;
   }).map((index) => heal(entry, context, index, 1 + 0.25 * r)).filter(Boolean);
-  if (entry.rank === 7) return [step('cleanse', entry, { targetType: 'player', targetIndex: actor, statusKeys: ['paralysis', 'sleep', 'freeze', 'confusion'], chance: probability(40 + 6 * r, context), score: 18 })];
+  if (entry.rank === 7) return [step('cleanse', entry, { targetType: 'player', targetIndex: actor, statusKeys: ['paralysis', 'sleep', 'freeze', 'petrify', 'confusion'], chance: probability(40 + 6 * r, context), score: 18 })];
   if (entry.rank === 8) return all.map((index) => heal(entry, context, index, 0.5 + 0.1 * r)).filter(Boolean);
   if (entry.rank === 9) return [status(entry, context, 'blind', 100, { potency: numeric(5 + 2 * r, entry, context, 50), charges: 1 })];
   if (entry.rank === 10) {

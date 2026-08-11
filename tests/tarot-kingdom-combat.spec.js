@@ -18,13 +18,13 @@ function loadCombatModule() {
     const statusesUrl = `data:text/javascript;base64,${Buffer.from(fs.readFileSync(statusesPath, 'utf8')).toString('base64')}`;
     const v3Path = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomEffectsV3.js');
     const v3Source = fs.readFileSync(v3Path, 'utf8')
-      .replace("'./tarotKingdomStatuses.js?v=20260811-status-v1'", `'${statusesUrl}'`);
+      .replace(/'\.\/tarotKingdomStatuses\.js\?v=[^']+'/, `'${statusesUrl}'`);
     const v3Url = `data:text/javascript;base64,${Buffer.from(v3Source).toString('base64')}`;
     const modulePath = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomCombat.js');
     const effectsPath = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomEffects.js');
     const effectsSource = fs.readFileSync(effectsPath, 'utf8')
-      .replace("'./tarotKingdomEffectsV3.js?v=20260811-resonance-per-card1'", `'${v3Url}'`)
-      .replace("'./tarotKingdomStatuses.js?v=20260811-status-v1'", `'${statusesUrl}'`);
+      .replace(/'\.\/tarotKingdomEffectsV3\.js\?v=[^']+'/, `'${v3Url}'`)
+      .replace(/'\.\/tarotKingdomStatuses\.js\?v=[^']+'/, `'${statusesUrl}'`);
     const effectsUrl = `data:text/javascript;base64,${Buffer.from(effectsSource).toString('base64')}`;
     const source = fs.readFileSync(modulePath, 'utf8')
       .replace(/'\.\/tarotKingdomEffects\.js[^']*'/, `'${effectsUrl}'`);

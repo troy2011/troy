@@ -76,6 +76,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.final.players.map((player) => player.hp)).toEqual([100, 88, 87, 87]);
     expect(audit.final.battle.events.filter((event) => event.type === 'enemy-single')).toEqual([]);
     expect(audit.final.battle.events.filter((event) => event.type === 'enemy-area')).toHaveLength(1);
+    expect(audit.final.battle.events.find((event) => event.type === 'enemy-area')?.defendingPlayerIndexes)
+      .toEqual([1]);
     expect(audit.final.battle.events.find((event) => event.type === 'enemy-area')?.damages)
       .toContainEqual(expect.objectContaining({
         playerIndex: 1,
@@ -226,7 +228,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       Math.floor(baseDamage * 1.5),
       Math.floor(baseDamage * 1.75)
     ]);
-    expect(audit.published.schema).toBe(22);
+    expect(audit.published.schema).toBe(25);
     expect(audit.published.state.rules.roleChainVersion).toBe(1);
     expect(audit.published.state.trick.roleChain).toEqual({ count: 4, multiplier: 1.75 });
     expect(audit.cleared.trick).toBeNull();
@@ -626,6 +628,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       ];
 
       debug.battleScenario({
+        rules: { statusEffectsVersion: 1 },
         withTrick: false,
         enemyHp: 400,
         enemyDefense: 0,
@@ -647,6 +650,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       const paralysis = debug.battlePlayOne(0, { resolve: false });
 
       debug.battleScenario({
+        rules: { statusEffectsVersion: 1 },
         withTrick: false,
         enemyHp: 400,
         enemyDefense: 0,
@@ -669,6 +673,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       const blind = debug.battlePlayOne(0, { resolve: false });
 
       debug.battleScenario({
+        rules: { statusEffectsVersion: 1 },
         withTrick: false,
         enemyHp: 400,
         enemyDefense: 0,
@@ -774,21 +779,104 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.blockedBurn.state.battle.effects.enemy.burn).toBeUndefined();
   });
 
-  test('schema 22 enables the unified status rules while schema 21 remains legacy', async ({ page }) => {
+  test('schema 23 enables status V2 while schema 22 keeps V1 and schema 21 remains legacy', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       const currentPayload = debug.battlePublicState();
       const currentState = debug.battleState();
+      const v1Payload = JSON.parse(JSON.stringify(currentPayload));
+      v1Payload.schema = 22;
+      v1Payload.state.rules.statusEffectsVersion = 2;
+      const v1State = debug.battleDeserialize(v1Payload);
       const legacyPayload = JSON.parse(JSON.stringify(currentPayload));
       legacyPayload.schema = 21;
-      legacyPayload.state.rules.statusEffectsVersion = 1;
+      legacyPayload.state.rules.statusEffectsVersion = 2;
       const legacyState = debug.battleDeserialize(legacyPayload);
-      return { currentPayload, currentState, legacyState };
+      return { currentPayload, currentState, v1State, legacyState };
     });
 
-    expect(audit.currentPayload.schema).toBe(22);
-    expect(audit.currentState.rules.statusEffectsVersion).toBe(1);
+    expect(audit.currentPayload.schema).toBe(25);
+    expect(audit.currentState.rules.statusEffectsVersion).toBe(2);
+    expect(audit.v1State.rules.statusEffectsVersion).toBe(1);
     expect(audit.legacyState.rules.statusEffectsVersion).toBe(0);
+  });
+
+  test('status V2 resolves control replacement, clear counters, curse, petrify, seal and modifier offset', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const card = (id, suit, number) => ({ id, kind: 'minor', suit, number });
+
+      debug.battleScenario({
+        rules: { statusEffectsVersion: 2 },
+        withTrick: false,
+        enemyHp: 500,
+        enemyDefense: 0,
+        handsBySeat: [[card('paralysis-play', 'Sword', 4), card('paralysis-rest', 'Cup', 6)]]
+      });
+      debug.battleApplyStatus('player-0', 'sleep');
+      debug.battleApplyStatus('player-0', 'freeze');
+      const controlReplacement = debug.battleState();
+      debug.battleApplyStatus('player-0', 'paralysis', { potency: 40, remainingClears: 2 });
+      debug.battleSetCombatRandom(0);
+      const paralysisPlay = debug.battlePlayOne(0, { resolve: false });
+      const afterOneClear = debug.battleAdvanceEffectTurn(false).state;
+      const afterTwoClears = debug.battleAdvanceEffectTurn(false).state;
+
+      debug.battleScenario({
+        rules: { statusEffectsVersion: 2 },
+        hpBySeat: [50, 100, 100, 100],
+        combatBySeat: [{ maxHp: 100 }]
+      });
+      debug.battleSetEffects({
+        enemy: {}, party: {}, players: [{
+          curse: { key: 'curse', label: '呪い', remainingClears: 2 },
+          regen: { key: 'regen', label: 'リジェネ', potency: 20, remainingTurns: 2, expiresOn: 'turn' }
+        }, {}, {}, {}]
+      });
+      const cursed = debug.battleAdvanceEffectTurn(true).state;
+
+      debug.battleScenario({ rules: { statusEffectsVersion: 2 } });
+      debug.battleApplyModifier('player-0', 'powerUp', { potency: 30 });
+      const offset = debug.battleApplyModifier('player-0', 'powerDown', { potency: 20 }).state;
+      debug.battleApplyStatus('player-1', 'petrify');
+      const petrified = {
+        conscious: debug.battleIsPlayerConscious(1),
+        state: debug.battleState()
+      };
+
+      const roleCards = [
+        card('seal-2a', 'Cup', 2), card('seal-2b', 'Sword', 2), card('seal-2c', 'Wand', 2),
+        card('seal-3a', 'Cup', 3), card('seal-3b', 'Pentacle', 3)
+      ];
+      debug.battleScenario({
+        rules: { statusEffectsVersion: 2 },
+        withTrick: false,
+        enemyHp: 500,
+        handsBySeat: [roleCards]
+      });
+      debug.battleApplyStatus('player-0', 'seal', { remainingClears: 2 });
+      const sealedRole = debug.battlePlayCards(0, roleCards.map((entry) => entry.id)).state;
+
+      return { controlReplacement, paralysisPlay, afterOneClear, afterTwoClears, cursed, offset, petrified, sealedRole };
+    });
+
+    expect(audit.controlReplacement.battle.effects.players[0].freeze).toBeTruthy();
+    expect(audit.controlReplacement.battle.effects.players[0].sleep).toBeUndefined();
+    expect(audit.paralysisPlay.battle.events.at(-1)).toMatchObject({ attackBlocked: true, damage: 0 });
+    expect(audit.paralysisPlay.battle.effects.players[0].paralysis.remainingClears).toBe(2);
+    expect(audit.afterOneClear.battle.effects.players[0].paralysis.remainingClears).toBe(1);
+    expect(audit.afterTwoClears.battle.effects.players[0].paralysis).toBeUndefined();
+    expect(audit.cursed.players[0].hp).toBe(50);
+    expect(audit.cursed.battle.effects.players[0].curse.remainingClears).toBe(1);
+    expect(audit.offset.battle.effects.players[0].powerUp.potency).toBe(10);
+    expect(audit.offset.battle.effects.players[0].powerDown).toBeUndefined();
+    expect(audit.petrified.conscious).toBe(false);
+    expect(audit.petrified.state.players[1].hp).toBeGreaterThan(0);
+    expect(audit.sealedRole.trick.cardsTable).toHaveLength(5);
+    expect(audit.sealedRole.battle.events.at(-1)).toMatchObject({ damage: 0, summon: null });
+    expect(audit.sealedRole.battle.events.at(-1).effects).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'summon-sealed', statusKey: 'seal' })
+    ]));
   });
 
   test('expanded ailments alter combat without preventing the played card from reaching the field', async ({ page }) => {
@@ -800,6 +888,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       ]];
       const run = (statusKey, effect, randomValue = 0, options = {}) => {
         debug.battleScenario({
+          rules: { statusEffectsVersion: 1 },
           withTrick: false,
           enemyHp: 500,
           enemyDefense: 0,
@@ -839,6 +928,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       });
       const passDamage = (vulnerable) => {
         debug.battleScenario({
+          rules: { statusEffectsVersion: 1 },
           turnIndex: 1,
           leaderIndex: 0,
           hpBySeat: [100, 100, 100, 100],
@@ -910,7 +1000,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
 
     expect(audit.inflicted.battle.effects.players[1].poison).toMatchObject({
       source: 'enemy',
-      potency: 4,
+      potency: 3,
       remainingActions: 3,
       expiresOn: 'status'
     });
@@ -1041,7 +1131,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
   test('combat statuses resolve DoT, action stop, blind, cover and area guard in order', async ({ page }) => {
     const audit = await page.evaluate(({ combatBySeat }) => {
       const debug = window.TarotKingdomDebug;
-      debug.battleScenario({ turnIndex: 1, leaderIndex: 0, hpBySeat: [100, 100, 100, 100], combatBySeat });
+      debug.battleScenario({ rules: { statusEffectsVersion: 1 }, turnIndex: 1, leaderIndex: 0, hpBySeat: [100, 100, 100, 100], combatBySeat });
       debug.battleSetEffects({
         enemy: {
           poison: { key: 'poison', potency: 5, charges: null },
@@ -1051,7 +1141,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       });
       const stopped = debug.battlePass(1);
 
-      debug.battleScenario({ turnIndex: 1, leaderIndex: 0, hpBySeat: [100, 100, 100, 100], combatBySeat });
+      debug.battleScenario({ rules: { statusEffectsVersion: 1 }, turnIndex: 1, leaderIndex: 0, hpBySeat: [100, 100, 100, 100], combatBySeat });
       debug.battleSetEffects({
         enemy: { blind: { key: 'blind', potency: 25, charges: null } },
         party: { cover: { key: 'cover', potency: 27, charges: 1, coverIndex: 0 } },
@@ -1060,6 +1150,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       const covered = debug.battlePass(1);
 
       debug.battleScenario({
+        rules: { statusEffectsVersion: 1 },
         turnIndex: 1, leaderIndex: 0, pass: [false, false, true, true],
         hpBySeat: [100, 100, 100, 100], combatBySeat
       });
@@ -1109,11 +1200,18 @@ test.describe('Tarot Kingdom character battle flow', () => {
       resonanceName: '盾割り',
       weaponEffectName: '有効打'
     });
+    const effectMessage = result.battle.events.at(-1).effectMessage;
+    expect(effectMessage).toMatch(/敵に\d+ダメージ/);
+    expect(effectMessage).not.toContain('盾割り');
+    expect(effectMessage).not.toContain('有効打');
     expect(result.battle.resonanceTriggers).toEqual([]);
     expect(result.transition.endsAt - result.transition.startedAt).toBe(1204);
     await expect(page.locator('.tarot-kingdom-status-tray, .tarot-kingdom-status-icon')).toHaveCount(0);
     await page.waitForTimeout(810);
     await expect(page.locator('.tarot-kingdom-effect-banner')).toHaveText('盾割り');
+    await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText(effectMessage);
+    await page.waitForTimeout(2450);
+    await expect(page.locator('#tarotKingdomSelectedEffectText')).not.toHaveText(effectMessage);
   });
 
   test('call resonance includes the reused field card and uses only the caller loadout', async ({ page }) => {
@@ -1416,8 +1514,12 @@ test.describe('Tarot Kingdom character battle flow', () => {
     await expect(guardian.locator('#tarotKingdomGuardianPassiveText')).toHaveText('');
 
     const exactCard = page.locator('#tarotKingdomHand [data-card-id="hud-sword-5"]');
-    await expect(exactCard.locator('.tarot-card-resonance-mark')).toHaveText('共');
-    await expect(exactCard.locator('[aria-label="装備カード共鳴"]')).toHaveCount(1);
+    await expect(exactCard).toHaveClass(/is-resonant/);
+    await expect(exactCard.locator('.tarot-card-resonance-mark')).toHaveCount(0);
+    await expect(exactCard.locator('.tarot-card-number')).toHaveCSS(
+      'animation-name',
+      'tarotKingdomResonanceNumberGlow'
+    );
     await exactCard.click();
     await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText('V / 5スキップ');
     await expect(page.locator('#tarotKingdomGuardianPassiveLabel')).toHaveText('共鳴');
@@ -1432,7 +1534,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     await expect(awakenedCard.locator('.tarot-card-resonance-mark')).toHaveCount(0);
     await expect(awakenedCard.locator('[aria-label="守護アルカナ覚醒"]')).toHaveCount(0);
     await awakenedCard.click();
-    await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText('法王 / 5スキップ');
+    await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText('法王 / 次の2人をスキップ');
     await expect(page.locator('#tarotKingdomSelectedEffectText')).not.toContainText('共鳴');
     await expect(page.locator('#tarotKingdomGuardianPassiveLabel')).toHaveText('守護');
     await expect(page.locator('#tarotKingdomGuardianPassiveName')).toHaveText('魔導士');
@@ -1511,7 +1613,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       };
     });
 
-    expect(audit.currentRules.arcanaLoadoutEffectsVersion).toBe(3);
+    expect(audit.currentRules.arcanaLoadoutEffectsVersion).toBe(4);
     expect(audit.currentEvent).toMatchObject({
       majorAwakened: false,
       awakeningId: ''
@@ -1666,7 +1768,10 @@ test.describe('Tarot Kingdom character battle flow', () => {
     });
 
     expect(audit.priestessV3.players[0].hp).toBe(55);
-    expect(audit.priestessV3.battle.events.at(-1)).toMatchObject({ guardianPassiveName: '白魔道士' });
+    expect(audit.priestessV3.battle.events.at(-1)).toMatchObject({
+      guardianPassiveName: '白魔道士',
+      effectMessage: '味方のHPを5回復'
+    });
     expect(audit.priestessV3.battle.events.at(-1).effects).toEqual(expect.arrayContaining([
       expect.objectContaining({ source: 'guardian-passive', label: '白魔道士', amount: 5 })
     ]));
@@ -1741,7 +1846,106 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.copiedEffects[0].displayAmount).toBe(Math.max(1, Math.floor(audit.sourceEffect.displayAmount * 0.5)));
   });
 
-  test('compact ailments and resonance marks fit 390px and 900px layouts', async ({ page }) => {
+  test('guardian v4 Temperance can copy the owner previous resonance and Judgment revives only the earliest KO', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const character = (tarotDeck, guardianArcana = null) => ({ version: 4, tarotDeck, guardianArcana });
+      const swordFive = { id: 'self-copy-sword-5', kind: 'minor', suit: 'Sword', number: 5 };
+      const swordFourteen = { id: 'self-copy-sword-14', kind: 'minor', suit: 'Sword', number: 14 };
+      const temperanceCharacter = character([
+        { slot: 0, suit: 'Sword', rank: 5, cardLevel: 1, resonanceId: 'sword-5' },
+        { slot: 1, suit: 'Sword', rank: 14, cardLevel: 1, resonanceId: 'sword-14' }
+      ], {
+        itemId: 'tarot_major_14', number: 14, cardLevel: 1, passiveId: 'guardian-v4-14'
+      });
+      const runSelfCopy = (effectsVersion) => {
+        debug.battleScenario({
+          tableCard: { id: `self-copy-field-${effectsVersion}`, kind: 'minor', suit: 'Sword', number: 3 },
+          turnIndex: 0,
+          enemyHp: 5000,
+          enemyMaxHp: 5000,
+          enemyDefense: 0,
+          handsBySeat: [[
+            swordFive,
+            swordFourteen,
+            { id: `self-copy-reserve-${effectsVersion}`, kind: 'minor', suit: 'Cup', number: 9 }
+          ]],
+          charactersBySeat: [temperanceCharacter],
+          rules: { arcanaLoadoutEffectsVersion: effectsVersion }
+        });
+        debug.battleSetCombatRandom(0);
+        debug.battlePlayCards(0, [swordFive.id], { resolve: true });
+        const copiedAttempt = debug.battlePlayCards(0, [swordFourteen.id], { resolve: false });
+        const copiedEvent = copiedAttempt.state.battle.events.at(-1);
+        return {
+          ok: copiedAttempt.ok,
+          reason: copiedAttempt.reason || '',
+          effects: (copiedEvent?.effects || []).filter((effect) => effect.source === 'guardian-14-copy')
+        };
+      };
+
+      const justice = { id: 'guardian-judgment-eleven', kind: 'minor', suit: 'Sword', number: 11 };
+      debug.battleScenario({
+        tableCard: { id: 'guardian-judgment-field-ten', kind: 'minor', suit: 'Cup', number: 10 },
+        turnIndex: 0,
+        hpBySeat: [100, 0, 0, 100],
+        koOrder: [2, 1],
+        handsBySeat: [[justice, { id: 'guardian-judgment-reserve', kind: 'minor', suit: 'Wand', number: 9 }]],
+        charactersBySeat: [character([], {
+          itemId: 'tarot_major_20', number: 20, cardLevel: 1, passiveId: 'guardian-v4-20'
+        })]
+      });
+      const judgment = debug.battlePlayCards(0, [justice.id], { resolve: false }).state;
+      return {
+        v4SelfCopy: runSelfCopy(4),
+        v3SelfCopy: runSelfCopy(3),
+        judgmentHp: judgment.players.map((player) => player.hp),
+        judgmentEffects: (judgment.battle.events.at(-1)?.effects || []).filter((effect) => effect.source === 'guardian-passive')
+      };
+    });
+
+    expect(audit.v4SelfCopy).toMatchObject({ ok: true, reason: '' });
+    expect(audit.v4SelfCopy.effects).toHaveLength(1);
+    expect(audit.v4SelfCopy.effects[0]).toMatchObject({ copied: true, success: true });
+    expect(audit.v3SelfCopy).toMatchObject({ ok: true, reason: '', effects: [] });
+    expect(audit.judgmentHp[1]).toBe(0);
+    expect(audit.judgmentHp[2]).toBeGreaterThan(0);
+    expect(audit.judgmentEffects).toHaveLength(1);
+    expect(audit.judgmentEffects[0]).toMatchObject({
+      label: '審判者',
+      targetIndex: 2
+    });
+  });
+
+  test('guardian v4 Hermit starts at forty evasion points', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const run = (withGuardian) => {
+        debug.battleScenario({
+          tableCard: { id: `hermit-field-${withGuardian}`, kind: 'minor', suit: 'Cup', number: 4 },
+          turnIndex: 0,
+          handsBySeat: [[{ id: `hermit-hand-${withGuardian}`, kind: 'minor', suit: 'Wand', number: 6 }]],
+          charactersBySeat: [{
+            version: 4,
+            guardianArcana: withGuardian
+              ? { itemId: 'tarot_major_09', number: 9, cardLevel: 1, passiveId: 'guardian-v4-9' }
+              : null
+          }]
+        });
+        debug.battleSetCombatRandom(0.99);
+        const state = debug.battlePass(0);
+        const event = state.battle.events.findLast((entry) => entry.type === 'enemy-single');
+        return event?.damages?.[0]?.hitChance ?? null;
+      };
+      return { normal: run(false), hermit: run(true) };
+    });
+
+    expect(audit.normal).not.toBeNull();
+    expect(audit.hermit).not.toBeNull();
+    expect(audit.normal - audit.hermit).toBeCloseTo(0.4, 5);
+  });
+
+  test('compact ailments and resonance number glow fit 390px and 900px layouts', async ({ page }) => {
     for (const width of [390, 900]) {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 1200 });
       const audit = await page.evaluate(() => {
@@ -1762,9 +1966,11 @@ test.describe('Tarot Kingdom character battle flow', () => {
             freeze: { key: 'freeze', label: '凍結', charges: 1 }
           }, {}, {}, {}]
         });
-        const nodes = Array.from(document.querySelectorAll('.tarot-card-resonance-mark'));
+        const nodes = Array.from(document.querySelectorAll('.tarot-card.is-resonant .tarot-card-number'));
         return {
           overflowing: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+          resonanceMarkerCount: document.querySelectorAll('.tarot-card-resonance-mark').length,
+          resonanceAnimations: nodes.map((node) => getComputedStyle(node).animationName),
           legacyStatusMarkerCount: document.querySelectorAll('.tarot-kingdom-status-tray, .tarot-kingdom-status-icon').length,
           ailmentLabels: Array.from(document.querySelectorAll('[data-player-index="0"] .tarot-kingdom-battle-status-icon')).map((node) => node.getAttribute('aria-label')),
           primaryStatus: document.querySelector('[data-player-index="0"] .tarot-kingdom-combat-status-fx')?.dataset.status || '',
@@ -1775,9 +1981,11 @@ test.describe('Tarot Kingdom character battle flow', () => {
         };
        });
        expect(audit.overflowing).toBe(false);
+       expect(audit.resonanceMarkerCount).toBe(0);
+       expect(audit.resonanceAnimations).toEqual(['tarotKingdomResonanceNumberGlow']);
        expect(audit.legacyStatusMarkerCount).toBe(0);
-       expect(audit.ailmentLabels).toEqual(['睡眠', '凍結']);
-       expect(audit.primaryStatus).toBe('sleep');
+       expect(audit.ailmentLabels).toEqual(['凍結', '防御']);
+       expect(audit.primaryStatus).toBe('freeze');
       expect(audit.boxes.length).toBeGreaterThanOrEqual(1);
       audit.boxes.forEach((box) => {
         expect(box.left).toBeGreaterThanOrEqual(-0.5);
@@ -1871,7 +2079,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.rush.battle.outcome).toBeNull();
     expect(audit.rush.players[0].hand).toHaveLength(1);
     expect(audit.rush.rules.enemyDefeatMode).toBe('hand-empty');
-    expect(audit.hostPublicState.schema).toBe(22);
+    expect(audit.hostPublicState.schema).toBe(25);
     expect(audit.hostPublicState.state.rules.enemyDefeatMode).toBe('hand-empty');
     expect(audit.legacy.rules.enemyDefeatMode).toBe('hand-empty');
   });
@@ -2451,7 +2659,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       setPower: 1,
       syncedSetPower: 1
     });
-    expect(audit.openingEffects['5']).toMatchObject({ openingNumber: 5, turn: 2, areaSealed: true });
+    expect(audit.openingEffects['5']).toMatchObject({ openingNumber: 5, turn: 3, areaSealed: true });
     expect(audit.openingEffects['8']).toMatchObject({ openingNumber: 8, callOnly: true, petrified: true });
     expect(audit.openingEffects['11']).toMatchObject({ openingNumber: 11, reverse: true });
     expect(audit.openingEffects['14']).toMatchObject({ openingNumber: 14, lockSuit: null });
@@ -2466,6 +2674,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.roles.devilFalseAceStraight).toBeNull();
     expect(audit.roles.minorAceStraight).toMatchObject({ key: 'Straight', primary: [5] });
     expect(audit.roles.devilHighStraight).toMatchObject({ key: 'Straight', primary: [15] });
+    expect(audit.roles.fourAcesAndDevil).toMatchObject({ key: 'FourKind', primary: [15, 15] });
+    expect(audit.roles.fourKingsAndFool).toMatchObject({ key: 'FiveKind', primary: [14] });
     expect(audit.roles.worldCallOk).toBe(true);
     expect(audit.roles.worldCallRole).toMatchObject({ key: 'TheWorld', baseRate: 3 });
     expect(audit.roles.invalidMajorCall).toEqual({
@@ -2538,7 +2748,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.judgment.finish.reason).toContain('単独上がり');
 
     expect(audit.finish.ace.ok).toBe(false);
-    expect(audit.finish.world.ok).toBe(false);
+    expect(audit.finish.world.ok).toBe(true);
     expect(audit.finish.tower.ok).toBe(true);
     expect(audit.finish.leaveAce.ok).toBe(true);
     expect(audit.finish.worldRole).toEqual({ ok: true, roleKey: 'TheWorld' });
@@ -2548,7 +2758,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.worldReverse.worldOverMinorNormal.reason).toContain('大アルカナ1枚');
     expect(audit.worldReverse.worldOverMinorReverse.ok).toBe(false);
     expect(audit.worldReverse.worldOverMajorNormal.ok).toBe(true);
-    expect(audit.worldReverse.worldOverMajorReverse.ok).toBe(true);
+    expect(audit.worldReverse.worldOverMajorReverse.ok).toBe(false);
+    expect(audit.worldReverse.worldOverMajorReverse.reason).toContain('11バック中');
     expect(audit.worldReverse.worldOverMajorPair.ok).toBe(false);
     expect(audit.worldReverse.worldOverMajorPair.reason).toContain('大アルカナ1枚');
     expect(audit.worldReverse.minorOverWorldNormal.ok).toBe(false);
@@ -2645,6 +2856,55 @@ test.describe('Tarot Kingdom character battle flow', () => {
     }
     expect(audit.descriptions['20']).toContain('A不可 / 11バック / 墓地回収');
     expect(audit.descriptions['21']).toContain('大アルカナ1枚に返して即クリア');
+  });
+
+  test('major Hierophant skips the next two living opponents while minor five keeps its normal count', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const run = ({ playerCount, hpBySeat, card }) => {
+        debug.battleScenario({
+          playerCount,
+          tableCard: { id: `skip-field-${card.kind}-${playerCount}`, kind: 'minor', suit: 'Cup', number: 4 },
+          turnIndex: 0,
+          hpBySeat,
+          handsBySeat: [[card, { id: `skip-reserve-${card.kind}-${playerCount}`, kind: 'minor', suit: 'Wand', number: 9 }]]
+        });
+        debug.battlePlayCards(0, [card.id], { resolve: false });
+        const state = debug.battleResolveTransition();
+        return {
+          targetIndexes: state.skipNotice?.targetIndexes || [],
+          turn: state.turn,
+          message: state.message
+        };
+      };
+      return {
+        majorThree: run({
+          playerCount: 3,
+          hpBySeat: [100, 100, 100],
+          card: { id: 'major-five-three', kind: 'major', suit: 'None', number: 5 }
+        }),
+        majorFour: run({
+          playerCount: 4,
+          hpBySeat: [100, 100, 100, 100],
+          card: { id: 'major-five-four', kind: 'major', suit: 'None', number: 5 }
+        }),
+        majorKo: run({
+          playerCount: 4,
+          hpBySeat: [100, 0, 100, 0],
+          card: { id: 'major-five-ko', kind: 'major', suit: 'None', number: 5 }
+        }),
+        minor: run({
+          playerCount: 4,
+          hpBySeat: [100, 100, 100, 100],
+          card: { id: 'minor-five-four', kind: 'minor', suit: 'Cup', number: 5 }
+        })
+      };
+    });
+
+    expect(audit.majorThree.turn).toBe(0);
+    expect(audit.majorFour.turn).toBe(3);
+    expect(audit.majorKo.turn).toBe(0);
+    expect(audit.minor.turn).toBe(2);
   });
 
   test('three consecutive blocked-leader draws knock out the player and a successful play resets the count', async ({ page }) => {
@@ -2922,7 +3182,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       effectiveUnits: 2,
       healRate: 0.2
     });
-    expect(audit.publicState.schema).toBe(22);
+    expect(audit.publicState.schema).toBe(25);
     expect(audit.publicState.state.stage.monsters).toHaveLength(4);
     expect(audit.atmosphereTone).toBe('sunlit-coral');
     expect(audit.atmosphereCss).toContain('74, 159, 196');
@@ -2951,7 +3211,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.settlementStart.players).toHaveLength(3);
     expect(audit.settled.roundSettlement.rows).toHaveLength(2);
     expect(audit.settled.dealer).toBe(0);
-    expect(audit.published.schema).toBe(22);
+    expect(audit.published.schema).toBe(25);
     expect(audit.published.state.rules.playerCount).toBe(3);
     expect(audit.published.state.players).toHaveLength(3);
   });
@@ -3231,17 +3491,17 @@ test.describe('Tarot Kingdom character battle flow', () => {
         current
       };
     });
-    expect(audit.currentPublic.schema).toBe(22);
+    expect(audit.currentPublic.schema).toBe(25);
     expect(audit.currentPublic.state.rules).toMatchObject({
       playerCount: 4,
       combatEffectsVersion: 1,
-      arcanaLoadoutEffectsVersion: 3,
+      arcanaLoadoutEffectsVersion: 4,
       roleChainVersion: 1,
       summonVersion: 1,
       graveTimingVersion: 1,
       majorArcanaGateVersion: 1,
-      majorArcanaSpecialVersion: 1,
-      majorBattleEffectsVersion: 2,
+      majorArcanaSpecialVersion: 2,
+      majorBattleEffectsVersion: 3,
       elementAffinityVersion: 2,
       carryHpBetweenRoundsVersion: 1,
       forcedDrawDeathVersion: 1,
@@ -3274,8 +3534,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.current.rules.summonVersion).toBe(1);
     expect(audit.current.rules.graveTimingVersion).toBe(1);
     expect(audit.current.rules.majorArcanaGateVersion).toBe(1);
-    expect(audit.current.rules.majorArcanaSpecialVersion).toBe(1);
-    expect(audit.current.rules.majorBattleEffectsVersion).toBe(2);
+    expect(audit.current.rules.majorArcanaSpecialVersion).toBe(2);
+    expect(audit.current.rules.majorBattleEffectsVersion).toBe(3);
     expect(audit.current.rules.elementAffinityVersion).toBe(2);
     expect(audit.current.rules.enemyDefeatMode).toBe('hp-zero');
   });

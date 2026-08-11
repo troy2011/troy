@@ -638,8 +638,8 @@ export const PIXEL_MONSTERS_ROSTER = [
     "isBoss": false,
     "idleAnchor": {
       "x": 38.0,
-      "y": 41,
-      "mode": "air"
+      "y": 36.5,
+      "mode": "ground"
     },
     "animations": {
       "idle": {
@@ -1166,10 +1166,9 @@ export const PIXEL_MONSTERS_ROSTER = [
     "isBoss": false,
     "idleAnchor": {
       "x": 40.0,
-      "y": 94,
-      "mode": "air"
+      "y": 59.0,
+      "mode": "ground"
     },
-    "battleOffsetY": -24,
     "animations": {
       "idle": {
         "src": "./Sprites/pixel-monsters/vol2/monster-05/idle.png",
@@ -1216,7 +1215,7 @@ export const PIXEL_MONSTERS_ROSTER = [
     "idleAnchor": {
       "x": 32.0,
       "y": 49,
-      "mode": "air"
+      "mode": "ground"
     },
     "flipY": true,
     "animations": {
@@ -1326,8 +1325,8 @@ export const PIXEL_MONSTERS_ROSTER = [
     "isBoss": false,
     "idleAnchor": {
       "x": 33.5,
-      "y": 91,
-      "mode": "air"
+      "y": 59,
+      "mode": "ground"
     },
     "flipX": true,
     "animations": {
@@ -1768,10 +1767,9 @@ export const PIXEL_MONSTERS_ROSTER = [
     "isBoss": false,
     "idleAnchor": {
       "x": 57.5,
-      "y": 124,
-      "mode": "air"
+      "y": 79.0,
+      "mode": "ground"
     },
-    "battleOffsetY": -56,
     "animations": {
       "idle": {
         "src": "./Sprites/pixel-monsters/vol2/monster-17/idle.png",
@@ -1962,8 +1960,8 @@ export const PIXEL_MONSTERS_ROSTER = [
     "isBoss": false,
     "idleAnchor": {
       "x": 39.5,
-      "y": 82,
-      "mode": "air"
+      "y": 73.0,
+      "mode": "ground"
     },
     "animations": {
       "idle": {
@@ -2010,8 +2008,8 @@ export const PIXEL_MONSTERS_ROSTER = [
     "isBoss": false,
     "idleAnchor": {
       "x": 18.0,
-      "y": 57,
-      "mode": "air"
+      "y": 51.0,
+      "mode": "ground"
     },
     "animations": {
       "idle": {
@@ -2202,8 +2200,8 @@ export const PIXEL_MONSTERS_ROSTER = [
     "isBoss": false,
     "idleAnchor": {
       "x": 33.5,
-      "y": 91,
-      "mode": "air"
+      "y": 59.0,
+      "mode": "ground"
     },
     "flipX": true,
     "animations": {
@@ -2347,10 +2345,9 @@ export const PIXEL_MONSTERS_ROSTER = [
     "isBoss": false,
     "idleAnchor": {
       "x": 48.0,
-      "y": 96,
-      "mode": "air"
+      "y": 68.0,
+      "mode": "ground"
     },
-    "battleOffsetY": -16,
     "animations": {
       "idle": {
         "src": "./Sprites/pixel-monsters/vol3/monster-09/idle.png",
@@ -2396,8 +2393,8 @@ export const PIXEL_MONSTERS_ROSTER = [
     "isBoss": false,
     "idleAnchor": {
       "x": 32.0,
-      "y": 67,
-      "mode": "air"
+      "y": 54,
+      "mode": "ground"
     },
     "animations": {
       "idle": {

@@ -8,7 +8,7 @@ import {
     getTarotKingdomFriendlyRangeText,
     getTarotKingdomFriendlyEffectText
 } from './tarotKingdomEffectsV3.js?v=20260811-resonance-per-card1';
-import { TAROT_KINGDOM_STATUS_ICON_INDEX } from './tarotKingdomStatuses.js?v=20260811-status-v1';
+import { TAROT_KINGDOM_STATUS_ICON_INDEX } from './tarotKingdomStatuses.js?v=20260812-status-v2';
 
 export { TAROT_KINGDOM_STATUS_ICON_INDEX };
 
@@ -47,7 +47,7 @@ const NEGATIVE_STATUS_PRIORITY = Object.freeze([
     'confusion', 'wet', 'weaken', 'vulnerable'
 ]);
 
-const TAROT_KINGDOM_ARCANA_CACHE_VERSION = '20260811-resonance-per-card1';
+const TAROT_KINGDOM_ARCANA_CACHE_VERSION = '20260812-major-v4';
 const TAROT_KINGDOM_ARCANA_LOAD_ATTEMPTS = 3;
 
 function validateTarotKingdomArcanaEffects(data, fileName) {
@@ -85,7 +85,7 @@ async function loadTarotKingdomArcanaEffects(fileName) {
     throw lastError || new Error(`Arcana effects could not be loaded: ${fileName}`);
 }
 
-export const TAROT_KINGDOM_ARCANA_EFFECTS = { version: 3, minor: [], guardian: [], major: [] };
+export const TAROT_KINGDOM_ARCANA_EFFECTS = { version: 4, minor: [], guardian: [], major: [] };
 export const TAROT_KINGDOM_ARCANA_EFFECT_CATALOG = TAROT_KINGDOM_ARCANA_EFFECTS;
 export const TAROT_KINGDOM_LEGACY_ARCANA_EFFECTS = { version: 2, minor: [], guardian: [], major: [] };
 const MINOR_RESONANCE_BY_KEY = new Map();
@@ -148,7 +148,7 @@ export const TAROT_KINGDOM_ARCANA_EFFECTS_READY = (
 
 function getTarotKingdomEffectsVersion(context = {}) {
     const requested = Number(context.arcanaLoadoutEffectsVersion ?? context.rules?.arcanaLoadoutEffectsVersion);
-    return Number.isFinite(requested) ? requested : Number(TAROT_KINGDOM_ARCANA_EFFECTS.version || 3);
+    return Number.isFinite(requested) ? requested : Number(TAROT_KINGDOM_ARCANA_EFFECTS.version || 4);
 }
 
 function applyContextualMinorDefinition(entry, context = {}) {

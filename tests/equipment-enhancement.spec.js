@@ -74,8 +74,12 @@ function makeEnhancementHarness({ inventoryItems, readOnlyData = {}, catalogCach
       }
       if (operation.Update) {
         const update = operation.Update.Item || {};
+        if (update.Amount === undefined && !update.ExpirationDate) {
+          throw new Error('Request must contain an amount or an expiration date.');
+        }
         const item = state.find((entry) => entry.Id === update.Id && entry.StackId === update.StackId);
         if (!item) throw new Error('ItemNotFound');
+        if (update.Amount !== undefined) item.Amount = Number(update.Amount);
         item.DisplayProperties = clone(update.DisplayProperties || {});
       }
     }
@@ -176,6 +180,12 @@ test('enhancement apply consumes multiple stacks and inherits an enhanced materi
   expect(harness.state.find((item) => item.StackId === 'enhanced-material')).toBeUndefined();
   expect(harness.executeRequests[0].IdempotencyId).toContain('request-0001');
   expect(harness.executeRequests[0].ETag).toBe('etag-1');
+  expect(harness.executeRequests[0].Operations.at(-1).Update.Item).toMatchObject({
+    Id: 'sword_001',
+    StackId: 'base',
+    Amount: 1,
+    DisplayProperties: { equipmentEnhancement: { version: 1, bonus: 5 } }
+  });
 
   const replay = await invoke(harness.routes.get('/api/equipment-enhancement/apply'), {
     playFabId: 'PF1',

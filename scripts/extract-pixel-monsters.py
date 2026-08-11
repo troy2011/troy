@@ -86,25 +86,15 @@ LARGE_MONSTER_IDS = {
 FLYING_MONSTER_IDS = {
     "ismartal-vol1-monster-09",
     "ismartal-vol1-monster-12",
-    "ismartal-vol1-monster-14",
     "ismartal-vol1-monster-16",
     "ismartal-vol1-monster-17",
     "ismartal-vol1-monster-20",
     "ismartal-vol2-monster-02",
     "ismartal-vol2-monster-03",
-    "ismartal-vol2-monster-05",
-    "ismartal-vol2-monster-06",
-    "ismartal-vol2-monster-08",
     "ismartal-vol2-monster-11",
     "ismartal-vol2-monster-16",
-    "ismartal-vol2-monster-17",
     "ismartal-vol2-monster-18",
-    "ismartal-vol3-monster-01",
-    "ismartal-vol3-monster-02",
     "ismartal-vol3-monster-05",
-    "ismartal-vol3-monster-06",
-    "ismartal-vol3-monster-09",
-    "ismartal-vol3-monster-10",
 }
 HORIZONTAL_FLIP_IDS = {
     "ismartal-vol2-monster-08",
@@ -115,11 +105,6 @@ HORIZONTAL_FLIP_IDS = {
 }
 VERTICAL_FLIP_IDS = {
     "ismartal-vol2-monster-06",
-}
-BATTLE_OFFSET_Y = {
-    "ismartal-vol2-monster-05": -24,
-    "ismartal-vol2-monster-17": -56,
-    "ismartal-vol3-monster-09": -16,
 }
 
 
@@ -310,15 +295,19 @@ def normalize_and_trim_frames(
     return trimmed, union[2] - union[0], union[3] - union[1]
 
 
-def get_idle_art_anchor(frames: list[Image.Image], preserve_altitude: bool) -> dict:
+def get_idle_art_anchor(frames: list[Image.Image], preserve_altitude: bool, flip_y: bool = False) -> dict:
     bounds = [frame.getchannel("A").getbbox() for frame in frames]
     visible_bounds = [bbox for bbox in bounds if bbox]
     if not visible_bounds:
         width, height = frames[0].size
         return {"x": width / 2, "y": height, "mode": "air" if preserve_altitude else "ground"}
     center_x = statistics.median((bbox[0] + bbox[2]) / 2 for bbox in visible_bounds)
-    visible_bottom = statistics.median(bbox[3] for bbox in visible_bounds)
     frame_height = frames[0].height
+    visible_bottom = (
+        frame_height - statistics.median(bbox[1] for bbox in visible_bounds)
+        if flip_y
+        else statistics.median(bbox[3] for bbox in visible_bounds)
+    )
     return {
         "x": round(center_x, 2),
         "y": frame_height if preserve_altitude else round(visible_bottom, 2),
@@ -359,6 +348,7 @@ def build_volume(volume: int, entries: dict[str, PackageEntry], output_root: Pat
         idle_anchor = get_idle_art_anchor(
             animation_frames["idle"][0],
             monster_id in FLYING_MONSTER_IDS,
+            monster_id in VERTICAL_FLIP_IDS,
         )
         animations: dict[str, dict] = {}
         for kind, (frames, fps) in animation_frames.items():
@@ -384,7 +374,6 @@ def build_volume(volume: int, entries: dict[str, PackageEntry], output_root: Pat
             "sizeClass": "large" if monster_id in LARGE_MONSTER_IDS else "normal",
             "isBoss": monster_id in LARGE_MONSTER_IDS,
             "idleAnchor": idle_anchor,
-            **({"battleOffsetY": BATTLE_OFFSET_Y[monster_id]} if monster_id in BATTLE_OFFSET_Y else {}),
             **({"flipX": True} if monster_id in HORIZONTAL_FLIP_IDS else {}),
             **({"flipY": True} if monster_id in VERTICAL_FLIP_IDS else {}),
             "animations": animations,

@@ -337,7 +337,7 @@ test('player ailments appear below the hand count and animate on the avatar with
   await expect(detail).toBeVisible();
   await expect(detail.locator('h3')).toContainText('状態');
   await expect(detail.locator('.tarot-kingdom-status-detail-row')).toHaveCount(3);
-  await expect(detail).toContainText('次の戦闘攻撃');
+  await expect(detail).toContainText('2回の場流れまで');
   await detail.locator('header button').dispatchEvent('click');
   await expect(detail).toBeHidden();
 
@@ -349,6 +349,8 @@ test('player ailments appear below the hand count and animate on the avatar with
     return {
       handBottom: hand?.bottom || 0,
       trayTop: trayRect?.top || 0,
+      trayFollowsHand: node.querySelector('.tarot-kingdom-battle-player-hand-count')?.nextElementSibling
+        === node.querySelector('.tarot-kingdom-battle-status-tray'),
       iconSizes: icons.map((icon) => {
         const rect = icon.getBoundingClientRect();
         return [rect.width, rect.height];
@@ -359,7 +361,8 @@ test('player ailments appear below the hand count and animate on the avatar with
     };
   });
   expect(layout.trayTop).toBeGreaterThanOrEqual(layout.handBottom - 1);
-  expect(layout.iconSizes.every(([width, height]) => width <= 18 && height <= 18)).toBe(true);
+  expect(layout.trayFollowsHand).toBe(true);
+  expect(layout.iconSizes.every(([width, height]) => width <= 12.5 && height <= 12.5)).toBe(true);
   expect(layout.iconImages.every((value) => value.includes('icons.png'))).toBe(true);
   expect(layout.statusFxAnimation).toBe('tarotKingdomStatusFlicker');
   expect(layout.rowRight).toBeLessThanOrEqual(390);
@@ -1198,6 +1201,22 @@ test('preview enemy picker switches among all purchased Pixel Monsters without c
     && monster.idleAnchor.y <= monster.frameHeight
     && ['ground', 'air'].includes(monster.idleAnchor.mode)
   ))).toBe(true);
+  const lilfi = manifest.find((monster) => monster.id === 'ismartal-vol2-monster-05');
+  expect(lilfi?.idleAnchor).toMatchObject({ mode: 'ground', y: 59 });
+  expect(lilfi?.battleOffsetY).toBeUndefined();
+  expect(manifest.filter((monster) => monster.idleAnchor.mode === 'air').map((monster) => monster.id)).toEqual([
+    'ismartal-vol1-monster-09',
+    'ismartal-vol1-monster-12',
+    'ismartal-vol1-monster-16',
+    'ismartal-vol1-monster-17',
+    'ismartal-vol1-monster-20',
+    'ismartal-vol2-monster-02',
+    'ismartal-vol2-monster-03',
+    'ismartal-vol2-monster-11',
+    'ismartal-vol2-monster-16',
+    'ismartal-vol2-monster-18',
+    'ismartal-vol3-monster-05'
+  ]);
 
   await picker.selectOption('ismartal-vol1-monster-01');
   await expect(picker).toHaveValue('ismartal-vol1-monster-01');
@@ -1615,7 +1634,7 @@ test('player attack and retreat shadows follow horizontal movement without leavi
 });
 
 for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1000 }]) {
-  test(`all demo pets use the player scale and corrected flying offsets at ${viewport.width}px`, async ({ page }) => {
+  test(`all demo pets use idle-art grounding without changing flying offsets at ${viewport.width}px`, async ({ page }) => {
     await openOfflineBattle(page, viewport);
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
@@ -1626,6 +1645,16 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1000 
         const sprite = petAvatar?.querySelector(':scope > .tarot-kingdom-battle-pet-sprite');
         const spriteRect = sprite?.getBoundingClientRect();
         const hostRect = petAvatar?.getBoundingClientRect();
+        const spriteStyle = sprite ? getComputedStyle(sprite) : null;
+        const frameHeight = spriteStyle
+          ? parseFloat(spriteStyle.getPropertyValue('--tarot-kingdom-pet-frame-height')) || sprite.offsetHeight
+          : NaN;
+        const anchorY = spriteStyle
+          ? parseFloat(spriteStyle.getPropertyValue('--tarot-kingdom-pet-anchor-y')) || frameHeight
+          : NaN;
+        const visibleBottom = spriteRect && Number.isFinite(frameHeight) && frameHeight > 0
+          ? spriteRect.top + ((anchorY / frameHeight) * spriteRect.height)
+          : NaN;
         const shadowStyle = petAvatar ? getComputedStyle(petAvatar, '::before') : null;
         const shadowCenterY = hostRect && shadowStyle
           ? hostRect.bottom - parseFloat(shadowStyle.bottom) - (parseFloat(shadowStyle.height) / 2)
@@ -1637,8 +1666,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1000 
           petHostScale: getComputedStyle(petAvatar).getPropertyValue('--avatar-combat-scale').trim(),
           petSpriteScale: sprite?.style.getPropertyValue('--tarot-kingdom-pet-scale') || '',
           offsetY: sprite?.style.getPropertyValue('--tarot-kingdom-pet-offset-y') || '',
-          bottom: sprite ? getComputedStyle(sprite).bottom : '',
-          horizontalAnchor: sprite ? parseFloat(getComputedStyle(sprite).left) : NaN,
+          bottom: spriteStyle?.bottom || '',
+          horizontalAnchor: spriteStyle ? parseFloat(spriteStyle.left) : NaN,
           hostCenter: petAvatar ? petAvatar.offsetWidth / 2 : NaN,
           shadow: shadowStyle ? {
             content: shadowStyle.content,
@@ -1646,8 +1675,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1000 
             width: parseFloat(shadowStyle.width),
             opacity: parseFloat(shadowStyle.opacity),
             background: shadowStyle.backgroundImage,
-            centerOffsetX: parseFloat(shadowStyle.left) - parseFloat(getComputedStyle(sprite).left),
-            groundGap: spriteRect ? shadowCenterY - spriteRect.bottom : NaN
+            centerOffsetX: parseFloat(shadowStyle.left) - parseFloat(spriteStyle.left),
+            groundGap: Number.isFinite(visibleBottom) ? shadowCenterY - visibleBottom : NaN
           } : null,
           playerOrder: debug.battleState().players.map((player) => player.id)
         };
@@ -1671,14 +1700,12 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1000 
           && pet.shadow?.groundGap >= 0 && pet.shadow?.groundGap <= 4)
       && pet.playerOrder.join(',') === 'you,pet,npc1,npc2'
     ))).toEqual([]);
-    for (const monsterId of [
-      'ismartal-vol2-monster-05',
-      'ismartal-vol2-monster-17',
-      'ismartal-vol3-monster-09'
-    ]) {
-      const pet = audit.find((entry) => entry.id === monsterId);
-      expect(pet).toMatchObject({ offsetY: '0px', bottom: '8px' });
-    }
+    const lilfi = audit.find((entry) => entry.id === 'ismartal-vol2-monster-05');
+    expect(lilfi).toMatchObject({ anchor: 'ground', offsetY: '0px', bottom: '-27px' });
+    expect(audit.find((entry) => entry.id === 'ismartal-vol2-monster-17'))
+      .toMatchObject({ anchor: 'ground', offsetY: '0px', bottom: '-37px' });
+    expect(audit.find((entry) => entry.id === 'ismartal-vol3-monster-09'))
+      .toMatchObject({ anchor: 'ground', offsetY: '0px', bottom: '-20px' });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
   });
 }
@@ -1853,15 +1880,15 @@ test('monster-specific offsets and flips stay consistent in the demo renderer', 
   }));
 
   const expected = [
-    { id: 'ismartal-vol2-monster-05', name: 'リルフィ', offsetY: -24, flipX: false, flipY: false },
-    { id: 'ismartal-vol2-monster-06', name: 'グリバト', offsetY: 0, flipX: false, flipY: true },
-    { id: 'ismartal-vol2-monster-08', name: 'ルビット', offsetY: 0, flipX: true, flipY: false },
+    { id: 'ismartal-vol2-monster-05', name: 'リルフィ', offsetY: 0, flipX: false, flipY: false, anchor: 'ground' },
+    { id: 'ismartal-vol2-monster-06', name: 'グリバト', offsetY: 0, flipX: false, flipY: true, anchor: 'ground' },
+    { id: 'ismartal-vol2-monster-08', name: 'ルビット', offsetY: 0, flipX: true, flipY: false, anchor: 'ground' },
     { id: 'ismartal-vol2-monster-09', name: 'ノッカ', offsetY: 0, flipX: true, flipY: false },
     { id: 'ismartal-vol2-monster-10', name: 'ウッドラ', offsetY: 0, flipX: true, flipY: false },
-    { id: 'ismartal-vol2-monster-17', name: 'メカノ', offsetY: -56, flipX: false, flipY: false },
+    { id: 'ismartal-vol2-monster-17', name: 'メカノ', offsetY: 0, flipX: false, flipY: false, anchor: 'ground' },
     { id: 'ismartal-vol2-monster-19', name: 'バクス', offsetY: 0, flipX: true, flipY: false },
-    { id: 'ismartal-vol3-monster-06', name: 'ヨミル', offsetY: 0, flipX: true, flipY: false },
-    { id: 'ismartal-vol3-monster-09', name: 'クロモ', offsetY: -16, flipX: false, flipY: false }
+    { id: 'ismartal-vol3-monster-06', name: 'ヨミル', offsetY: 0, flipX: true, flipY: false, anchor: 'ground' },
+    { id: 'ismartal-vol3-monster-09', name: 'クロモ', offsetY: 0, flipX: false, flipY: false, anchor: 'ground' }
   ];
   const manifest = await page.evaluate(() => (
     fetch('/Sprites/pixel-monsters/manifest.json').then((response) => response.json())
@@ -1871,6 +1898,7 @@ test('monster-specific offsets and flips stay consistent in the demo renderer', 
     expect(monster?.battleOffsetY || 0).toBe(entry.offsetY);
     expect(monster?.flipX === true).toBe(entry.flipX);
     expect(monster?.flipY === true).toBe(entry.flipY);
+    if (entry.anchor) expect(monster?.idleAnchor?.mode).toBe(entry.anchor);
   });
 
   const picker = page.locator('#tarotKingdomDemoEnemySelect');
@@ -1885,12 +1913,14 @@ test('monster-specific offsets and flips stay consistent in the demo renderer', 
       return {
         offsetY: style.getPropertyValue('--tarot-kingdom-enemy-offset-y').trim(),
         scaleX: style.getPropertyValue('--tarot-kingdom-enemy-facing-scale-x').trim(),
-        scaleY: style.getPropertyValue('--tarot-kingdom-enemy-scale-y').trim()
+        scaleY: style.getPropertyValue('--tarot-kingdom-enemy-scale-y').trim(),
+        anchor: node.dataset.monsterAnchor
       };
     });
     expect(render.offsetY).toBe(`${entry.offsetY}px`);
     expect(render.scaleX).toBe(entry.flipX ? '1' : '-1');
     expect(render.scaleY).toBe(entry.flipY ? '-1' : '1');
+    if (entry.anchor) expect(render.anchor).toBe(entry.anchor);
   }
 });
 
@@ -2065,7 +2095,7 @@ test('long card guidance uses the fixed two-line compact layout', async ({ page 
   expect(textFit.scrollHeight).toBeLessThanOrEqual(textFit.clientHeight);
 });
 
-test('resonance showcase opens with equipped marks, guardian passive and selectable effects', async ({ page }) => {
+test('resonance showcase uses number glow, guardian passive and selectable effects', async ({ page }) => {
   await page.goto('/tarot-kingdom-preview.html?tkfixture=character-battle&tkshowcase=resonance&tkrev=resonance-hud10');
 
   const npcSeats = await page.evaluate(() => (
@@ -2077,13 +2107,18 @@ test('resonance showcase opens with equipped marks, guardian passive and selecta
   await expect(guardian).toBeVisible();
   await expect(guardian).toContainText('魔導士');
   await expect(guardian.locator('#tarotKingdomGuardianPassiveText')).toHaveText('');
-  await expect(page.locator('#tarotKingdomHand .tarot-card-resonance-mark')).toHaveCount(5);
+  const resonantCards = page.locator('#tarotKingdomHand .tarot-card.is-resonant');
+  await expect(resonantCards).toHaveCount(5);
+  await expect(page.locator('#tarotKingdomHand .tarot-card-resonance-mark')).toHaveCount(0);
+  expect(await resonantCards.locator('.tarot-card-number').evaluateAll((nodes) => (
+    nodes.every((node) => getComputedStyle(node).animationName === 'tarotKingdomResonanceNumberGlow')
+  ))).toBe(true);
 
   const hierophant = page.locator('#tarotKingdomHand [data-card-id="showcase-major-5"]');
   await expect(hierophant.locator('.tarot-card-resonance-mark')).toHaveCount(0);
   await expect(hierophant.locator('[aria-label="守護アルカナ覚醒"]')).toHaveCount(0);
   await hierophant.click();
-  await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText('法王 / 5スキップ');
+  await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText('法王 / 次の2人をスキップ');
   await expect(page.locator('#tarotKingdomSelectedEffectText')).not.toContainText('共鳴');
   await expect(page.locator('#tarotKingdomGuardianPassiveLabel')).toHaveText('守護');
   await expect(page.locator('#tarotKingdomGuardianPassiveName')).toHaveText('魔導士');
@@ -2251,44 +2286,67 @@ for (const fixture of [
   });
 }
 
-test('only cards that can participate in a legal play glow in the hand', async ({ page }) => {
+test('only equipped-card resonance glows while legal-play highlighting stays disabled', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
 
   const localHand = [
-    { id: 'tk_playable_ace', kind: 'minor', suit: 'Wand', number: 1 },
-    { id: 'tk_playable_world', kind: 'major', suit: 'None', number: 21 },
-    { id: 'tk_blocked_fool', kind: 'major', suit: 'None', number: 0 }
+    { id: 'tk_resonant_sword_5', kind: 'minor', suit: 'Sword', number: 5 },
+    { id: 'tk_plain_cup_6', kind: 'minor', suit: 'Cup', number: 6 }
   ];
-  await page.evaluate((hand) => {
+  const character = {
+    version: 4,
+    tarotDeck: [{
+      slot: 0,
+      itemId: 'tarot_minor_sword_05',
+      suit: 'Sword',
+      rank: 5,
+      cardLevel: 1,
+      resonanceId: 'sword-5'
+    }]
+  };
+  await page.evaluate(({ hand, characterSnapshot }) => {
     window.TarotKingdomDebug.battleScenario({
-      handCounts: [3, 6, 6, 6],
+      withTrick: false,
+      handCounts: [2, 6, 6, 6],
       handsBySeat: [hand],
-      turnIndex: 0
+      turnIndex: 0,
+      charactersBySeat: [characterSnapshot]
     });
-  }, localHand);
+  }, { hand: localHand, characterSnapshot: character });
 
   const hand = page.locator('#tarotKingdomHand');
   const playableCards = hand.locator(':scope > .tarot-card.is-playable');
-  const playableLabels = (await playableCards.allTextContents()).map((label) => label.replace(/\s+/g, ' ').trim());
-  expect(playableLabels).toHaveLength(1);
-  expect(playableLabels.some((label) => label.includes('Ace'))).toBe(true);
-  expect(playableLabels.some((label) => label.includes('世界'))).toBe(false);
+  await expect(playableCards).toHaveCount(2);
+  const resonant = hand.locator('[data-card-id="tk_resonant_sword_5"]');
+  const plainPlayable = hand.locator('[data-card-id="tk_plain_cup_6"]');
+  await expect(resonant).toHaveClass(/is-resonant/);
+  await expect(resonant.locator('.tarot-card-number')).toHaveCSS(
+    'animation-name',
+    'tarotKingdomResonanceNumberGlow'
+  );
+  await expect(plainPlayable).not.toHaveClass(/is-resonant/);
+  await expect(plainPlayable.locator('.tarot-card-number')).toHaveCSS('animation-name', 'none');
+  await expect(hand.locator('.tarot-card-resonance-mark')).toHaveCount(0);
 
-  const worldNumber = hand.locator(':scope > .tarot-card', { hasText: '世界' }).locator('.tarot-card-number');
-  const foolNumber = hand.locator(':scope > .tarot-card', { hasText: '愚者' }).locator('.tarot-card-number');
-  await expect(worldNumber).toHaveCSS('animation-name', 'none');
-  await expect(foolNumber).toHaveCSS('animation-name', 'none');
-
-  await page.evaluate((hand) => {
+  await page.evaluate(({ hand: nextHand, characterSnapshot }) => {
     window.TarotKingdomDebug.battleScenario({
-      handCounts: [3, 6, 6, 6],
-      handsBySeat: [hand],
-      turnIndex: 1
+      withTrick: false,
+      handCounts: [2, 6, 6, 6],
+      handsBySeat: [nextHand],
+      turnIndex: 1,
+      charactersBySeat: [characterSnapshot]
     });
-  }, localHand);
+  }, { hand: localHand, characterSnapshot: character });
   await expect(hand.locator(':scope > .tarot-card.is-playable')).toHaveCount(0);
-  await expect(hand.locator(':scope > .tarot-card', { hasText: '世界' }).locator('.tarot-card-number'))
+  await expect(hand.locator('[data-card-id="tk_resonant_sword_5"] .tarot-card-number'))
+    .toHaveCSS('animation-name', 'tarotKingdomResonanceNumberGlow');
+  await expect(hand.locator('[data-card-id="tk_plain_cup_6"] .tarot-card-number'))
     .toHaveCSS('animation-name', 'none');
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const reducedResonanceNumber = hand.locator('[data-card-id="tk_resonant_sword_5"] .tarot-card-number');
+  await expect(reducedResonanceNumber).toHaveCSS('animation-name', 'none');
+  expect(await reducedResonanceNumber.evaluate((node) => getComputedStyle(node).filter)).not.toBe('none');
 });
 
 test('major 15, 20 and 21 glow and explain errors using their schema 8 restrictions', async ({ page }) => {
@@ -2780,6 +2838,52 @@ test('defense pauses idle motion and shield users raise the shield hand into a g
       shieldPose: false,
       handRestored: true,
       shieldRestored: true
+    }
+  });
+});
+
+test('defense pose remains until the final enemy area attack presentation ends', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const result = await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    debug.battleScenario({
+      turnIndex: 3,
+      leaderIndex: 1,
+      pass: [true, false, true, false],
+      fold: [true, false, false, false]
+    });
+    const state = debug.battlePass(3);
+    const row = document.querySelector(
+      '#tarotKingdomBattleParty > .tarot-kingdom-battle-player[data-player-index="0"]'
+    );
+    const avatar = row?.querySelector('.tarot-kingdom-battle-player-avatar');
+    const areaEvent = state.battle.events.find((event) => event.type === 'enemy-area');
+    const during = {
+      logicalDefenseReset: state.fold?.[0] === false,
+      heldIndexes: areaEvent?.defendingPlayerIndexes || [],
+      rowDefending: row?.classList.contains('is-defending') === true,
+      avatarPaused: avatar?.dataset.kingdomDefensePaused === 'true'
+    };
+    debug.battleResolveTransition();
+    return {
+      during,
+      after: {
+        rowDefending: row?.classList.contains('is-defending') === true,
+        avatarPaused: avatar?.dataset.kingdomDefensePaused === 'true'
+      }
+    };
+  });
+
+  expect(result).toEqual({
+    during: {
+      logicalDefenseReset: true,
+      heldIndexes: [0],
+      rowDefending: true,
+      avatarPaused: true
+    },
+    after: {
+      rowDefending: false,
+      avatarPaused: false
     }
   });
 });

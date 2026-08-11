@@ -15,7 +15,7 @@ const {
 
 test('dedicated arcana catalog contains 56 unique minor resonances and 22 guardians', () => {
   const catalog = getArcanaEffectsCatalog();
-  expect(catalog.version).toBe(3);
+  expect(catalog.version).toBe(4);
   expect(catalog.minor).toHaveLength(56);
   expect(catalog.guardian).toHaveLength(22);
   expect(catalog.major).toHaveLength(22);

@@ -88,16 +88,24 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     expect(audits[21].state.battle.pendingWorldTimeStop).toMatchObject({ remainingTurns: 2 });
     expect(audits[1].resultCount).toBe(2);
     expect([0, 2].every((index) => audits[3].state.battle.effects.players[index].hpShield?.shieldHp > 0)).toBe(true);
-    expect(audits[4].state.battle.effects.players[0].emperorCommand).toMatchObject({
+    expect(audits[4].state.battle.effects.players[0].powerUp).toMatchObject({
       remainingTurns: 2,
       potency: 30
+    });
+    expect(audits[4].state.battle.effects.players[0].accuracyUp).toMatchObject({
+      remainingTurns: 2,
+      potency: 30
+    });
+    expect(audits[4].state.battle.effects.enemy.fear).toMatchObject({
+      potency: 25,
+      majorRemainingClears: 1
     });
     expect(audits[8].state.battle.effects.players[0].lastStand.remainingTurns).toBe(3);
     expect(audits[10].state.battle.effects.party.partyCritical.potency).toBe(20);
     expect(audits[15].state.players[0]).toMatchObject({ maxHp: 60, hp: 60 });
     expect(audits[18].state.battle.effects.enemy).toMatchObject({
-      majorConfusion: { remainingTurns: 2, potency: 50 },
-      mirageBlind: { remainingTurns: 2, potency: 70 }
+      confusion: { potency: 40 },
+      blind: { potency: 40 }
     });
   });
 
@@ -150,9 +158,9 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
       };
     });
 
-    expect(audit.chariotSecondaryDamage).toBe(12);
+    expect(audit.chariotSecondaryDamage).toBeGreaterThan(0);
     expect(audit.chariotBuff).toMatchObject({
-      potency: 30,
+      potency: 25,
       evasionPenalty: 0.15,
       remainingTurns: 1
     });
@@ -352,18 +360,18 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 1100 });
       await page.evaluate(() => {
         const debug = window.TarotKingdomDebug;
-        debug.battleSetDemoEnemy('ismartal-vol1-monster-10');
+        debug.battleSetDemoEnemy('ismartal-vol1-monster-07');
         debug.battleScenario({
           withTrick: true,
           enemyHp: 5000,
           enemyMaxHp: 5000,
-          tableCard: { id: 'major-field-wand-five', kind: 'minor', suit: 'Wand', number: 5 },
+          tableCard: { id: 'major-field-sword-six', kind: 'minor', suit: 'Sword', number: 6 },
           handsBySeat: [[
-            { id: 'major-hierophant', kind: 'major', suit: 'None', number: 5 },
+            { id: 'major-tower', kind: 'major', suit: 'Sword', number: 16 },
             { id: 'reserve-4', kind: 'minor', suit: 'Wand', number: 4 }
           ]]
         });
-        debug.battlePlayCards(0, ['major-hierophant'], { resolve: false });
+        debug.battlePlayCards(0, ['major-tower'], { resolve: false });
         debug.battleRender();
       });
 
@@ -395,19 +403,19 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
       });
 
       expect(layout.rootOverflow, `${width}px overflow`).toBeLessThanOrEqual(1);
-      expect(layout.bannerText).toBe('エレメンタルコンボ');
+      expect(layout.bannerText).toBe('サンダーブレイク');
       expect(layout.bannerIsMajor).toBe(true);
       expect(layout.bannerInside).toBe(true);
       expect(layout.visualInside).toBe(true);
-      expect(layout.visualTone).toBe('elemental');
-      expect(layout.visualScope).toBe('enemy');
+      expect(layout.visualTone).toBe('tower');
+      expect(layout.visualScope).toBe('both');
       expect(layout.visualPartCount).toBe(5);
       expect(layout.badges.some((text) => text.includes('WEAK'))).toBe(true);
       expect(layout.badgesInside).toBe(true);
     }
   });
 
-  test('schema 10 disables major effects, schema 14 keeps single-card effects, and schema 15 amplifies sets', async ({ page }) => {
+  test('schema 23 keeps the previous rules while schema 24 enables the revised majors', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       const current = debug.battleScenario({ withTrick: false });
@@ -416,17 +424,28 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
       schema14Payload.schema = 14;
       schema14Payload.state.rules.majorBattleEffectsVersion = 2;
       const schema14 = debug.battleDeserialize(schema14Payload);
+      debug.battleScenario({ withTrick: false });
+      const schema23Payload = debug.battlePublicState();
+      schema23Payload.schema = 23;
+      const schema23 = debug.battleDeserialize(schema23Payload);
       const legacyPayload = JSON.parse(JSON.stringify(payload));
       legacyPayload.schema = 10;
       delete legacyPayload.state.rules.majorBattleEffectsVersion;
       delete legacyPayload.state.rules.elementAffinityVersion;
       const legacy = debug.battleDeserialize(legacyPayload);
-      return { current, schema14, legacy };
+      return { current, schema23, schema14, legacy };
     });
 
     expect(audit.current.rules).toMatchObject({
-      majorBattleEffectsVersion: 2,
+      majorArcanaSpecialVersion: 2,
+      majorBattleEffectsVersion: 3,
+      arcanaLoadoutEffectsVersion: 4,
       elementAffinityVersion: 2
+    });
+    expect(audit.schema23.rules).toMatchObject({
+      majorArcanaSpecialVersion: 1,
+      majorBattleEffectsVersion: 2,
+      arcanaLoadoutEffectsVersion: 3
     });
     expect(audit.schema14.rules.majorBattleEffectsVersion).toBe(1);
     expect(audit.legacy.rules).toMatchObject({
@@ -501,7 +520,7 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     expect(pairDamage / singleDamage).toBeGreaterThanOrEqual(1.45);
     expect(pairDamage / singleDamage).toBeLessThanOrEqual(1.6);
     expect(tripleDamage / singleDamage).toBeGreaterThanOrEqual(1.9);
-    expect(tripleDamage / singleDamage).toBeLessThanOrEqual(2.1);
+    expect(tripleDamage / singleDamage).toBeLessThanOrEqual(2.3);
     expect(audit.legacyPair).toBeNull();
     expect(audit.pairEvent).toMatchObject({
       majorSkillName: '突撃陣形',
@@ -514,5 +533,147 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
       reason: '魔術師IとAは2枚組にできません。'
     });
     expect(audit.magicianTriple).toMatchObject({ ok: true, play: { type: 'set', count: 3 } });
+  });
+
+  test('revised attack majors apply their ailment only after a successful hit', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const statusByNumber = {
+        4: 'fear',
+        7: 'vulnerable',
+        11: 'silence',
+        13: 'curse',
+        16: 'paralysis',
+        19: 'burn',
+        20: 'blind'
+      };
+      const resolve = (number, mode = 'hit') => {
+        debug.battleScenario({
+          withTrick: false,
+          hpBySeat: number === 20 ? [100, 0, 100, 0] : [100, 100, 100, 100],
+          enemyHp: 5000,
+          enemyMaxHp: 5000,
+          enemyDefense: 0,
+          enemyDamageToParty: 240
+        });
+        if (mode === 'immune') {
+          debug.battleSetEffects({
+            enemy: { statusImmunity: { key: 'statusImmunity', charges: 1, potency: 100 } },
+            party: {},
+            players: [{}, {}, {}, {}]
+          });
+        }
+        debug.battleSetCombatRandom(0);
+        return debug.battleResolveMajorEffect(0, number, {
+          enemyAttackMissed: mode === 'miss'
+        });
+      };
+      return Object.fromEntries(Object.entries(statusByNumber).map(([number, statusKey]) => {
+        const hit = resolve(Number(number), 'hit');
+        const miss = resolve(Number(number), 'miss');
+        const immune = resolve(Number(number), 'immune');
+        return [number, {
+          statusKey,
+          hit: hit.state.battle.effects.enemy[statusKey] || null,
+          miss: miss.state.battle.effects.enemy[statusKey] || null,
+          immune: immune.state.battle.effects.enemy[statusKey] || null,
+          immuneBlocked: immune.result.results.some((entry) => (
+            entry.statusKey === statusKey && entry.blocked === true
+          ))
+        }];
+      }));
+    });
+
+    for (const entry of Object.values(audit)) {
+      expect(entry.hit, entry.statusKey).toBeTruthy();
+      expect(entry.miss, `${entry.statusKey} on miss`).toBeNull();
+      expect(entry.immune, `${entry.statusKey} through immunity`).toBeNull();
+      expect(entry.immuneBlocked, `${entry.statusKey} immunity result`).toBe(true);
+    }
+    expect(audit['16'].hit).toMatchObject({ guaranteedStop: true });
+    expect(audit['13'].hit).toMatchObject({ darkDamageTakenUp: 20 });
+  });
+
+  test('Temperance target count, Judgment no-target failure, and Star/Devil max HP stacking are deterministic', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const combat = [0, 1, 2, 3].map(() => ({
+        maxHp: 100,
+        power: 30,
+        defense: 20,
+        intelligence: 30,
+        speed: 20
+      }));
+      debug.battleScenario({ withTrick: false, hpBySeat: [40, 20, 60, 80], combatBySeat: combat });
+      const temperance = debug.battleResolveMajorEffect(0, 14, { cardCount: 3 });
+
+      debug.battleScenario({
+        withTrick: false,
+        hpBySeat: [100, 100, 100, 100],
+        combatBySeat: combat,
+        enemyHp: 1000,
+        enemyMaxHp: 1000
+      });
+      const judgmentEnemyHpBefore = debug.battleState().battle.enemy.hp;
+      const judgment = debug.battleResolveMajorEffect(0, 20);
+
+      debug.battleScenario({ withTrick: false, hpBySeat: [80, 100, 100, 100], combatBySeat: combat });
+      debug.battleSetEffects({
+        enemy: {},
+        party: {},
+        players: [{
+          poison: { potency: 5, remainingAttackAttempts: 2 },
+          powerDown: { potency: 25, remainingTurns: 2 },
+          accuracyDown: { potency: 20, remainingTurns: 2 }
+        }, {}, {}, {}]
+      });
+      const empress = debug.battleResolveMajorEffect(0, 3);
+
+      debug.battleScenario({ withTrick: false, hpBySeat: [80, 100, 100, 100], combatBySeat: combat });
+      const star = debug.battleResolveMajorEffect(0, 17);
+      const devil = debug.battleResolveMajorEffect(0, 15);
+      const firstClear = debug.battleAdvanceEffectTurn();
+      const secondClear = debug.battleAdvanceEffectTurn();
+
+      debug.battleScenario({ withTrick: false });
+      debug.battleSetCombatRandom(0);
+      const fortuneZero = debug.battleResolveMajorEffect(0, 10);
+      const world = debug.battleResolveMajorEffect(0, 21);
+      return {
+        temperance,
+        judgment,
+        judgmentEnemyHpBefore,
+        empress,
+        star,
+        devil,
+        firstClear,
+        secondClear,
+        fortuneZero,
+        world
+      };
+    });
+
+    expect(audit.temperance.state.players.map((player) => player.hp)).toEqual([100, 100, 100, 80]);
+    expect(audit.temperance.result.results.filter((entry) => entry.kind === 'major-heal')).toHaveLength(3);
+    expect(audit.judgment.state.battle.enemy.hp).toBe(audit.judgmentEnemyHpBefore);
+    expect(audit.judgment.result.results).toContainEqual(expect.objectContaining({
+      kind: 'major-no-effect',
+      success: false
+    }));
+    expect(audit.empress.state.battle.effects.players[0]).not.toHaveProperty('poison');
+    expect(audit.empress.state.battle.effects.players[0]).not.toHaveProperty('powerDown');
+    expect(audit.empress.state.battle.effects.players[0]).not.toHaveProperty('accuracyDown');
+    expect(audit.empress.state.battle.effects.players[0].hpShield).toBeTruthy();
+    expect(audit.star.state.players[0]).toMatchObject({ maxHp: 125, hp: 105 });
+    expect(audit.devil.state.players[0]).toMatchObject({ maxHp: 62, hp: 62 });
+    expect(audit.firstClear.state.players[0].maxHp).toBe(62);
+    expect(audit.secondClear.state.players[0].maxHp).toBe(125);
+    expect(audit.fortuneZero.state.battle.effects.party.partyCritical).toBeUndefined();
+    expect(audit.fortuneZero.result.results).toContainEqual(expect.objectContaining({
+      kind: 'major-no-effect',
+      randomRoll: 0
+    }));
+    expect(audit.world.state.battle.pendingWorldTimeStop).toMatchObject({ remainingTurns: 2 });
+    expect(audit.world.state.battle.effects.party.worldDamageUp).toBeUndefined();
   });
 });

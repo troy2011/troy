@@ -1475,6 +1475,7 @@ function initializeInventoryRoutes(app, deps) {
                     Item: {
                         Id: context.baseItemId,
                         StackId: context.baseStackId,
+                        Amount: baseAmount,
                         DisplayProperties: targetDisplayProperties
                     }
                 }

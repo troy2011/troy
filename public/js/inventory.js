@@ -34,7 +34,7 @@ import {
     getTarotKingdomCardLevelScale,
     getTarotKingdomResonanceGrowthText,
     getTarotKingdomFriendlyEffectText
-} from './tarotKingdomEffects.js?v=20260811-resonance-per-card1';
+} from './tarotKingdomEffects.js?v=20260812-major-v4';
 import {
     buildTarotCardMeta,
     compareTarotItems,
