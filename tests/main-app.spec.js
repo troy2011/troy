@@ -6210,7 +6210,8 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   await expect(page.locator('#meleeDeckEffectList')).toContainText('カオスマインド');
   await expect(page.locator('#meleeDeckEffectList .tarot-loadout-effect-action')).toHaveCount(4);
   await expect(page.locator('#meleeDeckGrid .tarot-loadout-slot-badge')).toHaveText(['1', '2', '3']);
-  await expect(page.locator('#meleeDeckEffectList')).toContainText('プレイヤーチェンジ回数');
+  await expect(page.locator('#meleeDeckEffectList')).toContainText('手番が多く移るほど効果上昇');
+  await expect(page.locator('#meleeDeckEffectList')).not.toContainText(/R=|\dR|R％/);
   await expect(page.locator('#guardianArcanaEffectList')).toContainText('魔導士');
   await expect(page.locator('#guardianArcanaEffectList')).toContainText('守護');
   await expect(page.locator('#guardianArcanaEffectList')).not.toContainText('覚醒');
@@ -6662,11 +6663,12 @@ test('tarot cards preview, reorder, and open detail before changing deck members
   await page.locator('#meleeDeckEffectList .tarot-loadout-effect-action.is-detail').click();
   await expect(page.locator('#itemDetailModal')).toBeVisible();
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('運命の霊酒');
-  await expect(page.locator('#itemDetailTarotCombat')).toContainText('R=0は空瓶');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('0～10を抽選する');
+  await expect(page.locator('#itemDetailTarotCombat')).not.toContainText(/R=|\dR|R％/);
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('Lv1 · 枠1');
   await expect(page.locator('#itemDetailDescription')).toBeHidden();
   await expect(page.locator('#itemDetailStats')).toBeHidden();
-  await expect(page.locator('#itemDetailTarotCombat .item-detail-tarot-row')).toHaveCount(3);
+  await expect(page.locator('#itemDetailTarotCombat .item-detail-tarot-row')).toHaveCount(2);
   await expect(page.locator('#itemDetailModal .item-detail-corner-close')).toBeVisible();
   await page.evaluate(() => window.closeItemDetailModal && window.closeItemDetailModal());
 
@@ -6676,7 +6678,8 @@ test('tarot cards preview, reorder, and open detail before changing deck members
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('マギアドライブ');
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('未セット');
-  await expect(page.locator('#itemDetailTarotCombat')).toContainText('威力（20＋3R）の魔法攻撃');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('威力20～50の魔法攻撃');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('自分が続けてカードを出すほど効果上昇');
   await expect(page.locator('#itemDetailModal .item-detail-management')).toBeVisible();
   await expect(page.locator('#itemDetailModal .item-detail-management')).not.toHaveAttribute('open', '');
   await page.locator('#itemDetailModal .item-detail-management summary').click();

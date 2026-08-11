@@ -23,7 +23,7 @@ import {
   getTarotKingdomMajorSecondaryDamageScale,
   getTarotKingdomResonanceDamageFloor,
   normalizeTarotKingdomCharacter
-} from './tarotKingdomCombat.js?v=20260811-arcana-ready1';
+} from './tarotKingdomCombat.js?v=20260811-resonance-per-card1';
 import {
   TAROT_KINGDOM_ARCANA_EFFECTS_READY,
   getTarotKingdomPhysicalScale,
@@ -42,7 +42,7 @@ import {
   normalizeTarotKingdomWeaponTypes,
   resolveTarotKingdomResonance,
   resolveTarotKingdomWeaponEffect
-} from './tarotKingdomEffects.js?v=20260811-arcana-ready1';
+} from './tarotKingdomEffects.js?v=20260811-resonance-per-card1';
 import {
   TAROT_KINGDOM_NEGATIVE_STATUS_KEYS,
   TAROT_KINGDOM_STATUS_DEFINITIONS,
@@ -2176,45 +2176,34 @@ function getSelectedCardLoadoutEffectMessages(playerIndex, cards) {
   if (!s || !Array.isArray(cards) || cards.length <= 0) return [];
   const deck = normalizeTarotKingdomTarotDeck(s.players?.[playerIndex]?.character?.tarotDeck || []);
   const messages = [];
-  const seen = new Set();
-
-  cards.forEach((card) => {
-    const matches = deck
-      .map((entry) => ({ entry, match: getTarotKingdomResonanceMatch(card, entry) }))
-      .filter(({ match }) => !!match)
-      .sort((left, right) => {
-        const leftPriority = left.match.kind === 'exact' ? 0 : 1;
-        const rightPriority = right.match.kind === 'exact' ? 0 : 1;
-        return leftPriority - rightPriority || Number(left.entry.slot) - Number(right.entry.slot);
+  deck.forEach((entry) => {
+    const card = cards.find((candidate) => getTarotKingdomResonanceMatch(candidate, entry));
+    if (!card) return;
+    const match = getTarotKingdomResonanceMatch(card, entry);
+    if (!match) return;
+    const effect = String(entry.effectText || '').trim();
+    if (areKingdomArcanaLoadoutV3EffectsEnabled()) {
+      const definition = getTarotKingdomMinorDefinition(entry.suit, entry.rank);
+      const resolved = getTarotKingdomResolvedEffectText(definition, {
+        actorIndex: playerIndex,
+        cards,
+        sourceCard: card,
+        sourceElement: ({ Wand: 'fire', Cup: 'water', Sword: 'wind', Pentacle: 'earth' })[entry.suit] || '',
+        resonanceMatch: { ...match, submittedCard: card },
+        character: s.players?.[playerIndex]?.character,
+        players: s.players,
+        enemy: s.battle?.enemy,
+        effects: ensureKingdomBattleEffects(),
+        handBefore: s.players?.[playerIndex]?.hand || [],
+        fieldCard: s.trick?.cardsTable?.[0] || null,
+        fieldOwnerIndex: s.trick?.tableOwners?.[0],
+        reverseBefore: !!s.reverse,
+        rHistory: getKingdomRHistory()
       });
-    matches.forEach(({ entry, match }) => {
-      const key = `resonance:${entry.slot}:${card?.id || `${card?.kind}:${card?.suit}:${card?.number}`}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-      const rate = match.kind === 'exact' ? '100%' : '50%';
-      const effect = String(entry.effectText || '').trim();
-      if (areKingdomArcanaLoadoutV3EffectsEnabled()) {
-        const definition = getTarotKingdomMinorDefinition(entry.suit, entry.rank);
-        const resolved = getTarotKingdomResolvedEffectText(definition, {
-          actorIndex: playerIndex,
-          cards,
-          sourceCard: card,
-          resonanceMatch: { ...match, submittedCard: card },
-          character: s.players?.[playerIndex]?.character,
-          players: s.players,
-          enemy: s.battle?.enemy,
-          effects: ensureKingdomBattleEffects(),
-          handBefore: s.players?.[playerIndex]?.hand || [],
-          fieldCard: s.trick?.cardsTable?.[0] || null,
-          fieldOwnerIndex: s.trick?.tableOwners?.[0],
-          reverseBefore: !!s.reverse,
-          rHistory: getKingdomRHistory()
-        });
-        messages.push(`共鳴：${resolved}`);
-      } else {
-        messages.push(`共鳴${rate} ${entry.skillName}${effect ? `：${effect}` : ''}`);
-      }
-    });
+      messages.push(`共鳴：${resolved}`);
+    } else {
+      messages.push(`共鳴 ${entry.skillName}${effect ? `：${effect}` : ''}`);
+    }
   });
 
   if (areKingdomArcanaLoadoutEffectsEnabled() && !areKingdomArcanaLoadoutV3EffectsEnabled()) {
@@ -2230,6 +2219,24 @@ function getSelectedCardLoadoutEffectMessages(playerIndex, cards) {
     }
   }
   return messages;
+}
+
+function getSelectedKingdomResonanceCards(playerIndex, selectedIndexes, selectedCards) {
+  if (
+    !Array.isArray(selectedIndexes)
+    || selectedIndexes.length !== 4
+    || s?.trick?.type !== 'set'
+    || Number(s.trick.count) !== 1
+  ) {
+    return selectedCards;
+  }
+  const builtCall = buildCallPlay(playerIndex, selectedIndexes);
+  if (!builtCall?.ok || !validatePlay(builtCall.play, 'call')?.ok) return selectedCards;
+  return getKingdomResonanceCardsForPlay(
+    builtCall.play,
+    builtCall.play.cardsHand,
+    builtCall.play.cardsTable
+  );
 }
 
 function buildSelectedCardInfoMessage(playerIndex, selectedIndexes) {
@@ -5248,26 +5255,40 @@ function getKingdomRHistory(state = s) {
   return state.battle.rHistory;
 }
 
-function prepareKingdomResolvedR(playerIndex, play, context = {}) {
-  if (!areKingdomArcanaLoadoutV3EffectsEnabled()) return null;
-  const rank = Number(play?.cardsHand?.[0]?.number);
-  if (!Number.isInteger(rank) || rank < 1 || rank > 14) return null;
+function prepareKingdomResolvedRs(playerIndex, play, context = {}) {
+  if (!areKingdomArcanaLoadoutV3EffectsEnabled()) return {};
   const history = getKingdomRHistory();
   history.turnNo = Math.max(1, Math.floor(Number(s?.turnCount) || 1));
   const guardian = getKingdomGuardianArcana(playerIndex);
-  const resolvedR = resolveTarotKingdomR(rank, {
-    ...context,
-    actorIndex: playerIndex,
-    players: s.players,
-    rHistory: history,
-    guardianNumber: Number.isInteger(Number(guardian?.number)) ? Number(guardian.number) : null,
-    sourceCard: play.cardsHand[0]
-  }, kingdomCombatRandom);
-  history.rank10.value = rank === 10 ? resolvedR : history.rank10.value;
-  if (rank === 10 && Number(guardian?.number) === 10) {
-    history.rank10.floorByPlayer[playerIndex] = resolvedR >= 10 ? 0 : resolvedR;
-  }
-  return resolvedR;
+  const guardianNumber = Number.isInteger(Number(guardian?.number)) ? Number(guardian.number) : null;
+  const submittedCards = Array.isArray(play?.cardsHand) ? play.cardsHand : [];
+  const tableCards = Array.isArray(play?.cardsTable) ? play.cardsTable : submittedCards;
+  const resonanceCards = getKingdomResonanceCardsForPlay(play, submittedCards, tableCards);
+  const deck = normalizeTarotKingdomTarotDeck(s.players?.[playerIndex]?.character?.tarotDeck || []);
+  const resolvedRByRank = {};
+  deck.forEach((entry) => {
+    const sourceCard = resonanceCards.find((card) => getTarotKingdomResonanceMatch(card, entry));
+    const rank = Number(entry?.rank);
+    if (!sourceCard || !Number.isInteger(rank) || rank < 1 || rank > 14 || resolvedRByRank[rank] != null) return;
+    const resolvedR = resolveTarotKingdomR(rank, {
+      ...context,
+      resolvedR: undefined,
+      resolvedRByRank: undefined,
+      actorIndex: playerIndex,
+      players: s.players,
+      rHistory: history,
+      guardianNumber,
+      sourceCard
+    }, kingdomCombatRandom);
+    resolvedRByRank[rank] = resolvedR;
+    if (rank === 10) {
+      history.rank10.value = resolvedR;
+      if (guardianNumber === 10) {
+        history.rank10.floorByPlayer[playerIndex] = resolvedR >= 10 ? 0 : resolvedR;
+      }
+    }
+  });
+  return resolvedRByRank;
 }
 
 function recordKingdomRHistoryAfterPlay(playerIndex, play, event) {
@@ -8215,6 +8236,13 @@ function getKingdomGuardianPassiveDisplayName(playerIndex, results = []) {
   ).trim();
 }
 
+function getKingdomResonanceCardsForPlay(play, submittedCards = [], tableCards = submittedCards) {
+  const isCall = play?.call === true || play?.resonanceContext?.isCall === true;
+  return isCall && Array.isArray(tableCards) && tableCards.length > 0
+    ? tableCards
+    : submittedCards;
+}
+
 function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
   if (!areKingdomCombatEffectsEnabled() || !s?.battle || !s.players?.[playerIndex]) {
     return { results: [], damage: 0, heal: 0, effectCount: 0, resonance: null, weapon: null, summon: null, major: null, worldRole: null };
@@ -8222,6 +8250,7 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
   const character = s.players[playerIndex].character || {};
   const submittedCards = Array.isArray(play?.cardsHand) ? play.cardsHand : [];
   const roleCards = Array.isArray(play?.cardsTable) ? play.cardsTable : submittedCards;
+  const resonanceCards = getKingdomResonanceCardsForPlay(play, submittedCards, roleCards);
   const rebuiltRole = String(play?.type || '') === 'role' && roleCards.length === 5
     ? (evalRole(roleCards, null) || play?.role || null)
     : null;
@@ -8271,7 +8300,7 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
   };
   const weapon = resolveTarotKingdomWeaponEffect(context);
   const resonance = areKingdomArcanaLoadoutEffectsEnabled()
-    ? resolveTarotKingdomResonance(context)
+    ? resolveTarotKingdomResonance({ ...context, cards: resonanceCards })
     : null;
   const results = [];
   let resonanceDamage = 0;
@@ -16386,7 +16415,7 @@ function applyPlay(pi, play, retryDepth = 0) {
       getKingdomRHistory(),
       s.players.length
     );
-    play.resonanceContext.resolvedR = prepareKingdomResolvedR(pi, play, play.resonanceContext);
+    play.resonanceContext.resolvedRByRank = prepareKingdomResolvedRs(pi, play, play.resonanceContext);
   }
   if (removed.some((card) => Number(card?.number) === 5)) {
     const skippedPlayerIndexes = [];
@@ -17291,6 +17320,9 @@ function getNpcCombatEffectScore(playerIndex, play) {
   const handBefore = Array.isArray(s.players[playerIndex].hand) ? s.players[playerIndex].hand : [];
   const handAfter = handBefore.filter((card) => !playedIds.has(String(card?.id || '')));
   const fieldCard = s.trick?.cardsTable?.[0] || null;
+  const resonanceCards = play?.call === true && fieldCard
+    ? [fieldCard, ...cards]
+    : cards;
   const history = Array.isArray(s.trickActionHistory) ? s.trickActionHistory : [];
   const priorSingles = history.filter((entry) => Number(entry.actorIndex) === Number(playerIndex) && Number(entry.cardCount) === 1);
   const lastTurnAction = s.lastTurnAction && typeof s.lastTurnAction === 'object' ? s.lastTurnAction : null;
@@ -17328,7 +17360,7 @@ function getNpcCombatEffectScore(playerIndex, play) {
     baseAttackDamage: 40
   };
   const weapon = resolveTarotKingdomWeaponEffect(context);
-  const resonance = resolveTarotKingdomResonance(context);
+  const resonance = resolveTarotKingdomResonance({ ...context, cards: resonanceCards });
   const majorProfile = getKingdomMajorBattlePlayProfile(play, s, playerIndex);
   const majorNumber = majorProfile?.number ?? null;
   const majorScores = [
@@ -17823,12 +17855,9 @@ function cardNode(card, opt = {}) {
   }
   if (opt.resonant) {
     const resonance = document.createElement('span');
-    const partial = opt.resonanceMatchKind && opt.resonanceMatchKind !== 'exact';
-    resonance.className = `tarot-card-resonance-mark${partial ? ' is-partial' : ''}`;
+    resonance.className = 'tarot-card-resonance-mark';
     resonance.textContent = '共';
-    resonance.setAttribute('aria-label', partial
-      ? '同じ数字の装備カード共鳴 50%'
-      : '装備カード共鳴 100%');
+    resonance.setAttribute('aria-label', '装備カード共鳴');
     el.appendChild(resonance);
   }
   if (opt.awakening) {
@@ -21175,14 +21204,8 @@ function renderHand() {
     if (isDrawFlipTarget && now < drawFlipRevealAt) {
       showCard = null;
     }
-    const resonanceMatches = showCard
-      ? equippedMinorCards
-        .map((entry) => getTarotKingdomResonanceMatch(showCard, entry))
-        .filter(Boolean)
-      : [];
-    const resonanceMatch = resonanceMatches.find((match) => match.kind === 'exact')
-      || resonanceMatches[0]
-      || null;
+    const isResonant = !!showCard
+      && equippedMinorCards.some((entry) => getTarotKingdomResonanceMatch(showCard, entry));
     const guardianAwakening = guardianAwakeningEnabled
       && !!showCard
       && showCard?.kind === 'major'
@@ -21191,8 +21214,7 @@ function renderHand() {
       clickable: canSelect,
       playable: !!showCard && playableIndexes.has(i),
       selected: selected.includes(i),
-      resonant: resonanceMatches.length > 0,
-      resonanceMatchKind: resonanceMatch?.kind || '',
+      resonant: isResonant,
       awakening: guardianAwakening,
       flipReveal: !!showCard && (isOpeningFlipTarget || (isDrawFlipTarget && now >= drawFlipRevealAt)),
       flipDurationMs: isOpeningFlipTarget ? OPENING_HAND_FLIP_MS : DRAW_HAND_FLIP_MS,
@@ -21420,7 +21442,8 @@ function renderSummary() {
     const selectedCards = hasVisibleSelection
       ? localSelected.map((index) => s.players?.[me]?.hand?.[index]).filter(Boolean)
       : [];
-    const selectedArcanaEffects = getSelectedCardLoadoutEffectMessages(me, selectedCards);
+    const selectedResonanceCards = getSelectedKingdomResonanceCards(me, localSelected, selectedCards);
+    const selectedArcanaEffects = getSelectedCardLoadoutEffectMessages(me, selectedResonanceCards);
     const showSelectedArcanaEffects = selectedArcanaEffects.length > 0;
     const representativeArcanaEffect = showSelectedArcanaEffects ? selectedArcanaEffects[0] : '';
     const representativeArcanaParts = representativeArcanaEffect.split('：');

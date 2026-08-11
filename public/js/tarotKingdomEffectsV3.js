@@ -2,6 +2,46 @@ import { TAROT_KINGDOM_NEGATIVE_STATUS_KEYS } from './tarotKingdomStatuses.js?v=
 
 const SUIT_ELEMENT = Object.freeze({ Wand: 'fire', Cup: 'water', Sword: 'wind', Pentacle: 'earth' });
 const NEGATIVE_STATUSES = TAROT_KINGDOM_NEGATIVE_STATUS_KEYS;
+const RESONANCE_GROWTH_TEXT = Object.freeze({
+  1: '手札にある札の種類が多いほど効果上昇',
+  2: 'この局で実際に回復したHPが多いほど効果上昇',
+  3: 'この局で任意ドローした回数が多いほど効果上昇',
+  4: 'ターンが進むほど効果上昇',
+  5: 'この局でシールドを付与した回数が多いほど効果上昇',
+  6: 'この局で複数枚出しした回数が多いほど効果上昇',
+  7: '自分が続けてカードを出すほど効果上昇',
+  8: '手番が多く移るほど効果上昇',
+  9: '自分が攻撃を回避した回数が多いほど効果上昇',
+  10: '発動時に0～10を抽選して効果を決定',
+  11: '状態異常を付与・解除した回数が多いほど効果上昇',
+  12: '自分が攻撃を受けた回数が多いほど効果上昇',
+  13: '自分が場流しで墓地へ送った札が多いほど効果上昇',
+  14: '提出前の場札との数字差が大きいほど効果上昇'
+});
+const STATUS_DISPLAY_NAMES = Object.freeze({
+  paralysis: '麻痺', sleep: '睡眠', freeze: '凍結', poison: '毒', burn: '火傷',
+  silence: '沈黙', blind: '暗闇', fear: '恐怖', confusion: '混乱',
+  magicDefenseDown: '魔法防御低下', nextAttackDown: '次の敵攻撃を弱体化'
+});
+const BUFF_DISPLAY_NAMES = Object.freeze({
+  regenAfterAction: 'リジェネ',
+  singleGuard: '単体攻撃を軽減',
+  damageBarrier: 'ダメージバリア',
+  shieldPreserve: 'シールドを保護',
+  cover: '味方を身代わり',
+  areaGuard: '全体攻撃を軽減',
+  guard: '次の被ダメージを軽減',
+  statusAttackGuard: '状態異常耐性上昇',
+  defenseUp: '防御上昇',
+  nextAttackUp: '次の攻撃を強化',
+  speedUpUntilChainEnds: '素早さ上昇',
+  evasion: '回避上昇'
+});
+const RANDOM_EFFECT_DESCRIPTIONS = Object.freeze({
+  'cup-10': '0～10を抽選する。0は空瓶、1～3は最少HPの味方を3％回復、4～6は毒・火傷を70％で1つ解除、7～9は敵へ70％で毒を2行動付与、10は3効果すべて発動する。',
+  'wand-10': '0～10を抽選し、抽選結果に応じて威力0～60の魔法攻撃を行う。0なら不発。',
+  'pentacle-10': '0～10を抽選し、次に受けるダメージを抽選結果と同じ0～10％軽減する。0なら軽減しない。'
+});
 
 function finite(value, fallback = 0) {
   const parsed = Number(value);
@@ -179,7 +219,15 @@ export function normalizeTarotKingdomRHistory(raw, playerCount = 4) {
 }
 
 export function resolveTarotKingdomR(rank, context = {}, random = Math.random) {
-  if (Number.isFinite(Number(context.resolvedR))) return clamp(Math.floor(Number(context.resolvedR)));
+  const resolvedByRank = context.resolvedRByRank && typeof context.resolvedRByRank === 'object'
+    ? context.resolvedRByRank
+    : null;
+  if (resolvedByRank && Number.isFinite(Number(resolvedByRank[rank]))) {
+    return clamp(Math.floor(Number(resolvedByRank[rank])));
+  }
+  if (context.resolvedR != null && Number.isFinite(Number(context.resolvedR))) {
+    return clamp(Math.floor(Number(context.resolvedR)));
+  }
   const history = normalizeTarotKingdomRHistory(context.rHistory, context.players?.length || 4);
   const actorIndex = Math.max(0, Math.floor(finite(context.actorIndex)));
   let value = 0;
@@ -318,17 +366,65 @@ export function getTarotKingdomResolvedEffectText(definition, context = {}) {
   const entry = { ...definition, skillName: definition.name, cardLevel: context.cardLevel || 1 };
   const steps = expandTarotKingdomV3Resonance(entry, context);
   if (!steps.length) return '今回は効果なし';
-  const r = steps[0].resolvedR;
   const summaries = steps.slice(0, 2).map((item) => {
     if (item.kind === 'damage' || item.kind === 'magic') return `${item.amount}ダメージ`;
-    if (item.kind === 'heal-percent') return `${item.percent}%回復`;
+    if (item.kind === 'heal-percent') {
+      return `${item.targetType === 'party' ? '味方全体' : '味方1人'}を${item.percent}%回復`;
+    }
     if (item.statusKey === 'hpShield') return `${item.potency}%シールド`;
-    if (item.kind === 'status') return `${item.statusKey} ${Math.round(finite(item.chance) * 100)}%`;
+    if (item.kind === 'status') {
+      const statusName = STATUS_DISPLAY_NAMES[item.statusKey] || item.statusKey || '状態異常';
+      const chance = item.chance == null ? '' : ` ${Math.round(finite(item.chance) * 100)}%`;
+      const strength = item.potency == null ? '' : ` ${item.potency}%`;
+      return `${statusName}${chance || strength}`;
+    }
+    if (item.kind === 'buff') {
+      const buffName = BUFF_DISPLAY_NAMES[item.statusKey] || '強化効果';
+      return `${buffName}${item.potency == null ? '' : ` ${item.potency}%`}`;
+    }
     if (item.kind === 'cleanse') return '状態異常を解除';
-    if (item.kind === 'register-trigger') return '条件成立時に発動';
-    return String(item.label || '効果発動');
+    if (item.kind === 'cleanse-transfer') return '状態異常を解除して敵へ返す';
+    if (item.kind === 'revive-percent') return `味方をHP${item.percent}%で復活`;
+    if (item.kind === 'extend-status') return '敵の状態異常を延長';
+    if (item.kind === 'register-trigger') {
+      if (item.effectKind === 'heal-percent') return `条件成立時に${item.percent}%回復`;
+      if (item.effectKind === 'damage' || item.effectKind === 'magic') return `条件成立時に${item.amount}ダメージ`;
+      return '条件成立時に追加効果';
+    }
+    return '効果発動';
   });
-  return `R${r}：${summaries.join('・')}`;
+  return summaries.join('・');
+}
+
+export function getTarotKingdomResonanceGrowthText(rank) {
+  return RESONANCE_GROWTH_TEXT[Math.max(1, Math.min(14, Math.floor(finite(rank, 1))))] || '';
+}
+
+export function getTarotKingdomFriendlyRangeText(definition = {}) {
+  return String(definition?.range || '')
+    .replace(/^R=0～10／/, '')
+    .replace(/^Rは発動時に/, '発動時に')
+    .trim();
+}
+
+function getFriendlyRangeValues(definition = {}) {
+  return getTarotKingdomFriendlyRangeText(definition)
+    .split('／')
+    .map((part) => part.match(/-?\d+(?:\.\d+)?～-?\d+(?:\.\d+)?/)?.[0] || '')
+    .filter(Boolean);
+}
+
+export function getTarotKingdomFriendlyEffectText(definition = {}) {
+  const effectId = String(definition?.id || '');
+  if (RANDOM_EFFECT_DESCRIPTIONS[effectId]) return RANDOM_EFFECT_DESCRIPTIONS[effectId];
+  const values = getFriendlyRangeValues(definition);
+  let valueIndex = 0;
+  const nextValue = () => values[valueIndex++] || '条件に応じた値';
+  return String(definition?.effect || '')
+    .replace(/（[^）]*R[^）]*）/g, nextValue)
+    .replace(/(?:\d+(?:\.\d+)?)?R(?=％|ポイント|回|加える)/g, nextValue)
+    .replace(/R/g, '実績値')
+    .trim();
 }
 
 export const __test = { numeric, probability, damageAmount, cupSteps, wandSteps, swordSteps, pentacleSteps };

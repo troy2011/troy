@@ -3,8 +3,11 @@ import {
     normalizeTarotKingdomRHistory,
     resolveTarotKingdomR,
     expandTarotKingdomV3Resonance,
-    getTarotKingdomResolvedEffectText
-} from './tarotKingdomEffectsV3.js?v=20260805-arcana-v3-full2';
+    getTarotKingdomResolvedEffectText,
+    getTarotKingdomResonanceGrowthText,
+    getTarotKingdomFriendlyRangeText,
+    getTarotKingdomFriendlyEffectText
+} from './tarotKingdomEffectsV3.js?v=20260811-resonance-per-card1';
 import { TAROT_KINGDOM_STATUS_ICON_INDEX } from './tarotKingdomStatuses.js?v=20260811-status-v1';
 
 export { TAROT_KINGDOM_STATUS_ICON_INDEX };
@@ -44,7 +47,7 @@ const NEGATIVE_STATUS_PRIORITY = Object.freeze([
     'confusion', 'wet', 'weaken', 'vulnerable'
 ]);
 
-const TAROT_KINGDOM_ARCANA_CACHE_VERSION = '20260805-arcana-v3-full2';
+const TAROT_KINGDOM_ARCANA_CACHE_VERSION = '20260811-resonance-per-card1';
 const TAROT_KINGDOM_ARCANA_LOAD_ATTEMPTS = 3;
 
 function validateTarotKingdomArcanaEffects(data, fileName) {
@@ -333,23 +336,10 @@ export function isTarotKingdomDeckMatch(card, deckEntry) {
 }
 
 export function getTarotKingdomResonanceMatch(card, deckEntry) {
-    const rank = positiveRank(deckEntry?.rank);
-    if (!card || !rank || Number(card.number) !== rank) return null;
-    if (card.kind === 'major') {
-        return {
-            kind: 'same-rank',
-            multiplier: 0.5,
-            attribute: '',
-            submittedCard: card
-        };
-    }
-    if (card.kind !== 'minor') return null;
-    const suit = normalizeSuit(card.suit);
-    if (!suit) return null;
-    const exact = suit === normalizeSuit(deckEntry?.suit);
+    if (!isTarotKingdomDeckMatch(card, deckEntry)) return null;
     return {
-        kind: exact ? 'exact' : 'same-rank',
-        multiplier: exact ? 1 : 0.5,
+        kind: 'exact',
+        multiplier: 1,
         attribute: '',
         submittedCard: card
     };
@@ -1005,7 +995,12 @@ export function buildTarotKingdomResonanceCandidate(entry, card, context = {}) {
     );
     const match = normalized ? getTarotKingdomResonanceMatch(card, normalized) : null;
     if (!normalized || !match) return null;
-    const resolvedContext = { ...context, resonanceMatch: match, resonanceEntry: normalized };
+    const resolvedContext = {
+        ...context,
+        sourceElement: getSourceElement(normalized, context),
+        resonanceMatch: match,
+        resonanceEntry: normalized
+    };
     const steps = expandResonanceDefinition(normalized, resolvedContext);
     if (!steps.length) return null;
     return {
@@ -1029,17 +1024,13 @@ export function buildTarotKingdomResonanceCandidate(entry, card, context = {}) {
 
 export function resolveTarotKingdomResonance(context = {}) {
     const cards = (Array.isArray(context.cards) ? context.cards : [])
-        .filter((card) => card?.kind === 'minor' || card?.kind === 'major');
+        .filter((card) => card?.kind === 'minor');
     const deck = normalizeTarotKingdomTarotDeck(context.character?.tarotDeck || []);
     const candidates = [];
     deck.forEach((entry) => {
-        const matchingCards = cards
-            .map((card) => ({ card, match: getTarotKingdomResonanceMatch(card, entry) }))
-            .filter(({ match }) => !!match)
-            .sort((left, right) => right.match.multiplier - left.match.multiplier);
-        const best = matchingCards[0];
-        if (!best) return;
-        const candidate = buildTarotKingdomResonanceCandidate(entry, best.card, context);
+        const matchingCard = cards.find((card) => getTarotKingdomResonanceMatch(card, entry));
+        if (!matchingCard) return;
+        const candidate = buildTarotKingdomResonanceCandidate(entry, matchingCard, context);
         if (candidate) candidates.push(candidate);
     });
     candidates.sort((left, right) => left.slot - right.slot);
@@ -1081,5 +1072,8 @@ export {
     createTarotKingdomRHistory,
     normalizeTarotKingdomRHistory,
     resolveTarotKingdomR,
-    getTarotKingdomResolvedEffectText
+    getTarotKingdomResolvedEffectText,
+    getTarotKingdomResonanceGrowthText,
+    getTarotKingdomFriendlyRangeText,
+    getTarotKingdomFriendlyEffectText
 };

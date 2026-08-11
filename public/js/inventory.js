@@ -31,8 +31,10 @@ import {
     TAROT_KINGDOM_ARCANA_EFFECT_CATALOG,
     getTarotKingdomGuardianDefinition,
     getTarotKingdomMinorDefinition,
-    getTarotKingdomCardLevelScale
-} from './tarotKingdomEffects.js?v=20260811-arcana-ready1';
+    getTarotKingdomCardLevelScale,
+    getTarotKingdomResonanceGrowthText,
+    getTarotKingdomFriendlyEffectText
+} from './tarotKingdomEffects.js?v=20260811-resonance-per-card1';
 import {
     buildTarotCardMeta,
     compareTarotItems,
@@ -1252,10 +1254,10 @@ function createTarotLoadoutEffectRow(item, itemId, slotIndex) {
     meta.textContent = `枠${slotIndex + 1} · Lv${level}${level > 1 ? ` · 数値×${scale.toFixed(2)}` : ''}`;
     const effect = document.createElement('span');
     effect.className = 'tarot-loadout-effect-text';
-    effect.textContent = definition?.effect || '効果データ未登録';
+    effect.textContent = definition ? getTarotKingdomFriendlyEffectText(definition) : '効果データ未登録';
     const rSummary = document.createElement('small');
     rSummary.className = 'tarot-loadout-effect-r';
-    rSummary.textContent = [definition?.r?.formula, definition?.range].filter(Boolean).join(' · ');
+    rSummary.textContent = getTarotKingdomResonanceGrowthText(rank);
     copy.append(kicker, name, meta, effect, rSummary);
 
     const actions = document.createElement('div');
@@ -1451,8 +1453,8 @@ function openArcanaResonanceCatalog() {
                    <p><b>${definition.passiveName}</b>：${definition.passive}</p>
                    <small>${item ? `現在Lvの数値倍率 ×${scale.toFixed(2)}` : '入手後に守護アルカナへ設定できます'}</small>`
                 : `<div class="arcana-resonance-title"><strong>${getTarotRankLabel({ ArcanaRank: definition.rank })} ${definition.name}</strong><span>${stateLabel}</span></div>
-                   <p>${definition.effect}</p>
-                   <small>${definition.r?.formula || ''}${definition.range ? ` · ${definition.range}` : ''}${item ? ` · 現在Lvの数値倍率 ×${scale.toFixed(2)}` : ' · 入手後に共鳴デッキへ設定できます'}</small>`;
+                   <p>${getTarotKingdomFriendlyEffectText(definition)}</p>
+                   <small>${getTarotKingdomResonanceGrowthText(definition.rank)}${item ? ` · 現在Lvの数値倍率 ×${scale.toFixed(2)}` : ' · 入手後に共鳴デッキへ設定できます'}</small>`;
             if (item) {
                 const openDetail = () => {
                     closeArcanaResonanceCatalog({ restoreFocus: false });
@@ -3692,9 +3694,10 @@ function renderTarotCombatDetailSection(item, itemData) {
 
     const rows = document.createElement('div');
     rows.className = 'item-detail-tarot-rows';
-    appendTarotCombatRow(rows, '効果', resonance?.effect || '効果データ未登録', 'skill');
-    if (resonance?.r?.formula) appendTarotCombatRow(rows, 'R', resonance.r.formula, 'stat');
-    if (resonance?.range) appendTarotCombatRow(rows, '範囲', resonance.range, 'stat');
+    appendTarotCombatRow(rows, '効果', resonance ? getTarotKingdomFriendlyEffectText(resonance) : '効果データ未登録', 'skill');
+    if (resonance) {
+        appendTarotCombatRow(rows, '強化条件', getTarotKingdomResonanceGrowthText(rank), 'stat');
+    }
     section.appendChild(rows);
 
     descriptionEl.insertAdjacentElement('afterend', section);

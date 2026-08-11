@@ -11226,13 +11226,6 @@ body.tarot-kingdom-preview-body {
     box-shadow: 0 0 7px rgba(218, 235, 255, 0.92), inset 0 0 2px #fff;
 }
 
-:is(body, #tabContentTarot) #tarotKingdomRoot .tarot-card-resonance-mark.is-partial {
-    border-style: dashed;
-    color: #e8cc78;
-    background: radial-gradient(circle, #594016 10%, #211707 72%);
-    box-shadow: 0 0 4px rgba(241, 194, 70, 0.5), inset 0 0 2px rgba(255, 241, 174, 0.7);
-}
-
 :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-card.has-minor-resonance .tarot-card-resonance-mark.is-awakening {
     top: 19px;
 }

@@ -22,7 +22,7 @@ function loadEffectsModule() {
     const v3Url = `data:text/javascript;base64,${Buffer.from(v3Source).toString('base64')}`;
     const modulePath = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomEffects.js');
     const source = fs.readFileSync(modulePath, 'utf8')
-      .replace("'./tarotKingdomEffectsV3.js?v=20260805-arcana-v3-full2'", `'${v3Url}'`)
+      .replace("'./tarotKingdomEffectsV3.js?v=20260811-resonance-per-card1'", `'${v3Url}'`)
       .replace("'./tarotKingdomStatuses.js?v=20260811-status-v1'", `'${statusesUrl}'`);
     effectsModulePromise = import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
   }
@@ -202,7 +202,36 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
     expect(resolved.candidates.map((entry) => entry.skillName)).toEqual(['盾割り', '六道連環']);
   });
 
-  test('minor and major same-rank resonance are 50%, and exact match takes priority', async () => {
+  test('a call reuses its exact field card and counts all five role cards', async () => {
+    const effects = await loadEffectsModule();
+    const fieldCard = minor('Sword', 6, 'call-field');
+    const roleCards = [
+      fieldCard,
+      minor('Cup', 7, 'call-hand-1'),
+      minor('Wand', 8, 'call-hand-2'),
+      minor('Pentacle', 9, 'call-hand-3'),
+      minor('Cup', 10, 'call-hand-4')
+    ];
+    const resolved = effects.resolveTarotKingdomResonance({
+      ...weaponContext(['unarmed'], roleCards[1]),
+      arcanaLoadoutEffectsVersion: 2,
+      playType: 'role',
+      isCall: true,
+      cards: roleCards,
+      character: {
+        combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
+        tarotDeck: [{ slot: 0, cardId: 'SWORD_06', suit: 'Sword', rank: 6, cardLevel: 1 }]
+      }
+    });
+    expect(resolved?.candidates?.[0]).toMatchObject({
+      submittedCardId: fieldCard.id,
+      matchKind: 'exact',
+      matchMultiplier: 1
+    });
+    expect(resolved?.steps?.[0]).toMatchObject({ hitCount: 5 });
+  });
+
+  test('resonance requires the same minor suit and rank', async () => {
     const effects = await loadEffectsModule();
     const character = {
       combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
@@ -213,33 +242,18 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
       handBefore: [minor('Sword', 1)],
       handAfter: []
     });
-    const sameRank = effects.resolveTarotKingdomResonance(base);
-    expect(sameRank.candidates).toHaveLength(1);
-    expect(sameRank.candidates[0]).toMatchObject({ matchKind: 'same-rank', matchMultiplier: 0.5 });
-    expect(sameRank.steps[0]).toMatchObject({ kind: 'buff', potency: 2, resolvedR: 2 });
+    expect(effects.resolveTarotKingdomResonance(base)).toBeNull();
+    expect(effects.resolveTarotKingdomResonance({
+      ...base,
+      cards: [{ id: 'major-1', kind: 'major', number: 1 }]
+    })).toBeNull();
 
-    const majorRank = effects.resolveTarotKingdomResonance({ ...base, cards: [{ id: 'major-1', kind: 'major', number: 1 }] });
-    expect(majorRank.candidates).toHaveLength(1);
-    expect(majorRank.candidates[0]).toMatchObject({ matchKind: 'same-rank', matchMultiplier: 0.5 });
-    expect(majorRank.steps[0]).toMatchObject({ kind: 'buff', potency: 2, resolvedR: 2 });
-
-    const exactWins = effects.resolveTarotKingdomResonance({
+    const exact = effects.resolveTarotKingdomResonance({
       ...base,
       cards: [minor('Sword', 1), minor('Pentacle', 1), minor('Pentacle', 1, 'duplicate')]
     });
-    expect(exactWins.candidates).toHaveLength(1);
-    expect(exactWins.candidates[0]).toMatchObject({ matchKind: 'exact', matchMultiplier: 1 });
-
-    const binarySameRank = effects.resolveTarotKingdomResonance({
-      ...base,
-      cards: [{ id: 'major-13', kind: 'major', number: 13 }],
-      character: {
-        ...character,
-        tarotDeck: [{ slot: 0, cardId: 'SWORD_13', suit: 'Sword', rank: 13, cardLevel: 1 }]
-      }
-    });
-    expect(binarySameRank.candidates).toHaveLength(1);
-    expect(binarySameRank.candidates[0]).toMatchObject({ matchKind: 'same-rank', matchMultiplier: 0.5 });
+    expect(exact.candidates).toHaveLength(1);
+    expect(exact.candidates[0]).toMatchObject({ matchKind: 'exact', matchMultiplier: 1 });
   });
 
   test('new conditions read field, hand, reverse, leader, and control events', async () => {
@@ -288,9 +302,12 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
       expect(entry.steps.length, entry.id).toBeGreaterThan(0);
       entry.steps.forEach((step) => expect(supportedKinds.has(step.kind), `${entry.id}:${step.kind}`).toBe(true));
     });
+    globalThis.__TAROT_KINGDOM_ARCANA_EFFECTS__.guardian.forEach((definition) => {
+      expect(definition.passive, `guardian ${definition.number} passive`).not.toContain('R');
+    });
   });
 
-  test('all 56 definitions resolve R 0/5/10 and exact or half resonance deterministically', async () => {
+  test('all 56 definitions resolve R 0/5/10 only for exact resonance', async () => {
     const effects = await loadEffectsModule();
     const definitions = globalThis.__TAROT_KINGDOM_ARCANA_EFFECTS__.minor;
     const alternateSuit = { Wand: 'Cup', Cup: 'Sword', Sword: 'Pentacle', Pentacle: 'Wand' };
@@ -315,7 +332,8 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
           koPlayerIndex: 3,
           resonanceMatch: { multiplier: 1, submittedCard: minor(definition.suit, definition.rank) }
         });
-        expect(text, `${definition.id} R${resolvedR}`).toMatch(new RegExp(`^(R${resolvedR}：|今回は効果なし)`));
+        expect(text, `${definition.id} value ${resolvedR}`).not.toContain('R');
+        expect(text.trim().length, `${definition.id} value ${resolvedR}`).toBeGreaterThan(0);
       }
 
       const deckEntry = {
@@ -342,21 +360,47 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
         matchKind: 'exact',
         matchMultiplier: 1
       });
-      const half = effects.resolveTarotKingdomResonance({
+      const otherSuit = effects.resolveTarotKingdomResonance({
         ...context,
         cards: [minor(alternateSuit[definition.suit], definition.rank)]
       });
-      expect(half?.candidates?.[0], `${definition.id} half`).toMatchObject({
-        resonanceId: definition.id,
-        matchKind: 'same-rank',
-        matchMultiplier: 0.5
-      });
-      [...exact.candidates[0].steps, ...half.candidates[0].steps].forEach((step) => {
+      expect(otherSuit, `${definition.id} other suit`).toBeNull();
+      expect(effects.resolveTarotKingdomResonance({
+        ...context,
+        cards: [{ id: `major-${definition.rank}`, kind: 'major', number: definition.rank }]
+      }), `${definition.id} major`).toBeNull();
+      exact.candidates[0].steps.forEach((step) => {
         expect(step.resolvedR, `${definition.id} shared R`).toBe(5);
         ['amount', 'percent', 'potency', 'chance'].forEach((key) => {
           if (step[key] != null) expect(Number.isFinite(Number(step[key])), `${definition.id} ${key}`).toBe(true);
         });
       });
+      expect(effects.getTarotKingdomFriendlyEffectText(definition), `${definition.id} friendly effect`)
+        .not.toContain('R');
+      expect(effects.getTarotKingdomResonanceGrowthText(definition.rank), `${definition.id} growth text`)
+        .toMatch(/効果上昇|効果を決定/);
     }
+  });
+
+  test('each resonant rank uses its own resolved value in the same action', async () => {
+    const effects = await loadEffectsModule();
+    const cupAce = minor('Cup', 1, 'per-rank-cup-ace');
+    const wandTwo = minor('Wand', 2, 'per-rank-wand-two');
+    const resolved = effects.resolveTarotKingdomResonance({
+      ...weaponContext(['unarmed'], cupAce),
+      arcanaLoadoutEffectsVersion: 3,
+      cards: [cupAce, wandTwo],
+      resolvedRByRank: { 1: 8, 2: 0 },
+      character: {
+        combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
+        tarotDeck: [
+          { slot: 0, cardId: 'CUP_01', suit: 'Cup', rank: 1, cardLevel: 1 },
+          { slot: 1, cardId: 'WAND_02', suit: 'Wand', rank: 2, cardLevel: 1 }
+        ]
+      }
+    });
+    expect(resolved.candidates).toHaveLength(2);
+    expect(resolved.candidates[0].steps[0].resolvedR).toBe(8);
+    expect(resolved.candidates[1].steps[0].resolvedR).toBe(0);
   });
 });

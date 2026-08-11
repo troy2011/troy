@@ -1116,6 +1116,108 @@ test.describe('Tarot Kingdom character battle flow', () => {
     await expect(page.locator('.tarot-kingdom-effect-banner')).toHaveText('盾割り');
   });
 
+  test('call resonance includes the reused field card and uses only the caller loadout', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const fieldCard = { id: 'call-resonance-field', kind: 'minor', suit: 'Cup', number: 2 };
+      const callerHand = [4, 6, 8, 10].map((number) => ({
+        id: `call-resonance-hand-${number}`,
+        kind: 'minor',
+        suit: 'Cup',
+        number
+      }));
+      callerHand.push({ id: 'call-resonance-reserve', kind: 'minor', suit: 'Wand', number: 14 });
+      const cupTwoDeck = [{
+        slot: 0,
+        itemId: 'tarot_minor_cup_02',
+        suit: 'Cup',
+        rank: 2,
+        cardLevel: 1,
+        resonanceId: 'cup-2'
+      }];
+
+      const run = (charactersBySeat) => {
+        debug.battleScenario({
+          tableCard: fieldCard,
+          leaderIndex: 1,
+          turnIndex: 0,
+          handsBySeat: [callerHand],
+          charactersBySeat,
+          rules: { arcanaLoadoutEffectsVersion: 3 }
+        });
+        const played = debug.battlePlayCards(
+          0,
+          callerHand.slice(0, 4).map((card) => card.id),
+          { resolve: false }
+        );
+        return {
+          ok: played.ok,
+          lastPlay: played.state.lastPlay,
+          event: played.state.battle.events.at(-1)
+        };
+      };
+
+      return {
+        callerEquipped: run([{ version: 4, tarotDeck: cupTwoDeck }, { version: 4, tarotDeck: [] }]),
+        fieldOwnerEquipped: run([{ version: 4, tarotDeck: [] }, { version: 4, tarotDeck: cupTwoDeck }])
+      };
+    });
+
+    expect(audit.callerEquipped).toMatchObject({
+      ok: true,
+      lastPlay: { call: true, count: 5 }
+    });
+    expect(audit.callerEquipped.lastPlay.cardsHand).toHaveLength(4);
+    expect(audit.callerEquipped.lastPlay.cardsTable).toHaveLength(5);
+    expect(audit.callerEquipped.event).toMatchObject({ resonanceName: '悠久の霊薬' });
+    expect(audit.fieldOwnerEquipped).toMatchObject({ ok: true });
+    expect(audit.fieldOwnerEquipped.event?.resonanceName || '').toBe('');
+  });
+
+  test('a five-card role resolves each resonant card from its own rank condition', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const cards = [
+        { id: 'rank-map-cup-1', kind: 'minor', suit: 'Cup', number: 1 },
+        { id: 'rank-map-wand-2', kind: 'minor', suit: 'Wand', number: 2 },
+        { id: 'rank-map-sword-3', kind: 'minor', suit: 'Sword', number: 3 },
+        { id: 'rank-map-pentacle-4', kind: 'minor', suit: 'Pentacle', number: 4 },
+        { id: 'rank-map-cup-5', kind: 'minor', suit: 'Cup', number: 5 },
+        { id: 'rank-map-reserve', kind: 'minor', suit: 'Sword', number: 14 }
+      ];
+      window.TarotKingdomDebug.battleScenario({
+        withTrick: false,
+        handsBySeat: [cards],
+        charactersBySeat: [{
+          version: 4,
+          tarotDeck: [
+            { slot: 0, itemId: 'tarot_minor_cup_01', suit: 'Cup', rank: 1, cardLevel: 1, resonanceId: 'cup-1' },
+            { slot: 1, itemId: 'tarot_minor_wand_02', suit: 'Wand', rank: 2, cardLevel: 1, resonanceId: 'wand-2' }
+          ]
+        }],
+        rules: { arcanaLoadoutEffectsVersion: 3 }
+      });
+      const played = window.TarotKingdomDebug.battlePlayCards(
+        0,
+        cards.slice(0, 5).map((card) => card.id),
+        { resolve: false }
+      );
+      return {
+        ok: played.ok,
+        lastPlay: played.state.lastPlay,
+        event: played.state.battle.events.at(-1)
+      };
+    });
+
+    expect(audit).toMatchObject({
+      ok: true,
+      lastPlay: {
+        type: 'role',
+        resonanceContext: { resolvedRByRank: { 1: 8, 2: 0 } }
+      },
+      event: { resonanceName: '五彩の雫・サイレンスミスト' }
+    });
+  });
+
   test('battle start freezes the API tarot deck and activates its matching resonance', async ({ page }) => {
     const result = await page.evaluate(async () => {
       const character = {
@@ -1315,14 +1417,15 @@ test.describe('Tarot Kingdom character battle flow', () => {
 
     const exactCard = page.locator('#tarotKingdomHand [data-card-id="hud-sword-5"]');
     await expect(exactCard.locator('.tarot-card-resonance-mark')).toHaveText('共');
-    await expect(exactCard.locator('[aria-label="装備カード共鳴 100%"]')).toHaveCount(1);
+    await expect(exactCard.locator('[aria-label="装備カード共鳴"]')).toHaveCount(1);
     await exactCard.click();
     await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText('V / 5スキップ');
     await expect(page.locator('#tarotKingdomGuardianPassiveLabel')).toHaveText('共鳴');
     await expect(page.locator('#tarotKingdomGuardianPassiveName')).toBeHidden();
     await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('盾割り');
     await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('共鳴100%');
-    await expect(page.locator('#tarotKingdomArcanaNav')).toContainText('R0：54ダメージ');
+    await expect(page.locator('#tarotKingdomArcanaNav')).toContainText('54ダメージ');
+    await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText(/R\d/);
 
     await exactCard.click();
     const awakenedCard = page.locator('#tarotKingdomHand [data-card-id="hud-major-5"]');
@@ -1335,7 +1438,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     await expect(page.locator('#tarotKingdomGuardianPassiveName')).toHaveText('魔導士');
     await expect(page.locator('#tarotKingdomGuardianPassiveName')).toBeVisible();
     await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('盾割り');
-    await expect(page.locator('#tarotKingdomGuardianPassiveText')).not.toContainText('R0：27ダメージ');
+    await expect(page.locator('#tarotKingdomGuardianPassiveText')).not.toContainText('27ダメージ');
     await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('共鳴50%');
     await expect(page.locator('#tarotKingdomArcanaNav')).not.toContainText('軽減55%');
 
