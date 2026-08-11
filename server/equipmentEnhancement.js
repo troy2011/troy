@@ -103,13 +103,14 @@ function resolveEquipmentEnhancementFamily(itemId, catalogData = {}) {
     const category = getEquipmentCategory(catalogData);
     if (category === 'Weapon') return resolveWeaponFamily(itemId, catalogData);
     if (category === 'Armor') return resolveArmorFamily(itemId, catalogData);
+    if (category === 'Shield') return 'shield';
     return '';
 }
 
 function getEquipmentPrimaryStat(catalogData = {}) {
     const category = getEquipmentCategory(catalogData);
     if (category === 'Weapon') return 'Power';
-    if (category === 'Armor') return 'Defense';
+    if (category === 'Armor' || category === 'Shield') return 'Defense';
     return '';
 }
 
@@ -162,7 +163,7 @@ function buildEquipmentEnhancementDescriptor(itemId, catalogData = {}, inventory
     const storedBonus = getEquipmentEnhancementBonus(inventoryItem);
     const bonus = Math.max(0, Math.min(storedBonus, EQUIPMENT_ENHANCEMENT_MAX_STAT - baseValue));
     const effectiveValue = Math.min(EQUIPMENT_ENHANCEMENT_MAX_STAT, baseValue + bonus);
-    const materialEligible = ['Weapon', 'Armor'].includes(category) && !!family;
+    const materialEligible = ['Weapon', 'Armor', 'Shield'].includes(category) && !!family;
     const eligible = materialEligible && effectiveValue < EQUIPMENT_ENHANCEMENT_MAX_STAT;
     return {
         version: EQUIPMENT_ENHANCEMENT_VERSION,

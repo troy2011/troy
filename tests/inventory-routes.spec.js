@@ -372,6 +372,52 @@ test('equip-item allows matching one-handed weapons in both hands when two are o
   });
 });
 
+test('equip-item rejects using one owned shield in both hands', async () => {
+  const { handler, updates } = makeEquipHarness({
+    readOnlyData: {
+      Equipped_LeftHand: { Value: 'shield_001' }
+    },
+    inventoryItems: [
+      { Id: 'shield_001', Amount: 1 }
+    ],
+    catalogCache: {
+      shield_001: { Category: 'Shield', DisplayName: 'Test Shield' }
+    }
+  });
+  const res = makeResponse();
+
+  await handler({ body: { playFabId: 'PF_PLAYWRIGHT', itemId: 'shield_001', slot: 'RightHand' } }, res);
+
+  expect(res.statusCode).toBe(400);
+  expect(res.body).toMatchObject({
+    error: '同じ盾を両手に装備するには2個必要です。'
+  });
+  expect(updates).toHaveLength(0);
+});
+
+test('equip-item allows matching shields in both hands when two are owned', async () => {
+  const { handler, updates } = makeEquipHarness({
+    readOnlyData: {
+      Equipped_LeftHand: { Value: 'shield_001' }
+    },
+    inventoryItems: [
+      { Id: 'shield_001', Amount: 2 }
+    ],
+    catalogCache: {
+      shield_001: { Category: 'Shield', DisplayName: 'Test Shield' }
+    }
+  });
+  const res = makeResponse();
+
+  await handler({ body: { playFabId: 'PF_PLAYWRIGHT', itemId: 'shield_001', slot: 'RightHand' } }, res);
+
+  expect(res.statusCode).toBe(200);
+  expect(updates).toHaveLength(1);
+  expect(updates[0].Data).toMatchObject({
+    Equipped_RightHand: 'shield_001'
+  });
+});
+
 test('equip-item allows different items whose Economy stack ids are both default', async () => {
   const { handler, updates } = makeEquipHarness({
     readOnlyData: {

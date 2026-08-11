@@ -2,6 +2,7 @@ const { test, expect } = require('@playwright/test');
 const { initializeInventoryRoutes } = require('../server/inventory');
 const {
   applyEquipmentEnhancementToCatalogData,
+  buildEquipmentEnhancementDescriptor,
   resolveArmorFamily,
   resolveWeaponFamily
 } = require('../server/equipmentEnhancement');
@@ -137,14 +138,24 @@ const catalog = {
   gun_05: { Category: 'Weapon', WeaponType: 'gun', DisplayName: 'フリントロック', Power: 14 },
   gun_06: { Category: 'Weapon', WeaponType: 'gun', DisplayName: 'ペッパーボックス', Power: 14 },
   leather01_001: { Category: 'Armor', DisplayName: '革鎧', Defense: 8, sprite_path: './Sprites/wardrobe/leather/leather01.png' },
-  metal_001: { Category: 'Armor', DisplayName: '鉄鎧', Defense: 12, sprite_path: './Sprites/wardrobe/metal/metal.png' }
+  metal_001: { Category: 'Armor', DisplayName: '鉄鎧', Defense: 12, sprite_path: './Sprites/wardrobe/metal/metal.png' },
+  shield_01: { Category: 'Shield', DisplayName: '樹皮の小盾', Defense: 8, sprite_path: './Sprites/weapons/melee weapons/shield.png' },
+  shield_02: { Category: 'Shield', DisplayName: '鉄の盾', Defense: 12, sprite_path: './Sprites/weapons/melee weapons/shield.png' }
 };
 
-test('equipment families keep weapon variants separate and infer armor material', () => {
+test('equipment families keep weapon variants separate and classify armor and shields', () => {
   expect(resolveWeaponFamily('sword_001', catalog.sword_001)).toBe('sword');
   expect(resolveWeaponFamily('sword_big_001', catalog.sword_big_001)).toBe('sword_big');
   expect(resolveArmorFamily('leather01_001', catalog.leather01_001)).toBe('leather');
   expect(resolveArmorFamily('metal_001', catalog.metal_001)).toBe('metal');
+  expect(buildEquipmentEnhancementDescriptor('shield_01', catalog.shield_01)).toMatchObject({
+    category: 'Shield',
+    family: 'shield',
+    primaryStat: 'Defense',
+    baseValue: 8,
+    materialEligible: true,
+    eligible: true
+  });
 });
 
 test('enhancement apply consumes multiple stacks and inherits an enhanced material bonus', async () => {
@@ -311,6 +322,57 @@ test('enhancing a legacy equipped stack splits one copy and keeps the result equ
   expect(harness.readOnly.EquipmentEnhancementPending).toBeUndefined();
 });
 
+test('shield enhancement accepts only shields and keeps the base equipped in the left hand', async () => {
+  const harness = makeEnhancementHarness({
+    catalogCache: catalog,
+    readOnlyData: {
+      Equipped_LeftHand: {
+        Value: JSON.stringify({ itemId: 'shield_01', stackId: 'shield-base' })
+      }
+    },
+    inventoryItems: [
+      { Id: 'shield_01', StackId: 'shield-base', Amount: 1 },
+      { Id: 'shield_02', StackId: 'shield-material', Amount: 1 },
+      { Id: 'leather01_001', StackId: 'armor-material', Amount: 1 }
+    ]
+  });
+
+  const mismatch = await invoke(harness.routes.get('/api/equipment-enhancement/preview'), {
+    playFabId: 'PF1',
+    baseItemId: 'shield_01',
+    baseStackId: 'shield-base',
+    materials: [{ itemId: 'leather01_001', stackId: 'armor-material', amount: 1 }]
+  });
+  expect(mismatch.statusCode).toBe(400);
+
+  const response = await invoke(harness.routes.get('/api/equipment-enhancement/apply'), {
+    playFabId: 'PF1',
+    baseItemId: 'shield_01',
+    baseStackId: 'shield-base',
+    materials: [{ itemId: 'shield_02', stackId: 'shield-material', amount: 1 }],
+    idempotencyId: 'request-shield-0001'
+  });
+
+  expect(response.statusCode).toBe(200);
+  expect(response.body).toMatchObject({
+    base: { itemId: 'shield_01', stackId: 'shield-base', category: 'Shield', family: 'shield', primaryStat: 'Defense' },
+    contribution: 1,
+    targetBonus: 1,
+    targetValue: 9,
+    targetStackId: 'shield-base'
+  });
+  expect(harness.state.find((item) => item.StackId === 'shield-base')).toMatchObject({
+    Amount: 1,
+    DisplayProperties: { equipmentEnhancement: { version: 1, bonus: 1 } }
+  });
+  expect(harness.state.find((item) => item.StackId === 'shield-material')).toBeUndefined();
+  expect(harness.state.find((item) => item.StackId === 'armor-material')).toMatchObject({ Amount: 1 });
+  expect(JSON.parse(harness.readOnly.Equipped_LeftHand.Value)).toEqual({
+    itemId: 'shield_01',
+    stackId: 'shield-base'
+  });
+});
+
 test('effective catalog stats are capped at 99', () => {
   const result = applyEquipmentEnhancementToCatalogData(
     'sword_001',
@@ -328,6 +390,14 @@ test('effective catalog stats are capped at 99', () => {
   );
   expect(armorResult.catalogData.Defense).toBe(12);
   expect(armorResult.enhancement.family).toBe('leather');
+
+  const shieldResult = applyEquipmentEnhancementToCatalogData(
+    'shield_01',
+    catalog.shield_01,
+    { DisplayProperties: { equipmentEnhancement: { version: 1, bonus: 5 } } }
+  );
+  expect(shieldResult.catalogData.Defense).toBe(13);
+  expect(shieldResult.enhancement.family).toBe('shield');
 });
 
 test('equipped material stacks are rejected before Economy mutation', async () => {

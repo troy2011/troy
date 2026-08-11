@@ -2603,7 +2603,7 @@ function initializeInventoryRoutes(app, deps) {
                     return res.status(400).json({ error: 'このカードはその枠に装備できません。' });
                 }
             } else if (slot === 'RightHand') {
-                if (normalizedCategory !== 'Weapon') {
+                if (!['Weapon', 'Shield'].includes(normalizedCategory)) {
                     return res.status(400).json({ error: 'この装備は右手に装備できません。' });
                 }
             } else if (slot === 'LeftHand') {
@@ -2630,7 +2630,8 @@ function initializeInventoryRoutes(app, deps) {
                 });
                 currentHandData = currentHandResult?.Data || {};
             }
-            if (normalizedCategory === 'Weapon' && !isTwoHandedWeapon && (slot === 'RightHand' || slot === 'LeftHand')) {
+            const canEquipInEitherHand = ['Weapon', 'Shield'].includes(normalizedCategory) && !isTwoHandedWeapon;
+            if (canEquipInEitherHand && (slot === 'RightHand' || slot === 'LeftHand')) {
                 const oppositeKey = slot === 'RightHand' ? 'Equipped_LeftHand' : 'Equipped_RightHand';
                 const oppositeRawValue = currentHandData?.[oppositeKey]?.Value || null;
                 const oppositeItemId = getStoredEquipmentItemId(oppositeRawValue);
@@ -2652,7 +2653,9 @@ function initializeInventoryRoutes(app, deps) {
                         && stackId !== oppositeStackId;
                     if (!hasDistinctExactStacks && ownedCount < 2) {
                         return res.status(400).json({
-                            error: '同じ片手武器を両手に装備するには2本必要です。'
+                            error: normalizedCategory === 'Shield'
+                                ? '同じ盾を両手に装備するには2個必要です。'
+                                : '同じ片手武器を両手に装備するには2本必要です。'
                         });
                     }
                 }

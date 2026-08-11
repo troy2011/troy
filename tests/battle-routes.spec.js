@@ -68,7 +68,7 @@ test('battle route initializer wires shared runBattle dependencies', async () =>
     }
   }
 });
-test('player full profile converts shield defense into parry stats', async () => {
+test('player full profile converts dual enhanced shields into parry stats', async () => {
   const adminPath = require.resolve('firebase-admin');
   const playfabPath = require.resolve('../server/playfab');
   const battleRoutesPath = require.resolve('../server/routes/battleRoutes');
@@ -118,6 +118,7 @@ test('player full profile converts shield defense into parry stats', async () =>
     if (fn === PlayFabServer.GetUserReadOnlyData) {
       return {
         Data: {
+          Equipped_RightHand: { Value: 'shield-right-stack' },
           Equipped_LeftHand: { Value: 'shield-stack' },
           Equipped_Armor: { Value: 'armor-stack' }
         }
@@ -134,7 +135,12 @@ test('player full profile converts shield defense into parry stats', async () =>
     if (fn === PlayFabEconomy.GetInventoryItems) {
       return {
         Items: [
-          { StackId: 'shield-stack', Id: 'shield_09' },
+          { StackId: 'shield-right-stack', Id: 'shield_10' },
+          {
+            StackId: 'shield-stack',
+            Id: 'shield_09',
+            DisplayProperties: { equipmentEnhancement: { version: 1, bonus: 5 } }
+          },
           { StackId: 'armor-stack', Id: 'armor_01' }
         ]
       };
@@ -153,6 +159,7 @@ test('player full profile converts shield defense into parry stats', async () =>
       { pushMessage: async () => null },
       {
         shield_09: { Category: 'Shield', Defense: 24, DisplayName: '鉄縁の木盾' },
+        shield_10: { Category: 'Shield', Defense: 10, DisplayName: '木の小盾' },
         armor_01: { Category: 'Armor', Defense: 10, DisplayName: '革鎧' }
       },
       {},
@@ -163,8 +170,8 @@ test('player full profile converts shield defense into parry stats', async () =>
 
     const profile = await battleRoutes.getPlayerFullProfile('PF_SHIELD');
     expect(profile.equipmentStats.Defense).toBe(10);
-    expect(profile.equipmentStats.ParryRate).toBeCloseTo(0.216);
-    expect(profile.equipmentStats.ParryCharges).toBe(2);
+    expect(profile.equipmentStats.ParryRate).toBeCloseTo(0.236);
+    expect(profile.equipmentStats.ParryCharges).toBe(4);
   } finally {
     delete require.cache[battleRoutesPath];
     if (originalPlayfabCache) {

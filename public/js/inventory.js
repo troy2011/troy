@@ -621,7 +621,10 @@ function getTargetInventoryCategoryForEquipmentSlot(slotElement) {
     const currentCategory = String(currentItem?.customData?.Category || '').trim();
 
     if (slotType === 'majorarcana') return 'TarotMajor';
-    if (slotType === 'leftHand' && (currentCategory === 'Shield' || currentCategory === 'Offhand')) {
+    if (currentCategory === 'Shield' && (slotType === 'rightHand' || slotType === 'leftHand')) {
+        return 'LeftHand';
+    }
+    if (slotType === 'leftHand' && currentCategory === 'Offhand') {
         return 'LeftHand';
     }
     if (currentCategory === 'Weapon' || currentCategory === 'Armor' || currentCategory === 'Accessory') {
@@ -1536,7 +1539,7 @@ function getInventoryTabHint(category) {
         return 'アクセサリーは1個装備できます。';
     }
     if (category === 'LeftHand') {
-        return '左手用の武器・盾・補助装備です。';
+        return '盾と左手用の補助装備です。盾は右手にも装備できます。';
     }
     if (category === 'Offhand') {
         return '副手は左手に装備する補助装備です。';
@@ -1545,7 +1548,7 @@ function getInventoryTabHint(category) {
         return '右手と左手に装備できる武器です。';
     }
     if (category === 'Shield') {
-        return '盾は左手に装備できます。';
+        return '盾は右手と左手に装備できます。';
     }
     if (category === 'Armor') {
         return '防具は頭装備として1個装備できます。';
@@ -2533,7 +2536,16 @@ function getInventoryQuickAction(item, canonicalCategory) {
         }
         return { label: '右手', tone: 'equip', run: () => equipItem(playFabId, itemId, 'RightHand', stackId) };
     }
-    if (canonicalCategory === 'Shield' || canonicalCategory === 'Offhand') {
+    if (canonicalCategory === 'Shield') {
+        if (equippedSlots.includes('RightHand')) {
+            return { label: '外す', tone: 'remove', run: () => equipItem(playFabId, null, 'RightHand') };
+        }
+        if (equippedSlots.includes('LeftHand')) {
+            return { label: '外す', tone: 'remove', run: () => equipItem(playFabId, null, 'LeftHand') };
+        }
+        return { label: '左手', tone: 'equip', run: () => equipItem(playFabId, itemId, 'LeftHand', stackId) };
+    }
+    if (canonicalCategory === 'Offhand') {
         if (equippedSlots.includes('LeftHand')) {
             return { label: '外す', tone: 'remove', run: () => equipItem(playFabId, null, 'LeftHand') };
         }
@@ -4177,6 +4189,27 @@ function showItemDetailModal(item) {
         const equippedValue = myCurrentEquipment[slot];
         return isEquipmentReferenceMatch(item, equippedValue);
     };
+    const addOneHandedActions = () => {
+        const ownedCount = getInventoryOwnedCount(item);
+        const isRightEquipped = isEquipped('RightHand');
+        const isLeftEquipped = isEquipped('LeftHand');
+        const cannotEquipRight = !isRightEquipped && isLeftEquipped && ownedCount < 2;
+        const cannotEquipLeft = !isLeftEquipped && isRightEquipped && ownedCount < 2;
+        if (isRightEquipped) {
+            addAction('右手を外す', 'remove', () => equipItem(playFabId, null, 'RightHand'));
+        } else if (cannotEquipRight) {
+            addAction('右手装備', 'disabled', null, { disabled: true });
+        } else {
+            addAction(getEquipActionLabel('RightHand', '右手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'RightHand', getPreferredInventoryStackId(item)));
+        }
+        if (isLeftEquipped) {
+            addAction('左手を外す', 'remove', () => equipItem(playFabId, null, 'LeftHand'));
+        } else if (cannotEquipLeft) {
+            addAction('左手装備', 'disabled', null, { disabled: true });
+        } else {
+            addAction(getEquipActionLabel('LeftHand', '左手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'LeftHand', getPreferredInventoryStackId(item)));
+        }
+    };
 
     if (cd.Category === 'Weapon') {
         const isTwoHanded = isTwoHandedInventoryWeapon(item);
@@ -4187,30 +4220,12 @@ function showItemDetailModal(item) {
                 addAction('両手装備', 'equip', () => equipItem(playFabId, equipItemId, 'RightHand', equipStackId));
             }
         } else {
-            const ownedCount = getInventoryOwnedCount(item);
-            const isRightEquipped = isEquipped('RightHand');
-            const isLeftEquipped = isEquipped('LeftHand');
-            const cannotEquipRight = !isRightEquipped && isLeftEquipped && ownedCount < 2;
-            const cannotEquipLeft = !isLeftEquipped && isRightEquipped && ownedCount < 2;
-            if (isEquipped('RightHand')) {
-                addAction('右手を外す', 'remove', () => equipItem(playFabId, null, 'RightHand'));
-            } else if (cannotEquipRight) {
-                addAction('右手装備', 'disabled', null, { disabled: true });
-            } else {
-                addAction(getEquipActionLabel('RightHand', '右手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'RightHand', getPreferredInventoryStackId(item)));
-            }
-            if (isEquipped('LeftHand')) {
-                addAction('左手を外す', 'remove', () => equipItem(playFabId, null, 'LeftHand'));
-            } else if (cannotEquipLeft) {
-                addAction('左手装備', 'disabled', null, { disabled: true });
-            } else {
-                addAction(getEquipActionLabel('LeftHand', '左手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'LeftHand', getPreferredInventoryStackId(item)));
-            }
+            addOneHandedActions();
         }
-    } else if (cd.Category === 'Shield' || cd.Category === 'Offhand') {
-        if (cd.Category === 'Offhand') {
-            appendActionNote('副手は左手専用です。杖や魔法寄りの装備と相性が良い補助枠です。');
-        }
+    } else if (cd.Category === 'Shield') {
+        addOneHandedActions();
+    } else if (cd.Category === 'Offhand') {
+        appendActionNote('副手は左手専用です。杖や魔法寄りの装備と相性が良い補助枠です。');
         if (isEquipped('LeftHand')) {
             addAction('左手を外す', 'remove', () => equipItem(playFabId, null, 'LeftHand'));
         } else {
@@ -4261,7 +4276,7 @@ function showItemDetailModal(item) {
         addAction('使う', 'use', () => useItem(playFabId, instanceId, item.itemId));
     }
 
-    if (['Weapon', 'Armor'].includes(cd.Category)) {
+    if (['Weapon', 'Armor', 'Shield'].includes(cd.Category)) {
         if (item?.materialEligible === true && Number(item?.enhancement?.effectiveValue || 0) < 99) {
             addAction('強化', 'enhance', () => showEquipmentEnhancementModal(item));
         } else if (Number(item?.enhancement?.effectiveValue || 0) >= 99) {

@@ -5505,6 +5505,40 @@ test('inventory equipment enhancement modal previews and applies multiple materi
         Category: 'Weapon', WeaponType: 'sword', Power: 12,
         sprite_path: './Sprites/weapons/melee weapons/sword.png', sprite_index: '3', sprite_w: '32', sprite_h: '32'
       }
+    },
+    {
+      itemId: 'shield_01',
+      stackId: 'shield-base',
+      instances: ['shield-base'],
+      stacks: [{ stackId: 'shield-base', count: 1, enhancement: { bonus: 0, contribution: 1 } }],
+      count: 1,
+      name: '強化用の盾',
+      materialEligible: true,
+      enhancement: {
+        category: 'Shield', family: 'shield', primaryStat: 'Defense', baseValue: 8,
+        bonus: 0, storedBonus: 0, effectiveValue: 8, eligible: true, materialEligible: true
+      },
+      customData: {
+        Category: 'Shield', Defense: 8,
+        sprite_path: './Sprites/weapons/melee weapons/shield.png', sprite_index: '0', sprite_w: '32', sprite_h: '32'
+      }
+    },
+    {
+      itemId: 'shield_02',
+      stackId: 'shield-material',
+      instances: ['shield-material'],
+      stacks: [{ stackId: 'shield-material', count: 1, enhancement: { bonus: 0, contribution: 1 } }],
+      count: 1,
+      name: '素材の盾',
+      materialEligible: true,
+      enhancement: {
+        category: 'Shield', family: 'shield', primaryStat: 'Defense', baseValue: 12,
+        bonus: 0, storedBonus: 0, effectiveValue: 12, eligible: true, materialEligible: true
+      },
+      customData: {
+        Category: 'Shield', Defense: 12,
+        sprite_path: './Sprites/weapons/melee weapons/shield.png', sprite_index: '1', sprite_w: '32', sprite_h: '32'
+      }
     }
   ];
 
@@ -5633,6 +5667,18 @@ test('inventory equipment enhancement modal previews and applies multiple materi
     ]
   });
   expect(String(applyRequests[1].idempotencyId)).not.toBe('');
+  await expect(page.locator('#equipmentEnhancementModal')).toBeHidden();
+
+  await page.evaluate(async () => {
+    const inventory = await import('/js/inventory.js');
+    inventory.switchInventoryTab('LeftHand');
+  });
+  await page.locator('#inventoryGrid .inventory-item-cell[title="強化用の盾"]').click();
+  await page.getByRole('button', { name: '強化', exact: true }).click();
+  await expect(page.locator('#equipmentEnhancementModal')).toBeVisible();
+  await expect(page.locator('.equipment-enhancement-material-list')).toContainText('素材の盾');
+  await expect(page.locator('.equipment-enhancement-material-list')).not.toContainText('素材の剣');
+  await page.locator('#equipmentEnhancementModal .equipment-enhancement-close').click();
   await expect(page.locator('#equipmentEnhancementModal')).toBeHidden();
   await expectNoPageErrors(errors);
 });
@@ -7006,6 +7052,78 @@ test('single one-handed weapon cannot be equipped to both hands from detail moda
   await expect(page.locator('#itemDetailButtons .item-detail-action.is-disabled')).toHaveText('左手装備');
   await expect(page.locator('#itemDetailButtons .item-detail-action.is-disabled')).toBeDisabled();
   await expect(page.locator('#itemDetailButtons .item-detail-action-note')).toHaveCount(0);
+  await expectNoPageErrors(errors);
+});
+
+test('two owned shields can be equipped in both hands from the detail modal', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const equipRequests = [];
+  const equipmentItems = [
+    {
+      itemId: 'shield_001',
+      instances: ['default'],
+      stacks: [{ stackId: 'default', count: 2 }],
+      count: 2,
+      name: 'Twin Shield',
+      customData: {
+        Category: 'Shield', Defense: 12,
+        sprite_path: './Sprites/weapons/melee weapons/shield.png', sprite_index: '0'
+      }
+    }
+  ];
+
+  await page.route('**/api/get-inventory', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ inventory: equipmentItems, virtualCurrency: { PS: 0 }, contribution: 0 })
+    });
+  });
+  await page.route('**/api/get-equipment', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ equipment: { LeftHand: { itemId: 'shield_001', stackId: 'default' } } })
+    });
+  });
+  await page.route('**/api/tarot-deck-get', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ok: true, tarotDeck: [], tarotRole: null })
+    });
+  });
+  await page.route('**/api/equip-item', async (route) => {
+    equipRequests.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ status: 'success', equippedItem: 'shield_001', stackId: 'default' })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    const inventoryTab = document.getElementById('tabContentInventory');
+    if (inventoryTab) inventoryTab.style.display = 'block';
+    const inventory = await import('/js/inventory.js');
+    await inventory.getInventory('PF_PLAYWRIGHT', { force: true });
+    inventory.switchInventoryGroup('Equipment');
+    inventory.switchInventoryTab('LeftHand');
+  });
+
+  await page.locator('#inventoryGrid .inventory-item-cell[data-category="Shield"]').click();
+  await expect(page.locator('#itemDetailModal')).toBeVisible();
+  await expect(page.getByRole('button', { name: '右手装備', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: '左手を外す', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: '右手装備', exact: true }).click();
+  await expect.poll(() => equipRequests.length).toBe(1);
+  expect(equipRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    itemId: 'shield_001',
+    stackId: 'default',
+    slot: 'RightHand'
+  });
   await expectNoPageErrors(errors);
 });
 

@@ -656,7 +656,7 @@ test.describe('shared combat avatar motions', () => {
     expect(audit.bow.impactOpacity).toBeGreaterThanOrEqual(0.9);
   });
 
-  test('keeps home and combat equipment offsets identical when a shield arrives as Offhand', async ({ page }) => {
+  test('renders shields in both hands with shared home and combat offsets', async ({ page }) => {
     await page.goto('/melee-demo.html');
 
     const audit = await page.evaluate(async () => {
@@ -675,9 +675,9 @@ test.describe('shared combat avatar motions', () => {
         FaceIndex: 1, HairStyleIndex: 1, HairColorIndex: 4,
         FacialHairStyleIndex: 0, level: 12
       };
-      const equipment = { RightHand: 'sword_2', LeftHand: 'shield_1', Armor: 'metal_1' };
+      const equipment = { RightHand: 'shield_2', LeftHand: 'shield_1', Armor: 'metal_1' };
       const homeItems = {
-        sword_2: { itemId: 'sword_2', customData: { Category: 'Weapon', WeaponType: 'sword', sprite_index: '2' } },
+        shield_2: { itemId: 'shield_2', customData: { Category: 'Shield', WeaponType: 'shield', sprite_index: '2' } },
         shield_1: { itemId: 'shield_1', customData: { Category: 'Shield', WeaponType: 'shield', sprite_index: '1' } },
         metal_1: { itemId: 'metal_1', customData: { Category: 'Armor', sprite_index: '1' } }
       };
@@ -718,6 +718,8 @@ test.describe('shared combat avatar motions', () => {
     });
 
     expect(audit.combat).toEqual(audit.home);
+    expect(audit.combat['weapon-right'].backgroundImage).toContain('shield.png');
+    expect(audit.combat['shield-left'].backgroundImage).toContain('shield.png');
     expect(audit.combat['shield-left'].baseTransform).toBe('translateX(12px) translateY(18px)');
   });
 
