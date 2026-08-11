@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="robots" content="noindex,follow">
     <title>Tarot Kingdom Preview</title>
-    <link rel="stylesheet" href="./style.css?v=20260812-status-v2">
+    <link rel="stylesheet" href="./style.css?v=20260812-status-icons-v1">
     <link rel="stylesheet" href="./tarot-kingdom-summons.css?v=20260812-summon-v2">
     <style>
         html, body {
@@ -41,7 +41,7 @@
                 "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
                 "config": "./js/config.js",
                 "api": "./js/api.js",
-                "ui": "./js/ui.js?v=20260812-summon-v2",
+                "ui": "./js/ui.js?v=20260812-status-icons-v1",
                 "avatar": "./js/avatar.js",
                 "player": "./js/player.js",
                 "inventory": "./js/inventory.js?v=20260811-resonance-per-card1",
@@ -104,14 +104,17 @@
                 </label>
                 <label class="tarot-kingdom-demo-status-target-picker" for="tarotKingdomDemoStatusTargetSelect">
                     <span>DEMO STATUS TARGET</span>
-                    <select id="tarotKingdomDemoStatusTargetSelect" aria-label="状態異常の表示対象を選択">
+                    <select id="tarotKingdomDemoStatusTargetSelect" aria-label="状態効果の表示対象を選択">
                         <option value="enemy">敵</option>
-                        <option value="player-0">プレイヤー</option>
+                        <option value="player-0">味方1</option>
+                        <option value="player-1">味方2</option>
+                        <option value="player-2">味方3</option>
+                        <option value="player-3">味方4</option>
                     </select>
                 </label>
                 <label class="tarot-kingdom-demo-status-picker" for="tarotKingdomDemoStatusSelect">
-                    <span>DEMO STATUS</span>
-                    <select id="tarotKingdomDemoStatusSelect" aria-label="表示する状態異常を選択"></select>
+                    <span>DEMO EFFECT</span>
+                    <select id="tarotKingdomDemoStatusSelect" aria-label="表示する状態効果を選択"></select>
                 </label>
                 <label class="tarot-kingdom-demo-summon-picker" for="tarotKingdomDemoSummonSelect">
                     <span>DEMO SUMMON</span>
@@ -133,8 +136,9 @@
                     </div>
                     <div class="tarot-kingdom-battle-status-tray is-enemy" data-status-target="enemy" aria-label="敵の状態異常"></div>
                     <div class="tarot-kingdom-battle-enemy-visual">
-                        <div class="tarot-kingdom-combat-status-fx is-enemy" aria-hidden="true"></div>
-                        <div id="tarotKingdomEnemySprite" class="tarot-kingdom-battle-enemy-sprite" data-facing="left" role="img" aria-label="敵モンスター"></div>
+                        <div id="tarotKingdomEnemySprite" class="tarot-kingdom-battle-enemy-sprite" data-facing="left" role="img" aria-label="敵モンスター">
+                            <div class="tarot-kingdom-combat-status-fx is-enemy" aria-hidden="true"></div>
+                        </div>
                         <span class="tarot-kingdom-enemy-skip-soak" aria-hidden="true"></span>
                     </div>
                 </section>
@@ -225,7 +229,7 @@
         window.myLineProfile = { displayName: 'Preview' };
         window.__TAROT_KINGDOM_PREVIEW__ = true;
 
-        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260812-summon-v2';
+        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260812-status-icons-v1';
 
         window.TarotKingdomPreview = {
             load: () => loadTarotKingdomPage(),

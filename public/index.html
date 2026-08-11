@@ -23,7 +23,7 @@
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
     <title>TROYゴールドアプリ</title>
-<link rel="stylesheet" href="style.css?v=20260812-status-v2">
+<link rel="stylesheet" href="style.css?v=20260812-status-icons-v1">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
     <link rel="stylesheet" href="tarot-kingdom-summons.css?v=20260812-summon-v2">
@@ -532,8 +532,9 @@
                                 </div>
                                 <div class="tarot-kingdom-battle-status-tray is-enemy" data-status-target="enemy" aria-label="敵の状態異常"></div>
                                 <div class="tarot-kingdom-battle-enemy-visual">
-                                    <div class="tarot-kingdom-combat-status-fx is-enemy" aria-hidden="true"></div>
-                                    <div id="tarotKingdomEnemySprite" class="tarot-kingdom-battle-enemy-sprite" data-facing="left" role="img" aria-label="敵モンスター"></div>
+                                    <div id="tarotKingdomEnemySprite" class="tarot-kingdom-battle-enemy-sprite" data-facing="left" role="img" aria-label="敵モンスター">
+                                        <div class="tarot-kingdom-combat-status-fx is-enemy" aria-hidden="true"></div>
+                                    </div>
                                     <span class="tarot-kingdom-enemy-skip-soak" aria-hidden="true"></span>
                                 </div>
                             </section>
@@ -1851,7 +1852,7 @@
         "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
         "config": "./js/config.js",
         "api": "./js/api.js",
-"ui": "./js/ui.js?v=20260812-summon-v2",
+"ui": "./js/ui.js?v=20260812-status-icons-v1",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js",
         "inventory": "./js/inventory.js?v=20260811-resonance-per-card1",
@@ -1898,6 +1899,6 @@
     <!-- Scripts -->
     <script src="battle-client.js?v=20260801-weapon-motion4"></script>
     <script src="naval-battle.js"></script>
-<script type="module" src="main.js?v=20260812-summon-v2"></script>
+<script type="module" src="main.js?v=20260812-status-icons-v1"></script>
 </body>
 </html>

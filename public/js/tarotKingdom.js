@@ -4339,7 +4339,8 @@ function setKingdomDemoStatus(statusKey = '', targetValue = 'enemy') {
   const targetIndex = targetType === 'player'
     ? Math.max(0, Math.min(s.players.length - 1, Number(target.split('-')[1]) || 0))
     : null;
-  TAROT_KINGDOM_NEGATIVE_STATUS_KEYS.forEach((key) => removeKingdomBattleEffect(targetType, key, targetIndex));
+  [...TAROT_KINGDOM_NEGATIVE_STATUS_KEYS, ...TAROT_KINGDOM_MODIFIER_DEFINITIONS.map(({ key }) => key)]
+    .forEach((key) => removeKingdomBattleEffect(targetType, key, targetIndex));
   const definition = getTarotKingdomStatusDefinition(statusKey);
   if (definition) {
     setKingdomBattleEffect(targetType, definition.key, {
@@ -4348,6 +4349,18 @@ function setKingdomDemoStatus(statusKey = '', targetValue = 'enemy') {
       charges: definition.defaultCount,
       source: 'demo-status'
     }, targetIndex);
+  } else {
+    const modifier = getTarotKingdomModifierDefinition(statusKey);
+    if (modifier) {
+      setKingdomBattleEffect(targetType, modifier.key, {
+        label: modifier.label,
+        potency: 25,
+        remainingTurns: 2,
+        expiresOn: 'turn',
+        shieldHp: modifier.key === 'hpShield' ? 32 : undefined,
+        source: 'demo-modifier'
+      }, targetIndex);
+    }
   }
   render();
   return true;
@@ -19467,12 +19480,6 @@ function ensureKingdomBattlePlayerRow(playerIndex) {
   if (!ui.battleParty) return null;
   let row = ui.battleParty.querySelector(`[data-player-index="${playerIndex}"]`);
   if (row) {
-    if (!row.querySelector(':scope > .tarot-kingdom-battle-player-floor-shadow')) {
-      const shadow = document.createElement('div');
-      shadow.className = 'tarot-kingdom-battle-player-floor-shadow';
-      shadow.setAttribute('aria-hidden', 'true');
-      row.insertBefore(shadow, row.firstChild);
-    }
     if (!row.querySelector(':scope > .tarot-kingdom-regen-aura')) {
       const aura = document.createElement('div');
       aura.className = 'tarot-kingdom-regen-aura';
@@ -19480,13 +19487,14 @@ function ensureKingdomBattlePlayerRow(playerIndex) {
       const avatar = row.querySelector(':scope > .tarot-kingdom-battle-player-avatar');
       row.insertBefore(aura, avatar || row.firstChild);
     }
-    if (!row.querySelector(':scope > .tarot-kingdom-combat-status-fx')) {
-      const statusAura = document.createElement('div');
+    const avatar = row.querySelector(':scope > .tarot-kingdom-battle-player-avatar');
+    let statusAura = row.querySelector('.tarot-kingdom-combat-status-fx.is-player');
+    if (!statusAura) {
+      statusAura = document.createElement('div');
       statusAura.className = 'tarot-kingdom-combat-status-fx is-player';
       statusAura.setAttribute('aria-hidden', 'true');
-      const avatar = row.querySelector(':scope > .tarot-kingdom-battle-player-avatar');
-      row.insertBefore(statusAura, avatar || row.firstChild);
     }
+    if (avatar && statusAura.parentElement !== avatar) avatar.appendChild(statusAura);
     const info = row.querySelector(':scope > .tarot-kingdom-battle-player-info');
     if (info && !info.querySelector(':scope > .tarot-kingdom-battle-status-tray')) {
       const statusTray = document.createElement('div');
@@ -19499,10 +19507,6 @@ function ensureKingdomBattlePlayerRow(playerIndex) {
   row = document.createElement('div');
   row.className = 'tarot-kingdom-battle-player';
   row.dataset.playerIndex = String(playerIndex);
-
-  const floorShadow = document.createElement('div');
-  floorShadow.className = 'tarot-kingdom-battle-player-floor-shadow';
-  floorShadow.setAttribute('aria-hidden', 'true');
 
   const regenAura = document.createElement('div');
   regenAura.className = 'tarot-kingdom-regen-aura';
@@ -19518,6 +19522,7 @@ function ensureKingdomBattlePlayerRow(playerIndex) {
   avatar.dataset.facing = 'right';
   avatar.dataset.avatarIdle = 'true';
   avatar.setAttribute('aria-hidden', 'true');
+  avatar.appendChild(statusAura);
 
   const info = document.createElement('div');
   info.className = 'tarot-kingdom-battle-player-info';
@@ -19553,9 +19558,7 @@ function ensureKingdomBattlePlayerRow(playerIndex) {
   info.appendChild(hpWrap);
   info.appendChild(handCount);
   info.appendChild(statusTray);
-  row.appendChild(floorShadow);
   row.appendChild(regenAura);
-  row.appendChild(statusAura);
   row.appendChild(avatar);
   row.appendChild(info);
   ui.battleParty.appendChild(row);
@@ -19635,10 +19638,18 @@ function buildKingdomStatusIcon(definition, effect, interactive = true) {
   if (interactive) icon.type = 'button';
   icon.className = 'tarot-kingdom-battle-status-icon';
   icon.classList.toggle('is-negative', isTarotKingdomNegativeStatus(definition.key));
-  icon.classList.toggle('is-buff', definition.group === 'buff' || definition.group === 'special');
+  icon.classList.toggle('is-modifier', Boolean(definition.group));
+  icon.classList.toggle('is-buff', definition.group === 'buff');
   icon.classList.toggle('is-debuff', definition.group === 'debuff');
+  icon.classList.toggle('is-special', definition.group === 'special');
   icon.dataset.status = definition.key;
-  icon.setAttribute('aria-label', String(effect.label || definition.label));
+  if (definition.group) icon.dataset.modifierGroup = definition.group;
+  if (definition.axis) icon.dataset.modifierAxis = definition.axis;
+  if (Number(definition.direction)) icon.dataset.direction = String(Math.sign(Number(definition.direction)));
+  const categoryLabel = isTarotKingdomNegativeStatus(definition.key)
+    ? '状態異常'
+    : (definition.group === 'debuff' ? '弱体' : (definition.group === 'buff' ? '強化' : '補助'));
+  icon.setAttribute('aria-label', `${categoryLabel}：${String(effect.label || definition.label)}`);
   if (definition.spriteIndex != null) {
     const spriteIndex = Math.max(0, Math.min(14, Math.floor(Number(definition.spriteIndex) || 0)));
     icon.classList.add('is-status-sprite');
@@ -19669,17 +19680,9 @@ function renderKingdomStatusPresentation({ bucket, tray, fx, conscious = true, t
     }));
   }
   if (fx) {
-    const visualStatuses = statuses.filter(({ definition }) => isTarotKingdomNegativeStatus(definition.key)).slice(0, 2);
-    fx.dataset.status = String(visualStatuses[0]?.definition.key || '');
-    fx.dataset.secondaryStatus = String(visualStatuses[1]?.definition.key || '');
-    const secondaryColors = {
-      paralysis: '#ffe85c', freeze: '#b9f2ff', sleep: '#bca5ff', silence: '#8aadd0',
-      petrify: '#aeb4b4', silence: '#8aadd0', seal: '#f3d9ff', confusion: '#ed89ff',
-      poison: '#7de85c', burn: '#ff7944', fear: '#b46be0', blind: '#70558f',
-      wet: '#67d5ff', vulnerable: '#ff6661', slow: '#a4e4ff', curse: '#9b55cc'
-    };
-    fx.style.setProperty('--tk-secondary-status-color', secondaryColors[visualStatuses[1]?.definition.key] || 'transparent');
-    fx.hidden = visualStatuses.length === 0;
+    const visualStatus = statuses.find(({ definition }) => isTarotKingdomNegativeStatus(definition.key));
+    fx.dataset.status = String(visualStatus?.definition.key || '');
+    fx.hidden = !visualStatus;
   }
   return statuses;
 }
@@ -19690,7 +19693,7 @@ function renderKingdomPlayerStatusEffects(row, playerIndex, conscious) {
   const statuses = renderKingdomStatusPresentation({
     bucket,
     tray: row.querySelector('.tarot-kingdom-battle-status-tray'),
-    fx: row.querySelector(':scope > .tarot-kingdom-combat-status-fx'),
+    fx: row.querySelector('.tarot-kingdom-battle-player-avatar > .tarot-kingdom-combat-status-fx'),
     conscious,
     title: `${pName(playerIndex)}の状態`
   });
@@ -23195,13 +23198,25 @@ function bindUi() {
     const noneOption = document.createElement('option');
     noneOption.value = '';
     noneOption.textContent = 'なし';
-    const statusOptions = TAROT_KINGDOM_STATUS_DEFINITIONS.map((definition) => {
-      const option = document.createElement('option');
-      option.value = definition.key;
-      option.textContent = definition.label;
-      return option;
-    });
-    ui.demoStatusSelect.replaceChildren(noneOption, ...statusOptions);
+    const buildStatusOptionGroup = (label, definitions) => {
+      const group = document.createElement('optgroup');
+      group.label = label;
+      definitions.forEach((definition) => {
+        const option = document.createElement('option');
+        option.value = definition.key;
+        option.textContent = definition.label;
+        group.appendChild(option);
+      });
+      return group;
+    };
+    const buffDefinitions = TAROT_KINGDOM_MODIFIER_DEFINITIONS.filter(({ group }) => group !== 'debuff');
+    const debuffDefinitions = TAROT_KINGDOM_MODIFIER_DEFINITIONS.filter(({ group }) => group === 'debuff');
+    ui.demoStatusSelect.replaceChildren(
+      noneOption,
+      buildStatusOptionGroup('状態異常', TAROT_KINGDOM_STATUS_DEFINITIONS),
+      buildStatusOptionGroup('強化・補助', buffDefinitions),
+      buildStatusOptionGroup('弱体', debuffDefinitions)
+    );
     const updateDemoStatus = () => setKingdomDemoStatus(
       ui.demoStatusSelect.value,
       ui.demoStatusTargetSelect?.value || 'enemy'
