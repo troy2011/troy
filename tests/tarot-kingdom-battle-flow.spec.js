@@ -1013,6 +1013,42 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.cleared.battle.effects.players[1].poison).toBeTruthy();
   });
 
+  test('status results use short combat text and natural navigation copy', async ({ page }) => {
+    await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({
+        turnIndex: 1,
+        leaderIndex: 0,
+        hpBySeat: [100, 100, 100, 100],
+        combatBySeat: Array.from({ length: 4 }, () => ({ maxHp: 100, defense: 0 })),
+        enemySpeed: 0,
+        enemyAilment: {
+          statusKey: 'poison',
+          label: '毒',
+          scope: 'single',
+          chance: 1,
+          potency: 4,
+          charges: 3
+        }
+      });
+      debug.battleSetCombatRandom(0);
+      debug.battlePass(1);
+      const state = debug.battleState();
+      const timeline = state.transition.timeline;
+      const originalNow = Date.now;
+      try {
+        Date.now = () => timeline.effectAt + 1;
+        debug.battleRender();
+      } finally {
+        Date.now = originalNow;
+      }
+    });
+
+    const row = page.locator('#tarotKingdomBattleParty > .tarot-kingdom-battle-player').nth(1);
+    await expect(row.locator('.tarot-kingdom-effect-result-text')).toHaveText('POISON');
+    await expect(page.locator('#tarotKingdomSelectedEffectText')).toContainText('毒に侵された');
+  });
+
   test('single and area attacks reveal HP and KO in visual event order', async ({ page }) => {
     const duringSingle = await page.evaluate(({ combatBySeat }) => {
       const debug = window.TarotKingdomDebug;
@@ -1973,7 +2009,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
           resonanceAnimations: nodes.map((node) => getComputedStyle(node).animationName),
           legacyStatusMarkerCount: document.querySelectorAll('.tarot-kingdom-status-tray, .tarot-kingdom-status-icon').length,
           ailmentLabels: Array.from(document.querySelectorAll('[data-player-index="0"] .tarot-kingdom-battle-status-icon')).map((node) => node.getAttribute('aria-label')),
-          primaryStatus: document.querySelector('[data-player-index="0"] .tarot-kingdom-combat-status-fx')?.dataset.status || '',
+          primaryStatus: document.querySelector('[data-player-index="0"] .tarot-kingdom-status-accent')?.dataset.status || '',
           boxes: nodes.map((node) => {
             const rect = node.getBoundingClientRect();
             return { left: rect.left, right: rect.right, width: rect.width, height: rect.height };

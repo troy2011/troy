@@ -323,16 +323,12 @@ test('player ailments appear below the hand count and animate on the avatar with
   const row = page.locator('.tarot-kingdom-battle-player[data-player-index="0"]');
   const handCount = row.locator('.tarot-kingdom-battle-player-hand-count');
   const tray = row.locator('.tarot-kingdom-battle-status-tray');
-  const statusFx = row.locator('.tarot-kingdom-combat-status-fx.is-player');
   await expect(handCount).toContainText('残り手札');
   await expect(tray.locator('.tarot-kingdom-battle-status-icon')).toHaveCount(3);
-  await expect(statusFx).toHaveAttribute('data-status', 'paralysis');
   const enemyTray = page.locator('.tarot-kingdom-battle-status-tray.is-enemy');
-  const enemyStatusFx = page.locator('.tarot-kingdom-combat-status-fx.is-enemy');
   await expect(enemyTray.locator('.tarot-kingdom-battle-status-icon')).toHaveCount(1);
   await expect(enemyTray).toBeVisible();
   await expect(enemyTray).toHaveAttribute('aria-label', '敵の状態効果');
-  await expect(enemyStatusFx).toHaveAttribute('data-status', 'burn');
 
   await tray.locator('.tarot-kingdom-battle-status-icon').first().dispatchEvent('click');
   const detail = page.locator('.tarot-kingdom-status-detail-backdrop');
@@ -348,10 +344,10 @@ test('player ailments appear below the hand count and animate on the avatar with
     const trayRect = node.querySelector('.tarot-kingdom-battle-status-tray')?.getBoundingClientRect();
     const icons = Array.from(node.querySelectorAll('.tarot-kingdom-battle-status-icon'));
     const avatar = node.querySelector('.tarot-kingdom-battle-player-avatar');
-    const statusFx = avatar?.querySelector(':scope > .tarot-kingdom-combat-status-fx.is-player');
+    const accent = avatar?.querySelector(':scope > .tarot-kingdom-status-accent');
     const avatarRect = avatar?.getBoundingClientRect();
-    const statusFxRect = statusFx?.getBoundingClientRect();
-    const statusFxStyle = statusFx ? getComputedStyle(statusFx, '::before') : null;
+    const accentRect = accent?.getBoundingClientRect();
+    const accentBefore = accent ? getComputedStyle(accent, '::before') : null;
     return {
       handBottom: hand?.bottom || 0,
       trayTop: trayRect?.top || 0,
@@ -362,17 +358,18 @@ test('player ailments appear below the hand count and animate on the avatar with
         return [rect.width, rect.height];
       }),
       iconImages: icons.map((icon) => getComputedStyle(icon).backgroundImage),
-      statusFxAnimation: statusFxStyle?.animationName || '',
+      geometricStatusFxCount: node.querySelectorAll('.tarot-kingdom-combat-status-fx').length,
       actorStatus: avatar?.getAttribute('data-combat-status') || '',
       actorMotion: avatar?.getAttribute('data-status-motion') || '',
       actorFilter: avatar ? getComputedStyle(avatar).filter : '',
       actorAnimation: avatar ? getComputedStyle(avatar).animationName : '',
-      statusFxFollowsAvatar: statusFx?.parentElement === avatar,
-      statusFxWithinAvatar: Boolean(avatarRect && statusFxRect
-        && statusFxRect.left >= avatarRect.left - 1
-        && statusFxRect.right <= avatarRect.right + 1
-        && statusFxRect.top >= avatarRect.top - 1
-        && statusFxRect.bottom <= avatarRect.bottom + 1),
+      accentStatus: accent?.getAttribute('data-status') || '',
+      accentShape: accentBefore?.clipPath || '',
+      accentInsideAvatar: Boolean(avatarRect && accentRect
+        && accentRect.left >= avatarRect.left
+        && accentRect.right <= avatarRect.right
+        && accentRect.top >= avatarRect.top
+        && accentRect.bottom <= avatarRect.bottom),
       rowRight: node.getBoundingClientRect().right
     };
   });
@@ -380,40 +377,41 @@ test('player ailments appear below the hand count and animate on the avatar with
   expect(layout.trayFollowsHand).toBe(true);
   expect(layout.iconSizes.every(([width, height]) => width <= 12.5 && height <= 12.5)).toBe(true);
   expect(layout.iconImages.every((value) => value.includes('icons.png'))).toBe(true);
-  expect(layout.statusFxAnimation).toBe('tarotKingdomStatusElectric');
+  expect(layout.geometricStatusFxCount).toBe(0);
   expect(layout.actorStatus).toBe('paralysis');
   expect(layout.actorMotion).toBe('interrupt');
   expect(layout.actorFilter).toContain('drop-shadow');
   expect(layout.actorFilter).toContain('255, 246, 107');
   expect(layout.actorAnimation).toContain('tarotKingdomActorParalysis');
-  expect(layout.statusFxFollowsAvatar).toBe(true);
-  expect(layout.statusFxWithinAvatar).toBe(true);
+  expect(layout.accentStatus).toBe('paralysis');
+  expect(layout.accentShape).toContain('polygon');
+  expect(layout.accentInsideAvatar).toBe(true);
   expect(layout.rowRight).toBeLessThanOrEqual(390);
 
   const enemyLayout = await page.locator('#tarotKingdomEnemySprite').evaluate((sprite) => {
-    const statusFx = sprite.querySelector(':scope > .tarot-kingdom-combat-status-fx.is-enemy');
+    const accent = sprite.querySelector(':scope > .tarot-kingdom-status-accent.is-enemy');
     const spriteRect = sprite.getBoundingClientRect();
-    const statusFxRect = statusFx?.getBoundingClientRect();
+    const accentRect = accent?.getBoundingClientRect();
     return {
-      statusFxFollowsEnemy: statusFx?.parentElement === sprite,
+      geometricStatusFxCount: sprite.querySelectorAll('.tarot-kingdom-combat-status-fx').length,
       actorStatus: sprite.getAttribute('data-combat-status') || '',
       actorMotion: sprite.getAttribute('data-status-motion') || '',
       actorFilter: getComputedStyle(sprite).filter,
-      leftDelta: Math.abs((statusFxRect?.left || 0) - spriteRect.left),
-      topDelta: Math.abs((statusFxRect?.top || 0) - spriteRect.top),
-      widthDelta: Math.abs((statusFxRect?.width || 0) - spriteRect.width),
-      heightDelta: Math.abs((statusFxRect?.height || 0) - spriteRect.height)
+      accentStatus: accent?.getAttribute('data-status') || '',
+      accentInsideActor: Boolean(accentRect
+        && accentRect.left >= spriteRect.left
+        && accentRect.right <= spriteRect.right
+        && accentRect.top >= spriteRect.top
+        && accentRect.bottom <= spriteRect.bottom)
     };
   });
-  expect(enemyLayout.statusFxFollowsEnemy).toBe(true);
+  expect(enemyLayout.geometricStatusFxCount).toBe(0);
   expect(enemyLayout.actorStatus).toBe('burn');
   expect(enemyLayout.actorMotion).toBe('agitated');
   expect(enemyLayout.actorFilter).toContain('drop-shadow');
   expect(enemyLayout.actorFilter).toContain('255, 181, 57');
-  expect(enemyLayout.leftDelta).toBeLessThanOrEqual(1);
-  expect(enemyLayout.topDelta).toBeLessThanOrEqual(1);
-  expect(enemyLayout.widthDelta).toBeLessThanOrEqual(1);
-  expect(enemyLayout.heightDelta).toBeLessThanOrEqual(1);
+  expect(enemyLayout.accentStatus).toBe('burn');
+  expect(enemyLayout.accentInsideActor).toBe(true);
 
   const enemyTrayLayout = await page.locator('.tarot-kingdom-battle-enemy').evaluate((enemy) => {
     const hp = enemy.querySelector('.tarot-kingdom-battle-hp')?.getBoundingClientRect();
@@ -454,6 +452,25 @@ test('hard-control statuses stop the actor while slow and sleep use distinct mot
   await expect(enemy).toHaveAttribute('data-combat-status', 'freeze');
   await expect(enemy).toHaveAttribute('data-status-motion', 'stopped');
 
+  const firstAccentProfiles = await page.evaluate(() => {
+    const playerAccent = document.querySelector(
+      '.tarot-kingdom-battle-player[data-player-index="0"] .tarot-kingdom-status-accent'
+    );
+    const enemyAccent = document.querySelector('#tarotKingdomEnemySprite > .tarot-kingdom-status-accent');
+    const playerBefore = playerAccent ? getComputedStyle(playerAccent, '::before') : null;
+    const enemyBefore = enemyAccent ? getComputedStyle(enemyAccent, '::before') : null;
+    return {
+      player: [playerAccent?.getAttribute('data-status'), playerBefore?.borderRadius, playerBefore?.animationName],
+      enemy: [enemyAccent?.getAttribute('data-status'), enemyBefore?.borderBottomWidth, enemyBefore?.boxShadow]
+    };
+  });
+  expect(firstAccentProfiles.player[0]).toBe('sleep');
+  expect(firstAccentProfiles.player[1]).toContain('50%');
+  expect(firstAccentProfiles.player[2]).toContain('tarotKingdomStatusFloat');
+  expect(firstAccentProfiles.enemy[0]).toBe('freeze');
+  expect(firstAccentProfiles.enemy[1]).toBe('2px');
+  expect(firstAccentProfiles.enemy[2]).not.toBe('none');
+
   const stopped = await enemy.evaluate((node) => ({
     animationName: getComputedStyle(node).animationName,
     filter: getComputedStyle(node).filter
@@ -472,6 +489,17 @@ test('hard-control statuses stop the actor while slow and sleep use distinct mot
   await expect(avatar).toHaveAttribute('data-status-motion', 'slow');
   await expect(enemy).toHaveAttribute('data-combat-status', 'petrify');
   await expect(enemy).toHaveAttribute('data-status-motion', 'stopped');
+  const secondAccentProfiles = await page.evaluate(() => ({
+    player: getComputedStyle(document.querySelector(
+      '.tarot-kingdom-battle-player[data-player-index="0"] .tarot-kingdom-status-accent'
+    ), '::before').boxShadow,
+    enemy: getComputedStyle(
+      document.querySelector('#tarotKingdomEnemySprite > .tarot-kingdom-status-accent'),
+      '::before'
+    ).clipPath
+  }));
+  expect(secondAccentProfiles.player).not.toBe(firstAccentProfiles.player[2]);
+  expect(secondAccentProfiles.enemy).toContain('polygon');
 });
 
 test('buffs, debuffs and support effects use the same compact icon system as ailments', async ({ page }) => {
@@ -516,6 +544,31 @@ test('buffs, debuffs and support effects use the same compact icon system as ail
   await expect(regen).toHaveClass(/is-special/);
   await expect(regen).toHaveAttribute('aria-label', '補助：リジェネ');
   await expect(enemyDown).toHaveClass(/is-debuff/);
+  const shieldRing = page.locator(
+    '.tarot-kingdom-battle-player[data-player-index="0"] '
+    + '.tarot-kingdom-battle-player-avatar > .tarot-kingdom-shield-ring'
+  );
+  await expect(shieldRing).toBeVisible();
+  const shieldLayout = await shieldRing.evaluate((ring) => {
+    const rect = ring.getBoundingClientRect();
+    const avatarRect = ring.parentElement?.getBoundingClientRect();
+    const style = getComputedStyle(ring);
+    return {
+      width: rect.width,
+      height: rect.height,
+      borderWidth: style.borderTopWidth,
+      borderRadius: style.borderRadius,
+      insideAvatar: Boolean(avatarRect
+        && rect.left >= avatarRect.left
+        && rect.right <= avatarRect.right
+        && rect.top >= avatarRect.top
+        && rect.bottom <= avatarRect.bottom)
+    };
+  });
+  expect(shieldLayout.width).toBeLessThan(shieldLayout.height);
+  expect(shieldLayout.borderWidth).toBe('1px');
+  expect(shieldLayout.borderRadius).toContain('50%');
+  expect(shieldLayout.insideAvatar).toBe(true);
 
   const iconStyles = await playerTray.locator('.tarot-kingdom-battle-status-icon.is-modifier').evaluateAll((icons) => (
     icons.map((icon) => {

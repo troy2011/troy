@@ -107,6 +107,49 @@ const KINGDOM_MIN_GUARD_DEFENSE = 8;
 const KINGDOM_STATUS_ICON_COLUMNS = 16;
 const KINGDOM_STATUS_ICON_ROWS = 64;
 const KINGDOM_PLAYER_STATUS_DISPLAY = TAROT_KINGDOM_STATUS_DEFINITIONS;
+const KINGDOM_EFFECT_RESULT_LABELS = Object.freeze({
+  paralysis: 'PARALYZE', freeze: 'FREEZE', sleep: 'SLEEP', petrify: 'PETRIFY',
+  silence: 'SILENCE', seal: 'SEAL', confusion: 'CONFUSE', poison: 'POISON',
+  burn: 'BURN', fear: 'FEAR', blind: 'BLIND', wet: 'SOAKED',
+  vulnerable: 'VULNERABLE', slow: 'SLOW', curse: 'CURSE', break: 'BREAK',
+  powerUp: 'POWER UP', powerDown: 'POWER DOWN', intelligenceUp: 'MAGIC UP',
+  intelligenceDown: 'MAGIC DOWN', defenseUp: 'DEFENSE UP', defenseDown: 'DEFENSE DOWN',
+  speedUp: 'HASTE', speedDown: 'SLOW', accuracyUp: 'ACCURACY UP',
+  accuracyDown: 'ACCURACY DOWN', evasionUp: 'EVADE UP', evasionDown: 'EVADE DOWN',
+  criticalUp: 'CRITICAL UP', criticalDown: 'CRITICAL DOWN', regen: 'REGEN',
+  regenAfterAction: 'REGEN', hpShield: 'SHIELD', damageBarrier: 'BARRIER',
+  areaGuard: 'GUARD', guard: 'GUARD', summonGuard: 'GUARD',
+  statusImmunity: 'IMMUNE', statusImmune: 'IMMUNE', debuffImmunity: 'RESIST',
+  statDebuffImmunity: 'RESIST', sureHit: 'SURE HIT', decoy: 'MIRAGE',
+  invisible: 'MIRAGE', counter: 'COUNTER', cover: 'COVER', lastStand: 'GUTS',
+  autoRevive: 'REVIVE', nextAttackUp: 'POWER UP', nextEffectUp: 'EFFECT UP',
+  nextWandUp: 'MAGIC UP', extraHit: 'EXTRA HIT', allStatsUp: 'ALL UP',
+  attackDown: 'ATTACK DOWN', intimidate: 'INTIMIDATE', flushMagicUp: 'MAGIC UP',
+  warMagicUp: 'ALL UP', timeStop: 'TIME STOP', bloodPact: 'PACT',
+  partyCritical: 'CRITICAL UP', chariot: 'POWER UP', starMaxHp: 'MAX HP UP'
+});
+const KINGDOM_EFFECT_NAVIGATION_PHRASES = Object.freeze({
+  paralysis: '麻痺した', freeze: '凍りついた', sleep: '眠りに落ちた', petrify: '石になった',
+  silence: '沈黙した', seal: '召喚を封じられた', confusion: '混乱した', poison: '毒に侵された',
+  burn: '火傷を負った', fear: '恐怖に包まれた', blind: '暗闇に包まれた', wet: '水浸しになった',
+  vulnerable: '隙をさらした', slow: '動きが鈍くなった', curse: '呪われた', break: '体勢を崩した',
+  powerUp: '力が上がった', powerDown: '力が下がった', intelligenceUp: '魔力が上がった',
+  intelligenceDown: '魔力が下がった', defenseUp: '守りが上がった', defenseDown: '守りが下がった',
+  speedUp: '素早さが上がった', speedDown: '素早さが下がった', accuracyUp: '命中が上がった',
+  accuracyDown: '命中が下がった', evasionUp: '回避が上がった', evasionDown: '回避が下がった',
+  criticalUp: '会心率が上がった', criticalDown: '会心率が下がった', regen: '再生の力を得た',
+  regenAfterAction: '再生の力を得た', hpShield: 'シールドに守られた', damageBarrier: '障壁に守られた',
+  areaGuard: '全体防御を得た', guard: '防御を固めた', summonGuard: '召喚獣の加護を得た',
+  statusImmunity: '状態異常を防ぐ力を得た', statusImmune: '状態異常を防ぐ力を得た',
+  debuffImmunity: '弱体を防ぐ力を得た', statDebuffImmunity: '能力低下を防ぐ力を得た',
+  sureHit: '必中の力を得た', decoy: '分身に守られた', invisible: '姿を隠した',
+  counter: '反撃の構えを取った', cover: '身代わりの構えを取った', lastStand: '不屈の力を得た',
+  autoRevive: '復活の加護を得た', nextAttackUp: '次の攻撃が強化された', nextEffectUp: '次の効果が強化された',
+  nextWandUp: '次の魔法が強化された', extraHit: '追撃を得た', allStatsUp: '全能力が上がった',
+  attackDown: '攻撃力が下がった', intimidate: '威圧された', flushMagicUp: '魔法が強化された',
+  warMagicUp: '攻撃力が上がった', timeStop: '時を止められた', bloodPact: '悪魔と契約した',
+  partyCritical: '会心率が上がった', chariot: '突撃の力を得た', starMaxHp: '最大HPが上がった'
+});
 const KINGDOM_STATUS_MOTION_PROFILES = Object.freeze({
   paralysis: Object.freeze({ mode: 'interrupt', rate: 1, intervalMs: 500 }),
   freeze: Object.freeze({ mode: 'stopped', rate: 0, intervalMs: 0 }),
@@ -431,7 +474,8 @@ const KINGDOM_SKILL_ATTACK_MS = 1800;
 const KINGDOM_SUMMON_ATTACK_MS = 4500;
 const KINGDOM_MAJOR_SUMMON_ATTACK_MS = 2400;
 const KINGDOM_SUMMON_PARTY_HIDE_MS = 550;
-const KINGDOM_SUMMON_PARTY_RETURN_MS = 3900;
+const KINGDOM_SUMMON_PARTY_RETURN_MS = 3800;
+const KINGDOM_SUMMON_RESULT_REVEAL_MS = 3900;
 const KINGDOM_SUMMON_HUD_RETURN_MS = 4200;
 const KINGDOM_NORMAL_HIT_STOP_MS = 80;
 const KINGDOM_SKILL_HIT_STOP_MS = 120;
@@ -8818,10 +8862,115 @@ function getKingdomResonanceCardsForPlay(play, submittedCards = [], tableCards =
     : submittedCards;
 }
 
+function getKingdomEffectResultPresentation(entry) {
+  if (!entry || entry.success === false) return null;
+  const kind = String(entry.kind || '');
+  const statusKey = String(entry.statusKey || '');
+  const statusDefinition = getTarotKingdomStatusDefinition(statusKey);
+  const modifierDefinition = getTarotKingdomModifierDefinition(statusKey);
+  const supportedKind = [
+    'status', 'enemy-ailment', 'buff', 'guard', 'major-buff', 'major-debuff', 'role-debuff'
+  ].includes(kind);
+  if (statusKey && (statusDefinition || modifierDefinition || KINGDOM_EFFECT_RESULT_LABELS[statusKey]) && supportedKind) {
+    const negative = !!statusDefinition
+      || modifierDefinition?.group === 'debuff'
+      || ['major-debuff', 'role-debuff', 'enemy-ailment', 'status'].includes(kind);
+    const tone = negative
+      ? 'negative'
+      : (modifierDefinition?.group === 'buff' || ['buff', 'major-buff'].includes(kind) ? 'buff' : 'support');
+    return {
+      label: KINGDOM_EFFECT_RESULT_LABELS[statusKey] || (tone === 'negative' ? 'DEBUFF' : 'BUFF'),
+      navigationPhrase: KINGDOM_EFFECT_NAVIGATION_PHRASES[statusKey]
+        || `${String(entry.label || modifierDefinition?.label || statusDefinition?.label || '効果')}を受けた`,
+      statusKey,
+      tone
+    };
+  }
+  if (['revive-percent', 'revive-fixed', 'major-revive'].includes(kind) || entry.revived === true) {
+    return { label: 'REVIVE', navigationPhrase: '立ち上がった', statusKey: 'revive', tone: 'support' };
+  }
+  if (['cleanse', 'cleanse-transfer', 'heal-cleanse', 'major-cleanse'].includes(kind) && Number(entry.amount) > 0) {
+    return { label: 'CLEANSE', navigationPhrase: '状態異常が消えた', statusKey: 'cleanse', tone: 'support' };
+  }
+  return null;
+}
+
+function getKingdomEffectTargetSubject(entry) {
+  const targetType = String(entry?.targetType || '');
+  if (targetType === 'enemy') return String(s?.battle?.enemy?.name || '敵');
+  if (targetType === 'party') return '味方全員';
+  if (targetType === 'player' && Number.isInteger(Number(entry?.targetIndex))) {
+    return pName(Number(entry.targetIndex));
+  }
+  return '';
+}
+
+function getKingdomEffectResultEntries(event, targetType, targetIndex = null) {
+  const entries = Array.isArray(event?.effects) ? event.effects : [];
+  const seen = new Set();
+  return entries.flatMap((entry) => {
+    const entryTarget = String(entry?.targetType || '');
+    const targetMatches = targetType === 'enemy'
+      ? entryTarget === 'enemy'
+      : (
+          entryTarget === 'party'
+          || (entryTarget === 'player' && Number(entry?.targetIndex) === Number(targetIndex))
+        );
+    if (!targetMatches) return [];
+    const presentation = getKingdomEffectResultPresentation(entry);
+    if (!presentation || seen.has(presentation.label)) return [];
+    seen.add(presentation.label);
+    return [{ ...presentation, source: String(entry.source || ''), targetType, targetIndex }];
+  }).slice(0, 2);
+}
+
+function isKingdomEffectResultReady(event, eventIsActive, phase) {
+  if (!eventIsActive) return false;
+  const isSummon = !!(event?.summon?.id || event?.majorSummon?.id);
+  const timeline = isSummon ? getKingdomBattleTimelineForEvent(event) : null;
+  if (timeline) return Date.now() >= Number(timeline.effectAt || timeline.endsAt || 0);
+  return ['effect', 'final'].includes(String(phase || ''));
+}
+
+function renderKingdomEffectResultText(host, event, eventIsActive, phase, targetType, targetIndex = null) {
+  if (!host) return;
+  const selector = ':scope > .tarot-kingdom-effect-result-stack';
+  let stack = host.querySelector(selector);
+  const entries = isKingdomEffectResultReady(event, eventIsActive, phase)
+    ? getKingdomEffectResultEntries(event, targetType, targetIndex)
+    : [];
+  if (!entries.length) {
+    stack?.remove();
+    return;
+  }
+  const key = `${Number(event?.seq) || 0}:${targetType}:${targetIndex ?? 'all'}:${entries.map((entry) => entry.label).join('|')}`;
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.className = `tarot-kingdom-effect-result-stack is-${targetType}`;
+    stack.setAttribute('aria-hidden', 'true');
+    host.appendChild(stack);
+  }
+  if (stack.dataset.eventKey === key) return;
+  stack.dataset.eventKey = key;
+  const nodes = entries.map((entry, index) => {
+    const node = document.createElement('strong');
+    node.className = `tarot-kingdom-effect-result-text is-${entry.tone}`;
+    node.dataset.status = entry.statusKey;
+    node.style.setProperty('--tk-effect-result-index', String(index));
+    node.textContent = entry.label;
+    return node;
+  });
+  stack.replaceChildren(...nodes);
+}
+
 function buildKingdomEffectNavigationMessage(results = []) {
   const entries = (Array.isArray(results) ? results : []).filter((entry) => (
     entry
-    && ['weapon', 'resonance', 'guardian-passive', 'major', 'summon'].includes(String(entry.source || ''))
+    && (
+      ['weapon', 'resonance', 'guardian-passive', 'summon', 'enemy'].includes(String(entry.source || ''))
+      || String(entry.source || '').startsWith('major')
+      || String(entry.source || '').startsWith('role')
+    )
   ));
   if (!entries.length) return '';
 
@@ -8829,6 +8978,27 @@ function buildKingdomEffectNavigationMessage(results = []) {
   if (!successful.length) return '効果は発動しなかった';
 
   const clauses = [];
+  const resultPhrases = [];
+  const seenResultPhrases = new Set();
+  const playerStatusCounts = successful.reduce((counts, entry) => {
+    const presentation = getKingdomEffectResultPresentation(entry);
+    if (!presentation || String(entry?.targetType || '') !== 'player') return counts;
+    counts.set(presentation.statusKey, (counts.get(presentation.statusKey) || 0) + 1);
+    return counts;
+  }, new Map());
+  successful.forEach((entry) => {
+    const presentation = getKingdomEffectResultPresentation(entry);
+    const subject = presentation
+      && playerStatusCounts.get(presentation.statusKey) > 1
+      ? '味方全員'
+      : getKingdomEffectTargetSubject(entry);
+    if (!presentation || !subject) return;
+    const phrase = `${subject}は　${presentation.navigationPhrase}！`;
+    if (seenResultPhrases.has(phrase)) return;
+    seenResultPhrases.add(phrase);
+    resultPhrases.push(phrase);
+  });
+  if (resultPhrases.length) return resultPhrases.slice(0, 2).join('　');
   const damage = successful
     .filter((entry) => (
       entry.targetType === 'enemy'
@@ -8851,14 +9021,6 @@ function buildKingdomEffectNavigationMessage(results = []) {
   if (successful.some((entry) => ['cleanse', 'cleanse-transfer', 'heal-cleanse'].includes(String(entry.kind || '')))) {
     clauses.push('状態異常を解除');
   }
-
-  const statusNames = successful
-    .filter((entry) => String(entry.kind || '') === 'status' && entry.statusKey)
-    .map((entry) => (
-      KINGDOM_PLAYER_STATUS_DISPLAY.find((definition) => definition.key === entry.statusKey)?.label
-      || String(entry.statusKey)
-    ));
-  if (statusNames.length) clauses.push(`敵に${[...new Set(statusNames)].join('・')}を付与`);
 
   const buffKeys = new Set(successful
     .filter((entry) => String(entry.kind || '') === 'buff')
@@ -16794,7 +16956,7 @@ function buildKingdomCombatTimeline(variant, weaponType = 'sword', _effectCount 
         impactOffsetMs: 3000,
         hpRevealOffsetMs: 3160,
         hpTweenEndOffsetMs: 3600,
-        effectOffsetMs: 3600,
+        effectOffsetMs: KINGDOM_SUMMON_RESULT_REVEAL_MS,
         damageNumberOffsetMs: 3600,
         durationMs: KINGDOM_SUMMON_ATTACK_MS
       };
@@ -19551,7 +19713,7 @@ function scheduleKingdomBattleTimelineRenders(event, timeline) {
     clearKingdomBattlePhaseTimers();
     return;
   }
-  const key = `${event.seq}:${timeline.version}:${timeline.impactAt}:${timeline.hpRevealAt}:${timeline.hpTweenEndsAt}:${timeline.damageNumberAt}:${timeline.endsAt}`;
+  const key = `${event.seq}:${timeline.version}:${timeline.impactAt}:${timeline.hpRevealAt}:${timeline.hpTweenEndsAt}:${timeline.effectAt}:${timeline.damageNumberAt}:${timeline.endsAt}`;
   if (kingdomBattlePhaseTimerKey === key) return;
   clearKingdomBattlePhaseTimers();
   kingdomBattlePhaseTimerKey = key;
@@ -19663,13 +19825,20 @@ function ensureKingdomBattlePlayerRow(playerIndex) {
       row.insertBefore(aura, avatar || row.firstChild);
     }
     const avatar = row.querySelector(':scope > .tarot-kingdom-battle-player-avatar');
-    let statusAura = row.querySelector('.tarot-kingdom-combat-status-fx.is-player');
-    if (!statusAura) {
-      statusAura = document.createElement('div');
-      statusAura.className = 'tarot-kingdom-combat-status-fx is-player';
-      statusAura.setAttribute('aria-hidden', 'true');
+    row.querySelector('.tarot-kingdom-combat-status-fx.is-player')?.remove();
+    if (avatar && !avatar.querySelector(':scope > .tarot-kingdom-status-accent')) {
+      const accent = document.createElement('div');
+      accent.className = 'tarot-kingdom-status-accent is-player';
+      accent.setAttribute('aria-hidden', 'true');
+      avatar.appendChild(accent);
     }
-    if (avatar && statusAura.parentElement !== avatar) avatar.appendChild(statusAura);
+    if (avatar && !avatar.querySelector(':scope > .tarot-kingdom-shield-ring')) {
+      const shieldRing = document.createElement('div');
+      shieldRing.className = 'tarot-kingdom-shield-ring is-player';
+      shieldRing.setAttribute('aria-hidden', 'true');
+      shieldRing.hidden = true;
+      avatar.appendChild(shieldRing);
+    }
     const info = row.querySelector(':scope > .tarot-kingdom-battle-player-info');
     if (info && !info.querySelector(':scope > .tarot-kingdom-battle-status-tray')) {
       const statusTray = document.createElement('div');
@@ -19687,17 +19856,20 @@ function ensureKingdomBattlePlayerRow(playerIndex) {
   regenAura.className = 'tarot-kingdom-regen-aura';
   regenAura.setAttribute('aria-hidden', 'true');
 
-  const statusAura = document.createElement('div');
-  statusAura.className = 'tarot-kingdom-combat-status-fx is-player';
-  statusAura.setAttribute('aria-hidden', 'true');
-
   const avatar = document.createElement('div');
   avatar.id = `tarotKingdomBattleAvatar-${playerIndex}`;
   avatar.className = 'tarot-kingdom-battle-player-avatar avatar-combat-actor';
   avatar.dataset.facing = 'right';
   avatar.dataset.avatarIdle = 'true';
   avatar.setAttribute('aria-hidden', 'true');
-  avatar.appendChild(statusAura);
+  const statusAccent = document.createElement('div');
+  statusAccent.className = 'tarot-kingdom-status-accent is-player';
+  statusAccent.setAttribute('aria-hidden', 'true');
+  const shieldRing = document.createElement('div');
+  shieldRing.className = 'tarot-kingdom-shield-ring is-player';
+  shieldRing.setAttribute('aria-hidden', 'true');
+  shieldRing.hidden = true;
+  avatar.append(statusAccent, shieldRing);
 
   const info = document.createElement('div');
   info.className = 'tarot-kingdom-battle-player-info';
@@ -19794,17 +19966,19 @@ function showKingdomStatusDetails(title, statuses) {
 function getKingdomVisibleStatuses(bucket = {}) {
   const statusEntries = KINGDOM_PLAYER_STATUS_DISPLAY
     .filter(({ key }) => isKingdomStatusEffectActive(key, bucket[key]));
-  const modifierEntries = TAROT_KINGDOM_MODIFIER_DEFINITIONS.filter(({ key }) => {
-    const effect = bucket[key];
-    if (!effect || typeof effect !== 'object') return false;
-    if (effect.charges != null && Number(effect.charges) <= 0) return false;
-    if (effect.remainingTurns != null && Number(effect.remainingTurns) <= 0) return false;
-    if (key === 'hpShield' && Number(effect.shieldHp) <= 0) return false;
-    return true;
-  });
+  const modifierEntries = TAROT_KINGDOM_MODIFIER_DEFINITIONS
+    .filter(({ key }) => isKingdomModifierEffectActive(key, bucket[key]));
   return [...statusEntries, ...modifierEntries]
     .map((definition) => ({ definition, effect: bucket[definition.key] }))
     .sort((left, right) => Number(right.definition.priority) - Number(left.definition.priority));
+}
+
+function isKingdomModifierEffectActive(key, effect) {
+  if (!effect || typeof effect !== 'object') return false;
+  if (effect.charges != null && Number(effect.charges) <= 0) return false;
+  if (effect.remainingTurns != null && Number(effect.remainingTurns) <= 0) return false;
+  if (key === 'hpShield' && Number(effect.shieldHp) <= 0) return false;
+  return true;
 }
 
 function buildKingdomStatusIcon(definition, effect, interactive = true) {
@@ -19840,7 +20014,7 @@ function buildKingdomStatusIcon(definition, effect, interactive = true) {
   return icon;
 }
 
-function renderKingdomStatusPresentation({ bucket, tray, fx, conscious = true, title = '状態効果' }) {
+function renderKingdomStatusPresentation({ bucket, tray, accent, conscious = true, title = '状態効果' }) {
   const statuses = conscious ? getKingdomVisibleStatuses(bucket) : [];
   const signature = statuses.map(({ definition, effect }) => [
     definition.key, effect.label, effect.potency, effect.remainingActions,
@@ -19854,11 +20028,10 @@ function renderKingdomStatusPresentation({ bucket, tray, fx, conscious = true, t
       return icon;
     }));
   }
-  if (fx) {
+  if (accent) {
     const visualStatus = statuses.find(({ definition }) => isTarotKingdomNegativeStatus(definition.key));
-    fx.dataset.status = String(visualStatus?.definition.key || '');
-    fx.dataset.statusMotion = getKingdomStatusMotionProfile(visualStatus?.definition.key).mode;
-    fx.hidden = !visualStatus;
+    accent.dataset.status = String(visualStatus?.definition.key || '');
+    accent.hidden = !visualStatus;
   }
   return statuses;
 }
@@ -19869,7 +20042,7 @@ function renderKingdomPlayerStatusEffects(row, playerIndex, conscious) {
   const statuses = renderKingdomStatusPresentation({
     bucket,
     tray: row.querySelector('.tarot-kingdom-battle-status-tray'),
-    fx: row.querySelector('.tarot-kingdom-battle-player-avatar > .tarot-kingdom-combat-status-fx'),
+    accent: row.querySelector('.tarot-kingdom-battle-player-avatar > .tarot-kingdom-status-accent'),
     conscious,
     title: `${pName(playerIndex)}の状態`
   });
@@ -19878,16 +20051,19 @@ function renderKingdomPlayerStatusEffects(row, playerIndex, conscious) {
   const statusKey = String(visualStatus?.definition.key || '');
   row.dataset.primaryStatus = statusKey;
   const avatar = row.querySelector('.tarot-kingdom-battle-player-avatar');
+  const shieldRing = avatar?.querySelector(':scope > .tarot-kingdom-shield-ring');
+  if (shieldRing) shieldRing.hidden = !(conscious && isKingdomModifierEffectActive('hpShield', bucket.hpShield));
   syncKingdomActorStatusVisual(avatar, statusKey);
   syncKingdomActorStatusMotion(avatar, statusKey, { isPet: avatar?.classList.contains('is-pet') === true });
 }
 
 function renderKingdomEnemyStatusEffects() {
   if (!ui.battleEnemy) return;
+  const enemyBucket = getKingdomEffectBucket('enemy') || {};
   const statuses = renderKingdomStatusPresentation({
-    bucket: getKingdomEffectBucket('enemy') || {},
+    bucket: enemyBucket,
     tray: ui.battleEnemy.querySelector('.tarot-kingdom-battle-status-tray.is-enemy'),
-    fx: ui.battleEnemy.querySelector('.tarot-kingdom-combat-status-fx.is-enemy'),
+    accent: ui.battleEnemySprite?.querySelector(':scope > .tarot-kingdom-status-accent.is-enemy'),
     conscious: Number(s?.battle?.enemy?.hp) > 0,
     title: `${s?.battle?.enemy?.name || '敵'}の状態`
   });
@@ -19895,6 +20071,10 @@ function renderKingdomEnemyStatusEffects() {
   const visualStatus = statuses.find(({ definition }) => isTarotKingdomNegativeStatus(definition.key));
   const statusKey = String(visualStatus?.definition.key || '');
   ui.battleEnemy.dataset.primaryStatus = statusKey;
+  const shieldRing = ui.battleEnemySprite?.querySelector(':scope > .tarot-kingdom-shield-ring.is-enemy');
+  if (shieldRing) shieldRing.hidden = !(
+    Number(s?.battle?.enemy?.hp) > 0 && isKingdomModifierEffectActive('hpShield', enemyBucket.hpShield)
+  );
   syncKingdomActorStatusVisual(ui.battleEnemySprite, statusKey);
 }
 
@@ -20285,8 +20465,14 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
       : [];
     const regenTick = String(activeEvent?.type || '') === 'turn-effects'
       && healing.some((entry) => String(entry?.kind || '') === 'regen');
+    const summonHealing = !!(activeEvent?.summon?.id || activeEvent?.majorSummon?.id);
     const showHeal = eventIsActive
-      && (regenTick || ['effect', 'recover', 'final'].includes(phase))
+      && (
+        regenTick
+        || (summonHealing
+          ? isKingdomEffectResultReady(activeEvent, eventIsActive, phase)
+          : ['effect', 'recover', 'final'].includes(phase))
+      )
       && healing.length > 0;
     if (showHeal) {
       if (!healNumber) {
@@ -20339,6 +20525,7 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
     } else {
       damageNumber?.remove();
     }
+    renderKingdomEffectResultText(row, activeEvent, eventIsActive, phase, 'player', playerIndex);
   });
   Array.from(ui.battleParty.querySelectorAll('.tarot-kingdom-battle-player')).forEach((row) => {
     if (Number(row.dataset.playerIndex) >= s.players.length) row.remove();
@@ -20382,9 +20569,9 @@ function getKingdomMajorVisualScope(event) {
 }
 
 function syncKingdomEffectNavigationMessage(event, eventIsActive, phase) {
-  const message = String(event?.effectMessage || '').trim();
+  const message = String(event?.effectMessage || buildKingdomEffectNavigationMessage(event?.effects) || '').trim();
   if (!ui.selectedEffect || !eventIsActive || !message) return;
-  if (!['damage', 'recover', 'effect', 'final'].includes(String(phase || ''))) return;
+  if (!['effect', 'final'].includes(String(phase || ''))) return;
   const token = `${Number(event?.seq) || 0}:${Number(event?.at) || 0}:${message}`;
   if (ui.selectedEffect.dataset.effectMessageToken === token) return;
   ui.selectedEffect.dataset.effectMessageToken = token;
@@ -20808,7 +20995,8 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   const summonIdKey = String(summonArt?.id || '').replace(/[^a-z0-9-_]/gi, '');
   const summonChoreographyKey = String(summonArt?.choreographyKey || summonIdKey).replace(/[^a-z0-9-]/gi, '');
   const summonWeightKey = String(summonArt?.motionWeight || 'measured').replace(/[^a-z0-9-]/gi, '');
-  const nextClassName = `tarot-kingdom-skill-cutin ${getKingdomRoleVisualClass(roleKey)} is-phase-${phase}${roleChainCount >= 2 ? ' is-role-chain' : ''}${isMajorSummonEvent ? ' is-major-arcana-summon' : ''}${isSummon ? ` is-summon is-summon-${effectKey} is-summon-${visualProfile.category} is-motion-${summonMotionKey} is-pool-${summonPoolKey} is-weight-${summonWeightKey} is-choreo-${summonChoreographyKey} is-summon-id-${summonIdKey}` : ''}`;
+  const resultsRevealed = !!(timeline && Date.now() >= Number(timeline.effectAt || timeline.endsAt || 0));
+  const nextClassName = `tarot-kingdom-skill-cutin ${getKingdomRoleVisualClass(roleKey)} is-phase-${phase}${resultsRevealed ? ' is-results-revealed' : ''}${roleChainCount >= 2 ? ' is-role-chain' : ''}${isMajorSummonEvent ? ' is-major-arcana-summon' : ''}${isSummon ? ` is-summon is-summon-${effectKey} is-summon-${visualProfile.category} is-motion-${summonMotionKey} is-pool-${summonPoolKey} is-weight-${summonWeightKey} is-choreo-${summonChoreographyKey} is-summon-id-${summonIdKey}` : ''}`;
   if (cutin.className !== nextClassName) cutin.className = nextClassName;
   if (cutin.dataset.renderKey === renderKey) return;
   cutin.dataset.renderKey = renderKey;
@@ -21463,6 +21651,7 @@ function renderKingdomBattleStage() {
   syncKingdomEffectNavigationMessage(visualEvent, eventIsActive, timelinePhase);
   renderKingdomSecondaryEffectBanner(visualEvent, eventIsActive, timelinePhase);
   renderKingdomBattleDamageNumber(visualEvent, eventIsActive);
+  renderKingdomEffectResultText(ui.battleEnemy, visualEvent, eventIsActive, timelinePhase, 'enemy');
   renderKingdomBattleParty(visualEvent, eventIsActive, eventKey);
   renderKingdomChampionCeremony();
   renderKingdomBattleFeed();

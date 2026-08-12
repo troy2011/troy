@@ -650,7 +650,7 @@ test.describe('Tarot Kingdom summon integration', () => {
       impactAt: audit.state.transition.startedAt + 3000,
       hpRevealAt: audit.state.transition.startedAt + 3160,
       hpTweenEndsAt: audit.state.transition.startedAt + 3600,
-      effectAt: audit.state.transition.startedAt + 3600,
+      effectAt: audit.state.transition.startedAt + 3900,
       damageNumberAt: audit.state.transition.startedAt + 3600,
       endsAt: audit.state.transition.startedAt + 4500
     });
@@ -675,7 +675,7 @@ test.describe('Tarot Kingdom summon integration', () => {
       effectProjectileAnimationName: 'tkFxCommandRay',
       sealCount: 1,
       partyHideAt: 550,
-      partyReturnAt: 3900,
+      partyReturnAt: 3800,
       hudReturnAt: 4200,
       rootCinematic: true,
       stageCinematic: true,
@@ -716,6 +716,105 @@ test.describe('Tarot Kingdom summon integration', () => {
       flushElemental: { category: 'hybrid', choreography: 'elemental-surge', cue: 'elemental-charge', impact: 'elemental-burst' },
       'major-arcana': { category: 'hybrid', choreography: 'arcana-invocation', cue: 'arcana-awaken', impact: 'arcana-release' }
     });
+  });
+
+  test('Cup Flush waits for summon exit before showing party healing', async ({ page }) => {
+    const hand = [5, 7, 9, 12, 14].map((number) => ({
+      id: `cup-flush-${number}`,
+      kind: 'minor',
+      suit: 'Cup',
+      number
+    }));
+    hand.push({ id: 'cup-flush-reserve', kind: 'minor', suit: 'Wand', number: 2 });
+
+    const audit = await page.evaluate((cards) => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({
+        withTrick: false,
+        enemyHp: 420,
+        hpBySeat: [50, 60, 70, 80],
+        combatBySeat: Array.from({ length: 4 }, () => ({ maxHp: 100 })),
+        handsBySeat: [cards]
+      });
+      debug.battlePlayCards(0, cards.slice(0, 5).map((card) => card.id));
+      const state = debug.battleState();
+      const startedAt = state.transition.startedAt;
+      const originalNow = Date.now;
+      const inspectAt = (elapsed) => {
+        Date.now = () => startedAt + elapsed;
+        debug.battleRender();
+        const cutin = document.querySelector('.tarot-kingdom-skill-cutin.is-summon');
+        return {
+          elapsed,
+          phase: cutin?.className.match(/is-phase-([a-z-]+)/)?.[1] || '',
+          cutinDisplay: cutin ? getComputedStyle(cutin).display : 'missing',
+          healTexts: Array.from(document.querySelectorAll('.tarot-kingdom-heal-number'))
+            .map((node) => node.textContent)
+        };
+      };
+      try {
+        return {
+          beforeExit: inspectAt(3850),
+          afterExit: inspectAt(3910),
+          effectAt: state.transition.timeline.effectAt - startedAt,
+          healing: state.battle.events.at(-1).effects.filter((entry) => (
+            entry.source === 'summon' && entry.targetType === 'player' && entry.kind === 'heal-percent'
+          ))
+        };
+      } finally {
+        Date.now = originalNow;
+        debug.battleRender();
+      }
+    }, hand);
+
+    expect(audit.effectAt).toBe(3900);
+    expect(audit.healing).toHaveLength(4);
+    expect(audit.beforeExit).toMatchObject({ phase: 'recover', healTexts: [] });
+    expect(audit.beforeExit.cutinDisplay).not.toBe('none');
+    expect(audit.afterExit.phase).toBe('effect');
+    expect(audit.afterExit.cutinDisplay).toBe('none');
+    expect(audit.afterExit.healTexts).toHaveLength(4);
+  });
+
+  test('Sword Flush reveals its party buff only after the summon leaves', async ({ page }) => {
+    const hand = [5, 7, 9, 12, 14].map((number) => ({
+      id: `sword-flush-${number}`,
+      kind: 'minor',
+      suit: 'Sword',
+      number
+    }));
+    hand.push({ id: 'sword-flush-reserve', kind: 'minor', suit: 'Cup', number: 2 });
+
+    const audit = await page.evaluate((cards) => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({ withTrick: false, handsBySeat: [cards] });
+      debug.battlePlayCards(0, cards.slice(0, 5).map((card) => card.id));
+      const state = debug.battleState();
+      const startedAt = state.transition.startedAt;
+      const originalNow = Date.now;
+      const inspectAt = (elapsed) => {
+        Date.now = () => startedAt + elapsed;
+        debug.battleRender();
+        return {
+          cutinDisplay: getComputedStyle(document.querySelector('.tarot-kingdom-skill-cutin.is-summon')).display,
+          resultTexts: Array.from(document.querySelectorAll('.tarot-kingdom-effect-result-text'))
+            .map((node) => node.textContent),
+          navigation: document.querySelector('#tarotKingdomSelectedEffectText')?.textContent || ''
+        };
+      };
+      try {
+        return { beforeExit: inspectAt(3850), afterExit: inspectAt(3910) };
+      } finally {
+        Date.now = originalNow;
+        debug.battleRender();
+      }
+    }, hand);
+
+    expect(audit.beforeExit.cutinDisplay).not.toBe('none');
+    expect(audit.beforeExit.resultTexts).toEqual([]);
+    expect(audit.afterExit.cutinDisplay).toBe('none');
+    expect(audit.afterExit.resultTexts).toEqual(['HASTE', 'HASTE', 'HASTE', 'HASTE']);
+    expect(audit.afterExit.navigation).toContain('味方全員は　素早さが上がった');
   });
 
   test('party and hand HUD leave while the enemy and field stay, then return at synchronized offsets', async ({ page }) => {

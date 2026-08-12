@@ -29,6 +29,11 @@
     animation-delay: var(--summon-elapsed, 0ms);
 }
 
+/* Results belong to the actors, so the summon leaves before healing and status text appears. */
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon.is-results-revealed {
+    display: none;
+}
+
 #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon.is-role-chain {
     --role-chain-color: rgba(254, 240, 138, 0.72);
 }
