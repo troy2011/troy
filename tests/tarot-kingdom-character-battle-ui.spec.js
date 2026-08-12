@@ -330,6 +330,8 @@ test('player ailments appear below the hand count and animate on the avatar with
   const enemyTray = page.locator('.tarot-kingdom-battle-status-tray.is-enemy');
   const enemyStatusFx = page.locator('.tarot-kingdom-combat-status-fx.is-enemy');
   await expect(enemyTray.locator('.tarot-kingdom-battle-status-icon')).toHaveCount(1);
+  await expect(enemyTray).toBeVisible();
+  await expect(enemyTray).toHaveAttribute('aria-label', '敵の状態効果');
   await expect(enemyStatusFx).toHaveAttribute('data-status', 'burn');
 
   await tray.locator('.tarot-kingdom-battle-status-icon').first().dispatchEvent('click');
@@ -361,6 +363,10 @@ test('player ailments appear below the hand count and animate on the avatar with
       }),
       iconImages: icons.map((icon) => getComputedStyle(icon).backgroundImage),
       statusFxAnimation: statusFxStyle?.animationName || '',
+      actorStatus: avatar?.getAttribute('data-combat-status') || '',
+      actorMotion: avatar?.getAttribute('data-status-motion') || '',
+      actorFilter: avatar ? getComputedStyle(avatar).filter : '',
+      actorAnimation: avatar ? getComputedStyle(avatar).animationName : '',
       statusFxFollowsAvatar: statusFx?.parentElement === avatar,
       statusFxWithinAvatar: Boolean(avatarRect && statusFxRect
         && statusFxRect.left >= avatarRect.left - 1
@@ -374,7 +380,12 @@ test('player ailments appear below the hand count and animate on the avatar with
   expect(layout.trayFollowsHand).toBe(true);
   expect(layout.iconSizes.every(([width, height]) => width <= 12.5 && height <= 12.5)).toBe(true);
   expect(layout.iconImages.every((value) => value.includes('icons.png'))).toBe(true);
-  expect(layout.statusFxAnimation).toBe('tarotKingdomStatusFlicker');
+  expect(layout.statusFxAnimation).toBe('tarotKingdomStatusElectric');
+  expect(layout.actorStatus).toBe('paralysis');
+  expect(layout.actorMotion).toBe('interrupt');
+  expect(layout.actorFilter).toContain('drop-shadow');
+  expect(layout.actorFilter).toContain('255, 246, 107');
+  expect(layout.actorAnimation).toContain('tarotKingdomActorParalysis');
   expect(layout.statusFxFollowsAvatar).toBe(true);
   expect(layout.statusFxWithinAvatar).toBe(true);
   expect(layout.rowRight).toBeLessThanOrEqual(390);
@@ -385,6 +396,9 @@ test('player ailments appear below the hand count and animate on the avatar with
     const statusFxRect = statusFx?.getBoundingClientRect();
     return {
       statusFxFollowsEnemy: statusFx?.parentElement === sprite,
+      actorStatus: sprite.getAttribute('data-combat-status') || '',
+      actorMotion: sprite.getAttribute('data-status-motion') || '',
+      actorFilter: getComputedStyle(sprite).filter,
       leftDelta: Math.abs((statusFxRect?.left || 0) - spriteRect.left),
       topDelta: Math.abs((statusFxRect?.top || 0) - spriteRect.top),
       widthDelta: Math.abs((statusFxRect?.width || 0) - spriteRect.width),
@@ -392,10 +406,72 @@ test('player ailments appear below the hand count and animate on the avatar with
     };
   });
   expect(enemyLayout.statusFxFollowsEnemy).toBe(true);
+  expect(enemyLayout.actorStatus).toBe('burn');
+  expect(enemyLayout.actorMotion).toBe('agitated');
+  expect(enemyLayout.actorFilter).toContain('drop-shadow');
+  expect(enemyLayout.actorFilter).toContain('255, 181, 57');
   expect(enemyLayout.leftDelta).toBeLessThanOrEqual(1);
   expect(enemyLayout.topDelta).toBeLessThanOrEqual(1);
   expect(enemyLayout.widthDelta).toBeLessThanOrEqual(1);
   expect(enemyLayout.heightDelta).toBeLessThanOrEqual(1);
+
+  const enemyTrayLayout = await page.locator('.tarot-kingdom-battle-enemy').evaluate((enemy) => {
+    const hp = enemy.querySelector('.tarot-kingdom-battle-hp')?.getBoundingClientRect();
+    const tray = enemy.querySelector('.tarot-kingdom-battle-status-tray.is-enemy')?.getBoundingClientRect();
+    const icon = enemy.querySelector('.tarot-kingdom-battle-status-tray.is-enemy .tarot-kingdom-battle-status-icon')?.getBoundingClientRect();
+    const stage = enemy.closest('#tarotKingdomBattleStage')?.getBoundingClientRect();
+    return {
+      trayNearHp: Boolean(hp && tray && tray.top >= hp.top && tray.top <= hp.bottom + 18),
+      trayHeight: tray?.height || 0,
+      iconInsideStage: Boolean(icon && stage
+        && icon.left >= stage.left
+        && icon.right <= stage.right
+        && icon.top >= stage.top
+        && icon.bottom <= stage.bottom),
+      enemyDisplay: getComputedStyle(enemy).display
+    };
+  });
+  expect(enemyTrayLayout.trayNearHp).toBe(true);
+  expect(enemyTrayLayout.trayHeight).toBeLessThanOrEqual(36.5);
+  expect(enemyTrayLayout.iconInsideStage).toBe(true);
+  expect(enemyTrayLayout.enemyDisplay).toBe('block');
+});
+
+test('hard-control statuses stop the actor while slow and sleep use distinct motion profiles', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const avatar = page.locator('.tarot-kingdom-battle-player[data-player-index="0"] .tarot-kingdom-battle-player-avatar');
+  const enemy = page.locator('#tarotKingdomEnemySprite');
+
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleSetEffects({
+      enemy: { freeze: { label: '凍結', charges: 1, expiresOn: 'attack' } },
+      party: {},
+      players: [{ sleep: { label: '睡眠', charges: 1, expiresOn: 'damage' } }, {}, {}, {}]
+    });
+  });
+  await expect(avatar).toHaveAttribute('data-combat-status', 'sleep');
+  await expect(avatar).toHaveAttribute('data-status-motion', 'drowsy');
+  await expect(enemy).toHaveAttribute('data-combat-status', 'freeze');
+  await expect(enemy).toHaveAttribute('data-status-motion', 'stopped');
+
+  const stopped = await enemy.evaluate((node) => ({
+    animationName: getComputedStyle(node).animationName,
+    filter: getComputedStyle(node).filter
+  }));
+  expect(stopped.filter).toContain('drop-shadow');
+  expect(stopped.animationName).not.toContain('tarotKingdomActorParalysis');
+
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleSetEffects({
+      enemy: { petrify: { label: '石化', charges: 1, expiresOn: 'none' } },
+      party: {},
+      players: [{ slow: { label: '鈍足', potency: 20, remainingClears: 2 } }, {}, {}, {}]
+    });
+  });
+  await expect(avatar).toHaveAttribute('data-combat-status', 'slow');
+  await expect(avatar).toHaveAttribute('data-status-motion', 'slow');
+  await expect(enemy).toHaveAttribute('data-combat-status', 'petrify');
+  await expect(enemy).toHaveAttribute('data-status-motion', 'stopped');
 });
 
 test('buffs, debuffs and support effects use the same compact icon system as ailments', async ({ page }) => {

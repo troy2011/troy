@@ -107,6 +107,27 @@ const KINGDOM_MIN_GUARD_DEFENSE = 8;
 const KINGDOM_STATUS_ICON_COLUMNS = 16;
 const KINGDOM_STATUS_ICON_ROWS = 64;
 const KINGDOM_PLAYER_STATUS_DISPLAY = TAROT_KINGDOM_STATUS_DEFINITIONS;
+const KINGDOM_STATUS_MOTION_PROFILES = Object.freeze({
+  paralysis: Object.freeze({ mode: 'interrupt', rate: 1, intervalMs: 500 }),
+  freeze: Object.freeze({ mode: 'stopped', rate: 0, intervalMs: 0 }),
+  petrify: Object.freeze({ mode: 'stopped', rate: 0, intervalMs: 0 }),
+  sleep: Object.freeze({ mode: 'drowsy', rate: 0.45, intervalMs: 900 }),
+  slow: Object.freeze({ mode: 'slow', rate: 0.55, intervalMs: 850 }),
+  poison: Object.freeze({ mode: 'labored', rate: 0.82, intervalMs: 650 }),
+  burn: Object.freeze({ mode: 'agitated', rate: 1.15, intervalMs: 360 }),
+  blind: Object.freeze({ mode: 'uncertain', rate: 0.82, intervalMs: 650 }),
+  fear: Object.freeze({ mode: 'tremble', rate: 0.75, intervalMs: 680 }),
+  confusion: Object.freeze({ mode: 'unstable', rate: 0.92, intervalMs: 560 }),
+  wet: Object.freeze({ mode: 'soaked', rate: 0.88, intervalMs: 600 }),
+  seal: Object.freeze({ mode: 'sealed', rate: 0.9, intervalMs: 620 }),
+  curse: Object.freeze({ mode: 'burdened', rate: 0.7, intervalMs: 720 }),
+  vulnerable: Object.freeze({ mode: 'exposed', rate: 1, intervalMs: 500 }),
+  silence: Object.freeze({ mode: 'muted', rate: 0.9, intervalMs: 620 }),
+  weaken: Object.freeze({ mode: 'weakened', rate: 0.7, intervalMs: 720 })
+});
+const KINGDOM_PARALYSIS_MOTION_CYCLE_MS = 1600;
+const KINGDOM_PARALYSIS_HOLD_START_MS = 720;
+const KINGDOM_PARALYSIS_HOLD_END_MS = 1050;
 
 const SUITS = ['Wand', 'Cup', 'Sword', 'Pentacle'];
 const GRAVE_RANK_ORDER = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1];
@@ -408,6 +429,7 @@ const KINGDOM_PET_DISPLAY_SCALE = PIXEL_MONSTER_COMPANION_SCALE;
 const KINGDOM_PET_OFFSET_Y_BY_MONSTER_ID = PIXEL_MONSTER_COMPANION_OFFSET_Y;
 const KINGDOM_SKILL_ATTACK_MS = 1800;
 const KINGDOM_SUMMON_ATTACK_MS = 4500;
+const KINGDOM_MAJOR_SUMMON_ATTACK_MS = 2400;
 const KINGDOM_SUMMON_PARTY_HIDE_MS = 550;
 const KINGDOM_SUMMON_PARTY_RETURN_MS = 3900;
 const KINGDOM_SUMMON_HUD_RETURN_MS = 4200;
@@ -449,7 +471,8 @@ const KINGDOM_SUMMON_EFFECT_VISUALS = Object.freeze({
   tide: Object.freeze({ category: 'support', choreography: 'life-wave', cue: 'tide-gather', impact: 'restoring-surge' }),
   aegis: Object.freeze({ category: 'support', choreography: 'golden-barrier', cue: 'rune-forge', impact: 'shield-lock' }),
   command: Object.freeze({ category: 'support', choreography: 'fleet-command', cue: 'signal-rise', impact: 'fleet-salvo' }),
-  flushElemental: Object.freeze({ category: 'hybrid', choreography: 'elemental-surge', cue: 'elemental-charge', impact: 'elemental-burst' })
+  flushElemental: Object.freeze({ category: 'hybrid', choreography: 'elemental-surge', cue: 'elemental-charge', impact: 'elemental-burst' }),
+  'major-arcana': Object.freeze({ category: 'hybrid', choreography: 'arcana-invocation', cue: 'arcana-awaken', impact: 'arcana-release' })
 });
 const KINGDOM_NET_SCHEMA_VERSION = 25;
 const KINGDOM_PRIVATE_STATE_VERSION = 2;
@@ -573,6 +596,7 @@ let kingdomMonsterFrameTimer = null;
 let kingdomMonsterFrameGeneration = 0;
 let kingdomMonsterAnimationKey = '';
 const kingdomPetAnimationTimers = new Map();
+const kingdomStatusMotionTimers = new Map();
 let kingdomBattleVisualResetTimer = null;
 let kingdomBattleVisualEventKey = '';
 let kingdomEnemyFinisherTimer = null;
@@ -5467,6 +5491,10 @@ function getKingdomSkillAttackDuration(_effectCount = 0, state = s) {
   return Math.max(KINGDOM_SKILL_ATTACK_MS, 1200 + KINGDOM_EFFECT_NAME_MIN_VISIBLE_MS);
 }
 
+function getKingdomMajorSummonDuration(event = null) {
+  return event?.majorSummon?.id ? KINGDOM_MAJOR_SUMMON_ATTACK_MS : 0;
+}
+
 function ensureKingdomBattleEffects(state = s) {
   if (!state?.battle) return null;
   if (!state.battle.effects || typeof state.battle.effects !== 'object') {
@@ -9134,6 +9162,24 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
     if (major) major.summonedFromRole = true;
   }
   if (major) results.push(...major.results);
+  const majorSummon = major
+    && !major.summonedFromRole
+    && areKingdomSummonsEnabled()
+    && Number.isInteger(Number(major.number))
+      ? createTarotKingdomSummonStateById(
+          `major_summon_${String(Number(major.number)).padStart(2, '0')}`,
+          { key: 'MajorArcana', primary: [Number(major.number)] }
+        )
+      : null;
+  if (majorSummon) {
+    majorSummon.effectName = String(major.skillName || '');
+    majorSummon.effectKey = 'major-arcana';
+    majorSummon.roleEffectKey = 'major-arcana';
+    majorSummon.effectCategory = 'hybrid';
+    majorSummon.majorNumber = Number(major.number);
+    majorSummon.artSource = 'major';
+    majorSummon.presentationOnly = true;
+  }
   const worldRole = applyKingdomWorldRoleTimeStop(playerIndex, rebuiltRole);
   if (worldRole) results.push(worldRole);
   return {
@@ -9149,6 +9195,7 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
     resonance,
     weapon,
     summon,
+    majorSummon,
     major,
     worldRole,
     guardianPassiveName,
@@ -10026,6 +10073,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
       guardianCardLevel: secondary.major?.cardLevel || 1,
       awakeningId: secondary.major?.awakeningId || '',
       summon: secondary.summon,
+      majorSummon: secondary.majorSummon || null,
       roleChain: attack.roleChain ? { ...attack.roleChain } : null,
       summonEffectName: secondary.summon?.effectName || '',
       label: impairment.blocked
@@ -10140,6 +10188,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
     awakeningId: secondary.major?.awakeningId || '',
     weaponEffectName: secondary.weapon?.label || '',
     summon: secondary.summon,
+    majorSummon: secondary.majorSummon || null,
     roleChain: attack.roleChain ? { ...attack.roleChain } : null,
     summonEffectName: secondary.summon?.effectName || '',
     appliedBonuses: [...outgoing.applied, ...incomingBase.applied],
@@ -13908,6 +13957,31 @@ function auditKingdomMajorArcanaRules() {
     playableThroughLock: !!major14UnlockPlay.ok,
     lockSuit: s.lock?.suit || null
   };
+  const buildLockedSetPlay = (card) => {
+    buildTarotKingdomDebugBattleState({ withTrick: false, handsBySeat: [[card]] });
+    s.lock = { suit: 'Cup', min: null };
+    return buildSetPlay(0, [0]);
+  };
+  const lockRestriction = {
+    sameSuitMinor: buildLockedSetPlay(minor('lock-cup-minor', 'Cup', 9)),
+    differentSuitMinor: buildLockedSetPlay(minor('lock-wand-minor', 'Wand', 9)),
+    sameSuitMajor: buildLockedSetPlay(major(17)),
+    differentSuitMajor: buildLockedSetPlay(major(16)),
+    noSuitMajor: buildLockedSetPlay(major(21)),
+    temperance: buildLockedSetPlay(major(14))
+  };
+  buildTarotKingdomDebugBattleState({
+    withTrick: false,
+    handsBySeat: [[
+      minor('lock-role-cup-2', 'Cup', 2),
+      minor('lock-role-cup-3', 'Cup', 3),
+      minor('lock-role-cup-4', 'Cup', 4),
+      minor('lock-role-cup-5', 'Cup', 5),
+      minor('lock-role-wand-6', 'Wand', 6)
+    ]]
+  });
+  s.lock = { suit: 'Cup', min: null };
+  lockRestriction.mixedSuitRole = buildRolePlay(0, [0, 1, 2, 3, 4]);
   buildTarotKingdomDebugBattleState({ withTrick: false });
   s.reverse = true;
   applySetEffects({ owner: 0, cardsHand: [major(20)], prevLeadSuit: 'Wand' });
@@ -14110,6 +14184,7 @@ function auditKingdomMajorArcanaRules() {
     major14LockSuit,
     minor14LockSuit,
     major14Unlock,
+    lockRestriction,
     majorSuitGate,
     judgmentToggle,
     twoCardMajorCut,
@@ -14250,6 +14325,7 @@ function auditKingdomMajorArcanaSpecialRules() {
     hand,
     field = null,
     reverse = false,
+    callOnly = false,
     lock = null,
     fieldCards = null,
     rules = null
@@ -14261,6 +14337,7 @@ function auditKingdomMajorArcanaSpecialRules() {
       rules: rules || undefined
     });
     s.reverse = !!reverse;
+    s.callOnly = !!callOnly;
     s.lock = lock;
     if (Array.isArray(fieldCards) && fieldCards.length) {
       const number = idNum(fieldCards[0]);
@@ -14353,6 +14430,16 @@ function auditKingdomMajorArcanaSpecialRules() {
       hand: [major(21, '-major-pair'), minor('special-world-major-pair-reserve', 'Wand', 2)],
       field: major(4, '-pair-field-a'),
       fieldCards: [major(4, '-pair-field-a'), major(4, '-pair-field-b')]
+    }),
+    worldOverStrengthCut: validateSingle({
+      hand: [major(21, '-strength-cut'), minor('special-world-strength-reserve', 'Wand', 2)],
+      field: major(8, '-strength-field'),
+      callOnly: true
+    }),
+    worldOverMinorEightCut: validateSingle({
+      hand: [major(21, '-minor-eight-cut'), minor('special-world-minor-eight-reserve', 'Wand', 2)],
+      field: minor('special-world-minor-eight-field', 'Cup', 8),
+      callOnly: true
     }),
     minorOverWorldNormal: validateSingle({
       hand: [minor('special-ten-normal', 'Sword', 10), minor('special-ten-normal-reserve', 'Wand', 2)],
@@ -15404,6 +15491,21 @@ function setCmp(aPower, bPower) {
   return a === b ? 0 : (a < b ? 1 : -1);
 }
 
+function getKingdomSuitLockViolation(cards = [], { allowTemperance = false } = {}) {
+  const lockSuit = s?.lock?.suit || null;
+  if (!lockSuit) return null;
+  const playedCards = Array.isArray(cards) ? cards.filter(Boolean) : [];
+  const isTemperanceBreaker = allowTemperance
+    && playedCards.length === 1
+    && playedCards[0]?.kind === 'major'
+    && Number(playedCards[0]?.number) === 14;
+  if (isTemperanceBreaker) return null;
+  if (playedCards.length > 0 && playedCards.every((card) => suitsForCard(card, false).includes(lockSuit))) {
+    return null;
+  }
+  return `14ロック中：${SUIT_LABEL[lockSuit] || lockSuit}のみ。節制XIVで解除できます。`;
+}
+
 function buildSetPlay(pi, sel) {
   const p = s.players[pi];
   const forcedCount = Math.max(0, Number(s.trickForcedCount || 0));
@@ -15416,9 +15518,6 @@ function buildSetPlay(pi, sel) {
   const isWorldSingle = cards.length === 1
     && cards[0]?.kind === 'major'
     && Number(cards[0]?.number) === 21;
-  const isTemperanceSingle = cards.length === 1
-    && cards[0]?.kind === 'major'
-    && Number(cards[0]?.number) === 14;
   if (forcedCount > 0 && sel.length !== forcedCount && !isWorldSingle) {
     return { ok: false, reason: `${forcedCount}枚出しのみ有効です。` };
   }
@@ -15431,9 +15530,8 @@ function buildSetPlay(pi, sel) {
   ) {
     n = 14;
   }
-  if (s.lock?.suit && !isWorldSingle && !isTemperanceSingle && !cards.every((c) => suitsForCard(c, false).includes(s.lock.suit))) {
-    return { ok: false, reason: `スート縛り: ${SUIT_LABEL[s.lock.suit]}` };
-  }
+  const suitLockViolation = getKingdomSuitLockViolation(cards, { allowTemperance: true });
+  if (suitLockViolation) return { ok: false, reason: suitLockViolation };
   const setPower = setPowerForCards(n, cards);
   if (s.lock?.min != null && cards.length === 1 && setPower <= s.lock.min && !isWorldSingle) {
     return { ok: false, reason: `${s.lock.min}より強いカードが必要です。` };
@@ -15463,6 +15561,8 @@ function buildRolePlay(pi, sel) {
   if (sel.length !== 5) return { ok: false, reason: '役は5枚選択です。' };
   const cards = sel.map((i) => p.hand[i]).filter(Boolean);
   if (cards.length !== 5) return { ok: false, reason: '選択が不正です。' };
+  const suitLockViolation = getKingdomSuitLockViolation(cards);
+  if (suitLockViolation) return { ok: false, reason: suitLockViolation };
   const role = evalRole(cards, s.lock?.suit || null);
   if (!role || role.strength < ROLE_ST.Straight) return { ok: false, reason: 'ストレート以上が必要です。' };
   return {
@@ -15489,17 +15589,13 @@ function buildCallPlay(pi, sel) {
   const cards = sel.map((i) => p.hand[i]).filter(Boolean);
   if (cards.length !== 4) return { ok: false, reason: '選択が不正です。' };
   const lockSuit = s.lock?.suit || null;
+  const suitLockViolation = getKingdomSuitLockViolation([base, ...cards]);
+  if (suitLockViolation) return { ok: false, reason: suitLockViolation };
   const role = evalRole([base, ...cards], lockSuit);
   if (base.kind === 'major' && role?.key !== 'TheWorld') {
     return { ok: false, reason: '大アルカナ場札は、ザ・ワールドのみコール可能です。' };
   }
   if (!role || role.strength < ROLE_ST.Straight) {
-    if (lockSuit) {
-      return {
-        ok: false,
-        reason: `14ロック中: 場札を含む5枚すべて${SUIT_LABEL[lockSuit] || lockSuit}が必要です。`
-      };
-    }
     return { ok: false, reason: 'コール成立しません。' };
   }
   const baseNumber = Number(base?.number);
@@ -15552,60 +15648,6 @@ function isMajorNumberCard(card, number) {
 function isSingleMajorSetPlay(play, number) {
   const cards = Array.isArray(play?.cardsHand) ? play.cardsHand.filter(Boolean) : [];
   return play?.type === 'set' && cards.length === 1 && isMajorNumberCard(cards[0], number);
-}
-
-function getRemainingHandAfterPlay(play) {
-  const owner = Number(play?.owner);
-  const hand = s?.players?.[owner]?.hand;
-  if (!Array.isArray(hand)) return null;
-  const selectedIds = Array.isArray(play?.selectedIds) ? play.selectedIds.filter(Boolean) : [];
-  if (selectedIds.length > 0) {
-    const idSet = new Set(selectedIds);
-    return hand.filter((card) => !idSet.has(card?.id));
-  }
-  const selectedSet = new Set((Array.isArray(play?.selected) ? play.selected : []).map((idx) => Number(idx)));
-  return hand.filter((_, idx) => !selectedSet.has(idx));
-}
-
-function getFinishRuleViolation(play) {
-  const remaining = getRemainingHandAfterPlay(play);
-  if (!Array.isArray(remaining)) return null;
-  const played = Array.isArray(play?.cardsHand) ? play.cardsHand : [];
-
-  if (areKingdomMajorArcanaSpecialRulesEnabled()) {
-    if (remaining.length !== 0 || play?.type !== 'set') return null;
-    if (played.length > 0 && played.every(isMinorAceCard)) {
-      return 'A上がりは禁止です。';
-    }
-    if (isSingleMajorSetPlay(play, 20)) {
-      return '審判20の単独上がりは禁止です。';
-    }
-    if (isSingleMajorSetPlay(play, 21) && !areKingdomMajorArcanaSpecialV2RulesEnabled()) {
-      return '世界21の単独上がりは禁止です。';
-    }
-    return null;
-  }
-
-  // schema 7までの進行中対戦は従来の上がり制限を維持する。
-  // 手札がまだ残る場合に、残りがAのみになる出し方は禁止
-  if (remaining.length > 0 && remaining.every(isMinorAceCard)) {
-    return '手札がAだけ残る出し方はできません。';
-  }
-  // 最後の1手をAのみで上がる（A上がり）を禁止
-  if (remaining.length === 0 && played.length > 0 && played.every(isMinorAceCard)) {
-    return 'A上がりは禁止です。';
-  }
-  if (
-    areKingdomMajorArcanaGateRulesEnabled()
-    &&
-    remaining.length === 0
-    && play?.type === 'set'
-    && played.length === 1
-    && isMajorSuitGateCard(played[0])
-  ) {
-    return '大アルカナ16〜19で上がることはできません。';
-  }
-  return null;
 }
 
 function getMajorSpecialPlayViolation(play, mode) {
@@ -15699,8 +15741,6 @@ function getMajorSuitGateViolation(play, mode) {
 }
 
 function validatePlay(play, mode) {
-  const finishRuleViolation = getFinishRuleViolation(play);
-  if (finishRuleViolation) return { ok: false, reason: finishRuleViolation };
   const majorSuitGateViolation = getMajorSuitGateViolation(play, mode);
   if (majorSuitGateViolation) return { ok: false, reason: majorSuitGateViolation };
   const majorSpecialPlayViolation = getMajorSpecialPlayViolation(play, mode);
@@ -15708,10 +15748,18 @@ function validatePlay(play, mode) {
   if (!s.trick) return mode === 'call' ? { ok: false, reason: '初手でコールは不可です。' } : { ok: true };
   const playCards = Array.isArray(play?.cardsTable) ? play.cardsTable : [];
   const isWorldSingleOverride = mode !== 'call' && isSingleMajorSetPlay(play, 21);
+  const fieldCards = Array.isArray(s.trick?.cardsTable) ? s.trick.cardsTable.filter(Boolean) : [];
+  const isWorldAnsweringStrengthCut = isWorldSingleOverride
+    && s.trick?.type === 'set'
+    && Number(s.trick?.count) === 1
+    && fieldCards.length === 1
+    && isMajorNumberCard(fieldCards[0], 8);
   // schema 23までの世界21は11バックを無視する。schema 24からは反転の影響を受ける。
   // 小アルカナ・複数枚・5枚役は getMajorSpecialPlayViolation で拒否する。
   if (isWorldSingleOverride && !areKingdomMajorArcanaSpecialV2RulesEnabled()) return { ok: true };
-  if (s.callOnly && mode !== 'call') return { ok: false, reason: '8カット中: コールかパスのみ。' };
+  if (s.callOnly && mode !== 'call' && !isWorldAnsweringStrengthCut) {
+    return { ok: false, reason: '8カット中: コールかパスのみ。' };
+  }
   if (mode === 'call') {
     const base = s.trick?.cardsTable?.[0];
     if (base?.kind === 'major' && play?.role?.key !== 'TheWorld') {
@@ -16790,6 +16838,20 @@ function buildKingdomCombatTimeline(variant, weaponType = 'sword', _effectCount 
   };
 }
 
+function buildKingdomMajorSummonTimeline() {
+  return {
+    version: 2,
+    variant: 'skill',
+    motionOffsetMs: 320,
+    impactOffsetMs: 1600,
+    hpRevealOffsetMs: 1680,
+    hpTweenEndOffsetMs: 1920,
+    effectOffsetMs: 1960,
+    damageNumberOffsetMs: 1960,
+    durationMs: KINGDOM_MAJOR_SUMMON_ATTACK_MS
+  };
+}
+
 function buildKingdomEnemyTimelineSpecs(events = []) {
   const specs = {};
   let cursor = 0;
@@ -17421,13 +17483,17 @@ function applyPlay(pi, play, retryDepth = 0) {
   }
   clearPendingTurnAdvanceAfterTrick();
   s.phase = 'resolvingPlay';
-  const attackVariant = isRolePlay ? 'skill' : 'attack';
-  const attackTimeline = buildKingdomCombatTimeline(attackVariant, p?.character?.combat?.weaponType || 'sword', effectCount);
+  const hasMajorSummon = !!attackEvent?.majorSummon?.id;
+  const attackVariant = isRolePlay || hasMajorSummon ? 'skill' : 'attack';
+  const attackTimeline = hasMajorSummon && !isRolePlay
+    ? buildKingdomMajorSummonTimeline()
+    : buildKingdomCombatTimeline(attackVariant, p?.character?.combat?.weaponType || 'sword', effectCount);
   setKingdomTransition('play', pi, attackTimeline.durationMs, {
     playToken,
     eventSeqs: [attackEvent?.seq, ...resonanceTriggerEvents.map((event) => event?.seq)].filter(Number.isFinite),
     roleKey: String(play?.role?.key || ''),
     summonId: String(attackEvent?.summon?.id || ''),
+    majorSummonId: String(attackEvent?.majorSummon?.id || ''),
     roleChain: isRolePlay ? { ...roleChain } : null,
     timeline: attackTimeline
   });
@@ -19023,10 +19089,91 @@ function clearKingdomMonsterFrameTimer() {
 function clearKingdomPetAnimationTimers() {
   kingdomPetAnimationTimers.forEach((timerId) => clearInterval(timerId));
   kingdomPetAnimationTimers.clear();
+  kingdomStatusMotionTimers.forEach((timerId) => clearInterval(timerId));
+  kingdomStatusMotionTimers.clear();
   if (!ui.battleParty) return;
   ui.battleParty.querySelectorAll('.tarot-kingdom-battle-pet-sprite').forEach((sprite) => {
     delete sprite.dataset.animationKey;
   });
+}
+
+function clearKingdomActorStatusMotion(actor) {
+  const timerId = kingdomStatusMotionTimers.get(actor);
+  if (timerId) clearInterval(timerId);
+  kingdomStatusMotionTimers.delete(actor);
+  if (actor) delete actor.dataset.statusMotionHold;
+}
+
+function syncKingdomActorStatusMotion(actor, statusKey = '', options = {}) {
+  if (!actor) return;
+  const normalizedStatus = String(statusKey || '');
+  const profile = getKingdomStatusMotionProfile(normalizedStatus);
+  const previousKey = String(actor.dataset.statusMotionKey || '');
+  const nextKey = `${normalizedStatus}:${profile.mode}:${options.isPet === true ? 'pet' : 'avatar'}`;
+  if (previousKey === nextKey) return;
+
+  const previousStatus = previousKey.split(':')[0];
+  clearKingdomActorStatusMotion(actor);
+  actor.dataset.statusMotionKey = nextKey;
+  if (options.isPet === true || actor.classList.contains('is-avatar-defeated')) return;
+
+  if (profile.mode === 'stopped') {
+    stopAvatarBodyMotion(actor, { reset: false });
+    actor.dataset.statusMotionHold = 'true';
+    return;
+  }
+
+  if (profile.mode === 'interrupt') {
+    const updateInterruptedMotion = () => {
+      const held = isKingdomStatusMotionHeld(actor);
+      const wasHeld = actor.dataset.statusMotionHold === 'true';
+      actor.dataset.statusMotionHold = held ? 'true' : 'false';
+      if (held && !wasHeld) stopAvatarBodyMotion(actor, { reset: false });
+      if (!held && wasHeld && !actor.classList.contains('is-avatar-defeated')) {
+        startAvatarBodyMotion(actor, 'idle', { intervalMs: profile.intervalMs });
+      }
+    };
+    updateInterruptedMotion();
+    kingdomStatusMotionTimers.set(actor, setInterval(updateInterruptedMotion, 80));
+    return;
+  }
+
+  if (normalizedStatus) {
+    startAvatarBodyMotion(actor, 'idle', { intervalMs: profile.intervalMs });
+    return;
+  }
+  if (previousStatus && !actor.classList.contains('is-avatar-defeated')) startAvatarBodyMotion(actor, 'idle');
+}
+
+function getKingdomStatusMotionProfile(statusKey = '') {
+  return KINGDOM_STATUS_MOTION_PROFILES[String(statusKey || '')]
+    || Object.freeze({ mode: 'normal', rate: 1, intervalMs: 500 });
+}
+
+function isKingdomStatusMotionHeld(node, now = Date.now()) {
+  const statusKey = String(node?.dataset?.combatStatus || '');
+  const profile = getKingdomStatusMotionProfile(statusKey);
+  if (profile.mode === 'stopped') return true;
+  if (profile.mode !== 'interrupt') return false;
+  const cyclePosition = Math.max(0, Number(now) || 0) % KINGDOM_PARALYSIS_MOTION_CYCLE_MS;
+  return cyclePosition >= KINGDOM_PARALYSIS_HOLD_START_MS
+    && cyclePosition < KINGDOM_PARALYSIS_HOLD_END_MS;
+}
+
+function syncKingdomActorStatusVisual(actor, statusKey = '') {
+  if (!actor) return;
+  const normalizedStatus = String(statusKey || '');
+  if (!normalizedStatus) {
+    delete actor.dataset.combatStatus;
+    delete actor.dataset.statusMotion;
+    delete actor.dataset.statusMotionHold;
+    actor.classList.remove('has-combat-status');
+    return;
+  }
+  const profile = getKingdomStatusMotionProfile(normalizedStatus);
+  actor.dataset.combatStatus = normalizedStatus;
+  actor.dataset.statusMotion = profile.mode;
+  actor.classList.add('has-combat-status');
 }
 
 function clearKingdomEnemyFinisherTimer() {
@@ -19106,9 +19253,13 @@ function setKingdomPetFrame(node, monster, animation, frameIndex) {
 function playKingdomPetAnimation(node, monster, animationName, generationKey = '', options = {}) {
   const animation = monster?.animations?.[animationName] || monster?.animations?.idle;
   if (!node || !monster || !animation) return;
-  const key = `${monster.id}:${animationName}:${generationKey}`;
-  if (kingdomSummonPartyMotionPaused || options.paused === true) {
-    const pausedKey = `${key}:${kingdomSummonPartyMotionPaused ? 'summon' : 'defense'}-paused`;
+  const statusProfile = getKingdomStatusMotionProfile(node.parentElement?.dataset?.combatStatus);
+  const statusStopped = animationName === 'idle' && statusProfile.mode === 'stopped';
+  const playbackRate = animationName === 'idle' ? statusProfile.rate : 1;
+  const key = `${monster.id}:${animationName}:${generationKey}:status-${statusProfile.mode}:rate-${playbackRate}`;
+  if (kingdomSummonPartyMotionPaused || options.paused === true || statusStopped) {
+    const pauseReason = kingdomSummonPartyMotionPaused ? 'summon' : (statusStopped ? 'status' : 'defense');
+    const pausedKey = `${key}:${pauseReason}-paused`;
     const oldTimer = kingdomPetAnimationTimers.get(node);
     if (oldTimer) clearInterval(oldTimer);
     kingdomPetAnimationTimers.delete(node);
@@ -19128,6 +19279,7 @@ function playKingdomPetAnimation(node, monster, animationName, generationKey = '
   const frameCount = Math.max(1, Number(animation.frameCount) || 1);
   const intervalMs = Math.max(50, Math.round(1000 / Math.max(1, Number(animation.fps) || 10)));
   let frame = 0;
+  let lastFrameAt = Date.now();
   setKingdomPetFrame(node, monster, animation, frame);
   if (frameCount <= 1 || prefersKingdomReducedMotion()) {
     if (!animation.loop) setKingdomPetFrame(node, monster, animation, frameCount - 1);
@@ -19139,6 +19291,16 @@ function playKingdomPetAnimation(node, monster, animationName, generationKey = '
       kingdomPetAnimationTimers.delete(node);
       return;
     }
+    const now = Date.now();
+    const actor = node.parentElement;
+    const held = animationName === 'idle' && isKingdomStatusMotionHeld(actor);
+    if (actor) actor.dataset.statusMotionHold = held ? 'true' : 'false';
+    if (held) return;
+    const activeRate = animationName === 'idle'
+      ? Math.max(0.1, getKingdomStatusMotionProfile(actor?.dataset?.combatStatus).rate)
+      : 1;
+    if (now - lastFrameAt < intervalMs / activeRate) return;
+    lastFrameAt = now;
     frame += 1;
     if (frame >= frameCount) {
       if (animation.loop) {
@@ -19150,7 +19312,7 @@ function playKingdomPetAnimation(node, monster, animationName, generationKey = '
       }
     }
     setKingdomPetFrame(node, monster, animation, frame);
-  }, intervalMs);
+  }, Math.min(50, intervalMs));
   kingdomPetAnimationTimers.set(node, timerId);
 }
 
@@ -19230,8 +19392,9 @@ function playKingdomMonsterAnimation(animationName, generationKey = '', options 
   const monster = getKingdomMonsterConfig(enemyId);
   const animation = monster?.animations?.[animationName] || monster?.animations?.idle;
   if (!node || !monster || !animation) return;
+  const statusProfile = getKingdomStatusMotionProfile(node.dataset.combatStatus);
   const playbackRate = Math.max(0.1, Math.min(2, Number(options.playbackRate) || 1));
-  const key = `${monster.id}:${animationName}:${generationKey}:rate-${playbackRate}`;
+  const key = `${monster.id}:${animationName}:${generationKey}:status-${statusProfile.mode}:rate-${playbackRate}`;
   if (kingdomMonsterAnimationKey === key) return;
   kingdomMonsterAnimationKey = key;
   node.dataset.animationName = animationName;
@@ -19240,12 +19403,13 @@ function playKingdomMonsterAnimation(animationName, generationKey = '', options 
   const frameCount = Math.max(1, Number(animation.frameCount) || 1);
   const intervalMs = Math.max(
     32,
-    Math.round(1000 / (Math.max(1, Number(animation.fps) || 12) * playbackRate))
+    Math.round(1000 / (Math.max(1, Number(animation.fps) || 12) * Math.max(0.1, Number(options.playbackRate) || 1)))
   );
   const elapsedMs = Math.max(0, Number(options.elapsedMs) || 0);
   let frame = animation.loop
     ? Math.floor(elapsedMs / intervalMs) % frameCount
     : Math.min(frameCount - 1, Math.floor(elapsedMs / intervalMs));
+  let lastFrameAt = Date.now();
   setKingdomMonsterFrame(node, monster, animation, frame);
   if (frameCount <= 1) return;
   if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true) {
@@ -19264,6 +19428,15 @@ function playKingdomMonsterAnimation(animationName, generationKey = '', options 
       if (kingdomMonsterFrameTimer === frameTimer) kingdomMonsterFrameTimer = null;
       return;
     }
+    const now = Date.now();
+    const held = animationName === 'idle' && isKingdomStatusMotionHeld(node, now);
+    node.dataset.statusMotionHold = held ? 'true' : 'false';
+    if (held) return;
+    const activeRate = animationName === 'idle'
+      ? Math.max(0.1, getKingdomStatusMotionProfile(node.dataset.combatStatus).rate)
+      : 1;
+    if (now - lastFrameAt < intervalMs / activeRate) return;
+    lastFrameAt = now;
     frame += 1;
     if (frame >= frameCount) {
       if (animation.loop) {
@@ -19275,7 +19448,7 @@ function playKingdomMonsterAnimation(animationName, generationKey = '', options 
       }
     }
     setKingdomMonsterFrame(node, monster, animation, frame);
-  }, intervalMs);
+  }, Math.min(32, intervalMs));
   kingdomMonsterFrameTimer = frameTimer;
 }
 
@@ -19435,6 +19608,8 @@ function getKingdomEnemyVisualHp(logicalHp, maxHp, event, eventIsActive, timelin
 
 function getKingdomBattleEventDuration(event) {
   const type = String(event?.type || '');
+  const majorSummonDuration = getKingdomMajorSummonDuration(event);
+  if (majorSummonDuration > 0) return majorSummonDuration;
   if (type === 'skill') return getKingdomSkillAttackDuration(event?.effectCount);
   if (type === 'attack') return KINGDOM_NORMAL_ATTACK_MS;
   if (type === 'enemy-area' || type === 'enemy-single') {
@@ -19682,6 +19857,7 @@ function renderKingdomStatusPresentation({ bucket, tray, fx, conscious = true, t
   if (fx) {
     const visualStatus = statuses.find(({ definition }) => isTarotKingdomNegativeStatus(definition.key));
     fx.dataset.status = String(visualStatus?.definition.key || '');
+    fx.dataset.statusMotion = getKingdomStatusMotionProfile(visualStatus?.definition.key).mode;
     fx.hidden = !visualStatus;
   }
   return statuses;
@@ -19698,7 +19874,12 @@ function renderKingdomPlayerStatusEffects(row, playerIndex, conscious) {
     title: `${pName(playerIndex)}の状態`
   });
   row.classList.toggle('has-status-effects', statuses.length > 0 && conscious);
-  row.dataset.primaryStatus = String(statuses[0]?.definition.key || '');
+  const visualStatus = statuses.find(({ definition }) => isTarotKingdomNegativeStatus(definition.key));
+  const statusKey = String(visualStatus?.definition.key || '');
+  row.dataset.primaryStatus = statusKey;
+  const avatar = row.querySelector('.tarot-kingdom-battle-player-avatar');
+  syncKingdomActorStatusVisual(avatar, statusKey);
+  syncKingdomActorStatusMotion(avatar, statusKey, { isPet: avatar?.classList.contains('is-pet') === true });
 }
 
 function renderKingdomEnemyStatusEffects() {
@@ -19711,14 +19892,17 @@ function renderKingdomEnemyStatusEffects() {
     title: `${s?.battle?.enemy?.name || '敵'}の状態`
   });
   ui.battleEnemy.classList.toggle('has-status-effects', statuses.length > 0);
-  ui.battleEnemy.dataset.primaryStatus = String(statuses[0]?.definition.key || '');
+  const visualStatus = statuses.find(({ definition }) => isTarotKingdomNegativeStatus(definition.key));
+  const statusKey = String(visualStatus?.definition.key || '');
+  ui.battleEnemy.dataset.primaryStatus = statusKey;
+  syncKingdomActorStatusVisual(ui.battleEnemySprite, statusKey);
 }
 
 function playKingdomBattleAvatarEvent(event, eventIsActive, eventKey) {
   if (!event || !eventIsActive) return;
   const type = String(event.type || '');
   if (type === 'attack' || type === 'skill') {
-    if (type === 'skill' && event?.summon) return;
+    if ((type === 'skill' && event?.summon) || event?.majorSummon) return;
     const timeline = getKingdomBattleTimelineForEvent(event);
     if (timeline && Date.now() + 8 < Number(timeline.motionAt || timeline.startedAt || 0)) return;
     if (kingdomBattleAvatarEventKey === eventKey) return;
@@ -20563,15 +20747,25 @@ function setKingdomSummonCinematicState(
 function renderKingdomSkillCutin(event, eventIsActive, phase) {
   if (!ui.battleStage) return;
   let cutin = ui.battleStage.querySelector(':scope > .tarot-kingdom-skill-cutin');
-  const show = !!(
+  const isRoleSummonEvent = !!(
     eventIsActive
     && String(event?.type || '') === 'skill'
     && s?.lastPlay?.type === 'role'
     && Number(s.lastPlay.owner) === Number(event.actorIndex)
   );
-  const summonState = event?.summon && typeof event.summon === 'object' ? event.summon : null;
+  const isMajorSummonEvent = !!(
+    eventIsActive
+    && ['attack', 'skill'].includes(String(event?.type || ''))
+    && event?.majorSummon?.id
+    && s?.lastPlay?.type === 'set'
+    && Number(s.lastPlay.owner) === Number(event.actorIndex)
+  );
+  const show = isRoleSummonEvent || isMajorSummonEvent;
+  const summonState = isMajorSummonEvent
+    ? event.majorSummon
+    : (event?.summon && typeof event.summon === 'object' ? event.summon : null);
   const summonArt = summonState ? getTarotKingdomSummonById(summonState.id) : null;
-  const roleChainCount = areKingdomRoleChainsEnabled()
+  const roleChainCount = !isMajorSummonEvent && areKingdomRoleChainsEnabled()
     ? normalizeKingdomRoleChainCount(event?.roleChain?.count ?? s?.lastPlay?.roleChain?.count)
     : 1;
   const roleChainLevel = Math.min(3, Math.max(0, roleChainCount - 1));
@@ -20583,22 +20777,25 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   const elapsedMs = show
     ? Math.max(0, Date.now() - Number(timeline?.startedAt || event?.at || Date.now()))
     : 0;
-  const cinematicKey = isSummon
+  const cinematicKey = isSummon && !isMajorSummonEvent
     ? `${Number(event?.seq) || 0}:${Number(timeline?.startedAt || event?.at) || 0}:${summonArt.id}`
     : '';
   setKingdomSummonCinematicState(
-    isSummon,
+    isSummon && !isMajorSummonEvent,
     elapsedMs,
-    isSummon ? effectKey : '',
-    isSummon ? visualProfile.category : '',
+    isSummon && !isMajorSummonEvent ? effectKey : '',
+    isSummon && !isMajorSummonEvent ? visualProfile.category : '',
     cinematicKey
   );
   if (!show) {
     cutin?.remove();
     return;
   }
-  const roleKey = String(s.lastPlay?.role?.key || s.transition?.roleKey || 'Straight');
-  const cards = (Array.isArray(s.lastPlay?.cardsTable) ? s.lastPlay.cardsTable : []).slice(0, 5);
+  const roleKey = isMajorSummonEvent
+    ? 'MajorArcana'
+    : String(s.lastPlay?.role?.key || s.transition?.roleKey || 'Straight');
+  const cards = (Array.isArray(s.lastPlay?.cardsTable) ? s.lastPlay.cardsTable : [])
+    .slice(0, isMajorSummonEvent ? 3 : 5);
   const renderKey = `${event.seq}:${roleKey}:${summonArt?.id || ''}:chain-${roleChainCount}:${cards.map((card) => card?.id || '').join(',')}`;
   if (!cutin) {
     cutin = document.createElement('div');
@@ -20611,7 +20808,7 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   const summonIdKey = String(summonArt?.id || '').replace(/[^a-z0-9-_]/gi, '');
   const summonChoreographyKey = String(summonArt?.choreographyKey || summonIdKey).replace(/[^a-z0-9-]/gi, '');
   const summonWeightKey = String(summonArt?.motionWeight || 'measured').replace(/[^a-z0-9-]/gi, '');
-  const nextClassName = `tarot-kingdom-skill-cutin ${getKingdomRoleVisualClass(roleKey)} is-phase-${phase}${roleChainCount >= 2 ? ' is-role-chain' : ''}${isSummon ? ` is-summon is-summon-${effectKey} is-summon-${visualProfile.category} is-motion-${summonMotionKey} is-pool-${summonPoolKey} is-weight-${summonWeightKey} is-choreo-${summonChoreographyKey} is-summon-id-${summonIdKey}` : ''}`;
+  const nextClassName = `tarot-kingdom-skill-cutin ${getKingdomRoleVisualClass(roleKey)} is-phase-${phase}${roleChainCount >= 2 ? ' is-role-chain' : ''}${isMajorSummonEvent ? ' is-major-arcana-summon' : ''}${isSummon ? ` is-summon is-summon-${effectKey} is-summon-${visualProfile.category} is-motion-${summonMotionKey} is-pool-${summonPoolKey} is-weight-${summonWeightKey} is-choreo-${summonChoreographyKey} is-summon-id-${summonIdKey}` : ''}`;
   if (cutin.className !== nextClassName) cutin.className = nextClassName;
   if (cutin.dataset.renderKey === renderKey) return;
   cutin.dataset.renderKey = renderKey;
@@ -20626,18 +20823,21 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   cutin.dataset.effectCue = isSummon ? String(visualProfile.cue || '') : '';
   cutin.dataset.effectImpact = isSummon ? String(visualProfile.impact || '') : '';
   cutin.dataset.roleChain = roleChainCount >= 2 ? String(roleChainCount) : '';
-  cutin.style.setProperty('--summon-elapsed', `${-Math.min(KINGDOM_SUMMON_ATTACK_MS, elapsedMs)}ms`);
+  const summonDurationMs = isMajorSummonEvent ? KINGDOM_MAJOR_SUMMON_ATTACK_MS : KINGDOM_SUMMON_ATTACK_MS;
+  cutin.style.setProperty('--summon-elapsed', `${-Math.min(summonDurationMs, elapsedMs)}ms`);
   cutin.style.setProperty('--summon-effect-density', String(summonArt?.effectDensity || 1));
   cutin.style.setProperty('--role-chain-level', String(roleChainLevel));
   cutin.style.setProperty('--role-chain-glow', `${roleChainLevel * 7}px`);
-  const roleShowAtMs = getKingdomRoleFormationCompleteMs(s.lastPlay);
+  const roleShowAtMs = isMajorSummonEvent ? 140 : getKingdomRoleFormationCompleteMs(s.lastPlay);
   cutin.style.setProperty('--summon-role-show-at', `${roleShowAtMs}ms`);
   cutin.dataset.roleShowAt = String(roleShowAtMs);
   const content = document.createDocumentFragment();
   const title = document.createElement('strong');
   title.className = 'tarot-kingdom-skill-cutin-title';
-  title.textContent = getRoleDisplayLabel(s.lastPlay);
-  const chainLabel = roleChainCount >= 2 ? document.createElement('span') : null;
+  title.textContent = isMajorSummonEvent
+    ? `大アルカナ・${ARCANA_NAME[Number(summonState?.majorNumber)] || '召喚'}`
+    : getRoleDisplayLabel(s.lastPlay);
+  const chainLabel = !isMajorSummonEvent && roleChainCount >= 2 ? document.createElement('span') : null;
   if (chainLabel) {
     chainLabel.className = 'tarot-kingdom-summon-chain-label';
     chainLabel.textContent = `${roleChainCount} CHAIN`;
@@ -20649,7 +20849,7 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   fan.dataset.call = s.lastPlay?.call ? 'true' : 'false';
   cards.forEach((card, index) => {
     const node = cardNode(card, { clickable: false });
-    const offset = index - 2;
+    const offset = index - ((cards.length - 1) / 2);
     node.style.setProperty('--skill-card-index', String(index));
     node.style.setProperty('--skill-card-angle', `${offset * 5}deg`);
     node.style.setProperty('--skill-card-lift', `${offset * offset * 1.5}px`);
@@ -20662,12 +20862,18 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   if (chainLabel) content.append(chainLabel);
   content.append(fan);
   if (isSummon) {
-    cutin.dataset.partyHideAt = String(KINGDOM_SUMMON_PARTY_HIDE_MS);
-    cutin.dataset.partyReturnAt = String(KINGDOM_SUMMON_PARTY_RETURN_MS);
-    cutin.dataset.hudReturnAt = String(KINGDOM_SUMMON_HUD_RETURN_MS);
+    if (isMajorSummonEvent) {
+      delete cutin.dataset.partyHideAt;
+      delete cutin.dataset.partyReturnAt;
+      delete cutin.dataset.hudReturnAt;
+    } else {
+      cutin.dataset.partyHideAt = String(KINGDOM_SUMMON_PARTY_HIDE_MS);
+      cutin.dataset.partyReturnAt = String(KINGDOM_SUMMON_PARTY_RETURN_MS);
+      cutin.dataset.hudReturnAt = String(KINGDOM_SUMMON_HUD_RETURN_MS);
+    }
     cutin.setAttribute(
       'aria-label',
-      `${getRoleDisplayLabel(s.lastPlay)} ${roleChainCount >= 2 ? `${roleChainCount}チェイン ` : ''}召喚 ${summonArt.name} ${String(summonState.effectName || '')}`.trim()
+      `${isMajorSummonEvent ? title.textContent : getRoleDisplayLabel(s.lastPlay)} ${roleChainCount >= 2 ? `${roleChainCount}チェイン ` : ''}召喚 ${summonArt.name} ${String(summonState.effectName || '')}`.trim()
     );
     const seal = document.createElement('div');
     seal.className = 'tarot-kingdom-summon-seal';

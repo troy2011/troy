@@ -272,6 +272,112 @@ test.describe('Tarot Kingdom deterministic summons', () => {
     });
   });
 
+  test('a normally played Major Arcana uses its own short summon without hiding the party', async ({ page }) => {
+    await openKingdomDebug(page);
+    const played = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({
+        withTrick: false,
+        handsBySeat: [[
+          { id: 'major-emperor-summon', kind: 'major', suit: 'None', number: 4 },
+          { id: 'major-emperor-reserve', kind: 'minor', suit: 'Cup', number: 6 }
+        ]]
+      });
+      const result = debug.battlePlayCards(0, ['major-emperor-summon'], { resolve: false });
+      const event = result.state.battle.events.at(-1);
+      const cutin = document.querySelector('.tarot-kingdom-skill-cutin.is-major-arcana-summon');
+      const figure = cutin?.querySelector('.tarot-kingdom-summon-figure');
+      return {
+        ok: result.ok,
+        event,
+        transition: result.state.transition,
+        transitionDuration: Number(result.state.transition?.endsAt || 0) - Number(result.state.transition?.timeline?.startedAt || 0),
+        impactDelay: Number(result.state.transition?.timeline?.impactAt || 0) - Number(result.state.transition?.timeline?.startedAt || 0),
+        cutin: cutin ? {
+          summonId: cutin.dataset.summonId,
+          title: cutin.querySelector('.tarot-kingdom-skill-cutin-title')?.textContent,
+          technique: cutin.querySelector('.tarot-kingdom-summon-technique')?.textContent,
+          alt: figure?.querySelector('img')?.alt,
+          duration: getComputedStyle(cutin).animationDuration
+        } : null,
+        stageCinematic: document.querySelector('#tarotKingdomBattleStage')?.classList.contains('is-summon-cinematic'),
+        rootCinematic: document.querySelector('#tarotKingdomRoot')?.classList.contains('is-summon-cinematic')
+      };
+    });
+
+    expect(played.ok).toBe(true);
+    expect(played.event).toMatchObject({
+      type: 'attack',
+      majorSkillName: 'インペリアルブレイド',
+      majorSummon: {
+        id: 'major_summon_04',
+        majorNumber: 4,
+        presentationOnly: true,
+        effectKey: 'major-arcana'
+      }
+    });
+    expect(played.event.summon).toBeNull();
+    expect(played.transition.timeline).toMatchObject({ variant: 'skill' });
+    expect(played.transitionDuration).toBe(2400);
+    expect(played.impactDelay).toBe(1600);
+    expect(played.cutin).toMatchObject({
+      summonId: 'major_summon_04',
+      title: '大アルカナ・皇帝',
+      technique: 'インペリアルブレイド',
+      alt: '皇鋼の獅子王',
+      duration: '2.4s'
+    });
+    expect(played.stageCinematic).toBe(false);
+    expect(played.rootCinematic).toBe(false);
+  });
+
+  test('all 22 normally played Major Arcana map to their matching summon once', async ({ page }) => {
+    await openKingdomDebug(page);
+    const audits = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const suitByNumber = { 1: 'Wand', 16: 'Sword', 17: 'Cup', 18: 'Pentacle', 19: 'Wand' };
+      const fieldByNumber = {
+        15: { id: 'major-summon-field-court', kind: 'minor', suit: 'Cup', number: 14 },
+        16: { id: 'major-summon-field-sword', kind: 'minor', suit: 'Sword', number: 9 },
+        17: { id: 'major-summon-field-cup', kind: 'minor', suit: 'Cup', number: 9 },
+        18: { id: 'major-summon-field-pentacle', kind: 'minor', suit: 'Pentacle', number: 9 },
+        19: { id: 'major-summon-field-wand', kind: 'minor', suit: 'Wand', number: 9 },
+        21: { id: 'major-summon-field-major', kind: 'major', suit: 'None', number: 4 }
+      };
+      return Array.from({ length: 22 }, (_, number) => {
+        const major = {
+          id: `normal-major-summon-${number}`,
+          kind: 'major',
+          suit: suitByNumber[number] || 'None',
+          number
+        };
+        debug.battleScenario({
+          withTrick: !!fieldByNumber[number],
+          ...(fieldByNumber[number] ? { tableCard: fieldByNumber[number] } : {}),
+          handsBySeat: [[major, { id: `normal-major-reserve-${number}`, kind: 'minor', suit: 'Cup', number: 6 }]]
+        });
+        const result = debug.battlePlayCards(0, [major.id], { resolve: false });
+        const matchingEvents = (result.state?.battle?.events || []).filter((event) => (
+          event?.majorSummon?.id === `major_summon_${String(number).padStart(2, '0')}`
+        ));
+        return {
+          number,
+          ok: result.ok,
+          error: result.error || '',
+          matchingCount: matchingEvents.length,
+          presentationOnly: matchingEvents[0]?.majorSummon?.presentationOnly === true
+        };
+      });
+    });
+
+    expect(audits).toHaveLength(22);
+    audits.forEach((audit) => {
+      expect(audit.ok, `${audit.number}:${audit.error}`).toBe(true);
+      expect(audit.matchingCount, `major ${audit.number}`).toBe(1);
+      expect(audit.presentationOnly, `major ${audit.number}`).toBe(true);
+    });
+  });
+
   test('new action-pose Flush and Major summons stay compact inside portrait battlefields', async ({ page }) => {
     await openKingdomDebug(page);
     for (const width of [390, 900]) {
@@ -595,7 +701,7 @@ test.describe('Tarot Kingdom summon integration', () => {
     });
   });
 
-  test('all ten effect keys expose distinct choreography classes and categories', async ({ page }) => {
+  test('all eleven effect keys expose distinct choreography classes and categories', async ({ page }) => {
     const visuals = await page.evaluate(() => window.TarotKingdomDebug.battleSummonVisuals());
     expect(visuals).toEqual({
       rupture: { category: 'attack', choreography: 'ground-break', cue: 'fault-charge', impact: 'rock-burst' },
@@ -607,7 +713,8 @@ test.describe('Tarot Kingdom summon integration', () => {
       tide: { category: 'support', choreography: 'life-wave', cue: 'tide-gather', impact: 'restoring-surge' },
       aegis: { category: 'support', choreography: 'golden-barrier', cue: 'rune-forge', impact: 'shield-lock' },
       command: { category: 'support', choreography: 'fleet-command', cue: 'signal-rise', impact: 'fleet-salvo' },
-      flushElemental: { category: 'hybrid', choreography: 'elemental-surge', cue: 'elemental-charge', impact: 'elemental-burst' }
+      flushElemental: { category: 'hybrid', choreography: 'elemental-surge', cue: 'elemental-charge', impact: 'elemental-burst' },
+      'major-arcana': { category: 'hybrid', choreography: 'arcana-invocation', cue: 'arcana-awaken', impact: 'arcana-release' }
     });
   });
 

@@ -90,7 +90,7 @@ export function renderHomePlayerStatus(stats = {}, crewRankInfo = null) {
     setText('homeStatAgi', すばやさ);
     setText('homeStatInt', かしこさ);
     setText('homeStatVit', たいりょく);
-    setText('homeStatHp', `${HP}/${MaxHP}`);
+    setText('homeStatHp', MaxHP);
     setText('currentStr', ちから);
     setText('currentDef', みのまもり);
     setText('currentAgi', すばやさ);

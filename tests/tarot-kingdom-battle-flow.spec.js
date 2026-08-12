@@ -1984,7 +1984,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
        expect(audit.resonanceMarkerCount).toBe(0);
        expect(audit.resonanceAnimations).toEqual(['tarotKingdomResonanceNumberGlow']);
        expect(audit.legacyStatusMarkerCount).toBe(0);
-       expect(audit.ailmentLabels).toEqual(['凍結', '防御']);
+       expect(audit.ailmentLabels).toEqual(['状態異常：凍結', '補助：防御']);
        expect(audit.primaryStatus).toBe('freeze');
       expect(audit.boxes.length).toBeGreaterThanOrEqual(1);
       audit.boxes.forEach((box) => {
@@ -2684,7 +2684,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     });
     expect(audit.roles.lockedCallWrongSuit.ok).toBe(false);
     expect(audit.roles.lockedCallWrongSuit.reason).toBe(
-      '14ロック中: 場札を含む5枚すべてカップが必要です。'
+      '14ロック中：カップのみ。節制XIVで解除できます。'
     );
     expect(audit.roles.lockedCallSameSuit.ok).toBe(true);
     expect(audit.roles.towerSinglePower).toBe(16);
@@ -2694,6 +2694,19 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.major14LockSuit).toBeNull();
     expect(audit.minor14LockSuit).toBe('Wand');
     expect(audit.major14Unlock).toEqual({ playableThroughLock: true, lockSuit: null });
+    expect(audit.lockRestriction.sameSuitMinor.ok).toBe(true);
+    expect(audit.lockRestriction.differentSuitMinor).toEqual({
+      ok: false,
+      reason: '14ロック中：カップのみ。節制XIVで解除できます。'
+    });
+    expect(audit.lockRestriction.sameSuitMajor.ok).toBe(true);
+    expect(audit.lockRestriction.differentSuitMajor.ok).toBe(false);
+    expect(audit.lockRestriction.differentSuitMajor.reason).toContain('14ロック中：カップのみ');
+    expect(audit.lockRestriction.noSuitMajor.ok).toBe(false);
+    expect(audit.lockRestriction.noSuitMajor.reason).toContain('14ロック中：カップのみ');
+    expect(audit.lockRestriction.temperance.ok).toBe(true);
+    expect(audit.lockRestriction.mixedSuitRole.ok).toBe(false);
+    expect(audit.lockRestriction.mixedSuitRole.reason).toContain('14ロック中：カップのみ');
     expect(audit.majorSuitGate.sameSuit).toMatchObject({ ok: true, setPower: 16 });
     expect(audit.majorSuitGate.differentSuit).toMatchObject({ ok: false, setPower: 16 });
     expect(audit.majorSuitGate.differentSuit.reason).toContain('同じスート');
@@ -2739,15 +2752,14 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.devil.empty.ok).toBe(false);
     expect(audit.devil.pair.ok).toBe(false);
     expect(audit.devil.locked.ok).toBe(false);
-    expect(audit.devil.locked.reason).toContain('スート縛り');
+    expect(audit.devil.locked.reason).toContain('14ロック中：カップのみ');
 
     expect(audit.judgment.onMinorAce.ok).toBe(false);
     expect(audit.judgment.onMinorAce.reason).toContain('Aには');
     expect(audit.judgment.onMagician.ok).toBe(true);
-    expect(audit.judgment.finish.ok).toBe(false);
-    expect(audit.judgment.finish.reason).toContain('単独上がり');
+    expect(audit.judgment.finish.ok).toBe(true);
 
-    expect(audit.finish.ace.ok).toBe(false);
+    expect(audit.finish.ace.ok).toBe(true);
     expect(audit.finish.world.ok).toBe(true);
     expect(audit.finish.tower.ok).toBe(true);
     expect(audit.finish.leaveAce.ok).toBe(true);
@@ -2762,12 +2774,15 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.worldReverse.worldOverMajorReverse.reason).toContain('11バック中');
     expect(audit.worldReverse.worldOverMajorPair.ok).toBe(false);
     expect(audit.worldReverse.worldOverMajorPair.reason).toContain('大アルカナ1枚');
+    expect(audit.worldReverse.worldOverStrengthCut.ok).toBe(true);
+    expect(audit.worldReverse.worldOverMinorEightCut.ok).toBe(false);
+    expect(audit.worldReverse.worldOverMinorEightCut.reason).toContain('大アルカナ1枚');
     expect(audit.worldReverse.minorOverWorldNormal.ok).toBe(false);
     expect(audit.worldReverse.minorOverWorldReverse.ok).toBe(true);
     expect(audit.schema7Compatibility.devilOnNumberTen.ok).toBe(true);
     expect(audit.schema7Compatibility.judgmentFinish.ok).toBe(true);
     expect(audit.schema7Compatibility.worldFinish.ok).toBe(true);
-    expect(audit.schema7Compatibility.towerFinish.ok).toBe(false);
+    expect(audit.schema7Compatibility.towerFinish.ok).toBe(true);
 
     expect(audit.worldSingle).toMatchObject({
       ok: true,
@@ -3015,7 +3030,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.revived.streak).toBe(0);
   });
 
-  test('Judgment 20 recovery follows the actual clearer, hand cap, finish ban, and KO rules', async ({ page }) => {
+  test('Judgment 20 recovery follows the actual clearer, hand cap, unrestricted finish, and KO rules', async ({ page }) => {
     const audit = await page.evaluate(() => window.TarotKingdomDebug.battleJudgmentAudit());
 
     expect(audit.afterOvertakenClear).toEqual({ pendingJudgment: 2, reverse: false, handCount: 4 });
@@ -3030,9 +3045,9 @@ test.describe('Tarot Kingdom character battle flow', () => {
       reason: null,
       judgmentPending: false,
       pendingJudgment: null,
-      playAllowed: false
+      playAllowed: true
     });
-    expect(audit.handZero.validationReason).toContain('単独上がり');
+    expect(audit.handZero.validationReason).toBe('');
     expect(audit.koClearer).toEqual({ pendingJudgment: 3, resolvedTurn: 3 });
     expect(audit.selfDiscardRejected).toEqual({
       pendingJudgment: 2,

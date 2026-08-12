@@ -8,6 +8,7 @@
  */
 
 #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon {
+    --summon-duration: 4500ms;
     --summon-effect: var(--skill-accent, #8fd8ff);
     --summon-fx-primary: var(--summon-effect);
     --summon-fx-secondary: #fff4c2;
@@ -24,7 +25,7 @@
         linear-gradient(180deg, rgba(2, 5, 13, 0.08), rgba(1, 3, 9, 0.3));
     pointer-events: none;
     isolation: isolate;
-    animation: tkSummonOverlay 4500ms linear both;
+    animation: tkSummonOverlay var(--summon-duration) linear both;
     animation-delay: var(--summon-elapsed, 0ms);
 }
 
@@ -43,7 +44,7 @@
         radial-gradient(ellipse at 70% 76%, transparent 0 28%, rgba(0, 0, 0, 0.26) 70%);
     filter: none;
     transform: none;
-    animation: tkSummonAtmosphere 4500ms linear both;
+    animation: tkSummonAtmosphere var(--summon-duration) linear both;
     animation-delay: var(--summon-elapsed, 0ms);
 }
 
@@ -59,7 +60,7 @@
     opacity: 0;
     filter: none;
     transform: none;
-    animation: tkSummonImpactFlash 4500ms steps(2, end) both;
+    animation: tkSummonImpactFlash var(--summon-duration) steps(2, end) both;
     animation-delay: var(--summon-elapsed, 0ms);
 }
 
@@ -130,7 +131,7 @@
     box-shadow:
         inset 0 0 24px color-mix(in srgb, var(--summon-fx-primary) 46%, transparent),
         0 0 calc(24px + var(--role-chain-glow)) color-mix(in srgb, var(--summon-fx-primary) 65%, transparent);
-    animation: tkSummonSeal 4500ms ease-in-out both;
+    animation: tkSummonSeal var(--summon-duration) ease-in-out both;
     animation-delay: var(--summon-elapsed, 0ms);
 }
 
@@ -142,7 +143,7 @@
     box-shadow:
         inset 0 0 32px color-mix(in srgb, var(--summon-fx-primary) 42%, transparent),
         0 0 28px color-mix(in srgb, var(--summon-fx-primary) 48%, transparent);
-    animation: tkSummonPortal 4500ms ease-in-out both;
+    animation: tkSummonPortal var(--summon-duration) ease-in-out both;
     animation-delay: var(--summon-elapsed, 0ms);
 }
 
@@ -197,7 +198,7 @@
     background: linear-gradient(90deg, transparent, rgba(3, 7, 18, 0.82) 25%);
     text-align: right;
     opacity: 0;
-    animation: tkSummonCopy 4500ms ease both;
+    animation: tkSummonCopy var(--summon-duration) ease both;
     animation-delay: var(--summon-elapsed, 0ms);
 }
 
@@ -235,7 +236,7 @@
         conic-gradient(from 0deg at 25% 57%, transparent 0 8%, rgba(255, 255, 255, 0.88) 9% 10%, transparent 11% 22%, rgba(255, 255, 255, 0.6) 23% 24%, transparent 25%);
     mix-blend-mode: screen;
     box-shadow: inset 0 0 calc(28px + var(--role-chain-glow)) var(--role-chain-color);
-    animation: tkSummonImpact 4500ms steps(2, end) both;
+    animation: tkSummonImpact var(--summon-duration) steps(2, end) both;
     animation-delay: var(--summon-elapsed, 0ms);
 }
 
@@ -631,12 +632,42 @@
     --summon-fx-secondary: #fff0a8;
 }
 
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-major-arcana-summon {
+    --summon-duration: 2400ms;
+    background:
+        radial-gradient(circle at 68% 50%, color-mix(in srgb, var(--summon-fx-primary) 18%, transparent), transparent 38%),
+        linear-gradient(180deg, rgba(2, 5, 13, 0.02), rgba(1, 3, 9, 0.16));
+}
+
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-major-arcana-summon .tarot-kingdom-skill-cutin-title {
+    top: 22%;
+    width: min(74%, 420px);
+    font-size: clamp(17px, 4.8vw, 28px);
+}
+
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-major-arcana-summon .tarot-kingdom-skill-card-fan {
+    top: 29%;
+    width: min(52%, 190px);
+    height: 76px;
+}
+
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-major-arcana-summon .tarot-kingdom-skill-card-fan .tarot-card {
+    width: 43px !important;
+    height: 72px !important;
+}
+
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-major-arcana-summon .tarot-kingdom-summon-copy {
+    bottom: 5%;
+    min-width: min(48%, 250px);
+    max-width: 58%;
+}
+
 .is-pool-major .tarot-kingdom-summon-figure {
     right: 0;
     bottom: 2%;
     width: min(63%, 405px);
     height: 80%;
-    animation: tkSummonMajorAction 4500ms cubic-bezier(.2,.64,.18,1) both;
+    animation: tkSummonMajorAction var(--summon-duration) cubic-bezier(.2,.64,.18,1) both;
     animation-delay: var(--summon-elapsed, 0ms);
 }
 
@@ -691,7 +722,7 @@
         radial-gradient(circle at 72% 46%, color-mix(in srgb, var(--summon-fx-primary) 30%, transparent), transparent 34%),
         conic-gradient(from 210deg at 72% 52%, transparent, color-mix(in srgb, var(--summon-fx-primary) 18%, transparent), transparent 36%);
     mix-blend-mode: screen;
-    animation: tkFxMajorAtmosphere 4500ms ease-in-out both;
+    animation: tkFxMajorAtmosphere var(--summon-duration) ease-in-out both;
     animation-delay: var(--summon-elapsed, 0ms);
 }
 
@@ -703,7 +734,7 @@
     border-radius: 48%;
     background: radial-gradient(circle, transparent 30%, color-mix(in srgb, var(--summon-fx-primary) 22%, transparent) 52%, transparent 74%);
     filter: blur(2px);
-    animation: tkFxMajorCharge 4500ms ease-in-out both;
+    animation: tkFxMajorCharge var(--summon-duration) ease-in-out both;
     animation-delay: var(--summon-elapsed, 0ms);
 }
 
@@ -713,7 +744,7 @@
         repeating-conic-gradient(from 0deg, transparent 0 10deg, color-mix(in srgb, var(--summon-fx-secondary) 76%, transparent) 11deg 12deg);
     box-shadow: 0 0 30px var(--summon-fx-primary);
     mix-blend-mode: screen;
-    animation: tkFxMajorImpact 4500ms steps(2, end) both;
+    animation: tkFxMajorImpact var(--summon-duration) steps(2, end) both;
     animation-delay: var(--summon-elapsed, 0ms);
 }
 

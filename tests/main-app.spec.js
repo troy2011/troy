@@ -1293,7 +1293,7 @@ test('home tab replaces HP and MP recovery controls with compact stat chips', as
   await expect(page.locator('#globalMpBar')).toHaveCount(0);
   await expect(page.locator('#btnRecoverHP')).toHaveCount(0);
   await expect(page.locator('#btnRecoverMP')).toHaveCount(0);
-  await expect(page.locator('.home-stat-chip b')).toHaveText(['7', '8', '9', '10', '11', '152/160']);
+  await expect(page.locator('.home-stat-chip b')).toHaveText(['7', '8', '9', '10', '11', '160']);
   await page.setViewportSize({ width: 390, height: 844 });
   const homeStatsFit = await page.locator('.home-stat-panel').evaluate((panel) => {
     const panelRect = panel.getBoundingClientRect();
