@@ -3,6 +3,7 @@ const { initializeInventoryRoutes } = require('../server/inventory');
 const {
   applyEquipmentEnhancementToCatalogData,
   buildEquipmentEnhancementDescriptor,
+  getEquipmentRarityContribution,
   resolveArmorFamily,
   resolveWeaponFamily
 } = require('../server/equipmentEnhancement');
@@ -134,6 +135,9 @@ async function invoke(handler, body) {
 const catalog = {
   sword_001: { Category: 'Weapon', WeaponType: 'sword', DisplayName: '片手剣', Power: 10 },
   sword_002: { Category: 'Weapon', WeaponType: 'sword', DisplayName: '鋼の剣', Power: 14 },
+  sword_rare: { Category: 'Weapon', WeaponType: 'sword', DisplayName: '希少な剣', Power: 20 },
+  sword_epic: { Category: 'Weapon', WeaponType: 'sword', DisplayName: '英雄の剣', Power: 35 },
+  sword_legendary: { Category: 'Weapon', WeaponType: 'sword', DisplayName: '伝説の剣', Power: 60 },
   sword_big_001: { Category: 'Weapon', WeaponType: 'sword_big', DisplayName: '大剣', Power: 20 },
   gun_05: { Category: 'Weapon', WeaponType: 'gun', DisplayName: 'フリントロック', Power: 14 },
   gun_06: { Category: 'Weapon', WeaponType: 'gun', DisplayName: 'ペッパーボックス', Power: 14 },
@@ -156,16 +160,20 @@ test('equipment families keep weapon variants separate and classify armor and sh
     materialEligible: true,
     eligible: true
   });
+  expect(getEquipmentRarityContribution(catalog.sword_001)).toBe(1);
+  expect(getEquipmentRarityContribution(catalog.sword_rare)).toBe(2);
+  expect(getEquipmentRarityContribution(catalog.sword_epic)).toBe(3);
+  expect(getEquipmentRarityContribution(catalog.sword_legendary)).toBe(4);
 });
 
-test('enhancement apply consumes multiple stacks and inherits an enhanced material bonus', async () => {
+test('enhancement apply combines material rarity with an inherited enhancement bonus', async () => {
   const harness = makeEnhancementHarness({
     catalogCache: catalog,
     inventoryItems: [
       { Id: 'sword_001', StackId: 'base', Amount: 1 },
       { Id: 'sword_002', StackId: 'plain-material', Amount: 2 },
       {
-        Id: 'sword_002',
+        Id: 'sword_rare',
         StackId: 'enhanced-material',
         Amount: 1,
         DisplayProperties: { equipmentEnhancement: { version: 1, bonus: 3 } }
@@ -183,9 +191,18 @@ test('enhancement apply consumes multiple stacks and inherits an enhanced materi
   });
 
   expect(response.statusCode).toBe(200);
-  expect(response.body).toMatchObject({ contribution: 5, targetBonus: 5, targetValue: 15 });
+  expect(response.body).toMatchObject({ contribution: 6, targetBonus: 6, targetValue: 16 });
+  expect(response.body.materials).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      itemId: 'sword_rare',
+      rarity: 'rare',
+      rarityContribution: 2,
+      bonus: 3,
+      contribution: 5
+    })
+  ]));
   expect(harness.state.find((item) => item.StackId === 'base').DisplayProperties).toMatchObject({
-    equipmentEnhancement: { version: 1, bonus: 5 }
+    equipmentEnhancement: { version: 1, bonus: 6 }
   });
   expect(harness.state.find((item) => item.StackId === 'plain-material').Amount).toBe(1);
   expect(harness.state.find((item) => item.StackId === 'enhanced-material')).toBeUndefined();
@@ -195,7 +212,7 @@ test('enhancement apply consumes multiple stacks and inherits an enhanced materi
     Id: 'sword_001',
     StackId: 'base',
     Amount: 1,
-    DisplayProperties: { equipmentEnhancement: { version: 1, bonus: 5 } }
+    DisplayProperties: { equipmentEnhancement: { version: 1, bonus: 6 } }
   });
 
   const replay = await invoke(harness.routes.get('/api/equipment-enhancement/apply'), {

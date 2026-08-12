@@ -1379,6 +1379,8 @@ function initializeInventoryRoutes(app, deps) {
                 name: material.name,
                 amount: material.amount,
                 bonus: material.enhancement.storedBonus,
+                rarity: material.enhancement.rarity,
+                rarityContribution: material.enhancement.rarityContribution,
                 contribution: material.contribution
             })),
             contribution: context.contribution,
@@ -2483,6 +2485,8 @@ function initializeInventoryRoutes(app, deps) {
                     count: amount,
                     enhancement: {
                         bonus: enhancement.storedBonus,
+                        rarity: enhancement.rarity,
+                        rarityContribution: enhancement.rarityContribution,
                         contribution: enhancement.contribution
                     }
                 };

@@ -1,6 +1,17 @@
 const EQUIPMENT_ENHANCEMENT_VERSION = 1;
 const EQUIPMENT_ENHANCEMENT_MAX_STAT = 99;
 const EQUIPMENT_ENHANCEMENT_PROPERTY = 'equipmentEnhancement';
+const EQUIPMENT_ENHANCEMENT_RARITY_CONTRIBUTIONS = Object.freeze({
+    common: 1,
+    rare: 2,
+    epic: 3,
+    legendary: 4
+});
+const EQUIPMENT_RARITY_THRESHOLDS = Object.freeze({
+    rare: 18,
+    epic: 35,
+    legendary: 60
+});
 
 const WEAPON_FAMILY_ALIASES = Object.freeze({
     sword: 'sword',
@@ -40,6 +51,36 @@ function normalizeToken(value) {
 
 function getEquipmentCategory(catalogData = {}) {
     return String(catalogData.Category || catalogData.category || '').trim();
+}
+
+function getEquipmentRarity(catalogData = {}) {
+    const score = Math.max(
+        Number(catalogData.Power ?? catalogData.Atk) || 0,
+        Number(catalogData.Defense ?? catalogData.Def) || 0,
+        Number(catalogData.MagicPower) || 0,
+        Number(catalogData.HealPower) || 0
+    );
+    if (score >= EQUIPMENT_RARITY_THRESHOLDS.legendary) return 'legendary';
+    if (score >= EQUIPMENT_RARITY_THRESHOLDS.epic) return 'epic';
+    if (score >= EQUIPMENT_RARITY_THRESHOLDS.rare) return 'rare';
+    if (score > 0) return 'common';
+
+    const explicit = normalizeToken(
+        catalogData.Rarity
+        || catalogData.rarity
+        || catalogData.Rare
+        || catalogData.Tier
+        || catalogData.tier
+    );
+    if (['legendary', 'lgd', 'red'].includes(explicit)) return 'legendary';
+    if (['epic', 'purple'].includes(explicit)) return 'epic';
+    if (['rare', 'blue'].includes(explicit)) return 'rare';
+    return 'common';
+}
+
+function getEquipmentRarityContribution(catalogData = {}) {
+    return EQUIPMENT_ENHANCEMENT_RARITY_CONTRIBUTIONS[getEquipmentRarity(catalogData)]
+        || EQUIPMENT_ENHANCEMENT_RARITY_CONTRIBUTIONS.common;
 }
 
 function resolveWeaponFamily(itemId, catalogData = {}) {
@@ -163,6 +204,8 @@ function buildEquipmentEnhancementDescriptor(itemId, catalogData = {}, inventory
     const storedBonus = getEquipmentEnhancementBonus(inventoryItem);
     const bonus = Math.max(0, Math.min(storedBonus, EQUIPMENT_ENHANCEMENT_MAX_STAT - baseValue));
     const effectiveValue = Math.min(EQUIPMENT_ENHANCEMENT_MAX_STAT, baseValue + bonus);
+    const rarity = getEquipmentRarity(catalogData);
+    const rarityContribution = getEquipmentRarityContribution(catalogData);
     const materialEligible = ['Weapon', 'Armor', 'Shield'].includes(category) && !!family;
     const eligible = materialEligible && effectiveValue < EQUIPMENT_ENHANCEMENT_MAX_STAT;
     return {
@@ -174,7 +217,9 @@ function buildEquipmentEnhancementDescriptor(itemId, catalogData = {}, inventory
         bonus,
         storedBonus,
         effectiveValue,
-        contribution: 1 + storedBonus,
+        rarity,
+        rarityContribution,
+        contribution: rarityContribution + storedBonus,
         eligible,
         materialEligible,
         capped: effectiveValue >= EQUIPMENT_ENHANCEMENT_MAX_STAT
@@ -198,6 +243,7 @@ function applyEquipmentEnhancementToCatalogData(itemId, catalogData = {}, invent
 module.exports = {
     EQUIPMENT_ENHANCEMENT_MAX_STAT,
     EQUIPMENT_ENHANCEMENT_PROPERTY,
+    EQUIPMENT_ENHANCEMENT_RARITY_CONTRIBUTIONS,
     EQUIPMENT_ENHANCEMENT_VERSION,
     applyEquipmentEnhancementToCatalogData,
     buildEquipmentEnhancementDescriptor,
@@ -206,6 +252,8 @@ module.exports = {
     getEquipmentCategory,
     getEquipmentEnhancementBonus,
     getEquipmentPrimaryStat,
+    getEquipmentRarity,
+    getEquipmentRarityContribution,
     normalizeDisplayProperties,
     resolveArmorFamily,
     resolveEquipmentEnhancementFamily,

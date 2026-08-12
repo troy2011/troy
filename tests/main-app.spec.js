@@ -5466,7 +5466,8 @@ test('inventory equipment enhancement modal previews and applies multiple materi
       materialEligible: true,
       enhancement: {
         category: 'Weapon', family: 'sword', primaryStat: 'Power', baseValue: 10,
-        bonus: 0, storedBonus: 0, effectiveValue: 10, eligible: true, materialEligible: true
+        bonus: 0, storedBonus: 0, effectiveValue: 10, rarity: 'common',
+        rarityContribution: 1, contribution: 1, eligible: true, materialEligible: true
       },
       customData: {
         Category: 'Weapon', WeaponType: 'sword', Power: 10,
@@ -5476,16 +5477,17 @@ test('inventory equipment enhancement modal previews and applies multiple materi
     {
       itemId: 'sword_002',
       instances: ['default'],
-      stacks: [{ stackId: 'default', count: 2, enhancement: { bonus: 0, contribution: 1 } }],
+      stacks: [{ stackId: 'default', count: 2, enhancement: { bonus: 0, rarity: 'rare', rarityContribution: 2, contribution: 2 } }],
       count: 2,
       name: '素材の剣',
       materialEligible: true,
       enhancement: {
-        category: 'Weapon', family: 'sword', primaryStat: 'Power', baseValue: 12,
-        bonus: 0, storedBonus: 0, effectiveValue: 12, eligible: true, materialEligible: true
+        category: 'Weapon', family: 'sword', primaryStat: 'Power', baseValue: 20,
+        bonus: 0, storedBonus: 0, effectiveValue: 20, rarity: 'rare',
+        rarityContribution: 2, contribution: 2, eligible: true, materialEligible: true
       },
       customData: {
-        Category: 'Weapon', WeaponType: 'sword', Power: 12,
+        Category: 'Weapon', WeaponType: 'sword', Power: 20,
         sprite_path: './Sprites/weapons/melee weapons/sword.png', sprite_index: '2', sprite_w: '32', sprite_h: '32'
       }
     },
@@ -5499,7 +5501,8 @@ test('inventory equipment enhancement modal previews and applies multiple materi
       materialEligible: true,
       enhancement: {
         category: 'Weapon', family: 'sword', primaryStat: 'Power', baseValue: 9,
-        bonus: 3, storedBonus: 3, effectiveValue: 12, eligible: true, materialEligible: true
+        bonus: 3, storedBonus: 3, effectiveValue: 12, rarity: 'common',
+        rarityContribution: 1, contribution: 4, eligible: true, materialEligible: true
       },
       customData: {
         Category: 'Weapon', WeaponType: 'sword', Power: 12,
@@ -5567,7 +5570,7 @@ test('inventory equipment enhancement modal previews and applies multiple materi
       return;
     }
     const contribution = body.materials.reduce((total, material) => (
-      total + (material.stackId === 'enhanced-material-stack' ? 4 : material.amount)
+      total + (material.stackId === 'enhanced-material-stack' ? 4 : material.amount * 2)
     ), 0);
     await route.fulfill({
       status: 200,
@@ -5589,7 +5592,7 @@ test('inventory equipment enhancement modal previews and applies multiple materi
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({ ok: true, targetBonus: 5, targetValue: 15, targetStackId: 'default' })
+      body: JSON.stringify({ ok: true, targetBonus: 6, targetValue: 16, targetStackId: 'default' })
     });
   });
 
@@ -5609,6 +5612,7 @@ test('inventory equipment enhancement modal previews and applies multiple materi
   await page.locator('#inventoryGrid .inventory-item-cell[title="強化用の剣"]').click();
   await page.getByRole('button', { name: '強化', exact: true }).click();
   await expect(page.locator('#equipmentEnhancementModal')).toBeVisible();
+  await expect(page.locator('.equipment-enhancement-material').filter({ hasText: '素材の剣' })).toContainText('RARE / 強化 +2');
   await page.getByRole('button', { name: '素材の剣を増やす' }).click();
   expect(await page.locator('.equipment-enhancement-apply').isEnabled()).toBe(true);
   await expect.poll(() => previewRequests.length).toBe(1);
@@ -5621,7 +5625,7 @@ test('inventory equipment enhancement modal previews and applies multiple materi
   await expect(page.locator('.equipment-enhancement-apply')).toBeEnabled();
   await page.getByRole('button', { name: '鍛えた素材剣を増やす' }).click();
   await expect.poll(() => previewRequests.length).toBe(2);
-  await expect(page.locator('.equipment-enhancement-result')).toContainText('15');
+  await expect(page.locator('.equipment-enhancement-result')).toContainText('16');
   await expect(page.locator('.equipment-enhancement-apply')).toBeEnabled();
 
   const layout = await page.locator('.equipment-enhancement-sheet').evaluate((sheet) => {

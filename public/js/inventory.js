@@ -2209,6 +2209,13 @@ function getInventoryRarityTone(item) {
     const cd = item?.customData || {};
     const category = getCanonicalTarotCategory(cd.Category);
     if (category === 'TarotMajor') return 'red';
+    if (['Weapon', 'Armor', 'Shield'].includes(category)) {
+        const equipmentRarity = String(item?.enhancement?.rarity || '').trim().toLowerCase();
+        if (equipmentRarity === 'legendary') return 'red';
+        if (equipmentRarity === 'epic') return 'purple';
+        if (equipmentRarity === 'rare') return 'blue';
+        if (equipmentRarity === 'common') return 'green';
+    }
 
     const score = Math.max(
         getInventoryStatValue(cd, 'Power'),
@@ -3787,11 +3794,13 @@ function getEquipmentEnhancementCandidates(baseItem) {
             const ownedCount = getInventoryOwnedCount(item);
             const reservedCount = getInventoryReservedCount(item);
             const baseReserve = isSameInventoryEntry(item, baseItem) && !isInventoryItemEquipped(baseItem) ? 1 : 0;
+            const storedBonus = Math.max(0, Math.floor(Number(item?.enhancement?.storedBonus ?? item?.enhancement?.bonus) || 0));
+            const reportedContribution = Math.floor(Number(item?.enhancement?.contribution) || 0);
             return {
                 item,
                 key: getInventoryEntryKey(item),
                 available: Math.max(0, ownedCount - reservedCount - baseReserve),
-                contribution: 1 + Math.max(0, Math.floor(Number(item?.enhancement?.storedBonus ?? item?.enhancement?.bonus) || 0))
+                contribution: reportedContribution > 0 ? reportedContribution : 1 + storedBonus
             };
         })
         .filter((candidate) => candidate.available > 0)
@@ -3960,7 +3969,8 @@ function showEquipmentEnhancementModal(baseItem) {
             const materialBonus = Math.max(0, Number(candidate.item?.enhancement?.bonus) || 0);
             name.textContent = `${candidate.item.name}${materialBonus > 0 ? ` +${materialBonus}` : ''}`;
             const meta = document.createElement('span');
-            meta.textContent = `所持 ${candidate.available} / 強化 +${candidate.contribution}`;
+            const rarity = String(candidate.item?.enhancement?.rarity || 'common').trim().toUpperCase();
+            meta.textContent = `所持 ${candidate.available} / ${rarity} / 強化 +${candidate.contribution}`;
             copy.append(name, meta);
             row.appendChild(copy);
 
