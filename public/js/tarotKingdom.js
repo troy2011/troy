@@ -1918,7 +1918,10 @@ function getKingdomTutorialMatchupPair(playerIndex, state = s) {
   if (!pair || typeof pair !== 'object') return null;
   return {
     leadCardId: String(pair.leadCardId || ''),
-    replyCardId: String(pair.replyCardId || '')
+    replyCardId: String(pair.replyCardId || ''),
+    replyBaseCard: pair.replyBaseCard && typeof pair.replyBaseCard === 'object'
+      ? cloneKingdomSnapshotValue(pair.replyBaseCard, null)
+      : null
   };
 }
 
@@ -1928,10 +1931,10 @@ function getKingdomTutorialPrompt(state = s, playerIndex = null) {
     case 1:
       return playerIndex != null && getKingdomTutorialStep(playerIndex, state) >= 1
         ? '同じ数字は　相性スートで返せる\nワンド↔カップ　ソード↔ペンタクル'
-        : '1-1　光るカードを1枚選ぼう';
-    case 2: return '1-2　同じ数字を2枚選ぼう';
-    case 3: return '1-3　5枚で役を作ろう';
-    case 4: return '1-4　場札＋手札4枚で役を完成';
+        : '1-1　カードで攻撃\n場より大きい数字を1枚出そう';
+    case 2: return '1-2　5を2枚出して2人スキップ';
+    case 3: return '1-3　ポーカー役：2～6でストレート';
+    case 4: return '1-4　コール：場札＋4枚でフルハウス';
     default: return '';
   }
 }
@@ -2014,6 +2017,47 @@ function completeKingdomTutorialObjective(playerIndex) {
   return 'completed';
 }
 
+function prepareKingdomTutorialSuitReply(playerIndex) {
+  if (getKingdomTutorialLesson() !== 1 || getKingdomTutorialStep(playerIndex) < 1) return false;
+  const pair = getKingdomTutorialMatchupPair(playerIndex);
+  const baseCard = pair?.replyBaseCard;
+  if (!baseCard) return false;
+  if (usesDeferredKingdomGrave()) queueKingdomTrickForGrave(s.trick);
+  const playerCount = getKingdomPlayerCount();
+  const baseOwner = playerCount > 1
+    ? (Number(playerIndex) - 1 + playerCount) % playerCount
+    : Number(playerIndex);
+  const number = Number(idNum(baseCard));
+  const play = {
+    type: 'set',
+    owner: baseOwner,
+    count: 1,
+    selected: [],
+    selectedIds: [],
+    cardsHand: [{ ...baseCard }],
+    cardsTable: [{ ...baseCard }],
+    tableOwners: [baseOwner],
+    number,
+    setPower: setPowerForCards(number, [baseCard]),
+    suitMask: suitMaskForCards([baseCard]),
+    suitTier: Math.max(...suitsForCard(baseCard, false).map((suit) => suitTierForCard(baseCard, suit)))
+  };
+  s.trick = play;
+  s.lastPlay = play;
+  s.trickActionHistory = [];
+  s.lastTurnAction = { type: 'play', playerIndex: baseOwner };
+  s.trickForcedCount = 0;
+  s.callOnly = false;
+  s.leadRequiredOwner = null;
+  s.pass = s.players.map(() => false);
+  s.fold = s.players.map(() => false);
+  resetKingdomNpcPassCounts();
+  s.trickTransitionKind = 'normal';
+  s.trickDefeatFx = null;
+  log(`${pName(baseOwner)}: 相性スート練習札 ${getCardNameLabel(baseCard)}`);
+  return true;
+}
+
 function buildKingdomTutorialDeck(lesson, playerCount, initialHandSize, dealerIndex = 0) {
   const safeLesson = Math.max(1, Math.min(TOTAL_HANDS, Math.floor(Number(lesson) || 1)));
   const safePlayerCount = Math.max(3, Math.min(4, Math.floor(Number(playerCount) || 4)));
@@ -2032,21 +2076,24 @@ function buildKingdomTutorialDeck(lesson, playerCount, initialHandSize, dealerIn
   let opening = null;
 
   if (safeLesson === 1) {
-    const pairs = [
-      [['Cup', 3], ['Wand', 3]],
-      [['Sword', 4], ['Pentacle', 4]],
-      [['Cup', 6], ['Wand', 6]],
-      [['Sword', 7], ['Pentacle', 7]]
+    opening = take('Cup', 3);
+    const lessons = [
+      [['Cup', 4], ['Cup', 6], ['Wand', 6]],
+      [['Sword', 7], ['Sword', 8], ['Pentacle', 8]],
+      [['Cup', 9], ['Cup', 10], ['Wand', 10]],
+      [['Sword', 11], ['Sword', 12], ['Pentacle', 12]]
     ];
     hands.forEach((hand, seat) => {
-      const [leadSpec, replySpec] = pairs[seat];
+      const [leadSpec, replyBaseSpec, replySpec] = lessons[seat];
       const leadCard = take(...leadSpec);
+      const replyBaseCard = take(...replyBaseSpec);
       const replyCard = take(...replySpec);
       if (leadCard) hand.push(leadCard);
       if (replyCard) hand.push(replyCard);
       matchupPairs[seat] = {
         leadCardId: String(leadCard?.id || ''),
-        replyCardId: String(replyCard?.id || '')
+        replyCardId: String(replyCard?.id || ''),
+        replyBaseCard: replyBaseCard ? { ...replyBaseCard } : null
       };
     });
   } else if (safeLesson === 2) {
@@ -2066,12 +2113,18 @@ function buildKingdomTutorialDeck(lesson, playerCount, initialHandSize, dealerIn
     });
   } else {
     opening = take('Cup', 5);
-    const suits = ['Cup', 'Wand', 'Sword', 'Pentacle'];
-    hands.forEach((_hand, seat) => {
-      for (let offset = 0; offset < 4; offset += 1) {
-        give(seat, suits[(seat + offset + 1) % suits.length], 6 + offset);
-      }
-    });
+    [['Wand', 5], ['Sword', 5], ['Cup', 8], ['Wand', 8]]
+      .forEach(([suit, number]) => give(0, suit, number));
+    [['Cup', 6], ['Wand', 6], ['Sword', 6], ['Pentacle', 6]]
+      .forEach(([suit, number]) => give(1, suit, number));
+    [['Cup', 7], ['Wand', 7], ['Sword', 7], ['Pentacle', 7]]
+      .forEach(([suit, number]) => give(2, suit, number));
+    if (safePlayerCount >= 4) {
+      [['Cup', 9], ['Wand', 9], ['Sword', 9], ['Pentacle', 9]]
+        .forEach(([suit, number]) => give(3, suit, number));
+    }
+    [['Pentacle', 1], ['Sword', 10], ['Cup', 12], ['Wand', 14]]
+      .forEach(([suit, number]) => give(0, suit, number));
   }
 
   if (!opening) opening = take('Pentacle', 1);
@@ -2093,9 +2146,9 @@ function buildKingdomTutorialDeck(lesson, playerCount, initialHandSize, dealerIn
   }
   return {
     drawDeck: [...reservedPool, ...fillerPool, ...(opening ? [opening] : []), ...dealOrder.slice().reverse()],
-    skipOpening: safeLesson < 4 || !opening,
+    skipOpening: ![1, 4].includes(safeLesson) || !opening,
     clearOpening: false,
-    openingOwner: safeLesson === 4 ? safePlayerCount - 1 : 0,
+    openingOwner: [1, 4].includes(safeLesson) ? safePlayerCount - 1 : 0,
     matchupPairs
   };
 }
@@ -2672,6 +2725,9 @@ function buildKingdomSituationAnnouncement(playerIndex, canSelectCards) {
       }
       const tutorialPrompt = getKingdomTutorialPrompt(s, playerIndex);
       if (tutorialPrompt) return tutorialPrompt;
+      if (canSelectCards && getPlayableHandCardIndexes(playerIndex).size === 0) {
+        return '出せる札がない：パスすると敵が反撃';
+      }
       return canSelectCards ? 'カードを選択してください' : '行動を準備しています';
     }
     return `${playerName(Number(s.turn))}の行動を待っています`;
@@ -17627,6 +17683,7 @@ function continueAfterPlay(pi, play) {
   }
   if (play?.tutorialContinueSamePlayer && isKingdomTutorialObjectivePending(pi)) {
     delete play.tutorialContinueSamePlayer;
+    prepareKingdomTutorialSuitReply(pi);
     s.phase = 'turn';
     s.turn = pi;
     s.pass[pi] = false;

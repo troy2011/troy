@@ -2512,6 +2512,27 @@ test('only legal cards glow, illegal cards dim, and a valid selection emphasizes
   await expect(attack).not.toHaveClass(/is-confirm-ready/);
 });
 
+test('a player with no legal card gets the short pass and retaliation guidance', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.evaluate(() => window.TarotKingdomDebug.battleScenario({
+    turnIndex: 0,
+    tableCard: { id: 'tutorial-pass-field', kind: 'minor', suit: 'Cup', number: 14 },
+    handsBySeat: [[
+      { id: 'tutorial-pass-2', kind: 'minor', suit: 'Cup', number: 2 },
+      { id: 'tutorial-pass-3', kind: 'minor', suit: 'Wand', number: 3 },
+      { id: 'tutorial-pass-4', kind: 'minor', suit: 'Sword', number: 4 },
+      { id: 'tutorial-pass-6', kind: 'minor', suit: 'Pentacle', number: 6 },
+      { id: 'tutorial-pass-8', kind: 'minor', suit: 'Cup', number: 8 },
+      { id: 'tutorial-pass-10', kind: 'minor', suit: 'Wand', number: 10 },
+      { id: 'tutorial-pass-12', kind: 'minor', suit: 'Sword', number: 12 },
+      { id: 'tutorial-pass-13', kind: 'minor', suit: 'Pentacle', number: 13 }
+    ]]
+  }));
+  await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText(
+    '出せる札がない：パスすると敵が反撃'
+  );
+});
+
 for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1100 }]) {
   test(`defense command keeps its auto-pass sublabel below the main label at ${viewport.width}px`, async ({ page }) => {
     await openOfflineBattle(page, viewport);
@@ -2551,10 +2572,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1100 
 test('stage 1 teaches four actions with minor-only scripted hands', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   const expectedPrompts = [
-    '1-1　光るカードを1枚選ぼう',
-    '1-2　同じ数字を2枚選ぼう',
-    '1-3　5枚で役を作ろう',
-    '1-4　場札＋手札4枚で役を完成'
+    '1-1　カードで攻撃\n場より大きい数字を1枚出そう',
+    '1-2　5を2枚出して2人スキップ',
+    '1-3　ポーカー役：2～6でストレート',
+    '1-4　コール：場札＋4枚でフルハウス'
   ];
 
   for (let lesson = 1; lesson <= 4; lesson += 1) {
@@ -2576,10 +2597,13 @@ test('stage 1 teaches four actions with minor-only scripted hands', async ({ pag
   const matchupPair = lessonOne.tutorialProgress.matchupPairs[0];
   const leadCard = lessonOne.players[0].hand.find((card) => card.id === matchupPair.leadCardId);
   const replyCard = lessonOne.players[0].hand.find((card) => card.id === matchupPair.replyCardId);
+  const openingCard = lessonOne.trick?.cardsTable?.[0];
   expect(leadCard).toBeTruthy();
   expect(replyCard).toBeTruthy();
-  expect(replyCard.number).toBe(leadCard.number);
-  expect(new Set([leadCard.suit, replyCard.suit])).toEqual(new Set(['Cup', 'Wand']));
+  expect(openingCard).toMatchObject({ kind: 'minor', suit: 'Cup', number: 3 });
+  expect(leadCard).toMatchObject({ kind: 'minor', suit: 'Cup', number: 4 });
+  expect(matchupPair.replyBaseCard).toMatchObject({ kind: 'minor', suit: 'Cup', number: 6 });
+  expect(replyCard).toMatchObject({ kind: 'minor', suit: 'Wand', number: 6 });
   await expect(page.locator(`[data-card-id="${matchupPair.leadCardId}"]`)).toHaveClass(/is-playable/);
   await expect(page.locator(`[data-card-id="${matchupPair.replyCardId}"]`)).toHaveClass(/is-unplayable/);
   await page.locator(`[data-card-id="${matchupPair.leadCardId}"]`).click();
@@ -2591,7 +2615,7 @@ test('stage 1 teaches four actions with minor-only scripted hands', async ({ pag
   expect(lessonOneLeadResult.state.turn).toBe(0);
   expect(lessonOneLeadResult.state.tutorialProgress.stepsByPlayer[0]).toBe(1);
   expect(lessonOneLeadResult.state.tutorialProgress.completedPlayers[0]).toBe(false);
-  expect(lessonOneLeadResult.state.trick.cardsTable[0].id).toBe(matchupPair.leadCardId);
+  expect(lessonOneLeadResult.state.trick.cardsTable[0].id).toBe(matchupPair.replyBaseCard.id);
   await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText(
     /同じ数字は\s+相性スートで返せる\s+ワンド↔カップ\s+ソード↔ペンタクル/
   );
@@ -2634,14 +2658,22 @@ test('stage 1 teaches four actions with minor-only scripted hands', async ({ pag
   expect([2, 3, 4, 5, 6].every((number) => (
     lessonThree.players[0].hand.some((card) => Number(card.number) === number)
   ))).toBe(true);
+  const lessonThreeStraightIds = [2, 3, 4, 5, 6].map((number) => (
+    lessonThree.players[0].hand.find((card) => Number(card.number) === number)?.id
+  ));
+  const lessonThreeRole = await page.evaluate((cardIds) => (
+    window.TarotKingdomDebug.battleRebuildAction(0, { selectedCardIds: cardIds })
+  ), lessonThreeStraightIds);
+  expect(lessonThreeRole).toMatchObject({ ok: true, play: { type: 'role', role: { key: 'Straight' } } });
   const lessonFour = await page.evaluate(() => window.TarotKingdomDebug.battleTutorialScenario(4, 3));
   expect(lessonFour.trick?.cardsTable?.[0]?.number).toBe(5);
-  expect([6, 7, 8, 9].every((number) => (
-    lessonFour.players[0].hand.some((card) => Number(card.number) === number)
-  ))).toBe(true);
-  const callCardIds = [6, 7, 8, 9].map((number) => (
-    lessonFour.players[0].hand.find((card) => Number(card.number) === number)?.id
-  ));
+  const callCardIds = lessonFour.players[0].hand
+    .filter((card) => (
+      (Number(card.number) === 5 && ['Wand', 'Sword'].includes(card.suit))
+      || (Number(card.number) === 8 && ['Cup', 'Wand'].includes(card.suit))
+    ))
+    .map((card) => card.id);
+  expect(callCardIds).toHaveLength(4);
   expect(callCardIds.every(Boolean)).toBe(true);
   for (const [index, cardId] of callCardIds.entries()) {
     const cardNode = page.locator(`[data-card-id="${cardId}"]`);
@@ -2663,6 +2695,7 @@ test('stage 1 teaches four actions with minor-only scripted hands', async ({ pag
     };
   });
   expect(selectedCallAudit.rebuilt).toMatchObject({ ok: true });
+  expect(selectedCallAudit.rebuilt.play).toMatchObject({ call: true, role: { key: 'FullHouse' } });
   expect(selectedCallAudit.state.tutorialProgress).toMatchObject({ lesson: 4 });
   await expect(page.locator('#tarotKingdomPlayButton')).toHaveClass(/is-confirm-ready/);
 
