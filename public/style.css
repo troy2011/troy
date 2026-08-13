@@ -35496,6 +35496,22 @@ body.tarot-kingdom-preview-body {
     box-shadow: 0 4px 7px rgba(0, 0, 0, 0.76);
 }
 
+:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand > .tarot-card.is-playable:not(.is-selected) {
+    opacity: 1;
+    filter: brightness(1.08) saturate(1.08) drop-shadow(0 0 4px rgba(255, 218, 100, 0.76));
+    animation: tarotKingdomPlayableCardGlow 1.25s ease-in-out infinite;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand > .tarot-card.is-unplayable:not(.is-selected) {
+    opacity: 0.43;
+    filter: grayscale(0.48) brightness(0.68) saturate(0.62);
+}
+
+@keyframes tarotKingdomPlayableCardGlow {
+    0%, 100% { filter: brightness(1.04) saturate(1.04) drop-shadow(0 0 2px rgba(255, 218, 100, 0.56)); }
+    50% { filter: brightness(1.14) saturate(1.12) drop-shadow(0 0 6px rgba(255, 226, 125, 0.92)); }
+}
+
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomTrick .tarot-card-art,
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomSelectedCards .tarot-card-art,
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand .tarot-card-art {
@@ -35515,6 +35531,22 @@ body.tarot-kingdom-preview-body {
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomPlayButton {
     border-image-source: url("./assets/ui/buttons/button-gold-large.png");
     background: transparent;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomFoldButton {
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    line-height: 1.05;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomFoldButton::after {
+    content: "自動パス";
+    margin-top: 3px;
+    color: rgba(230, 240, 238, 0.72);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
 }
 
 /* Tarot Kingdom command row v9: grave / sort / fold / context action */
@@ -35555,6 +35587,25 @@ body.tarot-kingdom-preview-body {
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomPlayButton.is-minor-draw {
     border-image-source: url("./assets/ui/buttons/button-gold-large.png");
     color: #fff0ad;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomPlayButton.is-confirm-ready {
+    color: #fffbe0;
+    filter: brightness(1.18) saturate(1.14);
+    box-shadow: 0 3px 4px rgba(0, 0, 0, 0.72), 0 0 0 1px rgba(255, 224, 121, 0.72), 0 0 15px rgba(255, 199, 54, 0.66);
+    animation: tarotKingdomConfirmButtonGlow 0.92s ease-in-out infinite;
+}
+
+@keyframes tarotKingdomConfirmButtonGlow {
+    0%, 100% { filter: brightness(1.12) saturate(1.08); }
+    50% { filter: brightness(1.28) saturate(1.18); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand > .tarot-card.is-playable,
+    :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomPlayButton.is-confirm-ready {
+        animation: none;
+    }
 }
 
 @media (max-width: 640px) {

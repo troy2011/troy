@@ -2409,7 +2409,7 @@ for (const fixture of [
   });
 }
 
-test('only equipped-card resonance glows while legal-play highlighting stays disabled', async ({ page }) => {
+test('resonance glows on the number while legal-play guidance uses the card body', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
 
   const localHand = [
@@ -2470,6 +2470,131 @@ test('only equipped-card resonance glows while legal-play highlighting stays dis
   const reducedResonanceNumber = hand.locator('[data-card-id="tk_resonant_sword_5"] .tarot-card-number');
   await expect(reducedResonanceNumber).toHaveCSS('animation-name', 'none');
   expect(await reducedResonanceNumber.evaluate((node) => getComputedStyle(node).filter)).not.toBe('none');
+});
+
+test('only legal cards glow, illegal cards dim, and a valid selection emphasizes attack', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.evaluate(() => window.TarotKingdomDebug.battleScenario({
+    tableCard: { id: 'tk_guide_field_8', kind: 'minor', suit: 'Cup', number: 8 },
+    handsBySeat: [[
+      { id: 'tk_guide_low_6', kind: 'minor', suit: 'Sword', number: 6 },
+      { id: 'tk_guide_high_9', kind: 'minor', suit: 'Wand', number: 9 }
+    ]],
+    turnIndex: 0
+  }));
+
+  const low = page.locator('[data-card-id="tk_guide_low_6"]');
+  const high = page.locator('[data-card-id="tk_guide_high_9"]');
+  const attack = page.locator('#tarotKingdomPlayButton');
+  await expect(low).toHaveClass(/is-unplayable/);
+  await expect(low).not.toHaveClass(/is-playable/);
+  await expect(high).toHaveClass(/is-playable/);
+  await expect(high).not.toHaveClass(/is-unplayable/);
+  expect(Number(await low.evaluate((node) => getComputedStyle(node).opacity))).toBeLessThan(0.6);
+
+  await high.click();
+  await expect(attack).toHaveText('攻撃');
+  await expect(attack).toHaveClass(/is-confirm-ready/);
+  await high.click();
+  await low.click();
+  await expect(attack).not.toHaveClass(/is-confirm-ready/);
+});
+
+test('defense command carries a compact auto-pass sublabel', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const defense = page.locator('#tarotKingdomFoldButton');
+  await expect(defense).toHaveAttribute('aria-label', '防御（自動パス）');
+  expect(await defense.evaluate((node) => getComputedStyle(node, '::after').content)).toContain('自動パス');
+  expect(Number.parseFloat(await defense.evaluate((node) => getComputedStyle(node, '::after').fontSize))).toBeLessThan(10);
+});
+
+test('stage 1 teaches four actions with minor-only scripted hands', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const expectedPrompts = [
+    '1-1　光るカードを1枚選ぼう',
+    '1-2　同じ数字を2枚選ぼう',
+    '1-3　5枚で役を作ろう',
+    '1-4　場札＋手札4枚で役を完成'
+  ];
+
+  for (let lesson = 1; lesson <= 4; lesson += 1) {
+    const state = await page.evaluate((currentLesson) => (
+      window.TarotKingdomDebug.battleTutorialScenario(currentLesson, 3)
+    ), lesson);
+    const allCards = [
+      ...state.drawDeck,
+      ...state.players.flatMap((player) => player.hand),
+      ...(state.trick?.cardsTable || [])
+    ];
+    expect(allCards.length).toBeGreaterThan(0);
+    expect(allCards.every((card) => card.kind === 'minor')).toBe(true);
+    expect(state.players.every((player) => player.hand.length === 8)).toBe(true);
+    await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText(expectedPrompts[lesson - 1]);
+  }
+
+  const lessonTwo = await page.evaluate(() => window.TarotKingdomDebug.battleTutorialScenario(2, 3));
+  expect(lessonTwo.players[0].hand.filter((card) => Number(card.number) === 5).length).toBeGreaterThanOrEqual(2);
+  expect(lessonTwo.trick).toBeNull();
+  expect(lessonTwo.turn).toBe(0);
+  const lessonTwoFives = lessonTwo.players[0].hand
+    .filter((card) => Number(card.number) === 5 && ['Cup', 'Wand'].includes(card.suit))
+    .map((card) => card.id);
+  const firstFive = page.locator(`[data-card-id="${lessonTwoFives[0]}"]`);
+  const secondFive = page.locator(`[data-card-id="${lessonTwoFives[1]}"]`);
+  await expect(firstFive).toHaveClass(/is-playable/);
+  await expect(secondFive).toHaveClass(/is-playable/);
+  await firstFive.click();
+  await expect(page.locator('#tarotKingdomPlayButton')).not.toHaveClass(/is-confirm-ready/);
+  await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText(expectedPrompts[1]);
+  await page.locator('#tarotKingdomPlayButton').click();
+  await expect(page.locator('#tarotKingdomHand > .tarot-card')).toHaveCount(lessonTwo.players[0].hand.length);
+  await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText(expectedPrompts[1]);
+  await secondFive.click();
+  await expect(page.locator('#tarotKingdomPlayButton')).toHaveClass(/is-confirm-ready/);
+  await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText(expectedPrompts[1]);
+  const lessonTwoResult = await page.evaluate((cardIds) => (
+    window.TarotKingdomDebug.battlePlayCards(0, cardIds)
+  ), lessonTwoFives);
+  expect(lessonTwoResult.ok).toBe(true);
+  expect(lessonTwoResult.state.tutorialProgress.completedPlayers[0]).toBe(true);
+  const lessonThree = await page.evaluate(() => window.TarotKingdomDebug.battleTutorialScenario(3, 3));
+  expect([2, 3, 4, 5, 6].every((number) => (
+    lessonThree.players[0].hand.some((card) => Number(card.number) === number)
+  ))).toBe(true);
+  const lessonFour = await page.evaluate(() => window.TarotKingdomDebug.battleTutorialScenario(4, 3));
+  expect(lessonFour.trick?.cardsTable?.[0]?.number).toBe(5);
+  expect([6, 7, 8, 9].every((number) => (
+    lessonFour.players[0].hand.some((card) => Number(card.number) === number)
+  ))).toBe(true);
+  const callCardIds = lessonFour.players[0].hand
+    .filter((card) => [6, 7, 8, 9].includes(Number(card.number)))
+    .map((card) => card.id);
+  for (const [index, cardId] of callCardIds.entries()) {
+    await page.locator(`[data-card-id="${cardId}"]`).click();
+    if (index < callCardIds.length - 1) {
+      await expect(page.locator('#tarotKingdomPlayButton')).not.toHaveClass(/is-confirm-ready/);
+      await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText(expectedPrompts[3]);
+    }
+  }
+  await expect(page.locator('#tarotKingdomPlayButton')).toHaveClass(/is-confirm-ready/);
+
+  for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1000 }]) {
+    await page.setViewportSize(viewport);
+    await page.evaluate(() => window.TarotKingdomDebug.battleTutorialScenario(3, 3));
+    const layout = await page.evaluate(() => {
+      const cards = [...document.querySelectorAll('#tarotKingdomHand > .tarot-card')];
+      const viewportWidth = document.documentElement.clientWidth;
+      return {
+        overflow: document.documentElement.scrollWidth - viewportWidth,
+        cardsInside: cards.every((card) => {
+          const rect = card.getBoundingClientRect();
+          return rect.left >= -0.5 && rect.right <= viewportWidth + 0.5;
+        })
+      };
+    });
+    expect(layout.overflow).toBeLessThanOrEqual(0);
+    expect(layout.cardsInside).toBe(true);
+  }
 });
 
 test('major 15, 20 and 21 glow and explain errors using their schema 8 restrictions', async ({ page }) => {

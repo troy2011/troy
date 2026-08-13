@@ -1875,6 +1875,167 @@ const suitTierForCard = (c, suit) => {
 const mkMinor = () => { const d = []; let id = 0; SUITS.forEach((suit) => { for (let n = 1; n <= 14; n += 1) d.push({ id: `tk_m_${++id}`, kind: 'minor', suit, number: n }); }); return d; };
 const mkMajor = () => Array.from({ length: 22 }, (_, n) => ({ id: `tk_a_${n}`, kind: 'major', suit: 'None', number: n }));
 const mkDrawDeck = () => [...mkMinor(), ...mkMajor()];
+
+function getKingdomTutorialLesson(state = s) {
+  const stageNo = Number(state?.stage?.stageNo || 0);
+  if (stageNo !== 1 || state?.raid) return 0;
+  return Math.max(1, Math.min(TOTAL_HANDS, Math.floor(Number(state?.handNo) || 0) + 1));
+}
+
+function getKingdomTutorialProgress(state = s) {
+  const lesson = getKingdomTutorialLesson(state);
+  const progress = state?.tutorialProgress;
+  if (!lesson || !progress || Number(progress.lesson) !== lesson) return null;
+  return progress;
+}
+
+function isKingdomTutorialParticipant(playerIndex, state = s) {
+  const index = Number(playerIndex);
+  return Number.isInteger(index)
+    && index >= 0
+    && index < Number(state?.players?.length || 0)
+    && state.players[index]?.isNpc !== true;
+}
+
+function isKingdomTutorialObjectivePending(playerIndex, state = s) {
+  const progress = getKingdomTutorialProgress(state);
+  if (!progress || !isKingdomTutorialParticipant(playerIndex, state)) return false;
+  return progress.completedPlayers?.[Number(playerIndex)] !== true;
+}
+
+function getKingdomTutorialPrompt(state = s, playerIndex = null) {
+  if (playerIndex != null && !isKingdomTutorialObjectivePending(playerIndex, state)) return '';
+  switch (getKingdomTutorialLesson(state)) {
+    case 1: return '1-1　光るカードを1枚選ぼう';
+    case 2: return '1-2　同じ数字を2枚選ぼう';
+    case 3: return '1-3　5枚で役を作ろう';
+    case 4: return '1-4　場札＋手札4枚で役を完成';
+    default: return '';
+  }
+}
+
+function isKingdomTutorialObjectivePlay(playerIndex, play, state = s) {
+  if (!isKingdomTutorialObjectivePending(playerIndex, state)) return true;
+  const lesson = getKingdomTutorialLesson(state);
+  const isSet = play?.type === 'set';
+  const isRole = play?.type === 'role';
+  const isCall = isRole && play?.call === true;
+  const count = Math.max(
+    0,
+    Number(play?.count) || Number(play?.cardsHand?.length) || Number(play?.selectedIds?.length) || 0
+  );
+  if (lesson === 1) return isSet && count === 1;
+  if (lesson === 2) {
+    const number = Number(play?.number || play?.cardsHand?.[0]?.number || 0);
+    return isSet && count === 2 && [5, 8, 11, 14].includes(number);
+  }
+  if (lesson === 3) return isRole && !isCall && count === 5;
+  if (lesson === 4) return isCall && count === 5;
+  return true;
+}
+
+function isKingdomTutorialSelectionReady(playerIndex, selectedIndexes) {
+  if (!isKingdomTutorialObjectivePending(playerIndex)) return true;
+  const { built, mode } = buildKingdomSelectionPlay(playerIndex, selectedIndexes);
+  if (!built?.ok || !validatePlay(built.play, mode)?.ok) return false;
+  return isKingdomTutorialObjectivePlay(playerIndex, built.play);
+}
+
+function getKingdomTutorialSuccessLabel(play) {
+  const lesson = getKingdomTutorialLesson();
+  if (lesson === 1) return 'ATTACK';
+  if (lesson === 2) {
+    const number = Number(play?.number || play?.cardsHand?.[0]?.number || 0);
+    if (number === 5) return '5 SKIP';
+    if (number === 8) return '8 CUT';
+    if (number === 11) return '11 REVERSE';
+    if (number === 14) return '14 BREAK';
+    return '2枚出し！';
+  }
+  if (lesson === 4) return 'CALL';
+  return '';
+}
+
+function completeKingdomTutorialObjective(playerIndex) {
+  const progress = getKingdomTutorialProgress();
+  const index = Number(playerIndex);
+  if (!progress || !Number.isInteger(index) || index < 0 || index >= s.players.length) return false;
+  if (!Array.isArray(progress.completedPlayers)) {
+    progress.completedPlayers = s.players.map(() => false);
+  }
+  if (progress.completedPlayers[index] === true) return false;
+  progress.completedPlayers[index] = true;
+  return true;
+}
+
+function buildKingdomTutorialDeck(lesson, playerCount, initialHandSize, dealerIndex = 0) {
+  const safeLesson = Math.max(1, Math.min(TOTAL_HANDS, Math.floor(Number(lesson) || 1)));
+  const safePlayerCount = Math.max(3, Math.min(4, Math.floor(Number(playerCount) || 4)));
+  const safeHandSize = Math.max(1, Math.min(8, Math.floor(Number(initialHandSize) || 8)));
+  const pool = mkMinor();
+  const hands = Array.from({ length: safePlayerCount }, () => []);
+  const take = (suit, number) => {
+    const index = pool.findIndex((card) => card.suit === suit && Number(card.number) === Number(number));
+    return index >= 0 ? pool.splice(index, 1)[0] : null;
+  };
+  const give = (seat, suit, number) => {
+    const card = take(suit, number);
+    if (card && hands[seat]) hands[seat].push(card);
+  };
+  let opening = null;
+
+  if (safeLesson === 1) {
+    const suits = ['Cup', 'Wand', 'Sword', 'Pentacle'];
+    hands.forEach((_hand, seat) => give(seat, suits[seat], 3 + seat));
+  } else if (safeLesson === 2) {
+    const pairs = [
+      [['Cup', 5], ['Wand', 5]],
+      [['Sword', 8], ['Pentacle', 8]],
+      [['Cup', 11], ['Wand', 11]],
+      [['Sword', 14], ['Pentacle', 14]]
+    ];
+    hands.forEach((_hand, seat) => pairs[seat].forEach(([suit, number]) => give(seat, suit, number)));
+  } else if (safeLesson === 3) {
+    const suits = ['Cup', 'Wand', 'Sword', 'Pentacle'];
+    hands.forEach((_hand, seat) => {
+      for (let offset = 0; offset < 5; offset += 1) {
+        give(seat, suits[(seat + offset) % suits.length], 2 + offset);
+      }
+    });
+  } else {
+    opening = take('Cup', 5);
+    const suits = ['Cup', 'Wand', 'Sword', 'Pentacle'];
+    hands.forEach((_hand, seat) => {
+      for (let offset = 0; offset < 4; offset += 1) {
+        give(seat, suits[(seat + offset + 1) % suits.length], 6 + offset);
+      }
+    });
+  }
+
+  if (!opening) opening = take('Pentacle', 1);
+  const reservedPool = safeLesson === 4
+    ? pool.filter((card) => Number(card.number) === 5)
+    : [];
+  const fillerPool = shuf(safeLesson === 4
+    ? pool.filter((card) => Number(card.number) !== 5)
+    : pool);
+  hands.forEach((hand) => {
+    while (hand.length < safeHandSize && fillerPool.length > 0) hand.push(fillerPool.shift());
+  });
+  const dealOrder = [];
+  for (let round = 0; round < safeHandSize; round += 1) {
+    for (let offset = 0; offset < safePlayerCount; offset += 1) {
+      const seat = (dealerIndex + offset) % safePlayerCount;
+      if (hands[seat]?.[round]) dealOrder.push(hands[seat][round]);
+    }
+  }
+  return {
+    drawDeck: [...reservedPool, ...fillerPool, ...(opening ? [opening] : []), ...dealOrder.slice().reverse()],
+    skipOpening: safeLesson < 4 || !opening,
+    clearOpening: false,
+    openingOwner: safeLesson === 4 ? safePlayerCount - 1 : 0
+  };
+}
 const log = (m) => { s.logs.push(m); if (s.logs.length > 120) s.logs.splice(0, s.logs.length - 120); };
 
 function toRomanNumber(value) {
@@ -2446,6 +2607,8 @@ function buildKingdomSituationAnnouncement(playerIndex, canSelectCards) {
           ? '石化：手番をスキップ中'
           : '戦闘不能：手番をスキップ中';
       }
+      const tutorialPrompt = getKingdomTutorialPrompt(s, playerIndex);
+      if (tutorialPrompt) return tutorialPrompt;
       return canSelectCards ? 'カードを選択してください' : '行動を準備しています';
     }
     return `${playerName(Number(s.turn))}の行動を待っています`;
@@ -11067,6 +11230,7 @@ function initState() {
     characterSnapshotCreatedAt: 0,
     stage: null,
     raid: null,
+    tutorialProgress: null,
     battle: createKingdomBattleState(0, false, '', rules.enemyCombatVersion, playerTemplates.length, null)
   };
 }
@@ -11116,6 +11280,7 @@ function clearRoundState() {
   kingdomOpeningFieldCardFxKey = '';
   s.openingDealRevealCount = 0;
   s.openingDealFlipIndex = -1;
+  s.tutorialProgress = null;
   s.selected.clear();
   s.awaitRoundConfirm = false;
   s.roundSettlement = null;
@@ -14893,6 +15058,39 @@ function exposeTarotKingdomBattleDebugTools(target) {
   if (window.__TAROT_KINGDOM_PREVIEW__ !== true) return;
   Object.assign(target, {
     battleScenario: (options = {}) => buildTarotKingdomDebugBattleState(options),
+    battleTutorialScenario: (lesson = 1, playerCount = 3) => {
+      const monsters = KINGDOM_MONSTER_ROSTER
+        .filter((monster) => monster.isBoss !== true)
+        .slice(0, TOTAL_HANDS)
+        .map((monster, index) => ({
+          monsterId: monster.id,
+          monsterName: monster.name,
+          threatLevel: index + 1,
+          archetype: 'balanced'
+        }));
+      buildTarotKingdomDebugBattleState({
+        playerCount: normalizeKingdomPlayerCount(playerCount),
+        handNo: Math.max(0, Math.min(TOTAL_HANDS - 1, Math.floor(Number(lesson) || 1) - 1)),
+        stage: {
+          stageNo: 1,
+          stageId: 'tarot_stage_1',
+          stageName: 'はじまりの島',
+          monsters
+        },
+        handCounts: Array.from({ length: normalizeKingdomPlayerCount(playerCount) }, () => 0),
+        withTrick: false
+      });
+      s.players.forEach((player) => {
+        player.hand = [];
+        player.discard = [];
+      });
+      setupHand({ preserveStars: true });
+      clearOpeningDealTimers();
+      s.phase = 'turn';
+      s.openingIntroStage = 'ready';
+      render();
+      return snapshotTarotKingdomDebugState();
+    },
     battleGuardDefenseProfile: (characterOrPlayerIndex = 0) => {
       const character = Number.isInteger(Number(characterOrPlayerIndex))
         ? s?.players?.[Number(characterOrPlayerIndex)]?.character
@@ -15440,9 +15638,24 @@ function setupHand(options = {}) {
   s.openingIntroStage = 'enter';
   s.leadRequiredOwner = null;
   s.turnCount = 1;
+  const tutorialLesson = getKingdomTutorialLesson();
+  const tutorialSetup = tutorialLesson > 0 && !Array.isArray(options.drawDeck)
+    ? buildKingdomTutorialDeck(
+        tutorialLesson,
+        getKingdomPlayerCount(),
+        getKingdomInitialHandSize(),
+        s.dealer
+      )
+    : null;
+  s.tutorialProgress = tutorialSetup
+    ? {
+        lesson: tutorialLesson,
+        completedPlayers: s.players.map(() => false)
+      }
+    : null;
   s.drawDeck = Array.isArray(options.drawDeck)
     ? options.drawDeck.map((card) => ({ ...card }))
-    : shuf(mkDrawDeck());
+    : (tutorialSetup?.drawDeck || shuf(mkDrawDeck()));
   const initialHandSize = getKingdomInitialHandSize();
   const playerCount = getKingdomPlayerCount();
   for (let r = 0; r < initialHandSize; r += 1) for (let i = 0; i < playerCount; i += 1) {
@@ -15456,24 +15669,25 @@ function setupHand(options = {}) {
   }
   log(`${options.retryDraw ? '引き分け再戦' : `第${s.handNo + 1}局開始`} / 親: ${pName(s.dealer)}`);
 
-  const opening = s.drawDeck.pop();
+  const opening = tutorialSetup?.skipOpening ? null : s.drawDeck.pop();
   s.openingPresentationCard = opening ? { ...opening } : null;
   if (opening) {
+    const openingOwner = tutorialSetup?.openingOwner ?? s.dealer;
     const openingSetNumber = (
       isMajorSuitGateCard(opening) && !areKingdomMajorArcanaGateRulesEnabled()
     ) ? 14 : idNum(opening);
     const openingSetPower = setPowerForCards(openingSetNumber, [opening]);
     if (!usesDeferredKingdomGrave() && opening.kind === 'minor') {
-      s.players[s.dealer].discard.push(opening);
+      s.players[openingOwner].discard.push(opening);
     }
     const openingPlay = {
       type: 'set',
-      owner: s.dealer,
+      owner: openingOwner,
       count: 1,
       selected: [],
       cardsHand: [opening],
       cardsTable: [opening],
-      tableOwners: [s.dealer],
+      tableOwners: [openingOwner],
       number: openingSetNumber,
       setPower: openingSetPower,
       suitMask: suitMaskForCards([opening]),
@@ -15489,20 +15703,36 @@ function setupHand(options = {}) {
     s.lastPlay = openingPlay;
     log(`開始場札: ${getCardNameLabel(opening)}(${getCardNumberLabel(opening)})`);
 
+    if (tutorialSetup?.clearOpening) {
+      if (usesDeferredKingdomGrave() && opening.kind === 'minor') {
+        s.players[openingOwner].discard.push(opening);
+      }
+      s.trick = null;
+      s.lastPlay = null;
+      s.turn = 0;
+      s.message = getKingdomTutorialPrompt();
+      return;
+    }
+
     const fx = applySetEffects(openingPlay);
     if (fx.forceClear) {
-      clearTrick(s.dealer);
+      clearTrick(openingOwner);
       return;
     }
     if (fx.keepTurn) {
-      s.turn = s.dealer;
+      s.turn = tutorialLesson === 4 ? 0 : openingOwner;
     } else {
-      s.turn = nextAlive(s.dealer, 1 + Math.max(0, fx.skip), false) ?? s.dealer;
+      s.turn = tutorialLesson === 4
+        ? 0
+        : (nextAlive(openingOwner, 1 + Math.max(0, fx.skip), false) ?? openingOwner);
     }
-    s.message = `開始場札を公開。${pName(s.turn)}のターン`;
+    s.message = getKingdomTutorialPrompt() || `開始場札を公開。${pName(s.turn)}のターン`;
   } else {
-    s.turn = s.dealer;
-    s.message = `${pName(s.dealer)}が親です。カードを出してください。`;
+    const tutorialStarter = tutorialLesson > 0
+      ? s.players.findIndex((player) => player?.isNpc !== true)
+      : -1;
+    s.turn = tutorialStarter >= 0 ? tutorialStarter : s.dealer;
+    s.message = getKingdomTutorialPrompt() || `${pName(s.dealer)}が親です。カードを出してください。`;
   }
 }
 
@@ -15525,6 +15755,9 @@ function playOpeningDealCinematic() {
     OPENING_ENEMY_ATTACK_MS,
     openingAttackMotion.totalDurationMs
   );
+  const tutorialWithoutOpeningCard = getKingdomTutorialLesson() > 0
+    && getKingdomTutorialLesson() < 4
+    && !s.openingPresentationCard;
   s.phase = 'openingDeal';
   s.openingIntroStage = 'enter';
   s.openingDealRevealCount = 0;
@@ -15562,6 +15795,21 @@ function playOpeningDealCinematic() {
     }, OPENING_HAND_FLIP_MS);
   };
 
+  const beginOpeningHandDeal = () => {
+    if (!s || !s.roundActive || s.phase !== 'openingDeal') return;
+    s.openingIntroStage = 'deal';
+    s.message = 'カードを配っています...';
+    render();
+    if (handCount <= 0) {
+      playRoundStartCinematic();
+      return;
+    }
+    openingDealStartTimer = setTimeout(() => {
+      openingDealStartTimer = null;
+      revealNext();
+    }, OPENING_HAND_FLIP_START_DELAY_MS);
+  };
+
   openingDealStartTimer = setTimeout(async () => {
     openingDealStartTimer = null;
     await openingAnimationReady;
@@ -15574,23 +15822,16 @@ function playOpeningDealCinematic() {
     openingDealFlipTimer = setTimeout(() => {
       openingDealFlipTimer = null;
       if (!s || !s.roundActive || s.phase !== 'openingDeal') return;
+      if (tutorialWithoutOpeningCard) {
+        beginOpeningHandDeal();
+        return;
+      }
       s.openingIntroStage = 'card';
       s.message = `${String(s.battle?.enemy?.name || 'モンスター')}は　カードをだした！`;
       render();
       openingDealNextTimer = setTimeout(() => {
         openingDealNextTimer = null;
-        if (!s || !s.roundActive || s.phase !== 'openingDeal') return;
-        s.openingIntroStage = 'deal';
-        s.message = '配札中...';
-        render();
-        if (handCount <= 0) {
-          playRoundStartCinematic();
-          return;
-        }
-        openingDealStartTimer = setTimeout(() => {
-          openingDealStartTimer = null;
-          revealNext();
-        }, OPENING_HAND_FLIP_START_DELAY_MS);
+        beginOpeningHandDeal();
       }, OPENING_FIELD_CARD_MS);
     }, enemyAttackDurationMs);
   }, OPENING_ENEMY_ENTER_MS);
@@ -17379,6 +17620,19 @@ function applyPlay(pi, play, retryDepth = 0) {
     return;
   }
   const p = s.players[pi];
+  const tutorialObjectivePending = isKingdomTutorialObjectivePending(pi);
+  if (tutorialObjectivePending && !isKingdomTutorialObjectivePlay(pi, play)) {
+    const prompt = getKingdomTutorialPrompt(s, pi) || '光るカードを選んでください。';
+    if (isLocalPlayer(pi)) showPlayError(prompt);
+    else {
+      s.message = prompt;
+      render();
+    }
+    return;
+  }
+  const tutorialSuccessLabel = tutorialObjectivePending
+    ? getKingdomTutorialSuccessLabel(play)
+    : '';
   const playToken = ensureKingdomPlayToken(play, pi);
   const capturedCardDealFx = captureKingdomCardDealFx(pi, play);
   const prevTrick = s?.trick
@@ -17429,6 +17683,7 @@ function applyPlay(pi, play, retryDepth = 0) {
     return;
   }
   resetKingdomForcedDrawStreak(pi);
+  if (tutorialObjectivePending) completeKingdomTutorialObjective(pi);
   s.revision = Math.max(0, Number(s.revision) || 0) + 1;
   pendingKingdomCardDealFx = capturedCardDealFx
     ? { ...capturedCardDealFx, playToken }
@@ -17612,9 +17867,9 @@ function applyPlay(pi, play, retryDepth = 0) {
       }
     : null;
   log(`${p.name}: ${play.type === 'set' ? `${play.count}枚出し` : getRoleDisplayLabel(play)}`);
-  const actionLabel = play.type === 'set'
+  const actionLabel = tutorialSuccessLabel || (play.type === 'set'
     ? `${play.count}枚出し`
-    : getRoleDisplayLabel(play);
+    : getRoleDisplayLabel(play));
   triggerKingdomActionFx(pi, actionLabel, {
     overlay: isRolePlay ? null : 'action',
     overlayHoldMs: null,
@@ -18889,6 +19144,7 @@ function cardNode(card, opt = {}) {
   if (opt.clickable) el.classList.add('is-clickable');
   else el.classList.add('is-static');
   if (opt.playable) el.classList.add('is-playable');
+  if (opt.unplayable) el.classList.add('is-unplayable');
   if (opt.selected) el.classList.add('is-selected');
   if (opt.resonant || opt.awakening) el.classList.add('is-resonant');
   if (opt.flipReveal) {
@@ -18918,6 +19174,11 @@ function cardNode(card, opt = {}) {
   }
   power.textContent = getCardNumberLabel(card);
   el.appendChild(art); el.appendChild(label); el.appendChild(power);
+  if (card) {
+    const availability = opt.playable ? '出せます' : (opt.unplayable ? '出せません' : '');
+    const selectionState = opt.selected ? '選択中' : '';
+    el.setAttribute('aria-label', [label.textContent, power.textContent, availability, selectionState].filter(Boolean).join('、'));
+  }
   if (opt.flipReveal) {
     const flipSprite = document.createElement('span');
     flipSprite.className = 'tarot-card-art tarot-card-flip-sprite';
@@ -22160,26 +22421,40 @@ function renderTrick() {
   resolvePendingAfterTrick();
 }
 
-function getPlayableHandCardIndexes(playerIndex) {
+function buildKingdomSelectionPlay(playerIndex, selectedIndexes) {
+  const selection = Array.isArray(selectedIndexes) ? selectedIndexes : [];
+  const canCallContext = !!(s.trick && s.trick.type === 'set' && s.trick.count === 1);
+  if (canCallContext && selection.length === 4) {
+    return { built: buildCallPlay(playerIndex, selection), mode: 'call' };
+  }
+  if (selection.length === 5) {
+    return { built: buildRolePlay(playerIndex, selection), mode: 'normal' };
+  }
+  if (selection.length >= 1 && selection.length <= 3) {
+    return { built: buildSetPlay(playerIndex, selection), mode: 'normal' };
+  }
+  return { built: null, mode: 'normal' };
+}
+
+function isKingdomSelectionPlayable(playerIndex, selectedIndexes) {
+  const { built, mode } = buildKingdomSelectionPlay(playerIndex, selectedIndexes);
+  return !!(built?.ok && validatePlay(built.play, mode)?.ok);
+}
+
+function getPlayableHandCardIndexes(playerIndex, requiredIndexes = []) {
   const playableIndexes = new Set();
   const hand = s?.players?.[playerIndex]?.hand;
   if (!Array.isArray(hand) || hand.length <= 0) return playableIndexes;
-
-  const canCallContext = !!(s.trick && s.trick.type === 'set' && s.trick.count === 1);
+  const required = new Set(
+    (Array.isArray(requiredIndexes) ? requiredIndexes : [])
+      .map(Number)
+      .filter((index) => Number.isInteger(index) && index >= 0 && index < hand.length)
+  );
+  const tutorialObjectivePending = isKingdomTutorialObjectivePending(playerIndex);
   const evaluateSelection = (selectedIndexes) => {
-    let built = null;
-    let mode = 'normal';
-    if (canCallContext && selectedIndexes.length === 4) {
-      built = buildCallPlay(playerIndex, selectedIndexes);
-      mode = 'call';
-    } else if (selectedIndexes.length === 5) {
-      built = buildRolePlay(playerIndex, selectedIndexes);
-    } else if (selectedIndexes.length >= 1 && selectedIndexes.length <= 3) {
-      built = buildSetPlay(playerIndex, selectedIndexes);
-    }
-    if (!built?.ok) return;
-    const validation = validatePlay(built.play, mode);
-    if (!validation?.ok) return;
+    if ([...required].some((index) => !selectedIndexes.includes(index))) return;
+    if (!isKingdomSelectionPlayable(playerIndex, selectedIndexes)) return;
+    if (tutorialObjectivePending && !isKingdomTutorialSelectionReady(playerIndex, selectedIndexes)) return;
     selectedIndexes.forEach((index) => playableIndexes.add(index));
   };
 
@@ -22196,7 +22471,7 @@ function getPlayableHandCardIndexes(playerIndex) {
     }
   };
 
-  for (let count = 1; count <= Math.min(5, hand.length); count += 1) {
+  for (let count = Math.max(1, required.size); count <= Math.min(5, hand.length); count += 1) {
     visitSelections(0, count);
   }
   return playableIndexes;
@@ -22467,7 +22742,7 @@ function renderHand() {
   const drawMe = s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
   const canCommit = isKingdomBattlePlayerConscious(me)
     && ((s.roundActive && s.phase === 'turn' && s.turn === me) || drawMe);
-  const playableIndexes = canCommit ? getPlayableHandCardIndexes(me) : new Set();
+  const playableIndexes = canCommit ? getPlayableHandCardIndexes(me, selected) : new Set();
   const canSelect = !inOpeningDeal && canLocalPlayerSelectHand(me);
   const equippedMinorCards = normalizeTarotKingdomTarotDeck(s.players?.[me]?.character?.tarotDeck || []);
   const guardianArcana = getKingdomGuardianArcana(me);
@@ -22509,6 +22784,7 @@ function renderHand() {
     const node = cardNode(showCard, {
       clickable: canSelect,
       playable: !!showCard && playableIndexes.has(i),
+      unplayable: !!showCard && canCommit && !playableIndexes.has(i),
       selected: selected.includes(i),
       resonant: isResonant,
       awakening: guardianAwakening,
@@ -22713,8 +22989,10 @@ function renderSummary() {
     const canSelectCards = me >= 0 && canLocalPlayerSelectHand(me);
     const hasVisibleSelection = canSelectCards && localSelected.length > 0;
     const situationMessage = buildKingdomSituationAnnouncement(me, canSelectCards);
+    const tutorialPrompt = me >= 0 ? getKingdomTutorialPrompt(s, me) : '';
     const announcement = kingdomLocalPriorityMessage
       || kingdomLocalInfoMessage
+      || tutorialPrompt
       || (hasVisibleSelection
         ? (buildSelectedCardInfoMessage(me, localSelected) || `${localSelected.length}枚選択中`)
         : situationMessage);
@@ -22889,12 +23167,13 @@ function updateButtons() {
     }
     ui.playButton.disabled = true;
     ui.playButton.textContent = 'パス';
-    ui.playButton.classList.remove('is-attack', 'is-minor-draw');
+    ui.playButton.classList.remove('is-attack', 'is-minor-draw', 'is-confirm-ready');
     ui.playButton.classList.add('is-defense');
     ui.clearButton.disabled = true;
     if (ui.foldButton) {
       ui.foldButton.disabled = true;
       ui.foldButton.textContent = '防御';
+      ui.foldButton.setAttribute('aria-label', '防御（自動パス）');
       ui.foldButton.classList.remove('is-major-draw');
     }
     if (ui.graveToggleButton) ui.graveToggleButton.disabled = true;
@@ -22936,6 +23215,12 @@ function updateButtons() {
   const canClearSelection = hasSelected;
   const canToggleSort = !hasSelected && myHandCount > 1;
   const canPlayNow = myTurn || drawMe;
+  const selectedIndexes = hasSelected ? sanitizeSelected(me) : [];
+  const selectedPlayIsValid = hasSelected
+    && canPlayNow
+    && isKingdomSelectionPlayable(me, selectedIndexes);
+  const selectedTutorialObjectiveIsReady = selectedPlayIsValid
+    && isKingdomTutorialSelectionReady(me, selectedIndexes);
   const canPrepareHand = canLocalPlayerSelectHand(me);
   const isConnectingOnline = isKingdomOnlineConnecting();
   const needsCharacterRetry = !s.characterSnapshotReady
@@ -23040,6 +23325,7 @@ function updateButtons() {
       ? (actionLocked || !canPlayNow)
       : (actionIsDraw ? (actionLocked || !canDraw) : (actionLocked || !myTurn));
     ui.playButton.classList.toggle('is-attack', actionIsAttack);
+    ui.playButton.classList.toggle('is-confirm-ready', selectedTutorialObjectiveIsReady);
     ui.playButton.classList.toggle('is-defense', !actionIsAttack && !actionIsDraw);
     ui.playButton.classList.toggle('is-minor-draw', actionIsDraw);
   }
@@ -23062,13 +23348,18 @@ function updateButtons() {
     ui.foldButton.classList.toggle('is-ready', !!(!ui.foldButton.disabled && (drawMe || kingdomLocalAutoFold || myTurn)));
     ui.foldButton.classList.toggle('is-active', !drawMe && kingdomLocalAutoFold);
     ui.foldButton.classList.remove('is-major-draw');
+    ui.foldButton.setAttribute('aria-label', kingdomLocalAutoFold ? '防御中（自動パス）' : '防御（自動パス）');
   }
   const actionReadyPhase = myTurn || drawMe;
   const popupButtons = [ui.graveToggleButton, ui.foldButton, ui.playButton];
   popupButtons.forEach((btn) => {
     if (!btn) return;
     const isFoldActive = btn === ui.foldButton && kingdomLocalAutoFold;
-    const isReady = !!(isFoldActive || (actionReadyPhase && !btn.disabled));
+    const isSelectedAttack = btn === ui.playButton && hasSelected;
+    const isReady = !!(
+      isFoldActive
+      || (isSelectedAttack ? selectedTutorialObjectiveIsReady : (actionReadyPhase && !btn.disabled))
+    );
     btn.classList.toggle('is-ready', isReady);
   });
   if (ui.actionPopup) {
@@ -23549,6 +23840,10 @@ function humanPlay() {
   if (!built.ok) { showPlayError(built.reason || '出せません。'); return; }
   const ok = validatePlay(built.play, mode === 'call' ? 'call' : 'normal');
   if (!ok.ok) { showPlayError(ok.reason || '出せません。'); return; }
+  if (!isKingdomTutorialObjectivePlay(me, built.play)) {
+    showPlayError(getKingdomTutorialPrompt(s, me) || '光るカードを選んでください。');
+    return;
+  }
   requestHostAction(
     { type: 'play', selectedCardIds: built.play.selectedIds.slice() },
     () => applyPlay(me, built.play)
