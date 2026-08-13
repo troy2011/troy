@@ -2,11 +2,12 @@
 
 import * as Player from './player.js';
 import * as Inventory from 'inventory';
-import * as Ship from './ship.js?v=20260731-stage-score1';
+import * as Ship from './ship.js?v=20260813-modal-close1';
 import * as NationKing from './nationKing.js?v=20260731-stage-score1';
 import * as Islands from './islands.js';
 import { getNationAnnouncements } from './playfabClient.js';
 import { loadHomeAnnouncements } from './homeAnnouncements.js';
+import { bindModalClose } from './modalClose.js';
 
 let troyModule = null;
 const ensureTroyModule = async () => {
@@ -24,7 +25,7 @@ const ensureCompanionModule = async () => {
 };
 
 let tarotModule = null;
-const TAROT_MODULE_VERSION = '20260727-daily-lock1';
+const TAROT_MODULE_VERSION = '20260813-modal-close1';
 const ensureTarotModule = async () => {
     if (tarotModule) return tarotModule;
     tarotModule = await import(`./tarotPoker.js?v=${TAROT_MODULE_VERSION}`);
@@ -32,7 +33,7 @@ const ensureTarotModule = async () => {
 };
 
 let tarotKingdomModule = null;
-const TAROT_KINGDOM_MODULE_VERSION = '20260813-tutorial-flow-v1';
+const TAROT_KINGDOM_MODULE_VERSION = '20260813-modal-close1';
 const ensureTarotKingdomModule = async () => {
     if (tarotKingdomModule) return tarotKingdomModule;
     tarotKingdomModule = await import(`./tarotKingdom.js?v=${TAROT_KINGDOM_MODULE_VERSION}`);
@@ -667,11 +668,13 @@ function showWorldMapSwapConfirm(message = '') {
             modal.style.display = 'none';
             resolve(true);
         });
-        const newCancelBtn = cancelBtn.cloneNode(true);
-        cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-        newCancelBtn.addEventListener('click', () => {
+        bindModalClose(cancelBtn, () => {
             modal.style.display = 'none';
             resolve(false);
+        }, {
+            overlay: modal,
+            closeOnBackdrop: true,
+            closeOnEscape: true
         });
     });
 }
@@ -910,14 +913,12 @@ function showWorldMapModal(playerInfo) {
             }
             document.body.classList.remove('modal-lock');
         };
-        const closeBtn = document.getElementById('mapLoadingClose');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', closeModal);
-        }
-        modal.addEventListener('click', (event) => {
-            if (event.target === modal) {
-                closeModal();
-            }
+        bindModalClose(document.getElementById('mapLoadingClose'), closeModal, {
+            overlay: modal,
+            closeOnBackdrop: true,
+            closeOnEscape: true,
+            icon: true,
+            isOpen: () => modal.classList.contains('is-modal')
         });
         if (grid && !grid.dataset.swapBound) {
             grid.dataset.swapBound = 'true';
@@ -1711,11 +1712,13 @@ export function showConfirmationModal(amount, receiverId, receiverName, onConfir
     });
 
     const cancelBtn = document.getElementById('btnCancelTransfer');
-    const newCancelBtn = cancelBtn.cloneNode(true);
-    cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-    newCancelBtn.addEventListener('click', () => {
+    bindModalClose(cancelBtn, () => {
         modal.style.display = 'none';
         document.getElementById('pointMessage').innerText = "キャンセルしました。";
+    }, {
+        overlay: modal,
+        closeOnBackdrop: true,
+        closeOnEscape: true
     });
 }
 
@@ -1739,12 +1742,14 @@ export function showMapTransitionModal(options = [], onSelect = () => {}) {
         });
         list.appendChild(btn);
     });
-    const newCancelBtn = cancelBtn.cloneNode(true);
-    cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-    newCancelBtn.addEventListener('click', () => {
+    bindModalClose(cancelBtn, () => {
         modal.style.display = 'none';
         document.body.classList.remove('modal-lock');
         onSelect(null);
+    }, {
+        overlay: modal,
+        closeOnBackdrop: true,
+        closeOnEscape: true
     });
     modal.style.display = 'flex';
     document.body.classList.add('modal-lock');

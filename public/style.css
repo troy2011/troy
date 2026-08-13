@@ -89,6 +89,45 @@
     -webkit-tap-highlight-color: transparent;
 }
 
+.ui-modal-close {
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
+    min-height: 52px;
+    max-width: 52px;
+    max-height: 52px;
+    flex: 0 0 52px;
+    display: inline-grid;
+    place-items: center;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: var(--icon-action-close) center / 38px 38px no-repeat;
+    color: transparent;
+    font-size: 0;
+    line-height: 0;
+    text-indent: -9999px;
+    filter: drop-shadow(0 4px 7px rgba(0, 0, 0, 0.62));
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+}
+
+.ui-modal-close:not(:disabled):is(:hover, :focus-visible) {
+    filter: drop-shadow(0 4px 7px rgba(0, 0, 0, 0.62)) brightness(1.12);
+}
+
+.ui-modal-close:not(:disabled):active {
+    transform: translateY(1px) scale(0.97);
+}
+
+.ui-modal-close:focus-visible {
+    outline: 2px solid rgba(248, 226, 168, 0.92);
+    outline-offset: 2px;
+}
+
 html {
     width: 100%;
     min-height: 100%;
@@ -2151,30 +2190,15 @@ button.home-player-ship-name {
 
 .exploration-result-close {
     position: absolute;
-    top: 10px;
-    right: 10px;
-    width: 32px;
-    height: 32px;
-    min-height: 32px;
-    max-height: 32px;
-    box-sizing: border-box;
-    padding: 0;
-    border: 1px solid rgba(220, 169, 82, 0.52);
-    border-radius: 50%;
-    background: rgba(3, 5, 8, 0.88);
-    color: #f8e7bc;
-    font-size: 20px;
-    font-weight: 900;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
+    top: 4px;
+    right: 4px;
+    z-index: 4;
 }
 
 .exploration-result-head {
     display: grid;
     gap: 4px;
-    padding-right: 42px;
+    padding-right: 58px;
     padding-bottom: 10px;
     border-bottom: 1px solid rgba(255, 224, 160, 0.14);
 }
@@ -2611,19 +2635,7 @@ button.home-player-ship-name {
 }
 
 .ship-evolution-choice-close {
-    flex: 0 0 30px;
-    width: 30px;
-    height: 30px;
-    padding: 0;
-    display: inline-grid;
-    place-items: center;
-    border: 1px solid rgba(148, 163, 184, 0.28);
-    border-radius: 6px;
-    background: rgba(15, 23, 42, 0.92);
-    color: #e5e7eb;
-    font-size: 18px;
-    line-height: 1;
-    text-align: center;
+    margin: -11px -11px -11px 0;
 }
 
 .ship-evolution-choice-list {
@@ -2671,17 +2683,9 @@ button.home-player-ship-name {
 
 .ship-evolution-close {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: 4px;
+    right: 4px;
     z-index: 3;
-    width: 30px;
-    height: 30px;
-    border: 1px solid rgba(148, 163, 184, 0.28);
-    border-radius: 6px;
-    background: rgba(15, 23, 42, 0.92);
-    color: #e5e7eb;
-    font-size: 20px;
-    line-height: 1;
 }
 
 .ship-evolution-stage {
@@ -4879,22 +4883,7 @@ body.app-booting .boot-splash {
 }
 
 .island-command-close {
-    background: transparent;
-    color: var(--text-sub);
-    font-size: 28px;
-    padding: 0;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: none;
-    flex-shrink: 0;
-}
-
-.island-command-close:hover {
-    background: rgba(255, 255, 255, 0.1);
+    margin: -8px -8px -8px 0;
 }
 
 .island-command-buttons {
@@ -5094,19 +5083,9 @@ body.app-booting .boot-splash {
 
 .map-loading-close {
     position: absolute;
-    top: 10px;
-    right: 12px;
-    width: 28px;
-    height: 28px;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: rgba(15, 23, 42, 0.8);
-    color: #fff;
-    font-size: 16px;
+    top: 4px;
+    right: 4px;
     display: none;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
     z-index: 2;
 }
 
@@ -6171,17 +6150,8 @@ body.modal-lock .troy-menu-board-order-modal {
 
 .troy-menu-board-order-close {
     position: absolute;
-    top: 9px;
-    right: 10px;
-    width: 32px;
-    height: 32px;
-    border: 1px solid rgba(220, 169, 82, 0.34);
-    border-radius: 50%;
-    background: rgba(10, 8, 6, 0.74);
-    color: #f8e8bd;
-    font-size: 20px;
-    font-weight: 900;
-    line-height: 1;
+    top: 1px;
+    right: 1px;
 }
 
 .troy-menu-board-order-head {
@@ -6189,7 +6159,7 @@ body.modal-lock .troy-menu-board-order-modal {
     grid-template-columns: 58px minmax(0, 1fr);
     gap: 12px;
     align-items: center;
-    padding-right: 32px;
+    padding-right: 58px;
 }
 
 .troy-menu-board-order-icon {
@@ -14907,34 +14877,6 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-sum
     position: absolute;
     top: 0;
     right: 0;
-    width: 52px;
-    height: 52px;
-    min-height: 52px;
-    border: 0;
-    border-radius: 0;
-    background: var(--icon-action-close, url("./assets/ui/buttons/action-close.png")) center / 38px 38px no-repeat;
-    color: transparent;
-    font-size: 0;
-    line-height: 0;
-    display: block;
-    padding: 0;
-    text-indent: -9999px;
-    filter: drop-shadow(0 4px 7px rgba(0, 0, 0, 0.62));
-    cursor: pointer;
-    touch-action: manipulation;
-}
-
-.tarot-fortune-close:hover {
-    filter: drop-shadow(0 4px 7px rgba(0, 0, 0, 0.62)) brightness(1.08);
-}
-
-.tarot-fortune-close:active {
-    transform: translateY(1px) scale(0.97);
-}
-
-.tarot-fortune-close:focus-visible {
-    outline: 2px solid rgba(248, 226, 168, 0.92);
-    outline-offset: 2px;
 }
 
 .tarot-fortune-kicker {
@@ -14951,7 +14893,7 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-sum
     color: #fff4b8;
     text-shadow: 0 2px 2px rgba(0, 0, 0, 0.45);
     margin-bottom: 4px;
-    padding-inline: 44px;
+    padding-inline: 56px;
 }
 
 .tarot-fortune-sub {
@@ -15396,7 +15338,7 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-sum
 
     .tarot-fortune-title {
         font-size: 21px;
-        padding-inline: 44px;
+        padding-inline: 56px;
     }
 }
 
@@ -16583,25 +16525,6 @@ body.home-exploration-popup-open #tabContainer {
 
 body.home-exploration-popup-open #globalStatusBar {
     pointer-events: none;
-}
-
-.home-exploration-popup-close {
-    width: 38px;
-    height: 38px;
-    min-height: 38px;
-    max-height: 38px;
-    flex: 0 0 38px;
-    box-sizing: border-box;
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    background: var(--icon-action-close, url("./assets/ui/buttons/action-close.png")) center / contain no-repeat;
-    color: transparent;
-    font-size: 12px;
-    line-height: 0;
-    text-indent: -9999px;
-    filter: drop-shadow(0 4px 7px rgba(0, 0, 0, 0.62));
-    cursor: pointer;
 }
 
 #shipExplorationPanel.ship-exploration-panel.is-popup > .home-exploration-popup-close {
@@ -21839,13 +21762,7 @@ body[data-tarot-kingdom-atmosphere-tone="final-eclipse"] #tarotKingdomRoot .taro
     letter-spacing: 0.04em;
 }
 .ship-skill-sheet-close {
-    background: transparent;
-    border: none;
-    color: rgba(148, 163, 184, 0.7);
-    font-size: 20px;
-    line-height: 1;
-    padding: 4px 8px;
-    cursor: pointer;
+    margin: -10px -10px -10px 0;
 }
 
 /* ── スキルグリッド ───────────────────────────────── */
@@ -23520,18 +23437,7 @@ body[data-tarot-kingdom-atmosphere-tone="final-eclipse"] #tarotKingdomRoot .taro
     top: 0;
     float: right;
     z-index: 2;
-    display: grid;
-    width: 42px;
-    height: 42px;
     margin: -8px -6px 0 10px;
-    place-items: center;
-    border: 0;
-    border-radius: 50%;
-    background: #3f1d0d;
-    color: #fff4d8;
-    font-size: 28px;
-    font-weight: 900;
-    cursor: pointer;
 }
 
 .troy-orders-ticket-detail-head {
@@ -25956,16 +25862,6 @@ body.is-new-order-flash::before {
     font-size: 22px;
     line-height: 1.1;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-}
-
-.home-rescue-close {
-    width: 38px;
-    height: 38px;
-    flex: 0 0 38px;
-    border: 0;
-    background: var(--icon-action-close) center / contain no-repeat;
-    filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.72));
-    cursor: pointer;
 }
 
 .home-rescue-lead {
@@ -28528,16 +28424,6 @@ body[data-sea-tone] .home-hero-card {
     line-height: 1.25;
 }
 
-.arcana-resonance-close {
-    width: 44px;
-    height: 44px;
-    border: 1px solid rgba(255, 224, 154, 0.6);
-    border-radius: 50%;
-    color: #fff7df;
-    background: rgba(8, 10, 14, 0.88);
-    font-size: 22px;
-}
-
 .arcana-resonance-tabs {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -28944,7 +28830,6 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .black-market-refresh,
-.black-market-close,
 .black-market-listing-action {
     min-height: 32px;
     padding: 4px 10px;
@@ -28959,8 +28844,7 @@ body[data-sea-tone] .home-hero-card {
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
 }
 
-.black-market-refresh,
-.black-market-close {
+.black-market-refresh {
     width: 36px;
     min-width: 36px;
     height: 36px;
@@ -28969,15 +28853,8 @@ body[data-sea-tone] .home-hero-card {
     border: 0;
     border-radius: 0;
     border-image: none;
-    filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.72));
-}
-
-.black-market-refresh {
     background: var(--icon-action-refresh) center / contain no-repeat;
-}
-
-.black-market-close {
-    background: var(--icon-action-close) center / contain no-repeat;
+    filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.72));
 }
 
 .black-market-refresh:not(:disabled):is(:hover, :focus-visible),
@@ -29765,21 +29642,8 @@ body[data-sea-tone] .home-hero-card {
 #itemDetailModal .item-detail-corner-close {
     position: absolute;
     z-index: 4;
-    top: 4px;
-    right: 4px;
-    width: 44px;
-    height: 44px;
-    display: grid;
-    place-items: center;
-    padding: 0 0 2px;
-    border: 1px solid rgba(240, 220, 177, 0.42);
-    border-radius: 50%;
-    color: #f7ead0;
-    background: rgba(4, 7, 11, 0.9);
-    font-size: 22px;
-    font-weight: 500;
-    line-height: 1;
-    text-shadow: 0 1px 0 #000;
+    top: 0;
+    right: 0;
 }
 
 #itemDetailModal .sheet-handle {
@@ -30275,19 +30139,6 @@ body[data-sea-tone] .home-hero-card {
 .equipment-enhancement-materials h4 {
     padding: 0 2px;
     font-size: 13px;
-}
-
-.equipment-enhancement-close {
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    border: 1px solid rgba(235, 213, 157, 0.32);
-    border-radius: 6px;
-    background: rgba(8, 9, 12, 0.9);
-    color: #f8edcb;
-    font-size: 22px;
-    font-weight: 900;
-    line-height: 1;
 }
 
 .equipment-enhancement-base,
@@ -36413,39 +36264,7 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-header {
 }
 
 #tabContentTarot .tarot-kingdom-exit-button {
-    display: inline-grid;
-    flex: 0 0 34px;
-    place-items: center;
-    width: 34px;
-    height: 30px;
-    min-height: 30px;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    border-image: none;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-}
-
-#tabContentTarot .tarot-kingdom-exit-button > span {
-    display: block;
-    width: 30px;
-    height: 28px;
-    background: var(--icon-action-close, url("./assets/ui/buttons/action-close.png")) center / contain no-repeat;
-    filter: drop-shadow(0 1px 1px #000);
-    transition: filter 120ms ease, transform 120ms ease;
-}
-
-#tabContentTarot .tarot-kingdom-exit-button:hover > span,
-#tabContentTarot .tarot-kingdom-exit-button:focus-visible > span {
-    filter: brightness(1.16) drop-shadow(0 1px 1px #000);
-    transform: scale(1.04);
-}
-
-#tabContentTarot .tarot-kingdom-exit-button:focus-visible {
-    outline: 1px solid rgba(255, 221, 139, 0.9);
-    outline-offset: 2px;
+    margin: -11px -8px -11px 0;
 }
 
 body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
@@ -36453,9 +36272,6 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
     top: max(8px, env(safe-area-inset-top));
     right: max(8px, env(safe-area-inset-right), calc((100vw - 640px) / 2 + 8px));
     z-index: 1200;
-    width: 38px;
-    height: 34px;
-    min-height: 34px;
     pointer-events: auto;
 }
 
@@ -36996,38 +36812,16 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
 :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-judgment-close {
     position: absolute;
     z-index: 3;
-    top: 5px;
-    right: 5px;
-    display: grid;
-    place-items: center;
-    width: 30px;
-    min-width: 30px;
-    height: 30px;
-    min-height: 30px;
-    padding: 0;
-    border: 0;
-    border-radius: 50%;
-    color: #f8fafc;
-    background: rgba(5, 7, 14, 0.76);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.62);
-    font: 700 25px/1 sans-serif;
-    text-shadow: 0 1px 2px #000;
+    top: 0;
+    right: 0;
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-judgment-close[hidden] {
     display: none !important;
 }
 
-:is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-judgment-close:hover,
-:is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-judgment-close:focus-visible {
-    color: #fff2b8;
-    background: rgba(36, 25, 12, 0.9);
-    outline: 1px solid rgba(232, 199, 112, 0.82);
-    outline-offset: 1px;
-}
-
 :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-judgment-title {
-    padding-right: 36px;
+    padding-right: 58px;
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-player {

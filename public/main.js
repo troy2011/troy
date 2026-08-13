@@ -14,7 +14,7 @@ import {
 import * as Player from 'player';
 import * as Inventory from 'inventory';
 import * as Guild from './js/guild.js';
-import * as Ship from './js/ship.js?v=20260731-stage-score1';
+import * as Ship from './js/ship.js?v=20260813-modal-close1';
 import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js?v=20260731-stage-score1';
 import { initMapChat, initTroyChat } from './js/mapChat.js';
@@ -36,6 +36,7 @@ import {
     updateAvatarStyle as requestUpdateAvatarStyle
 } from './js/playfabClient.js';
 import { FEATURE_UNLOCK_LEVELS, formatUnlockedFeatures, isFeatureUnlocked, normalizeLevel } from './js/featureUnlocks.js';
+import { bindModalClose, bindTargetModalCloseButtons } from './js/modalClose.js';
 
 import { getDatabase, onValue as onDatabaseValue, ref as databaseRef } from "firebase/database";
 // --- グローバル変数 ---
@@ -64,8 +65,8 @@ let pendingFixedInviteNation = '';
 let lineFriendPromoState = null;
 let dailyFortuneOpenPromise = null;
 let dailyFortuneClaimEventBound = false;
-const TAROT_MODULE_VERSION = '20260727-daily-lock1';
-const TAROT_KINGDOM_RESCUE_VERSION = '20260813-tutorial-flow-v1';
+const TAROT_MODULE_VERSION = '20260813-modal-close1';
+const TAROT_KINGDOM_RESCUE_VERSION = '20260813-modal-close1';
 const DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY = 'troy:daily-fortune-claimed-day';
 const LIFF_CALLBACK_PARAM_KEYS = [
     'code',
@@ -93,6 +94,7 @@ const TROY_ENTRY_STAFF_CHIP_AMOUNT = 500;
 
 installPlayerProfileInteractions();
 installPanelSlice25();
+bindTargetModalCloseButtons();
 
 const NATION_GROUP_BY_RACE = {
     Human: { island: 'fire', groupName: 'nation_fire_island' },
@@ -961,9 +963,10 @@ function ensureTroyStaffChipConfirmOverlay() {
         overlay.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('modal-lock');
     };
-    overlay.querySelector('#troyStaffChipConfirmButton')?.addEventListener('click', close);
-    overlay.addEventListener('click', (event) => {
-        if (event.target === overlay) close();
+    bindModalClose(overlay.querySelector('#troyStaffChipConfirmButton'), close, {
+        overlay,
+        closeOnBackdrop: true,
+        closeOnEscape: true
     });
     return overlay;
 }
@@ -1125,11 +1128,11 @@ function ensureHomeExplorationPopupClose(panel) {
     if (!closeButton) {
         closeButton = document.createElement('button');
         closeButton.type = 'button';
-        closeButton.className = 'home-exploration-popup-close';
+        closeButton.className = 'home-exploration-popup-close ui-modal-close';
         closeButton.setAttribute('aria-label', '閉じる');
         closeButton.setAttribute('data-home-exploration-close', 'true');
-        closeButton.addEventListener('click', closeHomeExplorationPopup);
     }
+    bindModalClose(closeButton, closeHomeExplorationPopup, { icon: true });
     closeButton.textContent = '';
     const head = panel.querySelector('.ship-exploration-head');
     if (head) {
@@ -1502,12 +1505,14 @@ function initHomeExplorationButton() {
         rescueButton?.addEventListener('click', () => {
             void openHomeRescuePopup();
         });
-        document.getElementById('homeRescueClose')?.addEventListener('click', closeHomeRescuePopup);
+        bindModalClose(document.getElementById('homeRescueClose'), closeHomeRescuePopup, {
+            overlay: document.getElementById('homeRescueOverlay'),
+            closeOnBackdrop: true,
+            closeOnEscape: true,
+            icon: true
+        });
         document.getElementById('homeRescueRefresh')?.addEventListener('click', () => {
             void refreshHomeRescueRooms();
-        });
-        document.getElementById('homeRescueOverlay')?.addEventListener('click', (event) => {
-            if (event.target === event.currentTarget) closeHomeRescuePopup();
         });
         homeRescueButtonBound = true;
     }
@@ -1923,8 +1928,13 @@ async function initializeAppFeatures() {
         const guildName = document.getElementById('guildNameInput').value;
         Guild.createGuild(myPlayFabId, guildName);
     });
-    document.getElementById('btnCancelCreateGuild').addEventListener('click', () => {
-        document.getElementById('guildCreateModal').style.display = 'none';
+    const guildCreateModal = document.getElementById('guildCreateModal');
+    bindModalClose(document.getElementById('btnCancelCreateGuild'), () => {
+        guildCreateModal.style.display = 'none';
+    }, {
+        overlay: guildCreateModal,
+        closeOnBackdrop: true,
+        closeOnEscape: true
     });
     document.getElementById('btnScanJoinGuild').addEventListener('click', () => Guild.scanJoinGuild(myPlayFabId));
     document.getElementById('btnLeaveGuild').addEventListener('click', () => Guild.leaveGuild(myPlayFabId));
@@ -2626,21 +2636,12 @@ function initHomeAvatarStyleModal() {
             openOwnPlayerProfileFromAvatar();
         });
     }
-    if (closeBtn && closeBtn.dataset.avatarStyleCloseBound !== 'true') {
-        closeBtn.dataset.avatarStyleCloseBound = 'true';
-        closeBtn.addEventListener('click', closeAvatarStyleModal);
-    }
-    if (modal && modal.dataset.avatarStyleOverlayBound !== 'true') {
-        modal.dataset.avatarStyleOverlayBound = 'true';
-        modal.addEventListener('click', (event) => {
-            if (event.target === modal) closeAvatarStyleModal();
-        });
-        document.addEventListener('keydown', (event) => {
-            if (event.key !== 'Escape') return;
-            const isOpen = String(modal.style?.display || '').trim().toLowerCase() === 'flex';
-            if (isOpen) closeAvatarStyleModal();
-        });
-    }
+    bindModalClose(closeBtn, closeAvatarStyleModal, {
+        overlay: modal,
+        closeOnBackdrop: true,
+        closeOnEscape: true,
+        isOpen: () => String(modal?.style?.display || '').trim().toLowerCase() === 'flex'
+    });
 }
 
 if (typeof window !== 'undefined') {
@@ -3143,6 +3144,14 @@ window.moveTarotCardInDeck = (itemId, deckType, direction) => Inventory.moveTaro
 window.levelUpCard = (itemId) => Inventory.levelUpTarotCard(itemId);
 window.useShipSkillCard = (cardItemId, skillName) => window.worldMapScene?.useShipSkillCard(cardItemId, skillName);
 window.closeItemDetailModal = Inventory.closeItemDetailModal;
+const itemDetailModal = document.getElementById('itemDetailModal');
+bindModalClose(itemDetailModal?.querySelector('.item-detail-corner-close'), Inventory.closeItemDetailModal, {
+    overlay: itemDetailModal,
+    closeOnBackdrop: true,
+    closeOnEscape: true,
+    icon: true
+});
+bindModalClose(itemDetailModal?.querySelector('.item-detail-close'), Inventory.closeItemDetailModal);
 window.refreshInventory = (options = {}) => Inventory.getInventory(myPlayFabId, options);
 window.useItem = (instanceId, itemId) => Inventory.useItem(myPlayFabId, instanceId, itemId);
 window.sellItem = (instanceId, itemId) => Inventory.sellItem(myPlayFabId, instanceId, itemId);

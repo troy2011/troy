@@ -4,6 +4,7 @@ import { getFirestore, collection, getDocs, doc, updateDoc, addDoc, onSnapshot, 
 import { geohashForLocation, geohashQueryBounds } from 'geofire-common';
 import * as Ship from './js/ship.js';
 import * as Player from './js/player.js';
+import { bindModalClose } from './js/modalClose.js';
 import {
     getShipResourceStorage as fetchShipResourceStorage,
     consumeVoyageMp as requestConsumeVoyageMp,
@@ -2872,11 +2873,12 @@ export default class WorldMapScene extends Phaser.Scene {
         if (!toggleBtn || !sheet || !closeBtn) return;
 
         toggleBtn.addEventListener('click', () => this.toggleShipSkillSheet());
-        closeBtn.addEventListener('click', () => this.closeShipSkillSheet());
-
-        // シート外タップで閉じる
-        sheet.addEventListener('click', (e) => {
-            if (e.target === sheet) this.closeShipSkillSheet();
+        bindModalClose(closeBtn, () => this.closeShipSkillSheet(), {
+            overlay: sheet,
+            closeOnBackdrop: true,
+            closeOnEscape: true,
+            icon: true,
+            isOpen: () => this.shipSkillPanelOpen
         });
     }
 
@@ -4990,7 +4992,7 @@ export default class WorldMapScene extends Phaser.Scene {
             newActionBtn.addEventListener('click', () => {
                 this.showMessage('他プレイヤーの同乗は廃止されました。');
             });
-            newCloseBtn.addEventListener('click', () => {
+            bindModalClose(newCloseBtn, () => {
                 this.hideShipCommandMenu();
             });
             setTimeout(() => {
@@ -5056,7 +5058,7 @@ export default class WorldMapScene extends Phaser.Scene {
         newActionBtn.addEventListener('click', onClick);
         newActionBtn.addEventListener('pointerdown', () => console.log('[Boarding] pointerdown'));
         newActionBtn.addEventListener('pointerup', () => console.log('[Boarding] pointerup'));
-        newCloseBtn.addEventListener('click', () => {
+        bindModalClose(newCloseBtn, () => {
             this.shipPanelSuppressed = true;
             this.hideShipCommandMenu();
         });
@@ -7566,7 +7568,7 @@ export default class WorldMapScene extends Phaser.Scene {
         } else {
             newAttackBtn.style.display = 'none';
         }
-        newCloseBtn.addEventListener('click', () => {
+        bindModalClose(newCloseBtn, () => {
             this.hideIslandCommandMenu();
         });
 
@@ -7839,7 +7841,7 @@ export default class WorldMapScene extends Phaser.Scene {
             newAttackBtn.style.display = 'none';
         }
 
-        newCloseBtn.addEventListener('click', () => {
+        bindModalClose(newCloseBtn, () => {
             this.hideIslandCommandMenu();
         });
 

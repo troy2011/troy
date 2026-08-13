@@ -24,6 +24,7 @@ import {
 import { createRequestId } from './api.js';
 import { buildPlayerTriggerHtml } from './playerProfile.js';
 import { formatUnlockedFeatures } from './featureUnlocks.js';
+import { bindModalClose } from './modalClose.js';
 
 let _isKing = false;
 let _lastPageData = null;
@@ -1327,19 +1328,14 @@ function _wireHandlers(playFabId) {
         });
     }
 
-    if (troyEntryQrCloseBtn) {
-        troyEntryQrCloseBtn.addEventListener('click', () => {
-            _setKingTroyEntryQrModalVisible(false);
-        });
-    }
-
-    if (troyEntryQrModal) {
-        troyEntryQrModal.addEventListener('click', (event) => {
-            if (event.target === troyEntryQrModal) {
-                _setKingTroyEntryQrModalVisible(false);
-            }
-        });
-    }
+    bindModalClose(troyEntryQrCloseBtn, () => {
+        _setKingTroyEntryQrModalVisible(false);
+    }, {
+        overlay: troyEntryQrModal,
+        closeOnBackdrop: true,
+        closeOnEscape: true,
+        isOpen: () => troyEntryQrModal?.classList.contains('active') === true
+    });
 
     if (troyEntryQrCopyBtn) {
         troyEntryQrCopyBtn.addEventListener('click', async () => {

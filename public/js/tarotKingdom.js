@@ -1,5 +1,6 @@
 import { ref, get, set, update, push, remove, onValue, onChildAdded, onDisconnect, runTransaction, serverTimestamp } from 'firebase/database';
 import { decoratePlayerTriggerElement } from './playerProfile.js';
+import { bindModalClose } from './modalClose.js';
 import { getMyPlayerStats, getMyCrewRankInfo } from './player.js';
 import {
   getMyInventory,
@@ -20334,15 +20335,18 @@ function ensureKingdomStatusDetailPanel() {
   panel.hidden = true;
   panel.innerHTML = `
     <section class="tarot-kingdom-status-detail" role="dialog" aria-modal="true" aria-labelledby="tarotKingdomStatusDetailTitle">
-      <header><h3 id="tarotKingdomStatusDetailTitle">状態効果</h3><button type="button" aria-label="閉じる">×</button></header>
+      <header><h3 id="tarotKingdomStatusDetailTitle">状態効果</h3><button type="button" class="ui-modal-close" aria-label="閉じる"></button></header>
       <div class="tarot-kingdom-status-detail-list"></div>
     </section>`;
   const close = () => {
     panel.hidden = true;
     panel.setAttribute('aria-hidden', 'true');
   };
-  panel.addEventListener('click', (event) => {
-    if (event.target === panel || event.target.closest('header button')) close();
+  bindModalClose(panel.querySelector('header button'), close, {
+    overlay: panel,
+    closeOnBackdrop: true,
+    closeOnEscape: true,
+    icon: true
   });
   ui.root.appendChild(panel);
   return panel;
@@ -24404,7 +24408,7 @@ function bindUi() {
       }
     });
   });
-  ui.exitButton?.addEventListener('click', () => {
+  bindModalClose(ui.exitButton, () => {
     if (typeof window.showTab === 'function') {
       Promise.resolve(window.showTab('home')).catch((error) => {
         console.warn('[tarotKingdom] failed to leave kingdom page:', error);
@@ -24412,7 +24416,7 @@ function bindUi() {
       return;
     }
     destroyTarotKingdomPage();
-  });
+  }, { icon: true });
   ui.startOfflineButton?.addEventListener('click', () => {
     handleKingdomOfflineStartClick().catch((error) => {
       console.warn('[tarotKingdom] offline start click failed:', error);
@@ -24494,7 +24498,7 @@ function bindUi() {
     render();
   });
   ui.graveToggleButton?.addEventListener('click', () => toggleGraveyard());
-  ui.judgmentCloseButton?.addEventListener('click', () => closeGraveyard());
+  bindModalClose(ui.judgmentCloseButton, closeGraveyard);
   ui.judgmentSkipButton?.addEventListener('click', () => {
     const me = getLocalPlayerIndex();
     requestHostAction({ type: 'judgmentSkip' }, () => {

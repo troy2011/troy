@@ -11,6 +11,7 @@ import {
 import { createRequestId } from './api.js';
 import { showRpgMessage } from './rpgMessages.js';
 import { renderPixelMonsterCompanion } from './pixelMonsterCompanion.js?v=20260811-monster-grounding2';
+import { bindModalClose } from './modalClose.js';
 
 const FAVORITE_PLAYERS_STORAGE_PREFIX = 'favorite-players:';
 const MAX_FAVORITE_PLAYERS = 24;
@@ -575,16 +576,11 @@ function bindModalEvents() {
         petRenameForm,
         petRenameCancel
     } = getPlayerProfileModalElements();
-    if (close && !close.dataset.profileBound) {
-        close.dataset.profileBound = 'true';
-        close.addEventListener('click', () => closePlayerProfileModal());
-    }
-    if (modal && !modal.dataset.profileBound) {
-        modal.dataset.profileBound = 'true';
-        modal.addEventListener('click', (event) => {
-            if (event.target === modal) closePlayerProfileModal();
-        });
-    }
+    bindModalClose(close, closePlayerProfileModal, {
+        overlay: modal,
+        closeOnBackdrop: true,
+        closeOnEscape: true
+    });
     if (transferButton && !transferButton.dataset.profileBound) {
         transferButton.dataset.profileBound = 'true';
         transferButton.addEventListener('click', () => {
@@ -689,16 +685,11 @@ function bindModalEvents() {
     }
 
     const compatibilityElements = getCompatibilityModalElements();
-    if (compatibilityElements.close && !compatibilityElements.close.dataset.compatibilityBound) {
-        compatibilityElements.close.dataset.compatibilityBound = 'true';
-        compatibilityElements.close.addEventListener('click', closeCompatibilityModal);
-    }
-    if (compatibilityElements.modal && !compatibilityElements.modal.dataset.compatibilityBound) {
-        compatibilityElements.modal.dataset.compatibilityBound = 'true';
-        compatibilityElements.modal.addEventListener('click', (event) => {
-            if (event.target === compatibilityElements.modal) closeCompatibilityModal();
-        });
-    }
+    bindModalClose(compatibilityElements.close, closeCompatibilityModal, {
+        overlay: compatibilityElements.modal,
+        closeOnBackdrop: true,
+        closeOnEscape: true
+    });
     if (compatibilityElements.target && !compatibilityElements.target.dataset.compatibilityBound) {
         compatibilityElements.target.dataset.compatibilityBound = 'true';
         compatibilityElements.target.addEventListener('change', () => {

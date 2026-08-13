@@ -33,6 +33,7 @@ import {
     getShipPosition as fetchShipPosition
 } from './playfabClient.js?v=20260731-online-rewards1';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
+import { bindModalClose } from './modalClose.js';
 import { createRequestId } from './api.js';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { formatCurrencyLabel } from './config.js';
@@ -710,7 +711,7 @@ export function selectPaymentMethod(message = '支払い方法を選択してく
             cleanup();
             resolve('resource');
         });
-        overlay.querySelector('#payCancelBtn').addEventListener('click', () => {
+        bindModalClose(overlay.querySelector('#payCancelBtn'), () => {
             cleanup();
             resolve(null);
         });
@@ -1336,7 +1337,7 @@ function showShipEvolutionChoice(upgrades, upgradeCosts) {
         <div class="ship-evolution-choice-dialog" role="dialog" aria-modal="true" aria-label="進化先を選択">
             <div class="ship-evolution-choice-head">
                 <strong>進化先</strong>
-                <button type="button" class="ship-evolution-choice-close" aria-label="閉じる">×</button>
+                <button type="button" class="ship-evolution-choice-close ui-modal-close" aria-label="閉じる"></button>
             </div>
             <div class="ship-evolution-choice-list">
                 ${renderShipEvolutionChoiceOptions(choices, upgradeCosts || {})}
@@ -1351,9 +1352,11 @@ function showShipEvolutionChoice(upgrades, upgradeCosts) {
         overlay.remove();
         if (!hadModalLock) document.body.classList.remove('modal-lock');
     };
-    overlay.querySelector('.ship-evolution-choice-close')?.addEventListener('click', close);
-    overlay.addEventListener('click', (event) => {
-        if (event.target === overlay) close();
+    bindModalClose(overlay.querySelector('.ship-evolution-choice-close'), close, {
+        overlay,
+        closeOnBackdrop: true,
+        closeOnEscape: true,
+        icon: true
     });
     overlay.querySelectorAll('[data-player-ship-choice]').forEach((button) => {
         button.addEventListener('click', () => {
@@ -1447,7 +1450,7 @@ function showShipEvolutionReveal(beforeShip, afterShip) {
     overlay.className = `ship-evolution-overlay is-${afterForm}`;
     overlay.innerHTML = `
         <div class="ship-evolution-dialog" role="dialog" aria-modal="true" aria-label="船の進化">
-            <button type="button" class="ship-evolution-close" aria-label="閉じる">×</button>
+            <button type="button" class="ship-evolution-close ui-modal-close" aria-label="閉じる"></button>
             <div class="ship-evolution-stage">
                 <div class="ship-evolution-wake"></div>
                 <div class="ship-evolution-ship is-before is-${beforeForm}" aria-hidden="true"></div>
@@ -1472,11 +1475,13 @@ function showShipEvolutionReveal(beforeShip, afterShip) {
         overlay.remove();
         if (!hadModalLock) document.body.classList.remove('modal-lock');
     };
-    overlay.querySelector('.ship-evolution-close')?.addEventListener('click', close);
-    overlay.querySelector('.ship-evolution-ok')?.addEventListener('click', close);
-    overlay.addEventListener('click', (event) => {
-        if (event.target === overlay) close();
+    bindModalClose(overlay.querySelector('.ship-evolution-close'), close, {
+        overlay,
+        closeOnBackdrop: true,
+        closeOnEscape: true,
+        icon: true
     });
+    bindModalClose(overlay.querySelector('.ship-evolution-ok'), close);
     window.setTimeout(() => {
         overlay.classList.add('is-finished');
     }, 1800);
@@ -2190,7 +2195,7 @@ function showExplorationResultSummary(data, options = {}) {
     overlay.className = `exploration-result-overlay is-${bossResult} is-boss-${bossTierKey} ${awaitsChestOpen ? 'is-awaiting-open' : 'is-opened'}`;
     overlay.innerHTML = `
         <div class="exploration-result-dialog" role="dialog" aria-modal="true" aria-label="探索結果">
-            <button type="button" class="exploration-result-close" aria-label="閉じる">×</button>
+            <button type="button" class="exploration-result-close ui-modal-close" aria-label="閉じる"></button>
             <div class="exploration-result-head">
                 <span data-exploration-result-state>${awaitsChestOpen ? '宝箱を発見' : resultLabel}</span>
                 <strong>${escapeHtml(destinationName)}</strong>
@@ -2260,9 +2265,14 @@ function showExplorationResultSummary(data, options = {}) {
             if (promptText) promptText.textContent = '宝箱を開封し、戦利品を持ち帰りました。';
         }, 760);
     };
-    overlay.querySelector('.exploration-result-close')?.addEventListener('click', close);
+    bindModalClose(overlay.querySelector('.exploration-result-close'), close, {
+        overlay,
+        closeOnBackdrop: true,
+        closeOnEscape: true,
+        icon: true
+    });
     overlay.querySelector('[data-exploration-result-open]')?.addEventListener('click', openResult);
-    overlay.querySelector('[data-exploration-result-close]')?.addEventListener('click', close);
+    bindModalClose(overlay.querySelector('[data-exploration-result-close]'), close);
     overlay.querySelector('[data-exploration-result-next]')?.addEventListener('click', () => {
         close();
         if (typeof window.openHomeExplorationPopup === 'function') {
@@ -2270,9 +2280,6 @@ function showExplorationResultSummary(data, options = {}) {
         } else {
             loadExplorationPanel(options.playFabId);
         }
-    });
-    overlay.addEventListener('click', (event) => {
-        if (event.target === overlay) close();
     });
 }
 

@@ -27,6 +27,7 @@ import {
     resolveTarotBattleSkill
 } from './tarotBattleSkills.js';
 import { formatTarotRoleBonus } from './tarotRoles.js';
+import { bindModalClose, createModalCloseButton } from './modalClose.js';
 import {
     TAROT_KINGDOM_ARCANA_EFFECT_CATALOG,
     getTarotKingdomGuardianDefinition,
@@ -1380,7 +1381,7 @@ function openArcanaResonanceCatalog() {
                         <h3 id="arcanaResonanceCatalogTitle">タロット効果一覧</h3>
                         <p>小アルカナの共鳴と大アルカナの守護能力</p>
                     </div>
-                    <button type="button" class="arcana-resonance-close" aria-label="タロット効果一覧を閉じる">×</button>
+                    <button type="button" class="arcana-resonance-close ui-modal-close" aria-label="タロット効果一覧を閉じる"></button>
                  </header>
                  <nav class="arcana-resonance-tabs" aria-label="アルカナ分類"></nav>
                  <nav class="arcana-resonance-filters" aria-label="所持状態"></nav>
@@ -1388,9 +1389,10 @@ function openArcanaResonanceCatalog() {
             </section>
         `;
         document.body.appendChild(modal);
-        modal.querySelector('.arcana-resonance-close')?.addEventListener('click', () => closeArcanaResonanceCatalog());
-        modal.addEventListener('click', (event) => {
-            if (event.target === modal) closeArcanaResonanceCatalog();
+        bindModalClose(modal.querySelector('.arcana-resonance-close'), closeArcanaResonanceCatalog, {
+            overlay: modal,
+            closeOnBackdrop: true,
+            icon: true
         });
         modal.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
@@ -1916,12 +1918,9 @@ function renderBlackMarketPanel() {
     refresh.title = '更新';
     refresh.disabled = blackMarketLoading;
     refresh.addEventListener('click', () => loadBlackMarketListings({ force: true }));
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.className = 'black-market-close';
-    close.setAttribute('aria-label', '闇市を閉じる');
+    const close = createModalCloseButton({ className: 'black-market-close', label: '闇市を閉じる' });
     close.title = '閉じる';
-    close.addEventListener('click', closeBlackMarketPanel);
+    bindModalClose(close, closeBlackMarketPanel, { icon: true });
     head.append(title, count, refresh, close);
     sheet.appendChild(head);
 
@@ -3750,7 +3749,7 @@ function ensureEquipmentEnhancementModal() {
         <section class="equipment-enhancement-sheet" role="dialog" aria-modal="true" aria-labelledby="equipmentEnhancementTitle">
             <header class="equipment-enhancement-head">
                 <h3 id="equipmentEnhancementTitle">装備強化</h3>
-                <button type="button" class="equipment-enhancement-close" aria-label="閉じる" title="閉じる">×</button>
+                <button type="button" class="equipment-enhancement-close ui-modal-close" aria-label="閉じる" title="閉じる"></button>
             </header>
             <div class="equipment-enhancement-base"></div>
             <div class="equipment-enhancement-result" aria-live="polite"></div>
@@ -4010,11 +4009,13 @@ function showEquipmentEnhancementModal(baseItem) {
     };
 
     const close = () => closeEquipmentEnhancementModal();
-    closeButton.onclick = close;
-    cancelButton.onclick = close;
-    modal.onclick = (event) => {
-        if (event.target === modal && !applying) close();
-    };
+    bindModalClose(closeButton, close, {
+        overlay: modal,
+        closeOnBackdrop: true,
+        icon: true,
+        isOpen: () => !modal.hidden && !applying
+    });
+    bindModalClose(cancelButton, close);
     applyButton.onclick = async () => {
         const selections = buildEquipmentEnhancementMaterialSelections(candidates, selectedByKey, baseItemId, baseStackId);
         if (!selections.length || applying) return;
@@ -4362,9 +4363,11 @@ export function showSellConfirmationModal(itemInstanceId, itemId) {
     };
 
     const cancelBtn = document.getElementById('btnCancelSell');
-    const newCancelBtn = cancelBtn.cloneNode(true);
-    cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-    newCancelBtn.onclick = () => { hideModal(modal); };
+    bindModalClose(cancelBtn, () => { hideModal(modal); }, {
+        overlay: modal,
+        closeOnBackdrop: true,
+        closeOnEscape: true
+    });
 }
 
 function updateEquipmentAndAvatarDisplay() {

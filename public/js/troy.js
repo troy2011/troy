@@ -12,6 +12,7 @@ import { createRequestId } from './api.js';
 import { getFirestore, doc, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { getTroyMenuCategoryImage, getTroyMenuImage } from './troyMenuAssets.js';
 import { TROY_BOTTLE_ITEMS, TROY_MENU_IDS, TROY_PRODUCT_MENUS } from './troyMenuData.js';
+import { bindModalClose } from './modalClose.js';
 
 let _wired = false;
 let _menuWired = false;
@@ -818,11 +819,15 @@ function wireTroyMenuBoard() {
     }
     const orderModal = document.getElementById('troyMenuBoardOrderModal');
     if (orderModal) {
+        bindModalClose(document.getElementById('troyMenuBoardOrderClose'), () => {
+            setTroyMenuBoardOrderModalVisible(false);
+        }, {
+            overlay: orderModal,
+            closeOnBackdrop: true,
+            closeOnEscape: true,
+            icon: true
+        });
         orderModal.addEventListener('click', (event) => {
-            if (event.target === orderModal || event.target?.closest?.('#troyMenuBoardOrderClose')) {
-                setTroyMenuBoardOrderModalVisible(false);
-                return;
-            }
             const sizeButton = event.target?.closest?.('[data-troy-menu-board-size]');
             if (sizeButton && _menuBoardOrderDraft) {
                 _menuBoardOrderDraft.sizeLabel = String(sizeButton.dataset.troyMenuBoardSize || '').trim();
@@ -1517,14 +1522,11 @@ function wireMenuPopups() {
     if (_menuWired) return;
     _menuWired = true;
     const { modal, close } = getMenuModalElements();
-    if (close) {
-        close.addEventListener('click', closeMenuModal);
-    }
-    if (modal) {
-        modal.addEventListener('click', (event) => {
-            if (event.target === modal) closeMenuModal();
-        });
-    }
+    bindModalClose(close, closeMenuModal, {
+        overlay: modal,
+        closeOnBackdrop: true,
+        closeOnEscape: true
+    });
     const menuButtons = Array.from(document.querySelectorAll('.troy-menu-item-button[data-menu-id]'));
     menuButtons.forEach((button) => {
         button.addEventListener('click', () => {
@@ -1780,13 +1782,11 @@ function wireHandlers(playFabId) {
         reservationBtn.addEventListener('click', () => submitTroyReservation(window.myPlayFabId || playFabId));
     }
     const cancelReservationBtn = document.getElementById('btnCancelTroyReservation');
-    if (cancelReservationBtn) {
-        cancelReservationBtn.addEventListener('click', () => {
-            const panel = document.getElementById('troyReservationPanel');
-            if (panel) panel.hidden = true;
-            _selectedReservationCalendarEntry = null;
-        });
-    }
+    bindModalClose(cancelReservationBtn, () => {
+        const panel = document.getElementById('troyReservationPanel');
+        if (panel) panel.hidden = true;
+        _selectedReservationCalendarEntry = null;
+    });
     const reservationPurpose = document.getElementById('reservationPurpose');
     if (reservationPurpose) reservationPurpose.addEventListener('change', updateTroyReservationPurposeHelp);
 

@@ -2,6 +2,7 @@ import { callApiWithLoader, createRequestId } from 'api';
 import { installPanelSlice25 } from './panelSlice25.js';
 import { getTroyMenuImage } from './troyMenuAssets.js';
 import { STAFF_MENU_CUSTOM_CATEGORY_ALIASES, getTroyStaffMenu } from './troyMenuData.js';
+import { bindModalClose } from './modalClose.js';
 
 const FALLBACK_REFRESH_MS = 10000;
 const SORT_STORAGE_KEY = 'troy-orders-sort-mode';
@@ -1963,9 +1964,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         event.preventDefault();
         openTicketDetail(ticket.dataset.customerId || '');
     });
-    $('troyOrdersTicketClose')?.addEventListener('click', closeTicketDetail);
-    $('troyOrdersTicketModal')?.addEventListener('click', (event) => {
-        if (event.target === event.currentTarget) closeTicketDetail();
+    bindModalClose($('troyOrdersTicketClose'), closeTicketDetail, {
+        overlay: $('troyOrdersTicketModal'),
+        closeOnBackdrop: true,
+        closeOnEscape: true,
+        icon: true
     });
     $('troyOrdersTicketDetail')?.addEventListener('click', (event) => {
         const target = event.target instanceof Element ? event.target : null;
@@ -2028,10 +2031,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             updateGroupCheckoutSummary(target.closest('[data-receiver-id]'));
         }
     });
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && !$('troyOrdersTicketModal')?.hidden) closeTicketDetail();
+    bindModalClose($('troyOrdersConfirmCancel'), closeConfirmModal, {
+        overlay: $('troyOrdersConfirmModal'),
+        closeOnBackdrop: true,
+        closeOnEscape: true
     });
-    $('troyOrdersConfirmCancel')?.addEventListener('click', closeConfirmModal);
     $('troyOrdersConfirmCheck')?.addEventListener('change', () => {
         setConfirmSubmitState();
     });

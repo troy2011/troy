@@ -23,7 +23,7 @@
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
     <title>TROYゴールドアプリ</title>
-<link rel="stylesheet" href="style.css?v=20260813-tutorial-flow-v1">
+<link rel="stylesheet" href="style.css?v=20260813-modal-close1">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
     <link rel="stylesheet" href="tarot-kingdom-summons.css?v=20260813-tutorial-flow-v1">
@@ -149,7 +149,7 @@
                                     <small>ONLINE SUPPORT</small>
                                     <h2 id="homeRescueTitle">救難信号</h2>
                                 </div>
-                                <button id="homeRescueClose" class="home-rescue-close" type="button" aria-label="閉じる"></button>
+                                <button id="homeRescueClose" class="home-rescue-close ui-modal-close" type="button" aria-label="閉じる"></button>
                             </header>
                             <p class="home-rescue-lead">救援する探索先を選んでください。</p>
                             <div id="homeRescueList" class="home-rescue-list" aria-live="polite">
@@ -309,7 +309,7 @@
                     </div>
                     <div id="troyMenuBoardOrderModal" class="troy-menu-board-order-modal" hidden>
                         <div class="troy-menu-board-order-card" role="dialog" aria-modal="true" aria-labelledby="troyMenuBoardOrderTitle">
-                            <button id="troyMenuBoardOrderClose" class="troy-menu-board-order-close" type="button" aria-label="閉じる">×</button>
+                            <button id="troyMenuBoardOrderClose" class="troy-menu-board-order-close ui-modal-close" type="button" aria-label="閉じる"></button>
                             <div class="troy-menu-board-order-head">
                                 <div id="troyMenuBoardOrderIcon" class="troy-menu-board-order-icon"></div>
                                 <div>
@@ -495,9 +495,7 @@
                         </div>
                         <div class="tarot-kingdom-header-meta">
                             <span id="tarotKingdomRound" class="tarot-kingdom-chip">Round 0 / 4</span>
-                            <button id="tarotKingdomExitButton" class="tarot-kingdom-exit-button" type="button" aria-label="タロットキングダムを閉じる">
-                                <span aria-hidden="true"></span>
-                            </button>
+                            <button id="tarotKingdomExitButton" class="tarot-kingdom-exit-button ui-modal-close" type="button" aria-label="タロットキングダムを閉じる"></button>
                         </div>
                     </div>
                     <div id="tarotKingdomEffectOverlay" class="tarot-effect-overlay" aria-hidden="true"></div>
@@ -575,7 +573,7 @@
                             </div>
                             <div id="tarotKingdomJudgmentArea" class="tarot-kingdom-judgment" style="display:none;">
                                 <div id="tarotKingdomJudgmentTitle" class="tarot-kingdom-judgment-title">墓地</div>
-                                <button id="tarotKingdomJudgmentCloseButton" class="tarot-kingdom-judgment-close" type="button" aria-label="墓地を閉じる"><span aria-hidden="true">×</span></button>
+                                <button id="tarotKingdomJudgmentCloseButton" class="tarot-kingdom-judgment-close ui-modal-close" type="button" aria-label="墓地を閉じる"></button>
                                 <div id="tarotKingdomJudgmentOptions" class="tarot-kingdom-judgment-options"></div>
                                 <button id="tarotKingdomJudgmentSkipButton" type="button">回収しない</button>
                             </div>
@@ -835,7 +833,7 @@
             <div id="tabContentMap" class="tab-content" style="display: none;">
                 <div id="mapLoadingOverlay" class="map-loading-overlay">
                     <div id="mapLoadingWorld" class="map-loading-world">
-                        <button type="button" id="mapLoadingClose" class="map-loading-close">×</button>
+                        <button type="button" id="mapLoadingClose" class="map-loading-close ui-modal-close" aria-label="閉じる"></button>
                         <div class="map-loading-grid"></div>
                         <div id="worldMapGrid" class="world-map-modal-grid"></div>
                         <div id="mapLoadingStatus" class="map-loading-status">読み込み中...</div>
@@ -855,7 +853,7 @@
             <div style="width:min(520px, 92vw); max-height: 85vh; overflow:auto; background:#0b1220; border:1px solid rgba(255,255,255,0.12); border-radius:16px; padding:16px; color:#fff;">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
                     <div id="mapSelectTitle" style="font-size:16px; font-weight:700;">海域を選択</div>
-                    <button type="button" onclick="document.getElementById('mapSelectModal').style.display='none'" style="background:transparent; color:#fff; border:none; font-size:18px;">×</button>
+                        <button type="button" class="ui-modal-close" aria-label="閉じる" data-modal-close-target="mapSelectModal"></button>
                 </div>
                 <div id="mapSelectAreaList" style="display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:10px; margin-bottom:12px;"></div>
                 <div id="mapSelectArcanaList" style="display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:10px;"></div>
@@ -896,7 +894,7 @@
                     <div class="ship-skill-sheet-header">
                         <span class="ship-skill-sheet-title">タロットデッキスキル</span>
                         <span id="shipSkillRoleLabel" class="ship-skill-role-badge"></span>
-                        <button id="shipSkillSheetClose" class="ship-skill-sheet-close" aria-label="閉じる">×</button>
+                        <button id="shipSkillSheetClose" class="ship-skill-sheet-close ui-modal-close" type="button" aria-label="閉じる"></button>
                     </div>
                     <div id="shipSkillGrid" class="ship-skill-grid"></div>
                     <p id="shipSkillEmptyMsg" class="ship-skill-empty-msg" hidden>タロットデッキにカードがありません</p>
@@ -913,7 +911,7 @@
                             <span class="respawn-label">島:</span>
                             <h3 id="islandCommandTitle">未設定</h3>
                         </div>
-                        <button id="islandCommandClose" class="island-command-close">×</button>
+                        <button id="islandCommandClose" class="island-command-close ui-modal-close" type="button" aria-label="閉じる"></button>
                     </div>
                     <div id="islandCommandStatus" class="island-command-status" style="display:none;"></div>
                     <div class="island-command-buttons">
@@ -1463,7 +1461,7 @@
     <div id="itemDetailModal" class="modal-overlay">
         <div class="modal-content item-detail-sheet">
             <div class="sheet-handle" aria-hidden="true"></div>
-            <button class="item-detail-corner-close" type="button" aria-label="詳細を閉じる" onclick="window.closeItemDetailModal && window.closeItemDetailModal()">×</button>
+            <button class="item-detail-corner-close ui-modal-close" type="button" aria-label="詳細を閉じる"></button>
             <div class="item-detail-head">
                 <div class="item-detail-icon-frame">
                     <div id="itemDetailIcon"></div>
@@ -1481,7 +1479,7 @@
             <div id="itemDetailButtons" class="modal-buttons">
                 <!-- アクションボタン -->
             </div>
-            <button class="item-detail-close" onclick="window.closeItemDetailModal && window.closeItemDetailModal()">閉じる</button>
+            <button class="item-detail-close" type="button">閉じる</button>
         </div>
     </div>
 
@@ -1777,7 +1775,7 @@
             <div id="guildMembersList" style="margin: 20px 0;">
                 <!-- メンバーリストがここに動的に表示される -->
             </div>
-            <button onclick="document.getElementById('guildMembersModal').style.display='none'" style="width: 100%; background: #4b5563;">閉じる</button>
+            <button type="button" data-modal-close-target="guildMembersModal" style="width: 100%; background: #4b5563;">閉じる</button>
         </div>
     </div>
 
@@ -1792,7 +1790,7 @@
                 <input type="text" id="guildChatInput" placeholder="メッセージを入力..." maxlength="500" style="flex: 1; padding: 12px; border-radius: 4px; border: 1px solid var(--border-color); background: #374151; color: #fff;">
                 <button id="btnSendGuildChat" style="padding: 12px 24px;">送信</button>
             </div>
-            <button onclick="document.getElementById('guildChatModal').style.display='none'" style="width: 100%; background: #4b5563; margin-top: 12px;">閉じる</button>
+            <button type="button" data-modal-close-target="guildChatModal" style="width: 100%; background: #4b5563; margin-top: 12px;">閉じる</button>
         </div>
     </div>
 
@@ -1808,7 +1806,7 @@
             <div id="guildWarehouseList" style="margin: 20px 0;">
                 <!-- 倉庫アイテムがここに動的に表示される -->
             </div>
-            <button onclick="document.getElementById('guildWarehouseModal').style.display='none'" style="width: 100%; background: #4b5563;">閉じる</button>
+            <button type="button" data-modal-close-target="guildWarehouseModal" style="width: 100%; background: #4b5563;">閉じる</button>
         </div>
     </div>
 
@@ -1819,7 +1817,7 @@
             <div id="guildApplicationsList" style="margin: 20px 0;">
                 <!-- 加入申請リストがここに動的に表示される -->
             </div>
-            <button onclick="document.getElementById('guildApplicationsModal').style.display='none'" style="width: 100%; background: #4b5563;">閉じる</button>
+            <button type="button" data-modal-close-target="guildApplicationsModal" style="width: 100%; background: #4b5563;">閉じる</button>
         </div>
     </div>
 
@@ -1853,10 +1851,10 @@
         "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
         "config": "./js/config.js",
         "api": "./js/api.js",
-"ui": "./js/ui.js?v=20260813-tutorial-flow-v1",
+"ui": "./js/ui.js?v=20260813-modal-close1",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js",
-        "inventory": "./js/inventory.js?v=20260811-resonance-per-card1",
+        "inventory": "./js/inventory.js?v=20260813-modal-close1",
         "game": "./Game.js?v=20260727-nav-guide1"
       }
     }
@@ -1881,7 +1879,7 @@
             </div>
             <div style="display: flex; gap: 10px;">
                 <button id="btnConfirmCreateShip" style="flex: 1; background: var(--accent-color); color: white; padding: 12px; border-radius: 4px; border: none; cursor: pointer;">建造する</button>
-                <button onclick="document.getElementById('shipCreateModal').style.display='none'" style="flex: 1; background: #4b5563; color: white; padding: 12px; border-radius: 4px; border: none; cursor: pointer;">キャンセル</button>
+                <button type="button" data-modal-close-target="shipCreateModal" style="flex: 1; background: #4b5563; color: white; padding: 12px; border-radius: 4px; border: none; cursor: pointer;">キャンセル</button>
             </div>
         </div>
     </div>
@@ -1893,13 +1891,13 @@
             <div id="shipDetailsContent" style="margin: 20px 0;">
                 <!-- 船の詳細情報がここに表示される -->
             </div>
-            <button onclick="document.getElementById('shipDetailsModal').style.display='none'" style="width: 100%; background: #4b5563; color: white; padding: 12px; border-radius: 4px; border: none; cursor: pointer;">閉じる</button>
+            <button type="button" data-modal-close-target="shipDetailsModal" style="width: 100%; background: #4b5563; color: white; padding: 12px; border-radius: 4px; border: none; cursor: pointer;">閉じる</button>
         </div>
     </div>
 
     <!-- Scripts -->
     <script src="battle-client.js?v=20260801-weapon-motion4"></script>
     <script src="naval-battle.js"></script>
-<script type="module" src="main.js?v=20260813-tutorial-flow-v1"></script>
+<script type="module" src="main.js?v=20260813-modal-close1"></script>
 </body>
 </html>

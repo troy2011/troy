@@ -30,6 +30,7 @@ import {
     getInventory as fetchInventory,
     getEquipment as fetchEquipment
 } from './playfabClient.js';
+import { bindModalClose } from './modalClose.js';
 import { refreshResourceSummary } from './inventory.js';
 
 function selectPaymentMethod(message = '支払い方法を選択してください') {
@@ -75,7 +76,7 @@ function selectPaymentMethod(message = '支払い方法を選択してくださ�
             cleanup();
             resolve('resource');
         });
-        overlay.querySelector('#payCancelBtn').addEventListener('click', () => {
+        bindModalClose(overlay.querySelector('#payCancelBtn'), () => {
             cleanup();
             resolve(null);
         });
@@ -399,7 +400,7 @@ async function confirmFixedResourceSpend({ title, message, costs, confirmLabel =
             resolve(value);
         };
 
-        panel.querySelector('#fixedCostCancelBtn')?.addEventListener('click', () => close(false));
+        bindModalClose(panel.querySelector('#fixedCostCancelBtn'), () => close(false));
         panel.querySelector('#fixedCostConfirmBtn')?.addEventListener('click', () => close(!hasShortage));
         overlay.addEventListener('click', (event) => {
             if (event.target === overlay) close(false);
@@ -770,7 +771,7 @@ export function showBuildingMenu(island, playFabId) {
             <div class="bottom-sheet-content">
                 <div class="bottom-sheet-header">
                     <h2>${escapeHtml(island.name)}</h2>
-                    <button class="close-btn">&times;</button>
+                    <button type="button" class="close-btn ui-modal-close" aria-label="閉じる"></button>
                 </div>
                 <div class="bottom-sheet-body">
                     <div class="island-info">
@@ -815,7 +816,12 @@ export function showBuildingMenu(island, playFabId) {
         }, { passive: true });
     const closeBtn = sheet.querySelector('.close-btn');
     if (closeBtn) {
-        closeBtn.addEventListener('click', safeCloseSheet);
+        bindModalClose(closeBtn, safeCloseSheet, {
+            overlay: sheet.querySelector('.bottom-sheet-overlay'),
+            closeOnBackdrop: true,
+            closeOnEscape: true,
+            icon: true
+        });
     }
         const buildBtn = sheet.querySelector('#btnBuildMyHouse');
         if (buildBtn) {
@@ -892,7 +898,7 @@ export function showBuildingMenu(island, playFabId) {
         <div class="bottom-sheet-content">
             <div class="bottom-sheet-header">
                 <h2>${escapeHtml(island.name)}</h2>
-                <button class="close-btn">&times;</button>
+                <button type="button" class="close-btn ui-modal-close" aria-label="閉じる"></button>
             </div>
             <div class="bottom-sheet-body">
                 <div class="island-info">
@@ -1135,9 +1141,12 @@ function setupBuildingMenuEvents(sheet, island, playFabId, closeSheetFn) {
             sheet.classList.remove('active');
             setTimeout(() => sheet.remove(), 300);
         });
-    sheet.querySelector('.close-btn').addEventListener('click', closeSheet);
-
-    sheet.querySelector('.bottom-sheet-overlay').addEventListener('click', closeSheet);
+    bindModalClose(sheet.querySelector('.close-btn'), closeSheet, {
+        overlay: sheet.querySelector('.bottom-sheet-overlay'),
+        closeOnBackdrop: true,
+        closeOnEscape: true,
+        icon: true
+    });
 
     sheet.querySelectorAll('.category-tab').forEach(tab => {
         tab.addEventListener('click', () => {

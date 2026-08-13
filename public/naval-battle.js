@@ -3464,8 +3464,7 @@ body.naval-battle-lock { overflow: hidden; }
 .naval-title-block { min-width: 0; }
 .naval-head h3 { margin: 0; font-size: 17px; letter-spacing: 0; }
 .naval-subtitle { margin-top: 2px; color: #a9c6bf; font-size: 11px; }
-.naval-close { width: 34px; height: 34px; display: grid; place-items: center; background: #152724; border: 1px solid #4a6661; border-radius: 8px; color: #d7e7e2; font-size: 20px; cursor: pointer; padding: 0; flex: 0 0 auto; }
-.naval-close:hover { background: #203631; }
+.naval-close { margin: -9px -9px -9px 0; }
 .naval-round { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: rgba(8, 19, 25, 0.82); border: 1px solid rgba(244, 211, 126, 0.32); border-radius: 8px; margin-bottom: 10px; padding: 8px 10px; color: #f4d37e; font-weight: 800; }
 .naval-round small { color: #9fc2ba; font-weight: 700; }
 .naval-battle-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px; }
@@ -3682,7 +3681,7 @@ function ensureModal() {
                     <h3 id="navalBattleTitle">略奪海戦</h3>
                     <div class="naval-subtitle">同時入力の読み合い船バトル</div>
                 </div>
-                <button type="button" class="naval-close" aria-label="海戦をやめる" data-naval-close>×</button>
+                <button type="button" class="naval-close ui-modal-close" aria-label="海戦をやめる" data-naval-close></button>
             </div>
             <div class="naval-round" id="navalRoundStatus">
                 <span>第1合</span>
@@ -3770,8 +3769,8 @@ function ensureModal() {
         </div>
     `;
     document.body.appendChild(modal);
-    modal.querySelector('[data-naval-close]').addEventListener('click', closeNavalBattle);
-    modal.querySelector('.naval-result-close').addEventListener('click', handleResultClose);
+    window.TroyModalClose?.bindModalClose(modal.querySelector('[data-naval-close]'), closeNavalBattle, { icon: true });
+    window.TroyModalClose?.bindModalClose(modal.querySelector('.naval-result-close'), handleResultClose);
     return modal;
 }
 

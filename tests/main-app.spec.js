@@ -2617,7 +2617,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
     result.className = 'exploration-result-overlay is-opened';
     result.innerHTML = `
       <div class="exploration-result-dialog">
-        <button type="button" class="exploration-result-close">×</button>
+        <button type="button" class="exploration-result-close ui-modal-close" aria-label="閉じる"></button>
         <div class="exploration-result-head"><span>勝利</span><strong>result</strong><small>1個のお宝を回収</small></div>
         <div class="exploration-result-showcase">
           <button type="button" class="exploration-result-chest-button"><span class="exploration-result-chest has-rewards"></span></button>
@@ -2659,7 +2659,8 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
         overflowX: style.overflowX,
         pointerEvents: style.pointerEvents,
         transform: style.transform,
-        transitionDuration: style.transitionDuration
+        transitionDuration: style.transitionDuration,
+        width: style.width
       };
     };
 
@@ -2796,9 +2797,9 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(audit.shipFrameCount).toBeGreaterThanOrEqual(2);
   expect(audit.treasureAnimationName).toBe('none');
   expect(audit.treasureAnimationName).not.toContain('explorationSequenceTreasureShip');
-  expect(audit.resultClose.height).toBe('32px');
-  expect(audit.resultClose.minHeight).toBe('32px');
-  expect(audit.resultClose.borderRadius).toBe('50%');
+  expect(audit.resultClose.height).toBe('52px');
+  expect(audit.resultClose.minHeight).toBe('52px');
+  expect(audit.resultClose.width).toBe('52px');
   await expectNoPageErrors(errors);
 });
 

@@ -1,5 +1,6 @@
 import { HandEvaluator as TarotEngineHandEvaluator } from './tarot-engine/HandEvaluator.js';
 import { GameController as TarotGameController } from './tarot-engine/GameController.js';
+import { bindModalClose } from './modalClose.js';
 
 const SUITS = ['Sword', 'Cup', 'Pentacle', 'Wand'];
 const SUIT_RANK = {
@@ -4941,7 +4942,7 @@ function ensureDailyFortuneOverlay() {
     overlay.className = 'tarot-fortune-overlay';
     overlay.innerHTML = `
         <div id="${DAILY_FORTUNE_MODAL_ID}" class="tarot-fortune-modal" role="dialog" aria-modal="true" aria-labelledby="${DAILY_FORTUNE_TITLE_ID}">
-            <button type="button" class="tarot-fortune-close" aria-label="閉じる">×</button>
+            <button type="button" class="tarot-fortune-close ui-modal-close" aria-label="閉じる"></button>
             <div class="tarot-fortune-kicker">DAILY TAROT</div>
             <div id="${DAILY_FORTUNE_TITLE_ID}" class="tarot-fortune-title">本日の運勢</div>
             <div id="${DAILY_FORTUNE_SUB_ID}" class="tarot-fortune-sub">1日1回だけ、今日の航路を占えます。</div>
@@ -4961,13 +4962,14 @@ function ensureDailyFortuneOverlay() {
     `;
     document.body.appendChild(overlay);
     applyDailyFortuneOverlayLayout(overlay);
-    overlay.addEventListener('click', (event) => {
-        if (event.target === overlay) {
-            closeDailyFortuneOverlay();
-        }
+    bindModalClose(overlay.querySelector('.tarot-fortune-close'), closeDailyFortuneOverlay, {
+        overlay,
+        closeOnBackdrop: true,
+        closeOnEscape: true,
+        icon: true,
+        isOpen: () => overlay.style.display === 'flex'
     });
-    overlay.querySelector('.tarot-fortune-close')?.addEventListener('click', closeDailyFortuneOverlay);
-    overlay.querySelector('.tarot-fortune-done')?.addEventListener('click', closeDailyFortuneOverlay);
+    bindModalClose(overlay.querySelector('.tarot-fortune-done'), closeDailyFortuneOverlay);
     return overlay;
 }
 
