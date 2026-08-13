@@ -1903,15 +1903,46 @@ function isKingdomTutorialObjectivePending(playerIndex, state = s) {
   return progress.completedPlayers?.[Number(playerIndex)] !== true;
 }
 
+function getKingdomTutorialStep(playerIndex, state = s) {
+  const progress = getKingdomTutorialProgress(state);
+  const index = Number(playerIndex);
+  if (!progress || !Number.isInteger(index) || index < 0) return 0;
+  return Math.max(0, Math.floor(Number(progress.stepsByPlayer?.[index]) || 0));
+}
+
+function getKingdomTutorialMatchupPair(playerIndex, state = s) {
+  const progress = getKingdomTutorialProgress(state);
+  const index = Number(playerIndex);
+  if (!progress || !Number.isInteger(index) || index < 0) return null;
+  const pair = progress.matchupPairs?.[index];
+  if (!pair || typeof pair !== 'object') return null;
+  return {
+    leadCardId: String(pair.leadCardId || ''),
+    replyCardId: String(pair.replyCardId || '')
+  };
+}
+
 function getKingdomTutorialPrompt(state = s, playerIndex = null) {
   if (playerIndex != null && !isKingdomTutorialObjectivePending(playerIndex, state)) return '';
   switch (getKingdomTutorialLesson(state)) {
-    case 1: return '1-1　光るカードを1枚選ぼう';
+    case 1:
+      return playerIndex != null && getKingdomTutorialStep(playerIndex, state) >= 1
+        ? '同じ数字は　相性スートで返せる\nワンド↔カップ　ソード↔ペンタクル'
+        : '1-1　光るカードを1枚選ぼう';
     case 2: return '1-2　同じ数字を2枚選ぼう';
     case 3: return '1-3　5枚で役を作ろう';
     case 4: return '1-4　場札＋手札4枚で役を完成';
     default: return '';
   }
+}
+
+function getKingdomTutorialPlayGateViolation(play, mode, state = s) {
+  const lesson = getKingdomTutorialLesson(state);
+  if (!lesson || String(play?.type || '') !== 'role') return null;
+  const isCall = mode === 'call' || play?.call === true;
+  if (isCall && lesson < 4) return 'コールは1-4で解禁されます。';
+  if (!isCall && lesson < 3) return '5枚役は1-3で解禁されます。';
+  return null;
 }
 
 function isKingdomTutorialObjectivePlay(playerIndex, play, state = s) {
@@ -1924,7 +1955,15 @@ function isKingdomTutorialObjectivePlay(playerIndex, play, state = s) {
     0,
     Number(play?.count) || Number(play?.cardsHand?.length) || Number(play?.selectedIds?.length) || 0
   );
-  if (lesson === 1) return isSet && count === 1;
+  if (lesson === 1) {
+    if (!isSet || count !== 1) return false;
+    const pair = getKingdomTutorialMatchupPair(playerIndex, state);
+    const selectedCardId = String(play?.selectedIds?.[0] || play?.cardsHand?.[0]?.id || '');
+    const targetCardId = getKingdomTutorialStep(playerIndex, state) >= 1
+      ? pair?.replyCardId
+      : pair?.leadCardId;
+    return !targetCardId || selectedCardId === targetCardId;
+  }
   if (lesson === 2) {
     const number = Number(play?.number || play?.cardsHand?.[0]?.number || 0);
     return isSet && count === 2 && [5, 8, 11, 14].includes(number);
@@ -1943,7 +1982,7 @@ function isKingdomTutorialSelectionReady(playerIndex, selectedIndexes) {
 
 function getKingdomTutorialSuccessLabel(play) {
   const lesson = getKingdomTutorialLesson();
-  if (lesson === 1) return 'ATTACK';
+  if (lesson === 1) return getKingdomTutorialStep(play?.owner) >= 1 ? 'SUIT MATCH' : 'ATTACK';
   if (lesson === 2) {
     const number = Number(play?.number || play?.cardsHand?.[0]?.number || 0);
     if (number === 5) return '5 SKIP';
@@ -1963,9 +2002,16 @@ function completeKingdomTutorialObjective(playerIndex) {
   if (!Array.isArray(progress.completedPlayers)) {
     progress.completedPlayers = s.players.map(() => false);
   }
-  if (progress.completedPlayers[index] === true) return false;
+  if (!Array.isArray(progress.stepsByPlayer)) {
+    progress.stepsByPlayer = s.players.map(() => 0);
+  }
+  if (Number(progress.lesson) === 1 && getKingdomTutorialStep(index) <= 0) {
+    progress.stepsByPlayer[index] = 1;
+    return 'advanced';
+  }
+  if (progress.completedPlayers[index] === true) return 'unchanged';
   progress.completedPlayers[index] = true;
-  return true;
+  return 'completed';
 }
 
 function buildKingdomTutorialDeck(lesson, playerCount, initialHandSize, dealerIndex = 0) {
@@ -1974,6 +2020,7 @@ function buildKingdomTutorialDeck(lesson, playerCount, initialHandSize, dealerIn
   const safeHandSize = Math.max(1, Math.min(8, Math.floor(Number(initialHandSize) || 8)));
   const pool = mkMinor();
   const hands = Array.from({ length: safePlayerCount }, () => []);
+  const matchupPairs = Array.from({ length: safePlayerCount }, () => null);
   const take = (suit, number) => {
     const index = pool.findIndex((card) => card.suit === suit && Number(card.number) === Number(number));
     return index >= 0 ? pool.splice(index, 1)[0] : null;
@@ -1985,8 +2032,23 @@ function buildKingdomTutorialDeck(lesson, playerCount, initialHandSize, dealerIn
   let opening = null;
 
   if (safeLesson === 1) {
-    const suits = ['Cup', 'Wand', 'Sword', 'Pentacle'];
-    hands.forEach((_hand, seat) => give(seat, suits[seat], 3 + seat));
+    const pairs = [
+      [['Cup', 3], ['Wand', 3]],
+      [['Sword', 4], ['Pentacle', 4]],
+      [['Cup', 6], ['Wand', 6]],
+      [['Sword', 7], ['Pentacle', 7]]
+    ];
+    hands.forEach((hand, seat) => {
+      const [leadSpec, replySpec] = pairs[seat];
+      const leadCard = take(...leadSpec);
+      const replyCard = take(...replySpec);
+      if (leadCard) hand.push(leadCard);
+      if (replyCard) hand.push(replyCard);
+      matchupPairs[seat] = {
+        leadCardId: String(leadCard?.id || ''),
+        replyCardId: String(replyCard?.id || '')
+      };
+    });
   } else if (safeLesson === 2) {
     const pairs = [
       [['Cup', 5], ['Wand', 5]],
@@ -2033,7 +2095,8 @@ function buildKingdomTutorialDeck(lesson, playerCount, initialHandSize, dealerIn
     drawDeck: [...reservedPool, ...fillerPool, ...(opening ? [opening] : []), ...dealOrder.slice().reverse()],
     skipOpening: safeLesson < 4 || !opening,
     clearOpening: false,
-    openingOwner: safeLesson === 4 ? safePlayerCount - 1 : 0
+    openingOwner: safeLesson === 4 ? safePlayerCount - 1 : 0,
+    matchupPairs
   };
 }
 const log = (m) => { s.logs.push(m); if (s.logs.length > 120) s.logs.splice(0, s.logs.length - 120); };
@@ -10618,6 +10681,11 @@ function applyKingdomEnemySingleAttack(playerIndex) {
   if (Number.isInteger(guardianCoverIndex)) effects.push({ kind: 'guardianCover', guardianNumber: 12, originalTargetIndex: playerIndex });
   if (summonReduction > 0) effects.push({ kind: 'summonGuard', potency: summonReduction });
   if (counter) effects.push(counter);
+  const coverActivated = Number(targetIndex) !== Number(playerIndex)
+    && (coverReduction > 0 || Number.isInteger(guardianCoverIndex));
+  const coverMessage = coverActivated
+    ? `${pName(targetIndex)}が${pName(playerIndex)}をかばった！`
+    : '';
   ensureKingdomBattleEffects().enemyAttackedSinceClear = true;
   const attackMotion = getKingdomEnemyAttackMotionProfile(s.battle.enemy.id, 'single');
   const event = pushKingdomBattleEvent('enemy-single', {
@@ -10625,6 +10693,11 @@ function applyKingdomEnemySingleAttack(playerIndex) {
     attackAnimationDurationMs: attackMotion.animationDurationMs,
     attackAdvanceDurationMs: attackMotion.advanceDurationMs,
     attackReturnDurationMs: attackMotion.returnDurationMs,
+    coverIndex: coverActivated ? targetIndex : null,
+    protectedIndex: coverActivated ? playerIndex : null,
+    coverKind: coverActivated && Number(guardianCoverIndex) === Number(targetIndex) && coverReduction <= 0
+      ? 'guardian'
+      : (coverActivated ? 'party' : ''),
     targetIndexes: [targetIndex],
     damages: [{
       playerIndex: targetIndex,
@@ -10637,9 +10710,12 @@ function applyKingdomEnemySingleAttack(playerIndex) {
     }],
     knockedOutIndexes: knockedOut ? [targetIndex] : [],
     effects,
-    label: accuracy.success
-      ? `${s.battle.enemy.name}の反撃 → ${pName(targetIndex)} ${damage}ダメージ`
-      : `${pName(targetIndex)}が回避`
+    effectMessage: coverMessage,
+    label: coverActivated
+      ? `${coverMessage} ${accuracy.success ? `${damage}ダメージ` : '攻撃を回避'}`
+      : (accuracy.success
+          ? `${s.battle.enemy.name}の反撃 → ${pName(targetIndex)} ${damage}ダメージ`
+          : `${pName(targetIndex)}が回避`)
   });
   if (!accuracy.success) resolveKingdomResonanceTriggers('player-dodge', { actorIndex: targetIndex, attackKind: 'single' });
   if (damage > 0) resolveKingdomResonanceTriggers('actor-hit', { actorIndex: targetIndex, attackKind: 'single', damage });
@@ -15650,7 +15726,9 @@ function setupHand(options = {}) {
   s.tutorialProgress = tutorialSetup
     ? {
         lesson: tutorialLesson,
-        completedPlayers: s.players.map(() => false)
+        completedPlayers: s.players.map(() => false),
+        stepsByPlayer: s.players.map(() => 0),
+        matchupPairs: cloneKingdomSnapshotValue(tutorialSetup.matchupPairs, [])
       }
     : null;
   s.drawDeck = Array.isArray(options.drawDeck)
@@ -16144,6 +16222,8 @@ function getMajorSuitGateViolation(play, mode) {
 }
 
 function validatePlay(play, mode) {
+  const tutorialPlayGateViolation = getKingdomTutorialPlayGateViolation(play, mode);
+  if (tutorialPlayGateViolation) return { ok: false, reason: tutorialPlayGateViolation };
   const majorSuitGateViolation = getMajorSuitGateViolation(play, mode);
   if (majorSuitGateViolation) return { ok: false, reason: majorSuitGateViolation };
   const majorSpecialPlayViolation = getMajorSpecialPlayViolation(play, mode);
@@ -17545,6 +17625,18 @@ function continueAfterPlay(pi, play) {
     startRoundOutCinematic(pi, play);
     return;
   }
+  if (play?.tutorialContinueSamePlayer && isKingdomTutorialObjectivePending(pi)) {
+    delete play.tutorialContinueSamePlayer;
+    s.phase = 'turn';
+    s.turn = pi;
+    s.pass[pi] = false;
+    s.fold[pi] = false;
+    s.message = getKingdomTutorialPrompt(s, pi);
+    if (isLocalPlayer(pi)) s.selected.clear();
+    scheduleNpc();
+    render();
+    return;
+  }
   if (play.type === 'set') {
     const fx = applySetEffects(play);
     if (fx.forceClear) { clearTrick(pi); return; }
@@ -17683,7 +17775,10 @@ function applyPlay(pi, play, retryDepth = 0) {
     return;
   }
   resetKingdomForcedDrawStreak(pi);
-  if (tutorialObjectivePending) completeKingdomTutorialObjective(pi);
+  const tutorialProgressResult = tutorialObjectivePending
+    ? completeKingdomTutorialObjective(pi)
+    : 'unchanged';
+  if (tutorialProgressResult === 'advanced') play.tutorialContinueSamePlayer = true;
   s.revision = Math.max(0, Number(s.revision) || 0) + 1;
   pendingKingdomCardDealFx = capturedCardDealFx
     ? { ...capturedCardDealFx, playToken }
@@ -20481,11 +20576,132 @@ function renderKingdomJudgmentReclaimCard(row, playerIndex, event, eventIsActive
   row.appendChild(node);
 }
 
+function syncKingdomCoverInterposition(event, eventIsActive, eventKey, timeline) {
+  if (!ui.battleParty) return;
+  const coverIndex = event?.coverIndex == null ? Number.NaN : Number(event.coverIndex);
+  const protectedIndex = event?.protectedIndex == null ? Number.NaN : Number(event.protectedIndex);
+  const active = !!(
+    eventIsActive
+    && String(event?.type || '') === 'enemy-single'
+    && Number.isInteger(coverIndex)
+    && Number.isInteger(protectedIndex)
+    && coverIndex !== protectedIndex
+  );
+  const rows = Array.from(ui.battleParty.querySelectorAll('.tarot-kingdom-battle-player'));
+  rows.forEach((row) => {
+    const rowIndex = Number(row.dataset.playerIndex);
+    const avatar = row.querySelector(':scope > .tarot-kingdom-battle-player-avatar');
+    if (!active || rowIndex !== coverIndex) {
+      row.classList.remove('is-covering-ally');
+      row.style.removeProperty('--tk-cover-offset-x');
+      row.style.removeProperty('--tk-cover-offset-y');
+      if (avatar?.dataset.kingdomCoverEventKey) {
+        avatar.getAnimations().filter((animation) => (
+          String(animation.id || '').startsWith('tarot-kingdom-cover:')
+        )).forEach((animation) => animation.cancel());
+        avatar.classList.remove('is-cover-interposing');
+        delete avatar.dataset.kingdomCoverEventKey;
+      }
+    }
+    if (!active || rowIndex !== protectedIndex) {
+      row.classList.remove('is-being-covered');
+      row.querySelector(':scope > .tarot-kingdom-cover-callout')?.remove();
+    }
+  });
+  if (!active) return;
+
+  const coverRow = ui.battleParty.querySelector(`[data-player-index="${coverIndex}"]`);
+  const protectedRow = ui.battleParty.querySelector(`[data-player-index="${protectedIndex}"]`);
+  const coverAvatar = coverRow?.querySelector(':scope > .tarot-kingdom-battle-player-avatar');
+  const protectedAvatar = protectedRow?.querySelector(':scope > .tarot-kingdom-battle-player-avatar');
+  if (!coverRow || !protectedRow || !coverAvatar || !protectedAvatar) return;
+
+  coverRow.classList.add('is-covering-ally');
+  protectedRow.classList.add('is-being-covered');
+  const coverRect = coverAvatar.getBoundingClientRect();
+  const protectedRect = protectedAvatar.getBoundingClientRect();
+  const frontOffset = Math.max(18, Math.min(30, protectedRect.width * 0.36));
+  const offsetX = Math.round(protectedRect.left - coverRect.left - frontOffset);
+  const offsetY = Math.round(protectedRect.bottom - coverRect.bottom);
+  coverRow.style.setProperty('--tk-cover-offset-x', `${offsetX}px`);
+  coverRow.style.setProperty('--tk-cover-offset-y', `${offsetY}px`);
+
+  let callout = protectedRow.querySelector(':scope > .tarot-kingdom-cover-callout');
+  if (!callout) {
+    callout = document.createElement('div');
+    callout.className = 'tarot-kingdom-cover-callout';
+    callout.setAttribute('aria-hidden', 'true');
+    callout.textContent = 'COVER';
+    protectedRow.appendChild(callout);
+  }
+
+  const startedAt = Number(timeline?.startedAt) || Number(event?.at) || Date.now();
+  const endsAt = Math.max(startedAt + 1, Number(timeline?.endsAt) || (startedAt + getKingdomBattleEventDuration(event)));
+  const durationMs = Math.max(1, endsAt - startedAt);
+  const elapsedMs = Math.max(0, Math.min(durationMs - 1, Date.now() - startedAt));
+  callout.style.setProperty('--tk-cover-duration', `${durationMs}ms`);
+  callout.style.setProperty('--tk-cover-delay', `${-elapsedMs}ms`);
+
+  const motionKey = String(eventKey || `${event?.seq || 0}:${event?.at || 0}`);
+  if (coverAvatar.dataset.kingdomCoverEventKey === motionKey || prefersKingdomReducedMotion()) return;
+  coverAvatar.getAnimations().filter((animation) => (
+    String(animation.id || '').startsWith('tarot-kingdom-cover:')
+  )).forEach((animation) => animation.cancel());
+  coverAvatar.dataset.kingdomCoverEventKey = motionKey;
+  coverAvatar.classList.add('is-cover-interposing');
+
+  const atOffset = (absoluteTime, fallback) => Math.max(
+    0,
+    Math.min(1, ((Number(absoluteTime) || (startedAt + fallback)) - startedAt) / durationMs)
+  );
+  const impactOffset = atOffset(timeline?.impactAt, Math.min(240, durationMs * 0.32));
+  const revealOffset = Math.max(impactOffset, atOffset(timeline?.hpRevealAt, Math.min(320, durationMs * 0.44)));
+  const resultOffset = Math.max(revealOffset, atOffset(
+    timeline?.damageNumberAt,
+    Math.min(620, durationMs * 0.72)
+  ));
+  const arriveOffset = impactOffset <= 0.04
+    ? Math.max(0, impactOffset * 0.5)
+    : Math.max(0.04, Math.min(impactOffset - 0.02, impactOffset * 0.72));
+  const returnOffset = Math.max(resultOffset, Math.min(0.88, resultOffset + 0.08));
+  const destination = `${offsetX}px ${offsetY}px`;
+  const recoil = `${offsetX + 5}px ${offsetY}px`;
+  const animation = coverAvatar.animate([
+    { translate: '0px 0px', offset: 0, easing: 'cubic-bezier(0.32, 0.02, 0.24, 1)' },
+    { translate: destination, offset: arriveOffset, easing: 'ease-out' },
+    { translate: destination, offset: impactOffset, easing: 'steps(1, end)' },
+    { translate: recoil, offset: revealOffset, easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)' },
+    { translate: destination, offset: resultOffset, easing: 'ease-out' },
+    { translate: destination, offset: returnOffset, easing: 'cubic-bezier(0.42, 0, 0.58, 1)' },
+    { translate: '0px 0px', offset: 1 }
+  ], {
+    duration: durationMs,
+    fill: 'both'
+  });
+  animation.id = `tarot-kingdom-cover:${motionKey}`;
+  animation.currentTime = elapsedMs;
+}
+
 function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eventKey = '') {
   if (!ui.battleParty) return;
   ui.battleParty.dataset.playerCount = String(getKingdomPlayerCount());
   const timeline = getKingdomBattleTimelineForEvent(activeEvent);
   const phase = getKingdomBattleTimelinePhase(timeline);
+  const activeCoverIndex = eventIsActive && activeEvent?.coverIndex != null
+    && String(activeEvent?.type || '') === 'enemy-single'
+    && Number.isInteger(Number(activeEvent?.coverIndex))
+    ? Number(activeEvent.coverIndex)
+    : null;
+  const protectedCoverIndex = eventIsActive && activeEvent?.protectedIndex != null
+    && String(activeEvent?.type || '') === 'enemy-single'
+    && Number.isInteger(Number(activeEvent?.protectedIndex))
+    ? Number(activeEvent.protectedIndex)
+    : null;
+  const coverPresentationActive = activeCoverIndex != null
+    && protectedCoverIndex != null
+    && activeCoverIndex !== protectedCoverIndex
+    && !!s.players?.[activeCoverIndex]
+    && !!s.players?.[protectedCoverIndex];
   const targetIndexes = eventIsActive
     && (!timeline || ['damage', 'recover', 'final'].includes(phase))
     && Array.isArray(activeEvent?.targetIndexes)
@@ -20522,10 +20738,12 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
     const petrified = conscious && !battleConscious
       && isKingdomStatusEffectActive('petrify', getKingdomEffectBucket('player', playerIndex)?.petrify);
     const localDefense = playerIndex === getLocalPlayerIndex() && kingdomLocalAutoFold;
+    const coveringAlly = coverPresentationActive && activeCoverIndex === playerIndex;
     const defending = battleConscious && (
       localDefense
       || s.fold?.[playerIndex] === true
       || defenseStanceHoldIndexes.has(playerIndex)
+      || coveringAlly
     );
     const guardProfile = getKingdomGuardDefenseProfile(character);
     const shieldDefending = defending && guardProfile.hasShield;
@@ -20552,6 +20770,11 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
     row.classList.toggle('is-petrified', petrified);
     row.classList.toggle('has-regen', regenActive);
     row.classList.toggle('is-defending', defending);
+    row.classList.toggle('is-covering-ally', coveringAlly);
+    row.classList.toggle(
+      'is-being-covered',
+      coverPresentationActive && protectedCoverIndex === playerIndex
+    );
     row.classList.toggle('is-hit', targetIndexes.includes(playerIndex));
     row.classList.toggle('is-battle-charging', eventIsActive && Number(activeEvent?.actorIndex) === playerIndex && phase === 'charge');
     row.classList.toggle('is-battle-hit-stop', eventIsActive && Number(activeEvent?.actorIndex) === playerIndex && phase === 'hit-stop');
@@ -20791,6 +21014,7 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
   Array.from(ui.battleParty.querySelectorAll('.tarot-kingdom-battle-player')).forEach((row) => {
     if (Number(row.dataset.playerIndex) >= s.players.length) row.remove();
   });
+  syncKingdomCoverInterposition(activeEvent, eventIsActive, eventKey, timeline);
   playKingdomBattleAvatarEvent(activeEvent, eventIsActive, eventKey);
 }
 
@@ -20832,7 +21056,10 @@ function getKingdomMajorVisualScope(event) {
 function syncKingdomEffectNavigationMessage(event, eventIsActive, phase) {
   const message = String(event?.effectMessage || buildKingdomEffectNavigationMessage(event?.effects) || '').trim();
   if (!ui.selectedEffect || !eventIsActive || !message) return;
-  if (!['effect', 'final'].includes(String(phase || ''))) return;
+  const isCoverEvent = String(event?.type || '') === 'enemy-single'
+    && event?.coverIndex != null
+    && event?.protectedIndex != null;
+  if (!isCoverEvent && !['effect', 'final'].includes(String(phase || ''))) return;
   const token = `${Number(event?.seq) || 0}:${Number(event?.at) || 0}:${message}`;
   if (ui.selectedEffect.dataset.effectMessageToken === token) return;
   ui.selectedEffect.dataset.effectMessageToken = token;
@@ -23304,7 +23531,14 @@ function updateButtons() {
     ui.startOfflineButton.textContent = offlineLabel;
     ui.startOfflineButton.classList.toggle('is-selected', kingdomStartMode === 'offline');
   }
-  const showRetreatAction = isExplorationEntry && showModeChoice;
+  // 上部の撤退は出航前の選択だけに限定する。全滅処理では roundActive が先に
+  // false になるため、結果画面へ切り替わる一瞬だけ mode choice と誤判定される。
+  // 戦闘結果が確定した後は、精算エリアの正式な撤退導線だけを表示する。
+  const hasResolvedBattleOutcome = !!(
+    s?.battle?.outcome
+    || String(s?.battle?.resultReason || '').trim()
+  );
+  const showRetreatAction = isExplorationEntry && showModeChoice && !hasResolvedBattleOutcome;
   if (ui.retreatButton) {
     ui.retreatButton.hidden = !showRetreatAction;
     ui.retreatButton.disabled = !showRetreatAction;

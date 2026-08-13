@@ -47,6 +47,86 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.finalPass.transition).toMatchObject({ kind: 'enemyResponse', eventSeqs: [1, 2] });
   });
 
+  test('stage 1 unlocks five-card roles in 1-3 and calls in 1-4 for humans and NPCs', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const tutorialMonsters = debug.battleDemoEnemies()
+        .filter((monster) => monster.isBoss !== true)
+        .slice(0, 4);
+      const straight = (prefix) => [2, 3, 4, 5, 6].map((number) => ({
+        id: `${prefix}-${number}`,
+        kind: 'minor',
+        suit: 'Wand',
+        number
+      }));
+      const stage = {
+        stageNo: 1,
+        stageId: 'tarot_stage_1',
+        stageName: 'はじまりの島',
+        monsters: tutorialMonsters.map((monster, index) => ({
+          monsterId: monster.id,
+          monsterName: monster.name,
+          threatLevel: index + 1,
+          archetype: 'balanced'
+        }))
+      };
+      const validateRole = (lesson) => {
+        const cards = straight(`lesson-${lesson}-role`);
+        debug.battleScenario({
+          stage,
+          handNo: lesson - 1,
+          withTrick: false,
+          handsBySeat: [cards]
+        });
+        return debug.battleRebuildAction(0, {
+          selectedCardIds: cards.map((card) => card.id)
+        });
+      };
+      const validateCall = (lesson) => {
+        const cards = straight(`lesson-${lesson}-call`);
+        debug.battleScenario({
+          stage,
+          handNo: lesson - 1,
+          tableCard: cards[0],
+          handsBySeat: [cards.slice(1)]
+        });
+        return debug.battleRebuildAction(0, {
+          selectedCardIds: cards.slice(1).map((card) => card.id)
+        });
+      };
+
+      const npcCards = straight('lesson-1-npc');
+      debug.battleScenario({
+        stage,
+        handNo: 0,
+        withTrick: false,
+        turnIndex: 1,
+        enableNpcSeats: true,
+        handsBySeat: [[], npcCards]
+      });
+      const npcDecision = debug.battleNpcDecision(1, 0.5);
+
+      return {
+        role1: validateRole(1),
+        role2: validateRole(2),
+        role3: validateRole(3),
+        call1: validateCall(1),
+        call3: validateCall(3),
+        call4: validateCall(4),
+        npcDecision
+      };
+    });
+
+    expect(audit.role1).toMatchObject({ ok: false, reason: '5枚役は1-3で解禁されます。' });
+    expect(audit.role2).toMatchObject({ ok: false, reason: '5枚役は1-3で解禁されます。' });
+    expect(audit.role3.ok).toBe(true);
+    expect(audit.call1).toMatchObject({ ok: false, reason: 'コールは1-4で解禁されます。' });
+    expect(audit.call3).toMatchObject({ ok: false, reason: 'コールは1-4で解禁されます。' });
+    expect(audit.call4.ok).toBe(true);
+    expect(audit.npcDecision.action).toBe('play');
+    expect(audit.npcDecision.play.type).toBe('set');
+  });
+
   test('passing or folding against a five-card role avoids counters but keeps the all-pass area attack', async ({ page }) => {
     const audit = await page.evaluate(({ combatBySeat }) => {
       const debug = window.TarotKingdomDebug;
@@ -1186,6 +1266,26 @@ test.describe('Tarot Kingdom character battle flow', () => {
       const covered = debug.battlePass(1);
 
       debug.battleScenario({
+        rules: { statusEffectsVersion: 1, arcanaLoadoutEffectsVersion: 3 },
+        turnIndex: 1,
+        leaderIndex: 0,
+        hpBySeat: [100, 40, 80, 90],
+        combatBySeat,
+        charactersBySeat: [{
+          version: 4,
+          guardianArcana: { number: 12, cardLevel: 1, passiveId: 'guardian-v3-12' }
+        }]
+      });
+      debug.battleSetEffects({
+        enemy: {},
+        party: {},
+        players: [{
+          hpShield: { key: 'hpShield', potency: 10, value: 10, remainingTurns: 2, expiresOn: 'turn' }
+        }, {}, {}, {}]
+      });
+      const guardianCovered = debug.battlePass(1);
+
+      debug.battleScenario({
         rules: { statusEffectsVersion: 1 },
         turnIndex: 1, leaderIndex: 0, pass: [false, false, true, true],
         hpBySeat: [100, 100, 100, 100], combatBySeat
@@ -1195,7 +1295,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
         players: [{}, {}, {}, {}]
       });
       const guardedArea = debug.battlePass(1);
-      return { stopped, covered, guardedArea };
+      return { stopped, covered, guardianCovered, guardedArea };
     }, { combatBySeat: zeroDefenseParty });
 
     expect(audit.stopped.battle.enemy.hp).toBe(510);
@@ -1205,8 +1305,27 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.stopped.battle.effects.enemy.paralysis).toBeUndefined();
 
     expect(audit.covered.players.map((player) => player.hp)).toEqual([81, 100, 100, 100]);
+    expect(audit.covered.battle.events[0]).toMatchObject({
+      type: 'enemy-single',
+      coverIndex: 0,
+      protectedIndex: 1,
+      coverKind: 'party'
+    });
+    expect(audit.covered.battle.events[0].label).toContain('かばった');
+    expect(audit.covered.battle.events[0].effectMessage).toContain('かばった');
     expect(audit.covered.battle.events[0].effects).toEqual(expect.arrayContaining([
       expect.objectContaining({ kind: 'cover', potency: 27 })
+    ]));
+
+    expect(audit.guardianCovered.battle.events.at(-1)).toMatchObject({
+      type: 'enemy-single',
+      coverIndex: 0,
+      protectedIndex: 1,
+      coverKind: 'guardian',
+      targetIndexes: [0]
+    });
+    expect(audit.guardianCovered.battle.events.at(-1).effects).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'guardianCover', guardianNumber: 12, originalTargetIndex: 1 })
     ]));
 
     expect(audit.guardedArea.players.map((player) => player.hp)).toEqual([100, 64, 91, 91]);
@@ -1216,6 +1335,89 @@ test.describe('Tarot Kingdom character battle flow', () => {
       protectedPlayerIndex: 0
     });
     expect(audit.guardedArea.battle.effects.party.areaGuard).toBeUndefined();
+  });
+
+  test('coverer visibly interposes before the protected player and takes the hit', async ({ page }) => {
+    const presentation = await page.evaluate(({ combatBySeat }) => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({
+        rules: { statusEffectsVersion: 1 },
+        turnIndex: 1,
+        leaderIndex: 0,
+        hpBySeat: [100, 100, 100, 100],
+        combatBySeat
+      });
+      debug.battleSetEffects({
+        enemy: {},
+        party: { cover: { key: 'cover', potency: 27, charges: 1, coverIndex: 0 } },
+        players: [{}, {}, {}, {}]
+      });
+      debug.battleSetCombatRandom(0);
+      const state = debug.battlePass(1);
+      debug.battleRender();
+      const coverRow = document.querySelector(
+        '#tarotKingdomBattleParty > .tarot-kingdom-battle-player[data-player-index="0"]'
+      );
+      const protectedRow = document.querySelector(
+        '#tarotKingdomBattleParty > .tarot-kingdom-battle-player[data-player-index="1"]'
+      );
+      const avatar = coverRow?.querySelector('.tarot-kingdom-battle-player-avatar');
+      const coverAnimation = avatar?.getAnimations().find((animation) => (
+        String(animation.id || '').startsWith('tarot-kingdom-cover:')
+      ));
+      return {
+        event: state.battle.events.at(-1),
+        coverClass: coverRow?.classList.contains('is-covering-ally') || false,
+        protectedClass: protectedRow?.classList.contains('is-being-covered') || false,
+        callout: protectedRow?.querySelector('.tarot-kingdom-cover-callout')?.textContent || '',
+        offsetX: coverRow?.style.getPropertyValue('--tk-cover-offset-x') || '',
+        offsetY: coverRow?.style.getPropertyValue('--tk-cover-offset-y') || '',
+        motionKey: avatar?.dataset.kingdomCoverEventKey || '',
+        keyframes: coverAnimation?.effect?.getKeyframes().map((frame) => ({
+          offset: frame.offset,
+          translate: frame.translate
+        })) || [],
+        navigation: document.querySelector('#tarotKingdomSelectedEffectText')?.textContent || ''
+      };
+    }, { combatBySeat: zeroDefenseParty });
+
+    expect(presentation.event).toMatchObject({
+      type: 'enemy-single',
+      coverIndex: 0,
+      protectedIndex: 1,
+      targetIndexes: [0]
+    });
+    expect(presentation.coverClass).toBe(true);
+    expect(presentation.protectedClass).toBe(true);
+    expect(presentation.callout).toBe('COVER');
+    expect(presentation.offsetX).toMatch(/^-?\d+px$/);
+    expect(presentation.offsetY).toMatch(/^-?\d+px$/);
+    expect(presentation.motionKey).not.toBe('');
+    expect(presentation.keyframes.some((frame) => frame.translate !== '0px 0px')).toBe(true);
+    expect(presentation.navigation).toContain('かばった');
+
+    const cleared = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const state = debug.battleState();
+      const event = state.battle.events.at(-1);
+      debug.battleResolveTransition();
+      const originalNow = Date.now;
+      try {
+        Date.now = () => Number(event?.at || 0) + 10000;
+        debug.battleRender();
+      } finally {
+        Date.now = originalNow;
+      }
+      const rows = Array.from(document.querySelectorAll(
+        '#tarotKingdomBattleParty > .tarot-kingdom-battle-player'
+      ));
+      return {
+        covering: rows.some((row) => row.classList.contains('is-covering-ally')),
+        protected: rows.some((row) => row.classList.contains('is-being-covered')),
+        callouts: document.querySelectorAll('.tarot-kingdom-cover-callout').length
+      };
+    });
+    expect(cleared).toEqual({ covering: false, protected: false, callouts: 0 });
   });
 
   test('weapon and equipped-card resonance share one event without persistent status markers', async ({ page }) => {
@@ -2591,6 +2793,21 @@ test.describe('Tarot Kingdom character battle flow', () => {
   test('exploration party wipe also offers a retreat action', async ({ page }) => {
     await page.evaluate(({ combatBySeat }) => {
       const debug = window.TarotKingdomDebug;
+      const upperRetreatButton = document.getElementById('tarotKingdomRetreatButton');
+      window.__tarotKingdomUpperRetreatWasShownAfterWipe = false;
+      const recordUpperRetreatVisibility = () => {
+        if (upperRetreatButton && !upperRetreatButton.hidden) {
+          window.__tarotKingdomUpperRetreatWasShownAfterWipe = true;
+        }
+      };
+      const observer = new MutationObserver(recordUpperRetreatVisibility);
+      if (upperRetreatButton) {
+        observer.observe(upperRetreatButton, {
+          attributes: true,
+          attributeFilter: ['hidden']
+        });
+      }
+      window.__tarotKingdomUpperRetreatObserver = observer;
       debug.battleScenario({
         turnIndex: 1,
         leaderIndex: 0,
@@ -2608,6 +2825,14 @@ test.describe('Tarot Kingdom character battle flow', () => {
       resultReason: 'party-defeated',
       retreatingPlayerIndex: null
     });
+    const upperRetreatAudit = await page.evaluate(() => {
+      window.__tarotKingdomUpperRetreatObserver?.disconnect();
+      return {
+        wasShown: window.__tarotKingdomUpperRetreatWasShownAfterWipe,
+        hidden: document.getElementById('tarotKingdomRetreatButton')?.hidden
+      };
+    });
+    expect(upperRetreatAudit).toEqual({ wasShown: false, hidden: true });
     await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText('パーティは　ぜんめつした…');
     const retreatButton = page.locator('#tarotKingdomSettlementConfirmButton');
     await expect(retreatButton).toBeVisible();

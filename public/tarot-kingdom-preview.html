@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="robots" content="noindex,follow">
     <title>Tarot Kingdom Preview</title>
-    <link rel="stylesheet" href="./style.css?v=20260813-tutorial-v2">
-    <link rel="stylesheet" href="./tarot-kingdom-summons.css?v=20260813-tutorial-v2">
+    <link rel="stylesheet" href="./style.css?v=20260813-tutorial-gate-v1">
+    <link rel="stylesheet" href="./tarot-kingdom-summons.css?v=20260813-tutorial-gate-v1">
     <style>
         html, body {
             margin: 0;
@@ -41,7 +41,7 @@
                 "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
                 "config": "./js/config.js",
                 "api": "./js/api.js",
-                "ui": "./js/ui.js?v=20260813-tutorial-v2",
+                "ui": "./js/ui.js?v=20260813-tutorial-gate-v1",
                 "avatar": "./js/avatar.js",
                 "player": "./js/player.js",
                 "inventory": "./js/inventory.js?v=20260811-resonance-per-card1",
@@ -73,6 +73,7 @@
         <div id="tarotKingdomModeControls" class="tarot-kingdom-controls">
             <button id="tarotKingdomStartOnlineButton" type="button">オンライン対戦を探す</button>
             <button id="tarotKingdomStartOfflineButton" type="button" class="is-offline-alt">オフラインで始める</button>
+            <button id="tarotKingdomRetreatButton" type="button" class="is-retreat" hidden>撤退</button>
             <button id="tarotKingdomRestartButton" type="button" hidden>もう一度遊ぶ</button>
         </div>
         <main class="tarot-kingdom-combat-screen">
@@ -230,7 +231,7 @@
         window.myLineProfile = { displayName: 'Preview' };
         window.__TAROT_KINGDOM_PREVIEW__ = true;
 
-        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260813-tutorial-v2';
+        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260813-tutorial-gate-v1';
 
         window.TarotKingdomPreview = {
             load: () => loadTarotKingdomPage(),

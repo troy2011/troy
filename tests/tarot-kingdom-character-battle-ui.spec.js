@@ -2495,18 +2495,58 @@ test('only legal cards glow, illegal cards dim, and a valid selection emphasizes
   await high.click();
   await expect(attack).toHaveText('攻撃');
   await expect(attack).toHaveClass(/is-confirm-ready/);
+  await expect(attack).toHaveCSS('animation-name', 'tarotKingdomConfirmButtonGlow');
+  const readyVisual = await attack.evaluate((node) => {
+    const style = getComputedStyle(node);
+    return {
+      filter: style.filter,
+      boxShadow: style.boxShadow,
+      textShadow: style.textShadow
+    };
+  });
+  expect(readyVisual.filter).toContain('drop-shadow');
+  expect(readyVisual.boxShadow).not.toBe('none');
+  expect(readyVisual.textShadow).not.toBe('none');
   await high.click();
   await low.click();
   await expect(attack).not.toHaveClass(/is-confirm-ready/);
 });
 
-test('defense command carries a compact auto-pass sublabel', async ({ page }) => {
-  await openOfflineBattle(page, { width: 390, height: 844 });
-  const defense = page.locator('#tarotKingdomFoldButton');
-  await expect(defense).toHaveAttribute('aria-label', '防御（自動パス）');
-  expect(await defense.evaluate((node) => getComputedStyle(node, '::after').content)).toContain('自動パス');
-  expect(Number.parseFloat(await defense.evaluate((node) => getComputedStyle(node, '::after').fontSize))).toBeLessThan(10);
-});
+for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1100 }]) {
+  test(`defense command keeps its auto-pass sublabel below the main label at ${viewport.width}px`, async ({ page }) => {
+    await openOfflineBattle(page, viewport);
+    const defense = page.locator('#tarotKingdomFoldButton');
+    await expect(defense).toHaveAttribute('aria-label', '防御（自動パス）');
+    const layout = await defense.evaluate((node) => {
+      const style = getComputedStyle(node);
+      const sublabel = getComputedStyle(node, '::after');
+      const buttonRect = node.getBoundingClientRect();
+      const fontSize = Number.parseFloat(style.fontSize);
+      const mainLineHeight = Number.parseFloat(style.lineHeight) || fontSize;
+      const subFontSize = Number.parseFloat(sublabel.fontSize);
+      const subLineHeight = Number.parseFloat(sublabel.lineHeight) || subFontSize;
+      const subMargin = Number.parseFloat(sublabel.marginTop) || 0;
+      return {
+        content: sublabel.content,
+        position: sublabel.position,
+        display: sublabel.display,
+        subFontSize,
+        gridRows: style.gridTemplateRows.split(' ').map((value) => Number.parseFloat(value)),
+        buttonHeight: buttonRect.height,
+        subMargin,
+        subLineHeight,
+        mainLineHeight
+      };
+    });
+    expect(layout.content).toContain('自動パス');
+    expect(layout.position).toBe('static');
+    expect(layout.display).toBe('block');
+    expect(layout.subFontSize).toBeLessThan(10);
+    expect(layout.gridRows).toHaveLength(2);
+    expect(layout.gridRows.every((height) => height > 0)).toBe(true);
+    expect(layout.mainLineHeight + layout.subMargin + layout.subLineHeight).toBeLessThan(layout.buttonHeight);
+  });
+}
 
 test('stage 1 teaches four actions with minor-only scripted hands', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
@@ -2531,6 +2571,39 @@ test('stage 1 teaches four actions with minor-only scripted hands', async ({ pag
     expect(state.players.every((player) => player.hand.length === 8)).toBe(true);
     await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText(expectedPrompts[lesson - 1]);
   }
+
+  const lessonOne = await page.evaluate(() => window.TarotKingdomDebug.battleTutorialScenario(1, 3));
+  const matchupPair = lessonOne.tutorialProgress.matchupPairs[0];
+  const leadCard = lessonOne.players[0].hand.find((card) => card.id === matchupPair.leadCardId);
+  const replyCard = lessonOne.players[0].hand.find((card) => card.id === matchupPair.replyCardId);
+  expect(leadCard).toBeTruthy();
+  expect(replyCard).toBeTruthy();
+  expect(replyCard.number).toBe(leadCard.number);
+  expect(new Set([leadCard.suit, replyCard.suit])).toEqual(new Set(['Cup', 'Wand']));
+  await expect(page.locator(`[data-card-id="${matchupPair.leadCardId}"]`)).toHaveClass(/is-playable/);
+  await expect(page.locator(`[data-card-id="${matchupPair.replyCardId}"]`)).toHaveClass(/is-unplayable/);
+  await page.locator(`[data-card-id="${matchupPair.leadCardId}"]`).click();
+  await expect(page.locator('#tarotKingdomPlayButton')).toHaveClass(/is-confirm-ready/);
+  const lessonOneLeadResult = await page.evaluate((cardId) => (
+    window.TarotKingdomDebug.battlePlayCards(0, [cardId], { resolve: true })
+  ), matchupPair.leadCardId);
+  expect(lessonOneLeadResult.ok).toBe(true);
+  expect(lessonOneLeadResult.state.turn).toBe(0);
+  expect(lessonOneLeadResult.state.tutorialProgress.stepsByPlayer[0]).toBe(1);
+  expect(lessonOneLeadResult.state.tutorialProgress.completedPlayers[0]).toBe(false);
+  expect(lessonOneLeadResult.state.trick.cardsTable[0].id).toBe(matchupPair.leadCardId);
+  await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText(
+    /同じ数字は\s+相性スートで返せる\s+ワンド↔カップ\s+ソード↔ペンタクル/
+  );
+  const replyNode = page.locator(`[data-card-id="${matchupPair.replyCardId}"]`);
+  await expect(replyNode).toHaveClass(/is-playable/);
+  await replyNode.click();
+  await expect(page.locator('#tarotKingdomPlayButton')).toHaveClass(/is-confirm-ready/);
+  const lessonOneReplyResult = await page.evaluate((cardId) => (
+    window.TarotKingdomDebug.battlePlayCards(0, [cardId], { resolve: true })
+  ), matchupPair.replyCardId);
+  expect(lessonOneReplyResult.ok).toBe(true);
+  expect(lessonOneReplyResult.state.tutorialProgress.completedPlayers[0]).toBe(true);
 
   const lessonTwo = await page.evaluate(() => window.TarotKingdomDebug.battleTutorialScenario(2, 3));
   expect(lessonTwo.players[0].hand.filter((card) => Number(card.number) === 5).length).toBeGreaterThanOrEqual(2);
@@ -2566,16 +2639,31 @@ test('stage 1 teaches four actions with minor-only scripted hands', async ({ pag
   expect([6, 7, 8, 9].every((number) => (
     lessonFour.players[0].hand.some((card) => Number(card.number) === number)
   ))).toBe(true);
-  const callCardIds = lessonFour.players[0].hand
-    .filter((card) => [6, 7, 8, 9].includes(Number(card.number)))
-    .map((card) => card.id);
+  const callCardIds = [6, 7, 8, 9].map((number) => (
+    lessonFour.players[0].hand.find((card) => Number(card.number) === number)?.id
+  ));
+  expect(callCardIds.every(Boolean)).toBe(true);
   for (const [index, cardId] of callCardIds.entries()) {
-    await page.locator(`[data-card-id="${cardId}"]`).click();
+    const cardNode = page.locator(`[data-card-id="${cardId}"]`);
+    await cardNode.click();
+    await expect(cardNode).toHaveClass(/is-selected/);
     if (index < callCardIds.length - 1) {
       await expect(page.locator('#tarotKingdomPlayButton')).not.toHaveClass(/is-confirm-ready/);
       await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText(expectedPrompts[3]);
     }
   }
+  const selectedCallAudit = await page.evaluate(() => {
+    const selectedIds = [...document.querySelectorAll('#tarotKingdomHand > .tarot-card.is-selected')]
+      .map((card) => card.dataset.cardId)
+      .filter(Boolean);
+    return {
+      selectedIds,
+      rebuilt: window.TarotKingdomDebug.battleRebuildAction(0, { selectedCardIds: selectedIds }),
+      state: window.TarotKingdomDebug.battleState()
+    };
+  });
+  expect(selectedCallAudit.rebuilt).toMatchObject({ ok: true });
+  expect(selectedCallAudit.state.tutorialProgress).toMatchObject({ lesson: 4 });
   await expect(page.locator('#tarotKingdomPlayButton')).toHaveClass(/is-confirm-ready/);
 
   for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1000 }]) {
