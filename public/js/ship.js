@@ -2547,6 +2547,59 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
             }, { once: true });
         });
     });
+    const stageNo = Math.max(0, Math.floor(Number(report?.stageNo) || 0));
+    let tutorialEnabled = false;
+    const canOfferTutorial = battleMode === 'offline'
+        && stageNo === 1
+        && kingdomMonster.isBoss !== true;
+    if (canOfferTutorial) {
+        const modeHead = modeChoice.querySelector('.exploration-battle-mode-head');
+        const modeActions = modeChoice.querySelector('.exploration-battle-mode-actions');
+        if (modeHead && modeActions) {
+            modeHead.replaceChildren();
+            const stageLabel = document.createElement('span');
+            stageLabel.textContent = 'STAGE 1';
+            const question = document.createElement('strong');
+            question.textContent = 'チュートリアルを開始しますか？';
+            modeHead.append(stageLabel, question);
+            modeActions.replaceChildren();
+            const createTutorialButton = (enabled, labelText, detailText) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.setAttribute('data-exploration-tutorial', enabled ? 'yes' : 'no');
+                button.setAttribute('aria-label', enabled ? 'チュートリアルを開始' : 'チュートリアルを開始しない');
+                const buttonLabel = document.createElement('span');
+                buttonLabel.textContent = labelText;
+                const buttonDetail = document.createElement('small');
+                buttonDetail.textContent = detailText;
+                button.append(buttonLabel, buttonDetail);
+                return button;
+            };
+            modeActions.append(
+                createTutorialButton(true, 'はい', '遊び方を確認'),
+                createTutorialButton(false, 'いいえ', '通常戦で開始')
+            );
+            delete modeChoice.dataset.selectedMode;
+            setPhase('encounter-choice', 'チュートリアルを選択');
+            tutorialEnabled = await new Promise((resolve) => {
+                let selected = false;
+                modeChoice.querySelectorAll('[data-exploration-tutorial]').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        if (selected) return;
+                        selected = true;
+                        const enabled = button.getAttribute('data-exploration-tutorial') === 'yes';
+                        modeChoice.dataset.tutorialEnabled = enabled ? 'true' : 'false';
+                        modeChoice.querySelectorAll('button').forEach((candidate) => {
+                            candidate.disabled = true;
+                        });
+                        button.classList.add('is-selected');
+                        if (label) label.textContent = enabled ? '遊び方を確認します' : '通常戦を開始します';
+                        resolve(enabled);
+                    }, { once: true });
+                });
+            });
+        }
+    }
     await wait(180);
     overlay.remove();
     homeFrame?.classList.remove('is-exploring');
@@ -2571,13 +2624,14 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
         monsterId: kingdomMonster.id,
         monsterName: kingdomMonster.name,
         isBoss: kingdomMonster.isBoss === true,
-        stageNo: Math.max(0, Math.floor(Number(report?.stageNo) || 0)),
+        stageNo,
         stageId: String(report?.stageId || ''),
         battlefieldId: String(report?.battlefieldId || active?.battlefieldId || ''),
         atmosphereTone: String(report?.atmosphereTone || active?.atmosphereTone || ''),
         monsters: stageMonsters,
         supplyQueue: Array.isArray(report?.supplyQueue) ? report.supplyQueue : [],
         mode: battleMode,
+        tutorialEnabled,
         enemyDefeatMode: getExplorationEnemyDefeatMode(),
         currentPet: currentTarotKingdomPet,
         onRaidEncounter: battleMode === 'online' && ownerPlayFabId

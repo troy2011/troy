@@ -35354,8 +35354,8 @@ body.tarot-kingdom-preview-body {
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand > .tarot-card.is-unplayable:not(.is-selected) {
-    opacity: 0.43;
-    filter: grayscale(0.48) brightness(0.68) saturate(0.62);
+    opacity: 0.72;
+    filter: grayscale(0.12) brightness(0.86) saturate(0.86);
 }
 
 @keyframes tarotKingdomPlayableCardGlow {

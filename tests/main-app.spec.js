@@ -2232,6 +2232,7 @@ test('exploration stage starts for free with ordered optional supplies', async (
     destinationName: '珊瑚の浅瀬',
     isBoss: false,
     mode: 'online',
+    tutorialEnabled: false,
     enemyDefeatMode: 'hand-empty'
   });
   expect(kingdomEntry.context.monsterId).toBe('ismartal-vol1-monster-07');
@@ -3004,6 +3005,7 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
       return refreshInventory(options);
     };
     window.launchTarotKingdomExplorationBattle = async (context) => {
+      window.__explorationRewardLaunchContext = context;
       const roundFinisher = {
         roundNo: 3,
         playerIndex: 0,
@@ -3147,7 +3149,12 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' }).locator('small')).toHaveText('オフライン');
   await expect(page.getByRole('button', { name: '救難信号（オンライン）' }).locator('small')).toHaveText('オンライン');
   await page.getByRole('button', { name: '傭兵召集（オフライン）' }).click();
+  await expect(sequence.getByText('チュートリアルを開始しますか？')).toBeVisible();
+  await expect(sequence.getByRole('button', { name: 'チュートリアルを開始', exact: true })).toBeVisible();
+  await expect(sequence.getByRole('button', { name: 'チュートリアルを開始しない', exact: true })).toBeVisible();
+  await sequence.getByRole('button', { name: 'チュートリアルを開始', exact: true }).click();
   await expect(sequence).toBeHidden({ timeout: 5_000 });
+  expect(await page.evaluate(() => window.__explorationRewardLaunchContext?.tutorialEnabled)).toBe(true);
 
   const petOffer = page.locator('.tarot-pet-offer-overlay');
   await expect(petOffer).toBeVisible({ timeout: 10_000 });

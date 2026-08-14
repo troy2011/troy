@@ -1879,7 +1879,7 @@ const mkDrawDeck = () => [...mkMinor(), ...mkMajor()];
 
 function getKingdomTutorialLesson(state = s) {
   const stageNo = Number(state?.stage?.stageNo || 0);
-  if (stageNo !== 1 || state?.raid) return 0;
+  if (state?.tutorialEnabled !== true || stageNo !== 1 || state?.raid) return 0;
   return Math.max(1, Math.min(TOTAL_HANDS, Math.floor(Number(state?.handNo) || 0) + 1));
 }
 
@@ -11363,6 +11363,7 @@ function initState() {
     characterSnapshotCreatedAt: 0,
     stage: null,
     raid: null,
+    tutorialEnabled: false,
     tutorialProgress: null,
     battle: createKingdomBattleState(0, false, '', rules.enemyCombatVersion, playerTemplates.length, null)
   };
@@ -13876,6 +13877,7 @@ function buildTarotKingdomDebugBattleState(options = {}) {
   clearKingdomTrickSceneFlash(false);
   kingdomCombatRandom = () => 0.5;
   s = initState();
+  s.tutorialEnabled = options.tutorialEnabled === true;
   if (options.rules) s.rules = normalizeKingdomRules(options.rules);
   if (options.stage && typeof options.stage === 'object') {
     s.stage = normalizeKingdomExplorationStageState(options.stage);
@@ -15202,6 +15204,7 @@ function exposeTarotKingdomBattleDebugTools(target) {
           archetype: 'balanced'
         }));
       buildTarotKingdomDebugBattleState({
+        tutorialEnabled: true,
         playerCount: normalizeKingdomPlayerCount(playerCount),
         handNo: Math.max(0, Math.min(TOTAL_HANDS - 1, Math.floor(Number(lesson) || 1) - 1)),
         stage: {
@@ -24617,6 +24620,11 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
       ? context.supplyQueue.slice(0, TOTAL_HANDS - 1).map((entry) => ({ ...entry }))
       : [],
     mode: requestedMode,
+    tutorialEnabled: requestedMode === 'offline'
+      && Math.max(0, Math.min(11, Math.floor(Number(context?.stageNo) || 0))) === 1
+      && monster.isBoss !== true
+      && !requestedRaid
+      && context?.tutorialEnabled === true,
     enemyDefeatMode: context?.enemyDefeatMode === KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
       ? KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
       : KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO,
@@ -24662,6 +24670,7 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
       supplyQueue: normalizedContext.supplyQueue
     });
     if (!s) return null;
+    s.tutorialEnabled = normalizedContext.tutorialEnabled === true;
     s.rules = normalizeKingdomRules({
       ...s.rules,
       stageVersion: stage ? 1 : Number(s.rules?.stageVersion || 0),

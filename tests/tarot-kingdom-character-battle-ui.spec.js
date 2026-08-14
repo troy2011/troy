@@ -2490,7 +2490,15 @@ test('only legal cards glow, illegal cards dim, and a valid selection emphasizes
   await expect(low).not.toHaveClass(/is-playable/);
   await expect(high).toHaveClass(/is-playable/);
   await expect(high).not.toHaveClass(/is-unplayable/);
-  expect(Number(await low.evaluate((node) => getComputedStyle(node).opacity))).toBeLessThan(0.6);
+  const unavailableVisual = await low.evaluate((node) => {
+    const style = getComputedStyle(node);
+    return { opacity: Number(style.opacity), filter: style.filter };
+  });
+  expect(unavailableVisual.opacity).toBeGreaterThanOrEqual(0.7);
+  expect(unavailableVisual.opacity).toBeLessThan(0.8);
+  expect(unavailableVisual.filter).toContain('grayscale(0.12)');
+  expect(unavailableVisual.filter).toContain('brightness(0.86)');
+  expect(unavailableVisual.filter).toContain('saturate(0.86)');
 
   await high.click();
   await expect(attack).toHaveText('攻撃');

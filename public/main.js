@@ -14,7 +14,7 @@ import {
 import * as Player from 'player';
 import * as Inventory from 'inventory';
 import * as Guild from './js/guild.js';
-import * as Ship from './js/ship.js?v=20260813-modal-close1';
+import * as Ship from './js/ship.js?v=20260814-tutorial-choice-v1';
 import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js?v=20260731-stage-score1';
 import { initMapChat, initTroyChat } from './js/mapChat.js';
@@ -65,8 +65,8 @@ let pendingFixedInviteNation = '';
 let lineFriendPromoState = null;
 let dailyFortuneOpenPromise = null;
 let dailyFortuneClaimEventBound = false;
-const TAROT_MODULE_VERSION = '20260813-modal-close1';
-const TAROT_KINGDOM_RESCUE_VERSION = '20260813-modal-close1';
+const TAROT_MODULE_VERSION = '20260814-tutorial-choice-v1';
+const TAROT_KINGDOM_RESCUE_VERSION = '20260814-tutorial-choice-v1';
 const DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY = 'troy:daily-fortune-claimed-day';
 const LIFF_CALLBACK_PARAM_KEYS = [
     'code',

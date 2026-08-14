@@ -73,6 +73,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       const validateRole = (lesson) => {
         const cards = straight(`lesson-${lesson}-role`);
         debug.battleScenario({
+          tutorialEnabled: true,
           stage,
           handNo: lesson - 1,
           withTrick: false,
@@ -85,6 +86,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       const validateCall = (lesson) => {
         const cards = straight(`lesson-${lesson}-call`);
         debug.battleScenario({
+          tutorialEnabled: true,
           stage,
           handNo: lesson - 1,
           tableCard: cards[0],
@@ -97,6 +99,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
 
       const npcCards = straight('lesson-1-npc');
       debug.battleScenario({
+        tutorialEnabled: true,
         stage,
         handNo: 0,
         withTrick: false,
@@ -106,6 +109,18 @@ test.describe('Tarot Kingdom character battle flow', () => {
       });
       const npcDecision = debug.battleNpcDecision(1, 0.5);
 
+      const regularCards = straight('stage-1-regular');
+      debug.battleScenario({
+        tutorialEnabled: false,
+        stage,
+        handNo: 0,
+        withTrick: false,
+        handsBySeat: [regularCards]
+      });
+      const regularStageOneRole = debug.battleRebuildAction(0, {
+        selectedCardIds: regularCards.map((card) => card.id)
+      });
+
       return {
         role1: validateRole(1),
         role2: validateRole(2),
@@ -113,7 +128,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
         call1: validateCall(1),
         call3: validateCall(3),
         call4: validateCall(4),
-        npcDecision
+        npcDecision,
+        regularStageOneRole
       };
     });
 
@@ -125,6 +141,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.call4.ok).toBe(true);
     expect(audit.npcDecision.action).toBe('play');
     expect(audit.npcDecision.play.type).toBe('set');
+    expect(audit.regularStageOneRole).toMatchObject({ ok: true, play: { type: 'role' } });
   });
 
   test('passing or folding against a five-card role avoids counters but keeps the all-pass area attack', async ({ page }) => {
