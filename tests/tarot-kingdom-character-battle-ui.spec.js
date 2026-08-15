@@ -183,6 +183,7 @@ async function readBattleLayout(page) {
         const hpPanel = row.querySelector('.tarot-kingdom-battle-player-hp');
         const hpTrack = row.querySelector('.tarot-kingdom-battle-player-hp-track');
         const handCount = row.querySelector('.tarot-kingdom-battle-player-hand-count');
+        const apBadge = row.querySelector('.tarot-kingdom-battle-ap');
         return {
           box: box(row),
           avatarBox: box(avatar),
@@ -197,11 +198,14 @@ async function readBattleLayout(page) {
           hpBox: box(hpPanel),
           hpTrackBox: box(hpTrack),
           handCountBox: box(handCount),
+          apBox: box(apBadge),
           rank: rank.textContent.trim(),
           handCount: handCount.textContent.trim(),
+          apText: apBadge?.textContent.trim() || '',
           handCountFontSize: parseFloat(getComputedStyle(handCount).fontSize),
           rankFontSize: parseFloat(getComputedStyle(rank).fontSize),
           handCountVisible: getComputedStyle(handCount).display !== 'none' && handCount.getClientRects().length > 0,
+          apVisible: Boolean(apBadge && getComputedStyle(apBadge).display !== 'none' && apBadge.getClientRects().length > 0),
           hpText: row.querySelector('.tarot-kingdom-battle-player-hp-text')?.textContent.trim() || '',
           hpTextFontSize: parseFloat(getComputedStyle(row.querySelector('.tarot-kingdom-battle-player-hp-text')).fontSize),
           statsAbsent: !row.querySelector('.tarot-kingdom-battle-player-stats'),
@@ -323,7 +327,11 @@ test('player ailments appear below the hand count and animate on the avatar with
   const row = page.locator('.tarot-kingdom-battle-player[data-player-index="0"]');
   const handCount = row.locator('.tarot-kingdom-battle-player-hand-count');
   const tray = row.locator('.tarot-kingdom-battle-status-tray');
-  await expect(handCount).toContainText('残り手札');
+  const apBadge = tray.locator('.tarot-kingdom-battle-ap');
+  await expect(handCount).toHaveText('残り手札 8枚');
+  await expect(handCount).not.toContainText('AP');
+  await expect(apBadge).toHaveText('AP 1');
+  await expect(apBadge).toBeVisible();
   await expect(tray.locator('.tarot-kingdom-battle-status-icon')).toHaveCount(3);
   const enemyTray = page.locator('.tarot-kingdom-battle-status-tray.is-enemy');
   await expect(enemyTray.locator('.tarot-kingdom-battle-status-icon')).toHaveCount(1);
@@ -342,7 +350,9 @@ test('player ailments appear below the hand count and animate on the avatar with
   const layout = await row.evaluate((node) => {
     const hand = node.querySelector('.tarot-kingdom-battle-player-hand-count')?.getBoundingClientRect();
     const trayRect = node.querySelector('.tarot-kingdom-battle-status-tray')?.getBoundingClientRect();
+    const ap = node.querySelector('.tarot-kingdom-battle-ap')?.getBoundingClientRect();
     const icons = Array.from(node.querySelectorAll('.tarot-kingdom-battle-status-icon'));
+    const firstIcon = icons[0]?.getBoundingClientRect();
     const avatar = node.querySelector('.tarot-kingdom-battle-player-avatar');
     const accent = avatar?.querySelector(':scope > .tarot-kingdom-status-accent');
     const avatarRect = avatar?.getBoundingClientRect();
@@ -353,6 +363,14 @@ test('player ailments appear below the hand count and animate on the avatar with
       trayTop: trayRect?.top || 0,
       trayFollowsHand: node.querySelector('.tarot-kingdom-battle-player-hand-count')?.nextElementSibling
         === node.querySelector('.tarot-kingdom-battle-status-tray'),
+      apIsFirst: node.querySelector('.tarot-kingdom-battle-status-tray')?.firstElementChild
+        === node.querySelector('.tarot-kingdom-battle-ap'),
+      apSharesStatusRow: Boolean(ap && firstIcon && Math.abs(ap.top - firstIcon.top) <= 1),
+      apInsideTray: Boolean(ap && trayRect
+        && ap.left >= trayRect.left
+        && ap.right <= trayRect.right
+        && ap.top >= trayRect.top
+        && ap.bottom <= trayRect.bottom),
       iconSizes: icons.map((icon) => {
         const rect = icon.getBoundingClientRect();
         return [rect.width, rect.height];
@@ -375,6 +393,9 @@ test('player ailments appear below the hand count and animate on the avatar with
   });
   expect(layout.trayTop).toBeGreaterThanOrEqual(layout.handBottom - 1);
   expect(layout.trayFollowsHand).toBe(true);
+  expect(layout.apIsFirst).toBe(true);
+  expect(layout.apSharesStatusRow).toBe(true);
+  expect(layout.apInsideTray).toBe(true);
   expect(layout.iconSizes.every(([width, height]) => width <= 12.5 && height <= 12.5)).toBe(true);
   expect(layout.iconImages.every((value) => value.includes('icons.png'))).toBe(true);
   expect(layout.geometricStatusFxCount).toBe(0);
@@ -1295,7 +1316,11 @@ for (const fixture of [
       expect(row.infoBox.right - row.hpTrackBox.right).toBeGreaterThanOrEqual(12);
       expect(row.handCountBox.height).toBeGreaterThan(0);
       expect(row.rank).toMatch(/(?:\S+\s+Lv\d+|Lv\d+\s*[·・]\s*\S+)/);
-      expect(row.handCount).toMatch(/^残り手札\s+\d+枚 · AP \d+$/);
+      expect(row.handCount).toMatch(/^残り手札\s+\d+枚$/);
+      expect(row.apText).toMatch(/^AP \d+$/);
+      expect(row.apVisible).toBe(true);
+      expect(row.apBox.y).toBeGreaterThanOrEqual(row.handCountBox.bottom - 1);
+      expect(row.apBox.right).toBeLessThanOrEqual(row.infoBox.right + 1);
       expect(row.handCountVisible).toBe(true);
       expect(row.handCountFontSize).toBeGreaterThanOrEqual(7);
       expect(row.rankFontSize).toBeGreaterThanOrEqual(7);
@@ -3852,7 +3877,8 @@ test('pet occupies the second seat after the player with its own monster sprite,
   await expect(row).toHaveClass(/is-pet/);
   await expect(row.locator('.tarot-kingdom-battle-player-name')).toContainText('コハク');
   await expect(row.locator('.tarot-kingdom-battle-player-rank')).toContainText('Lv12');
-  await expect(row.locator('.tarot-kingdom-battle-player-hand-count')).toHaveText('残り手札 8枚 · AP 1');
+  await expect(row.locator('.tarot-kingdom-battle-player-hand-count')).toHaveText('残り手札 8枚');
+  await expect(row.locator('.tarot-kingdom-battle-ap')).toHaveText('AP 1');
   const sprite = row.locator('.tarot-kingdom-battle-pet-sprite');
   await expect(sprite).toHaveAttribute('data-monster-id', pet.monsterId);
   await expect(sprite).toHaveAttribute('data-animation-name', 'idle');

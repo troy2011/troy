@@ -37267,7 +37267,7 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
     100% { opacity: 0; transform: translateY(-18px) scale(0.94); }
 }
 
-/* Compact player ailments stay below the hand count and never shift the party rows. */
+/* AP and compact player ailments share the row below the hand count without shifting party rows. */
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui
     #tarotKingdomBattleStage .tarot-kingdom-battle-status-tray {
     display: flex;
@@ -37288,6 +37288,37 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
     max-height: 25px;
     gap: 1px;
     justify-content: flex-start;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui
+    #tarotKingdomBattleStage .tarot-kingdom-battle-player-info
+    > .tarot-kingdom-battle-status-tray
+    > .tarot-kingdom-battle-ap {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    min-width: 27px;
+    height: 12px;
+    padding: 0 3px;
+    border: 1px solid rgba(125, 211, 252, 0.78);
+    border-radius: 3px;
+    background: rgba(8, 47, 73, 0.88);
+    color: #e0f2fe;
+    font-size: 8px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    box-shadow: 0 0 4px rgba(56, 189, 248, 0.24);
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui
+    #tarotKingdomBattleStage .tarot-kingdom-battle-player-info
+    > .tarot-kingdom-battle-status-tray
+    > .tarot-kingdom-battle-ap[hidden] {
+    display: none;
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui

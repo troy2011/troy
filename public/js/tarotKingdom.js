@@ -21118,6 +21118,26 @@ function getKingdomBattleFeedClass(type) {
   return 'is-info';
 }
 
+function ensureKingdomBattlePlayerStatusTray(info) {
+  if (!info) return null;
+  let statusTray = info.querySelector(':scope > .tarot-kingdom-battle-status-tray');
+  if (!statusTray) {
+    statusTray = document.createElement('div');
+    statusTray.className = 'tarot-kingdom-battle-status-tray';
+    info.appendChild(statusTray);
+  }
+  statusTray.setAttribute('aria-label', 'AP・状態効果');
+  let apBadge = statusTray.querySelector(':scope > .tarot-kingdom-battle-ap');
+  if (!apBadge) {
+    apBadge = document.createElement('span');
+    apBadge.className = 'tarot-kingdom-battle-ap';
+    apBadge.setAttribute('aria-label', 'アルカナポイント');
+    apBadge.hidden = true;
+    statusTray.prepend(apBadge);
+  }
+  return statusTray;
+}
+
 function ensureKingdomBattlePlayerRow(playerIndex) {
   if (!ui.battleParty) return null;
   let row = ui.battleParty.querySelector(`[data-player-index="${playerIndex}"]`);
@@ -21145,12 +21165,7 @@ function ensureKingdomBattlePlayerRow(playerIndex) {
       avatar.appendChild(shieldRing);
     }
     const info = row.querySelector(':scope > .tarot-kingdom-battle-player-info');
-    if (info && !info.querySelector(':scope > .tarot-kingdom-battle-status-tray')) {
-      const statusTray = document.createElement('div');
-      statusTray.className = 'tarot-kingdom-battle-status-tray';
-      statusTray.setAttribute('aria-label', '状態効果');
-      info.appendChild(statusTray);
-    }
+    ensureKingdomBattlePlayerStatusTray(info);
     return row;
   }
   row = document.createElement('div');
@@ -21203,13 +21218,10 @@ function ensureKingdomBattlePlayerRow(playerIndex) {
 
   const handCount = document.createElement('div');
   handCount.className = 'tarot-kingdom-battle-player-hand-count';
-  const statusTray = document.createElement('div');
-  statusTray.className = 'tarot-kingdom-battle-status-tray';
-  statusTray.setAttribute('aria-label', '状態効果');
   info.appendChild(header);
   info.appendChild(hpWrap);
   info.appendChild(handCount);
-  info.appendChild(statusTray);
+  ensureKingdomBattlePlayerStatusTray(info);
   row.appendChild(regenAura);
   row.appendChild(avatar);
   row.appendChild(info);
@@ -21330,11 +21342,14 @@ function renderKingdomStatusPresentation({ bucket, tray, accent, conscious = tru
   ].join(':')).join('|');
   if (tray && tray.dataset.statusSignature !== signature) {
     tray.dataset.statusSignature = signature;
-    tray.replaceChildren(...statuses.map(({ definition, effect }) => {
+    const icons = statuses.map(({ definition, effect }) => {
       const icon = buildKingdomStatusIcon(definition, effect);
       icon.addEventListener('click', () => showKingdomStatusDetails(title, statuses));
       return icon;
-    }));
+    });
+    tray.querySelectorAll(':scope > .tarot-kingdom-battle-status-icon')
+      .forEach((icon) => icon.remove());
+    tray.append(...icons);
   }
   if (accent) {
     const visualStatus = statuses.find(({ definition }) => isTarotKingdomNegativeStatus(definition.key));
@@ -21875,6 +21890,14 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
     }
     const hpText = row.querySelector('.tarot-kingdom-battle-player-hp-text');
     if (hpText) hpText.textContent = `HP ${Math.round(hp)} / ${Math.round(maxHp)}`;
+    const apBadge = row.querySelector('.tarot-kingdom-battle-ap');
+    if (apBadge) {
+      const apEnabled = areKingdomArcanaPointRulesEnabled();
+      const arcanaPoints = Math.max(0, Math.floor(Number(player.arcanaPoints) || 0));
+      apBadge.hidden = !apEnabled;
+      apBadge.textContent = apEnabled ? `AP ${arcanaPoints}` : '';
+      apBadge.setAttribute('aria-label', `アルカナポイント ${arcanaPoints}`);
+    }
     const handCount = row.querySelector('.tarot-kingdom-battle-player-hand-count');
     if (handCount) {
       const forcedDrawStreak = Math.max(
@@ -21884,10 +21907,7 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
           Math.floor(Number(player.forcedDrawStreak) || 0)
         )
       );
-      const apText = areKingdomArcanaPointRulesEnabled()
-        ? ` · AP ${Math.max(0, Math.floor(Number(player.arcanaPoints) || 0))}`
-        : '';
-      handCount.textContent = `残り手札 ${player.hand.length}枚${apText}${forcedDrawStreak > 0 ? ` · ☠${forcedDrawStreak}/${KINGDOM_FORCED_DRAW_DEATH_THRESHOLD}` : ''}`;
+      handCount.textContent = `残り手札 ${player.hand.length}枚${forcedDrawStreak > 0 ? ` · ☠${forcedDrawStreak}/${KINGDOM_FORCED_DRAW_DEATH_THRESHOLD}` : ''}`;
     }
     renderKingdomPlayerStatusEffects(row, playerIndex, conscious);
     let healNumber = row.querySelector(':scope > .tarot-kingdom-heal-number');
