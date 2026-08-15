@@ -6788,6 +6788,60 @@ test('tarot cards preview, reorder, and open detail before changing deck members
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('未セット');
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('ステージ内の敵全体へ強力な火属性魔法ダメージ');
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('消費AP1');
+  const originalDetailName = await page.locator('#itemDetailName').textContent();
+  const previousDetailButton = page.locator('#itemDetailModal .item-detail-navigation-previous');
+  const nextDetailButton = page.locator('#itemDetailModal .item-detail-navigation-next');
+  await expect(previousDetailButton).toBeVisible();
+  await expect(nextDetailButton).toBeVisible();
+  const detailNavigationLayout = await page.locator('#itemDetailModal').evaluate((modal) => {
+    const navigation = modal.querySelector('.item-detail-navigation');
+    const close = modal.querySelector('.item-detail-corner-close');
+    const sheet = modal.querySelector('.item-detail-sheet');
+    const navigationRect = navigation.getBoundingClientRect();
+    const closeRect = close.getBoundingClientRect();
+    const sheetRect = sheet.getBoundingClientRect();
+    const buttons = [...navigation.querySelectorAll('button')].map((button) => button.getBoundingClientRect());
+    return {
+      navigationInsideSheet: navigationRect.left >= sheetRect.left && navigationRect.right <= sheetRect.right,
+      overlapsClose: navigationRect.left < closeRect.right && navigationRect.right > closeRect.left
+        && navigationRect.top < closeRect.bottom && navigationRect.bottom > closeRect.top,
+      minimumButtonWidth: Math.min(...buttons.map((rect) => rect.width)),
+      minimumButtonHeight: Math.min(...buttons.map((rect) => rect.height)),
+      sheetTouchAction: getComputedStyle(sheet).touchAction
+    };
+  });
+  expect(detailNavigationLayout.navigationInsideSheet).toBe(true);
+  expect(detailNavigationLayout.overlapsClose).toBe(false);
+  expect(detailNavigationLayout.minimumButtonWidth).toBeGreaterThanOrEqual(44);
+  expect(detailNavigationLayout.minimumButtonHeight).toBeGreaterThanOrEqual(44);
+  expect(detailNavigationLayout.sheetTouchAction).toBe('pan-y');
+  await nextDetailButton.click();
+  await expect(page.locator('#itemDetailName')).not.toHaveText(originalDetailName);
+  await previousDetailButton.click();
+  await expect(page.locator('#itemDetailName')).toHaveText(originalDetailName);
+
+  const detailSwipeTarget = page.locator('#itemDetailModal .item-detail-copy');
+  await detailSwipeTarget.dispatchEvent('pointerdown', {
+    pointerId: 11, pointerType: 'touch', isPrimary: true, clientX: 240, clientY: 240
+  });
+  await detailSwipeTarget.dispatchEvent('pointerup', {
+    pointerId: 11, pointerType: 'touch', isPrimary: true, clientX: 220, clientY: 120
+  });
+  await expect(page.locator('#itemDetailName')).toHaveText(originalDetailName);
+  await detailSwipeTarget.dispatchEvent('pointerdown', {
+    pointerId: 12, pointerType: 'touch', isPrimary: true, clientX: 300, clientY: 220
+  });
+  await detailSwipeTarget.dispatchEvent('pointerup', {
+    pointerId: 12, pointerType: 'touch', isPrimary: true, clientX: 180, clientY: 218
+  });
+  await expect(page.locator('#itemDetailName')).not.toHaveText(originalDetailName);
+  await detailSwipeTarget.dispatchEvent('pointerdown', {
+    pointerId: 13, pointerType: 'touch', isPrimary: true, clientX: 180, clientY: 220
+  });
+  await detailSwipeTarget.dispatchEvent('pointerup', {
+    pointerId: 13, pointerType: 'touch', isPrimary: true, clientX: 300, clientY: 218
+  });
+  await expect(page.locator('#itemDetailName')).toHaveText(originalDetailName);
   await expect(page.locator('#itemDetailModal .item-detail-management')).toBeVisible();
   await expect(page.locator('#itemDetailModal .item-detail-management')).not.toHaveAttribute('open', '');
   await page.locator('#itemDetailModal .item-detail-management summary').click();

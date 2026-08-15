@@ -312,6 +312,10 @@ test('5 skip leaves a wet film and droplets without raising a wave or showing a 
 
 test('player ailments appear below the hand count and animate on the avatar without covering either', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.locator('#tarotKingdomDemoBattlefieldSelect').selectOption('stage-02-windswept-deck');
+  await expect.poll(() => page.locator('.tarot-kingdom-battle-arena').evaluate((node) => (
+    node.style.getPropertyValue('--tarot-kingdom-ground-start').trim()
+  ))).toBe('46%');
   await page.evaluate(() => {
     window.TarotKingdomDebug.battleSetEffects({
       enemy: { burn: { label: '火傷', potency: 8, charges: 2, expiresOn: 'action' } },
@@ -358,6 +362,9 @@ test('player ailments appear below the hand count and animate on the avatar with
     const avatarRect = avatar?.getBoundingClientRect();
     const accentRect = accent?.getBoundingClientRect();
     const accentBefore = accent ? getComputedStyle(accent, '::before') : null;
+    const nextName = document.querySelector(
+      '.tarot-kingdom-battle-player[data-player-index="1"] .tarot-kingdom-battle-player-name'
+    )?.getBoundingClientRect();
     return {
       handBottom: hand?.bottom || 0,
       trayTop: trayRect?.top || 0,
@@ -371,6 +378,7 @@ test('player ailments appear below the hand count and animate on the avatar with
         && ap.right <= trayRect.right
         && ap.top >= trayRect.top
         && ap.bottom <= trayRect.bottom),
+      apToNextNameGap: ap && nextName ? nextName.top - ap.bottom : 0,
       iconSizes: icons.map((icon) => {
         const rect = icon.getBoundingClientRect();
         return [rect.width, rect.height];
@@ -388,6 +396,7 @@ test('player ailments appear below the hand count and animate on the avatar with
         && accentRect.right <= avatarRect.right
         && accentRect.top >= avatarRect.top
         && accentRect.bottom <= avatarRect.bottom),
+      rowTop: node.getBoundingClientRect().top,
       rowRight: node.getBoundingClientRect().right
     };
   });
@@ -396,6 +405,7 @@ test('player ailments appear below the hand count and animate on the avatar with
   expect(layout.apIsFirst).toBe(true);
   expect(layout.apSharesStatusRow).toBe(true);
   expect(layout.apInsideTray).toBe(true);
+  expect(layout.apToNextNameGap).toBeGreaterThanOrEqual(6);
   expect(layout.iconSizes.every(([width, height]) => width <= 12.5 && height <= 12.5)).toBe(true);
   expect(layout.iconImages.every((value) => value.includes('icons.png'))).toBe(true);
   expect(layout.geometricStatusFxCount).toBe(0);
@@ -454,6 +464,13 @@ test('player ailments appear below the hand count and animate on the avatar with
   expect(enemyTrayLayout.trayHeight).toBeLessThanOrEqual(36.5);
   expect(enemyTrayLayout.iconInsideStage).toBe(true);
   expect(enemyTrayLayout.enemyDisplay).toBe('block');
+
+  await page.locator('#tarotKingdomDemoBattlefieldSelect').selectOption('stage-03-island-causeway');
+  await expect.poll(() => page.locator('.tarot-kingdom-battle-arena').evaluate((node) => (
+    node.style.getPropertyValue('--tarot-kingdom-ground-start').trim()
+  ))).toBe('20%');
+  const lowFloorRowTop = await row.evaluate((node) => node.getBoundingClientRect().top);
+  expect(Math.abs(lowFloorRowTop - layout.rowTop)).toBeLessThanOrEqual(1);
 });
 
 test('hard-control statuses stop the actor while slow and sleep use distinct motion profiles', async ({ page }) => {

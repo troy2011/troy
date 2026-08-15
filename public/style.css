@@ -29668,6 +29668,7 @@ body[data-sea-tone] .home-hero-card {
     border-radius: 8px;
     border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 16px / 0 stretch;
     overflow: auto;
+    touch-action: pan-y;
     color: #f4e4bd;
     text-align: left;
     background:
@@ -29681,6 +29682,39 @@ body[data-sea-tone] .home-hero-card {
     z-index: 4;
     top: 0;
     right: 0;
+}
+
+#itemDetailModal .item-detail-navigation {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin: 0 48px 8px;
+}
+
+#itemDetailModal .item-detail-navigation[hidden] {
+    display: none;
+}
+
+#itemDetailModal .item-detail-navigation button {
+    width: 48px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 10px solid transparent;
+    border-radius: 6px;
+    border-image: url("./assets/ui/buttons/button-dark-large.png") 24 fill / 10px / 0 stretch;
+    color: #fff0b8;
+    background: rgba(3, 6, 10, 0.92);
+    font-size: 28px;
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 2px 0 #000;
+    box-shadow: none;
+}
+
+#itemDetailModal .item-detail-navigation button:is(:hover, :focus-visible) {
+    outline: 2px solid rgba(255, 225, 134, 0.92);
+    outline-offset: 1px;
 }
 
 #itemDetailModal .sheet-handle {
@@ -34971,7 +35005,7 @@ body.tarot-kingdom-preview-body {
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(1) {
-    top: max(28%, calc(var(--tarot-kingdom-ground-start, 36%) - 16%));
+    top: 28%;
 }
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(2) { top: 46%; }
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(3) { top: 64%; }
@@ -35245,10 +35279,6 @@ body.tarot-kingdom-preview-body {
     :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player {
         grid-template-columns: minmax(0, 1fr) 62px;
         min-height: 62px;
-    }
-
-    :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(1) {
-        top: max(28%, calc(var(--tarot-kingdom-ground-start, 36%) - 14%));
     }
 
     :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar {

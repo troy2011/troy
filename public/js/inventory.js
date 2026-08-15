@@ -97,6 +97,8 @@ let selectedTarotLoadoutItemId = '';
 let tarotDeckMovePending = false;
 let suppressTarotLoadoutClickUntil = 0;
 let arcanaResonanceCatalogReturnFocusElement = null;
+let visibleInventoryDetailItems = [];
+let itemDetailSwipeStart = null;
 
 async function loadCardLevels() {
     try {
@@ -598,7 +600,74 @@ function showModal(modal) {
 }
 
 export function closeItemDetailModal() {
+    itemDetailSwipeStart = null;
     hideModal(document.getElementById('itemDetailModal'));
+}
+
+function updateItemDetailNavigation(item) {
+    const modal = document.getElementById('itemDetailModal');
+    const navigation = modal?.querySelector('.item-detail-navigation');
+    const previousButton = navigation?.querySelector('.item-detail-navigation-previous');
+    const nextButton = navigation?.querySelector('.item-detail-navigation-next');
+    if (!modal || !navigation || !previousButton || !nextButton) return;
+
+    const currentKey = getInventoryEntryKey(item);
+    const currentIndex = visibleInventoryDetailItems.findIndex((entry) => getInventoryEntryKey(entry) === currentKey);
+    const canNavigate = currentIndex >= 0 && visibleInventoryDetailItems.length > 1;
+    navigation.hidden = !canNavigate;
+    modal.dataset.detailEntryKey = currentKey;
+    if (!canNavigate) return;
+
+    const previousItem = visibleInventoryDetailItems[(currentIndex - 1 + visibleInventoryDetailItems.length) % visibleInventoryDetailItems.length];
+    const nextItem = visibleInventoryDetailItems[(currentIndex + 1) % visibleInventoryDetailItems.length];
+    previousButton.setAttribute('aria-label', `前の持ち物: ${previousItem.name || 'アイテム'}`);
+    previousButton.title = previousItem.name || '前の持ち物';
+    nextButton.setAttribute('aria-label', `次の持ち物: ${nextItem.name || 'アイテム'}`);
+    nextButton.title = nextItem.name || '次の持ち物';
+}
+
+function navigateItemDetail(direction) {
+    const modal = document.getElementById('itemDetailModal');
+    const currentKey = String(modal?.dataset.detailEntryKey || '');
+    const currentIndex = visibleInventoryDetailItems.findIndex((entry) => getInventoryEntryKey(entry) === currentKey);
+    if (currentIndex < 0 || visibleInventoryDetailItems.length < 2) return;
+
+    const offset = direction === 'previous' ? -1 : 1;
+    const targetIndex = (currentIndex + offset + visibleInventoryDetailItems.length) % visibleInventoryDetailItems.length;
+    showItemDetailModal(visibleInventoryDetailItems[targetIndex]);
+}
+
+function bindItemDetailNavigation(modal) {
+    if (!modal || modal.dataset.detailNavigationBound === 'true') return;
+    modal.dataset.detailNavigationBound = 'true';
+    modal.querySelector('.item-detail-navigation-previous')?.addEventListener('click', () => navigateItemDetail('previous'));
+    modal.querySelector('.item-detail-navigation-next')?.addEventListener('click', () => navigateItemDetail('next'));
+
+    const sheet = modal.querySelector('.item-detail-sheet');
+    sheet?.addEventListener('pointerdown', (event) => {
+        if (event.pointerType === 'mouse' || event.isPrimary === false) return;
+        if (event.target.closest('button, input, select, textarea, a, summary')) return;
+        itemDetailSwipeStart = {
+            pointerId: event.pointerId,
+            x: event.clientX,
+            y: event.clientY,
+            at: performance.now()
+        };
+    });
+    sheet?.addEventListener('pointerup', (event) => {
+        const start = itemDetailSwipeStart;
+        itemDetailSwipeStart = null;
+        if (!start || start.pointerId !== event.pointerId) return;
+        const deltaX = event.clientX - start.x;
+        const deltaY = event.clientY - start.y;
+        const elapsed = performance.now() - start.at;
+        if (Math.abs(deltaX) < 52 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.25 || elapsed > 700) return;
+        event.preventDefault();
+        navigateItemDetail(deltaX < 0 ? 'next' : 'previous');
+    });
+    sheet?.addEventListener('pointercancel', () => {
+        itemDetailSwipeStart = null;
+    });
 }
 
 function normalizeInventoryPanel(panel) {
@@ -3487,6 +3556,7 @@ export function renderInventoryGrid(category) {
         }
         return compareInventoryItemsDefault(a, b, category);
     });
+    visibleInventoryDetailItems = sorted;
     renderInventorySellControls(sorted);
     renderBlackMarketPanel();
 
@@ -4134,6 +4204,9 @@ function showEquipmentEnhancementModal(baseItem) {
 
 function showItemDetailModal(item) {
     const modal = document.getElementById('itemDetailModal');
+    if (!modal || !item) return;
+    const wasOpen = modal.style.display === 'flex';
+    bindItemDetailNavigation(modal);
     const cd = item.customData || {};
     const instanceId = item.instances?.[0];
     const canonicalCategory = getCanonicalTarotCategory(cd.Category);
@@ -4392,6 +4465,11 @@ function showItemDetailModal(item) {
         addAction('売却 1G', 'sell', () => showSellConfirmationModal(instanceId, item.itemId));
     }
 
+    updateItemDetailNavigation(item);
+    if (wasOpen) {
+        const sheet = modal.querySelector('.item-detail-sheet');
+        if (sheet) sheet.scrollTop = 0;
+    }
     showModal(modal);
 }
 

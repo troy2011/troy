@@ -18,8 +18,8 @@ test('Tarot Kingdom shares the canonical inventory module with the app shell', (
 
   expect(kingdomSource).toContain("} from 'inventory';");
   expect(kingdomSource).not.toContain("} from './inventory.js';");
-  expect(indexSource).toContain('"inventory": "./js/inventory.js?v=20260815-balance-v7"');
-  expect(previewSource).toContain('"inventory": "./js/inventory.js?v=20260815-balance-v7"');
+  expect(indexSource).toContain('"inventory": "./js/inventory.js?v=20260815-balance-v7-item-browser-v1"');
+  expect(previewSource).toContain('"inventory": "./js/inventory.js?v=20260815-balance-v7-item-browser-v1"');
 });
 
 test('Tarot Kingdom retries a transient Arcana catalog failure before starting', async ({ page }) => {
@@ -51,13 +51,13 @@ test('Tarot Kingdom release advances its entry modules and service-worker cache 
   const serviceWorkerSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'sw.js'), 'utf8');
 
   expect(indexSource).toContain(`"ui": "./js/ui.js?v=${release}"`);
-  expect(indexSource).toContain('style.css?v=20260815-balance-v7');
+  expect(indexSource).toContain('style.css?v=20260815-ap-spacing-v1');
   expect(indexSource).toContain(`src="main.js?v=${release}"`);
   expect(mainSource).toContain(`const TAROT_KINGDOM_RESCUE_VERSION = '${release}';`);
   expect(uiSource).toContain(`const TAROT_KINGDOM_MODULE_VERSION = '${release}';`);
   expect(previewSource).toContain(`./js/tarotKingdom.js?v=${release}`);
-  expect(previewSource).toContain('./style.css?v=20260815-balance-v7');
-  expect(serviceWorkerSource).toContain("const CACHE_VERSION = 'troy-app-v20260815e';");
+  expect(previewSource).toContain('./style.css?v=20260815-ap-spacing-v1');
+  expect(serviceWorkerSource).toContain("const CACHE_VERSION = 'troy-app-v20260815f';");
 });
 
 function loadServiceWorkerHarness() {
