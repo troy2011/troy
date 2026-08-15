@@ -14,6 +14,10 @@ function loadCombatModule() {
       path.join(__dirname, '..', 'public', 'data', 'tarot-kingdom-arcana-effects-v2.json'),
       'utf8'
     ));
+    globalThis.__TAROT_KINGDOM_ARCANA_AP_EFFECTS__ = JSON.parse(fs.readFileSync(
+      path.join(__dirname, '..', 'public', 'data', 'tarot-kingdom-arcana-ap-effects.json'),
+      'utf8'
+    ));
     const statusesPath = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomStatuses.js');
     const statusesUrl = `data:text/javascript;base64,${Buffer.from(fs.readFileSync(statusesPath, 'utf8')).toString('base64')}`;
     const v3Path = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomEffectsV3.js');

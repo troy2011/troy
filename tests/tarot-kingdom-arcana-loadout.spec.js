@@ -15,7 +15,7 @@ const {
 
 test('dedicated arcana catalog contains 56 unique minor resonances and 22 guardians', () => {
   const catalog = getArcanaEffectsCatalog();
-  expect(catalog.version).toBe(4);
+  expect(catalog.version).toBe(6);
   expect(catalog.minor).toHaveLength(56);
   expect(catalog.guardian).toHaveLength(22);
   expect(catalog.major).toHaveLength(22);
@@ -63,7 +63,7 @@ test('minor and guardian snapshots use canonical IDs and clamp their own level r
     itemId: 'tarot_major_21',
     number: 21,
     cardLevel: 25,
-    passiveId: 'guardian-v3-21',
+    passiveId: 'guardian-v5-21',
     attribute: 'neutral'
   });
   expect(clampCardLevel(15, false)).toBe(15);

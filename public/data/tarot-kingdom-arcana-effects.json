@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "minor": [
     {
       "id": "cup-1",
@@ -1296,7 +1296,7 @@
       "attribute": "neutral",
       "passiveId": "guardian-v3-0",
       "passiveName": "トリックスター",
-      "passive": "攻撃がミスするたび、自分の命中率と攻撃力が上がる。"
+      "passive": "攻撃がミスするたび、命中率と攻撃力が10％上がる。最大30％。"
     },
     {
       "number": 1,
@@ -1366,14 +1366,14 @@
       "attribute": "neutral",
       "passiveId": "guardian-v3-10",
       "passiveName": "ギャンブラー",
-      "passive": "乱数は0～10で、前回の値以上が出る。10が出ると下限を0に戻す。"
+      "passive": "同じ数字2枚を同時に出して共鳴すると、その提出で発動した共鳴をAP追加消費なしでもう1回発動する。"
     },
     {
       "number": 11,
       "attribute": "light",
       "passiveId": "guardian-v5-11",
       "passiveName": "学者",
-      "passive": "11バック中は共鳴が最大効果になり、通常攻撃と武器効果では小アルカナの戦闘値が反転する。カードルール上の数字は変わらない。"
+      "passive": "11バック中、固定APを消費する共鳴の必要APが1減る。通常攻撃と武器効果では小アルカナの戦闘値が反転する。カードルール上の数字は変わらない。"
     },
     {
       "number": 12,
@@ -1401,7 +1401,7 @@
       "attribute": "dark",
       "passiveId": "guardian-v3-15",
       "passiveName": "暗黒騎士",
-      "passive": "自分がP・N・Q・Kを出すたび、最大HPが下がり、攻撃力と魔法攻撃力が上がる。"
+      "passive": "自分がP・N・Q・Kを出すたび、最大HPが2％下がり、攻撃力と魔法攻撃力が8％上がる。最大5段階。"
     },
     {
       "number": 16,

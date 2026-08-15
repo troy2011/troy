@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "minor": [
     { "id": "cup-1", "suit": "Cup", "rank": 1, "name": "生命の聖杯", "apCost": "all", "effect": "HP割合が最も低い生存者を、消費AP1につき最大HPの10％回復する。" },
     { "id": "cup-2", "suit": "Cup", "rank": 2, "name": "リフレッシュ", "apCost": 0, "effect": "味方1人の状態異常を1つ解除する。対象がいなければHP割合が最も低い味方を6％回復する。" },

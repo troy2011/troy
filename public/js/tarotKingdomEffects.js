@@ -7,7 +7,7 @@ import {
     getTarotKingdomResonanceGrowthText,
     getTarotKingdomFriendlyRangeText,
     getTarotKingdomFriendlyEffectText
-} from './tarotKingdomEffectsV3.js?v=20260815-arcana-ap-v6';
+} from './tarotKingdomEffectsV3.js?v=20260815-balance-v7';
 import { TAROT_KINGDOM_STATUS_ICON_INDEX } from './tarotKingdomStatuses.js?v=20260812-status-v2';
 
 export { TAROT_KINGDOM_STATUS_ICON_INDEX };
@@ -47,7 +47,7 @@ const NEGATIVE_STATUS_PRIORITY = Object.freeze([
     'silence', 'blind', 'fear', 'confusion', 'wet', 'slow', 'weaken', 'vulnerable'
 ]);
 
-const TAROT_KINGDOM_ARCANA_CACHE_VERSION = '20260815-arcana-ap-v6';
+const TAROT_KINGDOM_ARCANA_CACHE_VERSION = '20260815-balance-v7';
 const TAROT_KINGDOM_ARCANA_LOAD_ATTEMPTS = 3;
 
 function validateTarotKingdomArcanaEffects(data, fileName) {
@@ -90,10 +90,10 @@ async function loadTarotKingdomArcanaEffects(fileName) {
     throw lastError || new Error(`Arcana effects could not be loaded: ${fileName}`);
 }
 
-export const TAROT_KINGDOM_ARCANA_EFFECTS = { version: 4, minor: [], guardian: [], major: [] };
+export const TAROT_KINGDOM_ARCANA_EFFECTS = { version: 6, minor: [], guardian: [], major: [] };
 export const TAROT_KINGDOM_ARCANA_EFFECT_CATALOG = TAROT_KINGDOM_ARCANA_EFFECTS;
 export const TAROT_KINGDOM_LEGACY_ARCANA_EFFECTS = { version: 2, minor: [], guardian: [], major: [] };
-export const TAROT_KINGDOM_ARCANA_AP_EFFECTS = { version: 6, minor: [] };
+export const TAROT_KINGDOM_ARCANA_AP_EFFECTS = { version: 7, minor: [] };
 const MINOR_RESONANCE_BY_KEY = new Map();
 const LEGACY_MINOR_RESONANCE_BY_KEY = new Map();
 const MINOR_AP_RESONANCE_BY_KEY = new Map();
@@ -175,7 +175,10 @@ export const TAROT_KINGDOM_ARCANA_EFFECTS_READY = Promise.all([
 
 function getTarotKingdomEffectsVersion(context = {}) {
     const requested = Number(context.arcanaLoadoutEffectsVersion ?? context.rules?.arcanaLoadoutEffectsVersion);
-    return Number.isFinite(requested) ? requested : Number(TAROT_KINGDOM_ARCANA_EFFECTS.version || 4);
+    // A missing match version means a legacy/local caller. New battles always
+    // provide the negotiated rule version explicitly, so keep implicit callers
+    // on the pre-AP table instead of silently changing an in-progress action.
+    return Number.isFinite(requested) ? requested : 5;
 }
 
 function applyContextualMinorDefinition(entry, context = {}) {
@@ -1210,7 +1213,11 @@ function expandTarotKingdomApResonance(entry, context = {}, allocation = 1) {
 
     else if (id === 'sword-1') addDamage('damage', 22, { element: 'wind', ignoreDefense: 0.25, aceUncapped: true });
     else if (id === 'sword-2') addDamage('damage', 26, { element: 'wind', hitCount: 2 });
-    else if (id === 'sword-3') addDamage('damage', 24, { element: 'wind', hitCount: 3 });
+    else if (id === 'sword-3') addDamage(
+        'damage',
+        getTarotKingdomEffectsVersion(context) >= 7 ? 30 : 24,
+        { element: 'wind', hitCount: 3 }
+    );
     else if (id === 'sword-4') addDamage('damage', 18, { element: 'wind', targetScope: 'stage' });
     else if (id === 'sword-5') {
         addDamage('damage', 30, { element: 'wind' });
@@ -1340,7 +1347,19 @@ export function resolveTarotKingdomResonance(context = {}) {
     });
     candidates.sort((left, right) => left.slot - right.slot);
     if (!candidates.length) return null;
-    const apEnabled = getTarotKingdomEffectsVersion(context) >= 6;
+    const effectsVersion = getTarotKingdomEffectsVersion(context);
+    const apEnabled = effectsVersion >= 6;
+    const guardianNumber = Number(
+        normalizeTarotKingdomGuardian(context.character?.guardianArcana)?.number
+        ?? context.guardianNumber
+    );
+    const submittedCards = Array.isArray(context.cards) ? context.cards : [];
+    const gamblerPair = effectsVersion >= 7
+        && guardianNumber === 10
+        && context.isCall !== true
+        && String(context.playType || '') !== 'role'
+        && submittedCards.length === 2
+        && Number(submittedCards[0]?.number) === Number(submittedCards[1]?.number);
     let activatedCandidates = candidates;
     let apBefore = null;
     let apAfter = null;
@@ -1369,8 +1388,12 @@ export function resolveTarotKingdomResonance(context = {}) {
                 }
                 allocation = Math.max(0, Math.floor(aceAllocations.get(candidate.slot) || 0));
                 spent = allocation;
+                if (effectsVersion >= 7 && allocation <= 0) return;
             } else {
-                spent = Math.max(0, Math.floor(candidate.apBaseCost || 0));
+                const scholarDiscount = effectsVersion >= 7
+                    && guardianNumber === 11
+                    && context.reverseBefore === true;
+                spent = Math.max(0, Math.floor(candidate.apBaseCost || 0) - (scholarDiscount ? 1 : 0));
                 if (remaining < spent) return;
                 remaining -= spent;
                 allocation = spent;
@@ -1378,7 +1401,7 @@ export function resolveTarotKingdomResonance(context = {}) {
             const steps = expandTarotKingdomApResonance(
                 candidate._entry,
                 candidate._context,
-                candidate.apCostType === 'all' ? Math.max(1, allocation) : 1
+                candidate.apCostType === 'all' ? allocation : 1
             );
             if (!steps.length) return;
             const gain = steps
@@ -1386,13 +1409,19 @@ export function resolveTarotKingdomResonance(context = {}) {
                 .reduce((sum, step) => sum + Math.max(0, Math.floor(finiteNumber(step.amount, 0))), 0);
             const candidateApBefore = remaining + spent;
             remaining += gain;
+            const apAfterFirst = remaining;
+            const gamblerReplay = gamblerPair && candidate.matchKind === 'exact';
+            if (gamblerReplay) remaining += gain;
             activatedCandidates.push({
                 ...candidate,
                 steps,
                 apBefore: candidateApBefore,
                 apCost: spent,
                 apAllocation: candidate.apCostType === 'all' ? allocation : null,
-                apGain: gain,
+                apGain: gain * (gamblerReplay ? 2 : 1),
+                baseApGain: gain,
+                apAfterFirst,
+                gamblerReplay,
                 apAfter: remaining
             });
         });
@@ -1406,24 +1435,33 @@ export function resolveTarotKingdomResonance(context = {}) {
         resonanceIds: activatedCandidates.map((candidate) => candidate.resonanceId),
         skillName: activatedCandidates.map((candidate) => candidate.skillName).join('・'),
         skillNames: activatedCandidates.map((candidate) => candidate.skillName),
-        steps: activatedCandidates.flatMap((candidate) => (
-            candidate.steps.map((step) => ({
+        steps: activatedCandidates.flatMap((candidate) => {
+            const decorate = (step, gamblerReplay = false) => ({
                 ...step,
                 cardId: candidate.cardId,
                 resonanceId: candidate.resonanceId,
                 skillName: candidate.skillName,
-                apBefore: candidate.apBefore,
-                apCost: candidate.apCost,
+                apBefore: gamblerReplay ? candidate.apAfterFirst : candidate.apBefore,
+                apCost: gamblerReplay ? 0 : candidate.apCost,
                 apAllocation: candidate.apAllocation,
-                apGain: candidate.apGain,
-                apAfter: candidate.apAfter
-            }))
-        )),
-        score: activatedCandidates.reduce((sum, candidate) => sum + candidate.score, 0),
+                apGain: candidate.baseApGain,
+                apAfter: gamblerReplay ? candidate.apAfter : candidate.apAfterFirst,
+                ...(gamblerReplay ? { gamblerReplay: true } : {})
+            });
+            const normalSteps = candidate.steps.map((step) => decorate(step));
+            const replaySteps = candidate.gamblerReplay
+                ? candidate.steps.map((step) => decorate(step, true))
+                : [];
+            return [...normalSteps, ...replaySteps];
+        }),
+        score: activatedCandidates.reduce((sum, candidate) => (
+            sum + (candidate.score * (candidate.gamblerReplay ? 2 : 1))
+        ), 0),
         apBefore,
         apAfter,
         apSpent: apEnabled ? activatedCandidates.reduce((sum, candidate) => sum + candidate.apCost, 0) : null,
-        apGained: apEnabled ? activatedCandidates.reduce((sum, candidate) => sum + candidate.apGain, 0) : null
+        apGained: apEnabled ? activatedCandidates.reduce((sum, candidate) => sum + candidate.apGain, 0) : null,
+        gamblerDoubleUp: activatedCandidates.some((candidate) => candidate.gamblerReplay)
     };
 }
 

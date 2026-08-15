@@ -37,7 +37,7 @@ import {
     getTarotKingdomMinorDefinition,
     getTarotKingdomCardLevelScale,
     getTarotKingdomFriendlyEffectText
-} from './tarotKingdomEffects.js?v=20260815-arcana-ap-v6';
+} from './tarotKingdomEffects.js?v=20260815-balance-v7';
 import {
     buildTarotCardMeta,
     compareTarotItems,

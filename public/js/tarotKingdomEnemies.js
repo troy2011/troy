@@ -25,6 +25,16 @@ const STAGE_ARCHETYPE_MODIFIERS = Object.freeze({
     guardian: Object.freeze({ hp: 1.1, pass: 0.96, area: 1, defense: 1.12, speed: 0.9 })
 });
 
+// Version 3 makes later exploration stages meaningfully tougher without changing
+// defense or speed. Keeping the scale indexed by stage makes the curve easy to
+// audit and, importantly, leaves in-progress version 2 battles untouched.
+const STAGE_HP_SCALE_V3 = Object.freeze([
+    1, 1.1, 1.15, 1.2, 1.25, 1.3, 1.4, 1.45, 1.5, 1.55, 1.6, 1.65
+]);
+const STAGE_DAMAGE_SCALE_V3 = Object.freeze([
+    1, 1.25, 1.4, 1.55, 1.7, 1.85, 2, 2.5, 2.5, 2.8, 2.4, 3
+]);
+
 const LEGACY_ENEMY_AILMENTS = Object.freeze({
     'ismartal-vol1-monster-03': Object.freeze({ statusKey: 'poison', label: '毒', scope: 'single', chance: 0.3, potencyRate: 0.2, charges: 3 }),
     'ismartal-vol1-monster-05': Object.freeze({ statusKey: 'blind', label: '暗闇', scope: 'single', chance: 0.32, potency: 25, charges: 2 }),
@@ -313,20 +323,23 @@ function createTarotKingdomStageEnemyCombatProfile(monster = {}, options = {}) {
     );
     const archetypeKey = String(options.archetype || 'balanced').trim().toLowerCase();
     const archetype = STAGE_ARCHETYPE_MODIFIERS[archetypeKey] || STAGE_ARCHETYPE_MODIFIERS.balanced;
+    const balanceVersion = Math.max(0, Math.floor(finiteNumber(options.balanceVersion, 2)));
+    const hpScale = balanceVersion >= 3 ? STAGE_HP_SCALE_V3[stageNo] : 1;
+    const damageScale = balanceVersion >= 3 ? STAGE_DAMAGE_SCALE_V3[stageNo] : 1;
     const baseHp = 220 + (threatLevel * 17);
     const basePassDamage = 9 + Math.floor(threatLevel * 0.48);
     const baseAreaDamage = 5 + Math.floor(threatLevel * 0.3);
     const baseDefense = 3 + Math.floor(threatLevel * 0.65);
     const baseSpeed = 7 + Math.floor(threatLevel * 0.35);
     return {
-        version: 2,
+        version: balanceVersion >= 3 ? 3 : 2,
         stageNo,
         roundNo,
         threatLevel,
         archetype: archetypeKey in STAGE_ARCHETYPE_MODIFIERS ? archetypeKey : 'balanced',
-        maxHp: positiveInteger(baseHp * archetype.hp),
-        passDamage: positiveInteger(basePassDamage * archetype.pass * ENEMY_ATTACK_WEIGHT_MULTIPLIER),
-        areaDamage: positiveInteger(baseAreaDamage * archetype.area * ENEMY_ATTACK_WEIGHT_MULTIPLIER),
+        maxHp: positiveInteger(baseHp * archetype.hp * hpScale),
+        passDamage: positiveInteger(basePassDamage * archetype.pass * ENEMY_ATTACK_WEIGHT_MULTIPLIER * damageScale),
+        areaDamage: positiveInteger(baseAreaDamage * archetype.area * ENEMY_ATTACK_WEIGHT_MULTIPLIER * damageScale),
         defense: Math.max(0, Math.round(baseDefense * archetype.defense)),
         speed: Math.max(1, Math.round(baseSpeed * archetype.speed)),
         ailment: createStageAilmentProfile(monster?.id, threatLevel, options.ailmentVersion),

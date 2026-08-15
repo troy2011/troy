@@ -565,6 +565,111 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
     expect(empty.steps.every((step) => Number(step.amount) >= 1)).toBe(true);
   });
 
+  test('version 7 requires at least one AP for an A resonance', async () => {
+    const effects = await loadEffectsModule();
+    const card = minor('Sword', 1, 'v7-empty-ace');
+    const resolved = effects.resolveTarotKingdomResonance({
+      ...weaponContext(['unarmed'], card),
+      arcanaLoadoutEffectsVersion: 7,
+      arcanaPoints: 0,
+      cards: [card],
+      character: {
+        combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
+        tarotDeck: [{ slot: 0, suit: 'Sword', rank: 1, cardLevel: 1 }]
+      }
+    });
+    expect(resolved).toBeNull();
+  });
+
+  test('version 7 sword 3 is stronger than sword 2 while version 6 remains compatible', async () => {
+    const effects = await loadEffectsModule();
+    const resolve = (rank, version) => {
+      const card = minor('Sword', rank, `sword-${rank}-v${version}`);
+      return effects.resolveTarotKingdomResonance({
+        ...weaponContext(['unarmed'], card),
+        arcanaLoadoutEffectsVersion: version,
+        arcanaPoints: 0,
+        cards: [card],
+        character: {
+          combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
+          tarotDeck: [{ slot: 0, suit: 'Sword', rank, cardLevel: 1 }]
+        }
+      });
+    };
+    expect(resolve(3, 6).steps[0].amount).toBeLessThan(resolve(2, 6).steps[0].amount);
+    expect(resolve(3, 7).steps[0].amount).toBeGreaterThan(resolve(2, 7).steps[0].amount);
+  });
+
+  test('Gambler repeats every exact resonance on a two-card pair without extra AP cost', async () => {
+    const effects = await loadEffectsModule();
+    const cards = [minor('Wand', 6, 'double-wand-6'), minor('Sword', 6, 'double-sword-6')];
+    const resolved = effects.resolveTarotKingdomResonance({
+      ...weaponContext(['unarmed'], cards[0]),
+      arcanaLoadoutEffectsVersion: 7,
+      arcanaPoints: 2,
+      playType: 'set',
+      cards,
+      character: {
+        combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
+        guardianArcana: { number: 10, cardLevel: 1 },
+        tarotDeck: [
+          { slot: 0, suit: 'Wand', rank: 6, cardLevel: 1 },
+          { slot: 1, suit: 'Sword', rank: 6, cardLevel: 1 }
+        ]
+      }
+    });
+    expect(resolved).toMatchObject({
+      gamblerDoubleUp: true,
+      apBefore: 2,
+      apAfter: 4,
+      apSpent: 2,
+      apGained: 4
+    });
+    expect(resolved.candidates).toHaveLength(2);
+    expect(resolved.candidates.every((candidate) => candidate.gamblerReplay === true)).toBe(true);
+    expect(resolved.steps.filter((step) => step.gamblerReplay === true)).toHaveLength(
+      resolved.steps.filter((step) => step.gamblerReplay !== true).length
+    );
+    expect(resolved.steps.filter((step) => step.gamblerReplay === true).every((step) => step.apCost === 0)).toBe(true);
+
+    const threeCards = effects.resolveTarotKingdomResonance({
+      ...weaponContext(['unarmed'], cards[0]),
+      arcanaLoadoutEffectsVersion: 7,
+      arcanaPoints: 3,
+      playType: 'set',
+      cards: [...cards, minor('Cup', 6, 'third-six')],
+      character: {
+        combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
+        guardianArcana: { number: 10, cardLevel: 1 },
+        tarotDeck: [{ slot: 0, suit: 'Wand', rank: 6, cardLevel: 1 }]
+      }
+    });
+    expect(threeCards.gamblerDoubleUp).toBe(false);
+  });
+
+  test('Scholar discounts fixed AP resonance only during 11 back in version 7', async () => {
+    const effects = await loadEffectsModule();
+    const card = minor('Sword', 14, 'scholar-sword-king');
+    const context = {
+      ...weaponContext(['unarmed'], card),
+      arcanaLoadoutEffectsVersion: 7,
+      arcanaPoints: 1,
+      cards: [card],
+      character: {
+        combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
+        guardianArcana: { number: 11, cardLevel: 1 },
+        tarotDeck: [{ slot: 0, suit: 'Sword', rank: 14, cardLevel: 1 }]
+      }
+    };
+    expect(effects.resolveTarotKingdomResonance({ ...context, reverseBefore: false })).toBeNull();
+    expect(effects.resolveTarotKingdomResonance({ ...context, reverseBefore: true })).toMatchObject({
+      apBefore: 1,
+      apAfter: 0,
+      apSpent: 1,
+      candidates: [{ apCost: 1 }]
+    });
+  });
+
   test('an unaffordable or targetless AP effect neither activates nor spends AP', async () => {
     const effects = await loadEffectsModule();
     const character = (suit, rank) => ({

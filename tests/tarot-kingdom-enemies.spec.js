@@ -228,4 +228,49 @@ test.describe('Tarot Kingdom enemy combat profiles', () => {
     expect(last.defense).toBeGreaterThan(first.defense);
     expect(last.ailment.chance).toBeLessThanOrEqual(0.14 + (44 * 0.007));
   });
+
+  test('balance version 3 strengthens later stages without changing defense or speed', async () => {
+    const enemies = await loadEnemyModule();
+    const first = enemies.createTarotKingdomEnemyCombatProfile(
+      { id: 'ismartal-vol1-monster-07', volume: 1, number: 7, isBoss: false },
+      0,
+      {
+        stageVersion: 1,
+        balanceVersion: 3,
+        stageNo: 1,
+        roundNo: 1,
+        threatLevel: 1,
+        archetype: 'balanced'
+      }
+    );
+    const last = enemies.createTarotKingdomEnemyCombatProfile(
+      { id: 'ismartal-vol3-monster-10', volume: 3, number: 10, isBoss: false },
+      3,
+      {
+        stageVersion: 1,
+        balanceVersion: 3,
+        stageNo: 11,
+        roundNo: 4,
+        threatLevel: 44,
+        archetype: 'balanced'
+      }
+    );
+
+    expect(first).toMatchObject({
+      version: 3,
+      maxHp: 260,
+      passDamage: 14,
+      areaDamage: 7,
+      defense: 3,
+      speed: 7
+    });
+    expect(last).toMatchObject({
+      version: 3,
+      maxHp: 1597,
+      passDamage: 112,
+      areaDamage: 67,
+      defense: 31,
+      speed: 22
+    });
+  });
 });
