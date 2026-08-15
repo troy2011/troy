@@ -24,7 +24,7 @@ import {
   getTarotKingdomMajorSecondaryDamageScale,
   getTarotKingdomResonanceDamageFloor,
   normalizeTarotKingdomCharacter
-} from './tarotKingdomCombat.js?v=20260811-resonance-per-card1';
+} from './tarotKingdomCombat.js?v=20260815-arcana-ap-v6';
 import {
   TAROT_KINGDOM_ARCANA_EFFECTS_READY,
   getTarotKingdomPhysicalScale,
@@ -33,6 +33,7 @@ import {
   getTarotKingdomMajorDefinition,
   getTarotKingdomMajorAttribute,
   getTarotKingdomMinorDefinition,
+  getTarotKingdomMinorApDefinition,
   getTarotKingdomResonanceMatch,
   getTarotKingdomResolvedEffectText,
   createTarotKingdomRHistory,
@@ -43,7 +44,7 @@ import {
   normalizeTarotKingdomWeaponTypes,
   resolveTarotKingdomResonance,
   resolveTarotKingdomWeaponEffect
-} from './tarotKingdomEffects.js?v=20260812-major-v4';
+} from './tarotKingdomEffects.js?v=20260815-arcana-ap-v6';
 import {
   TAROT_KINGDOM_NEGATIVE_STATUS_KEYS,
   TAROT_KINGDOM_HARD_CONTROL_KEYS,
@@ -75,7 +76,7 @@ import {
   calculateTarotKingdomEnemyMitigatedDamage,
   createTarotKingdomEnemyCombatProfile,
   getTarotKingdomEnemyAilmentChance
-} from './tarotKingdomEnemies.js?v=20260812-status-v2';
+} from './tarotKingdomEnemies.js?v=20260815-arcana-ap-v6';
 import {
   TAROT_KINGDOM_ELEMENT_LABELS,
   auditTarotKingdomMajorEffects,
@@ -446,7 +447,7 @@ const LEGACY_HAND_SIZE = 6;
 const KINGDOM_FORCED_DRAW_DEATH_THRESHOLD = 3;
 const KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO = 'hp-zero';
 const KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY = 'hand-empty';
-const KINGDOM_RULES_VERSION = 18;
+const KINGDOM_RULES_VERSION = 22;
 const TOTAL_HANDS = 4;
 const START_CHIPS = 100;
 const A_PENALTY = 1;
@@ -502,6 +503,15 @@ const ROLE_LABEL = {
   FiveKind: 'ファイブカード'
 };
 const ROLE_RATE = { Straight: 1, Flush: 1, FullHouse: 2, FourKind: 3, TheWorld: 3, StraightFlush: 4, FiveKind: 5 };
+const KINGDOM_ROLE_ATTACK_PROFILES = Object.freeze({
+  Straight: Object.freeze({ targetScope: 'single', rangeLabel: '単体中攻撃', damageScale: 1 }),
+  Flush: Object.freeze({ targetScope: 'stage', rangeLabel: '全体小攻撃', damageScale: 0.65 }),
+  FullHouse: Object.freeze({ targetScope: 'single', rangeLabel: '単体大攻撃', damageScale: 1 }),
+  FourKind: Object.freeze({ targetScope: 'stage', rangeLabel: '全体中攻撃', damageScale: 0.82 }),
+  TheWorld: Object.freeze({ targetScope: 'stage', rangeLabel: '全体中攻撃', damageScale: 0.82 }),
+  StraightFlush: Object.freeze({ targetScope: 'stage', rangeLabel: '全体大攻撃', damageScale: 0.9 }),
+  FiveKind: Object.freeze({ targetScope: 'stage', rangeLabel: '全体特大攻撃', damageScale: 0.95 })
+});
 const ROLE_ST = ROLE_ORDER.reduce((a, k, i) => ((a[k] = i + 1), a), {});
 const KINGDOM_ROLE_CHAIN_STEP = 0.25;
 const KINGDOM_ROLE_CHAIN_MAX_STEPS = 3;
@@ -519,7 +529,7 @@ const KINGDOM_SUMMON_EFFECT_VISUALS = Object.freeze({
   flushElemental: Object.freeze({ category: 'hybrid', choreography: 'elemental-surge', cue: 'elemental-charge', impact: 'elemental-burst' }),
   'major-arcana': Object.freeze({ category: 'hybrid', choreography: 'arcana-invocation', cue: 'arcana-awaken', impact: 'arcana-release' })
 });
-const KINGDOM_NET_SCHEMA_VERSION = 25;
+const KINGDOM_NET_SCHEMA_VERSION = 29;
 const KINGDOM_PRIVATE_STATE_VERSION = 2;
 const KINGDOM_NET_STATE_WRITE_DELAY = 90;
 const TK_MATCH_ROOT = 'tarotKingdomMatch';
@@ -2539,7 +2549,11 @@ function getSelectedCardLoadoutEffectMessages(playerIndex, cards) {
     const match = getTarotKingdomResonanceMatch(card, entry);
     if (!match) return;
     const effect = String(entry.effectText || '').trim();
-    if (areKingdomArcanaLoadoutV3EffectsEnabled()) {
+    if (areKingdomArcanaLoadoutV6EffectsEnabled()) {
+      const definition = getTarotKingdomMinorApDefinition(entry.suit, entry.rank);
+      const text = String(definition?.effect || '').trim();
+      if (text) messages.push(`共鳴：${text}`);
+    } else if (areKingdomArcanaLoadoutV3EffectsEnabled()) {
       const definition = getTarotKingdomMinorDefinition(entry.suit, entry.rank);
       const resolved = getTarotKingdomResolvedEffectText(definition, {
         actorIndex: playerIndex,
@@ -4647,7 +4661,8 @@ function setKingdomDemoEnemy(monsterId = '') {
     const enemyCombatVersion = Number(s.rules?.enemyCombatVersion ?? 1);
     const combatProfile = enemyCombatVersion >= 1
       ? createTarotKingdomEnemyCombatProfile(monster, s.handNo, {
-          ailmentVersion: areKingdomStatusEffectsV2Enabled() ? 3 : enemyCombatVersion
+          ailmentVersion: areKingdomStatusEffectsV2Enabled() ? 3 : enemyCombatVersion,
+          abilityVersion: Number(s.rules?.enemyAbilityVersion ?? 1)
         })
       : createLegacyKingdomEnemyCombatProfile(s.handNo);
     s.battle.enemy = {
@@ -4662,6 +4677,8 @@ function setKingdomDemoEnemy(monsterId = '') {
       speed: combatProfile.speed,
       archetype: combatProfile.archetype,
       ailment: combatProfile.ailment,
+      abilities: combatProfile.abilities,
+      abilityState: { uses: {} },
       affinity: combatProfile.affinity || getTarotKingdomEnemyAffinity(monster.id, enemyCombatVersion),
       rushStartedAtSeq: null,
       defeatedAtSeq: null,
@@ -5090,14 +5107,31 @@ function normalizeKingdomExplorationStageState(value = null) {
         : KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO,
       monsterId: String(entry?.monsterId || '')
     }));
+  const incomingVitals = Array.isArray(value.enemyVitals) ? value.enemyVitals : [];
+  const enemyVitals = monsters.map((monster, index) => {
+    const incoming = incomingVitals.find((entry, entryIndex) => (
+      String(entry?.monsterId || '') === monster.monsterId
+      || entryIndex === index
+    ));
+    if (!incoming) return null;
+    const maxHp = Math.max(1, Math.floor(Number(incoming.maxHp) || 1));
+    return {
+      order: index + 1,
+      monsterId: monster.monsterId,
+      maxHp,
+      hp: Math.max(0, Math.min(maxHp, Math.floor(Number(incoming.hp ?? maxHp) || 0))),
+      defeated: incoming.defeated === true
+    };
+  });
   return {
-    version: 1,
+    version: 2,
     stageNo,
     stageId: String(value.stageId || `tarot_stage_${stageNo}`),
     stageName: String(value.stageName || value.destinationName || `STAGE ${stageNo}`),
     battlefieldId: String(value.battlefieldId || ''),
     atmosphereTone: String(value.atmosphereTone || ''),
     monsters,
+    enemyVitals,
     supplyQueue,
     appliedSupplyTransitions,
     usedSupplies: Array.isArray(value.usedSupplies)
@@ -5193,7 +5227,8 @@ function activateKingdomRaidBossForm(sourceIndex = null) {
   const combatProfile = createTarotKingdomEnemyCombatProfile(monster, TOTAL_HANDS - 1, {
     threatLevel: 50,
     archetype: 'raid',
-    ailmentVersion: areKingdomStatusEffectsV2Enabled() ? 3 : Number(s.rules?.enemyCombatVersion ?? 1)
+    ailmentVersion: areKingdomStatusEffectsV2Enabled() ? 3 : Number(s.rules?.enemyCombatVersion ?? 1),
+    abilityVersion: Number(s.rules?.enemyAbilityVersion ?? 1)
   });
   raid.phase = 'boss';
   raid.lastObservedBossHp = raid.bossHpAtStart;
@@ -5212,6 +5247,8 @@ function activateKingdomRaidBossForm(sourceIndex = null) {
     archetype: 'raid',
     threatLevel: 50,
     ailment: combatProfile.ailment || null,
+    abilities: combatProfile.abilities || null,
+    abilityState: { uses: {} },
     affinity: combatProfile.affinity || getTarotKingdomEnemyAffinity(
       monster.id,
       Number(s.rules?.elementAffinityVersion ?? 1)
@@ -5282,6 +5319,48 @@ function getKingdomStageMonster(roundIndex = 0, stageState = s?.stage) {
   return stage.monsters[safeRoundIndex] || null;
 }
 
+function ensureKingdomStageEnemyVitals(stageState = s?.stage, rules = s?.rules) {
+  const stage = normalizeKingdomExplorationStageState(stageState);
+  if (!stage) return null;
+  stage.enemyVitals = stage.monsters.map((stageMonster, index) => {
+    const existing = stage.enemyVitals?.[index];
+    if (existing && String(existing.monsterId || '') === stageMonster.monsterId) {
+      return { ...existing, order: index + 1 };
+    }
+    const monster = getKingdomMonsterConfig(stageMonster.monsterId);
+    const profile = createTarotKingdomEnemyCombatProfile(monster, index, {
+      stageVersion: 1,
+      stageNo: stage.stageNo,
+      roundNo: index + 1,
+      threatLevel: stageMonster.threatLevel,
+      archetype: stageMonster.archetype,
+      ailmentVersion: Number(rules?.statusEffectsVersion) >= 2 ? 3 : Number(rules?.enemyCombatVersion ?? 1),
+      abilityVersion: Number(rules?.enemyAbilityVersion ?? 1)
+    });
+    const maxHp = Math.max(1, Math.floor(Number(profile.maxHp) || 1));
+    return {
+      order: index + 1,
+      monsterId: stageMonster.monsterId,
+      maxHp,
+      hp: maxHp,
+      defeated: false
+    };
+  });
+  return stage;
+}
+
+function syncKingdomCurrentEnemyVital() {
+  if (!s?.battle?.enemy || !areKingdomStageWideAreaDamageEnabled()) return;
+  const stage = ensureKingdomStageEnemyVitals(s.stage);
+  const roundIndex = Math.max(0, Math.min(TOTAL_HANDS - 1, Math.floor(Number(s.handNo) || 0)));
+  const vital = stage?.enemyVitals?.[roundIndex];
+  if (!vital || vital.monsterId !== String(s.battle.enemy.id || '')) return;
+  vital.maxHp = Math.max(1, Math.floor(Number(s.battle.enemy.maxHp) || vital.maxHp || 1));
+  vital.hp = Math.max(0, Math.min(vital.maxHp, Math.floor(Number(s.battle.enemy.hp) || 0)));
+  vital.defeated = vital.hp <= 0;
+  s.stage = stage;
+}
+
 function applyKingdomStageTransitionSupply() {
   const stage = resolveKingdomExplorationStageState(s?.stage);
   if (!stage || Number(s?.handNo || 0) <= 0) return null;
@@ -5336,7 +5415,8 @@ function createKingdomBattleState(
   destinationId = '',
   enemyCombatVersion = 1,
   playerCount = PLAYERS.length,
-  stageState = s?.stage
+  stageState = s?.stage,
+  enemyAbilityVersion = 1
 ) {
   const safeRoundIndex = Math.max(0, Math.min(TOTAL_HANDS - 1, Number(roundIndex) || 0));
   const normalizedStage = resolveKingdomExplorationStageState(stageState);
@@ -5366,9 +5446,13 @@ function createKingdomBattleState(
           roundNo: safeRoundIndex + 1,
           threatLevel: stageMonster.threatLevel,
           archetype: stageMonster.archetype,
-          ailmentVersion: areKingdomStatusEffectsV2Enabled() ? 3 : enemyCombatVersion
+          ailmentVersion: areKingdomStatusEffectsV2Enabled() ? 3 : enemyCombatVersion,
+          abilityVersion: enemyAbilityVersion
         }
-      : { ailmentVersion: areKingdomStatusEffectsV2Enabled() ? 3 : enemyCombatVersion })
+      : {
+          ailmentVersion: areKingdomStatusEffectsV2Enabled() ? 3 : enemyCombatVersion,
+          abilityVersion: enemyAbilityVersion
+        })
     : createLegacyKingdomEnemyCombatProfile(safeRoundIndex);
   const maxHp = combatProfile.maxHp;
   return {
@@ -5412,6 +5496,8 @@ function createKingdomBattleState(
       archetype: combatProfile.archetype,
       threatLevel: Math.max(0, Math.floor(Number(combatProfile.threatLevel) || 0)),
       ailment: combatProfile.ailment,
+      abilities: combatProfile.abilities,
+      abilityState: { uses: {} },
       affinity: combatProfile.affinity || getTarotKingdomEnemyAffinity(monster.id, enemyCombatVersion)
     }
   };
@@ -5423,10 +5509,19 @@ function normalizeKingdomBattleState(
   active = false,
   enemyCombatVersion = 1,
   playerCount = PLAYERS.length,
-  stageState = null
+  stageState = null,
+  enemyAbilityVersion = 1
 ) {
   const safePlayerCount = normalizeKingdomPlayerCount(playerCount);
-  const base = createKingdomBattleState(roundIndex, active, '', enemyCombatVersion, safePlayerCount, stageState);
+  const base = createKingdomBattleState(
+    roundIndex,
+    active,
+    '',
+    enemyCombatVersion,
+    safePlayerCount,
+    stageState,
+    enemyAbilityVersion
+  );
   const incoming = rawBattle && typeof rawBattle === 'object' ? rawBattle : {};
   const incomingBattlefield = incoming.battlefield && typeof incoming.battlefield === 'object'
     ? incoming.battlefield
@@ -5536,6 +5631,17 @@ function normalizeKingdomBattleState(
       ailment: enemyCombatVersion >= 1 && (incomingEnemy.ailment || base.enemy.ailment)
         ? cloneKingdomSnapshotValue(incomingEnemy.ailment || base.enemy.ailment, null)
         : null,
+      abilities: enemyAbilityVersion >= 1 && (incomingEnemy.abilities || base.enemy.abilities)
+        ? cloneKingdomSnapshotValue(incomingEnemy.abilities || base.enemy.abilities, null)
+        : null,
+      abilityState: {
+        uses: incomingEnemy.abilityState?.uses && typeof incomingEnemy.abilityState.uses === 'object'
+          ? Object.fromEntries(Object.entries(incomingEnemy.abilityState.uses).map(([key, value]) => [
+              String(key),
+              Math.max(0, Math.floor(Number(value) || 0))
+            ]))
+          : {}
+      },
       affinity: cloneKingdomSnapshotValue(
         incomingEnemy.affinity || base.enemy.affinity || getTarotKingdomEnemyAffinity(monster.id, enemyCombatVersion),
         { native: '', weak: '', resist: '' }
@@ -5548,11 +5654,18 @@ function resetKingdomBattleForRound() {
   if (!s) return;
   const previousEnemyId = String(s.battle?.enemy?.id || '');
   const isRoundTransition = !!s.battle && Number(s.handNo || 0) > 0;
-  const explorationStage = resolveKingdomExplorationStageState(s.stage);
+  let explorationStage = areKingdomStageWideAreaDamageEnabled()
+    ? ensureKingdomStageEnemyVitals(s.stage)
+    : resolveKingdomExplorationStageState(s.stage);
   if (explorationStage) s.stage = explorationStage;
   const isExplorationTransition = !!explorationStage && isRoundTransition;
   const preserveHp = isExplorationTransition || (isRoundTransition && doesKingdomCarryHpBetweenRounds());
-  if (isExplorationTransition) applyKingdomStageTransitionSupply();
+  if (isExplorationTransition) {
+    applyKingdomStageTransitionSupply();
+    explorationStage = areKingdomStageWideAreaDamageEnabled()
+      ? ensureKingdomStageEnemyVitals(s.stage)
+      : resolveKingdomExplorationStageState(s.stage);
+  }
   s.players.forEach((player) => {
     const maxHp = Math.max(
       1,
@@ -5569,8 +5682,20 @@ function resetKingdomBattleForRound() {
     '',
     Number(s.rules?.enemyCombatVersion ?? 1),
     getKingdomPlayerCount(),
-    s.stage
+    s.stage,
+    Number(s.rules?.enemyAbilityVersion ?? 1)
   );
+  if (areKingdomStageWideAreaDamageEnabled() && explorationStage) {
+    const vital = explorationStage.enemyVitals?.[Math.max(0, Math.floor(Number(s.handNo) || 0))];
+    if (vital && vital.monsterId === String(s.battle?.enemy?.id || '')) {
+      s.battle.enemy.maxHp = Math.max(1, Math.floor(Number(vital.maxHp) || Number(s.battle.enemy.maxHp) || 1));
+      s.battle.enemy.hp = Math.max(
+        1,
+        Math.min(s.battle.enemy.maxHp, Math.floor(Number(vital.hp) || s.battle.enemy.maxHp))
+      );
+      s.stage = explorationStage;
+    }
+  }
   const nextEnemyId = String(s.battle?.enemy?.id || '');
   if (previousEnemyId && nextEnemyId && previousEnemyId !== nextEnemyId) {
     clearKingdomMonsterFrameTimer();
@@ -5603,6 +5728,10 @@ function areKingdomStatusEffectsV1Enabled(state = s) {
 
 function areKingdomStatusEffectsV2Enabled(state = s) {
   return Number(state?.rules?.statusEffectsVersion || 0) >= 2;
+}
+
+function areKingdomEnemyAbilitiesV1Enabled(state = s) {
+  return Number(state?.rules?.enemyAbilityVersion || 0) >= 1;
 }
 
 function areKingdomMajorArcanaGateRulesEnabled(state = s) {
@@ -5657,9 +5786,63 @@ function areKingdomArcanaLoadoutV4EffectsEnabled(state = s) {
   return Number(state?.rules?.arcanaLoadoutEffectsVersion || 0) >= 4;
 }
 
+function areKingdomArcanaLoadoutV5EffectsEnabled(state = s) {
+  return Number(state?.rules?.arcanaLoadoutEffectsVersion || 0) >= 5;
+}
+
+function areKingdomArcanaLoadoutV6EffectsEnabled(state = s) {
+  return Number(state?.rules?.arcanaLoadoutEffectsVersion || 0) >= 6;
+}
+
+function areKingdomArcanaPointRulesEnabled(state = s) {
+  return Number(state?.rules?.arcanaPointVersion || 0) >= 1;
+}
+
+function areKingdomStageWideAreaDamageEnabled(state = s) {
+  return Number(state?.rules?.stageWideAreaDamageVersion || 0) >= 1;
+}
+
+function areKingdomRoleAttackRangesEnabled(state = s) {
+  return Number(state?.rules?.roleAttackRangeVersion || 0) >= 1;
+}
+
+function getKingdomRoleAttackProfile(roleKey, state = s) {
+  const key = String(roleKey || '');
+  const configured = KINGDOM_ROLE_ATTACK_PROFILES[key];
+  if (!configured || !areKingdomRoleAttackRangesEnabled(state)) {
+    return {
+      roleKey: key,
+      targetScope: 'single',
+      rangeLabel: '',
+      damageScale: 1
+    };
+  }
+  return { roleKey: key, ...configured };
+}
+
 function areKingdomArcanaLoadoutV2OnlyEffectsEnabled(state = s) {
   return areKingdomArcanaLoadoutV2EffectsEnabled(state)
     && !areKingdomArcanaLoadoutV3EffectsEnabled(state);
+}
+
+function getKingdomScholarCombatNumber(card, playerIndex, reverseBefore = null, state = s) {
+  const printedNumber = Math.floor(Number(card?.number) || 0);
+  if (
+    !areKingdomArcanaLoadoutV5EffectsEnabled(state)
+    || Number(getKingdomGuardianArcana(playerIndex, state)?.number) !== 11
+    || (reverseBefore == null ? state?.reverse !== true : reverseBefore !== true)
+    || card?.kind !== 'minor'
+    || printedNumber < 1
+    || printedNumber > 14
+  ) return null;
+  return 20 - printedNumber;
+}
+
+function getKingdomScholarWeaponCards(cards, playerIndex, reverseBefore = null, state = s) {
+  return (Array.isArray(cards) ? cards : []).map((card) => {
+    const combatNumber = getKingdomScholarCombatNumber(card, playerIndex, reverseBefore, state);
+    return combatNumber == null ? card : { ...card, combatNumber };
+  });
 }
 
 function getKingdomRHistory(state = s) {
@@ -5693,6 +5876,7 @@ function prepareKingdomResolvedRs(playerIndex, play, context = {}) {
       actorIndex: playerIndex,
       players: s.players,
       rHistory: history,
+      arcanaLoadoutEffectsVersion: Number(s.rules?.arcanaLoadoutEffectsVersion) || 0,
       guardianNumber,
       sourceCard
     }, kingdomCombatRandom);
@@ -5866,6 +6050,14 @@ function getKingdomGuardianState(playerIndex, state = s) {
   return state.battle.guardianState[playerIndex];
 }
 
+function getKingdomMinorGraveCount(state = s) {
+  return getKingdomSeatIndexes(state).reduce((sum, index) => (
+    sum + (Array.isArray(state?.players?.[index]?.discard)
+      ? state.players[index].discard.filter((card) => card?.kind === 'minor').length
+      : 0)
+  ), 0);
+}
+
 function getKingdomGuardianProgressText(playerIndex, state = s) {
   if (!areKingdomArcanaLoadoutV3EffectsEnabled(state)) return '';
   const number = Number(getKingdomGuardianArcana(playerIndex, state)?.number);
@@ -5873,7 +6065,7 @@ function getKingdomGuardianProgressText(playerIndex, state = s) {
   const counters = guardianState?.v3?.counters || {};
   const used = guardianState?.v3?.used || {};
   if (number === 0) return `命中・攻撃 +${Math.min(25, Math.max(0, Number(counters.missPower) || 0))}%`;
-  if (number === 1) return `状態異常 ${Math.min(6, Math.max(0, Number(counters.statusAttempts) || 0))}/6`;
+  if (number === 1) return `状態異常強化 ${Math.min(5, Math.max(0, Number(counters.statusAttempts) || 0))}/5`;
   if (number === 7) return `共鳴 ${Math.min(6, Math.max(0, Number(counters.resonance) || 0))}/6`;
   if (number === 9) {
     const startingEvasion = areKingdomArcanaLoadoutV4EffectsEnabled() ? 40 : 50;
@@ -5881,15 +6073,21 @@ function getKingdomGuardianProgressText(playerIndex, state = s) {
   }
   if (number === 10) {
     const floor = Math.min(10, Math.max(0, Number(getKingdomRHistory(state)?.rank10?.floorByPlayer?.[playerIndex]) || 0));
-    return `R下限 ${floor}`;
+    return `抽選の最低値 ${floor}`;
   }
+  if (number === 11) return state?.reverse ? '11バック発動中' : '11バック待機';
+  if (number === 13) {
+    const graveCount = getKingdomMinorGraveCount(state);
+    return `吸収 ${Math.min(20, graveCount * 2)}%`;
+  }
+  if (number === 14) return used.mimic ? '発動済み' : '数字14待機';
   if (number === 15) return `蓄積 ${Math.min(5, Math.max(0, Number(counters.court) || 0))}/5`;
   if (number >= 16 && number <= 19) {
     const suit = number === 16 ? 'Sword' : number === 17 ? 'Cup' : number === 18 ? 'Pentacle' : 'Wand';
     return `${SUIT_LABEL[suit] || suit} ${Math.min(2, Math.max(0, Number(counters[suit]) || 0))}/2`;
   }
-  if (number === 20) return used.judgment ? '発動済み' : '局1回';
-  if (number === 21) return used.hero ? '発動済み' : `共鳴 ${Math.min(5, Math.max(0, Number(counters.resonance) || 0))}/5`;
+  if (number === 20) return '11バック待機';
+  if (number === 21) return used.hero ? '発動済み' : `共鳴 ${Math.min(2, Math.max(0, Number(counters.resonance) || 0))}/2`;
   return '';
 }
 
@@ -6412,7 +6610,12 @@ function resolveKingdomEnemyAilmentPotency(ailment, attackKind = 'single') {
 
 function applyKingdomEnemyAilments(attackKind, targetIndexes = []) {
   const enemy = s?.battle?.enemy;
-  const ailment = enemy?.ailment;
+  const attackProfile = areKingdomEnemyAbilitiesV1Enabled()
+    ? enemy?.abilities?.attacks?.[attackKind]
+    : null;
+  const ailment = areKingdomEnemyAbilitiesV1Enabled()
+    ? (attackProfile?.ailment || enemy?.ailment)
+    : enemy?.ailment;
   if (!ailment || !areKingdomCombatEffectsEnabled()) return [];
   const scope = String(ailment.scope || 'single');
   if (attackKind === 'single' && !['single', 'both'].includes(scope)) return [];
@@ -6491,6 +6694,102 @@ function applyKingdomEnemyAilments(attackKind, targetIndexes = []) {
     }
     results.push(result);
   });
+  return results;
+}
+
+function applyKingdomEnemySpecialAfterAttack(attackKind, context = {}) {
+  const enemy = s?.battle?.enemy;
+  const ability = areKingdomEnemyAbilitiesV1Enabled() ? enemy?.abilities?.special : null;
+  if (!enemy || enemy.hp <= 0 || !ability || !areKingdomCombatEffectsEnabled()) return [];
+  const trigger = String(ability.trigger || 'both');
+  if (trigger !== 'both' && trigger !== attackKind) return [];
+  const id = String(ability.id || ability.kind || '').trim();
+  if (!id) return [];
+  if (!enemy.abilityState || typeof enemy.abilityState !== 'object') enemy.abilityState = { uses: {} };
+  if (!enemy.abilityState.uses || typeof enemy.abilityState.uses !== 'object') enemy.abilityState.uses = {};
+  const used = Math.max(0, Math.floor(Number(enemy.abilityState.uses[id]) || 0));
+  const maxUses = Math.max(1, Math.floor(Number(ability.maxUses) || 1));
+  if (used >= maxUses) return [];
+  const maxHp = Math.max(1, Math.floor(Number(enemy.maxHp) || 1));
+  const hpBefore = Math.max(0, Math.min(maxHp, Math.floor(Number(enemy.hp) || 0)));
+  const hpRate = hpBefore / maxHp;
+  if (ability.hpThreshold != null && hpRate > Math.max(0, Math.min(1, Number(ability.hpThreshold) || 0))) {
+    return [];
+  }
+  const kind = String(ability.kind || '');
+  const label = String(ability.label || '特殊能力');
+  const enemyEffects = getKingdomEffectBucket('enemy') || {};
+  const healingBlocked = areKingdomStatusEffectsV2Enabled()
+    && isKingdomStatusEffectActive('curse', enemyEffects.curse);
+  const results = [];
+
+  if (kind === 'heal' || kind === 'drain') {
+    if (healingBlocked || hpBefore >= maxHp) return [];
+    const requested = kind === 'drain'
+      ? Math.min(
+          Math.floor(Math.max(0, Number(context.damageDealt) || 0) * Math.max(0, Number(ability.damageRate) || 0)),
+          Math.floor(maxHp * Math.max(0, Number(ability.healCapRate) || 0))
+        )
+      : Math.floor(maxHp * Math.max(0, Number(ability.healRate) || 0));
+    const amount = Math.max(0, Math.min(maxHp - hpBefore, requested));
+    if (amount <= 0) return [];
+    enemy.hp = hpBefore + amount;
+    results.push({
+      kind: 'enemy-heal',
+      source: 'enemy',
+      sourceMonsterId: String(enemy.id || ''),
+      targetType: 'enemy',
+      label,
+      amount,
+      hpBefore,
+      hpAfter: enemy.hp,
+      success: true,
+      drain: kind === 'drain'
+    });
+  } else if (kind === 'cleanse') {
+    const removable = [
+      ...TAROT_KINGDOM_HARD_CONTROL_KEYS,
+      'curse', 'poison', 'burn', 'blind', 'fear', 'silence', 'seal', 'confusion',
+      'vulnerable', 'wet', 'slow'
+    ].find((statusKey) => isKingdomStatusEffectActive(statusKey, enemyEffects[statusKey]));
+    if (!removable) return [];
+    removeKingdomBattleEffect('enemy', removable);
+    results.push({
+      kind: 'cleanse',
+      source: 'enemy',
+      sourceMonsterId: String(enemy.id || ''),
+      targetType: 'enemy',
+      statusKey: removable,
+      label,
+      amount: 1,
+      success: true
+    });
+  } else if (kind === 'buff') {
+    const statusKey = String(ability.statusKey || '');
+    if (!statusKey) return [];
+    const applied = setKingdomBattleEffect('enemy', statusKey, {
+      source: 'enemy',
+      sourceMonsterId: String(enemy.id || ''),
+      label,
+      potency: Math.max(1, Math.floor(Number(ability.potency) || 1)),
+      remainingTurns: Math.max(1, Math.floor(Number(ability.turns) || 1)),
+      expiresOn: 'turn'
+    });
+    if (!applied) return [];
+    results.push({
+      kind: 'buff',
+      source: 'enemy',
+      sourceMonsterId: String(enemy.id || ''),
+      targetType: 'enemy',
+      statusKey,
+      label,
+      potency: applied.potency,
+      remainingTurns: applied.remainingTurns,
+      success: true
+    });
+  }
+
+  if (results.length > 0) enemy.abilityState.uses[id] = used + 1;
   return results;
 }
 
@@ -6753,6 +7052,14 @@ function applyKingdomOutgoingDamageBonuses(damage, actorIndex, options = {}) {
       applied.push({ kind: 'wet', potency });
     }
     if (!areKingdomStatusEffectsV1Enabled()) consumeKingdomBattleEffect('player', 'wet', actorIndex);
+  }
+  const resonanceDamageUp = physical ? actorBucket.physicalDamageUp : actorBucket.magicDamageUp;
+  if (resonanceDamageUp) {
+    const potency = Math.max(0, Math.min(100, Number(resonanceDamageUp.potency) || 0));
+    if (potency > 0) {
+      total = Math.floor(total * (1 + (potency / 100)));
+      applied.push({ kind: physical ? 'physicalDamageUp' : 'magicDamageUp', potency });
+    }
   }
   const guardian = getKingdomGuardianArcana(actorIndex);
   const guardianNumber = Number(guardian?.number);
@@ -7213,6 +7520,102 @@ function applyKingdomEnemyIncomingStatusModifiers(amount, options = {}) {
   return { amount: total, applied };
 }
 
+function applyKingdomStageWideDamage(step, actorIndex, activeResult) {
+  if (
+    !areKingdomStageWideAreaDamageEnabled()
+    || isKingdomRaidBattle()
+    || String(step?.targetScope || '') !== 'stage'
+    || Number(activeResult?.amount) <= 0
+  ) return [];
+  const stage = ensureKingdomStageEnemyVitals(s?.stage);
+  if (!stage) return [];
+  const currentIndex = Math.max(0, Math.min(TOTAL_HANDS - 1, Math.floor(Number(s?.handNo) || 0)));
+  const falloff = [0.75, 0.5, 0.25];
+  const element = String(activeResult?.element || step?.element || '');
+  const outgoingMultiplier = Math.max(0, Number(activeResult?.outgoingMultiplier) || 1);
+  const ignoreDefense = Math.max(0, Math.min(1, Number(step?.ignoreDefense) || 0));
+  const hits = [];
+  for (let offset = 1; offset <= falloff.length; offset += 1) {
+    const targetIndex = currentIndex + offset;
+    const vital = stage.enemyVitals?.[targetIndex];
+    const stageMonster = stage.monsters?.[targetIndex];
+    if (!vital || !stageMonster || vital.defeated === true || Number(vital.hp) <= 1) continue;
+    const monster = getKingdomMonsterConfig(stageMonster.monsterId);
+    const profile = createTarotKingdomEnemyCombatProfile(monster, targetIndex, {
+      stageVersion: 1,
+      stageNo: stage.stageNo,
+      roundNo: targetIndex + 1,
+      threatLevel: stageMonster.threatLevel,
+      archetype: stageMonster.archetype,
+      ailmentVersion: areKingdomStatusEffectsV2Enabled() ? 3 : Number(s.rules?.enemyCombatVersion ?? 1),
+      abilityVersion: Number(s.rules?.enemyAbilityVersion ?? 1)
+    });
+    const affinity = areKingdomElementAffinitiesEnabled() && element
+      ? getTarotKingdomElementMultiplier(profile.affinity || monster.id, element)
+      : { multiplier: 1, reaction: '' };
+    const elemental = Math.max(0, Math.floor((Number(step.amount) || 0) * Number(affinity.multiplier || 1)));
+    const outgoing = Math.max(0, Math.floor(elemental * outgoingMultiplier));
+    const mitigated = calculateTarotKingdomEnemyMitigatedDamage(
+      outgoing,
+      Math.max(0, Number(profile.defense) || 0) * (1 - ignoreDefense)
+    );
+    const displayAmount = Math.max(0, Math.min(
+      KINGDOM_PLAYER_DAMAGE_CAP,
+      Math.floor(mitigated * falloff[offset - 1])
+    ));
+    const hpBefore = Math.max(1, Math.floor(Number(vital.hp) || 1));
+    const amount = Math.min(Math.max(0, hpBefore - 1), displayAmount);
+    if (amount <= 0) continue;
+    vital.hp = hpBefore - amount;
+    hits.push({
+      order: targetIndex + 1,
+      monsterId: vital.monsterId,
+      monsterName: String(stageMonster.monsterName || monster.name || ''),
+      rate: falloff[offset - 1],
+      amount,
+      displayAmount,
+      hpBefore,
+      hpAfter: vital.hp,
+      element,
+      affinityReaction: affinity.reaction,
+      affinityMultiplier: affinity.multiplier
+    });
+  }
+  s.stage = stage;
+  return hits;
+}
+
+function applyKingdomRoleRangeDamage(attack, actorIndex, rawAmount, displayAmount) {
+  if (
+    String(attack?.kind || '') !== 'skill'
+    || String(attack?.targetScope || '') !== 'stage'
+    || Number(displayAmount) <= 0
+  ) return null;
+  const stageHits = applyKingdomStageWideDamage({
+    source: 'role-range',
+    kind: 'damage',
+    label: String(attack.rangeLabel || '全体攻撃'),
+    targetType: 'enemy',
+    targetScope: 'stage',
+    amount: Math.max(0, Math.floor(Number(rawAmount) || 0))
+  }, actorIndex, {
+    amount: Math.max(0, Math.floor(Number(displayAmount) || 0)),
+    outgoingMultiplier: 1
+  });
+  return {
+    source: 'role-range',
+    kind: 'stage-damage',
+    label: String(attack.rangeLabel || '全体攻撃'),
+    targetType: 'stage',
+    targetScope: 'stage',
+    amount: Math.max(0, Math.floor(Number(displayAmount) || 0)),
+    displayAmount: Math.max(0, Math.floor(Number(displayAmount) || 0)),
+    roleKey: String(attack.roleKey || ''),
+    stageHits,
+    success: stageHits.length > 0
+  };
+}
+
 function applyKingdomEffectStep(step, actorIndex, context = {}) {
   if (!step || !s?.battle) return null;
   const result = {
@@ -7231,6 +7634,15 @@ function applyKingdomEffectStep(step, actorIndex, context = {}) {
     shieldHp: step.shieldHp == null ? undefined : Math.max(0, Math.floor(Number(step.shieldHp) || 0)),
     element: String(step.element || ''),
     visualElement: String(step.visualElement || ''),
+    targetScope: String(step.targetScope || ''),
+    apBefore: Number.isFinite(Number(step.apBefore)) ? Math.max(0, Math.floor(Number(step.apBefore))) : undefined,
+    apCost: Number.isFinite(Number(step.apCost)) ? Math.max(0, Math.floor(Number(step.apCost))) : undefined,
+    apAllocation: Number.isFinite(Number(step.apAllocation)) ? Math.max(0, Math.floor(Number(step.apAllocation))) : undefined,
+    apGain: Number.isFinite(Number(step.apGain)) ? Math.max(0, Math.floor(Number(step.apGain))) : undefined,
+    apAfter: Number.isFinite(Number(step.apAfter)) ? Math.max(0, Math.floor(Number(step.apAfter))) : undefined,
+    resolvedR: Number.isFinite(Number(step.resolvedR))
+      ? Math.max(0, Math.min(10, Math.floor(Number(step.resolvedR))))
+      : undefined,
     success: true
   };
   if (Number(step.activationChance) > 0 && Number(step.activationChance) < 1) {
@@ -7242,6 +7654,19 @@ function applyKingdomEffectStep(step, actorIndex, context = {}) {
   if (step.kind === 'register-trigger') {
     const trigger = registerKingdomResonanceTrigger(step, actorIndex, context);
     return trigger ? { ...result, trigger: trigger.trigger, triggerToken: trigger.token } : null;
+  }
+  if (step.kind === 'ap-gain') {
+    return { ...result, targetType: 'player', targetIndex: actorIndex, amount: Math.max(0, Math.floor(Number(step.amount) || 0)) };
+  }
+  if (step.kind === 'recoil-percent') {
+    const targetIndex = Number.isInteger(result.targetIndex) ? result.targetIndex : actorIndex;
+    const player = s.players?.[targetIndex];
+    if (!player || Number(player.hp) <= 0) return { ...result, success: false, amount: 0 };
+    const hpBefore = Math.max(0, Math.floor(Number(player.hp) || 0));
+    const requested = Math.max(1, Math.floor(Math.max(1, Number(player.maxHp) || 1) * Math.max(0, Number(step.percent) || 0) / 100));
+    const amount = step.nonLethal === true ? Math.min(Math.max(0, hpBefore - 1), requested) : Math.min(hpBefore, requested);
+    player.hp = Math.max(step.nonLethal === true ? 1 : 0, hpBefore - amount);
+    return { ...result, targetIndex, amount, hpBefore, hpAfter: player.hp };
   }
   if (step.chance != null && step.kind !== 'status') {
     const check = rollKingdomEffect(step.chance, actorIndex);
@@ -7256,7 +7681,11 @@ function applyKingdomEffectStep(step, actorIndex, context = {}) {
     const lightningBlade = context.source === 'resonance'
       ? getKingdomEffectBucket('player', actorIndex)?.lightningBlade
       : null;
-    const element = lightningBlade ? 'wind' : String(step.element || '');
+    const actorEffects = getKingdomEffectBucket('player', actorIndex) || {};
+    const resonanceEnchant = step.kind === 'magic' ? actorEffects.fireEnchant : actorEffects.windEnchant;
+    const element = lightningBlade
+      ? 'wind'
+      : (resonanceEnchant ? (step.kind === 'magic' ? 'fire' : 'wind') : String(step.element || ''));
     const affinity = !isConfirmedReplay && areKingdomElementAffinitiesEnabled() && element
       ? getTarotKingdomElementMultiplier(enemy.affinity || enemy.id, element)
       : { multiplier: 1, reaction: '' };
@@ -7295,6 +7724,7 @@ function applyKingdomEffectStep(step, actorIndex, context = {}) {
     result.affinityReaction = affinity.reaction;
     result.affinityMultiplier = affinity.multiplier;
     result.ignoreDefense = ignoreDefense;
+    result.outgoingMultiplier = elementalAmount > 0 ? outgoing.damage / elementalAmount : 1;
     if (lightningBlade) {
       consumeKingdomBattleEffect('player', 'lightningBlade', actorIndex);
       const paralysis = rollKingdomEffect(
@@ -7310,10 +7740,23 @@ function applyKingdomEffectStep(step, actorIndex, context = {}) {
         });
       }
     }
+    if (resonanceEnchant) {
+      result.appliedBonuses.push({
+        kind: step.kind === 'magic' ? 'fireEnchant' : 'windEnchant',
+        potency: Math.max(0, Number(resonanceEnchant.potency) || 0)
+      });
+      consumeKingdomBattleEffect(
+        'player',
+        step.kind === 'magic' ? 'fireEnchant' : 'windEnchant',
+        actorIndex
+      );
+    }
     if (context.source === 'resonance' && areKingdomArcanaLoadoutV3EffectsEnabled()
       && Number(getKingdomGuardianArcana(actorIndex)?.number) === 13 && amount > 0) {
       const history = getKingdomRHistory();
-      const rate = Math.min(30, Math.max(0, Number(history.graveCardsByClear[actorIndex]) || 0) * 3);
+      const rate = areKingdomArcanaLoadoutV5EffectsEnabled()
+        ? Math.min(20, getKingdomMinorGraveCount() * 2)
+        : Math.min(30, Math.max(0, Number(history.graveCardsByClear[actorIndex]) || 0) * 3);
       const player = s.players?.[actorIndex];
       if (player && rate > 0 && player.hp > 0 && !isKingdomHealingBlocked(actorIndex)) {
         const hpBefore = player.hp;
@@ -7321,6 +7764,8 @@ function applyKingdomEffectStep(step, actorIndex, context = {}) {
         result.drain = { rate, amount: player.hp - hpBefore, hpBefore, hpAfter: player.hp };
       }
     }
+    syncKingdomCurrentEnemyVital();
+    result.stageHits = applyKingdomStageWideDamage(step, actorIndex, result);
     return result;
   }
   if (step.kind === 'heal' || step.kind === 'heal-percent') {
@@ -7335,9 +7780,14 @@ function applyKingdomEffectStep(step, actorIndex, context = {}) {
     const baseRequested = step.kind === 'heal-percent'
       ? Math.max(1, Math.floor(maxHp * (Math.max(0, Number(step.percent) || 0) / 100)))
       : Math.max(0, Math.floor(Number(step.amount) || 0));
-    const requested = step.confirmedResult === true
+    const guardianAdjusted = step.confirmedResult === true
       ? baseRequested
       : getKingdomGuardianAdjustedHeal(baseRequested, actorIndex, targetIndex);
+    const healingReceivedUp = Math.max(
+      0,
+      Math.min(100, Number(getKingdomEffectBucket('player', targetIndex)?.healingReceivedUp?.potency) || 0)
+    );
+    const requested = Math.max(0, Math.floor(guardianAdjusted * (1 + (healingReceivedUp / 100))));
     const healBudget = context.healBudgetByTarget?.[targetIndex];
     const budgeted = Number.isFinite(Number(healBudget))
       ? Math.min(requested, Math.max(0, Math.floor(Number(healBudget) || 0)))
@@ -7357,16 +7807,18 @@ function applyKingdomEffectStep(step, actorIndex, context = {}) {
     result.amount = player.hp - before;
     result.hpBefore = before;
     result.hpAfter = player.hp;
+    const bardOwnerIndex = areKingdomArcanaLoadoutV5EffectsEnabled() ? actorIndex : targetIndex;
     if (context.source === 'resonance' && context.guardianSpread !== false
+      && step.targetType === 'player'
       && areKingdomArcanaLoadoutV3EffectsEnabled()
-      && Number(getKingdomGuardianArcana(targetIndex)?.number) === 6
+      && Number(getKingdomGuardianArcana(bardOwnerIndex)?.number) === 6
       && result.amount > 0) {
       result.guardianSpread = getKingdomSeatIndexes()
         .filter((index) => index !== targetIndex && Number(s.players?.[index]?.hp) > 0)
         .map((index) => applyKingdomEffectStep({
           source: 'guardian-passive', kind: 'heal', label: '吟遊詩人', targetType: 'player', targetIndex: index,
           amount: Math.max(1, Math.floor(result.amount * 0.25))
-        }, targetIndex, { ...context, source: 'guardian-passive', guardianSpread: false }))
+        }, bardOwnerIndex, { ...context, source: 'guardian-passive', guardianSpread: false }))
         .filter(Boolean);
     }
     const spread = getKingdomEffectBucket('player', actorIndex)?.selfHealSpread;
@@ -7415,6 +7867,24 @@ function applyKingdomEffectStep(step, actorIndex, context = {}) {
       });
     }
     return { ...result, targetIndex, statusKey, amount: 1, transferred: transfer.success, transferRoll: transfer.roll };
+  }
+  if (step.kind === 'cleanse-all') {
+    const targetIndex = Number.isInteger(result.targetIndex) ? result.targetIndex : actorIndex;
+    const bucket = getKingdomEffectBucket('player', targetIndex) || {};
+    const removedStatusKeys = Object.keys(bucket).filter((key) => (
+      KINGDOM_MAJOR_NEGATIVE_EFFECT_KEYS.has(key)
+      || isTarotKingdomNegativeStatus(key)
+      || String(key).endsWith('Down')
+    ));
+    removedStatusKeys.forEach((key) => { delete bucket[key]; });
+    return {
+      ...result,
+      targetType: 'player',
+      targetIndex,
+      amount: removedStatusKeys.length,
+      removedStatusKeys,
+      success: removedStatusKeys.length > 0
+    };
   }
   if (step.kind === 'extend-status') {
     const bucket = getKingdomEffectBucket('enemy');
@@ -7512,7 +7982,17 @@ function applyKingdomEffectStep(step, actorIndex, context = {}) {
   if (step.kind === 'status') {
     let guardianChanceBonus = 0;
     let guardianDurationBonus = 0;
-    if (context.source === 'resonance' && areKingdomArcanaLoadoutV3EffectsEnabled()
+    const v5GuardianStatusSource = ['weapon', 'resonance', 'summon', 'major'].includes(String(context.source || ''));
+    if (areKingdomArcanaLoadoutV5EffectsEnabled()
+      && v5GuardianStatusSource
+      && Number(getKingdomGuardianArcana(actorIndex)?.number) === 1) {
+      const state = getKingdomGuardianState(actorIndex);
+      if (!state.v3 || typeof state.v3 !== 'object') state.v3 = { counters: {}, used: {} };
+      const attempts = Math.max(0, Number(state.v3.counters.statusAttempts) || 0);
+      guardianChanceBonus = Math.min(0.25, attempts * 0.05);
+      guardianDurationBonus = attempts >= 4 ? 2 : (attempts >= 2 ? 1 : 0);
+      if (context.guardianActionTracker) context.guardianActionTracker.statusAttempted = true;
+    } else if (context.source === 'resonance' && areKingdomArcanaLoadoutV3EffectsEnabled()
       && Number(getKingdomGuardianArcana(actorIndex)?.number) === 1) {
       const state = getKingdomGuardianState(actorIndex);
       if (!state.v3 || typeof state.v3 !== 'object') state.v3 = { counters: {}, used: {} };
@@ -7558,6 +8038,9 @@ function applyKingdomEffectStep(step, actorIndex, context = {}) {
   }
   if (step.kind === 'guard' || step.kind === 'buff') {
     if (!result.statusKey) return { ...result, success: false };
+    const previousShieldHp = result.targetType === 'player' && result.statusKey === 'hpShield'
+      ? Math.max(0, Number(getKingdomEffectBucket('player', result.targetIndex)?.hpShield?.shieldHp) || 0)
+      : 0;
     setKingdomBattleEffect(result.targetType, result.statusKey, {
       potency: Math.max(0, Number(step.potency) || 0),
       charges: step.charges == null ? null : Math.max(1, Math.floor(Number(step.charges) || 1)),
@@ -7571,18 +8054,27 @@ function applyKingdomEffectStep(step, actorIndex, context = {}) {
         : null,
       label: result.label
     }, result.targetIndex);
+    const appliedShieldHp = result.targetType === 'player' && result.statusKey === 'hpShield'
+      ? Math.max(0, Number(getKingdomEffectBucket('player', result.targetIndex)?.hpShield?.shieldHp) || 0)
+      : 0;
+    const bardOwnerIndex = areKingdomArcanaLoadoutV5EffectsEnabled() ? actorIndex : result.targetIndex;
     if (context.source === 'resonance' && context.guardianSpread !== false
       && result.targetType === 'player' && result.statusKey === 'hpShield'
       && areKingdomArcanaLoadoutV3EffectsEnabled()
-      && Number(getKingdomGuardianArcana(result.targetIndex)?.number) === 6
-      && Number(step.shieldHp) > 0) {
+      && Number(getKingdomGuardianArcana(bardOwnerIndex)?.number) === 6
+      && (areKingdomArcanaLoadoutV5EffectsEnabled()
+        ? appliedShieldHp > previousShieldHp
+        : Number(step.shieldHp) > 0)) {
+      const sourceShieldHp = areKingdomArcanaLoadoutV5EffectsEnabled()
+        ? appliedShieldHp - previousShieldHp
+        : Number(step.shieldHp);
       result.guardianSpread = getKingdomSeatIndexes()
         .filter((index) => index !== result.targetIndex && Number(s.players?.[index]?.hp) > 0)
         .map((index) => applyKingdomEffectStep({
           source: 'guardian-passive', kind: 'buff', label: '吟遊詩人', targetType: 'player', targetIndex: index,
           statusKey: 'hpShield', potency: Math.max(1, Math.floor(Number(step.potency) * 0.25)),
-          shieldHp: Math.max(1, Math.floor(Number(step.shieldHp) * 0.25))
-        }, result.targetIndex, { ...context, source: 'guardian-passive', guardianSpread: false }))
+          shieldHp: Math.max(1, Math.floor(sourceShieldHp * 0.25))
+        }, bardOwnerIndex, { ...context, source: 'guardian-passive', guardianSpread: false }))
         .filter(Boolean);
     }
     return result;
@@ -7602,6 +8094,7 @@ function buildKingdomConfirmedEffectReplay(effect, scale, source, targetIndex) {
     chance: null,
     activationChance: null
   };
+  delete replay.guardianSpread;
   const resolvedAmount = Number(effect.displayAmount ?? effect.amount);
   if (['damage', 'magic', 'effective', 'multi-hit'].includes(String(effect.kind || ''))) {
     replay.amount = Number.isFinite(resolvedAmount)
@@ -7781,7 +8274,8 @@ function applyKingdomMajorEnemyDamage(actorIndex, rawDamage, options = {}) {
   const displayAmount = consumeKingdomPlayerDamageBudget(resolved, options.damageBudget);
   const amount = Math.min(before, displayAmount);
   enemy.hp = Math.max(0, before - amount);
-  return {
+  syncKingdomCurrentEnemyVital();
+  const result = {
     targetType: 'enemy',
     amount,
     displayAmount,
@@ -7793,8 +8287,19 @@ function applyKingdomMajorEnemyDamage(actorIndex, rawDamage, options = {}) {
     affinityReaction: affinity.reaction,
     affinityMultiplier: affinity.multiplier,
     appliedBonuses: outgoing.applied,
-    success: amount > 0
+    success: amount > 0,
+    outgoingMultiplier: elementalRaw > 0 ? outgoing.damage / elementalRaw : 1,
+    targetScope: String(options.targetScope || '')
   };
+  result.stageHits = applyKingdomStageWideDamage({
+    kind: String(options.damageKind || 'magic'),
+    amount: rawDamage,
+    element,
+    visualElement: String(options.visualElement || ''),
+    ignoreDefense: defenseIgnoreRate,
+    targetScope: result.targetScope
+  }, actorIndex, result);
+  return result;
 }
 
 function getKingdomCharacterBaseMaxHp(playerIndex) {
@@ -8012,6 +8517,15 @@ function resolveKingdomMajorBattleEffect(playerIndex, play, options = {}) {
       addResult({ kind: 'major-debuff', targetType: 'enemy', statusKey: key, potency, remainingTurns: turns });
     };
     const applyV4EnemyStatus = (statusKey, potency, count, label, extras = {}) => {
+      let guardianDurationBonus = 0;
+      if (areKingdomArcanaLoadoutV5EffectsEnabled()
+        && Number(getKingdomGuardianArcana(playerIndex)?.number) === 1) {
+        const guardianState = getKingdomGuardianState(playerIndex);
+        const stage = Math.max(0, Number(guardianState?.v3?.counters?.statusAttempts) || 0);
+        guardianDurationBonus = stage >= 4 ? 2 : (stage >= 2 ? 1 : 0);
+        if (options.guardianActionTracker) options.guardianActionTracker.statusAttempted = true;
+      }
+      const remainingTurns = Math.max(1, Math.floor(Number(count) || 1) + guardianDurationBonus);
       const enemyBucket = getKingdomEffectBucket('enemy') || {};
       if (enemyBucket.statusImmunity || enemyBucket.statusImmune) {
         addResult({
@@ -8022,7 +8536,7 @@ function resolveKingdomMajorBattleEffect(playerIndex, play, options = {}) {
       }
       const applied = setKingdomBattleEffect('enemy', statusKey, {
         potency,
-        remainingTurns: Math.max(1, Math.floor(Number(count) || 1)),
+        remainingTurns,
         sourceIndex: playerIndex,
         source: `major-${number}`,
         label,
@@ -8030,7 +8544,7 @@ function resolveKingdomMajorBattleEffect(playerIndex, play, options = {}) {
       });
       addResult({
         kind: 'major-debuff', targetType: 'enemy', statusKey, potency,
-        remainingTurns: Math.max(1, Math.floor(Number(count) || 1)),
+        remainingTurns,
         success: !!applied,
         ...(applied ? {} : { blocked: true })
       });
@@ -8875,8 +9389,34 @@ function applyKingdomGuardianPlayPassive(playerIndex, play, context = {}, option
       return map;
     }, {});
     const resonanceCount = Math.max(0, Number(context.resonance?.candidates?.length) || 0);
+    const equippedDeck = normalizeTarotKingdomTarotDeck(s.players?.[playerIndex]?.character?.tarotDeck || []);
+    const exactResonanceCount = cards.filter((card) => (
+      card?.kind === 'minor'
+      && equippedDeck.some((entry) => (
+        String(entry?.suit || '') === String(card?.suit || '')
+        && Number(entry?.rank) === Number(card?.number)
+      ))
+    )).length;
     if (number === 2 && suitCounts.Cup) {
-      apply({ source: 'guardian-passive', kind: 'heal-percent', label: '白魔道士', targetType: 'player', targetIndex: playerIndex, percent: rank });
+      const playerCount = getKingdomPlayerCount();
+      const lowestHpTargetIndex = getKingdomSeatIndexes()
+        .filter((targetIndex) => Number(s.players?.[targetIndex]?.hp) > 0)
+        .sort((left, right) => {
+          const leftPlayer = s.players[left];
+          const rightPlayer = s.players[right];
+          const hpRateDifference = (
+            (Number(leftPlayer.hp) || 0) / Math.max(1, Number(leftPlayer.maxHp) || 1)
+          ) - (
+            (Number(rightPlayer.hp) || 0) / Math.max(1, Number(rightPlayer.maxHp) || 1)
+          );
+          if (hpRateDifference !== 0) return hpRateDifference;
+          const leftDistance = (left - playerIndex + playerCount) % playerCount;
+          const rightDistance = (right - playerIndex + playerCount) % playerCount;
+          return leftDistance - rightDistance;
+        })[0];
+      if (Number.isInteger(lowestHpTargetIndex)) {
+        apply({ source: 'guardian-passive', kind: 'heal-percent', label: '白魔道士', targetType: 'player', targetIndex: lowestHpTargetIndex, percent: rank });
+      }
     } else if (number === 3 && suitCounts.Pentacle) {
       const maxHp = Math.max(1, Number(s.players[playerIndex].maxHp) || 1);
       apply({ source: 'guardian-passive', kind: 'buff', label: '結界師', targetType: 'player', targetIndex: playerIndex, statusKey: 'hpShield', potency: rank, shieldHp: Math.max(1, Math.floor(maxHp * rank / 100)) });
@@ -8888,15 +9428,33 @@ function applyKingdomGuardianPlayPassive(playerIndex, play, context = {}, option
       counters.resonance = Math.min(6, Math.max(0, Number(counters.resonance) || 0) + resonanceCount);
       const potency = Math.min(24, counters.resonance * 4);
       apply({ source: 'guardian-passive', kind: 'buff', label: '双剣士', targetType: 'player', targetIndex: playerIndex, statusKey: 'guardianPowerSpeedUp', potency, expiresOn: 'round' });
-    } else if (number === 14 && context.resonance?.candidates?.some((candidate) => Number(candidate?.rank) === 14)) {
+    } else if (number === 14 && (areKingdomArcanaLoadoutV5EffectsEnabled()
+      ? cards.some((card) => card?.kind === 'minor' && Number(card?.number) === 14) && !used.mimic
+      : context.resonance?.candidates?.some((candidate) => Number(candidate?.rank) === 14))) {
       const prior = [...(s.battle?.events || [])].reverse().find((event) => (
         (areKingdomArcanaLoadoutV4EffectsEnabled() || Number(event.actorIndex) !== Number(playerIndex))
         && Array.isArray(event.effects)
         && event.effects.some((effect) => effect?.source === 'resonance' && effect?.copied !== true)
       ));
-      (prior?.effects || []).filter((effect) => (
+      const successfulResonanceEffects = (prior?.effects || []).filter((effect) => (
         effect?.source === 'resonance' && effect?.copied !== true && effect?.success !== false
-      )).forEach((effect) => {
+      ));
+      const latestResonanceEffect = [...successfulResonanceEffects].reverse().find((effect) => (
+        String(effect?.resonanceId || effect?.cardId || effect?.skillName || '')
+      ));
+      const latestResonanceKey = String(
+        latestResonanceEffect?.resonanceId
+          || latestResonanceEffect?.cardId
+          || latestResonanceEffect?.skillName
+          || ''
+      );
+      const copiedGroup = areKingdomArcanaLoadoutV5EffectsEnabled() && latestResonanceKey
+        ? successfulResonanceEffects.filter((effect) => String(
+          effect?.resonanceId || effect?.cardId || effect?.skillName || ''
+        ) === latestResonanceKey)
+        : successfulResonanceEffects;
+      const resultCountBeforeCopy = results.length;
+      copiedGroup.forEach((effect) => {
         let targetIndex = Number.isInteger(Number(effect.targetIndex)) ? Number(effect.targetIndex) : null;
         if (effect.targetType === 'player' && (!s.players[targetIndex] || Number(s.players[targetIndex].hp) <= 0)) {
           targetIndex = getKingdomSeatIndexes().find((index) => Number(s.players[index]?.hp) > 0) ?? playerIndex;
@@ -8913,6 +9471,7 @@ function applyKingdomGuardianPlayPassive(playerIndex, play, context = {}, option
           passiveId: guardian.passiveId
         });
       });
+      if (areKingdomArcanaLoadoutV5EffectsEnabled() && results.length > resultCountBeforeCopy) used.mimic = true;
     } else if (number === 15) {
       const courtCount = cards.filter((card) => Number(card?.number) >= 11 && Number(card?.number) <= 14).length;
       if (courtCount > 0) {
@@ -8951,17 +9510,21 @@ function applyKingdomGuardianPlayPassive(playerIndex, play, context = {}, option
           apply({ source: 'guardian-passive', kind: 'buff', label: '戦魔導師', targetType: 'party', statusKey: 'warMagicUp', potency: 10, turns: 2 });
         }
       }
-    } else if (number === 20 && !used.judgment && context.reverseBefore === false && cards.some((card) => (
-      Number(card?.number) === 11 || (card?.kind === 'major' && Number(card?.number) === 20)
+    } else if (number === 20
+      && (!areKingdomArcanaLoadoutV5EffectsEnabled() ? !used.judgment : true)
+      && (!areKingdomArcanaLoadoutV5EffectsEnabled() || String(play?.type || '') === 'set')
+      && context.reverseBefore === false && cards.some((card) => (
+      (card?.kind === 'minor' && Number(card?.number) === 11)
+        || (card?.kind === 'major' && Number(card?.number) === 20)
     ))) {
       const knockedOut = getKingdomSeatIndexes().filter((index) => Number(s.players[index]?.hp) <= 0);
       if (knockedOut.length) {
-        used.judgment = true;
+        if (!areKingdomArcanaLoadoutV5EffectsEnabled()) used.judgment = true;
         if (areKingdomArcanaLoadoutV4EffectsEnabled()) {
           const koOrder = Array.isArray(s.battle?.koOrder) ? s.battle.koOrder : [];
           const targetIndex = koOrder.find((index) => knockedOut.includes(Number(index))) ?? knockedOut[0];
           apply({
-            source: 'guardian-passive', kind: 'revive-percent', label: '審判者', targetType: 'player', targetIndex, percent: 10
+            source: 'guardian-passive', kind: 'revive-percent', label: areKingdomArcanaLoadoutV5EffectsEnabled() ? '司祭' : '審判者', targetType: 'player', targetIndex, percent: 10
           });
         } else {
           knockedOut.forEach((targetIndex) => apply({
@@ -8978,9 +9541,11 @@ function applyKingdomGuardianPlayPassive(playerIndex, play, context = {}, option
           statusKey: 'autoRevive', potency: 10, charges: 1, expiresOn: 'round'
         });
       }
-    } else if (number === 21 && resonanceCount > 0 && !used.hero) {
-      counters.resonance = Math.max(0, Number(counters.resonance) || 0) + resonanceCount;
-      if (counters.resonance >= 5) {
+    } else if (number === 21 && (areKingdomArcanaLoadoutV5EffectsEnabled() ? exactResonanceCount : resonanceCount) > 0 && !used.hero) {
+      counters.resonance = Math.max(0, Number(counters.resonance) || 0)
+        + (areKingdomArcanaLoadoutV5EffectsEnabled() ? exactResonanceCount : resonanceCount);
+      const requiredResonanceCount = areKingdomArcanaLoadoutV5EffectsEnabled() ? 2 : 5;
+      if (counters.resonance >= requiredResonanceCount) {
         used.hero = true;
         getKingdomSeatIndexes().filter((index) => Number(s.players[index].hp) > 0).forEach((targetIndex) => {
           const target = s.players[targetIndex];
@@ -8988,7 +9553,25 @@ function applyKingdomGuardianPlayPassive(playerIndex, play, context = {}, option
           if (!isKingdomHealingBlocked(targetIndex)) target.hp = target.maxHp;
           results.push({ source: 'guardian-passive', kind: 'heal', label: '勇者', targetType: 'player', targetIndex, amount: target.hp - before, hpBefore: before, hpAfter: target.hp, guardianNumber: number, passiveId: guardian.passiveId });
         });
-        apply({ source: 'guardian-passive', kind: 'status', label: '勇者', targetType: 'enemy', statusKey: 'paralysis', potency: 100, charges: 1 });
+        if (areKingdomArcanaLoadoutV5EffectsEnabled()) {
+          const existingTimeStop = getKingdomEffectBucket('enemy')?.timeStop;
+          if (!existingTimeStop) {
+            setKingdomMajorTimedEffect('enemy', 'timeStop', {
+              potency: 100,
+              remainingTurns: 1,
+              sourceIndex: playerIndex,
+              source: 'guardian-21',
+              label: '勇者の時止め'
+            });
+          }
+          results.push({
+            source: 'guardian-passive', kind: 'status', label: '勇者', targetType: 'enemy',
+            statusKey: 'timeStop', potency: 100, remainingTurns: 1, success: true,
+            guardianNumber: number, passiveId: guardian.passiveId
+          });
+        } else {
+          apply({ source: 'guardian-passive', kind: 'status', label: '勇者', targetType: 'enemy', statusKey: 'paralysis', potency: 100, charges: 1 });
+        }
       }
     }
     return results;
@@ -9139,6 +9722,7 @@ function getKingdomGuardianPassiveDisplayName(playerIndex, results = []) {
 }
 
 function getKingdomResonanceCardsForPlay(play, submittedCards = [], tableCards = submittedCards) {
+  if (areKingdomArcanaLoadoutV6EffectsEnabled()) return submittedCards;
   const isCall = play?.call === true || play?.resonanceContext?.isCall === true;
   return isCall && Array.isArray(tableCards) && tableCards.length > 0
     ? tableCards
@@ -9172,8 +9756,11 @@ function getKingdomEffectResultPresentation(entry) {
   if (['revive-percent', 'revive-fixed', 'major-revive'].includes(kind) || entry.revived === true) {
     return { label: 'REVIVE', navigationPhrase: '立ち上がった', statusKey: 'revive', tone: 'support' };
   }
-  if (['cleanse', 'cleanse-transfer', 'heal-cleanse', 'major-cleanse'].includes(kind) && Number(entry.amount) > 0) {
+  if (['cleanse', 'cleanse-all', 'cleanse-transfer', 'heal-cleanse', 'major-cleanse'].includes(kind) && Number(entry.amount) > 0) {
     return { label: 'CLEANSE', navigationPhrase: '状態異常が消えた', statusKey: 'cleanse', tone: 'support' };
+  }
+  if (kind === 'enemy-heal' && Number(entry.amount) > 0) {
+    return { label: 'HEAL', navigationPhrase: 'HPを回復した', statusKey: 'heal', tone: 'support' };
   }
   return null;
 }
@@ -9263,6 +9850,12 @@ function buildKingdomEffectNavigationMessage(results = []) {
   const clauses = [];
   const resultPhrases = [];
   const seenResultPhrases = new Set();
+  const stageHitCount = new Set(successful.flatMap((entry) => (
+    Array.isArray(entry.stageHits)
+      ? entry.stageHits.map((hit) => String(hit?.monsterId || hit?.order || '')).filter(Boolean)
+      : []
+  ))).size;
+  if (stageHitCount > 0) resultPhrases.push(`後続${stageHitCount}体にも HIT`);
   const playerStatusCounts = successful.reduce((counts, entry) => {
     const presentation = getKingdomEffectResultPresentation(entry);
     if (!presentation || String(entry?.targetType || '') !== 'player') return counts;
@@ -9301,7 +9894,7 @@ function buildKingdomEffectNavigationMessage(results = []) {
   if (successful.some((entry) => ['revive-percent', 'revive-fixed'].includes(String(entry.kind || '')))) {
     clauses.push('味方を復活');
   }
-  if (successful.some((entry) => ['cleanse', 'cleanse-transfer', 'heal-cleanse'].includes(String(entry.kind || '')))) {
+  if (successful.some((entry) => ['cleanse', 'cleanse-all', 'cleanse-transfer', 'heal-cleanse'].includes(String(entry.kind || '')))) {
     clauses.push('状態異常を解除');
   }
 
@@ -9380,11 +9973,13 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
   const context = {
     arcanaLoadoutEffectsVersion: Number(s.rules?.arcanaLoadoutEffectsVersion) || 0,
     actorIndex: playerIndex,
+    arcanaPoints: Math.max(0, Math.floor(Number(s.players[playerIndex]?.arcanaPoints) || 0)),
     playType: String(play?.type || ''),
     cards: submittedCards,
     character,
     players: s.players,
     enemy: s.battle.enemy,
+    koOrder: Array.isArray(s.battle.koOrder) ? [...s.battle.koOrder] : [],
     effects: ensureKingdomBattleEffects(),
     enemyAffinity: cloneKingdomSnapshotValue(
       s.battle.enemy?.affinity || getTarotKingdomEnemyAffinity(
@@ -9413,10 +10008,22 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
       ? play.resonanceContext
       : {})
   };
-  const weapon = resolveTarotKingdomWeaponEffect(context);
+  const guardianActionTracker = { statusAttempted: false };
+  context.guardianActionTracker = guardianActionTracker;
+  const weapon = resolveTarotKingdomWeaponEffect({
+    ...context,
+    cards: getKingdomScholarWeaponCards(submittedCards, playerIndex, context.reverseBefore)
+  });
   const resonance = areKingdomArcanaLoadoutEffectsEnabled()
     ? resolveTarotKingdomResonance({ ...context, cards: resonanceCards })
     : null;
+  if (
+    resonance
+    && areKingdomArcanaPointRulesEnabled()
+    && Number.isFinite(Number(resonance.apAfter))
+  ) {
+    s.players[playerIndex].arcanaPoints = Math.max(0, Math.floor(Number(resonance.apAfter) || 0));
+  }
   const results = [];
   if (summonSealed) {
     results.push({
@@ -9430,6 +10037,12 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
     s.players.map((player, targetIndex) => [
       targetIndex,
       Math.max(0, Math.floor((Number(player?.maxHp) || 0) * 0.4))
+    ])
+  );
+  const resonanceAceHealBudgetByTarget = Object.fromEntries(
+    s.players.map((player, targetIndex) => [
+      targetIndex,
+      Math.max(0, Math.floor(Number(player?.maxHp) || 0))
     ])
   );
   if (summon) {
@@ -9454,6 +10067,7 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
       highCard: summonHighCard
     });
     summonSteps.forEach((step) => {
+      if (step.kind === 'status') guardianActionTracker.statusAttempted = true;
       if (options.enemyAttackMissed && step.targetType === 'enemy') return;
       if (step.kind === 'heal-party-percent') {
         s.players.forEach((player, targetIndex) => {
@@ -9465,7 +10079,8 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
             targetIndex
           }, playerIndex, {
             source: 'summon',
-            damageBudget: options.damageBudget
+            damageBudget: options.damageBudget,
+            guardianActionTracker
           });
           if (result) results.push({ ...result, summonId: summon.id, summonName: summon.name });
         });
@@ -9488,7 +10103,8 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
             } : {})
           }, playerIndex, {
             source: 'summon',
-            damageBudget: options.damageBudget
+            damageBudget: options.damageBudget,
+            guardianActionTracker
           });
           if (result) results.push({ ...result, summonId: summon.id, summonName: summon.name });
         });
@@ -9497,33 +10113,50 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
       if (step.targetType === 'enemy' && Number(s.battle.enemy?.hp) <= 0) return;
       const result = applyKingdomEffectStep(step, playerIndex, {
         source: 'summon',
-        damageBudget: options.damageBudget
+        damageBudget: options.damageBudget,
+        guardianActionTracker
       });
       if (result) results.push({ ...result, summonId: summon.id, summonName: summon.name });
     });
   }
   if (weapon && !(options.enemyAttackMissed && weapon.targetType === 'enemy')) {
+    if (weapon.kind === 'status') guardianActionTracker.statusAttempted = true;
     const result = applyKingdomEffectStep(weapon, playerIndex, {
       source: 'weapon',
-      damageBudget: options.damageBudget
+      damageBudget: options.damageBudget,
+      guardianActionTracker
     });
     if (result) results.push(result);
   }
   if (resonance) {
+    let previousResonanceDamage = 0;
     resonance.steps.forEach((step) => {
+      if (step.kind === 'status') guardianActionTracker.statusAttempted = true;
       if (options.enemyAttackMissed && step.targetType === 'enemy') return;
       const isDamageStep = ['damage', 'magic', 'effective', 'multi-hit'].includes(step.kind);
-      const budgetedStep = isDamageStep
-        ? { ...step, amount: Math.min(Number(step.amount) || 0, resonanceDamageBudget.remaining) }
+      const bypassResonanceCap = step.aceUncapped === true;
+      let resolvedStep = Number(step.potencyFromPreviousRate) > 0
+        ? {
+            ...step,
+            potency: Math.max(1, Math.floor(
+              previousResonanceDamage * Math.max(0, Number(step.potencyFromPreviousRate) || 0)
+            ))
+          }
         : step;
-      if (isDamageStep && resonanceDamageBudget.remaining <= 0) return;
+      const budgetedStep = isDamageStep && !bypassResonanceCap
+        ? { ...resolvedStep, amount: Math.min(Number(resolvedStep.amount) || 0, resonanceDamageBudget.remaining) }
+        : resolvedStep;
+      if (isDamageStep && !bypassResonanceCap && resonanceDamageBudget.remaining <= 0) return;
       const result = applyKingdomEffectStep(budgetedStep, playerIndex, {
         source: 'resonance',
         resonanceDamage,
         damageBudget: options.damageBudget,
-        healBudgetByTarget: resonanceHealBudgetByTarget,
+        healBudgetByTarget: step.aceUncapped === true
+          ? resonanceAceHealBudgetByTarget
+          : resonanceHealBudgetByTarget,
         sourcePlayToken: getKingdomPlayToken(play),
-        skippedPlayerIndexes: play?.resonanceContext?.skippedPlayerIndexes || []
+        skippedPlayerIndexes: play?.resonanceContext?.skippedPlayerIndexes || [],
+        guardianActionTracker
       });
       if (!result) return;
       results.push({
@@ -9532,9 +10165,19 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
         cardId: step.cardId || resonance.cardId,
         resonanceId: step.resonanceId || ''
       });
+      if (areKingdomArcanaLoadoutV5EffectsEnabled() && Array.isArray(result.guardianSpread)) {
+        results.push(...result.guardianSpread.map((spreadResult) => ({
+          ...spreadResult,
+          guardianNumber: 6,
+          passiveId: getKingdomGuardianArcana(playerIndex)?.passiveId || 'guardian-v5-6'
+        })));
+      }
       if (result.targetType === 'enemy' && Number(result.amount) > 0) {
+        previousResonanceDamage = Number(result.amount);
         resonanceDamage += Number(result.amount);
-        resonanceDamageBudget.remaining = Math.max(0, resonanceDamageBudget.remaining - Number(result.amount));
+        if (!bypassResonanceCap) {
+          resonanceDamageBudget.remaining = Math.max(0, resonanceDamageBudget.remaining - Number(result.amount));
+        }
       }
     });
     const strongestMatch = Math.max(
@@ -9548,7 +10191,8 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
       areKingdomDamageBalanceRulesEnabled() ? 1 : 0
     );
     if (
-      resonanceDamage > 0
+      !areKingdomArcanaLoadoutV6EffectsEnabled()
+      && resonanceDamage > 0
       && resonanceDamage < resonanceDamageFloor
       && resonanceDamageBudget.remaining > 0
       && Number(s.battle.enemy?.hp) > 0
@@ -9591,8 +10235,11 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
     options
   );
   if (guardianPassiveResults.length) results.push(...guardianPassiveResults);
-  const guardianPassiveName = getKingdomGuardianPassiveDisplayName(playerIndex, guardianPassiveResults);
-  let major = resolveKingdomMajorBattleEffect(playerIndex, play, options);
+  let guardianPassiveName = getKingdomGuardianPassiveDisplayName(
+    playerIndex,
+    results.filter((entry) => entry?.source === 'guardian-passive')
+  );
+  let major = resolveKingdomMajorBattleEffect(playerIndex, play, { ...options, guardianActionTracker });
   if (!major && summon && summonMajorCard && !summonSealed) {
     major = resolveKingdomMajorBattleEffect(playerIndex, {
       type: 'set',
@@ -9603,10 +10250,29 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
       selected: [],
       selectedIds: [summonMajorCard.id].filter(Boolean),
       summonedFromRole: true
-    }, options);
+    }, { ...options, guardianActionTracker });
     if (major) major.summonedFromRole = true;
   }
   if (major) results.push(...major.results);
+  if (
+    areKingdomArcanaLoadoutV5EffectsEnabled()
+    && guardianActionTracker.statusAttempted
+    && Number(getKingdomGuardianArcana(playerIndex)?.number) === 1
+  ) {
+    const guardianState = getKingdomGuardianState(playerIndex);
+    if (!guardianState.v3 || typeof guardianState.v3 !== 'object') guardianState.v3 = { counters: {}, used: {} };
+    const previousStage = Math.max(0, Number(guardianState.v3.counters.statusAttempts) || 0);
+    guardianState.v3.counters.statusAttempts = Math.min(5, previousStage + 1);
+    const guardianResult = {
+      source: 'guardian-passive', kind: 'buff', label: '呪術師', targetType: 'player',
+      targetIndex: playerIndex, statusKey: 'guardianStatusMastery',
+      potency: guardianState.v3.counters.statusAttempts * 5, success: true,
+      guardianNumber: 1,
+      passiveId: getKingdomGuardianArcana(playerIndex)?.passiveId || 'guardian-v5-1'
+    };
+    results.push(guardianResult);
+    guardianPassiveName ||= '呪術師';
+  }
   const majorSummon = major
     && !major.summonedFromRole
     && areKingdomSummonsEnabled()
@@ -9890,7 +10556,10 @@ function applyKingdomEnemyPreAttackV1(attackKind) {
     if (!effects.length) return finalize({ stopped: true, event: null, effects });
     return stop('petrified', '石化');
   }
-  if (bucket.timeStop) return stop('timeStop', '時間停止');
+  if (bucket.timeStop) {
+    if (String(bucket.timeStop.source || '') === 'guardian-21') removeKingdomBattleEffect('enemy', 'timeStop');
+    return stop('timeStop', '時間停止');
+  }
   if (bucket.intimidate) return stop('intimidate', '威圧');
   if (bucket.sleep) return stop('sleep', '睡眠', { hardControl: true });
   if (bucket.freeze) return stop('freeze', '凍結', { consumeAttack: true, hardControl: true });
@@ -10005,6 +10674,9 @@ function applyKingdomEnemyPreAttack(attackKind) {
   }
   const timedStopKey = bucket.timeStop ? 'timeStop' : (bucket.intimidate ? 'intimidate' : '');
   if (timedStopKey) {
+    if (timedStopKey === 'timeStop' && String(bucket.timeStop?.source || '') === 'guardian-21') {
+      removeKingdomBattleEffect('enemy', 'timeStop');
+    }
     effects.push({ kind: 'skip', statusKey: timedStopKey, amount: 1 });
     const label = timedStopKey === 'timeStop' ? '時間停止' : '威圧';
     const statusDamage = effects.reduce((sum, entry) => (
@@ -10094,7 +10766,7 @@ function applyKingdomEnemyPreAttack(attackKind) {
   return { stopped: false, event: null, effects };
 }
 
-function getKingdomEnemyAttackMultiplier() {
+function getKingdomEnemyAttackMultiplier(attackKind = 'single') {
   const bucket = getKingdomEffectBucket('enemy') || {};
   const applied = [];
   let multiplier = 1;
@@ -10116,6 +10788,13 @@ function getKingdomEnemyAttackMultiplier() {
     const potency = Math.max(0, Math.min(80, Number(attackDown.potency) || 0));
     multiplier *= Math.max(0.2, 1 - (potency / 100));
     applied.push({ kind: 'attackDown', potency });
+  }
+  const attackBuffKey = attackKind === 'area' ? 'intelligenceUp' : 'powerUp';
+  const attackBuff = bucket[attackBuffKey];
+  if (attackBuff) {
+    const potency = Math.max(0, Math.min(50, Number(attackBuff.potency) || 0));
+    multiplier *= 1 + (potency / 100);
+    applied.push({ kind: attackBuffKey, potency });
   }
   return { multiplier, applied };
 }
@@ -10386,6 +11065,7 @@ function getKingdomBattleDamageForPlay(playerIndex, play) {
   const growthVersion = areKingdomDamageGrowthRulesEnabled() ? 1 : 0;
   if (String(play?.type || '') === 'role' && tableCards.length === 5) {
     const rebuiltRole = evalRole(tableCards, null) || play?.role || null;
+    const roleProfile = getKingdomRoleAttackProfile(rebuiltRole?.key || play?.role?.key);
     const roleChain = getKingdomRoleChain(play);
     const declaredRate = Number(play?.role?.effectiveRate);
     const rebuiltRate = Number(rebuiltRole?.effectiveRate);
@@ -10406,16 +11086,36 @@ function getKingdomBattleDamageForPlay(playerIndex, play) {
     });
     return {
       ...result,
-      baseDamage: Math.max(1, Math.floor((Number(result.baseDamage) || 0) * roleChain.multiplier * equippedRoleMultiplier)),
-      damage: Math.max(1, Math.floor((Number(result.damage) || 0) * roleChain.multiplier * equippedRoleMultiplier)),
+      baseDamage: Math.max(1, Math.floor(
+        (Number(result.baseDamage) || 0)
+        * roleChain.multiplier
+        * equippedRoleMultiplier
+        * roleProfile.damageScale
+      )),
+      damage: Math.max(1, Math.floor(
+        (Number(result.damage) || 0)
+        * roleChain.multiplier
+        * equippedRoleMultiplier
+        * roleProfile.damageScale
+      )),
       kind: 'skill',
+      roleKey: roleProfile.roleKey,
+      targetScope: roleProfile.targetScope,
+      rangeLabel: roleProfile.rangeLabel,
+      roleDamageScale: roleProfile.damageScale,
       roleChain,
       equippedRoleMultiplier,
-      label: `${getRoleDisplayLabel({ ...play, role: rebuiltRole || play?.role })}スキル`
+      label: `${getRoleDisplayLabel({ ...play, role: rebuiltRole || play?.role })}${
+        roleProfile.rangeLabel ? `・${roleProfile.rangeLabel}` : 'スキル'
+      }`
     };
   }
   const count = Math.max(1, Math.min(3, handCards.length || Number(play?.count) || 1));
-  const keyPower = tableCards.reduce((max, card) => Math.max(max, cStrength(card)), 0);
+  const reverseBefore = play?.resonanceContext?.reverseBefore;
+  const keyPower = tableCards.reduce((max, card) => {
+    const scholarCombatNumber = getKingdomScholarCombatNumber(card, playerIndex, reverseBefore);
+    return Math.max(max, scholarCombatNumber == null ? cStrength(card) : scholarCombatNumber);
+  }, 0);
   const result = calculateTarotKingdomPlayerAttack({
     cardCount: count,
     maxCardStrength: keyPower,
@@ -10520,11 +11220,17 @@ function applyKingdomPlayerAttack(playerIndex, play) {
       summon: secondary.summon,
       majorSummon: secondary.majorSummon || null,
       roleChain: attack.roleChain ? { ...attack.roleChain } : null,
+      roleKey: String(attack.roleKey || ''),
+      roleTargetScope: String(attack.targetScope || 'single'),
+      roleRangeLabel: String(attack.rangeLabel || ''),
+      roleStageHits: [],
       summonEffectName: secondary.summon?.effectName || '',
       label: impairment.blocked
         ? `${pName(playerIndex)} ${impairment.label}（カード提出成立）`
         : (secondary.summon
-          ? `${pName(playerIndex)} 召喚・${secondary.summon.name}（RUSH TIME）`
+          ? `${pName(playerIndex)} 召喚・${secondary.summon.name}${
+              attack.rangeLabel ? `（${attack.rangeLabel}）` : ''
+            }（RUSH TIME）`
           : `${pName(playerIndex)} ${attack.label}（RUSH TIME）`)
     });
     if (enemy.hp <= 0 && enemy.rushStartedAtSeq == null) enemy.rushStartedAtSeq = event.seq;
@@ -10558,7 +11264,14 @@ function applyKingdomPlayerAttack(playerIndex, play) {
   const displayBaseDamage = consumeKingdomPlayerDamageBudget(incomingBase.amount, damageBudget);
   const baseDamage = Math.min(before, displayBaseDamage);
   enemy.hp = Math.max(0, before - baseDamage);
+  syncKingdomCurrentEnemyVital();
   if (baseDamage > 0) removeKingdomBattleEffect('enemy', 'sleep');
+  const roleRangeResult = applyKingdomRoleRangeDamage(
+    attack,
+    playerIndex,
+    outgoing.damage,
+    displayBaseDamage
+  );
   const secondary = impairment.cancelsAllEffects
     ? { results: [], damage: 0, heal: 0, effectCount: 0, resonance: null, weapon: null, summon: null, major: null, worldRole: null, guardianPassiveName: '' }
     : applyKingdomSecondaryEffects(playerIndex, play, {
@@ -10589,6 +11302,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
     }] : []),
     ...outgoing.applied,
     ...incomingBase.applied,
+    ...(roleRangeResult ? [roleRangeResult] : []),
     ...secondary.results,
     ...statusDamage
   ];
@@ -10635,12 +11349,18 @@ function applyKingdomPlayerAttack(playerIndex, play) {
     summon: secondary.summon,
     majorSummon: secondary.majorSummon || null,
     roleChain: attack.roleChain ? { ...attack.roleChain } : null,
+    roleKey: String(attack.roleKey || ''),
+    roleTargetScope: String(attack.targetScope || 'single'),
+    roleRangeLabel: String(attack.rangeLabel || ''),
+    roleStageHits: roleRangeResult?.stageHits || [],
     summonEffectName: secondary.summon?.effectName || '',
     appliedBonuses: [...outgoing.applied, ...incomingBase.applied],
     label: impairment.blocked
       ? `${pName(playerIndex)} ${impairment.label}（カード提出成立）`
       : (secondary.summon
-          ? `${pName(playerIndex)} 召喚・${secondary.summon.name} ${displayDamage}ダメージ`
+          ? `${pName(playerIndex)} 召喚・${secondary.summon.name}${
+              attack.rangeLabel ? `（${attack.rangeLabel}）` : ''
+            } ${displayDamage}ダメージ`
           : `${pName(playerIndex)} ${attack.label} ${displayDamage}ダメージ`)
   });
   if (enemyDown && (enemy.rushStartedAtSeq == null || !Number.isInteger(Number(enemy.rushStartedAtSeq)))) {
@@ -10703,7 +11423,7 @@ function applyKingdomEnemySingleAttack(playerIndex) {
   const summonReduction = summonGuard ? Math.max(0, Math.min(45, Number(summonGuard.potency) || 0)) : 0;
   if (summonGuard) consumeKingdomBattleEffect('party', 'summonGuard');
   const player = s.players[targetIndex];
-  const weakening = getKingdomEnemyAttackMultiplier();
+  const weakening = getKingdomEnemyAttackMultiplier('single');
   const critical = enemySilenced
     ? { critical: false, multiplier: 1, chance: 0, roll: null, silenced: true }
     : resolveKingdomEnemyCritical();
@@ -10738,6 +11458,11 @@ function applyKingdomEnemySingleAttack(playerIndex) {
   if (Number.isInteger(guardianCoverIndex)) effects.push({ kind: 'guardianCover', guardianNumber: 12, originalTargetIndex: playerIndex });
   if (summonReduction > 0) effects.push({ kind: 'summonGuard', potency: summonReduction });
   if (counter) effects.push(counter);
+  const specialEffects = enemySilenced
+    ? []
+    : applyKingdomEnemySpecialAfterAttack('single', { damageDealt: damage });
+  effects.push(...specialEffects);
+  const enemyHealing = specialEffects.find((entry) => entry.kind === 'enemy-heal') || null;
   const coverActivated = Number(targetIndex) !== Number(playerIndex)
     && (coverReduction > 0 || Number.isInteger(guardianCoverIndex));
   const coverMessage = coverActivated
@@ -10767,7 +11492,14 @@ function applyKingdomEnemySingleAttack(playerIndex) {
     }],
     knockedOutIndexes: knockedOut ? [targetIndex] : [],
     effects,
-    effectMessage: coverMessage,
+    ...(enemyHealing
+      ? {
+          enemyHealAmount: enemyHealing.amount,
+          enemyHpBefore: enemyHealing.hpBefore,
+          enemyHp: enemyHealing.hpAfter
+        }
+      : {}),
+    effectMessage: [coverMessage, buildKingdomEffectNavigationMessage(effects)].filter(Boolean).join('　'),
     label: coverActivated
       ? `${coverMessage} ${accuracy.success ? `${damage}ダメージ` : '攻撃を回避'}`
       : (accuracy.success
@@ -10820,7 +11552,7 @@ function applyKingdomEnemyAreaAttack(clearLeaderIndex = null) {
     ? Number(clearLeaderIndex)
     : null;
   const eventEffects = [...preAttack.effects];
-  const weakening = getKingdomEnemyAttackMultiplier();
+  const weakening = getKingdomEnemyAttackMultiplier('area');
   eventEffects.push(...weakening.applied);
   const critical = enemySilenced
     ? { critical: false, multiplier: 1, chance: 0, roll: null, silenced: true }
@@ -10888,6 +11620,13 @@ function applyKingdomEnemyAreaAttack(clearLeaderIndex = null) {
     const counter = applyKingdomCounter(entry.playerIndex);
     if (counter) eventEffects.push(counter);
   });
+  const specialEffects = enemySilenced
+    ? []
+    : applyKingdomEnemySpecialAfterAttack('area', {
+        damageDealt: damages.reduce((sum, entry) => sum + Math.max(0, Number(entry.damage) || 0), 0)
+      });
+  eventEffects.push(...specialEffects);
+  const enemyHealing = specialEffects.find((entry) => entry.kind === 'enemy-heal') || null;
   const event = pushKingdomBattleEvent('enemy-area', {
     attackAnimationName: attackMotion.animationName,
     attackAnimationDurationMs: attackMotion.animationDurationMs,
@@ -10899,6 +11638,14 @@ function applyKingdomEnemyAreaAttack(clearLeaderIndex = null) {
     damages,
     knockedOutIndexes,
     effects: eventEffects,
+    ...(enemyHealing
+      ? {
+          enemyHealAmount: enemyHealing.amount,
+          enemyHpBefore: enemyHealing.hpBefore,
+          enemyHp: enemyHealing.hpAfter
+        }
+      : {}),
+    effectMessage: buildKingdomEffectNavigationMessage(eventEffects),
     label: `${s.battle.enemy.name}の全体攻撃`
   });
   damages.filter((entry) => entry.missed).forEach((entry) => {
@@ -11160,11 +11907,15 @@ function normalizeKingdomRules(
   fallbackCarryHpBetweenRoundsVersion = 1,
   fallbackForcedDrawDeathVersion = 1,
   fallbackDamageGrowthVersion = 1,
-  fallbackArcanaLoadoutEffectsVersion = 4,
+  fallbackArcanaLoadoutEffectsVersion = 6,
   fallbackRoleChainVersion = 1,
   fallbackDamageBalanceVersion = 1,
   fallbackStatusEffectsVersion = 2,
-  fallbackSummonSelectionVersion = 2
+  fallbackSummonSelectionVersion = 2,
+  fallbackEnemyAbilityVersion = 1,
+  fallbackArcanaPointVersion = 1,
+  fallbackStageWideAreaDamageVersion = 1,
+  fallbackRoleAttackRangeVersion = 1
 ) {
   const incoming = rawRules && typeof rawRules === 'object' ? rawRules : {};
   const fallback = Math.max(1, Math.min(20, Math.floor(Number(fallbackHandSize) || DEFAULT_HAND_LIMIT)));
@@ -11248,7 +11999,7 @@ function normalizeKingdomRules(
     ),
     arcanaLoadoutEffectsVersion: Math.max(
       0,
-      Math.min(4, Math.floor(Number(
+      Math.min(6, Math.floor(Number(
         incoming.arcanaLoadoutEffectsVersion ?? fallbackArcanaLoadoutEffectsVersion
       ) || 0))
     ),
@@ -11264,9 +12015,33 @@ function normalizeKingdomRules(
         incoming.statusEffectsVersion ?? fallbackStatusEffectsVersion
       ) || 0))
     ),
+    enemyAbilityVersion: Math.max(
+      0,
+      Math.min(1, Math.floor(Number(
+        incoming.enemyAbilityVersion ?? fallbackEnemyAbilityVersion
+      ) || 0))
+    ),
     stageVersion: Math.max(
       0,
-      Math.min(1, Math.floor(Number(incoming.stageVersion ?? fallbackStageVersion) || 0))
+      Math.min(2, Math.floor(Number(incoming.stageVersion ?? fallbackStageVersion) || 0))
+    ),
+    arcanaPointVersion: Math.max(
+      0,
+      Math.min(1, Math.floor(Number(
+        incoming.arcanaPointVersion ?? fallbackArcanaPointVersion
+      ) || 0))
+    ),
+    stageWideAreaDamageVersion: Math.max(
+      0,
+      Math.min(1, Math.floor(Number(
+        incoming.stageWideAreaDamageVersion ?? fallbackStageWideAreaDamageVersion
+      ) || 0))
+    ),
+    roleAttackRangeVersion: Math.max(
+      0,
+      Math.min(1, Math.floor(Number(
+        incoming.roleAttackRangeVersion ?? fallbackRoleAttackRangeVersion
+      ) || 0))
     )
   };
 }
@@ -11304,6 +12079,7 @@ function initState() {
       discard: [],
       bet: 0,
       stars: 0,
+      arcanaPoints: 0,
       character: null,
       maxHp: KINGDOM_FALLBACK_PLAYER_MAX_HP,
       hp: KINGDOM_FALLBACK_PLAYER_MAX_HP,
@@ -11365,7 +12141,15 @@ function initState() {
     raid: null,
     tutorialEnabled: false,
     tutorialProgress: null,
-    battle: createKingdomBattleState(0, false, '', rules.enemyCombatVersion, playerTemplates.length, null)
+    battle: createKingdomBattleState(
+      0,
+      false,
+      '',
+      rules.enemyCombatVersion,
+      playerTemplates.length,
+      null,
+      rules.enemyAbilityVersion
+    )
   };
 }
 
@@ -11424,6 +12208,7 @@ function clearRoundState() {
     p.hand = [];
     p.discard = [];
     p.bet = 0;
+    p.arcanaPoints = 0;
     p.forcedDrawStreak = 0;
   });
 }
@@ -12058,6 +12843,26 @@ function deserializeStateFromNet(payload) {
     );
   }
   if (incomingSchema < 25) incomingRules.summonSelectionVersion = 1;
+  if (incomingSchema < 26) incomingRules.enemyAbilityVersion = 0;
+  if (incomingSchema < 27) {
+    incomingRules.arcanaLoadoutEffectsVersion = Math.min(
+      4,
+      Math.max(0, Math.floor(Number(incomingRules.arcanaLoadoutEffectsVersion ?? 4) || 0))
+    );
+  }
+  if (incomingSchema < 28) {
+    incomingRules.arcanaLoadoutEffectsVersion = Math.min(
+      5,
+      Math.max(0, Math.floor(Number(incomingRules.arcanaLoadoutEffectsVersion ?? 5) || 0))
+    );
+    incomingRules.arcanaPointVersion = 0;
+    incomingRules.stageWideAreaDamageVersion = 0;
+    incomingRules.stageVersion = Math.min(
+      1,
+      Math.max(0, Math.floor(Number(incomingRules.stageVersion ?? 1) || 0))
+    );
+  }
+  if (incomingSchema < 29) incomingRules.roleAttackRangeVersion = 0;
   if (incomingSchema < 19) {
     if (Object.prototype.hasOwnProperty.call(incomingRules, 'enemyCombatVersion')) {
       incomingRules.enemyCombatVersion = Math.min(
@@ -12083,17 +12888,21 @@ function deserializeStateFromNet(payload) {
       : 2,
     incomingSchema < 7 ? 0 : 1,
     incomingSchema < 8 ? 0 : (incomingSchema < 24 ? 1 : 2),
-    incomingSchema < 10 ? 0 : 1,
+    incomingSchema < 10 ? 0 : (incomingSchema < 28 ? 1 : 2),
     incomingSchema < 11 ? 0 : (incomingSchema < 15 ? 1 : (incomingSchema < 24 ? 2 : 3)),
     incomingSchema < 11 ? 0 : (incomingSchema < 19 ? 1 : 2),
     incomingSchema < 12 ? 0 : 1,
     incomingSchema < 12 ? 0 : 1,
     incomingSchema < 14 ? 0 : 1,
-    incomingSchema < 16 ? 0 : (incomingSchema < 18 ? 1 : (incomingSchema < 20 ? 2 : (incomingSchema < 24 ? 3 : 4))),
+    incomingSchema < 16 ? 0 : (incomingSchema < 18 ? 1 : (incomingSchema < 20 ? 2 : (incomingSchema < 24 ? 3 : (incomingSchema < 27 ? 4 : (incomingSchema < 28 ? 5 : 6))))),
     incomingSchema < 17 ? 0 : 1,
     incomingSchema < 21 ? 0 : 1,
     incomingSchema < 22 ? 0 : 1,
-    incomingSchema < 25 ? 1 : 2
+    incomingSchema < 25 ? 1 : 2,
+    incomingSchema < 26 ? 0 : 1,
+    incomingSchema < 28 ? 0 : 1,
+    incomingSchema < 28 ? 0 : 1,
+    incomingSchema < 29 ? 0 : 1
   );
   [nextState.trick, nextState.lastPlay].forEach((play) => {
     if (!play || typeof play !== 'object') return;
@@ -12141,6 +12950,7 @@ function deserializeStateFromNet(payload) {
       : {};
     const bet = Number(incoming.bet);
     const stars = Number(incoming.stars);
+    const arcanaPoints = Number(incoming.arcanaPoints);
     const incomingCharacter = incoming.character && typeof incoming.character === 'object'
       ? normalizeTarotKingdomCharacter(incoming.character, {
         displayName: incoming.name || playerBase.name,
@@ -12169,6 +12979,9 @@ function deserializeStateFromNet(payload) {
       discard: Array.isArray(incoming.discard) ? incoming.discard : [],
       bet: Number.isFinite(bet) ? bet : Number(playerBase.bet || 0),
       stars: Number.isFinite(stars) ? stars : Number(playerBase.stars || 0),
+      arcanaPoints: areKingdomArcanaPointRulesEnabled(nextState)
+        ? Math.max(0, Math.floor(Number.isFinite(arcanaPoints) ? arcanaPoints : 1))
+        : 0,
       character: incomingCharacter,
       maxHp,
       hp,
@@ -12281,7 +13094,8 @@ function deserializeStateFromNet(payload) {
     nextState.roundActive,
     nextState.rules.enemyCombatVersion,
     nextState.players.length,
-    nextState.stage
+    nextState.stage,
+    nextState.rules.enemyAbilityVersion
   );
   return nextState;
 }
@@ -13723,7 +14537,8 @@ function buildTarotKingdomDebugMatchDoneState(options = {}) {
     hand: [],
     discard: [],
     bet: 0,
-    stars: 0
+    stars: 0,
+    arcanaPoints: 0
   }));
   const debugCharacters = st.players.map((player, index) => (
     index === 0
@@ -13753,7 +14568,8 @@ function buildTarotKingdomDebugMatchDoneState(options = {}) {
     '',
     Number(st.rules?.enemyCombatVersion ?? 1),
     st.players.length,
-    null
+    null,
+    Number(st.rules?.enemyAbilityVersion ?? 1)
   );
   const victoryAt = Date.now();
   st.battle.active = false;
@@ -13882,7 +14698,7 @@ function buildTarotKingdomDebugBattleState(options = {}) {
   if (options.stage && typeof options.stage === 'object') {
     s.stage = normalizeKingdomExplorationStageState(options.stage);
     if (s.stage) {
-      s.rules = normalizeKingdomRules({ ...s.rules, stageVersion: 1 });
+      s.rules = normalizeKingdomRules({ ...s.rules, stageVersion: 2 });
     }
   }
   const debugPlayerCount = normalizeKingdomPlayerCount(
@@ -13982,6 +14798,12 @@ function buildTarotKingdomDebugBattleState(options = {}) {
     if (Array.isArray(options.starsBySeat)) {
       player.stars = Math.max(0, Math.floor(Number(options.starsBySeat[index] ?? player.stars) || 0));
     }
+    const configuredArcanaPoints = Array.isArray(options.arcanaPointsBySeat)
+      ? options.arcanaPointsBySeat[index]
+      : undefined;
+    player.arcanaPoints = areKingdomArcanaPointRulesEnabled()
+      ? Math.max(0, Math.floor(Number(configuredArcanaPoints ?? 1) || 0))
+      : 0;
   });
   const debugPresenceTime = Date.now();
   netPresenceByUid = Object.fromEntries(s.players.map((player, seat) => [player.uid, {
@@ -14025,8 +14847,16 @@ function buildTarotKingdomDebugBattleState(options = {}) {
     true,
     String(options.destinationId || ''),
     Number(s.rules?.enemyCombatVersion ?? 1),
-    s.players.length
+    s.players.length,
+    s.stage,
+    Number(s.rules?.enemyAbilityVersion ?? 1)
   );
+  if (Array.isArray(options.guardianState)) {
+    s.battle.guardianState = cloneKingdomSnapshotValue(
+      options.guardianState,
+      Array.from({ length: s.players.length }, () => ({}))
+    );
+  }
   if (options.raid && typeof options.raid === 'object') {
     s.raid = normalizeKingdomRaidState(options.raid);
     if (s.raid) {
@@ -14042,10 +14872,12 @@ function buildTarotKingdomDebugBattleState(options = {}) {
         ? createTarotKingdomEnemyCombatProfile(raidMonster, TOTAL_HANDS - 1, {
             threatLevel: 50,
             archetype: 'raid',
-            ailmentVersion: areKingdomStatusEffectsV2Enabled() ? 3 : Number(s.rules?.enemyCombatVersion ?? 1)
+            ailmentVersion: areKingdomStatusEffectsV2Enabled() ? 3 : Number(s.rules?.enemyCombatVersion ?? 1),
+            abilityVersion: Number(s.rules?.enemyAbilityVersion ?? 1)
           })
         : createTarotKingdomEnemyCombatProfile(raidMonster, 0, {
-            ailmentVersion: areKingdomStatusEffectsV2Enabled() ? 3 : Number(s.rules?.enemyCombatVersion ?? 1)
+            ailmentVersion: areKingdomStatusEffectsV2Enabled() ? 3 : Number(s.rules?.enemyCombatVersion ?? 1),
+            abilityVersion: Number(s.rules?.enemyAbilityVersion ?? 1)
           });
       const raidMaxHp = bossPhase ? s.raid.bossMaxHp : raidProfile.maxHp;
       const raidHp = bossPhase ? s.raid.bossHpAtStart : raidProfile.maxHp;
@@ -14064,6 +14896,8 @@ function buildTarotKingdomDebugBattleState(options = {}) {
         archetype: raidProfile.archetype,
         threatLevel: bossPhase ? 50 : raidProfile.threatLevel,
         ailment: raidProfile.ailment,
+        abilities: raidProfile.abilities,
+        abilityState: { uses: {} },
         affinity: raidProfile.affinity || getTarotKingdomEnemyAffinity(
           raidMonster.id,
           Number(s.rules?.elementAffinityVersion ?? 1)
@@ -14091,6 +14925,26 @@ function buildTarotKingdomDebugBattleState(options = {}) {
     s.battle.enemy.ailment = options.enemyAilment && typeof options.enemyAilment === 'object'
       ? cloneKingdomSnapshotValue(options.enemyAilment, null)
       : null;
+    if (areKingdomEnemyAbilitiesV1Enabled()) {
+      const ailment = cloneKingdomSnapshotValue(s.battle.enemy.ailment, null);
+      const scope = String(ailment?.scope || 'single');
+      const currentAbilities = s.battle.enemy.abilities && typeof s.battle.enemy.abilities === 'object'
+        ? s.battle.enemy.abilities
+        : { version: 1, attacks: {}, special: null };
+      s.battle.enemy.abilities = {
+        ...currentAbilities,
+        attacks: {
+          single: ailment && ['single', 'both'].includes(scope) ? { ailment } : null,
+          area: ailment && ['area', 'both'].includes(scope) ? { ailment } : null
+        }
+      };
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(options, 'enemyAbilities')) {
+    s.battle.enemy.abilities = options.enemyAbilities && typeof options.enemyAbilities === 'object'
+      ? cloneKingdomSnapshotValue(options.enemyAbilities, null)
+      : null;
+    s.battle.enemy.abilityState = { uses: {} };
   }
   if (options.enemyAffinity && typeof options.enemyAffinity === 'object') {
     s.battle.enemy.affinity = cloneKingdomSnapshotValue(options.enemyAffinity, s.battle.enemy.affinity);
@@ -15574,6 +16428,10 @@ function exposeTarotKingdomBattleDebugTools(target) {
       buildTarotKingdomSummonEffectSteps(summonState, context),
       []
     ),
+    battleRoleAttackProfiles: () => Object.fromEntries(ROLE_ORDER.map((roleKey) => [
+      roleKey,
+      getKingdomRoleAttackProfile(roleKey)
+    ])),
     battleRoleChainMultiplier: (count = 1) => getKingdomRoleChainMultiplier(count),
     battleSummonVisuals: () => cloneKingdomSnapshotValue(KINGDOM_SUMMON_EFFECT_VISUALS, {}),
     battleShowActionCutin: (playerIndex = 0, label = 'ターン', options = {}) => {
@@ -15802,6 +16660,9 @@ function setupHand(options = {}) {
     if (c) s.players[p].hand.push(c);
   }
   s.players.forEach((p) => p.hand.sort((a, b) => cStrength(a) - cStrength(b)));
+  if (areKingdomArcanaPointRulesEnabled()) {
+    s.players.forEach((player) => { player.arcanaPoints = 1; });
+  }
   if (!options.preserveStars) {
     s.players.forEach((p) => { p.stars = Math.max(0, Number(p.stars) || 0) + 1; });
   }
@@ -16391,6 +17252,9 @@ function applyRoleRewardOnClear(playerIndex) {
   const add = Number(play.role?.effectiveRate ?? play.role?.baseRate ?? 0);
   if (add <= 0) { log(`${p.name}: ${roleLabel}（星加算なし）`); return; }
   p.stars = Math.max(0, Number(p.stars) || 0) + add;
+  if (areKingdomArcanaPointRulesEnabled()) {
+    p.arcanaPoints = Math.max(0, Number(p.arcanaPoints) || 0) + add;
+  }
   log(`${p.name}: ${roleLabel}成立 +${add}⭐`);
   playKingdomCoinEffect(playerIndex, Math.min(8, Math.max(3, add + 2)), '🪙');
 }
@@ -16790,6 +17654,9 @@ function clearTrick(leader, options = {}) {
   s.turnCount = Math.max(1, Number(s.turnCount) || 1) + 1;
   if (s.players[leader]) {
     s.players[leader].stars = Math.max(0, Number(s.players[leader].stars) || 0) + 1;
+    if (areKingdomArcanaPointRulesEnabled()) {
+      s.players[leader].arcanaPoints = Math.max(0, Number(s.players[leader].arcanaPoints) || 0) + 1;
+    }
   }
   applyRoleRewardOnClear(leader);
   const hadJudgment = !!s.judgmentRecoveryPending;
@@ -17679,6 +18546,9 @@ function continueAfterPlay(pi, play) {
   if (p.hand.length <= 0) {
     if (play?.type === 'role') {
       p.stars = Math.max(0, Number(p.stars) || 0) + 1;
+      if (areKingdomArcanaPointRulesEnabled()) {
+        p.arcanaPoints = Math.max(0, Number(p.arcanaPoints) || 0) + 1;
+      }
       applyRoleRewardOnClear(pi);
     }
     markKingdomBattleVictory(pi);
@@ -17898,7 +18768,7 @@ function applyPlay(pi, play, retryDepth = 0) {
     pileCardCount: Math.max(1, Number(prevTrick?.cardsTable?.length) || 0) + removed.length,
     isCall: isCallPlay
   };
-  if (areKingdomArcanaLoadoutV3EffectsEnabled()) {
+  if (areKingdomArcanaLoadoutV3EffectsEnabled() && !areKingdomArcanaLoadoutV6EffectsEnabled()) {
     play.resonanceContext.rHistory = normalizeTarotKingdomRHistory(
       getKingdomRHistory(),
       s.players.length
@@ -18711,6 +19581,7 @@ function createNpcObservation(playerIndex) {
     lock: cloneKingdomSnapshotValue(s.lock, null),
     callOnly: !!s.callOnly,
     stars: Math.max(0, Number(player.stars) || 0),
+    arcanaPoints: Math.max(0, Number(player.arcanaPoints) || 0),
     passCount: Math.max(0, Number(s.npcPassCounts?.[playerIndex]) || 0),
     pendingDrawReason: String(s.pendingDrawReason || '')
   };
@@ -18813,7 +19684,7 @@ function getNpcCombatEffectScore(playerIndex, play) {
   const handBefore = Array.isArray(s.players[playerIndex].hand) ? s.players[playerIndex].hand : [];
   const handAfter = handBefore.filter((card) => !playedIds.has(String(card?.id || '')));
   const fieldCard = s.trick?.cardsTable?.[0] || null;
-  const resonanceCards = play?.call === true && fieldCard
+  const resonanceCards = !areKingdomArcanaLoadoutV6EffectsEnabled() && play?.call === true && fieldCard
     ? [fieldCard, ...cards]
     : cards;
   const history = Array.isArray(s.trickActionHistory) ? s.trickActionHistory : [];
@@ -18822,12 +19693,14 @@ function getNpcCombatEffectScore(playerIndex, play) {
   const context = {
     arcanaLoadoutEffectsVersion: Number(s.rules?.arcanaLoadoutEffectsVersion) || 0,
     actorIndex: playerIndex,
+    arcanaPoints: Math.max(0, Math.floor(Number(s.players[playerIndex]?.arcanaPoints) || 0)),
     playType: String(play?.type || ''),
     cards,
     character,
     players: neutralPlayers,
     enemy: { hp: 100, maxHp: 100 },
     effects: { enemy: {}, party: {}, players: s.players.map(() => ({})) },
+    koOrder: [],
     enemyAttackedSinceClear: false,
     previousTrick: s.trick,
     fieldCard,
@@ -18852,7 +19725,10 @@ function getNpcCombatEffectScore(playerIndex, play) {
     isCall: !!play?.call,
     baseAttackDamage: 40
   };
-  const weapon = resolveTarotKingdomWeaponEffect(context);
+  const weapon = resolveTarotKingdomWeaponEffect({
+    ...context,
+    cards: getKingdomScholarWeaponCards(context.cards, playerIndex, context.reverseBefore)
+  });
   const resonance = resolveTarotKingdomResonance({ ...context, cards: resonanceCards });
   const majorProfile = getKingdomMajorBattlePlayProfile(play, s, playerIndex);
   const majorNumber = majorProfile?.number ?? null;
@@ -19303,6 +20179,8 @@ function cardNode(card, opt = {}) {
   if (opt.unplayable) el.classList.add('is-unplayable');
   if (opt.selected) el.classList.add('is-selected');
   if (opt.resonant || opt.awakening) el.classList.add('is-resonant');
+  if (opt.resonanceAffordable === true) el.classList.add('is-resonance-affordable');
+  if (opt.resonanceAffordable === false && opt.resonant) el.classList.add('is-resonance-insufficient');
   if (opt.flipReveal) {
     el.classList.add('is-opening-flip');
     el.style.setProperty('--tk-card-flip-duration', `${Math.max(120, Number(opt.flipDurationMs) || 330)}ms`);
@@ -19330,6 +20208,12 @@ function cardNode(card, opt = {}) {
   }
   power.textContent = getCardNumberLabel(card);
   el.appendChild(art); el.appendChild(label); el.appendChild(power);
+  if (opt.apCostLabel) {
+    const apCost = document.createElement('span');
+    apCost.className = 'tarot-card-ap-cost';
+    apCost.textContent = String(opt.apCostLabel);
+    el.appendChild(apCost);
+  }
   if (card) {
     const availability = opt.playable ? '出せます' : (opt.unplayable ? '出せません' : '');
     const selectionState = opt.selected ? '選択中' : '';
@@ -20076,7 +20960,9 @@ function updateKingdomBattleHpTweenFrame(event, timeline) {
   if (!event || !timeline || !s?.battle) return;
   const enemy = s.battle.enemy;
   const eventType = String(event?.type || '');
-  if (enemy && ['attack', 'skill', 'enemy-self', 'enemy-status'].includes(eventType)) {
+  if (enemy && [
+    'attack', 'skill', 'enemy-self', 'enemy-status', 'enemy-single', 'enemy-area'
+  ].includes(eventType)) {
     const maxHp = Math.max(1, Number(enemy.maxHp) || 1);
     const logicalHp = Math.max(0, Math.min(maxHp, Number(enemy.hp) || 0));
     const hp = getKingdomEnemyVisualHp(logicalHp, maxHp, event, true, timeline);
@@ -20168,15 +21054,17 @@ function scheduleKingdomBattleTimelineRenders(event, timeline) {
 function interpolateKingdomBattleHp(hpBefore, hpAfter, timeline, now = Date.now()) {
   const after = Math.max(0, Number(hpAfter) || 0);
   if (!timeline || prefersKingdomReducedMotion() || now >= Number(timeline.hpTweenEndsAt || 0)) return after;
-  const before = Math.max(after, Number(hpBefore) || 0);
+  const before = Math.max(0, Number(hpBefore) || 0);
   if (now < Number(timeline.hpRevealAt || 0)) return before;
   const duration = Math.max(1, Number(timeline.hpTweenEndsAt || 0) - Number(timeline.hpRevealAt || 0));
   const ratio = Math.max(0, Math.min(1, (now - Number(timeline.hpRevealAt || 0)) / duration));
-  return Math.max(after, Math.round(before + ((after - before) * ratio)));
+  return Math.max(0, Math.round(before + ((after - before) * ratio)));
 }
 
 function getKingdomEnemyVisualHp(logicalHp, maxHp, event, eventIsActive, timeline) {
-  if (!eventIsActive || !timeline || !['attack', 'skill', 'enemy-self', 'enemy-status'].includes(String(event?.type || ''))) {
+  if (!eventIsActive || !timeline || ![
+    'attack', 'skill', 'enemy-self', 'enemy-status', 'enemy-single', 'enemy-area'
+  ].includes(String(event?.type || ''))) {
     return logicalHp;
   }
   const before = Number(event.hpBefore ?? event.enemyHpBefore);
@@ -20996,7 +21884,10 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
           Math.floor(Number(player.forcedDrawStreak) || 0)
         )
       );
-      handCount.textContent = `残り手札 ${player.hand.length}枚${forcedDrawStreak > 0 ? ` · ☠${forcedDrawStreak}/${KINGDOM_FORCED_DRAW_DEATH_THRESHOLD}` : ''}`;
+      const apText = areKingdomArcanaPointRulesEnabled()
+        ? ` · AP ${Math.max(0, Math.floor(Number(player.arcanaPoints) || 0))}`
+        : '';
+      handCount.textContent = `残り手札 ${player.hand.length}枚${apText}${forcedDrawStreak > 0 ? ` · ☠${forcedDrawStreak}/${KINGDOM_FORCED_DRAW_DEATH_THRESHOLD}` : ''}`;
     }
     renderKingdomPlayerStatusEffects(row, playerIndex, conscious);
     let healNumber = row.querySelector(':scope > .tarot-kingdom-heal-number');
@@ -21716,22 +22607,26 @@ function renderKingdomBattleDamageNumber(event, eventIsActive) {
     0,
     Math.floor(Number(event?.displayDamage ?? event?.damage) || 0)
   );
+  const displayedHealing = Math.max(0, Math.floor(Number(event?.enemyHealAmount) || 0));
   const missed = !!(
     ['attack', 'skill'].includes(String(event?.type || ''))
     && event?.attackMissed
   );
   const show = !!(
     eventIsActive
-    && ['attack', 'skill', 'enemy-self', 'enemy-status'].includes(String(event?.type || ''))
+    && (
+      ['attack', 'skill', 'enemy-self', 'enemy-status'].includes(String(event?.type || ''))
+      || (['enemy-single', 'enemy-area'].includes(String(event?.type || '')) && displayedHealing > 0)
+    )
     && isKingdomDamageNumberReady(timeline)
-    && (displayedDamage > 0 || missed)
+    && (displayedDamage > 0 || displayedHealing > 0 || missed)
   );
   if (!show) {
     node?.remove();
     if (!eventIsActive || phase === 'final') kingdomBattleDamageEventKey = '';
     return;
   }
-  const key = `${event.seq}:${event.type}:${displayedDamage}:${missed ? 'miss' : 'hit'}`;
+  const key = `${event.seq}:${event.type}:${displayedDamage}:${displayedHealing}:${missed ? 'miss' : 'hit'}`;
   const reachedDamageCap = !missed
     && areKingdomDamageGrowthRulesEnabled()
     && displayedDamage >= KINGDOM_PLAYER_DAMAGE_CAP;
@@ -21745,11 +22640,12 @@ function renderKingdomBattleDamageNumber(event, eventIsActive) {
     'tarot-kingdom-damage-number',
     event.type === 'skill' ? 'is-skill' : '',
     reachedDamageCap ? 'is-cap' : '',
+    displayedHealing > 0 ? 'is-heal' : '',
     missed ? 'is-miss' : ''
   ].filter(Boolean).join(' ');
   node.textContent = missed
     ? 'MISS'
-    : String(displayedDamage);
+    : (displayedHealing > 0 ? `+${displayedHealing}` : String(displayedDamage));
   if (kingdomBattleDamageEventKey !== key) {
     kingdomBattleDamageEventKey = key;
     node.classList.remove('is-show');
@@ -22283,7 +23179,7 @@ function renderPlayers() {
         : 0
     );
     appendPlayerNameNode(left, p.name, String(p.playFabId || '').trim());
-    if (starCount > 0) {
+    if (starCount > 0 && settlementData) {
       const stars = document.createElement('span');
       stars.textContent = ` ${'⭐'.repeat(starCount)}`;
       left.appendChild(stars);
@@ -22309,6 +23205,12 @@ function renderPlayers() {
       : 'tarot-kingdom-meta-chips';
     chipsMeta.textContent = `${shownChips}チップ`;
     if (!settlementData) {
+      if (areKingdomArcanaPointRulesEnabled()) {
+        const apMeta = document.createElement('span');
+        apMeta.className = 'tarot-kingdom-meta-ap';
+        apMeta.textContent = `AP ${Math.max(0, Math.floor(Number(p.arcanaPoints) || 0))}`;
+        right.appendChild(apMeta);
+      }
       const handMeta = document.createElement('span');
       handMeta.className = 'tarot-kingdom-meta-hand';
       if (handCount <= 3) handMeta.classList.add('is-low');
@@ -23066,8 +23968,18 @@ function renderHand() {
     if (isDrawFlipTarget && now < drawFlipRevealAt) {
       showCard = null;
     }
-    const isResonant = !!showCard
-      && equippedMinorCards.some((entry) => getTarotKingdomResonanceMatch(showCard, entry));
+    const matchingResonanceEntries = showCard
+      ? equippedMinorCards.filter((entry) => getTarotKingdomResonanceMatch(showCard, entry))
+      : [];
+    const isResonant = matchingResonanceEntries.length > 0;
+    const apDefinition = areKingdomArcanaPointRulesEnabled() && showCard?.kind === 'minor'
+      ? getTarotKingdomMinorApDefinition(showCard.suit, showCard.number)
+      : null;
+    const apCostValue = apDefinition?.apCost;
+    const currentAp = Math.max(0, Math.floor(Number(s.players?.[me]?.arcanaPoints) || 0));
+    const resonanceAffordable = !isResonant
+      ? null
+      : (apCostValue === 'all' || Math.max(0, Number(apCostValue) || 0) <= currentAp);
     const guardianAwakening = guardianAwakeningEnabled
       && !!showCard
       && showCard?.kind === 'major'
@@ -23078,6 +23990,10 @@ function renderHand() {
       unplayable: !!showCard && canCommit && !playableIndexes.has(i),
       selected: selected.includes(i),
       resonant: isResonant,
+      resonanceAffordable,
+      apCostLabel: isResonant && apDefinition
+        ? (apCostValue === 'all' ? 'AP ALL' : `AP ${Math.max(0, Number(apCostValue) || 0)}`)
+        : '',
       awakening: guardianAwakening,
       flipReveal: !!showCard && (isOpeningFlipTarget || (isDrawFlipTarget && now >= drawFlipRevealAt)),
       flipDurationMs: isOpeningFlipTarget ? OPENING_HAND_FLIP_MS : DRAW_HAND_FLIP_MS,
@@ -23922,7 +24838,8 @@ async function handleKingdomOnlineStartClick() {
           context.destinationId,
           Number(s.rules?.enemyCombatVersion || 1),
           s.players.length,
-          null
+          null,
+          Number(s.rules?.enemyAbilityVersion ?? 1)
         );
         s.message = '海域に　ただならぬ気配が　あらわれた！';
         render();
@@ -24673,7 +25590,7 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
     s.tutorialEnabled = normalizedContext.tutorialEnabled === true;
     s.rules = normalizeKingdomRules({
       ...s.rules,
-      stageVersion: stage ? 1 : Number(s.rules?.stageVersion || 0),
+      stageVersion: stage ? 2 : Number(s.rules?.stageVersion || 0),
       enemyDefeatMode: normalizedContext.enemyDefeatMode
     });
     s.raid = normalizeKingdomRaidState(normalizedContext.raid);
@@ -24685,7 +25602,8 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
         normalizedContext.destinationId,
         Number(s.rules.enemyCombatVersion || 1),
         s.players.length,
-        null
+        null,
+        Number(s.rules?.enemyAbilityVersion ?? 1)
       );
       return null;
     }
@@ -24696,7 +25614,8 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
       normalizedContext.destinationId,
       Number(s.rules.enemyCombatVersion || 1),
       s.players.length,
-      stage
+      stage,
+      Number(s.rules?.enemyAbilityVersion ?? 1)
     );
     return stage;
   };

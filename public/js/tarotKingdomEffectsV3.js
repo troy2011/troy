@@ -253,7 +253,10 @@ export function resolveTarotKingdomR(rank, context = {}, random = Math.random) {
   else if (rank === 13) value = finite(history.graveCardsByClear[actorIndex]);
   else if (rank === 14) value = Math.abs(finite(context.fieldCard?.number) - finite(context.sourceCard?.number));
   value = clamp(Math.floor(value));
-  return context.guardianNumber === 11 && context.reverseBefore === true ? 10 - value : value;
+  if (context.guardianNumber === 11 && context.reverseBefore === true) {
+    return Number(context.arcanaLoadoutEffectsVersion || 0) >= 5 ? 10 : 10 - value;
+  }
+  return value;
 }
 
 function cupSteps(entry, context, r) {

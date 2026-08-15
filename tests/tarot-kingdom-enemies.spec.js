@@ -115,11 +115,14 @@ test.describe('Tarot Kingdom enemy combat profiles', () => {
     expect(new Set(statusV2Ailments.map((ailment) => ailment.statusKey)))
       .toEqual(new Set([
         'poison', 'burn', 'blind', 'paralysis', 'fear', 'confusion',
-        'wet', 'curse', 'seal', 'petrify', 'vulnerable', 'slow', 'silence', 'freeze'
+        'wet', 'curse', 'petrify', 'vulnerable', 'slow', 'silence', 'freeze', 'sleep'
       ]));
-    expect(enemies.getTarotKingdomEnemyAilmentProfile('ismartal-vol1-monster-07', 3).statusKey).toBe('curse');
-    expect(enemies.getTarotKingdomEnemyAilmentProfile('ismartal-vol2-monster-10', 3).statusKey).toBe('seal');
+    expect(enemies.getTarotKingdomEnemyAilmentProfile('ismartal-vol1-monster-07', 3).statusKey).toBe('poison');
+    expect(enemies.getTarotKingdomEnemyAilmentProfile('ismartal-vol2-monster-10', 3).statusKey).toBe('silence');
     expect(enemies.getTarotKingdomEnemyAilmentProfile('ismartal-vol3-monster-08', 3)).toMatchObject({
+      statusKey: 'sleep', scope: 'area', chance: 0.3
+    });
+    expect(enemies.getTarotKingdomEnemyAilmentProfile('ismartal-vol3-monster-01', 3)).toMatchObject({
       statusKey: 'petrify', scope: 'single', chance: 0.18
     });
     expect(legacyAilments).toHaveLength(21);
@@ -136,6 +139,51 @@ test.describe('Tarot Kingdom enemy combat profiles', () => {
       expect(ailment.chance).toBeGreaterThan(0);
       expect(ailment.chance).toBeLessThanOrEqual(0.5);
     });
+  });
+
+  test('current monsters separate single and area ailments and include recognizable special roles', async () => {
+    const enemies = await loadEnemyModule();
+    const { PIXEL_MONSTERS_ROSTER } = await loadMonsterManifest();
+    const profiles = PIXEL_MONSTERS_ROSTER.map((monster) => ({
+      monster,
+      ability: enemies.getTarotKingdomEnemyAbilityProfile(monster.id, 1)
+    }));
+    const specials = profiles.map(({ ability }) => ability?.special).filter(Boolean);
+
+    expect(specials.length).toBeGreaterThanOrEqual(15);
+    expect(new Set(specials.map((special) => special.kind)))
+      .toEqual(new Set(['heal', 'buff', 'drain', 'cleanse']));
+    expect(enemies.getTarotKingdomEnemyAbilityProfile('ismartal-vol1-monster-02', 1))
+      .toMatchObject({
+        attacks: {
+          single: { ailment: { statusKey: 'silence' } },
+          area: { ailment: { statusKey: 'seal' } }
+        },
+        special: { kind: 'cleanse' }
+      });
+    expect(enemies.getTarotKingdomEnemyAbilityProfile('ismartal-vol1-monster-07', 1))
+      .toMatchObject({
+        attacks: {
+          single: { ailment: { statusKey: 'poison' } },
+          area: { ailment: { statusKey: 'sleep' } }
+        }
+      });
+    expect(enemies.getTarotKingdomEnemyAbilityProfile('ismartal-vol3-monster-01', 1))
+      .toMatchObject({
+        attacks: {
+          single: { ailment: { statusKey: 'petrify' } },
+          area: { ailment: { statusKey: 'vulnerable' } }
+        }
+      });
+    expect(enemies.getTarotKingdomEnemyAbilityProfile('ismartal-vol3-monster-08', 1))
+      .toMatchObject({
+        attacks: {
+          single: { ailment: { statusKey: 'poison' } },
+          area: { ailment: { statusKey: 'sleep' } }
+        },
+        special: { kind: 'heal', label: '菌糸再生' }
+      });
+    expect(enemies.getTarotKingdomEnemyAbilityProfile('ismartal-vol3-monster-08', 0)).toBeNull();
   });
 
   test('fixed-stage enemies scale by threat instead of sprite volume', async () => {

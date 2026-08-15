@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "minor": [
     {
       "id": "cup-1",
@@ -1301,16 +1301,16 @@
     {
       "number": 1,
       "attribute": "neutral",
-      "passiveId": "guardian-v3-1",
+      "passiveId": "guardian-v5-1",
       "passiveName": "呪術師",
-      "passive": "状態異常の付与を試みるたび、成功率と効果時間が上がる。"
+      "passive": "状態異常を狙ったカード行動ごとに1段階強化。1段階につき成功率＋5、2・4段階で効果時間も延びる。最大5段階。"
     },
     {
       "number": 2,
       "attribute": "light",
       "passiveId": "guardian-v3-2",
       "passiveName": "白魔道士",
-      "passive": "カップを出すと、その数字％だけ自分を回復する。"
+      "passive": "カップを出すと、HP割合が最も低い生存味方をその数字％回復する。"
     },
     {
       "number": 3,
@@ -1336,9 +1336,9 @@
     {
       "number": 6,
       "attribute": "light",
-      "passiveId": "guardian-v3-6",
+      "passiveId": "guardian-v5-6",
       "passiveName": "吟遊詩人",
-      "passive": "自分が小アルカナの単体回復・単体シールドを受けると、すべての味方にも25％分を付与する。"
+      "passive": "自分が小アルカナ共鳴で単体を回復・シールドすると、実際の効果の25％を他の生存味方にも与える。"
     },
     {
       "number": 7,
@@ -1371,9 +1371,9 @@
     {
       "number": 11,
       "attribute": "light",
-      "passiveId": "guardian-v3-11",
+      "passiveId": "guardian-v5-11",
       "passiveName": "学者",
-      "passive": "11バック中、小アルカナは達成条件が少ないほど効果が強く、達成条件が多いほど効果が弱くなる。カードの強さ・提出条件・11バック自体は変更しない。"
+      "passive": "11バック中は共鳴が最大効果になり、通常攻撃と武器効果では小アルカナの戦闘値が反転する。カードルール上の数字は変わらない。"
     },
     {
       "number": 12,
@@ -1385,23 +1385,23 @@
     {
       "number": 13,
       "attribute": "dark",
-      "passiveId": "guardian-v3-13",
+      "passiveId": "guardian-v5-13",
       "passiveName": "死霊術師",
-      "passive": "自分が場流しで墓地へ送ったカードが多いほど、小アルカナ攻撃で与えたダメージのHP吸収率が上がる。"
+      "passive": "全員の墓地にある小アルカナ1枚につき、小アルカナ共鳴の攻撃を2％吸収する。最大20％。"
     },
     {
       "number": 14,
       "attribute": "neutral",
-      "passiveId": "guardian-v4-14",
+      "passiveId": "guardian-v5-14",
       "passiveName": "ものまねし",
-      "passive": "数字14の小アルカナが発動すると、直前に自分か味方が発動した小アルカナの効果を、半分の強さでもう一度発動する。"
+      "passive": "自分が小アルカナ14を出すと、直前に成功した小アルカナ共鳴1枚分を半分の強さで再現する。1局1回。"
     },
     {
       "number": 15,
       "attribute": "dark",
       "passiveId": "guardian-v3-15",
       "passiveName": "暗黒騎士",
-      "passive": "場にP・N・Q・Kが出されるたび、自分の最大HPが下がり、攻撃力と魔法攻撃力が上がる。"
+      "passive": "自分がP・N・Q・Kを出すたび、最大HPが下がり、攻撃力と魔法攻撃力が上がる。"
     },
     {
       "number": 16,
@@ -1434,16 +1434,16 @@
     {
       "number": 20,
       "attribute": "light",
-      "passiveId": "guardian-v4-20",
+      "passiveId": "guardian-v5-20",
       "passiveName": "司祭",
-      "passive": "11バックを発動すると、最も早くKOされた味方1体を最大HP10％で復活させる。対象がいなければ発動しない。1局1回。"
+      "passive": "自分が11バックを発動するたび、最も早くKOされた味方1体を最大HP10％で復活させる。対象がいなければ発動しない。"
     },
     {
       "number": 21,
       "attribute": "neutral",
-      "passiveId": "guardian-v3-21",
+      "passiveId": "guardian-v5-21",
       "passiveName": "勇者",
-      "passive": "5回共鳴すると、味方全員のHPを最大まで回復し、敵の次の戦闘行動を1回止める。1局1回。"
+      "passive": "装備と同じ小アルカナを2枚共鳴させると、生存味方を全回復し、敵の次の戦闘行動を1回止める。1局1回。"
     }
   ],
   "major": [

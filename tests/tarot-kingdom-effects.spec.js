@@ -14,6 +14,10 @@ function loadEffectsModule() {
       path.join(__dirname, '..', 'public', 'data', 'tarot-kingdom-arcana-effects-v2.json'),
       'utf8'
     ));
+    globalThis.__TAROT_KINGDOM_ARCANA_AP_EFFECTS__ = JSON.parse(fs.readFileSync(
+      path.join(__dirname, '..', 'public', 'data', 'tarot-kingdom-arcana-ap-effects.json'),
+      'utf8'
+    ));
     const statusesPath = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomStatuses.js');
     const statusesUrl = `data:text/javascript;base64,${Buffer.from(fs.readFileSync(statusesPath, 'utf8')).toString('base64')}`;
     const v3Path = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomEffectsV3.js');
@@ -402,5 +406,185 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
     expect(resolved.candidates).toHaveLength(2);
     expect(resolved.candidates[0].steps[0].resolvedR).toBe(8);
     expect(resolved.candidates[1].steps[0].resolvedR).toBe(0);
+  });
+
+  test('Scholar keeps the legacy inversion in version 4 and maximizes resonance in version 5', async () => {
+    const effects = await loadEffectsModule();
+    const context = {
+      actorIndex: 0,
+      guardianNumber: 11,
+      reverseBefore: true,
+      rHistory: { turnNo: 3 },
+      players: Array.from({ length: 4 }, () => ({ hp: 100, maxHp: 100 }))
+    };
+
+    expect(effects.resolveTarotKingdomR(4, {
+      ...context,
+      arcanaLoadoutEffectsVersion: 4
+    })).toBe(7);
+    expect(effects.resolveTarotKingdomR(4, {
+      ...context,
+      arcanaLoadoutEffectsVersion: 5
+    })).toBe(10);
+    expect(effects.resolveTarotKingdomR(4, {
+      ...context,
+      reverseBefore: false,
+      arcanaLoadoutEffectsVersion: 5
+    })).toBe(3);
+  });
+
+  test('guardian v5 catalog exposes the revised practical conditions', async () => {
+    const effects = await loadEffectsModule();
+    const expected = new Map([
+      [1, ['呪術師', '最大5段階']],
+      [6, ['吟遊詩人', '他の生存味方']],
+      [11, ['学者', 'カードルール上の数字は変わらない']],
+      [13, ['死霊術師', '最大20％']],
+      [14, ['ものまねし', '小アルカナ14']],
+      [20, ['司祭', '発動するたび']],
+      [21, ['勇者', '2枚']]
+    ]);
+    expected.forEach(([passiveName, phrase], number) => {
+      const definition = effects.getTarotKingdomGuardianDefinition(number);
+      expect(definition).toMatchObject({ passiveName });
+      expect(definition.passive).toContain(phrase);
+    });
+    expect(effects.getTarotKingdomGuardianDefinition(15).passive).toContain('自分がP・N・Q・Kを出すたび');
+  });
+
+  test('AP catalog covers all 56 exact cards with rank-based costs', async () => {
+    const effects = await loadEffectsModule();
+    const definitions = globalThis.__TAROT_KINGDOM_ARCANA_AP_EFFECTS__.minor;
+    expect(definitions).toHaveLength(56);
+    expect(new Set(definitions.map((entry) => entry.id)).size).toBe(56);
+    for (const definition of definitions) {
+      const expectedCost = definition.rank === 1
+        ? 'all'
+        : (definition.rank <= 4 ? 0 : (definition.rank <= 10 ? 1 : 2));
+      expect(definition.apCost, definition.id).toBe(expectedCost);
+      expect(effects.getTarotKingdomMinorApDefinition(definition.suit, definition.rank), definition.id)
+        .toMatchObject({ id: definition.id, apCost: expectedCost });
+    }
+  });
+
+  test('all 56 AP definitions expand into an executable effect in a valid battle context', async () => {
+    const effects = await loadEffectsModule();
+    const definitions = globalThis.__TAROT_KINGDOM_ARCANA_AP_EFFECTS__.minor;
+    for (const definition of definitions) {
+      const card = minor(definition.suit, definition.rank, `execute-${definition.id}`);
+      const resolved = effects.resolveTarotKingdomResonance({
+        ...weaponContext(['unarmed'], card, {
+          players: [
+            { hp: 50, maxHp: 100 },
+            { hp: 20, maxHp: 100 },
+            { hp: 80, maxHp: 100 },
+            { hp: 0, maxHp: 100 }
+          ],
+          enemy: { hp: 500, maxHp: 500 },
+          effects: {
+            enemy: { defenseUp: { potency: 20, remainingTurns: 2 } },
+            party: {},
+            players: [{}, { poison: { potency: 8, charges: 2 } }, {}, {}]
+          },
+          koOrder: [3]
+        }),
+        arcanaLoadoutEffectsVersion: 6,
+        arcanaPoints: 10,
+        cards: [card],
+        character: {
+          combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
+          tarotDeck: [{
+            slot: 0,
+            suit: definition.suit,
+            rank: definition.rank,
+            cardLevel: 1,
+            resonanceId: definition.id
+          }]
+        }
+      });
+      expect(resolved, definition.id).not.toBeNull();
+      expect(resolved.steps.length, definition.id).toBeGreaterThan(0);
+    }
+  });
+
+  test('AP resonance spends in slot order, permits five-card plays, and lets recharge fund a later card', async () => {
+    const effects = await loadEffectsModule();
+    const played = [
+      minor('Wand', 6, 'ap-wand-six'),
+      minor('Sword', 14, 'ap-sword-king'),
+      minor('Cup', 2, 'ap-role-filler-1'),
+      minor('Pentacle', 3, 'ap-role-filler-2'),
+      minor('Wand', 4, 'ap-role-filler-3')
+    ];
+    const resolved = effects.resolveTarotKingdomResonance({
+      ...weaponContext(['unarmed'], played[0]),
+      arcanaLoadoutEffectsVersion: 6,
+      arcanaPoints: 1,
+      playType: 'role',
+      cards: played,
+      character: {
+        combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
+        tarotDeck: [
+          { slot: 0, suit: 'Wand', rank: 6, cardLevel: 1 },
+          { slot: 1, suit: 'Sword', rank: 14, cardLevel: 1 }
+        ]
+      }
+    });
+    expect(resolved).toMatchObject({ apBefore: 1, apAfter: 0, apSpent: 3, apGained: 2 });
+    expect(resolved.candidates.map((candidate) => ({
+      id: candidate.resonanceId,
+      cost: candidate.apCost,
+      gain: candidate.apGain,
+      after: candidate.apAfter
+    }))).toEqual([
+      { id: 'wand-6', cost: 1, gain: 2, after: 2 },
+      { id: 'sword-14', cost: 2, gain: 0, after: 0 }
+    ]);
+  });
+
+  test('multiple A cards split all AP and AP zero still produces minimum A potency', async () => {
+    const effects = await loadEffectsModule();
+    const makeContext = (arcanaPoints) => ({
+      ...weaponContext(['unarmed'], minor('Sword', 1)),
+      arcanaLoadoutEffectsVersion: 6,
+      arcanaPoints,
+      cards: [minor('Sword', 1), minor('Wand', 1)],
+      character: {
+        combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
+        tarotDeck: [
+          { slot: 0, suit: 'Sword', rank: 1, cardLevel: 1 },
+          { slot: 1, suit: 'Wand', rank: 1, cardLevel: 1 }
+        ]
+      }
+    });
+    const split = effects.resolveTarotKingdomResonance(makeContext(5));
+    expect(split).toMatchObject({ apBefore: 5, apAfter: 0, apSpent: 5 });
+    expect(split.candidates.map((candidate) => candidate.apAllocation)).toEqual([3, 2]);
+    const empty = effects.resolveTarotKingdomResonance(makeContext(0));
+    expect(empty).toMatchObject({ apBefore: 0, apAfter: 0, apSpent: 0 });
+    expect(empty.steps.every((step) => Number(step.amount) >= 1)).toBe(true);
+  });
+
+  test('an unaffordable or targetless AP effect neither activates nor spends AP', async () => {
+    const effects = await loadEffectsModule();
+    const character = (suit, rank) => ({
+      combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
+      tarotDeck: [{ slot: 0, suit, rank, cardLevel: 1 }]
+    });
+    expect(effects.resolveTarotKingdomResonance({
+      ...weaponContext(['unarmed'], minor('Sword', 14)),
+      arcanaLoadoutEffectsVersion: 6,
+      arcanaPoints: 1,
+      character: character('Sword', 14)
+    })).toBeNull();
+    expect(effects.resolveTarotKingdomResonance({
+      ...weaponContext(['unarmed'], minor('Cup', 2), {
+        players: Array.from({ length: 4 }, () => ({ hp: 100, maxHp: 100 })),
+        effects: { enemy: {}, party: {}, players: [{}, {}, {}, {}] }
+      }),
+      arcanaLoadoutEffectsVersion: 6,
+      arcanaPoints: 3,
+      character: character('Cup', 2)
+    })).toBeNull();
   });
 });

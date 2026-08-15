@@ -502,6 +502,76 @@ test('hard-control statuses stop the actor while slow and sleep use distinct mot
   expect(secondAccentProfiles.enemy).toContain('polygon');
 });
 
+test('blindness covers the full actor, silence centers its cross, and confusion sways horizontally', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleSetEffects({
+      enemy: { blind: { label: '暗闇', potency: 35, remainingClears: 2 } },
+      party: {},
+      players: [{ silence: { label: '沈黙', charges: 1, expiresOn: 'attack' } }, {}, {}, {}]
+    });
+  });
+
+  const visualProfiles = await page.evaluate(() => {
+    const playerAccent = document.querySelector(
+      '.tarot-kingdom-battle-player[data-player-index="0"] .tarot-kingdom-status-accent'
+    );
+    const enemyAccent = document.querySelector('#tarotKingdomEnemySprite > .tarot-kingdom-status-accent');
+    const silenceMark = playerAccent ? getComputedStyle(playerAccent, '::before') : null;
+    const blindMist = enemyAccent ? getComputedStyle(enemyAccent, '::before') : null;
+    return {
+      silence: {
+        status: playerAccent?.getAttribute('data-status'),
+        top: Number.parseFloat(silenceMark?.top || '0'),
+        left: Number.parseFloat(silenceMark?.left || '0'),
+        width: Number.parseFloat(silenceMark?.width || '0'),
+        accentWidth: playerAccent?.getBoundingClientRect().width || 0,
+        accentHeight: playerAccent?.getBoundingClientRect().height || 0,
+        transform: silenceMark?.transform
+      },
+      blind: {
+        status: enemyAccent?.getAttribute('data-status'),
+        backgroundImage: blindMist?.backgroundImage,
+        animationName: blindMist?.animationName,
+        height: Number.parseFloat(blindMist?.height || '0'),
+        accentHeight: Number.parseFloat(enemyAccent ? getComputedStyle(enemyAccent).height : '0')
+      }
+    };
+  });
+  expect(visualProfiles.silence.status).toBe('silence');
+  expect(Math.abs(visualProfiles.silence.top - visualProfiles.silence.accentHeight * 0.5)).toBeLessThan(2);
+  expect(Math.abs(visualProfiles.silence.left - visualProfiles.silence.accentWidth * 0.5)).toBeLessThan(2);
+  expect(Math.abs(visualProfiles.silence.width - visualProfiles.silence.accentWidth * 0.58)).toBeLessThan(2);
+  expect(visualProfiles.silence.transform).not.toBe('none');
+  expect(visualProfiles.blind.status).toBe('blind');
+  expect(visualProfiles.blind.backgroundImage).toContain('radial-gradient');
+  expect(visualProfiles.blind.animationName).toContain('tarotKingdomStatusMist');
+  expect(visualProfiles.blind.height).toBeGreaterThan(visualProfiles.blind.accentHeight * 0.9);
+
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleSetEffects({
+      enemy: {},
+      party: {},
+      players: [{ confusion: { label: '混乱', potency: 50, charges: 1, expiresOn: 'attack' } }, {}, {}, {}]
+    });
+  });
+  const confusionProfile = await page.locator(
+    '.tarot-kingdom-battle-player[data-player-index="0"] .tarot-kingdom-battle-player-avatar'
+  ).evaluate((avatar) => {
+    const accent = avatar.querySelector(':scope > .tarot-kingdom-status-accent');
+    const actorStyle = getComputedStyle(avatar);
+    const accentStyle = getComputedStyle(accent, '::before');
+    return {
+      animationName: actorStyle.animationName,
+      rotate: actorStyle.rotate,
+      accentAnimationName: accentStyle.animationName
+    };
+  });
+  expect(confusionProfile.animationName).toContain('tarotKingdomActorConfusion');
+  expect(confusionProfile.rotate).toBe('none');
+  expect(confusionProfile.accentAnimationName).toContain('tarotKingdomStatusConfusionSway');
+});
+
 test('buffs, debuffs and support effects use the same compact icon system as ailments', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   const demoEffectSelect = page.locator('#tarotKingdomDemoStatusSelect');
@@ -1083,23 +1153,19 @@ test('fullscreen close control uses only the framed close image', async ({ page 
   await page.evaluate(() => {
     const button = document.createElement('button');
     button.id = 'tarotKingdomExitButton';
-    button.className = 'tarot-kingdom-exit-button';
+    button.className = 'tarot-kingdom-exit-button ui-modal-close';
     button.type = 'button';
     button.setAttribute('aria-label', 'タロットキングダムを閉じる');
-    const icon = document.createElement('span');
-    icon.setAttribute('aria-hidden', 'true');
-    button.appendChild(icon);
     document.querySelector('.tarot-kingdom-header-meta')?.appendChild(button);
   });
 
   const closeButton = page.locator('#tarotKingdomExitButton');
-  const closeIcon = closeButton.locator('span');
   await expect(closeButton).toHaveCSS('border-top-style', 'none');
   await expect(closeButton).toHaveCSS('border-image-source', 'none');
   await expect(closeButton).toHaveCSS('padding', '0px');
-  await expect(closeIcon).toHaveCSS('width', '30px');
-  await expect(closeIcon).toHaveCSS('height', '28px');
-  await expect(closeIcon).toHaveCSS('background-image', /\/assets\/ui\/buttons\/action-close\.png/);
+  await expect(closeButton).toHaveCSS('width', '52px');
+  await expect(closeButton).toHaveCSS('height', '52px');
+  await expect(closeButton).toHaveCSS('background-image', /\/assets\/ui\/buttons\/action-close\.png/);
 });
 
 for (const fixture of [
@@ -1229,7 +1295,7 @@ for (const fixture of [
       expect(row.infoBox.right - row.hpTrackBox.right).toBeGreaterThanOrEqual(12);
       expect(row.handCountBox.height).toBeGreaterThan(0);
       expect(row.rank).toMatch(/(?:\S+\s+Lv\d+|Lv\d+\s*[·・]\s*\S+)/);
-      expect(row.handCount).toMatch(/^残り手札\s+\d+枚$/);
+      expect(row.handCount).toMatch(/^残り手札\s+\d+枚 · AP \d+$/);
       expect(row.handCountVisible).toBe(true);
       expect(row.handCountFontSize).toBeGreaterThanOrEqual(7);
       expect(row.rankFontSize).toBeGreaterThanOrEqual(7);
@@ -3786,7 +3852,7 @@ test('pet occupies the second seat after the player with its own monster sprite,
   await expect(row).toHaveClass(/is-pet/);
   await expect(row.locator('.tarot-kingdom-battle-player-name')).toContainText('コハク');
   await expect(row.locator('.tarot-kingdom-battle-player-rank')).toContainText('Lv12');
-  await expect(row.locator('.tarot-kingdom-battle-player-hand-count')).toHaveText('残り手札 8枚');
+  await expect(row.locator('.tarot-kingdom-battle-player-hand-count')).toHaveText('残り手札 8枚 · AP 1');
   const sprite = row.locator('.tarot-kingdom-battle-pet-sprite');
   await expect(sprite).toHaveAttribute('data-monster-id', pet.monsterId);
   await expect(sprite).toHaveAttribute('data-animation-name', 'idle');

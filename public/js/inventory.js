@@ -30,12 +30,14 @@ import { formatTarotRoleBonus } from './tarotRoles.js';
 import { bindModalClose, createModalCloseButton } from './modalClose.js';
 import {
     TAROT_KINGDOM_ARCANA_EFFECT_CATALOG,
+    TAROT_KINGDOM_ARCANA_AP_EFFECTS,
+    TAROT_KINGDOM_ARCANA_EFFECTS_READY,
     getTarotKingdomGuardianDefinition,
+    getTarotKingdomMinorApDefinition,
     getTarotKingdomMinorDefinition,
     getTarotKingdomCardLevelScale,
-    getTarotKingdomResonanceGrowthText,
     getTarotKingdomFriendlyEffectText
-} from './tarotKingdomEffects.js?v=20260812-major-v4';
+} from './tarotKingdomEffects.js?v=20260815-arcana-ap-v6';
 import {
     buildTarotCardMeta,
     compareTarotItems,
@@ -87,6 +89,7 @@ let blackMarketReturnFocusElement = null;
 let equipmentEnhancementPreviewTimer = null;
 let equipmentEnhancementRequestSerial = 0;
 let equipmentEnhancementKeydownHandler = null;
+let itemDetailViewportCleanup = null;
 // カードレベルデータ: { [itemId]: { level, maxLevel, quantity, nextLevelCost } }
 let cardLevelMap = {};
 let tarotBattleSkillsLoaded = false;
@@ -534,8 +537,55 @@ function syncModalLockState() {
     document.body.classList.toggle('modal-lock', getVisibleModalCount() > 0);
 }
 
+function stopItemDetailViewportTracking() {
+    if (!itemDetailViewportCleanup) return;
+    itemDetailViewportCleanup();
+    itemDetailViewportCleanup = null;
+}
+
+function startItemDetailViewportTracking(modal) {
+    stopItemDetailViewportTracking();
+    if (!modal || typeof window === 'undefined') return;
+
+    const viewport = window.visualViewport;
+    let animationFrameId = 0;
+    const sync = () => {
+        animationFrameId = 0;
+        const width = Math.max(1, Number(viewport?.width) || window.innerWidth || document.documentElement.clientWidth || 1);
+        const height = Math.max(1, Number(viewport?.height) || window.innerHeight || document.documentElement.clientHeight || 1);
+        const left = Math.max(0, Number(viewport?.offsetLeft) || 0);
+        const top = Math.max(0, Number(viewport?.offsetTop) || 0);
+        modal.style.setProperty('--item-detail-viewport-left', `${left}px`);
+        modal.style.setProperty('--item-detail-viewport-top', `${top}px`);
+        modal.style.setProperty('--item-detail-viewport-width', `${width}px`);
+        modal.style.setProperty('--item-detail-viewport-height', `${height}px`);
+    };
+    const scheduleSync = () => {
+        if (animationFrameId) return;
+        animationFrameId = window.requestAnimationFrame(sync);
+    };
+
+    sync();
+    viewport?.addEventListener('resize', scheduleSync, { passive: true });
+    viewport?.addEventListener('scroll', scheduleSync, { passive: true });
+    window.addEventListener('resize', scheduleSync, { passive: true });
+    window.addEventListener('orientationchange', scheduleSync, { passive: true });
+    itemDetailViewportCleanup = () => {
+        if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
+        viewport?.removeEventListener('resize', scheduleSync);
+        viewport?.removeEventListener('scroll', scheduleSync);
+        window.removeEventListener('resize', scheduleSync);
+        window.removeEventListener('orientationchange', scheduleSync);
+        modal.style.removeProperty('--item-detail-viewport-left');
+        modal.style.removeProperty('--item-detail-viewport-top');
+        modal.style.removeProperty('--item-detail-viewport-width');
+        modal.style.removeProperty('--item-detail-viewport-height');
+    };
+}
+
 function hideModal(modal) {
     if (!modal) return;
+    if (modal.id === 'itemDetailModal') stopItemDetailViewportTracking();
     modal.style.display = 'none';
     syncModalLockState();
 }
@@ -543,6 +593,7 @@ function hideModal(modal) {
 function showModal(modal) {
     if (!modal) return;
     modal.style.display = 'flex';
+    if (modal.id === 'itemDetailModal') startItemDetailViewportTracking(modal);
     syncModalLockState();
 }
 
@@ -1237,7 +1288,8 @@ function createTarotLoadoutEffectRow(item, itemId, slotIndex) {
     const data = item?.customData || {};
     const suit = String(data.ArcanaSuit || data.Suit || '');
     const rank = Number(data.ArcanaRank ?? data.Rank ?? data.Number);
-    const definition = getTarotKingdomMinorDefinition(suit, rank);
+    const definition = getTarotKingdomMinorApDefinition(suit, rank)
+        || getTarotKingdomMinorDefinition(suit, rank);
     const level = getInventoryCardLevel(itemId);
     const scale = getTarotKingdomCardLevelScale(level);
     const suitName = String(definition?.suit || suit || 'None');
@@ -1258,10 +1310,12 @@ function createTarotLoadoutEffectRow(item, itemId, slotIndex) {
     meta.textContent = `枠${slotIndex + 1} · Lv${level}${level > 1 ? ` · 数値×${scale.toFixed(2)}` : ''}`;
     const effect = document.createElement('span');
     effect.className = 'tarot-loadout-effect-text';
-    effect.textContent = definition ? getTarotKingdomFriendlyEffectText(definition) : '効果データ未登録';
+    effect.textContent = definition ? String(definition.effect || getTarotKingdomFriendlyEffectText(definition)) : '効果データ未登録';
     const rSummary = document.createElement('small');
     rSummary.className = 'tarot-loadout-effect-r';
-    rSummary.textContent = getTarotKingdomResonanceGrowthText(rank);
+    rSummary.textContent = definition?.apCost === 'all'
+        ? '消費AP：すべて'
+        : `消費AP：${Math.max(0, Number(definition?.apCost) || 0)}`;
     copy.append(kicker, name, meta, effect, rSummary);
 
     const actions = document.createElement('div');
@@ -1438,7 +1492,7 @@ function openArcanaResonanceCatalog() {
         });
         const definitions = tabKey === 'Major'
             ? TAROT_KINGDOM_ARCANA_EFFECT_CATALOG.guardian
-            : TAROT_KINGDOM_ARCANA_EFFECT_CATALOG.minor.filter((entry) => entry.suit === tabKey);
+            : TAROT_KINGDOM_ARCANA_AP_EFFECTS.minor.filter((entry) => entry.suit === tabKey);
         listRoot.innerHTML = '';
         definitions.forEach((definition) => {
             const item = findInventoryTarotCard(definition, tabKey === 'Major' ? 'major' : 'minor');
@@ -1458,8 +1512,8 @@ function openArcanaResonanceCatalog() {
                    <p><b>${definition.passiveName}</b>：${definition.passive}</p>
                    <small>${item ? `現在Lvの数値倍率 ×${scale.toFixed(2)}` : '入手後に守護アルカナへ設定できます'}</small>`
                 : `<div class="arcana-resonance-title"><strong>${getTarotRankLabel({ ArcanaRank: definition.rank })} ${definition.name}</strong><span>${stateLabel}</span></div>
-                   <p>${getTarotKingdomFriendlyEffectText(definition)}</p>
-                   <small>${getTarotKingdomResonanceGrowthText(definition.rank)}${item ? ` · 現在Lvの数値倍率 ×${scale.toFixed(2)}` : ' · 入手後に共鳴デッキへ設定できます'}</small>`;
+                   <p>${String(definition.effect || '')}</p>
+                   <small>消費AP：${definition.apCost === 'all' ? 'すべて' : Math.max(0, Number(definition.apCost) || 0)}${item ? ` · 現在Lvの数値倍率 ×${scale.toFixed(2)}` : ' · 入手後に共鳴デッキへ設定できます'}</small>`;
             if (item) {
                 const openDetail = () => {
                     closeArcanaResonanceCatalog({ restoreFocus: false });
@@ -3003,7 +3057,8 @@ export async function getInventory(playFabId, options = {}) {
     const [data, deckData] = await Promise.all([
         fetchInventory(playFabId),
         fetchTarotDecks(playFabId, { isSilent: true }),
-        loadTarotBattleSkillCache()
+        loadTarotBattleSkillCache(),
+        TAROT_KINGDOM_ARCANA_EFFECTS_READY
     ]);
     if (data) {
         const contributionValue = data.contribution ?? data.experience ?? 0;
@@ -3694,7 +3749,8 @@ function renderTarotCombatDetailSection(item, itemData) {
 
     const suit = String(itemData?.ArcanaSuit || itemData?.Suit || '');
     const rank = Number(itemData?.ArcanaRank ?? itemData?.Rank ?? itemData?.Number);
-    const resonance = getTarotKingdomMinorDefinition(suit, rank);
+    const resonance = getTarotKingdomMinorApDefinition(suit, rank)
+        || getTarotKingdomMinorDefinition(suit, rank);
     const level = Math.max(1, Number(cardLevelMap[item?.itemId]?.level) || 1);
     const deckPosition = getTarotDeckPosition(item?.itemId);
     const section = document.createElement('section');
@@ -3712,9 +3768,9 @@ function renderTarotCombatDetailSection(item, itemData) {
 
     const rows = document.createElement('div');
     rows.className = 'item-detail-tarot-rows';
-    appendTarotCombatRow(rows, '効果', resonance ? getTarotKingdomFriendlyEffectText(resonance) : '効果データ未登録', 'skill');
+    appendTarotCombatRow(rows, '効果', resonance ? String(resonance.effect || getTarotKingdomFriendlyEffectText(resonance)) : '効果データ未登録', 'skill');
     if (resonance) {
-        appendTarotCombatRow(rows, '強化条件', getTarotKingdomResonanceGrowthText(rank), 'stat');
+        appendTarotCombatRow(rows, '消費AP', resonance.apCost === 'all' ? 'すべて' : String(Math.max(0, Number(resonance.apCost) || 0)), 'stat');
     }
     section.appendChild(rows);
 

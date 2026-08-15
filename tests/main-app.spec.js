@@ -43,6 +43,50 @@ function makeExplorationStage(stageNo, {
   };
 }
 
+async function getItemDetailViewportGeometry(page) {
+  return page.locator('#itemDetailModal').evaluate((modal) => {
+    const viewport = window.visualViewport;
+    const viewportRect = {
+      left: Number(viewport?.offsetLeft) || 0,
+      top: Number(viewport?.offsetTop) || 0,
+      width: Number(viewport?.width) || window.innerWidth,
+      height: Number(viewport?.height) || window.innerHeight
+    };
+    const modalRect = modal.getBoundingClientRect();
+    const sheetRect = modal.querySelector('.item-detail-sheet').getBoundingClientRect();
+    return {
+      viewport: {
+        ...viewportRect,
+        right: viewportRect.left + viewportRect.width,
+        bottom: viewportRect.top + viewportRect.height
+      },
+      modal: {
+        left: modalRect.left,
+        top: modalRect.top,
+        right: modalRect.right,
+        bottom: modalRect.bottom
+      },
+      sheet: {
+        left: sheetRect.left,
+        top: sheetRect.top,
+        right: sheetRect.right,
+        bottom: sheetRect.bottom
+      }
+    };
+  });
+}
+
+function expectItemDetailInsideViewport(geometry) {
+  expect(Math.abs(geometry.modal.left - geometry.viewport.left)).toBeLessThanOrEqual(1);
+  expect(Math.abs(geometry.modal.top - geometry.viewport.top)).toBeLessThanOrEqual(1);
+  expect(Math.abs(geometry.modal.right - geometry.viewport.right)).toBeLessThanOrEqual(1);
+  expect(Math.abs(geometry.modal.bottom - geometry.viewport.bottom)).toBeLessThanOrEqual(1);
+  expect(geometry.sheet.left).toBeGreaterThanOrEqual(geometry.viewport.left - 1);
+  expect(geometry.sheet.top).toBeGreaterThanOrEqual(geometry.viewport.top - 1);
+  expect(geometry.sheet.right).toBeLessThanOrEqual(geometry.viewport.right + 1);
+  expect(geometry.sheet.bottom).toBeLessThanOrEqual(geometry.viewport.bottom + 1);
+}
+
 test('main app boots in limited mode with mocked LIFF login', async ({ page }) => {
   const errors = trackPageErrors(page);
   const state = await bootstrapMainApp(page);
@@ -6259,16 +6303,16 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   await expect(page.locator('#guardianArcanaGrid .tarot-loadout-visual .tarot-number-badge.is-none')).toHaveText('5');
   await expect(page.locator('#guardianArcanaGrid .tarot-loadout-visual .tarot-number-badge.is-sword')).toHaveCount(0);
   await expect(page.locator('#meleeDeckEffectList .tarot-loadout-effect-row')).toHaveCount(1);
-  await expect(page.locator('#meleeDeckEffectList')).toContainText('エレメンタルヘイズ');
-  await expect(page.locator('#meleeDeckEffectList')).not.toContainText('サイレンスミスト');
+  await expect(page.locator('#meleeDeckEffectList')).toContainText('火炎波');
+  await expect(page.locator('#meleeDeckEffectList')).not.toContainText('ファイアボルト');
   await page.locator('#meleeDeckGrid .tarot-loadout-card').nth(1).click();
-  await expect(page.locator('#meleeDeckEffectList')).toContainText('サイレンスミスト');
+  await expect(page.locator('#meleeDeckEffectList')).toContainText('ファイアボルト');
   await expect(page.locator('#meleeDeckGrid .tarot-loadout-card').nth(1)).toHaveAttribute('aria-pressed', 'true');
   await page.locator('#meleeDeckGrid .tarot-loadout-card').nth(2).click();
-  await expect(page.locator('#meleeDeckEffectList')).toContainText('カオスマインド');
+  await expect(page.locator('#meleeDeckEffectList')).toContainText('イグニスレイ');
   await expect(page.locator('#meleeDeckEffectList .tarot-loadout-effect-action')).toHaveCount(4);
   await expect(page.locator('#meleeDeckGrid .tarot-loadout-slot-badge')).toHaveText(['1', '2', '3']);
-  await expect(page.locator('#meleeDeckEffectList')).toContainText('手番が多く移るほど効果上昇');
+  await expect(page.locator('#meleeDeckEffectList')).toContainText('防御を50％無視');
   await expect(page.locator('#meleeDeckEffectList')).not.toContainText(/R=|\dR|R％/);
   await expect(page.locator('#guardianArcanaEffectList')).toContainText('魔導士');
   await expect(page.locator('#guardianArcanaEffectList')).toContainText('守護');
@@ -6717,11 +6761,11 @@ test('tarot cards preview, reorder, and open detail before changing deck members
   await page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty)').click();
   expect(unequipRequests).toHaveLength(0);
   await expect(page.locator('#itemDetailModal')).toBeHidden();
-  await expect(page.locator('#meleeDeckEffectList')).toContainText('運命の霊酒');
+  await expect(page.locator('#meleeDeckEffectList')).toContainText('サンクチュアリ');
   await page.locator('#meleeDeckEffectList .tarot-loadout-effect-action.is-detail').click();
   await expect(page.locator('#itemDetailModal')).toBeVisible();
-  await expect(page.locator('#itemDetailTarotCombat')).toContainText('運命の霊酒');
-  await expect(page.locator('#itemDetailTarotCombat')).toContainText('0～10を抽選する');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('サンクチュアリ');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('回復量を、場が2回流れるまで30％増加');
   await expect(page.locator('#itemDetailTarotCombat')).not.toContainText(/R=|\dR|R％/);
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('Lv1 · 枠1');
   await expect(page.locator('#itemDetailDescription')).toBeHidden();
@@ -6734,10 +6778,16 @@ test('tarot cards preview, reorder, and open detail before changing deck members
   expect(equipRequests).toHaveLength(0);
   await expect(page.locator('#itemDetailModal')).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.locator('#itemDetailTarotCombat')).toContainText('マギアドライブ');
+  await expect.poll(async () => {
+    const geometry = await getItemDetailViewportGeometry(page);
+    return geometry.sheet.top >= geometry.viewport.top - 1
+      && geometry.sheet.bottom <= geometry.viewport.bottom + 1;
+  }).toBe(true);
+  expectItemDetailInsideViewport(await getItemDetailViewportGeometry(page));
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('メテオストライク');
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('未セット');
-  await expect(page.locator('#itemDetailTarotCombat')).toContainText('威力20～50の魔法攻撃');
-  await expect(page.locator('#itemDetailTarotCombat')).toContainText('自分が続けてカードを出すほど効果上昇');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('ステージ内の敵全体へ強力な火属性魔法ダメージ');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('消費AP1');
   await expect(page.locator('#itemDetailModal .item-detail-management')).toBeVisible();
   await expect(page.locator('#itemDetailModal .item-detail-management')).not.toHaveAttribute('open', '');
   await page.locator('#itemDetailModal .item-detail-management summary').click();
@@ -6864,7 +6914,22 @@ test('equipment cards open detail before equipping from inventory grid', async (
     });
   });
 
+  await page.setViewportSize({ width: 390, height: 844 });
   await bootstrapMainApp(page);
+  await page.evaluate(() => {
+    const viewport = new EventTarget();
+    Object.assign(viewport, {
+      width: 360,
+      height: 620,
+      offsetLeft: 12,
+      offsetTop: 84
+    });
+    Object.defineProperty(window, 'visualViewport', {
+      configurable: true,
+      value: viewport
+    });
+    window.__testVisualViewport = viewport;
+  });
 
   await page.evaluate(async () => {
     const inventoryTab = document.getElementById('tabContentInventory');
@@ -6915,6 +6980,16 @@ test('equipment cards open detail before equipping from inventory grid', async (
 
   expect(equipRequests).toHaveLength(0);
   await expect(page.locator('#itemDetailModal')).toBeVisible();
+  expectItemDetailInsideViewport(await getItemDetailViewportGeometry(page));
+  await page.evaluate(() => {
+    Object.assign(window.__testVisualViewport, {
+      height: 680,
+      offsetTop: 36
+    });
+    window.__testVisualViewport.dispatchEvent(new Event('resize'));
+  });
+  await expect.poll(async () => (await getItemDetailViewportGeometry(page)).modal.top).toBe(36);
+  expectItemDetailInsideViewport(await getItemDetailViewportGeometry(page));
   await expect(page.locator('#itemDetailDescription')).toContainText('readable detail description');
   const descriptionStyle = await page.locator('#itemDetailDescription').evaluate((description) => {
     const rect = description.getBoundingClientRect();

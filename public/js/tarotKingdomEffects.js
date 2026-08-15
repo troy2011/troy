@@ -7,7 +7,7 @@ import {
     getTarotKingdomResonanceGrowthText,
     getTarotKingdomFriendlyRangeText,
     getTarotKingdomFriendlyEffectText
-} from './tarotKingdomEffectsV3.js?v=20260811-resonance-per-card1';
+} from './tarotKingdomEffectsV3.js?v=20260815-arcana-ap-v6';
 import { TAROT_KINGDOM_STATUS_ICON_INDEX } from './tarotKingdomStatuses.js?v=20260812-status-v2';
 
 export { TAROT_KINGDOM_STATUS_ICON_INDEX };
@@ -43,19 +43,24 @@ const WEAPON_ALIASES = Object.freeze({
 });
 
 const NEGATIVE_STATUS_PRIORITY = Object.freeze([
-    'paralysis', 'sleep', 'freeze', 'poison', 'burn', 'silence', 'blind', 'fear',
-    'confusion', 'wet', 'weaken', 'vulnerable'
+    'petrify', 'paralysis', 'sleep', 'freeze', 'seal', 'curse', 'poison', 'burn',
+    'silence', 'blind', 'fear', 'confusion', 'wet', 'slow', 'weaken', 'vulnerable'
 ]);
 
-const TAROT_KINGDOM_ARCANA_CACHE_VERSION = '20260812-major-v4';
+const TAROT_KINGDOM_ARCANA_CACHE_VERSION = '20260815-arcana-ap-v6';
 const TAROT_KINGDOM_ARCANA_LOAD_ATTEMPTS = 3;
 
 function validateTarotKingdomArcanaEffects(data, fileName) {
     const isLegacy = fileName.includes('-v2');
+    const isApCatalog = fileName.includes('-ap-effects');
     const minorCount = Array.isArray(data?.minor) ? data.minor.length : 0;
     const guardianCount = Array.isArray(data?.guardian) ? data.guardian.length : 0;
     const majorCount = Array.isArray(data?.major) ? data.major.length : 0;
-    if (minorCount !== 56 || guardianCount !== 22 || (!isLegacy && majorCount !== 22)) {
+    if (
+        minorCount !== 56
+        || (!isApCatalog && guardianCount !== 22)
+        || (!isLegacy && !isApCatalog && majorCount !== 22)
+    ) {
         throw new Error(
             `Arcana effects are incomplete: ${fileName} `
             + `(minor=${minorCount}, guardian=${guardianCount}, major=${majorCount})`
@@ -88,8 +93,10 @@ async function loadTarotKingdomArcanaEffects(fileName) {
 export const TAROT_KINGDOM_ARCANA_EFFECTS = { version: 4, minor: [], guardian: [], major: [] };
 export const TAROT_KINGDOM_ARCANA_EFFECT_CATALOG = TAROT_KINGDOM_ARCANA_EFFECTS;
 export const TAROT_KINGDOM_LEGACY_ARCANA_EFFECTS = { version: 2, minor: [], guardian: [], major: [] };
+export const TAROT_KINGDOM_ARCANA_AP_EFFECTS = { version: 6, minor: [] };
 const MINOR_RESONANCE_BY_KEY = new Map();
 const LEGACY_MINOR_RESONANCE_BY_KEY = new Map();
+const MINOR_AP_RESONANCE_BY_KEY = new Map();
 const GUARDIAN_BY_NUMBER = new Map();
 
 function applyTarotKingdomArcanaEffects(data) {
@@ -122,29 +129,49 @@ function applyTarotKingdomLegacyArcanaEffects(data) {
     return TAROT_KINGDOM_LEGACY_ARCANA_EFFECTS;
 }
 
+function applyTarotKingdomArcanaApEffects(data) {
+    if (!data) return TAROT_KINGDOM_ARCANA_AP_EFFECTS;
+    if (typeof data !== 'object' || !Array.isArray(data.minor) || data.minor.length !== 56) {
+        throw new Error('Arcana AP effects are incomplete');
+    }
+    Object.keys(TAROT_KINGDOM_ARCANA_AP_EFFECTS).forEach((key) => {
+        delete TAROT_KINGDOM_ARCANA_AP_EFFECTS[key];
+    });
+    Object.assign(TAROT_KINGDOM_ARCANA_AP_EFFECTS, data);
+    MINOR_AP_RESONANCE_BY_KEY.clear();
+    data.minor.forEach((entry) => {
+        MINOR_AP_RESONANCE_BY_KEY.set(`${entry.suit}:${entry.rank}`, entry);
+    });
+    return TAROT_KINGDOM_ARCANA_AP_EFFECTS;
+}
+
 const injectedArcanaEffects = globalThis.__TAROT_KINGDOM_ARCANA_EFFECTS__;
 const injectedLegacyArcanaEffects = globalThis.__TAROT_KINGDOM_LEGACY_ARCANA_EFFECTS__;
+const injectedArcanaApEffects = globalThis.__TAROT_KINGDOM_ARCANA_AP_EFFECTS__;
 if (injectedArcanaEffects && typeof injectedArcanaEffects === 'object') {
     applyTarotKingdomArcanaEffects(injectedArcanaEffects);
 }
 if (injectedLegacyArcanaEffects && typeof injectedLegacyArcanaEffects === 'object') {
     applyTarotKingdomLegacyArcanaEffects(injectedLegacyArcanaEffects);
 }
+if (injectedArcanaApEffects && typeof injectedArcanaApEffects === 'object') {
+    applyTarotKingdomArcanaApEffects(injectedArcanaApEffects);
+}
 
-export const TAROT_KINGDOM_ARCANA_EFFECTS_READY = (
+export const TAROT_KINGDOM_ARCANA_EFFECTS_READY = Promise.all([
     injectedArcanaEffects && typeof injectedArcanaEffects === 'object'
         ? Promise.resolve(TAROT_KINGDOM_ARCANA_EFFECTS)
-        : Promise.all([
-            loadTarotKingdomArcanaEffects('tarot-kingdom-arcana-effects.json')
-                .then(applyTarotKingdomArcanaEffects),
-            loadTarotKingdomArcanaEffects('tarot-kingdom-arcana-effects-v2.json')
-                .then(applyTarotKingdomLegacyArcanaEffects)
-        ]).then(() => TAROT_KINGDOM_ARCANA_EFFECTS)
-            .catch((error) => {
-                console.error('[tarot-kingdom] Failed to load arcana effects:', error);
-                throw error;
-            })
-);
+        : loadTarotKingdomArcanaEffects('tarot-kingdom-arcana-effects.json').then(applyTarotKingdomArcanaEffects),
+    injectedLegacyArcanaEffects && typeof injectedLegacyArcanaEffects === 'object'
+        ? Promise.resolve(TAROT_KINGDOM_LEGACY_ARCANA_EFFECTS)
+        : loadTarotKingdomArcanaEffects('tarot-kingdom-arcana-effects-v2.json').then(applyTarotKingdomLegacyArcanaEffects),
+    injectedArcanaApEffects && typeof injectedArcanaApEffects === 'object'
+        ? Promise.resolve(TAROT_KINGDOM_ARCANA_AP_EFFECTS)
+        : loadTarotKingdomArcanaEffects('tarot-kingdom-arcana-ap-effects.json').then(applyTarotKingdomArcanaApEffects)
+]).then(() => TAROT_KINGDOM_ARCANA_EFFECTS).catch((error) => {
+    console.error('[tarot-kingdom] Failed to load arcana effects:', error);
+    throw error;
+});
 
 function getTarotKingdomEffectsVersion(context = {}) {
     const requested = Number(context.arcanaLoadoutEffectsVersion ?? context.rules?.arcanaLoadoutEffectsVersion);
@@ -153,9 +180,12 @@ function getTarotKingdomEffectsVersion(context = {}) {
 
 function applyContextualMinorDefinition(entry, context = {}) {
     if (!entry) return null;
-    const useLegacy = getTarotKingdomEffectsVersion(context) < 3;
-    const definition = (useLegacy ? LEGACY_MINOR_RESONANCE_BY_KEY : MINOR_RESONANCE_BY_KEY)
-        .get(`${entry.suit}:${entry.rank}`);
+    const effectsVersion = getTarotKingdomEffectsVersion(context);
+    const definition = (
+        effectsVersion >= 6
+            ? MINOR_AP_RESONANCE_BY_KEY
+            : (effectsVersion < 3 ? LEGACY_MINOR_RESONANCE_BY_KEY : MINOR_RESONANCE_BY_KEY)
+    ).get(`${entry.suit}:${entry.rank}`);
     if (!definition) return entry;
     return {
         ...entry,
@@ -163,8 +193,14 @@ function applyContextualMinorDefinition(entry, context = {}) {
         skillName: String(definition.name || entry.skillName || '').trim(),
         effectText: String(definition.effect || entry.effectText || '').trim(),
         condition: { ...(definition.condition || entry.condition || { kind: 'always' }) },
-        steps: (Array.isArray(definition.steps) ? definition.steps : entry.steps || []).map((step) => ({ ...step }))
+        steps: (Array.isArray(definition.steps) ? definition.steps : entry.steps || []).map((step) => ({ ...step })),
+        apCost: definition.apCost ?? entry.apCost,
+        apEffectId: effectsVersion >= 6 ? String(definition.id || '') : ''
     };
+}
+
+export function getTarotKingdomMinorApDefinition(suit, rank) {
+    return MINOR_AP_RESONANCE_BY_KEY.get(`${normalizeSuit(suit)}:${positiveRank(rank)}`) || null;
 }
 
 function finiteNumber(value, fallback = 0) {
@@ -179,6 +215,11 @@ function clamp(value, min, max) {
 function positiveRank(value) {
     const rank = Math.floor(finiteNumber(value, 0));
     return rank >= 1 && rank <= 14 ? rank : 0;
+}
+
+function positiveCombatRank(value) {
+    const rank = Math.floor(finiteNumber(value, 0));
+    return rank >= 1 && rank <= 19 ? rank : 0;
 }
 
 function normalizeSuit(value) {
@@ -391,7 +432,7 @@ function getWeaponSuit(weapon) {
 }
 
 function buildWeaponCandidate(weapon, card, context = {}) {
-    const rank = positiveRank(card?.number);
+    const rank = positiveCombatRank(card?.combatNumber ?? card?.number);
     const suit = normalizeSuit(card?.suit);
     if (!rank || !suit || getWeaponSuit(weapon) !== suit) return null;
     const combat = context.character?.combat || {};
@@ -988,6 +1029,261 @@ function expandResonanceDefinition(entry, context = {}) {
     return steps.map((step) => scaleResonanceStep(step, context.resonanceMatch?.multiplier ?? 1));
 }
 
+function getApCombatValue(entry, context, base, damageKind = 'physical', allocation = 1) {
+    const combat = context.character?.combat || {};
+    const statScale = damageKind === 'magic'
+        ? getTarotKingdomMagicScale(combat.intelligence)
+        : getTarotKingdomPhysicalScale(combat.power);
+    const growth = getTarotKingdomGrowthDamageScale(context.character, damageKind, context.growthVersion);
+    const apScale = entry.apCost === 'all' ? Math.max(1, Math.floor(finiteNumber(allocation, 0))) : 1;
+    return Math.max(1, Math.floor(
+        finiteNumber(base, 0) * statScale * growth * getTarotKingdomCardLevelScale(entry.cardLevel) * apScale
+    ));
+}
+
+function getApScaledNumber(entry, value, cap = Infinity) {
+    return Math.min(cap, Math.max(1, Math.round(
+        finiteNumber(value, 0) * getTarotKingdomCardLevelScale(entry.cardLevel)
+    )));
+}
+
+function getApEffectBucket(context, targetType, targetIndex = null) {
+    const effects = context.effects || {};
+    if (targetType === 'enemy') return effects.enemy || {};
+    if (targetType === 'party') return effects.party || {};
+    return effects.players?.[targetIndex] || {};
+}
+
+function hasApNegativeEffect(bucket = {}) {
+    return NEGATIVE_STATUS_PRIORITY.some((key) => bucket?.[key])
+        || ['attackDown', 'powerDown', 'intelligenceDown', 'defenseDown', 'speedDown', 'accuracyDown', 'evasionDown', 'criticalDown']
+            .some((key) => bucket?.[key]);
+}
+
+function isApEffectUpgrade(context, targetType, targetIndex, statusKey, potency = 0, turns = 0, charges = 0) {
+    const current = getApEffectBucket(context, targetType, targetIndex)?.[statusKey];
+    if (!current) return true;
+    const currentPotency = finiteNumber(current.potency, 0);
+    const currentTurns = Math.max(finiteNumber(current.remainingTurns, 0), finiteNumber(current.remainingClears, 0));
+    const currentCharges = finiteNumber(current.charges, 0);
+    return currentPotency < finiteNumber(potency, 0)
+        || currentTurns < finiteNumber(turns, 0)
+        || currentCharges < finiteNumber(charges, 0);
+}
+
+function expandTarotKingdomApResonance(entry, context = {}, allocation = 1) {
+    const steps = [];
+    const actorIndex = Math.max(0, Math.floor(finiteNumber(context.actorIndex, 0)));
+    const living = getContextLivingPlayerIndexes(context);
+    const lowest = getLowestHpIndex(context);
+    const lowestOther = getLowestHpIndex(context, actorIndex);
+    const enemyAlive = finiteNumber(context.enemy?.hp, 0) > 0;
+    const id = String(entry.apEffectId || entry.resonanceId || '');
+    const label = String(entry.skillName || entry.name || '共鳴');
+    const addHeal = (targetIndex, percent) => {
+        if (!Number.isInteger(targetIndex)) return;
+        const player = context.players?.[targetIndex];
+        if (!player || finiteNumber(player.hp, 0) <= 0 || finiteNumber(player.hp, 0) >= finiteNumber(player.maxHp, 1)) return;
+        steps.push(createResonanceStep('heal-percent', label, {
+            targetType: 'player', targetIndex,
+            percent: getApScaledNumber(entry, percent, entry.apCost === 'all' ? 100 : 40),
+            aceUncapped: entry.apCost === 'all',
+            score: percent
+        }));
+    };
+    const addShield = (targetIndex, percent) => {
+        if (!Number.isInteger(targetIndex)) return;
+        const scaledPercent = getApScaledNumber(entry, percent, entry.apCost === 'all' ? 100 : 40);
+        const player = context.players?.[targetIndex];
+        if (!player) return;
+        const shieldHp = Math.max(1, Math.floor(finiteNumber(player.maxHp, 1) * scaledPercent / 100));
+        const currentShield = finiteNumber(getApEffectBucket(context, 'player', targetIndex)?.hpShield?.shieldHp, 0);
+        if (currentShield >= shieldHp) return;
+        steps.push(createResonanceStep('buff', label, {
+            targetType: 'player', targetIndex, statusKey: 'hpShield', potency: scaledPercent, shieldHp,
+            aceUncapped: entry.apCost === 'all',
+            score: scaledPercent
+        }));
+    };
+    const addBuff = (targetType, targetIndex, statusKey, potency, turns = 0, charges = 0, extras = {}) => {
+        const scaledPotency = getApScaledNumber(entry, potency, 100);
+        if (!isApEffectUpgrade(context, targetType, targetIndex, statusKey, scaledPotency, turns, charges)) return;
+        steps.push(createResonanceStep('buff', label, {
+            targetType, targetIndex, statusKey, potency: scaledPotency,
+            ...(turns > 0 ? { turns } : {}), ...(charges > 0 ? { charges } : {}), ...extras,
+            score: scaledPotency
+        }));
+    };
+    const addStatus = (statusKey, potency, turns = 0, charges = 0, extras = {}) => {
+        const scaledPotency = getApScaledNumber(entry, potency, 100);
+        if (!enemyAlive || !isApEffectUpgrade(context, 'enemy', null, statusKey, scaledPotency, turns, charges)) return;
+        steps.push(createResonanceStep('status', label, {
+            targetType: 'enemy', statusKey, potency: scaledPotency, chance: 1,
+            ...(turns > 0 ? { turns } : {}), ...(charges > 0 ? { charges } : {}), ...extras,
+            score: scaledPotency
+        }));
+    };
+    const addDamage = (kind, base, extras = {}) => {
+        if (!enemyAlive) return;
+        steps.push(createResonanceStep(kind, label, {
+            targetType: 'enemy', amount: getApCombatValue(entry, context, base, kind === 'magic' ? 'magic' : 'physical', allocation),
+            score: base, ...extras
+        }));
+    };
+    const cleanseTarget = (targetIndex, all = false) => {
+        if (!Number.isInteger(targetIndex) || !hasApNegativeEffect(getApEffectBucket(context, 'player', targetIndex))) return;
+        steps.push(createResonanceStep(all ? 'cleanse-all' : 'cleanse', label, {
+            targetType: 'player', targetIndex, score: all ? 30 : 15
+        }));
+    };
+
+    if (id === 'cup-1') addHeal(lowest, 10 * Math.max(1, allocation));
+    else if (id === 'cup-2') {
+        const affected = living.find((index) => hasApNegativeEffect(getApEffectBucket(context, 'player', index)));
+        if (Number.isInteger(affected)) cleanseTarget(affected);
+        else addHeal(lowest, 6);
+    } else if (id === 'cup-3') {
+        addHeal(actorIndex, 8);
+        addHeal(lowestOther, 8);
+    } else if (id === 'cup-4') living.forEach((index) => addHeal(index, 5));
+    else if (id === 'cup-5') living.forEach((index) => cleanseTarget(index));
+    else if (id === 'cup-6') addBuff('player', lowest, 'regen', 6, 3);
+    else if (id === 'cup-7') {
+        addStatus('wet', 20, 2);
+        addStatus('slow', 20, 2);
+    } else if (id === 'cup-8') {
+        cleanseTarget(lowest, true);
+        addHeal(lowest, 12);
+    } else if (id === 'cup-9' && Number.isInteger(lowest)) {
+        const player = context.players?.[lowest];
+        const hpRate = finiteNumber(player?.hp, 0) / Math.max(1, finiteNumber(player?.maxHp, 1));
+        addHeal(lowest, hpRate <= 0.3 ? 100 : 20);
+    } else if (id === 'cup-10') living.forEach((index) => addBuff('player', index, 'healingReceivedUp', 30, 2));
+    else if (id === 'cup-11') living.forEach((index) => {
+        addHeal(index, 12);
+        cleanseTarget(index);
+        addBuff('player', index, 'statusImmune', 100, 0, 1);
+    });
+    else if (id === 'cup-12') {
+        const koOrder = Array.isArray(context.koOrder) ? context.koOrder : [];
+        const targetIndex = koOrder.find((index) => finiteNumber(context.players?.[index]?.hp, 0) <= 0)
+            ?? context.players?.findIndex((player) => finiteNumber(player?.hp, 0) <= 0);
+        if (Number.isInteger(targetIndex) && targetIndex >= 0) steps.push(createResonanceStep('revive-percent', label, {
+            targetType: 'player', targetIndex, percent: getApScaledNumber(entry, 35, 40), score: 35
+        }));
+    } else if (id === 'cup-13') {
+        const targetIndex = [...living]
+            .filter((index) => !getApEffectBucket(context, 'player', index)?.autoRevive)
+            .sort((left, right) => {
+                const leftPlayer = context.players?.[left];
+                const rightPlayer = context.players?.[right];
+                const leftRate = finiteNumber(leftPlayer?.hp, 0) / Math.max(1, finiteNumber(leftPlayer?.maxHp, 1));
+                const rightRate = finiteNumber(rightPlayer?.hp, 0) / Math.max(1, finiteNumber(rightPlayer?.maxHp, 1));
+                return leftRate - rightRate || left - right;
+            })[0];
+        if (Number.isInteger(targetIndex)) addBuff('player', targetIndex, 'autoRevive', 30, 0, 1);
+    } else if (id === 'cup-14') living.forEach((index) => {
+        addHeal(index, 18);
+        addShield(index, 10);
+    });
+
+    else if (id === 'pentacle-1') addShield(actorIndex, 10 * Math.max(1, allocation));
+    else if (id === 'pentacle-2') addShield(Number.isInteger(lowestOther) ? lowestOther : actorIndex, 10);
+    else if (id === 'pentacle-3') addStatus('slow', 20, 2);
+    else if (id === 'pentacle-4') addStatus('blind', 25, 2);
+    else if (id === 'pentacle-5') addStatus('vulnerable', 25, 0, 1);
+    else if (id === 'pentacle-6') addStatus('sleep', 100);
+    else if (id === 'pentacle-7') addStatus('paralysis', 100, 0, 1);
+    else if (id === 'pentacle-8') addStatus('confusion', 50, 0, 2);
+    else if (id === 'pentacle-9') {
+        const buffKeys = ['hpShield', 'defenseUp', 'damageBarrier', 'powerUp', 'intelligenceUp', 'speedUp'];
+        const removable = buffKeys.find((key) => getApEffectBucket(context, 'enemy')?.[key]);
+        if (removable) steps.push(createResonanceStep('dispel', label, { targetType: 'enemy', statusKey: removable, score: 20 }));
+        addDamage('magic', 30, { element: 'earth' });
+    } else if (id === 'pentacle-10') addBuff('enemy', null, 'attackDown', 25, 2);
+    else if (id === 'pentacle-11') {
+        if (Number.isInteger(lowestOther)) addBuff('party', lowestOther, 'cover', 35, 0, 1, { coverIndex: actorIndex });
+        else addShield(actorIndex, 15);
+    } else if (id === 'pentacle-12') addBuff('party', null, 'damageBarrier', 25, 2);
+    else if (id === 'pentacle-13') addStatus('petrify', 100, 0, 0, { untilClear: true });
+    else if (id === 'pentacle-14') living.forEach((index) => addBuff('player', index, 'decoy', 100, 0, 1));
+
+    else if (id === 'sword-1') addDamage('damage', 22, { element: 'wind', ignoreDefense: 0.25, aceUncapped: true });
+    else if (id === 'sword-2') addDamage('damage', 26, { element: 'wind', hitCount: 2 });
+    else if (id === 'sword-3') addDamage('damage', 24, { element: 'wind', hitCount: 3 });
+    else if (id === 'sword-4') addDamage('damage', 18, { element: 'wind', targetScope: 'stage' });
+    else if (id === 'sword-5') {
+        addDamage('damage', 30, { element: 'wind' });
+        addStatus('vulnerable', 25, 0, 1);
+    } else if (id === 'sword-6') {
+        addDamage('damage', 25, { element: 'wind' });
+        steps.push(createResonanceStep('status', label, {
+            targetType: 'enemy', statusKey: 'poison', potencyFromPreviousRate: 0.2, chance: 1, charges: 3, score: 20
+        }));
+    } else if (id === 'sword-7') {
+        addDamage('damage', 34, { element: 'wind', targetScope: 'stage' });
+        addStatus('slow', 15, 2);
+    } else if (id === 'sword-8') addDamage('damage', 48, { element: 'wind', ignoreDefense: 0.5 });
+    else if (id === 'sword-9') {
+        addDamage('damage', 40, { element: 'wind', hitCount: 4 });
+        addStatus('blind', 20, 2);
+    } else if (id === 'sword-10') {
+        const hpRate = finiteNumber(context.enemy?.hp, 0) / Math.max(1, finiteNumber(context.enemy?.maxHp, 1));
+        addDamage('damage', hpRate <= 0.4 ? 64 : 32, { element: 'wind' });
+    } else if (id === 'sword-11') {
+        addBuff('player', actorIndex, 'windEnchant', 30, 0, 2);
+        addBuff('player', actorIndex, 'physicalDamageUp', 30, 2);
+        addBuff('player', actorIndex, 'speedUp', 30, 2);
+    } else if (id === 'sword-12') addDamage('damage', 70, { element: 'wind', hitCount: 4, ignoreDefense: 0.3 });
+    else if (id === 'sword-13') {
+        addDamage('damage', 58, { element: 'wind' });
+        addStatus('paralysis', 100, 0, 1);
+    } else if (id === 'sword-14') {
+        addDamage('damage', 55, { element: 'wind', targetScope: 'stage' });
+        living.forEach((index) => addBuff('player', index, 'physicalDamageUp', 25, 2));
+    }
+
+    else if (id === 'wand-1') addDamage('magic', 22, { element: 'fire', aceUncapped: true });
+    else if (id === 'wand-2') addDamage('magic', 26, { element: 'fire', hitCount: 2 });
+    else if (id === 'wand-3') {
+        addDamage('magic', 18, { element: 'fire' });
+        steps.push(createResonanceStep('status', label, {
+            targetType: 'enemy', statusKey: 'burn', potencyFromPreviousRate: 0.25, chance: 1, charges: 1, score: 20
+        }));
+    } else if (id === 'wand-4') addDamage('magic', 18, { element: 'fire', targetScope: 'stage' });
+    else if (id === 'wand-5') {
+        addDamage('magic', 34, { element: 'fire', targetScope: 'stage' });
+        steps.push(createResonanceStep('status', label, {
+            targetType: 'enemy', statusKey: 'burn', potencyFromPreviousRate: 0.2, chance: 1, charges: 2, score: 20
+        }));
+    } else if (id === 'wand-6') steps.push(createResonanceStep('ap-gain', label, { targetType: 'player', targetIndex: actorIndex, amount: 2, score: 20 }));
+    else if (id === 'wand-7') addDamage('magic', 44, { element: 'fire', targetScope: 'stage' });
+    else if (id === 'wand-8') addDamage('magic', 50, { element: 'fire', ignoreDefense: 0.5 });
+    else if (id === 'wand-9') {
+        addDamage('magic', 36, { element: 'fire' });
+        addStatus('blind', 30, 2);
+    } else if (id === 'wand-10') {
+        steps.push(createResonanceStep('ap-gain', label, { targetType: 'player', targetIndex: actorIndex, amount: 3, score: 30 }));
+        steps.push(createResonanceStep('recoil-percent', label, { targetType: 'player', targetIndex: actorIndex, percent: 10, nonLethal: true, score: 1 }));
+    } else if (id === 'wand-11') {
+        addBuff('player', actorIndex, 'fireEnchant', 35, 0, 2);
+        addBuff('player', actorIndex, 'magicDamageUp', 35, 2);
+    } else if (id === 'wand-12') living.forEach((index) => {
+        addBuff('player', index, 'magicDamageUp', 35, 2);
+        addBuff('player', index, 'statusImmune', 100, 0, 1);
+    });
+    else if (id === 'wand-13') {
+        addDamage('magic', 78, { element: 'fire' });
+        steps.push(createResonanceStep('status', label, {
+            targetType: 'enemy', statusKey: 'burn', potencyFromPreviousRate: 0.25, chance: 1, charges: 2, score: 30
+        }));
+    } else if (id === 'wand-14') {
+        addDamage('magic', 60, { element: 'fire', targetScope: 'stage' });
+        living.forEach((index) => addBuff('player', index, 'magicDamageUp', 25, 2));
+    }
+    return steps;
+}
+
 export function buildTarotKingdomResonanceCandidate(entry, card, context = {}) {
     const normalized = applyContextualMinorDefinition(
         normalizeTarotKingdomDeckEntry(entry, entry?.slot || 0),
@@ -1001,7 +1297,10 @@ export function buildTarotKingdomResonanceCandidate(entry, card, context = {}) {
         resonanceMatch: match,
         resonanceEntry: normalized
     };
-    const steps = expandResonanceDefinition(normalized, resolvedContext);
+    const apEnabled = getTarotKingdomEffectsVersion(context) >= 6;
+    const steps = apEnabled
+        ? expandTarotKingdomApResonance(normalized, resolvedContext, 1)
+        : expandResonanceDefinition(normalized, resolvedContext);
     if (!steps.length) return null;
     return {
         source: 'resonance',
@@ -1017,8 +1316,14 @@ export function buildTarotKingdomResonanceCandidate(entry, card, context = {}) {
         matchMultiplier: match.multiplier,
         sourceAttribute: match.attribute,
         submittedCardId: String(card?.id || ''),
+        apCostType: apEnabled && normalized.apCost === 'all' ? 'all' : 'fixed',
+        apBaseCost: apEnabled && normalized.apCost !== 'all'
+            ? Math.max(0, Math.floor(finiteNumber(normalized.apCost, 0)))
+            : 0,
         steps,
-        score: steps.reduce((sum, step) => sum + Math.max(0, finiteNumber(step.score, 0)), 0)
+        score: steps.reduce((sum, step) => sum + Math.max(0, finiteNumber(step.score, 0)), 0),
+        _entry: normalized,
+        _context: resolvedContext
     };
 }
 
@@ -1035,22 +1340,90 @@ export function resolveTarotKingdomResonance(context = {}) {
     });
     candidates.sort((left, right) => left.slot - right.slot);
     if (!candidates.length) return null;
+    const apEnabled = getTarotKingdomEffectsVersion(context) >= 6;
+    let activatedCandidates = candidates;
+    let apBefore = null;
+    let apAfter = null;
+    if (apEnabled) {
+        apBefore = Math.max(0, Math.floor(finiteNumber(context.arcanaPoints, 0)));
+        let remaining = apBefore;
+        const aceAllocations = new Map();
+        let aceDistributed = false;
+        activatedCandidates = [];
+        candidates.forEach((candidate, candidateIndex) => {
+            let allocation = 0;
+            let spent = 0;
+            if (candidate.apCostType === 'all') {
+                if (!aceDistributed) {
+                    const remainingAces = candidates.slice(candidateIndex)
+                        .filter((entry) => entry.apCostType === 'all');
+                    const splitBase = remainingAces.length > 0 ? Math.floor(remaining / remainingAces.length) : 0;
+                    let splitRemainder = remainingAces.length > 0 ? remaining % remainingAces.length : 0;
+                    remainingAces.forEach((entry) => {
+                        const value = splitBase + (splitRemainder > 0 ? 1 : 0);
+                        if (splitRemainder > 0) splitRemainder -= 1;
+                        aceAllocations.set(entry.slot, value);
+                    });
+                    remaining = 0;
+                    aceDistributed = true;
+                }
+                allocation = Math.max(0, Math.floor(aceAllocations.get(candidate.slot) || 0));
+                spent = allocation;
+            } else {
+                spent = Math.max(0, Math.floor(candidate.apBaseCost || 0));
+                if (remaining < spent) return;
+                remaining -= spent;
+                allocation = spent;
+            }
+            const steps = expandTarotKingdomApResonance(
+                candidate._entry,
+                candidate._context,
+                candidate.apCostType === 'all' ? Math.max(1, allocation) : 1
+            );
+            if (!steps.length) return;
+            const gain = steps
+                .filter((step) => step.kind === 'ap-gain')
+                .reduce((sum, step) => sum + Math.max(0, Math.floor(finiteNumber(step.amount, 0))), 0);
+            const candidateApBefore = remaining + spent;
+            remaining += gain;
+            activatedCandidates.push({
+                ...candidate,
+                steps,
+                apBefore: candidateApBefore,
+                apCost: spent,
+                apAllocation: candidate.apCostType === 'all' ? allocation : null,
+                apGain: gain,
+                apAfter: remaining
+            });
+        });
+        apAfter = remaining;
+        if (!activatedCandidates.length) return null;
+    }
     return {
         source: 'resonance',
-        candidates,
-        cardId: candidates[0].cardId,
-        resonanceIds: candidates.map((candidate) => candidate.resonanceId),
-        skillName: candidates.map((candidate) => candidate.skillName).join('・'),
-        skillNames: candidates.map((candidate) => candidate.skillName),
-        steps: candidates.flatMap((candidate) => (
+        candidates: activatedCandidates.map(({ _entry, _context, ...candidate }) => candidate),
+        cardId: activatedCandidates[0].cardId,
+        resonanceIds: activatedCandidates.map((candidate) => candidate.resonanceId),
+        skillName: activatedCandidates.map((candidate) => candidate.skillName).join('・'),
+        skillNames: activatedCandidates.map((candidate) => candidate.skillName),
+        steps: activatedCandidates.flatMap((candidate) => (
             candidate.steps.map((step) => ({
                 ...step,
                 cardId: candidate.cardId,
                 resonanceId: candidate.resonanceId,
-                skillName: candidate.skillName
+                skillName: candidate.skillName,
+                apBefore: candidate.apBefore,
+                apCost: candidate.apCost,
+                apAllocation: candidate.apAllocation,
+                apGain: candidate.apGain,
+                apAfter: candidate.apAfter
             }))
         )),
-        score: candidates.reduce((sum, candidate) => sum + candidate.score, 0)
+        score: activatedCandidates.reduce((sum, candidate) => sum + candidate.score, 0),
+        apBefore,
+        apAfter,
+        apSpent: apEnabled ? activatedCandidates.reduce((sum, candidate) => sum + candidate.apCost, 0) : null,
+        apGained: apEnabled ? activatedCandidates.reduce((sum, candidate) => sum + candidate.apGain, 0) : null
     };
 }
 
