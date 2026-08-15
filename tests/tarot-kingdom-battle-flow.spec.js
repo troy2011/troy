@@ -4509,6 +4509,330 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.migrated.pass).toEqual([false, true, false, true]);
   });
 
+  test('presentation cues stay public across render, cap history at eight, and bind the active transition', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const clone = (value) => JSON.parse(JSON.stringify(value));
+      const hand = [
+        { id: 'presentation-play', kind: 'minor', suit: 'Wand', number: 2 },
+        { id: 'presentation-hold-1', kind: 'minor', suit: 'Cup', number: 6 },
+        { id: 'presentation-hold-2', kind: 'minor', suit: 'Sword', number: 9 }
+      ];
+      debug.battleScenario({
+        turnIndex: 0,
+        leaderIndex: 0,
+        handsBySeat: [hand],
+        withTrick: false
+      });
+      const played = debug.battlePlayCards(0, ['presentation-play'], { resolve: false });
+      const beforeRender = debug.battlePublicState();
+      debug.battleRender();
+      const afterRender = debug.battlePublicState();
+
+      const ringEpoch = 'presentation-ring-test';
+      const baseline = clone(afterRender);
+      baseline.state.transition = null;
+      baseline.state.presentation = { version: 1, epoch: ringEpoch, seq: 0, cues: [] };
+      debug.battleApplyRemoteState(baseline, { localSeat: 1, forcePreview: true });
+      const ringPayload = clone(baseline);
+      ringPayload.state.presentation = {
+        version: 1,
+        epoch: ringEpoch,
+        seq: 10,
+        cues: Array.from({ length: 10 }, (_, index) => ({
+          seq: index + 1,
+          kind: 'action',
+          actorIndex: index % 4,
+          label: `CUE ${index + 1}`,
+          options: { durationMs: 320, cutin: false },
+          createdAt: Date.now() + index
+        }))
+      };
+      debug.battleApplyRemoteState(ringPayload, { localSeat: 1, forcePreview: true });
+      const ringPublic = debug.battlePublicState();
+      debug.battleRender();
+      const ringAfterRender = debug.battlePublicState();
+
+      return { played, beforeRender, afterRender, ringPublic, ringAfterRender };
+    });
+
+    expect(audit.played.ok).toBe(true);
+    expect(audit.beforeRender.state.presentation.cues.length).toBeGreaterThan(0);
+    expect(audit.afterRender.state.presentation).toEqual(audit.beforeRender.state.presentation);
+    expect(audit.beforeRender.state.transition.presentationSeq).toBe(
+      audit.beforeRender.state.presentation.seq
+    );
+    expect(audit.ringPublic.state.presentation.cues).toHaveLength(8);
+    expect(audit.ringPublic.state.presentation.cues.map((cue) => cue.seq)).toEqual([
+      3, 4, 5, 6, 7, 8, 9, 10
+    ]);
+    expect(audit.ringAfterRender.state.presentation).toEqual(audit.ringPublic.state.presentation);
+  });
+
+  test('a guest plays an already seen presentation sequence only once', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const clone = (value) => JSON.parse(JSON.stringify(value));
+      debug.battleScenario({ withTrick: false, handCounts: [3, 3, 3, 3] });
+      const epoch = 'presentation-dedupe-test';
+      const baseline = clone(debug.battlePublicState());
+      baseline.state.transition = null;
+      baseline.state.presentation = { version: 1, epoch, seq: 0, cues: [] };
+      debug.battleApplyRemoteState(baseline, { localSeat: 1, forcePreview: true });
+      debug.battleResetPresentationAudit();
+
+      const payload = clone(baseline);
+      payload.state.presentation = {
+        version: 1,
+        epoch,
+        seq: 1,
+        cues: [{
+          seq: 1,
+          kind: 'action',
+          actorIndex: 0,
+          label: 'PASS',
+          options: { durationMs: 600, cutin: false },
+          createdAt: Date.now()
+        }]
+      };
+      debug.battleApplyRemoteState(payload, { localSeat: 1, forcePreview: true });
+      const afterFirstApply = debug.battlePresentationAudit();
+      debug.battleApplyRemoteState(payload, { localSeat: 1, forcePreview: true });
+      const afterDuplicateApply = debug.battlePresentationAudit();
+      debug.battleRender();
+      const afterRender = debug.battlePresentationAudit();
+      return { afterFirstApply, afterDuplicateApply, afterRender };
+    });
+
+    expect(audit.afterFirstApply.starts).toHaveLength(1);
+    expect(audit.afterFirstApply.starts[0]).toMatchObject({ seq: 1, kind: 'action' });
+    expect(audit.afterDuplicateApply.starts).toHaveLength(1);
+    expect(audit.afterRender.starts).toHaveLength(1);
+    expect(audit.afterRender).toMatchObject({
+      lastSeenSeq: 1,
+      epoch: 'presentation-dedupe-test'
+    });
+  });
+
+  test('host demotion without a transition preserves its presentation cursor and plays the next cue once', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const clone = (value) => JSON.parse(JSON.stringify(value));
+      debug.battleScenario({ withTrick: false, handCounts: [3, 3, 3, 3] });
+
+      const epoch = 'presentation-host-demotion-test';
+      const hostPayload = clone(debug.battlePublicState());
+      hostPayload.state.transition = null;
+      hostPayload.state.presentation = {
+        version: 1,
+        epoch,
+        seq: 4,
+        cues: [{
+          seq: 4,
+          kind: 'action',
+          actorIndex: 0,
+          label: 'TURN',
+          options: { durationMs: 600, cutin: false },
+          createdAt: Date.now() - 1000
+        }]
+      };
+      debug.battleDeserialize(hostPayload);
+      const demoted = debug.battlePresentationRoleChange('guest');
+      const afterDemotion = debug.battlePresentationAudit();
+      debug.battleResetPresentationAudit();
+
+      const nextPayload = clone(hostPayload);
+      nextPayload.state.presentation = {
+        version: 1,
+        epoch,
+        seq: 5,
+        cues: [
+          ...hostPayload.state.presentation.cues,
+          {
+            seq: 5,
+            kind: 'action',
+            actorIndex: 1,
+            label: 'PASS',
+            options: { durationMs: 600, cutin: false },
+            createdAt: Date.now()
+          }
+        ]
+      };
+      debug.battleApplyRemoteState(nextPayload, { localSeat: 1, forcePreview: true });
+      const afterFirstCue = debug.battlePresentationAudit();
+      debug.battleApplyRemoteState(nextPayload, { localSeat: 1, forcePreview: true });
+      const afterDuplicate = debug.battlePresentationAudit();
+      return { demoted, afterDemotion, afterFirstCue, afterDuplicate };
+    });
+
+    expect(audit.demoted.activeSeq).toBe(0);
+    expect(audit.demoted.activeKind).toBe('');
+    expect(audit.afterDemotion).toMatchObject({
+      starts: [],
+      activeSeq: 0,
+      activeKind: '',
+      lastSeenSeq: 4,
+      epoch: 'presentation-host-demotion-test'
+    });
+    expect(audit.afterFirstCue.starts).toHaveLength(1);
+    expect(audit.afterFirstCue.starts[0]).toMatchObject({
+      seq: 5,
+      kind: 'action',
+      actorIndex: 1
+    });
+    expect(audit.afterFirstCue).toMatchObject({
+      lastSeenSeq: 5,
+      epoch: 'presentation-host-demotion-test'
+    });
+    expect(audit.afterDuplicate.starts).toHaveLength(1);
+  });
+
+  test('an active presentation survives guest and host authority changes without replay or host-clock delay', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const clone = (value) => JSON.parse(JSON.stringify(value));
+      debug.battleScenario({
+        withTrick: false,
+        turnIndex: 0,
+        handsBySeat: [[
+          { id: 'role-change-play', kind: 'minor', suit: 'Sword', number: 6 },
+          { id: 'role-change-keep-a', kind: 'minor', suit: 'Cup', number: 9 },
+          { id: 'role-change-keep-b', kind: 'minor', suit: 'Pentacle', number: 12 }
+        ]]
+      });
+      const played = debug.battlePlayCards(0, ['role-change-play'], { resolve: false });
+      const hostPayload = clone(debug.battlePublicState());
+      const epoch = 'presentation-role-change';
+      const clockDeltaMs = 60_000;
+      const shiftTimeline = (timeline) => {
+        if (!timeline || typeof timeline !== 'object') return;
+        [
+          'startedAt',
+          'motionAt',
+          'impactAt',
+          'hpRevealAt',
+          'hpTweenEndsAt',
+          'effectAt',
+          'damageNumberAt',
+          'endsAt'
+        ].forEach((key) => {
+          if (Number(timeline[key]) > 0) timeline[key] += clockDeltaMs;
+        });
+      };
+      hostPayload.state.presentation.epoch = epoch;
+      hostPayload.state.presentation.cues.forEach((cue) => {
+        if (Number(cue.createdAt) > 0) cue.createdAt += clockDeltaMs;
+        if (cue.kind !== 'transition') return;
+        cue.transition.startedAt += clockDeltaMs;
+        cue.transition.endsAt += clockDeltaMs;
+        shiftTimeline(cue.transition.timeline);
+        Object.values(cue.transition.eventTimelines || {}).forEach(shiftTimeline);
+      });
+      hostPayload.state.transition.startedAt += clockDeltaMs;
+      hostPayload.state.transition.endsAt += clockDeltaMs;
+      shiftTimeline(hostPayload.state.transition.timeline);
+      Object.values(hostPayload.state.transition.eventTimelines || {}).forEach(shiftTimeline);
+
+      debug.battleApplyRemoteState(hostPayload, { localSeat: 1, forcePreview: true });
+      const guestAudit = debug.battlePresentationAudit();
+      const promoted = debug.battlePresentationRoleChange('host');
+      const promotedAudit = debug.battlePresentationAudit();
+      const demoted = debug.battlePresentationRoleChange('guest');
+      const demotedAudit = debug.battlePresentationAudit();
+      return {
+        played,
+        guestAudit,
+        promoted,
+        promotedAudit,
+        demoted,
+        demotedAudit,
+        now: Date.now()
+      };
+    });
+
+    expect(audit.played.ok).toBe(true);
+    expect(audit.guestAudit.activeKind).toBe('play');
+    expect(audit.guestAudit.starts.filter((entry) => entry.kind === 'transition')).toHaveLength(1);
+    expect(audit.promoted.state.transition.kind).toBe('play');
+    expect(audit.promoted.state.transition.endsAt).toBeGreaterThan(audit.now);
+    expect(audit.promoted.state.transition.endsAt).toBeLessThan(audit.now + 12_000);
+    expect(audit.promotedAudit.starts).toEqual(audit.guestAudit.starts);
+    expect(audit.demoted.activeKind).toBe('play');
+    expect(audit.demoted.activeSeq).toBe(audit.guestAudit.activeSeq);
+    expect(audit.demotedAudit.starts).toEqual(audit.guestAudit.starts);
+  });
+
+  test('presentation cues expose no private hand data or DOM coordinates and add no network revision', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const hand = [
+        { id: 'private-play-card', kind: 'minor', suit: 'Cup', number: 2 },
+        { id: 'private-held-card-a', kind: 'minor', suit: 'Sword', number: 7 },
+        { id: 'private-held-card-b', kind: 'minor', suit: 'Pentacle', number: 12 }
+      ];
+      debug.battleScenario({
+        withTrick: false,
+        revision: 17,
+        turnIndex: 0,
+        leaderIndex: 0,
+        handsBySeat: [hand]
+      });
+      const before = debug.battlePublicState();
+      const played = debug.battlePlayCards(0, ['private-play-card'], { resolve: false });
+      const afterAction = debug.battlePublicState();
+      debug.battleRender();
+      const afterRender = debug.battlePublicState();
+      const cues = afterAction.state.presentation?.cues || [];
+      const cueKeys = [];
+      const visit = (value) => {
+        if (!value || typeof value !== 'object') return;
+        if (Array.isArray(value)) {
+          value.forEach(visit);
+          return;
+        }
+        Object.entries(value).forEach(([key, entry]) => {
+          cueKeys.push(key);
+          visit(entry);
+        });
+      };
+      visit(cues);
+      return {
+        played,
+        before,
+        afterAction,
+        afterRender,
+        cueText: JSON.stringify(cues),
+        cueKeys
+      };
+    });
+
+    expect(audit.played.ok).toBe(true);
+    // A submitted play already advances once for the action and once for its
+    // transition. Presentation must ride that same state instead of adding a
+    // third authority revision (and therefore another publishable snapshot).
+    expect(audit.afterAction.state.revision).toBe(audit.before.state.revision + 2);
+    expect(audit.afterRender.state.revision).toBe(audit.afterAction.state.revision);
+    expect(audit.afterRender.state.presentation).toEqual(audit.afterAction.state.presentation);
+    expect(audit.afterAction.state.presentation.seq).toBeGreaterThan(audit.before.state.presentation.seq);
+    expect(audit.cueText).not.toContain('private-play-card');
+    expect(audit.cueText).not.toContain('private-held-card-a');
+    expect(audit.cueText).not.toContain('private-held-card-b');
+    [
+      'hand',
+      'handsBySeat',
+      'selectedCardIds',
+      'sourcePoint',
+      'targetPoint',
+      'clientX',
+      'clientY',
+      'left',
+      'top',
+      'rect'
+    ].forEach((privateKey) => {
+      expect(audit.cueKeys).not.toContain(privateKey);
+    });
+  });
+
   test('schema 1 and 2 keep current hands while normalizing legacy decks into drawDeck', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;

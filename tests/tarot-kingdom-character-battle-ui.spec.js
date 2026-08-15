@@ -49,6 +49,50 @@ async function openOfflineBattle(page, viewport, productionCascade = false) {
   await expect(page.locator('#tarotKingdomHand > .tarot-card')).toHaveCount(8);
 }
 
+function shiftTarotKingdomHostClock(payload, deltaMs, epoch) {
+  const shifted = JSON.parse(JSON.stringify(payload));
+  const shiftValue = (target, key) => {
+    const value = Number(target?.[key]);
+    if (Number.isFinite(value) && value > 0) target[key] = value + deltaMs;
+  };
+  const shiftTimeline = (timeline) => {
+    if (!timeline || typeof timeline !== 'object') return;
+    [
+      'startedAt',
+      'motionAt',
+      'impactAt',
+      'hpRevealAt',
+      'hpTweenEndsAt',
+      'effectAt',
+      'damageNumberAt',
+      'endsAt'
+    ].forEach((key) => shiftValue(timeline, key));
+  };
+
+  shiftValue(shifted, 'updatedAt');
+  const state = shifted.state || {};
+  if (state.presentation && typeof state.presentation === 'object') {
+    state.presentation.epoch = String(epoch || 'guest-presentation-test');
+    (state.presentation.cues || []).forEach((cue) => {
+      shiftValue(cue, 'createdAt');
+      if (cue?.transition && typeof cue.transition === 'object') {
+        shiftValue(cue.transition, 'startedAt');
+        shiftValue(cue.transition, 'endsAt');
+        shiftTimeline(cue.transition.timeline);
+        Object.values(cue.transition.eventTimelines || {}).forEach(shiftTimeline);
+      }
+    });
+  }
+  if (state.transition && typeof state.transition === 'object') {
+    shiftValue(state.transition, 'startedAt');
+    shiftValue(state.transition, 'endsAt');
+    shiftTimeline(state.transition.timeline);
+    Object.values(state.transition.eventTimelines || {}).forEach(shiftTimeline);
+  }
+  (state.battle?.events || []).forEach((event) => shiftValue(event, 'at'));
+  return shifted;
+}
+
 async function readBattleLayout(page) {
   return page.evaluate(() => {
     const box = (element) => {
@@ -2272,6 +2316,489 @@ test('another player deals from their battle avatar instead of the local hand', 
   });
   expect(distances.avatar).toBeLessThan(2);
   expect(distances.hand).toBeGreaterThan(60);
+});
+
+test('a delayed guest replays a host attack once despite opposite 60 second clock skews', async ({ page, context }) => {
+  const guest = await context.newPage();
+  try {
+    await Promise.all([
+      openOfflineBattle(page, { width: 390, height: 844 }),
+      openOfflineBattle(guest, { width: 390, height: 844 })
+    ]);
+
+    const hostPayload = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const cards = [
+        { id: 'tk_net_host_play_6', kind: 'minor', suit: 'Sword', number: 6 },
+        { id: 'tk_net_host_keep_9', kind: 'minor', suit: 'Cup', number: 9 },
+        { id: 'tk_net_host_keep_12', kind: 'minor', suit: 'Pentacle', number: 12 }
+      ];
+      debug.battleScenario({
+        withTrick: false,
+        turnIndex: 0,
+        handsBySeat: [cards]
+      });
+      debug.battlePlayOne(0, { resolve: false });
+      return debug.battlePublicState();
+    });
+
+    expect(hostPayload.state.presentation.cues).toHaveLength(2);
+    const actionCue = hostPayload.state.presentation.cues.find((cue) => cue.kind === 'action');
+    const transitionCue = hostPayload.state.presentation.cues.find((cue) => cue.kind === 'transition');
+    expect(actionCue).toMatchObject({
+      kind: 'action',
+      actorIndex: 0
+    });
+    expect(transitionCue).toMatchObject({
+      kind: 'transition',
+      transition: { kind: 'play', actorIndex: 0 }
+    });
+    expect(hostPayload.state.transition).toMatchObject({ kind: 'play', actorIndex: 0 });
+    const attackEvent = hostPayload.state.battle.events.at(-1);
+    expect(attackEvent).toMatchObject({ type: 'attack', actorIndex: 0 });
+
+    // Let the original 900ms host animation expire before the guest receives it.
+    // The guest must still start a complete local presentation on receipt.
+    await page.waitForTimeout(1200);
+
+    const cases = [
+      { deltaMs: 60_000, epoch: 'guest-clock-ahead' },
+      { deltaMs: -60_000, epoch: 'guest-clock-behind' }
+    ];
+    for (const skew of cases) {
+      const remotePayload = shiftTarotKingdomHostClock(hostPayload, skew.deltaMs, skew.epoch);
+      const firstAudit = await guest.evaluate((payload) => {
+        const debug = window.TarotKingdomDebug;
+        debug.battleResetPresentationAudit();
+        debug.battleApplyRemoteState(payload, { localSeat: 1, forcePreview: true });
+        return debug.battlePresentationAudit();
+      }, remotePayload);
+
+      expect(firstAudit.epoch).toBe(skew.epoch);
+      expect(firstAudit.activeKind).toBe('play');
+      expect(firstAudit.starts).toHaveLength(2);
+      expect(firstAudit.starts.filter((start) => start.kind === 'transition')).toHaveLength(1);
+      expect(firstAudit.starts.filter((start) => start.kind === 'action')).toHaveLength(1);
+      expect(firstAudit.starts.find((start) => start.kind === 'action')).toMatchObject({
+        seq: actionCue.seq,
+        kind: 'action',
+        actorIndex: 0
+      });
+      expect(firstAudit.activeSeq).toBe(transitionCue.seq);
+      expect(firstAudit.lastSeenSeq).toBe(remotePayload.state.presentation.seq);
+
+      if (skew === cases[0]) {
+        const guestDealGhost = guest.locator('.tarot-kingdom-card-deal-ghost[data-actor-index="0"]');
+        await expect(guestDealGhost).toHaveCount(1);
+        const sourceDistances = await guest.evaluate(() => {
+          const ghost = document.querySelector('.tarot-kingdom-card-deal-ghost[data-actor-index="0"]');
+          const avatar = document.getElementById('tarotKingdomBattleAvatar-0');
+          const handCard = document.querySelector('#tarotKingdomHand > .tarot-card');
+          const ghostWidth = parseFloat(ghost?.style.width || '0') || ghost?.getBoundingClientRect().width || 0;
+          const ghostHeight = parseFloat(ghost?.style.height || '0') || ghost?.getBoundingClientRect().height || 0;
+          const source = {
+            x: (parseFloat(ghost?.style.left || '0') || 0) + (ghostWidth / 2),
+            y: (parseFloat(ghost?.style.top || '0') || 0) + (ghostHeight / 2)
+          };
+          const center = (rect) => ({ x: rect.left + (rect.width / 2), y: rect.top + (rect.height / 2) });
+          const distance = (left, right) => Math.hypot(left.x - right.x, left.y - right.y);
+          return {
+            avatar: distance(source, center(avatar.getBoundingClientRect())),
+            hand: distance(source, center(handCard.getBoundingClientRect()))
+          };
+        });
+        expect(sourceDistances.avatar).toBeLessThan(2);
+        expect(sourceDistances.hand).toBeGreaterThan(60);
+      }
+
+      const remoteRow = guest.locator('#tarotKingdomPlayers .tarot-kingdom-player-row[data-player-index="0"]');
+      await expect(remoteRow).toHaveClass(/fx-action/);
+      await expect(guest.locator('#tarotKingdomBattleStage')).toHaveClass(/is-battle-charging/);
+      await expect(guest.locator('#tarotKingdomEnemyHpText')).toContainText(`HP ${attackEvent.hpBefore} /`);
+
+      const duplicateAudit = await guest.evaluate((payload) => {
+        const debug = window.TarotKingdomDebug;
+        debug.battleApplyRemoteState(payload, { localSeat: 1, forcePreview: true });
+        debug.battleRender();
+        debug.battleRender();
+        debug.battleRender();
+        return debug.battlePresentationAudit();
+      }, remotePayload);
+      expect(duplicateAudit.starts).toHaveLength(2);
+      expect(duplicateAudit.activeSeq).toBe(firstAudit.activeSeq);
+
+      const damageNumber = guest.locator(
+        '.tarot-kingdom-battle-enemy > .tarot-kingdom-damage-number'
+      );
+      await expect(damageNumber).toHaveClass(/is-show/, { timeout: 2500 });
+      await expect(damageNumber).toHaveText(String(attackEvent.displayDamage));
+      await expect(guest.locator('#tarotKingdomEnemyHpText')).toContainText(`HP ${attackEvent.hpAfter} /`);
+      await expect(guest.locator('#tarotKingdomBattleStage')).not.toHaveClass(/is-battle-charging/, {
+        timeout: 2500
+      });
+      await guest.waitForTimeout(650);
+    }
+  } finally {
+    await guest.close();
+  }
+});
+
+test('a guest renders one synchronized five-card summon across repeated state and render updates', async ({ page, context }) => {
+  const guest = await context.newPage();
+  try {
+    await Promise.all([
+      openOfflineBattle(page, { width: 390, height: 844 }),
+      openOfflineBattle(guest, { width: 390, height: 844 })
+    ]);
+
+    const hostPayload = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const roleCards = [
+        { id: 'tk_net_role_w2', kind: 'minor', suit: 'Wand', number: 2 },
+        { id: 'tk_net_role_c3', kind: 'minor', suit: 'Cup', number: 3 },
+        { id: 'tk_net_role_s4', kind: 'minor', suit: 'Sword', number: 4 },
+        { id: 'tk_net_role_p5', kind: 'minor', suit: 'Pentacle', number: 5 },
+        { id: 'tk_net_role_w6', kind: 'minor', suit: 'Wand', number: 6 }
+      ];
+      debug.battleScenario({
+        withTrick: false,
+        turnIndex: 0,
+        handsBySeat: [[
+          ...roleCards,
+          { id: 'tk_net_role_keep_9', kind: 'minor', suit: 'Cup', number: 9 },
+          { id: 'tk_net_role_keep_10', kind: 'minor', suit: 'Cup', number: 10 }
+        ]]
+      });
+      const played = debug.battlePlayCards(0, roleCards.map((card) => card.id), { resolve: false });
+      if (!played.ok) throw new Error(played.reason || 'role play failed');
+      return debug.battlePublicState();
+    });
+
+    const skillEvent = hostPayload.state.battle.events.at(-1);
+    expect(skillEvent).toMatchObject({ type: 'skill', actorIndex: 0, roleKey: 'Straight' });
+    expect(skillEvent.summon?.id).toBeTruthy();
+
+    const remotePayload = shiftTarotKingdomHostClock(hostPayload, 60_000, 'guest-summon-clock-ahead');
+    const audit = await guest.evaluate((payload) => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleResetPresentationAudit();
+      debug.battleApplyRemoteState(payload, { localSeat: 1, forcePreview: true });
+      debug.battleApplyRemoteState(payload, { localSeat: 1, forcePreview: true });
+      debug.battleRender();
+      debug.battleRender();
+      return debug.battlePresentationAudit();
+    }, remotePayload);
+
+    expect(audit.starts.filter((start) => start.kind === 'transition')).toHaveLength(1);
+    expect(audit.starts.filter((start) => start.kind === 'action')).toHaveLength(1);
+    expect(audit.activeKind).toBe('play');
+    const summonCutin = guest.locator(
+      '#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon'
+    );
+    await expect(summonCutin).toHaveCount(1);
+    await expect(summonCutin).toHaveAttribute('data-summon-id', String(skillEvent.summon.id));
+    await expect(summonCutin).toContainText('ストレート');
+    await expect(guest.locator('#tarotKingdomBattleStage')).toHaveClass(/is-battle-skill/);
+  } finally {
+    await guest.close();
+  }
+});
+
+test('a delayed guest keeps the retained call actor focused after the authoritative transition is gone', async ({ page, context }) => {
+  const guest = await context.newPage();
+  try {
+    await Promise.all([
+      openOfflineBattle(page, { width: 390, height: 844 }),
+      openOfflineBattle(guest, { width: 390, height: 844 })
+    ]);
+
+    const source = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const actorIndex = 2;
+      const tableCard = { id: 'tk_guest_call_table_2', kind: 'minor', suit: 'Wand', number: 2 };
+      const callCards = [
+        { id: 'tk_guest_call_cup_2', kind: 'minor', suit: 'Cup', number: 2 },
+        { id: 'tk_guest_call_sword_2', kind: 'minor', suit: 'Sword', number: 2 },
+        { id: 'tk_guest_call_wand_3', kind: 'minor', suit: 'Wand', number: 3 },
+        { id: 'tk_guest_call_cup_3', kind: 'minor', suit: 'Cup', number: 3 }
+      ];
+      const handsBySeat = Array.from({ length: 4 }, () => null);
+      handsBySeat[actorIndex] = [
+        ...callCards,
+        { id: 'tk_guest_call_keep_7', kind: 'minor', suit: 'Sword', number: 7 },
+        { id: 'tk_guest_call_keep_10', kind: 'minor', suit: 'Pentacle', number: 10 }
+      ];
+      debug.battleScenario({
+        turnIndex: actorIndex,
+        leaderIndex: 0,
+        tableCard,
+        handsBySeat
+      });
+      const baseline = debug.battlePublicState();
+      const played = debug.battlePlayCards(actorIndex, callCards.map((card) => card.id), { resolve: false });
+      if (!played.ok) throw new Error(played.reason || 'call play failed');
+      return { actorIndex, baseline, call: debug.battlePublicState() };
+    });
+
+    expect(source.call.state.transition).toMatchObject({ kind: 'call', actorIndex: source.actorIndex });
+    const transitionCue = source.call.state.presentation.cues.find((cue) => cue.kind === 'transition');
+    expect(transitionCue).toMatchObject({
+      kind: 'transition',
+      transition: { kind: 'call', actorIndex: source.actorIndex }
+    });
+
+    const remoteBaseline = shiftTarotKingdomHostClock(source.baseline, -60_000, 'guest-retained-call');
+    const remoteCall = shiftTarotKingdomHostClock(source.call, -60_000, 'guest-retained-call');
+    remoteCall.state.transition = null;
+    remoteCall.state.phase = 'turn';
+    remoteCall.state.callMergeFx = null;
+
+    await guest.evaluate((payload) => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleApplyRemoteState(payload, { localSeat: 1, forcePreview: true });
+      debug.battleResetPresentationAudit();
+    }, remoteBaseline);
+    await page.waitForTimeout(1200);
+
+    const audit = await guest.evaluate((payload) => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleApplyRemoteState(payload, { localSeat: 1, forcePreview: true });
+      return debug.battlePresentationAudit();
+    }, remoteCall);
+    expect(audit.activeKind).toBe('call');
+    expect(audit.starts.filter((start) => start.kind === 'transition')).toEqual([
+      expect.objectContaining({ seq: transitionCue.seq, actorIndex: source.actorIndex })
+    ]);
+
+    const playerRows = guest.locator('#tarotKingdomPlayers .tarot-kingdom-player-row');
+    await expect(playerRows).toHaveCount(4);
+    const actorRow = guest.locator(
+      `#tarotKingdomPlayers .tarot-kingdom-player-row[data-player-index="${source.actorIndex}"]`
+    );
+    await expect(actorRow).toHaveClass(/is-call-focus/);
+    await expect(actorRow).not.toHaveClass(/is-call-dim/);
+    for (let playerIndex = 0; playerIndex < 4; playerIndex += 1) {
+      if (playerIndex === source.actorIndex) continue;
+      const row = guest.locator(
+        `#tarotKingdomPlayers .tarot-kingdom-player-row[data-player-index="${playerIndex}"]`
+      );
+      await expect(row).toHaveClass(/is-call-dim/);
+      await expect(row).not.toHaveClass(/is-call-focus/);
+    }
+  } finally {
+    await guest.close();
+  }
+});
+
+test('enemy damage pop restarts when the same event is replayed in a new presentation epoch', async ({ page, context }) => {
+  const guest = await context.newPage();
+  try {
+    await Promise.all([
+      openOfflineBattle(page, { width: 390, height: 844 }),
+      openOfflineBattle(guest, { width: 390, height: 844 })
+    ]);
+
+    const hostPayload = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({
+        withTrick: false,
+        turnIndex: 0,
+        handsBySeat: [[
+          { id: 'tk_damage_epoch_play_6', kind: 'minor', suit: 'Sword', number: 6 },
+          { id: 'tk_damage_epoch_keep_9', kind: 'minor', suit: 'Cup', number: 9 },
+          { id: 'tk_damage_epoch_keep_12', kind: 'minor', suit: 'Pentacle', number: 12 }
+        ]]
+      });
+      debug.battlePlayOne(0, { resolve: false });
+      return debug.battlePublicState();
+    });
+    const damageEvent = hostPayload.state.battle.events.at(-1);
+    expect(damageEvent).toMatchObject({ type: 'attack', actorIndex: 0 });
+    expect(Number(damageEvent.displayDamage)).toBeGreaterThan(0);
+
+    const firstPayload = shiftTarotKingdomHostClock(hostPayload, -60_000, 'guest-damage-epoch-a');
+    const secondPayload = shiftTarotKingdomHostClock(hostPayload, -60_000, 'guest-damage-epoch-b');
+    const firstEvent = firstPayload.state.battle.events.at(-1);
+    const secondEvent = secondPayload.state.battle.events.at(-1);
+    expect(secondEvent).toMatchObject({
+      seq: firstEvent.seq,
+      type: firstEvent.type,
+      displayDamage: firstEvent.displayDamage,
+      damage: firstEvent.damage
+    });
+
+    await guest.evaluate(() => {
+      window.__tkDamageAnimationStarts = [];
+      document.addEventListener('animationstart', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement) || !target.matches('.tarot-kingdom-damage-number')) return;
+        window.__tkDamageAnimationStarts.push({
+          animationName: event.animationName,
+          timeStamp: event.timeStamp,
+          text: target.textContent,
+          startTime: target.getAnimations()[0]?.startTime ?? null
+        });
+      }, true);
+    });
+
+    const damageNumber = guest.locator(
+      '.tarot-kingdom-battle-enemy > .tarot-kingdom-damage-number'
+    );
+    await guest.evaluate((payload) => {
+      window.TarotKingdomDebug.battleApplyRemoteState(payload, { localSeat: 1, forcePreview: true });
+    }, firstPayload);
+    await expect(damageNumber).toHaveClass(/is-show/, { timeout: 2500 });
+    await expect.poll(() => guest.evaluate(() => window.__tkDamageAnimationStarts.length)).toBe(1);
+    const firstStart = await guest.evaluate(() => window.__tkDamageAnimationStarts[0]);
+    expect(firstStart).toMatchObject({
+      animationName: 'tarotKingdomDamagePop',
+      text: String(damageEvent.displayDamage)
+    });
+
+    await guest.evaluate((payload) => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleApplyRemoteState(payload, { localSeat: 1, forcePreview: true });
+      debug.battleRender();
+    }, secondPayload);
+    await expect.poll(() => guest.evaluate(() => window.__tkDamageAnimationStarts.length), {
+      timeout: 2500
+    }).toBe(2);
+    const replay = await guest.evaluate(() => ({
+      starts: window.__tkDamageAnimationStarts.slice(),
+      text: document.querySelector('.tarot-kingdom-battle-enemy > .tarot-kingdom-damage-number')?.textContent,
+      classes: document.querySelector('.tarot-kingdom-battle-enemy > .tarot-kingdom-damage-number')?.className
+    }));
+    expect(replay.starts[1]).toMatchObject({
+      animationName: 'tarotKingdomDamagePop',
+      text: String(damageEvent.displayDamage)
+    });
+    expect(replay.starts[1].timeStamp).toBeGreaterThan(replay.starts[0].timeStamp);
+    expect(replay.starts[1].startTime).not.toBe(replay.starts[0].startTime);
+    expect(replay.text).toBe(String(damageEvent.displayDamage));
+    expect(replay.classes).toContain('is-show');
+
+    await guest.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleRender();
+      debug.battleRender();
+    });
+    await guest.waitForTimeout(80);
+    expect(await guest.evaluate(() => window.__tkDamageAnimationStarts.length)).toBe(2);
+  } finally {
+    await guest.close();
+  }
+});
+
+test('a guest plays each short synchronized action cue once for pass defend draw and skip', async ({ page, context }) => {
+  const guest = await context.newPage();
+  try {
+    await Promise.all([
+      openOfflineBattle(page, { width: 390, height: 844 }),
+      openOfflineBattle(guest, { width: 390, height: 844 })
+    ]);
+
+    const cases = [
+      { kind: 'pass', actorIndex: 2, expectedLabel: 'パス' },
+      { kind: 'defend', actorIndex: 1, expectedLabel: '防御' },
+      { kind: 'draw', actorIndex: 0, expectedLabel: 'ドロー' },
+      { kind: 'skip', actorIndex: 3, expectedLabel: '5スキップ' }
+    ];
+
+    for (const actionCase of cases) {
+      await test.step(actionCase.kind, async () => {
+        const baseline = await page.evaluate(({ kind, actorIndex }) => {
+          const debug = window.TarotKingdomDebug;
+          if (kind === 'skip') {
+            const handsBySeat = Array.from({ length: 4 }, () => null);
+            handsBySeat[actorIndex] = [
+              { id: 'tk_guest_short_skip_5', kind: 'minor', suit: 'Wand', number: 5 },
+              { id: 'tk_guest_short_skip_keep_8', kind: 'minor', suit: 'Cup', number: 8 },
+              { id: 'tk_guest_short_skip_keep_12', kind: 'minor', suit: 'Sword', number: 12 }
+            ];
+            debug.battleScenario({ withTrick: false, turnIndex: actorIndex, handsBySeat });
+          } else {
+            debug.battleScenario({ turnIndex: actorIndex, handCounts: [3, 3, 3, 3] });
+          }
+          if (kind === 'draw') debug.battleClearTrick(actorIndex);
+          return debug.battlePublicState();
+        }, actionCase);
+
+        await guest.evaluate(({ payload, localSeat }) => {
+          const debug = window.TarotKingdomDebug;
+          debug.battleApplyRemoteState(payload, { localSeat, forcePreview: true });
+          debug.battleResetPresentationAudit();
+        }, {
+          payload: baseline,
+          localSeat: (actionCase.actorIndex + 1) % 4
+        });
+
+        let updated;
+        if (actionCase.kind === 'draw') {
+          await expect(page.locator('#tarotKingdomPlayButton')).toHaveText('ドロー');
+          await page.locator('#tarotKingdomPlayButton').click();
+          await page.waitForFunction((baselineSeq) => (
+            Number(window.TarotKingdomDebug.battlePublicState()?.state?.presentation?.seq || 0)
+              > Number(baselineSeq || 0)
+          ), baseline.state.presentation.seq);
+          updated = await page.evaluate(() => window.TarotKingdomDebug.battlePublicState());
+        } else {
+          updated = await page.evaluate(({ kind, actorIndex }) => {
+            const debug = window.TarotKingdomDebug;
+            if (kind === 'pass') debug.battlePass(actorIndex);
+            if (kind === 'defend') debug.battlePass(actorIndex, { foldMode: 'fold-start' });
+            if (kind === 'skip') {
+              const played = debug.battlePlayCards(actorIndex, ['tk_guest_short_skip_5'], { resolve: true });
+              if (!played.ok) throw new Error(played.reason || 'skip play failed');
+            }
+            return debug.battlePublicState();
+          }, actionCase);
+        }
+
+        const baselineSeq = Number(baseline.state.presentation.seq || 0);
+        const expectedCues = updated.state.presentation.cues.filter((cue) => Number(cue.seq) > baselineSeq);
+        const expectedActionCue = expectedCues.find((cue) => (
+          cue.kind === 'action' && String(cue.label || '').includes(actionCase.expectedLabel)
+        ));
+        expect(expectedCues.filter((cue) => cue.kind === 'action').map((cue) => cue.label)).toEqual(
+          expect.arrayContaining([expect.stringContaining(actionCase.expectedLabel)])
+        );
+        expect(expectedActionCue.actorIndex).toBe(actionCase.actorIndex);
+
+        const audit = await guest.evaluate(({ payload, localSeat }) => {
+          const debug = window.TarotKingdomDebug;
+          debug.battleApplyRemoteState(payload, { localSeat, forcePreview: true });
+          debug.battleApplyRemoteState(payload, { localSeat, forcePreview: true });
+          debug.battleRender();
+          debug.battleRender();
+          return debug.battlePresentationAudit();
+        }, {
+          payload: updated,
+          localSeat: (actionCase.actorIndex + 1) % 4
+        });
+
+        expect(audit.starts).toHaveLength(expectedCues.length);
+        expect(new Set(audit.starts.map((start) => start.seq)).size).toBe(expectedCues.length);
+        expectedCues.forEach((cue) => {
+          const starts = audit.starts.filter((start) => Number(start.seq) === Number(cue.seq));
+          const expectedActorIndex = cue.kind === 'transition'
+            ? cue.transition?.actorIndex ?? null
+            : cue.actorIndex ?? null;
+          expect(starts).toHaveLength(1);
+          expect(starts[0]).toMatchObject({
+            seq: cue.seq,
+            kind: cue.kind,
+            actorIndex: expectedActorIndex
+          });
+        });
+        expect(audit.starts.find((start) => start.seq === expectedActionCue.seq)).toMatchObject({
+          kind: 'action',
+          actorIndex: actionCase.actorIndex
+        });
+      });
+    }
+  } finally {
+    await guest.close();
+  }
 });
 
 test('Judgment selection message is compact and fits the mobile frame', async ({ page }) => {

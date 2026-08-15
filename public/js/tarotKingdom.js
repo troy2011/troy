@@ -532,6 +532,9 @@ const KINGDOM_SUMMON_EFFECT_VISUALS = Object.freeze({
 const KINGDOM_NET_SCHEMA_VERSION = 30;
 const KINGDOM_PRIVATE_STATE_VERSION = 2;
 const KINGDOM_NET_STATE_WRITE_DELAY = 90;
+const KINGDOM_PRESENTATION_VERSION = 1;
+const KINGDOM_PRESENTATION_CUE_LIMIT = 8;
+const KINGDOM_PRESENTATION_MAX_DURATION_MS = 12000;
 const TK_MATCH_ROOT = 'tarotKingdomMatch';
 const TK_FALLBACK_AUTO_ROOM_COUNT = 6;
 const TK_OPEN_ROOM_HEARTBEAT_MS = 10000;
@@ -644,6 +647,20 @@ let netForceCreateRoom = false;
 let netRequestedRoomId = '';
 let netLastConnectError = null;
 let netJoinedExplorationMeta = null;
+let kingdomRemotePresentationMode = false;
+let kingdomRemotePresentationInitialized = false;
+let kingdomRemotePresentationEpoch = '';
+let kingdomRemotePresentationLastSeenSeq = 0;
+let kingdomRemotePresentationTransition = null;
+let kingdomRemotePresentationTransitionKey = '';
+let kingdomRemotePresentationTransitionTimer = null;
+let kingdomRemotePresentationMaxEventSeq = 0;
+let kingdomRemotePresentationEventRoundIndex = -1;
+const kingdomRemotePresentationEventStartedAt = new Map();
+const kingdomPresentationPlaybackTimers = new Set();
+const kingdomPresentationPlaybackAudit = [];
+const kingdomPresentationPlayedCueKeys = new Set();
+let kingdomSettlementCoinFxDispatchedKey = '';
 let kingdomStartMode = '';
 let kingdomViewportSyncQueued = false;
 let kingdomViewportWatchBound = false;
@@ -795,7 +812,7 @@ function clearKingdomTrickSceneFlash(shouldRender = false) {
   if (shouldRender) render();
 }
 
-function triggerKingdomTrickSceneFlash(kind, durationMs = 780) {
+function playKingdomTrickSceneFlashLocal(kind, durationMs = 780) {
   if (!kind) return;
   if (!['cut', 'skip'].includes(String(kind))) return;
   kingdomTrickSceneFlashKind = String(kind);
@@ -810,6 +827,18 @@ function triggerKingdomTrickSceneFlash(kind, durationMs = 780) {
     render();
   }, holdMs);
   render();
+}
+
+function triggerKingdomTrickSceneFlash(kind, durationMs = 780, options = {}) {
+  let cue = null;
+  if (options?.sync !== false) {
+    cue = enqueueKingdomPresentationCue('field-flash', {
+      variant: String(kind || ''),
+      durationMs
+    });
+  }
+  if (cue) markKingdomPresentationCuePlayed(s?.presentation?.epoch, cue.seq);
+  playKingdomTrickSceneFlashLocal(kind, durationMs);
 }
 
 function preloadKingdomFieldScenes() {
@@ -2462,7 +2491,11 @@ function syncKingdomLocalSkipNotice() {
     : [];
   if (localIndex < 0 || !targetIndexes.includes(localIndex)) return;
   const expiresAt = Math.max(0, Number(notice?.expiresAt) || 0);
-  if (expiresAt > 0 && Date.now() > expiresAt) return;
+  if (isKingdomRemotePresentationClient()) {
+    if (!getKingdomPresentationTransition()) return;
+  } else if (expiresAt > 0 && Date.now() > expiresAt) {
+    return;
+  }
   showKingdomLocalSkipFlash();
   setLocalPriorityMessage('あなたは　スキップされた！', 1500, 'skip-notice');
 }
@@ -2677,6 +2710,8 @@ function buildKingdomSituationAnnouncement(playerIndex, canSelectCards) {
   const partyRetreated = s.battle?.outcome === 'defeat'
     && s.battle?.resultReason === 'party-retreated'
     && Number.isInteger(retreatingPlayerIndex);
+  const presentationTransition = getKingdomPresentationTransition();
+  const presentationKind = String(presentationTransition?.kind || '');
 
   if (partyRetreated) {
     return `${playerName(retreatingPlayerIndex)}は　にげだした！`;
@@ -2696,6 +2731,13 @@ function buildKingdomSituationAnnouncement(playerIndex, canSelectCards) {
   if (phase === 'openingCinematic') {
     return `第${Math.max(1, Number(s.handNo || 0) + 1)}局が　はじまった！`;
   }
+  if (['play', 'call'].includes(presentationKind)) {
+    const actorIndex = Number(presentationTransition?.actorIndex);
+    return Number.isInteger(actorIndex) ? `${playerName(actorIndex)}の攻撃！` : '攻撃！';
+  }
+  if (['enemyResponse', 'terminalEnemyResponse', 'terminalEnemyVictory'].includes(presentationKind)) {
+    return `${enemyName}の攻撃！`;
+  }
   if (phase === 'resolvingJudgment') {
     const event = Array.isArray(s.battle?.events)
       ? s.battle.events.slice().reverse().find((entry) => entry?.type === 'judgment-reclaim')
@@ -2706,7 +2748,7 @@ function buildKingdomSituationAnnouncement(playerIndex, canSelectCards) {
   }
   if (phase === 'callCinematic') return 'コールを処理中';
   if (phase === 'resolvingPlay') {
-    const actorIndex = Number(s.transition?.actorIndex);
+    const actorIndex = Number(presentationTransition?.actorIndex ?? s.transition?.actorIndex);
     return Number.isInteger(actorIndex)
       ? `${playerName(actorIndex)}の攻撃！`
       : '攻撃！';
@@ -2894,7 +2936,10 @@ function showKingdomCutin(playerIndex, label, options = {}) {
 
   ui.kingdomCutin.className = 'tarot-cutin';
   if (ownerClass) ui.kingdomCutin.classList.add(ownerClass);
-  if (options.cutinClass) ui.kingdomCutin.classList.add(options.cutinClass);
+  String(options.cutinClass || '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .forEach((className) => ui.kingdomCutin.classList.add(className));
   ui.kingdomCutin.classList.add(`is-tone-${presentation.tone}`);
   ui.kingdomCutin.replaceChildren(actor, keyword);
   ui.kingdomCutin.setAttribute('aria-label', `${presentation.actorName} ${presentation.keyword}`);
@@ -2933,10 +2978,6 @@ function flashKingdomPlayerRowAction(playerIndex, label, durationMs = 760) {
     kingdomRowFxTimers.delete(playerIndex);
   }, Math.max(120, Number(durationMs) || 760));
   kingdomRowFxTimers.set(playerIndex, t);
-}
-
-function triggerKingdomRowActionFx(playerIndex, label, durationMs = 760) {
-  flashKingdomPlayerRowAction(playerIndex, label, durationMs);
 }
 
 function playKingdomCoinEffect(playerIndex, coinCount = 4, symbol = '🪙', options = {}) {
@@ -3057,19 +3098,253 @@ function playKingdomChariotSplitFx(playerIndex, options = {}) {
   setTimeout(() => run(0), baseDelay);
 }
 
-function triggerKingdomActionFx(playerIndex, label, options = {}) {
+function normalizeKingdomPresentationActionOptions(options = {}) {
+  const raw = options && typeof options === 'object' ? options : {};
+  const overlay = ['action', 'clear', 'draw', 'call', 'grandfinal', 'roundend'].includes(String(raw.overlay || ''))
+    ? String(raw.overlay)
+    : '';
+  const safeClassList = String(raw.cutinClass || '')
+    .split(/\s+/)
+    .filter((value) => /^[a-z0-9_-]{1,48}$/i.test(value))
+    .slice(0, 3)
+    .join(' ');
+  const safeCoinClassList = String(raw.coinClassName || '')
+    .split(/\s+/)
+    .filter((value) => /^[a-z0-9_-]{1,48}$/i.test(value))
+    .slice(0, 2)
+    .join(' ');
+  const safeTone = /^[a-z0-9_-]{1,24}$/i.test(String(raw.tone || '').trim())
+    ? String(raw.tone).trim()
+    : '';
+  const durationMs = Math.max(
+    320,
+    Math.min(KINGDOM_PRESENTATION_MAX_DURATION_MS, Math.floor(Number(raw.durationMs) || 680))
+  );
+  return {
+    ...(overlay ? { overlay } : {}),
+    ...(raw.overlayHoldMs != null
+      ? { overlayHoldMs: Math.max(120, Math.min(KINGDOM_PRESENTATION_MAX_DURATION_MS, Math.floor(Number(raw.overlayHoldMs) || 0))) }
+      : {}),
+    durationMs,
+    cutin: raw.cutin !== false,
+    ...(safeClassList ? { cutinClass: safeClassList } : {}),
+    ...(String(raw.keyword || '').trim() ? { keyword: String(raw.keyword).trim().slice(0, 24) } : {}),
+    ...(safeTone ? { tone: safeTone } : {}),
+    ...(String(raw.actorName || '').trim() ? { actorName: String(raw.actorName).trim().slice(0, 40) } : {}),
+    delayMs: Math.max(0, Math.min(3000, Math.floor(Number(raw.delayMs) || 0))),
+    coinCount: Math.max(0, Math.min(10, Math.floor(Number(raw.coinCount) || 0))),
+    ...(String(raw.coinSymbol || '').trim() ? { coinSymbol: String(raw.coinSymbol).slice(0, 4) } : {}),
+    ...(safeCoinClassList ? { coinClassName: safeCoinClassList } : {}),
+    coinDelayMs: Math.max(0, Math.min(3000, Math.floor(Number(raw.coinDelayMs) || 0))),
+    pulsePotMs: Math.max(0, Math.min(KINGDOM_PRESENTATION_MAX_DURATION_MS, Math.floor(Number(raw.pulsePotMs) || 0)))
+  };
+}
+
+function normalizeKingdomPresentationCue(rawCue, playerCount = 4) {
+  if (!rawCue || typeof rawCue !== 'object') return null;
+  const seq = Math.max(0, Math.floor(Number(rawCue.seq) || 0));
+  const kind = String(rawCue.kind || '');
+  if (seq <= 0 || !['action', 'field-flash', 'transition'].includes(kind)) return null;
+  const actorCandidate = Number(rawCue.actorIndex);
+  const actorIndex = Number.isInteger(actorCandidate)
+    && actorCandidate >= 0
+    && actorCandidate < Math.max(1, Number(playerCount) || 4)
+    ? actorCandidate
+    : null;
+  if (kind === 'field-flash') {
+    const variant = ['cut', 'skip'].includes(String(rawCue.variant || '')) ? String(rawCue.variant) : '';
+    if (!variant) return null;
+    return {
+      seq,
+      kind,
+      variant,
+      durationMs: Math.max(220, Math.min(3000, Math.floor(Number(rawCue.durationMs) || 780))),
+      createdAt: Math.max(0, Number(rawCue.createdAt) || 0)
+    };
+  }
+  if (kind === 'transition') {
+    const sourceTransition = rawCue.transition && typeof rawCue.transition === 'object'
+      ? cloneKingdomSnapshotValue(rawCue.transition, null)
+      : null;
+    if (!sourceTransition || !String(sourceTransition.kind || '')) return null;
+    const sourceStartedAt = Math.max(0, Number(sourceTransition.startedAt) || 0);
+    const sourceEndsAt = Math.max(sourceStartedAt, Number(sourceTransition.endsAt) || sourceStartedAt);
+    const eventSeqs = (Array.isArray(sourceTransition.eventSeqs) ? sourceTransition.eventSeqs : [])
+      .map((value) => Number(value))
+      .filter(Number.isFinite)
+      .slice(0, 16);
+    const eventTimelines = Object.fromEntries(
+      Object.entries(sourceTransition.eventTimelines || {})
+        .filter(([eventSeq, timeline]) => /^\d+$/.test(String(eventSeq)) && timeline && typeof timeline === 'object')
+        .slice(0, 16)
+        .map(([eventSeq, timeline]) => [String(eventSeq), cloneKingdomSnapshotValue(timeline, null)])
+        .filter(([, timeline]) => !!timeline)
+    );
+    const transition = {
+      kind: String(sourceTransition.kind || '').slice(0, 40),
+      actorIndex: Number.isInteger(Number(sourceTransition.actorIndex))
+        ? Number(sourceTransition.actorIndex)
+        : null,
+      presentationSeq: seq,
+      startedAt: sourceStartedAt,
+      endsAt: Math.min(sourceStartedAt + KINGDOM_PRESENTATION_MAX_DURATION_MS, sourceEndsAt),
+      ...(String(sourceTransition.playToken || '')
+        ? { playToken: String(sourceTransition.playToken).slice(0, 96) }
+        : {}),
+      ...(eventSeqs.length ? { eventSeqs } : {}),
+      ...(String(sourceTransition.roleKey || '')
+        ? { roleKey: String(sourceTransition.roleKey).slice(0, 40) }
+        : {}),
+      ...(String(sourceTransition.summonId || '')
+        ? { summonId: String(sourceTransition.summonId).slice(0, 80) }
+        : {}),
+      ...(String(sourceTransition.majorSummonId || '')
+        ? { majorSummonId: String(sourceTransition.majorSummonId).slice(0, 80) }
+        : {}),
+      ...(sourceTransition.roleChain && typeof sourceTransition.roleChain === 'object'
+        ? { roleChain: cloneKingdomSnapshotValue(sourceTransition.roleChain, null) }
+        : {}),
+      ...(sourceTransition.timeline && typeof sourceTransition.timeline === 'object'
+        ? { timeline: cloneKingdomSnapshotValue(sourceTransition.timeline, null) }
+        : {}),
+      ...(Object.keys(eventTimelines).length ? { eventTimelines } : {})
+    };
+    return {
+      seq,
+      kind,
+      transition,
+      createdAt: Math.max(0, Number(rawCue.createdAt) || sourceStartedAt)
+    };
+  }
+  return {
+    seq,
+    kind,
+    actorIndex,
+    label: String(rawCue.label || '').trim().slice(0, 80),
+    options: normalizeKingdomPresentationActionOptions(rawCue.options),
+    createdAt: Math.max(0, Number(rawCue.createdAt) || 0)
+  };
+}
+
+function normalizeKingdomPresentationState(rawPresentation, fallbackEpoch = '', playerCount = 4) {
+  const raw = rawPresentation && typeof rawPresentation === 'object' ? rawPresentation : {};
+  const epoch = String(raw.epoch || fallbackEpoch || '').trim().slice(0, 72);
+  const cues = (Array.isArray(raw.cues) ? raw.cues : [])
+    .map((cue) => normalizeKingdomPresentationCue(cue, playerCount))
+    .filter(Boolean)
+    .sort((a, b) => a.seq - b.seq)
+    .slice(-KINGDOM_PRESENTATION_CUE_LIMIT);
+  const maxCueSeq = cues.reduce((max, cue) => Math.max(max, Number(cue.seq) || 0), 0);
+  return {
+    version: KINGDOM_PRESENTATION_VERSION,
+    epoch: epoch || createKingdomPresentationEpoch(),
+    seq: Math.max(maxCueSeq, Math.max(0, Math.floor(Number(raw.seq) || 0))),
+    cues
+  };
+}
+
+function nextKingdomPresentationSeq() {
+  if (!s) return 0;
+  const fallbackEpoch = String(s.presentation?.epoch || '') || createKingdomPresentationEpoch();
+  s.presentation = normalizeKingdomPresentationState(
+    s.presentation,
+    fallbackEpoch,
+    s.players?.length || 4
+  );
+  s.presentation.seq = Math.max(0, Number(s.presentation.seq) || 0) + 1;
+  return s.presentation.seq;
+}
+
+function enqueueKingdomPresentationCue(kind, details = {}) {
+  if (!s) return null;
+  const requestedSeq = Math.max(0, Math.floor(Number(details?.seq) || 0));
+  const seq = requestedSeq || nextKingdomPresentationSeq();
+  if (requestedSeq > 0) {
+    const fallbackEpoch = String(s.presentation?.epoch || '') || createKingdomPresentationEpoch();
+    s.presentation = normalizeKingdomPresentationState(
+      s.presentation,
+      fallbackEpoch,
+      s.players?.length || 4
+    );
+    s.presentation.seq = Math.max(Number(s.presentation.seq) || 0, requestedSeq);
+  }
+  const cue = normalizeKingdomPresentationCue({
+    kind,
+    createdAt: Date.now(),
+    ...details,
+    seq
+  }, s.players?.length || 4);
+  if (!cue) return null;
+  const cues = Array.isArray(s.presentation?.cues) ? s.presentation.cues.slice() : [];
+  cues.push(cue);
+  s.presentation.cues = cues.slice(-KINGDOM_PRESENTATION_CUE_LIMIT);
+  return cue;
+}
+
+function getKingdomPresentationCueKey(epoch, seq) {
+  const safeEpoch = String(epoch || '').trim();
+  const safeSeq = Math.max(0, Math.floor(Number(seq) || 0));
+  return safeEpoch && safeSeq > 0 ? `${safeEpoch}:${safeSeq}` : '';
+}
+
+function markKingdomPresentationCuePlayed(epoch, seq) {
+  const key = getKingdomPresentationCueKey(epoch, seq);
+  if (!key) return;
+  kingdomPresentationPlayedCueKeys.add(key);
+  while (kingdomPresentationPlayedCueKeys.size > 96) {
+    kingdomPresentationPlayedCueKeys.delete(kingdomPresentationPlayedCueKeys.values().next().value);
+  }
+}
+
+function hasKingdomPresentationCuePlayed(epoch, seq) {
+  const key = getKingdomPresentationCueKey(epoch, seq);
+  return !!key && kingdomPresentationPlayedCueKeys.has(key);
+}
+
+function scheduleKingdomPresentationPlayback(callback, delayMs = 0) {
+  const waitMs = Math.max(0, Math.min(KINGDOM_PRESENTATION_MAX_DURATION_MS, Number(delayMs) || 0));
+  const timerId = setTimeout(() => {
+    kingdomPresentationPlaybackTimers.delete(timerId);
+    callback();
+  }, waitMs);
+  kingdomPresentationPlaybackTimers.add(timerId);
+  return timerId;
+}
+
+function playKingdomActionFxLocal(playerIndex, label, options = {}) {
+  const safeOptions = normalizeKingdomPresentationActionOptions(options);
   const run = () => {
     if (playerIndex != null) setTimeout(() => flashKingdomPlayerRowAction(playerIndex, label), 0);
-    if (options.overlay) showKingdomOverlay(options.overlay, options.overlayHoldMs ?? null);
-    if (options.cutin !== false) showKingdomCutin(playerIndex, label, options);
-    if (options.coinCount && options.coinCount > 0) playKingdomCoinEffect(playerIndex, options.coinCount, options.coinSymbol || '🪙');
+    if (safeOptions.overlay) showKingdomOverlay(safeOptions.overlay, safeOptions.overlayHoldMs ?? null);
+    if (safeOptions.cutin !== false) showKingdomCutin(playerIndex, label, safeOptions);
+    if (safeOptions.pulsePotMs > 0) pulseKingdomPotAnchor(safeOptions.pulsePotMs);
+    if (safeOptions.coinCount > 0) {
+      playKingdomCoinEffect(playerIndex, safeOptions.coinCount, safeOptions.coinSymbol || '🪙', {
+        ...(safeOptions.coinClassName ? { className: safeOptions.coinClassName } : {}),
+        delayMs: safeOptions.coinDelayMs
+      });
+    }
   };
-  const delayMs = Math.max(0, Number(options.delayMs) || 0);
+  const delayMs = safeOptions.delayMs;
   if (delayMs > 0) {
-    setTimeout(run, delayMs);
+    scheduleKingdomPresentationPlayback(run, delayMs);
   } else {
     run();
   }
+}
+
+function triggerKingdomActionFx(playerIndex, label, options = {}) {
+  const safeOptions = normalizeKingdomPresentationActionOptions(options);
+  let cue = null;
+  if (options?.sync !== false) {
+    cue = enqueueKingdomPresentationCue('action', {
+      actorIndex: playerIndex,
+      label,
+      options: safeOptions
+    });
+  }
+  if (cue) markKingdomPresentationCuePlayed(s?.presentation?.epoch, cue.seq);
+  playKingdomActionFxLocal(playerIndex, label, safeOptions);
 }
 
 function triggerKingdomGrandWinnerFx(playerIndex) {
@@ -12157,6 +12432,15 @@ function isKingdomEnemyHpVictoryEnabled(state = s) {
   return getKingdomEnemyDefeatMode(state) === KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO;
 }
 
+function createKingdomPresentationEpoch() {
+  try {
+    if (typeof crypto?.randomUUID === 'function') return crypto.randomUUID();
+  } catch (_) {
+    // A deterministic fallback is unnecessary; the value only separates matches locally.
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function initState() {
   const playerTemplates = getKingdomInitialPlayerTemplates();
   const rules = normalizeKingdomRules({
@@ -12229,6 +12513,12 @@ function initState() {
     champion: null,
     revision: 0,
     processedActionIds: [],
+    presentation: {
+      version: KINGDOM_PRESENTATION_VERSION,
+      epoch: createKingdomPresentationEpoch(),
+      seq: 0,
+      cues: []
+    },
     transition: null,
     characterSnapshotReady: false,
     characterSnapshotCreatedAt: 0,
@@ -12258,6 +12548,7 @@ function clearRoundState() {
   clearLocalInfoMessage(false);
   clearKingdomTrickSceneFlash(false);
   clearKingdomTransitionTimer();
+  kingdomSettlementCoinFxDispatchedKey = '';
   s.transition = null;
   kingdomLocalGraveOpen = false;
   localHandSortDrawLock = false;
@@ -12655,6 +12946,312 @@ function isNetModeActive() {
 
 function isHostAuthority() {
   return !isNetModeActive() || (!!tkNet.isHost && netHostAuthorityReady);
+}
+
+function isKingdomRemotePresentationClient() {
+  return kingdomRemotePresentationMode || (isNetModeActive() && !tkNet.isHost);
+}
+
+function clearKingdomRemotePresentation(options = {}) {
+  if (kingdomRemotePresentationTransitionTimer) {
+    clearTimeout(kingdomRemotePresentationTransitionTimer);
+    kingdomRemotePresentationTransitionTimer = null;
+  }
+  kingdomRemotePresentationTransition = null;
+  kingdomRemotePresentationTransitionKey = '';
+  kingdomRemotePresentationEventStartedAt.clear();
+  kingdomRemotePresentationMaxEventSeq = 0;
+  kingdomRemotePresentationEventRoundIndex = -1;
+  if (options.preserveSeen !== true) {
+    kingdomRemotePresentationInitialized = false;
+    kingdomRemotePresentationEpoch = '';
+    kingdomRemotePresentationLastSeenSeq = 0;
+    kingdomPresentationPlaybackAudit.length = 0;
+  }
+  if (options.keepMode !== true) kingdomRemotePresentationMode = false;
+}
+
+function clearKingdomPresentationPlaybackTimers() {
+  kingdomPresentationPlaybackTimers.forEach((timerId) => clearTimeout(timerId));
+  kingdomPresentationPlaybackTimers.clear();
+}
+
+function continueKingdomHostPresentationAfterDemotion() {
+  if (!s) return;
+  const presentation = normalizeKingdomPresentationState(
+    s.presentation,
+    s.presentation?.epoch || createKingdomPresentationEpoch(),
+    s.players?.length || 4
+  );
+  s.presentation = presentation;
+  kingdomRemotePresentationInitialized = true;
+  kingdomRemotePresentationEpoch = presentation.epoch;
+  kingdomRemotePresentationLastSeenSeq = Math.max(
+    kingdomRemotePresentationLastSeenSeq,
+    Number(presentation.seq) || 0
+  );
+  const transition = s?.transition && typeof s.transition === 'object'
+    ? cloneKingdomSnapshotValue(s.transition, null)
+    : null;
+  if (!transition || Date.now() >= Number(transition.endsAt || 0)) return;
+  kingdomRemotePresentationTransition = transition;
+  const transitionSeq = Math.max(0, Number(transition.presentationSeq) || 0);
+  kingdomRemotePresentationTransitionKey = `${presentation.epoch}:${transitionSeq || `${transition.kind}:${transition.startedAt}`}`;
+  scheduleKingdomRemotePresentationTransitionEnd(kingdomRemotePresentationTransitionKey);
+}
+
+function restoreKingdomPresentationAfterHostPromotion(localTransition) {
+  if (!s?.transition) return;
+  if (!localTransition) {
+    const presentationSeq = Math.max(0, Number(s.transition.presentationSeq) || 0);
+    if (
+      presentationSeq > 0
+      && hasKingdomPresentationCuePlayed(s?.presentation?.epoch, presentationSeq)
+    ) {
+      s.transition.endsAt = 0;
+    }
+    return;
+  }
+  const localSeq = Math.max(0, Number(localTransition.presentationSeq) || 0);
+  const authoritySeq = Math.max(0, Number(s.transition.presentationSeq) || 0);
+  if (
+    (localSeq > 0 && authoritySeq !== localSeq)
+    || String(s.transition.kind || '') !== String(localTransition.kind || '')
+    || Date.now() >= Number(localTransition.endsAt || 0)
+  ) return;
+  s.transition = {
+    ...s.transition,
+    startedAt: Number(localTransition.startedAt) || Number(s.transition.startedAt) || Date.now(),
+    endsAt: Number(localTransition.endsAt) || Number(s.transition.endsAt) || Date.now(),
+    ...(localTransition.timeline
+      ? { timeline: cloneKingdomSnapshotValue(localTransition.timeline, null) }
+      : {}),
+    ...(localTransition.eventTimelines
+      ? { eventTimelines: cloneKingdomSnapshotValue(localTransition.eventTimelines, {}) }
+      : {})
+  };
+}
+
+function shiftKingdomPresentationTimeline(rawTimeline, deltaMs) {
+  if (!rawTimeline || typeof rawTimeline !== 'object') return null;
+  const shifted = cloneKingdomSnapshotValue(rawTimeline, null);
+  if (!shifted) return null;
+  [
+    'startedAt',
+    'motionAt',
+    'impactAt',
+    'hpRevealAt',
+    'hpTweenEndsAt',
+    'effectAt',
+    'damageNumberAt',
+    'endsAt'
+  ].forEach((key) => {
+    const value = Number(shifted[key]);
+    if (Number.isFinite(value) && value > 0) shifted[key] = value + deltaMs;
+  });
+  return shifted;
+}
+
+function rebaseKingdomPresentationTransition(rawTransition, localStartedAt = Date.now()) {
+  if (!rawTransition || typeof rawTransition !== 'object') return null;
+  const sourceStartedAt = Math.max(0, Number(rawTransition.startedAt) || 0);
+  const sourceEndsAt = Math.max(sourceStartedAt, Number(rawTransition.endsAt) || sourceStartedAt);
+  const durationMs = Math.max(
+    0,
+    Math.min(KINGDOM_PRESENTATION_MAX_DURATION_MS, sourceEndsAt - sourceStartedAt)
+  );
+  const startedAt = Math.max(0, Number(localStartedAt) || Date.now());
+  const deltaMs = startedAt - sourceStartedAt;
+  const eventTimelines = Object.fromEntries(Object.entries(rawTransition.eventTimelines || {}).map(([seq, timeline]) => [
+    String(seq),
+    shiftKingdomPresentationTimeline(timeline, deltaMs)
+  ]).filter(([, timeline]) => !!timeline));
+  return {
+    ...cloneKingdomSnapshotValue(rawTransition, {}),
+    startedAt,
+    endsAt: startedAt + durationMs,
+    ...(rawTransition.timeline
+      ? { timeline: shiftKingdomPresentationTimeline(rawTransition.timeline, deltaMs) }
+      : {}),
+    ...(Object.keys(eventTimelines).length ? { eventTimelines } : { eventTimelines: {} })
+  };
+}
+
+function getKingdomPresentationTransition() {
+  if (!isKingdomRemotePresentationClient()) return s?.transition || null;
+  if (
+    kingdomRemotePresentationTransition
+    && Date.now() < Number(kingdomRemotePresentationTransition.endsAt || 0)
+  ) {
+    return kingdomRemotePresentationTransition;
+  }
+  return null;
+}
+
+function getKingdomBattleEventPresentationAt(event) {
+  if (!event || !isKingdomRemotePresentationClient()) return Number(event?.at) || 0;
+  const roundIndex = Math.max(0, Number(s?.battle?.roundIndex) || 0);
+  return Number(kingdomRemotePresentationEventStartedAt.get(`${roundIndex}:${Number(event.seq) || 0}`))
+    || Number(event.at)
+    || 0;
+}
+
+function scheduleKingdomRemotePresentationTransitionEnd(transitionKey) {
+  if (kingdomRemotePresentationTransitionTimer) {
+    clearTimeout(kingdomRemotePresentationTransitionTimer);
+    kingdomRemotePresentationTransitionTimer = null;
+  }
+  const transition = kingdomRemotePresentationTransition;
+  if (!transition) return;
+  const waitMs = Math.max(0, Number(transition.endsAt || 0) - Date.now());
+  kingdomRemotePresentationTransitionTimer = setTimeout(() => {
+    kingdomRemotePresentationTransitionTimer = null;
+    if (kingdomRemotePresentationTransitionKey !== transitionKey) return;
+    kingdomRemotePresentationTransition = null;
+    kingdomRemotePresentationTransitionKey = '';
+    render();
+  }, Math.min(KINGDOM_PRESENTATION_MAX_DURATION_MS + 100, waitMs + 16));
+}
+
+function recordKingdomPresentationPlaybackStart(cue, overrides = {}) {
+  const entry = {
+    epoch: kingdomRemotePresentationEpoch,
+    seq: Math.max(0, Number(cue?.seq) || 0),
+    kind: String(overrides.kind || cue?.kind || ''),
+    actorIndex: overrides.actorIndex != null
+      ? Number(overrides.actorIndex)
+      : (cue?.actorIndex == null ? null : Number(cue.actorIndex)),
+    receivedAt: Date.now()
+  };
+  kingdomPresentationPlaybackAudit.push(entry);
+  if (kingdomPresentationPlaybackAudit.length > 32) kingdomPresentationPlaybackAudit.shift();
+}
+
+function prepareKingdomRemotePresentation(nextState) {
+  if (!nextState || !isKingdomRemotePresentationClient()) return [];
+  const presentation = normalizeKingdomPresentationState(
+    nextState.presentation,
+    nextState.presentation?.epoch || '',
+    nextState.players?.length || 4
+  );
+  nextState.presentation = presentation;
+  const epochChanged = kingdomRemotePresentationEpoch !== presentation.epoch;
+  if (epochChanged) {
+    clearKingdomPresentationPlaybackTimers();
+    clearKingdomRemotePresentation({ keepMode: true });
+    kingdomRemotePresentationEpoch = presentation.epoch;
+  }
+  const wasInitialized = kingdomRemotePresentationInitialized;
+  const unplayedCues = presentation.cues.filter((cue) => (
+    !hasKingdomPresentationCuePlayed(presentation.epoch, cue.seq)
+  ));
+  const incomingTransition = nextState.transition && typeof nextState.transition === 'object'
+    ? nextState.transition
+    : null;
+  const retainedTransitionCue = wasInitialized && !incomingTransition
+    ? unplayedCues.slice().reverse().find((cue) => cue.kind === 'transition') || null
+    : null;
+  const transitionSource = incomingTransition || retainedTransitionCue?.transition || null;
+  if (transitionSource) {
+    const transitionSeq = Math.max(
+      0,
+      Number(transitionSource.presentationSeq) || Number(retainedTransitionCue?.seq) || 0
+    );
+    const transitionKey = `${presentation.epoch}:${transitionSeq || `${transitionSource.kind}:${transitionSource.startedAt}`}`;
+    const transitionAlreadyPlayed = transitionSeq > 0
+      && hasKingdomPresentationCuePlayed(presentation.epoch, transitionSeq);
+    if (transitionKey !== kingdomRemotePresentationTransitionKey && !transitionAlreadyPlayed) {
+      kingdomRemotePresentationTransition = rebaseKingdomPresentationTransition(transitionSource, Date.now());
+      kingdomRemotePresentationTransitionKey = transitionKey;
+      scheduleKingdomRemotePresentationTransitionEnd(transitionKey);
+      recordKingdomPresentationPlaybackStart({
+        seq: transitionSeq,
+        kind: 'transition',
+        actorIndex: transitionSource.actorIndex
+      });
+    }
+    if (transitionSeq > 0) markKingdomPresentationCuePlayed(presentation.epoch, transitionSeq);
+  } else if (
+    kingdomRemotePresentationTransition
+    && Date.now() >= Number(kingdomRemotePresentationTransition.endsAt || 0)
+  ) {
+    kingdomRemotePresentationTransition = null;
+    kingdomRemotePresentationTransitionKey = '';
+  }
+
+  const roundIndex = Math.max(0, Number(nextState.battle?.roundIndex) || 0);
+  if (roundIndex !== kingdomRemotePresentationEventRoundIndex) {
+    kingdomRemotePresentationEventRoundIndex = roundIndex;
+    kingdomRemotePresentationEventStartedAt.clear();
+    kingdomRemotePresentationMaxEventSeq = 0;
+  }
+  const transition = kingdomRemotePresentationTransition;
+  const transitionSeqs = new Set(
+    Array.isArray(transition?.eventSeqs) ? transition.eventSeqs.map(Number).filter(Number.isFinite) : []
+  );
+  const events = Array.isArray(nextState.battle?.events) ? nextState.battle.events : [];
+  const now = Date.now();
+  events.forEach((event) => {
+    const seq = Math.max(0, Number(event?.seq) || 0);
+    const isNewEvent = wasInitialized && seq > kingdomRemotePresentationMaxEventSeq;
+    if (seq <= 0 || (!isNewEvent && !transitionSeqs.has(seq))) return;
+    const timelineStartedAt = Number(transition?.eventTimelines?.[String(seq)]?.startedAt)
+      || (transitionSeqs.has(seq) ? Number(transition?.timeline?.startedAt || transition?.startedAt) : 0);
+    const key = `${roundIndex}:${seq}`;
+    if (!kingdomRemotePresentationEventStartedAt.has(key)) {
+      kingdomRemotePresentationEventStartedAt.set(key, timelineStartedAt || now);
+    }
+  });
+  kingdomRemotePresentationMaxEventSeq = events.reduce(
+    (max, event) => Math.max(max, Math.max(0, Number(event?.seq) || 0)),
+    kingdomRemotePresentationMaxEventSeq
+  );
+  while (kingdomRemotePresentationEventStartedAt.size > KINGDOM_BATTLE_EVENT_LIMIT * 2) {
+    const oldestKey = kingdomRemotePresentationEventStartedAt.keys().next().value;
+    kingdomRemotePresentationEventStartedAt.delete(oldestKey);
+  }
+
+  let cuesToPlay = [];
+  if (!wasInitialized) {
+    if (incomingTransition) {
+      const sourceStartedAt = Math.max(0, Number(incomingTransition.startedAt) || 0);
+      cuesToPlay = unplayedCues.filter((cue) => (
+        Number(cue.createdAt || 0) >= Math.max(0, sourceStartedAt - 500)
+      ));
+    }
+  } else {
+    cuesToPlay = unplayedCues.filter((cue) => (
+      cue.seq > kingdomRemotePresentationLastSeenSeq || cue.kind === 'transition'
+    ));
+  }
+  cuesToPlay
+    .filter((cue) => cue.kind === 'transition')
+    .forEach((cue) => markKingdomPresentationCuePlayed(presentation.epoch, cue.seq));
+  kingdomRemotePresentationInitialized = true;
+  kingdomRemotePresentationLastSeenSeq = Math.max(
+    kingdomRemotePresentationLastSeenSeq,
+    Math.max(0, Number(presentation.seq) || 0)
+  );
+  return cuesToPlay;
+}
+
+function playKingdomRemotePresentationCues(cues = []) {
+  (Array.isArray(cues) ? cues : []).forEach((cue) => {
+    try {
+      const normalized = normalizeKingdomPresentationCue(cue, s?.players?.length || 4);
+      if (!normalized || normalized.kind === 'transition') return;
+      if (hasKingdomPresentationCuePlayed(kingdomRemotePresentationEpoch, normalized.seq)) return;
+      markKingdomPresentationCuePlayed(kingdomRemotePresentationEpoch, normalized.seq);
+      recordKingdomPresentationPlaybackStart(normalized);
+      if (normalized.kind === 'action') {
+        playKingdomActionFxLocal(normalized.actorIndex, normalized.label, normalized.options);
+      } else if (normalized.kind === 'field-flash') {
+        playKingdomTrickSceneFlashLocal(normalized.variant, normalized.durationMs);
+      }
+    } catch (error) {
+      console.warn('[tarotKingdom] presentation cue playback failed:', error);
+    }
+  });
 }
 
 function createKingdomHiddenCardSlots(count) {
@@ -13099,6 +13696,16 @@ function deserializeStateFromNet(payload) {
       forcedDrawStreak
     };
   });
+  const presentationFallbackEpoch = String(
+    rawState.presentation?.epoch
+    || kingdomRemotePresentationEpoch
+    || `legacy-${rawState.characterSnapshotCreatedAt || rawState.stage?.explorationId || 'match'}`
+  );
+  nextState.presentation = normalizeKingdomPresentationState(
+    rawState.presentation,
+    presentationFallbackEpoch,
+    nextState.players.length
+  );
 
   if (Array.isArray(rawState.drawDeck)) {
     nextState.drawDeck = rawState.drawDeck;
@@ -13176,6 +13783,7 @@ function deserializeStateFromNet(payload) {
       ...rawState.transition,
       kind: String(rawState.transition.kind || ''),
       actorIndex: Number.isInteger(Number(rawState.transition.actorIndex)) ? Number(rawState.transition.actorIndex) : null,
+      presentationSeq: Math.max(0, Math.floor(Number(rawState.transition.presentationSeq) || 0)),
       startedAt: Math.max(0, Number(rawState.transition.startedAt) || 0),
       endsAt: Math.max(0, Number(rawState.transition.endsAt) || 0),
       playToken: String(rawState.transition.playToken || ''),
@@ -14059,6 +14667,10 @@ async function activateKingdomPromotedHost() {
   stopHostActionListener();
   const hydration = (async () => {
     try {
+      const localPresentationTransition = cloneKingdomSnapshotValue(
+        kingdomRemotePresentationTransition,
+        null
+      );
       // Refresh public state first so the authority snapshot is matched against
       // the same revision even if takeover races an in-flight publication.
       const stateSnapshot = await get(ref(tkNet.db, `${roomPath}/state`));
@@ -14069,6 +14681,8 @@ async function activateKingdomPromotedHost() {
         || tkNet.roomPath !== roomPath
       ) return false;
       if (stateSnapshot.exists()) applyRemoteRoomState(stateSnapshot.val());
+      restoreKingdomPresentationAfterHostPromotion(localPresentationTransition);
+      clearKingdomRemotePresentation({ preserveSeen: true });
       const hydrated = await hydrateKingdomHostAuthorityFromRoom(s);
       if (!hydrated) {
         if (s) {
@@ -14100,10 +14714,17 @@ async function activateKingdomPromotedHost() {
   }
 }
 
-function applyRemoteRoomState(payload) {
-  if (netManualOfflineMode) return;
+function applyRemoteRoomState(payload, options = {}) {
+  const forceRemotePresentation = options?.forcePreview === true
+    || options?.forceRemotePresentation === true;
+  if (netManualOfflineMode && !forceRemotePresentation) return null;
+  if (forceRemotePresentation) {
+    kingdomRemotePresentationMode = true;
+    const requestedSeat = Number(options.localSeat);
+    if (Number.isInteger(requestedSeat) && requestedSeat >= 0) tkNet.localSeat = requestedSeat;
+  }
   const next = deserializeStateFromNet(payload);
-  if (!next) return;
+  if (!next) return null;
   clearLocalInfoMessage(false);
   const localSeat = Number(tkNet.localSeat);
   const gestureHand = localHandDrag
@@ -14163,6 +14784,7 @@ function applyRemoteRoomState(payload) {
         if (key) prevSelectedKeys.push(key);
       });
   }
+  const presentationCues = prepareKingdomRemotePresentation(next);
   kingdomStateGeneration += 1;
   kingdomCharacterLoadPromise = null;
   kingdomRoundStartPromise = null;
@@ -14202,6 +14824,8 @@ function applyRemoteRoomState(payload) {
   applyPresenceToPlayers();
   enforceLeadTurnInvariant();
   render();
+  playKingdomRemotePresentationCues(presentationCues);
+  return s;
 }
 
 function startRoomSubscriptions() {
@@ -14246,6 +14870,7 @@ function startRoomSubscriptions() {
       netHostAuthorityReady = false;
       clearKingdomHostHydrationRetry();
       if (prevHost) {
+        continueKingdomHostPresentationAfterDemotion();
         cancelKingdomDisconnectHook('hostDisconnect');
         cancelKingdomDisconnectHook('openRoomDisconnect');
       }
@@ -14371,6 +14996,8 @@ function teardownTarotKingdomNetwork() {
   netForceCreateRoom = false;
   netRequestedRoomId = '';
   netLastConnectError = null;
+  clearKingdomRemotePresentation();
+  clearKingdomPresentationPlaybackTimers();
   renderOpenRoomsList([]);
 }
 
@@ -14535,6 +15162,9 @@ function resetMatch() {
   clearSettlementGainFx();
   clearPendingTurnAdvanceAfterTrick();
   clearKingdomTransitionTimer();
+  clearKingdomRemotePresentation();
+  clearKingdomPresentationPlaybackTimers();
+  kingdomSettlementCoinFxDispatchedKey = '';
   clearKingdomCardDealFx();
   kingdomStateGeneration += 1;
   kingdomRoundPetOfferPromise = null;
@@ -16461,6 +17091,54 @@ function exposeTarotKingdomBattleDebugTools(target) {
       return { applied: true, played: true, state: snapshotTarotKingdomDebugState() };
     },
     battlePublicState: () => cloneKingdomSnapshotValue(serializeStateForNet(), null),
+    battleApplyRemoteState: (payload, options = {}) => {
+      const requestedSeat = Math.max(0, Math.floor(Number(options?.localSeat) || 0));
+      kingdomRemotePresentationMode = true;
+      applyRemoteRoomState(cloneKingdomSnapshotValue(payload, null), {
+        forcePreview: true,
+        localSeat: requestedSeat
+      });
+      return snapshotTarotKingdomDebugState();
+    },
+    battleSetLocalSeat: (seat = 0) => {
+      tkNet.localSeat = Math.max(0, Math.floor(Number(seat) || 0));
+      return tkNet.localSeat;
+    },
+    battlePresentationRoleChange: (role = 'guest') => {
+      if (String(role) === 'host') {
+        const localTransition = cloneKingdomSnapshotValue(
+          kingdomRemotePresentationTransition,
+          null
+        );
+        restoreKingdomPresentationAfterHostPromotion(localTransition);
+        clearKingdomRemotePresentation({ preserveSeen: true });
+      } else {
+        kingdomRemotePresentationMode = true;
+        continueKingdomHostPresentationAfterDemotion();
+      }
+      return {
+        state: snapshotTarotKingdomDebugState(),
+        activeSeq: Math.max(0, Number(kingdomRemotePresentationTransition?.presentationSeq) || 0),
+        activeKind: String(kingdomRemotePresentationTransition?.kind || '')
+      };
+    },
+    battlePresentationAudit: () => ({
+      starts: cloneKingdomSnapshotValue(kingdomPresentationPlaybackAudit, []),
+      activeSeq: Math.max(0, Number(kingdomRemotePresentationTransition?.presentationSeq) || 0),
+      activeKind: String(kingdomRemotePresentationTransition?.kind || ''),
+      lastSeenSeq: Math.max(0, Number(kingdomRemotePresentationLastSeenSeq) || 0),
+      epoch: String(kingdomRemotePresentationEpoch || '')
+    }),
+    battleResetPresentationAudit: () => {
+      kingdomPresentationPlaybackAudit.length = 0;
+      return {
+        starts: [],
+        activeSeq: Math.max(0, Number(kingdomRemotePresentationTransition?.presentationSeq) || 0),
+        activeKind: String(kingdomRemotePresentationTransition?.kind || ''),
+        lastSeenSeq: Math.max(0, Number(kingdomRemotePresentationLastSeenSeq) || 0),
+        epoch: String(kingdomRemotePresentationEpoch || '')
+      };
+    },
     battleRender: () => {
       render();
       return snapshotTarotKingdomDebugState();
@@ -17486,7 +18164,7 @@ function drawOneKingdomMixedCard(playerIndex, reason = 'forced') {
   log(`${pName(playerIndex)}: ${reasonLabel}（${card.kind === 'major' ? '大' : '小'}アルカナ）`);
   if (reason !== 'blocked-leader') {
     triggerKingdomActionFx(playerIndex, reason === 'world' ? '世界・強制ドロー' : '強制ドロー', {
-      overlay: isLocalPlayer(playerIndex) ? 'draw' : null,
+      overlay: 'draw',
       durationMs: 620,
       cutin: true
     });
@@ -17569,7 +18247,7 @@ function resolveEmptyFieldLeader(playerIndex) {
               : '強制ドロー'
           );
       triggerKingdomActionFx(current, label, {
-        overlay: isLocalPlayer(current) ? 'draw' : null,
+        overlay: 'draw',
         durationMs: forcedDrawResult.knockedOut ? 900 : 620,
         cutin: true
       });
@@ -18147,7 +18825,10 @@ function finishRound(winnerIndex) {
   if (hasLastHitBonus) {
     s.players[lastHitIndex].stars = 1;
     log(`${pName(lastHitIndex)}: ラストヒットボーナス +1⭐`);
-    triggerKingdomRowActionFx(lastHitIndex, 'LAST HIT +1⭐', 1100);
+    triggerKingdomActionFx(lastHitIndex, 'LAST HIT +1⭐', {
+      durationMs: 1100,
+      cutin: false
+    });
   }
   s.handNo += 1;
   if (s.handNo >= TOTAL_HANDS) {
@@ -18241,9 +18922,8 @@ function applyDrawChoice() {
       }
     }
   }
-  const drawByHuman = isLocalPlayer(pi);
   triggerKingdomActionFx(pi, 'ドロー', {
-    overlay: drawByHuman ? 'draw' : null,
+    overlay: 'draw',
     durationMs: 620,
     cutin: true
   });
@@ -18450,6 +19130,9 @@ function setKingdomTransition(kind, actorIndex, durationMs, details = {}) {
   s.revision = Math.max(0, Number(s.revision) || 0) + 1;
   const duration = Math.max(0, Math.floor(Number(durationMs) || 0));
   const safeDetails = details && typeof details === 'object' ? { ...details } : {};
+  const requestedPresentationSeq = Math.max(0, Math.floor(Number(safeDetails.presentationSeq) || 0));
+  delete safeDetails.presentationSeq;
+  const presentationSeq = requestedPresentationSeq || nextKingdomPresentationSeq();
   const requestedStartedAt = Number(safeDetails.startedAt);
   const startedAt = Number.isFinite(requestedStartedAt) && requestedStartedAt > 0
     ? requestedStartedAt
@@ -18478,12 +19161,19 @@ function setKingdomTransition(kind, actorIndex, durationMs, details = {}) {
   s.transition = {
     kind: String(kind || ''),
     actorIndex: Number.isInteger(Number(actorIndex)) ? Number(actorIndex) : null,
+    presentationSeq,
     startedAt,
     endsAt,
     ...safeDetails,
     ...(timeline ? { timeline } : {}),
     ...(Object.keys(eventTimelines).length ? { eventTimelines } : {})
   };
+  const transitionCue = enqueueKingdomPresentationCue('transition', {
+    seq: presentationSeq,
+    createdAt: startedAt,
+    transition: s.transition
+  });
+  if (transitionCue) markKingdomPresentationCuePlayed(s.presentation?.epoch, transitionCue.seq);
   scheduleKingdomTransitionResolution();
   return s.transition;
 }
@@ -18994,7 +19684,6 @@ function applyPlay(pi, play, retryDepth = 0) {
     currentPlayToken: getKingdomPlayToken(play)
   });
   if (p.hand.length === 1) {
-    triggerKingdomRowActionFx(pi, 'LAST 1', 920);
     triggerKingdomActionFx(pi, 'ラスト1枚', { overlay: 'action', durationMs: 820, cutin: true });
   }
   const callFxLevel = isCallPlay ? getKingdomCallFxLevel(play?.role?.key) : 0;
@@ -19019,13 +19708,16 @@ function applyPlay(pi, play, retryDepth = 0) {
     durationMs: isCallPlay ? Math.max(980, callCinematicMs - 120) : (isRolePlay ? 980 : 700),
     cutin: false,
     cutinClass: isCallPlay ? 'is-kingdom-call' : (isRolePlay ? 'is-kingdom-role' : undefined),
-    delayMs: isCallPlay ? 90 : (isRolePlay ? 180 : 0)
+    delayMs: isCallPlay ? 90 : (isRolePlay ? 180 : 0),
+    pulsePotMs: isCallPlay ? Math.max(760, callCinematicMs - 140) : 0,
+    coinCount: isCallPlay ? getKingdomCallCoinCount(callFxLevel) : 0,
+    coinSymbol: '🪙',
+    coinClassName: isCallPlay ? 'is-call-bet' : '',
+    coinDelayMs: isCallPlay ? 90 : 0
   });
 
   if (isCallPlay) {
     clearPendingTurnAdvanceAfterTrick();
-    pulseKingdomPotAnchor(Math.max(760, callCinematicMs - 140));
-    playKingdomCoinEffect(pi, getKingdomCallCoinCount(callFxLevel), '🪙', { className: 'is-call-bet', delayMs: 90 });
     vibrateOnce(65);
     clearNpcTimer();
     s.phase = 'callCinematic';
@@ -19129,8 +19821,7 @@ function passAction(pi, options = {}) {
   const passLabel = continuedFold ? '防御継続' : (startedFold ? '防御' : 'パス');
   log(`${pName(pi)}: ${passLabel}${safeFiveCardPass ? '（5枚役・反撃なし）' : ''}`);
   if (isLocalPlayer(pi)) s.selected.clear();
-  const passByHuman = isLocalPlayer(pi);
-  triggerKingdomActionFx(pi, passLabel, { overlay: passByHuman ? 'action' : null, durationMs: 480, cutin: true });
+  triggerKingdomActionFx(pi, passLabel, { overlay: 'action', durationMs: 480, cutin: true });
   const actionStatusDamage = areKingdomStatusEffectsV1Enabled()
     ? applyKingdomPlayerAilmentDamage(pi)
     : [];
@@ -21043,7 +21734,7 @@ function clearKingdomBattlePhaseTimers() {
 }
 
 function getKingdomBattleTimelineForEvent(event) {
-  const transition = s?.transition;
+  const transition = getKingdomPresentationTransition();
   const eventTimeline = transition?.eventTimelines?.[String(event?.seq || '')];
   const timeline = eventTimeline || transition?.timeline;
   if (!event || !timeline || typeof timeline !== 'object') return null;
@@ -21581,11 +22272,12 @@ function getKingdomBattleVisualHp(playerIndex, logicalHp, maxHp, activeEvent, ev
     const visualHp = interpolateKingdomBattleHp(activeDamage.hpBefore, activeDamage.hpAfter, timeline);
     return Math.max(0, Math.min(maxHp, visualHp));
   }
-  const transitionKind = String(s?.transition?.kind || '');
+  const transition = getKingdomPresentationTransition();
+  const transitionKind = String(transition?.kind || '');
   if (!eventIsActive || !['enemyResponse', 'terminalEnemyResponse', 'terminalEnemyVictory'].includes(transitionKind)) {
     return logicalHp;
   }
-  const eventSeqs = Array.isArray(s.transition?.eventSeqs) ? s.transition.eventSeqs.map(Number) : [];
+  const eventSeqs = Array.isArray(transition?.eventSeqs) ? transition.eventSeqs.map(Number) : [];
   const activeSeqIndex = eventSeqs.indexOf(Number(activeEvent?.seq));
   if (activeSeqIndex < 0 || activeSeqIndex >= eventSeqs.length - 1) return logicalHp;
   const events = Array.isArray(s?.battle?.events) ? s.battle.events : [];
@@ -21605,7 +22297,7 @@ function getKingdomBattleVisualHp(playerIndex, logicalHp, maxHp, activeEvent, ev
 }
 
 function getKingdomDefenseStanceHoldIndexes() {
-  const transition = s?.transition;
+  const transition = getKingdomPresentationTransition();
   if (!transition || Date.now() >= Number(transition.endsAt || 0)) return new Set();
   if (!['enemyResponse', 'terminalEnemyResponse', 'terminalEnemyVictory'].includes(String(transition.kind || ''))) {
     return new Set();
@@ -21654,7 +22346,10 @@ function renderKingdomJudgmentReclaimCard(row, playerIndex, event, eventIsActive
   node.dataset.eventKey = eventKey;
   const elapsed = Math.max(
     0,
-    Math.min(KINGDOM_JUDGMENT_RECLAIM_EVENT_MS - 1, Date.now() - Number(event.at || Date.now()))
+    Math.min(
+      KINGDOM_JUDGMENT_RECLAIM_EVENT_MS - 1,
+      Date.now() - Number(getKingdomBattleEventPresentationAt(event) || Date.now())
+    )
   );
   node.style.setProperty('--tk-judgment-reclaim-delay', `${-elapsed}ms`);
   row.appendChild(node);
@@ -21719,14 +22414,16 @@ function syncKingdomCoverInterposition(event, eventIsActive, eventKey, timeline)
     protectedRow.appendChild(callout);
   }
 
-  const startedAt = Number(timeline?.startedAt) || Number(event?.at) || Date.now();
+  const startedAt = Number(timeline?.startedAt)
+    || Number(getKingdomBattleEventPresentationAt(event))
+    || Date.now();
   const endsAt = Math.max(startedAt + 1, Number(timeline?.endsAt) || (startedAt + getKingdomBattleEventDuration(event)));
   const durationMs = Math.max(1, endsAt - startedAt);
   const elapsedMs = Math.max(0, Math.min(durationMs - 1, Date.now() - startedAt));
   callout.style.setProperty('--tk-cover-duration', `${durationMs}ms`);
   callout.style.setProperty('--tk-cover-delay', `${-elapsedMs}ms`);
 
-  const motionKey = String(eventKey || `${event?.seq || 0}:${event?.at || 0}`);
+  const motionKey = String(eventKey || `${event?.seq || 0}:${startedAt}`);
   if (coverAvatar.dataset.kingdomCoverEventKey === motionKey || prefersKingdomReducedMotion()) return;
   coverAvatar.getAnimations().filter((animation) => (
     String(animation.id || '').startsWith('tarot-kingdom-cover:')
@@ -21839,7 +22536,7 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
     const playerMotionProfile = getCombatWeaponMotionProfile(playerWeaponType);
     const playerMotionStartsAt = Math.max(
       0,
-      Number(timeline?.motionAt) || Number(activeEvent?.at) || Date.now()
+      Number(timeline?.motionAt) || Number(getKingdomBattleEventPresentationAt(activeEvent)) || Date.now()
     );
     const playerMotionNow = Date.now();
     const playerMotionElapsedMs = Math.max(0, playerMotionNow - playerMotionStartsAt);
@@ -22152,13 +22849,13 @@ function syncKingdomEffectNavigationMessage(event, eventIsActive, phase) {
     && event?.coverIndex != null
     && event?.protectedIndex != null;
   if (!isCoverEvent && !['effect', 'final'].includes(String(phase || ''))) return;
-  const token = `${Number(event?.seq) || 0}:${Number(event?.at) || 0}:${message}`;
+  const token = `${Number(event?.seq) || 0}:${Number(getKingdomBattleEventPresentationAt(event)) || 0}:${message}`;
   if (ui.selectedEffect.dataset.effectMessageToken === token) return;
   ui.selectedEffect.dataset.effectMessageToken = token;
   setLocalInfoMessage(message, 2400);
 }
 
-function renderKingdomSecondaryEffectBanner(event, eventIsActive, phase) {
+function renderKingdomSecondaryEffectBanner(event, eventIsActive, phase, eventKey = '') {
   if (!ui.battleStage) return;
   let node = ui.battleStage.querySelector(':scope > .tarot-kingdom-effect-banner');
   let majorVisual = ui.battleStage.querySelector(':scope > .tarot-kingdom-major-visual');
@@ -22194,11 +22891,12 @@ function renderKingdomSecondaryEffectBanner(event, eventIsActive, phase) {
   node.classList.toggle('is-major', !!majorSkillName);
   node.classList.toggle('is-awakened', !!event?.majorAwakened);
   node.dataset.majorTone = majorTone;
-  node.dataset.eventKey = String(event?.seq || '');
+  const scopedEventKey = String(eventKey || event?.seq || '');
+  node.dataset.eventKey = scopedEventKey;
   node.textContent = majorSkillName || regularEffectName;
   if (majorSkillName) {
     const scope = getKingdomMajorVisualScope(event);
-    const visualKey = `${event?.seq || 0}:${majorTone}:${scope}`;
+    const visualKey = `${scopedEventKey}:${majorTone}:${scope}`;
     if (!majorVisual) {
       majorVisual = document.createElement('div');
       majorVisual.className = 'tarot-kingdom-major-visual';
@@ -22240,7 +22938,9 @@ function renderKingdomSecondaryEffectBanner(event, eventIsActive, phase) {
     affinityNode.className = 'tarot-kingdom-affinity-hit';
     ui.battleStage.appendChild(affinityNode);
   }
-  const renderKey = reactionResults.map((entry) => `${entry.element}:${entry.affinityReaction}`).join('|');
+  const renderKey = `${scopedEventKey}:${reactionResults
+    .map((entry) => `${entry.element}:${entry.affinityReaction}`)
+    .join('|')}`;
   if (affinityNode.dataset.renderKey === renderKey) return;
   affinityNode.dataset.renderKey = renderKey;
   affinityNode.innerHTML = '';
@@ -22541,11 +23241,12 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   const isSummon = !!(show && summonArt && areKingdomSummonsEnabled());
   if (isSummon) void preloadKingdomSummonImage(summonArt);
   const timeline = show ? getKingdomBattleTimelineForEvent(event) : null;
+  const eventPresentationAt = Number(getKingdomBattleEventPresentationAt(event)) || Date.now();
   const elapsedMs = show
-    ? Math.max(0, Date.now() - Number(timeline?.startedAt || event?.at || Date.now()))
+    ? Math.max(0, Date.now() - Number(timeline?.startedAt || eventPresentationAt))
     : 0;
   const cinematicKey = isSummon && !isMajorSummonEvent
-    ? `${Number(event?.seq) || 0}:${Number(timeline?.startedAt || event?.at) || 0}:${summonArt.id}`
+    ? `${Number(event?.seq) || 0}:${Number(timeline?.startedAt || eventPresentationAt) || 0}:${summonArt.id}`
     : '';
   setKingdomSummonCinematicState(
     isSummon && !isMajorSummonEvent,
@@ -22560,7 +23261,7 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   }
   const roleKey = isMajorSummonEvent
     ? 'MajorArcana'
-    : String(s.lastPlay?.role?.key || s.transition?.roleKey || 'Straight');
+    : String(s.lastPlay?.role?.key || getKingdomPresentationTransition()?.roleKey || 'Straight');
   const cards = (Array.isArray(s.lastPlay?.cardsTable) ? s.lastPlay.cardsTable : [])
     .slice(0, isMajorSummonEvent ? 3 : 5);
   const renderKey = `${event.seq}:${roleKey}:${summonArt?.id || ''}:chain-${roleChainCount}:${cards.map((card) => card?.id || '').join(',')}`;
@@ -22735,7 +23436,7 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   cutin.replaceChildren(content);
 }
 
-function renderKingdomBattleDamageNumber(event, eventIsActive) {
+function renderKingdomBattleDamageNumber(event, eventIsActive, eventKey = '') {
   if (!ui.battleEnemy) return;
   const timeline = getKingdomBattleTimelineForEvent(event);
   const phase = getKingdomBattleTimelinePhase(timeline);
@@ -22763,7 +23464,7 @@ function renderKingdomBattleDamageNumber(event, eventIsActive) {
     if (!eventIsActive || phase === 'final') kingdomBattleDamageEventKey = '';
     return;
   }
-  const key = `${event.seq}:${event.type}:${displayedDamage}:${displayedHealing}:${missed ? 'miss' : 'hit'}`;
+  const key = `${String(eventKey || 'legacy')}:${event.seq}:${event.type}:${displayedDamage}:${displayedHealing}:${missed ? 'miss' : 'hit'}`;
   const reachedDamageCap = !missed
     && areKingdomDamageGrowthRulesEnabled()
     && displayedDamage >= KINGDOM_PLAYER_DAMAGE_CAP;
@@ -22936,30 +23637,50 @@ function renderKingdomBattleStage() {
   const lastEvent = events[events.length - 1] || null;
   let visualEvent = lastEvent;
   let duration = getKingdomBattleEventDuration(visualEvent);
-  let elapsed = visualEvent ? Math.max(0, Date.now() - Number(visualEvent.at || 0)) : Number.POSITIVE_INFINITY;
-  const transitionEventSeqs = ['enemyResponse', 'terminalEnemyResponse', 'terminalEnemyVictory'].includes(
-    String(s?.transition?.kind || '')
-  )
-    && Array.isArray(s.transition.eventSeqs)
-    ? s.transition.eventSeqs.map(Number).filter(Number.isFinite)
+  let elapsed = visualEvent
+    ? Math.max(0, Date.now() - Number(getKingdomBattleEventPresentationAt(visualEvent) || 0))
+    : Number.POSITIVE_INFINITY;
+  const presentationTransition = getKingdomPresentationTransition();
+  const presentationTransitionKind = String(presentationTransition?.kind || '');
+  const transitionEventSeqs = Array.isArray(presentationTransition?.eventSeqs)
+    ? presentationTransition.eventSeqs.map(Number).filter(Number.isFinite)
     : [];
   if (transitionEventSeqs.length > 0) {
-    const transitionElapsed = Math.max(0, Date.now() - Number(s.transition.startedAt || Date.now()));
-    let cursor = 0;
-    for (const seq of transitionEventSeqs) {
-      const candidate = events.find((event) => Number(event?.seq) === seq);
-      if (!candidate) continue;
-      const candidateDuration = getKingdomBattleEventDuration(candidate);
-      if (transitionElapsed < cursor + candidateDuration || seq === transitionEventSeqs[transitionEventSeqs.length - 1]) {
-        visualEvent = candidate;
-        duration = candidateDuration;
-        elapsed = Math.max(0, transitionElapsed - cursor);
-        break;
+    const transitionElapsed = Math.max(
+      0,
+      Date.now() - Number(presentationTransition?.startedAt || Date.now())
+    );
+    const transitionEvents = transitionEventSeqs
+      .map((seq) => events.find((event) => Number(event?.seq) === seq))
+      .filter(Boolean);
+    if (['enemyResponse', 'terminalEnemyResponse', 'terminalEnemyVictory'].includes(presentationTransitionKind)) {
+      let cursor = 0;
+      for (let index = 0; index < transitionEvents.length; index += 1) {
+        const candidate = transitionEvents[index];
+        const candidateDuration = getKingdomBattleEventDuration(candidate);
+        if (transitionElapsed < cursor + candidateDuration || index === transitionEvents.length - 1) {
+          visualEvent = candidate;
+          duration = candidateDuration;
+          elapsed = Math.max(0, transitionElapsed - cursor);
+          break;
+        }
+        cursor += candidateDuration;
       }
-      cursor += candidateDuration;
+    } else {
+      const candidate = ['play', 'call'].includes(presentationTransitionKind)
+        ? transitionEvents.find((event) => ['attack', 'skill'].includes(String(event?.type || '')))
+        : transitionEvents.find((event) => getKingdomBattleEventDuration(event) > 0);
+      if (candidate) {
+        visualEvent = candidate;
+        duration = getKingdomBattleEventDuration(candidate);
+        elapsed = transitionElapsed;
+      }
     }
   }
-  const eventKey = visualEvent ? `${visualEvent.seq}:${visualEvent.type}` : `round-${battle.roundIndex}`;
+  const eventScopeKey = `${String(s?.presentation?.epoch || 'legacy')}:${Math.max(0, Number(battle.roundIndex) || 0)}`;
+  const eventKey = visualEvent
+    ? `${eventScopeKey}:${visualEvent.seq}:${visualEvent.type}`
+    : `${eventScopeKey}:round`;
   const timeline = getKingdomBattleTimelineForEvent(visualEvent);
   const eventIsActive = !!(
     visualEvent
@@ -22981,9 +23702,10 @@ function renderKingdomBattleStage() {
     && battle.resultReason === 'enemy-escaped'
     && victoryEvent?.enemyEscaped === true
   );
-  const finisherStartedAt = Math.max(0, Number(victoryEvent?.at) || Number(enemy.finishedAt) || Date.now());
+  const victoryPresentationAt = Number(getKingdomBattleEventPresentationAt(victoryEvent));
+  const finisherStartedAt = Math.max(0, victoryPresentationAt || Number(enemy.finishedAt) || Date.now());
   const finisherElapsed = enemyFinisherActive ? Math.max(0, Date.now() - finisherStartedAt) : 0;
-  const escapeStartedAt = Math.max(0, Number(victoryEvent?.at) || Date.now());
+  const escapeStartedAt = Math.max(0, victoryPresentationAt || Date.now());
   const escapeElapsed = enemyEscapeActive ? Math.max(0, Date.now() - escapeStartedAt) : 0;
   const deathDurationMs = Math.max(
     1,
@@ -23006,7 +23728,7 @@ function renderKingdomBattleStage() {
     clearKingdomEnemyFinisherTimer();
   }
 
-  const terminalDefeatIsSequencing = String(s?.transition?.kind || '') === 'terminalEnemyResponse';
+  const terminalDefeatIsSequencing = presentationTransitionKind === 'terminalEnemyResponse';
   const defeatPresentationVisible = battle.outcome === 'defeat'
     && (!terminalDefeatIsSequencing || String(visualEvent?.type || '') === 'defeat');
   const retreatPresentationVisible = defeatPresentationVisible && battle.resultReason === 'party-retreated';
@@ -23089,10 +23811,11 @@ function renderKingdomBattleStage() {
       retreatPresentationVisible ? Number(battle.retreatingPlayerIndex) : 0,
       retreatPresentationVisible ? 'RETREAT' : 'BATTLE DEFEAT',
       {
-      overlay: 'roundend',
-      durationMs: 1300,
-      cutin: true,
-      cutinClass: 'is-showdown-lose'
+        overlay: 'roundend',
+        durationMs: 1300,
+        cutin: true,
+        cutinClass: 'is-showdown-lose',
+        sync: false
       }
     );
   }
@@ -23202,12 +23925,12 @@ function renderKingdomBattleStage() {
         ? openingWalkAnimation
         : (enemyActing ? enemyAttackAnimation : (enemyHurt ? 'hurt' : 'idle'))));
   const monsterAnimationGeneration = enemyFinisherActive
-    ? `${battle.roundIndex}:finisher:${Number(enemy.defeatedAtSeq) || Number(victoryEvent?.seq) || 0}`
+    ? `${eventScopeKey}:finisher:${Number(enemy.defeatedAtSeq) || Number(victoryEvent?.seq) || 0}`
     : (enemyEscapeActive
-      ? `${battle.roundIndex}:escape:${Number(victoryEvent?.seq) || 0}:${escapeAnimation}`
+      ? `${eventScopeKey}:escape:${Number(victoryEvent?.seq) || 0}:${escapeAnimation}`
       : (enemyRushTime
-        ? `${battle.roundIndex}:rush:${Number(enemy.rushStartedAtSeq) || 0}`
-        : `${battle.roundIndex}:${openingIntroStage || eventKey}:${animationName}`));
+        ? `${eventScopeKey}:rush:${Number(enemy.rushStartedAtSeq) || 0}`
+        : `${eventScopeKey}:${openingIntroStage || eventKey}:${animationName}`));
   if (enemyPetrified || enemyTimeStopped) {
     const activeMonsterPrefix = `${String(monsterConfig?.id || '')}:`;
     const hasCurrentMonsterFrame = !!activeMonsterPrefix
@@ -23221,7 +23944,7 @@ function renderKingdomBattleStage() {
         0
       );
     }
-    kingdomMonsterAnimationKey = `${String(monsterConfig?.id || enemy.id)}:frozen:${battle.roundIndex}:${enemyPetrified ? 'petrified' : 'time-stop'}`;
+    kingdomMonsterAnimationKey = `${String(monsterConfig?.id || enemy.id)}:frozen:${eventScopeKey}:${enemyPetrified ? 'petrified' : 'time-stop'}`;
   }
   else {
     playKingdomMonsterAnimation(animationName, monsterAnimationGeneration, {
@@ -23234,8 +23957,8 @@ function renderKingdomBattleStage() {
   renderKingdomEnemyStatusEffects();
   renderKingdomSkillCutin(visualEvent, eventIsActive, timelinePhase);
   syncKingdomEffectNavigationMessage(visualEvent, eventIsActive, timelinePhase);
-  renderKingdomSecondaryEffectBanner(visualEvent, eventIsActive, timelinePhase);
-  renderKingdomBattleDamageNumber(visualEvent, eventIsActive);
+  renderKingdomSecondaryEffectBanner(visualEvent, eventIsActive, timelinePhase, eventKey);
+  renderKingdomBattleDamageNumber(visualEvent, eventIsActive, eventKey);
   renderKingdomEffectResultText(ui.battleEnemy, visualEvent, eventIsActive, timelinePhase, 'enemy');
   renderKingdomBattleParty(visualEvent, eventIsActive, eventKey);
   renderKingdomChampionCeremony();
@@ -23278,9 +24001,14 @@ function renderPlayers() {
       rankByIndex.set(entry.index, entry);
     });
   }
+  const callPresentation = getKingdomPresentationTransition();
+  const callPresentationOwner = String(callPresentation?.kind || '') === 'call'
+    && Number.isInteger(Number(callPresentation?.actorIndex))
+    ? Number(callPresentation.actorIndex)
+    : null;
   const callOwner = (s.phase === 'callCinematic' && s.callMergeFx?.owner != null)
     ? Number(s.callMergeFx.owner)
-    : null;
+    : callPresentationOwner;
   const settlementRowsByPayer = new Map();
   if (settlementData && Array.isArray(settlementData.rows)) {
     settlementData.rows.forEach((row) => {
@@ -23395,6 +24123,7 @@ function renderPlayers() {
 
 function renderTrick() {
   const cards = s.trick?.cardsTable || [];
+  const presentationTransition = getKingdomPresentationTransition();
   syncKingdomTrickSceneClass();
   let dealSettleNextRender = false;
   let roleFormationNextRender = false;
@@ -23473,7 +24202,14 @@ function renderTrick() {
         clickable: true,
         onClick: () => showKingdomCardEffectInfo(c, '場札')
       });
-      const callFxActive = s.callMergeFx?.owner != null && s.trick?.type === 'role' && s.trick?.call;
+      const callFxActive = !!(
+        s.trick?.type === 'role'
+        && s.trick?.call
+        && (
+          s.callMergeFx?.owner != null
+          || String(presentationTransition?.kind || '') === 'call'
+        )
+      );
       const roleFormationActive = !!(
         s.trick?.type === 'role'
         && (roleFormationNextRender || callFxActive)
@@ -23577,13 +24313,11 @@ function renderTrick() {
   const isRoleFormationTransition = transitionKind === 'roleFormation';
   const callOwner = Number.isInteger(Number(s?.trick?.owner)) ? Number(s.trick.owner) : -1;
   const currentPlay = s?.trick || null;
-  s.trickDefeatFx = null;
-  s.trickTransitionKind = null;
   roleFormationNextRender = isRoleFormationTransition || isCallTransition;
 
   const isNormalSetDeal = cards.length > 0
     && String(currentPlay?.type || '') === 'set'
-    && (transitionKind === 'normal' || String(s?.transition?.kind || '') === 'play');
+    && (transitionKind === 'normal' || String(presentationTransition?.kind || '') === 'play');
   if (isNormalSetDeal) {
     trickRenderToken += 1;
     const swapToken = trickRenderToken;
@@ -24423,13 +25157,20 @@ function renderSummary() {
 }
 
 function dispatchSettlementCoinFxIfNeeded(data) {
-  if (!data || data.coinFxDispatched) return;
+  if (!data || data.coinFxDispatched === true) return;
   if (typeof document === 'undefined') return;
   const winnerIndex = Number(data.winnerIndex);
   const winnerAnchor = document.querySelector(`#tarotKingdomPlayerAnchor-${winnerIndex}`) || getKingdomPlayerAnchor(winnerIndex);
   if (!winnerAnchor) return;
-
-  data.coinFxDispatched = true;
+  const dispatchKey = [
+    Number(data.roundNo ?? s?.handNo) || 0,
+    winnerIndex,
+    Number(data.totalGain) || 0,
+    Number(data.potAward) || 0,
+    Array.isArray(data.coinEvents) ? data.coinEvents.length : 0
+  ].join(':');
+  if (kingdomSettlementCoinFxDispatchedKey === dispatchKey) return;
+  kingdomSettlementCoinFxDispatchedKey = dispatchKey;
   const targetElement = winnerAnchor;
   (data.coinEvents || []).forEach((event) => {
     const payerIndex = Number(event?.payerIndex);
@@ -24535,7 +25276,8 @@ function updateButtons() {
   const inCallCinematic = s.phase === 'callCinematic';
   const inOpeningCinematic = s.phase === 'openingCinematic';
   const inOpeningDeal = s.phase === 'openingDeal';
-  const actionLocked = inCallCinematic || inOpeningCinematic || inOpeningDeal || !!s.transition
+  const actionLocked = inCallCinematic || inOpeningCinematic || inOpeningDeal
+    || !!getKingdomPresentationTransition()
     || !!kingdomCharacterLoadPromise
     || !isKingdomLocalPrivateStateReady()
     || s.phase === 'resolvingPlay' || s.phase === 'resolvingEnemy' || s.phase === 'roundOutCinematic';
@@ -25929,6 +26671,8 @@ export function destroyTarotKingdomPage() {
   clearSettlementGainFx();
   clearPendingTurnAdvanceAfterTrick();
   clearKingdomTransitionTimer();
+  clearKingdomRemotePresentation();
+  clearKingdomPresentationPlaybackTimers();
   clearKingdomCardDealFx();
   kingdomStateGeneration += 1;
   kingdomRoundPetOfferPromise = null;
