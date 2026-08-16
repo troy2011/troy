@@ -2173,6 +2173,12 @@ function compareInventoryItemsDefault(a, b, selectedCategory) {
         const healDiff = getInventoryStatValue(b?.customData, 'HealPower') - getInventoryStatValue(a?.customData, 'HealPower');
         if (healDiff !== 0) return healDiff;
     }
+    if (focusCategory === 'Accessory') {
+        const total = (item) => ['Power', 'Defense', 'Agi', 'Int']
+            .reduce((sum, key) => sum + getInventoryStatValue(item?.customData, key), 0);
+        const totalDiff = total(b) - total(a);
+        if (totalDiff !== 0) return totalDiff;
+    }
     return String(a?.name || '').localeCompare(String(b?.name || ''), 'ja');
 }
 
@@ -2227,7 +2233,9 @@ function getInventoryCardSubtitle(item, canonicalCategory) {
     }
     const statParts = [];
     if (cd.Power) statParts.push(`攻 ${cd.Power}`);
-    if (cd.Defense) statParts.push(`防 ${cd.Defense}`);
+    if (cd.Defense) statParts.push(`${canonicalCategory === 'Shield' ? '盾' : '防'} ${cd.Defense}`);
+    if (cd.Agi) statParts.push(`速 ${cd.Agi}`);
+    if (cd.Int) statParts.push(`賢 ${cd.Int}`);
     if (cd.MagicPower) statParts.push(`術補 ${cd.MagicPower}`);
     if (cd.HealPower) statParts.push(`回復 ${cd.HealPower}`);
     if (statParts.length) return statParts.join(' / ');
@@ -2262,7 +2270,9 @@ function getInventoryCardChips(item, canonicalCategory) {
     }
     const statChips = [
         cd.Power ? `攻 ${cd.Power}` : '',
-        cd.Defense ? `防 ${cd.Defense}` : '',
+        cd.Defense ? `${canonicalCategory === 'Shield' ? '盾' : '防'} ${cd.Defense}` : '',
+        cd.Agi ? `速 ${cd.Agi}` : '',
+        cd.Int ? `賢 ${cd.Int}` : '',
         cd.MagicPower ? `術補 ${cd.MagicPower}` : '',
         cd.HealPower ? `回復 ${cd.HealPower}` : '',
         cd.CastRate ? `詠唱 ${cd.CastRate}` : '',
@@ -2387,7 +2397,7 @@ function getPrimaryInventoryCardStats(item, canonicalCategory) {
         return [pick('Power', 'power', 'Power')].filter(Boolean);
     }
     if (category === 'Shield' || category === 'Armor') {
-        return [pick('Defense', 'defense', 'Defense')].filter(Boolean);
+        return [pick('Defense', 'defense', category === 'Shield' ? 'Shield performance' : 'Defense')].filter(Boolean);
     }
     if (category === 'Offhand') {
         return [pick('MagicPower', 'magic', 'Magic power') || pick('HealPower', 'heal', 'Heal power')].filter(Boolean);
@@ -2396,9 +2406,14 @@ function getPrimaryInventoryCardStats(item, canonicalCategory) {
         return [
             pick('Power', 'power', 'Power'),
             pick('Defense', 'defense', 'Defense'),
+            pick('Agi', 'agility', 'Agility'),
+            pick('Int', 'magic', 'Intelligence'),
             pick('MagicPower', 'magic', 'Magic power'),
             pick('HealPower', 'heal', 'Heal power')
-        ].filter(Boolean).slice(0, 2);
+        ]
+            .filter(Boolean)
+            .sort((left, right) => Number(right.value) - Number(left.value))
+            .slice(0, 2);
     }
 
     return [
@@ -2501,68 +2516,6 @@ function isTwoHandedWeapon(item) {
 }
 
 
-function getPrimaryDiffForCategory(item, canonicalCategory, currentItem) {
-    const cd = item?.customData || {};
-    const currentData = currentItem?.customData || {};
-    if (!currentItem) return 0;
-    if (canonicalCategory === 'Weapon') return getInventoryStatValue(cd, 'Power') - getInventoryStatValue(currentData, 'Power');
-    if (canonicalCategory === 'Shield' || canonicalCategory === 'Armor') return getInventoryStatValue(cd, 'Defense') - getInventoryStatValue(currentData, 'Defense');
-    if (canonicalCategory === 'Offhand') {
-        const magicDiff = getInventoryStatValue(cd, 'MagicPower') - getInventoryStatValue(currentData, 'MagicPower');
-        if (magicDiff !== 0) return magicDiff;
-        return getInventoryStatValue(cd, 'HealPower') - getInventoryStatValue(currentData, 'HealPower');
-    }
-    if (canonicalCategory === 'Accessory') {
-        const powerDiff = getInventoryStatValue(cd, 'Power') - getInventoryStatValue(currentData, 'Power');
-        if (powerDiff !== 0) return powerDiff;
-        return getInventoryStatValue(cd, 'Defense') - getInventoryStatValue(currentData, 'Defense');
-    }
-    return 0;
-}
-
-function getInventoryComparisonSummary(item, canonicalCategory) {
-    const slot = getEquipmentSlotForCategory(canonicalCategory);
-    if (!slot) return null;
-
-    const slotLabel = getTarotSlotLabel(slot);
-    const equippedRef = myCurrentEquipment?.[slot];
-    const currentItem = equippedRef ? getInventoryItemByReference(equippedRef) : null;
-    const currentRef = currentItem?.instances?.[0] || currentItem?.itemId || '';
-    const itemRef = item?.instances?.[0] || item?.itemId || '';
-    if (!currentItem) {
-        return { text: `${slotLabel}は空き`, tone: 'open' };
-    }
-    if (String(currentRef) === String(itemRef)) {
-        return { text: `${slotLabel}に装備中`, tone: 'equipped' };
-    }
-
-    const currentData = currentItem.customData || {};
-    const nextData = item.customData || {};
-    const pairs = [
-        ['Power', '攻'],
-        ['Defense', '防'],
-        ['MagicPower', '術'],
-        ['HealPower', '回'],
-        ['CastRate', '詠']
-    ];
-    const diffs = pairs
-        .map(([key, label]) => {
-            const delta = getInventoryStatValue(nextData, key) - getInventoryStatValue(currentData, key);
-            if (!delta) return '';
-            return `${label}${delta > 0 ? '+' : ''}${delta}`;
-        })
-        .filter(Boolean)
-        .slice(0, 3);
-    const primaryDiff = getPrimaryDiffForCategory(item, canonicalCategory, currentItem);
-    if (!diffs.length) {
-        return { text: `${slotLabel}比 変化なし`, tone: 'flat' };
-    }
-    return {
-        text: `${slotLabel}比 ${diffs.join(' ')}`,
-        tone: primaryDiff > 0 ? 'up' : primaryDiff < 0 ? 'down' : 'flat'
-    };
-}
-
 function getEquipmentSlotForCategory(canonicalCategory) {
     if (canonicalCategory === 'Weapon') return 'RightHand';
     if (canonicalCategory === 'Shield' || canonicalCategory === 'Offhand') return 'LeftHand';
@@ -2571,12 +2524,14 @@ function getEquipmentSlotForCategory(canonicalCategory) {
     return null;
 }
 
-function getEquipmentCompareStatPairs(item, currentItem) {
+function getEquipmentCompareStatPairs(item, currentItem, canonicalCategory) {
     const nextData = item?.customData || {};
     const currentData = currentItem?.customData || {};
     return [
         ['Power', '攻'],
-        ['Defense', '防'],
+        ['Defense', canonicalCategory === 'Shield' ? '盾' : '防'],
+        ['Agi', '速'],
+        ['Int', '賢'],
         ['MagicPower', '術'],
         ['HealPower', '回'],
         ['CastRate', '詠'],
@@ -2593,53 +2548,38 @@ function getEquipmentCompareStatPairs(item, currentItem) {
         .slice(0, 5);
 }
 
-function createEquipmentComparisonBlock(item, canonicalCategory) {
+function appendItemDetailEquipmentComparison(statsEl, item, canonicalCategory) {
     const slot = getEquipmentSlotForCategory(canonicalCategory);
-    if (!slot) return null;
+    if (!slot) return;
     const equippedRef = myCurrentEquipment?.[slot];
     const currentItem = equippedRef ? getInventoryItemByReference(equippedRef) : null;
     const currentRef = currentItem?.instances?.[0] || currentItem?.itemId || '';
     const itemRef = item?.instances?.[0] || item?.itemId || '';
-    if (currentItem && String(currentRef) === String(itemRef)) return null;
+    if (!currentItem || String(currentRef) === String(itemRef)) return;
 
-    const wrap = document.createElement('div');
-    wrap.className = 'inventory-equipment-compare';
-
-    const rows = document.createElement('div');
-    rows.className = 'inventory-equipment-compare-rows';
-
-    const currentRow = document.createElement('div');
-    currentRow.className = 'inventory-equipment-compare-row';
-    const currentLabel = document.createElement('span');
-    currentLabel.textContent = '現在';
-    const currentName = document.createElement('strong');
-    currentName.textContent = currentItem?.name || '未装備';
-    currentRow.append(currentLabel, currentName);
-
-    const nextRow = document.createElement('div');
-    nextRow.className = 'inventory-equipment-compare-row is-next';
-    const nextLabel = document.createElement('span');
-    nextLabel.textContent = '候補';
-    const nextName = document.createElement('strong');
-    nextName.textContent = item?.name || '不明なアイテム';
-    nextRow.append(nextLabel, nextName);
-    rows.append(currentRow, nextRow);
-    wrap.appendChild(rows);
-
-    const stats = getEquipmentCompareStatPairs(item, currentItem);
-    if (stats.length) {
-        const statRow = document.createElement('div');
-        statRow.className = 'inventory-equipment-compare-stats';
-        stats.forEach((stat) => {
-            const statEl = document.createElement('span');
-            statEl.className = stat.delta > 0 ? 'is-up' : stat.delta < 0 ? 'is-down' : 'is-flat';
-            const deltaText = stat.delta ? ` (${stat.delta > 0 ? '+' : ''}${stat.delta})` : '';
-            statEl.textContent = `${stat.label} ${stat.current}->${stat.next}${deltaText}`;
-            statRow.appendChild(statEl);
+    const detailLabels = {
+        Power: '攻撃比較',
+        Defense: canonicalCategory === 'Shield' ? '盾性能比較' : '防御比較',
+        Agi: 'すばやさ比較',
+        Int: 'かしこさ比較',
+        MagicPower: '術補比較',
+        HealPower: '回復比較',
+        CastRate: '詠唱比較',
+        MpEfficiency: 'MP効率比較',
+        StatusRate: '状態比較'
+    };
+    const tones = { Power: 'power', Defense: 'defense', Agi: 'agility', Int: 'magic' };
+    getEquipmentCompareStatPairs(item, currentItem, canonicalCategory)
+        .filter((stat) => stat.delta !== 0)
+        .forEach((stat) => {
+            const deltaText = `${stat.delta > 0 ? '+' : ''}${stat.delta}`;
+            appendItemDetailStat(
+                statsEl,
+                detailLabels[stat.key] || `${stat.label}比較`,
+                `${stat.current} → ${stat.next} (${deltaText})`,
+                tones[stat.key] || ''
+            );
         });
-        wrap.appendChild(statRow);
-    }
-    return wrap;
 }
 
 function getInventoryQuickAction(item, canonicalCategory) {
@@ -2767,7 +2707,6 @@ function createInventoryCell(item, requestedCategory) {
     cell.title = item?.name || '不明なアイテム';
     cell.setAttribute('role', 'button');
     cell.tabIndex = 0;
-    const compareSummary = getInventoryComparisonSummary(item, canonicalCategory);
     const quickActions = (!isTarotCard && !isEquipmentCard)
         ? getInventoryQuickActions(item, canonicalCategory)
         : [];
@@ -2786,9 +2725,6 @@ function createInventoryCell(item, requestedCategory) {
     if (isEquipmentCard) {
         cell.classList.add('is-equipment-card');
         cell.dataset.equipmentState = isInventoryItemEquipped(item) ? 'equipped' : 'available';
-    }
-    if (compareSummary?.tone) {
-        cell.classList.add(`is-${compareSummary.tone}`);
     }
     if (quickAction?.tone) {
         cell.classList.add(`has-${quickAction.tone}`);
@@ -2938,23 +2874,12 @@ function createInventoryCell(item, requestedCategory) {
         copy.appendChild(footerEl);
     }
 
-    const equipmentComparison = createEquipmentComparisonBlock(item, canonicalCategory);
-    if (equipmentComparison) {
-        copy.appendChild(equipmentComparison);
-    }
-
     main.appendChild(copy);
     cell.appendChild(main);
 
-    if (!isTarotCard && !isEquipmentCard && (compareSummary || quickActions.length)) {
+    if (!isTarotCard && !isEquipmentCard && quickActions.length) {
         const tail = document.createElement('div');
         tail.className = 'inventory-item-tail';
-        if (compareSummary) {
-            const compareEl = document.createElement('div');
-            compareEl.className = `inventory-item-compare is-${compareSummary.tone || 'flat'}`;
-            compareEl.textContent = compareSummary.text;
-            tail.appendChild(compareEl);
-        }
         if (quickActions.length) {
             const actionWrap = document.createElement('div');
             actionWrap.className = 'inventory-item-actions';
@@ -4002,6 +3927,9 @@ function showEquipmentEnhancementModal(baseItem) {
     let previewPending = false;
     let applying = false;
 
+    const statLabel = baseEnhancement.primaryStat === 'Power'
+        ? '攻撃力'
+        : (getCanonicalTarotCategory(baseEnhancement.category) === 'Shield' ? '盾性能' : '防御力');
     const baseName = document.createElement('div');
     baseName.className = 'equipment-enhancement-base-name';
     baseName.appendChild(createEquipmentEnhancementIcon(baseItem));
@@ -4009,7 +3937,7 @@ function showEquipmentEnhancementModal(baseItem) {
     const title = document.createElement('strong');
     title.textContent = `${baseItem.name}${baseEnhancement.bonus > 0 ? ` +${baseEnhancement.bonus}` : ''}`;
     const stat = document.createElement('span');
-    stat.textContent = `${baseEnhancement.primaryStat === 'Power' ? '攻撃力' : '防御力'} ${baseEnhancement.effectiveValue}`;
+    stat.textContent = `${statLabel} ${baseEnhancement.effectiveValue}`;
     baseCopy.append(title, stat);
     baseName.appendChild(baseCopy);
     baseEl.replaceChildren(baseName);
@@ -4021,7 +3949,6 @@ function showEquipmentEnhancementModal(baseItem) {
     const updateResult = () => {
         const contribution = getLocalContribution();
         const target = serverPreview?.targetValue ?? (Number(baseEnhancement.effectiveValue || 0) + contribution);
-        const statLabel = baseEnhancement.primaryStat === 'Power' ? '攻撃力' : '防御力';
         resultEl.innerHTML = '';
         const current = document.createElement('span');
         current.textContent = `${statLabel} ${baseEnhancement.effectiveValue}`;
@@ -4280,7 +4207,8 @@ function showItemDetailModal(item) {
     statsEl.innerHTML = '';
     if (!isTarotCard) {
         appendItemDetailStat(statsEl, '攻撃力', cd.Power, 'power');
-        appendItemDetailStat(statsEl, '防御力', cd.Defense, 'defense');
+        appendItemDetailStat(statsEl, canonicalCategory === 'Shield' ? '盾性能' : '防御力', cd.Defense, 'defense');
+        appendItemDetailStat(statsEl, 'すばやさ', cd.Agi, 'agility');
         appendItemDetailStat(statsEl, 'かしこさ', cd.Int, 'magic');
         appendItemDetailStat(statsEl, '術補', cd.MagicPower, 'magic');
         appendItemDetailStat(statsEl, '回復補正', cd.HealPower, 'heal');
@@ -4288,8 +4216,10 @@ function showItemDetailModal(item) {
         appendItemDetailStat(statsEl, 'MP効率', cd.MpEfficiency);
         appendItemDetailStat(statsEl, '状態付与', cd.StatusRate);
         if (enhancementBonus > 0 && item?.enhancement?.primaryStat) {
-            const statLabel = item.enhancement.primaryStat === 'Power' ? '基本攻撃力' : '基本防御力';
-            appendItemDetailStat(statsEl, statLabel, item.enhancement.baseValue, 'enhancement');
+            const baseStatLabel = item.enhancement.primaryStat === 'Power'
+                ? '基本攻撃力'
+                : (canonicalCategory === 'Shield' ? '基本盾性能' : '基本防御力');
+            appendItemDetailStat(statsEl, baseStatLabel, item.enhancement.baseValue, 'enhancement');
             appendItemDetailStat(statsEl, '強化値', `+${enhancementBonus}`, 'enhancement');
         }
         if (cd.Effect) {
@@ -4298,6 +4228,7 @@ function showItemDetailModal(item) {
                 : String(cd.Effect);
             appendItemDetailStat(statsEl, '効果', effectText);
         }
+        appendItemDetailEquipmentComparison(statsEl, item, canonicalCategory);
         appendTarotMetaStats(statsEl, cd);
         const originDisplay = getBlackMarketOriginDisplay(item.itemId);
         if (originDisplay) {

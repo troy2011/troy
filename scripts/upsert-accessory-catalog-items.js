@@ -63,6 +63,39 @@ const ACCESSORY_GROUPS = [
             { no: 4, title: '夜見のゴーグル', spriteIndex: 809, stats: { Defense: 5, Agi: 5, Int: 5 }, prices: { BuyPrice: 560, SellPrice: 370 } },
             { no: 5, title: '旅人のゴーグル', spriteIndex: 812, stats: { Defense: 6, Agi: 7, Int: 6 }, prices: { BuyPrice: 720, SellPrice: 480 } }
         ]
+    },
+    {
+        key: 'gem',
+        tag: 'gem',
+        entries: [
+            { no: 1, title: '紅玉の指輪', spriteIndex: 977, stats: { Power: 1, Defense: 1, Int: 2 }, prices: { BuyPrice: 230, SellPrice: 150 } },
+            { no: 2, title: '蒼玉の指輪', spriteIndex: 982, stats: { Power: 2, Defense: 2, Int: 4 }, prices: { BuyPrice: 310, SellPrice: 200 } },
+            { no: 3, title: '琥珀の指輪', spriteIndex: 985, stats: { Power: 3, Defense: 3, Int: 5 }, prices: { BuyPrice: 400, SellPrice: 260 } },
+            { no: 4, title: '碧玉の指輪', spriteIndex: 994, stats: { Power: 4, Defense: 4, Int: 7 }, prices: { BuyPrice: 520, SellPrice: 340 } },
+            { no: 5, title: '紫晶の指輪', spriteIndex: 990, stats: { Power: 5, Defense: 5, Int: 9 }, prices: { BuyPrice: 700, SellPrice: 470 } }
+        ]
+    },
+    {
+        key: 'feather',
+        tag: 'feather',
+        entries: [
+            { no: 1, title: '蒼羽のブローチ', spriteIndex: 864, stats: { Power: 1, Defense: 1, Agi: 3 }, prices: { BuyPrice: 230, SellPrice: 150 } },
+            { no: 2, title: '銀羽のブローチ', spriteIndex: 865, stats: { Power: 1, Defense: 2, Agi: 5 }, prices: { BuyPrice: 310, SellPrice: 200 } },
+            { no: 3, title: '金羽のブローチ', spriteIndex: 866, stats: { Power: 2, Defense: 3, Agi: 7 }, prices: { BuyPrice: 400, SellPrice: 260 } },
+            { no: 4, title: '氷羽のブローチ', spriteIndex: 878, stats: { Power: 3, Defense: 4, Agi: 9 }, prices: { BuyPrice: 520, SellPrice: 340 } },
+            { no: 5, title: '炎羽のブローチ', spriteIndex: 879, stats: { Power: 4, Defense: 5, Agi: 12 }, prices: { BuyPrice: 700, SellPrice: 470 } }
+        ]
+    },
+    {
+        key: 'medal',
+        tag: 'medal',
+        entries: [
+            { no: 1, title: '白銀の勲章', spriteIndex: 816, stats: { Power: 2, Defense: 2 }, prices: { BuyPrice: 240, SellPrice: 150 } },
+            { no: 2, title: '蒼海の勲章', spriteIndex: 817, stats: { Power: 3, Defense: 3 }, prices: { BuyPrice: 320, SellPrice: 200 } },
+            { no: 3, title: '緋炎の勲章', spriteIndex: 818, stats: { Power: 4, Defense: 5 }, prices: { BuyPrice: 430, SellPrice: 270 } },
+            { no: 4, title: '青星の勲章', spriteIndex: 824, stats: { Power: 5, Defense: 7 }, prices: { BuyPrice: 540, SellPrice: 350 } },
+            { no: 5, title: '勇猛の勲章', spriteIndex: 826, stats: { Power: 6, Defense: 9 }, prices: { BuyPrice: 680, SellPrice: 450 } }
+        ]
     }
 ];
 
@@ -124,17 +157,52 @@ function buildAccessoryItems() {
     );
 }
 
+function upsertGeneratedItems(items, generatedItems, generatedIdPattern) {
+    const generatedById = new Map(generatedItems.map((item) => [getFriendlyId(item), item]));
+    const mergedItems = [];
+    let insertAt = -1;
+
+    for (const item of items) {
+        const friendlyId = getFriendlyId(item);
+        if (!generatedIdPattern.test(friendlyId)) {
+            mergedItems.push(item);
+            continue;
+        }
+
+        const replacement = generatedById.get(friendlyId);
+        if (replacement) {
+            mergedItems.push(replacement);
+            generatedById.delete(friendlyId);
+            insertAt = mergedItems.length;
+        }
+    }
+
+    const additions = generatedItems.filter((item) => generatedById.has(getFriendlyId(item)));
+    const insertionIndex = insertAt >= 0 ? insertAt : mergedItems.length;
+    mergedItems.splice(insertionIndex, 0, ...additions);
+    return mergedItems;
+}
+
 function main() {
     const filePath = resolveCatalogPath(process.argv);
     const raw = fs.readFileSync(filePath, 'utf8');
     const parsed = JSON.parse(raw);
     const items = Array.isArray(parsed?.Items) ? parsed.Items : [];
-    const accessoryIdPattern = /^accessory_(mystic|royal|shadow|nature|tech)_\d+$/;
-    const keptItems = items.filter((item) => !accessoryIdPattern.test(getFriendlyId(item)));
+    const groupKeys = ACCESSORY_GROUPS.map((group) => group.key).join('|');
+    const accessoryIdPattern = new RegExp(`^accessory_(${groupKeys})_\\d+$`);
     const accessoryItems = buildAccessoryItems();
-    parsed.Items = [...keptItems, ...accessoryItems];
+    parsed.Items = upsertGeneratedItems(items, accessoryItems, accessoryIdPattern);
     fs.writeFileSync(filePath, `${JSON.stringify(parsed, null, 2)}\n`, 'utf8');
     console.log(`[accessory-catalog] wrote ${accessoryItems.length} accessory items to ${filePath}`);
 }
 
-main();
+if (require.main === module) {
+    main();
+}
+
+module.exports = {
+    ACCESSORY_GROUPS,
+    buildAccessoryItems,
+    getFriendlyId,
+    upsertGeneratedItems
+};

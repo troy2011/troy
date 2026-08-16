@@ -5502,6 +5502,70 @@ test('inventory current equipment resolves object equipment references', async (
   await expectNoPageErrors(errors);
 });
 
+test('current equipment art refits when the mobile equipment layout becomes compact', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await bootstrapMainApp(page);
+
+  await page.evaluate(async () => {
+    const inventoryTab = document.getElementById('tabContentInventory');
+    if (inventoryTab) {
+      inventoryTab.style.display = 'block';
+      inventoryTab.dataset.inventoryPanel = 'loadout';
+      inventoryTab.dataset.inventoryGroup = 'Equipment';
+    }
+
+    const { renderAvatar } = await import('/js/avatar.js');
+    renderAvatar(
+      'avatar',
+      { Race: 'human', AvatarColor: 'brown' },
+      { RightHand: 'sword_001' },
+      {
+        sword_001: {
+          itemId: 'sword_001',
+          name: 'Resize Test Sword',
+          customData: {
+            Category: 'Weapon',
+            sprite_path: './Sprites/weapons/melee weapons/sword.png',
+            sprite_index: '1',
+            sprite_w: '32',
+            sprite_h: '32'
+          }
+        }
+      }
+    );
+  });
+
+  const art = page.locator('#equippedRightHandArt');
+  await expect(art.locator('.equip-slot-item-sprite')).toHaveCount(1);
+  await expect.poll(() => art.evaluate((element) => Math.round(element.getBoundingClientRect().width))).toBe(52);
+  const expandedSpriteWidth = await art.locator('.equip-slot-item-sprite').evaluate((sprite) => sprite.getBoundingClientRect().width);
+
+  await page.evaluate(() => {
+    const inventoryTab = document.getElementById('tabContentInventory');
+    if (inventoryTab) inventoryTab.dataset.inventoryPanel = 'items';
+  });
+
+  await expect.poll(() => art.evaluate((element) => {
+    const sprite = element.querySelector('.equip-slot-item-sprite');
+    const artRect = element.getBoundingClientRect();
+    const spriteRect = sprite?.getBoundingClientRect();
+    return {
+      artWidth: Math.round(artRect.width),
+      spriteFitsWidth: (spriteRect?.width || 0) <= artRect.width,
+      spriteFitsHeight: (spriteRect?.height || 0) <= artRect.height,
+      spriteWidth: spriteRect?.width || 0
+    };
+  })).toMatchObject({
+    artWidth: 36,
+    spriteFitsWidth: true,
+    spriteFitsHeight: true
+  });
+  const compactSpriteWidth = await art.locator('.equip-slot-item-sprite').evaluate((sprite) => sprite.getBoundingClientRect().width);
+  expect(compactSpriteWidth).toBeLessThan(expandedSpriteWidth);
+  await expectNoPageErrors(errors);
+});
+
 test('inventory equipment enhancement modal previews and applies multiple materials on mobile', async ({ page }) => {
   const errors = trackPageErrors(page);
   const previewRequests = [];
@@ -6908,10 +6972,20 @@ test('equipment cards open detail before equipping from inventory grid', async (
       itemId: 'hat_black_001',
       name: 'Leather Helm',
       customData: { Category: 'Armor', Defense: 6, sprite_path: './Sprites/wardrobe/cloth/hat_black.png', sprite_index: '0', sprite_w: '32', sprite_h: '32' }
+    },
+    {
+      itemId: 'accessory_old',
+      name: 'Current Charm',
+      customData: { Category: 'Accessory', Power: 1, Defense: 5, Agi: 3, Int: 8, sprite_path: './Sprites/items/icons.png', sprite_index: '977' }
+    },
+    {
+      itemId: 'accessory_new',
+      name: 'Swift Jewel',
+      customData: { Category: 'Accessory', Power: 3, Defense: 4, Agi: 7, Int: 5, sprite_path: './Sprites/items/icons.png', sprite_index: '982' }
     }
   ];
   const equipRequests = [];
-  let equipmentState = {};
+  let equipmentState = { Accessory: 'accessory_old' };
 
   await page.route('**/api/get-inventory', async (route) => {
     await route.fulfill({
@@ -7068,6 +7142,29 @@ test('equipment cards open detail before equipping from inventory grid', async (
   });
   await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]')).toHaveAttribute('data-equipment-state', 'equipped');
   await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"] .inventory-item-quick-action')).toHaveCount(0);
+
+  await page.evaluate(async () => {
+    const inventory = await import('/js/inventory.js');
+    inventory.switchInventoryTab('Accessory');
+  });
+  const accessoryCandidate = page.locator('#inventoryGrid .inventory-item-cell[data-category="Accessory"]', { hasText: 'Swift Jewel' });
+  await expect(accessoryCandidate.locator('.inventory-item-stat-badge')).toHaveText(['7', '5']);
+  await accessoryCandidate.click();
+  await expect(page.locator('#itemDetailStats')).toContainText('すばやさ7');
+  await expect(page.locator('#itemDetailStats')).toContainText('かしこさ5');
+  await expect(page.locator('#itemDetailStats')).toContainText('攻撃比較1 → 3 (+2)');
+  await expect(page.locator('#itemDetailStats')).toContainText('防御比較5 → 4 (-1)');
+  await expect(page.locator('#itemDetailStats')).toContainText('すばやさ比較3 → 7 (+4)');
+  await expect(page.locator('#itemDetailStats')).toContainText('かしこさ比較8 → 5 (-3)');
+  await page.evaluate(() => window.closeItemDetailModal && window.closeItemDetailModal());
+
+  await page.evaluate(async () => {
+    const inventory = await import('/js/inventory.js');
+    inventory.switchInventoryTab('Shield');
+  });
+  await page.locator('#inventoryGrid .inventory-item-cell[data-category="Shield"]').click();
+  await expect(page.locator('#itemDetailStats')).toContainText('盾性能8');
+  await expect(page.locator('#itemDetailStats')).not.toContainText('防御力8');
   await expectNoPageErrors(errors);
 });
 

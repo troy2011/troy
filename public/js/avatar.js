@@ -40,6 +40,7 @@ const AVATAR_HAIR_COLOR_BY_INDEX = Object.freeze([
     'yellow'
 ]);
 const activeAvatarAttackMotions = new WeakMap();
+const equipmentSlotArtResizeObservers = new WeakMap();
 
 function resolveAvatarAssetRace(value) {
     const race = String(value || 'human').trim().toLowerCase();
@@ -294,6 +295,30 @@ function clearEquipmentSlotArt(artEl) {
     artEl.innerHTML = '';
 }
 
+function fitEquipmentSlotSprite(artEl) {
+    const spriteEl = artEl?.querySelector('.equip-slot-item-sprite');
+    if (!spriteEl) return;
+
+    const displayWidth = Number(spriteEl.dataset.displayWidth) || 0;
+    const displayHeight = Number(spriteEl.dataset.displayHeight) || 0;
+    if (displayWidth <= 0 || displayHeight <= 0) return;
+
+    const artRect = artEl.getBoundingClientRect();
+    if (artRect.width <= 0 || artRect.height <= 0) return;
+
+    const availableSize = Math.max(1, Math.floor(Math.min(artRect.width, artRect.height) - 4));
+    const fitSize = Math.min(52, availableSize);
+    const previewScale = Math.min(4, fitSize / Math.max(displayWidth, displayHeight));
+    spriteEl.style.transform = `scale(${previewScale})`;
+}
+
+function observeEquipmentSlotArt(artEl) {
+    if (!artEl || equipmentSlotArtResizeObservers.has(artEl) || typeof ResizeObserver !== 'function') return;
+    const observer = new ResizeObserver(() => fitEquipmentSlotSprite(artEl));
+    observer.observe(artEl);
+    equipmentSlotArtResizeObservers.set(artEl, observer);
+}
+
 function cropVisibleSpriteFrame(img, sourceX, sourceY, frameWidth, frameHeight) {
     try {
         const frameCanvas = document.createElement('canvas');
@@ -404,12 +429,10 @@ function renderEquipmentSlotArt(artId, item, avatarColor = null) {
             const displayUrl = croppedFrame?.url || currentUrl;
             const displayWidth = croppedFrame?.width || frameWidth;
             const displayHeight = croppedFrame?.height || frameHeight;
-            const artRect = artEl.getBoundingClientRect();
-            const artFitSize = Math.max(24, Math.min(52, Math.floor(Math.min(artRect.width || 52, artRect.height || 52) - 4)));
-            const fitSize = artFitSize;
-            const previewScale = Math.min(4, Math.max(0.6, fitSize / Math.max(displayWidth, displayHeight)));
             const spriteEl = document.createElement('div');
             spriteEl.className = 'equip-slot-item-sprite';
+            spriteEl.dataset.displayWidth = String(displayWidth);
+            spriteEl.dataset.displayHeight = String(displayHeight);
             spriteEl.style.width = `${displayWidth}px`;
             spriteEl.style.height = `${displayHeight}px`;
             spriteEl.style.backgroundImage = `url('${displayUrl}')`;
@@ -423,12 +446,14 @@ function renderEquipmentSlotArt(artId, item, avatarColor = null) {
                 spriteEl.style.position = 'relative';
                 spriteEl.style.top = '-4px';
             }
-            spriteEl.style.transform = `scale(${previewScale})`;
 
             artEl.innerHTML = '';
             artEl.appendChild(spriteEl);
             artEl.classList.add('has-item');
             artEl.classList.remove('is-loading', 'is-error');
+            observeEquipmentSlotArt(artEl);
+            fitEquipmentSlotSprite(artEl);
+            requestAnimationFrame(() => fitEquipmentSlotSprite(artEl));
         });
     };
 

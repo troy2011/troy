@@ -270,38 +270,41 @@ const TAROT_MANIFEST_TEMPLATE_GROUPS = {
     accessory_royal: { category: 'Accessory', regex: /^accessory_royal_\d+$/i, sortField: 'Defense' },
     accessory_shadow: { category: 'Accessory', regex: /^accessory_shadow_\d+$/i, sortField: 'Defense' },
     accessory_nature: { category: 'Accessory', regex: /^accessory_nature_\d+$/i, sortField: 'Defense' },
-    accessory_tech: { category: 'Accessory', regex: /^accessory_tech_\d+$/i, sortField: 'Defense' }
+    accessory_tech: { category: 'Accessory', regex: /^accessory_tech_\d+$/i, sortField: 'Defense' },
+    accessory_gem: { category: 'Accessory', regex: /^accessory_gem_\d+$/i, sortField: 'Defense' },
+    accessory_feather: { category: 'Accessory', regex: /^accessory_feather_\d+$/i, sortField: 'Defense' },
+    accessory_medal: { category: 'Accessory', regex: /^accessory_medal_\d+$/i, sortField: 'Defense' }
 };
 const TAROT_MANIFEST_STYLE_RULES = {
     rogue: {
         Armor: { wand: 'armor_rogue', sword: 'armor_rogue', cup: 'armor_nature', pentacle: 'armor_rogue' },
         RightHand: { wand: 'weapon_wand', sword: 'weapon_dagger', cup: 'weapon_sword', pentacle: 'weapon_axe' },
         LeftHand: { wand: 'weapon_wand', sword: 'weapon_dagger', cup: 'shield_guard', pentacle: 'shield_guard' },
-        Accessory: { wand: 'accessory_shadow', sword: 'accessory_shadow', cup: 'accessory_nature', pentacle: 'accessory_tech' }
+        Accessory: { wand: 'accessory_shadow', sword: 'accessory_feather', cup: 'accessory_nature', pentacle: 'accessory_tech' }
     },
     arcane: {
         Armor: { wand: 'armor_mage', sword: 'armor_mage', cup: 'armor_priest', pentacle: 'armor_royal' },
         RightHand: { wand: 'weapon_staff', sword: 'weapon_sword', cup: 'weapon_staff', pentacle: 'weapon_blunt' },
         LeftHand: { wand: 'offhand_tome', sword: 'weapon_dagger', cup: 'offhand_orb', pentacle: 'offhand_catalyst' },
-        Accessory: { wand: 'accessory_mystic', sword: 'accessory_mystic', cup: 'accessory_mystic', pentacle: 'accessory_royal' }
+        Accessory: { wand: 'accessory_mystic', sword: 'accessory_gem', cup: 'accessory_mystic', pentacle: 'accessory_gem' }
     },
     cleric: {
         Armor: { wand: 'armor_priest', sword: 'armor_royal', cup: 'armor_priest', pentacle: 'armor_royal' },
         RightHand: { wand: 'weapon_staff', sword: 'weapon_sword', cup: 'weapon_polearm', pentacle: 'weapon_blunt' },
         LeftHand: { wand: 'offhand_relic', sword: 'shield_guard', cup: 'offhand_relic', pentacle: 'offhand_catalyst' },
-        Accessory: { wand: 'accessory_mystic', sword: 'accessory_royal', cup: 'accessory_mystic', pentacle: 'accessory_royal' }
+        Accessory: { wand: 'accessory_mystic', sword: 'accessory_medal', cup: 'accessory_gem', pentacle: 'accessory_royal' }
     },
     nature: {
         Armor: { wand: 'armor_nature', sword: 'armor_rogue', cup: 'armor_nature', pentacle: 'armor_nature' },
         RightHand: { wand: 'weapon_staff', sword: 'weapon_sword', cup: 'weapon_polearm', pentacle: 'weapon_blunt' },
         LeftHand: { wand: 'offhand_tome', sword: 'shield_guard', cup: 'offhand_catalyst', pentacle: 'offhand_catalyst' },
-        Accessory: { wand: 'accessory_nature', sword: 'accessory_nature', cup: 'accessory_nature', pentacle: 'accessory_nature' }
+        Accessory: { wand: 'accessory_nature', sword: 'accessory_feather', cup: 'accessory_nature', pentacle: 'accessory_gem' }
     },
     knight: {
         Armor: { wand: 'armor_knight', sword: 'armor_knight', cup: 'armor_knight', pentacle: 'armor_knight' },
         RightHand: { wand: 'weapon_staff', sword: 'weapon_sword', cup: 'weapon_polearm', pentacle: 'weapon_axe' },
         LeftHand: { wand: 'shield_guard', sword: 'shield_guard', cup: 'shield_guard', pentacle: 'shield_guard' },
-        Accessory: { wand: 'accessory_royal', sword: 'accessory_royal', cup: 'accessory_royal', pentacle: 'accessory_tech' }
+        Accessory: { wand: 'accessory_medal', sword: 'accessory_royal', cup: 'accessory_medal', pentacle: 'accessory_tech' }
     },
     shadow: {
         Armor: { wand: 'armor_dark', sword: 'armor_dark', cup: 'armor_dark', pentacle: 'armor_dark' },
@@ -313,7 +316,7 @@ const TAROT_MANIFEST_STYLE_RULES = {
         Armor: { wand: 'armor_royal', sword: 'armor_royal', cup: 'armor_royal', pentacle: 'armor_royal' },
         RightHand: { wand: 'weapon_staff', sword: 'weapon_sword', cup: 'weapon_polearm', pentacle: 'weapon_blunt' },
         LeftHand: { wand: 'offhand_relic', sword: 'shield_guard', cup: 'offhand_relic', pentacle: 'shield_guard' },
-        Accessory: { wand: 'accessory_royal', sword: 'accessory_royal', cup: 'accessory_royal', pentacle: 'accessory_royal' }
+        Accessory: { wand: 'accessory_royal', sword: 'accessory_medal', cup: 'accessory_gem', pentacle: 'accessory_royal' }
     }
 };
 const TAROT_MANIFEST_TEMPLATE_CACHE = new WeakMap();

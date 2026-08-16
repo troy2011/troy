@@ -6104,12 +6104,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ブラックジャック",
-        "ja-JP": "ブラックジャック"
+        "NEUTRAL": "鉛球のフレイル",
+        "ja-JP": "鉛球のフレイル"
       },
       "Description": {
-        "NEUTRAL": "革袋に砂や鉛を詰めた、携帯用の打撃武器。",
-        "ja-JP": "革袋に砂や鉛を詰めた、携帯用の打撃武器。"
+        "NEUTRAL": "鎖でつないだ重い鉛球を振り回して打ち付ける武器。",
+        "ja-JP": "鎖でつないだ重い鉛球を振り回して打ち付ける武器。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -6304,12 +6304,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "クリス",
-        "ja-JP": "クリス"
+        "NEUTRAL": "幅広の短剣",
+        "ja-JP": "幅広の短剣"
       },
       "Description": {
-        "NEUTRAL": "波打つ刃が特徴的な、儀式用の短剣。",
-        "ja-JP": "波打つ刃が特徴的な、儀式用の短剣。"
+        "NEUTRAL": "厚く幅広い刀身を持つ、切断力に優れた短剣。",
+        "ja-JP": "厚く幅広い刀身を持つ、切断力に優れた短剣。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -6329,12 +6329,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "マインゴーシュ",
-        "ja-JP": "マインゴーシュ"
+        "NEUTRAL": "湾曲短剣",
+        "ja-JP": "湾曲短剣"
       },
       "Description": {
-        "NEUTRAL": "利き手でない方の手に持ち、相手の攻撃を受け流すための短剣。",
-        "ja-JP": "利き手でない方の手に持ち、相手の攻撃を受け流すための短剣。"
+        "NEUTRAL": "内側へ湾曲した刃で素早く切り込む短剣。",
+        "ja-JP": "内側へ湾曲した刃で素早く切り込む短剣。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -6354,12 +6354,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ソードブレイカー",
-        "ja-JP": "ソードブレイカー"
+        "NEUTRAL": "重刃の短剣",
+        "ja-JP": "重刃の短剣"
       },
       "Description": {
-        "NEUTRAL": "相手の剣を折るために設計された、特殊な形状の短剣。",
-        "ja-JP": "相手の剣を折るために設計された、特殊な形状の短剣。"
+        "NEUTRAL": "短剣としては大ぶりな刃を持つ、重い一撃向けの武器。",
+        "ja-JP": "短剣としては大ぶりな刃を持つ、重い一撃向けの武器。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -7904,12 +7904,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "かわのよろい",
-        "ja-JP": "かわのよろい"
+        "NEUTRAL": "竜骨のマスク",
+        "ja-JP": "竜骨のマスク"
       },
       "Description": {
-        "NEUTRAL": "動物の皮で作られた基本的な鎧。",
-        "ja-JP": "動物の皮で作られた基本的な鎧。"
+        "NEUTRAL": "竜骨のマスク。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "竜骨のマスク。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -7929,12 +7929,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "スタッズ付き革兜",
-        "ja-JP": "スタッズ付き革兜"
+        "NEUTRAL": "牡羊骨のフード",
+        "ja-JP": "牡羊骨のフード"
       },
       "Description": {
-        "NEUTRAL": "金属の鋲で補強された革の兜。",
-        "ja-JP": "金属の鋲で補強された革の兜。"
+        "NEUTRAL": "牡羊骨のフード。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "牡羊骨のフード。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -7954,12 +7954,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "レンジャーキャップ",
-        "ja-JP": "レンジャーキャップ"
+        "NEUTRAL": "髑髏のフード",
+        "ja-JP": "髑髏のフード"
       },
       "Description": {
-        "NEUTRAL": "森での活動に適した、軽くて丈夫な革帽子。",
-        "ja-JP": "森での活動に適した、軽くて丈夫な革帽子。"
+        "NEUTRAL": "髑髏のフード。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "髑髏のフード。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -7979,12 +7979,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "盗賊のバンダナ",
-        "ja-JP": "盗賊のバンダナ"
+        "NEUTRAL": "角髑髏のフード",
+        "ja-JP": "角髑髏のフード"
       },
       "Description": {
-        "NEUTRAL": "素早さを重視する盗賊が好む、革製のバンダナ。",
-        "ja-JP": "素早さを重視する盗賊が好む、革製のバンダナ。"
+        "NEUTRAL": "角髑髏のフード。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "角髑髏のフード。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8004,12 +8004,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "冒険者の革帽子",
-        "ja-JP": "冒険者の革帽子"
+        "NEUTRAL": "鹿骨のフード",
+        "ja-JP": "鹿骨のフード"
       },
       "Description": {
-        "NEUTRAL": "多くの冒険者に愛用されている、実用的な革の帽子。",
-        "ja-JP": "多くの冒険者に愛用されている、実用的な革の帽子。"
+        "NEUTRAL": "鹿骨のフード。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "鹿骨のフード。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8029,12 +8029,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "エルフの革帽子",
-        "ja-JP": "エルフの革帽子"
+        "NEUTRAL": "羽飾りペストマスク",
+        "ja-JP": "羽飾りペストマスク"
       },
       "Description": {
-        "NEUTRAL": "エルフの職人が作った、軽くて優美な革帽子。",
-        "ja-JP": "エルフの職人が作った、軽くて優美な革帽子。"
+        "NEUTRAL": "羽飾りペストマスク。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "羽飾りペストマスク。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8054,12 +8054,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ドワーフの革帽子",
-        "ja-JP": "ドワーフの革帽子"
+        "NEUTRAL": "革面のフード",
+        "ja-JP": "革面のフード"
       },
       "Description": {
-        "NEUTRAL": "ドワーフの職人が作った、頑丈な革帽子。",
-        "ja-JP": "ドワーフの職人が作った、頑丈な革帽子。"
+        "NEUTRAL": "革面のフード。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "革面のフード。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8079,12 +8079,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "オークの革兜",
-        "ja-JP": "オークの革兜"
+        "NEUTRAL": "牙飾りの革面",
+        "ja-JP": "牙飾りの革面"
       },
       "Description": {
-        "NEUTRAL": "オークが戦利品から作った、無骨な革兜。",
-        "ja-JP": "オークが戦利品から作った、無骨な革兜。"
+        "NEUTRAL": "牙飾りの革面。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "牙飾りの革面。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8104,12 +8104,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ゴブリンの革帽子",
-        "ja-JP": "ゴブリンの革帽子"
+        "NEUTRAL": "革のソフトキャップ",
+        "ja-JP": "革のソフトキャップ"
       },
       "Description": {
-        "NEUTRAL": "ゴブリンが拾い集めた素材で作った、奇妙な革帽子。",
-        "ja-JP": "ゴブリンが拾い集めた素材で作った、奇妙な革帽子。"
+        "NEUTRAL": "革のソフトキャップ。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "革のソフトキャップ。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8129,12 +8129,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "旅人のフード",
-        "ja-JP": "旅人のフード"
+        "NEUTRAL": "革のワークキャップ",
+        "ja-JP": "革のワークキャップ"
       },
       "Description": {
-        "NEUTRAL": "長い旅路で風雨をしのぐための、丈夫な革製フード。",
-        "ja-JP": "長い旅路で風雨をしのぐための、丈夫な革製フード。"
+        "NEUTRAL": "革のワークキャップ。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "革のワークキャップ。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8154,12 +8154,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "狩人の帽子",
-        "ja-JP": "狩人の帽子"
+        "NEUTRAL": "革のフルフェイス",
+        "ja-JP": "革のフルフェイス"
       },
       "Description": {
-        "NEUTRAL": "獲物に気づかれにくい、自然に溶け込む色の革帽子。",
-        "ja-JP": "獲物に気づかれにくい、自然に溶け込む色の革帽子。"
+        "NEUTRAL": "革のフルフェイス。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "革のフルフェイス。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8179,12 +8179,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "吟遊詩人の帽子",
-        "ja-JP": "吟遊詩人の帽子"
+        "NEUTRAL": "片覆いの革兜",
+        "ja-JP": "片覆いの革兜"
       },
       "Description": {
-        "NEUTRAL": "羽飾りがおしゃれな、吟遊詩人がかぶる革帽子。",
-        "ja-JP": "羽飾りがおしゃれな、吟遊詩人がかぶる革帽子。"
+        "NEUTRAL": "片覆いの革兜。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "片覆いの革兜。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8204,12 +8204,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "薬草師の頭巾",
-        "ja-JP": "薬草師の頭巾"
+        "NEUTRAL": "革のオープンヘルム",
+        "ja-JP": "革のオープンヘルム"
       },
       "Description": {
-        "NEUTRAL": "薬草を摘む際に顔を守るための、実用的な頭巾。",
-        "ja-JP": "薬草を摘む際に顔を守るための、実用的な頭巾。"
+        "NEUTRAL": "革のオープンヘルム。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "革のオープンヘルム。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8229,12 +8229,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "商人の帽子",
-        "ja-JP": "商人の帽子"
+        "NEUTRAL": "二本角の革兜",
+        "ja-JP": "二本角の革兜"
       },
       "Description": {
-        "NEUTRAL": "各地を渡り歩く商人がかぶる、少し豪華な革帽子。",
-        "ja-JP": "各地を渡り歩く商人がかぶる、少し豪華な革帽子。"
+        "NEUTRAL": "二本角の革兜。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "二本角の革兜。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8254,12 +8254,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "騎兵の革兜",
-        "ja-JP": "騎兵の革兜"
+        "NEUTRAL": "革の三角帽",
+        "ja-JP": "革の三角帽"
       },
       "Description": {
-        "NEUTRAL": "馬に乗って戦う騎兵が使う、視界の広い革兜。",
-        "ja-JP": "馬に乗って戦う騎兵が使う、視界の広い革兜。"
+        "NEUTRAL": "革の三角帽。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "革の三角帽。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8279,12 +8279,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "傭兵の革兜",
-        "ja-JP": "傭兵の革兜"
+        "NEUTRAL": "革のとんがり帽",
+        "ja-JP": "革のとんがり帽"
       },
       "Description": {
-        "NEUTRAL": "金で雇われる傭兵が使う、傷だらけの革兜。",
-        "ja-JP": "金で雇われる傭兵が使う、傷だらけの革兜。"
+        "NEUTRAL": "革のとんがり帽。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "革のとんがり帽。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8304,12 +8304,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "衛兵の革兜",
-        "ja-JP": "衛兵の革兜"
+        "NEUTRAL": "革の三角海賊帽",
+        "ja-JP": "革の三角海賊帽"
       },
       "Description": {
-        "NEUTRAL": "街を守る衛兵に支給される、制式の革兜。",
-        "ja-JP": "街を守る衛兵に支給される、制式の革兜。"
+        "NEUTRAL": "革の三角海賊帽。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "革の三角海賊帽。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8329,12 +8329,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "探検家の帽子",
-        "ja-JP": "探検家の帽子"
+        "NEUTRAL": "羽飾りの革帽",
+        "ja-JP": "羽飾りの革帽"
       },
       "Description": {
-        "NEUTRAL": "未知の土地を探検する者がかぶる、つばの広い革帽子。",
-        "ja-JP": "未知の土地を探検する者がかぶる、つばの広い革帽子。"
+        "NEUTRAL": "羽飾りの革帽。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "羽飾りの革帽。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8354,12 +8354,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "飛行士の帽子",
-        "ja-JP": "飛行士の帽子"
+        "NEUTRAL": "革の額当てフード",
+        "ja-JP": "革の額当てフード"
       },
       "Description": {
-        "NEUTRAL": "飛行船乗りがかぶる、ゴーグル付きの革帽子。",
-        "ja-JP": "飛行船乗りがかぶる、ゴーグル付きの革帽子。"
+        "NEUTRAL": "革の額当てフード。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "革の額当てフード。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8379,12 +8379,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "学者の革帽子",
-        "ja-JP": "学者の革帽子"
+        "NEUTRAL": "鋲打ち革フード",
+        "ja-JP": "鋲打ち革フード"
       },
       "Description": {
-        "NEUTRAL": "研究に没頭する学者が好む、シンプルな革帽子。",
-        "ja-JP": "研究に没頭する学者が好む、シンプルな革帽子。"
+        "NEUTRAL": "鋲打ち革フード。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "鋲打ち革フード。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8404,12 +8404,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "貴族の革帽子",
-        "ja-JP": "貴族の革帽子"
+        "NEUTRAL": "革の旅帽",
+        "ja-JP": "革の旅帽"
       },
       "Description": {
-        "NEUTRAL": "狩猟などを楽しむ貴族が使う、装飾的な革帽子。",
-        "ja-JP": "狩猟などを楽しむ貴族が使う、装飾的な革帽子。"
+        "NEUTRAL": "革の旅帽。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "革の旅帽。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8429,12 +8429,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "暗殺者のフード",
-        "ja-JP": "暗殺者のフード"
+        "NEUTRAL": "羽飾りの旅帽",
+        "ja-JP": "羽飾りの旅帽"
       },
       "Description": {
-        "NEUTRAL": "闇に紛れて標的を狙う暗殺者のための、深いフード。",
-        "ja-JP": "闇に紛れて標的を狙う暗殺者のための、深いフード。"
+        "NEUTRAL": "羽飾りの旅帽。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "羽飾りの旅帽。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8454,12 +8454,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "シャーマンのフード",
-        "ja-JP": "シャーマンのフード"
+        "NEUTRAL": "革の魔女帽",
+        "ja-JP": "革の魔女帽"
       },
       "Description": {
-        "NEUTRAL": "精霊と交信するシャーマンが儀式で使う、動物の毛皮付きフード。",
-        "ja-JP": "精霊と交信するシャーマンが儀式で使う、動物の毛皮付きフード。"
+        "NEUTRAL": "革の魔女帽。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "革の魔女帽。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8479,12 +8479,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "忍びの頭巾",
-        "ja-JP": "忍びの頭巾"
+        "NEUTRAL": "帯締めの革魔女帽",
+        "ja-JP": "帯締めの革魔女帽"
       },
       "Description": {
-        "NEUTRAL": "隠密行動を得意とする忍びが使う、顔を隠す頭巾。",
-        "ja-JP": "隠密行動を得意とする忍びが使う、顔を隠す頭巾。"
+        "NEUTRAL": "帯締めの革魔女帽。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "帯締めの革魔女帽。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8504,12 +8504,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "侍の陣笠",
-        "ja-JP": "侍の陣笠"
+        "NEUTRAL": "大角の革兜",
+        "ja-JP": "大角の革兜"
       },
       "Description": {
-        "NEUTRAL": "戦場で侍が兜の代わりにかぶる、革製の陣笠。",
-        "ja-JP": "戦場で侍が兜の代わりにかぶる、革製の陣笠。"
+        "NEUTRAL": "大角の革兜。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "大角の革兜。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8529,12 +8529,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "山伏の頭巾",
-        "ja-JP": "山伏の頭巾"
+        "NEUTRAL": "片覆いの革フード",
+        "ja-JP": "片覆いの革フード"
       },
       "Description": {
-        "NEUTRAL": "山で修行する山伏がかぶる、小さな黒い頭巾。",
-        "ja-JP": "山で修行する山伏がかぶる、小さな黒い頭巾。"
+        "NEUTRAL": "片覆いの革フード。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "片覆いの革フード。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8554,12 +8554,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鳥面",
-        "ja-JP": "鳥面"
+        "NEUTRAL": "革の目深フード",
+        "ja-JP": "革の目深フード"
       },
       "Description": {
-        "NEUTRAL": "疫病を払う医者がつけていたとされる、鳥のくちばしのような仮面。",
-        "ja-JP": "疫病を払う医者がつけていたとされる、鳥のくちばしのような仮面。"
+        "NEUTRAL": "革の目深フード。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "革の目深フード。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8579,12 +8579,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ガスマスク",
-        "ja-JP": "ガスマスク"
+        "NEUTRAL": "革の丸帽",
+        "ja-JP": "革の丸帽"
       },
       "Description": {
-        "NEUTRAL": "有毒なガスを防ぐための、物々しいマスク。",
-        "ja-JP": "有毒なガスを防ぐための、物々しいマスク。"
+        "NEUTRAL": "革の丸帽。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "革の丸帽。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8604,12 +8604,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "サイバーマスク",
-        "ja-JP": "サイバーマスク"
+        "NEUTRAL": "鋲打ち革帽",
+        "ja-JP": "鋲打ち革帽"
       },
       "Description": {
-        "NEUTRAL": "未来的なデザインの、電子的なマスク。",
-        "ja-JP": "未来的なデザインの、電子的なマスク。"
+        "NEUTRAL": "鋲打ち革帽。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "鋲打ち革帽。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8629,12 +8629,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "スチームパンクゴーグル",
-        "ja-JP": "スチームパンクゴーグル"
+        "NEUTRAL": "角飾りの革帽",
+        "ja-JP": "角飾りの革帽"
       },
       "Description": {
-        "NEUTRAL": "蒸気機関が発達した世界の、歯車飾りがついたゴーグル。",
-        "ja-JP": "蒸気機関が発達した世界の、歯車飾りがついたゴーグル。"
+        "NEUTRAL": "角飾りの革帽。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "角飾りの革帽。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8654,12 +8654,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ポストマンキャップ",
-        "ja-JP": "ポストマンキャップ"
+        "NEUTRAL": "鋲打ち革兜",
+        "ja-JP": "鋲打ち革兜"
       },
       "Description": {
-        "NEUTRAL": "手紙を配達する郵便屋さんの帽子。",
-        "ja-JP": "手紙を配達する郵便屋さんの帽子。"
+        "NEUTRAL": "鋲打ち革兜。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "鋲打ち革兜。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8679,12 +8679,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "警察官の帽子",
-        "ja-JP": "警察官の帽子"
+        "NEUTRAL": "厚革の丸兜",
+        "ja-JP": "厚革の丸兜"
       },
       "Description": {
-        "NEUTRAL": "街の平和を守る警察官の制帽。",
-        "ja-JP": "街の平和を守る警察官の制帽。"
+        "NEUTRAL": "厚革の丸兜。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "厚革の丸兜。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8704,12 +8704,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "消防士のヘルメット",
-        "ja-JP": "消防士のヘルメット"
+        "NEUTRAL": "革の耳当て帽",
+        "ja-JP": "革の耳当て帽"
       },
       "Description": {
-        "NEUTRAL": "炎から頭を守る、消防士のヘルメット。",
-        "ja-JP": "炎から頭を守る、消防士のヘルメット。"
+        "NEUTRAL": "革の耳当て帽。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "革の耳当て帽。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8729,12 +8729,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "コックさんの帽子",
-        "ja-JP": "コックさんの帽子"
+        "NEUTRAL": "革のハンチング",
+        "ja-JP": "革のハンチング"
       },
       "Description": {
-        "NEUTRAL": "美味しい料理を作るコックさんの、背の高い帽子。",
-        "ja-JP": "美味しい料理を作るコックさんの、背の高い帽子。"
+        "NEUTRAL": "革のハンチング。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "革のハンチング。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8754,12 +8754,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ナースキャップ",
-        "ja-JP": "ナースキャップ"
+        "NEUTRAL": "革の羽飾り帽",
+        "ja-JP": "革の羽飾り帽"
       },
       "Description": {
-        "NEUTRAL": "患者を看護する看護師さんの帽子。",
-        "ja-JP": "患者を看護する看護師さんの帽子。"
+        "NEUTRAL": "革の羽飾り帽。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "革の羽飾り帽。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8779,12 +8779,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "工事ヘルメット",
-        "ja-JP": "工事ヘルメット"
+        "NEUTRAL": "羽飾りハンチング",
+        "ja-JP": "羽飾りハンチング"
       },
       "Description": {
-        "NEUTRAL": "工事現場で安全のためにかぶるヘルメット。",
-        "ja-JP": "工事現場で安全のためにかぶるヘルメット。"
+        "NEUTRAL": "羽飾りハンチング。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "羽飾りハンチング。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8804,12 +8804,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "野球帽",
-        "ja-JP": "野球帽"
+        "NEUTRAL": "白羽根の革帽",
+        "ja-JP": "白羽根の革帽"
       },
       "Description": {
-        "NEUTRAL": "野球選手がかぶる、スポーティーな帽子。",
-        "ja-JP": "野球選手がかぶる、スポーティーな帽子。"
+        "NEUTRAL": "白羽根の革帽。革と補強材を組み合わせた頭部装備。",
+        "ja-JP": "白羽根の革帽。革と補強材を組み合わせた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8829,12 +8829,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "かわのかぶとB",
-        "ja-JP": "かわのかぶとB"
+        "NEUTRAL": "大角の革兜",
+        "ja-JP": "大角の革兜"
       },
       "Description": {
-        "NEUTRAL": "顔を覆うタイプの革製兜。",
-        "ja-JP": "顔を覆うタイプの革製兜。"
+        "NEUTRAL": "大角の革兜。厚い革と獣素材で仕立てた頭部装備。",
+        "ja-JP": "大角の革兜。厚い革と獣素材で仕立てた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8854,12 +8854,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ホーンヘルム",
-        "ja-JP": "ホーンヘルム"
+        "NEUTRAL": "鹿角の革冠",
+        "ja-JP": "鹿角の革冠"
       },
       "Description": {
-        "NEUTRAL": "角の飾りがついた革製の兜。",
-        "ja-JP": "角の飾りがついた革製の兜。"
+        "NEUTRAL": "鹿角の革冠。厚い革と獣素材で仕立てた頭部装備。",
+        "ja-JP": "鹿角の革冠。厚い革と獣素材で仕立てた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8879,12 +8879,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "バイキングヘルム",
-        "ja-JP": "バイキングヘルム"
+        "NEUTRAL": "鹿骨の革面",
+        "ja-JP": "鹿骨の革面"
       },
       "Description": {
-        "NEUTRAL": "大きな角と鼻当てが特徴的な、勇ましい革兜。",
-        "ja-JP": "大きな角と鼻当てが特徴的な、勇ましい革兜。"
+        "NEUTRAL": "鹿骨の革面。厚い革と獣素材で仕立てた頭部装備。",
+        "ja-JP": "鹿骨の革面。厚い革と獣素材で仕立てた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8904,12 +8904,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "アサシンフード",
-        "ja-JP": "アサシンフード"
+        "NEUTRAL": "髑髏羽根の革兜",
+        "ja-JP": "髑髏羽根の革兜"
       },
       "Description": {
-        "NEUTRAL": "顔を深く隠す、暗殺者用の革製フード。",
-        "ja-JP": "顔を深く隠す、暗殺者用の革製フード。"
+        "NEUTRAL": "髑髏羽根の革兜。厚い革と獣素材で仕立てた頭部装備。",
+        "ja-JP": "髑髏羽根の革兜。厚い革と獣素材で仕立てた頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8929,12 +8929,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "てつのかぶと",
-        "ja-JP": "てつのかぶと"
+        "NEUTRAL": "銀十字の騎士兜",
+        "ja-JP": "銀十字の騎士兜"
       },
       "Description": {
-        "NEUTRAL": "頭部を守る鉄製の兜。",
-        "ja-JP": "頭部を守る鉄製の兜。"
+        "NEUTRAL": "銀十字の騎士兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "銀十字の騎士兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8954,12 +8954,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "フルフェイスヘルム",
-        "ja-JP": "フルフェイスヘルム"
+        "NEUTRAL": "金十字の騎士兜",
+        "ja-JP": "金十字の騎士兜"
       },
       "Description": {
-        "NEUTRAL": "顔全体を覆う鉄製の兜。",
-        "ja-JP": "顔全体を覆う鉄製の兜。"
+        "NEUTRAL": "金十字の騎士兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "金十字の騎士兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8979,12 +8979,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ウィングヘルム",
-        "ja-JP": "ウィングヘルム"
+        "NEUTRAL": "鋼の面頬兜",
+        "ja-JP": "鋼の面頬兜"
       },
       "Description": {
-        "NEUTRAL": "鳥の翼を模した飾りがついた兜。",
-        "ja-JP": "鳥の翼を模した飾りがついた兜。"
+        "NEUTRAL": "鋼の面頬兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鋼の面頬兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9004,12 +9004,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ナイトヘルム",
-        "ja-JP": "ナイトヘルム"
+        "NEUTRAL": "鋼の角面兜",
+        "ja-JP": "鋼の角面兜"
       },
       "Description": {
-        "NEUTRAL": "騎士が身につける、格式高い兜。",
-        "ja-JP": "騎士が身につける、格式高い兜。"
+        "NEUTRAL": "鋼の角面兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鋼の角面兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9029,12 +9029,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "グラディエーターヘルム",
-        "ja-JP": "グラディエーターヘルム"
+        "NEUTRAL": "金十字の重騎士兜",
+        "ja-JP": "金十字の重騎士兜"
       },
       "Description": {
-        "NEUTRAL": "闘技場の戦士が身につける、特徴的な形状の兜。",
-        "ja-JP": "闘技場の戦士が身につける、特徴的な形状の兜。"
+        "NEUTRAL": "金十字の重騎士兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "金十字の重騎士兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9054,12 +9054,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "サレット",
-        "ja-JP": "サレット"
+        "NEUTRAL": "黒十字の面頬兜",
+        "ja-JP": "黒十字の面頬兜"
       },
       "Description": {
-        "NEUTRAL": "後頭部を覆うように伸びた、実戦的な兜。",
-        "ja-JP": "後頭部を覆うように伸びた、実戦的な兜。"
+        "NEUTRAL": "黒十字の面頬兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "黒十字の面頬兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9079,12 +9079,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "アーメット",
-        "ja-JP": "アーメット"
+        "NEUTRAL": "双紋の面頬兜",
+        "ja-JP": "双紋の面頬兜"
       },
       "Description": {
-        "NEUTRAL": "顔全体と首を防御する、重騎士の兜。",
-        "ja-JP": "顔全体と首を防御する、重騎士の兜。"
+        "NEUTRAL": "双紋の面頬兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "双紋の面頬兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9104,12 +9104,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "バシネット",
-        "ja-JP": "バシネット"
+        "NEUTRAL": "鋲十字の面頬兜",
+        "ja-JP": "鋲十字の面頬兜"
       },
       "Description": {
-        "NEUTRAL": "鼻当てがついた、シンプルな形状の兜。",
-        "ja-JP": "鼻当てがついた、シンプルな形状の兜。"
+        "NEUTRAL": "鋲十字の面頬兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鋲十字の面頬兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9129,12 +9129,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "グレートヘルム",
-        "ja-JP": "グレートヘルム"
+        "NEUTRAL": "鉄十字の面頬兜",
+        "ja-JP": "鉄十字の面頬兜"
       },
       "Description": {
-        "NEUTRAL": "十字軍の騎士が使った、バケツのような形の兜。",
-        "ja-JP": "十字軍の騎士が使った、バケツのような形の兜。"
+        "NEUTRAL": "鉄十字の面頬兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鉄十字の面頬兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9154,12 +9154,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "コロナ",
-        "ja-JP": "コロナ"
+        "NEUTRAL": "格子面の重兜",
+        "ja-JP": "格子面の重兜"
       },
       "Description": {
-        "NEUTRAL": "古代ローマの兵士がかぶった、シンプルな兜。",
-        "ja-JP": "古代ローマの兵士がかぶった、シンプルな兜。"
+        "NEUTRAL": "格子面の重兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "格子面の重兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9179,12 +9179,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "バイキングヘルム",
-        "ja-JP": "バイキングヘルム"
+        "NEUTRAL": "重格子の騎士兜",
+        "ja-JP": "重格子の騎士兜"
       },
       "Description": {
-        "NEUTRAL": "角飾りが勇ましい、バイキングの兜。",
-        "ja-JP": "角飾りが勇ましい、バイキングの兜。"
+        "NEUTRAL": "重格子の騎士兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "重格子の騎士兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9204,12 +9204,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "サムライヘルム",
-        "ja-JP": "サムライヘルム"
+        "NEUTRAL": "丸面の騎士兜",
+        "ja-JP": "丸面の騎士兜"
       },
       "Description": {
-        "NEUTRAL": "日本の侍がかぶる、特徴的な形状の兜。",
-        "ja-JP": "日本の侍がかぶる、特徴的な形状の兜。"
+        "NEUTRAL": "丸面の騎士兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "丸面の騎士兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9229,12 +9229,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ファランクスヘルム",
-        "ja-JP": "ファランクスヘルム"
+        "NEUTRAL": "鋼のグレートヘルム",
+        "ja-JP": "鋼のグレートヘルム"
       },
       "Description": {
-        "NEUTRAL": "古代ギリシャの重装歩兵がかぶった、T字の覗き窓がある兜。",
-        "ja-JP": "古代ギリシャの重装歩兵がかぶった、T字の覗き窓がある兜。"
+        "NEUTRAL": "鋼のグレートヘルム。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鋼のグレートヘルム。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9254,12 +9254,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ゴールデンヘルム",
-        "ja-JP": "ゴールデンヘルム"
+        "NEUTRAL": "鋲打ち鉄鉢兜",
+        "ja-JP": "鋲打ち鉄鉢兜"
       },
       "Description": {
-        "NEUTRAL": "黄金で作られた、まばゆい輝きを放つ兜。",
-        "ja-JP": "黄金で作られた、まばゆい輝きを放つ兜。"
+        "NEUTRAL": "鋲打ち鉄鉢兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鋲打ち鉄鉢兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9279,12 +9279,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ミスリルヘルム",
-        "ja-JP": "ミスリルヘルム"
+        "NEUTRAL": "鎖帷子の鉄鉢兜",
+        "ja-JP": "鎖帷子の鉄鉢兜"
       },
       "Description": {
-        "NEUTRAL": "伝説の金属ミスリルで作られた、軽くて頑丈な兜。",
-        "ja-JP": "伝説の金属ミスリルで作られた、軽くて頑丈な兜。"
+        "NEUTRAL": "鎖帷子の鉄鉢兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鎖帷子の鉄鉢兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9304,12 +9304,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "デモンヘルム",
-        "ja-JP": "デモンヘルム"
+        "NEUTRAL": "鋲打ち丸兜",
+        "ja-JP": "鋲打ち丸兜"
       },
       "Description": {
-        "NEUTRAL": "悪魔の力が宿る、禍々しい兜。",
-        "ja-JP": "悪魔の力が宿る、禍々しい兜。"
+        "NEUTRAL": "鋲打ち丸兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鋲打ち丸兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9329,12 +9329,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ホーリーヘルム",
-        "ja-JP": "ホーリーヘルム"
+        "NEUTRAL": "鎖垂れの丸兜",
+        "ja-JP": "鎖垂れの丸兜"
       },
       "Description": {
-        "NEUTRAL": "聖なる力が込められた、邪悪を退ける兜。",
-        "ja-JP": "聖なる力が込められた、邪悪を退ける兜。"
+        "NEUTRAL": "鎖垂れの丸兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鎖垂れの丸兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9354,12 +9354,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "クリスタルヘルム",
-        "ja-JP": "クリスタルヘルム"
+        "NEUTRAL": "平鉄鉢の丸兜",
+        "ja-JP": "平鉄鉢の丸兜"
       },
       "Description": {
-        "NEUTRAL": "全体が水晶でできた、透明で美しい兜。",
-        "ja-JP": "全体が水晶でできた、透明で美しい兜。"
+        "NEUTRAL": "平鉄鉢の丸兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "平鉄鉢の丸兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9379,12 +9379,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ボーンヘルム",
-        "ja-JP": "ボーンヘルム"
+        "NEUTRAL": "鎖垂れ平鉄鉢兜",
+        "ja-JP": "鎖垂れ平鉄鉢兜"
       },
       "Description": {
-        "NEUTRAL": "巨大な獣の頭蓋骨を加工して作られた兜。",
-        "ja-JP": "巨大な獣の頭蓋骨を加工して作られた兜。"
+        "NEUTRAL": "鎖垂れ平鉄鉢兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鎖垂れ平鉄鉢兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9404,12 +9404,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "オリハルコンヘルム",
-        "ja-JP": "オリハルコンヘルム"
+        "NEUTRAL": "つば広鉄帽",
+        "ja-JP": "つば広鉄帽"
       },
       "Description": {
-        "NEUTRAL": "伝説の金属オリハルコンで作られた究極の兜。",
-        "ja-JP": "伝説の金属オリハルコンで作られた究極の兜。"
+        "NEUTRAL": "つば広鉄帽。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "つば広鉄帽。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9429,12 +9429,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ダイバーズヘルム",
-        "ja-JP": "ダイバーズヘルム"
+        "NEUTRAL": "鎖垂れ鉄帽",
+        "ja-JP": "鎖垂れ鉄帽"
       },
       "Description": {
-        "NEUTRAL": "潜水夫が使う、丸窓のついた金属製のヘルメット。",
-        "ja-JP": "潜水夫が使う、丸窓のついた金属製のヘルメット。"
+        "NEUTRAL": "鎖垂れ鉄帽。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鎖垂れ鉄帽。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9454,12 +9454,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ロボットヘッド",
-        "ja-JP": "ロボットヘッド"
+        "NEUTRAL": "鋼の鼻当て兜",
+        "ja-JP": "鋼の鼻当て兜"
       },
       "Description": {
-        "NEUTRAL": "機械的なデザインの、ロボットの頭部パーツ。",
-        "ja-JP": "機械的なデザインの、ロボットの頭部パーツ。"
+        "NEUTRAL": "鋼の鼻当て兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鋼の鼻当て兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9479,12 +9479,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "宇宙ヘルメット",
-        "ja-JP": "宇宙ヘルメット"
+        "NEUTRAL": "鋼の頬当て兜",
+        "ja-JP": "鋼の頬当て兜"
       },
       "Description": {
-        "NEUTRAL": "宇宙服の一部である、バイザー付きのヘルメット。",
-        "ja-JP": "宇宙服の一部である、バイザー付きのヘルメット。"
+        "NEUTRAL": "鋼の頬当て兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鋼の頬当て兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9504,12 +9504,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "フットボールヘルメット",
-        "ja-JP": "フットボールヘルメット"
+        "NEUTRAL": "鋼の耳当て兜",
+        "ja-JP": "鋼の耳当て兜"
       },
       "Description": {
-        "NEUTRAL": "激しいスポーツで頭部を守るためのヘルメット。",
-        "ja-JP": "激しいスポーツで頭部を守るためのヘルメット。"
+        "NEUTRAL": "鋼の耳当て兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鋼の耳当て兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9529,12 +9529,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "バケツ",
-        "ja-JP": "バケツ"
+        "NEUTRAL": "鎖垂れ耳当て兜",
+        "ja-JP": "鎖垂れ耳当て兜"
       },
       "Description": {
-        "NEUTRAL": "なぜか頭にぴったりフィットする金属製のバケツ。",
-        "ja-JP": "なぜか頭にぴったりフィットする金属製のバケツ。"
+        "NEUTRAL": "鎖垂れ耳当て兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鎖垂れ耳当て兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9554,12 +9554,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鍋",
-        "ja-JP": "鍋"
+        "NEUTRAL": "鋼のサレット",
+        "ja-JP": "鋼のサレット"
       },
       "Description": {
-        "NEUTRAL": "間に合わせの兜として使われる、頑丈な鍋。",
-        "ja-JP": "間に合わせの兜として使われる、頑丈な鍋。"
+        "NEUTRAL": "鋼のサレット。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鋼のサレット。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9579,12 +9579,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "王冠（豪華）",
-        "ja-JP": "王冠（豪華）"
+        "NEUTRAL": "鎖垂れサレット",
+        "ja-JP": "鎖垂れサレット"
       },
       "Description": {
-        "NEUTRAL": "宝石がちりばめられた、非常に豪華な王冠。",
-        "ja-JP": "宝石がちりばめられた、非常に豪華な王冠。"
+        "NEUTRAL": "鎖垂れサレット。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鎖垂れサレット。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9604,12 +9604,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "女王のティアラ",
-        "ja-JP": "女王のティアラ"
+        "NEUTRAL": "鋼の片覆い兜",
+        "ja-JP": "鋼の片覆い兜"
       },
       "Description": {
-        "NEUTRAL": "一国の女王が身につける、気品あふれるティアラ。",
-        "ja-JP": "一国の女王が身につける、気品あふれるティアラ。"
+        "NEUTRAL": "鋼の片覆い兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鋼の片覆い兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9629,12 +9629,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "サークレット",
-        "ja-JP": "サークレット"
+        "NEUTRAL": "黄金の片覆い兜",
+        "ja-JP": "黄金の片覆い兜"
       },
       "Description": {
-        "NEUTRAL": "額につける、魔力を秘めた金属製の髪飾り。",
-        "ja-JP": "額につける、魔力を秘めた金属製の髪飾り。"
+        "NEUTRAL": "黄金の片覆い兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "黄金の片覆い兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9654,12 +9654,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "月桂冠",
-        "ja-JP": "月桂冠"
+        "NEUTRAL": "羽飾り黄金兜",
+        "ja-JP": "羽飾り黄金兜"
       },
       "Description": {
-        "NEUTRAL": "勝利者に与えられる、栄光の月桂冠。",
-        "ja-JP": "勝利者に与えられる、栄光の月桂冠。"
+        "NEUTRAL": "羽飾り黄金兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "羽飾り黄金兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9679,12 +9679,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "アイパッチ",
-        "ja-JP": "アイパッチ"
+        "NEUTRAL": "黄金クレスト兜",
+        "ja-JP": "黄金クレスト兜"
       },
       "Description": {
-        "NEUTRAL": "金属で作られた、スタイリッシュな眼帯。",
-        "ja-JP": "金属で作られた、スタイリッシュな眼帯。"
+        "NEUTRAL": "黄金クレスト兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "黄金クレスト兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9704,12 +9704,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "サイバーバイザー",
-        "ja-JP": "サイバーバイザー"
+        "NEUTRAL": "黄金クレスト重兜",
+        "ja-JP": "黄金クレスト重兜"
       },
       "Description": {
-        "NEUTRAL": "戦闘情報を表示する、未来的なバイザー。",
-        "ja-JP": "戦闘情報を表示する、未来的なバイザー。"
+        "NEUTRAL": "黄金クレスト重兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "黄金クレスト重兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9729,12 +9729,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ドリル",
-        "ja-JP": "ドリル"
+        "NEUTRAL": "鋼のコリント兜",
+        "ja-JP": "鋼のコリント兜"
       },
       "Description": {
-        "NEUTRAL": "なぜか頭についているドリル。とても硬い。",
-        "ja-JP": "なぜか頭についているドリル。とても硬い。"
+        "NEUTRAL": "鋼のコリント兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鋼のコリント兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9754,12 +9754,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "プロペラ",
-        "ja-JP": "プロペラ"
+        "NEUTRAL": "黄金コリント兜",
+        "ja-JP": "黄金コリント兜"
       },
       "Description": {
-        "NEUTRAL": "頭についたプロペラ。空は飛べない。",
-        "ja-JP": "頭についたプロペラ。空は飛べない。"
+        "NEUTRAL": "黄金コリント兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "黄金コリント兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9779,12 +9779,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "アンテナ",
-        "ja-JP": "アンテナ"
+        "NEUTRAL": "鋼のイリュリア兜",
+        "ja-JP": "鋼のイリュリア兜"
       },
       "Description": {
-        "NEUTRAL": "何かを受信できそうなアンテナ。",
-        "ja-JP": "何かを受信できそうなアンテナ。"
+        "NEUTRAL": "鋼のイリュリア兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鋼のイリュリア兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9804,12 +9804,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ロウソク",
-        "ja-JP": "ロウソク"
+        "NEUTRAL": "黄金イリュリア兜",
+        "ja-JP": "黄金イリュリア兜"
       },
       "Description": {
-        "NEUTRAL": "頭の上で火が灯っているロウソク。熱くない。",
-        "ja-JP": "頭の上で火が灯っているロウソク。熱くない。"
+        "NEUTRAL": "黄金イリュリア兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "黄金イリュリア兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9829,12 +9829,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ちょんまげ",
-        "ja-JP": "ちょんまげ"
+        "NEUTRAL": "鋼のフリギア兜",
+        "ja-JP": "鋼のフリギア兜"
       },
       "Description": {
-        "NEUTRAL": "侍の髪型であるちょんまげ。なぜか金属製。",
-        "ja-JP": "侍の髪型であるちょんまげ。なぜか金属製。"
+        "NEUTRAL": "鋼のフリギア兜。金属板を組み上げた堅牢な頭部装備。",
+        "ja-JP": "鋼のフリギア兜。金属板を組み上げた堅牢な頭部装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -11293,81 +11293,6 @@
         "Power": 30,
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 34
-      }
-    },
-    {
-      "AlternateIds": [
-        {
-          "Type": "FriendlyId",
-          "Value": "gun_01"
-        }
-      ],
-      "Type": "catalogItem",
-      "Title": {
-        "NEUTRAL": "マフ・ピストル",
-        "ja-JP": "マフ・ピストル"
-      },
-      "Description": {
-        "NEUTRAL": "手のひらに収まるほど極小のピストル。",
-        "ja-JP": "手のひらに収まるほど極小のピストル。"
-      },
-      "ContentType": "Durable",
-      "Tags": [],
-      "DisplayProperties": {
-        "Category": "Weapon",
-        "Power": 14,
-        "sprite_path": "./Sprites/weapons/ranged weapons/pistol.png",
-        "sprite_index": 0
-      }
-    },
-    {
-      "AlternateIds": [
-        {
-          "Type": "FriendlyId",
-          "Value": "gun_01"
-        }
-      ],
-      "Type": "catalogItem",
-      "Title": {
-        "NEUTRAL": "シーサービス",
-        "ja-JP": "シーサービス"
-      },
-      "Description": {
-        "NEUTRAL": "海軍や私掠船支給された標準的な官給品",
-        "ja-JP": "海軍や私掠船支給された標準的な官給品"
-      },
-      "ContentType": "Durable",
-      "Tags": [],
-      "DisplayProperties": {
-        "Category": "Weapon",
-        "Power": 14,
-        "sprite_path": "./Sprites/weapons/ranged weapons/pistol.png",
-        "sprite_index": 4
-      }
-    },
-    {
-      "AlternateIds": [
-        {
-          "Type": "FriendlyId",
-          "Value": "gun_01"
-        }
-      ],
-      "Type": "catalogItem",
-      "Title": {
-        "NEUTRAL": "ドラゴン",
-        "ja-JP": "ドラゴン"
-      },
-      "Description": {
-        "NEUTRAL": "片手で撃てる散弾銃。",
-        "ja-JP": "片手で撃てる散弾銃。"
-      },
-      "ContentType": "Durable",
-      "Tags": [],
-      "DisplayProperties": {
-        "Category": "Weapon",
-        "Power": 14,
-        "sprite_path": "./Sprites/weapons/ranged weapons/pistol.png",
-        "sprite_index": 8
       }
     },
     {
@@ -13029,12 +12954,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "きのつえ",
-        "ja-JP": "きのつえ"
+        "NEUTRAL": "木枝の杖",
+        "ja-JP": "木枝の杖"
       },
       "Description": {
-        "NEUTRAL": "魔法使い見習いが持つ木の杖。",
-        "ja-JP": "魔法使い見習いが持つ木の杖。"
+        "NEUTRAL": "木枝の杖。魔力を導くために作られた長杖。",
+        "ja-JP": "木枝の杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13054,12 +12979,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "クリスタルスタッフ",
-        "ja-JP": "クリスタルスタッフ"
+        "NEUTRAL": "翠玉の杖",
+        "ja-JP": "翠玉の杖"
       },
       "Description": {
-        "NEUTRAL": "杖の先端に巨大な水晶がはめ込まれた杖。",
-        "ja-JP": "杖の先端に巨大な水晶がはめ込まれた杖。"
+        "NEUTRAL": "翠玉の杖。魔力を導くために作られた長杖。",
+        "ja-JP": "翠玉の杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13079,12 +13004,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "スカルスタッフ",
-        "ja-JP": "スカルスタッフ"
+        "NEUTRAL": "月輪の杖",
+        "ja-JP": "月輪の杖"
       },
       "Description": {
-        "NEUTRAL": "先端に髑髏が飾られた、邪悪な魔力を放つ杖。",
-        "ja-JP": "先端に髑髏が飾られた、邪悪な魔力を放つ杖。"
+        "NEUTRAL": "月輪の杖。魔力を導くために作られた長杖。",
+        "ja-JP": "月輪の杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13104,12 +13029,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "デーモンスタッフ",
-        "ja-JP": "デーモンスタッフ"
+        "NEUTRAL": "白晶の杖",
+        "ja-JP": "白晶の杖"
       },
       "Description": {
-        "NEUTRAL": "悪魔を召喚する儀式に使われたとされる、邪悪な杖。",
-        "ja-JP": "悪魔を召喚する儀式に使われたとされる、邪悪な杖。"
+        "NEUTRAL": "白晶の杖。魔力を導くために作られた長杖。",
+        "ja-JP": "白晶の杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13129,12 +13054,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "大賢者の杖",
-        "ja-JP": "大賢者の杖"
+        "NEUTRAL": "紫晶の杖",
+        "ja-JP": "紫晶の杖"
       },
       "Description": {
-        "NEUTRAL": "偉大な賢者が使っていたと言われる、強大な魔力を秘めた杖。",
-        "ja-JP": "偉大な賢者が使っていたと言われる、強大な魔力を秘めた杖。"
+        "NEUTRAL": "紫晶の杖。魔力を導くために作られた長杖。",
+        "ja-JP": "紫晶の杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13154,12 +13079,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ルーンスタッフ",
-        "ja-JP": "ルーンスタッフ"
+        "NEUTRAL": "蛇木の杖",
+        "ja-JP": "蛇木の杖"
       },
       "Description": {
-        "NEUTRAL": "ルーンの力が刻まれた、魔力を増幅する杖。",
-        "ja-JP": "ルーンの力が刻まれた、魔力を増幅する杖。"
+        "NEUTRAL": "蛇木の杖。魔力を導くために作られた長杖。",
+        "ja-JP": "蛇木の杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13179,12 +13104,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "司教の杖",
-        "ja-JP": "司教の杖"
+        "NEUTRAL": "蒼晶の杖",
+        "ja-JP": "蒼晶の杖"
       },
       "Description": {
-        "NEUTRAL": "高位の司教が持つ、信仰の力を示す杖。",
-        "ja-JP": "高位の司教が持つ、信仰の力を示す杖。"
+        "NEUTRAL": "蒼晶の杖。魔力を導くために作られた長杖。",
+        "ja-JP": "蒼晶の杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13204,12 +13129,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "大司教の杖",
-        "ja-JP": "大司教の杖"
+        "NEUTRAL": "若木の杖",
+        "ja-JP": "若木の杖"
       },
       "Description": {
-        "NEUTRAL": "大司教のみが持つことを許された、聖なる杖。",
-        "ja-JP": "大司教のみが持つことを許された、聖なる杖。"
+        "NEUTRAL": "若木の杖。魔力を導くために作られた長杖。",
+        "ja-JP": "若木の杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13229,12 +13154,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ゴールデンスタッフ",
-        "ja-JP": "ゴールデンスタッフ"
+        "NEUTRAL": "蒼金の司祭杖",
+        "ja-JP": "蒼金の司祭杖"
       },
       "Description": {
-        "NEUTRAL": "黄金で作られた、まばゆい輝きを放つ杖。",
-        "ja-JP": "黄金で作られた、まばゆい輝きを放つ杖。"
+        "NEUTRAL": "蒼金の司祭杖。魔力を導くために作られた長杖。",
+        "ja-JP": "蒼金の司祭杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13254,12 +13179,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ミスリルスタッフ",
-        "ja-JP": "ミスリルスタッフ"
+        "NEUTRAL": "翠環の杖",
+        "ja-JP": "翠環の杖"
       },
       "Description": {
-        "NEUTRAL": "ミスリルで作られた、軽くて魔力の通りが良い杖。",
-        "ja-JP": "ミスリルで作られた、軽くて魔力の通りが良い杖。"
+        "NEUTRAL": "翠環の杖。魔力を導くために作られた長杖。",
+        "ja-JP": "翠環の杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13279,12 +13204,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ホーリーロッド",
-        "ja-JP": "ホーリーロッド"
+        "NEUTRAL": "牧者の杖",
+        "ja-JP": "牧者の杖"
       },
       "Description": {
-        "NEUTRAL": "聖なる力が宿る、アンデッドに絶大な効果を発揮する杖。",
-        "ja-JP": "聖なる力が宿る、アンデッドに絶大な効果を発揮する杖。"
+        "NEUTRAL": "牧者の杖。魔力を導くために作られた長杖。",
+        "ja-JP": "牧者の杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13304,12 +13229,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "オリハルコンスタッフ",
-        "ja-JP": "オリハルコンスタッフ"
+        "NEUTRAL": "髑髏柱の杖",
+        "ja-JP": "髑髏柱の杖"
       },
       "Description": {
-        "NEUTRAL": "伝説の金属オリハルコンで作られた究極の杖。",
-        "ja-JP": "伝説の金属オリハルコンで作られた究極の杖。"
+        "NEUTRAL": "髑髏柱の杖。魔力を導くために作られた長杖。",
+        "ja-JP": "髑髏柱の杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13329,12 +13254,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "世界樹の杖",
-        "ja-JP": "世界樹の杖"
+        "NEUTRAL": "氷晶の大杖",
+        "ja-JP": "氷晶の大杖"
       },
       "Description": {
-        "NEUTRAL": "世界を支えるという巨大な樹の枝から作られた杖。",
-        "ja-JP": "世界を支えるという巨大な樹の枝から作られた杖。"
+        "NEUTRAL": "氷晶の大杖。魔力を導くために作られた長杖。",
+        "ja-JP": "氷晶の大杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13354,12 +13279,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "カドゥケウス",
-        "ja-JP": "カドゥケウス"
+        "NEUTRAL": "紅晶の杖",
+        "ja-JP": "紅晶の杖"
       },
       "Description": {
-        "NEUTRAL": "2匹の蛇が巻き付いた、商業や医療の神が持つ杖。",
-        "ja-JP": "2匹の蛇が巻き付いた、商業や医療の神が持つ杖。"
+        "NEUTRAL": "紅晶の杖。魔力を導くために作られた長杖。",
+        "ja-JP": "紅晶の杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13379,12 +13304,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "アスクレピオスの杖",
-        "ja-JP": "アスクレピオスの杖"
+        "NEUTRAL": "鏡映の杖",
+        "ja-JP": "鏡映の杖"
       },
       "Description": {
-        "NEUTRAL": "1匹の蛇が巻き付いた、医療の象徴とされる杖。",
-        "ja-JP": "1匹の蛇が巻き付いた、医療の象徴とされる杖。"
+        "NEUTRAL": "鏡映の杖。魔力を導くために作られた長杖。",
+        "ja-JP": "鏡映の杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13404,12 +13329,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ケリュケイオン",
-        "ja-JP": "ケリュケイオン"
+        "NEUTRAL": "紅珠のワンド",
+        "ja-JP": "紅珠のワンド"
       },
       "Description": {
-        "NEUTRAL": "伝令神が持つ、翼の生えた杖。",
-        "ja-JP": "伝令神が持つ、翼の生えた杖。"
+        "NEUTRAL": "紅珠のワンド。魔力を導くために作られた長杖。",
+        "ja-JP": "紅珠のワンド。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13429,12 +13354,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "テュルソス",
-        "ja-JP": "テュルソス"
+        "NEUTRAL": "魔眼の杖",
+        "ja-JP": "魔眼の杖"
       },
       "Description": {
-        "NEUTRAL": "酒の神が持つ、先端に松かさがついた杖。",
-        "ja-JP": "酒の神が持つ、先端に松かさがついた杖。"
+        "NEUTRAL": "魔眼の杖。魔力を導くために作られた長杖。",
+        "ja-JP": "魔眼の杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13454,12 +13379,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "錫杖",
-        "ja-JP": "錫杖"
+        "NEUTRAL": "翠紋の大杖",
+        "ja-JP": "翠紋の大杖"
       },
       "Description": {
-        "NEUTRAL": "僧侶が持つ、歩くときに音を立てる杖。",
-        "ja-JP": "僧侶が持つ、歩くときに音を立てる杖。"
+        "NEUTRAL": "翠紋の大杖。魔力を導くために作られた長杖。",
+        "ja-JP": "翠紋の大杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13479,12 +13404,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ネクロマンサーの杖",
-        "ja-JP": "ネクロマンサーの杖"
+        "NEUTRAL": "天秤の杖",
+        "ja-JP": "天秤の杖"
       },
       "Description": {
-        "NEUTRAL": "死者を操るネクロマンサーが使う、不気味な杖。",
-        "ja-JP": "死者を操るネクロマンサーが使う、不気味な杖。"
+        "NEUTRAL": "天秤の杖。魔力を導くために作られた長杖。",
+        "ja-JP": "天秤の杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13504,12 +13429,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "アークメイジの杖",
-        "ja-JP": "アークメイジの杖"
+        "NEUTRAL": "黄金樹の杖",
+        "ja-JP": "黄金樹の杖"
       },
       "Description": {
-        "NEUTRAL": "大魔道士のみが持つことを許された、究極の魔法の杖。",
-        "ja-JP": "大魔道士のみが持つことを許された、究極の魔法の杖。"
+        "NEUTRAL": "黄金樹の杖。魔力を導くために作られた長杖。",
+        "ja-JP": "黄金樹の杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13529,12 +13454,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ワンドオブアビス",
-        "ja-JP": "ワンドオブアビス"
+        "NEUTRAL": "深淵樹の杖",
+        "ja-JP": "深淵樹の杖"
       },
       "Description": {
-        "NEUTRAL": "深淵の力を秘めた、すべてを飲み込む杖。",
-        "ja-JP": "深淵の力を秘めた、すべてを飲み込む杖。"
+        "NEUTRAL": "深淵樹の杖。魔力を導くために作られた長杖。",
+        "ja-JP": "深淵樹の杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13554,12 +13479,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "スタッフオブコスモス",
-        "ja-JP": "スタッフオブコスモス"
+        "NEUTRAL": "太陽紋の杖",
+        "ja-JP": "太陽紋の杖"
       },
       "Description": {
-        "NEUTRAL": "宇宙の真理を操ることができるという、神話の杖。",
-        "ja-JP": "宇宙の真理を操ることができるという、神話の杖。"
+        "NEUTRAL": "太陽紋の杖。魔力を導くために作られた長杖。",
+        "ja-JP": "太陽紋の杖。魔力を導くために作られた長杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13579,12 +13504,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ひのきのつるぎ",
-        "ja-JP": "ひのきのつるぎ"
+        "NEUTRAL": "粗鉄のショートソード",
+        "ja-JP": "粗鉄のショートソード"
       },
       "Description": {
-        "NEUTRAL": "練習用の木製の剣。",
-        "ja-JP": "練習用の木製の剣。"
+        "NEUTRAL": "飾り気のない短身の鉄剣。軽く、初めての実戦でも扱いやすい。",
+        "ja-JP": "飾り気のない短身の鉄剣。軽く、初めての実戦でも扱いやすい。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -13879,12 +13804,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "フランベルジュ",
-        "ja-JP": "フランベルジュ"
+        "NEUTRAL": "銀鋼のショートソード",
+        "ja-JP": "銀鋼のショートソード"
       },
       "Description": {
-        "NEUTRAL": "炎のように波打つ刃を持つ、特殊な形状の剣。",
-        "ja-JP": "炎のように波打つ刃を持つ、特殊な形状の剣。"
+        "NEUTRAL": "幅広の短い刀身を持つ、取り回しに優れた銀鋼の剣。",
+        "ja-JP": "幅広の短い刀身を持つ、取り回しに優れた銀鋼の剣。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -14029,12 +13954,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "フランベルジュ",
-        "ja-JP": "フランベルジュ"
+        "NEUTRAL": "細身のグレートソード",
+        "ja-JP": "細身のグレートソード"
       },
       "Description": {
-        "NEUTRAL": "炎のように波打つ刃を持つ、特殊な形状の大剣。",
-        "ja-JP": "炎のように波打つ刃を持つ、特殊な形状の大剣。"
+        "NEUTRAL": "長い直刀を持つ両手剣。間合いを生かした斬撃に向く。",
+        "ja-JP": "長い直刀を持つ両手剣。間合いを生かした斬撃に向く。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -14129,12 +14054,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "野太刀",
-        "ja-JP": "野太刀"
+        "NEUTRAL": "フランベルジュ",
+        "ja-JP": "フランベルジュ"
       },
       "Description": {
-        "NEUTRAL": "日本の侍が背負って使った、長大な刀。",
-        "ja-JP": "日本の侍が背負って使った、長大な刀。"
+        "NEUTRAL": "炎のように波打つ刀身を持つ大型剣。",
+        "ja-JP": "炎のように波打つ刀身を持つ大型剣。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -14404,12 +14329,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "シンプルなワンド",
-        "ja-JP": "シンプルなワンド"
+        "NEUTRAL": "木枝のワンド",
+        "ja-JP": "木枝のワンド"
       },
       "Description": {
-        "NEUTRAL": "魔力を増幅する短い杖。",
-        "ja-JP": "魔力を増幅する短い杖。"
+        "NEUTRAL": "木枝のワンド。片手で扱える魔法の短杖。",
+        "ja-JP": "木枝のワンド。片手で扱える魔法の短杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -14429,12 +14354,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ルーンワンド",
-        "ja-JP": "ルーンワンド"
+        "NEUTRAL": "翠晶のワンド",
+        "ja-JP": "翠晶のワンド"
       },
       "Description": {
-        "NEUTRAL": "ルーン文字が刻まれたワンド。",
-        "ja-JP": "ルーン文字が刻まれたワンド。"
+        "NEUTRAL": "翠晶のワンド。片手で扱える魔法の短杖。",
+        "ja-JP": "翠晶のワンド。片手で扱える魔法の短杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -14454,12 +14379,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "クリスタルワンド",
-        "ja-JP": "クリスタルワンド"
+        "NEUTRAL": "紫晶のワンド",
+        "ja-JP": "紫晶のワンド"
       },
       "Description": {
-        "NEUTRAL": "先端に水晶があしらわれたワンド。",
-        "ja-JP": "先端に水晶があしらわれたワンド。"
+        "NEUTRAL": "紫晶のワンド。片手で扱える魔法の短杖。",
+        "ja-JP": "紫晶のワンド。片手で扱える魔法の短杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -14479,12 +14404,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ほねのワンド",
-        "ja-JP": "ほねのワンド"
+        "NEUTRAL": "蛇木のワンド",
+        "ja-JP": "蛇木のワンド"
       },
       "Description": {
-        "NEUTRAL": "動物の骨から作られた、不気味なワンド。",
-        "ja-JP": "動物の骨から作られた、不気味なワンド。"
+        "NEUTRAL": "蛇木のワンド。片手で扱える魔法の短杖。",
+        "ja-JP": "蛇木のワンド。片手で扱える魔法の短杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -14504,12 +14429,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "デーモンワンド",
-        "ja-JP": "デーモンワンド"
+        "NEUTRAL": "蒼晶のワンド",
+        "ja-JP": "蒼晶のワンド"
       },
       "Description": {
-        "NEUTRAL": "悪魔の力が宿るとされる、邪悪なワンド。",
-        "ja-JP": "悪魔の力が宿るとされる、邪悪なワンド。"
+        "NEUTRAL": "蒼晶のワンド。片手で扱える魔法の短杖。",
+        "ja-JP": "蒼晶のワンド。片手で扱える魔法の短杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -14529,12 +14454,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ホーリーワンド",
-        "ja-JP": "ホーリーワンド"
+        "NEUTRAL": "紅晶のワンド",
+        "ja-JP": "紅晶のワンド"
       },
       "Description": {
-        "NEUTRAL": "聖なる力を秘めた、清らかなワンド。",
-        "ja-JP": "聖なる力を秘めた、清らかなワンド。"
+        "NEUTRAL": "紅晶のワンド。片手で扱える魔法の短杖。",
+        "ja-JP": "紅晶のワンド。片手で扱える魔法の短杖。"
       },
       "ContentType": "Durable",
       "Tags": [],
