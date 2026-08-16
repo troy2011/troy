@@ -268,6 +268,101 @@ async function readBattleLayout(page) {
   });
 }
 
+test('rulebook explains the current rules and returns to the same battle on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await abortFirebaseDataRequests(page);
+  await page.goto('/tarot-kingdom-preview.html?tkfixture=character-battle', {
+    waitUntil: 'domcontentloaded'
+  });
+
+  const rulebookButton = page.locator('#tarotKingdomRulebookButton');
+  const rulebook = page.locator('#tarotKingdomRulebook');
+  const rulebookPage = rulebook.locator('[data-rulebook-page]');
+  await expect(rulebookButton).toBeVisible();
+  await expect(rulebookButton).toHaveAttribute('aria-expanded', 'false');
+
+  const stateBeforeFirstOpen = await page.locator('#tarotKingdomStateText').textContent();
+  await rulebookButton.click();
+  await expect(rulebook).toBeVisible();
+  await expect(rulebookButton).toHaveAttribute('aria-expanded', 'true');
+  await expect(rulebook.getByRole('heading', { name: /タロットキングダム\s*ルールブック/ })).toBeVisible();
+  await expect(rulebook.getByText('Aは通常時の最強札（15）')).toBeVisible();
+  await expect(rulebook.getByText('Aを1として使えるのは、A–2–3–4–5のストレートだけ。')).toBeVisible();
+  await expect(rulebook.locator('.tarot-kingdom-rulebook-table-wrap tbody tr')).toHaveCount(7);
+  await expect(rulebook.locator('[data-rulebook-close]').first()).toBeFocused();
+
+  const mobileLayout = await rulebookPage.evaluate((pageNode) => {
+    const box = pageNode.getBoundingClientRect();
+    return {
+      left: box.left,
+      right: box.right,
+      top: box.top,
+      bottom: box.bottom,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      documentScrollWidth: document.documentElement.scrollWidth,
+      canScroll: pageNode.scrollHeight > pageNode.clientHeight
+    };
+  });
+  expect(mobileLayout.left).toBeGreaterThanOrEqual(0);
+  expect(mobileLayout.right).toBeLessThanOrEqual(mobileLayout.viewportWidth);
+  expect(mobileLayout.top).toBeGreaterThanOrEqual(0);
+  expect(mobileLayout.bottom).toBeLessThanOrEqual(mobileLayout.viewportHeight);
+  expect(mobileLayout.documentScrollWidth).toBeLessThanOrEqual(mobileLayout.viewportWidth);
+  expect(mobileLayout.canScroll).toBe(true);
+
+  await rulebook.getByRole('button', { name: '5枚役' }).click();
+  await expect.poll(() => rulebookPage.evaluate((pageNode) => pageNode.scrollTop)).toBeGreaterThan(100);
+  await page.keyboard.press('Escape');
+  await expect(rulebook).toBeHidden();
+  await expect(rulebookButton).toBeFocused();
+  await expect(page.locator('#tarotKingdomStateText')).toHaveText(stateBeforeFirstOpen || '');
+
+  await page.locator('#tarotKingdomStartOfflineButton').click();
+  await expect(page.locator('#tarotKingdomBattleStage')).toBeVisible({ timeout: 20_000 });
+  await page.waitForFunction(() => typeof window.TarotKingdomDebug?.battleScenario === 'function');
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleScenario({ handCounts: [8, 8, 8, 8] });
+  });
+  await expect(page.locator('#tarotKingdomHand > .tarot-card')).toHaveCount(8);
+
+  const battleStateBeforeOpen = await page.evaluate(() => {
+    const state = window.TarotKingdomDebug?.battleState?.();
+    return {
+      handIds: Array.isArray(state?.players?.[0]?.hand)
+        ? state.players[0].hand.map((card) => card.id)
+        : [],
+      round: state?.round,
+      turnIndex: state?.turnIndex
+    };
+  });
+  const battleButtonStyle = await rulebookButton.evaluate((button) => {
+    const style = getComputedStyle(button);
+    return { position: style.position, pointerEvents: style.pointerEvents };
+  });
+  expect(battleButtonStyle).toEqual({ position: 'fixed', pointerEvents: 'auto' });
+
+  await rulebookButton.click();
+  await expect(rulebook).toBeVisible();
+  await rulebook.locator('[data-rulebook-close]').first().click();
+  await expect(rulebook).toBeHidden();
+  await expect(page.locator('#tarotKingdomBattleStage')).toBeVisible();
+  await expect(page.locator('#tarotKingdomHand > .tarot-card')).toHaveCount(8);
+
+  const battleStateAfterClose = await page.evaluate(() => {
+    const state = window.TarotKingdomDebug?.battleState?.();
+    return {
+      handIds: Array.isArray(state?.players?.[0]?.hand)
+        ? state.players[0].hand.map((card) => card.id)
+        : [],
+      round: state?.round,
+      turnIndex: state?.turnIndex
+    };
+  });
+  expect(battleStateAfterClose).toEqual(battleStateBeforeOpen);
+});
+
 test('The World freezes the enemy sprite until time stop expires', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   const enemySprite = page.locator('#tarotKingdomEnemySprite');

@@ -26057,10 +26057,273 @@ function humanPlay() {
   });
 }
 
+let kingdomRulebookPreviousFocus = null;
+
+function setKingdomRulebookOpen(open, { restoreFocus = true } = {}) {
+  if (!ui.rulebook || !ui.rulebookButton) return;
+  const shouldOpen = open === true;
+  if (shouldOpen && ui.rulebook.hidden) {
+    kingdomRulebookPreviousFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : ui.rulebookButton;
+  }
+  ui.rulebook.hidden = !shouldOpen;
+  ui.rulebookButton.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+  ui.root?.classList.toggle('is-rulebook-open', shouldOpen);
+  if (shouldOpen) {
+    if (ui.rulebookPage) ui.rulebookPage.scrollTop = 0;
+    ui.rulebookCloseButton?.focus({ preventScroll: true });
+    return;
+  }
+  if (restoreFocus && kingdomRulebookPreviousFocus?.isConnected) {
+    kingdomRulebookPreviousFocus.focus({ preventScroll: true });
+  }
+  kingdomRulebookPreviousFocus = null;
+}
+
+function ensureKingdomRulebookUi() {
+  if (!ui.root) return;
+  const headerMeta = ui.root.querySelector('.tarot-kingdom-header-meta');
+  if (!headerMeta) return;
+
+  let rulebookButton = document.getElementById('tarotKingdomRulebookButton');
+  if (!rulebookButton) {
+    rulebookButton = document.createElement('button');
+    rulebookButton.id = 'tarotKingdomRulebookButton';
+    rulebookButton.className = 'tarot-kingdom-rulebook-button';
+    rulebookButton.type = 'button';
+    rulebookButton.setAttribute('aria-haspopup', 'dialog');
+    rulebookButton.setAttribute('aria-controls', 'tarotKingdomRulebook');
+    rulebookButton.setAttribute('aria-expanded', 'false');
+    rulebookButton.setAttribute('aria-label', 'タロットキングダムのルールブックを開く');
+    rulebookButton.innerHTML = '<span aria-hidden="true">▤</span><span>ルール</span>';
+    headerMeta.insertBefore(rulebookButton, ui.exitButton || null);
+  }
+
+  let rulebook = document.getElementById('tarotKingdomRulebook');
+  if (!rulebook) {
+    const roleDescriptions = {
+      Straight: '数字が5枚連続',
+      Flush: '同じスートを5枚',
+      FullHouse: '同数3枚＋同数2枚',
+      FourKind: '同数4枚＋任意の1枚',
+      TheWorld: '世界XXIを含む大アルカナ5枚',
+      StraightFlush: '同スートで数字が5枚連続',
+      FiveKind: '同じ数字を5枚'
+    };
+    const roleRows = ROLE_ORDER.map((roleKey, index) => {
+      const roleLabel = ROLE_LABEL[roleKey] || roleKey;
+      const attackLabel = KINGDOM_ROLE_ATTACK_PROFILES[roleKey]?.rangeLabel || '強攻撃';
+      return `
+        <tr>
+          <td><span class="tarot-kingdom-rulebook-order">${index + 1}</span><strong>${roleLabel}</strong></td>
+          <td>${roleDescriptions[roleKey] || ''}</td>
+          <td><span>×${ROLE_RATE[roleKey] || 1}</span><small>${attackLabel}</small></td>
+        </tr>
+      `;
+    }).join('');
+
+    rulebook = document.createElement('div');
+    rulebook.id = 'tarotKingdomRulebook';
+    rulebook.className = 'tarot-kingdom-rulebook-overlay';
+    rulebook.setAttribute('role', 'dialog');
+    rulebook.setAttribute('aria-modal', 'true');
+    rulebook.setAttribute('aria-labelledby', 'tarotKingdomRulebookTitle');
+    rulebook.hidden = true;
+    rulebook.innerHTML = `
+      <article class="tarot-kingdom-rulebook-page" data-rulebook-page>
+        <header class="tarot-kingdom-rulebook-header">
+          <div>
+            <span class="tarot-kingdom-rulebook-kicker">TAROT KINGDOM OFFICIAL GUIDE</span>
+            <h2 id="tarotKingdomRulebookTitle">タロットキングダム<br>ルールブック</h2>
+            <p>カードを出して仲間と攻め、モンスターを攻略する3〜4人用バトル。</p>
+          </div>
+          <button type="button" class="tarot-kingdom-rulebook-close" data-rulebook-close aria-label="ルールブックを閉じてゲームへ戻る">
+            <span aria-hidden="true">×</span>
+          </button>
+        </header>
+
+        <nav class="tarot-kingdom-rulebook-nav" aria-label="ルールブック内の目次">
+          <button type="button" data-rulebook-target="tarotKingdomRulesQuick">基本</button>
+          <button type="button" data-rulebook-target="tarotKingdomRulesCards">カード</button>
+          <button type="button" data-rulebook-target="tarotKingdomRulesRoles">5枚役</button>
+          <button type="button" data-rulebook-target="tarotKingdomRulesSpecial">特殊札</button>
+          <button type="button" data-rulebook-target="tarotKingdomRulesBattle">戦闘</button>
+        </nav>
+
+        <div class="tarot-kingdom-rulebook-body">
+          <section id="tarotKingdomRulesQuick" class="tarot-kingdom-rulebook-section is-intro" tabindex="-1">
+            <span class="tarot-kingdom-rulebook-section-no">01 / QUICK START</span>
+            <h3>まずは、これだけ</h3>
+            <ol class="tarot-kingdom-rulebook-steps">
+              <li><strong>場と同じ枚数</strong><span>通常出しは、同じ数字を1〜3枚。場札より強い数字を出します。</span></li>
+              <li><strong>カードを選んで決定</strong><span>出せない時はパス。防御を使うと、場が流れるまで守りを固めます。</span></li>
+              <li><strong>5枚で役を狙う</strong><span>ストレート以上の役は強力な攻撃。1枚場には手札4枚を足す「コール」も可能です。</span></li>
+              <li><strong>敵を倒す</strong><span>合法な出札で攻撃。敵HPまたはステージの勝利条件を達成すれば局を制します。</span></li>
+            </ol>
+            <div class="tarot-kingdom-rulebook-alert">
+              <strong>Aは通常時の最強札（15）</strong>
+              <span>数字1とは別物です。Aを1として使えるのは、A–2–3–4–5のストレートだけ。</span>
+            </div>
+          </section>
+
+          <section id="tarotKingdomRulesCards" class="tarot-kingdom-rulebook-section" tabindex="-1">
+            <span class="tarot-kingdom-rulebook-section-no">02 / CARDS &amp; TURNS</span>
+            <h3>カードと手番</h3>
+            <div class="tarot-kingdom-rulebook-facts">
+              <div><strong>78</strong><span>小アルカナ56枚<br>大アルカナ22枚</span></div>
+              <div><strong>8</strong><span>各プレイヤーの<br>初期手札</span></div>
+              <div><strong>4</strong><span>基本の局数<br>Round 1〜4</span></div>
+            </div>
+            <div class="tarot-kingdom-rulebook-copy-grid">
+              <div>
+                <h4>通常出し</h4>
+                <p>同じ数字を1〜3枚選びます。場が2枚なら2枚、3枚なら3枚で返します。11バック中は強弱が反転します。</p>
+              </div>
+              <div>
+                <h4>同じ強さで返す</h4>
+                <p>同値は相性スートだけ有効。大アルカナと小アルカナが同値なら大アルカナが優先されます。</p>
+              </div>
+              <div>
+                <h4>場が流れる</h4>
+                <p>ほかの全員がパスすると場をクリア。最後に出したプレイヤーが次の場を作ります。</p>
+              </div>
+              <div>
+                <h4>局の終了</h4>
+                <p>手札0、敵撃破など、そのステージの終了条件で清算へ。通常戦は4局後のチップ合計で順位が決まります。</p>
+              </div>
+            </div>
+            <div class="tarot-kingdom-rulebook-suits" aria-label="相性スート">
+              <div class="is-wand"><span>W</span><strong>ワンド</strong></div>
+              <b aria-hidden="true">↔</b>
+              <div class="is-cup"><span>C</span><strong>カップ</strong></div>
+              <div class="is-sword"><span>S</span><strong>ソード</strong></div>
+              <b aria-hidden="true">↔</b>
+              <div class="is-pentacle"><span>P</span><strong>ペンタクル</strong></div>
+            </div>
+          </section>
+
+          <section id="tarotKingdomRulesRoles" class="tarot-kingdom-rulebook-section" tabindex="-1">
+            <span class="tarot-kingdom-rulebook-section-no">03 / FIVE-CARD ROLES</span>
+            <h3>5枚役の強さ</h3>
+            <p>下へ行くほど上位。同じ役なら役の主数字、さらに相性スートで比較します。役が連続するとチェイン倍率が上がり、最大×1.75です。</p>
+            <div class="tarot-kingdom-rulebook-table-wrap">
+              <table>
+                <thead><tr><th>役</th><th>成立条件</th><th>倍率・範囲</th></tr></thead>
+                <tbody>${roleRows}</tbody>
+              </table>
+            </div>
+            <div class="tarot-kingdom-rulebook-note">
+              <strong>コール</strong>
+              <span>場が1枚の時、その場札に手札4枚を加えて5枚役を作れます。大アルカナ場は「ザ・ワールド」のみコール可能です。</span>
+            </div>
+          </section>
+
+          <section id="tarotKingdomRulesSpecial" class="tarot-kingdom-rulebook-section" tabindex="-1">
+            <span class="tarot-kingdom-rulebook-section-no">04 / SPECIAL CARDS</span>
+            <h3>覚えておきたい特殊札</h3>
+            <div class="tarot-kingdom-rulebook-special-grid">
+              <div><span>5</span><h4>5スキップ</h4><p>出した枚数ぶん次のプレイヤーを飛ばします。法王Vは次の2人。</p></div>
+              <div><span>8</span><h4>8カット</h4><p>1枚ならコール猶予、2枚以上なら場を即クリア。敵も石化させます。</p></div>
+              <div><span>11</span><h4>11バック</h4><p>数字の強弱を反転。もう一度11を出すか、場が流れると解除されます。</p></div>
+              <div><span>14</span><h4>14ロック</h4><p>同スートで返すと、そのスートだけに固定。節制XIVはロック解除。</p></div>
+            </div>
+            <div class="tarot-kingdom-rulebook-major-list">
+              <h4>大アルカナ早見</h4>
+              <dl>
+                <div><dt>愚者 0</dt><dd>5枚役だけで数字ワイルド。フラッシュのスートにはなりません。</dd></div>
+                <div><dt>魔術師 I</dt><dd>数字1固定・オールスート。Aとは組にできません。</dd></div>
+                <div><dt>悪魔 XV</dt><dd>小アルカナのコート札専用。11バックを無視して出せます。</dd></div>
+                <div><dt>塔〜太陽 XVI–XIX</dt><dd>対応する同スートの1枚場専用。初手とAには出せません。</dd></div>
+                <div><dt>審判 XX</dt><dd>Aには出せません。11バックを切り替え、場を流すと墓地回収。</dd></div>
+                <div><dt>世界 XXI</dt><dd>大アルカナ1枚場へ返して即クリア。11バック中は使用不可。</dd></div>
+              </dl>
+            </div>
+          </section>
+
+          <section id="tarotKingdomRulesBattle" class="tarot-kingdom-rulebook-section" tabindex="-1">
+            <span class="tarot-kingdom-rulebook-section-no">05 / BATTLE</span>
+            <h3>モンスターバトル</h3>
+            <div class="tarot-kingdom-rulebook-copy-grid">
+              <div><h4>攻撃</h4><p>カードを合法に出すと攻撃。装備・能力値・カード共鳴が威力や追加効果へ反映されます。</p></div>
+              <div><h4>役と召喚</h4><p>5枚役は通常攻撃より強力。役に応じて単体・全体攻撃となり、召喚獣が現れることもあります。</p></div>
+              <div><h4>パスと防御</h4><p>パス時は反撃を受ける場合があります。「防御」は場が流れるまで自動で守り、被害を抑えます。</p></div>
+              <div><h4>状態効果</h4><p>毒・リジェネ・能力変化などはアイコンで表示。戦闘画面の状態アイコンを押すと詳細を確認できます。</p></div>
+            </div>
+            <div class="tarot-kingdom-rulebook-note is-score">
+              <strong>通常戦の清算</strong>
+              <span>局の勝者は、相手の残り手札枚数を基準にチップを獲得。相手がAを残していると支払いが増えます。</span>
+            </div>
+          </section>
+
+          <section class="tarot-kingdom-rulebook-section is-checklist">
+            <span class="tarot-kingdom-rulebook-section-no">CHECK BEFORE PLAY</span>
+            <h3>出せない時の確認</h3>
+            <ul>
+              <li>場と同じ枚数を選んでいる？</li>
+              <li>通常出しの複数枚は同じ数字？</li>
+              <li>Aと数字1を混ぜていない？</li>
+              <li>同値なら相性スートになっている？</li>
+              <li>14ロック、8カット、11バックが発動中ではない？</li>
+            </ul>
+          </section>
+        </div>
+
+        <footer class="tarot-kingdom-rulebook-footer">
+          <button type="button" data-rulebook-close>ゲームへ戻る</button>
+          <small>ルールは現在のタロットキングダム仕様に準拠</small>
+        </footer>
+      </article>
+    `;
+    ui.root.appendChild(rulebook);
+  }
+
+  ui.rulebookButton = rulebookButton;
+  ui.rulebook = rulebook;
+  ui.rulebookPage = rulebook.querySelector('[data-rulebook-page]');
+  ui.rulebookCloseButton = rulebook.querySelector('[data-rulebook-close]');
+
+  rulebookButton.addEventListener('click', () => setKingdomRulebookOpen(true));
+  rulebook.querySelectorAll('[data-rulebook-close]').forEach((button) => {
+    button.addEventListener('click', () => setKingdomRulebookOpen(false));
+  });
+  rulebook.querySelectorAll('[data-rulebook-target]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const target = document.getElementById(String(button.dataset.rulebookTarget || ''));
+      target?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      target?.focus({ preventScroll: true });
+    });
+  });
+  rulebook.addEventListener('click', (event) => {
+    if (event.target === rulebook) setKingdomRulebookOpen(false);
+  });
+  rulebook.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setKingdomRulebookOpen(false);
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = Array.from(rulebook.querySelectorAll('button:not([disabled])'))
+      .filter((element) => element.offsetParent !== null);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+}
+
 function bindUi() {
   if (bound) return;
   ui.root = document.getElementById('tarotKingdomRoot');
   ui.exitButton = document.getElementById('tarotKingdomExitButton');
+  ensureKingdomRulebookUi();
   ui.round = document.getElementById('tarotKingdomRound');
   ui.turn = document.getElementById('tarotKingdomTurn');
   ui.reverseChip = document.getElementById('tarotKingdomReverse');
@@ -26774,6 +27037,7 @@ export async function joinTarotKingdomRescueRoom(room = {}) {
 }
 
 export function destroyTarotKingdomPage() {
+  setKingdomRulebookOpen(false, { restoreFocus: false });
   setKingdomFullscreen(false);
   if (kingdomExplorationSession) {
     settleKingdomExplorationSession('cancelled');

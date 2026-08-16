@@ -40,7 +40,7 @@ test('Tarot Kingdom retries a transient Arcana catalog failure before starting',
 });
 
 test('Tarot Kingdom release advances its entry modules and service-worker cache together', () => {
-  const release = '20260816-online-presentation-v1';
+  const release = '20260816-rulebook-v1';
   const indexSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'index.html'), 'utf8');
   const mainSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'main.js'), 'utf8');
   const uiSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'ui.js'), 'utf8');
@@ -51,13 +51,14 @@ test('Tarot Kingdom release advances its entry modules and service-worker cache 
   const serviceWorkerSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'sw.js'), 'utf8');
 
   expect(indexSource).toContain(`"ui": "./js/ui.js?v=${release}"`);
-  expect(indexSource).toContain('style.css?v=20260815-ap-spacing-v1');
+  expect(indexSource).toContain(`style.css?v=${release}`);
   expect(indexSource).toContain(`src="main.js?v=${release}"`);
   expect(mainSource).toContain(`const TAROT_KINGDOM_RESCUE_VERSION = '${release}';`);
   expect(uiSource).toContain(`const TAROT_KINGDOM_MODULE_VERSION = '${release}';`);
+  expect(previewSource).toContain(`"ui": "./js/ui.js?v=${release}"`);
   expect(previewSource).toContain(`./js/tarotKingdom.js?v=${release}`);
-  expect(previewSource).toContain('./style.css?v=20260815-ap-spacing-v1');
-  expect(serviceWorkerSource).toContain("const CACHE_VERSION = 'troy-app-v20260816a';");
+  expect(previewSource).toContain(`./style.css?v=${release}`);
+  expect(serviceWorkerSource).toContain("const CACHE_VERSION = 'troy-app-v20260816b';");
 });
 
 function loadServiceWorkerHarness() {
