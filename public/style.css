@@ -25233,11 +25233,8 @@ body.is-new-order-flash::before {
     color: #f7e8c1;
     font-size: 14px;
     font-weight: 900;
-    display: -webkit-box;
+    display: block;
     max-width: 100%;
-    overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
     line-height: 1.24;
     letter-spacing: 0;
     overflow-wrap: anywhere;
@@ -29146,10 +29143,25 @@ body[data-sea-tone] .home-hero-card {
         font-size: 18px;
     }
 
-    #tabContentInventory #inventoryGrid[data-layout="equipment"],
+    #tabContentInventory #inventoryGrid[data-layout="equipment"] {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 5px;
+    }
+
+    #tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell {
+        padding: 3px;
+        border-width: 7px;
+        border-image-width: 7px;
+    }
+
+    #tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell.is-equipment-card::before {
+        inset: 5px 5px 25px;
+    }
+
     #tabContentInventory #inventoryGrid[data-layout="tarot"] {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 8px;
+        grid-template-columns: repeat(5, minmax(48px, 1fr));
+        justify-items: center;
+        gap: 8px 4px;
     }
 
     #avatarStyleModal .avatar-style-controls {
@@ -29184,7 +29196,7 @@ body[data-sea-tone] .home-hero-card {
     }
 
     #tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .equip-slot {
-        min-height: 64px;
+        min-height: 80px;
         grid-template-columns: 34px minmax(0, 1fr) 38px;
         grid-template-rows: auto auto;
         gap: 3px 6px;
@@ -29210,10 +29222,10 @@ body[data-sea-tone] .home-hero-card {
     }
 
     #tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .equip-slot-name {
-        grid-column: 2;
+        grid-column: 1 / 4;
         grid-row: 2;
         margin-top: 0;
-        width: fit-content;
+        width: auto;
         max-width: 100%;
         padding: 1px 4px 2px;
         border-radius: 4px;
@@ -29221,7 +29233,6 @@ body[data-sea-tone] .home-hero-card {
         color: #fff0bd;
         font-size: 12px;
         line-height: 1.12;
-        -webkit-line-clamp: 1;
         box-shadow: 0 1px 0 rgba(255, 239, 192, 0.08);
     }
 

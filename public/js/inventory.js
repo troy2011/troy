@@ -729,32 +729,11 @@ export function scrollInventoryItemsIntoView(options = {}) {
 
 function getTargetInventoryCategoryForEquipmentSlot(slotElement) {
     const slotType = slotElement?.dataset?.slot || '';
-    const slotKeyMap = {
-        rightHand: 'RightHand',
-        leftHand: 'LeftHand',
-        armor: 'Armor',
-        accessory: 'Accessory',
-        majorarcana: 'MajorArcana'
-    };
-    const currentSlotKey = slotKeyMap[slotType] || '';
-    const currentEntry = currentSlotKey ? myCurrentEquipment?.[currentSlotKey] : null;
-    const currentItem = getInventoryItemByReference(currentEntry);
-    const currentCategory = String(currentItem?.customData?.Category || '').trim();
-
     if (slotType === 'majorarcana') return 'TarotMajor';
-    if (currentCategory === 'Shield' && (slotType === 'rightHand' || slotType === 'leftHand')) {
-        return 'LeftHand';
+    if (slotType === 'rightHand') {
+        const currentItem = getInventoryItemByReference(myCurrentEquipment?.RightHand);
+        return currentItem?.customData?.Category === 'Shield' ? 'LeftHand' : 'Weapon';
     }
-    if (slotType === 'leftHand' && currentCategory === 'Offhand') {
-        return 'LeftHand';
-    }
-    if (currentCategory === 'Weapon' || currentCategory === 'Armor' || currentCategory === 'Accessory') {
-        return currentCategory;
-    }
-    if (currentCategory === 'TarotMajor' || currentCategory === 'MajorArcana' || currentCategory === 'TarotArcanaMajor') {
-        return 'TarotMajor';
-    }
-    if (slotType === 'rightHand') return 'Weapon';
     if (slotType === 'leftHand') return 'LeftHand';
     if (slotType === 'armor') return 'Armor';
     if (slotType === 'accessory') return 'Accessory';
@@ -763,7 +742,6 @@ function getTargetInventoryCategoryForEquipmentSlot(slotElement) {
 
 function handleEquipmentSlotSelect(slotElement) {
     const targetCategory = getTargetInventoryCategoryForEquipmentSlot(slotElement);
-    switchInventoryPanel('items', { preserveScroll: true });
     if (targetCategory !== 'All') {
         switchInventoryTab(targetCategory);
     } else {

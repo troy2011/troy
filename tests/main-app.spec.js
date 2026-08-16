@@ -5307,7 +5307,7 @@ test('inventory current equipment resolves object equipment references', async (
     {
       itemId: 'sword_001',
       instances: ['sword-instance-1'],
-      name: 'Object Ref Sword',
+      name: '王国近衛騎士団儀礼用フランベルジュ',
       customData: {
         Category: 'Weapon',
         Power: 12,
@@ -5342,6 +5342,19 @@ test('inventory current equipment resolves object equipment references', async (
         sprite_w: '16',
         sprite_h: '16'
       }
+    },
+    {
+      itemId: 'armor_001',
+      instances: ['armor-instance-1'],
+      name: '古代王国守護騎士の重装プレートアーマー',
+      customData: {
+        Category: 'Armor',
+        Defense: 14,
+        sprite_path: './Sprites/Characters/human/clothes/plate_armor.png',
+        sprite_index: '1',
+        sprite_w: '64',
+        sprite_h: '64'
+      }
     }
   ];
 
@@ -5362,8 +5375,15 @@ test('inventory current equipment resolves object equipment references', async (
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
         equipment: {
-          RightHand: { itemId: 'sword_001' },
-          LeftHand: { ItemInstanceId: 'shield-instance-1' }
+          RightHand: {
+            ...equipmentItems[0],
+            customData: { ...equipmentItems[0].customData, Category: 'TarotMajor' }
+          },
+          LeftHand: { ItemInstanceId: 'shield-instance-1' },
+          Armor: {
+            ...equipmentItems[3],
+            customData: { ...equipmentItems[3].customData, Category: 'TarotMajor' }
+          }
         }
       })
     });
@@ -5404,8 +5424,30 @@ test('inventory current equipment resolves object equipment references', async (
   });
 
   await expect(page.locator('#inventoryTabs .inventory-tab-btn')).toHaveText(['武器', '左手', '防具', 'アクセ']);
-  await expect(page.locator('#equippedRightHand')).toHaveText('Object Ref Sword');
+  await expect(page.locator('#equippedRightHand')).toHaveText('王国近衛騎士団儀礼用フランベルジュ');
   await expect(page.locator('#equippedLeftHand')).toHaveText('Object Ref Shield');
+  await expect(page.locator('#equippedArmor')).toHaveText('古代王国守護騎士の重装プレートアーマー');
+  const equippedNameMetrics = await page.locator('#equippedRightHand, #equippedArmor').evaluateAll((elements) => (
+    elements.map((element) => {
+      const nameRect = element.getBoundingClientRect();
+      const slotRect = element.closest('.equip-slot')?.getBoundingClientRect();
+      const style = window.getComputedStyle(element);
+      return {
+        lineClamp: style.webkitLineClamp,
+        overflow: style.overflow,
+        fitsWidth: !slotRect || nameRect.left >= slotRect.left - 1 && nameRect.right <= slotRect.right + 1,
+        fitsHeight: !slotRect || nameRect.top >= slotRect.top - 1 && nameRect.bottom <= slotRect.bottom + 1,
+        contentFits: element.scrollWidth <= element.clientWidth + 1 && element.scrollHeight <= element.clientHeight + 1
+      };
+    })
+  ));
+  for (const metrics of equippedNameMetrics) {
+    expect(metrics.lineClamp).toBe('none');
+    expect(metrics.overflow).toBe('visible');
+    expect(metrics.fitsWidth).toBe(true);
+    expect(metrics.fitsHeight).toBe(true);
+    expect(metrics.contentFits).toBe(true);
+  }
   const rightHandSlotIconMetrics = await page.locator('#tabContentInventory .weapon-slot .equip-slot-icon').evaluate((icon) => {
     const rect = icon.getBoundingClientRect();
     const style = window.getComputedStyle(icon);
@@ -5466,10 +5508,11 @@ test('inventory current equipment resolves object equipment references', async (
   expect(equippedArtMetrics.spriteFitsWidth).toBe(true);
   expect(equippedArtMetrics.spriteFitsHeight).toBe(true);
   expect(equippedArtMetrics.spriteBackground).not.toBe('none');
-  await page.evaluate(() => {
-    window.scrollTo(0, 0);
-    document.querySelector('#tabContentInventory .weapon-slot')?.click();
-  });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator('#tabContentInventory .weapon-slot').click();
+  await expect(page.locator('#tabContentInventory')).toHaveAttribute('data-inventory-group', 'Equipment');
+  await expect(page.locator('#tabContentInventory')).toHaveAttribute('data-inventory-panel', 'items');
+  await expect(page.locator('#inventoryTabs .inventory-tab-btn.active')).toHaveAttribute('data-category', 'Weapon');
   await page.waitForFunction(() => {
     const tabs = document.getElementById('inventoryTabs');
     const switcher = document.getElementById('inventoryMobileSwitch');
@@ -5487,11 +5530,11 @@ test('inventory current equipment resolves object equipment references', async (
     };
   });
   expect(autoScrollMetrics.tabsTop).toBeGreaterThanOrEqual(autoScrollMetrics.switcherBottom + 6);
-  await page.evaluate(async () => {
-    const inventory = await import('/js/inventory.js');
-    inventory.switchInventoryTab('Weapon');
-  });
   await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]')).toHaveAttribute('data-equipment-state', 'equipped');
+  await page.locator('#tabContentInventory .armor-slot').click();
+  await expect(page.locator('#tabContentInventory')).toHaveAttribute('data-inventory-group', 'Equipment');
+  await expect(page.locator('#inventoryTabs .inventory-tab-btn.active')).toHaveAttribute('data-category', 'Armor');
+  await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Armor"]')).toHaveAttribute('data-equipment-state', 'equipped');
   await page.evaluate(async () => {
     const inventory = await import('/js/inventory.js');
     inventory.switchInventoryTab('LeftHand');
@@ -6401,6 +6444,26 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   await page.locator('#itemDetailModal .item-detail-corner-close').click();
 
   await page.setViewportSize({ width: 390, height: 844 });
+  const tarotGridMetrics = await page.locator('#inventoryGrid').evaluate((grid) => {
+    const gridRect = grid.getBoundingClientRect();
+    const cellRects = Array.from(grid.querySelectorAll('.inventory-item-cell'))
+      .map((cell) => cell.getBoundingClientRect());
+    const firstRowTop = Math.min(...cellRects.map((rect) => Math.round(rect.top)));
+    return {
+      columnCount: window.getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length,
+      firstRowCount: cellRects.filter((rect) => Math.abs(Math.round(rect.top) - firstRowTop) <= 1).length,
+      cardsInsideGrid: cellRects.every((rect) => rect.left >= gridRect.left - 1 && rect.right <= gridRect.right + 1),
+      cardWidth: Math.round(cellRects[0]?.width || 0),
+      cardHeight: Math.round(cellRects[0]?.height || 0)
+    };
+  });
+  expect(tarotGridMetrics).toEqual({
+    columnCount: 5,
+    firstRowCount: 5,
+    cardsInsideGrid: true,
+    cardWidth: 48,
+    cardHeight: 80
+  });
   await page.locator('#openArcanaResonanceCatalog').click();
   const catalogLayout = await page.locator('#arcanaResonanceCatalogModal').evaluate((modal) => {
     const sheet = modal.querySelector('.arcana-resonance-sheet');
@@ -7073,15 +7136,36 @@ test('equipment cards open detail before equipping from inventory grid', async (
     loadout: window.getComputedStyle(document.querySelector('#tabContentInventory .avatar-card.inventory-section')).position,
     sectionHeader: window.getComputedStyle(document.querySelector('#tabContentInventory .inventory-section[data-panel="items"] > .section-header')).display,
     summary: window.getComputedStyle(document.getElementById('inventoryListSummary')).display,
-    hint: window.getComputedStyle(document.getElementById('inventoryTabHint')).display
+    hint: window.getComputedStyle(document.getElementById('inventoryTabHint')).display,
+    inventoryColumns: window.getComputedStyle(document.getElementById('inventoryGrid')).gridTemplateColumns.split(' ').filter(Boolean).length
   }));
   expect(equipmentLayout).toEqual({
     switcher: 'sticky',
     loadout: 'static',
     sectionHeader: 'none',
     summary: 'none',
-    hint: 'none'
+    hint: 'none',
+    inventoryColumns: 5
   });
+  const weaponCard = page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]');
+  await weaponCard.scrollIntoViewIfNeeded();
+  const equipmentCardMetrics = await weaponCard.evaluate((cell) => {
+    const gridRect = cell.closest('#inventoryGrid').getBoundingClientRect();
+    const cellRect = cell.getBoundingClientRect();
+    const frameRect = cell.querySelector('.inventory-item-icon-frame').getBoundingClientRect();
+    return {
+      width: Math.round(cellRect.width),
+      height: Math.round(cellRect.height),
+      frameWidth: Math.round(frameRect.width),
+      insideGrid: cellRect.left >= gridRect.left - 1 && cellRect.right <= gridRect.right + 1,
+      frameInsideCard: frameRect.left >= cellRect.left && frameRect.right <= cellRect.right
+    };
+  });
+  expect(equipmentCardMetrics.width).toBeGreaterThanOrEqual(56);
+  expect(equipmentCardMetrics.height).toBeGreaterThanOrEqual(72);
+  expect(equipmentCardMetrics.frameWidth).toBeGreaterThanOrEqual(32);
+  expect(equipmentCardMetrics.insideGrid).toBe(true);
+  expect(equipmentCardMetrics.frameInsideCard).toBe(true);
 
   await page.evaluate(async () => {
     const inventory = await import('/js/inventory.js');
