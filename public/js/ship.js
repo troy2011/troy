@@ -1172,6 +1172,15 @@ function renderGuildShipLayers(ship) {
     `;
 }
 
+function createOnlineBattleShipProfile(ship) {
+    if (!ship || typeof ship !== 'object') return null;
+    const form = normalizePlayerShipForm(ship.form);
+    return {
+        form,
+        sailColor: form === 'guild' ? resolveGuildShipSailColor(ship) : 'white'
+    };
+}
+
 function withPlayerShipStatusContext(status, fallbackPlayFabId) {
     const ship = status?.ship || null;
     if (!ship) return null;
@@ -1500,6 +1509,25 @@ export async function loadPlayerShipProfile(playFabId) {
             container.classList.remove('is-shared-ship');
             container.innerHTML = '<div class="home-player-ship-empty">船情報を読み込めませんでした。</div>';
         }
+        return null;
+    }
+}
+
+export async function getOnlineBattleShipProfile(playFabId = window.myPlayFabId) {
+    const normalizedPlayFabId = String(playFabId || '').trim();
+    const currentOwnerId = String(currentPlayerShipProfile?.shipOwnerPlayFabId || '').trim();
+    if (
+        currentPlayerShipProfile
+        && (!normalizedPlayFabId || !currentOwnerId || currentOwnerId === normalizedPlayFabId)
+    ) {
+        return createOnlineBattleShipProfile(currentPlayerShipProfile);
+    }
+    if (!normalizedPlayFabId) return null;
+    try {
+        const data = await requestPlayerShipStatus(normalizedPlayFabId, { isSilent: true, throwOnError: true });
+        return createOnlineBattleShipProfile(withPlayerShipStatusContext(data, normalizedPlayFabId));
+    } catch (error) {
+        console.warn('[ship] online battle ship profile could not be loaded:', error);
         return null;
     }
 }
@@ -1941,6 +1969,100 @@ function getExplorationPaymentConsumables(paymentState) {
         : [];
 }
 
+function showExplorationBattleModeDialog({ stage }) {
+    const stageNo = Math.max(1, Math.floor(Number(stage?.stageNo) || 1));
+    const destinationId = String(stage?.id || stage?.destinationId || '').trim();
+    const stageName = String(stage?.name || stage?.destinationName || `ステージ${stageNo}`);
+    const firstStageMonster = Array.isArray(stage?.monsters) ? stage.monsters[0] : null;
+    const stageMonster = selectExplorationTarotMonster({
+        ...(stage || {}),
+        monsterId: String(firstStageMonster?.monsterId || firstStageMonster?.id || stage?.monsterId || '')
+    }, destinationId);
+    const canOfferTutorial = stageNo === 1 && stageMonster?.isBoss !== true;
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'ship-exploration-payment-overlay';
+        overlay.innerHTML = `
+            <div class="ship-exploration-payment-dialog is-battle-mode" role="dialog" aria-modal="true" aria-label="プレイ方法">
+                <section class="exploration-battle-mode-choice" data-exploration-battle-mode-choice aria-label="プレイ方法">
+                    <div class="exploration-battle-mode-head">
+                        <span>STAGE ${stageNo}</span>
+                        <strong>${escapeHtml(stageName)}</strong>
+                    </div>
+                    <div class="exploration-battle-mode-actions">
+                        <button type="button" class="is-offline" data-exploration-battle-mode="offline" aria-label="オフラインで出航">
+                            <span>オフライン</span>
+                            <small>傭兵とすぐに開始</small>
+                        </button>
+                        <button type="button" class="is-online" data-exploration-battle-mode="online" aria-label="オンラインで出航">
+                            <span>オンライン</span>
+                            <small>救難信号を発信</small>
+                        </button>
+                        <button type="button" class="is-cancel" data-exploration-battle-mode="cancel">キャンセル</button>
+                    </div>
+                </section>
+            </div>
+        `;
+        const modeChoice = overlay.querySelector('[data-exploration-battle-mode-choice]');
+        const cleanup = (result) => {
+            overlay.remove();
+            document.body.classList.remove('modal-lock');
+            resolve(result);
+        };
+        const showTutorialChoice = () => {
+            const head = modeChoice?.querySelector('.exploration-battle-mode-head');
+            const actions = modeChoice?.querySelector('.exploration-battle-mode-actions');
+            if (!head || !actions) {
+                cleanup({ battleMode: 'offline', tutorialEnabled: false });
+                return;
+            }
+            head.innerHTML = `
+                <span>STAGE ${stageNo}</span>
+                <strong>チュートリアルを開始しますか？</strong>
+            `;
+            actions.innerHTML = `
+                <button type="button" data-exploration-tutorial="yes" aria-label="チュートリアルを開始">
+                    <span>はい</span>
+                    <small>遊び方を確認</small>
+                </button>
+                <button type="button" data-exploration-tutorial="no" aria-label="チュートリアルを開始しない">
+                    <span>いいえ</span>
+                    <small>通常戦で開始</small>
+                </button>
+                <button type="button" class="is-cancel" data-exploration-battle-mode="cancel">キャンセル</button>
+            `;
+        };
+        modeChoice?.addEventListener('click', (event) => {
+            const tutorialButton = event.target.closest('[data-exploration-tutorial]');
+            if (tutorialButton) {
+                cleanup({
+                    battleMode: 'offline',
+                    tutorialEnabled: tutorialButton.getAttribute('data-exploration-tutorial') === 'yes'
+                });
+                return;
+            }
+            const modeButton = event.target.closest('[data-exploration-battle-mode]');
+            if (!modeButton) return;
+            const mode = modeButton.getAttribute('data-exploration-battle-mode');
+            if (mode === 'cancel') {
+                cleanup(null);
+                return;
+            }
+            if (mode === 'offline' && canOfferTutorial) {
+                showTutorialChoice();
+                return;
+            }
+            cleanup({ battleMode: mode === 'online' ? 'online' : 'offline', tutorialEnabled: false });
+        });
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) cleanup(null);
+        });
+        document.body.appendChild(overlay);
+        document.body.classList.add('modal-lock');
+        modeChoice?.querySelector('button')?.focus();
+    });
+}
+
 function showExplorationStageSupplyDialog({ stage, paymentState }) {
     const consumables = getExplorationPaymentConsumables(paymentState);
     return new Promise((resolve) => {
@@ -2368,11 +2490,22 @@ function buildRecoveredExplorationStartData(explorationData, destinationId) {
     };
 }
 
-async function recoverConflictedExploration(playFabId, destinationId) {
+async function recoverConflictedExploration(playFabId, destinationId, options = {}) {
     showRpgMessage('前回の探索を再開します。');
     const encounterData = await requestExplorationEncounter(playFabId, { throwOnError: true });
     const recoveredStartData = buildRecoveredExplorationStartData(encounterData, destinationId);
-    const sequenceResult = await showExplorationAutoSequence(recoveredStartData, recoveredStartData.active.destinationId || destinationId, encounterData);
+    const sequenceResult = await showExplorationAutoSequence(
+        recoveredStartData,
+        recoveredStartData.active.destinationId || destinationId,
+        encounterData,
+        options.stage,
+        {
+            battleMode: options.battleMode === 'online' ? 'online' : 'offline',
+            tutorialEnabled: options.tutorialEnabled === true,
+            skipDeparture: true,
+            autoStartOnline: true
+        }
+    );
     const retreated = await completeExplorationRetreat(playFabId, sequenceResult);
     if (!retreated && !sequenceResult?.cancelled) {
         const claimData = await requestClaimExploration(playFabId, {
@@ -2391,7 +2524,199 @@ async function recoverConflictedExploration(playFabId, destinationId) {
     await loadExplorationPanel(playFabId);
 }
 
-async function showExplorationAutoSequence(startData, destinationId, encounterData = null, selectedStage = null) {
+async function showExplorationDepartureLoading({
+    stage,
+    destinationId,
+    battleMode,
+    tutorialEnabled = false,
+    preparationPromise
+}) {
+    const ship = currentPlayerShipProfile || {};
+    const form = normalizePlayerShipForm(ship.form);
+    const guildSailColor = form === 'guild' ? resolveGuildShipSailColor(ship) : 'white';
+    const guildLayers = form === 'guild' ? renderGuildShipLayers(ship) : '';
+    const destinationVisual = getExplorationDestinationVisual(stage || destinationId);
+    const destinationName = String(stage?.name || destinationVisual.label || '探索先');
+    const stageMonsters = Array.isArray(stage?.monsters) ? stage.monsters : [];
+    const firstStageMonster = stageMonsters[0] || null;
+    const stageReport = {
+        ...(stage || {}),
+        monsterId: String(firstStageMonster?.monsterId || firstStageMonster?.id || stage?.monsterId || '')
+    };
+    const kingdomMonster = selectExplorationTarotMonster(stageReport, destinationId);
+    const bossTierKey = normalizeExplorationBossTier(stage?.bossTier || stage?.tier);
+    const shipTrait = EXPLORATION_SHIP_TRAITS[form] || EXPLORATION_SHIP_TRAITS.boat;
+    const homeFrame = document.getElementById('homePlayerShipFrame');
+    const homeIcon = homeFrame?.querySelector('.home-player-ship-icon');
+    const existing = document.querySelector('.exploration-sequence-overlay');
+    existing?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = `exploration-sequence-overlay is-${form} ${shipTrait.className} is-sky-${destinationVisual.sky} is-boss-${bossTierKey}`;
+    overlay.innerHTML = `
+        <div class="exploration-sequence-dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(destinationName)}へ出航">
+            <div class="exploration-sequence-scene">
+                <div class="exploration-sequence-compass" aria-hidden="true"></div>
+                <div class="exploration-sequence-sky"></div>
+                <div class="exploration-sequence-horizon" aria-hidden="true"></div>
+                <div class="exploration-sequence-arrival" aria-hidden="true"></div>
+                ${renderExplorationDestinationVisual(stage || destinationId, 'exploration-sequence-island', 'div')}
+                <div class="exploration-sequence-boss" data-exploration-sequence-boss>
+                    ${renderExplorationPixelMonster(kingdomMonster, 'exploration-sequence-boss-image', { maxWidth: 58, maxHeight: 54 })}
+                    <small>${kingdomMonster?.isBoss === true ? 'BOSS' : 'MONSTER'}</small>
+                </div>
+                <div class="exploration-sequence-ship-effect" aria-hidden="true"></div>
+                <div class="exploration-sequence-ship is-${form}" data-exploration-party-ship data-exploration-party-role="host" data-guild-sail-color="${escapeHtml(guildSailColor)}" aria-hidden="true">${guildLayers}</div>
+            </div>
+            <div class="exploration-sequence-copy">
+                <strong>${escapeHtml(destinationName)}</strong>
+                <span data-exploration-sequence-label>${escapeHtml(shipTrait.label)}</span>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    const departureStartedAt = Date.now();
+    const sequenceScene = overlay.querySelector('.exploration-sequence-scene');
+    const hostShip = overlay.querySelector('[data-exploration-party-role="host"]');
+    applyPlayerShipFrameDirection(hostShip, form === 'guild' ? 'guild-right' : 'row2-a');
+    const syncOnlinePartyShips = (participants = []) => {
+        if (battleMode !== 'online' || !overlay.isConnected || !sequenceScene) return;
+        const normalizedParticipants = (Array.isArray(participants) ? participants : [])
+            .filter((entry) => Number.isInteger(Number(entry?.seat)))
+            .sort((left, right) => Number(left.seat) - Number(right.seat));
+        const localPlayFabId = String(window.myPlayFabId || '').trim();
+        const hostParticipant = normalizedParticipants.find((entry) => entry?.isHost === true)
+            || normalizedParticipants.find((entry) => (
+                localPlayFabId && String(entry?.playFabId || '').trim() === localPlayFabId
+            ));
+        if (hostParticipant && hostShip) {
+            hostShip.dataset.partySeat = String(hostParticipant.seat);
+            hostShip.dataset.partyPlayFabId = String(hostParticipant.playFabId || '');
+        }
+        const guestParticipants = normalizedParticipants
+            .filter((entry) => entry !== hostParticipant && entry?.ship)
+            .slice(0, 3);
+        const activeSeats = new Set(guestParticipants.map((entry) => String(entry.seat)));
+        sequenceScene.querySelectorAll('[data-exploration-party-role="guest"]').forEach((node) => {
+            if (!activeSeats.has(String(node.dataset.partySeat || ''))) node.remove();
+        });
+        guestParticipants.forEach((participant, index) => {
+            const seat = String(participant.seat);
+            const participantShip = createOnlineBattleShipProfile(participant.ship);
+            if (!participantShip) return;
+            const participantForm = participantShip.form;
+            const position = index + 1;
+            let node = sequenceScene.querySelector(
+                `[data-exploration-party-role="guest"][data-party-seat="${seat}"]`
+            );
+            const expectedFormClass = `is-${participantForm}`;
+            const partyShipClassName = `exploration-sequence-ship ${expectedFormClass} is-party-member is-party-position-${position}`;
+            if (node && !node.classList.contains(expectedFormClass)) {
+                node.remove();
+                node = null;
+            }
+            if (!node) {
+                node = document.createElement('div');
+                node.className = partyShipClassName;
+                node.setAttribute('aria-hidden', 'true');
+                node.dataset.explorationPartyShip = '';
+                node.dataset.explorationPartyRole = 'guest';
+                node.dataset.partySeat = seat;
+                node.dataset.partyPlayFabId = String(participant.playFabId || '');
+                node.dataset.guildSailColor = participantShip.sailColor;
+                node.innerHTML = participantForm === 'guild'
+                    ? renderGuildShipLayers(participantShip)
+                    : '';
+                node.style.setProperty(
+                    '--exploration-ship-voyage-delay',
+                    `${-Math.min(2879, Math.max(0, Date.now() - departureStartedAt))}ms`
+                );
+                sequenceScene.appendChild(node);
+                applyPlayerShipFrameDirection(node, participantForm === 'guild' ? 'guild-right' : 'row2-a');
+            }
+            node.className = partyShipClassName;
+        });
+    };
+    homeFrame?.classList.add('is-exploring');
+    homeIcon?.classList.add('is-exploring-sail');
+
+    let releaseBattleStart = () => {};
+    const startBarrier = new Promise((resolve) => {
+        releaseBattleStart = resolve;
+    });
+    let markEntryReady = () => {};
+    let markEntryFailed = () => {};
+    const entryReadyPromise = new Promise((resolve) => {
+        markEntryReady = () => resolve({ ready: true });
+        markEntryFailed = (error) => resolve({ error });
+    });
+    const preparedStatePromise = Promise.resolve(preparationPromise)
+        .then((prepared) => {
+            const battlePromise = showExplorationAutoSequence(
+                prepared.startData,
+                destinationId,
+                prepared.encounterData,
+                stage,
+                {
+                    battleMode,
+                    tutorialEnabled,
+                    skipDeparture: true,
+                    autoStartOnline: true,
+                    startBarrier,
+                    onEntryReady: markEntryReady,
+                    onOnlinePartyChange: syncOnlinePartyShips
+                }
+            );
+            battlePromise.catch(markEntryFailed);
+            return { value: { ...prepared, battlePromise } };
+        })
+        .catch((error) => ({ error }));
+    const label = overlay.querySelector('[data-exploration-sequence-label]');
+    const setPhase = (phase, text) => {
+        const voyageClass = ['sail', 'up', 'left', 'arrival'].includes(phase) ? ' is-voyage' : '';
+        overlay.className = `exploration-sequence-overlay is-${form} ${shipTrait.className} is-sky-${destinationVisual.sky} is-boss-${bossTierKey}${voyageClass} is-${phase}`;
+        if (label) label.textContent = text;
+        homeIcon?.classList.remove('is-exploring-sail', 'is-exploring-up', 'is-exploring-left', 'is-exploring-arrival');
+        homeIcon?.classList.add(`is-exploring-${phase}`);
+    };
+
+    try {
+        setPhase('sail', battleMode === 'online' ? '救難信号と海図を準備中' : shipTrait.label);
+        await wait(900);
+        setPhase('up', `${destinationVisual.label}を発見`);
+        await wait(760);
+        setPhase('left', battleMode === 'online' ? '救援隊を受付中' : '戦闘データを読み込み中');
+        await wait(700);
+        setPhase('arrival', `${destinationVisual.label}に到着`);
+        await wait(520);
+        releaseBattleStart();
+
+        if (label) {
+            label.textContent = battleMode === 'online'
+                ? '救援隊を編成して戦闘を開始します'
+                : '戦闘を開始します';
+        }
+        const preparedState = await preparedStatePromise;
+        if (preparedState.error) throw preparedState.error;
+        const entryState = await Promise.race([
+            entryReadyPromise,
+            preparedState.value.battlePromise.then(
+                () => ({ ready: true }),
+                (error) => ({ error })
+            )
+        ]);
+        if (entryState.error) throw entryState.error;
+        await wait(180);
+        return preparedState.value;
+    } finally {
+        releaseBattleStart();
+        overlay.remove();
+        homeFrame?.classList.remove('is-exploring');
+        homeIcon?.classList.remove('is-exploring-sail', 'is-exploring-up', 'is-exploring-left', 'is-exploring-arrival');
+    }
+}
+
+async function showExplorationAutoSequence(startData, destinationId, encounterData = null, selectedStage = null, options = {}) {
     const ship = startData?.ship || currentPlayerShipProfile || {};
     const active = startData?.active || {};
     const form = normalizePlayerShipForm(ship.form);
@@ -2453,6 +2778,79 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
     const encounterLabel = Number(report?.version) >= 2
         ? `STAGE ${Math.max(1, Number(report?.stageNo) || 1)}`
         : (kingdomMonster.isBoss === true ? 'BOSS ENCOUNTER' : 'MONSTER ENCOUNTER');
+    const launchBattle = async (battleMode, tutorialEnabled = false) => {
+        const stageNo = Math.max(0, Math.floor(Number(report?.stageNo) || 0));
+        const explorationId = String(report.explorationId || report.id || active.id || '');
+        const ownerPlayFabId = String(window.myPlayFabId || window.myPlayFabLoginInfo?.playFabId || '').trim();
+        const kingdomResult = await window.launchTarotKingdomExplorationBattle({
+            explorationId,
+            destinationId: String(resolvedDestinationId || ''),
+            destinationName,
+            monsterId: kingdomMonster.id,
+            monsterName: kingdomMonster.name,
+            isBoss: kingdomMonster.isBoss === true,
+            stageNo,
+            stageId: String(report?.stageId || ''),
+            battlefieldId: String(report?.battlefieldId || active?.battlefieldId || ''),
+            atmosphereTone: String(report?.atmosphereTone || active?.atmosphereTone || ''),
+            monsters: stageMonsters,
+            supplyQueue: Array.isArray(report?.supplyQueue) ? report.supplyQueue : [],
+            mode: battleMode,
+            tutorialEnabled,
+            enemyDefeatMode: getExplorationEnemyDefeatMode(),
+            currentPet: currentTarotKingdomPet,
+            onlineShip: createOnlineBattleShipProfile(ship),
+            autoStartOnline: options.autoStartOnline === true,
+            startBarrier: options.startBarrier,
+            onEntryReady: options.onEntryReady,
+            onOnlinePartyChange: options.onOnlinePartyChange,
+            onRaidEncounter: battleMode === 'online' && ownerPlayFabId
+                ? async (roomId) => requestStartTarotKingdomRaid(
+                    ownerPlayFabId,
+                    roomId,
+                    { isSilent: true, throwOnError: true }
+                )
+                : null,
+            onRoundFinished: battleMode === 'offline' && ownerPlayFabId
+                ? async (finisher) => {
+                    const roll = await requestRollTarotKingdomPetRound(
+                        ownerPlayFabId,
+                        explorationId,
+                        { ...finisher, mode: 'offline' },
+                        { isSilent: true, throwOnError: true }
+                    );
+                    if (roll?.petOffer) {
+                        const choice = await showTarotKingdomPetOffer(roll.petOffer, ownerPlayFabId);
+                        if (choice?.currentPet && typeof choice.currentPet === 'object') {
+                            setCurrentTarotKingdomPet(choice.currentPet);
+                        }
+                    }
+                    return roll;
+                }
+                : null
+        });
+        const raidResult = kingdomResult?.raid || null;
+        if (raidResult?.attemptId) {
+            await finishTarotKingdomRaidResult(ownerPlayFabId, raidResult);
+        }
+        const retreatedInKingdom = kingdomResult?.status === 'retreated';
+        return {
+            chestOpened: false,
+            battleMode,
+            kingdomMonster,
+            explorationId,
+            kingdomResult,
+            retreated: retreatedInKingdom,
+            raidEncountered: !!raidResult?.attemptId,
+            cancelled: !!raidResult?.attemptId || kingdomResult?.status !== 'completed'
+        };
+    };
+    const presetBattleMode = options.battleMode === 'online'
+        ? 'online'
+        : (options.battleMode === 'offline' ? 'offline' : '');
+    if (options.skipDeparture === true && presetBattleMode) {
+        return launchBattle(presetBattleMode, options.tutorialEnabled === true);
+    }
     const existing = document.querySelector('.exploration-sequence-overlay');
     existing?.remove();
 
@@ -2615,65 +3013,7 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
             cancelled: true
         };
     }
-    const explorationId = String(report.explorationId || report.id || active.id || '');
-    const ownerPlayFabId = String(window.myPlayFabId || window.myPlayFabLoginInfo?.playFabId || '').trim();
-    const kingdomResult = await window.launchTarotKingdomExplorationBattle({
-        explorationId,
-        destinationId: String(resolvedDestinationId || ''),
-        destinationName,
-        monsterId: kingdomMonster.id,
-        monsterName: kingdomMonster.name,
-        isBoss: kingdomMonster.isBoss === true,
-        stageNo,
-        stageId: String(report?.stageId || ''),
-        battlefieldId: String(report?.battlefieldId || active?.battlefieldId || ''),
-        atmosphereTone: String(report?.atmosphereTone || active?.atmosphereTone || ''),
-        monsters: stageMonsters,
-        supplyQueue: Array.isArray(report?.supplyQueue) ? report.supplyQueue : [],
-        mode: battleMode,
-        tutorialEnabled,
-        enemyDefeatMode: getExplorationEnemyDefeatMode(),
-        currentPet: currentTarotKingdomPet,
-        onRaidEncounter: battleMode === 'online' && ownerPlayFabId
-            ? async (roomId) => requestStartTarotKingdomRaid(
-                ownerPlayFabId,
-                roomId,
-                { isSilent: true, throwOnError: true }
-            )
-            : null,
-        onRoundFinished: battleMode === 'offline' && ownerPlayFabId
-            ? async (finisher) => {
-                const roll = await requestRollTarotKingdomPetRound(
-                    ownerPlayFabId,
-                    explorationId,
-                    { ...finisher, mode: 'offline' },
-                    { isSilent: true, throwOnError: true }
-                );
-                if (roll?.petOffer) {
-                    const choice = await showTarotKingdomPetOffer(roll.petOffer, ownerPlayFabId);
-                    if (choice?.currentPet && typeof choice.currentPet === 'object') {
-                        setCurrentTarotKingdomPet(choice.currentPet);
-                    }
-                }
-                return roll;
-            }
-            : null
-    });
-    const raidResult = kingdomResult?.raid || null;
-    if (raidResult?.attemptId) {
-        await finishTarotKingdomRaidResult(ownerPlayFabId, raidResult);
-    }
-    const retreatedInKingdom = kingdomResult?.status === 'retreated';
-    return {
-        chestOpened: false,
-        battleMode,
-        kingdomMonster,
-        explorationId,
-        kingdomResult,
-        retreated: retreatedInKingdom,
-        raidEncountered: !!raidResult?.attemptId,
-        cancelled: !!raidResult?.attemptId || kingdomResult?.status !== 'completed'
-    };
+    return launchBattle(battleMode, tutorialEnabled);
 }
 
 async function completeExplorationRetreat(playFabId, sequenceResult) {
@@ -2803,7 +3143,7 @@ function renderExplorationPanel(data, playFabId) {
         `;
         bindExplorationSettings();
         bindRescueCheck();
-        panel.querySelector('[data-exploration-claim]')?.addEventListener('click', () => claimExploration(playFabId));
+        panel.querySelector('[data-exploration-claim]')?.addEventListener('click', () => claimExploration(playFabId, active));
         panel.querySelector('[data-exploration-retreat]')?.addEventListener('click', async (event) => {
             if (explorationAutoRunning) return;
             const explorationId = String(active.id || '').trim();
@@ -2891,7 +3231,14 @@ function renderExplorationPanel(data, playFabId) {
             const stage = stages.find((entry) => Number(entry?.stageNo) === stageNo) || null;
             const supplies = await showExplorationStageSupplyDialog({ stage, paymentState });
             if (!supplies) return;
-            void startExploration(playFabId, destinationId, { stageNo, supplies, stage }, button);
+            const modeSelection = await showExplorationBattleModeDialog({ stage });
+            if (!modeSelection) return;
+            void startExploration(
+                playFabId,
+                destinationId,
+                { stageNo, supplies, stage, ...modeSelection },
+                button
+            );
         });
     });
 }
@@ -2992,18 +3339,24 @@ async function startExploration(playFabId, destinationId, payment = {}, triggerB
     setExplorationStartButtonsPending(triggerButton, true);
     try {
         const stageNo = Math.max(1, Math.floor(Number(payment?.stageNo) || 1));
-        const startData = await requestStartExploration(playFabId, stageNo, createRequestId('exploration-start'), {
-            throwOnError: true,
-            supplies: Array.isArray(payment?.supplies) ? payment.supplies : []
-        });
-        renderExplorationPanel(startData, playFabId);
-        const encounterData = await requestExplorationEncounter(playFabId, { throwOnError: true });
-        const sequenceResult = await showExplorationAutoSequence(
-            startData,
+        const battleMode = payment?.battleMode === 'online' ? 'online' : 'offline';
+        const preparationPromise = (async () => {
+            const startData = await requestStartExploration(playFabId, stageNo, createRequestId('exploration-start'), {
+                throwOnError: true,
+                supplies: Array.isArray(payment?.supplies) ? payment.supplies : []
+            });
+            renderExplorationPanel(startData, playFabId);
+            const encounterData = await requestExplorationEncounter(playFabId, { throwOnError: true });
+            return { startData, encounterData };
+        })();
+        const prepared = await showExplorationDepartureLoading({
+            stage: payment?.stage,
             destinationId,
-            encounterData,
-            payment?.stage
-        );
+            battleMode,
+            tutorialEnabled: payment?.tutorialEnabled === true,
+            preparationPromise
+        });
+        const sequenceResult = await prepared.battlePromise;
         const retreated = await completeExplorationRetreat(playFabId, sequenceResult);
         if (!retreated && !sequenceResult?.cancelled) {
             const claimData = await requestClaimExploration(playFabId, {
@@ -3022,7 +3375,7 @@ async function startExploration(playFabId, destinationId, payment = {}, triggerB
     } catch (error) {
         if (isExplorationStartConflict(error)) {
             try {
-                await recoverConflictedExploration(playFabId, destinationId);
+                await recoverConflictedExploration(playFabId, destinationId, payment);
             } catch (recoverError) {
                 showRpgMessage(recoverError?.message || '前回の探索結果を回収できませんでした。');
             }
@@ -3035,11 +3388,29 @@ async function startExploration(playFabId, destinationId, payment = {}, triggerB
     }
 }
 
-async function claimExploration(playFabId) {
+async function claimExploration(playFabId, active = null) {
     try {
-        const encounterData = await requestExplorationEncounter(playFabId, { throwOnError: true });
-        const startData = buildRecoveredExplorationStartData(encounterData, encounterData?.encounter?.destinationId || '');
-        const sequenceResult = await showExplorationAutoSequence(startData, startData.active.destinationId || '', encounterData);
+        const stageNo = Math.max(1, Math.floor(Number(active?.stageNo) || 1));
+        const stage = currentExplorationStages.find((entry) => Number(entry?.stageNo) === stageNo) || active || {};
+        const modeSelection = await showExplorationBattleModeDialog({ stage });
+        if (!modeSelection) return;
+        const destinationId = String(active?.destinationId || stage?.id || '');
+        const preparationPromise = requestExplorationEncounter(playFabId, { throwOnError: true })
+            .then((encounterData) => ({
+                encounterData,
+                startData: buildRecoveredExplorationStartData(
+                    encounterData,
+                    encounterData?.encounter?.destinationId || destinationId
+                )
+            }));
+        const prepared = await showExplorationDepartureLoading({
+            stage,
+            destinationId,
+            battleMode: modeSelection.battleMode,
+            tutorialEnabled: modeSelection.tutorialEnabled,
+            preparationPromise
+        });
+        const sequenceResult = await prepared.battlePromise;
         const retreated = await completeExplorationRetreat(playFabId, sequenceResult);
         if (!retreated && !sequenceResult?.cancelled) {
             const claimData = await requestClaimExploration(playFabId, {
@@ -3053,7 +3424,7 @@ async function claimExploration(playFabId) {
             if (claimData?.petOffer) await showTarotKingdomPetOffer(claimData.petOffer, playFabId);
             await handleExplorationClaimResult(claimData, playFabId, sequenceResult);
         } else if (!retreated) {
-            renderExplorationPanel(encounterData, playFabId);
+            renderExplorationPanel(prepared.encounterData, playFabId);
         }
     } catch (error) {
         showRpgMessage(error?.message || '探索結果を確認できませんでした。');

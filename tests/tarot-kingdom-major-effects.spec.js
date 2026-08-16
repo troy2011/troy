@@ -350,7 +350,16 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     const row = page.locator(
       '#tarotKingdomBattleParty > .tarot-kingdom-battle-player[data-player-index="0"]'
     );
-    await expect(row.locator(':scope > .tarot-kingdom-heal-number.is-regen.is-show')).toHaveText('+12');
+    const regenNumber = row.locator(':scope > .tarot-kingdom-heal-number.is-status.is-regen.is-show');
+    await expect(regenNumber).toHaveText('+12');
+    const regenStyle = await regenNumber.evaluate((node) => ({
+      color: getComputedStyle(node).color,
+      fontFamily: getComputedStyle(node).fontFamily,
+      fontSize: Number.parseFloat(getComputedStyle(node).fontSize)
+    }));
+    expect(regenStyle.color).toBe('rgb(184, 255, 199)');
+    expect(regenStyle.fontFamily).toContain('Georgia');
+    expect(regenStyle.fontSize).toBeLessThanOrEqual(17);
     await expect(row).toHaveClass(/has-regen/);
   });
 
@@ -439,7 +448,7 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     expect(audit.current.rules).toMatchObject({
       majorArcanaSpecialVersion: 2,
       majorBattleEffectsVersion: 3,
-      arcanaLoadoutEffectsVersion: 4,
+      arcanaLoadoutEffectsVersion: 7,
       elementAffinityVersion: 2
     });
     expect(audit.schema23.rules).toMatchObject({
@@ -454,7 +463,7 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     });
   });
 
-  test('same-number pairs and triples amplify majors except the prohibited Magician and Ace pair', async ({ page }) => {
+  test('same-number pairs and triples amplify majors while minor A stays distinct from Magician I', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       const resolve = (cardCount, rules = null) => {
@@ -530,9 +539,12 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     expect(audit.pairEvent.effects.filter((result) => result.kind === 'major-damage')).toHaveLength(2);
     expect(audit.magicianPair).toEqual({
       ok: false,
-      reason: '魔術師IとAは2枚組にできません。'
+      reason: 'Aはストレート以外で数字1として扱いません。'
     });
-    expect(audit.magicianTriple).toMatchObject({ ok: true, play: { type: 'set', count: 3 } });
+    expect(audit.magicianTriple).toEqual({
+      ok: false,
+      reason: 'Aはストレート以外で数字1として扱いません。'
+    });
   });
 
   test('revised attack majors apply their ailment only after a successful hit', async ({ page }) => {

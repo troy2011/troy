@@ -913,15 +913,18 @@ button.home-player-ship-name {
 .exploration-sequence-ship {
     --exploration-ship-start-left: clamp(28px, calc(100% - 540px), 42px);
     --exploration-ship-docked-left: calc(100% - 236px);
+    --exploration-ship-bottom: 64px;
+    --exploration-ship-scale: 1.8;
+    --exploration-ship-voyage-delay: 0ms;
     position: absolute;
     left: var(--exploration-ship-start-left);
-    bottom: 64px;
+    bottom: var(--exploration-ship-bottom);
     width: 64px;
     height: 64px;
     z-index: 6;
     background: url("./Sprites/Ships/ships.png") var(--player-ship-sprite-x, -64px) var(--player-ship-sprite-y, -128px) / 2048px 1024px no-repeat;
     image-rendering: pixelated;
-    transform: scale(1.8);
+    transform: scale(var(--exploration-ship-scale));
     filter: drop-shadow(0 14px 14px rgba(0, 0, 0, 0.34));
 }
 
@@ -941,6 +944,33 @@ button.home-player-ship-name {
     --guild-top-y: -128px;
     overflow: hidden;
     background: none;
+}
+
+.exploration-sequence-ship.is-party-member {
+    z-index: 5;
+    opacity: 0.94;
+    filter: drop-shadow(0 9px 9px rgba(0, 0, 0, 0.38));
+}
+
+.exploration-sequence-ship.is-party-position-1 {
+    --exploration-ship-start-left: 4px;
+    --exploration-ship-docked-left: max(0px, calc(100% - 300px));
+    --exploration-ship-bottom: 118px;
+    --exploration-ship-scale: 1.12;
+}
+
+.exploration-sequence-ship.is-party-position-2 {
+    --exploration-ship-start-left: 14px;
+    --exploration-ship-docked-left: max(4px, calc(100% - 326px));
+    --exploration-ship-bottom: 28px;
+    --exploration-ship-scale: 1.05;
+}
+
+.exploration-sequence-ship.is-party-position-3 {
+    --exploration-ship-start-left: 26px;
+    --exploration-ship-docked-left: max(8px, calc(100% - 350px));
+    --exploration-ship-bottom: 78px;
+    --exploration-ship-scale: 0.98;
 }
 
 .exploration-sequence-chests {
@@ -1023,7 +1053,7 @@ button.home-player-ship-name {
 
 .exploration-sequence-overlay.is-voyage .exploration-sequence-ship {
     animation:
-        explorationSequenceVoyage 2880ms cubic-bezier(0.33, 0.33, 0.55, 1) forwards,
+        explorationSequenceVoyage 2880ms cubic-bezier(0.33, 0.33, 0.55, 1) var(--exploration-ship-voyage-delay) forwards,
         homePlayerShipFrameStep 300ms steps(3) infinite;
 }
 
@@ -1420,13 +1450,13 @@ button.home-player-ship-name {
 @keyframes explorationSequenceVoyage {
     from {
         left: var(--exploration-ship-start-left);
-        bottom: 64px;
-        transform: scale(1.8);
+        bottom: var(--exploration-ship-bottom);
+        transform: scale(var(--exploration-ship-scale));
     }
     to {
         left: var(--exploration-ship-docked-left);
-        bottom: 64px;
-        transform: scale(1.8);
+        bottom: var(--exploration-ship-bottom);
+        transform: scale(var(--exploration-ship-scale));
     }
 }
 
@@ -11229,8 +11259,7 @@ body.tarot-kingdom-preview-body {
     top: 10px;
     color: #8dffb0;
     text-shadow: 0 1px #052a12, 0 0 7px rgba(84, 255, 142, 0.72);
-    font-size: 15px;
-    font-weight: 900;
+    font: 900 15px/1 Georgia, serif;
     pointer-events: none;
     animation: tarotKingdomHealNumber 520ms ease-out both;
 }
@@ -11265,6 +11294,30 @@ body.tarot-kingdom-preview-body {
     font-size: clamp(13px, 3.8vw, 20px);
     letter-spacing: 0.06em;
     text-shadow: 0 2px 1px #071c2d, 0 0 8px #7edaff;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-player-damage-number.is-status {
+    font-size: clamp(12px, 3.4vw, 18px);
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-player-damage-number.is-status-poison {
+    color: #baff87;
+    text-shadow: 0 2px 1px #0b2405, 0 0 7px #65d638, 0 0 13px rgba(84, 206, 46, 0.7);
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-player-damage-number.is-status-burn {
+    color: #ffc27d;
+    text-shadow: 0 2px 1px #341000, 0 0 7px #ff7a2f, 0 0 13px rgba(255, 75, 29, 0.72);
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-player-damage-number:is(.is-status-confusion, .is-status-mixed) {
+    color: #dfb8ff;
+    text-shadow: 0 2px 1px #20062f, 0 0 7px #ad64ec, 0 0 13px rgba(153, 73, 226, 0.7);
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-player-damage-number.is-status-effect {
+    color: #bceaff;
+    text-shadow: 0 2px 1px #071c2d, 0 0 7px #5bbfea, 0 0 13px rgba(71, 161, 255, 0.68);
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-player-damage-number.is-show {
@@ -11803,6 +11856,30 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-sum
 .tarot-kingdom-damage-number.is-heal {
     color: #baffbb;
     text-shadow: 0 2px 1px #12371a, 0 0 8px #67e879, 0 0 16px rgba(75, 216, 111, 0.72);
+}
+
+.tarot-kingdom-damage-number.is-status {
+    font-size: clamp(17px, 5.5vw, 30px);
+}
+
+.tarot-kingdom-damage-number.is-status-poison {
+    color: #baff87;
+    text-shadow: 0 2px 1px #0b2405, 0 0 8px #65d638, 0 0 16px rgba(84, 206, 46, 0.72);
+}
+
+.tarot-kingdom-damage-number.is-status-burn {
+    color: #ffc27d;
+    text-shadow: 0 2px 1px #341000, 0 0 8px #ff7a2f, 0 0 16px rgba(255, 75, 29, 0.74);
+}
+
+.tarot-kingdom-damage-number:is(.is-status-confusion, .is-status-mixed) {
+    color: #dfb8ff;
+    text-shadow: 0 2px 1px #20062f, 0 0 8px #ad64ec, 0 0 16px rgba(153, 73, 226, 0.72);
+}
+
+.tarot-kingdom-damage-number.is-status-effect {
+    color: #bceaff;
+    text-shadow: 0 2px 1px #071c2d, 0 0 8px #5bbfea, 0 0 16px rgba(71, 161, 255, 0.7);
 }
 
 .tarot-kingdom-damage-number.is-cap {
@@ -28269,10 +28346,25 @@ body[data-sea-tone] .home-hero-card {
     display: none;
 }
 
+#avatarStyleModal {
+    position: fixed;
+    inset: auto;
+    top: var(--avatar-style-viewport-top, 0px);
+    left: var(--avatar-style-viewport-left, 0px);
+    width: var(--avatar-style-viewport-width, 100vw);
+    height: var(--avatar-style-viewport-height, 100dvh);
+    box-sizing: border-box;
+    padding: max(10px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+    overflow: hidden;
+    overscroll-behavior: contain;
+}
+
 #avatarStyleModal .avatar-style-sheet {
-    width: min(360px, calc(100vw - 28px));
+    width: min(360px, calc(var(--avatar-style-viewport-width, 100vw) - 28px));
     max-width: 360px;
+    max-height: calc(var(--avatar-style-viewport-height, 100dvh) - 20px);
     padding: 14px;
+    overflow-y: auto;
     border: 15px solid transparent;
     border-radius: 9px;
     border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 15px / 0 stretch;
@@ -28371,6 +28463,25 @@ body[data-sea-tone] .home-hero-card {
     opacity: 0.58;
 }
 
+#sellConfirmationModal {
+    position: fixed;
+    inset: auto;
+    top: var(--sell-confirmation-viewport-top, 0px);
+    left: var(--sell-confirmation-viewport-left, 0px);
+    width: var(--sell-confirmation-viewport-width, 100vw);
+    height: var(--sell-confirmation-viewport-height, 100dvh);
+    box-sizing: border-box;
+    padding: max(10px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+    overflow: hidden;
+    overscroll-behavior: contain;
+}
+
+#sellConfirmationModal .modal-content {
+    width: min(360px, calc(var(--sell-confirmation-viewport-width, 100vw) - 20px));
+    max-height: calc(var(--sell-confirmation-viewport-height, 100dvh) - 20px);
+    overflow-y: auto;
+}
+
 #tabContentInventory .inventory-section[data-panel="items"] .section-header h2,
 #tabContentInventory .inventory-section[data-panel="tarot"] .section-header h2,
 #tabContentInventory .tarot-loadout-header h3 {
@@ -28409,13 +28520,22 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .arcana-resonance-catalog {
+    position: fixed;
+    inset: auto;
+    top: var(--arcana-resonance-viewport-top, 0px);
+    left: var(--arcana-resonance-viewport-left, 0px);
+    width: var(--arcana-resonance-viewport-width, 100vw);
+    height: var(--arcana-resonance-viewport-height, 100dvh);
+    box-sizing: border-box;
     padding: 12px;
+    overflow: hidden;
+    overscroll-behavior: contain;
     background: rgba(0, 0, 0, 0.84);
 }
 
 .arcana-resonance-sheet {
-    width: min(540px, calc(100vw - 20px));
-    max-height: min(86dvh, 760px);
+    width: min(540px, calc(var(--arcana-resonance-viewport-width, 100vw) - 20px));
+    max-height: min(calc(var(--arcana-resonance-viewport-height, 100dvh) - 24px), 760px);
     padding: 12px;
     border: 14px solid transparent;
     border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 14px / 0 stretch;
@@ -28497,7 +28617,7 @@ body[data-sea-tone] .home-hero-card {
 .arcana-resonance-list {
     display: grid;
     gap: 7px;
-    max-height: calc(min(86dvh, 760px) - 150px);
+    max-height: calc(min(var(--arcana-resonance-viewport-height, 100dvh), 760px) - 220px);
     overflow: auto;
 }
 
@@ -28768,11 +28888,18 @@ body[data-sea-tone] .home-hero-card {
 
 .black-market-panel {
     position: fixed;
-    inset: 0;
+    inset: auto;
+    top: var(--black-market-viewport-top, 0px);
+    left: var(--black-market-viewport-left, 0px);
     z-index: 10080;
+    width: var(--black-market-viewport-width, 100vw);
+    height: var(--black-market-viewport-height, 100dvh);
+    box-sizing: border-box;
     display: grid;
     place-items: center;
     padding: max(12px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+    overflow: hidden;
+    overscroll-behavior: contain;
     background:
         radial-gradient(ellipse at 50% 18%, rgba(224, 171, 72, 0.2), transparent 42%),
         rgba(0, 0, 0, 0.82);
@@ -28785,8 +28912,8 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .black-market-sheet {
-    width: min(560px, calc(100vw - 16px));
-    max-height: min(88dvh, 680px);
+    width: min(560px, calc(var(--black-market-viewport-width, 100vw) - 16px));
+    max-height: min(calc(var(--black-market-viewport-height, 100dvh) - 24px), 680px);
     margin: 0 auto;
     padding: 9px 12px 12px;
     overflow: hidden;
@@ -29019,11 +29146,18 @@ body[data-sea-tone] .home-hero-card {
 
 .inventory-action-dialog {
     position: fixed;
-    inset: 0;
+    inset: auto;
+    top: var(--inventory-action-viewport-top, 0px);
+    left: var(--inventory-action-viewport-left, 0px);
     z-index: 10120;
+    width: var(--inventory-action-viewport-width, 100vw);
+    height: var(--inventory-action-viewport-height, 100dvh);
+    box-sizing: border-box;
     display: grid;
     place-items: center;
     padding: 18px;
+    overflow: hidden;
+    overscroll-behavior: contain;
     background:
         radial-gradient(ellipse at 50% 18%, rgba(224, 171, 72, 0.18), transparent 42%),
         rgba(0, 0, 0, 0.8);
@@ -29036,8 +29170,10 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .inventory-action-dialog-sheet {
-    width: min(340px, calc(100vw - 36px));
+    width: min(340px, calc(var(--inventory-action-viewport-width, 100vw) - 36px));
+    max-height: calc(var(--inventory-action-viewport-height, 100dvh) - 36px);
     padding: 14px;
+    overflow-y: auto;
     border: 12px solid transparent;
     border-radius: 8px;
     border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 12px / 0 stretch;
@@ -30165,11 +30301,18 @@ body[data-sea-tone] .home-hero-card {
 
 .equipment-enhancement-modal {
     position: fixed;
-    inset: 0;
+    inset: auto;
+    top: var(--equipment-enhancement-viewport-top, 0px);
+    left: var(--equipment-enhancement-viewport-left, 0px);
     z-index: 10100;
+    width: var(--equipment-enhancement-viewport-width, 100vw);
+    height: var(--equipment-enhancement-viewport-height, 100dvh);
+    box-sizing: border-box;
     display: grid;
     place-items: center;
     padding: max(12px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+    overflow: hidden;
+    overscroll-behavior: contain;
     background: rgba(0, 0, 0, 0.84);
     backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
@@ -30180,8 +30323,8 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .equipment-enhancement-sheet {
-    width: min(540px, calc(100vw - 16px));
-    max-height: min(88dvh, 720px);
+    width: min(540px, calc(var(--equipment-enhancement-viewport-width, 100vw) - 16px));
+    max-height: min(calc(var(--equipment-enhancement-viewport-height, 100dvh) - 24px), 720px);
     display: grid;
     grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
     gap: 9px;
@@ -30479,8 +30622,8 @@ body[data-sea-tone] .home-hero-card {
     }
 
     .equipment-enhancement-sheet {
-        width: calc(100vw - 12px);
-        max-height: 92dvh;
+        width: calc(var(--equipment-enhancement-viewport-width, 100vw) - 12px);
+        max-height: calc(var(--equipment-enhancement-viewport-height, 100dvh) - 12px);
         padding: 8px 9px 10px;
     }
 
@@ -37289,7 +37432,7 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
 :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage
     .tarot-kingdom-heal-number.is-regen {
     color: #b8ffc7;
-    font-size: 18px;
+    font-size: clamp(12px, 3.4vw, 17px);
     text-shadow:
         0 1px #052a12,
         0 0 6px rgba(116, 255, 151, 0.88),

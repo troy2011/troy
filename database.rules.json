@@ -37,7 +37,10 @@
           ".read": "auth != null",
           "$uid": {
             ".write": "auth != null && auth.uid === $uid",
-            ".validate": "!newData.exists() || (newData.hasChildren(['uid', 'seat', 'playFabId', 'updatedAt']) && newData.child('uid').val() === auth.uid && newData.child('playFabId').val() === auth.uid && newData.child('seat').isNumber() && newData.child('seat').val() >= 0 && newData.child('seat').val() < 4 && newData.child('seat').val() === root.child('tarotKingdomRooms').child($roomId).child('meta').child('seatByUid').child(auth.uid).val() && root.child('tarotKingdomRooms').child($roomId).child('meta').child('seatOwners').child(newData.child('seat').val() + '').child('uid').val() === auth.uid && newData.child('updatedAt').isNumber() && newData.child('updatedAt').val() >= now - 90000 && newData.child('updatedAt').val() <= now + 15000)"
+            ".validate": "!newData.exists() || (newData.hasChildren(['uid', 'seat', 'playFabId', 'updatedAt']) && newData.child('uid').val() === auth.uid && newData.child('playFabId').val() === auth.uid && newData.child('seat').isNumber() && newData.child('seat').val() >= 0 && newData.child('seat').val() < 4 && newData.child('seat').val() === root.child('tarotKingdomRooms').child($roomId).child('meta').child('seatByUid').child(auth.uid).val() && root.child('tarotKingdomRooms').child($roomId).child('meta').child('seatOwners').child(newData.child('seat').val() + '').child('uid').val() === auth.uid && newData.child('updatedAt').isNumber() && newData.child('updatedAt').val() >= now - 90000 && newData.child('updatedAt').val() <= now + 15000)",
+            "ship": {
+              ".validate": "!newData.exists() || (newData.hasChildren(['form', 'sailColor']) && (newData.child('form').val() === 'boat' || newData.child('form').val() === 'explorer' || newData.child('form').val() === 'defender' || newData.child('form').val() === 'fighter' || newData.child('form').val() === 'merchant' || newData.child('form').val() === 'guild') && (newData.child('sailColor').val() === 'white' || newData.child('sailColor').val() === 'red' || newData.child('sailColor').val() === 'blue' || newData.child('sailColor').val() === 'yellow' || newData.child('sailColor').val() === 'green' || newData.child('sailColor').val() === 'purple'))"
+            }
           }
         },
         "state": {

@@ -28,6 +28,7 @@ import {
 } from './tarotBattleSkills.js';
 import { formatTarotRoleBonus } from './tarotRoles.js';
 import { bindModalClose, createModalCloseButton } from './modalClose.js';
+import { startModalViewportTracking, stopModalViewportTracking } from './modalViewport.js';
 import {
     TAROT_KINGDOM_ARCANA_EFFECT_CATALOG,
     TAROT_KINGDOM_ARCANA_AP_EFFECTS,
@@ -89,7 +90,6 @@ let blackMarketReturnFocusElement = null;
 let equipmentEnhancementPreviewTimer = null;
 let equipmentEnhancementRequestSerial = 0;
 let equipmentEnhancementKeydownHandler = null;
-let itemDetailViewportCleanup = null;
 // カードレベルデータ: { [itemId]: { level, maxLevel, quantity, nextLevelCost } }
 let cardLevelMap = {};
 let tarotBattleSkillsLoaded = false;
@@ -241,6 +241,7 @@ function showInventoryActionDialog(options = {}) {
     }
 
     dialog.hidden = false;
+    startModalViewportTracking(dialog, 'inventory-action');
     document.body.classList.add('modal-lock');
     if (wantsInput) {
         requestAnimationFrame(() => {
@@ -254,6 +255,7 @@ function showInventoryActionDialog(options = {}) {
     return new Promise((resolve) => {
         const cleanup = (result) => {
             dialog.hidden = true;
+            stopModalViewportTracking(dialog);
             dialog.removeEventListener('click', handleBackdropClick);
             document.removeEventListener('keydown', handleKeydown, true);
             cancelBtn.removeEventListener('click', handleCancel);
@@ -539,55 +541,15 @@ function syncModalLockState() {
     document.body.classList.toggle('modal-lock', getVisibleModalCount() > 0);
 }
 
-function stopItemDetailViewportTracking() {
-    if (!itemDetailViewportCleanup) return;
-    itemDetailViewportCleanup();
-    itemDetailViewportCleanup = null;
-}
-
-function startItemDetailViewportTracking(modal) {
-    stopItemDetailViewportTracking();
-    if (!modal || typeof window === 'undefined') return;
-
-    const viewport = window.visualViewport;
-    let animationFrameId = 0;
-    const sync = () => {
-        animationFrameId = 0;
-        const width = Math.max(1, Number(viewport?.width) || window.innerWidth || document.documentElement.clientWidth || 1);
-        const height = Math.max(1, Number(viewport?.height) || window.innerHeight || document.documentElement.clientHeight || 1);
-        const left = Math.max(0, Number(viewport?.offsetLeft) || 0);
-        const top = Math.max(0, Number(viewport?.offsetTop) || 0);
-        modal.style.setProperty('--item-detail-viewport-left', `${left}px`);
-        modal.style.setProperty('--item-detail-viewport-top', `${top}px`);
-        modal.style.setProperty('--item-detail-viewport-width', `${width}px`);
-        modal.style.setProperty('--item-detail-viewport-height', `${height}px`);
-    };
-    const scheduleSync = () => {
-        if (animationFrameId) return;
-        animationFrameId = window.requestAnimationFrame(sync);
-    };
-
-    sync();
-    viewport?.addEventListener('resize', scheduleSync, { passive: true });
-    viewport?.addEventListener('scroll', scheduleSync, { passive: true });
-    window.addEventListener('resize', scheduleSync, { passive: true });
-    window.addEventListener('orientationchange', scheduleSync, { passive: true });
-    itemDetailViewportCleanup = () => {
-        if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
-        viewport?.removeEventListener('resize', scheduleSync);
-        viewport?.removeEventListener('scroll', scheduleSync);
-        window.removeEventListener('resize', scheduleSync);
-        window.removeEventListener('orientationchange', scheduleSync);
-        modal.style.removeProperty('--item-detail-viewport-left');
-        modal.style.removeProperty('--item-detail-viewport-top');
-        modal.style.removeProperty('--item-detail-viewport-width');
-        modal.style.removeProperty('--item-detail-viewport-height');
-    };
-}
+const MODAL_VIEWPORT_PREFIX_BY_ID = Object.freeze({
+    itemDetailModal: 'item-detail',
+    arcanaResonanceCatalogModal: 'arcana-resonance',
+    sellConfirmationModal: 'sell-confirmation'
+});
 
 function hideModal(modal) {
     if (!modal) return;
-    if (modal.id === 'itemDetailModal') stopItemDetailViewportTracking();
+    stopModalViewportTracking(modal);
     modal.style.display = 'none';
     syncModalLockState();
 }
@@ -595,7 +557,8 @@ function hideModal(modal) {
 function showModal(modal) {
     if (!modal) return;
     modal.style.display = 'flex';
-    if (modal.id === 'itemDetailModal') startItemDetailViewportTracking(modal);
+    const propertyPrefix = MODAL_VIEWPORT_PREFIX_BY_ID[modal.id];
+    if (propertyPrefix) startModalViewportTracking(modal, propertyPrefix);
     syncModalLockState();
 }
 
@@ -1993,11 +1956,13 @@ function renderBlackMarketPanel() {
     if (!panel) return;
     panel.hidden = !blackMarketVisible;
     if (!blackMarketVisible) {
+        stopModalViewportTracking(panel);
         panel.innerHTML = '';
         syncModalLockState();
         return;
     }
 
+    startModalViewportTracking(panel, 'black-market');
     document.body.classList.add('modal-lock');
     panel.innerHTML = '';
     panel.setAttribute('aria-busy', blackMarketLoading ? 'true' : 'false');
@@ -3798,6 +3763,7 @@ function closeEquipmentEnhancementModal() {
     const modal = document.getElementById('equipmentEnhancementModal');
     if (!modal || modal.hidden) return;
     modal.hidden = true;
+    stopModalViewportTracking(modal);
     if (equipmentEnhancementPreviewTimer) clearTimeout(equipmentEnhancementPreviewTimer);
     equipmentEnhancementPreviewTimer = null;
     equipmentEnhancementRequestSerial += 1;
@@ -4081,6 +4047,7 @@ function showEquipmentEnhancementModal(baseItem) {
 
     closeItemDetailModal();
     modal.hidden = false;
+    startModalViewportTracking(modal, 'equipment-enhancement');
     document.body.classList.add('modal-lock');
     equipmentEnhancementKeydownHandler = (event) => {
         if (event.key === 'Escape' && !applying) {

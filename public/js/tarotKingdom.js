@@ -1455,11 +1455,15 @@ const setPowerForCards = (number, cards = []) => {
     && normalizedCards.every((card) => card?.kind === 'major' && Number(card?.number) === 1);
   return isMagicianOnly ? 1 : setRankFromNumber(normalizedNumber);
 };
-const isKingdomMagicianAcePair = (cards = []) => {
+const getKingdomSetRankKey = (card) => {
+  const number = Number(card?.number || 0);
+  return card?.kind === 'minor' && number === 1 ? 'minor-ace' : `number-${number}`;
+};
+const mixesKingdomAceAndNumberOne = (cards = []) => {
   const normalizedCards = Array.isArray(cards) ? cards.filter(Boolean) : [];
-  if (normalizedCards.length !== 2) return false;
-  return normalizedCards.some((card) => card?.kind === 'major' && Number(card?.number) === 1)
-    && normalizedCards.some((card) => card?.kind === 'minor' && Number(card?.number) === 1);
+  const hasAce = normalizedCards.some((card) => getKingdomSetRankKey(card) === 'minor-ace');
+  const hasNumberOne = normalizedCards.some((card) => getKingdomSetRankKey(card) === 'number-1');
+  return hasAce && hasNumberOne;
 };
 const normalizeKingdomSetPlayPower = (play) => {
   if (!play || typeof play !== 'object' || play.type !== 'set') return play;
@@ -1494,21 +1498,11 @@ const canRepresentKingdomLowAce = (card) => (
   (card?.kind === 'minor' && Number(card?.number) === 1)
   || (card?.kind === 'major' && Number(card?.number) === 0)
 );
-const setNumberOptions = (card) => {
-  if (!card) return [0];
-  return [Number(card.number || 0)];
-};
-const chooseSetNumberCandidate = (cards, reverse = false) => {
+const chooseSetNumberCandidate = (cards) => {
   if (!Array.isArray(cards) || !cards.length) return null;
-  const optionRows = cards.map((card) => setNumberOptions(card));
-  const common = optionRows[0].filter((value) => optionRows.every((row) => row.includes(value)));
-  if (!common.length) return null;
-  const sorted = common.slice().sort((a, b) => {
-    const av = setRankFromNumber(a);
-    const bv = setRankFromNumber(b);
-    return reverse ? (av - bv) : (bv - av);
-  });
-  return Number(sorted[0]);
+  const rankKey = getKingdomSetRankKey(cards[0]);
+  if (!cards.every((card) => getKingdomSetRankKey(card) === rankKey)) return null;
+  return Number(cards[0]?.number || 0);
 };
 const pName = (i) => s.players[i]?.name || `P${i + 1}`;
 const pPlayFabId = (i) => String(s?.players?.[i]?.playFabId || '').trim();
@@ -2683,7 +2677,8 @@ function buildSelectedCardInfoMessage(playerIndex, selectedIndexes) {
     const builtSet = buildSetPlay(playerIndex, sel);
     if (builtSet?.ok) {
       const n = Number(builtSet.play?.number || 0);
-      const rank = n === 1 ? 'A' : String(n || '?');
+      const isAceSet = builtSet.play.cardsHand?.every((card) => getKingdomSetRankKey(card) === 'minor-ace');
+      const rank = isAceSet ? 'A' : String(n || '?');
       baseMessage = `${sel.length}枚 / 数字${rank}`;
     }
   }
@@ -12712,6 +12707,48 @@ function isFreshKingdomPresence(info, now = Date.now()) {
     && now - updatedAt <= TK_PRESENCE_STALE_MS;
 }
 
+function normalizeKingdomOnlineShip(ship) {
+  if (!ship || typeof ship !== 'object') return null;
+  const supportedForms = new Set(['boat', 'explorer', 'defender', 'fighter', 'merchant', 'guild']);
+  const supportedSailColors = new Set(['white', 'red', 'blue', 'yellow', 'green', 'purple']);
+  const form = String(ship.form || '').trim().toLowerCase();
+  if (!supportedForms.has(form)) return null;
+  const requestedSailColor = String(ship.sailColor || '').trim().toLowerCase();
+  return {
+    form,
+    sailColor: form === 'guild' && supportedSailColors.has(requestedSailColor)
+      ? requestedSailColor
+      : 'white'
+  };
+}
+
+function notifyKingdomExplorationPartyChange() {
+  const callback = kingdomExplorationSession?.context?.onOnlinePartyChange;
+  if (typeof callback !== 'function') return;
+  const participants = Object.entries(netPresenceByUid || {})
+    .flatMap(([uid, info]) => {
+      if (!isFreshKingdomPresence(info)) return [];
+      const seat = Number(info?.seat);
+      if (!Number.isInteger(seat) || seat < 0 || seat >= 4) return [];
+      return [{
+        seat,
+        uid: String(uid || ''),
+        playFabId: String(info?.playFabId || uid || ''),
+        displayName: String(info?.displayName || info?.name || `P${seat + 1}`),
+        isHost: String(uid || '') === String(tkNet.hostUid || ''),
+        ship: normalizeKingdomOnlineShip(info?.ship)
+      }];
+    })
+    .sort((left, right) => left.seat - right.seat);
+  try {
+    Promise.resolve(callback(participants)).catch((error) => {
+      console.warn('[tarotKingdom] online party ship update failed:', error);
+    });
+  } catch (error) {
+    console.warn('[tarotKingdom] online party ship update failed:', error);
+  }
+}
+
 async function waitForTkUid(timeoutMs = 4000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -14191,6 +14228,7 @@ async function claimHostIfNeeded(forceTakeover = false) {
     const committedHost = String(result?.snapshot?.val?.() || '').trim();
     tkNet.hostUid = committedHost;
     tkNet.isHost = committedHost === tkNet.uid;
+    notifyKingdomExplorationPartyChange();
     if (!tkNet.isHost) netHostAuthorityReady = false;
     if (!wasHost && tkNet.isHost) {
       await armKingdomHostDisconnectHooks();
@@ -14838,6 +14876,7 @@ function startRoomSubscriptions() {
     const hostUid = snap.exists() ? String(snap.val() || '') : '';
     tkNet.hostUid = hostUid;
     tkNet.isHost = hostUid && hostUid === tkNet.uid;
+    notifyKingdomExplorationPartyChange();
     if (!hostUid) {
       claimHostIfNeeded().catch((error) => {
         console.warn('[tarotKingdom] host reclaim failed:', error);
@@ -14881,7 +14920,17 @@ function startRoomSubscriptions() {
 
   const presenceRef = ref(tkNet.db, `${tkNet.roomPath}/presence`);
   netPresenceUnsub = onValue(presenceRef, (snapshot) => {
-    netPresenceByUid = snapshot.exists() ? (snapshot.val() || {}) : {};
+    const nextPresence = snapshot.exists() ? (snapshot.val() || {}) : {};
+    const localPresence = netPresenceByUid?.[tkNet.uid];
+    if (
+      tkNet.presenceRef
+      && tkNet.uid
+      && !nextPresence[tkNet.uid]
+      && isFreshKingdomPresence(localPresence)
+    ) {
+      nextPresence[tkNet.uid] = localPresence;
+    }
+    netPresenceByUid = nextPresence;
     if (!tkNet.isHost && tkNet.hostUid && !isFreshKingdomPresence(netPresenceByUid[tkNet.hostUid])) {
       claimHostIfNeeded(true).catch((error) => {
         console.warn('[tarotKingdom] host takeover failed:', error);
@@ -14889,6 +14938,7 @@ function startRoomSubscriptions() {
     }
     if (s) {
       applyPresenceToPlayers();
+      notifyKingdomExplorationPartyChange();
       if (tkNet.isHost && netRoomStateReady) queueStatePublish();
       render();
     }
@@ -15066,11 +15116,13 @@ async function ensureTarotKingdomNetwork() {
       }
       const presenceRef = ref(db, `${tkNet.roomPath}/presence/${tkNet.uid}`);
       tkNet.presenceRef = presenceRef;
+      const presenceShip = normalizeKingdomOnlineShip(kingdomExplorationSession?.context?.onlineShip);
       const presencePayload = {
         uid: tkNet.uid,
         seat: tkNet.localSeat,
         displayName: tkNet.localPlayerName,
         playFabId: String(window.myPlayFabId || tkNet.uid),
+        ...(presenceShip ? { ship: presenceShip } : {}),
         currentPet: kingdomExplorationSession?.context?.mode === 'online'
           && kingdomExplorationSession.context.currentPet?.monsterId
           ? cloneKingdomSnapshotValue(kingdomExplorationSession.context.currentPet, null)
@@ -15089,6 +15141,7 @@ async function ensureTarotKingdomNetwork() {
       // lease during the initial connection window.
       await set(presenceRef, presencePayload);
       netPresenceByUid[tkNet.uid] = { ...presencePayload, updatedAt: Date.now() };
+      notifyKingdomExplorationPartyChange();
       schedulePresenceHeartbeat();
       if (
         netJoinedExplorationMeta?.kind === 'exploration-rescue'
@@ -17709,17 +17762,21 @@ function buildSetPlay(pi, sel) {
   if (![1, 2, 3].includes(sel.length)) return { ok: false, reason: '通常出しは1〜3枚です。' };
   const cards = sel.map((i) => p.hand[i]).filter(Boolean);
   if (cards.length !== sel.length) return { ok: false, reason: '選択が不正です。' };
-  if (isKingdomMagicianAcePair(cards)) {
-    return { ok: false, reason: '魔術師IとAは2枚組にできません。' };
-  }
   const isWorldSingle = cards.length === 1
     && cards[0]?.kind === 'major'
     && Number(cards[0]?.number) === 21;
   if (forcedCount > 0 && sel.length !== forcedCount && !isWorldSingle) {
     return { ok: false, reason: `${forcedCount}枚出しのみ有効です。` };
   }
-  let n = chooseSetNumberCandidate(cards, !!s.reverse);
-  if (n == null) return { ok: false, reason: '同じ数値で揃えてください。' };
+  let n = chooseSetNumberCandidate(cards);
+  if (n == null) {
+    return {
+      ok: false,
+      reason: mixesKingdomAceAndNumberOne(cards)
+        ? 'Aはストレート以外で数字1として扱いません。'
+        : '同じ数値で揃えてください。'
+    };
+  }
   if (
     cards.length === 1
     && isMajorSuitGateCard(cards[0])
@@ -21905,6 +21962,7 @@ function getKingdomBattleEventDuration(event) {
   }
   if (type === 'enemy-self') return KINGDOM_ENEMY_SINGLE_EVENT_MS;
   if (type === 'enemy-status') return KINGDOM_ENEMY_STATUS_EVENT_MS;
+  if (type === 'player-status') return 800;
   if (type === 'turn-effects') return 800;
   if (type === 'judgment-reclaim') return KINGDOM_JUDGMENT_RECLAIM_EVENT_MS;
   if (type === 'raid-transform') return KINGDOM_RAID_TRANSFORM_EVENT_MS;
@@ -22265,11 +22323,13 @@ function getKingdomBattleVisualHp(playerIndex, logicalHp, maxHp, activeEvent, ev
     if (Date.now() < Number(timeline.effectAt || timeline.endsAt || 0)) return Math.max(0, Math.min(maxHp, before));
     return Math.max(0, Math.min(maxHp, after));
   }
-  const activeDamage = Array.isArray(activeEvent?.damages)
-    ? activeEvent.damages.find((entry) => Number(entry?.playerIndex) === playerIndex)
-    : null;
-  if (eventIsActive && timeline && activeDamage) {
-    const visualHp = interpolateKingdomBattleHp(activeDamage.hpBefore, activeDamage.hpAfter, timeline);
+  const activeDamages = Array.isArray(activeEvent?.damages)
+    ? activeEvent.damages.filter((entry) => Number(entry?.playerIndex) === playerIndex)
+    : [];
+  if (eventIsActive && timeline && activeDamages.length > 0) {
+    const before = activeDamages[0].hpBefore;
+    const after = activeDamages[activeDamages.length - 1].hpAfter;
+    const visualHp = interpolateKingdomBattleHp(before, after, timeline);
     return Math.max(0, Math.min(maxHp, visualHp));
   }
   const transition = getKingdomPresentationTransition();
@@ -22461,6 +22521,29 @@ function syncKingdomCoverInterposition(event, eventIsActive, eventKey, timeline)
   });
   animation.id = `tarot-kingdom-cover:${motionKey}`;
   animation.currentTime = elapsedMs;
+}
+
+function getKingdomStatusHpNumberTone(event, targetType, targetIndex = null) {
+  const statusTones = (Array.isArray(event?.effects) ? event.effects : []).flatMap((entry) => {
+    const kind = String(entry?.kind || '');
+    if (!['status-damage', 'status-self-damage', 'player-status-damage'].includes(kind)) return [];
+    if (Number(entry?.amount) <= 0) return [];
+    if (targetType === 'player') {
+      if (entry?.targetType !== 'player' || Number(entry?.targetIndex) !== Number(targetIndex)) return [];
+    } else if (targetType === 'enemy' && entry?.targetType && entry.targetType !== 'enemy') {
+      return [];
+    }
+    const statusKey = String(entry?.statusKey || '').toLowerCase();
+    if (statusKey.includes('poison')) return ['poison'];
+    if (statusKey.includes('burn')) return ['burn'];
+    if (statusKey.includes('confusion')) return ['confusion'];
+    return ['effect'];
+  });
+  if (!statusTones.length && targetType === 'enemy' && String(event?.type || '') === 'enemy-self') {
+    return 'confusion';
+  }
+  const uniqueTones = [...new Set(statusTones)];
+  return uniqueTones.length > 1 ? 'mixed' : (uniqueTones[0] || '');
 }
 
 function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eventKey = '') {
@@ -22738,10 +22821,11 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
       : [];
     const regenTick = String(activeEvent?.type || '') === 'turn-effects'
       && healing.some((entry) => String(entry?.kind || '') === 'regen');
+    const timedHealing = String(activeEvent?.type || '') === 'turn-effects' && healing.length > 0;
     const summonHealing = !!(activeEvent?.summon?.id || activeEvent?.majorSummon?.id);
     const showHeal = eventIsActive
       && (
-        regenTick
+        timedHealing
         || (summonHealing
           ? isKingdomEffectResultReady(activeEvent, eventIsActive, phase)
           : ['effect', 'recover', 'final'].includes(phase))
@@ -22754,9 +22838,13 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
         row.appendChild(healNumber);
       }
       const healAmount = healing.reduce((sum, entry) => sum + Math.max(0, Number(entry.amount) || 0), 0);
-      const healKey = `${activeEvent?.seq || 0}:${playerIndex}:${healAmount}:${regenTick ? 'regen' : 'heal'}`;
+      const healKey = `${activeEvent?.seq || 0}:${playerIndex}:${healAmount}:${timedHealing ? 'status' : 'heal'}`;
       healNumber.textContent = `+${healAmount}`;
-      healNumber.className = `tarot-kingdom-heal-number${regenTick ? ' is-regen' : ''}`;
+      healNumber.className = [
+        'tarot-kingdom-heal-number',
+        timedHealing ? 'is-status' : '',
+        regenTick ? 'is-regen' : ''
+      ].filter(Boolean).join(' ');
       if (healNumber.dataset.eventKey !== healKey) {
         healNumber.dataset.eventKey = healKey;
         healNumber.classList.remove('is-show');
@@ -22767,13 +22855,18 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
     } else {
       healNumber?.remove();
     }
-    const incomingDamage = eventIsActive && Array.isArray(activeEvent?.damages)
-      ? activeEvent.damages.find((entry) => Number(entry?.playerIndex) === playerIndex)
-      : null;
-    const damageAmount = Math.max(0, Math.floor(Number(incomingDamage?.damage) || 0));
-    const damageMissed = incomingDamage?.missed === true;
+    const incomingDamages = eventIsActive && Array.isArray(activeEvent?.damages)
+      ? activeEvent.damages.filter((entry) => Number(entry?.playerIndex) === playerIndex)
+      : [];
+    const damageAmount = incomingDamages.reduce((sum, entry) => (
+      sum + Math.max(0, Math.floor(Number(entry?.damage) || 0))
+    ), 0);
+    const damageMissed = incomingDamages.length > 0
+      && damageAmount <= 0
+      && incomingDamages.some((entry) => entry?.missed === true);
+    const statusDamageTone = getKingdomStatusHpNumberTone(activeEvent, 'player', playerIndex);
     const showDamage = !!(
-      incomingDamage
+      incomingDamages.length
       && isKingdomDamageNumberReady(timeline)
       && (damageAmount > 0 || damageMissed)
     );
@@ -22785,9 +22878,14 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
         damageNumber.setAttribute('aria-hidden', 'true');
         row.appendChild(damageNumber);
       }
-      const damageKey = `${activeEvent?.seq || 0}:${playerIndex}:${damageAmount}:${damageMissed ? 'miss' : 'hit'}`;
+      const damageKey = `${activeEvent?.seq || 0}:${playerIndex}:${damageAmount}:${damageMissed ? 'miss' : 'hit'}:${statusDamageTone}`;
       damageNumber.textContent = damageMissed ? 'MISS' : String(damageAmount);
-      damageNumber.className = `tarot-kingdom-player-damage-number${damageMissed ? ' is-miss' : ''}`;
+      damageNumber.className = [
+        'tarot-kingdom-player-damage-number',
+        statusDamageTone ? 'is-status' : '',
+        statusDamageTone ? `is-status-${statusDamageTone}` : '',
+        damageMissed ? 'is-miss' : ''
+      ].filter(Boolean).join(' ');
       if (damageNumber.dataset.eventKey !== damageKey) {
         damageNumber.dataset.eventKey = damageKey;
         damageNumber.classList.remove('is-show');
@@ -23465,7 +23563,9 @@ function renderKingdomBattleDamageNumber(event, eventIsActive, eventKey = '') {
     return;
   }
   const key = `${String(eventKey || 'legacy')}:${event.seq}:${event.type}:${displayedDamage}:${displayedHealing}:${missed ? 'miss' : 'hit'}`;
+  const statusDamageTone = getKingdomStatusHpNumberTone(event, 'enemy');
   const reachedDamageCap = !missed
+    && !statusDamageTone
     && areKingdomDamageGrowthRulesEnabled()
     && displayedDamage >= KINGDOM_PLAYER_DAMAGE_CAP;
   if (!node) {
@@ -23479,6 +23579,8 @@ function renderKingdomBattleDamageNumber(event, eventIsActive, eventKey = '') {
     event.type === 'skill' ? 'is-skill' : '',
     reachedDamageCap ? 'is-cap' : '',
     displayedHealing > 0 ? 'is-heal' : '',
+    statusDamageTone ? 'is-status' : '',
+    statusDamageTone ? `is-status-${statusDamageTone}` : '',
     missed ? 'is-miss' : ''
   ].filter(Boolean).join(' ');
   node.textContent = missed
@@ -26388,6 +26490,11 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
   kingdomExplorationMonsterId = monster.id;
   const destinationId = String(context?.destinationId || '').trim();
   const requestedMode = context?.mode === 'online' ? 'online' : 'offline';
+  const autoStartOnline = requestedMode === 'online' && context?.autoStartOnline === true;
+  const startBarrier = context?.startBarrier && typeof context.startBarrier.then === 'function'
+    ? context.startBarrier
+    : Promise.resolve();
+  const onEntryReady = typeof context?.onEntryReady === 'function' ? context.onEntryReady : null;
   const battlefield = createTarotKingdomBattlefieldSnapshot(
     destinationId,
     String(context?.battlefieldId || '')
@@ -26443,6 +26550,10 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
     raidEncounterChecked: false,
     raidEncounterPending: false,
     currentPet,
+    onlineShip: requestedMode === 'online' ? normalizeKingdomOnlineShip(context?.onlineShip) : null,
+    onOnlinePartyChange: requestedMode === 'online' && typeof context?.onOnlinePartyChange === 'function'
+      ? context.onOnlinePartyChange
+      : null,
     onRoundFinished: requestedMode === 'offline' && typeof context?.onRoundFinished === 'function'
       ? context.onRoundFinished
       : null
@@ -26531,6 +26642,17 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
         render();
         queueStatePublish(true);
       }
+      if (autoStartOnline) {
+        const profilePreparation = prepareKingdomCharacterSnapshots({ online: true });
+        await Promise.all([startBarrier, profilePreparation]);
+        if (!isNetModeActive() || !tkNet.isHost) {
+          throw new Error('オンライン救難信号を開始できませんでした。');
+        }
+        await handleKingdomOnlineStartClick();
+        if (!s?.roundActive) {
+          throw new Error('オンライン戦闘を開始できませんでした。');
+        }
+      }
     } else {
       activateKingdomOfflineMode({
         renderNow: false,
@@ -26539,8 +26661,12 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
           : `${normalizedContext.destinationName || '島'} STAGE ${normalizedContext.stageNo || 1}・ENEMY 1/${TOTAL_HANDS}: ${monster.name}`
       });
       applyExplorationStageToCurrentState();
+      const profilePreparation = prepareKingdomCharacterSnapshots({ online: false });
+      await Promise.all([startBarrier, profilePreparation]);
       await startOrNext();
     }
+    onEntryReady?.();
+    normalizedContext.onOnlinePartyChange = null;
   } catch (error) {
     settleKingdomExplorationSession('failed');
     throw error;
@@ -26602,6 +26728,8 @@ export async function joinTarotKingdomRescueRoom(room = {}) {
       ? KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
       : KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO,
     currentPet,
+    onlineShip: normalizeKingdomOnlineShip(room?.onlineShip),
+    onOnlinePartyChange: null,
     isRescueGuest: true,
     ownerPlayFabId: rescue.ownerPlayFabId,
     roomId: rescue.roomId,

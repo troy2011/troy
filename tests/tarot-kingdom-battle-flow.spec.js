@@ -341,7 +341,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     });
   });
 
-  test('Magician I and a minor Ace cannot form a two-card set', async ({ page }) => {
+  test('a minor Ace is distinct from numeric one outside a straight', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       const magician = { id: 'magician-pair-major', kind: 'major', suit: 'Wand', number: 1 };
@@ -365,18 +365,39 @@ test.describe('Tarot Kingdom character battle flow', () => {
         selectedCardIds: [magician.id, cupAce.id, swordAce.id]
       });
       const played = debug.battlePlayCards(0, [magician.id, cupAce.id], { resolve: false });
-      return { pair, reversedPair, minorPair, triple, played };
+      const lowStraightCards = [
+        { id: 'ace-low-straight-a', kind: 'minor', suit: 'Wand', number: 1 },
+        { id: 'ace-low-straight-2', kind: 'minor', suit: 'Cup', number: 2 },
+        { id: 'ace-low-straight-3', kind: 'minor', suit: 'Sword', number: 3 },
+        { id: 'ace-low-straight-4', kind: 'minor', suit: 'Pentacle', number: 4 },
+        { id: 'ace-low-straight-5', kind: 'minor', suit: 'Wand', number: 5 }
+      ];
+      debug.battleScenario({
+        withTrick: false,
+        handsBySeat: [lowStraightCards]
+      });
+      const lowStraight = debug.battleRebuildAction(0, {
+        selectedCardIds: lowStraightCards.map((card) => card.id)
+      });
+      return { pair, reversedPair, minorPair, triple, played, lowStraight };
     });
 
-    expect(audit.pair).toEqual({ ok: false, reason: '魔術師IとAは2枚組にできません。' });
+    expect(audit.pair).toEqual({ ok: false, reason: 'Aはストレート以外で数字1として扱いません。' });
     expect(audit.reversedPair).toEqual(audit.pair);
-    expect(audit.minorPair).toMatchObject({ ok: true, play: { type: 'set', count: 2 } });
-    expect(audit.triple).toMatchObject({ ok: true, play: { type: 'set', count: 3 } });
+    expect(audit.minorPair).toMatchObject({
+      ok: true,
+      play: { type: 'set', count: 2, number: 1, setPower: 15 }
+    });
+    expect(audit.triple).toEqual(audit.pair);
     expect(audit.played).toMatchObject({
       ok: false,
-      reason: '魔術師IとAは2枚組にできません。'
+      reason: 'Aはストレート以外で数字1として扱いません。'
     });
     expect(audit.played.state.players[0].hand).toHaveLength(4);
+    expect(audit.lowStraight).toMatchObject({
+      ok: true,
+      play: { type: 'role', role: { key: 'Straight', primary: [5] } }
+    });
   });
 
   test('fold and every later automatic fold receive shield-mitigated counters', async ({ page }) => {
@@ -1519,6 +1540,73 @@ test.describe('Tarot Kingdom character battle flow', () => {
       protectedPlayerIndex: 0
     });
     expect(audit.guardedArea.battle.effects.party.areaGuard).toBeUndefined();
+  });
+
+  test('poison HP loss uses a smaller green damage number for enemies and players', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.evaluate(({ combatBySeat }) => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({
+        rules: { statusEffectsVersion: 1 },
+        turnIndex: 1,
+        leaderIndex: 0,
+        hpBySeat: [100, 100, 100, 100],
+        combatBySeat
+      });
+      debug.battleSetEffects({
+        enemy: {
+          poison: { key: 'poison', potency: 5, charges: null },
+          paralysis: { key: 'paralysis', potency: 1, charges: 1 }
+        },
+        party: {},
+        players: [{}, {}, {}, {}]
+      });
+      debug.battlePass(1);
+      debug.battleRender();
+    }, { combatBySeat: zeroDefenseParty });
+
+    const enemyNumber = page.locator(
+      '.tarot-kingdom-battle-enemy > .tarot-kingdom-damage-number.is-status-poison.is-show'
+    );
+    await expect(enemyNumber).toHaveText('5', { timeout: 2500 });
+    const enemyStyle = await enemyNumber.evaluate((node) => ({
+      color: getComputedStyle(node).color,
+      fontSize: Number.parseFloat(getComputedStyle(node).fontSize)
+    }));
+    expect(enemyStyle.color).toBe('rgb(186, 255, 135)');
+    expect(enemyStyle.fontSize).toBeLessThanOrEqual(30);
+
+    await page.evaluate(({ combatBySeat }) => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({
+        rules: { statusEffectsVersion: 1 },
+        turnIndex: 1,
+        leaderIndex: 0,
+        hpBySeat: [100, 100, 100, 100],
+        combatBySeat
+      });
+      debug.battleSetEffects({
+        enemy: { paralysis: { key: 'paralysis', potency: 1, charges: 1 } },
+        party: {},
+        players: [{}, {
+          poison: { key: 'poison', potency: 7, charges: null }
+        }, {}, {}]
+      });
+      debug.battlePass(1);
+      debug.battleRender();
+    }, { combatBySeat: zeroDefenseParty });
+
+    const playerNumber = page.locator(
+      '#tarotKingdomBattleParty > .tarot-kingdom-battle-player[data-player-index="1"]'
+      + ' > .tarot-kingdom-player-damage-number.is-status-poison.is-show'
+    );
+    await expect(playerNumber).toHaveText('7', { timeout: 2500 });
+    const playerStyle = await playerNumber.evaluate((node) => ({
+      color: getComputedStyle(node).color,
+      fontSize: Number.parseFloat(getComputedStyle(node).fontSize)
+    }));
+    expect(playerStyle.color).toBe('rgb(186, 255, 135)');
+    expect(playerStyle.fontSize).toBeLessThanOrEqual(18);
   });
 
   test('coverer visibly interposes before the protected player and takes the hit', async ({ page }) => {

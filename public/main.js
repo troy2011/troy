@@ -14,7 +14,7 @@ import {
 import * as Player from 'player';
 import * as Inventory from 'inventory';
 import * as Guild from './js/guild.js';
-import * as Ship from './js/ship.js?v=20260814-tutorial-choice-v1';
+import * as Ship from './js/ship.js?v=20260816-online-fleet-v1';
 import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js?v=20260731-stage-score1';
 import { initMapChat, initTroyChat } from './js/mapChat.js';
@@ -37,6 +37,7 @@ import {
 } from './js/playfabClient.js';
 import { FEATURE_UNLOCK_LEVELS, formatUnlockedFeatures, isFeatureUnlocked, normalizeLevel } from './js/featureUnlocks.js';
 import { bindModalClose, bindTargetModalCloseButtons } from './js/modalClose.js';
+import { startModalViewportTracking, stopModalViewportTracking } from './js/modalViewport.js';
 
 import { getDatabase, onValue as onDatabaseValue, ref as databaseRef } from "firebase/database";
 // --- グローバル変数 ---
@@ -66,7 +67,7 @@ let lineFriendPromoState = null;
 let dailyFortuneOpenPromise = null;
 let dailyFortuneClaimEventBound = false;
 const TAROT_MODULE_VERSION = '20260814-tutorial-choice-v1';
-const TAROT_KINGDOM_RESCUE_VERSION = '20260816-online-presentation-v1';
+const TAROT_KINGDOM_RESCUE_VERSION = '20260816-ace-rank-v1';
 const DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY = 'troy:daily-fortune-claimed-day';
 const LIFF_CALLBACK_PARAM_KEYS = [
     'code',
@@ -1208,7 +1209,8 @@ async function joinHomeRescueRoom(room, triggerButton) {
     }
     try {
         closeHomeRescuePopup();
-        const kingdomResult = await launchTarotKingdomRescueBattle(room);
+        const onlineShip = await Ship.getOnlineBattleShipProfile(String(window.myPlayFabId || ''));
+        const kingdomResult = await launchTarotKingdomRescueBattle({ ...room, onlineShip });
         if (kingdomResult?.status === 'completed' && kingdomResult?.mode === 'online') {
             try {
                 await Ship.claimOnlineExplorationReward(
@@ -2599,6 +2601,7 @@ function openAvatarStyleModal() {
     bindAvatarStyleActionButtons(modal);
     renderAvatarStylePanel();
     modal.style.display = 'flex';
+    startModalViewportTracking(modal, 'avatar-style');
     modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('modal-lock');
     document.getElementById('btnCloseAvatarStyleModal')?.focus?.();
@@ -2607,6 +2610,7 @@ function openAvatarStyleModal() {
 function closeAvatarStyleModal() {
     const modal = document.getElementById('avatarStyleModal');
     if (!modal) return;
+    stopModalViewportTracking(modal);
     modal.style.display = 'none';
     modal.setAttribute('aria-hidden', 'true');
     if (!hasVisibleModalExcept(modal)) {

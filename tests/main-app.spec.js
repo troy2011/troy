@@ -87,6 +87,74 @@ function expectItemDetailInsideViewport(geometry) {
   expect(geometry.sheet.bottom).toBeLessThanOrEqual(geometry.viewport.bottom + 1);
 }
 
+async function installVisualViewportMock(page, key, state = {}) {
+  await page.evaluate(({ key: viewportKey, state: viewportState }) => {
+    const viewport = new EventTarget();
+    Object.assign(viewport, {
+      width: 360,
+      height: 620,
+      offsetLeft: 12,
+      offsetTop: 84,
+      ...viewportState
+    });
+    Object.defineProperty(window, 'visualViewport', {
+      configurable: true,
+      value: viewport
+    });
+    window[viewportKey] = viewport;
+  }, { key, state });
+}
+
+async function updateVisualViewportMock(page, key, state, eventName = 'resize') {
+  await page.evaluate(({ key: viewportKey, state: viewportState, eventName: viewportEventName }) => {
+    Object.assign(window[viewportKey], viewportState);
+    window[viewportKey].dispatchEvent(new Event(viewportEventName));
+  }, { key, state, eventName });
+}
+
+async function getModalViewportGeometry(page, modalSelector, sheetSelector) {
+  return page.locator(modalSelector).evaluate((modal, targetSheetSelector) => {
+    const viewport = window.visualViewport;
+    const viewportLeft = Number(viewport?.offsetLeft) || 0;
+    const viewportTop = Number(viewport?.offsetTop) || 0;
+    const viewportWidth = Number(viewport?.width) || window.innerWidth;
+    const viewportHeight = Number(viewport?.height) || window.innerHeight;
+    const modalRect = modal.getBoundingClientRect();
+    const sheetRect = modal.querySelector(targetSheetSelector).getBoundingClientRect();
+    return {
+      viewport: {
+        left: viewportLeft,
+        top: viewportTop,
+        right: viewportLeft + viewportWidth,
+        bottom: viewportTop + viewportHeight
+      },
+      modal: {
+        left: modalRect.left,
+        top: modalRect.top,
+        right: modalRect.right,
+        bottom: modalRect.bottom
+      },
+      sheet: {
+        left: sheetRect.left,
+        top: sheetRect.top,
+        right: sheetRect.right,
+        bottom: sheetRect.bottom
+      }
+    };
+  }, sheetSelector);
+}
+
+function expectModalInsideVisualViewport(geometry) {
+  expect(Math.abs(geometry.modal.left - geometry.viewport.left)).toBeLessThanOrEqual(1);
+  expect(Math.abs(geometry.modal.top - geometry.viewport.top)).toBeLessThanOrEqual(1);
+  expect(Math.abs(geometry.modal.right - geometry.viewport.right)).toBeLessThanOrEqual(1);
+  expect(Math.abs(geometry.modal.bottom - geometry.viewport.bottom)).toBeLessThanOrEqual(1);
+  expect(geometry.sheet.left).toBeGreaterThanOrEqual(geometry.viewport.left - 1);
+  expect(geometry.sheet.top).toBeGreaterThanOrEqual(geometry.viewport.top - 1);
+  expect(geometry.sheet.right).toBeLessThanOrEqual(geometry.viewport.right + 1);
+  expect(geometry.sheet.bottom).toBeLessThanOrEqual(geometry.viewport.bottom + 1);
+}
+
 test('main app boots in limited mode with mocked LIFF login', async ({ page }) => {
   const errors = trackPageErrors(page);
   const state = await bootstrapMainApp(page);
@@ -2158,6 +2226,32 @@ test('exploration stage starts for free with ordered optional supplies', async (
     window.__explorationKingdomLaunches = [];
     window.launchTarotKingdomExplorationBattle = async (context) => {
       window.__explorationKingdomLaunches.push(context);
+      if (context.mode === 'online') {
+        context.onOnlinePartyChange?.([
+          {
+            seat: 0,
+            playFabId: 'PF_PLAYWRIGHT',
+            displayName: 'Playwright Tester',
+            isHost: true,
+            ship: context.onlineShip
+          },
+          {
+            seat: 1,
+            playFabId: 'PF_GUEST_FIGHTER',
+            displayName: '砲撃手',
+            isHost: false,
+            ship: { form: 'fighter', sailColor: 'white' }
+          },
+          {
+            seat: 2,
+            playFabId: 'PF_GUEST_GUILD',
+            displayName: '王国船員',
+            isHost: false,
+            ship: { form: 'guild', sailColor: 'blue' }
+          }
+        ]);
+      }
+      context.onEntryReady?.();
       return {
         status: 'completed',
         completed: true,
@@ -2213,28 +2307,14 @@ test('exploration stage starts for free with ordered optional supplies', async (
   expect(supplyDialogLayout.pageScrollWidth).toBeLessThanOrEqual(supplyDialogLayout.viewportWidth);
   await dialog.locator('[data-stage-supply-confirm]').click();
 
-  await expect.poll(() => startBody).not.toBeNull();
-  expect(startBody).toMatchObject({
-    playFabId: 'PF_PLAYWRIGHT',
-    stageNo: 1,
-    supplies: [
-      { itemId: 'troy_menu_drink_a', quantity: 1 },
-      { itemId: 'troy_menu_food_b', quantity: 1 }
-    ]
-  });
-  expect(startBody.destinationId).toBeUndefined();
-  expect(startBody.paymentMethod).toBeUndefined();
-  expect(startBody.paymentConsumables).toBeUndefined();
   const modeChoice = page.locator('.exploration-battle-mode-choice');
-  await expect(modeChoice).toBeVisible({ timeout: 7000 });
+  await expect(modeChoice).toBeVisible();
   await expect(modeChoice.locator('.exploration-battle-mode-head span')).toHaveText('STAGE 1');
-  await expect(modeChoice.locator('.exploration-battle-mode-head strong')).toHaveText('マシュロンが現れた');
-  await expect(modeChoice).toContainText('マシュロン');
-  await expect(modeChoice).not.toContainText('プルン → トゲマル → パピル');
-  await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' }).locator('small')).toHaveText('オフライン');
-  await expect(page.getByRole('button', { name: '救難信号（オンライン）' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '撤退' })).toBeVisible();
+  await expect(modeChoice.locator('.exploration-battle-mode-head strong')).toHaveText('珊瑚の浅瀬');
+  await expect(page.getByRole('button', { name: 'オフラインで出航' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'オンラインで出航' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'キャンセル' })).toBeVisible();
+  expect(startBody).toBeNull();
   const modeChoiceLayout = await modeChoice.evaluate((choice) => {
     const rect = choice.getBoundingClientRect();
     return {
@@ -2248,21 +2328,55 @@ test('exploration stage starts for free with ordered optional supplies', async (
   expect(modeChoiceLayout.right).toBeLessThanOrEqual(modeChoiceLayout.viewportWidth);
   expect(modeChoiceLayout.pageScrollWidth).toBeLessThanOrEqual(modeChoiceLayout.viewportWidth);
   expect(await page.evaluate(() => window.__explorationKingdomLaunches?.length || 0)).toBe(0);
-  await page.getByRole('button', { name: '撤退' }).click();
-  await expect(page.locator('.exploration-sequence-overlay')).toBeHidden();
-  await expect.poll(() => retreatBody).not.toBeNull();
-  expect(retreatBody).toEqual({
-    playFabId: 'PF_PLAYWRIGHT',
-    explorationId: 'exploration-tarot-entry'
-  });
-  await expect(page.locator('#shipExplorationPanel [data-exploration-claim]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'キャンセル' }).click();
+  await expect(modeChoice).toBeHidden();
+  expect(startBody).toBeNull();
+  expect(retreatBody).toBeNull();
   await expect(page.locator('#shipExplorationPanel .ship-exploration-start')).toHaveText('出航');
   await page.locator('#shipExplorationPanel [data-exploration-stage="1"]').click();
   const secondSupplyDialog = page.locator('.ship-exploration-payment-dialog.is-stage-supply');
   await expect(secondSupplyDialog).toBeVisible();
+  await secondSupplyDialog.locator('[data-stage-supply-item="troy_menu_drink_a"] [data-stage-supply-add]').click();
+  await secondSupplyDialog.locator('[data-stage-supply-item="troy_menu_food_b"] [data-stage-supply-add]').click();
   await secondSupplyDialog.locator('[data-stage-supply-confirm]').click();
-  await expect(modeChoice).toBeVisible({ timeout: 7_000 });
-  await page.getByRole('button', { name: '救難信号（オンライン）' }).click();
+  await expect(modeChoice).toBeVisible();
+  await page.getByRole('button', { name: 'オンラインで出航' }).click();
+  const onlineSequence = page.locator('.exploration-sequence-overlay');
+  await expect(onlineSequence).toHaveClass(/is-sail/);
+  await expect(onlineSequence.locator('[data-exploration-party-ship]')).toHaveCount(3);
+  await expect(onlineSequence.locator('[data-exploration-party-role="guest"]')).toHaveCount(2);
+  await expect(onlineSequence.locator('[data-party-play-fab-id="PF_GUEST_FIGHTER"]')).toHaveClass(/is-fighter/);
+  const guildGuestShip = onlineSequence.locator('[data-party-play-fab-id="PF_GUEST_GUILD"]');
+  await expect(guildGuestShip).toHaveClass(/is-guild/);
+  await expect(guildGuestShip).toHaveAttribute('data-guild-sail-color', 'blue');
+  const fleetLayout = await onlineSequence.locator('.exploration-sequence-scene').evaluate((scene) => {
+    const sceneRect = scene.getBoundingClientRect();
+    return Array.from(scene.querySelectorAll('[data-exploration-party-ship]')).map((ship) => {
+      const rect = ship.getBoundingClientRect();
+      return {
+        left: rect.left,
+        right: rect.right,
+        sceneLeft: sceneRect.left,
+        sceneRight: sceneRect.right
+      };
+    });
+  });
+  fleetLayout.forEach((entry) => {
+    expect(entry.left).toBeGreaterThanOrEqual(entry.sceneLeft - 1);
+    expect(entry.right).toBeLessThanOrEqual(entry.sceneRight + 1);
+  });
+  await expect.poll(() => startBody).not.toBeNull();
+  expect(startBody).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    stageNo: 1,
+    supplies: [
+      { itemId: 'troy_menu_drink_a', quantity: 1 },
+      { itemId: 'troy_menu_food_b', quantity: 1 }
+    ]
+  });
+  expect(startBody.destinationId).toBeUndefined();
+  expect(startBody.paymentMethod).toBeUndefined();
+  expect(startBody.paymentConsumables).toBeUndefined();
   await expect.poll(() => page.evaluate(() => window.__explorationKingdomLaunches?.length || 0), { timeout: 7000 }).toBe(1);
   const kingdomEntry = await page.evaluate(() => ({
     launcherAvailable: window.__realExplorationKingdomLauncherAvailable,
@@ -2418,7 +2532,7 @@ test('home tab restores the bottom navigation after a resolved Kingdom retreat',
   await expectNoPageErrors(errors);
 });
 
-test('exploration rescue signal creates a dedicated online lobby before combat', async ({ page }) => {
+test('exploration rescue signal auto-starts without a dedicated online lobby', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.route('**/api/get-troy-status', async (route) => {
     await route.fulfill({
@@ -2434,6 +2548,26 @@ test('exploration rescue signal creates a dedicated online lobby before combat',
       body: JSON.stringify({ ship: null, active: null, reports: [], destinations: [] })
     });
   });
+  await page.route('**/api/tarot-kingdom/combat-profiles', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        characters: [{
+          version: 1,
+          source: 'playfab',
+          playFabId: 'PF_PLAYWRIGHT',
+          displayName: 'Playwright Tester',
+          level: 18,
+          rankLabel: '航海士',
+          avatarBase: { Race: 'human', SkinColorIndex: 1, HairStyleIndex: 1, HairColorIndex: 1, FaceIndex: 1 },
+          equipment: {},
+          itemSource: {},
+          combat: { maxHp: 120, power: 36, defense: 24, intelligence: 24, speed: 24, weaponType: 'sword' }
+        }]
+      })
+    });
+  });
 
   await bootstrapMainApp(page, { mockFirebaseDatabase: true });
   await page.evaluate(() => {
@@ -2445,28 +2579,44 @@ test('exploration rescue signal creates a dedicated online lobby before combat',
       monsterName: 'オルビス',
       isBoss: true,
       mode: 'online',
-      enemyDefeatMode: 'hand-empty'
+      enemyDefeatMode: 'hand-empty',
+      onlineShip: { form: 'fighter', sailColor: 'white' },
+      autoStartOnline: true,
+      startBarrier: Promise.resolve(),
+      onOnlinePartyChange: (participants) => {
+        window.__explorationOnlineParty = participants;
+      },
+      onEntryReady: () => {
+        window.__explorationOnlineEntryReady = true;
+      }
     });
   });
 
   await expect(page.locator('#tarotKingdomRoot')).toBeVisible();
   await expect(page.locator('body')).toHaveAttribute('data-tarot-kingdom-entry-mode', 'online');
   await expect(page.locator('#tarotKingdomStateText')).toContainText('オルビス');
-  await expect(page.locator('#tarotKingdomBattleStage')).toBeHidden();
-  await expect(page.locator('#tarotKingdomStartOnlineButton')).toContainText(/救難|救援/, { timeout: 7000 });
+  await expect(page.locator('#tarotKingdomBattleStage')).toBeVisible({ timeout: 7000 });
+  await expect(page.locator('#tarotKingdomStartOnlineButton')).toBeHidden();
   await expect(page.locator('#tarotKingdomStartOfflineButton')).toBeHidden();
-  await expect(page.locator('#tarotKingdomRetreatButton')).toBeVisible();
+  await expect(page.locator('#tarotKingdomRetreatButton')).toBeHidden();
+  await expect.poll(() => page.evaluate(() => window.__explorationOnlineEntryReady === true)).toBe(true);
+  await expect.poll(() => page.evaluate(() => (
+    window.__explorationOnlineParty?.find?.((entry) => entry.playFabId === 'PF_PLAYWRIGHT')?.ship || null
+  ))).toEqual({ form: 'fighter', sailColor: 'white' });
+  await expect.poll(() => page.evaluate(() => {
+    const entries = Array.from(window.__pwFirebaseDbStore?.values?.entries?.() || []);
+    const presenceEntry = entries.find(([path]) => (
+      String(path).startsWith('tarotKingdomRooms/')
+      && String(path).endsWith('/presence/PF_PLAYWRIGHT')
+    ));
+    return presenceEntry?.[1]?.ship || null;
+  })).toEqual({ form: 'fighter', sailColor: 'white' });
 
   await expect.poll(() => page.evaluate(() => {
     const entries = Array.from(window.__pwFirebaseDbStore?.values?.entries?.() || []);
     const roomEntry = entries.find(([path]) => String(path).startsWith('tarotKingdomMatch/openRooms/'));
     return roomEntry?.[1] || null;
-  }), { timeout: 7000 }).toMatchObject({
-    kind: 'exploration-rescue',
-    monsterName: 'オルビス',
-    destinationName: '珊瑚礁の抜け道',
-    enemyDefeatMode: 'hand-empty'
-  });
+  }), { timeout: 7000 }).toBeNull();
   await expect.poll(() => page.evaluate(() => {
     const entries = Array.from(window.__pwFirebaseDbStore?.values?.entries?.() || []);
     const stateEntry = entries.find(([path]) => (
@@ -2476,12 +2626,8 @@ test('exploration rescue signal creates a dedicated online lobby before combat',
     return stateEntry?.[1]?.state?.rules?.enemyDefeatMode || '';
   }), { timeout: 7000 }).toBe('hand-empty');
 
-  await page.locator('#tarotKingdomRetreatButton').click();
+  await page.getByRole('button', { name: 'タロットキングダムを閉じる' }).click();
   await expect(page.locator('#tabContentHome')).toBeVisible();
-  await expect.poll(() => page.evaluate(async () => window.__explorationRescuePromise)).toMatchObject({
-    status: 'retreated',
-    outcome: 'retreated'
-  });
   expect(await page.locator('body').getAttribute('data-tarot-kingdom-entry-mode')).toBeNull();
   await expectNoPageErrors(errors);
 });
@@ -3050,6 +3196,7 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
     };
     window.launchTarotKingdomExplorationBattle = async (context) => {
       window.__explorationRewardLaunchContext = context;
+      context.onEntryReady?.();
       const roundFinisher = {
         roundNo: 3,
         playerIndex: 0,
@@ -3100,11 +3247,18 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await expect(supplyDialog).toBeVisible();
   await expect(supplyDialog).toContainText('使用できる補給品はありません');
   await supplyDialog.locator('[data-stage-supply-confirm]').click();
+  const modeChoice = page.locator('.exploration-battle-mode-choice');
+  await expect(modeChoice).toBeVisible();
+  await modeChoice.getByRole('button', { name: 'オフラインで出航' }).click();
+  await expect(modeChoice.getByText('チュートリアルを開始しますか？')).toBeVisible();
+  await expect(modeChoice.getByRole('button', { name: 'チュートリアルを開始', exact: true })).toBeVisible();
+  await expect(modeChoice.getByRole('button', { name: 'チュートリアルを開始しない', exact: true })).toBeVisible();
+  await modeChoice.getByRole('button', { name: 'チュートリアルを開始', exact: true }).click();
 
   const sequence = page.locator('.exploration-sequence-overlay');
   await expect(sequence).toHaveClass(/is-sail/, { timeout: 15_000 });
   await expect(sequence.locator('[data-exploration-sequence-chest]')).toHaveCount(0);
-  await expect(sequence.locator('.exploration-sequence-island img')).toHaveAttribute('src', /coral-island-v1\.webp/);
+  await expect(sequence.locator('.exploration-sequence-island img')).toHaveAttribute('src', /coral_lagoon\.png/);
   await expect(sequence.locator('[data-exploration-sequence-advance]')).toHaveCount(0);
   await expect(sequence.locator('[data-exploration-sequence-progress]')).toHaveCount(0);
   await expect(sequence.locator('.exploration-sequence-route')).toHaveCount(0);
@@ -3137,66 +3291,27 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   const landingMetrics = await readVoyageMetrics();
   await expect(sequence).toHaveClass(/is-arrival/, { timeout: 5_000 });
   const arrivalMetrics = await readVoyageMetrics();
-  await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' })).toBeVisible({ timeout: 5_000 });
-  const encounterMetrics = await readVoyageMetrics();
-  const encounterMonsterMetrics = await sequence.evaluate((element) => {
-    const islandRect = element.querySelector('.exploration-sequence-island').getBoundingClientRect();
-    const monsterFrame = element.querySelector('.exploration-sequence-boss');
-    const monsterRect = monsterFrame.getBoundingClientRect();
-    const spriteRect = monsterFrame.querySelector('.exploration-sequence-boss-image').getBoundingClientRect();
-    const label = monsterFrame.querySelector('small');
-    return {
-      islandCenterX: islandRect.left + (islandRect.width / 2),
-      islandCenterY: islandRect.top + (islandRect.height / 2),
-      monsterCenterX: monsterRect.left + (monsterRect.width / 2),
-      monsterCenterY: monsterRect.top + (monsterRect.height / 2),
-      spriteCenterX: spriteRect.left + (spriteRect.width / 2),
-      spriteCenterY: spriteRect.top + (spriteRect.height / 2),
-      monsterWidth: monsterRect.width,
-      monsterHeight: monsterRect.height,
-      spriteWidth: spriteRect.width,
-      spriteHeight: spriteRect.height,
-      labelDisplay: getComputedStyle(label).display
-    };
-  });
   const shipLefts = [
     sailMetrics.shipLeft,
     approachMetrics.shipLeft,
     landingMetrics.shipLeft,
-    arrivalMetrics.shipLeft,
-    encounterMetrics.shipLeft
+    arrivalMetrics.shipLeft
   ];
   for (let index = 1; index < shipLefts.length; index += 1) {
     expect(shipLefts[index]).toBeGreaterThanOrEqual(shipLefts[index - 1] - 1);
   }
-  for (const metrics of [sailMetrics, approachMetrics, landingMetrics, arrivalMetrics, encounterMetrics]) {
+  for (const metrics of [sailMetrics, approachMetrics, landingMetrics, arrivalMetrics]) {
     expect(metrics.shipLeft).toBeGreaterThanOrEqual(metrics.sceneLeft);
     expect(metrics.shipRight).toBeLessThanOrEqual(metrics.sceneRight);
   }
   expect(sailMetrics.islandOpacity).toBe('1');
-  expect(encounterMetrics.islandOpacity).toBe('1');
+  expect(arrivalMetrics.islandOpacity).toBe('1');
   expect(sailMetrics.islandFilter).toContain('blur');
-  expect(Math.abs(encounterMetrics.islandWidth - sailMetrics.islandWidth)).toBeLessThanOrEqual(1);
-  expect(Math.abs(encounterMetrics.islandHeight - sailMetrics.islandHeight)).toBeLessThanOrEqual(1);
-  expect(encounterMetrics.islandLeft - encounterMetrics.shipRight).toBeGreaterThanOrEqual(-38);
-  expect(encounterMetrics.islandLeft - encounterMetrics.shipRight).toBeLessThanOrEqual(-24);
+  expect(Math.abs(arrivalMetrics.islandWidth - sailMetrics.islandWidth)).toBeLessThanOrEqual(1);
+  expect(Math.abs(arrivalMetrics.islandHeight - sailMetrics.islandHeight)).toBeLessThanOrEqual(1);
+  expect(arrivalMetrics.islandLeft - arrivalMetrics.shipRight).toBeGreaterThanOrEqual(-38);
+  expect(arrivalMetrics.islandLeft - arrivalMetrics.shipRight).toBeLessThanOrEqual(-24);
   expect(sailMetrics.shipAnimationTiming).toContain('cubic-bezier(0.33, 0.33, 0.55, 1)');
-  expect(Math.abs(encounterMonsterMetrics.monsterCenterX - encounterMonsterMetrics.islandCenterX)).toBeLessThanOrEqual(2);
-  expect(Math.abs(encounterMonsterMetrics.monsterCenterY - encounterMonsterMetrics.islandCenterY)).toBeLessThanOrEqual(2);
-  expect(Math.abs(encounterMonsterMetrics.spriteCenterX - encounterMonsterMetrics.islandCenterX)).toBeLessThanOrEqual(2);
-  expect(Math.abs(encounterMonsterMetrics.spriteCenterY - encounterMonsterMetrics.islandCenterY)).toBeLessThanOrEqual(2);
-  expect(encounterMonsterMetrics.monsterWidth).toBeLessThanOrEqual(60);
-  expect(encounterMonsterMetrics.monsterHeight).toBeLessThanOrEqual(60);
-  expect(encounterMonsterMetrics.spriteWidth).toBeLessThanOrEqual(59);
-  expect(encounterMonsterMetrics.spriteHeight).toBeLessThanOrEqual(55);
-  expect(encounterMonsterMetrics.labelDisplay).toBe('none');
-  await expect(page.getByRole('button', { name: '傭兵召集（オフライン）' }).locator('small')).toHaveText('オフライン');
-  await expect(page.getByRole('button', { name: '救難信号（オンライン）' }).locator('small')).toHaveText('オンライン');
-  await page.getByRole('button', { name: '傭兵召集（オフライン）' }).click();
-  await expect(sequence.getByText('チュートリアルを開始しますか？')).toBeVisible();
-  await expect(sequence.getByRole('button', { name: 'チュートリアルを開始', exact: true })).toBeVisible();
-  await expect(sequence.getByRole('button', { name: 'チュートリアルを開始しない', exact: true })).toBeVisible();
-  await sequence.getByRole('button', { name: 'チュートリアルを開始', exact: true }).click();
   await expect(sequence).toBeHidden({ timeout: 5_000 });
   expect(await page.evaluate(() => window.__explorationRewardLaunchContext?.tutorialEnabled)).toBe(true);
 
@@ -5225,10 +5340,25 @@ test('current equipment slots render equipped item sprites on the right edge', a
   await expect(page.locator('#btnPlayerProfileTransfer')).toBeHidden();
   await expect(page.locator('#btnPlayerProfileFavorite')).toBeHidden();
   await expect(page.locator('#btnPlayerProfileBeauty')).toBeVisible();
+  await installVisualViewportMock(page, '__testAvatarStyleViewport');
   await page.locator('#btnPlayerProfileBeauty').click();
   await expect(page.locator('#playerProfileModal')).not.toBeVisible();
   await expect(page.locator('#avatarStyleModal')).toBeVisible();
   await expect(page.locator('#avatarStylePanel')).toBeVisible();
+  expectModalInsideVisualViewport(await getModalViewportGeometry(
+    page,
+    '#avatarStyleModal',
+    '.avatar-style-sheet'
+  ));
+  await updateVisualViewportMock(page, '__testAvatarStyleViewport', { height: 500, offsetTop: 132 }, 'scroll');
+  await expect.poll(async () => (
+    await getModalViewportGeometry(page, '#avatarStyleModal', '.avatar-style-sheet')
+  ).modal.top).toBe(132);
+  expectModalInsideVisualViewport(await getModalViewportGeometry(
+    page,
+    '#avatarStyleModal',
+    '.avatar-style-sheet'
+  ));
   await expect(page.locator('#btnRandomHaircut')).toContainText('100G');
   await expect(page.locator('#btnRandomSkin')).toContainText('300G');
   await expect(page.locator('#btnRandomFace')).toContainText('800G');
@@ -5756,6 +5886,20 @@ test('inventory equipment enhancement modal previews and applies multiple materi
   });
 
   await bootstrapMainApp(page);
+  await page.evaluate(() => {
+    const viewport = new EventTarget();
+    Object.assign(viewport, {
+      width: 360,
+      height: 620,
+      offsetLeft: 12,
+      offsetTop: 84
+    });
+    Object.defineProperty(window, 'visualViewport', {
+      configurable: true,
+      value: viewport
+    });
+    window.__testEnhancementVisualViewport = viewport;
+  });
   await page.evaluate(async () => {
     document.querySelectorAll('.tab-content').forEach((tab) => {
       tab.style.display = tab.id === 'tabContentInventory' ? 'block' : 'none';
@@ -5788,10 +5932,16 @@ test('inventory equipment enhancement modal previews and applies multiple materi
   await expect(page.locator('.equipment-enhancement-apply')).toBeEnabled();
 
   const layout = await page.locator('.equipment-enhancement-sheet').evaluate((sheet) => {
+    const modal = sheet.closest('#equipmentEnhancementModal');
+    const modalRect = modal.getBoundingClientRect();
     const rect = sheet.getBoundingClientRect();
     const footer = sheet.querySelector('.equipment-enhancement-actions')?.getBoundingClientRect();
     const rows = Array.from(sheet.querySelectorAll('.equipment-enhancement-material'));
     return {
+      modalLeft: modalRect.left,
+      modalRight: modalRect.right,
+      modalTop: modalRect.top,
+      modalBottom: modalRect.bottom,
       left: rect.left,
       right: rect.right,
       top: rect.top,
@@ -5800,15 +5950,52 @@ test('inventory equipment enhancement modal previews and applies multiple materi
       rowOverflow: rows.some((row) => row.scrollWidth > row.clientWidth + 1)
     };
   });
-  expect(layout.left).toBeGreaterThanOrEqual(0);
-  expect(layout.right).toBeLessThanOrEqual(390);
-  expect(layout.top).toBeGreaterThanOrEqual(0);
-  expect(layout.bottom).toBeLessThanOrEqual(844);
+  expect(layout.modalLeft).toBe(12);
+  expect(layout.modalRight).toBe(372);
+  expect(layout.modalTop).toBe(84);
+  expect(layout.modalBottom).toBe(704);
+  expect(layout.left).toBeGreaterThanOrEqual(layout.modalLeft);
+  expect(layout.right).toBeLessThanOrEqual(layout.modalRight);
+  expect(layout.top).toBeGreaterThanOrEqual(layout.modalTop);
+  expect(layout.bottom).toBeLessThanOrEqual(layout.modalBottom);
   expect(layout.footerBottom).toBeLessThanOrEqual(layout.bottom);
   expect(layout.rowOverflow).toBe(false);
+  await page.evaluate(() => {
+    Object.assign(window.__testEnhancementVisualViewport, {
+      height: 540,
+      offsetTop: 132
+    });
+    window.__testEnhancementVisualViewport.dispatchEvent(new Event('scroll'));
+  });
+  await expect.poll(async () => page.locator('#equipmentEnhancementModal').evaluate((modal) => (
+    Math.round(modal.getBoundingClientRect().top)
+  ))).toBe(132);
+  const shiftedLayout = await page.locator('.equipment-enhancement-sheet').evaluate((sheet) => {
+    const modalRect = sheet.closest('#equipmentEnhancementModal').getBoundingClientRect();
+    const sheetRect = sheet.getBoundingClientRect();
+    return {
+      modalBottom: Math.round(modalRect.bottom),
+      sheetTop: Math.round(sheetRect.top),
+      sheetBottom: Math.round(sheetRect.bottom),
+      sheetInsideViewport: sheetRect.top >= modalRect.top && sheetRect.bottom <= modalRect.bottom
+    };
+  });
+  expect(shiftedLayout.modalBottom).toBe(672);
+  expect(shiftedLayout.sheetTop).toBeGreaterThanOrEqual(132);
+  expect(shiftedLayout.sheetBottom).toBeLessThanOrEqual(672);
+  expect(shiftedLayout.sheetInsideViewport).toBe(true);
   await page.screenshot({ path: 'test-results/equipment-enhancement-mobile.png', fullPage: true });
 
   await page.setViewportSize({ width: 1280, height: 800 });
+  await page.evaluate(() => {
+    Object.assign(window.__testEnhancementVisualViewport, {
+      width: 1280,
+      height: 800,
+      offsetLeft: 0,
+      offsetTop: 0
+    });
+    window.__testEnhancementVisualViewport.dispatchEvent(new Event('resize'));
+  });
   const desktopLayout = await page.locator('.equipment-enhancement-sheet').evaluate((sheet) => {
     const rect = sheet.getBoundingClientRect();
     return { width: rect.width, top: rect.top, bottom: rect.bottom, viewportHeight: window.innerHeight };
@@ -6464,7 +6651,22 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
     cardWidth: 48,
     cardHeight: 80
   });
+  await installVisualViewportMock(page, '__testArcanaViewport');
   await page.locator('#openArcanaResonanceCatalog').click();
+  expectModalInsideVisualViewport(await getModalViewportGeometry(
+    page,
+    '#arcanaResonanceCatalogModal',
+    '.arcana-resonance-sheet'
+  ));
+  await updateVisualViewportMock(page, '__testArcanaViewport', { height: 500, offsetTop: 132 }, 'scroll');
+  await expect.poll(async () => (
+    await getModalViewportGeometry(page, '#arcanaResonanceCatalogModal', '.arcana-resonance-sheet')
+  ).modal.top).toBe(132);
+  expectModalInsideVisualViewport(await getModalViewportGeometry(
+    page,
+    '#arcanaResonanceCatalogModal',
+    '.arcana-resonance-sheet'
+  ));
   const catalogLayout = await page.locator('#arcanaResonanceCatalogModal').evaluate((modal) => {
     const sheet = modal.querySelector('.arcana-resonance-sheet');
     const closeButton = modal.querySelector('.arcana-resonance-close');
@@ -7217,6 +7419,16 @@ test('equipment cards open detail before equipping from inventory grid', async (
   expect(descriptionStyle.backgroundImage).toContain('panel-parchment-wide.png');
   expect(descriptionStyle.height).toBeGreaterThan(24);
   expect(descriptionStyle.textShadow).not.toBe('none');
+  await page.locator('#itemDetailModal .item-detail-action.is-sell').click();
+  await expect(page.locator('#sellConfirmationModal')).toBeVisible();
+  expectModalInsideVisualViewport(await getModalViewportGeometry(
+    page,
+    '#sellConfirmationModal',
+    '.modal-content'
+  ));
+  await page.locator('#btnCancelSell').click();
+  await expect(page.locator('#sellConfirmationModal')).toBeHidden();
+  await expect(page.locator('#itemDetailModal')).toBeVisible();
   await page.locator('#itemDetailModal .item-detail-action.is-equip').first().click();
   expect(equipRequests).toHaveLength(1);
   expect(equipRequests[0]).toMatchObject({
@@ -7665,6 +7877,7 @@ test('inventory black market creates listing and shows owner-aware actions', asy
   });
 
   await bootstrapMainApp(page);
+  await installVisualViewportMock(page, '__testMarketViewport');
   await page.evaluate(async () => {
     const inventoryTab = document.getElementById('tabContentInventory');
     if (inventoryTab) inventoryTab.style.display = 'block';
@@ -7677,6 +7890,11 @@ test('inventory black market creates listing and shows owner-aware actions', asy
   await expect(page.locator('#blackMarketPanel')).toBeVisible();
   await expect(page.locator('body > #blackMarketPanel')).toBeVisible();
   await expect(page.locator('#blackMarketPanel .black-market-sheet')).toBeVisible();
+  expectModalInsideVisualViewport(await getModalViewportGeometry(
+    page,
+    '#blackMarketPanel',
+    '.black-market-sheet'
+  ));
   const marketBox = await page.locator('#blackMarketPanel .black-market-sheet').boundingBox();
   expect(marketBox).not.toBeNull();
   expect(marketBox.x).toBeGreaterThanOrEqual(0);
@@ -7700,6 +7918,11 @@ test('inventory black market creates listing and shows owner-aware actions', asy
 
   await page.locator('#blackMarketPanel .black-market-listing-action.is-buy').click();
   await expect(page.locator('#inventoryActionDialog')).toBeVisible();
+  expectModalInsideVisualViewport(await getModalViewportGeometry(
+    page,
+    '#inventoryActionDialog',
+    '.inventory-action-dialog-sheet'
+  ));
   const modalLayers = await page.evaluate(() => ({
     market: Number(getComputedStyle(document.getElementById('blackMarketPanel')).zIndex),
     confirmation: Number(getComputedStyle(document.getElementById('inventoryActionDialog')).zIndex)
@@ -7729,6 +7952,15 @@ test('inventory black market creates listing and shows owner-aware actions', asy
   await page.locator('#itemDetailButtons .item-detail-action', { hasText: '闇市に出す' }).click();
   await expect(page.locator('#inventoryActionDialog')).toBeVisible();
   await expect(page.locator('#inventoryActionDialog')).toContainText('1-9999G');
+  await updateVisualViewportMock(page, '__testMarketViewport', { height: 420, offsetTop: 180 }, 'resize');
+  await expect.poll(async () => (
+    await getModalViewportGeometry(page, '#inventoryActionDialog', '.inventory-action-dialog-sheet')
+  ).modal.top).toBe(180);
+  expectModalInsideVisualViewport(await getModalViewportGeometry(
+    page,
+    '#inventoryActionDialog',
+    '.inventory-action-dialog-sheet'
+  ));
   await page.locator('#inventoryActionDialog .inventory-action-dialog-input').fill('1.5');
   await page.locator('#inventoryActionDialog .inventory-action-dialog-confirm').click();
   await expect(page.locator('#inventoryActionDialog')).toContainText('整数');
@@ -7743,6 +7975,11 @@ test('inventory black market creates listing and shows owner-aware actions', asy
   await expect(page.locator('#blackMarketPanel')).toBeVisible();
   await expect(page.locator('body > #blackMarketPanel')).toBeVisible();
   await expect(page.locator('#blackMarketPanel .black-market-sheet')).toBeVisible();
+  expectModalInsideVisualViewport(await getModalViewportGeometry(
+    page,
+    '#blackMarketPanel',
+    '.black-market-sheet'
+  ));
   await expect(page.locator('#blackMarketPanel .black-market-close')).toBeVisible();
   await expect(page.locator('#blackMarketPanel .black-market-panel-head')).toContainText('出品 1/5');
   await expect(page.locator('#blackMarketPanel .black-market-listing')).toHaveCount(2);
