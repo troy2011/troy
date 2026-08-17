@@ -26824,7 +26824,7 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
     raidEncounterPending: false,
     currentPet,
     onlineShip: requestedMode === 'online' ? normalizeKingdomOnlineShip(context?.onlineShip) : null,
-    startRequiresOnlineParty,
+    startRequiresOnlineParty: autoStartRequiresParty,
     onOnlinePartyChange: requestedMode === 'online' && typeof context?.onOnlinePartyChange === 'function'
       ? context.onOnlinePartyChange
       : null,
