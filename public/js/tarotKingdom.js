@@ -21374,7 +21374,7 @@ function getKingdomSettlementActionState(state = s) {
     if (kingdomExplorationSession) {
       return {
         kind: 'explorationComplete',
-        label: '探索結果',
+        label: '宝を持って帰還する',
         disabled: false
       };
     }
@@ -25317,12 +25317,14 @@ function dispatchSettlementCoinFxIfNeeded(data) {
 
 function renderSettlement() {
   const confirmButton = ui.settlementConfirmButton;
+  const actionContainer = ui.settlementActions;
   const data = s.roundSettlement;
   const actionState = getKingdomSettlementActionState(s);
   const show = !!data || !!actionState;
   ui.root?.classList.remove('is-settlement-open');
   ui.root?.classList.toggle('has-settlement-action', !!actionState);
   if (!show) {
+    if (actionContainer) actionContainer.hidden = true;
     if (confirmButton) {
       confirmButton.hidden = true;
       confirmButton.disabled = true;
@@ -25337,6 +25339,7 @@ function renderSettlement() {
     confirmButton.disabled = actionState ? !!actionState.disabled : true;
     if (actionState) confirmButton.textContent = actionState.label;
   }
+  if (actionContainer) actionContainer.hidden = !actionState;
 }
 
 function updateButtons() {
@@ -25674,11 +25677,14 @@ async function startOrNext() {
   }
 }
 
-function canStartKingdomRoundFromLobby() {
+function canStartKingdomRoundFromLobby(options = {}) {
   if (!s) return false;
   if (s.awaitRoundConfirm) return false;
   if (s.roundActive) return false;
   if (isKingdomMatchDoneState(s)) return false;
+  if (options?.requireOnlineParty === true && isNetModeActive() && tkNet.isHost && getActiveSeatCount() < 2) {
+    return false;
+  }
   return Number(s.handNo || 0) < TOTAL_HANDS;
 }
 
@@ -25780,7 +25786,8 @@ async function removeCurrentOpenRoomIndex() {
   }
 }
 
-async function handleKingdomOnlineStartClick() {
+async function handleKingdomOnlineStartClick(options = {}) {
+  const { autoStart = false, requireParty = false } = options || {};
   if (!s) return;
   if (isKingdomOnlineConnecting()) return;
   if (kingdomStartMode !== 'online' || !isNetModeActive()) {
@@ -25791,7 +25798,7 @@ async function handleKingdomOnlineStartClick() {
     return;
   }
   if (!tkNet.isHost) return;
-  if (!canStartKingdomRoundFromLobby()) return;
+  if (!canStartKingdomRoundFromLobby({ requireOnlineParty: autoStart === true ? requireParty : false })) return;
   const context = kingdomExplorationSession?.context;
   if (
     !isKingdomRaidLobby()
@@ -25866,6 +25873,7 @@ async function handleKingdomOnlineStartClick() {
   render();
   await removeCurrentOpenRoomIndex();
   await requestHostAction({ type: 'startOrNext' }, () => startOrNext());
+  return true;
 }
 
 async function handleKingdomOfflineStartClick() {
@@ -26531,6 +26539,7 @@ function bindUi() {
   ui.openRoomsWrap = document.getElementById('tarotKingdomOpenRooms');
   ui.openRoomsList = document.getElementById('tarotKingdomOpenRoomsList');
   ui.settlementConfirmButton = document.getElementById('tarotKingdomSettlementConfirmButton');
+  ui.settlementActions = document.getElementById('tarotKingdomSettlementActions');
   ui.actionPopup = document.getElementById('tarotKingdomActionPopup');
   if (ui.actionPopup) {
     const stopPopupPropagation = (event) => {
@@ -26754,6 +26763,7 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
   const destinationId = String(context?.destinationId || '').trim();
   const requestedMode = context?.mode === 'online' ? 'online' : 'offline';
   const autoStartOnline = requestedMode === 'online' && context?.autoStartOnline === true;
+  const autoStartRequiresParty = autoStartOnline && context?.startRequiresOnlineParty === true;
   const startBarrier = context?.startBarrier && typeof context.startBarrier.then === 'function'
     ? context.startBarrier
     : Promise.resolve();
@@ -26814,6 +26824,7 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
     raidEncounterPending: false,
     currentPet,
     onlineShip: requestedMode === 'online' ? normalizeKingdomOnlineShip(context?.onlineShip) : null,
+    startRequiresOnlineParty,
     onOnlinePartyChange: requestedMode === 'online' && typeof context?.onOnlinePartyChange === 'function'
       ? context.onOnlinePartyChange
       : null,
@@ -26911,8 +26922,11 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
         if (!isNetModeActive() || !tkNet.isHost) {
           throw new Error('オンライン救難信号を開始できませんでした。');
         }
-        await handleKingdomOnlineStartClick();
-        if (!s?.roundActive) {
+        const started = await handleKingdomOnlineStartClick({
+          autoStart: true,
+          requireParty: kingdomExplorationSession?.context?.startRequiresOnlineParty === true
+        });
+        if (!started && !autoStartRequiresParty) {
           throw new Error('オンライン戦闘を開始できませんでした。');
         }
       }

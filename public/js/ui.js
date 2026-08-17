@@ -2,7 +2,7 @@
 
 import * as Player from './player.js';
 import * as Inventory from 'inventory';
-import * as Ship from './ship.js?v=20260816-online-fleet-v1';
+import * as Ship from './ship.js?v=20260816-return-flow-v1';
 import * as NationKing from './nationKing.js?v=20260731-stage-score1';
 import * as Islands from './islands.js';
 import { getNationAnnouncements } from './playfabClient.js';
@@ -33,7 +33,7 @@ const ensureTarotModule = async () => {
 };
 
 let tarotKingdomModule = null;
-const TAROT_KINGDOM_MODULE_VERSION = '20260816-rulebook-v1';
+const TAROT_KINGDOM_MODULE_VERSION = '20260816-return-flow-v1';
 const ensureTarotKingdomModule = async () => {
     if (tarotKingdomModule) return tarotKingdomModule;
     tarotKingdomModule = await import(`./tarotKingdom.js?v=${TAROT_KINGDOM_MODULE_VERSION}`);
@@ -1644,11 +1644,7 @@ export async function launchTarotKingdomExplorationBattle(context = {}, playerIn
         throw new Error('タロットキングダムの探索連携を開始できません。');
     }
     try {
-        const result = await Kingdom.startTarotKingdomExplorationBattle(context);
-        if (result?.status === 'completed' && document.body?.dataset.currentTab === 'tarot') {
-            await showTab('home', resolvedPlayerInfo);
-        }
-        return result;
+        return await Kingdom.startTarotKingdomExplorationBattle(context);
     } catch (error) {
         if (document.body?.dataset.currentTab === 'tarot') {
             await showTab('home', resolvedPlayerInfo);
@@ -1674,7 +1670,7 @@ export async function launchTarotKingdomRescueBattle(room = {}, playerInfo = nul
     }
     try {
         const result = await Kingdom.joinTarotKingdomRescueRoom(room);
-        if (document.body?.dataset.currentTab === 'tarot') {
+        if (result?.status !== 'completed' && document.body?.dataset.currentTab === 'tarot') {
             await showTab('home', resolvedPlayerInfo);
         }
         return result;

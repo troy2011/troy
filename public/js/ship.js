@@ -1057,6 +1057,9 @@ let explorationAutoRunning = false;
 let currentTarotKingdomPet = null;
 let currentExplorationStages = [];
 let tarotKingdomPetOfferDialogPromise = null;
+let explorationReturnSequence = null;
+
+const EXPLORATION_RETURN_MIN_MS = 900;
 
 function setCurrentTarotKingdomPet(currentPet = null) {
     currentTarotKingdomPet = currentPet && typeof currentPet === 'object'
@@ -2241,6 +2244,66 @@ function getExplorationBossResultText(report, bossResult) {
     return report?.bossName ? '接触なし、HP全回復' : '戦闘なし、HP全回復';
 }
 
+export function beginExplorationReturnSequence(result = {}) {
+    if (explorationReturnSequence?.overlay?.isConnected) return explorationReturnSequence;
+
+    const existing = document.querySelector('.exploration-sequence-overlay');
+    existing?.remove();
+
+    const ship = currentPlayerShipProfile || {};
+    const form = normalizePlayerShipForm(ship.form);
+    const guildSailColor = form === 'guild' ? resolveGuildShipSailColor(ship) : 'white';
+    const guildLayers = form === 'guild' ? renderGuildShipLayers(ship) : '';
+    const destinationName = String(result?.destinationName || '探索先').trim() || '探索先';
+    const overlay = document.createElement('div');
+    overlay.className = `exploration-sequence-overlay is-${form} is-sky-deep is-voyage is-returning`;
+    overlay.setAttribute('aria-live', 'polite');
+    overlay.setAttribute('aria-busy', 'true');
+    overlay.innerHTML = `
+        <div class="exploration-sequence-dialog" role="dialog" aria-modal="true" aria-label="宝を持って帰還中">
+            <div class="exploration-sequence-scene">
+                <div class="exploration-sequence-compass" aria-hidden="true"></div>
+                <div class="exploration-sequence-sky"></div>
+                <div class="exploration-sequence-horizon" aria-hidden="true"></div>
+                <div class="exploration-sequence-ship-effect" aria-hidden="true"></div>
+                <div class="exploration-sequence-ship is-${form}" data-guild-sail-color="${escapeHtml(guildSailColor)}" aria-hidden="true">${guildLayers}</div>
+            </div>
+            <div class="exploration-sequence-copy">
+                <strong data-exploration-return-title>宝を積んで帰還中</strong>
+                <span data-exploration-return-status>${escapeHtml(destinationName)}の戦利品を確認しています...</span>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    applyPlayerShipFrameDirection(
+        overlay.querySelector('.exploration-sequence-ship'),
+        form === 'guild' ? HOME_GUILD_SHIP_LEFT_DIRECTION_KEY : HOME_PLAYER_SHIP_LEFT_DIRECTION_KEY
+    );
+
+    const shouldOpenHome = document.body?.dataset.currentTab !== 'home'
+        && typeof window.showTab === 'function';
+    const navigationPromise = shouldOpenHome
+        ? Promise.resolve().then(() => window.showTab('home')).catch((error) => {
+            console.warn('[exploration] return navigation failed:', error);
+        })
+        : Promise.resolve();
+    explorationReturnSequence = {
+        overlay,
+        startedAt: Date.now(),
+        navigationPromise
+    };
+    return explorationReturnSequence;
+}
+
+export async function finishExplorationReturnSequence() {
+    const sequence = explorationReturnSequence;
+    if (!sequence) return;
+    const remainingMs = Math.max(0, EXPLORATION_RETURN_MIN_MS - (Date.now() - sequence.startedAt));
+    await Promise.all([sequence.navigationPromise, wait(remainingMs)]);
+    if (explorationReturnSequence === sequence) explorationReturnSequence = null;
+    sequence.overlay?.remove();
+}
+
 function showExplorationResultSummary(data, options = {}) {
     const report = data?.report || {};
     const kingdomResult = options?.kingdomResult || null;
@@ -2420,6 +2483,7 @@ async function handleExplorationClaimResult(data, playFabId, options = {}) {
     }
     await refreshExplorationRewardInventory(data);
     renderExplorationPanel(data, playFabId);
+    await finishExplorationReturnSequence();
     showExplorationResultSummary(data, {
         playFabId,
         chestOpened: options.chestOpened === true,
@@ -2439,6 +2503,7 @@ export async function claimOnlineExplorationReward(playFabId, ownerPlayFabId, ki
         || kingdomResult?.mode !== 'online'
         || kingdomResult?.status !== 'completed'
     ) return null;
+    beginExplorationReturnSequence(kingdomResult);
 
     let lastError = null;
     for (let attempt = 0; attempt < 6; attempt += 1) {
@@ -2466,6 +2531,7 @@ export async function claimOnlineExplorationReward(playFabId, ownerPlayFabId, ki
             await wait(450 + attempt * 150);
         }
     }
+    await finishExplorationReturnSequence();
     throw lastError || new Error('探索報酬を確認できませんでした。');
 }
 
@@ -2503,9 +2569,13 @@ async function recoverConflictedExploration(playFabId, destinationId, options = 
             battleMode: options.battleMode === 'online' ? 'online' : 'offline',
             tutorialEnabled: options.tutorialEnabled === true,
             skipDeparture: true,
-            autoStartOnline: true
+            autoStartOnline: true,
+            startRequiresOnlineParty: options.battleMode === 'online'
         }
     );
+    if (!sequenceResult?.cancelled && sequenceResult?.kingdomResult?.status === 'completed') {
+        beginExplorationReturnSequence(sequenceResult.kingdomResult);
+    }
     const retreated = await completeExplorationRetreat(playFabId, sequenceResult);
     if (!retreated && !sequenceResult?.cancelled) {
         const claimData = await requestClaimExploration(playFabId, {
@@ -2662,6 +2732,7 @@ async function showExplorationDepartureLoading({
                     tutorialEnabled,
                     skipDeparture: true,
                     autoStartOnline: true,
+                    startRequiresOnlineParty: battleMode === 'online',
                     startBarrier,
                     onEntryReady: markEntryReady,
                     onOnlinePartyChange: syncOnlinePartyShips
@@ -2800,6 +2871,7 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
             enemyDefeatMode: getExplorationEnemyDefeatMode(),
             currentPet: currentTarotKingdomPet,
             onlineShip: createOnlineBattleShipProfile(ship),
+            startRequiresOnlineParty: options?.startRequiresOnlineParty === true,
             autoStartOnline: options.autoStartOnline === true,
             startBarrier: options.startBarrier,
             onEntryReady: options.onEntryReady,
@@ -3357,6 +3429,9 @@ async function startExploration(playFabId, destinationId, payment = {}, triggerB
             preparationPromise
         });
         const sequenceResult = await prepared.battlePromise;
+        if (!sequenceResult?.cancelled && sequenceResult?.kingdomResult?.status === 'completed') {
+            beginExplorationReturnSequence(sequenceResult.kingdomResult);
+        }
         const retreated = await completeExplorationRetreat(playFabId, sequenceResult);
         if (!retreated && !sequenceResult?.cancelled) {
             const claimData = await requestClaimExploration(playFabId, {
@@ -3373,6 +3448,7 @@ async function startExploration(playFabId, destinationId, payment = {}, triggerB
             renderExplorationPanel(encounterData, playFabId);
         }
     } catch (error) {
+        await finishExplorationReturnSequence();
         if (isExplorationStartConflict(error)) {
             try {
                 await recoverConflictedExploration(playFabId, destinationId, payment);
@@ -3411,6 +3487,9 @@ async function claimExploration(playFabId, active = null) {
             preparationPromise
         });
         const sequenceResult = await prepared.battlePromise;
+        if (!sequenceResult?.cancelled && sequenceResult?.kingdomResult?.status === 'completed') {
+            beginExplorationReturnSequence(sequenceResult.kingdomResult);
+        }
         const retreated = await completeExplorationRetreat(playFabId, sequenceResult);
         if (!retreated && !sequenceResult?.cancelled) {
             const claimData = await requestClaimExploration(playFabId, {
@@ -3427,6 +3506,7 @@ async function claimExploration(playFabId, active = null) {
             renderExplorationPanel(prepared.encounterData, playFabId);
         }
     } catch (error) {
+        await finishExplorationReturnSequence();
         showRpgMessage(error?.message || '探索結果を確認できませんでした。');
     }
 }

@@ -4619,6 +4619,8 @@ test('round settlement confirmation remains visible after the battle stage compl
   });
 
   const confirmButton = page.locator('#tarotKingdomSettlementConfirmButton');
+  const actionBar = page.locator('#tarotKingdomSettlementActions');
+  await expect(actionBar).toBeVisible();
   await expect(confirmButton).toBeVisible();
   await expect(confirmButton).toBeEnabled();
   await expect(confirmButton).toHaveText('次の局へ');
@@ -4627,11 +4629,29 @@ test('round settlement confirmation remains visible after the battle stage compl
     scrollWidth: element.scrollWidth,
     left: element.getBoundingClientRect().left,
     right: element.getBoundingClientRect().right,
+    width: element.getBoundingClientRect().width,
     viewportWidth: window.innerWidth
   }));
   expect(buttonFit.scrollWidth).toBeLessThanOrEqual(buttonFit.clientWidth);
   expect(buttonFit.left).toBeGreaterThanOrEqual(0);
   expect(buttonFit.right).toBeLessThanOrEqual(buttonFit.viewportWidth);
+  expect(buttonFit.width).toBeGreaterThanOrEqual(280);
+  expect(await actionBar.evaluate((element) => element.previousElementSibling?.id)).toBe('tarotKingdomBattleStage');
+});
+
+test('exploration victory offers a themed return action in the same result position', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.matchDone({ winnerIndex: 0 });
+    window.TarotKingdomDebug.battleSetExplorationSession(true, 'offline');
+  });
+
+  const actionBar = page.locator('#tarotKingdomSettlementActions');
+  const confirmButton = page.locator('#tarotKingdomSettlementConfirmButton');
+  await expect(actionBar).toBeVisible();
+  await expect(confirmButton).toBeVisible();
+  await expect(confirmButton).toHaveText('宝を持って帰還する');
+  expect(await actionBar.evaluate((element) => element.previousElementSibling?.id)).toBe('tarotKingdomBattleStage');
 });
 
 test('winner repeatedly jumps in place and the overall champion owns the final first-place ceremony', async ({ page }) => {

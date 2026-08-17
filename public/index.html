@@ -23,7 +23,7 @@
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
     <title>TROYゴールドアプリ</title>
-<link rel="stylesheet" href="style.css?v=20260816-rulebook-v1">
+<link rel="stylesheet" href="style.css?v=20260816-return-flow-v1">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
     <link rel="stylesheet" href="tarot-kingdom-summons.css?v=20260813-tutorial-flow-v1">
@@ -555,6 +555,9 @@
                             </section>
                         </div>
                     </section>
+                    <div id="tarotKingdomSettlementActions" class="tarot-kingdom-settlement-actions" hidden>
+                        <button id="tarotKingdomSettlementConfirmButton" type="button" hidden>次の局へ</button>
+                    </div>
                     <div class="tarot-kingdom-layout">
                         <div class="tarot-kingdom-panel tarot-kingdom-panel--trick">
                             <div class="tarot-kingdom-panel-title tarot-kingdom-trick-title">
@@ -606,11 +609,8 @@
                             </div>
                         </div>
                         <div class="tarot-kingdom-panel tarot-kingdom-panel--players">
-                            <div class="tarot-kingdom-panel-title tarot-kingdom-panel-title--actions">
+                            <div class="tarot-kingdom-panel-title">
                                 <span class="tarot-kingdom-panel-heading"><span class="tarot-kingdom-panel-eyebrow">STATUS</span><span>プレイヤー情報</span></span>
-                                <div class="tarot-kingdom-player-actions">
-                                    <button id="tarotKingdomSettlementConfirmButton" type="button" hidden>次の局へ</button>
-                                </div>
                             </div>
                             <div id="tarotKingdomPlayers" class="tarot-kingdom-players"></div>
                         </div>
@@ -1855,7 +1855,7 @@
         "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
         "config": "./js/config.js",
         "api": "./js/api.js",
-"ui": "./js/ui.js?v=20260816-rulebook-v1",
+"ui": "./js/ui.js?v=20260816-return-flow-v1",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js",
         "inventory": "./js/inventory.js?v=20260815-balance-v7-item-browser-v1",
@@ -1902,6 +1902,6 @@
     <!-- Scripts -->
     <script src="battle-client.js?v=20260801-weapon-motion4"></script>
     <script src="naval-battle.js"></script>
-<script type="module" src="main.js?v=20260816-rulebook-v1"></script>
+<script type="module" src="main.js?v=20260816-return-flow-v1"></script>
 </body>
 </html>

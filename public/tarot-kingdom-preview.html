@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="robots" content="noindex,follow">
     <title>Tarot Kingdom Preview</title>
-    <link rel="stylesheet" href="./style.css?v=20260816-rulebook-v1">
+    <link rel="stylesheet" href="./style.css?v=20260816-return-flow-v1">
     <link rel="stylesheet" href="./tarot-kingdom-summons.css?v=20260813-tutorial-flow-v1">
     <style>
         html, body {
@@ -41,7 +41,7 @@
                 "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
                 "config": "./js/config.js",
                 "api": "./js/api.js",
-                "ui": "./js/ui.js?v=20260816-rulebook-v1",
+                "ui": "./js/ui.js?v=20260816-return-flow-v1",
                 "avatar": "./js/avatar.js",
                 "player": "./js/player.js",
                 "inventory": "./js/inventory.js?v=20260815-balance-v7-item-browser-v1",
@@ -162,6 +162,9 @@
                 </section>
             </div>
         </section>
+        <div id="tarotKingdomSettlementActions" class="tarot-kingdom-settlement-actions" hidden>
+            <button id="tarotKingdomSettlementConfirmButton" type="button" hidden>次の局へ</button>
+        </div>
         <div class="tarot-kingdom-layout">
             <div class="tarot-kingdom-panel tarot-kingdom-panel--trick">
                 <div class="tarot-kingdom-panel-title tarot-kingdom-trick-title">
@@ -213,11 +216,8 @@
                 </div>
             </div>
             <div class="tarot-kingdom-panel tarot-kingdom-panel--players">
-                <div class="tarot-kingdom-panel-title tarot-kingdom-panel-title--actions">
+                <div class="tarot-kingdom-panel-title">
                     <span class="tarot-kingdom-panel-heading"><span class="tarot-kingdom-panel-eyebrow">STATUS</span><span>プレイヤー情報</span></span>
-                    <div class="tarot-kingdom-player-actions">
-                        <button id="tarotKingdomSettlementConfirmButton" type="button" hidden>次の局へ</button>
-                    </div>
                 </div>
                 <div id="tarotKingdomPlayers" class="tarot-kingdom-players"></div>
             </div>
@@ -231,7 +231,7 @@
         window.myLineProfile = { displayName: 'Preview' };
         window.__TAROT_KINGDOM_PREVIEW__ = true;
 
-        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260816-rulebook-v1';
+        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260816-return-flow-v1';
 
         window.TarotKingdomPreview = {
             load: () => loadTarotKingdomPage(),
@@ -243,6 +243,10 @@
                 const fixture = new URLSearchParams(window.location.search).get('tkfixture');
                 const showcase = new URLSearchParams(window.location.search).get('tkshowcase');
                 const debug = window.TarotKingdomDebug;
+                if (fixture === 'exploration-done') {
+                    debug?.battleSetExplorationSession(true, 'offline');
+                    return;
+                }
                 if (showcase === 'resonance') {
                     debug?.battleScenario({
                         withTrick: false,

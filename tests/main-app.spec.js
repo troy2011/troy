@@ -2378,6 +2378,13 @@ test('exploration stage starts for free with ordered optional supplies', async (
   expect(startBody.paymentMethod).toBeUndefined();
   expect(startBody.paymentConsumables).toBeUndefined();
   await expect.poll(() => page.evaluate(() => window.__explorationKingdomLaunches?.length || 0), { timeout: 7000 }).toBe(1);
+  const returnSequence = page.locator('.exploration-sequence-overlay.is-returning');
+  await expect(returnSequence).toBeVisible({ timeout: 7000 });
+  await expect(returnSequence).toHaveAttribute('aria-busy', 'true');
+  await expect(returnSequence.locator('[data-exploration-return-title]')).toHaveText('宝を積んで帰還中');
+  await expect(returnSequence.locator('[data-exploration-return-status]')).toContainText('戦利品を確認しています');
+  await expect(returnSequence.locator('.exploration-sequence-ship')).toHaveCSS('animation-name', /explorationSequenceReturnVoyage/);
+  await expect(page.locator('.exploration-result-overlay')).toHaveCount(0);
   const kingdomEntry = await page.evaluate(() => ({
     launcherAvailable: window.__realExplorationKingdomLauncherAvailable,
     context: window.__explorationKingdomLaunches[0]

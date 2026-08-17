@@ -1364,6 +1364,13 @@ button.home-player-ship-name {
         url("./Sprites/background/deck.webp") center bottom / auto 150% no-repeat;
 }
 
+.exploration-sequence-overlay.is-returning .exploration-sequence-scene {
+    background:
+        radial-gradient(ellipse at 50% 70%, rgba(250, 204, 21, 0.16), transparent 34%),
+        linear-gradient(180deg, rgba(14, 165, 233, 0.06), rgba(8, 47, 73, 0.48)),
+        url("./Sprites/background/sea.webp") center -50px / auto 150% no-repeat;
+}
+
 .exploration-sequence-scene::before {
     content: "";
     position: absolute;
@@ -1719,6 +1726,18 @@ button.home-player-ship-name {
         homePlayerShipFrameStep 300ms steps(3) infinite;
 }
 
+.exploration-sequence-overlay.is-returning .exploration-sequence-ship {
+    animation:
+        explorationSequenceReturnVoyage 2400ms linear infinite,
+        homePlayerShipFrameStep 300ms steps(3) infinite;
+}
+
+.exploration-sequence-overlay.is-returning .exploration-sequence-arrival,
+.exploration-sequence-overlay.is-returning .exploration-sequence-island,
+.exploration-sequence-overlay.is-returning .exploration-sequence-boss {
+    display: none;
+}
+
 .exploration-sequence-overlay.is-voyage .exploration-sequence-arrival {
     animation: explorationSequenceArrival 2880ms ease-out forwards;
 }
@@ -1833,6 +1852,7 @@ button.home-player-ship-name {
 .exploration-sequence-overlay.is-up .exploration-sequence-ship.is-guild .home-guild-ship-layer.is-hull,
 .exploration-sequence-overlay.is-left .exploration-sequence-ship.is-guild .home-guild-ship-layer.is-hull,
 .exploration-sequence-overlay.is-battle .exploration-sequence-ship.is-guild .home-guild-ship-layer.is-hull,
+.exploration-sequence-overlay.is-returning .exploration-sequence-ship.is-guild .home-guild-ship-layer.is-hull,
 .exploration-sequence-overlay.is-treasure .exploration-sequence-ship.is-guild .home-guild-ship-layer.is-hull {
     animation: homeGuildShipHullFrameStep 300ms steps(3) infinite;
 }
@@ -1842,6 +1862,7 @@ button.home-player-ship-name {
 .exploration-sequence-overlay.is-up .exploration-sequence-ship.is-guild .home-guild-ship-layer:not(.is-hull),
 .exploration-sequence-overlay.is-left .exploration-sequence-ship.is-guild .home-guild-ship-layer:not(.is-hull),
 .exploration-sequence-overlay.is-battle .exploration-sequence-ship.is-guild .home-guild-ship-layer:not(.is-hull),
+.exploration-sequence-overlay.is-returning .exploration-sequence-ship.is-guild .home-guild-ship-layer:not(.is-hull),
 .exploration-sequence-overlay.is-treasure .exploration-sequence-ship.is-guild .home-guild-ship-layer:not(.is-hull) {
     animation: homeGuildShipSailFrameStep 300ms steps(3) infinite;
 }
@@ -2118,6 +2139,24 @@ button.home-player-ship-name {
     to {
         left: var(--exploration-ship-docked-left);
         bottom: var(--exploration-ship-bottom);
+        transform: scale(var(--exploration-ship-scale));
+    }
+}
+
+@keyframes explorationSequenceReturnVoyage {
+    0% {
+        left: calc(100% + 72px);
+        bottom: var(--exploration-ship-bottom);
+        opacity: 0;
+        transform: scale(var(--exploration-ship-scale));
+    }
+    10%, 86% {
+        opacity: 1;
+    }
+    100% {
+        left: -92px;
+        bottom: var(--exploration-ship-bottom);
+        opacity: 0;
         transform: scale(var(--exploration-ship-scale));
     }
 }
@@ -7991,20 +8030,27 @@ body.modal-lock .troy-menu-board-order-modal {
 
 .tarot-kingdom-settlement-actions {
     display: flex;
-    justify-content: flex-end;
-    margin-top: 8px;
+    justify-content: center;
+    width: 100%;
+    margin: 6px 0;
+    padding: 0 8px;
+}
+
+.tarot-kingdom-settlement-actions[hidden] {
+    display: none;
 }
 
 #tarotKingdomSettlementConfirmButton {
-    min-height: 28px;
+    width: min(100%, 360px);
+    min-height: 44px;
     min-width: 0;
     max-width: 100%;
-    padding: 4px 11px;
-    border-radius: 999px;
+    padding: 9px 16px;
+    border-radius: 10px;
     border: 1px solid rgba(245, 158, 11, 0.5);
     background: linear-gradient(180deg, #b45309, #78350f);
     color: #f8fafc;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 800;
     line-height: 1.15;
     text-align: center;
@@ -8433,15 +8479,6 @@ body.modal-lock .troy-menu-board-order-modal {
 .tarot-kingdom-players {
     display: grid;
     gap: 6px;
-}
-
-.tarot-kingdom-player-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    margin-top: 0;
-    margin-left: auto;
-    flex: 0 0 auto;
 }
 
 .tarot-kingdom-players-summary {
@@ -22058,13 +22095,9 @@ body[data-tarot-kingdom-atmosphere-tone="final-eclipse"] #tarotKingdomRoot .taro
         gap: 6px;
     }
 
-    #tabContentTarot #tarotKingdomRoot .tarot-kingdom-player-actions {
-        margin-top: 0;
-    }
-
     #tabContentTarot #tarotKingdomRoot #tarotKingdomSettlementConfirmButton {
-        padding: 4px 8px;
-        font-size: 9px;
+        padding: 8px 12px;
+        font-size: 11px;
     }
 
     #tabContentTarot #tarotKingdomRoot .tarot-kingdom-player-row.is-settlement {
@@ -36147,21 +36180,15 @@ body.tarot-kingdom-preview-body {
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomSettlementConfirmButton:not([hidden]) {
     display: block;
     box-sizing: border-box;
-    width: max-content;
+    width: min(100%, 360px);
     max-width: min(calc(100vw - 24px), 520px);
     min-height: 48px;
-    margin: 6px auto;
+    margin: 0 auto;
     padding-inline: clamp(16px, 5vw, 28px);
     border: 2px solid #d9b54d;
     color: #f4e2aa;
     background: linear-gradient(180deg, #7e5710, #382405);
     font-weight: 800;
-}
-
-:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 .tarot-kingdom-player-actions {
-    width: 100%;
-    min-width: 0;
-    justify-content: center;
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-arena[data-battlefield-id="coral-island"] {
