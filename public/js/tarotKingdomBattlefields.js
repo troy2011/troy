@@ -14,8 +14,8 @@ const BATTLEFIELD_DEFINITIONS = [
     surface: 'ship-deck',
     shipSide: true,
     groundStartPercent: 46,
-    backgroundPosition: 'center -28px',
-    backgroundSize: '100% calc(100% + 28px)'
+    backgroundPosition: 'center -50px',
+    backgroundSize: '100% calc(100% + 50px)'
   },
   {
     id: 'stage-03-island-causeway',
