@@ -1781,8 +1781,8 @@ button.home-player-ship-name {
 
 .exploration-sequence-overlay.is-returning .exploration-sequence-ship {
     animation:
-        explorationSequenceReturnVoyage 2400ms linear infinite,
-        homePlayerShipFrameStep 300ms steps(3) infinite;
+        explorationSequenceReturnVoyage 4800ms linear forwards,
+        homePlayerShipFrameStep 300ms steps(3) forwards;
 }
 
 .exploration-sequence-overlay.is-returning .exploration-sequence-arrival,
