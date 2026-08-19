@@ -630,6 +630,8 @@ let netActionWriteTimer = null;
 let netOpenRoomHeartbeatTimer = null;
 let netPresenceHeartbeatTimer = null;
 let netLastStateHash = '';
+let netHostDisconnectTimer = null;
+let netLastHostPresenceCheck = 0;
 let netLastAuthorityStateSnapshot = null;
 let netLastPrivateHandSnapshots = {};
 let netBootPromise = null;
@@ -14146,9 +14148,15 @@ function renderOpenRoomsList(roomRows = []) {
   if (!shouldShowOpenRoomsLobby()) {
     listEl.innerHTML = '';
     setOpenRoomsVisibility(false);
+    clearHostDisconnectTimer();
     return;
   }
   setOpenRoomsVisibility(true);
+
+  // ロビー表示時：ゲストがホスト監視を開始
+  if (!tkNet.isHost && isNetModeActive()) {
+    monitorHostPresence();
+  }
   if (!isNetModeActive()) {
     listEl.innerHTML = '';
     const status = document.createElement('div');
@@ -14572,7 +14580,65 @@ async function armKingdomHostDisconnectHooks() {
   }
 }
 
+function clearHostDisconnectTimer() {
+  if (netHostDisconnectTimer) {
+    clearTimeout(netHostDisconnectTimer);
+    netHostDisconnectTimer = null;
+  }
+}
+
+function monitorHostPresence() {
+  clearHostDisconnectTimer();
+  if (!isNetModeActive() || tkNet.isHost || !s) return;
+
+  const checkHostPresence = async () => {
+    if (!isNetModeActive() || tkNet.isHost || !tkNet.roomPath) return;
+
+    try {
+      const presenceRef = ref(tkNet.db, `${tkNet.roomPath}/presence`);
+      const presenceSnap = await get(presenceRef).catch(() => null);
+      const presenceMap = presenceSnap?.exists?.() ? (presenceSnap.val() || {}) : {};
+
+      // ホストの最後の活動時刻を確認
+      const hostInfo = presenceMap?.[tkNet.hostUid];
+      const now = Date.now();
+      const hostLastActive = hostInfo?.updatedAt || 0;
+      const hostInactiveTime = now - hostLastActive;
+
+      // ホストが60秒以上非アクティブ → 切断と判定
+      if (hostInactiveTime > 60000) {
+        if (s) {
+          s.message = 'ホストとの接続が切れました。';
+          if (!s.roundActive) {
+            s.message += 'オフラインモードで続行します。';
+          }
+          render();
+        }
+        // ホスト切断時は状態をリセットしてオフライン継続を試みる
+        if (!s?.roundActive) {
+          kingdomStartMode = 'offline';
+          netManualOfflineMode = true;
+          stopRoomSubscriptions();
+        }
+        clearHostDisconnectTimer();
+        return;
+      }
+
+      // 再度チェック（15秒後）
+      netHostDisconnectTimer = setTimeout(checkHostPresence, 15000);
+    } catch (error) {
+      console.warn('[tarotKingdom] host presence check failed:', error);
+      // エラーは通常（接続不安定など）、次のチェックをスケジュール
+      netHostDisconnectTimer = setTimeout(checkHostPresence, 15000);
+    }
+  };
+
+  // 初回チェック（5秒後）
+  netHostDisconnectTimer = setTimeout(checkHostPresence, 5000);
+}
+
 function stopRoomSubscriptions() {
+  clearHostDisconnectTimer();
   if (typeof netHostUidUnsub === 'function') {
     netHostUidUnsub();
     netHostUidUnsub = null;
@@ -25706,11 +25772,36 @@ async function startOrNext() {
     targetState.message = 'キャラクター能力・装備を固定しています...';
     const profileLoad = prepareKingdomCharacterSnapshots({ online: kingdomStartMode === 'online' });
     render();
-    const ready = await profileLoad;
+
+    // タイムアウト処理（30秒）
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('キャラクター準備がタイムアウトしました。')), 30000);
+    });
+
+    let ready = false;
+    try {
+      ready = await Promise.race([profileLoad, timeoutPromise]);
+    } catch (error) {
+      if (s === targetState) {
+        targetState.message = String(error?.message || 'バトル準備に失敗しました。');
+        render();
+        if (isNetModeActive() && tkNet.isHost) {
+          queueStatePublish(true);
+        }
+      }
+      return false;
+    }
+
     if (s !== targetState || kingdomStateGeneration !== targetGeneration) return false;
     if (!ready) {
-      render();
-      if (isNetModeActive() && tkNet.isHost) queueStatePublish(true);
+      // プリペア失敗時の詳細メッセージ
+      if (s === targetState) {
+        targetState.message = 'キャラクター能力の取得に失敗しました。インターネット接続を確認してもう一度試してください。';
+        render();
+        if (isNetModeActive() && tkNet.isHost) {
+          queueStatePublish(true);
+        }
+      }
       return false;
     }
     if (targetState.roundActive || targetState.awaitRoundConfirm || targetState.handNo >= TOTAL_HANDS) return true;
@@ -25848,7 +25939,25 @@ async function handleKingdomOnlineStartClick(options = {}) {
     await activateKingdomOnlineMode();
     return;
   }
-  if (!tkNet.isHost) return;
+  if (!tkNet.isHost) {
+    // ゲスト（参加プレイヤー）の場合：ホストにバトル開始要求を通知
+    if (canStartKingdomRoundFromLobby()) {
+      s.message = 'ホストがバトル開始を承認するまでお待ちください...';
+      render();
+      // ホストに通知
+      try {
+        await publishStateToRoom(true);
+      } catch (error) {
+        console.warn('[tarotKingdom] guest start notification failed:', error);
+        s.message = 'ホストへの通知に失敗しました。もう一度試してください。';
+        render();
+      }
+    } else {
+      s.message = 'バトル開始条件を満たしていません。';
+      render();
+    }
+    return;
+  }
   if (!canStartKingdomRoundFromLobby({ requireOnlineParty: autoStart === true ? requireParty : false })) return;
   const context = kingdomExplorationSession?.context;
   if (
