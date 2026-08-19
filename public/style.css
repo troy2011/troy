@@ -209,22 +209,35 @@
 
 .tarot-kingdom-rulebook-close {
     flex: 0 0 auto;
-    width: 38px;
-    height: 38px;
-    border: 1px solid rgba(237, 203, 112, 0.58);
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    border: 2px solid rgba(230, 189, 88, 0.48);
     border-radius: 50%;
-    background: rgba(5, 10, 28, 0.88);
+    background: linear-gradient(135deg, rgba(45, 65, 110, 0.72), rgba(25, 45, 85, 0.68));
     color: #fff4c5;
-    font: 400 27px/1 system-ui, sans-serif;
+    font: 400 28px/1 system-ui, sans-serif;
     cursor: pointer;
+    transition: all 200ms ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .tarot-kingdom-rulebook-close:hover,
 .tarot-kingdom-rulebook-close:focus-visible {
     border-color: #ffe498;
-    background: #243460;
-    outline: 2px solid rgba(245, 196, 76, 0.32);
+    background: linear-gradient(135deg, rgba(60, 85, 140, 0.82), rgba(40, 60, 110, 0.78));
+    color: #fff4c5;
+    box-shadow: 0 8px 24px rgba(230, 189, 88, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    outline: 2px solid rgba(245, 196, 76, 0.4);
     outline-offset: 2px;
+}
+
+.tarot-kingdom-rulebook-close:active {
+    transform: scale(0.96);
 }
 
 .tarot-kingdom-rulebook-nav {
@@ -243,30 +256,32 @@
 
 .tarot-kingdom-rulebook-nav button {
     flex: 0 0 auto;
-    min-height: 30px;
-    padding: 6px 14px;
-    border: 2px solid rgba(126, 151, 199, 0.34);
+    min-height: 32px;
+    padding: 7px 16px;
+    border: 2px solid rgba(126, 151, 199, 0.42);
     border-radius: 8px;
-    background: rgba(23, 37, 72, 0.64);
-    color: #dbe6fa;
-    font: 800 11px/1.2 system-ui, sans-serif;
+    background: linear-gradient(135deg, rgba(30, 48, 85, 0.68), rgba(18, 32, 65, 0.64));
+    color: #f0f4fc;
+    font: 800 12px/1.3 system-ui, sans-serif;
     cursor: pointer;
     transition: all 200ms ease;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .tarot-kingdom-rulebook-nav button:hover,
 .tarot-kingdom-rulebook-nav button:focus-visible {
     border-color: #e7bd58;
-    background: rgba(55, 85, 149, 0.76);
-    color: #fff1b2;
+    background: linear-gradient(135deg, rgba(50, 75, 120, 0.82), rgba(35, 60, 100, 0.78));
+    color: #fff4c5;
     outline: none;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
 .tarot-kingdom-rulebook-nav button.is-active {
     border-color: #ffe498;
-    background: linear-gradient(135deg, rgba(100, 120, 180, 0.88), rgba(55, 85, 149, 0.88));
+    background: linear-gradient(135deg, rgba(100, 120, 180, 0.92), rgba(70, 95, 160, 0.92));
     color: #fff4c5;
-    box-shadow: 0 0 16px rgba(230, 189, 88, 0.28);
+    box-shadow: 0 0 20px rgba(230, 189, 88, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .tarot-kingdom-rulebook-body {
