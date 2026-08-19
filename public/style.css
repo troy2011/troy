@@ -186,8 +186,9 @@
 .tarot-kingdom-rulebook-section-no {
     display: block;
     color: #e7bd58;
-    font: 800 9px/1.3 system-ui, sans-serif;
-    letter-spacing: 0.16em;
+    font: 800 9.5px/1.4 system-ui, sans-serif;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
 }
 
 .tarot-kingdom-rulebook-header h2 {
@@ -243,30 +244,39 @@
 .tarot-kingdom-rulebook-nav button {
     flex: 0 0 auto;
     min-height: 30px;
-    padding: 6px 12px;
-    border: 1px solid rgba(126, 151, 199, 0.34);
-    border-radius: 999px;
-    background: rgba(23, 37, 72, 0.78);
+    padding: 6px 14px;
+    border: 2px solid rgba(126, 151, 199, 0.34);
+    border-radius: 8px;
+    background: rgba(23, 37, 72, 0.64);
     color: #dbe6fa;
-    font: 800 10px/1 system-ui, sans-serif;
+    font: 800 11px/1.2 system-ui, sans-serif;
     cursor: pointer;
+    transition: all 200ms ease;
 }
 
 .tarot-kingdom-rulebook-nav button:hover,
 .tarot-kingdom-rulebook-nav button:focus-visible {
     border-color: #e7bd58;
+    background: rgba(55, 85, 149, 0.76);
     color: #fff1b2;
     outline: none;
 }
 
+.tarot-kingdom-rulebook-nav button.is-active {
+    border-color: #ffe498;
+    background: linear-gradient(135deg, rgba(100, 120, 180, 0.88), rgba(55, 85, 149, 0.88));
+    color: #fff4c5;
+    box-shadow: 0 0 16px rgba(230, 189, 88, 0.28);
+}
+
 .tarot-kingdom-rulebook-body {
-    padding: 4px 20px 28px;
+    padding: 6px 20px 28px;
 }
 
 .tarot-kingdom-rulebook-section {
-    padding: 28px 4px 30px;
-    scroll-margin-top: 118px;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+    padding: 22px 4px 26px;
+    scroll-margin-top: 100px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
     outline: none;
 }
 
@@ -275,10 +285,12 @@
 }
 
 .tarot-kingdom-rulebook-section h3 {
-    margin: 5px 0 14px;
+    margin: 8px 0 16px;
+    padding: 10px 0 0;
     color: #fff4c5;
-    font: 900 clamp(19px, 4vw, 25px)/1.25 Georgia, "Yu Mincho", serif;
-    letter-spacing: 0.04em;
+    font: 900 clamp(20px, 4.5vw, 26px)/1.3 Georgia, "Yu Mincho", serif;
+    letter-spacing: 0.05em;
+    border-top: 2px solid rgba(230, 189, 88, 0.3);
 }
 
 .tarot-kingdom-rulebook-section h4 {
@@ -306,12 +318,18 @@
 
 .tarot-kingdom-rulebook-steps li {
     position: relative;
-    min-height: 82px;
-    padding: 12px 12px 12px 43px;
-    border: 1px solid rgba(115, 146, 198, 0.25);
-    border-radius: 12px;
-    background: rgba(20, 34, 68, 0.55);
+    min-height: 85px;
+    padding: 13px 13px 13px 48px;
+    border: 1px solid rgba(115, 146, 198, 0.32);
+    border-radius: 13px;
+    background: linear-gradient(135deg, rgba(30, 48, 85, 0.62), rgba(15, 28, 60, 0.58));
     counter-increment: kingdom-rule-step;
+    transition: all 200ms ease;
+}
+
+.tarot-kingdom-rulebook-steps li:hover {
+    border-color: rgba(230, 189, 88, 0.4);
+    background: linear-gradient(135deg, rgba(40, 60, 100, 0.68), rgba(20, 35, 70, 0.65));
 }
 
 .tarot-kingdom-rulebook-steps li::before {
@@ -350,12 +368,13 @@
 .tarot-kingdom-rulebook-alert,
 .tarot-kingdom-rulebook-note {
     display: grid;
-    gap: 4px;
-    margin-top: 13px;
-    padding: 12px 14px;
-    border: 1px solid rgba(241, 196, 73, 0.46);
-    border-radius: 12px;
-    background: linear-gradient(110deg, rgba(102, 58, 9, 0.42), rgba(36, 25, 16, 0.34));
+    gap: 6px;
+    margin-top: 15px;
+    padding: 13px 15px;
+    border: 2px solid rgba(241, 196, 73, 0.58);
+    border-radius: 13px;
+    background: linear-gradient(110deg, rgba(120, 70, 15, 0.48), rgba(50, 35, 20, 0.42));
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .tarot-kingdom-rulebook-alert strong,
@@ -380,13 +399,19 @@
 
 .tarot-kingdom-rulebook-facts > div {
     display: flex;
-    min-height: 70px;
+    min-height: 75px;
     align-items: center;
-    gap: 10px;
-    padding: 10px;
-    border: 1px solid rgba(111, 139, 190, 0.24);
-    border-radius: 11px;
-    background: rgba(14, 28, 60, 0.54);
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid rgba(111, 139, 190, 0.32);
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(25, 45, 80, 0.6), rgba(12, 25, 55, 0.56));
+    transition: all 200ms ease;
+}
+
+.tarot-kingdom-rulebook-facts > div:hover {
+    border-color: rgba(230, 189, 88, 0.4);
+    background: linear-gradient(135deg, rgba(35, 55, 95, 0.68), rgba(20, 35, 65, 0.64));
 }
 
 .tarot-kingdom-rulebook-facts strong {
@@ -407,9 +432,16 @@
 }
 
 .tarot-kingdom-rulebook-copy-grid > div {
-    padding: 12px;
-    border-left: 2px solid rgba(224, 183, 74, 0.68);
-    background: rgba(13, 25, 53, 0.44);
+    padding: 13px 14px;
+    border-left: 3px solid rgba(224, 183, 74, 0.72);
+    background: linear-gradient(to right, rgba(20, 40, 75, 0.48), rgba(13, 25, 53, 0.44));
+    border-radius: 0 8px 8px 0;
+    transition: all 200ms ease;
+}
+
+.tarot-kingdom-rulebook-copy-grid > div:hover {
+    border-left-color: rgba(255, 244, 197, 0.88);
+    background: linear-gradient(to right, rgba(30, 50, 90, 0.56), rgba(18, 32, 65, 0.52));
 }
 
 .tarot-kingdom-rulebook-suits {
@@ -422,13 +454,19 @@
 
 .tarot-kingdom-rulebook-suits > div {
     display: flex;
-    min-height: 44px;
+    min-height: 48px;
     align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 10px;
-    background: rgba(11, 20, 42, 0.72);
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 11px;
+    background: linear-gradient(135deg, rgba(15, 30, 60, 0.64), rgba(8, 18, 45, 0.6));
+    transition: all 200ms ease;
+}
+
+.tarot-kingdom-rulebook-suits > div:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: linear-gradient(135deg, rgba(20, 40, 75, 0.72), rgba(12, 25, 55, 0.68));
 }
 
 .tarot-kingdom-rulebook-suits > div > span {
@@ -471,20 +509,21 @@
 
 .tarot-kingdom-rulebook-table-wrap th,
 .tarot-kingdom-rulebook-table-wrap td {
-    padding: 10px 9px;
-    border-bottom: 1px solid rgba(128, 151, 194, 0.16);
-    color: #bdc9df;
-    font-size: 10px;
-    line-height: 1.4;
+    padding: 12px 11px;
+    border-bottom: 1px solid rgba(128, 151, 194, 0.2);
+    color: #c8d4e8;
+    font-size: 11px;
+    line-height: 1.5;
     text-align: left;
     vertical-align: middle;
 }
 
 .tarot-kingdom-rulebook-table-wrap th {
-    color: #f2d581;
-    background: rgba(35, 54, 91, 0.76);
-    font-size: 9px;
-    letter-spacing: 0.08em;
+    color: #fff4c5;
+    background: linear-gradient(90deg, rgba(45, 70, 120, 0.82), rgba(35, 54, 91, 0.82));
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.1em;
 }
 
 .tarot-kingdom-rulebook-table-wrap th:first-child { width: 30%; }
@@ -523,42 +562,60 @@
 
 .tarot-kingdom-rulebook-special-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
 }
 
 .tarot-kingdom-rulebook-special-grid > div {
-    min-height: 132px;
-    padding: 11px;
-    border: 1px solid rgba(127, 150, 194, 0.24);
-    border-radius: 12px;
-    background: linear-gradient(145deg, rgba(25, 45, 83, 0.68), rgba(10, 19, 43, 0.7));
+    min-height: 140px;
+    padding: 13px;
+    border: 1px solid rgba(127, 150, 194, 0.32);
+    border-radius: 13px;
+    background: linear-gradient(145deg, rgba(35, 55, 95, 0.72), rgba(15, 28, 55, 0.75));
+    transition: all 200ms ease;
+}
+
+.tarot-kingdom-rulebook-special-grid > div:hover {
+    border-color: rgba(230, 189, 88, 0.48);
+    background: linear-gradient(145deg, rgba(45, 65, 110, 0.78), rgba(20, 35, 65, 0.82));
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .tarot-kingdom-rulebook-special-grid > div > span {
     display: grid;
-    width: 32px;
-    height: 32px;
-    margin-bottom: 10px;
+    width: 36px;
+    height: 36px;
+    margin-bottom: 11px;
     place-items: center;
-    border: 1px solid rgba(238, 196, 83, 0.64);
-    border-radius: 8px;
-    color: #ffe395;
-    background: rgba(115, 71, 12, 0.32);
-    font: 900 16px/1 Georgia, serif;
+    border: 2px solid rgba(238, 196, 83, 0.72);
+    border-radius: 9px;
+    color: #fff4c5;
+    background: linear-gradient(135deg, rgba(140, 80, 15, 0.42), rgba(115, 71, 12, 0.38));
+    font: 900 18px/1 Georgia, serif;
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.tarot-kingdom-rulebook-special-grid > div > h4 {
+    margin: 0 0 7px;
+    color: #fff4c5;
+    font: 900 13px/1.2 system-ui, sans-serif;
+    letter-spacing: 0.02em;
 }
 
 .tarot-kingdom-rulebook-special-grid p {
-    font-size: 10px;
-    line-height: 1.55;
+    margin: 0;
+    color: #bac6dc;
+    font-size: 11px;
+    line-height: 1.6;
 }
 
 .tarot-kingdom-rulebook-major-list {
-    margin-top: 14px;
-    padding: 14px;
-    border: 1px solid rgba(210, 177, 79, 0.27);
+    margin-top: 16px;
+    padding: 15px;
+    border: 1px solid rgba(210, 177, 79, 0.35);
     border-radius: 13px;
-    background: rgba(42, 31, 56, 0.38);
+    background: linear-gradient(135deg, rgba(55, 45, 75, 0.44), rgba(35, 25, 50, 0.42));
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .tarot-kingdom-rulebook-major-list dl {
@@ -568,22 +625,30 @@
     margin: 10px 0 0;
 }
 
+.tarot-kingdom-rulebook-major-list h4 {
+    margin: 0 0 11px;
+    color: #fff4c5;
+    font: 900 12px/1.2 system-ui, sans-serif;
+    letter-spacing: 0.05em;
+}
+
 .tarot-kingdom-rulebook-major-list dl > div {
-    padding-top: 7px;
-    border-top: 1px solid rgba(191, 163, 103, 0.16);
+    padding-top: 9px;
+    border-top: 1px solid rgba(191, 163, 103, 0.22);
 }
 
 .tarot-kingdom-rulebook-major-list dt {
-    color: #efcf81;
-    font-size: 10px;
+    color: #f2d581;
+    font-size: 11px;
     font-weight: 900;
+    letter-spacing: 0.02em;
 }
 
 .tarot-kingdom-rulebook-major-list dd {
-    margin: 3px 0 0;
-    color: #bdb7ce;
+    margin: 4px 0 0;
+    color: #bdc9df;
     font-size: 10px;
-    line-height: 1.5;
+    line-height: 1.6;
 }
 
 .tarot-kingdom-rulebook-note.is-score {
@@ -688,8 +753,13 @@
     }
 
     .tarot-kingdom-rulebook-section {
-        padding: 23px 2px 25px;
-        scroll-margin-top: 108px;
+        padding: 18px 2px 22px;
+        scroll-margin-top: 96px;
+    }
+
+    .tarot-kingdom-rulebook-section h3 {
+        margin: 6px 0 12px;
+        font-size: 20px;
     }
 
     .tarot-kingdom-rulebook-steps,

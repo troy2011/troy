@@ -26300,8 +26300,34 @@ function ensureKingdomRulebookUi() {
       const target = document.getElementById(String(button.dataset.rulebookTarget || ''));
       target?.scrollIntoView({ block: 'start', behavior: 'smooth' });
       target?.focus({ preventScroll: true });
+      // Update active button state
+      rulebook.querySelectorAll('[data-rulebook-target]').forEach((b) => b.classList.remove('is-active'));
+      button.classList.add('is-active');
     });
   });
+
+  // Track scroll position to update active nav button
+  const rulebookPage = rulebook.querySelector('[data-rulebook-page]');
+  if (rulebookPage) {
+    let scrollTimeout;
+    rulebookPage.addEventListener('scroll', () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        const sections = Array.from(rulebook.querySelectorAll('.tarot-kingdom-rulebook-section'));
+        let currentSection = sections[0];
+        for (const section of sections) {
+          if (section.getBoundingClientRect().top <= 150) {
+            currentSection = section;
+          }
+        }
+        if (currentSection?.id) {
+          rulebook.querySelectorAll('[data-rulebook-target]').forEach((b) => {
+            b.classList.toggle('is-active', b.dataset.rulebookTarget === currentSection.id);
+          });
+        }
+      }, 50);
+    });
+  }
   rulebook.addEventListener('click', (event) => {
     if (event.target === rulebook) setKingdomRulebookOpen(false);
   });
