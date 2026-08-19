@@ -207,38 +207,6 @@
     line-height: 1.6;
 }
 
-.tarot-kingdom-rulebook-close {
-    flex: 0 0 auto;
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    min-height: 44px;
-    border: 2px solid rgba(230, 189, 88, 0.48);
-    border-radius: 50%;
-    background: linear-gradient(135deg, rgba(45, 65, 110, 0.72), rgba(25, 45, 85, 0.68));
-    color: #fff4c5;
-    font: 400 28px/1 system-ui, sans-serif;
-    cursor: pointer;
-    transition: all 200ms ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-}
-
-.tarot-kingdom-rulebook-close:hover,
-.tarot-kingdom-rulebook-close:focus-visible {
-    border-color: #ffe498;
-    background: linear-gradient(135deg, rgba(60, 85, 140, 0.82), rgba(40, 60, 110, 0.78));
-    color: #fff4c5;
-    box-shadow: 0 8px 24px rgba(230, 189, 88, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    outline: 2px solid rgba(245, 196, 76, 0.4);
-    outline-offset: 2px;
-}
-
-.tarot-kingdom-rulebook-close:active {
-    transform: scale(0.96);
-}
 
 .tarot-kingdom-rulebook-nav {
     display: flex;

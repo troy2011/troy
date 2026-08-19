@@ -26197,9 +26197,7 @@ function ensureKingdomRulebookUi() {
             <h2 id="tarotKingdomRulebookTitle">タロットキングダム<br>ルールブック</h2>
             <p>カードを出して仲間と攻め、モンスターを攻略する3〜4人用バトル。</p>
           </div>
-          <button type="button" class="tarot-kingdom-rulebook-close" data-rulebook-close aria-label="ルールブックを閉じてゲームへ戻る">
-            <span aria-hidden="true">×</span>
-          </button>
+          <button type="button" class="ui-modal-close" data-rulebook-close aria-label="ルールブックを閉じてゲームへ戻る"></button>
         </header>
 
         <nav class="tarot-kingdom-rulebook-nav" aria-label="ルールブック内の目次">
