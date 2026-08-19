@@ -14151,36 +14151,87 @@ function renderOpenRoomsList(roomRows = []) {
   setOpenRoomsVisibility(true);
   if (!isNetModeActive()) {
     listEl.innerHTML = '';
-    const status = document.createElement('span');
+    const status = document.createElement('div');
     status.className = 'tarot-kingdom-openrooms-item';
     const hasDb = !!window.__tkDb;
     const hasUid = !!window.__tkUid;
-    if (!hasDb) status.textContent = 'マルチ接続準備中です。';
-    else if (!hasUid) status.textContent = 'ログイン認証待機中です。';
-    else status.textContent = 'マルチ接続に失敗しました。タブを開き直してください。';
+    let statusText = 'マルチ接続準備中です。';
+    if (!hasDb) statusText = 'マルチ接続準備中です。';
+    else if (!hasUid) statusText = 'ログイン認証待機中です。';
+    else statusText = 'マルチ接続に失敗しました。タブを開き直してください。';
+
+    const header = document.createElement('div');
+    header.className = 'tarot-kingdom-openrooms-item-header';
+    header.textContent = statusText;
+    status.appendChild(header);
+    status.setAttribute('aria-label', statusText);
     listEl.appendChild(status);
     return;
   }
   listEl.innerHTML = '';
   if (!netOpenRoomIndexEnabled) {
-    const info = document.createElement('span');
+    const info = document.createElement('div');
     info.className = 'tarot-kingdom-openrooms-item';
-    info.textContent = '受付一覧は権限未設定のため簡易マッチで接続中です。';
+
+    const header = document.createElement('div');
+    header.className = 'tarot-kingdom-openrooms-item-header';
+    header.textContent = '簡易マッチ';
+    info.appendChild(header);
+
+    const players = document.createElement('div');
+    players.className = 'tarot-kingdom-openrooms-item-players';
+    players.textContent = '一覧取得中...';
+    info.appendChild(players);
+
     listEl.appendChild(info);
     return;
   }
   if (!roomRows.length) {
-    const empty = document.createElement('span');
+    const empty = document.createElement('div');
     empty.className = 'tarot-kingdom-openrooms-item';
-    empty.textContent = '募集中の部屋はありません。';
+
+    const header = document.createElement('div');
+    header.className = 'tarot-kingdom-openrooms-item-header';
+    header.textContent = '部屋なし';
+    empty.appendChild(header);
+
+    const status = document.createElement('div');
+    status.className = 'tarot-kingdom-openrooms-item-status';
+    status.textContent = '募集中です';
+    empty.appendChild(status);
+
     listEl.appendChild(empty);
     return;
   }
   roomRows.forEach((row) => {
-    const item = document.createElement('span');
+    const item = document.createElement('div');
     item.className = 'tarot-kingdom-openrooms-item';
     if (row.roomId === tkNet.roomId) item.classList.add('is-current');
-    item.textContent = row.label;
+
+    const header = document.createElement('div');
+    header.className = 'tarot-kingdom-openrooms-item-header';
+    header.textContent = row.label || `Room ${row.roomId?.slice(0, 8)}`;
+    item.appendChild(header);
+
+    const playerCount = row.playerCount || row.players?.length || 0;
+    const maxPlayers = row.maxPlayers || 4;
+    const players = document.createElement('div');
+    players.className = 'tarot-kingdom-openrooms-item-players';
+    players.textContent = `${playerCount}/${maxPlayers}人`;
+    item.appendChild(players);
+
+    const status = document.createElement('div');
+    status.className = 'tarot-kingdom-openrooms-item-status';
+    if (row.roomId === tkNet.roomId) {
+      status.textContent = '接続中';
+    } else if (playerCount >= maxPlayers) {
+      status.textContent = '満員';
+    } else {
+      status.textContent = '募集中';
+    }
+    item.appendChild(status);
+
+    item.setAttribute('aria-label', `${row.label || 'ルーム'}: ${playerCount}/${maxPlayers}人`);
     listEl.appendChild(item);
   });
 }
