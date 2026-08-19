@@ -39216,3 +39216,104 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
         transform: none;
     }
 }
+
+/* Rulebook Diagrams */
+.tarot-kingdom-rulebook-suits-diagram {
+    width: 100%;
+    max-width: 280px;
+    height: auto;
+    margin: 20px auto;
+    display: block;
+}
+
+.tarot-kingdom-rulebook-roles-samples {
+    margin-top: 24px;
+    padding: 16px;
+    border: 1px solid rgba(210, 177, 79, 0.3);
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(55, 45, 75, 0.35), rgba(35, 25, 50, 0.3));
+}
+
+.tarot-kingdom-rulebook-roles-samples h4 {
+    margin: 0 0 14px;
+    color: #fff4c5;
+    font: 900 13px "Noto Sans JP", system-ui;
+    letter-spacing: 0.05em;
+}
+
+.tarot-kingdom-roles-sample-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+}
+
+.tarot-kingdom-roles-sample-grid .sample {
+    padding: 10px;
+    border: 1px solid rgba(230, 189, 88, 0.25);
+    border-radius: 10px;
+    background: rgba(20, 35, 70, 0.4);
+    text-align: center;
+    transition: all 200ms ease;
+}
+
+.tarot-kingdom-roles-sample-grid .sample:hover {
+    border-color: rgba(230, 189, 88, 0.5);
+    background: rgba(30, 50, 90, 0.5);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.sample-name {
+    display: block;
+    color: #f0d581;
+    font-size: 11px;
+    font-weight: 900;
+    margin-bottom: 6px;
+}
+
+.sample-cards {
+    display: flex;
+    justify-content: center;
+    gap: 3px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+}
+
+.sample-cards .card {
+    display: inline-block;
+    padding: 4px 6px;
+    border: 1px solid rgba(200, 200, 200, 0.3);
+    border-radius: 4px;
+    background: linear-gradient(135deg, rgba(50, 50, 70, 0.5), rgba(30, 30, 50, 0.4));
+    color: #e2e8f0;
+    font-size: 9px;
+    font-weight: 600;
+    min-width: 28px;
+    text-align: center;
+}
+
+.sample-cards .card.wand {
+    background: linear-gradient(135deg, rgba(168, 50, 50, 0.4), rgba(120, 30, 30, 0.35));
+    color: #ff9999;
+}
+
+.sample-cards .card.cup {
+    background: linear-gradient(135deg, rgba(39, 104, 189, 0.4), rgba(25, 70, 140, 0.35));
+    color: #99ccff;
+}
+
+.sample-cards .card.sword {
+    background: linear-gradient(135deg, rgba(120, 87, 173, 0.4), rgba(90, 60, 140, 0.35));
+    color: #cc99ff;
+}
+
+.sample-cards .card.pentacle {
+    background: linear-gradient(135deg, rgba(40, 115, 66, 0.4), rgba(25, 80, 50, 0.35));
+    color: #99ff99;
+}
+
+.sample-desc {
+    display: block;
+    color: #9099b7;
+    font-size: 9px;
+    line-height: 1.4;
+}

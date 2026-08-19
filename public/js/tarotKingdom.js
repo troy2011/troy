@@ -26260,6 +26260,39 @@ function ensureKingdomRulebookUi() {
               <b aria-hidden="true">↔</b>
               <div class="is-pentacle"><span>P</span><strong>ペンタクル</strong></div>
             </div>
+            <svg class="tarot-kingdom-rulebook-suits-diagram" viewBox="0 0 280 200" xmlns="http://www.w3.org/2000/svg" aria-label="スート相性図">
+              <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                  <polygon points="0 0, 10 3, 0 6" fill="#e7bd58" />
+                </marker>
+              </defs>
+              <!-- ワンド -->
+              <circle cx="50" cy="80" r="24" fill="#a83232" opacity="0.3" />
+              <text x="50" y="85" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">W</text>
+              <text x="50" y="110" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">ワンド</text>
+
+              <!-- カップ -->
+              <circle cx="230" cy="80" r="24" fill="#2768bd" opacity="0.3" />
+              <text x="230" y="85" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">C</text>
+              <text x="230" y="110" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">カップ</text>
+
+              <!-- ソード -->
+              <circle cx="50" cy="160" r="24" fill="#7857ad" opacity="0.3" />
+              <text x="50" y="165" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">S</text>
+              <text x="50" y="190" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">ソード</text>
+
+              <!-- ペンタクル -->
+              <circle cx="230" cy="160" r="24" fill="#287342" opacity="0.3" />
+              <text x="230" y="165" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">P</text>
+              <text x="230" y="190" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">ペンタクル</text>
+
+              <!-- 矢印 -->
+              <line x1="75" y1="80" x2="205" y2="80" stroke="#e7bd58" stroke-width="2" marker-end="url(#arrowhead)" />
+              <line x1="205" y1="80" x2="75" y2="80" stroke="#e7bd58" stroke-width="2" marker-end="url(#arrowhead)" />
+
+              <line x1="75" y1="160" x2="205" y2="160" stroke="#e7bd58" stroke-width="2" marker-end="url(#arrowhead)" />
+              <line x1="205" y1="160" x2="75" y2="160" stroke="#e7bd58" stroke-width="2" marker-end="url(#arrowhead)" />
+            </svg>
           </section>
 
           <section id="tarotKingdomRulesRoles" class="tarot-kingdom-rulebook-section" tabindex="-1">
@@ -26275,6 +26308,49 @@ function ensureKingdomRulebookUi() {
             <div class="tarot-kingdom-rulebook-note">
               <strong>コール</strong>
               <span>場が1枚の時、その場札に手札4枚を加えて5枚役を作れます。大アルカナ場は「ザ・ワールド」のみコール可能です。</span>
+            </div>
+            <div class="tarot-kingdom-rulebook-roles-samples">
+              <h4>役のサンプル例</h4>
+              <div class="tarot-kingdom-roles-sample-grid">
+                <div class="sample">
+                  <div class="sample-name">ストレート</div>
+                  <div class="sample-cards">
+                    <span class="card">2♠</span>
+                    <span class="card">3♠</span>
+                    <span class="card">4♣</span>
+                    <span class="card">5♥</span>
+                    <span class="card">6♦</span>
+                  </div>
+                  <div class="sample-desc">数字が連続</div>
+                </div>
+                <div class="sample">
+                  <div class="sample-name">フラッシュ</div>
+                  <div class="sample-cards">
+                    <span class="card wand">3W</span>
+                    <span class="card wand">5W</span>
+                    <span class="card wand">9W</span>
+                    <span class="card wand">J W</span>
+                    <span class="card wand">K W</span>
+                  </div>
+                  <div class="sample-desc">同じスート5枚</div>
+                </div>
+                <div class="sample">
+                  <div class="sample-name">フルハウス</div>
+                  <div class="sample-cards">
+                    <span class="card">7♥ 7♦ 7♣</span>
+                    <span class="card">K♠ K♥</span>
+                  </div>
+                  <div class="sample-desc">同数3枚 + 同数2枚</div>
+                </div>
+                <div class="sample">
+                  <div class="sample-name">4カード</div>
+                  <div class="sample-cards">
+                    <span class="card">10♠ 10♥ 10♦ 10♣</span>
+                    <span class="card">A♠</span>
+                  </div>
+                  <div class="sample-desc">同数4枚 + 任意1枚</div>
+                </div>
+              </div>
             </div>
           </section>
 
