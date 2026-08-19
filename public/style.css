@@ -1389,7 +1389,7 @@ button.home-player-ship-name {
     border-radius: 6px;
     background:
         linear-gradient(180deg, rgba(8, 47, 73, 0.06) 0%, rgba(5, 12, 18, 0.1) 42%, rgba(6, 24, 36, 0.28) 100%),
-        url("./Sprites/background/sea.webp") center -50px / auto 150% no-repeat;
+        url("./Sprites/background/sea.webp") center -50px / cover no-repeat;
 }
 
 .exploration-sequence-overlay.is-sky-mist .exploration-sequence-scene {
