@@ -1421,7 +1421,7 @@ button.home-player-ship-name {
     background:
         radial-gradient(ellipse at 50% 70%, rgba(250, 204, 21, 0.16), transparent 34%),
         linear-gradient(180deg, rgba(14, 165, 233, 0.06), rgba(8, 47, 73, 0.48)),
-        url("./Sprites/background/sea.webp") center -50px / auto 150% no-repeat;
+        url("./Sprites/background/sea.webp") center center / cover no-repeat;
 }
 
 .exploration-sequence-scene::before {
