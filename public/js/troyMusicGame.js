@@ -10,6 +10,20 @@ const MODE_LABELS = {
     intro_quiz: 'イントロクイズ'
 };
 
+const DIFFICULTY_LABELS = {
+    easy: '易しい（1〜100位）',
+    slightly_easy: '少し易しい（1〜250位）',
+    normal: '普通（1〜500位）',
+    hard: '難しい（全曲）'
+};
+
+const DIFFICULTY_ICONS = {
+    easy: '⚓',
+    slightly_easy: '⛵',
+    normal: '⚔',
+    hard: '☠'
+};
+
 const SKIP_REASON_LABELS = {
     unknown_song: '知らない',
     cannot_sing: '歌えない',
@@ -19,8 +33,10 @@ const SKIP_REASON_LABELS = {
 
 const state = {
     mode: 'sabikara_free',
+    difficulty: 'easy',
     songs: [],
     manifest: null,
+    exclusions: [],
     results: [],
     participants: [],
     guests: loadSessionList(GUEST_STORAGE_KEY),
@@ -83,7 +99,24 @@ function normalizeSong(value) {
     const artist = String(value?.artist || '').replace(/\s+/g, ' ').trim();
     const songNumber = String(value?.songNumber || '').replace(/\D/g, '');
     if (!title || !artist || !songNumber) return null;
-    return { title, artist, songNumber, catalog: 'sabikara' };
+    const popularityRank = Number(value?.popularityRank);
+    return {
+        title,
+        artist,
+        songNumber,
+        popularityRank: Number.isInteger(popularityRank) && popularityRank > 0 ? popularityRank : 0,
+        catalog: 'sabikara'
+    };
+}
+
+function normalizeExclusion(value) {
+    const song = normalizeSong(value);
+    if (!song) return null;
+    return {
+        ...song,
+        reason: String(value?.reason || '').replace(/\s+/g, ' ').trim(),
+        excludedAt: String(value?.excludedAt || '').trim()
+    };
 }
 
 function escapeHtml(value) {
@@ -194,8 +227,23 @@ function getDailySummary() {
     };
 }
 
+function hasPopularityRanks() {
+    return state.songs.length > 0 && state.songs.every((song) => Number.isInteger(song.popularityRank) && song.popularityRank > 0);
+}
+
+function songsForDifficulty(songs) {
+    if (state.difficulty === 'hard') return songs;
+    if (!hasPopularityRanks()) return [];
+    return songs.filter((song) => {
+        const rank = song.popularityRank;
+        if (state.difficulty === 'easy') return rank <= 100;
+        if (state.difficulty === 'slightly_easy') return rank <= 250;
+        return rank <= 500;
+    });
+}
+
 function pickRandomSong() {
-    const songs = state.songs.filter(Boolean);
+    const songs = songsForDifficulty(state.songs.filter(Boolean));
     if (!songs.length) return null;
     const confirmed = activeResults();
     const recentSongNumbers = [...new Set(confirmed.slice(0, RECENT_LIMIT).map((result) => String(result.songNumber || '')).filter(Boolean))];
@@ -248,6 +296,24 @@ function changeMode(nextMode) {
     render();
 }
 
+function changeDifficulty(nextDifficulty) {
+    if (!DIFFICULTY_LABELS[nextDifficulty] || nextDifficulty === state.difficulty) return;
+    if (nextDifficulty !== 'hard' && !hasPopularityRanks()) {
+        setMessage('人気順位を取得するため、先にJOYSOUND最新データへ更新してください。', true);
+        render();
+        return;
+    }
+    const hasProgress = state.selectedSong || state.selectedParticipant || state.scoreInput || state.quizOutcome;
+    if (hasProgress && !window.confirm('現在のゲーム内容を破棄して難易度を変更しますか？')) {
+        render();
+        return;
+    }
+    state.difficulty = nextDifficulty;
+    clearRound({ nextCompetitiveCandidate: state.mode === 'sabikara_competitive' });
+    setMessage(`難易度を「${DIFFICULTY_LABELS[nextDifficulty]}」に変更しました。`);
+    render();
+}
+
 function drawSong() {
     if (!canDrawSong()) {
         setMessage('真剣勝負では、先に挑戦者を選択してください。', true);
@@ -256,7 +322,7 @@ function drawSong() {
     }
     const song = pickRandomSong();
     if (!song) {
-        setMessage('サビカラデータがありません。最新データへの更新を確認してください。', true);
+        setMessage(`${DIFFICULTY_LABELS[state.difficulty]}に該当する曲がありません。難易度または最新データを確認してください。`, true);
         render();
         return;
     }
@@ -289,6 +355,52 @@ async function skipSong() {
         setMessage(reason ? '曲をスキップしました。確定履歴には追加されていません。' : '別の曲を引けます。確定履歴には追加されていません。');
     } catch (error) {
         setMessage(error.message || '曲スキップの記録に失敗しました。', true);
+    } finally {
+        state.saving = false;
+        render();
+    }
+}
+
+async function excludeSelectedSong() {
+    const song = state.selectedSong;
+    if (!song || state.saving) return;
+    if (!window.confirm(`「${song.title} / ${song.artist}」を抽選対象から除外しますか？\nJOYSOUNDデータを更新しても、復帰するまで除外されたままです。`)) return;
+    state.saving = true;
+    render();
+    try {
+        const data = await api('/api/troy-music-game/catalog/exclusions', song);
+        const exclusion = normalizeExclusion(data?.exclusion || song);
+        if (exclusion) {
+            state.exclusions = [...state.exclusions.filter((entry) => entry.songNumber !== exclusion.songNumber), exclusion]
+                .sort((left, right) => `${left.title}\u0000${left.artist}`.localeCompare(`${right.title}\u0000${right.artist}`, 'ja'));
+            state.songs = state.songs.filter((entry) => entry.songNumber !== exclusion.songNumber);
+        }
+        state.selectedSong = null;
+        state.scoreInput = '';
+        state.quizOutcome = '';
+        state.answerVisible = false;
+        state.pendingResultId = '';
+        setMessage(`「${song.title}」を抽選対象から除外しました。`);
+    } catch (error) {
+        setMessage(error.message || '曲を除外できませんでした。', true);
+    } finally {
+        state.saving = false;
+        render();
+    }
+}
+
+async function restoreExcludedSong(songNumber) {
+    const exclusion = state.exclusions.find((entry) => entry.songNumber === songNumber);
+    if (!exclusion || state.saving) return;
+    if (!window.confirm(`「${exclusion.title} / ${exclusion.artist}」を抽選対象に戻しますか？`)) return;
+    state.saving = true;
+    render();
+    try {
+        await api('/api/troy-music-game/catalog/exclusions/remove', { songNumber });
+        await loadBootstrap();
+        setMessage(`「${exclusion.title}」を抽選対象に戻しました。`);
+    } catch (error) {
+        setMessage(error.message || '曲を抽選対象に戻せませんでした。', true);
     } finally {
         state.saving = false;
         render();
@@ -442,7 +554,8 @@ async function refreshCatalog() {
     render();
     try {
         const result = await api('/api/troy-music-game/catalog/refresh', {});
-        setMessage(`サビカラデータを更新しました（${Number(result.songCount || 0).toLocaleString('ja-JP')}曲）。`);
+        const excludedSongCount = Number(result.excludedSongCount || 0);
+        setMessage(`サビカラデータを更新しました（抽選対象 ${Number(result.songCount || 0).toLocaleString('ja-JP')}曲${excludedSongCount ? ` / 除外 ${excludedSongCount.toLocaleString('ja-JP')}曲` : ''}）。`);
         await loadBootstrap();
     } catch (error) {
         setMessage(`${error.message || 'サビカラデータを更新できませんでした。'} 現在の正常なデータは維持されています。`, true);
@@ -482,7 +595,7 @@ function renderSong() {
         </div>`;
     }
     return `<div class="troy-music-game-song">
-        <div class="troy-music-game-section-kicker">${state.mode === 'intro_quiz' ? 'ANSWER (STAFF ONLY)' : 'SELECTED SONG'}</div>
+        <div class="troy-music-game-section-kicker">${state.mode === 'intro_quiz' ? 'ANSWER (STAFF ONLY)' : 'SELECTED SONG'}${song.popularityRank ? ` / 人気 ${song.popularityRank}位` : ''}</div>
         <h3>♪ ${escapeHtml(song.title)}</h3>
         <div class="troy-music-game-song-artist">${escapeHtml(song.artist)}</div>
         <div class="troy-music-game-song-number-block"><span class="troy-music-game-label">JOYSOUND 曲番号</span><div class="troy-music-game-song-number">${escapeHtml(song.songNumber)}</div></div>
@@ -530,6 +643,18 @@ function renderHistory() {
     }).join('')}</div>`;
 }
 
+function renderExclusionManager() {
+    const exclusions = state.exclusions;
+    return `<details class="troy-music-game-exclusions">
+        <summary>抽選除外リスト（${exclusions.length}曲）</summary>
+        <p class="troy-music-game-small-note">除外した曲はJOYSOUND最新データへの更新後も対象外です。</p>
+        ${exclusions.length ? `<div class="troy-music-game-exclusion-list">${exclusions.map((exclusion) => `<div class="troy-music-game-exclusion-item">
+            <span><strong>${escapeHtml(exclusion.title)}</strong><small>${escapeHtml(exclusion.artist)} / ${escapeHtml(exclusion.songNumber)}</small></span>
+            <button type="button" data-action="restore-excluded-song" data-song-number="${escapeHtml(exclusion.songNumber)}" ${state.saving ? 'disabled' : ''}>復帰</button>
+        </div>`).join('')}</div>` : '<p class="troy-music-game-small-note">除外曲はありません。</p>'}
+    </details>`;
+}
+
 function renderSummary() {
     const summary = getDailySummary();
     return `<details class="troy-music-game-panel troy-music-game-summary">
@@ -552,9 +677,11 @@ function render() {
     const selectionDisabled = !canSelectParticipant() || state.saved || state.saving;
     const drawText = selectedSong ? '別の曲を引く' : (state.mode === 'intro_quiz' ? '🎲 問題曲を抽選する' : '🎲 曲を抽選する');
     const lastResult = activeResults()[0];
-    const catalogWarning = manifest.source === 'verified-sample'
-        ? '確認済みのサンプル曲のみを表示しています。営業開始前にJOYSOUND最新データへ更新してください。'
-        : '';
+    const popularityRanksAvailable = hasPopularityRanks();
+    const catalogWarnings = [];
+    if (manifest.source === 'verified-sample') catalogWarnings.push('確認済みのサンプル曲のみを表示しています。営業開始前にJOYSOUND最新データへ更新してください。');
+    if (!popularityRanksAvailable) catalogWarnings.push('難易度別の抽選には、JOYSOUND最新データへの更新が必要です。');
+    const catalogWarning = catalogWarnings.join(' ');
     root.innerHTML = `
         <header class="troy-music-game-header">
             <div class="troy-music-game-brand">
@@ -572,10 +699,14 @@ function render() {
         </header>
         ${state.message ? `<p class="troy-music-game-message${state.messageIsError ? ' is-error' : ''}" role="status">${escapeHtml(state.message)}</p>` : ''}
         <div class="troy-music-game-board">
-            <section class="troy-music-game-mode-bar" aria-label="ゲームモード">
+            <section class="troy-music-game-mode-bar" aria-label="ゲーム設定">
                 <span class="troy-music-game-mode-label">✧ モード</span>
                 <div class="troy-music-game-mode-row" aria-label="ゲームモードを選択">
                     ${Object.entries(MODE_LABELS).map(([value, label]) => `<button type="button" data-action="set-mode" data-mode="${value}" class="troy-music-game-mode-button${state.mode === value ? ' is-selected' : ''}" aria-pressed="${state.mode === value}"><span aria-hidden="true">${({ sabikara_free: '🎲', sabikara_competitive: '⚔', intro_quiz: '♫' })[value]}</span>${escapeHtml(label)}</button>`).join('')}
+                </div>
+                <span class="troy-music-game-mode-label">⌁ 難易度</span>
+                <div class="troy-music-game-difficulty-row" aria-label="難易度を選択">
+                    ${Object.entries(DIFFICULTY_LABELS).map(([value, label]) => `<button type="button" data-action="set-difficulty" data-difficulty="${value}" class="troy-music-game-difficulty-button${state.difficulty === value ? ' is-selected' : ''}" aria-pressed="${state.difficulty === value}" ${value !== 'hard' && !popularityRanksAvailable ? 'disabled' : ''}><span aria-hidden="true">${DIFFICULTY_ICONS[value]}</span>${escapeHtml(label)}</button>`).join('')}
                 </div>
             </section>
             <div class="troy-music-game-grid">
@@ -597,7 +728,7 @@ function render() {
                             <span class="troy-music-game-label">曲スキップ（任意）</span>
                             <select id="troyMusicGameSkipReason"><option value="">理由を記録せず別の曲を引く</option>${Object.entries(SKIP_REASON_LABELS).map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}</select>
                             <input id="troyMusicGameSkipNote" type="text" maxlength="300" placeholder="その他のメモ（任意）">
-                            <div class="troy-music-game-actions"><button type="button" data-action="skip-song" class="troy-music-game-muted-button" ${state.saving ? 'disabled' : ''}>別の曲を引く</button></div>
+                            <div class="troy-music-game-actions"><button type="button" data-action="skip-song" class="troy-music-game-muted-button" ${state.saving ? 'disabled' : ''}>別の曲を引く</button><button type="button" data-action="exclude-song" class="troy-music-game-danger" ${state.saving ? 'disabled' : ''}>この曲を抽選対象から除外</button></div>
                         </section>` : ''}
                         ${renderResultInput()}
                         ${state.saved ? `<div class="troy-music-game-actions troy-music-game-result-actions"><button type="button" data-action="next-game" class="troy-music-game-primary">次のゲームへ</button></div>` : `<div class="troy-music-game-actions troy-music-game-result-actions"><button type="button" data-action="save-result" class="troy-music-game-primary" ${canSaveResult() ? '' : 'disabled'}>${state.saving ? '保存中…' : '✓ 結果を確定'}</button></div>`}
@@ -613,13 +744,14 @@ function render() {
                         <div class="troy-music-game-panel-head"><h2>▰ サビカラデータ</h2><span class="troy-music-game-history-meta">${manifest.validationSuccess ? '✅ 正常' : '⚠ 要確認'}</span></div>
                         <div class="troy-music-game-panel-body">
                             <div class="troy-music-game-catalog-status">
-                                <div><span>登録曲数</span><strong>${Number(manifest.songCount || state.songs.length || 0).toLocaleString('ja-JP')}曲</strong></div>
+                                <div><span>抽選対象</span><strong>${Number(manifest.songCount || state.songs.length || 0).toLocaleString('ja-JP')}曲</strong></div>
+                                <div><span>除外設定</span><strong>${Number(manifest.excludedSongCount || state.exclusions.length || 0).toLocaleString('ja-JP')}曲</strong></div>
                                 <div><span>最終更新</span><strong>${escapeHtml(formatDateTime(manifest.updatedAt))}</strong></div>
-                                <div><span>状態</span><strong>${manifest.validationSuccess ? '正常' : '要確認'}</strong></div>
                             </div>
                             ${catalogWarning ? `<p class="troy-music-game-catalog-warning">${escapeHtml(catalogWarning)}</p>` : ''}
                             <button type="button" data-action="refresh-catalog" class="troy-music-game-refresh-button" ${state.refreshingCatalog ? 'disabled' : ''}>${state.refreshingCatalog ? '更新中…' : '↻ JOYSOUND最新データに更新'}</button>
                             <p class="troy-music-game-small-note">取得・検証に失敗した場合、現在の正常なカタログは変更されません。</p>
+                            ${renderExclusionManager()}
                         </div>
                     </section>
                 <section class="troy-music-game-panel">
@@ -663,9 +795,11 @@ async function loadBootstrap() {
     const data = await api('/api/troy-music-game/bootstrap', null, 'GET');
     state.songs = (Array.isArray(data?.songs) ? data.songs : []).map(normalizeSong).filter(Boolean);
     state.manifest = data?.manifest || null;
+    state.exclusions = (Array.isArray(data?.exclusions) ? data.exclusions : []).map(normalizeExclusion).filter(Boolean);
     state.results = Array.isArray(data?.results) ? data.results : [];
     state.participants = (Array.isArray(data?.participants) ? data.participants : []).map(normalizeParticipant).filter(Boolean);
     state.dayKey = String(data?.dayKey || '');
+    if (!hasPopularityRanks() && state.difficulty !== 'hard') state.difficulty = 'hard';
 }
 
 function bindEvents() {
@@ -675,7 +809,9 @@ function bindEvents() {
         const action = button.dataset.action;
         if (action === 'draw-song') drawSong();
         if (action === 'set-mode') changeMode(button.dataset.mode || '');
+        if (action === 'set-difficulty') changeDifficulty(button.dataset.difficulty || '');
         if (action === 'skip-song') void skipSong();
+        if (action === 'exclude-song') void excludeSelectedSong();
         if (action === 'show-answer') {
             state.answerVisible = true;
             render();
@@ -697,6 +833,7 @@ function bindEvents() {
         if (action === 'edit-result') void editResult(button.dataset.resultId || '');
         if (action === 'void-latest') void voidLatestResult();
         if (action === 'refresh-catalog') void refreshCatalog();
+        if (action === 'restore-excluded-song') void restoreExcludedSong(button.dataset.songNumber || '');
     });
     root.addEventListener('change', (event) => {
         if (event.target.id === 'troyMusicGameParticipant') selectParticipant(event.target.value);

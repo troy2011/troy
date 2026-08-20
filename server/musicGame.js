@@ -6,6 +6,7 @@ const CATALOG_DOCUMENT = 'sabikara';
 const RESULTS_COLLECTION = 'music_game_results';
 const SKIPS_COLLECTION = 'music_game_song_skips';
 const ISSUES_COLLECTION = 'music_game_catalog_issues';
+const EXCLUSIONS_COLLECTION = 'music_game_catalog_exclusions';
 const RECENT_RESULTS_LIMIT = 160;
 const MAX_RESULT_NAME_LENGTH = 60;
 const MAX_SONG_TEXT_LENGTH = 180;
@@ -14,6 +15,7 @@ const VERIFIED_SAMPLE_SONGS = Object.freeze([
         title: 'カブトムシ',
         artist: 'aiko',
         songNumber: '497445',
+        popularityRank: 1,
         catalog: 'sabikara'
     })
 ]);
@@ -42,6 +44,11 @@ function normalizeSongNumber(value) {
     return String(value || '').replace(/[^0-9]/g, '');
 }
 
+function normalizePopularityRank(value) {
+    const rank = Number(value);
+    return Number.isInteger(rank) && rank > 0 ? rank : 0;
+}
+
 function normalizeSongTitle(value) {
     return normalizeText(value)
         .replace(/^新曲\s*/u, '')
@@ -49,7 +56,34 @@ function normalizeSongTitle(value) {
         .trim();
 }
 
-function extractSearchResultSongs(html) {
+function normalizeCatalogExclusion(value) {
+    const songNumber = normalizeSongNumber(value?.songNumber);
+    if (!songNumber) return null;
+    return {
+        songNumber,
+        title: normalizeSongTitle(value?.title),
+        artist: normalizeText(value?.artist),
+        reason: normalizeText(value?.reason, 120),
+        excludedAt: normalizeText(value?.excludedAt, 80)
+    };
+}
+
+function filterExcludedSongs(songs, exclusions) {
+    const excludedSongNumbers = exclusions instanceof Set
+        ? exclusions
+        : new Set((Array.isArray(exclusions) ? exclusions : [])
+            .map(normalizeCatalogExclusion)
+            .filter(Boolean)
+            .map((exclusion) => exclusion.songNumber));
+    return (Array.isArray(songs) ? songs : []).filter((song) => !excludedSongNumbers.has(normalizeSongNumber(song?.songNumber)));
+}
+
+function hasCompletePopularityRanks(songs) {
+    const ranks = (Array.isArray(songs) ? songs : []).map((song) => normalizePopularityRank(song?.popularityRank));
+    return ranks.length > 0 && ranks.every(Boolean) && new Set(ranks).size === ranks.length;
+}
+
+function extractSearchResultSongs(html, startRank = 1) {
     const songs = [];
     const seenSongNumbers = new Set();
     const tags = String(html || '').match(/<[^>]+>/g) || [];
@@ -62,7 +96,13 @@ function extractSearchResultSongs(html) {
         const artist = normalizeText(decodeHtml(artistMatch?.[1] || ''));
         if (!songNumber || !title || !artist || seenSongNumbers.has(songNumber)) return;
         seenSongNumbers.add(songNumber);
-        songs.push({ title, artist, songNumber, catalog: 'sabikara' });
+        songs.push({
+            title,
+            artist,
+            songNumber,
+            popularityRank: Number(startRank) + songs.length,
+            catalog: 'sabikara'
+        });
     });
     return songs;
 }
@@ -139,21 +179,27 @@ async function retry(operation, attempts = 3) {
 function validateCatalog(songs, officialTotal, collectedUrlCount) {
     const problems = [];
     const duplicateNumbers = [];
+    const duplicatePopularityRanks = [];
     const seenNumbers = new Set();
+    const seenPopularityRanks = new Set();
     (Array.isArray(songs) ? songs : []).forEach((song, index) => {
         const title = normalizeSongTitle(song?.title);
         const artist = normalizeText(song?.artist);
         const songNumber = normalizeSongNumber(song?.songNumber);
-        if (!title || !artist || !songNumber) problems.push(`missing-required-fields:${index}`);
+        const popularityRank = normalizePopularityRank(song?.popularityRank);
+        if (!title || !artist || !songNumber || !popularityRank) problems.push(`missing-required-fields:${index}`);
         if (songNumber && seenNumbers.has(songNumber)) duplicateNumbers.push(songNumber);
+        if (popularityRank && seenPopularityRanks.has(popularityRank)) duplicatePopularityRanks.push(popularityRank);
         if (songNumber) seenNumbers.add(songNumber);
+        if (popularityRank) seenPopularityRanks.add(popularityRank);
     });
     const exportedCount = Array.isArray(songs) ? songs.length : 0;
     const success = officialTotal > 0
         && collectedUrlCount === officialTotal
         && exportedCount === officialTotal
         && problems.length === 0
-        && duplicateNumbers.length === 0;
+        && duplicateNumbers.length === 0
+        && duplicatePopularityRanks.length === 0;
     return {
         generatedAt: new Date().toISOString(),
         officialTotal,
@@ -162,6 +208,7 @@ function validateCatalog(songs, officialTotal, collectedUrlCount) {
         success,
         problems,
         duplicateNumbers,
+        duplicatePopularityRanks,
         errors: []
     };
 }
@@ -176,7 +223,7 @@ async function fetchJoysoundSabikaraCatalog({ fetchText = requestText, delayMs =
     for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
         const pageUrl = getJoysoundSearchPageUrl(pageNumber);
         const html = pageNumber === 1 ? initialHtml : await retry(() => fetchText(pageUrl));
-        const pageSongs = extractSearchResultSongs(html);
+        const pageSongs = extractSearchResultSongs(html, songs.length + 1);
         if (!pageSongs.length) throw new Error(`JoysoundSearchPageEmpty:${pageNumber}`);
         songs.push(...pageSongs);
         if (pageNumber < totalPages) await wait(delayMs);
@@ -252,6 +299,15 @@ function serializeDocument(snapshot) {
     return { id: snapshot?.id || '', ...data };
 }
 
+async function readCatalogExclusions(firestore) {
+    const snapshot = await firestore.collection(EXCLUSIONS_COLLECTION).get();
+    return (snapshot?.docs || [])
+        .map(serializeDocument)
+        .map(normalizeCatalogExclusion)
+        .filter(Boolean)
+        .sort((left, right) => `${left.title}\u0000${left.artist}`.localeCompare(`${right.title}\u0000${right.artist}`, 'ja'));
+}
+
 async function readTodayResults(firestore, dayKey) {
     const collection = firestore.collection(RESULTS_COLLECTION);
     let snapshot;
@@ -263,18 +319,23 @@ async function readTodayResults(firestore, dayKey) {
     return (snapshot?.docs || []).map(serializeDocument).sort((left, right) => Number(right.playedAtMs || 0) - Number(left.playedAtMs || 0));
 }
 
-async function readCatalog(firestore) {
+async function readCatalog(firestore, exclusions = []) {
     const manifestRef = firestore.collection(CATALOG_COLLECTION).doc(CATALOG_DOCUMENT);
     const manifestSnap = await manifestRef.get();
     const manifest = manifestSnap.exists ? manifestSnap.data() : null;
     const activeVersion = normalizeText(manifest?.activeVersion, 160);
     if (!activeVersion) {
+        const officialSongs = VERIFIED_SAMPLE_SONGS.map((song) => ({ ...song }));
+        const songs = filterExcludedSongs(officialSongs, exclusions);
         return {
-            songs: VERIFIED_SAMPLE_SONGS.map((song) => ({ ...song })),
+            songs,
             manifest: {
                 version: 'verified-sample',
                 updatedAt: null,
-                songCount: VERIFIED_SAMPLE_SONGS.length,
+                songCount: songs.length,
+                officialSongCount: officialSongs.length,
+                excludedSongCount: officialSongs.length - songs.length,
+                hasPopularityRanks: hasCompletePopularityRanks(officialSongs),
                 validationSuccess: false,
                 source: 'verified-sample',
                 status: 'sample'
@@ -282,22 +343,26 @@ async function readCatalog(firestore) {
         };
     }
     const songsSnap = await manifestRef.collection('versions').doc(activeVersion).collection('songs').get();
-    const songs = (songsSnap?.docs || [])
+    const officialSongs = (songsSnap?.docs || [])
         .map((snapshot) => snapshot.data())
         .map((song) => ({
             title: normalizeSongTitle(song?.title),
             artist: normalizeText(song?.artist),
             songNumber: normalizeSongNumber(song?.songNumber),
+            popularityRank: normalizePopularityRank(song?.popularityRank),
             catalog: 'sabikara'
         }))
         .filter((song) => song.title && song.artist && song.songNumber);
-    if (!songs.length) throw new Error('ActiveMusicCatalogIsEmpty');
+    const songs = filterExcludedSongs(officialSongs, exclusions);
     return {
         songs,
         manifest: {
             version: activeVersion,
             updatedAt: manifest?.updatedAt || null,
-            songCount: Number(manifest?.songCount || songs.length),
+            songCount: songs.length,
+            officialSongCount: officialSongs.length,
+            excludedSongCount: officialSongs.length - songs.length,
+            hasPopularityRanks: hasCompletePopularityRanks(officialSongs),
             validationSuccess: manifest?.validationSuccess === true,
             source: 'joysound',
             status: manifest?.validationSuccess === true ? 'ready' : 'error'
@@ -305,17 +370,21 @@ async function readCatalog(firestore) {
     };
 }
 
-async function publishCatalog(firestore, admin, songs, validation, staffPlayFabId) {
+async function publishCatalog(firestore, admin, songs, validation, staffPlayFabId, exclusions = []) {
     const manifestRef = firestore.collection(CATALOG_COLLECTION).doc(CATALOG_DOCUMENT);
     const version = new Date().toISOString().replace(/[:.]/g, '-');
     const versionRef = manifestRef.collection('versions').doc(version);
     const now = new Date();
+    const activeSongs = filterExcludedSongs(songs, exclusions);
+    const excludedSongCount = songs.length - activeSongs.length;
     const chunks = [];
     for (let index = 0; index < songs.length; index += 400) chunks.push(songs.slice(index, index + 400));
     await versionRef.set({
         version,
         officialTotal: validation.officialTotal,
         exportedCount: validation.exportedCount,
+        activeSongCount: activeSongs.length,
+        excludedSongCount,
         validationSuccess: true,
         createdAt: now.toISOString(),
         createdBy: staffPlayFabId
@@ -327,6 +396,7 @@ async function publishCatalog(firestore, admin, songs, validation, staffPlayFabI
                 title: song.title,
                 artist: song.artist,
                 songNumber: song.songNumber,
+                popularityRank: normalizePopularityRank(song.popularityRank),
                 catalog: 'sabikara'
             });
         });
@@ -342,7 +412,9 @@ async function publishCatalog(firestore, admin, songs, validation, staffPlayFabI
         updatedAt: now.toISOString(),
         updatedAtServer: admin.firestore.FieldValue.serverTimestamp(),
         updatedBy: staffPlayFabId,
-        songCount: songs.length,
+        songCount: activeSongs.length,
+        officialSongCount: songs.length,
+        excludedSongCount,
         validationSuccess: true,
         validation: {
             officialTotal: validation.officialTotal,
@@ -351,7 +423,12 @@ async function publishCatalog(firestore, admin, songs, validation, staffPlayFabI
             success: true
         }
     }, { merge: true });
-    return { version, songCount: songs.length };
+    return {
+        version,
+        songCount: activeSongs.length,
+        officialSongCount: songs.length,
+        excludedSongCount
+    };
 }
 
 function initializeMusicGameRoutes(app, deps) {
@@ -365,10 +442,11 @@ function initializeMusicGameRoutes(app, deps) {
     app.get('/api/troy-music-game/bootstrap', async (req, res) => {
         try {
             const dayKey = getTokyoDayKey();
-            const [{ songs, manifest }, results] = await Promise.all([
-                readCatalog(firestore),
+            const [exclusions, results] = await Promise.all([
+                readCatalogExclusions(firestore),
                 readTodayResults(firestore, dayKey)
             ]);
+            const { songs, manifest } = await readCatalog(firestore, exclusions);
             res.json({
                 staffPlayFabId,
                 dayKey,
@@ -376,6 +454,7 @@ function initializeMusicGameRoutes(app, deps) {
                 participantSource: 'guest-only',
                 songs,
                 manifest,
+                exclusions,
                 results
             });
         } catch (error) {
@@ -386,7 +465,8 @@ function initializeMusicGameRoutes(app, deps) {
     app.post('/api/troy-music-game/results', async (req, res) => {
         try {
             const input = validateResultInput(req.body || {});
-            const { songs } = await readCatalog(firestore);
+            const exclusions = await readCatalogExclusions(firestore);
+            const { songs } = await readCatalog(firestore, exclusions);
             const song = songs.find((entry) => entry.songNumber === input.songNumber);
             if (!song) return res.status(400).json({ error: 'Selected song is not in the active catalog' });
             const resultRef = firestore.collection(RESULTS_COLLECTION).doc(input.clientResultId);
@@ -478,7 +558,8 @@ function initializeMusicGameRoutes(app, deps) {
         const allowedReasons = new Set(['unknown_song', 'cannot_sing', 'not_found_on_joysound', 'other']);
         if (!songNumber || !allowedReasons.has(reason)) return res.status(400).json({ error: 'InvalidSongSkip' });
         try {
-            const { songs } = await readCatalog(firestore);
+            const exclusions = await readCatalogExclusions(firestore);
+            const { songs } = await readCatalog(firestore, exclusions);
             const song = songs.find((entry) => entry.songNumber === songNumber);
             if (!song) return res.status(400).json({ error: 'Selected song is not in the active catalog' });
             const report = {
@@ -498,11 +579,59 @@ function initializeMusicGameRoutes(app, deps) {
         }
     });
 
+    app.post('/api/troy-music-game/catalog/exclusions', async (req, res) => {
+        const songNumber = normalizeSongNumber(req.body?.songNumber);
+        if (!songNumber) return res.status(400).json({ error: 'InvalidMusicCatalogExclusion' });
+        try {
+            const exclusions = await readCatalogExclusions(firestore);
+            const { songs } = await readCatalog(firestore, exclusions);
+            const song = songs.find((entry) => entry.songNumber === songNumber);
+            if (!song) return res.status(404).json({ error: 'SelectedSongNotFoundInActiveCatalog' });
+            const exclusionRef = firestore.collection(EXCLUSIONS_COLLECTION).doc(song.songNumber);
+            const existing = await exclusionRef.get();
+            const now = new Date().toISOString();
+            const exclusion = {
+                songNumber: song.songNumber,
+                title: song.title,
+                artist: song.artist,
+                reason: 'manual',
+                excludedAt: existing.exists ? normalizeText(existing.data()?.excludedAt, 80) || now : now,
+                updatedAt: now,
+                updatedBy: staffPlayFabId,
+                updatedAtServer: admin.firestore.FieldValue.serverTimestamp()
+            };
+            if (!existing.exists) {
+                exclusion.createdAt = now;
+                exclusion.createdBy = staffPlayFabId;
+                exclusion.createdAtServer = admin.firestore.FieldValue.serverTimestamp();
+            }
+            await exclusionRef.set(exclusion, { merge: true });
+            res.status(existing.exists ? 200 : 201).json({ exclusion });
+        } catch (error) {
+            res.status(500).json({ error: 'FailedToExcludeMusicCatalogSong', details: error?.message || String(error) });
+        }
+    });
+
+    app.post('/api/troy-music-game/catalog/exclusions/remove', async (req, res) => {
+        const songNumber = normalizeSongNumber(req.body?.songNumber);
+        if (!songNumber) return res.status(400).json({ error: 'InvalidMusicCatalogExclusion' });
+        try {
+            const exclusionRef = firestore.collection(EXCLUSIONS_COLLECTION).doc(songNumber);
+            const existing = await exclusionRef.get();
+            if (!existing.exists) return res.status(404).json({ error: 'MusicCatalogExclusionNotFound' });
+            await exclusionRef.delete();
+            res.json({ songNumber, removed: true });
+        } catch (error) {
+            res.status(500).json({ error: 'FailedToRestoreMusicCatalogSong', details: error?.message || String(error) });
+        }
+    });
+
     app.post('/api/troy-music-game/catalog/refresh', async (req, res) => {
         if (refreshPromise) return res.status(409).json({ error: 'MusicCatalogRefreshAlreadyRunning' });
         refreshPromise = (async () => {
+            const exclusions = await readCatalogExclusions(firestore);
             const { songs, validation } = await fetchJoysoundSabikaraCatalog();
-            const publishResult = await publishCatalog(firestore, admin, songs, validation, staffPlayFabId);
+            const publishResult = await publishCatalog(firestore, admin, songs, validation, staffPlayFabId, exclusions);
             return { ...publishResult, validation };
         })();
         try {
@@ -523,10 +652,12 @@ function initializeMusicGameRoutes(app, deps) {
 module.exports = {
     CATALOG_COLLECTION,
     CATALOG_DOCUMENT,
+    EXCLUSIONS_COLLECTION,
     RESULTS_COLLECTION,
     VERIFIED_SAMPLE_SONGS,
     extractSearchResultSongs,
     fetchJoysoundSabikaraCatalog,
+    filterExcludedSongs,
     getJoysoundSearchPageUrl,
     getTokyoDayKey,
     initializeMusicGameRoutes,
