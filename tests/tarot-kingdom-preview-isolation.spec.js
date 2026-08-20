@@ -22,6 +22,19 @@ test('Tarot Kingdom shares the canonical inventory module with the app shell', (
   expect(previewSource).toContain('"inventory": "./js/inventory.js?v=20260815-balance-v7-item-browser-v1"');
 });
 
+test('Tarot Kingdom online lobby uses canonical presence for failover and room counts', () => {
+  const kingdomSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'tarotKingdom.js'),
+    'utf8'
+  );
+
+  expect(kingdomSource).not.toContain('monitorHostPresence');
+  expect(kingdomSource).not.toContain('netHostDisconnectTimer');
+  expect(kingdomSource).toContain('playerCount: presenceCount');
+  expect(kingdomSource).toContain("setLocalInfoMessage('ホストの戦闘開始を待っています。', 2200)");
+  expect(kingdomSource).not.toContain('guest start notification failed');
+});
+
 test('Tarot Kingdom retries a transient Arcana catalog failure before starting', async ({ page }) => {
   let currentCatalogRequests = 0;
   await page.route(/tarot-kingdom-arcana-effects\.json(?:\?|$)/, async (route) => {
