@@ -146,7 +146,8 @@ test('competitive mode requires the challenger before drawing and intro mode hid
 
   await page.getByRole('button', { name: 'イントロクイズ', exact: true }).click();
   await page.getByRole('button', { name: '🎲 問題曲を抽選する' }).click();
-  await expect(page.getByText('曲名・歌手・曲番号は非表示です。')).toBeVisible();
+  await expect(page.getByText('曲名・歌手は非表示です。')).toBeVisible();
+  await expect(page.getByText(/JOYSOUND 曲番号：[0-9]+/)).toBeVisible();
   await expect(page.getByRole('button', { name: '答えを見る' })).toBeVisible();
   await page.getByRole('button', { name: '答えを見る' }).click();
   await expect(page.getByText('JOYSOUND 曲番号')).toBeVisible();

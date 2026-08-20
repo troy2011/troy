@@ -590,7 +590,8 @@ function renderSong() {
         return `<div class="troy-music-game-song is-hidden-answer">
             <div class="troy-music-game-section-kicker">INTRO QUIZ</div>
             <strong>問題曲を抽選しました</strong>
-            <span class="troy-music-game-small-note">曲名・歌手・曲番号は非表示です。</span>
+            <span class="troy-music-game-small-note">曲名・歌手は非表示です。</span>
+            <strong>JOYSOUND 曲番号：${escapeHtml(song.songNumber)}</strong>
             <div class="troy-music-game-actions"><button type="button" data-action="show-answer" class="troy-music-game-primary">答えを見る</button></div>
         </div>`;
     }

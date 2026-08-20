@@ -220,11 +220,23 @@ function getRankNumber(itemData) {
     if (Number.isFinite(parsed)) return parsed;
     const faceOrder = {
         PAGE: 11,
+        P: 11,
+        'ペイジ': 11,
         KNIGHT: 12,
+        N: 12,
+        'ナイト': 12,
         QUEEN: 13,
-        KING: 14
+        Q: 13,
+        'クイーン': 13,
+        KING: 14,
+        K: 14,
+        'キング': 14
     };
-    return faceOrder[raw.toUpperCase()] || null;
+    return faceOrder[raw.toUpperCase()] || faceOrder[raw] || null;
+}
+
+export function getTarotRankNumber(itemData) {
+    return getRankNumber(itemData);
 }
 
 function getMinorSpriteIndex(itemData) {
