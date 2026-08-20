@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="robots" content="noindex,nofollow">
+    <meta name="theme-color" content="#151b2d">
+    <link rel="icon" type="image/png" href="/Sprites/PirateIcon/Icon1.png">
+    <link rel="stylesheet" href="/css/troy-music-game.css?v=20260820b">
+    <title>TROY MUSIC GAME</title>
+</head>
+<body class="troy-music-game-body">
+    <main id="troyMusicGameRoot" class="troy-music-game-shell" aria-live="polite">
+        <p class="troy-music-game-loading">TROY MUSIC GAME を準備しています…</p>
+    </main>
+
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
+        "config": "/js/config.js"
+      }
+    }
+    </script>
+    <script type="module" src="/js/troyMusicGame.js?v=20260820b"></script>
+</body>
+</html>
