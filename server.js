@@ -106,7 +106,6 @@ const authHelpers = buildAuthHelpers({ admin });
 const {
     verifyLineAccessToken,
     verifyLineFriendshipStatus,
-    verifyFirebaseIdToken,
     requireAuthenticatedPlayFabId
 } = authHelpers;
 
@@ -2026,8 +2025,7 @@ async function main() {
     // TROY MUSIC GAME（スタッフ用）
     musicGame.initializeMusicGameRoutes(app, {
         firestore,
-        admin,
-        verifyFirebaseIdToken
+        admin
     });
 
     // 探索

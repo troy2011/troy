@@ -4,12 +4,24 @@ const {
   extractSearchPageUrls,
   extractSongDetailUrls,
   getTokyoDayKey,
+  initializeMusicGameRoutes,
   normalizeScore,
   parseOfficialTotal,
   parseSongDetail,
   validateCatalog,
   validateResultInput
 } = require('../server/musicGame');
+
+test('music game routes register without Firebase or LINE authentication', () => {
+  const registered = [];
+  const app = {
+    get(path) { registered.push(['GET', path]); },
+    post(path) { registered.push(['POST', path]); }
+  };
+  initializeMusicGameRoutes(app, { firestore: {}, admin: {} });
+  assert.equal(registered.some(([, path]) => path === '/api/troy-music-game/bootstrap'), true);
+  assert.equal(registered.some(([, path]) => path === '/api/troy-music-game/catalog/refresh'), true);
+});
 
 test('catalog validation accepts only a complete, unique export', () => {
   const songs = [

@@ -1,5 +1,4 @@
 const root = document.getElementById('troyMusicGameRoot');
-const TEST_MODE = window.__TROY_MUSIC_GAME_TEST_MODE__ === true;
 const QUEUE_STORAGE_KEY = 'troy.music-game.participant-queue.v1';
 const GUEST_STORAGE_KEY = 'troy.music-game.guests.v1';
 const RECENT_LIMIT = 20;
@@ -38,11 +37,9 @@ const state = {
     refreshingCatalog: false,
     message: '',
     messageIsError: false,
-    staffLabel: '認証中…',
+    staffLabel: 'ログイン不要',
     dayKey: ''
 };
-
-let firebaseAuth = null;
 
 function $(id) {
     return document.getElementById(id);
@@ -644,12 +641,6 @@ function render() {
 
 async function api(path, body, method = 'POST') {
     const headers = { 'Content-Type': 'application/json' };
-    if (!TEST_MODE) {
-        const user = firebaseAuth?.currentUser;
-        if (!user) throw new Error('スタッフ認証が完了していません。');
-        const token = await user.getIdToken();
-        headers.Authorization = `Bearer ${token}`;
-    }
     const response = await fetch(path, {
         method,
         headers,
@@ -666,43 +657,6 @@ async function api(path, body, method = 'POST') {
         throw new Error(data?.details || data?.error || `通信に失敗しました（HTTP ${response.status}）`);
     }
     return data || {};
-}
-
-async function authenticateStaff() {
-    if (TEST_MODE) {
-        state.staffLabel = 'テストスタッフ';
-        return;
-    }
-    const [{ getApps, initializeApp }, { getAuth, signInWithCustomToken }, { firebaseConfig }] = await Promise.all([
-        import('firebase/app'),
-        import('firebase/auth'),
-        import('config')
-    ]);
-    const firebaseApp = getApps()[0] || initializeApp(firebaseConfig);
-    firebaseAuth = getAuth(firebaseApp);
-    if (!window.liff) throw new Error('LINE/LIFF SDKを読み込めませんでした。');
-    await window.liff.init({ liffId: '2008427313-jg0DYMVb' });
-    if (!window.liff.isLoggedIn()) {
-        window.liff.login({ redirectUri: window.location.href });
-        return new Promise(() => {});
-    }
-    const profile = await window.liff.getProfile();
-    const loginResponse = await fetch('/api/login-playfab', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            lineAccessToken: typeof window.liff.getAccessToken === 'function' ? window.liff.getAccessToken() : '',
-            lineUserId: profile.userId,
-            displayName: profile.displayName,
-            pictureUrl: profile.pictureUrl
-        })
-    });
-    const loginData = await loginResponse.json().catch(() => null);
-    if (!loginResponse.ok || !loginData?.firebaseToken) {
-        throw new Error(loginData?.error || 'スタッフ認証を開始できませんでした。');
-    }
-    await signInWithCustomToken(firebaseAuth, loginData.firebaseToken);
-    state.staffLabel = `${profile.displayName || 'スタッフ'} として認証済み`;
 }
 
 async function loadBootstrap() {
@@ -758,7 +712,6 @@ function bindEvents() {
 
 async function boot() {
     try {
-        await authenticateStaff();
         await loadBootstrap();
         setMessage('スタッフ用MUSIC GAMEを開始できます。');
     } catch (error) {

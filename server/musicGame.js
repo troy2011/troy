@@ -326,24 +326,6 @@ function getTokyoDayKey(value = Date.now()) {
     return `${mapped.year}-${mapped.month}-${mapped.day}`;
 }
 
-function readStaffIdAllowList(value = process.env.TROY_STAFF_PLAYFAB_IDS) {
-    return new Set(String(value || '')
-        .split(',')
-        .map((entry) => entry.trim().toUpperCase())
-        .filter(Boolean));
-}
-
-function isStaffToken(decodedToken, playFabId, staffIdAllowList) {
-    const roles = Array.isArray(decodedToken?.roles) ? decodedToken.roles.map((role) => String(role).toLowerCase()) : [];
-    return decodedToken?.troyStaff === true
-        || decodedToken?.staff === true
-        || decodedToken?.admin === true
-        || roles.includes('troy_staff')
-        || roles.includes('staff')
-        || roles.includes('admin')
-        || staffIdAllowList.has(String(playFabId || '').toUpperCase());
-}
-
 function normalizeParticipantName(value) {
     return normalizeText(value, MAX_RESULT_NAME_LENGTH);
 }
@@ -499,31 +481,14 @@ async function publishCatalog(firestore, admin, songs, validation, staffPlayFabI
 }
 
 function initializeMusicGameRoutes(app, deps) {
-    const { firestore, admin, verifyFirebaseIdToken } = deps || {};
-    if (!firestore || !admin || typeof verifyFirebaseIdToken !== 'function') {
-        throw new Error('MusicGame routes require Firestore, Firebase Admin, and verifyFirebaseIdToken');
+    const { firestore, admin } = deps || {};
+    if (!firestore || !admin) {
+        throw new Error('MusicGame routes require Firestore and Firebase Admin');
     }
-    const staffIdAllowList = readStaffIdAllowList();
+    const staffPlayFabId = 'staff-portal';
     let refreshPromise = null;
 
-    async function requireTroyMusicStaff(req, res) {
-        try {
-            const authInfo = await verifyFirebaseIdToken(req);
-            if (!isStaffToken(authInfo.decodedToken, authInfo.playFabId, staffIdAllowList)) {
-                res.status(403).json({ error: 'TROY staff permission is required' });
-                return null;
-            }
-            req.musicGameStaffPlayFabId = authInfo.playFabId;
-            return authInfo.playFabId;
-        } catch (error) {
-            res.status(401).json({ error: 'Authentication required', details: error?.message || String(error) });
-            return null;
-        }
-    }
-
     app.get('/api/troy-music-game/bootstrap', async (req, res) => {
-        const staffPlayFabId = await requireTroyMusicStaff(req, res);
-        if (!staffPlayFabId) return;
         try {
             const dayKey = getTokyoDayKey();
             const [{ songs, manifest }, results] = await Promise.all([
@@ -545,8 +510,6 @@ function initializeMusicGameRoutes(app, deps) {
     });
 
     app.post('/api/troy-music-game/results', async (req, res) => {
-        const staffPlayFabId = await requireTroyMusicStaff(req, res);
-        if (!staffPlayFabId) return;
         try {
             const input = validateResultInput(req.body || {});
             const { songs } = await readCatalog(firestore);
@@ -583,8 +546,6 @@ function initializeMusicGameRoutes(app, deps) {
     });
 
     app.post('/api/troy-music-game/results/update', async (req, res) => {
-        const staffPlayFabId = await requireTroyMusicStaff(req, res);
-        if (!staffPlayFabId) return;
         const resultId = normalizeClientResultId(req.body?.resultId);
         if (!resultId) return res.status(400).json({ error: 'InvalidResultId' });
         try {
@@ -615,8 +576,6 @@ function initializeMusicGameRoutes(app, deps) {
     });
 
     app.post('/api/troy-music-game/results/void-latest', async (req, res) => {
-        const staffPlayFabId = await requireTroyMusicStaff(req, res);
-        if (!staffPlayFabId) return;
         try {
             const results = await readTodayResults(firestore, getTokyoDayKey());
             const latest = results.find((result) => !result.voidedAt);
@@ -640,8 +599,6 @@ function initializeMusicGameRoutes(app, deps) {
     });
 
     app.post('/api/troy-music-game/skip', async (req, res) => {
-        const staffPlayFabId = await requireTroyMusicStaff(req, res);
-        if (!staffPlayFabId) return;
         const reason = String(req.body?.reason || '').trim();
         const songNumber = normalizeSongNumber(req.body?.songNumber);
         const allowedReasons = new Set(['unknown_song', 'cannot_sing', 'not_found_on_joysound', 'other']);
@@ -668,8 +625,6 @@ function initializeMusicGameRoutes(app, deps) {
     });
 
     app.post('/api/troy-music-game/catalog/refresh', async (req, res) => {
-        const staffPlayFabId = await requireTroyMusicStaff(req, res);
-        if (!staffPlayFabId) return;
         if (refreshPromise) return res.status(409).json({ error: 'MusicCatalogRefreshAlreadyRunning' });
         refreshPromise = (async () => {
             const { songs, validation } = await fetchJoysoundSabikaraCatalog();

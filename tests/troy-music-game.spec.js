@@ -28,9 +28,6 @@ function makeBootstrap(results = []) {
 }
 
 async function installMusicGameRoutes(page, state) {
-  await page.addInitScript(() => {
-    window.__TROY_MUSIC_GAME_TEST_MODE__ = true;
-  });
   await page.route('**/api/troy-music-game/bootstrap', async (route) => {
     await route.fulfill({
       status: 200,
@@ -83,6 +80,8 @@ test('free challenge selects a song before a participant and saves one idempoten
   await page.goto('/troy-music-game.html', { waitUntil: 'domcontentloaded' });
 
   await expect(page.getByRole('heading', { name: 'TROY MUSIC GAME' })).toBeVisible();
+  await expect(page.locator('script[src*="line-scdn"]')).toHaveCount(0);
+  await expect(page.getByText('ログイン不要')).toBeVisible();
   await expect(page.locator('.troy-music-game-brand-mic')).toHaveAttribute('src', '/assets/ui/icons/044.png');
   await expect(page.locator('.troy-music-game-mode-button')).toHaveCount(3);
   await expect(page.locator('#troyMusicGameParticipant')).toBeDisabled();
