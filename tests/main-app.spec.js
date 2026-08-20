@@ -383,7 +383,13 @@ test('daily tarot fortune loads only after its button is clicked and shows clear
   await expect(page.locator('#btnDailyFortune')).toHaveText('占い済み');
   expect(fortuneDrawRequests).toBe(1);
 
-  await page.locator('.tarot-fortune-close').click({ position: { x: 4, y: 4 } });
+  const closeTargetAtCenter = await page.locator('.tarot-fortune-close').evaluate((button) => {
+    const rect = button.getBoundingClientRect();
+    const target = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return target === button || button.contains(target);
+  });
+  expect(closeTargetAtCenter).toBe(true);
+  await page.locator('.tarot-fortune-close').click();
   await expect(overlay).toBeHidden();
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.locator('#btnDailyFortune')).toBeDisabled();
@@ -6506,10 +6512,10 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
       customData: { Category: 'TarotMinor', ArcanaSuit: 'sword', ArcanaRank: '9', CardNumber: '9' }
     },
     {
-      itemId: 'tarot_minor_cup_10',
-      name: 'Cup Ten',
+      itemId: 'tarot_minor_cup_14',
+      name: 'Cup King',
       count: 2,
-      customData: { Category: 'TarotMinor', ArcanaSuit: 'cup', ArcanaRank: '10', CardNumber: '10' }
+      customData: { Category: 'TarotMinor', ArcanaSuit: 'cup', ArcanaRank: 'KING', CardNumber: '14' }
     },
     {
       itemId: 'tarot_major_sword_5',
@@ -6620,7 +6626,7 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   await expect(page.locator('#inventoryGrid .tarot-number-badge.is-wand')).toHaveText(['A', '2', '8']);
   await expect(page.locator('#inventoryGrid .tarot-number-badge.is-pentacle')).toHaveText('3');
   await expect(page.locator('#inventoryGrid .tarot-number-badge.is-sword')).toHaveText('9');
-  await expect(page.locator('#inventoryGrid .tarot-number-badge.is-cup')).toHaveText('10');
+  await expect(page.locator('#inventoryGrid .tarot-number-badge.is-cup')).toHaveText('K');
   await expect(page.locator('#meleeDeckGrid .tarot-loadout-visual .tarot-number-badge.is-wand')).toHaveText(['A', '2', '8']);
   await expect(page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty) .tarot-number-badge')).toHaveText(['A', '2', '8']);
   await expect(page.locator('#guardianArcanaGrid .tarot-loadout-visual .tarot-number-badge.is-none')).toHaveText('5');
@@ -6640,6 +6646,12 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   await expect(page.locator('#guardianArcanaEffectList')).toContainText('魔導士');
   await expect(page.locator('#guardianArcanaEffectList')).toContainText('守護');
   await expect(page.locator('#guardianArcanaEffectList')).not.toContainText('覚醒');
+
+  await page.locator('#inventoryGrid .inventory-item-cell:has(.tarot-number-badge.is-cup)').click();
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('ディバインブレス');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('生存している味方全員を18％回復');
+  await expect(page.locator('#itemDetailTarotCombat')).not.toContainText('効果データ未登録');
+  await page.locator('#itemDetailModal .item-detail-corner-close').click();
 
   await page.locator('#openArcanaResonanceCatalog').click();
   await expect(page.locator('#arcanaResonanceCatalogTitle')).toHaveText('タロット効果一覧');
@@ -6927,7 +6939,7 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   await expectNoPageErrors(errors);
 });
 
-test('tarot cards preview, reorder, and open detail before changing deck membership', async ({ page }) => {
+test('tarot cards preview, automatically sort, and open detail before changing deck membership', async ({ page }) => {
   const errors = trackPageErrors(page);
   const tarotItems = [
     {
@@ -6942,7 +6954,6 @@ test('tarot cards preview, reorder, and open detail before changing deck members
     }
   ];
   const equipRequests = [];
-  const moveRequests = [];
   const unequipRequests = [];
 
   await page.route('**/api/get-inventory', async (route) => {
@@ -6992,18 +7003,6 @@ test('tarot cards preview, reorder, and open detail before changing deck members
       body: JSON.stringify({
         ok: true,
         tarotDeck: ['tarot_minor_cup_10', 'tarot_minor_wand_7'],
-        tarotRole: null
-      })
-    });
-  });
-  await page.route('**/api/tarot-deck-move', async (route) => {
-    moveRequests.push(route.request().postDataJSON());
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({
-        ok: true,
-        tarotDeck: ['tarot_minor_wand_7', 'tarot_minor_cup_10'],
         tarotRole: null
       })
     });
@@ -7214,27 +7213,12 @@ test('tarot cards preview, reorder, and open detail before changing deck members
   await expect(page.locator('#meleeDeckGrid')).toHaveAttribute('data-deck-count', '2');
 
   const deckCards = page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty)');
-  await deckCards.first().scrollIntoViewIfNeeded();
-  const dragSource = await deckCards.first().boundingBox();
-  const dragTarget = await deckCards.nth(1).boundingBox();
-  expect(dragSource).not.toBeNull();
-  expect(dragTarget).not.toBeNull();
-  await page.mouse.move(dragSource.x + dragSource.width / 2, dragSource.y + dragSource.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(dragTarget.x + dragTarget.width / 2, dragTarget.y + dragTarget.height / 2, { steps: 8 });
-  await page.mouse.up();
-  await expect.poll(() => moveRequests.length).toBe(1);
-  expect(moveRequests[0]).toMatchObject({
-    playFabId: 'PF_PLAYWRIGHT',
-    cardItemId: 'tarot_minor_cup_10',
-    deckType: 'tarot',
-    direction: 'right'
-  });
   await expect(page.locator('#meleeDeckGrid .tarot-loadout-card').first()).toHaveAttribute('aria-label', /Wand Seven/);
+  await expect(deckCards.nth(1)).toHaveAttribute('aria-label', /Cup Ten/);
+  await expect(page.locator('#meleeDeckEffectList [aria-label*="移動"]')).toHaveCount(0);
 
   await page.locator('#inventoryGrid .inventory-item-cell:has(.tarot-number-badge.is-cup)').click();
-  await expect(page.locator('#itemDetailModal [aria-label="デッキ内で左へ移動"]')).toBeEnabled();
-  await expect(page.locator('#itemDetailModal [aria-label="デッキ内で右へ移動"]')).toBeDisabled();
+  await expect(page.locator('#itemDetailModal [aria-label*="移動"]')).toHaveCount(0);
   expect(unequipRequests).toHaveLength(0);
   await expect(page.locator('#itemDetailModal')).toBeVisible();
   await page.locator('#itemDetailModal .item-detail-action.is-remove').click();

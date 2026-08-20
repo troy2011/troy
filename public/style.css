@@ -15839,6 +15839,7 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-sum
 
 .tarot-fortune-close {
     position: absolute;
+    z-index: 2;
     top: 0;
     right: 0;
 }
@@ -33356,9 +33357,8 @@ body[data-sea-tone] .home-hero-card {
     overflow: visible;
     appearance: none;
     cursor: pointer;
-    touch-action: pan-y;
+    touch-action: manipulation;
     user-select: none;
-    -webkit-user-drag: none;
     transition: translate 150ms ease, filter 150ms ease, opacity 150ms ease;
     --tarot-suit-glow: rgba(218, 231, 246, 0.42);
     --tarot-suit-line: #edf3fb;
@@ -33382,25 +33382,9 @@ body[data-sea-tone] .home-hero-card {
     box-shadow: 0 0 7px var(--tarot-suit-glow);
 }
 
-#tabContentInventory .tarot-loadout-grid.is-reordering .tarot-loadout-card:not(.is-dragging) {
-    transition: translate 120ms ease, filter 120ms ease;
-}
-
 #tabContentInventory .tarot-loadout-grid.is-busy {
     pointer-events: none;
     opacity: 0.78;
-}
-
-#tabContentInventory .tarot-loadout-card.is-dragging {
-    z-index: 12;
-    translate: var(--tarot-loadout-drag-x, 0) var(--tarot-loadout-drag-y, 0);
-    filter: brightness(1.18) drop-shadow(0 12px 8px rgba(0, 0, 0, 0.52));
-    transition: none;
-}
-
-#tabContentInventory .tarot-loadout-card.is-drop-target:not(.is-dragging) {
-    translate: 0 -7px;
-    filter: brightness(1.2);
 }
 
 #tabContentInventory .tarot-loadout-slot-badge {

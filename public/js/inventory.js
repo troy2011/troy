@@ -7,7 +7,6 @@ import {
     getTarotDecks as fetchTarotDecks,
     equipTarotCard as requestEquipTarotCard,
     unequipTarotCard as requestUnequipTarotCard,
-    moveTarotDeckCard as requestMoveTarotDeckCard,
     equipTarotGuardian as requestEquipTarotGuardian,
     unequipTarotGuardian as requestUnequipTarotGuardian,
     useItem as requestUseItem,
@@ -45,6 +44,7 @@ import {
     getCanonicalTarotCategory,
     getMajorArcanaSuitInfo,
     getTarotNumberBadge,
+    getTarotRankNumber,
     getTarotRankLabel,
     getTarotSpriteFrame,
     getTarotSlotLabel,
@@ -95,9 +95,7 @@ let equipmentEnhancementKeydownHandler = null;
 let cardLevelMap = {};
 let tarotBattleSkillsLoaded = false;
 let selectedTarotLoadoutItemId = '';
-let tarotDeckMovePending = false;
 let tarotLoadoutMutationPending = false;
-let suppressTarotLoadoutClickUntil = 0;
 let arcanaResonanceCatalogReturnFocusElement = null;
 let visibleInventoryDetailItems = [];
 let itemDetailSwipeStart = null;
@@ -848,35 +846,37 @@ function getInventoryItemReferenceIds(item) {
         .filter(Boolean);
 }
 
-function getTarotDeckCardNumberValue(item) {
-    const cd = item?.customData || {};
-    const category = getCanonicalTarotCategory(cd.Category);
-    if (category === 'TarotMajor') {
-        const number = Number(cd.ArcanaNumber ?? cd.CardNumber);
-        return Number.isFinite(number) ? number : 999;
-    }
-    if (category === 'TarotMinor') {
-        const raw = String(cd.ArcanaRank || cd.Rank || cd.CardRank || cd.CardNumber || '').trim();
-        const parsed = Number(raw);
-        if (Number.isFinite(parsed)) return parsed;
-        const faceOrder = {
-            A: 1,
-            ACE: 1,
-            PAGE: 11,
-            KNIGHT: 12,
-            QUEEN: 13,
-            KING: 14
-        };
-        return faceOrder[raw.toUpperCase()] || 999;
-    }
-    return 999;
+const TAROT_DECK_MINOR_SUIT_ORDER = Object.freeze({ wand: 1, sword: 2, cup: 3, pentacle: 4 });
+const TAROT_DECK_MINOR_FACE_RANKS = Object.freeze({ A: 1, ACE: 1, PAGE: 11, KNIGHT: 12, QUEEN: 13, KING: 14 });
+
+function getTarotDeckItemSortKey(itemId) {
+    const item = myInventory.find((entry) => getInventoryItemReferenceIds(entry).includes(itemId));
+    const data = item?.customData || {};
+    const fallback = String(itemId || '').match(/^(?:tarot[_-])?minor[_-](wand|sword|cup|pentacle)[_-]0*(\d{1,2})$/i);
+    const rawSuitKey = String(data.ArcanaSuit || data.Suit || fallback?.[1] || '').trim().toLowerCase();
+    const suitKey = { wands: 'wand', swords: 'sword', cups: 'cup', pentacles: 'pentacle' }[rawSuitKey] || rawSuitKey;
+    const rawRank = String(data.ArcanaRank || data.Rank || data.CardRank || data.CardNumber || fallback?.[2] || '').trim();
+    const numericRank = Number(rawRank);
+    return {
+        suitOrder: TAROT_DECK_MINOR_SUIT_ORDER[suitKey] || 99,
+        rankOrder: Number.isFinite(numericRank) ? numericRank : (TAROT_DECK_MINOR_FACE_RANKS[rawRank.toUpperCase()] || 99),
+        itemId: String(itemId || '')
+    };
 }
 
 function sortTarotDeckItemIds(deckItemIds) {
-    return (Array.isArray(deckItemIds) ? deckItemIds : [])
-        .map((itemId, index) => ({ itemId: String(itemId || '').trim(), index }))
-        .filter((entry) => entry.itemId)
-        .map((entry) => entry.itemId);
+    const uniqueItemIds = [];
+    (Array.isArray(deckItemIds) ? deckItemIds : []).forEach((value) => {
+        const itemId = String(value || '').trim();
+        if (itemId && !uniqueItemIds.includes(itemId)) uniqueItemIds.push(itemId);
+    });
+    return uniqueItemIds.sort((leftItemId, rightItemId) => {
+        const left = getTarotDeckItemSortKey(leftItemId);
+        const right = getTarotDeckItemSortKey(rightItemId);
+        return (left.suitOrder - right.suitOrder)
+            || (left.rankOrder - right.rankOrder)
+            || left.itemId.localeCompare(right.itemId);
+    });
 }
 
 function getDisplayInventoryEntries() {
@@ -1155,108 +1155,6 @@ function normalizeSelectedTarotLoadout(deckItemIds) {
     return selectedTarotLoadoutItemId;
 }
 
-async function moveTarotCardToSlot(itemId, targetIndex) {
-    if (tarotDeckMovePending) return;
-    const playFabId = window.myPlayFabId || null;
-    const deck = getCommonTarotDeck();
-    const sourceIndex = deck.indexOf(itemId);
-    const boundedTarget = Math.max(0, Math.min(deck.length - 1, Number(targetIndex) || 0));
-    if (!playFabId || sourceIndex < 0 || sourceIndex === boundedTarget) return;
-
-    tarotDeckMovePending = true;
-    document.getElementById('meleeDeckGrid')?.classList.add('is-busy');
-    const direction = boundedTarget < sourceIndex ? 'left' : 'right';
-    const steps = Math.abs(boundedTarget - sourceIndex);
-    try {
-        const moved = await runTarotLoadoutMutation(async () => {
-            let didMove = false;
-            for (let index = 0; index < steps; index += 1) {
-                const data = await requestMoveTarotDeckCard(playFabId, itemId, 'tarot', direction);
-                if (!data?.ok) break;
-                applyTarotDeckData(data);
-                didMove = true;
-            }
-            return didMove;
-        }, 'タロットデッキの順番を変更できませんでした。');
-        if (moved) {
-            selectedTarotLoadoutItemId = itemId;
-            renderTarotDeckPanels();
-            renderInventoryGrid(activeInventoryCategory);
-            updateEquipmentBonusDisplay();
-            showInventoryFeedback('デッキの順番を変更した。');
-        }
-    } finally {
-        tarotDeckMovePending = false;
-        document.getElementById('meleeDeckGrid')?.classList.remove('is-busy');
-    }
-}
-
-function bindTarotLoadoutPointerReorder(cell, gridEl, itemId, slotIndex, filledCount) {
-    let pointerId = null;
-    let startX = 0;
-    let startY = 0;
-    let dragging = false;
-    let targetIndex = slotIndex;
-
-    const clearTarget = () => {
-        gridEl.querySelectorAll('.is-drop-target').forEach((target) => target.classList.remove('is-drop-target'));
-    };
-    const finish = (event, cancelled = false) => {
-        if (pointerId === null || (event?.pointerId !== undefined && event.pointerId !== pointerId)) return;
-        if (cell.hasPointerCapture?.(pointerId)) cell.releasePointerCapture(pointerId);
-        cell.classList.remove('is-dragging');
-        cell.style.removeProperty('--tarot-loadout-drag-x');
-        cell.style.removeProperty('--tarot-loadout-drag-y');
-        gridEl.classList.remove('is-reordering');
-        clearTarget();
-        pointerId = null;
-        if (!dragging || cancelled) return;
-        suppressTarotLoadoutClickUntil = Date.now() + 350;
-        moveTarotCardToSlot(itemId, targetIndex);
-    };
-
-    cell.addEventListener('pointerdown', (event) => {
-        if (tarotDeckMovePending || event.button > 0) return;
-        pointerId = event.pointerId;
-        startX = event.clientX;
-        startY = event.clientY;
-        dragging = false;
-        targetIndex = slotIndex;
-        cell.setPointerCapture?.(pointerId);
-    });
-    cell.addEventListener('pointermove', (event) => {
-        if (event.pointerId !== pointerId) return;
-        const deltaX = event.clientX - startX;
-        const deltaY = event.clientY - startY;
-        if (!dragging) {
-            if (Math.abs(deltaX) < 8) return;
-            if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
-            dragging = true;
-            gridEl.classList.add('is-reordering');
-            cell.classList.add('is-dragging');
-        }
-        event.preventDefault();
-        cell.style.setProperty('--tarot-loadout-drag-x', `${deltaX}px`);
-        cell.style.setProperty('--tarot-loadout-drag-y', `${Math.max(-8, Math.min(8, deltaY))}px`);
-        const slots = [...gridEl.querySelectorAll('.tarot-loadout-card')];
-        let closestIndex = slotIndex;
-        let closestDistance = Number.POSITIVE_INFINITY;
-        slots.forEach((slot, index) => {
-            const rect = slot.getBoundingClientRect();
-            const distance = Math.abs(event.clientX - (rect.left + rect.width / 2));
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closestIndex = index;
-            }
-        });
-        targetIndex = Math.min(Math.max(0, closestIndex), Math.max(0, filledCount - 1));
-        clearTarget();
-        slots[targetIndex]?.classList.add('is-drop-target');
-    });
-    cell.addEventListener('pointerup', (event) => finish(event));
-    cell.addEventListener('pointercancel', (event) => finish(event, true));
-}
-
 function renderDeckGrid(gridEl, deckItemIds) {
     if (!gridEl) return;
     const MAX_SLOTS = 5;
@@ -1268,7 +1166,9 @@ function renderDeckGrid(gridEl, deckItemIds) {
     const cells = [];
     for (let i = 0; i < MAX_SLOTS; i++) {
         const itemId = deckItemIds[i] || null;
-        const item = itemId ? myInventory.find((inv) => inv.itemId === itemId) : null;
+        const item = itemId
+            ? myInventory.find((entry) => getInventoryItemReferenceIds(entry).includes(itemId))
+            : null;
         const cell = document.createElement('button');
         cell.className = `tarot-loadout-card${item ? '' : ' is-empty'}`;
         cell.type = 'button';
@@ -1284,12 +1184,10 @@ function renderDeckGrid(gridEl, deckItemIds) {
             cell.setAttribute('aria-label', `${entry.title}の共鳴効果を表示`);
             cell.setAttribute('aria-pressed', itemId === selectedItemId ? 'true' : 'false');
             cell.addEventListener('click', () => {
-                if (Date.now() < suppressTarotLoadoutClickUntil) return;
                 selectedTarotLoadoutItemId = itemId;
                 renderDeckGrid(gridEl, getCommonTarotDeck());
                 renderTarotDeckEffectList(document.getElementById('meleeDeckEffectList'), getCommonTarotDeck());
             });
-            bindTarotLoadoutPointerReorder(cell, gridEl, itemId, i, filledCount);
             cell.append(createTarotLoadoutVisual(entry));
             const slotBadge = document.createElement('span');
             slotBadge.className = 'tarot-loadout-slot-badge';
@@ -1379,7 +1277,7 @@ function findInventoryTarotCard(definition, type) {
         }
         return category === 'TarotMinor'
             && String(data.ArcanaSuit || data.Suit || '').toLowerCase() === String(definition.suit || '').toLowerCase()
-            && Number(data.ArcanaRank ?? data.Rank ?? data.Number) === Number(definition.rank);
+            && getTarotRankNumber(data) === Number(definition.rank);
     }) || null;
 }
 
@@ -1411,7 +1309,7 @@ function renderTarotLoadoutEmpty(root, message) {
 function createTarotLoadoutEffectRow(item, itemId, slotIndex) {
     const data = item?.customData || {};
     const suit = String(data.ArcanaSuit || data.Suit || '');
-    const rank = Number(data.ArcanaRank ?? data.Rank ?? data.Number);
+    const rank = getTarotRankNumber(data);
     const definition = getTarotKingdomMinorApDefinition(suit, rank)
         || getTarotKingdomMinorDefinition(suit, rank);
     const level = getInventoryCardLevel(itemId);
@@ -1444,13 +1342,9 @@ function createTarotLoadoutEffectRow(item, itemId, slotIndex) {
 
     const actions = document.createElement('div');
     actions.className = 'tarot-loadout-effect-actions';
-    const deck = getCommonTarotDeck();
-    const playFabId = window.myPlayFabId || null;
     const actionSpecs = [
-        ['←', '左へ移動', slotIndex > 0, () => moveTarotCardInDeck(playFabId, itemId, 'tarot', 'left')],
         ['詳細', 'カード詳細を開く', true, () => showItemDetailModal(item)],
-        ['→', '右へ移動', slotIndex < deck.length - 1, () => moveTarotCardInDeck(playFabId, itemId, 'tarot', 'right')],
-        ['外す', 'デッキから外す', true, () => unequipTarotCardFromDeck(playFabId, itemId, 'tarot')]
+        ['外す', 'デッキから外す', true, () => unequipTarotCardFromDeck(window.myPlayFabId || null, itemId, 'tarot')]
     ];
     actionSpecs.forEach(([label, ariaLabel, enabled, run]) => {
         const action = document.createElement('button');
@@ -2991,7 +2885,7 @@ export function getMyTarotBattleDeckSnapshot() {
             slot,
             itemId: String(itemId || ''),
             suit: skill.suit || itemData.ArcanaSuit || itemData.Suit || '',
-            rank: skill.rank ?? itemData.ArcanaRank ?? itemData.Rank ?? itemData.CardNumber ?? null,
+            rank: skill.rank ?? getTarotRankNumber(itemData) ?? null,
             cardLevel: Math.max(1, Number(cardLevelMap[itemId]?.level) || 1),
             skillName: skill.skillName || itemData.DisplayName || item?.name || String(itemId || ''),
             effectCodes: Array.isArray(skill.effectCodes) ? skill.effectCodes : []
@@ -3257,24 +3151,6 @@ export async function unequipTarotCardFromDeck(playFabId, itemId, deckType) {
         closeItemDetailModal();
         if (typeof window.showRpgMessage === 'function') {
             window.showRpgMessage(`${deckLabel}から外した。`);
-        }
-    }
-}
-
-export async function moveTarotCardInDeck(playFabId, itemId, deckType, direction) {
-    const deckLabel = 'タロットデッキ';
-    const data = await runTarotLoadoutMutation(
-        () => requestMoveTarotDeckCard(playFabId, itemId, 'tarot', direction),
-        'タロットデッキの順番を変更できませんでした。'
-    );
-    if (data?.ok) {
-        applyTarotDeckData(data);
-        renderTarotDeckPanels();
-        renderInventoryGrid(activeInventoryCategory);
-        updateEquipmentBonusDisplay();
-        closeItemDetailModal();
-        if (typeof window.showRpgMessage === 'function') {
-            window.showRpgMessage(`${deckLabel}の順番を変更した。`);
         }
     }
 }
@@ -3853,7 +3729,7 @@ function renderTarotCombatDetailSection(item, itemData) {
     }
 
     const suit = String(itemData?.ArcanaSuit || itemData?.Suit || '');
-    const rank = Number(itemData?.ArcanaRank ?? itemData?.Rank ?? itemData?.Number);
+    const rank = getTarotRankNumber(itemData);
     const resonance = getTarotKingdomMinorApDefinition(suit, rank)
         || getTarotKingdomMinorDefinition(suit, rank);
     const level = Math.max(1, Number(cardLevelMap[item?.itemId]?.level) || 1);
@@ -4435,20 +4311,6 @@ function showItemDetailModal(item) {
         }
     } else if (isTarotMinorCategory(canonicalCategory)) {
         if (isCardInTarotDeck(equipItemId)) {
-            const tarotDeck = getCommonTarotDeck();
-            const deckIndex = tarotDeck.indexOf(equipItemId);
-            const canMoveLeft = deckIndex > 0;
-            const canMoveRight = deckIndex >= 0 && deckIndex < tarotDeck.length - 1;
-            addAction('←', 'move', () => moveTarotCardInDeck(playFabId, equipItemId, 'tarot', 'left'), {
-                disabled: !canMoveLeft,
-                ariaLabel: 'デッキ内で左へ移動',
-                title: '左へ移動'
-            });
-            addAction('→', 'move', () => moveTarotCardInDeck(playFabId, equipItemId, 'tarot', 'right'), {
-                disabled: !canMoveRight,
-                ariaLabel: 'デッキ内で右へ移動',
-                title: '右へ移動'
-            });
             addAction('デッキから外す', 'remove', () => unequipTarotCardFromDeck(playFabId, equipItemId, 'tarot'));
         } else if (getCommonTarotDeck().length < 5) {
             addAction('デッキに追加', 'equip', () => equipTarotCardToDeck(playFabId, equipItemId, 'tarot'));

@@ -1,7 +1,7 @@
 // server/tarotDeck.js
 // タロットデッキ管理
 // 白兵戦用の小アルカナデッキを管理する
-// 最大5枚、デッキ順のまま保持し、5枚役を評価する
+// 最大5枚。小アルカナはスート順・ランク順で自動整列し、5枚役を評価する
 
 const { enrichTarotCatalogData, getCanonicalTarotCategory } = require('./tarotCards');
 const { evaluateTarotRole, getTarotRoleBonus } = require('./tarotRoles');
@@ -23,6 +23,8 @@ const MELEE_DECK_DATA_KEY = 'TarotMeleeDeck';
 const SHIP_DECK_DATA_KEY  = 'TarotShipDeck';
 const DECK_MAX_CARDS = 5;
 const tarotLoadoutMutationTails = new Map();
+const MINOR_ARCANA_SUIT_ORDER = Object.freeze({ wand: 1, sword: 2, cup: 3, pentacle: 4 });
+const MINOR_ARCANA_FACE_RANKS = Object.freeze({ A: 1, ACE: 1, PAGE: 11, KNIGHT: 12, QUEEN: 13, KING: 14 });
 
 function runTarotLoadoutMutation(playFabId, operation) {
     const key = String(playFabId || '').trim();
@@ -65,34 +67,28 @@ function normalizeDeckList(deck, resolveItemId) {
     return unique.slice(0, DECK_MAX_CARDS);
 }
 
-function getTarotDeckCardNumber(itemId, catalogCache) {
+function getTarotDeckSortKey(itemId, catalogCache) {
     const itemData = enrichTarotCatalogData(itemId, catalogCache?.[itemId] || {});
-    const category = getCanonicalTarotCategory(itemData?.Category);
-    if (category === 'TarotMajor') {
-        const number = Number(itemData?.ArcanaNumber ?? itemData?.CardNumber);
-        if (Number.isFinite(number)) return number;
-    }
-    if (category === 'TarotMinor') {
-        const raw = String(itemData?.ArcanaRank || itemData?.Rank || itemData?.CardRank || itemData?.CardNumber || '').trim();
-        const parsed = Number(raw);
-        if (Number.isFinite(parsed)) return parsed;
-        const faceOrder = {
-            A: 1,
-            ACE: 1,
-            PAGE: 11,
-            KNIGHT: 12,
-            QUEEN: 13,
-            KING: 14
-        };
-        const faceValue = faceOrder[raw.toUpperCase()];
-        if (faceValue) return faceValue;
-    }
-    const fallbackMatch = String(itemId || '').match(/(?:arcana-|_)(\d+)$/i);
-    return fallbackMatch ? Number(fallbackMatch[1]) : 999;
+    const fallback = String(itemId || '').match(/^(?:tarot[_-])?minor[_-](wand|sword|cup|pentacle)[_-]0*(\d{1,2})$/i);
+    const rawSuitKey = String(itemData?.ArcanaSuit || itemData?.Suit || fallback?.[1] || '').trim().toLowerCase();
+    const suitKey = { wands: 'wand', swords: 'sword', cups: 'cup', pentacles: 'pentacle' }[rawSuitKey] || rawSuitKey;
+    const rawRank = String(itemData?.ArcanaRank || itemData?.Rank || itemData?.CardRank || itemData?.CardNumber || fallback?.[2] || '').trim();
+    const numericRank = Number(rawRank);
+    return {
+        suitOrder: MINOR_ARCANA_SUIT_ORDER[suitKey] || 99,
+        rankOrder: Number.isFinite(numericRank) ? numericRank : (MINOR_ARCANA_FACE_RANKS[rawRank.toUpperCase()] || 99),
+        itemId: String(itemId || '')
+    };
 }
 
-function sortDeckByCardNumber(deck, catalogCache) {
-    return normalizeDeckList(deck);
+function sortTarotDeck(deck, catalogCache, resolveItemId) {
+    return normalizeDeckList(deck, resolveItemId).sort((left, right) => {
+        const leftKey = getTarotDeckSortKey(left, catalogCache);
+        const rightKey = getTarotDeckSortKey(right, catalogCache);
+        return (leftKey.suitOrder - rightKey.suitOrder)
+            || (leftKey.rankOrder - rightKey.rankOrder)
+            || leftKey.itemId.localeCompare(rightKey.itemId);
+    });
 }
 
 function isMinorArcanaItem(itemId, catalogCache) {
@@ -101,8 +97,10 @@ function isMinorArcanaItem(itemId, catalogCache) {
     return category === 'TarotMinor';
 }
 
-function filterMinorDeckIds(deck, catalogCache) {
-    return normalizeDeckList(deck).filter((itemId) => isMinorArcanaItem(itemId, catalogCache));
+function filterMinorDeckIds(deck, catalogCache, resolveItemId) {
+    const minorDeck = normalizeDeckList(deck, resolveItemId)
+        .filter((itemId) => isMinorArcanaItem(itemId, catalogCache));
+    return sortTarotDeck(minorDeck, catalogCache, resolveItemId);
 }
 
 function mergeLegacyDecks(primaryDeck, secondaryDeck, resolveItemId) {
@@ -169,15 +167,16 @@ async function readDecks(playFabId, promisifyPlayFab, PlayFabServer, resolveItem
     return readDecksFromData(result?.Data || {}, resolveItemId);
 }
 
-async function writeDecks(playFabId, decks, promisifyPlayFab, PlayFabServer, resolveItemId) {
-    const nextDeck = decks.tarotDeck !== undefined
+async function writeDecks(playFabId, decks, promisifyPlayFab, PlayFabServer, resolveItemId, catalogCache) {
+    const unsortedDeck = decks.tarotDeck !== undefined
         ? normalizeDeckList(decks.tarotDeck, resolveItemId)
         : decks.meleeDeck !== undefined
             ? normalizeDeckList(decks.meleeDeck, resolveItemId)
             : decks.shipDeck !== undefined
                 ? normalizeDeckList(decks.shipDeck, resolveItemId)
                 : null;
-    if (!nextDeck) return;
+    if (!unsortedDeck) return;
+    const nextDeck = sortTarotDeck(unsortedDeck, catalogCache, resolveItemId);
     const encoded = JSON.stringify(nextDeck);
     const updateData = {
         [TAROT_DECK_DATA_KEY]: encoded,
@@ -215,23 +214,6 @@ function equipCardToDeck(deck, cardItemId) {
 // デッキからカードを外す
 function unequipCardFromDeck(deck, cardItemId) {
     return { ok: true, deck: deck.filter((id) => id !== cardItemId) };
-}
-
-function moveCardInDeck(deck, cardItemId, direction) {
-    const list = Array.isArray(deck) ? [...deck] : [];
-    const index = list.findIndex((id) => id === cardItemId);
-    if (index < 0) {
-        return { ok: false, error: 'CardNotInDeck', deck: list };
-    }
-    const delta = direction === 'left' || direction === 'up' || Number(direction) < 0 ? -1 : 1;
-    const nextIndex = index + delta;
-    if (nextIndex < 0 || nextIndex >= list.length) {
-        return { ok: true, deck: list, unchanged: true };
-    }
-    const tmp = list[index];
-    list[index] = list[nextIndex];
-    list[nextIndex] = tmp;
-    return { ok: true, deck: list };
 }
 
 // カタログデータの配列からポーカーハンド評価用カードを組み立てる
@@ -334,7 +316,7 @@ function initializeTarotDeckRoutes(app, deps) {
             decks?.tarotDeck || decks?.meleeDeck || decks?.shipDeck || [],
             resolveItemId
         );
-        const tarotDeck = filterMinorDeckIds(normalizedDeck, catalogCache);
+        const tarotDeck = filterMinorDeckIds(normalizedDeck, catalogCache, resolveItemId);
         const tarotRole = evaluateDeckRole(tarotDeck.map((itemId) => enrichTarotCatalogData(itemId, catalogCache?.[itemId] || {})));
         const guardianItemId = resolveTarotCatalogItemId(decks?.guardian?.itemId, resolveItemId);
         const guardian = buildTarotKingdomGuardian(guardianItemId, catalogCache);
@@ -359,7 +341,7 @@ function initializeTarotDeckRoutes(app, deps) {
             const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer, resolveItemId);
             const response = buildDeckResponse(decks);
             if (decks.needsDeckMigration || !areDeckListsEqual(response.tarotDeck, decks.tarotDeck)) {
-                await writeDecks(playFabId, { tarotDeck: response.tarotDeck }, promisifyPlayFab, PlayFabServer, resolveItemId);
+                await writeDecks(playFabId, { tarotDeck: response.tarotDeck }, promisifyPlayFab, PlayFabServer, resolveItemId, catalogCache);
             }
             if (decks.needsGuardianMigration && response.guardian?.itemId) {
                 await writeGuardian(playFabId, response.guardian.itemId, promisifyPlayFab, PlayFabServer, resolveItemId);
@@ -389,12 +371,12 @@ function initializeTarotDeckRoutes(app, deps) {
                 const ownership = await requireOwnedTarotCard(playFabId, resolvedCardItemId);
                 if (!ownership.ok) return res.status(ownership.status).json({ error: ownership.error });
                 const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer, resolveItemId);
-                const current = filterMinorDeckIds(decks.tarotDeck, catalogCache);
+                const current = filterMinorDeckIds(decks.tarotDeck, catalogCache, resolveItemId);
                 const result = equipCardToDeck(current, resolvedCardItemId);
                 if (!result.ok) return res.status(400).json({ error: result.error });
-                const updatedDeck = normalizeDeckList(result.deck);
+                const updatedDeck = sortTarotDeck(result.deck, catalogCache, resolveItemId);
                 const updated = { tarotDeck: updatedDeck, meleeDeck: updatedDeck, shipDeck: updatedDeck };
-                await writeDecks(playFabId, { tarotDeck: updatedDeck }, promisifyPlayFab, PlayFabServer, resolveItemId);
+                await writeDecks(playFabId, { tarotDeck: updatedDeck }, promisifyPlayFab, PlayFabServer, resolveItemId, catalogCache);
                 return res.json({ ok: true, ...buildDeckResponse(updated) });
             });
         } catch (error) {
@@ -419,51 +401,16 @@ function initializeTarotDeckRoutes(app, deps) {
             return await runTarotLoadoutMutation(playFabId, async () => {
                 const resolvedCardItemId = resolveTarotCatalogItemId(cardItemId, resolveItemId);
                 const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer, resolveItemId);
-                const current = filterMinorDeckIds(decks.tarotDeck, catalogCache);
+                const current = filterMinorDeckIds(decks.tarotDeck, catalogCache, resolveItemId);
                 const result = unequipCardFromDeck(current, resolvedCardItemId);
-                const updatedDeck = normalizeDeckList(result.deck);
+                const updatedDeck = sortTarotDeck(result.deck, catalogCache, resolveItemId);
                 const updated = { tarotDeck: updatedDeck, meleeDeck: updatedDeck, shipDeck: updatedDeck };
-                await writeDecks(playFabId, { tarotDeck: updatedDeck }, promisifyPlayFab, PlayFabServer, resolveItemId);
+                await writeDecks(playFabId, { tarotDeck: updatedDeck }, promisifyPlayFab, PlayFabServer, resolveItemId, catalogCache);
                 return res.json({ ok: true, ...buildDeckResponse(updated) });
             });
         } catch (error) {
             console.error('[tarot-deck-unequip] Error:', error?.message || error);
             return res.status(500).json({ error: 'FailedToUnequipTarotCard' });
-        }
-    });
-
-    app.post('/api/tarot-deck-move', async (req, res) => {
-        const requestedPlayFabId = String(req.body?.playFabId || '').trim();
-        const cardItemId = String(req.body?.cardItemId || '').trim();
-        const deckType = String(req.body?.deckType || 'tarot').trim();
-        const direction = String(req.body?.direction || '').trim();
-        if (!requestedPlayFabId) return res.status(400).json({ error: 'playFabId is required' });
-        if (!cardItemId) return res.status(400).json({ error: 'cardItemId is required' });
-        if (deckType !== 'tarot' && deckType !== 'melee' && deckType !== 'ship') {
-            return res.status(400).json({ error: 'deckType must be tarot, melee or ship' });
-        }
-        if (!['left', 'right', 'up', 'down', '-1', '1'].includes(direction)) {
-            return res.status(400).json({ error: 'direction must be left or right' });
-        }
-        const playFabId = await requireAuthedPlayFabId(req, res, requestedPlayFabId);
-        if (!playFabId) return;
-        try {
-            return await runTarotLoadoutMutation(playFabId, async () => {
-                const resolvedCardItemId = resolveTarotCatalogItemId(cardItemId, resolveItemId);
-                const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer, resolveItemId);
-                const current = filterMinorDeckIds(decks.tarotDeck, catalogCache);
-                const result = moveCardInDeck(current, resolvedCardItemId, direction);
-                if (!result.ok) return res.status(400).json({ error: result.error });
-                const updatedDeck = normalizeDeckList(result.deck);
-                const updated = { tarotDeck: updatedDeck, meleeDeck: updatedDeck, shipDeck: updatedDeck };
-                if (!result.unchanged) {
-                    await writeDecks(playFabId, { tarotDeck: updatedDeck }, promisifyPlayFab, PlayFabServer, resolveItemId);
-                }
-                return res.json({ ok: true, ...buildDeckResponse(updated) });
-            });
-        } catch (error) {
-            console.error('[tarot-deck-move] Error:', error?.message || error);
-            return res.status(500).json({ error: 'FailedToMoveTarotCard' });
         }
     });
 
@@ -548,8 +495,7 @@ module.exports = {
     writeGuardian,
     equipCardToDeck,
     unequipCardFromDeck,
-    moveCardInDeck,
-    sortDeckByCardNumber,
+    sortTarotDeck,
     filterMinorDeckIds,
     isMinorArcanaItem,
     buildDeckRoleCards,

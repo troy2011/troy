@@ -316,18 +316,22 @@ test('tarot role passives use percentage battle effects', () => {
   expect(getTarotRolePassive({ key: 'RoyalFlush', label: 'royal flush' }).startingShieldRate).toBeCloseTo(0.2);
 });
 
-test('tarot deck helpers preserve user order', () => {
+test('tarot deck helpers automatically sort minor arcana', () => {
   const {
     equipCardToDeck,
     filterMinorDeckIds,
-    moveCardInDeck,
-    sortDeckByCardNumber
+    sortTarotDeck
   } = require('../server/tarotDeck');
 
-  expect(sortDeckByCardNumber(['arcana-10', 'arcana-1'])).toEqual(['arcana-10', 'arcana-1']);
-  expect(equipCardToDeck(['arcana-10'], 'arcana-1').deck).toEqual(['arcana-10', 'arcana-1']);
-  expect(moveCardInDeck(['arcana-10', 'arcana-1', 'minor-sword-9'], 'minor-sword-9', 'left').deck)
-    .toEqual(['arcana-10', 'minor-sword-9', 'arcana-1']);
+  const catalog = {
+    'minor-cup-10': { Category: 'TarotMinor', ArcanaSuit: 'Cup', ArcanaRank: 10 },
+    'minor-wand-7': { Category: 'TarotMinor', ArcanaSuit: 'Wand', ArcanaRank: 7 },
+    'minor-sword-2': { Category: 'TarotMinor', ArcanaSuit: 'Sword', ArcanaRank: 2 },
+    'minor-wand-1': { Category: 'TarotMinor', ArcanaSuit: 'Wand', ArcanaRank: 1 }
+  };
+  expect(sortTarotDeck(['minor-cup-10', 'minor-wand-7', 'minor-sword-2', 'minor-wand-1'], catalog))
+    .toEqual(['minor-wand-1', 'minor-wand-7', 'minor-sword-2', 'minor-cup-10']);
+  expect(equipCardToDeck(['minor-wand-1'], 'minor-cup-10').deck).toEqual(['minor-wand-1', 'minor-cup-10']);
   expect(filterMinorDeckIds(['arcana-4', 'minor-sword-9', 'minor-cup-10'], {
     'arcana-4': { Category: 'TarotMajor' },
     'minor-sword-9': { Category: 'TarotMinor' },

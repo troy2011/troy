@@ -3153,7 +3153,6 @@ window.showTab = (tabId) => showTab(tabId, { playFabId: myPlayFabId, race: myAva
 window.equipItem = (itemId, slot) => Inventory.equipItem(myPlayFabId, itemId, slot);
 window.equipTarotCardToDeck = (itemId, deckType) => Inventory.equipTarotCardToDeck(myPlayFabId, itemId, deckType);
 window.unequipTarotCardFromDeck = (itemId, deckType) => Inventory.unequipTarotCardFromDeck(myPlayFabId, itemId, deckType);
-window.moveTarotCardInDeck = (itemId, deckType, direction) => Inventory.moveTarotCardInDeck(myPlayFabId, itemId, deckType, direction);
 window.levelUpCard = (itemId) => Inventory.levelUpTarotCard(itemId);
 window.useShipSkillCard = (cardItemId, skillName) => window.worldMapScene?.useShipSkillCard(cardItemId, skillName);
 window.closeItemDetailModal = Inventory.closeItemDetailModal;

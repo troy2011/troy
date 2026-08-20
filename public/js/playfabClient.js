@@ -206,10 +206,6 @@ export function unequipTarotCard(playFabId, cardItemId, deckType, options) {
     return callApiWithLoader('/api/tarot-deck-unequip', { playFabId, cardItemId, deckType }, options);
 }
 
-export function moveTarotDeckCard(playFabId, cardItemId, deckType, direction, options) {
-    return callApiWithLoader('/api/tarot-deck-move', { playFabId, cardItemId, deckType, direction }, options);
-}
-
 export function equipTarotGuardian(playFabId, cardItemId, expectedGuardianItemId, options) {
     return callApiWithLoader('/api/tarot-guardian-equip', {
         playFabId,
