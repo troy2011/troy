@@ -1414,7 +1414,7 @@ button.home-player-ship-name {
 .exploration-sequence-overlay.is-treasure .exploration-sequence-scene {
     background:
         linear-gradient(180deg, rgba(5, 12, 18, 0.1) 0%, rgba(7, 10, 15, 0.08) 48%, rgba(19, 12, 6, 0.2) 100%),
-        url("./Sprites/background/deck.webp") center bottom / cover no-repeat;
+        url("./Sprites/background/deck.webp") center bottom / auto 150% no-repeat;
 }
 
 .exploration-sequence-overlay.is-returning .exploration-sequence-scene {
