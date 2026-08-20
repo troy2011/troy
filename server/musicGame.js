@@ -49,93 +49,52 @@ function normalizeSongTitle(value) {
         .trim();
 }
 
-function isAllowedJoysoundUrl(value) {
-    try {
-        const url = new URL(value);
-        return url.protocol === 'https:' && url.hostname === 'www.joysound.com' && url.pathname.startsWith('/web/search/song');
-    } catch {
-        return false;
-    }
+function extractSearchResultSongs(html) {
+    const songs = [];
+    const seenSongNumbers = new Set();
+    const tags = String(html || '').match(/<[^>]+>/g) || [];
+    tags.forEach((tag) => {
+        const songNumberMatch = tag.match(/\bdata-tracking-song_no\s*=\s*["']([^"']+)["']/i);
+        const titleMatch = tag.match(/\bdata-tracking-title\s*=\s*["']([^"']+)["']/i);
+        const artistMatch = tag.match(/\bdata-tracking-artist\s*=\s*["']([^"']+)["']/i);
+        const songNumber = normalizeSongNumber(decodeHtml(songNumberMatch?.[1] || ''));
+        const title = normalizeSongTitle(decodeHtml(titleMatch?.[1] || ''));
+        const artist = normalizeText(decodeHtml(artistMatch?.[1] || ''));
+        if (!songNumber || !title || !artist || seenSongNumbers.has(songNumber)) return;
+        seenSongNumbers.add(songNumber);
+        songs.push({ title, artist, songNumber, catalog: 'sabikara' });
+    });
+    return songs;
 }
 
-function resolveJoysoundUrl(value, baseUrl = JOYSOUND_SABIKARA_URL) {
-    try {
-        const url = new URL(value, baseUrl);
-        return isAllowedJoysoundUrl(url.href) ? url.href : '';
-    } catch {
-        return '';
-    }
-}
-
-function extractHrefs(html) {
-    const hrefs = [];
-    const pattern = /href\s*=\s*["']([^"']+)["']/gi;
-    let match;
-    while ((match = pattern.exec(String(html || '')))) {
-        hrefs.push(decodeHtml(match[1]));
-    }
-    return hrefs;
-}
-
-function extractSongDetailUrls(html, baseUrl) {
-    const seen = new Set();
-    return extractHrefs(html)
-        .map((href) => resolveJoysoundUrl(href, baseUrl))
-        .filter((href) => /^https:\/\/www\.joysound\.com\/web\/search\/song\/\d+(?:[?#].*)?$/i.test(href))
-        .filter((href) => {
-            const clean = href.replace(/[?#].*$/, '');
-            if (seen.has(clean)) return false;
-            seen.add(clean);
-            return true;
-        });
-}
-
-function extractSearchPageUrls(html, baseUrl) {
-    const seen = new Set();
-    return extractHrefs(html)
-        .map((href) => resolveJoysoundUrl(href, baseUrl))
-        .filter((href) => {
-            try {
-                const url = new URL(href);
-                return url.pathname === '/web/search/song' && url.searchParams.get('genreCd') === '23700001' && url.searchParams.get('searchType') === '3';
-            } catch {
-                return false;
-            }
-        })
-        .filter((href) => {
-            if (seen.has(href)) return false;
-            seen.add(href);
-            return true;
-        });
+function getJoysoundSearchPageUrl(pageNumber) {
+    const page = Number.parseInt(pageNumber, 10);
+    if (!Number.isFinite(page) || page <= 1) return JOYSOUND_SABIKARA_URL;
+    const url = new URL(JOYSOUND_SABIKARA_URL);
+    url.searchParams.set('page', String(page));
+    return url.href;
 }
 
 function parseOfficialTotal(html) {
-    const text = htmlToText(html);
-    const match = text.match(/曲一覧\s*\(\s*([0-9,]+)件\s*\)/u) || text.match(/曲\s*\(\s*([0-9,]+)件\s*\)/u);
-    return match ? Number.parseInt(match[1].replace(/,/g, ''), 10) || 0 : 0;
-}
-
-function parseSongDetail(html, url) {
-    const source = String(html || '');
-    const titleMatch = source.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
-    const artistMatch = source.match(/歌手名[\s\S]{0,420}?<td\b[^>]*>([\s\S]*?)<\/td>/i);
-    const text = htmlToText(source);
-    const numberMatch = text.match(/曲番号\s*[:：]?\s*([0-9][0-9\s-]*)/u);
-    const title = normalizeSongTitle(htmlToText(titleMatch?.[1] || ''));
-    const artist = normalizeText(htmlToText(artistMatch?.[1] || ''));
-    const songNumber = normalizeSongNumber(numberMatch?.[1] || '');
-    if (!title || !artist || !songNumber) {
-        throw new Error(`JoysoundSongParseFailed:${url}`);
+    const sources = [String(html || ''), htmlToText(html)];
+    for (const source of sources) {
+        const match = source.match(/曲\s*一覧\s*[（(]\s*([0-9,]+)\s*件\s*[）)]/u)
+            || source.match(/曲\s*[（(]\s*([0-9,]+)\s*件\s*[）)]/u);
+        if (match) {
+            const total = Number.parseInt(match[1].replace(/,/g, ''), 10) || 0;
+            if (total > 0) return total;
+        }
     }
-    return { title, artist, songNumber, catalog: 'sabikara' };
+    return 0;
 }
 
 function requestText(url, redirectsRemaining = 3) {
     return new Promise((resolve, reject) => {
         const request = https.get(url, {
             headers: {
-                'User-Agent': 'TROY-Music-Game-Catalog-Updater/1.0 (+https://troy-xetw.onrender.com)',
-                'Accept-Language': 'ja-JP,ja;q=0.9'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36',
+                Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7'
             },
             timeout: 30000
         }, (response) => {
@@ -177,20 +136,6 @@ async function retry(operation, attempts = 3) {
     throw lastError || new Error('JoysoundRequestFailed');
 }
 
-async function mapWithConcurrency(values, concurrency, operation) {
-    const results = new Array(values.length);
-    let nextIndex = 0;
-    const workers = Array.from({ length: Math.max(1, Math.min(concurrency, values.length)) }, async () => {
-        while (nextIndex < values.length) {
-            const index = nextIndex;
-            nextIndex += 1;
-            results[index] = await operation(values[index], index);
-        }
-    });
-    await Promise.all(workers);
-    return results;
-}
-
 function validateCatalog(songs, officialTotal, collectedUrlCount) {
     const problems = [];
     const duplicateNumbers = [];
@@ -221,94 +166,23 @@ function validateCatalog(songs, officialTotal, collectedUrlCount) {
     };
 }
 
-async function collectSongDetailUrlsWithPlaywright(officialTotal) {
-    let chromium;
-    try {
-        ({ chromium } = require('playwright'));
-    } catch (error) {
-        throw new Error(`JoysoundPaginationNeedsPlaywright:${error?.message || String(error)}`);
-    }
-    const browser = await chromium.launch({ headless: true });
-    try {
-        const page = await browser.newPage({ locale: 'ja-JP' });
-        await page.goto(JOYSOUND_SABIKARA_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        const detailUrls = new Set();
-        const maxPages = Math.ceil(officialTotal / 10) + 20;
-        let previousSongSet = '';
-        for (let pageNumber = 1; pageNumber <= maxPages; pageNumber += 1) {
-            const pageUrls = await page.evaluate(() => [...document.querySelectorAll('a[href]')]
-                .map((anchor) => anchor.href)
-                .filter((href) => /^https:\/\/www\.joysound\.com\/web\/search\/song\/\d+(?:[?#].*)?$/i.test(href)));
-            const pageSongSet = [...new Set(pageUrls.map((url) => url.replace(/[?#].*$/, '')))].sort().join('|');
-            if (!pageSongSet || pageSongSet === previousSongSet) throw new Error('JoysoundPaginationRepeatedSongSet');
-            previousSongSet = pageSongSet;
-            pageUrls.forEach((url) => detailUrls.add(url.replace(/[?#].*$/, '')));
-            if (detailUrls.size === officialTotal) return [...detailUrls];
-            const moved = await page.evaluate((targetPageNumber) => {
-                const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
-                const candidates = [...document.querySelectorAll('button, a')];
-                const nextPage = candidates.find((element) => (
-                    normalize(element.textContent) === String(targetPageNumber)
-                    && !element.hasAttribute('disabled')
-                    && element.getAttribute('aria-disabled') !== 'true'
-                )) || candidates.find((element) => {
-                    const label = `${normalize(element.textContent)} ${normalize(element.getAttribute('aria-label'))}`;
-                    return /次へ|next/i.test(label)
-                        && !element.hasAttribute('disabled')
-                        && element.getAttribute('aria-disabled') !== 'true';
-                });
-                if (!nextPage) return false;
-                nextPage.click();
-                return true;
-            }, pageNumber + 1);
-            if (!moved) break;
-            await page.waitForTimeout(250);
-        }
-        throw new Error(`JoysoundPaginationIncomplete:${detailUrls.size}/${officialTotal}`);
-    } finally {
-        await browser.close();
-    }
-}
-
 async function fetchJoysoundSabikaraCatalog({ fetchText = requestText, delayMs = 300 } = {}) {
     const initialHtml = await retry(() => fetchText(JOYSOUND_SABIKARA_URL));
     const officialTotal = parseOfficialTotal(initialHtml);
     if (!officialTotal) throw new Error('JoysoundOfficialTotalNotFound');
+    const songs = [];
+    const totalPages = Math.ceil(officialTotal / 20);
 
-    const pageQueue = [JOYSOUND_SABIKARA_URL];
-    const processedPages = new Set();
-    const pageSongSets = new Set();
-    const detailUrls = new Set();
-
-    while (pageQueue.length) {
-        const pageUrl = pageQueue.shift();
-        if (!pageUrl || processedPages.has(pageUrl)) continue;
-        const html = pageUrl === JOYSOUND_SABIKARA_URL ? initialHtml : await retry(() => fetchText(pageUrl));
-        processedPages.add(pageUrl);
-        const pageDetailUrls = extractSongDetailUrls(html, pageUrl);
-        const pageKey = pageDetailUrls.slice().sort().join('|');
-        if (pageKey && pageSongSets.has(pageKey)) {
-            throw new Error('JoysoundPaginationRepeatedSongSet');
-        }
-        if (pageKey) pageSongSets.add(pageKey);
-        pageDetailUrls.forEach((detailUrl) => detailUrls.add(detailUrl));
-        extractSearchPageUrls(html, pageUrl).forEach((nextUrl) => {
-            if (!processedPages.has(nextUrl) && !pageQueue.includes(nextUrl)) pageQueue.push(nextUrl);
-        });
-        if (processedPages.size > Math.ceil(officialTotal / 10) + 20) {
-            throw new Error('JoysoundPaginationPageLimitExceeded');
-        }
+    for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
+        const pageUrl = getJoysoundSearchPageUrl(pageNumber);
+        const html = pageNumber === 1 ? initialHtml : await retry(() => fetchText(pageUrl));
+        const pageSongs = extractSearchResultSongs(html);
+        if (!pageSongs.length) throw new Error(`JoysoundSearchPageEmpty:${pageNumber}`);
+        songs.push(...pageSongs);
+        if (pageNumber < totalPages) await wait(delayMs);
     }
 
-    const urls = detailUrls.size === officialTotal
-        ? [...detailUrls]
-        : await collectSongDetailUrlsWithPlaywright(officialTotal);
-    const songs = await mapWithConcurrency(urls, 2, async (detailUrl, index) => {
-        if (index > 0) await wait(delayMs);
-        const html = await retry(() => fetchText(detailUrl));
-        return parseSongDetail(html, detailUrl);
-    });
-    const validation = validateCatalog(songs, officialTotal, urls.length);
+    const validation = validateCatalog(songs, officialTotal, songs.length);
     if (!validation.success) {
         throw new Error(`JoysoundValidationFailed:${JSON.stringify(validation)}`);
     }
@@ -651,14 +525,13 @@ module.exports = {
     CATALOG_DOCUMENT,
     RESULTS_COLLECTION,
     VERIFIED_SAMPLE_SONGS,
-    extractSearchPageUrls,
-    extractSongDetailUrls,
+    extractSearchResultSongs,
     fetchJoysoundSabikaraCatalog,
+    getJoysoundSearchPageUrl,
     getTokyoDayKey,
     initializeMusicGameRoutes,
     normalizeScore,
     parseOfficialTotal,
-    parseSongDetail,
     validateCatalog,
     validateResultInput
 };

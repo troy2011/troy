@@ -1,13 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  extractSearchPageUrls,
-  extractSongDetailUrls,
+  extractSearchResultSongs,
+  fetchJoysoundSabikaraCatalog,
+  getJoysoundSearchPageUrl,
   getTokyoDayKey,
   initializeMusicGameRoutes,
   normalizeScore,
   parseOfficialTotal,
-  parseSongDetail,
   validateCatalog,
   validateResultInput
 } = require('../server/musicGame');
@@ -33,27 +33,38 @@ test('catalog validation accepts only a complete, unique export', () => {
   assert.equal(validateCatalog([...songs, { ...songs[0] }], 3, 3).duplicateNumbers.length, 1);
 });
 
-test('JOYSOUND list and detail parsing normalize only required catalog fields', () => {
+test('JOYSOUND current search cards provide the required catalog fields', () => {
   const listHtml = `
     <h2>曲一覧(2件)</h2>
-    <a href="/web/search/song/922327">song A</a>
-    <a href="/web/search/song?genreCd=23700001&searchType=3&page=2">2</a>`;
+    <button data-tracking-song_no="123456" data-tracking-title="[サビカラ] 曲 A" data-tracking-artist="歌手 A"></button>
+    <button data-tracking-song_no="654321" data-tracking-title="[サビカラ] 曲 B" data-tracking-artist="歌手 B"></button>`;
   assert.equal(parseOfficialTotal(listHtml), 2);
-  assert.deepEqual(extractSongDetailUrls(listHtml, 'https://www.joysound.com/web/search/song?genreCd=23700001&searchType=3'), [
-    'https://www.joysound.com/web/search/song/922327'
+  assert.deepEqual(extractSearchResultSongs(listHtml), [
+    { title: '曲 A', artist: '歌手 A', songNumber: '123456', catalog: 'sabikara' },
+    { title: '曲 B', artist: '歌手 B', songNumber: '654321', catalog: 'sabikara' }
   ]);
-  assert.deepEqual(extractSearchPageUrls(listHtml, 'https://www.joysound.com/web/search/song?genreCd=23700001&searchType=3'), [
+  assert.equal(getJoysoundSearchPageUrl(1), 'https://www.joysound.com/web/search/song?genreCd=23700001&searchType=3');
+  assert.equal(getJoysoundSearchPageUrl(2), 'https://www.joysound.com/web/search/song?genreCd=23700001&searchType=3&page=2');
+});
+
+test('catalog refresh collects every JOYSOUND search page without song detail requests', async () => {
+  const card = (songNumber) => `<button data-tracking-song_no="${songNumber}" data-tracking-title="[サビカラ] 曲 ${songNumber}" data-tracking-artist="歌手 ${songNumber}"></button>`;
+  const firstPage = `<h2>曲一覧(21件)</h2>${Array.from({ length: 20 }, (_, index) => card(100001 + index)).join('')}`;
+  const secondPage = card(100021);
+  const requestedUrls = [];
+  const result = await fetchJoysoundSabikaraCatalog({
+    delayMs: 0,
+    fetchText: async (url) => {
+      requestedUrls.push(url);
+      return url.endsWith('&page=2') ? secondPage : firstPage;
+    }
+  });
+  assert.equal(result.songs.length, 21);
+  assert.equal(result.validation.success, true);
+  assert.deepEqual(requestedUrls, [
+    'https://www.joysound.com/web/search/song?genreCd=23700001&searchType=3',
     'https://www.joysound.com/web/search/song?genreCd=23700001&searchType=3&page=2'
   ]);
-  assert.deepEqual(parseSongDetail(`
-    <h1>新曲[サビカラ] 曲 A</h1>
-    <table><tr><th>歌手名</th><td><a>歌手 A</a></td></tr></table>
-    <p>曲番号: 123 456</p>`, 'https://www.joysound.com/web/search/song/922327'), {
-    title: '曲 A',
-    artist: '歌手 A',
-    songNumber: '123456',
-    catalog: 'sabikara'
-  });
 });
 
 test('result validation preserves independent participant and song fields', () => {
