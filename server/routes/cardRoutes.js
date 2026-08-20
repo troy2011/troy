@@ -24,8 +24,11 @@ function shardCost(currentLevel) {
 }
 
 // Firestoreのカードドキュメントを取得（なければ空のmap）
-async function getCardDoc(playFabId) {
-    const ref = admin.firestore().collection('playerCards').doc(playFabId);
+async function getCardDoc(playFabId, firestore) {
+    if (!firestore || typeof firestore.collection !== 'function') {
+        return { cards: {} };
+    }
+    const ref = firestore.collection('playerCards').doc(playFabId);
     const snap = await ref.get();
     return snap.exists ? snap.data() : { cards: {} };
 }
@@ -33,10 +36,10 @@ async function getCardDoc(playFabId) {
 // ── ルート登録 ────────────────────────────────────────────────
 function initializeCardRoutes(app, deps) {
     const {
-        promisifyPlayFab,
-        PlayFabEconomy,
         getEntityKeyFromPlayFabId,
+        getAllInventoryItems,
         catalogCache,
+        firestore,
         requireAuthenticatedPlayFabId,
     } = deps;
 
@@ -45,22 +48,15 @@ function initializeCardRoutes(app, deps) {
     }
 
     async function fetchInventoryCards(entityKey) {
-        const items = [];
-        let token = null;
-        do {
-            const result = await promisifyPlayFab(PlayFabEconomy.GetInventoryItems, {
-                Entity: entityKey,
-                Count: 50,
-                ContinuationToken: token || undefined,
-            });
-            const page = Array.isArray(result?.Items) ? result.Items : [];
-            items.push(...page);
-            token = result?.ContinuationToken || null;
-        } while (token);
+        if (typeof getAllInventoryItems !== 'function') {
+            throw new Error('Shared Economy V2 inventory accessor is unavailable.');
+        }
+        const items = await getAllInventoryItems(entityKey);
 
-        // タロットカードのみ抽出
-        return items.filter((item) => {
-            const cat = String(enrichTarotCatalogData(item.Id, catalogCache[item.Id] || {}).Category || '').trim();
+        return (Array.isArray(items) ? items : []).filter((item) => {
+            const itemId = String(item?.Id || '').trim();
+            if (!itemId) return false;
+            const cat = String(enrichTarotCatalogData(itemId, catalogCache?.[itemId] || {}).Category || '').trim();
             return isTarotMajorCategory(cat) || isTarotMinorCategory(cat);
         });
     }
@@ -80,14 +76,17 @@ function initializeCardRoutes(app, deps) {
             const entityKey = await getEntityKey(playFabId);
             const [inventoryItems, cardDoc] = await Promise.all([
                 fetchInventoryCards(entityKey),
-                getCardDoc(playFabId),
+                getCardDoc(playFabId, firestore).catch((error) => {
+                    console.warn('[cards] level data unavailable; returning owned cards without levels:', error?.message || error);
+                    return { cards: {} };
+                }),
             ]);
             const levels = cardDoc.cards || {};
 
             const cards = inventoryItems.map((item) => {
                 const itemId   = item.Id;
                 const quantity = Number(item.Amount ?? 0);
-                const catalogData = enrichTarotCatalogData(itemId, catalogCache[itemId] || {});
+                const catalogData = enrichTarotCatalogData(itemId, catalogCache?.[itemId] || {});
                 const cat      = String(catalogData.Category || '').trim();
                 const isMajor  = isTarotMajorCategory(cat);
                 const level    = levels[itemId]?.level ?? 0;
@@ -127,12 +126,12 @@ function initializeCardRoutes(app, deps) {
             if (!owned) return res.status(404).json({ error: 'カードを所持していません' });
 
             const quantity = Number(owned.Amount ?? 0);
-            const cat      = String(enrichTarotCatalogData(itemId, catalogCache[itemId] || {}).Category || '').trim();
+            const cat      = String(enrichTarotCatalogData(itemId, catalogCache?.[itemId] || {}).Category || '').trim();
             const isMajor  = isTarotMajorCategory(cat);
             const maxLevel = getMaxLevel(isMajor, quantity);
 
             // Firestoreのシャードとレベルをトランザクションで更新
-            const db = admin.firestore();
+            const db = firestore || admin.firestore();
             const cardRef  = db.collection('playerCards').doc(playFabId);
             const statRef  = db.collection('playerStats').doc(playFabId);
 

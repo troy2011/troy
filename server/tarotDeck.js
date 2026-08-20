@@ -22,6 +22,24 @@ const TAROT_DECK_DATA_KEY = 'TarotDeck';
 const MELEE_DECK_DATA_KEY = 'TarotMeleeDeck';
 const SHIP_DECK_DATA_KEY  = 'TarotShipDeck';
 const DECK_MAX_CARDS = 5;
+const tarotLoadoutMutationTails = new Map();
+
+function runTarotLoadoutMutation(playFabId, operation) {
+    const key = String(playFabId || '').trim();
+    const previous = tarotLoadoutMutationTails.get(key) || Promise.resolve();
+    const current = previous.catch(() => undefined).then(operation);
+    tarotLoadoutMutationTails.set(key, current);
+    return current.finally(() => {
+        if (tarotLoadoutMutationTails.get(key) === current) {
+            tarotLoadoutMutationTails.delete(key);
+        }
+    });
+}
+
+function resolveExpectedGuardianItemId(value, resolveItemId) {
+    const rawItemId = String(value || '').trim();
+    return rawItemId ? (resolveTarotCatalogItemId(rawItemId, resolveItemId) || null) : null;
+}
 
 // orientation → deckType
 function getDeckType(orientation) {
@@ -366,17 +384,19 @@ function initializeTarotDeckRoutes(app, deps) {
         const playFabId = await requireAuthedPlayFabId(req, res, requestedPlayFabId);
         if (!playFabId) return;
         try {
-            const resolvedCardItemId = resolveTarotCatalogItemId(cardItemId, resolveItemId);
-            const ownership = await requireOwnedTarotCard(playFabId, resolvedCardItemId);
-            if (!ownership.ok) return res.status(ownership.status).json({ error: ownership.error });
-            const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer, resolveItemId);
-            const current = filterMinorDeckIds(decks.tarotDeck, catalogCache);
-            const result = equipCardToDeck(current, resolvedCardItemId);
-            if (!result.ok) return res.status(400).json({ error: result.error });
-            const updatedDeck = normalizeDeckList(result.deck);
-            const updated = { tarotDeck: updatedDeck, meleeDeck: updatedDeck, shipDeck: updatedDeck };
-            await writeDecks(playFabId, { tarotDeck: updatedDeck }, promisifyPlayFab, PlayFabServer, resolveItemId);
-            return res.json({ ok: true, ...buildDeckResponse(updated) });
+            return await runTarotLoadoutMutation(playFabId, async () => {
+                const resolvedCardItemId = resolveTarotCatalogItemId(cardItemId, resolveItemId);
+                const ownership = await requireOwnedTarotCard(playFabId, resolvedCardItemId);
+                if (!ownership.ok) return res.status(ownership.status).json({ error: ownership.error });
+                const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer, resolveItemId);
+                const current = filterMinorDeckIds(decks.tarotDeck, catalogCache);
+                const result = equipCardToDeck(current, resolvedCardItemId);
+                if (!result.ok) return res.status(400).json({ error: result.error });
+                const updatedDeck = normalizeDeckList(result.deck);
+                const updated = { tarotDeck: updatedDeck, meleeDeck: updatedDeck, shipDeck: updatedDeck };
+                await writeDecks(playFabId, { tarotDeck: updatedDeck }, promisifyPlayFab, PlayFabServer, resolveItemId);
+                return res.json({ ok: true, ...buildDeckResponse(updated) });
+            });
         } catch (error) {
             console.error('[tarot-deck-equip] Error:', error?.message || error);
             return res.status(500).json({ error: 'FailedToEquipTarotCard' });
@@ -396,14 +416,16 @@ function initializeTarotDeckRoutes(app, deps) {
         const playFabId = await requireAuthedPlayFabId(req, res, requestedPlayFabId);
         if (!playFabId) return;
         try {
-            const resolvedCardItemId = resolveTarotCatalogItemId(cardItemId, resolveItemId);
-            const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer, resolveItemId);
-            const current = filterMinorDeckIds(decks.tarotDeck, catalogCache);
-            const result = unequipCardFromDeck(current, resolvedCardItemId);
-            const updatedDeck = normalizeDeckList(result.deck);
-            const updated = { tarotDeck: updatedDeck, meleeDeck: updatedDeck, shipDeck: updatedDeck };
-            await writeDecks(playFabId, { tarotDeck: updatedDeck }, promisifyPlayFab, PlayFabServer, resolveItemId);
-            return res.json({ ok: true, ...buildDeckResponse(updated) });
+            return await runTarotLoadoutMutation(playFabId, async () => {
+                const resolvedCardItemId = resolveTarotCatalogItemId(cardItemId, resolveItemId);
+                const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer, resolveItemId);
+                const current = filterMinorDeckIds(decks.tarotDeck, catalogCache);
+                const result = unequipCardFromDeck(current, resolvedCardItemId);
+                const updatedDeck = normalizeDeckList(result.deck);
+                const updated = { tarotDeck: updatedDeck, meleeDeck: updatedDeck, shipDeck: updatedDeck };
+                await writeDecks(playFabId, { tarotDeck: updatedDeck }, promisifyPlayFab, PlayFabServer, resolveItemId);
+                return res.json({ ok: true, ...buildDeckResponse(updated) });
+            });
         } catch (error) {
             console.error('[tarot-deck-unequip] Error:', error?.message || error);
             return res.status(500).json({ error: 'FailedToUnequipTarotCard' });
@@ -426,17 +448,19 @@ function initializeTarotDeckRoutes(app, deps) {
         const playFabId = await requireAuthedPlayFabId(req, res, requestedPlayFabId);
         if (!playFabId) return;
         try {
-            const resolvedCardItemId = resolveTarotCatalogItemId(cardItemId, resolveItemId);
-            const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer, resolveItemId);
-            const current = filterMinorDeckIds(decks.tarotDeck, catalogCache);
-            const result = moveCardInDeck(current, resolvedCardItemId, direction);
-            if (!result.ok) return res.status(400).json({ error: result.error });
-            const updatedDeck = normalizeDeckList(result.deck);
-            const updated = { tarotDeck: updatedDeck, meleeDeck: updatedDeck, shipDeck: updatedDeck };
-            if (!result.unchanged) {
-                await writeDecks(playFabId, { tarotDeck: updatedDeck }, promisifyPlayFab, PlayFabServer, resolveItemId);
-            }
-            return res.json({ ok: true, ...buildDeckResponse(updated) });
+            return await runTarotLoadoutMutation(playFabId, async () => {
+                const resolvedCardItemId = resolveTarotCatalogItemId(cardItemId, resolveItemId);
+                const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer, resolveItemId);
+                const current = filterMinorDeckIds(decks.tarotDeck, catalogCache);
+                const result = moveCardInDeck(current, resolvedCardItemId, direction);
+                if (!result.ok) return res.status(400).json({ error: result.error });
+                const updatedDeck = normalizeDeckList(result.deck);
+                const updated = { tarotDeck: updatedDeck, meleeDeck: updatedDeck, shipDeck: updatedDeck };
+                if (!result.unchanged) {
+                    await writeDecks(playFabId, { tarotDeck: updatedDeck }, promisifyPlayFab, PlayFabServer, resolveItemId);
+                }
+                return res.json({ ok: true, ...buildDeckResponse(updated) });
+            });
         } catch (error) {
             console.error('[tarot-deck-move] Error:', error?.message || error);
             return res.status(500).json({ error: 'FailedToMoveTarotCard' });
@@ -446,17 +470,32 @@ function initializeTarotDeckRoutes(app, deps) {
     app.post('/api/tarot-guardian-equip', async (req, res) => {
         const requestedPlayFabId = String(req.body?.playFabId || '').trim();
         const cardItemId = String(req.body?.cardItemId || '').trim();
+        const hasExpectedGuardian = Object.prototype.hasOwnProperty.call(req.body || {}, 'expectedGuardianItemId');
+        const expectedGuardianItemId = hasExpectedGuardian
+            ? resolveExpectedGuardianItemId(req.body?.expectedGuardianItemId, resolveItemId)
+            : null;
         if (!requestedPlayFabId) return res.status(400).json({ error: 'playFabId is required' });
         if (!cardItemId) return res.status(400).json({ error: 'cardItemId is required' });
+        if (!hasExpectedGuardian) return res.status(400).json({ error: 'expectedGuardianItemId is required' });
         const playFabId = await requireAuthedPlayFabId(req, res, requestedPlayFabId);
         if (!playFabId) return;
         try {
-            const resolvedCardItemId = resolveTarotCatalogItemId(cardItemId, resolveItemId);
-            const ownership = await requireOwnedGuardianCard(playFabId, resolvedCardItemId);
-            if (!ownership.ok) return res.status(ownership.status).json({ error: ownership.error });
-            await writeGuardian(playFabId, resolvedCardItemId, promisifyPlayFab, PlayFabServer, resolveItemId);
-            const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer, resolveItemId);
-            return res.json({ ok: true, ...buildDeckResponse(decks) });
+            return await runTarotLoadoutMutation(playFabId, async () => {
+                const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer, resolveItemId);
+                const currentGuardianItemId = String(decks.guardian?.itemId || '') || null;
+                if (currentGuardianItemId !== expectedGuardianItemId) {
+                    return res.status(409).json({
+                        error: 'GuardianChanged',
+                        ...buildDeckResponse(decks)
+                    });
+                }
+                const resolvedCardItemId = resolveTarotCatalogItemId(cardItemId, resolveItemId);
+                const ownership = await requireOwnedGuardianCard(playFabId, resolvedCardItemId);
+                if (!ownership.ok) return res.status(ownership.status).json({ error: ownership.error });
+                await writeGuardian(playFabId, resolvedCardItemId, promisifyPlayFab, PlayFabServer, resolveItemId);
+                const updatedDecks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer, resolveItemId);
+                return res.json({ ok: true, ...buildDeckResponse(updatedDecks) });
+            });
         } catch (error) {
             console.error('[tarot-guardian-equip] Error:', error?.message || error);
             return res.status(500).json({ error: 'FailedToEquipTarotGuardian' });
@@ -465,13 +504,30 @@ function initializeTarotDeckRoutes(app, deps) {
 
     app.post('/api/tarot-guardian-unequip', async (req, res) => {
         const requestedPlayFabId = String(req.body?.playFabId || '').trim();
+        const hasExpectedGuardian = Object.prototype.hasOwnProperty.call(req.body || {}, 'expectedGuardianItemId');
+        const expectedGuardianItemId = hasExpectedGuardian
+            ? resolveExpectedGuardianItemId(req.body?.expectedGuardianItemId, resolveItemId)
+            : null;
         if (!requestedPlayFabId) return res.status(400).json({ error: 'playFabId is required' });
+        if (!hasExpectedGuardian || !expectedGuardianItemId) {
+            return res.status(400).json({ error: 'expectedGuardianItemId is required' });
+        }
         const playFabId = await requireAuthedPlayFabId(req, res, requestedPlayFabId);
         if (!playFabId) return;
         try {
-            await writeGuardian(playFabId, null, promisifyPlayFab, PlayFabServer, resolveItemId);
-            const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer, resolveItemId);
-            return res.json({ ok: true, ...buildDeckResponse(decks) });
+            return await runTarotLoadoutMutation(playFabId, async () => {
+                const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer, resolveItemId);
+                const currentGuardianItemId = String(decks.guardian?.itemId || '') || null;
+                if (currentGuardianItemId !== expectedGuardianItemId) {
+                    return res.status(409).json({
+                        error: 'GuardianChanged',
+                        ...buildDeckResponse(decks)
+                    });
+                }
+                await writeGuardian(playFabId, null, promisifyPlayFab, PlayFabServer, resolveItemId);
+                const updatedDecks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer, resolveItemId);
+                return res.json({ ok: true, ...buildDeckResponse(updatedDecks) });
+            });
         } catch (error) {
             console.error('[tarot-guardian-unequip] Error:', error?.message || error);
             return res.status(500).json({ error: 'FailedToUnequipTarotGuardian' });

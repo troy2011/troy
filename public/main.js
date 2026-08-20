@@ -1910,6 +1910,15 @@ async function initializeAppFeatures() {
         const currentCategory = Inventory.getActiveInventoryCategory();
         Inventory.renderInventoryGrid(currentCategory);
     });
+    document.getElementById('inventorySearch')?.addEventListener('input', (event) => {
+        window.dispatchEvent(new CustomEvent('inventory:search-query', {
+            detail: { value: event.currentTarget.value }
+        }));
+    });
+    document.getElementById('inventorySearchClear')?.addEventListener('click', () => {
+        window.dispatchEvent(new CustomEvent('inventory:search-query', { detail: { value: '' } }));
+        document.getElementById('inventorySearch')?.focus();
+    });
 
     document.getElementById('btnGetRanking').addEventListener('click', Player.getRanking);
     document.getElementById('btnShowPsRanking')?.addEventListener('click', () => Player.showRanking('ps'));

@@ -12,6 +12,78 @@ const {
   normalizeTarotCatalogFriendlyId,
   resolveTarotCatalogItemId
 } = require('../server/tarotItemIds');
+const { initializeTarotDeckRoutes } = require('../server/tarotDeck');
+
+const getUserReadOnlyDataApi = function getUserReadOnlyDataApi() {};
+const updateUserReadOnlyDataApi = function updateUserReadOnlyDataApi() {};
+
+function makeResponse() {
+  return {
+    statusCode: 200,
+    body: null,
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(payload) {
+      this.body = payload;
+      return this;
+    }
+  };
+}
+
+function makeGuardianRouteHarness({ guardianItemId = 'arcana-1', waitForFirstWrite = null } = {}) {
+  const routes = new Map();
+  const readOnlyData = {
+    TarotGuardianArcana: {
+      Value: JSON.stringify({ version: 1, itemId: guardianItemId })
+    }
+  };
+  let writeCount = 0;
+  const app = {
+    post(path, handler) {
+      routes.set(path, handler);
+    }
+  };
+
+  initializeTarotDeckRoutes(app, {
+    PlayFabServer: {
+      GetUserReadOnlyData: getUserReadOnlyDataApi,
+      UpdateUserReadOnlyData: updateUserReadOnlyDataApi
+    },
+    promisifyPlayFab: async (apiFunction, request) => {
+      if (apiFunction === getUserReadOnlyDataApi) {
+        return { Data: readOnlyData };
+      }
+      if (apiFunction === updateUserReadOnlyDataApi) {
+        writeCount += 1;
+        if (writeCount === 1 && waitForFirstWrite) {
+          await waitForFirstWrite();
+        }
+        Object.entries(request.Data || {}).forEach(([key, value]) => {
+          readOnlyData[key] = { Value: value };
+        });
+        return {};
+      }
+      throw new Error('Unexpected PlayFab API call');
+    },
+    catalogCache: {
+      'arcana-1': { Category: 'TarotMajor', ArcanaNumber: 1 },
+      'arcana-2': { Category: 'TarotMajor', ArcanaNumber: 2 }
+    },
+    getEntityKeyForPlayFabId: async () => ({ Id: 'ENTITY1', Type: 'title_player_account' }),
+    getAllInventoryItems: async () => [{ Id: 'arcana-2', Amount: 1 }],
+    requireAuthenticatedPlayFabId: async (_req, _res, playFabId) => playFabId
+  });
+
+  async function invoke(path, body) {
+    const response = makeResponse();
+    await routes.get(path)({ body }, response);
+    return response;
+  }
+
+  return { invoke, readOnlyData };
+}
 
 test('dedicated arcana catalog contains 56 unique minor resonances and 22 guardians', () => {
   const catalog = getArcanaEffectsCatalog();
@@ -82,6 +154,48 @@ test('guardian storage is independent and never reads an old ship loadout', () =
     itemId: 'tarot_major_08'
   });
   expect(JSON.parse(serializeTarotGuardian(null))).toEqual({ version: 1, itemId: null });
+});
+
+test('guardian mutations keep the selected card intact when a stale removal races a replacement', async () => {
+  let releaseFirstWrite;
+  const firstWriteStarted = new Promise((resolve) => {
+    releaseFirstWrite = resolve;
+  });
+  let markFirstWriteStarted;
+  const firstWriteReached = new Promise((resolve) => {
+    markFirstWriteStarted = resolve;
+  });
+  const harness = makeGuardianRouteHarness({
+    waitForFirstWrite: async () => {
+      markFirstWriteStarted();
+      await firstWriteStarted;
+    }
+  });
+
+  const equipPromise = harness.invoke('/api/tarot-guardian-equip', {
+    playFabId: 'PF_GUARDIAN_QUEUE',
+    cardItemId: 'arcana-2',
+    expectedGuardianItemId: 'arcana-1'
+  });
+  await firstWriteReached;
+
+  const staleUnequipPromise = harness.invoke('/api/tarot-guardian-unequip', {
+    playFabId: 'PF_GUARDIAN_QUEUE',
+    expectedGuardianItemId: 'arcana-1'
+  });
+  releaseFirstWrite();
+
+  const [equip, staleUnequip] = await Promise.all([equipPromise, staleUnequipPromise]);
+  expect(equip.statusCode).toBe(200);
+  expect(equip.body.guardian).toMatchObject({ itemId: 'arcana-2' });
+  expect(staleUnequip.statusCode).toBe(409);
+  expect(staleUnequip.body).toMatchObject({
+    error: 'GuardianChanged',
+    guardian: { itemId: 'arcana-2' }
+  });
+  expect(parseTarotGuardian(harness.readOnlyData.TarotGuardianArcana.Value)).toMatchObject({
+    itemId: 'arcana-2'
+  });
 });
 
 test('legacy tarot ids normalize before the production catalog resolver runs', () => {

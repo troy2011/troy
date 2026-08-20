@@ -4954,12 +4954,10 @@ button.home-player-ship-name {
     transition: transform 460ms cubic-bezier(0.22, 1.2, 0.36, 1), opacity 280ms ease;
     will-change: transform, opacity;
     gap: 5px;
-    overflow-x: auto;
     padding: 8px max(8px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right));
     border-radius: 24px;
     border: 1px solid transparent;
     box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.42);
-    scrollbar-width: none;
     overflow: hidden;
     flex-wrap: nowrap;
     border-image: url("./assets/ui/panels/panel-plank-wide.png") 34 fill / 10px / 0 stretch;
@@ -4991,6 +4989,7 @@ body.tabs-ready #bottomNav {
     gap: 2px;
     min-width: 0;
     max-width: none;
+    overflow: hidden;
 }
 
 .nav-button.active {
@@ -17435,13 +17434,6 @@ textarea {
 }
 
 
-#bottomNav::-webkit-scrollbar {
-    display: none;
-}
-
-
-
-
 .ship-exploration-panel {
     margin: 0 0 14px;
     padding: 14px;
@@ -22112,7 +22104,7 @@ body[data-tarot-kingdom-atmosphere-tone="final-eclipse"] #tarotKingdomRoot .taro
 #bottomNav {
     justify-content: space-between;
     gap: 4px;
-    overflow: visible;
+    overflow: hidden;
     padding: 8px 6px calc(6px + var(--safe-bottom));
     height: calc(88px + var(--safe-bottom));
     padding-left: max(4px, env(safe-area-inset-left));
@@ -22134,7 +22126,7 @@ body[data-tarot-kingdom-atmosphere-tone="final-eclipse"] #tarotKingdomRoot .taro
     .nav-button span:last-child {
         font-size: 8px;
         line-height: 1.05;
-        letter-spacing: -0.02em;
+        letter-spacing: 0;
         white-space: nowrap;
     }
 
@@ -25711,62 +25703,11 @@ body.is-new-order-flash::before {
     background-image: url("./assets/ui/icons/special-vial.png?v=20260602");
 }
 
-.nav-button .nav-icon {
-    width: 48px;
-    height: 48px;
-    display: block;
-    margin-bottom: 2px;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: contain;
-    color: transparent;
-    font-size: 0;
-    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.62));
-}
-
-#navHome .nav-icon {
-    background-image: var(--icon-nav-home);
-}
-
-#navTroy .nav-icon {
-    background-image: var(--icon-nav-troy);
-}
-
-#navCompanions .nav-icon {
-    background-image: var(--icon-nav-companions);
-}
-
-#navInventory .nav-icon {
-    background-image: var(--icon-nav-inventory);
-}
-
-#navRanking .nav-icon {
-    background-image: var(--icon-nav-ranking);
-}
-
-#navKing .nav-icon {
-    background-image: var(--icon-nav-king);
-    background-size: auto 85%;
-}
-
-
-/* Keep the bottom tabs fully visible across the screen. */
-
-
 .nav-button span:last-child {
     max-width: 100%;
     overflow: hidden;
     text-overflow: clip;
     white-space: nowrap;
-}
-
-@media (max-width: 640px) {
-
-
-    .nav-button .nav-icon {
-        width: 34px;
-        height: 34px;
-    }
 }
 
 /* --- Ranking tab reference style --- */
@@ -25934,6 +25875,7 @@ body.is-new-order-flash::before {
     --inventory-ink: #261306;
     --inventory-sticky-top: calc(134px + var(--safe-top));
     --inventory-switch-sticky-height: 72px;
+    --inventory-selection-bar-height: 68px;
 }
 
 #tabContentInventory .inventory-mobile-switch {
@@ -26183,6 +26125,52 @@ body.is-new-order-flash::before {
     align-items: center;
     gap: 8px;
     margin-bottom: 12px;
+}
+
+#tabContentInventory .inventory-browse-tools {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 40px;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 8px;
+}
+
+#tabContentInventory .inventory-search-input {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    padding: 8px 12px;
+    border: 1px solid rgba(220, 169, 82, 0.34);
+    border-radius: 6px;
+    background: rgba(4, 6, 9, 0.86);
+    color: #f8edcb;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+#tabContentInventory .inventory-search-input::placeholder {
+    color: #9d8d70;
+    opacity: 1;
+}
+
+#tabContentInventory .inventory-search-clear {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid rgba(220, 169, 82, 0.34);
+    border-radius: 6px;
+    background: rgba(4, 6, 9, 0.86);
+    color: #f8edcb;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+#tabContentInventory .inventory-search-clear[hidden] {
+    display: none;
 }
 
 #tabContentInventory .inventory-section[data-panel="items"] > .section-header::before {
@@ -28149,13 +28137,6 @@ body[data-sea-tone] .home-hero-card {
 
 
 @media (max-width: 640px) {
-
-    .nav-button .nav-icon,
-    #navKing .nav-icon {
-        width: 34px;
-        height: 34px;
-    }
-
     .home-exploration-btn::before {
         width: 18px;
         height: 18px;
@@ -28584,6 +28565,7 @@ body[data-sea-tone] .home-hero-card {
     cursor: pointer;
     border: 11px solid transparent;
     scroll-margin-top: calc(var(--inventory-sticky-top) + var(--inventory-switch-sticky-height) + 18px);
+    scroll-margin-bottom: calc(var(--nav-height) + var(--safe-bottom) + 20px);
     border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 10px / 0 stretch;
     background: radial-gradient(circle at 50% 18%, rgba(255, 224, 142, 0.1), transparent 48%),
         linear-gradient(180deg, rgba(10, 14, 19, 0.8), rgba(3, 4, 6, 0.94));
@@ -28687,9 +28669,19 @@ body[data-sea-tone] .home-hero-card {
     content: none;
 }
 
-#tabContentInventory .inventory-item-cell:focus-visible {
+#tabContentInventory .inventory-item-detail-trigger:focus-visible {
     outline: 2px solid rgba(255, 225, 134, 0.92);
     outline-offset: 2px;
+}
+
+#tabContentInventory .inventory-item-detail-trigger {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
 }
 
 #tabContentInventory .inventory-item-head {
@@ -28731,6 +28723,8 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .inventory-item-tail {
+    position: relative;
+    z-index: 3;
     width: 100%;
     margin-top: 4px;
     display: grid;
@@ -29597,6 +29591,15 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .inventory-list-summary {
+    min-height: 18px;
+    margin: -2px 0 8px;
+    color: #b8a47c;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.3;
+}
+
+#tabContentInventory .inventory-list-summary[hidden] {
     display: none;
 }
 
@@ -29641,6 +29644,10 @@ body[data-sea-tone] .home-hero-card {
     margin: 0 0 10px;
 }
 
+#tabContentInventory .inventory-sell-controls[hidden] {
+    display: none;
+}
+
 #tabContentInventory .inventory-sell-control-btn {
     min-height: 36px;
     padding: 5px 11px;
@@ -29665,16 +29672,47 @@ body[data-sea-tone] .home-hero-card {
     filter: grayscale(0.35);
 }
 
-#tabContentInventory .inventory-sell-summary {
-    min-height: 30px;
-    display: inline-flex;
+#tabContentInventory .inventory-selection-bar {
+    position: fixed;
+    left: 50%;
+    bottom: calc(var(--nav-height) + var(--safe-bottom) + 32px);
+    z-index: 890;
+    width: min(640px, calc(100vw - 16px));
+    min-height: var(--inventory-selection-bar-height);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
     align-items: center;
-    padding: 4px 9px;
-    border-radius: 8px;
-    color: #2a180a;
-    background: rgba(255, 238, 190, 0.78);
-    font-size: 12px;
+    gap: 6px;
+    padding: 8px;
+    border: 10px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 10px / 0 stretch;
+    background: rgba(4, 6, 9, 0.94);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.48);
+    transform: translateX(-50%);
+}
+
+#tabContentInventory .inventory-selection-bar[hidden] {
+    display: none;
+}
+
+#tabContentInventory .inventory-selection-bar .inventory-sell-control-btn {
+    min-height: 42px;
+    padding-inline: 9px;
+    white-space: nowrap;
+}
+
+#tabContentInventory .inventory-selection-summary {
+    min-width: 0;
+    color: #ffe5a4;
+    font-size: 13px;
     font-weight: 900;
+    line-height: 1.2;
+    text-align: center;
+    white-space: nowrap;
+}
+
+#tabContentInventory.is-sell-selection-active #inventoryGrid {
+    padding-bottom: calc(var(--inventory-selection-bar-height) + 18px);
 }
 
 #tabContentInventory .inventory-item-cell.is-sell-mode {
@@ -29696,7 +29734,8 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory .inventory-sell-check {
     position: absolute;
     top: 4px;
-    left: 4px;
+    right: 4px;
+    left: auto;
     z-index: 12;
     width: 28px;
     height: 28px;
@@ -32986,10 +33025,6 @@ body[data-sea-tone] .home-hero-card {
     grid-template-columns: 48px;
 }
 
-#tabContentInventory .tarot-loadout-grid.is-guardian[hidden] {
-    display: none;
-}
-
 #tabContentInventory .tarot-loadout-effect-list {
     display: grid;
     margin-top: 7px;
@@ -33149,10 +33184,6 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory .tarot-loadout-effect-list.is-guardian {
     min-width: 0;
     margin: 0;
-}
-
-#tabContentInventory .tarot-loadout-grid.is-guardian[hidden] + .tarot-loadout-effect-list.is-guardian {
-    grid-column: 1 / -1;
 }
 
 #tabContentInventory .tarot-guardian-effect-summary {

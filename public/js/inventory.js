@@ -19,7 +19,7 @@ import {
     createBlackMarketListing as requestCreateBlackMarketListing,
     cancelBlackMarketListing as requestCancelBlackMarketListing,
     buyBlackMarketListing as requestBuyBlackMarketListing
-} from './playfabClient.js?v=20260808-enhancement-stack-ref1';
+} from './playfabClient.js?v=20260820-guardian-lock-v1';
 import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites, resolveSpritePathByAvatarColor } from './avatar.js';
 import * as Player from './player.js';
 import {
@@ -77,6 +77,7 @@ let equipmentFetchPromise = null;
 let inventoryStickyResizeObserver = null;
 let inventorySellSelectionMode = false;
 let selectedInventorySellItemIds = new Set();
+let inventorySearchQuery = '';
 let blackMarketVisible = false;
 let blackMarketListings = [];
 let blackMarketMyActiveCount = 0;
@@ -95,6 +96,7 @@ let cardLevelMap = {};
 let tarotBattleSkillsLoaded = false;
 let selectedTarotLoadoutItemId = '';
 let tarotDeckMovePending = false;
+let tarotLoadoutMutationPending = false;
 let suppressTarotLoadoutClickUntil = 0;
 let arcanaResonanceCatalogReturnFocusElement = null;
 let visibleInventoryDetailItems = [];
@@ -328,6 +330,7 @@ function bindInventoryStickyMetrics() {
     if (typeof document === 'undefined') return;
     const switcher = document.getElementById('inventoryMobileSwitch');
     if (!switcher) return;
+    bindInventoryTabKeyboardNavigation(switcher);
     syncInventoryStickyMetrics();
     if (typeof ResizeObserver !== 'undefined') {
         if (inventoryStickyResizeObserver) {
@@ -514,11 +517,36 @@ function renderInventoryTabControls() {
     }
     container.dataset.group = activeInventoryGroup;
     container.hidden = false;
+    container.setAttribute('role', 'tablist');
+    container.setAttribute('aria-label', `${INVENTORY_GROUPS[activeInventoryGroup]?.label || '持ち物'}の分類`);
     container.innerHTML = tabs.map((tab) => `
-        <button class="inventory-tab-btn${tab.category === activeInventoryCategory ? ' active' : ''}" data-category="${tab.category}" type="button">${tab.label}</button>
+        <button class="inventory-tab-btn${tab.category === activeInventoryCategory ? ' active' : ''}" data-category="${tab.category}" type="button" role="tab" aria-selected="${tab.category === activeInventoryCategory ? 'true' : 'false'}">${tab.label}</button>
     `).join('');
     container.querySelectorAll('.inventory-tab-btn').forEach((button) => {
         button.addEventListener('click', () => switchInventoryTab(button.dataset.category));
+    });
+    bindInventoryTabKeyboardNavigation(container);
+}
+
+function bindInventoryTabKeyboardNavigation(container) {
+    if (!container || container.dataset.inventoryTabKeyboardBound === 'true') return;
+    container.dataset.inventoryTabKeyboardBound = 'true';
+    container.addEventListener('keydown', (event) => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        const current = event.target.closest('[role="tab"]');
+        if (!current || !container.contains(current)) return;
+        const tabs = [...container.querySelectorAll('[role="tab"]')]
+            .filter((tab) => !tab.hidden && !tab.disabled);
+        const currentIndex = tabs.indexOf(current);
+        if (currentIndex < 0 || !tabs.length) return;
+        let nextIndex = currentIndex;
+        if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+        if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+        if (event.key === 'Home') nextIndex = 0;
+        if (event.key === 'End') nextIndex = tabs.length - 1;
+        event.preventDefault();
+        tabs[nextIndex].focus();
+        tabs[nextIndex].click();
     });
 }
 
@@ -647,6 +675,9 @@ export function switchInventoryPanel(panel, options = {}) {
                 || (activeInventoryPanel === 'tarot' && groupSwitch === 'Tarot')
             : button.dataset.panel === activeInventoryPanel;
         button.classList.toggle('active', isActive);
+        if (button.getAttribute('role') === 'tab') {
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        }
     });
     document.querySelectorAll('#tabContentInventory .inventory-section').forEach((section) => {
         const sectionPanel = section.dataset.panel;
@@ -852,6 +883,50 @@ function getDisplayInventoryEntries() {
     return [...myInventory];
 }
 
+function normalizeInventorySearchQuery(value) {
+    return String(value || '').trim().toLocaleLowerCase();
+}
+
+function getInventorySearchText(item) {
+    const data = item?.customData || {};
+    return [
+        item?.name,
+        item?.description,
+        item?.itemId,
+        data?.DisplayName,
+        data?.Description,
+        getInventoryCategoryLabel(data?.Category)
+    ].filter(Boolean).join(' ').toLocaleLowerCase();
+}
+
+function matchesInventorySearch(item) {
+    return !inventorySearchQuery || getInventorySearchText(item).includes(inventorySearchQuery);
+}
+
+function syncInventorySearchControls() {
+    const input = document.getElementById('inventorySearch');
+    const clear = document.getElementById('inventorySearchClear');
+    if (input && input.value !== inventorySearchQuery) input.value = inventorySearchQuery;
+    if (clear) clear.hidden = !inventorySearchQuery;
+}
+
+export function setInventorySearchQuery(value) {
+    const nextQuery = normalizeInventorySearchQuery(value);
+    if (inventorySearchQuery === nextQuery) {
+        syncInventorySearchControls();
+        return;
+    }
+    inventorySearchQuery = nextQuery;
+    syncInventorySearchControls();
+    renderInventoryGrid(activeInventoryCategory);
+}
+
+if (typeof window !== 'undefined') {
+    window.addEventListener('inventory:search-query', (event) => {
+        setInventorySearchQuery(event.detail?.value || '');
+    });
+}
+
 function isCardInMeleeDeck(itemId) {
     return myMeleeDeck.includes(String(itemId || '').trim());
 }
@@ -907,6 +982,39 @@ function applyTarotDeckData(deckData) {
         : null;
     myShipMajorArcana = myTarotGuardian?.itemId ? [String(myTarotGuardian.itemId)] : [];
     myShipMajorArcanaLimit = 1;
+}
+
+function setTarotLoadoutMutationPending(isPending) {
+    const tabContent = document.getElementById('tabContentInventory');
+    if (tabContent) {
+        tabContent.classList.toggle('is-tarot-loadout-pending', isPending);
+        tabContent.setAttribute('aria-busy', isPending ? 'true' : 'false');
+    }
+    ['meleeDeckGrid', 'guardianArcanaGrid'].forEach((id) => {
+        document.getElementById(id)?.classList.toggle('is-busy', isPending);
+    });
+}
+
+async function runTarotLoadoutMutation(operation, fallbackMessage) {
+    if (tarotLoadoutMutationPending) {
+        showInventoryFeedback('タロットデッキを更新中です。', true);
+        return null;
+    }
+    tarotLoadoutMutationPending = true;
+    setTarotLoadoutMutationPending(true);
+    try {
+        return await operation();
+    } catch (error) {
+        const rawMessage = String(error?.message || '');
+        const message = rawMessage.includes('GuardianChanged')
+            ? '守護アルカナの状態が更新されました。もう一度確認してください。'
+            : (rawMessage || fallbackMessage);
+        showInventoryFeedback(message || 'タロットデッキを更新できませんでした。', true);
+        return null;
+    } finally {
+        tarotLoadoutMutationPending = false;
+        setTarotLoadoutMutationPending(false);
+    }
 }
 
 function renderDeckRolePanel(roleEl, deckRole) {
@@ -1059,14 +1167,17 @@ async function moveTarotCardToSlot(itemId, targetIndex) {
     document.getElementById('meleeDeckGrid')?.classList.add('is-busy');
     const direction = boundedTarget < sourceIndex ? 'left' : 'right';
     const steps = Math.abs(boundedTarget - sourceIndex);
-    let moved = false;
     try {
-        for (let index = 0; index < steps; index += 1) {
-            const data = await requestMoveTarotDeckCard(playFabId, itemId, 'tarot', direction);
-            if (!data?.ok) break;
-            applyTarotDeckData(data);
-            moved = true;
-        }
+        const moved = await runTarotLoadoutMutation(async () => {
+            let didMove = false;
+            for (let index = 0; index < steps; index += 1) {
+                const data = await requestMoveTarotDeckCard(playFabId, itemId, 'tarot', direction);
+                if (!data?.ok) break;
+                applyTarotDeckData(data);
+                didMove = true;
+            }
+            return didMove;
+        }, 'タロットデッキの順番を変更できませんでした。');
         if (moved) {
             selectedTarotLoadoutItemId = itemId;
             renderTarotDeckPanels();
@@ -1074,10 +1185,6 @@ async function moveTarotCardToSlot(itemId, targetIndex) {
             updateEquipmentBonusDisplay();
             showInventoryFeedback('デッキの順番を変更した。');
         }
-    } catch (error) {
-        const message = error?.message || 'デッキの順番を変更できませんでした。';
-        showInventoryFeedback(message, true);
-        if (typeof window.showRpgMessage === 'function') window.showRpgMessage(message);
     } finally {
         tarotDeckMovePending = false;
         document.getElementById('meleeDeckGrid')?.classList.remove('is-busy');
@@ -1192,10 +1299,7 @@ function renderDeckGrid(gridEl, deckItemIds) {
         } else {
             cell.dataset.targetCategory = 'TarotMinor';
             cell.setAttribute('aria-label', `タロットデッキ ${i + 1}枚目に追加するカードを選ぶ`);
-            cell.addEventListener('click', () => {
-                switchInventoryTab('TarotMinor');
-                scrollInventoryItemsIntoView({ behavior: 'smooth' });
-            });
+            cell.addEventListener('click', () => openTarotDeckCandidateList('TarotMinor'));
             const emptyEl = document.createElement('div');
             emptyEl.className = 'tarot-loadout-cell-empty';
             emptyEl.setAttribute('aria-hidden', 'true');
@@ -1216,7 +1320,7 @@ function renderShipMajorArcanaGrid(gridEl) {
     if (!gridEl) return;
     const maxSlots = 1;
     const filledCount = myTarotGuardian?.itemId ? 1 : 0;
-    gridEl.hidden = filledCount > 0;
+    gridEl.hidden = false;
     gridEl.dataset.deckCount = String(filledCount);
     gridEl.dataset.deckComplete = filledCount >= maxSlots ? 'true' : 'false';
     gridEl.setAttribute('aria-label', `守護アルカナ ${filledCount}/${maxSlots}`);
@@ -1239,10 +1343,7 @@ function renderShipMajorArcanaGrid(gridEl) {
         } else {
             cell.dataset.targetCategory = 'TarotMajor';
             cell.setAttribute('aria-label', '守護アルカナに設定するカードを選ぶ');
-            cell.addEventListener('click', () => {
-                switchInventoryTab('TarotMajor');
-                scrollInventoryItemsIntoView({ behavior: 'smooth' });
-            });
+            cell.addEventListener('click', () => openTarotDeckCandidateList('TarotMajor'));
             const emptyEl = document.createElement('div');
             emptyEl.className = 'tarot-loadout-cell-empty';
             emptyEl.setAttribute('aria-hidden', 'true');
@@ -1252,6 +1353,19 @@ function renderShipMajorArcanaGrid(gridEl) {
     }
     gridEl.innerHTML = '';
     cells.forEach((cell) => gridEl.appendChild(cell));
+}
+
+function openTarotDeckCandidateList(category) {
+    const isMajor = category === 'TarotMajor';
+    switchInventoryTab(category);
+    requestAnimationFrame(() => {
+        scrollInventoryItemsIntoView({ behavior: 'smooth' });
+        const firstCard = document.querySelector('#inventoryGrid .inventory-item-detail-trigger');
+        firstCard?.focus({ preventScroll: true });
+        showInventoryFeedback(isMajor
+            ? '守護に設定する大アルカナを選んでください。'
+            : 'デッキに追加する小アルカナを選んでください。');
+    });
 }
 
 function findInventoryTarotCard(definition, type) {
@@ -1678,18 +1792,15 @@ function getInventoryCategoryLabel(category) {
 }
 
 function getInventoryListTitle(category) {
-    const group = getInventoryGroupForCategory(category);
-    if (group === 'Equipment') return '装備候補';
-    if (group === 'Tarot') return 'タロット候補';
-    if (group === 'Consumable') return '消耗品';
-    return '持ち物一覧';
+    if (category === 'All') return '持ち物';
+    return getInventoryCategoryLabel(category);
 }
 
 function countInventoryEntriesForDisplay(items) {
     return items.reduce((sum, item) => sum + Math.max(1, Number(item?.count || 1) || 1), 0);
 }
 
-function renderInventoryListSummary(category, filteredItems, allItems) {
+function renderInventoryListSummary(category, filteredItems) {
     if (typeof document === 'undefined') return;
     const titleEl = document.getElementById('inventoryItemsTitle');
     if (titleEl) {
@@ -1699,7 +1810,12 @@ function renderInventoryListSummary(category, filteredItems, allItems) {
     const summaryEl = document.getElementById('inventoryListSummary');
     if (!summaryEl) return;
     summaryEl.replaceChildren();
-    summaryEl.hidden = true;
+    if (!inventorySearchQuery) {
+        summaryEl.hidden = true;
+        return;
+    }
+    summaryEl.hidden = false;
+    summaryEl.textContent = `${countInventoryEntriesForDisplay(filteredItems)}件`;
 }
 
 function getSelectedInventorySellEntries() {
@@ -1738,12 +1854,66 @@ function toggleInventorySellSelection(item) {
     return true;
 }
 
+function setInventorySellSelectionMode(isActive) {
+    inventorySellSelectionMode = isActive === true;
+    if (!inventorySellSelectionMode) selectedInventorySellItemIds.clear();
+    renderInventoryGrid(activeInventoryCategory);
+}
+
 function renderInventorySellControls(visibleItems = []) {
     if (typeof document === 'undefined') return;
     const controls = document.getElementById('inventorySellControls');
-    if (!controls) return;
+    const selectionBar = document.getElementById('inventorySelectionBar');
+    if (!controls || !selectionBar) return;
     controls.innerHTML = '';
+    selectionBar.replaceChildren();
+    selectionBar.hidden = true;
     pruneInventorySellSelection();
+    document.getElementById('tabContentInventory')?.classList.toggle('is-sell-selection-active', inventorySellSelectionMode);
+
+    if (inventorySellSelectionMode) {
+        controls.hidden = true;
+        const selectedEntries = getSelectedInventorySellEntries();
+        const selectedCount = selectedEntries.reduce((sum, entry) => sum + entry.amount, 0);
+
+        const endSelectionButton = document.createElement('button');
+        endSelectionButton.type = 'button';
+        endSelectionButton.className = 'inventory-sell-control-btn is-cancel';
+        endSelectionButton.textContent = '終了';
+        endSelectionButton.addEventListener('click', () => setInventorySellSelectionMode(false));
+        selectionBar.appendChild(endSelectionButton);
+
+        const summary = document.createElement('span');
+        summary.className = 'inventory-selection-summary';
+        summary.textContent = `${selectedCount}個 ${selectedCount}G`;
+        selectionBar.appendChild(summary);
+
+        const selectVisibleButton = document.createElement('button');
+        selectVisibleButton.type = 'button';
+        selectVisibleButton.className = 'inventory-sell-control-btn';
+        selectVisibleButton.textContent = '全選択';
+        selectVisibleButton.addEventListener('click', () => {
+            visibleItems.filter(isInventoryItemEligibleForBulkSellSelect).forEach((item) => {
+                selectedInventorySellItemIds.add(getInventoryEntryKey(item));
+            });
+            renderInventoryGrid(activeInventoryCategory);
+        });
+        selectionBar.appendChild(selectVisibleButton);
+
+        const sellButton = document.createElement('button');
+        sellButton.type = 'button';
+        sellButton.className = 'inventory-sell-control-btn is-sell';
+        sellButton.textContent = `売却 ${selectedCount}G`;
+        sellButton.disabled = selectedCount <= 0;
+        sellButton.addEventListener('click', () => {
+            sellSelectedInventoryItems();
+        });
+        selectionBar.appendChild(sellButton);
+        selectionBar.hidden = false;
+        return;
+    }
+
+    controls.hidden = false;
 
     const marketButton = createBlackMarketButton('闇市', '', async () => {
         blackMarketReturnFocusElement = marketButton;
@@ -1756,58 +1926,12 @@ function renderInventorySellControls(visibleItems = []) {
 
     const toggleButton = document.createElement('button');
     toggleButton.type = 'button';
-    toggleButton.className = `inventory-sell-control-btn${inventorySellSelectionMode ? ' is-active' : ''}`;
-    toggleButton.textContent = inventorySellSelectionMode ? '選択終了' : '選択売却';
+    toggleButton.className = 'inventory-sell-control-btn';
+    toggleButton.textContent = '選択売却';
     toggleButton.addEventListener('click', () => {
-        inventorySellSelectionMode = !inventorySellSelectionMode;
-        if (!inventorySellSelectionMode) selectedInventorySellItemIds.clear();
-        renderInventoryGrid(activeInventoryCategory);
+        setInventorySellSelectionMode(true);
     });
     controls.appendChild(toggleButton);
-
-    if (!inventorySellSelectionMode) return;
-
-    const selectedEntries = getSelectedInventorySellEntries();
-    const selectedKinds = selectedEntries.length;
-    const selectedCount = selectedEntries.reduce((sum, entry) => sum + entry.amount, 0);
-
-    const summary = document.createElement('span');
-    summary.className = 'inventory-sell-summary';
-    summary.textContent = `${selectedKinds}種 ${selectedCount}個 ${selectedCount}G`;
-    controls.appendChild(summary);
-
-    const selectVisibleButton = document.createElement('button');
-    selectVisibleButton.type = 'button';
-    selectVisibleButton.className = 'inventory-sell-control-btn';
-    selectVisibleButton.textContent = '全選択';
-    selectVisibleButton.addEventListener('click', () => {
-        visibleItems.filter(isInventoryItemEligibleForBulkSellSelect).forEach((item) => {
-            selectedInventorySellItemIds.add(getInventoryEntryKey(item));
-        });
-        renderInventoryGrid(activeInventoryCategory);
-    });
-    controls.appendChild(selectVisibleButton);
-
-    const clearButton = document.createElement('button');
-    clearButton.type = 'button';
-    clearButton.className = 'inventory-sell-control-btn';
-    clearButton.textContent = '解除';
-    clearButton.disabled = selectedCount <= 0;
-    clearButton.addEventListener('click', () => {
-        selectedInventorySellItemIds.clear();
-        renderInventoryGrid(activeInventoryCategory);
-    });
-    controls.appendChild(clearButton);
-
-    const sellButton = document.createElement('button');
-    sellButton.type = 'button';
-    sellButton.className = 'inventory-sell-control-btn is-sell';
-    sellButton.textContent = `売却 ${selectedCount}G`;
-    sellButton.disabled = selectedCount <= 0;
-    sellButton.addEventListener('click', () => {
-        sellSelectedInventoryItems();
-    });
-    controls.appendChild(sellButton);
 }
 
 function getBlackMarketPanelElement() {
@@ -2648,8 +2772,6 @@ function createInventoryCell(item, requestedCategory) {
     cell.dataset.layout = layout;
     cell.dataset.category = canonicalCategory || 'Unknown';
     cell.title = item?.name || '不明なアイテム';
-    cell.setAttribute('role', 'button');
-    cell.tabIndex = 0;
     const quickActions = (!isTarotCard && !isEquipmentCard)
         ? getInventoryQuickActions(item, canonicalCategory)
         : [];
@@ -2698,17 +2820,10 @@ function createInventoryCell(item, requestedCategory) {
     if (isEquipmentEquipped) {
         cell.classList.add('is-equipment-equipped');
     }
-    cell.addEventListener('click', () => {
-        if (inventorySellSelectionMode && toggleInventorySellSelection(item)) return;
+    cell.addEventListener('click', (event) => {
+        if (event.target.closest('.inventory-sell-check, .inventory-item-quick-action')) return;
         showItemDetailModal(item);
     });
-    cell.addEventListener('keydown', (event) => {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        event.preventDefault();
-        if (inventorySellSelectionMode && toggleInventorySellSelection(item)) return;
-        showItemDetailModal(item);
-    });
-
     if (inventorySellSelectionMode) {
         const sellCheck = document.createElement('button');
         sellCheck.type = 'button';
@@ -2844,6 +2959,12 @@ function createInventoryCell(item, requestedCategory) {
         }
         cell.appendChild(tail);
     }
+
+    const detailTrigger = document.createElement('button');
+    detailTrigger.type = 'button';
+    detailTrigger.className = 'inventory-item-detail-trigger';
+    detailTrigger.setAttribute('aria-label', `${item?.name || 'アイテム'}の詳細を表示`);
+    cell.appendChild(detailTrigger);
 
     return cell;
 }
@@ -3106,7 +3227,10 @@ export async function equipItem(playFabId, itemId, slot, stackId = '') {
 
 export async function equipTarotCardToDeck(playFabId, itemId, deckType) {
     const deckLabel = 'タロットデッキ';
-    const data = await requestEquipTarotCard(playFabId, itemId, 'tarot');
+    const data = await runTarotLoadoutMutation(
+        () => requestEquipTarotCard(playFabId, itemId, 'tarot'),
+        'タロットデッキに追加できませんでした。'
+    );
     if (data?.ok) {
         applyTarotDeckData(data);
         renderTarotDeckPanels();
@@ -3121,7 +3245,10 @@ export async function equipTarotCardToDeck(playFabId, itemId, deckType) {
 
 export async function unequipTarotCardFromDeck(playFabId, itemId, deckType) {
     const deckLabel = 'タロットデッキ';
-    const data = await requestUnequipTarotCard(playFabId, itemId, 'tarot');
+    const data = await runTarotLoadoutMutation(
+        () => requestUnequipTarotCard(playFabId, itemId, 'tarot'),
+        'タロットデッキから外せませんでした。'
+    );
     if (data?.ok) {
         applyTarotDeckData(data);
         renderTarotDeckPanels();
@@ -3136,7 +3263,10 @@ export async function unequipTarotCardFromDeck(playFabId, itemId, deckType) {
 
 export async function moveTarotCardInDeck(playFabId, itemId, deckType, direction) {
     const deckLabel = 'タロットデッキ';
-    const data = await requestMoveTarotDeckCard(playFabId, itemId, 'tarot', direction);
+    const data = await runTarotLoadoutMutation(
+        () => requestMoveTarotDeckCard(playFabId, itemId, 'tarot', direction),
+        'タロットデッキの順番を変更できませんでした。'
+    );
     if (data?.ok) {
         applyTarotDeckData(data);
         renderTarotDeckPanels();
@@ -3157,7 +3287,23 @@ async function refreshShipMajorArcanaState(playFabId) {
 }
 
 export async function equipShipMajorArcana(playFabId, itemId, slotIndex = null) {
-    const data = await requestEquipTarotGuardian(playFabId, itemId);
+    const expectedGuardianItemId = String(myTarotGuardian?.itemId || '').trim();
+    if (expectedGuardianItemId && expectedGuardianItemId !== String(itemId || '').trim()) {
+        const result = await showInventoryActionDialog({
+            title: '守護アルカナを入れ替え',
+            message: '現在の守護アルカナをこのカードに入れ替えますか？',
+            confirmLabel: '入れ替える'
+        });
+        if (!result.confirmed) return;
+    }
+    const data = await runTarotLoadoutMutation(
+        () => requestEquipTarotGuardian(playFabId, itemId, expectedGuardianItemId),
+        '守護アルカナを装備できませんでした。'
+    );
+    if (!data) {
+        await refreshShipMajorArcanaState(playFabId);
+        return;
+    }
     if (data?.ok) {
         applyTarotDeckData(data);
         renderTarotDeckPanels();
@@ -3171,7 +3317,26 @@ export async function equipShipMajorArcana(playFabId, itemId, slotIndex = null) 
 }
 
 export async function unequipShipMajorArcana(playFabId, itemId, slotIndex = null) {
-    const data = await requestUnequipTarotGuardian(playFabId);
+    const expectedGuardianItemId = String(itemId || myTarotGuardian?.itemId || '').trim();
+    if (!expectedGuardianItemId || !isShipMajorArcanaEquipped(expectedGuardianItemId)) {
+        showInventoryFeedback('守護アルカナの状態が更新されました。もう一度確認してください。', true);
+        await refreshShipMajorArcanaState(playFabId);
+        return;
+    }
+    const result = await showInventoryActionDialog({
+        title: '守護アルカナを外す',
+        message: '守護アルカナを外しますか？',
+        confirmLabel: '外す'
+    });
+    if (!result.confirmed) return;
+    const data = await runTarotLoadoutMutation(
+        () => requestUnequipTarotGuardian(playFabId, expectedGuardianItemId),
+        '守護アルカナを外せませんでした。'
+    );
+    if (!data) {
+        await refreshShipMajorArcanaState(playFabId);
+        return;
+    }
     if (data?.ok) {
         applyTarotDeckData(data);
         renderTarotDeckPanels();
@@ -3382,12 +3547,14 @@ export function renderInventoryGrid(category) {
     gridEl.dataset.layout = layout;
     gridEl.dataset.category = category || 'All';
     updateInventorySortOptions(category);
+    syncInventorySearchControls();
 
     const displayInventory = getDisplayInventoryEntries();
-    const filtered = (category === 'All')
+    const categoryItems = (category === 'All')
         ? displayInventory
         : displayInventory.filter(item => matchesInventoryDisplayCategory(item.customData?.Category, category));
-    renderInventoryListSummary(category, filtered, displayInventory);
+    const filtered = categoryItems.filter(matchesInventorySearch);
+    renderInventoryListSummary(category, filtered);
 
     const sortOrder = document.getElementById('inventorySort').value;
     const sorted = [...filtered].sort((a, b) => {

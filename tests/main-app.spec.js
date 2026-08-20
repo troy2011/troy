@@ -256,6 +256,28 @@ test('long bottom navigation labels shrink instead of being clipped', async ({ p
   expect(fit.scrollWidth).toBeLessThanOrEqual(fit.clientWidth + 1);
   expect(fit.fontSize).toBeGreaterThanOrEqual(5.5);
   expect(fit.title).toBe('長いナビゲーション');
+
+  await page.locator('#navKing').evaluate((element) => {
+    element.style.display = 'flex';
+  });
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+  const sixTabLayout = await page.evaluate(() => {
+    const nav = document.getElementById('bottomNav');
+    const navRect = nav.getBoundingClientRect();
+    const buttons = [...nav.querySelectorAll('.nav-button')]
+      .filter((button) => getComputedStyle(button).display !== 'none')
+      .map((button) => button.getBoundingClientRect());
+    return {
+      viewportWidth: window.innerWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      buttonCount: buttons.length,
+      buttonsFit: buttons.every((rect) => rect.left >= navRect.left - 1 && rect.right <= navRect.right + 1)
+    };
+  });
+  expect(sixTabLayout.buttonCount).toBe(6);
+  expect(sixTabLayout.buttonsFit).toBe(true);
+  expect(sixTabLayout.scrollWidth).toBeLessThanOrEqual(sixTabLayout.viewportWidth);
   await expectNoPageErrors(errors);
 });
 
@@ -7226,6 +7248,95 @@ test('tarot cards preview, reorder, and open detail before changing deck members
   await expectNoPageErrors(errors);
 });
 
+test('equipped guardian stays visible and requires confirmation before it is removed', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const unequipRequests = [];
+  const tarotItems = [
+    {
+      itemId: 'arcana-1',
+      name: 'The Magician',
+      customData: { Category: 'TarotMajor', ArcanaNumber: '1', CardNumber: '1' }
+    },
+    {
+      itemId: 'arcana-2',
+      name: 'The High Priestess',
+      customData: { Category: 'TarotMajor', ArcanaNumber: '2', CardNumber: '2' }
+    }
+  ];
+
+  await page.route('**/api/get-inventory', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ inventory: tarotItems, virtualCurrency: { PS: 0 }, contribution: 0 })
+    });
+  });
+  await page.route('**/api/tarot-deck-get', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ok: true,
+        tarotDeck: [],
+        guardian: { itemId: 'arcana-1', number: 1, cardLevel: 1 },
+        tarotRole: null
+      })
+    });
+  });
+  await page.route('**/api/get-equipment', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ equipment: {} })
+    });
+  });
+  await page.route('**/api/cards', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ cards: [] })
+    });
+  });
+  await page.route('**/api/tarot-guardian-unequip', async (route) => {
+    unequipRequests.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ok: true, tarotDeck: [], guardian: null, tarotRole: null })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    const inventoryTab = document.getElementById('tabContentInventory');
+    if (inventoryTab) inventoryTab.style.display = 'block';
+    const inventory = await import('/js/inventory.js');
+    await inventory.getInventory('PF_PLAYWRIGHT', { force: true });
+    inventory.switchInventoryGroup('Tarot');
+    inventory.switchInventoryTab('TarotMajor');
+  });
+
+  await expect(page.locator('#guardianArcanaGrid')).not.toHaveAttribute('hidden', '');
+  await expect(page.locator('#guardianArcanaGrid .tarot-loadout-card:not(.is-empty)')).toHaveCount(1);
+  await page.locator('#inventoryGrid .inventory-item-cell[data-category="TarotMajor"] .inventory-item-detail-trigger').first().click();
+  await expect(page.locator('#itemDetailModal')).toBeVisible();
+  await page.getByRole('button', { name: '守護から外す', exact: true }).click();
+  await expect(page.locator('#inventoryActionDialog')).toBeVisible();
+  expect(unequipRequests).toHaveLength(0);
+  await page.locator('#inventoryActionDialog .inventory-action-dialog-cancel').click();
+  await expect(page.locator('#inventoryActionDialog')).toBeHidden();
+  expect(unequipRequests).toHaveLength(0);
+
+  await page.getByRole('button', { name: '守護から外す', exact: true }).click();
+  await page.locator('#inventoryActionDialog .inventory-action-dialog-confirm').click();
+  await expect.poll(() => unequipRequests.length).toBe(1);
+  expect(unequipRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    expectedGuardianItemId: 'arcana-1'
+  });
+  await expectNoPageErrors(errors);
+});
+
 test('equipment cards open detail before equipping from inventory grid', async ({ page }) => {
   const errors = trackPageErrors(page);
   const equipmentItems = [
@@ -7670,6 +7781,7 @@ test('two owned shields can be equipped in both hands from the detail modal', as
 
 test('inventory selection sell sends multiple sellable item copies at one gold each', async ({ page }) => {
   const errors = trackPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
   const sellRequests = [];
   const inventoryItems = [
     {
@@ -7750,13 +7862,50 @@ test('inventory selection sell sends multiple sellable item copies at one gold e
     inventory.switchInventoryGroup('All', { panel: 'items' });
   });
 
-  await page.locator('#inventorySellControls .inventory-sell-control-btn', { hasText: '選択売却' }).click();
-  await page.locator('#inventorySellControls .inventory-sell-control-btn', { hasText: '全選択' }).click();
+  await expect(page.locator('#inventoryMobileSwitch')).toHaveAttribute('role', 'tablist');
+  await expect(page.locator('#inventoryMobileSwitch [data-inventory-group-switch="All"]')).toHaveAttribute('aria-selected', 'true');
+  await page.locator('#inventorySearch').fill('Potion');
+  await expect(page.locator('#inventoryGrid .inventory-item-cell')).toHaveCount(1);
+  await expect(page.locator('#inventoryListSummary')).toHaveText('1件');
+  await expect(page.locator('#inventorySearchClear')).toBeVisible();
+  await page.locator('#inventorySearchClear').click();
+  await expect(page.locator('#inventorySearch')).toHaveValue('');
+  await expect(page.locator('#inventoryGrid .inventory-item-cell')).toHaveCount(3);
 
-  await expect(page.locator('#inventorySellControls .inventory-sell-summary')).toHaveText('2種 3個 3G');
+  await page.locator('#inventorySellControls .inventory-sell-control-btn', { hasText: '選択売却' }).click();
+  await expect(page.locator('#inventorySellControls')).toBeHidden();
+  await expect(page.locator('#inventorySelectionBar')).toBeVisible();
+  const sellModeCard = page.locator('#inventoryGrid .inventory-item-cell[data-category="Consumable"]').first();
+  await sellModeCard.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    window.scrollTo({ top: window.scrollY + rect.top - 240, behavior: 'auto' });
+  });
+  const sellModeTapPoint = await sellModeCard.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const navTop = document.getElementById('bottomNav')?.getBoundingClientRect().top || window.innerHeight;
+    return {
+      x: rect.left + 10,
+      y: rect.bottom - 10,
+      isAboveBottomNav: rect.bottom <= navTop - 8
+    };
+  });
+  expect(sellModeTapPoint.isAboveBottomNav).toBe(true);
+  await page.mouse.click(sellModeTapPoint.x, sellModeTapPoint.y);
+  await expect(page.locator('#itemDetailModal')).toBeVisible();
+  await page.evaluate(() => window.closeItemDetailModal && window.closeItemDetailModal());
+  await expect(page.locator('#itemDetailModal')).toBeHidden();
+  await page.locator('#inventorySelectionBar .inventory-sell-control-btn', { hasText: '全選択' }).click();
+
+  await expect(page.locator('#inventorySelectionBar .inventory-selection-summary')).toHaveText('3個 3G');
   await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]')).toHaveClass(/is-sellable/);
   await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]')).not.toHaveClass(/is-sell-selected/);
-  await page.locator('#inventorySellControls .inventory-sell-control-btn.is-sell').click();
+  const selectionBarLayout = await page.locator('#inventorySelectionBar').evaluate((bar) => {
+    const barRect = bar.getBoundingClientRect();
+    const navRect = document.getElementById('bottomNav').getBoundingClientRect();
+    return barRect.bottom <= navRect.top - 8;
+  });
+  expect(selectionBarLayout).toBe(true);
+  await page.locator('#inventorySelectionBar .inventory-sell-control-btn.is-sell').click();
   await expect(page.locator('#inventoryActionDialog')).toBeVisible();
   await expect(page.locator('#inventoryActionDialog')).toContainText('3個を3Gで売却しますか？');
   await page.locator('#inventoryActionDialog .inventory-action-dialog-confirm').click();

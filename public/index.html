@@ -23,7 +23,7 @@
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
     <title>TROYゴールドアプリ</title>
-<link rel="stylesheet" href="style.css?v=20260816-return-flow-v1">
+<link rel="stylesheet" href="style.css?v=20260820-inventory-product-v1">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
     <link rel="stylesheet" href="tarot-kingdom-summons.css?v=20260813-tutorial-flow-v1">
@@ -970,11 +970,11 @@
 
             <!-- 5. インベントリタブ -->
             <div id="tabContentInventory" class="tab-content" data-inventory-panel="items" data-inventory-group="Equipment" style="display: none;">
-                <div id="inventoryMobileSwitch" class="inventory-mobile-switch">
-                    <button class="inventory-panel-btn active" data-panel="items" data-inventory-group-switch="Equipment" type="button">装備</button>
-                    <button class="inventory-panel-btn" data-panel="items" data-inventory-group-switch="Tarot" type="button">タロット</button>
-                    <button class="inventory-panel-btn" data-panel="items" data-inventory-group-switch="Consumable" type="button">消耗品</button>
-                    <button class="inventory-panel-btn" data-panel="items" data-inventory-group-switch="All" type="button">全部</button>
+                <div id="inventoryMobileSwitch" class="inventory-mobile-switch" role="tablist" aria-label="持ち物の分類">
+                    <button class="inventory-panel-btn active" data-panel="items" data-inventory-group-switch="Equipment" type="button" role="tab" aria-selected="true">装備</button>
+                    <button class="inventory-panel-btn" data-panel="items" data-inventory-group-switch="Tarot" type="button" role="tab" aria-selected="false">タロット</button>
+                    <button class="inventory-panel-btn" data-panel="items" data-inventory-group-switch="Consumable" type="button" role="tab" aria-selected="false">消耗品</button>
+                    <button class="inventory-panel-btn" data-panel="items" data-inventory-group-switch="All" type="button" role="tab" aria-selected="false">全部</button>
                 </div>
                 <!-- 装備スロット -->
                 <div class="content-area avatar-card inventory-section" data-panel="loadout">
@@ -1088,17 +1088,15 @@
                 <div class="content-area inventory-section inventory-tarot-section" data-panel="tarot" hidden>
                     <div class="section-header">
                         <div class="tarot-inventory-heading">
-                            <h2>タロット装備</h2>
-                            <p>札を選んで確認。装備札は左右へドラッグできます。</p>
+                            <h2>デッキ</h2>
                         </div>
-                        <button id="openArcanaResonanceCatalog" class="tarot-loadout-catalog-button" type="button">全効果を見る</button>
+                        <button id="openArcanaResonanceCatalog" class="tarot-loadout-catalog-button" type="button">効果一覧</button>
                     </div>
                     <div class="tarot-deck-panels">
                         <div class="tarot-deck-panel" id="meleeDeckPanel">
                             <div class="tarot-loadout-header">
                                 <div>
                                     <h3>共鳴デッキ</h3>
-                                    <p>装備札と同じカードで共鳴</p>
                                 </div>
                             </div>
                             <div id="meleeDeckRole" class="tarot-loadout-role">
@@ -1114,7 +1112,6 @@
                             <div class="tarot-loadout-header">
                                 <div>
                                     <h3>守護アルカナ</h3>
-                                    <p>局内で働く守護パッシブ</p>
                                 </div>
                             </div>
                             <div class="tarot-guardian-loadout">
@@ -1136,8 +1133,13 @@
                     </div>
                     <p id="pointMessage"></p>
 
+                    <div class="inventory-browse-tools">
+                        <input id="inventorySearch" class="inventory-search-input" type="search" autocomplete="off" placeholder="持ち物を検索" aria-label="持ち物を検索">
+                        <button id="inventorySearchClear" class="inventory-search-clear" type="button" aria-label="検索を消去" title="検索を消去" hidden>x</button>
+                    </div>
                     <div id="inventoryListSummary" class="inventory-list-summary" aria-live="polite"></div>
                     <div id="inventorySellControls" class="inventory-sell-controls" aria-live="polite"></div>
+                    <div id="inventorySelectionBar" class="inventory-selection-bar" hidden aria-live="polite"></div>
                     <section id="blackMarketPanel" class="black-market-panel" hidden aria-live="polite"></section>
                     <div id="inventoryTabs"></div>
                     <div id="inventoryTabHint" class="inventory-tab-hint" hidden></div>
@@ -1858,7 +1860,7 @@
 "ui": "./js/ui.js?v=20260816-return-flow-v1",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js",
-        "inventory": "./js/inventory.js?v=20260815-balance-v7-item-browser-v1",
+        "inventory": "./js/inventory.js?v=20260820-inventory-product-v1",
         "game": "./Game.js?v=20260727-nav-guide1"
       }
     }
@@ -1902,6 +1904,6 @@
     <!-- Scripts -->
     <script src="battle-client.js?v=20260801-weapon-motion4"></script>
     <script src="naval-battle.js"></script>
-<script type="module" src="main.js?v=20260816-return-flow-v1"></script>
+<script type="module" src="main.js?v=20260820-inventory-product-v1"></script>
 </body>
 </html>

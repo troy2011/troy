@@ -52,6 +52,7 @@ const {
 } = require('./server/tarotItemIds');
 const events = require('./server/events');
 const exploration = require('./server/exploration');
+const musicGame = require('./server/musicGame');
 
 // 既存ルート
 const battleRoutes = require('./server/routes/battleRoutes');
@@ -105,6 +106,7 @@ const authHelpers = buildAuthHelpers({ admin });
 const {
     verifyLineAccessToken,
     verifyLineFriendshipStatus,
+    verifyFirebaseIdToken,
     requireAuthenticatedPlayFabId
 } = authHelpers;
 
@@ -2021,6 +2023,13 @@ async function main() {
     // 店舗イベント
     events.initializeEventRoutes(app, deps);
 
+    // TROY MUSIC GAME（スタッフ用）
+    musicGame.initializeMusicGameRoutes(app, {
+        firestore,
+        admin,
+        verifyFirebaseIdToken
+    });
+
     // 探索
     exploration.initializeExplorationRoutes(app, deps);
 
@@ -2137,10 +2146,10 @@ async function main() {
 
     // カードレベル育成ルート
     initializeCardRoutes(app, {
-        promisifyPlayFab,
-        PlayFabEconomy,
         getEntityKeyFromPlayFabId,
+        getAllInventoryItems: deps.getAllInventoryItems,
         catalogCache,
+        firestore,
         requireAuthenticatedPlayFabId,
     });
 
