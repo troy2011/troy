@@ -470,10 +470,7 @@ const INVENTORY_SORT_OPTIONS = {
         { value: 'power_desc', label: '攻撃力順' }
     ],
     Hand: [
-        { value: 'default', label: 'おすすめ順' },
-        { value: 'power_desc', label: '攻撃力順' },
-        { value: 'defense_desc', label: '防御力順' },
-        { value: 'magic_desc', label: '術補順' }
+        { value: 'power_desc', label: '攻撃力順' }
     ],
     Shield: [
         { value: 'default', label: 'おすすめ順' },
@@ -2211,7 +2208,14 @@ function getInventoryCategoryOrder(category) {
 }
 
 function getInventoryStatValue(itemData, statKey) {
-    return Number(itemData?.[statKey] ?? 0) || 0;
+    const statAliases = {
+        Power: ['Power', 'Atk'],
+        Defense: ['Defense', 'Def'],
+        MagicPower: ['MagicPower', 'Int', 'Intelligence'],
+        HealPower: ['HealPower', 'HealingPower']
+    };
+    const keys = statAliases[statKey] || [statKey];
+    return Number(keys.map((key) => itemData?.[key]).find((value) => value !== undefined && value !== null) ?? 0) || 0;
 }
 
 function compareInventoryItemsDefault(a, b, selectedCategory) {
@@ -2504,7 +2508,10 @@ function getPrimaryInventoryCardStats(item, canonicalCategory) {
 
 function createInventoryStatBadges(item, canonicalCategory = '') {
     const stats = getPrimaryInventoryCardStats(item, canonicalCategory);
-    if (!stats.length) return null;
+    const enhancementBonus = isInventoryEquipmentCategory(canonicalCategory)
+        ? Math.max(0, Math.floor(Number(item?.enhancement?.bonus) || 0))
+        : 0;
+    if (!stats.length && enhancementBonus <= 0) return null;
     const rarityTone = getInventoryRarityTone(item);
 
     const wrap = document.createElement('div');
@@ -2518,6 +2525,13 @@ function createInventoryStatBadges(item, canonicalCategory = '') {
         }
         wrap.appendChild(badge);
     });
+    if (enhancementBonus > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'inventory-item-stat-badge is-enhancement';
+        badge.textContent = `+${enhancementBonus}`;
+        badge.setAttribute('aria-label', `強化 +${enhancementBonus}`);
+        wrap.appendChild(badge);
+    }
     return wrap;
 }
 
@@ -2907,7 +2921,6 @@ function createInventoryCell(item, requestedCategory) {
     let tarotCountBadge = null;
     const enhancementBonus = Math.max(0, Math.floor(Number(item?.enhancement?.bonus) || 0));
     if (enhancementBonus > 0) {
-        headMeta.appendChild(createInventoryBadge(`+${enhancementBonus}`, 'enhanced'));
         cell.classList.add('is-enhanced');
     }
     if (isEquipmentEquipped) {
@@ -3716,7 +3729,7 @@ export function renderInventoryGrid(category) {
     const sortOrder = document.getElementById('inventorySort').value;
     const sorted = [...filtered].sort((a, b) => {
         if (sortOrder === 'power_desc') {
-            const diff = (b.customData?.Power || 0) - (a.customData?.Power || 0);
+            const diff = getInventoryStatValue(b.customData, 'Power') - getInventoryStatValue(a.customData, 'Power');
             if (diff !== 0) return diff;
             return compareInventoryItemsDefault(a, b, category);
         }

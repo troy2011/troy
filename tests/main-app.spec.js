@@ -5539,6 +5539,7 @@ test('inventory current equipment resolves object equipment references', async (
       name: 'Object Ref Orb',
       customData: {
         Category: 'Offhand',
+        Atk: 18,
         MagicPower: 5,
         sprite_path: './Sprites/items/icons.png',
         sprite_index: '8',
@@ -5627,6 +5628,15 @@ test('inventory current equipment resolves object equipment references', async (
   });
 
   await expect(page.locator('#inventoryTabs .inventory-tab-btn')).toHaveText(['手装備', '防具', 'アクセ']);
+  await expect(page.locator('#inventorySort')).toHaveValue('power_desc');
+  const handItemNames = await page.locator('#inventoryGrid .inventory-item-cell').evaluateAll((cells) => (
+    cells.map((cell) => cell.title)
+  ));
+  expect(handItemNames).toEqual([
+    'Object Ref Orb',
+    '王国近衛騎士団儀礼用フランベルジュ',
+    'Object Ref Shield'
+  ]);
   await expect(page.locator('#equippedRightHand')).toHaveText('王国近衛騎士団儀礼用フランベルジュ');
   await expect(page.locator('#equippedLeftHand')).toHaveText('Object Ref Shield');
   await expect(page.locator('#equippedArmor')).toHaveText('古代王国守護騎士の重装プレートアーマー');
@@ -6005,7 +6015,8 @@ test('inventory equipment enhancement modal previews and applies multiple materi
   });
 
   const enhancedCard = page.locator('#inventoryGrid .inventory-item-cell[title="鍛えた素材剣"]');
-  await expect(enhancedCard.locator('.inventory-item-badge.is-enhanced')).toHaveText('+3');
+  await expect(enhancedCard.locator('.inventory-item-head .inventory-item-badge.is-enhanced')).toHaveCount(0);
+  await expect(enhancedCard.locator('.inventory-item-stat-badge.is-enhancement')).toHaveText('+3');
   await page.locator('#inventoryGrid .inventory-item-cell[title="強化用の剣"]').click();
   await page.getByRole('button', { name: '強化', exact: true }).click();
   await expect(page.locator('#equipmentEnhancementModal')).toBeVisible();
