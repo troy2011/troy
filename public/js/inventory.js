@@ -94,6 +94,8 @@ let equipmentEnhancementRequestSerial = 0;
 let equipmentEnhancementKeydownHandler = null;
 // カードレベルデータ: { [itemId]: { level, maxLevel, quantity, nextLevelCost } }
 let cardLevelMap = {};
+let arcanaShardBalance = 0;
+let cardShardBalanceKnown = false;
 let tarotBattleSkillsLoaded = false;
 let selectedTarotLoadoutItemId = '';
 let tarotLoadoutMutationPending = false;
@@ -108,6 +110,10 @@ async function loadCardLevels() {
         const data = await res.json();
         cardLevelMap = {};
         (data.cards || []).forEach((c) => { cardLevelMap[c.itemId] = c; });
+        cardShardBalanceKnown = Number.isFinite(Number(data.arcanaShards));
+        if (cardShardBalanceKnown) {
+            arcanaShardBalance = Math.max(0, Math.floor(Number(data.arcanaShards) || 0));
+        }
     } catch (err) {
         console.warn('[inventory] loadCardLevels failed:', err);
     }
@@ -125,7 +131,7 @@ async function levelUpCard(itemId) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ itemId }),
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.success) throw new Error(data.error || 'レベルアップ失敗');
         cardLevelMap[itemId] = {
             ...(cardLevelMap[itemId] || {}),
@@ -133,9 +139,18 @@ async function levelUpCard(itemId) {
             maxLevel: data.maxLevel,
             nextLevelCost: data.nextLevelCost ?? null,
         };
+        arcanaShardBalance = Math.max(0, Math.floor(Number(data.shardsAfter) || 0));
+        cardShardBalanceKnown = true;
         renderInventoryGrid(activeInventoryCategory);
         renderTarotDeckPanels();
-        showInventoryFeedback(`Lv.${data.newLevel} に上昇！（残シャード: ${data.shardsAfter}）`);
+        const detailModal = document.getElementById('itemDetailModal');
+        const detailItem = getDisplayInventoryEntries().find((entry) => String(entry?.itemId || '') === String(itemId || ''));
+        if (detailModal?.style.display !== 'none' && !detailModal?.hidden && detailItem) {
+            showItemDetailModal(detailItem);
+        }
+        const starterGrant = Math.max(0, Math.floor(Number(data.starterShardsGranted) || 0));
+        const starterText = starterGrant > 0 ? `初回シャード ${starterGrant} を受け取り、` : '';
+        showInventoryFeedback(`${starterText}Lv.${data.newLevel} に上昇！（残シャード: ${data.shardsAfter}）`);
     } catch (err) {
         showInventoryFeedback(err.message, true);
     }
@@ -4305,6 +4320,9 @@ function showItemDetailModal(item) {
         if (isTarotCard) {
             const cardLevel = getInventoryCardLevel(item.itemId);
             metaEl.appendChild(createItemDetailMetaChip(`Lv${cardLevel}`, 'tarot'));
+            if (cardShardBalanceKnown) {
+                metaEl.appendChild(createItemDetailMetaChip(`シャード ${arcanaShardBalance}`, 'count'));
+            }
             if (isTarotMajorCategory(canonicalCategory)) {
                 metaEl.appendChild(createItemDetailMetaChip(isShipMajorArcanaEquipped(item.itemId) ? '守護中' : '未装備', isShipMajorArcanaEquipped(item.itemId) ? 'equipped' : 'muted'));
             } else {
@@ -4477,7 +4495,18 @@ function showItemDetailModal(item) {
     if (isTarotCard) {
         const lvd = cardLevelMap[equipItemId];
         if (lvd && lvd.level < lvd.maxLevel) {
-            addAction(`Lvアップ（${lvd.nextLevelCost}⚔）`, 'levelup', () => levelUpCard(equipItemId));
+            const shardCost = Math.max(0, Number(lvd.nextLevelCost) || 0);
+            const isShardShort = cardShardBalanceKnown && arcanaShardBalance < shardCost;
+            if (isShardShort) {
+                addAction(
+                    `シャード不足（${arcanaShardBalance}/${shardCost}）`,
+                    'disabled',
+                    null,
+                    { disabled: true, title: 'シャードが不足しています。' }
+                );
+            } else {
+                addAction(`Lvアップ（${shardCost}⚔）`, 'levelup', () => levelUpCard(equipItemId));
+            }
         }
     }
 

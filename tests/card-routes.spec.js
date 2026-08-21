@@ -3,6 +3,8 @@ const {
   getMaxLevel,
   initializeCardRoutes,
   normalizeCardLevel,
+  normalizeShardBalance,
+  getStarterShardGrant,
   shardCost
 } = require('../server/routes/cardRoutes');
 
@@ -114,6 +116,10 @@ test('cards list uses the shared Economy V2 inventory accessor', async () => {
     expect.objectContaining({ itemId: 'tarot_major_00', quantity: 1, level: 1, maxLevel: 10, nextLevelCost: 1, isMajor: true }),
     expect.objectContaining({ itemId: 'tarot_minor_wand_01', quantity: 2, level: 3, maxLevel: 15, nextLevelCost: 2, isMajor: false })
   ]);
+  expect(response.body).toMatchObject({
+    arcanaShards: 50,
+    starterShardGrantAvailable: true
+  });
 });
 
 test('cards list remains available when card level data cannot be read', async () => {
@@ -141,13 +147,17 @@ test('card level growth starts at one and uses the relaxed shard curve', () => {
   expect(shardCost(2)).toBe(1);
   expect(shardCost(3)).toBe(2);
   expect(shardCost(15)).toBe(8);
+  expect(normalizeShardBalance(-5)).toBe(0);
+  expect(normalizeShardBalance('3.8')).toBe(3);
+  expect(getStarterShardGrant({})).toBe(50);
+  expect(getStarterShardGrant({ cardLevelStarterShardGrantVersion: 1 })).toBe(0);
 });
 
 test('level up treats legacy level zero as level one without charging for the migration', async () => {
   const { levelUpHandler, writes } = createCardRouteHarness({
     inventoryItems: [{ Id: 'tarot_minor_wand_01', Amount: 1 }],
     cardDoc: { cards: { tarot_minor_wand_01: { level: 0 } } },
-    statDoc: { arcanaShards: 1 }
+    statDoc: { arcanaShards: 1, cardLevelStarterShardGrantVersion: 1 }
   });
   const response = createResponse();
 
@@ -172,6 +182,35 @@ test('level up treats legacy level zero as level one without charging for the mi
       data: expect.objectContaining({
         cards: { tarot_minor_wand_01: { level: 2 } }
       })
+    })
+  ]));
+});
+
+test('level up grants starter shards once to a player without a shard balance', async () => {
+  const { levelUpHandler, writes } = createCardRouteHarness({
+    inventoryItems: [{ Id: 'tarot_minor_wand_01', Amount: 1 }],
+    cardDoc: { cards: { tarot_minor_wand_01: { level: 1 } } },
+    statDoc: { arcanaShards: 0 }
+  });
+  const response = createResponse();
+
+  await levelUpHandler({
+    authenticatedPlayFabId: 'PLAYER1',
+    body: { itemId: 'tarot_minor_wand_01' }
+  }, response);
+
+  expect(response.statusCode).toBe(200);
+  expect(response.body).toMatchObject({
+    success: true,
+    newLevel: 2,
+    cost: 1,
+    starterShardsGranted: 50,
+    shardsAfter: 49
+  });
+  expect(writes).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      reference: expect.objectContaining({ collectionName: 'playerStats', id: 'PLAYER1' }),
+      data: expect.objectContaining({ cardLevelStarterShardGrantVersion: 1 })
     })
   ]));
 });

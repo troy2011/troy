@@ -12,6 +12,8 @@ const BASE_MAX_LEVEL = 10;
 const LEVELS_PER_EXTRA_COPY = 5;
 const MAJOR_MAX_LEVEL = 25;
 const MINOR_MAX_LEVEL = 15;
+const STARTER_ARCANA_SHARDS = 50;
+const STARTER_SHARD_GRANT_VERSION = 1;
 
 // 1枚でLv10まで。余剰カードは上限だけを拡張し、消費しない。
 function getMaxLevel(isMajor, quantity) {
@@ -33,6 +35,15 @@ function shardCost(currentLevel) {
     return Math.max(1, Math.ceil(normalizeCardLevel(currentLevel) / 2));
 }
 
+function normalizeShardBalance(value) {
+    return Math.max(0, Math.floor(Number(value) || 0));
+}
+
+function getStarterShardGrant(statData = {}) {
+    const grantVersion = Math.max(0, Math.floor(Number(statData?.cardLevelStarterShardGrantVersion) || 0));
+    return grantVersion >= STARTER_SHARD_GRANT_VERSION ? 0 : STARTER_ARCANA_SHARDS;
+}
+
 // Firestoreのカードドキュメントを取得（なければ空のmap）
 async function getCardDoc(playFabId, firestore) {
     if (!firestore || typeof firestore.collection !== 'function') {
@@ -41,6 +52,15 @@ async function getCardDoc(playFabId, firestore) {
     const ref = firestore.collection('playerCards').doc(playFabId);
     const snap = await ref.get();
     return snap.exists ? snap.data() : { cards: {} };
+}
+
+async function getPlayerStatsDoc(playFabId, firestore) {
+    if (!firestore || typeof firestore.collection !== 'function') {
+        return {};
+    }
+    const ref = firestore.collection('playerStats').doc(playFabId);
+    const snap = await ref.get();
+    return snap.exists ? snap.data() : {};
 }
 
 // ── ルート登録 ────────────────────────────────────────────────
@@ -84,14 +104,20 @@ function initializeCardRoutes(app, deps) {
         const playFabId = req.authenticatedPlayFabId;
         try {
             const entityKey = await getEntityKey(playFabId);
-            const [inventoryItems, cardDoc] = await Promise.all([
+            const [inventoryItems, cardDoc, playerStats] = await Promise.all([
                 fetchInventoryCards(entityKey),
                 getCardDoc(playFabId, firestore).catch((error) => {
                     console.warn('[cards] level data unavailable; returning owned cards without levels:', error?.message || error);
                     return { cards: {} };
                 }),
+                getPlayerStatsDoc(playFabId, firestore).catch((error) => {
+                    console.warn('[cards] shard data unavailable; returning a zero balance:', error?.message || error);
+                    return {};
+                }),
             ]);
             const levels = cardDoc.cards || {};
+            const starterShards = getStarterShardGrant(playerStats);
+            const arcanaShards = normalizeShardBalance(playerStats.arcanaShards) + starterShards;
 
             const cards = inventoryItems.map((item) => {
                 const itemId   = item.Id;
@@ -114,7 +140,11 @@ function initializeCardRoutes(app, deps) {
                 };
             });
 
-            res.json({ cards });
+            res.json({
+                cards,
+                arcanaShards,
+                starterShardGrantAvailable: starterShards > 0
+            });
         } catch (err) {
             console.error('[cards] list error:', err);
             res.status(500).json({ error: 'サーバーエラー' });
@@ -151,9 +181,11 @@ function initializeCardRoutes(app, deps) {
                     tx.get(statRef),
                 ]);
 
-                const cards         = cardSnap.exists ? (cardSnap.data().cards || {}) : {};
-                const currentLevel  = normalizeCardLevel(cards[itemId]?.level, maxLevel);
-                const shards        = statSnap.exists ? (statSnap.data().arcanaShards ?? 0) : 0;
+                const cards = cardSnap.exists ? (cardSnap.data().cards || {}) : {};
+                const statData = statSnap.exists ? (statSnap.data() || {}) : {};
+                const currentLevel = normalizeCardLevel(cards[itemId]?.level, maxLevel);
+                const starterShards = getStarterShardGrant(statData);
+                const shards = normalizeShardBalance(statData.arcanaShards) + starterShards;
 
                 if (currentLevel >= maxLevel) {
                     throw Object.assign(new Error('レベル上限に達しています'), { code: 'MAX_LEVEL' });
@@ -170,7 +202,8 @@ function initializeCardRoutes(app, deps) {
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 }, { merge: true });
                 tx.set(statRef, {
-                    arcanaShards: admin.firestore.FieldValue.increment(-cost),
+                    arcanaShards: admin.firestore.FieldValue.increment(starterShards - cost),
+                    ...(starterShards > 0 ? { cardLevelStarterShardGrantVersion: STARTER_SHARD_GRANT_VERSION } : {})
                 }, { merge: true });
 
                 return {
@@ -178,6 +211,7 @@ function initializeCardRoutes(app, deps) {
                     cost,
                     maxLevel,
                     shardsAfter: shards - cost,
+                    starterShardsGranted: starterShards,
                     nextLevelCost: newLevel < maxLevel ? shardCost(newLevel) : null
                 };
             });
@@ -193,4 +227,11 @@ function initializeCardRoutes(app, deps) {
     });
 }
 
-module.exports = { initializeCardRoutes, getMaxLevel, normalizeCardLevel, shardCost };
+module.exports = {
+    initializeCardRoutes,
+    getMaxLevel,
+    normalizeCardLevel,
+    normalizeShardBalance,
+    getStarterShardGrant,
+    shardCost
+};

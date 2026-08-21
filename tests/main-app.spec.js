@@ -7878,6 +7878,98 @@ test('two owned shields can be equipped in both hands from the detail modal', as
   await expectNoPageErrors(errors);
 });
 
+test('tarot detail levels up with the reported starter shard balance', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const levelUpRequests = [];
+  const tarotItems = [{
+    itemId: 'tarot_minor_wand_01',
+    count: 1,
+    name: 'Wand Ace',
+    customData: {
+      Category: 'TarotMinor',
+      ArcanaSuit: 'Wand',
+      ArcanaRank: 1,
+      sprite_path: './Sprites/items/icons.png',
+      sprite_index: '1'
+    }
+  }];
+
+  await page.route('**/api/get-inventory', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ inventory: tarotItems, virtualCurrency: { PS: 0 }, contribution: 0 })
+    });
+  });
+  await page.route('**/api/get-equipment', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ equipment: {} })
+    });
+  });
+  await page.route('**/api/tarot-deck-get', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ok: true, tarotDeck: [], tarotRole: null })
+    });
+  });
+  await page.route('**/api/cards', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        cards: [{
+          itemId: 'tarot_minor_wand_01',
+          quantity: 1,
+          level: 1,
+          maxLevel: 10,
+          nextLevelCost: 1
+        }],
+        arcanaShards: 50,
+        starterShardGrantAvailable: true
+      })
+    });
+  });
+  await page.route('**/api/cards/levelup', async (route) => {
+    levelUpRequests.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        itemId: 'tarot_minor_wand_01',
+        newLevel: 2,
+        maxLevel: 10,
+        nextLevelCost: 1,
+        shardsAfter: 49,
+        starterShardsGranted: 50
+      })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    const inventoryTab = document.getElementById('tabContentInventory');
+    if (inventoryTab) inventoryTab.style.display = 'block';
+    const inventory = await import('/js/inventory.js');
+    await inventory.getInventory('PF_PLAYWRIGHT', { force: true });
+    inventory.switchInventoryGroup('Tarot');
+    inventory.switchInventoryTab('TarotMinor');
+  });
+
+  await page.locator('#inventoryGrid .inventory-item-cell[data-category="TarotMinor"]').click();
+  await expect(page.getByRole('button', { name: 'Lvアップ（1⚔）', exact: true })).toBeEnabled();
+  await expect(page.locator('#itemDetailModal')).toContainText('シャード 50');
+  await page.getByRole('button', { name: 'Lvアップ（1⚔）', exact: true }).click();
+  await expect.poll(() => levelUpRequests.length).toBe(1);
+  expect(levelUpRequests[0]).toEqual({ itemId: 'tarot_minor_wand_01' });
+  await expect(page.locator('#itemDetailModal')).toContainText('Lv2');
+  await expect(page.locator('#itemDetailModal')).toContainText('シャード 49');
+  await expectNoPageErrors(errors);
+});
+
 test('inventory selection sell sends multiple sellable item copies at one gold each', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
