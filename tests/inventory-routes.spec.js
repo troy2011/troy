@@ -25,7 +25,8 @@ function makeResponse() {
 function makeEquipHarness({
   readOnlyData = {},
   inventoryItems = [],
-  catalogCache = { sword_001: { Category: 'Weapon', DisplayName: 'Test Sword' } }
+  catalogCache = { sword_001: { Category: 'Weapon', DisplayName: 'Test Sword' } },
+  updateDelayMs = 0
 } = {}) {
   const routes = new Map();
   const updates = [];
@@ -46,6 +47,16 @@ function makeEquipHarness({
       }
       if (apiFunction === updateUserReadOnlyDataApi) {
         updates.push(request);
+        if (updateDelayMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, updateDelayMs));
+        }
+        Object.entries(request.Data || {}).forEach(([key, value]) => {
+          if (value === null) {
+            delete readOnlyData[key];
+          } else {
+            readOnlyData[key] = { Value: value };
+          }
+        });
         return {};
       }
       throw new Error('Unexpected PlayFab API call');
@@ -448,6 +459,81 @@ test('equip-item allows different items whose Economy stack ids are both default
   expect(updates[0].Data).toMatchObject({
     Equipped_LeftHand: JSON.stringify({ itemId: 'shield_001', stackId: 'default' })
   });
+});
+
+test('equip-item moves a one-handed item between hands without unequipping it first', async () => {
+  const { handler, updates } = makeEquipHarness({
+    readOnlyData: {
+      Equipped_RightHand: { Value: JSON.stringify({ itemId: 'sword_001', stackId: 'sword-stack-1' }) }
+    },
+    inventoryItems: [{ Id: 'sword_001', StackId: 'sword-stack-1', Amount: 1 }]
+  });
+  const res = makeResponse();
+
+  await handler({
+    body: {
+      playFabId: 'PF_PLAYWRIGHT',
+      itemId: 'sword_001',
+      stackId: 'sword-stack-1',
+      fromSlot: 'RightHand',
+      slot: 'LeftHand'
+    }
+  }, res);
+
+  expect(res.statusCode).toBe(200);
+  expect(updates).toHaveLength(1);
+  expect(updates[0].Data).toMatchObject({
+    Equipped_RightHand: null,
+    Equipped_LeftHand: JSON.stringify({ itemId: 'sword_001', stackId: 'sword-stack-1' })
+  });
+});
+
+test('equip-item rejects a hand move when the specified source no longer holds the item', async () => {
+  const { handler, updates } = makeEquipHarness({
+    readOnlyData: {
+      Equipped_RightHand: { Value: JSON.stringify({ itemId: 'shield_001', stackId: 'shield-stack-1' }) }
+    },
+    inventoryItems: [
+      { Id: 'sword_001', StackId: 'sword-stack-1', Amount: 1 },
+      { Id: 'shield_001', StackId: 'shield-stack-1', Amount: 1 }
+    ],
+    catalogCache: {
+      sword_001: { Category: 'Weapon', DisplayName: 'Test Sword' },
+      shield_001: { Category: 'Shield', DisplayName: 'Test Shield' }
+    }
+  });
+  const res = makeResponse();
+
+  await handler({
+    body: {
+      playFabId: 'PF_PLAYWRIGHT',
+      itemId: 'sword_001',
+      stackId: 'sword-stack-1',
+      fromSlot: 'RightHand',
+      slot: 'LeftHand'
+    }
+  }, res);
+
+  expect(res.statusCode).toBe(400);
+  expect(res.body).toMatchObject({ error: '移動元に指定した装備がありません。' });
+  expect(updates).toHaveLength(0);
+});
+
+test('equip-item serializes simultaneous hand changes so one item cannot reach both hands', async () => {
+  const { handler, updates } = makeEquipHarness({
+    inventoryItems: [{ Id: 'sword_001', StackId: 'sword-stack-1', Amount: 1 }],
+    updateDelayMs: 30
+  });
+  const rightResponse = makeResponse();
+  const leftResponse = makeResponse();
+
+  await Promise.all([
+    handler({ body: { playFabId: 'PF_PLAYWRIGHT', itemId: 'sword_001', stackId: 'sword-stack-1', slot: 'RightHand' } }, rightResponse),
+    handler({ body: { playFabId: 'PF_PLAYWRIGHT', itemId: 'sword_001', stackId: 'sword-stack-1', slot: 'LeftHand' } }, leftResponse)
+  ]);
+
+  expect([rightResponse.statusCode, leftResponse.statusCode].sort()).toEqual([200, 400]);
+  expect(updates).toHaveLength(1);
 });
 
 test('equip-item removes a current two-handed weapon when equipping the left hand', async () => {

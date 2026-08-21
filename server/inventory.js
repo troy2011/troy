@@ -397,6 +397,7 @@ function parseAvatarStyleReadOnlyValue(readOnlyData, styleKey) {
 // APIルートを初期化
 function initializeInventoryRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, PlayFabData, PlayFabEconomy, firestore, admin, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance, requireAuthenticatedPlayFabId } = deps;
+    const equipmentMutationQueues = new Map();
     const runWithTitleEntityToken = typeof deps.withTitleEntityToken === 'function'
         ? deps.withTitleEntityToken
         : defaultWithTitleEntityToken;
@@ -406,6 +407,23 @@ function initializeInventoryRoutes(app, deps) {
             return playFabId;
         }
         return requireAuthenticatedPlayFabId(req, res, playFabId);
+    }
+
+    async function acquireEquipmentMutationLock(playFabId) {
+        const key = String(playFabId || '').trim();
+        const previous = equipmentMutationQueues.get(key) || Promise.resolve();
+        let releaseCurrent;
+        const current = new Promise((resolve) => {
+            releaseCurrent = resolve;
+        });
+        equipmentMutationQueues.set(key, current);
+        await previous.catch(() => undefined);
+        return () => {
+            releaseCurrent();
+            if (equipmentMutationQueues.get(key) === current) {
+                equipmentMutationQueues.delete(key);
+            }
+        };
     }
 
     async function executeInventoryOperations(entityKey, operations, options = {}) {
@@ -2563,11 +2581,15 @@ function initializeInventoryRoutes(app, deps) {
 
     // 装備設定
     app.post('/api/equip-item', async (req, res) => {
-        let { playFabId, itemId, stackId, slot } = req.body;
+        let { playFabId, itemId, stackId, fromSlot, slot } = req.body;
         if (!playFabId || !slot) return res.status(400).json({ error: 'IDまたはスロット情報がありません。' });
         playFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!playFabId) return;
         stackId = String(stackId || '').trim();
+        fromSlot = String(fromSlot || '').trim();
+        const releaseEquipmentMutation = await acquireEquipmentMutationLock(playFabId);
+
+        try {
 
         const validSlots = {
             RightHand: 'Equipped_RightHand',
@@ -2582,6 +2604,15 @@ function initializeInventoryRoutes(app, deps) {
                 return res.status(400).json({ error: '大アルカナの体装備は廃止されました。デッキに追加してください。' });
             }
             return res.status(400).json({ error: '不正なスロットです。' });
+        }
+        const sourceDataKey = fromSlot ? validSlots[fromSlot] : '';
+        if (fromSlot && (
+            !sourceDataKey
+            || !['RightHand', 'LeftHand'].includes(slot)
+            || !['RightHand', 'LeftHand'].includes(fromSlot)
+            || fromSlot === slot
+        )) {
+            return res.status(400).json({ error: '装備移動元が不正です。' });
         }
 
         const dataToUpdate = {};
@@ -2634,6 +2665,17 @@ function initializeInventoryRoutes(app, deps) {
                 });
                 currentHandData = currentHandResult?.Data || {};
             }
+            const movingBetweenHands = !!fromSlot;
+            if (movingBetweenHands) {
+                const sourceValue = currentHandData?.[sourceDataKey]?.Value || null;
+                const sourceItemId = getStoredEquipmentItemId(sourceValue);
+                const sourceStackId = getStoredEquipmentStackId(sourceValue);
+                const sourceMatches = sourceItemId === itemId
+                    && (!stackId || !sourceStackId || sourceStackId === stackId);
+                if (!sourceMatches) {
+                    return res.status(400).json({ error: '移動元に指定した装備がありません。' });
+                }
+            }
             const canEquipInEitherHand = ['Weapon', 'Shield'].includes(normalizedCategory) && !isTwoHandedWeapon;
             if (canEquipInEitherHand && (slot === 'RightHand' || slot === 'LeftHand')) {
                 const oppositeKey = slot === 'RightHand' ? 'Equipped_LeftHand' : 'Equipped_RightHand';
@@ -2645,10 +2687,11 @@ function initializeInventoryRoutes(app, deps) {
                     && stackId
                     && stackId !== 'default'
                     && oppositeStackId === stackId;
-                if (sameSpecificStack) {
+                const movingToOppositeHand = !!fromSlot && sourceDataKey === oppositeKey;
+                if (sameSpecificStack && !movingToOppositeHand) {
                     return res.status(400).json({ error: '同じ装備個体を両手に装備することはできません。' });
                 }
-                if (sameItem) {
+                if (sameItem && !movingToOppositeHand) {
                     const ownedCount = await getOwnedInventoryItemCount(playFabId, itemId);
                     const hasDistinctExactStacks = !!stackId
                         && stackId !== 'default'
@@ -2666,6 +2709,7 @@ function initializeInventoryRoutes(app, deps) {
             }
             const storedEquipmentValue = buildStoredEquipmentValue(itemId, stackId);
             dataToUpdate[dataKey] = storedEquipmentValue;
+            if (sourceDataKey) dataToUpdate[sourceDataKey] = null;
             if (itemData && isTwoHandedWeapon) {
                 console.log(`[装備] 両手武器 (${itemId}) を装備します`);
                 dataToUpdate['Equipped_RightHand'] = storedEquipmentValue;
@@ -2708,6 +2752,9 @@ function initializeInventoryRoutes(app, deps) {
         } catch (error) {
             console.error('[装備] エラー', error.errorMessage);
             res.status(500).json({ error: '装備の更新に失敗しました。', details: error.errorMessage });
+        }
+        } finally {
+            releaseEquipmentMutation();
         }
     });
 

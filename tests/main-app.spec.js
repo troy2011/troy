@@ -7540,6 +7540,8 @@ test('equipment cards open detail before equipping from inventory grid', async (
   });
   await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]')).toHaveAttribute('data-equipment-state', 'equipped');
   await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"] .inventory-item-quick-action')).toHaveCount(0);
+  await page.evaluate(() => window.closeItemDetailModal && window.closeItemDetailModal());
+  await expect(page.locator('#itemDetailModal')).toBeHidden();
 
   await page.evaluate(async () => {
     const inventory = await import('/js/inventory.js');
@@ -7634,8 +7636,10 @@ test('equipment marker matches item id when Economy stacks share the default sta
   await expectNoPageErrors(errors);
 });
 
-test('single one-handed weapon cannot be equipped to both hands from detail modal', async ({ page }) => {
+test('single one-handed weapon moves between hands from the detail modal', async ({ page }) => {
   const errors = trackPageErrors(page);
+  const equipRequests = [];
+  let equipmentState = { RightHand: { itemId: 'sword_001', stackId: 'sword-instance-1' } };
   const equipmentItems = [
     {
       itemId: 'sword_001',
@@ -7661,7 +7665,7 @@ test('single one-handed weapon cannot be equipped to both hands from detail moda
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({ equipment: { RightHand: { itemId: 'sword_001' } } })
+      body: JSON.stringify({ equipment: equipmentState })
     });
   });
   await page.route('**/api/tarot-deck-get', async (route) => {
@@ -7669,6 +7673,19 @@ test('single one-handed weapon cannot be equipped to both hands from detail moda
       status: 200,
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({ ok: true, tarotDeck: [], tarotRole: null })
+    });
+  });
+  await page.route('**/api/equip-item', async (route) => {
+    const body = route.request().postDataJSON();
+    equipRequests.push(body);
+    if (body.fromSlot) {
+      const nextEquipment = { ...equipmentState, [body.fromSlot]: null, [body.slot]: { itemId: body.itemId, stackId: body.stackId } };
+      equipmentState = nextEquipment;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ status: 'success' })
     });
   });
 
@@ -7685,9 +7702,107 @@ test('single one-handed weapon cannot be equipped to both hands from detail moda
   await page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]').click();
   await expect(page.locator('#itemDetailModal')).toBeVisible();
   await expect(page.locator('#itemDetailButtons .item-detail-action.is-remove')).toContainText('右手を外す');
-  await expect(page.locator('#itemDetailButtons .item-detail-action.is-disabled')).toHaveText('左手装備');
-  await expect(page.locator('#itemDetailButtons .item-detail-action.is-disabled')).toBeDisabled();
+  await expect(page.getByRole('button', { name: '左手へ移動', exact: true })).toBeEnabled();
   await expect(page.locator('#itemDetailButtons .item-detail-action-note')).toHaveCount(0);
+  await page.getByRole('button', { name: '左手へ移動', exact: true }).click();
+  await expect.poll(() => equipRequests.length).toBe(1);
+  expect(equipRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    itemId: 'sword_001',
+    stackId: 'sword-instance-1',
+    fromSlot: 'RightHand',
+    slot: 'LeftHand'
+  });
+  await expect(page.locator('#itemDetailModal')).toBeVisible();
+  await expect(page.getByRole('button', { name: '右手へ移動', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: '左手を外す', exact: true })).toBeEnabled();
+  await expectNoPageErrors(errors);
+});
+
+test('two-handed equipment confirms before clearing the other hand', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const equipRequests = [];
+  let equipmentState = { LeftHand: { itemId: 'shield_001', stackId: 'shield-instance-1' } };
+  const equipmentItems = [
+    {
+      itemId: 'polearm_001',
+      instances: ['polearm-instance-1'],
+      count: 1,
+      name: 'Long Spear',
+      customData: { Category: 'Weapon', TwoHanded: true, Power: 18, sprite_path: './Sprites/weapons/melee weapons/spear.png', sprite_index: '0' }
+    },
+    {
+      itemId: 'shield_001',
+      instances: ['shield-instance-1'],
+      count: 1,
+      name: 'Round Shield',
+      customData: { Category: 'Shield', Defense: 8, sprite_path: './Sprites/weapons/melee weapons/shield.png', sprite_index: '0' }
+    }
+  ];
+
+  await page.route('**/api/get-inventory', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ inventory: equipmentItems, virtualCurrency: { PS: 0 }, contribution: 0 })
+    });
+  });
+  await page.route('**/api/get-equipment', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ equipment: equipmentState })
+    });
+  });
+  await page.route('**/api/tarot-deck-get', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ok: true, tarotDeck: [], tarotRole: null })
+    });
+  });
+  await page.route('**/api/equip-item', async (route) => {
+    const body = route.request().postDataJSON();
+    equipRequests.push(body);
+    equipmentState = {
+      ...equipmentState,
+      [body.slot]: body.itemId ? { itemId: body.itemId, stackId: body.stackId } : null,
+      LeftHand: body.slot === 'RightHand' && body.itemId ? null : equipmentState.LeftHand
+    };
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ status: 'success' })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    const inventoryTab = document.getElementById('tabContentInventory');
+    if (inventoryTab) inventoryTab.style.display = 'block';
+    const inventory = await import('/js/inventory.js');
+    await inventory.getInventory('PF_PLAYWRIGHT', { force: true });
+    inventory.switchInventoryGroup('Equipment');
+  });
+
+  await expect(page.locator('#inventoryTabs [role="tab"]')).toHaveText(['手装備', '防具', 'アクセ']);
+  await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]')).toHaveCount(1);
+  await expect(page.locator('#inventoryGrid .inventory-item-cell[data-category="Shield"]')).toHaveCount(1);
+  await page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]', { hasText: 'Long Spear' }).click();
+  await page.getByRole('button', { name: '両手装備', exact: true }).click();
+  await expect(page.locator('#inventoryActionDialog')).toBeVisible();
+  await expect(page.locator('#inventoryActionDialog .inventory-action-dialog-message')).toContainText('Round Shield');
+  expect(equipRequests).toHaveLength(0);
+  await page.getByRole('button', { name: '入れ替える', exact: true }).click();
+  await expect.poll(() => equipRequests.length).toBe(1);
+  expect(equipRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    itemId: 'polearm_001',
+    stackId: 'polearm-instance-1',
+    slot: 'RightHand'
+  });
+  await expect(page.locator('#itemDetailModal')).toBeVisible();
+  await expect(page.getByRole('button', { name: '両手を外す', exact: true })).toBeEnabled();
   await expectNoPageErrors(errors);
 });
 

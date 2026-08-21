@@ -18,7 +18,7 @@ import {
     createBlackMarketListing as requestCreateBlackMarketListing,
     cancelBlackMarketListing as requestCancelBlackMarketListing,
     buyBlackMarketListing as requestBuyBlackMarketListing
-} from './playfabClient.js?v=20260820-guardian-lock-v1';
+} from './playfabClient.js?v=20260821-equipment-flow-v1';
 import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites, resolveSpritePathByAvatarColor } from './avatar.js';
 import * as Player from './player.js';
 import {
@@ -69,11 +69,12 @@ let myShipMajorArcanaLimit = 1;
 let myTarotGuardian = null;
 let activeInventoryPanel = 'items';
 let activeInventoryGroup = 'Equipment';
-let activeInventoryCategory = 'Weapon';
+let activeInventoryCategory = 'Hand';
 let lastInventoryFetchAt = 0;
 let inventoryFetchPromise = null;
 let equipmentLoaded = false;
 let equipmentFetchPromise = null;
+let equipmentMutationInFlight = false;
 let inventoryStickyResizeObserver = null;
 let inventorySellSelectionMode = false;
 let selectedInventorySellItemIds = new Set();
@@ -409,10 +410,9 @@ const INVENTORY_GROUPS = {
     All: { label: '全部', category: 'All', tabs: [] },
     Equipment: {
         label: '装備',
-        category: 'Weapon',
+        category: 'Hand',
         tabs: [
-            { category: 'Weapon', label: '武器' },
-            { category: 'LeftHand', label: '左手' },
+            { category: 'Hand', label: '手装備' },
             { category: 'Armor', label: '防具' },
             { category: 'Accessory', label: 'アクセ' }
         ]
@@ -439,6 +439,12 @@ const INVENTORY_SORT_OPTIONS = {
     Weapon: [
         { value: 'default', label: 'おすすめ順' },
         { value: 'power_desc', label: '攻撃力順' }
+    ],
+    Hand: [
+        { value: 'default', label: 'おすすめ順' },
+        { value: 'power_desc', label: '攻撃力順' },
+        { value: 'defense_desc', label: '防御力順' },
+        { value: 'magic_desc', label: '術補順' }
     ],
     Shield: [
         { value: 'default', label: 'おすすめ順' },
@@ -484,13 +490,17 @@ export function getActiveInventoryCategory() {
 
 
 function getInventoryGroupForCategory(category) {
-    if (['Weapon', 'Shield', 'Offhand', 'LeftHand', 'Armor', 'Accessory'].includes(category)) return 'Equipment';
+    if (['Hand', 'Weapon', 'Shield', 'Offhand', 'LeftHand', 'Armor', 'Accessory'].includes(category)) return 'Equipment';
     if (['TarotMajor', 'TarotMinor'].includes(category)) return 'Tarot';
     if (category === 'Consumable') return 'Consumable';
     return 'All';
 }
 
 function matchesInventoryDisplayCategory(itemCategory, selectedCategory) {
+    if (selectedCategory === 'Hand') {
+        const canonicalCategory = getCanonicalTarotCategory(itemCategory);
+        return canonicalCategory === 'Weapon' || canonicalCategory === 'Shield' || canonicalCategory === 'Offhand';
+    }
     if (selectedCategory === 'LeftHand') {
         const canonicalCategory = getCanonicalTarotCategory(itemCategory);
         return canonicalCategory === 'Shield' || canonicalCategory === 'Offhand';
@@ -722,11 +732,7 @@ export function scrollInventoryItemsIntoView(options = {}) {
 function getTargetInventoryCategoryForEquipmentSlot(slotElement) {
     const slotType = slotElement?.dataset?.slot || '';
     if (slotType === 'majorarcana') return 'TarotMajor';
-    if (slotType === 'rightHand') {
-        const currentItem = getInventoryItemByReference(myCurrentEquipment?.RightHand);
-        return currentItem?.customData?.Category === 'Shield' ? 'LeftHand' : 'Weapon';
-    }
-    if (slotType === 'leftHand') return 'LeftHand';
+    if (slotType === 'rightHand' || slotType === 'leftHand') return 'Hand';
     if (slotType === 'armor') return 'Armor';
     if (slotType === 'accessory') return 'Accessory';
     return 'All';
@@ -1609,6 +1615,9 @@ function getInventoryTabHint(category) {
     if (category === 'TarotMinor') {
         return '小アルカナは5枚までデッキに編成できます。';
     }
+    if (category === 'Hand') {
+        return '武器・盾・左手補助から、装備する手を選べます。';
+    }
     if (category === 'Accessory') {
         return 'アクセサリーは1個装備できます。';
     }
@@ -1659,6 +1668,9 @@ function getEmptyInventoryMessage(category) {
     if (category === 'TarotMinor') {
         return '小アルカナはまだありません。本日の占いで正位置を引くとカードを獲得できます。';
     }
+    if (category === 'Hand') {
+        return '手に装備できる武器・盾・補助装備はまだありません。';
+    }
     if (category === 'Accessory') {
         return 'このカテゴリのアクセサリーはまだありません。';
     }
@@ -1672,6 +1684,7 @@ function getEmptyInventoryMessage(category) {
 }
 
 function getInventoryCategoryLabel(category) {
+    if (category === 'Hand') return '手装備';
     if (category === 'LeftHand') return '左手';
     const canonicalCategory = getCanonicalTarotCategory(category);
     if (canonicalCategory === 'TarotMajor') return '大アルカナ';
@@ -2082,7 +2095,7 @@ async function loadBlackMarketListings(options = {}) {
 
 function getInventoryLayout(category) {
     if (category === 'TarotMajor' || category === 'TarotMinor') return 'tarot';
-    if (['Weapon', 'Shield', 'Offhand', 'LeftHand', 'Armor', 'Accessory'].includes(category)) return 'equipment';
+    if (['Hand', 'Weapon', 'Shield', 'Offhand', 'LeftHand', 'Armor', 'Accessory'].includes(category)) return 'equipment';
     if (category === 'Consumable') return 'consumable';
     if (category === 'All') return 'mixed';
     return 'mixed';
@@ -2111,7 +2124,7 @@ function compareInventoryItemsDefault(a, b, selectedCategory) {
     if (selectedCategory === 'All' && leftCategory !== rightCategory) {
         return getInventoryCategoryOrder(leftCategory) - getInventoryCategoryOrder(rightCategory);
     }
-    if (selectedCategory === 'LeftHand' && leftCategory !== rightCategory) {
+    if ((selectedCategory === 'Hand' || selectedCategory === 'LeftHand') && leftCategory !== rightCategory) {
         return getInventoryCategoryOrder(leftCategory) - getInventoryCategoryOrder(rightCategory);
     }
     if ((leftCategory === 'TarotMajor' && rightCategory === 'TarotMajor')
@@ -2509,8 +2522,18 @@ function getEquipmentCompareStatPairs(item, currentItem, canonicalCategory) {
         .slice(0, 5);
 }
 
-function appendItemDetailEquipmentComparison(statsEl, item, canonicalCategory) {
-    const slot = getEquipmentSlotForCategory(canonicalCategory);
+function getEquipmentSlotLabel(slot) {
+    const labels = {
+        RightHand: '右手',
+        LeftHand: '左手',
+        Armor: '頭装備',
+        Accessory: 'アクセサリー'
+    };
+    return labels[slot] || '装備';
+}
+
+function appendItemDetailEquipmentComparison(statsEl, item, canonicalCategory, options = {}) {
+    const slot = options.slot || getEquipmentSlotForCategory(canonicalCategory);
     if (!slot) return;
     const equippedRef = myCurrentEquipment?.[slot];
     const currentItem = equippedRef ? getInventoryItemByReference(equippedRef) : null;
@@ -2534,13 +2557,29 @@ function appendItemDetailEquipmentComparison(statsEl, item, canonicalCategory) {
         .filter((stat) => stat.delta !== 0)
         .forEach((stat) => {
             const deltaText = `${stat.delta > 0 ? '+' : ''}${stat.delta}`;
+            const label = detailLabels[stat.key] || `${stat.label}比較`;
             appendItemDetailStat(
                 statsEl,
-                detailLabels[stat.key] || `${stat.label}比較`,
+                options.prefix ? `${options.prefix}${label}` : label,
                 `${stat.current} → ${stat.next} (${deltaText})`,
                 tones[stat.key] || ''
             );
         });
+}
+
+function appendItemDetailEquipmentComparisons(statsEl, item, canonicalCategory) {
+    const canCompareBothHands = (canonicalCategory === 'Shield')
+        || (canonicalCategory === 'Weapon' && !isTwoHandedInventoryWeapon(item));
+    if (!canCompareBothHands) {
+        appendItemDetailEquipmentComparison(statsEl, item, canonicalCategory);
+        return;
+    }
+    ['RightHand', 'LeftHand'].forEach((slot) => {
+        appendItemDetailEquipmentComparison(statsEl, item, canonicalCategory, {
+            slot,
+            prefix: `${getEquipmentSlotLabel(slot)} `
+        });
+    });
 }
 
 function getInventoryQuickAction(item, canonicalCategory) {
@@ -2864,7 +2903,9 @@ function createInventoryCell(item, requestedCategory) {
 }
 
 function getEquipActionLabel(slot, defaultLabel) {
-    return defaultLabel;
+    return myCurrentEquipment?.[slot]
+        ? `${getEquipmentSlotLabel(slot)}に入替`
+        : defaultLabel;
 }
 
 export function getMyInventory() {
@@ -3107,15 +3148,101 @@ export async function getEquipment(playFabId, options = {}) {
     updateEquipmentAndAvatarDisplay();
 }
 
-export async function equipItem(playFabId, itemId, slot, stackId = '') {
-    const data = await requestEquipItem(playFabId, itemId, slot, { stackId });
-    if (data !== null) {
-        await getInventory(playFabId, { force: true }); // インベントリと装備を再取得して表示を更新
-        // アイテム詳細モーダルを閉じる
-        const modal = document.getElementById('itemDetailModal');
-        if (modal) {
-            closeItemDetailModal();
+function isEquipmentReferenceForItem(ref, itemId, stackId = '') {
+    if (!ref || getEquipmentReferenceItemId(ref) !== String(itemId || '').trim()) return false;
+    const referenceStackId = getEquipmentReferenceStackId(ref);
+    const requestedStackId = String(stackId || '').trim();
+    return !requestedStackId || !referenceStackId || referenceStackId === requestedStackId;
+}
+
+async function confirmEquipmentMutation(itemId, slot, stackId, fromSlot = '') {
+    if (!itemId || !['RightHand', 'LeftHand'].includes(slot)) return true;
+
+    const candidate = getInventoryItemByReference({ itemId, stackId });
+    const candidateName = candidate?.name || String(itemId || '装備');
+    const targetRef = myCurrentEquipment?.[slot] || null;
+    let displacedSlot = '';
+    let displacedRef = null;
+
+    if (fromSlot) {
+        if (targetRef && !isEquipmentReferenceForItem(targetRef, itemId, stackId)) {
+            displacedSlot = slot;
+            displacedRef = targetRef;
         }
+    } else if (slot === 'RightHand' && isTwoHandedInventoryWeapon(candidate) && myCurrentEquipment?.LeftHand) {
+        displacedSlot = 'LeftHand';
+        displacedRef = myCurrentEquipment.LeftHand;
+    } else if (slot === 'LeftHand') {
+        const rightHandItem = getInventoryItemByReference(myCurrentEquipment?.RightHand);
+        if (rightHandItem && isTwoHandedInventoryWeapon(rightHandItem)) {
+            displacedSlot = 'RightHand';
+            displacedRef = myCurrentEquipment.RightHand;
+        }
+    }
+
+    if (!displacedRef) return true;
+
+    const displacedItem = getInventoryItemByReference(displacedRef);
+    const displacedName = displacedItem?.name || getEquipmentReferenceItemId(displacedRef) || '現在の装備';
+    const actionText = fromSlot
+        ? `「${displacedName}」を${getEquipmentSlotLabel(displacedSlot)}から外し、「${candidateName}」を${getEquipmentSlotLabel(slot)}へ移動しますか？`
+        : `「${displacedName}」を${getEquipmentSlotLabel(displacedSlot)}から外し、「${candidateName}」を${getEquipmentSlotLabel(slot)}に装備しますか？`;
+    const result = await showInventoryActionDialog({
+        title: '装備を入れ替え',
+        message: actionText,
+        confirmLabel: '入れ替える'
+    });
+    return result.confirmed === true;
+}
+
+function disableItemDetailActions() {
+    const states = [];
+    document.querySelectorAll('#itemDetailButtons .item-detail-action').forEach((button) => {
+        states.push({ button, disabled: button.disabled });
+        button.disabled = true;
+    });
+    return states;
+}
+
+function restoreItemDetailActions(states) {
+    states.forEach(({ button, disabled }) => {
+        if (button.isConnected) button.disabled = disabled;
+    });
+}
+
+function refreshOpenItemDetail(itemId, stackId = '', detailEntryKey = '') {
+    const modal = document.getElementById('itemDetailModal');
+    if (!modal || modal.style.display === 'none' || modal.hidden) return;
+    const refreshedItem = (detailEntryKey
+        ? getDisplayInventoryEntries().find((entry) => getInventoryEntryKey(entry) === detailEntryKey)
+        : null)
+        || getInventoryItemByReference({ itemId, stackId });
+    if (refreshedItem) {
+        showItemDetailModal(refreshedItem);
+    } else {
+        closeItemDetailModal();
+    }
+}
+
+export async function equipItem(playFabId, itemId, slot, stackId = '', options = {}) {
+    if (!playFabId || equipmentMutationInFlight) return null;
+    const fromSlot = String(options.fromSlot || '').trim();
+    if (itemId && !(await confirmEquipmentMutation(itemId, slot, stackId, fromSlot))) return null;
+
+    const modal = document.getElementById('itemDetailModal');
+    const detailEntryKey = String(modal?.dataset?.detailEntryKey || '');
+    const actionStates = disableItemDetailActions();
+    equipmentMutationInFlight = true;
+    try {
+        const data = await requestEquipItem(playFabId, itemId, slot, { stackId, fromSlot });
+        if (data !== null) {
+            await getInventory(playFabId, { force: true });
+            refreshOpenItemDetail(itemId, stackId, detailEntryKey);
+        }
+        return data;
+    } finally {
+        equipmentMutationInFlight = false;
+        restoreItemDetailActions(actionStates);
     }
 }
 
@@ -4252,20 +4379,38 @@ function showItemDetailModal(item) {
         const ownedCount = getInventoryOwnedCount(item);
         const isRightEquipped = isEquipped('RightHand');
         const isLeftEquipped = isEquipped('LeftHand');
-        const cannotEquipRight = !isRightEquipped && isLeftEquipped && ownedCount < 2;
-        const cannotEquipLeft = !isLeftEquipped && isRightEquipped && ownedCount < 2;
-        if (isRightEquipped) {
+        const equippedStackId = getPreferredInventoryStackId(item, { preferEquipped: true });
+        if (isRightEquipped && isLeftEquipped) {
             addAction('右手を外す', 'remove', () => equipItem(playFabId, null, 'RightHand'));
-        } else if (cannotEquipRight) {
-            addAction('右手装備', 'disabled', null, { disabled: true });
+            addAction('左手を外す', 'remove', () => equipItem(playFabId, null, 'LeftHand'));
+        } else if (isRightEquipped) {
+            addAction('右手を外す', 'remove', () => equipItem(playFabId, null, 'RightHand'));
+            if (ownedCount < 2) {
+                addAction('左手へ移動', 'equip', () => equipItem(
+                    playFabId,
+                    equipItemId,
+                    'LeftHand',
+                    equippedStackId,
+                    { fromSlot: 'RightHand' }
+                ));
+            } else {
+                addAction(getEquipActionLabel('LeftHand', '左手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'LeftHand', equipStackId));
+            }
+        } else if (isLeftEquipped) {
+            if (ownedCount < 2) {
+                addAction('右手へ移動', 'equip', () => equipItem(
+                    playFabId,
+                    equipItemId,
+                    'RightHand',
+                    equippedStackId,
+                    { fromSlot: 'LeftHand' }
+                ));
+            } else {
+                addAction(getEquipActionLabel('RightHand', '右手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'RightHand', equipStackId));
+            }
+            addAction('左手を外す', 'remove', () => equipItem(playFabId, null, 'LeftHand'));
         } else {
             addAction(getEquipActionLabel('RightHand', '右手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'RightHand', getPreferredInventoryStackId(item)));
-        }
-        if (isLeftEquipped) {
-            addAction('左手を外す', 'remove', () => equipItem(playFabId, null, 'LeftHand'));
-        } else if (cannotEquipLeft) {
-            addAction('左手装備', 'disabled', null, { disabled: true });
-        } else {
             addAction(getEquipActionLabel('LeftHand', '左手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'LeftHand', getPreferredInventoryStackId(item)));
         }
     };
@@ -4274,9 +4419,9 @@ function showItemDetailModal(item) {
         const isTwoHanded = isTwoHandedInventoryWeapon(item);
         if (isTwoHanded) {
             if (isEquipped('RightHand')) {
-                addAction('外す', 'remove', () => equipItem(playFabId, null, 'RightHand'));
+                addAction('両手を外す', 'remove', () => equipItem(playFabId, null, 'RightHand'));
             } else {
-                addAction('両手装備', 'equip', () => equipItem(playFabId, equipItemId, 'RightHand', equipStackId));
+                addAction(getEquipActionLabel('RightHand', '両手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'RightHand', equipStackId));
             }
         } else {
             addOneHandedActions();

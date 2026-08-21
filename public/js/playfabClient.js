@@ -167,6 +167,7 @@ export function equipItem(playFabId, itemId, slot, options = {}) {
         playFabId,
         itemId,
         stackId: String(options.stackId || '').trim() || undefined,
+        fromSlot: String(options.fromSlot || '').trim() || undefined,
         slot
     }, options);
 }
