@@ -28476,7 +28476,8 @@ body[data-sea-tone] .home-hero-card {
     overflow: visible;
 }
 
-#tabContentInventory .inventory-item-cell.is-equipment-equipped::after {
+#tabContentInventory .inventory-item-cell.is-equipment-equipped::after,
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-equipped::after {
     content: "E";
     position: absolute;
     top: 3px;
@@ -28496,10 +28497,6 @@ body[data-sea-tone] .home-hero-card {
     letter-spacing: 0;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.88);
     pointer-events: none;
-}
-
-#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-equipped::after {
-    content: none;
 }
 
 #tabContentInventory .inventory-item-main {
@@ -33140,7 +33137,7 @@ body[data-sea-tone] .home-hero-card {
 
 #tabContentInventory .tarot-loadout-effect-actions {
     display: grid;
-    grid-template-columns: 42px minmax(74px, 1fr) 42px minmax(58px, 0.75fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
 }
 

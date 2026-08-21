@@ -6605,7 +6605,9 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
           level: 1,
           maxLevel: 10,
           quantity: item.count || 1,
-          nextLevelCost: 40
+          duplicateCount: Math.max(0, (item.count || 1) - 1),
+          duplicateCost: 1,
+          canLevelUp: (item.count || 1) > 1
         }))
       })
     });
@@ -6639,7 +6641,7 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   await expect(page.locator('#meleeDeckGrid .tarot-loadout-card').nth(1)).toHaveAttribute('aria-pressed', 'true');
   await page.locator('#meleeDeckGrid .tarot-loadout-card').nth(2).click();
   await expect(page.locator('#meleeDeckEffectList')).toContainText('イグニスレイ');
-  await expect(page.locator('#meleeDeckEffectList .tarot-loadout-effect-action')).toHaveCount(4);
+  await expect(page.locator('#meleeDeckEffectList .tarot-loadout-effect-action')).toHaveText(['詳細', '入れ替え', '外す']);
   await expect(page.locator('#meleeDeckGrid .tarot-loadout-slot-badge')).toHaveText(['1', '2', '3']);
   await expect(page.locator('#meleeDeckEffectList')).toContainText('防御を50％無視');
   await expect(page.locator('#meleeDeckEffectList')).not.toContainText(/R=|\dR|R％/);
@@ -6817,7 +6819,7 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
       overflow: style.overflow
     };
   });
-  expect(equippedTarotMarker.content).toBe('none');
+  expect(equippedTarotMarker.content).toBe('"E"');
   expect(equippedTarotMarker.borderImageSource).toBe('none');
   expect(equippedTarotMarker.cardBorderColor).toBe('rgb(211, 74, 64)');
   expect(equippedTarotMarker.overflow).toBe('visible');
@@ -6951,10 +6953,16 @@ test('tarot cards preview, automatically sort, and open detail before changing d
       itemId: 'tarot_minor_cup_10',
       name: 'Cup Ten',
       customData: { Category: 'TarotMinor', ArcanaSuit: 'cup', ArcanaRank: '10', CardNumber: '10' }
+    },
+    {
+      itemId: 'tarot_minor_pentacle_3',
+      name: 'Pentacle Three',
+      customData: { Category: 'TarotMinor', ArcanaSuit: 'pentacle', ArcanaRank: '3', CardNumber: '3' }
     }
   ];
   const equipRequests = [];
   const unequipRequests = [];
+  const replaceRequests = [];
 
   await page.route('**/api/get-inventory', async (route) => {
     await route.fulfill({
@@ -7015,6 +7023,18 @@ test('tarot cards preview, automatically sort, and open detail before changing d
       body: JSON.stringify({
         ok: true,
         tarotDeck: ['tarot_minor_wand_7'],
+        tarotRole: null
+      })
+    });
+  });
+  await page.route('**/api/tarot-deck-replace', async (route) => {
+    replaceRequests.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ok: true,
+        tarotDeck: ['tarot_minor_pentacle_3'],
         tarotRole: null
       })
     });
@@ -7229,6 +7249,20 @@ test('tarot cards preview, automatically sort, and open detail before changing d
     deckType: 'tarot'
   });
   await expect(page.locator('#meleeDeckGrid')).toHaveAttribute('data-deck-count', '1');
+  await page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty)').click();
+  await page.locator('#meleeDeckEffectList .tarot-loadout-effect-action.is-replace').click();
+  await expect(page.locator('#inventoryTabs [data-category="TarotMinor"]')).toHaveClass(/active/);
+  await expect(page.locator('#inventoryGrid')).toHaveAttribute('data-tarot-replacement-target', 'tarot_minor_wand_7');
+  await page.locator('#inventoryGrid .inventory-item-cell:has(.tarot-number-badge.is-pentacle)').click();
+  expect(replaceRequests).toHaveLength(1);
+  expect(replaceRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    replacedCardItemId: 'tarot_minor_wand_7',
+    cardItemId: 'tarot_minor_pentacle_3'
+  });
+  await expect(page.locator('#meleeDeckGrid')).toHaveAttribute('data-deck-count', '1');
+  await expect(page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty)')).toHaveAttribute('aria-label', /Pentacle Three/);
+  await expect(page.locator('#inventoryGrid')).not.toHaveAttribute('data-tarot-replacement-target', /.+/);
   await expectNoPageErrors(errors);
 });
 
@@ -7878,12 +7912,14 @@ test('two owned shields can be equipped in both hands from the detail modal', as
   await expectNoPageErrors(errors);
 });
 
-test('tarot detail levels up with the reported starter shard balance', async ({ page }) => {
+test('tarot detail consumes a duplicate card to level up', async ({ page }) => {
   const errors = trackPageErrors(page);
   const levelUpRequests = [];
+  let cardQuantity = 3;
+  let cardLevel = 6;
   const tarotItems = [{
     itemId: 'tarot_minor_wand_01',
-    count: 1,
+    count: 3,
     name: 'Wand Ace',
     customData: {
       Category: 'TarotMinor',
@@ -7898,7 +7934,11 @@ test('tarot detail levels up with the reported starter shard balance', async ({ 
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({ inventory: tarotItems, virtualCurrency: { PS: 0 }, contribution: 0 })
+      body: JSON.stringify({
+        inventory: tarotItems.map((item) => ({ ...item, count: cardQuantity })),
+        virtualCurrency: { PS: 0 },
+        contribution: 0
+      })
     });
   });
   await page.route('**/api/get-equipment', async (route) => {
@@ -7922,29 +7962,34 @@ test('tarot detail levels up with the reported starter shard balance', async ({ 
       body: JSON.stringify({
         cards: [{
           itemId: 'tarot_minor_wand_01',
-          quantity: 1,
-          level: 1,
-          maxLevel: 10,
-          nextLevelCost: 1
-        }],
-        arcanaShards: 50,
-        starterShardGrantAvailable: true
+          quantity: cardQuantity,
+          level: cardLevel,
+          maxLevel: 15,
+          duplicateCount: Math.max(0, cardQuantity - 1),
+          duplicateCost: 2,
+          canLevelUp: cardLevel < 15 && cardQuantity > 2
+        }]
       })
     });
   });
   await page.route('**/api/cards/levelup', async (route) => {
     levelUpRequests.push(route.request().postDataJSON());
+    cardQuantity -= 2;
+    cardLevel += 1;
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
         success: true,
         itemId: 'tarot_minor_wand_01',
-        newLevel: 2,
-        maxLevel: 10,
-        nextLevelCost: 1,
-        shardsAfter: 49,
-        starterShardsGranted: 50
+        newLevel: cardLevel,
+        maxLevel: 15,
+        quantity: cardQuantity,
+        duplicateCount: Math.max(0, cardQuantity - 1),
+        duplicateCost: 2,
+        canLevelUp: false,
+        duplicateConsumed: true,
+        materialsConsumed: 2
       })
     });
   });
@@ -7960,13 +8005,14 @@ test('tarot detail levels up with the reported starter shard balance', async ({ 
   });
 
   await page.locator('#inventoryGrid .inventory-item-cell[data-category="TarotMinor"]').click();
-  await expect(page.getByRole('button', { name: 'Lvアップ（1⚔）', exact: true })).toBeEnabled();
-  await expect(page.locator('#itemDetailModal')).toContainText('シャード 50');
-  await page.getByRole('button', { name: 'Lvアップ（1⚔）', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Lvアップ（同名2枚）', exact: true })).toBeEnabled();
+  await expect(page.locator('#itemDetailModal')).toContainText('素材 2/2');
+  await page.getByRole('button', { name: 'Lvアップ（同名2枚）', exact: true }).click();
   await expect.poll(() => levelUpRequests.length).toBe(1);
   expect(levelUpRequests[0]).toEqual({ itemId: 'tarot_minor_wand_01' });
-  await expect(page.locator('#itemDetailModal')).toContainText('Lv2');
-  await expect(page.locator('#itemDetailModal')).toContainText('シャード 49');
+  await expect(page.locator('#itemDetailModal')).toContainText('Lv7');
+  await expect(page.locator('#itemDetailModal')).toContainText('素材 0/2');
+  await expect(page.getByRole('button', { name: '予備カードが不足（0/2）', exact: true })).toBeDisabled();
   await expectNoPageErrors(errors);
 });
 

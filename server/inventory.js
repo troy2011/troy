@@ -38,11 +38,7 @@ const {
     isTarotMajorCategory,
     enrichTarotCatalogData
 } = require('./tarotCards');
-const {
-    TAROT_AWAKENINGS_DATA_KEY,
-    MAJOR_AWAKEN_MAX_LEVEL,
-    parseJsonValue
-} = require('./tarotSkills');
+const { parseJsonValue } = require('./tarotSkills');
 const { FEATURE_UNLOCK_LEVELS, isFeatureUnlocked } = require('./featureUnlocks');
 const { getDestinyProfile } = require('./personalityAssessmentEngine');
 const {
@@ -717,27 +713,6 @@ function initializeInventoryRoutes(app, deps) {
             { slot: 'LeftHand', label: getTarotSlotLabel('LeftHand'), name: getPublicEquipmentDisplayName(equipment.LeftHand) },
             { slot: 'Accessory', label: getTarotSlotLabel('Accessory'), name: getPublicEquipmentDisplayName(equipment.Accessory) }
         ];
-    }
-
-    async function getPlayerTarotProgress(playFabId) {
-        const readOnly = await getPlayerReadOnlyData(playFabId, [
-            TAROT_AWAKENINGS_DATA_KEY
-        ]);
-        const awakenings = parseJsonValue(readOnly?.Data?.[TAROT_AWAKENINGS_DATA_KEY]?.Value, {});
-        return { awakenings };
-    }
-
-    async function savePlayerTarotProgress(playFabId, { awakenings }) {
-        const updateData = {};
-        if (awakenings) {
-            updateData[TAROT_AWAKENINGS_DATA_KEY] = JSON.stringify(awakenings);
-        }
-        if (!Object.keys(updateData).length) return;
-        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
-            PlayFabId: playFabId,
-            Data: updateData,
-            Permission: 'Public'
-        });
     }
 
     function getInventoryItemTotal(items, itemId) {
@@ -2539,7 +2514,6 @@ function initializeInventoryRoutes(app, deps) {
                 console.warn('[black-market] active count failed:', error?.errorMessage || error?.message || error);
                 return 0;
             });
-            const { awakenings: tarotAwakenings } = await getPlayerTarotProgress(playFabId);
             let isKing = false;
             try {
                 const readOnlyData = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
@@ -2565,10 +2539,6 @@ function initializeInventoryRoutes(app, deps) {
                 level: contributionProgress.level,
                 contributionProgress,
                 isKing,
-                tarotSkills: {},
-                tarotSkillByCard: {},
-                tarotAwakenings,
-                activeTarotAwakening: null,
                 blackMarketOrigins,
                 blackMarketMyActiveCount,
                 blackMarketMaxActiveListings: BLACK_MARKET_MAX_ACTIVE_LISTINGS
@@ -2940,66 +2910,6 @@ function initializeInventoryRoutes(app, deps) {
 
     app.post('/api/study-tarot-card', async (req, res) => {
         return res.status(410).json({ error: 'タロットカードからの術習得は廃止されました。' });
-    });
-
-    app.post('/api/awaken-major-arcana', async (req, res) => {
-        let { playFabId, itemId } = req.body || {};
-        if (!playFabId || !itemId) {
-            return res.status(400).json({ error: '覚醒に使う大アルカナ情報がありません。' });
-        }
-        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
-        if (!playFabId) return;
-
-        try {
-            const majorCardData = catalogCache[itemId];
-            if (!majorCardData || !isTarotMajorCategory(majorCardData.Category)) {
-                return res.status(400).json({ error: 'そのカードは大アルカナではありません。' });
-            }
-
-            await ensureStarterMajorArcanaEquipped(playFabId);
-            const entityKey = await getEntityKeyForPlayFabId(playFabId);
-            const inventoryItems = await getAllInventoryItems(entityKey);
-            const totalCopies = getInventoryItemTotal(inventoryItems, itemId);
-            const requiredCopies = 2;
-            if (totalCopies < requiredCopies) {
-                return res.status(400).json({
-                    error: '覚醒するには予備の大アルカナが1枚必要です。最後の1枚は残してください。'
-                });
-            }
-
-            const { awakenings } = await getPlayerTarotProgress(playFabId);
-            const currentLevel = Number(awakenings?.[itemId] || 0) || 0;
-            if (currentLevel >= MAJOR_AWAKEN_MAX_LEVEL) {
-                return res.status(400).json({ error: 'この大アルカナはすでに最大まで覚醒しています。' });
-            }
-
-            const updatedAwakenings = {
-                ...(awakenings || {}),
-                [itemId]: currentLevel + 1
-            };
-            const nowStamp = Date.now();
-            await subtractEconomyItem(playFabId, itemId, 1, {
-                idempotencyId: `awaken-arcana-${playFabId}-${itemId}-${nowStamp}`
-            });
-            await savePlayerTarotProgress(playFabId, {
-                awakenings: updatedAwakenings
-            });
-
-            return res.json({
-                success: true,
-                itemId,
-                awakeningLevel: updatedAwakenings[itemId],
-                maxLevel: MAJOR_AWAKEN_MAX_LEVEL,
-                tarotAwakenings: updatedAwakenings,
-                message: `${majorCardData.DisplayName || itemId} の覚醒が Lv${updatedAwakenings[itemId]} になった。`
-            });
-        } catch (error) {
-            console.error('[awaken-major-arcana] Error:', error?.errorMessage || error?.message || error);
-            return res.status(500).json({
-                error: '大アルカナの覚醒に失敗しました。',
-                details: error?.errorMessage || error?.message || String(error)
-            });
-        }
     });
 
     // ステータス取得

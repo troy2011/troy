@@ -2146,6 +2146,7 @@ async function main() {
     initializeCardRoutes(app, {
         getEntityKeyFromPlayFabId,
         getAllInventoryItems: deps.getAllInventoryItems,
+        subtractEconomyItem: deps.subtractEconomyItem,
         catalogCache,
         firestore,
         requireAuthenticatedPlayFabId,

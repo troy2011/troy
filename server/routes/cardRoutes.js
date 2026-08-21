@@ -2,27 +2,18 @@
 // タロットカードのレベル・育成管理
 //
 // GET  /api/cards          所有カード一覧（PlayFab量 + Firestoreレベル合算）
-// POST /api/cards/levelup  シャード消費でカードをレベルアップ
+// POST /api/cards/levelup  同名カードをレベルに応じた枚数だけ消費してレベルアップ
 
 const admin = require('firebase-admin');
 const { enrichTarotCatalogData, isTarotMajorCategory, isTarotMinorCategory } = require('../tarotCards');
 const { getPublicTarotBattleSkills } = require('../tarotBattleSkills');
 
-const BASE_MAX_LEVEL = 10;
-const LEVELS_PER_EXTRA_COPY = 5;
 const MAJOR_MAX_LEVEL = 25;
 const MINOR_MAX_LEVEL = 15;
-const STARTER_ARCANA_SHARDS = 50;
-const STARTER_SHARD_GRANT_VERSION = 1;
+const cardLevelMutationTails = new Map();
 
-// 1枚でLv10まで。余剰カードは上限だけを拡張し、消費しない。
-function getMaxLevel(isMajor, quantity) {
-    const copies = Math.max(1, Math.floor(Number(quantity) || 0));
-    const extraCopies = isMajor
-        ? Math.min(3, Math.max(0, copies - 1))
-        : Math.min(1, Math.max(0, copies - 1));
-    const maxLevel = BASE_MAX_LEVEL + (extraCopies * LEVELS_PER_EXTRA_COPY);
-    return Math.min(isMajor ? MAJOR_MAX_LEVEL : MINOR_MAX_LEVEL, maxLevel);
+function getMaxLevel(isMajor) {
+    return isMajor ? MAJOR_MAX_LEVEL : MINOR_MAX_LEVEL;
 }
 
 function normalizeCardLevel(value, maxLevel = Infinity) {
@@ -30,18 +21,43 @@ function normalizeCardLevel(value, maxLevel = Infinity) {
     return Math.min(level, Math.max(1, Number(maxLevel) || 1));
 }
 
-// 次のレベルに上げるシャードコスト（2Lvごとに1ずつ増加）
-function shardCost(currentLevel) {
-    return Math.max(1, Math.ceil(normalizeCardLevel(currentLevel) / 2));
+function getDuplicateCount(quantity) {
+    return Math.max(0, Math.floor(Number(quantity) || 0) - 1);
 }
 
-function normalizeShardBalance(value) {
-    return Math.max(0, Math.floor(Number(value) || 0));
+// Lv1-5は1枚、以後5Lvごとに必要な同名カードを1枚ずつ増やす。
+function getDuplicateCost(currentLevel) {
+    const level = normalizeCardLevel(currentLevel);
+    return 1 + Math.floor((level - 1) / 5);
 }
 
-function getStarterShardGrant(statData = {}) {
-    const grantVersion = Math.max(0, Math.floor(Number(statData?.cardLevelStarterShardGrantVersion) || 0));
-    return grantVersion >= STARTER_SHARD_GRANT_VERSION ? 0 : STARTER_ARCANA_SHARDS;
+function getDuplicateRequirementError(duplicateCost) {
+    const required = Math.max(1, Math.floor(Number(duplicateCost) || 1));
+    return `同じカードの予備が${required}枚必要です。最後の1枚は残ります。`;
+}
+
+function getCardLevelOperationId(playFabId, itemId, currentLevel) {
+    return `${String(playFabId || '').trim()}:${String(itemId || '').trim()}:${Math.max(1, Math.floor(Number(currentLevel) || 1))}`;
+}
+
+function isInsufficientInventoryError(error) {
+    const code = String(error?.apiErrorInfo?.apiError || error?.code || '').toLowerCase();
+    const message = String(error?.errorMessage || error?.message || '').toLowerCase();
+    return code.includes('insufficient')
+        || message.includes('insufficient')
+        || message.includes('not enough');
+}
+
+function runCardLevelMutation(playFabId, operation) {
+    const key = String(playFabId || '').trim();
+    const previous = cardLevelMutationTails.get(key) || Promise.resolve();
+    const current = previous.catch(() => undefined).then(operation);
+    cardLevelMutationTails.set(key, current);
+    return current.finally(() => {
+        if (cardLevelMutationTails.get(key) === current) {
+            cardLevelMutationTails.delete(key);
+        }
+    });
 }
 
 // Firestoreのカードドキュメントを取得（なければ空のmap）
@@ -54,20 +70,12 @@ async function getCardDoc(playFabId, firestore) {
     return snap.exists ? snap.data() : { cards: {} };
 }
 
-async function getPlayerStatsDoc(playFabId, firestore) {
-    if (!firestore || typeof firestore.collection !== 'function') {
-        return {};
-    }
-    const ref = firestore.collection('playerStats').doc(playFabId);
-    const snap = await ref.get();
-    return snap.exists ? snap.data() : {};
-}
-
 // ── ルート登録 ────────────────────────────────────────────────
 function initializeCardRoutes(app, deps) {
     const {
         getEntityKeyFromPlayFabId,
         getAllInventoryItems,
+        subtractEconomyItem,
         catalogCache,
         firestore,
         requireAuthenticatedPlayFabId,
@@ -91,7 +99,31 @@ function initializeCardRoutes(app, deps) {
         });
     }
 
-    // ── 所有カード一覧 ────────────────────────────────────────
+    function buildCardPayload(item, levels = {}) {
+        const itemId = String(item?.Id || '').trim();
+        const quantity = Math.max(0, Math.floor(Number(item?.Amount ?? 0) || 0));
+        const catalogData = enrichTarotCatalogData(itemId, catalogCache?.[itemId] || {});
+        const category = String(catalogData.Category || '').trim();
+        const isMajor = isTarotMajorCategory(category);
+        const maxLevel = getMaxLevel(isMajor);
+        const level = normalizeCardLevel(levels[itemId]?.level, maxLevel);
+        const duplicateCount = getDuplicateCount(quantity);
+        const duplicateCost = level < maxLevel ? getDuplicateCost(level) : null;
+
+        return {
+            itemId,
+            quantity,
+            level,
+            maxLevel,
+            isMajor,
+            duplicateCount,
+            duplicateCost,
+            canLevelUp: duplicateCost !== null && duplicateCount >= duplicateCost,
+            displayName: catalogData.DisplayName ?? itemId,
+        };
+    }
+
+    // ── タロットバトルスキル一覧 ──────────────────────────────
     app.get('/api/tarot-battle-skills', (_req, res) => {
         res.json({
             ok: true,
@@ -104,47 +136,17 @@ function initializeCardRoutes(app, deps) {
         const playFabId = req.authenticatedPlayFabId;
         try {
             const entityKey = await getEntityKey(playFabId);
-            const [inventoryItems, cardDoc, playerStats] = await Promise.all([
+            const [inventoryItems, cardDoc] = await Promise.all([
                 fetchInventoryCards(entityKey),
                 getCardDoc(playFabId, firestore).catch((error) => {
                     console.warn('[cards] level data unavailable; returning owned cards without levels:', error?.message || error);
                     return { cards: {} };
                 }),
-                getPlayerStatsDoc(playFabId, firestore).catch((error) => {
-                    console.warn('[cards] shard data unavailable; returning a zero balance:', error?.message || error);
-                    return {};
-                }),
             ]);
             const levels = cardDoc.cards || {};
-            const starterShards = getStarterShardGrant(playerStats);
-            const arcanaShards = normalizeShardBalance(playerStats.arcanaShards) + starterShards;
+            const cards = inventoryItems.map((item) => buildCardPayload(item, levels));
 
-            const cards = inventoryItems.map((item) => {
-                const itemId   = item.Id;
-                const quantity = Number(item.Amount ?? 0);
-                const catalogData = enrichTarotCatalogData(itemId, catalogCache?.[itemId] || {});
-                const cat      = String(catalogData.Category || '').trim();
-                const isMajor  = isTarotMajorCategory(cat);
-                const maxLevel = getMaxLevel(isMajor, quantity);
-                const level    = normalizeCardLevel(levels[itemId]?.level, maxLevel);
-                const nextCost = level < maxLevel ? shardCost(level) : null;
-
-                return {
-                    itemId,
-                    quantity,
-                    level,
-                    maxLevel,
-                    isMajor,
-                    nextLevelCost: nextCost,
-                    displayName: catalogData.DisplayName ?? itemId,
-                };
-            });
-
-            res.json({
-                cards,
-                arcanaShards,
-                starterShardGrantAvailable: starterShards > 0
-            });
+            res.json({ cards });
         } catch (err) {
             console.error('[cards] list error:', err);
             res.status(500).json({ error: 'サーバーエラー' });
@@ -154,72 +156,154 @@ function initializeCardRoutes(app, deps) {
     // ── レベルアップ ──────────────────────────────────────────
     app.post('/api/cards/levelup', requireAuthenticatedPlayFabId, async (req, res) => {
         const playFabId = req.authenticatedPlayFabId;
-        const { itemId } = req.body;
+        const itemId = String(req.body?.itemId || '').trim();
         if (!itemId) return res.status(400).json({ error: 'itemId は必須です' });
+        if (typeof subtractEconomyItem !== 'function') {
+            return res.status(500).json({ error: 'カード素材を消費する処理を利用できません。' });
+        }
 
         try {
-            const entityKey = await getEntityKey(playFabId);
+            const result = await runCardLevelMutation(playFabId, async () => {
+                const entityKey = await getEntityKey(playFabId);
+                const inventoryItems = await fetchInventoryCards(entityKey);
+                const owned = inventoryItems.find((item) => String(item?.Id || '').trim() === itemId);
+                if (!owned) {
+                    throw Object.assign(new Error('カードを所持していません'), { code: 'CARD_NOT_OWNED' });
+                }
 
-            // PlayFabインベントリから該当カードの quantity 取得
-            const inventoryItems = await fetchInventoryCards(entityKey);
-            const owned = inventoryItems.find((i) => i.Id === itemId);
-            if (!owned) return res.status(404).json({ error: 'カードを所持していません' });
+                const catalogData = enrichTarotCatalogData(itemId, catalogCache?.[itemId] || {});
+                const category = String(catalogData.Category || '').trim();
+                const isMajor = isTarotMajorCategory(category);
+                const maxLevel = getMaxLevel(isMajor);
+                const quantity = Math.max(0, Math.floor(Number(owned.Amount ?? 0) || 0));
+                const db = firestore || admin.firestore();
+                const cardRef = db.collection('playerCards').doc(playFabId);
 
-            const quantity = Number(owned.Amount ?? 0);
-            const cat      = String(enrichTarotCatalogData(itemId, catalogCache?.[itemId] || {}).Category || '').trim();
-            const isMajor  = isTarotMajorCategory(cat);
-            const maxLevel = getMaxLevel(isMajor, quantity);
-
-            // Firestoreのシャードとレベルをトランザクションで更新
-            const db = firestore || admin.firestore();
-            const cardRef  = db.collection('playerCards').doc(playFabId);
-            const statRef  = db.collection('playerStats').doc(playFabId);
-
-            const result = await db.runTransaction(async (tx) => {
-                const [cardSnap, statSnap] = await Promise.all([
-                    tx.get(cardRef),
-                    tx.get(statRef),
-                ]);
-
+                const cardSnap = await cardRef.get();
                 const cards = cardSnap.exists ? (cardSnap.data().cards || {}) : {};
-                const statData = statSnap.exists ? (statSnap.data() || {}) : {};
                 const currentLevel = normalizeCardLevel(cards[itemId]?.level, maxLevel);
-                const starterShards = getStarterShardGrant(statData);
-                const shards = normalizeShardBalance(statData.arcanaShards) + starterShards;
-
                 if (currentLevel >= maxLevel) {
                     throw Object.assign(new Error('レベル上限に達しています'), { code: 'MAX_LEVEL' });
                 }
+                const duplicateCost = getDuplicateCost(currentLevel);
 
-                const cost = shardCost(currentLevel);
-                if (shards < cost) {
-                    throw Object.assign(new Error(`シャードが不足しています（必要: ${cost}、所持: ${shards}）`), { code: 'INSUFFICIENT_SHARDS' });
+                const operationId = getCardLevelOperationId(playFabId, itemId, currentLevel);
+                const operationRef = db.collection('playerCardLevelOperations').doc(operationId);
+                const preparation = await db.runTransaction(async (tx) => {
+                    const [freshCardSnap, operationSnap] = await Promise.all([
+                        tx.get(cardRef),
+                        tx.get(operationRef),
+                    ]);
+                    const freshCards = freshCardSnap.exists ? (freshCardSnap.data().cards || {}) : {};
+                    const freshLevel = normalizeCardLevel(freshCards[itemId]?.level, maxLevel);
+                    const existingOperation = operationSnap.exists ? (operationSnap.data() || {}) : null;
+
+                    if (existingOperation) {
+                        return {
+                            alreadyCompleted: existingOperation.status === 'completed',
+                            currentLevel: freshLevel,
+                            operation: existingOperation,
+                        };
+                    }
+                    if (freshLevel !== currentLevel) {
+                        return { currentLevel: freshLevel, retry: true };
+                    }
+                    if (getDuplicateCount(quantity) < duplicateCost) {
+                        throw Object.assign(new Error(getDuplicateRequirementError(duplicateCost)), { code: 'INSUFFICIENT_DUPLICATES' });
+                    }
+
+                    const operation = {
+                        status: 'pending',
+                        playFabId,
+                        itemId,
+                        baseLevel: currentLevel,
+                        newLevel: currentLevel + 1,
+                        maxLevel,
+                        duplicateCost,
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    };
+                    tx.set(operationRef, operation);
+                    return { currentLevel, operation };
+                });
+
+                if (preparation.retry) {
+                    throw Object.assign(new Error('カードの状態が更新されました。もう一度お試しください。'), { code: 'CARD_STATE_CHANGED' });
                 }
 
-                const newLevel = currentLevel + 1;
-                tx.set(cardRef, {
-                    cards: { ...cards, [itemId]: { level: newLevel } },
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                }, { merge: true });
-                tx.set(statRef, {
-                    arcanaShards: admin.firestore.FieldValue.increment(starterShards - cost),
-                    ...(starterShards > 0 ? { cardLevelStarterShardGrantVersion: STARTER_SHARD_GRANT_VERSION } : {})
-                }, { merge: true });
+                const operation = preparation.operation;
+                if (preparation.alreadyCompleted) {
+                    const materialsConsumed = Math.max(1, Math.floor(Number(operation.duplicateCost) || duplicateCost));
+                    const quantityAfter = Math.max(0, quantity - materialsConsumed);
+                    const newLevel = Math.max(1, Number(operation.newLevel) || currentLevel);
+                    const nextDuplicateCost = newLevel < maxLevel ? getDuplicateCost(newLevel) : null;
+                    return {
+                        newLevel,
+                        maxLevel,
+                        quantity: quantityAfter,
+                        duplicateCount: getDuplicateCount(quantityAfter),
+                        duplicateCost: nextDuplicateCost,
+                        canLevelUp: nextDuplicateCost !== null && getDuplicateCount(quantityAfter) >= nextDuplicateCost,
+                        duplicateConsumed: true,
+                        materialsConsumed,
+                        alreadyCompleted: true,
+                    };
+                }
 
+                const idempotencyId = `card-levelup-${operationId}`;
+                await subtractEconomyItem(playFabId, itemId, duplicateCost, {
+                    entityKeyOverride: entityKey,
+                    idempotencyId,
+                });
+
+                const completed = await db.runTransaction(async (tx) => {
+                    const [freshCardSnap, freshOperationSnap] = await Promise.all([
+                        tx.get(cardRef),
+                        tx.get(operationRef),
+                    ]);
+                    const freshCards = freshCardSnap.exists ? (freshCardSnap.data().cards || {}) : {};
+                    const freshLevel = normalizeCardLevel(freshCards[itemId]?.level, maxLevel);
+                    const freshOperation = freshOperationSnap.exists ? (freshOperationSnap.data() || {}) : operation;
+                    const newLevel = Math.max(1, Number(freshOperation.newLevel) || currentLevel + 1);
+
+                    if (freshOperation.status !== 'completed' && freshLevel < newLevel) {
+                        tx.set(cardRef, {
+                            cards: { ...freshCards, [itemId]: { level: newLevel } },
+                            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        }, { merge: true });
+                    }
+                    if (freshOperation.status !== 'completed') {
+                        tx.set(operationRef, {
+                            ...freshOperation,
+                            status: 'completed',
+                            completedAt: admin.firestore.FieldValue.serverTimestamp(),
+                            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        }, { merge: true });
+                    }
+                    return { newLevel: Math.max(freshLevel, newLevel) };
+                });
+
+                const quantityAfter = Math.max(0, quantity - duplicateCost);
+                const nextDuplicateCost = completed.newLevel < maxLevel ? getDuplicateCost(completed.newLevel) : null;
                 return {
-                    newLevel,
-                    cost,
+                    newLevel: completed.newLevel,
                     maxLevel,
-                    shardsAfter: shards - cost,
-                    starterShardsGranted: starterShards,
-                    nextLevelCost: newLevel < maxLevel ? shardCost(newLevel) : null
+                    quantity: quantityAfter,
+                    duplicateCount: getDuplicateCount(quantityAfter),
+                    duplicateCost: nextDuplicateCost,
+                    canLevelUp: nextDuplicateCost !== null && getDuplicateCount(quantityAfter) >= nextDuplicateCost,
+                    duplicateConsumed: true,
+                    materialsConsumed: duplicateCost,
                 };
             });
 
             res.json({ success: true, itemId, ...result });
         } catch (err) {
-            if (err.code === 'MAX_LEVEL' || err.code === 'INSUFFICIENT_SHARDS') {
+            if (['CARD_NOT_OWNED', 'MAX_LEVEL', 'INSUFFICIENT_DUPLICATES', 'CARD_STATE_CHANGED'].includes(err.code)) {
                 return res.status(400).json({ error: err.message });
+            }
+            if (isInsufficientInventoryError(err)) {
+                return res.status(400).json({ error: '必要な同名カードが不足しています。最後の1枚は残ります。' });
             }
             console.error('[cards] levelup error:', err);
             res.status(500).json({ error: 'サーバーエラー' });
@@ -231,7 +315,9 @@ module.exports = {
     initializeCardRoutes,
     getMaxLevel,
     normalizeCardLevel,
-    normalizeShardBalance,
-    getStarterShardGrant,
-    shardCost
+    getDuplicateCount,
+    getDuplicateCost,
+    getDuplicateRequirementError,
+    getCardLevelOperationId,
+    isInsufficientInventoryError,
 };

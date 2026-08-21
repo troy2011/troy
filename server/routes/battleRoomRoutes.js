@@ -178,61 +178,6 @@ function calcReward(winner, symbolHpPct) {
         : Math.round(150 + symbolHpPct * 100);
 }
 
-// ── シャード報酬テーブル（1日5回上限） ────────────────────────
-// [win_vs_human, win_vs_npc, lose]
-const SHARD_TABLE = [
-    [10, 6, 4],  // 1回目
-    [ 8, 5, 3],  // 2回目
-    [ 6, 4, 2],  // 3回目
-    [ 4, 3, 2],  // 4回目
-    [ 3, 2, 1],  // 5回目
-];
-const DAILY_BATTLE_LIMIT = 5;
-
-function calcShards(battleIndex, isWin, vsNpc) {
-    const row = SHARD_TABLE[Math.min(battleIndex, SHARD_TABLE.length - 1)];
-    if (!isWin)  return row[2];
-    if (vsNpc)   return row[1];
-    return row[0];
-}
-
-// 今日の日付文字列（JST）
-function todayJST() {
-    const now = new Date();
-    const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-    return jst.toISOString().slice(0, 10);
-}
-
-// ── シャード報酬付与 ──────────────────────────────────────────
-async function grantShardsToPlayers(playerEntries, isWinnerSide, hasHumanOpponent, firestore) {
-    await Promise.allSettled(playerEntries.map(async ({ playFabId }) => {
-        const dateStr   = todayJST();
-        const statRef   = firestore.collection('playerDailyStats').doc(`${playFabId}_${dateStr}`);
-        const statSnap  = await statRef.get();
-        const count     = statSnap.exists ? (statSnap.data().battleCount || 0) : 0;
-        if (count >= DAILY_BATTLE_LIMIT) return;  // 上限に達している
-
-        const vsNpc    = !hasHumanOpponent;
-        const shards   = calcShards(count, isWinnerSide, vsNpc);
-
-        await firestore.runTransaction(async (tx) => {
-            const freshSnap = await tx.get(statRef);
-            const freshCount = freshSnap.exists ? (freshSnap.data().battleCount || 0) : 0;
-            if (freshCount >= DAILY_BATTLE_LIMIT) return;
-            tx.set(statRef, {
-                playFabId,
-                date: dateStr,
-                battleCount:  admin.firestore.FieldValue.increment(1),
-                shardsEarned: admin.firestore.FieldValue.increment(shards),
-            }, { merge: true });
-            const playerRef = firestore.collection('playerStats').doc(playFabId);
-            tx.set(playerRef, {
-                arcanaShards: admin.firestore.FieldValue.increment(shards),
-            }, { merge: true });
-        });
-    }));
-}
-
 // ── PlayFab 報酬付与 ──────────────────────────────────────────
 async function grantRewards(playFabIds, amount, idempotencyBase, economyTools) {
     const {
@@ -288,7 +233,6 @@ async function resolveRoom(roomId, winner, firestore, promisifyPlayFab, PlayFabS
     const defenderIds = defenderEntries.map((p) => p.playFabId);
     const winnerIds   = winner === 'attacker' ? attackerIds : defenderIds;
     const reward      = calcReward(winner, symbolHpPct);
-    const hasHumanOpponent = winner === 'attacker' ? defenderEntries.length > 0 : attackerEntries.length > 0;
 
     await roomRef.update({ status: 'resolved', winner, resolvedAt: now });
 
@@ -316,14 +260,6 @@ async function resolveRoom(roomId, winner, firestore, promisifyPlayFab, PlayFabS
     if (winnerIds.length > 0) {
         await grantRewards(winnerIds, reward, `battle-room-reward-${roomId}-${winner}`, economyTools);
     }
-
-    // シャード付与（全参加者・勝敗で金額が変わる）
-    const allAttackers = attackerEntries.map((p) => ({ playFabId: p.playFabId }));
-    const allDefenders = defenderEntries.map((p) => ({ playFabId: p.playFabId }));
-    await Promise.allSettled([
-        grantShardsToPlayers(allAttackers, winner === 'attacker', hasHumanOpponent, firestore),
-        grantShardsToPlayers(allDefenders, winner === 'defender', hasHumanOpponent, firestore),
-    ]);
 
     // 週次争奪コンテストへのダメージ報告
     await reportWeeklyContestDamage(room, winner, firestore);

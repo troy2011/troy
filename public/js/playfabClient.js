@@ -207,6 +207,14 @@ export function unequipTarotCard(playFabId, cardItemId, deckType, options) {
     return callApiWithLoader('/api/tarot-deck-unequip', { playFabId, cardItemId, deckType }, options);
 }
 
+export function replaceTarotCard(playFabId, replacedCardItemId, cardItemId, options) {
+    return callApiWithLoader('/api/tarot-deck-replace', {
+        playFabId,
+        replacedCardItemId,
+        cardItemId
+    }, options);
+}
+
 export function equipTarotGuardian(playFabId, cardItemId, expectedGuardianItemId, options) {
     return callApiWithLoader('/api/tarot-guardian-equip', {
         playFabId,

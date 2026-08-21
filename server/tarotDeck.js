@@ -216,6 +216,29 @@ function unequipCardFromDeck(deck, cardItemId) {
     return { ok: true, deck: deck.filter((id) => id !== cardItemId) };
 }
 
+// デッキ中のカードを1枚だけ置換する
+function replaceCardInDeck(deck, replacedCardItemId, cardItemId) {
+    const currentDeck = normalizeDeckList(deck);
+    const replacedId = String(replacedCardItemId || '').trim();
+    const nextId = String(cardItemId || '').trim();
+    if (!replacedId || !nextId) {
+        return { ok: false, error: 'CardItemIdRequired', deck: currentDeck };
+    }
+    const replacedIndex = currentDeck.indexOf(replacedId);
+    if (replacedIndex < 0) {
+        return { ok: false, error: 'CardNotInDeck', deck: currentDeck };
+    }
+    if (replacedId === nextId) {
+        return { ok: true, deck: currentDeck };
+    }
+    if (currentDeck.includes(nextId)) {
+        return { ok: false, error: 'CardAlreadyInDeck', deck: currentDeck };
+    }
+    const nextDeck = [...currentDeck];
+    nextDeck[replacedIndex] = nextId;
+    return { ok: true, deck: nextDeck };
+}
+
 // カタログデータの配列からポーカーハンド評価用カードを組み立てる
 function buildDeckRoleCards(deckItemDataList) {
     const SUIT_MAP = { wand: 'Wand', sword: 'Sword', cup: 'Cup', pentacle: 'Pentacle', all: 'All', none: 'None' };
@@ -414,6 +437,37 @@ function initializeTarotDeckRoutes(app, deps) {
         }
     });
 
+    // デッキ中の小アルカナを1枚だけ入れ替える
+    app.post('/api/tarot-deck-replace', async (req, res) => {
+        const requestedPlayFabId = String(req.body?.playFabId || '').trim();
+        const replacedCardItemId = String(req.body?.replacedCardItemId || '').trim();
+        const cardItemId = String(req.body?.cardItemId || '').trim();
+        if (!requestedPlayFabId) return res.status(400).json({ error: 'playFabId is required' });
+        if (!replacedCardItemId) return res.status(400).json({ error: 'replacedCardItemId is required' });
+        if (!cardItemId) return res.status(400).json({ error: 'cardItemId is required' });
+        const playFabId = await requireAuthedPlayFabId(req, res, requestedPlayFabId);
+        if (!playFabId) return;
+        try {
+            return await runTarotLoadoutMutation(playFabId, async () => {
+                const resolvedReplacedItemId = resolveTarotCatalogItemId(replacedCardItemId, resolveItemId);
+                const resolvedCardItemId = resolveTarotCatalogItemId(cardItemId, resolveItemId);
+                const ownership = await requireOwnedTarotCard(playFabId, resolvedCardItemId);
+                if (!ownership.ok) return res.status(ownership.status).json({ error: ownership.error });
+                const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer, resolveItemId);
+                const current = filterMinorDeckIds(decks.tarotDeck, catalogCache, resolveItemId);
+                const result = replaceCardInDeck(current, resolvedReplacedItemId, resolvedCardItemId);
+                if (!result.ok) return res.status(400).json({ error: result.error });
+                const updatedDeck = sortTarotDeck(result.deck, catalogCache, resolveItemId);
+                const updated = { tarotDeck: updatedDeck, meleeDeck: updatedDeck, shipDeck: updatedDeck };
+                await writeDecks(playFabId, { tarotDeck: updatedDeck }, promisifyPlayFab, PlayFabServer, resolveItemId, catalogCache);
+                return res.json({ ok: true, ...buildDeckResponse(updated) });
+            });
+        } catch (error) {
+            console.error('[tarot-deck-replace] Error:', error?.message || error);
+            return res.status(500).json({ error: 'FailedToReplaceTarotCard' });
+        }
+    });
+
     app.post('/api/tarot-guardian-equip', async (req, res) => {
         const requestedPlayFabId = String(req.body?.playFabId || '').trim();
         const cardItemId = String(req.body?.cardItemId || '').trim();
@@ -495,6 +549,7 @@ module.exports = {
     writeGuardian,
     equipCardToDeck,
     unequipCardFromDeck,
+    replaceCardInDeck,
     sortTarotDeck,
     filterMinorDeckIds,
     isMinorArcanaItem,

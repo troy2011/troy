@@ -7,6 +7,7 @@ import {
     getTarotDecks as fetchTarotDecks,
     equipTarotCard as requestEquipTarotCard,
     unequipTarotCard as requestUnequipTarotCard,
+    replaceTarotCard as requestReplaceTarotCard,
     equipTarotGuardian as requestEquipTarotGuardian,
     unequipTarotGuardian as requestUnequipTarotGuardian,
     useItem as requestUseItem,
@@ -18,7 +19,7 @@ import {
     createBlackMarketListing as requestCreateBlackMarketListing,
     cancelBlackMarketListing as requestCancelBlackMarketListing,
     buyBlackMarketListing as requestBuyBlackMarketListing
-} from './playfabClient.js?v=20260821-equipment-flow-v1';
+} from './playfabClient.js?v=20260821-tarot-deck-replace-v1';
 import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites, resolveSpritePathByAvatarColor } from './avatar.js';
 import * as Player from './player.js';
 import {
@@ -92,13 +93,13 @@ let blackMarketReturnFocusElement = null;
 let equipmentEnhancementPreviewTimer = null;
 let equipmentEnhancementRequestSerial = 0;
 let equipmentEnhancementKeydownHandler = null;
-// カードレベルデータ: { [itemId]: { level, maxLevel, quantity, nextLevelCost } }
+// カードレベルデータ: { [itemId]: { level, maxLevel, quantity, duplicateCount, duplicateCost, canLevelUp } }
 let cardLevelMap = {};
-let arcanaShardBalance = 0;
-let cardShardBalanceKnown = false;
+const tarotLevelUpInFlightItemIds = new Set();
 let tarotBattleSkillsLoaded = false;
 let selectedTarotLoadoutItemId = '';
 let tarotLoadoutMutationPending = false;
+let tarotDeckReplacementTargetItemId = '';
 let arcanaResonanceCatalogReturnFocusElement = null;
 let visibleInventoryDetailItems = [];
 let itemDetailSwipeStart = null;
@@ -110,10 +111,6 @@ async function loadCardLevels() {
         const data = await res.json();
         cardLevelMap = {};
         (data.cards || []).forEach((c) => { cardLevelMap[c.itemId] = c; });
-        cardShardBalanceKnown = Number.isFinite(Number(data.arcanaShards));
-        if (cardShardBalanceKnown) {
-            arcanaShardBalance = Math.max(0, Math.floor(Number(data.arcanaShards) || 0));
-        }
     } catch (err) {
         console.warn('[inventory] loadCardLevels failed:', err);
     }
@@ -125,34 +122,51 @@ async function loadTarotBattleSkillCache() {
 }
 
 async function levelUpCard(itemId) {
+    const safeItemId = String(itemId || '').trim();
+    if (!safeItemId || tarotLevelUpInFlightItemIds.has(safeItemId)) return;
+    tarotLevelUpInFlightItemIds.add(safeItemId);
     try {
         const res = await fetch('/api/cards/levelup', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ itemId }),
+            body: JSON.stringify({ itemId: safeItemId }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.success) throw new Error(data.error || 'レベルアップ失敗');
-        cardLevelMap[itemId] = {
-            ...(cardLevelMap[itemId] || {}),
+        cardLevelMap[safeItemId] = {
+            ...(cardLevelMap[safeItemId] || {}),
             level: data.newLevel,
             maxLevel: data.maxLevel,
-            nextLevelCost: data.nextLevelCost ?? null,
+            quantity: data.quantity,
+            duplicateCount: data.duplicateCount,
+            duplicateCost: data.duplicateCost,
+            canLevelUp: data.canLevelUp === true,
         };
-        arcanaShardBalance = Math.max(0, Math.floor(Number(data.shardsAfter) || 0));
-        cardShardBalanceKnown = true;
-        renderInventoryGrid(activeInventoryCategory);
-        renderTarotDeckPanels();
+        const playFabId = window.myPlayFabId || null;
+        if (playFabId) {
+            await getInventory(playFabId, { force: true });
+        } else {
+            renderInventoryGrid(activeInventoryCategory);
+            renderTarotDeckPanels();
+        }
         const detailModal = document.getElementById('itemDetailModal');
-        const detailItem = getDisplayInventoryEntries().find((entry) => String(entry?.itemId || '') === String(itemId || ''));
+        const detailItem = getDisplayInventoryEntries().find((entry) => String(entry?.itemId || '') === safeItemId);
         if (detailModal?.style.display !== 'none' && !detailModal?.hidden && detailItem) {
             showItemDetailModal(detailItem);
         }
-        const starterGrant = Math.max(0, Math.floor(Number(data.starterShardsGranted) || 0));
-        const starterText = starterGrant > 0 ? `初回シャード ${starterGrant} を受け取り、` : '';
-        showInventoryFeedback(`${starterText}Lv.${data.newLevel} に上昇！（残シャード: ${data.shardsAfter}）`);
+        const materialsConsumed = Math.max(1, Math.floor(Number(data.materialsConsumed) || 1));
+        showInventoryFeedback(`同名カードを${materialsConsumed}枚消費して Lv.${data.newLevel} に上昇！`);
     } catch (err) {
+        const playFabId = window.myPlayFabId || null;
+        await Promise.all([
+            loadCardLevels(),
+            playFabId ? getInventory(playFabId, { force: true }) : Promise.resolve(),
+        ]).catch((refreshError) => {
+            console.warn('[inventory] card level recovery refresh failed:', refreshError);
+        });
         showInventoryFeedback(err.message, true);
+    } finally {
+        tarotLevelUpInFlightItemIds.delete(safeItemId);
     }
 }
 
@@ -969,6 +983,15 @@ function getCommonTarotDeck() {
     return sortTarotDeckItemIds(myMeleeDeck);
 }
 
+function getTarotDeckReplacementTargetItemId() {
+    const itemId = String(tarotDeckReplacementTargetItemId || '').trim();
+    return getCommonTarotDeck().includes(itemId) ? itemId : '';
+}
+
+function clearTarotDeckReplacementTarget() {
+    tarotDeckReplacementTargetItemId = '';
+}
+
 function getCommonTarotRole() {
     return myMeleeRole || myShipRole || null;
 }
@@ -1003,6 +1026,7 @@ function applyTarotDeckData(deckData) {
         : null;
     myShipMajorArcana = myTarotGuardian?.itemId ? [String(myTarotGuardian.itemId)] : [];
     myShipMajorArcanaLimit = 1;
+    if (!getTarotDeckReplacementTargetItemId()) clearTarotDeckReplacementTarget();
 }
 
 function setTarotLoadoutMutationPending(isPending) {
@@ -1274,17 +1298,35 @@ function renderShipMajorArcanaGrid(gridEl) {
     cells.forEach((cell) => gridEl.appendChild(cell));
 }
 
-function openTarotDeckCandidateList(category) {
+function openTarotDeckCandidateList(category, options = {}) {
     const isMajor = category === 'TarotMajor';
+    const replacementTargetItemId = category === 'TarotMinor'
+        ? String(options.replacementTargetItemId || '').trim()
+        : '';
+    tarotDeckReplacementTargetItemId = replacementTargetItemId;
     switchInventoryTab(category);
     requestAnimationFrame(() => {
         scrollInventoryItemsIntoView({ behavior: 'smooth' });
         const firstCard = document.querySelector('#inventoryGrid .inventory-item-detail-trigger');
         firstCard?.focus({ preventScroll: true });
+        const targetItem = replacementTargetItemId
+            ? myInventory.find((entry) => String(entry?.itemId || '') === replacementTargetItemId)
+            : null;
         showInventoryFeedback(isMajor
             ? '守護に設定する大アルカナを選んでください。'
-            : 'デッキに追加する小アルカナを選んでください。');
+            : (targetItem
+                ? `「${targetItem.name || '選択したカード'}」と入れ替えるカードを選んでください。`
+                : 'デッキに追加する小アルカナを選んでください。'));
     });
+}
+
+function openTarotDeckReplacementList(itemId) {
+    const targetItemId = String(itemId || '').trim();
+    if (!getCommonTarotDeck().includes(targetItemId)) {
+        showInventoryFeedback('入れ替えるカードがデッキにありません。', true);
+        return;
+    }
+    openTarotDeckCandidateList('TarotMinor', { replacementTargetItemId: targetItemId });
 }
 
 function findInventoryTarotCard(definition, type) {
@@ -1317,6 +1359,39 @@ const TAROT_GUARDIAN_ATTRIBUTE_LABELS = Object.freeze({
 
 function getInventoryCardLevel(itemId) {
     return Math.max(1, Number(cardLevelMap[String(itemId || '')]?.level) || 1);
+}
+
+function getCardDuplicateCount(levelData) {
+    return Math.max(0, Math.floor(Number(levelData?.duplicateCount) || 0));
+}
+
+function getCardDuplicateCost(levelData) {
+    return Math.max(1, Math.floor(Number(levelData?.duplicateCost) || 1));
+}
+
+function canLevelUpTarotCard(levelData) {
+    return Boolean(levelData)
+        && Number(levelData.level) < Number(levelData.maxLevel)
+        && (levelData.canLevelUp === true || getCardDuplicateCount(levelData) >= getCardDuplicateCost(levelData));
+}
+
+function getTarotLevelUpAction(levelData, itemId) {
+    if (!levelData || Number(levelData.level) >= Number(levelData.maxLevel)) return null;
+    if (!canLevelUpTarotCard(levelData)) {
+        const duplicateCost = getCardDuplicateCost(levelData);
+        return {
+            label: `予備カードが不足（${getCardDuplicateCount(levelData)}/${duplicateCost}）`,
+            tone: 'disabled',
+            disabled: true,
+            title: `同じカードの予備が${duplicateCost}枚必要です。最後の1枚は残ります。`
+        };
+    }
+    const duplicateCost = getCardDuplicateCost(levelData);
+    return {
+        label: `Lvアップ（同名${duplicateCost}枚）`,
+        tone: 'levelup',
+        run: () => levelUpCard(itemId)
+    };
 }
 
 function renderTarotLoadoutEmpty(root, message) {
@@ -1365,12 +1440,13 @@ function createTarotLoadoutEffectRow(item, itemId, slotIndex) {
     actions.className = 'tarot-loadout-effect-actions';
     const actionSpecs = [
         ['詳細', 'カード詳細を開く', true, () => showItemDetailModal(item)],
+        ['入れ替え', 'このカードを入れ替える', true, () => openTarotDeckReplacementList(itemId)],
         ['外す', 'デッキから外す', true, () => unequipTarotCardFromDeck(window.myPlayFabId || null, itemId, 'tarot')]
     ];
     actionSpecs.forEach(([label, ariaLabel, enabled, run]) => {
         const action = document.createElement('button');
         action.type = 'button';
-        action.className = `tarot-loadout-effect-action${label === '外す' ? ' is-remove' : ''}${label === '詳細' ? ' is-detail' : ''}`;
+        action.className = `tarot-loadout-effect-action${label === '外す' ? ' is-remove' : ''}${label === '詳細' ? ' is-detail' : ''}${label === '入れ替え' ? ' is-replace' : ''}`;
         action.textContent = label;
         action.disabled = !enabled;
         action.setAttribute('aria-label', ariaLabel);
@@ -1628,6 +1704,11 @@ function getInventoryTabHint(category) {
         return '大アルカナは1枚だけ守護アルカナに設定できます。';
     }
     if (category === 'TarotMinor') {
+        const targetItemId = getTarotDeckReplacementTargetItemId();
+        if (targetItemId) {
+            const targetItem = myInventory.find((item) => String(item?.itemId || '') === targetItemId);
+            return `「${targetItem?.name || '選択したカード'}」と入れ替えるカードを選んでください。`;
+        }
         return '小アルカナは5枚までデッキに編成できます。';
     }
     if (category === 'Hand') {
@@ -2281,12 +2362,20 @@ function getInventoryCardFooter(item, canonicalCategory) {
             : (isShipMajorArcanaFull() ? '装備中の守護アルカナと入れ替え' : '守護アルカナに設定できます');
         if (!lvd) return role ? `${role} — ${deckText}` : deckText;
         if (lvd.level >= lvd.maxLevel) return `${deckText} — MAX LV`;
-        return `${deckText} — 次Lv: ${lvd.nextLevelCost}⚔シャード`;
+        const duplicateCost = getCardDuplicateCost(lvd);
+        return getCardDuplicateCount(lvd) >= duplicateCost
+            ? `${deckText} — 次Lv: 同名カード${duplicateCost}枚`
+            : `${deckText} — 次Lvには同名カード${duplicateCost}枚が必要`;
     }
     if (canonicalCategory === 'TarotMinor') {
         const lvd = cardLevelMap[item?.itemId];
         if (lvd && lvd.level >= lvd.maxLevel) return 'MAX LV';
-        if (lvd && lvd.nextLevelCost) return `次Lv: ${lvd.nextLevelCost}⚔シャード`;
+        if (lvd) {
+            const duplicateCost = getCardDuplicateCost(lvd);
+            return getCardDuplicateCount(lvd) >= duplicateCost
+                ? `次Lv: 同名カード${duplicateCost}枚`
+                : `次Lvには同名カード${duplicateCost}枚が必要`;
+        }
         if (isCardInTarotDeck(item?.itemId)) return 'タロットデッキにセット中';
         return 'デッキに追加できます';
     }
@@ -2657,10 +2746,8 @@ function getInventoryQuickAction(item, canonicalCategory) {
         if (isCardInTarotDeck(itemId)) {
             return { label: '外す', tone: 'remove', run: () => unequipTarotCardFromDeck(playFabId, itemId, 'tarot') };
         }
-        const lvd = cardLevelMap[itemId];
-        if (lvd && lvd.level < lvd.maxLevel) {
-            return { label: `Lv↑ (${lvd.nextLevelCost}⚔)`, tone: 'levelup', run: () => levelUpCard(itemId) };
-        }
+        const levelUpAction = getTarotLevelUpAction(cardLevelMap[itemId], itemId);
+        if (levelUpAction?.tone === 'levelup') return levelUpAction;
         if (getCommonTarotDeck().length < 5) {
             return { label: '追加', tone: 'equip', run: () => equipTarotCardToDeck(playFabId, itemId, 'tarot') };
         }
@@ -2687,10 +2774,8 @@ function getInventoryQuickActions(item, canonicalCategory) {
         actions.push(equipped
             ? { label: '守護から外す', tone: 'remove', run: () => unequipShipMajorArcana(playFabId, itemId) }
             : { label: isShipMajorArcanaFull() ? '守護を入替' : '守護に設定', tone: 'equip', run: () => equipShipMajorArcana(playFabId, itemId) });
-        const lvd = cardLevelMap[itemId];
-        if (lvd && lvd.level < lvd.maxLevel) {
-            actions.push({ label: `Lv↑ (${lvd.nextLevelCost}⚔)`, tone: 'levelup', run: () => levelUpCard(itemId) });
-        }
+        const levelUpAction = getTarotLevelUpAction(cardLevelMap[itemId], itemId);
+        if (levelUpAction) actions.push(levelUpAction);
         return actions;
     }
 
@@ -2699,10 +2784,8 @@ function getInventoryQuickActions(item, canonicalCategory) {
         ? { label: '外す', tone: 'remove', run: () => unequipTarotCardFromDeck(playFabId, itemId, 'tarot') }
         : { label: '追加', tone: getCommonTarotDeck().length < 5 ? 'equip' : 'disabled', disabled: getCommonTarotDeck().length >= 5, run: () => equipTarotCardToDeck(playFabId, itemId, 'tarot') });
 
-    const lvd = cardLevelMap[itemId];
-    if (lvd && lvd.level < lvd.maxLevel) {
-        actions.push({ label: `Lv↑ (${lvd.nextLevelCost}⚔)`, tone: 'levelup', run: () => levelUpCard(itemId) });
-    }
+    const levelUpAction = getTarotLevelUpAction(cardLevelMap[itemId], itemId);
+    if (levelUpAction) actions.push(levelUpAction);
 
     return actions;
 }
@@ -2712,6 +2795,14 @@ function createInventoryCell(item, requestedCategory) {
     const canonicalCategory = getCanonicalTarotCategory(cd.Category);
     const isTarotCard = isTarotInventoryCategory(canonicalCategory);
     const isEquipmentCard = isInventoryEquipmentCategory(canonicalCategory);
+    const tarotDeckReplacementTargetItemId = requestedCategory === 'TarotMinor'
+        ? getTarotDeckReplacementTargetItemId()
+        : '';
+    const isTarotDeckReplacementMode = Boolean(tarotDeckReplacementTargetItemId);
+    const itemId = String(item?.itemId || '').trim();
+    const isTarotDeckReplacementCandidate = isTarotDeckReplacementMode
+        && itemId !== tarotDeckReplacementTargetItemId
+        && !isCardInTarotDeck(itemId);
     const layout = requestedCategory === 'All'
         ? 'mixed'
         : getInventoryLayout(requestedCategory);
@@ -2734,6 +2825,10 @@ function createInventoryCell(item, requestedCategory) {
             : (isCardInTarotDeck(item?.itemId)
             ? 'equipped'
             : (getCommonTarotDeck().length >= 5 ? 'full' : 'available'));
+    }
+    if (isTarotDeckReplacementMode) {
+        cell.dataset.tarotReplacement = isTarotDeckReplacementCandidate ? 'candidate' : 'unavailable';
+        cell.classList.add(isTarotDeckReplacementCandidate ? 'is-tarot-replacement-candidate' : 'is-tarot-replacement-unavailable');
     }
     if (isEquipmentCard) {
         cell.classList.add('is-equipment-card');
@@ -2770,6 +2865,21 @@ function createInventoryCell(item, requestedCategory) {
     }
     cell.addEventListener('click', (event) => {
         if (event.target.closest('.inventory-sell-check, .inventory-item-quick-action')) return;
+        if (isTarotDeckReplacementMode) {
+            if (itemId === tarotDeckReplacementTargetItemId) {
+                clearTarotDeckReplacementTarget();
+                updateInventoryTabHint(activeInventoryCategory);
+                renderInventoryGrid(activeInventoryCategory);
+                showInventoryFeedback('カードの入れ替えを中止しました。');
+                return;
+            }
+            if (!isTarotDeckReplacementCandidate) {
+                showInventoryFeedback('デッキ中のカードは入れ替え候補にできません。', true);
+                return;
+            }
+            replaceTarotCardInDeck(window.myPlayFabId || null, tarotDeckReplacementTargetItemId, itemId);
+            return;
+        }
         showItemDetailModal(item);
     });
     if (inventorySellSelectionMode) {
@@ -3297,6 +3407,25 @@ export async function unequipTarotCardFromDeck(playFabId, itemId, deckType) {
     }
 }
 
+async function replaceTarotCardInDeck(playFabId, replacedCardItemId, itemId) {
+    const data = await runTarotLoadoutMutation(
+        () => requestReplaceTarotCard(playFabId, replacedCardItemId, itemId),
+        'タロットデッキを入れ替えられませんでした。'
+    );
+    if (data?.ok) {
+        applyTarotDeckData(data);
+        clearTarotDeckReplacementTarget();
+        selectedTarotLoadoutItemId = String(itemId || '').trim();
+        renderTarotDeckPanels();
+        updateInventoryTabHint(activeInventoryCategory);
+        renderInventoryGrid(activeInventoryCategory);
+        updateEquipmentBonusDisplay();
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('タロットデッキを入れ替えた。');
+        }
+    }
+}
+
 async function refreshShipMajorArcanaState(playFabId) {
     const deckData = await fetchTarotDecks(playFabId).catch(() => null);
     if (deckData?.ok) applyTarotDeckData(deckData);
@@ -3529,6 +3658,7 @@ async function buyBlackMarketListing(listingId, price) {
 
 export function switchInventoryTab(category) {
     activeInventoryCategory = category || 'All';
+    if (activeInventoryCategory !== 'TarotMinor') clearTarotDeckReplacementTarget();
     activeInventoryGroup = getInventoryGroupForCategory(activeInventoryCategory);
     switchInventoryPanel(activeInventoryGroup === 'Tarot' ? 'tarot' : 'items', { preserveScroll: true });
     renderInventoryTabControls();
@@ -3543,6 +3673,7 @@ export function switchInventoryGroup(group, options = {}) {
     if (currentGroup !== activeInventoryGroup) {
         activeInventoryCategory = getDefaultInventoryCategory(activeInventoryGroup);
     }
+    if (activeInventoryCategory !== 'TarotMinor') clearTarotDeckReplacementTarget();
     const targetPanel = options.panel || (activeInventoryGroup === 'Tarot' ? 'tarot' : 'items');
     switchInventoryPanel(targetPanel, { preserveScroll: true });
     renderInventoryTabControls();
@@ -3564,6 +3695,14 @@ export function renderInventoryGrid(category) {
     gridEl.innerHTML = '';
     gridEl.dataset.layout = layout;
     gridEl.dataset.category = category || 'All';
+    const tarotDeckReplacementTargetItemId = category === 'TarotMinor'
+        ? getTarotDeckReplacementTargetItemId()
+        : '';
+    if (tarotDeckReplacementTargetItemId) {
+        gridEl.dataset.tarotReplacementTarget = tarotDeckReplacementTargetItemId;
+    } else {
+        delete gridEl.dataset.tarotReplacementTarget;
+    }
     updateInventorySortOptions(category);
     syncInventorySearchControls();
 
@@ -4320,8 +4459,12 @@ function showItemDetailModal(item) {
         if (isTarotCard) {
             const cardLevel = getInventoryCardLevel(item.itemId);
             metaEl.appendChild(createItemDetailMetaChip(`Lv${cardLevel}`, 'tarot'));
-            if (cardShardBalanceKnown) {
-                metaEl.appendChild(createItemDetailMetaChip(`シャード ${arcanaShardBalance}`, 'count'));
+            const levelData = cardLevelMap[item.itemId];
+            if (levelData && levelData.level < levelData.maxLevel) {
+                metaEl.appendChild(createItemDetailMetaChip(
+                    `素材 ${getCardDuplicateCount(levelData)}/${getCardDuplicateCost(levelData)}`,
+                    'count'
+                ));
             }
             if (isTarotMajorCategory(canonicalCategory)) {
                 metaEl.appendChild(createItemDetailMetaChip(isShipMajorArcanaEquipped(item.itemId) ? '守護中' : '未装備', isShipMajorArcanaEquipped(item.itemId) ? 'equipped' : 'muted'));
@@ -4494,20 +4637,8 @@ function showItemDetailModal(item) {
 
     if (isTarotCard) {
         const lvd = cardLevelMap[equipItemId];
-        if (lvd && lvd.level < lvd.maxLevel) {
-            const shardCost = Math.max(0, Number(lvd.nextLevelCost) || 0);
-            const isShardShort = cardShardBalanceKnown && arcanaShardBalance < shardCost;
-            if (isShardShort) {
-                addAction(
-                    `シャード不足（${arcanaShardBalance}/${shardCost}）`,
-                    'disabled',
-                    null,
-                    { disabled: true, title: 'シャードが不足しています。' }
-                );
-            } else {
-                addAction(`Lvアップ（${shardCost}⚔）`, 'levelup', () => levelUpCard(equipItemId));
-            }
-        }
+        const levelUpAction = getTarotLevelUpAction(lvd, equipItemId);
+        if (levelUpAction) addAction(levelUpAction.label, levelUpAction.tone, levelUpAction.run, levelUpAction);
     }
 
     if (getInventorySellableCount(item) > 0 && isTarotCard) {

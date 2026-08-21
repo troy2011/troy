@@ -12,7 +12,7 @@ const {
   normalizeTarotCatalogFriendlyId,
   resolveTarotCatalogItemId
 } = require('../server/tarotItemIds');
-const { initializeTarotDeckRoutes } = require('../server/tarotDeck');
+const { initializeTarotDeckRoutes, replaceCardInDeck } = require('../server/tarotDeck');
 
 const getUserReadOnlyDataApi = function getUserReadOnlyDataApi() {};
 const updateUserReadOnlyDataApi = function updateUserReadOnlyDataApi() {};
@@ -73,6 +73,59 @@ function makeGuardianRouteHarness({ guardianItemId = 'arcana-1', waitForFirstWri
     },
     getEntityKeyForPlayFabId: async () => ({ Id: 'ENTITY1', Type: 'title_player_account' }),
     getAllInventoryItems: async () => [{ Id: 'arcana-2', Amount: 1 }],
+    requireAuthenticatedPlayFabId: async (_req, _res, playFabId) => playFabId
+  });
+
+  async function invoke(path, body) {
+    const response = makeResponse();
+    await routes.get(path)({ body }, response);
+    return response;
+  }
+
+  return { invoke, readOnlyData };
+}
+
+function makeMinorDeckRouteHarness({
+  tarotDeck = ['minor-wand-1', 'minor-cup-10'],
+  inventoryItems = [{ Id: 'minor-sword-2', Amount: 1 }]
+} = {}) {
+  const routes = new Map();
+  const encodedDeck = JSON.stringify(tarotDeck);
+  const readOnlyData = {
+    TarotDeck: { Value: encodedDeck },
+    TarotMeleeDeck: { Value: encodedDeck },
+    TarotShipDeck: { Value: encodedDeck }
+  };
+  const app = {
+    post(path, handler) {
+      routes.set(path, handler);
+    }
+  };
+
+  initializeTarotDeckRoutes(app, {
+    PlayFabServer: {
+      GetUserReadOnlyData: getUserReadOnlyDataApi,
+      UpdateUserReadOnlyData: updateUserReadOnlyDataApi
+    },
+    promisifyPlayFab: async (apiFunction, request) => {
+      if (apiFunction === getUserReadOnlyDataApi) {
+        return { Data: readOnlyData };
+      }
+      if (apiFunction === updateUserReadOnlyDataApi) {
+        Object.entries(request.Data || {}).forEach(([key, value]) => {
+          readOnlyData[key] = { Value: value };
+        });
+        return {};
+      }
+      throw new Error('Unexpected PlayFab API call');
+    },
+    catalogCache: {
+      'minor-wand-1': { Category: 'TarotMinor', ArcanaSuit: 'Wand', ArcanaRank: 1 },
+      'minor-sword-2': { Category: 'TarotMinor', ArcanaSuit: 'Sword', ArcanaRank: 2 },
+      'minor-cup-10': { Category: 'TarotMinor', ArcanaSuit: 'Cup', ArcanaRank: 10 }
+    },
+    getEntityKeyForPlayFabId: async () => ({ Id: 'ENTITY1', Type: 'title_player_account' }),
+    getAllInventoryItems: async () => inventoryItems,
     requireAuthenticatedPlayFabId: async (_req, _res, playFabId) => playFabId
   });
 
@@ -196,6 +249,35 @@ test('guardian mutations keep the selected card intact when a stale removal race
   expect(parseTarotGuardian(harness.readOnlyData.TarotGuardianArcana.Value)).toMatchObject({
     itemId: 'arcana-2'
   });
+});
+
+test('minor deck replacement keeps the slot count and writes the sorted deck once', async () => {
+  expect(replaceCardInDeck(['minor-wand-1', 'minor-cup-10'], 'minor-cup-10', 'minor-sword-2')).toEqual({
+    ok: true,
+    deck: ['minor-wand-1', 'minor-sword-2']
+  });
+  expect(replaceCardInDeck(['minor-wand-1'], 'minor-cup-10', 'minor-sword-2')).toMatchObject({
+    ok: false,
+    error: 'CardNotInDeck'
+  });
+
+  const harness = makeMinorDeckRouteHarness();
+  const response = await harness.invoke('/api/tarot-deck-replace', {
+    playFabId: 'PF_MINOR_REPLACE',
+    replacedCardItemId: 'minor-cup-10',
+    cardItemId: 'minor-sword-2'
+  });
+
+  expect(response.statusCode).toBe(200);
+  expect(response.body).toMatchObject({
+    ok: true,
+    tarotDeck: ['minor-wand-1', 'minor-sword-2'],
+    meleeDeck: ['minor-wand-1', 'minor-sword-2'],
+    shipDeck: ['minor-wand-1', 'minor-sword-2']
+  });
+  expect(JSON.parse(harness.readOnlyData.TarotDeck.Value)).toEqual(['minor-wand-1', 'minor-sword-2']);
+  expect(JSON.parse(harness.readOnlyData.TarotMeleeDeck.Value)).toEqual(['minor-wand-1', 'minor-sword-2']);
+  expect(JSON.parse(harness.readOnlyData.TarotShipDeck.Value)).toEqual(['minor-wand-1', 'minor-sword-2']);
 });
 
 test('legacy tarot ids normalize before the production catalog resolver runs', () => {
