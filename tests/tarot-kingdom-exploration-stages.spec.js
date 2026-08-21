@@ -24,7 +24,8 @@ const roster = require('../public/Sprites/pixel-monsters/manifest.json');
 test.describe('Tarot Kingdom fixed exploration stages', () => {
   test('11 stages contain four unique normal monsters in the approved order', () => {
     expect(TAROT_KINGDOM_EXPLORATION_STAGES).toHaveLength(11);
-    const monsters = TAROT_KINGDOM_EXPLORATION_STAGES.flatMap((stage) => stage.monsters);
+    const stages = TAROT_KINGDOM_EXPLORATION_STAGES;
+    const monsters = stages.flatMap((stage) => stage.monsters);
     expect(monsters).toHaveLength(44);
     expect(new Set(monsters.map((entry) => entry.monsterId)).size).toBe(44);
     expect(monsters.every((entry) => entry.isBoss === false)).toBeTruthy();
@@ -54,18 +55,24 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
       expect(fs.existsSync(path.resolve(__dirname, '..', 'public', imagePath.replace(/^\.\//, '')))).toBeTruthy();
     });
     expect(monsters.map((entry) => entry.monsterName)).toEqual([
-      'マシュロン', 'プルン', 'トゲマル', 'パピル',
-      'フェリカ', 'コバット', 'ツキバネ', 'トルネ',
-      'リーフロ', 'リルフィ', 'グリバト', 'モクリン',
-      'ゲルバット', 'グリモア', 'ノッカ', 'バクス',
-      'チュロ', 'ポルポ', 'ケロッツ', 'アクエル',
-      'ボーンテイル', 'ミドロ', 'グールン', 'キノガル',
-      'ツノガイ', 'カブロン', 'メカノ', 'グラヴァ',
-      'フロス', 'ラムネロ', 'モスガン', 'ネブラ',
-      'ビズン', 'ウッドラ', 'クロモ', 'ホタルビ',
-      'ガブリラ', 'ガルネズ', 'フレマ', 'イグニス',
-      'ルビット', 'モクモ', 'ヨミル', 'ノクス'
+      'プルン', 'ポルポ', 'トゲマル', 'ツノガイ',
+      'チュロ', 'モクモ', 'ラムネロ', 'フロス',
+      'パピル', 'リルフィ', 'リーフロ', 'グリバト',
+      'コバット', 'フェリカ', 'ツキバネ', 'ゲルバット',
+      'ケロッツ', 'モクリン', 'ウッドラ', 'ビズン',
+      'ボーンテイル', 'ミドロ', 'グールン', 'アクエル',
+      'メカノ', 'カブロン', 'ノッカ', 'バクス',
+      'マシュロン', 'ヨミル', 'キノガル', 'ガルネズ',
+      'ホタルビ', 'モスガン', 'クロモ', 'トルネ',
+      'ルビット', 'フレマ', 'イグニス', 'ガブリラ',
+      'グリモア', 'グラヴァ', 'ネブラ', 'ノクス'
     ]);
+    expect(stages.map((stage) => stage.monsters[3].monsterName)).toEqual([
+      'ツノガイ', 'フロス', 'グリバト', 'ゲルバット', 'ビズン', 'アクエル',
+      'バクス', 'ガルネズ', 'トルネ', 'ガブリラ', 'ノクス'
+    ]);
+    expect(stages[5].monsters[3].monsterName).toBe('アクエル');
+    expect(stages[7].monsters[2].monsterName).toBe('キノガル');
     const excluded = new Set([
       'ismartal-vol2-monster-07',
       'ismartal-vol2-monster-15',
@@ -78,7 +85,7 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
     expect(roster.filter((entry) => entry.isBoss === true)).toHaveLength(3);
   });
 
-  test('encounter v2 preserves stage order, background and three ordered supplies', () => {
+  test('encounter v3 preserves stage order, background and three ordered supplies', () => {
     const encounter = buildTarotKingdomStageEncounter({
       explorationId: 'exp-stage-test',
       stageNo: 9,
@@ -90,15 +97,15 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
       ]
     });
     expect(encounter).toMatchObject({
-      version: 2,
+      version: 3,
       explorationId: 'exp-stage-test',
       stageNo: 9,
       battlefieldId: 'stage-09-steel-fleet',
       atmosphereTone: 'storm-ruined-harbor',
-      monsterName: 'ビズン'
+      monsterName: 'ホタルビ'
     });
     expect(encounter.monsters.map((entry) => entry.monsterName)).toEqual([
-      'ビズン', 'ウッドラ', 'クロモ', 'ホタルビ'
+      'ホタルビ', 'モスガン', 'クロモ', 'トルネ'
     ]);
     expect(encounter.supplyQueue.map((entry) => entry.itemId)).toEqual(['s1', 's2', 's3']);
   });
@@ -116,12 +123,35 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
       }
     });
 
-    expect(encounter.version).toBe(2);
+    expect(encounter.version).toBe(3);
     expect(encounter.stageNo).toBe(2);
     expect(encounter.monsters.map((entry) => entry.monsterName)).toEqual([
-      'フェリカ', 'コバット', 'ツキバネ', 'トルネ'
+      'チュロ', 'モクモ', 'ラムネロ', 'フロス'
     ]);
     expect(encounter.supplyQueue).toHaveLength(1);
+  });
+
+  test('an active v2 encounter replaces its stale lineup with the themed v3 order', () => {
+    const encounter = resolveActiveExplorationTarotEncounter({
+      id: 'exp-stale-stage-order',
+      stageNo: 6,
+      tarotEncounter: {
+        version: 2,
+        explorationId: 'exp-stale-stage-order',
+        stageNo: 6,
+        monsters: [
+          { order: 1, monsterId: 'ismartal-vol1-monster-03' },
+          { order: 2, monsterId: 'ismartal-vol1-monster-13' },
+          { order: 3, monsterId: 'ismartal-vol3-monster-07' },
+          { order: 4, monsterId: 'ismartal-vol3-monster-08' }
+        ]
+      }
+    });
+
+    expect(encounter.version).toBe(3);
+    expect(encounter.monsters.map((entry) => entry.monsterName)).toEqual([
+      'ボーンテイル', 'ミドロ', 'グールン', 'アクエル'
+    ]);
   });
 
   test('optional supplies retain selection order, enforce ownership and stop at three', () => {
@@ -179,14 +209,14 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
         playFabId: 'OWNER',
         isNpc: false,
         isPet: false,
-        monsterId: 'ismartal-vol1-monster-07'
+        monsterId: 'ismartal-vol3-monster-04'
       },
       {
         roundNo: 2,
         playFabId: 'OTHER',
         isNpc: false,
         isPet: false,
-        monsterId: 'ismartal-vol3-monster-04'
+        monsterId: 'ismartal-vol1-monster-14'
       },
       {
         roundNo: 3,
@@ -205,7 +235,7 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
     ], 'OWNER');
 
     expect(withDefeat.version).toBe(3);
-    expect(withDefeat.defeatedMonsterIds).toEqual(['ismartal-vol1-monster-07']);
+    expect(withDefeat.defeatedMonsterIds).toEqual(['ismartal-vol3-monster-04']);
     const uncleared = buildTarotKingdomStageList(withDefeat, 1)[0];
     expect(uncleared.monsters.map((monster) => ({
       defeated: monster.defeatedByPlayer,
@@ -221,7 +251,7 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
     const cleared = buildTarotKingdomStageList(clearedProgress, 1)[0];
     expect(cleared.monsters.every((monster) => monster.revealed)).toBeTruthy();
     expect(cleared.monsters.filter((monster) => monster.defeatedByPlayer).map((monster) => monster.monsterId))
-      .toEqual(['ismartal-vol1-monster-07']);
+      .toEqual(['ismartal-vol3-monster-04']);
   });
 
   test('final chip ties share rank and reward weights follow stage bands', () => {
