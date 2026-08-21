@@ -4278,16 +4278,17 @@ function evalRoleVariant(res, src) {
     v: Math.max(0, ...list.map((row) => Number(row.v) || 0)),
     n: list.length
   })).sort((a, b) => b.n - a.n || b.v - a.v || a.key.localeCompare(b.key));
-  const flush = res.every((r) => r.suit !== 'None' && r.suit === res[0].suit);
-  const st = straightHigh(vals, res);
-  const theWorld = Array.isArray(src)
+  const allMajor = Array.isArray(src)
     && src.length === 5
-    && src.every((card) => card?.kind === 'major')
+    && src.every((card) => card?.kind === 'major');
+  const flush = allMajor || res.every((r) => r.suit !== 'None' && r.suit === res[0].suit);
+  const st = straightHigh(vals, res);
+  const theWorld = allMajor
     && src.some((card) => Number(card?.number) === 21);
   let key = null, primary = [];
-  if ((grp[0]?.n || 0) >= 5) { key = 'FiveKind'; primary = [grp[0].v]; }
+  if (theWorld) { key = 'TheWorld'; primary = [21]; }
+  else if ((grp[0]?.n || 0) >= 5) { key = 'FiveKind'; primary = [grp[0].v]; }
   else if (st && flush) { key = 'StraightFlush'; primary = [st]; }
-  else if (theWorld) { key = 'TheWorld'; primary = [21]; }
   else if ((grp[0]?.n || 0) === 4) { key = 'FourKind'; primary = [grp[0].v, grp.find((x) => x.key !== grp[0].key)?.v || 0]; }
   else if ((grp[0]?.n || 0) === 3 && (grp[1]?.n || 0) === 2) { key = 'FullHouse'; primary = [grp[0].v, grp[1].v]; }
   else if (flush) { key = 'Flush'; primary = vals.slice(); }
@@ -16144,6 +16145,9 @@ function auditKingdomMajorArcanaRules() {
   const validWorldCards = [major(21), major(2), major(3), major(4), major(6)];
   const worldWithout21 = [major(2), major(3), major(4), major(6), major(7)];
   const worldWithMinor = [major(21), major(2), major(3), major(4), minor('world-minor', 'Wand', 6)];
+  const majorFlush = evalRole([major(2), major(6), major(9), major(14), major(20)]);
+  const majorStraightFlush = evalRole([major(15), major(16), major(17), major(18), major(19)]);
+  const worldStraightFlushOverride = evalRole([major(17), major(18), major(19), major(20), major(21)]);
   const foolStraight = evalRole([
     major(0),
     minor('fool-10', 'Wand', 10),
@@ -16315,6 +16319,27 @@ function auditKingdomMajorArcanaRules() {
   const worldCall = buildCallPlay(0, [0, 1, 2, 3]);
   buildTarotKingdomDebugBattleState({
     withTrick: false,
+    handsBySeat: [[major(4), major(7), major(11), major(20)]]
+  });
+  const majorFlushCallBase = major(2);
+  s.trick = s.lastPlay = {
+    type: 'set',
+    owner: 1,
+    count: 1,
+    cardsHand: [majorFlushCallBase],
+    cardsTable: [majorFlushCallBase],
+    tableOwners: [1],
+    number: 2,
+    setPower: 2,
+    suitMask: suitMaskForCards([majorFlushCallBase]),
+    suitTier: 0
+  };
+  const majorFlushCall = buildCallPlay(0, [0, 1, 2, 3]);
+  const majorFlushCallValidation = majorFlushCall.ok
+    ? validatePlay(majorFlushCall.play, 'call')
+    : majorFlushCall;
+  buildTarotKingdomDebugBattleState({
+    withTrick: false,
     handsBySeat: [[
       minor('major-call-invalid-2', 'Wand', 2),
       minor('major-call-invalid-5', 'Cup', 5),
@@ -16468,6 +16493,9 @@ function auditKingdomMajorArcanaRules() {
       worldWithout21: evalRole(worldWithout21),
       worldWithMinor: evalRole(worldWithMinor),
       fourMajors: evalRole(validWorldCards.slice(0, 4)),
+      majorFlush,
+      majorStraightFlush,
+      worldStraightFlushOverride,
       foolStraight,
       magicianStraightFlush,
       devilFalseAceStraight,
@@ -16477,6 +16505,9 @@ function auditKingdomMajorArcanaRules() {
       fourKingsAndFool,
       worldCallOk: !!worldCall.ok,
       worldCallRole: worldCall.play?.role || null,
+      majorFlushCallOk: !!majorFlushCall.ok,
+      majorFlushCallValid: !!majorFlushCallValidation.ok,
+      majorFlushCallRole: majorFlushCall.play?.role || null,
       invalidMajorCall,
       lockedCallWrongSuit,
       lockedCallSameSuit,
@@ -16926,13 +16957,13 @@ function auditKingdomMajorArcanaSpecialRules() {
     battleEventCount: s.battle.events.length
   };
 
-  const fullBlockedHand = [16, 17, 18, 19, 16, 17, 18, 19].map((number, index) => (
+  const fullMajorFlushHand = [16, 17, 18, 19, 16, 17, 18, 19].map((number, index) => (
     major(number, `-blocked-${index}`)
   ));
   buildTarotKingdomDebugBattleState({
     withTrick: false,
     handsBySeat: [
-      fullBlockedHand,
+      fullMajorFlushHand,
       [minor('special-transfer-2', 'Cup', 2)],
       [minor('special-transfer-3', 'Sword', 3)],
       [minor('special-transfer-4', 'Wand', 4)]
@@ -16940,7 +16971,7 @@ function auditKingdomMajorArcanaSpecialRules() {
     drawDeck: [minor('special-transfer-deck', 'Pentacle', 9)]
   });
   resolveEmptyFieldLeader(0);
-  const parentTransfer = {
+  const fullMajorFlushOpening = {
     turn: s.turn,
     firstHandCount: s.players[0].hand.length,
     deckCount: s.drawDeck.length,
@@ -17022,7 +17053,7 @@ function auditKingdomMajorArcanaSpecialRules() {
     worldJudgmentOrder,
     worldJudgmentThenDraw,
     forcedLeaderDraw,
-    parentTransfer,
+    fullMajorFlushOpening,
     retryBefore,
     retryTransition,
     retryAfter,
@@ -18039,9 +18070,12 @@ function buildCallPlay(pi, sel) {
   const lockSuit = s.lock?.suit || null;
   const suitLockViolation = getKingdomSuitLockViolation([base, ...cards]);
   if (suitLockViolation) return { ok: false, reason: suitLockViolation };
-  const role = evalRole([base, ...cards], lockSuit);
-  if (base.kind === 'major' && role?.key !== 'TheWorld') {
-    return { ok: false, reason: '大アルカナ場札は、ザ・ワールドのみコール可能です。' };
+  const roleCards = [base, ...cards];
+  const role = evalRole(roleCards, lockSuit);
+  const isAllMajorFlushRole = roleCards.every((card) => card?.kind === 'major')
+    && ['Flush', 'StraightFlush'].includes(String(role?.key || ''));
+  if (base.kind === 'major' && role?.key !== 'TheWorld' && !isAllMajorFlushRole) {
+    return { ok: false, reason: '大アルカナ場札は、大アルカナ5枚のフラッシュ系統かザ・ワールドのみコール可能です。' };
   }
   if (!role || role.strength < ROLE_ST.Straight) {
     return { ok: false, reason: 'コール成立しません。' };
@@ -18212,8 +18246,11 @@ function validatePlay(play, mode) {
   }
   if (mode === 'call') {
     const base = s.trick?.cardsTable?.[0];
-    if (base?.kind === 'major' && play?.role?.key !== 'TheWorld') {
-      return { ok: false, reason: '大アルカナ場札は、ザ・ワールドのみコール可能です。' };
+    const isAllMajorFlushRole = playCards.length === 5
+      && playCards.every((card) => card?.kind === 'major')
+      && ['Flush', 'StraightFlush'].includes(String(play?.role?.key || ''));
+    if (base?.kind === 'major' && play?.role?.key !== 'TheWorld' && !isAllMajorFlushRole) {
+      return { ok: false, reason: '大アルカナ場札は、大アルカナ5枚のフラッシュ系統かザ・ワールドのみコール可能です。' };
     }
     return (s.trick.type === 'set' && s.trick.count === 1) ? { ok: true } : { ok: false, reason: 'コール対象は1枚場札のみです。' };
   }
@@ -26342,7 +26379,7 @@ function ensureKingdomRulebookUi() {
   if (!rulebook) {
     const roleDescriptions = {
       Straight: '数字が5枚連続',
-      Flush: '同じスートを5枚',
+      Flush: '同じスート5枚、または世界なしの大アルカナ5枚',
       FullHouse: '同数3枚＋同数2枚',
       FourKind: '同数4枚＋任意の1枚',
       TheWorld: '世界XXIを含む大アルカナ5枚',
@@ -26385,8 +26422,12 @@ function ensureKingdomRulebookUi() {
       },
       {
         name: 'フラッシュ',
-        description: '同じスートを5枚',
-        cards: [3, 5, 9, 11, 14].map((number) => rulebookMinorCard('Wand', number))
+        description: '世界なしの大アルカナ5枚も成立',
+        cards: [
+          rulebookMajorCard(2, '女教皇 II'), rulebookMajorCard(6, '恋人 VI'),
+          rulebookMajorCard(9, '隠者 IX'), rulebookMajorCard(14, '節制 XIV'),
+          rulebookMajorCard(20, '審判 XX')
+        ]
       },
       {
         name: 'フルハウス',
@@ -26561,7 +26602,7 @@ function ensureKingdomRulebookUi() {
             </div>
             <div class="tarot-kingdom-rulebook-note">
               <strong>コール</strong>
-              <span>場が1枚の時、その場札に手札4枚を加えて5枚役を作れます。大アルカナ場は「ザ・ワールド」のみコール可能です。</span>
+              <span>場が1枚の時、その場札に手札4枚を加えて5枚役を作れます。大アルカナ場は、大アルカナ5枚のフラッシュ系統か「ザ・ワールド」をコールできます。</span>
             </div>
             <div class="tarot-kingdom-rulebook-roles-samples">
               <h4>全7役のカード例</h4>
@@ -26581,7 +26622,7 @@ function ensureKingdomRulebookUi() {
             <div class="tarot-kingdom-rulebook-major-list">
               <h4>大アルカナ早見</h4>
               <dl>
-                <div><dt>${rulebookCardMarkup(rulebookMajorCard(0, '愚者 0'))}<span>愚者 0</span></dt><dd>5枚役だけで数字ワイルド。フラッシュのスートにはなりません。</dd></div>
+                <div><dt>${rulebookCardMarkup(rulebookMajorCard(0, '愚者 0'))}<span>愚者 0</span></dt><dd>5枚役だけで数字ワイルド。単独ではスートになりませんが、大アルカナ5枚ならフラッシュ扱いです。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(1, '魔術師 I'))}<span>魔術師 I</span></dt><dd>数字1固定・オールスート。Aとは組にできません。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(15, '悪魔 XV'))}<span>悪魔 XV</span></dt><dd>小アルカナのコート札専用。11バックを無視して出せます。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(16, '塔 XVI'))}<span>塔〜太陽 XVI–XIX</span></dt><dd>対応する同スートの1枚場専用。初手とAには出せません。</dd></div>

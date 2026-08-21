@@ -288,6 +288,7 @@ test('rulebook explains the current rules and returns to the same battle on mobi
   await expect(rulebook.getByRole('heading', { name: /タロットキングダム\s*ルールブック/ })).toBeVisible();
   await expect(rulebook.getByText('Aは通常時の最強札（15）')).toBeVisible();
   await expect(rulebook.getByText('Aを1として使えるのは、A–2–3–4–5のストレートだけ。')).toBeVisible();
+  await expect(rulebook.getByText('同じスート5枚、または世界なしの大アルカナ5枚')).toBeVisible();
   await expect(rulebook.locator('.tarot-kingdom-rulebook-table-wrap tbody tr')).toHaveCount(7);
   await expect(rulebook.locator('.tarot-kingdom-rulebook-card-image')).toHaveCount(49);
   await expect(rulebook.locator('.tarot-kingdom-roles-sample-grid .sample')).toHaveCount(7);

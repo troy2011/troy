@@ -4117,9 +4117,12 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.openingEffects['20']).toMatchObject({ openingNumber: 20, reverse: true, judgmentPending: true });
 
     expect(audit.roles.validWorld).toMatchObject({ key: 'TheWorld', baseRate: 3, strength: 5 });
-    expect(audit.roles.worldWithout21?.key).not.toBe('TheWorld');
+    expect(audit.roles.worldWithout21).toMatchObject({ key: 'Flush' });
     expect(audit.roles.worldWithMinor?.key).not.toBe('TheWorld');
     expect(audit.roles.fourMajors).toBeNull();
+    expect(audit.roles.majorFlush).toMatchObject({ key: 'Flush' });
+    expect(audit.roles.majorStraightFlush).toMatchObject({ key: 'StraightFlush', primary: [19] });
+    expect(audit.roles.worldStraightFlushOverride).toMatchObject({ key: 'TheWorld', primary: [21] });
     expect(audit.roles.foolStraight).toMatchObject({ key: 'Straight' });
     expect(audit.roles.magicianStraightFlush).toMatchObject({ key: 'StraightFlush' });
     expect(audit.roles.devilFalseAceStraight).toBeNull();
@@ -4129,9 +4132,12 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.roles.fourKingsAndFool).toMatchObject({ key: 'FiveKind', primary: [14] });
     expect(audit.roles.worldCallOk).toBe(true);
     expect(audit.roles.worldCallRole).toMatchObject({ key: 'TheWorld', baseRate: 3 });
+    expect(audit.roles.majorFlushCallOk).toBe(true);
+    expect(audit.roles.majorFlushCallValid).toBe(true);
+    expect(audit.roles.majorFlushCallRole).toMatchObject({ key: 'Flush' });
     expect(audit.roles.invalidMajorCall).toEqual({
       ok: false,
-      reason: '大アルカナ場札は、ザ・ワールドのみコール可能です。'
+      reason: '大アルカナ場札は、大アルカナ5枚のフラッシュ系統かザ・ワールドのみコール可能です。'
     });
     expect(audit.roles.lockedCallWrongSuit.ok).toBe(false);
     expect(audit.roles.lockedCallWrongSuit.reason).toBe(
@@ -4168,7 +4174,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.majorSuitGate.empty).toMatchObject({ ok: false, setPower: 16 });
     expect(audit.majorSuitGate.empty.reason).toContain('場が空');
     expect(audit.majorSuitGate.lastFinish).toMatchObject({ ok: true, setPower: 16 });
-    expect(audit.majorSuitGate.role).toEqual({ ok: true, key: 'Straight' });
+    expect(audit.majorSuitGate.role).toEqual({ ok: true, key: 'StraightFlush' });
     expect(audit.majorSuits['1']).toEqual(['Wand', 'Cup', 'Sword', 'Pentacle']);
     expect(audit.majorSuits['16']).toEqual(['Sword']);
     expect(audit.majorSuits['17']).toEqual(['Cup']);
@@ -4283,8 +4289,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
       blocked: [],
       battleEventCount: 0
     });
-    expect(audit.parentTransfer).toEqual({
-      turn: 1,
+    expect(audit.fullMajorFlushOpening).toEqual({
+      turn: 0,
       firstHandCount: 8,
       deckCount: 1,
       blocked: [],
