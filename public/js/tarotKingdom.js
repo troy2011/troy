@@ -26360,6 +26360,83 @@ function ensureKingdomRulebookUi() {
         </tr>
       `;
     }).join('');
+    const rulebookMinorCard = (suit, number) => ({ kind: 'minor', suit, number });
+    const rulebookMajorCard = (number, label) => ({ kind: 'major', number, label });
+    const rulebookCardMarkup = (card) => {
+      const suitLabels = { Wand: 'ワンド', Cup: 'カップ', Sword: 'ソード', Pentacle: 'ペンタクル' };
+      const rankLabels = { 1: 'A', 11: 'ペイジ', 12: 'ナイト', 13: 'クイーン', 14: 'キング' };
+      const number = Math.max(0, Math.floor(Number(card?.number) || 0));
+      const kind = card?.kind === 'major' ? 'major' : 'minor';
+      const suit = kind === 'minor' ? String(card?.suit || 'Wand') : '';
+      const label = kind === 'major'
+        ? String(card?.label || `大アルカナ ${number}`)
+        : `${suitLabels[suit] || suit}の${rankLabels[number] || number}`;
+      return `<span class="tarot-kingdom-rulebook-card-image${kind === 'major' ? ' is-major' : ''}" data-rulebook-card-kind="${kind}" data-rulebook-card-suit="${suit}" data-rulebook-card-number="${number}" role="img" aria-label="${label}" title="${label}"></span>`;
+    };
+    const roleSampleDefinitions = [
+      {
+        name: 'ストレート',
+        description: 'スートを問わず数字が連続',
+        cards: [
+          rulebookMinorCard('Wand', 2), rulebookMinorCard('Cup', 3),
+          rulebookMinorCard('Sword', 4), rulebookMinorCard('Pentacle', 5),
+          rulebookMinorCard('Wand', 6)
+        ]
+      },
+      {
+        name: 'フラッシュ',
+        description: '同じスートを5枚',
+        cards: [3, 5, 9, 11, 14].map((number) => rulebookMinorCard('Wand', number))
+      },
+      {
+        name: 'フルハウス',
+        description: '同数3枚＋同数2枚',
+        cards: [
+          rulebookMinorCard('Wand', 7), rulebookMinorCard('Cup', 7),
+          rulebookMinorCard('Sword', 7), rulebookMinorCard('Cup', 13),
+          rulebookMinorCard('Pentacle', 13)
+        ]
+      },
+      {
+        name: '4カード',
+        description: '同数4枚＋任意の1枚',
+        cards: [
+          rulebookMinorCard('Wand', 10), rulebookMinorCard('Cup', 10),
+          rulebookMinorCard('Sword', 10), rulebookMinorCard('Pentacle', 10),
+          rulebookMinorCard('Wand', 1)
+        ]
+      },
+      {
+        name: 'ザ・ワールド',
+        description: '世界XXIを含む大アルカナ5枚',
+        cards: [
+          rulebookMajorCard(0, '愚者 0'), rulebookMajorCard(1, '魔術師 I'),
+          rulebookMajorCard(7, '戦車 VII'), rulebookMajorCard(15, '悪魔 XV'),
+          rulebookMajorCard(21, '世界 XXI')
+        ]
+      },
+      {
+        name: 'ストレートフラッシュ',
+        description: '同スートで数字が連続',
+        cards: [2, 3, 4, 5, 6].map((number) => rulebookMinorCard('Cup', number))
+      },
+      {
+        name: '5カード',
+        description: '小アルカナ4スート＋大アルカナの同数5枚',
+        cards: [
+          rulebookMinorCard('Wand', 8), rulebookMinorCard('Cup', 8),
+          rulebookMinorCard('Sword', 8), rulebookMinorCard('Pentacle', 8),
+          rulebookMajorCard(8, '力 VIII')
+        ]
+      }
+    ];
+    const roleSampleCards = roleSampleDefinitions.map((sample) => `
+      <div class="sample">
+        <div class="sample-name">${sample.name}</div>
+        <div class="sample-cards">${sample.cards.map(rulebookCardMarkup).join('')}</div>
+        <div class="sample-desc">${sample.description}</div>
+      </div>
+    `).join('');
 
     rulebook = document.createElement('div');
     rulebook.id = 'tarotKingdomRulebook';
@@ -26430,12 +26507,12 @@ function ensureKingdomRulebookUi() {
               </div>
             </div>
             <div class="tarot-kingdom-rulebook-suits" aria-label="相性スート">
-              <div class="is-wand"><span>W</span><strong>ワンド</strong></div>
+              <div class="is-wand">${rulebookCardMarkup(rulebookMinorCard('Wand', 5))}<strong>ワンド</strong></div>
               <b aria-hidden="true">↔</b>
-              <div class="is-cup"><span>C</span><strong>カップ</strong></div>
-              <div class="is-sword"><span>S</span><strong>ソード</strong></div>
+              <div class="is-cup">${rulebookCardMarkup(rulebookMinorCard('Cup', 5))}<strong>カップ</strong></div>
+              <div class="is-sword">${rulebookCardMarkup(rulebookMinorCard('Sword', 5))}<strong>ソード</strong></div>
               <b aria-hidden="true">↔</b>
-              <div class="is-pentacle"><span>P</span><strong>ペンタクル</strong></div>
+              <div class="is-pentacle">${rulebookCardMarkup(rulebookMinorCard('Pentacle', 5))}<strong>ペンタクル</strong></div>
             </div>
             <svg class="tarot-kingdom-rulebook-suits-diagram" viewBox="0 0 280 200" xmlns="http://www.w3.org/2000/svg" aria-label="スート相性図">
               <defs>
@@ -26487,47 +26564,8 @@ function ensureKingdomRulebookUi() {
               <span>場が1枚の時、その場札に手札4枚を加えて5枚役を作れます。大アルカナ場は「ザ・ワールド」のみコール可能です。</span>
             </div>
             <div class="tarot-kingdom-rulebook-roles-samples">
-              <h4>役のサンプル例</h4>
-              <div class="tarot-kingdom-roles-sample-grid">
-                <div class="sample">
-                  <div class="sample-name">ストレート</div>
-                  <div class="sample-cards">
-                    <span class="card">2♠</span>
-                    <span class="card">3♠</span>
-                    <span class="card">4♣</span>
-                    <span class="card">5♥</span>
-                    <span class="card">6♦</span>
-                  </div>
-                  <div class="sample-desc">数字が連続</div>
-                </div>
-                <div class="sample">
-                  <div class="sample-name">フラッシュ</div>
-                  <div class="sample-cards">
-                    <span class="card wand">3W</span>
-                    <span class="card wand">5W</span>
-                    <span class="card wand">9W</span>
-                    <span class="card wand">J W</span>
-                    <span class="card wand">K W</span>
-                  </div>
-                  <div class="sample-desc">同じスート5枚</div>
-                </div>
-                <div class="sample">
-                  <div class="sample-name">フルハウス</div>
-                  <div class="sample-cards">
-                    <span class="card">7♥ 7♦ 7♣</span>
-                    <span class="card">K♠ K♥</span>
-                  </div>
-                  <div class="sample-desc">同数3枚 + 同数2枚</div>
-                </div>
-                <div class="sample">
-                  <div class="sample-name">4カード</div>
-                  <div class="sample-cards">
-                    <span class="card">10♠ 10♥ 10♦ 10♣</span>
-                    <span class="card">A♠</span>
-                  </div>
-                  <div class="sample-desc">同数4枚 + 任意1枚</div>
-                </div>
-              </div>
+              <h4>全7役のカード例</h4>
+              <div class="tarot-kingdom-roles-sample-grid">${roleSampleCards}</div>
             </div>
           </section>
 
@@ -26535,20 +26573,20 @@ function ensureKingdomRulebookUi() {
             <span class="tarot-kingdom-rulebook-section-no">04 / SPECIAL CARDS</span>
             <h3>覚えておきたい特殊札</h3>
             <div class="tarot-kingdom-rulebook-special-grid">
-              <div><span>5</span><h4>5スキップ</h4><p>出した枚数ぶん次のプレイヤーを飛ばします。法王Vは次の2人。</p></div>
-              <div><span>8</span><h4>8カット</h4><p>1枚ならコール猶予、2枚以上なら場を即クリア。敵も石化させます。</p></div>
-              <div><span>11</span><h4>11バック</h4><p>数字の強弱を反転。もう一度11を出すか、場が流れると解除されます。</p></div>
-              <div><span>14</span><h4>14ロック</h4><p>同スートで返すと、そのスートだけに固定。節制XIVはロック解除。</p></div>
+              <div>${rulebookCardMarkup(rulebookMinorCard('Wand', 5))}<h4>5スキップ</h4><p>出した枚数ぶん次のプレイヤーを飛ばします。法王Vは次の2人。</p></div>
+              <div>${rulebookCardMarkup(rulebookMinorCard('Pentacle', 8))}<h4>8カット</h4><p>1枚ならコール猶予、2枚以上なら場を即クリア。敵も石化させます。</p></div>
+              <div>${rulebookCardMarkup(rulebookMinorCard('Sword', 11))}<h4>11バック</h4><p>数字の強弱を反転。もう一度11を出すか、場が流れると解除されます。</p></div>
+              <div>${rulebookCardMarkup(rulebookMinorCard('Cup', 14))}<h4>14ロック</h4><p>同スートで返すと、そのスートだけに固定。節制XIVはロック解除。</p></div>
             </div>
             <div class="tarot-kingdom-rulebook-major-list">
               <h4>大アルカナ早見</h4>
               <dl>
-                <div><dt>愚者 0</dt><dd>5枚役だけで数字ワイルド。フラッシュのスートにはなりません。</dd></div>
-                <div><dt>魔術師 I</dt><dd>数字1固定・オールスート。Aとは組にできません。</dd></div>
-                <div><dt>悪魔 XV</dt><dd>小アルカナのコート札専用。11バックを無視して出せます。</dd></div>
-                <div><dt>塔〜太陽 XVI–XIX</dt><dd>対応する同スートの1枚場専用。初手とAには出せません。</dd></div>
-                <div><dt>審判 XX</dt><dd>Aには出せません。11バックを切り替え、場を流すと墓地回収。</dd></div>
-                <div><dt>世界 XXI</dt><dd>大アルカナ1枚場へ返して即クリア。11バック中は使用不可。</dd></div>
+                <div><dt>${rulebookCardMarkup(rulebookMajorCard(0, '愚者 0'))}<span>愚者 0</span></dt><dd>5枚役だけで数字ワイルド。フラッシュのスートにはなりません。</dd></div>
+                <div><dt>${rulebookCardMarkup(rulebookMajorCard(1, '魔術師 I'))}<span>魔術師 I</span></dt><dd>数字1固定・オールスート。Aとは組にできません。</dd></div>
+                <div><dt>${rulebookCardMarkup(rulebookMajorCard(15, '悪魔 XV'))}<span>悪魔 XV</span></dt><dd>小アルカナのコート札専用。11バックを無視して出せます。</dd></div>
+                <div><dt>${rulebookCardMarkup(rulebookMajorCard(16, '塔 XVI'))}<span>塔〜太陽 XVI–XIX</span></dt><dd>対応する同スートの1枚場専用。初手とAには出せません。</dd></div>
+                <div><dt>${rulebookCardMarkup(rulebookMajorCard(20, '審判 XX'))}<span>審判 XX</span></dt><dd>Aには出せません。11バックを切り替え、場を流すと墓地回収。</dd></div>
+                <div><dt>${rulebookCardMarkup(rulebookMajorCard(21, '世界 XXI'))}<span>世界 XXI</span></dt><dd>大アルカナ1枚場へ返して即クリア。11バック中は使用不可。</dd></div>
               </dl>
             </div>
           </section>
@@ -26587,6 +26625,14 @@ function ensureKingdomRulebookUi() {
         </footer>
       </article>
     `;
+    rulebook.querySelectorAll('[data-rulebook-card-number]').forEach((cardImage) => {
+      const kind = cardImage.dataset.rulebookCardKind === 'major' ? 'major' : 'minor';
+      const number = Math.max(0, Math.floor(Number(cardImage.dataset.rulebookCardNumber) || 0));
+      const suit = String(cardImage.dataset.rulebookCardSuit || 'Wand');
+      const pos = spritePos(getSpriteIndex({ kind, number, suit }));
+      cardImage.style.setProperty('--rulebook-card-x', `${-pos.x}px`);
+      cardImage.style.setProperty('--rulebook-card-y', `${-pos.y}px`);
+    });
     ui.root.appendChild(rulebook);
   }
 

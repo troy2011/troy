@@ -289,6 +289,26 @@ test('rulebook explains the current rules and returns to the same battle on mobi
   await expect(rulebook.getByText('Aは通常時の最強札（15）')).toBeVisible();
   await expect(rulebook.getByText('Aを1として使えるのは、A–2–3–4–5のストレートだけ。')).toBeVisible();
   await expect(rulebook.locator('.tarot-kingdom-rulebook-table-wrap tbody tr')).toHaveCount(7);
+  await expect(rulebook.locator('.tarot-kingdom-rulebook-card-image')).toHaveCount(49);
+  await expect(rulebook.locator('.tarot-kingdom-roles-sample-grid .sample')).toHaveCount(7);
+  await expect(rulebook.locator('.tarot-kingdom-roles-sample-grid .sample-cards')).toHaveCount(7);
+  await expect(rulebook.locator('.tarot-kingdom-roles-sample-grid .sample-cards .tarot-kingdom-rulebook-card-image')).toHaveCount(35);
+  await expect(rulebook.locator('.tarot-kingdom-rulebook-special-grid .tarot-kingdom-rulebook-card-image')).toHaveCount(4);
+  await expect(rulebook.locator('.tarot-kingdom-rulebook-major-list .tarot-kingdom-rulebook-card-image')).toHaveCount(6);
+  const rulebookCardStyle = await rulebook.locator('.tarot-kingdom-rulebook-card-image').first().evaluate((card) => {
+    const box = card.getBoundingClientRect();
+    const artwork = getComputedStyle(card, '::before');
+    return {
+      width: Math.round(box.width),
+      height: Math.round(box.height),
+      backgroundImage: artwork.backgroundImage
+    };
+  });
+  expect(rulebookCardStyle).toEqual({
+    width: 28,
+    height: 47,
+    backgroundImage: expect.stringContaining('Sprites/Buildings/tarot.png')
+  });
   await expect(rulebook.locator('[data-rulebook-close]').first()).toBeFocused();
 
   const mobileLayout = await rulebookPage.evaluate((pageNode) => {

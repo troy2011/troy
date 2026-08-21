@@ -452,14 +452,41 @@
     background: linear-gradient(135deg, rgba(20, 40, 75, 0.72), rgba(12, 25, 55, 0.68));
 }
 
-.tarot-kingdom-rulebook-suits > div > span {
-    display: grid;
-    width: 26px;
-    height: 26px;
-    place-items: center;
-    border-radius: 7px;
-    color: #fff;
-    font: 900 12px/1 Georgia, serif;
+.tarot-kingdom-rulebook-card-image {
+    --rulebook-card-scale: 0.5833;
+
+    position: relative;
+    display: inline-block;
+    width: 28px;
+    height: 47px;
+    flex: 0 0 28px;
+    overflow: hidden;
+    border: 1px solid rgba(208, 220, 245, 0.48);
+    border-radius: 3px;
+    background: #050812;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.42);
+    vertical-align: middle;
+}
+
+.tarot-kingdom-rulebook-card-image::before {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 48px;
+    height: 80px;
+    background-image: url('Sprites/Buildings/tarot.png');
+    background-repeat: no-repeat;
+    background-position: var(--rulebook-card-x, 0) var(--rulebook-card-y, 0);
+    background-size: 512px 1024px;
+    content: '';
+    image-rendering: pixelated;
+    transform: scale(var(--rulebook-card-scale));
+    transform-origin: top left;
+}
+
+.tarot-kingdom-rulebook-card-image.is-major {
+    border-color: rgba(242, 213, 129, 0.72);
+    box-shadow: 0 3px 9px rgba(202, 155, 48, 0.24);
 }
 
 .tarot-kingdom-rulebook-suits > div > strong {
@@ -471,11 +498,6 @@
     color: #f0ce75;
     text-align: center;
 }
-
-.tarot-kingdom-rulebook-suits .is-wand > span { background: #a83232; }
-.tarot-kingdom-rulebook-suits .is-cup > span { background: #2768bd; }
-.tarot-kingdom-rulebook-suits .is-sword > span { background: #7857ad; }
-.tarot-kingdom-rulebook-suits .is-pentacle > span { background: #287342; }
 
 .tarot-kingdom-rulebook-table-wrap {
     margin-top: 14px;
@@ -564,18 +586,8 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
-.tarot-kingdom-rulebook-special-grid > div > span {
-    display: grid;
-    width: 36px;
-    height: 36px;
+.tarot-kingdom-rulebook-special-grid > div > .tarot-kingdom-rulebook-card-image {
     margin-bottom: 11px;
-    place-items: center;
-    border: 2px solid rgba(238, 196, 83, 0.72);
-    border-radius: 9px;
-    color: #fff4c5;
-    background: linear-gradient(135deg, rgba(140, 80, 15, 0.42), rgba(115, 71, 12, 0.38));
-    font: 900 18px/1 Georgia, serif;
-    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 .tarot-kingdom-rulebook-special-grid > div > h4 {
@@ -621,6 +633,9 @@
 }
 
 .tarot-kingdom-rulebook-major-list dt {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     color: #f2d581;
     font-size: 11px;
     font-weight: 900;
@@ -30212,18 +30227,18 @@ body[data-sea-tone] .home-hero-card {
 
     #tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .equip-slot {
         min-height: 80px;
-        grid-template-columns: 34px minmax(0, 1fr) 38px;
+        grid-template-columns: 30px minmax(0, 1fr) 34px;
         grid-template-rows: auto auto;
-        gap: 3px 6px;
-        padding: 7px;
+        gap: 3px 4px;
+        padding: 6px;
     }
 
     #tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .equip-slot-icon {
         grid-column: 1;
-        grid-row: 1 / 3;
-        width: 34px;
-        height: 34px;
-        background-size: 32px 32px;
+        grid-row: 1;
+        width: 30px;
+        height: 30px;
+        background-size: 28px 28px;
         overflow: visible;
     }
 
@@ -30240,15 +30255,16 @@ body[data-sea-tone] .home-hero-card {
         grid-column: 1 / 4;
         grid-row: 2;
         margin-top: 0;
-        width: auto;
-        max-width: 100%;
-        padding: 1px 4px 2px;
-        border-radius: 4px;
-        background: rgba(0, 0, 0, 0.5);
+        width: 100%;
+        min-width: 0;
+        padding: 1px 2px 2px;
+        border-radius: 0;
+        background: none;
         color: #fff0bd;
         font-size: 12px;
         line-height: 1.12;
-        box-shadow: 0 1px 0 rgba(255, 239, 192, 0.08);
+        box-shadow: none;
+        text-align: center;
     }
 
     #tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .equip-slot-stats {
@@ -30258,9 +30274,9 @@ body[data-sea-tone] .home-hero-card {
     #tabContentInventory[data-inventory-panel="items"][data-inventory-group="Equipment"] .equip-slot-item-art {
         display: grid;
         grid-column: 3;
-        grid-row: 1 / 3;
-        width: 36px;
-        height: 36px;
+        grid-row: 1;
+        width: 34px;
+        height: 34px;
         align-self: center;
         justify-self: end;
     }
@@ -39244,7 +39260,7 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
 
 .tarot-kingdom-roles-sample-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 10px;
 }
 
@@ -39276,40 +39292,7 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
     justify-content: center;
     gap: 3px;
     margin-bottom: 6px;
-    flex-wrap: wrap;
-}
-
-.sample-cards .card {
-    display: inline-block;
-    padding: 4px 6px;
-    border: 1px solid rgba(200, 200, 200, 0.3);
-    border-radius: 4px;
-    background: linear-gradient(135deg, rgba(50, 50, 70, 0.5), rgba(30, 30, 50, 0.4));
-    color: #e2e8f0;
-    font-size: 9px;
-    font-weight: 600;
-    min-width: 28px;
-    text-align: center;
-}
-
-.sample-cards .card.wand {
-    background: linear-gradient(135deg, rgba(168, 50, 50, 0.4), rgba(120, 30, 30, 0.35));
-    color: #ff9999;
-}
-
-.sample-cards .card.cup {
-    background: linear-gradient(135deg, rgba(39, 104, 189, 0.4), rgba(25, 70, 140, 0.35));
-    color: #99ccff;
-}
-
-.sample-cards .card.sword {
-    background: linear-gradient(135deg, rgba(120, 87, 173, 0.4), rgba(90, 60, 140, 0.35));
-    color: #cc99ff;
-}
-
-.sample-cards .card.pentacle {
-    background: linear-gradient(135deg, rgba(40, 115, 66, 0.4), rgba(25, 80, 50, 0.35));
-    color: #99ff99;
+    flex-wrap: nowrap;
 }
 
 .sample-desc {

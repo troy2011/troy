@@ -5505,7 +5505,7 @@ test('current equipment slots render equipped item sprites on the right edge', a
 
 test('inventory current equipment resolves object equipment references', async ({ page }) => {
   const errors = trackPageErrors(page);
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: 280, height: 844 });
   const equipmentItems = [
     {
       itemId: 'sword_001',
@@ -5626,7 +5626,7 @@ test('inventory current equipment resolves object equipment references', async (
     inventory.switchInventoryGroup('Equipment');
   });
 
-  await expect(page.locator('#inventoryTabs .inventory-tab-btn')).toHaveText(['武器', '左手', '防具', 'アクセ']);
+  await expect(page.locator('#inventoryTabs .inventory-tab-btn')).toHaveText(['手装備', '防具', 'アクセ']);
   await expect(page.locator('#equippedRightHand')).toHaveText('王国近衛騎士団儀礼用フランベルジュ');
   await expect(page.locator('#equippedLeftHand')).toHaveText('Object Ref Shield');
   await expect(page.locator('#equippedArmor')).toHaveText('古代王国守護騎士の重装プレートアーマー');
@@ -5651,6 +5651,27 @@ test('inventory current equipment resolves object equipment references', async (
     expect(metrics.fitsHeight).toBe(true);
     expect(metrics.contentFits).toBe(true);
   }
+  const compactNameLayout = await page.locator('#equippedRightHand, #equippedArmor').evaluateAll((elements) => (
+    elements.map((name) => {
+      const label = name.closest('.equip-slot')?.querySelector('.equip-slot-label');
+      const art = name.closest('.equip-slot')?.querySelector('.equip-slot-item-art');
+      const nameRect = name.getBoundingClientRect();
+      const labelRect = label?.getBoundingClientRect();
+      const artRect = art?.getBoundingClientRect();
+      return {
+        gridColumn: window.getComputedStyle(name).gridColumn,
+        textAlign: window.getComputedStyle(name).textAlign,
+        nameBelowLabel: !labelRect || nameRect.top >= labelRect.bottom - 1,
+        nameBelowArt: !artRect || nameRect.top >= artRect.bottom - 1
+      };
+    })
+  ));
+  for (const layout of compactNameLayout) {
+    expect(layout.gridColumn).toBe('1 / 4');
+    expect(layout.textAlign).toBe('center');
+    expect(layout.nameBelowLabel).toBe(true);
+    expect(layout.nameBelowArt).toBe(true);
+  }
   const rightHandSlotIconMetrics = await page.locator('#tabContentInventory .weapon-slot .equip-slot-icon').evaluate((icon) => {
     const rect = icon.getBoundingClientRect();
     const style = window.getComputedStyle(icon);
@@ -5661,9 +5682,9 @@ test('inventory current equipment resolves object equipment references', async (
       backgroundImage: style.backgroundImage
     };
   });
-  expect(rightHandSlotIconMetrics.width).toBe(34);
-  expect(rightHandSlotIconMetrics.height).toBe(34);
-  expect(rightHandSlotIconMetrics.backgroundSize).toBe('32px 32px');
+  expect(rightHandSlotIconMetrics.width).toBe(30);
+  expect(rightHandSlotIconMetrics.height).toBe(30);
+  expect(rightHandSlotIconMetrics.backgroundSize).toBe('28px 28px');
   expect(rightHandSlotIconMetrics.backgroundImage).toContain('076.png');
   const leftHandSlotIconMetrics = await page.locator('#tabContentInventory .shield-slot .equip-slot-icon').evaluate((icon) => {
     const style = window.getComputedStyle(icon);
@@ -5715,7 +5736,7 @@ test('inventory current equipment resolves object equipment references', async (
   await page.locator('#tabContentInventory .weapon-slot').click();
   await expect(page.locator('#tabContentInventory')).toHaveAttribute('data-inventory-group', 'Equipment');
   await expect(page.locator('#tabContentInventory')).toHaveAttribute('data-inventory-panel', 'items');
-  await expect(page.locator('#inventoryTabs .inventory-tab-btn.active')).toHaveAttribute('data-category', 'Weapon');
+  await expect(page.locator('#inventoryTabs .inventory-tab-btn.active')).toHaveAttribute('data-category', 'Hand');
   await page.waitForFunction(() => {
     const tabs = document.getElementById('inventoryTabs');
     const switcher = document.getElementById('inventoryMobileSwitch');
@@ -5803,7 +5824,7 @@ test('current equipment art refits when the mobile equipment layout becomes comp
       spriteWidth: spriteRect?.width || 0
     };
   })).toMatchObject({
-    artWidth: 36,
+    artWidth: 34,
     spriteFitsWidth: true,
     spriteFitsHeight: true
   });
