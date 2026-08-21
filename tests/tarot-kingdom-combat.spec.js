@@ -194,7 +194,7 @@ test.describe('Tarot Kingdom combat calculations', () => {
 });
 
 test.describe('Tarot Kingdom NPC combat snapshots', () => {
-  test('pet stats follow the player level and the matching enemy archetype without equipment effects', async () => {
+  test('legacy pet stats fall back to the player level and the matching enemy archetype without equipment effects', async () => {
     const combat = await loadCombatModule();
     const pet = combat.createTarotKingdomPetCharacter({
       pet: {
@@ -225,6 +225,32 @@ test.describe('Tarot Kingdom NPC combat snapshots', () => {
       }
     });
     expect(combat.getTarotKingdomPetAiStyle({ number: 1 })).toBe('aggressive');
+  });
+
+  test('a saved pet level overrides the owner level for combat stats', async () => {
+    const combat = await loadCombatModule();
+    const pet = combat.createTarotKingdomPetCharacter({
+      pet: {
+        monsterId: 'ismartal-vol1-monster-01',
+        displayName: 'コハク',
+        number: 1,
+        level: 4
+      },
+      level: 10
+    });
+
+    expect(pet).toMatchObject({
+      source: 'pet',
+      level: 4,
+      rankLabel: '仲間 Lv4',
+      combat: {
+        maxHp: 103,
+        power: 14,
+        defense: 8,
+        intelligence: 8,
+        speed: 7
+      }
+    });
   });
 
   test('level formula and all three seat styles produce the intended integer stats', async () => {

@@ -69,6 +69,7 @@ export function renderPixelMonsterCompanion(targetOrId, pet = null) {
         target.removeAttribute('aria-label');
         delete target.dataset.monsterId;
         delete target.dataset.monsterAnchor;
+        delete target.dataset.petLevel;
         return false;
     }
 
@@ -84,9 +85,11 @@ export function renderPixelMonsterCompanion(targetOrId, pet = null) {
     const renderedWidth = Math.max(1, Number(monster.frameWidth) || 48) * PIXEL_MONSTER_COMPANION_SCALE;
     target.dataset.monsterId = String(monster.id || '');
     target.dataset.monsterAnchor = anchorMode;
+    const petLevel = Math.max(1, Math.floor(Number(pet?.level) || 1));
+    target.dataset.petLevel = String(petLevel);
     target.setAttribute(
         'aria-label',
-        `${String(pet?.nickname || pet?.displayName || pet?.monsterName || monster.name || 'ペット')}（ペット）`
+        `${String(pet?.nickname || pet?.displayName || pet?.monsterName || monster.name || 'ペット')}（ペット Lv${petLevel}）`
     );
     target.style.setProperty('--pixel-monster-companion-shadow-width', `${Math.max(34, Math.min(68, Math.round(renderedWidth * 0.72)))}px`);
     target.style.setProperty('--pixel-monster-companion-offset-y', `${Math.max(-24, Math.min(24, configuredOffset))}px`);

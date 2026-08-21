@@ -1,10 +1,14 @@
 const { test, expect } = require('@playwright/test');
 const manifest = require('../public/Sprites/pixel-monsters/manifest.json');
 const {
+  TAROT_KINGDOM_PET_MAX_LEVEL,
   TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT,
+  awardTarotKingdomPetExperience,
   buildTarotKingdomPetOfferView,
   buildTarotKingdomPetPublicRecord,
   getTarotKingdomPetRecruitChance,
+  getTarotKingdomPetBattleExperience,
+  getTarotKingdomPetExperienceToNextLevel,
   isTarotKingdomPetRecruitEligible,
   normalizeTarotKingdomPetState,
   parseTarotKingdomPetNickname,
@@ -165,7 +169,7 @@ test.describe('Tarot Kingdom monster recruitment', () => {
     expect(renamed).toMatchObject({
       renamed: true,
       state: {
-        version: 2,
+        version: 3,
         currentPet: {
           monsterId: normalMonster.id,
           nickname: 'ルナ'
@@ -180,5 +184,81 @@ test.describe('Tarot Kingdom monster recruitment', () => {
     expect(parseTarotKingdomPetNickname('１２３')).toBe('123');
     expect(parseTarotKingdomPetNickname('')).toBeNull();
     expect(parseTarotKingdomPetNickname('1234567890123')).toBeNull();
+  });
+
+  test('pet experience is persistent, idempotent and can raise multiple levels', () => {
+    const initial = normalizeTarotKingdomPetState({
+      version: 2,
+      currentPet: {
+        monsterId: normalMonster.id,
+        acquiredAtMs: 100,
+        explorationId: 'level-test'
+      }
+    });
+    expect(initial).toMatchObject({
+      version: 3,
+      currentPet: { level: 1, experience: 0 },
+      experienceAwards: []
+    });
+    expect(getTarotKingdomPetBattleExperience(1)).toBe(60);
+    expect(getTarotKingdomPetBattleExperience(11)).toBe(260);
+    expect(getTarotKingdomPetExperienceToNextLevel(1)).toBe(100);
+
+    const first = awardTarotKingdomPetExperience(initial, {
+      awardId: 'exploration-pet-exp-1',
+      amount: 60,
+      expectedMonsterId: normalMonster.id,
+      now: 200
+    });
+    expect(first).toMatchObject({
+      awarded: true,
+      alreadyAwarded: false,
+      progress: {
+        gainedExperience: 60,
+        previousLevel: 1,
+        level: 1,
+        experience: 60,
+        leveledUp: false
+      },
+      state: { currentPet: { level: 1, experience: 60 } }
+    });
+
+    const retry = awardTarotKingdomPetExperience(first.state, {
+      awardId: 'exploration-pet-exp-1',
+      amount: 9999,
+      expectedMonsterId: normalMonster.id,
+      now: 300
+    });
+    expect(retry).toMatchObject({
+      alreadyAwarded: true,
+      progress: { gainedExperience: 60, level: 1, experience: 60 }
+    });
+    expect(retry.state.currentPet.experience).toBe(60);
+
+    const multiLevel = awardTarotKingdomPetExperience(retry.state, {
+      awardId: 'exploration-pet-exp-2',
+      amount: 300,
+      expectedMonsterId: normalMonster.id,
+      now: 400
+    });
+    expect(multiLevel).toMatchObject({
+      awarded: true,
+      progress: {
+        previousLevel: 1,
+        level: 3,
+        levelsGained: 2,
+        experience: 110,
+        experienceToNextLevel: 200,
+        leveledUp: true,
+        maxLevel: TAROT_KINGDOM_PET_MAX_LEVEL
+      }
+    });
+    expect(buildTarotKingdomPetPublicRecord(multiLevel.state.currentPet)).toMatchObject({
+      level: 3,
+      experience: 110,
+      experienceToNextLevel: 200,
+      levelProgressPercent: 55,
+      maxLevel: TAROT_KINGDOM_PET_MAX_LEVEL
+    });
   });
 });

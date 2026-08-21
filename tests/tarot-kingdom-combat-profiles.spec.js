@@ -697,7 +697,12 @@ test('single-player combat profile response includes the saved current pet for e
         monsterName: 'トゲマル'
       })
     }]);
-    expect(result.payload.currentPet).not.toHaveProperty('level');
+    expect(result.payload.currentPet).toMatchObject({
+      level: 1,
+      experience: 0,
+      experienceToNextLevel: 100,
+      levelProgressPercent: 0
+    });
   }, {
     petState: {
       version: 1,

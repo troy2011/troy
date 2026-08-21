@@ -352,12 +352,19 @@ function renderProfilePet(currentPet = null) {
     pet?.closest('.player-profile-avatar-shell')?.classList.toggle('has-pet-companion', hasPet);
     if (petName) {
         petName.hidden = !hasPet;
-        petName.textContent = hasPet ? getProfilePetDisplayName(currentPet) : '';
+        const petLevel = Math.max(1, Math.floor(Number(currentPet?.level) || 1));
+        const petExperience = Math.max(0, Math.floor(Number(currentPet?.experience) || 0));
+        const experienceToNextLevel = Math.max(0, Math.floor(Number(currentPet?.experienceToNextLevel) || 0));
+        petName.textContent = hasPet ? `${getProfilePetDisplayName(currentPet)} Lv${petLevel}` : '';
         petName.disabled = !hasPet || !canRenameActiveProfilePet();
-        petName.title = petName.disabled ? 'ペット名' : 'クリックして名前変更';
+        petName.title = hasPet
+            ? `Lv${petLevel} EXP ${petExperience}/${experienceToNextLevel || 'MAX'}${petName.disabled ? '' : '・クリックして名前変更'}`
+            : 'ペット名';
         petName.setAttribute(
             'aria-label',
-            petName.disabled ? `${getProfilePetDisplayName(currentPet)}（ペット名）` : 'ペット名を変更'
+            petName.disabled
+                ? `${getProfilePetDisplayName(currentPet)} Lv${petLevel}（ペット名）`
+                : `${getProfilePetDisplayName(currentPet)} Lv${petLevel}・ペット名を変更`
         );
     }
     if (pet) {

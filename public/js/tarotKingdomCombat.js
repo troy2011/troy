@@ -213,7 +213,7 @@ export function createTarotKingdomPetCharacter({ pet = null, level = 1 } = {}) {
         || monsterId
         || 'ペット'
     ).trim() || 'ペット';
-    const safeLevel = positiveInteger(level, 1);
+    const safeLevel = positiveInteger(pet?.level, positiveInteger(level, 1));
     const number = Math.max(1, Math.floor(finiteNumber(pet?.number, 1)));
     const archetype = PET_ARCHETYPE_BY_NUMBER[number % 5] || PET_ARCHETYPE_BY_NUMBER[0];
     const baseHp = 80 + ((safeLevel - 1) * 4);

@@ -24,7 +24,7 @@ import {
   getTarotKingdomMajorSecondaryDamageScale,
   getTarotKingdomResonanceDamageFloor,
   normalizeTarotKingdomCharacter
-} from './tarotKingdomCombat.js?v=20260815-balance-v7';
+} from './tarotKingdomCombat.js?v=20260821-pet-level-v1';
 import {
   TAROT_KINGDOM_ARCANA_EFFECTS_READY,
   getTarotKingdomPhysicalScale,
@@ -21434,6 +21434,11 @@ function buildKingdomExplorationResult(status = 'completed') {
     playFabId: String(player?.playFabId || ''),
     displayName: String(player?.name || `P${playerIndex + 1}`),
     isNpc: player?.isNpc === true,
+    isPet: player?.isPet === true,
+    petOwnerPlayFabId: player?.isPet === true
+      ? String(player?.petOwnerPlayFabId || (mode === 'offline' ? window.myPlayFabId : '')).trim()
+      : '',
+    petMonsterId: player?.isPet === true ? String(player?.pet?.monsterId || '').trim() : '',
     chips: Math.floor(Number(player?.chips) || 0)
   }));
   const raidFinisherIndex = Number(raid?.lastDamageSourceIndex);

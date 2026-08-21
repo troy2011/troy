@@ -1,9 +1,13 @@
 const PIXEL_MONSTERS_ROSTER = require('../public/Sprites/pixel-monsters/manifest.json');
 
 const TAROT_KINGDOM_PET_DATA_KEY = 'TarotKingdomPetState';
-const TAROT_KINGDOM_PET_STATE_VERSION = 2;
+const TAROT_KINGDOM_PET_STATE_VERSION = 3;
 const TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT = 16;
 const TAROT_KINGDOM_PET_NAME_MAX_LENGTH = 12;
+const TAROT_KINGDOM_PET_MAX_LEVEL = 50;
+const TAROT_KINGDOM_PET_EXP_BASE = 100;
+const TAROT_KINGDOM_PET_EXP_STEP = 50;
+const TAROT_KINGDOM_PET_EXP_AWARD_HISTORY_LIMIT = 32;
 
 const MONSTER_BY_ID = new Map(
     PIXEL_MONSTERS_ROSTER.map((monster) => [String(monster?.id || '').trim(), monster])
@@ -12,6 +16,35 @@ const MONSTER_BY_ID = new Map(
 function finiteTimestamp(value, fallback = 0) {
     const number = Number(value);
     return Number.isFinite(number) && number > 0 ? Math.floor(number) : fallback;
+}
+
+function finiteNonNegativeInteger(value, fallback = 0) {
+    const number = Number(value);
+    return Number.isFinite(number) && number >= 0 ? Math.floor(number) : fallback;
+}
+
+function getTarotKingdomPetExperienceToNextLevel(level = 1) {
+    const safeLevel = Math.max(1, Math.min(TAROT_KINGDOM_PET_MAX_LEVEL, Math.floor(Number(level) || 1)));
+    if (safeLevel >= TAROT_KINGDOM_PET_MAX_LEVEL) return 0;
+    return TAROT_KINGDOM_PET_EXP_BASE + ((safeLevel - 1) * TAROT_KINGDOM_PET_EXP_STEP);
+}
+
+function normalizeTarotKingdomPetProgress(level = 1, experience = 0) {
+    let safeLevel = Math.max(1, Math.min(TAROT_KINGDOM_PET_MAX_LEVEL, Math.floor(Number(level) || 1)));
+    let safeExperience = finiteNonNegativeInteger(experience);
+    while (safeLevel < TAROT_KINGDOM_PET_MAX_LEVEL) {
+        const needed = getTarotKingdomPetExperienceToNextLevel(safeLevel);
+        if (safeExperience < needed) break;
+        safeExperience -= needed;
+        safeLevel += 1;
+    }
+    if (safeLevel >= TAROT_KINGDOM_PET_MAX_LEVEL) safeExperience = 0;
+    return { level: safeLevel, experience: safeExperience };
+}
+
+function getTarotKingdomPetBattleExperience(stageNo = 1) {
+    const safeStageNo = Math.max(1, Math.min(11, Math.floor(Number(stageNo) || 1)));
+    return 40 + (safeStageNo * 20);
 }
 
 function getTarotKingdomPetMonster(monsterId = '') {
@@ -46,11 +79,29 @@ function normalizeTarotKingdomCurrentPet(value) {
     if (!value || typeof value !== 'object') return null;
     const monster = getTarotKingdomPetMonster(value.monsterId);
     if (!monster || monster.isBoss === true) return null;
+    const progress = normalizeTarotKingdomPetProgress(value.level, value.experience);
     return {
         monsterId: monster.id,
         acquiredAtMs: finiteTimestamp(value.acquiredAtMs),
         explorationId: String(value.explorationId || '').trim().slice(0, 128),
-        nickname: normalizeTarotKingdomPetNickname(value.nickname)
+        nickname: normalizeTarotKingdomPetNickname(value.nickname),
+        ...progress
+    };
+}
+
+function normalizeTarotKingdomPetExperienceAward(value) {
+    if (!value || typeof value !== 'object') return null;
+    const awardId = String(value.awardId || '').trim().slice(0, 220);
+    if (!awardId) return null;
+    return {
+        awardId,
+        monsterId: String(value.monsterId || '').trim().slice(0, 128),
+        gainedExperience: finiteNonNegativeInteger(value.gainedExperience),
+        previousLevel: Math.max(1, Math.min(TAROT_KINGDOM_PET_MAX_LEVEL, Math.floor(Number(value.previousLevel) || 1))),
+        level: Math.max(1, Math.min(TAROT_KINGDOM_PET_MAX_LEVEL, Math.floor(Number(value.level) || 1))),
+        experience: finiteNonNegativeInteger(value.experience),
+        awardedAtMs: finiteTimestamp(value.awardedAtMs),
+        reason: String(value.reason || '').trim().slice(0, 64)
     };
 }
 
@@ -77,10 +128,15 @@ function normalizeTarotKingdomPetState(value) {
             parsed = null;
         }
     }
+    const experienceAwards = (Array.isArray(parsed?.experienceAwards) ? parsed.experienceAwards : [])
+        .map(normalizeTarotKingdomPetExperienceAward)
+        .filter(Boolean)
+        .slice(-TAROT_KINGDOM_PET_EXP_AWARD_HISTORY_LIMIT);
     return {
         version: TAROT_KINGDOM_PET_STATE_VERSION,
         currentPet: normalizeTarotKingdomCurrentPet(parsed?.currentPet),
-        pendingOffer: normalizeTarotKingdomPendingPetOffer(parsed?.pendingOffer)
+        pendingOffer: normalizeTarotKingdomPendingPetOffer(parsed?.pendingOffer),
+        experienceAwards
     };
 }
 
@@ -88,12 +144,98 @@ function buildTarotKingdomPetPublicRecord(value) {
     const pet = normalizeTarotKingdomCurrentPet(value);
     if (!pet) return null;
     const monster = getTarotKingdomPetMonster(pet.monsterId);
+    const experienceToNextLevel = getTarotKingdomPetExperienceToNextLevel(pet.level);
     return {
         ...pet,
         monsterName: String(monster?.name || pet.monsterId),
         displayName: String(pet.nickname || monster?.name || pet.monsterId),
         volume: Math.max(1, Math.min(3, Math.floor(Number(monster?.volume) || 1))),
-        number: Math.max(1, Math.floor(Number(monster?.number) || 1))
+        number: Math.max(1, Math.floor(Number(monster?.number) || 1)),
+        experienceToNextLevel,
+        levelProgressPercent: experienceToNextLevel > 0
+            ? Math.max(0, Math.min(100, Math.floor((pet.experience / experienceToNextLevel) * 100)))
+            : 100,
+        maxLevel: TAROT_KINGDOM_PET_MAX_LEVEL
+    };
+}
+
+function awardTarotKingdomPetExperience(state, {
+    awardId = '',
+    amount = 0,
+    expectedMonsterId = '',
+    now = Date.now()
+} = {}) {
+    const normalizedState = normalizeTarotKingdomPetState(state);
+    const safeAwardId = String(awardId || '').trim().slice(0, 220);
+    const safeExpectedMonsterId = String(expectedMonsterId || '').trim();
+    if (!safeAwardId) {
+        return { state: normalizedState, awarded: false, recorded: false, reason: 'invalid-award-id', progress: null };
+    }
+    const existing = normalizedState.experienceAwards.find((entry) => entry.awardId === safeAwardId);
+    if (existing) {
+        const experienceToNextLevel = getTarotKingdomPetExperienceToNextLevel(existing.level);
+        return {
+            state: normalizedState,
+            awarded: existing.gainedExperience > 0,
+            recorded: true,
+            alreadyAwarded: true,
+            reason: existing.reason || '',
+            progress: {
+                ...existing,
+                levelsGained: Math.max(0, existing.level - existing.previousLevel),
+                leveledUp: existing.level > existing.previousLevel,
+                experienceToNextLevel,
+                maxLevel: TAROT_KINGDOM_PET_MAX_LEVEL
+            }
+        };
+    }
+
+    const currentPet = normalizedState.currentPet;
+    const safeAmount = Math.max(0, Math.min(100000, Math.floor(Number(amount) || 0)));
+    let reason = '';
+    if (!currentPet) reason = 'pet-not-found';
+    else if (safeExpectedMonsterId && currentPet.monsterId !== safeExpectedMonsterId) reason = 'pet-changed';
+    else if (safeAmount <= 0) reason = 'no-experience';
+    else if (currentPet.level >= TAROT_KINGDOM_PET_MAX_LEVEL) reason = 'max-level';
+
+    const previousLevel = currentPet?.level || 1;
+    const gainedExperience = reason ? 0 : safeAmount;
+    const nextProgress = currentPet
+        ? normalizeTarotKingdomPetProgress(currentPet.level, currentPet.experience + gainedExperience)
+        : { level: 1, experience: 0 };
+    const award = normalizeTarotKingdomPetExperienceAward({
+        awardId: safeAwardId,
+        monsterId: currentPet?.monsterId || safeExpectedMonsterId,
+        gainedExperience,
+        previousLevel,
+        level: nextProgress.level,
+        experience: nextProgress.experience,
+        awardedAtMs: now,
+        reason
+    });
+    const nextState = {
+        ...normalizedState,
+        currentPet: currentPet
+            ? { ...currentPet, ...nextProgress }
+            : null,
+        experienceAwards: [...normalizedState.experienceAwards, award]
+            .filter(Boolean)
+            .slice(-TAROT_KINGDOM_PET_EXP_AWARD_HISTORY_LIMIT)
+    };
+    const experienceToNextLevel = getTarotKingdomPetExperienceToNextLevel(nextProgress.level);
+    return {
+        state: nextState,
+        awarded: gainedExperience > 0,
+        recorded: true,
+        alreadyAwarded: false,
+        reason,
+        progress: {
+            ...award,
+            levelsGained: Math.max(0, nextProgress.level - previousLevel),
+            leveledUp: nextProgress.level > previousLevel,
+            experienceToNextLevel,
+            maxLevel: TAROT_KINGDOM_PET_MAX_LEVEL
+        }
     };
 }
 
@@ -210,12 +352,14 @@ function resolveTarotKingdomPetChoice(state, offerId, accept, now = Date.now()) 
     const accepted = accept === true;
     return {
         state: {
-            version: TAROT_KINGDOM_PET_STATE_VERSION,
+            ...normalizedState,
             currentPet: accepted
                 ? {
                     monsterId: pending.monsterId,
                     acquiredAtMs: finiteTimestamp(now, Date.now()),
-                    explorationId: pending.explorationId
+                    explorationId: pending.explorationId,
+                    level: 1,
+                    experience: 0
                 }
                 : normalizedState.currentPet,
             pendingOffer: null
@@ -253,11 +397,17 @@ async function writeTarotKingdomPetState(playFabId, state, { promisifyPlayFab, P
 
 module.exports = {
     TAROT_KINGDOM_PET_DATA_KEY,
+    TAROT_KINGDOM_PET_EXP_BASE,
+    TAROT_KINGDOM_PET_EXP_STEP,
+    TAROT_KINGDOM_PET_MAX_LEVEL,
     TAROT_KINGDOM_PET_NAME_MAX_LENGTH,
     TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT,
+    awardTarotKingdomPetExperience,
     buildTarotKingdomPetOfferView,
     buildTarotKingdomPetPublicRecord,
     getTarotKingdomPetRecruitChance,
+    getTarotKingdomPetBattleExperience,
+    getTarotKingdomPetExperienceToNextLevel,
     getTarotKingdomPetMonster,
     isTarotKingdomPetRecruitEligible,
     normalizeTarotKingdomCurrentPet,

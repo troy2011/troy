@@ -2346,6 +2346,24 @@ function showExplorationResultSummary(data, options = {}) {
     const highestUnlockedStage = Math.max(0, Math.floor(Number(data?.progress?.highestUnlockedStage) || 0));
     const canDepartNextStage = stageNo > 0 && highestUnlockedStage > stageNo && bossResult !== 'defeat';
     const nextExplorationLabel = canDepartNextStage ? '次のステージへ出航' : 'ステージ選択へ';
+    const petProgress = data?.petProgress && typeof data.petProgress === 'object' ? data.petProgress : null;
+    const currentPet = data?.currentPet && typeof data.currentPet === 'object' ? data.currentPet : null;
+    const petDisplayName = String(
+        currentPet?.displayName || currentPet?.nickname || currentPet?.monsterName || 'ペット'
+    ).trim() || 'ペット';
+    const petExperienceGained = Math.max(0, Math.floor(Number(petProgress?.gainedExperience) || 0));
+    const petLevel = Math.max(1, Math.floor(Number(petProgress?.level || currentPet?.level) || 1));
+    const petPreviousLevel = Math.max(1, Math.floor(Number(petProgress?.previousLevel || petLevel) || 1));
+    const petProgressHtml = petExperienceGained > 0
+        ? `
+            <div>
+                <b>ペット</b>
+                <span>${escapeHtml(petDisplayName)} ${petLevel > petPreviousLevel
+                    ? `Lv${petPreviousLevel} → Lv${petLevel}`
+                    : `Lv${petLevel}`} / EXP +${petExperienceGained.toLocaleString('ja-JP')}</span>
+            </div>
+        `
+        : '';
     const rewardHtml = rewards.length
         ? rewards.map((item) => {
             const rarity = normalizeRewardRarity(item.rarity || item.Rarity);
@@ -2368,7 +2386,10 @@ function showExplorationResultSummary(data, options = {}) {
         `${destinationName}を探索。`,
         bossResult === 'defeat'
             ? 'パーティは全滅し、探索先から撤退した。'
-            : 'タロットキングダムを終え、探索を完了した。'
+            : 'タロットキングダムを終え、探索を完了した。',
+        ...(petExperienceGained > 0
+            ? [`${petDisplayName}が${petExperienceGained.toLocaleString('ja-JP')}EXPを獲得${petLevel > petPreviousLevel ? `し、Lv${petLevel}になった` : 'した'}。`]
+            : [])
     ];
     const logHtml = logLines.length
         ? logLines.map((line) => `<div>${escapeHtml(line)}</div>`).join('')
@@ -2417,6 +2438,7 @@ function showExplorationResultSummary(data, options = {}) {
                         <b>お宝</b>
                         <span>${rewardTotal.toLocaleString('ja-JP')}個</span>
                     </div>
+                    ${petProgressHtml}
                 </div>
                 <ul class="exploration-result-rewards">${rewardHtml}</ul>
                 <div class="exploration-result-log">${logHtml}</div>
@@ -2482,6 +2504,11 @@ async function handleExplorationClaimResult(data, playFabId, options = {}) {
         window.closeHomeExplorationPopup();
     }
     await refreshExplorationRewardInventory(data);
+    if (data?.currentPet && typeof data.currentPet === 'object') {
+        window.dispatchEvent(new CustomEvent('tarot-kingdom:pet-changed', {
+            detail: { currentPet: data.currentPet }
+        }));
+    }
     renderExplorationPanel(data, playFabId);
     await finishExplorationReturnSequence();
     showExplorationResultSummary(data, {

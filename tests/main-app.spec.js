@@ -760,7 +760,7 @@ test('home avatar applies equipped gear during app startup', async ({ page }) =>
   expect(homeAvatarAudit.width).toBeGreaterThan(0);
   expect(homeAvatarAudit.height).toBeGreaterThan(0);
   await expect(page.locator('#homePetCompanion')).toBeVisible();
-  await expect(page.locator('#homePetCompanion')).toHaveAttribute('aria-label', 'グリモア（ペット）');
+  await expect(page.locator('#homePetCompanion')).toHaveAttribute('aria-label', 'グリモア（ペット Lv1）');
   await expect(page.locator('#homePetCompanion .pixel-monster-companion-sprite'))
     .toHaveCSS('background-image', /pixel-monsters\/vol1\/monster-02\/idle\.png/);
   const homeCompanionLayout = await page.evaluate(() => {
@@ -2412,6 +2412,16 @@ test('exploration stage starts for free with ordered optional supplies', async (
   await expect(returnSequence.locator('[data-exploration-return-title]')).toHaveText('宝を積んで帰還中');
   await expect(returnSequence.locator('[data-exploration-return-status]')).toContainText('戦利品を確認しています');
   await expect(returnSequence.locator('.exploration-sequence-ship')).toHaveCSS('animation-name', /explorationSequenceReturnVoyage/);
+  const returnVerticalLayout = await returnSequence.locator('.exploration-sequence-scene').evaluate((scene) => {
+    const ship = scene.querySelector('.exploration-sequence-ship');
+    const sceneRect = scene.getBoundingClientRect();
+    const shipRect = ship.getBoundingClientRect();
+    return {
+      sceneCenterY: sceneRect.top + (sceneRect.height / 2),
+      shipCenterY: shipRect.top + (shipRect.height / 2)
+    };
+  });
+  expect(Math.abs(returnVerticalLayout.shipCenterY - returnVerticalLayout.sceneCenterY)).toBeLessThanOrEqual(2);
   await expect(page.locator('.exploration-result-overlay')).toHaveCount(0);
   const kingdomEntry = await page.evaluate(() => ({
     launcherAvailable: window.__realExplorationKingdomLauncherAvailable,
@@ -3151,6 +3161,22 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
           rewardItems: [{ itemId: 'mist_blade', displayName: '霧切りの刃', rarity: 'rare', quantity: 2 }],
           bossLog: '戦闘開始\n船が島へ接近。\n宝箱を発見した。'
         },
+        currentPet: {
+          monsterId: 'ismartal-vol1-monster-01',
+          monsterName: 'トゲマル',
+          displayName: 'トゲマル',
+          level: 2,
+          experience: 20,
+          experienceToNextLevel: 150
+        },
+        petProgress: {
+          gainedExperience: 60,
+          previousLevel: 1,
+          level: 2,
+          experience: 20,
+          experienceToNextLevel: 150,
+          leveledUp: true
+        },
         petOffer: null
       })
     });
@@ -3308,12 +3334,15 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
     return {
       sceneLeft: sceneRect.left,
       sceneRight: sceneRect.right,
+      sceneCenterY: sceneRect.top + (sceneRect.height / 2),
       shipLeft: shipRect.left,
       shipRight: shipRect.right,
+      shipCenterY: shipRect.top + (shipRect.height / 2),
       shipAnimationTiming: getComputedStyle(ship).animationTimingFunction,
       islandWidth: islandRect.width,
       islandHeight: islandRect.height,
       islandLeft: islandRect.left,
+      islandCenterY: islandRect.top + (islandRect.height / 2),
       islandOpacity: islandStyle.opacity,
       islandFilter: islandStyle.filter
     };
@@ -3338,6 +3367,9 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   for (const metrics of [sailMetrics, approachMetrics, landingMetrics, arrivalMetrics]) {
     expect(metrics.shipLeft).toBeGreaterThanOrEqual(metrics.sceneLeft);
     expect(metrics.shipRight).toBeLessThanOrEqual(metrics.sceneRight);
+    expect(Math.abs(metrics.shipCenterY - metrics.sceneCenterY)).toBeLessThanOrEqual(2);
+    expect(metrics.sceneCenterY - metrics.islandCenterY).toBeGreaterThanOrEqual(18);
+    expect(metrics.sceneCenterY - metrics.islandCenterY).toBeLessThanOrEqual(22);
   }
   expect(sailMetrics.islandOpacity).toBe('1');
   expect(arrivalMetrics.islandOpacity).toBe('1');
@@ -3488,6 +3520,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await expect(result.locator('.exploration-result-destination-copy span')).toHaveText('STAGE 1 / 勝利');
   await expect(result.locator('.exploration-result-details')).not.toContainText('パピル');
   await expect(result.locator('.exploration-result-body')).toContainText('1位 / タロットキングダム勝利');
+  await expect(result.locator('.exploration-result-body')).toContainText('トゲマル Lv1 → Lv2 / EXP +60');
+  await expect(result.locator('.exploration-result-log')).toContainText('トゲマルが60EXPを獲得し、Lv2になった。');
   await expect(result.locator('.exploration-result-reward')).toContainText('RARE');
   await expect(result.locator('.exploration-result-chest')).toHaveCSS('animation-name', 'none');
 
@@ -3546,7 +3580,10 @@ test('player profile shows public stats on the left with avatar on the right', a
             monsterId: 'ismartal-vol1-monster-02',
             monsterName: 'グリモア',
             explorationId: 'profile-pet-test',
-            acquiredAtMs: 1000
+            acquiredAtMs: 1000,
+            level: 7,
+            experience: 230,
+            experienceToNextLevel: 400
           },
           destinyProfile: {
               traits: '独立心が強く、複雑な状況を長期的な視点で整理します。感情より論理と一貫性を重視し、自分で計画を立てて進める傾向があります。',
@@ -3648,9 +3685,10 @@ test('player profile shows public stats on the left with avatar on the right', a
   await expect(page.locator('#playerProfileShip .player-profile-ship-icon')).toHaveClass(/is-guild/);
   await expect(page.locator('#playerProfileShip .home-guild-ship-layer.is-sail-top')).toHaveClass(/is-blue/);
   await expect(page.locator('#playerProfilePetCompanion')).toBeVisible();
-  await expect(page.locator('#playerProfilePetCompanion')).toHaveAttribute('aria-label', 'グリモア（ペット）');
+  await expect(page.locator('#playerProfilePetCompanion')).toHaveAttribute('aria-label', 'グリモア（ペット Lv7）');
   await expect(page.locator('#playerProfilePetName')).toBeVisible();
-  await expect(page.locator('#playerProfilePetName')).toHaveText('グリモア');
+  await expect(page.locator('#playerProfilePetName')).toHaveText('グリモア Lv7');
+  await expect(page.locator('#playerProfilePetName')).toHaveAttribute('title', 'Lv7 EXP 230/400');
   await expect(page.locator('#playerProfilePetName')).toBeDisabled();
   await expect(page.locator('#playerProfilePetCompanion .pixel-monster-companion-sprite'))
     .toHaveCSS('background-image', /pixel-monsters\/vol1\/monster-02\/idle\.png/);
@@ -3795,8 +3833,8 @@ test('own player can rename the pet by clicking it in the player profile', async
   await page.locator('#playerProfilePetNameInput').fill('ルナ');
   await page.locator('#playerProfilePetRenameForm button[type="submit"]').click();
 
-  await expect(petName).toHaveText('ルナ');
-  await expect(pet).toHaveAttribute('aria-label', 'ルナ（ペット）');
+  await expect(petName).toHaveText('ルナ Lv1');
+  await expect(pet).toHaveAttribute('aria-label', 'ルナ（ペット Lv1）');
   await expect(page.locator('#playerProfilePetRenameForm')).toBeHidden();
   expect(renameRequest).toMatchObject({
     playFabId: 'PF_PLAYWRIGHT',

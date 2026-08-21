@@ -4494,7 +4494,8 @@ test('pet occupies the second seat after the player with its own monster sprite,
     monsterName: 'トゲマル',
     nickname: 'コハク',
     displayName: 'コハク',
-    number: 1
+    number: 1,
+    level: 4
   };
   const state = await page.evaluate((debugPet) => window.TarotKingdomDebug.battleScenario({
     playerCount: 4,
@@ -4515,7 +4516,7 @@ test('pet occupies the second seat after the player with its own monster sprite,
   const row = page.locator('#tarotKingdomBattleParty > .tarot-kingdom-battle-player').nth(1);
   await expect(row).toHaveClass(/is-pet/);
   await expect(row.locator('.tarot-kingdom-battle-player-name')).toContainText('コハク');
-  await expect(row.locator('.tarot-kingdom-battle-player-rank')).toContainText('Lv12');
+  await expect(row.locator('.tarot-kingdom-battle-player-rank')).toContainText('Lv4');
   await expect(row.locator('.tarot-kingdom-battle-player-hand-count')).toHaveText('残り手札 8枚');
   await expect(row.locator('.tarot-kingdom-battle-ap')).toHaveText('AP 1');
   const sprite = row.locator('.tarot-kingdom-battle-pet-sprite');
@@ -4548,6 +4549,24 @@ test('pet occupies the second seat after the player with its own monster sprite,
     /\/pixel-monsters\/vol1\/monster-01\/death\.png/
   );
   await expect(koPetRow.locator('.avatar-combat-death-sprite')).toHaveCount(0);
+
+  const explorationResult = await page.evaluate((debugPet) => {
+    window.myPlayFabId = 'PF_PET_OWNER';
+    window.TarotKingdomDebug.battleSetExplorationSession(true, 'offline');
+    window.TarotKingdomDebug.battleScenario({
+      playerCount: 4,
+      pet: debugPet,
+      handCounts: [8, 8, 8, 8],
+      withTrick: false
+    });
+    return window.TarotKingdomDebug.battleExplorationResult();
+  }, pet);
+  expect(explorationResult.standings[1]).toMatchObject({
+    isNpc: true,
+    isPet: true,
+    petOwnerPlayFabId: 'PF_PET_OWNER',
+    petMonsterId: pet.monsterId
+  });
 });
 
 test('online rescue prioritizes every owner pet and places it immediately after its owner', async ({ page }) => {

@@ -6,8 +6,10 @@ const { resolveGuildShipContext } = require('./guildShipSharing');
 const { getCanonicalTarotCategory, getMajorArcanaSuitInfo, getMajorArcanaTitle } = require('./tarotCards');
 const { buildMajorArcanaShipGearView } = require('./majorArcanaShipGear');
 const {
+    awardTarotKingdomPetExperience,
     buildTarotKingdomPetOfferView,
     buildTarotKingdomPetPublicRecord,
+    getTarotKingdomPetBattleExperience,
     getTarotKingdomPetRecruitChance,
     isTarotKingdomPetRecruitEligible,
     normalizeTarotKingdomPendingPetOffer,
@@ -1025,6 +1027,7 @@ function explorationRewardReceiptToResponse(receipt = {}) {
             }
             : null,
         currentPet: receipt.currentPet || null,
+        petProgress: receipt.petProgress || null,
         petOffer: receipt.petOffer || null,
         progress: receipt.progress || null
     };
@@ -3767,6 +3770,9 @@ function initializeExplorationRoutes(app, deps) {
                 playerIndex: Math.max(0, Math.floor(Number(entry?.playerIndex ?? index) || 0)),
                 playFabId: String(entry?.playFabId || '').trim(),
                 isNpc: entry?.isNpc === true,
+                isPet: entry?.isPet === true,
+                petOwnerPlayFabId: String(entry?.petOwnerPlayFabId || '').trim(),
+                petMonsterId: String(entry?.petMonsterId || '').trim(),
                 chips: Math.floor(Number(entry?.chips) || 0)
             }));
         if (tarotOutcome && !['victory', 'defeat'].includes(tarotOutcome)) {
@@ -3876,6 +3882,19 @@ function initializeExplorationRoutes(app, deps) {
             const standingsSource = tarotStandings.length > 0
                 ? tarotStandings
                 : (Array.isArray(activeData.tarotStandings) ? activeData.tarotStandings : []);
+            const tarotPetParticipantSource = tarotStandings.length > 0
+                ? tarotStandings.filter((entry) => entry?.isPet === true)
+                : (Array.isArray(activeData.tarotPetParticipants) ? activeData.tarotPetParticipants : []);
+            const tarotPetParticipants = tarotPetParticipantSource
+                .map((entry) => ({
+                    petOwnerPlayFabId: String(entry?.petOwnerPlayFabId || '').trim(),
+                    petMonsterId: String(entry?.petMonsterId || '').trim()
+                }))
+                .filter((entry, index, entries) => (
+                    !!entry.petOwnerPlayFabId
+                    && !!entry.petMonsterId
+                    && entries.findIndex((candidate) => candidate.petOwnerPlayFabId === entry.petOwnerPlayFabId) === index
+                ));
             const calculatedStandings = calculateTarotKingdomStandings(standingsSource);
             const ownerStanding = calculatedStandings.find((entry) => entry.playFabId === ownerPlayFabId && entry.isNpc !== true)
                 || calculatedStandings.find((entry) => entry.playerIndex === 0 && entry.isNpc !== true)
@@ -3890,6 +3909,8 @@ function initializeExplorationRoutes(app, deps) {
             let rolledRewardsByPlayer = {};
             let petOffer = null;
             let petStateForResponse = null;
+            const petStateByPlayer = {};
+            const petProgressByPlayer = {};
 
             if (isRetry) {
                 // Firestore 保存済みデータを再利用（再抽選なし）
@@ -4035,6 +4056,7 @@ function initializeExplorationRoutes(app, deps) {
                     petOffer: petOffer || null,
                     stageRank,
                     tarotStandings: calculatedStandings,
+                    tarotPetParticipants,
                     tarotFinishers,
                     supplyProfile,
                     hpRestored: bossResult?.tarotKingdom === true,
@@ -4133,6 +4155,37 @@ function initializeExplorationRoutes(app, deps) {
                 }
             }
 
+            if (bossResult?.playerWon && tarotPetParticipants.length > 0) {
+                const participantIdSet = new Set(stageParticipantIds);
+                for (const petParticipant of tarotPetParticipants) {
+                    const participantId = petParticipant.petOwnerPlayFabId;
+                    if (!participantIdSet.has(participantId)) continue;
+                    const experienceResult = await withTarotKingdomPetChoiceLock(participantId, async () => {
+                        const currentState = await readTarotKingdomPetState(
+                            participantId,
+                            { promisifyPlayFab, PlayFabServer }
+                        );
+                        const awarded = awardTarotKingdomPetExperience(currentState, {
+                            awardId: `exploration-pet-exp-${activeData.id}-${participantId}`,
+                            amount: getTarotKingdomPetBattleExperience(activeData.stageNo),
+                            expectedMonsterId: petParticipant.petMonsterId,
+                            now
+                        });
+                        const savedState = awarded.alreadyAwarded
+                            ? currentState
+                            : await writeTarotKingdomPetState(
+                                participantId,
+                                awarded.state,
+                                { promisifyPlayFab, PlayFabServer }
+                            );
+                        return { ...awarded, state: savedState };
+                    });
+                    petStateByPlayer[participantId] = experienceResult.state;
+                    petProgressByPlayer[participantId] = experienceResult.progress;
+                    if (participantId === ownerPlayFabId) petStateForResponse = experienceResult.state;
+                }
+            }
+
             const buildParticipantRewards = (participantId) => (
                 (stage
                     ? (Array.isArray(rolledRewardsByPlayer?.[participantId])
@@ -4220,9 +4273,10 @@ function initializeExplorationRoutes(app, deps) {
             const participantRewards = buildParticipantRewards(playFabId);
             const report = buildParticipantReport(playFabId, participantRewards);
             const reward = participantRewards[0] || null;
-            const currentPetView = playFabId === ownerPlayFabId
-                ? buildTarotKingdomPetPublicRecord(petStateForResponse?.currentPet)
-                : null;
+            const currentPetView = buildTarotKingdomPetPublicRecord(
+                (petStateByPlayer[playFabId] || (playFabId === ownerPlayFabId ? petStateForResponse : null))?.currentPet
+            );
+            const petProgressView = petProgressByPlayer[playFabId] || null;
             const petOfferView = playFabId === ownerPlayFabId
                 ? buildTarotKingdomPetOfferView(petOffer, petStateForResponse?.currentPet)
                 : null;
@@ -4243,9 +4297,11 @@ function initializeExplorationRoutes(app, deps) {
                         playFabId: participantId,
                         report: reportDocToPayload(participantReport),
                         progress: explorationProgressByPlayer[participantId] || null,
-                        currentPet: participantId === ownerPlayFabId
-                            ? buildTarotKingdomPetPublicRecord(petStateForResponse?.currentPet)
-                            : null,
+                        currentPet: buildTarotKingdomPetPublicRecord(
+                            (petStateByPlayer[participantId]
+                                || (participantId === ownerPlayFabId ? petStateForResponse : null))?.currentPet
+                        ),
+                        petProgress: petProgressByPlayer[participantId] || null,
                         petOffer: participantId === ownerPlayFabId
                             ? buildTarotKingdomPetOfferView(petOffer, petStateForResponse?.currentPet)
                             : null,
@@ -4262,6 +4318,7 @@ function initializeExplorationRoutes(app, deps) {
                 report: reportDocToPayload(report),
                 reward,
                 currentPet: currentPetView,
+                petProgress: petProgressView,
                 petOffer: petOfferView,
                 progress: explorationProgress
             });
