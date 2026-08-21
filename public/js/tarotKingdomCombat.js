@@ -233,7 +233,8 @@ export function createTarotKingdomPetCharacter({ pet = null, level = 1 } = {}) {
         avatarBase: { Race: 'monster', AvatarColor: 'monster', level: safeLevel },
         equipment: {},
         itemSource: {},
-        tarotDeck: [],
+        tarotDeck: pet?.tarotDeck || [],
+        guardianArcana: pet?.guardianArcana || null,
         combat: {
             maxHp: scale(baseHp, archetype.hp),
             power: scale(basePower, archetype.power),

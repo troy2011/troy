@@ -1896,12 +1896,15 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
             ]);
             const profileSnapshots = profiles.map((profile, index) => {
                 const targetId = normalizedTargetIds[index];
+                const cardLevels = cardLevelsByPlayer.get(targetId) || {};
                 return {
                     character: buildTarotKingdomCombatCharacter(
                         profile,
-                        cardLevelsByPlayer.get(targetId) || {}
+                        cardLevels
                     ),
-                    currentPet: profile.currentPet || null
+                    currentPet: buildTarotKingdomPetPublicRecord(profile.currentPet, {
+                        catalogCache: _catalogCache || {}
+                    })
                 };
             });
             const characters = profileSnapshots.map((snapshot) => snapshot.character);

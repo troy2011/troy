@@ -55,16 +55,16 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
     });
     expect(monsters.map((entry) => entry.monsterName)).toEqual([
       'マシュロン', 'プルン', 'トゲマル', 'パピル',
-      'モクモ', 'ツノガイ', 'リーフロ', 'ホタルビ',
-      'ポルポ', 'ビズン', 'グールン', 'アクエル',
-      'グリバト', 'フェリカ', 'ボーンテイル', 'ミドロ',
-      'カブロン', 'リルフィ', 'モクリン', 'ガルネズ',
-      'ルビット', 'ノッカ', 'コバット', 'モスガン',
-      'ラムネロ', 'チュロ', 'フロス', 'ウッドラ',
-      'グリモア', 'ガブリラ', 'ケロッツ', 'ネブラ',
-      'メカノ', 'ゲルバット', 'ツキバネ', 'フレマ',
-      'バクス', 'イグニス', 'キノガル', 'ヨミル',
-      'トルネ', 'クロモ', 'グラヴァ', 'ノクス'
+      'フェリカ', 'コバット', 'ツキバネ', 'トルネ',
+      'リーフロ', 'リルフィ', 'グリバト', 'モクリン',
+      'ゲルバット', 'グリモア', 'ノッカ', 'バクス',
+      'チュロ', 'ポルポ', 'ケロッツ', 'アクエル',
+      'ボーンテイル', 'ミドロ', 'グールン', 'キノガル',
+      'ツノガイ', 'カブロン', 'メカノ', 'グラヴァ',
+      'フロス', 'ラムネロ', 'モスガン', 'ネブラ',
+      'ビズン', 'ウッドラ', 'クロモ', 'ホタルビ',
+      'ガブリラ', 'ガルネズ', 'フレマ', 'イグニス',
+      'ルビット', 'モクモ', 'ヨミル', 'ノクス'
     ]);
     const excluded = new Set([
       'ismartal-vol2-monster-07',
@@ -95,10 +95,10 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
       stageNo: 9,
       battlefieldId: 'stage-09-steel-fleet',
       atmosphereTone: 'storm-ruined-harbor',
-      monsterName: 'メカノ'
+      monsterName: 'ビズン'
     });
     expect(encounter.monsters.map((entry) => entry.monsterName)).toEqual([
-      'メカノ', 'ゲルバット', 'ツキバネ', 'フレマ'
+      'ビズン', 'ウッドラ', 'クロモ', 'ホタルビ'
     ]);
     expect(encounter.supplyQueue.map((entry) => entry.itemId)).toEqual(['s1', 's2', 's3']);
   });
@@ -119,7 +119,7 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
     expect(encounter.version).toBe(2);
     expect(encounter.stageNo).toBe(2);
     expect(encounter.monsters.map((entry) => entry.monsterName)).toEqual([
-      'モクモ', 'ツノガイ', 'リーフロ', 'ホタルビ'
+      'フェリカ', 'コバット', 'ツキバネ', 'トルネ'
     ]);
     expect(encounter.supplyQueue).toHaveLength(1);
   });

@@ -29,10 +29,10 @@ const STAGE_ROWS = [
         destinationImagePath: './Sprites/exploration_destinations/twin_sea_stacks.png',
         atmosphereTone: 'open-sea',
         monsters: [
-            ['ismartal-vol3-monster-05', 'balanced'],
-            ['ismartal-vol1-monster-04', 'guardian'],
-            ['ismartal-vol1-monster-10', 'caster'],
-            ['ismartal-vol1-monster-09', 'swift']
+            ['ismartal-vol1-monster-12', 'balanced'],
+            ['ismartal-vol1-monster-17', 'swift'],
+            ['ismartal-vol1-monster-16', 'swift'],
+            ['ismartal-vol3-monster-03', 'caster']
         ]
     },
     {
@@ -41,10 +41,10 @@ const STAGE_ROWS = [
         destinationImagePath: './Sprites/exploration_destinations/reef_islets.png',
         atmosphereTone: 'tropical-wilds',
         monsters: [
-            ['ismartal-vol1-monster-14', 'balanced'],
-            ['ismartal-vol2-monster-11', 'brute'],
-            ['ismartal-vol3-monster-07', 'balanced'],
-            ['ismartal-vol1-monster-20', 'caster']
+            ['ismartal-vol1-monster-10', 'caster'],
+            ['ismartal-vol2-monster-05', 'caster'],
+            ['ismartal-vol2-monster-06', 'swift'],
+            ['ismartal-vol1-monster-08', 'guardian']
         ]
     },
     {
@@ -53,10 +53,10 @@ const STAGE_ROWS = [
         destinationImagePath: './Sprites/exploration_destinations/watchtower_island.png',
         atmosphereTone: 'moonlit-watchtower',
         monsters: [
-            ['ismartal-vol2-monster-06', 'swift'],
-            ['ismartal-vol1-monster-12', 'swift'],
-            ['ismartal-vol1-monster-03', 'guardian'],
-            ['ismartal-vol1-monster-13', 'caster']
+            ['ismartal-vol1-monster-06', 'brute'],
+            ['ismartal-vol1-monster-02', 'caster'],
+            ['ismartal-vol2-monster-09', 'caster'],
+            ['ismartal-vol2-monster-19', 'guardian']
         ]
     },
     {
@@ -65,10 +65,10 @@ const STAGE_ROWS = [
         destinationImagePath: './Sprites/exploration_destinations/hidden_lagoon.png',
         atmosphereTone: 'hidden-lagoon',
         monsters: [
-            ['ismartal-vol2-monster-04', 'brute'],
-            ['ismartal-vol2-monster-05', 'caster'],
-            ['ismartal-vol1-monster-08', 'guardian'],
-            ['ismartal-vol1-monster-11', 'brute']
+            ['ismartal-vol1-monster-19', 'balanced'],
+            ['ismartal-vol1-monster-14', 'balanced'],
+            ['ismartal-vol2-monster-12', 'swift'],
+            ['ismartal-vol1-monster-20', 'caster']
         ]
     },
     {
@@ -77,10 +77,10 @@ const STAGE_ROWS = [
         destinationImagePath: './Sprites/exploration_destinations/haunted_marsh.png',
         atmosphereTone: 'poison-mist',
         monsters: [
-            ['ismartal-vol2-monster-08', 'swift'],
-            ['ismartal-vol2-monster-09', 'brute'],
-            ['ismartal-vol1-monster-17', 'swift'],
-            ['ismartal-vol2-monster-03', 'caster']
+            ['ismartal-vol1-monster-03', 'caster'],
+            ['ismartal-vol1-monster-13', 'swift'],
+            ['ismartal-vol3-monster-07', 'brute'],
+            ['ismartal-vol3-monster-08', 'guardian']
         ]
     },
     {
@@ -89,10 +89,10 @@ const STAGE_ROWS = [
         destinationImagePath: './Sprites/exploration_destinations/sea_fortress.png',
         atmosphereTone: 'siege',
         monsters: [
-            ['ismartal-vol1-monster-18', 'balanced'],
-            ['ismartal-vol1-monster-19', 'swift'],
-            ['ismartal-vol2-monster-01', 'guardian'],
-            ['ismartal-vol2-monster-10', 'brute']
+            ['ismartal-vol1-monster-04', 'guardian'],
+            ['ismartal-vol2-monster-04', 'brute'],
+            ['ismartal-vol2-monster-17', 'guardian'],
+            ['ismartal-vol3-monster-01', 'guardian']
         ]
     },
     {
@@ -101,9 +101,9 @@ const STAGE_ROWS = [
         destinationImagePath: './Sprites/exploration_destinations/glowing_grotto.png',
         atmosphereTone: 'arcane-blue',
         monsters: [
-            ['ismartal-vol1-monster-02', 'caster'],
-            ['ismartal-vol1-monster-15', 'brute'],
-            ['ismartal-vol2-monster-12', 'swift'],
+            ['ismartal-vol2-monster-01', 'guardian'],
+            ['ismartal-vol1-monster-18', 'balanced'],
+            ['ismartal-vol2-monster-03', 'caster'],
             ['ismartal-vol2-monster-20', 'caster']
         ]
     },
@@ -113,10 +113,10 @@ const STAGE_ROWS = [
         destinationImagePath: './Sprites/exploration_destinations/ruined_harbor.png',
         atmosphereTone: 'storm-ruined-harbor',
         monsters: [
-            ['ismartal-vol2-monster-17', 'guardian'],
-            ['ismartal-vol1-monster-06', 'brute'],
-            ['ismartal-vol1-monster-16', 'swift'],
-            ['ismartal-vol2-monster-18', 'caster']
+            ['ismartal-vol2-monster-11', 'swift'],
+            ['ismartal-vol2-monster-10', 'swift'],
+            ['ismartal-vol3-monster-09', 'guardian'],
+            ['ismartal-vol1-monster-09', 'caster']
         ]
     },
     {
@@ -125,10 +125,10 @@ const STAGE_ROWS = [
         destinationImagePath: './Sprites/exploration_destinations/volcanic_island.png',
         atmosphereTone: 'volcanic-island',
         monsters: [
-            ['ismartal-vol2-monster-19', 'brute'],
-            ['ismartal-vol3-monster-02', 'caster'],
-            ['ismartal-vol3-monster-08', 'guardian'],
-            ['ismartal-vol3-monster-06', 'caster']
+            ['ismartal-vol1-monster-15', 'brute'],
+            ['ismartal-vol1-monster-11', 'brute'],
+            ['ismartal-vol2-monster-18', 'caster'],
+            ['ismartal-vol3-monster-02', 'caster']
         ]
     },
     {
@@ -137,9 +137,9 @@ const STAGE_ROWS = [
         destinationImagePath: './Sprites/exploration_destinations/ancient_sea_gate.png',
         atmosphereTone: 'eclipse-sea-gate',
         monsters: [
-            ['ismartal-vol3-monster-03', 'swift'],
-            ['ismartal-vol3-monster-09', 'guardian'],
-            ['ismartal-vol3-monster-01', 'brute'],
+            ['ismartal-vol2-monster-08', 'swift'],
+            ['ismartal-vol3-monster-05', 'balanced'],
+            ['ismartal-vol3-monster-06', 'caster'],
             ['ismartal-vol3-monster-10', 'caster']
         ]
     }
@@ -154,7 +154,7 @@ function clampInteger(value, min, max, fallback = min) {
 const TAROT_KINGDOM_EXPLORATION_STAGES = Object.freeze(STAGE_ROWS.map((row, stageIndex) => {
     const stageNo = stageIndex + 1;
     return Object.freeze({
-        version: 1,
+        version: 2,
         stageNo,
         id: `tarot_stage_${stageNo}`,
         name: row.name,

@@ -126,7 +126,7 @@ function buildTarotKingdomGuardian(itemId, catalogCache = {}, cardLevels = {}) {
     return {
         itemId: normalizedItemId,
         number,
-        name: getMajorArcanaTitle(number),
+        name: getMajorArcanaTitle(itemData),
         cardLevel: clampCardLevel(getTarotCardLevel(cardLevels, normalizedItemId, itemData), true),
         passiveId: definition.passiveId,
         passiveName: definition.passiveName,

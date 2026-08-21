@@ -1,13 +1,22 @@
 const PIXEL_MONSTERS_ROSTER = require('../public/Sprites/pixel-monsters/manifest.json');
+const {
+    buildTarotKingdomGuardian,
+    buildTarotKingdomMinorLoadout
+} = require('./tarotKingdomArcanaLoadout');
+const {
+    TAROT_KINGDOM_PET_ARCANA_PROFILES
+} = require('./tarotKingdomPetArcanaProfiles');
 
 const TAROT_KINGDOM_PET_DATA_KEY = 'TarotKingdomPetState';
-const TAROT_KINGDOM_PET_STATE_VERSION = 3;
+const TAROT_KINGDOM_PET_STATE_VERSION = 4;
 const TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT = 16;
 const TAROT_KINGDOM_PET_NAME_MAX_LENGTH = 12;
 const TAROT_KINGDOM_PET_MAX_LEVEL = 50;
 const TAROT_KINGDOM_PET_EXP_BASE = 100;
 const TAROT_KINGDOM_PET_EXP_STEP = 50;
 const TAROT_KINGDOM_PET_EXP_AWARD_HISTORY_LIMIT = 32;
+const TAROT_KINGDOM_PET_MINOR_ARCANA_LIMIT = 5;
+const TAROT_KINGDOM_PET_MINOR_SUITS = Object.freeze(['Wand', 'Cup', 'Sword', 'Pentacle']);
 
 const MONSTER_BY_ID = new Map(
     PIXEL_MONSTERS_ROSTER.map((monster) => [String(monster?.id || '').trim(), monster])
@@ -75,16 +84,130 @@ function parseTarotKingdomPetNickname(value) {
     return normalized;
 }
 
+function normalizeTarotKingdomPetArcanaItemId(value) {
+    return String(value || '').trim().slice(0, 180);
+}
+
+function normalizeTarotKingdomPetMinorArcanaItemIds(value) {
+    const normalized = [];
+    (Array.isArray(value) ? value : []).forEach((entry) => {
+        const itemId = normalizeTarotKingdomPetArcanaItemId(entry);
+        const match = itemId.match(/^minor-(wand|cup|sword|pentacle)-(\d{1,2})$/i);
+        const rank = Number(match?.[2]);
+        if (!match || rank < 1 || rank > 14) return;
+        const canonicalItemId = `minor-${match[1].toLowerCase()}-${rank}`;
+        if (!normalized.includes(canonicalItemId)) normalized.push(canonicalItemId);
+    });
+    return normalized.slice(0, TAROT_KINGDOM_PET_MINOR_ARCANA_LIMIT);
+}
+
+function getTarotKingdomPetArcanaProfile(monsterId = '') {
+    const monster = getTarotKingdomPetMonster(monsterId);
+    if (!monster || monster.isBoss === true) return null;
+    const configured = TAROT_KINGDOM_PET_ARCANA_PROFILES[monster.id];
+    if (!configured) return null;
+    const suitWeights = configured.suitWeights;
+    const preferredSuit = TAROT_KINGDOM_PET_MINOR_SUITS.reduce((best, suit) => (
+        Number(suitWeights[suit]) > Number(suitWeights[best]) ? suit : best
+    ), TAROT_KINGDOM_PET_MINOR_SUITS[0]);
+    return {
+        monsterId: monster.id,
+        majorArcanaItemId: `arcana-${configured.majorArcanaNumber}`,
+        preferredSuit,
+        suitWeights: { ...suitWeights },
+        evolvesIntoRaidBossId: String(configured.evolvesIntoRaidBossId || '') || null
+    };
+}
+
+function readTarotKingdomPetRandom(random = Math.random) {
+    const value = Number(typeof random === 'function' ? random() : Math.random());
+    if (!Number.isFinite(value)) return 0;
+    return Math.max(0, Math.min(0.999999999, value));
+}
+
+function createTarotKingdomPetSeededRandom(seedValue = '') {
+    let state = 2166136261;
+    Array.from(String(seedValue || '')).forEach((character) => {
+        state ^= character.codePointAt(0);
+        state = Math.imul(state, 16777619) >>> 0;
+    });
+    return () => {
+        state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+        return state / 4294967296;
+    };
+}
+
+function rollTarotKingdomPetMinorSuit(profile, random) {
+    const roll = readTarotKingdomPetRandom(random);
+    let accumulatedWeight = 0;
+    for (const suit of TAROT_KINGDOM_PET_MINOR_SUITS) {
+        accumulatedWeight += Math.max(0, Number(profile?.suitWeights?.[suit]) || 0);
+        if (roll < accumulatedWeight) return suit;
+    }
+    return profile?.preferredSuit || TAROT_KINGDOM_PET_MINOR_SUITS[0];
+}
+
+function rollTarotKingdomPetArcanaLoadout(monsterId = '', random = Math.random) {
+    const profile = getTarotKingdomPetArcanaProfile(monsterId);
+    if (!profile) return null;
+    const minorArcanaItemIds = [];
+    let attempts = 0;
+    while (minorArcanaItemIds.length < TAROT_KINGDOM_PET_MINOR_ARCANA_LIMIT && attempts < 100) {
+        attempts += 1;
+        const suit = rollTarotKingdomPetMinorSuit(profile, random);
+        const rank = 1 + Math.floor(readTarotKingdomPetRandom(random) * 14);
+        const itemId = `minor-${suit.toLowerCase()}-${rank}`;
+        if (!minorArcanaItemIds.includes(itemId)) minorArcanaItemIds.push(itemId);
+    }
+    const fallbackSuitOrder = [
+        profile.preferredSuit,
+        ...TAROT_KINGDOM_PET_MINOR_SUITS.filter((suit) => suit !== profile.preferredSuit)
+    ];
+    for (const suit of fallbackSuitOrder) {
+        for (let rank = 1; rank <= 14; rank += 1) {
+            if (minorArcanaItemIds.length >= TAROT_KINGDOM_PET_MINOR_ARCANA_LIMIT) break;
+            const itemId = `minor-${suit.toLowerCase()}-${rank}`;
+            if (!minorArcanaItemIds.includes(itemId)) minorArcanaItemIds.push(itemId);
+        }
+    }
+    return {
+        majorArcanaItemId: profile.majorArcanaItemId,
+        minorArcanaItemIds
+    };
+}
+
+function getTarotKingdomPetLegacyArcanaLoadout(value, monster) {
+    const storedMinorArcanaItemIds = normalizeTarotKingdomPetMinorArcanaItemIds(value?.minorArcanaItemIds);
+    const profile = getTarotKingdomPetArcanaProfile(monster?.id);
+    if (storedMinorArcanaItemIds.length === TAROT_KINGDOM_PET_MINOR_ARCANA_LIMIT) {
+        return {
+            majorArcanaItemId: profile?.majorArcanaItemId || null,
+            minorArcanaItemIds: storedMinorArcanaItemIds
+        };
+    }
+    return rollTarotKingdomPetArcanaLoadout(
+        monster?.id,
+        createTarotKingdomPetSeededRandom([
+            monster?.id,
+            finiteTimestamp(value?.acquiredAtMs),
+            String(value?.explorationId || '').trim()
+        ].join(':'))
+    );
+}
+
 function normalizeTarotKingdomCurrentPet(value) {
     if (!value || typeof value !== 'object') return null;
     const monster = getTarotKingdomPetMonster(value.monsterId);
     if (!monster || monster.isBoss === true) return null;
     const progress = normalizeTarotKingdomPetProgress(value.level, value.experience);
+    const arcanaLoadout = getTarotKingdomPetLegacyArcanaLoadout(value, monster);
     return {
         monsterId: monster.id,
         acquiredAtMs: finiteTimestamp(value.acquiredAtMs),
         explorationId: String(value.explorationId || '').trim().slice(0, 128),
         nickname: normalizeTarotKingdomPetNickname(value.nickname),
+        majorArcanaItemId: arcanaLoadout?.majorArcanaItemId || null,
+        minorArcanaItemIds: arcanaLoadout?.minorArcanaItemIds || [],
         ...progress
     };
 }
@@ -140,11 +263,20 @@ function normalizeTarotKingdomPetState(value) {
     };
 }
 
-function buildTarotKingdomPetPublicRecord(value) {
+function buildTarotKingdomPetPublicRecord(value, options = {}) {
     const pet = normalizeTarotKingdomCurrentPet(value);
     if (!pet) return null;
     const monster = getTarotKingdomPetMonster(pet.monsterId);
     const experienceToNextLevel = getTarotKingdomPetExperienceToNextLevel(pet.level);
+    const catalogCache = options?.catalogCache && typeof options.catalogCache === 'object'
+        ? options.catalogCache
+        : {};
+    const majorArcanaLevel = 1 + Math.floor(((pet.level - 1) * 24) / (TAROT_KINGDOM_PET_MAX_LEVEL - 1));
+    const minorArcanaLevel = 1 + Math.floor(((pet.level - 1) * 14) / (TAROT_KINGDOM_PET_MAX_LEVEL - 1));
+    const cardLevels = {
+        [pet.majorArcanaItemId]: { level: majorArcanaLevel },
+        ...Object.fromEntries(pet.minorArcanaItemIds.map((itemId) => [itemId, { level: minorArcanaLevel }]))
+    };
     return {
         ...pet,
         monsterName: String(monster?.name || pet.monsterId),
@@ -155,7 +287,9 @@ function buildTarotKingdomPetPublicRecord(value) {
         levelProgressPercent: experienceToNextLevel > 0
             ? Math.max(0, Math.min(100, Math.floor((pet.experience / experienceToNextLevel) * 100)))
             : 100,
-        maxLevel: TAROT_KINGDOM_PET_MAX_LEVEL
+        maxLevel: TAROT_KINGDOM_PET_MAX_LEVEL,
+        guardianArcana: buildTarotKingdomGuardian(pet.majorArcanaItemId, catalogCache, cardLevels),
+        tarotDeck: buildTarotKingdomMinorLoadout(pet.minorArcanaItemIds, catalogCache, cardLevels)
     };
 }
 
@@ -330,7 +464,7 @@ function rollTarotKingdomPetOffer({
     return { state: nextState, offer, created: true };
 }
 
-function resolveTarotKingdomPetChoice(state, offerId, accept, now = Date.now()) {
+function resolveTarotKingdomPetChoice(state, offerId, accept, now = Date.now(), random = Math.random) {
     const normalizedState = normalizeTarotKingdomPetState(state);
     const normalizedOfferId = String(offerId || '').trim();
     const pending = normalizedState.pendingOffer;
@@ -350,6 +484,9 @@ function resolveTarotKingdomPetChoice(state, offerId, accept, now = Date.now()) 
         return { state: normalizedState, resolved: false, accepted: false, reason: 'offer-mismatch' };
     }
     const accepted = accept === true;
+    const arcanaLoadout = accepted
+        ? rollTarotKingdomPetArcanaLoadout(pending.monsterId, random)
+        : null;
     return {
         state: {
             ...normalizedState,
@@ -359,7 +496,9 @@ function resolveTarotKingdomPetChoice(state, offerId, accept, now = Date.now()) 
                     acquiredAtMs: finiteTimestamp(now, Date.now()),
                     explorationId: pending.explorationId,
                     level: 1,
-                    experience: 0
+                    experience: 0,
+                    majorArcanaItemId: arcanaLoadout?.majorArcanaItemId || null,
+                    minorArcanaItemIds: arcanaLoadout?.minorArcanaItemIds || []
                 }
                 : normalizedState.currentPet,
             pendingOffer: null
@@ -400,17 +539,21 @@ module.exports = {
     TAROT_KINGDOM_PET_EXP_BASE,
     TAROT_KINGDOM_PET_EXP_STEP,
     TAROT_KINGDOM_PET_MAX_LEVEL,
+    TAROT_KINGDOM_PET_MINOR_ARCANA_LIMIT,
     TAROT_KINGDOM_PET_NAME_MAX_LENGTH,
     TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT,
     awardTarotKingdomPetExperience,
     buildTarotKingdomPetOfferView,
     buildTarotKingdomPetPublicRecord,
+    getTarotKingdomPetArcanaProfile,
     getTarotKingdomPetRecruitChance,
     getTarotKingdomPetBattleExperience,
     getTarotKingdomPetExperienceToNextLevel,
     getTarotKingdomPetMonster,
     isTarotKingdomPetRecruitEligible,
     normalizeTarotKingdomCurrentPet,
+    normalizeTarotKingdomPetArcanaItemId,
+    normalizeTarotKingdomPetMinorArcanaItemIds,
     normalizeTarotKingdomPetNickname,
     normalizeTarotKingdomPendingPetOffer,
     normalizeTarotKingdomPetState,
@@ -418,6 +561,7 @@ module.exports = {
     readTarotKingdomPetState,
     renameTarotKingdomCurrentPet,
     resolveTarotKingdomPetChoice,
+    rollTarotKingdomPetArcanaLoadout,
     rollTarotKingdomPetOffer,
     writeTarotKingdomPetState
 };

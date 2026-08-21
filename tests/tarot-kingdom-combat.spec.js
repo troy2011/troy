@@ -253,6 +253,41 @@ test.describe('Tarot Kingdom NPC combat snapshots', () => {
     });
   });
 
+  test('pet combat snapshots keep the immutable pet-specific major and minor arcana', async () => {
+    const combat = await loadCombatModule();
+    const pet = combat.createTarotKingdomPetCharacter({
+      pet: {
+        monsterId: 'ismartal-vol1-monster-01',
+        displayName: 'コハク',
+        number: 1,
+        level: 4,
+        guardianArcana: {
+          itemId: 'arcana-4',
+          number: 4,
+          name: '皇帝',
+          cardLevel: 3,
+          passiveId: 'guardian-emperor',
+          passiveName: '皇帝の守護',
+          attribute: 'light'
+        },
+        tarotDeck: [{
+          slot: 0,
+          itemId: 'minor-wand-1',
+          suit: 'Wand',
+          rank: 1,
+          cardLevel: 2,
+          resonanceId: 'wand-1',
+          skillName: '火花'
+        }]
+      }
+    });
+
+    expect(pet.guardianArcana).toMatchObject({ itemId: 'arcana-4', number: 4, cardLevel: 3 });
+    expect(pet.tarotDeck).toEqual([
+      expect.objectContaining({ itemId: 'minor-wand-1', suit: 'Wand', rank: 1, cardLevel: 2 })
+    ]);
+  });
+
   test('level formula and all three seat styles produce the intended integer stats', async () => {
     const combat = await loadCombatModule();
     const audit = {

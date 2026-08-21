@@ -24,7 +24,7 @@ import {
   getTarotKingdomMajorSecondaryDamageScale,
   getTarotKingdomResonanceDamageFloor,
   normalizeTarotKingdomCharacter
-} from './tarotKingdomCombat.js?v=20260821-pet-level-v1';
+} from './tarotKingdomCombat.js?v=20260821-pet-fixed-arcana-v1';
 import {
   TAROT_KINGDOM_ARCANA_EFFECTS_READY,
   getTarotKingdomPhysicalScale,

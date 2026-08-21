@@ -701,8 +701,13 @@ test('single-player combat profile response includes the saved current pet for e
       level: 1,
       experience: 0,
       experienceToNextLevel: 100,
-      levelProgressPercent: 0
+      levelProgressPercent: 0,
+      guardianArcana: expect.objectContaining({ itemId: 'arcana-8', number: 8 }),
+      tarotDeck: expect.arrayContaining([
+        expect.objectContaining({ itemId: expect.stringMatching(/^minor-(wand|cup|sword|pentacle)-\d+$/) })
+      ])
     });
+    expect(result.payload.currentPet.tarotDeck).toHaveLength(5);
   }, {
     petState: {
       version: 1,
