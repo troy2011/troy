@@ -436,12 +436,12 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
   test('guardian v5 catalog exposes the revised practical conditions', async () => {
     const effects = await loadEffectsModule();
     const expected = new Map([
-      [1, ['呪術師', '最大5段階']],
+      [1, ['呪術師', '最大＋45％']],
       [6, ['吟遊詩人', '他の生存味方']],
-      [11, ['学者', 'カードルール上の数字は変わらない']],
+      [11, ['パラディン', 'カードルール上の数字は変わらない']],
       [13, ['死霊術師', '最大20％']],
       [14, ['ものまねし', '小アルカナ14']],
-      [20, ['司祭', '発動するたび']],
+      [20, ['ビショップ', '発動するたび']],
       [21, ['勇者', '2枚']]
     ]);
     expected.forEach(([passiveName, phrase], number) => {
@@ -668,6 +668,84 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
       apSpent: 1,
       candidates: [{ apCost: 1 }]
     });
+  });
+
+  test('level growth gives the seven previously fixed minor effects their specified values', async () => {
+    const effects = await loadEffectsModule();
+    const resolve = (suit, rank, cardLevel, overrides = {}) => {
+      const card = minor(suit, rank, `${suit}-${rank}-lv${cardLevel}`);
+      return effects.resolveTarotKingdomResonance({
+        ...weaponContext(['unarmed'], card, overrides),
+        arcanaLoadoutEffectsVersion: 7,
+        arcanaPoints: 5,
+        cards: [card],
+        character: {
+          combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
+          tarotDeck: [{ slot: 0, suit, rank, cardLevel }]
+        }
+      });
+    };
+    const step = (resolved, kind, statusKey = '') => resolved.steps.find((entry) => (
+      entry.kind === kind && (!statusKey || entry.statusKey === statusKey)
+    ));
+    const cupContext = {
+      effects: { enemy: {}, party: {}, players: [{ poison: { potency: 5 } }, {}, {}, {}] }
+    };
+
+    expect(step(resolve('Cup', 5, 1, cupContext), 'buff', 'hpShield').potency).toBe(5);
+    expect(step(resolve('Cup', 5, 15, cupContext), 'buff', 'hpShield').potency).toBe(15);
+    expect(step(resolve('Pentacle', 6, 1), 'status', 'vulnerable').potency).toBe(10);
+    expect(step(resolve('Pentacle', 6, 15), 'status', 'vulnerable').potency).toBe(25);
+    expect(step(resolve('Pentacle', 7, 1), 'buff', 'attackDown').potency).toBe(10);
+    expect(step(resolve('Pentacle', 7, 15), 'buff', 'attackDown').potency).toBe(25);
+    expect(step(resolve('Pentacle', 7, 15), 'buff', 'attackDown').turns).toBe(2);
+    expect(step(resolve('Pentacle', 13, 1), 'status', 'vulnerable').potency).toBe(10);
+    expect(step(resolve('Pentacle', 13, 15), 'status', 'vulnerable').potency).toBe(25);
+    expect(step(resolve('Pentacle', 14, 1), 'buff', 'hpShield').potency).toBe(5);
+    expect(step(resolve('Pentacle', 14, 15), 'buff', 'hpShield').potency).toBe(15);
+    expect(step(resolve('Wand', 6, 1), 'ap-gain').amount).toBe(2);
+    expect(step(resolve('Wand', 6, 15), 'ap-gain').amount).toBe(5);
+    expect(step(resolve('Wand', 10, 1), 'ap-gain').amount).toBe(3);
+    expect(step(resolve('Wand', 10, 15), 'ap-gain').amount).toBe(6);
+    expect(step(resolve('Wand', 10, 1), 'recoil-percent').percent).toBe(10);
+    expect(step(resolve('Wand', 10, 15), 'recoil-percent').percent).toBe(5);
+  });
+
+  test('Gambler and Scholar annotate only their numerical resonance effects with level scaling', async () => {
+    const effects = await loadEffectsModule();
+    const gamblerCards = [minor('Sword', 2, 'gambler-sword-two'), minor('Wand', 2, 'gambler-wand-two')];
+    const gambler = effects.resolveTarotKingdomResonance({
+      ...weaponContext(['unarmed'], gamblerCards[0]),
+      arcanaLoadoutEffectsVersion: 7,
+      arcanaPoints: 2,
+      cards: gamblerCards,
+      character: {
+        combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
+        guardianArcana: { number: 10, cardLevel: 25 },
+        tarotDeck: [
+          { slot: 0, suit: 'Sword', rank: 2, cardLevel: 1 },
+          { slot: 1, suit: 'Wand', rank: 2, cardLevel: 1 }
+        ]
+      }
+    });
+    expect(gambler.steps.filter((entry) => entry.gamblerReplay && entry.kind !== 'ap-gain'))
+      .toEqual(expect.arrayContaining([expect.objectContaining({ numericMultiplier: 2.5 })]));
+    expect(gambler.apGained).toBe(0);
+
+    const scholarCard = minor('Sword', 14, 'scholar-sword-fourteen');
+    const scholar = effects.resolveTarotKingdomResonance({
+      ...weaponContext(['unarmed'], scholarCard),
+      arcanaLoadoutEffectsVersion: 7,
+      arcanaPoints: 1,
+      cards: [scholarCard],
+      reverseBefore: true,
+      character: {
+        combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
+        guardianArcana: { number: 11, cardLevel: 25 },
+        tarotDeck: [{ slot: 0, suit: 'Sword', rank: 14, cardLevel: 1 }]
+      }
+    });
+    expect(scholar.steps).toEqual(expect.arrayContaining([expect.objectContaining({ numericMultiplier: 3 })]));
   });
 
   test('an unaffordable or targetless AP effect neither activates nor spends AP', async () => {

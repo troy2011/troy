@@ -1303,7 +1303,7 @@
       "attribute": "neutral",
       "passiveId": "guardian-v5-1",
       "passiveName": "呪術師",
-      "passive": "状態異常を狙ったカード行動ごとに1段階強化。1段階につき成功率＋5、2・4段階で効果時間も延びる。最大5段階。"
+      "passive": "状態異常を狙ったカード行動ごとに1段階強化。成功率加算は1段階ごとに＋5％からLvに応じて＋9％まで伸び、最大＋45％。成功時は段階数に応じて次の被ダメージを最大25％増加させる。2・4段階で効果時間も延びる。"
     },
     {
       "number": 2,
@@ -1323,7 +1323,7 @@
       "number": 4,
       "attribute": "dark",
       "passiveId": "guardian-v3-4",
-      "passiveName": "剣士",
+      "passiveName": "ナイト",
       "passive": "ソードを出すと、攻撃力をその数字％強化する。"
     },
     {
@@ -1344,43 +1344,43 @@
       "number": 7,
       "attribute": "neutral",
       "passiveId": "guardian-v3-7",
-      "passiveName": "双剣士",
+      "passiveName": "バーサーカー",
       "passive": "共鳴するたび、自分の素早さと攻撃力が上がる。"
     },
     {
       "number": 8,
       "attribute": "neutral",
       "passiveId": "guardian-v3-8",
-      "passiveName": "格闘家",
-      "passive": "敵の攻撃を受けるとき、10％の確率でかわし、通常攻撃で反撃する。"
+      "passiveName": "モンク",
+      "passive": "敵の攻撃を受けるとき、Lvに応じて10％から30％の確率でかわし、通常攻撃で反撃する。反撃威力は100％から250％まで伸びる。"
     },
     {
       "number": 9,
       "attribute": "dark",
       "passiveId": "guardian-v4-9",
-      "passiveName": "忍者",
-      "passive": "局開始時に回避＋40を得る。攻撃するたびに回避が10下がる。"
+      "passiveName": "アサシン",
+      "passive": "局開始時にLvに応じて回避＋40から＋70を得る。攻撃するたびの低下量は10から3まで軽減される。"
     },
     {
       "number": 10,
       "attribute": "neutral",
       "passiveId": "guardian-v3-10",
       "passiveName": "ギャンブラー",
-      "passive": "同じ数字2枚を同時に出して共鳴すると、その提出で発動した共鳴をAP追加消費なしでもう1回発動する。"
+      "passive": "同じ数字2枚を同時に出して共鳴すると、その提出で発動した共鳴をAP追加消費なしでもう1回発動する。再発動する数値効果はLvに応じて100％から250％まで増える。"
     },
     {
       "number": 11,
       "attribute": "light",
       "passiveId": "guardian-v5-11",
-      "passiveName": "学者",
-      "passive": "11バック中、固定APを消費する共鳴の必要APが1減る。通常攻撃と武器効果では小アルカナの戦闘値が反転する。カードルール上の数字は変わらない。"
+      "passiveName": "パラディン",
+      "passive": "11バック中、固定APを消費する共鳴の必要APが1減る。小アルカナ共鳴の数値効果はLvに応じて1.5倍から3.0倍。通常攻撃と武器効果では小アルカナの戦闘値が反転する。カードルール上の数字は変わらない。"
     },
     {
       "number": 12,
       "attribute": "dark",
       "passiveId": "guardian-v3-12",
       "passiveName": "守護騎士",
-      "passive": "自分にシールドがある間、HP割合が最も低い他の味方への単体攻撃を身代わりする。1ターンにつき1回。"
+      "passive": "自分にシールドがある間、HP割合が最も低い他の味方への単体攻撃を身代わりする。身代わり時の被ダメージはLvに応じて10％から65％軽減。1ターンにつき1回。"
     },
     {
       "number": 13,
@@ -1408,7 +1408,7 @@
       "attribute": "dark",
       "passiveId": "guardian-v3-16",
       "passiveName": "魔法剣士",
-      "passive": "自分がソードを2枚出すごとに、次の小アルカナ攻撃を雷属性にし、命中した敵に麻痺を付与する。"
+      "passive": "自分がソードを2枚出すごとに、次の小アルカナ攻撃を雷属性にする。麻痺成功率はLvに応じて50％から100％、雷撃ダメージは20％から100％上昇する。"
     },
     {
       "number": 17,
@@ -1422,28 +1422,28 @@
       "attribute": "dark",
       "passiveId": "guardian-v3-18",
       "passiveName": "幻影騎士",
-      "passive": "自分がペンタクルを2枚出すごとに、味方全員へ幻影を付与する。"
+      "passive": "自分がペンタクルを2枚出すごとに、味方全員へ幻影とLvに応じて5％から30％の回避を2ターン付与する。"
     },
     {
       "number": 19,
       "attribute": "light",
       "passiveId": "guardian-v3-19",
-      "passiveName": "戦魔導師",
+      "passiveName": "魔導戦士",
       "passive": "自分がワンドを2枚出すごとに、敵へやけどを付与し、味方全員の攻撃力と魔法攻撃力を上げる。"
     },
     {
       "number": 20,
       "attribute": "light",
       "passiveId": "guardian-v5-20",
-      "passiveName": "司祭",
-      "passive": "自分が11バックを発動するたび、最も早くKOされた味方1体を最大HP10％で復活させる。対象がいなければ発動しない。"
+      "passiveName": "ビショップ",
+      "passive": "自分が11バックを発動するたび、最も早くKOされた味方1体をLvに応じて最大HP10％から70％で復活させる。対象がいなければ発動しない。"
     },
     {
       "number": 21,
       "attribute": "neutral",
       "passiveId": "guardian-v5-21",
       "passiveName": "勇者",
-      "passive": "装備と同じ小アルカナを2枚共鳴させると、生存味方を全回復し、敵の次の戦闘行動を1回止める。1局1回。"
+      "passive": "装備と同じ小アルカナを2枚共鳴させると、生存味方をLvに応じて最大HP50％から100％回復し、次の攻撃を10％から50％強化する。敵の次の戦闘行動を1回止める。1局1回。"
     }
   ],
   "major": [

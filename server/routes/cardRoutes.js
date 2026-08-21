@@ -8,19 +8,29 @@ const admin = require('firebase-admin');
 const { enrichTarotCatalogData, isTarotMajorCategory, isTarotMinorCategory } = require('../tarotCards');
 const { getPublicTarotBattleSkills } = require('../tarotBattleSkills');
 
-const LEVELS_PER_STAGE = 5;
-const MAJOR_MAX_STAGES = 5;
-const MINOR_MAX_STAGES = 3;
+const BASE_MAX_LEVEL = 10;
+const LEVELS_PER_EXTRA_COPY = 5;
+const MAJOR_MAX_LEVEL = 25;
+const MINOR_MAX_LEVEL = 15;
 
-// ステージ数からレベル上限を計算
+// 1枚でLv10まで。余剰カードは上限だけを拡張し、消費しない。
 function getMaxLevel(isMajor, quantity) {
-    const maxStages = isMajor ? MAJOR_MAX_STAGES : MINOR_MAX_STAGES;
-    return Math.min(quantity, maxStages) * LEVELS_PER_STAGE;
+    const copies = Math.max(1, Math.floor(Number(quantity) || 0));
+    const extraCopies = isMajor
+        ? Math.min(3, Math.max(0, copies - 1))
+        : Math.min(1, Math.max(0, copies - 1));
+    const maxLevel = BASE_MAX_LEVEL + (extraCopies * LEVELS_PER_EXTRA_COPY);
+    return Math.min(isMajor ? MAJOR_MAX_LEVEL : MINOR_MAX_LEVEL, maxLevel);
 }
 
-// 次のレベルに上げるシャードコスト（Lv n → n+1）
+function normalizeCardLevel(value, maxLevel = Infinity) {
+    const level = Math.max(1, Math.floor(Number(value) || 1));
+    return Math.min(level, Math.max(1, Number(maxLevel) || 1));
+}
+
+// 次のレベルに上げるシャードコスト（2Lvごとに1ずつ増加）
 function shardCost(currentLevel) {
-    return (currentLevel + 1) * 10;
+    return Math.max(1, Math.ceil(normalizeCardLevel(currentLevel) / 2));
 }
 
 // Firestoreのカードドキュメントを取得（なければ空のmap）
@@ -89,8 +99,8 @@ function initializeCardRoutes(app, deps) {
                 const catalogData = enrichTarotCatalogData(itemId, catalogCache?.[itemId] || {});
                 const cat      = String(catalogData.Category || '').trim();
                 const isMajor  = isTarotMajorCategory(cat);
-                const level    = levels[itemId]?.level ?? 0;
                 const maxLevel = getMaxLevel(isMajor, quantity);
+                const level    = normalizeCardLevel(levels[itemId]?.level, maxLevel);
                 const nextCost = level < maxLevel ? shardCost(level) : null;
 
                 return {
@@ -142,7 +152,7 @@ function initializeCardRoutes(app, deps) {
                 ]);
 
                 const cards         = cardSnap.exists ? (cardSnap.data().cards || {}) : {};
-                const currentLevel  = cards[itemId]?.level ?? 0;
+                const currentLevel  = normalizeCardLevel(cards[itemId]?.level, maxLevel);
                 const shards        = statSnap.exists ? (statSnap.data().arcanaShards ?? 0) : 0;
 
                 if (currentLevel >= maxLevel) {
@@ -163,7 +173,13 @@ function initializeCardRoutes(app, deps) {
                     arcanaShards: admin.firestore.FieldValue.increment(-cost),
                 }, { merge: true });
 
-                return { newLevel, cost, maxLevel, shardsAfter: shards - cost };
+                return {
+                    newLevel,
+                    cost,
+                    maxLevel,
+                    shardsAfter: shards - cost,
+                    nextLevelCost: newLevel < maxLevel ? shardCost(newLevel) : null
+                };
             });
 
             res.json({ success: true, itemId, ...result });
@@ -177,4 +193,4 @@ function initializeCardRoutes(app, deps) {
     });
 }
 
-module.exports = { initializeCardRoutes };
+module.exports = { initializeCardRoutes, getMaxLevel, normalizeCardLevel, shardCost };

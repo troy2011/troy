@@ -37,7 +37,7 @@ import {
     getTarotKingdomMinorDefinition,
     getTarotKingdomCardLevelScale,
     getTarotKingdomFriendlyEffectText
-} from './tarotKingdomEffects.js?v=20260815-balance-v7';
+} from './tarotKingdomEffects.js?v=20260821-guardian-job-names-v1';
 import {
     buildTarotCardMeta,
     compareTarotItems,
@@ -130,7 +130,7 @@ async function levelUpCard(itemId) {
             ...(cardLevelMap[itemId] || {}),
             level: data.newLevel,
             maxLevel: data.maxLevel,
-            nextLevelCost: data.newLevel < data.maxLevel ? (data.newLevel + 1) * 10 : null,
+            nextLevelCost: data.nextLevelCost ?? null,
         };
         renderInventoryGrid(activeInventoryCategory);
         renderTarotDeckPanels();

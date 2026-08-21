@@ -229,11 +229,11 @@ test('loadout card level lookup follows legacy aliases without requiring re-equi
   })[0]).toMatchObject({ itemId, cardLevel: 7, resonanceId: 'wand-1' });
 });
 
-test('card levels strengthen numeric values by two percent without changing fixed fields', () => {
-  const scale = (level) => 1 + ((level - 1) * 0.02);
+test('card levels strengthen numeric values by five percent without changing fixed fields', () => {
+  const scale = (level) => 1 + ((level - 1) * 0.05);
   expect(scale(1)).toBe(1);
-  expect(scale(15)).toBeCloseTo(1.28);
-  expect(scale(25)).toBeCloseTo(1.48);
+  expect(scale(15)).toBeCloseTo(1.70);
+  expect(scale(25)).toBeCloseTo(2.20);
 
   const wandFive = getArcanaEffectsCatalog().minor.find((entry) => entry.id === 'wand-5');
   expect(wandFive).toMatchObject({

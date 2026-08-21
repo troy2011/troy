@@ -2030,6 +2030,247 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.darkKnightLegacy).toMatchObject({ maxHp: 97, potency: 6 });
   });
 
+  test('guardian v7 level ranges apply to World, Priest, Ninja, Illusion Knight, and Magic Swordsman', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const runWorld = (cardLevel) => {
+        const sword = { id: `world-sword-${cardLevel}`, kind: 'minor', suit: 'Sword', number: 2 };
+        const wand = { id: `world-wand-${cardLevel}`, kind: 'minor', suit: 'Wand', number: 2 };
+        debug.battleScenario({
+          withTrick: false,
+          turnIndex: 0,
+          hpBySeat: [20, 20, 20, 20],
+          combatBySeat: Array.from({ length: 4 }, () => ({ maxHp: 100 })),
+          handsBySeat: [[sword, wand, { id: `world-reserve-${cardLevel}`, kind: 'minor', suit: 'Cup', number: 9 }]],
+          charactersBySeat: [{
+            version: 4,
+            guardianArcana: { number: 21, cardLevel, passiveId: 'guardian-v7-21' },
+            tarotDeck: [
+              { slot: 0, suit: 'Sword', rank: 2, cardLevel: 1, resonanceId: 'sword-2' },
+              { slot: 1, suit: 'Wand', rank: 2, cardLevel: 1, resonanceId: 'wand-2' }
+            ]
+          }],
+          rules: { arcanaLoadoutEffectsVersion: 7 }
+        });
+        const state = debug.battlePlayCards(0, [sword.id, wand.id], { resolve: false }).state;
+        return {
+          hp: state.players[1].hp,
+          nextAttackUp: state.battle.effects.party.nextAttackUp?.potency,
+          timeStop: state.battle.effects.enemy.timeStop?.remainingTurns
+        };
+      };
+      const runPriest = (cardLevel) => {
+        const justice = { id: `priest-level-${cardLevel}`, kind: 'minor', suit: 'Sword', number: 11 };
+        debug.battleScenario({
+          withTrick: false,
+          turnIndex: 0,
+          hpBySeat: [100, 0, 100, 100],
+          combatBySeat: Array.from({ length: 4 }, () => ({ maxHp: 100 })),
+          koOrder: [1],
+          handsBySeat: [[justice, { id: `priest-reserve-${cardLevel}`, kind: 'minor', suit: 'Cup', number: 9 }]],
+          charactersBySeat: [{ version: 4, guardianArcana: { number: 20, cardLevel, passiveId: 'guardian-v7-20' } }],
+          rules: { arcanaLoadoutEffectsVersion: 7 }
+        });
+        return debug.battlePlayCards(0, [justice.id], { resolve: false }).state.players[1].hp;
+      };
+      const runNinja = (cardLevel) => {
+        const sword = { id: `ninja-sword-${cardLevel}`, kind: 'minor', suit: 'Sword', number: 2 };
+        debug.battleScenario({
+          withTrick: false,
+          turnIndex: 0,
+          handsBySeat: [[sword, { id: `ninja-reserve-${cardLevel}`, kind: 'minor', suit: 'Cup', number: 9 }]],
+          charactersBySeat: [{ version: 4, guardianArcana: { number: 9, cardLevel, passiveId: 'guardian-v7-9' } }],
+          rules: { arcanaLoadoutEffectsVersion: 7 }
+        });
+        return debug.battlePlayCards(0, [sword.id], { resolve: false }).state.battle.guardianState[0].v3.counters.evasion;
+      };
+      const runGuardianSuit = (number, suit, cardLevel) => {
+        const first = { id: `guardian-${number}-${suit}-a-${cardLevel}`, kind: 'minor', suit, number: 2 };
+        const second = { id: `guardian-${number}-${suit}-b-${cardLevel}`, kind: 'minor', suit, number: 2 };
+        debug.battleScenario({
+          withTrick: false,
+          turnIndex: 0,
+          handsBySeat: [[first, second, { id: `guardian-${number}-reserve-${cardLevel}`, kind: 'minor', suit: 'Cup', number: 9 }]],
+          charactersBySeat: [{ version: 4, guardianArcana: { number, cardLevel, passiveId: `guardian-v7-${number}` } }],
+          rules: { arcanaLoadoutEffectsVersion: 7 }
+        });
+        const state = debug.battlePlayCards(0, [first.id, second.id], { resolve: false }).state;
+        return state.battle.effects.players[0];
+      };
+      return {
+        worldLv1: runWorld(1),
+        worldLv25: runWorld(25),
+        priestLv1: runPriest(1),
+        priestLv25: runPriest(25),
+        ninjaLv1: runNinja(1),
+        ninjaLv25: runNinja(25),
+        illusionLv1: runGuardianSuit(18, 'Pentacle', 1).evasionUp,
+        illusionLv25: runGuardianSuit(18, 'Pentacle', 25).evasionUp,
+        magicLv1: runGuardianSuit(16, 'Sword', 1).lightningBlade,
+        magicLv25: runGuardianSuit(16, 'Sword', 25).lightningBlade
+      };
+    });
+
+    expect(audit.worldLv1).toEqual({ hp: 70, nextAttackUp: 10, timeStop: 1 });
+    expect(audit.worldLv25).toEqual({ hp: 100, nextAttackUp: 50, timeStop: 1 });
+    expect(audit.priestLv1).toBe(10);
+    expect(audit.priestLv25).toBe(70);
+    expect(audit.ninjaLv1).toBe(30);
+    expect(audit.ninjaLv25).toBe(67);
+    expect(audit.illusionLv1).toMatchObject({ potency: 5, remainingTurns: 2 });
+    expect(audit.illusionLv25).toMatchObject({ potency: 30, remainingTurns: 2 });
+    expect(audit.magicLv1).toMatchObject({ paralysisChance: 0.5, damageBonus: 20 });
+    expect(audit.magicLv25).toMatchObject({ paralysisChance: 1, damageBonus: 100 });
+  });
+
+  test('guardian v7 level ranges change counter, cover, lightning, and resonance values in battle', async ({ page }) => {
+    const audit = await page.evaluate(({ combatBySeat }) => {
+      const debug = window.TarotKingdomDebug;
+      const runFighter = (cardLevel) => {
+        debug.battleScenario({
+          turnIndex: 1,
+          leaderIndex: 0,
+          enemyHp: 5000,
+          enemyMaxHp: 5000,
+          hpBySeat: [100, 100, 100, 100],
+          combatBySeat,
+          charactersBySeat: [
+            {},
+            { version: 4, guardianArcana: { number: 8, cardLevel, passiveId: 'guardian-v7-8' } }
+          ],
+          rules: { arcanaLoadoutEffectsVersion: 7 }
+        });
+        debug.battleSetCombatRandom(0.999);
+        const state = debug.battlePass(1);
+        const evasion = state.battle.events.at(-1).effects.find((entry) => entry.kind === 'speed-evasion');
+        return evasion?.guardianCounter;
+      };
+      const runGuardianCover = (cardLevel) => {
+        debug.battleScenario({
+          turnIndex: 1,
+          leaderIndex: 0,
+          hpBySeat: [100, 40, 80, 90],
+          combatBySeat,
+          charactersBySeat: [{ version: 4, guardianArcana: { number: 12, cardLevel, passiveId: 'guardian-v7-12' } }],
+          rules: { arcanaLoadoutEffectsVersion: 7 }
+        });
+        debug.battleSetEffects({
+          enemy: {}, party: {}, players: [{ hpShield: { key: 'hpShield', potency: 1, shieldHp: 1, expiresOn: 'turn' } }, {}, {}, {}]
+        });
+        debug.battleSetCombatRandom(0);
+        const state = debug.battlePass(1);
+        const event = state.battle.events.at(-1);
+        return {
+          damage: event.damages[0].damage,
+          cover: event.effects.find((entry) => entry.kind === 'guardianCover')
+        };
+      };
+      const runLightning = (damageBonus, paralysisChance) => {
+        const sword = { id: `lightning-sword-${damageBonus}`, kind: 'minor', suit: 'Sword', number: 2 };
+        debug.battleScenario({
+          withTrick: false,
+          turnIndex: 0,
+          enemyHp: 5000,
+          enemyMaxHp: 5000,
+          enemyDefense: 0,
+          handsBySeat: [[sword, { id: `lightning-reserve-${damageBonus}`, kind: 'minor', suit: 'Cup', number: 9 }]],
+          charactersBySeat: [{ version: 4, tarotDeck: [{ slot: 0, suit: 'Sword', rank: 2, cardLevel: 1, resonanceId: 'sword-2' }] }],
+          rules: { arcanaLoadoutEffectsVersion: 7 }
+        });
+        debug.battleSetEffects({
+          enemy: {}, party: {}, players: [{ lightningBlade: { key: 'lightningBlade', damageBonus, paralysisChance, charges: 1, expiresOn: 'action' } }, {}, {}, {}]
+        });
+        debug.battleSetCombatRandom(0.75);
+        const state = debug.battlePlayCards(0, [sword.id], { resolve: false }).state;
+        const effect = state.battle.events.at(-1).effects.find((entry) => entry.source === 'resonance' && entry.resonanceId === 'sword-2');
+        return { amount: effect?.amount, paralysis: effect?.paralysis?.success };
+      };
+      const runShaman = (cardLevel) => {
+        const wand = { id: `shaman-wand-${cardLevel}`, kind: 'minor', suit: 'Wand', number: 6 };
+        debug.battleScenario({
+          tableCard: { id: `shaman-field-${cardLevel}`, kind: 'minor', suit: 'Wand', number: 5 },
+          turnIndex: 0,
+          enemyHp: 5000,
+          enemyMaxHp: 5000,
+          handsBySeat: [[wand, { id: `shaman-reserve-${cardLevel}`, kind: 'minor', suit: 'Cup', number: 9 }]],
+          combatBySeat: [{ weaponType: 'gun', weaponTypes: ['gun'], intelligence: 100 }],
+          charactersBySeat: [{
+            version: 4,
+            guardianArcana: { number: 1, cardLevel, passiveId: 'guardian-v7-1' },
+            tarotDeck: [{ slot: 0, suit: 'Wand', rank: 6, cardLevel: 1, resonanceId: 'wand-6' }]
+          }],
+          guardianState: [{ v3: { counters: { statusAttempts: 5 }, used: {} } }],
+          rules: { arcanaLoadoutEffectsVersion: 7 }
+        });
+        debug.battleSetCombatRandom(0);
+        const state = debug.battlePlayCards(0, [wand.id], { resolve: false }).state;
+        const status = state.battle.events.at(-1).effects.find((entry) => entry.source === 'weapon' && entry.kind === 'status');
+        return {
+          chance: status?.chance,
+          vulnerability: state.battle.effects.enemy.vulnerable?.potency,
+          appliedVulnerability: status?.guardianVulnerability?.potency
+        };
+      };
+      const runResonance = (guardianNumber, cardLevel) => {
+        const sword = { id: `resonance-${guardianNumber}-sword-${cardLevel}`, kind: 'minor', suit: 'Sword', number: 2 };
+        const wand = { id: `resonance-${guardianNumber}-wand-${cardLevel}`, kind: 'minor', suit: 'Wand', number: 2 };
+        const cards = guardianNumber === 10 ? [sword, wand] : [sword];
+        debug.battleScenario({
+          withTrick: false,
+          reverse: guardianNumber === 11,
+          turnIndex: 0,
+          enemyHp: 5000,
+          enemyMaxHp: 5000,
+          enemyDefense: 0,
+          handsBySeat: [[...cards, { id: `resonance-reserve-${guardianNumber}-${cardLevel}`, kind: 'minor', suit: 'Cup', number: 9 }]],
+          charactersBySeat: [{
+            version: 4,
+            guardianArcana: { number: guardianNumber, cardLevel, passiveId: `guardian-v7-${guardianNumber}` },
+            tarotDeck: cards.map((card, slot) => ({ slot, suit: card.suit, rank: card.number, cardLevel: 1 }))
+          }],
+          rules: { arcanaLoadoutEffectsVersion: 7 }
+        });
+        const state = debug.battlePlayCards(0, cards.map((card) => card.id), { resolve: false }).state;
+        return state.battle.events.at(-1).effects.filter((entry) => entry.source === 'resonance');
+      };
+      return {
+        fighterLv1: runFighter(1),
+        fighterLv25: runFighter(25),
+        coverLv1: runGuardianCover(1),
+        coverLv25: runGuardianCover(25),
+        lightningLv1: runLightning(20, 0.5),
+        lightningLv25: runLightning(100, 1),
+        shamanLv1: runShaman(1),
+        shamanLv25: runShaman(25),
+        scholarLv1: runResonance(11, 1),
+        scholarLv25: runResonance(11, 25),
+        gamblerLv25: runResonance(10, 25)
+      };
+    }, { combatBySeat: zeroDefenseParty });
+
+    expect(audit.fighterLv1).toMatchObject({ counterMultiplier: 1 });
+    expect(audit.fighterLv25).toMatchObject({ counterMultiplier: 2.5 });
+    expect(audit.fighterLv25.amount).toBeGreaterThan(audit.fighterLv1.amount);
+    expect(audit.coverLv1.cover).toMatchObject({ potency: 10 });
+    expect(audit.coverLv25.cover).toMatchObject({ potency: 65 });
+    expect(audit.coverLv25.damage).toBeLessThan(audit.coverLv1.damage);
+    expect(audit.lightningLv25.amount).toBeGreaterThan(audit.lightningLv1.amount);
+    expect(audit.lightningLv1.paralysis).toBe(false);
+    expect(audit.lightningLv25.paralysis).toBe(true);
+    expect(audit.shamanLv25.chance - audit.shamanLv1.chance).toBeCloseTo(0.2, 5);
+    expect(audit.shamanLv1).toMatchObject({ vulnerability: 25, appliedVulnerability: 25 });
+    expect(audit.shamanLv25).toMatchObject({ vulnerability: 25, appliedVulnerability: 25 });
+    expect(audit.scholarLv1[0]).toMatchObject({ numericMultiplier: 1.5 });
+    expect(audit.scholarLv25[0]).toMatchObject({ numericMultiplier: 3 });
+    expect(audit.scholarLv25[0].amount).toBe(audit.scholarLv1[0].amount * 2);
+    const gamblerSword = audit.gamblerLv25.filter((entry) => entry.resonanceId === 'sword-2');
+    expect(gamblerSword).toHaveLength(2);
+    expect(gamblerSword.find((entry) => entry.gamblerReplay)).toMatchObject({ numericMultiplier: 2.5 });
+    expect(gamblerSword.find((entry) => entry.gamblerReplay).amount).toBe(
+      Math.round(gamblerSword.find((entry) => !entry.gamblerReplay).amount * 2.5)
+    );
+  });
+
   test('five-card roles use distinct single and stage-wide attack ranges', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
@@ -2839,7 +3080,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.judgmentHp[2]).toBeGreaterThan(0);
     expect(audit.judgmentEffects).toHaveLength(1);
     expect(audit.judgmentEffects[0]).toMatchObject({
-      label: '司祭',
+      label: 'ビショップ',
       targetIndex: 2
     });
   });
@@ -3098,7 +3339,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
           guardian: played.players[0]?.character?.guardianArcana,
           hp: played.players[1].hp,
           guardianState: played.battle.guardianState,
-          effects: (played.battle.events.at(-1)?.effects || []).filter((effect) => effect.label === '司祭')
+          effects: (played.battle.events.at(-1)?.effects || []).filter((effect) => effect.label === 'ビショップ')
         };
       };
       const first = runActivation('first');

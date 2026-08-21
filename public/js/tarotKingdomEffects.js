@@ -47,7 +47,7 @@ const NEGATIVE_STATUS_PRIORITY = Object.freeze([
     'silence', 'blind', 'fear', 'confusion', 'wet', 'slow', 'weaken', 'vulnerable'
 ]);
 
-const TAROT_KINGDOM_ARCANA_CACHE_VERSION = '20260815-balance-v7';
+const TAROT_KINGDOM_ARCANA_CACHE_VERSION = '20260821-guardian-job-names-v1';
 const TAROT_KINGDOM_ARCANA_LOAD_ATTEMPTS = 3;
 
 function validateTarotKingdomArcanaEffects(data, fileName) {
@@ -572,7 +572,7 @@ function createResonanceStep(kind, label, extras = {}) {
 }
 
 export function getTarotKingdomCardLevelScale(level) {
-    return 1 + (Math.max(1, Math.floor(finiteNumber(level, 1))) - 1) * 0.02;
+    return 1 + (Math.max(1, Math.floor(finiteNumber(level, 1))) - 1) * 0.05;
 }
 
 function getContextLivingPlayerIndexes(context = {}) {
@@ -1050,6 +1050,12 @@ function getApScaledNumber(entry, value, cap = Infinity) {
     )));
 }
 
+function getApLevelRange(entry, start, end, maxLevel = 15) {
+    const level = Math.max(1, Math.min(maxLevel, Math.floor(finiteNumber(entry?.cardLevel, 1))));
+    const progress = (level - 1) / Math.max(1, maxLevel - 1);
+    return Math.round(finiteNumber(start, 0) + ((finiteNumber(end, 0) - finiteNumber(start, 0)) * progress));
+}
+
 function getApEffectBucket(context, targetType, targetIndex = null) {
     const effects = context.effects || {};
     if (targetType === 'enemy') return effects.enemy || {};
@@ -1094,9 +1100,14 @@ function expandTarotKingdomApResonance(entry, context = {}, allocation = 1) {
             score: percent
         }));
     };
-    const addShield = (targetIndex, percent) => {
+    const getApCardNumber = (value, cap = Infinity, levelRange = null) => (
+        Array.isArray(levelRange)
+            ? getApLevelRange(entry, levelRange[0], levelRange[1])
+            : getApScaledNumber(entry, value, cap)
+    );
+    const addShield = (targetIndex, percent, levelRange = null) => {
         if (!Number.isInteger(targetIndex)) return;
-        const scaledPercent = getApScaledNumber(entry, percent, entry.apCost === 'all' ? 100 : 40);
+        const scaledPercent = getApCardNumber(percent, entry.apCost === 'all' ? 100 : 40, levelRange);
         const player = context.players?.[targetIndex];
         if (!player) return;
         const shieldHp = Math.max(1, Math.floor(finiteNumber(player.maxHp, 1) * scaledPercent / 100));
@@ -1109,20 +1120,22 @@ function expandTarotKingdomApResonance(entry, context = {}, allocation = 1) {
         }));
     };
     const addBuff = (targetType, targetIndex, statusKey, potency, turns = 0, charges = 0, extras = {}) => {
-        const scaledPotency = getApScaledNumber(entry, potency, 100);
+        const { levelRange = null, ...stepExtras } = extras;
+        const scaledPotency = getApCardNumber(potency, 100, levelRange);
         if (!isApEffectUpgrade(context, targetType, targetIndex, statusKey, scaledPotency, turns, charges)) return;
         steps.push(createResonanceStep('buff', label, {
             targetType, targetIndex, statusKey, potency: scaledPotency,
-            ...(turns > 0 ? { turns } : {}), ...(charges > 0 ? { charges } : {}), ...extras,
+            ...(turns > 0 ? { turns } : {}), ...(charges > 0 ? { charges } : {}), ...stepExtras,
             score: scaledPotency
         }));
     };
     const addStatus = (statusKey, potency, turns = 0, charges = 0, extras = {}) => {
-        const scaledPotency = getApScaledNumber(entry, potency, 100);
+        const { levelRange = null, ...stepExtras } = extras;
+        const scaledPotency = getApCardNumber(potency, 100, levelRange);
         if (!enemyAlive || !isApEffectUpgrade(context, 'enemy', null, statusKey, scaledPotency, turns, charges)) return;
         steps.push(createResonanceStep('status', label, {
             targetType: 'enemy', statusKey, potency: scaledPotency, chance: 1,
-            ...(turns > 0 ? { turns } : {}), ...(charges > 0 ? { charges } : {}), ...extras,
+            ...(turns > 0 ? { turns } : {}), ...(charges > 0 ? { charges } : {}), ...stepExtras,
             score: scaledPotency
         }));
     };
@@ -1134,10 +1147,11 @@ function expandTarotKingdomApResonance(entry, context = {}, allocation = 1) {
         }));
     };
     const cleanseTarget = (targetIndex, all = false) => {
-        if (!Number.isInteger(targetIndex) || !hasApNegativeEffect(getApEffectBucket(context, 'player', targetIndex))) return;
+        if (!Number.isInteger(targetIndex) || !hasApNegativeEffect(getApEffectBucket(context, 'player', targetIndex))) return false;
         steps.push(createResonanceStep(all ? 'cleanse-all' : 'cleanse', label, {
             targetType: 'player', targetIndex, score: all ? 30 : 15
         }));
+        return true;
     };
 
     if (id === 'cup-1') addHeal(lowest, 10 * Math.max(1, allocation));
@@ -1149,7 +1163,9 @@ function expandTarotKingdomApResonance(entry, context = {}, allocation = 1) {
         addHeal(actorIndex, 8);
         addHeal(lowestOther, 8);
     } else if (id === 'cup-4') living.forEach((index) => addHeal(index, 5));
-    else if (id === 'cup-5') living.forEach((index) => cleanseTarget(index));
+    else if (id === 'cup-5') living.forEach((index) => {
+        if (cleanseTarget(index)) addShield(index, 5, [5, 15]);
+    });
     else if (id === 'cup-6') addBuff('player', lowest, 'regen', 6, 3);
     else if (id === 'cup-7') {
         addStatus('wet', 20, 2);
@@ -1195,8 +1211,13 @@ function expandTarotKingdomApResonance(entry, context = {}, allocation = 1) {
     else if (id === 'pentacle-3') addStatus('slow', 20, 2);
     else if (id === 'pentacle-4') addStatus('blind', 25, 2);
     else if (id === 'pentacle-5') addStatus('vulnerable', 25, 0, 1);
-    else if (id === 'pentacle-6') addStatus('sleep', 100);
-    else if (id === 'pentacle-7') addStatus('paralysis', 100, 0, 1);
+    else if (id === 'pentacle-6') {
+        addStatus('sleep', 100);
+        addStatus('vulnerable', 10, 0, 1, { levelRange: [10, 25] });
+    } else if (id === 'pentacle-7') {
+        addStatus('paralysis', 100, 0, 1);
+        addBuff('enemy', null, 'attackDown', 10, 2, 0, { levelRange: [10, 25] });
+    }
     else if (id === 'pentacle-8') addStatus('confusion', 50, 0, 2);
     else if (id === 'pentacle-9') {
         const buffKeys = ['hpShield', 'defenseUp', 'damageBarrier', 'powerUp', 'intelligenceUp', 'speedUp'];
@@ -1208,8 +1229,13 @@ function expandTarotKingdomApResonance(entry, context = {}, allocation = 1) {
         if (Number.isInteger(lowestOther)) addBuff('party', lowestOther, 'cover', 35, 0, 1, { coverIndex: actorIndex });
         else addShield(actorIndex, 15);
     } else if (id === 'pentacle-12') addBuff('party', null, 'damageBarrier', 25, 2);
-    else if (id === 'pentacle-13') addStatus('petrify', 100, 0, 0, { untilClear: true });
-    else if (id === 'pentacle-14') living.forEach((index) => addBuff('player', index, 'decoy', 100, 0, 1));
+    else if (id === 'pentacle-13') {
+        addStatus('petrify', 100, 0, 0, { untilClear: true });
+        addStatus('vulnerable', 10, 0, 1, { levelRange: [10, 25] });
+    } else if (id === 'pentacle-14') living.forEach((index) => {
+        addBuff('player', index, 'decoy', 100, 0, 1);
+        addShield(index, 5, [5, 15]);
+    });
 
     else if (id === 'sword-1') addDamage('damage', 22, { element: 'wind', ignoreDefense: 0.25, aceUncapped: true });
     else if (id === 'sword-2') addDamage('damage', 26, { element: 'wind', hitCount: 2 });
@@ -1263,15 +1289,21 @@ function expandTarotKingdomApResonance(entry, context = {}, allocation = 1) {
         steps.push(createResonanceStep('status', label, {
             targetType: 'enemy', statusKey: 'burn', potencyFromPreviousRate: 0.2, chance: 1, charges: 2, score: 20
         }));
-    } else if (id === 'wand-6') steps.push(createResonanceStep('ap-gain', label, { targetType: 'player', targetIndex: actorIndex, amount: 2, score: 20 }));
+    } else if (id === 'wand-6') steps.push(createResonanceStep('ap-gain', label, {
+        targetType: 'player', targetIndex: actorIndex, amount: getApLevelRange(entry, 2, 5), score: 20
+    }));
     else if (id === 'wand-7') addDamage('magic', 44, { element: 'fire', targetScope: 'stage' });
     else if (id === 'wand-8') addDamage('magic', 50, { element: 'fire', ignoreDefense: 0.5 });
     else if (id === 'wand-9') {
         addDamage('magic', 36, { element: 'fire' });
         addStatus('blind', 30, 2);
     } else if (id === 'wand-10') {
-        steps.push(createResonanceStep('ap-gain', label, { targetType: 'player', targetIndex: actorIndex, amount: 3, score: 30 }));
-        steps.push(createResonanceStep('recoil-percent', label, { targetType: 'player', targetIndex: actorIndex, percent: 10, nonLethal: true, score: 1 }));
+        steps.push(createResonanceStep('ap-gain', label, {
+            targetType: 'player', targetIndex: actorIndex, amount: getApLevelRange(entry, 3, 6), score: 30
+        }));
+        steps.push(createResonanceStep('recoil-percent', label, {
+            targetType: 'player', targetIndex: actorIndex, percent: getApLevelRange(entry, 10, 5), nonLethal: true, score: 1
+        }));
     } else if (id === 'wand-11') {
         addBuff('player', actorIndex, 'fireEnchant', 35, 0, 2);
         addBuff('player', actorIndex, 'magicDamageUp', 35, 2);
@@ -1353,6 +1385,21 @@ export function resolveTarotKingdomResonance(context = {}) {
         normalizeTarotKingdomGuardian(context.character?.guardianArcana)?.number
         ?? context.guardianNumber
     );
+    const guardianCardLevel = Math.max(1, Math.min(25, Math.floor(finiteNumber(
+        normalizeTarotKingdomGuardian(context.character?.guardianArcana)?.cardLevel,
+        1
+    ))));
+    const guardianLevelValue = (start, end) => (
+        finiteNumber(start, 0) + ((finiteNumber(end, 0) - finiteNumber(start, 0)) * ((guardianCardLevel - 1) / 24))
+    );
+    const scholarNumericMultiplier = effectsVersion >= 7
+        && guardianNumber === 11
+        && context.reverseBefore === true
+        ? guardianLevelValue(1.5, 3)
+        : 1;
+    const gamblerReplayMultiplier = effectsVersion >= 7 && guardianNumber === 10
+        ? guardianLevelValue(1, 2.5)
+        : 1;
     const submittedCards = Array.isArray(context.cards) ? context.cards : [];
     const gamblerPair = effectsVersion >= 7
         && guardianNumber === 10
@@ -1436,18 +1483,22 @@ export function resolveTarotKingdomResonance(context = {}) {
         skillName: activatedCandidates.map((candidate) => candidate.skillName).join('・'),
         skillNames: activatedCandidates.map((candidate) => candidate.skillName),
         steps: activatedCandidates.flatMap((candidate) => {
-            const decorate = (step, gamblerReplay = false) => ({
-                ...step,
-                cardId: candidate.cardId,
-                resonanceId: candidate.resonanceId,
-                skillName: candidate.skillName,
-                apBefore: gamblerReplay ? candidate.apAfterFirst : candidate.apBefore,
-                apCost: gamblerReplay ? 0 : candidate.apCost,
-                apAllocation: candidate.apAllocation,
-                apGain: candidate.baseApGain,
-                apAfter: gamblerReplay ? candidate.apAfter : candidate.apAfterFirst,
-                ...(gamblerReplay ? { gamblerReplay: true } : {})
-            });
+            const decorate = (step, gamblerReplay = false) => {
+                const numericMultiplier = gamblerReplay ? gamblerReplayMultiplier : scholarNumericMultiplier;
+                return {
+                    ...step,
+                    cardId: candidate.cardId,
+                    resonanceId: candidate.resonanceId,
+                    skillName: candidate.skillName,
+                    apBefore: gamblerReplay ? candidate.apAfterFirst : candidate.apBefore,
+                    apCost: gamblerReplay ? 0 : candidate.apCost,
+                    apAllocation: candidate.apAllocation,
+                    apGain: candidate.baseApGain,
+                    apAfter: gamblerReplay ? candidate.apAfter : candidate.apAfterFirst,
+                    ...(numericMultiplier > 1 ? { numericMultiplier } : {}),
+                    ...(gamblerReplay ? { gamblerReplay: true } : {})
+                };
+            };
             const normalSteps = candidate.steps.map((step) => decorate(step));
             const replaySteps = candidate.gamblerReplay
                 ? candidate.steps.map((step) => decorate(step, true))

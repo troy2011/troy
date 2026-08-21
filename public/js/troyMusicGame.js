@@ -34,6 +34,7 @@ const SKIP_REASON_LABELS = {
 const state = {
     mode: 'sabikara_free',
     difficulty: 'easy',
+    drawCount: 1,
     songs: [],
     manifest: null,
     exclusions: [],
@@ -42,6 +43,7 @@ const state = {
     guests: loadSessionList(GUEST_STORAGE_KEY),
     queue: loadLocalList(QUEUE_STORAGE_KEY),
     selectedSong: null,
+    drawnSongChoices: [],
     selectedParticipant: null,
     scoreInput: '',
     quizOutcome: '',
@@ -242,9 +244,9 @@ function songsForDifficulty(songs) {
     });
 }
 
-function pickRandomSong() {
+function buildDrawPools() {
     const songs = songsForDifficulty(state.songs.filter(Boolean));
-    if (!songs.length) return null;
+    if (!songs.length) return [];
     const confirmed = activeResults();
     const recentSongNumbers = [...new Set(confirmed.slice(0, RECENT_LIMIT).map((result) => String(result.songNumber || '')).filter(Boolean))];
     const recentArtists = [...new Set(confirmed.slice(0, RECENT_ARTIST_LIMIT).map((result) => String(result.artist || '')).filter(Boolean))];
@@ -255,7 +257,23 @@ function pickRandomSong() {
     const recentCandidates = withoutRecentSongs.length ? withoutRecentSongs : baseCandidates;
     const withoutRecentArtists = recentCandidates.filter((song) => !recentArtists.includes(song.artist));
     const candidates = withoutRecentArtists.length ? withoutRecentArtists : recentCandidates;
-    return candidates[Math.floor(Math.random() * candidates.length)] || null;
+    return [candidates, recentCandidates, baseCandidates, songs];
+}
+
+function pickRandomSongs(count) {
+    const selected = [];
+    const selectedSongNumbers = new Set();
+    const requestedCount = Math.max(1, Math.min(5, Number.parseInt(count, 10) || 1));
+    buildDrawPools().forEach((source) => {
+        const pool = source.filter((song) => !selectedSongNumbers.has(song.songNumber));
+        while (pool.length && selected.length < requestedCount) {
+            const index = Math.floor(Math.random() * pool.length);
+            const [song] = pool.splice(index, 1);
+            selectedSongNumbers.add(song.songNumber);
+            selected.push(song);
+        }
+    });
+    return selected;
 }
 
 function canDrawSong() {
@@ -274,6 +292,7 @@ function canSaveResult() {
 
 function clearRound({ nextCompetitiveCandidate = false } = {}) {
     state.selectedSong = null;
+    state.drawnSongChoices = [];
     state.scoreInput = '';
     state.quizOutcome = '';
     state.answerVisible = false;
@@ -314,26 +333,66 @@ function changeDifficulty(nextDifficulty) {
     render();
 }
 
+function changeDrawCount(nextDrawCount) {
+    const drawCount = Number.parseInt(nextDrawCount, 10);
+    if (![1, 3, 5].includes(drawCount) || drawCount === state.drawCount) return;
+    const hasProgress = state.selectedSong || state.drawnSongChoices.length || state.selectedParticipant || state.scoreInput || state.quizOutcome;
+    if (hasProgress && !window.confirm('現在のゲーム内容を破棄して抽選数を変更しますか？')) {
+        render();
+        return;
+    }
+    state.drawCount = drawCount;
+    clearRound({ nextCompetitiveCandidate: state.mode === 'sabikara_competitive' });
+    setMessage(`一度に${drawCount}曲を抽選します。`);
+    render();
+}
+
+function selectDrawnSong(song) {
+    state.selectedSong = song;
+    state.drawnSongChoices = [];
+    state.scoreInput = '';
+    state.quizOutcome = '';
+    state.answerVisible = state.mode !== 'intro_quiz';
+    state.pendingResultId = '';
+    state.saved = false;
+}
+
+function chooseDrawnSong(songNumber) {
+    const song = state.drawnSongChoices.find((entry) => entry.songNumber === songNumber);
+    if (!song) return;
+    selectDrawnSong(song);
+    setMessage(`「${song.title}」を歌う曲に選びました。`);
+    render();
+}
+
 function drawSong() {
     if (!canDrawSong()) {
         setMessage('真剣勝負では、先に挑戦者を選択してください。', true);
         render();
         return;
     }
-    const song = pickRandomSong();
-    if (!song) {
+    const songs = pickRandomSongs(state.drawCount);
+    if (!songs.length) {
         setMessage(`${DIFFICULTY_LABELS[state.difficulty]}に該当する曲がありません。難易度または最新データを確認してください。`, true);
         render();
         return;
     }
-    state.selectedSong = song;
-    state.scoreInput = '';
-    state.quizOutcome = '';
-    state.answerVisible = state.mode !== 'intro_quiz';
-    state.pendingResultId = '';
-    state.saved = false;
-    if (!state.roundDrawnSongNumbers.includes(song.songNumber)) state.roundDrawnSongNumbers.push(song.songNumber);
-    setMessage(state.mode === 'intro_quiz' ? '問題曲を抽選しました。答えはスタッフだけが確認できます。' : '曲を抽選しました。');
+    songs.forEach((song) => {
+        if (!state.roundDrawnSongNumbers.includes(song.songNumber)) state.roundDrawnSongNumbers.push(song.songNumber);
+    });
+    if (songs.length === 1) {
+        selectDrawnSong(songs[0]);
+        setMessage(state.mode === 'intro_quiz' ? '問題曲を抽選しました。答えはスタッフだけが確認できます。' : '曲を抽選しました。');
+    } else {
+        state.selectedSong = null;
+        state.drawnSongChoices = songs;
+        state.scoreInput = '';
+        state.quizOutcome = '';
+        state.answerVisible = false;
+        state.pendingResultId = '';
+        state.saved = false;
+        setMessage(`${songs.length}曲を抽選しました。歌う曲を選んでください。`);
+    }
     render();
 }
 
@@ -585,6 +644,14 @@ function renderParticipantStats() {
 
 function renderSong() {
     const song = state.selectedSong;
+    if (!song && state.drawnSongChoices.length) {
+        return `<div class="troy-music-game-song is-hidden-answer">
+            <div class="troy-music-game-section-kicker">SONG CHOICES</div>
+            <strong>${state.drawnSongChoices.length}曲から歌う曲を選択してください</strong>
+            <span class="troy-music-game-small-note">選択後に参加者と結果を入力できます。</span>
+            <div class="troy-music-game-choice-list">${state.drawnSongChoices.map((choice) => `<button type="button" data-action="choose-drawn-song" data-song-number="${escapeHtml(choice.songNumber)}"><strong>${escapeHtml(choice.title)}</strong><br><small>${escapeHtml(choice.artist)}${choice.popularityRank ? ` / 人気 ${escapeHtml(choice.popularityRank)}位` : ''}</small></button>`).join('')}</div>
+        </div>`;
+    }
     if (!song) return '<div class="troy-music-game-song"><span class="troy-music-game-song-empty">曲を抽選すると、ここに曲名・歌手・JOYSOUND曲番号を表示します。</span></div>';
     if (state.mode === 'intro_quiz' && !state.answerVisible) {
         return `<div class="troy-music-game-song is-hidden-answer">
@@ -676,7 +743,7 @@ function render() {
     const manifest = state.manifest || {};
     const selectedSong = state.selectedSong;
     const selectionDisabled = !canSelectParticipant() || state.saved || state.saving;
-    const drawText = selectedSong ? '別の曲を引く' : (state.mode === 'intro_quiz' ? '🎲 問題曲を抽選する' : '🎲 曲を抽選する');
+    const drawText = selectedSong || state.drawnSongChoices.length ? '別の候補を抽選する' : (state.mode === 'intro_quiz' ? '🎲 問題曲を抽選する' : '🎲 曲を抽選する');
     const lastResult = activeResults()[0];
     const popularityRanksAvailable = hasPopularityRanks();
     const catalogWarnings = [];
@@ -714,6 +781,10 @@ function render() {
                 <section class="troy-music-game-main-column">
                     <section class="troy-music-game-panel troy-music-game-play-panel">
                     <div class="troy-music-game-panel-body">
+                        <div class="troy-music-game-field">
+                            <span>一度に抽選する曲数</span>
+                            <div class="troy-music-game-choice-list">${[1, 3, 5].map((count) => `<button type="button" data-action="set-draw-count" data-draw-count="${count}" class="${state.drawCount === count ? 'is-selected' : ''}" aria-pressed="${state.drawCount === count}">${count}曲</button>`).join('')}</div>
+                        </div>
                         <div class="troy-music-game-draw-row"><button type="button" data-action="draw-song" class="troy-music-game-primary troy-music-game-draw-button" ${canDrawSong() ? '' : 'disabled'}>${drawText}</button></div>
                         ${renderSong()}
                         <div class="troy-music-game-field">
@@ -811,6 +882,8 @@ function bindEvents() {
         if (action === 'draw-song') drawSong();
         if (action === 'set-mode') changeMode(button.dataset.mode || '');
         if (action === 'set-difficulty') changeDifficulty(button.dataset.difficulty || '');
+        if (action === 'set-draw-count') changeDrawCount(button.dataset.drawCount || '');
+        if (action === 'choose-drawn-song') chooseDrawnSong(button.dataset.songNumber || '');
         if (action === 'skip-song') void skipSong();
         if (action === 'exclude-song') void excludeSelectedSong();
         if (action === 'show-answer') {

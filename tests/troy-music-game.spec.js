@@ -133,6 +133,22 @@ test('difficulty uses cumulative JOYSOUND popularity ranks', async ({ page }) =>
   await expect(page.getByText('人気 200位')).toBeVisible();
 });
 
+test('three-song draw requires selecting one candidate before recording a result', async ({ page }) => {
+  const state = { results: [], savedPayloads: [], skips: [] };
+  await installMusicGameRoutes(page, state);
+  await page.goto('/troy-music-game.html', { waitUntil: 'domcontentloaded' });
+
+  await page.getByRole('button', { name: '難しい（全曲）' }).click();
+  await page.getByRole('button', { name: '3曲', exact: true }).click();
+  await page.getByRole('button', { name: '🎲 曲を抽選する' }).click();
+  await expect(page.getByText('3曲から歌う曲を選択してください')).toBeVisible();
+  await expect(page.locator('[data-action="choose-drawn-song"]')).toHaveCount(3);
+  await expect(page.locator('#troyMusicGameParticipant')).toBeDisabled();
+
+  await page.locator('[data-action="choose-drawn-song"]').first().click();
+  await expect(page.locator('#troyMusicGameParticipant')).toBeEnabled();
+});
+
 test('competitive mode requires the challenger before drawing and intro mode hides its answer', async ({ page }) => {
   const state = { results: [], savedPayloads: [], skips: [] };
   await installMusicGameRoutes(page, state);
