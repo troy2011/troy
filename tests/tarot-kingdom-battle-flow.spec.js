@@ -4132,12 +4132,13 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.roles.fourKingsAndFool).toMatchObject({ key: 'FiveKind', primary: [14] });
     expect(audit.roles.worldCallOk).toBe(true);
     expect(audit.roles.worldCallRole).toMatchObject({ key: 'TheWorld', baseRate: 3 });
-    expect(audit.roles.majorFlushCallOk).toBe(true);
-    expect(audit.roles.majorFlushCallValid).toBe(true);
-    expect(audit.roles.majorFlushCallRole).toMatchObject({ key: 'Flush' });
+    expect(audit.roles.majorFlushCall).toEqual({
+      ok: false,
+      reason: '大アルカナ場札は、ザ・ワールドのみコール可能です。'
+    });
     expect(audit.roles.invalidMajorCall).toEqual({
       ok: false,
-      reason: '大アルカナ場札は、大アルカナ5枚のフラッシュ系統かザ・ワールドのみコール可能です。'
+      reason: '大アルカナ場札は、ザ・ワールドのみコール可能です。'
     });
     expect(audit.roles.lockedCallWrongSuit.ok).toBe(false);
     expect(audit.roles.lockedCallWrongSuit.reason).toBe(

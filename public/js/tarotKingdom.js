@@ -16335,9 +16335,6 @@ function auditKingdomMajorArcanaRules() {
     suitTier: 0
   };
   const majorFlushCall = buildCallPlay(0, [0, 1, 2, 3]);
-  const majorFlushCallValidation = majorFlushCall.ok
-    ? validatePlay(majorFlushCall.play, 'call')
-    : majorFlushCall;
   buildTarotKingdomDebugBattleState({
     withTrick: false,
     handsBySeat: [[
@@ -16505,9 +16502,7 @@ function auditKingdomMajorArcanaRules() {
       fourKingsAndFool,
       worldCallOk: !!worldCall.ok,
       worldCallRole: worldCall.play?.role || null,
-      majorFlushCallOk: !!majorFlushCall.ok,
-      majorFlushCallValid: !!majorFlushCallValidation.ok,
-      majorFlushCallRole: majorFlushCall.play?.role || null,
+      majorFlushCall,
       invalidMajorCall,
       lockedCallWrongSuit,
       lockedCallSameSuit,
@@ -18070,12 +18065,9 @@ function buildCallPlay(pi, sel) {
   const lockSuit = s.lock?.suit || null;
   const suitLockViolation = getKingdomSuitLockViolation([base, ...cards]);
   if (suitLockViolation) return { ok: false, reason: suitLockViolation };
-  const roleCards = [base, ...cards];
-  const role = evalRole(roleCards, lockSuit);
-  const isAllMajorFlushRole = roleCards.every((card) => card?.kind === 'major')
-    && ['Flush', 'StraightFlush'].includes(String(role?.key || ''));
-  if (base.kind === 'major' && role?.key !== 'TheWorld' && !isAllMajorFlushRole) {
-    return { ok: false, reason: '大アルカナ場札は、大アルカナ5枚のフラッシュ系統かザ・ワールドのみコール可能です。' };
+  const role = evalRole([base, ...cards], lockSuit);
+  if (base.kind === 'major' && role?.key !== 'TheWorld') {
+    return { ok: false, reason: '大アルカナ場札は、ザ・ワールドのみコール可能です。' };
   }
   if (!role || role.strength < ROLE_ST.Straight) {
     return { ok: false, reason: 'コール成立しません。' };
@@ -18246,11 +18238,8 @@ function validatePlay(play, mode) {
   }
   if (mode === 'call') {
     const base = s.trick?.cardsTable?.[0];
-    const isAllMajorFlushRole = playCards.length === 5
-      && playCards.every((card) => card?.kind === 'major')
-      && ['Flush', 'StraightFlush'].includes(String(play?.role?.key || ''));
-    if (base?.kind === 'major' && play?.role?.key !== 'TheWorld' && !isAllMajorFlushRole) {
-      return { ok: false, reason: '大アルカナ場札は、大アルカナ5枚のフラッシュ系統かザ・ワールドのみコール可能です。' };
+    if (base?.kind === 'major' && play?.role?.key !== 'TheWorld') {
+      return { ok: false, reason: '大アルカナ場札は、ザ・ワールドのみコール可能です。' };
     }
     return (s.trick.type === 'set' && s.trick.count === 1) ? { ok: true } : { ok: false, reason: 'コール対象は1枚場札のみです。' };
   }
@@ -26602,7 +26591,7 @@ function ensureKingdomRulebookUi() {
             </div>
             <div class="tarot-kingdom-rulebook-note">
               <strong>コール</strong>
-              <span>場が1枚の時、その場札に手札4枚を加えて5枚役を作れます。大アルカナ場は、大アルカナ5枚のフラッシュ系統か「ザ・ワールド」をコールできます。</span>
+              <span>場が1枚の時、その場札に手札4枚を加えて5枚役を作れます。大アルカナ場は「ザ・ワールド」のみコール可能です。</span>
             </div>
             <div class="tarot-kingdom-rulebook-roles-samples">
               <h4>全7役のカード例</h4>
