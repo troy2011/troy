@@ -1404,25 +1404,25 @@ button.home-player-ship-name {
     border-radius: 6px;
     background:
         linear-gradient(180deg, rgba(8, 47, 73, 0.06) 0%, rgba(5, 12, 18, 0.1) 42%, rgba(6, 24, 36, 0.28) 100%),
-        url("./Sprites/background/sea.webp") center -50px / cover no-repeat;
+        url("./Sprites/background/sea-departure-v2.webp") center -50px / cover no-repeat;
 }
 
 .exploration-sequence-overlay.is-sky-mist .exploration-sequence-scene {
     background:
         linear-gradient(180deg, rgba(226, 232, 240, 0.2) 0%, rgba(100, 116, 139, 0.12) 42%, rgba(14, 116, 144, 0.18) 43%, rgba(15, 23, 42, 0.42) 100%),
-        url("./Sprites/background/sea.webp") center -50px / auto 150% no-repeat;
+        url("./Sprites/background/sea-departure-v2.webp") center -50px / auto 150% no-repeat;
 }
 
 .exploration-sequence-overlay.is-sky-deep .exploration-sequence-scene {
     background:
         linear-gradient(180deg, rgba(14, 165, 233, 0.08) 0%, rgba(12, 74, 110, 0.12) 42%, rgba(3, 105, 161, 0.2) 43%, rgba(8, 47, 73, 0.54) 100%),
-        url("./Sprites/background/sea.webp") center -50px / auto 150% no-repeat;
+        url("./Sprites/background/sea-departure-v2.webp") center -50px / auto 150% no-repeat;
 }
 
 .exploration-sequence-overlay.is-sky-storm .exploration-sequence-scene {
     background:
         linear-gradient(180deg, rgba(71, 85, 105, 0.34) 0%, rgba(30, 41, 59, 0.24) 42%, rgba(8, 47, 73, 0.34) 43%, rgba(15, 23, 42, 0.68) 100%),
-        url("./Sprites/background/sea.webp") center -50px / auto 150% no-repeat;
+        url("./Sprites/background/sea-departure-v2.webp") center -50px / auto 150% no-repeat;
 }
 
 .exploration-sequence-overlay.is-battle .exploration-sequence-scene,
@@ -1436,7 +1436,7 @@ button.home-player-ship-name {
     background:
         radial-gradient(ellipse at 50% 70%, rgba(250, 204, 21, 0.16), transparent 34%),
         linear-gradient(180deg, rgba(14, 165, 233, 0.06), rgba(8, 47, 73, 0.48)),
-        url("./Sprites/background/sea.webp") center center / cover no-repeat;
+        url("./Sprites/background/sea-return-v2.webp") center center / cover no-repeat;
 }
 
 .exploration-sequence-scene::before {
@@ -1816,7 +1816,7 @@ button.home-player-ship-name {
 }
 
 .exploration-sequence-overlay.is-voyage .exploration-sequence-island {
-    bottom: calc(50% - 36px);
+    bottom: calc(50% - 6px);
     animation: explorationSequenceIslandAtmosphere 2880ms ease-out forwards;
 }
 
@@ -4958,7 +4958,8 @@ button.home-player-ship-name {
     position: fixed;
     bottom: 8px;
     left: 8px;
-    width: calc(100% - 16px);
+    right: 8px;
+    width: auto;
     height: var(--nav-height);
     background: linear-gradient(180deg, rgba(12, 8, 5, 0.42), rgba(3, 3, 4, 0.82)),
         repeating-linear-gradient(90deg, rgba(108, 64, 28, 0.18) 0 30px, rgba(23, 12, 6, 0.14) 30px 60px);
@@ -4970,10 +4971,9 @@ button.home-player-ship-name {
     z-index: 900;
     padding-bottom: env(safe-area-inset-bottom);
     opacity: 0;
-    transform: translateY(calc(100% + 12px));
+    visibility: hidden;
     pointer-events: none;
-    transition: transform 460ms cubic-bezier(0.22, 1.2, 0.36, 1), opacity 280ms ease;
-    will-change: transform, opacity;
+    transition: opacity 280ms ease, visibility 0s linear 280ms;
     gap: 5px;
     padding: 8px max(8px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right));
     border-radius: 24px;
@@ -4986,8 +4986,9 @@ button.home-player-ship-name {
 
 body.tabs-ready #bottomNav {
     opacity: 1;
-    transform: translateY(0);
+    visibility: visible;
     pointer-events: auto;
+    transition: opacity 280ms ease, visibility 0s;
 }
 
 .nav-button {
@@ -17494,7 +17495,7 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 body.home-exploration-popup-open #bottomNav {
     z-index: 10070;
     opacity: 1;
-    transform: translateY(0);
+    visibility: visible;
     pointer-events: auto;
 }
 
@@ -33391,6 +33392,18 @@ body[data-sea-tone] .home-hero-card {
     border-radius: 999px;
     background: var(--tarot-suit-line);
     box-shadow: 0 0 7px var(--tarot-suit-glow);
+}
+
+#tabContentInventory .tarot-loadout-grid.is-replacement-target-picker .tarot-loadout-card.is-replacement-target {
+    z-index: 2;
+    box-shadow: 0 0 0 1px rgba(255, 235, 166, 0.76), 0 0 8px var(--tarot-suit-glow);
+    filter: brightness(1.12);
+}
+
+#tabContentInventory .tarot-loadout-grid.is-replacement-target-picker .tarot-loadout-card.is-replacement-target:hover,
+#tabContentInventory .tarot-loadout-grid.is-replacement-target-picker .tarot-loadout-card.is-replacement-target:focus-visible {
+    translate: 0 -4px;
+    filter: brightness(1.22);
 }
 
 #tabContentInventory .tarot-loadout-grid.is-busy {

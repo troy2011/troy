@@ -100,6 +100,7 @@ let tarotBattleSkillsLoaded = false;
 let selectedTarotLoadoutItemId = '';
 let tarotLoadoutMutationPending = false;
 let tarotDeckReplacementTargetItemId = '';
+let tarotDeckReplacementCandidateItemId = '';
 let arcanaResonanceCatalogReturnFocusElement = null;
 let visibleInventoryDetailItems = [];
 let itemDetailSwipeStart = null;
@@ -989,6 +990,25 @@ function clearTarotDeckReplacementTarget() {
     tarotDeckReplacementTargetItemId = '';
 }
 
+function getTarotDeckReplacementCandidateItemId() {
+    const itemId = String(tarotDeckReplacementCandidateItemId || '').trim();
+    const item = myInventory.find((entry) => String(entry?.itemId || '') === itemId);
+    return item
+        && isTarotMinorCategory(getCanonicalTarotCategory(item?.customData?.Category))
+        && !getCommonTarotDeck().includes(itemId)
+        ? itemId
+        : '';
+}
+
+function clearTarotDeckReplacementCandidate() {
+    tarotDeckReplacementCandidateItemId = '';
+}
+
+function clearTarotDeckReplacementState() {
+    clearTarotDeckReplacementTarget();
+    clearTarotDeckReplacementCandidate();
+}
+
 function getCommonTarotRole() {
     return myMeleeRole || myShipRole || null;
 }
@@ -1024,6 +1044,7 @@ function applyTarotDeckData(deckData) {
     myShipMajorArcana = myTarotGuardian?.itemId ? [String(myTarotGuardian.itemId)] : [];
     myShipMajorArcanaLimit = 1;
     if (!getTarotDeckReplacementTargetItemId()) clearTarotDeckReplacementTarget();
+    if (!getTarotDeckReplacementCandidateItemId()) clearTarotDeckReplacementCandidate();
 }
 
 function setTarotLoadoutMutationPending(isPending) {
@@ -1197,14 +1218,34 @@ function normalizeSelectedTarotLoadout(deckItemIds) {
     return selectedTarotLoadoutItemId;
 }
 
+function updateTarotDeckGridSelection(gridEl, selectedItemId) {
+    if (!gridEl) return;
+    gridEl.querySelectorAll('.tarot-loadout-card.is-equipped').forEach((cell) => {
+        const isSelected = String(cell.dataset.tarotItemId || '') === selectedItemId;
+        cell.classList.toggle('is-selected', isSelected);
+        cell.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+    });
+}
+
 function renderDeckGrid(gridEl, deckItemIds) {
     if (!gridEl) return;
     const MAX_SLOTS = 5;
     const filledCount = Math.min(deckItemIds.length, MAX_SLOTS);
     const selectedItemId = normalizeSelectedTarotLoadout(deckItemIds);
+    const replacementCandidateItemId = getTarotDeckReplacementCandidateItemId();
+    const replacementCandidate = replacementCandidateItemId
+        ? myInventory.find((item) => String(item?.itemId || '') === replacementCandidateItemId)
+        : null;
     gridEl.dataset.deckCount = String(filledCount);
     gridEl.dataset.deckComplete = filledCount >= MAX_SLOTS ? 'true' : 'false';
-    gridEl.setAttribute('aria-label', `タロットデッキ ${filledCount}/${MAX_SLOTS}`);
+    gridEl.classList.toggle('is-replacement-target-picker', Boolean(replacementCandidate));
+    if (replacementCandidate) {
+        gridEl.dataset.replacementCandidate = replacementCandidateItemId;
+        gridEl.setAttribute('aria-label', `${replacementCandidate.name || '選択したカード'}と入れ替えるデッキのカードを選択`);
+    } else {
+        delete gridEl.dataset.replacementCandidate;
+        gridEl.setAttribute('aria-label', `タロットデッキ ${filledCount}/${MAX_SLOTS}`);
+    }
     const cells = [];
     for (let i = 0; i < MAX_SLOTS; i++) {
         const itemId = deckItemIds[i] || null;
@@ -1218,16 +1259,25 @@ function renderDeckGrid(gridEl, deckItemIds) {
         cell.setAttribute('aria-label', `タロットデッキ ${i + 1}枚目`);
         if (item) {
             cell.classList.add('is-equipped');
+            cell.dataset.tarotItemId = itemId;
             const entry = buildDeckCardEntry(item, itemId);
             if (entry.isArcana) cell.classList.add('is-arcana');
             cell.dataset.suit = entry.suitKey || 'none';
             cell.title = entry.title;
             cell.classList.toggle('is-selected', itemId === selectedItemId);
-            cell.setAttribute('aria-label', `${entry.title}の共鳴効果を表示`);
+            cell.classList.toggle('is-replacement-target', Boolean(replacementCandidate));
+            cell.setAttribute('aria-label', replacementCandidate
+                ? `${entry.title}を${replacementCandidate.name || '選択したカード'}と入れ替える`
+                : `${entry.title}の共鳴効果を表示`);
             cell.setAttribute('aria-pressed', itemId === selectedItemId ? 'true' : 'false');
             cell.addEventListener('click', () => {
+                if (replacementCandidateItemId) {
+                    replaceTarotCardInDeck(window.myPlayFabId || null, itemId, replacementCandidateItemId);
+                    return;
+                }
+                if (selectedTarotLoadoutItemId === itemId) return;
                 selectedTarotLoadoutItemId = itemId;
-                renderDeckGrid(gridEl, getCommonTarotDeck());
+                updateTarotDeckGridSelection(gridEl, itemId);
                 renderTarotDeckEffectList(document.getElementById('meleeDeckEffectList'), getCommonTarotDeck());
             });
             cell.append(createTarotLoadoutVisual(entry));
@@ -1300,6 +1350,7 @@ function openTarotDeckCandidateList(category, options = {}) {
     const replacementTargetItemId = category === 'TarotMinor'
         ? String(options.replacementTargetItemId || '').trim()
         : '';
+    clearTarotDeckReplacementCandidate();
     tarotDeckReplacementTargetItemId = replacementTargetItemId;
     switchInventoryTab(category);
     requestAnimationFrame(() => {
@@ -1324,6 +1375,24 @@ function openTarotDeckReplacementList(itemId) {
         return;
     }
     openTarotDeckCandidateList('TarotMinor', { replacementTargetItemId: targetItemId });
+}
+
+function openTarotDeckReplacementTargetPicker(itemId) {
+    const candidateItemId = String(itemId || '').trim();
+    const candidate = myInventory.find((item) => String(item?.itemId || '') === candidateItemId);
+    if (!candidate || isCardInTarotDeck(candidateItemId) || getCommonTarotDeck().length < 5) {
+        return;
+    }
+    clearTarotDeckReplacementTarget();
+    tarotDeckReplacementCandidateItemId = candidateItemId;
+    closeItemDetailModal();
+    switchInventoryPanel('tarot', { preserveScroll: true });
+    renderTarotDeckPanels();
+    updateInventoryTabHint(activeInventoryCategory);
+    requestAnimationFrame(() => {
+        document.getElementById('meleeDeckGrid')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        showInventoryFeedback(`「${candidate.name || '選択したカード'}」と入れ替えるカードをデッキから選んでください。`);
+    });
 }
 
 function findInventoryTarotCard(definition, type) {
@@ -1705,6 +1774,11 @@ function getInventoryTabHint(category) {
         if (targetItemId) {
             const targetItem = myInventory.find((item) => String(item?.itemId || '') === targetItemId);
             return `「${targetItem?.name || '選択したカード'}」と入れ替えるカードを選んでください。`;
+        }
+        const candidateItemId = getTarotDeckReplacementCandidateItemId();
+        if (candidateItemId) {
+            const candidateItem = myInventory.find((item) => String(item?.itemId || '') === candidateItemId);
+            return `「${candidateItem?.name || '選択したカード'}」と入れ替えるカードを共鳴デッキから選んでください。`;
         }
         return '小アルカナは5枚までデッキに編成できます。';
     }
@@ -3427,7 +3501,7 @@ async function replaceTarotCardInDeck(playFabId, replacedCardItemId, itemId) {
     );
     if (data?.ok) {
         applyTarotDeckData(data);
-        clearTarotDeckReplacementTarget();
+        clearTarotDeckReplacementState();
         selectedTarotLoadoutItemId = String(itemId || '').trim();
         renderTarotDeckPanels();
         updateInventoryTabHint(activeInventoryCategory);
@@ -3671,7 +3745,7 @@ async function buyBlackMarketListing(listingId, price) {
 
 export function switchInventoryTab(category) {
     activeInventoryCategory = category || 'All';
-    if (activeInventoryCategory !== 'TarotMinor') clearTarotDeckReplacementTarget();
+    if (activeInventoryCategory !== 'TarotMinor') clearTarotDeckReplacementState();
     activeInventoryGroup = getInventoryGroupForCategory(activeInventoryCategory);
     switchInventoryPanel(activeInventoryGroup === 'Tarot' ? 'tarot' : 'items', { preserveScroll: true });
     renderInventoryTabControls();
@@ -3686,7 +3760,7 @@ export function switchInventoryGroup(group, options = {}) {
     if (currentGroup !== activeInventoryGroup) {
         activeInventoryCategory = getDefaultInventoryCategory(activeInventoryGroup);
     }
-    if (activeInventoryCategory !== 'TarotMinor') clearTarotDeckReplacementTarget();
+    if (activeInventoryCategory !== 'TarotMinor') clearTarotDeckReplacementState();
     const targetPanel = options.panel || (activeInventoryGroup === 'Tarot' ? 'tarot' : 'items');
     switchInventoryPanel(targetPanel, { preserveScroll: true });
     renderInventoryTabControls();
@@ -4634,7 +4708,7 @@ function showItemDetailModal(item) {
         } else if (getCommonTarotDeck().length < 5) {
             addAction('デッキに追加', 'equip', () => equipTarotCardToDeck(playFabId, equipItemId, 'tarot'));
         } else {
-            addAction('タロットデッキ満杯', 'disabled', null, { disabled: true });
+            addAction('デッキと入れ替え', 'equip', () => openTarotDeckReplacementTargetPicker(equipItemId));
         }
     } else if (cd.Category === 'Consumable') {
         addAction('使う', 'use', () => useItem(playFabId, instanceId, item.itemId));

@@ -291,6 +291,34 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     expect(audit.cleared.battle.pendingWorldTimeStop).toBeUndefined();
   });
 
+  test('The World call keeps time stop after call cleanup and cancels the next enemy attack', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const played = debug.battleDemoRoleFormation('call:TheWorld');
+      const afterCall = debug.battleResolveTransition();
+      const hpBeforePasses = afterCall.players.map((player) => player.hp);
+      debug.battlePass(1);
+      debug.battlePass(2);
+      const cleared = debug.battlePass(3);
+      const stopEvent = cleared.battle.events.findLast((event) => (
+        event.type === 'enemy-status' && event.attackKind === 'area'
+      ));
+      return { played, afterCall, hpBeforePasses, cleared, stopEvent };
+    });
+
+    expect(audit.played).toMatchObject({ ok: true, error: '' });
+    expect(audit.afterCall.battle.effects.enemy.timeStop).toMatchObject({
+      remainingTurns: 2,
+      expiresOn: 'turn',
+      source: 'role-TheWorld'
+    });
+    expect(audit.stopEvent).toMatchObject({
+      attackStopped: true,
+      effects: [expect.objectContaining({ kind: 'skip', statusKey: 'timeStop' })]
+    });
+    expect(audit.cleared.players.map((player) => player.hp)).toEqual(audit.hpBeforePasses);
+  });
+
   test('regen gives the player a pale green aura and shows the recovered amount on clear', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     const active = await page.evaluate(() => {

@@ -8779,6 +8779,20 @@ function applyKingdomWorldRoleTimeStop(playerIndex, role) {
   };
 }
 
+function restoreKingdomPendingWorldTimeStop(pending = null) {
+  const resolved = pending && typeof pending === 'object'
+    ? pending
+    : s?.battle?.pendingWorldTimeStop;
+  if (!resolved || !s?.battle) return null;
+  return setKingdomMajorTimedEffect('enemy', 'timeStop', {
+    potency: 100,
+    remainingTurns: Math.max(1, Number(resolved.remainingTurns) || 2),
+    sourceIndex: Number(resolved.sourceIndex),
+    source: String(resolved.source || 'major-21'),
+    label: '時間停止'
+  });
+}
+
 function cleanseKingdomMajorNegativeEffects(playerIndex) {
   const bucket = getKingdomEffectBucket('player', playerIndex);
   if (!bucket) return [];
@@ -18788,15 +18802,7 @@ function clearTrick(leader, options = {}) {
   }
   clearKingdomBattleEffects();
   if (s?.battle) delete s.battle.pendingWorldTimeStop;
-  if (pendingWorldTimeStop) {
-    setKingdomMajorTimedEffect('enemy', 'timeStop', {
-      potency: 100,
-      remainingTurns: Math.max(1, Number(pendingWorldTimeStop.remainingTurns) || 2),
-      sourceIndex: Number(pendingWorldTimeStop.sourceIndex),
-      source: String(pendingWorldTimeStop.source || 'major-21'),
-      label: '時間停止'
-    });
-  }
+  if (pendingWorldTimeStop) restoreKingdomPendingWorldTimeStop(pendingWorldTimeStop);
   s.pass = s.players.map(() => false);
   s.fold = s.players.map(() => false);
   resetKingdomNpcPassCounts();
@@ -19594,6 +19600,10 @@ function continueAfterPlay(pi, play) {
   if (!playToken && (s.lastPlay !== play || s.trick !== play)) return;
   const p = s.players[pi];
   if (play?.type === 'role' && play?.call) {
+    const pendingWorldTimeStop = String(play?.role?.key || '') === 'TheWorld'
+      && s?.battle?.pendingWorldTimeStop
+      ? { ...s.battle.pendingWorldTimeStop }
+      : null;
     // コール成立後は場にかかっている一時効果を解除し、局内永続だけを残す。
     s.callOnly = false; // 8カット（コール猶予）
     s.lock = null; // 14ロック / 節制ロック
@@ -19603,6 +19613,7 @@ function continueAfterPlay(pi, play) {
       s.battle.enemy.areaAttackSealedUntilClear = false;
     }
     purgeKingdomBattleEffects({ preserveRound: true });
+    if (pendingWorldTimeStop) restoreKingdomPendingWorldTimeStop(pendingWorldTimeStop);
   }
   captureKingdomRaidDamage(pi);
   if (isKingdomRaidDisguisePhase() && Number(s?.battle?.enemy?.hp) <= 0) {

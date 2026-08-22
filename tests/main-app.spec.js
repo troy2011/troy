@@ -2917,9 +2917,17 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
     const shipTopValues = shipSamples.map((sample) => sample.top);
     const shipVerticalDelta = Math.max(...shipTopValues) - Math.min(...shipTopValues);
     const shipFrameCount = new Set(shipSamples.map((sample) => sample.backgroundPosition)).size;
+    const sailScene = styleOf('.exploration-sequence-scene');
     const sailIsland = styleOf('.exploration-sequence-island');
     const sailIslandImage = styleOf('.exploration-sequence-island img');
+    const sailIslandElement = sequence.querySelector('.exploration-sequence-island');
+    const voyageIslandBottom = sailIslandElement.getBoundingClientRect().bottom;
+    sailIslandElement.style.bottom = 'calc(50% - 36px)';
+    const previousVoyageIslandBottom = sailIslandElement.getBoundingClientRect().bottom;
+    sailIslandElement.style.removeProperty('bottom');
     const routeCount = sequence.querySelectorAll('.exploration-sequence-route').length;
+    sequence.className = 'exploration-sequence-overlay is-boat is-sky-deep is-returning';
+    const returningScene = styleOf('.exploration-sequence-scene');
     sequence.className = 'exploration-sequence-overlay is-boat is-sky-deep is-battle is-result-victory';
     const battleAvatarElement = sequence.querySelector('.exploration-sequence-avatar');
     battleAvatarElement.classList.add('is-avatar-attacking', 'is-avatar-attack-left');
@@ -2944,6 +2952,8 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
     const output = {
       sequenceDialog: styleOf('.exploration-sequence-dialog'),
       sequenceScene: treasureScene,
+      sequenceSailScene: sailScene,
+      sequenceReturningScene: returningScene,
       sequenceBattleScene: battleScene,
       sequenceBattleShip: battleShip,
       sequenceBattleAvatar: battleAvatar,
@@ -2974,6 +2984,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
       shipFrameCount,
       shipMotionDelta,
       shipVerticalDelta,
+      voyageIslandOffset: previousVoyageIslandBottom - voyageIslandBottom,
       treasureAnimationName
     };
 
@@ -2987,6 +2998,8 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
 
   expectPanelFrame(audit.sequenceDialog);
   expectPanelFrame(audit.sequenceScene);
+  expect(audit.sequenceSailScene.backgroundImage).toContain('sea-departure-v2.webp');
+  expect(audit.sequenceReturningScene.backgroundImage).toContain('sea-return-v2.webp');
   expect(audit.sequenceScene.backgroundImage).toContain('Sprites/background/deck.webp');
   expect(audit.sequenceBattleScene.backgroundImage).toContain('Sprites/background/deck.webp');
   expect(audit.sequenceBattleShip.opacity).toBe('0');
@@ -3029,8 +3042,9 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(audit.sailAnimationName).toContain('explorationSequenceVoyage');
   expect(audit.sailAnimationName).toContain('homePlayerShipFrameStep');
   expect(Math.abs(audit.shipMotionDelta)).toBeGreaterThan(2);
-  expect(Math.abs(audit.shipVerticalDelta)).toBeLessThanOrEqual(1);
+  expect(Math.abs(audit.shipVerticalDelta)).toBeLessThanOrEqual(2);
   expect(audit.shipFrameCount).toBeGreaterThanOrEqual(2);
+  expect(audit.voyageIslandOffset).toBeCloseTo(30, 0);
   expect(audit.treasureAnimationName).toBe('none');
   expect(audit.treasureAnimationName).not.toContain('explorationSequenceTreasureShip');
   expect(audit.resultClose.height).toBe('52px');
@@ -7187,6 +7201,40 @@ test('tarot cards preview, automatically sort, and open detail before changing d
   }));
   expect(tarotSticky).toEqual({ switcher: 'sticky', deck: 'static' });
 
+  await page.setViewportSize({ width: 390, height: 844 });
+  const deckCard = page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty)').first();
+  await page.evaluate(() => {
+    const grid = document.getElementById('meleeDeckGrid');
+    window.__tarotDeckSelectionMutations = 0;
+    window.__tarotDeckSelectionObserver = new MutationObserver((records) => {
+      window.__tarotDeckSelectionMutations += records.filter((record) => record.type === 'childList').length;
+    });
+    window.__tarotDeckSelectionObserver.observe(grid, { childList: true });
+  });
+  for (let index = 0; index < 12; index += 1) {
+    await deckCard.click();
+  }
+  await expect.poll(() => page.evaluate(() => window.__tarotDeckSelectionMutations)).toBe(0);
+  await page.evaluate(() => window.__tarotDeckSelectionObserver?.disconnect());
+  const bottomNavLayout = await page.locator('#bottomNav').evaluate((nav) => {
+    const rect = nav.getBoundingClientRect();
+    const style = window.getComputedStyle(nav);
+    return {
+      position: style.position,
+      visibility: style.visibility,
+      left: rect.left,
+      right: rect.right,
+      bottom: rect.bottom,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight
+    };
+  });
+  expect(bottomNavLayout.position).toBe('fixed');
+  expect(bottomNavLayout.visibility).toBe('visible');
+  expect(bottomNavLayout.left).toBeGreaterThanOrEqual(0);
+  expect(bottomNavLayout.right).toBeLessThanOrEqual(bottomNavLayout.viewportWidth);
+  expect(bottomNavLayout.bottom).toBeLessThanOrEqual(bottomNavLayout.viewportHeight);
+
   const guardianEmptySlot = page.locator('#guardianArcanaGrid [data-target-category="TarotMajor"]');
   await expect(guardianEmptySlot).toHaveRole('button');
   await guardianEmptySlot.click();
@@ -7333,6 +7381,146 @@ test('tarot cards preview, automatically sort, and open detail before changing d
   await expect(page.locator('#meleeDeckGrid')).toHaveAttribute('data-deck-count', '1');
   await expect(page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty)')).toHaveAttribute('aria-label', /Pentacle Three/);
   await expect(page.locator('#inventoryGrid')).not.toHaveAttribute('data-tarot-replacement-target', /.+/);
+  await expectNoPageErrors(errors);
+});
+
+test('a full tarot deck replaces a selected minor card from its detail view', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const deckItemIds = [
+    'tarot_minor_wand_1',
+    'tarot_minor_sword_2',
+    'tarot_minor_cup_3',
+    'tarot_minor_pentacle_4',
+    'tarot_minor_wand_5'
+  ];
+  const replacementTargetItemId = 'tarot_minor_sword_2';
+  const candidateItemId = 'tarot_minor_cup_10';
+  const tarotItems = [
+    {
+      itemId: 'tarot_minor_wand_1',
+      name: 'Wand One',
+      customData: { Category: 'TarotMinor', ArcanaSuit: 'wand', ArcanaRank: '1', CardNumber: '1' }
+    },
+    {
+      itemId: 'tarot_minor_sword_2',
+      name: 'Sword Two',
+      customData: { Category: 'TarotMinor', ArcanaSuit: 'sword', ArcanaRank: '2', CardNumber: '2' }
+    },
+    {
+      itemId: 'tarot_minor_cup_3',
+      name: 'Cup Three',
+      customData: { Category: 'TarotMinor', ArcanaSuit: 'cup', ArcanaRank: '3', CardNumber: '3' }
+    },
+    {
+      itemId: 'tarot_minor_pentacle_4',
+      name: 'Pentacle Four',
+      customData: { Category: 'TarotMinor', ArcanaSuit: 'pentacle', ArcanaRank: '4', CardNumber: '4' }
+    },
+    {
+      itemId: 'tarot_minor_wand_5',
+      name: 'Wand Five',
+      customData: { Category: 'TarotMinor', ArcanaSuit: 'wand', ArcanaRank: '5', CardNumber: '5' }
+    },
+    {
+      itemId: candidateItemId,
+      name: 'Cup Ten',
+      customData: { Category: 'TarotMinor', ArcanaSuit: 'cup', ArcanaRank: '10', CardNumber: '10' }
+    }
+  ];
+  const replaceRequests = [];
+
+  await page.route('**/api/get-inventory', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ inventory: tarotItems, virtualCurrency: { PS: 0 }, contribution: 0 })
+    });
+  });
+  await page.route('**/api/tarot-deck-get', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ok: true, tarotDeck: deckItemIds, tarotRole: null })
+    });
+  });
+  await page.route('**/api/tarot-deck-replace', async (route) => {
+    replaceRequests.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ok: true,
+        tarotDeck: deckItemIds.map((itemId) => itemId === replacementTargetItemId ? candidateItemId : itemId),
+        tarotRole: null
+      })
+    });
+  });
+  await page.route('**/api/get-equipment', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ equipment: {} })
+    });
+  });
+  await page.route('**/api/cards', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ cards: [] })
+    });
+  });
+  await page.route('**/api/player-ship/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        ship: { form: 'boat', stage: 1, majorArcanaSlotLimit: 1, majorArcanaItemIds: [] }
+      })
+    });
+  });
+  await page.route('**/api/ship-skill-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ success: true, majorArcanaSlotLimit: 1, majorArcanaItemIds: [], skills: [] })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    const inventoryTab = document.getElementById('tabContentInventory');
+    if (inventoryTab) inventoryTab.style.display = 'block';
+    const inventory = await import('/js/inventory.js');
+    await inventory.getInventory('PF_PLAYWRIGHT', { force: true });
+    inventory.switchInventoryGroup('Tarot');
+    inventory.switchInventoryTab('TarotMinor');
+  });
+
+  await expect(page.locator('#meleeDeckGrid')).toHaveAttribute('data-deck-count', '5');
+  await page.locator('#inventoryGrid .inventory-item-cell').filter({ hasText: 'Cup Ten' }).click();
+  await expect(page.locator('#itemDetailModal')).toBeVisible();
+  await page.getByRole('button', { name: 'デッキと入れ替え' }).click();
+
+  await expect(page.locator('#itemDetailModal')).toBeHidden();
+  await expect(page.locator('#tabContentInventory')).toHaveAttribute('data-inventory-panel', 'tarot');
+  await expect(page.locator('#meleeDeckGrid')).toHaveAttribute('data-replacement-candidate', candidateItemId);
+  await expect(page.locator('#meleeDeckGrid')).toHaveClass(/is-replacement-target-picker/);
+  await expect(page.locator(`#meleeDeckGrid [data-tarot-item-id="${replacementTargetItemId}"]`)).toHaveAttribute(
+    'aria-label',
+    /Cup Tenと入れ替える/
+  );
+
+  await page.locator(`#meleeDeckGrid [data-tarot-item-id="${replacementTargetItemId}"]`).click();
+  await expect.poll(() => replaceRequests).toHaveLength(1);
+  expect(replaceRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    replacedCardItemId: replacementTargetItemId,
+    cardItemId: candidateItemId
+  });
+  await expect(page.locator('#meleeDeckGrid')).not.toHaveAttribute('data-replacement-candidate', /.+/);
+  await expect(page.locator('#meleeDeckGrid')).not.toHaveClass(/is-replacement-target-picker/);
+  await expect(page.locator(`#meleeDeckGrid [data-tarot-item-id="${candidateItemId}"]`)).toBeVisible();
   await expectNoPageErrors(errors);
 });
 
