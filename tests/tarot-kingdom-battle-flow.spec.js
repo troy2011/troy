@@ -47,6 +47,54 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.finalPass.transition).toMatchObject({ kind: 'enemyResponse', eventSeqs: [1, 2] });
   });
 
+  test('the untouched opening field card prevents monster attacks until a player submits a card', async ({ page }) => {
+    const audit = await page.evaluate(({ combatBySeat }) => {
+      const debug = window.TarotKingdomDebug;
+      const realOpening = debug.battleSetupHandWithOpening(20);
+      debug.battleScenario({
+        openingField: true,
+        turnIndex: 1,
+        leaderIndex: 0,
+        hpBySeat: [100, 100, 100, 100],
+        combatBySeat
+      });
+      const openingPasses = [
+        debug.battlePass(1),
+        debug.battlePass(2),
+        debug.battlePass(3)
+      ];
+
+      const responseCard = { id: 'opening-response-3', kind: 'minor', suit: 'Wand', number: 3 };
+      debug.battleScenario({
+        openingField: true,
+        turnIndex: 1,
+        leaderIndex: 0,
+        tableCard: { id: 'opening-field-2', kind: 'minor', suit: 'Wand', number: 2 },
+        handsBySeat: [[], [
+          responseCard,
+          { id: 'opening-response-keep', kind: 'minor', suit: 'Cup', number: 4 }
+        ]],
+        hpBySeat: [100, 100, 100, 100],
+        enemyDefense: 10000,
+        combatBySeat
+      });
+      const afterPlay = debug.battlePlayCards(1, [responseCard.id], { resolve: true }).state;
+      const afterNormalPass = debug.battlePass(2);
+      return { realOpening, openingPasses, afterPlay, afterNormalPass };
+    }, { combatBySeat: zeroDefenseParty });
+
+    expect(audit.realOpening.openingFieldAttackProtection).toBe(true);
+    expect(audit.realOpening.trick?.cardsTable).toHaveLength(1);
+    const afterOpeningClear = audit.openingPasses.at(-1);
+    expect(afterOpeningClear.trick).toBeNull();
+    expect(afterOpeningClear.openingFieldAttackProtection).toBe(false);
+    expect(afterOpeningClear.players.map((player) => player.hp)).toEqual([100, 100, 100, 100]);
+    expect(afterOpeningClear.battle.events.filter((event) => event.type.startsWith('enemy-'))).toEqual([]);
+    expect(audit.afterPlay.openingFieldAttackProtection).toBe(false);
+    expect(audit.afterNormalPass.battle.events.filter((event) => event.type === 'enemy-single')).toHaveLength(1);
+    expect(audit.afterNormalPass.players[2].hp).toBe(73);
+  });
+
   test('stage 1 unlocks five-card roles in 1-3 and calls in 1-4 for humans and NPCs', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
@@ -4169,7 +4217,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.majorSuitGate.differentSuit).toMatchObject({ ok: false, setPower: 16 });
     expect(audit.majorSuitGate.differentSuit.reason).toContain('同じスート');
     expect(audit.majorSuitGate.ace).toMatchObject({ ok: false, setPower: 16 });
-    expect(audit.majorSuitGate.ace.reason).toContain('Aには');
+    expect(audit.majorSuitGate.ace.reason).toBe('Aの能力：大アルカナでは返せません。');
     expect(audit.majorSuitGate.pair).toMatchObject({ ok: false, setPower: 16 });
     expect(audit.majorSuitGate.pair.reason).toContain('1枚札');
     expect(audit.majorSuitGate.empty).toMatchObject({ ok: false, setPower: 16 });
@@ -4213,7 +4261,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.devil.locked.reason).toContain('14ロック中：カップのみ');
 
     expect(audit.judgment.onMinorAce.ok).toBe(false);
-    expect(audit.judgment.onMinorAce.reason).toContain('Aには');
+    expect(audit.judgment.onMinorAce.reason).toBe('Aの能力：大アルカナでは返せません。');
     expect(audit.judgment.onMagician.ok).toBe(true);
     expect(audit.judgment.finish.ok).toBe(true);
 
@@ -4327,7 +4375,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
     for (const number of [16, 17, 18, 19]) {
       expect(audit.descriptions[String(number)]).toContain('同スート場専用 / 初手不可');
     }
-    expect(audit.descriptions['20']).toContain('A不可 / 11バック / 墓地回収');
+    expect(audit.descriptions['20']).toContain('11バック / 墓地回収');
+    expect(audit.descriptions['20']).not.toContain('A不可');
     expect(audit.descriptions['21']).toContain('大アルカナ1枚に返して即クリア');
   });
 

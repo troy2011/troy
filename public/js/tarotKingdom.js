@@ -2334,24 +2334,25 @@ function getKingdomCardEffectDescription(card) {
       14: '14ロック解除',
       15: usesMajorSpecialRules ? 'コート専用 / 11バック無視' : '',
       16: usesMajorGateRules
-        ? (usesMajorSpecialRules ? '同スート場専用 / 初手不可' : 'ソード場限定（A・上がり不可）')
+        ? (usesMajorSpecialRules ? '同スート場専用 / 初手不可' : 'ソード場限定（上がり不可）')
         : '単騎時はソード14扱い',
       17: usesMajorGateRules
-        ? (usesMajorSpecialRules ? '同スート場専用 / 初手不可' : 'カップ場限定（A・上がり不可）')
+        ? (usesMajorSpecialRules ? '同スート場専用 / 初手不可' : 'カップ場限定（上がり不可）')
         : '単騎時はカップ14扱い',
       18: usesMajorGateRules
-        ? (usesMajorSpecialRules ? '同スート場専用 / 初手不可' : 'ペンタクル場限定（A・上がり不可）')
+        ? (usesMajorSpecialRules ? '同スート場専用 / 初手不可' : 'ペンタクル場限定（上がり不可）')
         : '単騎時はペンタクル14扱い',
       19: usesMajorGateRules
-        ? (usesMajorSpecialRules ? '同スート場専用 / 初手不可' : 'ワンド場限定（A・上がり不可）')
+        ? (usesMajorSpecialRules ? '同スート場専用 / 初手不可' : 'ワンド場限定（上がり不可）')
         : '単騎時はワンド14扱い',
       20: usesMajorSpecialRules
-        ? 'A不可 / 11バック / 墓地回収'
+        ? '11バック / 墓地回収'
         : '11バック / この場を流した人が墓地から小アルカナ1枚回収',
       21: usesMajorSpecialRules ? '大アルカナ1枚に返して即クリア（11バック中不可）' : '単騎でどんな場札にも返せる'
     };
     return majorEffectMap[n] || '';
   }
+  if (n === 1) return '通常時15 / 大アルカナでは返せない';
   if (n === 5) return '5スキップ';
   if (n === 8) return '8カット';
   if (n === 11) return '11バック';
@@ -2655,7 +2656,7 @@ function buildSelectedCardInfoMessage(playerIndex, selectedIndexes) {
     const name = getCardNameLabel(card);
     if (card?.kind === 'major' && Number(card?.number) === 20) {
       baseMessage = areKingdomMajorArcanaSpecialRulesEnabled()
-        ? '審判 / A不可・11バック・墓地回収'
+        ? '審判 / 11バック・墓地回収'
         : '審判：11バック＋流し手が小アルカナ1枚回収';
     } else {
       const effect = getKingdomCardEffectDescription(card);
@@ -12623,6 +12624,7 @@ function initState() {
     roundActive: false,
     openingIntroStage: '',
     openingPresentationCard: null,
+    openingFieldAttackProtection: false,
     openingDealRevealCount: 0,
     openingDealFlipIndex: -1,
     trick: null,
@@ -12732,6 +12734,7 @@ function clearRoundState() {
   s.drawFlipEndAt = 0;
   s.openingIntroStage = '';
   s.openingPresentationCard = null;
+  s.openingFieldAttackProtection = false;
   kingdomOpeningFieldCardFxKey = '';
   s.openingDealRevealCount = 0;
   s.openingDealFlipIndex = -1;
@@ -15982,6 +15985,8 @@ function buildTarotKingdomDebugBattleState(options = {}) {
     };
   }
 
+  s.openingPresentationCard = null;
+  s.openingFieldAttackProtection = false;
   if (options.withTrick === false) {
     s.trick = null;
     s.lastPlay = null;
@@ -15999,6 +16004,10 @@ function buildTarotKingdomDebugBattleState(options = {}) {
     };
     s.trick = openingPlay;
     s.lastPlay = openingPlay;
+    if (options.openingField === true) {
+      s.openingPresentationCard = { ...tableCard };
+      s.openingFieldAttackProtection = true;
+    }
   }
   s.message = '戦闘統合テスト';
   render();
@@ -17752,6 +17761,7 @@ function setupHand(options = {}) {
 
   const opening = tutorialSetup?.skipOpening ? null : s.drawDeck.pop();
   s.openingPresentationCard = opening ? { ...opening } : null;
+  s.openingFieldAttackProtection = !!opening;
   if (opening) {
     const openingOwner = tutorialSetup?.openingOwner ?? s.dealer;
     const openingSetNumber = (
@@ -17790,6 +17800,7 @@ function setupHand(options = {}) {
       }
       s.trick = null;
       s.lastPlay = null;
+      s.openingFieldAttackProtection = false;
       s.turn = 0;
       s.message = getKingdomTutorialPrompt();
       return;
@@ -18138,6 +18149,22 @@ function isSingleMajorSetPlay(play, number) {
   return play?.type === 'set' && cards.length === 1 && isMajorNumberCard(cards[0], number);
 }
 
+function getAceAbilityPlayViolation(play, mode) {
+  if (!areKingdomMajorArcanaSpecialV2RulesEnabled() || mode === 'call' || play?.type !== 'set') return null;
+  const played = Array.isArray(play?.cardsHand) ? play.cardsHand.filter(Boolean) : [];
+  if (!played.some((card) => card?.kind === 'major')) return null;
+  const fieldCards = Array.isArray(s.trick?.cardsTable) ? s.trick.cardsTable.filter(Boolean) : [];
+  if (
+    s.trick?.type === 'set'
+    && Number(s.trick?.count) === 1
+    && fieldCards.length === 1
+    && isMinorAceCard(fieldCards[0])
+  ) {
+    return 'Aの能力：大アルカナでは返せません。';
+  }
+  return null;
+}
+
 function getMajorSpecialPlayViolation(play, mode) {
   if (!areKingdomMajorArcanaSpecialRulesEnabled()) return null;
   if (mode === 'call' || play?.type !== 'set') return null;
@@ -18176,7 +18203,8 @@ function getMajorSpecialPlayViolation(play, mode) {
       return '悪魔15は小アルカナのコート札（P・N・Q・K）にだけ出せます。';
     }
   }
-  if (isSingleMajorSetPlay(play, 20)) {
+  // 現行ルールではA自身の能力として拒否する。旧ルールの対戦データだけ従来判定を残す。
+  if (!areKingdomMajorArcanaSpecialV2RulesEnabled() && isSingleMajorSetPlay(play, 20)) {
     const fieldCards = Array.isArray(s.trick?.cardsTable) ? s.trick.cardsTable.filter(Boolean) : [];
     if (
       s.trick?.type === 'set'
@@ -18217,7 +18245,8 @@ function getMajorSuitGateViolation(play, mode) {
     return '大アルカナ16〜19は場が1枚札のときだけ出せます。';
   }
   const fieldCard = fieldCards[0];
-  if (isMinorAceCard(fieldCard)) {
+  // 現行ルールではA自身の能力として拒否する。旧ルールの対戦データだけ従来判定を残す。
+  if (!areKingdomMajorArcanaSpecialV2RulesEnabled() && isMinorAceCard(fieldCard)) {
     return '大アルカナ16〜19はAには出せません。';
   }
   const requiredSuit = suitsForCard(gateCards[0], false).find((suit) => suit && suit !== 'None');
@@ -18231,6 +18260,8 @@ function getMajorSuitGateViolation(play, mode) {
 function validatePlay(play, mode) {
   const tutorialPlayGateViolation = getKingdomTutorialPlayGateViolation(play, mode);
   if (tutorialPlayGateViolation) return { ok: false, reason: tutorialPlayGateViolation };
+  const aceAbilityPlayViolation = getAceAbilityPlayViolation(play, mode);
+  if (aceAbilityPlayViolation) return { ok: false, reason: aceAbilityPlayViolation };
   const majorSuitGateViolation = getMajorSuitGateViolation(play, mode);
   if (majorSuitGateViolation) return { ok: false, reason: majorSuitGateViolation };
   const majorSpecialPlayViolation = getMajorSpecialPlayViolation(play, mode);
@@ -18793,6 +18824,7 @@ function clearTrick(leader, options = {}) {
   s.trickTransitionKind = 'clearSweep';
   s.trick = null;
   s.lastPlay = null;
+  s.openingFieldAttackProtection = false;
   s.trickActionHistory = [];
   s.lastTurnAction = null;
   if (s?.battle) s.battle.resonanceTriggers = [];
@@ -19940,6 +19972,7 @@ function applyPlay(pi, play, retryDepth = 0) {
   }
   if (!prevTrick) resetBlockedLeaderCycle();
   s.trick = play;
+  s.openingFieldAttackProtection = false;
   s.trickDefeatFx = pickTrickDefeatFx(play, prevTrick);
   s.trickTransitionKind = isCallPlay
     ? 'callSteal'
@@ -20045,6 +20078,12 @@ function isKingdomFiveCardRoleField() {
     && Number(s.trick?.count || s.trick?.cardsTable?.length || 0) === 5;
 }
 
+function isKingdomOpeningFieldAttackProtected() {
+  return s?.openingFieldAttackProtection === true
+    && s?.trick?.type === 'set'
+    && Number(s.trick?.count || s.trick?.cardsTable?.length || 0) === 1;
+}
+
 function passAction(pi, options = {}) {
   if (s?.transition) return;
   if (!isKingdomBattlePlayerConscious(pi)) {
@@ -20103,11 +20142,15 @@ function passAction(pi, options = {}) {
     }
   }
   const safeFiveCardPass = isKingdomFiveCardRoleField();
-  const suppressCounterAttack = safeFiveCardPass;
+  const safeOpeningFieldPass = isKingdomOpeningFieldAttackProtected();
+  const suppressCounterAttack = safeFiveCardPass || safeOpeningFieldPass;
   s.revision = Math.max(0, Number(s.revision) || 0) + 1;
   s.pass[pi] = true;
   const passLabel = continuedFold ? '防御継続' : (startedFold ? '防御' : 'パス');
-  log(`${pName(pi)}: ${passLabel}${safeFiveCardPass ? '（5枚役・反撃なし）' : ''}`);
+  const safePassReason = safeOpeningFieldPass
+    ? '（開始場札・反撃なし）'
+    : (safeFiveCardPass ? '（5枚役・反撃なし）' : '');
+  log(`${pName(pi)}: ${passLabel}${safePassReason}`);
   if (isLocalPlayer(pi)) s.selected.clear();
   triggerKingdomActionFx(pi, passLabel, { overlay: 'action', durationMs: 480, cutin: true });
   const actionStatusDamage = areKingdomStatusEffectsV1Enabled()
@@ -20202,9 +20245,9 @@ function passAction(pi, options = {}) {
   const leader = s.lastPlay?.owner;
   if (leader != null && allOthersPassed(leader)) {
     log('全員パスでクリア');
-    // 5枚役へのパスや防御継続で免除するのは単体反撃だけ。
-    // 全員が降りて場が流れる時の全体攻撃は、通常のターン終了攻撃として残す。
-    const areaAttackEvent = applyKingdomEnemyAreaAttack(leader);
+    // 開始場札が残っている間だけは、事故防止として単体反撃・全体攻撃の両方を免除する。
+    // 5枚役へのパスや防御継続では、従来どおり単体反撃だけを免除する。
+    const areaAttackEvent = safeOpeningFieldPass ? null : applyKingdomEnemyAreaAttack(leader);
     const areaDamageSource = resolveKingdomEnemyDefeatWinner(pi, [areaAttackEvent]);
     captureKingdomRaidDamage(areaDamageSource);
     if (isKingdomRaidDisguisePhase() && Number(s?.battle?.enemy?.hp) <= 0) {
@@ -26517,7 +26560,7 @@ function ensureKingdomRulebookUi() {
             </ol>
             <div class="tarot-kingdom-rulebook-alert">
               <strong>Aは通常時の最強札（15）</strong>
-              <span>数字1とは別物です。Aを1として使えるのは、A–2–3–4–5のストレートだけ。</span>
+              <span>数字1とは別物で、大アルカナでは返せません。Aを1として使えるのは、A–2–3–4–5のストレートだけ。</span>
             </div>
           </section>
 
@@ -26625,8 +26668,8 @@ function ensureKingdomRulebookUi() {
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(0, '愚者 0'))}<span>愚者 0</span></dt><dd>5枚役だけで数字ワイルド。単独ではスートになりませんが、大アルカナ5枚ならフラッシュ扱いです。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(1, '魔術師 I'))}<span>魔術師 I</span></dt><dd>数字1固定・オールスート。Aとは組にできません。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(15, '悪魔 XV'))}<span>悪魔 XV</span></dt><dd>小アルカナのコート札専用。11バックを無視して出せます。</dd></div>
-                <div><dt>${rulebookCardMarkup(rulebookMajorCard(16, '塔 XVI'))}<span>塔〜太陽 XVI–XIX</span></dt><dd>対応する同スートの1枚場専用。初手とAには出せません。</dd></div>
-                <div><dt>${rulebookCardMarkup(rulebookMajorCard(20, '審判 XX'))}<span>審判 XX</span></dt><dd>Aには出せません。11バックを切り替え、場を流すと墓地回収。</dd></div>
+                <div><dt>${rulebookCardMarkup(rulebookMajorCard(16, '塔 XVI'))}<span>塔〜太陽 XVI–XIX</span></dt><dd>対応する同スートの1枚場専用。初手には出せません。</dd></div>
+                <div><dt>${rulebookCardMarkup(rulebookMajorCard(20, '審判 XX'))}<span>審判 XX</span></dt><dd>11バックを切り替え、場を流すと墓地回収。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(21, '世界 XXI'))}<span>世界 XXI</span></dt><dd>大アルカナ1枚場へ返して即クリア。11バック中は使用不可。</dd></div>
               </dl>
             </div>
@@ -26638,7 +26681,7 @@ function ensureKingdomRulebookUi() {
             <div class="tarot-kingdom-rulebook-copy-grid">
               <div><h4>攻撃</h4><p>カードを合法に出すと攻撃。装備・能力値・カード共鳴が威力や追加効果へ反映されます。</p></div>
               <div><h4>役と召喚</h4><p>5枚役は通常攻撃より強力。役に応じて単体・全体攻撃となり、召喚獣が現れることもあります。</p></div>
-              <div><h4>パスと防御</h4><p>パス時は反撃を受ける場合があります。「防御」は場が流れるまで自動で守り、被害を抑えます。</p></div>
+              <div><h4>パスと防御</h4><p>通常のパスでは反撃を受ける場合があります。ただし局開始の公開札だけが場にある間は、反撃も全員パス時の全体攻撃もありません。「防御」は場が流れるまで自動で守り、被害を抑えます。</p></div>
               <div><h4>状態効果</h4><p>毒・リジェネ・能力変化などはアイコンで表示。戦闘画面の状態アイコンを押すと詳細を確認できます。</p></div>
             </div>
             <div class="tarot-kingdom-rulebook-note is-score">

@@ -287,7 +287,8 @@ test('rulebook explains the current rules and returns to the same battle on mobi
   await expect(rulebookButton).toHaveAttribute('aria-expanded', 'true');
   await expect(rulebook.getByRole('heading', { name: /タロットキングダム\s*ルールブック/ })).toBeVisible();
   await expect(rulebook.getByText('Aは通常時の最強札（15）')).toBeVisible();
-  await expect(rulebook.getByText('Aを1として使えるのは、A–2–3–4–5のストレートだけ。')).toBeVisible();
+  await expect(rulebook.getByText('数字1とは別物で、大アルカナでは返せません。Aを1として使えるのは、A–2–3–4–5のストレートだけ。')).toBeVisible();
+  await expect(rulebook.getByText('通常のパスでは反撃を受ける場合があります。ただし局開始の公開札だけが場にある間は、反撃も全員パス時の全体攻撃もありません。「防御」は場が流れるまで自動で守り、被害を抑えます。')).toBeVisible();
   await expect(rulebook.getByText('同じスート5枚、または世界なしの大アルカナ5枚')).toBeVisible();
   await expect(rulebook.locator('.tarot-kingdom-rulebook-table-wrap tbody tr')).toHaveCount(7);
   await expect(rulebook.locator('.tarot-kingdom-rulebook-card-image')).toHaveCount(49);
@@ -2931,7 +2932,7 @@ test('Judgment selection message is compact and fits the mobile frame', async ({
 
   await page.locator('#tarotKingdomHand > .tarot-card', { hasText: '審判' }).click();
   const selectedEffect = page.locator('#tarotKingdomSelectedEffectText');
-  await expect(selectedEffect).toHaveText('審判 / A不可・11バック・墓地回収');
+  await expect(selectedEffect).toHaveText('審判 / 11バック・墓地回収');
   await expect(selectedEffect).not.toContainText('選択:');
   const textFit = await selectedEffect.evaluate((element) => ({
     clientWidth: element.clientWidth,
@@ -3494,7 +3495,7 @@ test('major 15, 20 and 21 glow and explain errors using their schema 8 restricti
   await expect(judgment).not.toHaveClass(/is-playable/);
   await judgment.click();
   await page.locator('#tarotKingdomPlayButton').click();
-  await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText('審判20はAには出せません。');
+  await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText('Aの能力：大アルカナでは返せません。');
 
   await debugScenario({
     turnIndex: 0,
