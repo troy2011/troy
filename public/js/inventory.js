@@ -111,6 +111,7 @@ const INVENTORY_NEW_ITEM_STORAGE_PREFIX = 'troy:inventory-new-items:';
 const INVENTORY_NEW_ITEM_LIMIT = 120;
 let inventoryNewItemIds = new Set();
 let inventoryNewItemsStorageKey = '';
+let inventoryGridRefreshPending = false;
 
 function normalizeInventoryNewItemId(value) {
     return String(value || '').trim();
@@ -189,7 +190,7 @@ export function markInventoryItemsAsNew(items = []) {
 
     persistInventoryNewItemIds();
     if (typeof document !== 'undefined' && document.getElementById('inventoryGrid')) {
-        renderInventoryGrid(activeInventoryCategory);
+        requestPassiveInventoryGridRefresh();
     }
     return true;
 }
@@ -759,11 +760,28 @@ function showModal(modal) {
     syncModalLockState();
 }
 
+function isItemDetailModalOpen() {
+    const modal = document.getElementById('itemDetailModal');
+    return Boolean(modal && !modal.hidden && window.getComputedStyle(modal).display !== 'none');
+}
+
+function requestPassiveInventoryGridRefresh() {
+    if (isItemDetailModalOpen()) {
+        inventoryGridRefreshPending = true;
+        return;
+    }
+    renderInventoryGrid(activeInventoryCategory);
+}
+
 export function closeItemDetailModal() {
     itemDetailSwipeStart = null;
     const modal = document.getElementById('itemDetailModal');
     clearTarotLevelUpEffect(modal);
     hideModal(modal);
+    if (inventoryGridRefreshPending) {
+        inventoryGridRefreshPending = false;
+        renderInventoryGrid(activeInventoryCategory);
+    }
 }
 
 function updateItemDetailNavigation(item) {
@@ -3110,8 +3128,11 @@ function createInventoryCell(item, requestedCategory) {
             return;
         }
         const clearedNewState = clearInventoryItemNewState(itemId);
+        if (clearedNewState) {
+            cell.classList.remove('is-new');
+            cell.querySelector('.inventory-item-badge.is-new')?.remove();
+        }
         showItemDetailModal(item);
-        if (clearedNewState) renderInventoryGrid(activeInventoryCategory);
     });
     if (inventorySellSelectionMode) {
         const sellCheck = document.createElement('button');
@@ -3486,7 +3507,7 @@ export async function refreshResourceSummary(playFabId, options = {}) {
         preloadEquipmentSprites(myCurrentEquipment, myInventory, window.myAvatarBaseInfo?.AvatarColor);
         renderInventoryTabControls();
         updateInventorySortOptions(getActiveInventoryCategory());
-        renderInventoryGrid(getActiveInventoryCategory());
+        requestPassiveInventoryGridRefresh();
         updateExperienceUI();
         if (Array.isArray(data.inventory)) {
             renderAvatar('avatar', window.myAvatarBaseInfo, myCurrentEquipment, myInventory, false);
@@ -3918,7 +3939,7 @@ export function switchInventoryGroup(group, options = {}) {
         renderTarotDeckPanels();
     }
     if (group === 'Tarot' || group === 'All') {
-        loadCardLevels().then(() => renderInventoryGrid(activeInventoryCategory));
+        loadCardLevels().then(requestPassiveInventoryGridRefresh);
     }
 }
 
@@ -3926,6 +3947,7 @@ export function renderInventoryGrid(category) {
     const gridEl = document.getElementById('inventoryGrid');
     const layout = getInventoryLayout(category);
 
+    inventoryGridRefreshPending = false;
     gridEl.innerHTML = '';
     gridEl.dataset.layout = layout;
     gridEl.dataset.category = category || 'All';

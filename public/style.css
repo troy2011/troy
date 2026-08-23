@@ -1825,7 +1825,7 @@ button.home-player-ship-name {
 }
 
 .exploration-sequence-overlay.is-voyage .exploration-sequence-island {
-    bottom: calc(50% - 6px);
+    bottom: 50%;
     animation: explorationSequenceIslandAtmosphere 2880ms ease-out forwards;
 }
 

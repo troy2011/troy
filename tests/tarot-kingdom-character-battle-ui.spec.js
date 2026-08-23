@@ -305,7 +305,7 @@ test('rulebook explains the current rules and returns to the same battle on mobi
     await expect(rulebook.getByText('1枚ならコール猶予、2枚以上なら場を即クリア。敵も石化させます。')).toBeVisible();
     await expect(rulebook.getByText('小アルカナ12を1枚で通常の場流しにすると、残り手札から好きな1枚を除外。除外だけで手札0にはできません。')).toBeVisible();
     await expect(rulebook.getByText('13または14を場札と同じスートで出すと、そのスートだけに固定。節制XIVで解除します。')).toBeVisible();
-    await expect(rulebook.getByText('場が空のときだけ出せる。11バックを切り替え、場を流すと墓地回収。')).toBeVisible();
+    await expect(rulebook.getByText('1枚出しは場が空のときだけ出せる。5枚役ではこの制限を受けない。11バックを切り替え、場を流すと墓地回収。')).toBeVisible();
     await expect(rulebook.getByText('オフラインではプレイヤーが毎局の親です。オンラインでは素早さが最も高いプレイヤーが親になり、同値は座席順で決まります。局の勝者は次局の親を決めません。')).toBeVisible();
     await expect(rulebook.getByText('矢印の始点が、矢印の先のスートに勝ちます。')).toBeVisible();
   await expect(rulebook.locator('.tarot-kingdom-rulebook-suits-diagram')).toHaveAttribute(
@@ -3005,7 +3005,7 @@ test('Judgment selection message is compact and fits the mobile frame', async ({
 
   await page.locator('#tarotKingdomHand > .tarot-card', { hasText: '審判' }).click();
   const selectedEffect = page.locator('#tarotKingdomSelectedEffectText');
-  await expect(selectedEffect).toHaveText('審判 / 初手限定・11バック・墓地回収');
+  await expect(selectedEffect).toHaveText('審判 / 1枚出しは空場限定・11バック・墓地回収');
   await expect(selectedEffect).not.toContainText('選択:');
   const textFit = await selectedEffect.evaluate((element) => ({
     clientWidth: element.clientWidth,

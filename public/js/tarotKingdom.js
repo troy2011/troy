@@ -2359,7 +2359,7 @@ function getKingdomCardEffectDescription(card) {
         ? (usesMajorSpecialRules ? '同スート場専用 / 初手不可' : 'ワンド場限定（上がり不可）')
         : '単騎時はワンド14扱い',
       20: usesMajorSpecialV3Rules
-        ? '初手限定 / 11バック / 墓地回収'
+        ? '1枚出しは空場限定 / 11バック / 墓地回収'
         : (usesMajorSpecialRules
           ? '11バック / 墓地回収'
           : '11バック / この場を流した人が墓地から小アルカナ1枚回収'),
@@ -2672,7 +2672,7 @@ function buildSelectedCardInfoMessage(playerIndex, selectedIndexes) {
     const name = getCardNameLabel(card);
     if (card?.kind === 'major' && Number(card?.number) === 20) {
       baseMessage = areKingdomMajorArcanaSpecialV3RulesEnabled()
-        ? '審判 / 初手限定・11バック・墓地回収'
+        ? '審判 / 1枚出しは空場限定・11バック・墓地回収'
         : (areKingdomMajorArcanaSpecialRulesEnabled()
           ? '審判 / 11バック・墓地回収'
           : '審判：11バック＋流し手が小アルカナ1枚回収');
@@ -16955,13 +16955,26 @@ function auditKingdomMajorArcanaSpecialRules() {
     }
     return rebuildKingdomPlayFromAction(0, { selectedCardIds: [hand[0].id] });
   };
-  const validateRole = ({ hand, field = null, rules = null }) => {
+  const validateRole = ({ hand, field = null, fieldCards = null, rules = null }) => {
+    const hasRoleField = Array.isArray(fieldCards) && fieldCards.length === 5;
     buildTarotKingdomDebugBattleState({
-      withTrick: !!field,
-      tableCard: field || undefined,
+      withTrick: !!field || hasRoleField,
+      tableCard: field || (hasRoleField ? fieldCards[0] : undefined),
       handsBySeat: [hand],
       rules: rules || undefined
     });
+    if (hasRoleField) {
+      const role = evalRole(fieldCards);
+      s.trick = s.lastPlay = {
+        type: 'role',
+        owner: 1,
+        count: fieldCards.length,
+        cardsHand: fieldCards.slice(),
+        cardsTable: fieldCards.slice(),
+        role,
+        call: false
+      };
+    }
     return rebuildKingdomPlayFromAction(0, {
       selectedCardIds: hand.map((card) => card.id)
     });
@@ -17000,7 +17013,9 @@ function auditKingdomMajorArcanaSpecialRules() {
     roleOpening: validateRole({ hand: judgmentRoleHand() }),
     roleOnField: validateRole({
       hand: judgmentRoleHand(),
-      field: minor('special-judgment-role-field', 'Cup', 4)
+      fieldCards: [0, 3, 4, 7, 10].map((number) => (
+        major(number, `-judgment-role-field-${number}`)
+      ))
     })
   };
 
@@ -18475,9 +18490,8 @@ function getAceAbilityPlayViolation(play, mode) {
 function getMajorSpecialPlayViolation(play, mode) {
   if (!areKingdomMajorArcanaSpecialRulesEnabled()) return null;
   const played = Array.isArray(play?.cardsHand) ? play.cardsHand.filter(Boolean) : [];
-  const judgmentCards = played.filter((card) => isMajorNumberCard(card, 20));
-  if (areKingdomMajorArcanaSpecialV3RulesEnabled() && judgmentCards.length && s.trick) {
-    return '審判20は場が空の時だけ出せます。';
+  if (areKingdomMajorArcanaSpecialV3RulesEnabled() && isSingleMajorSetPlay(play, 20) && s.trick) {
+    return '審判20は1枚出しでは場が空の時だけ出せます。';
   }
   if (mode === 'call' || play?.type !== 'set') return null;
   const worldCards = played.filter((card) => isMajorNumberCard(card, 21));
@@ -18587,7 +18601,7 @@ function validatePlay(play, mode) {
     && fieldCards.length === 1
     && isMajorNumberCard(fieldCards[0], 8);
   // schema 23までの世界21は11バックを無視する。schema 24からは反転の影響を受ける。
-  // 小アルカナ・複数枚・5枚役は getMajorSpecialPlayViolation で拒否する。
+  // 世界21の小アルカナ混在・複数枚・5枚役は getMajorSpecialPlayViolation で拒否する。
   if (isWorldSingleOverride && !areKingdomMajorArcanaSpecialV2RulesEnabled()) return { ok: true };
   if (s.callOnly && mode !== 'call' && !isWorldAnsweringStrengthCut) {
     return { ok: false, reason: '8カット中: コールかパスのみ。' };
@@ -27224,7 +27238,7 @@ function ensureKingdomRulebookUi() {
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(1, '魔術師 I'))}<span>魔術師 I</span></dt><dd>数字1固定・オールスート。Aとは組にできません。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(15, '悪魔 XV'))}<span>悪魔 XV</span></dt><dd>小アルカナのコート札専用。11バックを無視して出せます。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(16, '塔 XVI'))}<span>塔〜太陽 XVI–XIX</span></dt><dd>対応する同スートの1枚場専用。初手には出せません。</dd></div>
-                <div><dt>${rulebookCardMarkup(rulebookMajorCard(20, '審判 XX'))}<span>審判 XX</span></dt><dd>場が空のときだけ出せる。11バックを切り替え、場を流すと墓地回収。</dd></div>
+                <div><dt>${rulebookCardMarkup(rulebookMajorCard(20, '審判 XX'))}<span>審判 XX</span></dt><dd>1枚出しは場が空のときだけ出せる。5枚役ではこの制限を受けない。11バックを切り替え、場を流すと墓地回収。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(21, '世界 XXI'))}<span>世界 XXI</span></dt><dd>大アルカナ1枚場へ返して即クリア。11バック中は使用不可。</dd></div>
               </dl>
             </div>

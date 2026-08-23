@@ -4382,16 +4382,16 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.judgment.onMinorAce.reason).toBe('Aの能力：大アルカナでは返せません。');
     expect(audit.judgment.onMagician).toEqual({
       ok: false,
-      reason: '審判20は場が空の時だけ出せます。'
+      reason: '審判20は1枚出しでは場が空の時だけ出せます。'
     });
     expect(audit.judgment.finish).toEqual({
       ok: false,
-      reason: '審判20は場が空の時だけ出せます。'
+      reason: '審判20は1枚出しでは場が空の時だけ出せます。'
     });
     expect(audit.judgment.roleOpening.ok).toBe(true);
-    expect(audit.judgment.roleOnField).toEqual({
-      ok: false,
-      reason: '審判20は場が空の時だけ出せます。'
+    expect(audit.judgment.roleOnField).toMatchObject({
+      ok: true,
+      play: { role: { key: 'Flush' } }
     });
 
     expect(audit.finish.ace.ok).toBe(true);
@@ -4511,7 +4511,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     for (const number of [16, 17, 18, 19]) {
       expect(audit.descriptions[String(number)]).toContain('同スート場専用 / 初手不可');
     }
-    expect(audit.descriptions['20']).toContain('初手限定 / 11バック / 墓地回収');
+    expect(audit.descriptions['20']).toContain('1枚出しは空場限定 / 11バック / 墓地回収');
     expect(audit.descriptions['20']).not.toContain('A不可');
     expect(audit.descriptions['21']).toContain('大アルカナ1枚に返して即クリア');
   });

@@ -3050,7 +3050,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(Math.abs(audit.shipMotionDelta)).toBeGreaterThan(2);
   expect(Math.abs(audit.shipVerticalDelta)).toBeLessThanOrEqual(2);
   expect(audit.shipFrameCount).toBeGreaterThanOrEqual(2);
-  expect(audit.voyageIslandOffset).toBeCloseTo(30, 0);
+  expect(audit.voyageIslandOffset).toBeCloseTo(36, 0);
   expect(audit.treasureAnimationName).toBe('none');
   expect(audit.treasureAnimationName).not.toContain('explorationSequenceTreasureShip');
   expect(audit.resultClose.height).toBe('52px');
@@ -3400,6 +3400,7 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
     const sceneRect = scene.getBoundingClientRect();
     const shipRect = ship.getBoundingClientRect();
     const islandRect = island.getBoundingClientRect();
+    const islandImageRect = island.querySelector('img')?.getBoundingClientRect() || islandRect;
     const islandStyle = getComputedStyle(island);
     return {
       sceneLeft: sceneRect.left,
@@ -3412,7 +3413,7 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
       islandWidth: islandRect.width,
       islandHeight: islandRect.height,
       islandLeft: islandRect.left,
-      islandCenterY: islandRect.top + (islandRect.height / 2),
+      islandImageBottom: islandImageRect.bottom,
       islandOpacity: islandStyle.opacity,
       islandFilter: islandStyle.filter
     };
@@ -3438,8 +3439,7 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
     expect(metrics.shipLeft).toBeGreaterThanOrEqual(metrics.sceneLeft);
     expect(metrics.shipRight).toBeLessThanOrEqual(metrics.sceneRight);
     expect(Math.abs(metrics.shipCenterY - metrics.sceneCenterY)).toBeLessThanOrEqual(2);
-    expect(metrics.sceneCenterY - metrics.islandCenterY).toBeGreaterThanOrEqual(18);
-    expect(metrics.sceneCenterY - metrics.islandCenterY).toBeLessThanOrEqual(22);
+    expect(Math.abs(metrics.islandImageBottom - metrics.sceneCenterY)).toBeLessThanOrEqual(2);
   }
   expect(sailMetrics.islandOpacity).toBe('1');
   expect(arrivalMetrics.islandOpacity).toBe('1');
@@ -3617,6 +3617,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await newRewardItem.click();
   await expect(page.locator('#itemDetailModal')).toBeVisible();
   await expect(newRewardItem).not.toHaveClass(/is-new/);
+  await page.locator('#itemDetailModal .item-detail-corner-close').click();
+  await expect(page.locator('#itemDetailModal')).toBeHidden();
   expect(await page.evaluate(() => document.body.classList.contains('modal-lock'))).toBe(false);
   await expectNoPageErrors(errors);
 });
@@ -4673,7 +4675,7 @@ test('king calendar save reports Google Business Profile sync and surfaces API f
   });
   expect(saveRequests[1].requestId).toMatch(/^[-a-zA-Z0-9]+$/);
   expect(saveRequests[1].operationId).toMatch(/^[-a-zA-Z0-9]+$/);
-  await expect(page.locator('#kingPageMessage')).toContainText('Googleビジネスプロフィールへの反映を受け付けました');
+  await expect(page.locator('#kingPageMessage')).toContainText(/Googleビジネスプロフィールへの反映を受け付けました|Googleビジネスプロフィールへ更新リクエストを送信しました/);
   await expect.poll(() => syncStatusRequests.length).toBe(2);
   expect(syncStatusRequests[1]).toEqual({ playFabId: 'PF_PLAYWRIGHT' });
   await expect(page.locator('#kingPageMessage')).toContainText('Googleビジネスプロフィールへ更新リクエストを送信しました');
@@ -4703,7 +4705,7 @@ test('king calendar save reports Google Business Profile sync and surfaces API f
   await expect.poll(() => saveRequests.length).toBe(5);
   expect(saveRequests[4].requestId).toBe(failedRequestId);
   expect(saveRequests[4].operationId).toBe(saveRequests[3].operationId);
-  await expect(page.locator('#kingPageMessage')).toContainText('Googleビジネスプロフィールへの反映を受け付けました');
+  await expect(page.locator('#kingPageMessage')).toContainText(/Googleビジネスプロフィールへの反映を受け付けました|Googleビジネスプロフィールへ更新リクエストを送信しました/);
 
   const reviewHash = 'a'.repeat(64);
   syncResponse = {
@@ -7122,6 +7124,11 @@ test('tarot cards preview, automatically sort, and open detail before changing d
   const equipRequests = [];
   const unequipRequests = [];
   const replaceRequests = [];
+  let releaseCardLevels;
+  let cardLevelsResponded = false;
+  const cardLevelsReady = new Promise((resolve) => {
+    releaseCardLevels = resolve;
+  });
 
   await page.route('**/api/get-inventory', async (route) => {
     await route.fulfill({
@@ -7251,6 +7258,8 @@ test('tarot cards preview, automatically sort, and open detail before changing d
     });
   });
   await page.route('**/api/cards', async (route) => {
+    await cardLevelsReady;
+    cardLevelsResponded = true;
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
@@ -7327,6 +7336,31 @@ test('tarot cards preview, automatically sort, and open detail before changing d
       && tabsTop < window.innerHeight - 180
       && gridTop < window.innerHeight;
   })).toBe(true);
+
+  await page.evaluate(async () => {
+    const inventory = await import('/js/inventory.js');
+    inventory.markInventoryItemsAsNew(['tarot_minor_wand_7']);
+  });
+  const newTarotCard = page.locator('#inventoryGrid .inventory-item-cell:has(.tarot-number-badge.is-wand)');
+  await expect(newTarotCard).toHaveClass(/is-new/);
+  await newTarotCard.evaluate((cell) => {
+    const grid = document.getElementById('inventoryGrid');
+    window.__inventoryNewDetailCell = cell;
+    window.__inventoryNewDetailMutations = 0;
+    window.__inventoryNewDetailObserver = new MutationObserver((records) => {
+      window.__inventoryNewDetailMutations += records.filter((record) => record.type === 'childList').length;
+    });
+    window.__inventoryNewDetailObserver.observe(grid, { childList: true });
+  });
+  await newTarotCard.click();
+  await expect(page.locator('#itemDetailModal')).toBeVisible();
+  await expect(newTarotCard).not.toHaveClass(/is-new/);
+  releaseCardLevels();
+  await expect.poll(() => cardLevelsResponded).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.__inventoryNewDetailMutations)).toBe(0);
+  expect(await page.evaluate(() => window.__inventoryNewDetailCell?.isConnected)).toBe(true);
+  await page.evaluate(() => window.__inventoryNewDetailObserver?.disconnect());
+  await page.evaluate(() => window.closeItemDetailModal());
 
   await page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty)').click();
   expect(unequipRequests).toHaveLength(0);
