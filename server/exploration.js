@@ -874,6 +874,36 @@ function normalizeCatalogDisplayData(itemId, item = {}) {
     };
 }
 
+function getExplorationRewardVisualData(item = {}) {
+    const sources = [
+        item,
+        item?.DisplayProperties,
+        item?.CustomData,
+        item?.customData
+    ].filter((source) => source && typeof source === 'object');
+    const readValue = (...keys) => {
+        for (const source of sources) {
+            for (const key of keys) {
+                const value = source[key];
+                if (value !== undefined && value !== null && String(value).trim()) return value;
+            }
+        }
+        return '';
+    };
+    const imagePath = String(readValue('imagePath', 'image_path', 'ImagePath', 'MenuImagePath', 'iconImage', 'IconUrl')).trim();
+    const spritePath = String(readValue('spritePath', 'sprite_path', 'SpritePath')).trim();
+    const spriteIndex = readValue('spriteIndex', 'sprite_index', 'SpriteIndex');
+    const spriteWidth = readValue('spriteWidth', 'sprite_w', 'SpriteWidth');
+    const spriteHeight = readValue('spriteHeight', 'sprite_h', 'SpriteHeight');
+    const visual = {};
+    if (imagePath) visual.imagePath = imagePath;
+    if (spritePath) visual.spritePath = spritePath;
+    if (spriteIndex !== '') visual.spriteIndex = spriteIndex;
+    if (spriteWidth !== '') visual.spriteWidth = spriteWidth;
+    if (spriteHeight !== '') visual.spriteHeight = spriteHeight;
+    return visual;
+}
+
 // pending + completesAtMs = 通貨減算済みだが active flip 失敗。active として扱い claim から自動復旧させる
 function resolveEffectiveStatus(data) {
     const status = String(data?.status || '');
@@ -970,7 +1000,8 @@ function reportDocToPayload(doc) {
         displayName: String(item.displayName || item.DisplayName || item.itemId || item.ItemId || ''),
         rarity: String(item.rarity || 'common'),
         category: String(item.category || ''),
-        quantity: Math.max(1, Math.floor(Number(item.quantity ?? item.Quantity ?? 1) || 1))
+        quantity: Math.max(1, Math.floor(Number(item.quantity ?? item.Quantity ?? 1) || 1)),
+        ...getExplorationRewardVisualData(item)
     })) : [];
     const supplyProfile = data.supplyProfile ? normalizeExplorationSupplyProfile(data.supplyProfile) : null;
     return {
@@ -1023,7 +1054,12 @@ function explorationRewardReceiptToResponse(receipt = {}) {
                 DisplayName: firstReward.displayName,
                 Rarity: firstReward.rarity,
                 Category: firstReward.category,
-                Quantity: firstReward.quantity
+                Quantity: firstReward.quantity,
+                ImagePath: firstReward.imagePath || '',
+                SpritePath: firstReward.spritePath || '',
+                SpriteIndex: firstReward.spriteIndex ?? 0,
+                SpriteWidth: firstReward.spriteWidth ?? 32,
+                SpriteHeight: firstReward.spriteHeight ?? 32
             }
             : null,
         currentPet: receipt.currentPet || null,
@@ -4195,9 +4231,11 @@ function initializeExplorationRoutes(app, deps) {
                 ).map((rolled) => {
                     const itemId = String(rolled?.itemId || '').trim();
                     if (!itemId) return null;
-                    const display = normalizeCatalogDisplayData(itemId, catalogCache?.[itemId] || {});
+                    const catalogItem = catalogCache?.[itemId] || {};
+                    const display = normalizeCatalogDisplayData(itemId, catalogItem);
                     return {
                         ...display,
+                        ...getExplorationRewardVisualData(catalogItem),
                         Rarity: String(rolled?.rarity || 'common'),
                         Category: String(rolled?.category || ''),
                         Quantity: Math.max(1, Math.floor(Number(rolled?.quantity ?? 1) || 1))
@@ -4256,7 +4294,8 @@ function initializeExplorationRoutes(app, deps) {
                         displayName: item.DisplayName,
                         rarity: item.Rarity,
                         category: item.Category,
-                        quantity: item.Quantity
+                        quantity: item.Quantity,
+                        ...getExplorationRewardVisualData(item)
                     })),
                     supplyProfile,
                     reportText: buildReportText({

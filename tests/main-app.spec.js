@@ -3059,6 +3059,7 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   let petChoiceRequest = null;
   let petRoundRollRequest = null;
   let explorationClaimRequest = null;
+  let rewardInventoryFetches = 0;
   await page.route('**/api/get-ranking', async (route) => {
     await route.fulfill({
       status: 200,
@@ -3172,7 +3173,16 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
           monsterName: 'パピル',
           monsterIsBoss: false,
           rewardCount: 1,
-          rewardItems: [{ itemId: 'mist_blade', displayName: '霧切りの刃', rarity: 'rare', quantity: 2 }],
+          rewardItems: [{
+            itemId: 'mist_blade',
+            displayName: '霧切りの刃',
+            rarity: 'rare',
+            quantity: 2,
+            spritePath: './Sprites/weapons/melee weapons/sword.png',
+            spriteIndex: 2,
+            spriteWidth: 32,
+            spriteHeight: 32
+          }],
           bossLog: '戦闘開始\n船が島へ接近。\n宝箱を発見した。'
         },
         currentPet: {
@@ -3262,6 +3272,46 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   });
 
   await bootstrapMainApp(page, { fixedHour: 18 });
+  await page.route('**/api/get-inventory', async (route) => {
+    rewardInventoryFetches += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        inventory: [
+          {
+            itemId: 'sword_001',
+            name: '起動確認の剣',
+            customData: {
+              Category: 'Weapon',
+              sprite_path: './Sprites/weapons/melee weapons/sword.png',
+              sprite_index: '1',
+              sprite_w: '32',
+              sprite_h: '32',
+              Atk: '5'
+            }
+          },
+          {
+            itemId: 'mist_blade',
+            name: '霧切りの刃',
+            count: 2,
+            customData: {
+              Category: 'Weapon',
+              sprite_path: './Sprites/weapons/melee weapons/sword.png',
+              sprite_index: '2',
+              sprite_w: '32',
+              sprite_h: '32',
+              Atk: '8'
+            }
+          }
+        ],
+        virtualCurrency: { PS: 1200 },
+        contribution: 0,
+        contributionProgress: { level: 1, expInto: 0, expNeeded: 1500, rank: 0 },
+        isKing: false
+      })
+    });
+  });
   await page.evaluate(() => {
     const refreshInventory = window.refreshInventory;
     window.__explorationRewardInventoryRefreshes = [];
@@ -3485,6 +3535,12 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   expect(chestWhileOpening.width).toBe(chestBeforeOpen.width);
   expect(chestAfterOpen.width).toBe(chestBeforeOpen.width);
   await expect(result.locator('.exploration-result-reward-icon')).toHaveCount(0);
+  const rewardLootIcon = result.locator('.exploration-result-loot-icon');
+  await expect(rewardLootIcon).toHaveCount(1);
+  await expect(result.locator('.exploration-result-loot-card')).toHaveCSS('animation-name', 'explorationResultLootPop');
+  await expect(rewardLootIcon).not.toHaveClass(/is-fallback/);
+  await expect.poll(() => rewardLootIcon.evaluate((element) => getComputedStyle(element).backgroundImage)).not.toBe('none');
+  await expect(result.locator('[data-exploration-result-prompt-title]')).toHaveText('霧切りの刃 ×2を手に入れた！');
   await expect(result.locator('.exploration-sequence-mini-chest')).toHaveCount(0);
   await expect(result.locator('.exploration-result-details')).toHaveCSS('opacity', '1');
   await expect(result.locator('.exploration-result-reward')).toContainText('霧切りの刃');
@@ -3542,6 +3598,19 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await result.locator('[data-exploration-result-close]').click();
   await expect(result).toBeHidden();
   await expect(page.locator('#shipExplorationPanel')).toBeHidden();
+  expect(rewardInventoryFetches).toBeGreaterThan(0);
+  await page.locator('#navInventory').click();
+  await expect(page.locator('#tabContentInventory')).toBeVisible();
+  await page.evaluate(async () => {
+    const inventory = await import('inventory');
+    inventory.switchInventoryTab('Weapon');
+  });
+  const newRewardItem = page.locator('#inventoryGrid .inventory-item-cell[title="霧切りの刃"]');
+  await expect(newRewardItem).toHaveClass(/is-new/);
+  await expect(newRewardItem.locator('.inventory-item-badge.is-new')).toHaveText('NEW');
+  await newRewardItem.click();
+  await expect(page.locator('#itemDetailModal')).toBeVisible();
+  await expect(newRewardItem).not.toHaveClass(/is-new/);
   expect(await page.evaluate(() => document.body.classList.contains('modal-lock'))).toBe(false);
   await expectNoPageErrors(errors);
 });

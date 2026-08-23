@@ -3047,13 +3047,18 @@ button.home-player-ship-name {
 }
 
 .exploration-result-overlay:where(.is-awaiting-open, .is-opening, .is-opened) .exploration-result-showcase.has-rewards {
+    position: relative;
+    isolation: isolate;
     min-height: 232px;
     grid-template-columns: 1fr;
     justify-items: center;
     text-align: center;
+    overflow: hidden;
 }
 
 .exploration-result-chest-button {
+    position: relative;
+    z-index: 2;
     width: 86px;
     min-height: 0;
     aspect-ratio: 1 / 1;
@@ -3083,6 +3088,112 @@ button.home-player-ship-name {
 .exploration-result-overlay:where(.is-awaiting-open, .is-opening, .is-opened) .exploration-result-chest-button {
     width: 126px;
     filter: drop-shadow(0 0 24px rgba(250, 204, 21, 0.42));
+}
+
+.exploration-result-loot-reveal {
+    position: absolute;
+    inset: 8px 12px 58px;
+    z-index: 3;
+    pointer-events: none;
+}
+
+.exploration-result-loot-card {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 74px;
+    height: 74px;
+    display: grid;
+    place-items: center;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.18);
+    transform-origin: center;
+}
+
+.exploration-result-overlay.is-opened .exploration-result-loot-card {
+    animation: explorationResultLootPop 560ms cubic-bezier(0.16, 0.8, 0.25, 1) var(--loot-delay, 0ms) 1 both;
+}
+
+.exploration-result-loot-icon-frame {
+    position: relative;
+    width: 66px;
+    height: 66px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255, 231, 163, 0.7);
+    border-radius: 14px;
+    background:
+        radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.34), transparent 32%),
+        radial-gradient(circle at 50% 50%, rgba(250, 204, 21, 0.42), rgba(70, 40, 10, 0.9));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.36),
+        0 0 22px rgba(250, 204, 21, 0.56),
+        0 8px 18px rgba(0, 0, 0, 0.38);
+}
+
+.exploration-result-loot-card.is-rare .exploration-result-loot-icon-frame {
+    border-color: rgba(147, 197, 253, 0.9);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.36),
+        0 0 22px rgba(96, 165, 250, 0.58),
+        0 8px 18px rgba(0, 0, 0, 0.38);
+}
+
+.exploration-result-loot-card.is-epic .exploration-result-loot-icon-frame {
+    border-color: rgba(216, 180, 254, 0.92);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.36),
+        0 0 22px rgba(192, 132, 252, 0.62),
+        0 8px 18px rgba(0, 0, 0, 0.38);
+}
+
+.exploration-result-loot-icon {
+    display: grid;
+    place-items: center;
+    max-width: 62px;
+    max-height: 62px;
+    filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.54));
+}
+
+.exploration-result-loot-icon.is-image-icon {
+    width: 58px;
+    height: 58px;
+}
+
+.exploration-result-loot-icon.is-image-icon img {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.exploration-result-loot-icon.is-fallback {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    color: #fff7d6;
+    font-size: 30px;
+    line-height: 1;
+    text-shadow: 0 0 12px rgba(255, 255, 255, 0.86);
+}
+
+.exploration-result-loot-count {
+    position: absolute;
+    right: -8px;
+    bottom: -6px;
+    min-width: 24px;
+    min-height: 20px;
+    display: grid;
+    place-items: center;
+    padding: 1px 5px;
+    border: 1px solid rgba(255, 241, 194, 0.66);
+    border-radius: 999px;
+    background: rgba(3, 7, 18, 0.9);
+    color: #fff4ce;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
 }
 
 .exploration-result-chest {
@@ -3122,6 +3233,11 @@ button.home-player-ship-name {
     display: block;
     color: #fde68a;
     font-size: 14px;
+}
+
+.exploration-result-prompt {
+    position: relative;
+    z-index: 4;
 }
 
 .exploration-result-prompt span {
@@ -3354,6 +3470,24 @@ button.home-player-ship-name {
     to { background-position: 100% 0; transform: scale(1); }
 }
 
+@keyframes explorationResultLootPop {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.18);
+        filter: brightness(1.8) blur(2px);
+    }
+    64% {
+        opacity: 1;
+        transform: translate(calc(-50% + var(--loot-x)), calc(-50% + var(--loot-y) - 8px)) scale(1.12);
+        filter: brightness(1.22);
+    }
+    100% {
+        opacity: 1;
+        transform: translate(calc(-50% + var(--loot-x)), calc(-50% + var(--loot-y))) scale(1);
+        filter: brightness(1);
+    }
+}
+
 @keyframes explorationResultDetailsIn {
     from { transform: translateY(8px); }
     to { transform: translateY(0); }
@@ -3366,6 +3500,26 @@ button.home-player-ship-name {
 
     .exploration-result-overlay:where(.is-awaiting-open, .is-opening, .is-opened) .exploration-result-showcase.has-rewards {
         grid-template-columns: 1fr;
+    }
+
+    .exploration-result-loot-reveal {
+        inset: 8px 8px 56px;
+    }
+
+    .exploration-result-loot-card {
+        width: 66px;
+        height: 66px;
+    }
+
+    .exploration-result-loot-icon-frame {
+        width: 58px;
+        height: 58px;
+        border-radius: 12px;
+    }
+
+    .exploration-result-loot-icon.is-image-icon {
+        width: 50px;
+        height: 50px;
     }
 
     .exploration-result-chest {
@@ -28720,7 +28874,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .inventory-item-head > .inventory-item-badge,
-#tabContentInventory .inventory-item-head-meta .inventory-item-badge:not(.is-count) {
+#tabContentInventory .inventory-item-head-meta .inventory-item-badge:not(.is-count):not(.is-new) {
     display: none;
 }
 
@@ -28806,6 +28960,25 @@ body[data-sea-tone] .home-hero-card {
     color: #ffe7a3;
     font-size: 10px;
     line-height: 1;
+}
+
+#tabContentInventory .inventory-item-head-meta .inventory-item-badge.is-new {
+    min-width: 30px;
+    min-height: 18px;
+    display: inline-grid;
+    place-items: center;
+    padding: 1px 5px;
+    border: 1px solid rgba(255, 238, 159, 0.84);
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(255, 126, 67, 0.96), rgba(177, 43, 31, 0.96));
+    color: #fff9e5;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 9px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    text-shadow: 0 1px 0 rgba(58, 12, 8, 0.92);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 #tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell .inventory-item-head,

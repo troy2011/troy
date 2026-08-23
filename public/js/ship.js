@@ -38,7 +38,7 @@ import { createRequestId } from './api.js';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { formatCurrencyLabel } from './config.js';
 import * as Player from './player.js';
-import * as Inventory from './inventory.js';
+import * as Inventory from 'inventory';
 import { buildAvatarLayerMarkup, renderAvatar, triggerAvatarAttackMotion } from './avatar.js';
 import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260811-monster-grounding2';
 
@@ -2183,7 +2183,12 @@ function getRewardItemsForReveal(data) {
             displayName: data.reward.DisplayName || data.reward.displayName || data.reward.ItemId || 'お宝',
             rarity: data.reward.Rarity || data.reward.rarity || 'common',
             category: data.reward.Category || data.reward.category || '',
-            quantity: data.reward.Quantity ?? data.reward.quantity ?? 1
+            quantity: data.reward.Quantity ?? data.reward.quantity ?? 1,
+            imagePath: data.reward.ImagePath || data.reward.imagePath || data.reward.image_path || '',
+            spritePath: data.reward.SpritePath || data.reward.spritePath || data.reward.sprite_path || '',
+            spriteIndex: data.reward.SpriteIndex ?? data.reward.spriteIndex ?? data.reward.sprite_index ?? 0,
+            spriteWidth: data.reward.SpriteWidth ?? data.reward.spriteWidth ?? data.reward.sprite_w ?? 32,
+            spriteHeight: data.reward.SpriteHeight ?? data.reward.spriteHeight ?? data.reward.sprite_h ?? 32
         }];
     }
     return [];
@@ -2219,6 +2224,48 @@ function getExplorationRewardName(item) {
 function getExplorationRewardQuantity(item) {
     const value = Number(item?.quantity ?? item?.Quantity ?? item?.amount ?? item?.Amount ?? item?.count ?? item?.Count ?? 1);
     return Number.isFinite(value) && value > 0 ? value : 1;
+}
+
+const EXPLORATION_REWARD_REVEAL_OFFSETS = Object.freeze([
+    { x: 0, y: -32 },
+    { x: -62, y: -10 },
+    { x: 62, y: -10 },
+    { x: -40, y: -46 },
+    { x: 40, y: -46 }
+]);
+
+function getExplorationRewardQuantityText(item) {
+    const quantity = getExplorationRewardQuantity(item);
+    return quantity > 1 ? ` ×${quantity.toLocaleString('ja-JP')}` : '';
+}
+
+function getExplorationRewardDisplayLabel(item) {
+    return `${getExplorationRewardName(item)}${getExplorationRewardQuantityText(item)}`;
+}
+
+function getExplorationRewardAcquisitionText(rewards) {
+    const items = Array.isArray(rewards) ? rewards : [];
+    if (!items.length) return '戦利品を手に入れた！';
+    const primaryLabel = getExplorationRewardDisplayLabel(items[0]);
+    return items.length === 1
+        ? `${primaryLabel}を手に入れた！`
+        : `${primaryLabel}ほか${items.length - 1}種を手に入れた！`;
+}
+
+function renderExplorationRewardReveal(rewards) {
+    return rewards.slice(0, EXPLORATION_REWARD_REVEAL_OFFSETS.length).map((item, index) => {
+        const rarity = normalizeRewardRarity(item.rarity || item.Rarity);
+        const offset = EXPLORATION_REWARD_REVEAL_OFFSETS[index];
+        const quantityText = getExplorationRewardQuantityText(item).trim();
+        return `
+            <div class="exploration-result-loot-card is-${rarity}" style="--loot-x: ${offset.x}px; --loot-y: ${offset.y}px; --loot-delay: ${index * 90}ms;">
+                <span class="exploration-result-loot-icon-frame">
+                    <span class="exploration-result-loot-icon" data-exploration-result-loot-icon="${index}" aria-hidden="true"><span class="exploration-result-loot-fallback">✦</span></span>
+                    ${quantityText ? `<span class="exploration-result-loot-count">${escapeHtml(quantityText)}</span>` : ''}
+                </span>
+            </div>
+        `;
+    }).join('');
 }
 
 function getExplorationRarityLabel(rarity) {
@@ -2336,12 +2383,13 @@ function showExplorationResultSummary(data, options = {}) {
     const bossTierKey = kingdomMonster ? (monsterIsBoss ? 'strong' : 'weak') : normalizeExplorationBossTier(report.bossTier);
     const rewards = getRewardItemsForReveal(data);
     const rewardTotal = Number(report.rewardCount || rewards.length || 0);
+    const rewardAcquisitionText = getExplorationRewardAcquisitionText(rewards);
     const chestAlreadyOpened = rewardTotal > 0 && options.chestOpened === true;
     const awaitsChestOpen = rewardTotal > 0 && !chestAlreadyOpened;
     const resultLabel = getExplorationBossResultLabel(bossResult);
     const destinationResultSummary = `${destinationTypeLabel} / ${resultLabel}`;
     const resultHint = rewardTotal > 0 ? `${rewardTotal.toLocaleString('ja-JP')}個のお宝を回収` : 'お宝は見つかりませんでした';
-    const promptTitle = awaitsChestOpen ? '宝箱を開ける' : (rewardTotal > 0 ? '回収完了' : '回収なし');
+    const promptTitle = awaitsChestOpen ? '宝箱を開ける' : (rewardTotal > 0 ? rewardAcquisitionText : '回収なし');
     const promptText = awaitsChestOpen ? 'クリックして中身を確認してください。' : (rewardTotal > 0 ? '宝箱を開封し、戦利品を持ち帰りました。' : '航路を確認して帰還しました。');
     const highestUnlockedStage = Math.max(0, Math.floor(Number(data?.progress?.highestUnlockedStage) || 0));
     const canDepartNextStage = stageNo > 0 && highestUnlockedStage > stageNo && bossResult !== 'defeat';
@@ -2367,8 +2415,7 @@ function showExplorationResultSummary(data, options = {}) {
     const rewardHtml = rewards.length
         ? rewards.map((item) => {
             const rarity = normalizeRewardRarity(item.rarity || item.Rarity);
-            const quantity = getExplorationRewardQuantity(item);
-            const quantityText = quantity > 1 ? `×${quantity.toLocaleString('ja-JP')}` : '';
+            const quantityText = getExplorationRewardQuantityText(item).trim();
             return `
                 <li class="exploration-result-reward is-${rarity}">
                     <strong>${escapeHtml(getExplorationRewardName(item))}</strong>
@@ -2411,6 +2458,7 @@ function showExplorationResultSummary(data, options = {}) {
                 <button type="button" class="exploration-result-chest-button" data-exploration-result-open aria-label="${awaitsChestOpen ? '宝箱を開ける' : '宝箱'}" ${awaitsChestOpen ? '' : 'disabled'}>
                     <span class="exploration-result-chest ${rewardTotal > 0 ? 'has-rewards' : 'is-empty'}" aria-hidden="true"></span>
                 </button>
+                ${rewardTotal > 0 ? `<div class="exploration-result-loot-reveal" data-exploration-result-loot-reveal aria-hidden="true">${renderExplorationRewardReveal(rewards)}</div>` : ''}
                 <div class="exploration-result-prompt">
                     <b data-exploration-result-prompt-title>${promptTitle}</b>
                     <span data-exploration-result-prompt-text>${promptText}</span>
@@ -2450,6 +2498,10 @@ function showExplorationResultSummary(data, options = {}) {
         </div>
     `;
     document.body.appendChild(overlay);
+    overlay.querySelectorAll('[data-exploration-result-loot-icon]').forEach((icon, index) => {
+        const rendered = Inventory.renderInventoryItemIconPreview?.(icon, rewards[index], { maxSize: 68 });
+        if (!rendered) icon.classList.add('is-fallback');
+    });
 
     const close = () => overlay.remove();
     const openResult = () => {
@@ -2468,8 +2520,9 @@ function showExplorationResultSummary(data, options = {}) {
             overlay.classList.add('is-opened');
             if (state) state.textContent = resultLabel;
             if (hint) hint.textContent = resultHint;
-            if (promptTitle) promptTitle.textContent = '回収完了';
-            if (promptText) promptText.textContent = '宝箱を開封し、戦利品を持ち帰りました。';
+            if (rewardTotal > 0) Inventory.markInventoryItemsAsNew?.(rewards);
+            if (promptTitle) promptTitle.textContent = rewardAcquisitionText;
+            if (promptText) promptText.textContent = '持ち物リストでNEWを確認できます。';
         }, 760);
     };
     bindModalClose(overlay.querySelector('.exploration-result-close'), close, {

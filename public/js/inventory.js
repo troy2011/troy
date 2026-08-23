@@ -107,6 +107,92 @@ let tarotDeckReplacementCandidateItemId = '';
 let arcanaResonanceCatalogReturnFocusElement = null;
 let visibleInventoryDetailItems = [];
 let itemDetailSwipeStart = null;
+const INVENTORY_NEW_ITEM_STORAGE_PREFIX = 'troy:inventory-new-items:';
+const INVENTORY_NEW_ITEM_LIMIT = 120;
+let inventoryNewItemIds = new Set();
+let inventoryNewItemsStorageKey = '';
+
+function normalizeInventoryNewItemId(value) {
+    return String(value || '').trim();
+}
+
+function getInventoryNewItemsStorageKey() {
+    if (typeof window === 'undefined') return '';
+    const playFabId = normalizeInventoryNewItemId(window.myPlayFabId) || 'guest';
+    return `${INVENTORY_NEW_ITEM_STORAGE_PREFIX}${encodeURIComponent(playFabId)}`;
+}
+
+function readInventoryNewItemIds(storageKey) {
+    if (!storageKey || typeof window === 'undefined') return new Set();
+    try {
+        const stored = JSON.parse(window.localStorage?.getItem(storageKey) || '[]');
+        if (!Array.isArray(stored)) return new Set();
+        return new Set(stored.map(normalizeInventoryNewItemId).filter(Boolean));
+    } catch (_) {
+        return new Set();
+    }
+}
+
+function syncInventoryNewItemIds() {
+    const storageKey = getInventoryNewItemsStorageKey();
+    if (storageKey === inventoryNewItemsStorageKey) return;
+    inventoryNewItemsStorageKey = storageKey;
+    inventoryNewItemIds = readInventoryNewItemIds(storageKey);
+}
+
+function persistInventoryNewItemIds() {
+    if (!inventoryNewItemsStorageKey || typeof window === 'undefined') return;
+    try {
+        window.localStorage?.setItem(inventoryNewItemsStorageKey, JSON.stringify([...inventoryNewItemIds]));
+    } catch (_) {
+        // Storage may be unavailable in restricted browser contexts.
+    }
+}
+
+function isInventoryItemNew(itemId) {
+    const safeItemId = normalizeInventoryNewItemId(itemId);
+    if (!safeItemId) return false;
+    syncInventoryNewItemIds();
+    return inventoryNewItemIds.has(safeItemId);
+}
+
+function clearInventoryItemNewState(itemId) {
+    const safeItemId = normalizeInventoryNewItemId(itemId);
+    if (!safeItemId) return false;
+    syncInventoryNewItemIds();
+    if (!inventoryNewItemIds.delete(safeItemId)) return false;
+    persistInventoryNewItemIds();
+    return true;
+}
+
+export function markInventoryItemsAsNew(items = []) {
+    const entries = Array.isArray(items) ? items : [items];
+    const itemIds = entries
+        .map((entry) => normalizeInventoryNewItemId(
+            typeof entry === 'string' ? entry : (entry?.itemId || entry?.ItemId)
+        ))
+        .filter(Boolean);
+    if (!itemIds.length) return false;
+
+    syncInventoryNewItemIds();
+    let changed = false;
+    itemIds.forEach((itemId) => {
+        if (inventoryNewItemIds.has(itemId)) return;
+        inventoryNewItemIds.add(itemId);
+        changed = true;
+    });
+    while (inventoryNewItemIds.size > INVENTORY_NEW_ITEM_LIMIT) {
+        const oldestItemId = inventoryNewItemIds.values().next().value;
+        inventoryNewItemIds.delete(oldestItemId);
+    }
+    if (!changed) return false;
+
+    persistInventoryNewItemIds();
+    if (typeof document !== 'undefined' && document.getElementById('inventoryGrid')) {
+        renderInventoryGrid(activeInventoryCategory);
+    }
+    return true;
+}
 
 async function loadCardLevels() {
     try {
@@ -3023,7 +3109,9 @@ function createInventoryCell(item, requestedCategory) {
             replaceTarotCardInDeck(window.myPlayFabId || null, tarotDeckReplacementTargetItemId, itemId);
             return;
         }
+        const clearedNewState = clearInventoryItemNewState(itemId);
         showItemDetailModal(item);
+        if (clearedNewState) renderInventoryGrid(activeInventoryCategory);
     });
     if (inventorySellSelectionMode) {
         const sellCheck = document.createElement('button');
@@ -3060,6 +3148,10 @@ function createInventoryCell(item, requestedCategory) {
     }
     if (isShipMajorEquipped) {
         headMeta.appendChild(createInventoryBadge('守護', 'equipped'));
+    }
+    if (isInventoryItemNew(itemId)) {
+        cell.classList.add('is-new');
+        headMeta.appendChild(createInventoryBadge('NEW', 'new'));
     }
     if ((Number(item?.count || 0) || 0) > 1) {
         if (isTarotCard) {
@@ -4036,6 +4128,72 @@ function getInventorySpriteFrame(item) {
         height: frameSize.height,
         category: cd.Category
     };
+}
+
+function createInventoryIconPreviewItem(itemRef) {
+    const ownedItem = getInventoryItemByReference(itemRef);
+    if (ownedItem) return ownedItem;
+
+    const source = itemRef && typeof itemRef === 'object' ? itemRef : {};
+    const sourceCustomData = source.customData && typeof source.customData === 'object'
+        ? source.customData
+        : {};
+    const imagePath = String(
+        source.imagePath
+        || source.image_path
+        || source.ImagePath
+        || source.iconPath
+        || source.IconPath
+        || sourceCustomData.imagePath
+        || sourceCustomData.image_path
+        || sourceCustomData.ImagePath
+        || sourceCustomData.MenuImagePath
+        || sourceCustomData.iconImage
+        || ''
+    ).trim();
+    const spritePath = String(
+        source.spritePath
+        || source.sprite_path
+        || source.SpritePath
+        || sourceCustomData.spritePath
+        || sourceCustomData.sprite_path
+        || sourceCustomData.SpritePath
+        || ''
+    ).trim();
+    return {
+        itemId: normalizeInventoryNewItemId(source.itemId || source.ItemId),
+        customData: {
+            ...sourceCustomData,
+            Category: sourceCustomData.Category || sourceCustomData.category || source.Category || source.category || '',
+            image_path: sourceCustomData.image_path || imagePath,
+            sprite_path: sourceCustomData.sprite_path || spritePath,
+            sprite_index: sourceCustomData.sprite_index ?? source.sprite_index ?? source.spriteIndex ?? source.SpriteIndex ?? 0,
+            sprite_w: sourceCustomData.sprite_w ?? source.sprite_w ?? source.spriteWidth ?? source.SpriteWidth ?? 32,
+            sprite_h: sourceCustomData.sprite_h ?? source.sprite_h ?? source.spriteHeight ?? source.SpriteHeight ?? 32
+        }
+    };
+}
+
+export function renderInventoryItemIconPreview(element, itemRef, options = {}) {
+    if (!element) return false;
+    const previewItem = createInventoryIconPreviewItem(itemRef);
+    const spriteFrame = getInventorySpriteFrame(previewItem);
+    if (!spriteFrame?.imagePath && !spriteFrame?.path) return false;
+
+    const maxSize = Math.max(24, Math.min(96, Number(options.maxSize) || 68));
+    const longestSide = Math.max(
+        Number(spriteFrame.width || 0) || 32,
+        Number(spriteFrame.height || 0) || 32
+    );
+    const scale = spriteFrame.imagePath ? 1 : Math.min(1.5, maxSize / longestSide);
+    setInventoryIcon(
+        element,
+        spriteFrame,
+        scale,
+        spriteFrame.category,
+        options.avatarColor || (typeof window !== 'undefined' ? window.myAvatarBaseInfo?.AvatarColor : null)
+    );
+    return true;
 }
 
 function createItemDetailMetaChip(label, tone = '') {
