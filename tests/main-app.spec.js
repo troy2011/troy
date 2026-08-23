@@ -2921,6 +2921,10 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
     const sailIsland = styleOf('.exploration-sequence-island');
     const sailIslandImage = styleOf('.exploration-sequence-island img');
     const sailIslandElement = sequence.querySelector('.exploration-sequence-island');
+    const sailIslandImageElement = sailIslandElement.querySelector('img');
+    await sailIslandImageElement.decode?.().catch(() => {});
+    const sailIslandRect = sailIslandElement.getBoundingClientRect();
+    const sailIslandImageRect = sailIslandImageElement.getBoundingClientRect();
     const voyageIslandBottom = sailIslandElement.getBoundingClientRect().bottom;
     sailIslandElement.style.bottom = 'calc(50% - 36px)';
     const previousVoyageIslandBottom = sailIslandElement.getBoundingClientRect().bottom;
@@ -2985,6 +2989,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
       shipMotionDelta,
       shipVerticalDelta,
       voyageIslandOffset: previousVoyageIslandBottom - voyageIslandBottom,
+      sailIslandImageBottomOffset: Math.abs(sailIslandRect.bottom - sailIslandImageRect.bottom),
       treasureAnimationName
     };
 
@@ -3018,6 +3023,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(audit.sequenceSailIslandImage.maxWidth).toBe('100%');
   expect(audit.sequenceSailIslandImage.maxHeight).toBe('100%');
   expect(audit.sequenceSailIslandImage.objectFit).toBe('contain');
+  expect(audit.sailIslandImageBottomOffset).toBeLessThanOrEqual(1);
   expect(audit.sequenceBattleBossLeft).toBeLessThan(audit.sequenceBattleAvatarLeft);
   expectPanelFrame(audit.sequenceLog);
   expect(audit.sequenceRouteCount).toBe(0);

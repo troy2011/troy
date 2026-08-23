@@ -12801,6 +12801,37 @@ function getLocalPlayerIndex() {
   return fallback >= 0 ? fallback : 0;
 }
 
+function getKingdomRoundStartDealerIndex() {
+  const seats = getKingdomSeatIndexes();
+  if (seats.length === 0) return 0;
+
+  if (kingdomStartMode !== 'online') {
+    const localSeat = getLocalPlayerIndex();
+    if (seats.includes(localSeat)) return localSeat;
+    return seats.find((seat) => s?.players?.[seat]?.isNpc !== true) ?? seats[0];
+  }
+
+  const participantSeats = seats.filter((seat) => s?.players?.[seat]?.isNpc !== true);
+  const candidates = participantSeats.length > 0 ? participantSeats : seats;
+  let dealer = candidates[0];
+  let fastestSpeed = Math.max(0, Number(s?.players?.[dealer]?.character?.combat?.speed) || 0);
+  candidates.slice(1).forEach((seat) => {
+    const speed = Math.max(0, Number(s?.players?.[seat]?.character?.combat?.speed) || 0);
+    // 同速なら座席順を維持し、全端末で同じ親に決まるようにする。
+    if (speed > fastestSpeed) {
+      dealer = seat;
+      fastestSpeed = speed;
+    }
+  });
+  return dealer;
+}
+
+function applyKingdomRoundStartDealerRule() {
+  if (!s) return 0;
+  s.dealer = getKingdomRoundStartDealerIndex();
+  return s.dealer;
+}
+
 function isLocalPlayer(index) {
   return Number(index) === getLocalPlayerIndex();
 }
@@ -17351,6 +17382,10 @@ function exposeTarotKingdomBattleDebugTools(target) {
   if (window.__TAROT_KINGDOM_PREVIEW__ !== true) return;
   Object.assign(target, {
     battleScenario: (options = {}) => buildTarotKingdomDebugBattleState(options),
+    battleSetStartMode: (mode = 'offline') => {
+      kingdomStartMode = mode === 'online' ? 'online' : 'offline';
+      return kingdomStartMode;
+    },
     battleTutorialScenario: (lesson = 1, playerCount = 3) => {
       const monsters = KINGDOM_MONSTER_ROSTER
         .filter((monster) => monster.isBoss !== true)
@@ -17985,6 +18020,7 @@ function setupHand(options = {}) {
   clearNpcTimer();
   clearOpeningDealTimers();
   clearRoundState();
+  applyKingdomRoundStartDealerRule();
   s.revision = Math.max(0, Number(s.revision) || 0) + 1;
   resetKingdomBattleForRound();
   clearLocalAutoFold();
@@ -18771,6 +18807,7 @@ function drawOneKingdomMixedCard(playerIndex, reason = 'forced') {
 
 function startKingdomDrawRetry() {
   if (!s || s.transition?.kind === 'roundDrawRetry') return;
+  const retryDealer = applyKingdomRoundStartDealerRule();
   clearNpcTimer();
   s.roundActive = true;
   s.phase = 'roundDraw';
@@ -18782,13 +18819,13 @@ function startKingdomDrawRetry() {
   s.pendingTrashFollowup = null;
   s.selected.clear();
   s.message = '引き分け・再戦';
-  log(`第${s.handNo + 1}局は引き分け。同じ親・同じ局数で再戦`);
-  triggerKingdomActionFx(s.dealer, '引き分け・再戦', {
+  log(`第${s.handNo + 1}局は引き分け。局開始の親: ${pName(retryDealer)}で再戦`);
+  triggerKingdomActionFx(retryDealer, '引き分け・再戦', {
     overlay: 'action',
     durationMs: 900,
     cutin: true
   });
-  setKingdomTransition('roundDrawRetry', s.dealer, 900);
+  setKingdomTransition('roundDrawRetry', retryDealer, 900);
   render();
 }
 
@@ -19523,9 +19560,9 @@ function finishRound(winnerIndex) {
     render();
     return;
   }
-  s.dealer = (s.dealer + 1) % getKingdomPlayerCount();
+  applyKingdomRoundStartDealerRule();
   s.awaitRoundConfirm = true;
-  s.message = `${winner.name}が第${roundNo}局に勝利。清算を確認して次局へ進んでください。次局の親: ${pName(s.dealer)}。`;
+  s.message = `${winner.name}が第${roundNo}局に勝利。清算を確認して次局へ進んでください。次局開始の親: ${pName(s.dealer)}。`;
   queueKingdomRoundPetOfferCheck(roundNo);
   render();
 }
@@ -27103,6 +27140,10 @@ function ensureKingdomRulebookUi() {
               <div>
                 <h4>局の終了</h4>
                 <p>手札0、敵撃破など、そのステージの終了条件で清算へ。通常戦は4局後のチップ合計で順位が決まります。</p>
+              </div>
+              <div>
+                <h4>局開始の親</h4>
+                <p>オフラインではプレイヤーが毎局の親です。オンラインでは素早さが最も高いプレイヤーが親になり、同値は座席順で決まります。局の勝者は次局の親を決めません。</p>
               </div>
             </div>
             <p class="tarot-kingdom-rulebook-suits-caption">矢印の始点が、矢印の先のスートに勝ちます。</p>

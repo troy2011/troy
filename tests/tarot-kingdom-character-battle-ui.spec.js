@@ -285,6 +285,19 @@ test('rulebook explains the current rules and returns to the same battle on mobi
   await rulebookButton.click();
   await expect(rulebook).toBeVisible();
   await expect(rulebookButton).toHaveAttribute('aria-expanded', 'true');
+  const rulebookButtonTextColors = await page.evaluate(() => {
+    const trigger = document.getElementById('tarotKingdomRulebookButton');
+    const categories = Array.from(document.querySelectorAll('.tarot-kingdom-rulebook-nav button'));
+    return {
+      trigger: trigger ? getComputedStyle(trigger).color : '',
+      categories: categories.map((button) => getComputedStyle(button).color)
+    };
+  });
+  expect(rulebookButtonTextColors.trigger).toBe('rgb(247, 251, 255)');
+  expect(rulebookButtonTextColors.categories).toHaveLength(5);
+  expect(rulebookButtonTextColors.categories.every((color) => (
+    color === 'rgb(247, 251, 255)' || color === 'rgb(255, 255, 255)'
+  ))).toBe(true);
   await expect(rulebook.getByRole('heading', { name: /タロットキングダム\s*ルールブック/ })).toBeVisible();
   await expect(rulebook.getByText('Aは通常時の最強札（15）')).toBeVisible();
   await expect(rulebook.getByText('数字1とは別物で、大アルカナでは返せません。Aを1として使えるのは、A–2–3–4–5のストレートだけ。')).toBeVisible();
@@ -293,6 +306,7 @@ test('rulebook explains the current rules and returns to the same battle on mobi
     await expect(rulebook.getByText('小アルカナ12を1枚で通常の場流しにすると、残り手札から好きな1枚を除外。除外だけで手札0にはできません。')).toBeVisible();
     await expect(rulebook.getByText('13または14を場札と同じスートで出すと、そのスートだけに固定。節制XIVで解除します。')).toBeVisible();
     await expect(rulebook.getByText('場が空のときだけ出せる。11バックを切り替え、場を流すと墓地回収。')).toBeVisible();
+    await expect(rulebook.getByText('オフラインではプレイヤーが毎局の親です。オンラインでは素早さが最も高いプレイヤーが親になり、同値は座席順で決まります。局の勝者は次局の親を決めません。')).toBeVisible();
     await expect(rulebook.getByText('矢印の始点が、矢印の先のスートに勝ちます。')).toBeVisible();
   await expect(rulebook.locator('.tarot-kingdom-rulebook-suits-diagram')).toHaveAttribute(
     'aria-label',
@@ -343,6 +357,7 @@ test('rulebook explains the current rules and returns to the same battle on mobi
   expect(mobileLayout.canScroll).toBe(true);
 
   await rulebook.getByRole('button', { name: '5枚役' }).click();
+  await expect(rulebook.getByRole('button', { name: '5枚役' })).toHaveCSS('color', 'rgb(255, 255, 255)');
   await expect.poll(() => rulebookPage.evaluate((pageNode) => pageNode.scrollTop)).toBeGreaterThan(100);
   await page.keyboard.press('Escape');
   await expect(rulebook).toBeHidden();
@@ -710,7 +725,7 @@ test('hard-control statuses stop the actor while slow and sleep use distinct mot
   expect(secondAccentProfiles.enemy).toContain('polygon');
 });
 
-test('blindness covers the full actor, silence centers its cross, and confusion sways horizontally', async ({ page }) => {
+test('blindness covers the full actor, silence centers its cross, player confusion sways, and enemy confusion turns left', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   await page.evaluate(() => {
     window.TarotKingdomDebug.battleSetEffects({
@@ -778,6 +793,55 @@ test('blindness covers the full actor, silence centers its cross, and confusion 
   expect(confusionProfile.animationName).toContain('tarotKingdomActorConfusion');
   expect(confusionProfile.rotate).toBe('none');
   expect(confusionProfile.accentAnimationName).toContain('tarotKingdomStatusConfusionSway');
+
+  const enemy = page.locator('#tarotKingdomEnemySprite');
+  const getHorizontalScale = (transform) => Number.parseFloat(
+    String(transform || '').match(/^matrix\(([^,]+)/)?.[1] || '0'
+  );
+  const normalEnemyProfile = await enemy.evaluate((sprite) => ({
+    transform: getComputedStyle(sprite).transform,
+    animationName: getComputedStyle(sprite).animationName,
+    rotate: getComputedStyle(sprite).rotate
+  }));
+  await page.evaluate(() => window.TarotKingdomDebug.battleScenario({
+    reverse: true,
+    tableCard: { id: 'enemy-confusion-reverse', kind: 'minor', suit: 'Cup', number: 11 }
+  }));
+  await expect(enemy).toHaveClass(/is-confused/);
+  const reverseConfusionProfile = await enemy.evaluate((sprite) => ({
+    transform: getComputedStyle(sprite).transform,
+    animationName: getComputedStyle(sprite).animationName,
+    rotate: getComputedStyle(sprite).rotate
+  }));
+  expect(reverseConfusionProfile.animationName).toBe('none');
+  expect(reverseConfusionProfile.rotate).toBe('none');
+  expect(getHorizontalScale(reverseConfusionProfile.transform)).toBeCloseTo(
+    -getHorizontalScale(normalEnemyProfile.transform)
+  );
+
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleScenario({
+      reverse: false,
+      tableCard: { id: 'enemy-confusion-status', kind: 'minor', suit: 'Wand', number: 1 }
+    });
+    window.TarotKingdomDebug.battleSetEffects({
+      enemy: { confusion: { label: '混乱', potency: 50, charges: 1, expiresOn: 'attack' } },
+      party: {},
+      players: [{}, {}, {}, {}]
+    });
+  });
+  await expect(enemy).toHaveAttribute('data-combat-status', 'confusion');
+  await expect(enemy).toHaveAttribute('data-status-motion', 'unstable');
+  const statusConfusionProfile = await enemy.evaluate((sprite) => ({
+    transform: getComputedStyle(sprite).transform,
+    animationName: getComputedStyle(sprite).animationName,
+    rotate: getComputedStyle(sprite).rotate
+  }));
+  expect(statusConfusionProfile.animationName).toBe('none');
+  expect(statusConfusionProfile.rotate).toBe('none');
+  expect(getHorizontalScale(statusConfusionProfile.transform)).toBeCloseTo(
+    -getHorizontalScale(normalEnemyProfile.transform)
+  );
 });
 
 test('buffs, debuffs and support effects use the same compact icon system as ailments', async ({ page }) => {

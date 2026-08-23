@@ -4486,7 +4486,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.retryTransition.blocked).toEqual([0, 1, 2, 3]);
     expect(audit.retryAfter).toMatchObject({
       handNo: audit.retryBefore.handNo,
-      dealer: audit.retryBefore.dealer,
+      dealer: 0,
       chips: audit.retryBefore.chips,
       stars: audit.retryBefore.stars,
       enemyMaxHp: audit.retryBefore.enemyMaxHp,
@@ -4846,7 +4846,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.atmosphereCss).toContain('74, 159, 196');
   });
 
-  test('three-player exploration deals 24 cards and settles or rotates the dealer across three seats', async ({ page }) => {
+  test('three-player exploration deals 24 cards and settles across three seats', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       const dealt = debug.battleDealScenario(3);
@@ -4872,6 +4872,56 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.published.schema).toBe(31);
     expect(audit.published.state.rules.playerCount).toBe(3);
     expect(audit.published.state.players).toHaveLength(3);
+  });
+
+  test('round-start dealer stays local offline and selects the fastest participant online', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleSetStartMode('offline');
+      const offlineStart = debug.battleScenario({
+        playerCount: 3,
+        dealerIndex: 1,
+        handNo: 0,
+        handCounts: [3, 2, 0],
+        chipsBySeat: [100, 100, 100],
+        combatBySeat: [{ speed: 12 }, { speed: 96 }, { speed: 48 }],
+        withTrick: false
+      });
+      const offlineSettled = debug.battleFinishRound(2);
+      const offlineNextRound = debug.battleNextRound();
+
+      debug.battleSetStartMode('online');
+      const onlineStart = debug.battleScenario({
+        playerCount: 4,
+        dealerIndex: 0,
+        handNo: 0,
+        handCounts: [3, 0, 4, 2],
+        chipsBySeat: [100, 100, 100, 100],
+        combatBySeat: [{ speed: 12 }, { speed: 34 }, { speed: 91 }, { speed: 56 }],
+        withTrick: false
+      });
+      const onlineSettled = debug.battleFinishRound(1);
+      const onlineNextRound = debug.battleNextRound();
+      debug.battleSetStartMode('offline');
+
+      return {
+        offlineStart,
+        offlineSettled,
+        offlineNextRound,
+        onlineStart,
+        onlineSettled,
+        onlineNextRound
+      };
+    });
+
+    expect(audit.offlineStart.dealer).toBe(1);
+    expect(audit.offlineSettled.roundSettlement.winnerIndex).toBe(2);
+    expect(audit.offlineSettled.dealer).toBe(0);
+    expect(audit.offlineNextRound.dealer).toBe(0);
+    expect(audit.onlineStart.dealer).toBe(0);
+    expect(audit.onlineSettled.roundSettlement.winnerIndex).toBe(1);
+    expect(audit.onlineSettled.dealer).toBe(2);
+    expect(audit.onlineNextRound.dealer).toBe(2);
   });
 
   test('call rate, schema migration, action forgery, revisions, and transition locks are authoritative', async ({ page }) => {
