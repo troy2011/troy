@@ -95,6 +95,41 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.afterNormalPass.players[2].hp).toBe(73);
   });
 
+  test('equal values require the directed winning-suit cycle', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const validateReply = (fieldSuit, replySuit, suffix) => {
+        const fieldCard = { id: `suit-field-${suffix}`, kind: 'minor', suit: fieldSuit, number: 7 };
+        const replyCard = { id: `suit-reply-${suffix}`, kind: 'minor', suit: replySuit, number: 7 };
+        debug.battleScenario({
+          turnIndex: 0,
+          leaderIndex: 1,
+          tableCard: fieldCard,
+          handsBySeat: [[replyCard]]
+        });
+        return debug.battleRebuildAction(0, { selectedCardIds: [replyCard.id] });
+      };
+      return {
+        cupOverWand: validateReply('Wand', 'Cup', 'cup-over-wand'),
+        swordOverCup: validateReply('Cup', 'Sword', 'sword-over-cup'),
+        pentacleOverSword: validateReply('Sword', 'Pentacle', 'pentacle-over-sword'),
+        wandOverPentacle: validateReply('Pentacle', 'Wand', 'wand-over-pentacle'),
+        wandUnderCup: validateReply('Cup', 'Wand', 'wand-under-cup'),
+        sameSuit: validateReply('Wand', 'Wand', 'same-suit'),
+        skippingSuit: validateReply('Wand', 'Sword', 'skipping-suit')
+      };
+    });
+
+    expect(audit.cupOverWand.ok).toBe(true);
+    expect(audit.swordOverCup.ok).toBe(true);
+    expect(audit.pentacleOverSword.ok).toBe(true);
+    expect(audit.wandOverPentacle.ok).toBe(true);
+    for (const result of [audit.wandUnderCup, audit.sameSuit, audit.skippingSuit]) {
+      expect(result).toMatchObject({ ok: false });
+      expect(result.reason).toContain('勝ちスート');
+    }
+  });
+
   test('stage 1 unlocks five-card roles in 1-3 and calls in 1-4 for humans and NPCs', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
@@ -3279,14 +3314,14 @@ test.describe('Tarot Kingdom character battle flow', () => {
       });
       const bard = debug.battlePlayCards(0, [cupAce.id], { resolve: false }).state;
 
-      const swordAce = { id: 'necro-sword-ace', kind: 'minor', suit: 'Sword', number: 1 };
+      const wandAce = { id: 'necro-wand-ace', kind: 'minor', suit: 'Wand', number: 1 };
       const minorDiscard = (id, suit, number) => ({ id, kind: 'minor', suit, number });
       debug.battleScenario({
         tableCard: { id: 'necro-field', kind: 'minor', suit: 'Pentacle', number: 1 },
         enemyHp: 5000,
         enemyMaxHp: 5000,
         enemyDefense: 0,
-        handsBySeat: [[swordAce, { id: 'necro-reserve', kind: 'minor', suit: 'Cup', number: 4 }]],
+        handsBySeat: [[wandAce, { id: 'necro-reserve', kind: 'minor', suit: 'Cup', number: 4 }]],
         hpBySeat: [30, 100, 100, 100],
         combatBySeat: [{ maxHp: 100, power: 100 }],
         discardsBySeat: [
@@ -3297,12 +3332,12 @@ test.describe('Tarot Kingdom character battle flow', () => {
         ],
         charactersBySeat: [{
           version: 4,
-          tarotDeck: [{ slot: 0, suit: 'Sword', rank: 1, cardLevel: 1, resonanceId: 'sword-1' }],
+          tarotDeck: [{ slot: 0, suit: 'Wand', rank: 1, cardLevel: 1, resonanceId: 'wand-1' }],
           guardianArcana: { itemId: 'tarot_major_13', number: 13, cardLevel: 1, passiveId: 'guardian-v5-13' }
         }],
         rules: { arcanaLoadoutEffectsVersion: 5 }
       });
-      const necro = debug.battlePlayCards(0, [swordAce.id], { resolve: false }).state;
+      const necro = debug.battlePlayCards(0, [wandAce.id], { resolve: false }).state;
       return { bard, necro };
     });
 
@@ -4190,29 +4225,31 @@ test.describe('Tarot Kingdom character battle flow', () => {
     });
     expect(audit.roles.lockedCallWrongSuit.ok).toBe(false);
     expect(audit.roles.lockedCallWrongSuit.reason).toBe(
-      '14ロック中：カップのみ。節制XIVで解除できます。'
+      'ロイヤルロック中：カップのみ。節制XIVで解除できます。'
     );
     expect(audit.roles.lockedCallSameSuit.ok).toBe(true);
     expect(audit.roles.towerSinglePower).toBe(16);
     expect(audit.roles.legacyTowerSinglePower).toBe(14);
     expect(audit.roles.worldSingleValid).toBe(true);
     expect(audit.effectless).toBe(true);
+    expect(audit.major13LockSuit).toBeNull();
     expect(audit.major14LockSuit).toBeNull();
+    expect(audit.minor13LockSuit).toBe('Wand');
     expect(audit.minor14LockSuit).toBe('Wand');
     expect(audit.major14Unlock).toEqual({ playableThroughLock: true, lockSuit: null });
     expect(audit.lockRestriction.sameSuitMinor.ok).toBe(true);
     expect(audit.lockRestriction.differentSuitMinor).toEqual({
       ok: false,
-      reason: '14ロック中：カップのみ。節制XIVで解除できます。'
+      reason: 'ロイヤルロック中：カップのみ。節制XIVで解除できます。'
     });
     expect(audit.lockRestriction.sameSuitMajor.ok).toBe(true);
     expect(audit.lockRestriction.differentSuitMajor.ok).toBe(false);
-    expect(audit.lockRestriction.differentSuitMajor.reason).toContain('14ロック中：カップのみ');
+    expect(audit.lockRestriction.differentSuitMajor.reason).toContain('ロイヤルロック中：カップのみ');
     expect(audit.lockRestriction.noSuitMajor.ok).toBe(false);
-    expect(audit.lockRestriction.noSuitMajor.reason).toContain('14ロック中：カップのみ');
+    expect(audit.lockRestriction.noSuitMajor.reason).toContain('ロイヤルロック中：カップのみ');
     expect(audit.lockRestriction.temperance.ok).toBe(true);
     expect(audit.lockRestriction.mixedSuitRole.ok).toBe(false);
-    expect(audit.lockRestriction.mixedSuitRole.reason).toContain('14ロック中：カップのみ');
+    expect(audit.lockRestriction.mixedSuitRole.reason).toContain('ロイヤルロック中：カップのみ');
     expect(audit.majorSuitGate.sameSuit).toMatchObject({ ok: true, setPower: 16 });
     expect(audit.majorSuitGate.differentSuit).toMatchObject({ ok: false, setPower: 16 });
     expect(audit.majorSuitGate.differentSuit.reason).toContain('同じスート');
@@ -4258,7 +4295,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.devil.empty.ok).toBe(false);
     expect(audit.devil.pair.ok).toBe(false);
     expect(audit.devil.locked.ok).toBe(false);
-    expect(audit.devil.locked.reason).toContain('14ロック中：カップのみ');
+    expect(audit.devil.locked.reason).toContain('ロイヤルロック中：カップのみ');
 
     expect(audit.judgment.onMinorAce.ok).toBe(false);
     expect(audit.judgment.onMinorAce.reason).toBe('Aの能力：大アルカナでは返せません。');
@@ -4285,10 +4322,16 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.worldReverse.worldOverMinorEightCut.reason).toContain('大アルカナ1枚');
     expect(audit.worldReverse.minorOverWorldNormal.ok).toBe(false);
     expect(audit.worldReverse.minorOverWorldReverse.ok).toBe(true);
+    expect(audit.strengthCut.majorStrength).toEqual({
+      ok: false,
+      reason: '8カット中: コールかパスのみ。'
+    });
+    expect(audit.npcStrengthCut).toEqual({ action: 'pass', cardNumber: 0 });
     expect(audit.schema7Compatibility.devilOnNumberTen.ok).toBe(true);
     expect(audit.schema7Compatibility.judgmentFinish.ok).toBe(true);
     expect(audit.schema7Compatibility.worldFinish.ok).toBe(true);
     expect(audit.schema7Compatibility.towerFinish.ok).toBe(true);
+    expect(audit.descriptions['8']).toBe('8カット');
 
     expect(audit.worldSingle).toMatchObject({
       ok: true,

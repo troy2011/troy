@@ -24,7 +24,7 @@ import {
   getTarotKingdomMajorSecondaryDamageScale,
   getTarotKingdomResonanceDamageFloor,
   normalizeTarotKingdomCharacter
-} from './tarotKingdomCombat.js?v=20260821-pet-fixed-arcana-v1';
+} from './tarotKingdomCombat.js?v=20260823-royal-lock-v1';
 import {
   TAROT_KINGDOM_ARCANA_EFFECTS_READY,
   getTarotKingdomPhysicalScale,
@@ -44,7 +44,7 @@ import {
   normalizeTarotKingdomWeaponTypes,
   resolveTarotKingdomResonance,
   resolveTarotKingdomWeaponEffect
-} from './tarotKingdomEffects.js?v=20260821-guardian-job-names-v1';
+} from './tarotKingdomEffects.js?v=20260823-royal-lock-v1';
 import {
   TAROT_KINGDOM_NEGATIVE_STATUS_KEYS,
   TAROT_KINGDOM_HARD_CONTROL_KEYS,
@@ -178,10 +178,16 @@ const SUITS = ['Wand', 'Cup', 'Sword', 'Pentacle'];
 const GRAVE_RANK_ORDER = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1];
 const GRAVE_RANK_LABEL = { 1: 'A', 11: 'P', 12: 'N', 13: 'Q', 14: 'K' };
 const SUIT_LABEL = { Wand: 'ワンド', Cup: 'カップ', Sword: 'ソード', Pentacle: 'ペンタクル', None: '無' };
-const SUIT_TIER = { Wand: 2, Cup: 2, Sword: 1, Pentacle: 1, None: 0 };
+// 同値時の勝敗は循環相性で決まるため、スート自体に固定の序列は設けない。
+const SUIT_TIER = { Wand: 1, Cup: 1, Sword: 1, Pentacle: 1, None: 0 };
 const SUIT_MASK = { None: 0, Wand: 1, Cup: 2, Sword: 4, Pentacle: 8, All: 15 };
-const SUIT_PAIR_MASK_A = SUIT_MASK.Wand | SUIT_MASK.Cup;
-const SUIT_PAIR_MASK_B = SUIT_MASK.Sword | SUIT_MASK.Pentacle;
+const SUIT_ADVANTAGE = Object.freeze({
+  Wand: 'Pentacle',
+  Cup: 'Wand',
+  Sword: 'Cup',
+  Pentacle: 'Sword'
+});
+const SUIT_ADVANTAGE_LABEL = 'ワンド←カップ←ソード←ペンタクル←ワンド';
 const SUIT_COLOR = { Wand: '#b11818', Sword: '#9b72e6', Cup: '#1e63c6', Pentacle: '#1e8f3c' };
 const SPECIAL_SUIT = {
   16: 'Sword',
@@ -757,10 +763,10 @@ const KINGDOM_TRICK_ROLE_SCENE_CLASSES = Object.freeze({
 const KINGDOM_DEMO_TRICK_SCENE_OPTIONS = Object.freeze([
   { value: 'auto', label: '自動（ゲーム進行）', classes: [] },
   { value: 'normal', label: '通常・穏やかな海', classes: [] },
-  { value: 'lock-wand', label: '14ロック・溶岩', classes: ['is-scene-lock', 'is-scene-lock-wand'] },
-  { value: 'lock-cup', label: '14ロック・氷', classes: ['is-scene-lock', 'is-scene-lock-cup'] },
-  { value: 'lock-sword', label: '14ロック・嵐雷', classes: ['is-scene-lock', 'is-scene-lock-sword'] },
-  { value: 'lock-pentacle', label: '14ロック・岩', classes: ['is-scene-lock', 'is-scene-lock-pentacle'] },
+  { value: 'lock-wand', label: 'ロイヤルロック・溶岩', classes: ['is-scene-lock', 'is-scene-lock-wand'] },
+  { value: 'lock-cup', label: 'ロイヤルロック・氷', classes: ['is-scene-lock', 'is-scene-lock-cup'] },
+  { value: 'lock-sword', label: 'ロイヤルロック・嵐雷', classes: ['is-scene-lock', 'is-scene-lock-sword'] },
+  { value: 'lock-pentacle', label: 'ロイヤルロック・岩', classes: ['is-scene-lock', 'is-scene-lock-pentacle'] },
   { value: 'reverse', label: '11バック・大渦', classes: ['is-scene-back'] },
   { value: 'cut', label: '8カット・海の亀裂', classes: ['is-scene-cut'] },
   { value: 'skip', label: '5スキップ・大波', classes: ['is-scene-skip'] },
@@ -1442,6 +1448,7 @@ const shuf = (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0;
 const comb = (arr, n) => { const out = []; const w = (st, ac) => { if (ac.length === n) return out.push(ac.slice()); for (let i = st; i <= arr.length - (n - ac.length); i += 1) { ac.push(arr[i]); w(i + 1, ac); ac.pop(); } }; if (n > 0 && arr.length >= n) w(0, []); return out; };
 const cmpVec = (l, r) => { const m = Math.max(l.length, r.length); for (let i = 0; i < m; i += 1) { const a = Number(l[i] ?? 0), b = Number(r[i] ?? 0); if (a !== b) return a > b ? 1 : -1; } return 0; };
 const idNum = (c) => Number(c?.number || 0);
+const isRoyalLockMinorCard = (card) => card?.kind === 'minor' && [13, 14].includes(idNum(card));
 const cStrength = (c) => c?.kind === 'minor' ? (c.number === 1 ? 15 : c.number) : (c?.number === 14 ? 14 : Number(c?.number || 0));
 const isMajorSuitGateCard = (card) => (
   card?.kind === 'major' && MAJOR_SUIT_GATE_NUMBERS.has(Number(card?.number))
@@ -1746,9 +1753,10 @@ const isSuitMatchupCompatible = (playMask, trickMask) => {
   const b = Number(trickMask || 0);
   if (!a || !b) return false;
   if (a === SUIT_MASK.All || b === SUIT_MASK.All) return true;
-  const inA = (a & SUIT_PAIR_MASK_A) && (b & SUIT_PAIR_MASK_A);
-  const inB = (a & SUIT_PAIR_MASK_B) && (b & SUIT_PAIR_MASK_B);
-  return !!(inA || inB);
+  return SUITS.some((playSuit) => (
+    (a & SUIT_MASK[playSuit])
+    && (b & SUIT_MASK[SUIT_ADVANTAGE[playSuit]])
+  ));
 };
 const getPlaySuitMask = (play) => {
   const explicit = Number(play?.suitMask || 0);
@@ -1901,8 +1909,7 @@ const pickTrickDefeatFx = (play, prevTrick) => {
 };
 const suitTierForCard = (c, suit) => {
   const base = SUIT_TIER[suit] || 0;
-  // 大アルカナは、同値比較時のスート優位で常に小アルカナより上位
-  // (同じ大アルカナ同士では base で軽く序列を残す)
+  // 大アルカナは同数時に小アルカナより上位。スート間の勝敗は循環相性で判定する。
   if (c?.kind === 'major') return 10 + base;
   return base;
 };
@@ -1964,7 +1971,7 @@ function getKingdomTutorialPrompt(state = s, playerIndex = null) {
   switch (getKingdomTutorialLesson(state)) {
     case 1:
       return playerIndex != null && getKingdomTutorialStep(playerIndex, state) >= 1
-        ? '同じ数字は　相性スートで返せる\nワンド↔カップ　ソード↔ペンタクル'
+        ? `同じ数字は　勝ちスートで返せる\n${SUIT_ADVANTAGE_LABEL}`
         : '1-1　カードで攻撃\n場より大きい数字を1枚出そう';
     case 2: return '1-2　5を2枚出して2人スキップ';
     case 3: return '1-3　ポーカー役：2～6でストレート';
@@ -2025,7 +2032,7 @@ function getKingdomTutorialSuccessLabel(play) {
     if (number === 5) return '5 SKIP';
     if (number === 8) return '8 CUT';
     if (number === 11) return '11 REVERSE';
-    if (number === 14) return '14 BREAK';
+    if (number === 14) return 'ROYAL LOCK';
     return '2枚出し！';
   }
   if (lesson === 4) return 'CALL';
@@ -2112,9 +2119,9 @@ function buildKingdomTutorialDeck(lesson, playerCount, initialHandSize, dealerIn
   if (safeLesson === 1) {
     opening = take('Cup', 3);
     const lessons = [
-      [['Cup', 4], ['Cup', 6], ['Wand', 6]],
+      [['Cup', 4], ['Wand', 6], ['Cup', 6]],
       [['Sword', 7], ['Sword', 8], ['Pentacle', 8]],
-      [['Cup', 9], ['Cup', 10], ['Wand', 10]],
+      [['Cup', 9], ['Wand', 10], ['Cup', 10]],
       [['Sword', 11], ['Sword', 12], ['Pentacle', 12]]
     ];
     hands.forEach((hand, seat) => {
@@ -2331,7 +2338,7 @@ function getKingdomCardEffectDescription(card) {
       5: usesMajorSpecialRules ? '次の2人をスキップ' : '5スキップ',
       8: '8カット',
       11: '11バック',
-      14: '14ロック解除',
+      14: 'ロイヤルロック解除',
       15: usesMajorSpecialRules ? 'コート専用 / 11バック無視' : '',
       16: usesMajorGateRules
         ? (usesMajorSpecialRules ? '同スート場専用 / 初手不可' : 'ソード場限定（上がり不可）')
@@ -2356,7 +2363,7 @@ function getKingdomCardEffectDescription(card) {
   if (n === 5) return '5スキップ';
   if (n === 8) return '8カット';
   if (n === 11) return '11バック';
-  if (n === 14) return '場と同スートで14ロック';
+  if (isRoyalLockMinorCard(card)) return '場と同スートでロイヤルロック';
   return '';
 }
 
@@ -2877,7 +2884,7 @@ function resolveKingdomActionCutinPresentation(playerIndex, label, options = {})
     else if (/審判スキップ/.test(text)) choose('SKIP', 'skip');
     else if (/共鳴/.test(text)) choose('RESONANCE', 'resonance');
     else if (/ロック解除|反転解除/.test(text)) choose('BREAK', 'break');
-    else if (/14ロック|is-kingdom-lock/.test(`${cutinClass} ${text}`)) choose('LOCK', 'lock');
+    else if (/ロイヤルロック|is-kingdom-lock/.test(`${cutinClass} ${text}`)) choose('LOCK', 'lock');
     else if (/11バック|反転|is-kingdom-reverse/.test(`${cutinClass} ${text}`)) choose('REVERSE', 'reverse');
     else if (/8カット|is-kingdom-cut/.test(`${cutinClass} ${text}`)) choose('CUT', 'cut');
     else if (/5スキップ|is-kingdom-skip/.test(`${cutinClass} ${text}`)) choose('SKIP', 'skip');
@@ -16265,8 +16272,18 @@ function auditKingdomMajorArcanaRules() {
   });
 
   buildTarotKingdomDebugBattleState({ withTrick: false });
+  applySetEffects({ owner: 0, cardsHand: [major(13)], prevLeadSuit: 'Wand' });
+  const major13LockSuit = s.lock?.suit || null;
+  buildTarotKingdomDebugBattleState({ withTrick: false });
   applySetEffects({ owner: 0, cardsHand: [major(14)], prevLeadSuit: 'Wand' });
   const major14LockSuit = s.lock?.suit || null;
+  buildTarotKingdomDebugBattleState({ withTrick: false });
+  applySetEffects({
+    owner: 0,
+    cardsHand: [minor('minor-13-lock', 'Wand', 13)],
+    prevLeadSuit: 'Wand'
+  });
+  const minor13LockSuit = s.lock?.suit || null;
   buildTarotKingdomDebugBattleState({ withTrick: false });
   applySetEffects({
     owner: 0,
@@ -16534,7 +16551,9 @@ function auditKingdomMajorArcanaRules() {
       worldSingleValid: !!worldSingleValid.ok
     },
     effectless,
+    major13LockSuit,
     major14LockSuit,
+    minor13LockSuit,
     minor14LockSuit,
     major14Unlock,
     lockRestriction,
@@ -16804,6 +16823,13 @@ function auditKingdomMajorArcanaSpecialRules() {
       reverse: true
     })
   };
+  const strengthCut = {
+    majorStrength: validateSingle({
+      hand: [major(8, '-during-cut'), minor('special-strength-cut-major-reserve', 'Wand', 2)],
+      field: minor('special-strength-cut-major-field', 'Wand', 8),
+      callOnly: true
+    })
+  };
   const schema7Rules = { majorArcanaGateVersion: 1, majorArcanaSpecialVersion: 0 };
   const schema7Compatibility = {
     devilOnNumberTen: validateSingle({
@@ -17053,7 +17079,23 @@ function auditKingdomMajorArcanaSpecialRules() {
   resolveKingdomTransition();
   retryAfterEnemy.finalPhase = s.phase;
 
-  const descriptions = Object.fromEntries([15, 16, 17, 18, 19, 20, 21].map((number) => [
+  buildTarotKingdomDebugBattleState({
+    turnIndex: 1,
+    leaderIndex: 0,
+    tableCard: minor('special-npc-strength-cut-field', 'Wand', 8),
+    handsBySeat: [
+      [minor('special-npc-strength-cut-opponent', 'Cup', 5)],
+      [major(8, '-npc-cut')]
+    ]
+  });
+  s.callOnly = true;
+  const npcStrengthCutDecision = npcDecide(1, { randomSource: () => 0 });
+  const npcStrengthCut = {
+    action: npcStrengthCutDecision.action,
+    cardNumber: Number(npcStrengthCutDecision.play?.cardsHand?.[0]?.number || 0)
+  };
+
+  const descriptions = Object.fromEntries([8, 15, 16, 17, 18, 19, 20, 21].map((number) => [
     number,
     getKingdomCardEffectDescription(major(number, '-description'))
   ]));
@@ -17063,6 +17105,7 @@ function auditKingdomMajorArcanaSpecialRules() {
     judgment,
     finish,
     worldReverse,
+    strengthCut,
     worldAgainstFiveCardRole,
     schema7Compatibility,
     worldSingle,
@@ -17076,6 +17119,7 @@ function auditKingdomMajorArcanaSpecialRules() {
     retryTransition,
     retryAfter,
     retryAfterEnemy,
+    npcStrengthCut,
     descriptions
   };
 }
@@ -17998,7 +18042,7 @@ function getKingdomSuitLockViolation(cards = [], { allowTemperance = false } = {
   if (playedCards.length > 0 && playedCards.every((card) => suitsForCard(card, false).includes(lockSuit))) {
     return null;
   }
-  return `14ロック中：${SUIT_LABEL[lockSuit] || lockSuit}のみ。節制XIVで解除できます。`;
+  return `ロイヤルロック中：${SUIT_LABEL[lockSuit] || lockSuit}のみ。節制XIVで解除できます。`;
 }
 
 function buildSetPlay(pi, sel) {
@@ -18328,7 +18372,7 @@ function validatePlay(play, mode) {
     const trickMask = getPlaySuitMask(s.trick);
     return isSuitMatchupCompatible(playMask, trickMask)
       ? { ok: true }
-      : { ok: false, reason: '同数値は相性スート（W↔C / S↔P）のみ有効です。' };
+      : { ok: false, reason: `同数値は勝ちスート（${SUIT_ADVANTAGE_LABEL}）のみ有効です。` };
   }
   const roleCmp = compareRole(play.role, s.trick.role);
   if (roleCmp > 0) return { ok: true };
@@ -18337,7 +18381,7 @@ function validatePlay(play, mode) {
   const trickMask = getPlaySuitMask(s.trick);
   return isSuitMatchupCompatible(playMask, trickMask)
     ? { ok: true }
-    : { ok: false, reason: '同役同値は相性スート（W↔C / S↔P）のみ有効です。' };
+    : { ok: false, reason: `同役同値は勝ちスート（${SUIT_ADVANTAGE_LABEL}）のみ有効です。` };
 }
 
 function removeHand(p, idxs) {
@@ -18962,17 +19006,17 @@ function applySetEffects(play) {
   if (hasMajor(14) && cards.length === 1) {
     if (s.lock?.suit) {
       s.lock = null;
-      log(`${pName(play.owner)}: 節制で14ロック解除`);
-      triggerKingdomActionFx(play.owner, 'ロック解除', { overlay: 'action', durationMs: 820, cutin: true, cutinClass: 'is-kingdom-lock' });
+      log(`${pName(play.owner)}: 節制でロイヤルロック解除`);
+      triggerKingdomActionFx(play.owner, 'ロイヤルロック解除', { overlay: 'action', durationMs: 820, cutin: true, cutinClass: 'is-kingdom-lock' });
     }
-  } else if (has(14) && cards.length === 1) {
+  } else if (cards.length === 1 && isRoyalLockMinorCard(cards[0])) {
     const cur = cards[0];
     const prevSuit = (play?.prevLeadSuit && play.prevLeadSuit !== 'None') ? play.prevLeadSuit : null;
     if (prevSuit && suitsForCard(cur, false).includes(prevSuit)) {
-      // 通常14ロック: 直前の場札と同スート時のみ発動
+      // 小アルカナ13・14: 直前の場札と同スート時のみロイヤルロックを発動。
       s.lock = { suit: prevSuit, min: null };
-      log(`${pName(play.owner)}: 14ロック (${SUIT_LABEL[prevSuit]})`);
-      triggerKingdomActionFx(play.owner, '14ロック', { overlay: 'action', durationMs: 820, cutin: true, cutinClass: 'is-kingdom-lock' });
+      log(`${pName(play.owner)}: ロイヤルロック (${SUIT_LABEL[prevSuit]})`);
+      triggerKingdomActionFx(play.owner, 'ロイヤルロック', { overlay: 'action', durationMs: 820, cutin: true, cutinClass: 'is-kingdom-lock' });
     }
   }
   if (forceClear) {
@@ -19638,7 +19682,7 @@ function continueAfterPlay(pi, play) {
       : null;
     // コール成立後は場にかかっている一時効果を解除し、局内永続だけを残す。
     s.callOnly = false; // 8カット（コール猶予）
-    s.lock = null; // 14ロック / 節制ロック
+    s.lock = null; // ロイヤルロック / 節制解除
     s.reverse = false; // 11バック
     if (s.battle?.enemy) {
       s.battle.enemy.petrifiedUntilClear = false;
@@ -20803,7 +20847,7 @@ function getNpcControlScore(play, observation, policy) {
   if (numbers.has(11) || (play.cardsHand || []).some((card) => card?.kind === 'major' && Number(card.number) === 20)) {
     score += 155;
   }
-  if (numbers.has(14) && Number(play.count || 0) === 1) {
+  if ((play.cardsHand || []).some(isRoyalLockMinorCard) && Number(play.count || 0) === 1) {
     const leadSuit = observation.trick?.cardsTable?.[0]
       ? suitsForCard(observation.trick.cardsTable[0], false)[0]
       : null;
@@ -21050,7 +21094,12 @@ function npcDecide(pi, options = {}) {
   const roles = roleMoves(pi);
   const reserveContext = createNpcReserveContext(pi, calls, roles, sets);
   const observation = createNpcObservation(pi);
-  const all = s.callOnly ? calls : [...calls, ...roles, ...sets];
+  // 8カット中はコールに加え、例外として許可されるザ・ワールドXXIだけを検討する。
+  // setMoves は validatePlay 済みのため、場札・数値などの通常条件もここで保証される。
+  const cutResponses = s.callOnly
+    ? sets.filter((play) => isSingleMajorSetPlay(play, 21))
+    : [];
+  const all = s.callOnly ? [...calls, ...cutResponses] : [...calls, ...roles, ...sets];
   const scoredPlays = all.map((play) => ({
     action: 'play',
     play,
@@ -25447,7 +25496,7 @@ function renderSummary() {
       const key = String(lockSuit || '').toLowerCase();
       ui.lockChip.classList.add(`is-lock-${key}`);
       const minText = s?.lock?.min != null ? ` / >${s.lock.min}` : '';
-      ui.lockChip.textContent = `ロック: ${SUIT_LABEL[lockSuit] || lockSuit}${minText}`;
+      ui.lockChip.textContent = `ロイヤルロック: ${SUIT_LABEL[lockSuit] || lockSuit}${minText}`;
     }
   }
   ui.root?.classList.toggle('is-reverse', !!s.reverse);
@@ -26579,7 +26628,7 @@ function ensureKingdomRulebookUi() {
               </div>
               <div>
                 <h4>同じ強さで返す</h4>
-                <p>同値は相性スートだけ有効。大アルカナと小アルカナが同値なら大アルカナが優先されます。</p>
+                <p>同値は、場札に勝つ相性スートだけ有効。大アルカナと小アルカナが同値なら大アルカナが優先されます。</p>
               </div>
               <div>
                 <h4>場が流れる</h4>
@@ -26590,46 +26639,44 @@ function ensureKingdomRulebookUi() {
                 <p>手札0、敵撃破など、そのステージの終了条件で清算へ。通常戦は4局後のチップ合計で順位が決まります。</p>
               </div>
             </div>
-            <div class="tarot-kingdom-rulebook-suits" aria-label="相性スート">
+            <p class="tarot-kingdom-rulebook-suits-caption">矢印の始点が、矢印の先のスートに勝ちます。</p>
+            <div class="tarot-kingdom-rulebook-suits" aria-label="相性スート。ワンド←カップ←ソード←ペンタクル←ワンド">
               <div class="is-wand">${rulebookCardMarkup(rulebookMinorCard('Wand', 5))}<strong>ワンド</strong></div>
-              <b aria-hidden="true">↔</b>
               <div class="is-cup">${rulebookCardMarkup(rulebookMinorCard('Cup', 5))}<strong>カップ</strong></div>
               <div class="is-sword">${rulebookCardMarkup(rulebookMinorCard('Sword', 5))}<strong>ソード</strong></div>
-              <b aria-hidden="true">↔</b>
               <div class="is-pentacle">${rulebookCardMarkup(rulebookMinorCard('Pentacle', 5))}<strong>ペンタクル</strong></div>
             </div>
-            <svg class="tarot-kingdom-rulebook-suits-diagram" viewBox="0 0 280 200" xmlns="http://www.w3.org/2000/svg" aria-label="スート相性図">
+            <svg class="tarot-kingdom-rulebook-suits-diagram" viewBox="0 0 280 220" xmlns="http://www.w3.org/2000/svg" aria-label="スート相性図。ワンド←カップ←ソード←ペンタクル←ワンド">
               <defs>
                 <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
                   <polygon points="0 0, 10 3, 0 6" fill="#e7bd58" />
                 </marker>
               </defs>
               <!-- ワンド -->
-              <circle cx="50" cy="80" r="24" fill="#a83232" opacity="0.3" />
-              <text x="50" y="85" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">W</text>
-              <text x="50" y="110" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">ワンド</text>
+              <circle cx="140" cy="38" r="24" fill="#a83232" opacity="0.3" />
+              <text x="140" y="43" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">W</text>
+              <text x="140" y="72" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">ワンド</text>
 
               <!-- カップ -->
-              <circle cx="230" cy="80" r="24" fill="#2768bd" opacity="0.3" />
-              <text x="230" y="85" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">C</text>
-              <text x="230" y="110" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">カップ</text>
+              <circle cx="242" cy="110" r="24" fill="#2768bd" opacity="0.3" />
+              <text x="242" y="115" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">C</text>
+              <text x="242" y="140" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">カップ</text>
 
               <!-- ソード -->
-              <circle cx="50" cy="160" r="24" fill="#7857ad" opacity="0.3" />
-              <text x="50" y="165" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">S</text>
-              <text x="50" y="190" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">ソード</text>
+              <circle cx="140" cy="182" r="24" fill="#7857ad" opacity="0.3" />
+              <text x="140" y="187" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">S</text>
+              <text x="140" y="214" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">ソード</text>
 
               <!-- ペンタクル -->
-              <circle cx="230" cy="160" r="24" fill="#287342" opacity="0.3" />
-              <text x="230" y="165" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">P</text>
-              <text x="230" y="190" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">ペンタクル</text>
+              <circle cx="38" cy="110" r="24" fill="#287342" opacity="0.3" />
+              <text x="38" y="115" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">P</text>
+              <text x="38" y="140" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">ペンタクル</text>
 
               <!-- 矢印 -->
-              <line x1="75" y1="80" x2="205" y2="80" stroke="#e7bd58" stroke-width="2" marker-end="url(#arrowhead)" />
-              <line x1="205" y1="80" x2="75" y2="80" stroke="#e7bd58" stroke-width="2" marker-end="url(#arrowhead)" />
-
-              <line x1="75" y1="160" x2="205" y2="160" stroke="#e7bd58" stroke-width="2" marker-end="url(#arrowhead)" />
-              <line x1="205" y1="160" x2="75" y2="160" stroke="#e7bd58" stroke-width="2" marker-end="url(#arrowhead)" />
+              <path d="M222 92 Q190 54 160 45" fill="none" stroke="#e7bd58" stroke-width="2" marker-end="url(#arrowhead)" />
+              <path d="M160 174 Q210 158 231 129" fill="none" stroke="#e7bd58" stroke-width="2" marker-end="url(#arrowhead)" />
+              <path d="M58 129 Q83 163 121 176" fill="none" stroke="#e7bd58" stroke-width="2" marker-end="url(#arrowhead)" />
+              <path d="M120 45 Q70 62 50 92" fill="none" stroke="#e7bd58" stroke-width="2" marker-end="url(#arrowhead)" />
             </svg>
           </section>
 
@@ -26660,7 +26707,7 @@ function ensureKingdomRulebookUi() {
               <div>${rulebookCardMarkup(rulebookMinorCard('Wand', 5))}<h4>5スキップ</h4><p>出した枚数ぶん次のプレイヤーを飛ばします。法王Vは次の2人。</p></div>
               <div>${rulebookCardMarkup(rulebookMinorCard('Pentacle', 8))}<h4>8カット</h4><p>1枚ならコール猶予、2枚以上なら場を即クリア。敵も石化させます。</p></div>
               <div>${rulebookCardMarkup(rulebookMinorCard('Sword', 11))}<h4>11バック</h4><p>数字の強弱を反転。もう一度11を出すか、場が流れると解除されます。</p></div>
-              <div>${rulebookCardMarkup(rulebookMinorCard('Cup', 14))}<h4>14ロック</h4><p>同スートで返すと、そのスートだけに固定。節制XIVはロック解除。</p></div>
+              <div>${rulebookCardMarkup(rulebookMinorCard('Cup', 13))}${rulebookCardMarkup(rulebookMinorCard('Cup', 14))}<h4>ロイヤルロック</h4><p>13または14を場札と同じスートで出すと、そのスートだけに固定。節制XIVで解除します。</p></div>
             </div>
             <div class="tarot-kingdom-rulebook-major-list">
               <h4>大アルカナ早見</h4>
@@ -26698,7 +26745,7 @@ function ensureKingdomRulebookUi() {
               <li>通常出しの複数枚は同じ数字？</li>
               <li>Aと数字1を混ぜていない？</li>
               <li>同値なら相性スートになっている？</li>
-              <li>14ロック、8カット、11バックが発動中ではない？</li>
+              <li>ロイヤルロック、8カット、11バックが発動中ではない？</li>
             </ul>
           </section>
         </div>

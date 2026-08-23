@@ -29,7 +29,7 @@
     { "id": "wand-11", "suit": "Wand", "rank": 11, "name": "リヴェルシア", "effect": "この札で11バックを解除すると、札の属性で極大ダメージ", "condition": { "kind": "reverse-active" }, "steps": [{ "kind": "magic-damage", "element": "source", "multiplier": 3 }] },
     { "id": "wand-12", "suit": "Wand", "rank": 12, "name": "アルカノヴァ", "effect": "大アルカナの場札へ出すと、札の属性で大ダメージ", "condition": { "kind": "field-major" }, "steps": [{ "kind": "magic-damage", "element": "source", "multiplier": 2.2 }] },
     { "id": "wand-13", "suit": "Wand", "rank": 13, "name": "ソリタリア", "effect": "提出後の手札に同じスートがなければ、場札属性で大ダメージ", "condition": { "kind": "no-source-suit-after" }, "steps": [{ "kind": "magic-damage", "element": "field", "multiplier": 2.2 }] },
-    { "id": "wand-14", "suit": "Wand", "rank": 14, "name": "シギルム", "effect": "この札で14ロックを成立させると、ロック属性で大ダメージ", "condition": { "kind": "causes-lock" }, "steps": [{ "kind": "magic-damage", "element": "field", "multiplier": 2.2 }] },
+    { "id": "wand-14", "suit": "Wand", "rank": 14, "name": "シギルム", "effect": "この札でロイヤルロックを成立させると、ロック属性で大ダメージ", "condition": { "kind": "causes-lock" }, "steps": [{ "kind": "magic-damage", "element": "field", "multiplier": 2.2 }] },
 
     { "id": "sword-1", "suit": "Sword", "rank": 1, "name": "先駆の一閃", "effect": "親の初手として出すと、通常攻撃がクリティカル", "condition": { "kind": "lead" }, "steps": [{ "kind": "base-attack-bonus", "rate": 50 }] },
     { "id": "sword-2", "suit": "Sword", "rank": 2, "name": "双牙連斬", "effect": "2枚出しに含めると追加2連撃", "condition": { "kind": "play-count", "count": 2 }, "steps": [{ "kind": "physical-damage", "multiplier": 1.2, "hitCount": 2 }] },
@@ -86,4 +86,3 @@
     { "number": 21, "attribute": "neutral", "passiveId": "world-role", "passiveName": "完成の停止", "passive": "5枚役を出すと敵の次の攻撃を1回停止", "awakeningId": "world-awaken", "awakening": "時間停止3回、停止中は味方与ダメージ20%上昇" }
   ]
 }
-

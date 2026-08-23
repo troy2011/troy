@@ -288,14 +288,21 @@ test('rulebook explains the current rules and returns to the same battle on mobi
   await expect(rulebook.getByRole('heading', { name: /タロットキングダム\s*ルールブック/ })).toBeVisible();
   await expect(rulebook.getByText('Aは通常時の最強札（15）')).toBeVisible();
   await expect(rulebook.getByText('数字1とは別物で、大アルカナでは返せません。Aを1として使えるのは、A–2–3–4–5のストレートだけ。')).toBeVisible();
-  await expect(rulebook.getByText('通常のパスでは反撃を受ける場合があります。ただし局開始の公開札だけが場にある間は、反撃も全員パス時の全体攻撃もありません。「防御」は場が流れるまで自動で守り、被害を抑えます。')).toBeVisible();
+    await expect(rulebook.getByText('通常のパスでは反撃を受ける場合があります。ただし局開始の公開札だけが場にある間は、反撃も全員パス時の全体攻撃もありません。「防御」は場が流れるまで自動で守り、被害を抑えます。')).toBeVisible();
+    await expect(rulebook.getByText('1枚ならコール猶予、2枚以上なら場を即クリア。敵も石化させます。')).toBeVisible();
+    await expect(rulebook.getByText('13または14を場札と同じスートで出すと、そのスートだけに固定。節制XIVで解除します。')).toBeVisible();
+    await expect(rulebook.getByText('矢印の始点が、矢印の先のスートに勝ちます。')).toBeVisible();
+  await expect(rulebook.locator('.tarot-kingdom-rulebook-suits-diagram')).toHaveAttribute(
+    'aria-label',
+    'スート相性図。ワンド←カップ←ソード←ペンタクル←ワンド'
+  );
   await expect(rulebook.getByText('同じスート5枚、または世界なしの大アルカナ5枚')).toBeVisible();
   await expect(rulebook.locator('.tarot-kingdom-rulebook-table-wrap tbody tr')).toHaveCount(7);
-  await expect(rulebook.locator('.tarot-kingdom-rulebook-card-image')).toHaveCount(49);
+  await expect(rulebook.locator('.tarot-kingdom-rulebook-card-image')).toHaveCount(50);
   await expect(rulebook.locator('.tarot-kingdom-roles-sample-grid .sample')).toHaveCount(7);
   await expect(rulebook.locator('.tarot-kingdom-roles-sample-grid .sample-cards')).toHaveCount(7);
   await expect(rulebook.locator('.tarot-kingdom-roles-sample-grid .sample-cards .tarot-kingdom-rulebook-card-image')).toHaveCount(35);
-  await expect(rulebook.locator('.tarot-kingdom-rulebook-special-grid .tarot-kingdom-rulebook-card-image')).toHaveCount(4);
+  await expect(rulebook.locator('.tarot-kingdom-rulebook-special-grid .tarot-kingdom-rulebook-card-image')).toHaveCount(5);
   await expect(rulebook.locator('.tarot-kingdom-rulebook-major-list .tarot-kingdom-rulebook-card-image')).toHaveCount(6);
   const rulebookCardStyle = await rulebook.locator('.tarot-kingdom-rulebook-card-image').first().evaluate((card) => {
     const box = card.getBoundingClientRect();
@@ -3362,8 +3369,8 @@ test('stage 1 teaches four actions with minor-only scripted hands', async ({ pag
   expect(replyCard).toBeTruthy();
   expect(openingCard).toMatchObject({ kind: 'minor', suit: 'Cup', number: 3 });
   expect(leadCard).toMatchObject({ kind: 'minor', suit: 'Cup', number: 4 });
-  expect(matchupPair.replyBaseCard).toMatchObject({ kind: 'minor', suit: 'Cup', number: 6 });
-  expect(replyCard).toMatchObject({ kind: 'minor', suit: 'Wand', number: 6 });
+  expect(matchupPair.replyBaseCard).toMatchObject({ kind: 'minor', suit: 'Wand', number: 6 });
+  expect(replyCard).toMatchObject({ kind: 'minor', suit: 'Cup', number: 6 });
   await expect(page.locator(`[data-card-id="${matchupPair.leadCardId}"]`)).toHaveClass(/is-playable/);
   await expect(page.locator(`[data-card-id="${matchupPair.replyCardId}"]`)).toHaveClass(/is-unplayable/);
   await page.locator(`[data-card-id="${matchupPair.leadCardId}"]`).click();
@@ -3377,7 +3384,7 @@ test('stage 1 teaches four actions with minor-only scripted hands', async ({ pag
   expect(lessonOneLeadResult.state.tutorialProgress.completedPlayers[0]).toBe(false);
   expect(lessonOneLeadResult.state.trick.cardsTable[0].id).toBe(matchupPair.replyBaseCard.id);
   await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText(
-    /同じ数字は\s+相性スートで返せる\s+ワンド↔カップ\s+ソード↔ペンタクル/
+    /同じ数字は\s+勝ちスートで返せる\s+ワンド←カップ←ソード←ペンタクル←ワンド/
   );
   const replyNode = page.locator(`[data-card-id="${matchupPair.replyCardId}"]`);
   await expect(replyNode).toHaveClass(/is-playable/);
@@ -3636,6 +3643,53 @@ test('field and hand identify suits with the same thin colored edge and no added
       await expect(fieldNumber).toHaveCSS('color', 'rgb(233, 221, 255)');
     }
   }
+});
+
+test('major arcana XVI-XIX use a diagonal two-tone of their major and suit colors', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const cards = [
+    { id: 'tk_twotone_16', kind: 'major', suit: 'None', number: 16 },
+    { id: 'tk_twotone_17', kind: 'major', suit: 'None', number: 17 },
+    { id: 'tk_twotone_18', kind: 'major', suit: 'None', number: 18 },
+    { id: 'tk_twotone_19', kind: 'major', suit: 'None', number: 19 }
+  ];
+  const audit = await page.evaluate((hand) => {
+    window.TarotKingdomDebug.battleScenario({
+      handCounts: [4, 8, 8, 8],
+      handsBySeat: [hand],
+      turnIndex: 0
+    });
+    return Array.from(document.querySelectorAll('#tarotKingdomHand > .tarot-card')).map((card) => {
+      const style = getComputedStyle(card);
+      const overlay = getComputedStyle(card, '::before');
+      return {
+        id: card.dataset.cardId,
+        classes: Array.from(card.classList),
+        face: style.backgroundImage,
+        majorColor: style.getPropertyValue('--tk-card-major-color').trim(),
+        suitColor: style.getPropertyValue('--tk-card-suit-edge').trim(),
+        overlayDisplay: overlay.display,
+        overlay: overlay.backgroundImage
+      };
+    });
+  }, cards);
+
+  const expected = {
+    16: { suit: 'sword', color: '#9b72e6' },
+    17: { suit: 'cup', color: '#3f89cf' },
+    18: { suit: 'pentacle', color: '#3aa66d' },
+    19: { suit: 'wand', color: '#d34a40' }
+  };
+  Object.entries(expected).forEach(([number, expectation]) => {
+    const card = audit.find((entry) => entry.id === `tk_twotone_${number}`);
+    expect(card?.classes).toContain('arcana-suit-hybrid');
+    expect(card?.classes).toContain(`arcana-suit-${expectation.suit}`);
+    expect(card?.majorColor).toBe('#edf3fb');
+    expect(card?.suitColor).toBe(expectation.color);
+    expect(card?.face).toContain('linear-gradient');
+    expect(card?.overlayDisplay).toBe('block');
+    expect(card?.overlay).toContain('linear-gradient');
+  });
 });
 
 test('grave menu keeps its icon and updates its accessible label when toggled', async ({ page }) => {

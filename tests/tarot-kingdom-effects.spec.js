@@ -58,6 +58,26 @@ function weaponContext(weaponTypes, card, overrides = {}) {
   };
 }
 
+test('card detail text resolves level ranges to the current card value', async () => {
+  const effects = await loadEffectsModule();
+  const minor = (suit, rank) => effects.getTarotKingdomMinorApDefinition(suit, rank);
+
+  expect(effects.getTarotKingdomCurrentLevelEffectText(minor('Cup', 5), 8))
+    .toBe('生存している味方全員から、状態異常か能力低下を1つずつ解除し、解除できた味方へ10％のシールドを付与する。');
+  expect(effects.getTarotKingdomCurrentLevelEffectText(minor('Pentacle', 6), 8))
+    .toBe('敵を直接ダメージを受けるまで睡眠状態にし、次に受ける直接攻撃のダメージを18％増加させる。');
+  expect(effects.getTarotKingdomCurrentLevelEffectText(minor('Pentacle', 7), 15))
+    .toBe('敵の次の戦闘攻撃を1回止め、攻撃力を25％低下させる。効果は2ターン続く。');
+  expect(effects.getTarotKingdomCurrentLevelEffectText(minor('Pentacle', 13), 1))
+    .toBe('敵を次に場が流れるまで石化させ、石化中に次に受ける直接攻撃のダメージを10％増加させる。');
+  expect(effects.getTarotKingdomCurrentLevelEffectText(minor('Pentacle', 14), 8))
+    .toBe('生存している味方全員へ直接攻撃を1回無効化する分身と、10％のシールドを付与する。');
+  expect(effects.getTarotKingdomCurrentLevelEffectText(minor('Wand', 6), 8))
+    .toBe('APを4回復する。');
+  expect(effects.getTarotKingdomCurrentLevelEffectText(minor('Wand', 10), 8))
+    .toBe('APを5回復し、自分は最大HP8％の反動ダメージを受ける。HP1で止まる。');
+});
+
 test.describe('Tarot Kingdom weapon-suit effects', () => {
   test('all weapon families map to their suit and unarmed never activates', async () => {
     const effects = await loadEffectsModule();
@@ -277,6 +297,10 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
     expect(effects.isTarotKingdomResonanceConditionMet(
       { kind: 'causes-lock' },
       { playType: 'set', cards: [minor('Wand', 14)], fieldCard: minor('Wand', 10) }
+    )).toBe(true);
+    expect(effects.isTarotKingdomResonanceConditionMet(
+      { kind: 'causes-lock' },
+      { playType: 'set', cards: [minor('Wand', 13)], fieldCard: minor('Wand', 10) }
     )).toBe(true);
     expect(effects.isTarotKingdomResonanceConditionMet(
       { kind: 'enemy-guarded' },

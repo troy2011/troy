@@ -47,7 +47,7 @@ const NEGATIVE_STATUS_PRIORITY = Object.freeze([
     'silence', 'blind', 'fear', 'confusion', 'wet', 'slow', 'weaken', 'vulnerable'
 ]);
 
-const TAROT_KINGDOM_ARCANA_CACHE_VERSION = '20260821-guardian-job-names-v1';
+const TAROT_KINGDOM_ARCANA_CACHE_VERSION = '20260823-royal-lock-v1';
 const TAROT_KINGDOM_ARCANA_LOAD_ATTEMPTS = 3;
 
 function validateTarotKingdomArcanaEffects(data, fileName) {
@@ -701,8 +701,9 @@ export function isTarotKingdomResonanceConditionMet(condition = {}, context = {}
     }
     if (kind === 'causes-lock') {
         return String(context.playType) === 'set'
-            && playCount <= 3
-            && sourceRank === 14
+            && playCount === 1
+            && sourceCard?.kind === 'minor'
+            && [13, 14].includes(sourceRank)
             && !!fieldCard
             && getCardSuit(fieldCard) === getCardSuit(sourceCard);
     }
@@ -1050,10 +1051,50 @@ function getApScaledNumber(entry, value, cap = Infinity) {
     )));
 }
 
-function getApLevelRange(entry, start, end, maxLevel = 15) {
-    const level = Math.max(1, Math.min(maxLevel, Math.floor(finiteNumber(entry?.cardLevel, 1))));
-    const progress = (level - 1) / Math.max(1, maxLevel - 1);
+export function getTarotKingdomCardLevelRangeValue(level, start, end, maxLevel = 15) {
+    const safeMaxLevel = Math.max(1, Math.floor(finiteNumber(maxLevel, 15)));
+    const safeLevel = Math.max(1, Math.min(safeMaxLevel, Math.floor(finiteNumber(level, 1))));
+    const progress = (safeLevel - 1) / Math.max(1, safeMaxLevel - 1);
     return Math.round(finiteNumber(start, 0) + ((finiteNumber(end, 0) - finiteNumber(start, 0)) * progress));
+}
+
+const TAROT_KINGDOM_LEVEL_EFFECT_TEXT_RANGES = Object.freeze({
+    'cup-5': [
+        { source: 'Lvに応じて5％から15％', start: 5, end: 15, suffix: '％' }
+    ],
+    'pentacle-6': [
+        { source: 'Lvに応じて10％から25％', start: 10, end: 25, suffix: '％' }
+    ],
+    'pentacle-7': [
+        { source: 'Lvに応じて10％から25％', start: 10, end: 25, suffix: '％' }
+    ],
+    'pentacle-13': [
+        { source: 'Lvに応じて10％から25％', start: 10, end: 25, suffix: '％' }
+    ],
+    'pentacle-14': [
+        { source: 'Lvに応じて5％から15％', start: 5, end: 15, suffix: '％' }
+    ],
+    'wand-6': [
+        { source: 'Lvに応じて2から5', start: 2, end: 5 }
+    ],
+    'wand-10': [
+        { source: 'Lvに応じて3から6', start: 3, end: 6 },
+        { source: '最大HP10％から5％', prefix: '最大HP', start: 10, end: 5, suffix: '％' }
+    ]
+});
+
+export function getTarotKingdomCurrentLevelEffectText(definition = {}, cardLevel = 1) {
+    const effect = String(definition?.effect || getTarotKingdomFriendlyEffectText(definition) || '').trim();
+    const ranges = TAROT_KINGDOM_LEVEL_EFFECT_TEXT_RANGES[String(definition?.id || '').trim().toLowerCase()];
+    if (!effect || !ranges) return effect;
+    return ranges.reduce((text, range) => {
+        const value = getTarotKingdomCardLevelRangeValue(cardLevel, range.start, range.end, range.maxLevel);
+        return text.replace(range.source, `${range.prefix || ''}${value}${range.suffix || ''}`);
+    }, effect);
+}
+
+function getApLevelRange(entry, start, end, maxLevel = 15) {
+    return getTarotKingdomCardLevelRangeValue(entry?.cardLevel, start, end, maxLevel);
 }
 
 function getApEffectBucket(context, targetType, targetIndex = null) {

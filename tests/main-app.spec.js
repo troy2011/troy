@@ -8170,19 +8170,19 @@ test('two owned shields can be equipped in both hands from the detail modal', as
   await expectNoPageErrors(errors);
 });
 
-test('tarot detail consumes a duplicate card to level up', async ({ page }) => {
+test('tarot detail shows the current level-scaled value and consumes duplicates to level up', async ({ page }) => {
   const errors = trackPageErrors(page);
   const levelUpRequests = [];
   let cardQuantity = 3;
-  let cardLevel = 6;
+  let cardLevel = 3;
   const tarotItems = [{
-    itemId: 'tarot_minor_wand_01',
+    itemId: 'tarot_minor_wand_06',
     count: 3,
-    name: 'Wand Ace',
+    name: 'Wand Six',
     customData: {
       Category: 'TarotMinor',
       ArcanaSuit: 'Wand',
-      ArcanaRank: 1,
+      ArcanaRank: 6,
       sprite_path: './Sprites/items/icons.png',
       sprite_index: '1'
     }
@@ -8219,7 +8219,7 @@ test('tarot detail consumes a duplicate card to level up', async ({ page }) => {
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
         cards: [{
-          itemId: 'tarot_minor_wand_01',
+          itemId: 'tarot_minor_wand_06',
           quantity: cardQuantity,
           level: cardLevel,
           maxLevel: 15,
@@ -8239,7 +8239,7 @@ test('tarot detail consumes a duplicate card to level up', async ({ page }) => {
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
         success: true,
-        itemId: 'tarot_minor_wand_01',
+        itemId: 'tarot_minor_wand_06',
         newLevel: cardLevel,
         maxLevel: 15,
         quantity: cardQuantity,
@@ -8263,12 +8263,20 @@ test('tarot detail consumes a duplicate card to level up', async ({ page }) => {
   });
 
   await page.locator('#inventoryGrid .inventory-item-cell[data-category="TarotMinor"]').click();
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('APを2回復する。');
+  await expect(page.locator('#itemDetailTarotCombat')).not.toContainText('Lvに応じて');
+  await expect(page.locator('#itemDetailTarotCombat')).not.toContainText('2から5');
   await expect(page.getByRole('button', { name: 'Lvアップ（同名2枚）', exact: true })).toBeEnabled();
   await expect(page.locator('#itemDetailModal')).toContainText('素材 2/2');
   await page.getByRole('button', { name: 'Lvアップ（同名2枚）', exact: true }).click();
   await expect.poll(() => levelUpRequests.length).toBe(1);
-  expect(levelUpRequests[0]).toEqual({ itemId: 'tarot_minor_wand_01' });
-  await expect(page.locator('#itemDetailModal')).toContainText('Lv7');
+  expect(levelUpRequests[0]).toEqual({ itemId: 'tarot_minor_wand_06' });
+  await expect(page.locator('#itemDetailModal')).toHaveClass(/is-tarot-level-up/);
+  await expect(page.locator('.item-detail-tarot-level-up-burst')).toHaveText('Lv.3 → Lv.4');
+  await expect(page.locator('#itemDetailIcon')).toHaveCSS('animation-name', 'itemDetailTarotLevelUpCard');
+  await expect(page.locator('.item-detail-tarot-level-up-burst')).toHaveCSS('animation-name', 'itemDetailTarotLevelUpLabel');
+  await expect(page.locator('#itemDetailModal')).toContainText('Lv4');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('APを3回復する。');
   await expect(page.locator('#itemDetailModal')).toContainText('素材 0/2');
   await expect(page.getByRole('button', { name: '予備カードが不足（0/2）', exact: true })).toBeDisabled();
   await expectNoPageErrors(errors);
