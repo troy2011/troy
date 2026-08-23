@@ -47,6 +47,86 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.finalPass.transition).toMatchObject({ kind: 'enemyResponse', eventSeqs: [1, 2] });
   });
 
+  test('minor 12 trash excludes one remaining card only after a normal pass clear', async ({ page }) => {
+    const audit = await page.evaluate(() => window.TarotKingdomDebug.battleTwelveTrashAudit());
+
+    expect(audit.pending).toEqual({
+      phase: 'trash',
+      pendingTrash: 0,
+      followup: 'clear',
+      handIds: ['trash-keep', 'trash-target'],
+      serializedPendingTrash: 0
+    });
+    expect(audit.pickAccepted).toBe(true);
+    expect(audit.afterPick).toMatchObject({
+      phase: 'draw',
+      pendingTrash: null,
+      handIds: ['trash-keep'],
+      trashIds: ['trash-target'],
+      serializedTrashIds: ['trash-target']
+    });
+    expect(audit.afterPick.discardIds).toContain('trash-twelve');
+    expect(audit.afterPick.discardIds).not.toContain('trash-target');
+    expect(audit.handZeroGuard).toMatchObject({
+      pendingTrash: null,
+      handIds: ['trash-keep'],
+      trashIds: []
+    });
+    expect(audit.directClear.pendingTrash).toBeNull();
+    expect(audit.majorTwelveClear.pendingTrash).toBeNull();
+    expect(audit.openingFieldClear.pendingTrash).toBeNull();
+    expect(audit.judgmentFollowupPending).toEqual({
+      phase: 'trash',
+      pendingTrash: 0,
+      followup: 'judgment'
+    });
+    expect(audit.judgmentFollowup).toEqual({
+      phase: 'judgment',
+      pendingJudgment: 0,
+      pendingTrash: null
+    });
+  });
+
+  test('final pass resumes the 12 trash choice after monster response and lets the player choose a card', async ({ page }) => {
+    const result = await page.evaluate(({ combatBySeat }) => {
+      const debug = window.TarotKingdomDebug;
+      const twelve = { id: 'ui-trash-twelve', kind: 'minor', suit: 'Pentacle', number: 12 };
+      const keep = { id: 'ui-trash-keep', kind: 'minor', suit: 'Cup', number: 5 };
+      const target = { id: 'ui-trash-target', kind: 'major', suit: 'None', number: 7 };
+      debug.battleScenario({
+        leaderIndex: 0,
+        turnIndex: 1,
+        pass: [false, false, true, true],
+        tableCard: twelve,
+        handsBySeat: [[keep, target]],
+        enemyDefense: 10000,
+        combatBySeat
+      });
+      const afterPass = debug.battlePass(1);
+      const afterEnemyResponse = debug.battleResolveTransition();
+      return { afterPass, afterEnemyResponse };
+    }, { combatBySeat: zeroDefenseParty });
+
+    expect(result.afterPass.transition).toMatchObject({ kind: 'enemyResponse' });
+    expect(result.afterEnemyResponse).toMatchObject({
+      phase: 'trash',
+      pendingTrash: 0
+    });
+    await expect(page.locator('#tarotKingdomJudgmentTitle')).toHaveText('12トラッシュ：除外する手札を1枚選択');
+    await expect(page.locator('#tarotKingdomJudgmentOptions.is-trash-options .tarot-card')).toHaveCount(2);
+    await expect(page.locator('#tarotKingdomJudgmentSkipButton')).toBeHidden();
+    await expect(page.locator('#tarotKingdomJudgmentCloseButton')).toBeHidden();
+
+    await page.locator('[data-trash-card-id="ui-trash-target"]').click();
+    await expect.poll(async () => page.evaluate(() => (
+      window.TarotKingdomDebug.battleRender().pendingTrash
+    ))).toBeNull();
+    const afterPick = await page.evaluate(() => window.TarotKingdomDebug.battleRender());
+    expect(afterPick.players[0].hand.map((card) => card.id)).toEqual(['ui-trash-keep']);
+    expect(afterPick.players[0].trash.map((card) => card.id)).toEqual(['ui-trash-target']);
+    expect(afterPick.players[0].discard.map((card) => card.id)).not.toContain('ui-trash-target');
+  });
+
   test('the untouched opening field card prevents monster attacks until a player submits a card', async ({ page }) => {
     const audit = await page.evaluate(({ combatBySeat }) => {
       const debug = window.TarotKingdomDebug;
@@ -405,7 +485,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     audit.roleDamage.forEach((entry, index) => {
       expect(Math.abs(entry.baseDamage - (baseDamage * audit.multipliers[index]))).toBeLessThanOrEqual(1);
     });
-    expect(audit.published.schema).toBe(30);
+    expect(audit.published.schema).toBe(31);
     expect(audit.published.state.rules.roleChainVersion).toBe(1);
     expect(audit.published.state.trick.roleChain).toEqual({ count: 4, multiplier: 1.75 });
     expect(audit.cleared.trick).toBeNull();
@@ -1003,7 +1083,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       return { currentPayload, currentState, v1State, legacyState, previousState };
     });
 
-    expect(audit.currentPayload.schema).toBe(30);
+    expect(audit.currentPayload.schema).toBe(31);
     expect(audit.currentState.rules.statusEffectsVersion).toBe(2);
     expect(audit.currentState.rules.enemyAbilityVersion).toBe(1);
     expect(audit.currentState.battle.enemy.abilities).toBeTruthy();
@@ -3590,7 +3670,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.rush.battle.outcome).toBeNull();
     expect(audit.rush.players[0].hand).toHaveLength(1);
     expect(audit.rush.rules.enemyDefeatMode).toBe('hand-empty');
-    expect(audit.hostPublicState.schema).toBe(30);
+    expect(audit.hostPublicState.schema).toBe(31);
     expect(audit.hostPublicState.state.rules.enemyDefeatMode).toBe('hand-empty');
     expect(audit.legacy.rules.enemyDefeatMode).toBe('hand-empty');
   });
@@ -4282,7 +4362,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.roleEffectsSuppressed).toBe(true);
   });
 
-  test('major 15, 20, 21 and blocked-leader retry follow schema 8 rules', async ({ page }) => {
+  test('major 15, 20, 21 and blocked-leader retry follow the current rules', async ({ page }) => {
     const audit = await page.evaluate(() => (
       window.TarotKingdomDebug.battleMajorArcanaSpecialAudit()
     ));
@@ -4297,10 +4377,22 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.devil.locked.ok).toBe(false);
     expect(audit.devil.locked.reason).toContain('ロイヤルロック中：カップのみ');
 
+    expect(audit.judgment.opening.ok).toBe(true);
     expect(audit.judgment.onMinorAce.ok).toBe(false);
     expect(audit.judgment.onMinorAce.reason).toBe('Aの能力：大アルカナでは返せません。');
-    expect(audit.judgment.onMagician.ok).toBe(true);
-    expect(audit.judgment.finish.ok).toBe(true);
+    expect(audit.judgment.onMagician).toEqual({
+      ok: false,
+      reason: '審判20は場が空の時だけ出せます。'
+    });
+    expect(audit.judgment.finish).toEqual({
+      ok: false,
+      reason: '審判20は場が空の時だけ出せます。'
+    });
+    expect(audit.judgment.roleOpening.ok).toBe(true);
+    expect(audit.judgment.roleOnField).toEqual({
+      ok: false,
+      reason: '審判20は場が空の時だけ出せます。'
+    });
 
     expect(audit.finish.ace.ok).toBe(true);
     expect(audit.finish.world.ok).toBe(true);
@@ -4329,6 +4421,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.npcStrengthCut).toEqual({ action: 'pass', cardNumber: 0 });
     expect(audit.schema7Compatibility.devilOnNumberTen.ok).toBe(true);
     expect(audit.schema7Compatibility.judgmentFinish.ok).toBe(true);
+    expect(audit.schema30Compatibility.judgmentFinish.ok).toBe(true);
     expect(audit.schema7Compatibility.worldFinish.ok).toBe(true);
     expect(audit.schema7Compatibility.towerFinish.ok).toBe(true);
     expect(audit.descriptions['8']).toBe('8カット');
@@ -4418,7 +4511,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     for (const number of [16, 17, 18, 19]) {
       expect(audit.descriptions[String(number)]).toContain('同スート場専用 / 初手不可');
     }
-    expect(audit.descriptions['20']).toContain('11バック / 墓地回収');
+    expect(audit.descriptions['20']).toContain('初手限定 / 11バック / 墓地回収');
     expect(audit.descriptions['20']).not.toContain('A不可');
     expect(audit.descriptions['21']).toContain('大アルカナ1枚に返して即クリア');
   });
@@ -4747,7 +4840,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       effectiveUnits: 2,
       healRate: 0.2
     });
-    expect(audit.publicState.schema).toBe(30);
+    expect(audit.publicState.schema).toBe(31);
     expect(audit.publicState.state.stage.monsters).toHaveLength(4);
     expect(audit.atmosphereTone).toBe('sunlit-coral');
     expect(audit.atmosphereCss).toContain('74, 159, 196');
@@ -4776,7 +4869,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.settlementStart.players).toHaveLength(3);
     expect(audit.settled.roundSettlement.rows).toHaveLength(2);
     expect(audit.settled.dealer).toBe(0);
-    expect(audit.published.schema).toBe(30);
+    expect(audit.published.schema).toBe(31);
     expect(audit.published.state.rules.playerCount).toBe(3);
     expect(audit.published.state.players).toHaveLength(3);
   });
@@ -5386,7 +5479,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
         current
       };
     });
-    expect(audit.currentPublic.schema).toBe(30);
+    expect(audit.currentPublic.schema).toBe(31);
     expect(audit.currentPublic.state.rules).toMatchObject({
       playerCount: 4,
       combatEffectsVersion: 1,
@@ -5395,7 +5488,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       summonVersion: 1,
       graveTimingVersion: 1,
       majorArcanaGateVersion: 1,
-      majorArcanaSpecialVersion: 2,
+      majorArcanaSpecialVersion: 3,
       majorBattleEffectsVersion: 3,
       elementAffinityVersion: 2,
       carryHpBetweenRoundsVersion: 1,
@@ -5429,7 +5522,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.current.rules.summonVersion).toBe(1);
     expect(audit.current.rules.graveTimingVersion).toBe(1);
     expect(audit.current.rules.majorArcanaGateVersion).toBe(1);
-    expect(audit.current.rules.majorArcanaSpecialVersion).toBe(2);
+    expect(audit.current.rules.majorArcanaSpecialVersion).toBe(3);
     expect(audit.current.rules.majorBattleEffectsVersion).toBe(3);
     expect(audit.current.rules.elementAffinityVersion).toBe(2);
     expect(audit.current.rules.enemyDefeatMode).toBe('hp-zero');

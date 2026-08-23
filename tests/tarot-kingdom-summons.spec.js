@@ -918,6 +918,7 @@ test.describe('Tarot Kingdom summon integration', () => {
       ['5スキップ', 'SKIP'],
       ['8カット', 'CUT'],
       ['11バック', 'REVERSE'],
+      ['12トラッシュ', 'TRASH'],
       ['ロイヤルロック', 'LOCK'],
       ['ロイヤルロック解除', 'BREAK'],
       ['コール', 'CALL'],

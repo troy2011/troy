@@ -290,7 +290,9 @@ test('rulebook explains the current rules and returns to the same battle on mobi
   await expect(rulebook.getByText('数字1とは別物で、大アルカナでは返せません。Aを1として使えるのは、A–2–3–4–5のストレートだけ。')).toBeVisible();
     await expect(rulebook.getByText('通常のパスでは反撃を受ける場合があります。ただし局開始の公開札だけが場にある間は、反撃も全員パス時の全体攻撃もありません。「防御」は場が流れるまで自動で守り、被害を抑えます。')).toBeVisible();
     await expect(rulebook.getByText('1枚ならコール猶予、2枚以上なら場を即クリア。敵も石化させます。')).toBeVisible();
+    await expect(rulebook.getByText('小アルカナ12を1枚で通常の場流しにすると、残り手札から好きな1枚を除外。除外だけで手札0にはできません。')).toBeVisible();
     await expect(rulebook.getByText('13または14を場札と同じスートで出すと、そのスートだけに固定。節制XIVで解除します。')).toBeVisible();
+    await expect(rulebook.getByText('場が空のときだけ出せる。11バックを切り替え、場を流すと墓地回収。')).toBeVisible();
     await expect(rulebook.getByText('矢印の始点が、矢印の先のスートに勝ちます。')).toBeVisible();
   await expect(rulebook.locator('.tarot-kingdom-rulebook-suits-diagram')).toHaveAttribute(
     'aria-label',
@@ -298,11 +300,11 @@ test('rulebook explains the current rules and returns to the same battle on mobi
   );
   await expect(rulebook.getByText('同じスート5枚、または世界なしの大アルカナ5枚')).toBeVisible();
   await expect(rulebook.locator('.tarot-kingdom-rulebook-table-wrap tbody tr')).toHaveCount(7);
-  await expect(rulebook.locator('.tarot-kingdom-rulebook-card-image')).toHaveCount(50);
+  await expect(rulebook.locator('.tarot-kingdom-rulebook-card-image')).toHaveCount(51);
   await expect(rulebook.locator('.tarot-kingdom-roles-sample-grid .sample')).toHaveCount(7);
   await expect(rulebook.locator('.tarot-kingdom-roles-sample-grid .sample-cards')).toHaveCount(7);
   await expect(rulebook.locator('.tarot-kingdom-roles-sample-grid .sample-cards .tarot-kingdom-rulebook-card-image')).toHaveCount(35);
-  await expect(rulebook.locator('.tarot-kingdom-rulebook-special-grid .tarot-kingdom-rulebook-card-image')).toHaveCount(5);
+  await expect(rulebook.locator('.tarot-kingdom-rulebook-special-grid .tarot-kingdom-rulebook-card-image')).toHaveCount(6);
   await expect(rulebook.locator('.tarot-kingdom-rulebook-major-list .tarot-kingdom-rulebook-card-image')).toHaveCount(6);
   const rulebookCardStyle = await rulebook.locator('.tarot-kingdom-rulebook-card-image').first().evaluate((card) => {
     const box = card.getBoundingClientRect();
@@ -2939,7 +2941,7 @@ test('Judgment selection message is compact and fits the mobile frame', async ({
 
   await page.locator('#tarotKingdomHand > .tarot-card', { hasText: '審判' }).click();
   const selectedEffect = page.locator('#tarotKingdomSelectedEffectText');
-  await expect(selectedEffect).toHaveText('審判 / 11バック・墓地回収');
+  await expect(selectedEffect).toHaveText('審判 / 初手限定・11バック・墓地回収');
   await expect(selectedEffect).not.toContainText('選択:');
   const textFit = await selectedEffect.evaluate((element) => ({
     clientWidth: element.clientWidth,

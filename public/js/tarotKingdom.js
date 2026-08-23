@@ -453,7 +453,7 @@ const LEGACY_HAND_SIZE = 6;
 const KINGDOM_FORCED_DRAW_DEATH_THRESHOLD = 3;
 const KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO = 'hp-zero';
 const KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY = 'hand-empty';
-const KINGDOM_RULES_VERSION = 23;
+const KINGDOM_RULES_VERSION = 24;
 const TOTAL_HANDS = 4;
 const START_CHIPS = 100;
 const A_PENALTY = 1;
@@ -535,7 +535,7 @@ const KINGDOM_SUMMON_EFFECT_VISUALS = Object.freeze({
   flushElemental: Object.freeze({ category: 'hybrid', choreography: 'elemental-surge', cue: 'elemental-charge', impact: 'elemental-burst' }),
   'major-arcana': Object.freeze({ category: 'hybrid', choreography: 'arcana-invocation', cue: 'arcana-awaken', impact: 'arcana-release' })
 });
-const KINGDOM_NET_SCHEMA_VERSION = 30;
+const KINGDOM_NET_SCHEMA_VERSION = 31;
 const KINGDOM_PRIVATE_STATE_VERSION = 2;
 const KINGDOM_NET_STATE_WRITE_DELAY = 90;
 const KINGDOM_PRESENTATION_VERSION = 1;
@@ -1171,7 +1171,7 @@ const getNpcActionDelayMs = (phase = 'turn') => {
   // NPCの思考待機。展開が速すぎるため、フェーズごとに最低待機を持たせる。
   const phaseKey = String(phase || 'turn');
   const baseDelayMs = (
-    phaseKey === 'draw' || phaseKey === 'judgment'
+    phaseKey === 'draw' || phaseKey === 'judgment' || phaseKey === 'trash'
       ? 520
       : 640
   );
@@ -1449,6 +1449,11 @@ const comb = (arr, n) => { const out = []; const w = (st, ac) => { if (ac.length
 const cmpVec = (l, r) => { const m = Math.max(l.length, r.length); for (let i = 0; i < m; i += 1) { const a = Number(l[i] ?? 0), b = Number(r[i] ?? 0); if (a !== b) return a > b ? 1 : -1; } return 0; };
 const idNum = (c) => Number(c?.number || 0);
 const isRoyalLockMinorCard = (card) => card?.kind === 'minor' && [13, 14].includes(idNum(card));
+const isTwelveTrashMinorCard = (card) => card?.kind === 'minor' && idNum(card) === 12;
+const isTwelveTrashClearPlay = (play) => {
+  const cards = Array.isArray(play?.cardsHand) ? play.cardsHand.filter(Boolean) : [];
+  return play?.type === 'set' && cards.length === 1 && isTwelveTrashMinorCard(cards[0]);
+};
 const cStrength = (c) => c?.kind === 'minor' ? (c.number === 1 ? 15 : c.number) : (c?.number === 14 ? 14 : Number(c?.number || 0));
 const isMajorSuitGateCard = (card) => (
   card?.kind === 'major' && MAJOR_SUIT_GATE_NUMBERS.has(Number(card?.number))
@@ -2332,6 +2337,7 @@ function getKingdomCardEffectDescription(card) {
   if (card.kind === 'major') {
     const usesMajorGateRules = areKingdomMajorArcanaGateRulesEnabled();
     const usesMajorSpecialRules = areKingdomMajorArcanaSpecialRulesEnabled();
+    const usesMajorSpecialV3Rules = areKingdomMajorArcanaSpecialV3RulesEnabled();
     const majorEffectMap = {
       0: '5枚役のみ数値ワイルド（フラッシュ化なし）',
       1: 'オールスート / 数値1固定',
@@ -2352,9 +2358,11 @@ function getKingdomCardEffectDescription(card) {
       19: usesMajorGateRules
         ? (usesMajorSpecialRules ? '同スート場専用 / 初手不可' : 'ワンド場限定（上がり不可）')
         : '単騎時はワンド14扱い',
-      20: usesMajorSpecialRules
-        ? '11バック / 墓地回収'
-        : '11バック / この場を流した人が墓地から小アルカナ1枚回収',
+      20: usesMajorSpecialV3Rules
+        ? '初手限定 / 11バック / 墓地回収'
+        : (usesMajorSpecialRules
+          ? '11バック / 墓地回収'
+          : '11バック / この場を流した人が墓地から小アルカナ1枚回収'),
       21: usesMajorSpecialRules ? '大アルカナ1枚に返して即クリア（11バック中不可）' : '単騎でどんな場札にも返せる'
     };
     return majorEffectMap[n] || '';
@@ -2363,6 +2371,7 @@ function getKingdomCardEffectDescription(card) {
   if (n === 5) return '5スキップ';
   if (n === 8) return '8カット';
   if (n === 11) return '11バック';
+  if (isTwelveTrashMinorCard(card)) return '場を流すと手札1枚を除外（手札0不可）';
   if (isRoyalLockMinorCard(card)) return '場と同スートでロイヤルロック';
   return '';
 }
@@ -2662,9 +2671,11 @@ function buildSelectedCardInfoMessage(playerIndex, selectedIndexes) {
     const card = cards[0];
     const name = getCardNameLabel(card);
     if (card?.kind === 'major' && Number(card?.number) === 20) {
-      baseMessage = areKingdomMajorArcanaSpecialRulesEnabled()
-        ? '審判 / 11バック・墓地回収'
-        : '審判：11バック＋流し手が小アルカナ1枚回収';
+      baseMessage = areKingdomMajorArcanaSpecialV3RulesEnabled()
+        ? '審判 / 初手限定・11バック・墓地回収'
+        : (areKingdomMajorArcanaSpecialRulesEnabled()
+          ? '審判 / 11バック・墓地回収'
+          : '審判：11バック＋流し手が小アルカナ1枚回収');
     } else {
       const effect = getKingdomCardEffectDescription(card);
       baseMessage = effect ? `${name} / ${effect}` : name;
@@ -2767,6 +2778,13 @@ function buildKingdomSituationAnnouncement(playerIndex, canSelectCards) {
     return chooserIndex === playerIndex
       ? '墓地から回収するカードを選択してください'
       : `${playerName(chooserIndex)}が墓地を確認中`;
+  }
+
+  if (phase === 'trash') {
+    const chooserIndex = Number(s.pendingTrash);
+    return chooserIndex === playerIndex
+      ? '12トラッシュで除外する手札を選択してください'
+      : `${playerName(chooserIndex)}が12トラッシュを選択中`;
   }
 
   if (phase === 'draw') {
@@ -2882,6 +2900,7 @@ function resolveKingdomActionCutinPresentation(playerIndex, label, options = {})
     else if (/is-showdown-win|is-kingdom-round-out|is-kingdom-grand-win|総取り|出し切り|優勝|勝利|WINNER|CHAMPION/i.test(`${cutinClass} ${text}`)) choose('VICTORY', 'victory');
     else if (/審判回収/.test(text)) choose('RECLAIM', 'reclaim');
     else if (/審判スキップ/.test(text)) choose('SKIP', 'skip');
+    else if (/12トラッシュ/.test(text)) choose('TRASH', 'trash');
     else if (/共鳴/.test(text)) choose('RESONANCE', 'resonance');
     else if (/ロック解除|反転解除/.test(text)) choose('BREAK', 'break');
     else if (/ロイヤルロック|is-kingdom-lock/.test(`${cutinClass} ${text}`)) choose('LOCK', 'lock');
@@ -6025,6 +6044,10 @@ function areKingdomMajorArcanaSpecialRulesEnabled(state = s) {
 
 function areKingdomMajorArcanaSpecialV2RulesEnabled(state = s) {
   return Number(state?.rules?.majorArcanaSpecialVersion || 0) >= 2;
+}
+
+function areKingdomMajorArcanaSpecialV3RulesEnabled(state = s) {
+  return Number(state?.rules?.majorArcanaSpecialVersion || 0) >= 3;
 }
 
 function areKingdomMajorBattleEffectsEnabled(state = s) {
@@ -12231,6 +12254,9 @@ function finishKingdomBattleDefeat() {
   s.awaitRoundConfirm = false;
   s.pendingDraw = null;
   s.pendingJudgment = null;
+  s.pendingJudgmentFollowup = null;
+  s.pendingTrash = null;
+  s.pendingTrashFollowup = null;
   s.selected.clear();
   s.roundSettlement = null;
   s.champion = null;
@@ -12429,7 +12455,7 @@ function normalizeKingdomRules(
   fallbackGraveTimingVersion = 1,
   fallbackEnemyCombatVersion = 3,
   fallbackMajorArcanaGateVersion = 1,
-  fallbackMajorArcanaSpecialVersion = 2,
+  fallbackMajorArcanaSpecialVersion = 3,
   fallbackStageVersion = 0,
   fallbackMajorBattleEffectsVersion = 3,
   fallbackElementAffinityVersion = 2,
@@ -12492,7 +12518,7 @@ function normalizeKingdomRules(
     ),
     majorArcanaSpecialVersion: Math.max(
       0,
-      Math.min(2, Math.floor(Number(incoming.majorArcanaSpecialVersion ?? fallbackMajorArcanaSpecialVersion) || 0))
+      Math.min(3, Math.floor(Number(incoming.majorArcanaSpecialVersion ?? fallbackMajorArcanaSpecialVersion) || 0))
     ),
     majorBattleEffectsVersion: Math.max(
       0,
@@ -12615,6 +12641,7 @@ function initState() {
       chips: START_CHIPS,
       hand: [],
       discard: [],
+      trash: [],
       bet: 0,
       stars: 0,
       arcanaPoints: 0,
@@ -12653,6 +12680,8 @@ function initState() {
     pendingDrawReason: null,
     pendingJudgment: null,
     pendingJudgmentFollowup: null,
+    pendingTrash: null,
+    pendingTrashFollowup: null,
     blockedLeaderSeats: [],
     callMergeFx: null,
     trickDefeatFx: null,
@@ -12730,6 +12759,8 @@ function clearRoundState() {
   s.pendingDrawReason = null;
   s.pendingJudgment = null;
   s.pendingJudgmentFollowup = null;
+  s.pendingTrash = null;
+  s.pendingTrashFollowup = null;
   s.blockedLeaderSeats = [];
   s.callMergeFx = null;
   s.trickDefeatFx = null;
@@ -12754,6 +12785,7 @@ function clearRoundState() {
   s.players.forEach((p) => {
     p.hand = [];
     p.discard = [];
+    p.trash = [];
     p.bet = 0;
     p.arcanaPoints = 0;
     p.forcedDrawStreak = 0;
@@ -12786,6 +12818,7 @@ function getActiveTurnPlayerIndex() {
   if (!s?.roundActive) return -1;
   if (s.phase === 'draw' && Number.isInteger(s.pendingDraw)) return Number(s.pendingDraw);
   if (s.phase === 'judgment' && Number.isInteger(s.pendingJudgment)) return Number(s.pendingJudgment);
+  if (s.phase === 'trash' && Number.isInteger(s.pendingTrash)) return Number(s.pendingTrash);
   if (s.phase === 'turn' && Number.isInteger(s.turn)) return Number(s.turn);
   return -1;
 }
@@ -12797,7 +12830,7 @@ function isHumanTurnActiveNow() {
   if (s.phase === 'turn' || s.phase === 'draw') {
     return ui.playButton ? !ui.playButton.disabled : true;
   }
-  return s.phase === 'judgment';
+  return s.phase === 'judgment' || s.phase === 'trash';
 }
 
 function clearYourTurnBadge() {
@@ -13774,6 +13807,17 @@ function deserializeStateFromNet(payload) {
       Math.max(0, Math.floor(Number(incomingRules.stageWideAreaDamageVersion ?? 1) || 0))
     );
   }
+  if (incomingSchema < 31) {
+    incomingRules.majorArcanaSpecialVersion = Math.min(
+      2,
+      Math.max(
+        0,
+        Math.floor(Number(
+          incomingRules.majorArcanaSpecialVersion ?? (incomingSchema < 8 ? 0 : (incomingSchema < 24 ? 1 : 2))
+        ) || 0)
+      )
+    );
+  }
   if (incomingSchema < 19) {
     if (Object.prototype.hasOwnProperty.call(incomingRules, 'enemyCombatVersion')) {
       incomingRules.enemyCombatVersion = Math.min(
@@ -13798,7 +13842,7 @@ function deserializeStateFromNet(payload) {
       ? (Object.prototype.hasOwnProperty.call(rawState.rules || {}, 'enemyCombatVersion') ? 1 : 0)
       : (incomingSchema < 30 ? 2 : 3),
     incomingSchema < 7 ? 0 : 1,
-    incomingSchema < 8 ? 0 : (incomingSchema < 24 ? 1 : 2),
+    incomingSchema < 8 ? 0 : (incomingSchema < 24 ? 1 : (incomingSchema < 31 ? 2 : 3)),
     incomingSchema < 10 ? 0 : (incomingSchema < 28 ? 1 : 2),
     incomingSchema < 11 ? 0 : (incomingSchema < 15 ? 1 : (incomingSchema < 24 ? 2 : 3)),
     incomingSchema < 11 ? 0 : (incomingSchema < 19 ? 1 : 2),
@@ -13888,6 +13932,7 @@ function deserializeStateFromNet(payload) {
         ? incoming.hand
         : createKingdomHiddenCardSlots(incoming.handCount),
       discard: Array.isArray(incoming.discard) ? incoming.discard : [],
+      trash: Array.isArray(incoming.trash) ? incoming.trash : [],
       bet: Number.isFinite(bet) ? bet : Number(playerBase.bet || 0),
       stars: Number.isFinite(stars) ? stars : Number(playerBase.stars || 0),
       arcanaPoints: areKingdomArcanaPointRulesEnabled(nextState)
@@ -13953,6 +13998,19 @@ function deserializeStateFromNet(payload) {
   nextState.pendingJudgmentFollowup = ['clear', 'world'].includes(String(rawState.pendingJudgmentFollowup || ''))
     ? String(rawState.pendingJudgmentFollowup)
     : null;
+  nextState.pendingTrash = rawState.pendingTrash != null
+    && Number.isInteger(Number(rawState.pendingTrash))
+    && Number(rawState.pendingTrash) >= 0
+    && Number(rawState.pendingTrash) < nextState.players.length
+    ? Number(rawState.pendingTrash)
+    : null;
+  nextState.pendingTrashFollowup = ['clear', 'judgment'].includes(String(rawState.pendingTrashFollowup || ''))
+    ? String(rawState.pendingTrashFollowup)
+    : null;
+  if (String(nextState.phase || '') === 'trash' && nextState.pendingTrash == null) {
+    nextState.phase = 'turn';
+    nextState.pendingTrashFollowup = null;
+  }
   nextState.logs = Array.isArray(rawState.logs) ? rawState.logs : [];
   nextState.trickPile = Array.isArray(rawState.trickPile)
     ? rawState.trickPile.map((entry) => ({
@@ -14794,7 +14852,7 @@ function validateKingdomActionEnvelope(payload, key = '') {
   if (s.processedActionIds?.includes(actionId)) {
     return { ok: false, reason: 'duplicate-action' };
   }
-  if (s.transition && ['play', 'pass', 'draw', 'judgmentPick', 'judgmentSkip'].includes(type)) {
+  if (s.transition && ['play', 'pass', 'draw', 'judgmentPick', 'judgmentSkip', 'trashPick'].includes(type)) {
     return { ok: false, reason: 'transition-locked' };
   }
   if (!Number.isInteger(expectedRevision) || expectedRevision !== Math.max(0, Number(s.revision) || 0)) {
@@ -14867,6 +14925,11 @@ async function handleHostRoomAction(payload, key) {
       if (s.roundActive && s.phase === 'judgment' && s.pendingJudgment === seat && isKingdomBattlePlayerConscious(seat)) {
         skipJudgmentPick();
         accepted = true;
+      }
+      break;
+    case 'trashPick':
+      if (s.roundActive && s.phase === 'trash' && s.pendingTrash === seat && isKingdomBattlePlayerConscious(seat)) {
+        accepted = applyTwelveTrashPick(String(payload.cardId || '')) === true;
       }
       break;
     default:
@@ -15549,6 +15612,7 @@ function buildTarotKingdomDebugMatchDoneState(options = {}) {
     chips: Math.max(0, Number(finalChips[index]) || START_CHIPS),
     hand: [],
     discard: [],
+    trash: [],
     bet: 0,
     stars: 0,
     arcanaPoints: 0
@@ -15762,6 +15826,7 @@ function buildTarotKingdomDebugBattleState(options = {}) {
   const handCounts = Array.isArray(options.handCounts) ? options.handCounts : [];
   const handsBySeat = Array.isArray(options.handsBySeat) ? options.handsBySeat : [];
   const discardsBySeat = Array.isArray(options.discardsBySeat) ? options.discardsBySeat : [];
+  const trashBySeat = Array.isArray(options.trashBySeat) ? options.trashBySeat : [];
   const hpBySeat = Array.isArray(options.hpBySeat) ? options.hpBySeat : [];
   const combatBySeat = Array.isArray(options.combatBySeat) ? options.combatBySeat : [];
   const charactersBySeat = Array.isArray(options.charactersBySeat) ? options.charactersBySeat : [];
@@ -15776,6 +15841,9 @@ function buildTarotKingdomDebugBattleState(options = {}) {
       : sourceCards.slice(index * handLimit, (index * handLimit) + count).map((card) => ({ ...card }));
     player.discard = Array.isArray(discardsBySeat[index])
       ? discardsBySeat[index].map((card) => ({ ...card }))
+      : [];
+    player.trash = Array.isArray(trashBySeat[index])
+      ? trashBySeat[index].map((card) => ({ ...card }))
       : [];
     player.isNpc = options.enableNpcSeats === true
       ? index !== tkNet.localSeat
@@ -16687,6 +16755,132 @@ function auditKingdomJudgmentRules() {
   };
 }
 
+function auditKingdomTwelveTrashRules() {
+  const twelve = { id: 'trash-twelve', kind: 'minor', suit: 'Pentacle', number: 12 };
+  const keep = { id: 'trash-keep', kind: 'minor', suit: 'Cup', number: 5 };
+  const target = { id: 'trash-target', kind: 'major', suit: 'None', number: 7 };
+  const judgmentCandidate = { id: 'trash-judgment-candidate', kind: 'minor', suit: 'Sword', number: 9 };
+  const majorTwelve = { id: 'trash-major-twelve', kind: 'major', suit: 'None', number: 12 };
+
+  const setField = (card, owner = 0, openingField = false) => {
+    const tableCard = { ...card };
+    const cardSuits = suitsForCard(tableCard, false);
+    const play = {
+      type: 'set',
+      owner,
+      count: 1,
+      selected: [],
+      selectedIds: [tableCard.id],
+      cardsHand: [tableCard],
+      cardsTable: [tableCard],
+      tableOwners: [owner],
+      number: idNum(tableCard),
+      setPower: setPowerForCards(idNum(tableCard), [tableCard]),
+      suitMask: suitMaskForCards([tableCard]),
+      suitTier: Math.max(0, ...cardSuits.map((suit) => suitTierForCard(tableCard, suit)))
+    };
+    s.trick = play;
+    s.lastPlay = play;
+    s.trickPile = [{ owner, card: { ...tableCard } }];
+    s.openingFieldAttackProtection = openingField;
+  };
+
+  const setup = (hand, card = twelve, options = {}) => {
+    buildTarotKingdomDebugBattleState({
+      withTrick: false,
+      handsBySeat: [hand],
+      discardsBySeat: options.discardsBySeat || [],
+      drawDeck: [
+        { id: 'trash-draw-card', kind: 'minor', suit: 'Wand', number: 3 }
+      ]
+    });
+    setField(card, 0, options.openingField === true);
+    if (options.judgmentPending === true) s.judgmentRecoveryPending = true;
+  };
+
+  setup([keep, target]);
+  clearTrick(0, { byPasses: true });
+  const pendingPayload = serializeStateForNet();
+  const pendingRoundTrip = deserializeStateFromNet(pendingPayload);
+  const pending = {
+    phase: s.phase,
+    pendingTrash: s.pendingTrash,
+    followup: s.pendingTrashFollowup,
+    handIds: s.players[0].hand.map((card) => card.id),
+    serializedPendingTrash: pendingRoundTrip?.pendingTrash ?? null
+  };
+  const pickAccepted = applyTwelveTrashPick(target.id);
+  const pickedPayload = serializeStateForNet();
+  const pickedRoundTrip = deserializeStateFromNet(pickedPayload);
+  const afterPick = {
+    phase: s.phase,
+    pendingTrash: s.pendingTrash,
+    handIds: s.players[0].hand.map((card) => card.id),
+    trashIds: s.players[0].trash.map((card) => card.id),
+    discardIds: s.players[0].discard.map((card) => card.id),
+    serializedTrashIds: pickedRoundTrip?.players?.[0]?.trash?.map((card) => card.id) || []
+  };
+
+  setup([keep]);
+  clearTrick(0, { byPasses: true });
+  const handZeroGuard = {
+    phase: s.phase,
+    pendingTrash: s.pendingTrash,
+    handIds: s.players[0].hand.map((card) => card.id),
+    trashIds: s.players[0].trash.map((card) => card.id)
+  };
+
+  setup([keep, target]);
+  clearTrick(0);
+  const directClear = {
+    phase: s.phase,
+    pendingTrash: s.pendingTrash
+  };
+
+  setup([keep, target], majorTwelve);
+  clearTrick(0, { byPasses: true });
+  const majorTwelveClear = {
+    phase: s.phase,
+    pendingTrash: s.pendingTrash
+  };
+
+  setup([keep, target], twelve, { openingField: true });
+  clearTrick(0, { byPasses: true });
+  const openingFieldClear = {
+    phase: s.phase,
+    pendingTrash: s.pendingTrash
+  };
+
+  setup([keep, target], twelve, {
+    judgmentPending: true,
+    discardsBySeat: [[], [judgmentCandidate]]
+  });
+  clearTrick(0, { byPasses: true });
+  const judgmentFollowupPending = {
+    phase: s.phase,
+    pendingTrash: s.pendingTrash,
+    followup: s.pendingTrashFollowup
+  };
+  applyTwelveTrashPick(target.id);
+  const judgmentFollowup = {
+    phase: s.phase,
+    pendingJudgment: s.pendingJudgment,
+    pendingTrash: s.pendingTrash
+  };
+
+  return {
+    pending,
+    pickAccepted,
+    afterPick,
+    handZeroGuard,
+    directClear,
+    majorTwelveClear,
+    openingFieldClear,
+    judgmentFollowupPending,
+    judgmentFollowup
+  };
+}
+
 function auditKingdomMajorArcanaSpecialRules() {
   const major = (number, suffix = '') => ({
     ...mkMajor().find((card) => Number(card.number) === Number(number)),
@@ -16730,6 +16924,17 @@ function auditKingdomMajorArcanaSpecialRules() {
     }
     return rebuildKingdomPlayFromAction(0, { selectedCardIds: [hand[0].id] });
   };
+  const validateRole = ({ hand, field = null, rules = null }) => {
+    buildTarotKingdomDebugBattleState({
+      withTrick: !!field,
+      tableCard: field || undefined,
+      handsBySeat: [hand],
+      rules: rules || undefined
+    });
+    return rebuildKingdomPlayFromAction(0, {
+      selectedCardIds: hand.map((card) => card.id)
+    });
+  };
 
   const court = minor('special-court-p', 'Cup', 11);
   const numberTen = minor('special-number-10', 'Cup', 10);
@@ -16750,13 +16955,22 @@ function auditKingdomMajorArcanaSpecialRules() {
   };
 
   const judgmentHand = () => [major(20), minor('special-judgment-reserve', 'Wand', 2)];
+  const judgmentRoleHand = () => [2, 6, 9, 14, 20].map((number) => (
+    major(number, `-judgment-role-${number}`)
+  ));
   const judgment = {
+    opening: validateSingle({ hand: judgmentHand() }),
     onMinorAce: validateSingle({
       hand: judgmentHand(),
       field: minor('special-minor-ace', 'Sword', 1)
     }),
     onMagician: validateSingle({ hand: judgmentHand(), field: major(1, '-field') }),
-    finish: validateSingle({ hand: [major(20)], field: minor('special-judgment-k', 'Cup', 14) })
+    finish: validateSingle({ hand: [major(20)], field: minor('special-judgment-k', 'Cup', 14) }),
+    roleOpening: validateRole({ hand: judgmentRoleHand() }),
+    roleOnField: validateRole({
+      hand: judgmentRoleHand(),
+      field: minor('special-judgment-role-field', 'Cup', 4)
+    })
   };
 
   const finish = {
@@ -16831,6 +17045,7 @@ function auditKingdomMajorArcanaSpecialRules() {
     })
   };
   const schema7Rules = { majorArcanaGateVersion: 1, majorArcanaSpecialVersion: 0 };
+  const schema30Rules = { majorArcanaGateVersion: 1, majorArcanaSpecialVersion: 2 };
   const schema7Compatibility = {
     devilOnNumberTen: validateSingle({
       hand: devilHand(),
@@ -16851,6 +17066,13 @@ function auditKingdomMajorArcanaSpecialRules() {
       hand: [major(16, '-schema7')],
       field: minor('special-schema7-tower-field', 'Sword', 10),
       rules: schema7Rules
+    })
+  };
+  const schema30Compatibility = {
+    judgmentFinish: validateSingle({
+      hand: [major(20, '-schema30')],
+      field: minor('special-schema30-judgment-field', 'Cup', 14),
+      rules: schema30Rules
     })
   };
   buildTarotKingdomDebugBattleState({
@@ -17108,6 +17330,7 @@ function auditKingdomMajorArcanaSpecialRules() {
     strengthCut,
     worldAgainstFiveCardRole,
     schema7Compatibility,
+    schema30Compatibility,
     worldSingle,
     worldOptionalDraw,
     worldEmptyDeck,
@@ -17331,9 +17554,12 @@ function exposeTarotKingdomBattleDebugTools(target) {
       passAction(index, { foldMode: String(options?.foldMode || '') });
       return snapshotTarotKingdomDebugState();
     },
-    battleClearTrick: (leaderIndex = s?.lastPlay?.owner ?? 0) => {
+    battleClearTrick: (leaderIndex = s?.lastPlay?.owner ?? 0, options = {}) => {
       const index = Math.max(0, Math.min(3, Number(leaderIndex) || 0));
-      clearTrick(index);
+      clearTrick(index, {
+        byPasses: options?.byPasses === true,
+        worldResolution: options?.worldResolution === true
+      });
       return snapshotTarotKingdomDebugState();
     },
     battleAdvanceEffectTurn: (tickTurns = true) => {
@@ -17520,6 +17746,7 @@ function exposeTarotKingdomBattleDebugTools(target) {
     battleSecretWritePlanAudit: () => auditKingdomSecretStateWritePlan(),
     battleMajorArcanaAudit: () => auditKingdomMajorArcanaRules(),
     battleMajorArcanaSpecialAudit: () => auditKingdomMajorArcanaSpecialRules(),
+    battleTwelveTrashAudit: () => auditKingdomTwelveTrashRules(),
     battleMajorEffectsAudit: () => auditTarotKingdomMajorEffects(
       KINGDOM_DEMO_MONSTER_ROSTER.map((monster) => monster.id)
     ),
@@ -18211,8 +18438,12 @@ function getAceAbilityPlayViolation(play, mode) {
 
 function getMajorSpecialPlayViolation(play, mode) {
   if (!areKingdomMajorArcanaSpecialRulesEnabled()) return null;
-  if (mode === 'call' || play?.type !== 'set') return null;
   const played = Array.isArray(play?.cardsHand) ? play.cardsHand.filter(Boolean) : [];
+  const judgmentCards = played.filter((card) => isMajorNumberCard(card, 20));
+  if (areKingdomMajorArcanaSpecialV3RulesEnabled() && judgmentCards.length && s.trick) {
+    return '審判20は場が空の時だけ出せます。';
+  }
+  if (mode === 'call' || play?.type !== 'set') return null;
   const worldCards = played.filter((card) => isMajorNumberCard(card, 21));
   if (worldCards.length) {
     if (played.length !== 1 || worldCards.length !== 1) {
@@ -18547,6 +18778,8 @@ function startKingdomDrawRetry() {
   s.pendingDrawReason = null;
   s.pendingJudgment = null;
   s.pendingJudgmentFollowup = null;
+  s.pendingTrash = null;
+  s.pendingTrashFollowup = null;
   s.selected.clear();
   s.message = '引き分け・再戦';
   log(`第${s.handNo + 1}局は引き分け。同じ親・同じ局数で再戦`);
@@ -18767,6 +19000,79 @@ function judgmentOptions(playerIndex = null) {
   return out;
 }
 
+function twelveTrashOptions(playerIndex = null) {
+  const index = playerIndex == null ? -1 : Number(playerIndex);
+  const player = Number.isInteger(index) ? s?.players?.[index] : null;
+  const hand = Array.isArray(player?.hand) ? player.hand : [];
+  if (hand.length < 2) return [];
+  return hand
+    .map((card, cardIndex) => ({
+      card,
+      cardIndex,
+      cardId: String(card?.id || '')
+    }))
+    .filter((entry) => !!entry.card && !!entry.cardId);
+}
+
+function completeTwelveTrashFollowup() {
+  if (!s) return;
+  const leaderIndex = Number(s.turn);
+  const followup = s.pendingTrashFollowup === 'judgment' ? 'judgment' : 'clear';
+  s.pendingTrash = null;
+  s.pendingTrashFollowup = null;
+  if (!Number.isInteger(leaderIndex) || leaderIndex < 0 || leaderIndex >= s.players.length) return;
+  if (followup === 'judgment') {
+    judgmentStart(leaderIndex, { followup: 'clear' });
+    return;
+  }
+  startPostClearLeaderFlow(leaderIndex);
+}
+
+function startTwelveTrash(playerIndex, options = {}) {
+  if (!s) return false;
+  const index = playerIndex == null ? -1 : Number(playerIndex);
+  const player = Number.isInteger(index) && index >= 0 ? s.players?.[index] : null;
+  s.pendingTrash = player ? index : null;
+  s.pendingTrashFollowup = options.followup === 'judgment' ? 'judgment' : 'clear';
+  const optionsForPlayer = twelveTrashOptions(index);
+  if (!player || !isKingdomBattlePlayerConscious(index) || !optionsForPlayer.length) {
+    log(pName(index) + ': 12トラッシュ対象なし');
+    completeTwelveTrashFollowup();
+    return false;
+  }
+  s.selected.clear();
+  s.phase = 'trash';
+  s.message = pName(index) + ': 12トラッシュで除外する手札を選択';
+  render();
+  if (isNpcPlayer(index)) scheduleNpc();
+  return true;
+}
+
+function applyTwelveTrashPick(cardId) {
+  const pendingPlayerIndex = s?.pendingTrash;
+  const playerIndex = pendingPlayerIndex == null ? -1 : Number(pendingPlayerIndex);
+  if (!s || s.phase !== 'trash' || !Number.isInteger(playerIndex) || playerIndex < 0) return false;
+  const player = s.players?.[playerIndex];
+  const selectedCardId = String(cardId || '');
+  if (!player || !selectedCardId || !isKingdomBattlePlayerConscious(playerIndex)) return false;
+  if ((Array.isArray(player.hand) ? player.hand.length : 0) < 2) return false;
+  const cardIndex = player.hand.findIndex((card) => String(card?.id || '') === selectedCardId);
+  if (cardIndex < 0) return false;
+  const [card] = player.hand.splice(cardIndex, 1);
+  if (!card) return false;
+  if (!Array.isArray(player.trash)) player.trash = [];
+  player.trash.push(card);
+  s.revision = Math.max(0, Number(s.revision) || 0) + 1;
+  log(pName(playerIndex) + ': 12トラッシュで ' + getCardNameLabel(card) + ' を除外');
+  triggerKingdomActionFx(playerIndex, '12トラッシュ', {
+    overlay: 'action',
+    durationMs: 720,
+    cutin: true
+  });
+  completeTwelveTrashFollowup();
+  return true;
+}
+
 function judgmentStart(playerIndex, options = {}) {
   s.pendingJudgmentFollowup = options.followup === 'world' ? 'world' : 'clear';
   const player = s.players?.[playerIndex];
@@ -18801,6 +19107,10 @@ function clearTrick(leader, options = {}) {
   s._traceFlowId = (kingdomTraceFlowSeed += 1);
   traceKingdomFlow('clearTrick.enter', `leader=${leader} resolvedLeader=${resolvedLeader}`);
   const clearedPlay = s.lastPlay;
+  const startsTwelveTrash = options.byPasses === true
+    && !s.openingFieldAttackProtection
+    && Number(clearedPlay?.owner) === Number(leader)
+    && isTwelveTrashClearPlay(clearedPlay);
   const clearTriggerEvents = resolveKingdomResonanceTriggers('clear', {
     leader,
     clearedPlayToken: getKingdomPlayToken(clearedPlay)
@@ -18913,6 +19223,13 @@ function clearTrick(leader, options = {}) {
     delayMs: Number(s.clearStreakCount) >= 2 ? 200 : 120
   });
 
+  if (startsTwelveTrash) {
+    traceKingdomFlow('clearTrick.next', 'twelveTrash');
+    startTwelveTrash(Number(clearedPlay.owner), {
+      followup: hadJudgment ? 'judgment' : 'clear'
+    });
+    return false;
+  }
   if (hadJudgment) {
     traceKingdomFlow('clearTrick.next', 'judgmentStart');
     judgmentStart(resolvedLeader, { followup: worldResolution ? 'world' : 'clear' });
@@ -19032,6 +19349,9 @@ function finishRound(winnerIndex) {
   clearCallCinematicTimer();
   clearRoundOutCinematicTimer();
   s.roundActive = false; s.phase = 'roundEnd'; s.selected.clear(); s.pendingDraw = null; s.pendingJudgment = null;
+  s.pendingJudgmentFollowup = null;
+  s.pendingTrash = null;
+  s.pendingTrashFollowup = null;
   s.awaitRoundConfirm = false;
   const winner = s.players[winnerIndex];
   if (isKingdomRaidBattle()) {
@@ -19591,6 +19911,12 @@ function resolveKingdomTransition() {
     s.pendingJudgment = transition.resumePendingJudgment != null && Number.isInteger(Number(transition.resumePendingJudgment))
       ? Number(transition.resumePendingJudgment)
       : null;
+    s.pendingTrash = transition.resumePendingTrash != null && Number.isInteger(Number(transition.resumePendingTrash))
+      ? Number(transition.resumePendingTrash)
+      : null;
+    s.pendingTrashFollowup = ['clear', 'judgment'].includes(String(transition.resumePendingTrashFollowup || ''))
+      ? String(transition.resumePendingTrashFollowup)
+      : null;
     s.message = String(transition.resumeMessage || `${pName(s.turn)}のターン`);
     if (s.phase === 'roundDraw') {
       startKingdomDrawRetry();
@@ -19658,6 +19984,15 @@ function recoverKingdomHostProgress() {
   if (s.phase === 'roundDraw') {
     setKingdomTransition('roundDrawRetry', Number(s.dealer), 0);
     scheduleKingdomTransitionResolution();
+    return;
+  }
+  if (s.phase === 'trash' && s.pendingTrash != null) {
+    const trashPlayer = s.pendingTrash;
+    if (!isKingdomBattlePlayerConscious(trashPlayer) || !twelveTrashOptions(trashPlayer).length) {
+      completeTwelveTrashFollowup();
+    } else if (isNpcPlayer(trashPlayer)) {
+      scheduleNpc();
+    }
     return;
   }
   if (
@@ -20307,7 +20642,7 @@ function passAction(pi, options = {}) {
       render();
       return;
     }
-    if (clearTrick(leader)) return;
+    if (clearTrick(leader, { byPasses: true })) return;
     if (singleAttackEvent || areaAttackEvent) {
       const resume = {
         resumePhase: s.phase,
@@ -20315,6 +20650,8 @@ function passAction(pi, options = {}) {
         resumePendingDraw: s.pendingDraw,
         resumePendingDrawReason: s.pendingDrawReason,
         resumePendingJudgment: s.pendingJudgment,
+        resumePendingTrash: s.pendingTrash,
+        resumePendingTrashFollowup: s.pendingTrashFollowup,
         resumeMessage: s.message
       };
       clearNpcTimer();
@@ -20853,6 +21190,13 @@ function getNpcControlScore(play, observation, policy) {
       : null;
     if (leadSuit && suitsForCard(play.cardsHand?.[0], false).includes(leadSuit)) score += 175;
   }
+  if (
+    (play.cardsHand || []).some(isTwelveTrashMinorCard)
+    && Number(play.count || 0) === 1
+    && Number(observation.handCounts?.[observation.playerIndex] || 0) >= 3
+  ) {
+    score += 90;
+  }
   if (opponentAtOne && score > 0) score += 210;
   if (nextOpponentAtOne && score > 0) score += 170;
   return score * Math.max(0.9, Math.min(1.1, Number(policy?.control) || 1));
@@ -21204,6 +21548,30 @@ function chooseNpcJudgmentOption(playerIndex, randomSource = kingdomNpcRandom) {
   return chooseNpcWeightedCandidate(scoredOptions, randomSource);
 }
 
+function chooseNpcTwelveTrashOption(playerIndex, randomSource = kingdomNpcRandom) {
+  const player = s?.players?.[playerIndex];
+  const lockSuit = String(s?.lock?.suit || '');
+  const scoredOptions = twelveTrashOptions(playerIndex).map((entry) => {
+    const remainingHand = (Array.isArray(player?.hand) ? player.hand : [])
+      .filter((_card, cardIndex) => cardIndex !== entry.cardIndex);
+    const potential = getNpcHandPotential(
+      remainingHand,
+      SUITS.includes(lockSuit) ? lockSuit : null
+    );
+    const retentionValue = (entry.card?.kind === 'major' ? 42 : cStrength(entry.card))
+      + (isTwelveTrashMinorCard(entry.card) ? 16 : 0)
+      + ([5, 8, 11].includes(idNum(entry.card)) ? 12 : 0)
+      + (isRoyalLockMinorCard(entry.card) ? 10 : 0);
+    return {
+      ...entry,
+      score: potential.score - retentionValue
+    };
+  }).sort((left, right) => (
+    right.score - left.score || String(left.card?.id || '').localeCompare(String(right.card?.id || ''))
+  ));
+  return chooseNpcWeightedCandidate(scoredOptions, randomSource);
+}
+
 function npcAct() {
   if (!isHostAuthority()) return;
   if (npcActInFlight) return;
@@ -21245,6 +21613,22 @@ function npcAct() {
       applyJudgmentPick(best.owner, best.cardIndex);
     } else {
       skipJudgmentPick();
+    }
+    return;
+  }
+  if (s.phase === 'trash' && s.pendingTrash != null) {
+    const trashPlayer = s.pendingTrash;
+    const options = twelveTrashOptions(trashPlayer);
+    if (!isKingdomBattlePlayerConscious(trashPlayer) || !options.length) {
+      completeTwelveTrashFollowup();
+      return;
+    }
+    traceKingdomFlow('npcAct.twelveTrashPhase', 'player=' + trashPlayer);
+    const choice = chooseNpcTwelveTrashOption(trashPlayer, kingdomNpcRandom);
+    if (choice) {
+      applyTwelveTrashPick(choice.cardId);
+    } else {
+      completeTwelveTrashFollowup();
     }
     return;
   }
@@ -21322,6 +21706,19 @@ function scheduleNpc() {
     const delayMs = getNpcActionDelayMs('judgment');
     traceKingdomFlow('scheduleNpc.timer', `reason=judgment player=${s.pendingJudgment} delay=${delayMs}`);
     scheduleNpcTimer(delayMs, () => npcAct());
+    return;
+  }
+  if (s.phase === 'trash' && s.pendingTrash != null) {
+    const trashPlayer = s.pendingTrash;
+    if (
+      isNpcPlayer(trashPlayer)
+      || !isKingdomBattlePlayerConscious(trashPlayer)
+      || !twelveTrashOptions(trashPlayer).length
+    ) {
+      const delayMs = getNpcActionDelayMs('trash');
+      traceKingdomFlow('scheduleNpc.timer', `reason=trash player=${trashPlayer} delay=${delayMs}`);
+      scheduleNpcTimer(delayMs, () => npcAct());
+    }
     return;
   }
   if (s.phase !== 'turn') {
@@ -21480,6 +21877,18 @@ function normalizeKingdomTerminalState(state = s) {
   }
   if (state.pendingJudgment != null) {
     state.pendingJudgment = null;
+    changed = true;
+  }
+  if (state.pendingJudgmentFollowup != null) {
+    state.pendingJudgmentFollowup = null;
+    changed = true;
+  }
+  if (state.pendingTrash != null) {
+    state.pendingTrash = null;
+    changed = true;
+  }
+  if (state.pendingTrashFollowup != null) {
+    state.pendingTrashFollowup = null;
     changed = true;
   }
   if (state.selected?.size) {
@@ -24979,7 +25388,8 @@ function canLocalPlayerSelectHand(playerIndex) {
     'roundOutCinematic',
     'roundDraw',
     'roundEnd',
-    'done'
+    'done',
+    'trash'
   ].includes(String(s.phase || ''));
   return !!(
     s.roundActive
@@ -25069,7 +25479,8 @@ function canPreserveLocalHandDrag(hand, playerIndex) {
     'roundOutCinematic',
     'roundDraw',
     'roundEnd',
-    'done'
+    'done',
+    'trash'
   ].includes(String(s?.phase || ''));
   if (
     !drag
@@ -25342,7 +25753,9 @@ function toggleGraveyard() {
   const localPlayerIndex = getLocalPlayerIndex();
   const localIsJudging = s.pendingJudgment != null
     && Number(s.pendingJudgment) === Number(localPlayerIndex);
-  if (localIsJudging) {
+  const localIsTrashing = s.pendingTrash != null
+    && Number(s.pendingTrash) === Number(localPlayerIndex);
+  if (localIsJudging || localIsTrashing) {
     kingdomLocalGraveOpen = true;
     render();
     return;
@@ -25356,12 +25769,60 @@ function closeGraveyard() {
   if (!s || !kingdomLocalGraveOpen) return;
   const localPlayerIndex = getLocalPlayerIndex();
   if (s.pendingJudgment != null && Number(s.pendingJudgment) === Number(localPlayerIndex)) return;
+  if (s.pendingTrash != null && Number(s.pendingTrash) === Number(localPlayerIndex)) return;
   kingdomLocalGraveOpen = false;
   setLocalInfoMessage('墓地を閉じました。', 1200);
   render();
 }
 
+function renderTwelveTrash() {
+  const pendingPlayerIndex = s?.pendingTrash;
+  const playerIndex = pendingPlayerIndex == null ? -1 : Number(pendingPlayerIndex);
+  const localPlayerIndex = getLocalPlayerIndex();
+  const human = s?.phase === 'trash'
+    && Number.isInteger(playerIndex)
+    && playerIndex === localPlayerIndex;
+  if (!human) return false;
+
+  ui.judgmentArea.style.display = 'block';
+  ui.judgmentOptions.innerHTML = '';
+  ui.judgmentOptions.classList.add('is-trash-options');
+  if (ui.judgmentTitle) ui.judgmentTitle.textContent = '12トラッシュ：除外する手札を1枚選択';
+  ui.judgmentSkipButton.style.display = 'none';
+  ui.judgmentSkipButton.disabled = true;
+  if (ui.judgmentCloseButton) {
+    ui.judgmentCloseButton.hidden = true;
+    ui.judgmentCloseButton.disabled = true;
+  }
+
+  twelveTrashOptions(playerIndex).forEach((entry) => {
+    const node = cardNode(entry.card, {
+      clickable: true,
+      onClick: () => {
+        const me = getLocalPlayerIndex();
+        requestHostAction(
+          { type: 'trashPick', cardId: entry.cardId },
+          () => {
+            if (s?.phase === 'trash' && Number(s.pendingTrash) === me) {
+              applyTwelveTrashPick(entry.cardId);
+            }
+          }
+        ).catch((error) => {
+          console.warn('[tarotKingdom] twelve trash pick action failed:', error);
+        });
+      }
+    });
+    node.classList.add('is-trash-choice');
+    node.dataset.trashCardId = entry.cardId;
+    node.setAttribute('aria-label', getCardNameLabel(entry.card) + 'を除外');
+    ui.judgmentOptions.appendChild(node);
+  });
+  return true;
+}
+
 function renderJudgment() {
+  if (renderTwelveTrash()) return;
+  ui.judgmentOptions.classList.remove('is-trash-options');
   const inJudgment = s.pendingJudgment != null;
   const human = inJudgment && Number(s.pendingJudgment) === getLocalPlayerIndex();
   const forceVisible = human;
@@ -25911,7 +26372,12 @@ function updateButtons() {
     };
     const localIsJudging = s.pendingJudgment != null
       && Number(s.pendingJudgment) === getLocalPlayerIndex();
-    if (localIsJudging) {
+    const localIsTrashing = s.pendingTrash != null
+      && Number(s.pendingTrash) === getLocalPlayerIndex();
+    if (localIsTrashing) {
+      updateGraveButtonLabel('12トラッシュ中');
+      ui.graveToggleButton.disabled = true;
+    } else if (localIsJudging) {
       updateGraveButtonLabel('墓地（審判中）');
       ui.graveToggleButton.disabled = true;
     } else {
@@ -26340,7 +26806,7 @@ function scheduleOpenRoomHeartbeat() {
 async function requestHostAction(action, localApply) {
   const actionType = String(action?.type || '');
   if (
-    ['play', 'pass', 'draw', 'judgmentPick', 'judgmentSkip'].includes(actionType)
+    ['play', 'pass', 'draw', 'judgmentPick', 'judgmentSkip', 'trashPick'].includes(actionType)
     && !isKingdomLocalPrivateStateReady()
   ) {
     showPlayError('手札を安全に同期しています。少し待って再実行してください。');
@@ -26707,6 +27173,7 @@ function ensureKingdomRulebookUi() {
               <div>${rulebookCardMarkup(rulebookMinorCard('Wand', 5))}<h4>5スキップ</h4><p>出した枚数ぶん次のプレイヤーを飛ばします。法王Vは次の2人。</p></div>
               <div>${rulebookCardMarkup(rulebookMinorCard('Pentacle', 8))}<h4>8カット</h4><p>1枚ならコール猶予、2枚以上なら場を即クリア。敵も石化させます。</p></div>
               <div>${rulebookCardMarkup(rulebookMinorCard('Sword', 11))}<h4>11バック</h4><p>数字の強弱を反転。もう一度11を出すか、場が流れると解除されます。</p></div>
+              <div>${rulebookCardMarkup(rulebookMinorCard('Pentacle', 12))}<h4>12トラッシュ</h4><p>小アルカナ12を1枚で通常の場流しにすると、残り手札から好きな1枚を除外。除外だけで手札0にはできません。</p></div>
               <div>${rulebookCardMarkup(rulebookMinorCard('Cup', 13))}${rulebookCardMarkup(rulebookMinorCard('Cup', 14))}<h4>ロイヤルロック</h4><p>13または14を場札と同じスートで出すと、そのスートだけに固定。節制XIVで解除します。</p></div>
             </div>
             <div class="tarot-kingdom-rulebook-major-list">
@@ -26716,7 +27183,7 @@ function ensureKingdomRulebookUi() {
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(1, '魔術師 I'))}<span>魔術師 I</span></dt><dd>数字1固定・オールスート。Aとは組にできません。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(15, '悪魔 XV'))}<span>悪魔 XV</span></dt><dd>小アルカナのコート札専用。11バックを無視して出せます。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(16, '塔 XVI'))}<span>塔〜太陽 XVI–XIX</span></dt><dd>対応する同スートの1枚場専用。初手には出せません。</dd></div>
-                <div><dt>${rulebookCardMarkup(rulebookMajorCard(20, '審判 XX'))}<span>審判 XX</span></dt><dd>11バックを切り替え、場を流すと墓地回収。</dd></div>
+                <div><dt>${rulebookCardMarkup(rulebookMajorCard(20, '審判 XX'))}<span>審判 XX</span></dt><dd>場が空のときだけ出せる。11バックを切り替え、場を流すと墓地回収。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(21, '世界 XXI'))}<span>世界 XXI</span></dt><dd>大アルカナ1枚場へ返して即クリア。11バック中は使用不可。</dd></div>
               </dl>
             </div>

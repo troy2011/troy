@@ -452,7 +452,7 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     }
   });
 
-  test('schema 23 keeps the previous rules while schema 24 enables the revised majors', async ({ page }) => {
+  test('schema 23 keeps the previous rules while the current schema enables the revised majors', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       const current = debug.battleScenario({ withTrick: false });
@@ -474,7 +474,7 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     });
 
     expect(audit.current.rules).toMatchObject({
-      majorArcanaSpecialVersion: 2,
+      majorArcanaSpecialVersion: 3,
       majorBattleEffectsVersion: 3,
       arcanaLoadoutEffectsVersion: 7,
       elementAffinityVersion: 2

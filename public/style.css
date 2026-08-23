@@ -9418,6 +9418,22 @@ body.modal-lock .troy-menu-board-order-modal {
     padding-bottom: 2px;
 }
 
+.tarot-kingdom-judgment-options.is-trash-options {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 6px;
+    padding: 4px 0 6px;
+}
+
+.tarot-kingdom-judgment-options.is-trash-options > .tarot-card {
+    --tarot-card-w: 38px;
+    --tarot-card-h: 63px;
+    --tarot-card-radius: 5px;
+    --tarot-card-padding: 3px;
+}
+
 .tarot-kingdom-grave-rank-header {
     display: grid;
     grid-template-columns: repeat(14, var(--tarot-card-w, 27px));
