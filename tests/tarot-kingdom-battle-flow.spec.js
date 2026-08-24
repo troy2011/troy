@@ -4418,14 +4418,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.judgment.opening.ok).toBe(true);
     expect(audit.judgment.onMinorAce.ok).toBe(false);
     expect(audit.judgment.onMinorAce.reason).toBe('Aの能力：大アルカナでは返せません。');
-    expect(audit.judgment.onMagician).toEqual({
-      ok: false,
-      reason: '審判20は1枚出しでは場が空の時だけ出せます。'
-    });
-    expect(audit.judgment.finish).toEqual({
-      ok: false,
-      reason: '審判20は1枚出しでは場が空の時だけ出せます。'
-    });
+    expect(audit.judgment.onMagician.ok).toBe(true);
+    expect(audit.judgment.finish.ok).toBe(true);
     expect(audit.judgment.roleOpening.ok).toBe(true);
     expect(audit.judgment.roleOnField).toMatchObject({
       ok: true,
@@ -4549,7 +4543,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
     for (const number of [16, 17, 18, 19]) {
       expect(audit.descriptions[String(number)]).toContain('同スート場専用 / 初手不可');
     }
-    expect(audit.descriptions['20']).toContain('1枚出しは空場限定 / 11バック / 墓地回収');
+    expect(audit.descriptions['20']).toContain('11バック / 墓地回収');
+    expect(audit.descriptions['20']).not.toContain('空場限定');
     expect(audit.descriptions['20']).not.toContain('A不可');
     expect(audit.descriptions['21']).toContain('大アルカナ1枚に返して即クリア');
   });
@@ -4960,6 +4955,95 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.onlineSettled.roundSettlement.winnerIndex).toBe(1);
     expect(audit.onlineSettled.dealer).toBe(2);
     expect(audit.onlineNextRound.dealer).toBe(2);
+  });
+
+  test('offline exploration resumes the exact interrupted turn with private cards and combat state', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      window.myPlayFabId = 'PF_OFFLINE_RESUME';
+      const monsters = [
+        'ismartal-vol1-monster-01',
+        'ismartal-vol1-monster-02',
+        'ismartal-vol1-monster-03',
+        'ismartal-vol1-monster-04'
+      ].map((monsterId, index) => ({
+        monsterId,
+        monsterName: `再開テスト敵${index + 1}`,
+        threatLevel: index + 1,
+        archetype: 'balanced'
+      }));
+      const context = {
+        explorationId: 'offline-resume-exploration',
+        destinationId: 'resume-island',
+        stageId: 'tarot_stage_resume',
+        stageNo: 2,
+        monsters,
+        enemyDefeatMode: 'hp-zero',
+        tutorialEnabled: false
+      };
+      const localHand = [
+        { id: 'resume-hand-1', kind: 'minor', suit: 'Cup', number: 6 },
+        { id: 'resume-hand-2', kind: 'major', suit: 'None', number: 17 }
+      ];
+      const npcHand = [{ id: 'resume-npc-1', kind: 'minor', suit: 'Sword', number: 9 }];
+      const drawDeck = [
+        { id: 'resume-deck-1', kind: 'minor', suit: 'Wand', number: 3 },
+        { id: 'resume-deck-2', kind: 'minor', suit: 'Pentacle', number: 12 }
+      ];
+      debug.battleSetStartMode('offline');
+      debug.battleSetExplorationSession(true, 'offline', context);
+      const interrupted = debug.battleScenario({
+        stage: {
+          stageNo: context.stageNo,
+          stageId: context.stageId,
+          stageName: '再開テスト島',
+          monsters
+        },
+        handNo: 1,
+        turnIndex: 2,
+        dealerIndex: 0,
+        handsBySeat: [localHand, npcHand, []],
+        drawDeck,
+        hpBySeat: [71, 63, 82],
+        chipsBySeat: [118, 91, 104],
+        tableCard: { id: 'resume-table', kind: 'minor', suit: 'Wand', number: 5 },
+        enemyMaxHp: 300,
+        enemyHp: 137,
+        revision: 9
+      });
+      const saved = debug.battleSaveOfflineCheckpoint();
+      debug.battleScenario({
+        handNo: 0,
+        turnIndex: 0,
+        handsBySeat: [[], [], []],
+        drawDeck: [],
+        hpBySeat: [1, 1, 1],
+        chipsBySeat: [1, 1, 1],
+        withTrick: false
+      });
+      const resumed = debug.battleRestoreOfflineCheckpoint();
+      debug.battleClearOfflineCheckpoint();
+      return { interrupted, saved, resumed };
+    });
+
+    expect(audit.saved).toBe(true);
+    expect(audit.resumed.restored).toBe(true);
+    expect(audit.resumed.state).toMatchObject({
+      handNo: 1,
+      phase: 'turn',
+      turn: 2,
+      dealer: 0,
+      revision: 9
+    });
+    expect(audit.resumed.state.players.map((player) => player.hp)).toEqual([71, 63, 82]);
+    expect(audit.resumed.state.players.map((player) => player.chips)).toEqual([118, 91, 104]);
+    expect(audit.resumed.state.players[0].hand.map((card) => card.id)).toEqual(['resume-hand-1', 'resume-hand-2']);
+    expect(audit.resumed.state.players[1].hand.map((card) => card.id)).toEqual(['resume-npc-1']);
+    expect(audit.resumed.state.drawDeck.map((card) => card.id)).toEqual(['resume-deck-1', 'resume-deck-2']);
+    expect(audit.resumed.state.trick.cardsTable[0].id).toBe('resume-table');
+    expect(audit.resumed.state.battle.enemy.hp).toBe(137);
+    expect(audit.interrupted.players[0].hand.map((card) => card.id))
+      .toEqual(audit.resumed.state.players[0].hand.map((card) => card.id));
   });
 
   test('call rate, schema migration, action forgery, revisions, and transition locks are authoritative', async ({ page }) => {

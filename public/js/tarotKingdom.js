@@ -537,6 +537,10 @@ const KINGDOM_SUMMON_EFFECT_VISUALS = Object.freeze({
 });
 const KINGDOM_NET_SCHEMA_VERSION = 31;
 const KINGDOM_PRIVATE_STATE_VERSION = 2;
+const KINGDOM_OFFLINE_CHECKPOINT_VERSION = 1;
+const KINGDOM_OFFLINE_CHECKPOINT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const KINGDOM_OFFLINE_CHECKPOINT_STORAGE_PREFIX = 'troy.tarotKingdom.offlineMatch.v1';
+const KINGDOM_OFFLINE_CHECKPOINT_WRITE_DELAY_MS = 80;
 const KINGDOM_NET_STATE_WRITE_DELAY = 90;
 const KINGDOM_PRESENTATION_VERSION = 1;
 const KINGDOM_PRESENTATION_CUE_LIMIT = 8;
@@ -711,6 +715,8 @@ let kingdomSummonPartyResumeTimer = null;
 let kingdomCharacterLoadPromise = null;
 let kingdomRoundStartPromise = null;
 let kingdomStateGeneration = 0;
+let kingdomOfflineCheckpointTimer = null;
+let kingdomOfflineCheckpointLifecycleBound = false;
 let presenceGraceTimer = null;
 const presenceGraceBySeat = Array.from({ length: 4 }, () => ({ uid: null, name: '', playFabId: '', until: 0 }));
 const tkNet = {
@@ -2337,7 +2343,6 @@ function getKingdomCardEffectDescription(card) {
   if (card.kind === 'major') {
     const usesMajorGateRules = areKingdomMajorArcanaGateRulesEnabled();
     const usesMajorSpecialRules = areKingdomMajorArcanaSpecialRulesEnabled();
-    const usesMajorSpecialV3Rules = areKingdomMajorArcanaSpecialV3RulesEnabled();
     const majorEffectMap = {
       0: '5枚役のみ数値ワイルド（フラッシュ化なし）',
       1: 'オールスート / 数値1固定',
@@ -2358,11 +2363,9 @@ function getKingdomCardEffectDescription(card) {
       19: usesMajorGateRules
         ? (usesMajorSpecialRules ? '同スート場専用 / 初手不可' : 'ワンド場限定（上がり不可）')
         : '単騎時はワンド14扱い',
-      20: usesMajorSpecialV3Rules
-        ? '1枚出しは空場限定 / 11バック / 墓地回収'
-        : (usesMajorSpecialRules
-          ? '11バック / 墓地回収'
-          : '11バック / この場を流した人が墓地から小アルカナ1枚回収'),
+      20: usesMajorSpecialRules
+        ? '11バック / 墓地回収'
+        : '11バック / この場を流した人が墓地から小アルカナ1枚回収',
       21: usesMajorSpecialRules ? '大アルカナ1枚に返して即クリア（11バック中不可）' : '単騎でどんな場札にも返せる'
     };
     return majorEffectMap[n] || '';
@@ -2671,11 +2674,9 @@ function buildSelectedCardInfoMessage(playerIndex, selectedIndexes) {
     const card = cards[0];
     const name = getCardNameLabel(card);
     if (card?.kind === 'major' && Number(card?.number) === 20) {
-      baseMessage = areKingdomMajorArcanaSpecialV3RulesEnabled()
-        ? '審判 / 1枚出しは空場限定・11バック・墓地回収'
-        : (areKingdomMajorArcanaSpecialRulesEnabled()
-          ? '審判 / 11バック・墓地回収'
-          : '審判：11バック＋流し手が小アルカナ1枚回収');
+      baseMessage = areKingdomMajorArcanaSpecialRulesEnabled()
+        ? '審判 / 11バック・墓地回収'
+        : '審判：11バック＋流し手が小アルカナ1枚回収';
     } else {
       const effect = getKingdomCardEffectDescription(card);
       baseMessage = effect ? `${name} / ${effect}` : name;
@@ -6044,10 +6045,6 @@ function areKingdomMajorArcanaSpecialRulesEnabled(state = s) {
 
 function areKingdomMajorArcanaSpecialV2RulesEnabled(state = s) {
   return Number(state?.rules?.majorArcanaSpecialVersion || 0) >= 2;
-}
-
-function areKingdomMajorArcanaSpecialV3RulesEnabled(state = s) {
-  return Number(state?.rules?.majorArcanaSpecialVersion || 0) >= 3;
 }
 
 function areKingdomMajorBattleEffectsEnabled(state = s) {
@@ -14111,6 +14108,171 @@ function deserializeStateFromNet(payload) {
   return nextState;
 }
 
+function getKingdomOfflineCheckpointOwnerId() {
+  return String(
+    window.myPlayFabId
+    || window.myPlayFabLoginInfo?.playFabId
+    || ''
+  ).trim();
+}
+
+function getKingdomOfflineCheckpointIdentity(context = kingdomExplorationSession?.context) {
+  if (!context || context.mode !== 'offline') return null;
+  const ownerId = getKingdomOfflineCheckpointOwnerId();
+  const explorationId = String(context.explorationId || '').trim();
+  if (!ownerId || !explorationId) return null;
+  const monsterIds = (Array.isArray(context.monsters) ? context.monsters : [])
+    .slice(0, TOTAL_HANDS)
+    .map((entry) => String(entry?.monsterId || entry?.id || '').trim());
+  const signature = JSON.stringify({
+    explorationId,
+    stageId: String(context.stageId || ''),
+    stageNo: Math.max(0, Math.floor(Number(context.stageNo) || 0)),
+    destinationId: String(context.destinationId || ''),
+    monsterIds
+  });
+  return {
+    ownerId,
+    explorationId,
+    signature,
+    storageKey: `${KINGDOM_OFFLINE_CHECKPOINT_STORAGE_PREFIX}:${encodeURIComponent(ownerId)}:${encodeURIComponent(explorationId)}`
+  };
+}
+
+function clearKingdomOfflineCheckpointTimer() {
+  if (!kingdomOfflineCheckpointTimer) return;
+  clearTimeout(kingdomOfflineCheckpointTimer);
+  kingdomOfflineCheckpointTimer = null;
+}
+
+function clearKingdomOfflineMatchCheckpoint(context = kingdomExplorationSession?.context) {
+  const identity = getKingdomOfflineCheckpointIdentity(context);
+  if (!identity) return false;
+  try {
+    window.localStorage?.removeItem(identity.storageKey);
+    return true;
+  } catch (error) {
+    console.warn('[tarotKingdom] failed to clear offline match checkpoint:', error);
+    return false;
+  }
+}
+
+function persistKingdomOfflineMatchCheckpoint(context = kingdomExplorationSession?.context) {
+  clearKingdomOfflineCheckpointTimer();
+  const identity = getKingdomOfflineCheckpointIdentity(context);
+  if (
+    !identity
+    || !s
+    || kingdomStartMode !== 'offline'
+    || isNetModeActive()
+    || !s.characterSnapshotReady
+  ) return false;
+  const statePayload = serializeStateForNet();
+  const authorityState = serializeKingdomAuthorityStateForNet();
+  if (!statePayload || !authorityState) return false;
+  try {
+    window.localStorage?.setItem(identity.storageKey, JSON.stringify({
+      version: KINGDOM_OFFLINE_CHECKPOINT_VERSION,
+      savedAt: Date.now(),
+      ownerId: identity.ownerId,
+      explorationId: identity.explorationId,
+      signature: identity.signature,
+      statePayload,
+      authorityState
+    }));
+    return true;
+  } catch (error) {
+    console.warn('[tarotKingdom] failed to save offline match checkpoint:', error);
+    return false;
+  }
+}
+
+function queueKingdomOfflineMatchCheckpoint() {
+  if (
+    kingdomOfflineCheckpointTimer
+    || !s
+    || kingdomStartMode !== 'offline'
+    || kingdomExplorationSession?.context?.mode !== 'offline'
+    || isNetModeActive()
+  ) return;
+  kingdomOfflineCheckpointTimer = setTimeout(() => {
+    kingdomOfflineCheckpointTimer = null;
+    persistKingdomOfflineMatchCheckpoint();
+  }, KINGDOM_OFFLINE_CHECKPOINT_WRITE_DELAY_MS);
+}
+
+function readKingdomOfflineMatchCheckpoint(context = kingdomExplorationSession?.context) {
+  const identity = getKingdomOfflineCheckpointIdentity(context);
+  if (!identity) return null;
+  try {
+    const raw = window.localStorage?.getItem(identity.storageKey);
+    if (!raw) return null;
+    const checkpoint = JSON.parse(raw);
+    const savedAt = Math.max(0, Number(checkpoint?.savedAt) || 0);
+    const valid = (
+      Number(checkpoint?.version) === KINGDOM_OFFLINE_CHECKPOINT_VERSION
+      && checkpoint.ownerId === identity.ownerId
+      && checkpoint.explorationId === identity.explorationId
+      && checkpoint.signature === identity.signature
+      && savedAt > 0
+      && Date.now() - savedAt <= KINGDOM_OFFLINE_CHECKPOINT_MAX_AGE_MS
+    );
+    if (!valid) {
+      window.localStorage?.removeItem(identity.storageKey);
+      return null;
+    }
+    const restored = deserializeStateFromNet(checkpoint.statePayload);
+    if (
+      !restored
+      || !restored.characterSnapshotReady
+      || !applyKingdomAuthorityState(restored, checkpoint.authorityState)
+    ) {
+      window.localStorage?.removeItem(identity.storageKey);
+      return null;
+    }
+    return restored;
+  } catch (error) {
+    console.warn('[tarotKingdom] failed to read offline match checkpoint:', error);
+    try {
+      window.localStorage?.removeItem(identity.storageKey);
+    } catch (_) {
+      // Storage can be unavailable in private browsing; start a fresh match.
+    }
+    return null;
+  }
+}
+
+function restoreKingdomOfflineMatchCheckpoint(context = kingdomExplorationSession?.context) {
+  clearKingdomOfflineCheckpointTimer();
+  const restored = readKingdomOfflineMatchCheckpoint(context);
+  if (!restored) return false;
+  clearNpcTimer();
+  clearCallCinematicTimer();
+  clearRoundStartCinematicTimer();
+  clearRoundOutCinematicTimer();
+  clearOpeningDealTimers();
+  clearDrawHandFlipTimers();
+  clearKingdomTransitionTimer();
+  clearKingdomRemotePresentation();
+  kingdomStateGeneration += 1;
+  s = restored;
+  s.selected = new Set();
+  tkNet.localSeat = 0;
+  kingdomExplorationMonsterId = String(s.battle?.enemy?.id || context?.monsterId || '');
+  applyPresenceToPlayers();
+  return true;
+}
+
+function bindKingdomOfflineCheckpointLifecycle() {
+  if (kingdomOfflineCheckpointLifecycleBound || typeof window === 'undefined') return;
+  const flushCheckpoint = () => persistKingdomOfflineMatchCheckpoint();
+  window.addEventListener('pagehide', flushCheckpoint);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) flushCheckpoint();
+  });
+  kingdomOfflineCheckpointLifecycleBound = true;
+}
+
 function shouldRoomStayOpen() {
   if (!s) return false;
   if (s.roundActive) return false;
@@ -17477,16 +17639,26 @@ function exposeTarotKingdomBattleDebugTools(target) {
       return snapshotTarotKingdomDebugState();
     },
     battleState: () => snapshotTarotKingdomDebugState(),
-    battleSetExplorationSession: (active = true, mode = 'offline') => {
+    battleSetExplorationSession: (active = true, mode = 'offline', context = {}) => {
       kingdomExplorationSession = active
         ? {
-            context: { mode: mode === 'online' ? 'online' : 'offline' },
+            context: {
+              ...(context && typeof context === 'object' ? cloneKingdomSnapshotValue(context, {}) : {}),
+              mode: mode === 'online' ? 'online' : 'offline'
+            },
             resolve: () => {}
           }
         : null;
       render();
       return cloneKingdomSnapshotValue(getKingdomSettlementActionState(s), null);
     },
+    battleSaveOfflineCheckpoint: () => persistKingdomOfflineMatchCheckpoint(),
+    battleRestoreOfflineCheckpoint: () => {
+      const restored = restoreKingdomOfflineMatchCheckpoint();
+      render();
+      return { restored, state: snapshotTarotKingdomDebugState() };
+    },
+    battleClearOfflineCheckpoint: () => clearKingdomOfflineMatchCheckpoint(),
     battleExplorationResult: () => cloneKingdomSnapshotValue(buildKingdomExplorationResult('completed'), null),
     battleActivateRaidBoss: (sourceIndex = 0) => ({
       ok: activateKingdomRaidBossForm(sourceIndex),
@@ -18494,9 +18666,6 @@ function getAceAbilityPlayViolation(play, mode) {
 function getMajorSpecialPlayViolation(play, mode) {
   if (!areKingdomMajorArcanaSpecialRulesEnabled()) return null;
   const played = Array.isArray(play?.cardsHand) ? play.cardsHand.filter(Boolean) : [];
-  if (areKingdomMajorArcanaSpecialV3RulesEnabled() && isSingleMajorSetPlay(play, 20) && s.trick) {
-    return '審判20は1枚出しでは場が空の時だけ出せます。';
-  }
   if (mode === 'call' || play?.type !== 'set') return null;
   const worldCards = played.filter((card) => isMajorNumberCard(card, 21));
   if (worldCards.length) {
@@ -22154,7 +22323,13 @@ function queueKingdomRoundPetOfferCheck(roundNo) {
 function settleKingdomExplorationSession(status = 'completed') {
   const session = kingdomExplorationSession;
   if (!session) return null;
+  if (status === 'cancelled' || status === 'replaced' || status === 'failed') {
+    persistKingdomOfflineMatchCheckpoint(session.context);
+  }
   const result = buildKingdomExplorationResult(status);
+  if (status === 'completed' || status === 'retreated') {
+    clearKingdomOfflineMatchCheckpoint(session.context);
+  }
   kingdomExplorationSession = null;
   kingdomExplorationMonsterId = '';
   document.body?.classList.remove('tarot-kingdom-exploration-session');
@@ -26506,6 +26681,7 @@ function render() {
   } else {
     clearOpenRoomHeartbeatTimer();
   }
+  queueKingdomOfflineMatchCheckpoint();
 }
 
 function beginNextRound() {
@@ -27274,7 +27450,7 @@ function ensureKingdomRulebookUi() {
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(1, '魔術師 I'))}<span>魔術師 I</span></dt><dd>数字1固定・オールスート。Aとは組にできません。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(15, '悪魔 XV'))}<span>悪魔 XV</span></dt><dd>小アルカナのコート札専用。11バックを無視して出せます。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(16, '塔 XVI'))}<span>塔〜太陽 XVI–XIX</span></dt><dd>対応する同スートの1枚場専用。初手には出せません。</dd></div>
-                <div><dt>${rulebookCardMarkup(rulebookMajorCard(20, '審判 XX'))}<span>審判 XX</span></dt><dd>1枚出しは場が空のときだけ出せる。5枚役ではこの制限を受けない。11バックを切り替え、場を流すと墓地回収。</dd></div>
+                <div><dt>${rulebookCardMarkup(rulebookMajorCard(20, '審判 XX'))}<span>審判 XX</span></dt><dd>場が空でなくても通常の出し方で使える。11バックを切り替え、場を流すと墓地回収。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(21, '世界 XXI'))}<span>世界 XXI</span></dt><dd>大アルカナ1枚場へ返して即クリア。11バック中は使用不可。</dd></div>
               </dl>
             </div>
@@ -27643,6 +27819,7 @@ function bindUi() {
   ui.judgmentSkipButton = document.getElementById('tarotKingdomJudgmentSkipButton');
   ui.judgmentCloseButton = document.getElementById('tarotKingdomJudgmentCloseButton');
   exposeTarotKingdomDebugTools();
+  bindKingdomOfflineCheckpointLifecycle();
   bindKingdomViewportWatch();
   queueSyncKingdomViewportHeight();
   ui.startOnlineButton?.addEventListener('click', () => {
@@ -27897,6 +28074,9 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
       ? context.onRoundFinished
       : null
   };
+  if (requestedMode === 'online') {
+    clearKingdomOfflineMatchCheckpoint({ ...normalizedContext, mode: 'offline' });
+  }
   const completion = new Promise((resolve) => {
     kingdomExplorationSession = { context: normalizedContext, resolve };
   });
@@ -28003,9 +28183,23 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
           : `${normalizedContext.destinationName || '島'} STAGE ${normalizedContext.stageNo || 1}・ENEMY 1/${TOTAL_HANDS}: ${monster.name}`
       });
       applyExplorationStageToCurrentState();
-      const profilePreparation = prepareKingdomCharacterSnapshots({ online: false });
-      await Promise.all([startBarrier, profilePreparation]);
-      await startOrNext();
+      await startBarrier;
+      const restored = restoreKingdomOfflineMatchCheckpoint(normalizedContext);
+      if (restored) {
+        setLocalInfoMessage('中断した局の続きから再開しました。', 2400);
+        render();
+        if (s.awaitRoundConfirm) {
+          queueKingdomRoundPetOfferCheck(Math.max(1, Number(s.handNo) || 1));
+        } else if (!s.roundActive && !isKingdomMatchDoneState(s)) {
+          await startOrNext();
+        } else {
+          recoverKingdomHostProgress();
+          scheduleNpc();
+        }
+      } else {
+        await prepareKingdomCharacterSnapshots({ online: false });
+        await startOrNext();
+      }
     }
     onEntryReady?.();
     normalizedContext.onOnlinePartyChange = null;

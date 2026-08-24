@@ -791,7 +791,7 @@ test('home avatar applies equipped gear during app startup', async ({ page }) =>
   expect(homeCompanionLayout.avatarVerticalCenter - homeCompanionLayout.mobileAnchorY)
     .toBeCloseTo(homeCompanionLayout.expectedHalfAvatarHeight, 0);
   expect(homeCompanionLayout.petVerticalCenter - homeCompanionLayout.avatarVerticalCenter)
-    .toBeCloseTo(18, 0);
+    .toBeCloseTo(3, 0);
   expect(homeCompanionLayout.avatarBottom).toBeLessThan(homeCompanionLayout.stageBottom);
   expect(homeCompanionLayout.petBottom).toBeLessThan(homeCompanionLayout.stageBottom);
   expect(Math.abs(homeCompanionLayout.avatarScale - homeCompanionLayout.petScale)).toBeLessThan(0.02);

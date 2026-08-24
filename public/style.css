@@ -27479,7 +27479,7 @@ body[data-sea-tone] .home-hero-card {
 
     .home-hero-card .home-pet-companion {
         --pixel-monster-context-scale: 1.36;
-        top: calc(42% + 62px);
+        top: calc(42% + 47px);
         left: 66%;
     }
 
