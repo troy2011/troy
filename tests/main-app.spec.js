@@ -1445,6 +1445,23 @@ test('home tab replaces HP and MP recovery controls with compact stat chips', as
     });
   });
   expect(homeStatsFit).toBe(true);
+  await expect(page.locator('#homeRankBenefit')).toHaveCount(0);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const homeActionViewportFit = await page.locator('.home-exp-actions').evaluate((actions) => {
+    const nav = document.getElementById('bottomNav');
+    const navRect = nav?.getBoundingClientRect();
+    const buttonBottoms = Array.from(actions.querySelectorAll('button:not([hidden])'))
+      .map((button) => button.getBoundingClientRect().bottom);
+    return {
+      scrollY: window.scrollY,
+      actionBottom: Math.max(...buttonBottoms),
+      navTop: navRect?.top ?? window.innerHeight,
+      visibleButtonCount: buttonBottoms.length
+    };
+  });
+  expect(homeActionViewportFit.scrollY).toBe(0);
+  expect(homeActionViewportFit.visibleButtonCount).toBe(2);
+  expect(homeActionViewportFit.actionBottom).toBeLessThanOrEqual(homeActionViewportFit.navTop - 6);
   await page.setViewportSize({ width: 1280, height: 720 });
   await expect(page.locator('.home-transfer-card')).toHaveCount(0);
   await expect(page.locator('#btnScanPay')).toHaveCount(0);
@@ -1452,25 +1469,6 @@ test('home tab replaces HP and MP recovery controls with compact stat chips', as
   await expect(page.locator('#btnCoinGoldConvert')).toHaveCount(0);
   await expect(page.locator('#coinConvertModal')).toHaveCount(0);
   await expect(page.locator('#tabContentHome')).not.toContainText('ゴールド管理');
-  await expect(page.locator('#homeRankBenefit .home-rank-benefit-chip')).toHaveText([
-    '1杯サイズUP',
-    '専用海賊ジョッキ'
-  ]);
-  const rankBenefitAudit = await page.locator('#homeRankBenefit').evaluate((element) => {
-    const style = window.getComputedStyle(element);
-    return {
-      whiteSpace: style.whiteSpace,
-      scrollWidth: element.scrollWidth,
-      clientWidth: element.clientWidth,
-      scrollHeight: element.scrollHeight,
-      clientHeight: element.clientHeight,
-      ariaLabel: element.getAttribute('aria-label') || ''
-    };
-  });
-  expect(rankBenefitAudit.whiteSpace).not.toBe('nowrap');
-  expect(rankBenefitAudit.scrollWidth).toBeLessThanOrEqual(rankBenefitAudit.clientWidth + 1);
-  expect(rankBenefitAudit.scrollHeight).toBeLessThanOrEqual(rankBenefitAudit.clientHeight + 1);
-  expect(rankBenefitAudit.ariaLabel).toContain('専用の海賊ジョッキ');
   const homeBackgrounds = await page.evaluate(() => {
     const homeTab = document.getElementById('tabContentHome');
     const heroCard = document.querySelector('.home-hero-card');
@@ -1485,8 +1483,8 @@ test('home tab replaces HP and MP recovery controls with compact stat chips', as
     };
   });
   expect(homeBackgrounds.heroBackground).toContain('home-ui-sheet.png');
-  expect(homeBackgrounds.heroBackgroundSize).toContain('660px');
-  expect(homeBackgrounds.heroBackgroundHeight).toBe('660px');
+  expect(homeBackgrounds.heroBackgroundSize).toContain('620px');
+  expect(homeBackgrounds.heroBackgroundHeight).toBe('620px');
   expect(homeBackgrounds.heroBorderImageSource).toBe('none');
   expect(homeBackgrounds.tabBackground).not.toContain('bg-sea.png');
   expect(homeBackgrounds.shipStageBackground).not.toContain('bg-sea.png');
@@ -3389,7 +3387,13 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   const sequence = page.locator('.exploration-sequence-overlay');
   await expect(sequence).toHaveClass(/is-sail/, { timeout: 15_000 });
   await expect(sequence.locator('[data-exploration-sequence-chest]')).toHaveCount(0);
-  await expect(sequence.locator('.exploration-sequence-island img')).toHaveAttribute('src', /coral_lagoon\.png/);
+  const islandImage = sequence.locator('.exploration-sequence-island img');
+  await expect(islandImage).toHaveAttribute('src', /coral_lagoon\.png/);
+  await expect.poll(() => islandImage.evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
+  await expect.poll(() => islandImage.evaluate((image) => {
+    const island = image.closest('.exploration-sequence-island');
+    return Number.parseFloat(getComputedStyle(island).getPropertyValue('--exploration-island-art-bottom-offset')) || 0;
+  })).toBeGreaterThan(0);
   await expect(sequence.locator('[data-exploration-sequence-advance]')).toHaveCount(0);
   await expect(sequence.locator('[data-exploration-sequence-progress]')).toHaveCount(0);
   await expect(sequence.locator('.exploration-sequence-route')).toHaveCount(0);
@@ -3400,8 +3404,13 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
     const sceneRect = scene.getBoundingClientRect();
     const shipRect = ship.getBoundingClientRect();
     const islandRect = island.getBoundingClientRect();
-    const islandImageRect = island.querySelector('img')?.getBoundingClientRect() || islandRect;
+    const islandImage = island.querySelector('img');
+    const islandImageRect = islandImage?.getBoundingClientRect() || islandRect;
     const islandStyle = getComputedStyle(island);
+    const renderedScale = islandImage
+      ? Math.min(islandRect.width / islandImage.naturalWidth, islandRect.height / islandImage.naturalHeight)
+      : 0;
+    const artworkBottomInset = 12 * renderedScale;
     return {
       sceneLeft: sceneRect.left,
       sceneRight: sceneRect.right,
@@ -3414,6 +3423,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
       islandHeight: islandRect.height,
       islandLeft: islandRect.left,
       islandImageBottom: islandImageRect.bottom,
+      islandArtworkBottom: islandImageRect.bottom - artworkBottomInset,
+      islandArtworkBottomOffset: Number.parseFloat(islandStyle.getPropertyValue('--exploration-island-art-bottom-offset')) || 0,
       islandOpacity: islandStyle.opacity,
       islandFilter: islandStyle.filter
     };
@@ -3439,7 +3450,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
     expect(metrics.shipLeft).toBeGreaterThanOrEqual(metrics.sceneLeft);
     expect(metrics.shipRight).toBeLessThanOrEqual(metrics.sceneRight);
     expect(Math.abs(metrics.shipCenterY - metrics.sceneCenterY)).toBeLessThanOrEqual(2);
-    expect(Math.abs(metrics.islandImageBottom - metrics.sceneCenterY)).toBeLessThanOrEqual(2);
+    expect(Math.abs(metrics.islandArtworkBottom - metrics.sceneCenterY)).toBeLessThanOrEqual(2);
+    expect(Math.abs(metrics.islandArtworkBottomOffset - (metrics.islandImageBottom - metrics.sceneCenterY))).toBeLessThanOrEqual(1);
   }
   expect(sailMetrics.islandOpacity).toBe('1');
   expect(arrivalMetrics.islandOpacity).toBe('1');

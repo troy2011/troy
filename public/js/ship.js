@@ -1060,6 +1060,9 @@ let tarotKingdomPetOfferDialogPromise = null;
 let explorationReturnSequence = null;
 
 const EXPLORATION_RETURN_MIN_MS = 900;
+// All exploration destination PNGs use a 12px transparent export gutter.
+// Compensate at the rendered scale so the visible artwork, not its canvas, aligns to the scene.
+const EXPLORATION_DESTINATION_ART_TRANSPARENT_GUTTER = 12;
 
 function setCurrentTarotKingdomPet(currentPet = null) {
     currentTarotKingdomPet = currentPet && typeof currentPet === 'object'
@@ -1146,6 +1149,27 @@ function renderExplorationDestinationVisual(destinationOrId, className, tagName 
         ? `<img src="${escapeHtml(visual.imagePath)}" alt="" loading="lazy" decoding="async">`
         : escapeHtml(visual.island);
     return `<${tag} class="${escapeHtml(classes)}" aria-hidden="true" data-exploration-destination-visual>${content}</${tag}>`;
+}
+
+function alignExplorationSequenceIslandArtwork(overlay) {
+    const island = overlay?.querySelector('.exploration-sequence-island.has-image');
+    const image = island?.querySelector('img');
+    if (!island || !image) return;
+
+    const applyVisibleArtworkOffset = () => {
+        const imageWidth = Number(image.naturalWidth) || 0;
+        const imageHeight = Number(image.naturalHeight) || 0;
+        const islandWidth = island.clientWidth;
+        const islandHeight = island.clientHeight;
+        if (imageWidth <= 0 || imageHeight <= 0 || islandWidth <= 0 || islandHeight <= 0) return;
+
+        const renderedScale = Math.min(islandWidth / imageWidth, islandHeight / imageHeight);
+        const artworkBottomInset = EXPLORATION_DESTINATION_ART_TRANSPARENT_GUTTER * renderedScale;
+        island.style.setProperty('--exploration-island-art-bottom-offset', `${artworkBottomInset.toFixed(3)}px`);
+    };
+
+    if (image.complete) applyVisibleArtworkOffset();
+    image.addEventListener('load', applyVisibleArtworkOffset, { once: true });
 }
 
 function getPlayerShipClassName(form) {
@@ -2725,6 +2749,7 @@ async function showExplorationDepartureLoading({
         </div>
     `;
     document.body.appendChild(overlay);
+    alignExplorationSequenceIslandArtwork(overlay);
     const departureStartedAt = Date.now();
     const sequenceScene = overlay.querySelector('.exploration-sequence-scene');
     const hostShip = overlay.querySelector('[data-exploration-party-role="host"]');
@@ -3047,6 +3072,7 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
         </div>
     `;
     document.body.appendChild(overlay);
+    alignExplorationSequenceIslandArtwork(overlay);
     applyPlayerShipFrameDirection(overlay.querySelector('.exploration-sequence-ship'), form === 'guild' ? 'guild-right' : 'row2-a');
     renderCurrentExplorationBattleAvatar();
     homeFrame?.classList.add('is-exploring');

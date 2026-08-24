@@ -2,7 +2,7 @@ import * as Phaser from 'phaser';
 import { RACE_COLORS } from 'config';
 import { getFirestore, collection, getDocs, doc, updateDoc, addDoc, onSnapshot, query, where, orderBy, limit, setDoc, serverTimestamp } from 'firebase/firestore';
 import { geohashForLocation, geohashQueryBounds } from 'geofire-common';
-import * as Ship from './js/ship.js?v=20260824-judgment-five-card-v1';
+import * as Ship from './js/ship.js?v=20260824-home-layout-v1';
 import * as Player from './js/player.js';
 import { bindModalClose } from './js/modalClose.js';
 import {
