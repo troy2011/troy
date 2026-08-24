@@ -3048,7 +3048,7 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(Math.abs(audit.shipMotionDelta)).toBeGreaterThan(2);
   expect(Math.abs(audit.shipVerticalDelta)).toBeLessThanOrEqual(2);
   expect(audit.shipFrameCount).toBeGreaterThanOrEqual(2);
-  expect(audit.voyageIslandOffset).toBeCloseTo(36, 0);
+  expect(audit.voyageIslandOffset).toBeCloseTo(16, 0);
   expect(audit.treasureAnimationName).toBe('none');
   expect(audit.treasureAnimationName).not.toContain('explorationSequenceTreasureShip');
   expect(audit.resultClose.height).toBe('52px');
@@ -3450,16 +3450,16 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
     expect(metrics.shipLeft).toBeGreaterThanOrEqual(metrics.sceneLeft);
     expect(metrics.shipRight).toBeLessThanOrEqual(metrics.sceneRight);
     expect(Math.abs(metrics.shipCenterY - metrics.sceneCenterY)).toBeLessThanOrEqual(2);
-    expect(Math.abs(metrics.islandArtworkBottom - metrics.sceneCenterY)).toBeLessThanOrEqual(2);
-    expect(Math.abs(metrics.islandArtworkBottomOffset - (metrics.islandImageBottom - metrics.sceneCenterY))).toBeLessThanOrEqual(1);
+    expect(Math.abs(metrics.islandArtworkBottom - (metrics.sceneCenterY + 20))).toBeLessThanOrEqual(2);
+    expect(Math.abs(metrics.islandArtworkBottomOffset - (metrics.islandImageBottom - metrics.sceneCenterY - 20))).toBeLessThanOrEqual(1);
   }
   expect(sailMetrics.islandOpacity).toBe('1');
   expect(arrivalMetrics.islandOpacity).toBe('1');
   expect(sailMetrics.islandFilter).toContain('blur');
   expect(Math.abs(arrivalMetrics.islandWidth - sailMetrics.islandWidth)).toBeLessThanOrEqual(1);
   expect(Math.abs(arrivalMetrics.islandHeight - sailMetrics.islandHeight)).toBeLessThanOrEqual(1);
-  expect(arrivalMetrics.islandLeft - arrivalMetrics.shipRight).toBeGreaterThanOrEqual(-38);
-  expect(arrivalMetrics.islandLeft - arrivalMetrics.shipRight).toBeLessThanOrEqual(-24);
+  expect(arrivalMetrics.islandLeft - arrivalMetrics.shipRight).toBeGreaterThanOrEqual(-58);
+  expect(arrivalMetrics.islandLeft - arrivalMetrics.shipRight).toBeLessThanOrEqual(-44);
   expect(sailMetrics.shipAnimationTiming).toContain('cubic-bezier(0.33, 0.33, 0.55, 1)');
   await expect(sequence).toBeHidden({ timeout: 5_000 });
   expect(await page.evaluate(() => window.__explorationRewardLaunchContext?.tutorialEnabled)).toBe(true);

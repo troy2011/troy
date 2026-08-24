@@ -91,7 +91,8 @@
     animation-delay: calc(var(--summon-elapsed, 0ms) + var(--summon-role-show-at, 1300ms));
 }
 
-#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon:not(.is-major-arcana-summon) .tarot-kingdom-skill-cutin-title {
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon:not(.is-major-arcana-summon) .tarot-kingdom-skill-cutin-title,
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-major-arcana-summon .tarot-kingdom-skill-cutin-title {
     z-index: 30;
     top: 48%;
     width: min(88%, 520px);
@@ -110,8 +111,8 @@
     animation-name: tkSummonRoleBanner;
 }
 
-#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon:not(.is-major-arcana-summon) .tarot-kingdom-skill-cutin-title::before {
-    content: "5 CARD ROLE";
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon:not(.is-major-arcana-summon) .tarot-kingdom-skill-cutin-title::before,
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-major-arcana-summon .tarot-kingdom-skill-cutin-title::before {
     display: block;
     margin-bottom: 5px;
     color: color-mix(in srgb, var(--summon-fx-primary) 72%, white);
@@ -120,6 +121,14 @@
     line-height: 1;
     letter-spacing: 0.28em;
     text-shadow: 0 1px 2px #000, 0 0 9px var(--summon-fx-primary);
+}
+
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon:not(.is-major-arcana-summon) .tarot-kingdom-skill-cutin-title::before {
+    content: "5 CARD ROLE";
+}
+
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-major-arcana-summon .tarot-kingdom-skill-cutin-title::before {
+    content: "MAJOR ARCANA";
 }
 
 #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-skill-card-fan {
@@ -686,13 +695,13 @@
 }
 
 #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-major-arcana-summon .tarot-kingdom-skill-cutin-title {
-    top: 22%;
-    width: min(74%, 420px);
-    font-size: clamp(17px, 4.8vw, 28px);
+    top: 45%;
+    width: min(88%, 480px);
+    font-size: clamp(22px, 5.8vw, 34px);
 }
 
 #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-major-arcana-summon .tarot-kingdom-skill-card-fan {
-    top: 29%;
+    top: 61%;
     width: min(52%, 190px);
     height: 76px;
 }
@@ -1717,6 +1726,17 @@
 
     #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon:not(.is-major-arcana-summon) .tarot-kingdom-summon-chain-label {
         top: 57.5%;
+    }
+
+    #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-major-arcana-summon .tarot-kingdom-skill-cutin-title {
+        top: 45%;
+        width: min(92%, 420px);
+        padding: 12px 14px 11px;
+        font-size: clamp(21px, 6.5vw, 30px);
+    }
+
+    #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-major-arcana-summon .tarot-kingdom-skill-card-fan {
+        top: 61%;
     }
 }
 

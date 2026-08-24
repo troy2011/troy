@@ -1612,6 +1612,44 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.afterFiveClear.players.map((player) => player.hp)).toEqual([100, 73, 73, 73]);
   });
 
+  test('8 cut petrification survives a call and ends only when the field clears', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const card = (id, number, suit = 'Wand') => ({ id, kind: 'minor', suit, number });
+      const eight = card('call-petrify-8', 8);
+      const callCards = [2, 4, 6, 10].map((number) => card(`call-petrify-${number}`, number));
+
+      debug.battleScenario({
+        leaderIndex: 0,
+        turnIndex: 0,
+        handsBySeat: [
+          [eight, card('call-petrify-owner-reserve', 14)],
+          [...callCards, card('call-petrify-reserve', 14, 'Cup')],
+          [card('call-petrify-p2', 3)],
+          [card('call-petrify-p3', 5)]
+        ]
+      });
+      const afterEight = debug.battlePlayOne(0);
+      const afterCall = debug.battlePlayCards(1, callCards.map((entry) => entry.id), { resolve: true });
+      const afterClear = debug.battleClearTrick(1);
+      return { afterEight, afterCall, afterClear };
+    });
+
+    expect(audit.afterEight).toMatchObject({
+      callOnly: true,
+      battle: { enemy: { petrifiedUntilClear: true } }
+    });
+    expect(audit.afterCall).toMatchObject({
+      ok: true,
+      state: {
+        callOnly: false,
+        lastPlay: { type: 'role', call: true },
+        battle: { enemy: { petrifiedUntilClear: true } }
+      }
+    });
+    expect(audit.afterClear.battle.enemy.petrifiedUntilClear).toBe(false);
+  });
+
   test('combat statuses resolve DoT, action stop, blind, cover and area guard in order', async ({ page }) => {
     const audit = await page.evaluate(({ combatBySeat }) => {
       const debug = window.TarotKingdomDebug;

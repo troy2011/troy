@@ -981,6 +981,65 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     expect(audit.judgment.card.id).toBe('judge-fit-6');
   });
 
+  test('NPC holds 8 cut for a finishing or blocking window', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const run = ({ tableCard = null, own, opponents }) => {
+        debug.battleScenario({
+          enableNpcSeats: true,
+          turnIndex: 1,
+          leaderIndex: tableCard ? 0 : 1,
+          withTrick: !!tableCard,
+          tableCard,
+          handsBySeat: [opponents[0], own, opponents[1], opponents[2]],
+          npcPolicySeeds: [0, 77, 0, 0]
+        });
+        const leadPlay = tableCard ? null : debug.battleNpcLeadPlay(1);
+        const decision = tableCard
+          ? debug.battleNpcDecision(1, 0.5)
+          : { action: leadPlay ? 'play' : 'pass', play: leadPlay };
+        return {
+          action: decision.action,
+          cardIds: (decision.play?.cardsHand || []).map((card) => card.id)
+        };
+      };
+      const card = (id, number, suit = 'Cup') => ({ id, kind: 'minor', suit, number });
+      const safeOpponents = [
+        [card('safe-a1', 3), card('safe-a2', 5), card('safe-a3', 7)],
+        [card('safe-b1', 4), card('safe-b2', 6), card('safe-b3', 10)],
+        [card('safe-c1', 2), card('safe-c2', 9), card('safe-c3', 12)]
+      ];
+      const field = card('timing-field', 4);
+      return {
+        opening: run({
+          own: [card('opening-8', 8), card('opening-9', 9), card('opening-12', 12)],
+          opponents: safeOpponents
+        }),
+        ordinary: run({
+          tableCard: field,
+          own: [card('ordinary-8', 8), card('ordinary-9', 9), card('ordinary-12', 12, 'Wand'), card('ordinary-13', 13, 'Sword')],
+          opponents: safeOpponents
+        }),
+        blocking: run({
+          tableCard: field,
+          own: [card('blocking-8', 8), card('blocking-9', 9), card('blocking-12', 12, 'Wand'), card('blocking-13', 13, 'Sword')],
+          opponents: [[card('threat-last', 14)], safeOpponents[1], safeOpponents[2]]
+        }),
+        finishing: run({
+          tableCard: field,
+          own: [card('finishing-8', 8), card('finishing-9', 9), card('finishing-12', 12)],
+          opponents: safeOpponents
+        })
+      };
+    });
+
+    expect(audit.opening).toMatchObject({ action: 'play', cardIds: ['opening-9'] });
+    expect(audit.ordinary).toMatchObject({ action: 'play' });
+    expect(audit.ordinary.cardIds).not.toContain('ordinary-8');
+    expect(audit.blocking).toMatchObject({ action: 'play', cardIds: ['blocking-8'] });
+    expect(audit.finishing).toMatchObject({ action: 'play', cardIds: ['finishing-8'] });
+  });
+
   test('NPC draw choice uses unseen distribution rather than the actual deck top', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;

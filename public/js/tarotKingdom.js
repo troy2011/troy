@@ -17907,6 +17907,10 @@ function exposeTarotKingdomBattleDebugTools(target) {
       });
       return cloneKingdomSnapshotValue(decision, null);
     },
+    battleNpcLeadPlay: (playerIndex = 1) => cloneKingdomSnapshotValue(
+      pickBestNpcLeadPlay(Math.max(0, Math.min(3, Number(playerIndex) || 0))),
+      null
+    ),
     battleNpcDrawPlan: (playerIndex = 1, randomValue = 0.5) => {
       const index = Math.max(0, Math.min(3, Number(playerIndex) || 0));
       const wasNpc = !!s?.players?.[index]?.isNpc;
@@ -20066,12 +20070,12 @@ function continueAfterPlay(pi, play) {
       && s?.battle?.pendingWorldTimeStop
       ? { ...s.battle.pendingWorldTimeStop }
       : null;
-    // コール成立後は場にかかっている一時効果を解除し、局内永続だけを残す。
+    // コール成立後は場にかかっている一時効果を整理する。
+    // 8カットの石化は、コールではなく実際に場が流れるまで維持する。
     s.callOnly = false; // 8カット（コール猶予）
     s.lock = null; // ロイヤルロック / 節制解除
     s.reverse = false; // 11バック
     if (s.battle?.enemy) {
-      s.battle.enemy.petrifiedUntilClear = false;
       s.battle.enemy.areaAttackSealedUntilClear = false;
     }
     purgeKingdomBattleEffects({ preserveRound: true });
@@ -21096,8 +21100,15 @@ function pickNpcOpeningSinglePlay(pi, sets, reserveContext) {
     return !!cardId && reserveContext.singleOnlyIds.has(cardId);
   });
   if (!candidates.length) return null;
-  candidates.sort((a, b) => compareNpcPlaysForConserve(a, b, policy, reserveContext));
-  return candidates[0] || null;
+  const opponentAtOne = (s.players || []).some((player, playerIndex) => (
+    playerIndex !== pi && Number(player?.hand?.length || 0) === 1
+  ));
+  const ordinaryCandidates = opponentAtOne
+    ? candidates
+    : candidates.filter((play) => !isNpcEightCutPlay(play));
+  const target = ordinaryCandidates.length ? ordinaryCandidates : candidates;
+  target.sort((a, b) => compareNpcPlaysForConserve(a, b, policy, reserveContext));
+  return target[0] || null;
 }
 
 function isNextPlayerOnLastCard(pi) {
@@ -21231,7 +21242,7 @@ function getNpcControlScore(play, observation, policy) {
   const nextOpponentAtOne = observation.handCounts[nextSeat] === 1;
   let score = 0;
   if (numbers.has(5)) score += 190 + (Number(play.count || 1) * 35);
-  if (numbers.has(8)) score += Number(play.count || 0) >= 2 ? 330 : 175;
+  if (numbers.has(8)) score += getNpcEightCutTimingScore(play, observation);
   if (numbers.has(11) || (play.cardsHand || []).some((card) => card?.kind === 'major' && Number(card.number) === 20)) {
     score += 155;
   }
@@ -21251,6 +21262,31 @@ function getNpcControlScore(play, observation, policy) {
   if (opponentAtOne && score > 0) score += 210;
   if (nextOpponentAtOne && score > 0) score += 170;
   return score * Math.max(0.9, Math.min(1.1, Number(policy?.control) || 1));
+}
+
+function isNpcEightCutPlay(play) {
+  return play?.type === 'set'
+    && (play.cardsHand || []).some((card) => Number(idNum(card)) === 8);
+}
+
+function getNpcEightCutTimingScore(play, observation) {
+  if (!isNpcEightCutPlay(play)) return 0;
+  const playedCount = Math.max(1, Number(play?.count || play?.cardsHand?.length || 1));
+  const ownHandCount = Math.max(0, Number(observation?.handCounts?.[observation.playerIndex]) || 0);
+  const remainingCount = Math.max(0, ownHandCount - playedCount);
+  const opponentCounts = (observation?.handCounts || []).filter((count, index) => (
+    index !== observation.playerIndex && Number(count) > 0
+  ));
+  const nearestOpponent = opponentCounts.length ? Math.min(...opponentCounts) : Infinity;
+  let score = playedCount >= 2 ? -150 : -220;
+
+  // 8は通常局面では温存し、上がりへの布石か相手の上がり阻止で切る。
+  if (remainingCount <= 2) score += 380;
+  else if (remainingCount === 3) score += 170;
+  if (nearestOpponent === 1) score += 480;
+  else if (nearestOpponent === 2) score += 300;
+  if (Number(observation?.passCount || 0) >= 2) score += 180;
+  return score;
 }
 
 function getNpcCombatEffectScore(playerIndex, play) {

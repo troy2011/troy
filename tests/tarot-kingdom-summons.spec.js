@@ -273,6 +273,7 @@ test.describe('Tarot Kingdom deterministic summons', () => {
   });
 
   test('a normally played Major Arcana uses its own short summon without hiding the party', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
     await openKingdomDebug(page);
     const played = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
@@ -287,6 +288,12 @@ test.describe('Tarot Kingdom deterministic summons', () => {
       const event = result.state.battle.events.at(-1);
       const cutin = document.querySelector('.tarot-kingdom-skill-cutin.is-major-arcana-summon');
       const figure = cutin?.querySelector('.tarot-kingdom-summon-figure');
+      const title = cutin?.querySelector('.tarot-kingdom-skill-cutin-title');
+      const cardFan = cutin?.querySelector('.tarot-kingdom-skill-card-fan');
+      const stage = document.querySelector('#tarotKingdomBattleStage');
+      const titleRect = title?.getBoundingClientRect();
+      const cardFanRect = cardFan?.getBoundingClientRect();
+      const stageRect = stage?.getBoundingClientRect();
       return {
         ok: result.ok,
         event,
@@ -295,7 +302,15 @@ test.describe('Tarot Kingdom deterministic summons', () => {
         impactDelay: Number(result.state.transition?.timeline?.impactAt || 0) - Number(result.state.transition?.timeline?.startedAt || 0),
         cutin: cutin ? {
           summonId: cutin.dataset.summonId,
-          title: cutin.querySelector('.tarot-kingdom-skill-cutin-title')?.textContent,
+          title: title?.textContent,
+          kicker: title ? getComputedStyle(title, '::before').content : '',
+          titleAnimation: title ? getComputedStyle(title).animationName : '',
+          titleCenterYRatio: titleRect && stageRect
+            ? (titleRect.top + (titleRect.height / 2) - stageRect.top) / stageRect.height
+            : 0,
+          cardFanTopRatio: cardFanRect && stageRect
+            ? (cardFanRect.top - stageRect.top) / stageRect.height
+            : 0,
           technique: cutin.querySelector('.tarot-kingdom-summon-technique')?.textContent,
           alt: figure?.querySelector('img')?.alt,
           duration: getComputedStyle(cutin).animationDuration
@@ -323,10 +338,15 @@ test.describe('Tarot Kingdom deterministic summons', () => {
     expect(played.cutin).toMatchObject({
       summonId: 'major_summon_04',
       title: '大アルカナ・皇帝',
+      kicker: '"MAJOR ARCANA"',
+      titleAnimation: 'tkSummonRoleBanner',
       technique: 'インペリアルブレイド',
       alt: '皇鋼の獅子王',
       duration: '2.4s'
     });
+    expect(played.cutin.titleCenterYRatio).toBeGreaterThan(0.4);
+    expect(played.cutin.titleCenterYRatio).toBeLessThan(0.5);
+    expect(played.cutin.cardFanTopRatio).toBeGreaterThan(0.56);
     expect(played.stageCinematic).toBe(false);
     expect(played.rootCinematic).toBe(false);
   });

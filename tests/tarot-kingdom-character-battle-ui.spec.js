@@ -290,12 +290,21 @@ test('rulebook explains the current rules and returns to the same battle on mobi
     const categories = Array.from(document.querySelectorAll('.tarot-kingdom-rulebook-nav button'));
     return {
       trigger: trigger ? getComputedStyle(trigger).color : '',
-      categories: categories.map((button) => getComputedStyle(button).color)
+      triggerTextFill: trigger ? getComputedStyle(trigger).getPropertyValue('-webkit-text-fill-color') : '',
+      categories: categories.map((button) => getComputedStyle(button).color),
+      categoryTextFills: categories.map((button) => (
+        getComputedStyle(button).getPropertyValue('-webkit-text-fill-color')
+      ))
     };
   });
   expect(rulebookButtonTextColors.trigger).toBe('rgb(247, 251, 255)');
+  expect(rulebookButtonTextColors.triggerTextFill).toBe('rgb(247, 251, 255)');
   expect(rulebookButtonTextColors.categories).toHaveLength(5);
   expect(rulebookButtonTextColors.categories.every((color) => (
+    color === 'rgb(247, 251, 255)' || color === 'rgb(255, 255, 255)'
+  ))).toBe(true);
+  expect(rulebookButtonTextColors.categoryTextFills).toHaveLength(5);
+  expect(rulebookButtonTextColors.categoryTextFills.every((color) => (
     color === 'rgb(247, 251, 255)' || color === 'rgb(255, 255, 255)'
   ))).toBe(true);
   await expect(rulebook.getByRole('heading', { name: /タロットキングダム\s*ルールブック/ })).toBeVisible();
