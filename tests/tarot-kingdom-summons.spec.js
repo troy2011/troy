@@ -1110,6 +1110,49 @@ test.describe('Tarot Kingdom summon integration', () => {
     expect(audit.axeBig.durationMs).toBeGreaterThan(audit.gunBig.durationMs);
   });
 
+  test('five-card role title uses the centered mobile banner below the upper HUD', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const cards = [
+      { id: 'role-banner-2', kind: 'minor', suit: 'Wand', number: 2 },
+      { id: 'role-banner-3', kind: 'minor', suit: 'Cup', number: 3 },
+      { id: 'role-banner-4', kind: 'minor', suit: 'Sword', number: 4 },
+      { id: 'role-banner-5', kind: 'minor', suit: 'Pentacle', number: 5 },
+      { id: 'role-banner-6', kind: 'minor', suit: 'Wand', number: 6 },
+      { id: 'role-banner-keep', kind: 'minor', suit: 'Cup', number: 10 }
+    ];
+    const layout = await page.evaluate((hand) => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({ withTrick: false, handsBySeat: [hand] });
+      debug.battlePlayCards(0, hand.slice(0, 5).map((card) => card.id));
+      debug.battleRender();
+      const stage = document.querySelector('#tarotKingdomBattleStage');
+      const cutin = stage?.querySelector(':scope > .tarot-kingdom-skill-cutin.is-summon');
+      const title = cutin?.querySelector('.tarot-kingdom-skill-cutin-title');
+      const fan = cutin?.querySelector('.tarot-kingdom-skill-card-fan');
+      const stageRect = stage?.getBoundingClientRect();
+      const titleRect = title?.getBoundingClientRect();
+      const fanRect = fan?.getBoundingClientRect();
+      return {
+        title: title?.textContent || '',
+        kicker: title ? getComputedStyle(title, '::before').content : '',
+        animationName: title ? getComputedStyle(title).animationName : '',
+        titleCenterYRatio: stageRect && titleRect
+          ? (titleRect.top + (titleRect.height / 2) - stageRect.top) / stageRect.height
+          : 0,
+        fanTopRatio: stageRect && fanRect
+          ? (fanRect.top - stageRect.top) / stageRect.height
+          : 0
+      };
+    }, cards);
+
+    expect(layout.title).toBe('ストレート');
+    expect(layout.kicker).toBe('"5 CARD ROLE"');
+    expect(layout.animationName).toBe('tkSummonRoleBanner');
+    expect(layout.titleCenterYRatio).toBeGreaterThan(0.42);
+    expect(layout.titleCenterYRatio).toBeLessThan(0.52);
+    expect(layout.fanTopRatio).toBeGreaterThan(0.58);
+  });
+
   test('summon art and short labels stay clipped to the battle stage at 390px and 900px', async ({ page }) => {
     const summons = await loadSummonsModule();
     const summonEntries = summons.TAROT_KINGDOM_SUMMONS.map((entry) => ({

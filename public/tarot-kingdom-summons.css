@@ -91,6 +91,37 @@
     animation-delay: calc(var(--summon-elapsed, 0ms) + var(--summon-role-show-at, 1300ms));
 }
 
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon:not(.is-major-arcana-summon) .tarot-kingdom-skill-cutin-title {
+    z-index: 30;
+    top: 48%;
+    width: min(88%, 520px);
+    padding: 14px 22px 13px;
+    border-top: 1px solid color-mix(in srgb, var(--summon-fx-primary) 88%, white);
+    border-bottom: 1px solid color-mix(in srgb, var(--summon-fx-primary) 72%, white);
+    color: #fffbea;
+    background:
+        linear-gradient(90deg, transparent, rgba(2, 5, 13, 0.88) 14% 86%, transparent),
+        linear-gradient(90deg, transparent, color-mix(in srgb, var(--summon-fx-primary) 25%, transparent), transparent);
+    font-size: clamp(23px, 6.4vw, 40px);
+    line-height: 1.12;
+    letter-spacing: 0.08em;
+    filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.58));
+    transform: translate(-50%, -50%);
+    animation-name: tkSummonRoleBanner;
+}
+
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon:not(.is-major-arcana-summon) .tarot-kingdom-skill-cutin-title::before {
+    content: "5 CARD ROLE";
+    display: block;
+    margin-bottom: 5px;
+    color: color-mix(in srgb, var(--summon-fx-primary) 72%, white);
+    font-family: Arial, sans-serif;
+    font-size: clamp(9px, 2.5vw, 12px);
+    line-height: 1;
+    letter-spacing: 0.28em;
+    text-shadow: 0 1px 2px #000, 0 0 9px var(--summon-fx-primary);
+}
+
 #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-skill-card-fan {
     position: absolute;
     z-index: 21;
@@ -103,6 +134,11 @@
     justify-content: center;
     gap: 2px;
     transform: translateX(-50%);
+}
+
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon:not(.is-major-arcana-summon) .tarot-kingdom-skill-card-fan {
+    z-index: 29;
+    top: 64%;
 }
 
 #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-skill-card-fan .tarot-card {
@@ -265,6 +301,11 @@
     font-size: clamp(13px, 3.8vw, 20px);
     animation: tkSummonChainLabel 4500ms ease-out both;
     animation-delay: var(--summon-elapsed, 0ms);
+}
+
+#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon:not(.is-major-arcana-summon) .tarot-kingdom-summon-chain-label {
+    z-index: 31;
+    top: 59%;
 }
 
 .tarot-kingdom-summon-chain-impact {
@@ -1528,6 +1569,13 @@
     100% { opacity: 0; transform: translateX(-50%) translateY(-16px) scale(.95); }
 }
 
+@keyframes tkSummonRoleBanner {
+    0% { opacity: 0; transform: translate(-50%, -50%) scaleX(.68) scaleY(.88); }
+    9%, 72% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    82% { opacity: 1; transform: translate(-50%, -50%) scale(1.025); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scaleX(.82) scaleY(.72); }
+}
+
 @keyframes tkSummonCardFan {
     0% { opacity: 0; transform: translateY(10px) rotate(var(--skill-card-angle, 0deg)) scale(.68); }
     7%, 73% { opacity: 1; transform: translateY(var(--skill-card-lift, 0px)) rotate(var(--skill-card-angle, 0deg)) scale(.76); }
@@ -1654,6 +1702,21 @@
 
     #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon .tarot-kingdom-skill-card-fan {
         top: 13%;
+    }
+
+    #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon:not(.is-major-arcana-summon) .tarot-kingdom-skill-cutin-title {
+        top: 47%;
+        width: min(92%, 420px);
+        padding: 12px 14px 11px;
+        font-size: clamp(21px, 6.5vw, 30px);
+    }
+
+    #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon:not(.is-major-arcana-summon) .tarot-kingdom-skill-card-fan {
+        top: 62%;
+    }
+
+    #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon:not(.is-major-arcana-summon) .tarot-kingdom-summon-chain-label {
+        top: 57.5%;
     }
 }
 
