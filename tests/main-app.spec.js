@@ -5952,7 +5952,7 @@ test('current equipment art refits when the mobile equipment layout becomes comp
   await expectNoPageErrors(errors);
 });
 
-test('inventory equipment enhancement modal previews and applies multiple materials on mobile', async ({ page }) => {
+test('inventory equipment enhancement modal uses a local preview and applies multiple materials on mobile', async ({ page }) => {
   const errors = trackPageErrors(page);
   const previewRequests = [];
   const applyRequests = [];
@@ -6061,33 +6061,19 @@ test('inventory equipment enhancement modal previews and applies multiple materi
     await route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify({ ok: true, tarotDeck: [] }) });
   });
   await page.route('**/api/equipment-enhancement/preview', async (route) => {
-    const body = route.request().postDataJSON();
-    previewRequests.push(body);
-    if (previewRequests.length === 1) {
-      await route.fulfill({
-        status: 409,
-        contentType: 'application/json; charset=utf-8',
-        body: JSON.stringify({ error: '持ち物を再読み込みしてください。' })
-      });
-      return;
-    }
-    const contribution = body.materials.reduce((total, material) => (
-      total + (material.stackId === 'enhanced-material-stack' ? 4 : material.amount * 2)
-    ), 0);
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({ ok: true, contribution, targetBonus: contribution, targetValue: 10 + contribution, maxValue: 99 })
-    });
+    previewRequests.push(route.request().postDataJSON());
+    await route.fulfill({ status: 500, body: JSON.stringify({ error: 'プレビュー通信は不要です。' }) });
   });
   await page.route('**/api/equipment-enhancement/apply', async (route) => {
     const body = route.request().postDataJSON();
     applyRequests.push(body);
     if (applyRequests.length === 1) {
       await route.fulfill({
-        status: 409,
+        status: 429,
         contentType: 'application/json; charset=utf-8',
-        body: JSON.stringify({ error: '持ち物が更新されました。' })
+        body: JSON.stringify({
+          error: '強化処理が混み合っています。2秒ほど待ってから、もう一度実行してください。'
+        })
       });
       return;
     }
@@ -6130,18 +6116,22 @@ test('inventory equipment enhancement modal previews and applies multiple materi
   await page.getByRole('button', { name: '強化', exact: true }).click();
   await expect(page.locator('#equipmentEnhancementModal')).toBeVisible();
   await expect(page.locator('.equipment-enhancement-material').filter({ hasText: '素材の剣' })).toContainText('RARE / 強化 +2');
-  await page.getByRole('button', { name: '素材の剣を増やす' }).click();
+  await page.getByRole('button', { name: '素材の剣を増やす' }).click({ clickCount: 2 });
+  await page.getByRole('button', { name: '素材の剣を減らす' }).click();
   expect(await page.locator('.equipment-enhancement-apply').isEnabled()).toBe(true);
-  await expect.poll(() => previewRequests.length).toBe(1);
-  await expect(page.locator('.equipment-enhancement-error')).toContainText('持ち物を再読み込みしてください。');
+  await page.waitForTimeout(250);
+  expect(previewRequests).toHaveLength(0);
+  await expect(page.locator('.equipment-enhancement-error')).toHaveText('');
+  await expect(page.locator('.equipment-enhancement-result')).toContainText('12');
   await expect(page.locator('.equipment-enhancement-apply')).toBeEnabled();
   await page.locator('.equipment-enhancement-apply').click();
   await expect.poll(() => applyRequests.length).toBe(1);
   await expect(page.locator('#equipmentEnhancementModal')).toBeVisible();
-  await expect(page.locator('.equipment-enhancement-error')).toContainText('持ち物が更新されました。');
+  await expect(page.locator('.equipment-enhancement-error')).toContainText('強化処理が混み合っています。');
   await expect(page.locator('.equipment-enhancement-apply')).toBeEnabled();
   await page.getByRole('button', { name: '鍛えた素材剣を増やす' }).click();
-  await expect.poll(() => previewRequests.length).toBe(2);
+  await page.waitForTimeout(250);
+  expect(previewRequests).toHaveLength(0);
   await expect(page.locator('.equipment-enhancement-result')).toContainText('16');
   await expect(page.locator('.equipment-enhancement-apply')).toBeEnabled();
 

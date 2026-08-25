@@ -13,13 +13,12 @@ import {
     useItem as requestUseItem,
     sellItem as requestSellItem,
     sellItems as requestSellItems,
-    previewEquipmentEnhancement as requestPreviewEquipmentEnhancement,
     applyEquipmentEnhancement as requestApplyEquipmentEnhancement,
     getBlackMarketListings as requestBlackMarketListings,
     createBlackMarketListing as requestCreateBlackMarketListing,
     cancelBlackMarketListing as requestCancelBlackMarketListing,
     buyBlackMarketListing as requestBuyBlackMarketListing
-} from './playfabClient.js?v=20260821-tarot-deck-replace-v1';
+} from './playfabClient.js?v=20260825-equipment-enhancement-throttle-v1';
 import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites, resolveSpritePathByAvatarColor } from './avatar.js';
 import * as Player from './player.js';
 import {
@@ -91,8 +90,6 @@ let blackMarketPendingListingId = '';
 let blackMarketCreatingItemId = '';
 let blackMarketErrorMessage = '';
 let blackMarketReturnFocusElement = null;
-let equipmentEnhancementPreviewTimer = null;
-let equipmentEnhancementRequestSerial = 0;
 let equipmentEnhancementKeydownHandler = null;
 // カードレベルデータ: { [itemId]: { level, maxLevel, quantity, duplicateCount, duplicateCost, canLevelUp } }
 let cardLevelMap = {};
@@ -4415,9 +4412,6 @@ function closeEquipmentEnhancementModal() {
     if (!modal || modal.hidden) return;
     modal.hidden = true;
     stopModalViewportTracking(modal);
-    if (equipmentEnhancementPreviewTimer) clearTimeout(equipmentEnhancementPreviewTimer);
-    equipmentEnhancementPreviewTimer = null;
-    equipmentEnhancementRequestSerial += 1;
     if (equipmentEnhancementKeydownHandler) {
         document.removeEventListener('keydown', equipmentEnhancementKeydownHandler, true);
         equipmentEnhancementKeydownHandler = null;
@@ -4518,8 +4512,6 @@ function showEquipmentEnhancementModal(baseItem) {
     const applyButton = modal.querySelector('.equipment-enhancement-apply');
     const candidates = getEquipmentEnhancementCandidates(baseItem);
     const selectedByKey = new Map();
-    let serverPreview = null;
-    let previewPending = false;
     let applying = false;
 
     const statLabel = baseEnhancement.primaryStat === 'Power'
@@ -4543,7 +4535,7 @@ function showEquipmentEnhancementModal(baseItem) {
 
     const updateResult = () => {
         const contribution = getLocalContribution();
-        const target = serverPreview?.targetValue ?? (Number(baseEnhancement.effectiveValue || 0) + contribution);
+        const target = Math.min(99, Number(baseEnhancement.effectiveValue || 0) + contribution);
         resultEl.innerHTML = '';
         const current = document.createElement('span');
         current.textContent = `${statLabel} ${baseEnhancement.effectiveValue}`;
@@ -4559,37 +4551,10 @@ function showEquipmentEnhancementModal(baseItem) {
         applyButton.disabled = applying || contribution <= 0;
     };
 
-    const schedulePreview = () => {
-        if (equipmentEnhancementPreviewTimer) clearTimeout(equipmentEnhancementPreviewTimer);
-        serverPreview = null;
+    const refreshPreview = () => {
         errorEl.textContent = '';
-        const selections = buildEquipmentEnhancementMaterialSelections(candidates, selectedByKey, baseItemId, baseStackId);
-        if (!selections.length) {
-            previewPending = false;
-            updateResult();
-            return;
-        }
-        previewPending = true;
+        renderMaterials();
         updateResult();
-        const requestSerial = ++equipmentEnhancementRequestSerial;
-        equipmentEnhancementPreviewTimer = setTimeout(async () => {
-            try {
-                const preview = await requestPreviewEquipmentEnhancement(playFabId, baseItemId, baseStackId, selections, {
-                    isSilent: true,
-                    throwOnError: true
-                });
-                if (requestSerial !== equipmentEnhancementRequestSerial || modal.hidden) return;
-                serverPreview = preview?.ok ? preview : null;
-            } catch (error) {
-                if (requestSerial !== equipmentEnhancementRequestSerial || modal.hidden) return;
-                errorEl.textContent = error?.message || '強化内容を確認できません。';
-            } finally {
-                if (requestSerial === equipmentEnhancementRequestSerial) {
-                    previewPending = false;
-                    updateResult();
-                }
-            }
-        }, 180);
     };
 
     const renderMaterials = () => {
@@ -4639,15 +4604,11 @@ function showEquipmentEnhancementModal(baseItem) {
             increase.disabled = applying || selected >= candidate.available || candidate.contribution > remainingCapacity;
             decrease.addEventListener('click', () => {
                 selectedByKey.set(candidate.key, Math.max(0, selected - 1));
-                serverPreview = null;
-                renderMaterials();
-                schedulePreview();
+                refreshPreview();
             });
             increase.addEventListener('click', () => {
                 selectedByKey.set(candidate.key, selected + 1);
-                serverPreview = null;
-                renderMaterials();
-                schedulePreview();
+                refreshPreview();
             });
             stepper.append(decrease, count, increase);
             row.appendChild(stepper);
@@ -4683,7 +4644,7 @@ function showEquipmentEnhancementModal(baseItem) {
             );
             close();
             await getInventory(playFabId, { force: true });
-            const targetBonus = result?.targetBonus ?? serverPreview?.targetBonus ?? baseEnhancement.bonus;
+            const targetBonus = result?.targetBonus ?? baseEnhancement.bonus;
             const message = `${baseItem.name}を+${targetBonus}に強化しました。`;
             showInventoryFeedback(message);
             if (typeof window.showRpgMessage === 'function') window.showRpgMessage(message);

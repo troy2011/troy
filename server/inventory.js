@@ -2404,6 +2404,42 @@ function initializeInventoryRoutes(app, deps) {
         };
     }
 
+    function getEquipmentEnhancementErrorDetails(error) {
+        return [...new Set([
+            error?.errorMessage,
+            error?.message,
+            error?.apiErrorInfo?.apiError,
+            error?.apiErrorInfo?.errorMessage
+        ].filter(Boolean))].join(' ');
+    }
+
+    function isEquipmentEnhancementThrottled(error) {
+        if (Number(error?.status) === 429) return true;
+        return /maximum API request rate|throttl|rate\s*limit|too many requests/i
+            .test(getEquipmentEnhancementErrorDetails(error));
+    }
+
+    function sendEquipmentEnhancementError(res, error, { fallbackMessage, conflictMessage = null }) {
+        const details = getEquipmentEnhancementErrorDetails(error) || String(error);
+        if (isEquipmentEnhancementThrottled(error)) {
+            res.set?.('Retry-After', '2');
+            return res.status(429).json({
+                error: '強化処理が混み合っています。2秒ほど待ってから、もう一度実行してください。'
+            });
+        }
+        const isConflict = !!conflictMessage && (
+            ['ETagMismatch', 'ConcurrentWrite', 'PreconditionFailed'].includes(error?.apiErrorInfo?.apiError)
+            || /etag|concurrent|precondition/i.test(details)
+        );
+        const statusCode = Number.isInteger(error?.status) ? error.status : (isConflict ? 409 : 500);
+        return res.status(statusCode).json({
+            error: isConflict
+                ? conflictMessage
+                : (statusCode < 500 ? error.message : fallbackMessage),
+            details
+        });
+    }
+
     app.post('/api/equipment-enhancement/preview', async (req, res) => {
         let { playFabId } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
@@ -2414,10 +2450,8 @@ function initializeInventoryRoutes(app, deps) {
             return res.json(buildEquipmentEnhancementPreview(context));
         } catch (error) {
             console.error('[equipment-enhancement/preview] error:', error?.errorMessage || error?.message || error);
-            const statusCode = Number.isInteger(error?.status) ? error.status : 500;
-            return res.status(statusCode).json({
-                error: statusCode < 500 ? error.message : '強化内容の確認に失敗しました。',
-                details: error?.errorMessage || error?.message || String(error)
+            return sendEquipmentEnhancementError(res, error, {
+                fallbackMessage: '強化内容の確認に失敗しました。'
             });
         }
     });
@@ -2431,14 +2465,9 @@ function initializeInventoryRoutes(app, deps) {
             return res.json(await applyEquipmentEnhancement(playFabId, req.body || {}));
         } catch (error) {
             console.error('[equipment-enhancement/apply] error:', error?.errorMessage || error?.message || error);
-            const isConflict = ['ETagMismatch', 'ConcurrentWrite', 'PreconditionFailed'].includes(error?.apiErrorInfo?.apiError)
-                || /etag|concurrent|precondition/i.test(String(error?.errorMessage || error?.message || ''));
-            const statusCode = Number.isInteger(error?.status) ? error.status : (isConflict ? 409 : 500);
-            return res.status(statusCode).json({
-                error: Number.isInteger(error?.status)
-                    ? error.message
-                    : (isConflict ? '持ち物が更新されました。再読み込みしてやり直してください。' : '装備の強化に失敗しました。'),
-                details: error?.errorMessage || error?.message || String(error)
+            return sendEquipmentEnhancementError(res, error, {
+                fallbackMessage: '装備の強化に失敗しました。',
+                conflictMessage: '持ち物が更新されました。再読み込みしてやり直してください。'
             });
         }
     });

@@ -21,8 +21,13 @@ function makeResponse() {
   return {
     statusCode: 200,
     body: null,
+    headers: {},
     status(code) {
       this.statusCode = code;
+      return this;
+    },
+    set(name, value) {
+      this.headers[name] = value;
       return this;
     },
     json(payload) {
@@ -464,6 +469,35 @@ test('enhancement reports a concurrent Economy precondition failure without loca
 
   expect(response.statusCode).toBe(409);
   expect(response.body.error).toBe('持ち物が更新されました。再読み込みしてやり直してください。');
+  expect(harness.state).toEqual([
+    { Id: 'sword_001', StackId: 'base', Amount: 1 },
+    { Id: 'sword_002', StackId: 'material', Amount: 1 }
+  ]);
+});
+
+test('enhancement maps a throttled Economy request to a retryable response without mutation', async () => {
+  const executeError = new Error('The client has exceeded the maximum API request rate and is being throttled');
+  const harness = makeEnhancementHarness({
+    catalogCache: catalog,
+    executeError,
+    inventoryItems: [
+      { Id: 'sword_001', StackId: 'base', Amount: 1 },
+      { Id: 'sword_002', StackId: 'material', Amount: 1 }
+    ]
+  });
+
+  const response = await invoke(harness.routes.get('/api/equipment-enhancement/apply'), {
+    playFabId: 'PF1',
+    baseStackId: 'base',
+    materials: [{ stackId: 'material', amount: 1 }],
+    idempotencyId: 'request-throttled'
+  });
+
+  expect(response.statusCode).toBe(429);
+  expect(response.headers['Retry-After']).toBe('2');
+  expect(response.body).toEqual({
+    error: '強化処理が混み合っています。2秒ほど待ってから、もう一度実行してください。'
+  });
   expect(harness.state).toEqual([
     { Id: 'sword_001', StackId: 'base', Amount: 1 },
     { Id: 'sword_002', StackId: 'material', Amount: 1 }
