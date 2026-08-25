@@ -22,25 +22,24 @@ const {
 const roster = require('../public/Sprites/pixel-monsters/manifest.json');
 
 test.describe('Tarot Kingdom fixed exploration stages', () => {
-  test('11 stages contain four unique normal monsters in the approved order', () => {
-    expect(TAROT_KINGDOM_EXPLORATION_STAGES).toHaveLength(11);
+  test('10 stages contain four unique normal monsters in the approved order', () => {
+    expect(TAROT_KINGDOM_EXPLORATION_STAGES).toHaveLength(10);
     const stages = TAROT_KINGDOM_EXPLORATION_STAGES;
     const monsters = stages.flatMap((stage) => stage.monsters);
-    expect(monsters).toHaveLength(44);
-    expect(new Set(monsters.map((entry) => entry.monsterId)).size).toBe(44);
+    expect(monsters).toHaveLength(40);
+    expect(new Set(monsters.map((entry) => entry.monsterId)).size).toBe(40);
     expect(monsters.every((entry) => entry.isBoss === false)).toBeTruthy();
-    expect(new Set(TAROT_KINGDOM_EXPLORATION_STAGES.map((stage) => stage.atmosphereTone)).size).toBe(11);
-    expect(new Set(TAROT_KINGDOM_EXPLORATION_STAGES.map((stage) => stage.battlefieldId)).size).toBe(11);
+    expect(new Set(TAROT_KINGDOM_EXPLORATION_STAGES.map((stage) => stage.atmosphereTone)).size).toBe(10);
+    expect(new Set(TAROT_KINGDOM_EXPLORATION_STAGES.map((stage) => stage.battlefieldId)).size).toBe(10);
     const destinationImages = TAROT_KINGDOM_EXPLORATION_STAGES.map((stage) => stage.imagePath);
     expect(TAROT_KINGDOM_EXPLORATION_STAGES.every((stage) => (
       stage.battlefieldId
       && stage.destinationImagePath === stage.imagePath
       && /^\.\/Sprites\/exploration_destinations\/.+\.png$/.test(stage.imagePath)
     ))).toBeTruthy();
-    expect(new Set(destinationImages).size).toBe(11);
+    expect(new Set(destinationImages).size).toBe(10);
     expect(TAROT_KINGDOM_EXPLORATION_STAGES.map((stage) => stage.name)).toEqual([
       '珊瑚の浅瀬',
-      '双塔岩の海峡',
       '群礁の島道',
       '月影の望楼島',
       '翠石の隠れ入り江',
@@ -56,39 +55,42 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
     });
     expect(monsters.map((entry) => entry.monsterName)).toEqual([
       'プルン', 'ポルポ', 'トゲマル', 'ツノガイ',
-      'チュロ', 'モクモ', 'ラムネロ', 'フロス',
-      'パピル', 'リルフィ', 'リーフロ', 'グリバト',
-      'コバット', 'フェリカ', 'ツキバネ', 'ゲルバット',
+      'チュロ', 'リルフィ', 'リーフロ', 'グリバト',
+      'ラムネロ', 'パピル', 'ヨミル', 'ゲルバット',
       'ケロッツ', 'モクリン', 'ウッドラ', 'ビズン',
       'ボーンテイル', 'ミドロ', 'グールン', 'アクエル',
       'メカノ', 'カブロン', 'ノッカ', 'バクス',
-      'マシュロン', 'ヨミル', 'キノガル', 'ガルネズ',
-      'ホタルビ', 'モスガン', 'クロモ', 'トルネ',
+      'マシュロン', 'フロス', 'キノガル', 'ガルネズ',
+      'モクモ', 'ホタルビ', 'クロモ', 'トルネ',
       'ルビット', 'フレマ', 'イグニス', 'ガブリラ',
       'グリモア', 'グラヴァ', 'ネブラ', 'ノクス'
     ]);
     expect(stages.map((stage) => stage.monsters[3].monsterName)).toEqual([
-      'ツノガイ', 'フロス', 'グリバト', 'ゲルバット', 'ビズン', 'アクエル',
+      'ツノガイ', 'グリバト', 'ゲルバット', 'ビズン', 'アクエル',
       'バクス', 'ガルネズ', 'トルネ', 'ガブリラ', 'ノクス'
     ]);
-    expect(stages[5].monsters[3].monsterName).toBe('アクエル');
-    expect(stages[7].monsters[2].monsterName).toBe('キノガル');
+    expect(stages[4].monsters[3].monsterName).toBe('アクエル');
+    expect(stages[6].monsters[2].monsterName).toBe('キノガル');
     const excluded = new Set([
       'ismartal-vol2-monster-07',
       'ismartal-vol2-monster-15',
       'ismartal-vol2-monster-16',
       'ismartal-vol2-monster-14',
       'ismartal-vol2-monster-13',
-      'ismartal-vol1-monster-05'
+      'ismartal-vol1-monster-05',
+      'ismartal-vol1-monster-17',
+      'ismartal-vol1-monster-16',
+      'ismartal-vol1-monster-12',
+      'ismartal-vol2-monster-03'
     ]);
     expect(monsters.some((entry) => excluded.has(entry.monsterId))).toBeFalsy();
     expect(roster.filter((entry) => entry.isBoss === true)).toHaveLength(3);
   });
 
-  test('encounter v3 preserves stage order, background and three ordered supplies', () => {
+  test('encounter v4 preserves stage order, rebirth data, background and three ordered supplies', () => {
     const encounter = buildTarotKingdomStageEncounter({
       explorationId: 'exp-stage-test',
-      stageNo: 9,
+      stageNo: 8,
       supplyQueue: [
         { itemId: 's1', displayName: '小', effectiveUnits: 1 },
         { itemId: 's2', displayName: '中', effectiveUnits: 2 },
@@ -97,20 +99,25 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
       ]
     });
     expect(encounter).toMatchObject({
-      version: 3,
+      version: 4,
       explorationId: 'exp-stage-test',
-      stageNo: 9,
+      stageNo: 8,
       battlefieldId: 'stage-09-steel-fleet',
       atmosphereTone: 'storm-ruined-harbor',
-      monsterName: 'ホタルビ'
+      monsterName: 'モクモ'
     });
     expect(encounter.monsters.map((entry) => entry.monsterName)).toEqual([
-      'ホタルビ', 'モスガン', 'クロモ', 'トルネ'
+      'モクモ', 'ホタルビ', 'クロモ', 'トルネ'
     ]);
+    expect(encounter.monsters[1].rebirth).toMatchObject({
+      targetMonsterName: 'フェリカ',
+      targetArchetype: 'swift',
+      statMultipliers: { hp: 0.5, power: 0.7, defense: 0.7, intelligence: 0.7, speed: 0.85 }
+    });
     expect(encounter.supplyQueue.map((entry) => entry.itemId)).toEqual(['s1', 's2', 's3']);
   });
 
-  test('an active stage upgrades a legacy single-monster encounter to its ordered four enemies', () => {
+  test('an active legacy single-monster encounter is discarded', () => {
     const encounter = resolveActiveExplorationTarotEncounter({
       id: 'exp-legacy-stage',
       stageNo: 2,
@@ -123,15 +130,10 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
       }
     });
 
-    expect(encounter.version).toBe(3);
-    expect(encounter.stageNo).toBe(2);
-    expect(encounter.monsters.map((entry) => entry.monsterName)).toEqual([
-      'チュロ', 'モクモ', 'ラムネロ', 'フロス'
-    ]);
-    expect(encounter.supplyQueue).toHaveLength(1);
+    expect(encounter).toBeNull();
   });
 
-  test('an active v2 encounter replaces its stale lineup with the themed v3 order', () => {
+  test('an active v2 encounter is discarded instead of migrated', () => {
     const encounter = resolveActiveExplorationTarotEncounter({
       id: 'exp-stale-stage-order',
       stageNo: 6,
@@ -148,10 +150,7 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
       }
     });
 
-    expect(encounter.version).toBe(3);
-    expect(encounter.monsters.map((entry) => entry.monsterName)).toEqual([
-      'ボーンテイル', 'ミドロ', 'グールン', 'アクエル'
-    ]);
+    expect(encounter).toBeNull();
   });
 
   test('optional supplies retain selection order, enforce ownership and stop at three', () => {
@@ -178,14 +177,31 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
     ], available).ok).toBeFalsy();
   });
 
-  test('ship evolution caps stages at 4, 8 and 11', () => {
+  test('ship evolution caps stages at 4, 8 and 10', () => {
     expect(getTarotKingdomShipStageCap(1)).toBe(4);
     expect(getTarotKingdomShipStageCap(2)).toBe(8);
-    expect(getTarotKingdomShipStageCap(3)).toBe(11);
-    const progress = normalizeTarotKingdomExplorationProgress({ highestUnlockedStage: 11 });
+    expect(getTarotKingdomShipStageCap(3)).toBe(10);
+    const progress = normalizeTarotKingdomExplorationProgress({ version: 4, highestUnlockedStage: 10 });
     expect(buildTarotKingdomStageList(progress, 1).filter((stage) => stage.unlocked)).toHaveLength(4);
     expect(buildTarotKingdomStageList(progress, 2).filter((stage) => stage.unlocked)).toHaveLength(8);
-    expect(buildTarotKingdomStageList(progress, 3).filter((stage) => stage.unlocked)).toHaveLength(11);
+    expect(buildTarotKingdomStageList(progress, 3).filter((stage) => stage.unlocked)).toHaveLength(10);
+  });
+
+  test('legacy exploration progress is reset to stage one without records or discoveries', () => {
+    expect(normalizeTarotKingdomExplorationProgress({
+      version: 3,
+      highestUnlockedStage: 11,
+      defeatedMonsterIds: ['ismartal-vol3-monster-04'],
+      stages: {
+        1: { bestRank: 1, clearCount: 5, bestChips: 999 }
+      }
+    })).toEqual({
+      version: 4,
+      highestUnlockedStage: 1,
+      stages: {},
+      defeatedMonsterIds: [],
+      totalBestChips: 0
+    });
   });
 
   test('only a first or second place clear unlocks the next stage and retries are idempotent', () => {
@@ -234,7 +250,7 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
       }
     ], 'OWNER');
 
-    expect(withDefeat.version).toBe(3);
+    expect(withDefeat.version).toBe(4);
     expect(withDefeat.defeatedMonsterIds).toEqual(['ismartal-vol3-monster-04']);
     const uncleared = buildTarotKingdomStageList(withDefeat, 1)[0];
     expect(uncleared.monsters.map((monster) => ({
@@ -254,6 +270,25 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
       .toEqual(['ismartal-vol3-monster-04']);
   });
 
+  test('a reborn enemy records and recruits its original monster species', () => {
+    const progress = applyTarotKingdomMonsterDefeats(null, 2, [{
+      roundNo: 1,
+      playFabId: 'OWNER',
+      isNpc: false,
+      isPet: false,
+      monsterId: 'ismartal-vol1-monster-17',
+      recruitMonsterId: 'ismartal-vol1-monster-19'
+    }], 'OWNER');
+
+    expect(progress.defeatedMonsterIds).toEqual(['ismartal-vol1-monster-19']);
+    const stage = buildTarotKingdomStageList(progress, 1)[1];
+    expect(stage.monsters.find((monster) => monster.monsterName === 'チュロ')).toMatchObject({
+      defeatedByPlayer: true,
+      revealed: true
+    });
+    expect(stage.monsters.some((monster) => monster.monsterName === 'コバット')).toBeFalsy();
+  });
+
   test('final chip ties share rank and reward weights follow stage bands', () => {
     const standings = calculateTarotKingdomStandings([
       { playerIndex: 0, playFabId: 'A', chips: 140 },
@@ -264,7 +299,7 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
     expect(standings.map((entry) => entry.rank)).toEqual([1, 1, 3, 4]);
     expect(getTarotKingdomStageRewardWeights(1, 1)).toEqual({ common: 65, rare: 35 });
     expect(getTarotKingdomStageRewardWeights(6, 2)).toEqual({ common: 58, rare: 32, epic: 10 });
-    expect(getTarotKingdomStageRewardWeights(11, 1)).toEqual({
+    expect(getTarotKingdomStageRewardWeights(10, 1)).toEqual({
       common: 20,
       rare: 38,
       epic: 32,
@@ -274,7 +309,7 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
 
   test('stage best chips only improve and their sum becomes the game ranking score', () => {
     const initial = normalizeTarotKingdomExplorationProgress({
-      version: 2,
+      version: 4,
       highestUnlockedStage: 3,
       stages: {
         1: { bestRank: 2, clearCount: 1 },

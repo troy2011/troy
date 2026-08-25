@@ -205,23 +205,37 @@ export function normalizeTarotKingdomCharacter(rawCharacter = {}, fallback = {})
 }
 
 export function createTarotKingdomPetCharacter({ pet = null, level = 1 } = {}) {
-    const monsterId = String(pet?.monsterId || '').trim();
+    const rebirth = pet?.rebirth && typeof pet.rebirth === 'object' ? pet.rebirth : null;
+    const reborn = String(pet?.rebirthPhase || '') === 'reborn' && !!rebirth?.targetMonsterId;
+    const monsterId = String(reborn ? rebirth.targetMonsterId : pet?.monsterId || '').trim();
     const displayName = String(
-        pet?.displayName
-        || pet?.nickname
+        pet?.nickname
+        || (reborn ? rebirth?.targetMonsterName : '')
+        || pet?.displayName
         || pet?.monsterName
         || monsterId
         || 'ペット'
     ).trim() || 'ペット';
     const safeLevel = positiveInteger(pet?.level, positiveInteger(level, 1));
-    const number = Math.max(1, Math.floor(finiteNumber(pet?.number, 1)));
-    const archetype = PET_ARCHETYPE_BY_NUMBER[number % 5] || PET_ARCHETYPE_BY_NUMBER[0];
+    const number = Math.max(1, Math.floor(finiteNumber(reborn ? rebirth?.targetNumber : pet?.number, 1)));
+    const configuredArchetype = String(reborn ? rebirth?.targetArchetype : '').trim().toLowerCase();
+    const archetype = (configuredArchetype
+        ? Object.values(PET_ARCHETYPE_BY_NUMBER).find((entry) => entry.key === configuredArchetype)
+        : null)
+        || PET_ARCHETYPE_BY_NUMBER[number % 5]
+        || PET_ARCHETYPE_BY_NUMBER[0];
     const baseHp = 80 + ((safeLevel - 1) * 4);
     const basePower = Math.max(8, safeLevel * 3);
     const baseDefense = Math.max(4, safeLevel * 2);
     const baseIntelligence = Math.max(3, safeLevel * 2);
     const baseSpeed = Math.max(4, safeLevel * 2);
     const scale = (value, multiplier) => Math.max(1, Math.round(value * multiplier));
+    const statMultipliers = !reborn && rebirth?.statMultipliers && typeof rebirth.statMultipliers === 'object'
+        ? rebirth.statMultipliers
+        : null;
+    const rebirthScale = (value, key) => statMultipliers
+        ? Math.max(1, Math.round(value * Math.max(0.01, finiteNumber(statMultipliers[key], 1))))
+        : value;
     return normalizeTarotKingdomCharacter({
         version: 2,
         source: 'pet',
@@ -234,13 +248,13 @@ export function createTarotKingdomPetCharacter({ pet = null, level = 1 } = {}) {
         equipment: {},
         itemSource: {},
         tarotDeck: pet?.tarotDeck || [],
-        guardianArcana: pet?.guardianArcana || null,
+        guardianArcana: (reborn ? rebirth?.guardianArcana : pet?.guardianArcana) || null,
         combat: {
-            maxHp: scale(baseHp, archetype.hp),
-            power: scale(basePower, archetype.power),
-            defense: scale(baseDefense, archetype.defense),
-            intelligence: scale(baseIntelligence, archetype.intelligence),
-            speed: scale(baseSpeed, archetype.speed),
+            maxHp: rebirthScale(scale(baseHp, archetype.hp), 'hp'),
+            power: rebirthScale(scale(basePower, archetype.power), 'power'),
+            defense: rebirthScale(scale(baseDefense, archetype.defense), 'defense'),
+            intelligence: rebirthScale(scale(baseIntelligence, archetype.intelligence), 'intelligence'),
+            speed: rebirthScale(scale(baseSpeed, archetype.speed), 'speed'),
             weaponType: 'unarmed',
             weaponTypes: ['unarmed']
         }

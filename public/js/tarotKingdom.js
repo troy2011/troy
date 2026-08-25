@@ -28,7 +28,7 @@ import {
   getTarotKingdomMajorSecondaryDamageScale,
   getTarotKingdomResonanceDamageFloor,
   normalizeTarotKingdomCharacter
-} from './tarotKingdomCombat.js?v=20260823-royal-lock-v1';
+} from './tarotKingdomCombat.js?v=20260825-rebirth-v1';
 import {
   TAROT_KINGDOM_ARCANA_EFFECTS_READY,
   getTarotKingdomPhysicalScale,
@@ -80,7 +80,7 @@ import {
   calculateTarotKingdomEnemyMitigatedDamage,
   createTarotKingdomEnemyCombatProfile,
   getTarotKingdomEnemyAilmentChance
-} from './tarotKingdomEnemies.js?v=20260815-balance-v7';
+} from './tarotKingdomEnemies.js?v=20260825-rebirth-v1';
 import {
   TAROT_KINGDOM_ELEMENT_LABELS,
   auditTarotKingdomMajorEffects,
@@ -502,6 +502,7 @@ const KINGDOM_ENEMY_ATTACK_RETURN_MS = 180;
 const KINGDOM_ENEMY_STATUS_EVENT_MS = 840;
 const KINGDOM_JUDGMENT_RECLAIM_EVENT_MS = 1100;
 const KINGDOM_RAID_TRANSFORM_EVENT_MS = 1500;
+const KINGDOM_REBIRTH_EVENT_MS = 1400;
 const ROLE_ORDER = ['Straight', 'Flush', 'FullHouse', 'FourKind', 'TheWorld', 'StraightFlush', 'FiveKind'];
 const ROLE_LABEL = {
   Straight: 'ストレート',
@@ -539,9 +540,9 @@ const KINGDOM_SUMMON_EFFECT_VISUALS = Object.freeze({
   flushElemental: Object.freeze({ category: 'hybrid', choreography: 'elemental-surge', cue: 'elemental-charge', impact: 'elemental-burst' }),
   'major-arcana': Object.freeze({ category: 'hybrid', choreography: 'arcana-invocation', cue: 'arcana-awaken', impact: 'arcana-release' })
 });
-const KINGDOM_NET_SCHEMA_VERSION = 31;
+const KINGDOM_NET_SCHEMA_VERSION = 32;
 const KINGDOM_PRIVATE_STATE_VERSION = 2;
-const KINGDOM_OFFLINE_CHECKPOINT_VERSION = 1;
+const KINGDOM_OFFLINE_CHECKPOINT_VERSION = 2;
 const KINGDOM_OFFLINE_CHECKPOINT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const KINGDOM_OFFLINE_CHECKPOINT_STORAGE_PREFIX = 'troy.tarotKingdom.offlineMatch.v1';
 const KINGDOM_OFFLINE_CHECKPOINT_WRITE_DELAY_MS = 80;
@@ -564,6 +565,7 @@ const KINGDOM_FULLSCREEN_CLASS = 'tarot-kingdom-fullscreen';
 const KINGDOM_FALLBACK_PLAYER_MAX_HP = 100;
 const KINGDOM_BATTLE_EVENT_LIMIT = 12;
 const KINGDOM_PLAYER_DAMAGE_CAP = 999;
+const KINGDOM_MAX_EXPLORATION_STAGE = 10;
 const KINGDOM_DEFAULT_MONSTER_ID = 'ismartal-vol3-monster-01';
 const KINGDOM_DEFAULT_MONSTER = PIXEL_MONSTERS_ROSTER.find((monster) => (
   monster.id === KINGDOM_DEFAULT_MONSTER_ID
@@ -5371,9 +5373,49 @@ function createLegacyKingdomEnemyCombatProfile(roundIndex = 0) {
   };
 }
 
+function normalizeKingdomRebirthConfig(value = null) {
+  if (!value || typeof value !== 'object') return null;
+  const targetMonsterId = String(value.targetMonsterId || '').trim();
+  const targetMonster = KINGDOM_MONSTER_ROSTER.find((monster) => monster.id === targetMonsterId);
+  if (!targetMonster || targetMonster.isBoss === true) return null;
+  const multipliers = value.statMultipliers && typeof value.statMultipliers === 'object'
+    ? value.statMultipliers
+    : {};
+  const multiplier = (key, fallback) => Math.max(0.01, Math.min(1, Number(multipliers[key]) || fallback));
+  return {
+    targetMonsterId: targetMonster.id,
+    targetMonsterName: String(value.targetMonsterName || targetMonster.name),
+    targetArchetype: String(value.targetArchetype || 'balanced'),
+    statMultipliers: {
+      hp: multiplier('hp', 0.5),
+      power: multiplier('power', 0.7),
+      defense: multiplier('defense', 0.7),
+      intelligence: multiplier('intelligence', 0.7),
+      speed: multiplier('speed', 0.85)
+    }
+  };
+}
+
+function scaleKingdomPreFormEnemyProfile(profile = {}, rebirth = null) {
+  const normalized = normalizeKingdomRebirthConfig(rebirth);
+  if (!normalized) return { ...profile };
+  const scale = (value, multiplier, minimum = 1) => Math.max(
+    minimum,
+    Math.round((Number(value) || 0) * multiplier)
+  );
+  return {
+    ...profile,
+    maxHp: scale(profile.maxHp, normalized.statMultipliers.hp),
+    passDamage: scale(profile.passDamage, normalized.statMultipliers.power),
+    areaDamage: scale(profile.areaDamage, normalized.statMultipliers.intelligence),
+    defense: scale(profile.defense, normalized.statMultipliers.defense, 0),
+    speed: scale(profile.speed, normalized.statMultipliers.speed)
+  };
+}
+
 function normalizeKingdomExplorationStageState(value = null) {
   if (!value || typeof value !== 'object') return null;
-  const stageNo = Math.max(1, Math.min(11, Math.floor(Number(value.stageNo) || 1)));
+  const stageNo = Math.max(1, Math.min(KINGDOM_MAX_EXPLORATION_STAGE, Math.floor(Number(value.stageNo) || 1)));
   const monsters = (Array.isArray(value.monsters) ? value.monsters : [])
     .slice(0, TOTAL_HANDS)
     .map((entry, index) => {
@@ -5385,10 +5427,13 @@ function normalizeKingdomExplorationStageState(value = null) {
         monsterId,
         monsterName: String(entry?.monsterName || monster.name),
         archetype: String(entry?.archetype || 'balanced'),
-        threatLevel: Math.max(1, Math.min(44, Math.floor(
+        threatLevel: Math.max(1, Math.min(KINGDOM_MAX_EXPLORATION_STAGE * TOTAL_HANDS, Math.floor(
           Number(entry?.threatLevel) || (((stageNo - 1) * TOTAL_HANDS) + index + 1)
         ))),
-        isBoss: false
+        isBoss: false,
+        ...(normalizeKingdomRebirthConfig(entry?.rebirth)
+          ? { rebirth: normalizeKingdomRebirthConfig(entry.rebirth) }
+          : {})
       };
     })
     .filter(Boolean);
@@ -5417,26 +5462,34 @@ function normalizeKingdomExplorationStageState(value = null) {
       defeatMode: entry?.defeatMode === KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
         ? KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY
         : KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO,
-      monsterId: String(entry?.monsterId || '')
+      monsterId: String(entry?.monsterId || ''),
+      recruitMonsterId: String(entry?.recruitMonsterId || entry?.monsterId || '')
     }));
   const incomingVitals = Array.isArray(value.enemyVitals) ? value.enemyVitals : [];
   const enemyVitals = monsters.map((monster, index) => {
     const incoming = incomingVitals.find((entry, entryIndex) => (
-      String(entry?.monsterId || '') === monster.monsterId
+      String(entry?.baseMonsterId || entry?.monsterId || '') === monster.monsterId
       || entryIndex === index
     ));
     if (!incoming) return null;
     const maxHp = Math.max(1, Math.floor(Number(incoming.maxHp) || 1));
+    const rebirth = normalizeKingdomRebirthConfig(monster.rebirth);
+    const reborn = incoming?.rebirthPhase === 'reborn'
+      && rebirth
+      && String(incoming?.monsterId || '') === rebirth.targetMonsterId;
+    const currentMonsterId = reborn ? rebirth.targetMonsterId : monster.monsterId;
     return {
       order: index + 1,
-      monsterId: monster.monsterId,
+      baseMonsterId: monster.monsterId,
+      monsterId: currentMonsterId,
       maxHp,
       hp: Math.max(0, Math.min(maxHp, Math.floor(Number(incoming.hp ?? maxHp) || 0))),
-      defeated: incoming.defeated === true
+      defeated: incoming.defeated === true,
+      rebirthPhase: reborn ? 'reborn' : 'base'
     };
   });
   return {
-    version: 2,
+    version: 3,
     stageNo,
     stageId: String(value.stageId || `tarot_stage_${stageNo}`),
     stageName: String(value.stageName || value.destinationName || `STAGE ${stageNo}`),
@@ -5611,6 +5664,104 @@ function activateKingdomRaidBossForm(sourceIndex = null) {
   return true;
 }
 
+function activateKingdomEnemyRebirth(sourceIndex = null) {
+  const enemy = s?.battle?.enemy;
+  const rebirth = enemy?.rebirth && typeof enemy.rebirth === 'object'
+    ? { ...enemy.rebirth, ...normalizeKingdomRebirthConfig(enemy.rebirth) }
+    : null;
+  if (!enemy || !rebirth?.targetMonsterId || rebirth.phase === 'reborn' || Number(enemy.hp) > 0) return false;
+  const targetMonster = getKingdomMonsterConfig(rebirth.targetMonsterId);
+  const roundIndex = Math.max(0, Math.min(TOTAL_HANDS - 1, Math.floor(Number(s.handNo) || 0)));
+  const stageMonster = getKingdomStageMonster(roundIndex, s.stage);
+  const profile = createTarotKingdomEnemyCombatProfile(targetMonster, roundIndex, {
+    stageVersion: 1,
+    balanceVersion: Number(s.rules?.enemyCombatVersion ?? 2),
+    stageNo: Math.max(1, Number(s.stage?.stageNo) || 1),
+    roundNo: roundIndex + 1,
+    threatLevel: Math.max(1, Number(stageMonster?.threatLevel) || roundIndex + 1),
+    archetype: rebirth.targetArchetype,
+    ailmentVersion: areKingdomStatusEffectsV2Enabled() ? 3 : Number(s.rules?.enemyCombatVersion ?? 1),
+    abilityVersion: Number(s.rules?.enemyAbilityVersion ?? 1)
+  });
+  const sourceMonsterId = String(rebirth.sourceMonsterId || enemy.id || '');
+  const sourceMonsterName = String(rebirth.sourceMonsterName || enemy.name || sourceMonsterId);
+  const maxHp = Math.max(1, Math.floor(Number(profile.maxHp) || 1));
+  s.battle.enemy = {
+    ...enemy,
+    id: targetMonster.id,
+    name: String(rebirth.targetMonsterName || targetMonster.name),
+    maxHp,
+    hp: maxHp,
+    passDamage: Math.max(1, Math.floor(Number(profile.passDamage) || 1)),
+    areaDamage: Math.max(1, Math.floor(Number(profile.areaDamage) || 1)),
+    defense: Math.max(0, Math.floor(Number(profile.defense) || 0)),
+    speed: Math.max(1, Math.floor(Number(profile.speed) || 1)),
+    archetype: rebirth.targetArchetype,
+    threatLevel: Math.max(1, Math.floor(Number(profile.threatLevel) || Number(stageMonster?.threatLevel) || 1)),
+    ailment: profile.ailment || null,
+    abilities: profile.abilities || null,
+    abilityState: { uses: {} },
+    affinity: profile.affinity || getTarotKingdomEnemyAffinity(
+      targetMonster.id,
+      Number(s.rules?.elementAffinityVersion ?? 1)
+    ),
+    rushStartedAtSeq: null,
+    defeatedAtSeq: null,
+    finishedAt: null,
+    petrifiedUntilClear: false,
+    areaAttackSealedUntilClear: false,
+    rebirth: {
+      ...rebirth,
+      sourceMonsterId,
+      sourceMonsterName,
+      phase: 'reborn'
+    }
+  };
+  if (s.battle.effects) s.battle.effects.enemy = {};
+  kingdomMonsterAnimationKey = '';
+  clearKingdomMonsterFrameTimer();
+  clearKingdomEnemyFinisherTimer();
+  preloadKingdomMonsterAnimations(targetMonster.id, ['appear', 'idle']);
+  syncKingdomCurrentEnemyVital();
+  const event = pushKingdomBattleEvent('enemy-rebirth', {
+    actorIndex: Number.isInteger(Number(sourceIndex)) ? Number(sourceIndex) : null,
+    sourceMonsterId,
+    sourceMonsterName,
+    targetMonsterId: targetMonster.id,
+    targetMonsterName: s.battle.enemy.name,
+    hpBefore: 0,
+    hpAfter: maxHp,
+    enemyHpBefore: 0,
+    enemyHp: maxHp,
+    label: `${sourceMonsterName}は ${s.battle.enemy.name}に 生まれ変わった！`
+  });
+  s.message = event.label;
+  triggerKingdomActionFx(
+    Number.isInteger(Number(sourceIndex)) ? Number(sourceIndex) : 0,
+    'REBIRTH',
+    {
+      overlay: 'action',
+      durationMs: KINGDOM_REBIRTH_EVENT_MS,
+      cutin: true,
+      cutinClass: 'is-kingdom-rebirth',
+      keyword: 'REBIRTH',
+      actorName: s.battle.enemy.name,
+      tone: 'support'
+    }
+  );
+  setKingdomTransition('enemyRebirth', sourceIndex, KINGDOM_REBIRTH_EVENT_MS, {
+    eventSeqs: Number.isFinite(Number(event?.seq)) ? [Number(event.seq)] : [],
+    resumeMessage: s.message
+  });
+  return true;
+}
+
+function resolveKingdomEnemyZeroHpTransition(sourceIndex = null) {
+  if (Number(s?.battle?.enemy?.hp) > 0) return false;
+  if (isKingdomRaidDisguisePhase()) return activateKingdomRaidBossForm(sourceIndex);
+  return activateKingdomEnemyRebirth(sourceIndex);
+}
+
 function resolveKingdomExplorationStageState(value = s?.stage) {
   const normalized = normalizeKingdomExplorationStageState(value);
   if (normalized) return normalized;
@@ -5636,7 +5787,7 @@ function ensureKingdomStageEnemyVitals(stageState = s?.stage, rules = s?.rules) 
   if (!stage) return null;
   stage.enemyVitals = stage.monsters.map((stageMonster, index) => {
     const existing = stage.enemyVitals?.[index];
-    if (existing && String(existing.monsterId || '') === stageMonster.monsterId) {
+    if (existing && String(existing.baseMonsterId || existing.monsterId || '') === stageMonster.monsterId) {
       return { ...existing, order: index + 1 };
     }
     const monster = getKingdomMonsterConfig(stageMonster.monsterId);
@@ -5650,13 +5801,16 @@ function ensureKingdomStageEnemyVitals(stageState = s?.stage, rules = s?.rules) 
       ailmentVersion: Number(rules?.statusEffectsVersion) >= 2 ? 3 : Number(rules?.enemyCombatVersion ?? 1),
       abilityVersion: Number(rules?.enemyAbilityVersion ?? 1)
     });
-    const maxHp = Math.max(1, Math.floor(Number(profile.maxHp) || 1));
+    const scaledProfile = scaleKingdomPreFormEnemyProfile(profile, stageMonster.rebirth);
+    const maxHp = Math.max(1, Math.floor(Number(scaledProfile.maxHp) || 1));
     return {
       order: index + 1,
+      baseMonsterId: stageMonster.monsterId,
       monsterId: stageMonster.monsterId,
       maxHp,
       hp: maxHp,
-      defeated: false
+      defeated: false,
+      rebirthPhase: 'base'
     };
   });
   return stage;
@@ -5667,10 +5821,18 @@ function syncKingdomCurrentEnemyVital() {
   const stage = ensureKingdomStageEnemyVitals(s.stage);
   const roundIndex = Math.max(0, Math.min(TOTAL_HANDS - 1, Math.floor(Number(s.handNo) || 0)));
   const vital = stage?.enemyVitals?.[roundIndex];
-  if (!vital || vital.monsterId !== String(s.battle.enemy.id || '')) return;
+  if (!vital) return;
+  const rebirthPhase = s.battle.enemy.rebirth?.phase === 'reborn' ? 'reborn' : 'base';
+  const enemyMonsterId = String(s.battle.enemy.id || '');
+  const matchesCurrentMonster = String(vital.monsterId || '') === enemyMonsterId;
+  const matchesRebornSource = rebirthPhase === 'reborn'
+    && String(vital.baseMonsterId || '') === String(s.battle.enemy.rebirth?.sourceMonsterId || '');
+  if (!matchesCurrentMonster && !matchesRebornSource) return;
+  vital.monsterId = enemyMonsterId;
   vital.maxHp = Math.max(1, Math.floor(Number(s.battle.enemy.maxHp) || vital.maxHp || 1));
   vital.hp = Math.max(0, Math.min(vital.maxHp, Math.floor(Number(s.battle.enemy.hp) || 0)));
   vital.defeated = vital.hp <= 0;
+  vital.rebirthPhase = rebirthPhase;
   s.stage = stage;
 }
 
@@ -5751,7 +5913,7 @@ function createKingdomBattleState(
     ? KINGDOM_MONSTER_ROSTER.find((entry) => entry.id === stageMonster.monsterId)
     : null;
   const monster = stageMonsterConfig || selectedExplorationMonster || selectedDemoMonster || KINGDOM_DEFAULT_MONSTER;
-  const combatProfile = Number(enemyCombatVersion) >= 1
+  const fullCombatProfile = Number(enemyCombatVersion) >= 1
     ? createTarotKingdomEnemyCombatProfile(monster, safeRoundIndex, stageMonster
       ? {
           stageVersion: 1,
@@ -5768,9 +5930,11 @@ function createKingdomBattleState(
           abilityVersion: enemyAbilityVersion
         })
     : createLegacyKingdomEnemyCombatProfile(safeRoundIndex);
+  const rebirth = normalizeKingdomRebirthConfig(stageMonster?.rebirth);
+  const combatProfile = scaleKingdomPreFormEnemyProfile(fullCombatProfile, rebirth);
   const maxHp = combatProfile.maxHp;
   return {
-    version: 3,
+    version: 4,
     active: !!active,
     outcome: null,
     resultReason: null,
@@ -5812,7 +5976,17 @@ function createKingdomBattleState(
       ailment: combatProfile.ailment,
       abilities: combatProfile.abilities,
       abilityState: { uses: {} },
-      affinity: combatProfile.affinity || getTarotKingdomEnemyAffinity(monster.id, enemyCombatVersion)
+      affinity: combatProfile.affinity || getTarotKingdomEnemyAffinity(monster.id, enemyCombatVersion),
+      ...(rebirth
+        ? {
+            rebirth: {
+              ...rebirth,
+              sourceMonsterId: monster.id,
+              sourceMonsterName: String(monster.name || monster.id),
+              phase: 'base'
+            }
+          }
+        : {})
     }
   };
 }
@@ -5876,7 +6050,7 @@ function normalizeKingdomBattleState(
   return {
     ...base,
     ...incoming,
-    version: 3,
+    version: 4,
     active: outcome ? false : (incoming.active == null ? !!active : !!incoming.active),
     outcome,
     resultReason: outcome ? String(incoming.resultReason || '') : null,
@@ -5959,7 +6133,15 @@ function normalizeKingdomBattleState(
       affinity: cloneKingdomSnapshotValue(
         incomingEnemy.affinity || base.enemy.affinity || getTarotKingdomEnemyAffinity(monster.id, enemyCombatVersion),
         { native: '', weak: '', resist: '' }
-      )
+      ),
+      rebirth: incomingEnemy.rebirth && typeof incomingEnemy.rebirth === 'object'
+        ? {
+            ...normalizeKingdomRebirthConfig(incomingEnemy.rebirth),
+            sourceMonsterId: String(incomingEnemy.rebirth.sourceMonsterId || base.enemy.rebirth?.sourceMonsterId || ''),
+            sourceMonsterName: String(incomingEnemy.rebirth.sourceMonsterName || base.enemy.rebirth?.sourceMonsterName || ''),
+            phase: incomingEnemy.rebirth.phase === 'reborn' ? 'reborn' : 'base'
+          }
+        : (base.enemy.rebirth ? { ...base.enemy.rebirth } : null)
     }
   };
 }
@@ -8081,9 +8263,19 @@ function applyKingdomEffectStep(step, actorIndex, context = {}) {
     if (!player || Number(player.hp) <= 0) return { ...result, success: false, amount: 0 };
     const hpBefore = Math.max(0, Math.floor(Number(player.hp) || 0));
     const requested = Math.max(1, Math.floor(Math.max(1, Number(player.maxHp) || 1) * Math.max(0, Number(step.percent) || 0) / 100));
-    const amount = step.nonLethal === true ? Math.min(Math.max(0, hpBefore - 1), requested) : Math.min(hpBefore, requested);
-    player.hp = Math.max(step.nonLethal === true ? 1 : 0, hpBefore - amount);
-    return { ...result, targetIndex, amount, hpBefore, hpAfter: player.hp };
+    if (step.nonLethal === true) {
+      const amount = Math.min(Math.max(0, hpBefore - 1), requested);
+      player.hp = Math.max(1, hpBefore - amount);
+      return { ...result, targetIndex, amount, hpBefore, hpAfter: player.hp };
+    }
+    const damageResult = applyKingdomPlayerHpDamage(targetIndex, requested, { source: 'self-recoil' });
+    return {
+      ...result,
+      targetIndex,
+      amount: Math.max(0, Number(damageResult.damage) || 0),
+      hpBefore,
+      hpAfter: player.hp
+    };
   }
   if (step.chance != null && step.kind !== 'status') {
     const check = rollKingdomEffect(step.chance, actorIndex);
@@ -10920,6 +11112,73 @@ function recordKingdomEnemyDamageToParty(amount, playerIndex = null) {
   }
 }
 
+function activateKingdomPetRebirth(playerIndex) {
+  const player = s?.players?.[playerIndex];
+  const pet = player?.pet;
+  const rebirth = pet?.rebirth && typeof pet.rebirth === 'object' ? pet.rebirth : null;
+  if (
+    !player
+    || player.isPet !== true
+    || !rebirth?.targetMonsterId
+    || pet.rebirthPhase === 'reborn'
+    || Number(player.hp) > 0
+  ) return false;
+  const sourceMonster = getKingdomMonsterConfig(pet.monsterId);
+  const targetMonster = getKingdomMonsterConfig(rebirth.targetMonsterId);
+  const sourceMonsterName = String(pet.monsterName || sourceMonster.name || pet.monsterId);
+  player.pet = {
+    ...pet,
+    rebirthPhase: 'reborn'
+  };
+  const character = createTarotKingdomPetCharacter({
+    pet: player.pet,
+    level: Math.max(1, Number(pet.level) || Number(player.character?.level) || 1)
+  });
+  player.character = cloneKingdomSnapshotValue(character, character);
+  player.name = character.displayName;
+  player.maxHp = Math.max(1, Number(character.combat?.maxHp) || 1);
+  player.hp = player.maxHp;
+  player.forcedDrawStreak = 0;
+  if (s.battle?.effects?.players) s.battle.effects.players[playerIndex] = {};
+  if (Array.isArray(s.battle?.guardianState)) s.battle.guardianState[playerIndex] = {};
+  if (Array.isArray(s.battle?.resonanceTriggers)) {
+    s.battle.resonanceTriggers = s.battle.resonanceTriggers.filter((trigger) => (
+      Number(trigger?.sourceIndex) !== Number(playerIndex)
+    ));
+  }
+  if (Number(s.battle?.pendingWorldTimeStop?.sourceIndex) === Number(playerIndex)) {
+    delete s.battle.pendingWorldTimeStop;
+  }
+  const history = getKingdomRHistory();
+  if (Array.isArray(history.guardian)) history.guardian[playerIndex] = { counters: {}, used: {} };
+  const event = pushKingdomBattleEvent('pet-rebirth', {
+    actorIndex: playerIndex,
+    targetIndex: playerIndex,
+    sourceMonsterId: sourceMonster.id,
+    sourceMonsterName,
+    targetMonsterId: targetMonster.id,
+    targetMonsterName: String(rebirth.targetMonsterName || targetMonster.name),
+    hpBefore: 0,
+    hpAfter: player.hp,
+    label: `${sourceMonsterName}は ${String(rebirth.targetMonsterName || targetMonster.name)}に 生まれ変わった！`
+  });
+  s.message = event.label;
+  triggerKingdomActionFx(playerIndex, 'REBIRTH', {
+    overlay: 'action',
+    durationMs: KINGDOM_REBIRTH_EVENT_MS,
+    cutin: true,
+    cutinClass: 'is-kingdom-rebirth',
+    keyword: 'REBIRTH',
+    actorName: String(rebirth.targetMonsterName || targetMonster.name),
+    tone: 'support'
+  });
+  setKingdomTransition('petRebirth', playerIndex, KINGDOM_REBIRTH_EVENT_MS, {
+    eventSeqs: Number.isFinite(Number(event?.seq)) ? [Number(event.seq)] : [],
+    resumeMessage: s.message
+  });
+  return true;
+}
+
 function applyKingdomPlayerHpDamage(playerIndex, requestedDamage, options = {}) {
   const player = s?.players?.[playerIndex];
   if (!player) return { damage: 0, hpBefore: 0, hpAfter: 0, lastStand: false };
@@ -10996,21 +11255,25 @@ function applyKingdomPlayerHpDamage(playerIndex, requestedDamage, options = {}) 
     }
   }
   if (before > 0 && after <= 0) {
-    const autoRevive = getKingdomEffectBucket('player', playerIndex)?.autoRevive;
-    if (autoRevive && areKingdomArcanaLoadoutV3EffectsEnabled()) {
+    if (activateKingdomPetRebirth(playerIndex)) {
+      after = Math.max(1, Number(player.hp) || 1);
+    } else {
+      const autoRevive = getKingdomEffectBucket('player', playerIndex)?.autoRevive;
+      if (autoRevive && areKingdomArcanaLoadoutV3EffectsEnabled()) {
       const percent = Math.max(1, Number(autoRevive.potency) || 10);
       after = Math.max(1, Math.floor(Math.max(1, Number(player.maxHp) || 1) * percent / 100));
       player.hp = after;
       consumeKingdomBattleEffect('player', 'autoRevive', playerIndex);
-    } else if (areKingdomArcanaLoadoutV2OnlyEffectsEnabled()) {
-      if (Number(getKingdomGuardianArcana(playerIndex)?.number) === 20) {
-        const guardianState = getKingdomGuardianState(playerIndex);
-        if (!guardianState.reviveUsed) guardianState.revivePending = true;
+      } else if (areKingdomArcanaLoadoutV2OnlyEffectsEnabled()) {
+        if (Number(getKingdomGuardianArcana(playerIndex)?.number) === 20) {
+          const guardianState = getKingdomGuardianState(playerIndex);
+          if (!guardianState.reviveUsed) guardianState.revivePending = true;
+        }
+      } else {
+        getKingdomSeatIndexes().forEach((index) => {
+          if (Number(getKingdomGuardianArcana(index)?.number) === 20) getKingdomGuardianState(index).koAttackReady = true;
+        });
       }
-    } else {
-      getKingdomSeatIndexes().forEach((index) => {
-        if (Number(getKingdomGuardianArcana(index)?.number) === 20) getKingdomGuardianState(index).koAttackReady = true;
-      });
     }
   }
   return { damage, hpBefore: before, hpAfter: after, lastStand: held, reflectedDamage };
@@ -12298,6 +12561,7 @@ function startKingdomTerminalEnemyTransition(actorIndex, attackEvents = []) {
 
 function markKingdomBattleVictory(winnerIndex, options = {}) {
   if (!s?.battle || s.battle.outcome) return;
+  if (Number(s.battle.enemy?.hp) <= 0 && resolveKingdomEnemyZeroHpTransition(winnerIndex)) return false;
   const enemy = s.battle.enemy;
   const hpBefore = Math.max(0, Number(enemy?.hp) || 0);
   const enemyEscaped = hpBefore > 0;
@@ -12370,7 +12634,12 @@ function markKingdomBattleVictory(winnerIndex, options = {}) {
         isNpc: winner.isNpc === true,
         isPet: winner.isPet === true,
         defeatMode: getKingdomEnemyDefeatMode(s),
-        monsterId: String(enemy?.id || '')
+        monsterId: String(enemy?.id || ''),
+        recruitMonsterId: String(
+          enemy?.rebirth?.sourceMonsterId
+          || enemy?.id
+          || ''
+        )
       });
       s.stage = stage;
     }
@@ -12383,6 +12652,7 @@ function isKingdomEnemyHpVictoryReady(state = s) {
     && !isKingdomRaidDisguisePhase(state)
     && state?.battle
     && !state.battle.outcome
+    && state.battle.enemy?.rebirth?.phase !== 'base'
     && Number(state.battle.enemy?.hp) <= 0
   );
 }
@@ -12437,6 +12707,7 @@ function resolveKingdomHpZeroRoundWinner(lastHitIndex, state = s) {
 }
 
 function startKingdomTerminalEnemyVictoryTransition(fallbackIndex, attackEvents = []) {
+  if (resolveKingdomEnemyZeroHpTransition(fallbackIndex)) return true;
   if (!isKingdomEnemyHpVictoryReady()) return false;
   const responseEvents = (Array.isArray(attackEvents) ? attackEvents : []).filter(Boolean);
   const lastHitIndex = resolveKingdomEnemyDefeatWinner(fallbackIndex, responseEvents);
@@ -14455,10 +14726,16 @@ function applyPresenceToPlayers() {
     const assignedPet = petAssignments.get(i);
     if (assignedPet) {
       p.id = assignedPet.id;
-      p.name = assignedPet.name;
       p.isNpc = true;
       p.isPet = true;
-      p.pet = { ...assignedPet.pet };
+      const rebirthPhase = p.pet?.rebirthPhase === 'reborn' ? 'reborn' : '';
+      p.pet = {
+        ...assignedPet.pet,
+        ...(rebirthPhase ? { rebirthPhase } : {})
+      };
+      p.name = rebirthPhase
+        ? String(p.character?.displayName || p.pet.rebirth?.targetMonsterName || assignedPet.name)
+        : assignedPet.name;
       p.petOwnerPlayFabId = assignedPet.petOwnerPlayFabId;
       p.petOwnerUid = assignedPet.petOwnerUid;
       p.petOwnerSeat = assignedPet.petOwnerSeat;
@@ -17681,6 +17958,11 @@ function exposeTarotKingdomBattleDebugTools(target) {
       ok: activateKingdomRaidBossForm(sourceIndex),
       state: snapshotTarotKingdomDebugState()
     }),
+    battleActivateEnemyRebirth: (sourceIndex = 0) => {
+      const ok = activateKingdomEnemyRebirth(sourceIndex);
+      render();
+      return { ok, state: snapshotTarotKingdomDebugState() };
+    },
     battleDemoEnemies: () => getKingdomDemoMonsterOptions(),
     battleMonsterAttackAnimation: (monsterId, attackMode = 'single') => (
       getKingdomMonsterAttackAnimationName(String(monsterId || ''), attackMode)
@@ -18998,6 +19280,10 @@ function recordKingdomBlockedLeaderDraw(playerIndex) {
   const hpBefore = Math.max(0, Math.floor(Number(player.hp) || 0));
   player.hp = 0;
   if (isLocalPlayer(playerIndex)) s.selected.clear();
+  if (activateKingdomPetRebirth(playerIndex)) {
+    log(`${pName(playerIndex)}: 強制ドロー3回を受け、生まれ変わった`);
+    return { count: 0, knockedOut: false, event: null, reborn: true };
+  }
   const event = pushKingdomBattleEvent('forced-draw-ko', {
     actorIndex: playerIndex,
     targetIndexes: [playerIndex],
@@ -19428,9 +19714,7 @@ function clearTrick(leader, options = {}) {
   if (clearDamageEvents.length) {
     const clearDamageSource = resolveKingdomEnemyDefeatWinner(leader, clearDamageEvents);
     captureKingdomRaidDamage(clearDamageSource);
-    if (isKingdomRaidDisguisePhase() && Number(s?.battle?.enemy?.hp) <= 0) {
-      activateKingdomRaidBossForm(clearDamageSource);
-    }
+    resolveKingdomEnemyZeroHpTransition(clearDamageSource);
     if (startKingdomTerminalEnemyVictoryTransition(clearDamageSource, clearDamageEvents)) {
       render();
       return true;
@@ -19855,9 +20139,7 @@ function applyDrawChoice() {
       const guardianEvent = emitKingdomGuardianPassive(pi, '運命の偶奇', [result]);
       if (result?.targetType === 'enemy' && Number(result.amount) > 0) {
         captureKingdomRaidDamage(pi);
-        if (isKingdomRaidDisguisePhase() && Number(s?.battle?.enemy?.hp) <= 0) {
-          activateKingdomRaidBossForm(pi);
-        }
+        resolveKingdomEnemyZeroHpTransition(pi);
         if (startKingdomTerminalEnemyVictoryTransition(pi, [guardianEvent])) {
           render();
           return;
@@ -20291,9 +20573,7 @@ function continueAfterPlay(pi, play) {
     if (pendingWorldTimeStop) restoreKingdomPendingWorldTimeStop(pendingWorldTimeStop);
   }
   captureKingdomRaidDamage(pi);
-  if (isKingdomRaidDisguisePhase() && Number(s?.battle?.enemy?.hp) <= 0) {
-    activateKingdomRaidBossForm(pi);
-  }
+  resolveKingdomEnemyZeroHpTransition(pi);
   if (
     isKingdomEnemyHpVictoryReady()
   ) {
@@ -20872,9 +21152,7 @@ function passAction(pi, options = {}) {
   const singleResolutionEvents = [actionStatusEvent, ...passTriggerEvents, singleAttackEvent].filter(Boolean);
   const singleDamageSource = resolveKingdomEnemyDefeatWinner(pi, singleResolutionEvents);
   captureKingdomRaidDamage(singleDamageSource);
-  if (isKingdomRaidDisguisePhase() && Number(s?.battle?.enemy?.hp) <= 0) {
-    activateKingdomRaidBossForm(singleDamageSource);
-  }
+  resolveKingdomEnemyZeroHpTransition(singleDamageSource);
   if (startKingdomTerminalEnemyVictoryTransition(singleDamageSource, singleResolutionEvents)) {
     render();
     return;
@@ -20893,9 +21171,7 @@ function passAction(pi, options = {}) {
     const areaAttackEvent = safeOpeningFieldPass ? null : applyKingdomEnemyAreaAttack(leader);
     const areaDamageSource = resolveKingdomEnemyDefeatWinner(pi, [areaAttackEvent]);
     captureKingdomRaidDamage(areaDamageSource);
-    if (isKingdomRaidDisguisePhase() && Number(s?.battle?.enemy?.hp) <= 0) {
-      activateKingdomRaidBossForm(areaDamageSource);
-    }
+    resolveKingdomEnemyZeroHpTransition(areaDamageSource);
     if (startKingdomTerminalEnemyVictoryTransition(pi, [actionStatusEvent, singleAttackEvent, areaAttackEvent])) {
       render();
       return;
@@ -22259,6 +22535,11 @@ function buildKingdomExplorationResult(status = 'completed') {
             isPet: finisherPlayer.isPet === true,
             defeatMode: getKingdomEnemyDefeatMode(s),
             monsterId: String(monster?.id || ''),
+            recruitMonsterId: String(
+              s?.battle?.enemy?.rebirth?.sourceMonsterId
+              || monster?.id
+              || ''
+            ),
             mode
           }
         : null
@@ -23166,6 +23447,7 @@ function getKingdomBattleEventDuration(event) {
   if (type === 'turn-effects') return 800;
   if (type === 'judgment-reclaim') return KINGDOM_JUDGMENT_RECLAIM_EVENT_MS;
   if (type === 'raid-transform') return KINGDOM_RAID_TRANSFORM_EVENT_MS;
+  if (type === 'enemy-rebirth' || type === 'pet-rebirth') return KINGDOM_REBIRTH_EVENT_MS;
   if (type === 'forced-draw-ko') return 900;
   if (type === 'defeat' && Number.isInteger(Number(event?.retreatingPlayerIndex))) return 1600;
   if (type === 'victory' || type === 'defeat') return 1200;
@@ -23179,6 +23461,7 @@ function getKingdomBattleFeedClass(type) {
   if (key === 'enemy-single' || key === 'enemy-area' || key === 'enemy-self' || key === 'enemy-status') return 'is-enemy';
   if (key === 'forced-draw-ko') return 'is-defeat';
   if (key === 'raid-transform') return 'is-enemy';
+  if (key === 'enemy-rebirth' || key === 'pet-rebirth') return 'is-skill';
   if (key === 'victory') return 'is-victory';
   if (key === 'defeat') return 'is-defeat';
   return 'is-info';
@@ -23879,8 +24162,13 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
       );
     }
     if (isPet && avatar) {
-      const monsterId = String(player.pet?.monsterId || character.monsterId || '');
+      const monsterId = String(character.monsterId || player.pet?.monsterId || '');
       const monster = getKingdomMonsterConfig(monsterId);
+      const petRebirthActive = conscious
+        && eventIsActive
+        && String(activeEvent?.type || '') === 'pet-rebirth'
+        && Number(activeEvent?.targetIndex) === playerIndex;
+      avatar.classList.toggle('is-rebirth-active', petRebirthActive);
       let sprite = avatar.querySelector(':scope > .tarot-kingdom-battle-pet-sprite');
       if (!sprite) {
         avatar.replaceChildren();
@@ -23891,7 +24179,13 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
       }
       let motionContext = conscious ? 'idle' : 'death';
       let petAttackMode = 'single';
-      if (conscious && eventIsActive && ['attack', 'skill'].includes(String(activeEvent?.type || ''))
+      if (
+        conscious
+        && eventIsActive
+        && petRebirthActive
+      ) {
+        motionContext = 'entry';
+      } else if (conscious && eventIsActive && ['attack', 'skill'].includes(String(activeEvent?.type || ''))
         && Number(activeEvent?.actorIndex) === playerIndex) {
         motionContext = 'attack';
         petAttackMode = String(activeEvent?.type || '') === 'skill' ? 'area' : 'single';
@@ -23935,6 +24229,7 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
         { side: 'player', bodyMotion: false }
       );
     } else {
+      avatar?.classList.remove('is-rebirth-active');
       const petSprite = avatar?.querySelector(':scope > .tarot-kingdom-battle-pet-sprite');
       if (petSprite) {
         const timerId = kingdomPetAnimationTimers.get(petSprite);
@@ -24931,7 +25226,8 @@ function renderKingdomBattleStage() {
       'is-opening-enemy-entering',
       'is-opening-enemy-attacking',
       'is-opening-field-card',
-      'is-raid-transforming'
+      'is-raid-transforming',
+      'is-rebirth-active'
     );
     clearKingdomMonsterFrameTimer();
     clearKingdomMonsterAuxAnimations();
@@ -25126,7 +25422,10 @@ function renderKingdomBattleStage() {
   ui.battleStage.classList.toggle('is-raid-battle', raidBattlefieldActive);
   ui.battleStage.classList.toggle('is-raid-boss-phase', raidState?.phase === 'boss');
   const raidTransformActive = eventIsActive && String(visualEvent?.type || '') === 'raid-transform';
+  const enemyRebirthActive = eventIsActive && String(visualEvent?.type || '') === 'enemy-rebirth';
+  const petRebirthActive = eventIsActive && String(visualEvent?.type || '') === 'pet-rebirth';
   ui.battleStage.classList.toggle('is-raid-transforming', raidTransformActive);
+  ui.battleStage.classList.toggle('is-rebirth-active', enemyRebirthActive || petRebirthActive);
   ui.battleStage.classList.toggle('is-rush-time', enemyRushTime);
   ui.battleStage.classList.toggle('is-enemy-finisher', enemyFinisherActive);
   ui.battleStage.classList.toggle('is-enemy-escape', enemyEscapeActive);
@@ -25236,6 +25535,7 @@ function renderKingdomBattleStage() {
     node?.classList.toggle('is-confused', enemyConfused);
     node?.classList.toggle('is-area-sealed', enemyAreaSealed);
     node?.classList.toggle('is-raid-transforming', raidTransformActive);
+    node?.classList.toggle('is-rebirth-active', enemyRebirthActive);
   });
 
   const escapeAnimation = String(victoryEvent?.escapeAnimation || '')
@@ -25246,7 +25546,7 @@ function renderKingdomBattleStage() {
     ? 'death'
     : (enemyEscapeActive
       ? 'escape'
-      : (openingIntroStage === 'enter'
+        : (openingIntroStage === 'enter' || enemyRebirthActive
         ? 'entry'
         : (enemyActing ? 'attack' : (enemyHurt ? 'hurt' : 'idle'))));
   const enemySpecialLabel = String(enemy?.abilities?.special?.label || '');
@@ -27726,6 +28026,12 @@ function ensureKingdomRulebookUi() {
               <div><h4>役と召喚</h4><p>5枚役は通常攻撃より強力。役に応じて単体・全体攻撃となり、召喚獣が現れることもあります。</p></div>
               <div><h4>パスと防御</h4><p>通常のパスでは反撃を受ける場合があります。ただし局開始の公開札だけが場にある間は、反撃も全員パス時の全体攻撃もありません。「防御」は場が流れるまで自動で守り、被害を抑えます。</p></div>
               <div><h4>状態効果</h4><p>毒・リジェネ・能力変化などはアイコンで表示。戦闘画面の状態アイコンを押すと詳細を確認できます。</p></div>
+              <div><h4>生まれ変わり</h4><p>対象の敵・ペットは進化前のHPが0になると、状態効果を解除して進化後の姿へ生まれ変わります。超過ダメージは持ち越さず、進化後は本来の最大HPで復帰します。</p></div>
+              <div><h4>進化前とペット</h4><p>進化前はHP50%、攻撃・防御・賢さ70%、素早さ85%。ペットの進化は探索終了まで続き、小アルカナを維持して固定の大アルカナだけが進化後へ変わります。</p></div>
+            </div>
+            <div class="tarot-kingdom-rulebook-note">
+              <strong>生まれ変わる4組</strong>
+              <span>チュロ→コバット ／ ラムネロ→ツキバネ ／ ホタルビ→フェリカ ／ フロス→モスガン</span>
             </div>
             <div class="tarot-kingdom-rulebook-note is-score">
               <strong>通常戦の清算</strong>
@@ -28297,7 +28603,7 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
     explorationId: String(context?.explorationId || ''),
     destinationId,
     destinationName: String(context?.destinationName || ''),
-    stageNo: Math.max(0, Math.min(11, Math.floor(Number(context?.stageNo) || 0))),
+    stageNo: Math.max(0, Math.min(KINGDOM_MAX_EXPLORATION_STAGE, Math.floor(Number(context?.stageNo) || 0))),
     stageId: String(context?.stageId || ''),
     atmosphereTone: String(context?.atmosphereTone || ''),
     battlefieldId: battlefield.id,
@@ -28310,7 +28616,7 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
       : [],
     mode: requestedMode,
     tutorialEnabled: requestedMode === 'offline'
-      && Math.max(0, Math.min(11, Math.floor(Number(context?.stageNo) || 0))) === 1
+      && Math.max(0, Math.min(KINGDOM_MAX_EXPLORATION_STAGE, Math.floor(Number(context?.stageNo) || 0))) === 1
       && monster.isBoss !== true
       && !requestedRaid
       && context?.tutorialEnabled === true,

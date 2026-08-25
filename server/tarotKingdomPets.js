@@ -8,7 +8,7 @@ const {
 } = require('./tarotKingdomPetArcanaProfiles');
 
 const TAROT_KINGDOM_PET_DATA_KEY = 'TarotKingdomPetState';
-const TAROT_KINGDOM_PET_STATE_VERSION = 4;
+const TAROT_KINGDOM_PET_STATE_VERSION = 5;
 const TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT = 16;
 const TAROT_KINGDOM_PET_NAME_MAX_LENGTH = 12;
 const TAROT_KINGDOM_PET_MAX_LEVEL = 50;
@@ -17,6 +17,19 @@ const TAROT_KINGDOM_PET_EXP_STEP = 50;
 const TAROT_KINGDOM_PET_EXP_AWARD_HISTORY_LIMIT = 32;
 const TAROT_KINGDOM_PET_MINOR_ARCANA_LIMIT = 5;
 const TAROT_KINGDOM_PET_MINOR_SUITS = Object.freeze(['Wand', 'Cup', 'Sword', 'Pentacle']);
+const TAROT_KINGDOM_PET_REBIRTHS = Object.freeze({
+    'ismartal-vol1-monster-19': Object.freeze({ targetMonsterId: 'ismartal-vol1-monster-17', targetArchetype: 'swift' }),
+    'ismartal-vol1-monster-18': Object.freeze({ targetMonsterId: 'ismartal-vol1-monster-16', targetArchetype: 'swift' }),
+    'ismartal-vol1-monster-09': Object.freeze({ targetMonsterId: 'ismartal-vol1-monster-12', targetArchetype: 'swift' }),
+    'ismartal-vol2-monster-01': Object.freeze({ targetMonsterId: 'ismartal-vol2-monster-03', targetArchetype: 'caster' })
+});
+const TAROT_KINGDOM_PET_REBIRTH_STAT_MULTIPLIERS = Object.freeze({
+    hp: 0.5,
+    power: 0.7,
+    defense: 0.7,
+    intelligence: 0.7,
+    speed: 0.85
+});
 
 const MONSTER_BY_ID = new Map(
     PIXEL_MONSTERS_ROSTER.map((monster) => [String(monster?.id || '').trim(), monster])
@@ -52,7 +65,7 @@ function normalizeTarotKingdomPetProgress(level = 1, experience = 0) {
 }
 
 function getTarotKingdomPetBattleExperience(stageNo = 1) {
-    const safeStageNo = Math.max(1, Math.min(11, Math.floor(Number(stageNo) || 1)));
+    const safeStageNo = Math.max(1, Math.min(10, Math.floor(Number(stageNo) || 1)));
     return 40 + (safeStageNo * 20);
 }
 
@@ -61,7 +74,7 @@ function getTarotKingdomPetMonster(monsterId = '') {
 }
 
 function getTarotKingdomPetRecruitChance(stageNo = 1) {
-    const normalizedStageNo = Math.max(1, Math.min(11, Math.floor(Number(stageNo) || 1)));
+    const normalizedStageNo = Math.max(1, Math.min(10, Math.floor(Number(stageNo) || 1)));
     return Math.max(0, Math.min(1, (TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT - normalizedStageNo) / 100));
 }
 
@@ -251,6 +264,7 @@ function normalizeTarotKingdomPetState(value) {
             parsed = null;
         }
     }
+    if (Number(parsed?.version) !== TAROT_KINGDOM_PET_STATE_VERSION) parsed = null;
     const experienceAwards = (Array.isArray(parsed?.experienceAwards) ? parsed.experienceAwards : [])
         .map(normalizeTarotKingdomPetExperienceAward)
         .filter(Boolean)
@@ -277,6 +291,14 @@ function buildTarotKingdomPetPublicRecord(value, options = {}) {
         [pet.majorArcanaItemId]: { level: majorArcanaLevel },
         ...Object.fromEntries(pet.minorArcanaItemIds.map((itemId) => [itemId, { level: minorArcanaLevel }]))
     };
+    const rebirthConfig = TAROT_KINGDOM_PET_REBIRTHS[pet.monsterId] || null;
+    const rebirthMonster = rebirthConfig ? getTarotKingdomPetMonster(rebirthConfig.targetMonsterId) : null;
+    const rebirthArcanaProfile = rebirthMonster ? getTarotKingdomPetArcanaProfile(rebirthMonster.id) : null;
+    const rebirthGuardianArcana = rebirthArcanaProfile?.majorArcanaItemId
+        ? buildTarotKingdomGuardian(rebirthArcanaProfile.majorArcanaItemId, catalogCache, {
+            [rebirthArcanaProfile.majorArcanaItemId]: { level: majorArcanaLevel }
+        })
+        : null;
     return {
         ...pet,
         monsterName: String(monster?.name || pet.monsterId),
@@ -289,7 +311,20 @@ function buildTarotKingdomPetPublicRecord(value, options = {}) {
             : 100,
         maxLevel: TAROT_KINGDOM_PET_MAX_LEVEL,
         guardianArcana: buildTarotKingdomGuardian(pet.majorArcanaItemId, catalogCache, cardLevels),
-        tarotDeck: buildTarotKingdomMinorLoadout(pet.minorArcanaItemIds, catalogCache, cardLevels)
+        tarotDeck: buildTarotKingdomMinorLoadout(pet.minorArcanaItemIds, catalogCache, cardLevels),
+        ...(rebirthMonster
+            ? {
+                rebirth: {
+                    targetMonsterId: rebirthMonster.id,
+                    targetMonsterName: String(rebirthMonster.name || rebirthMonster.id),
+                    targetArchetype: rebirthConfig.targetArchetype,
+                    targetNumber: Math.max(1, Math.floor(Number(rebirthMonster.number) || 1)),
+                    targetVolume: Math.max(1, Math.min(3, Math.floor(Number(rebirthMonster.volume) || 1))),
+                    statMultipliers: TAROT_KINGDOM_PET_REBIRTH_STAT_MULTIPLIERS,
+                    guardianArcana: rebirthGuardianArcana
+                }
+            }
+            : {})
     };
 }
 
@@ -542,6 +577,9 @@ module.exports = {
     TAROT_KINGDOM_PET_MINOR_ARCANA_LIMIT,
     TAROT_KINGDOM_PET_NAME_MAX_LENGTH,
     TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT,
+    TAROT_KINGDOM_PET_STATE_VERSION,
+    TAROT_KINGDOM_PET_REBIRTHS,
+    TAROT_KINGDOM_PET_REBIRTH_STAT_MULTIPLIERS,
     awardTarotKingdomPetExperience,
     buildTarotKingdomPetOfferView,
     buildTarotKingdomPetPublicRecord,

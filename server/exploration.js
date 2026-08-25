@@ -22,6 +22,8 @@ const {
 } = require('./tarotKingdomPets');
 const {
     TAROT_KINGDOM_EXPLORATION_STAGES,
+    TAROT_KINGDOM_MAX_STAGE,
+    TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION,
     TAROT_KINGDOM_TOTAL_BEST_CHIPS_STAT,
     applyTarotKingdomMonsterDefeats,
     applyTarotKingdomStageClear,
@@ -1778,7 +1780,7 @@ function getExplorationGachaOptions(destinationId, ship = {}, supplyProfile = nu
 }
 
 function getTarotKingdomStageGachaOptions(stageNo, rank, ship = {}) {
-    const safeStageNo = Math.max(1, Math.min(11, Math.floor(Number(stageNo) || 1)));
+    const safeStageNo = Math.max(1, Math.min(TAROT_KINGDOM_MAX_STAGE, Math.floor(Number(stageNo) || 1)));
     const profileId = safeStageNo <= 4 ? 'low' : (safeStageNo <= 8 ? 'medium' : 'high');
     const profile = EXPLORATION_GACHA_PROFILES[profileId] || EXPLORATION_GACHA_PROFILES.low;
     const role = getExplorationShipRole(ship.shipClass);
@@ -1954,7 +1956,8 @@ function buildExplorationTarotEncounter(activeData = {}, destination, boss) {
 function normalizeExplorationTarotEncounter(value) {
     if (!value || typeof value !== 'object') return null;
     if (Number(value.version) >= 2 || Array.isArray(value.monsters)) {
-        const stageNo = Math.max(1, Math.min(11, Math.floor(Number(value.stageNo) || 1)));
+        if (Number(value.version) !== TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION) return null;
+        const stageNo = Math.max(1, Math.min(TAROT_KINGDOM_MAX_STAGE, Math.floor(Number(value.stageNo) || 1)));
         const stage = getTarotKingdomExplorationStage(stageNo);
         if (!stage) return null;
         const expectedIds = stage.monsters.map((entry) => entry.monsterId);
@@ -1996,10 +1999,11 @@ function resolveActiveExplorationTarotEncounter(activeData = {}) {
         ? activeData.tarotEncounter
         : null;
     const normalized = normalizeExplorationTarotEncounter(rawEncounter);
-    const stageNo = Math.max(0, Math.min(11, Math.floor(
+    const stageNo = Math.max(0, Math.min(TAROT_KINGDOM_MAX_STAGE, Math.floor(
         Number(activeData?.stageNo || rawEncounter?.stageNo || normalized?.stageNo) || 0
     )));
     if (stageNo <= 0) return normalized;
+    if (Number(rawEncounter?.version) !== TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION) return null;
     if (
         Number(normalized?.version) >= 2
         && Array.isArray(normalized?.monsters)
@@ -2626,8 +2630,9 @@ function initializeExplorationRoutes(app, deps) {
 
     async function buildExplorationStatus(playFabId) {
         const ship = await resolveActiveShip(playFabId, deps);
+        const activeRef = firestore.collection(EXPLORATION_COLLECTION).doc(playFabId);
         const [activeSnap, progress, supplyState] = await Promise.all([
-            firestore.collection(EXPLORATION_COLLECTION).doc(playFabId).get(),
+            activeRef.get(),
             readTarotKingdomExplorationProgress(playFabId, { promisifyPlayFab, PlayFabServer }),
             buildExplorationPaymentState(playFabId, {
                 getEntityKeyForPlayFabId,
@@ -2636,17 +2641,26 @@ function initializeExplorationRoutes(app, deps) {
             })
         ]);
         const stages = buildTarotKingdomStageList(progress, ship?.stage || 1);
+        let activeData = activeSnap.exists ? (activeSnap.data() || {}) : null;
+        if (
+            activeData
+            && Number(activeData.stageNo) > 0
+            && !resolveActiveExplorationTarotEncounter(activeData)
+        ) {
+            await activeRef.delete();
+            activeData = null;
+        }
         return {
             success: true,
             ship,
-            stageVersion: 1,
+            stageVersion: TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION,
             progress,
             shipStageCap: getTarotKingdomShipStageCap(ship?.stage || 1),
             stages,
             destinations: stages,
             allDestinations: stages,
             explorationSupplies: supplyState.consumables,
-            active: activeSnap.exists ? explorationDocToPayload(activeSnap.data()) : null
+            active: activeData ? explorationDocToPayload(activeData) : null
         };
     }
 
@@ -2836,7 +2850,7 @@ function initializeExplorationRoutes(app, deps) {
                 if (damageResult.defeatedNow && eligibleFinisher && !rewardRoll) {
                     rewardRoll = drawLocalGachaItem(
                         catalogCache,
-                        getTarotKingdomStageGachaOptions(11, 1, { shipClass: 'fighter', stage: 3 })
+                        getTarotKingdomStageGachaOptions(TAROT_KINGDOM_MAX_STAGE, 1, { shipClass: 'fighter', stage: 3 })
                     );
                 }
                 const rewardItemId = damageResult.defeatedNow && eligibleFinisher
@@ -2960,6 +2974,7 @@ function initializeExplorationRoutes(app, deps) {
                 isPet: finisher.isPet === true,
                 defeatMode: String(finisher.defeatMode || '').trim().toLowerCase(),
                 monsterId: String(finisher.monsterId || '').trim(),
+                recruitMonsterId: String(finisher.recruitMonsterId || finisher.monsterId || '').trim(),
                 mode: String(finisher.mode || '').trim().toLowerCase()
             }
             : null;
@@ -2989,14 +3004,19 @@ function initializeExplorationRoutes(app, deps) {
                     return;
                 }
                 const encounter = normalizeExplorationTarotEncounter(activeData.tarotEncounter);
-                const stageNo = Math.max(1, Math.min(11, Math.floor(Number(encounter?.stageNo || activeData.stageNo) || 1)));
+                const stageNo = Math.max(1, Math.min(TAROT_KINGDOM_MAX_STAGE, Math.floor(Number(encounter?.stageNo || activeData.stageNo) || 1)));
                 const stageMonster = Array.isArray(encounter?.monsters)
                     ? encounter.monsters.find((entry, index) => (
                         Math.max(1, Math.min(4, Math.floor(Number(entry?.order) || index + 1))) === finisher.roundNo
                     ))
                     : null;
                 const monsterId = String(stageMonster?.monsterId || '').trim();
-                if (!encounter || Number(encounter.version) < 2 || !monsterId || monsterId !== finisher.monsterId) {
+                if (
+                    !encounter
+                    || Number(encounter.version) !== TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION
+                    || !monsterId
+                    || monsterId !== finisher.recruitMonsterId
+                ) {
                     rollError = { code: 409, message: 'この局のモンスター情報を確認できません。' };
                     return;
                 }
@@ -3425,7 +3445,15 @@ function initializeExplorationRoutes(app, deps) {
                 });
                 const activeRef = firestore.collection(EXPLORATION_COLLECTION).doc(playFabId);
                 const existingSnap = await activeRef.get();
-                const existingData = existingSnap.exists ? (existingSnap.data() || {}) : null;
+                let existingData = existingSnap.exists ? (existingSnap.data() || {}) : null;
+                if (
+                    existingData
+                    && Number(existingData.stageNo) > 0
+                    && !resolveActiveExplorationTarotEncounter(existingData)
+                ) {
+                    await activeRef.delete();
+                    existingData = null;
+                }
                 if (
                     existingData
                     && String(existingData.startRequestId || '') === requestKey
@@ -3480,7 +3508,7 @@ function initializeExplorationRoutes(app, deps) {
                         status: 'pending',
                         startRequestId: requestKey,
                         playFabId,
-                        stageVersion: 1,
+                        stageVersion: TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION,
                         stageNo: stage.stageNo,
                         stageId: stage.id,
                         destinationId: stage.id,
@@ -3568,7 +3596,7 @@ function initializeExplorationRoutes(app, deps) {
                 if (
                     resolveEffectiveStatus(data) !== 'active'
                     || String(data.id || '') !== explorationId
-                    || Number(encounter?.version) < 2
+                    || Number(encounter?.version) !== TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION
                 ) {
                     joinError = { code: 409, message: 'この救難信号には参加できません。' };
                     return;
@@ -3785,6 +3813,7 @@ function initializeExplorationRoutes(app, deps) {
                 isPet: tarotFinisher.isPet === true,
                 defeatMode: String(tarotFinisher.defeatMode || '').trim().toLowerCase(),
                 monsterId: String(tarotFinisher.monsterId || '').trim(),
+                recruitMonsterId: String(tarotFinisher.recruitMonsterId || tarotFinisher.monsterId || '').trim(),
                 mode: String(tarotFinisher.mode || '').trim().toLowerCase()
             }
             : null;
@@ -3798,6 +3827,7 @@ function initializeExplorationRoutes(app, deps) {
                 isPet: entry?.isPet === true,
                 defeatMode: String(entry?.defeatMode || '').trim().toLowerCase(),
                 monsterId: String(entry?.monsterId || '').trim(),
+                recruitMonsterId: String(entry?.recruitMonsterId || entry?.monsterId || '').trim(),
                 mode: String(entry?.mode || '').trim().toLowerCase()
             }));
         tarotStandings = (Array.isArray(tarotStandings) ? tarotStandings : [])

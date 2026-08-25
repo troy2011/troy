@@ -12166,6 +12166,43 @@ body.tarot-kingdom-preview-body {
     animation: tarotKingdomActionCutinSweep var(--tk-action-cutin-duration, 680ms) cubic-bezier(0.2, 0.78, 0.18, 1) both !important;
 }
 
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage > #tarotKingdomCutin.tarot-cutin.is-kingdom-rebirth {
+    --tk-action-accent: #fff4bf;
+    --tk-action-surface: rgba(20, 28, 52, 0.96);
+    top: 43%;
+    right: 6px;
+    left: 6px;
+    grid-template-columns: minmax(58px, auto) 1fr;
+    width: auto;
+    max-width: none;
+    min-height: 46px;
+    padding: 6px 16px;
+    border-right: 3px solid var(--tk-action-accent);
+    border-left-width: 3px;
+    border-radius: 2px;
+    box-shadow:
+        0 0 24px rgba(255, 244, 191, 0.38),
+        0 7px 18px rgba(0, 0, 0, 0.62);
+    transform-origin: 50% 50%;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage.is-rebirth-active {
+    animation: tarotKingdomRebirthFlash 1400ms ease-out both;
+}
+
+@keyframes tarotKingdomRebirthFlash {
+    0%, 100% { box-shadow: none; }
+    22% { box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.08); }
+    38% { box-shadow: inset 0 0 0 999px rgba(255, 252, 224, 0.52); }
+    62% { box-shadow: inset 0 0 42px rgba(255, 236, 154, 0.34); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage.is-rebirth-active {
+        animation-duration: 220ms;
+    }
+}
+
 #tarotKingdomCutin .tarot-action-cutin-actor {
     min-width: 58px;
     max-width: 98px;
@@ -37377,6 +37414,35 @@ body.tarot-kingdom-preview-body {
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player.is-ko .tarot-kingdom-battle-pet-sprite {
     filter: grayscale(0.65) brightness(0.7);
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-enemy.is-rebirth-active .tarot-kingdom-battle-enemy-visual,
+:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar.is-pet.is-rebirth-active {
+    animation: tarotKingdomRebirthActorReveal 1400ms ease-out both;
+}
+
+@keyframes tarotKingdomRebirthActorReveal {
+    0%, 34% {
+        opacity: 0;
+        filter: brightness(0) saturate(0.45);
+    }
+
+    48% {
+        opacity: 0.28;
+        filter: brightness(2.4) saturate(0.7) drop-shadow(0 0 13px rgba(255, 248, 207, 0.94));
+    }
+
+    68%, 100% {
+        opacity: 1;
+        filter: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-enemy.is-rebirth-active .tarot-kingdom-battle-enemy-visual,
+    :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar.is-pet.is-rebirth-active {
+        animation: none;
+    }
 }
 
 /* Monster recruitment appears before the exploration reward reveal. */

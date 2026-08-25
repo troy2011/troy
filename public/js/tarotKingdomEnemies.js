@@ -29,10 +29,10 @@ const STAGE_ARCHETYPE_MODIFIERS = Object.freeze({
 // defense or speed. Keeping the scale indexed by stage makes the curve easy to
 // audit and, importantly, leaves in-progress version 2 battles untouched.
 const STAGE_HP_SCALE_V3 = Object.freeze([
-    1, 1.1, 1.15, 1.2, 1.25, 1.3, 1.4, 1.45, 1.5, 1.55, 1.6, 1.65
+    1, 1.1, 1.15, 1.2, 1.25, 1.3, 1.4, 1.45, 1.5, 1.55, 1.6
 ]);
 const STAGE_DAMAGE_SCALE_V3 = Object.freeze([
-    1, 1.25, 1.4, 1.55, 1.7, 1.85, 2, 2.5, 2.5, 2.8, 2.4, 3
+    1, 1.25, 1.4, 1.55, 1.7, 1.85, 2, 2.5, 2.5, 2.8, 2.4
 ]);
 
 const LEGACY_ENEMY_AILMENTS = Object.freeze({
@@ -277,7 +277,7 @@ export function getTarotKingdomEnemyAbilityProfile(monsterId = '', version = 1) 
 
 function scaleStageAilment(ailment, threatLevel) {
     if (!ailment) return null;
-    const threat = Math.max(1, Math.min(44, Math.floor(finiteNumber(threatLevel, 1))));
+    const threat = Math.max(1, Math.min(40, Math.floor(finiteNumber(threatLevel, 1))));
     const chanceCap = Math.min(0.85, 0.14 + (threat * 0.007));
     const potencyMultiplier = 0.6 + (threat / 110);
     return {
@@ -315,11 +315,11 @@ function createStageAbilityProfile(monsterId, threatLevel, version = 1) {
 }
 
 function createTarotKingdomStageEnemyCombatProfile(monster = {}, options = {}) {
-    const stageNo = Math.max(1, Math.min(11, Math.floor(finiteNumber(options.stageNo, 1))));
+    const stageNo = Math.max(1, Math.min(10, Math.floor(finiteNumber(options.stageNo, 1))));
     const roundNo = Math.max(1, Math.min(4, Math.floor(finiteNumber(options.roundNo, 1))));
     const threatLevel = Math.max(
         1,
-        Math.min(44, Math.floor(finiteNumber(options.threatLevel, ((stageNo - 1) * 4) + roundNo)))
+        Math.min(40, Math.floor(finiteNumber(options.threatLevel, ((stageNo - 1) * 4) + roundNo)))
     );
     const archetypeKey = String(options.archetype || 'balanced').trim().toLowerCase();
     const archetype = STAGE_ARCHETYPE_MODIFIERS[archetypeKey] || STAGE_ARCHETYPE_MODIFIERS.balanced;

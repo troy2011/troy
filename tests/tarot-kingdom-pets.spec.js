@@ -3,6 +3,9 @@ const manifest = require('../public/Sprites/pixel-monsters/manifest.json');
 const {
   TAROT_KINGDOM_PET_MAX_LEVEL,
   TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT,
+  TAROT_KINGDOM_PET_REBIRTHS,
+  TAROT_KINGDOM_PET_REBIRTH_STAT_MULTIPLIERS,
+  TAROT_KINGDOM_PET_STATE_VERSION,
   awardTarotKingdomPetExperience,
   buildTarotKingdomPetOfferView,
   buildTarotKingdomPetPublicRecord,
@@ -110,9 +113,9 @@ test.describe('Tarot Kingdom monster recruitment', () => {
     });
   });
 
-  test('recruitment chance decreases from 15 percent to 5 percent by stage', () => {
+  test('recruitment chance decreases from 15 percent to 6 percent across ten stages', () => {
     expect(TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT).toBe(16);
-    for (let stageNo = 1; stageNo <= 11; stageNo += 1) {
+    for (let stageNo = 1; stageNo <= 10; stageNo += 1) {
       expect(getTarotKingdomPetRecruitChance(stageNo)).toBe((16 - stageNo) / 100);
     }
   });
@@ -141,9 +144,9 @@ test.describe('Tarot Kingdom monster recruitment', () => {
 
     const miss = rollTarotKingdomPetOffer({
       state: null,
-      encounter: { monsterId: normalMonster.id, stageNo: 11 },
+      encounter: { monsterId: normalMonster.id, stageNo: 10 },
       explorationId: 'explore-3',
-      random: () => 0.05
+      random: () => 0.06
     });
     expect(miss.offer).toBeNull();
   });
@@ -151,6 +154,7 @@ test.describe('Tarot Kingdom monster recruitment', () => {
   test('accept replaces the one pet, decline preserves it, and response retries are idempotent', () => {
     const oldMonster = manifest.find((monster) => monster.isBoss !== true && monster.id !== normalMonster.id);
     const initial = normalizeTarotKingdomPetState({
+      version: TAROT_KINGDOM_PET_STATE_VERSION,
       currentPet: {
         monsterId: oldMonster.id,
         acquiredAtMs: 100,
@@ -187,7 +191,7 @@ test.describe('Tarot Kingdom monster recruitment', () => {
 
   test('pet nicknames persist safely and become the public display name', () => {
     const initial = normalizeTarotKingdomPetState({
-      version: 1,
+      version: TAROT_KINGDOM_PET_STATE_VERSION,
       currentPet: {
         monsterId: normalMonster.id,
         acquiredAtMs: 100,
@@ -198,7 +202,7 @@ test.describe('Tarot Kingdom monster recruitment', () => {
     expect(renamed).toMatchObject({
       renamed: true,
       state: {
-        version: 4,
+        version: TAROT_KINGDOM_PET_STATE_VERSION,
         currentPet: {
           monsterId: normalMonster.id,
           nickname: 'ルナ'
@@ -217,7 +221,7 @@ test.describe('Tarot Kingdom monster recruitment', () => {
 
   test('pet experience is persistent, idempotent and can raise multiple levels', () => {
     const initial = normalizeTarotKingdomPetState({
-      version: 2,
+      version: TAROT_KINGDOM_PET_STATE_VERSION,
       currentPet: {
         monsterId: normalMonster.id,
         acquiredAtMs: 100,
@@ -225,12 +229,12 @@ test.describe('Tarot Kingdom monster recruitment', () => {
       }
     });
     expect(initial).toMatchObject({
-      version: 4,
+      version: TAROT_KINGDOM_PET_STATE_VERSION,
       currentPet: { level: 1, experience: 0 },
       experienceAwards: []
     });
     expect(getTarotKingdomPetBattleExperience(1)).toBe(60);
-    expect(getTarotKingdomPetBattleExperience(11)).toBe(260);
+    expect(getTarotKingdomPetBattleExperience(10)).toBe(240);
     expect(getTarotKingdomPetExperienceToNextLevel(1)).toBe(100);
 
     const first = awardTarotKingdomPetExperience(initial, {
@@ -323,6 +327,7 @@ test.describe('Tarot Kingdom monster recruitment', () => {
 
     const offerId = `tkpet-slime-${slimeMonster.id}`;
     const accepted = resolveTarotKingdomPetChoice({
+      version: TAROT_KINGDOM_PET_STATE_VERSION,
       pendingOffer: {
         offerId,
         monsterId: slimeMonster.id,
@@ -333,6 +338,7 @@ test.describe('Tarot Kingdom monster recruitment', () => {
     expect(accepted.state.currentPet).toMatchObject(firstLoadout);
 
     const normalized = normalizeTarotKingdomPetState({
+      version: TAROT_KINGDOM_PET_STATE_VERSION,
       currentPet: {
         ...accepted.state.currentPet,
         level: 50,
@@ -363,18 +369,79 @@ test.describe('Tarot Kingdom monster recruitment', () => {
     });
   });
 
-  test('legacy pets receive one stable internal loadout when card data is missing', () => {
+  test('all four rebirth pets expose their target, archetype, stat multipliers and evolved major arcana', () => {
+    expect(TAROT_KINGDOM_PET_REBIRTHS).toEqual({
+      'ismartal-vol1-monster-19': {
+        targetMonsterId: 'ismartal-vol1-monster-17',
+        targetArchetype: 'swift'
+      },
+      'ismartal-vol1-monster-18': {
+        targetMonsterId: 'ismartal-vol1-monster-16',
+        targetArchetype: 'swift'
+      },
+      'ismartal-vol1-monster-09': {
+        targetMonsterId: 'ismartal-vol1-monster-12',
+        targetArchetype: 'swift'
+      },
+      'ismartal-vol2-monster-01': {
+        targetMonsterId: 'ismartal-vol2-monster-03',
+        targetArchetype: 'caster'
+      }
+    });
+    expect(TAROT_KINGDOM_PET_REBIRTH_STAT_MULTIPLIERS).toEqual({
+      hp: 0.5,
+      power: 0.7,
+      defense: 0.7,
+      intelligence: 0.7,
+      speed: 0.85
+    });
+
+    Object.entries(TAROT_KINGDOM_PET_REBIRTHS).forEach(([monsterId, rebirth]) => {
+      const pet = buildTarotKingdomPetPublicRecord({
+        monsterId,
+        acquiredAtMs: 100,
+        explorationId: `rebirth-${monsterId}`,
+        level: 12,
+        experience: 25,
+        minorArcanaItemIds: [
+          'minor-wand-1',
+          'minor-cup-2',
+          'minor-sword-3',
+          'minor-pentacle-4',
+          'minor-wand-5'
+        ]
+      });
+      expect(pet.rebirth).toMatchObject({
+        targetMonsterId: rebirth.targetMonsterId,
+        targetArchetype: rebirth.targetArchetype,
+        statMultipliers: TAROT_KINGDOM_PET_REBIRTH_STAT_MULTIPLIERS
+      });
+      expect(pet.rebirth.targetMonsterName).toBeTruthy();
+      expect(pet.rebirth.guardianArcana.itemId).toBeTruthy();
+    });
+  });
+
+  test('legacy pet data is intentionally reset by the unpublished schema migration', () => {
     const legacy = {
+      version: TAROT_KINGDOM_PET_STATE_VERSION - 1,
       currentPet: {
         monsterId: normalMonster.id,
         acquiredAtMs: 12345,
         explorationId: 'legacy-pet'
-      }
+      },
+      pendingOffer: {
+        offerId: 'legacy-offer',
+        monsterId: normalMonster.id,
+        explorationId: 'legacy-pet',
+        rolledAtMs: 12345
+      },
+      experienceAwards: [{ awardId: 'legacy-award', amount: 999 }]
     };
-    const first = normalizeTarotKingdomPetState(legacy);
-    const second = normalizeTarotKingdomPetState(legacy);
-    expect(first.currentPet.majorArcanaItemId).toBeTruthy();
-    expect(first.currentPet.minorArcanaItemIds).toHaveLength(5);
-    expect(second.currentPet).toEqual(first.currentPet);
+    expect(normalizeTarotKingdomPetState(legacy)).toEqual({
+      version: TAROT_KINGDOM_PET_STATE_VERSION,
+      currentPet: null,
+      pendingOffer: null,
+      experienceAwards: []
+    });
   });
 });

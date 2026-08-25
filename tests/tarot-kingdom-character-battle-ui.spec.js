@@ -317,6 +317,8 @@ test('rulebook explains the current rules and returns to the same battle on mobi
     await expect(rulebook.getByText('場が空でなくても通常の出し方で使える。11バックを切り替え、場を流すと墓地回収。')).toBeVisible();
     await expect(rulebook.getByText('オフラインではプレイヤーが毎局の親です。オンラインでは素早さが最も高いプレイヤーが親になり、同値は座席順で決まります。局の勝者は次局の親を決めません。')).toBeVisible();
     await expect(rulebook.getByText('矢印の始点が、矢印の先のスートに勝ちます。')).toBeVisible();
+    await expect(rulebook.getByText('進化前はHP50%、攻撃・防御・賢さ70%、素早さ85%。ペットの進化は探索終了まで続き、小アルカナを維持して固定の大アルカナだけが進化後へ変わります。')).toBeVisible();
+    await expect(rulebook.getByText('チュロ→コバット ／ ラムネロ→ツキバネ ／ ホタルビ→フェリカ ／ フロス→モスガン')).toBeVisible();
   await expect(rulebook.locator('.tarot-kingdom-rulebook-suits-diagram')).toHaveAttribute(
     'aria-label',
     'スート相性図。ワンド←カップ←ソード←ペンタクル←ワンド'

@@ -485,7 +485,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     audit.roleDamage.forEach((entry, index) => {
       expect(Math.abs(entry.baseDamage - (baseDamage * audit.multipliers[index]))).toBeLessThanOrEqual(1);
     });
-    expect(audit.published.schema).toBe(31);
+    expect(audit.published.schema).toBe(32);
     expect(audit.published.state.rules.roleChainVersion).toBe(1);
     expect(audit.published.state.trick.roleChain).toEqual({ count: 4, multiplier: 1.75 });
     expect(audit.cleared.trick).toBeNull();
@@ -1083,7 +1083,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       return { currentPayload, currentState, v1State, legacyState, previousState };
     });
 
-    expect(audit.currentPayload.schema).toBe(31);
+    expect(audit.currentPayload.schema).toBe(32);
     expect(audit.currentState.rules.statusEffectsVersion).toBe(2);
     expect(audit.currentState.rules.enemyAbilityVersion).toBe(1);
     expect(audit.currentState.battle.enemy.abilities).toBeTruthy();
@@ -1114,6 +1114,234 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.current.result).toMatchObject({ damage: 45, hpBefore: 100, hpAfter: 55 });
     expect(audit.legacy.result).toMatchObject({ damage: 100, hpBefore: 100, hpAfter: 0 });
     expect(audit.ongoing.result).toMatchObject({ damage: 100, hpBefore: 100, hpAfter: 0 });
+  });
+
+  test('an enemy at zero HP is reborn once at full evolved strength without ending the battle', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const rebirth = {
+        targetMonsterId: 'ismartal-vol1-monster-17',
+        targetMonsterName: 'コバット',
+        targetArchetype: 'swift',
+        statMultipliers: { hp: 0.5, power: 0.7, defense: 0.7, intelligence: 0.7, speed: 0.85 }
+      };
+      const stage = {
+        version: 4,
+        stageNo: 2,
+        stageId: 'tarot_stage_2',
+        stageName: '群礁の島道',
+        battlefieldId: 'stage-03-island-causeway',
+        atmosphereTone: 'tropical-wilds',
+        monsters: [
+          { order: 1, monsterId: 'ismartal-vol1-monster-19', monsterName: 'チュロ', archetype: 'balanced', threatLevel: 5, rebirth },
+          { order: 2, monsterId: 'ismartal-vol2-monster-05', monsterName: 'リルフィ', archetype: 'caster', threatLevel: 6 },
+          { order: 3, monsterId: 'ismartal-vol1-monster-10', monsterName: 'リーフロ', archetype: 'caster', threatLevel: 7 },
+          { order: 4, monsterId: 'ismartal-vol2-monster-06', monsterName: 'グリバト', archetype: 'guardian', threatLevel: 8 }
+        ]
+      };
+
+      const weakened = debug.battleScenario({ stage, handNo: 0, withTrick: false });
+      const fullStage = JSON.parse(JSON.stringify(stage));
+      delete fullStage.monsters[0].rebirth;
+      const full = debug.battleScenario({ stage: fullStage, handNo: 0, withTrick: false });
+
+      debug.battleScenario({ stage, handNo: 0, withTrick: false });
+      debug.battleApplyStatus('enemy', 'petrify', { remainingClears: 3 });
+      debug.battleApplyModifier('enemy', 'defenseDown', { remainingTurns: 3 });
+      debug.battleSetEnemyHp(0);
+      const first = debug.battleActivateEnemyRebirth(0);
+      const publicPayload = debug.battlePublicState();
+      const second = debug.battleActivateEnemyRebirth(0);
+      const remote = debug.battleDeserialize(publicPayload);
+      return { weakened, full, first, remote, second };
+    });
+
+    expect(audit.weakened.battle.enemy.maxHp).toBe(Math.max(1, Math.round(audit.full.battle.enemy.maxHp * 0.5)));
+    expect(audit.weakened.battle.enemy.passDamage).toBe(Math.max(1, Math.round(audit.full.battle.enemy.passDamage * 0.7)));
+    expect(audit.weakened.battle.enemy.defense).toBe(Math.max(0, Math.round(audit.full.battle.enemy.defense * 0.7)));
+    expect(audit.weakened.battle.enemy.speed).toBe(Math.max(1, Math.round(audit.full.battle.enemy.speed * 0.85)));
+    expect(audit.first.ok).toBe(true);
+    expect(audit.first.state.battle).toMatchObject({ active: true, outcome: null });
+    expect(audit.first.state.battle.enemy).toMatchObject({
+      id: 'ismartal-vol1-monster-17',
+      name: 'コバット',
+      archetype: 'swift',
+      rebirth: {
+        sourceMonsterId: 'ismartal-vol1-monster-19',
+        phase: 'reborn'
+      }
+    });
+    expect(audit.first.state.battle.enemy.hp).toBe(audit.first.state.battle.enemy.maxHp);
+    expect(audit.first.state.stage.enemyVitals[0]).toMatchObject({
+      baseMonsterId: 'ismartal-vol1-monster-19',
+      monsterId: 'ismartal-vol1-monster-17',
+      rebirthPhase: 'reborn',
+      defeated: false
+    });
+    expect(audit.first.state.stage.enemyVitals[0].hp).toBe(audit.first.state.stage.enemyVitals[0].maxHp);
+    expect(audit.first.state.battle.effects.enemy).toEqual({});
+    expect(audit.first.state.battle.events.filter((event) => event.type === 'enemy-rebirth')).toHaveLength(1);
+    expect(audit.first.state.battle.events.at(-1).label).toBe('チュロは コバットに 生まれ変わった！');
+    expect(audit.remote.battle.enemy).toMatchObject({
+      id: 'ismartal-vol1-monster-17',
+      hp: audit.first.state.battle.enemy.maxHp,
+      rebirth: { phase: 'reborn', sourceMonsterId: 'ismartal-vol1-monster-19' }
+    });
+    expect(audit.remote.stage.enemyVitals[0]).toMatchObject({
+      baseMonsterId: 'ismartal-vol1-monster-19',
+      monsterId: 'ismartal-vol1-monster-17',
+      rebirthPhase: 'reborn'
+    });
+    expect(audit.second.ok).toBe(false);
+    expect(audit.second.state.battle.events.filter((event) => event.type === 'enemy-rebirth')).toHaveLength(1);
+    await expect(page.locator('#tarotKingdomBattleStage')).toHaveClass(/is-rebirth-active/);
+    await expect(page.locator('#tarotKingdomCutin')).toHaveClass(/is-kingdom-rebirth/);
+    const cutinBox = await page.locator('#tarotKingdomCutin').boundingBox();
+    expect(cutinBox.x).toBeGreaterThanOrEqual(0);
+    expect(cutinBox.x + cutinBox.width).toBeLessThanOrEqual(390);
+    expect(await page.locator('.tarot-kingdom-battle-enemy-visual').evaluate((element) => ({
+      name: getComputedStyle(element).animationName,
+      duration: getComputedStyle(element).animationDuration
+    }))).toEqual({ name: 'tarotKingdomRebirthActorReveal', duration: '1.4s' });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    expect(await page.locator('.tarot-kingdom-battle-enemy-visual').evaluate((element) => (
+      getComputedStyle(element).animationName
+    ))).toBe('none');
+  });
+
+  test('a pet is reborn before auto-revive, keeps its minor deck and can be knocked out normally afterward', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const pet = {
+        monsterId: 'ismartal-vol1-monster-19',
+        monsterName: 'チュロ',
+        displayName: 'チュロ',
+        number: 19,
+        level: 10,
+        guardianArcana: { itemId: 'arcana-2', number: 2, name: '女教皇', cardLevel: 5 },
+        tarotDeck: [{
+          slot: 0,
+          itemId: 'minor-cup-4',
+          suit: 'Cup',
+          rank: 4,
+          cardLevel: 7,
+          resonanceId: 'cup-4',
+          skillName: '癒やし'
+        }],
+        rebirth: {
+          targetMonsterId: 'ismartal-vol1-monster-17',
+          targetMonsterName: 'コバット',
+          targetNumber: 17,
+          targetArchetype: 'swift',
+          statMultipliers: { hp: 0.5, power: 0.7, defense: 0.7, intelligence: 0.7, speed: 0.85 },
+          guardianArcana: { itemId: 'arcana-18', number: 18, name: '月', cardLevel: 5 }
+        }
+      };
+      debug.battleScenario({ pet, hpBySeat: [100, 1, 100, 100], guardianState: [{}, { reviveUsed: true }, {}, {}] });
+      debug.battleSetEffects({
+        enemy: {},
+        party: {},
+        players: [{}, {
+          poison: { potency: 5, remainingActions: 3 },
+          autoRevive: { potency: 25, remainingTurns: 3 }
+        }, {}, {}]
+      });
+      const first = debug.battleApplyPlayerDamage(1, 999, { source: 'self-status' });
+      const publicPayload = debug.battlePublicState();
+      debug.battleFinishRound(0);
+      const nextRound = debug.battleNextRound();
+      debug.battleSetEffects({
+        enemy: {},
+        party: {},
+        players: [{}, { autoRevive: { potency: 25, remainingTurns: 3 } }, {}, {}]
+      });
+      const revived = debug.battleApplyPlayerDamage(1, 999, { source: 'self-status' });
+      const second = debug.battleApplyPlayerDamage(1, 999, { source: 'self-status' });
+      const remote = debug.battleDeserialize(publicPayload);
+      return { first, remote, nextRound, revived, second };
+    });
+
+    expect(audit.first.state.players[1]).toMatchObject({
+      isPet: true,
+      name: 'コバット',
+      pet: { monsterId: 'ismartal-vol1-monster-19', rebirthPhase: 'reborn', level: 10 },
+      character: {
+        monsterId: 'ismartal-vol1-monster-17',
+        displayName: 'コバット',
+        guardianArcana: { itemId: 'arcana-18' }
+      }
+    });
+    expect(audit.first.state.players[1].hp).toBe(audit.first.state.players[1].maxHp);
+    expect(audit.first.state.players[1].character.tarotDeck).toEqual([
+      expect.objectContaining({ itemId: 'minor-cup-4', cardLevel: 7 })
+    ]);
+    expect(audit.first.state.battle.effects.players[1]).toEqual({});
+    expect(audit.first.state.battle.guardianState[1]).toEqual({});
+    expect(audit.first.state.battle.events.filter((event) => event.type === 'pet-rebirth')).toHaveLength(1);
+    expect(audit.remote.players[1]).toMatchObject({
+      hp: audit.first.state.players[1].maxHp,
+      pet: { monsterId: 'ismartal-vol1-monster-19', rebirthPhase: 'reborn' },
+      character: {
+        monsterId: 'ismartal-vol1-monster-17',
+        guardianArcana: { itemId: 'arcana-18' }
+      }
+    });
+    expect(audit.nextRound.players[1]).toMatchObject({
+      pet: { rebirthPhase: 'reborn' },
+      character: { monsterId: 'ismartal-vol1-monster-17' }
+    });
+    expect(audit.nextRound.players[1].hp).toBe(audit.nextRound.players[1].maxHp);
+    expect(audit.revived.state.players[1]).toMatchObject({
+      pet: { rebirthPhase: 'reborn' },
+      character: { monsterId: 'ismartal-vol1-monster-17' }
+    });
+    expect(audit.revived.state.players[1].hp).toBe(Math.floor(audit.revived.state.players[1].maxHp * 0.25));
+    expect(audit.revived.state.battle.effects.players[1].autoRevive).toBeUndefined();
+    expect(audit.second.state.players[1].hp).toBe(0);
+    expect(audit.second.state.players[1].pet.rebirthPhase).toBe('reborn');
+    expect(audit.second.state.battle.events.filter((event) => event.type === 'pet-rebirth')).toHaveLength(0);
+  });
+
+  test('last stand resolves before pet rebirth', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const pet = {
+        monsterId: 'ismartal-vol1-monster-19',
+        monsterName: 'チュロ',
+        level: 10,
+        rebirth: {
+          targetMonsterId: 'ismartal-vol1-monster-17',
+          targetMonsterName: 'コバット',
+          targetNumber: 17,
+          targetArchetype: 'swift',
+          guardianArcana: { itemId: 'arcana-18', number: 18, name: '月', cardLevel: 1 }
+        }
+      };
+      debug.battleScenario({ pet, hpBySeat: [100, 1, 100, 100] });
+      debug.battleSetEffects({
+        enemy: {},
+        party: {},
+        players: [{}, { lastStand: { potency: 80, remainingTurns: 1 } }, {}, {}]
+      });
+      const held = debug.battleApplyPlayerDamage(1, 999, { source: 'self-status' });
+      debug.battleSetEffects({ enemy: {}, party: {}, players: [{}, {}, {}, {}] });
+      const reborn = debug.battleApplyPlayerDamage(1, 999, { source: 'self-status' });
+      return { held, reborn };
+    });
+
+    expect(audit.held.result).toMatchObject({ hpAfter: 1, lastStand: true });
+    expect(audit.held.state.players[1]).toMatchObject({
+      hp: 1,
+      pet: { monsterId: 'ismartal-vol1-monster-19' },
+      character: { monsterId: 'ismartal-vol1-monster-19' }
+    });
+    expect(audit.held.state.battle.events.filter((event) => event.type === 'pet-rebirth')).toHaveLength(0);
+    expect(audit.reborn.state.players[1]).toMatchObject({
+      pet: { rebirthPhase: 'reborn' },
+      character: { monsterId: 'ismartal-vol1-monster-17' }
+    });
+    expect(audit.reborn.state.battle.events.filter((event) => event.type === 'pet-rebirth')).toHaveLength(1);
   });
 
   test('status V2 resolves control replacement, clear counters, curse, petrify, seal and modifier offset', async ({ page }) => {
@@ -3708,7 +3936,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.rush.battle.outcome).toBeNull();
     expect(audit.rush.players[0].hand).toHaveLength(1);
     expect(audit.rush.rules.enemyDefeatMode).toBe('hand-empty');
-    expect(audit.hostPublicState.schema).toBe(31);
+    expect(audit.hostPublicState.schema).toBe(32);
     expect(audit.hostPublicState.state.rules.enemyDefeatMode).toBe('hand-empty');
     expect(audit.legacy.rules.enemyDefeatMode).toBe('hand-empty');
   });
@@ -4873,7 +5101,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       effectiveUnits: 2,
       healRate: 0.2
     });
-    expect(audit.publicState.schema).toBe(31);
+    expect(audit.publicState.schema).toBe(32);
     expect(audit.publicState.state.stage.monsters).toHaveLength(4);
     expect(audit.atmosphereTone).toBe('sunlit-coral');
     expect(audit.atmosphereCss).toContain('74, 159, 196');
@@ -4902,7 +5130,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.settlementStart.players).toHaveLength(3);
     expect(audit.settled.roundSettlement.rows).toHaveLength(2);
     expect(audit.settled.dealer).toBe(0);
-    expect(audit.published.schema).toBe(31);
+    expect(audit.published.schema).toBe(32);
     expect(audit.published.state.rules.playerCount).toBe(3);
     expect(audit.published.state.players).toHaveLength(3);
   });
@@ -5044,6 +5272,40 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.resumed.state.battle.enemy.hp).toBe(137);
     expect(audit.interrupted.players[0].hand.map((card) => card.id))
       .toEqual(audit.resumed.state.players[0].hand.map((card) => card.id));
+  });
+
+  test('a legacy offline exploration checkpoint is discarded instead of restored', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const ownerId = 'PF_LEGACY_CHECKPOINT';
+      const explorationId = 'legacy-checkpoint-exploration';
+      const storageKey = `troy.tarotKingdom.offlineMatch.v1:${ownerId}:${explorationId}`;
+      window.myPlayFabId = ownerId;
+      debug.battleSetStartMode('offline');
+      debug.battleSetExplorationSession(true, 'offline', {
+        explorationId,
+        stageId: 'legacy-stage',
+        stageNo: 11,
+        destinationId: 'legacy-island',
+        monsters: []
+      });
+      window.localStorage.setItem(storageKey, JSON.stringify({
+        version: 1,
+        savedAt: Date.now(),
+        ownerId,
+        explorationId,
+        signature: 'legacy-signature',
+        statePayload: {},
+        authorityState: {}
+      }));
+      const restored = debug.battleRestoreOfflineCheckpoint();
+      return {
+        restored: restored.restored,
+        removed: window.localStorage.getItem(storageKey) == null
+      };
+    });
+
+    expect(audit).toEqual({ restored: false, removed: true });
   });
 
   test('call rate, schema migration, action forgery, revisions, and transition locks are authoritative', async ({ page }) => {
@@ -5651,7 +5913,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
         current
       };
     });
-    expect(audit.currentPublic.schema).toBe(31);
+    expect(audit.currentPublic.schema).toBe(32);
     expect(audit.currentPublic.state.rules).toMatchObject({
       playerCount: 4,
       combatEffectsVersion: 1,

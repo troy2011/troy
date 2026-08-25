@@ -199,9 +199,9 @@ test.describe('Tarot Kingdom enemy combat profiles', () => {
     });
     const last = enemies.createTarotKingdomEnemyCombatProfile(smallLate, 3, {
       stageVersion: 1,
-      stageNo: 11,
+      stageNo: 10,
       roundNo: 4,
-      threatLevel: 44,
+      threatLevel: 40,
       archetype: 'balanced'
     });
 
@@ -216,12 +216,12 @@ test.describe('Tarot Kingdom enemy combat profiles', () => {
     });
     expect(last).toMatchObject({
       version: 2,
-      threatLevel: 44,
-      maxHp: 968,
-      passDamage: 37,
-      areaDamage: 22,
-      defense: 31,
-      speed: 22
+      threatLevel: 40,
+      maxHp: 900,
+      passDamage: 35,
+      areaDamage: 21,
+      defense: 29,
+      speed: 21
     });
     expect(last.maxHp).toBeGreaterThan(first.maxHp);
     expect(last.passDamage).toBeGreaterThan(first.passDamage);
@@ -249,9 +249,9 @@ test.describe('Tarot Kingdom enemy combat profiles', () => {
       {
         stageVersion: 1,
         balanceVersion: 3,
-        stageNo: 11,
+        stageNo: 10,
         roundNo: 4,
-        threatLevel: 44,
+        threatLevel: 40,
         archetype: 'balanced'
       }
     );
@@ -266,11 +266,11 @@ test.describe('Tarot Kingdom enemy combat profiles', () => {
     });
     expect(last).toMatchObject({
       version: 3,
-      maxHp: 1597,
-      passDamage: 112,
-      areaDamage: 67,
-      defense: 31,
-      speed: 22
+      maxHp: 1440,
+      passDamage: 84,
+      areaDamage: 51,
+      defense: 29,
+      speed: 21
     });
   });
 });

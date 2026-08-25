@@ -288,6 +288,89 @@ test.describe('Tarot Kingdom NPC combat snapshots', () => {
     ]);
   });
 
+  test('rebirth pets use weakened base stats, then switch species and major arcana while retaining their identity and minor deck', async () => {
+    const combat = await loadCombatModule();
+    const tarotDeck = [{
+      slot: 0,
+      itemId: 'minor-cup-4',
+      suit: 'Cup',
+      rank: 4,
+      cardLevel: 7,
+      resonanceId: 'cup-4',
+      skillName: '癒やし'
+    }];
+    const pet = {
+      monsterId: 'ismartal-vol1-monster-19',
+      monsterName: 'チュロ',
+      displayName: 'チュロ',
+      number: 19,
+      level: 10,
+      guardianArcana: {
+        itemId: 'arcana-2',
+        number: 2,
+        name: '女教皇',
+        cardLevel: 5
+      },
+      tarotDeck,
+      rebirth: {
+        targetMonsterId: 'ismartal-vol1-monster-17',
+        targetMonsterName: 'コバット',
+        targetNumber: 17,
+        targetArchetype: 'swift',
+        statMultipliers: {
+          hp: 0.5,
+          power: 0.7,
+          defense: 0.7,
+          intelligence: 0.7,
+          speed: 0.85
+        },
+        guardianArcana: {
+          itemId: 'arcana-18',
+          number: 18,
+          name: '月',
+          cardLevel: 5
+        }
+      }
+    };
+
+    const base = combat.createTarotKingdomPetCharacter({ pet });
+    const reborn = combat.createTarotKingdomPetCharacter({
+      pet: { ...pet, rebirthPhase: 'reborn' }
+    });
+
+    expect(base).toMatchObject({
+      monsterId: 'ismartal-vol1-monster-19',
+      displayName: 'チュロ',
+      guardianArcana: { itemId: 'arcana-2' },
+      combat: {
+        maxHp: 71,
+        power: 19,
+        defense: 21,
+        intelligence: 15,
+        speed: 12
+      }
+    });
+    expect(reborn).toMatchObject({
+      monsterId: 'ismartal-vol1-monster-17',
+      displayName: 'コバット',
+      guardianArcana: { itemId: 'arcana-18' },
+      combat: {
+        maxHp: 100,
+        power: 31,
+        defense: 15,
+        intelligence: 18,
+        speed: 28
+      }
+    });
+    expect(reborn.level).toBe(base.level);
+    expect(reborn.tarotDeck).toEqual(base.tarotDeck);
+
+    const named = combat.createTarotKingdomPetCharacter({
+      pet: { ...pet, nickname: 'ルナ', rebirthPhase: 'reborn' }
+    });
+    expect(named.displayName).toBe('ルナ');
+  });
+
   test('level formula and all three seat styles produce the intended integer stats', async () => {
     const combat = await loadCombatModule();
     const audit = {

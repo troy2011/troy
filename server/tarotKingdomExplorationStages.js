@@ -1,14 +1,31 @@
 const PIXEL_MONSTERS_ROSTER = require('../public/Sprites/pixel-monsters/manifest.json');
 
 const TAROT_KINGDOM_EXPLORATION_PROGRESS_KEY = 'TarotKingdomExplorationProgress';
-const TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION = 3;
-const TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION = 3;
+const TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION = 4;
+const TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION = 4;
+const TAROT_KINGDOM_MAX_STAGE = 10;
 const TAROT_KINGDOM_STAGE_BEST_CHIPS_MAX = 999999;
 const TAROT_KINGDOM_TOTAL_BEST_CHIPS_STAT = 'troy_tarot_kingdom_chip_total';
 
 const MONSTER_BY_ID = new Map(
     PIXEL_MONSTERS_ROSTER.map((monster) => [String(monster?.id || '').trim(), monster])
 );
+
+const TAROT_KINGDOM_REBIRTH_STAT_MULTIPLIERS = Object.freeze({
+    hp: 0.5,
+    power: 0.7,
+    defense: 0.7,
+    intelligence: 0.7,
+    speed: 0.85
+});
+
+function rebirth(targetMonsterId, targetArchetype) {
+    return Object.freeze({
+        targetMonsterId,
+        targetArchetype,
+        statMultipliers: TAROT_KINGDOM_REBIRTH_STAT_MULTIPLIERS
+    });
+}
 
 const STAGE_ROWS = [
     {
@@ -24,24 +41,12 @@ const STAGE_ROWS = [
         ]
     },
     {
-        name: '双塔岩の海峡',
-        battlefieldId: 'stage-02-windswept-deck',
-        destinationImagePath: './Sprites/exploration_destinations/twin_sea_stacks.png',
-        atmosphereTone: 'open-sea',
-        monsters: [
-            ['ismartal-vol1-monster-19', 'balanced'],
-            ['ismartal-vol3-monster-05', 'caster'],
-            ['ismartal-vol1-monster-18', 'swift'],
-            ['ismartal-vol2-monster-01', 'guardian']
-        ]
-    },
-    {
         name: '群礁の島道',
         battlefieldId: 'stage-03-island-causeway',
         destinationImagePath: './Sprites/exploration_destinations/reef_islets.png',
         atmosphereTone: 'tropical-wilds',
         monsters: [
-            ['ismartal-vol2-monster-02', 'swift'],
+            ['ismartal-vol1-monster-19', 'balanced', rebirth('ismartal-vol1-monster-17', 'swift')],
             ['ismartal-vol2-monster-05', 'caster'],
             ['ismartal-vol1-monster-10', 'caster'],
             ['ismartal-vol2-monster-06', 'guardian']
@@ -53,9 +58,9 @@ const STAGE_ROWS = [
         destinationImagePath: './Sprites/exploration_destinations/watchtower_island.png',
         atmosphereTone: 'moonlit-watchtower',
         monsters: [
-            ['ismartal-vol1-monster-17', 'swift'],
-            ['ismartal-vol1-monster-12', 'swift'],
-            ['ismartal-vol1-monster-16', 'swift'],
+            ['ismartal-vol1-monster-18', 'swift', rebirth('ismartal-vol1-monster-16', 'swift')],
+            ['ismartal-vol2-monster-02', 'swift'],
+            ['ismartal-vol3-monster-06', 'caster'],
             ['ismartal-vol1-monster-06', 'brute']
         ]
     },
@@ -102,7 +107,7 @@ const STAGE_ROWS = [
         atmosphereTone: 'arcane-blue',
         monsters: [
             ['ismartal-vol1-monster-07', 'balanced'],
-            ['ismartal-vol3-monster-06', 'caster'],
+            ['ismartal-vol2-monster-01', 'guardian', rebirth('ismartal-vol2-monster-03', 'caster')],
             ['ismartal-vol3-monster-08', 'guardian'],
             ['ismartal-vol1-monster-11', 'brute']
         ]
@@ -113,8 +118,8 @@ const STAGE_ROWS = [
         destinationImagePath: './Sprites/exploration_destinations/ruined_harbor.png',
         atmosphereTone: 'storm-ruined-harbor',
         monsters: [
-            ['ismartal-vol1-monster-09', 'caster'],
-            ['ismartal-vol2-monster-03', 'caster'],
+            ['ismartal-vol3-monster-05', 'caster'],
+            ['ismartal-vol1-monster-09', 'caster', rebirth('ismartal-vol1-monster-12', 'swift')],
             ['ismartal-vol3-monster-09', 'guardian'],
             ['ismartal-vol3-monster-03', 'caster']
         ]
@@ -154,7 +159,7 @@ function clampInteger(value, min, max, fallback = min) {
 const TAROT_KINGDOM_EXPLORATION_STAGES = Object.freeze(STAGE_ROWS.map((row, stageIndex) => {
     const stageNo = stageIndex + 1;
     return Object.freeze({
-        version: 3,
+        version: TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION,
         stageNo,
         id: `tarot_stage_${stageNo}`,
         name: row.name,
@@ -162,10 +167,16 @@ const TAROT_KINGDOM_EXPLORATION_STAGES = Object.freeze(STAGE_ROWS.map((row, stag
         atmosphereTone: row.atmosphereTone,
         imagePath: row.destinationImagePath,
         destinationImagePath: row.destinationImagePath,
-        monsters: Object.freeze(row.monsters.map(([monsterId, archetype], roundIndex) => {
+        monsters: Object.freeze(row.monsters.map(([monsterId, archetype, rebirthConfig], roundIndex) => {
             const monster = MONSTER_BY_ID.get(monsterId);
             if (!monster || monster.isBoss === true) {
                 throw new Error(`Invalid Tarot Kingdom stage monster: ${monsterId}`);
+            }
+            const targetMonster = rebirthConfig
+                ? MONSTER_BY_ID.get(rebirthConfig.targetMonsterId)
+                : null;
+            if (rebirthConfig && (!targetMonster || targetMonster.isBoss === true)) {
+                throw new Error(`Invalid Tarot Kingdom rebirth target: ${rebirthConfig.targetMonsterId}`);
             }
             return Object.freeze({
                 order: roundIndex + 1,
@@ -173,7 +184,17 @@ const TAROT_KINGDOM_EXPLORATION_STAGES = Object.freeze(STAGE_ROWS.map((row, stag
                 monsterName: String(monster.name || monsterId),
                 archetype,
                 threatLevel: stageIndex * 4 + roundIndex + 1,
-                isBoss: false
+                isBoss: false,
+                ...(targetMonster
+                    ? {
+                        rebirth: Object.freeze({
+                            targetMonsterId: targetMonster.id,
+                            targetMonsterName: String(targetMonster.name || targetMonster.id),
+                            targetArchetype: rebirthConfig.targetArchetype,
+                            statMultipliers: rebirthConfig.statMultipliers
+                        })
+                    }
+                    : {})
             });
         }))
     });
@@ -186,7 +207,7 @@ function getTarotKingdomExplorationStage(stageNo) {
 
 function getTarotKingdomShipStageCap(shipStage) {
     const stage = clampInteger(shipStage, 1, 3, 1);
-    if (stage >= 3) return 11;
+    if (stage >= 3) return TAROT_KINGDOM_MAX_STAGE;
     if (stage === 2) return 8;
     return 4;
 }
@@ -200,10 +221,11 @@ function normalizeTarotKingdomExplorationProgress(value) {
             parsed = null;
         }
     }
+    if (Number(parsed?.version) !== TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION) parsed = null;
     const rawStages = parsed?.stages && typeof parsed.stages === 'object' ? parsed.stages : {};
     const stages = {};
     Object.entries(rawStages).forEach(([key, raw]) => {
-        const stageNo = clampInteger(key, 1, 11, 0);
+        const stageNo = clampInteger(key, 1, TAROT_KINGDOM_MAX_STAGE, 0);
         if (!stageNo || !raw || typeof raw !== 'object') return;
         stages[String(stageNo)] = {
             bestRank: clampInteger(raw.bestRank, 1, 4, 4),
@@ -233,7 +255,7 @@ function normalizeTarotKingdomExplorationProgress(value) {
         highestUnlockedStage: clampInteger(
             Math.max(Number(parsed?.highestUnlockedStage) || 1, highestFromStages),
             1,
-            11,
+            TAROT_KINGDOM_MAX_STAGE,
             1
         ),
         stages,
@@ -284,7 +306,7 @@ function applyTarotKingdomStageClear(progress, stageNo, rank, now = Date.now(), 
     if (safeExplorationId && previous?.lastExplorationId === safeExplorationId) return normalized;
     const completedAtMs = Math.max(1, Math.floor(Number(now) || Date.now()));
     const nextHighest = safeRank <= 2
-        ? Math.min(11, Math.max(normalized.highestUnlockedStage, stage.stageNo + 1))
+        ? Math.min(TAROT_KINGDOM_MAX_STAGE, Math.max(normalized.highestUnlockedStage, stage.stageNo + 1))
         : normalized.highestUnlockedStage;
     return normalizeTarotKingdomExplorationProgress({
         version: TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION,
@@ -348,9 +370,9 @@ function applyTarotKingdomMonsterDefeats(progress, stageNo, finishers = [], play
         const roundNo = Math.floor(Number(entry.roundNo));
         if (!Number.isInteger(roundNo) || roundNo < 1 || roundNo > 4) return;
         const expectedMonsterId = monsterByRound.get(roundNo);
-        const monsterId = String(entry.monsterId || '').trim();
+        const monsterId = String(entry.recruitMonsterId || entry.monsterId || '').trim();
         if (!expectedMonsterId || monsterId !== expectedMonsterId) return;
-        defeated.add(monsterId);
+        defeated.add(expectedMonsterId);
     });
     return {
         ...normalized,
@@ -453,7 +475,7 @@ const STAGE_REWARD_WEIGHTS = Object.freeze({
 });
 
 function getTarotKingdomStageRewardWeights(stageNo, rank) {
-    const safeStageNo = clampInteger(stageNo, 1, 11, 1);
+    const safeStageNo = clampInteger(stageNo, 1, TAROT_KINGDOM_MAX_STAGE, 1);
     const safeRank = clampInteger(rank, 1, 4, 4);
     const band = safeStageNo <= 4 ? 'early' : (safeStageNo <= 8 ? 'middle' : 'late');
     return { ...STAGE_REWARD_WEIGHTS[band][safeRank] };
@@ -462,6 +484,8 @@ function getTarotKingdomStageRewardWeights(stageNo, rank) {
 module.exports = {
     TAROT_KINGDOM_EXPLORATION_PROGRESS_KEY,
     TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION,
+    TAROT_KINGDOM_MAX_STAGE,
+    TAROT_KINGDOM_REBIRTH_STAT_MULTIPLIERS,
     TAROT_KINGDOM_STAGE_BEST_CHIPS_MAX,
     TAROT_KINGDOM_EXPLORATION_STAGES,
     TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION,
