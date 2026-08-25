@@ -12,8 +12,8 @@ const TAROT_KINGDOM_PET_STATE_VERSION = 5;
 const TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT = 16;
 const TAROT_KINGDOM_PET_NAME_MAX_LENGTH = 12;
 const TAROT_KINGDOM_PET_MAX_LEVEL = 50;
-const TAROT_KINGDOM_PET_EXP_BASE = 100;
-const TAROT_KINGDOM_PET_EXP_STEP = 50;
+const TAROT_KINGDOM_PET_EXP_BASE = 300;
+const TAROT_KINGDOM_PET_EXP_STEP = 75;
 const TAROT_KINGDOM_PET_EXP_AWARD_HISTORY_LIMIT = 32;
 const TAROT_KINGDOM_PET_MINOR_ARCANA_LIMIT = 5;
 const TAROT_KINGDOM_PET_MINOR_SUITS = Object.freeze(['Wand', 'Cup', 'Sword', 'Pentacle']);
@@ -64,9 +64,8 @@ function normalizeTarotKingdomPetProgress(level = 1, experience = 0) {
     return { level: safeLevel, experience: safeExperience };
 }
 
-function getTarotKingdomPetBattleExperience(stageNo = 1) {
-    const safeStageNo = Math.max(1, Math.min(10, Math.floor(Number(stageNo) || 1)));
-    return 40 + (safeStageNo * 20);
+function getTarotKingdomPetExperienceFromTp(earnedTp = 0) {
+    return Math.min(100000, finiteNonNegativeInteger(earnedTp));
 }
 
 function getTarotKingdomPetMonster(monsterId = '') {
@@ -585,7 +584,7 @@ module.exports = {
     buildTarotKingdomPetPublicRecord,
     getTarotKingdomPetArcanaProfile,
     getTarotKingdomPetRecruitChance,
-    getTarotKingdomPetBattleExperience,
+    getTarotKingdomPetExperienceFromTp,
     getTarotKingdomPetExperienceToNextLevel,
     getTarotKingdomPetMonster,
     isTarotKingdomPetRecruitEligible,

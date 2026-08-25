@@ -11,7 +11,7 @@ const {
   buildTarotKingdomPetPublicRecord,
   getTarotKingdomPetArcanaProfile,
   getTarotKingdomPetRecruitChance,
-  getTarotKingdomPetBattleExperience,
+  getTarotKingdomPetExperienceFromTp,
   getTarotKingdomPetExperienceToNextLevel,
   isTarotKingdomPetRecruitEligible,
   normalizeTarotKingdomPetState,
@@ -233,9 +233,12 @@ test.describe('Tarot Kingdom monster recruitment', () => {
       currentPet: { level: 1, experience: 0 },
       experienceAwards: []
     });
-    expect(getTarotKingdomPetBattleExperience(1)).toBe(60);
-    expect(getTarotKingdomPetBattleExperience(10)).toBe(240);
-    expect(getTarotKingdomPetExperienceToNextLevel(1)).toBe(100);
+    expect(getTarotKingdomPetExperienceFromTp(137)).toBe(137);
+    expect(getTarotKingdomPetExperienceFromTp(-20)).toBe(0);
+    expect(getTarotKingdomPetExperienceToNextLevel(1)).toBe(300);
+    expect(getTarotKingdomPetExperienceToNextLevel(10)).toBe(975);
+    expect(getTarotKingdomPetExperienceToNextLevel(25)).toBe(2100);
+    expect(getTarotKingdomPetExperienceToNextLevel(49)).toBe(3900);
 
     const first = awardTarotKingdomPetExperience(initial, {
       awardId: 'exploration-pet-exp-1',
@@ -270,7 +273,7 @@ test.describe('Tarot Kingdom monster recruitment', () => {
 
     const multiLevel = awardTarotKingdomPetExperience(retry.state, {
       awardId: 'exploration-pet-exp-2',
-      amount: 300,
+      amount: 700,
       expectedMonsterId: normalMonster.id,
       now: 400
     });
@@ -280,17 +283,17 @@ test.describe('Tarot Kingdom monster recruitment', () => {
         previousLevel: 1,
         level: 3,
         levelsGained: 2,
-        experience: 110,
-        experienceToNextLevel: 200,
+        experience: 85,
+        experienceToNextLevel: 450,
         leveledUp: true,
         maxLevel: TAROT_KINGDOM_PET_MAX_LEVEL
       }
     });
     expect(buildTarotKingdomPetPublicRecord(multiLevel.state.currentPet)).toMatchObject({
       level: 3,
-      experience: 110,
-      experienceToNextLevel: 200,
-      levelProgressPercent: 55,
+      experience: 85,
+      experienceToNextLevel: 450,
+      levelProgressPercent: 18,
       maxLevel: TAROT_KINGDOM_PET_MAX_LEVEL
     });
   });

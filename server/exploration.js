@@ -9,7 +9,7 @@ const {
     awardTarotKingdomPetExperience,
     buildTarotKingdomPetOfferView,
     buildTarotKingdomPetPublicRecord,
-    getTarotKingdomPetBattleExperience,
+    getTarotKingdomPetExperienceFromTp,
     getTarotKingdomPetRecruitChance,
     isTarotKingdomPetRecruitEligible,
     normalizeTarotKingdomPendingPetOffer,
@@ -2039,6 +2039,22 @@ function resolveTarotKingdomRoundRecruitMonsterId(stageMonster, finisher) {
         : '';
 }
 
+function normalizeTarotKingdomPetParticipants(entries = []) {
+    return (Array.isArray(entries) ? entries : [])
+        .map((entry) => ({
+            petOwnerPlayFabId: String(entry?.petOwnerPlayFabId || '').trim(),
+            petMonsterId: String(entry?.petMonsterId || '').trim(),
+            earnedTp: getTarotKingdomPetExperienceFromTp(entry?.earnedTp ?? entry?.chips)
+        }))
+        .filter((entry, index, normalizedEntries) => (
+            !!entry.petOwnerPlayFabId
+            && !!entry.petMonsterId
+            && normalizedEntries.findIndex((candidate) => (
+                candidate.petOwnerPlayFabId === entry.petOwnerPlayFabId
+            )) === index
+        ));
+}
+
 function buildTarotKingdomBossResult(encounter, outcome) {
     const normalized = normalizeExplorationTarotEncounter(encounter);
     if (!normalized) return null;
@@ -3968,16 +3984,7 @@ function initializeExplorationRoutes(app, deps) {
             const tarotPetParticipantSource = tarotStandings.length > 0
                 ? tarotStandings.filter((entry) => entry?.isPet === true)
                 : (Array.isArray(activeData.tarotPetParticipants) ? activeData.tarotPetParticipants : []);
-            const tarotPetParticipants = tarotPetParticipantSource
-                .map((entry) => ({
-                    petOwnerPlayFabId: String(entry?.petOwnerPlayFabId || '').trim(),
-                    petMonsterId: String(entry?.petMonsterId || '').trim()
-                }))
-                .filter((entry, index, entries) => (
-                    !!entry.petOwnerPlayFabId
-                    && !!entry.petMonsterId
-                    && entries.findIndex((candidate) => candidate.petOwnerPlayFabId === entry.petOwnerPlayFabId) === index
-                ));
+            const tarotPetParticipants = normalizeTarotKingdomPetParticipants(tarotPetParticipantSource);
             const calculatedStandings = calculateTarotKingdomStandings(standingsSource);
             const ownerStanding = calculatedStandings.find((entry) => entry.playFabId === ownerPlayFabId && entry.isNpc !== true)
                 || calculatedStandings.find((entry) => entry.playerIndex === 0 && entry.isNpc !== true)
@@ -4250,7 +4257,7 @@ function initializeExplorationRoutes(app, deps) {
                         );
                         const awarded = awardTarotKingdomPetExperience(currentState, {
                             awardId: `exploration-pet-exp-${activeData.id}-${participantId}`,
-                            amount: getTarotKingdomPetBattleExperience(activeData.stageNo),
+                            amount: petParticipant.earnedTp,
                             expectedMonsterId: petParticipant.petMonsterId,
                             now
                         });
@@ -4460,6 +4467,7 @@ module.exports = {
         buildExplorationTarotEncounter,
         buildTarotKingdomBossResult,
         normalizeExplorationTarotEncounter,
+        normalizeTarotKingdomPetParticipants,
         resolveActiveExplorationTarotEncounter,
         resolveTarotKingdomRoundRecruitMonsterId,
         selectExplorationBoss,

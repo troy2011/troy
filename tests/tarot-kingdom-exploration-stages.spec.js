@@ -16,6 +16,7 @@ const {
   normalizeTarotKingdomExplorationProgress
 } = require('../server/tarotKingdomExplorationStages');
 const {
+  normalizeTarotKingdomPetParticipants,
   resolveActiveExplorationTarotEncounter,
   resolveTarotKingdomRoundRecruitMonsterId,
   validateExplorationTransitionSupplies
@@ -314,6 +315,37 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
     expect(resolveTarotKingdomRoundRecruitMonsterId(stageMonster, {
       monsterId: 'ismartal-vol2-monster-01'
     })).toBe('');
+  });
+
+  test('pet experience uses only the pet seat final TP', () => {
+    expect(normalizeTarotKingdomPetParticipants([
+      { playerIndex: 0, playFabId: 'OWNER', chips: 240 },
+      {
+        playerIndex: 1,
+        isPet: true,
+        petOwnerPlayFabId: 'OWNER',
+        petMonsterId: 'ismartal-vol1-monster-01',
+        chips: 137
+      },
+      {
+        playerIndex: 2,
+        isPet: true,
+        petOwnerPlayFabId: 'OTHER',
+        petMonsterId: 'ismartal-vol1-monster-02',
+        chips: -20
+      }
+    ])).toEqual([
+      {
+        petOwnerPlayFabId: 'OWNER',
+        petMonsterId: 'ismartal-vol1-monster-01',
+        earnedTp: 137
+      },
+      {
+        petOwnerPlayFabId: 'OTHER',
+        petMonsterId: 'ismartal-vol1-monster-02',
+        earnedTp: 0
+      }
+    ]);
   });
 
   test('final chip ties share rank and reward weights follow stage bands', () => {

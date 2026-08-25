@@ -3610,8 +3610,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await expect(result.locator('.exploration-result-destination-copy span')).toHaveText('STAGE 1 / 勝利');
   await expect(result.locator('.exploration-result-details')).not.toContainText('パピル');
   await expect(result.locator('.exploration-result-body')).toContainText('1位 / タロットキングダム勝利');
-  await expect(result.locator('.exploration-result-body')).toContainText('トゲマル Lv1 → Lv2 / EXP +60');
-  await expect(result.locator('.exploration-result-log')).toContainText('トゲマルが60EXPを獲得し、Lv2になった。');
+  await expect(result.locator('.exploration-result-body')).toContainText('トゲマル Lv1 → Lv2 / 獲得TP 60 → EXP +60');
+  await expect(result.locator('.exploration-result-log')).toContainText('トゲマルの獲得TP 60が、そのままEXPになった。Lv2に上がった。');
   await expect(result.locator('.exploration-result-reward')).toContainText('RARE');
   await expect(result.locator('.exploration-result-chest')).toHaveCSS('animation-name', 'none');
 

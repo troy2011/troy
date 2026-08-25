@@ -2432,7 +2432,7 @@ function showExplorationResultSummary(data, options = {}) {
                 <b>ペット</b>
                 <span>${escapeHtml(petDisplayName)} ${petLevel > petPreviousLevel
                     ? `Lv${petPreviousLevel} → Lv${petLevel}`
-                    : `Lv${petLevel}`} / EXP +${petExperienceGained.toLocaleString('ja-JP')}</span>
+                    : `Lv${petLevel}`} / 獲得TP ${petExperienceGained.toLocaleString('ja-JP')} → EXP +${petExperienceGained.toLocaleString('ja-JP')}</span>
             </div>
         `
         : '';
@@ -2459,7 +2459,7 @@ function showExplorationResultSummary(data, options = {}) {
             ? 'パーティは全滅し、探索先から撤退した。'
             : 'タロットキングダムを終え、探索を完了した。',
         ...(petExperienceGained > 0
-            ? [`${petDisplayName}が${petExperienceGained.toLocaleString('ja-JP')}EXPを獲得${petLevel > petPreviousLevel ? `し、Lv${petLevel}になった` : 'した'}。`]
+            ? [`${petDisplayName}の獲得TP ${petExperienceGained.toLocaleString('ja-JP')}が、そのままEXPになった${petLevel > petPreviousLevel ? `。Lv${petLevel}に上がった` : ''}。`]
             : [])
     ];
     const logHtml = logLines.length
