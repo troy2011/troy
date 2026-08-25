@@ -5,6 +5,8 @@ import {
     getEquipment as fetchEquipment,
     equipItem as requestEquipItem,
     getTarotDecks as fetchTarotDecks,
+    saveTarotDeckPreset as requestSaveTarotDeckPreset,
+    applyTarotDeckPreset as requestApplyTarotDeckPreset,
     equipTarotCard as requestEquipTarotCard,
     unequipTarotCard as requestUnequipTarotCard,
     replaceTarotCard as requestReplaceTarotCard,
@@ -18,7 +20,7 @@ import {
     createBlackMarketListing as requestCreateBlackMarketListing,
     cancelBlackMarketListing as requestCancelBlackMarketListing,
     buyBlackMarketListing as requestBuyBlackMarketListing
-} from './playfabClient.js?v=20260826-tutorial-reward-v1';
+} from './playfabClient.js?v=20260826-tarot-deck-presets-v1';
 import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites, resolveSpritePathByAvatarColor } from './avatar.js';
 import * as Player from './player.js';
 import {
@@ -65,6 +67,7 @@ let myMeleeDeck = [];
 let myShipDeck = [];
 let myMeleeRole = null;
 let myShipRole = null;
+let tarotDeckPresets = Array.from({ length: 3 }, () => null);
 let myShipMajorArcana = [];
 let myShipMajorArcanaLimit = 1;
 let myTarotGuardian = null;
@@ -1223,8 +1226,21 @@ function applyTarotDeckData(deckData) {
         : null;
     myShipMajorArcana = myTarotGuardian?.itemId ? [String(myTarotGuardian.itemId)] : [];
     myShipMajorArcanaLimit = 1;
+    tarotDeckPresets = normalizeTarotDeckPresets(deckData?.presets);
     if (!getTarotDeckReplacementTargetItemId()) clearTarotDeckReplacementTarget();
     if (!getTarotDeckReplacementCandidateItemId()) clearTarotDeckReplacementCandidate();
+}
+
+function normalizeTarotDeckPresets(presets) {
+    const source = Array.isArray(presets) ? presets : [];
+    return Array.from({ length: 3 }, (_unused, index) => {
+        const preset = source[index];
+        if (!preset || typeof preset !== 'object') return null;
+        return {
+            tarotDeck: sortTarotDeckItemIds(preset.tarotDeck),
+            guardianItemId: String(preset.guardianItemId || '').trim() || null
+        };
+    });
 }
 
 function setTarotLoadoutMutationPending(isPending) {
@@ -1233,7 +1249,7 @@ function setTarotLoadoutMutationPending(isPending) {
         tabContent.classList.toggle('is-tarot-loadout-pending', isPending);
         tabContent.setAttribute('aria-busy', isPending ? 'true' : 'false');
     }
-    ['meleeDeckGrid', 'guardianArcanaGrid'].forEach((id) => {
+    ['meleeDeckGrid', 'guardianArcanaGrid', 'tarotDeckPresetList'].forEach((id) => {
         document.getElementById(id)?.classList.toggle('is-busy', isPending);
     });
 }
@@ -1249,9 +1265,14 @@ async function runTarotLoadoutMutation(operation, fallbackMessage) {
         return await operation();
     } catch (error) {
         const rawMessage = String(error?.message || '');
-        const message = rawMessage.includes('GuardianChanged')
-            ? '守護アルカナの状態が更新されました。もう一度確認してください。'
-            : (rawMessage || fallbackMessage);
+        let message = rawMessage || fallbackMessage;
+        if (rawMessage.includes('GuardianChanged')) {
+            message = '守護アルカナの状態が更新されました。もう一度確認してください。';
+        } else if (rawMessage.includes('PresetCardNotOwned')) {
+            message = '保存した編成に所持していないカードがあります。';
+        } else if (rawMessage.includes('PresetNotFound')) {
+            message = 'この編成枠には保存されたデッキがありません。';
+        }
         showInventoryFeedback(message || 'タロットデッキを更新できませんでした。', true);
         return null;
     } finally {
@@ -1286,6 +1307,121 @@ function renderDeckRolePanel(roleEl, deckRole) {
         <div class="tarot-loadout-role-main">${role.label || role.key}${suitLabel}</div>
         <div class="tarot-loadout-role-bonus">${bonusText}</div>
     `;
+}
+
+function isTarotDeckPresetCurrent(preset) {
+    if (!preset) return false;
+    const currentDeck = getCommonTarotDeck();
+    const presetDeck = sortTarotDeckItemIds(preset.tarotDeck);
+    const currentGuardianItemId = String(myTarotGuardian?.itemId || '').trim();
+    const presetGuardianItemId = String(preset.guardianItemId || '').trim();
+    return currentGuardianItemId === presetGuardianItemId
+        && currentDeck.length === presetDeck.length
+        && currentDeck.every((itemId, index) => itemId === presetDeck[index]);
+}
+
+function getTarotDeckPresetSummary(preset) {
+    if (!preset) return '空き';
+    const guardianItemId = String(preset.guardianItemId || '').trim();
+    const guardian = guardianItemId
+        ? myInventory.find((item) => getInventoryItemReferenceIds(item).includes(guardianItemId))
+        : null;
+    const guardianLabel = guardianItemId
+        ? (guardian?.name || '守護未所持')
+        : '守護なし';
+    return `${guardianLabel} / 小${sortTarotDeckItemIds(preset.tarotDeck).length}枚`;
+}
+
+async function saveTarotDeckPreset(slotIndex) {
+    const slot = Number(slotIndex) + 1;
+    const existingPreset = tarotDeckPresets[slotIndex];
+    if (existingPreset) {
+        const result = await showInventoryActionDialog({
+            title: `編成${slot}を上書き`,
+            message: '現在の守護アルカナと共鳴デッキで上書きしますか？',
+            confirmLabel: '上書きする'
+        });
+        if (!result.confirmed) return;
+    }
+    const data = await runTarotLoadoutMutation(
+        () => requestSaveTarotDeckPreset(window.myPlayFabId || null, slot),
+        'デッキ編成を保存できませんでした。'
+    );
+    if (!data?.ok) return;
+    applyTarotDeckData(data);
+    renderTarotDeckPanels();
+    showInventoryFeedback(`編成${slot}を保存しました。`);
+}
+
+async function applyTarotDeckPreset(slotIndex) {
+    const slot = Number(slotIndex) + 1;
+    const preset = tarotDeckPresets[slotIndex];
+    if (!preset || isTarotDeckPresetCurrent(preset)) return;
+    const result = await showInventoryActionDialog({
+        title: `編成${slot}を適用`,
+        message: '現在の守護アルカナと共鳴デッキを、この保存済み編成に切り替えますか？',
+        confirmLabel: '適用する'
+    });
+    if (!result.confirmed) return;
+    const data = await runTarotLoadoutMutation(
+        () => requestApplyTarotDeckPreset(window.myPlayFabId || null, slot),
+        'デッキ編成を適用できませんでした。'
+    );
+    if (!data?.ok) return;
+    applyTarotDeckData(data);
+    clearTarotDeckReplacementState();
+    selectedTarotLoadoutItemId = getCommonTarotDeck()[0] || '';
+    renderTarotDeckPanels();
+    renderInventoryGrid(activeInventoryCategory);
+    updateInventoryTabHint(activeInventoryCategory);
+    updateEquipmentBonusDisplay();
+    if (typeof window.showRpgMessage === 'function') {
+        window.showRpgMessage(`編成${slot}を適用した。`);
+    }
+}
+
+function renderTarotDeckPresets(root) {
+    if (!root) return;
+    root.innerHTML = '';
+    tarotDeckPresets.forEach((preset, slotIndex) => {
+        const slot = slotIndex + 1;
+        const current = isTarotDeckPresetCurrent(preset);
+        const entry = document.createElement('div');
+        entry.className = 'tarot-deck-preset';
+        entry.classList.toggle('is-empty', !preset);
+        entry.classList.toggle('is-current', current);
+
+        const label = document.createElement('div');
+        label.className = 'tarot-deck-preset-label';
+        label.textContent = `編成${slot}`;
+        entry.appendChild(label);
+
+        const summary = document.createElement('div');
+        summary.className = 'tarot-deck-preset-summary';
+        summary.textContent = current ? '使用中' : getTarotDeckPresetSummary(preset);
+        entry.appendChild(summary);
+
+        const actions = document.createElement('div');
+        actions.className = 'tarot-deck-preset-actions';
+        if (preset) {
+            const applyButton = document.createElement('button');
+            applyButton.type = 'button';
+            applyButton.className = 'tarot-deck-preset-action is-apply';
+            applyButton.textContent = current ? '使用中' : '適用';
+            applyButton.disabled = current || tarotLoadoutMutationPending;
+            applyButton.addEventListener('click', () => applyTarotDeckPreset(slotIndex));
+            actions.appendChild(applyButton);
+        }
+        const saveButton = document.createElement('button');
+        saveButton.type = 'button';
+        saveButton.className = 'tarot-deck-preset-action is-save';
+        saveButton.textContent = preset ? '上書き' : '保存';
+        saveButton.disabled = tarotLoadoutMutationPending;
+        saveButton.addEventListener('click', () => saveTarotDeckPreset(slotIndex));
+        actions.appendChild(saveButton);
+        entry.appendChild(actions);
+        root.appendChild(entry);
+    });
 }
 
 function getDeckCardSuitKey(item, canonicalCategory) {
@@ -1939,6 +2075,7 @@ function renderTarotDeckPanels() {
     const guardianPanel = document.getElementById('guardianArcanaPanel');
     if (guardianPanel) guardianPanel.hidden = false;
     renderDeckRolePanel(document.getElementById('meleeDeckRole'), getCommonTarotRole());
+    renderTarotDeckPresets(document.getElementById('tarotDeckPresetList'));
     renderDeckGrid(document.getElementById('meleeDeckGrid'), getCommonTarotDeck());
     renderShipMajorArcanaGrid(document.getElementById('guardianArcanaGrid'));
     renderTarotDeckEffectList(document.getElementById('meleeDeckEffectList'), getCommonTarotDeck());

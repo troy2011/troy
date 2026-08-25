@@ -138,6 +138,69 @@ function makeMinorDeckRouteHarness({
   return { invoke, readOnlyData };
 }
 
+function makePresetRouteHarness({
+  tarotDeck = ['minor-wand-1'],
+  guardianItemId = 'arcana-1',
+  presets = [],
+  inventoryItems = [
+    { Id: 'minor-wand-1', Amount: 1 },
+    { Id: 'minor-sword-2', Amount: 1 },
+    { Id: 'minor-cup-10', Amount: 1 },
+    { Id: 'arcana-1', Amount: 1 },
+    { Id: 'arcana-2', Amount: 1 }
+  ]
+} = {}) {
+  const routes = new Map();
+  const encodedDeck = JSON.stringify(tarotDeck);
+  const readOnlyData = {
+    TarotDeck: { Value: encodedDeck },
+    TarotMeleeDeck: { Value: encodedDeck },
+    TarotShipDeck: { Value: encodedDeck },
+    TarotGuardianArcana: { Value: serializeTarotGuardian(guardianItemId) },
+    TarotDeckPresets: { Value: JSON.stringify({ version: 1, slots: presets }) }
+  };
+  const app = {
+    post(path, handler) {
+      routes.set(path, handler);
+    }
+  };
+
+  initializeTarotDeckRoutes(app, {
+    PlayFabServer: {
+      GetUserReadOnlyData: getUserReadOnlyDataApi,
+      UpdateUserReadOnlyData: updateUserReadOnlyDataApi
+    },
+    promisifyPlayFab: async (apiFunction, request) => {
+      if (apiFunction === getUserReadOnlyDataApi) return { Data: readOnlyData };
+      if (apiFunction === updateUserReadOnlyDataApi) {
+        Object.entries(request.Data || {}).forEach(([key, value]) => {
+          readOnlyData[key] = { Value: value };
+        });
+        return {};
+      }
+      throw new Error('Unexpected PlayFab API call');
+    },
+    catalogCache: {
+      'minor-wand-1': { Category: 'TarotMinor', ArcanaSuit: 'Wand', ArcanaRank: 1 },
+      'minor-sword-2': { Category: 'TarotMinor', ArcanaSuit: 'Sword', ArcanaRank: 2 },
+      'minor-cup-10': { Category: 'TarotMinor', ArcanaSuit: 'Cup', ArcanaRank: 10 },
+      'arcana-1': { Category: 'TarotMajor', ArcanaNumber: 1 },
+      'arcana-2': { Category: 'TarotMajor', ArcanaNumber: 2 }
+    },
+    getEntityKeyForPlayFabId: async () => ({ Id: 'ENTITY1', Type: 'title_player_account' }),
+    getAllInventoryItems: async () => inventoryItems,
+    requireAuthenticatedPlayFabId: async (_req, _res, playFabId) => playFabId
+  });
+
+  async function invoke(path, body) {
+    const response = makeResponse();
+    await routes.get(path)({ body }, response);
+    return response;
+  }
+
+  return { invoke, readOnlyData };
+}
+
 test('dedicated arcana catalog contains 56 unique minor resonances and 22 guardians', () => {
   const catalog = getArcanaEffectsCatalog();
   expect(catalog.version).toBe(6);
@@ -278,6 +341,88 @@ test('minor deck replacement keeps the slot count and writes the sorted deck onc
   expect(JSON.parse(harness.readOnlyData.TarotDeck.Value)).toEqual(['minor-wand-1', 'minor-sword-2']);
   expect(JSON.parse(harness.readOnlyData.TarotMeleeDeck.Value)).toEqual(['minor-wand-1', 'minor-sword-2']);
   expect(JSON.parse(harness.readOnlyData.TarotShipDeck.Value)).toEqual(['minor-wand-1', 'minor-sword-2']);
+});
+
+test('tarot deck presets save a guardian and sorted minor deck into one of three slots', async () => {
+  const harness = makePresetRouteHarness({
+    tarotDeck: ['minor-sword-2', 'minor-wand-1'],
+    guardianItemId: 'arcana-2'
+  });
+
+  const response = await harness.invoke('/api/tarot-deck-preset-save', {
+    playFabId: 'PF_PRESET_SAVE',
+    slot: 2
+  });
+
+  expect(response.statusCode).toBe(200);
+  expect(response.body.presets).toEqual([
+    null,
+    { tarotDeck: ['minor-wand-1', 'minor-sword-2'], guardianItemId: 'arcana-2' },
+    null
+  ]);
+  expect(JSON.parse(harness.readOnlyData.TarotDeckPresets.Value)).toEqual({
+    version: 1,
+    slots: [
+      null,
+      { tarotDeck: ['minor-wand-1', 'minor-sword-2'], guardianItemId: 'arcana-2' },
+      null
+    ]
+  });
+});
+
+test('tarot deck presets apply the guardian and minor deck in one loadout update', async () => {
+  const harness = makePresetRouteHarness({
+    tarotDeck: ['minor-cup-10'],
+    guardianItemId: 'arcana-1',
+    presets: [{ tarotDeck: ['minor-sword-2', 'minor-wand-1'], guardianItemId: 'arcana-2' }]
+  });
+
+  const response = await harness.invoke('/api/tarot-deck-preset-apply', {
+    playFabId: 'PF_PRESET_APPLY',
+    slot: 1
+  });
+
+  expect(response.statusCode).toBe(200);
+  expect(response.body).toMatchObject({
+    ok: true,
+    tarotDeck: ['minor-wand-1', 'minor-sword-2'],
+    guardian: { itemId: 'arcana-2' }
+  });
+  expect(JSON.parse(harness.readOnlyData.TarotDeck.Value)).toEqual(['minor-wand-1', 'minor-sword-2']);
+  expect(JSON.parse(harness.readOnlyData.TarotMeleeDeck.Value)).toEqual(['minor-wand-1', 'minor-sword-2']);
+  expect(JSON.parse(harness.readOnlyData.TarotShipDeck.Value)).toEqual(['minor-wand-1', 'minor-sword-2']);
+  expect(parseTarotGuardian(harness.readOnlyData.TarotGuardianArcana.Value)).toMatchObject({ itemId: 'arcana-2' });
+});
+
+test('tarot deck presets reject stale cards without changing the active loadout', async () => {
+  const harness = makePresetRouteHarness({
+    presets: [{ tarotDeck: ['minor-sword-2'], guardianItemId: 'arcana-2' }],
+    inventoryItems: [{ Id: 'minor-wand-1', Amount: 1 }, { Id: 'arcana-1', Amount: 1 }]
+  });
+  const beforeDeck = harness.readOnlyData.TarotDeck.Value;
+  const beforeGuardian = harness.readOnlyData.TarotGuardianArcana.Value;
+
+  const response = await harness.invoke('/api/tarot-deck-preset-apply', {
+    playFabId: 'PF_PRESET_STALE',
+    slot: 1
+  });
+
+  expect(response.statusCode).toBe(403);
+  expect(response.body).toEqual({ error: 'PresetCardNotOwned', itemId: 'minor-sword-2' });
+  expect(harness.readOnlyData.TarotDeck.Value).toBe(beforeDeck);
+  expect(harness.readOnlyData.TarotGuardianArcana.Value).toBe(beforeGuardian);
+});
+
+test('tarot deck presets accept only three fixed slots', async () => {
+  const harness = makePresetRouteHarness();
+
+  const response = await harness.invoke('/api/tarot-deck-preset-save', {
+    playFabId: 'PF_PRESET_LIMIT',
+    slot: 4
+  });
+
+  expect(response.statusCode).toBe(400);
+  expect(response.body).toEqual({ error: 'PresetSlotOutOfRange' });
 });
 
 test('legacy tarot ids normalize before the production catalog resolver runs', () => {

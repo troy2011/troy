@@ -33505,6 +33505,100 @@ body[data-sea-tone] .home-hero-card {
     gap: 10px;
 }
 
+#tabContentInventory[data-inventory-panel="tarot"] .tarot-deck-presets {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+}
+
+#tabContentInventory[data-inventory-panel="tarot"] .tarot-deck-preset {
+    min-width: 0;
+    min-height: 86px;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 3px;
+    padding: 7px 6px;
+    border: 1px solid rgba(218, 191, 126, 0.28);
+    border-radius: 6px;
+    background: linear-gradient(180deg, rgba(17, 20, 24, 0.88), rgba(3, 5, 8, 0.9));
+}
+
+#tabContentInventory[data-inventory-panel="tarot"] .tarot-deck-preset.is-empty {
+    border-style: dashed;
+    opacity: 0.82;
+}
+
+#tabContentInventory[data-inventory-panel="tarot"] .tarot-deck-preset.is-current {
+    border-color: rgba(255, 226, 151, 0.7);
+    background: linear-gradient(180deg, rgba(92, 63, 16, 0.78), rgba(15, 12, 8, 0.9));
+}
+
+#tabContentInventory[data-inventory-panel="tarot"] .tarot-deck-preset-label {
+    min-width: 0;
+    color: #ffe4a3;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1.1;
+    text-align: center;
+}
+
+#tabContentInventory[data-inventory-panel="tarot"] .tarot-deck-preset-summary {
+    min-width: 0;
+    align-self: center;
+    color: #d6c69f;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.25;
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#tabContentInventory[data-inventory-panel="tarot"] .tarot-deck-preset.is-current .tarot-deck-preset-summary {
+    color: #fff1bc;
+}
+
+#tabContentInventory[data-inventory-panel="tarot"] .tarot-deck-preset-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+}
+
+#tabContentInventory[data-inventory-panel="tarot"] .tarot-deck-preset-action {
+    min-width: 0;
+    min-height: 29px;
+    padding: 3px 4px;
+    border: 1px solid rgba(222, 195, 137, 0.32);
+    border-radius: 4px;
+    color: #f6e6bd;
+    background: rgba(3, 6, 10, 0.82);
+    font: inherit;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.86);
+}
+
+#tabContentInventory[data-inventory-panel="tarot"] .tarot-deck-preset-action.is-apply {
+    border-color: rgba(106, 177, 219, 0.66);
+    color: #d8f0ff;
+}
+
+#tabContentInventory[data-inventory-panel="tarot"] .tarot-deck-preset-action.is-save {
+    border-color: rgba(227, 192, 111, 0.58);
+    color: #ffe9ae;
+}
+
+#tabContentInventory[data-inventory-panel="tarot"] .tarot-deck-preset-action:disabled {
+    opacity: 0.52;
+}
+
+#tabContentInventory[data-inventory-panel="tarot"] .tarot-deck-presets.is-busy {
+    pointer-events: none;
+    opacity: 0.78;
+}
+
 #tabContentInventory[data-inventory-panel="tarot"] .tarot-deck-panel {
     border-width: 8px;
     border-image-width: 8px;

@@ -249,6 +249,14 @@ export function getTarotDecks(playFabId, options) {
     return callApiWithLoader('/api/tarot-deck-get', { playFabId }, options);
 }
 
+export function saveTarotDeckPreset(playFabId, slot, options) {
+    return callApiWithLoader('/api/tarot-deck-preset-save', { playFabId, slot }, options);
+}
+
+export function applyTarotDeckPreset(playFabId, slot, options) {
+    return callApiWithLoader('/api/tarot-deck-preset-apply', { playFabId, slot }, options);
+}
+
 export function getTarotBattleSkills() {
     return fetchJson('/api/tarot-battle-skills');
 }
