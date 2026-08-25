@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { test, expect } = require('@playwright/test');
 const {
+  HEAD_ARMOR_OVERRIDES,
   OFFHAND_SPRITE_INDICES,
   getFriendlyId,
   normalizeCatalog
@@ -31,9 +32,9 @@ function getTitle(item) {
 test('equipment presentation catalogs have unique ids and image-aligned names', () => {
   const expectedTitles = {
     blunt_16: '鉛球のフレイル',
-    leather01_01: '竜骨のマスク',
-    leather02_01: '大角の革兜',
-    metal_37: '鋼のフリギア兜',
+    leather01_01: '角獣の面',
+    leather02_01: '魔獣のかぶと',
+    metal_37: 'フリギア兜',
     staff_05: '月輪の杖',
     sword_big_10: 'フランベルジュ',
     wand_04: '蛇木のワンド'
@@ -50,6 +51,28 @@ test('equipment presentation catalogs have unique ids and image-aligned names', 
     for (const [id, title] of Object.entries(expectedTitles)) {
       expect(getTitle(indexed.get(id)), id).toBe(title);
     }
+  }
+});
+
+test('head armor names and defense values follow the image-aligned catalog definitions', () => {
+  const entries = Object.entries(HEAD_ARMOR_OVERRIDES);
+  expect(entries).toHaveLength(155);
+
+  for (const filePath of [rootCatalogPath, localCatalogPath]) {
+    const indexed = indexCatalog(readCatalog(filePath));
+    const armorTitles = [];
+
+    for (const [id, definition] of entries) {
+      const item = indexed.get(id);
+      const title = getTitle(item);
+      expect(item?.DisplayProperties?.Category, id).toBe('Armor');
+      expect(title, id).toBe(definition.title);
+      expect(item?.DisplayProperties?.Defense, id).toBe(definition.defense);
+      expect(Array.from(title).length, id).toBeLessThanOrEqual(10);
+      armorTitles.push(title);
+    }
+
+    expect(new Set(armorTitles).size, filePath).toBe(armorTitles.length);
   }
 });
 

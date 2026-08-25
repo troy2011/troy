@@ -6554,18 +6554,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "星霜のサンタキャップ",
-        "ja-JP": "星霜のサンタキャップ"
+        "NEUTRAL": "祭りぼうし",
+        "ja-JP": "祭りぼうし"
       },
       "Description": {
-        "NEUTRAL": "白い縁取りが目を引く、祝祭シーズンの定番帽。",
-        "ja-JP": "白い縁取りが目を引く、祝祭シーズンの定番帽。"
+        "NEUTRAL": "祭りぼうし。軽くて扱いやすい頭装備。",
+        "ja-JP": "祭りぼうし。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 3,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 0
       }
@@ -6579,18 +6579,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鷹羽のハンターハット",
-        "ja-JP": "鷹羽のハンターハット"
+        "NEUTRAL": "狩人のぼうし",
+        "ja-JP": "狩人のぼうし"
       },
       "Description": {
-        "NEUTRAL": "羽根飾りを差した狩人の帽子。森の追跡に映える。",
-        "ja-JP": "羽根飾りを差した狩人の帽子。森の追跡に映える。"
+        "NEUTRAL": "狩人のぼうし。軽くて扱いやすい頭装備。",
+        "ja-JP": "狩人のぼうし。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 3,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 1
       }
@@ -6604,18 +6604,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "夜会のシルクハット",
-        "ja-JP": "夜会のシルクハット"
+        "NEUTRAL": "紳士のぼうし",
+        "ja-JP": "紳士のぼうし"
       },
       "Description": {
-        "NEUTRAL": "艶のある高帽。礼装にも賭場にも似合う。",
-        "ja-JP": "艶のある高帽。礼装にも賭場にも似合う。"
+        "NEUTRAL": "紳士のぼうし。軽くて扱いやすい頭装備。",
+        "ja-JP": "紳士のぼうし。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 3,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 2
       }
@@ -6629,18 +6629,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "旅布のストローハット",
-        "ja-JP": "旅布のストローハット"
+        "NEUTRAL": "旅人のぼうし",
+        "ja-JP": "旅人のぼうし"
       },
       "Description": {
-        "NEUTRAL": "麦わら風に編まれた布帽子。軽くて長旅向け。",
-        "ja-JP": "麦わら風に編まれた布帽子。軽くて長旅向け。"
+        "NEUTRAL": "旅人のぼうし。軽くて扱いやすい頭装備。",
+        "ja-JP": "旅人のぼうし。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 3,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 3
       }
@@ -6654,18 +6654,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "星紋の魔導帽",
-        "ja-JP": "星紋の魔導帽"
+        "NEUTRAL": "星のぼうし",
+        "ja-JP": "星のぼうし"
       },
       "Description": {
-        "NEUTRAL": "魔導士が愛用する深い鍔の帽子。術式の集中を助ける。",
-        "ja-JP": "魔導士が愛用する深い鍔の帽子。術式の集中を助ける。"
+        "NEUTRAL": "星のぼうし。軽くて扱いやすい頭装備。",
+        "ja-JP": "星のぼうし。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 3,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 4
       }
@@ -6679,18 +6679,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "漆黒ウィザードハット",
-        "ja-JP": "漆黒ウィザードハット"
+        "NEUTRAL": "魔術師のぼうし",
+        "ja-JP": "魔術師のぼうし"
       },
       "Description": {
-        "NEUTRAL": "王道のとんがり帽。魔法使いらしさを強く演出する。",
-        "ja-JP": "王道のとんがり帽。魔法使いらしさを強く演出する。"
+        "NEUTRAL": "魔術師のぼうし。軽くて扱いやすい頭装備。",
+        "ja-JP": "魔術師のぼうし。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 3,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 5
       }
@@ -6704,18 +6704,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "見習い海賊の三角帽",
-        "ja-JP": "見習い海賊の三角帽"
+        "NEUTRAL": "海賊のぼうし",
+        "ja-JP": "海賊のぼうし"
       },
       "Description": {
-        "NEUTRAL": "下っ端海賊に支給される粗めの三角帽。",
-        "ja-JP": "下っ端海賊に支給される粗めの三角帽。"
+        "NEUTRAL": "海賊のぼうし。軽くて扱いやすい頭装備。",
+        "ja-JP": "海賊のぼうし。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 4,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 6
       }
@@ -6729,18 +6729,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "砂海のターバン",
-        "ja-JP": "砂海のターバン"
+        "NEUTRAL": "砂漠ターバン",
+        "ja-JP": "砂漠ターバン"
       },
       "Description": {
-        "NEUTRAL": "熱風と砂塵を防ぐ巻き布。乾いた海域で頼れる。",
-        "ja-JP": "熱風と砂塵を防ぐ巻き布。乾いた海域で頼れる。"
+        "NEUTRAL": "砂漠ターバン。軽くて扱いやすい頭装備。",
+        "ja-JP": "砂漠ターバン。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 4,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 7
       }
@@ -6754,18 +6754,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "見習い海賊の三角帽・改",
-        "ja-JP": "見習い海賊の三角帽・改"
+        "NEUTRAL": "若海賊の帽子",
+        "ja-JP": "若海賊の帽子"
       },
       "Description": {
-        "NEUTRAL": "角度を強めた三角シルエットの海賊帽。",
-        "ja-JP": "角度を強めた三角シルエットの海賊帽。"
+        "NEUTRAL": "若海賊の帽子。軽くて扱いやすい頭装備。",
+        "ja-JP": "若海賊の帽子。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 4,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 8
       }
@@ -6779,18 +6779,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "影潜りのフード",
-        "ja-JP": "影潜りのフード"
+        "NEUTRAL": "忍びのフード",
+        "ja-JP": "忍びのフード"
       },
       "Description": {
-        "NEUTRAL": "顔を陰に落として気配を消す潜行向けフード。",
-        "ja-JP": "顔を陰に落として気配を消す潜行向けフード。"
+        "NEUTRAL": "忍びのフード。軽くて扱いやすい頭装備。",
+        "ja-JP": "忍びのフード。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 4,
+        "Defense": 3,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 9
       }
@@ -6804,18 +6804,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "書庫守の学帽",
-        "ja-JP": "書庫守の学帽"
+        "NEUTRAL": "学者のぼうし",
+        "ja-JP": "学者のぼうし"
       },
       "Description": {
-        "NEUTRAL": "学者に好まれる端正な帽子。知性を印象づける。",
-        "ja-JP": "学者に好まれる端正な帽子。知性を印象づける。"
+        "NEUTRAL": "学者のぼうし。軽くて扱いやすい頭装備。",
+        "ja-JP": "学者のぼうし。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 4,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 10
       }
@@ -6829,18 +6829,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "羽飾りベレー",
-        "ja-JP": "羽飾りベレー"
+        "NEUTRAL": "羽根ベレー",
+        "ja-JP": "羽根ベレー"
       },
       "Description": {
-        "NEUTRAL": "ベレーに羽根を添えた洒落帽。芸術肌の装いに合う。",
-        "ja-JP": "ベレーに羽根を添えた洒落帽。芸術肌の装いに合う。"
+        "NEUTRAL": "羽根ベレー。軽くて扱いやすい頭装備。",
+        "ja-JP": "羽根ベレー。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 4,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 11
       }
@@ -6854,18 +6854,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "荒野のガンマンハット",
-        "ja-JP": "荒野のガンマンハット"
+        "NEUTRAL": "荒野のぼうし",
+        "ja-JP": "荒野のぼうし"
       },
       "Description": {
-        "NEUTRAL": "広いつばで日差しを切る決闘者の帽子。",
-        "ja-JP": "広いつばで日差しを切る決闘者の帽子。"
+        "NEUTRAL": "荒野のぼうし。軽くて扱いやすい頭装備。",
+        "ja-JP": "荒野のぼうし。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 5,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 12
       }
@@ -6879,18 +6879,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "蛇遣いのターバン",
-        "ja-JP": "蛇遣いのターバン"
+        "NEUTRAL": "蛇のターバン",
+        "ja-JP": "蛇のターバン"
       },
       "Description": {
-        "NEUTRAL": "蛇使いが巻く異国風の頭布。妖しい雰囲気を纏う。",
-        "ja-JP": "蛇使いが巻く異国風の頭布。妖しい雰囲気を纏う。"
+        "NEUTRAL": "蛇のターバン。軽くて扱いやすい頭装備。",
+        "ja-JP": "蛇のターバン。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 5,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 13
       }
@@ -6904,18 +6904,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "宵魔女の三角帽",
-        "ja-JP": "宵魔女の三角帽"
+        "NEUTRAL": "魔女のぼうし",
+        "ja-JP": "魔女のぼうし"
       },
       "Description": {
-        "NEUTRAL": "鋭く尖った先端が印象的な魔女帽。",
-        "ja-JP": "鋭く尖った先端が印象的な魔女帽。"
+        "NEUTRAL": "魔女のぼうし。軽くて扱いやすい頭装備。",
+        "ja-JP": "魔女のぼうし。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 5,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 14
       }
@@ -6929,18 +6929,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "孤峰のコーンハット",
-        "ja-JP": "孤峰のコーンハット"
+        "NEUTRAL": "とんがり帽",
+        "ja-JP": "とんがり帽"
       },
       "Description": {
-        "NEUTRAL": "富士山のような単峰シルエットを持つ帽子。",
-        "ja-JP": "富士山のような単峰シルエットを持つ帽子。"
+        "NEUTRAL": "とんがり帽。軽くて扱いやすい頭装備。",
+        "ja-JP": "とんがり帽。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 5,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 15
       }
@@ -6954,18 +6954,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "紋入り見習い海賊帽",
-        "ja-JP": "紋入り見習い海賊帽"
+        "NEUTRAL": "紋章のぼうし",
+        "ja-JP": "紋章のぼうし"
       },
       "Description": {
-        "NEUTRAL": "柄入りの布地で仕立てた下っ端向け海賊帽。",
-        "ja-JP": "柄入りの布地で仕立てた下っ端向け海賊帽。"
+        "NEUTRAL": "紋章のぼうし。軽くて扱いやすい頭装備。",
+        "ja-JP": "紋章のぼうし。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 5,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 16
       }
@@ -6979,18 +6979,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "旅人のマフラーフード",
-        "ja-JP": "旅人のマフラーフード"
+        "NEUTRAL": "旅人フード",
+        "ja-JP": "旅人フード"
       },
       "Description": {
-        "NEUTRAL": "首元を守る巻布一体型。寒風対策に優れる。",
-        "ja-JP": "首元を守る巻布一体型。寒風対策に優れる。"
+        "NEUTRAL": "旅人フード。軽くて扱いやすい頭装備。",
+        "ja-JP": "旅人フード。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 5,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 17
       }
@@ -7004,18 +7004,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "紋入り見習い海賊帽・弐",
-        "ja-JP": "紋入り見習い海賊帽・弐"
+        "NEUTRAL": "海賊帽子",
+        "ja-JP": "海賊帽子"
       },
       "Description": {
-        "NEUTRAL": "柄の配置を変えた派生型の海賊帽。",
-        "ja-JP": "柄の配置を変えた派生型の海賊帽。"
+        "NEUTRAL": "海賊帽子。軽くて扱いやすい頭装備。",
+        "ja-JP": "海賊帽子。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 6,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 18
       }
@@ -7029,18 +7029,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "隻眼狼のフード",
-        "ja-JP": "隻眼狼のフード"
+        "NEUTRAL": "隠密フード",
+        "ja-JP": "隠密フード"
       },
       "Description": {
-        "NEUTRAL": "目元だけを見せる戦闘向けフード。威圧感が高い。",
-        "ja-JP": "目元だけを見せる戦闘向けフード。威圧感が高い。"
+        "NEUTRAL": "隠密フード。軽くて扱いやすい頭装備。",
+        "ja-JP": "隠密フード。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 6,
+        "Defense": 3,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 19
       }
@@ -7054,18 +7054,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "船長のキャプテンハット",
-        "ja-JP": "船長のキャプテンハット"
+        "NEUTRAL": "船長のぼうし",
+        "ja-JP": "船長のぼうし"
       },
       "Description": {
-        "NEUTRAL": "海賊団を率いる者の証。重厚な存在感を放つ。",
-        "ja-JP": "海賊団を率いる者の証。重厚な存在感を放つ。"
+        "NEUTRAL": "船長のぼうし。軽くて扱いやすい頭装備。",
+        "ja-JP": "船長のぼうし。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 6,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 20
       }
@@ -7079,18 +7079,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "漆黒ベレー",
-        "ja-JP": "漆黒ベレー"
+        "NEUTRAL": "黒ベレー",
+        "ja-JP": "黒ベレー"
       },
       "Description": {
-        "NEUTRAL": "落ち着いた丸型シルエットの定番ベレー。",
-        "ja-JP": "落ち着いた丸型シルエットの定番ベレー。"
+        "NEUTRAL": "黒ベレー。軽くて扱いやすい頭装備。",
+        "ja-JP": "黒ベレー。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 6,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 21
       }
@@ -7104,18 +7104,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "羽飾りガンマンハット",
-        "ja-JP": "羽飾りガンマンハット"
+        "NEUTRAL": "羽根帽子",
+        "ja-JP": "羽根帽子"
       },
       "Description": {
-        "NEUTRAL": "羽根を挿した決闘帽。華やかさと荒野感を両立。",
-        "ja-JP": "羽根を挿した決闘帽。華やかさと荒野感を両立。"
+        "NEUTRAL": "羽根帽子。軽くて扱いやすい頭装備。",
+        "ja-JP": "羽根帽子。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 6,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 22
       }
@@ -7129,18 +7129,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "シンドバッドターバン",
-        "ja-JP": "シンドバッドターバン"
+        "NEUTRAL": "砂海ターバン",
+        "ja-JP": "砂海ターバン"
       },
       "Description": {
-        "NEUTRAL": "冒険譚の船乗りを思わせる優雅な巻布帽。",
-        "ja-JP": "冒険譚の船乗りを思わせる優雅な巻布帽。"
+        "NEUTRAL": "砂海ターバン。軽くて扱いやすい頭装備。",
+        "ja-JP": "砂海ターバン。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 6,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 23
       }
@@ -7154,18 +7154,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "クラッシュド魔女帽",
-        "ja-JP": "クラッシュド魔女帽"
+        "NEUTRAL": "つぶれ帽",
+        "ja-JP": "つぶれ帽"
       },
       "Description": {
-        "NEUTRAL": "先端を潰したラフな魔女帽。使い込まれた風合い。",
-        "ja-JP": "先端を潰したラフな魔女帽。使い込まれた風合い。"
+        "NEUTRAL": "つぶれ帽。軽くて扱いやすい頭装備。",
+        "ja-JP": "つぶれ帽。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 7,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 24
       }
@@ -7179,18 +7179,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "砂海のターバン・結",
-        "ja-JP": "砂海のターバン・結"
+        "NEUTRAL": "結びターバン",
+        "ja-JP": "結びターバン"
       },
       "Description": {
-        "NEUTRAL": "層を増やして巻いた重ね仕様のターバン。",
-        "ja-JP": "層を増やして巻いた重ね仕様のターバン。"
+        "NEUTRAL": "結びターバン。軽くて扱いやすい頭装備。",
+        "ja-JP": "結びターバン。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 7,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 25
       }
@@ -7204,18 +7204,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "骸骨印の見習い海賊帽",
-        "ja-JP": "骸骨印の見習い海賊帽"
+        "NEUTRAL": "どくろ帽",
+        "ja-JP": "どくろ帽"
       },
       "Description": {
-        "NEUTRAL": "ドクロマーク入りの下っ端海賊帽。気合い重視。",
-        "ja-JP": "ドクロマーク入りの下っ端海賊帽。気合い重視。"
+        "NEUTRAL": "どくろ帽。軽くて扱いやすい頭装備。",
+        "ja-JP": "どくろ帽。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 7,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 26
       }
@@ -7229,18 +7229,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "影忍マスク",
-        "ja-JP": "影忍マスク"
+        "NEUTRAL": "忍びマスク",
+        "ja-JP": "忍びマスク"
       },
       "Description": {
-        "NEUTRAL": "目元以外を覆う忍者装束のフェイスマスク。",
-        "ja-JP": "目元以外を覆う忍者装束のフェイスマスク。"
+        "NEUTRAL": "忍びマスク。軽くて扱いやすい頭装備。",
+        "ja-JP": "忍びマスク。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 7,
+        "Defense": 3,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 27
       }
@@ -7254,18 +7254,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "骸骨印の見習い海賊帽・弐",
-        "ja-JP": "骸骨印の見習い海賊帽・弐"
+        "NEUTRAL": "海賊三角帽",
+        "ja-JP": "海賊三角帽"
       },
       "Description": {
-        "NEUTRAL": "ドクロ意匠を強調した海賊帽の派生型。",
-        "ja-JP": "ドクロ意匠を強調した海賊帽の派生型。"
+        "NEUTRAL": "海賊三角帽。軽くて扱いやすい頭装備。",
+        "ja-JP": "海賊三角帽。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 7,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 28
       }
@@ -7283,14 +7283,14 @@
         "ja-JP": "半面フード"
       },
       "Description": {
-        "NEUTRAL": "顔だけを抜いた軽装フード。視界と隠密を両立。",
-        "ja-JP": "顔だけを抜いた軽装フード。視界と隠密を両立。"
+        "NEUTRAL": "半面フード。軽くて扱いやすい頭装備。",
+        "ja-JP": "半面フード。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 7,
+        "Defense": 3,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 29
       }
@@ -7304,18 +7304,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "羽飾り学帽",
-        "ja-JP": "羽飾り学帽"
+        "NEUTRAL": "羽根学帽",
+        "ja-JP": "羽根学帽"
       },
       "Description": {
-        "NEUTRAL": "学帽に羽根飾りを加えた儀礼用スタイル。",
-        "ja-JP": "学帽に羽根飾りを加えた儀礼用スタイル。"
+        "NEUTRAL": "羽根学帽。軽くて扱いやすい頭装備。",
+        "ja-JP": "羽根学帽。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 8,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 30
       }
@@ -7329,18 +7329,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "旗艦提督の制帽",
-        "ja-JP": "旗艦提督の制帽"
+        "NEUTRAL": "提督のぼうし",
+        "ja-JP": "提督のぼうし"
       },
       "Description": {
-        "NEUTRAL": "提督クラスの権威を示す制帽。端正で力強い。",
-        "ja-JP": "提督クラスの権威を示す制帽。端正で力強い。"
+        "NEUTRAL": "提督のぼうし。軽くて扱いやすい頭装備。",
+        "ja-JP": "提督のぼうし。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 8,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 31
       }
@@ -7354,18 +7354,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "サイドアップハット",
-        "ja-JP": "サイドアップハット"
+        "NEUTRAL": "横かぶり帽",
+        "ja-JP": "横かぶり帽"
       },
       "Description": {
-        "NEUTRAL": "両脇を跳ね上げた海兵風ハット。",
-        "ja-JP": "両脇を跳ね上げた海兵風ハット。"
+        "NEUTRAL": "横かぶり帽。軽くて扱いやすい頭装備。",
+        "ja-JP": "横かぶり帽。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 8,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 32
       }
@@ -7379,18 +7379,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "平頂ソフトキャップ",
-        "ja-JP": "平頂ソフトキャップ"
+        "NEUTRAL": "平たい帽子",
+        "ja-JP": "平たい帽子"
       },
       "Description": {
-        "NEUTRAL": "坊主頭のように滑らかな平たい帽子。",
-        "ja-JP": "坊主頭のように滑らかな平たい帽子。"
+        "NEUTRAL": "平たい帽子。軽くて扱いやすい頭装備。",
+        "ja-JP": "平たい帽子。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 8,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 33
       }
@@ -7404,18 +7404,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ベルト付きクラッシュド魔女帽",
-        "ja-JP": "ベルト付きクラッシュド魔女帽"
+        "NEUTRAL": "帯の魔女帽",
+        "ja-JP": "帯の魔女帽"
       },
       "Description": {
-        "NEUTRAL": "潰れ先端にベルト装飾を足した魔女帽。",
-        "ja-JP": "潰れ先端にベルト装飾を足した魔女帽。"
+        "NEUTRAL": "帯の魔女帽。軽くて扱いやすい頭装備。",
+        "ja-JP": "帯の魔女帽。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 8,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 34
       }
@@ -7429,18 +7429,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ミイラの覗き包帯",
-        "ja-JP": "ミイラの覗き包帯"
+        "NEUTRAL": "包帯フード",
+        "ja-JP": "包帯フード"
       },
       "Description": {
-        "NEUTRAL": "包帯を重ね巻きし、目元だけを覗かせる。",
-        "ja-JP": "包帯を重ね巻きし、目元だけを覗かせる。"
+        "NEUTRAL": "包帯フード。軽くて扱いやすい頭装備。",
+        "ja-JP": "包帯フード。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 8,
+        "Defense": 3,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 35
       }
@@ -7454,18 +7454,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "戦陣ハチマキ",
-        "ja-JP": "戦陣ハチマキ"
+        "NEUTRAL": "戦士のハチマキ",
+        "ja-JP": "戦士のハチマキ"
       },
       "Description": {
-        "NEUTRAL": "額で結んで気合いを入れる定番の鉢巻。",
-        "ja-JP": "額で結んで気合いを入れる定番の鉢巻。"
+        "NEUTRAL": "戦士のハチマキ。軽くて扱いやすい頭装備。",
+        "ja-JP": "戦士のハチマキ。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 9,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 36
       }
@@ -7479,18 +7479,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "放浪者のロングタオル",
-        "ja-JP": "放浪者のロングタオル"
+        "NEUTRAL": "旅のタオル",
+        "ja-JP": "旅のタオル"
       },
       "Description": {
-        "NEUTRAL": "長髪のように垂れる巻きタオル。旅装に映える。",
-        "ja-JP": "長髪のように垂れる巻きタオル。旅装に映える。"
+        "NEUTRAL": "旅のタオル。軽くて扱いやすい頭装備。",
+        "ja-JP": "旅のタオル。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 9,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 37
       }
@@ -7504,18 +7504,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "戦陣ハチマキ・弐",
-        "ja-JP": "戦陣ハチマキ・弐"
+        "NEUTRAL": "赤のハチマキ",
+        "ja-JP": "赤のハチマキ"
       },
       "Description": {
-        "NEUTRAL": "結び位置を変えた派生型の鉢巻。",
-        "ja-JP": "結び位置を変えた派生型の鉢巻。"
+        "NEUTRAL": "赤のハチマキ。軽くて扱いやすい頭装備。",
+        "ja-JP": "赤のハチマキ。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 9,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 38
       }
@@ -7529,18 +7529,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "口当て付き潜伏フード",
-        "ja-JP": "口当て付き潜伏フード"
+        "NEUTRAL": "口覆いフード",
+        "ja-JP": "口覆いフード"
       },
       "Description": {
-        "NEUTRAL": "口元ガードを備えた潜伏用フード。防塵性が高い。",
-        "ja-JP": "口元ガードを備えた潜伏用フード。防塵性が高い。"
+        "NEUTRAL": "口覆いフード。軽くて扱いやすい頭装備。",
+        "ja-JP": "口覆いフード。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 9,
+        "Defense": 3,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 39
       }
@@ -7554,18 +7554,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "森番のハンターハット",
-        "ja-JP": "森番のハンターハット"
+        "NEUTRAL": "森人のぼうし",
+        "ja-JP": "森人のぼうし"
       },
       "Description": {
-        "NEUTRAL": "羽根なしの狩人帽。実用性重視の作り。",
-        "ja-JP": "羽根なしの狩人帽。実用性重視の作り。"
+        "NEUTRAL": "森人のぼうし。軽くて扱いやすい頭装備。",
+        "ja-JP": "森人のぼうし。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 9,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 40
       }
@@ -7579,18 +7579,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鉄椀キャップ",
-        "ja-JP": "鉄椀キャップ"
+        "NEUTRAL": "鉄のキャップ",
+        "ja-JP": "鉄のキャップ"
       },
       "Description": {
-        "NEUTRAL": "お椀を伏せたような丸い外観のユニーク帽。",
-        "ja-JP": "お椀を伏せたような丸い外観のユニーク帽。"
+        "NEUTRAL": "鉄のキャップ。軽くて扱いやすい頭装備。",
+        "ja-JP": "鉄のキャップ。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 9,
+        "Defense": 4,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 41
       }
@@ -7604,18 +7604,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "羽飾りサイドアップハット",
-        "ja-JP": "羽飾りサイドアップハット"
+        "NEUTRAL": "飾り帽子",
+        "ja-JP": "飾り帽子"
       },
       "Description": {
-        "NEUTRAL": "跳ね上げハットに羽根を添えた華装モデル。",
-        "ja-JP": "跳ね上げハットに羽根を添えた華装モデル。"
+        "NEUTRAL": "飾り帽子。軽くて扱いやすい頭装備。",
+        "ja-JP": "飾り帽子。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 10,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 42
       }
@@ -7629,18 +7629,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "妖精のキャップ",
-        "ja-JP": "妖精のキャップ"
+        "NEUTRAL": "妖精の帽子",
+        "ja-JP": "妖精の帽子"
       },
       "Description": {
-        "NEUTRAL": "小さく尖ったシルエットが愛らしい妖精帽。",
-        "ja-JP": "小さく尖ったシルエットが愛らしい妖精帽。"
+        "NEUTRAL": "妖精の帽子。軽くて扱いやすい頭装備。",
+        "ja-JP": "妖精の帽子。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 10,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 43
       }
@@ -7654,18 +7654,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ベルト付きウィザードハット",
-        "ja-JP": "ベルト付きウィザードハット"
+        "NEUTRAL": "魔導士の帽子",
+        "ja-JP": "魔導士の帽子"
       },
       "Description": {
-        "NEUTRAL": "帽体をベルトで締めた魔法使いの標準装備。",
-        "ja-JP": "帽体をベルトで締めた魔法使いの標準装備。"
+        "NEUTRAL": "魔導士の帽子。軽くて扱いやすい頭装備。",
+        "ja-JP": "魔導士の帽子。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 10,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 44
       }
@@ -7679,18 +7679,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ミイラの覗き包帯・極",
-        "ja-JP": "ミイラの覗き包帯・極"
+        "NEUTRAL": "包帯マスク",
+        "ja-JP": "包帯マスク"
       },
       "Description": {
-        "NEUTRAL": "巻数を増やし、目元だけ残した重包帯仕様。",
-        "ja-JP": "巻数を増やし、目元だけ残した重包帯仕様。"
+        "NEUTRAL": "包帯マスク。軽くて扱いやすい頭装備。",
+        "ja-JP": "包帯マスク。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 10,
+        "Defense": 3,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 45
       }
@@ -7704,18 +7704,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "結び鉢巻",
-        "ja-JP": "結び鉢巻"
+        "NEUTRAL": "結びハチマキ",
+        "ja-JP": "結びハチマキ"
       },
       "Description": {
-        "NEUTRAL": "後ろで力強く結ぶクラシックな鉢巻。",
-        "ja-JP": "後ろで力強く結ぶクラシックな鉢巻。"
+        "NEUTRAL": "結びハチマキ。軽くて扱いやすい頭装備。",
+        "ja-JP": "結びハチマキ。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 10,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 46
       }
@@ -7729,18 +7729,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "全巻きミイラターバン",
-        "ja-JP": "全巻きミイラターバン"
+        "NEUTRAL": "ミイラフード",
+        "ja-JP": "ミイラフード"
       },
       "Description": {
-        "NEUTRAL": "頭部全体を包帯で覆うミイラ風ヘッドラップ。",
-        "ja-JP": "頭部全体を包帯で覆うミイラ風ヘッドラップ。"
+        "NEUTRAL": "ミイラフード。軽くて扱いやすい頭装備。",
+        "ja-JP": "ミイラフード。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 10,
+        "Defense": 3,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 47
       }
@@ -7754,18 +7754,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "雪原防寒フード",
-        "ja-JP": "雪原防寒フード"
+        "NEUTRAL": "防寒フード",
+        "ja-JP": "防寒フード"
       },
       "Description": {
-        "NEUTRAL": "極寒地向けの防寒頭巾。顔面だけを露出して保温する。",
-        "ja-JP": "極寒地向けの防寒頭巾。顔面だけを露出して保温する。"
+        "NEUTRAL": "防寒フード。軽くて扱いやすい頭装備。",
+        "ja-JP": "防寒フード。軽くて扱いやすい頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 11,
+        "Defense": 4,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 48
       }
@@ -7779,18 +7779,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "むぎわらぼうし",
-        "ja-JP": "むぎわらぼうし"
+        "NEUTRAL": "むぎわら帽",
+        "ja-JP": "むぎわら帽"
       },
       "Description": {
-        "NEUTRAL": "海賊の帽子といったらこれ。",
-        "ja-JP": "海賊の帽子といったらこれ。"
+        "NEUTRAL": "むぎわら帽。草を編んで作られた軽い頭装備。",
+        "ja-JP": "むぎわら帽。草を編んで作られた軽い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 3,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_straw.png",
         "sprite_index": 0
       }
@@ -7804,18 +7804,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "とんがり麦わら帽子",
-        "ja-JP": "とんがり麦わら帽子"
+        "NEUTRAL": "とんがり笠",
+        "ja-JP": "とんがり笠"
       },
       "Description": {
-        "NEUTRAL": "てっぺんが尖った、少し変わった形の麦わら帽子。",
-        "ja-JP": "てっぺんが尖った、少し変わった形の麦わら帽子。"
+        "NEUTRAL": "とんがり笠。草を編んで作られた軽い頭装備。",
+        "ja-JP": "とんがり笠。草を編んで作られた軽い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 4,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_straw.png",
         "sprite_index": 1
       }
@@ -7829,18 +7829,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "まんじゅう笠",
-        "ja-JP": "まんじゅう笠"
+        "NEUTRAL": "旅人の笠",
+        "ja-JP": "旅人の笠"
       },
       "Description": {
-        "NEUTRAL": "日よけや雨具として仕事用に使用される。",
-        "ja-JP": "日よけや雨具として仕事用に使用される。"
+        "NEUTRAL": "旅人の笠。草を編んで作られた軽い頭装備。",
+        "ja-JP": "旅人の笠。草を編んで作られた軽い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 5,
+        "Defense": 1,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_straw.png",
         "sprite_index": 2
       }
@@ -7854,18 +7854,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "編笠",
-        "ja-JP": "編笠"
+        "NEUTRAL": "編み笠",
+        "ja-JP": "編み笠"
       },
       "Description": {
-        "NEUTRAL": "おじいさんが作った笠。",
-        "ja-JP": "おじいさんが作った笠。"
+        "NEUTRAL": "編み笠。草を編んで作られた軽い頭装備。",
+        "ja-JP": "編み笠。草を編んで作られた軽い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 6,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_straw.png",
         "sprite_index": 3
       }
@@ -7883,14 +7883,14 @@
         "ja-JP": "虚無僧笠"
       },
       "Description": {
-        "NEUTRAL": "尺八の修行や隠密の変装用。",
-        "ja-JP": "尺八の修行や隠密の変装用。"
+        "NEUTRAL": "虚無僧笠。草を編んで作られた軽い頭装備。",
+        "ja-JP": "虚無僧笠。草を編んで作られた軽い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 8,
+        "Defense": 2,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_straw.png",
         "sprite_index": 4
       }
@@ -7904,18 +7904,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "竜骨のマスク",
-        "ja-JP": "竜骨のマスク"
+        "NEUTRAL": "角獣の面",
+        "ja-JP": "角獣の面"
       },
       "Description": {
-        "NEUTRAL": "竜骨のマスク。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "竜骨のマスク。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "角獣の面。革で仕立てた頭装備。",
+        "ja-JP": "角獣の面。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 12,
+        "Defense": 11,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 0
       }
@@ -7929,18 +7929,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "牡羊骨のフード",
-        "ja-JP": "牡羊骨のフード"
+        "NEUTRAL": "牡羊の面",
+        "ja-JP": "牡羊の面"
       },
       "Description": {
-        "NEUTRAL": "牡羊骨のフード。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "牡羊骨のフード。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "牡羊の面。革で仕立てた頭装備。",
+        "ja-JP": "牡羊の面。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 13,
+        "Defense": 10,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 1
       }
@@ -7954,18 +7954,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "髑髏のフード",
-        "ja-JP": "髑髏のフード"
+        "NEUTRAL": "どくろ面",
+        "ja-JP": "どくろ面"
       },
       "Description": {
-        "NEUTRAL": "髑髏のフード。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "髑髏のフード。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "どくろ面。革で仕立てた頭装備。",
+        "ja-JP": "どくろ面。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 14,
+        "Defense": 9,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 2
       }
@@ -7979,18 +7979,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "角髑髏のフード",
-        "ja-JP": "角髑髏のフード"
+        "NEUTRAL": "角どくろ面",
+        "ja-JP": "角どくろ面"
       },
       "Description": {
-        "NEUTRAL": "角髑髏のフード。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "角髑髏のフード。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "角どくろ面。革で仕立てた頭装備。",
+        "ja-JP": "角どくろ面。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 15,
+        "Defense": 11,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 3
       }
@@ -8004,18 +8004,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鹿骨のフード",
-        "ja-JP": "鹿骨のフード"
+        "NEUTRAL": "鹿角の面",
+        "ja-JP": "鹿角の面"
       },
       "Description": {
-        "NEUTRAL": "鹿骨のフード。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "鹿骨のフード。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "鹿角の面。革で仕立てた頭装備。",
+        "ja-JP": "鹿角の面。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 16,
+        "Defense": 12,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 4
       }
@@ -8029,18 +8029,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "羽飾りペストマスク",
-        "ja-JP": "羽飾りペストマスク"
+        "NEUTRAL": "鳥面マスク",
+        "ja-JP": "鳥面マスク"
       },
       "Description": {
-        "NEUTRAL": "羽飾りペストマスク。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "羽飾りペストマスク。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "鳥面マスク。革で仕立てた頭装備。",
+        "ja-JP": "鳥面マスク。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 17,
+        "Defense": 6,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 5
       }
@@ -8054,18 +8054,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "革面のフード",
-        "ja-JP": "革面のフード"
+        "NEUTRAL": "革のフード",
+        "ja-JP": "革のフード"
       },
       "Description": {
-        "NEUTRAL": "革面のフード。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "革面のフード。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "革のフード。革で仕立てた頭装備。",
+        "ja-JP": "革のフード。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 18,
+        "Defense": 7,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 6
       }
@@ -8079,18 +8079,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "牙飾りの革面",
-        "ja-JP": "牙飾りの革面"
+        "NEUTRAL": "牙のマスク",
+        "ja-JP": "牙のマスク"
       },
       "Description": {
-        "NEUTRAL": "牙飾りの革面。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "牙飾りの革面。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "牙のマスク。革で仕立てた頭装備。",
+        "ja-JP": "牙のマスク。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 19,
+        "Defense": 8,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 7
       }
@@ -8104,18 +8104,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "革のソフトキャップ",
-        "ja-JP": "革のソフトキャップ"
+        "NEUTRAL": "革のぼうし",
+        "ja-JP": "革のぼうし"
       },
       "Description": {
-        "NEUTRAL": "革のソフトキャップ。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "革のソフトキャップ。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "革のぼうし。革で仕立てた頭装備。",
+        "ja-JP": "革のぼうし。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 20,
+        "Defense": 4,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 8
       }
@@ -8129,18 +8129,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "革のワークキャップ",
-        "ja-JP": "革のワークキャップ"
+        "NEUTRAL": "革のキャップ",
+        "ja-JP": "革のキャップ"
       },
       "Description": {
-        "NEUTRAL": "革のワークキャップ。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "革のワークキャップ。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "革のキャップ。革で仕立てた頭装備。",
+        "ja-JP": "革のキャップ。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 21,
+        "Defense": 4,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 9
       }
@@ -8154,18 +8154,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "革のフルフェイス",
-        "ja-JP": "革のフルフェイス"
+        "NEUTRAL": "革の仮面",
+        "ja-JP": "革の仮面"
       },
       "Description": {
-        "NEUTRAL": "革のフルフェイス。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "革のフルフェイス。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "革の仮面。革で仕立てた頭装備。",
+        "ja-JP": "革の仮面。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 22,
+        "Defense": 8,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 10
       }
@@ -8179,18 +8179,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "片覆いの革兜",
-        "ja-JP": "片覆いの革兜"
+        "NEUTRAL": "革のかぶと",
+        "ja-JP": "革のかぶと"
       },
       "Description": {
-        "NEUTRAL": "片覆いの革兜。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "片覆いの革兜。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "革のかぶと。革で仕立てた頭装備。",
+        "ja-JP": "革のかぶと。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 24,
+        "Defense": 9,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 11
       }
@@ -8204,18 +8204,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "革のオープンヘルム",
-        "ja-JP": "革のオープンヘルム"
+        "NEUTRAL": "革のヘルム",
+        "ja-JP": "革のヘルム"
       },
       "Description": {
-        "NEUTRAL": "革のオープンヘルム。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "革のオープンヘルム。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "革のヘルム。革で仕立てた頭装備。",
+        "ja-JP": "革のヘルム。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 25,
+        "Defense": 8,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 12
       }
@@ -8229,18 +8229,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "二本角の革兜",
-        "ja-JP": "二本角の革兜"
+        "NEUTRAL": "角のかぶと",
+        "ja-JP": "角のかぶと"
       },
       "Description": {
-        "NEUTRAL": "二本角の革兜。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "二本角の革兜。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "角のかぶと。革で仕立てた頭装備。",
+        "ja-JP": "角のかぶと。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 26,
+        "Defense": 10,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 13
       }
@@ -8258,14 +8258,14 @@
         "ja-JP": "革の三角帽"
       },
       "Description": {
-        "NEUTRAL": "革の三角帽。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "革の三角帽。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "革の三角帽。革で仕立てた頭装備。",
+        "ja-JP": "革の三角帽。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 28,
+        "Defense": 4,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 14
       }
@@ -8279,18 +8279,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "革のとんがり帽",
-        "ja-JP": "革のとんがり帽"
+        "NEUTRAL": "革の魔女帽",
+        "ja-JP": "革の魔女帽"
       },
       "Description": {
-        "NEUTRAL": "革のとんがり帽。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "革のとんがり帽。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "革の魔女帽。革で仕立てた頭装備。",
+        "ja-JP": "革の魔女帽。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 30,
+        "Defense": 3,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 15
       }
@@ -8304,18 +8304,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "革の三角海賊帽",
-        "ja-JP": "革の三角海賊帽"
+        "NEUTRAL": "海賊の革帽",
+        "ja-JP": "海賊の革帽"
       },
       "Description": {
-        "NEUTRAL": "革の三角海賊帽。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "革の三角海賊帽。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "海賊の革帽。革で仕立てた頭装備。",
+        "ja-JP": "海賊の革帽。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 32,
+        "Defense": 5,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 16
       }
@@ -8329,18 +8329,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "羽飾りの革帽",
-        "ja-JP": "羽飾りの革帽"
+        "NEUTRAL": "羽根の革帽",
+        "ja-JP": "羽根の革帽"
       },
       "Description": {
-        "NEUTRAL": "羽飾りの革帽。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "羽飾りの革帽。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "羽根の革帽。革で仕立てた頭装備。",
+        "ja-JP": "羽根の革帽。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 34,
+        "Defense": 4,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 17
       }
@@ -8354,18 +8354,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "革の額当てフード",
-        "ja-JP": "革の額当てフード"
+        "NEUTRAL": "革の額当て",
+        "ja-JP": "革の額当て"
       },
       "Description": {
-        "NEUTRAL": "革の額当てフード。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "革の額当てフード。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "革の額当て。革で仕立てた頭装備。",
+        "ja-JP": "革の額当て。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 35,
+        "Defense": 7,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 18
       }
@@ -8379,18 +8379,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鋲打ち革フード",
-        "ja-JP": "鋲打ち革フード"
+        "NEUTRAL": "鋲のフード",
+        "ja-JP": "鋲のフード"
       },
       "Description": {
-        "NEUTRAL": "鋲打ち革フード。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "鋲打ち革フード。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "鋲のフード。革で仕立てた頭装備。",
+        "ja-JP": "鋲のフード。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 36,
+        "Defense": 8,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 19
       }
@@ -8408,14 +8408,14 @@
         "ja-JP": "革の旅帽"
       },
       "Description": {
-        "NEUTRAL": "革の旅帽。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "革の旅帽。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "革の旅帽。革で仕立てた頭装備。",
+        "ja-JP": "革の旅帽。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 38,
+        "Defense": 4,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 20
       }
@@ -8429,18 +8429,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "羽飾りの旅帽",
-        "ja-JP": "羽飾りの旅帽"
+        "NEUTRAL": "羽根の旅帽",
+        "ja-JP": "羽根の旅帽"
       },
       "Description": {
-        "NEUTRAL": "羽飾りの旅帽。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "羽飾りの旅帽。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "羽根の旅帽。革で仕立てた頭装備。",
+        "ja-JP": "羽根の旅帽。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 40,
+        "Defense": 4,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 21
       }
@@ -8454,18 +8454,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "革の魔女帽",
-        "ja-JP": "革の魔女帽"
+        "NEUTRAL": "革の魔導帽",
+        "ja-JP": "革の魔導帽"
       },
       "Description": {
-        "NEUTRAL": "革の魔女帽。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "革の魔女帽。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "革の魔導帽。革で仕立てた頭装備。",
+        "ja-JP": "革の魔導帽。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 42,
+        "Defense": 5,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 22
       }
@@ -8479,18 +8479,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "帯締めの革魔女帽",
-        "ja-JP": "帯締めの革魔女帽"
+        "NEUTRAL": "帯の魔導帽",
+        "ja-JP": "帯の魔導帽"
       },
       "Description": {
-        "NEUTRAL": "帯締めの革魔女帽。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "帯締めの革魔女帽。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "帯の魔導帽。革で仕立てた頭装備。",
+        "ja-JP": "帯の魔導帽。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 44,
+        "Defense": 5,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 23
       }
@@ -8504,18 +8504,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "大角の革兜",
-        "ja-JP": "大角の革兜"
+        "NEUTRAL": "大角のかぶと",
+        "ja-JP": "大角のかぶと"
       },
       "Description": {
-        "NEUTRAL": "大角の革兜。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "大角の革兜。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "大角のかぶと。革で仕立てた頭装備。",
+        "ja-JP": "大角のかぶと。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 45,
+        "Defense": 13,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 24
       }
@@ -8529,18 +8529,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "片覆いの革フード",
-        "ja-JP": "片覆いの革フード"
+        "NEUTRAL": "片面フード",
+        "ja-JP": "片面フード"
       },
       "Description": {
-        "NEUTRAL": "片覆いの革フード。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "片覆いの革フード。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "片面フード。革で仕立てた頭装備。",
+        "ja-JP": "片面フード。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 46,
+        "Defense": 7,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 25
       }
@@ -8554,18 +8554,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "革の目深フード",
-        "ja-JP": "革の目深フード"
+        "NEUTRAL": "目深フード",
+        "ja-JP": "目深フード"
       },
       "Description": {
-        "NEUTRAL": "革の目深フード。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "革の目深フード。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "目深フード。革で仕立てた頭装備。",
+        "ja-JP": "目深フード。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 48,
+        "Defense": 6,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 26
       }
@@ -8583,14 +8583,14 @@
         "ja-JP": "革の丸帽"
       },
       "Description": {
-        "NEUTRAL": "革の丸帽。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "革の丸帽。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "革の丸帽。革で仕立てた頭装備。",
+        "ja-JP": "革の丸帽。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 50,
+        "Defense": 4,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 27
       }
@@ -8604,18 +8604,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鋲打ち革帽",
-        "ja-JP": "鋲打ち革帽"
+        "NEUTRAL": "鋲の革帽",
+        "ja-JP": "鋲の革帽"
       },
       "Description": {
-        "NEUTRAL": "鋲打ち革帽。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "鋲打ち革帽。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "鋲の革帽。革で仕立てた頭装備。",
+        "ja-JP": "鋲の革帽。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 52,
+        "Defense": 6,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 28
       }
@@ -8629,18 +8629,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "角飾りの革帽",
-        "ja-JP": "角飾りの革帽"
+        "NEUTRAL": "角の革帽",
+        "ja-JP": "角の革帽"
       },
       "Description": {
-        "NEUTRAL": "角飾りの革帽。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "角飾りの革帽。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "角の革帽。革で仕立てた頭装備。",
+        "ja-JP": "角の革帽。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 54,
+        "Defense": 6,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 29
       }
@@ -8654,18 +8654,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鋲打ち革兜",
-        "ja-JP": "鋲打ち革兜"
+        "NEUTRAL": "鋲のかぶと",
+        "ja-JP": "鋲のかぶと"
       },
       "Description": {
-        "NEUTRAL": "鋲打ち革兜。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "鋲打ち革兜。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "鋲のかぶと。革で仕立てた頭装備。",
+        "ja-JP": "鋲のかぶと。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 55,
+        "Defense": 10,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 30
       }
@@ -8679,18 +8679,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "厚革の丸兜",
-        "ja-JP": "厚革の丸兜"
+        "NEUTRAL": "厚革のかぶと",
+        "ja-JP": "厚革のかぶと"
       },
       "Description": {
-        "NEUTRAL": "厚革の丸兜。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "厚革の丸兜。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "厚革のかぶと。革で仕立てた頭装備。",
+        "ja-JP": "厚革のかぶと。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 56,
+        "Defense": 10,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 31
       }
@@ -8704,18 +8704,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "革の耳当て帽",
-        "ja-JP": "革の耳当て帽"
+        "NEUTRAL": "革の耳当て",
+        "ja-JP": "革の耳当て"
       },
       "Description": {
-        "NEUTRAL": "革の耳当て帽。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "革の耳当て帽。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "革の耳当て。革で仕立てた頭装備。",
+        "ja-JP": "革の耳当て。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 58,
+        "Defense": 5,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 32
       }
@@ -8729,18 +8729,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "革のハンチング",
-        "ja-JP": "革のハンチング"
+        "NEUTRAL": "狩人の革帽",
+        "ja-JP": "狩人の革帽"
       },
       "Description": {
-        "NEUTRAL": "革のハンチング。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "革のハンチング。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "狩人の革帽。革で仕立てた頭装備。",
+        "ja-JP": "狩人の革帽。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 60,
+        "Defense": 4,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 33
       }
@@ -8754,18 +8754,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "革の羽飾り帽",
-        "ja-JP": "革の羽飾り帽"
+        "NEUTRAL": "白羽根帽",
+        "ja-JP": "白羽根帽"
       },
       "Description": {
-        "NEUTRAL": "革の羽飾り帽。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "革の羽飾り帽。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "白羽根帽。革で仕立てた頭装備。",
+        "ja-JP": "白羽根帽。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 62,
+        "Defense": 4,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 34
       }
@@ -8779,18 +8779,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "羽飾りハンチング",
-        "ja-JP": "羽飾りハンチング"
+        "NEUTRAL": "羽根ハンチング",
+        "ja-JP": "羽根ハンチング"
       },
       "Description": {
-        "NEUTRAL": "羽飾りハンチング。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "羽飾りハンチング。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "羽根ハンチング。革で仕立てた頭装備。",
+        "ja-JP": "羽根ハンチング。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 64,
+        "Defense": 4,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 35
       }
@@ -8804,18 +8804,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "白羽根の革帽",
-        "ja-JP": "白羽根の革帽"
+        "NEUTRAL": "白羽根の帽子",
+        "ja-JP": "白羽根の帽子"
       },
       "Description": {
-        "NEUTRAL": "白羽根の革帽。革と補強材を組み合わせた頭部装備。",
-        "ja-JP": "白羽根の革帽。革と補強材を組み合わせた頭部装備。"
+        "NEUTRAL": "白羽根の帽子。革で仕立てた頭装備。",
+        "ja-JP": "白羽根の帽子。革で仕立てた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 65,
+        "Defense": 4,
         "sprite_path": "./Sprites/wardrobe/leather/leather01.png",
         "sprite_index": 36
       }
@@ -8829,18 +8829,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "大角の革兜",
-        "ja-JP": "大角の革兜"
+        "NEUTRAL": "魔獣のかぶと",
+        "ja-JP": "魔獣のかぶと"
       },
       "Description": {
-        "NEUTRAL": "大角の革兜。厚い革と獣素材で仕立てた頭部装備。",
-        "ja-JP": "大角の革兜。厚い革と獣素材で仕立てた頭部装備。"
+        "NEUTRAL": "魔獣のかぶと。革と骨で作られた頭装備。",
+        "ja-JP": "魔獣のかぶと。革と骨で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 14,
+        "Defense": 13,
         "sprite_path": "./Sprites/wardrobe/leather/leather02.png",
         "sprite_index": 0
       }
@@ -8854,18 +8854,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鹿角の革冠",
-        "ja-JP": "鹿角の革冠"
+        "NEUTRAL": "鹿角の冠",
+        "ja-JP": "鹿角の冠"
       },
       "Description": {
-        "NEUTRAL": "鹿角の革冠。厚い革と獣素材で仕立てた頭部装備。",
-        "ja-JP": "鹿角の革冠。厚い革と獣素材で仕立てた頭部装備。"
+        "NEUTRAL": "鹿角の冠。革と骨で作られた頭装備。",
+        "ja-JP": "鹿角の冠。革と骨で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 16,
+        "Defense": 12,
         "sprite_path": "./Sprites/wardrobe/leather/leather02.png",
         "sprite_index": 1
       }
@@ -8879,18 +8879,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鹿骨の革面",
-        "ja-JP": "鹿骨の革面"
+        "NEUTRAL": "鹿骨の面",
+        "ja-JP": "鹿骨の面"
       },
       "Description": {
-        "NEUTRAL": "鹿骨の革面。厚い革と獣素材で仕立てた頭部装備。",
-        "ja-JP": "鹿骨の革面。厚い革と獣素材で仕立てた頭部装備。"
+        "NEUTRAL": "鹿骨の面。革と骨で作られた頭装備。",
+        "ja-JP": "鹿骨の面。革と骨で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 18,
+        "Defense": 11,
         "sprite_path": "./Sprites/wardrobe/leather/leather02.png",
         "sprite_index": 2
       }
@@ -8904,18 +8904,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "髑髏羽根の革兜",
-        "ja-JP": "髑髏羽根の革兜"
+        "NEUTRAL": "どくろのかぶと",
+        "ja-JP": "どくろのかぶと"
       },
       "Description": {
-        "NEUTRAL": "髑髏羽根の革兜。厚い革と獣素材で仕立てた頭部装備。",
-        "ja-JP": "髑髏羽根の革兜。厚い革と獣素材で仕立てた頭部装備。"
+        "NEUTRAL": "どくろのかぶと。革と骨で作られた頭装備。",
+        "ja-JP": "どくろのかぶと。革と骨で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 20,
+        "Defense": 14,
         "sprite_path": "./Sprites/wardrobe/leather/leather02.png",
         "sprite_index": 3
       }
@@ -8929,18 +8929,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "銀十字の騎士兜",
-        "ja-JP": "銀十字の騎士兜"
+        "NEUTRAL": "鉄のかぶと",
+        "ja-JP": "鉄のかぶと"
       },
       "Description": {
-        "NEUTRAL": "銀十字の騎士兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "銀十字の騎士兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "鉄のかぶと。金属で作られた頭装備。",
+        "ja-JP": "鉄のかぶと。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 15,
+        "Defense": 18,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 0
       }
@@ -8954,18 +8954,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "金十字の騎士兜",
-        "ja-JP": "金十字の騎士兜"
+        "NEUTRAL": "金のかぶと",
+        "ja-JP": "金のかぶと"
       },
       "Description": {
-        "NEUTRAL": "金十字の騎士兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "金十字の騎士兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "金のかぶと。金属で作られた頭装備。",
+        "ja-JP": "金のかぶと。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 17,
+        "Defense": 22,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 1
       }
@@ -8979,18 +8979,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鋼の面頬兜",
-        "ja-JP": "鋼の面頬兜"
+        "NEUTRAL": "面頬のかぶと",
+        "ja-JP": "面頬のかぶと"
       },
       "Description": {
-        "NEUTRAL": "鋼の面頬兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鋼の面頬兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "面頬のかぶと。金属で作られた頭装備。",
+        "ja-JP": "面頬のかぶと。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 18,
+        "Defense": 19,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 2
       }
@@ -9004,12 +9004,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鋼の角面兜",
-        "ja-JP": "鋼の角面兜"
+        "NEUTRAL": "角の鉄兜",
+        "ja-JP": "角の鉄兜"
       },
       "Description": {
-        "NEUTRAL": "鋼の角面兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鋼の角面兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "角の鉄兜。金属で作られた頭装備。",
+        "ja-JP": "角の鉄兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -9029,18 +9029,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "金十字の重騎士兜",
-        "ja-JP": "金十字の重騎士兜"
+        "NEUTRAL": "重騎士の兜",
+        "ja-JP": "重騎士の兜"
       },
       "Description": {
-        "NEUTRAL": "金十字の重騎士兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "金十字の重騎士兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "重騎士の兜。金属で作られた頭装備。",
+        "ja-JP": "重騎士の兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 22,
+        "Defense": 23,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 4
       }
@@ -9054,18 +9054,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "黒十字の面頬兜",
-        "ja-JP": "黒十字の面頬兜"
+        "NEUTRAL": "黒鉄の兜",
+        "ja-JP": "黒鉄の兜"
       },
       "Description": {
-        "NEUTRAL": "黒十字の面頬兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "黒十字の面頬兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "黒鉄の兜。金属で作られた頭装備。",
+        "ja-JP": "黒鉄の兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 24,
+        "Defense": 20,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 5
       }
@@ -9079,18 +9079,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "双紋の面頬兜",
-        "ja-JP": "双紋の面頬兜"
+        "NEUTRAL": "双紋の兜",
+        "ja-JP": "双紋の兜"
       },
       "Description": {
-        "NEUTRAL": "双紋の面頬兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "双紋の面頬兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "双紋の兜。金属で作られた頭装備。",
+        "ja-JP": "双紋の兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 26,
+        "Defense": 21,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 6
       }
@@ -9104,18 +9104,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鋲十字の面頬兜",
-        "ja-JP": "鋲十字の面頬兜"
+        "NEUTRAL": "鋲の鉄兜",
+        "ja-JP": "鋲の鉄兜"
       },
       "Description": {
-        "NEUTRAL": "鋲十字の面頬兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鋲十字の面頬兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "鋲の鉄兜。金属で作られた頭装備。",
+        "ja-JP": "鋲の鉄兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 28,
+        "Defense": 21,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 7
       }
@@ -9129,18 +9129,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鉄十字の面頬兜",
-        "ja-JP": "鉄十字の面頬兜"
+        "NEUTRAL": "十字の兜",
+        "ja-JP": "十字の兜"
       },
       "Description": {
-        "NEUTRAL": "鉄十字の面頬兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鉄十字の面頬兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "十字の兜。金属で作られた頭装備。",
+        "ja-JP": "十字の兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 30,
+        "Defense": 22,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 8
       }
@@ -9154,18 +9154,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "格子面の重兜",
-        "ja-JP": "格子面の重兜"
+        "NEUTRAL": "鉄格子の兜",
+        "ja-JP": "鉄格子の兜"
       },
       "Description": {
-        "NEUTRAL": "格子面の重兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "格子面の重兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "鉄格子の兜。金属で作られた頭装備。",
+        "ja-JP": "鉄格子の兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 32,
+        "Defense": 22,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 9
       }
@@ -9179,18 +9179,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "重格子の騎士兜",
-        "ja-JP": "重格子の騎士兜"
+        "NEUTRAL": "重格子の兜",
+        "ja-JP": "重格子の兜"
       },
       "Description": {
-        "NEUTRAL": "重格子の騎士兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "重格子の騎士兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "重格子の兜。金属で作られた頭装備。",
+        "ja-JP": "重格子の兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 34,
+        "Defense": 23,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 10
       }
@@ -9204,18 +9204,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "丸面の騎士兜",
-        "ja-JP": "丸面の騎士兜"
+        "NEUTRAL": "丸面の兜",
+        "ja-JP": "丸面の兜"
       },
       "Description": {
-        "NEUTRAL": "丸面の騎士兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "丸面の騎士兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "丸面の兜。金属で作られた頭装備。",
+        "ja-JP": "丸面の兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 36,
+        "Defense": 20,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 11
       }
@@ -9229,18 +9229,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鋼のグレートヘルム",
-        "ja-JP": "鋼のグレートヘルム"
+        "NEUTRAL": "グレートヘルム",
+        "ja-JP": "グレートヘルム"
       },
       "Description": {
-        "NEUTRAL": "鋼のグレートヘルム。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鋼のグレートヘルム。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "グレートヘルム。金属で作られた頭装備。",
+        "ja-JP": "グレートヘルム。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 38,
+        "Defense": 24,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 12
       }
@@ -9254,18 +9254,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鋲打ち鉄鉢兜",
-        "ja-JP": "鋲打ち鉄鉢兜"
+        "NEUTRAL": "鉄鉢兜",
+        "ja-JP": "鉄鉢兜"
       },
       "Description": {
-        "NEUTRAL": "鋲打ち鉄鉢兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鋲打ち鉄鉢兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "鉄鉢兜。金属で作られた頭装備。",
+        "ja-JP": "鉄鉢兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 40,
+        "Defense": 15,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 13
       }
@@ -9279,18 +9279,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鎖帷子の鉄鉢兜",
-        "ja-JP": "鎖帷子の鉄鉢兜"
+        "NEUTRAL": "鎖の鉄鉢",
+        "ja-JP": "鎖の鉄鉢"
       },
       "Description": {
-        "NEUTRAL": "鎖帷子の鉄鉢兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鎖帷子の鉄鉢兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "鎖の鉄鉢。金属で作られた頭装備。",
+        "ja-JP": "鎖の鉄鉢。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 42,
+        "Defense": 16,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 14
       }
@@ -9304,18 +9304,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鋲打ち丸兜",
-        "ja-JP": "鋲打ち丸兜"
+        "NEUTRAL": "鋲の丸兜",
+        "ja-JP": "鋲の丸兜"
       },
       "Description": {
-        "NEUTRAL": "鋲打ち丸兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鋲打ち丸兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "鋲の丸兜。金属で作られた頭装備。",
+        "ja-JP": "鋲の丸兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 45,
+        "Defense": 17,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 15
       }
@@ -9329,18 +9329,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鎖垂れの丸兜",
-        "ja-JP": "鎖垂れの丸兜"
+        "NEUTRAL": "鎖の丸兜",
+        "ja-JP": "鎖の丸兜"
       },
       "Description": {
-        "NEUTRAL": "鎖垂れの丸兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鎖垂れの丸兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "鎖の丸兜。金属で作られた頭装備。",
+        "ja-JP": "鎖の丸兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 48,
+        "Defense": 18,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 16
       }
@@ -9354,18 +9354,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "平鉄鉢の丸兜",
-        "ja-JP": "平鉄鉢の丸兜"
+        "NEUTRAL": "平鉄鉢",
+        "ja-JP": "平鉄鉢"
       },
       "Description": {
-        "NEUTRAL": "平鉄鉢の丸兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "平鉄鉢の丸兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "平鉄鉢。金属で作られた頭装備。",
+        "ja-JP": "平鉄鉢。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 50,
+        "Defense": 17,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 17
       }
@@ -9379,18 +9379,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鎖垂れ平鉄鉢兜",
-        "ja-JP": "鎖垂れ平鉄鉢兜"
+        "NEUTRAL": "鎖の平鉄鉢",
+        "ja-JP": "鎖の平鉄鉢"
       },
       "Description": {
-        "NEUTRAL": "鎖垂れ平鉄鉢兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鎖垂れ平鉄鉢兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "鎖の平鉄鉢。金属で作られた頭装備。",
+        "ja-JP": "鎖の平鉄鉢。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 52,
+        "Defense": 19,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 18
       }
@@ -9404,18 +9404,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "つば広鉄帽",
-        "ja-JP": "つば広鉄帽"
+        "NEUTRAL": "鉄の広帽",
+        "ja-JP": "鉄の広帽"
       },
       "Description": {
-        "NEUTRAL": "つば広鉄帽。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "つば広鉄帽。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "鉄の広帽。金属で作られた頭装備。",
+        "ja-JP": "鉄の広帽。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 65,
+        "Defense": 14,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 19
       }
@@ -9429,18 +9429,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鎖垂れ鉄帽",
-        "ja-JP": "鎖垂れ鉄帽"
+        "NEUTRAL": "鎖の鉄帽",
+        "ja-JP": "鎖の鉄帽"
       },
       "Description": {
-        "NEUTRAL": "鎖垂れ鉄帽。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鎖垂れ鉄帽。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "鎖の鉄帽。金属で作られた頭装備。",
+        "ja-JP": "鎖の鉄帽。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 55,
+        "Defense": 16,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 20
       }
@@ -9454,18 +9454,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鋼の鼻当て兜",
-        "ja-JP": "鋼の鼻当て兜"
+        "NEUTRAL": "鼻当て兜",
+        "ja-JP": "鼻当て兜"
       },
       "Description": {
-        "NEUTRAL": "鋼の鼻当て兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鋼の鼻当て兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "鼻当て兜。金属で作られた頭装備。",
+        "ja-JP": "鼻当て兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 58,
+        "Defense": 17,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 21
       }
@@ -9479,18 +9479,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鋼の頬当て兜",
-        "ja-JP": "鋼の頬当て兜"
+        "NEUTRAL": "頬当て兜",
+        "ja-JP": "頬当て兜"
       },
       "Description": {
-        "NEUTRAL": "鋼の頬当て兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鋼の頬当て兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "頬当て兜。金属で作られた頭装備。",
+        "ja-JP": "頬当て兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 60,
+        "Defense": 17,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 22
       }
@@ -9504,18 +9504,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鋼の耳当て兜",
-        "ja-JP": "鋼の耳当て兜"
+        "NEUTRAL": "耳当て兜",
+        "ja-JP": "耳当て兜"
       },
       "Description": {
-        "NEUTRAL": "鋼の耳当て兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鋼の耳当て兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "耳当て兜。金属で作られた頭装備。",
+        "ja-JP": "耳当て兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 62,
+        "Defense": 17,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 23
       }
@@ -9529,18 +9529,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鎖垂れ耳当て兜",
-        "ja-JP": "鎖垂れ耳当て兜"
+        "NEUTRAL": "鎖の耳当て",
+        "ja-JP": "鎖の耳当て"
       },
       "Description": {
-        "NEUTRAL": "鎖垂れ耳当て兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鎖垂れ耳当て兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "鎖の耳当て。金属で作られた頭装備。",
+        "ja-JP": "鎖の耳当て。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 5,
+        "Defense": 18,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 24
       }
@@ -9554,18 +9554,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鋼のサレット",
-        "ja-JP": "鋼のサレット"
+        "NEUTRAL": "サレット",
+        "ja-JP": "サレット"
       },
       "Description": {
-        "NEUTRAL": "鋼のサレット。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鋼のサレット。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "サレット。金属で作られた頭装備。",
+        "ja-JP": "サレット。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 8,
+        "Defense": 18,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 25
       }
@@ -9579,18 +9579,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鎖垂れサレット",
-        "ja-JP": "鎖垂れサレット"
+        "NEUTRAL": "鎖サレット",
+        "ja-JP": "鎖サレット"
       },
       "Description": {
-        "NEUTRAL": "鎖垂れサレット。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鎖垂れサレット。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "鎖サレット。金属で作られた頭装備。",
+        "ja-JP": "鎖サレット。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 35,
+        "Defense": 19,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 26
       }
@@ -9604,18 +9604,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鋼の片覆い兜",
-        "ja-JP": "鋼の片覆い兜"
+        "NEUTRAL": "片面の兜",
+        "ja-JP": "片面の兜"
       },
       "Description": {
-        "NEUTRAL": "鋼の片覆い兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鋼の片覆い兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "片面の兜。金属で作られた頭装備。",
+        "ja-JP": "片面の兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 33,
+        "Defense": 20,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 27
       }
@@ -9629,18 +9629,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "黄金の片覆い兜",
-        "ja-JP": "黄金の片覆い兜"
+        "NEUTRAL": "金の片面兜",
+        "ja-JP": "金の片面兜"
       },
       "Description": {
-        "NEUTRAL": "黄金の片覆い兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "黄金の片覆い兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "金の片面兜。金属で作られた頭装備。",
+        "ja-JP": "金の片面兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 30,
+        "Defense": 23,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 28
       }
@@ -9654,18 +9654,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "羽飾り黄金兜",
-        "ja-JP": "羽飾り黄金兜"
+        "NEUTRAL": "羽根の金兜",
+        "ja-JP": "羽根の金兜"
       },
       "Description": {
-        "NEUTRAL": "羽飾り黄金兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "羽飾り黄金兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "羽根の金兜。金属で作られた頭装備。",
+        "ja-JP": "羽根の金兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 28,
+        "Defense": 24,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 29
       }
@@ -9679,18 +9679,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "黄金クレスト兜",
-        "ja-JP": "黄金クレスト兜"
+        "NEUTRAL": "金のクレスト",
+        "ja-JP": "金のクレスト"
       },
       "Description": {
-        "NEUTRAL": "黄金クレスト兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "黄金クレスト兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "金のクレスト。金属で作られた頭装備。",
+        "ja-JP": "金のクレスト。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 25,
+        "Defense": 23,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 30
       }
@@ -9704,18 +9704,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "黄金クレスト重兜",
-        "ja-JP": "黄金クレスト重兜"
+        "NEUTRAL": "重クレスト",
+        "ja-JP": "重クレスト"
       },
       "Description": {
-        "NEUTRAL": "黄金クレスト重兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "黄金クレスト重兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "重クレスト。金属で作られた頭装備。",
+        "ja-JP": "重クレスト。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 40,
+        "Defense": 25,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 31
       }
@@ -9729,18 +9729,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鋼のコリント兜",
-        "ja-JP": "鋼のコリント兜"
+        "NEUTRAL": "コリント兜",
+        "ja-JP": "コリント兜"
       },
       "Description": {
-        "NEUTRAL": "鋼のコリント兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鋼のコリント兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "コリント兜。金属で作られた頭装備。",
+        "ja-JP": "コリント兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 44,
+        "Defense": 21,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 32
       }
@@ -9754,18 +9754,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "黄金コリント兜",
-        "ja-JP": "黄金コリント兜"
+        "NEUTRAL": "金のコリント",
+        "ja-JP": "金のコリント"
       },
       "Description": {
-        "NEUTRAL": "黄金コリント兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "黄金コリント兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "金のコリント。金属で作られた頭装備。",
+        "ja-JP": "金のコリント。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 46,
+        "Defense": 24,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 33
       }
@@ -9779,18 +9779,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鋼のイリュリア兜",
-        "ja-JP": "鋼のイリュリア兜"
+        "NEUTRAL": "イリュリア兜",
+        "ja-JP": "イリュリア兜"
       },
       "Description": {
-        "NEUTRAL": "鋼のイリュリア兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鋼のイリュリア兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "イリュリア兜。金属で作られた頭装備。",
+        "ja-JP": "イリュリア兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 47,
+        "Defense": 22,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 34
       }
@@ -9804,18 +9804,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "黄金イリュリア兜",
-        "ja-JP": "黄金イリュリア兜"
+        "NEUTRAL": "金のイリュリア",
+        "ja-JP": "金のイリュリア"
       },
       "Description": {
-        "NEUTRAL": "黄金イリュリア兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "黄金イリュリア兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "金のイリュリア。金属で作られた頭装備。",
+        "ja-JP": "金のイリュリア。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 49,
+        "Defense": 25,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 35
       }
@@ -9829,18 +9829,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鋼のフリギア兜",
-        "ja-JP": "鋼のフリギア兜"
+        "NEUTRAL": "フリギア兜",
+        "ja-JP": "フリギア兜"
       },
       "Description": {
-        "NEUTRAL": "鋼のフリギア兜。金属板を組み上げた堅牢な頭部装備。",
-        "ja-JP": "鋼のフリギア兜。金属板を組み上げた堅牢な頭部装備。"
+        "NEUTRAL": "フリギア兜。金属で作られた頭装備。",
+        "ja-JP": "フリギア兜。金属で作られた頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 51,
+        "Defense": 23,
         "sprite_path": "./Sprites/wardrobe/metal/metal.png",
         "sprite_index": 36
       }
@@ -9854,18 +9854,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "火の王の冠",
-        "ja-JP": "火の王の冠"
+        "NEUTRAL": "炎王の冠",
+        "ja-JP": "炎王の冠"
       },
       "Description": {
-        "NEUTRAL": "炎の王権を象徴する冠兜。赤熱の威圧感を放つ。",
-        "ja-JP": "炎の王権を象徴する冠兜。赤熱の威圧感を放つ。"
+        "NEUTRAL": "炎王の冠。名のある戦士のための重い頭装備。",
+        "ja-JP": "炎王の冠。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 85,
+        "Defense": 30,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 0
       }
@@ -9879,18 +9879,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "獅子紋ヘルム",
-        "ja-JP": "獅子紋ヘルム"
+        "NEUTRAL": "獅子の兜",
+        "ja-JP": "獅子の兜"
       },
       "Description": {
-        "NEUTRAL": "獅子の気迫を刻んだ頭装備。正面突破の意志を示す。",
-        "ja-JP": "獅子の気迫を刻んだ頭装備。正面突破の意志を示す。"
+        "NEUTRAL": "獅子の兜。名のある戦士のための重い頭装備。",
+        "ja-JP": "獅子の兜。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 71,
+        "Defense": 36,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 1
       }
@@ -9904,18 +9904,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "海蛇紋ヘルム",
-        "ja-JP": "海蛇紋ヘルム"
+        "NEUTRAL": "獣王の兜",
+        "ja-JP": "獣王の兜"
       },
       "Description": {
-        "NEUTRAL": "うねる海蛇を意匠化した兜。海戦での執念を宿す。",
-        "ja-JP": "うねる海蛇を意匠化した兜。海戦での執念を宿す。"
+        "NEUTRAL": "獣王の兜。名のある戦士のための重い頭装備。",
+        "ja-JP": "獣王の兜。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 72,
+        "Defense": 37,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 2
       }
@@ -9929,18 +9929,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鳳凰冠ヘルム",
-        "ja-JP": "鳳凰冠ヘルム"
+        "NEUTRAL": "黒翼の兜",
+        "ja-JP": "黒翼の兜"
       },
       "Description": {
-        "NEUTRAL": "鳳凰の翼を思わせる造形の冠兜。再起の象徴。",
-        "ja-JP": "鳳凰の翼を思わせる造形の冠兜。再起の象徴。"
+        "NEUTRAL": "黒翼の兜。名のある戦士のための重い頭装備。",
+        "ja-JP": "黒翼の兜。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 73,
+        "Defense": 36,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 3
       }
@@ -9954,18 +9954,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "駿馬の冠兜",
-        "ja-JP": "駿馬の冠兜"
+        "NEUTRAL": "駿馬の兜",
+        "ja-JP": "駿馬の兜"
       },
       "Description": {
-        "NEUTRAL": "馬の疾走感を意匠に落とし込んだ軽快な王冠型ヘルム。",
-        "ja-JP": "馬の疾走感を意匠に落とし込んだ軽快な王冠型ヘルム。"
+        "NEUTRAL": "駿馬の兜。名のある戦士のための重い頭装備。",
+        "ja-JP": "駿馬の兜。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 74,
+        "Defense": 35,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 4
       }
@@ -9979,18 +9979,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鹿角ヘルム",
-        "ja-JP": "鹿角ヘルム"
+        "NEUTRAL": "鹿角の兜",
+        "ja-JP": "鹿角の兜"
       },
       "Description": {
-        "NEUTRAL": "枝分かれした鹿角飾りを備えた威容の兜。",
-        "ja-JP": "枝分かれした鹿角飾りを備えた威容の兜。"
+        "NEUTRAL": "鹿角の兜。名のある戦士のための重い頭装備。",
+        "ja-JP": "鹿角の兜。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 75,
+        "Defense": 34,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 5
       }
@@ -10004,18 +10004,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "羽飾りヘルム",
-        "ja-JP": "羽飾りヘルム"
+        "NEUTRAL": "羽根兜",
+        "ja-JP": "羽根兜"
       },
       "Description": {
-        "NEUTRAL": "羽根飾りで縦方向の迫力を強めた儀礼装備。",
-        "ja-JP": "羽根飾りで縦方向の迫力を強めた儀礼装備。"
+        "NEUTRAL": "羽根兜。名のある戦士のための重い頭装備。",
+        "ja-JP": "羽根兜。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 76,
+        "Defense": 33,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 6
       }
@@ -10029,18 +10029,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "風の王の冠",
-        "ja-JP": "風の王の冠"
+        "NEUTRAL": "風王の冠",
+        "ja-JP": "風王の冠"
       },
       "Description": {
-        "NEUTRAL": "風を司る王の印。軽やかさと気高さを両立する。",
-        "ja-JP": "風を司る王の印。軽やかさと気高さを両立する。"
+        "NEUTRAL": "風王の冠。名のある戦士のための重い頭装備。",
+        "ja-JP": "風王の冠。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 85,
+        "Defense": 30,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 7
       }
@@ -10054,18 +10054,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "イルカ紋ヘルム",
-        "ja-JP": "イルカ紋ヘルム"
+        "NEUTRAL": "翼の兜",
+        "ja-JP": "翼の兜"
       },
       "Description": {
-        "NEUTRAL": "波を跳ねるイルカの意匠を持つ海洋系ヘルム。",
-        "ja-JP": "波を跳ねるイルカの意匠を持つ海洋系ヘルム。"
+        "NEUTRAL": "翼の兜。名のある戦士のための重い頭装備。",
+        "ja-JP": "翼の兜。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 78,
+        "Defense": 37,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 8
       }
@@ -10079,18 +10079,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "覇王の冠",
-        "ja-JP": "覇王の冠"
+        "NEUTRAL": "覇王の兜",
+        "ja-JP": "覇王の兜"
       },
       "Description": {
-        "NEUTRAL": "王の中の王を示す重厚な冠兜。圧倒的な存在感。",
-        "ja-JP": "王の中の王を示す重厚な冠兜。圧倒的な存在感。"
+        "NEUTRAL": "覇王の兜。名のある戦士のための重い頭装備。",
+        "ja-JP": "覇王の兜。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 79,
+        "Defense": 40,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 9
       }
@@ -10104,18 +10104,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "地の王の冠",
-        "ja-JP": "地の王の冠"
+        "NEUTRAL": "地王の冠",
+        "ja-JP": "地王の冠"
       },
       "Description": {
-        "NEUTRAL": "大地の堅牢さを象徴する王冠型装備。守勢に強い印象。",
-        "ja-JP": "大地の堅牢さを象徴する王冠型装備。守勢に強い印象。"
+        "NEUTRAL": "地王の冠。名のある戦士のための重い頭装備。",
+        "ja-JP": "地王の冠。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 85,
+        "Defense": 30,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 10
       }
@@ -10129,18 +10129,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "水の王の冠",
-        "ja-JP": "水の王の冠"
+        "NEUTRAL": "水王の冠",
+        "ja-JP": "水王の冠"
       },
       "Description": {
-        "NEUTRAL": "流麗な曲線で水の王権を表現した冠兜。",
-        "ja-JP": "流麗な曲線で水の王権を表現した冠兜。"
+        "NEUTRAL": "水王の冠。名のある戦士のための重い頭装備。",
+        "ja-JP": "水王の冠。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 85,
+        "Defense": 30,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 11
       }
@@ -10154,18 +10154,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "コリント兜",
-        "ja-JP": "コリント兜"
+        "NEUTRAL": "黒羽の兜",
+        "ja-JP": "黒羽の兜"
       },
       "Description": {
-        "NEUTRAL": "T字開口を持つ古典型。大きなクレストで威容を示す。",
-        "ja-JP": "T字開口を持つ古典型。大きなクレストで威容を示す。"
+        "NEUTRAL": "黒羽の兜。名のある戦士のための重い頭装備。",
+        "ja-JP": "黒羽の兜。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 82,
+        "Defense": 38,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 12
       }
@@ -10179,18 +10179,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "フリギア兜",
-        "ja-JP": "フリギア兜"
+        "NEUTRAL": "黒鋼の兜",
+        "ja-JP": "黒鋼の兜"
       },
       "Description": {
-        "NEUTRAL": "前方へ流れる頂部形状が特徴。装飾クレストとの相性が高い。",
-        "ja-JP": "前方へ流れる頂部形状が特徴。装飾クレストとの相性が高い。"
+        "NEUTRAL": "黒鋼の兜。名のある戦士のための重い頭装備。",
+        "ja-JP": "黒鋼の兜。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 83,
+        "Defense": 38,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 13
       }
@@ -10204,18 +10204,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "イリュリア兜",
-        "ja-JP": "イリュリア兜"
+        "NEUTRAL": "黄金の兜",
+        "ja-JP": "黄金の兜"
       },
       "Description": {
-        "NEUTRAL": "開放的な顔周りと頂部リブで、視界と聴覚を確保する。",
-        "ja-JP": "開放的な顔周りと頂部リブで、視界と聴覚を確保する。"
+        "NEUTRAL": "黄金の兜。名のある戦士のための重い頭装備。",
+        "ja-JP": "黄金の兜。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 84,
+        "Defense": 40,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 14
       }
@@ -10229,18 +10229,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ガレア",
-        "ja-JP": "ガレア"
+        "NEUTRAL": "戦神の兜",
+        "ja-JP": "戦神の兜"
       },
       "Description": {
-        "NEUTRAL": "ローマ軍系の実戦装備。可動頬当てと後頭ガードで防護を高める。",
-        "ja-JP": "ローマ軍系の実戦装備。可動頬当てと後頭ガードで防護を高める。"
+        "NEUTRAL": "戦神の兜。名のある戦士のための重い頭装備。",
+        "ja-JP": "戦神の兜。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 85,
+        "Defense": 40,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 15
       }
@@ -10254,18 +10254,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ボイオティア兜",
-        "ja-JP": "ボイオティア兜"
+        "NEUTRAL": "覇者の兜",
+        "ja-JP": "覇者の兜"
       },
       "Description": {
-        "NEUTRAL": "騎兵向けの広い視界を確保した形式。長時間運用に向く。",
-        "ja-JP": "騎兵向けの広い視界を確保した形式。長時間運用に向く。"
+        "NEUTRAL": "覇者の兜。名のある戦士のための重い頭装備。",
+        "ja-JP": "覇者の兜。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 86,
+        "Defense": 42,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 16
       }
@@ -10279,18 +10279,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "アッティカ兜",
-        "ja-JP": "アッティカ兜"
+        "NEUTRAL": "聖騎士の兜",
+        "ja-JP": "聖騎士の兜"
       },
       "Description": {
-        "NEUTRAL": "鼻当てを抑えた開放型。指揮官の識別にも使われる伝統様式。",
-        "ja-JP": "鼻当てを抑えた開放型。指揮官の識別にも使われる伝統様式。"
+        "NEUTRAL": "聖騎士の兜。名のある戦士のための重い頭装備。",
+        "ja-JP": "聖騎士の兜。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 87,
+        "Defense": 41,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 17
       }
@@ -10304,18 +10304,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "カルキディケー兜",
-        "ja-JP": "カルキディケー兜"
+        "NEUTRAL": "金剛の兜",
+        "ja-JP": "金剛の兜"
       },
       "Description": {
-        "NEUTRAL": "耳の開口と頬当てで機能性を確保した、ヘレニズム系の実戦モデル。",
-        "ja-JP": "耳の開口と頬当てで機能性を確保した、ヘレニズム系の実戦モデル。"
+        "NEUTRAL": "金剛の兜。名のある戦士のための重い頭装備。",
+        "ja-JP": "金剛の兜。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 88,
+        "Defense": 43,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 18
       }
@@ -10329,18 +10329,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "アラビアンヘルム",
-        "ja-JP": "アラビアンヘルム"
+        "NEUTRAL": "砂漠の兜",
+        "ja-JP": "砂漠の兜"
       },
       "Description": {
-        "NEUTRAL": "砂海文化を思わせる意匠の頭装備。しなやかな曲線が特徴。",
-        "ja-JP": "砂海文化を思わせる意匠の頭装備。しなやかな曲線が特徴。"
+        "NEUTRAL": "砂漠の兜。名のある戦士のための重い頭装備。",
+        "ja-JP": "砂漠の兜。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 89,
+        "Defense": 38,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 19
       }
@@ -10354,18 +10354,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "アラビアンマスクヘルム",
-        "ja-JP": "アラビアンマスクヘルム"
+        "NEUTRAL": "砂漠の仮面",
+        "ja-JP": "砂漠の仮面"
       },
       "Description": {
-        "NEUTRAL": "口元まで覆う砂塵対策型。異国風の神秘性が高い。",
-        "ja-JP": "口元まで覆う砂塵対策型。異国風の神秘性が高い。"
+        "NEUTRAL": "砂漠の仮面。名のある戦士のための重い頭装備。",
+        "ja-JP": "砂漠の仮面。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 90,
+        "Defense": 40,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 20
       }
@@ -10379,18 +10379,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "侍兜",
-        "ja-JP": "侍兜"
+        "NEUTRAL": "大将の兜",
+        "ja-JP": "大将の兜"
       },
       "Description": {
-        "NEUTRAL": "和の武人装束を象徴する兜。重心が低く堂々とした造形。",
-        "ja-JP": "和の武人装束を象徴する兜。重心が低く堂々とした造形。"
+        "NEUTRAL": "大将の兜。名のある戦士のための重い頭装備。",
+        "ja-JP": "大将の兜。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 91,
+        "Defense": 42,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 21
       }
@@ -10404,18 +10404,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "魔角フルフェイスヘルム",
-        "ja-JP": "魔角フルフェイスヘルム"
+        "NEUTRAL": "魔王の兜",
+        "ja-JP": "魔王の兜"
       },
       "Description": {
-        "NEUTRAL": "悪魔角のような突起を持つフルフェイス兜。禍々しい威圧を与える。",
-        "ja-JP": "悪魔角のような突起を持つフルフェイス兜。禍々しい威圧を与える。"
+        "NEUTRAL": "魔王の兜。名のある戦士のための重い頭装備。",
+        "ja-JP": "魔王の兜。名のある戦士のための重い頭装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 92,
+        "Defense": 45,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 22
       }

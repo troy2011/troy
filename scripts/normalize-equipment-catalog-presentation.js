@@ -1,91 +1,177 @@
 const fs = require('fs');
 const path = require('path');
 
-const LEATHER01_TITLES = Object.freeze([
-    '竜骨のマスク',
-    '牡羊骨のフード',
-    '髑髏のフード',
-    '角髑髏のフード',
-    '鹿骨のフード',
-    '羽飾りペストマスク',
-    '革面のフード',
-    '牙飾りの革面',
-    '革のソフトキャップ',
-    '革のワークキャップ',
-    '革のフルフェイス',
-    '片覆いの革兜',
-    '革のオープンヘルム',
-    '二本角の革兜',
-    '革の三角帽',
-    '革のとんがり帽',
-    '革の三角海賊帽',
-    '羽飾りの革帽',
-    '革の額当てフード',
-    '鋲打ち革フード',
-    '革の旅帽',
-    '羽飾りの旅帽',
-    '革の魔女帽',
-    '帯締めの革魔女帽',
-    '大角の革兜',
-    '片覆いの革フード',
-    '革の目深フード',
-    '革の丸帽',
-    '鋲打ち革帽',
-    '角飾りの革帽',
-    '鋲打ち革兜',
-    '厚革の丸兜',
-    '革の耳当て帽',
-    '革のハンチング',
-    '革の羽飾り帽',
-    '羽飾りハンチング',
-    '白羽根の革帽'
+const HAT_BLACK_HEADGEAR = Object.freeze([
+    { title: '祭りぼうし', defense: 2 },
+    { title: '狩人のぼうし', defense: 2 },
+    { title: '紳士のぼうし', defense: 1 },
+    { title: '旅人のぼうし', defense: 1 },
+    { title: '星のぼうし', defense: 2 },
+    { title: '魔術師のぼうし', defense: 2 },
+    { title: '海賊のぼうし', defense: 2 },
+    { title: '砂漠ターバン', defense: 2 },
+    { title: '若海賊の帽子', defense: 2 },
+    { title: '忍びのフード', defense: 3 },
+    { title: '学者のぼうし', defense: 1 },
+    { title: '羽根ベレー', defense: 1 },
+    { title: '荒野のぼうし', defense: 2 },
+    { title: '蛇のターバン', defense: 2 },
+    { title: '魔女のぼうし', defense: 1 },
+    { title: 'とんがり帽', defense: 1 },
+    { title: '紋章のぼうし', defense: 2 },
+    { title: '旅人フード', defense: 2 },
+    { title: '海賊帽子', defense: 2 },
+    { title: '隠密フード', defense: 3 },
+    { title: '船長のぼうし', defense: 2 },
+    { title: '黒ベレー', defense: 1 },
+    { title: '羽根帽子', defense: 2 },
+    { title: '砂海ターバン', defense: 2 },
+    { title: 'つぶれ帽', defense: 1 },
+    { title: '結びターバン', defense: 2 },
+    { title: 'どくろ帽', defense: 2 },
+    { title: '忍びマスク', defense: 3 },
+    { title: '海賊三角帽', defense: 2 },
+    { title: '半面フード', defense: 3 },
+    { title: '羽根学帽', defense: 1 },
+    { title: '提督のぼうし', defense: 2 },
+    { title: '横かぶり帽', defense: 1 },
+    { title: '平たい帽子', defense: 1 },
+    { title: '帯の魔女帽', defense: 1 },
+    { title: '包帯フード', defense: 3 },
+    { title: '戦士のハチマキ', defense: 1 },
+    { title: '旅のタオル', defense: 1 },
+    { title: '赤のハチマキ', defense: 1 },
+    { title: '口覆いフード', defense: 3 },
+    { title: '森人のぼうし', defense: 2 },
+    { title: '鉄のキャップ', defense: 4 },
+    { title: '飾り帽子', defense: 1 },
+    { title: '妖精の帽子', defense: 1 },
+    { title: '魔導士の帽子', defense: 2 },
+    { title: '包帯マスク', defense: 3 },
+    { title: '結びハチマキ', defense: 1 },
+    { title: 'ミイラフード', defense: 3 },
+    { title: '防寒フード', defense: 4 }
 ]);
 
-const LEATHER02_TITLES = Object.freeze([
-    '大角の革兜',
-    '鹿角の革冠',
-    '鹿骨の革面',
-    '髑髏羽根の革兜'
+const HAT_STRAW_HEADGEAR = Object.freeze([
+    { title: 'むぎわら帽', defense: 1 },
+    { title: 'とんがり笠', defense: 1 },
+    { title: '旅人の笠', defense: 1 },
+    { title: '編み笠', defense: 2 },
+    { title: '虚無僧笠', defense: 2 }
 ]);
 
-const METAL_TITLES = Object.freeze([
-    '銀十字の騎士兜',
-    '金十字の騎士兜',
-    '鋼の面頬兜',
-    '鋼の角面兜',
-    '金十字の重騎士兜',
-    '黒十字の面頬兜',
-    '双紋の面頬兜',
-    '鋲十字の面頬兜',
-    '鉄十字の面頬兜',
-    '格子面の重兜',
-    '重格子の騎士兜',
-    '丸面の騎士兜',
-    '鋼のグレートヘルム',
-    '鋲打ち鉄鉢兜',
-    '鎖帷子の鉄鉢兜',
-    '鋲打ち丸兜',
-    '鎖垂れの丸兜',
-    '平鉄鉢の丸兜',
-    '鎖垂れ平鉄鉢兜',
-    'つば広鉄帽',
-    '鎖垂れ鉄帽',
-    '鋼の鼻当て兜',
-    '鋼の頬当て兜',
-    '鋼の耳当て兜',
-    '鎖垂れ耳当て兜',
-    '鋼のサレット',
-    '鎖垂れサレット',
-    '鋼の片覆い兜',
-    '黄金の片覆い兜',
-    '羽飾り黄金兜',
-    '黄金クレスト兜',
-    '黄金クレスト重兜',
-    '鋼のコリント兜',
-    '黄金コリント兜',
-    '鋼のイリュリア兜',
-    '黄金イリュリア兜',
-    '鋼のフリギア兜'
+const LEATHER01_HEADGEAR = Object.freeze([
+    { title: '角獣の面', defense: 11 },
+    { title: '牡羊の面', defense: 10 },
+    { title: 'どくろ面', defense: 9 },
+    { title: '角どくろ面', defense: 11 },
+    { title: '鹿角の面', defense: 12 },
+    { title: '鳥面マスク', defense: 6 },
+    { title: '革のフード', defense: 7 },
+    { title: '牙のマスク', defense: 8 },
+    { title: '革のぼうし', defense: 4 },
+    { title: '革のキャップ', defense: 4 },
+    { title: '革の仮面', defense: 8 },
+    { title: '革のかぶと', defense: 9 },
+    { title: '革のヘルム', defense: 8 },
+    { title: '角のかぶと', defense: 10 },
+    { title: '革の三角帽', defense: 4 },
+    { title: '革の魔女帽', defense: 3 },
+    { title: '海賊の革帽', defense: 5 },
+    { title: '羽根の革帽', defense: 4 },
+    { title: '革の額当て', defense: 7 },
+    { title: '鋲のフード', defense: 8 },
+    { title: '革の旅帽', defense: 4 },
+    { title: '羽根の旅帽', defense: 4 },
+    { title: '革の魔導帽', defense: 5 },
+    { title: '帯の魔導帽', defense: 5 },
+    { title: '大角のかぶと', defense: 13 },
+    { title: '片面フード', defense: 7 },
+    { title: '目深フード', defense: 6 },
+    { title: '革の丸帽', defense: 4 },
+    { title: '鋲の革帽', defense: 6 },
+    { title: '角の革帽', defense: 6 },
+    { title: '鋲のかぶと', defense: 10 },
+    { title: '厚革のかぶと', defense: 10 },
+    { title: '革の耳当て', defense: 5 },
+    { title: '狩人の革帽', defense: 4 },
+    { title: '白羽根帽', defense: 4 },
+    { title: '羽根ハンチング', defense: 4 },
+    { title: '白羽根の帽子', defense: 4 }
+]);
+
+const LEATHER02_HEADGEAR = Object.freeze([
+    { title: '魔獣のかぶと', defense: 13 },
+    { title: '鹿角の冠', defense: 12 },
+    { title: '鹿骨の面', defense: 11 },
+    { title: 'どくろのかぶと', defense: 14 }
+]);
+
+const METAL_HEADGEAR = Object.freeze([
+    { title: '鉄のかぶと', defense: 18 },
+    { title: '金のかぶと', defense: 22 },
+    { title: '面頬のかぶと', defense: 19 },
+    { title: '角の鉄兜', defense: 20 },
+    { title: '重騎士の兜', defense: 23 },
+    { title: '黒鉄の兜', defense: 20 },
+    { title: '双紋の兜', defense: 21 },
+    { title: '鋲の鉄兜', defense: 21 },
+    { title: '十字の兜', defense: 22 },
+    { title: '鉄格子の兜', defense: 22 },
+    { title: '重格子の兜', defense: 23 },
+    { title: '丸面の兜', defense: 20 },
+    { title: 'グレートヘルム', defense: 24 },
+    { title: '鉄鉢兜', defense: 15 },
+    { title: '鎖の鉄鉢', defense: 16 },
+    { title: '鋲の丸兜', defense: 17 },
+    { title: '鎖の丸兜', defense: 18 },
+    { title: '平鉄鉢', defense: 17 },
+    { title: '鎖の平鉄鉢', defense: 19 },
+    { title: '鉄の広帽', defense: 14 },
+    { title: '鎖の鉄帽', defense: 16 },
+    { title: '鼻当て兜', defense: 17 },
+    { title: '頬当て兜', defense: 17 },
+    { title: '耳当て兜', defense: 17 },
+    { title: '鎖の耳当て', defense: 18 },
+    { title: 'サレット', defense: 18 },
+    { title: '鎖サレット', defense: 19 },
+    { title: '片面の兜', defense: 20 },
+    { title: '金の片面兜', defense: 23 },
+    { title: '羽根の金兜', defense: 24 },
+    { title: '金のクレスト', defense: 23 },
+    { title: '重クレスト', defense: 25 },
+    { title: 'コリント兜', defense: 21 },
+    { title: '金のコリント', defense: 24 },
+    { title: 'イリュリア兜', defense: 22 },
+    { title: '金のイリュリア', defense: 25 },
+    { title: 'フリギア兜', defense: 23 }
+]);
+
+const METAL_BLACK_HEADGEAR = Object.freeze([
+    { title: '炎王の冠', defense: 30 },
+    { title: '獅子の兜', defense: 36 },
+    { title: '獣王の兜', defense: 37 },
+    { title: '黒翼の兜', defense: 36 },
+    { title: '駿馬の兜', defense: 35 },
+    { title: '鹿角の兜', defense: 34 },
+    { title: '羽根兜', defense: 33 },
+    { title: '風王の冠', defense: 30 },
+    { title: '翼の兜', defense: 37 },
+    { title: '覇王の兜', defense: 40 },
+    { title: '地王の冠', defense: 30 },
+    { title: '水王の冠', defense: 30 },
+    { title: '黒羽の兜', defense: 38 },
+    { title: '黒鋼の兜', defense: 38 },
+    { title: '黄金の兜', defense: 40 },
+    { title: '戦神の兜', defense: 40 },
+    { title: '覇者の兜', defense: 42 },
+    { title: '聖騎士の兜', defense: 41 },
+    { title: '金剛の兜', defense: 43 },
+    { title: '砂漠の兜', defense: 38 },
+    { title: '砂漠の仮面', defense: 40 },
+    { title: '大将の兜', defense: 42 },
+    { title: '魔王の兜', defense: 45 }
 ]);
 
 const STAFF_TITLES = Object.freeze({
@@ -194,32 +280,52 @@ function getFriendlyId(item) {
     return String(alternateId?.Value || item?.Id || '').trim();
 }
 
-function buildSequentialOverrides(prefix, titles, descriptionFactory) {
-    return Object.fromEntries(titles.map((title, index) => [
+function buildHeadArmorOverrides(prefix, entries, descriptionFactory) {
+    return Object.fromEntries(entries.map(({ title, defense }, index) => [
         `${prefix}${String(index + 1).padStart(2, '0')}`,
         {
             title,
-            description: descriptionFactory(title)
+            description: descriptionFactory(title),
+            defense
         }
     ]));
 }
 
-const PRESENTATION_OVERRIDES = Object.freeze({
-    ...buildSequentialOverrides(
+const HEAD_ARMOR_OVERRIDES = Object.freeze({
+    ...buildHeadArmorOverrides(
+        'hat_black_',
+        HAT_BLACK_HEADGEAR,
+        (title) => `${title}。軽くて扱いやすい頭装備。`
+    ),
+    ...buildHeadArmorOverrides(
+        'hat_straw_',
+        HAT_STRAW_HEADGEAR,
+        (title) => `${title}。草を編んで作られた軽い頭装備。`
+    ),
+    ...buildHeadArmorOverrides(
         'leather01_',
-        LEATHER01_TITLES,
-        (title) => `${title}。革と補強材を組み合わせた頭部装備。`
+        LEATHER01_HEADGEAR,
+        (title) => `${title}。革で仕立てた頭装備。`
     ),
-    ...buildSequentialOverrides(
+    ...buildHeadArmorOverrides(
         'leather02_',
-        LEATHER02_TITLES,
-        (title) => `${title}。厚い革と獣素材で仕立てた頭部装備。`
+        LEATHER02_HEADGEAR,
+        (title) => `${title}。革と骨で作られた頭装備。`
     ),
-    ...buildSequentialOverrides(
+    ...buildHeadArmorOverrides(
         'metal_',
-        METAL_TITLES,
-        (title) => `${title}。金属板を組み上げた堅牢な頭部装備。`
+        METAL_HEADGEAR,
+        (title) => `${title}。金属で作られた頭装備。`
     ),
+    ...buildHeadArmorOverrides(
+        'metal_black_',
+        METAL_BLACK_HEADGEAR,
+        (title) => `${title}。名のある戦士のための重い頭装備。`
+    )
+});
+
+const PRESENTATION_OVERRIDES = Object.freeze({
+    ...HEAD_ARMOR_OVERRIDES,
     ...Object.fromEntries(Object.entries(STAFF_TITLES).map(([id, title]) => [
         id,
         { title, description: `${title}。魔力を導くために作られた長杖。` }
@@ -265,6 +371,12 @@ function normalizeCatalog(catalog, filePath) {
         if (presentation) {
             item.Title = localized(presentation.title);
             item.Description = localized(presentation.description);
+            if (Number.isInteger(presentation.defense)) {
+                item.DisplayProperties = {
+                    ...(item.DisplayProperties || {}),
+                    Defense: presentation.defense
+                };
+            }
             updatedCount += 1;
         }
 
@@ -305,6 +417,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+    HEAD_ARMOR_OVERRIDES,
     OFFHAND_SPRITE_INDICES,
     PRESENTATION_OVERRIDES,
     getFriendlyId,
