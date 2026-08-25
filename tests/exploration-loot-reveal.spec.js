@@ -71,7 +71,7 @@ test('opening a returned exploration chest reveals its item and marks the invent
   });
 
   await page.evaluate(async () => {
-    const ship = await import('/js/ship.js?v=20260825-monster-motion-v1');
+    const ship = await import('/js/ship.js?v=20260825-monster-motion-v2');
     await ship.claimOnlineExplorationReward('PF_PLAYWRIGHT', 'PF_PLAYWRIGHT', {
       mode: 'online',
       status: 'completed',

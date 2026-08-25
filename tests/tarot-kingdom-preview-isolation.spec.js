@@ -59,7 +59,7 @@ test('Tarot Kingdom retries a transient Arcana catalog failure before starting',
 });
 
 test('Tarot Kingdom release advances its entry modules and service-worker cache together', () => {
-  const release = '20260825-monster-motion-v1';
+  const release = '20260825-monster-motion-v2';
   const inventoryRelease = '20260824-judgment-five-card-v1';
   const indexSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'index.html'), 'utf8');
   const mainSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'main.js'), 'utf8');
@@ -86,7 +86,7 @@ test('Tarot Kingdom release advances its entry modules and service-worker cache 
   expect(previewSource).toContain(`"ui": "./js/ui.js?v=${release}"`);
   expect(previewSource).toContain(`./js/tarotKingdom.js?v=${release}`);
   expect(previewSource).toContain(`./style.css?v=${release}`);
-  expect(serviceWorkerSource).toContain("const CACHE_VERSION = 'troy-app-v20260825e';");
+  expect(serviceWorkerSource).toContain("const CACHE_VERSION = 'troy-app-v20260825f';");
 });
 
 function loadServiceWorkerHarness() {

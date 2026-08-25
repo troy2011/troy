@@ -1959,6 +1959,7 @@ test('preview enemy picker switches among all purchased Pixel Monsters without c
   );
   await expect(kerottsSprite).toHaveCSS('width', '39px');
   await expect(kerottsSprite).toHaveCSS('height', '36px');
+  await expect(kerottsSprite).toHaveCSS('--tarot-kingdom-enemy-scale', '2');
 
   await picker.selectOption('ismartal-vol3-monster-01');
   await expect(page.locator('#tarotKingdomEnemySprite')).toHaveCSS('image-rendering', /pixelated|crisp-edges/);
@@ -2019,16 +2020,20 @@ test('Picoai uses its parent body and Purun changes size by enemy HP and pet lev
     'background-image',
     /\/pixel-monsters\/vol1\/monster-05\/idle_2\.png/
   );
+  await expect(enemySprite).toHaveCSS('--tarot-kingdom-enemy-scale', '2');
 
   await page.evaluate(() => {
     window.TarotKingdomDebug.battleSetDemoEnemy('ismartal-vol3-monster-04');
     window.TarotKingdomDebug.battleSetEnemyHp(90, 100);
   });
   await expect(enemySprite).toHaveAttribute('data-animation-name', 'idle_2');
+  await expect(enemySprite).toHaveCSS('--tarot-kingdom-enemy-scale', '2');
   await page.evaluate(() => window.TarotKingdomDebug.battleSetEnemyHp(50, 100));
   await expect(enemySprite).toHaveAttribute('data-animation-name', 'idle');
+  await expect(enemySprite).toHaveCSS('--tarot-kingdom-enemy-scale', '2');
   await page.evaluate(() => window.TarotKingdomDebug.battleSetEnemyHp(20, 100));
   await expect(enemySprite).toHaveAttribute('data-animation-name', 'idle_3');
+  await expect(enemySprite).toHaveCSS('--tarot-kingdom-enemy-scale', '2');
 
   const petForms = await page.evaluate(() => {
     const debug = window.TarotKingdomDebug;

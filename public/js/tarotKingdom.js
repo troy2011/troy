@@ -14,11 +14,11 @@ import {
   getTarotKingdomPetState,
   joinExplorationStage
 } from './playfabClient.js';
-import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260825-monster-motion-v1';
+import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260825-monster-motion-v2';
 import {
   auditTarotKingdomMonsterMotionAssignments,
   resolveTarotKingdomMonsterMotion
-} from './tarotKingdomMonsterMotions.js?v=20260825-monster-motion-v1';
+} from './tarotKingdomMonsterMotions.js?v=20260825-monster-motion-v2';
 import {
   calculateTarotKingdomIncomingDamage,
   calculateTarotKingdomPlayerAttack,
@@ -101,7 +101,7 @@ import { startAvatarBodyMotion, stopAvatarBodyMotion } from './avatar.js';
 import {
   PIXEL_MONSTER_COMPANION_OFFSET_Y,
   PIXEL_MONSTER_COMPANION_SCALE
-} from './pixelMonsterCompanion.js?v=20260825-monster-motion-v1';
+} from './pixelMonsterCompanion.js?v=20260825-monster-motion-v2';
 
 const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 const TAROT_TILE_W = 48;
@@ -22876,8 +22876,16 @@ function setKingdomMonsterFrame(node, monster, animation, frameIndex) {
   const anchorMode = idleAnchor.mode === 'air' ? 'air' : 'ground';
   node.dataset.monsterAnchor = anchorMode;
   const displayWidth = Number(monster.displayWidth);
-  if (Number.isFinite(displayWidth) && displayWidth > 0) {
-    node.style.setProperty('--tarot-kingdom-enemy-scale', String(displayWidth / width));
+  const baseFrameWidth = Math.max(1, Number(monster.frameWidth) || width);
+  // Extra clips are trimmed independently, so their canvas width must not change the pixel scale.
+  const pixelScale = Math.max(
+    0.5,
+    Number.isFinite(displayWidth) && displayWidth > 0
+      ? displayWidth / baseFrameWidth
+      : (Number(monster.pixelScale) || 2)
+  );
+  if (Number.isFinite(pixelScale) && pixelScale > 0) {
+    node.style.setProperty('--tarot-kingdom-enemy-scale', String(pixelScale));
   } else {
     node.style.removeProperty('--tarot-kingdom-enemy-scale');
   }
