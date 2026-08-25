@@ -1,4 +1,4 @@
-import { getNationAnnouncements } from './playfabClient.js';
+import { getNationAnnouncements } from './playfabClient.js?v=20260825-playfab-read-coalescing-v1';
 
 let resizeBound = false;
 

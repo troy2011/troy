@@ -5,7 +5,7 @@ import * as Inventory from 'inventory';
 import * as Ship from './ship.js?v=20260825-pet-tp-exp-v1';
 import * as NationKing from './nationKing.js?v=20260731-stage-score1';
 import * as Islands from './islands.js';
-import { getNationAnnouncements } from './playfabClient.js';
+import { getNationAnnouncements } from './playfabClient.js?v=20260825-playfab-read-coalescing-v1';
 import { loadHomeAnnouncements } from './homeAnnouncements.js';
 import { bindModalClose } from './modalClose.js';
 
@@ -1388,7 +1388,6 @@ export async function showTab(tabId, playerInfo, options = {}) {
             switch (tabId) {
                 case 'home':
                     await Promise.allSettled([
-                        Player.getPoints(playerInfo.playFabId),
                         Player.getPlayerStats(playerInfo.playFabId),
                         Inventory.refreshResourceSummary(playerInfo.playFabId),
                         Ship.loadPlayerShipProfile(playerInfo.playFabId),
@@ -1424,7 +1423,6 @@ export async function showTab(tabId, playerInfo, options = {}) {
                     break;
                 case 'inventory':
                     await Inventory.getInventory(playerInfo.playFabId);
-                    await Player.getPoints(playerInfo.playFabId);
                     break;
                 case 'islands':
                     if (!playerInfo || !playerInfo.playFabId) {
@@ -1440,7 +1438,6 @@ export async function showTab(tabId, playerInfo, options = {}) {
                     await NationKing.loadKingPage(playerInfo.playFabId, { useCache: true });
                     break;
                 case 'qr':
-                    await Player.getPoints(playerInfo.playFabId);
                     await Inventory.refreshResourceSummary(playerInfo.playFabId);
                     break;
                 case 'battle':

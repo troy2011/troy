@@ -13,7 +13,7 @@ import {
     getShipSkillStatus as fetchShipSkillStatus,
     useShipSkill as requestUseShipSkill,
     triggerShipSkill as requestTriggerShipSkill
-} from './js/playfabClient.js';
+} from './js/playfabClient.js?v=20260825-playfab-read-coalescing-v1';
 import {
     getCachedSkillData,
     setCachedSkillData,

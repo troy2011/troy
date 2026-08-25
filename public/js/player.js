@@ -11,7 +11,7 @@ import {
     getBountyRanking as fetchBountyRanking,
     getNationTreasuryRanking as fetchNationTreasuryRanking,
     getStoreGameRanking as fetchStoreGameRanking
-} from './playfabClient.js';
+} from './playfabClient.js?v=20260825-playfab-read-coalescing-v1';
 import { formatCurrencyLabel } from './config.js';
 import { getNationLabel } from './nationLabels.js';
 import { renderHomePlayerStatus } from './homePlayerStatus.js';

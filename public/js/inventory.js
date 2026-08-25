@@ -18,7 +18,7 @@ import {
     createBlackMarketListing as requestCreateBlackMarketListing,
     cancelBlackMarketListing as requestCancelBlackMarketListing,
     buyBlackMarketListing as requestBuyBlackMarketListing
-} from './playfabClient.js?v=20260825-equipment-enhancement-throttle-v1';
+} from './playfabClient.js?v=20260825-playfab-read-coalescing-v1';
 import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites, resolveSpritePathByAvatarColor } from './avatar.js';
 import * as Player from './player.js';
 import {
@@ -73,8 +73,11 @@ let activeInventoryGroup = 'Equipment';
 let activeInventoryCategory = 'Hand';
 let lastInventoryFetchAt = 0;
 let inventoryFetchPromise = null;
+let inventoryQueuedFetchPromise = null;
 let equipmentLoaded = false;
 let equipmentFetchPromise = null;
+let equipmentQueuedFetchPromise = null;
+let lastEquipmentFetchAt = 0;
 let equipmentMutationInFlight = false;
 let inventoryStickyResizeObserver = null;
 let inventorySellSelectionMode = false;
@@ -93,6 +96,10 @@ let blackMarketReturnFocusElement = null;
 let equipmentEnhancementKeydownHandler = null;
 // カードレベルデータ: { [itemId]: { level, maxLevel, quantity, duplicateCount, duplicateCost, canLevelUp } }
 let cardLevelMap = {};
+let cardLevelsFetchPromise = null;
+let lastCardLevelsFetchAt = 0;
+const INVENTORY_FETCH_COOLDOWN_MS = 1500;
+const CARD_LEVELS_FETCH_COOLDOWN_MS = 3000;
 const tarotLevelUpInFlightItemIds = new Set();
 let tarotLevelUpEffectTimer = null;
 const TAROT_LEVEL_UP_EFFECT_DURATION_MS = 1100;
@@ -192,16 +199,38 @@ export function markInventoryItemsAsNew(items = []) {
     return true;
 }
 
-async function loadCardLevels() {
-    try {
-        const res = await fetch('/api/cards');
-        if (!res.ok) return;
-        const data = await res.json();
-        cardLevelMap = {};
-        (data.cards || []).forEach((c) => { cardLevelMap[c.itemId] = c; });
-    } catch (err) {
-        console.warn('[inventory] loadCardLevels failed:', err);
+async function loadCardLevels(options = {}) {
+    const force = options?.force === true;
+    if (cardLevelsFetchPromise) return cardLevelsFetchPromise;
+    if (!force && Date.now() - lastCardLevelsFetchAt < CARD_LEVELS_FETCH_COOLDOWN_MS) {
+        return cardLevelMap;
     }
+
+    const request = (async () => {
+        try {
+            const res = await fetch('/api/cards');
+            lastCardLevelsFetchAt = Date.now();
+            if (!res.ok) return cardLevelMap;
+            const data = await res.json();
+            cardLevelMap = {};
+            (data.cards || []).forEach((c) => { cardLevelMap[c.itemId] = c; });
+            return cardLevelMap;
+        } catch (err) {
+            lastCardLevelsFetchAt = Date.now();
+            console.warn('[inventory] loadCardLevels failed:', err);
+            return cardLevelMap;
+        }
+    })();
+    cardLevelsFetchPromise = request;
+    void request.then(
+        () => {
+            if (cardLevelsFetchPromise === request) cardLevelsFetchPromise = null;
+        },
+        () => {
+            if (cardLevelsFetchPromise === request) cardLevelsFetchPromise = null;
+        }
+    );
+    return request;
 }
 
 async function loadTarotBattleSkillCache() {
@@ -249,7 +278,7 @@ async function levelUpCard(itemId) {
     } catch (err) {
         const playFabId = window.myPlayFabId || null;
         await Promise.all([
-            loadCardLevels(),
+            loadCardLevels({ force: true }),
             playFabId ? getInventory(playFabId, { force: true }) : Promise.resolve(),
         ]).catch((refreshError) => {
             console.warn('[inventory] card level recovery refresh failed:', refreshError);
@@ -3322,29 +3351,58 @@ export function getMyTarotGuardianSnapshot() {
     };
 }
 
-async function loadCurrentEquipment(playFabId, options = {}) {
-    const force = options && options.force === true;
-    if (equipmentFetchPromise && !force) return equipmentFetchPromise;
-    if (equipmentFetchPromise && force) {
-        try {
-            await equipmentFetchPromise;
-        } catch (_error) {
-            // Ignore the stale equipment request and continue with a fresh request.
-        }
-    }
-    equipmentFetchPromise = (async () => {
+function beginEquipmentFetch(playFabId, options = {}) {
+    const request = (async () => {
         const data = await fetchEquipment(playFabId, { isSilent: options.isSilent === true });
         if (data?.equipment) {
             myCurrentEquipment = data.equipment;
         }
         equipmentLoaded = true;
+        lastEquipmentFetchAt = Date.now();
         return data;
     })();
-    try {
-        return await equipmentFetchPromise;
-    } finally {
-        equipmentFetchPromise = null;
+    equipmentFetchPromise = request;
+    void request.then(
+        () => {
+            if (equipmentFetchPromise === request) equipmentFetchPromise = null;
+        },
+        () => {
+            if (equipmentFetchPromise === request) equipmentFetchPromise = null;
+        }
+    );
+    return request;
+}
+
+async function loadCurrentEquipment(playFabId, options = {}) {
+    const force = options?.force === true;
+    if (equipmentQueuedFetchPromise) return equipmentQueuedFetchPromise;
+    if (equipmentFetchPromise) {
+        if (!force) return equipmentFetchPromise;
+
+        const activeRequest = equipmentFetchPromise;
+        const queuedRequest = (async () => {
+            try {
+                await activeRequest;
+            } catch (_error) {
+                // A forced refresh still needs a fresh snapshot after a failed request.
+            }
+            return beginEquipmentFetch(playFabId, options);
+        })();
+        equipmentQueuedFetchPromise = queuedRequest;
+        void queuedRequest.then(
+            () => {
+                if (equipmentQueuedFetchPromise === queuedRequest) equipmentQueuedFetchPromise = null;
+            },
+            () => {
+                if (equipmentQueuedFetchPromise === queuedRequest) equipmentQueuedFetchPromise = null;
+            }
+        );
+        return queuedRequest;
     }
+    if (!force && equipmentLoaded && Date.now() - lastEquipmentFetchAt < INVENTORY_FETCH_COOLDOWN_MS) {
+        return null;
+    }
+    return beginEquipmentFetch(playFabId, options);
 }
 
 function calculateLevelFromExp(expValue) {
@@ -3410,45 +3468,96 @@ function updateExperienceUI() {
     fillEl.style.width = `${Math.round(ratio * 100)}%`;
 }
 
-export async function getInventory(playFabId, options = {}) {
-    const now = Date.now();
-    const force = options && options.force === true;
-    if (inventoryFetchPromise && !force) return inventoryFetchPromise;
-    if (inventoryFetchPromise && force) {
-        try {
-            await inventoryFetchPromise;
-        } catch (_error) {
-            // Ignore the stale fetch result and continue with a fresh request.
-        }
-    }
-    if (!force && now - lastInventoryFetchAt < 1500) return;
-    inventoryFetchPromise = (async () => {
-    document.getElementById('inventoryGrid').innerHTML = '<p style="grid-column: 1 / -1; text-align: center;">（持ち物を読み込んでいます...）</p>';
-    const [data, deckData] = await Promise.all([
-        fetchInventory(playFabId),
-        fetchTarotDecks(playFabId, { isSilent: true }),
-        loadTarotBattleSkillCache(),
-        TAROT_KINGDOM_ARCANA_EFFECTS_READY
-    ]);
-    if (data) {
-        const contributionValue = data.contribution ?? data.experience ?? 0;
+function applyInventorySnapshot(data) {
+    if (!data) return false;
+    const contributionValue = data.contribution ?? data.experience ?? 0;
+    if (Array.isArray(data.inventory)) {
         myInventory = data.inventory;
-        myVirtualCurrency = data.virtualCurrency || {};
-        blackMarketOriginsByItemId = data.blackMarketOrigins || {};
-        blackMarketMyActiveCount = Number(data.blackMarketMyActiveCount ?? blackMarketMyActiveCount) || 0;
-        blackMarketMaxActiveListings = Number(data.blackMarketMaxActiveListings ?? blackMarketMaxActiveListings) || 5;
-        myExperience = Number(contributionValue || 0);
-        myExperienceProgress = normalizeExperienceProgress(data.contributionProgress, myExperience);
-        myIsKing = !!data.isKing;
-        Player.syncPointsDisplay(Number(myVirtualCurrency?.PS || 0));
-        Player.syncSpecialtyDisplay(myVirtualCurrency);
-        preloadAvatarBaseSprites(window.myAvatarBaseInfo);
-        preloadEquipmentSprites(myCurrentEquipment, myInventory, window.myAvatarBaseInfo?.AvatarColor);
     }
-    if (deckData?.ok) {
-        applyTarotDeckData(deckData);
+    myVirtualCurrency = data.virtualCurrency || {};
+    blackMarketOriginsByItemId = data.blackMarketOrigins || {};
+    blackMarketMyActiveCount = Number(data.blackMarketMyActiveCount ?? blackMarketMyActiveCount) || 0;
+    blackMarketMaxActiveListings = Number(data.blackMarketMaxActiveListings ?? blackMarketMaxActiveListings) || 5;
+    myExperience = Number(contributionValue || 0);
+    myExperienceProgress = normalizeExperienceProgress(data.contributionProgress, myExperience);
+    myIsKing = !!data.isKing;
+    Player.syncPointsDisplay(Number(myVirtualCurrency?.PS || 0));
+    Player.syncSpecialtyDisplay(myVirtualCurrency);
+    preloadAvatarBaseSprites(window.myAvatarBaseInfo);
+    preloadEquipmentSprites(myCurrentEquipment, myInventory, window.myAvatarBaseInfo?.AvatarColor);
+    return true;
+}
+
+function beginInventoryFetch(playFabId, options = {}) {
+    const request = (async () => {
+        const force = options?.force === true;
+        const includedEquipment = options?.includeEquipment === true;
+        const equipmentRequest = includedEquipment
+            ? loadCurrentEquipment(playFabId, { isSilent: true, force }).catch((error) => {
+                console.warn('[inventory] equipment refresh failed:', error);
+                return null;
+            })
+            : Promise.resolve(null);
+        const [data, deckData] = await Promise.all([
+            fetchInventory(playFabId),
+            fetchTarotDecks(playFabId, { isSilent: true }),
+            loadTarotBattleSkillCache(),
+            TAROT_KINGDOM_ARCANA_EFFECTS_READY,
+            equipmentRequest
+        ]);
+        const hasInventoryData = applyInventorySnapshot(data);
+        if (deckData?.ok) {
+            applyTarotDeckData(deckData);
+        }
+        lastInventoryFetchAt = Date.now();
+        return { data, deckData, hasInventoryData, includedEquipment };
+    })();
+    inventoryFetchPromise = request;
+    void request.then(
+        () => {
+            if (inventoryFetchPromise === request) inventoryFetchPromise = null;
+        },
+        () => {
+            if (inventoryFetchPromise === request) inventoryFetchPromise = null;
+        }
+    );
+    return request;
+}
+
+function requestInventorySnapshot(playFabId, options = {}) {
+    const force = options?.force === true;
+    if (inventoryQueuedFetchPromise) return inventoryQueuedFetchPromise;
+    if (inventoryFetchPromise) {
+        if (!force) return inventoryFetchPromise;
+
+        const activeRequest = inventoryFetchPromise;
+        const queuedRequest = (async () => {
+            try {
+                await activeRequest;
+            } catch (_error) {
+                // The queued forced refresh must run even when the prior request failed.
+            }
+            return beginInventoryFetch(playFabId, options);
+        })();
+        inventoryQueuedFetchPromise = queuedRequest;
+        void queuedRequest.then(
+            () => {
+                if (inventoryQueuedFetchPromise === queuedRequest) inventoryQueuedFetchPromise = null;
+            },
+            () => {
+                if (inventoryQueuedFetchPromise === queuedRequest) inventoryQueuedFetchPromise = null;
+            }
+        );
+        return queuedRequest;
     }
-    await getEquipment(playFabId, { isSilent: true });
+    if (!force && Date.now() - lastInventoryFetchAt < INVENTORY_FETCH_COOLDOWN_MS) {
+        return null;
+    }
+    return beginInventoryFetch(playFabId, options);
+}
+
+function renderInventorySnapshot() {
+    updateEquipmentAndAvatarDisplay();
     renderInventoryTabControls();
     updateInventorySortOptions(getActiveInventoryCategory());
     renderInventoryGrid(getActiveInventoryCategory());
@@ -3456,68 +3565,50 @@ export async function getInventory(playFabId, options = {}) {
     renderTarotDeckPanels();
     updateInventoryTabHint(getActiveInventoryCategory());
     switchInventoryPanel(activeInventoryPanel, { preserveScroll: true });
-    lastInventoryFetchAt = Date.now();
-    })();
-    try {
-        return await inventoryFetchPromise;
-    } finally {
-        inventoryFetchPromise = null;
+}
+
+export async function getInventory(playFabId, options = {}) {
+    const force = options?.force === true;
+    const shouldShowLoading = !inventoryFetchPromise
+        && !inventoryQueuedFetchPromise
+        && (force || Date.now() - lastInventoryFetchAt >= INVENTORY_FETCH_COOLDOWN_MS);
+    if (shouldShowLoading) {
+        const gridEl = document.getElementById('inventoryGrid');
+        if (gridEl) {
+            gridEl.innerHTML = '<p style="grid-column: 1 / -1; text-align: center;">（持ち物を読み込んでいます...）</p>';
+        }
     }
+    const snapshot = await requestInventorySnapshot(playFabId, { ...options, includeEquipment: true });
+    if (!snapshot) return;
+    if (!snapshot.includedEquipment) {
+        await getEquipment(playFabId, { isSilent: true });
+    }
+    renderInventorySnapshot();
+    return snapshot;
 }
 
 export async function refreshResourceSummary(playFabId, options = {}) {
-    const now = Date.now();
-    const force = options && options.force === true;
-    if (!force && now - lastInventoryFetchAt < 1500 && equipmentLoaded) {
+    const force = options?.force === true;
+    const snapshot = await requestInventorySnapshot(playFabId, {
+        ...options,
+        includeEquipment: force || !equipmentLoaded
+    });
+    if (!snapshot) {
         updateExperienceUI();
         renderTarotDeckPanels();
         return;
     }
-    const shouldLoadEquipment = force || !equipmentLoaded;
-    const equipmentRequest = shouldLoadEquipment
-        ? loadCurrentEquipment(playFabId, { isSilent: true, force }).catch((error) => {
-            console.warn('[inventory] equipment summary refresh failed:', error);
-            return null;
-        })
-        : Promise.resolve(null);
-    const [data, deckData] = await Promise.all([
-        fetchInventory(playFabId),
-        fetchTarotDecks(playFabId, { isSilent: true }),
-        equipmentRequest,
-        loadTarotBattleSkillCache()
-    ]);
-    if (data) {
-        const contributionValue = data.contribution ?? data.experience ?? 0;
-        if (Array.isArray(data.inventory)) {
-            myInventory = data.inventory;
-        }
-        myVirtualCurrency = data.virtualCurrency || {};
-        blackMarketOriginsByItemId = data.blackMarketOrigins || {};
-        blackMarketMyActiveCount = Number(data.blackMarketMyActiveCount ?? blackMarketMyActiveCount) || 0;
-        blackMarketMaxActiveListings = Number(data.blackMarketMaxActiveListings ?? blackMarketMaxActiveListings) || 5;
-        myExperience = Number(contributionValue || 0);
-        myExperienceProgress = normalizeExperienceProgress(data.contributionProgress, myExperience);
-        myIsKing = !!data.isKing;
-        Player.syncPointsDisplay(Number(myVirtualCurrency?.PS || 0));
-        Player.syncSpecialtyDisplay(myVirtualCurrency);
-        preloadAvatarBaseSprites(window.myAvatarBaseInfo);
-        preloadEquipmentSprites(myCurrentEquipment, myInventory, window.myAvatarBaseInfo?.AvatarColor);
+    if (snapshot.hasInventoryData) {
         renderInventoryTabControls();
         updateInventorySortOptions(getActiveInventoryCategory());
         requestPassiveInventoryGridRefresh();
         updateExperienceUI();
-        if (Array.isArray(data.inventory)) {
-            renderAvatar('avatar', window.myAvatarBaseInfo, myCurrentEquipment, myInventory, false);
-            renderAvatar('home-avatar', window.myAvatarBaseInfo, myCurrentEquipment, myInventory, false);
-            updateEquipmentBonusDisplay();
-        }
-        lastInventoryFetchAt = Date.now();
-    }
-    if (deckData?.ok) {
-        applyTarotDeckData(deckData);
-        renderTarotDeckPanels();
+        renderAvatar('avatar', window.myAvatarBaseInfo, myCurrentEquipment, myInventory, false);
+        renderAvatar('home-avatar', window.myAvatarBaseInfo, myCurrentEquipment, myInventory, false);
+        updateEquipmentBonusDisplay();
     }
     renderTarotDeckPanels();
+    return snapshot;
 }
 
 export async function getEquipment(playFabId, options = {}) {
@@ -3770,7 +3861,6 @@ export async function sellItem(playFabId, itemInstanceId, itemId) {
     const data = await requestSellItem(playFabId, itemInstanceId, itemId);
     if (data) {
         await getInventory(playFabId, { force: true });
-        await Player.getPoints(playFabId);
         document.getElementById('pointMessage').innerText = data.message || '';
     }
 }
@@ -3800,7 +3890,6 @@ export async function sellSelectedInventoryItems() {
     if (data) {
         selectedInventorySellItemIds.clear();
         await getInventory(playFabId, { force: true });
-        await Player.getPoints(playFabId);
         document.getElementById('pointMessage').innerText = data.message || '';
         if (typeof window.showRpgMessage === 'function') {
             window.showRpgMessage(data.message || `${selectedCount}個を売却した。`);
@@ -3812,7 +3901,6 @@ async function refreshInventoryAfterBlackMarketAction(message = '') {
     const playFabId = window.myPlayFabId || null;
     if (!playFabId) return;
     await getInventory(playFabId, { force: true });
-    await Player.getPoints(playFabId);
     if (blackMarketVisible) {
         await loadBlackMarketListings({ force: true, isSilent: true });
     }

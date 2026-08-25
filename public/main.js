@@ -34,7 +34,7 @@ import {
     getPublicPlayerProfile,
     getTroyStatus,
     updateAvatarStyle as requestUpdateAvatarStyle
-} from './js/playfabClient.js';
+} from './js/playfabClient.js?v=20260825-playfab-read-coalescing-v1';
 import { FEATURE_UNLOCK_LEVELS, formatUnlockedFeatures, isFeatureUnlocked, normalizeLevel } from './js/featureUnlocks.js';
 import { bindModalClose, bindTargetModalCloseButtons } from './js/modalClose.js';
 import { startModalViewportTracking, stopModalViewportTracking } from './js/modalViewport.js';
@@ -2568,8 +2568,6 @@ async function startScanEquipmentGacha() {
         if (result) result.innerText = `${itemName} を手に入れました。`;
         showRpgMessage(`${itemName} を手に入れた。`, 2600);
         await Inventory.getInventory(myPlayFabId, { force: true });
-        await Player.getPoints(myPlayFabId);
-        await Inventory.refreshResourceSummary(myPlayFabId);
     } catch (error) {
         console.error('[equipment-gacha] failed:', error);
         setEquipmentGachaChestState('idle');

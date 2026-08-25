@@ -112,6 +112,8 @@ const NATION_WAR_CARD_REWARD_HIGH_RAID_THRESHOLD = 50000;
 const TROY_COIN_CONVERSION_MAX_AMOUNT = 1000000;
 const TROY_COIN_RETURN_QR_VALUE = 'troy:coin-return';
 const TROY_BOUNTY_RANKING_MEMBER_LIMIT = 50;
+const TROY_BOUNTY_RANKING_CACHE_TTL_MS = 5000;
+const TROY_BOUNTY_RANKING_FETCH_CONCURRENCY = 4;
 const TROY_CONTRIBUTION_DEBT_COLLECTION = 'troy_contribution_debts';
 const TROY_CONTRIBUTION_DEBT_MESSAGE = '古傷が疼き、経験値は波間に消えた。';
 const TROY_CHIP_RETURN_DEBT_REPAY_BPS = 9000;
@@ -2743,6 +2745,27 @@ async function buildTroyBountyRankingRow(memberDoc, deps) {
     };
 }
 
+async function mapWithConcurrency(entries, concurrency, mapper) {
+    const values = Array.isArray(entries) ? entries : [];
+    const results = new Array(values.length);
+    const workerCount = Math.min(
+        values.length,
+        Math.max(1, Math.floor(Number(concurrency) || 1))
+    );
+    let nextIndex = 0;
+
+    async function worker() {
+        while (nextIndex < values.length) {
+            const index = nextIndex;
+            nextIndex += 1;
+            results[index] = await mapper(values[index], index);
+        }
+    }
+
+    await Promise.all(Array.from({ length: workerCount }, worker));
+    return results;
+}
+
 async function ensureKingStarterCrown(playFabId, nation, deps) {
     const { promisifyPlayFab, PlayFabServer, addEconomyItem } = deps;
     const kingId = normalizePlayFabId(playFabId);
@@ -2801,6 +2824,83 @@ function initializeNationRoutes(app, deps) {
         getAllInventoryItems: deps.getAllInventoryItems,
         getVirtualCurrencyMap: deps.getVirtualCurrencyMap
     };
+    let troyBountyRankingSnapshot = null;
+    let troyBountyRankingRequestPromise = null;
+
+    function formatTroyBountyRanking(snapshot, limit) {
+        return {
+            scope: 'troy-members',
+            isOpen: snapshot.isOpen,
+            memberCount: snapshot.memberCount,
+            updatedAt: snapshot.updatedAt,
+            ranking: snapshot.rows
+                .slice(0, limit)
+                .map((entry, index) => ({
+                    position: index + 1,
+                    playFabId: entry.playFabId,
+                    displayName: entry.displayName,
+                    avatarUrl: entry.avatarUrl,
+                    level: entry.level,
+                    rankName: entry.rankName,
+                    bounty: entry.bounty,
+                    score: entry.score
+                }))
+        };
+    }
+
+    function loadTroyBountyRankingSnapshot() {
+        const now = Date.now();
+        if (troyBountyRankingSnapshot?.expiresAt > now) {
+            return Promise.resolve(troyBountyRankingSnapshot);
+        }
+        if (troyBountyRankingRequestPromise) return troyBountyRankingRequestPromise;
+
+        const request = (async () => {
+            const roomRef = getTroyRoomDoc(firestore);
+            const roomSnap = await roomRef.get();
+            const roomData = roomSnap.exists ? (roomSnap.data() || {}) : {};
+            const membersSnap = await roomRef
+                .collection('members')
+                .orderBy('joinedAt', 'asc')
+                .limit(TROY_BOUNTY_RANKING_MEMBER_LIMIT)
+                .get();
+            const rows = await mapWithConcurrency(
+                membersSnap.docs,
+                TROY_BOUNTY_RANKING_FETCH_CONCURRENCY,
+                (doc) => buildTroyBountyRankingRow(doc, nationDeps)
+            );
+            const snapshot = {
+                isOpen: !!roomData.isOpen,
+                memberCount: membersSnap.size,
+                updatedAt: Date.now(),
+                rows: rows
+                    .filter(Boolean)
+                    .sort((a, b) => (
+                        (b.bounty - a.bounty)
+                        || (b.level - a.level)
+                        || (a.joinedAtMs - b.joinedAtMs)
+                        || String(a.playFabId || '').localeCompare(String(b.playFabId || ''))
+                    )),
+                expiresAt: Date.now() + TROY_BOUNTY_RANKING_CACHE_TTL_MS
+            };
+            troyBountyRankingSnapshot = snapshot;
+            return snapshot;
+        })();
+        troyBountyRankingRequestPromise = request;
+        void request.then(
+            () => {
+                if (troyBountyRankingRequestPromise === request) {
+                    troyBountyRankingRequestPromise = null;
+                }
+            },
+            () => {
+                if (troyBountyRankingRequestPromise === request) {
+                    troyBountyRankingRequestPromise = null;
+                }
+            }
+        );
+        return request;
+    }
 
     const pushDisplayEvent = (payload) => {
         if (typeof emitDisplayEvent !== 'function') return;
@@ -3200,41 +3300,8 @@ function initializeNationRoutes(app, deps) {
         const limitRaw = Number.parseInt(String(req.query?.limit || '10'), 10);
         const limit = Number.isFinite(limitRaw) ? Math.min(50, Math.max(1, limitRaw)) : 10;
         try {
-            const roomRef = getTroyRoomDoc(firestore);
-            const roomSnap = await roomRef.get();
-            const roomData = roomSnap.exists ? (roomSnap.data() || {}) : {};
-            const membersSnap = await roomRef
-                .collection('members')
-                .orderBy('joinedAt', 'asc')
-                .limit(TROY_BOUNTY_RANKING_MEMBER_LIMIT)
-                .get();
-            const rows = await Promise.all(membersSnap.docs.map((doc) => buildTroyBountyRankingRow(doc, nationDeps)));
-            const ranking = rows
-                .filter(Boolean)
-                .sort((a, b) => (
-                    (b.bounty - a.bounty)
-                    || (b.level - a.level)
-                    || (a.joinedAtMs - b.joinedAtMs)
-                    || String(a.playFabId || '').localeCompare(String(b.playFabId || ''))
-                ))
-                .slice(0, limit)
-                .map((entry, index) => ({
-                    position: index + 1,
-                    playFabId: entry.playFabId,
-                    displayName: entry.displayName,
-                    avatarUrl: entry.avatarUrl,
-                    level: entry.level,
-                    rankName: entry.rankName,
-                    bounty: entry.bounty,
-                    score: entry.score
-                }));
-            res.json({
-                scope: 'troy-members',
-                isOpen: !!roomData.isOpen,
-                memberCount: membersSnap.size,
-                updatedAt: Date.now(),
-                ranking
-            });
+            const snapshot = await loadTroyBountyRankingSnapshot();
+            res.json(formatTroyBountyRanking(snapshot, limit));
         } catch (error) {
             console.error('[troy-bounty-ranking] Error:', error?.errorMessage || error?.message || error);
             res.status(500).json({ error: 'Failed to load troy bounty ranking' });
@@ -6511,6 +6578,7 @@ module.exports = {
     buildTroyUsualItemsPayload,
     mergeTroyOrderHistoryItems,
     buildTroyBountyRankingRow,
+    mapWithConcurrency,
     formatTroyCloseSummaryMessage,
     initializeNationRoutes
 };

@@ -29,7 +29,7 @@ import {
     getDemolishedIslands as fetchDemolishedIslands,
     getInventory as fetchInventory,
     getEquipment as fetchEquipment
-} from './playfabClient.js';
+} from './playfabClient.js?v=20260825-playfab-read-coalescing-v1';
 import { bindModalClose } from './modalClose.js';
 import { refreshResourceSummary } from './inventory.js';
 

@@ -9,7 +9,7 @@ import {
     sendNearbyChat,
     sendTroyChat,
     sendGlobalChat
-} from './playfabClient.js';
+} from './playfabClient.js?v=20260825-playfab-read-coalescing-v1';
 import { showRpgMessage } from './rpgMessages.js';
 import { decoratePlayerTriggerElement } from './playerProfile.js';
 
@@ -64,6 +64,8 @@ function createChatController(options) {
     let cachedGuildId = null;
     let wired = false;
     let liveMessagesUnsubscribe = null;
+    let messageRefreshPromise = null;
+    let queuedMessageRefreshPromise = null;
 
     function getChatElements() {
         return {
@@ -169,15 +171,15 @@ function createChatController(options) {
         }
     }
 
-    async function fetchMessages(playFabId) {
+    async function fetchMessages(playFabId, channel = activeChannel) {
         if (!playFabId) return [];
-        if (activeChannel === 'guild') {
+        if (channel === 'guild') {
             const guildId = await getGuildId(playFabId);
             if (!guildId) return [];
             const data = await getGuildChat(playFabId, guildId, { isSilent: true });
             return Array.isArray(data?.messages) ? data.messages : [];
         }
-        if (activeChannel === 'troy') {
+        if (channel === 'troy') {
             try {
                 const data = await getTroyChat(playFabId, { isSilent: true });
                 return Array.isArray(data?.messages) ? data.messages : [];
@@ -185,7 +187,7 @@ function createChatController(options) {
                 return [];
             }
         }
-        if (activeChannel === 'nearby') {
+        if (channel === 'nearby') {
             const pos = getPlayerPosition();
             const data = await getNearbyChat(playFabId, pos?.x, pos?.y, window.__currentMapId || null, { isSilent: true });
             return Array.isArray(data?.messages) ? data.messages : [];
@@ -227,9 +229,50 @@ function createChatController(options) {
         return !!res?.success;
     }
 
-    async function refreshMessages(playFabId) {
-        const messages = await fetchMessages(playFabId);
-        renderMessages(messages);
+    function beginMessageRefresh(playFabId) {
+        const channel = activeChannel;
+        const request = (async () => {
+            const messages = await fetchMessages(playFabId, channel);
+            if (channel === activeChannel) {
+                renderMessages(messages);
+            }
+            return messages;
+        })();
+        messageRefreshPromise = request;
+        void request.then(
+            () => {
+                if (messageRefreshPromise === request) messageRefreshPromise = null;
+            },
+            () => {
+                if (messageRefreshPromise === request) messageRefreshPromise = null;
+            }
+        );
+        return request;
+    }
+
+    function refreshMessages(playFabId) {
+        if (queuedMessageRefreshPromise) return queuedMessageRefreshPromise;
+        if (!messageRefreshPromise) return beginMessageRefresh(playFabId);
+
+        const activeRequest = messageRefreshPromise;
+        const queuedRequest = (async () => {
+            try {
+                await activeRequest;
+            } catch (_error) {
+                // A fresh channel snapshot is still required after a failed poll.
+            }
+            return beginMessageRefresh(playFabId);
+        })();
+        queuedMessageRefreshPromise = queuedRequest;
+        void queuedRequest.then(
+            () => {
+                if (queuedMessageRefreshPromise === queuedRequest) queuedMessageRefreshPromise = null;
+            },
+            () => {
+                if (queuedMessageRefreshPromise === queuedRequest) queuedMessageRefreshPromise = null;
+            }
+        );
+        return queuedRequest;
     }
 
     async function setActiveChannel(channel, playFabId) {
@@ -255,7 +298,7 @@ function createChatController(options) {
             const isActive = typeof config.isActive === 'function' ? config.isActive() : true;
             if (!isActive) return;
             if (activeChannel === 'troy') return;
-            refreshMessages(playFabId);
+            void refreshMessages(playFabId);
         }, 5000);
     }
 

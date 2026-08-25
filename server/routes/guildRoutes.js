@@ -27,6 +27,9 @@ const GUILD_MUTATION_LOCK_COLLECTION = 'guild_mutation_locks';
 const GUILD_MUTATION_LOCK_TTL_MS = 30_000;
 const GUILD_MUTATION_LOCK_WAIT_MS = 8_000;
 const SAFE_PLAYER_DISPLAY_NAME = '名前未設定';
+const GUILD_CHAT_CACHE_TTL_MS = 4000;
+const GUILD_CHAT_MEMBERSHIP_CACHE_TTL_MS = 15000;
+const GUILD_CHAT_CACHE_MAX_ENTRIES = 500;
 
 const NATION_GUILD_LABEL_BY_KEY = {
     fire: '火の国',
@@ -456,6 +459,81 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
 
     const economyDeps = { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, resolveItemId };
     const requireAuthenticatedPlayFabId = authTools?.requireAuthenticatedPlayFabId || null;
+    const guildChatSnapshotCache = new Map();
+    const guildChatSnapshotRequests = new Map();
+    const guildChatSnapshotVersions = new Map();
+    const guildMembershipCache = new Map();
+
+    function pruneExpiringCache(cache) {
+        const now = Date.now();
+        for (const [key, entry] of cache.entries()) {
+            if (Number(entry?.expiresAt || 0) <= now) cache.delete(key);
+        }
+        while (cache.size >= GUILD_CHAT_CACHE_MAX_ENTRIES) {
+            const oldestKey = cache.keys().next().value;
+            if (!oldestKey) break;
+            cache.delete(oldestKey);
+        }
+    }
+
+    function getGuildMembershipCacheKey(playFabId, guildId) {
+        return `${normalizePlayFabId(playFabId)}:${String(guildId || '').trim()}`;
+    }
+
+    function invalidateGuildMembershipCache(playFabId, guildId) {
+        const key = getGuildMembershipCacheKey(playFabId, guildId);
+        if (key !== ':') guildMembershipCache.delete(key);
+    }
+
+    function invalidateGuildChatSnapshot(guildId) {
+        const key = String(guildId || '').trim();
+        if (!key) return;
+        guildChatSnapshotCache.delete(key);
+        guildChatSnapshotVersions.set(key, Number(guildChatSnapshotVersions.get(key) || 0) + 1);
+    }
+
+    async function getGuildChatSnapshot(guildId) {
+        const key = String(guildId || '').trim();
+        if (!key) return { messages: [] };
+        const cached = guildChatSnapshotCache.get(key);
+        if (cached && cached.expiresAt > Date.now()) return cached.payload;
+
+        const version = Number(guildChatSnapshotVersions.get(key) || 0);
+        const inFlight = guildChatSnapshotRequests.get(key);
+        if (inFlight?.version === version) return inFlight.promise;
+
+        const request = (async () => {
+            const guildData = await getGuildData(key, promisifyPlayFab);
+            const payload = {
+                messages: Array.isArray(guildData?.chatMessages)
+                    ? guildData.chatMessages.slice(-100)
+                    : []
+            };
+            if (Number(guildChatSnapshotVersions.get(key) || 0) === version) {
+                pruneExpiringCache(guildChatSnapshotCache);
+                guildChatSnapshotCache.set(key, {
+                    payload,
+                    expiresAt: Date.now() + GUILD_CHAT_CACHE_TTL_MS
+                });
+            }
+            return payload;
+        })();
+        const requestEntry = { promise: request, version };
+        guildChatSnapshotRequests.set(key, requestEntry);
+        void request.then(
+            () => {
+                if (guildChatSnapshotRequests.get(key) === requestEntry) {
+                    guildChatSnapshotRequests.delete(key);
+                }
+            },
+            () => {
+                if (guildChatSnapshotRequests.get(key) === requestEntry) {
+                    guildChatSnapshotRequests.delete(key);
+                }
+            }
+        );
+        return request;
+    }
 
     async function requireAuthedPlayFabId(req, res, playFabId) {
         if (typeof requireAuthenticatedPlayFabId !== 'function') {
@@ -485,7 +563,13 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         return null;
     }
 
-    async function assertGuildMembership(playFabId, guildId) {
+    async function assertGuildMembership(playFabId, guildId, options = {}) {
+        const useCache = options?.useCache === true;
+        const cacheKey = getGuildMembershipCacheKey(playFabId, guildId);
+        const cached = useCache ? guildMembershipCache.get(cacheKey) : null;
+        if (cached?.expiresAt > Date.now() && cached.entityKey?.Id && cached.entityKey?.Type) {
+            return cached.entityKey;
+        }
         const entityKey = await resolvePlayerEntityKey(playFabId);
         if (!entityKey?.Id || !entityKey?.Type) {
             throw new Error('PlayerEntityNotFound');
@@ -497,6 +581,13 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         const isMember = groups.some((groupEntry) => String(groupEntry?.Group?.Id || '') === String(guildId || ''));
         if (!isMember) {
             throw new Error('NotGuildMember');
+        }
+        if (useCache) {
+            pruneExpiringCache(guildMembershipCache);
+            guildMembershipCache.set(cacheKey, {
+                entityKey,
+                expiresAt: Date.now() + GUILD_CHAT_MEMBERSHIP_CACHE_TTL_MS
+            });
         }
         return entityKey;
     }
@@ -1572,6 +1663,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                     console.warn('[ギルド加入] 募集掲示板の同期に失敗しました。', syncError?.message || syncError);
                 });
                 await saveGuildData(guildId, guildData, promisifyPlayFab);
+                invalidateGuildMembershipCache(requesterPlayFabId, guildId);
                 let nationSync = null;
                 try {
                     nationSync = await syncGuildMemberNationToMaster(requesterPlayFabId, guildData);
@@ -1658,6 +1750,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 console.warn('[ギルド脱退] 募集掲示板の同期に失敗しました。', syncError?.message || syncError);
             });
             await saveGuildData(guildId, guildData, promisifyPlayFab);
+            invalidateGuildMembershipCache(requesterPlayFabId, guildId);
 
             console.log(`[ギルド脱退] 成功: ${playFabId} がギルド ${guildId} から脱退しました。`);
 
@@ -1884,6 +1977,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 console.warn('[仲間除名] 募集掲示板の同期に失敗しました。', syncError?.message || syncError);
             });
             await saveGuildData(guildId, guildData, promisifyPlayFab);
+            invalidateGuildMembershipCache(targetId, guildId);
 
             res.json({
                 success: true,
@@ -2063,6 +2157,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 console.warn('[加入申請承認] 募集掲示板の同期に失敗しました。', syncError?.message || syncError);
             });
             await saveGuildData(guildId, guildData, promisifyPlayFab);
+            invalidateGuildMembershipCache(applicantId, guildId);
             let nationSync = null;
             try {
                 nationSync = await syncGuildMemberNationToMaster(applicantId, guildData);
@@ -2163,16 +2258,8 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         console.log(`[ギルドチャット取得] ギルド ${guildId} のチャットを取得します...`);
 
         try {
-            await assertGuildMembership(requesterPlayFabId, guildId);
-            const guildData = await getGuildData(guildId, promisifyPlayFab);
-            const messages = guildData.chatMessages || [];
-
-            // 最新100件のみ返す
-            const recentMessages = messages.slice(-100);
-
-            res.json({
-                messages: recentMessages
-            });
+            await assertGuildMembership(requesterPlayFabId, guildId, { useCache: true });
+            res.json(await getGuildChatSnapshot(guildId));
 
         } catch (error) {
             if (handleGuildAccessError(res, error)) return;
@@ -2235,6 +2322,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
 
             // 保存
             await saveGuildData(guildId, guildData, promisifyPlayFab);
+            invalidateGuildChatSnapshot(guildId);
 
             console.log(`[ギルドチャット送信] 成功: メッセージを保存しました。`);
 

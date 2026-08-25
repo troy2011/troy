@@ -7,7 +7,7 @@ import {
     allocateStatPoints,
     getTarotKingdomPetState,
     renameTarotKingdomPet
-} from './playfabClient.js';
+} from './playfabClient.js?v=20260825-playfab-read-coalescing-v1';
 import { createRequestId } from './api.js';
 import { showRpgMessage } from './rpgMessages.js';
 import { renderPixelMonsterCompanion } from './pixelMonsterCompanion.js?v=20260825-monster-motion-v2';

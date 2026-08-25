@@ -9,9 +9,25 @@ const {
   buildTroyUsualItemsPayload,
   mergeTroyOrderHistoryItems,
   buildTroyBountyRankingRow,
+  mapWithConcurrency,
   formatTroyCloseSummaryMessage
 } = require('../server/nation');
 const { buildCalculatedTroyBountyRanking, buildCalculatedGlobalBountyRanking } = require('../server/economy');
+
+test('limits concurrent TROY ranking player lookups while preserving row order', async () => {
+  let active = 0;
+  let maxActive = 0;
+  const rows = await mapWithConcurrency([1, 2, 3, 4, 5, 6, 7], 3, async (value) => {
+    active += 1;
+    maxActive = Math.max(maxActive, active);
+    await new Promise((resolve) => setTimeout(resolve, 8));
+    active -= 1;
+    return value * 10;
+  });
+
+  expect(maxActive).toBe(3);
+  expect(rows).toEqual([10, 20, 30, 40, 50, 60, 70]);
+});
 
 test('formats TROY close summary LINE message with daily sales and pending checkouts', () => {
   expect(normalizeLineUserIdList('U1, U2 U1;U3')).toEqual(['U1', 'U2', 'U3']);

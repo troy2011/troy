@@ -15,7 +15,7 @@ import {
     updateBattlePosition,
     attackBattlePlayer,
     respawnBattle,
-} from './playfabClient.js';
+} from './playfabClient.js?v=20260825-playfab-read-coalescing-v1';
 
 // ── 決定論的乱数（サーバーと同一アルゴリズム）───────────────
 function seededRand(seed) {

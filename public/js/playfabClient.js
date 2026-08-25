@@ -4,6 +4,60 @@ import { callApiWithLoader, buildApiUrl } from './api.js';
 
 export { callApiWithLoader };
 
+const sharedReadState = (() => {
+    if (typeof window === 'undefined') {
+        return {
+            inFlightReadRequests: new Map(),
+            guildChatCache: new Map()
+        };
+    }
+    if (window.__troyPlayFabReadState) return window.__troyPlayFabReadState;
+    window.__troyPlayFabReadState = {
+        inFlightReadRequests: new Map(),
+        guildChatCache: new Map()
+    };
+    return window.__troyPlayFabReadState;
+})();
+const { inFlightReadRequests, guildChatCache } = sharedReadState;
+const GUILD_CHAT_CACHE_TTL_MS = 3500;
+
+function getReadRequestKey(scope, ...parts) {
+    return [scope, ...parts]
+        .map((part) => String(part || '').trim())
+        .join(':');
+}
+
+function shareReadRequest(key, request) {
+    const inFlight = inFlightReadRequests.get(key);
+    if (inFlight) return inFlight;
+
+    const promise = Promise.resolve().then(request);
+    inFlightReadRequests.set(key, promise);
+    void promise.then(
+        () => {
+            if (inFlightReadRequests.get(key) === promise) {
+                inFlightReadRequests.delete(key);
+            }
+        },
+        () => {
+            if (inFlightReadRequests.get(key) === promise) {
+                inFlightReadRequests.delete(key);
+            }
+        }
+    );
+    return promise;
+}
+
+function clearGuildChatCache(guildId) {
+    const guildKey = String(guildId || '').trim();
+    if (!guildKey) return;
+    for (const key of guildChatCache.keys()) {
+        if (key.endsWith(`:${guildKey}`)) {
+            guildChatCache.delete(key);
+        }
+    }
+}
+
 export async function playfabRequest(endpoint, body, options) {
     return callApiWithLoader(endpoint, body, options);
 }
@@ -18,7 +72,10 @@ async function fetchJson(endpoint, { method = 'GET', body = null } = {}) {
 }
 
 export function getPlayerStats(playFabId, options) {
-    return callApiWithLoader('/api/get-stats', { playFabId }, options);
+    return shareReadRequest(
+        getReadRequestKey('player-stats', playFabId),
+        () => callApiWithLoader('/api/get-stats', { playFabId }, options)
+    );
 }
 
 export function allocateStatPoints(playFabId, allocations, options) {
@@ -42,8 +99,7 @@ export function recoverDockedMp(playFabId, options) {
 }
 
 export function getPoints(playFabId, options) {
-    const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
-    return callApiWithLoader('/api/get-inventory', { playFabId, entityKey }, options)
+    return getInventory(playFabId, options)
         .then((data) => {
             const points = Number(data?.virtualCurrency?.PS || 0);
             return { points, virtualCurrency: data?.virtualCurrency || {} };
@@ -83,11 +139,17 @@ export function kingUpdateStoreGameScore(playFabId, targetPlayFabId, gameType, s
 
 export function getInventory(playFabId, options) {
     const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
-    return callApiWithLoader('/api/get-inventory', { playFabId, entityKey }, options);
+    return shareReadRequest(
+        getReadRequestKey('inventory', playFabId),
+        () => callApiWithLoader('/api/get-inventory', { playFabId, entityKey }, options)
+    );
 }
 
 export function getEquipment(playFabId, options) {
-    return callApiWithLoader('/api/get-equipment', { playFabId }, options);
+    return shareReadRequest(
+        getReadRequestKey('equipment', playFabId),
+        () => callApiWithLoader('/api/get-equipment', { playFabId }, options)
+    );
 }
 
 export function updateAvatarStyle(playFabId, style, options) {
@@ -386,11 +448,30 @@ export function removeGuildMember(playFabId, guildId, memberPlayFabId, options) 
 }
 
 export function getGuildChat(playFabId, guildId, options) {
-    return callApiWithLoader('/api/get-guild-chat', { playFabId, guildId }, options);
+    const key = getReadRequestKey('guild-chat', playFabId, guildId);
+    const cached = guildChatCache.get(key);
+    const force = options?.force === true;
+    if (!force && cached && cached.expiresAt > Date.now()) {
+        return Promise.resolve(cached.data);
+    }
+    return shareReadRequest(key, async () => {
+        const data = await callApiWithLoader('/api/get-guild-chat', { playFabId, guildId }, options);
+        if (data) {
+            guildChatCache.set(key, {
+                data,
+                expiresAt: Date.now() + GUILD_CHAT_CACHE_TTL_MS
+            });
+        }
+        return data;
+    });
 }
 
 export function sendGuildChat(playFabId, guildId, message, options) {
-    return callApiWithLoader('/api/send-guild-chat', { playFabId, guildId, message }, options);
+    return callApiWithLoader('/api/send-guild-chat', { playFabId, guildId, message }, options)
+        .then((data) => {
+            if (data?.success) clearGuildChatCache(guildId);
+            return data;
+        });
 }
 
 export function getGuildWarehouse(playFabId, guildId, options) {

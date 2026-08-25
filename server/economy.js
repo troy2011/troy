@@ -328,11 +328,12 @@ async function getLeaderboardPlayerRankInfo(playFabId, deps) {
 
 async function buildPlayerRankingRows(leaderboard, deps, mapEntry) {
     const entries = Array.isArray(leaderboard) ? leaderboard : [];
-    return Promise.all(entries.map(async (entry) => {
+    const { mapWithConcurrency } = require('./nation');
+    return mapWithConcurrency(entries, 4, async (entry) => {
         const row = mapEntry(entry);
         const rankInfo = await getLeaderboardPlayerRankInfo(row.playFabId || entry?.PlayFabId, deps);
         return { ...row, ...rankInfo };
-    }));
+    });
 }
 
 async function buildCalculatedTroyBountyRanking(deps, options = {}) {
@@ -340,7 +341,7 @@ async function buildCalculatedTroyBountyRanking(deps, options = {}) {
     if (!firestore) return null;
     const limitRaw = Number.parseInt(String(options.limit || '10'), 10);
     const limit = Number.isFinite(limitRaw) ? Math.min(50, Math.max(1, limitRaw)) : 10;
-    const { buildTroyBountyRankingRow } = require('./nation');
+    const { buildTroyBountyRankingRow, mapWithConcurrency } = require('./nation');
     if (typeof buildTroyBountyRankingRow !== 'function') return null;
 
     const roomRef = firestore.collection('troy_rooms').doc(TROY_GLOBAL_ROOM_ID);
@@ -351,7 +352,11 @@ async function buildCalculatedTroyBountyRanking(deps, options = {}) {
         .orderBy('joinedAt', 'asc')
         .limit(TROY_BOUNTY_RANKING_MEMBER_LIMIT)
         .get();
-    const rows = await Promise.all(membersSnap.docs.map((doc) => buildTroyBountyRankingRow(doc, deps)));
+    const rows = await mapWithConcurrency(
+        membersSnap.docs,
+        4,
+        (doc) => buildTroyBountyRankingRow(doc, deps)
+    );
     const ranking = rows
         .filter(Boolean)
         .sort((a, b) => (
@@ -386,7 +391,7 @@ async function buildCalculatedGlobalBountyRanking(deps, options = {}) {
     if (typeof promisifyPlayFab !== 'function' || !PlayFabServer) return null;
     const limitRaw = Number.parseInt(String(options.limit || '10'), 10);
     const limit = Number.isFinite(limitRaw) ? Math.min(50, Math.max(1, limitRaw)) : 10;
-    const { buildTroyBountyRankingRow } = require('./nation');
+    const { buildTroyBountyRankingRow, mapWithConcurrency } = require('./nation');
     if (typeof buildTroyBountyRankingRow !== 'function') return null;
 
     const result = await promisifyPlayFab(PlayFabServer.GetLeaderboard, {
@@ -396,7 +401,7 @@ async function buildCalculatedGlobalBountyRanking(deps, options = {}) {
         ProfileConstraints: { ShowAvatarUrl: true, ShowDisplayName: true }
     });
     const entries = Array.isArray(result?.Leaderboard) ? result.Leaderboard : [];
-    const rows = await Promise.all(entries.map((entry) => {
+    const rows = await mapWithConcurrency(entries, 4, (entry) => {
         const avatarUrl = entry?.Profile?.AvatarUrl || '';
         const displayName = entry?.DisplayName || entry?.Profile?.DisplayName || entry?.PlayFabId || 'Player';
         return buildTroyBountyRankingRow({
@@ -408,7 +413,7 @@ async function buildCalculatedGlobalBountyRanking(deps, options = {}) {
                 joinedAt: Number(entry?.Position || 0)
             })
         }, deps);
-    }));
+    });
     const ranking = rows
         .filter(Boolean)
         .sort((a, b) => (

@@ -14,13 +14,14 @@ import {
     getGuildApplications as fetchGuildApplications,
     approveGuildApplication as requestApproveGuildApplication,
     rejectGuildApplication as requestRejectGuildApplication
-} from './playfabClient.js';
+} from './playfabClient.js?v=20260825-playfab-read-coalescing-v1';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { decoratePlayerTriggerElement } from './playerProfile.js';
 
 // ギルド情報をキャッシュ
 let currentGuildInfo = null;
 let guildChatPollingInterval = null;
+let guildChatPollingInFlight = false;
 
 /**
  * ギルド情報を取得して表示する
@@ -388,7 +389,9 @@ function startChatPolling(playFabId) {
             guildChatPollingInterval = null;
             return;
         }
+        if (guildChatPollingInFlight || !currentGuildInfo?.guildId) return;
 
+        guildChatPollingInFlight = true;
         try {
             const data = await fetchGuildChat(playFabId, currentGuildInfo.guildId, { isSilent: true });
 
@@ -397,6 +400,8 @@ function startChatPolling(playFabId) {
             }
         } catch (error) {
             console.error('[Guild] Error polling chat:', error);
+        } finally {
+            guildChatPollingInFlight = false;
         }
     }, 5000);
 }
