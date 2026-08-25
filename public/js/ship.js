@@ -40,7 +40,7 @@ import { formatCurrencyLabel } from './config.js';
 import * as Player from './player.js';
 import * as Inventory from 'inventory';
 import { buildAvatarLayerMarkup, renderAvatar, triggerAvatarAttackMotion } from './avatar.js';
-import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260811-monster-grounding2';
+import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260825-monster-motion-v1';
 
 const EXPLORATION_ENEMY_DEFEAT_MODE_STORAGE_KEY = 'troy:exploration-enemy-defeat-mode';
 const EXPLORATION_ENEMY_DEFEAT_MODE_DEFAULT = 'hp-zero';

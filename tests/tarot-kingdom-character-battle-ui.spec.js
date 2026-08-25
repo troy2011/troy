@@ -1766,6 +1766,66 @@ test('preview enemy picker switches among all purchased Pixel Monsters without c
     Object.values(monster.animations || {}).map((animation) => animation.fps)
   ));
   expect(new Set(animationRates)).toEqual(new Set([10]));
+  expect([1, 2, 3].map((volume) => {
+    const monsters = manifest.filter((monster) => monster.volume === volume);
+    return {
+      volume,
+      clips: monsters.reduce((total, monster) => total + monster.sourceAnimationClipCount, 0),
+      images: monsters.reduce((total, monster) => total + monster.sourceImageCount, 0)
+    };
+  })).toEqual([
+    { volume: 1, clips: 88, images: 26 },
+    { volume: 2, clips: 129, images: 132 },
+    { volume: 3, clips: 63, images: 63 }
+  ]);
+  expect(manifest.filter((monster) => monster.volume === 2).every((monster) => (
+    monster.sourceImageStyle === 'black-outline'
+    && Object.values(monster.animations || {}).every((animation) => (
+      animation.sourceImageStyle === 'black-outline'
+    ))
+  ))).toBe(true);
+  expect(manifest.every((monster) => Object.values(monster.animations || {}).every((animation) => (
+    Number(animation.frameWidth) > 0
+    && Number(animation.frameHeight) > 0
+    && Number.isFinite(animation.anchor?.x)
+    && Number.isFinite(animation.anchor?.y)
+  )))).toBe(true);
+  const kerotts = manifest.find((monster) => monster.id === 'ismartal-vol2-monster-12');
+  expect(kerotts?.name).toBe('ケロッツ');
+  expect(kerotts?.animations?.run).toMatchObject({
+    frameCount: 6,
+    loop: true,
+    sourceImageStyle: 'black-outline'
+  });
+  expect(kerotts?.animations?.run?.sourceClip).toContain('/monster 12/Run.anim');
+  expect(kerotts?.animations?.run?.src).toContain('/vol2/monster-12/run.png');
+  const motionAssignments = await page.evaluate(() => (
+    window.TarotKingdomDebug.battleMonsterMotionAudit()
+  ));
+  const movementPriority = ['run', 'walk', 'fly', 'swim', 'creep'];
+  const activeSources = new Set();
+  manifest.forEach((monster) => {
+    const activeKeys = ['idle', 'attack', 'hurt', 'death'];
+    if (monster.animations?.attack2) activeKeys.push('attack2');
+    const movement = movementPriority.find((key) => monster.animations?.[key]);
+    if (movement) activeKeys.push(movement);
+    activeKeys.forEach((key) => {
+      const animation = monster.animations?.[key];
+      const source = animation?.sourceClip || animation?.sourceImage;
+      if (source) activeSources.add(source);
+    });
+  });
+  const previouslyUnused = manifest.flatMap((monster) => Object.entries(monster.animations || {})
+    .filter(([, animation]) => {
+      const source = animation?.sourceClip || animation?.sourceImage;
+      return source && !activeSources.has(source);
+    })
+    .map(([key]) => ({ id: monster.id, key })));
+  expect(previouslyUnused).toHaveLength(86);
+  expect(previouslyUnused.filter(({ id, key }) => !motionAssignments[id]?.includes(key))).toEqual([]);
+  expect(Object.entries(motionAssignments).flatMap(([id, keys]) => keys
+    .filter((key) => !manifest.find((monster) => monster.id === id)?.animations?.[key])
+    .map((key) => ({ id, key })))).toEqual([]);
   const monsterNames = manifest.map((monster) => monster.name);
   expect(new Set(monsterNames).size).toBe(50);
   expect(monsterNames.every((name) => Array.from(name).length >= 2 && Array.from(name).length <= 6)).toBe(true);
@@ -1889,6 +1949,17 @@ test('preview enemy picker switches among all purchased Pixel Monsters without c
   expect(largeMonster.anchorMode).toBe('ground');
   expect(largeMonster.stageScrollWidth).toBeLessThanOrEqual(largeMonster.stageClientWidth + 1);
 
+  await picker.selectOption('ismartal-vol2-monster-12');
+  await page.evaluate(() => window.TarotKingdomDebug.battleOpeningIntroPreview());
+  const kerottsSprite = page.locator('#tarotKingdomEnemySprite');
+  await expect(kerottsSprite).toHaveAttribute('data-animation-name', 'run');
+  await expect(kerottsSprite).toHaveCSS(
+    'background-image',
+    /\/pixel-monsters\/vol2\/monster-12\/run\.png/
+  );
+  await expect(kerottsSprite).toHaveCSS('width', '39px');
+  await expect(kerottsSprite).toHaveCSS('height', '36px');
+
   await picker.selectOption('ismartal-vol3-monster-01');
   await expect(page.locator('#tarotKingdomEnemySprite')).toHaveCSS('image-rendering', /pixelated|crisp-edges/);
   await expect(page.locator('#tarotKingdomEnemySprite')).toHaveAttribute('data-monster-render', 'pixel');
@@ -1926,7 +1997,7 @@ test('preview pet picker adds a normal monster to the second seat and can remove
   await expect(petRow.locator('.tarot-kingdom-battle-player-name')).toContainText('ピコアイ');
   await expect(petRow.locator('.tarot-kingdom-battle-pet-sprite')).toHaveCSS(
     'background-image',
-    /\/pixel-monsters\/vol1\/monster-05\/idle\.png/
+    /\/pixel-monsters\/vol1\/monster-05\/idle_2\.png/
   );
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 
@@ -1936,6 +2007,46 @@ test('preview pet picker adds a normal monster to the second seat and can remove
   expect(clearedState.players.map((player) => player.id)).toEqual(['you', 'npc1', 'npc2', 'npc3']);
   expect(clearedState.players.map((player) => player.isPet === true)).toEqual([false, false, false, false]);
   await expect(page.locator('#tarotKingdomBattleParty > .is-pet')).toHaveCount(0);
+});
+
+test('Picoai uses its parent body and Purun changes size by enemy HP and pet level', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const enemySprite = page.locator('#tarotKingdomEnemySprite');
+
+  await page.evaluate(() => window.TarotKingdomDebug.battleSetDemoEnemy('ismartal-vol1-monster-05'));
+  await expect(enemySprite).toHaveAttribute('data-animation-name', 'idle_2');
+  await expect(enemySprite).toHaveCSS(
+    'background-image',
+    /\/pixel-monsters\/vol1\/monster-05\/idle_2\.png/
+  );
+
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleSetDemoEnemy('ismartal-vol3-monster-04');
+    window.TarotKingdomDebug.battleSetEnemyHp(90, 100);
+  });
+  await expect(enemySprite).toHaveAttribute('data-animation-name', 'idle_2');
+  await page.evaluate(() => window.TarotKingdomDebug.battleSetEnemyHp(50, 100));
+  await expect(enemySprite).toHaveAttribute('data-animation-name', 'idle');
+  await page.evaluate(() => window.TarotKingdomDebug.battleSetEnemyHp(20, 100));
+  await expect(enemySprite).toHaveAttribute('data-animation-name', 'idle_3');
+
+  const petForms = await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    const animationAtLevel = (level) => {
+      debug.battleScenario({
+        pet: {
+          monsterId: 'ismartal-vol3-monster-04',
+          monsterName: 'プルン',
+          number: 4,
+          volume: 3,
+          level
+        }
+      });
+      return document.querySelector('.tarot-kingdom-battle-pet-sprite')?.dataset.animationName || '';
+    };
+    return [animationAtLevel(1), animationAtLevel(20), animationAtLevel(40)];
+  });
+  expect(petForms).toEqual(['idle_3', 'idle', 'idle_2']);
 });
 
 test('monsters with two attack sheets use the second one for area attacks and pet five-card skills', async ({ page }) => {
@@ -2035,7 +2146,7 @@ test('monsters with two attack sheets use the second one for area attacks and pe
       attackReturnDurationMs: 180
     }
   ]);
-  expect(enemySequence.animationName).toBe('attack');
+  expect(enemySequence.animationName).toBe('attack1');
   expect(enemySequence.motionAnimationNames).toContain('tarotKingdomBattleEnemyAdvance');
   expect(enemySequence.motionAnimationNames).toContain('tarotKingdomBattleEnemyReturn');
   expect(enemySequence.motionAnimationDurations).toBe('0.18s, 0.18s');
@@ -2050,6 +2161,8 @@ test('monsters with two attack sheets use the second one for area attacks and pe
     return transform === 'none' ? 0 : new DOMMatrixReadOnly(transform).m41;
   });
   expect(forwardOffset).toBeGreaterThan(40);
+  await expect(page.locator('[data-kingdom-monster-aux-sprite][data-animation-name="image_m6a_projectile"]'))
+    .toHaveCount(1, { timeout: 700 });
   await expect(page.locator('#tarotKingdomEnemySprite')).toHaveAttribute('data-animation-name', 'attack2', {
     timeout: 1_800
   });
@@ -2057,6 +2170,8 @@ test('monsters with two attack sheets use the second one for area attacks and pe
     'background-image',
     /\/pixel-monsters\/vol2\/monster-06\/attack2\.png/
   );
+  await expect(page.locator('[data-kingdom-monster-aux-sprite][data-animation-name="tentacle"]'))
+    .toHaveCount(1, { timeout: 700 });
 
   const petAnimations = await page.evaluate(() => {
     const debug = window.TarotKingdomDebug;
@@ -2120,8 +2235,8 @@ test('monsters with two attack sheets use the second one for area attacks and pe
     };
   });
 
-  expect(petAnimations.normal).toMatchObject({ ok: true, animationName: 'attack' });
-  expect(petAnimations.normal.backgroundImage).toContain('/pixel-monsters/vol2/monster-06/attack.png');
+  expect(petAnimations.normal).toMatchObject({ ok: true, animationName: 'attack1' });
+  expect(petAnimations.normal.backgroundImage).toContain('/pixel-monsters/vol2/monster-06/attack1.png');
   expect(petAnimations.skill).toMatchObject({ ok: true, reason: '', animationName: 'attack2' });
   expect(petAnimations.skill.backgroundImage).toContain('/pixel-monsters/vol2/monster-06/attack2.png');
 });

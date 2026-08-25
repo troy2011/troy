@@ -13,6 +13,7 @@
     "personality:audit": "node scripts/audit-personality-destiny.js",
     "personality:test": "playwright test tests/personality-assessment.spec.js",
     "personality:demo": "node scripts/run-personality-demo.js",
+    "monsters:extract": "node scripts/extract-pixel-monsters.cjs",
     "lint:css": "node scripts/lint-css.cjs",
     "lint:css:all": "stylelint \"public/**/*.css\"",
     "test:css-rules": "node --test tests/stylelint-rules.test.cjs",

@@ -10,7 +10,7 @@ import {
 } from './playfabClient.js';
 import { createRequestId } from './api.js';
 import { showRpgMessage } from './rpgMessages.js';
-import { renderPixelMonsterCompanion } from './pixelMonsterCompanion.js?v=20260811-monster-grounding2';
+import { renderPixelMonsterCompanion } from './pixelMonsterCompanion.js?v=20260825-monster-motion-v1';
 import { bindModalClose } from './modalClose.js';
 
 const FAVORITE_PLAYERS_STORAGE_PREFIX = 'favorite-players:';

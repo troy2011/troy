@@ -696,12 +696,12 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       type: 'victory',
       finisher: false,
       enemyEscaped: true,
-      escapeAnimation: 'idle',
+      escapeAnimation: 'walk',
       hpAfter: escaped.hpAfterPlay,
       enemyHp: escaped.hpAfterPlay
     });
     expect(escaped.victory).not.toHaveProperty('deathAnimation');
-    expect(escaped.image).toContain('idle.png');
+    expect(escaped.image).toContain('walk.png');
     expect(escaped.animationName).toContain('tarotKingdomEnemyEscapeLeft');
     expect(escaped.transform).not.toBe('none');
   });

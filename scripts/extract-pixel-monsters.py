@@ -26,6 +26,9 @@ MONSTER_NUMBER = re.compile(r"(?i)monster[ _]?(\d+)")
 SPRITE_REF = re.compile(r"value:\s*\{fileID:\s*(-?\d+),\s*guid:\s*([0-9a-f]+),\s*type:\s*3\}")
 COMMON_PIXEL_SCALE = 2
 COMMON_ANIMATION_FPS = 10
+IMAGE_SUFFIXES = {".png", ".psd", ".tga", ".jpg", ".jpeg"}
+MOVEMENT_ANIMATION_KEYS = {"idle", "run", "walk", "fly", "swim", "creep"}
+CANONICAL_ANIMATION_KEYS = ("idle", "attack", "attack2", "hurt", "death")
 MONSTER_NAMES = {
     "ismartal-vol1-monster-01": "トゲマル",
     "ismartal-vol1-monster-02": "グリモア",
@@ -184,7 +187,7 @@ def animation_kind(pathname: str) -> tuple[int, str, int] | None:
     number = int(monster.group(1))
     if stem == "idle":
         return number, "idle", 0
-    if stem in {"fly", "walk"}:
+    if stem in {"fly", "walk", "run", "swim", "creep", "ilde"}:
         return number, "idle", 1
     if compact_stem in {"attack", "attack1", "rollattack"}:
         return number, "attack", 0
@@ -192,11 +195,13 @@ def animation_kind(pathname: str) -> tuple[int, str, int] | None:
         return number, "attack2", 0
     if compact_stem.startswith("attack") and not compact_stem.endswith("fx"):
         return number, "attack", 1
-    if stem in {"hurt", "hit"}:
+    if compact_stem in {"hurt", "hit"}:
         return number, "hurt", 0
-    if stem in {"death", "dead"}:
+    if compact_stem.startswith("hurt") or compact_stem.startswith("hit"):
+        return number, "hurt", 1
+    if compact_stem in {"death", "dead"}:
         return number, "death", 0
-    if stem.startswith("dead") or stem.startswith("death"):
+    if compact_stem.startswith("dead") or compact_stem.startswith("death"):
         return number, "death", 1
     return None
 
@@ -217,26 +222,124 @@ def choose_animations(entries: dict[str, PackageEntry]) -> dict[int, dict[str, P
     }
 
 
+def normalize_animation_key(pathname: str) -> str:
+    stem = Path(pathname).stem.strip()
+    stem = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", stem)
+    key = re.sub(r"[^a-zA-Z0-9]+", "_", stem).strip("_").lower()
+    return key or "animation"
+
+
+def collect_animation_clips(entries: dict[str, PackageEntry]) -> dict[int, list[tuple[str, PackageEntry]]]:
+    clips: dict[int, list[tuple[str, PackageEntry]]] = {}
+    used_keys: dict[int, set[str]] = {}
+    for entry in sorted(entries.values(), key=lambda item: item.pathname.casefold()):
+        monster = MONSTER_NUMBER.search(entry.pathname)
+        if not monster or not entry.pathname.lower().endswith(".anim") or not entry.asset:
+            continue
+        number = int(monster.group(1))
+        base_key = normalize_animation_key(entry.pathname)
+        key = base_key
+        suffix = 2
+        occupied = used_keys.setdefault(number, set())
+        while key in occupied:
+            key = f"{base_key}_{suffix}"
+            suffix += 1
+        occupied.add(key)
+        clips.setdefault(number, []).append((key, entry))
+    return clips
+
+
+def is_image_entry(entry: PackageEntry) -> bool:
+    return Path(entry.pathname).suffix.lower() in IMAGE_SUFFIXES and entry.asset is not None
+
+
+def build_preferred_texture_map(
+    entries: dict[str, PackageEntry],
+) -> tuple[dict[str, PackageEntry], str, list[PackageEntry]]:
+    images = [entry for entry in entries.values() if is_image_entry(entry)]
+    by_path = {entry.pathname.casefold(): entry for entry in images}
+    black_images = [entry for entry in images if "/sprites (black outline)/" in entry.pathname.casefold()]
+    if not black_images:
+        return {}, "default", images
+
+    aliases: dict[str, PackageEntry] = {}
+    missing: list[str] = []
+    mismatched: list[str] = []
+    regular_images = [entry for entry in images if "/sprites/" in entry.pathname.casefold()]
+    for regular in regular_images:
+        preferred_path = re.sub(
+            r"/Sprites/",
+            "/Sprites (black outline)/",
+            regular.pathname,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+        preferred = by_path.get(preferred_path.casefold())
+        if preferred is None:
+            missing.append(regular.pathname)
+            continue
+        regular_ids = set(parse_sprite_rectangles(regular.meta).keys()) if regular.meta else set()
+        preferred_ids = set(parse_sprite_rectangles(preferred.meta).keys()) if preferred.meta else set()
+        if regular_ids != preferred_ids:
+            mismatched.append(regular.pathname)
+            continue
+        aliases[regular.guid] = preferred
+    if missing or mismatched:
+        details = "; ".join([
+            *(f"missing black outline: {path}" for path in missing),
+            *(f"sprite IDs differ: {path}" for path in mismatched),
+        ])
+        raise RuntimeError(details)
+    return aliases, "black-outline", black_images
+
+
 def crop_frames(
     refs: list[tuple[int, str]],
     entries: dict[str, PackageEntry],
+    preferred_textures: dict[str, PackageEntry],
     rect_cache: dict[str, dict[int, tuple[int, int, int, int]]],
     image_cache: dict[str, Image.Image],
-) -> list[Image.Image]:
+) -> tuple[list[Image.Image], set[str]]:
     frames: list[Image.Image] = []
+    texture_guids: set[str] = set()
     for file_id, guid in refs:
-        texture = entries.get(guid)
+        texture = preferred_textures.get(guid) or entries.get(guid)
         if not texture or not texture.asset or not texture.meta:
             continue
-        rectangles = rect_cache.setdefault(guid, parse_sprite_rectangles(texture.meta))
+        texture_guids.add(texture.guid)
+        rectangles = rect_cache.setdefault(texture.guid, parse_sprite_rectangles(texture.meta))
         rect = rectangles.get(file_id)
         if rect is None:
             continue
-        source = image_cache.get(guid)
+        source = image_cache.get(texture.guid)
         if source is None:
             source = Image.open(texture.asset).convert("RGBA")
-            image_cache[guid] = source
+            image_cache[texture.guid] = source
         x, y, width, height = rect
+        top = source.height - y - height
+        frames.append(source.crop((x, top, x + width, top + height)))
+    return frames, texture_guids
+
+
+def crop_image_frames(
+    entry: PackageEntry,
+    rect_cache: dict[str, dict[int, tuple[int, int, int, int]]],
+    image_cache: dict[str, Image.Image],
+) -> list[Image.Image]:
+    if not entry.asset:
+        return []
+    source = image_cache.get(entry.guid)
+    if source is None:
+        source = Image.open(entry.asset).convert("RGBA")
+        image_cache[entry.guid] = source
+    rectangles = rect_cache.setdefault(
+        entry.guid,
+        parse_sprite_rectangles(entry.meta) if entry.meta else {},
+    )
+    if not rectangles:
+        return [source.copy()]
+    frames: list[Image.Image] = []
+    for x, y, width, height in rectangles.values():
         top = source.height - y - height
         frames.append(source.crop((x, top, x + width, top + height)))
     return frames
@@ -317,41 +420,76 @@ def get_idle_art_anchor(frames: list[Image.Image], preserve_altitude: bool, flip
 
 def build_volume(volume: int, entries: dict[str, PackageEntry], output_root: Path) -> list[dict]:
     selections = choose_animations(entries)
+    source_clips = collect_animation_clips(entries)
+    preferred_textures, source_image_style, preferred_images = build_preferred_texture_map(entries)
+    images_by_monster: dict[int, list[PackageEntry]] = {}
+    for entry in preferred_images:
+        monster = MONSTER_NUMBER.search(entry.pathname)
+        if not monster:
+            raise RuntimeError(f"Image has no monster number: {entry.pathname}")
+        images_by_monster.setdefault(int(monster.group(1)), []).append(entry)
+
     rect_cache: dict[str, dict[int, tuple[int, int, int, int]]] = {}
     image_cache: dict[str, Image.Image] = {}
     monsters: list[dict] = []
-    for number in sorted(selections):
-        selected = dict(selections[number])
+    monster_numbers = sorted(set(selections) | set(source_clips) | set(images_by_monster))
+    for number in monster_numbers:
+        selected = dict(selections.get(number, {}))
+        clips = source_clips.get(number, [])
         if "idle" not in selected and ("attack" in selected or "attack2" in selected):
             selected["idle"] = selected.get("attack") or selected["attack2"]
+        if "idle" not in selected and clips:
+            selected["idle"] = clips[0][1]
         if "idle" not in selected:
-            continue
+            raise RuntimeError(f"Monster {volume}-{number:02d} has images but no usable animation")
+
         output_dir = output_root / f"vol{volume}" / f"monster-{number:02d}"
-        animation_frames: dict[str, tuple[list[Image.Image], float]] = {}
-        for kind in ("idle", "attack", "attack2", "hurt", "death"):
+        if output_dir.exists():
+            shutil.rmtree(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        canonical_frames: dict[str, tuple[list[Image.Image], float]] = {}
+        canonical_sources: dict[str, PackageEntry] = {}
+        covered_image_guids: set[str] = set()
+        for kind in CANONICAL_ANIMATION_KEYS:
             entry = selected.get(kind)
             if entry is None and kind == "attack2":
                 continue
             entry = entry or selected["idle"]
             refs, fps = parse_animation(entry.asset)
-            frames = crop_frames(refs, entries, rect_cache, image_cache)
+            frames, texture_guids = crop_frames(
+                refs,
+                entries,
+                preferred_textures,
+                rect_cache,
+                image_cache,
+            )
             if not frames and kind != "idle":
-                idle_refs, fps = parse_animation(selected["idle"].asset)
-                frames = crop_frames(idle_refs, entries, rect_cache, image_cache)
+                entry = selected["idle"]
+                refs, fps = parse_animation(entry.asset)
+                frames, texture_guids = crop_frames(
+                    refs,
+                    entries,
+                    preferred_textures,
+                    rect_cache,
+                    image_cache,
+                )
             if not frames:
-                continue
-            animation_frames[kind] = (frames, fps)
-        if "idle" not in animation_frames:
-            continue
-        animation_frames, frame_width, frame_height = normalize_and_trim_frames(animation_frames)
+                raise RuntimeError(f"No frames for {entry.pathname}")
+            canonical_frames[kind] = (frames, fps)
+            canonical_sources[kind] = entry
+            covered_image_guids.update(texture_guids)
+
+        canonical_frames, frame_width, frame_height = normalize_and_trim_frames(canonical_frames)
         monster_id = f"ismartal-vol{volume}-monster-{number:02d}"
-        idle_anchor = get_idle_art_anchor(
-            animation_frames["idle"][0],
-            monster_id in FLYING_MONSTER_IDS,
-            monster_id in VERTICAL_FLIP_IDS,
-        )
+        preserve_altitude = monster_id in FLYING_MONSTER_IDS
+        flip_y = monster_id in VERTICAL_FLIP_IDS
+        idle_anchor = get_idle_art_anchor(canonical_frames["idle"][0], preserve_altitude, flip_y)
         animations: dict[str, dict] = {}
-        for kind, (frames, fps) in animation_frames.items():
+        represented_clip_paths: set[str] = set()
+
+        for kind, (frames, _fps) in canonical_frames.items():
+            source = canonical_sources[kind]
             columns = pack_frames(frames, output_dir / f"{kind}.png", frame_width, frame_height)
             animations[kind] = {
                 "src": f"./Sprites/pixel-monsters/vol{volume}/monster-{number:02d}/{kind}.png",
@@ -359,7 +497,104 @@ def build_volume(volume: int, entries: dict[str, PackageEntry], output_root: Pat
                 "columns": columns,
                 "fps": COMMON_ANIMATION_FPS,
                 "loop": kind == "idle",
+                "frameWidth": frame_width,
+                "frameHeight": frame_height,
+                "anchor": idle_anchor,
+                "sourceClip": source.pathname,
+                "sourceImageStyle": source_image_style,
             }
+            represented_clip_paths.add(source.pathname)
+
+        for source_key, entry in clips:
+            refs, fps = parse_animation(entry.asset)
+            frames, texture_guids = crop_frames(
+                refs,
+                entries,
+                preferred_textures,
+                rect_cache,
+                image_cache,
+            )
+            if not frames:
+                raise RuntimeError(f"No frames for {entry.pathname}")
+            covered_image_guids.update(texture_guids)
+            represented_clip_paths.add(entry.pathname)
+            if source_key in animations and animations[source_key].get("sourceClip") == entry.pathname:
+                continue
+            output_key = source_key
+            suffix = 2
+            while output_key in animations:
+                output_key = f"{source_key}_{suffix}"
+                suffix += 1
+            normalized, clip_width, clip_height = normalize_and_trim_frames({output_key: (frames, fps)})
+            clip_frames = normalized[output_key][0]
+            clip_anchor = get_idle_art_anchor(clip_frames, preserve_altitude, flip_y)
+            columns = pack_frames(
+                clip_frames,
+                output_dir / f"{output_key}.png",
+                clip_width,
+                clip_height,
+            )
+            animations[output_key] = {
+                "src": f"./Sprites/pixel-monsters/vol{volume}/monster-{number:02d}/{output_key}.png",
+                "frameCount": len(clip_frames),
+                "columns": columns,
+                "fps": COMMON_ANIMATION_FPS,
+                "loop": output_key in MOVEMENT_ANIMATION_KEYS,
+                "frameWidth": clip_width,
+                "frameHeight": clip_height,
+                "anchor": clip_anchor,
+                "sourceClip": entry.pathname,
+                "sourceImageStyle": source_image_style,
+            }
+
+        monster_images = sorted(images_by_monster.get(number, []), key=lambda item: item.pathname.casefold())
+        for entry in monster_images:
+            if entry.guid in covered_image_guids:
+                continue
+            frames = crop_image_frames(entry, rect_cache, image_cache)
+            if not frames:
+                raise RuntimeError(f"No image frames for {entry.pathname}")
+            base_key = f"image_{normalize_animation_key(entry.pathname)}"
+            output_key = base_key
+            suffix = 2
+            while output_key in animations:
+                output_key = f"{base_key}_{suffix}"
+                suffix += 1
+            normalized, clip_width, clip_height = normalize_and_trim_frames({output_key: (frames, 0)})
+            clip_frames = normalized[output_key][0]
+            clip_anchor = get_idle_art_anchor(clip_frames, preserve_altitude, flip_y)
+            columns = pack_frames(
+                clip_frames,
+                output_dir / f"{output_key}.png",
+                clip_width,
+                clip_height,
+            )
+            animations[output_key] = {
+                "src": f"./Sprites/pixel-monsters/vol{volume}/monster-{number:02d}/{output_key}.png",
+                "frameCount": len(clip_frames),
+                "columns": columns,
+                "fps": COMMON_ANIMATION_FPS,
+                "loop": False,
+                "frameWidth": clip_width,
+                "frameHeight": clip_height,
+                "anchor": clip_anchor,
+                "sourceImage": entry.pathname,
+                "sourceImageStyle": source_image_style,
+            }
+            covered_image_guids.add(entry.guid)
+
+        expected_clip_paths = {entry.pathname for _key, entry in clips}
+        missing_clips = sorted(expected_clip_paths - represented_clip_paths)
+        expected_image_guids = {entry.guid for entry in monster_images}
+        missing_images = sorted(
+            entry.pathname for entry in monster_images if entry.guid not in covered_image_guids
+        )
+        if missing_clips or expected_image_guids - covered_image_guids:
+            raise RuntimeError(
+                f"Incomplete extraction for {monster_id}: "
+                f"clips={missing_clips}, images={missing_images}"
+            )
+
         display_width = frame_width * COMMON_PIXEL_SCALE
         monsters.append({
             "id": monster_id,
@@ -374,6 +609,9 @@ def build_volume(volume: int, entries: dict[str, PackageEntry], output_root: Pat
             "sizeClass": "large" if monster_id in LARGE_MONSTER_IDS else "normal",
             "isBoss": monster_id in LARGE_MONSTER_IDS,
             "idleAnchor": idle_anchor,
+            "sourceImageStyle": source_image_style,
+            "sourceAnimationClipCount": len(clips),
+            "sourceImageCount": len(monster_images),
             **({"flipX": True} if monster_id in HORIZONTAL_FLIP_IDS else {}),
             **({"flipY": True} if monster_id in VERTICAL_FLIP_IDS else {}),
             "animations": animations,

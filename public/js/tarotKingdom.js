@@ -14,7 +14,11 @@ import {
   getTarotKingdomPetState,
   joinExplorationStage
 } from './playfabClient.js';
-import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260811-monster-grounding2';
+import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260825-monster-motion-v1';
+import {
+  auditTarotKingdomMonsterMotionAssignments,
+  resolveTarotKingdomMonsterMotion
+} from './tarotKingdomMonsterMotions.js?v=20260825-monster-motion-v1';
 import {
   calculateTarotKingdomIncomingDamage,
   calculateTarotKingdomPlayerAttack,
@@ -97,7 +101,7 @@ import { startAvatarBodyMotion, stopAvatarBodyMotion } from './avatar.js';
 import {
   PIXEL_MONSTER_COMPANION_OFFSET_Y,
   PIXEL_MONSTER_COMPANION_SCALE
-} from './pixelMonsterCompanion.js?v=20260811-monster-grounding2';
+} from './pixelMonsterCompanion.js?v=20260825-monster-motion-v1';
 
 const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 const TAROT_TILE_W = 48;
@@ -678,6 +682,7 @@ let kingdomMonsterFrameTimer = null;
 let kingdomMonsterFrameGeneration = 0;
 let kingdomMonsterAnimationKey = '';
 const kingdomPetAnimationTimers = new Map();
+const kingdomMonsterAuxAnimationTimers = new Map();
 const kingdomStatusMotionTimers = new Map();
 let kingdomBattleVisualResetTimer = null;
 let kingdomBattleVisualEventKey = '';
@@ -5290,6 +5295,14 @@ function getKingdomMonsterAttackAnimationName(monsterOrId, attackMode = 'single'
   return 'idle';
 }
 
+function getKingdomMonsterMovementAnimationName(monsterOrId) {
+  const monster = typeof monsterOrId === 'string'
+    ? getKingdomMonsterConfig(monsterOrId)
+    : monsterOrId;
+  return ['run', 'walk', 'fly', 'swim', 'creep']
+    .find((animationName) => monster?.animations?.[animationName]) || 'idle';
+}
+
 function getKingdomEnemyAttackMotionProfile(monsterOrId, attackMode = 'single') {
   const monster = typeof monsterOrId === 'string'
     ? getKingdomMonsterConfig(monsterOrId)
@@ -6000,6 +6013,7 @@ function resetKingdomBattleForRound() {
   const nextEnemyId = String(s.battle?.enemy?.id || '');
   if (previousEnemyId && nextEnemyId && previousEnemyId !== nextEnemyId) {
     clearKingdomMonsterFrameTimer();
+    clearKingdomMonsterAuxAnimations();
     clearKingdomEnemyFinisherTimer();
     kingdomMonsterAnimationKey = '';
     kingdomBattleVisualEventKey = '';
@@ -12300,7 +12314,7 @@ function markKingdomBattleVictory(winnerIndex, options = {}) {
       )
     : null;
   const monster = getKingdomMonsterConfig(enemy?.id);
-  const escapeAnimation = monster?.animations?.walk ? 'walk' : 'idle';
+  const escapeAnimation = getKingdomMonsterMovementAnimationName(monster);
   if (enemy && !enemyEscaped) enemy.hp = 0;
   s.battle.active = false;
   s.battle.outcome = 'victory';
@@ -16006,7 +16020,10 @@ function buildTarotKingdomDebugBattleState(options = {}) {
   const characters = s.players.map((_player, index) => {
     if (index === 0) return previewCharacter;
     if (index === 1 && debugPet?.monsterId) {
-      return createTarotKingdomPetCharacter({ pet: debugPet, level: 12 });
+      return createTarotKingdomPetCharacter({
+        pet: debugPet,
+        level: Math.max(1, Math.min(50, Number(debugPet.level || options.petLevel) || 12))
+      });
     }
     return createTarotKingdomNpcCharacter({
       seat: getKingdomMercenaryOrdinal(s.players, index),
@@ -17675,6 +17692,16 @@ function exposeTarotKingdomBattleDebugTools(target) {
       ok: setKingdomDemoEnemy(monsterId),
       state: snapshotTarotKingdomDebugState()
     }),
+    battleSetEnemyHp: (hp, maxHp = null) => {
+      if (!s?.battle?.enemy) return snapshotTarotKingdomDebugState();
+      if (maxHp != null) s.battle.enemy.maxHp = Math.max(1, Math.floor(Number(maxHp) || 1));
+      s.battle.enemy.hp = Math.max(0, Math.min(
+        s.battle.enemy.maxHp,
+        Math.floor(Number(hp) || 0)
+      ));
+      render();
+      return snapshotTarotKingdomDebugState();
+    },
     battleDemoPets: () => getKingdomDemoPetOptions(),
     battleSetDemoPet: (monsterId = '') => ({
       ok: setKingdomDemoPet(monsterId),
@@ -17945,6 +17972,15 @@ function exposeTarotKingdomBattleDebugTools(target) {
       render();
       return snapshotTarotKingdomDebugState();
     },
+    battleOpeningIntroPreview: () => {
+      if (!s) buildTarotKingdomDebugBattleState();
+      clearOpeningDealTimers();
+      s.roundActive = true;
+      s.phase = 'openingDeal';
+      s.openingIntroStage = 'enter';
+      render();
+      return snapshotTarotKingdomDebugState();
+    },
     battleResolveTransition: () => {
       if (s?.transition) s.transition.endsAt = 0;
       resolveKingdomTransition();
@@ -18003,6 +18039,10 @@ function exposeTarotKingdomBattleDebugTools(target) {
       null
     ),
     battleDemoSummons: () => cloneKingdomSnapshotValue(TAROT_KINGDOM_ALL_SUMMONS, []),
+    battleMonsterMotionAudit: () => cloneKingdomSnapshotValue(
+      auditTarotKingdomMonsterMotionAssignments(),
+      {}
+    ),
     battleDemoSummon: (summonId = '') => ({
       ok: playKingdomDemoSummon(summonId),
       error: kingdomDemoRoleLastError,
@@ -18333,7 +18373,7 @@ function playOpeningDealCinematic() {
   const openingGeneration = kingdomStateGeneration;
   const openingEnemyId = String(s.battle?.enemy?.id || '');
   const monster = getKingdomMonsterConfig(openingEnemyId);
-  const openingWalkAnimation = monster?.animations?.walk ? 'walk' : 'idle';
+  const openingWalkAnimation = getKingdomMonsterMovementAnimationName(monster);
   const openingAnimationReady = preloadKingdomMonsterAnimations(
     openingEnemyId,
     [openingWalkAnimation, 'attack', 'attack2', 'idle']
@@ -22416,6 +22456,7 @@ function clearKingdomMonsterFrameTimer() {
 function clearKingdomPetAnimationTimers() {
   kingdomPetAnimationTimers.forEach((timerId) => clearInterval(timerId));
   kingdomPetAnimationTimers.clear();
+  clearKingdomMonsterAuxAnimations();
   kingdomStatusMotionTimers.forEach((timerId) => clearInterval(timerId));
   kingdomStatusMotionTimers.clear();
   if (!ui.battleParty) return;
@@ -22526,8 +22567,8 @@ function resetKingdomBattleAvatarVisuals(options = {}) {
 
 function setKingdomPetFrame(node, monster, animation, frameIndex) {
   if (!node || !monster || !animation) return;
-  const width = Math.max(1, Number(monster.frameWidth) || 48);
-  const height = Math.max(1, Number(monster.frameHeight) || 48);
+  const width = Math.max(1, Number(animation.frameWidth) || Number(monster.frameWidth) || 48);
+  const height = Math.max(1, Number(animation.frameHeight) || Number(monster.frameHeight) || 48);
   const columns = Math.max(1, Number(animation.columns) || 1);
   const frameCount = Math.max(1, Number(animation.frameCount) || 1);
   const rows = Math.max(1, Math.ceil(frameCount / columns));
@@ -22536,9 +22577,12 @@ function setKingdomPetFrame(node, monster, animation, frameIndex) {
   const row = Math.floor(frame / columns);
   const scale = KINGDOM_PET_DISPLAY_SCALE;
   const renderedWidth = width * scale;
-  const idleAnchor = monster.idleAnchor && typeof monster.idleAnchor === 'object'
+  const animationAnchor = animation.anchor && typeof animation.anchor === 'object'
+    ? animation.anchor
+    : null;
+  const idleAnchor = animationAnchor || (monster.idleAnchor && typeof monster.idleAnchor === 'object'
     ? monster.idleAnchor
-    : {};
+    : {});
   const anchorMode = idleAnchor.mode === 'air' ? 'air' : 'ground';
   node.style.width = `${width}px`;
   node.style.height = `${height}px`;
@@ -22575,6 +22619,152 @@ function setKingdomPetFrame(node, monster, animation, frameIndex) {
     host.style.setProperty('--tarot-kingdom-pet-shadow-width', `${Math.max(36, Math.min(68, Math.round(renderedWidth * 0.72)))}px`);
     host.style.setProperty('--tarot-kingdom-pet-shadow-scale-y', anchorMode === 'air' ? '0.62' : '0.72');
   }
+}
+
+function setKingdomMonsterAuxFrame(node, monster, animation, frameIndex, scale = 2) {
+  if (!node || !monster || !animation) return;
+  const width = Math.max(1, Number(animation.frameWidth) || Number(monster.frameWidth) || 32);
+  const height = Math.max(1, Number(animation.frameHeight) || Number(monster.frameHeight) || 32);
+  const columns = Math.max(1, Number(animation.columns) || 1);
+  const frameCount = Math.max(1, Number(animation.frameCount) || 1);
+  const rows = Math.max(1, Math.ceil(frameCount / columns));
+  const frame = Math.max(0, Math.min(frameCount - 1, Math.floor(Number(frameIndex) || 0)));
+  const col = frame % columns;
+  const row = Math.floor(frame / columns);
+  const maxDisplaySize = 150;
+  const requestedScale = Math.max(0.5, Math.min(3, Number(scale) || 2));
+  const boundedScale = Math.min(requestedScale, maxDisplaySize / Math.max(width, height));
+  node.style.width = `${width}px`;
+  node.style.height = `${height}px`;
+  node.style.backgroundImage = `url('${animation.src}')`;
+  node.style.backgroundSize = `${columns * width}px ${rows * height}px`;
+  node.style.backgroundPosition = `-${col * width}px -${row * height}px`;
+  node.style.backgroundRepeat = 'no-repeat';
+  node.style.imageRendering = String(monster.renderMode || 'pixel') === 'illustration' ? 'auto' : 'pixelated';
+  node.style.transform = `scale(${boundedScale})`;
+  node.style.transformOrigin = '50% 50%';
+}
+
+function clearKingdomMonsterAuxNode(node) {
+  if (!node) return;
+  const sprite = node.querySelector(':scope > [data-kingdom-monster-aux-sprite]');
+  const timerId = sprite ? kingdomMonsterAuxAnimationTimers.get(sprite) : null;
+  if (timerId) clearInterval(timerId);
+  if (sprite) kingdomMonsterAuxAnimationTimers.delete(sprite);
+  node.getAnimations?.().forEach((animation) => animation.cancel());
+  node.remove();
+}
+
+function clearKingdomMonsterAuxAnimations(host = null) {
+  if (!host) {
+    kingdomMonsterAuxAnimationTimers.forEach((timerId) => clearInterval(timerId));
+    kingdomMonsterAuxAnimationTimers.clear();
+    document.querySelectorAll('[data-kingdom-monster-aux]').forEach((node) => node.remove());
+    return;
+  }
+  host.querySelectorAll(':scope > [data-kingdom-monster-aux]').forEach(clearKingdomMonsterAuxNode);
+}
+
+function playKingdomMonsterAuxAnimation(node, monster, animationName, generationKey, scale = 2) {
+  const animation = monster?.animations?.[animationName];
+  if (!node || !monster || !animation) return false;
+  const key = `${monster.id}:${animationName}:${generationKey}`;
+  if (node.dataset.animationKey === key) return true;
+  const oldTimer = kingdomMonsterAuxAnimationTimers.get(node);
+  if (oldTimer) clearInterval(oldTimer);
+  kingdomMonsterAuxAnimationTimers.delete(node);
+  node.dataset.animationKey = key;
+  node.dataset.animationName = animationName;
+  const frameCount = Math.max(1, Number(animation.frameCount) || 1);
+  const intervalMs = Math.max(50, Math.round(1000 / Math.max(1, Number(animation.fps) || 10)));
+  let frame = 0;
+  setKingdomMonsterAuxFrame(node, monster, animation, frame, scale);
+  if (frameCount <= 1 || prefersKingdomReducedMotion()) {
+    setKingdomMonsterAuxFrame(node, monster, animation, frameCount - 1, scale);
+    return true;
+  }
+  const timerId = setInterval(() => {
+    if (!node.isConnected || node.dataset.animationKey !== key) {
+      clearInterval(timerId);
+      kingdomMonsterAuxAnimationTimers.delete(node);
+      return;
+    }
+    frame += 1;
+    if (frame >= frameCount) {
+      if (animation.loop) frame = 0;
+      else {
+        frame = frameCount - 1;
+        clearInterval(timerId);
+        kingdomMonsterAuxAnimationTimers.delete(node);
+      }
+    }
+    setKingdomMonsterAuxFrame(node, monster, animation, frame, scale);
+  }, intervalMs);
+  kingdomMonsterAuxAnimationTimers.set(node, timerId);
+  return true;
+}
+
+function renderKingdomMonsterAuxEffects(host, monster, effects = [], generationKey = '', options = {}) {
+  if (!host) return;
+  const specs = Array.isArray(effects) ? effects : [];
+  const wantedKeys = new Set();
+  host.style.overflow = 'visible';
+  specs.forEach((effect, index) => {
+    const animationName = String(effect?.animationName || '');
+    if (!monster?.animations?.[animationName]) return;
+    const effectKey = `${generationKey}:${index}:${animationName}`;
+    wantedKeys.add(effectKey);
+    let wrapper = Array.from(host.querySelectorAll(':scope > [data-kingdom-monster-aux]'))
+      .find((node) => node.dataset.kingdomMonsterAux === effectKey);
+    if (!wrapper) {
+      wrapper = document.createElement('div');
+      wrapper.dataset.kingdomMonsterAux = effectKey;
+      wrapper.setAttribute('aria-hidden', 'true');
+      wrapper.style.position = 'absolute';
+      wrapper.style.left = '50%';
+      wrapper.style.top = '46%';
+      wrapper.style.width = '1px';
+      wrapper.style.height = '1px';
+      wrapper.style.pointerEvents = 'none';
+      wrapper.style.zIndex = '6';
+      const sprite = document.createElement('div');
+      sprite.dataset.kingdomMonsterAuxSprite = 'true';
+      sprite.style.position = 'absolute';
+      sprite.style.left = '0';
+      sprite.style.top = '0';
+      sprite.style.marginLeft = '-16px';
+      sprite.style.marginTop = '-16px';
+      wrapper.appendChild(sprite);
+      host.appendChild(wrapper);
+      const direction = options.direction === 'right' ? 1 : -1;
+      const placement = String(effect?.placement || 'projectile');
+      if (!prefersKingdomReducedMotion() && placement === 'projectile') {
+        wrapper.animate([
+          { transform: 'translate3d(0, 0, 0)', opacity: 1 },
+          { transform: `translate3d(${direction * 190}px, 32px, 0)`, opacity: 1 }
+        ], { duration: 520, easing: 'linear', fill: 'both' });
+      } else if (!prefersKingdomReducedMotion() && placement === 'area') {
+        wrapper.animate([
+          { transform: 'scale(0.72)', opacity: 0.35 },
+          { transform: 'scale(1)', opacity: 1 }
+        ], { duration: 260, easing: 'ease-out', fill: 'both' });
+      } else if (placement === 'brood') {
+        wrapper.style.left = options.direction === 'right' ? '78%' : '22%';
+        wrapper.style.top = '74%';
+      }
+    }
+    const sprite = wrapper.querySelector(':scope > [data-kingdom-monster-aux-sprite]');
+    playKingdomMonsterAuxAnimation(
+      sprite,
+      monster,
+      animationName,
+      effectKey,
+      Number(effect?.scale) || 2
+    );
+  });
+  host.querySelectorAll(':scope > [data-kingdom-monster-aux]').forEach((node) => {
+    if (!wantedKeys.has(String(node.dataset.kingdomMonsterAux || ''))) clearKingdomMonsterAuxNode(node);
+  });
 }
 
 function playKingdomPetAnimation(node, monster, animationName, generationKey = '', options = {}) {
@@ -22645,8 +22835,8 @@ function playKingdomPetAnimation(node, monster, animationName, generationKey = '
 
 function setKingdomMonsterFrame(node, monster, animation, frameIndex) {
   if (!node || !monster || !animation) return;
-  const width = Math.max(1, Number(monster.frameWidth) || 81);
-  const height = Math.max(1, Number(monster.frameHeight) || 84);
+  const width = Math.max(1, Number(animation.frameWidth) || Number(monster.frameWidth) || 81);
+  const height = Math.max(1, Number(animation.frameHeight) || Number(monster.frameHeight) || 84);
   const columns = Math.max(1, Number(animation.columns) || 1);
   const frameCount = Math.max(1, Number(animation.frameCount) || 1);
   const rows = Math.max(1, Math.ceil(frameCount / columns));
@@ -22659,9 +22849,12 @@ function setKingdomMonsterFrame(node, monster, animation, frameIndex) {
   node.style.backgroundSize = `${columns * width}px ${rows * height}px`;
   node.style.backgroundPosition = `-${col * width}px -${row * height}px`;
   node.style.backgroundRepeat = 'no-repeat';
-  const idleAnchor = monster.idleAnchor && typeof monster.idleAnchor === 'object'
+  const animationAnchor = animation.anchor && typeof animation.anchor === 'object'
+    ? animation.anchor
+    : null;
+  const idleAnchor = animationAnchor || (monster.idleAnchor && typeof monster.idleAnchor === 'object'
     ? monster.idleAnchor
-    : {};
+    : {});
   const anchorX = Math.max(0, Math.min(width, Number(idleAnchor.x) || (width / 2)));
   const anchorY = Math.max(0, Math.min(height, Number(idleAnchor.y) || height));
   node.style.setProperty('--tarot-kingdom-enemy-frame-height', `${height}px`);
@@ -23688,23 +23881,45 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
         sprite.setAttribute('aria-hidden', 'true');
         avatar.appendChild(sprite);
       }
-      let animationName = conscious ? 'idle' : 'death';
+      let motionContext = conscious ? 'idle' : 'death';
+      let petAttackMode = 'single';
       if (conscious && eventIsActive && ['attack', 'skill'].includes(String(activeEvent?.type || ''))
         && Number(activeEvent?.actorIndex) === playerIndex) {
-        animationName = getKingdomMonsterAttackAnimationName(
-          monster,
-          String(activeEvent?.type || '') === 'skill' ? 'skill' : 'single'
-        );
+        motionContext = 'attack';
+        petAttackMode = String(activeEvent?.type || '') === 'skill' ? 'area' : 'single';
       } else if (conscious && eventIsActive && ['enemy-single', 'enemy-area'].includes(String(activeEvent?.type || ''))
         && targetIndexes.includes(playerIndex)) {
-        animationName = 'hurt';
+        motionContext = 'hurt';
       }
+      const petMotion = resolveTarotKingdomMonsterMotion({
+        monsterId,
+        context: motionContext,
+        phase,
+        attackMode: petAttackMode,
+        seed: Number(activeEvent?.seq) || Number(playerIndex),
+        isPet: true,
+        petLevel: Number(player.pet?.level) || Number(character?.level) || 1,
+        hpRate: Math.max(0, Number(player?.hp) || 0) / Math.max(1, Number(player?.maxHp) || 1)
+      });
+      const fallbackAnimationName = motionContext === 'attack'
+        ? getKingdomMonsterAttackAnimationName(monster, petAttackMode)
+        : motionContext;
+      const animationName = monster?.animations?.[petMotion.animationName]
+        ? petMotion.animationName
+        : fallbackAnimationName;
       playKingdomPetAnimation(
         sprite,
         monster,
         animationName,
         animationName === 'idle' ? 'idle' : `${eventKey}:${conscious ? 'alive' : 'ko'}`,
         { paused: defending && animationName === 'idle' }
+      );
+      renderKingdomMonsterAuxEffects(
+        avatar,
+        monster,
+        eventIsActive ? petMotion.effects : [],
+        `${eventKey}:pet-${playerIndex}`,
+        { direction: 'right' }
       );
       setCombatAvatarVictory(
         avatar,
@@ -24711,6 +24926,7 @@ function renderKingdomBattleStage() {
       'is-raid-transforming'
     );
     clearKingdomMonsterFrameTimer();
+    clearKingdomMonsterAuxAnimations();
     clearKingdomEnemyFinisherTimer();
     clearKingdomBattlePhaseTimers();
     return;
@@ -25015,16 +25231,43 @@ function renderKingdomBattleStage() {
   });
 
   const escapeAnimation = String(victoryEvent?.escapeAnimation || '')
-    || (getKingdomMonsterConfig(enemy.id)?.animations?.walk ? 'walk' : 'idle');
-  const openingWalkAnimation = monsterConfig?.animations?.walk ? 'walk' : 'idle';
+    || getKingdomMonsterMovementAnimationName(enemy.id);
+  const openingWalkAnimation = getKingdomMonsterMovementAnimationName(monsterConfig);
   const enemyAttackAnimation = enemyAttackMotion.animationName;
-  const animationName = enemyFinisherActive
+  const motionContext = enemyFinisherActive
     ? 'death'
     : (enemyEscapeActive
-      ? escapeAnimation
+      ? 'escape'
       : (openingIntroStage === 'enter'
-        ? openingWalkAnimation
-        : (enemyActing ? enemyAttackAnimation : (enemyHurt ? 'hurt' : 'idle'))));
+        ? 'entry'
+        : (enemyActing ? 'attack' : (enemyHurt ? 'hurt' : 'idle'))));
+  const enemySpecialLabel = String(enemy?.abilities?.special?.label || '');
+  const eventHasEnemySpecial = enemySpecialLabel !== ''
+    && Array.isArray(visualEvent?.effects)
+    && visualEvent.effects.some((effect) => String(effect?.label || '') === enemySpecialLabel);
+  const monsterMotion = resolveTarotKingdomMonsterMotion({
+    monsterId: enemy.id,
+    context: motionContext,
+    phase: enemyOpeningAttack ? 'hit-stop' : timelinePhase,
+    attackMode: enemyAttackMode,
+    hasSpecial: eventHasEnemySpecial,
+    seed: Number(visualEvent?.seq) || Number(s?.handNo) || 0,
+    hpRate: maxHp > 0 ? hp / maxHp : 1,
+    elapsedRatio: enemyFinisherActive ? finisherElapsed / deathDurationMs : 0,
+    movementAnimation: motionContext === 'escape' ? escapeAnimation : openingWalkAnimation
+  });
+  const motionFallbackAnimation = motionContext === 'attack'
+    ? enemyAttackAnimation
+    : (motionContext === 'death'
+      ? 'death'
+      : (motionContext === 'hurt'
+        ? 'hurt'
+        : (motionContext === 'escape'
+          ? escapeAnimation
+          : (motionContext === 'entry' ? openingWalkAnimation : 'idle'))));
+  const animationName = monsterConfig?.animations?.[monsterMotion.animationName]
+    ? monsterMotion.animationName
+    : motionFallbackAnimation;
   const monsterAnimationGeneration = enemyFinisherActive
     ? `${eventScopeKey}:finisher:${Number(enemy.defeatedAtSeq) || Number(victoryEvent?.seq) || 0}`
     : (enemyEscapeActive
@@ -25046,14 +25289,25 @@ function renderKingdomBattleStage() {
       );
     }
     kingdomMonsterAnimationKey = `${String(monsterConfig?.id || enemy.id)}:frozen:${eventScopeKey}:${enemyPetrified ? 'petrified' : 'time-stop'}`;
+    renderKingdomMonsterAuxEffects(enemyVisualNode, monsterConfig, [], `${eventKey}:frozen`);
   }
   else {
+    const motionElapsedMs = motionContext === 'attack'
+      ? (animationName === enemyAttackAnimation ? enemyAttackElapsedMs : 0)
+      : (motionContext === 'death'
+        ? (animationName === 'death' ? finisherElapsed : 0)
+        : (motionContext === 'escape' ? escapeElapsed : 0));
     playKingdomMonsterAnimation(animationName, monsterAnimationGeneration, {
       playbackRate: enemyRushTime ? KINGDOM_RUSH_MONSTER_PLAYBACK_RATE : 1,
-      elapsedMs: enemyFinisherActive
-        ? finisherElapsed
-        : (enemyEscapeActive ? escapeElapsed : (enemyActing ? enemyAttackElapsedMs : 0))
+      elapsedMs: motionElapsedMs
     });
+    renderKingdomMonsterAuxEffects(
+      enemyVisualNode,
+      monsterConfig,
+      eventIsActive ? monsterMotion.effects : [],
+      `${eventKey}:enemy`,
+      { direction: 'left' }
+    );
   }
   renderKingdomEnemyStatusEffects();
   renderKingdomSkillCutin(visualEvent, eventIsActive, timelinePhase);

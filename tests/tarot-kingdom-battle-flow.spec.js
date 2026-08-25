@@ -3855,10 +3855,10 @@ test.describe('Tarot Kingdom character battle flow', () => {
       id: 'ismartal-vol3-monster-04',
       petrifiedUntilClear: true
     });
-    expect(audit.enterVisual.image).toContain('/vol3/monster-04/idle.png');
+    expect(audit.enterVisual.image).toContain('/vol3/monster-04/appear.png');
     expect(audit.enterVisual.image).not.toBe(audit.deathImage);
     expect(audit.enterVisual.petrifiedClass).toBe(false);
-    expect(audit.dealtVisual.image).toContain('/vol3/monster-04/idle.png');
+    expect(audit.dealtVisual.image).toContain('/vol3/monster-04/appear.png');
     expect(audit.dealtVisual.petrifiedClass).toBe(true);
   });
 

@@ -1,4 +1,4 @@
-import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260811-monster-grounding2';
+import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260825-monster-motion-v1';
 
 // Tarot Kingdom renders both player avatars and pet sprites inside the same
 // combat-scale host. Keep this base multiplier shared by every companion view.
