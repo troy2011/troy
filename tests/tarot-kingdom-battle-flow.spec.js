@@ -1210,6 +1210,76 @@ test.describe('Tarot Kingdom character battle flow', () => {
     ))).toBe('none');
   });
 
+  test('the next NPC resumes its turn after an enemy rebirth transition', async ({ page }) => {
+    const beforeNpc = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const card = (id, number) => ({ id, kind: 'minor', suit: 'Cup', number });
+      const rebirth = {
+        targetMonsterId: 'ismartal-vol1-monster-17',
+        targetMonsterName: 'コバット',
+        targetArchetype: 'swift',
+        statMultipliers: { hp: 0.5, power: 0.7, defense: 0.7, intelligence: 0.7, speed: 0.85 }
+      };
+      debug.battleScenario({
+        enableNpcSeats: true,
+        withTrick: false,
+        enemyHp: 1,
+        enemyDefense: 0,
+        handsBySeat: [
+          [card('rebirth-hit', 4), card('player-reserve', 6)],
+          [card('npc-response', 5), card('npc-reserve', 7)],
+          [card('npc-two', 8)],
+          [card('npc-three', 9)]
+        ],
+        stage: {
+          version: 4,
+          stageNo: 2,
+          stageId: 'tarot_stage_2',
+          stageName: '群礁の島道',
+          monsters: [
+            {
+              order: 1,
+              monsterId: 'ismartal-vol1-monster-19',
+              monsterName: 'チュロ',
+              archetype: 'balanced',
+              threatLevel: 5,
+              rebirth
+            },
+            { order: 2, monsterId: 'ismartal-vol2-monster-05', monsterName: 'リルフィ', archetype: 'caster', threatLevel: 6 },
+            { order: 3, monsterId: 'ismartal-vol1-monster-10', monsterName: 'リーフロ', archetype: 'caster', threatLevel: 7 },
+            { order: 4, monsterId: 'ismartal-vol2-monster-06', monsterName: 'グリバト', archetype: 'guardian', threatLevel: 8 }
+          ]
+        }
+      });
+      const reborn = debug.battlePlayOne(0);
+      const resumed = debug.battleResolveTransition();
+      return {
+        rebornTransition: reborn.transition?.kind || null,
+        resumedTransition: resumed.transition?.kind || null,
+        resumedTurn: resumed.turn,
+        resumedPhase: resumed.phase,
+        eventSeq: resumed.battle.eventSeq,
+        revision: resumed.revision
+      };
+    });
+
+    expect(beforeNpc).toMatchObject({
+      rebornTransition: 'enemyRebirth',
+      resumedTransition: null,
+      resumedTurn: 1,
+      resumedPhase: 'turn'
+    });
+    await expect.poll(async () => {
+      const afterNpc = await page.evaluate(() => window.TarotKingdomDebug.battleState());
+      return (
+        afterNpc.revision > beforeNpc.revision
+        || afterNpc.battle.eventSeq > beforeNpc.eventSeq
+        || afterNpc.turn !== beforeNpc.resumedTurn
+        || afterNpc.transition != null
+      );
+    }, { timeout: 5000 }).toBe(true);
+  });
+
   test('a pet is reborn before auto-revive, keeps its minor deck and can be knocked out normally afterward', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;

@@ -23,6 +23,18 @@ function loadMonsterManifest() {
 }
 
 test.describe('Tarot Kingdom enemy combat profiles', () => {
+  test('Purun idle forms keep looping after size changes', async () => {
+    const { PIXEL_MONSTERS_ROSTER } = await loadMonsterManifest();
+    const purun = PIXEL_MONSTERS_ROSTER.find((monster) => (
+      monster.id === 'ismartal-vol3-monster-04'
+    ));
+
+    expect(purun).toBeTruthy();
+    expect(['idle', 'idle_2', 'idle_2_2', 'idle_3'].map((key) => (
+      purun.animations[key]?.loop
+    ))).toEqual([true, true, true, true]);
+  });
+
   test('all 50 monsters receive varied stats and large monsters remain the strongest in their volume', async () => {
     const enemies = await loadEnemyModule();
     const { PIXEL_MONSTERS_ROSTER } = await loadMonsterManifest();

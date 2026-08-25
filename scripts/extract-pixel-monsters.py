@@ -539,7 +539,7 @@ def build_volume(volume: int, entries: dict[str, PackageEntry], output_root: Pat
                 "frameCount": len(clip_frames),
                 "columns": columns,
                 "fps": COMMON_ANIMATION_FPS,
-                "loop": output_key in MOVEMENT_ANIMATION_KEYS,
+                "loop": normalize_animation_key(entry.pathname) in MOVEMENT_ANIMATION_KEYS,
                 "frameWidth": clip_width,
                 "frameHeight": clip_height,
                 "anchor": clip_anchor,

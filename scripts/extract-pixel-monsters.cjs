@@ -515,7 +515,7 @@ async function buildVolume(volume, entries, outputRoot) {
       animations[key] = animationRecord({
         volume, number, key, frames, columns, width: normalized.width, height: normalized.height,
         anchor, sourceClip: clip.entry.pathname, style: preferred.style,
-        loop: MOVEMENT_KEYS.has(key)
+        loop: MOVEMENT_KEYS.has(normalizeAnimationKey(clip.entry.pathname))
       });
     }
 

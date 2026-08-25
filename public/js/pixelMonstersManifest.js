@@ -694,7 +694,7 @@ export const PIXEL_MONSTERS_ROSTER = [
         "frameCount": 12,
         "columns": 10,
         "fps": 10,
-        "loop": false,
+        "loop": true,
         "frameWidth": 27,
         "frameHeight": 29,
         "anchor": {
@@ -758,7 +758,7 @@ export const PIXEL_MONSTERS_ROSTER = [
         "frameCount": 12,
         "columns": 10,
         "fps": 10,
-        "loop": false,
+        "loop": true,
         "frameWidth": 13,
         "frameHeight": 13,
         "anchor": {
@@ -806,7 +806,7 @@ export const PIXEL_MONSTERS_ROSTER = [
         "frameCount": 8,
         "columns": 8,
         "fps": 10,
-        "loop": false,
+        "loop": true,
         "frameWidth": 28,
         "frameHeight": 31,
         "anchor": {
@@ -6572,7 +6572,7 @@ export const PIXEL_MONSTERS_ROSTER = [
         "frameCount": 4,
         "columns": 4,
         "fps": 10,
-        "loop": false,
+        "loop": true,
         "frameWidth": 24,
         "frameHeight": 24,
         "anchor": {
@@ -6652,7 +6652,7 @@ export const PIXEL_MONSTERS_ROSTER = [
         "frameCount": 4,
         "columns": 4,
         "fps": 10,
-        "loop": false,
+        "loop": true,
         "frameWidth": 19,
         "frameHeight": 19,
         "anchor": {
@@ -6732,7 +6732,7 @@ export const PIXEL_MONSTERS_ROSTER = [
         "frameCount": 4,
         "columns": 4,
         "fps": 10,
-        "loop": false,
+        "loop": true,
         "frameWidth": 15,
         "frameHeight": 15,
         "anchor": {

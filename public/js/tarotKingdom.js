@@ -14,7 +14,7 @@ import {
   getTarotKingdomPetState,
   joinExplorationStage
 } from './playfabClient.js';
-import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260825-monster-motion-v2';
+import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260825-purun-idle-v1';
 import {
   auditTarotKingdomMonsterMotionAssignments,
   resolveTarotKingdomMonsterMotion
@@ -20447,6 +20447,10 @@ function resolveKingdomTransition() {
     s.message = String(transition.resumeMessage || s.message || `${pName(s.turn)}のターン`);
     scheduleNpc();
     render();
+  } else if (transition.kind === 'enemyRebirth' || transition.kind === 'petRebirth') {
+    if (s.phase === 'turn') s.message = `${pName(s.turn)}のターン`;
+    scheduleNpc();
+    render();
   } else if (transition.kind === 'enemyResponse') {
     s.phase = String(transition.resumePhase || 'turn');
     if (transition.resumeTurn != null && Number.isInteger(Number(transition.resumeTurn))) s.turn = Number(transition.resumeTurn);
@@ -22259,6 +22263,10 @@ function scheduleNpc() {
   enforceLeadTurnInvariant();
   traceKingdomFlow('scheduleNpc.enter');
   clearNpcTimer();
+  if (s?.transition) {
+    traceKingdomFlow('scheduleNpc.abort', `reason=transition:${String(s.transition.kind || 'unknown')}`);
+    return;
+  }
   if (!s || !s.roundActive) {
     traceKingdomFlow('scheduleNpc.abort', 'reason=inactive');
     return;

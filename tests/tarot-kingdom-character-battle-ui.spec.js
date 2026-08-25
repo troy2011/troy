@@ -2030,6 +2030,11 @@ test('Picoai uses its parent body and Purun changes size by enemy HP and pet lev
   });
   await expect(enemySprite).toHaveAttribute('data-animation-name', 'idle_2');
   await expect(enemySprite).toHaveCSS('--tarot-kingdom-enemy-scale', '2');
+  await page.waitForTimeout(650);
+  const lateIdleFrame = await enemySprite.evaluate((node) => getComputedStyle(node).backgroundPosition);
+  await page.waitForTimeout(150);
+  const nextIdleFrame = await enemySprite.evaluate((node) => getComputedStyle(node).backgroundPosition);
+  expect(nextIdleFrame).not.toBe(lateIdleFrame);
   await page.evaluate(() => window.TarotKingdomDebug.battleSetEnemyHp(50, 100));
   await expect(enemySprite).toHaveAttribute('data-animation-name', 'idle');
   await expect(enemySprite).toHaveCSS('--tarot-kingdom-enemy-scale', '2');
