@@ -3333,7 +3333,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
         isNpc: false,
         isPet: false,
         defeatMode: 'hp-zero',
-        monsterId: 'ismartal-vol1-monster-01',
+        monsterId: 'ismartal-vol1-monster-17',
+        recruitMonsterId: 'ismartal-vol1-monster-19',
         mode: 'offline'
       };
       await context.onRoundFinished(roundFinisher);
@@ -3509,7 +3510,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
       isNpc: false,
       isPet: false,
       defeatMode: 'hp-zero',
-      monsterId: 'ismartal-vol1-monster-01',
+      monsterId: 'ismartal-vol1-monster-17',
+      recruitMonsterId: 'ismartal-vol1-monster-19',
       mode: 'offline'
     }
   });

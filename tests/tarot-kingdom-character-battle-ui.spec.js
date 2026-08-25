@@ -299,36 +299,70 @@ test('rulebook explains the current rules and returns to the same battle on mobi
   });
   expect(rulebookButtonTextColors.trigger).toBe('rgb(247, 251, 255)');
   expect(rulebookButtonTextColors.triggerTextFill).toBe('rgb(247, 251, 255)');
-  expect(rulebookButtonTextColors.categories).toHaveLength(5);
+  expect(rulebookButtonTextColors.categories).toHaveLength(6);
   expect(rulebookButtonTextColors.categories.every((color) => (
     color === 'rgb(247, 251, 255)' || color === 'rgb(255, 255, 255)'
   ))).toBe(true);
-  expect(rulebookButtonTextColors.categoryTextFills).toHaveLength(5);
+  expect(rulebookButtonTextColors.categoryTextFills).toHaveLength(6);
   expect(rulebookButtonTextColors.categoryTextFills.every((color) => (
     color === 'rgb(247, 251, 255)' || color === 'rgb(255, 255, 255)'
   ))).toBe(true);
   await expect(rulebook.getByRole('heading', { name: /タロットキングダム\s*ルールブック/ })).toBeVisible();
+  await expect(rulebook.getByRole('heading', { name: '60秒でわかる遊び方' })).toBeVisible();
+  await expect(rulebook.getByRole('button', { name: /カードが出せない/ })).toBeVisible();
+  await expect(rulebook.locator('.tarot-kingdom-rulebook-judge-flow > li')).toHaveCount(4);
   await expect(rulebook.getByText('Aは通常時の最強札（15）')).toBeVisible();
   await expect(rulebook.getByText('数字1とは別物で、大アルカナでは返せません。Aを1として使えるのは、A–2–3–4–5のストレートだけ。')).toBeVisible();
-    await expect(rulebook.getByText('通常のパスでは反撃を受ける場合があります。ただし局開始の公開札だけが場にある間は、反撃も全員パス時の全体攻撃もありません。「防御」は場が流れるまで自動で守り、被害を抑えます。')).toBeVisible();
-    await expect(rulebook.getByText('1枚ならコール猶予、2枚以上なら場を即クリア。敵も石化させます。')).toBeVisible();
-    await expect(rulebook.getByText('小アルカナ12を1枚で通常の場流しにすると、残り手札から好きな1枚を除外。除外だけで手札0にはできません。')).toBeVisible();
-    await expect(rulebook.getByText('13または14を場札と同じスートで出すと、そのスートだけに固定。節制XIVで解除します。')).toBeVisible();
-    await expect(rulebook.getByText('場が空でなくても通常の出し方で使える。11バックを切り替え、場を流すと墓地回収。')).toBeVisible();
-    await expect(rulebook.getByText('オフラインではプレイヤーが毎局の親です。オンラインでは素早さが最も高いプレイヤーが親になり、同値は座席順で決まります。局の勝者は次局の親を決めません。')).toBeVisible();
-    await expect(rulebook.getByText('矢印の始点が、矢印の先のスートに勝ちます。')).toBeVisible();
-    await expect(rulebook.getByText('進化前はHP50%、攻撃・防御・賢さ70%、素早さ85%。ペットの進化は探索終了まで続き、小アルカナを維持して固定の大アルカナだけが進化後へ変わります。')).toBeVisible();
-    await expect(rulebook.getByText('チュロ→コバット ／ ラムネロ→ツキバネ ／ ホタルビ→フェリカ ／ フロス→モスガン')).toBeVisible();
+  await expect(rulebook.getByText('通常のパスでは反撃を受ける場合があります。ただし局開始の公開札だけが場にある間は、反撃も全員パス時の全体攻撃もありません。「防御」は場が流れるまで自動で守り、被害を抑えます。')).toBeVisible();
+  await expect(rulebook.getByText('1枚なら次の応答をコールかパスに限定、2枚以上なら場を即クリア。場が流れるまで敵を石化。力VIIIの1枚場には世界XXIでも返せます。')).toBeVisible();
+  await expect(rulebook.getByText('小アルカナ12を1枚で通常の場流しにすると、残り手札から好きな1枚を除外。除外だけで手札0にはできません。')).toBeVisible();
+  await expect(rulebook.getByText('13または14を場札と同じスートで出すと、そのスートだけに固定。節制XIVで解除します。')).toBeVisible();
+  await expect(rulebook.getByText('通常の出し方で使えます。11バックを切り替え、この札で場を流したプレイヤーが墓地の小アルカナ1枚を回収します。')).toBeVisible();
+  await expect(rulebook.getByText('オフラインではプレイヤーが毎局の親です。オンラインでは素早さが最も高いプレイヤーが親になり、同値は座席順で決まります。局の勝者は次局の親を決めません。')).toBeVisible();
+  await expect(rulebook.getByText('矢印の始点が、矢印の先のスートに勝ちます。')).toBeVisible();
+  await expect(rulebook.getByText('進化前はHP50%、攻撃・防御・賢さ70%、素早さ85%。ペットの進化は探索終了まで続き、小アルカナを維持して固定の大アルカナだけが進化後へ変わります。')).toBeVisible();
+  await expect(rulebook.getByText('チュロ→コバット ／ ラムネロ→ツキバネ ／ ホタルビ→フェリカ ／ フロス→モスガン')).toBeVisible();
+  await expect(rulebook.getByText('コールできない3つの例')).toBeVisible();
+  await expect(rulebook.getByText('コール時の役倍率は、フルハウスが表の倍率−2、その他は−1（最低×0）です。')).toBeVisible();
+  await expect(rulebook.getByText('ここでは出札の裁定だけを掲載。戦闘効果と現在の効果値は、各カードの詳細画面で確認できます。')).toBeVisible();
   await expect(rulebook.locator('.tarot-kingdom-rulebook-suits-diagram')).toHaveAttribute(
     'aria-label',
     'スート相性図。ワンド←カップ←ソード←ペンタクル←ワンド'
   );
-  await expect(rulebook.getByText('同じスート5枚、または世界なしの大アルカナ5枚')).toBeVisible();
+  await expect(rulebook.getByText('同じスートを5枚。世界XXIを含まない大アルカナだけの5枚でも成立します。')).toBeVisible();
   await expect(rulebook.locator('.tarot-kingdom-rulebook-table-wrap tbody tr')).toHaveCount(7);
   await expect(rulebook.locator('.tarot-kingdom-rulebook-card-image')).toHaveCount(51);
-  await expect(rulebook.locator('.tarot-kingdom-roles-sample-grid .sample')).toHaveCount(7);
-  await expect(rulebook.locator('.tarot-kingdom-roles-sample-grid .sample-cards')).toHaveCount(7);
-  await expect(rulebook.locator('.tarot-kingdom-roles-sample-grid .sample-cards .tarot-kingdom-rulebook-card-image')).toHaveCount(35);
+  await expect(rulebook.locator('.tarot-kingdom-rulebook-role-cards')).toHaveCount(7);
+  await expect(rulebook.locator('.tarot-kingdom-rulebook-role-cards .tarot-kingdom-rulebook-card-image')).toHaveCount(35);
+  await expect(rulebook.locator('.tarot-kingdom-rulebook-card-image.has-rank-badge')).toHaveCount(35);
+  const roleCardRanks = await rulebook.locator('.tarot-kingdom-rulebook-role-cards').evaluateAll((examples) => (
+    examples.map((example) => Array.from(example.querySelectorAll('[data-rulebook-card-rank]')).map((card) => (
+      card.getAttribute('data-rulebook-card-rank')
+    )))
+  ));
+  expect(roleCardRanks).toEqual([
+    ['2', '3', '4', '5', '6'],
+    ['2', '6', '9', '14', '20'],
+    ['7', '7', '7', '13', '13'],
+    ['10', '10', '10', '10', 'A'],
+    ['0', '1', '7', '15', '21'],
+    ['2', '3', '4', '5', '6'],
+    ['8', '8', '8', '8', '8']
+  ]);
+  const straightBadgeColors = await rulebook.locator('.tarot-kingdom-rulebook-role-cards').first()
+    .locator('.has-rank-badge').evaluateAll((cards) => cards.map((card) => (
+      getComputedStyle(card, '::after').backgroundColor
+    )));
+  expect(straightBadgeColors).toEqual([
+    'rgb(143, 39, 39)',
+    'rgb(36, 90, 168)',
+    'rgb(102, 68, 154)',
+    'rgb(39, 115, 67)',
+    'rgb(143, 39, 39)'
+  ]);
+  const majorBadgeColor = await rulebook.locator('.tarot-kingdom-rulebook-role-cards').nth(1)
+    .locator('.has-rank-badge').first().evaluate((card) => getComputedStyle(card, '::after').backgroundColor);
+  expect(majorBadgeColor).toBe('rgb(130, 96, 29)');
   await expect(rulebook.locator('.tarot-kingdom-rulebook-special-grid .tarot-kingdom-rulebook-card-image')).toHaveCount(6);
   await expect(rulebook.locator('.tarot-kingdom-rulebook-major-list .tarot-kingdom-rulebook-card-image')).toHaveCount(6);
   const rulebookCardStyle = await rulebook.locator('.tarot-kingdom-rulebook-card-image').first().evaluate((card) => {
@@ -367,8 +401,8 @@ test('rulebook explains the current rules and returns to the same battle on mobi
   expect(mobileLayout.documentScrollWidth).toBeLessThanOrEqual(mobileLayout.viewportWidth);
   expect(mobileLayout.canScroll).toBe(true);
 
-  await rulebook.getByRole('button', { name: '5枚役' }).click();
-  await expect(rulebook.getByRole('button', { name: '5枚役' })).toHaveCSS('color', 'rgb(255, 255, 255)');
+  await rulebook.getByRole('button', { name: '5枚役', exact: true }).click();
+  await expect(rulebook.getByRole('button', { name: '5枚役', exact: true })).toHaveCSS('color', 'rgb(255, 255, 255)');
   await expect.poll(() => rulebookPage.evaluate((pageNode) => pageNode.scrollTop)).toBeGreaterThan(100);
   await page.keyboard.press('Escape');
   await expect(rulebook).toBeHidden();
@@ -2084,6 +2118,7 @@ test('monsters with two attack sheets use the second one for area attacks and pe
         skill: debug.battleMonsterAttackAnimation('ismartal-vol1-monster-01', 'skill')
       },
       motion: debug.battleMonsterAttackMotion('ismartal-vol2-monster-06', 'area'),
+      projectileMotion: debug.battleMonsterAttackMotion('ismartal-vol2-monster-06', 'single'),
       timing: {
         short: debug.battleMonsterAttackMotion('ismartal-vol3-monster-03', 'single'),
         medium: debug.battleMonsterAttackMotion('ismartal-vol1-monster-03', 'single'),
@@ -2100,9 +2135,14 @@ test('monsters with two attack sheets use the second one for area attacks and pe
   expect(selection.motion).toMatchObject({
     animationName: 'attack2',
     animationDurationMs: 900,
+    usesProjectile: false,
     advanceDurationMs: 180,
     returnDurationMs: 180,
     totalDurationMs: 1080
+  });
+  expect(selection.projectileMotion).toMatchObject({
+    animationName: 'attack',
+    usesProjectile: true
   });
   expect(selection.timing.short).toMatchObject({
     animationDurationMs: 400,
@@ -2138,6 +2178,7 @@ test('monsters with two attack sheets use the second one for area attacks and pe
         attackReturnDurationMs: event.attackReturnDurationMs
       })),
       animationName: document.getElementById('tarotKingdomEnemySprite')?.dataset.animationName || '',
+      projectileAttack: document.querySelector('.tarot-kingdom-battle-enemy')?.classList.contains('is-projectile-attacking') || false,
       motionAnimationNames: visualStyle?.animationName || '',
       motionAnimationDurations: visualStyle?.animationDuration || '',
       motionAnimationDelays: visualStyle?.animationDelay || ''
@@ -2159,22 +2200,38 @@ test('monsters with two attack sheets use the second one for area attacks and pe
     }
   ]);
   expect(enemySequence.animationName).toBe('attack1');
-  expect(enemySequence.motionAnimationNames).toContain('tarotKingdomBattleEnemyAdvance');
-  expect(enemySequence.motionAnimationNames).toContain('tarotKingdomBattleEnemyReturn');
-  expect(enemySequence.motionAnimationDurations).toBe('0.18s, 0.18s');
-  const motionDelays = enemySequence.motionAnimationDelays
-    .split(',')
-    .map((value) => Number.parseFloat(value));
-  expect(motionDelays[0]).toBeLessThanOrEqual(0);
-  expect(motionDelays[1]).toBeGreaterThan(0.75);
+  expect(enemySequence.projectileAttack).toBe(true);
+  expect(enemySequence.motionAnimationNames).toBe('none');
+  expect(enemySequence.motionAnimationDurations).toBe('0s');
+  expect(enemySequence.motionAnimationDelays).toBe('0s');
   await page.waitForTimeout(220);
   const forwardOffset = await page.locator('.tarot-kingdom-battle-enemy-visual').evaluate((visual) => {
     const transform = getComputedStyle(visual).transform;
     return transform === 'none' ? 0 : new DOMMatrixReadOnly(transform).m41;
   });
-  expect(forwardOffset).toBeGreaterThan(40);
+  expect(forwardOffset).toBe(0);
   await expect(page.locator('[data-kingdom-monster-aux-sprite][data-animation-name="image_m6a_projectile"]'))
     .toHaveCount(1, { timeout: 700 });
+  const enemyProjectileOrigin = await page.locator(
+    '[data-kingdom-monster-aux-sprite][data-animation-name="image_m6a_projectile"]'
+  ).evaluate((projectile) => {
+    const wrapper = projectile.parentElement;
+    const host = wrapper?.parentElement;
+    const source = host?.querySelector(':scope > #tarotKingdomEnemySprite');
+    const hostRect = host?.getBoundingClientRect();
+    const sourceRect = source?.getBoundingClientRect();
+    const sourceInset = sourceRect ? Math.min(12, sourceRect.width * 0.12) : 0;
+    return {
+      source: wrapper?.dataset.projectileSource || '',
+      originX: Number.parseFloat(wrapper?.style.left || ''),
+      expectedX: sourceRect && hostRect ? sourceRect.left - hostRect.left + sourceInset : NaN,
+      spriteLeft: Number.parseFloat(projectile.style.left || ''),
+      halfWidth: -(Number.parseFloat(projectile.style.width || '') / 2)
+    };
+  });
+  expect(enemyProjectileOrigin.source).toBe('sprite');
+  expect(Math.abs(enemyProjectileOrigin.originX - enemyProjectileOrigin.expectedX)).toBeLessThanOrEqual(1);
+  expect(enemyProjectileOrigin.spriteLeft).toBe(enemyProjectileOrigin.halfWidth);
   await expect(page.locator('#tarotKingdomEnemySprite')).toHaveAttribute('data-animation-name', 'attack2', {
     timeout: 1_800
   });
@@ -2251,6 +2308,59 @@ test('monsters with two attack sheets use the second one for area attacks and pe
   expect(petAnimations.normal.backgroundImage).toContain('/pixel-monsters/vol2/monster-06/attack1.png');
   expect(petAnimations.skill).toMatchObject({ ok: true, reason: '', animationName: 'attack2' });
   expect(petAnimations.skill.backgroundImage).toContain('/pixel-monsters/vol2/monster-06/attack2.png');
+
+  const petProjectileStarted = await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    const pet = {
+      monsterId: 'ismartal-vol2-monster-06',
+      monsterName: 'グリバト',
+      number: 6,
+      volume: 2
+    };
+    debug.battleScenario({
+      pet,
+      tableCard: { id: 'pet-projectile-field', kind: 'minor', suit: 'Wand', number: 1 },
+      handsBySeat: [
+        [{ id: 'pet-projectile-human', kind: 'minor', suit: 'Cup', number: 3 }],
+        [
+          { id: 'pet-projectile-2', kind: 'minor', suit: 'Wand', number: 2 },
+          { id: 'pet-projectile-keep', kind: 'minor', suit: 'Cup', number: 9 }
+        ],
+        [{ id: 'pet-projectile-npc2', kind: 'minor', suit: 'Sword', number: 4 }],
+        [{ id: 'pet-projectile-npc3', kind: 'minor', suit: 'Pentacle', number: 5 }]
+      ],
+      turnIndex: 1
+    });
+    debug.battlePlayOne(1, { resolve: false });
+    return true;
+  });
+  expect(petProjectileStarted).toBe(true);
+  const petAvatar = page.locator(
+    '#tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(2) .tarot-kingdom-battle-player-avatar'
+  );
+  await expect(petAvatar).toHaveClass(/is-projectile-attacking/);
+  const petProjectile = petAvatar.locator(
+    '[data-kingdom-monster-aux-sprite][data-animation-name="image_m6a_projectile"]'
+  );
+  await expect(petProjectile).toHaveCount(1, { timeout: 700 });
+  const petProjectileOrigin = await petProjectile.evaluate((projectile) => {
+    const wrapper = projectile.parentElement;
+    const host = wrapper?.parentElement;
+    const source = host?.querySelector(':scope > .tarot-kingdom-battle-pet-sprite');
+    const hostRect = host?.getBoundingClientRect();
+    const sourceRect = source?.getBoundingClientRect();
+    const sourceInset = sourceRect ? Math.min(12, sourceRect.width * 0.12) : 0;
+    return {
+      source: wrapper?.dataset.projectileSource || '',
+      originX: Number.parseFloat(wrapper?.style.left || ''),
+      expectedX: sourceRect && hostRect ? sourceRect.right - hostRect.left - sourceInset : NaN,
+      spriteLeft: Number.parseFloat(projectile.style.left || ''),
+      halfWidth: -(Number.parseFloat(projectile.style.width || '') / 2)
+    };
+  });
+  expect(petProjectileOrigin.source).toBe('sprite');
+  expect(Math.abs(petProjectileOrigin.originX - petProjectileOrigin.expectedX)).toBeLessThanOrEqual(1);
+  expect(petProjectileOrigin.spriteLeft).toBe(petProjectileOrigin.halfWidth);
 });
 
 test('all monster attack sheets use their native timing up to the compact battle cap', async ({ page }) => {

@@ -170,10 +170,15 @@
     scrollbar-color: #a98237 #080d20;
 }
 
-.tarot-kingdom-rulebook-header {
+.tarot-kingdom-rulebook-top {
     position: sticky;
     z-index: 3;
     top: 0;
+    background: #081027;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.tarot-kingdom-rulebook-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -183,7 +188,6 @@
     background:
         linear-gradient(110deg, rgba(20, 48, 91, 0.98), rgba(8, 15, 39, 0.98)),
         #081027;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
 }
 
 .tarot-kingdom-rulebook-kicker,
@@ -203,6 +207,10 @@
     text-shadow: 0 2px 0 #000, 0 0 22px rgba(238, 190, 70, 0.22);
 }
 
+.tarot-kingdom-rulebook-header h2 span {
+    white-space: nowrap;
+}
+
 .tarot-kingdom-rulebook-header p {
     max-width: 520px;
     margin: 0;
@@ -218,7 +226,7 @@
     padding: 13px 18px;
     overflow-x: auto;
     border-bottom: 1px solid rgba(148, 163, 184, 0.16);
-    background: rgba(2, 7, 21, 0.7);
+    background: rgba(2, 7, 21, 0.96);
     scrollbar-width: none;
 }
 
@@ -266,7 +274,7 @@
 
 .tarot-kingdom-rulebook-section {
     padding: 22px 4px 26px;
-    scroll-margin-top: 100px;
+    scroll-margin-top: 178px;
     border-bottom: 1px solid rgba(148, 163, 184, 0.12);
     outline: none;
 }
@@ -381,6 +389,65 @@
     line-height: 1.6;
 }
 
+.tarot-kingdom-rulebook-jump {
+    margin-top: 15px;
+    padding: 13px;
+    border: 1px solid rgba(115, 146, 198, 0.32);
+    border-radius: 13px;
+    background: rgba(6, 15, 38, 0.62);
+}
+
+.tarot-kingdom-rulebook-jump > strong {
+    display: block;
+    margin-bottom: 9px;
+    color: #f3d788;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+}
+
+.tarot-kingdom-rulebook-jump > div {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+}
+
+.tarot-kingdom-rulebook-jump button {
+    display: flex;
+    min-height: 38px;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid rgba(126, 151, 199, 0.38);
+    border-radius: 9px;
+    background: linear-gradient(135deg, rgba(30, 48, 85, 0.72), rgba(18, 32, 65, 0.68));
+    color: #f7fbff;
+    -webkit-text-fill-color: #f7fbff;
+    font-size: 10px;
+    font-weight: 800;
+    text-align: left;
+    cursor: pointer;
+}
+
+.tarot-kingdom-rulebook-jump button:hover,
+.tarot-kingdom-rulebook-jump button:focus-visible {
+    border-color: #e7bd58;
+    background: linear-gradient(135deg, rgba(50, 75, 120, 0.82), rgba(35, 60, 100, 0.78));
+    outline: none;
+}
+
+.tarot-kingdom-rulebook-jump button > span {
+    display: grid;
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+    place-items: center;
+    border: 1px solid rgba(231, 189, 88, 0.54);
+    border-radius: 50%;
+    color: #ffe398;
+    -webkit-text-fill-color: #ffe398;
+    font-size: 10px;
+}
+
 .tarot-kingdom-rulebook-facts {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -414,6 +481,68 @@
     color: #b9c7df;
     font-size: 10px;
     line-height: 1.45;
+}
+
+.tarot-kingdom-rulebook-judge-flow {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+    margin: 0 0 15px;
+    padding: 0;
+    list-style: none;
+}
+
+.tarot-kingdom-rulebook-judge-flow li {
+    position: relative;
+    display: flex;
+    min-height: 56px;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid rgba(111, 139, 190, 0.3);
+    border-radius: 10px;
+    background: rgba(13, 28, 59, 0.62);
+}
+
+.tarot-kingdom-rulebook-judge-flow li:not(:last-child)::after {
+    position: absolute;
+    z-index: 1;
+    top: 50%;
+    right: -8px;
+    color: #e7bd58;
+    content: "›";
+    font-size: 15px;
+    transform: translateY(-55%);
+}
+
+.tarot-kingdom-rulebook-judge-flow li > span {
+    display: grid;
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(231, 189, 88, 0.16);
+    color: #f4cd65;
+    font-size: 9px;
+    font-weight: 900;
+}
+
+.tarot-kingdom-rulebook-judge-flow strong,
+.tarot-kingdom-rulebook-judge-flow small {
+    display: block;
+}
+
+.tarot-kingdom-rulebook-judge-flow strong {
+    color: #eef4ff;
+    font-size: 10px;
+}
+
+.tarot-kingdom-rulebook-judge-flow small {
+    margin-top: 2px;
+    color: #93a5c5;
+    font-size: 8px;
+    line-height: 1.35;
 }
 
 .tarot-kingdom-rulebook-copy-grid {
@@ -500,6 +629,55 @@
     transform-origin: top left;
 }
 
+.tarot-kingdom-rulebook-card-image.has-rank-badge::after {
+    position: absolute;
+    z-index: 1;
+    right: 1px;
+    bottom: 1px;
+    display: grid;
+    min-width: 17px;
+    height: 17px;
+    place-items: center;
+    padding: 0 3px;
+    border: 1px solid rgba(255, 228, 152, 0.9);
+    border-radius: 5px;
+    background: rgba(3, 8, 24, 0.92);
+    color: #fff4c5;
+    content: attr(data-rulebook-card-rank);
+    font: 900 9px/1 system-ui, sans-serif;
+    text-shadow: 0 1px 1px #000000;
+}
+
+.tarot-kingdom-rulebook-card-image.has-rank-badge[data-rulebook-card-suit="Wand"]::after {
+    border-color: #ffaaa2;
+    background: #8f2727;
+    color: #fff4ef;
+}
+
+.tarot-kingdom-rulebook-card-image.has-rank-badge[data-rulebook-card-suit="Cup"]::after {
+    border-color: #9fcaff;
+    background: #245aa8;
+    color: #f2f8ff;
+}
+
+.tarot-kingdom-rulebook-card-image.has-rank-badge[data-rulebook-card-suit="Sword"]::after {
+    border-color: #d2b8ff;
+    background: #66449a;
+    color: #fbf6ff;
+}
+
+.tarot-kingdom-rulebook-card-image.has-rank-badge[data-rulebook-card-suit="Pentacle"]::after {
+    border-color: #a9e7ba;
+    background: #277343;
+    color: #f0fff3;
+}
+
+.tarot-kingdom-rulebook-card-image.has-rank-badge.is-major::after {
+    border-color: #ffe7a0;
+    background: #82601d;
+    color: #fff8d8;
+}
+
 .tarot-kingdom-rulebook-card-image.is-major {
     border-color: rgba(242, 213, 129, 0.72);
     box-shadow: 0 3px 9px rgba(202, 155, 48, 0.24);
@@ -508,6 +686,14 @@
 .tarot-kingdom-rulebook-suits > div > strong {
     color: #e8eefb;
     font-size: 11px;
+}
+
+.tarot-kingdom-rulebook-suits-diagram {
+    display: block;
+    width: 100%;
+    max-width: 280px;
+    height: auto;
+    margin: 18px auto 4px;
 }
 
 .tarot-kingdom-rulebook-table-wrap {
@@ -552,6 +738,22 @@
     display: block;
 }
 
+.tarot-kingdom-rulebook-role-condition,
+.tarot-kingdom-rulebook-role-cards {
+    display: block;
+}
+
+.tarot-kingdom-rulebook-role-condition {
+    color: #c8d4e8;
+}
+
+.tarot-kingdom-rulebook-role-cards {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 3px;
+    margin-top: 7px;
+}
+
 .tarot-kingdom-rulebook-table-wrap td:last-child > span {
     color: #f4cd65;
     font-size: 12px;
@@ -574,6 +776,43 @@
     background: rgba(231, 189, 88, 0.16);
     color: #e7bd58;
     font-size: 8px;
+}
+
+.tarot-kingdom-rulebook-call-rules {
+    margin-top: 10px;
+    padding: 13px 15px;
+    border: 1px solid rgba(115, 157, 220, 0.32);
+    border-radius: 13px;
+    background: rgba(20, 48, 91, 0.34);
+}
+
+.tarot-kingdom-rulebook-call-rules ul {
+    display: grid;
+    gap: 6px;
+    margin: 9px 0 8px;
+    padding: 0;
+    list-style: none;
+}
+
+.tarot-kingdom-rulebook-call-rules li {
+    display: grid;
+    grid-template-columns: 78px 1fr;
+    gap: 8px;
+    color: #bdc9df;
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+.tarot-kingdom-rulebook-call-rules li strong {
+    color: #f2d581;
+}
+
+.tarot-kingdom-rulebook-call-rules > p {
+    padding-top: 8px;
+    border-top: 1px solid rgba(128, 151, 194, 0.2);
+    color: #aebbd3;
+    font-size: 10px;
+    line-height: 1.55;
 }
 
 .tarot-kingdom-rulebook-special-grid {
@@ -693,6 +932,39 @@
     font-weight: 900;
 }
 
+.tarot-kingdom-rulebook-glossary {
+    margin-top: 15px;
+    padding: 14px;
+    border: 1px solid rgba(128, 151, 194, 0.24);
+    border-radius: 12px;
+    background: rgba(8, 18, 42, 0.58);
+}
+
+.tarot-kingdom-rulebook-glossary dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 14px;
+    margin: 9px 0 0;
+}
+
+.tarot-kingdom-rulebook-glossary dl > div {
+    padding-top: 7px;
+    border-top: 1px solid rgba(128, 151, 194, 0.18);
+}
+
+.tarot-kingdom-rulebook-glossary dt {
+    color: #f2d581;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.tarot-kingdom-rulebook-glossary dd {
+    margin: 3px 0 0;
+    color: #aebbd3;
+    font-size: 9px;
+    line-height: 1.5;
+}
+
 .tarot-kingdom-rulebook-footer {
     display: grid;
     gap: 9px;
@@ -745,12 +1017,19 @@
     }
 
     .tarot-kingdom-rulebook-header h2 {
-        font-size: 25px;
+        margin: 3px 0 4px;
+        font-size: 21px;
+    }
+
+    .tarot-kingdom-rulebook-header h2 span {
+        display: block;
+        font-size: 15px;
     }
 
     .tarot-kingdom-rulebook-header p {
         max-width: 280px;
-        font-size: 10px;
+        font-size: 9px;
+        line-height: 1.45;
     }
 
     .tarot-kingdom-rulebook-nav {
@@ -763,7 +1042,7 @@
 
     .tarot-kingdom-rulebook-section {
         padding: 18px 2px 22px;
-        scroll-margin-top: 96px;
+        scroll-margin-top: 140px;
     }
 
     .tarot-kingdom-rulebook-section h3 {
@@ -774,8 +1053,17 @@
     .tarot-kingdom-rulebook-steps,
     .tarot-kingdom-rulebook-copy-grid,
     .tarot-kingdom-rulebook-major-list dl,
-    .tarot-kingdom-rulebook-section.is-checklist ul {
+    .tarot-kingdom-rulebook-section.is-checklist ul,
+    .tarot-kingdom-rulebook-glossary dl {
         grid-template-columns: 1fr;
+    }
+
+    .tarot-kingdom-rulebook-judge-flow {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .tarot-kingdom-rulebook-judge-flow li:nth-child(2)::after {
+        display: none;
     }
 
     .tarot-kingdom-rulebook-facts {
@@ -805,9 +1093,61 @@
         font-size: 8px;
     }
 
+    .tarot-kingdom-rulebook-table-wrap thead {
+        display: none;
+    }
+
+    .tarot-kingdom-rulebook-table-wrap tbody {
+        display: grid;
+        gap: 8px;
+        padding: 8px;
+    }
+
+    .tarot-kingdom-rulebook-table-wrap tr {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        padding: 10px;
+        border: 1px solid rgba(128, 151, 194, 0.24);
+        border-radius: 10px;
+        background: rgba(13, 28, 59, 0.54);
+    }
+
+    .tarot-kingdom-rulebook-table-wrap td {
+        padding: 0;
+        border-bottom: 0;
+    }
+
+    .tarot-kingdom-rulebook-table-wrap td:first-child {
+        display: flex;
+        align-items: center;
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .tarot-kingdom-rulebook-table-wrap td:nth-child(2) {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        padding-top: 9px;
+    }
+
+    .tarot-kingdom-rulebook-table-wrap td:last-child {
+        grid-column: 2;
+        grid-row: 1;
+        text-align: right;
+    }
+
     .tarot-kingdom-rulebook-table-wrap td:first-child strong {
-        display: block;
-        margin-top: 3px;
+        margin-top: 0;
+        font-size: 11px;
+    }
+
+    .tarot-kingdom-rulebook-role-condition {
+        font-size: 10px;
+        line-height: 1.55;
+    }
+
+    .tarot-kingdom-rulebook-role-cards {
+        margin-top: 8px;
     }
 
     .tarot-kingdom-rulebook-special-grid {
@@ -34358,7 +34698,7 @@ body[data-sea-tone] .home-hero-card {
     text-shadow: 0 1px 4px #000;
 }
 
-#tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-enemy.is-attacking .tarot-kingdom-battle-enemy-visual {
+#tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-enemy.is-attacking:not(.is-projectile-attacking) .tarot-kingdom-battle-enemy-visual {
     animation:
         tarotKingdomBattleEnemyAdvance
             var(--tk-enemy-attack-advance-ms, 180ms)
@@ -39522,72 +39862,4 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
         animation: none;
         transform: none;
     }
-}
-
-/* Rulebook Diagrams */
-.tarot-kingdom-rulebook-suits-diagram {
-    width: 100%;
-    max-width: 280px;
-    height: auto;
-    margin: 20px auto;
-    display: block;
-}
-
-.tarot-kingdom-rulebook-roles-samples {
-    margin-top: 24px;
-    padding: 16px;
-    border: 1px solid rgba(210, 177, 79, 0.3);
-    border-radius: 12px;
-    background: linear-gradient(135deg, rgba(55, 45, 75, 0.35), rgba(35, 25, 50, 0.3));
-}
-
-.tarot-kingdom-rulebook-roles-samples h4 {
-    margin: 0 0 14px;
-    color: #fff4c5;
-    font: 900 13px "Noto Sans JP", system-ui;
-    letter-spacing: 0.05em;
-}
-
-.tarot-kingdom-roles-sample-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 10px;
-}
-
-.tarot-kingdom-roles-sample-grid .sample {
-    padding: 10px;
-    border: 1px solid rgba(230, 189, 88, 0.25);
-    border-radius: 10px;
-    background: rgba(20, 35, 70, 0.4);
-    text-align: center;
-    transition: all 200ms ease;
-}
-
-.tarot-kingdom-roles-sample-grid .sample:hover {
-    border-color: rgba(230, 189, 88, 0.5);
-    background: rgba(30, 50, 90, 0.5);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-}
-
-.sample-name {
-    display: block;
-    color: #f0d581;
-    font-size: 11px;
-    font-weight: 900;
-    margin-bottom: 6px;
-}
-
-.sample-cards {
-    display: flex;
-    justify-content: center;
-    gap: 3px;
-    margin-bottom: 6px;
-    flex-wrap: nowrap;
-}
-
-.sample-desc {
-    display: block;
-    color: #9099b7;
-    font-size: 9px;
-    line-height: 1.4;
 }

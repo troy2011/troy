@@ -2021,6 +2021,24 @@ function resolveActiveExplorationTarotEncounter(activeData = {}) {
     });
 }
 
+function resolveTarotKingdomRoundRecruitMonsterId(stageMonster, finisher) {
+    const expectedMonsterId = String(stageMonster?.monsterId || '').trim();
+    if (!expectedMonsterId) return '';
+
+    const submittedRecruitMonsterId = String(finisher?.recruitMonsterId || '').trim();
+    if (submittedRecruitMonsterId) {
+        return submittedRecruitMonsterId === expectedMonsterId ? expectedMonsterId : '';
+    }
+
+    const defeatedMonsterId = String(finisher?.monsterId || '').trim();
+    if (defeatedMonsterId === expectedMonsterId) return expectedMonsterId;
+
+    const rebirthTargetMonsterId = String(stageMonster?.rebirth?.targetMonsterId || '').trim();
+    return rebirthTargetMonsterId && defeatedMonsterId === rebirthTargetMonsterId
+        ? expectedMonsterId
+        : '';
+}
+
 function buildTarotKingdomBossResult(encounter, outcome) {
     const normalized = normalizeExplorationTarotEncounter(encounter);
     if (!normalized) return null;
@@ -2974,7 +2992,7 @@ function initializeExplorationRoutes(app, deps) {
                 isPet: finisher.isPet === true,
                 defeatMode: String(finisher.defeatMode || '').trim().toLowerCase(),
                 monsterId: String(finisher.monsterId || '').trim(),
-                recruitMonsterId: String(finisher.recruitMonsterId || finisher.monsterId || '').trim(),
+                recruitMonsterId: String(finisher.recruitMonsterId || '').trim(),
                 mode: String(finisher.mode || '').trim().toLowerCase()
             }
             : null;
@@ -3010,12 +3028,11 @@ function initializeExplorationRoutes(app, deps) {
                         Math.max(1, Math.min(4, Math.floor(Number(entry?.order) || index + 1))) === finisher.roundNo
                     ))
                     : null;
-                const monsterId = String(stageMonster?.monsterId || '').trim();
+                const monsterId = resolveTarotKingdomRoundRecruitMonsterId(stageMonster, finisher);
                 if (
                     !encounter
                     || Number(encounter.version) !== TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION
                     || !monsterId
-                    || monsterId !== finisher.recruitMonsterId
                 ) {
                     rollError = { code: 409, message: 'この局のモンスター情報を確認できません。' };
                     return;
@@ -4444,6 +4461,7 @@ module.exports = {
         buildTarotKingdomBossResult,
         normalizeExplorationTarotEncounter,
         resolveActiveExplorationTarotEncounter,
+        resolveTarotKingdomRoundRecruitMonsterId,
         selectExplorationBoss,
         selectExplorationTarotMonster,
         validateExplorationConsumablePayment,

@@ -17,6 +17,7 @@ const {
 } = require('../server/tarotKingdomExplorationStages');
 const {
   resolveActiveExplorationTarotEncounter,
+  resolveTarotKingdomRoundRecruitMonsterId,
   validateExplorationTransitionSupplies
 } = require('../server/exploration').__test;
 const roster = require('../public/Sprites/pixel-monsters/manifest.json');
@@ -287,6 +288,32 @@ test.describe('Tarot Kingdom fixed exploration stages', () => {
       revealed: true
     });
     expect(stage.monsters.some((monster) => monster.monsterName === 'コバット')).toBeFalsy();
+  });
+
+  test('round recruitment accepts the configured base species and legacy rebirth target only', () => {
+    const stageMonster = buildTarotKingdomStageEncounter({
+      explorationId: 'rebirth-round',
+      stageNo: 2
+    }).monsters[0];
+    expect(stageMonster).toMatchObject({
+      monsterId: 'ismartal-vol1-monster-19',
+      rebirth: { targetMonsterId: 'ismartal-vol1-monster-17' }
+    });
+
+    expect(resolveTarotKingdomRoundRecruitMonsterId(stageMonster, {
+      monsterId: 'ismartal-vol1-monster-17',
+      recruitMonsterId: 'ismartal-vol1-monster-19'
+    })).toBe('ismartal-vol1-monster-19');
+    expect(resolveTarotKingdomRoundRecruitMonsterId(stageMonster, {
+      monsterId: 'ismartal-vol1-monster-17'
+    })).toBe('ismartal-vol1-monster-19');
+    expect(resolveTarotKingdomRoundRecruitMonsterId(stageMonster, {
+      monsterId: 'ismartal-vol1-monster-17',
+      recruitMonsterId: 'ismartal-vol1-monster-17'
+    })).toBe('');
+    expect(resolveTarotKingdomRoundRecruitMonsterId(stageMonster, {
+      monsterId: 'ismartal-vol2-monster-01'
+    })).toBe('');
   });
 
   test('final chip ties share rank and reward weights follow stage bands', () => {

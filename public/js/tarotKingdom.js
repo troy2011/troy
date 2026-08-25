@@ -18,7 +18,7 @@ import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260825-pur
 import {
   auditTarotKingdomMonsterMotionAssignments,
   resolveTarotKingdomMonsterMotion
-} from './tarotKingdomMonsterMotions.js?v=20260825-monster-motion-v2';
+} from './tarotKingdomMonsterMotions.js?v=20260825-projectile-origin-v1';
 import {
   calculateTarotKingdomIncomingDamage,
   calculateTarotKingdomPlayerAttack,
@@ -5311,9 +5311,16 @@ function getKingdomEnemyAttackMotionProfile(monsterOrId, attackMode = 'single') 
     : monsterOrId;
   const animationName = getKingdomMonsterAttackAnimationName(monster, attackMode);
   const animationDurationMs = getKingdomMonsterAnimationDurationMs(monster?.id, animationName);
+  const resolvedMotion = resolveTarotKingdomMonsterMotion({
+    monsterId: monster?.id,
+    context: 'attack',
+    phase: 'hit-stop',
+    attackMode
+  });
   return {
     animationName,
     animationDurationMs,
+    usesProjectile: resolvedMotion.usesProjectile === true,
     advanceDurationMs: KINGDOM_ENEMY_ATTACK_ADVANCE_MS,
     returnDurationMs: KINGDOM_ENEMY_ATTACK_RETURN_MS,
     totalDurationMs: animationDurationMs + KINGDOM_ENEMY_ATTACK_RETURN_MS
@@ -22925,6 +22932,10 @@ function setKingdomMonsterAuxFrame(node, monster, animation, frameIndex, scale =
   const boundedScale = Math.min(requestedScale, maxDisplaySize / Math.max(width, height));
   node.style.width = `${width}px`;
   node.style.height = `${height}px`;
+  node.style.left = `${-(width / 2)}px`;
+  node.style.top = `${-(height / 2)}px`;
+  node.style.marginLeft = '0';
+  node.style.marginTop = '0';
   node.style.backgroundImage = `url('${animation.src}')`;
   node.style.backgroundSize = `${columns * width}px ${rows * height}px`;
   node.style.backgroundPosition = `-${col * width}px -${row * height}px`;
@@ -23010,8 +23021,28 @@ function renderKingdomMonsterAuxEffects(host, monster, effects = [], generationK
       wrapper.dataset.kingdomMonsterAux = effectKey;
       wrapper.setAttribute('aria-hidden', 'true');
       wrapper.style.position = 'absolute';
-      wrapper.style.left = '50%';
-      wrapper.style.top = '46%';
+      const direction = options.direction === 'right' ? 1 : -1;
+      const sourceNode = options.sourceNode instanceof Element ? options.sourceNode : null;
+      const hostRect = host.getBoundingClientRect();
+      const sourceRect = sourceNode?.getBoundingClientRect();
+      const hasSourceRect = !!(
+        sourceRect
+        && sourceRect.width > 0
+        && sourceRect.height > 0
+        && hostRect.width > 0
+        && hostRect.height > 0
+      );
+      const sourceInset = hasSourceRect ? Math.min(12, sourceRect.width * 0.12) : 0;
+      const launchX = hasSourceRect
+        ? (direction > 0
+          ? sourceRect.right - hostRect.left - sourceInset
+          : sourceRect.left - hostRect.left + sourceInset)
+        : hostRect.width * (direction > 0 ? 0.72 : 0.28);
+      const launchY = hasSourceRect
+        ? sourceRect.top - hostRect.top + (sourceRect.height * 0.44)
+        : hostRect.height * 0.46;
+      wrapper.style.left = `${Math.round(launchX)}px`;
+      wrapper.style.top = `${Math.round(launchY)}px`;
       wrapper.style.width = '1px';
       wrapper.style.height = '1px';
       wrapper.style.pointerEvents = 'none';
@@ -23019,13 +23050,11 @@ function renderKingdomMonsterAuxEffects(host, monster, effects = [], generationK
       const sprite = document.createElement('div');
       sprite.dataset.kingdomMonsterAuxSprite = 'true';
       sprite.style.position = 'absolute';
-      sprite.style.left = '0';
-      sprite.style.top = '0';
-      sprite.style.marginLeft = '-16px';
-      sprite.style.marginTop = '-16px';
       wrapper.appendChild(sprite);
       host.appendChild(wrapper);
-      const direction = options.direction === 'right' ? 1 : -1;
+      wrapper.dataset.projectileOriginX = String(Math.round(launchX));
+      wrapper.dataset.projectileOriginY = String(Math.round(launchY));
+      wrapper.dataset.projectileSource = hasSourceRect ? 'sprite' : 'fallback';
       const placement = String(effect?.placement || 'projectile');
       if (!prefersKingdomReducedMotion() && placement === 'projectile') {
         wrapper.animate([
@@ -24211,6 +24240,10 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
         petLevel: Number(player.pet?.level) || Number(character?.level) || 1,
         hpRate: Math.max(0, Number(player?.hp) || 0) / Math.max(1, Number(player?.maxHp) || 1)
       });
+      avatar.classList.toggle(
+        'is-projectile-attacking',
+        motionContext === 'attack' && petMotion.usesProjectile === true
+      );
       const fallbackAnimationName = motionContext === 'attack'
         ? getKingdomMonsterAttackAnimationName(monster, petAttackMode)
         : motionContext;
@@ -24229,7 +24262,7 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
         monster,
         eventIsActive ? petMotion.effects : [],
         `${eventKey}:pet-${playerIndex}`,
-        { direction: 'right' }
+        { direction: 'right', sourceNode: sprite }
       );
       setCombatAvatarVictory(
         avatar,
@@ -24238,6 +24271,7 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
       );
     } else {
       avatar?.classList.remove('is-rebirth-active');
+      avatar?.classList.remove('is-projectile-attacking');
       const petSprite = avatar?.querySelector(':scope > .tarot-kingdom-battle-pet-sprite');
       if (petSprite) {
         const timerId = kingdomPetAnimationTimers.get(petSprite);
@@ -25475,6 +25509,21 @@ function renderKingdomBattleStage() {
   const enemyAttackMode = !enemyOpeningAttack && String(visualEvent?.type || '') === 'enemy-area'
     ? 'area'
     : 'single';
+  const enemySpecialLabel = String(enemy?.abilities?.special?.label || '');
+  const eventHasEnemySpecial = enemySpecialLabel !== ''
+    && Array.isArray(visualEvent?.effects)
+    && visualEvent.effects.some((effect) => String(effect?.label || '') === enemySpecialLabel);
+  const enemyProjectileMotion = enemyActing
+    ? resolveTarotKingdomMonsterMotion({
+      monsterId: monsterConfig?.id,
+      context: 'attack',
+      phase: enemyOpeningAttack ? 'hit-stop' : timelinePhase,
+      attackMode: enemyAttackMode,
+      hasSpecial: eventHasEnemySpecial,
+      seed: Number(visualEvent?.seq) || Number(s?.handNo) || 0
+    })
+    : null;
+  const enemyUsesProjectile = enemyProjectileMotion?.usesProjectile === true;
   const fallbackAttackMotion = getKingdomEnemyAttackMotionProfile(monsterConfig, enemyAttackMode);
   const enemyAttackMotion = {
     animationName: String(visualEvent?.attackAnimationName || fallbackAttackMotion.animationName),
@@ -25532,6 +25581,7 @@ function renderKingdomBattleStage() {
   const enemyAreaSealed = !!enemy.areaAttackSealedUntilClear && !enemyDefeated && !enemyRushTime && !enemyEscapeActive;
   [ui.battleEnemy, ui.battleEnemySprite].forEach((node) => {
     node?.classList.toggle('is-attacking', enemyActing);
+    node?.classList.toggle('is-projectile-attacking', enemyActing && enemyUsesProjectile);
     node?.classList.toggle('is-hurt', enemyHurt);
     node?.classList.toggle('is-defeated', enemyDefeated);
     node?.classList.toggle('is-rush-time', enemyRushTime);
@@ -25557,10 +25607,6 @@ function renderKingdomBattleStage() {
         : (openingIntroStage === 'enter' || enemyRebirthActive
         ? 'entry'
         : (enemyActing ? 'attack' : (enemyHurt ? 'hurt' : 'idle'))));
-  const enemySpecialLabel = String(enemy?.abilities?.special?.label || '');
-  const eventHasEnemySpecial = enemySpecialLabel !== ''
-    && Array.isArray(visualEvent?.effects)
-    && visualEvent.effects.some((effect) => String(effect?.label || '') === enemySpecialLabel);
   const monsterMotion = resolveTarotKingdomMonsterMotion({
     monsterId: enemy.id,
     context: motionContext,
@@ -25622,7 +25668,7 @@ function renderKingdomBattleStage() {
       monsterConfig,
       eventIsActive ? monsterMotion.effects : [],
       `${eventKey}:enemy`,
-      { direction: 'left' }
+      { direction: 'left', sourceNode: ui.battleEnemySprite }
     );
   }
   renderKingdomEnemyStatusEffects();
@@ -27738,6 +27784,9 @@ function setKingdomRulebookOpen(open, { restoreFocus = true } = {}) {
   ui.root?.classList.toggle('is-rulebook-open', shouldOpen);
   if (shouldOpen) {
     if (ui.rulebookPage) ui.rulebookPage.scrollTop = 0;
+    ui.rulebook.querySelectorAll('.tarot-kingdom-rulebook-nav [data-rulebook-target]').forEach((button, index) => {
+      button.classList.toggle('is-active', index === 0);
+    });
     ui.rulebookCloseButton?.focus({ preventScroll: true });
     return;
   }
@@ -27768,29 +27817,9 @@ function ensureKingdomRulebookUi() {
 
   let rulebook = document.getElementById('tarotKingdomRulebook');
   if (!rulebook) {
-    const roleDescriptions = {
-      Straight: '数字が5枚連続',
-      Flush: '同じスート5枚、または世界なしの大アルカナ5枚',
-      FullHouse: '同数3枚＋同数2枚',
-      FourKind: '同数4枚＋任意の1枚',
-      TheWorld: '世界XXIを含む大アルカナ5枚',
-      StraightFlush: '同スートで数字が5枚連続',
-      FiveKind: '同じ数字を5枚'
-    };
-    const roleRows = ROLE_ORDER.map((roleKey, index) => {
-      const roleLabel = ROLE_LABEL[roleKey] || roleKey;
-      const attackLabel = KINGDOM_ROLE_ATTACK_PROFILES[roleKey]?.rangeLabel || '強攻撃';
-      return `
-        <tr>
-          <td><span class="tarot-kingdom-rulebook-order">${index + 1}</span><strong>${roleLabel}</strong></td>
-          <td>${roleDescriptions[roleKey] || ''}</td>
-          <td><span>×${ROLE_RATE[roleKey] || 1}</span><small>${attackLabel}</small></td>
-        </tr>
-      `;
-    }).join('');
     const rulebookMinorCard = (suit, number) => ({ kind: 'minor', suit, number });
     const rulebookMajorCard = (number, label) => ({ kind: 'major', number, label });
-    const rulebookCardMarkup = (card) => {
+    const rulebookCardMarkup = (card, { showRank = false } = {}) => {
       const suitLabels = { Wand: 'ワンド', Cup: 'カップ', Sword: 'ソード', Pentacle: 'ペンタクル' };
       const rankLabels = { 1: 'A', 11: 'ペイジ', 12: 'ナイト', 13: 'クイーン', 14: 'キング' };
       const number = Math.max(0, Math.floor(Number(card?.number) || 0));
@@ -27799,12 +27828,14 @@ function ensureKingdomRulebookUi() {
       const label = kind === 'major'
         ? String(card?.label || `大アルカナ ${number}`)
         : `${suitLabels[suit] || suit}の${rankLabels[number] || number}`;
-      return `<span class="tarot-kingdom-rulebook-card-image${kind === 'major' ? ' is-major' : ''}" data-rulebook-card-kind="${kind}" data-rulebook-card-suit="${suit}" data-rulebook-card-number="${number}" role="img" aria-label="${label}" title="${label}"></span>`;
+      const visibleRank = kind === 'minor' && number === 1 ? 'A' : String(number);
+      return `<span class="tarot-kingdom-rulebook-card-image${kind === 'major' ? ' is-major' : ''}${showRank ? ' has-rank-badge' : ''}" data-rulebook-card-kind="${kind}" data-rulebook-card-suit="${suit}" data-rulebook-card-number="${number}"${showRank ? ` data-rulebook-card-rank="${visibleRank}"` : ''} role="img" aria-label="${label}" title="${label}"></span>`;
     };
     const roleSampleDefinitions = [
       {
+        key: 'Straight',
         name: 'ストレート',
-        description: 'スートを問わず数字が連続',
+        description: '2・3・4・5・6のように、数字が5つ連続。スートは違っても成立します。',
         cards: [
           rulebookMinorCard('Wand', 2), rulebookMinorCard('Cup', 3),
           rulebookMinorCard('Sword', 4), rulebookMinorCard('Pentacle', 5),
@@ -27812,8 +27843,9 @@ function ensureKingdomRulebookUi() {
         ]
       },
       {
+        key: 'Flush',
         name: 'フラッシュ',
-        description: '世界なしの大アルカナ5枚も成立',
+        description: '同じスートを5枚。世界XXIを含まない大アルカナだけの5枚でも成立します。',
         cards: [
           rulebookMajorCard(2, '女教皇 II'), rulebookMajorCard(6, '恋人 VI'),
           rulebookMajorCard(9, '隠者 IX'), rulebookMajorCard(14, '節制 XIV'),
@@ -27821,8 +27853,9 @@ function ensureKingdomRulebookUi() {
         ]
       },
       {
+        key: 'FullHouse',
         name: 'フルハウス',
-        description: '同数3枚＋同数2枚',
+        description: '同じ数字を3枚と、それとは別の同じ数字を2枚そろえます。',
         cards: [
           rulebookMinorCard('Wand', 7), rulebookMinorCard('Cup', 7),
           rulebookMinorCard('Sword', 7), rulebookMinorCard('Cup', 13),
@@ -27830,8 +27863,9 @@ function ensureKingdomRulebookUi() {
         ]
       },
       {
+        key: 'FourKind',
         name: '4カード',
-        description: '同数4枚＋任意の1枚',
+        description: '同じ数字を4枚そろえ、残り1枚はどのカードでも成立します。',
         cards: [
           rulebookMinorCard('Wand', 10), rulebookMinorCard('Cup', 10),
           rulebookMinorCard('Sword', 10), rulebookMinorCard('Pentacle', 10),
@@ -27839,8 +27873,9 @@ function ensureKingdomRulebookUi() {
         ]
       },
       {
+        key: 'TheWorld',
         name: 'ザ・ワールド',
-        description: '世界XXIを含む大アルカナ5枚',
+        description: '世界XXIを必ず含め、大アルカナだけで5枚そろえます。',
         cards: [
           rulebookMajorCard(0, '愚者 0'), rulebookMajorCard(1, '魔術師 I'),
           rulebookMajorCard(7, '戦車 VII'), rulebookMajorCard(15, '悪魔 XV'),
@@ -27848,13 +27883,15 @@ function ensureKingdomRulebookUi() {
         ]
       },
       {
+        key: 'StraightFlush',
         name: 'ストレートフラッシュ',
-        description: '同スートで数字が連続',
+        description: '同じスートだけで、数字が5つ連続するようにそろえます。',
         cards: [2, 3, 4, 5, 6].map((number) => rulebookMinorCard('Cup', number))
       },
       {
+        key: 'FiveKind',
         name: '5カード',
-        description: '小アルカナ4スート＋大アルカナの同数5枚',
+        description: '小アルカナ4スートと大アルカナで、同じ数字を合計5枚そろえます。',
         cards: [
           rulebookMinorCard('Wand', 8), rulebookMinorCard('Cup', 8),
           rulebookMinorCard('Sword', 8), rulebookMinorCard('Pentacle', 8),
@@ -27862,13 +27899,24 @@ function ensureKingdomRulebookUi() {
         ]
       }
     ];
-    const roleSampleCards = roleSampleDefinitions.map((sample) => `
-      <div class="sample">
-        <div class="sample-name">${sample.name}</div>
-        <div class="sample-cards">${sample.cards.map(rulebookCardMarkup).join('')}</div>
-        <div class="sample-desc">${sample.description}</div>
-      </div>
-    `).join('');
+    const roleSampleByKey = new Map(roleSampleDefinitions.map((sample) => [sample.key, sample]));
+    const roleRows = ROLE_ORDER.map((roleKey, index) => {
+      const roleLabel = ROLE_LABEL[roleKey] || roleKey;
+      const attackLabel = KINGDOM_ROLE_ATTACK_PROFILES[roleKey]?.rangeLabel || '強攻撃';
+      const sample = roleSampleByKey.get(roleKey);
+      const description = sample?.description || '';
+      const cards = Array.isArray(sample?.cards) ? sample.cards : [];
+      return `
+        <tr>
+          <td><span class="tarot-kingdom-rulebook-order">${index + 1}</span><strong>${roleLabel}</strong></td>
+          <td>
+            <span class="tarot-kingdom-rulebook-role-condition">${description}</span>
+            <span class="tarot-kingdom-rulebook-role-cards" aria-label="${roleLabel}のカード例">${cards.map((card) => rulebookCardMarkup(card, { showRank: true })).join('')}</span>
+          </td>
+          <td><span>×${ROLE_RATE[roleKey] || 1}</span><small>${attackLabel}</small></td>
+        </tr>
+      `;
+    }).join('');
 
     rulebook = document.createElement('div');
     rulebook.id = 'tarotKingdomRulebook';
@@ -27879,33 +27927,45 @@ function ensureKingdomRulebookUi() {
     rulebook.hidden = true;
     rulebook.innerHTML = `
       <article class="tarot-kingdom-rulebook-page" data-rulebook-page>
-        <header class="tarot-kingdom-rulebook-header">
-          <div>
-            <span class="tarot-kingdom-rulebook-kicker">TAROT KINGDOM OFFICIAL GUIDE</span>
-            <h2 id="tarotKingdomRulebookTitle">タロットキングダム<br>ルールブック</h2>
-            <p>カードを出して仲間と攻め、モンスターを攻略する3〜4人用バトル。</p>
-          </div>
-          <button type="button" class="ui-modal-close" data-rulebook-close aria-label="ルールブックを閉じてゲームへ戻る"></button>
-        </header>
+        <div class="tarot-kingdom-rulebook-top">
+          <header class="tarot-kingdom-rulebook-header">
+            <div>
+              <span class="tarot-kingdom-rulebook-kicker">TAROT KINGDOM OFFICIAL GUIDE</span>
+              <h2 id="tarotKingdomRulebookTitle">タロットキングダム <span>ルールブック</span></h2>
+              <p>最初に覚える流れと、対戦中に必要な裁定をまとめています。</p>
+            </div>
+            <button type="button" class="ui-modal-close" data-rulebook-close aria-label="ルールブックを閉じてゲームへ戻る"></button>
+          </header>
 
-        <nav class="tarot-kingdom-rulebook-nav" aria-label="ルールブック内の目次">
-          <button type="button" data-rulebook-target="tarotKingdomRulesQuick">基本</button>
-          <button type="button" data-rulebook-target="tarotKingdomRulesCards">カード</button>
-          <button type="button" data-rulebook-target="tarotKingdomRulesRoles">5枚役</button>
-          <button type="button" data-rulebook-target="tarotKingdomRulesSpecial">特殊札</button>
-          <button type="button" data-rulebook-target="tarotKingdomRulesBattle">戦闘</button>
-        </nav>
+          <nav class="tarot-kingdom-rulebook-nav" aria-label="ルールブック内の目次">
+            <button type="button" class="is-active" data-rulebook-target="tarotKingdomRulesQuick">はじめ方</button>
+            <button type="button" data-rulebook-target="tarotKingdomRulesCards">出し方</button>
+            <button type="button" data-rulebook-target="tarotKingdomRulesRoles">5枚役</button>
+            <button type="button" data-rulebook-target="tarotKingdomRulesSpecial">特殊札</button>
+            <button type="button" data-rulebook-target="tarotKingdomRulesBattle">戦闘</button>
+            <button type="button" data-rulebook-target="tarotKingdomRulesHelp">困った時</button>
+          </nav>
+        </div>
 
         <div class="tarot-kingdom-rulebook-body">
           <section id="tarotKingdomRulesQuick" class="tarot-kingdom-rulebook-section is-intro" tabindex="-1">
             <span class="tarot-kingdom-rulebook-section-no">01 / QUICK START</span>
-            <h3>まずは、これだけ</h3>
+            <h3>60秒でわかる遊び方</h3>
             <ol class="tarot-kingdom-rulebook-steps">
-              <li><strong>場と同じ枚数</strong><span>通常出しは、同じ数字を1〜3枚。場札より強い数字を出します。</span></li>
-              <li><strong>カードを選んで決定</strong><span>出せない時はパス。防御を使うと、場が流れるまで守りを固めます。</span></li>
-              <li><strong>5枚で役を狙う</strong><span>ストレート以上の役は強力な攻撃。1枚場には手札4枚を足す「コール」も可能です。</span></li>
-              <li><strong>敵を倒す</strong><span>合法な出札で攻撃。敵HPまたはステージの勝利条件を達成すれば局を制します。</span></li>
+              <li><strong>場より強い札を出す</strong><span>場と同じ枚数で、通常出しは同じ数字を1〜3枚。合法な出札が敵への攻撃になります。</span></li>
+              <li><strong>出せなければパス</strong><span>防御を選ぶと場が流れるまで身を守れます。ほかの全員がパスすると場が流れます。</span></li>
+              <li><strong>5枚役で大ダメージ</strong><span>手札5枚、または1枚場＋手札4枚の「コール」でストレート以上を作ります。</span></li>
+              <li><strong>敵を倒して局を制す</strong><span>仲間と攻撃をつなぎ、敵HPまたはステージ固有の勝利条件を達成します。</span></li>
             </ol>
+            <div class="tarot-kingdom-rulebook-jump" aria-label="目的からルールを探す">
+              <strong>今すぐ調べる</strong>
+              <div>
+                <button type="button" data-rulebook-target="tarotKingdomRulesHelp"><span>?</span>カードが出せない</button>
+                <button type="button" data-rulebook-target="tarotKingdomRulesRoles"><span>5</span>5枚役・コール</button>
+                <button type="button" data-rulebook-target="tarotKingdomRulesSpecial"><span>★</span>特殊札の効果</button>
+                <button type="button" data-rulebook-target="tarotKingdomRulesBattle"><span>⚔</span>敵の攻撃と防御</button>
+              </div>
+            </div>
             <div class="tarot-kingdom-rulebook-alert">
               <strong>Aは通常時の最強札（15）</strong>
               <span>数字1とは別物で、大アルカナでは返せません。Aを1として使えるのは、A–2–3–4–5のストレートだけ。</span>
@@ -27913,21 +27973,27 @@ function ensureKingdomRulebookUi() {
           </section>
 
           <section id="tarotKingdomRulesCards" class="tarot-kingdom-rulebook-section" tabindex="-1">
-            <span class="tarot-kingdom-rulebook-section-no">02 / CARDS &amp; TURNS</span>
-            <h3>カードと手番</h3>
+            <span class="tarot-kingdom-rulebook-section-no">02 / PLAYING CARDS</span>
+            <h3>カードを出せる条件</h3>
             <div class="tarot-kingdom-rulebook-facts">
               <div><strong>78</strong><span>小アルカナ56枚<br>大アルカナ22枚</span></div>
               <div><strong>8</strong><span>各プレイヤーの<br>初期手札</span></div>
               <div><strong>4</strong><span>基本の局数<br>Round 1〜4</span></div>
             </div>
+            <ol class="tarot-kingdom-rulebook-judge-flow" aria-label="通常出しの判定順">
+              <li><span>1</span><div><strong>枚数</strong><small>場と同じ1〜3枚</small></div></li>
+              <li><span>2</span><div><strong>数字</strong><small>複数枚ならすべて同じ</small></div></li>
+              <li><span>3</span><div><strong>強さ</strong><small>場より大きい数字</small></div></li>
+              <li><span>4</span><div><strong>同値</strong><small>大アルカナか相性スート</small></div></li>
+            </ol>
             <div class="tarot-kingdom-rulebook-copy-grid">
               <div>
                 <h4>通常出し</h4>
-                <p>同じ数字を1〜3枚選びます。場が2枚なら2枚、3枚なら3枚で返します。11バック中は強弱が反転します。</p>
+                <p>同じ数字を1〜3枚選びます。場が2枚なら2枚、3枚なら3枚で返します。場が空なら好きな通常札から開始。11バック中は強弱が反転します。</p>
               </div>
               <div>
                 <h4>同じ強さで返す</h4>
-                <p>同値は、場札に勝つ相性スートだけ有効。大アルカナと小アルカナが同値なら大アルカナが優先されます。</p>
+                <p>同値は、場札に勝つ相性スートだけ有効。大アルカナと小アルカナが同値なら大アルカナが優先されます。複数枚では1枚でも場に勝てば成立します。</p>
               </div>
               <div>
                 <h4>場が流れる</h4>
@@ -27997,9 +28063,14 @@ function ensureKingdomRulebookUi() {
               <strong>コール</strong>
               <span>場が1枚の時、その場札に手札4枚を加えて5枚役を作れます。大アルカナ場は「ザ・ワールド」のみコール可能です。</span>
             </div>
-            <div class="tarot-kingdom-rulebook-roles-samples">
-              <h4>全7役のカード例</h4>
-              <div class="tarot-kingdom-roles-sample-grid">${roleSampleCards}</div>
+            <div class="tarot-kingdom-rulebook-call-rules">
+              <h4>コールできない3つの例</h4>
+              <ul>
+                <li><strong>ストレート</strong><span>手札内に場札と同じ数字がある</span></li>
+                <li><strong>フラッシュ</strong><span>手札内に場札と同スートが5枚以上ある</span></li>
+                <li><strong>フラッシュ</strong><span>完成した5枚で場札が最強札になる</span></li>
+              </ul>
+              <p>コール時の役倍率は、フルハウスが表の倍率−2、その他は−1（最低×0）です。</p>
             </div>
           </section>
 
@@ -28007,20 +28078,21 @@ function ensureKingdomRulebookUi() {
             <span class="tarot-kingdom-rulebook-section-no">04 / SPECIAL CARDS</span>
             <h3>覚えておきたい特殊札</h3>
             <div class="tarot-kingdom-rulebook-special-grid">
-              <div>${rulebookCardMarkup(rulebookMinorCard('Wand', 5))}<h4>5スキップ</h4><p>出した枚数ぶん次のプレイヤーを飛ばします。法王Vは次の2人。</p></div>
-              <div>${rulebookCardMarkup(rulebookMinorCard('Pentacle', 8))}<h4>8カット</h4><p>1枚ならコール猶予、2枚以上なら場を即クリア。敵も石化させます。</p></div>
-              <div>${rulebookCardMarkup(rulebookMinorCard('Sword', 11))}<h4>11バック</h4><p>数字の強弱を反転。もう一度11を出すか、場が流れると解除されます。</p></div>
+              <div>${rulebookCardMarkup(rulebookMinorCard('Wand', 5))}<h4>5スキップ</h4><p>出した枚数ぶん次のプレイヤーを飛ばし、場が流れるまで敵の全体攻撃を封印。法王Vは次の2人を飛ばします。</p></div>
+              <div>${rulebookCardMarkup(rulebookMinorCard('Pentacle', 8))}<h4>8カット</h4><p>1枚なら次の応答をコールかパスに限定、2枚以上なら場を即クリア。場が流れるまで敵を石化。力VIIIの1枚場には世界XXIでも返せます。</p></div>
+              <div>${rulebookCardMarkup(rulebookMinorCard('Sword', 11))}<h4>11バック</h4><p>数字の強弱を反転。正義XIでも発動し、もう一度11を出すか場が流れると解除されます。</p></div>
               <div>${rulebookCardMarkup(rulebookMinorCard('Pentacle', 12))}<h4>12トラッシュ</h4><p>小アルカナ12を1枚で通常の場流しにすると、残り手札から好きな1枚を除外。除外だけで手札0にはできません。</p></div>
               <div>${rulebookCardMarkup(rulebookMinorCard('Cup', 13))}${rulebookCardMarkup(rulebookMinorCard('Cup', 14))}<h4>ロイヤルロック</h4><p>13または14を場札と同じスートで出すと、そのスートだけに固定。節制XIVで解除します。</p></div>
             </div>
             <div class="tarot-kingdom-rulebook-major-list">
-              <h4>大アルカナ早見</h4>
+              <h4>出し方が特殊な大アルカナ</h4>
+              <p>ここでは出札の裁定だけを掲載。戦闘効果と現在の効果値は、各カードの詳細画面で確認できます。</p>
               <dl>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(0, '愚者 0'))}<span>愚者 0</span></dt><dd>5枚役だけで数字ワイルド。単独ではスートになりませんが、大アルカナ5枚ならフラッシュ扱いです。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(1, '魔術師 I'))}<span>魔術師 I</span></dt><dd>数字1固定・オールスート。Aとは組にできません。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(15, '悪魔 XV'))}<span>悪魔 XV</span></dt><dd>小アルカナのコート札専用。11バックを無視して出せます。</dd></div>
-                <div><dt>${rulebookCardMarkup(rulebookMajorCard(16, '塔 XVI'))}<span>塔〜太陽 XVI–XIX</span></dt><dd>対応する同スートの1枚場専用。初手には出せません。</dd></div>
-                <div><dt>${rulebookCardMarkup(rulebookMajorCard(20, '審判 XX'))}<span>審判 XX</span></dt><dd>場が空でなくても通常の出し方で使える。11バックを切り替え、場を流すと墓地回収。</dd></div>
+                <div><dt>${rulebookCardMarkup(rulebookMajorCard(16, '塔 XVI'))}<span>塔〜太陽 XVI–XIX</span></dt><dd>対応する同スートの1枚場専用で、初手不可。塔＝ソード、星＝カップ、月＝ペンタクル、太陽＝ワンド。</dd></div>
+                <div><dt>${rulebookCardMarkup(rulebookMajorCard(20, '審判 XX'))}<span>審判 XX</span></dt><dd>通常の出し方で使えます。11バックを切り替え、この札で場を流したプレイヤーが墓地の小アルカナ1枚を回収します。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(21, '世界 XXI'))}<span>世界 XXI</span></dt><dd>大アルカナ1枚場へ返して即クリア。11バック中は使用不可。</dd></div>
               </dl>
             </div>
@@ -28030,7 +28102,7 @@ function ensureKingdomRulebookUi() {
             <span class="tarot-kingdom-rulebook-section-no">05 / BATTLE</span>
             <h3>モンスターバトル</h3>
             <div class="tarot-kingdom-rulebook-copy-grid">
-              <div><h4>攻撃</h4><p>カードを合法に出すと攻撃。装備・能力値・カード共鳴が威力や追加効果へ反映されます。</p></div>
+               <div><h4>出札＝攻撃</h4><p>カードを合法に出すと攻撃。装備・能力値・カード共鳴が威力や追加効果へ反映されます。生まれ変わり自体から追加攻撃は発生しません。</p></div>
               <div><h4>役と召喚</h4><p>5枚役は通常攻撃より強力。役に応じて単体・全体攻撃となり、召喚獣が現れることもあります。</p></div>
               <div><h4>パスと防御</h4><p>通常のパスでは反撃を受ける場合があります。ただし局開始の公開札だけが場にある間は、反撃も全員パス時の全体攻撃もありません。「防御」は場が流れるまで自動で守り、被害を抑えます。</p></div>
               <div><h4>状態効果</h4><p>毒・リジェネ・能力変化などはアイコンで表示。戦闘画面の状態アイコンを押すと詳細を確認できます。</p></div>
@@ -28047,8 +28119,8 @@ function ensureKingdomRulebookUi() {
             </div>
           </section>
 
-          <section class="tarot-kingdom-rulebook-section is-checklist">
-            <span class="tarot-kingdom-rulebook-section-no">CHECK BEFORE PLAY</span>
+          <section id="tarotKingdomRulesHelp" class="tarot-kingdom-rulebook-section is-checklist" tabindex="-1">
+            <span class="tarot-kingdom-rulebook-section-no">06 / QUICK JUDGE</span>
             <h3>出せない時の確認</h3>
             <ul>
               <li>場と同じ枚数を選んでいる？</li>
@@ -28056,7 +28128,18 @@ function ensureKingdomRulebookUi() {
               <li>Aと数字1を混ぜていない？</li>
               <li>同値なら相性スートになっている？</li>
               <li>ロイヤルロック、8カット、11バックが発動中ではない？</li>
+              <li>大アルカナ固有の出せる場を満たしている？</li>
+              <li>コール不可の3条件に当てはまっていない？</li>
             </ul>
+            <div class="tarot-kingdom-rulebook-glossary">
+              <h4>用語</h4>
+              <dl>
+                <div><dt>場が流れる</dt><dd>場札を片づけ、最後に出した人から新しい場を始めること。</dd></div>
+                <div><dt>親</dt><dd>局の最初に手番を持つプレイヤー。</dd></div>
+                <div><dt>コール</dt><dd>1枚の場札と手札4枚で5枚役を完成させる出し方。</dd></div>
+                <div><dt>共鳴</dt><dd>カード構成やペットなどの条件で発動する追加効果。</dd></div>
+              </dl>
+            </div>
           </section>
         </div>
 
@@ -28089,11 +28172,14 @@ function ensureKingdomRulebookUi() {
   rulebook.querySelectorAll('[data-rulebook-target]').forEach((button) => {
     button.addEventListener('click', () => {
       const target = document.getElementById(String(button.dataset.rulebookTarget || ''));
-      target?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      target?.scrollIntoView({
+        block: 'start',
+        behavior: prefersKingdomReducedMotion() ? 'auto' : 'smooth'
+      });
       target?.focus({ preventScroll: true });
-      // Update active button state
-      rulebook.querySelectorAll('[data-rulebook-target]').forEach((b) => b.classList.remove('is-active'));
-      button.classList.add('is-active');
+      rulebook.querySelectorAll('.tarot-kingdom-rulebook-nav [data-rulebook-target]').forEach((navButton) => {
+        navButton.classList.toggle('is-active', navButton.dataset.rulebookTarget === target?.id);
+      });
     });
   });
 
@@ -28104,15 +28190,19 @@ function ensureKingdomRulebookUi() {
     rulebookPage.addEventListener('scroll', () => {
       clearTimeout(scrollTimeout);
       scrollTimeout = setTimeout(() => {
-        const sections = Array.from(rulebook.querySelectorAll('.tarot-kingdom-rulebook-section'));
+        const sections = Array.from(rulebook.querySelectorAll('.tarot-kingdom-rulebook-section[id]'));
+        const stickyTop = rulebook.querySelector('.tarot-kingdom-rulebook-top');
+        const activationLine = rulebookPage.getBoundingClientRect().top
+          + Math.max(0, stickyTop?.getBoundingClientRect().height || 0)
+          + 24;
         let currentSection = sections[0];
         for (const section of sections) {
-          if (section.getBoundingClientRect().top <= 150) {
+          if (section.getBoundingClientRect().top <= activationLine) {
             currentSection = section;
           }
         }
         if (currentSection?.id) {
-          rulebook.querySelectorAll('[data-rulebook-target]').forEach((b) => {
+          rulebook.querySelectorAll('.tarot-kingdom-rulebook-nav [data-rulebook-target]').forEach((b) => {
             b.classList.toggle('is-active', b.dataset.rulebookTarget === currentSection.id);
           });
         }

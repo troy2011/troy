@@ -265,7 +265,7 @@ function resolveSlimeMotion(context, options) {
   const key = context === 'escape'
     ? animations.idle
     : (context === 'attack' ? animations.attack : (animations[context] || animations.idle));
-  return { animationName: key, effects: [], form };
+  return { animationName: key, effects: [], form, usesProjectile: false };
 }
 
 function selectAttackSpec(profile, attackMode, hasSpecial, seed) {
@@ -276,6 +276,14 @@ function selectAttackSpec(profile, attackMode, hasSpecial, seed) {
   if (!source) return null;
   if (!Array.isArray(source.variants)) return source;
   return selectVariant(source.variants, seed);
+}
+
+function attackUsesProjectile(attack) {
+  return Object.values(attack?.effects || {}).some((effects) => (
+    Array.isArray(effects) && effects.some((effect) => (
+      String(effect?.placement || 'projectile') === 'projectile'
+    ))
+  ));
 }
 
 export function resolveTarotKingdomMonsterMotion(options = {}) {
@@ -295,13 +303,13 @@ export function resolveTarotKingdomMonsterMotion(options = {}) {
       ? phase
       : (phase === 'damage' && Array.isArray(attack?.effects?.['hit-stop']) ? 'hit-stop' : '');
     const effects = effectPhase ? attack.effects[effectPhase] : [];
-    return { animationName, effects, form: '' };
+    return { animationName, effects, form: '', usesProjectile: attackUsesProjectile(attack) };
   }
 
   if (context === 'death' && Array.isArray(profile.deathSequence)) {
     const ratio = Math.max(0, Math.min(1, Number(options.elapsedRatio) || 0));
     const index = Math.min(profile.deathSequence.length - 1, Math.floor(ratio * profile.deathSequence.length));
-    return { animationName: profile.deathSequence[index], effects: [], form: '' };
+    return { animationName: profile.deathSequence[index], effects: [], form: '', usesProjectile: false };
   }
 
   const fallback = context === 'entry'
@@ -312,7 +320,8 @@ export function resolveTarotKingdomMonsterMotion(options = {}) {
   return {
     animationName: selectVariant(profile[context], seed) || fallback,
     effects: [],
-    form: ''
+    form: '',
+    usesProjectile: false
   };
 }
 

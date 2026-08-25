@@ -139,6 +139,7 @@ export function rollTarotKingdomPetRound(playFabId, explorationId, finisher, opt
             isPet: source.isPet === true,
             defeatMode: String(source.defeatMode || '').trim().toLowerCase(),
             monsterId: String(source.monsterId || '').trim(),
+            recruitMonsterId: String(source.recruitMonsterId || source.monsterId || '').trim(),
             mode: String(source.mode || '').trim().toLowerCase()
         }
     }, options);
