@@ -7,7 +7,7 @@ import {
     createTroyCustomerOrderRequest,
     convertTroyGoldToCoin,
     createReservation as requestCreateReservation
-} from './playfabClient.js?v=20260825-playfab-read-coalescing-v1';
+} from './playfabClient.js?v=20260826-tutorial-reward-v1';
 import { createRequestId } from './api.js';
 import { getFirestore, doc, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { getTroyMenuCategoryImage, getTroyMenuImage } from './troyMenuAssets.js';

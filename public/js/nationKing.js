@@ -20,7 +20,7 @@ import {
     approveTroyCalendarGoogleSyncReview,
     saveTroyCalendarEntry,
     deleteTroyCalendarEntry
-} from './playfabClient.js?v=20260825-playfab-read-coalescing-v1';
+} from './playfabClient.js?v=20260826-tutorial-reward-v1';
 import { createRequestId } from './api.js';
 import { buildPlayerTriggerHtml } from './playerProfile.js';
 import { formatUnlockedFeatures } from './featureUnlocks.js';

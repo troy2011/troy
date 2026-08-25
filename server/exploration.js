@@ -60,6 +60,9 @@ const EXPLORATION_COLLECTION = 'player_explorations';
 const EXPLORATION_REWARD_RECEIPT_COLLECTION = 'exploration_reward_receipts';
 const DAILY_FREE_SUBCOLLECTION = 'daily_free';
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
+const TAROT_KINGDOM_TUTORIAL_REWARD_GOLD = 500;
+const TAROT_KINGDOM_TUTORIAL_REWARD_READ_ONLY_KEY = 'TarotKingdomTutorialRewardClaimed';
+const TAROT_KINGDOM_TUTORIAL_REWARD_MARKER_PREFIX = 'exploration:';
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
@@ -954,6 +957,7 @@ function explorationDocToPayload(data = {}) {
         shipName: String(data.shipName || ''),
         shipClass: String(data.shipClass || ''),
         shipStage: Number(data.shipStage || data.stage || 1) || 1,
+        tutorialEnabled: data.tutorialEnabled === true,
         startedAtMs: Number(data.startedAtMs || 0),
         completesAtMs: Number(data.completesAtMs || 0),
         cost: Number(data.cost || 0),
@@ -981,6 +985,61 @@ function getJstDayKey(nowMs = Date.now()) {
     const month = String(jst.getUTCMonth() + 1).padStart(2, '0');
     const day = String(jst.getUTCDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+}
+
+function getReadOnlyDataString(data, key) {
+    return String(data?.[key]?.Value ?? data?.[key] ?? '').trim();
+}
+
+function isTarotKingdomTutorialRewardEligible(activeData, bossResult, playFabId, ownerPlayFabId) {
+    return activeData?.tutorialEnabled === true
+        && Math.floor(Number(activeData?.stageNo) || 0) === 1
+        && String(playFabId || '').trim() === String(ownerPlayFabId || '').trim()
+        && bossResult?.tarotKingdom === true
+        && bossResult?.playerWon === true;
+}
+
+async function grantTarotKingdomTutorialReward(playFabId, explorationId, deps) {
+    const { promisifyPlayFab, PlayFabServer, addEconomyItem } = deps;
+    const safePlayFabId = String(playFabId || '').trim();
+    const safeExplorationId = String(explorationId || '').trim();
+    if (!safePlayFabId || !safeExplorationId || typeof addEconomyItem !== 'function') {
+        throw new Error('TutorialRewardDependenciesMissing');
+    }
+
+    const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+        PlayFabId: safePlayFabId,
+        Keys: [TAROT_KINGDOM_TUTORIAL_REWARD_READ_ONLY_KEY]
+    });
+    const claimedMarker = getReadOnlyDataString(
+        readOnly?.Data,
+        TAROT_KINGDOM_TUTORIAL_REWARD_READ_ONLY_KEY
+    );
+    const currentMarker = `${TAROT_KINGDOM_TUTORIAL_REWARD_MARKER_PREFIX}${safeExplorationId}`;
+    if (claimedMarker) {
+        if (claimedMarker === currentMarker) {
+            return {
+                amount: TAROT_KINGDOM_TUTORIAL_REWARD_GOLD,
+                granted: true,
+                alreadyClaimed: true,
+                replayed: true
+            };
+        }
+        return { amount: 0, granted: false, alreadyClaimed: true };
+    }
+
+    await addEconomyItem(safePlayFabId, VIRTUAL_CURRENCY_CODE, TAROT_KINGDOM_TUTORIAL_REWARD_GOLD, {
+        idempotencyId: `tarot-kingdom-tutorial-reward-${safePlayFabId}`
+    });
+    await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+        PlayFabId: safePlayFabId,
+        Data: { [TAROT_KINGDOM_TUTORIAL_REWARD_READ_ONLY_KEY]: currentMarker }
+    });
+    return {
+        amount: TAROT_KINGDOM_TUTORIAL_REWARD_GOLD,
+        granted: true,
+        alreadyClaimed: false
+    };
 }
 
 function buildDailyFreeExplorationStatus(dayKey, snap) {
@@ -1029,6 +1088,7 @@ function reportDocToPayload(doc) {
         rewardItemName: String(data.rewardItemName || data.rewardItemId || ''),
         rewardCount: Number(data.rewardCount ?? 1),
         rewardItems,
+        tutorialRewardGold: Math.max(0, Math.floor(Number(data.tutorialRewardGold) || 0)),
         supplyProfile,
         completedAtMs: Number(data.completedAtMs || 0),
         reportText: String(data.reportText || '')
@@ -1045,6 +1105,7 @@ function explorationRewardReceiptToResponse(receipt = {}) {
     const report = reportDocToPayload(receipt.report || {});
     const rewardItems = Array.isArray(report.rewardItems) ? report.rewardItems : [];
     const firstReward = rewardItems[0] || null;
+    const tutorialRewardGold = Math.max(0, Math.floor(Number(report.tutorialRewardGold) || 0));
     return {
         claimed: true,
         participantReward: true,
@@ -1067,7 +1128,10 @@ function explorationRewardReceiptToResponse(receipt = {}) {
         currentPet: receipt.currentPet || null,
         petProgress: receipt.petProgress || null,
         petOffer: receipt.petOffer || null,
-        progress: receipt.progress || null
+        progress: receipt.progress || null,
+        tutorialReward: tutorialRewardGold > 0
+            ? { amount: tutorialRewardGold, granted: true }
+            : null
     };
 }
 
@@ -2436,7 +2500,15 @@ async function restoreHpToFullOnce(activeRef, playFabId, deps) {
     });
 }
 
-function buildReportText({ destination, ship, bossResult, rewardDisplayName, rewardCount, supplyProfile = null }) {
+function buildReportText({
+    destination,
+    ship,
+    bossResult,
+    rewardDisplayName,
+    rewardCount,
+    supplyProfile = null,
+    tutorialRewardGold = 0
+}) {
     const lines = [
         `${ship.shipName}は${destination.name}の探索から帰還しました。`
     ];
@@ -2472,6 +2544,9 @@ function buildReportText({ destination, ship, bossResult, rewardDisplayName, rew
     }
     if (Array.isArray(bossResult?.arcanaWeakening?.logs) && bossResult.arcanaWeakening.logs.length) {
         lines.push(`大アルカナ先制: ${bossResult.arcanaWeakening.logs.join(' / ')}`);
+    }
+    if (tutorialRewardGold > 0) {
+        lines.push(`チュートリアルクリア報酬: ${tutorialRewardGold.toLocaleString('ja-JP')}G`);
     }
     if (rewardCount > 0) lines.push(`発見したお宝 (${rewardCount}個): ${rewardDisplayName}`);
     else lines.push('お宝は得られませんでした。');
@@ -3425,6 +3500,7 @@ function initializeExplorationRoutes(app, deps) {
         let { playFabId } = req.body || {};
         const requestedStageNo = Math.floor(Number(req.body?.stageNo) || 0);
         const requestedStage = getTarotKingdomExplorationStage(requestedStageNo);
+        const tutorialEnabled = requestedStageNo === 1 && req.body?.tutorialEnabled === true;
         if (!playFabId || !requestedStage) {
             return res.status(400).json({ error: 'playFabId and valid stageNo are required' });
         }
@@ -3553,6 +3629,7 @@ function initializeExplorationRoutes(app, deps) {
                         shipName: ship.shipName,
                         shipClass: ship.shipClass,
                         shipStage: normalizeShipStage(ship.stage),
+                        tutorialEnabled,
                         cost: 0,
                         chargedCost: 0,
                         paymentMethod: 'free',
@@ -3626,6 +3703,10 @@ function initializeExplorationRoutes(app, deps) {
                 }
                 const data = snap.data() || {};
                 encounter = normalizeExplorationTarotEncounter(data.tarotEncounter);
+                if (data.tutorialEnabled === true) {
+                    joinError = { code: 409, message: 'チュートリアルには参加できません。' };
+                    return;
+                }
                 if (
                     resolveEffectiveStatus(data) !== 'active'
                     || String(data.id || '') !== explorationId
@@ -4001,6 +4082,11 @@ function initializeExplorationRoutes(app, deps) {
             let petStateForResponse = null;
             const petStateByPlayer = {};
             const petProgressByPlayer = {};
+            let tutorialReward = {
+                amount: Math.max(0, Math.floor(Number(activeData.tutorialRewardGold) || 0)),
+                granted: Math.max(0, Math.floor(Number(activeData.tutorialRewardGold) || 0)) > 0,
+                alreadyClaimed: false
+            };
 
             if (isRetry) {
                 // Firestore 保存済みデータを再利用（再抽選なし）
@@ -4184,6 +4270,22 @@ function initializeExplorationRoutes(app, deps) {
                     });
                 }
             }
+            if (
+                tutorialReward.amount <= 0
+                && isTarotKingdomTutorialRewardEligible(activeData, bossResult, playFabId, ownerPlayFabId)
+            ) {
+                tutorialReward = await grantTarotKingdomTutorialReward(playFabId, activeData.id, {
+                    promisifyPlayFab,
+                    PlayFabServer,
+                    addEconomyItem
+                });
+                if (tutorialReward.granted) {
+                    await activeRef.update({
+                        tutorialRewardGold: tutorialReward.amount,
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+            }
             let explorationProgress = null;
             const explorationProgressByPlayer = {};
             const stageParticipantIds = stage
@@ -4304,6 +4406,9 @@ function initializeExplorationRoutes(app, deps) {
                 return Math.max(1, Math.min(4, Math.floor(Number(standing?.rank) || 4)));
             };
             const buildParticipantReport = (participantId, participantRewards) => {
+                const tutorialRewardGold = participantId === ownerPlayFabId
+                    ? tutorialReward.amount
+                    : 0;
                 const rewardDisplayName = participantRewards.length > 0
                     ? participantRewards.map((entry) => entry.DisplayName).join('、')
                     : '（なし）';
@@ -4343,6 +4448,7 @@ function initializeExplorationRoutes(app, deps) {
                     rewardItemId: participantRewards[0]?.ItemId || '',
                     rewardItemName: rewardDisplayName,
                     rewardCount: participantRewards.length,
+                    tutorialRewardGold,
                     rewardItems: participantRewards.map((item) => ({
                         itemId: item.ItemId,
                         displayName: item.DisplayName,
@@ -4358,7 +4464,8 @@ function initializeExplorationRoutes(app, deps) {
                         bossResult,
                         rewardDisplayName,
                         rewardCount: participantRewards.length,
-                        supplyProfile
+                        supplyProfile,
+                        tutorialRewardGold
                     }),
                     completedAtMs: now
                 };
@@ -4413,7 +4520,10 @@ function initializeExplorationRoutes(app, deps) {
                 currentPet: currentPetView,
                 petProgress: petProgressView,
                 petOffer: petOfferView,
-                progress: explorationProgress
+                progress: explorationProgress,
+                tutorialReward: report.tutorialRewardGold > 0
+                    ? { amount: report.tutorialRewardGold, granted: true }
+                    : null
             });
         } catch (error) {
             console.error('[exploration/claim] failed:', error?.errorMessage || error?.message || error);
@@ -4457,11 +4567,13 @@ module.exports = {
         getExplorationShipClassLabel,
         getJstDayKey,
         getExplorationRewardReceiptId,
+        grantTarotKingdomTutorialReward,
         getTroyMenuConsumableEffectiveUnits,
         isTroyMenuConsumableCatalogItem,
         isDailyExplorationDestinationForPlayer,
         isDailyFreeExplorationDestination,
         normalizeExplorationSupplyProfile,
+        isTarotKingdomTutorialRewardEligible,
         normalizeTroyMenuConsumableEffectiveUnits,
         normalizePaymentConsumables,
         buildExplorationTarotEncounter,

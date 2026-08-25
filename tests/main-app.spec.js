@@ -3063,6 +3063,7 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   let petChoiceRequest = null;
   let petRoundRollRequest = null;
   let explorationClaimRequest = null;
+  let explorationStartRequest = null;
   let rewardInventoryFetches = 0;
   await page.route('**/api/get-ranking', async (route) => {
     await route.fulfill({
@@ -3096,6 +3097,7 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
     });
   });
   await page.route('**/api/exploration/start', async (route) => {
+    explorationStartRequest = route.request().postDataJSON();
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
@@ -3108,7 +3110,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
           destinationId: 'tarot_stage_1',
           destinationName: '珊瑚の浅瀬',
           imagePath: './assets/tarot-kingdom/battlefields/coral-island-v1.webp',
-          shipName: 'テスト船'
+          shipName: 'テスト船',
+          tutorialEnabled: true
         },
         reports: [],
         stages: []
@@ -3177,6 +3180,7 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
           monsterName: 'パピル',
           monsterIsBoss: false,
           rewardCount: 1,
+          tutorialRewardGold: 500,
           rewardItems: [{
             itemId: 'mist_blade',
             displayName: '霧切りの刃',
@@ -3205,7 +3209,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
           experienceToNextLevel: 150,
           leveledUp: true
         },
-        petOffer: null
+        petOffer: null,
+        tutorialReward: { amount: 500, granted: true }
       })
     });
   });
@@ -3384,6 +3389,12 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await expect(modeChoice.getByRole('button', { name: 'チュートリアルを開始', exact: true })).toBeVisible();
   await expect(modeChoice.getByRole('button', { name: 'チュートリアルを開始しない', exact: true })).toBeVisible();
   await modeChoice.getByRole('button', { name: 'チュートリアルを開始', exact: true }).click();
+  await expect.poll(() => explorationStartRequest).not.toBeNull();
+  expect(explorationStartRequest).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    stageNo: 1,
+    tutorialEnabled: true
+  });
 
   const sequence = page.locator('.exploration-sequence-overlay');
   await expect(sequence).toHaveClass(/is-sail/, { timeout: 15_000 });
@@ -3610,6 +3621,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await expect(result.locator('.exploration-result-destination-copy span')).toHaveText('STAGE 1 / 勝利');
   await expect(result.locator('.exploration-result-details')).not.toContainText('パピル');
   await expect(result.locator('.exploration-result-body')).toContainText('1位 / タロットキングダム勝利');
+  await expect(result.locator('.exploration-result-body')).toContainText('チュートリアル');
+  await expect(result.locator('.exploration-result-body')).toContainText('クリア報酬 500G');
   await expect(result.locator('.exploration-result-body')).toContainText('トゲマル Lv1 → Lv2 / 獲得TP 60 → EXP +60');
   await expect(result.locator('.exploration-result-log')).toContainText('トゲマルの獲得TP 60が、そのままEXPになった。Lv2に上がった。');
   await expect(result.locator('.exploration-result-reward')).toContainText('RARE');

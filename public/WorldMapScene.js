@@ -2,7 +2,7 @@ import * as Phaser from 'phaser';
 import { RACE_COLORS } from 'config';
 import { getFirestore, collection, getDocs, doc, updateDoc, addDoc, onSnapshot, query, where, orderBy, limit, setDoc, serverTimestamp } from 'firebase/firestore';
 import { geohashForLocation, geohashQueryBounds } from 'geofire-common';
-import * as Ship from './js/ship.js?v=20260825-pet-tp-exp-v1';
+import * as Ship from './js/ship.js?v=20260826-tutorial-reward-v1';
 import * as Player from './js/player.js';
 import { bindModalClose } from './js/modalClose.js';
 import {
@@ -13,7 +13,7 @@ import {
     getShipSkillStatus as fetchShipSkillStatus,
     useShipSkill as requestUseShipSkill,
     triggerShipSkill as requestTriggerShipSkill
-} from './js/playfabClient.js?v=20260825-playfab-read-coalescing-v1';
+} from './js/playfabClient.js?v=20260826-tutorial-reward-v1';
 import {
     getCachedSkillData,
     setCachedSkillData,

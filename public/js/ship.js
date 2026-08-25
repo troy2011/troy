@@ -31,7 +31,7 @@ import {
     getShipsInView as fetchShipsInView,
     getShipAsset as fetchShipAsset,
     getShipPosition as fetchShipPosition
-} from './playfabClient.js?v=20260825-playfab-read-coalescing-v1';
+} from './playfabClient.js?v=20260826-tutorial-reward-v1';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { bindModalClose } from './modalClose.js';
 import { createRequestId } from './api.js';
@@ -2407,6 +2407,9 @@ function showExplorationResultSummary(data, options = {}) {
     const bossTierKey = kingdomMonster ? (monsterIsBoss ? 'strong' : 'weak') : normalizeExplorationBossTier(report.bossTier);
     const rewards = getRewardItemsForReveal(data);
     const rewardTotal = Number(report.rewardCount || rewards.length || 0);
+    const tutorialRewardGold = Math.max(0, Math.floor(Number(
+        report.tutorialRewardGold ?? data?.tutorialReward?.amount
+    ) || 0));
     const rewardAcquisitionText = getExplorationRewardAcquisitionText(rewards);
     const chestAlreadyOpened = rewardTotal > 0 && options.chestOpened === true;
     const awaitsChestOpen = rewardTotal > 0 && !chestAlreadyOpened;
@@ -2510,6 +2513,12 @@ function showExplorationResultSummary(data, options = {}) {
                         <b>お宝</b>
                         <span>${rewardTotal.toLocaleString('ja-JP')}個</span>
                     </div>
+                    ${tutorialRewardGold > 0 ? `
+                        <div>
+                            <b>チュートリアル</b>
+                            <span>クリア報酬 ${tutorialRewardGold.toLocaleString('ja-JP')}G</span>
+                        </div>
+                    ` : ''}
                     ${petProgressHtml}
                 </div>
                 <ul class="exploration-result-rewards">${rewardHtml}</ul>
@@ -2568,7 +2577,13 @@ function showExplorationResultSummary(data, options = {}) {
 }
 
 async function refreshExplorationRewardInventory(data) {
-    if (!getRewardItemsForReveal(data).length || typeof window.refreshInventory !== 'function') return;
+    const tutorialRewardGold = Math.max(0, Math.floor(Number(
+        data?.report?.tutorialRewardGold ?? data?.tutorialReward?.amount
+    ) || 0));
+    if (
+        (!getRewardItemsForReveal(data).length && tutorialRewardGold <= 0)
+        || typeof window.refreshInventory !== 'function'
+    ) return;
     try {
         await window.refreshInventory({ force: true });
     } catch (error) {
@@ -3521,7 +3536,8 @@ async function startExploration(playFabId, destinationId, payment = {}, triggerB
         const preparationPromise = (async () => {
             const startData = await requestStartExploration(playFabId, stageNo, createRequestId('exploration-start'), {
                 throwOnError: true,
-                supplies: Array.isArray(payment?.supplies) ? payment.supplies : []
+                supplies: Array.isArray(payment?.supplies) ? payment.supplies : [],
+                tutorialEnabled: payment?.tutorialEnabled === true
             });
             renderExplorationPanel(startData, playFabId);
             const encounterData = await requestExplorationEncounter(playFabId, { throwOnError: true });
@@ -3574,7 +3590,9 @@ async function claimExploration(playFabId, active = null) {
     try {
         const stageNo = Math.max(1, Math.floor(Number(active?.stageNo) || 1));
         const stage = currentExplorationStages.find((entry) => Number(entry?.stageNo) === stageNo) || active || {};
-        const modeSelection = await showExplorationBattleModeDialog({ stage });
+        const modeSelection = active?.tutorialEnabled === true
+            ? { battleMode: 'offline', tutorialEnabled: true }
+            : await showExplorationBattleModeDialog({ stage });
         if (!modeSelection) return;
         const destinationId = String(active?.destinationId || stage?.id || '');
         const preparationPromise = requestExplorationEncounter(playFabId, { throwOnError: true })

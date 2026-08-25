@@ -869,6 +869,7 @@ export function startExploration(playFabId, stageNo, requestId, options) {
         requestId
     };
     if (Array.isArray(options?.supplies)) body.supplies = options.supplies;
+    if (options?.tutorialEnabled === true) body.tutorialEnabled = true;
     return callApiWithLoader('/api/exploration/start', body, options);
 }
 

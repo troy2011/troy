@@ -13,7 +13,7 @@ import {
   getTarotKingdomCombatProfiles,
   getTarotKingdomPetState,
   joinExplorationStage
-} from './playfabClient.js?v=20260825-playfab-read-coalescing-v1';
+} from './playfabClient.js?v=20260826-tutorial-reward-v1';
 import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260825-purun-idle-v1';
 import {
   auditTarotKingdomMonsterMotionAssignments,

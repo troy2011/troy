@@ -54,6 +54,7 @@ test('opening a returned exploration chest reveals its item and marks the invent
           monsterName: 'パピル',
           monsterIsBoss: false,
           rewardCount: 1,
+          tutorialRewardGold: 500,
           rewardItems: [{
             itemId: 'mist_blade',
             displayName: '霧切りの刃',
@@ -65,7 +66,8 @@ test('opening a returned exploration chest reveals its item and marks the invent
             spriteHeight: 32
           }]
         },
-        progress: { highestUnlockedStage: 1 }
+        progress: { highestUnlockedStage: 1 },
+        tutorialReward: { amount: 500, granted: true }
       })
     });
   });
@@ -83,6 +85,7 @@ test('opening a returned exploration chest reveals its item and marks the invent
 
   const result = page.locator('.exploration-result-overlay');
   await expect(result).toHaveClass(/is-awaiting-open/);
+  await expect(result.locator('.exploration-result-body')).toContainText('クリア報酬 500G');
   await result.locator('[data-exploration-result-open]').click();
   await expect(result).toHaveClass(/is-opened/);
   const lootIcon = result.locator('.exploration-result-loot-icon');

@@ -14,7 +14,7 @@ import {
 import * as Player from 'player';
 import * as Inventory from 'inventory';
 import * as Guild from './js/guild.js';
-import * as Ship from './js/ship.js?v=20260825-pet-tp-exp-v1';
+import * as Ship from './js/ship.js?v=20260826-tutorial-reward-v1';
 import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js?v=20260731-stage-score1';
 import { initMapChat, initTroyChat } from './js/mapChat.js';
@@ -34,7 +34,7 @@ import {
     getPublicPlayerProfile,
     getTroyStatus,
     updateAvatarStyle as requestUpdateAvatarStyle
-} from './js/playfabClient.js?v=20260825-playfab-read-coalescing-v1';
+} from './js/playfabClient.js?v=20260826-tutorial-reward-v1';
 import { FEATURE_UNLOCK_LEVELS, formatUnlockedFeatures, isFeatureUnlocked, normalizeLevel } from './js/featureUnlocks.js';
 import { bindModalClose, bindTargetModalCloseButtons } from './js/modalClose.js';
 import { startModalViewportTracking, stopModalViewportTracking } from './js/modalViewport.js';
