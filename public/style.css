@@ -31006,7 +31006,7 @@ body[data-sea-tone] .home-hero-card {
     bottom: 29px;
     width: 84px;
     height: 104px;
-    transform: translateY(54px);
+    transform: translateY(39px);
 }
 
 #playerProfileModal .player-profile-pet-companion.is-renamable {
@@ -31025,7 +31025,7 @@ body[data-sea-tone] .home-hero-card {
     z-index: 4;
     right: -8px;
     bottom: 4px;
-    width: 86px;
+    width: 116px;
     min-height: 24px;
     padding: 3px 6px;
     overflow: hidden;
@@ -32832,7 +32832,7 @@ body[data-sea-tone] .home-hero-card {
     #playerProfileModal .player-profile-pet-name {
         right: -7px;
         bottom: 3px;
-        width: 82px;
+        width: 112px;
     }
 
     #playerProfileModal .player-profile-pet-rename {

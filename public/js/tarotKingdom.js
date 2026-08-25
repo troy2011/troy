@@ -599,6 +599,8 @@ let roundOutCinematicTimer = null;
 let openingDealStartTimer = null;
 let openingDealFlipTimer = null;
 let openingDealNextTimer = null;
+let openingEnemyReturnTimer = null;
+let openingEnemyAttackStartedAt = 0;
 let drawHandFlipRevealTimer = null;
 let drawHandFlipEndTimer = null;
 let humanTurnBadgeTimer = null;
@@ -1195,6 +1197,7 @@ const getNpcActionDelayMs = (phase = 'turn') => {
     openingDealStartTimer ||
     openingDealFlipTimer ||
     openingDealNextTimer ||
+    openingEnemyReturnTimer ||
     trickSwapTimer
   );
   return hasActiveCinematic ? (baseDelayMs + 220) : baseDelayMs;
@@ -1240,6 +1243,11 @@ const clearOpeningDealTimers = () => {
     clearTimeout(openingDealNextTimer);
     openingDealNextTimer = null;
   }
+  if (openingEnemyReturnTimer) {
+    clearTimeout(openingEnemyReturnTimer);
+    openingEnemyReturnTimer = null;
+  }
+  openingEnemyAttackStartedAt = 0;
 };
 const clearDrawHandFlipTimers = () => {
   if (drawHandFlipRevealTimer) {
@@ -18736,16 +18744,24 @@ function playOpeningDealCinematic() {
     if (!s || !s.roundActive || s.phase !== 'openingDeal') return;
     if (s.openingIntroStage !== 'enter') return;
     s.openingIntroStage = 'attack';
+    openingEnemyAttackStartedAt = Date.now();
     s.message = `${String(s.battle?.enemy?.name || 'モンスター')}の攻撃！`;
     render();
+    openingEnemyReturnTimer = setTimeout(() => {
+      openingEnemyReturnTimer = null;
+      if (!s || !s.roundActive || s.phase !== 'openingDeal' || s.openingIntroStage !== 'attack') return;
+      render();
+    }, openingAttackMotion.animationDurationMs);
     openingDealFlipTimer = setTimeout(() => {
       openingDealFlipTimer = null;
       if (!s || !s.roundActive || s.phase !== 'openingDeal') return;
       if (tutorialWithoutOpeningCard) {
+        openingEnemyAttackStartedAt = 0;
         beginOpeningHandDeal();
         return;
       }
       s.openingIntroStage = 'card';
+      openingEnemyAttackStartedAt = 0;
       s.message = `${String(s.battle?.enemy?.name || 'モンスター')}は　カードをだした！`;
       render();
       openingDealNextTimer = setTimeout(() => {
@@ -23240,10 +23256,13 @@ function playKingdomMonsterAnimation(animationName, generationKey = '', options 
   if (!node || !monster || !animation) return;
   const statusProfile = getKingdomStatusMotionProfile(node.dataset.combatStatus);
   const playbackRate = Math.max(0.1, Math.min(2, Number(options.playbackRate) || 1));
-  const key = `${monster.id}:${animationName}:${generationKey}:status-${statusProfile.mode}:rate-${playbackRate}`;
+  const reverse = options.reverse === true;
+  const direction = reverse ? 'reverse' : 'forward';
+  const key = `${monster.id}:${animationName}:${generationKey}:status-${statusProfile.mode}:rate-${playbackRate}:${direction}`;
   if (kingdomMonsterAnimationKey === key) return;
   kingdomMonsterAnimationKey = key;
   node.dataset.animationName = animationName;
+  node.dataset.animationDirection = direction;
   clearKingdomMonsterFrameTimer();
   const frameGeneration = kingdomMonsterFrameGeneration;
   const frameCount = Math.max(1, Number(animation.frameCount) || 1);
@@ -23252,9 +23271,14 @@ function playKingdomMonsterAnimation(animationName, generationKey = '', options 
     Math.round(1000 / (Math.max(1, Number(animation.fps) || 12) * Math.max(0.1, Number(options.playbackRate) || 1)))
   );
   const elapsedMs = Math.max(0, Number(options.elapsedMs) || 0);
-  let frame = animation.loop
-    ? Math.floor(elapsedMs / intervalMs) % frameCount
-    : Math.min(frameCount - 1, Math.floor(elapsedMs / intervalMs));
+  const elapsedFrames = Math.floor(elapsedMs / intervalMs);
+  let frame = reverse
+    ? (animation.loop
+      ? (frameCount - 1) - (elapsedFrames % frameCount)
+      : Math.max(0, (frameCount - 1) - elapsedFrames))
+    : (animation.loop
+      ? elapsedFrames % frameCount
+      : Math.min(frameCount - 1, elapsedFrames));
   let lastFrameAt = Date.now();
   setKingdomMonsterFrame(node, monster, animation, frame);
   if (frameCount <= 1) return;
@@ -23262,7 +23286,7 @@ function playKingdomMonsterAnimation(animationName, generationKey = '', options 
     setKingdomMonsterFrame(node, monster, animation, animation.loop ? 0 : frameCount - 1);
     return;
   }
-  if (!animation.loop && frame >= frameCount - 1) return;
+  if (!animation.loop && ((!reverse && frame >= frameCount - 1) || (reverse && frame <= 0))) return;
   const frameTimer = setInterval(() => {
     const activeEnemyId = String(s?.battle?.enemy?.id || '');
     if (
@@ -23283,12 +23307,13 @@ function playKingdomMonsterAnimation(animationName, generationKey = '', options 
       : 1;
     if (now - lastFrameAt < intervalMs / activeRate) return;
     lastFrameAt = now;
-    frame += 1;
-    if (frame >= frameCount) {
+    frame += reverse ? -1 : 1;
+    const reachedEnd = reverse ? frame < 0 : frame >= frameCount;
+    if (reachedEnd) {
       if (animation.loop) {
-        frame = 0;
+        frame = reverse ? frameCount - 1 : 0;
       } else {
-        frame = frameCount - 1;
+        frame = reverse ? 0 : frameCount - 1;
         clearInterval(frameTimer);
         if (kingdomMonsterFrameTimer === frameTimer) kingdomMonsterFrameTimer = null;
       }
@@ -23399,7 +23424,14 @@ function scheduleKingdomBattleTimelineRenders(event, timeline) {
     clearKingdomBattlePhaseTimers();
     return;
   }
-  const key = `${event.seq}:${timeline.version}:${timeline.impactAt}:${timeline.hpRevealAt}:${timeline.hpTweenEndsAt}:${timeline.effectAt}:${timeline.damageNumberAt}:${timeline.endsAt}`;
+  const eventType = String(event?.type || '');
+  const enemyReturnAt = ['enemy-single', 'enemy-area'].includes(eventType)
+    ? Math.min(
+      Number(timeline.endsAt || 0),
+      Number(timeline.startedAt || 0) + Math.max(1, Number(event?.attackAnimationDurationMs) || 1)
+    )
+    : 0;
+  const key = `${event.seq}:${timeline.version}:${timeline.impactAt}:${timeline.hpRevealAt}:${timeline.hpTweenEndsAt}:${timeline.effectAt}:${timeline.damageNumberAt}:${enemyReturnAt}:${timeline.endsAt}`;
   if (kingdomBattlePhaseTimerKey === key) return;
   clearKingdomBattlePhaseTimers();
   kingdomBattlePhaseTimerKey = key;
@@ -23412,8 +23444,9 @@ function scheduleKingdomBattleTimelineRenders(event, timeline) {
     timeline.hpTweenEndsAt,
     timeline.effectAt,
     timeline.damageNumberAt,
+    enemyReturnAt,
     timeline.endsAt
-  ];
+  ].filter((boundary) => Number(boundary) > 0);
   boundaries.forEach((boundary) => {
     const waitMs = Math.max(0, Number(boundary || 0) - now);
     if (waitMs <= 0) return;
@@ -24250,11 +24283,27 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
       const animationName = monster?.animations?.[petMotion.animationName]
         ? petMotion.animationName
         : fallbackAnimationName;
+      const petAnimationEpoch = String(s?.presentation?.epoch || 'legacy');
+      if (sprite.dataset.petAnimationEpoch !== petAnimationEpoch) {
+        sprite.dataset.petAnimationEpoch = petAnimationEpoch;
+        sprite.dataset.petConsciousState = conscious ? 'alive' : 'ko';
+        sprite.dataset.petKoGeneration = conscious ? '0' : '1';
+      } else if (conscious) {
+        sprite.dataset.petConsciousState = 'alive';
+      } else if (sprite.dataset.petConsciousState !== 'ko') {
+        sprite.dataset.petConsciousState = 'ko';
+        sprite.dataset.petKoGeneration = String(
+          Math.max(0, Number(sprite.dataset.petKoGeneration) || 0) + 1
+        );
+      }
+      const petAnimationGenerationKey = animationName === 'death'
+        ? `${petAnimationEpoch}:pet-${playerIndex}:ko-${Math.max(1, Number(sprite.dataset.petKoGeneration) || 1)}`
+        : `${eventKey}:${conscious ? 'alive' : 'ko'}`;
       playKingdomPetAnimation(
         sprite,
         monster,
         animationName,
-        animationName === 'idle' ? 'idle' : `${eventKey}:${conscious ? 'alive' : 'ko'}`,
+        animationName === 'idle' ? 'idle' : petAnimationGenerationKey,
         { paused: defending && animationName === 'idle' }
       );
       renderKingdomMonsterAuxEffects(
@@ -24262,7 +24311,7 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
         monster,
         eventIsActive ? petMotion.effects : [],
         `${eventKey}:pet-${playerIndex}`,
-        { direction: 'right', sourceNode: sprite }
+        { direction: 'left', sourceNode: sprite }
       );
       setCombatAvatarVictory(
         avatar,
@@ -25540,7 +25589,14 @@ function renderKingdomBattleStage() {
       Number(visualEvent?.attackReturnDurationMs) || fallbackAttackMotion.returnDurationMs
     )
   };
-  const enemyAttackElapsedMs = enemyOpeningAttack ? 0 : Math.max(0, elapsed);
+  const enemyAttackElapsedMs = enemyOpeningAttack
+    ? Math.max(0, Date.now() - Math.max(0, openingEnemyAttackStartedAt || Date.now()))
+    : Math.max(0, elapsed);
+  const enemyMovementAnimation = getKingdomMonsterMovementAnimationName(monsterConfig);
+  const enemyReturning = enemyActing
+    && !enemyUsesProjectile
+    && enemyAttackElapsedMs >= enemyAttackMotion.animationDurationMs
+    && enemyAttackElapsedMs < enemyAttackMotion.animationDurationMs + enemyAttackMotion.returnDurationMs;
   const enemyVisualNode = ui.battleEnemy?.querySelector('.tarot-kingdom-battle-enemy-visual') || null;
   if (enemyVisualNode && enemyActing) {
     enemyVisualNode.style.setProperty('--tk-enemy-attack-animation-ms', `${enemyAttackMotion.animationDurationMs}ms`);
@@ -25582,6 +25638,7 @@ function renderKingdomBattleStage() {
   [ui.battleEnemy, ui.battleEnemySprite].forEach((node) => {
     node?.classList.toggle('is-attacking', enemyActing);
     node?.classList.toggle('is-projectile-attacking', enemyActing && enemyUsesProjectile);
+    node?.classList.toggle('is-returning', enemyReturning);
     node?.classList.toggle('is-hurt', enemyHurt);
     node?.classList.toggle('is-defeated', enemyDefeated);
     node?.classList.toggle('is-rush-time', enemyRushTime);
@@ -25598,7 +25655,7 @@ function renderKingdomBattleStage() {
 
   const escapeAnimation = String(victoryEvent?.escapeAnimation || '')
     || getKingdomMonsterMovementAnimationName(enemy.id);
-  const openingWalkAnimation = getKingdomMonsterMovementAnimationName(monsterConfig);
+  const openingWalkAnimation = enemyMovementAnimation;
   const enemyAttackAnimation = enemyAttackMotion.animationName;
   const motionContext = enemyFinisherActive
     ? 'death'
@@ -25606,10 +25663,10 @@ function renderKingdomBattleStage() {
       ? 'escape'
         : (openingIntroStage === 'enter' || enemyRebirthActive
         ? 'entry'
-        : (enemyActing ? 'attack' : (enemyHurt ? 'hurt' : 'idle'))));
+        : (enemyReturning ? 'return' : (enemyActing ? 'attack' : (enemyHurt ? 'hurt' : 'idle')))));
   const monsterMotion = resolveTarotKingdomMonsterMotion({
     monsterId: enemy.id,
-    context: motionContext,
+    context: motionContext === 'return' ? 'entry' : motionContext,
     phase: enemyOpeningAttack ? 'hit-stop' : timelinePhase,
     attackMode: enemyAttackMode,
     hasSpecial: eventHasEnemySpecial,
@@ -25626,10 +25683,12 @@ function renderKingdomBattleStage() {
         ? 'hurt'
         : (motionContext === 'escape'
           ? escapeAnimation
-          : (motionContext === 'entry' ? openingWalkAnimation : 'idle'))));
-  const animationName = monsterConfig?.animations?.[monsterMotion.animationName]
-    ? monsterMotion.animationName
-    : motionFallbackAnimation;
+          : (['entry', 'return'].includes(motionContext) ? openingWalkAnimation : 'idle'))));
+  const animationName = motionContext === 'return'
+    ? openingWalkAnimation
+    : (monsterConfig?.animations?.[monsterMotion.animationName]
+      ? monsterMotion.animationName
+      : motionFallbackAnimation);
   const monsterAnimationGeneration = enemyFinisherActive
     ? `${eventScopeKey}:finisher:${Number(enemy.defeatedAtSeq) || Number(victoryEvent?.seq) || 0}`
     : (enemyEscapeActive
@@ -25654,21 +25713,24 @@ function renderKingdomBattleStage() {
     renderKingdomMonsterAuxEffects(enemyVisualNode, monsterConfig, [], `${eventKey}:frozen`);
   }
   else {
-    const motionElapsedMs = motionContext === 'attack'
+    const motionElapsedMs = motionContext === 'return'
+      ? Math.max(0, enemyAttackElapsedMs - enemyAttackMotion.animationDurationMs)
+      : (motionContext === 'attack'
       ? (animationName === enemyAttackAnimation ? enemyAttackElapsedMs : 0)
       : (motionContext === 'death'
         ? (animationName === 'death' ? finisherElapsed : 0)
-        : (motionContext === 'escape' ? escapeElapsed : 0));
+        : (motionContext === 'escape' ? escapeElapsed : 0)));
     playKingdomMonsterAnimation(animationName, monsterAnimationGeneration, {
       playbackRate: enemyRushTime ? KINGDOM_RUSH_MONSTER_PLAYBACK_RATE : 1,
-      elapsedMs: motionElapsedMs
+      elapsedMs: motionElapsedMs,
+      reverse: motionContext === 'return'
     });
     renderKingdomMonsterAuxEffects(
       enemyVisualNode,
       monsterConfig,
-      eventIsActive ? monsterMotion.effects : [],
+      eventIsActive && motionContext !== 'return' ? monsterMotion.effects : [],
       `${eventKey}:enemy`,
-      { direction: 'left', sourceNode: ui.battleEnemySprite }
+      { direction: 'right', sourceNode: ui.battleEnemySprite }
     );
   }
   renderKingdomEnemyStatusEffects();

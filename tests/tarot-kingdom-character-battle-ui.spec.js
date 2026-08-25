@@ -1692,6 +1692,47 @@ test('battle opening brings the monster on screen, attacks, and deals the openin
   ).not.toBe('openingDeal');
 });
 
+test('melee enemy reverses its movement frames while returning from an attack', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await abortFirebaseDataRequests(page);
+  await page.goto('/tarot-kingdom-preview.html?tkfixture=character-battle&tkrev=enemy-return-walk1', {
+    waitUntil: 'domcontentloaded'
+  });
+  await expect(page.locator('#tarotKingdomStartOfflineButton')).toBeVisible();
+
+  const attackMotion = await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    debug.battleSetDemoEnemy('ismartal-vol1-monster-04');
+    return debug.battleMonsterAttackMotion('ismartal-vol1-monster-04', 'single');
+  });
+  expect(attackMotion).toMatchObject({ usesProjectile: false, returnDurationMs: 180 });
+
+  await page.locator('#tarotKingdomStartOfflineButton').click();
+  const enemy = page.locator('.tarot-kingdom-battle-enemy');
+  const enemySprite = page.locator('#tarotKingdomEnemySprite');
+  await expect(enemy).toHaveClass(/is-attacking/, { timeout: 4_000 });
+  await expect.poll(async () => ({
+    returning: await enemy.evaluate((node) => node.classList.contains('is-returning')),
+    animationName: await enemySprite.getAttribute('data-animation-name'),
+    animationDirection: await enemySprite.getAttribute('data-animation-direction')
+  }), {
+    timeout: attackMotion.animationDurationMs + 1_000,
+    intervals: [20, 30, 40, 50]
+  }).toEqual({
+    returning: true,
+    animationName: 'walk',
+    animationDirection: 'reverse'
+  });
+  await expect(enemySprite).toHaveCSS(
+    'background-image',
+    /\/pixel-monsters\/vol1\/monster-04\/walk\.png/
+  );
+  const returnFrameX = await enemySprite.evaluate((node) => (
+    Number.parseFloat(getComputedStyle(node).backgroundPositionX)
+  ));
+  expect(returnFrameX).toBeLessThan(0);
+});
+
 test('opening hand uses the sprite-sheet flip frames without changing the card footprint', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 }, true);
   await page.evaluate(() => window.TarotKingdomDebug.battleCardFlipPreview(0));
@@ -2220,17 +2261,25 @@ test('monsters with two attack sheets use the second one for area attacks and pe
     const source = host?.querySelector(':scope > #tarotKingdomEnemySprite');
     const hostRect = host?.getBoundingClientRect();
     const sourceRect = source?.getBoundingClientRect();
+    const partyRect = document.querySelector('#tarotKingdomBattleParty')?.getBoundingClientRect();
     const sourceInset = sourceRect ? Math.min(12, sourceRect.width * 0.12) : 0;
+    const animationFrames = wrapper?.getAnimations?.()[0]?.effect?.getKeyframes?.() || [];
+    const endTransform = animationFrames[animationFrames.length - 1]?.transform || 'none';
     return {
       source: wrapper?.dataset.projectileSource || '',
       originX: Number.parseFloat(wrapper?.style.left || ''),
-      expectedX: sourceRect && hostRect ? sourceRect.left - hostRect.left + sourceInset : NaN,
+      expectedX: sourceRect && hostRect ? sourceRect.right - hostRect.left - sourceInset : NaN,
+      sourceCenterX: sourceRect ? sourceRect.left + (sourceRect.width / 2) : NaN,
+      targetCenterX: partyRect ? partyRect.left + (partyRect.width / 2) : NaN,
+      travelX: endTransform === 'none' ? 0 : new DOMMatrixReadOnly(endTransform).m41,
       spriteLeft: Number.parseFloat(projectile.style.left || ''),
       halfWidth: -(Number.parseFloat(projectile.style.width || '') / 2)
     };
   });
   expect(enemyProjectileOrigin.source).toBe('sprite');
   expect(Math.abs(enemyProjectileOrigin.originX - enemyProjectileOrigin.expectedX)).toBeLessThanOrEqual(1);
+  expect(enemyProjectileOrigin.targetCenterX).toBeGreaterThan(enemyProjectileOrigin.sourceCenterX);
+  expect(enemyProjectileOrigin.travelX).toBeGreaterThan(0);
   expect(enemyProjectileOrigin.spriteLeft).toBe(enemyProjectileOrigin.halfWidth);
   await expect(page.locator('#tarotKingdomEnemySprite')).toHaveAttribute('data-animation-name', 'attack2', {
     timeout: 1_800
@@ -2349,17 +2398,25 @@ test('monsters with two attack sheets use the second one for area attacks and pe
     const source = host?.querySelector(':scope > .tarot-kingdom-battle-pet-sprite');
     const hostRect = host?.getBoundingClientRect();
     const sourceRect = source?.getBoundingClientRect();
+    const enemyRect = document.querySelector('#tarotKingdomEnemySprite')?.getBoundingClientRect();
     const sourceInset = sourceRect ? Math.min(12, sourceRect.width * 0.12) : 0;
+    const animationFrames = wrapper?.getAnimations?.()[0]?.effect?.getKeyframes?.() || [];
+    const endTransform = animationFrames[animationFrames.length - 1]?.transform || 'none';
     return {
       source: wrapper?.dataset.projectileSource || '',
       originX: Number.parseFloat(wrapper?.style.left || ''),
-      expectedX: sourceRect && hostRect ? sourceRect.right - hostRect.left - sourceInset : NaN,
+      expectedX: sourceRect && hostRect ? sourceRect.left - hostRect.left + sourceInset : NaN,
+      sourceCenterX: sourceRect ? sourceRect.left + (sourceRect.width / 2) : NaN,
+      targetCenterX: enemyRect ? enemyRect.left + (enemyRect.width / 2) : NaN,
+      travelX: endTransform === 'none' ? 0 : new DOMMatrixReadOnly(endTransform).m41,
       spriteLeft: Number.parseFloat(projectile.style.left || ''),
       halfWidth: -(Number.parseFloat(projectile.style.width || '') / 2)
     };
   });
   expect(petProjectileOrigin.source).toBe('sprite');
   expect(Math.abs(petProjectileOrigin.originX - petProjectileOrigin.expectedX)).toBeLessThanOrEqual(1);
+  expect(petProjectileOrigin.targetCenterX).toBeLessThan(petProjectileOrigin.sourceCenterX);
+  expect(petProjectileOrigin.travelX).toBeLessThan(0);
   expect(petProjectileOrigin.spriteLeft).toBe(petProjectileOrigin.halfWidth);
 });
 
@@ -4947,6 +5004,19 @@ test('pet occupies the second seat after the player with its own monster sprite,
     /\/pixel-monsters\/vol1\/monster-01\/death\.png/
   );
   await expect(koPetRow.locator('.avatar-combat-death-sprite')).toHaveCount(0);
+
+  await page.waitForTimeout(1100);
+  const settledDeath = await koPetRow.locator('.tarot-kingdom-battle-pet-sprite').evaluate((node) => ({
+    animationKey: node.dataset.animationKey,
+    backgroundPosition: getComputedStyle(node).backgroundPosition
+  }));
+  await page.evaluate(() => window.TarotKingdomDebug.battlePass(0));
+  await page.waitForTimeout(120);
+  const deathAfterTurnAdvance = await koPetRow.locator('.tarot-kingdom-battle-pet-sprite').evaluate((node) => ({
+    animationKey: node.dataset.animationKey,
+    backgroundPosition: getComputedStyle(node).backgroundPosition
+  }));
+  expect(deathAfterTurnAdvance).toEqual(settledDeath);
 
   const explorationResult = await page.evaluate((debugPet) => {
     window.myPlayFabId = 'PF_PET_OWNER';

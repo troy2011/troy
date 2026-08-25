@@ -3838,6 +3838,8 @@ test('player profile shows public stats on the left with avatar on the right', a
       petScale: Number.parseFloat(getComputedStyle(pet).getPropertyValue('--pixel-monster-context-scale')),
       petTranslateY: new DOMMatrixReadOnly(getComputedStyle(pet).transform).f,
       petNameTranslateY: new DOMMatrixReadOnly(getComputedStyle(petName).transform).f,
+      petNameClientWidth: petName?.clientWidth || 0,
+      petNameScrollWidth: petName?.scrollWidth || 0,
       avatarTransform: avatarInner ? window.getComputedStyle(avatarInner).transform : '',
       avatarOverflow: avatar ? window.getComputedStyle(avatar).overflow : '',
       copyRight: copyRect?.right || 0,
@@ -3862,8 +3864,10 @@ test('player profile shows public stats on the left with avatar on the right', a
   expect(layout.avatarCenterOffset).toBeGreaterThan(-12);
   expect(layout.petCenterOffset).toBeGreaterThan(25);
   expect(Math.abs(layout.petScale - 1.18)).toBeLessThan(0.02);
-  expect(layout.petTranslateY).toBeCloseTo(54, 0);
+  expect(layout.petTranslateY).toBeCloseTo(39, 0);
   expect(layout.petNameTranslateY).toBeCloseTo(54, 0);
+  expect(layout.petNameClientWidth).toBeGreaterThanOrEqual(110);
+  expect(layout.petNameScrollWidth).toBeLessThanOrEqual(layout.petNameClientWidth);
   expect(layout.avatarTransform).toContain('matrix');
   expect(layout.avatarOverflow).toBe('visible');
   expect(layout.layerBounds.left).toBeGreaterThanOrEqual(layout.avatarLeft - 24);
