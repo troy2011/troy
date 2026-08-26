@@ -15201,13 +15201,18 @@ async function claimHostIfNeeded(forceTakeover = false) {
 
 async function ensureSeatAssignment() {
   if (!isNetModeActive()) return -1;
+  // Pet seats are soft reservations. They keep pets beside their owners while
+  // seats are free, but must never prevent another player from joining.
   const reservedNpcSeats = new Set();
   const localPet = kingdomExplorationSession?.context?.mode === 'online'
     ? kingdomExplorationSession.context.currentPet
     : null;
   const getPreferredSeatOrder = (usedSet = new Set()) => {
-    const available = getKingdomSeatClaimOrder(reservedNpcSeats.has(1))
-      .filter((seat) => !reservedNpcSeats.has(seat));
+    const claimOrder = getKingdomSeatClaimOrder(reservedNpcSeats.has(1));
+    const available = [
+      ...claimOrder.filter((seat) => !reservedNpcSeats.has(seat)),
+      ...claimOrder.filter((seat) => reservedNpcSeats.has(seat))
+    ];
     if (!localPet?.monsterId) return available;
     const paired = available.filter((seat) => (
       seat + 1 < PLAYERS.length
@@ -15268,7 +15273,6 @@ async function ensureSeatAssignment() {
         Number.isInteger(seat)
         && seat >= 0
         && seat < 4
-        && (seat === existingSeat || !reservedNpcSeats.has(seat))
         && values.indexOf(seat) === index
       ));
 

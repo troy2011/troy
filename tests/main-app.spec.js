@@ -2759,9 +2759,34 @@ test('home rescue list lets a player choose and join a specific exploration room
         seat: 0,
         displayName: '救難船長',
         playFabId: 'PF_HOST',
+        currentPet: {
+          monsterId: 'ismartal-vol1-monster-01',
+          monsterName: 'ホタルビ'
+        },
+        updatedAt: now
+      },
+      GUEST_1: {
+        uid: 'GUEST_1',
+        seat: 2,
+        displayName: '救援隊員1',
+        playFabId: 'PF_GUEST_1',
+        currentPet: {
+          monsterId: 'ismartal-vol1-monster-02',
+          monsterName: 'グリモア'
+        },
         updatedAt: now
       }
     });
+    window.__pwFirebaseDbApi.setValue('tarotKingdomRooms/tk_rescue_target/meta/seatOwners/0', {
+      uid: 'HOST_UID',
+      updatedAt: now
+    });
+    window.__pwFirebaseDbApi.setValue('tarotKingdomRooms/tk_rescue_target/meta/seatOwners/2', {
+      uid: 'GUEST_1',
+      updatedAt: now
+    });
+    window.__pwFirebaseDbApi.setValue('tarotKingdomRooms/tk_rescue_target/meta/seatByUid/HOST_UID', 0);
+    window.__pwFirebaseDbApi.setValue('tarotKingdomRooms/tk_rescue_target/meta/seatByUid/GUEST_1', 2);
   });
   await expect(page.locator('#btnHomeRescue')).toBeVisible();
   await page.locator('#btnHomeRescue').click();
@@ -2780,6 +2805,11 @@ test('home rescue list lets a player choose and join a specific exploration room
     ownerPlayFabId: 'PF_HOST',
     explorationId: 'exp-host-rescue'
   });
+  await expect.poll(() => page.evaluate(() => (
+    window.__pwFirebaseDbApi.getValue(
+      'tarotKingdomRooms/tk_rescue_target/meta/seatByUid/PF_PLAYWRIGHT'
+    )
+  ))).toBe(3);
   await expect(page.locator('#tarotKingdomStateText')).toContainText('救難船長');
   await expectNoPageErrors(errors);
 });
