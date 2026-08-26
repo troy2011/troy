@@ -111,6 +111,14 @@ const WEAKNESS_BY_NATIVE_ELEMENT = Object.freeze({
     neutral: ''
 });
 
+const FOUR_ELEMENT_KEYS = new Set(['fire', 'wind', 'earth', 'water']);
+const RESISTANCE_BY_NATIVE_ELEMENT = Object.freeze({
+    fire: 'wind',
+    wind: 'earth',
+    earth: 'water',
+    water: 'fire'
+});
+
 function createAffinityRegistry(groups) {
     return Object.freeze(Object.fromEntries(
         Object.entries(groups).flatMap(([native, monsterIds]) => (
@@ -119,7 +127,9 @@ function createAffinityRegistry(groups) {
                 Object.freeze({
                     native,
                     weak: WEAKNESS_BY_NATIVE_ELEMENT[native] || '',
-                    resist: native === 'neutral' ? '' : native
+                    resist: native === 'neutral'
+                        ? ''
+                        : (RESISTANCE_BY_NATIVE_ELEMENT[native] || native)
                 })
             ])
         ))
@@ -150,10 +160,17 @@ export function getTarotKingdomElementMultiplier(monsterOrAffinity, element, ver
         : getTarotKingdomEnemyAffinity(monsterOrAffinity, version);
     const normalizedElement = String(element || '').trim().toLowerCase();
     if (normalizedElement && normalizedElement === affinity.weak) {
-        return { multiplier: 1.3, reaction: 'weak', ...affinity };
+        return { multiplier: FOUR_ELEMENT_KEYS.has(affinity.native) ? 1.5 : 1.3, reaction: 'weak', ...affinity };
     }
     if (normalizedElement && normalizedElement === affinity.resist) {
-        return { multiplier: 0.8, reaction: 'resist', ...affinity };
+        return { multiplier: FOUR_ELEMENT_KEYS.has(affinity.native) ? 0.6 : 0.8, reaction: 'resist', ...affinity };
+    }
+    if (
+        FOUR_ELEMENT_KEYS.has(affinity.native)
+        && FOUR_ELEMENT_KEYS.has(normalizedElement)
+        && normalizedElement !== affinity.native
+    ) {
+        return { multiplier: 0.85, reaction: 'clash', ...affinity };
     }
     return { multiplier: 1, reaction: '', ...affinity };
 }

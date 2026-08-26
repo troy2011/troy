@@ -183,8 +183,26 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
       element: 'wind',
       visualElement: 'lightning',
       affinityReaction: 'weak',
-      affinityMultiplier: 1.3
+      affinityMultiplier: 1.5
     });
+  });
+
+  test('four-element affinity uses the shared fire-wind-earth-water cycle', async ({ page }) => {
+    const affinities = await page.evaluate(async () => {
+      const { getTarotKingdomElementMultiplier } = await import('/js/tarotKingdomMajorEffects.js?v=20260826-four-elements-v1');
+      const water = { native: 'water', weak: 'earth', resist: 'fire' };
+      return {
+        weak: getTarotKingdomElementMultiplier(water, 'earth'),
+        resist: getTarotKingdomElementMultiplier(water, 'fire'),
+        clash: getTarotKingdomElementMultiplier(water, 'wind'),
+        same: getTarotKingdomElementMultiplier(water, 'water')
+      };
+    });
+
+    expect(affinities.weak).toMatchObject({ multiplier: 1.5, reaction: 'weak' });
+    expect(affinities.resist).toMatchObject({ multiplier: 0.6, reaction: 'resist' });
+    expect(affinities.clash).toMatchObject({ multiplier: 0.85, reaction: 'clash' });
+    expect(affinities.same).toMatchObject({ multiplier: 1, reaction: '' });
   });
 
   test('turn effects tick on field clear and World starts after its own forced clear', async ({ page }) => {

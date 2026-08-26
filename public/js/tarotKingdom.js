@@ -87,7 +87,7 @@ import {
   getTarotKingdomElementMultiplier,
   getTarotKingdomEnemyAffinity,
   getTarotKingdomMajorSkill
-} from './tarotKingdomMajorEffects.js?v=20260804-status-affinity1';
+} from './tarotKingdomMajorEffects.js?v=20260826-four-elements-v1';
 import {
   flashCombatAvatarHurt,
   getCombatWeaponMotionProfile,
