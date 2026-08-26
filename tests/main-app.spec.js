@@ -3488,21 +3488,41 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
     await page.setViewportSize(viewport);
     const layout = await petOffer.locator('.tarot-pet-offer-dialog').evaluate((dialog) => {
       const rect = dialog.getBoundingClientRect();
-      return {
-        left: rect.left,
-        right: rect.right,
-        top: rect.top,
-        bottom: rect.bottom,
-        viewportWidth: window.innerWidth,
-        viewportHeight: window.innerHeight,
-        pageScrollWidth: document.documentElement.scrollWidth
-      };
+        return {
+            left: rect.left,
+            right: rect.right,
+            top: rect.top,
+            bottom: rect.bottom,
+            viewportWidth: window.innerWidth,
+            viewportHeight: window.innerHeight,
+            pageScrollWidth: document.documentElement.scrollWidth,
+            currentPet: (() => {
+                const frame = dialog.querySelector('.tarot-pet-offer-current');
+                const sprite = dialog.querySelector('.tarot-pet-offer-current-monster');
+                const frameStyle = frame ? window.getComputedStyle(frame) : null;
+                const spriteStyle = sprite ? window.getComputedStyle(sprite) : null;
+                return {
+                    exists: Boolean(frame && sprite),
+                    overflow: frameStyle?.overflow || '',
+                    position: spriteStyle?.position || '',
+                    bottom: spriteStyle?.bottom || '',
+                    transformOrigin: spriteStyle?.transformOrigin || '',
+                    scale: spriteStyle?.getPropertyValue('--exploration-monster-scale') || ''
+                };
+            })()
+        };
     });
     expect(layout.left).toBeGreaterThanOrEqual(0);
     expect(layout.right).toBeLessThanOrEqual(layout.viewportWidth);
     expect(layout.top).toBeGreaterThanOrEqual(0);
     expect(layout.bottom).toBeLessThanOrEqual(layout.viewportHeight);
     expect(layout.pageScrollWidth).toBeLessThanOrEqual(layout.viewportWidth);
+    expect(layout.currentPet.exists).toBe(true);
+    expect(layout.currentPet.overflow).toBe('visible');
+    expect(layout.currentPet.position).toBe('absolute');
+    expect(layout.currentPet.bottom).not.toBe('auto');
+    expect(layout.currentPet.transformOrigin).toMatch(/bottom|px/);
+    expect(Number.parseFloat(layout.currentPet.scale)).toBeGreaterThan(0);
   }
   const yesButton = petOffer.locator('[data-tarot-pet-choice="yes"]');
   await expect(yesButton).toBeFocused();
@@ -3880,8 +3900,8 @@ test('player profile shows public stats on the left with avatar on the right', a
   expect(layout.avatarCenterOffset).toBeGreaterThan(-12);
   expect(layout.petCenterOffset).toBeGreaterThan(25);
   expect(Math.abs(layout.petScale - 1.18)).toBeLessThan(0.02);
-  expect(layout.petTranslateY).toBeCloseTo(39, 0);
-  expect(layout.petNameTranslateY).toBeCloseTo(54, 0);
+  expect(layout.petTranslateY).toBeCloseTo(29, 0);
+  expect(layout.petNameTranslateY).toBeCloseTo(46, 0);
   expect(layout.petNameClientWidth).toBeGreaterThanOrEqual(110);
   expect(layout.petNameScrollWidth).toBeLessThanOrEqual(layout.petNameClientWidth);
   expect(layout.avatarTransform).toContain('matrix');

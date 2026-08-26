@@ -627,7 +627,6 @@ let kingdomLocalPriorityMessage = '';
 let kingdomLocalPriorityKind = '';
 let kingdomLocalPriorityTimer = null;
 let kingdomHandledLocalSkipNoticeToken = '';
-let kingdomLocalTurnAlertTimer = null;
 let kingdomLocalSkipFlashTimer = null;
 let kingdomLocalGraveOpen = false;
 let localHandSortDrawLock = false;
@@ -2552,15 +2551,11 @@ function setLocalPriorityMessage(text, holdMs = 1800, kind = '') {
 }
 
 function clearKingdomLocalTurnAlert(removeNode = false) {
-  if (kingdomLocalTurnAlertTimer) {
-    clearTimeout(kingdomLocalTurnAlertTimer);
-    kingdomLocalTurnAlertTimer = null;
-  }
   const alert = typeof document !== 'undefined'
     ? document.getElementById('tarotKingdomLocalTurnAlert')
     : null;
   if (!alert) return;
-  alert.classList.remove('is-show');
+  alert.classList.remove('is-active');
   if (removeNode) alert.remove();
 }
 
@@ -2577,12 +2572,7 @@ function showKingdomLocalTurnAlert() {
     ui.root.appendChild(alert);
   }
   clearKingdomLocalTurnAlert(false);
-  void alert.offsetWidth;
-  alert.classList.add('is-show');
-  kingdomLocalTurnAlertTimer = setTimeout(() => {
-    kingdomLocalTurnAlertTimer = null;
-    alert?.classList.remove('is-show');
-  }, 1050);
+  alert.classList.add('is-active');
 }
 
 function clearKingdomLocalSkipFlash(removeNode = false) {
@@ -10776,7 +10766,7 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
     && rebuiltRole
     && isKingdomStatusEffectActive('seal', getKingdomEffectBucket('player', playerIndex)?.seal)
   );
-  const resolvedSummon = areKingdomSummonsEnabled() && rebuiltRole && !summonSealed
+  const resolvedSummon = areKingdomSummonsEnabled() && rebuiltRole
     ? resolveTarotKingdomSummon(rebuiltRole, {
         selectionVersion: summonSelectionV2 ? 2 : 1,
         flushSuit,
@@ -10784,7 +10774,7 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
         majorNumber: summonMajorCard?.number
       })
     : null;
-  const summon = resolvedSummon
+  const selectedSummon = resolvedSummon
     && window.__TAROT_KINGDOM_PREVIEW__ === true
     && kingdomDemoSummonId
       ? (() => {
@@ -10804,6 +10794,8 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
           } : resolvedSummon;
         })()
       : resolvedSummon;
+  const summon = summonSealed ? null : selectedSummon;
+  const blockedSummon = summonSealed ? selectedSummon : null;
   const context = {
     arcanaLoadoutEffectsVersion: Number(s.rules?.arcanaLoadoutEffectsVersion) || 0,
     actorIndex: playerIndex,
@@ -11155,6 +11147,7 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
     resonance,
     weapon,
     summon,
+    blockedSummon,
     majorSummon,
     major,
     worldRole,
@@ -12101,7 +12094,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
   recordKingdomGuardianAttackAttempt(playerIndex, impairment);
   if (before <= 0) {
     const secondary = impairment.cancelsAllEffects
-      ? { results: [], damage: 0, heal: 0, effectCount: 0, resonance: null, weapon: null, summon: null, major: null, worldRole: null, guardianPassiveName: '' }
+      ? { results: [], damage: 0, heal: 0, effectCount: 0, resonance: null, weapon: null, summon: null, blockedSummon: null, major: null, worldRole: null, guardianPassiveName: '' }
       : applyKingdomSecondaryEffects(playerIndex, play, {
           enemyAttackMissed: impairment.missed,
           baseAttackDamage: 0,
@@ -12162,6 +12155,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
       guardianCardLevel: secondary.major?.cardLevel || 1,
       awakeningId: secondary.major?.awakeningId || '',
       summon: secondary.summon,
+      blockedSummon: secondary.blockedSummon || null,
       majorSummon: secondary.majorSummon || null,
       roleChain: attack.roleChain ? { ...attack.roleChain } : null,
       roleKey: String(attack.roleKey || ''),
@@ -12217,7 +12211,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
     displayBaseDamage
   );
   const secondary = impairment.cancelsAllEffects
-    ? { results: [], damage: 0, heal: 0, effectCount: 0, resonance: null, weapon: null, summon: null, major: null, worldRole: null, guardianPassiveName: '' }
+    ? { results: [], damage: 0, heal: 0, effectCount: 0, resonance: null, weapon: null, summon: null, blockedSummon: null, major: null, worldRole: null, guardianPassiveName: '' }
     : applyKingdomSecondaryEffects(playerIndex, play, {
         enemyAttackMissed: impairment.missed,
         baseAttackDamage: displayBaseDamage,
@@ -12291,6 +12285,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
     awakeningId: secondary.major?.awakeningId || '',
     weaponEffectName: secondary.weapon?.label || '',
     summon: secondary.summon,
+    blockedSummon: secondary.blockedSummon || null,
     majorSummon: secondary.majorSummon || null,
     roleChain: attack.roleChain ? { ...attack.roleChain } : null,
     roleKey: String(attack.roleKey || ''),
@@ -13296,6 +13291,7 @@ function syncHumanTurnCueState() {
     showHumanTurnCue();
   } else if (!now && lastHumanTurnActive) {
     clearYourTurnBadge();
+    clearKingdomLocalTurnAlert(false);
   }
   lastHumanTurnActive = now;
 }
@@ -23945,6 +23941,27 @@ function renderKingdomEnemyStatusEffects() {
   syncKingdomActorStatusVisual(ui.battleEnemySprite, statusKey);
 }
 
+function getKingdomBattleHitTargetIndexes(event) {
+  if (!Array.isArray(event?.damages)) return [];
+  return [...new Set(event.damages
+    .filter((entry) => !entry?.missed && Math.max(0, Number(entry?.damage) || 0) > 0)
+    .map((entry) => Number(entry?.playerIndex))
+    .filter(Number.isInteger))];
+}
+
+function hasKingdomBattleHitImpact(event) {
+  const type = String(event?.type || '');
+  if (['attack', 'skill'].includes(type)) {
+    return !event?.attackMissed
+      && !event?.attackBlocked
+      && Math.max(0, Number(event?.displayDamage ?? event?.damage) || 0) > 0;
+  }
+  if (['enemy-single', 'enemy-area'].includes(type)) {
+    return getKingdomBattleHitTargetIndexes(event).length > 0;
+  }
+  return false;
+}
+
 function playKingdomBattleAvatarEvent(event, eventIsActive, eventKey) {
   if (!event || !eventIsActive) return;
   const type = String(event.type || '');
@@ -23974,7 +23991,7 @@ function playKingdomBattleAvatarEvent(event, eventIsActive, eventKey) {
     if (timeline && !prefersKingdomReducedMotion() && remainingHurtMs < 80) return;
     if (kingdomBattleHurtEventKey === eventKey) return;
     kingdomBattleHurtEventKey = eventKey;
-    const targets = Array.isArray(event.targetIndexes) ? event.targetIndexes : [];
+    const targets = getKingdomBattleHitTargetIndexes(event);
     targets.forEach((targetIndex) => {
       if (s?.players?.[Number(targetIndex)]?.isPet) return;
       const avatar = document.getElementById(`tarotKingdomBattleAvatar-${Number(targetIndex)}`);
@@ -24246,8 +24263,7 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
     && !!s.players?.[protectedCoverIndex];
   const targetIndexes = eventIsActive
     && (!timeline || ['damage', 'recover', 'final'].includes(phase))
-    && Array.isArray(activeEvent?.targetIndexes)
-    ? activeEvent.targetIndexes.map((value) => Number(value))
+    ? getKingdomBattleHitTargetIndexes(activeEvent)
     : [];
   const victoryEvent = (Array.isArray(s?.battle?.events) ? s.battle.events : [])
     .slice().reverse().find((event) => event?.type === 'victory');
@@ -24319,7 +24335,13 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
     );
     row.classList.toggle('is-hit', targetIndexes.includes(playerIndex));
     row.classList.toggle('is-battle-charging', eventIsActive && Number(activeEvent?.actorIndex) === playerIndex && phase === 'charge');
-    row.classList.toggle('is-battle-hit-stop', eventIsActive && Number(activeEvent?.actorIndex) === playerIndex && phase === 'hit-stop');
+    row.classList.toggle(
+      'is-battle-hit-stop',
+      eventIsActive
+        && hasKingdomBattleHitImpact(activeEvent)
+        && Number(activeEvent?.actorIndex) === playerIndex
+        && phase === 'hit-stop'
+    );
     row.classList.toggle('is-player-attacking', playerShadowAttacking);
     if (playerShadowAttacking) {
       row.style.setProperty(
@@ -25058,10 +25080,18 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
     && s?.lastPlay?.type === 'set'
     && Number(s.lastPlay.owner) === Number(event.actorIndex)
   );
+  const isSummonSealed = !!(
+    isRoleSummonEvent
+    && event?.blockedSummon?.id
+    && Array.isArray(event?.effects)
+    && event.effects.some((effect) => effect?.kind === 'summon-sealed')
+  );
   const show = isRoleSummonEvent || isMajorSummonEvent;
   const summonState = isMajorSummonEvent
     ? event.majorSummon
-    : (event?.summon && typeof event.summon === 'object' ? event.summon : null);
+    : (isSummonSealed
+      ? event.blockedSummon
+      : (event?.summon && typeof event.summon === 'object' ? event.summon : null));
   const summonArt = summonState ? getTarotKingdomSummonById(summonState.id) : null;
   const roleChainCount = !isMajorSummonEvent && areKingdomRoleChainsEnabled()
     ? normalizeKingdomRoleChainCount(event?.roleChain?.count ?? s?.lastPlay?.roleChain?.count)
@@ -25069,8 +25099,9 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   const roleChainLevel = Math.min(3, Math.max(0, roleChainCount - 1));
   const effectKey = String(summonState?.effectKey || summonArt?.effectKey || '').trim();
   const visualProfile = getKingdomSummonVisualProfile(effectKey);
-  const isSummon = !!(show && summonArt && areKingdomSummonsEnabled());
-  if (isSummon) void preloadKingdomSummonImage(summonArt);
+  const isSummon = !!(show && summonArt && areKingdomSummonsEnabled() && !isSummonSealed);
+  const hasSummonVisual = !!(show && summonArt && areKingdomSummonsEnabled());
+  if (hasSummonVisual) void preloadKingdomSummonImage(summonArt);
   const timeline = show ? getKingdomBattleTimelineForEvent(event) : null;
   const eventPresentationAt = Number(getKingdomBattleEventPresentationAt(event)) || Date.now();
   const elapsedMs = show
@@ -25095,7 +25126,7 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
     : String(s.lastPlay?.role?.key || getKingdomPresentationTransition()?.roleKey || 'Straight');
   const cards = (Array.isArray(s.lastPlay?.cardsTable) ? s.lastPlay.cardsTable : [])
     .slice(0, isMajorSummonEvent ? 3 : 5);
-  const renderKey = `${event.seq}:${roleKey}:${summonArt?.id || ''}:chain-${roleChainCount}:${cards.map((card) => card?.id || '').join(',')}`;
+  const renderKey = `${event.seq}:${roleKey}:${summonArt?.id || ''}:${isSummonSealed ? 'sealed' : 'active'}:chain-${roleChainCount}:${cards.map((card) => card?.id || '').join(',')}`;
   if (!cutin) {
     cutin = document.createElement('div');
     cutin.className = 'tarot-kingdom-skill-cutin';
@@ -25108,35 +25139,42 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   const summonChoreographyKey = String(summonArt?.choreographyKey || summonIdKey).replace(/[^a-z0-9-]/gi, '');
   const summonWeightKey = String(summonArt?.motionWeight || 'measured').replace(/[^a-z0-9-]/gi, '');
   const resultsRevealed = !!(timeline && Date.now() >= Number(timeline.effectAt || timeline.endsAt || 0));
-  const nextClassName = `tarot-kingdom-skill-cutin ${getKingdomRoleVisualClass(roleKey)} is-phase-${phase}${resultsRevealed ? ' is-results-revealed' : ''}${roleChainCount >= 2 ? ' is-role-chain' : ''}${isMajorSummonEvent ? ' is-major-arcana-summon' : ''}${isSummon ? ` is-summon is-summon-${effectKey} is-summon-${visualProfile.category} is-motion-${summonMotionKey} is-pool-${summonPoolKey} is-weight-${summonWeightKey} is-choreo-${summonChoreographyKey} is-summon-id-${summonIdKey}` : ''}`;
+  const nextClassName = `tarot-kingdom-skill-cutin ${getKingdomRoleVisualClass(roleKey)} is-phase-${phase}${resultsRevealed ? ' is-results-revealed' : ''}${roleChainCount >= 2 ? ' is-role-chain' : ''}${isMajorSummonEvent ? ' is-major-arcana-summon' : ''}${hasSummonVisual ? ` is-summon${isSummonSealed ? ' is-summon-sealed' : ''} is-summon-${effectKey} is-summon-${visualProfile.category} is-motion-${summonMotionKey} is-pool-${summonPoolKey} is-weight-${summonWeightKey} is-choreo-${summonChoreographyKey} is-summon-id-${summonIdKey}` : ''}`;
   if (cutin.className !== nextClassName) cutin.className = nextClassName;
   if (cutin.dataset.renderKey === renderKey) return;
   cutin.dataset.renderKey = renderKey;
-  cutin.dataset.effectKey = isSummon ? effectKey : '';
-  cutin.dataset.effectCategory = isSummon ? visualProfile.category : '';
-  cutin.dataset.choreography = isSummon ? visualProfile.choreography : '';
-  cutin.dataset.summonMotion = isSummon ? summonMotionKey : '';
-  cutin.dataset.summonPool = isSummon ? summonPoolKey : '';
-  cutin.dataset.summonId = isSummon ? summonIdKey : '';
-  cutin.dataset.summonChoreography = isSummon ? summonChoreographyKey : '';
-  cutin.dataset.summonWeight = isSummon ? summonWeightKey : '';
-  cutin.dataset.effectCue = isSummon ? String(visualProfile.cue || '') : '';
-  cutin.dataset.effectImpact = isSummon ? String(visualProfile.impact || '') : '';
+  cutin.dataset.effectKey = hasSummonVisual ? effectKey : '';
+  cutin.dataset.effectCategory = hasSummonVisual ? visualProfile.category : '';
+  cutin.dataset.choreography = hasSummonVisual ? visualProfile.choreography : '';
+  cutin.dataset.summonMotion = hasSummonVisual ? summonMotionKey : '';
+  cutin.dataset.summonPool = hasSummonVisual ? summonPoolKey : '';
+  cutin.dataset.summonId = hasSummonVisual ? summonIdKey : '';
+  cutin.dataset.summonChoreography = hasSummonVisual ? summonChoreographyKey : '';
+  cutin.dataset.summonWeight = hasSummonVisual ? summonWeightKey : '';
+  cutin.dataset.effectCue = hasSummonVisual ? String(visualProfile.cue || '') : '';
+  cutin.dataset.effectImpact = hasSummonVisual ? String(visualProfile.impact || '') : '';
+  cutin.dataset.summonSealed = isSummonSealed ? 'true' : '';
   cutin.dataset.roleChain = roleChainCount >= 2 ? String(roleChainCount) : '';
-  const summonDurationMs = isMajorSummonEvent ? KINGDOM_MAJOR_SUMMON_ATTACK_MS : KINGDOM_SUMMON_ATTACK_MS;
+  const summonDurationMs = isSummonSealed
+    ? 1500
+    : (isMajorSummonEvent ? KINGDOM_MAJOR_SUMMON_ATTACK_MS : KINGDOM_SUMMON_ATTACK_MS);
   cutin.style.setProperty('--summon-elapsed', `${-Math.min(summonDurationMs, elapsedMs)}ms`);
   cutin.style.setProperty('--summon-effect-density', String(summonArt?.effectDensity || 1));
   cutin.style.setProperty('--role-chain-level', String(roleChainLevel));
   cutin.style.setProperty('--role-chain-glow', `${roleChainLevel * 7}px`);
-  const roleShowAtMs = isMajorSummonEvent ? 140 : getKingdomRoleFormationCompleteMs(s.lastPlay);
+  const roleShowAtMs = isSummonSealed
+    ? 90
+    : (isMajorSummonEvent ? 140 : getKingdomRoleFormationCompleteMs(s.lastPlay));
   cutin.style.setProperty('--summon-role-show-at', `${roleShowAtMs}ms`);
   cutin.dataset.roleShowAt = String(roleShowAtMs);
   const content = document.createDocumentFragment();
   const title = document.createElement('strong');
   title.className = 'tarot-kingdom-skill-cutin-title';
-  title.textContent = isMajorSummonEvent
-    ? `大アルカナ・${ARCANA_NAME[Number(summonState?.majorNumber)] || '召喚'}`
-    : getRoleDisplayLabel(s.lastPlay);
+  title.textContent = isSummonSealed
+    ? '召喚封印'
+    : (isMajorSummonEvent
+      ? `大アルカナ・${ARCANA_NAME[Number(summonState?.majorNumber)] || '召喚'}`
+      : getRoleDisplayLabel(s.lastPlay));
   const chainLabel = !isMajorSummonEvent && roleChainCount >= 2 ? document.createElement('span') : null;
   if (chainLabel) {
     chainLabel.className = 'tarot-kingdom-summon-chain-label';
@@ -25261,6 +25299,49 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
     }
     content.append(seal, portal, figure, copy, effectField, impact);
     if (chainImpact) content.append(chainImpact);
+  } else if (isSummonSealed) {
+    delete cutin.dataset.partyHideAt;
+    delete cutin.dataset.partyReturnAt;
+    delete cutin.dataset.hudReturnAt;
+    cutin.setAttribute(
+      'aria-label',
+      `${getRoleDisplayLabel(s.lastPlay)} 召喚・${summonArt.name}は封印され、効果を発動できない`.trim()
+    );
+    const seal = document.createElement('div');
+    seal.className = 'tarot-kingdom-summon-seal';
+    seal.setAttribute('aria-hidden', 'true');
+    const portal = document.createElement('div');
+    portal.className = 'tarot-kingdom-summon-portal';
+    portal.setAttribute('aria-hidden', 'true');
+    const figure = document.createElement('figure');
+    figure.className = 'tarot-kingdom-summon-figure';
+    figure.style.setProperty('--summon-scale', String(summonArt.visualScale || 1));
+    figure.style.setProperty('--summon-anchor-x', `${summonArt.anchorX || 50}%`);
+    figure.style.setProperty('--summon-anchor-y', `${summonArt.anchorY || 100}%`);
+    if (summonArt.flipX) figure.classList.add('is-flipped');
+    const image = document.createElement('img');
+    image.className = 'tarot-kingdom-summon-art';
+    image.src = summonArt.src;
+    image.alt = `${summonArt.name}（封印中）`;
+    image.decoding = 'async';
+    image.loading = 'eager';
+    image.fetchPriority = 'high';
+    image.draggable = false;
+    figure.appendChild(image);
+    const copy = document.createElement('div');
+    copy.className = 'tarot-kingdom-summon-copy';
+    const summonName = document.createElement('strong');
+    summonName.className = 'tarot-kingdom-summon-name';
+    summonName.textContent = `召喚・${summonArt.name}`;
+    const effectName = document.createElement('span');
+    effectName.className = 'tarot-kingdom-summon-technique';
+    effectName.textContent = '封印されて行動できない';
+    copy.append(summonName, effectName);
+    const sealMark = document.createElement('b');
+    sealMark.className = 'tarot-kingdom-summon-sealed-mark';
+    sealMark.textContent = '封';
+    sealMark.setAttribute('aria-hidden', 'true');
+    content.append(seal, portal, figure, copy, sealMark);
   } else {
     cutin.removeAttribute('aria-label');
   }
@@ -25572,9 +25653,16 @@ function renderKingdomBattleStage() {
   ui.battleStage.classList.toggle('is-victory', battle.outcome === 'victory');
   ui.battleStage.classList.toggle('is-defeat', defeatPresentationVisible);
   ui.battleStage.classList.toggle('is-retreat', retreatPresentationVisible);
+  const visualEventHasHitImpact = hasKingdomBattleHitImpact(visualEvent);
   ui.battleStage.classList.toggle('is-battle-charging', eventIsActive && timelinePhase === 'charge');
-  ui.battleStage.classList.toggle('is-battle-hit-stop', eventIsActive && timelinePhase === 'hit-stop');
-  ui.battleStage.classList.toggle('is-battle-damage', eventIsActive && timelinePhase === 'damage');
+  ui.battleStage.classList.toggle(
+    'is-battle-hit-stop',
+    eventIsActive && visualEventHasHitImpact && timelinePhase === 'hit-stop'
+  );
+  ui.battleStage.classList.toggle(
+    'is-battle-damage',
+    eventIsActive && visualEventHasHitImpact && timelinePhase === 'damage'
+  );
   ui.battleStage.classList.toggle('is-battle-skill', eventIsActive && String(visualEvent?.type || '') === 'skill');
   const weaponImpactActorIndex = Number(visualEvent?.actorIndex);
   const weaponImpactProfile = Number.isInteger(weaponImpactActorIndex)
@@ -25588,6 +25676,7 @@ function renderKingdomBattleStage() {
     eventIsActive
     && timelinePhase === 'hit-stop'
     && String(visualEvent?.type || '') === 'attack'
+    && visualEventHasHitImpact
     && weaponImpactShake
     && !prefersKingdomReducedMotion()
   );
@@ -25617,6 +25706,7 @@ function renderKingdomBattleStage() {
     eventIsActive
     && timelinePhase === 'hit-stop'
     && String(visualEvent?.type || '') === 'skill'
+    && visualEventHasHitImpact
     && visualEvent?.summon?.id
   )
     ? `${eventKey}:${String(visualEvent.summon.id)}`

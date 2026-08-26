@@ -1487,6 +1487,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.petrified.state.players[1].hp).toBeGreaterThan(0);
     expect(audit.sealedRole.trick.cardsTable).toHaveLength(5);
     expect(audit.sealedRole.battle.events.at(-1)).toMatchObject({ damage: 0, summon: null });
+    expect(audit.sealedRole.battle.events.at(-1).blockedSummon?.id).toBeTruthy();
     expect(audit.sealedRole.battle.events.at(-1).effects).toEqual(expect.arrayContaining([
       expect.objectContaining({ kind: 'summon-sealed', statusKey: 'seal' })
     ]));

@@ -2997,6 +2997,115 @@ test('a guest renders one synchronized five-card summon across repeated state an
   }
 });
 
+test('a sealed five-card role shows its blocked summon without activating its effect', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const result = await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    const roleCards = [
+      { id: 'tk_sealed_role_w2', kind: 'minor', suit: 'Wand', number: 2 },
+      { id: 'tk_sealed_role_c3', kind: 'minor', suit: 'Cup', number: 3 },
+      { id: 'tk_sealed_role_s4', kind: 'minor', suit: 'Sword', number: 4 },
+      { id: 'tk_sealed_role_p5', kind: 'minor', suit: 'Pentacle', number: 5 },
+      { id: 'tk_sealed_role_w6', kind: 'minor', suit: 'Wand', number: 6 }
+    ];
+    debug.battleScenario({
+      rules: { statusEffectsVersion: 2 },
+      withTrick: false,
+      turnIndex: 0,
+      handsBySeat: [[...roleCards, { id: 'tk_sealed_role_keep', kind: 'minor', suit: 'Cup', number: 9 }]]
+    });
+    debug.battleApplyStatus('player-0', 'seal', { remainingClears: 2 });
+    return debug.battlePlayCards(0, roleCards.map((card) => card.id), { resolve: false });
+  });
+
+  expect(result.ok).toBe(true);
+  const event = result.state.battle.events.at(-1);
+  expect(event).toMatchObject({ type: 'skill', damage: 0, summon: null });
+  expect(event.blockedSummon?.id).toBeTruthy();
+  expect(event.effects).toEqual(expect.arrayContaining([
+    expect.objectContaining({ kind: 'summon-sealed', statusKey: 'seal' })
+  ]));
+
+  const cutin = page.locator(
+    '#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon.is-summon-sealed'
+  );
+  await expect(cutin).toHaveCount(1);
+  await expect(cutin).toHaveAttribute('data-summon-sealed', 'true');
+  await expect(cutin).toHaveAttribute('data-summon-id', String(event.blockedSummon.id));
+  await expect(cutin).toContainText('召喚封印');
+  await expect(cutin).toContainText('封印されて行動できない');
+  await expect(cutin.locator('.tarot-kingdom-summon-sealed-mark')).toHaveText('封');
+  await expect(cutin.locator('.tarot-kingdom-summon-effect')).toHaveCount(0);
+});
+
+test('missed attacks do not trigger battlefield or target hit reactions', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const playerMiss = await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    debug.battleScenario({
+      withTrick: false,
+      enemyHp: 400,
+      enemyDefense: 0,
+      enemySpeed: 200,
+      handsBySeat: [[
+        { id: 'tk_miss_attack', kind: 'minor', suit: 'Cup', number: 4 },
+        { id: 'tk_miss_keep', kind: 'minor', suit: 'Cup', number: 6 }
+      ]],
+      combatBySeat: [{ speed: 0 }]
+    });
+    debug.battleSetCombatRandom(0.97);
+    return debug.battlePlayOne(0, { resolve: false });
+  });
+  expect(playerMiss.battle.events.at(-1)).toMatchObject({ attackMissed: true, damage: 0 });
+  await page.waitForTimeout(700);
+  const playerMissVisual = await page.evaluate(() => {
+    const stage = document.querySelector('#tarotKingdomBattleStage');
+    const arena = stage?.querySelector('.tarot-kingdom-battle-arena');
+    return {
+      hitStop: stage?.classList.contains('is-battle-hit-stop') === true,
+      damage: stage?.classList.contains('is-battle-damage') === true,
+      weaponShake: stage?.classList.contains('is-weapon-impact-shake') === true,
+      arenaAnimation: arena ? getComputedStyle(arena).animationName : ''
+    };
+  });
+  expect(playerMissVisual).toEqual({
+    hitStop: false,
+    damage: false,
+    weaponShake: false,
+    arenaAnimation: 'none'
+  });
+
+  const enemyMiss = await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    debug.battleScenario({
+      turnIndex: 1,
+      leaderIndex: 0,
+      enemySpeed: 0,
+      hpBySeat: [100, 100, 100, 100],
+      combatBySeat: [
+        { maxHp: 100, defense: 0, speed: 24 },
+        { maxHp: 100, defense: 0, speed: 200 },
+        { maxHp: 100, defense: 0, speed: 24 },
+        { maxHp: 100, defense: 0, speed: 24 }
+      ]
+    });
+    debug.battleSetCombatRandom(0.7);
+    return debug.battlePass(1);
+  });
+  expect(enemyMiss.battle.events.at(-1).damages[0]).toMatchObject({ damage: 0, missed: true });
+  await page.waitForTimeout(460);
+  const enemyMissVisual = await page.evaluate(() => {
+    const stage = document.querySelector('#tarotKingdomBattleStage');
+    const target = document.querySelector('.tarot-kingdom-battle-player[data-player-index="1"]');
+    return {
+      hitStop: stage?.classList.contains('is-battle-hit-stop') === true,
+      damage: stage?.classList.contains('is-battle-damage') === true,
+      targetHit: target?.classList.contains('is-hit') === true
+    };
+  });
+  expect(enemyMissVisual).toEqual({ hitStop: false, damage: false, targetHit: false });
+});
+
 test('a delayed guest keeps the retained call actor focused after the authoritative transition is gone', async ({ page, context }) => {
   const guest = await context.newPage();
   try {
@@ -5349,10 +5458,10 @@ test('a locally skipped player gets two light flashes and a direct navigation me
     duration: '0.76s',
     pointerEvents: 'none'
   });
-  await expect(page.locator('#tarotKingdomLocalTurnAlert')).not.toHaveClass(/is-show/);
+  await expect(page.locator('#tarotKingdomLocalTurnAlert')).not.toHaveClass(/is-active/);
 });
 
-test('the former skip shutters now announce the start of the local turn', async ({ page }) => {
+test('the local turn stays clearly lit until input moves to another player', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
 
   await page.evaluate(() => {
@@ -5362,17 +5471,23 @@ test('the former skip shutters now announce the start of the local turn', async 
   });
 
   const alert = page.locator('#tarotKingdomLocalTurnAlert');
-  await expect(alert).toHaveClass(/is-show/);
+  await expect(alert).toHaveClass(/is-active/);
+  await page.waitForTimeout(1200);
+  await expect(alert).toHaveClass(/is-active/);
   const motion = await alert.evaluate((element) => ({
-    edge: getComputedStyle(element).animationName,
-    left: getComputedStyle(element, '::before').animationName,
-    right: getComputedStyle(element, '::after').animationName,
+    animation: getComputedStyle(element).animationName,
+    borderColor: getComputedStyle(element).borderTopColor,
+    leftOpacity: getComputedStyle(element, '::before').opacity,
+    rightOpacity: getComputedStyle(element, '::after').opacity,
     pointerEvents: getComputedStyle(element).pointerEvents
   }));
   expect(motion).toEqual({
-    edge: 'tarotKingdomLocalTurnEdge',
-    left: 'tarotKingdomLocalTurnCloseLeft',
-    right: 'tarotKingdomLocalTurnCloseRight',
+    animation: 'none',
+    borderColor: 'rgba(250, 219, 120, 0.78)',
+    leftOpacity: '0.9',
+    rightOpacity: '0.9',
     pointerEvents: 'none'
   });
+  await page.evaluate(() => window.TarotKingdomDebug.battleScenario({ turnIndex: 1 }));
+  await expect(alert).not.toHaveClass(/is-active/);
 });

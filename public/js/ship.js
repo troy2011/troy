@@ -1667,7 +1667,8 @@ function renderExplorationPixelMonster(
         maxHeight = 100,
         compactMaxWidth = maxWidth,
         compactMaxHeight = maxHeight,
-        fitVisibleArt = false
+        fitVisibleArt = false,
+        transform = 'scale(var(--exploration-monster-scale))'
     } = {}
 ) {
     const idle = monster?.animations?.idle;
@@ -1725,7 +1726,7 @@ function renderExplorationPixelMonster(
         `--exploration-monster-compact-anchor-offset-x:${getAnchorOffsetX(compactPreviewScale)}px`,
         `--exploration-monster-result-bottom:${getAnchorBottom(previewScale, previewBaseline)}px`,
         `--exploration-monster-compact-result-bottom:${getAnchorBottom(compactPreviewScale, compactPreviewBaseline)}px`,
-        'transform:scale(var(--exploration-monster-scale))'
+        `transform:${transform}`
     ].join(';');
     return `<span class="exploration-pixel-monster ${escapeHtml(className)}${monster.isBoss === true ? ' is-boss' : ''}" data-monster-anchor="${anchorMode}" style="${style}" aria-hidden="true"></span>`;
 }
@@ -1817,7 +1818,12 @@ async function showTarotKingdomPetOffer(offer, playFabId) {
                 ${currentMonster ? `
                     <div class="tarot-pet-offer-replace">
                         <span class="tarot-pet-offer-current">
-                            ${renderExplorationPixelMonster(currentMonster, 'tarot-pet-offer-current-monster', { maxWidth: 58, maxHeight: 48 })}
+                            ${renderExplorationPixelMonster(currentMonster, 'tarot-pet-offer-current-monster', {
+                                maxWidth: 58,
+                                maxHeight: 48,
+                                fitVisibleArt: true,
+                                transform: 'translateX(calc(-50% + var(--exploration-monster-anchor-offset-x, 0px))) scale(var(--exploration-monster-scale, 1))'
+                            })}
                         </span>
                         <span>「はい」で ${escapeHtml(currentPet.monsterName || currentMonster.name)} と入れ替え</span>
                     </div>

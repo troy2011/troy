@@ -31002,11 +31002,11 @@ body[data-sea-tone] .home-hero-card {
 #playerProfileModal .player-profile-pet-companion {
     --pixel-monster-context-scale: 1.18;
     z-index: 2;
-    right: -10px;
+    right: -4px;
     bottom: 29px;
     width: 84px;
     height: 104px;
-    transform: translateY(39px);
+    transform: translateY(29px);
 }
 
 #playerProfileModal .player-profile-pet-companion.is-renamable {
@@ -31023,7 +31023,7 @@ body[data-sea-tone] .home-hero-card {
 #playerProfileModal .player-profile-pet-name {
     position: absolute;
     z-index: 4;
-    right: -8px;
+    right: -4px;
     bottom: 4px;
     width: 116px;
     min-height: 24px;
@@ -31039,7 +31039,7 @@ body[data-sea-tone] .home-hero-card {
     text-align: center;
     text-overflow: ellipsis;
     white-space: nowrap;
-    transform: translateY(54px);
+    transform: translateY(46px);
 }
 
 #playerProfileModal .player-profile-pet-name:not(:disabled) {
@@ -31063,7 +31063,7 @@ body[data-sea-tone] .home-hero-card {
 #playerProfileModal .player-profile-pet-rename {
     position: absolute;
     z-index: 6;
-    right: -8px;
+    right: -4px;
     bottom: 3px;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;
@@ -32823,20 +32823,20 @@ body[data-sea-tone] .home-hero-card {
     }
 
     #playerProfileModal .player-profile-pet-companion {
-        right: -8px;
+        right: -4px;
         bottom: 27px;
         width: 82px;
         height: 100px;
     }
 
     #playerProfileModal .player-profile-pet-name {
-        right: -7px;
+        right: -4px;
         bottom: 3px;
         width: 112px;
     }
 
     #playerProfileModal .player-profile-pet-rename {
-        right: -7px;
+        right: -4px;
         width: 140px;
     }
 
@@ -37942,15 +37942,19 @@ body.tarot-kingdom-preview-body {
 }
 
 .tarot-pet-offer-current {
+    position: relative;
     display: grid;
     place-items: center;
     width: 58px;
     height: 50px;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .tarot-pet-offer-current .exploration-pixel-monster {
-    transform-origin: 50% 50%;
+    position: absolute;
+    left: 50%;
+    bottom: var(--exploration-monster-result-bottom, 4px);
+    transform-origin: 50% 100%;
 }
 
 .tarot-pet-offer-actions {
@@ -38474,7 +38478,7 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
     color: rgba(248, 250, 252, 0.62);
 }
 
-/* Local turn cue: cool side shutters announce that input has moved to this player. */
+/* Local turn cue: a restrained, persistent edge light marks available input. */
 :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-local-turn-alert {
     position: fixed;
     z-index: 3650;
@@ -38483,90 +38487,57 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
     pointer-events: none;
     visibility: hidden;
     opacity: 0;
-    border: 2px solid rgba(186, 230, 253, 0);
+    border: 2px solid rgba(250, 219, 120, 0);
     box-shadow: none;
+    transition: opacity 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-local-turn-alert::before,
 :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-local-turn-alert::after {
     content: "";
     position: absolute;
-    top: 0;
-    bottom: 0;
-    width: min(42vw, 250px);
+    right: 12%;
+    left: 12%;
+    height: 2px;
     opacity: 0;
-    will-change: transform, opacity;
+    background: linear-gradient(90deg, transparent, rgba(255, 237, 172, 0.92), transparent);
+    box-shadow: 0 0 12px rgba(250, 204, 21, 0.7);
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-local-turn-alert::before {
-    left: 0;
-    background: linear-gradient(90deg, rgba(14, 116, 144, 0.66), rgba(125, 211, 252, 0.22) 48%, transparent);
-    transform: translateX(-105%);
+    top: 0;
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-local-turn-alert::after {
-    right: 0;
-    background: linear-gradient(270deg, rgba(14, 116, 144, 0.66), rgba(125, 211, 252, 0.22) 48%, transparent);
-    transform: translateX(105%);
+    bottom: 0;
 }
 
-:is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-local-turn-alert.is-show {
+:is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-local-turn-alert.is-active {
     visibility: visible;
-    animation: tarotKingdomLocalTurnEdge 1050ms ease-out both;
+    opacity: 1;
+    border-color: rgba(250, 219, 120, 0.78);
+    box-shadow:
+        inset 0 0 18px -12px rgba(250, 204, 21, 0.72),
+        inset 0 0 40px -28px rgba(255, 239, 177, 0.88);
 }
 
-:is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-local-turn-alert.is-show::before {
-    animation: tarotKingdomLocalTurnCloseLeft 1050ms cubic-bezier(0.16, 0.78, 0.22, 1) both;
-}
-
-:is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-local-turn-alert.is-show::after {
-    animation: tarotKingdomLocalTurnCloseRight 1050ms cubic-bezier(0.16, 0.78, 0.22, 1) both;
-}
-
-@keyframes tarotKingdomLocalTurnEdge {
-    0%, 100% {
-        opacity: 0;
-        border-color: rgba(186, 230, 253, 0);
-        box-shadow: none;
-    }
-    18%, 58% {
-        opacity: 1;
-        border-color: rgba(186, 230, 253, 0.86);
-        box-shadow:
-            inset 22px 0 30px -20px rgba(56, 189, 248, 0.9),
-            inset -22px 0 30px -20px rgba(56, 189, 248, 0.9);
-    }
-}
-
-@keyframes tarotKingdomLocalTurnCloseLeft {
-    0% { opacity: 0; transform: translateX(-105%); }
-    22% { opacity: 0.82; transform: translateX(-16%); }
-    46% { opacity: 0.64; transform: translateX(7%); }
-    100% { opacity: 0; transform: translateX(-4%); }
-}
-
-@keyframes tarotKingdomLocalTurnCloseRight {
-    0% { opacity: 0; transform: translateX(105%); }
-    22% { opacity: 0.82; transform: translateX(16%); }
-    46% { opacity: 0.64; transform: translateX(-7%); }
-    100% { opacity: 0; transform: translateX(4%); }
+:is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-local-turn-alert.is-active::before,
+:is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-local-turn-alert.is-active::after {
+    opacity: 0.9;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-local-turn-alert.is-show {
+    :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-local-turn-alert.is-active {
         opacity: 1;
-        border-color: rgba(186, 230, 253, 0.78);
+        border-color: rgba(250, 219, 120, 0.78);
         box-shadow:
-            inset 18px 0 26px -20px rgba(56, 189, 248, 0.78),
-            inset -18px 0 26px -20px rgba(56, 189, 248, 0.78);
-        animation: none !important;
+            inset 0 0 18px -12px rgba(250, 204, 21, 0.72),
+            inset 0 0 40px -28px rgba(255, 239, 177, 0.88);
     }
 
-    :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-local-turn-alert.is-show::before,
-    :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-local-turn-alert.is-show::after {
-        opacity: 0.32;
-        transform: none;
-        animation: none !important;
+    :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-local-turn-alert.is-active::before,
+    :is(body, #tabContentTarot) #tarotKingdomRoot .tarot-kingdom-local-turn-alert.is-active::after {
+        opacity: 0.9;
     }
 }
 
