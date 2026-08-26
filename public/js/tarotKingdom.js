@@ -14838,6 +14838,10 @@ function queueStatePublish(force = false) {
 
 function applyPresenceToPlayers() {
   if (!s?.players || !isNetModeActive()) return;
+  const rosterFingerprintBefore = getKingdomCharacterRosterFingerprint(s);
+  const canRefreshLobbyCharacters = !s.roundActive
+    && !s.awaitRoundConfirm
+    && Number(s.handNo || 0) <= 0;
   if (presenceGraceTimer) {
     clearTimeout(presenceGraceTimer);
     presenceGraceTimer = null;
@@ -14878,7 +14882,11 @@ function applyPresenceToPlayers() {
       seat: localSeat,
       displayName: localName,
       name: localName,
-      playFabId: tkNet.uid,
+      playFabId: String(
+        seatTaken[localSeat]?.playFabId
+        || window.myPlayFabId
+        || tkNet.uid
+      ).trim(),
       currentPet: contextLocalPet
     };
   }
@@ -14905,15 +14913,19 @@ function applyPresenceToPlayers() {
     const occ = seatTaken[i];
     if (occ) {
       const occName = String(occ.displayName || occ.name || fallbackNames[i] || `P${i + 1}`);
+      const occPlayFabId = String(occ.playFabId || occ.uid || '').trim();
+      const occupantChanged = p.isNpc === true
+        || String(p.uid || '').trim() !== String(occ.uid || '').trim()
+        || String(p.playFabId || '').trim() !== occPlayFabId;
       p.isNpc = false;
       p.isPet = false;
       delete p.pet;
       delete p.petOwnerPlayFabId;
       delete p.petOwnerUid;
       delete p.petOwnerSeat;
-      if (!s.characterSnapshotReady) p.name = occName;
+      if (!s.characterSnapshotReady || occupantChanged) p.name = occName;
       p.uid = occ.uid || null;
-      if (!s.characterSnapshotReady) p.playFabId = String(occ.uid || '').trim();
+      p.playFabId = occPlayFabId;
       presenceGraceBySeat[i] = {
         uid: p.uid,
         name: String(p.name || occName),
@@ -14987,6 +14999,13 @@ function applyPresenceToPlayers() {
       scheduleNpc();
       render();
     }, Math.max(20, nextGraceExpiry - Date.now() + 20));
+  }
+  if (
+    canRefreshLobbyCharacters
+    && getKingdomCharacterRosterFingerprint(s) !== rosterFingerprintBefore
+  ) {
+    s.characterSnapshotReady = false;
+    s.characterSnapshotCreatedAt = 0;
   }
 }
 
@@ -18120,6 +18139,38 @@ function exposeTarotKingdomBattleDebugTools(target) {
       buildKingdomOnlinePresenceRosterPreview(presenceRows),
       []
     ),
+    battleApplyOnlinePresence: (presenceRows = [], options = {}) => {
+      const previousNetwork = { ...tkNet };
+      const previousPresence = netPresenceByUid;
+      if (options?.lobby === true && s) {
+        s.roundActive = false;
+        s.awaitRoundConfirm = false;
+        s.handNo = 0;
+        s.phase = 'idle';
+      }
+      const localSeat = Math.max(0, Math.min(3, Math.floor(Number(options?.localSeat) || 0)));
+      const localUid = String(options?.localUid || presenceRows[0]?.uid || 'debug-online-host');
+      tkNet.enabled = true;
+      tkNet.db = {};
+      tkNet.roomId = 'debug-online-room';
+      tkNet.roomPath = 'tarotKingdomRooms/debug-online-room';
+      tkNet.uid = localUid;
+      tkNet.localSeat = localSeat;
+      tkNet.localPlayerName = String(options?.localPlayerName || 'Debug Host');
+      netPresenceByUid = Object.fromEntries(
+        (Array.isArray(presenceRows) ? presenceRows : []).map((entry, index) => {
+          const uid = String(entry?.uid || `debug-online-${index}`);
+          return [uid, { ...cloneKingdomSnapshotValue(entry, {}), uid, updatedAt: Date.now() }];
+        })
+      );
+      try {
+        applyPresenceToPlayers();
+        return snapshotTarotKingdomDebugState();
+      } finally {
+        Object.assign(tkNet, previousNetwork);
+        netPresenceByUid = previousPresence;
+      }
+    },
     battleSeatClaimOrder: (hasReservedHostPet = false) => getKingdomSeatClaimOrder(
       hasReservedHostPet === true
     ),

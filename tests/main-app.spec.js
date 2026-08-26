@@ -2675,6 +2675,211 @@ test('exploration rescue signal auto-starts without a dedicated online lobby', a
   await expectNoPageErrors(errors);
 });
 
+test('exploration rescue starts battle after a third player replaces a pet seat', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const profileRequests = [];
+  const hostPet = {
+    monsterId: 'ismartal-vol1-monster-01',
+    monsterName: 'ホタルビ',
+    displayName: 'ホタルビ'
+  };
+  const guestPet = {
+    monsterId: 'ismartal-vol1-monster-02',
+    monsterName: 'グリモア',
+    displayName: 'グリモア'
+  };
+  await page.route('**/api/get-troy-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ nation: 'fire', isOpen: true, members: [] })
+    });
+  });
+  await page.route('**/api/exploration/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ship: null, active: null, reports: [], destinations: [] })
+    });
+  });
+  await page.route('**/api/tarot-kingdom/combat-profiles', async (route) => {
+    const body = route.request().postDataJSON();
+    const targetPlayFabIds = Array.isArray(body?.targetPlayFabIds) ? body.targetPlayFabIds : [];
+    profileRequests.push(targetPlayFabIds);
+    const characters = targetPlayFabIds.map((playFabId, index) => ({
+      version: 1,
+      source: 'playfab',
+      playFabId,
+      displayName: playFabId,
+      level: 18,
+      rankLabel: '航海士',
+      avatarBase: {
+        Race: 'human',
+        SkinColorIndex: 1,
+        HairStyleIndex: index + 1,
+        HairColorIndex: 1,
+        FaceIndex: 1
+      },
+      equipment: {},
+      itemSource: {},
+      combat: {
+        maxHp: 120,
+        power: 36,
+        defense: 24,
+        intelligence: 24,
+        speed: 24 + index,
+        weaponType: 'sword'
+      }
+    }));
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        characters,
+        currentPets: targetPlayFabIds.map((playFabId) => ({
+          playFabId,
+          currentPet: playFabId === 'PF_PLAYWRIGHT'
+            ? hostPet
+            : (playFabId === 'PF_GUEST_1' ? guestPet : null)
+        }))
+      })
+    });
+  });
+
+  await bootstrapMainApp(page, { mockFirebaseDatabase: true });
+  await page.evaluate((currentHostPet) => {
+    let releaseStart = () => {};
+    const startBarrier = new Promise((resolve) => {
+      releaseStart = resolve;
+    });
+    window.__releaseRosterBattleStart = releaseStart;
+    window.__rosterBattlePromise = window.launchTarotKingdomExplorationBattle({
+      explorationId: 'exp-roster-refresh',
+      destinationId: 'coral-passage',
+      destinationName: '珊瑚礁の抜け道',
+      monsterId: 'ismartal-vol1-monster-03',
+      monsterName: 'プルン',
+      stageNo: 1,
+      mode: 'online',
+      currentPet: currentHostPet,
+      enemyDefeatMode: 'hp-zero',
+      autoStartOnline: true,
+      startRequiresOnlineParty: true,
+      startBarrier,
+      onRaidEncounter: async (roomId) => {
+        const roomPath = `tarotKingdomRooms/${roomId}`;
+        const roomState = window.__pwFirebaseDbApi.getValue(`${roomPath}/state`)?.state;
+        const presence = window.__pwFirebaseDbApi.getValue(`${roomPath}/presence`) || {};
+        const liveRows = Object.values(presence);
+        const liveBySeat = new Map(liveRows.map((entry) => [Number(entry?.seat), entry]));
+        const livePlayFabIds = new Set(liveRows.map((entry) => String(entry?.playFabId || '')));
+        const players = Array.isArray(roomState?.players) ? roomState.players : [];
+        const rosterValid = players.length === 4 && players.every((player, seat) => {
+          if (player?.isPet === true) {
+            return livePlayFabIds.has(String(player.petOwnerPlayFabId || ''));
+          }
+          const occupant = liveBySeat.get(seat);
+          return !!occupant
+            && String(occupant.playFabId || '') === String(player?.playFabId || '');
+        });
+        window.__rosterRaidAudit = {
+          rosterValid,
+          players: players.map((player) => ({
+            isNpc: player.isNpc,
+            isPet: player.isPet,
+            playFabId: player.playFabId || '',
+            petOwnerPlayFabId: player.petOwnerPlayFabId || ''
+          }))
+        };
+        if (!rosterValid) {
+          throw new Error('チーム構成が変わりました。4人の参加状況を確認してください。 (HTTP 409)');
+        }
+        return { encountered: false };
+      },
+      onEntryReady: () => {
+        window.__rosterBattleEntryReady = true;
+      }
+    });
+  }, hostPet);
+
+  await expect.poll(() => page.evaluate(() => {
+    const entries = Array.from(window.__pwFirebaseDbStore?.values?.entries?.() || []);
+    const localPresence = entries.find(([path]) => (
+      String(path).startsWith('tarotKingdomRooms/')
+      && String(path).endsWith('/presence/PF_PLAYWRIGHT')
+    ));
+    return localPresence?.[0] || '';
+  })).not.toBe('');
+  await expect.poll(() => profileRequests.length).toBeGreaterThanOrEqual(1);
+
+  await page.evaluate(({ currentHostPet, currentGuestPet }) => {
+    const entries = Array.from(window.__pwFirebaseDbStore.values.entries());
+    const localPresenceEntry = entries.find(([path]) => (
+      String(path).startsWith('tarotKingdomRooms/')
+      && String(path).endsWith('/presence/PF_PLAYWRIGHT')
+    ));
+    const roomPath = String(localPresenceEntry[0]).replace(/\/presence\/PF_PLAYWRIGHT$/, '');
+    const hostPresence = localPresenceEntry[1];
+    const now = Date.now();
+    window.__rosterBattleRoomPath = roomPath;
+    window.__pwFirebaseDbApi.setValue(`${roomPath}/presence`, {
+      PF_PLAYWRIGHT: { ...hostPresence, currentPet: currentHostPet, updatedAt: now },
+      GUEST_1: {
+        uid: 'GUEST_1',
+        seat: 2,
+        displayName: '救援隊員1',
+        playFabId: 'PF_GUEST_1',
+        currentPet: currentGuestPet,
+        updatedAt: now
+      },
+      GUEST_2: {
+        uid: 'GUEST_2',
+        seat: 3,
+        displayName: '救援隊員2',
+        playFabId: 'PF_GUEST_2',
+        currentPet: null,
+        updatedAt: now
+      }
+    });
+    window.__releaseRosterBattleStart();
+  }, { currentHostPet: hostPet, currentGuestPet: guestPet });
+
+  await expect.poll(() => page.evaluate(() => window.__rosterRaidAudit || null), {
+    timeout: 10000
+  }).toEqual({
+    rosterValid: true,
+    players: [
+      { isNpc: false, isPet: false, playFabId: 'PF_PLAYWRIGHT', petOwnerPlayFabId: '' },
+      { isNpc: true, isPet: true, playFabId: '', petOwnerPlayFabId: 'PF_PLAYWRIGHT' },
+      { isNpc: false, isPet: false, playFabId: 'PF_GUEST_1', petOwnerPlayFabId: '' },
+      { isNpc: false, isPet: false, playFabId: 'PF_GUEST_2', petOwnerPlayFabId: '' }
+    ]
+  });
+  await expect.poll(() => profileRequests.at(-1), { timeout: 10000 }).toEqual([
+    'PF_PLAYWRIGHT',
+    'PF_GUEST_1',
+    'PF_GUEST_2'
+  ]);
+  await expect.poll(() => page.evaluate(() => {
+    const roomPath = window.__rosterBattleRoomPath;
+    const state = window.__pwFirebaseDbApi.getValue(`${roomPath}/state`)?.state;
+    return {
+      entryReady: window.__rosterBattleEntryReady === true,
+      handNo: Number(state?.handNo || 0),
+      roundActive: state?.roundActive === true,
+      characterSnapshotReady: state?.characterSnapshotReady === true
+    };
+  }), { timeout: 10000 }).toEqual({
+    entryReady: true,
+    handNo: 0,
+    roundActive: true,
+    characterSnapshotReady: true
+  });
+  await expect(page.locator('#tarotKingdomBattleStage')).toBeVisible();
+  await expectNoPageErrors(errors);
+});
+
 test('home rescue list lets a player choose and join a specific exploration room', async ({ page }) => {
   const errors = trackPageErrors(page);
   let stageJoinBody = null;

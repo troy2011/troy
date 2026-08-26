@@ -5261,6 +5261,68 @@ test('online rescue prioritizes every owner pet and places it immediately after 
   expect(audit.normalOrder).toEqual([0, 1, 2, 3]);
 });
 
+test('online rescue refreshes frozen player identities when another player replaces a pet seat', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const hostPet = {
+    monsterId: 'ismartal-vol1-monster-01',
+    monsterName: 'ホタルビ',
+    displayName: 'ホタルビ'
+  };
+  const guestPet = {
+    monsterId: 'ismartal-vol1-monster-02',
+    monsterName: 'グリモア',
+    displayName: 'グリモア'
+  };
+  const audit = await page.evaluate(({ currentHostPet, currentGuestPet }) => {
+    const debug = window.TarotKingdomDebug;
+    debug.battleScenario({ pet: currentHostPet, enableNpcSeats: true });
+    debug.battleSetExplorationSession(true, 'online', { currentPet: currentHostPet });
+    const before = debug.battleState();
+    const after = debug.battleApplyOnlinePresence([
+      {
+        uid: 'HOST_UID',
+        seat: 0,
+        displayName: '救難船長',
+        playFabId: 'PF_HOST',
+        currentPet: currentHostPet
+      },
+      {
+        uid: 'GUEST_1',
+        seat: 2,
+        displayName: '救援隊員1',
+        playFabId: 'PF_GUEST_1',
+        currentPet: currentGuestPet
+      },
+      {
+        uid: 'GUEST_2',
+        seat: 3,
+        displayName: '救援隊員2',
+        playFabId: 'PF_GUEST_2'
+      }
+    ], {
+      lobby: true,
+      localSeat: 0,
+      localUid: 'HOST_UID',
+      localPlayerName: '救難船長'
+    });
+    return { before, after };
+  }, { currentHostPet: hostPet, currentGuestPet: guestPet });
+
+  expect(audit.before.characterSnapshotReady).toBe(true);
+  expect(audit.after.characterSnapshotReady).toBe(false);
+  expect(audit.after.players.map((player) => ({
+    isNpc: player.isNpc,
+    isPet: player.isPet,
+    playFabId: player.playFabId,
+    petOwnerPlayFabId: player.petOwnerPlayFabId || ''
+  }))).toEqual([
+    { isNpc: false, isPet: false, playFabId: 'PF_HOST', petOwnerPlayFabId: '' },
+    { isNpc: true, isPet: true, playFabId: '', petOwnerPlayFabId: 'PF_HOST' },
+    { isNpc: false, isPet: false, playFabId: 'PF_GUEST_1', petOwnerPlayFabId: '' },
+    { isNpc: false, isPet: false, playFabId: 'PF_GUEST_2', petOwnerPlayFabId: '' }
+  ]);
+});
+
 test('round settlement confirmation remains visible after the battle stage completes', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   await page.evaluate(() => {
