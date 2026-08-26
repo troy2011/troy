@@ -2,7 +2,7 @@
 
 import * as Player from './player.js';
 import * as Inventory from 'inventory';
-import * as Ship from './ship.js?v=20260826-pet-offer-position-v1';
+import * as Ship from './ship.js?v=20260826-element-pairs-v1';
 import * as NationKing from './nationKing.js?v=20260731-stage-score1';
 import * as Islands from './islands.js';
 import { getNationAnnouncements } from './playfabClient.js?v=20260826-tutorial-reward-v1';
@@ -33,7 +33,7 @@ const ensureTarotModule = async () => {
 };
 
 let tarotKingdomModule = null;
-const TAROT_KINGDOM_MODULE_VERSION = '20260826-online-roster-refresh-v1';
+const TAROT_KINGDOM_MODULE_VERSION = '20260826-element-pairs-v1';
 const ensureTarotKingdomModule = async () => {
     if (tarotKingdomModule) return tarotKingdomModule;
     tarotKingdomModule = await import(`./tarotKingdom.js?v=${TAROT_KINGDOM_MODULE_VERSION}`);
@@ -1666,7 +1666,10 @@ export async function launchTarotKingdomRescueBattle(room = {}, playerInfo = nul
         throw new Error('救難信号へ参加する準備ができていません。');
     }
     try {
-        const result = await Kingdom.joinTarotKingdomRescueRoom(room);
+        const result = await Kingdom.joinTarotKingdomRescueRoom({
+            ...room,
+            onOnlineDeparture: (departure) => Ship.showTarotKingdomOnlineFleetDeparture(departure)
+        });
         if (result?.status !== 'completed' && document.body?.dataset.currentTab === 'tarot') {
             await showTab('home', resolvedPlayerInfo);
         }

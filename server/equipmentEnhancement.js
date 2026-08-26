@@ -83,6 +83,19 @@ function getEquipmentRarityContribution(catalogData = {}) {
         || EQUIPMENT_ENHANCEMENT_RARITY_CONTRIBUTIONS.common;
 }
 
+function getEquipmentRarityForEffectiveValue(catalogData = {}, effectiveValue = 0) {
+    const primaryStat = getEquipmentPrimaryStat(catalogData);
+    if (!primaryStat) return getEquipmentRarity(catalogData);
+    const normalizedValue = Math.max(0, Math.min(
+        EQUIPMENT_ENHANCEMENT_MAX_STAT,
+        Math.floor(Number(effectiveValue) || 0)
+    ));
+    return getEquipmentRarity({
+        ...catalogData,
+        [primaryStat]: normalizedValue
+    });
+}
+
 function resolveWeaponFamily(itemId, catalogData = {}) {
     const explicit = normalizeToken(
         catalogData.WeaponType
@@ -204,8 +217,9 @@ function buildEquipmentEnhancementDescriptor(itemId, catalogData = {}, inventory
     const storedBonus = getEquipmentEnhancementBonus(inventoryItem);
     const bonus = Math.max(0, Math.min(storedBonus, EQUIPMENT_ENHANCEMENT_MAX_STAT - baseValue));
     const effectiveValue = Math.min(EQUIPMENT_ENHANCEMENT_MAX_STAT, baseValue + bonus);
-    const rarity = getEquipmentRarity(catalogData);
-    const rarityContribution = getEquipmentRarityContribution(catalogData);
+    const rarity = getEquipmentRarityForEffectiveValue(catalogData, effectiveValue);
+    const rarityContribution = EQUIPMENT_ENHANCEMENT_RARITY_CONTRIBUTIONS[rarity]
+        || EQUIPMENT_ENHANCEMENT_RARITY_CONTRIBUTIONS.common;
     const materialEligible = ['Weapon', 'Armor', 'Shield'].includes(category) && !!family;
     const eligible = materialEligible && effectiveValue < EQUIPMENT_ENHANCEMENT_MAX_STAT;
     return {
@@ -254,6 +268,7 @@ module.exports = {
     getEquipmentPrimaryStat,
     getEquipmentRarity,
     getEquipmentRarityContribution,
+    getEquipmentRarityForEffectiveValue,
     normalizeDisplayProperties,
     resolveArmorFamily,
     resolveEquipmentEnhancementFamily,

@@ -76,6 +76,18 @@ test('head armor names and defense values follow the image-aligned catalog defin
   }
 });
 
+test('all black metal head armor has legendary-tier base defense', () => {
+  const definitions = Object.entries(HEAD_ARMOR_OVERRIDES)
+    .filter(([id]) => id.startsWith('metal_black_'));
+  expect(definitions).toHaveLength(23);
+  expect(definitions.every(([, definition]) => definition.defense === 60)).toBe(true);
+
+  for (const filePath of [rootCatalogPath, localCatalogPath]) {
+    const indexed = indexCatalog(readCatalog(filePath));
+    expect(definitions.every(([id]) => indexed.get(id)?.DisplayProperties?.Defense === 60), filePath).toBe(true);
+  }
+});
+
 test('local catalog contains eight distinct accessory groups', () => {
   const catalog = readCatalog(localCatalogPath);
   const accessories = catalog.Items.filter((item) => item?.DisplayProperties?.Category === 'Accessory');

@@ -87,7 +87,7 @@ import {
   getTarotKingdomElementMultiplier,
   getTarotKingdomEnemyAffinity,
   getTarotKingdomMajorSkill
-} from './tarotKingdomMajorEffects.js?v=20260826-four-elements-v1';
+} from './tarotKingdomMajorEffects.js?v=20260826-element-pairs-v1';
 import {
   flashCombatAvatarHurt,
   getCombatWeaponMotionProfile,
@@ -182,16 +182,17 @@ const SUITS = ['Wand', 'Cup', 'Sword', 'Pentacle'];
 const GRAVE_RANK_ORDER = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1];
 const GRAVE_RANK_LABEL = { 1: 'A', 11: 'P', 12: 'N', 13: 'Q', 14: 'K' };
 const SUIT_LABEL = { Wand: 'ワンド', Cup: 'カップ', Sword: 'ソード', Pentacle: 'ペンタクル', None: '無' };
-// 同値時の勝敗は循環相性で決まるため、スート自体に固定の序列は設けない。
+// 同値時は四大元素の調和ペアで返せるため、スート自体に固定の序列は設けない。
 const SUIT_TIER = { Wand: 1, Cup: 1, Sword: 1, Pentacle: 1, None: 0 };
 const SUIT_MASK = { None: 0, Wand: 1, Cup: 2, Sword: 4, Pentacle: 8, All: 15 };
-const SUIT_ADVANTAGE = Object.freeze({
-  Wand: 'Pentacle',
-  Cup: 'Wand',
-  Sword: 'Cup',
-  Pentacle: 'Sword'
+const SUIT_HARMONY = Object.freeze({
+  Wand: 'Sword',
+  Sword: 'Wand',
+  Cup: 'Pentacle',
+  Pentacle: 'Cup'
 });
-const SUIT_ADVANTAGE_LABEL = 'ワンド←カップ←ソード←ペンタクル←ワンド';
+const SUIT_HARMONY_LABEL = 'ワンド↔ソード / カップ↔ペンタクル';
+const KINGDOM_HARMONY_DAMAGE_MULTIPLIER = 1.15;
 const SUIT_COLOR = { Wand: '#b11818', Sword: '#9b72e6', Cup: '#1e63c6', Pentacle: '#1e8f3c' };
 const SPECIAL_SUIT = {
   16: 'Sword',
@@ -667,6 +668,7 @@ let netForceCreateRoom = false;
 let netRequestedRoomId = '';
 let netLastConnectError = null;
 let netJoinedExplorationMeta = null;
+let kingdomHandledOnlineDepartureToken = '';
 let kingdomRemotePresentationMode = false;
 let kingdomRemotePresentationInitialized = false;
 let kingdomRemotePresentationEpoch = '';
@@ -1776,16 +1778,17 @@ const suitMaskForCard = (card) => {
   );
 };
 const suitMaskForCards = (cards) => (Array.isArray(cards) ? cards.reduce((mask, card) => (mask | suitMaskForCard(card)), SUIT_MASK.None) : SUIT_MASK.None);
-const isSuitMatchupCompatible = (playMask, trickMask) => {
+const getSuitHarmonyPair = (playMask, trickMask) => {
   const a = Number(playMask || 0);
   const b = Number(trickMask || 0);
-  if (!a || !b) return false;
-  if (a === SUIT_MASK.All || b === SUIT_MASK.All) return true;
-  return SUITS.some((playSuit) => (
-    (a & SUIT_MASK[playSuit])
-    && (b & SUIT_MASK[SUIT_ADVANTAGE[playSuit]])
+  if (!a || !b) return null;
+  const playSuit = SUITS.find((candidate) => (
+    (a & SUIT_MASK[candidate])
+    && (b & SUIT_MASK[SUIT_HARMONY[candidate]])
   ));
+  return playSuit ? { playSuit, trickSuit: SUIT_HARMONY[playSuit] } : null;
 };
+const isSuitHarmonyCompatible = (playMask, trickMask) => !!getSuitHarmonyPair(playMask, trickMask);
 const getPlaySuitMask = (play) => {
   const explicit = Number(play?.suitMask || 0);
   if (explicit > 0) return explicit;
@@ -2024,7 +2027,7 @@ function getKingdomTutorialPrompt(state = s, playerIndex = null) {
         return '1-1　2枚出し\n場が2枚なら、同じ数字を2枚で返そう';
       }
       return playerIndex != null && getKingdomTutorialStep(playerIndex, state) >= 1
-        ? `1-1　同数とスート\n同じ数字は勝ちスートで返せる\n${SUIT_ADVANTAGE_LABEL}`
+        ? `1-1　同数とスート\n同じ数字は調和スートで返せる\n${SUIT_HARMONY_LABEL}`
         : '1-1　カードで攻撃\n場より大きい数字を1枚出そう';
     case 2: {
       const step = getKingdomTutorialStep(pendingPlayerIndex, state);
@@ -2099,7 +2102,7 @@ function isKingdomTutorialSelectionReady(playerIndex, selectedIndexes) {
 
 function getKingdomTutorialSuccessLabel(play) {
   const lesson = getKingdomTutorialLesson();
-  if (lesson === 1) return getKingdomTutorialStep(play?.owner) >= 1 ? 'SUIT MATCH' : 'ATTACK';
+  if (lesson === 1) return getKingdomTutorialStep(play?.owner) >= 1 ? 'HARMONY' : 'ATTACK';
   if (lesson === 2) {
     const objective = KINGDOM_TUTORIAL_SPECIAL_SET_SEQUENCE[getKingdomTutorialStep(play?.owner)];
     return objective?.key === 'skip' ? '5 SKIP'
@@ -2305,10 +2308,10 @@ function buildKingdomTutorialDeck(lesson, playerCount, initialHandSize, dealerIn
   if (safeLesson === 1) {
     opening = take('Cup', 3);
     const lessons = [
-      [['Cup', 4], ['Wand', 6], ['Cup', 6]],
-      [['Sword', 7], ['Sword', 8], ['Pentacle', 8]],
-      [['Cup', 9], ['Wand', 10], ['Cup', 10]],
-      [['Sword', 11], ['Sword', 12], ['Pentacle', 12]]
+      [['Cup', 4], ['Wand', 6], ['Sword', 6]],
+      [['Sword', 7], ['Sword', 8], ['Wand', 8]],
+      [['Cup', 9], ['Cup', 10], ['Pentacle', 10]],
+      [['Sword', 11], ['Pentacle', 12], ['Cup', 12]]
     ];
     hands.forEach((hand, seat) => {
       const [leadSpec, replyBaseSpec, replySpec] = lessons[seat];
@@ -6084,7 +6087,8 @@ function createKingdomBattleState(
   enemyCombatVersion = 1,
   playerCount = PLAYERS.length,
   stageState = s?.stage,
-  enemyAbilityVersion = 1
+  enemyAbilityVersion = 1,
+  elementAffinityVersion = Number(s?.rules?.elementAffinityVersion ?? 3)
 ) {
   const safeRoundIndex = Math.max(0, Math.min(TOTAL_HANDS - 1, Number(roundIndex) || 0));
   const normalizedStage = resolveKingdomExplorationStageState(stageState);
@@ -6169,7 +6173,7 @@ function createKingdomBattleState(
       ailment: combatProfile.ailment,
       abilities: combatProfile.abilities,
       abilityState: { uses: {} },
-      affinity: combatProfile.affinity || getTarotKingdomEnemyAffinity(monster.id, enemyCombatVersion),
+      affinity: combatProfile.affinity || getTarotKingdomEnemyAffinity(monster.id, elementAffinityVersion),
       ...(rebirth
         ? {
             rebirth: {
@@ -6191,7 +6195,8 @@ function normalizeKingdomBattleState(
   enemyCombatVersion = 1,
   playerCount = PLAYERS.length,
   stageState = null,
-  enemyAbilityVersion = 1
+  enemyAbilityVersion = 1,
+  elementAffinityVersion = 3
 ) {
   const safePlayerCount = normalizeKingdomPlayerCount(playerCount);
   const base = createKingdomBattleState(
@@ -6201,7 +6206,8 @@ function normalizeKingdomBattleState(
     enemyCombatVersion,
     safePlayerCount,
     stageState,
-    enemyAbilityVersion
+    enemyAbilityVersion,
+    elementAffinityVersion
   );
   const incoming = rawBattle && typeof rawBattle === 'object' ? rawBattle : {};
   const incomingBattlefield = incoming.battlefield && typeof incoming.battlefield === 'object'
@@ -12069,7 +12075,7 @@ function getKingdomEquippedRoleMultiplier(character, playedRole) {
   return equippedRole?.key === playedRole.key ? 1.25 : 1;
 }
 
-function getKingdomBattleDamageForPlay(playerIndex, play) {
+function getKingdomBattleDamageForPlay(playerIndex, play, options = {}) {
   const handCards = Array.isArray(play?.cardsHand) ? play.cardsHand : [];
   const tableCards = Array.isArray(play?.cardsTable) ? play.cardsTable : handCards;
   const character = normalizeTarotKingdomCharacter(s?.players?.[playerIndex]?.character || {}, {
@@ -12077,6 +12083,10 @@ function getKingdomBattleDamageForPlay(playerIndex, play) {
   });
   const combat = character.combat;
   const growthVersion = areKingdomDamageGrowthRulesEnabled() ? 1 : 0;
+  const harmony = play?.harmony?.active === true
+    ? play.harmony
+    : getKingdomPlayHarmony(play, options.previousTrick || null);
+  const harmonyMultiplier = harmony ? KINGDOM_HARMONY_DAMAGE_MULTIPLIER : 1;
   if (String(play?.type || '') === 'role' && tableCards.length === 5) {
     const rebuiltRole = evalRole(tableCards, null) || play?.role || null;
     const roleProfile = getKingdomRoleAttackProfile(rebuiltRole?.key || play?.role?.key);
@@ -12105,12 +12115,14 @@ function getKingdomBattleDamageForPlay(playerIndex, play) {
         * roleChain.multiplier
         * equippedRoleMultiplier
         * roleProfile.damageScale
+        * harmonyMultiplier
       )),
       damage: Math.max(1, Math.floor(
         (Number(result.damage) || 0)
         * roleChain.multiplier
         * equippedRoleMultiplier
         * roleProfile.damageScale
+        * harmonyMultiplier
       )),
       kind: 'skill',
       roleKey: roleProfile.roleKey,
@@ -12119,9 +12131,11 @@ function getKingdomBattleDamageForPlay(playerIndex, play) {
       roleDamageScale: roleProfile.damageScale,
       roleChain,
       equippedRoleMultiplier,
+      harmony: harmony ? { ...harmony } : null,
+      harmonyMultiplier,
       label: `${getRoleDisplayLabel({ ...play, role: rebuiltRole || play?.role })}${
         roleProfile.rangeLabel ? `・${roleProfile.rangeLabel}` : 'スキル'
-      }`
+      }${harmony ? '・HARMONY' : ''}`
     };
   }
   const count = Math.max(1, Math.min(3, handCards.length || Number(play?.count) || 1));
@@ -12142,8 +12156,12 @@ function getKingdomBattleDamageForPlay(playerIndex, play) {
   });
   return {
     ...result,
+    baseDamage: Math.max(1, Math.floor((Number(result.baseDamage) || 0) * harmonyMultiplier)),
+    damage: Math.max(1, Math.floor((Number(result.damage) || 0) * harmonyMultiplier)),
     kind: 'attack',
-    label: `${count}枚攻撃`
+    harmony: harmony ? { ...harmony } : null,
+    harmonyMultiplier,
+    label: `${count}枚攻撃${harmony ? '・HARMONY' : ''}`
   };
 }
 
@@ -12239,6 +12257,8 @@ function applyKingdomPlayerAttack(playerIndex, play) {
       roleTargetScope: String(attack.targetScope || 'single'),
       roleRangeLabel: String(attack.rangeLabel || ''),
       roleStageHits: [],
+      harmony: attack.harmony ? { ...attack.harmony } : null,
+      harmonyMultiplier: Number(attack.harmonyMultiplier) || 1,
       summonEffectName: secondary.summon?.effectName || '',
       label: impairment.blocked
         ? `${pName(playerIndex)} ${impairment.label}（カード提出成立）`
@@ -12258,6 +12278,16 @@ function applyKingdomPlayerAttack(playerIndex, play) {
     : applyKingdomOutgoingDamageBonuses(attack.damage, playerIndex, {
       damageKind: attack.kind === 'skill' ? 'magic' : 'physical'
     });
+  if (attack.harmony && !impairment.blocked) {
+    outgoing.applied.unshift({
+      kind: 'harmony',
+      source: 'harmony',
+      label: 'HARMONY',
+      multiplier: KINGDOM_HARMONY_DAMAGE_MULTIPLIER,
+      potency: 15,
+      success: true
+    });
+  }
   const guardian = getKingdomGuardianArcana(playerIndex);
   const fieldRank = Number(play?.resonanceContext?.fieldCard?.number);
   const submittedRank = Number(play?.cardsHand?.[0]?.number);
@@ -12369,6 +12399,8 @@ function applyKingdomPlayerAttack(playerIndex, play) {
     roleTargetScope: String(attack.targetScope || 'single'),
     roleRangeLabel: String(attack.rangeLabel || ''),
     roleStageHits: roleRangeResult?.stageHits || [],
+    harmony: attack.harmony ? { ...attack.harmony } : null,
+    harmonyMultiplier: Number(attack.harmonyMultiplier) || 1,
     summonEffectName: secondary.summon?.effectName || '',
     appliedBonuses: [...outgoing.applied, ...incomingBase.applied],
     label: impairment.blocked
@@ -12938,7 +12970,7 @@ function normalizeKingdomRules(
   fallbackMajorArcanaSpecialVersion = 3,
   fallbackStageVersion = 0,
   fallbackMajorBattleEffectsVersion = 3,
-  fallbackElementAffinityVersion = 2,
+  fallbackElementAffinityVersion = 3,
   fallbackCarryHpBetweenRoundsVersion = 1,
   fallbackForcedDrawDeathVersion = 1,
   fallbackDamageGrowthVersion = 1,
@@ -13006,7 +13038,7 @@ function normalizeKingdomRules(
     ),
     elementAffinityVersion: Math.max(
       0,
-      Math.min(2, Math.floor(Number(incoming.elementAffinityVersion ?? fallbackElementAffinityVersion) || 0))
+      Math.min(3, Math.floor(Number(incoming.elementAffinityVersion ?? fallbackElementAffinityVersion) || 0))
     ),
     carryHpBetweenRoundsVersion: Math.max(
       0,
@@ -13193,6 +13225,7 @@ function initState() {
     characterSnapshotCreatedAt: 0,
     stage: null,
     raid: null,
+    onlineDeparture: null,
     tutorialEnabled: false,
     tutorialProgress: null,
     battle: createKingdomBattleState(
@@ -13202,7 +13235,8 @@ function initState() {
       rules.enemyCombatVersion,
       playerTemplates.length,
       null,
-      rules.enemyAbilityVersion
+      rules.enemyAbilityVersion,
+      rules.elementAffinityVersion
     )
   };
 }
@@ -13433,10 +13467,8 @@ function normalizeKingdomOnlineShip(ship) {
   };
 }
 
-function notifyKingdomExplorationPartyChange() {
-  const callback = kingdomExplorationSession?.context?.onOnlinePartyChange;
-  if (typeof callback !== 'function') return;
-  const participants = Object.entries(netPresenceByUid || {})
+function getKingdomOnlineParticipants() {
+  return Object.entries(netPresenceByUid || {})
     .flatMap(([uid, info]) => {
       if (!isFreshKingdomPresence(info)) return [];
       const seat = Number(info?.seat);
@@ -13451,12 +13483,51 @@ function notifyKingdomExplorationPartyChange() {
       }];
     })
     .sort((left, right) => left.seat - right.seat);
+}
+
+function notifyKingdomExplorationPartyChange() {
+  const callback = kingdomExplorationSession?.context?.onOnlinePartyChange;
+  if (typeof callback !== 'function') return;
+  const participants = getKingdomOnlineParticipants();
   try {
     Promise.resolve(callback(participants)).catch((error) => {
       console.warn('[tarotKingdom] online party ship update failed:', error);
     });
   } catch (error) {
     console.warn('[tarotKingdom] online party ship update failed:', error);
+  }
+}
+
+async function playKingdomOnlineDeparture(departure) {
+  const status = String(departure?.status || '').trim();
+  if (status !== 'sailing' && status !== 'arrived') return false;
+  const token = String(departure?.token || '').trim();
+  if (!token || token === kingdomHandledOnlineDepartureToken) return false;
+  kingdomHandledOnlineDepartureToken = token;
+  const context = kingdomExplorationSession?.context;
+  const callback = context?.onOnlineDeparture;
+  if (typeof callback !== 'function') return false;
+  const participants = Array.isArray(departure?.participants)
+    ? departure.participants.map((entry) => ({ ...entry }))
+    : getKingdomOnlineParticipants();
+  try {
+    await callback({
+      token,
+      status,
+      startedAt: Math.max(0, Number(departure?.startedAt) || Date.now()),
+      participants,
+      destinationId: String(context?.destinationId || ''),
+      destinationName: String(context?.destinationName || ''),
+      stageId: String(context?.stageId || ''),
+      stageNo: Math.max(0, Number(context?.stageNo) || 0),
+      battlefieldId: String(context?.battlefieldId || ''),
+      atmosphereTone: String(context?.atmosphereTone || ''),
+      onlineShip: normalizeKingdomOnlineShip(context?.onlineShip)
+    });
+    return true;
+  } catch (error) {
+    console.warn('[tarotKingdom] online fleet departure failed:', error);
+    return false;
   }
 }
 
@@ -13473,6 +13544,7 @@ async function waitForTkUid(timeoutMs = 4000) {
 function isRoomInProgressFromStatePayload(payload) {
   const st = payload?.state || null;
   if (!st || typeof st !== 'object') return false;
+  if (String(st.onlineDeparture?.status || '').trim()) return true;
   if (st.roundActive) return true;
   if (Number(st.handNo || 0) > 0) return true;
   if (st.awaitRoundConfirm) return true;
@@ -14587,7 +14659,8 @@ function deserializeStateFromNet(payload) {
     nextState.rules.enemyCombatVersion,
     nextState.players.length,
     nextState.stage,
-    nextState.rules.enemyAbilityVersion
+    nextState.rules.enemyAbilityVersion,
+    nextState.rules.elementAffinityVersion
   );
   return nextState;
 }
@@ -14759,6 +14832,7 @@ function bindKingdomOfflineCheckpointLifecycle() {
 
 function shouldRoomStayOpen() {
   if (!s) return false;
+  if (String(s.onlineDeparture?.status || '').trim()) return false;
   if (s.roundActive) return false;
   if (Number(s.handNo || 0) > 0) return false;
   if (s.awaitRoundConfirm) return false;
@@ -14784,7 +14858,11 @@ async function syncOpenRoomIndex() {
   }
 }
 
-async function publishStateToRoom(force = false) {
+async function publishStateToRoom(force = false, options = {}) {
+  const {
+    skipOpenRoomSync = false,
+    throwOnError = false
+  } = options || {};
   if (!isNetModeActive() || !tkNet.isHost || !netHostAuthorityReady || !netRoomStateReady || !s) return;
   const payload = serializeStateForNet();
   const authorityState = serializeKingdomAuthorityStateForNet();
@@ -14812,9 +14890,12 @@ async function publishStateToRoom(force = false) {
     netLastStateHash = hash;
     netLastAuthorityStateSnapshot = cloneKingdomSnapshotValue(authorityState, null);
     netLastPrivateHandSnapshots = cloneKingdomSnapshotValue(privateHands, {});
-    await syncOpenRoomIndex();
+    if (!skipOpenRoomSync) {
+      await syncOpenRoomIndex();
+    }
   } catch (error) {
     console.warn('[tarotKingdom] failed to publish room state:', error);
+    if (throwOnError) throw error;
   }
 }
 
@@ -15850,6 +15931,7 @@ function applyRemoteRoomState(payload, options = {}) {
   applyPresenceToPlayers();
   enforceLeadTurnInvariant();
   render();
+  void playKingdomOnlineDeparture(s.onlineDeparture);
   playKingdomRemotePresentationCues(presentationCues);
   return s;
 }
@@ -16034,6 +16116,7 @@ function teardownTarotKingdomNetwork() {
   netForceCreateRoom = false;
   netRequestedRoomId = '';
   netLastConnectError = null;
+  kingdomHandledOnlineDepartureToken = '';
   clearKingdomRemotePresentation();
   clearKingdomPresentationPlaybackTimers();
   renderOpenRoomsList([]);
@@ -16139,7 +16222,7 @@ async function ensureTarotKingdomNetwork() {
         const ownerPlayFabId = String(netJoinedExplorationMeta.ownerPlayFabId || '').trim();
         const explorationId = String(netJoinedExplorationMeta.explorationId || '').trim();
         if (localPlayFabId && ownerPlayFabId && explorationId && localPlayFabId !== ownerPlayFabId) {
-          await joinExplorationStage(localPlayFabId, ownerPlayFabId, explorationId, {
+          await joinExplorationStage(localPlayFabId, ownerPlayFabId, explorationId, roomId, {
             isSilent: true,
             throwOnError: true
           });
@@ -18618,7 +18701,11 @@ function exposeTarotKingdomBattleDebugTools(target) {
       return snapshotTarotKingdomDebugState();
     },
     battleValidateEnvelope: (payload = {}) => validateKingdomActionEnvelope(payload, ''),
-    battleDamageForPlay: (playerIndex, play) => getKingdomBattleDamageForPlay(Number(playerIndex), play),
+    battleDamageForPlay: (playerIndex, play, options = {}) => getKingdomBattleDamageForPlay(
+      Number(playerIndex),
+      play,
+      options
+    ),
     battleHpZeroWinner: (lastHitIndex = 0) => ({
       winnerIndex: resolveKingdomHpZeroRoundWinner(Number(lastHitIndex)),
       scores: s.players.map((player, playerIndex) => getKingdomHpZeroHandScore(player, playerIndex))
@@ -19350,6 +19437,33 @@ function getMajorSuitGateViolation(play, mode) {
   return null;
 }
 
+function getKingdomPlayHarmony(play, trick) {
+  if (!play || !trick || play.call === true || play.type !== trick.type) return null;
+  const playCards = Array.isArray(play.cardsTable) ? play.cardsTable.filter(Boolean) : [];
+  const trickCards = Array.isArray(trick.cardsTable) ? trick.cardsTable.filter(Boolean) : [];
+  if (!playCards.length || !trickCards.length) return null;
+  if ([...playCards, ...trickCards].some((card) => card?.kind !== 'minor')) return null;
+
+  if (play.type === 'set') {
+    if (Number(play.count || playCards.length) !== Number(trick.count || trickCards.length)) return null;
+    if (setCmp(play.setPower ?? play.number, trick.setPower ?? trick.number) !== 0) return null;
+  } else if (play.type === 'role') {
+    if (compareRole(play.role, trick.role) !== 0) return null;
+  } else {
+    return null;
+  }
+
+  const pair = getSuitHarmonyPair(getPlaySuitMask(play), getPlaySuitMask(trick));
+  if (!pair) return null;
+  return {
+    active: true,
+    label: 'HARMONY',
+    multiplier: KINGDOM_HARMONY_DAMAGE_MULTIPLIER,
+    playSuit: pair.playSuit,
+    trickSuit: pair.trickSuit
+  };
+}
+
 function validatePlay(play, mode) {
   const tutorialPlayGateViolation = getKingdomTutorialPlayGateViolation(play, mode);
   if (tutorialPlayGateViolation) return { ok: false, reason: tutorialPlayGateViolation };
@@ -19419,18 +19533,18 @@ function validatePlay(play, mode) {
     }
     const playMask = getPlaySuitMask(play);
     const trickMask = getPlaySuitMask(s.trick);
-    return isSuitMatchupCompatible(playMask, trickMask)
+    return isSuitHarmonyCompatible(playMask, trickMask)
       ? { ok: true }
-      : { ok: false, reason: `同数値は勝ちスート（${SUIT_ADVANTAGE_LABEL}）のみ有効です。` };
+      : { ok: false, reason: `同数値は調和スート（${SUIT_HARMONY_LABEL}）のみ有効です。` };
   }
   const roleCmp = compareRole(play.role, s.trick.role);
   if (roleCmp > 0) return { ok: true };
   if (roleCmp < 0) return { ok: false, reason: '場より強い役が必要です。' };
   const playMask = getPlaySuitMask(play);
   const trickMask = getPlaySuitMask(s.trick);
-  return isSuitMatchupCompatible(playMask, trickMask)
+  return isSuitHarmonyCompatible(playMask, trickMask)
     ? { ok: true }
-    : { ok: false, reason: `同役同値は勝ちスート（${SUIT_ADVANTAGE_LABEL}）のみ有効です。` };
+    : { ok: false, reason: `同役同値は調和スート（${SUIT_HARMONY_LABEL}）のみ有効です。` };
 }
 
 function removeHand(p, idxs) {
@@ -21136,6 +21250,9 @@ function applyPlay(pi, play, retryDepth = 0) {
     play.resonanceContext.skippedPlayerIndexes = skippedPlayerIndexes;
   }
   const roleChain = applyKingdomRoleChain(play, prevTrick);
+  const harmony = getKingdomPlayHarmony(play, prevTrick);
+  if (harmony) play.harmony = harmony;
+  else if (Object.prototype.hasOwnProperty.call(play, 'harmony')) delete play.harmony;
   // Clear stale, transient number labels before applying the current-play label hints.
   const clearTransientNumberLabel = (card) => {
     if (!card || typeof card !== 'object') return;
@@ -21242,9 +21359,11 @@ function applyPlay(pi, play, retryDepth = 0) {
       }
     : null;
   log(`${p.name}: ${play.type === 'set' ? `${play.count}枚出し` : getRoleDisplayLabel(play)}`);
-  const actionLabel = tutorialSuccessLabel || (play.type === 'set'
-    ? `${play.count}枚出し`
-    : getRoleDisplayLabel(play));
+  const actionLabel = play.harmony?.active === true
+    ? `HARMONY ×${KINGDOM_HARMONY_DAMAGE_MULTIPLIER.toFixed(2)}`
+    : (tutorialSuccessLabel || (play.type === 'set'
+      ? `${play.count}枚出し`
+      : getRoleDisplayLabel(play)));
   triggerKingdomActionFx(pi, actionLabel, {
     overlay: isRolePlay ? null : 'action',
     overlayHoldMs: null,
@@ -22178,7 +22297,7 @@ function scoreNpcPlay(playerIndex, play, observation, reserveContext = null) {
       const projectedAttack = getKingdomBattleDamageForPlay(playerIndex, {
         ...play,
         roleChain: projectedChain
-      });
+      }, { previousTrick: s?.trick });
       const chainedDamage = Math.max(0, Number(projectedAttack?.damage) || 0);
       const unchainedDamage = Math.floor(chainedDamage / projectedChain.multiplier);
       score += Math.max(0, chainedDamage - unchainedDamage) * 0.35;
@@ -27526,6 +27645,7 @@ function updateButtons() {
   const isExplorationOffline = isExplorationEntry && !isExplorationOnline;
   const raidLobby = isKingdomRaidLobby();
   const raidPartyEligible = raidLobby && isKingdomRaidPartyEligible();
+  const onlineDeparturePending = kingdomExplorationSession?.context?.onlineDeparturePending === true;
   const showPreviewModeChoice = window.__TAROT_KINGDOM_PREVIEW__ === true
     && !isExplorationEntry
     && showModeChoice;
@@ -27543,15 +27663,18 @@ function updateButtons() {
         onlineDisabled = false;
       } else if (tkNet.isHost && isLobbyReadyToStart) {
         showOnlineAction = true;
-        if (raidLobby) {
+        if (onlineDeparturePending) {
+          onlineLabel = '全員で出航中';
+          onlineDisabled = true;
+        } else if (raidLobby) {
           onlineLabel = raidPartyEligible
-            ? 'レイドバトル開始'
+            ? 'レイドへ出航'
             : 'プレイヤー・ペット4枠を待機中';
           onlineDisabled = !raidPartyEligible;
         } else {
           onlineLabel = needsCharacterRetry
             ? '戦闘プロフィールを再取得'
-            : (hasVacancy ? '救難を締め切って戦闘開始' : '救援隊で戦闘開始');
+            : (hasVacancy ? '救難を締め切って出航' : '全員で出航');
         }
       }
     } else if (showPreviewModeChoice && kingdomStartMode === 'online') {
@@ -27561,12 +27684,12 @@ function updateButtons() {
       } else if (!netMode) {
         onlineLabel = 'オンライン対戦を再試行';
       } else if (!tkNet.isHost) {
-        onlineLabel = 'ホストの開始を待機中';
+        onlineLabel = 'ホストの出航を待機中';
         onlineDisabled = true;
       } else if (isLobbyReadyToStart) {
         onlineLabel = needsCharacterRetry
           ? '戦闘プロフィールを再取得'
-          : (hasVacancy ? '受付を止めて戦いを始める' : 'オンライン対戦を開始');
+          : (hasVacancy ? '受付を止めて出航' : '全員で出航');
       } else {
         onlineLabel = 'オンライン対戦を再試行';
       }
@@ -27929,83 +28052,158 @@ async function handleKingdomOnlineStartClick(options = {}) {
   }
   if (!canStartKingdomRoundFromLobby({ requireOnlineParty: autoStart === true ? requireParty : false })) return;
   const context = kingdomExplorationSession?.context;
-  if (
-    !isKingdomRaidLobby()
-    && !isKingdomRaidBattle()
-    && isKingdomRaidPartyEligible()
-    && typeof context?.onRaidEncounter === 'function'
-    && context.raidEncounterChecked !== true
-  ) {
-    if (context.raidEncounterPending === true) return;
-    context.raidEncounterPending = true;
-    s.message = '海域の様子を確認しています...';
+  if (context?.onlineDeparturePending === true) return false;
+  let departure = null;
+  if (context?.mode === 'online') {
+    context.onlineDeparturePending = true;
+    departure = {
+      token: createKingdomPresentationEpoch(),
+      startedAt: Date.now(),
+      status: 'locking',
+      participants: getKingdomOnlineParticipants()
+    };
+    s.onlineDeparture = departure;
+    s.message = '参加者を確定しています...';
     render();
-    try {
-      await publishStateToRoom(true);
-      const encounterResult = await context.onRaidEncounter(tkNet.roomId);
-      context.raidEncounterChecked = true;
-      if (encounterResult?.encountered === true) {
-        const raid = normalizeKingdomRaidState(encounterResult.attempt);
-        if (!raid) throw new Error('レイド遭遇情報を確認できませんでした。');
+  }
+  try {
+    if (departure) {
+      await publishStateToRoom(true, {
+        skipOpenRoomSync: true,
+        throwOnError: true
+      });
+      if (typeof context?.onOnlinePartyLock !== 'function') {
+        throw new Error('オンライン参加者を確定できませんでした。');
+      }
+      await context.onOnlinePartyLock(tkNet.roomId, true);
+      await removeCurrentOpenRoomIndex();
+    }
+    if (
+      !isKingdomRaidLobby()
+      && !isKingdomRaidBattle()
+      && isKingdomRaidPartyEligible()
+      && typeof context?.onRaidEncounter === 'function'
+      && context.raidEncounterChecked !== true
+    ) {
+      if (context.raidEncounterPending === true) {
+        throw new Error('海域情報を確認中です。少し待ってからもう一度お試しください。');
+      }
+      context.raidEncounterPending = true;
+      s.message = '海域の様子を確認しています...';
+      render();
+      try {
+        await publishStateToRoom(true);
+        const encounterResult = await context.onRaidEncounter(tkNet.roomId);
+        context.raidEncounterChecked = true;
+        if (encounterResult?.encountered === true) {
+          const raid = normalizeKingdomRaidState(encounterResult.attempt);
+          if (!raid) throw new Error('レイド遭遇情報を確認できませんでした。');
+          context.raid = raid;
+          context.raidLobby = false;
+          context.battlefieldId = TAROT_KINGDOM_RAID_BATTLEFIELD_ID;
+          context.atmosphereTone = 'raid';
+          context.monsters = [];
+          s.stage = null;
+          s.raid = raid;
+          kingdomExplorationMonsterId = raid.preFormMonsterId;
+          document.body?.setAttribute('data-tarot-kingdom-battlefield-id', TAROT_KINGDOM_RAID_BATTLEFIELD_ID);
+          document.body?.setAttribute('data-tarot-kingdom-atmosphere-tone', 'raid');
+          await preloadKingdomBattlefieldImage(TAROT_KINGDOM_RAID_BATTLEFIELD_ID);
+          s.battle = createKingdomBattleState(
+            0,
+            false,
+            context.destinationId,
+            Number(s.rules?.enemyCombatVersion || 1),
+            s.players.length,
+            null,
+            Number(s.rules?.enemyAbilityVersion ?? 1)
+          );
+          s.message = '海域に　ただならぬ気配が　あらわれた！';
+          render();
+          await publishStateToRoom(true);
+        }
+      } finally {
+        context.raidEncounterPending = false;
+      }
+    }
+    if (isKingdomRaidLobby()) {
+      if (!isKingdomRaidPartyEligible()) {
+        throw new Error('レイドは通常NPCがいない4人チーム（プレイヤー・ペットのみ）で挑戦できます。');
+      }
+      if (typeof context?.onRaidStart !== 'function' || context.raidStartPending === true) {
+        throw new Error('レイドバトルを準備できませんでした。');
+      }
+      context.raidStartPending = true;
+      s.message = 'レイドバトルを準備しています...';
+      render();
+      try {
+        await publishStateToRoom(true);
+        const attempt = await context.onRaidStart(tkNet.roomId);
+        const raid = normalizeKingdomRaidState(attempt);
+        if (!raid) throw new Error('レイド挑戦情報を確認できませんでした。');
         context.raid = raid;
         context.raidLobby = false;
-        context.battlefieldId = TAROT_KINGDOM_RAID_BATTLEFIELD_ID;
-        context.atmosphereTone = 'raid';
-        context.monsters = [];
-        s.stage = null;
         s.raid = raid;
         kingdomExplorationMonsterId = raid.preFormMonsterId;
-        document.body?.setAttribute('data-tarot-kingdom-battlefield-id', TAROT_KINGDOM_RAID_BATTLEFIELD_ID);
-        document.body?.setAttribute('data-tarot-kingdom-atmosphere-tone', 'raid');
-        await preloadKingdomBattlefieldImage(TAROT_KINGDOM_RAID_BATTLEFIELD_ID);
-        s.battle = createKingdomBattleState(
-          0,
-          false,
-          context.destinationId,
-          Number(s.rules?.enemyCombatVersion || 1),
-          s.players.length,
-          null,
-          Number(s.rules?.enemyAbilityVersion ?? 1)
-        );
-        s.message = '海域に　ただならぬ気配が　あらわれた！';
-        render();
-        await publishStateToRoom(true);
+      } finally {
+        context.raidStartPending = false;
       }
-    } finally {
-      context.raidEncounterPending = false;
     }
-  }
-  if (isKingdomRaidLobby()) {
-    if (!isKingdomRaidPartyEligible()) {
-      s.message = 'レイドは通常NPCがいない4人チーム（プレイヤー・ペットのみ）で挑戦できます。';
+    if (departure) {
+      departure = {
+        ...departure,
+        startedAt: Date.now(),
+        status: 'sailing',
+        participants: getKingdomOnlineParticipants()
+      };
+      s.onlineDeparture = departure;
+      s.message = 'プレイヤー全員の船で島へ向けて出航します。';
       render();
-      return;
-    }
-    if (typeof context?.onRaidStart !== 'function' || context.raidStartPending === true) return;
-    context.raidStartPending = true;
-    s.message = 'レイドバトルを準備しています...';
-    render();
-    try {
       await publishStateToRoom(true);
-      const attempt = await context.onRaidStart(tkNet.roomId);
-      const raid = normalizeKingdomRaidState(attempt);
-      if (!raid) throw new Error('レイド挑戦情報を確認できませんでした。');
-      context.raid = raid;
-      context.raidLobby = false;
-      s.raid = raid;
-      kingdomExplorationMonsterId = raid.preFormMonsterId;
-    } finally {
-      context.raidStartPending = false;
+      await playKingdomOnlineDeparture(departure);
+      if (!s || isKingdomMatchDoneState(s)) {
+        context.onlineDeparturePending = false;
+        return false;
+      }
+      s.onlineDeparture = { ...departure, status: 'arrived' };
+      s.message = `${context.destinationName || '島'}へ着岸。バトルを開始します。`;
+      render();
+      await publishStateToRoom(true);
+    } else {
+      s.message = '対戦を開始しています...';
     }
+    render();
+    await removeCurrentOpenRoomIndex();
+    let started = false;
+    await requestHostAction({ type: 'startOrNext' }, async () => {
+      started = (await startOrNext()) === true;
+    });
+    if (context) context.onlineDeparturePending = false;
+    return started;
+  } catch (error) {
+    if (context) context.onlineDeparturePending = false;
+    const canReturnToLobby = Boolean(
+      departure
+      && s
+      && !s.roundActive
+      && Number(s.handNo || 0) <= 0
+      && String(s.phase || '') !== 'done'
+    );
+    if (canReturnToLobby) {
+      s.onlineDeparture = null;
+      s.message = error?.message || '出航準備に失敗しました。もう一度お試しください。';
+      render();
+      await publishStateToRoom(true);
+      if (typeof context?.onOnlinePartyLock === 'function') {
+        try {
+          await context.onOnlinePartyLock(tkNet.roomId, false);
+        } catch (unlockError) {
+          console.warn('[tarotKingdom] failed to unlock online party:', unlockError);
+        }
+      }
+    }
+    throw error;
   }
-  s.message = '対戦を開始しています...';
-  render();
-  await removeCurrentOpenRoomIndex();
-  let started = false;
-  await requestHostAction({ type: 'startOrNext' }, async () => {
-    started = (await startOrNext()) === true;
-  });
-  return started;
 }
 
 async function handleKingdomOfflineStartClick() {
@@ -28029,6 +28227,23 @@ async function handleKingdomExplorationRetreatClick() {
     !kingdomExplorationSession
     || (!shouldShowKingdomModeChoice() && !isKingdomExplorationDefeatState(s))
   ) return;
+  const context = kingdomExplorationSession?.context;
+  if (
+    isNetModeActive()
+    && tkNet.isHost
+    && shouldShowKingdomModeChoice()
+    && context?.mode === 'online'
+    && typeof context?.onOnlinePartyLock === 'function'
+  ) {
+    s.message = '現在の参加状況を確認しています...';
+    render();
+    const partyState = await context.onOnlinePartyLock(tkNet.roomId, false);
+    const participants = Array.isArray(partyState?.participants) ? partyState.participants : [];
+    const localPlayFabId = String(window.myPlayFabId || tkNet.uid || '').trim();
+    if (participants.some((participantId) => String(participantId || '').trim() !== localPlayFabId)) {
+      throw new Error('救難信号へ参加者がいるため撤退できません。');
+    }
+  }
   if (isNetModeActive() && tkNet.isHost) {
     await removeCurrentOpenRoomIndex();
   }
@@ -28412,7 +28627,7 @@ function ensureKingdomRulebookUi() {
               <li><span>1</span><div><strong>枚数</strong><small>場と同じ1〜3枚</small></div></li>
               <li><span>2</span><div><strong>数字</strong><small>複数枚ならすべて同じ</small></div></li>
               <li><span>3</span><div><strong>強さ</strong><small>場より大きい数字</small></div></li>
-              <li><span>4</span><div><strong>同値</strong><small>大アルカナか相性スート</small></div></li>
+              <li><span>4</span><div><strong>同値</strong><small>大アルカナか調和スート</small></div></li>
             </ol>
             <div class="tarot-kingdom-rulebook-copy-grid">
               <div>
@@ -28421,7 +28636,7 @@ function ensureKingdomRulebookUi() {
               </div>
               <div>
                 <h4>同じ強さで返す</h4>
-                <p>同値は、場札に勝つ相性スートだけ有効。大アルカナと小アルカナが同値なら大アルカナが優先されます。複数枚では1枚でも場に勝てば成立します。</p>
+                <p>同値は、ワンド↔ソード、カップ↔ペンタクルの調和スートで互いに返せます。大アルカナと小アルカナが同値なら大アルカナが優先。調和で返すと「HARMONY」が発動し、攻撃が×1.15になります。</p>
               </div>
               <div>
                 <h4>場が流れる</h4>
@@ -28436,51 +28651,39 @@ function ensureKingdomRulebookUi() {
                 <p>オフラインではプレイヤーが毎局の親です。オンラインでは素早さが最も高いプレイヤーが親になり、同値は座席順で決まります。局の勝者は次局の親を決めません。</p>
               </div>
             </div>
-            <p class="tarot-kingdom-rulebook-suits-caption">矢印の始点が、矢印の先のスートに勝ちます。</p>
-            <div class="tarot-kingdom-rulebook-suits" aria-label="相性スート。ワンド←カップ←ソード←ペンタクル←ワンド">
+            <p class="tarot-kingdom-rulebook-suits-caption">線で結ばれた2つのスートは互いに調和し、同じ強さで返せます。</p>
+            <div class="tarot-kingdom-rulebook-suits" aria-label="調和スート。ワンドとソード、カップとペンタクル">
               <div class="is-wand">${rulebookCardMarkup(rulebookMinorCard('Wand', 5))}<strong>ワンド</strong></div>
               <div class="is-cup">${rulebookCardMarkup(rulebookMinorCard('Cup', 5))}<strong>カップ</strong></div>
               <div class="is-sword">${rulebookCardMarkup(rulebookMinorCard('Sword', 5))}<strong>ソード</strong></div>
               <div class="is-pentacle">${rulebookCardMarkup(rulebookMinorCard('Pentacle', 5))}<strong>ペンタクル</strong></div>
             </div>
-            <svg class="tarot-kingdom-rulebook-suits-diagram" viewBox="0 0 280 220" xmlns="http://www.w3.org/2000/svg" aria-label="スート相性図。ワンド←カップ←ソード←ペンタクル←ワンド">
-              <defs>
-                <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-                  <polygon points="0 0, 10 3, 0 6" fill="#e7bd58" />
-                </marker>
-              </defs>
-              <!-- ワンド -->
-              <circle cx="140" cy="38" r="24" fill="#a83232" opacity="0.3" />
-              <text x="140" y="43" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">W</text>
-              <text x="140" y="72" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">ワンド</text>
+            <svg class="tarot-kingdom-rulebook-suits-diagram" viewBox="0 0 280 220" xmlns="http://www.w3.org/2000/svg" aria-label="スート調和図。ワンドとソード、カップとペンタクル">
+              <path d="M82 52 H198" fill="none" stroke="#e7bd58" stroke-width="3" stroke-linecap="round" />
+              <text x="140" y="47" text-anchor="middle" fill="#ffe39a" font-size="22" font-weight="900">↔</text>
+              <circle cx="54" cy="52" r="24" fill="#a83232" opacity="0.42" />
+              <text x="54" y="58" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">W</text>
+              <text x="54" y="88" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">ワンド</text>
+              <circle cx="226" cy="52" r="24" fill="#7857ad" opacity="0.42" />
+              <text x="226" y="58" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">S</text>
+              <text x="226" y="88" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">ソード</text>
 
-              <!-- カップ -->
-              <circle cx="242" cy="110" r="24" fill="#2768bd" opacity="0.3" />
-              <text x="242" y="115" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">C</text>
-              <text x="242" y="140" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">カップ</text>
-
-              <!-- ソード -->
-              <circle cx="140" cy="182" r="24" fill="#7857ad" opacity="0.3" />
-              <text x="140" y="187" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">S</text>
-              <text x="140" y="214" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">ソード</text>
-
-              <!-- ペンタクル -->
-              <circle cx="38" cy="110" r="24" fill="#287342" opacity="0.3" />
-              <text x="38" y="115" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">P</text>
-              <text x="38" y="140" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">ペンタクル</text>
-
-              <!-- 矢印 -->
-              <path d="M222 92 Q190 54 160 45" fill="none" stroke="#e7bd58" stroke-width="2" marker-end="url(#arrowhead)" />
-              <path d="M160 174 Q210 158 231 129" fill="none" stroke="#e7bd58" stroke-width="2" marker-end="url(#arrowhead)" />
-              <path d="M58 129 Q83 163 121 176" fill="none" stroke="#e7bd58" stroke-width="2" marker-end="url(#arrowhead)" />
-              <path d="M120 45 Q70 62 50 92" fill="none" stroke="#e7bd58" stroke-width="2" marker-end="url(#arrowhead)" />
+              <path d="M82 154 H198" fill="none" stroke="#e7bd58" stroke-width="3" stroke-linecap="round" />
+              <text x="140" y="149" text-anchor="middle" fill="#ffe39a" font-size="22" font-weight="900">↔</text>
+              <circle cx="54" cy="154" r="24" fill="#2768bd" opacity="0.42" />
+              <text x="54" y="160" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">C</text>
+              <text x="54" y="190" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">カップ</text>
+              <circle cx="226" cy="154" r="24" fill="#287342" opacity="0.42" />
+              <text x="226" y="160" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">P</text>
+              <text x="226" y="190" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">ペンタクル</text>
+              <text x="140" y="216" text-anchor="middle" fill="#ffe39a" font-size="12" font-weight="900">HARMONY ×1.15</text>
             </svg>
           </section>
 
           <section id="tarotKingdomRulesRoles" class="tarot-kingdom-rulebook-section" tabindex="-1">
             <span class="tarot-kingdom-rulebook-section-no">03 / FIVE-CARD ROLES</span>
             <h3>5枚役の強さ</h3>
-            <p>下へ行くほど上位。同じ役なら役の主数字、さらに相性スートで比較します。役が連続するとチェイン倍率が上がり、最大×1.75です。</p>
+            <p>下へ行くほど上位。同じ役・同じ主数字なら調和スートで返せます。成立時はHARMONYで攻撃×1.15。役が連続するとチェイン倍率が上がり、最大×1.75です。</p>
             <div class="tarot-kingdom-rulebook-table-wrap">
               <table>
                 <thead><tr><th>役</th><th>成立条件</th><th>倍率・範囲</th></tr></thead>
@@ -28532,6 +28735,7 @@ function ensureKingdomRulebookUi() {
             <div class="tarot-kingdom-rulebook-copy-grid">
                <div><h4>出札＝攻撃</h4><p>カードを合法に出すと攻撃。装備・能力値・カード共鳴が威力や追加効果へ反映されます。生まれ変わり自体から追加攻撃は発生しません。</p></div>
               <div><h4>役と召喚</h4><p>5枚役は通常攻撃より強力。役に応じて単体・全体攻撃となり、召喚獣が現れることもあります。</p></div>
+              <div><h4>敵の弱点と耐性</h4><p>ワンド（火）↔カップ（水）、ソード（風）↔ペンタクル（地）が互いの弱点です。対になる属性は「WEAK」×1.5、敵と同じ属性は「RESIST」×0.6になります。</p></div>
               <div><h4>パスと防御</h4><p>通常のパスでは反撃を受ける場合があります。ただし局開始の公開札だけが場にある間は、反撃も全員パス時の全体攻撃もありません。「防御」は場が流れるまで自動で守り、被害を抑えます。</p></div>
               <div><h4>状態効果</h4><p>毒・リジェネ・能力変化などはアイコンで表示。戦闘画面の状態アイコンを押すと詳細を確認できます。</p></div>
               <div><h4>生まれ変わり</h4><p>対象の敵・ペットは進化前のHPが0になると、状態効果を解除して進化後の姿へ生まれ変わります。超過ダメージは持ち越さず、進化後は本来の最大HPで復帰します。</p></div>
@@ -28555,7 +28759,7 @@ function ensureKingdomRulebookUi() {
               <li>場と同じ枚数を選んでいる？</li>
               <li>通常出しの複数枚は同じ数字？</li>
               <li>Aと数字1を混ぜていない？</li>
-              <li>同値なら相性スートになっている？</li>
+              <li>同値なら調和スートになっている？</li>
               <li>ロイヤルロック、8カット、11バックが発動中ではない？</li>
               <li>大アルカナ固有の出せる場を満たしている？</li>
               <li>コール不可の3条件に当てはまっていない？</li>
@@ -29162,6 +29366,13 @@ export async function startTarotKingdomExplorationBattle(context = {}) {
     currentPet,
     onlineShip: requestedMode === 'online' ? normalizeKingdomOnlineShip(context?.onlineShip) : null,
     startRequiresOnlineParty: autoStartRequiresParty,
+    onOnlineDeparture: requestedMode === 'online' && typeof context?.onOnlineDeparture === 'function'
+      ? context.onOnlineDeparture
+      : null,
+    onOnlinePartyLock: requestedMode === 'online' && typeof context?.onOnlinePartyLock === 'function'
+      ? context.onOnlinePartyLock
+      : null,
+    onlineDeparturePending: false,
     onOnlinePartyChange: requestedMode === 'online' && typeof context?.onOnlinePartyChange === 'function'
       ? context.onOnlinePartyChange
       : null,
@@ -29360,6 +29571,8 @@ export async function joinTarotKingdomRescueRoom(room = {}) {
       : KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO,
     currentPet,
     onlineShip: normalizeKingdomOnlineShip(room?.onlineShip),
+    onOnlineDeparture: typeof room?.onOnlineDeparture === 'function' ? room.onOnlineDeparture : null,
+    onlineDeparturePending: false,
     onOnlinePartyChange: null,
     isRescueGuest: true,
     ownerPlayFabId: rescue.ownerPlayFabId,

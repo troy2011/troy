@@ -2852,6 +2852,14 @@ function getInventoryRarityTone(item) {
     return 'green';
 }
 
+function getEquipmentRarityFromValue(value) {
+    const score = Math.max(0, Math.floor(Number(value) || 0));
+    if (score >= 60) return 'LEGENDARY';
+    if (score >= 35) return 'EPIC';
+    if (score >= 18) return 'RARE';
+    return 'COMMON';
+}
+
 function getPrimaryInventoryCardStats(item, canonicalCategory) {
     const cd = item?.customData || {};
     const category = canonicalCategory || getCanonicalTarotCategory(cd.Category);
@@ -4749,7 +4757,10 @@ function showEquipmentEnhancementModal(baseItem) {
     const title = document.createElement('strong');
     title.textContent = `${baseItem.name}${baseEnhancement.bonus > 0 ? ` +${baseEnhancement.bonus}` : ''}`;
     const stat = document.createElement('span');
-    stat.textContent = `${statLabel} ${baseEnhancement.effectiveValue}`;
+    const currentRarity = String(
+        baseEnhancement.rarity || getEquipmentRarityFromValue(baseEnhancement.effectiveValue)
+    ).trim().toUpperCase();
+    stat.textContent = `${statLabel} ${baseEnhancement.effectiveValue} / ${currentRarity}`;
     baseCopy.append(title, stat);
     baseName.appendChild(baseCopy);
     baseEl.replaceChildren(baseName);
@@ -4761,6 +4772,7 @@ function showEquipmentEnhancementModal(baseItem) {
     const updateResult = () => {
         const contribution = getLocalContribution();
         const target = Math.min(99, Number(baseEnhancement.effectiveValue || 0) + contribution);
+        const targetRarity = getEquipmentRarityFromValue(target);
         resultEl.innerHTML = '';
         const current = document.createElement('span');
         current.textContent = `${statLabel} ${baseEnhancement.effectiveValue}`;
@@ -4771,7 +4783,9 @@ function showEquipmentEnhancementModal(baseItem) {
         next.textContent = contribution > 0 ? String(target) : '-';
         const bonus = document.createElement('span');
         bonus.className = 'equipment-enhancement-gain';
-        bonus.textContent = contribution > 0 ? `+${contribution}` : '素材未選択';
+        bonus.textContent = contribution > 0
+            ? `+${contribution} / ${currentRarity}${currentRarity === targetRarity ? '' : ` → ${targetRarity}`}`
+            : '素材未選択';
         resultEl.append(current, arrow, next, bonus);
         applyButton.disabled = applying || contribution <= 0;
     };
@@ -4922,6 +4936,9 @@ function showItemDetailModal(item) {
     const canonicalCategory = getCanonicalTarotCategory(cd.Category);
     const isTarotCard = isTarotMajorCategory(canonicalCategory) || isTarotMinorCategory(canonicalCategory);
     const isEquipmentItem = isInventoryEquipmentCategory(canonicalCategory);
+    const equipmentRarity = isEquipmentItem
+        ? String(item?.enhancement?.rarity || '').trim().toUpperCase()
+        : '';
     const detailKind = isTarotCard ? 'tarot' : (isEquipmentItem ? 'equipment' : 'item');
     const spriteFrame = getInventorySpriteFrame(item);
     const iconEl = document.getElementById('itemDetailIcon');
@@ -4963,6 +4980,9 @@ function showItemDetailModal(item) {
         metaEl.innerHTML = '';
         if (!isTarotCard) {
             metaEl.appendChild(createItemDetailMetaChip(getInventoryCategoryLabel(canonicalCategory), detailKind));
+        }
+        if (equipmentRarity) {
+            metaEl.appendChild(createItemDetailMetaChip(equipmentRarity, 'enhanced'));
         }
         if (isEquipmentItem && isInventoryItemEquipped(item)) {
             metaEl.appendChild(createItemDetailMetaChip('装備中', 'equipped'));

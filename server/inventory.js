@@ -46,6 +46,7 @@ const {
     buildEquipmentEnhancementDescriptor,
     buildEquipmentEnhancementDisplayProperties,
     getEquipmentEnhancementBonus,
+    getEquipmentRarityForEffectiveValue,
     normalizeDisplayProperties
 } = require('./equipmentEnhancement');
 const {
@@ -1347,6 +1348,10 @@ function initializeInventoryRoutes(app, deps) {
             contribution,
             targetBonus,
             targetValue: baseEnhancement.baseValue + targetBonus,
+            targetRarity: getEquipmentRarityForEffectiveValue(
+                baseCatalogData,
+                baseEnhancement.baseValue + targetBonus
+            ),
             equippedSlotKeys: getEnhancementEquippedSlotKeys(baseItem, sellContext)
         };
     }
@@ -1363,7 +1368,8 @@ function initializeInventoryRoutes(app, deps) {
                 primaryStat: context.baseEnhancement.primaryStat,
                 baseValue: context.baseEnhancement.baseValue,
                 currentValue: context.baseEnhancement.effectiveValue,
-                currentBonus: context.baseEnhancement.storedBonus
+                currentBonus: context.baseEnhancement.storedBonus,
+                currentRarity: context.baseEnhancement.rarity
             },
             materials: context.materials.map((material) => ({
                 itemId: material.itemId,
@@ -1378,6 +1384,7 @@ function initializeInventoryRoutes(app, deps) {
             contribution: context.contribution,
             targetBonus: context.targetBonus,
             targetValue: context.targetValue,
+            targetRarity: context.targetRarity,
             maxValue: EQUIPMENT_ENHANCEMENT_MAX_STAT
         };
     }

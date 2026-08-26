@@ -3,6 +3,7 @@ const { initializeInventoryRoutes } = require('../server/inventory');
 const {
   applyEquipmentEnhancementToCatalogData,
   buildEquipmentEnhancementDescriptor,
+  getEquipmentRarityForEffectiveValue,
   getEquipmentRarityContribution,
   resolveArmorFamily,
   resolveWeaponFamily
@@ -169,6 +170,34 @@ test('equipment families keep weapon variants separate and classify armor and sh
   expect(getEquipmentRarityContribution(catalog.sword_rare)).toBe(2);
   expect(getEquipmentRarityContribution(catalog.sword_epic)).toBe(3);
   expect(getEquipmentRarityContribution(catalog.sword_legendary)).toBe(4);
+});
+
+test('equipment rank rises when its enhanced primary stat crosses a rarity threshold', () => {
+  const makeEnhancedItem = (bonus) => ({
+    DisplayProperties: { equipmentEnhancement: { version: 1, bonus } }
+  });
+
+  expect(buildEquipmentEnhancementDescriptor('sword_001', catalog.sword_001)).toMatchObject({
+    effectiveValue: 10,
+    rarity: 'common',
+    rarityContribution: 1
+  });
+  expect(buildEquipmentEnhancementDescriptor('sword_001', catalog.sword_001, makeEnhancedItem(8))).toMatchObject({
+    effectiveValue: 18,
+    rarity: 'rare',
+    rarityContribution: 2
+  });
+  expect(buildEquipmentEnhancementDescriptor('sword_001', catalog.sword_001, makeEnhancedItem(25))).toMatchObject({
+    effectiveValue: 35,
+    rarity: 'epic',
+    rarityContribution: 3
+  });
+  expect(buildEquipmentEnhancementDescriptor('sword_001', catalog.sword_001, makeEnhancedItem(50))).toMatchObject({
+    effectiveValue: 60,
+    rarity: 'legendary',
+    rarityContribution: 4
+  });
+  expect(getEquipmentRarityForEffectiveValue(catalog.metal_001, 60)).toBe('legendary');
 });
 
 test('enhancement apply combines material rarity with an inherited enhancement bonus', async () => {

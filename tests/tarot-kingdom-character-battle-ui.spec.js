@@ -319,7 +319,8 @@ test('rulebook explains the current rules and returns to the same battle on mobi
   await expect(rulebook.getByText('13または14を場札と同じスートで出すと、そのスートだけに固定。節制XIVで解除します。')).toBeVisible();
   await expect(rulebook.getByText('通常の出し方で使えます。11バックを切り替え、この札で場を流したプレイヤーが墓地の小アルカナ1枚を回収します。')).toBeVisible();
   await expect(rulebook.getByText('オフラインではプレイヤーが毎局の親です。オンラインでは素早さが最も高いプレイヤーが親になり、同値は座席順で決まります。局の勝者は次局の親を決めません。')).toBeVisible();
-  await expect(rulebook.getByText('矢印の始点が、矢印の先のスートに勝ちます。')).toBeVisible();
+  await expect(rulebook.getByText('線で結ばれた2つのスートは互いに調和し、同じ強さで返せます。')).toBeVisible();
+  await expect(rulebook.getByText('ワンド（火）↔カップ（水）、ソード（風）↔ペンタクル（地）が互いの弱点です。対になる属性は「WEAK」×1.5、敵と同じ属性は「RESIST」×0.6になります。')).toBeVisible();
   await expect(rulebook.getByText('進化前はHP50%、攻撃・防御・賢さ70%、素早さ85%。ペットの進化は探索終了まで続き、小アルカナを維持して固定の大アルカナだけが進化後へ変わります。')).toBeVisible();
   await expect(rulebook.getByText('チュロ→コバット ／ ラムネロ→ツキバネ ／ ホタルビ→フェリカ ／ フロス→モスガン')).toBeVisible();
   await expect(rulebook.getByText('コールできない3つの例')).toBeVisible();
@@ -327,7 +328,7 @@ test('rulebook explains the current rules and returns to the same battle on mobi
   await expect(rulebook.getByText('ここでは出札の裁定だけを掲載。戦闘効果と現在の効果値は、各カードの詳細画面で確認できます。')).toBeVisible();
   await expect(rulebook.locator('.tarot-kingdom-rulebook-suits-diagram')).toHaveAttribute(
     'aria-label',
-    'スート相性図。ワンド←カップ←ソード←ペンタクル←ワンド'
+    'スート調和図。ワンドとソード、カップとペンタクル'
   );
   await expect(rulebook.getByText('同じスートを5枚。世界XXIを含まない大アルカナだけの5枚でも成立します。')).toBeVisible();
   await expect(rulebook.locator('.tarot-kingdom-rulebook-table-wrap tbody tr')).toHaveCount(7);
@@ -3865,7 +3866,7 @@ test('stage 1 teaches four actions with minor-only scripted hands', async ({ pag
   expect(openingCard).toMatchObject({ kind: 'minor', suit: 'Cup', number: 3 });
   expect(leadCard).toMatchObject({ kind: 'minor', suit: 'Cup', number: 4 });
   expect(matchupPair.replyBaseCard).toMatchObject({ kind: 'minor', suit: 'Wand', number: 6 });
-  expect(replyCard).toMatchObject({ kind: 'minor', suit: 'Cup', number: 6 });
+  expect(replyCard).toMatchObject({ kind: 'minor', suit: 'Sword', number: 6 });
   expect(matchupPair.pairBaseCards).toHaveLength(2);
   expect(matchupPair.pairReplyCardIds).toHaveLength(2);
   await expect(page.locator(`[data-card-id="${matchupPair.leadCardId}"]`)).toHaveClass(/is-playable/);
@@ -3879,7 +3880,7 @@ test('stage 1 teaches four actions with minor-only scripted hands', async ({ pag
   expect(lessonOneLeadResult.state.tutorialProgress.completedPlayers[0]).toBe(false);
   expect(lessonOneLeadResult.state.trick.cardsTable[0].id).toBe(matchupPair.replyBaseCard.id);
   await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText(
-    '1-1　同数とスート\n同じ数字は勝ちスートで返せる\nワンド←カップ←ソード←ペンタクル←ワンド'
+    '1-1　同数とスート\n同じ数字は調和スートで返せる\nワンド↔ソード / カップ↔ペンタクル'
   );
   const replyNode = page.locator(`[data-card-id="${matchupPair.replyCardId}"]`);
   await expect(replyNode).toHaveClass(/is-playable/);

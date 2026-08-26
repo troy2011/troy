@@ -24,8 +24,8 @@ test('Tarot Kingdom shares the canonical inventory module with the app shell', (
   expect(kingdomSource).not.toContain("} from './inventory.js';");
   expect(shipSource).toContain("import * as Inventory from 'inventory';");
   expect(shipSource).not.toContain("import * as Inventory from './inventory.js';");
-  expect(indexSource).toContain('"inventory": "./js/inventory.js?v=20260824-judgment-five-card-v1"');
-  expect(previewSource).toContain('"inventory": "./js/inventory.js?v=20260824-judgment-five-card-v1"');
+  expect(indexSource).toContain('"inventory": "./js/inventory.js?v=20260826-equipment-rank-v1"');
+  expect(previewSource).toContain('"inventory": "./js/inventory.js?v=20260826-equipment-rank-v1"');
 });
 
 test('Tarot Kingdom online lobby uses canonical presence for failover and room counts', () => {
@@ -39,6 +39,29 @@ test('Tarot Kingdom online lobby uses canonical presence for failover and room c
   expect(kingdomSource).toContain('playerCount: presenceCount');
   expect(kingdomSource).toContain("setLocalInfoMessage('ホストの戦闘開始を待っています。', 2200)");
   expect(kingdomSource).not.toContain('guest start notification failed');
+});
+
+test('Tarot Kingdom locks the live rescue party before online departure', () => {
+  const kingdomSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'tarotKingdom.js'),
+    'utf8'
+  );
+  const serverSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'server', 'exploration.js'),
+    'utf8'
+  );
+
+  const lockingState = kingdomSource.indexOf("status: 'locking'");
+  const partyLock = kingdomSource.indexOf('await context.onOnlinePartyLock(tkNet.roomId, true)', lockingState);
+  const sailingState = kingdomSource.indexOf("status: 'sailing'", partyLock);
+  expect(lockingState).toBeGreaterThan(-1);
+  expect(partyLock).toBeGreaterThan(lockingState);
+  expect(sailingState).toBeGreaterThan(partyLock);
+  expect(kingdomSource).toContain("if (status !== 'sailing' && status !== 'arrived') return false;");
+  expect(serverSource).toContain("joinError = { code: 409, message: 'この救難信号は出航準備に入りました。' };");
+  expect(serverSource).toContain('stagePartyLockedAtMs: locked === false ? 0 : Date.now()');
+  expect(kingdomSource).toContain('const partyState = await context.onOnlinePartyLock(tkNet.roomId, false);');
+  expect(kingdomSource).toContain("throw new Error('救難信号へ参加者がいるため撤退できません。');");
 });
 
 test('Tarot Kingdom retries a transient Arcana catalog failure before starting', async ({ page }) => {
@@ -59,11 +82,12 @@ test('Tarot Kingdom retries a transient Arcana catalog failure before starting',
 });
 
 test('Tarot Kingdom release advances its entry modules and service-worker cache together', () => {
-  const release = '20260825-monster-motion-v2';
-  const inventoryRelease = '20260824-judgment-five-card-v1';
+  const release = '20260826-element-pairs-v1';
+  const inventoryRelease = '20260826-equipment-rank-v1';
   const indexSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'index.html'), 'utf8');
   const mainSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'main.js'), 'utf8');
   const uiSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'ui.js'), 'utf8');
+  const shipSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'ship.js'), 'utf8');
   const islandSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'island.js'), 'utf8');
   const worldMapSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'WorldMapScene.js'), 'utf8');
   const previewSource = fs.readFileSync(
@@ -83,10 +107,11 @@ test('Tarot Kingdom release advances its entry modules and service-worker cache 
   expect(uiSource).toContain(`./ship.js?v=${release}`);
   expect(islandSource).toContain(`./ship.js?v=${release}`);
   expect(worldMapSource).toContain(`./js/ship.js?v=${release}`);
+  expect(shipSource).toContain(`./playfabClient.js?v=${release}`);
   expect(previewSource).toContain(`"ui": "./js/ui.js?v=${release}"`);
   expect(previewSource).toContain(`./js/tarotKingdom.js?v=${release}`);
   expect(previewSource).toContain(`./style.css?v=${release}`);
-  expect(serviceWorkerSource).toContain("const CACHE_VERSION = 'troy-app-v20260825f';");
+  expect(serviceWorkerSource).toContain("const CACHE_VERSION = 'troy-app-v20260826a';");
 });
 
 function loadServiceWorkerHarness() {

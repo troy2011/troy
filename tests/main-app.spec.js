@@ -871,7 +871,14 @@ test('ranking tab shows bounty billiards and game as top category buttons', asyn
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
         ranking: [
-          { displayName: '賞金首', bounty: 1234, score: 1234, level: 21, rankName: '船長', playFabId: 'PF_BOUNTY' }
+          {
+            displayName: '伝説の海賊キャプテン',
+            bounty: 1234567890,
+            score: 1234567890,
+            level: 21,
+            rankName: '船長',
+            playFabId: 'PF_BOUNTY'
+          }
         ]
       })
     });
@@ -899,6 +906,7 @@ test('ranking tab shows bounty billiards and game as top category buttons', asyn
     });
   });
 
+  await page.setViewportSize({ width: 390, height: 844 });
   await bootstrapMainApp(page);
   await page.evaluate(async () => {
     await window.showTab('ranking');
@@ -918,8 +926,28 @@ test('ranking tab shows bounty billiards and game as top category buttons', asyn
 
   await page.locator('#btnShowBountyRanking').click();
   await expect(page.locator('#bountyRankingArea')).toBeVisible();
-  await expect(page.locator('#bountyRankingList')).toContainText('賞金首');
-  await expect(page.locator('#bountyRankingList')).toContainText('1,234 ĐɃ');
+  await expect(page.locator('#bountyRankingList')).toContainText('伝説の海賊キャプテン');
+  await expect(page.locator('#bountyRankingList')).toContainText('1,234,567,890 ĐɃ');
+  const bountyLayout = await page.locator('#bountyRankingList .ranking-row').evaluate((row) => {
+    const name = row.querySelector('.ranking-row-name');
+    const score = row.querySelector('.ranking-row-score');
+    const main = row.querySelector('.ranking-row-main');
+    const nameRect = name?.getBoundingClientRect();
+    const scoreRect = score?.getBoundingClientRect();
+    const mainRect = main?.getBoundingClientRect();
+    return {
+      nameFits: (name?.scrollWidth || 0) <= (name?.clientWidth || 0),
+      scoreBelowName: (scoreRect?.top || 0) >= (nameRect?.bottom || 0),
+      scoreWithinMainWidth: (scoreRect?.width || 0) <= (mainRect?.width || 0) + 1,
+      rowFits: row.scrollWidth <= row.clientWidth
+    };
+  });
+  expect(bountyLayout).toEqual({
+    nameFits: true,
+    scoreBelowName: true,
+    scoreWithinMainWidth: true,
+    rowFits: true
+  });
 
   await page.locator('#btnShowBilliardsRanking').click();
   await expect(page.locator('#billiardsRankingArea')).toBeVisible();
@@ -2253,7 +2281,7 @@ test('exploration stage starts for free with ordered optional supplies', async (
     window.launchTarotKingdomExplorationBattle = async (context) => {
       window.__explorationKingdomLaunches.push(context);
       if (context.mode === 'online') {
-        context.onOnlinePartyChange?.([
+        const participants = [
           {
             seat: 0,
             playFabId: 'PF_PLAYWRIGHT',
@@ -2275,9 +2303,22 @@ test('exploration stage starts for free with ordered optional supplies', async (
             isHost: false,
             ship: { form: 'guild', sailColor: 'blue' }
           }
-        ]);
+        ];
+        context.onOnlinePartyChange?.(participants);
+        context.onEntryReady?.();
+        await context.onOnlineDeparture?.({
+          token: 'test-fleet-departure',
+          startedAt: Date.now(),
+          participants,
+          destinationId: context.destinationId,
+          destinationName: context.destinationName,
+          stageId: context.stageId,
+          stageNo: context.stageNo,
+          onlineShip: context.onlineShip
+        });
+      } else {
+        context.onEntryReady?.();
       }
-      context.onEntryReady?.();
       return {
         status: 'completed',
         completed: true,
@@ -2575,7 +2616,7 @@ test('home tab restores the bottom navigation after a resolved Kingdom retreat',
   await expectNoPageErrors(errors);
 });
 
-test('exploration rescue signal auto-starts without a dedicated online lobby', async ({ page }) => {
+test('exploration rescue waits in the online lobby and departs before battle', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.route('**/api/get-troy-status', async (route) => {
     await route.fulfill({
@@ -2624,10 +2665,27 @@ test('exploration rescue signal auto-starts without a dedicated online lobby', a
       mode: 'online',
       enemyDefeatMode: 'hand-empty',
       onlineShip: { form: 'fighter', sailColor: 'white' },
-      autoStartOnline: true,
-      startBarrier: Promise.resolve(),
+      autoStartOnline: false,
       onOnlinePartyChange: (participants) => {
         window.__explorationOnlineParty = participants;
+      },
+      onOnlinePartyLock: async (roomId, locked) => {
+        const roomState = window.__pwFirebaseDbApi.getValue(`tarotKingdomRooms/${roomId}/state`)?.state;
+        window.__explorationDepartureOrder = [
+          ...(window.__explorationDepartureOrder || []),
+          {
+            type: 'lock',
+            locked,
+            status: String(roomState?.onlineDeparture?.status || '')
+          }
+        ];
+      },
+      onOnlineDeparture: async (departure) => {
+        window.__explorationDepartureOrder = [
+          ...(window.__explorationDepartureOrder || []),
+          { type: 'departure', status: String(departure?.status || '') }
+        ];
+        window.__explorationOnlineDeparture = departure;
       },
       onEntryReady: () => {
         window.__explorationOnlineEntryReady = true;
@@ -2638,10 +2696,11 @@ test('exploration rescue signal auto-starts without a dedicated online lobby', a
   await expect(page.locator('#tarotKingdomRoot')).toBeVisible();
   await expect(page.locator('body')).toHaveAttribute('data-tarot-kingdom-entry-mode', 'online');
   await expect(page.locator('#tarotKingdomStateText')).toContainText('オルビス');
-  await expect(page.locator('#tarotKingdomBattleStage')).toBeVisible({ timeout: 7000 });
-  await expect(page.locator('#tarotKingdomStartOnlineButton')).toBeHidden();
+  await expect(page.locator('#tarotKingdomBattleStage')).toBeHidden();
+  await expect(page.locator('#tarotKingdomStartOnlineButton')).toBeVisible();
+  await expect(page.locator('#tarotKingdomStartOnlineButton')).toHaveText('救難を締め切って出航');
   await expect(page.locator('#tarotKingdomStartOfflineButton')).toBeHidden();
-  await expect(page.locator('#tarotKingdomRetreatButton')).toBeHidden();
+  await expect(page.locator('#tarotKingdomRetreatButton')).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.__explorationOnlineEntryReady === true)).toBe(true);
   await expect.poll(() => page.evaluate(() => (
     window.__explorationOnlineParty?.find?.((entry) => entry.playFabId === 'PF_PLAYWRIGHT')?.ship || null
@@ -2655,6 +2714,27 @@ test('exploration rescue signal auto-starts without a dedicated online lobby', a
     return presenceEntry?.[1]?.ship || null;
   })).toEqual({ form: 'fighter', sailColor: 'white' });
 
+  await expect.poll(() => page.evaluate(() => {
+    const entries = Array.from(window.__pwFirebaseDbStore?.values?.entries?.() || []);
+    const roomEntry = entries.find(([path]) => String(path).startsWith('tarotKingdomMatch/openRooms/'));
+    return roomEntry?.[1] || null;
+  }), { timeout: 7000 }).not.toBeNull();
+  await page.locator('#tarotKingdomStartOnlineButton').click();
+  await expect.poll(() => page.evaluate(() => window.__explorationOnlineDeparture || null)).toMatchObject({
+    participants: [
+      expect.objectContaining({
+        playFabId: 'PF_PLAYWRIGHT',
+        ship: { form: 'fighter', sailColor: 'white' }
+      })
+    ]
+  });
+  await expect.poll(() => page.evaluate(() => window.__explorationDepartureOrder || [])).toEqual([
+    { type: 'lock', locked: true, status: 'locking' },
+    { type: 'departure', status: 'sailing' }
+  ]);
+  await expect(page.locator('#tarotKingdomStartOnlineButton')).toBeHidden();
+  await expect(page.locator('#tarotKingdomRetreatButton')).toBeHidden();
+  await expect(page.locator('#tarotKingdomBattleStage')).toBeVisible({ timeout: 7000 });
   await expect.poll(() => page.evaluate(() => {
     const entries = Array.from(window.__pwFirebaseDbStore?.values?.entries?.() || []);
     const roomEntry = entries.find(([path]) => String(path).startsWith('tarotKingdomMatch/openRooms/'));
@@ -2767,6 +2847,9 @@ test('exploration rescue starts battle after a third player replaces a pet seat'
       autoStartOnline: true,
       startRequiresOnlineParty: true,
       startBarrier,
+      onOnlinePartyLock: async (roomId, locked) => {
+        window.__rosterPartyLock = { roomId, locked };
+      },
       onRaidEncounter: async (roomId) => {
         const roomPath = `tarotKingdomRooms/${roomId}`;
         const roomState = window.__pwFirebaseDbApi.getValue(`${roomPath}/state`)?.state;
@@ -2856,6 +2939,9 @@ test('exploration rescue starts battle after a third player replaces a pet seat'
       { isNpc: false, isPet: false, playFabId: 'PF_GUEST_2', petOwnerPlayFabId: '' }
     ]
   });
+  await expect.poll(() => page.evaluate(() => window.__rosterPartyLock || null), {
+    timeout: 10000
+  }).toMatchObject({ locked: true });
   await expect.poll(() => profileRequests.at(-1), { timeout: 10000 }).toEqual([
     'PF_PLAYWRIGHT',
     'PF_GUEST_1',
@@ -3008,7 +3094,8 @@ test('home rescue list lets a player choose and join a specific exploration room
   await expect.poll(() => stageJoinBody).toMatchObject({
     playFabId: 'PF_PLAYWRIGHT',
     ownerPlayFabId: 'PF_HOST',
-    explorationId: 'exp-host-rescue'
+    explorationId: 'exp-host-rescue',
+    roomId: 'tk_rescue_target'
   });
   await expect.poll(() => page.evaluate(() => (
     window.__pwFirebaseDbApi.getValue(
@@ -3016,6 +3103,45 @@ test('home rescue list lets a player choose and join a specific exploration room
     )
   ))).toBe(3);
   await expect(page.locator('#tarotKingdomStateText')).toContainText('救難船長');
+  await page.evaluate(() => {
+    const startedAt = Date.now();
+    window.__pwFirebaseDbApi.setValue('tarotKingdomRooms/tk_rescue_target/state', {
+      state: {
+        roundActive: false,
+        handNo: 0,
+        awaitRoundConfirm: false,
+        phase: 'waiting',
+        onlineDeparture: {
+          token: 'guest-fleet-departure',
+          startedAt,
+          status: 'sailing',
+          participants: [
+            {
+              seat: 0,
+              playFabId: 'PF_HOST',
+              displayName: '救難船長',
+              isHost: true,
+              ship: { form: 'fighter', sailColor: 'white' }
+            },
+            {
+              seat: 3,
+              playFabId: 'PF_PLAYWRIGHT',
+              displayName: 'Playwright Tester',
+              isHost: false,
+              ship: { form: 'guild', sailColor: 'blue' }
+            }
+          ]
+        }
+      }
+    });
+  });
+  const fleetDeparture = page.locator('.exploration-sequence-overlay');
+  await expect(fleetDeparture).toBeVisible();
+  await expect(fleetDeparture.locator('[data-exploration-party-ship]')).toHaveCount(2);
+  await expect(fleetDeparture.locator('[data-party-play-fab-id="PF_HOST"]')).toHaveClass(/is-fighter/);
+  await expect(fleetDeparture.locator('[data-party-play-fab-id="PF_PLAYWRIGHT"]')).toHaveClass(/is-guild/);
+  await expect(fleetDeparture.locator('[data-party-play-fab-id="PF_PLAYWRIGHT"]')).toHaveAttribute('data-guild-sail-color', 'blue');
+  await expect(fleetDeparture).toHaveCount(0, { timeout: 5000 });
   await expectNoPageErrors(errors);
 });
 

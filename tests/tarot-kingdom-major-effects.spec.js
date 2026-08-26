@@ -187,22 +187,41 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     });
   });
 
-  test('four-element affinity uses the shared fire-wind-earth-water cycle', async ({ page }) => {
+  test('enemy weaknesses use the opposing fire-water and wind-earth pairs', async ({ page }) => {
     const affinities = await page.evaluate(async () => {
-      const { getTarotKingdomElementMultiplier } = await import('/js/tarotKingdomMajorEffects.js?v=20260826-four-elements-v1');
-      const water = { native: 'water', weak: 'earth', resist: 'fire' };
+      const {
+        getTarotKingdomElementMultiplier,
+        getTarotKingdomEnemyAffinity
+      } = await import('/js/tarotKingdomMajorEffects.js?v=20260826-element-pairs-v1');
+      const audit = window.TarotKingdomDebug.battleMajorEffectsAudit();
+      const pairByNative = Object.fromEntries(['fire', 'water', 'wind', 'earth'].map((native) => {
+        const affinity = Object.values(audit.affinities).find((entry) => entry.native === native);
+        return [native, { weak: affinity?.weak || '', resist: affinity?.resist || '' }];
+      }));
+      const water = { native: 'water', weak: 'fire', resist: 'water' };
       return {
-        weak: getTarotKingdomElementMultiplier(water, 'earth'),
-        resist: getTarotKingdomElementMultiplier(water, 'fire'),
+        pairByNative,
+        currentWater: getTarotKingdomEnemyAffinity('ismartal-vol3-monster-04', 3),
+        previousWater: getTarotKingdomEnemyAffinity('ismartal-vol3-monster-04', 2),
+        weak: getTarotKingdomElementMultiplier(water, 'fire'),
+        resist: getTarotKingdomElementMultiplier(water, 'water'),
         clash: getTarotKingdomElementMultiplier(water, 'wind'),
-        same: getTarotKingdomElementMultiplier(water, 'water')
+        other: getTarotKingdomElementMultiplier(water, 'earth')
       };
     });
 
+    expect(affinities.pairByNative).toEqual({
+      fire: { weak: 'water', resist: 'fire' },
+      water: { weak: 'fire', resist: 'water' },
+      wind: { weak: 'earth', resist: 'wind' },
+      earth: { weak: 'wind', resist: 'earth' }
+    });
+    expect(affinities.currentWater).toMatchObject({ native: 'water', weak: 'fire', resist: 'water' });
+    expect(affinities.previousWater).toMatchObject({ native: 'water', weak: 'earth', resist: 'fire' });
     expect(affinities.weak).toMatchObject({ multiplier: 1.5, reaction: 'weak' });
     expect(affinities.resist).toMatchObject({ multiplier: 0.6, reaction: 'resist' });
     expect(affinities.clash).toMatchObject({ multiplier: 0.85, reaction: 'clash' });
-    expect(affinities.same).toMatchObject({ multiplier: 1, reaction: '' });
+    expect(affinities.other).toMatchObject({ multiplier: 0.85, reaction: 'clash' });
   });
 
   test('turn effects tick on field clear and World starts after its own forced clear', async ({ page }) => {
@@ -495,7 +514,7 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
       majorArcanaSpecialVersion: 3,
       majorBattleEffectsVersion: 3,
       arcanaLoadoutEffectsVersion: 7,
-      elementAffinityVersion: 2
+      elementAffinityVersion: 3
     });
     expect(audit.schema23.rules).toMatchObject({
       majorArcanaSpecialVersion: 1,

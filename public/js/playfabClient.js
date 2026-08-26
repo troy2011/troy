@@ -921,11 +921,22 @@ export function claimExploration(playFabId, options) {
     return callApiWithLoader('/api/exploration/claim', body, options);
 }
 
-export function joinExplorationStage(playFabId, ownerPlayFabId, explorationId, options) {
+export function joinExplorationStage(playFabId, ownerPlayFabId, explorationId, roomId, options) {
     return callApiWithLoader('/api/exploration/stage-join', {
         playFabId,
         ownerPlayFabId,
-        explorationId
+        explorationId,
+        roomId: String(roomId || '').trim()
+    }, options);
+}
+
+export function syncExplorationStageParty(playFabId, ownerPlayFabId, explorationId, roomId, locked = true, options) {
+    return callApiWithLoader('/api/exploration/stage-party-sync', {
+        playFabId,
+        ownerPlayFabId,
+        explorationId,
+        roomId: String(roomId || '').trim(),
+        locked: locked !== false
     }, options);
 }
 

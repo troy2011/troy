@@ -9865,7 +9865,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 30,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 0
       }
@@ -9890,7 +9890,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 36,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 1
       }
@@ -9915,7 +9915,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 37,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 2
       }
@@ -9940,7 +9940,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 36,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 3
       }
@@ -9965,7 +9965,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 35,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 4
       }
@@ -9990,7 +9990,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 34,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 5
       }
@@ -10015,7 +10015,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 33,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 6
       }
@@ -10040,7 +10040,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 30,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 7
       }
@@ -10065,7 +10065,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 37,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 8
       }
@@ -10090,7 +10090,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 40,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 9
       }
@@ -10115,7 +10115,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 30,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 10
       }
@@ -10140,7 +10140,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 30,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 11
       }
@@ -10165,7 +10165,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 38,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 12
       }
@@ -10190,7 +10190,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 38,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 13
       }
@@ -10215,7 +10215,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 40,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 14
       }
@@ -10240,7 +10240,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 40,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 15
       }
@@ -10265,7 +10265,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 42,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 16
       }
@@ -10290,7 +10290,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 41,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 17
       }
@@ -10315,7 +10315,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 43,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 18
       }
@@ -10340,7 +10340,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 38,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 19
       }
@@ -10365,7 +10365,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 40,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 20
       }
@@ -10390,7 +10390,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 42,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 21
       }
@@ -10415,7 +10415,7 @@
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 45,
+        "Defense": 60,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 22
       }

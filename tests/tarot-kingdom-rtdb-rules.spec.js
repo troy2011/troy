@@ -44,6 +44,7 @@ test('Realtime Database rules bind Tarot Kingdom presence and actions to Firebas
   expect(presenceValidate).toContain("child('seatByUid').child(auth.uid).val()");
   expect(presenceValidate).toContain("child('seatOwners').child(newData.child('seat').val() + '').child('uid').val() === auth.uid");
   expect(actionValidate).toContain("child('seatOwners').child(newData.child('seat').val() + '').child('uid').val() === auth.uid");
+  expect(actionValidate).toContain("newData.child('type').val() === 'trashPick'");
   expect(openRoomWrite).toContain("newData.child('ownerUid').val() === auth.uid");
   expect(openRoomWrite).toContain("child('hostUid').val() === auth.uid");
   expect(openRoomValidate).toContain("newData.hasChildren(['roomId', 'ownerUid', 'createdAt', 'updatedAt'])");

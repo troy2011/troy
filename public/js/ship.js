@@ -18,6 +18,7 @@ import {
     getExplorationEncounter as requestExplorationEncounter,
     retreatExploration as requestRetreatExploration,
     claimExploration as requestClaimExploration,
+    syncExplorationStageParty as requestSyncExplorationStageParty,
     startTarotKingdomRaid as requestStartTarotKingdomRaid,
     finishTarotKingdomRaid as requestFinishTarotKingdomRaid,
     getTarotKingdomPetState as requestTarotKingdomPetState,
@@ -31,7 +32,7 @@ import {
     getShipsInView as fetchShipsInView,
     getShipAsset as fetchShipAsset,
     getShipPosition as fetchShipPosition
-} from './playfabClient.js?v=20260826-tutorial-reward-v1';
+} from './playfabClient.js?v=20260826-element-pairs-v1';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { bindModalClose } from './modalClose.js';
 import { createRequestId } from './api.js';
@@ -2694,7 +2695,7 @@ async function recoverConflictedExploration(playFabId, destinationId, options = 
             battleMode: options.battleMode === 'online' ? 'online' : 'offline',
             tutorialEnabled: options.tutorialEnabled === true,
             skipDeparture: true,
-            autoStartOnline: true,
+            autoStartOnline: false,
             startRequiresOnlineParty: options.battleMode === 'online'
         }
     );
@@ -2719,6 +2720,118 @@ async function recoverConflictedExploration(playFabId, destinationId, options = 
     await loadExplorationPanel(playFabId);
 }
 
+export async function showTarotKingdomOnlineFleetDeparture(options = {}) {
+    const participants = (Array.isArray(options?.participants) ? options.participants : [])
+        .filter((entry) => Number.isInteger(Number(entry?.seat)))
+        .sort((left, right) => Number(left.seat) - Number(right.seat));
+    const fallbackShip = createOnlineBattleShipProfile(options?.onlineShip || currentPlayerShipProfile)
+        || { form: 'boat', sailColor: 'white' };
+    const hostParticipant = participants.find((entry) => entry?.isHost === true) || participants[0] || {
+        seat: 0,
+        isHost: true,
+        ship: fallbackShip
+    };
+    const fleet = [
+        hostParticipant,
+        ...participants.filter((entry) => entry !== hostParticipant)
+    ].slice(0, 4);
+    const destinationId = String(options?.destinationId || options?.stageId || '').trim();
+    const destinationVisual = getExplorationDestinationVisual({
+        id: String(options?.stageId || destinationId),
+        destinationId,
+        name: String(options?.destinationName || ''),
+        imagePath: String(options?.imagePath || '')
+    });
+    const destinationName = String(options?.destinationName || destinationVisual.label || '探索先');
+    const bossTierKey = normalizeExplorationBossTier(options?.bossTier);
+    const existing = document.querySelector('.exploration-sequence-overlay');
+    existing?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = `exploration-sequence-overlay is-boat is-sky-${destinationVisual.sky} is-boss-${bossTierKey}`;
+    overlay.innerHTML = `
+        <div class="exploration-sequence-dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(destinationName)}へ出航">
+            <div class="exploration-sequence-scene">
+                <div class="exploration-sequence-compass" aria-hidden="true"></div>
+                <div class="exploration-sequence-sky"></div>
+                <div class="exploration-sequence-horizon" aria-hidden="true"></div>
+                <div class="exploration-sequence-arrival" aria-hidden="true"></div>
+                ${renderExplorationDestinationVisual({
+                    id: String(options?.stageId || destinationId),
+                    destinationId,
+                    name: destinationName,
+                    imagePath: String(options?.imagePath || '')
+                }, 'exploration-sequence-island', 'div')}
+                <div class="exploration-sequence-ship-effect" aria-hidden="true"></div>
+            </div>
+            <div class="exploration-sequence-copy">
+                <strong>${escapeHtml(destinationName)}</strong>
+                <span data-exploration-sequence-label>救援隊、出航</span>
+            </div>
+        </div>
+    `;
+    const scene = overlay.querySelector('.exploration-sequence-scene');
+    fleet.forEach((participant, index) => {
+        const ship = createOnlineBattleShipProfile(participant?.ship) || fallbackShip;
+        const node = document.createElement('div');
+        const isLead = index === 0;
+        node.className = [
+            'exploration-sequence-ship',
+            `is-${ship.form}`,
+            isLead ? '' : 'is-party-member',
+            isLead ? '' : `is-party-position-${index}`
+        ].filter(Boolean).join(' ');
+        node.dataset.explorationPartyShip = '';
+        node.dataset.explorationPartyRole = isLead ? 'host' : 'guest';
+        node.dataset.partySeat = String(participant?.seat ?? index);
+        node.dataset.partyPlayFabId = String(participant?.playFabId || '');
+        node.dataset.guildSailColor = ship.sailColor;
+        node.setAttribute('aria-hidden', 'true');
+        node.innerHTML = ship.form === 'guild' ? renderGuildShipLayers(ship) : '';
+        scene?.appendChild(node);
+        applyPlayerShipFrameDirection(node, ship.form === 'guild' ? 'guild-right' : 'row2-a');
+    });
+    document.body.appendChild(overlay);
+    alignExplorationSequenceIslandArtwork(overlay);
+
+    const homeFrame = document.getElementById('homePlayerShipFrame');
+    const homeIcon = homeFrame?.querySelector('.home-player-ship-icon');
+    const label = overlay.querySelector('[data-exploration-sequence-label]');
+    const startedAt = Math.max(0, Number(options?.startedAt) || Date.now());
+    const elapsed = Math.max(0, Date.now() - startedAt);
+    overlay.querySelectorAll('.exploration-sequence-ship').forEach((node) => {
+        node.style.setProperty('--exploration-ship-voyage-delay', `${-Math.min(2879, elapsed)}ms`);
+    });
+    const phases = [
+        { at: 0, name: 'sail', text: '救援隊、出航' },
+        { at: 900, name: 'up', text: `${destinationVisual.label}を発見` },
+        { at: 1660, name: 'left', text: '全員で上陸地点へ直進' },
+        { at: 2360, name: 'arrival', text: `${destinationVisual.label}へ着岸` }
+    ];
+    const setPhase = (phase) => {
+        overlay.className = `exploration-sequence-overlay is-boat is-sky-${destinationVisual.sky} is-boss-${bossTierKey} is-voyage is-${phase.name}`;
+        if (label) label.textContent = phase.text;
+        homeIcon?.classList.remove('is-exploring-sail', 'is-exploring-up', 'is-exploring-left', 'is-exploring-arrival');
+        homeIcon?.classList.add(`is-exploring-${phase.name}`);
+    };
+
+    homeFrame?.classList.add('is-exploring');
+    try {
+        for (let index = 0; index < phases.length; index += 1) {
+            const phase = phases[index];
+            const nextAt = phases[index + 1]?.at ?? 2880;
+            const currentElapsed = Math.max(0, Date.now() - startedAt);
+            if (currentElapsed >= nextAt) continue;
+            setPhase(phase);
+            await wait(Math.max(0, nextAt - currentElapsed));
+        }
+    } finally {
+        overlay.remove();
+        homeFrame?.classList.remove('is-exploring');
+        homeIcon?.classList.remove('is-exploring-sail', 'is-exploring-up', 'is-exploring-left', 'is-exploring-arrival');
+    }
+}
+
 async function showExplorationDepartureLoading({
     stage,
     destinationId,
@@ -2726,6 +2839,41 @@ async function showExplorationDepartureLoading({
     tutorialEnabled = false,
     preparationPromise
 }) {
+    if (battleMode === 'online') {
+        let markEntryReady = () => {};
+        let markEntryFailed = () => {};
+        const entryReadyPromise = new Promise((resolve) => {
+            markEntryReady = () => resolve({ ready: true });
+            markEntryFailed = (error) => resolve({ error });
+        });
+        const prepared = await preparationPromise;
+        const battlePromise = showExplorationAutoSequence(
+            prepared.startData,
+            destinationId,
+            prepared.encounterData,
+            stage,
+            {
+                battleMode: 'online',
+                tutorialEnabled,
+                skipDeparture: true,
+                autoStartOnline: false,
+                startRequiresOnlineParty: true,
+                onEntryReady: markEntryReady,
+                onOnlineDeparture: (departure) => showTarotKingdomOnlineFleetDeparture(departure)
+            }
+        );
+        battlePromise.catch(markEntryFailed);
+        const entryState = await Promise.race([
+            entryReadyPromise,
+            battlePromise.then(
+                () => ({ ready: true }),
+                (error) => ({ error })
+            )
+        ]);
+        if (entryState.error) throw entryState.error;
+        return { ...prepared, battlePromise };
+    }
+
     const ship = currentPlayerShipProfile || {};
     const form = normalizePlayerShipForm(ship.form);
     const guildSailColor = form === 'guild' ? resolveGuildShipSailColor(ship) : 'white';
@@ -2771,68 +2919,10 @@ async function showExplorationDepartureLoading({
     `;
     document.body.appendChild(overlay);
     alignExplorationSequenceIslandArtwork(overlay);
-    const departureStartedAt = Date.now();
-    const sequenceScene = overlay.querySelector('.exploration-sequence-scene');
-    const hostShip = overlay.querySelector('[data-exploration-party-role="host"]');
-    applyPlayerShipFrameDirection(hostShip, form === 'guild' ? 'guild-right' : 'row2-a');
-    const syncOnlinePartyShips = (participants = []) => {
-        if (battleMode !== 'online' || !overlay.isConnected || !sequenceScene) return;
-        const normalizedParticipants = (Array.isArray(participants) ? participants : [])
-            .filter((entry) => Number.isInteger(Number(entry?.seat)))
-            .sort((left, right) => Number(left.seat) - Number(right.seat));
-        const localPlayFabId = String(window.myPlayFabId || '').trim();
-        const hostParticipant = normalizedParticipants.find((entry) => entry?.isHost === true)
-            || normalizedParticipants.find((entry) => (
-                localPlayFabId && String(entry?.playFabId || '').trim() === localPlayFabId
-            ));
-        if (hostParticipant && hostShip) {
-            hostShip.dataset.partySeat = String(hostParticipant.seat);
-            hostShip.dataset.partyPlayFabId = String(hostParticipant.playFabId || '');
-        }
-        const guestParticipants = normalizedParticipants
-            .filter((entry) => entry !== hostParticipant && entry?.ship)
-            .slice(0, 3);
-        const activeSeats = new Set(guestParticipants.map((entry) => String(entry.seat)));
-        sequenceScene.querySelectorAll('[data-exploration-party-role="guest"]').forEach((node) => {
-            if (!activeSeats.has(String(node.dataset.partySeat || ''))) node.remove();
-        });
-        guestParticipants.forEach((participant, index) => {
-            const seat = String(participant.seat);
-            const participantShip = createOnlineBattleShipProfile(participant.ship);
-            if (!participantShip) return;
-            const participantForm = participantShip.form;
-            const position = index + 1;
-            let node = sequenceScene.querySelector(
-                `[data-exploration-party-role="guest"][data-party-seat="${seat}"]`
-            );
-            const expectedFormClass = `is-${participantForm}`;
-            const partyShipClassName = `exploration-sequence-ship ${expectedFormClass} is-party-member is-party-position-${position}`;
-            if (node && !node.classList.contains(expectedFormClass)) {
-                node.remove();
-                node = null;
-            }
-            if (!node) {
-                node = document.createElement('div');
-                node.className = partyShipClassName;
-                node.setAttribute('aria-hidden', 'true');
-                node.dataset.explorationPartyShip = '';
-                node.dataset.explorationPartyRole = 'guest';
-                node.dataset.partySeat = seat;
-                node.dataset.partyPlayFabId = String(participant.playFabId || '');
-                node.dataset.guildSailColor = participantShip.sailColor;
-                node.innerHTML = participantForm === 'guild'
-                    ? renderGuildShipLayers(participantShip)
-                    : '';
-                node.style.setProperty(
-                    '--exploration-ship-voyage-delay',
-                    `${-Math.min(2879, Math.max(0, Date.now() - departureStartedAt))}ms`
-                );
-                sequenceScene.appendChild(node);
-                applyPlayerShipFrameDirection(node, participantForm === 'guild' ? 'guild-right' : 'row2-a');
-            }
-            node.className = partyShipClassName;
-        });
-    };
+    applyPlayerShipFrameDirection(
+        overlay.querySelector('[data-exploration-party-role="host"]'),
+        form === 'guild' ? 'guild-right' : 'row2-a'
+    );
     homeFrame?.classList.add('is-exploring');
     homeIcon?.classList.add('is-exploring-sail');
 
@@ -2857,11 +2947,10 @@ async function showExplorationDepartureLoading({
                     battleMode,
                     tutorialEnabled,
                     skipDeparture: true,
-                    autoStartOnline: true,
-                    startRequiresOnlineParty: battleMode === 'online',
+                    autoStartOnline: false,
+                    startRequiresOnlineParty: false,
                     startBarrier,
-                    onEntryReady: markEntryReady,
-                    onOnlinePartyChange: syncOnlinePartyShips
+                    onEntryReady: markEntryReady
                 }
             );
             battlePromise.catch(markEntryFailed);
@@ -3002,6 +3091,17 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
             startBarrier: options.startBarrier,
             onEntryReady: options.onEntryReady,
             onOnlinePartyChange: options.onOnlinePartyChange,
+            onOnlineDeparture: options.onOnlineDeparture,
+            onOnlinePartyLock: battleMode === 'online' && ownerPlayFabId && explorationId
+                ? async (roomId, locked = true) => requestSyncExplorationStageParty(
+                    ownerPlayFabId,
+                    ownerPlayFabId,
+                    explorationId,
+                    roomId,
+                    locked,
+                    { isSilent: true, throwOnError: true }
+                )
+                : null,
             onRaidEncounter: battleMode === 'online' && ownerPlayFabId
                 ? async (roomId) => requestStartTarotKingdomRaid(
                     ownerPlayFabId,

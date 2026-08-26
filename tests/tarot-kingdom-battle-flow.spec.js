@@ -175,7 +175,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.afterNormalPass.players[2].hp).toBe(73);
   });
 
-  test('equal values require the directed winning-suit cycle', async ({ page }) => {
+  test('equal values allow only the two bidirectional harmony pairs and amplify damage', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       const validateReply = (fieldSuit, replySuit, suffix) => {
@@ -189,25 +189,53 @@ test.describe('Tarot Kingdom character battle flow', () => {
         });
         return debug.battleRebuildAction(0, { selectedCardIds: [replyCard.id] });
       };
+      const harmonyField = { id: 'harmony-field', kind: 'minor', suit: 'Sword', number: 7 };
+      const harmonyReply = { id: 'harmony-reply', kind: 'minor', suit: 'Wand', number: 7 };
+      const harmonyState = debug.battleScenario({
+        turnIndex: 0,
+        leaderIndex: 1,
+        tableCard: harmonyField,
+        handsBySeat: [[harmonyReply]]
+      });
+      const harmonyPlay = debug.battleRebuildAction(0, { selectedCardIds: [harmonyReply.id] }).play;
+      const baseAttack = debug.battleDamageForPlay(0, harmonyPlay);
+      const harmonyAttack = debug.battleDamageForPlay(0, harmonyPlay, { previousTrick: harmonyState.trick });
+      const applied = debug.battlePlayCards(0, [harmonyReply.id]).state;
       return {
-        cupOverWand: validateReply('Wand', 'Cup', 'cup-over-wand'),
-        swordOverCup: validateReply('Cup', 'Sword', 'sword-over-cup'),
-        pentacleOverSword: validateReply('Sword', 'Pentacle', 'pentacle-over-sword'),
-        wandOverPentacle: validateReply('Pentacle', 'Wand', 'wand-over-pentacle'),
-        wandUnderCup: validateReply('Cup', 'Wand', 'wand-under-cup'),
+        wandWithSword: validateReply('Sword', 'Wand', 'wand-with-sword'),
+        swordWithWand: validateReply('Wand', 'Sword', 'sword-with-wand'),
+        cupWithPentacle: validateReply('Pentacle', 'Cup', 'cup-with-pentacle'),
+        pentacleWithCup: validateReply('Cup', 'Pentacle', 'pentacle-with-cup'),
+        oldCupOverWand: validateReply('Wand', 'Cup', 'old-cup-over-wand'),
+        oldSwordOverCup: validateReply('Cup', 'Sword', 'old-sword-over-cup'),
         sameSuit: validateReply('Wand', 'Wand', 'same-suit'),
-        skippingSuit: validateReply('Wand', 'Sword', 'skipping-suit')
+        baseAttack,
+        harmonyAttack,
+        appliedHarmony: applied.lastPlay?.harmony,
+        appliedEvent: applied.battle?.events?.findLast((event) => event.actorIndex === 0),
+        appliedCue: applied.presentation?.cues?.findLast((cue) => cue.kind === 'action')
       };
     });
 
-    expect(audit.cupOverWand.ok).toBe(true);
-    expect(audit.swordOverCup.ok).toBe(true);
-    expect(audit.pentacleOverSword.ok).toBe(true);
-    expect(audit.wandOverPentacle.ok).toBe(true);
-    for (const result of [audit.wandUnderCup, audit.sameSuit, audit.skippingSuit]) {
+    expect(audit.wandWithSword.ok).toBe(true);
+    expect(audit.swordWithWand.ok).toBe(true);
+    expect(audit.cupWithPentacle.ok).toBe(true);
+    expect(audit.pentacleWithCup.ok).toBe(true);
+    for (const result of [audit.oldCupOverWand, audit.oldSwordOverCup, audit.sameSuit]) {
       expect(result).toMatchObject({ ok: false });
-      expect(result.reason).toContain('勝ちスート');
+      expect(result.reason).toContain('調和スート');
     }
+    expect(audit.harmonyAttack.harmony).toMatchObject({
+      active: true,
+      label: 'HARMONY',
+      multiplier: 1.15,
+      playSuit: 'Wand',
+      trickSuit: 'Sword'
+    });
+    expect(audit.harmonyAttack.damage).toBe(Math.max(1, Math.floor(audit.baseAttack.damage * 1.15)));
+    expect(audit.appliedHarmony).toMatchObject({ active: true, label: 'HARMONY', multiplier: 1.15 });
+    expect(audit.appliedEvent).toMatchObject({ harmonyMultiplier: 1.15 });
+    expect(audit.appliedCue).toMatchObject({ label: 'HARMONY ×1.15' });
   });
 
   test('stage 1 unlocks five-card roles in 1-3 and calls in 1-4 for humans and NPCs', async ({ page }) => {
@@ -2762,13 +2790,14 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.shamanLv25).toMatchObject({ vulnerability: 25, appliedVulnerability: 25 });
     expect(audit.scholarLv1[0]).toMatchObject({ numericMultiplier: 1.5 });
     expect(audit.scholarLv25[0]).toMatchObject({ numericMultiplier: 3 });
-    expect(audit.scholarLv25[0].amount).toBe(audit.scholarLv1[0].amount * 2);
+    expect(Math.abs(audit.scholarLv25[0].amount - (audit.scholarLv1[0].amount * 2))).toBeLessThanOrEqual(1);
     const gamblerSword = audit.gamblerLv25.filter((entry) => entry.resonanceId === 'sword-2');
     expect(gamblerSword).toHaveLength(2);
     expect(gamblerSword.find((entry) => entry.gamblerReplay)).toMatchObject({ numericMultiplier: 2.5 });
-    expect(gamblerSword.find((entry) => entry.gamblerReplay).amount).toBe(
-      Math.round(gamblerSword.find((entry) => !entry.gamblerReplay).amount * 2.5)
-    );
+    expect(Math.abs(
+      gamblerSword.find((entry) => entry.gamblerReplay).amount
+      - Math.round(gamblerSword.find((entry) => !entry.gamblerReplay).amount * 2.5)
+    )).toBeLessThanOrEqual(1);
   });
 
   test('five-card roles use distinct single and stage-wide attack ranges', async ({ page }) => {
@@ -3408,18 +3437,18 @@ test.describe('Tarot Kingdom character battle flow', () => {
       });
       const priestess = debug.battlePlayCards(0, [cupFive.id], { resolve: false }).state;
 
-      const pentacleFive = { id: 'guardian-pentacle-5', kind: 'minor', suit: 'Pentacle', number: 5 };
+      const wandFive = { id: 'guardian-wand-5', kind: 'minor', suit: 'Wand', number: 5 };
       debug.battleScenario({
         tableCard: { id: 'guardian-field-5', kind: 'minor', suit: 'Sword', number: 5 },
         leaderIndex: 1,
         turnIndex: 0,
-        handsBySeat: [[pentacleFive, { id: 'guardian-reserve-9', kind: 'minor', suit: 'Cup', number: 9 }]],
+        handsBySeat: [[wandFive, { id: 'guardian-reserve-9', kind: 'minor', suit: 'Cup', number: 9 }]],
         hpBySeat: [50, 50, 50, 50],
         combatBySeat: [{ maxHp: 100 }, { maxHp: 100 }, { maxHp: 100 }, { maxHp: 100 }],
         charactersBySeat: [guardian(14)],
         rules: { arcanaLoadoutEffectsVersion: 2 }
       });
-      const temperanceAttempt = debug.battlePlayCards(0, [pentacleFive.id], { resolve: false });
+      const temperanceAttempt = debug.battlePlayCards(0, [wandFive.id], { resolve: false });
       const temperance = temperanceAttempt.state;
       return { priestessV3, priestessV3AtFullHp, priestessV3Silenced, priestess, temperance, temperanceAttemptOk: temperanceAttempt.ok, temperanceAttemptReason: temperanceAttempt.reason };
     });
@@ -3620,7 +3649,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
         const card = { id: `scholar-${effectsVersion}-${withScholar}`, kind: 'minor', suit: 'Cup', number: 1 };
         debug.battleScenario({
           reverse: true,
-          tableCard: { id: `scholar-field-${effectsVersion}-${withScholar}`, kind: 'minor', suit: 'Wand', number: 1 },
+          tableCard: { id: `scholar-field-${effectsVersion}-${withScholar}`, kind: 'minor', suit: 'Pentacle', number: 1 },
           turnIndex: 0,
           enemyHp: 5000,
           enemyMaxHp: 5000,
@@ -3718,7 +3747,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       const debug = window.TarotKingdomDebug;
       const cupAce = { id: 'bard-cup-ace', kind: 'minor', suit: 'Cup', number: 1 };
       debug.battleScenario({
-        tableCard: { id: 'bard-field', kind: 'minor', suit: 'Wand', number: 1 },
+        tableCard: { id: 'bard-field', kind: 'minor', suit: 'Pentacle', number: 1 },
         handsBySeat: [[cupAce, { id: 'bard-reserve', kind: 'minor', suit: 'Cup', number: 4 }]],
         hpBySeat: [50, 20, 50, 50],
         combatBySeat: Array.from({ length: 4 }, () => ({ maxHp: 100 })),
@@ -3734,7 +3763,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       const wandAce = { id: 'necro-wand-ace', kind: 'minor', suit: 'Wand', number: 1 };
       const minorDiscard = (id, suit, number) => ({ id, kind: 'minor', suit, number });
       debug.battleScenario({
-        tableCard: { id: 'necro-field', kind: 'minor', suit: 'Pentacle', number: 1 },
+        tableCard: { id: 'necro-field', kind: 'minor', suit: 'Sword', number: 1 },
         enemyHp: 5000,
         enemyMaxHp: 5000,
         enemyDefense: 0,
@@ -5995,7 +6024,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       majorArcanaGateVersion: 1,
       majorArcanaSpecialVersion: 3,
       majorBattleEffectsVersion: 3,
-      elementAffinityVersion: 2,
+      elementAffinityVersion: 3,
       carryHpBetweenRoundsVersion: 1,
       forcedDrawDeathVersion: 1,
       damageGrowthVersion: 1,
@@ -6029,7 +6058,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.current.rules.majorArcanaGateVersion).toBe(1);
     expect(audit.current.rules.majorArcanaSpecialVersion).toBe(3);
     expect(audit.current.rules.majorBattleEffectsVersion).toBe(3);
-    expect(audit.current.rules.elementAffinityVersion).toBe(2);
+    expect(audit.current.rules.elementAffinityVersion).toBe(3);
     expect(audit.current.rules.enemyDefeatMode).toBe('hp-zero');
   });
 

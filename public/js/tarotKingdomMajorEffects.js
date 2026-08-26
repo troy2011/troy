@@ -101,7 +101,7 @@ const MONSTER_IDS_BY_NATIVE_ELEMENT = Object.freeze({
     ])
 });
 
-const WEAKNESS_BY_NATIVE_ELEMENT = Object.freeze({
+const CYCLIC_WEAKNESS_BY_NATIVE_ELEMENT = Object.freeze({
     fire: 'water',
     water: 'earth',
     earth: 'wind',
@@ -111,32 +111,62 @@ const WEAKNESS_BY_NATIVE_ELEMENT = Object.freeze({
     neutral: ''
 });
 
+const WEAKNESS_BY_NATIVE_ELEMENT = Object.freeze({
+    fire: 'water',
+    water: 'fire',
+    wind: 'earth',
+    earth: 'wind',
+    light: 'dark',
+    dark: 'light',
+    neutral: ''
+});
+
 const FOUR_ELEMENT_KEYS = new Set(['fire', 'wind', 'earth', 'water']);
-const RESISTANCE_BY_NATIVE_ELEMENT = Object.freeze({
+const CYCLIC_RESISTANCE_BY_NATIVE_ELEMENT = Object.freeze({
     fire: 'wind',
     wind: 'earth',
     earth: 'water',
     water: 'fire'
 });
 
-function createAffinityRegistry(groups) {
+const RESISTANCE_BY_NATIVE_ELEMENT = Object.freeze({
+    fire: 'fire',
+    water: 'water',
+    wind: 'wind',
+    earth: 'earth'
+});
+
+function createAffinityRegistry(
+    groups,
+    weaknessByNative = WEAKNESS_BY_NATIVE_ELEMENT,
+    resistanceByNative = RESISTANCE_BY_NATIVE_ELEMENT
+) {
     return Object.freeze(Object.fromEntries(
         Object.entries(groups).flatMap(([native, monsterIds]) => (
             monsterIds.map((monsterId) => [
                 monsterId,
                 Object.freeze({
                     native,
-                    weak: WEAKNESS_BY_NATIVE_ELEMENT[native] || '',
+                    weak: weaknessByNative[native] || '',
                     resist: native === 'neutral'
                         ? ''
-                        : (RESISTANCE_BY_NATIVE_ELEMENT[native] || native)
+                        : (resistanceByNative[native] || native)
                 })
             ])
         ))
     ));
 }
 
-const LEGACY_AFFINITY_BY_MONSTER_ID = createAffinityRegistry(LEGACY_MONSTER_IDS_BY_NATIVE_ELEMENT);
+const LEGACY_AFFINITY_BY_MONSTER_ID = createAffinityRegistry(
+    LEGACY_MONSTER_IDS_BY_NATIVE_ELEMENT,
+    CYCLIC_WEAKNESS_BY_NATIVE_ELEMENT,
+    CYCLIC_RESISTANCE_BY_NATIVE_ELEMENT
+);
+const CYCLIC_AFFINITY_BY_MONSTER_ID = createAffinityRegistry(
+    MONSTER_IDS_BY_NATIVE_ELEMENT,
+    CYCLIC_WEAKNESS_BY_NATIVE_ELEMENT,
+    CYCLIC_RESISTANCE_BY_NATIVE_ELEMENT
+);
 const AFFINITY_BY_MONSTER_ID = createAffinityRegistry(MONSTER_IDS_BY_NATIVE_ELEMENT);
 
 export function getTarotKingdomMajorSkill(number) {
@@ -144,8 +174,10 @@ export function getTarotKingdomMajorSkill(number) {
     return skill ? { ...skill } : null;
 }
 
-export function getTarotKingdomEnemyAffinity(monsterId = '', version = 2) {
-    const registry = Number(version) >= 2 ? AFFINITY_BY_MONSTER_ID : LEGACY_AFFINITY_BY_MONSTER_ID;
+export function getTarotKingdomEnemyAffinity(monsterId = '', version = 3) {
+    const registry = Number(version) >= 3
+        ? AFFINITY_BY_MONSTER_ID
+        : (Number(version) >= 2 ? CYCLIC_AFFINITY_BY_MONSTER_ID : LEGACY_AFFINITY_BY_MONSTER_ID);
     const affinity = registry[String(monsterId || '').trim()];
     return affinity ? { ...affinity } : { native: '', weak: '', resist: '' };
 }

@@ -2280,6 +2280,83 @@ function initializeExplorationRoutes(app, deps) {
         return requireAuthenticatedPlayFabId(req, res, playFabId);
     }
 
+    async function readTarotKingdomExplorationRoom(roomId, options = {}) {
+        const normalizedRoomId = String(roomId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+        if (!normalizedRoomId || normalizedRoomId !== String(roomId || '').trim()) {
+            return { ok: false, code: 400, message: '救難ルームが不正です。' };
+        }
+        const database = typeof admin.database === 'function' ? admin.database() : null;
+        if (!database) return { ok: false, code: 503, message: '救難ルームを確認できません。' };
+        const [roomSnapshot, openSnapshot] = await Promise.all([
+            database.ref(`tarotKingdomRooms/${normalizedRoomId}`).once('value'),
+            database.ref(`tarotKingdomMatch/openRooms/${normalizedRoomId}`).once('value')
+        ]);
+        const room = roomSnapshot.exists() ? roomSnapshot.val() : null;
+        const openRoom = openSnapshot.exists() ? openSnapshot.val() : null;
+        if (!room || !openRoom || openRoom.kind !== 'exploration-rescue') {
+            return { ok: false, code: 409, message: 'この救難信号は受付を終了しています。' };
+        }
+        if (
+            String(openRoom.ownerPlayFabId || '').trim() !== String(options.ownerPlayFabId || '').trim()
+            || String(openRoom.explorationId || '').trim() !== String(options.explorationId || '').trim()
+        ) {
+            return { ok: false, code: 409, message: '救難信号の探索情報が更新されています。' };
+        }
+        const now = Date.now();
+        const presence = room?.presence && typeof room.presence === 'object' ? room.presence : {};
+        const livePresence = Object.entries(presence)
+            .flatMap(([uid, entry]) => {
+                const updatedAt = Number(entry?.updatedAt);
+                const seat = Number(entry?.seat);
+                const playFabId = String(entry?.playFabId || '').trim();
+                if (
+                    !Number.isFinite(updatedAt)
+                    || updatedAt <= 0
+                    || now - updatedAt > 90000
+                    || updatedAt > now + 15000
+                    || !Number.isInteger(seat)
+                    || seat < 0
+                    || seat >= 4
+                    || !playFabId
+                ) return [];
+                return [{ uid: String(uid || ''), seat, playFabId }];
+            })
+            .sort((left, right) => left.seat - right.seat);
+        const seats = new Set();
+        const playFabIds = new Set();
+        for (const entry of livePresence) {
+            if (seats.has(entry.seat) || playFabIds.has(entry.playFabId)) {
+                return { ok: false, code: 409, message: '救難ルームの参加枠が競合しています。' };
+            }
+            seats.add(entry.seat);
+            playFabIds.add(entry.playFabId);
+        }
+        const hostUid = String(room?.meta?.hostUid || '').trim();
+        const host = livePresence.find((entry) => entry.uid === hostUid) || null;
+        const state = room?.state?.state || {};
+        const departureStatus = String(state?.onlineDeparture?.status || '').trim();
+        const inProgress = state.roundActive === true
+            || Number(state.handNo || 0) > 0
+            || state.awaitRoundConfirm === true
+            || String(state.phase || '') === 'done';
+        if (inProgress || (options.allowDeparture !== true && departureStatus)) {
+            return { ok: false, code: 409, message: 'この救難信号は出航済みです。' };
+        }
+        const actorPlayFabId = String(options.actorPlayFabId || '').trim();
+        if (options.requireHost === true && (!host || host.playFabId !== actorPlayFabId)) {
+            return { ok: false, code: 403, message: '部屋主だけが参加者を確定できます。' };
+        }
+        if (options.requireMember === true && !livePresence.some((entry) => entry.playFabId === actorPlayFabId)) {
+            return { ok: false, code: 409, message: '救難ルームへの参加を確認できません。' };
+        }
+        return {
+            ok: true,
+            roomId: normalizedRoomId,
+            participants: livePresence.map((entry) => entry.playFabId),
+            hostPlayFabId: host?.playFabId || ''
+        };
+    }
+
     async function updateTarotKingdomTotalBestChipsStatistic(playFabId, progress) {
         const totalBestChips = Math.max(0, Math.min(
             2147483647,
@@ -3328,6 +3405,7 @@ function initializeExplorationRoutes(app, deps) {
                         })),
                         tarotEncounter,
                         stageParticipants: [playFabId],
+                        stagePartyLockedAtMs: 0,
                         startedAtMs: now,
                         completesAtMs: now,
                         createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -3368,9 +3446,9 @@ function initializeExplorationRoutes(app, deps) {
     });
 
     app.post('/api/exploration/stage-join', async (req, res) => {
-        let { playFabId, ownerPlayFabId, explorationId } = req.body || {};
-        if (!playFabId || !ownerPlayFabId || !explorationId) {
-            return res.status(400).json({ error: 'playFabId, ownerPlayFabId and explorationId are required' });
+        let { playFabId, ownerPlayFabId, explorationId, roomId } = req.body || {};
+        if (!playFabId || !ownerPlayFabId || !explorationId || !roomId) {
+            return res.status(400).json({ error: 'playFabId, ownerPlayFabId, explorationId and roomId are required' });
         }
         playFabId = await requireAuthed(req, res, playFabId);
         if (!playFabId) return;
@@ -3378,6 +3456,13 @@ function initializeExplorationRoutes(app, deps) {
         explorationId = String(explorationId || '').trim();
         const activeRef = firestore.collection(EXPLORATION_COLLECTION).doc(ownerPlayFabId);
         try {
+            const roomState = await readTarotKingdomExplorationRoom(roomId, {
+                actorPlayFabId: playFabId,
+                ownerPlayFabId,
+                explorationId,
+                requireMember: true
+            });
+            if (!roomState.ok) return res.status(roomState.code).json({ error: roomState.message });
             let encounter = null;
             let joinError = null;
             await firestore.runTransaction(async (tx) => {
@@ -3400,11 +3485,15 @@ function initializeExplorationRoutes(app, deps) {
                     joinError = { code: 409, message: 'この救難信号には参加できません。' };
                     return;
                 }
-                const participants = Array.from(new Set([
-                    ownerPlayFabId,
-                    ...(Array.isArray(data.stageParticipants) ? data.stageParticipants : []),
-                    playFabId
-                ].map((entry) => String(entry || '').trim()).filter(Boolean)));
+                if (Number(data.stagePartyLockedAtMs || 0) > 0) {
+                    joinError = { code: 409, message: 'この救難信号は出航準備に入りました。' };
+                    return;
+                }
+                const participants = Array.from(new Set(roomState.participants));
+                if (!participants.includes(ownerPlayFabId) || !participants.includes(playFabId)) {
+                    joinError = { code: 409, message: '救難ルームの参加状況が更新されています。' };
+                    return;
+                }
                 if (participants.length > 4) {
                     joinError = { code: 409, message: '参加人数が上限に達しています。' };
                     return;
@@ -3419,6 +3508,55 @@ function initializeExplorationRoutes(app, deps) {
         } catch (error) {
             console.error('[exploration/stage-join] failed:', error?.errorMessage || error?.message || error);
             return res.status(500).json({ error: '救難信号へ参加できませんでした。' });
+        }
+    });
+
+    app.post('/api/exploration/stage-party-sync', async (req, res) => {
+        let { playFabId, ownerPlayFabId, explorationId, roomId, locked = true } = req.body || {};
+        if (!playFabId || !ownerPlayFabId || !explorationId || !roomId) {
+            return res.status(400).json({ error: 'playFabId, ownerPlayFabId, explorationId and roomId are required' });
+        }
+        playFabId = await requireAuthed(req, res, playFabId);
+        if (!playFabId) return;
+        ownerPlayFabId = String(ownerPlayFabId || '').trim();
+        explorationId = String(explorationId || '').trim();
+        const activeRef = firestore.collection(EXPLORATION_COLLECTION).doc(ownerPlayFabId);
+        try {
+            const roomState = await readTarotKingdomExplorationRoom(roomId, {
+                actorPlayFabId: playFabId,
+                ownerPlayFabId,
+                explorationId,
+                requireHost: true,
+                allowDeparture: true
+            });
+            if (!roomState.ok) return res.status(roomState.code).json({ error: roomState.message });
+            let syncError = null;
+            await firestore.runTransaction(async (tx) => {
+                const snap = await tx.get(activeRef);
+                if (!snap.exists) {
+                    syncError = { code: 404, message: '救難信号の探索が見つかりません。' };
+                    return;
+                }
+                const data = snap.data() || {};
+                if (resolveEffectiveStatus(data) !== 'active' || String(data.id || '') !== explorationId) {
+                    syncError = { code: 409, message: '救難信号の探索情報が更新されています。' };
+                    return;
+                }
+                if (!roomState.participants.includes(ownerPlayFabId)) {
+                    syncError = { code: 409, message: '探索主の参加を確認できません。' };
+                    return;
+                }
+                tx.update(activeRef, {
+                    stageParticipants: roomState.participants,
+                    stagePartyLockedAtMs: locked === false ? 0 : Date.now(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+            });
+            if (syncError) return res.status(syncError.code).json({ error: syncError.message });
+            return res.json({ success: true, participants: roomState.participants });
+        } catch (error) {
+            console.error('[exploration/stage-party-sync] failed:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({ error: '救難ルームの参加者を確定できませんでした。' });
         }
     });
 
