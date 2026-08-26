@@ -337,45 +337,6 @@ test('player ship major arcana slots follow evolution stage', () => {
   }).majorArcanaItemIds).toEqual(['arcana-4', 'arcana-5']);
 });
 
-test('ship major arcana weaken exploration boss before melee battle without reward changes', () => {
-  const boss = {
-    stats: {
-      MaxHP: 100,
-      HP: 100,
-      CurrentHP: 100,
-      ちから: 50,
-      みのまもり: 40,
-      すばやさ: 30
-    },
-    equipmentStats: {
-      Power: 20,
-      Defense: 10,
-      Agi: 5,
-      StatusRate: 0
-    }
-  };
-  const catalog = {
-    'arcana-wand': { Category: 'TarotMajor', DisplayName: '皇帝', ArcanaNumber: 4 },
-    'arcana-sword': { Category: 'TarotMajor', DisplayName: '法王', ArcanaNumber: 5 },
-    'arcana-cup': { Category: 'TarotMajor', DisplayName: '恋人', ArcanaNumber: 6 }
-  };
-
-  const result = __test.applyMajorArcanaPreBattleWeakening(
-    boss,
-    ['arcana-wand', 'arcana-sword', 'arcana-cup'],
-    catalog
-  );
-
-  expect(result.logs).toHaveLength(3);
-  expect(boss.stats.MaxHP).toBe(91);
-  expect(boss.stats.CurrentHP).toBe(91);
-  expect(boss.stats.ちから).toBe(46);
-  expect(boss.equipmentStats.Power).toBe(18);
-  expect(boss.stats.すばやさ).toBe(30);
-  expect(boss.equipmentStats.StatusRate).toBe(0);
-  expect(__test.resolveRewardCount({ bossAppeared: true, playerWon: true }, 'fighter')).toBe(1);
-});
-
 test('daily destinations are deterministic per user and JST day in low medium high order', () => {
   const first = __test.getDailyExplorationDestinations('PF_DAILY_A', 'common', FIXED_NOW_MS);
   const second = __test.getDailyExplorationDestinations('PF_DAILY_A', 'common', FIXED_NOW_MS);

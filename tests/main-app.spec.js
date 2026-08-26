@@ -2809,8 +2809,11 @@ test('legacy naval and melee battle entries are retired from the app', async ({ 
   expect(homeActionLayout.visibleButtons).toBe(2);
   await expect(page.locator('.qr-battle-card')).toHaveCount(0);
   await expect(page.locator('#btnScanBattle')).toHaveCount(0);
-  await expect(page.locator('#navalBattleModal')).not.toBeVisible();
-  await expect(page.locator('#battleModal')).not.toBeVisible();
+  await expect(page.locator('script[src*="battle-client"], script[src*="naval-battle"]')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => ({
+    normal: typeof window.startBattleWithOpponent,
+    naval: typeof window.startNavalBattle
+  }))).toEqual({ normal: 'undefined', naval: 'undefined' });
 
   await expectNoPageErrors(errors);
 });

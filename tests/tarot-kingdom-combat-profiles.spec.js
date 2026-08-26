@@ -341,7 +341,7 @@ test('combat profile API authenticates the requester and returns sanitized melee
         itemId: 'arcana-1',
         number: 1,
         cardLevel: 1,
-        passiveId: 'guardian-v3-1'
+        passiveId: 'guardian-v5-1'
       },
       combat: {
         maxHp: 155,
@@ -428,10 +428,10 @@ test('combat profile restores saved legacy tarot ids without waiting for invento
       expect(result.statusCode).toBe(200);
       expect(result.payload.characters[0].tarotDeck).toEqual([
         expect.objectContaining({ slot: 0, itemId: catalogItemIds[0], suit: 'Wand', rank: 1 }),
-        expect.objectContaining({ slot: 1, itemId: catalogItemIds[1], suit: 'Cup', rank: 5 }),
-        expect.objectContaining({ slot: 2, itemId: catalogItemIds[2], suit: 'Sword', rank: 10 }),
-        expect.objectContaining({ slot: 3, itemId: catalogItemIds[3], suit: 'Pentacle', rank: 13 }),
-        expect.objectContaining({ slot: 4, itemId: catalogItemIds[4], suit: 'Sword', rank: 14 })
+        expect.objectContaining({ slot: 1, itemId: catalogItemIds[2], suit: 'Sword', rank: 10 }),
+        expect.objectContaining({ slot: 2, itemId: catalogItemIds[4], suit: 'Sword', rank: 14 }),
+        expect.objectContaining({ slot: 3, itemId: catalogItemIds[1], suit: 'Cup', rank: 5 }),
+        expect.objectContaining({ slot: 4, itemId: catalogItemIds[3], suit: 'Pentacle', rank: 13 })
       ]);
       expect(result.payload.characters[0].guardianArcana).toMatchObject({
         itemId: guardianCatalogItemId,
@@ -700,7 +700,7 @@ test('single-player combat profile response includes the saved current pet for e
     expect(result.payload.currentPet).toMatchObject({
       level: 1,
       experience: 0,
-      experienceToNextLevel: 100,
+      experienceToNextLevel: 300,
       levelProgressPercent: 0,
       guardianArcana: expect.objectContaining({ itemId: 'arcana-8', number: 8 }),
       tarotDeck: expect.arrayContaining([
@@ -710,7 +710,7 @@ test('single-player combat profile response includes the saved current pet for e
     expect(result.payload.currentPet.tarotDeck).toHaveLength(5);
   }, {
     petState: {
-      version: 1,
+      version: 5,
       currentPet: {
         monsterId,
         acquiredAtMs: 1000,

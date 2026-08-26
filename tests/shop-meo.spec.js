@@ -125,8 +125,6 @@ test.describe('public shop MEO page', () => {
   test('keeps operational and demo pages out of search results', async ({ request }) => {
     const noindexPages = [
       '/display.html',
-      '/melee-demo.html',
-      '/naval-battle-demo.html',
       '/spin-tarot-preview.html',
       '/tarot-kingdom-preview.html',
       '/tarot-poker-preview.html',

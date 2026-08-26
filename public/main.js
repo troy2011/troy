@@ -18,7 +18,6 @@ import * as Ship from './js/ship.js?v=20260826-tutorial-reward-v1';
 import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js?v=20260731-stage-score1';
 import { initMapChat, initTroyChat } from './js/mapChat.js';
-import { startNavalPvpBattle } from './js/navalPvpClient.js';
 import { renderAvatar, preloadAvatarBaseSprites, playAvatarBodyMotion, stopAvatarBodyMotion } from './js/avatar.js';
 import {
     installPlayerProfileInteractions,
@@ -856,8 +855,6 @@ let homeRescueWatchTimer = 0;
 let homeCoinConvertBound = false;
 let homeQrScanBound = false;
 let homeExplorationPopupObserver = null;
-let homePlunderQrTarget = null;
-const HOME_PLUNDER_ENTRY_ENABLED = false;
 
 function revealAppWrapper() {
     document.body?.classList.remove('app-booting');
@@ -885,33 +882,6 @@ function findTroyMemberByPlayFabId(status = window.__troyStatus, playFabId = '')
     if (!target) return null;
     const members = Array.isArray(status?.members) ? status.members : [];
     return members.find((member) => normalizeHomeTroyPlayFabId(member?.playFabId || member?.id) === target) || null;
-}
-
-function setHomePlunderQrTarget(playFabId, status = window.__troyStatus) {
-    const normalized = normalizeHomeTroyPlayFabId(playFabId);
-    if (!normalized) {
-        homePlunderQrTarget = null;
-        return null;
-    }
-    const member = findTroyMemberByPlayFabId(status, normalized);
-    homePlunderQrTarget = {
-        playFabId: normalized,
-        displayName: member?.displayName || member?.name || normalized
-    };
-    window.__homePlunderQrTarget = { ...homePlunderQrTarget };
-    return homePlunderQrTarget;
-}
-
-function getHomePlunderQrOpponent(status = window.__troyStatus, playFabId = window.myPlayFabId) {
-    if (!homePlunderQrTarget?.playFabId) return null;
-    const targetId = normalizeHomeTroyPlayFabId(homePlunderQrTarget.playFabId);
-    if (!targetId || targetId === normalizeHomeTroyPlayFabId(playFabId)) return null;
-    const member = findTroyMemberByPlayFabId(status, targetId);
-    return {
-        ...homePlunderQrTarget,
-        playFabId: targetId,
-        displayName: member?.displayName || member?.name || homePlunderQrTarget.displayName || targetId
-    };
 }
 
 function getHomeCoinConvertElements() {
@@ -1004,21 +974,11 @@ function updateHomeCoinConvertPanel(status = window.__troyStatus) {
 
 function syncHomeExplorationButtonLabel(status = window.__troyStatus) {
     const explorationButton = document.getElementById('btnHomeExploration');
-    const plunderButton = document.getElementById('btnHomePlunder');
     updateHomeCoinConvertPanel(status);
-    if (!explorationButton && !plunderButton) return;
-    const isInTroy = isCurrentPlayerInTroyStatus(status);
+    if (!explorationButton) return;
     if (explorationButton) {
         explorationButton.textContent = '探索';
         explorationButton.setAttribute('aria-label', '探索に出る');
-    }
-    if (plunderButton) {
-        const label = '略奪休止中';
-        plunderButton.hidden = true;
-        plunderButton.disabled = true;
-        plunderButton.textContent = label;
-        plunderButton.setAttribute('aria-label', label);
-        plunderButton.dataset.plunderPaused = 'true';
     }
 }
 
@@ -1394,107 +1354,11 @@ function startHomeRescueSignalWatcher() {
     );
 }
 
-async function loadHomePlunderPublicProfiles(opponent) {
-    const selfId = window.myPlayFabId;
-    const opponentId = opponent?.playFabId;
-    const fallbackOpponent = {
-        playFabId: opponentId,
-        displayName: opponent?.displayName || opponentId,
-        playerShip: opponent?.playerShip || null
-    };
-    const fallbackSelf = {
-        playFabId: selfId,
-        displayName: window.myPlayFabDisplayName || window.myLineProfile?.displayName || selfId,
-        playerShip: null
-    };
-    const safeLoad = async (targetId, fallback) => {
-        if (!selfId || !targetId) return fallback;
-        try {
-            const data = await getPublicPlayerProfile(selfId, targetId, { isSilent: true, throwOnError: true });
-            return data?.profile || fallback;
-        } catch (error) {
-            console.warn('[HomePlunder] Failed to load public profile:', targetId, error);
-            return fallback;
-        }
-    };
-    const [selfProfile, opponentProfile] = await Promise.all([
-        safeLoad(selfId, fallbackSelf),
-        safeLoad(opponentId, fallbackOpponent)
-    ]);
-    return { selfProfile, opponentProfile };
-}
-
-async function startHomePlunderBattle(options = {}) {
-    if (!HOME_PLUNDER_ENTRY_ENABLED) {
-        showRpgMessage('船バトルと白兵戦は現在休止中です。');
-        return false;
-    }
-    const button = document.getElementById('btnHomePlunder');
-    if (!isCurrentPlayerInTroyStatus(window.__troyStatus)) {
-        showRpgMessage('略奪はTROY滞在中に利用できます。');
-        syncHomeExplorationButtonLabel();
-        return;
-    }
-
-    if (!options.useExistingQrTarget) {
-        showRpgMessage('対戦相手のQRを読み込んでください。', 2600);
-        await startHomeQrScan({
-            button,
-            plunderOnly: true,
-            loadingLabel: 'QR読み取り中...'
-        });
-        return;
-    }
-
-    const opponent = getHomePlunderQrOpponent(window.__troyStatus, window.myPlayFabId);
-    if (!opponent?.playFabId) {
-        showRpgMessage('相手のMY QRを読み取ってから略奪してください。');
-        return;
-    }
-
-    if (typeof window.startBattleWithOpponent !== 'function') {
-        showRpgMessage('白兵戦の準備ができていません。少し待ってから試してください。');
-        return;
-    }
-    if (!window.__tkUid || !db) {
-        showRpgMessage('リアルタイム対戦の接続準備中です。少し待ってから試してください。');
-        return;
-    }
-
-    showRpgMessage('QR相手とのリアルタイム海戦に接続します。');
-    try {
-        const { selfProfile, opponentProfile } = await loadHomePlunderPublicProfiles(opponent);
-        await startNavalPvpBattle({
-            db,
-            uid: window.__tkUid,
-            selfId: window.myPlayFabId,
-            selfName: window.myPlayFabDisplayName || window.myLineProfile?.displayName || window.myPlayFabId,
-            selfProfile,
-            opponentId: opponent.playFabId,
-            opponentName: opponent.displayName || opponent.playFabId,
-            opponentProfile,
-            // 接舷成立時のみ既存の白兵戦へ移行する
-            onBoarding: (opponentId, battleContext = null) => {
-                Promise.resolve(window.startBattleWithOpponent(opponentId || opponent.playFabId, battleContext)).catch((error) => {
-                    console.warn('[HomePlunder] Failed to start melee battle:', error);
-                    showRpgMessage(error?.message || '白兵戦の開始に失敗しました。');
-                });
-            }
-        });
-    } catch (error) {
-        console.warn('[HomePlunder] Failed to start realtime naval battle:', error);
-        showRpgMessage(error?.message || 'リアルタイム海戦の開始に失敗しました。');
-        return;
-    }
-    if (button) syncHomeExplorationButtonLabel();
-}
-
 function initHomeExplorationButton() {
     if (homeExplorationButtonBound && homeRescueButtonBound) return;
     const explorationButton = document.getElementById('btnHomeExploration');
     const rescueButton = document.getElementById('btnHomeRescue');
-    const plunderButton = document.getElementById('btnHomePlunder');
-    if (!explorationButton && !rescueButton && !plunderButton) return;
+    if (!explorationButton && !rescueButton) return;
     syncHomeExplorationButtonLabel();
     if (!homeExplorationButtonBound) {
         explorationButton?.addEventListener('click', () => {
@@ -1518,17 +1382,6 @@ function initHomeExplorationButton() {
         });
         homeRescueButtonBound = true;
     }
-    plunderButton?.addEventListener('click', () => {
-        if (!isCurrentPlayerInTroyStatus(window.__troyStatus)) {
-            syncHomeExplorationButtonLabel();
-            return;
-        }
-        if (!HOME_PLUNDER_ENTRY_ENABLED) {
-            showRpgMessage('略奪は準備中です。');
-            return;
-        }
-        void startHomePlunderBattle();
-    });
     window.addEventListener('troy:status-updated', (event) => {
         syncHomeExplorationButtonLabel(event?.detail?.status || window.__troyStatus);
     });
@@ -2508,12 +2361,6 @@ async function startHomeQrScan(options = {}) {
                 showRpgMessage('自分のプロフィールです。', 2600);
                 return;
             }
-            if (isCurrentPlayerInTroyStatus(window.__troyStatus, myPlayFabId) && HOME_PLUNDER_ENTRY_ENABLED) {
-                const target = setHomePlunderQrTarget(targetPlayFabId);
-                showRpgMessage(`${target.displayName || target.playFabId}を捕捉しました。海戦を開始します。`, 2600);
-                await startHomePlunderBattle({ useExistingQrTarget: true });
-                return;
-            }
             await openPlayerProfile(targetPlayFabId);
             return;
         }
@@ -3152,7 +2999,6 @@ window.equipItem = (itemId, slot) => Inventory.equipItem(myPlayFabId, itemId, sl
 window.equipTarotCardToDeck = (itemId, deckType) => Inventory.equipTarotCardToDeck(myPlayFabId, itemId, deckType);
 window.unequipTarotCardFromDeck = (itemId, deckType) => Inventory.unequipTarotCardFromDeck(myPlayFabId, itemId, deckType);
 window.levelUpCard = (itemId) => Inventory.levelUpTarotCard(itemId);
-window.useShipSkillCard = (cardItemId, skillName) => window.worldMapScene?.useShipSkillCard(cardItemId, skillName);
 window.closeItemDetailModal = Inventory.closeItemDetailModal;
 const itemDetailModal = document.getElementById('itemDetailModal');
 bindModalClose(itemDetailModal?.querySelector('.item-detail-corner-close'), Inventory.closeItemDetailModal, {

@@ -6,7 +6,6 @@ const { getItemAmount, getCurrencyIdFromItem } = require('./economy');
 const { withTitleEntityToken: defaultWithTitleEntityToken } = require('./playfab');
 const { drawLocalGachaItem } = require('./gacha');
 const resourceStorage = require('./resourceStorage');
-const { buildMajorArcanaShipGearView } = require('./majorArcanaShipGear');
 const { getAvatarColorForNation, getNationTreasuryRanking } = require('./nation');
 const {
     CREW_ROLE_BY_ID,
@@ -2893,13 +2892,6 @@ function initializeInventoryRoutes(app, deps) {
                     playerShip.majorArcanaSlotLimit || playerShip.stage || 1
                 );
                 playerShip.majorArcanaItemIds = majorArcanaItemIds;
-                playerShip.majorArcanaGear = majorArcanaItemIds
-                    .map((itemId, index) => ({
-                        itemId,
-                        slotIndex: index,
-                        shipGear: buildMajorArcanaShipGearView(itemId)
-                    }))
-                    .filter((entry) => entry.shipGear);
             }
             return res.json({
                 success: true,

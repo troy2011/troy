@@ -6,30 +6,16 @@ import * as Ship from './js/ship.js?v=20260826-tutorial-reward-v1';
 import * as Player from './js/player.js';
 import { bindModalClose } from './js/modalClose.js';
 import {
-    getShipResourceStorage as fetchShipResourceStorage,
     consumeVoyageMp as requestConsumeVoyageMp,
     getCapitalWarState as requestCapitalWarState,
-    performCapitalWarAction as requestCapitalWarAction,
-    getShipSkillStatus as fetchShipSkillStatus,
-    useShipSkill as requestUseShipSkill,
-    triggerShipSkill as requestTriggerShipSkill
+    performCapitalWarAction as requestCapitalWarAction
 } from './js/playfabClient.js?v=20260826-tutorial-reward-v1';
-import {
-    getCachedSkillData,
-    setCachedSkillData,
-    setSkillCooldown,
-    isSkillReady,
-    getSkillRemainingSec,
-    mergeWithLocalCt,
-    isSelfOnlySkill
-} from './js/shipSkillClient.js';
 
 // ========================================
 // 定数定義
 // ========================================
 
 const RIDE_SYSTEM_ENABLED = false;
-const LEGACY_BOARDING_BATTLE_ENABLED = false;
 
 const GAME_CONFIG = {
     GRID_SIZE: 32,
@@ -274,7 +260,6 @@ export default class WorldMapScene extends Phaser.Scene {
         this.shipActionActive = false;
         this.shipActionButton = null;
         this.shipActionStatus = null;
-        this.shipCombatResourceStatus = null;
         this.shipSideCannonPanel = null;
         this.shipSideCannonButton = null;
         this.shipSideCannonStatus = null;
@@ -292,16 +277,6 @@ export default class WorldMapScene extends Phaser.Scene {
         this.shipSkillData = [];
         this.shipSkillCooldowns = {};
         this.shipSkillCtInterval = null;
-        this.shipCombatResourceStorage = {
-            activeShipId: null,
-            cargoResources: {},
-            cargoCapacity: 0,
-            cargoUsed: 0
-        };
-        this.shipCombatResourceFetchedAt = 0;
-        this.shipCombatResourceFetchPromise = null;
-        this.shipCombatResourcePollIntervalMs = 10_000;
-        this.shipCombatResourceBackoffUntil = 0;
         this.onShipCombatResourceWindowFocus = null;
         this.onShipCombatResourceVisibilityChange = null;
         this.onMapTabVisible = null;
@@ -360,16 +335,6 @@ export default class WorldMapScene extends Phaser.Scene {
         this.shipActionEventsUnsubscribe = null;
         this.shipActionEventsSeen = new Set();
         this.shipActionMines = [];
-        this.shipBattleEventsUnsubscribe = null;
-        this.shipBattleEventsSeen = new Set();
-        this.shipBattleShield = new Map(); // playFabId -> battle end timestamp
-        this.shipBattleHiddenUntil = new Map(); // playFabId -> hidden end timestamp
-        this.shipBattleSmokeTimers = new Map(); // playFabId -> Phaser time event
-        this.boardingButton = null;
-        this.boardingTargetId = null;
-        this.boardingVisible = false;
-        this.lastBoardingAt = 0;
-        this.boardingCooldownMs = 60 * 1000;
         this.rideRequestUnsubscribe = null;
         this.rideStatusUnsubscribe = null;
         this.rideSelfUnsubscribe = null;
@@ -588,23 +553,6 @@ export default class WorldMapScene extends Phaser.Scene {
         if (this.shipActionEventsSeen) {
             this.shipActionEventsSeen.clear();
         }
-        if (this.shipBattleEventsUnsubscribe) {
-            this.shipBattleEventsUnsubscribe();
-            this.shipBattleEventsUnsubscribe = null;
-        }
-        if (this.shipBattleEventsSeen) {
-            this.shipBattleEventsSeen.clear();
-        }
-        if (this.shipBattleShield) {
-            this.shipBattleShield.clear();
-        }
-        if (this.shipBattleHiddenUntil) {
-            this.shipBattleHiddenUntil.clear();
-        }
-        if (this.shipBattleSmokeTimers) {
-            this.shipBattleSmokeTimers.forEach(timer => timer?.remove?.());
-            this.shipBattleSmokeTimers.clear();
-        }
         if (this.rideRequestUnsubscribe) {
             this.rideRequestUnsubscribe();
             this.rideRequestUnsubscribe = null;
@@ -697,9 +645,6 @@ export default class WorldMapScene extends Phaser.Scene {
         this.firestore = null;
         this.lastShipQueryCenter = null;
         this.lastShipQueryUpdate = 0;
-        this.boardingButton = null;
-        this.boardingTargetId = null;
-        this.boardingVisible = false;
         this.collidingShipId = null;
         this.shipPanelSuppressed = false;
         if (this.lastRamDamageAt) {
@@ -1183,11 +1128,6 @@ export default class WorldMapScene extends Phaser.Scene {
         this.messageText.setVisible(false);
         this.cameras.main.ignore(this.messageText);
 
-        this.createBoardingButton();
-        this.setupShipActionUi();
-        this.setupShipSideCannonUi();
-        this.setupShipNormalAttackUi();
-        this.setupShipSkillUi();
         this.setupCreateIslandUi();
         this.setupRideLeaveUi();
 
@@ -1207,7 +1147,6 @@ export default class WorldMapScene extends Phaser.Scene {
                     const assetData = await Ship.getShipAsset(this.playerInfo.playFabId, shipId, true);
                     if (assetData) {
                         this.setPlayerShipAssetData(assetData);
-                        this.requestShipCombatResourceStorage(true);
                         if (assetData.Domain) {
                             this.playerShipDomain = String(assetData.Domain).toLowerCase();
                         }
@@ -2347,7 +2286,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
     async moveShipTo(x, y, targetIsland, options = {}) {
         console.log('[moveShipTo] Called with x:', x, 'y:', y, 'targetIsland:', targetIsland);
-        this.hideBoardingButton();
+        this.hideIslandCommandMenu();
 
         const startX = this.playerShip.x;
         const startY = this.playerShip.y;
@@ -2379,7 +2318,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.hideIslandCommandMenu();
 
         const distance = Phaser.Math.Distance.Between(startX, startY, x, y);
-        const speed = this.getEffectiveShipSpeed();
+        const speed = Math.max(1, Number(this.shipSpeed || this.shipBaseSpeed || GAME_CONFIG.SHIP_SPEED));
         const duration = (distance / speed) * 1000;
         if (!options?.skipMpCost && this.playerInfo?.playFabId) {
             this.shipMovePending = true;
@@ -2621,847 +2560,6 @@ export default class WorldMapScene extends Phaser.Scene {
         this.setGuildShipVisualFrame(visual, visual.directionKey ?? 'down', visual.frameIndex ?? 1);
     }
 
-    createBoardingButton() {
-        if (!LEGACY_BOARDING_BATTLE_ENABLED) return;
-        const camera = this.cameras.main;
-        const width = 240;
-        const height = 44;
-        const x = camera.width / 2;
-        const yHidden = camera.height + height;
-
-        const bg = this.add.rectangle(0, 0, width, height, 0x111827, 0.95);
-        bg.setStrokeStyle(2, 0xffffff, 0.25);
-
-        const label = this.add.text(0, 0, '乗り込み', {
-            fontSize: '16px',
-            color: '#ffffff'
-        }).setOrigin(0.5);
-
-        const container = this.add.container(x, yHidden, [bg, label]);
-        container.setScrollFactor(0);
-        container.setDepth(GAME_CONFIG.DEPTH.MESSAGE + 5);
-        container.setSize(width, height);
-        container.setInteractive(new Phaser.Geom.Rectangle(-width / 2, -height / 2, width, height), Phaser.Geom.Rectangle.Contains);
-
-        container.on('pointerup', () => {
-            if (!this.boardingTargetId) return;
-            const restriction = this.getBoardingRestriction(this.boardingTargetId);
-            if (restriction?.blocked) {
-                this.showMessage(restriction.message);
-                return;
-            }
-            if (typeof window !== 'undefined' && typeof window.startBattleWithOpponent === 'function') {
-                window.startBattleWithOpponent(this.boardingTargetId);
-                this.hideBoardingButton();
-            } else {
-                console.warn('[Boarding] Battle system not ready: window.startBattleWithOpponent not found');
-            }
-        });
-
-        this.boardingButton = { container, label, yHidden, yShown: camera.height - 60 };
-        this.boardingVisible = false;
-        container.setVisible(false);
-    }
-
-    setupShipActionUi() {
-        if (typeof document === 'undefined') return;
-        const panel = document.getElementById('shipActionPanel');
-        const button = document.getElementById('shipActionButton');
-        const status = document.getElementById('shipActionStatus');
-        if (!panel || !button || !status) return;
-
-        this.shipActionButton = button;
-        this.shipActionStatus = status;
-        const bar = document.getElementById('mapActionBar');
-        let resourceStatus = document.getElementById('shipCombatResourceStatus');
-        if (!resourceStatus) {
-            resourceStatus = document.createElement('div');
-            resourceStatus.className = 'ship-combat-resource-status';
-            if (bar) {
-                bar.prepend(resourceStatus);
-            } else {
-                panel.prepend(resourceStatus);
-            }
-        }
-        this.shipCombatResourceStatus = resourceStatus;
-        button.addEventListener('click', () => this.triggerShipAction());
-        this.registerShipCombatResourceRefreshTriggers();
-        this.requestShipCombatResourceStorage(true);
-        this.updateShipCombatResourceHud();
-        this.updateMapActionBarLayout();
-        this.updateShipActionUi(true);
-    }
-
-    normalizeShipCombatResourceStorage(data = null) {
-        const source = data || {};
-        const normalizeMap = (map) => {
-            const result = {};
-            ['RR', 'RG', 'RY', 'RB', 'RT', 'RS'].forEach((code) => {
-                result[code] = Math.max(0, Math.trunc(Number(map?.[code] || 0)));
-            });
-            return result;
-        };
-        return {
-            activeShipId: source.activeShipId || null,
-            cargoResources: normalizeMap(source.cargoResources),
-            cargoCapacity: Math.max(0, Math.trunc(Number(source.cargoCapacity || 0))),
-            cargoUsed: Math.max(0, Math.trunc(Number(source.cargoUsed || 0)))
-        };
-    }
-
-    sumShipCombatResourceMap(map = null) {
-        return ['RR', 'RG', 'RY', 'RB', 'RT', 'RS']
-            .reduce((sum, code) => sum + Math.max(0, Math.trunc(Number(map?.[code] || 0))), 0);
-    }
-
-    setShipCombatResourceStorage(data = null) {
-        const source = (data && typeof data === 'object') ? data : {};
-        const prev = this.normalizeShipCombatResourceStorage(this.shipCombatResourceStorage);
-        const hasProp = (key) => Object.prototype.hasOwnProperty.call(source, key);
-        const next = this.normalizeShipCombatResourceStorage({
-            activeShipId: hasProp('activeShipId') ? source.activeShipId : prev.activeShipId,
-            cargoResources: hasProp('cargoResources') ? source.cargoResources : prev.cargoResources,
-            cargoCapacity: hasProp('cargoCapacity') ? source.cargoCapacity : prev.cargoCapacity,
-            cargoUsed: hasProp('cargoUsed')
-                ? source.cargoUsed
-                : (hasProp('cargoResources') ? this.sumShipCombatResourceMap(source.cargoResources) : prev.cargoUsed)
-        });
-        this.shipCombatResourceStorage = next;
-        this.updateShipCombatResourceHud();
-        this.updateShipActionUi(true);
-        this.updateShipSideCannonUi(true);
-        this.updateShipNormalAttackUi(true);
-    }
-
-    applyShipCombatResourceDelta(resourceMap = null, multiplier = 1) {
-        const delta = this.normalizeShipCombatResourceStorage({ cargoResources: resourceMap }).cargoResources;
-        const prev = this.normalizeShipCombatResourceStorage(this.shipCombatResourceStorage);
-        const nextCargo = {};
-        ['RR', 'RG', 'RY', 'RB', 'RT', 'RS'].forEach((code) => {
-            const current = Math.max(0, Math.trunc(Number(prev.cargoResources?.[code] || 0)));
-            const change = Math.max(0, Math.trunc(Number(delta?.[code] || 0))) * multiplier;
-            nextCargo[code] = Math.max(0, current + change);
-        });
-        this.setShipCombatResourceStorage({
-            cargoResources: nextCargo,
-            cargoUsed: this.sumShipCombatResourceMap(nextCargo)
-        });
-    }
-
-    registerShipCombatResourceRefreshTriggers() {
-        if (typeof window === 'undefined' || typeof document === 'undefined' || this.onShipCombatResourceWindowFocus) {
-            return;
-        }
-        const refreshIfMapVisible = () => {
-            if (document.body?.dataset.currentTab !== 'map') return;
-            this.applyShipCombatResourceDelta(cargoOutcome.dropped || {}, -1);
-        };
-        this.onShipCombatResourceWindowFocus = () => {
-            refreshIfMapVisible();
-        };
-        this.onShipCombatResourceVisibilityChange = () => {
-            if (document.hidden) return;
-            refreshIfMapVisible();
-        };
-        this.onMapTabVisible = () => {
-            this.applyShipCombatResourceDelta(cargoOutcome.dropped || {}, -1);
-            this.updateMapActionBarLayout();
-        };
-        window.addEventListener('focus', this.onShipCombatResourceWindowFocus);
-        document.addEventListener('visibilitychange', this.onShipCombatResourceVisibilityChange);
-        window.addEventListener('tab:map-visible', this.onMapTabVisible);
-    }
-
-    buildShipCombatResourceHudText() {
-        const storage = this.shipCombatResourceStorage || {};
-        if (!storage.activeShipId) {
-            return '海戦資源 利用にはアクティブ船が必要';
-        }
-        const cargo = storage.cargoResources || {};
-        const powder = Math.max(0, Math.trunc(Number(cargo.RR || 0)));
-        const repair = Math.max(0, Math.trunc(Number(cargo.RG || 0)));
-        const hpAid = Math.max(0, Math.trunc(Number(cargo.RY || 0)));
-        const mpAid = Math.max(0, Math.trunc(Number(cargo.RB || 0)));
-        const used = Math.max(0, Math.trunc(Number(storage.cargoUsed || 0)));
-        const cap = Math.max(0, Math.trunc(Number(storage.cargoCapacity || 0)));
-        return `海戦資源 🧨${powder} 🪨${repair} 🍄${hpAid} 🫙${mpAid} / 船倉 ${used}/${cap}`;
-    }
-
-    updateMapActionBarLayout() {
-        if (typeof document === 'undefined' || typeof window === 'undefined') return;
-        const bar = document.getElementById('mapActionBar');
-        if (!bar) return;
-        bar.style.bottom = '';
-    }
-
-    updateShipCombatResourceHud() {
-        if (!this.shipCombatResourceStatus) return;
-        this.shipCombatResourceStatus.textContent = this.buildShipCombatResourceHudText();
-    }
-
-    isShipCombatResourceThrottleError(error) {
-        const message = [
-            error?.error,
-            error?.errorMessage,
-            error?.message
-        ].filter(Boolean).join(' ');
-        return /maximum API request rate|throttl/i.test(message);
-    }
-
-    requestShipCombatResourceStorage(force = false) {
-        const playFabId = this.playerInfo?.playFabId;
-        if (!playFabId) return;
-        const now = Date.now();
-        if (this.shipCombatResourceFetchPromise) return;
-        if (now < this.shipCombatResourceBackoffUntil) return;
-        if (!force && (now - this.shipCombatResourceFetchedAt) < this.shipCombatResourcePollIntervalMs) return;
-        this.shipCombatResourceFetchedAt = now;
-        this.shipCombatResourceFetchPromise = fetchShipResourceStorage(playFabId, { isSilent: true })
-            .then((data) => {
-                if (!data?.success) return;
-                this.shipCombatResourceBackoffUntil = 0;
-                this.setShipCombatResourceStorage(data);
-            })
-            .catch((error) => {
-                if (this.isShipCombatResourceThrottleError(error)) {
-                    this.shipCombatResourceBackoffUntil = Date.now() + 30_000;
-                }
-                console.warn('[ShipCombatHud] Failed to load ship resource storage:', error);
-            })
-            .finally(() => {
-                this.shipCombatResourceFetchPromise = null;
-            });
-    }
-
-    setupShipSideCannonUi() {
-        if (typeof document === 'undefined') return;
-        const panel = document.getElementById('shipSideCannonPanel');
-        const button = document.getElementById('shipSideCannonButton');
-        const status = document.getElementById('shipSideCannonStatus');
-        if (!panel || !button || !status) return;
-
-        this.shipSideCannonPanel = panel;
-        this.shipSideCannonButton = button;
-        this.shipSideCannonStatus = status;
-        button.addEventListener('click', () => this.triggerShipSideCannon());
-        this.updateShipSideCannonUi(true);
-    }
-
-    setupShipNormalAttackUi() {
-        if (typeof document === 'undefined') return;
-        const panel = document.getElementById('shipNormalAttackPanel');
-        const button = document.getElementById('shipNormalAttackButton');
-        const status = document.getElementById('shipNormalAttackStatus');
-        if (!panel || !button || !status) return;
-
-        this.shipNormalAttackPanel = panel;
-        this.shipNormalAttackButton = button;
-        this.shipNormalAttackStatus = status;
-        button.addEventListener('click', () => this.triggerShipNormalAttack());
-        this.updateShipNormalAttackUi(true);
-    }
-
-    // ────────────────────────────────────────────────────────
-    // 船スキル UI
-    // ────────────────────────────────────────────────────────
-
-    setupShipSkillUi() {
-        if (typeof document === 'undefined') return;
-        const toggleBtn = document.getElementById('shipSkillToggleButton');
-        const sheet = document.getElementById('shipSkillSheet');
-        const closeBtn = document.getElementById('shipSkillSheetClose');
-        if (!toggleBtn || !sheet || !closeBtn) return;
-
-        toggleBtn.addEventListener('click', () => this.toggleShipSkillSheet());
-        bindModalClose(closeBtn, () => this.closeShipSkillSheet(), {
-            overlay: sheet,
-            closeOnBackdrop: true,
-            closeOnEscape: true,
-            icon: true,
-            isOpen: () => this.shipSkillPanelOpen
-        });
-    }
-
-    toggleShipSkillSheet() {
-        if (this.shipSkillPanelOpen) {
-            this.closeShipSkillSheet();
-        } else {
-            this.openShipSkillSheet();
-        }
-    }
-
-    openShipSkillSheet() {
-        const sheet = document.getElementById('shipSkillSheet');
-        const toggleBtn = document.getElementById('shipSkillToggleButton');
-        if (!sheet) return;
-        this.shipSkillPanelOpen = true;
-        sheet.classList.add('is-open');
-        sheet.setAttribute('aria-hidden', 'false');
-        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'true');
-        this.loadShipSkillStatus();
-    }
-
-    closeShipSkillSheet() {
-        const sheet = document.getElementById('shipSkillSheet');
-        const toggleBtn = document.getElementById('shipSkillToggleButton');
-        if (!sheet) return;
-        this.shipSkillPanelOpen = false;
-        sheet.classList.remove('is-open');
-        sheet.setAttribute('aria-hidden', 'true');
-        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
-        this.stopShipSkillCtTick();
-    }
-
-    loadShipSkillStatus() {
-        const playFabId = window.myPlayFabId;
-        if (!playFabId) return;
-
-        // キャッシュがあれば CT だけローカルで補完して即描画（サーバー不要）
-        const cached = getCachedSkillData();
-        if (cached?.skills) {
-            const skills = mergeWithLocalCt(cached.skills);
-            this.shipSkillData = skills;
-            this.renderShipSkillPanel(skills, cached.roleKey);
-            this.startShipSkillCtTick();
-            return;
-        }
-
-        // 初回のみサーバーからデッキ＋スキル情報を取得してキャッシュ
-        fetchShipSkillStatus(playFabId, { silent: true })
-            .then((data) => {
-                if (!data?.skills) return;
-                setCachedSkillData(data);
-                const skills = mergeWithLocalCt(data.skills);
-                this.shipSkillData = skills;
-                this.renderShipSkillPanel(skills, data.roleKey);
-                this.startShipSkillCtTick();
-            })
-            .catch((err) => {
-                console.warn('[ShipSkill] Failed to load status:', err);
-            });
-    }
-
-    renderShipSkillPanel(skills, roleKey) {
-        const grid = document.getElementById('shipSkillGrid');
-        const emptyMsg = document.getElementById('shipSkillEmptyMsg');
-        const roleLabel = document.getElementById('shipSkillRoleLabel');
-        if (!grid) return;
-
-        if (roleLabel) roleLabel.textContent = roleKey && roleKey !== 'Incomplete' ? `◆ ${roleKey}` : '';
-
-        const validSkills = (skills || []).filter((s) => !s.error);
-        if (validSkills.length === 0) {
-            grid.innerHTML = '';
-            if (emptyMsg) emptyMsg.hidden = false;
-            return;
-        }
-        if (emptyMsg) emptyMsg.hidden = true;
-
-        const ELEMENT_ICON = { fire: '🔥', wind: '🌀', water: '💧', earth: '🛡', none: '✨' };
-        const RANGE_LABEL = { self: '自', near: '近', medium: '中', far: '遠', global: '全' };
-        const CIRCUMFERENCE = 2 * Math.PI * 24; // r=24
-
-        grid.innerHTML = validSkills.map((skill) => {
-            const icon = ELEMENT_ICON[skill.element] || '⚡';
-            const rangeLabel = RANGE_LABEL[skill.range] || skill.range;
-            const castLabel = skill.castTime > 0 ? `詠唱${skill.castTime}s` : '即時';
-            const isTriggered = skill.activationType === 'triggered';
-            const remaining = skill.remainingSec || 0;
-            const total = skill.cooldownSec || 1;
-            const progress = remaining > 0 ? (remaining / total) : 0;
-            const dashOffset = CIRCUMFERENCE * (1 - progress);
-
-            return `<button
-                class="ship-skill-card${remaining === 0 ? ' is-ready' : ''}"
-                data-card-item-id="${skill.cardItemId}"
-                data-element="${skill.element}"
-                data-ct-remaining="${remaining}"
-                data-ct-total="${total}"
-                onclick="window.useShipSkillCard('${skill.cardItemId}', '${skill.skillName}')"
-                ${isTriggered ? 'disabled title="自動発動スキル"' : ''}
-            >
-                ${isTriggered ? '<span class="ship-skill-auto-badge">自動</span>' : ''}
-                <div class="ship-skill-ct-ring-wrap">
-                    <svg viewBox="0 0 56 56">
-                        <circle class="ship-skill-ct-ring-bg" cx="28" cy="28" r="24"/>
-                        <circle class="ship-skill-ct-ring-fill"
-                            cx="28" cy="28" r="24"
-                            stroke-dasharray="${CIRCUMFERENCE.toFixed(1)}"
-                            stroke-dashoffset="${(CIRCUMFERENCE * progress).toFixed(1)}"
-                            data-ct-ring
-                        />
-                    </svg>
-                    <div class="ship-skill-ct-inner">
-                        <span class="ship-skill-ct-icon">${icon}</span>
-                        <span class="ship-skill-ct-sec" data-ct-label>${remaining > 0 ? remaining + 's' : ''}</span>
-                    </div>
-                </div>
-                <span class="ship-skill-card-name">${skill.skillName}</span>
-                <div class="ship-skill-card-meta">
-                    <span class="ship-skill-card-range">${rangeLabel}</span>
-                    <span class="ship-skill-card-cast">${castLabel}</span>
-                </div>
-                <p class="ship-skill-card-desc">${skill.description || ''}</p>
-            </button>`;
-        }).join('');
-    }
-
-    startShipSkillCtTick() {
-        this.stopShipSkillCtTick();
-        this.shipSkillCtInterval = setInterval(() => this.tickShipSkillCt(), 1000);
-    }
-
-    stopShipSkillCtTick() {
-        if (this.shipSkillCtInterval) {
-            clearInterval(this.shipSkillCtInterval);
-            this.shipSkillCtInterval = null;
-        }
-    }
-
-    tickShipSkillCt() {
-        const grid = document.getElementById('shipSkillGrid');
-        if (!grid || !this.shipSkillPanelOpen) return;
-        const CIRCUMFERENCE = 2 * Math.PI * 24;
-
-        grid.querySelectorAll('.ship-skill-card').forEach((card) => {
-            const ctKey = card.dataset.cardItemId;
-            if (!ctKey) return;
-
-            // CT は localStorage から読む（サーバー参照なし）
-            const remaining = getSkillRemainingSec(ctKey);
-            const prev = Number(card.dataset.ctRemaining) || 0;
-            const total = Number(card.dataset.ctTotal) || 1;
-
-            card.dataset.ctRemaining = remaining;
-
-            const label = card.querySelector('[data-ct-label]');
-            if (label) label.textContent = remaining > 0 ? `${remaining}s` : '';
-
-            const ring = card.querySelector('[data-ct-ring]');
-            if (ring) {
-                const progress = remaining > 0 ? remaining / total : 0;
-                ring.setAttribute('stroke-dashoffset', (CIRCUMFERENCE * progress).toFixed(1));
-            }
-
-            if (prev > 0 && remaining === 0) {
-                card.classList.add('is-ready', 'is-ready-flash');
-                card.removeAttribute('disabled');
-                setTimeout(() => card.classList.remove('is-ready-flash'), 700);
-                const statusChip = document.getElementById('shipSkillStatus');
-                if (statusChip) {
-                    statusChip.textContent = 'スキル Ready';
-                    setTimeout(() => { statusChip.textContent = ''; }, 4000);
-                }
-            }
-        });
-    }
-
-    useShipSkillCard(cardItemId, skillName) {
-        const playFabId = window.myPlayFabId;
-        if (!playFabId) return;
-
-        // 1. CT チェック（localStorage、サーバー不要）
-        if (!isSkillReady(cardItemId)) {
-            const rem = getSkillRemainingSec(cardItemId);
-            this.showMessage(`⏳ CT中 残${rem}s`);
-            return;
-        }
-
-        // 2. スキル情報をキャッシュから取得
-        const skillInfo = (this.shipSkillData || []).find((s) => s.cardItemId === cardItemId);
-        if (!skillInfo) return;
-
-        // 3. CT を即座に localStorage に記録（楽観的更新）
-        const cooldownMs = (skillInfo.cooldownSec || 30) * 1000;
-        setSkillCooldown(cardItemId, Date.now() + cooldownMs);
-        this.updateCardCtDisplay(cardItemId, skillInfo.cooldownSec);
-
-        this.showMessage(`⚡ ${skillName} 発動！`);
-
-        // 4. 自己効果スキル → ローカルだけで完結（サーバー呼び出しなし）
-        if (isSelfOnlySkill(skillInfo)) {
-            this.applyLocalShipSkillEffect(skillInfo);
-            return;
-        }
-
-        // 5. 他プレイヤーへの効果 → fire-and-forget（await しない）
-        const context = {};
-        const nearestEnemy = this.getNearestEnemyShipId?.();
-        if (nearestEnemy) context.targetPlayFabId = nearestEnemy;
-        requestUseShipSkill(playFabId, cardItemId, context, { silent: true }).catch(() => {});
-    }
-
-    updateCardCtDisplay(cardItemId, cooldownSec) {
-        const card = document.querySelector(`.ship-skill-card[data-card-item-id="${cardItemId}"]`);
-        if (!card) return;
-        const total = cooldownSec || 30;
-        card.dataset.ctRemaining = total;
-        card.dataset.ctTotal = total;
-        card.classList.remove('is-ready');
-        const label = card.querySelector('[data-ct-label]');
-        if (label) label.textContent = `${total}s`;
-        const ring = card.querySelector('[data-ct-ring]');
-        if (ring) ring.setAttribute('stroke-dashoffset', '0');
-    }
-
-    applyLocalShipSkillEffect(skillInfo) {
-        const subtype = skillInfo?.effect?.subtype || skillInfo?.effectSubtype;
-        const value   = skillInfo?.effect?.value;
-        const dur     = (skillInfo?.effect?.duration || 0) * 1000;
-        const nowMs   = Date.now();
-
-        switch (subtype) {
-            case 'invincible-escape':
-                this.shipActionImmuneUntil = nowMs + (dur || 5000);
-                break;
-            case 'stealth':
-                this.setPlayerShipInvisible?.(true);
-                this.shipActionInvisibleUntil = nowMs + (dur || 45000);
-                break;
-            case 'charge':
-                this.shipActionSpeedBoostMultiplier = value?.speedMult || 3;
-                this.shipActionSpeedBoostUntil = nowMs + (dur || 10000);
-                break;
-            case 'berserker':
-                this.shipActionSpeedBoostMultiplier = 1;
-                this.shipActionSpeedBoostUntil = nowMs + (dur || 20000);
-                break;
-            case 'fortify':
-                this.shipActionMoveLockUntil = nowMs + (dur || 15000);
-                break;
-            case 'blink':
-                this.teleportPlayerShipRandom?.();
-                break;
-            default:
-                break;
-        }
-    }
-
-    isPlayerGuildShip() {
-        const shipClass = String(this.playerShipClass || '').toLowerCase();
-        if (shipClass === 'guild') return true;
-        const itemId = String(this.playerShipItemId || '').toLowerCase();
-        if (itemId.includes('guild')) return true;
-        const shipType = String(this.playerShipAssetData?.ShipType || '').toLowerCase();
-        if (shipType.includes('guild')) return true;
-        const classFromAsset = String(this.playerShipAssetData?.Class || this.playerShipAssetData?.class || '').toLowerCase();
-        if (classFromAsset.includes('guild')) return true;
-        return !!this.playerShipAssetData?.isGuildShip || !!this.playerShipAssetData?.guildShip;
-    }
-
-    canUseShipSideCannon() {
-        const shipClass = String(this.playerShipClass || '').toLowerCase();
-        if (shipClass === 'fighter' || shipClass === 'defender' || shipClass === 'merchant') {
-            return true;
-        }
-        return this.isPlayerGuildShip();
-    }
-
-    getShipSideCannonInfo() {
-        return {
-            type: 'side_cannon',
-            label: '舷側砲',
-            emoji: ['💣', '💥'],
-            effect: 'broadside',
-            rangeTiles: 5,
-            angle: 72,
-            damage: 280,
-            chargeMs: 150,
-            hitStopMs: 80,
-            cooldownMs: 60_000
-        };
-    }
-
-    getShipNormalAttackInfo() {
-        const shipClass = this.isPlayerGuildShip()
-            ? 'guild'
-            : String(this.playerShipClass || this.playerShipAssetData?.Class || this.playerShipAssetData?.class || '').toLowerCase();
-        const base = {
-            type: 'normal_cannon',
-            label: '通常砲撃',
-            emoji: ['💥'],
-            effect: 'normal_cannon',
-            rangeTiles: 3.5,
-            angle: 38,
-            damage: 45,
-            broadside: false
-        };
-        if (shipClass === 'fighter') {
-            return { ...base, label: '直射砲', rangeTiles: 5.5, angle: 28, damage: 95, effect: 'cannon_shot', emoji: ['💣'] };
-        }
-        if (shipClass === 'defender') {
-            return { ...base, type: 'normal_broadside', label: '舷側射撃', rangeTiles: 4, angle: 55, damage: 70, effect: 'broadside', broadside: true, emoji: ['💥'] };
-        }
-        if (shipClass === 'merchant') {
-            return { ...base, label: '牽制射撃', rangeTiles: 3.5, angle: 70, damage: 62, effect: 'normal_scatter', emoji: ['✨'] };
-        }
-        if (shipClass === 'explorer') {
-            return { ...base, label: '速射', rangeTiles: 6, angle: 20, damage: 50, effect: 'cannon_shot', emoji: ['💨'] };
-        }
-        if (shipClass === 'guild') {
-            return { ...base, type: 'normal_broadside', label: '艦隊射撃', rangeTiles: 5, angle: 60, damage: 85, effect: 'broadside', broadside: true, emoji: ['💣', '💥'] };
-        }
-        return base;
-    }
-
-    updateShipNormalAttackUi(force = false) {
-        if (!this.shipNormalAttackButton || !this.shipNormalAttackStatus) return;
-        const now = Date.now();
-        if (!force && now - this.shipNormalAttackUiLastUpdate < 160) return;
-        this.shipNormalAttackUiLastUpdate = now;
-
-        const info = this.getShipNormalAttackInfo();
-        const jamRemaining = Math.max(0, this.shipActionJammedUntil - now);
-        const lockRemaining = Math.max(0, this.shipNormalAttackLockUntil - now);
-        const hasShip = !!this.playerShip && (!!this.playerShipClass || !!this.playerShipItemId || this.isPlayerGuildShip());
-        const inBattle = this.isShipInBattle(this.playerInfo?.playFabId);
-        const canUse = hasShip && !inBattle && jamRemaining <= 0 && lockRemaining <= 0;
-
-        if (this.shipNormalAttackPanel) {
-            this.shipNormalAttackPanel.style.display = 'flex';
-        }
-        this.shipNormalAttackButton.disabled = !canUse;
-        this.shipNormalAttackButton.textContent = '通常攻撃';
-
-        if (!hasShip) {
-            this.shipNormalAttackStatus.textContent = '船が必要';
-            return;
-        }
-        if (inBattle) {
-            this.shipNormalAttackStatus.textContent = '戦闘中不可';
-            return;
-        }
-        if (jamRemaining > 0) {
-            this.shipNormalAttackStatus.textContent = `妨害中 (${Math.ceil(jamRemaining / 1000)}s)`;
-            return;
-        }
-        this.shipNormalAttackStatus.textContent = `${info.label} 威力${info.damage}`;
-    }
-
-    triggerShipNormalAttack() {
-        if (!this.playerShip || !this.playerInfo?.playFabId) {
-            this.showMessage('通常攻撃を使用できません。');
-            return;
-        }
-        if (this.isShipInBattle(this.playerInfo.playFabId)) {
-            this.showMessage('戦闘中は通常攻撃を使用できません。');
-            return;
-        }
-        const now = Date.now();
-        if (now < this.shipActionJammedUntil) {
-            this.showMessage(`妨害中 (${Math.ceil((this.shipActionJammedUntil - now) / 1000)}s)`);
-            return;
-        }
-        if (now < this.shipNormalAttackLockUntil) {
-            return;
-        }
-
-        const actionInfo = this.getShipNormalAttackInfo();
-        this.shipNormalAttackLockUntil = now + 220;
-        this.updateShipNormalAttackUi(true);
-        this.emitShipActionEvent(actionInfo, this.playerShip.x, this.playerShip.y);
-        if (Array.isArray(actionInfo.emoji) && actionInfo.emoji.length > 0) {
-            this.playEmojiBurst(actionInfo.emoji, this.playerShip.x, this.playerShip.y - 16, { fontSize: 16, rise: 16, duration: 520 });
-        }
-        this.applyShipNormalAttack(actionInfo);
-        this.time.delayedCall(230, () => this.updateShipNormalAttackUi(true));
-    }
-
-    applyShipNormalAttack(actionInfo = {}) {
-        if (!this.playerShip) return;
-        const tile = this.TILE_SIZE;
-        const range = tile * Math.max(1, Number(actionInfo.rangeTiles) || 3);
-        const angle = Number(actionInfo.angle) || 38;
-        const damage = Number(actionInfo.damage) || 40;
-        const effectColor = this.getActionEffectColor(actionInfo.effect, 0xffd166);
-        if (actionInfo.broadside) {
-            const broadsideBundle = this.getDefenderBroadsideBundle(actionInfo);
-            if (!broadsideBundle?.targets?.length) {
-                this.showMessage('対象がいません');
-                this.applyDefenderBroadsideAction(actionInfo, broadsideBundle);
-                return;
-            }
-            this.applyDefenderBroadsideAction(actionInfo, broadsideBundle);
-            return;
-        }
-
-        const heading = this.getFacingAngleRad();
-        const targets = this.getTargetsInCone(range, angle);
-        this.playActionConeEffectAt(this.playerShip.x, this.playerShip.y, range, angle, heading, effectColor);
-        this.playCannonShot(this.playerShip.x, this.playerShip.y, range, heading, {
-            glyph: actionInfo.effect === 'normal_scatter' ? '✨' : '💥',
-            durationMs: 150,
-            impactGlyph: '💥',
-            impactTint: 0xffef9f
-        });
-        this.applyShipActionDamage(targets, damage);
-    }
-
-    updateShipSideCannonUi(force = false) {
-        if (!this.shipSideCannonButton || !this.shipSideCannonStatus) return;
-        const now = Date.now();
-        if (!force && now - this.shipSideCannonUiLastUpdate < 250) return;
-        this.shipSideCannonUiLastUpdate = now;
-        this.updateShipCombatResourceHud();
-
-        const panel = this.shipSideCannonPanel;
-        const allowedClass = this.canUseShipSideCannon();
-        const cooldownRemaining = Math.max(0, this.shipSideCannonCooldownUntil - now);
-        const chargeRemaining = Math.max(0, this.shipSideCannonChargeUntil - now);
-        const jamRemaining = Math.max(0, this.shipActionJammedUntil - now);
-        const canUse = !!this.playerShip && allowedClass && cooldownRemaining <= 0 && jamRemaining <= 0 && chargeRemaining <= 0 && !this.shipSideCannonConsuming;
-        const hasShipInfo = !!this.playerShipClass || !!this.playerShipItemId || this.isPlayerGuildShip();
-        const shouldShow = hasShipInfo && allowedClass;
-
-        if (panel) {
-            panel.style.display = 'flex';
-        }
-        this.shipSideCannonButton.disabled = !canUse;
-        if (!shouldShow) {
-            this.shipSideCannonStatus.textContent = hasShipInfo ? '対応船のみ' : '船が必要';
-            return;
-        }
-        if (jamRemaining > 0) {
-            const seconds = Math.ceil(jamRemaining / 1000);
-            this.shipSideCannonStatus.textContent = `妨害中 (${seconds}s)`;
-            return;
-        }
-        if (cooldownRemaining > 0) {
-            const seconds = Math.ceil(cooldownRemaining / 1000);
-            this.shipSideCannonStatus.textContent = `再装填 ${seconds}s / 火薬 ${Math.max(0, Math.trunc(Number(this.shipCombatResourceStorage?.cargoResources?.RR || 0)))}`;
-            return;
-        }
-        if (this.shipSideCannonConsuming) {
-            this.shipSideCannonStatus.textContent = '火薬確認中...';
-            return;
-        }
-        if (chargeRemaining > 0) {
-            const seconds = Math.max(0.1, Math.ceil(chargeRemaining / 100) / 10);
-            this.shipSideCannonStatus.textContent = `照準中 (${seconds}s)`;
-            return;
-        }
-        this.shipSideCannonStatus.textContent = '左右へ舷側砲撃 (🧨x1)';
-    }
-
-    async consumeShipSideCannonAmmo() {
-        if (!this.playerInfo?.playFabId || this.shipSideCannonConsuming) return false;
-        this.shipSideCannonConsuming = true;
-        this.updateShipSideCannonUi(true);
-        try {
-            const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/consume-ship-broadside') : '/api/consume-ship-broadside'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ playFabId: this.playerInfo.playFabId })
-            });
-            const data = await res.json();
-            if (!res.ok || !data?.success) {
-                this.showMessage(data?.error || '舷側砲の火薬が足りません');
-                return false;
-            }
-            this.setShipCombatResourceStorage({
-                activeShipId: data.shipId || this.shipCombatResourceStorage?.activeShipId,
-                cargoResources: data.balances,
-                cargoUsed: this.sumShipCombatResourceMap(data.balances)
-            });
-            return true;
-        } catch (error) {
-            console.warn('[ShipSideCannon] Failed to consume ammo:', error);
-            this.showMessage('舷側砲の火薬消費に失敗しました');
-            return false;
-        } finally {
-            this.shipSideCannonConsuming = false;
-            this.updateShipSideCannonUi(true);
-        }
-    }
-
-    triggerShipSideCannon() {
-        if (!this.playerShip || !this.playerInfo?.playFabId) {
-            this.showMessage('アクションを使用できません。');
-            return;
-        }
-        if (!this.canUseShipSideCannon()) {
-            this.showMessage('この船では舷側砲を使用できません。');
-            return;
-        }
-        if (this.isShipInBattle(this.playerInfo.playFabId)) {
-            this.showMessage('戦闘中は舷側砲を使用できません。');
-            return;
-        }
-        const now = Date.now();
-        if (now < this.shipActionJammedUntil) {
-            const seconds = Math.ceil((this.shipActionJammedUntil - now) / 1000);
-            this.showMessage(`妨害中 (${seconds}s)`);
-            return;
-        }
-        if (now < this.shipSideCannonCooldownUntil) {
-            const seconds = Math.ceil((this.shipSideCannonCooldownUntil - now) / 1000);
-            this.showMessage(`舷側砲クールダウン中 (${seconds}s)`);
-            return;
-        }
-        if (this.shipSideCannonConsuming) {
-            this.showMessage('舷側砲の火薬を確認中です');
-            return;
-        }
-        if (now < this.shipSideCannonChargeUntil) {
-            this.showMessage('舷側砲を照準中...');
-            return;
-        }
-
-        const actionInfo = this.getShipSideCannonInfo();
-        const chargeMs = Math.max(80, Number(actionInfo.chargeMs) || 150);
-        this.shipSideCannonChargeUntil = now + chargeMs;
-        this.playSideCannonChargeEffect(chargeMs);
-        this.playShipActionTelegraph(actionInfo, chargeMs + 120);
-        this.playSideCannonSfx('charge');
-        this.updateShipSideCannonUi(true);
-        if (this.shipSideCannonChargeTimer) {
-            this.shipSideCannonChargeTimer.remove(false);
-            this.shipSideCannonChargeTimer = null;
-        }
-
-        this.shipSideCannonChargeTimer = this.time.delayedCall(chargeMs, async () => {
-            this.shipSideCannonChargeTimer = null;
-            this.shipSideCannonChargeUntil = 0;
-            const fireNow = Date.now();
-            if (!this.playerShip || !this.playerInfo?.playFabId) {
-                this.updateShipSideCannonUi(true);
-                return;
-            }
-            if (this.isShipInBattle(this.playerInfo.playFabId)) {
-                this.showMessage('舷側砲は中断されました。');
-                this.updateShipSideCannonUi(true);
-                return;
-            }
-            if (fireNow < this.shipActionJammedUntil) {
-                this.showMessage('舷側砲は妨害されました。');
-                this.updateShipSideCannonUi(true);
-                return;
-            }
-            const broadsideBundle = this.getDefenderBroadsideBundle(actionInfo);
-            if (!broadsideBundle.targets.length) {
-                this.showMessage('対象がいません');
-                this.updateShipSideCannonUi(true);
-                return;
-            }
-            const consumed = await this.consumeShipSideCannonAmmo();
-            if (!consumed) {
-                this.updateShipSideCannonUi(true);
-                return;
-            }
-
-            this.playSideCannonSfx('fire');
-            if (Array.isArray(actionInfo.emoji) && actionInfo.emoji.length > 0) {
-                this.playEmojiBurst(actionInfo.emoji, this.playerShip.x, this.playerShip.y - 16, { fontSize: 19, rise: 20, duration: 680 });
-            }
-            this.emitShipActionEvent(actionInfo, this.playerShip.x, this.playerShip.y);
-            this.applyDefenderBroadsideAction(actionInfo, broadsideBundle);
-            this.showMessage(`${actionInfo.label}！`);
-
-            this.shipSideCannonCooldownUntil = fireNow + (Number(actionInfo.cooldownMs) || 60_000);
-            this.updateShipSideCannonUi(true);
-        });
-    }
-
     setupCreateIslandUi() {
         if (typeof document === 'undefined') return;
         const button = document.getElementById('createIslandButton');
@@ -3677,8 +2775,6 @@ export default class WorldMapScene extends Phaser.Scene {
             this.shipSpeed = baseSpeed;
         }
         this.applyPlayerShipDomain();
-        this.updateShipActionUi(true);
-        this.updateShipSideCannonUi(true);
     }
 
     getShipClassFromItemId(itemId) {
@@ -3693,78 +2789,6 @@ export default class WorldMapScene extends Phaser.Scene {
         return null;
     }
 
-    getShipClassLabel(shipClass) {
-        const key = String(shipClass || '').toLowerCase();
-        if (key === 'common') return '初期ボート';
-        if (key === 'explorer') return 'Explorer';
-        if (key === 'merchant') return 'Merchant';
-        if (key === 'defender') return 'Defender';
-        if (key === 'fighter') return 'Fighter';
-        if (key === 'guild') return 'ギルドシップ';
-        return '対象船';
-    }
-
-    getOtherShipClass(shipObject) {
-        if (!shipObject) return null;
-        const classFromData = String(
-            shipObject?.data?.shipClass
-            || shipObject?.data?.ShipClass
-            || shipObject?.data?.class
-            || shipObject?.data?.Class
-            || ''
-        ).toLowerCase().trim();
-        const normalizedFromData = this.getShipClassFromItemId(classFromData);
-        if (normalizedFromData) return normalizedFromData;
-
-        const shipTypeKey = String(shipObject?.shipTypeKey || '').trim();
-        if (shipTypeKey.includes('__')) {
-            const itemId = shipTypeKey.split('__')[0];
-            const normalizedFromItemId = this.getShipClassFromItemId(itemId);
-            if (normalizedFromItemId) return normalizedFromItemId;
-        }
-
-        const shipId = String(shipObject?.data?.shipId || '').trim();
-        const normalizedFromShipId = this.getShipClassFromItemId(shipId);
-        if (normalizedFromShipId) return normalizedFromShipId;
-        return null;
-    }
-
-    getBoardingRestriction(targetPlayFabId) {
-        const target = this.otherShips.get(targetPlayFabId);
-        if (!target) return null;
-
-        const myNation = String(this.playerInfo?.nation || '').toLowerCase();
-        const targetNation = String(target?.data?.nation || target?.data?.Nation || target?.sprite?.__ownerNation || '').toLowerCase();
-        if (myNation && targetNation && myNation === targetNation) {
-            return null;
-        }
-
-        const attackerItemId = String(this.playerShipItemId || '').toLowerCase();
-        const attackerClass = String(
-            this.playerShipClass
-            || this.getShipClassFromItemId(attackerItemId)
-            || ''
-        ).toLowerCase();
-        const blockedAttackers = new Set(['explorer', 'common']);
-        if (!blockedAttackers.has(attackerClass)) return null;
-
-        const isGuildShip = !!target?.isGuildShip || !!target?.data?.isGuildShip || !!target?.data?.guildShip;
-        const defenderClass = isGuildShip ? 'guild' : this.getOtherShipClass(target);
-        const protectedDefenders = new Set(['fighter', 'defender', 'merchant']);
-        if (!isGuildShip && !protectedDefenders.has(String(defenderClass || '').toLowerCase())) {
-            return null;
-        }
-
-        const attackerLabel = this.getShipClassLabel(attackerClass);
-        const defenderLabel = isGuildShip ? 'ギルドシップ' : this.getShipClassLabel(defenderClass);
-        return {
-            blocked: true,
-            attackerClass,
-            defenderClass: isGuildShip ? 'guild' : defenderClass,
-            message: `${attackerLabel}では${defenderLabel}に乗り込めません。`
-        };
-    }
-
     resolveShipCatalogItem(assetData = null) {
         if (typeof window === 'undefined') return null;
         const catalog = window.shipCatalog;
@@ -3776,107 +2800,6 @@ export default class WorldMapScene extends Phaser.Scene {
         return Object.values(catalog).find(item => item && item.DisplayName === shipType) || null;
     }
 
-    getShipActionType() {
-        const itemId = String(this.playerShipItemId || '').toLowerCase();
-        if (itemId === 'ship_common_boat') return { type: 'none', label: 'None' };
-        const catalogItem = this.resolveShipCatalogItem();
-        const friendlyId = String(catalogItem?.FriendlyId || catalogItem?.friendlyId || '').toLowerCase();
-        const byItem = SHIP_ACTIONS[itemId] || (friendlyId ? SHIP_ACTIONS[friendlyId] : null);
-        if (byItem) return { ...byItem };
-        const shipClass = this.playerShipClass;
-        if (shipClass === 'explorer') return { type: 'explorer', label: '探索加速', emoji: ['⛵'], durationMs: 4500, speedMultiplier: 1.35, cooldownMs: 55_000 };
-        if (shipClass === 'merchant') return { type: 'merchant', label: '補給機動', emoji: ['🚤', '💨'], durationMs: 5000, effect: 'island_pass', cooldownMs: 70_000 };
-        if (shipClass === 'defender') return { type: 'defender_shield', label: '防衛障壁', emoji: ['🛡️'], radiusTiles: 5, shieldRadiusTiles: 5, shieldDurationMs: 6000, shieldFactor: 0.7, effect: 'shield', cooldownMs: 70_000 };
-        if (shipClass === 'fighter') return { type: 'fighter', label: '砲撃', emoji: ['⚔️'], rangeTiles: 5, angle: 45, damage: 320, cooldownMs: 60_000 };
-        return { type: 'none', label: 'None' };
-    }
-
-    getEffectiveShipSpeed() {
-        const now = Date.now();
-        const boostActive = now < this.shipActionSpeedBoostUntil;
-        const debuffActive = now < this.shipActionSpeedDebuffUntil;
-        const boostMultiplier = boostActive ? Number(this.shipActionSpeedBoostMultiplier) || 1.5 : 1;
-        const debuffMultiplier = debuffActive ? Number(this.shipActionSpeedDebuffMultiplier) || 1 : 1;
-        const currentMp = Math.max(0, Number(Player.getMyPlayerStats?.()?.MP || 0));
-        const mpMultiplier = currentMp <= 0 ? 0.7 : 1;
-        return Math.max(1, this.shipBaseSpeed * boostMultiplier * debuffMultiplier * mpMultiplier);
-    }
-
-    updateShipActionUi(force = false) {
-        if (!this.shipActionButton || !this.shipActionStatus) return;
-        const now = Date.now();
-        if (!force && now - this.shipActionUiLastUpdate < 250) return;
-        this.shipActionUiLastUpdate = now;
-        this.updateShipCombatResourceHud();
-
-        const actionInfo = this.getShipActionType();
-        const cooldownRemaining = Math.max(0, this.shipActionCooldownUntil - now);
-        const jamRemaining = Math.max(0, this.shipActionJammedUntil - now);
-        const canUse = cooldownRemaining <= 0 && jamRemaining <= 0 && actionInfo.type !== 'none';
-
-        this.shipActionButton.disabled = !canUse;
-        this.shipActionButton.textContent = '船アクション';
-
-        if (actionInfo.type === 'none') {
-            this.shipActionStatus.textContent = '行動なし';
-            return;
-        }
-
-        if (jamRemaining > 0) {
-            const seconds = Math.ceil(jamRemaining / 1000);
-            this.shipActionStatus.textContent = `妨害中 (${seconds}s)`;
-        } else if (cooldownRemaining > 0) {
-            const seconds = Math.ceil(cooldownRemaining / 1000);
-            this.shipActionStatus.textContent = `再装填 ${seconds}s / 補修 ${Math.max(0, Math.trunc(Number(this.shipCombatResourceStorage?.cargoResources?.RG || 0)))}`;
-        } else {
-            this.shipActionStatus.textContent = actionInfo.label;
-        }
-    }
-
-    updateShipActionEffects() {
-        const now = Date.now();
-        if (now >= this.shipActionInvisibleUntil && this.playerShip?.alpha !== 1) {
-            this.setPlayerShipInvisible(false);
-        }
-        if (now >= this.shipActionSpeedBoostUntil) {
-            this.shipActionSpeedBoostMultiplier = 1;
-        }
-        if (now >= this.shipActionSpeedDebuffUntil) {
-            this.shipActionSpeedDebuffMultiplier = 1;
-        }
-        this.shipSpeed = this.getEffectiveShipSpeed();
-
-        const agilityActive = now < this.shipActionAgilityUntil;
-        const agilityMultiplier = agilityActive ? Number(this.shipActionAgilityMultiplier) || 1 : 1;
-        this.moveCooldown = Math.max(0, Math.floor(this.baseMoveCooldown * agilityMultiplier));
-
-        const islandPassActive = now < this.shipActionIslandPassUntil;
-        this.setIslandCollisionEnabled(!islandPassActive);
-
-        if (now < this.shipActionMoveLockUntil) {
-            if (this.shipMoving) {
-                this.stopShipMovement();
-            }
-            this.canMove = false;
-        } else if (!this.shipMoving) {
-            this.canMove = true;
-        }
-
-        const visionDebuffExpired = this.shipActionVisionDebuffUntil && now >= this.shipActionVisionDebuffUntil;
-        const visionBoostExpired = this.shipActionVisionBoostUntil && now >= this.shipActionVisionBoostUntil;
-        if (visionDebuffExpired) {
-            this.shipActionVisionDebuffUntil = 0;
-            this.shipActionVisionDebuffMultiplier = 1;
-            this.updateZoomFromVisionRange();
-        }
-        if (visionBoostExpired) {
-            this.shipActionVisionBoostUntil = 0;
-            this.shipActionVisionBoostMultiplier = 1;
-            this.shipActionMinimapBoostUntil = 0;
-            this.updateZoomFromVisionRange();
-        }
-    }
-
     isAirDomain(domain) {
         const key = String(domain || '').toLowerCase();
         return key === 'air' || key === 'sky' || key === 'flight' || key === 'flying';
@@ -3885,111 +2808,6 @@ export default class WorldMapScene extends Phaser.Scene {
     isWaterDomain(domain) {
         const key = String(domain || '').toLowerCase();
         return key === 'water' || key === 'underwater' || key === 'sea_underwater' || key === 'submarine';
-    }
-
-    formatShipCargoOutcomeText(resources) {
-        const labels = {
-            RR: '🧨',
-            RG: '🪨',
-            RY: '🍄',
-            RB: '🫙',
-            RT: '🪾',
-            RS: '🪵'
-        };
-        const parts = Object.entries(resources || {})
-            .map(([itemId, amount]) => [String(itemId || '').trim(), Number(amount || 0) || 0])
-            .filter(([itemId, amount]) => itemId && amount > 0)
-            .map(([itemId, amount]) => `${labels[itemId] || itemId}x${amount}`);
-        return parts.join(' ');
-    }
-
-    getShipCargoEmoji(itemId) {
-        const key = String(itemId || '').trim().toUpperCase();
-        const emojiMap = {
-            RR: '🧨',
-            RG: '🪨',
-            RY: '🍄',
-            RB: '🫙',
-            RT: '🪾',
-            RS: '🪵'
-        };
-        return emojiMap[key] || '📦';
-    }
-
-    getWorldShipSpriteByPlayFabId(playFabId) {
-        const key = String(playFabId || '').trim();
-        if (!key) return null;
-        if (key === this.playerInfo?.playFabId) {
-            return this.playerShip || null;
-        }
-        return this.otherShips.get(key)?.sprite || null;
-    }
-
-    playShipCargoTransferFx(cargoOutcome, winnerId, defeatedId) {
-        if (!cargoOutcome || Number(cargoOutcome.totalTransferred || 0) <= 0) return;
-        const sourceSprite = this.getWorldShipSpriteByPlayFabId(defeatedId);
-        const targetSprite = this.getWorldShipSpriteByPlayFabId(winnerId);
-        if (!sourceSprite || !targetSprite) return;
-        const entries = Object.entries(cargoOutcome.transferred || {})
-            .map(([itemId, amount]) => [String(itemId || '').trim().toUpperCase(), Math.max(0, Math.floor(Number(amount) || 0))])
-            .filter(([itemId, amount]) => itemId && amount > 0);
-        if (entries.length === 0) return;
-        let delayOffset = 0;
-        entries.forEach(([itemId, amount]) => {
-            const emoji = this.getShipCargoEmoji(itemId);
-            const bursts = Math.max(1, Math.min(4, amount));
-            for (let i = 0; i < bursts; i += 1) {
-                this.time.delayedCall(delayOffset + (i * 60), () => {
-                    if (!sourceSprite.active || !targetSprite.active) return;
-                    const sx = sourceSprite.x + Phaser.Math.Between(-8, 8);
-                    const sy = sourceSprite.y - 10 + Phaser.Math.Between(-4, 4);
-                    const tx = targetSprite.x + Phaser.Math.Between(-8, 8);
-                    const ty = targetSprite.y - 14 + Phaser.Math.Between(-6, 3);
-                    this.playEmojiShot(emoji, sx, sy, tx, ty);
-                });
-            }
-            const floatDelay = delayOffset + (bursts * 60) + 120;
-            this.time.delayedCall(floatDelay, () => {
-                if (!targetSprite.active) return;
-                this.spawnDamageNumber(targetSprite.x, targetSprite.y - 20, `+${amount}${emoji}`, 0x7be495);
-            });
-            delayOffset += 120;
-        });
-    }
-
-    notifyShipCargoOutcome(cargoOutcome, winnerId, defeatedId) {
-        if (!cargoOutcome) {
-            return;
-        }
-        const canShowMessage = typeof window !== 'undefined' && typeof window.showRpgMessage === 'function';
-        const myId = this.playerInfo?.playFabId || null;
-        if (!myId) return;
-        this.playShipCargoTransferFx(cargoOutcome, winnerId, defeatedId);
-
-        if (myId === defeatedId && Number(cargoOutcome.totalDropped || 0) > 0) {
-            const lostText = this.formatShipCargoOutcomeText(cargoOutcome.dropped || {});
-            this.applyShipCombatResourceDelta(cargoOutcome.dropped || {}, -1);
-            this.showMessage(lostText ? `流失 ${lostText}` : '流失');
-            if (canShowMessage) {
-                window.showRpgMessage(lostText ? `船倉資源を失った ${lostText}` : '船倉資源を失った');
-            }
-            return;
-        }
-
-        if (myId === winnerId) {
-            if (Number(cargoOutcome.totalTransferred || 0) > 0) {
-                const gainedText = this.formatShipCargoOutcomeText(cargoOutcome.transferred || {});
-                this.applyShipCombatResourceDelta(cargoOutcome.transferred || {}, 1);
-                this.showMessage(gainedText ? `戦利品 ${gainedText}` : '戦利品獲得');
-                if (canShowMessage) {
-                    window.showRpgMessage(gainedText ? `船倉資源を奪った ${gainedText}` : '船倉資源を奪った');
-                }
-            } else if (Number(cargoOutcome.totalDropped || 0) > 0) {
-                if (canShowMessage) {
-                    window.showRpgMessage('敵の資源は海に沈んだ…');
-                }
-            }
-        }
     }
 
     applyPlayerShipDomain() {
@@ -4087,713 +2905,6 @@ export default class WorldMapScene extends Phaser.Scene {
         }
         this.updateZoomFromVisionRange();
         this.showMessage('視界が広がった...');
-    }
-
-    triggerShipAction() {
-        if (!this.playerShip || !this.playerInfo?.playFabId) {
-            this.showMessage('アクションを使用できません。');
-            return;
-        }
-        if (this.isShipInBattle(this.playerInfo.playFabId)) {
-            this.showMessage('戦闘中はアクションを使用できません。');
-            return;
-        }
-        const actionInfo = this.getShipActionType();
-        if (!actionInfo || actionInfo.type === 'none') {
-            this.showMessage('使用できるアクションがありません。');
-            return;
-        }
-        const now = Date.now();
-        if (now < this.shipActionCooldownUntil) {
-            const seconds = Math.ceil((this.shipActionCooldownUntil - now) / 1000);
-            this.showMessage(`クールダウン中 (${seconds}s)`);
-            return;
-        }
-        if (now < this.shipActionJammedUntil) {
-            const seconds = Math.ceil((this.shipActionJammedUntil - now) / 1000);
-            this.showMessage(`妨害中 (${seconds}s)`);
-            return;
-        }
-
-        this.playShipActionTelegraph(actionInfo, 320);
-
-        if (Array.isArray(actionInfo.emoji) && actionInfo.emoji.length > 0) {
-            const actionType = String(actionInfo.type || '').toLowerCase();
-            const burstOptions = actionInfo.type === 'fighter'
-                ? { fontSize: 20, rise: 22, duration: 680 }
-                : actionType.startsWith('defender')
-                    ? { fontSize: 18, rise: 18, duration: 640 }
-                    : { fontSize: 16, rise: 16, duration: 600 };
-            this.playEmojiBurst(actionInfo.emoji, this.playerShip.x, this.playerShip.y - 16, burstOptions);
-        }
-        const eventInfo = { ...actionInfo };
-        if (actionInfo.type === 'defender_shield') {
-            eventInfo.radiusTiles = Number(actionInfo.shieldRadiusTiles) || Number(actionInfo.radiusTiles) || null;
-            eventInfo.effect = 'shield';
-            eventInfo.shieldDurationMs = Number(actionInfo.shieldDurationMs) || null;
-        }
-        this.emitShipActionEvent(eventInfo, this.playerShip.x, this.playerShip.y);
-
-        if (actionInfo.type === 'explorer') {
-            const duration = Number(actionInfo.durationMs) || GAME_CONFIG.SHIP_ACTION_DURATION_MS;
-            if (Number.isFinite(actionInfo.speedMultiplier)) {
-                this.shipActionSpeedBoostUntil = now + duration;
-                this.shipActionSpeedBoostMultiplier = Number(actionInfo.speedMultiplier) || 1.5;
-                this.showMessage(`${actionInfo.label || '速度上昇'}!`);
-            }
-            if (Number.isFinite(actionInfo.agilityMultiplier)) {
-                this.shipActionAgilityUntil = now + duration;
-                this.shipActionAgilityMultiplier = Number(actionInfo.agilityMultiplier) || 1;
-            }
-            if (Number.isFinite(actionInfo.visionMultiplier)) {
-                this.applyVisionBoost(actionInfo.visionMultiplier, duration, actionInfo.minimapBoostMs || 0);
-            }
-            if (actionInfo.ignoreShipCollision) {
-                this.shipActionIgnoreShipCollisionUntil = now + duration;
-            }
-            this.spawnExplorerDecoys(actionInfo);
-        } else if (actionInfo.type === 'merchant') {
-            const duration = Number(actionInfo.durationMs) || GAME_CONFIG.SHIP_ACTION_DURATION_MS;
-            if (actionInfo.effect === 'island_pass') {
-                this.shipActionIslandPassUntil = now + duration;
-                this.showMessage(`${actionInfo.label || '島を通過'}!`);
-            } else if (actionInfo.effect === 'damage_immune') {
-                this.showMessage(`${actionInfo.label || '装甲展開'}!`);
-                this.applyShipActionImmune(duration);
-            } else if (actionInfo.effect === 'minefield') {
-                this.showMessage(`${actionInfo.label || '水爆設置'}!`);
-                const mine = {
-                    ownerId: this.playerInfo.playFabId,
-                    x: this.playerShip.x,
-                    y: this.playerShip.y,
-                    radius: (Number(actionInfo.mineRadiusTiles) || 2) * this.TILE_SIZE,
-                    damage: Number(actionInfo.mineDamage) || 200,
-                    expiresAt: now + Math.max(0, Number(actionInfo.mineDurationMs) || 12000),
-                    emojis: Array.isArray(actionInfo.emoji) ? actionInfo.emoji : ['💧', '💣']
-                };
-                this.registerShipActionMine(mine);
-            } else if (actionInfo.effect === 'vision_shrink') {
-                this.showMessage(`${actionInfo.label || '視界縮小'}!`);
-            } else {
-                this.showMessage(`${actionInfo.label || '支援'}!`);
-            }
-        } else if (actionInfo.type === 'defender' || actionInfo.type === 'defender_shield' || actionInfo.type === 'defender_broadside' || actionInfo.type === 'defender_gust' || actionInfo.type === 'defender_snare' || actionInfo.type === 'defender_jamstorm') {
-            this.applyDefenderAction(actionInfo);
-        } else if (actionInfo.type === 'fighter') {
-            this.applyFighterAction(actionInfo);
-        }
-
-        const cooldownMs = Number(actionInfo?.cooldownMs) || GAME_CONFIG.SHIP_ACTION_COOLDOWN_MS;
-        this.shipActionCooldownUntil = now + cooldownMs;
-        this.updateShipActionUi(true);
-    }
-
-    getPlayerFacingVector() {
-        const body = this.playerShip?.body;
-        if (body && (Math.abs(body.velocity.x) > 0.1 || Math.abs(body.velocity.y) > 0.1)) {
-            const len = Math.hypot(body.velocity.x, body.velocity.y) || 1;
-            return { x: body.velocity.x / len, y: body.velocity.y / len };
-        }
-        const lastAnim = this.playerShip?.lastAnimKey || 'ship_down';
-        const map = {
-            ship_up: { x: 0, y: -1 },
-            ship_down: { x: 0, y: 1 },
-            ship_left: { x: -1, y: 0 },
-            ship_right: { x: 1, y: 0 },
-            ship_up_left: { x: -0.7, y: -0.7 },
-            ship_up_right: { x: 0.7, y: -0.7 },
-            ship_down_left: { x: -0.7, y: 0.7 },
-            ship_down_right: { x: 0.7, y: 0.7 }
-        };
-        return map[lastAnim] || { x: 0, y: 1 };
-    }
-
-    getTargetsInCone(rangePx, angleDeg) {
-        if (!this.playerShip) return [];
-        const origin = { x: this.playerShip.x, y: this.playerShip.y };
-        const heading = this.getFacingAngleRad();
-        return this.getTargetsInConeAt(origin, heading, rangePx, angleDeg);
-    }
-
-    getTargetsInConeAt(origin, headingRad, rangePx, angleDeg) {
-        const facing = { x: Math.cos(headingRad), y: Math.sin(headingRad) };
-        const cosThreshold = Math.cos(Phaser.Math.DegToRad(angleDeg / 2));
-        const targets = [];
-        this.otherShips.forEach((shipObject, otherId) => {
-            const sprite = shipObject?.sprite;
-            if (!sprite) return;
-            const dx = sprite.x - origin.x;
-            const dy = sprite.y - origin.y;
-            const dist = Math.hypot(dx, dy);
-            if (dist <= 0 || dist > rangePx) return;
-            const dot = (dx / dist) * facing.x + (dy / dist) * facing.y;
-            if (dot >= cosThreshold) {
-                targets.push({ playFabId: otherId, distance: dist });
-            }
-        });
-        return targets;
-    }
-
-    async applyShipActionDamage(targets, damage, attackerIdOverride = null, fxOptions = null) {
-        if (!targets.length) {
-            this.showMessage('対象がいません');
-            return;
-        }
-        const filtered = targets.filter(target => !this.isShipInBattle(target.playFabId));
-        if (filtered.length === 0) {
-            this.showMessage('戦闘中の相手には攻撃できません。');
-            return;
-        }
-        try {
-            const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/ship-action-damage') : '/api/ship-action-damage'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    attackerId: attackerIdOverride || this.playerInfo.playFabId,
-                    targets: filtered.map(t => t.playFabId),
-                    damage: damage
-                })
-            });
-            const data = await res.json();
-            if (!res.ok || !data?.success) {
-                this.showMessage('攻撃に失敗しました');
-            } else {
-                const hitCount = Number(data?.hits) || filtered.length;
-                this.showMessage(`命中 ${hitCount}`);
-                if (Array.isArray(data.results)) {
-                    data.results.forEach((result) => {
-                        if (!result || result.skipped || result.error) return;
-                        const target = this.otherShips.get(result.playFabId);
-                        if (target && target.sprite) {
-                            const maxHp = Number(target.hp?.max || result.hp || 0);
-                            target.hp = { current: Number(result.hp), max: maxHp };
-                            this.playShipHitEffect(
-                                target.sprite.x,
-                                target.sprite.y,
-                                result.damageTaken,
-                                target.sprite,
-                                this.playerShip?.x,
-                                this.playerShip?.y
-                            );
-                            if (result.respawnPosition) {
-                                target.sprite.setPosition(result.respawnPosition.x, result.respawnPosition.y);
-                            }
-                        }
-                        if (result.respawned) {
-                            this.notifyShipCargoOutcome(result.cargoOutcome, attackerIdOverride || this.playerInfo?.playFabId, result.playFabId);
-                        }
-                    });
-                }
-                if (hitCount > 0 && fxOptions?.impactSfx) {
-                    this.playSideCannonSfx('impact');
-                }
-                if (hitCount > 0 && fxOptions?.hitStopOnHit) {
-                    this.applyHitStop(Number(fxOptions?.hitStopMs) || 80);
-                }
-            }
-        } catch (e) {
-            console.warn('[ShipAction] Damage request failed:', e);
-            this.showMessage('攻撃に失敗しました');
-        }
-    }
-
-    async applyShipActionShield(targets, durationMs, shieldFactor) {
-        if (!targets.length) {
-            this.showMessage('味方がいません');
-            return;
-        }
-        const shieldDuration = Math.max(0, Number(durationMs) || 0);
-        if (shieldDuration <= 0) {
-            this.showMessage('守護時間がありません');
-            return;
-        }
-        const factorRaw = Number.isFinite(Number(shieldFactor)) ? Number(shieldFactor) : 0.6;
-        const factor = Math.min(1, Math.max(0.2, factorRaw));
-        try {
-            const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/ship-action-shield') : '/api/ship-action-shield'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    attackerId: this.playerInfo.playFabId,
-                    targets: targets.map(t => t.playFabId),
-                    durationMs: shieldDuration,
-                    shieldFactor: factor
-                })
-            });
-            const data = await res.json();
-            if (!res.ok || !data?.success) {
-                this.showMessage('守護に失敗しました');
-            }
-        } catch (e) {
-            console.warn('[ShipAction] Shield request failed:', e);
-            this.showMessage('守護に失敗しました');
-        }
-    }
-
-    async applyShipActionImmune(durationMs) {
-        if (!this.playerInfo?.playFabId) return;
-        const immuneDuration = Math.max(0, Number(durationMs) || 0);
-        if (immuneDuration <= 0) return;
-        try {
-            const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/ship-action-immune') : '/api/ship-action-immune'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    playFabId: this.playerInfo.playFabId,
-                    durationMs: immuneDuration
-                })
-            });
-            const data = await res.json();
-            if (!res.ok || !data?.success) {
-                this.showMessage('装甲展開に失敗しました');
-                return;
-            }
-            this.shipActionImmuneUntil = Math.max(this.shipActionImmuneUntil, Date.now() + immuneDuration);
-        } catch (e) {
-            console.warn('[ShipAction] Immune request failed:', e);
-            this.showMessage('装甲展開に失敗しました');
-        }
-    }
-
-    async applyShipActionPlayerDamage(targets, damage) {
-        if (!targets.length) {
-            this.showMessage('対象がいません');
-            return;
-        }
-        try {
-            const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/ship-action-player-damage') : '/api/ship-action-player-damage'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    attackerId: this.playerInfo.playFabId,
-                    targets: targets.map(t => t.playFabId),
-                    damage: damage
-                })
-            });
-            const data = await res.json();
-            if (!res.ok || !data?.success) {
-                this.showMessage('毒ガスが効かなかった');
-            } else {
-                this.showMessage(`毒ガス命中 ${data?.hits || targets.length}`);
-            }
-        } catch (e) {
-            console.warn('[ShipAction] Player damage request failed:', e);
-            this.showMessage('毒ガスが効かなかった');
-        }
-    }
-
-    registerShipActionMine(mineOrX, y, radiusTiles, damage, durationMs, ownerId) {
-        let mine = mineOrX;
-        if (Number.isFinite(mineOrX) && Number.isFinite(y)) {
-            mine = {
-                ownerId: ownerId || null,
-                x: Number(mineOrX),
-                y: Number(y),
-                radius: (Number(radiusTiles) || 2) * this.TILE_SIZE,
-                damage: Number(damage) || 200,
-                expiresAt: Date.now() + Math.max(0, Number(durationMs) || 12000),
-                emojis: ['💧', '💣']
-            };
-        }
-        if (!mine || !Number.isFinite(mine.x) || !Number.isFinite(mine.y)) return;
-        this.shipActionMines.push(mine);
-        if (Array.isArray(mine.emojis) && mine.emojis.length > 0) {
-            this.playEmojiBurst(mine.emojis, mine.x, mine.y - 8);
-        }
-    }
-
-    updateShipActionMines() {
-        if (!this.playerShip || !Array.isArray(this.shipActionMines) || this.shipActionMines.length === 0) return;
-        const now = Date.now();
-        this.shipActionMines = this.shipActionMines.filter((mine) => {
-            if (!mine || mine.triggered) return false;
-            if (mine.expiresAt && now >= mine.expiresAt) return false;
-            const radius = Number(mine.radius) || 0;
-            if (radius <= 0) return true;
-            const dist = Phaser.Math.Distance.Between(this.playerShip.x, this.playerShip.y, mine.x, mine.y);
-            if (dist > radius) return true;
-            if (mine.ownerId && mine.ownerId === this.playerInfo?.playFabId) return true;
-            mine.triggered = true;
-            this.playEmojiBurst(['💥', '💧'], mine.x, mine.y - 8);
-            if (Number.isFinite(mine.damage) && mine.damage > 0) {
-                this.applyShipActionDamage([{ playFabId: this.playerInfo.playFabId, distance: dist }], mine.damage, mine.ownerId);
-            }
-            return false;
-        });
-    }
-
-    spawnExplorerDecoys(actionInfo = {}) {
-        if (!this.playerShip) return;
-        const count = Math.max(0, Number(actionInfo.decoyCount) || 0);
-        if (count <= 0) return;
-        const offsetTiles = Math.max(1, Number(actionInfo.decoyOffsetTiles) || 3);
-        const offsetPx = offsetTiles * this.TILE_SIZE;
-        const decoyInfo = {
-            type: actionInfo.type,
-            label: actionInfo.label,
-            emoji: ['💨', '❓'],
-            effect: 'decoy'
-        };
-        for (let i = 0; i < count; i += 1) {
-            const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-            const dist = Phaser.Math.FloatBetween(offsetPx * 0.6, offsetPx);
-            const x = this.playerShip.x + Math.cos(angle) * dist;
-            const y = this.playerShip.y + Math.sin(angle) * dist;
-            this.emitShipActionEvent(decoyInfo, x, y);
-        }
-    }
-
-    async triggerIslandAutoAttack(islandData, config) {
-        if (!config || !this.playerInfo?.playFabId) return;
-        const islandId = islandData?.id || null;
-        const remainingCooldownMs = this.getIslandAttackCooldownRemaining(islandId, config);
-        if (remainingCooldownMs > 0) {
-            const cooldownSeconds = Math.max(1, Math.ceil(remainingCooldownMs / 1000));
-            this.showMessage(`攻撃準備まで残り${cooldownSeconds}秒`);
-            return;
-        }
-        const center = this.getIslandCenterPoint(islandData);
-        if (!center) return;
-        const rangeTiles = Number(config.radiusTiles) || 0;
-        if (!Number.isFinite(rangeTiles) || rangeTiles <= 0) return;
-
-        this.activateIslandAttackVision(rangeTiles);
-
-        const rangePx = rangeTiles * this.TILE_SIZE;
-        const myNation = String(this.playerInfo?.nation || this.playerInfo?.Nation || '').toLowerCase();
-        const candidates = [];
-        this.otherShips.forEach((shipObject, otherId) => {
-            const sprite = shipObject?.sprite;
-            if (!sprite) return;
-            const dist = Phaser.Math.Distance.Between(center.x, center.y, sprite.x, sprite.y);
-            if (!Number.isFinite(dist) || dist > rangePx) return;
-            const otherNation = String(shipObject?.data?.nation || shipObject?.data?.Nation || sprite.__ownerNation || '').toLowerCase();
-            if (myNation && otherNation && myNation === otherNation) return;
-            const displayName = shipObject?.data?.displayName || shipObject?.data?.name || shipObject?.data?.playerName || otherId;
-            candidates.push({ playFabId: otherId, sprite, distance: dist, name: displayName });
-        });
-
-        if (candidates.length === 0) {
-            this.showMessage('範囲内に敵がいません');
-            return;
-        }
-
-        if (islandId) {
-            this.islandAttackCooldownById.set(islandId, Date.now());
-        }
-
-        let hitTargets = [];
-        if (config.mode === 'single') {
-            candidates.sort((a, b) => a.distance - b.distance);
-            const target = candidates[0];
-            if (Math.random() <= Number(config.hitChance)) {
-                hitTargets = [target];
-            }
-        } else {
-            hitTargets = candidates.filter(() => Math.random() <= Number(config.hitChance));
-        }
-
-        if (hitTargets.length === 0) {
-            this.showMessage('攻撃が外れた');
-            return;
-        }
-
-        const damageValue = Number(config.damage) || 0;
-        if (Number.isFinite(damageValue) && damageValue > 0) {
-            const primaryTarget = hitTargets[0];
-            const targetLabel = primaryTarget?.name || primaryTarget?.playFabId || '敵';
-            const msg = `HIT！${targetLabel}に${Math.round(damageValue)}ダメージ！`;
-            if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
-                window.showRpgMessage(msg);
-            } else {
-                this.showMessage(msg);
-            }
-        }
-
-        const actionInfo = {
-            type: 'island_attack',
-            label: config.label || 'IslandAttack',
-            emoji: Array.isArray(config.emojis) ? config.emojis : []
-        };
-
-        const emitPromises = [];
-        hitTargets.forEach((target) => {
-            if (actionInfo.emoji.length > 0) {
-                const emoji = actionInfo.emoji[Math.floor(Math.random() * actionInfo.emoji.length)];
-                this.playEmojiShot(emoji, center.x, center.y - 6, target.sprite.x, target.sprite.y - 8);
-                this.playEmojiBurst(actionInfo.emoji, target.sprite.x, target.sprite.y - 12);
-            }
-            emitPromises.push(this.emitShipActionEvent(actionInfo, target.sprite.x, target.sprite.y));
-        });
-        await Promise.all(emitPromises);
-
-        if (Number.isFinite(damageValue) && damageValue > 0) {
-            await this.applyShipActionDamage(
-                hitTargets.map(t => ({ playFabId: t.playFabId, distance: t.distance })),
-                damageValue
-            );
-        }
-    }
-
-    applyFighterAction(actionInfo) {
-        const tile = this.TILE_SIZE;
-        const range = tile * Math.max(1, Number(actionInfo?.rangeTiles) || 5);
-        const angle = Number(actionInfo?.angle) || 50;
-        const damage = Number(actionInfo?.damage) || 300;
-        const radiusTiles = Number(actionInfo?.radiusTiles);
-        const heading = this.getFacingAngleRad();
-        const effectColor = this.getActionEffectColor(actionInfo?.effect, 0xffd166);
-        if (Number.isFinite(radiusTiles) && radiusTiles > 0) {
-            const radius = tile * radiusTiles;
-            const targets = [];
-            this.otherShips.forEach((shipObject, otherId) => {
-                const sprite = shipObject?.sprite;
-                if (!sprite) return;
-                const dist = Phaser.Math.Distance.Between(this.playerShip.x, this.playerShip.y, sprite.x, sprite.y);
-                if (dist <= radius) {
-                    targets.push({ playFabId: otherId, distance: dist });
-                }
-            });
-            this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, radius, effectColor);
-            if (actionInfo?.effect === 'poison_gas') {
-                this.applyShipActionPlayerDamage(targets, damage);
-            } else {
-                this.applyShipActionDamage(targets, damage);
-            }
-            return;
-        }
-        const targets = this.getTargetsInCone(range, angle);
-        this.playActionConeEffectAt(this.playerShip.x, this.playerShip.y, range, angle, heading, effectColor);
-        if (actionInfo?.effect === 'cannon_shot') {
-            this.playCannonShot(this.playerShip.x, this.playerShip.y, range, heading);
-        }
-        if (actionInfo?.effect === 'drill_burst') {
-            this.playDrillBurst(this.playerShip.x, this.playerShip.y, heading);
-        }
-        this.applyShipActionDamage(targets, damage);
-    }
-
-    async applyDefenderAction(actionInfo = {}) {
-        if (!this.playerShip) return;
-        if (actionInfo.type === 'defender_broadside') {
-            this.applyDefenderBroadsideAction(actionInfo);
-            return;
-        }
-        if (actionInfo.type === 'defender_gust') {
-            this.applyDefenderGustAction(actionInfo);
-            return;
-        }
-        if (actionInfo.type === 'defender_snare') {
-            this.applyDefenderSnareAction(actionInfo);
-            return;
-        }
-        if (actionInfo.type === 'defender_jamstorm') {
-            this.applyDefenderJamStormAction(actionInfo);
-            return;
-        }
-        await this.applyDefenderShieldAction(actionInfo);
-    }
-
-    getDefenderBroadsideBundle(actionInfo = {}) {
-        if (!this.playerShip) return null;
-        const isSideCannon = String(actionInfo?.type || '').toLowerCase() === 'side_cannon';
-        const tile = this.TILE_SIZE;
-        const range = tile * Math.max(1, Number(actionInfo?.rangeTiles) || 5);
-        const angle = Number(actionInfo?.angle) || 60;
-        const damage = Number(actionInfo?.damage) || 280;
-        const origin = { x: this.playerShip.x, y: this.playerShip.y };
-        const heading = this.getFacingAngleRad();
-        const effectColor = this.getActionEffectColor(actionInfo?.effect, 0xffd34d);
-        const leftHeading = heading - Math.PI / 2;
-        const rightHeading = heading + Math.PI / 2;
-        const leftTargets = this.getTargetsInConeAt(origin, leftHeading, range, angle);
-        const rightTargets = this.getTargetsInConeAt(origin, rightHeading, range, angle);
-        const targetMap = new Map();
-        [...leftTargets, ...rightTargets].forEach((target) => {
-            if (!target || !target.playFabId) return;
-            const existing = targetMap.get(target.playFabId);
-            if (!existing || target.distance < existing.distance) {
-                targetMap.set(target.playFabId, target);
-            }
-        });
-        return {
-            isSideCannon,
-            range,
-            angle,
-            damage,
-            origin,
-            effectColor,
-            leftHeading,
-            rightHeading,
-            targets: Array.from(targetMap.values())
-        };
-    }
-
-    applyDefenderBroadsideAction(actionInfo = {}, broadsideBundle = null) {
-        if (!this.playerShip) return;
-        const info = broadsideBundle || this.getDefenderBroadsideBundle(actionInfo);
-        if (!info) return;
-        const { isSideCannon, range, angle, damage, origin, effectColor, leftHeading, rightHeading, targets } = info;
-        this.playActionConeEffectAt(origin.x, origin.y, range, angle, leftHeading, effectColor);
-        this.playActionConeEffectAt(origin.x, origin.y, range, angle, rightHeading, effectColor);
-        const cannonFxOptions = isSideCannon
-            ? { glyph: '💣', durationMs: 180, impactGlyph: '💥', impactTint: 0xffef9f }
-            : null;
-        this.playCannonShot(origin.x, origin.y, range, leftHeading, cannonFxOptions);
-        this.playCannonShot(origin.x, origin.y, range, rightHeading, cannonFxOptions);
-        this.applyShipActionDamage(targets, damage, null, isSideCannon
-            ? { hitStopOnHit: true, hitStopMs: Number(actionInfo?.hitStopMs) || 80, impactSfx: true }
-            : null
-        );
-    }
-
-    applyDefenderGustAction(actionInfo = {}) {
-        if (!this.playerShip) return;
-        const radiusTiles = Number(actionInfo.radiusTiles) || 0;
-        if (!Number.isFinite(radiusTiles) || radiusTiles <= 0) {
-            this.showMessage('範囲がありません');
-            return;
-        }
-        const radius = radiusTiles * this.TILE_SIZE;
-        this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, radius, this.getActionEffectColor(actionInfo?.effect, 0xa5d8ff));
-        this.showMessage(`${actionInfo.label || '疾風'}!`);
-    }
-
-    applyDefenderSnareAction(actionInfo = {}) {
-        if (!this.playerShip || !this.playerInfo?.playFabId) return;
-        const range = this.TILE_SIZE * Math.max(1, Number(actionInfo.rangeTiles) || 5);
-        const myNation = String(this.playerInfo?.nation || this.playerInfo?.Nation || '').toLowerCase();
-        let nearest = null;
-        this.otherShips.forEach((shipObject, otherId) => {
-            const sprite = shipObject?.sprite;
-            if (!sprite) return;
-            const otherNation = String(shipObject?.data?.nation || shipObject?.data?.Nation || sprite.__ownerNation || '').toLowerCase();
-            if (myNation && otherNation && myNation === otherNation) return;
-            const dist = Phaser.Math.Distance.Between(this.playerShip.x, this.playerShip.y, sprite.x, sprite.y);
-            if (dist > range) return;
-            if (!nearest || dist < nearest.distance) {
-                nearest = { playFabId: otherId, distance: dist, x: sprite.x, y: sprite.y };
-            }
-        });
-        if (!nearest) {
-            this.showMessage('対象がいません');
-            return;
-        }
-        const eventInfo = {
-            ...actionInfo,
-            targetId: nearest.playFabId,
-            radiusTiles: Number(actionInfo.rangeTiles) || null,
-            snareDurationMs: Number(actionInfo.snareDurationMs) || 0,
-            effect: 'snare'
-        };
-        const traceColor = this.getActionEffectColor(eventInfo.effect, 0x7fb3d5);
-        this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, this.TILE_SIZE * 1.2, traceColor);
-        this.playEmojiShot('⚓', this.playerShip.x, this.playerShip.y - 6, nearest.x, nearest.y - 8);
-        this.emitShipActionEvent(eventInfo, nearest.x, nearest.y);
-        this.showMessage(`${actionInfo.label || '捕捉'}!`);
-    }
-
-    applyDefenderJamStormAction(actionInfo = {}) {
-        if (!this.playerShip) return;
-        const radiusTiles = Number(actionInfo.radiusTiles) || 0;
-        if (!Number.isFinite(radiusTiles) || radiusTiles <= 0) {
-            this.showMessage('範囲がありません');
-            return;
-        }
-        const radius = radiusTiles * this.TILE_SIZE;
-        this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, radius, this.getActionEffectColor(actionInfo?.effect, 0xb18cff));
-        this.showMessage(`${actionInfo.label || '砂嵐'}!`);
-    }
-
-    async applyDefenderShieldAction(actionInfo = {}) {
-        if (!this.playerShip || !this.playerInfo?.playFabId) return;
-        const radiusTiles = Number(actionInfo?.shieldRadiusTiles) || Number(actionInfo?.radiusTiles) || 0;
-        const durationMs = Number(actionInfo?.shieldDurationMs) || 7000;
-        const shieldFactor = Number(actionInfo?.shieldFactor);
-        if (!Number.isFinite(radiusTiles) || radiusTiles <= 0) {
-            this.showMessage('守護範囲がありません');
-            return;
-        }
-        const radiusPx = radiusTiles * this.TILE_SIZE;
-        const myNation = String(this.playerInfo?.nation || this.playerInfo?.Nation || '').toLowerCase();
-        const targets = [];
-        this.otherShips.forEach((shipObject, otherId) => {
-            const sprite = shipObject?.sprite;
-            if (!sprite) return;
-            const dist = Phaser.Math.Distance.Between(this.playerShip.x, this.playerShip.y, sprite.x, sprite.y);
-            if (dist > radiusPx) return;
-            const otherNation = String(shipObject?.data?.nation || shipObject?.data?.Nation || sprite.__ownerNation || '').toLowerCase();
-            if (myNation && otherNation && myNation !== otherNation) return;
-            targets.push({ playFabId: otherId });
-        });
-        targets.push({ playFabId: this.playerInfo.playFabId });
-
-        this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, radiusPx, this.getActionEffectColor(actionInfo?.effect, 0x7be495));
-        if (Array.isArray(actionInfo?.emoji) && actionInfo.emoji.length > 0) {
-            this.playEmojiBurst(actionInfo.emoji, this.playerShip.x, this.playerShip.y - 14);
-        }
-        await this.applyShipActionShield(targets, durationMs, shieldFactor);
-        this.showMessage(`${actionInfo.label || '守護'}を展開`);
-    }
-
-    async damageBuildingOnIsland(islandId, damage = 300) {
-        if (!this.firestore || !islandId) return;
-        const { doc, getDoc, updateDoc } = await import('firebase/firestore');
-        const islandRef = doc(this.firestore, this.getWorldMapCollectionName(), islandId);
-        const snap = await getDoc(islandRef);
-        if (!snap.exists()) {
-            this.showMessage('島が見つかりません');
-            return;
-        }
-        const data = snap.data() || {};
-        const buildings = Array.isArray(data.buildings) ? data.buildings.slice() : [];
-        const idx = buildings.findIndex(b => b && b.status !== 'demolished');
-        if (idx === -1) {
-            this.showMessage('建物がありません');
-            return;
-        }
-
-        const b = buildings[idx];
-        const maxHpFallback = (() => {
-            if (Number.isFinite(Number(b.buildTimeSeconds))) return Number(b.buildTimeSeconds);
-            if (Number.isFinite(Number(b.durationMs))) return Math.max(1, Math.floor(Number(b.durationMs) / 1000));
-            return Number(b.maxHp) || 1;
-        })();
-        const maxHp = Number(b.maxHp) || maxHpFallback;
-        const current = Number.isFinite(Number(b.currentHp)) ? Number(b.currentHp) : maxHp;
-        const next = Math.max(0, current - Number(damage || 0));
-        const nextEntry = { ...b, maxHp, currentHp: next };
-        if (next <= 0) {
-            nextEntry.status = 'demolished';
-        }
-        buildings[idx] = nextEntry;
-        await updateDoc(islandRef, { buildings });
-        await this.reloadIslandFromFirestore(islandId);
-        this.showMessage(next <= 0 ? '建物を破壊しました' : '建物にダメージ');
-    }
-
-    async reloadIslandFromFirestore(islandId) {
-        if (!this.firestore) return;
-        const { doc, getDoc } = await import('firebase/firestore');
-        const snap = await getDoc(doc(this.firestore, this.getWorldMapCollectionName(), islandId));
-        if (!snap.exists()) return;
-        const data = snap.data() || {};
-        this.removeIslandById(islandId);
-        this.createIsland({
-            id: snap.id,
-            x: data.coordinate.x * this.gridSize,
-            y: data.coordinate.y * this.gridSize,
-            name: data.name || '名称未設定',
-            size: data.size || 'small',
-            ownerNation: data.ownerNation || data.ownerRace,
-            ownerId: data.ownerId,
-            biome: data.biome,
-            biomeFrame: data.biomeFrame,
-            buildingSlots: data.buildingSlots,
-            buildings: data.buildings || [],
-            captureState: data.captureState || null,
-            mapId: this.mapId
-        });
     }
 
     removeIslandById(islandId) {
@@ -4933,150 +3044,6 @@ export default class WorldMapScene extends Phaser.Scene {
         const tileX = Math.floor(this.playerShip.x / this.TILE_SIZE);
         const tileY = Math.floor(this.playerShip.y / this.TILE_SIZE);
         this.positionText.setText(`x:${tileX} y:${tileY}`);
-    }
-
-    showBoardingButton(targetPlayFabId, displayName = '') {
-        if (!LEGACY_BOARDING_BATTLE_ENABLED) return;
-        this.showShipCommandMenu(targetPlayFabId, displayName);
-    }
-
-    hideBoardingButton() {
-        this.hideShipCommandMenu();
-    }
-
-    showShipCommandMenu(targetPlayFabId, displayName = '') {
-        if (!LEGACY_BOARDING_BATTLE_ENABLED) {
-            this.hideShipCommandMenu();
-            return;
-        }
-        const panel = document.getElementById('islandCommandPanel');
-        const title = document.getElementById('islandCommandTitle');
-        const actionBtn = document.getElementById('islandCommandAction');
-        const attackBtn = document.getElementById('islandCommandAttack');
-        const closeBtn = document.getElementById('islandCommandClose');
-
-        if (!panel || !title || !actionBtn || !attackBtn || !closeBtn) {
-            console.error('[showShipCommandMenu] HTMLパネルが見つかりません');
-            return;
-        }
-
-        this.wireIslandCommandPullToClose();
-
-        if (this.isShipInBattle(this.playerInfo?.playFabId) || this.isShipInBattle(targetPlayFabId)) {
-            this.showMessage('戦闘中は乗り込めません。');
-            return;
-        }
-        const myNation = String(this.playerInfo?.nation || '').toLowerCase();
-        const target = this.otherShips.get(targetPlayFabId);
-        const targetNation = String(target?.data?.nation || target?.data?.Nation || target?.sprite?.__ownerNation || '').toLowerCase();
-        const restriction = this.getBoardingRestriction(targetPlayFabId);
-        if (restriction?.blocked) {
-            this.showMessage(restriction.message);
-            return;
-        }
-        const isGuildShip = !!target?.isGuildShip || !!target?.data?.isGuildShip || !!target?.data?.guildShip;
-        if (isGuildShip) {
-            this.showMessage('ギルドシップには乗り込めません。');
-            return;
-        }
-        if (myNation && targetNation && myNation === targetNation) {
-            this.boardingTargetId = targetPlayFabId;
-            title.textContent = displayName ? `船: ${displayName}` : '船';
-            actionBtn.textContent = '同乗廃止';
-            actionBtn.className = 'island-command-btn info';
-            attackBtn.style.display = 'none';
-            const newActionBtn = actionBtn.cloneNode(true);
-            actionBtn.parentNode.replaceChild(newActionBtn, actionBtn);
-            const newCloseBtn = closeBtn.cloneNode(true);
-            closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
-            newActionBtn.addEventListener('click', () => {
-                this.showMessage('他プレイヤーの同乗は廃止されました。');
-            });
-            bindModalClose(newCloseBtn, () => {
-                this.hideShipCommandMenu();
-            });
-            setTimeout(() => {
-                panel.classList.add('active');
-            }, 10);
-            this.commandMenuOpen = true;
-            return;
-        }
-
-        this.boardingTargetId = targetPlayFabId;
-        console.log('[Boarding] showShipCommandMenu', { targetPlayFabId, displayName });
-        title.textContent = displayName ? `船: ${displayName}` : '船';
-
-        const buttonText = '乗り込む';
-        const buttonClass = 'warning';
-        const onClick = () => {
-            console.log('[Boarding] clicked', { target: this.boardingTargetId });
-            if (!this.boardingTargetId) return;
-            const clickRestriction = this.getBoardingRestriction(this.boardingTargetId);
-            if (clickRestriction?.blocked) {
-                this.showMessage(clickRestriction.message);
-                return;
-            }
-            const now = Date.now();
-            if (now - this.lastBoardingAt < this.boardingCooldownMs) {
-                const remainMs = this.boardingCooldownMs - (now - this.lastBoardingAt);
-                const remainSec = Math.ceil(remainMs / 1000);
-                this.showMessage(`連続乗り込みは${remainSec}秒後に可能です。`);
-                return;
-            }
-            const target = this.otherShips.get(this.boardingTargetId);
-            const distance = target?.sprite
-                ? Phaser.Math.Distance.Between(this.playerShip.x, this.playerShip.y, target.sprite.x, target.sprite.y)
-                : Number.POSITIVE_INFINITY;
-            console.log('[Boarding] distance', { distance, shipCollisionRadius: this.shipCollisionRadius });
-            const allowedDistance = Math.max(this.shipCollisionRadius * 2, 96);
-            if (!Number.isFinite(distance) || distance > allowedDistance) {
-                this.showMessage('距離が離れているため乗り込めません。');
-                return;
-            }
-            if (typeof window !== 'undefined' && typeof window.startBattleWithOpponent === 'function') {
-                console.log('[Boarding] startBattleWithOpponent', { opponentId: this.boardingTargetId });
-                this.lastBoardingAt = now;
-                window.startBattleWithOpponent(this.boardingTargetId);
-                this.hideShipCommandMenu();
-            } else {
-                console.warn('[Boarding] Battle system not ready: window.startBattleWithOpponent not found', { startBattleWithOpponent: window?.startBattleWithOpponent });
-            }
-        };
-
-        actionBtn.textContent = buttonText;
-        actionBtn.className = 'island-command-btn ' + buttonClass;
-
-        const newActionBtn = actionBtn.cloneNode(true);
-        actionBtn.parentNode.replaceChild(newActionBtn, actionBtn);
-        const newAttackBtn = attackBtn.cloneNode(true);
-        attackBtn.parentNode.replaceChild(newAttackBtn, attackBtn);
-        const newCloseBtn = closeBtn.cloneNode(true);
-        closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
-
-        newAttackBtn.style.display = 'none';
-
-        newActionBtn.addEventListener('click', onClick);
-        newActionBtn.addEventListener('pointerdown', () => console.log('[Boarding] pointerdown'));
-        newActionBtn.addEventListener('pointerup', () => console.log('[Boarding] pointerup'));
-        bindModalClose(newCloseBtn, () => {
-            this.shipPanelSuppressed = true;
-            this.hideShipCommandMenu();
-        });
-
-        setTimeout(() => {
-            panel.classList.add('active');
-        }, 10);
-
-        this.commandMenuOpen = true;
-    }
-
-    hideShipCommandMenu() {
-        const panel = document.getElementById('islandCommandPanel');
-        if (panel) {
-            panel.classList.remove('active');
-        }
-        this.boardingTargetId = null;
-        this.commandMenuOpen = false;
     }
 
     setupRideLeaveUi() {
@@ -5587,125 +3554,6 @@ export default class WorldMapScene extends Phaser.Scene {
         });
     }
 
-    async ramShipDamage(otherPlayFabId, shipObject) {
-        const myId = this.playerInfo?.playFabId;
-        if (!myId || !otherPlayFabId) return;
-        if (this.isShipInBattle(myId) || this.isShipInBattle(otherPlayFabId)) return;
-
-        if (String(myId) > String(otherPlayFabId)) return;
-
-        const now = Date.now();
-        const lastAt = this.lastRamDamageAt.get(otherPlayFabId) || 0;
-        if (now - lastAt < 5000) return;
-        this.lastRamDamageAt.set(otherPlayFabId, now);
-
-        try {
-            const attackerFacing = this.playerShip?.lastAnimKey || 'ship_down';
-            const defenderFacing = shipObject?.lastAnimKey || 'ship_down';
-            const attackerPos = (this.playerShip && Number.isFinite(this.playerShip.x) && Number.isFinite(this.playerShip.y))
-                ? { x: this.playerShip.x, y: this.playerShip.y }
-                : null;
-            const defenderPos = (shipObject?.sprite && Number.isFinite(shipObject.sprite.x) && Number.isFinite(shipObject.sprite.y))
-                ? { x: shipObject.sprite.x, y: shipObject.sprite.y }
-                : null;
-            const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/ram-ship') : '/api/ram-ship'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    attackerId: myId,
-                    defenderId: otherPlayFabId,
-                    attackerFacing,
-                    defenderFacing,
-                    attackerPos,
-                    defenderPos,
-                    damage: 5,
-                    mapId: this.mapId || null
-                })
-            });
-            const data = await res.json();
-            if (!res.ok) {
-                console.warn('[ShipCollision] ram-ship failed:', data);
-            } else if (data && typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
-                const attacker = data.attacker;
-                const defender = data.defender;
-                if (attacker?.playFabId === myId) {
-                    const maxHp = Number(this.playerHp?.max || attacker.hp || 0);
-                    this.playerHp = { current: Number(attacker.hp), max: maxHp };
-                    this.playShipHitEffect(
-                        this.playerShip?.x,
-                        this.playerShip?.y,
-                        attacker.damageTaken,
-                        this.playerShip,
-                        defenderPos?.x,
-                        defenderPos?.y
-                    );
-                } else if (attacker?.playFabId) {
-                    const target = this.otherShips.get(attacker.playFabId);
-                    if (target && target.sprite) {
-                        const maxHp = Number(target.hp?.max || attacker.hp || 0);
-                        target.hp = { current: Number(attacker.hp), max: maxHp };
-                        this.playShipHitEffect(
-                            target.sprite.x,
-                            target.sprite.y,
-                            attacker.damageTaken,
-                            target.sprite,
-                            defenderPos?.x,
-                            defenderPos?.y
-                        );
-                    }
-                }
-                if (defender?.playFabId === myId) {
-                    const maxHp = Number(this.playerHp?.max || defender.hp || 0);
-                    this.playerHp = { current: Number(defender.hp), max: maxHp };
-                    this.playShipHitEffect(
-                        this.playerShip?.x,
-                        this.playerShip?.y,
-                        defender.damageTaken,
-                        this.playerShip,
-                        attackerPos?.x,
-                        attackerPos?.y
-                    );
-                } else if (defender?.playFabId) {
-                    const target = this.otherShips.get(defender.playFabId);
-                    if (target && target.sprite) {
-                        const maxHp = Number(target.hp?.max || defender.hp || 0);
-                        target.hp = { current: Number(defender.hp), max: maxHp };
-                        this.playShipHitEffect(
-                            target.sprite.x,
-                            target.sprite.y,
-                            defender.damageTaken,
-                            target.sprite,
-                            attackerPos?.x,
-                            attackerPos?.y
-                        );
-                    }
-                }
-                if (Number(attacker?.damageTaken || 0) > 0 || Number(defender?.damageTaken || 0) > 0) {
-                    this.applyHitStop(95);
-                }
-                const attackerRespawned = data.attacker?.playFabId === myId && data.attacker?.respawned;
-                const defenderRespawned = data.defender?.playFabId === myId && data.defender?.respawned;
-                if (attackerRespawned || defenderRespawned) {
-                    const msg = window.rpgSay?.shipSunk ? window.rpgSay.shipSunk() : 'ふねが沈んだ…';
-                    window.showRpgMessage(msg);
-                    const revive = window.rpgSay?.shipRespawned ? window.rpgSay.shipRespawned() : 'ふねが復活した！';
-                    setTimeout(() => window.showRpgMessage(revive), 1200);
-                }
-                if (data?.cargoOutcome) {
-                    const winnerId = data.attacker?.respawned && !data.defender?.respawned
-                        ? data.defender?.playFabId
-                        : (!data.attacker?.respawned && data.defender?.respawned ? data.attacker?.playFabId : null);
-                    const defeatedId = data.attacker?.respawned && !data.defender?.respawned
-                        ? data.attacker?.playFabId
-                        : (!data.attacker?.respawned && data.defender?.respawned ? data.defender?.playFabId : null);
-                    this.notifyShipCargoOutcome(data.cargoOutcome, winnerId, defeatedId);
-                }
-            }
-        } catch (error) {
-            console.warn('[ShipCollision] ram-ship request error:', error);
-        }
-    }
-
     handleShipCollision(otherPlayFabId, shipObject) {
         if (!this.playerShip || !shipObject?.sprite) return;
         const isGuildShip = !!shipObject?.isGuildShip;
@@ -5735,40 +3583,13 @@ export default class WorldMapScene extends Phaser.Scene {
             if (idleFrame !== undefined) shipObject.sprite.setFrame(idleFrame);
         }
 
-        const inBattle = this.isShipInBattle(this.playerInfo?.playFabId) || this.isShipInBattle(otherPlayFabId);
-        if (inBattle) {
-            return;
-        }
-
-        const myNation = String(this.playerInfo?.nation || '').toLowerCase();
-        const otherNation = String(shipObject?.data?.nation || shipObject?.data?.Nation || shipObject?.sprite?.__ownerNation || '').toLowerCase();
-
-        this.playShipHitEffect(
-            (this.playerShip.x + shipObject.sprite.x) / 2,
-            (this.playerShip.y + shipObject.sprite.y) / 2,
-            null
-        );
-        if (!myNation || !otherNation || myNation !== otherNation) {
-            this.ramShipDamage(otherPlayFabId, shipObject);
-        }
-
         if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
             navigator.vibrate(50);
         }
 
-        const restriction = this.getBoardingRestriction(otherPlayFabId);
-        if (restriction?.blocked) {
-            this.showMessage(restriction.message);
-            return;
-        }
-
         if (!isGuildShip) {
-            this.showBoardingButton(otherPlayFabId, shipObject.data?.displayName || '');
-            this.showMessage('接近しました。乗り込み可能です。');
-            return;
+            this.showMessage('他の船に接近しました。');
         }
-
-        this.showMessage('ギルドシップには乗り込めません。');
     }
 
     createShipHpBar(sprite) {
@@ -6667,278 +4488,6 @@ export default class WorldMapScene extends Phaser.Scene {
         });
     }
 
-    getBattleShieldUntil(playFabId) {
-        if (!playFabId) return 0;
-        if (playFabId === this.playerInfo?.playFabId) {
-            return Number(window.__battleActiveUntil || 0);
-        }
-        return Number(this.shipBattleShield?.get(playFabId) || 0);
-    }
-
-    isShipInBattle(playFabId) {
-        const until = this.getBattleShieldUntil(playFabId);
-        return until > Date.now();
-    }
-
-    markShipInBattle(playFabId, durationMs) {
-        if (!playFabId) return;
-        const until = Date.now() + Math.max(0, Number(durationMs) || 0);
-        const current = Number(this.shipBattleShield.get(playFabId) || 0);
-        if (until > current) {
-            this.shipBattleShield.set(playFabId, until);
-        }
-        const hiddenCurrent = Number(this.shipBattleHiddenUntil.get(playFabId) || 0);
-        if (until > hiddenCurrent) {
-            this.shipBattleHiddenUntil.set(playFabId, until);
-        }
-        this.setShipBattleVisibility(playFabId, false);
-        this.spawnBattleSmoke(playFabId, durationMs);
-
-        if (this.time?.delayedCall) {
-            this.time.delayedCall(Math.max(0, Number(durationMs) || 0), () => {
-                if (!this.isShipInBattle(playFabId)) {
-                    this.setShipBattleVisibility(playFabId, true);
-                }
-            });
-        }
-    }
-
-    playBattleEmojiForShip(playFabId, emojis) {
-        const sprite = playFabId === this.playerInfo?.playFabId
-            ? this.playerShip
-            : this.otherShips.get(playFabId)?.sprite;
-        if (!sprite) return;
-        const list = Array.isArray(emojis) && emojis.length > 0 ? emojis : ['⚔️', '💥'];
-        this.playEmojiBurst(list, sprite.x, sprite.y - 18);
-    }
-
-    setShipBattleVisibility(playFabId, visible) {
-        if (!playFabId) return;
-        if (playFabId === this.playerInfo?.playFabId) {
-            if (visible) {
-                const now = Date.now();
-                if (now < this.shipActionInvisibleUntil) {
-                    this.setPlayerShipInvisible(true);
-                    return;
-                }
-            }
-            this.setPlayerShipInvisible(!visible);
-            return;
-        }
-        const shipObject = this.otherShips.get(playFabId);
-        if (!shipObject?.sprite) return;
-        shipObject.sprite.setAlpha(visible ? 1 : 0);
-        if (shipObject.sprite.__hpBar) {
-            shipObject.sprite.__hpBar.setVisible(visible);
-        }
-        if (shipObject.sprite.__nameLabel) {
-            shipObject.sprite.__nameLabel.setVisible(visible && shipObject.sprite.visible !== false);
-        }
-        if (shipObject.sprite.__shadow) {
-            shipObject.sprite.__shadow.setVisible(visible);
-        }
-    }
-
-    spawnBattleSmoke(playFabId, durationMs) {
-        if (!playFabId || !this.time) return;
-        const existing = this.shipBattleSmokeTimers.get(playFabId);
-        if (existing) {
-            existing.remove(false);
-            this.shipBattleSmokeTimers.delete(playFabId);
-        }
-        const emojis = ['💨', '☁️', '💥'];
-        const repeatMs = 450;
-        const repeatCount = Math.max(1, Math.ceil((Number(durationMs) || 0) / repeatMs));
-        let fired = 0;
-        const timer = this.time.addEvent({
-            delay: repeatMs,
-            callback: () => {
-                fired += 1;
-                const sprite = playFabId === this.playerInfo?.playFabId
-                    ? this.playerShip
-                    : this.otherShips.get(playFabId)?.sprite;
-                if (sprite) {
-                    this.playEmojiBurst(emojis, sprite.x, sprite.y - 6);
-                }
-                if (fired >= repeatCount) {
-                    timer.remove(false);
-                    this.shipBattleSmokeTimers.delete(playFabId);
-                }
-            },
-            loop: true
-        });
-        this.shipBattleSmokeTimers.set(playFabId, timer);
-    }
-
-    subscribeToShipBattleEvents() {
-        if (!this.firestore || !this.mapId) return;
-        if (this.shipBattleEventsUnsubscribe) {
-            this.shipBattleEventsUnsubscribe();
-        }
-
-        const eventsQuery = query(
-            collection(this.firestore, 'ship_battle_events'),
-            where('mapId', '==', this.mapId),
-            orderBy('createdAt', 'desc'),
-            limit(25)
-        );
-
-        this.shipBattleEventsUnsubscribe = onSnapshot(eventsQuery, (snapshot) => {
-            const now = Date.now();
-            snapshot.docChanges().forEach((change) => {
-                if (change.type !== 'added') return;
-                const docSnap = change.doc;
-                if (!docSnap?.exists()) return;
-                if (this.shipBattleEventsSeen.has(docSnap.id)) return;
-                this.shipBattleEventsSeen.add(docSnap.id);
-                if (this.shipBattleEventsSeen.size > 200) {
-                    this.shipBattleEventsSeen.clear();
-                }
-
-                const data = docSnap.data() || {};
-                const createdAt = Number(data.createdAt) || 0;
-                if (createdAt && now - createdAt > 6000) return;
-
-                const durationMs = Number(data.durationMs) || 5000;
-                const participants = Array.isArray(data.participantIds) ? data.participantIds : [];
-                const emojis = Array.isArray(data.emojis) ? data.emojis : ['⚔️', '💥'];
-
-                participants.forEach((id) => {
-                    this.markShipInBattle(id, durationMs);
-                    this.playBattleEmojiForShip(id, emojis);
-                });
-            });
-        }, (error) => {
-            console.warn('[ShipBattleEvent] Subscribe failed:', error);
-        });
-    }
-
-    createShipShadow(sprite) {
-        if (!sprite) return null;
-        if (sprite.__shadow) return sprite.__shadow;
-        const shadow = this.add.graphics();
-        shadow.setDepth(GAME_CONFIG.DEPTH.SHIP - 2);
-        this.ignoreOnUiCamera(shadow);
-        sprite.__shadow = shadow;
-        return shadow;
-    }
-
-    destroyShipShadow(sprite) {
-        if (sprite?.__shadow?.destroy) {
-            sprite.__shadow.destroy();
-        }
-        if (sprite) {
-            sprite.__shadow = null;
-        }
-    }
-
-    updateShipShadow(sprite) {
-        if (!sprite) return;
-        const shadow = this.createShipShadow(sprite);
-        const shadowW = 22;
-        const shadowH = 8;
-        const shadowX = sprite.x;
-        const shadowY = sprite.y + 12;
-        shadow.clear();
-        shadow.fillStyle(0x000000, 0.35);
-        shadow.fillEllipse(shadowX, shadowY, shadowW, shadowH);
-    }
-
-    updateShipShadows() {
-        if (this.playerShip && this.playerShipDomain === 'air') {
-            this.updateShipShadow(this.playerShip);
-        } else {
-            this.destroyShipShadow(this.playerShip);
-        }
-
-        this.otherShips.forEach((shipObject) => {
-            const domain = String(shipObject?.domain || shipObject?.data?.Domain || '').toLowerCase();
-            if (domain === 'air' && shipObject?.sprite) {
-                this.updateShipShadow(shipObject.sprite);
-            } else {
-                this.destroyShipShadow(shipObject?.sprite);
-            }
-        });
-    }
-
-    async respawnPlayerShipIfNeeded(shipId) {
-        if (this.respawnInFlight || !this.playerInfo?.playFabId || !shipId) return null;
-        this.respawnInFlight = true;
-        try {
-            const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/respawn-ship') : '/api/respawn-ship'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ playFabId: this.playerInfo.playFabId, shipId, reason: 'hp_zero' })
-            });
-            if (!res.ok) return null;
-            const data = await res.json();
-            const pos = data?.position;
-            if (pos && this.playerShip) {
-                this.playerShip.setPosition(pos.x, pos.y);
-            }
-            if (Number.isFinite(Number(data?.repairUntil))) {
-                this.shipRepairUntil = Number(data.repairUntil);
-            }
-            return pos || null;
-        } catch (error) {
-            console.warn('[WorldMapScene] Respawn request failed:', error);
-            return null;
-        } finally {
-            this.respawnInFlight = false;
-        }
-    }
-
-    updateShipHpBars() {
-        if (this.playerShip && Number.isFinite(this.playerHp?.current) && Number.isFinite(this.playerHp?.max)) {
-            this.updateShipHpBar(this.playerShip, this.playerHp.current, this.playerHp.max);
-        }
-
-        this.otherShips.forEach((shipObject) => {
-            const sprite = shipObject?.sprite;
-            const currentHp = shipObject?.hp?.current;
-            const maxHp = shipObject?.hp?.max;
-            if (sprite && Number.isFinite(currentHp) && Number.isFinite(maxHp)) {
-                this.updateShipHpBar(sprite, currentHp, maxHp);
-            }
-        });
-    }
-
-    checkShipShipCollisions() {
-        if (!this.playerShip) return;
-        if (Date.now() < this.shipActionIgnoreShipCollisionUntil) return;
-
-        let anyIntersect = false;
-        this.otherShips.forEach((shipObject, otherPlayFabId) => {
-            if (!shipObject?.sprite) return;
-            const myAir = this.isAirDomain(this.playerShipDomain);
-            const otherAir = this.isAirDomain(shipObject?.domain);
-            if (myAir !== otherAir) return;
-            const intersects = this.physics.world.overlap(this.playerShip, shipObject.sprite);
-            if (intersects) {
-                anyIntersect = true;
-                if (!this.collidingShipId && !this.shipPanelSuppressed) {
-                    this.collidingShipId = otherPlayFabId;
-                    this.handleShipCollision(otherPlayFabId, shipObject);
-                }
-            }
-        });
-
-        if (this.collidingShipId) {
-            const target = this.otherShips.get(this.collidingShipId);
-            const stillIntersecting = target?.sprite
-                ? this.physics.world.overlap(this.playerShip, target.sprite)
-                : false;
-            if (!stillIntersecting) {
-                this.hideShipCommandMenu();
-                this.collidingShipId = null;
-            }
-        }
-
-        if (this.shipPanelSuppressed && !anyIntersect) {
-            this.shipPanelSuppressed = false;
-        }
-    }
-
     getActiveIslandBuilding(islandData) {
         const buildings = Array.isArray(islandData?.buildings) ? islandData.buildings : [];
         return buildings.find((entry) => entry && entry.status !== 'demolished') || null;
@@ -7374,7 +4923,7 @@ export default class WorldMapScene extends Phaser.Scene {
      *
      */
     async showCapitalCommandMenu(islandData, refs) {
-        const { panel, title, statusEl, actionBtn, tarotBtn, attackBtn, closeBtn } = refs;
+        const { panel, title, statusEl, actionBtn, tarotBtn, closeBtn } = refs;
         const myPlayFabId = this.playerInfo?.playFabId;
         const playerNation = String(this.playerInfo?.nation || '').toLowerCase();
         const capitalNation = this.getCapitalNationForIsland(islandData);
@@ -7437,16 +4986,6 @@ export default class WorldMapScene extends Phaser.Scene {
             await this.showIslandCommandMenu(islandData);
         };
 
-        let attackVisible = false;
-        let attackText = capture.breached ? '攻城' : '艦砲射撃';
-        let attackClass = 'danger';
-        let attackOnClick = async () => {
-            await this.triggerCapitalWarAction(islandData, capture.breached ? 'siege' : 'ship_attack', {
-                successMessage: capture.breached ? '首都へ攻城を行いました。' : '首都へ艦砲射撃を行いました。'
-            });
-            await this.showIslandCommandMenu(islandData);
-        };
-
         if (!myPlayFabId) {
             buttonText = 'ログインが必要';
             buttonClass = 'disabled';
@@ -7466,12 +5005,10 @@ export default class WorldMapScene extends Phaser.Scene {
             };
         } else {
             tarotVisible = true;
-            attackVisible = true;
             if (capture.raidUnlocked) {
                 buttonText = '国庫襲撃は王のみ';
                 buttonClass = 'disabled';
                 onClick = () => this.showMessage('国庫襲撃は王ページから実行します。');
-                attackVisible = false;
             } else if (hasEnemyCapture && leader) {
                 buttonText = '防衛戦休止中';
                 buttonClass = 'disabled';
@@ -7536,9 +5073,6 @@ export default class WorldMapScene extends Phaser.Scene {
             tarotBtn.className = `island-command-btn ${tarotClass}`;
             tarotBtn.style.display = tarotVisible ? 'block' : 'none';
         }
-        attackBtn.textContent = attackText;
-        attackBtn.className = `island-command-btn ${attackClass}`;
-        attackBtn.style.display = attackVisible ? 'block' : 'none';
 
         const newActionBtn = actionBtn.cloneNode(true);
         actionBtn.parentNode.replaceChild(newActionBtn, actionBtn);
@@ -7546,8 +5080,6 @@ export default class WorldMapScene extends Phaser.Scene {
         if (tarotBtn && newTarotBtn) {
             tarotBtn.parentNode.replaceChild(newTarotBtn, tarotBtn);
         }
-        const newAttackBtn = attackBtn.cloneNode(true);
-        attackBtn.parentNode.replaceChild(newAttackBtn, attackBtn);
         const newCloseBtn = closeBtn.cloneNode(true);
         closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
 
@@ -7560,13 +5092,6 @@ export default class WorldMapScene extends Phaser.Scene {
             });
         } else if (newTarotBtn) {
             newTarotBtn.style.display = 'none';
-        }
-        if (attackVisible) {
-            newAttackBtn.addEventListener('click', () => {
-                void attackOnClick();
-            });
-        } else {
-            newAttackBtn.style.display = 'none';
         }
         bindModalClose(newCloseBtn, () => {
             this.hideIslandCommandMenu();
@@ -7584,10 +5109,9 @@ export default class WorldMapScene extends Phaser.Scene {
         const statusEl = document.getElementById('islandCommandStatus');
         const actionBtn = document.getElementById('islandCommandAction');
         const tarotBtn = document.getElementById('islandCommandTarot');
-        const attackBtn = document.getElementById('islandCommandAttack');
         const closeBtn = document.getElementById('islandCommandClose');
 
-        if (!panel || !title || !statusEl || !actionBtn || !attackBtn || !closeBtn) {
+        if (!panel || !title || !statusEl || !actionBtn || !closeBtn) {
             console.error('[showIslandCommandMenu] HTMLパネルが見つかりません');
             return;
         }
@@ -7598,7 +5122,7 @@ export default class WorldMapScene extends Phaser.Scene {
         title.textContent = islandData.name;
         const isCapitalIsland = String(islandData.occupationStatus || '').toLowerCase() === 'capital';
         if (isCapitalIsland) {
-            await this.showCapitalCommandMenu(islandData, { panel, title, statusEl, actionBtn, tarotBtn, attackBtn, closeBtn });
+            await this.showCapitalCommandMenu(islandData, { panel, title, statusEl, actionBtn, tarotBtn, closeBtn });
             return;
         }
 
@@ -7634,8 +5158,6 @@ export default class WorldMapScene extends Phaser.Scene {
         const isOwnNation = !!playerNation && !!islandNation && playerNation === islandNation;
         const isUnoccupied = !islandData.ownerId;
         const canBuildToOccupy = !isOwner && isInOwnedArea && isUnoccupied && isOwnNation && !isResourceIsland && !hasBuilding;
-        const autoAttackConfig = this.getIslandAutoAttackConfig(islandData);
-        const canAutoAttack = !!myPlayFabId && !!autoAttackConfig && (isOwner || isOwnNation);
         const canPlayTarot = !!myPlayFabId && isOwner;
         const menuLabel = hasBuilding ? '施設メニュー' : (isResourceIsland ? '採取メニュー' : '建設メニュー');
         const captureState = this.getIslandCaptureState(islandData);
@@ -7789,18 +5311,6 @@ export default class WorldMapScene extends Phaser.Scene {
         actionBtn.textContent = buttonText;
         actionBtn.className = 'island-command-btn ' + buttonClass;
 
-        const remainingCooldownMs = this.getIslandAttackCooldownRemaining(islandData?.id, autoAttackConfig);
-        const cooldownSeconds = Math.max(1, Math.ceil(remainingCooldownMs / 1000));
-        const attackOnClick = () => {
-            if (remainingCooldownMs > 0) {
-                this.showMessage(`攻撃準備まで残り${cooldownSeconds}秒`);
-                return;
-            }
-            void this.triggerIslandAutoAttack(islandData, autoAttackConfig);
-        };
-        attackBtn.textContent = remainingCooldownMs > 0 ? `攻撃準備 (${cooldownSeconds}秒)` : '攻撃準備';
-        attackBtn.className = 'island-command-btn danger';
-        attackBtn.style.display = canAutoAttack ? 'block' : 'none';
         if (tarotBtn) {
             tarotBtn.textContent = 'タロットポーカー';
             tarotBtn.className = 'island-command-btn info';
@@ -7813,8 +5323,6 @@ export default class WorldMapScene extends Phaser.Scene {
         if (tarotBtn && newTarotBtn) {
             tarotBtn.parentNode.replaceChild(newTarotBtn, tarotBtn);
         }
-        const newAttackBtn = attackBtn.cloneNode(true);
-        attackBtn.parentNode.replaceChild(newAttackBtn, attackBtn);
         const newCloseBtn = closeBtn.cloneNode(true);
         closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
 
@@ -7835,11 +5343,6 @@ export default class WorldMapScene extends Phaser.Scene {
             newTarotBtn.style.display = 'none';
         }
 
-        if (canAutoAttack) {
-            newAttackBtn.addEventListener('click', attackOnClick);
-        } else {
-            newAttackBtn.style.display = 'none';
-        }
 
         bindModalClose(newCloseBtn, () => {
             this.hideIslandCommandMenu();
@@ -7893,13 +5396,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const closeThreshold = 70;
         const maxPull = 110;
 
-        const closePanel = () => {
-            if (this.boardingTargetId) {
-                this.hideShipCommandMenu();
-            } else {
-                this.hideIslandCommandMenu();
-            }
-        };
+        const closePanel = () => this.hideIslandCommandMenu();
 
         const onStart = (event) => {
             if (!panel.classList.contains('active')) return;
@@ -7942,7 +5439,6 @@ export default class WorldMapScene extends Phaser.Scene {
     hideCommandMenu() {
         this.hideIslandCommandMenu();
         this.shipPanelSuppressed = true;
-        this.hideShipCommandMenu();
     }
 
     /**
@@ -8009,11 +5505,6 @@ export default class WorldMapScene extends Phaser.Scene {
         this.checkAirObstacleCollisions();
         this.checkAirIslandProximity();
         this.clearCollidingIslandWhenFar();
-        this.updateShipActionMines();
-        this.updateShipActionEffects();
-        this.updateShipActionUi();
-        this.updateShipSideCannonUi();
-        this.updateShipNormalAttackUi();
         this.updateCreateIslandUi();
         this.updateGhostShip(this.game?.loop?.delta || 0);
     }
@@ -8411,7 +5902,6 @@ export default class WorldMapScene extends Phaser.Scene {
 
         this.subscribeToOtherShips();
         this.subscribeToShipActionEvents();
-        this.subscribeToShipBattleEvents();
         await this.refreshConstructingIslandsOnce();
         this.subscribeToConstructingIslands();
         this.subscribeToDemolishedIslands();
@@ -8477,7 +5967,7 @@ export default class WorldMapScene extends Phaser.Scene {
             const currentX = this.playerShip.x;
             const currentY = this.playerShip.y;
             const distance = Phaser.Math.Distance.Between(currentX, currentY, targetX, targetY);
-            const speed = this.getEffectiveShipSpeed();
+            const speed = Math.max(1, Number(this.shipSpeed || this.shipBaseSpeed || GAME_CONFIG.SHIP_SPEED));
             const duration = (distance / speed) * 1000; // ミリ秒
             const arrivalTime = Date.now() + duration;
             const geoPoint = this.worldToLatLng({ x: currentX, y: currentY });
@@ -8926,7 +6416,6 @@ export default class WorldMapScene extends Phaser.Scene {
             shipObject.domain = String(shipData?.appearance?.domain || shipData?.domain || 'sea_surface').toLowerCase();
         }
         this.applyShipDomainDepth(shipObject?.sprite, shipObject?.domain);
-        this.setShipBattleVisibility(playFabId, !this.isShipInBattle(playFabId));
         if (shipObject?.sprite) {
             const passengerCount = Array.from(this.otherShips.values())
                 .filter((entry) => entry?.data?.ridingOwnerId === playFabId)

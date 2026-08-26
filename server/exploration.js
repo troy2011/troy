@@ -1,10 +1,7 @@
 const resourceStorage = require('./resourceStorage');
 const { drawLocalGachaItem } = require('./gacha');
-const battleRoutes = require('./routes/battleRoutes');
-const { applyDerivedPlayerLevelToStats } = require('./playerLevel');
 const { resolveGuildShipContext } = require('./guildShipSharing');
 const { getCanonicalTarotCategory, getMajorArcanaSuitInfo, getMajorArcanaTitle } = require('./tarotCards');
-const { buildMajorArcanaShipGearView } = require('./majorArcanaShipGear');
 const {
     awardTarotKingdomPetExperience,
     buildTarotKingdomPetOfferView,
@@ -1925,7 +1922,6 @@ function buildMajorArcanaEquipmentView(itemIds = [], catalogCache = {}) {
                 number: Number.isFinite(number) ? number : null,
                 suit: suitInfo.key || 'none',
                 suitLabel: suitInfo.label || '無属性',
-                shipGear: buildMajorArcanaShipGearView(itemId, itemData),
                 imagePath: String(itemData?.image_path || itemData?.ImagePath || itemData?.IconUrl || '')
             };
         });
@@ -2155,120 +2151,6 @@ function hasExplorationSupplyTag(supplyProfile, tag) {
     return normalizeExplorationSupplyProfile(supplyProfile).comboTags.includes(tag);
 }
 
-function boostBattleValue(container, key, multiplier) {
-    if (!container || !key || !Number.isFinite(multiplier) || multiplier <= 1) return;
-    const current = Number(container[key] || 0);
-    if (!Number.isFinite(current) || current <= 0) return;
-    container[key] = Math.max(1, Math.round(current * multiplier));
-}
-
-function reduceBattleValue(container, key, reductionRate, minValue = 1) {
-    if (!container || !key || !Number.isFinite(reductionRate) || reductionRate <= 0) return;
-    const current = Number(container[key] || 0);
-    if (!Number.isFinite(current) || current <= 0) return;
-    container[key] = Math.max(minValue, Math.round(current * (1 - Math.min(0.95, reductionRate))));
-}
-
-function getMajorArcanaExplorationWeakening(itemData) {
-    const suitInfo = getMajorArcanaSuitInfo(itemData || {});
-    const suit = suitInfo.key || 'none';
-    if (suit === 'wand') return { hp: 0.06, labels: ['HP'] };
-    if (suit === 'sword') return { attack: 0.06, speed: 0.06, labels: ['攻撃', '素早さ'] };
-    if (suit === 'cup') return { status: 0.06, labels: ['命中/状態'] };
-    if (suit === 'pentacle') return { defense: 0.06, labels: ['防御'] };
-    if (suit === 'all') return { hp: 0.04, attack: 0.04, defense: 0.04, speed: 0.04, labels: ['全能力'] };
-    return { hp: 0.03, attack: 0.03, defense: 0.03, labels: ['基礎能力'] };
-}
-
-function applyMajorArcanaPreBattleWeakening(boss, majorArcanaItemIds = [], catalogCache = {}) {
-    const equipped = resourceStorage.normalizeMajorArcanaItemIds(majorArcanaItemIds, 3)
-        .map((itemId) => ({ itemId, itemData: catalogCache?.[itemId] || null }))
-        .filter(({ itemData }) => getCanonicalTarotCategory(itemData?.Category) === 'TarotMajor');
-    if (!equipped.length || !boss) {
-        return { totals: {}, logs: [], equipped: [] };
-    }
-    const totals = { hp: 0, attack: 0, defense: 0, speed: 0, status: 0 };
-    const logs = [];
-    const equipmentViews = [];
-    for (const { itemId, itemData } of equipped) {
-        const effect = getMajorArcanaExplorationWeakening(itemData);
-        Object.keys(totals).forEach((key) => {
-            totals[key] += Number(effect[key] || 0) || 0;
-        });
-        const name = getMajorArcanaTitle(itemData, itemData?.DisplayName || itemId);
-        logs.push(`${name}: ${effect.labels.join('・')}を弱体化`);
-        equipmentViews.push({
-            itemId,
-            displayName: name,
-            suit: getMajorArcanaSuitInfo(itemData).key || 'none',
-            labels: effect.labels
-        });
-    }
-    Object.keys(totals).forEach((key) => {
-        totals[key] = Math.min(0.18, Math.max(0, totals[key]));
-    });
-
-    boss.stats = boss.stats || {};
-    boss.equipmentStats = boss.equipmentStats || {};
-    if (totals.hp > 0) {
-        reduceBattleValue(boss.stats, 'MaxHP', totals.hp);
-        reduceBattleValue(boss.stats, 'HP', totals.hp);
-        reduceBattleValue(boss.stats, 'CurrentHP', totals.hp);
-    }
-    if (totals.attack > 0) {
-        reduceBattleValue(boss.stats, 'ちから', totals.attack);
-        reduceBattleValue(boss.stats, 'こうげき', totals.attack);
-        reduceBattleValue(boss.stats, 'Power', totals.attack);
-        reduceBattleValue(boss.equipmentStats, 'Power', totals.attack, 0);
-    }
-    if (totals.defense > 0) {
-        reduceBattleValue(boss.stats, 'みのまもり', totals.defense, 0);
-        reduceBattleValue(boss.stats, 'Defense', totals.defense, 0);
-        reduceBattleValue(boss.equipmentStats, 'Defense', totals.defense, 0);
-    }
-    if (totals.speed > 0) {
-        reduceBattleValue(boss.stats, 'すばやさ', totals.speed);
-        reduceBattleValue(boss.stats, 'Agi', totals.speed, 0);
-        reduceBattleValue(boss.equipmentStats, 'Agi', totals.speed, 0);
-    }
-    if (totals.status > 0) {
-        boss.equipmentStats.StatusRate = (Number(boss.equipmentStats.StatusRate || 0) || 0) - Math.round(totals.status * 100);
-        boss.accuracyPenalty = Math.round(totals.status * 100);
-    }
-    boss.stats.CurrentHP = Math.max(1, Math.min(Number(boss.stats.CurrentHP || 1), Number(boss.stats.MaxHP || boss.stats.CurrentHP || 1)));
-    return { totals, logs, equipped: equipmentViews };
-}
-
-function applyExplorationSupplyToBattleProfile(player, supplyProfile = null) {
-    const profile = normalizeExplorationSupplyProfile(supplyProfile);
-    if (!profile.comboTags.length && profile.surplusUnits <= 0) return [];
-    const tags = new Set(profile.comboTags);
-    player.stats = player.stats || {};
-    player.equipmentStats = player.equipmentStats || {};
-    const surplusMultiplier = 1 + Math.min(3, Math.max(0, profile.surplusUnits)) * 0.02;
-    let allMultiplier = surplusMultiplier;
-    if (tags.has('premium_supply')) allMultiplier += 0.05;
-    if (allMultiplier > 1) {
-        ['MaxHP', 'HP', 'CurrentHP', 'ちから', 'みのまもり'].forEach((key) => boostBattleValue(player.stats, key, allMultiplier));
-        ['Power', 'Defense'].forEach((key) => boostBattleValue(player.equipmentStats, key, allMultiplier));
-    }
-    if (tags.has('diverse_spirits')) {
-        boostBattleValue(player.stats, 'ちから', 1.05);
-        boostBattleValue(player.equipmentStats, 'Power', 1.05);
-    }
-    if (tags.has('calm_route')) {
-        boostBattleValue(player.stats, 'MaxHP', 1.07);
-        boostBattleValue(player.stats, 'HP', 1.07);
-        boostBattleValue(player.stats, 'CurrentHP', 1.07);
-        boostBattleValue(player.stats, 'みのまもり', 1.07);
-        boostBattleValue(player.equipmentStats, 'Defense', 1.07);
-    }
-    player.stats.CurrentHP = Math.max(1, Number(player.stats.CurrentHP || player.stats.HP || player.stats.MaxHP || 30));
-    return profile.effectLabels.length
-        ? [`補給効果: ${profile.effectLabels.join(' / ')}`]
-        : [];
-}
-
 // 宝箱の中身は基本1個。通常敗北のみ0個、守備船や補給効果は敗北時も最低1個。
 function resolveRewardCount(bossResult, shipClass, supplyProfile = null) {
     const role = getExplorationShipRole(shipClass);
@@ -2301,203 +2183,6 @@ async function refreshGoldBalanceAndRanking(playFabId, deps) {
         });
     }
     return Number.isFinite(balance) ? balance : null;
-}
-
-function createBossEquipmentRef(weaponType, category = 'Weapon') {
-    const normalized = String(weaponType || 'blunt').trim().toLowerCase();
-    return {
-        customData: {
-            Category: category,
-            ManifestWeaponType: normalized,
-            Power: 0,
-            Defense: 0
-        }
-    };
-}
-
-function buildExplorationBossProfile(destination, bossBase) {
-    const weapon = String(bossBase.weapon || 'blunt').trim().toLowerCase();
-    const equipment = {};
-    if (weapon === 'shield') {
-        equipment.RightHand = createBossEquipmentRef('blunt');
-        equipment.LeftHand = createBossEquipmentRef('shield', 'Shield');
-    } else {
-        equipment.RightHand = createBossEquipmentRef(weapon);
-    }
-    return {
-        id: `boss-${destination.id}-${bossBase.id || 'monster'}`,
-        stats: {
-            DisplayName: bossBase.name || 'BOSS',
-            Level: Math.max(1, Number(bossBase.level || 1)),
-            HP: bossBase.hp,
-            MaxHP: bossBase.hp,
-            CurrentHP: bossBase.hp,
-            MP: Number(bossBase.mp || 0) || 0,
-            MaxMP: Number(bossBase.mp || 0) || 0,
-            CurrentMP: Number(bossBase.mp || 0) || 0,
-            ちから: Number(bossBase.strength || 1) || 1,
-            みのまもり: Number(bossBase.guard || 0) || 0,
-            すばやさ: Number(bossBase.agility || 1) || 1,
-            かしこさ: Number(bossBase.intelligence || 0) || 0
-        },
-        equipmentStats: {
-            Power: bossBase.attack,
-            Defense: bossBase.defense,
-            Agi: 0,
-            Int: 0,
-            MagicPower: Number(bossBase.magicPower || 0) || 0,
-            HealPower: 0,
-            MpEfficiency: 0,
-            CastRate: 0,
-            StatusRate: 0
-        },
-        equipment,
-        skills: Array.isArray(bossBase.skills) ? bossBase.skills : []
-    };
-}
-
-async function getExplorationBattlePlayerProfile(playFabId, { promisifyPlayFab, PlayFabServer }) {
-    if (typeof battleRoutes.getPlayerFullProfile === 'function') {
-        try {
-            return await battleRoutes.getPlayerFullProfile(playFabId);
-        } catch (error) {
-            console.warn('[exploration/boss] 白兵戦プロフィール取得失敗。統計のみで代替します:', error?.message || error);
-        }
-    }
-
-    const result = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: playFabId });
-    const st = {};
-    (result?.Statistics || []).forEach((s) => { st[s.StatisticName] = s.Value; });
-    const derivedStats = applyDerivedPlayerLevelToStats(st).stats;
-    const hp = Math.max(1, Number(derivedStats.HP || 1));
-    const maxHp = Math.max(hp, Number(derivedStats.MaxHP || hp));
-    return {
-        id: playFabId,
-        stats: {
-            ...derivedStats,
-            CurrentHP: hp,
-            HP: hp,
-            MaxHP: maxHp
-        },
-        equipmentStats: {
-            Power: 0,
-            Defense: 0,
-            Agi: 0,
-            Int: 0,
-            MagicPower: 0,
-            HealPower: 0,
-            MpEfficiency: 0,
-            CastRate: 0,
-            StatusRate: 0
-        },
-        equipment: {}
-    };
-}
-
-// BOSS戦では一時的にHPを使うが、探索後に全回復する
-async function resolveBossBattle(playFabId, destination, bossBase, { promisifyPlayFab, PlayFabServer }, supplyProfile = null, majorArcanaItemIds = [], catalogCache = {}) {
-    const tierDef = getBossTierDef(bossBase?.tier);
-    let player;
-    try {
-        player = await getExplorationBattlePlayerProfile(playFabId, { promisifyPlayFab, PlayFabServer });
-    } catch (error) {
-        console.warn('[exploration/boss] プレイヤープロフィール取得に失敗。最低値で代替します:', error?.message || error);
-        player = {
-            id: playFabId,
-            stats: { Level: 1, HP: 30, MaxHP: 30, CurrentHP: 30, ちから: 1, みのまもり: 0 },
-            equipmentStats: { Power: 0, Defense: 0 },
-            equipment: {}
-        };
-    }
-
-    const boss = buildExplorationBossProfile(destination, bossBase);
-    player.stats = player.stats || {};
-    player.equipmentStats = player.equipmentStats || {};
-    player.stats.CurrentHP = Math.max(1, Number(player.stats.CurrentHP || player.stats.HP || 30));
-    const supplyBattleLogLines = applyExplorationSupplyToBattleProfile(player, supplyProfile);
-    boss.stats.CurrentHP = boss.stats.MaxHP;
-    const arcanaWeakening = applyMajorArcanaPreBattleWeakening(boss, majorArcanaItemIds, catalogCache);
-
-    const battleResult = await battleRoutes.runBattle(player, boss);
-    const playerWon = battleResult?.winner?.id === player.id;
-    const escaped = !!battleResult?.escaped;
-    const draw = !escaped && !battleResult?.winner;
-    return {
-        bossAppeared: true,
-        bossId: String(bossBase.id || ''),
-        bossName: String(bossBase.name || 'BOSS'),
-        bossSpriteId: String(bossBase.spriteId || bossBase.id || ''),
-        bossTier: String(bossBase.tier || 'weak'),
-        bossTierLabel: tierDef.label,
-        playerWon,
-        escaped,
-        draw,
-        hpCost: 0,
-        arcanaWeakening,
-        battleLog: [
-            `${tierDef.label}BOSS「${bossBase.name || 'BOSS'}」と戦闘！`,
-            ...supplyBattleLogLines,
-            ...(arcanaWeakening.logs.length ? [`船装備の大アルカナが白兵戦前にBOSSを弱らせた: ${arcanaWeakening.logs.join(' / ')}`] : []),
-            ...(Array.isArray(battleResult?.logs) ? battleResult.logs : []),
-            escaped
-                ? '戦闘は決着せず終了した。探索後にHPは全回復した。'
-                : draw
-                    ? '決着はつかなかった。探索後にHPは全回復した。'
-                : (playerWon ? '撃破！探索後にHPは全回復した。' : '敗北したが、探索後にHPは全回復した。')
-        ].join('\n')
-    };
-}
-
-async function restoreHpToFull(playFabId, { promisifyPlayFab, PlayFabServer }) {
-    try {
-        const statResult = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: playFabId });
-        const currentSt = {};
-        (statResult?.Statistics || []).forEach((s) => { currentSt[s.StatisticName] = s.Value; });
-        const derivedStats = applyDerivedPlayerLevelToStats(currentSt).stats;
-        const maxHp = Math.max(1, Number(derivedStats.MaxHP || derivedStats.HP || 1));
-        await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-            PlayFabId: playFabId,
-            Statistics: [{ StatisticName: 'HP', Value: maxHp }]
-        });
-        return true;
-    } catch (err) {
-        console.warn('[exploration/boss] HP全回復失敗:', err?.message || err);
-        return false;
-    }
-}
-
-async function restoreHpToFullOnce(activeRef, playFabId, deps) {
-    let shouldApply = false;
-    await activeRef.firestore.runTransaction(async (tx) => {
-        const snap = await tx.get(activeRef);
-        if (!snap.exists) return;
-        const data = snap.data() || {};
-        if (data.hpRestored || data.hpRestoreReserved) return;
-        shouldApply = true;
-        tx.update(activeRef, {
-            hpRestoreReserved: true,
-            hpRestoreReservedAt: deps.admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: deps.admin.firestore.FieldValue.serverTimestamp()
-        });
-    });
-
-    if (!shouldApply) return;
-
-    const applied = await restoreHpToFull(playFabId, deps);
-    const update = applied
-        ? {
-            hpRestored: true,
-            hpRestoredAt: deps.admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: deps.admin.firestore.FieldValue.serverTimestamp()
-        }
-        : {
-            hpRestoreFailed: true,
-            hpRestoreFailedAt: deps.admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: deps.admin.firestore.FieldValue.serverTimestamp()
-        };
-    await activeRef.update(update).catch((err) => {
-        console.warn('[exploration/boss] HP全回復フラグ更新失敗:', err?.message || err);
-    });
 }
 
 function buildReportText({
@@ -4113,9 +3798,6 @@ function initializeExplorationRoutes(app, deps) {
                     console.warn('[exploration/claim] pet offer recovery failed:', petError?.errorMessage || petError?.message || petError);
                     petOffer = persistedOffer;
                 }
-                if (!bossResult?.tarotKingdom) {
-                    await restoreHpToFullOnce(activeRef, ownerPlayFabId, { admin, promisifyPlayFab, PlayFabServer });
-                }
             } else {
                 const tarotEncounter = normalizeExplorationTarotEncounter(activeData.tarotEncounter);
                 if (tarotEncounter) {
@@ -4158,17 +3840,10 @@ function initializeExplorationRoutes(app, deps) {
                         console.warn('[exploration/claim] pet offer roll failed:', petError?.errorMessage || petError?.message || petError);
                     }
                 } else {
-                    // 旧探索との互換: 遭遇固定前に開始された探索だけは従来の白兵戦で解決する。
-                    const selectedBoss = selectExplorationBoss(destination, Math.random, ship.shipClass);
-                    bossResult = await resolveBossBattle(
-                        ownerPlayFabId,
-                        destination,
-                        selectedBoss,
-                        { promisifyPlayFab, PlayFabServer },
-                        supplyProfile,
-                        ship.majorArcanaItemIds || [],
-                        catalogCache
-                    );
+                    return res.status(409).json({
+                        error: '探索遭遇を読み直して、タロットキングダムを開始してください。',
+                        code: 'TAROT_KINGDOM_ENCOUNTER_REQUIRED'
+                    });
                 }
 
                 if (stage) {
@@ -4235,14 +3910,10 @@ function initializeExplorationRoutes(app, deps) {
                     tarotPetParticipants,
                     tarotFinishers,
                     supplyProfile,
-                    hpRestored: bossResult?.tarotKingdom === true,
+                    hpRestored: true,
                     updatedAt: admin.firestore.FieldValue.serverTimestamp()
                 });
 
-                if (!bossResult?.tarotKingdom) {
-                    // 旧白兵戦だけが通常キャラクターHPを使うため、従来どおり全回復する。
-                    await restoreHpToFullOnce(activeRef, ownerPlayFabId, { admin, promisifyPlayFab, PlayFabServer });
-                }
             }
 
             // インデックスベースの idempotency キーで付与（itemId 非依存のためリトライ安全）
@@ -4543,8 +4214,6 @@ module.exports = {
         EXPLORATION_DESTINATION_RARITIES,
         EXPLORATION_SHIP_ROLES,
         BOSS_TIER_DEFS,
-        applyExplorationSupplyToBattleProfile,
-        applyMajorArcanaPreBattleWeakening,
         applyExplorationSupplyToGachaOptions,
         buildExplorationSupplyProfile,
         buildTroyMenuConsumablePaymentOptions,
@@ -4582,11 +4251,11 @@ module.exports = {
         normalizeTarotKingdomPetParticipants,
         resolveActiveExplorationTarotEncounter,
         resolveTarotKingdomRoundRecruitMonsterId,
-        selectExplorationBoss,
         selectExplorationTarotMonster,
         validateExplorationConsumablePayment,
         validateExplorationTransitionSupplies,
         resolveRewardCount,
+        selectExplorationBoss,
         publicDestination,
         TAROT_KINGDOM_EXPLORATION_STAGES,
         buildTarotKingdomStageEncounter,

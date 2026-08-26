@@ -859,45 +859,13 @@
             </div>
                 </div>
                 <div id="mapActionBar" class="tarot-bet-popup map-action-bar app-action-panel">
-                    <div class="map-action-meta">
-                        <div id="shipCombatResourceStatus" class="ship-combat-resource-status"></div>
-                    </div>
                     <div class="tarot-betting-actions map-action-buttons">
                         <div id="createIslandPanel" class="map-action-slot">
                             <button id="createIslandButton" class="ship-action-button ship-action-button-sub map-action-button">島を作成</button>
                         </div>
-                        <div id="shipSideCannonPanel" class="map-action-slot">
-                            <button id="shipSideCannonButton" class="ship-action-button ship-side-cannon-button map-action-button">舷側砲</button>
-                        </div>
-                        <div id="shipNormalAttackPanel" class="map-action-slot">
-                            <button id="shipNormalAttackButton" class="ship-action-button ship-normal-attack-button map-action-button">通常攻撃</button>
-                        </div>
-                        <div id="shipActionPanel" class="map-action-slot">
-                            <button id="shipActionButton" class="ship-action-button map-action-button">船アクション</button>
-                        </div>
-                        <div id="shipSkillTogglePanel" class="map-action-slot">
-                            <button id="shipSkillToggleButton" class="ship-action-button ship-skill-toggle-button map-action-button" aria-expanded="false" aria-controls="shipSkillSheet">スキル</button>
-                        </div>
-                    </div>
-                    <div class="map-action-status-row">
-                        <div id="shipSideCannonStatus" class="map-action-status-chip"></div>
-                        <div id="shipNormalAttackStatus" class="map-action-status-chip"></div>
-                        <div id="shipActionStatus" class="map-action-status-chip"></div>
-                        <div id="shipSkillStatus" class="map-action-status-chip"></div>
                     </div>
                 </div>
 
-                <!-- 船スキルシート（下からスライドイン） -->
-                <div id="shipSkillSheet" class="ship-skill-sheet" aria-hidden="true">
-                    <div class="ship-skill-sheet-handle" aria-hidden="true"></div>
-                    <div class="ship-skill-sheet-header">
-                        <span class="ship-skill-sheet-title">タロットデッキスキル</span>
-                        <span id="shipSkillRoleLabel" class="ship-skill-role-badge"></span>
-                        <button id="shipSkillSheetClose" class="ship-skill-sheet-close ui-modal-close" type="button" aria-label="閉じる"></button>
-                    </div>
-                    <div id="shipSkillGrid" class="ship-skill-grid"></div>
-                    <p id="shipSkillEmptyMsg" class="ship-skill-empty-msg" hidden>タロットデッキにカードがありません</p>
-                </div>
                 <div class="map-secondary-actions">
                     <button id="mapOwnedIslandsShortcut" class="map-secondary-action-btn" type="button" onclick="showTab('islands')">所有する島</button>
                 </div>
@@ -916,7 +884,6 @@
                     <div class="island-command-buttons">
                         <button id="islandCommandAction" class="island-command-btn">建設メニューを開く</button>
                         <button id="islandCommandTarot" class="island-command-btn info" style="display:none;">タロットポーカー</button>
-                        <button id="islandCommandAttack" class="island-command-btn danger" style="display:none;">攻撃準備</button>
                     </div>
                 </div>
                 <div id="mapChatArea" class="map-chat-area">
@@ -1618,77 +1585,6 @@
         </div>
     </div>
 
-    <!-- バトルモーダル -->
-    <div id="battleModal" class="modal-overlay melee-battle-overlay" aria-hidden="true">
-        <div class="modal-content battle-modal-shell melee-battle-shell" role="dialog" aria-modal="true" aria-labelledby="meleeBattleTitle">
-            <div class="melee-battle-header">
-                <div class="melee-battle-title-block">
-                    <div class="melee-battle-kicker">BOARDING BATTLE</div>
-                    <h2 id="meleeBattleTitle">白兵戦</h2>
-                </div>
-                <div class="melee-battle-mode">AUTO</div>
-            </div>
-            <div id="battleStage" class="melee-battle-stage">
-                <!-- 相手 -->
-                <div class="battle-player-area melee-combatant melee-combatant-enemy" id="battlePlayerA">
-                    <div class="battle-status-card battle-status-card-enemy melee-status-card">
-                        <div id="battlePlayerAName" class="battle-status-name">Enemy</div>
-                        <div class="battle-health-track">
-                            <div id="battlePlayerAHpBar" class="battle-health-fill battle-health-fill-enemy"></div>
-                        </div>
-                        <div id="battlePlayerAHpText" class="battle-health-text">-/-</div>
-                    </div>
-                    <div id="battle-avatar-A" class="battle-avatar-container melee-avatar avatar-combat-actor is-avatar-attack-right">
-                        <div id="battle-avatar-A-layer-body" class="avatar-layer"></div>
-                        <div id="battle-avatar-A-layer-head" class="avatar-layer"></div>
-                        <div id="battle-avatar-A-layer-facial-hair" class="avatar-layer"></div>
-                        <div id="battle-avatar-A-layer-hair" class="avatar-layer"></div>
-                        <div id="battle-avatar-A-layer-armor" class="avatar-layer"></div>
-                        <div id="battle-avatar-A-layer-hand-right" class="avatar-layer"></div>
-                        <div id="battle-avatar-A-layer-weapon-right" class="avatar-layer"></div>
-                        <div id="battle-avatar-A-layer-hand-left" class="avatar-layer"></div>
-                        <div id="battle-avatar-A-layer-shield-left" class="avatar-layer"></div>
-                    </div>
-                    <div class="battle-atb-track battle-atb-track-enemy">
-                         <!-- 敵のATBは非表示でもよいが、表示するならここ -->
-                         <div id="battlePlayerAAtbBar" class="battle-atb-fill"></div>
-                    </div>
-                </div>
-
-                <!-- 自分 -->
-                <div class="battle-player-area melee-combatant melee-combatant-player" id="battlePlayerB">
-                    <div class="battle-status-card battle-status-card-player melee-status-card">
-                        <div id="battlePlayerBName" class="battle-status-name">You</div>
-                        <div class="battle-health-track">
-                            <div id="battlePlayerBHpBar" class="battle-health-fill battle-health-fill-player"></div>
-                        </div>
-                         <div id="battlePlayerBHpText" class="battle-health-text">-/-</div>
-                    </div>
-                    <div id="battle-avatar-B" class="battle-avatar-container melee-avatar avatar-combat-actor">
-                        <div id="battle-avatar-B-layer-body" class="avatar-layer"></div>
-                        <div id="battle-avatar-B-layer-head" class="avatar-layer"></div>
-                        <div id="battle-avatar-B-layer-facial-hair" class="avatar-layer"></div>
-                        <div id="battle-avatar-B-layer-hair" class="avatar-layer"></div>
-                        <div id="battle-avatar-B-layer-armor" class="avatar-layer"></div>
-                        <div id="battle-avatar-B-layer-hand-right" class="avatar-layer"></div>
-                        <div id="battle-avatar-B-layer-weapon-right" class="avatar-layer"></div>
-                        <div id="battle-avatar-B-layer-hand-left" class="avatar-layer"></div>
-                        <div id="battle-avatar-B-layer-shield-left" class="avatar-layer"></div>
-                    </div>
-                    <!-- 自分のATB -->
-                     <div class="battle-atb-track battle-atb-track-player">
-                         <div id="battlePlayerBAtbBar" class="battle-atb-fill"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="battleLogContainer" class="battle-log-shell melee-battle-log"></div>
-            <div id="battleCommandArea" class="battle-command-shell melee-battle-command">
-                <p class="battle-command-placeholder">準備中...</p>
-            </div>
-        </div>
-    </div>
-
     <!-- その他モーダル -->
     <div id="loadingSpinner" class="modal-overlay">
         <div class="spinner"></div>
@@ -1902,8 +1798,6 @@
     </div>
 
     <!-- Scripts -->
-    <script src="battle-client.js?v=20260801-weapon-motion4"></script>
-    <script src="naval-battle.js"></script>
-<script type="module" src="main.js?v=20260826-tarot-deck-presets-v1"></script>
+<script type="module" src="main.js?v=20260826-retire-legacy-battle-v1"></script>
 </body>
 </html>

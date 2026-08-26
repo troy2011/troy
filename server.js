@@ -58,7 +58,6 @@ const musicGame = require('./server/musicGame');
 const battleRoutes = require('./server/routes/battleRoutes');
 const guildRoutes = require('./server/routes/guildRoutes');
 const shipRoutes = require('./server/routes/shipRoutes');
-const shipSkillRoutes = require('./server/routes/shipSkillRoutes');
 const battleRoomRoutes = require('./server/routes/battleRoomRoutes');
 const npcSnapshotRoutes = require('./server/routes/npcSnapshotRoutes');
 const territoryRoutes = require('./server/routes/territoryRoutes');
@@ -2091,16 +2090,6 @@ async function main() {
         {
             requireAuthenticatedPlayFabId
         }
-    );
-
-    // 船スキルルート
-    shipSkillRoutes.initializeShipSkillRoutes(
-        app,
-        promisifyPlayFab,
-        PlayFabServer,
-        PlayFabEconomy,
-        catalogCache,
-        { requireAuthenticatedPlayFabId }
     );
 
     // バトルルームルート
