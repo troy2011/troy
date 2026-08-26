@@ -3709,7 +3709,7 @@ test('stage 1 teaches four actions with minor-only scripted hands', async ({ pag
   await openOfflineBattle(page, { width: 390, height: 844 });
   const expectedPrompts = [
     '1-1　カードで攻撃\n場より大きい数字を1枚出そう',
-    '1-2　5を2枚出して2人スキップ',
+    '1-2　5スキップ\n5を2枚出して次の2人をスキップ',
     '1-3　ポーカー役：2～6でストレート',
     '1-4　コール：場札＋4枚でフルハウス'
   ];
@@ -3786,10 +3786,56 @@ test('stage 1 teaches four actions with minor-only scripted hands', async ({ pag
   await expect(page.locator('#tarotKingdomPlayButton')).toHaveClass(/is-confirm-ready/);
   await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText(expectedPrompts[1]);
   const lessonTwoResult = await page.evaluate((cardIds) => (
-    window.TarotKingdomDebug.battlePlayCards(0, cardIds)
+    window.TarotKingdomDebug.battlePlayCards(0, cardIds, { resolve: true })
   ), lessonTwoFives);
   expect(lessonTwoResult.ok).toBe(true);
-  expect(lessonTwoResult.state.tutorialProgress.completedPlayers[0]).toBe(true);
+  expect(lessonTwoResult.state.tutorialProgress.stepsByPlayer[0]).toBe(1);
+  expect(lessonTwoResult.state.tutorialProgress.completedPlayers[0]).toBe(false);
+  expect(lessonTwoResult.state.skipNotice?.targetIndexes).toEqual([1, 2]);
+  await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText(
+    '1-2　8カット\n8を2枚出して場を切って仕切り直し'
+  );
+
+  const cutCardIds = lessonTwoResult.state.players[0].hand
+    .filter((card) => Number(card.number) === 8)
+    .map((card) => card.id);
+  expect(cutCardIds).toHaveLength(2);
+  const cutResult = await page.evaluate((selectedCardIds) => (
+    window.TarotKingdomDebug.battlePlayCards(0, selectedCardIds, { resolve: true })
+  ), cutCardIds);
+  expect(cutResult.ok).toBe(true);
+  expect(cutResult.state.tutorialProgress.stepsByPlayer[0]).toBe(2);
+  expect(cutResult.state.trick).toBeNull();
+  await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText(
+    '1-2　11バック\n11を2枚出して数字の強弱が逆転'
+  );
+
+  const reverseCardIds = cutResult.state.players[0].hand
+    .filter((card) => Number(card.number) === 11)
+    .map((card) => card.id);
+  expect(reverseCardIds).toHaveLength(2);
+  const reverseResult = await page.evaluate((selectedCardIds) => (
+    window.TarotKingdomDebug.battlePlayCards(0, selectedCardIds, { resolve: true })
+  ), reverseCardIds);
+  expect(reverseResult.ok).toBe(true);
+  expect(reverseResult.state.tutorialProgress.stepsByPlayer[0]).toBe(3);
+  expect(reverseResult.state.reverse).toBe(true);
+  expect(reverseResult.state.trick?.cardsTable?.[0]).toMatchObject({ suit: 'Cup', number: 14 });
+  await expect(page.locator('#tarotKingdomSelectedEffectText')).toHaveText(
+    '1-2　ロイヤルロック\n13または14を1枚出して場札と同じスートに固定'
+  );
+
+  const lockCardIds = reverseResult.state.players[0].hand
+    .filter((card) => card.suit === 'Cup' && Number(card.number) === 13)
+    .map((card) => card.id);
+  expect(lockCardIds).toHaveLength(1);
+  const lockResult = await page.evaluate((selectedCardIds) => (
+    window.TarotKingdomDebug.battlePlayCards(0, selectedCardIds, { resolve: true })
+  ), lockCardIds);
+  expect(lockResult.ok).toBe(true);
+  expect(lockResult.state.tutorialProgress.completedPlayers[0]).toBe(true);
+  expect(lockResult.state.lock?.suit).toBe('Cup');
+  expect(lockResult.state.players[0].hand).toHaveLength(0);
   const lessonThree = await page.evaluate(() => window.TarotKingdomDebug.battleTutorialScenario(3, 3));
   expect([2, 3, 4, 5, 6].every((number) => (
     lessonThree.players[0].hand.some((card) => Number(card.number) === number)

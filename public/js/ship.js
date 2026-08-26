@@ -2054,7 +2054,7 @@ function showExplorationBattleModeDialog({ stage }) {
                 </button>
                 <button type="button" data-exploration-tutorial="no" aria-label="チュートリアルを開始しない">
                     <span>いいえ</span>
-                    <small>通常戦で開始</small>
+                            <small>チュートリアルなしで開始</small>
                 </button>
                 <button type="button" class="is-cancel" data-exploration-battle-mode="cancel">キャンセル</button>
             `;
@@ -3168,7 +3168,7 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
             };
             modeActions.append(
                 createTutorialButton(true, 'はい', '遊び方を確認'),
-                createTutorialButton(false, 'いいえ', '通常戦で開始')
+                createTutorialButton(false, 'いいえ', 'チュートリアルなしで開始')
             );
             delete modeChoice.dataset.selectedMode;
             setPhase('encounter-choice', 'チュートリアルを選択');
@@ -3184,7 +3184,7 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
                             candidate.disabled = true;
                         });
                         button.classList.add('is-selected');
-                        if (label) label.textContent = enabled ? '遊び方を確認します' : '通常戦を開始します';
+                        if (label) label.textContent = enabled ? '遊び方を確認します' : 'チュートリアルなしで開始します';
                         resolve(enabled);
                     }, { once: true });
                 });

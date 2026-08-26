@@ -1942,6 +1942,12 @@ const suitTierForCard = (c, suit) => {
 const mkMinor = () => { const d = []; let id = 0; SUITS.forEach((suit) => { for (let n = 1; n <= 14; n += 1) d.push({ id: `tk_m_${++id}`, kind: 'minor', suit, number: n }); }); return d; };
 const mkMajor = () => Array.from({ length: 22 }, (_, n) => ({ id: `tk_a_${n}`, kind: 'major', suit: 'None', number: n }));
 const mkDrawDeck = () => [...mkMinor(), ...mkMajor()];
+const KINGDOM_TUTORIAL_SPECIAL_SET_SEQUENCE = [
+  { key: 'skip', number: 5, cardCount: 2, label: '5スキップ', detail: '5を2枚出して次の2人をスキップ' },
+  { key: 'cut', number: 8, cardCount: 2, label: '8カット', detail: '8を2枚出して場を切って仕切り直し' },
+  { key: 'reverse', number: 11, cardCount: 2, label: '11バック', detail: '11を2枚出して数字の強弱が逆転' },
+  { key: 'lock', cardCount: 1, label: 'ロイヤルロック', detail: '13または14を1枚出して場札と同じスートに固定' }
+];
 
 function getKingdomTutorialLesson(state = s) {
   const stageNo = Number(state?.stage?.stageNo || 0);
@@ -1992,14 +1998,29 @@ function getKingdomTutorialMatchupPair(playerIndex, state = s) {
   };
 }
 
+function getKingdomTutorialSpecialSetLockField(state = s) {
+  const progress = getKingdomTutorialProgress(state);
+  const field = progress?.specialSetLockField;
+  return field && typeof field === 'object' ? cloneKingdomSnapshotValue(field, null) : null;
+}
+
 function getKingdomTutorialPrompt(state = s, playerIndex = null) {
   if (playerIndex != null && !isKingdomTutorialObjectivePending(playerIndex, state)) return '';
+  const pendingPlayerIndex = playerIndex != null
+    ? playerIndex
+    : state?.players?.findIndex((_player, index) => isKingdomTutorialObjectivePending(index, state));
   switch (getKingdomTutorialLesson(state)) {
     case 1:
       return playerIndex != null && getKingdomTutorialStep(playerIndex, state) >= 1
         ? `同じ数字は　勝ちスートで返せる\n${SUIT_ADVANTAGE_LABEL}`
         : '1-1　カードで攻撃\n場より大きい数字を1枚出そう';
-    case 2: return '1-2　5を2枚出して2人スキップ';
+    case 2: {
+      const step = getKingdomTutorialStep(pendingPlayerIndex, state);
+      const objective = KINGDOM_TUTORIAL_SPECIAL_SET_SEQUENCE[
+        Math.min(step, KINGDOM_TUTORIAL_SPECIAL_SET_SEQUENCE.length - 1)
+      ];
+      return `1-2　${objective.label}\n${objective.detail}`;
+    }
     case 3: return '1-3　ポーカー役：2～6でストレート';
     case 4: return '1-4　コール：場札＋4枚でフルハウス';
     default: return '';
@@ -2035,8 +2056,16 @@ function isKingdomTutorialObjectivePlay(playerIndex, play, state = s) {
     return !targetCardId || selectedCardId === targetCardId;
   }
   if (lesson === 2) {
-    const number = Number(play?.number || play?.cardsHand?.[0]?.number || 0);
-    return isSet && count === 2 && [5, 8, 11, 14].includes(number);
+    const step = getKingdomTutorialStep(playerIndex, state);
+    const objective = KINGDOM_TUTORIAL_SPECIAL_SET_SEQUENCE[step];
+    const card = play?.cardsHand?.[0] || null;
+    if (!objective || !isSet || count !== objective.cardCount) return false;
+    if (objective.key !== 'lock') return Number(card?.number || 0) === objective.number;
+    const field = getKingdomTutorialSpecialSetLockField(state);
+    const fieldSuit = suitsForCard(field, false)[0] || 'None';
+    return [13, 14].includes(Number(card?.number || 0))
+      && fieldSuit !== 'None'
+      && suitsForCard(card, false).includes(fieldSuit);
   }
   if (lesson === 3) return isRole && !isCall && count === 5;
   if (lesson === 4) return isCall && count === 5;
@@ -2054,12 +2083,12 @@ function getKingdomTutorialSuccessLabel(play) {
   const lesson = getKingdomTutorialLesson();
   if (lesson === 1) return getKingdomTutorialStep(play?.owner) >= 1 ? 'SUIT MATCH' : 'ATTACK';
   if (lesson === 2) {
-    const number = Number(play?.number || play?.cardsHand?.[0]?.number || 0);
-    if (number === 5) return '5 SKIP';
-    if (number === 8) return '8 CUT';
-    if (number === 11) return '11 REVERSE';
-    if (number === 14) return 'ROYAL LOCK';
-    return '2枚出し！';
+    const objective = KINGDOM_TUTORIAL_SPECIAL_SET_SEQUENCE[getKingdomTutorialStep(play?.owner)];
+    return objective?.key === 'skip' ? '5 SKIP'
+      : objective?.key === 'cut' ? '8 CUT'
+        : objective?.key === 'reverse' ? '11 REVERSE'
+          : objective?.key === 'lock' ? 'ROYAL LOCK'
+            : '';
   }
   if (lesson === 4) return 'CALL';
   return '';
@@ -2077,6 +2106,13 @@ function completeKingdomTutorialObjective(playerIndex) {
   }
   if (Number(progress.lesson) === 1 && getKingdomTutorialStep(index) <= 0) {
     progress.stepsByPlayer[index] = 1;
+    return 'advanced';
+  }
+  if (
+    Number(progress.lesson) === 2
+    && getKingdomTutorialStep(index) < KINGDOM_TUTORIAL_SPECIAL_SET_SEQUENCE.length - 1
+  ) {
+    progress.stepsByPlayer[index] = getKingdomTutorialStep(index) + 1;
     return 'advanced';
   }
   if (progress.completedPlayers[index] === true) return 'unchanged';
@@ -2125,6 +2161,78 @@ function prepareKingdomTutorialSuitReply(playerIndex) {
   return true;
 }
 
+function prepareKingdomTutorialSpecialSetLock(playerIndex) {
+  if (getKingdomTutorialLesson() !== 2) return false;
+  const step = getKingdomTutorialStep(playerIndex);
+  const objective = KINGDOM_TUTORIAL_SPECIAL_SET_SEQUENCE[step];
+  if (objective?.key !== 'lock') return false;
+  const fieldCard = getKingdomTutorialSpecialSetLockField();
+  if (!fieldCard) return false;
+  if (usesDeferredKingdomGrave()) queueKingdomTrickForGrave(s.trick);
+  const playerCount = getKingdomPlayerCount();
+  const fieldOwner = playerCount > 1
+    ? (Number(playerIndex) - 1 + playerCount) % playerCount
+    : Number(playerIndex);
+  if (!usesDeferredKingdomGrave() && fieldCard.kind === 'minor') {
+    s.players[fieldOwner]?.discard.push(fieldCard);
+  }
+  const number = Number(idNum(fieldCard));
+  const play = {
+    type: 'set',
+    owner: fieldOwner,
+    count: 1,
+    selected: [],
+    selectedIds: [],
+    cardsHand: [{ ...fieldCard }],
+    cardsTable: [{ ...fieldCard }],
+    tableOwners: [fieldOwner],
+    number,
+    setPower: setPowerForCards(number, [fieldCard]),
+    suitMask: suitMaskForCards([fieldCard]),
+    suitTier: Math.max(...suitsForCard(fieldCard, false).map((suit) => suitTierForCard(fieldCard, suit)))
+  };
+  s.trick = play;
+  s.lastPlay = play;
+  s.trickActionHistory = [];
+  s.lastTurnAction = { type: 'play', playerIndex: fieldOwner };
+  s.trickForcedCount = 0;
+  s.callOnly = false;
+  s.lock = null;
+  s.leadRequiredOwner = null;
+  s.pass = s.players.map(() => false);
+  s.fold = s.players.map(() => false);
+  resetKingdomNpcPassCounts();
+  s.trickTransitionKind = 'normal';
+  s.trickDefeatFx = null;
+  log(`${pName(fieldOwner)}: ロイヤルロック練習札 ${getCardNameLabel(fieldCard)}`);
+  return true;
+}
+
+function resumeKingdomTutorialSpecialSet(playerIndex) {
+  prepareKingdomTutorialSuitReply(playerIndex);
+  prepareKingdomTutorialSpecialSetLock(playerIndex);
+  s.phase = 'turn';
+  s.turn = Number(playerIndex);
+  s.pass[Number(playerIndex)] = false;
+  s.fold[Number(playerIndex)] = false;
+  s.message = getKingdomTutorialPrompt(s, playerIndex);
+  if (isLocalPlayer(playerIndex)) s.selected.clear();
+  scheduleNpc();
+  render();
+}
+
+function finishKingdomTutorialLesson(playerIndex, play) {
+  const player = s.players?.[Number(playerIndex)];
+  if (!player) return;
+  const remainingCards = player.hand.splice(0);
+  if (!usesDeferredKingdomGrave()) {
+    player.discard.push(...remainingCards.filter((card) => card?.kind === 'minor'));
+  }
+  log(`${pName(playerIndex)}: チュートリアル課題完了`);
+  markKingdomBattleVictory(playerIndex);
+  startRoundOutCinematic(playerIndex, play);
+}
+
 function buildKingdomTutorialDeck(lesson, playerCount, initialHandSize, dealerIndex = 0) {
   const safeLesson = Math.max(1, Math.min(TOTAL_HANDS, Math.floor(Number(lesson) || 1)));
   const safePlayerCount = Math.max(3, Math.min(4, Math.floor(Number(playerCount) || 4)));
@@ -2132,6 +2240,7 @@ function buildKingdomTutorialDeck(lesson, playerCount, initialHandSize, dealerIn
   const pool = mkMinor();
   const hands = Array.from({ length: safePlayerCount }, () => []);
   const matchupPairs = Array.from({ length: safePlayerCount }, () => null);
+  let specialSetLockField = null;
   const take = (suit, number) => {
     const index = pool.findIndex((card) => card.suit === suit && Number(card.number) === Number(number));
     return index >= 0 ? pool.splice(index, 1)[0] : null;
@@ -2164,13 +2273,14 @@ function buildKingdomTutorialDeck(lesson, playerCount, initialHandSize, dealerIn
       };
     });
   } else if (safeLesson === 2) {
-    const pairs = [
-      [['Cup', 5], ['Wand', 5]],
-      [['Sword', 8], ['Pentacle', 8]],
-      [['Cup', 11], ['Wand', 11]],
-      [['Sword', 14], ['Pentacle', 14]]
-    ];
-    hands.forEach((_hand, seat) => pairs[seat].forEach(([suit, number]) => give(seat, suit, number)));
+    // 1-2 is an offline lesson. Give the player every scripted card so each
+    // effect can be learned in sequence without relying on an NPC turn.
+    KINGDOM_TUTORIAL_SPECIAL_SET_SEQUENCE.filter(({ key }) => key !== 'lock').forEach(({ number }) => {
+      give(0, 'Cup', number);
+      give(0, 'Wand', number);
+    });
+    specialSetLockField = take('Cup', 14);
+    give(0, 'Cup', 13);
   } else if (safeLesson === 3) {
     const suits = ['Cup', 'Wand', 'Sword', 'Pentacle'];
     hands.forEach((_hand, seat) => {
@@ -2216,7 +2326,8 @@ function buildKingdomTutorialDeck(lesson, playerCount, initialHandSize, dealerIn
     skipOpening: ![1, 4].includes(safeLesson) || !opening,
     clearOpening: false,
     openingOwner: [1, 4].includes(safeLesson) ? safePlayerCount - 1 : 0,
-    matchupPairs
+    matchupPairs,
+    specialSetLockField
   };
 }
 const log = (m) => { s.logs.push(m); if (s.logs.length > 120) s.logs.splice(0, s.logs.length - 120); };
@@ -18572,7 +18683,8 @@ function setupHand(options = {}) {
         lesson: tutorialLesson,
         completedPlayers: s.players.map(() => false),
         stepsByPlayer: s.players.map(() => 0),
-        matchupPairs: cloneKingdomSnapshotValue(tutorialSetup.matchupPairs, [])
+        matchupPairs: cloneKingdomSnapshotValue(tutorialSetup.matchupPairs, []),
+        specialSetLockField: cloneKingdomSnapshotValue(tutorialSetup.specialSetLockField, null)
       }
     : null;
   s.drawDeck = Array.isArray(options.drawDeck)
@@ -19811,6 +19923,11 @@ function clearTrick(leader, options = {}) {
     startPostClearLeaderFlow(resolvedLeader);
     return;
   }
+  if (options.tutorialResume === true) {
+    traceKingdomFlow('clearTrick.next', 'tutorialResume');
+    resumeKingdomTutorialSpecialSet(resolvedLeader);
+    return false;
+  }
   traceKingdomFlow('clearTrick.next', 'drawChoiceStart');
   startPostClearLeaderFlow(resolvedLeader);
   return false;
@@ -20620,6 +20737,26 @@ function continueAfterPlay(pi, play) {
     clearTrick(pi, { worldResolution: true });
     return;
   }
+  const tutorialAdvance = play?.tutorialContinueSamePlayer === true
+    && isKingdomTutorialObjectivePending(pi);
+  const tutorialComplete = play?.tutorialCompleteLesson === true;
+  const tutorialSetEffects = (tutorialAdvance || tutorialComplete) && play.type === 'set'
+    ? applySetEffects(play)
+    : null;
+  if (tutorialComplete) {
+    delete play.tutorialCompleteLesson;
+    finishKingdomTutorialLesson(pi, play);
+    return;
+  }
+  if (tutorialAdvance) {
+    delete play.tutorialContinueSamePlayer;
+    if (tutorialSetEffects?.forceClear) {
+      clearTrick(pi, { tutorialResume: true });
+      return;
+    }
+    resumeKingdomTutorialSpecialSet(pi);
+    return;
+  }
   if (p.hand.length <= 0) {
     if (play?.type === 'role') {
       p.stars = Math.max(0, Number(p.stars) || 0) + 1;
@@ -20630,19 +20767,6 @@ function continueAfterPlay(pi, play) {
     }
     markKingdomBattleVictory(pi);
     startRoundOutCinematic(pi, play);
-    return;
-  }
-  if (play?.tutorialContinueSamePlayer && isKingdomTutorialObjectivePending(pi)) {
-    delete play.tutorialContinueSamePlayer;
-    prepareKingdomTutorialSuitReply(pi);
-    s.phase = 'turn';
-    s.turn = pi;
-    s.pass[pi] = false;
-    s.fold[pi] = false;
-    s.message = getKingdomTutorialPrompt(s, pi);
-    if (isLocalPlayer(pi)) s.selected.clear();
-    scheduleNpc();
-    render();
     return;
   }
   if (play.type === 'set') {
@@ -20787,6 +20911,7 @@ function applyPlay(pi, play, retryDepth = 0) {
     ? completeKingdomTutorialObjective(pi)
     : 'unchanged';
   if (tutorialProgressResult === 'advanced') play.tutorialContinueSamePlayer = true;
+  if (tutorialProgressResult === 'completed') play.tutorialCompleteLesson = true;
   s.revision = Math.max(0, Number(s.revision) || 0) + 1;
   pendingKingdomCardDealFx = capturedCardDealFx
     ? { ...capturedCardDealFx, playToken }

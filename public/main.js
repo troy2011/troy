@@ -66,7 +66,7 @@ let lineFriendPromoState = null;
 let dailyFortuneOpenPromise = null;
 let dailyFortuneClaimEventBound = false;
 const TAROT_MODULE_VERSION = '20260814-tutorial-choice-v1';
-const TAROT_KINGDOM_RESCUE_VERSION = '20260825-enemy-return-walk-v1';
+const TAROT_KINGDOM_RESCUE_VERSION = '20260826-tutorial-special-sets-v1';
 const DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY = 'troy:daily-fortune-claimed-day';
 const LIFF_CALLBACK_PARAM_KEYS = [
     'code',
@@ -1853,23 +1853,6 @@ async function initializeAppFeatures() {
             void refreshLineFriendPromo();
         }
     });
-
-    if (typeof window !== 'undefined' && typeof window.initializeBattleSystem === 'function') {
-        window.initializeBattleSystem({
-            myPlayFabId,
-            myCurrentEquipment: Inventory.getMyCurrentEquipment(),
-            myInventory: Inventory.getMyInventory(),
-            callApiWithLoader,
-            renderAvatar,
-            playAvatarBodyMotion,
-            stopAvatarBodyMotion,
-            getMyCurrentEquipment: Inventory.getMyCurrentEquipment,
-            getMyInventory: Inventory.getMyInventory,
-            db
-        });
-    } else {
-        console.warn('[initializeAppFeatures] initializeBattleSystem not found');
-    }
 
         console.log('[initializeAppFeatures] Initialization complete (async tasks running).');
     })();
