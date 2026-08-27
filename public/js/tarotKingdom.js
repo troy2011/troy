@@ -721,6 +721,7 @@ let kingdomRoundPetOfferPromise = null;
 const kingdomRoundPetOfferChecked = new Set();
 const kingdomRoundAbpPromises = new Map();
 const kingdomRoundAbpChecked = new Set();
+const KINGDOM_ROUND_ABP_WAIT_TIMEOUT_MS = 8000;
 let kingdomRoundAbpPresentationKey = '';
 let kingdomBattleAvatarEventKey = '';
 let kingdomBattleTerminalFxEventKey = '';
@@ -23895,7 +23896,13 @@ function queueKingdomRoundAbpAward(roundNo) {
       return requestAward(attempt + 1);
     }
   };
-  const promise = requestAward().then((result) => {
+  let timeoutId = null;
+  const timeoutPromise = new Promise((_resolve, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error('ABP確定がタイムアウトしました。'));
+    }, KINGDOM_ROUND_ABP_WAIT_TIMEOUT_MS);
+  });
+  const promise = Promise.race([requestAward(), timeoutPromise]).then((result) => {
     if (s?.battle) {
       s.battle.jobAbpResult = {
         explorationId: context.explorationId,
@@ -23909,9 +23916,14 @@ function queueKingdomRoundAbpAward(roundNo) {
   }).catch((error) => {
     kingdomRoundAbpChecked.delete(key);
     console.warn('[tarotKingdom] round ABP award failed after retries:', error);
+    setLocalInfoMessage('ABP確定を保留しました。次へ進めます。', 2400);
     return null;
   }).finally(() => {
-    kingdomRoundAbpPromises.delete(key);
+    if (timeoutId) clearTimeout(timeoutId);
+    if (kingdomRoundAbpPromises.get(key) === promise) {
+      kingdomRoundAbpPromises.delete(key);
+      render();
+    }
   });
   kingdomRoundAbpPromises.set(key, promise);
   return promise;

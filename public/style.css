@@ -36818,12 +36818,26 @@ body.tarot-kingdom-preview-body {
     min-height: clamp(64px, 16vw, 84px);
 }
 
+/* Lower battlefield lanes render closer to the camera. */
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(1) {
     top: 28%;
+    z-index: 10;
 }
-:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(2) { top: 46%; }
-:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(3) { top: 64%; }
-:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(4) { top: 82%; }
+
+:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(2) {
+    top: 46%;
+    z-index: 20;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(3) {
+    top: 64%;
+    z-index: 30;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(4) {
+    top: 82%;
+    z-index: 40;
+}
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar {
     position: relative;
@@ -38799,33 +38813,13 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
     image-rendering: pixelated;
 }
 
-/*
- * Depth-sort the battlefield actors from the upper lane toward the camera.
- * The enemy occupies the plane between party seats 2 and 3 so large sprites
- * can overlap either lane without always covering the whole party.
- */
+/* The enemy occupies the plane between party seats 2 and 3. */
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-party-side {
     z-index: auto;
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-enemy {
     z-index: 25;
-}
-
-:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(1) {
-    z-index: 40;
-}
-
-:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(2) {
-    z-index: 30;
-}
-
-:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(3) {
-    z-index: 20;
-}
-
-:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleParty > .tarot-kingdom-battle-player:nth-child(4) {
-    z-index: 10;
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2

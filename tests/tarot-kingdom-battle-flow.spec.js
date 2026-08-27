@@ -5597,6 +5597,48 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.onlineNextRound.dealer).toBe(2);
   });
 
+  test('round settlement leaves ABP pending state after the award request resolves', async ({ page }) => {
+    let releaseAward;
+    const awardGate = new Promise((resolve) => {
+      releaseAward = resolve;
+    });
+    await page.route('**/api/tarot-kingdom/job-abp/round', async (route) => {
+      await awardGate;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, awards: [] })
+      });
+    });
+
+    await page.evaluate(() => {
+      window.myPlayFabId = 'PF_ABP_SETTLEMENT';
+      const debug = window.TarotKingdomDebug;
+      debug.battleSetStartMode('offline');
+      debug.battleSetExplorationSession(true, 'offline', {
+        explorationId: 'abp-settlement-exploration',
+        ownerPlayFabId: 'PF_ABP_SETTLEMENT',
+        stageNo: 1
+      });
+      debug.battleScenario({
+        handNo: 0,
+        hpBySeat: [100, 100, 100, 100],
+        chipsBySeat: [120, 100, 90, 80],
+        withTrick: false
+      });
+      debug.battleFinishRound(0);
+    });
+
+    const confirmButton = page.locator('#tarotKingdomSettlementConfirmButton');
+    await expect(confirmButton).toHaveText('ABP確定中');
+    await expect(confirmButton).toBeDisabled();
+
+    releaseAward();
+
+    await expect(confirmButton).toHaveText('次の局へ');
+    await expect(confirmButton).toBeEnabled();
+  });
+
   test('offline exploration resumes the exact interrupted turn with private cards and combat state', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
