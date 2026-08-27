@@ -7,11 +7,16 @@
  * summon rule can never silently win the cascade again.
  */
 
+:where(#tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon) {
+    --summon-fx-primary: var(--summon-effect, var(--skill-accent, #8fd8ff));
+    --summon-fx-secondary: #fff4c2;
+}
+
 #tarotKingdomBattleStage > .tarot-kingdom-skill-cutin.is-summon {
     --summon-duration: 4500ms;
     --summon-effect: var(--skill-accent, #8fd8ff);
-    --summon-fx-primary: var(--summon-effect);
-    --summon-fx-secondary: #fff4c2;
+    --summon-target-x: 25%;
+    --summon-target-y: 57%;
     --role-chain-color: transparent;
     --role-chain-glow: 0px;
     position: absolute;
@@ -60,7 +65,7 @@
     inset: 0;
     border: 0;
     background:
-        radial-gradient(circle at 25% 56%, transparent 0 13%, rgba(255, 255, 255, 0.05) 14%, transparent 22%),
+        radial-gradient(circle at var(--summon-target-x) var(--summon-target-y), transparent 0 13%, rgba(255, 255, 255, 0.05) 14%, transparent 22%),
         radial-gradient(ellipse at center, transparent 46%, rgba(0, 0, 0, 0.36) 100%);
     opacity: 0;
     filter: none;
@@ -282,8 +287,8 @@
     z-index: 13;
     opacity: 0;
     background:
-        radial-gradient(circle at 25% 57%, #fff 0 1.5%, color-mix(in srgb, var(--summon-fx-primary) 82%, white) 2% 5%, transparent 17%),
-        conic-gradient(from 0deg at 25% 57%, transparent 0 8%, rgba(255, 255, 255, 0.88) 9% 10%, transparent 11% 22%, rgba(255, 255, 255, 0.6) 23% 24%, transparent 25%);
+        radial-gradient(circle at var(--summon-target-x) var(--summon-target-y), #fff 0 1.5%, color-mix(in srgb, var(--summon-fx-primary) 82%, white) 2% 5%, transparent 17%),
+        conic-gradient(from 0deg at var(--summon-target-x) var(--summon-target-y), transparent 0 8%, rgba(255, 255, 255, 0.88) 9% 10%, transparent 11% 22%, rgba(255, 255, 255, 0.6) 23% 24%, transparent 25%);
     mix-blend-mode: screen;
     box-shadow: inset 0 0 calc(28px + var(--role-chain-glow)) var(--role-chain-color);
     animation: tkSummonImpact var(--summon-duration) steps(2, end) both;
@@ -449,8 +454,8 @@
 
 .tarot-kingdom-summon-fx-shadow {
     z-index: 4;
-    left: 7%;
-    top: 31%;
+    left: calc(var(--summon-target-x) - 18%);
+    top: calc(var(--summon-target-y) - 26%);
     width: 38%;
     height: 40%;
     border-radius: 50%;
@@ -475,8 +480,8 @@
 
 .tarot-kingdom-summon-fx-projectile {
     z-index: 11;
-    left: 20%;
-    top: 47%;
+    left: calc(var(--summon-target-x) - 5%);
+    top: calc(var(--summon-target-y) - 10%);
     width: 55%;
     height: 12%;
     transform-origin: 100% 50%;
@@ -484,8 +489,8 @@
 
 .tarot-kingdom-summon-fx-impact {
     z-index: 12;
-    left: 6%;
-    top: 33%;
+    left: calc(var(--summon-target-x) - 19%);
+    top: calc(var(--summon-target-y) - 24%);
     width: 38%;
     height: 48%;
     border-radius: 50%;

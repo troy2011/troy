@@ -26315,6 +26315,24 @@ function getKingdomSummonVisualProfile(effectKey) {
     || Object.freeze({ category: 'attack', choreography: 'magic-impact' });
 }
 
+function getKingdomSummonTargetPosition() {
+  const stageRect = ui.battleStage?.getBoundingClientRect?.();
+  const targetRect = ui.battleEnemySprite?.getBoundingClientRect?.();
+  if (
+    !stageRect || !targetRect
+    || stageRect.width <= 0 || stageRect.height <= 0
+    || targetRect.width <= 0 || targetRect.height <= 0
+  ) return { x: 25, y: 57 };
+  return {
+    x: Math.max(4, Math.min(96, (
+      (targetRect.left + (targetRect.width / 2) - stageRect.left) / stageRect.width
+    ) * 100)),
+    y: Math.max(4, Math.min(96, (
+      (targetRect.top + (targetRect.height / 2) - stageRect.top) / stageRect.height
+    ) * 100))
+  };
+}
+
 function clearKingdomSummonPartyMotionTimers() {
   if (kingdomSummonPartyPauseTimer) {
     clearTimeout(kingdomSummonPartyPauseTimer);
@@ -26506,6 +26524,9 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   const resultsRevealed = !!(timeline && Date.now() >= Number(timeline.effectAt || timeline.endsAt || 0));
   const nextClassName = `tarot-kingdom-skill-cutin ${getKingdomRoleVisualClass(roleKey)} is-phase-${phase}${resultsRevealed ? ' is-results-revealed' : ''}${roleChainCount >= 2 ? ' is-role-chain' : ''}${isMajorSummonEvent ? ' is-major-arcana-summon' : ''}${hasSummonVisual ? ` is-summon${isSummonSealed ? ' is-summon-sealed' : ''} is-summon-${effectKey} is-summon-${visualProfile.category} is-motion-${summonMotionKey} is-pool-${summonPoolKey} is-weight-${summonWeightKey} is-choreo-${summonChoreographyKey} is-summon-id-${summonIdKey}` : ''}`;
   if (cutin.className !== nextClassName) cutin.className = nextClassName;
+  const summonTarget = getKingdomSummonTargetPosition();
+  cutin.style.setProperty('--summon-target-x', `${summonTarget.x}%`);
+  cutin.style.setProperty('--summon-target-y', `${summonTarget.y}%`);
   if (cutin.dataset.renderKey === renderKey) return;
   cutin.dataset.renderKey = renderKey;
   cutin.dataset.effectKey = hasSummonVisual ? effectKey : '';

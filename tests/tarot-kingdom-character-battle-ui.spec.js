@@ -959,7 +959,8 @@ test('buffs, debuffs and support effects use the same compact icon system as ail
       width: rect.width,
       height: rect.height,
       borderWidth: style.borderTopWidth,
-      borderRadius: style.borderRadius,
+      clipPath: style.clipPath,
+      backgroundImage: style.backgroundImage,
       insideAvatar: Boolean(avatarRect
         && rect.left >= avatarRect.left
         && rect.right <= avatarRect.right
@@ -968,9 +969,21 @@ test('buffs, debuffs and support effects use the same compact icon system as ail
     };
   });
   expect(shieldLayout.width).toBeLessThan(shieldLayout.height);
-  expect(shieldLayout.borderWidth).toBe('3px');
-  expect(shieldLayout.borderRadius).toContain('50%');
+  expect(shieldLayout.borderWidth).toBe('2px');
+  expect(shieldLayout.clipPath).toContain('polygon');
+  expect(shieldLayout.backgroundImage).toContain('linear-gradient');
   expect(shieldLayout.insideAvatar).toBe(true);
+  const shieldAvatar = page.locator(
+    '.tarot-kingdom-battle-player[data-player-index="0"] .tarot-kingdom-battle-player-avatar'
+  );
+  await shieldAvatar.evaluate((avatar) => avatar.classList.add('is-avatar-damaged'));
+  const shieldImpact = await shieldRing.evaluate((ring) => ({
+    animationName: getComputedStyle(ring).animationName,
+    crackAnimationName: getComputedStyle(ring, '::before').animationName
+  }));
+  expect(shieldImpact.animationName).toBe('tarotKingdomShieldGlassImpact');
+  expect(shieldImpact.crackAnimationName).toBe('tarotKingdomShieldGlassCrack');
+  await shieldAvatar.evaluate((avatar) => avatar.classList.remove('is-avatar-damaged'));
 
   const iconStyles = await playerTray.locator('.tarot-kingdom-battle-status-icon.is-modifier').evaluateAll((icons) => (
     icons.map((icon) => {

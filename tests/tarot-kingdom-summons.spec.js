@@ -739,6 +739,50 @@ test.describe('Tarot Kingdom summon integration', () => {
     });
   });
 
+  test('elemental summons use their suit color and target the live enemy center', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const expectedColors = {
+        flush_wand_low: '#ff6636',
+        flush_cup_low: '#49c9ff',
+        flush_sword_low: '#93e7ff',
+        flush_pentacle_low: '#8bcf68'
+      };
+      const results = Object.keys(expectedColors).map((summonId) => {
+        debug.battleDemoSummon(summonId);
+        debug.battleRender();
+        const stage = document.querySelector('#tarotKingdomBattleStage');
+        const enemy = document.querySelector('#tarotKingdomEnemySprite');
+        const cutin = stage?.querySelector(':scope > .tarot-kingdom-skill-cutin.is-summon');
+        const stageRect = stage?.getBoundingClientRect();
+        const enemyRect = enemy?.getBoundingClientRect();
+        const targetX = Number.parseFloat(cutin?.style.getPropertyValue('--summon-target-x'));
+        const targetY = Number.parseFloat(cutin?.style.getPropertyValue('--summon-target-y'));
+        const enemyCenterX = stageRect && enemyRect
+          ? ((enemyRect.left + (enemyRect.width / 2) - stageRect.left) / stageRect.width) * 100
+          : 0;
+        const enemyCenterY = stageRect && enemyRect
+          ? ((enemyRect.top + (enemyRect.height / 2) - stageRect.top) / stageRect.height) * 100
+          : 0;
+        return {
+          summonId,
+          primary: cutin ? getComputedStyle(cutin).getPropertyValue('--summon-fx-primary').trim() : '',
+          targetX,
+          targetY,
+          enemyCenterX,
+          enemyCenterY
+        };
+      });
+      return { expectedColors, results };
+    });
+
+    for (const result of audit.results) {
+      expect(result.primary).toBe(audit.expectedColors[result.summonId]);
+      expect(result.targetX).toBeCloseTo(result.enemyCenterX, 4);
+      expect(result.targetY).toBeCloseTo(result.enemyCenterY, 4);
+    }
+  });
+
   test('Cup Flush waits for summon exit before showing party healing', async ({ page }) => {
     const hand = [5, 7, 9, 12, 14].map((number) => ({
       id: `cup-flush-${number}`,
@@ -818,7 +862,9 @@ test.describe('Tarot Kingdom summon integration', () => {
         debug.battleRender();
         return {
           cutinDisplay: getComputedStyle(document.querySelector('.tarot-kingdom-skill-cutin.is-summon')).display,
-          resultTexts: Array.from(document.querySelectorAll('.tarot-kingdom-effect-result-text'))
+          resultTexts: Array.from(document.querySelectorAll(
+            '.tarot-kingdom-effect-result-stack.is-player .tarot-kingdom-effect-result-text'
+          ))
             .map((node) => node.textContent),
           navigation: document.querySelector('#tarotKingdomSelectedEffectText')?.textContent || ''
         };
