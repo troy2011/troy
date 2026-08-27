@@ -39,6 +39,7 @@ const {
     buildTarotKingdomGuardian,
     buildTarotKingdomMinorLoadout
 } = require('../tarotKingdomArcanaLoadout');
+const TAROT_KINGDOM_WEAPON_RULES = require('../../public/js/tarotKingdomWeaponRules.shared.js');
 
 // ----------------------------------------------------
 // ★ v42: モジュールレベル変数の定義
@@ -176,8 +177,8 @@ function buildTarotKingdomTarotDeck(profile = {}, cardLevels = {}) {
     );
 }
 
-function getTarotKingdomEquippedWeaponTypes(equipment = {}) {
-    const types = new Set();
+function getTarotKingdomEquippedWeaponSlots(equipment = {}) {
+    const slots = [];
     ['RightHand', 'LeftHand'].forEach((slot) => {
         const itemId = String(equipment?.[slot] || '').trim();
         const itemData = _catalogCache?.[itemId] || {};
@@ -188,9 +189,9 @@ function getTarotKingdomEquippedWeaponTypes(equipment = {}) {
             || itemData.weaponType
             || (String(itemData.Category || '').toLowerCase() === 'shield' ? 'shield' : '')
         ).trim().toLowerCase();
-        if (type) types.add(type);
+        if (type) slots.push(type);
     });
-    return types;
+    return slots.length ? slots.slice(0, 2) : ['unarmed'];
 }
 
 function buildTarotKingdomCombatCharacter(profile = {}, cardLevels = {}) {
@@ -198,7 +199,8 @@ function buildTarotKingdomCombatCharacter(profile = {}, cardLevels = {}) {
     const equipmentStats = profile?.equipmentStats || {};
     const equipment = sanitizeTarotKingdomEquipment(profile?.equipment);
     const level = Math.max(1, Math.floor(Number(profile?.level || stats.Level || 1) || 1));
-    const weaponTypes = getTarotKingdomEquippedWeaponTypes(equipment);
+    const weaponSlots = getTarotKingdomEquippedWeaponSlots(equipment);
+    const weaponTypes = new Set(weaponSlots);
     const weaponType = TAROT_KINGDOM_WEAPON_PRIORITY.find((type) => weaponTypes.has(type)) || 'unarmed';
     const statNumber = (key, fallback = 0) => {
         const value = Number(stats[key]);
@@ -210,7 +212,7 @@ function buildTarotKingdomCombatCharacter(profile = {}, cardLevels = {}) {
     };
 
     return {
-        version: 4,
+        version: 5,
         source: 'playfab',
         playFabId: String(profile?.id || '').trim(),
         displayName: String(stats.DisplayName || profile?.id || '（名前なし）').trim() || '（名前なし）',
@@ -237,7 +239,9 @@ function buildTarotKingdomCombatCharacter(profile = {}, cardLevels = {}) {
                 Math.floor(equipmentNumber('MagicPower') + equipmentNumber('Int'))
             ),
             weaponType,
-            weaponTypes: Array.from(weaponTypes)
+            weaponTypes: Array.from(weaponTypes),
+            weaponSlots,
+            formation: TAROT_KINGDOM_WEAPON_RULES.resolveFormation(weaponSlots)
         }
     };
 }

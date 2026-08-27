@@ -251,6 +251,7 @@ async function withCombatProfilesApi(callback, options = {}) {
     );
     await callback({
       handler: posts.get('/api/tarot-kingdom/combat-profiles'),
+      buildCombatCharacter: battleRoutes.buildTarotKingdomCombatCharacter,
       authenticatedIds,
       readOnlyRequests,
       readOnlyUpdateRequests,
@@ -302,7 +303,7 @@ test('combat profile API authenticates the requester and returns sanitized melee
     expect(result.payload).toMatchObject({ success: true });
     expect(result.payload.characters).toHaveLength(3);
     expect(result.payload.characters[1]).toMatchObject({
-      version: 4,
+      version: 5,
       source: 'playfab',
       playFabId: 'PF_A',
       displayName: 'Captain PF_A',
@@ -352,7 +353,9 @@ test('combat profile API authenticates the requester and returns sanitized melee
         equipmentPower: 8,
         equipmentMagicPower: 4,
         weaponType: 'sword',
-        weaponTypes: ['sword']
+        weaponTypes: ['sword'],
+        weaponSlots: ['sword'],
+        formation: 'front'
       }
     });
     expect(result.payload.characters[1].itemSource.unused_item).toBeUndefined();
@@ -384,6 +387,32 @@ test('combat profile API authenticates the requester and returns sanitized melee
     expect(dbReadPaths.every((refPath) => !refPath.endsWith('/room-test'))).toBe(true);
     expect(dbReadPaths.some((refPath) => refPath.endsWith('/state'))).toBe(false);
   });
+});
+
+test('combat profile snapshots preserve ordered duplicate weapon slots and formation', async () => {
+  const catalogCache = {
+    weapon_gun_right: { DisplayName: '右銃', Category: 'Weapon', WeaponType: 'gun' },
+    weapon_gun_left: { DisplayName: '左銃', Category: 'Weapon', WeaponType: 'gun' }
+  };
+  await withCombatProfilesApi(async ({ buildCombatCharacter }) => {
+    const character = buildCombatCharacter({
+      id: 'PF_DUAL',
+      level: 12,
+      stats: { MaxHP: 120, ちから: 20, みのまもり: 10, かしこさ: 8, すばやさ: 14 },
+      equipmentStats: { Power: 12, Defense: 4, Agi: 2 },
+      equipment: { RightHand: 'weapon_gun_right', LeftHand: 'weapon_gun_left' }
+    });
+
+    expect(character).toMatchObject({
+      version: 5,
+      combat: {
+        weaponType: 'gun',
+        weaponTypes: ['gun'],
+        weaponSlots: ['gun', 'gun'],
+        formation: 'back'
+      }
+    });
+  }, { catalogCache });
 });
 
 test('combat profile restores saved legacy tarot ids without waiting for inventory refresh or migration writes', async () => {

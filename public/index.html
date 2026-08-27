@@ -23,7 +23,7 @@
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
     <title>TROYゴールドアプリ</title>
-<link rel="stylesheet" href="style.css?v=20260826-element-pairs-v1">
+<link rel="stylesheet" href="style.css?v=20260827-job-weapon-v1">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
     <link rel="stylesheet" href="tarot-kingdom-summons.css?v=20260826-sealed-summon-v1">
@@ -57,10 +57,6 @@
         <div id="tabContainer">
             <!-- 1. ホームタブ -->
             <div id="tabContentHome" class="tab-content">
-                <section id="homeAnnouncementPanel" class="home-announcement-panel" hidden aria-live="polite">
-                    <div class="home-announcement-title">王の告知</div>
-                    <div id="homeAnnouncementList" class="home-announcement-list"></div>
-                </section>
                 <div class="content-area home-hero-card">
                     <div class="home-hero-top">
                         <div class="home-ps-card">
@@ -137,6 +133,10 @@
                                 <button id="btnDailyFortune" class="home-exploration-btn home-fortune-btn" type="button" aria-label="本日の占い" aria-haspopup="dialog">占い</button>
                             </div>
                         </div>
+                        <section id="homeAnnouncementPanel" class="home-announcement-panel" hidden aria-live="polite">
+                            <div class="home-announcement-title">王の告知</div>
+                            <div id="homeAnnouncementList" class="home-announcement-list"></div>
+                        </section>
                     </div>
                     <div id="shipExplorationPanel" class="ship-exploration-panel" hidden>
                         <div class="ship-exploration-empty">探索情報を読み込み中です。</div>
@@ -1753,10 +1753,10 @@
         "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
         "config": "./js/config.js",
         "api": "./js/api.js",
-"ui": "./js/ui.js?v=20260826-element-pairs-v1",
+"ui": "./js/ui.js?v=20260827-job-weapon-v1",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js",
-"inventory": "./js/inventory.js?v=20260826-equipment-rank-v1",
+"inventory": "./js/inventory.js?v=20260827-job-weapon-v1",
         "game": "./Game.js?v=20260727-nav-guide1"
       }
     }
@@ -1798,6 +1798,6 @@
     </div>
 
     <!-- Scripts -->
-<script type="module" src="main.js?v=20260826-element-pairs-v1"></script>
+<script type="module" src="main.js?v=20260827-job-weapon-v1"></script>
 </body>
 </html>

@@ -407,7 +407,7 @@ export function calculateTarotKingdomHitChance(attackerSpeed = 0, defenderSpeed 
     const defender = Math.max(0, finiteNumber(defenderSpeed, 0));
     const speedDifference = Math.max(-60, Math.min(60, attacker - defender));
     const speedAdjusted = Math.max(0.65, Math.min(0.98, 0.9 + (speedDifference * 0.004)));
-    const penalty = Math.max(0, Math.min(0.7, finiteNumber(accuracyPenalty, 0)));
+    const penalty = Math.max(-0.33, Math.min(0.7, finiteNumber(accuracyPenalty, 0)));
     return Math.max(0.2, Math.min(0.98, speedAdjusted - penalty));
 }
 

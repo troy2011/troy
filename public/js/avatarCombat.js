@@ -274,13 +274,16 @@ export async function playCombatAvatarAttack(target, weaponType, options = {}) {
     if (!element || element.classList.contains('is-avatar-defeated')) return false;
     if (prefersReducedCombatMotion()) return true;
     const profile = getCombatWeaponMotionProfile(weaponType);
+    const motionProfile = options.noAdvance === true
+        ? { ...profile, forwardPx: 0 }
+        : profile;
     const duration = Math.max(120, Number(options.duration || profile.duration) || profile.duration);
     const direction = options.direction === 'right' ? 'right' : 'left';
     const token = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     element.dataset.combatAvatarAttackToken = token;
     clearCombatWeaponClass(element);
-    element.classList.add(profile.className);
-    setCombatWeaponMotionVariables(element, profile, direction);
+    element.classList.add(motionProfile.className);
+    setCombatWeaponMotionVariables(element, motionProfile, direction);
     try {
         return await triggerAvatarAttackMotion(element, {
             direction,

@@ -3,7 +3,10 @@ import {
     normalizeTarotKingdomGuardian,
     normalizeTarotKingdomTarotDeck,
     normalizeTarotKingdomWeaponTypes
-} from './tarotKingdomEffects.js?v=20260823-royal-lock-v1';
+} from './tarotKingdomEffects.js?v=20260827-guardian-cover-v1';
+import {
+    resolveTarotKingdomWeaponFormation
+} from './tarotKingdomWeaponRules.js?v=20260827-job-weapon-v1';
 
 const NPC_STYLE_BY_SEAT = Object.freeze({
     1: { key: 'cautious', hp: 1.10, power: 0.85, defense: 1.20, weaponType: 'shield' },
@@ -155,6 +158,21 @@ export function normalizeTarotKingdomCombat(rawCombat = {}, fallback = {}) {
     const source = rawCombat && typeof rawCombat === 'object' ? rawCombat : {};
     const base = fallback && typeof fallback === 'object' ? fallback : {};
     const weaponType = String(source.weaponType || base.weaponType || 'unarmed').trim().toLowerCase() || 'unarmed';
+    const rawWeaponSlots = source.weaponSlots || base.weaponSlots || source.weaponTypes || base.weaponTypes || [weaponType];
+    const weaponSlots = (Array.isArray(rawWeaponSlots) ? rawWeaponSlots : [rawWeaponSlots])
+        .map((entry) => String(entry || '').trim().toLowerCase())
+        .filter(Boolean)
+        .slice(0, 2);
+    const sourceDeclaresWeapon = ['weaponSlots', 'weaponTypes', 'weaponType']
+        .some((key) => Object.prototype.hasOwnProperty.call(source, key));
+    const declaredFormation = String(
+        Object.prototype.hasOwnProperty.call(source, 'formation')
+            ? source.formation
+            : (sourceDeclaresWeapon ? '' : base.formation)
+    ).trim().toLowerCase();
+    const formation = declaredFormation === 'back' || declaredFormation === 'front'
+        ? declaredFormation
+        : resolveTarotKingdomWeaponFormation(weaponSlots.length ? weaponSlots : [weaponType]);
     return {
         maxHp: positiveInteger(source.maxHp, positiveInteger(base.maxHp, 1)),
         power: Math.max(0, Math.floor(finiteNumber(source.power, finiteNumber(base.power, 0)))),
@@ -170,7 +188,9 @@ export function normalizeTarotKingdomCombat(rawCombat = {}, fallback = {}) {
             finiteNumber(base.equipmentMagicPower, 0)
         ))),
         weaponType,
-        weaponTypes: normalizeTarotKingdomWeaponTypes(source.weaponTypes || base.weaponTypes, weaponType)
+        weaponTypes: normalizeTarotKingdomWeaponTypes(source.weaponTypes || base.weaponTypes, weaponType),
+        weaponSlots: weaponSlots.length ? weaponSlots : [weaponType],
+        formation
     };
 }
 
@@ -180,7 +200,7 @@ export function normalizeTarotKingdomCharacter(rawCharacter = {}, fallback = {})
     const level = positiveInteger(source.level, positiveInteger(base.level, 1));
     const monsterId = String(source.monsterId || base.monsterId || '').trim();
     return {
-        version: 4,
+        version: 5,
         source: source.source === 'playfab'
             ? 'playfab'
             : (source.source === 'preview' ? 'preview' : (source.source === 'pet' ? 'pet' : 'npc')),
@@ -256,7 +276,9 @@ export function createTarotKingdomPetCharacter({ pet = null, level = 1 } = {}) {
             intelligence: rebirthScale(scale(baseIntelligence, archetype.intelligence), 'intelligence'),
             speed: rebirthScale(scale(baseSpeed, archetype.speed), 'speed'),
             weaponType: 'unarmed',
-            weaponTypes: ['unarmed']
+            weaponTypes: ['unarmed'],
+            weaponSlots: ['unarmed'],
+            formation: 'front'
         }
     });
 }
@@ -307,7 +329,8 @@ export function createTarotKingdomNpcCharacter({ seat = 1, level = 1, displayNam
             intelligence: baseIntelligence,
             speed: baseSpeed,
             weaponType: style.weaponType,
-            weaponTypes: safeSeat === 1 ? ['sword', 'shield'] : [style.weaponType]
+            weaponTypes: safeSeat === 1 ? ['sword', 'shield'] : [style.weaponType],
+            weaponSlots: safeSeat === 1 ? ['sword', 'shield'] : [style.weaponType]
         }
     });
 }
@@ -400,7 +423,8 @@ export function createTarotKingdomExplorationNpcCharacter({
         combat: {
             ...base.combat,
             weaponType: weapon.weaponType,
-            weaponTypes
+            weaponTypes,
+            weaponSlots: weaponTypes
         }
     });
 }

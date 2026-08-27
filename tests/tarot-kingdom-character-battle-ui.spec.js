@@ -331,7 +331,11 @@ test('rulebook explains the current rules and returns to the same battle on mobi
     'スート調和図。ワンドとソード、カップとペンタクル'
   );
   await expect(rulebook.getByText('同じスートを5枚。世界XXIを含まない大アルカナだけの5枚でも成立します。')).toBeVisible();
-  await expect(rulebook.locator('.tarot-kingdom-rulebook-table-wrap tbody tr')).toHaveCount(7);
+  await expect(rulebook.locator('#tarotKingdomRulesRoles .tarot-kingdom-rulebook-table-wrap tbody tr')).toHaveCount(7);
+  await expect(rulebook.locator('#tarotKingdomRulesBattle .tarot-kingdom-rulebook-table-wrap').first().locator('tbody tr')).toHaveCount(11);
+  await expect(rulebook.locator('#tarotKingdomRulesBattle .tarot-kingdom-rulebook-table-wrap').nth(1).locator('tbody tr')).toHaveCount(12);
+  await expect(rulebook.getByText('装備中の守護大アルカナがジョブを決めます。得意武器の直接ダメージは、その武器成分だけ×1.10になります。二刀で片側だけ得意なら合計は実質×1.05です。')).toBeVisible();
+  await expect(rulebook.getByText('パラディン／守護者（吊るされた男）')).toBeVisible();
   await expect(rulebook.locator('.tarot-kingdom-rulebook-card-image')).toHaveCount(51);
   await expect(rulebook.locator('.tarot-kingdom-rulebook-role-cards')).toHaveCount(7);
   await expect(rulebook.locator('.tarot-kingdom-rulebook-role-cards .tarot-kingdom-rulebook-card-image')).toHaveCount(35);

@@ -32,7 +32,7 @@ import {
     getShipsInView as fetchShipsInView,
     getShipAsset as fetchShipAsset,
     getShipPosition as fetchShipPosition
-} from './playfabClient.js?v=20260826-element-pairs-v1';
+} from './playfabClient.js?v=20260827-guardian-cover-v1';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { bindModalClose } from './modalClose.js';
 import { createRequestId } from './api.js';

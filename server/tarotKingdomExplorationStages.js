@@ -1,4 +1,5 @@
 const PIXEL_MONSTERS_ROSTER = require('../public/Sprites/pixel-monsters/manifest.json');
+const TAROT_KINGDOM_WEAPON_RULES = require('../public/js/tarotKingdomWeaponRules.shared.js');
 
 const TAROT_KINGDOM_EXPLORATION_PROGRESS_KEY = 'TarotKingdomExplorationProgress';
 const TAROT_KINGDOM_EXPLORATION_PROGRESS_VERSION = 4;
@@ -183,6 +184,7 @@ const TAROT_KINGDOM_EXPLORATION_STAGES = Object.freeze(STAGE_ROWS.map((row, stag
                 monsterId,
                 monsterName: String(monster.name || monsterId),
                 archetype,
+                weaponTags: Object.freeze(TAROT_KINGDOM_WEAPON_RULES.getMonsterTags(monsterId)),
                 threatLevel: stageIndex * 4 + roundIndex + 1,
                 isBoss: false,
                 ...(targetMonster
@@ -191,6 +193,7 @@ const TAROT_KINGDOM_EXPLORATION_STAGES = Object.freeze(STAGE_ROWS.map((row, stag
                             targetMonsterId: targetMonster.id,
                             targetMonsterName: String(targetMonster.name || targetMonster.id),
                             targetArchetype: rebirthConfig.targetArchetype,
+                            targetWeaponTags: Object.freeze(TAROT_KINGDOM_WEAPON_RULES.getMonsterTags(targetMonster.id)),
                             statMultipliers: rebirthConfig.statMultipliers
                         })
                     }

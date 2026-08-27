@@ -78,7 +78,7 @@ test('card detail text resolves level ranges to the current card value', async (
     .toBe('APを5回復し、自分は最大HP8％の反動ダメージを受ける。HP1で止まる。');
 });
 
-test.describe('Tarot Kingdom weapon-suit effects', () => {
+test.describe('Tarot Kingdom legacy weapon-suit effect compatibility', () => {
   test('all weapon families map to their suit and unarmed never activates', async () => {
     const effects = await loadEffectsModule();
     const cases = [
@@ -457,12 +457,13 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
     })).toBe(3);
   });
 
-  test('guardian v5 catalog exposes the revised practical conditions', async () => {
+  test('guardian catalog exposes the revised practical conditions', async () => {
     const effects = await loadEffectsModule();
     const expected = new Map([
       [1, ['呪術師', '最大＋45％']],
       [6, ['吟遊詩人', '他の生存味方']],
       [11, ['パラディン', 'カードルール上の数字は変わらない']],
+      [12, ['かばう', '最大値の1/8以下']],
       [13, ['死霊術師', '最大20％']],
       [14, ['ものまねし', '小アルカナ14']],
       [20, ['ビショップ', '発動するたび']],

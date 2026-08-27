@@ -30,8 +30,22 @@ function loadCombatModule() {
       .replace(/'\.\/tarotKingdomEffectsV3\.js\?v=[^']+'/, `'${v3Url}'`)
       .replace(/'\.\/tarotKingdomStatuses\.js\?v=[^']+'/, `'${statusesUrl}'`);
     const effectsUrl = `data:text/javascript;base64,${Buffer.from(effectsSource).toString('base64')}`;
+    const weaponRulesSharedPath = path.join(
+      __dirname,
+      '..',
+      'public',
+      'js',
+      'tarotKingdomWeaponRules.shared.js'
+    );
+    const weaponRulesPath = path.join(__dirname, '..', 'public', 'js', 'tarotKingdomWeaponRules.js');
+    const weaponRulesSource = `${fs.readFileSync(weaponRulesSharedPath, 'utf8')}\n${fs.readFileSync(
+      weaponRulesPath,
+      'utf8'
+    ).replace(/^import '\.\/tarotKingdomWeaponRules\.shared\.js[^']*';\s*/, '')}`;
+    const weaponRulesUrl = `data:text/javascript;base64,${Buffer.from(weaponRulesSource).toString('base64')}`;
     const source = fs.readFileSync(modulePath, 'utf8')
-      .replace(/'\.\/tarotKingdomEffects\.js[^']*'/, `'${effectsUrl}'`);
+      .replace(/'\.\/tarotKingdomEffects\.js[^']*'/, `'${effectsUrl}'`)
+      .replace(/'\.\/tarotKingdomWeaponRules\.js[^']*'/, `'${weaponRulesUrl}'`);
     const moduleUrl = `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
     combatModulePromise = import(moduleUrl);
   }
@@ -434,7 +448,9 @@ test.describe('Tarot Kingdom NPC combat snapshots', () => {
       equipmentPower: 0,
       equipmentMagicPower: 0,
       weaponType: 'sword',
-      weaponTypes: ['sword']
+      weaponTypes: ['sword'],
+      weaponSlots: ['sword'],
+      formation: 'front'
     });
   });
 
@@ -529,7 +545,9 @@ test.describe('Tarot Kingdom combat normalization', () => {
       equipmentPower: 0,
       equipmentMagicPower: 0,
       weaponType: 'sword',
-      weaponTypes: ['sword']
+      weaponTypes: ['sword'],
+      weaponSlots: ['sword'],
+      formation: 'front'
     });
   });
 
@@ -558,7 +576,7 @@ test.describe('Tarot Kingdom combat normalization', () => {
     });
 
     expect(normalized).toEqual({
-      version: 4,
+      version: 5,
       source: 'npc',
       playFabId: 'PF-1',
       displayName: '冒険者',
@@ -578,7 +596,9 @@ test.describe('Tarot Kingdom combat normalization', () => {
         equipmentPower: 0,
         equipmentMagicPower: 0,
         weaponType: 'unarmed',
-        weaponTypes: ['unarmed']
+        weaponTypes: ['unarmed'],
+        weaponSlots: ['unarmed'],
+        formation: 'front'
       }
     });
   });

@@ -192,7 +192,7 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
       const {
         getTarotKingdomElementMultiplier,
         getTarotKingdomEnemyAffinity
-      } = await import('/js/tarotKingdomMajorEffects.js?v=20260826-element-pairs-v1');
+      } = await import('/js/tarotKingdomMajorEffects.js?v=20260827-guardian-cover-v1');
       const audit = window.TarotKingdomDebug.battleMajorEffectsAudit();
       const pairByNative = Object.fromEntries(['fire', 'water', 'wind', 'earth'].map((native) => {
         const affinity = Object.values(audit.affinities).find((entry) => entry.native === native);
@@ -513,7 +513,7 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     expect(audit.current.rules).toMatchObject({
       majorArcanaSpecialVersion: 3,
       majorBattleEffectsVersion: 3,
-      arcanaLoadoutEffectsVersion: 7,
+      arcanaLoadoutEffectsVersion: 8,
       elementAffinityVersion: 3
     });
     expect(audit.schema23.rules).toMatchObject({

@@ -24,8 +24,8 @@ test('Tarot Kingdom shares the canonical inventory module with the app shell', (
   expect(kingdomSource).not.toContain("} from './inventory.js';");
   expect(shipSource).toContain("import * as Inventory from 'inventory';");
   expect(shipSource).not.toContain("import * as Inventory from './inventory.js';");
-  expect(indexSource).toContain('"inventory": "./js/inventory.js?v=20260826-equipment-rank-v1"');
-  expect(previewSource).toContain('"inventory": "./js/inventory.js?v=20260826-equipment-rank-v1"');
+  expect(indexSource).toContain('"inventory": "./js/inventory.js?v=20260827-job-weapon-v1"');
+  expect(previewSource).toContain('"inventory": "./js/inventory.js?v=20260827-job-weapon-v1"');
 });
 
 test('Tarot Kingdom online lobby uses canonical presence for failover and room counts', () => {
@@ -82,8 +82,9 @@ test('Tarot Kingdom retries a transient Arcana catalog failure before starting',
 });
 
 test('Tarot Kingdom release advances its entry modules and service-worker cache together', () => {
-  const release = '20260826-element-pairs-v1';
-  const inventoryRelease = '20260826-equipment-rank-v1';
+  const release = '20260827-job-weapon-v1';
+  const shipRelease = '20260827-guardian-cover-v1';
+  const inventoryRelease = release;
   const indexSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'index.html'), 'utf8');
   const mainSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'main.js'), 'utf8');
   const uiSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'ui.js'), 'utf8');
@@ -102,16 +103,16 @@ test('Tarot Kingdom release advances its entry modules and service-worker cache 
   expect(indexSource).toContain(`style.css?v=${release}`);
   expect(indexSource).toContain(`src="main.js?v=${release}"`);
   expect(mainSource).toContain(`const TAROT_KINGDOM_RESCUE_VERSION = '${release}';`);
-  expect(mainSource).toContain(`./js/ship.js?v=${release}`);
+  expect(mainSource).toContain(`./js/ship.js?v=${shipRelease}`);
   expect(uiSource).toContain(`const TAROT_KINGDOM_MODULE_VERSION = '${release}';`);
-  expect(uiSource).toContain(`./ship.js?v=${release}`);
-  expect(islandSource).toContain(`./ship.js?v=${release}`);
-  expect(worldMapSource).toContain(`./js/ship.js?v=${release}`);
-  expect(shipSource).toContain(`./playfabClient.js?v=${release}`);
+  expect(uiSource).toContain(`./ship.js?v=${shipRelease}`);
+  expect(islandSource).toContain(`./ship.js?v=${shipRelease}`);
+  expect(worldMapSource).toContain(`./js/ship.js?v=${shipRelease}`);
+  expect(shipSource).toContain(`./playfabClient.js?v=${shipRelease}`);
   expect(previewSource).toContain(`"ui": "./js/ui.js?v=${release}"`);
   expect(previewSource).toContain(`./js/tarotKingdom.js?v=${release}`);
   expect(previewSource).toContain(`./style.css?v=${release}`);
-  expect(serviceWorkerSource).toContain("const CACHE_VERSION = 'troy-app-v20260826a';");
+  expect(serviceWorkerSource).toContain("const CACHE_VERSION = 'troy-app-v20260827c';");
 });
 
 function loadServiceWorkerHarness() {

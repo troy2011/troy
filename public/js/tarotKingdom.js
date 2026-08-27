@@ -28,7 +28,7 @@ import {
   getTarotKingdomMajorSecondaryDamageScale,
   getTarotKingdomResonanceDamageFloor,
   normalizeTarotKingdomCharacter
-} from './tarotKingdomCombat.js?v=20260825-rebirth-v1';
+} from './tarotKingdomCombat.js?v=20260827-job-weapon-v1';
 import {
   TAROT_KINGDOM_ARCANA_EFFECTS_READY,
   getTarotKingdomPhysicalScale,
@@ -48,7 +48,19 @@ import {
   normalizeTarotKingdomWeaponTypes,
   resolveTarotKingdomResonance,
   resolveTarotKingdomWeaponEffect
-} from './tarotKingdomEffects.js?v=20260823-royal-lock-v1';
+} from './tarotKingdomEffects.js?v=20260827-guardian-cover-v1';
+import {
+  TAROT_KINGDOM_BACK_ROW_PHYSICAL_MULTIPLIER,
+  TAROT_KINGDOM_JOB_WEAPON_PROFICIENCY_MULTIPLIER,
+  TAROT_KINGDOM_WEAPON_RULES_BASE_VERSION,
+  TAROT_KINGDOM_WEAPON_RULES_VERSION,
+  TAROT_KINGDOM_WEAPON_WEAKNESS_MULTIPLIER,
+  getTarotKingdomJobWeaponProficiency,
+  getTarotKingdomMonsterWeaponTags,
+  getTarotKingdomWeakFamiliesForTags,
+  resolveTarotKingdomWeaponComponents,
+  resolveTarotKingdomWeaponFormation
+} from './tarotKingdomWeaponRules.js?v=20260827-job-weapon-v1';
 import {
   TAROT_KINGDOM_NEGATIVE_STATUS_KEYS,
   TAROT_KINGDOM_HARD_CONTROL_KEYS,
@@ -80,14 +92,14 @@ import {
   calculateTarotKingdomEnemyMitigatedDamage,
   createTarotKingdomEnemyCombatProfile,
   getTarotKingdomEnemyAilmentChance
-} from './tarotKingdomEnemies.js?v=20260825-rebirth-v1';
+} from './tarotKingdomEnemies.js?v=20260827-job-weapon-v1';
 import {
   TAROT_KINGDOM_ELEMENT_LABELS,
   auditTarotKingdomMajorEffects,
   getTarotKingdomElementMultiplier,
   getTarotKingdomEnemyAffinity,
   getTarotKingdomMajorSkill
-} from './tarotKingdomMajorEffects.js?v=20260826-element-pairs-v1';
+} from './tarotKingdomMajorEffects.js?v=20260827-guardian-cover-v1';
 import {
   flashCombatAvatarHurt,
   getCombatWeaponMotionProfile,
@@ -96,7 +108,7 @@ import {
   resetCombatAvatarState,
   setCombatAvatarKo,
   setCombatAvatarVictory
-} from './avatarCombat.js?v=20260801-weapon-motion4';
+} from './avatarCombat.js?v=20260827-job-weapon-v1';
 import { startAvatarBodyMotion, stopAvatarBodyMotion } from './avatar.js';
 import {
   PIXEL_MONSTER_COMPANION_OFFSET_Y,
@@ -461,7 +473,7 @@ const LEGACY_HAND_SIZE = 6;
 const KINGDOM_FORCED_DRAW_DEATH_THRESHOLD = 3;
 const KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO = 'hp-zero';
 const KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY = 'hand-empty';
-const KINGDOM_RULES_VERSION = 24;
+const KINGDOM_RULES_VERSION = 26;
 const TOTAL_HANDS = 4;
 const START_CHIPS = 100;
 const A_PENALTY = 1;
@@ -544,7 +556,7 @@ const KINGDOM_SUMMON_EFFECT_VISUALS = Object.freeze({
   flushElemental: Object.freeze({ category: 'hybrid', choreography: 'elemental-surge', cue: 'elemental-charge', impact: 'elemental-burst' }),
   'major-arcana': Object.freeze({ category: 'hybrid', choreography: 'arcana-invocation', cue: 'arcana-awaken', impact: 'arcana-release' })
 });
-const KINGDOM_NET_SCHEMA_VERSION = 32;
+const KINGDOM_NET_SCHEMA_VERSION = 35;
 const KINGDOM_PRIVATE_STATE_VERSION = 2;
 const KINGDOM_OFFLINE_CHECKPOINT_VERSION = 2;
 const KINGDOM_OFFLINE_CHECKPOINT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -4666,14 +4678,20 @@ function resolveLoadedKingdomWeaponReference(reference, itemSource) {
 }
 
 function resolveLoadedKingdomWeaponTypes(equipment, itemSource) {
-  return normalizeTarotKingdomWeaponTypes([
+  return normalizeTarotKingdomWeaponTypes(resolveLoadedKingdomWeaponSlots(equipment, itemSource));
+}
+
+function resolveLoadedKingdomWeaponSlots(equipment, itemSource) {
+  const slots = [
     resolveLoadedKingdomWeaponReference(equipment?.RightHand, itemSource),
     resolveLoadedKingdomWeaponReference(equipment?.LeftHand, itemSource)
-  ].filter((weapon) => weapon && weapon !== 'unarmed'));
+  ].filter((weapon) => weapon && weapon !== 'unarmed');
+  return slots.length ? slots : ['unarmed'];
 }
 
 function resolveLoadedKingdomWeaponType(equipment, itemSource) {
-  return resolveLoadedKingdomWeaponTypes(equipment, itemSource)[0] || 'unarmed';
+  return resolveLoadedKingdomWeaponSlots(equipment, itemSource)
+    .find((weapon) => weapon !== 'shield') || 'unarmed';
 }
 
 function isKingdomShieldEquipmentReference(reference, itemSource) {
@@ -4742,6 +4760,7 @@ function buildLoadedLocalKingdomCharacter() {
   const equipment = cloneKingdomSnapshotValue(getMyCurrentEquipment?.() || {}, {});
   const itemSource = cloneKingdomSnapshotValue(getMyInventory?.() || [], []);
   const equipmentStats = deriveLoadedKingdomEquipmentStats(equipment, itemSource);
+  const weaponSlots = resolveLoadedKingdomWeaponSlots(equipment, itemSource);
   const level = Math.max(1, Math.floor(Number(stats.Level) || 1));
   const crewRankInfo = getMyCrewRankInfo?.() || null;
   return normalizeTarotKingdomCharacter({
@@ -4768,7 +4787,9 @@ function buildLoadedLocalKingdomCharacter() {
       equipmentPower: equipmentStats.Power,
       equipmentMagicPower: (Number(equipmentStats.MagicPower) || 0) + equipmentStats.Int,
       weaponType: resolveLoadedKingdomWeaponType(equipment, itemSource),
-      weaponTypes: resolveLoadedKingdomWeaponTypes(equipment, itemSource)
+      weaponTypes: resolveLoadedKingdomWeaponTypes(equipment, itemSource),
+      weaponSlots,
+      formation: resolveTarotKingdomWeaponFormation(weaponSlots)
     }
   });
 }
@@ -5175,6 +5196,7 @@ function setKingdomDemoEnemy(monsterId = '') {
       abilities: combatProfile.abilities,
       abilityState: { uses: {} },
       affinity: combatProfile.affinity || getTarotKingdomEnemyAffinity(monster.id, enemyCombatVersion),
+      weaponTags: getTarotKingdomMonsterWeaponTags(monster.id),
       rushStartedAtSeq: null,
       defeatedAtSeq: null,
       finishedAt: null,
@@ -5582,6 +5604,7 @@ function normalizeKingdomRebirthConfig(value = null) {
     targetMonsterId: targetMonster.id,
     targetMonsterName: String(value.targetMonsterName || targetMonster.name),
     targetArchetype: String(value.targetArchetype || 'balanced'),
+    targetWeaponTags: getTarotKingdomMonsterWeaponTags(targetMonster.id),
     statMultipliers: {
       hp: multiplier('hp', 0.5),
       power: multiplier('power', 0.7),
@@ -5623,6 +5646,7 @@ function normalizeKingdomExplorationStageState(value = null) {
         monsterId,
         monsterName: String(entry?.monsterName || monster.name),
         archetype: String(entry?.archetype || 'balanced'),
+        weaponTags: getTarotKingdomMonsterWeaponTags(monsterId),
         threatLevel: Math.max(1, Math.min(KINGDOM_MAX_EXPLORATION_STAGE * TOTAL_HANDS, Math.floor(
           Number(entry?.threatLevel) || (((stageNo - 1) * TOTAL_HANDS) + index + 1)
         ))),
@@ -5814,6 +5838,7 @@ function activateKingdomRaidBossForm(sourceIndex = null) {
       monster.id,
       Number(s.rules?.elementAffinityVersion ?? 1)
     ),
+    weaponTags: getTarotKingdomMonsterWeaponTags(monster.id),
     rushStartedAtSeq: null,
     defeatedAtSeq: null,
     finishedAt: null,
@@ -5901,6 +5926,7 @@ function activateKingdomEnemyRebirth(sourceIndex = null) {
       targetMonster.id,
       Number(s.rules?.elementAffinityVersion ?? 1)
     ),
+    weaponTags: getTarotKingdomMonsterWeaponTags(targetMonster.id),
     rushStartedAtSeq: null,
     defeatedAtSeq: null,
     finishedAt: null,
@@ -6174,6 +6200,7 @@ function createKingdomBattleState(
       abilities: combatProfile.abilities,
       abilityState: { uses: {} },
       affinity: combatProfile.affinity || getTarotKingdomEnemyAffinity(monster.id, elementAffinityVersion),
+      weaponTags: getTarotKingdomMonsterWeaponTags(monster.id),
       ...(rebirth
         ? {
             rebirth: {
@@ -6333,6 +6360,7 @@ function normalizeKingdomBattleState(
         incomingEnemy.affinity || base.enemy.affinity || getTarotKingdomEnemyAffinity(monster.id, enemyCombatVersion),
         { native: '', weak: '', resist: '' }
       ),
+      weaponTags: getTarotKingdomMonsterWeaponTags(monster.id),
       rebirth: incomingEnemy.rebirth && typeof incomingEnemy.rebirth === 'object'
         ? {
             ...normalizeKingdomRebirthConfig(incomingEnemy.rebirth),
@@ -6492,6 +6520,18 @@ function areKingdomArcanaLoadoutV6EffectsEnabled(state = s) {
 
 function areKingdomArcanaLoadoutV7EffectsEnabled(state = s) {
   return Number(state?.rules?.arcanaLoadoutEffectsVersion || 0) >= 7;
+}
+
+function areKingdomArcanaLoadoutV8EffectsEnabled(state = s) {
+  return Number(state?.rules?.arcanaLoadoutEffectsVersion || 0) >= 8;
+}
+
+function areKingdomWeaponRulesEnabled(state = s) {
+  return Number(state?.rules?.weaponRulesVersion || 0) >= TAROT_KINGDOM_WEAPON_RULES_BASE_VERSION;
+}
+
+function areKingdomJobWeaponProficiencyRulesEnabled(state = s) {
+  return Number(state?.rules?.weaponRulesVersion || 0) >= TAROT_KINGDOM_WEAPON_RULES_VERSION;
 }
 
 function areKingdomArcanaPointRulesEnabled(state = s) {
@@ -7645,7 +7685,11 @@ function resolveKingdomPlayerAttackImpairment(playerIndex, options = {}) {
   const accuracyUpCap = String(bucket.accuracyUp?.source || '') === 'major-4' ? 60 : 50;
   const accuracyUp = Math.max(0, Math.min(accuracyUpCap, Number(bucket.accuracyUp?.potency) || 0)) / 100;
   const accuracyDown = Math.max(0, Math.min(50, Number(bucket.accuracyDown?.potency) || 0)) / 100;
-  const accuracyPenalty = Math.max(-0.5, Math.min(0.7, statusAccuracyPenalty + accuracyDown - accuracyUp));
+  const weaponAccuracyBonus = Math.max(-33, Math.min(33, Number(options.weaponAccuracyPoints) || 0)) / 100;
+  const accuracyPenalty = Math.max(
+    -0.33,
+    Math.min(0.7, statusAccuracyPenalty + accuracyDown - accuracyUp - weaponAccuracyBonus)
+  );
   if (!areKingdomEnemyCombatStatsEnabled()) {
     if (!blind) {
       return {
@@ -7957,9 +8001,13 @@ function applyKingdomOutgoingDamageBonuses(damage, actorIndex, options = {}) {
       ))
     : 0;
   const forcedPhysicalCritical = physical && !!actorBucket.nextPhysicalCritical;
+  const weaponCriticalPoints = Math.max(0, Math.min(100, Number(options.criticalBonusPoints) || 0));
   const criticalPoints = forcedPhysicalCritical
     ? 100
-    : Math.max(Number(partyCritical?.potency) || 0, personalCriticalPoints);
+    : Math.max(0, Math.min(
+        100,
+        Math.max(Number(partyCritical?.potency) || 0, personalCriticalPoints) + weaponCriticalPoints
+      ));
   if (criticalPoints > 0 && !criticalBlockedByFear) {
     const chance = Math.max(0, Math.min(1, criticalPoints / 100));
     const roll = Math.max(0, Math.min(0.999999, Number(kingdomCombatRandom?.()) || 0));
@@ -8968,6 +9016,47 @@ function buildKingdomConfirmedEffectReplay(effect, scale, source, targetIndex) {
     replay.shieldHp = Math.max(1, Math.floor(Number(effect.shieldHp) * multiplier));
   }
   return replay;
+}
+
+function consolidateKingdomCopyableResonanceEffects(effects) {
+  return (Array.isArray(effects) ? effects : []).reduce((consolidated, effect) => {
+    const isDamageTopUp = effect?.balanceTopUp === true
+      && ['damage', 'magic', 'effective', 'multi-hit'].includes(String(effect?.kind || ''));
+    if (!isDamageTopUp) {
+      consolidated.push({ ...effect });
+      return consolidated;
+    }
+    const resonanceKey = String(effect?.resonanceId || effect?.cardId || effect?.skillName || '');
+    const targetIndex = Number.isInteger(Number(effect?.targetIndex)) ? Number(effect.targetIndex) : null;
+    let matchingIndex = -1;
+    for (let index = consolidated.length - 1; index >= 0; index -= 1) {
+      const candidate = consolidated[index];
+      if (
+        ['damage', 'magic', 'effective', 'multi-hit'].includes(String(candidate?.kind || ''))
+        && String(candidate?.resonanceId || candidate?.cardId || candidate?.skillName || '') === resonanceKey
+        && String(candidate?.targetType || '') === String(effect?.targetType || '')
+        && (Number.isInteger(Number(candidate?.targetIndex)) ? Number(candidate.targetIndex) : null) === targetIndex
+      ) {
+        matchingIndex = index;
+        break;
+      }
+    }
+    if (matchingIndex < 0) {
+      consolidated.push({ ...effect });
+      return consolidated;
+    }
+    const matching = consolidated[matchingIndex];
+    const amount = Math.max(0, Number(matching?.displayAmount ?? matching?.amount) || 0)
+      + Math.max(0, Number(effect?.displayAmount ?? effect?.amount) || 0);
+    consolidated[matchingIndex] = {
+      ...matching,
+      amount,
+      displayAmount: amount,
+      hpAfter: effect?.hpAfter ?? matching?.hpAfter,
+      balanceTopUpMerged: true
+    };
+    return consolidated;
+  }, []);
 }
 
 const KINGDOM_MAJOR_NEGATIVE_EFFECT_KEYS = new Set([
@@ -10303,9 +10392,11 @@ function applyKingdomGuardianPlayPassive(playerIndex, play, context = {}, option
         && Array.isArray(event.effects)
         && event.effects.some((effect) => effect?.source === 'resonance' && effect?.copied !== true)
       ));
-      const successfulResonanceEffects = (prior?.effects || []).filter((effect) => (
-        effect?.source === 'resonance' && effect?.copied !== true && effect?.success !== false
-      ));
+      const successfulResonanceEffects = consolidateKingdomCopyableResonanceEffects(
+        (prior?.effects || []).filter((effect) => (
+          effect?.source === 'resonance' && effect?.copied !== true && effect?.success !== false
+        ))
+      );
       const latestResonanceEffect = [...successfulResonanceEffects].reverse().find((effect) => (
         String(effect?.resonanceId || effect?.cardId || effect?.skillName || '')
       ));
@@ -10919,10 +11010,12 @@ function applyKingdomSecondaryEffects(playerIndex, play, options = {}) {
   };
   const guardianActionTracker = { statusAttempted: false };
   context.guardianActionTracker = guardianActionTracker;
-  const weapon = resolveTarotKingdomWeaponEffect({
-    ...context,
-    cards: getKingdomScholarWeaponCards(submittedCards, playerIndex, context.reverseBefore)
-  });
+  const weapon = areKingdomWeaponRulesEnabled()
+    ? null
+    : resolveTarotKingdomWeaponEffect({
+        ...context,
+        cards: getKingdomScholarWeaponCards(submittedCards, playerIndex, context.reverseBefore)
+      });
   const resonance = areKingdomArcanaLoadoutEffectsEnabled()
     ? resolveTarotKingdomResonance({ ...context, cards: resonanceCards })
     : null;
@@ -11871,6 +11964,41 @@ function resolveKingdomPlayerDefense(playerIndex, baseDamage) {
   return { damage, effects };
 }
 
+function getKingdomPlayerFormation(playerIndex) {
+  const player = s?.players?.[playerIndex];
+  if (!player || player.isPet) return 'front';
+  const combat = player.character?.combat || {};
+  const declared = String(combat.formation || '').trim().toLowerCase();
+  if (declared === 'front' || declared === 'back') return declared;
+  return resolveTarotKingdomWeaponFormation(getKingdomCharacterWeaponSlots(player.character || {}));
+}
+
+function applyKingdomFormationIncomingDamage(playerIndex, baseDamage, damageKind = 'physical') {
+  const amount = Math.max(0, Math.floor(Number(baseDamage) || 0));
+  const formation = getKingdomPlayerFormation(playerIndex);
+  if (
+    !areKingdomWeaponRulesEnabled()
+    || String(damageKind || '').toLowerCase() !== 'physical'
+    || formation !== 'back'
+    || amount <= 0
+  ) {
+    return { amount, formation, effects: [] };
+  }
+  return {
+    amount: Math.max(1, Math.floor(amount * TAROT_KINGDOM_BACK_ROW_PHYSICAL_MULTIPLIER)),
+    formation,
+    effects: [{
+      kind: 'formationReduction',
+      source: 'formation',
+      label: '後列',
+      targetIndex: playerIndex,
+      damageKind: 'physical',
+      multiplier: TAROT_KINGDOM_BACK_ROW_PHYSICAL_MULTIPLIER,
+      potency: Math.round((1 - TAROT_KINGDOM_BACK_ROW_PHYSICAL_MULTIPLIER) * 100)
+    }]
+  };
+}
+
 function resolveKingdomEnemyAttackAccuracy(playerIndex) {
   const bucket = getKingdomEffectBucket('player', playerIndex) || {};
   if (getKingdomEffectBucket('enemy')?.allAttackMiss) {
@@ -12075,6 +12203,168 @@ function getKingdomEquippedRoleMultiplier(character, playedRole) {
   return equippedRole?.key === playedRole.key ? 1.25 : 1;
 }
 
+function getKingdomCharacterWeaponSlots(character = {}) {
+  const combat = character?.combat && typeof character.combat === 'object' ? character.combat : {};
+  if (Array.isArray(combat.weaponSlots) && combat.weaponSlots.length) {
+    return combat.weaponSlots.slice(0, 2);
+  }
+  const equipment = character?.equipment && typeof character.equipment === 'object'
+    ? character.equipment
+    : {};
+  const hasEquipmentHands = !!(equipment.RightHand || equipment.LeftHand);
+  if (hasEquipmentHands) {
+    return resolveLoadedKingdomWeaponSlots(equipment, character?.itemSource || {});
+  }
+  const declared = Array.isArray(combat.weaponTypes) && combat.weaponTypes.length
+        ? combat.weaponTypes
+        : [combat.weaponType || 'unarmed'];
+  return declared.slice(0, 2);
+}
+
+function getKingdomWeaponComponentStat(profile = {}, combat = {}) {
+  const weights = profile.statWeights && typeof profile.statWeights === 'object'
+    ? profile.statWeights
+    : { power: 1 };
+  return Math.max(0, Object.entries(weights).reduce((total, [key, weight]) => (
+    total + (Math.max(0, Number(combat?.[key]) || 0) * Math.max(0, Number(weight) || 0))
+  ), 0));
+}
+
+function getKingdomWeaponVariance(profile = {}) {
+  const minimum = Math.max(0, Number(profile.varianceMin) || 1);
+  const maximum = Math.max(minimum, Number(profile.varianceMax) || minimum);
+  if (maximum <= minimum) return { roll: null, multiplier: minimum };
+  const roll = Math.max(0, Math.min(0.999999, Number(kingdomCombatRandom?.()) || 0));
+  return { roll, multiplier: minimum + ((maximum - minimum) * roll) };
+}
+
+function buildKingdomWeaponAttack(playerIndex, attackArgs, harmonyMultiplier = 1) {
+  const character = normalizeTarotKingdomCharacter(s?.players?.[playerIndex]?.character || {});
+  const combat = character.combat || {};
+  const jobProficiency = (
+    areKingdomJobWeaponProficiencyRulesEnabled()
+    && !s?.players?.[playerIndex]?.isPet
+  )
+    ? getTarotKingdomJobWeaponProficiency(character.guardianArcana?.number)
+    : null;
+  const effectiveCombat = {
+    ...combat,
+    power: getKingdomEffectivePlayerStat(playerIndex, 'power'),
+    intelligence: getKingdomEffectivePlayerStat(playerIndex, 'intelligence'),
+    speed: getKingdomEffectivePlayerStat(playerIndex, 'speed')
+  };
+  const weaponSlots = getKingdomCharacterWeaponSlots(character);
+  const components = resolveTarotKingdomWeaponComponents(weaponSlots);
+  const enemyTags = Array.isArray(s?.battle?.enemy?.weaponTags)
+    ? [...s.battle.enemy.weaponTags]
+    : getTarotKingdomMonsterWeaponTags(s?.battle?.enemy?.id);
+  const weakFamilies = getTarotKingdomWeakFamiliesForTags(enemyTags);
+  const level = Math.max(1, Math.floor(Number(character.level) || 1));
+  const resolvedComponents = components.map((profile) => {
+    const effectiveStat = getKingdomWeaponComponentStat(profile, effectiveCombat);
+    const equipmentPowerIncludedInStat = Number(profile.statWeights?.equipmentPower) > 0;
+    const equipmentPower = equipmentPowerIncludedInStat
+      ? 0
+      : (profile.damageKind === 'magic'
+          ? Math.max(0, Number(combat.equipmentMagicPower) || 0)
+          : Math.max(0, Number(combat.equipmentPower) || 0));
+    const base = calculateTarotKingdomPlayerAttack({
+      ...attackArgs,
+      power: effectiveStat,
+      equipmentPower
+    });
+    const variance = getKingdomWeaponVariance(profile);
+    const levelMultiplier = profile.weaponType === 'unarmed'
+      ? 1 + Math.min(0.2, Math.max(0, level - 1) * 0.004)
+      : 1;
+    const weak = weakFamilies.includes(profile.family);
+    const weaknessMultiplier = weak ? TAROT_KINGDOM_WEAPON_WEAKNESS_MULTIPLIER : 1;
+    const jobProficient = !!jobProficiency?.weaponTypes?.includes(profile.weaponType);
+    const jobProficiencyMultiplier = jobProficient
+      ? TAROT_KINGDOM_JOB_WEAPON_PROFICIENCY_MULTIPLIER
+      : 1;
+    const unweightedDamage = Math.max(1, Math.floor(
+      Math.max(1, Number(base.damage) || 1)
+      * Math.max(0, Number(profile.damageRate) || 1)
+      * variance.multiplier
+      * levelMultiplier
+      * weaknessMultiplier
+      * jobProficiencyMultiplier
+      * Math.max(1, Number(harmonyMultiplier) || 1)
+    ));
+    return {
+      weaponType: profile.weaponType,
+      family: profile.family,
+      label: profile.label,
+      traitLabel: profile.traitLabel,
+      weight: profile.weight,
+      formation: profile.formation,
+      damageKind: profile.damageKind,
+      effectiveStat,
+      equipmentPower,
+      damageRate: profile.damageRate,
+      accuracyPoints: profile.accuracyPoints,
+      criticalPoints: profile.criticalPoints,
+      defenseIgnoreRate: profile.defenseIgnoreRate,
+      poisonChance: profile.poisonChance || 0,
+      varianceMin: profile.varianceMin,
+      varianceMax: profile.varianceMax,
+      varianceRoll: variance.roll,
+      varianceMultiplier: variance.multiplier,
+      levelMultiplier,
+      weak,
+      weaknessMultiplier,
+      jobProficient,
+      jobProficiencyMultiplier,
+      unweightedDamage,
+      damage: Math.max(0, Math.floor(unweightedDamage * profile.weight)),
+      noAdvance: profile.noAdvance === true,
+      visualHitCount: Math.max(1, Math.floor(Number(profile.visualHitCount) || 1))
+    };
+  });
+  const totalDamage = Math.max(1, resolvedComponents.reduce((sum, component) => sum + component.damage, 0));
+  const weighted = (key) => resolvedComponents.reduce((sum, component) => (
+    sum + ((Number(component[key]) || 0) * component.weight)
+  ), 0);
+  const weaknessMultiplier = resolvedComponents.reduce((sum, component) => (
+    sum + (component.weaknessMultiplier * component.weight)
+  ), 0);
+  const jobProficiencyMultiplier = resolvedComponents.reduce((sum, component) => (
+    sum + (component.jobProficiencyMultiplier * component.weight)
+  ), 0);
+  const formation = resolveTarotKingdomWeaponFormation(weaponSlots);
+  const damageKind = resolvedComponents.every((component) => component.damageKind === 'magic')
+    ? 'magic'
+    : 'physical';
+  return {
+    version: TAROT_KINGDOM_WEAPON_RULES_VERSION,
+    weaponSlots: [...weaponSlots],
+    formation,
+    components: resolvedComponents,
+    traitLabel: [...new Set(resolvedComponents.map((component) => component.traitLabel))].join(' / '),
+    damage: totalDamage,
+    damageKind,
+    accuracyPoints: weighted('accuracyPoints'),
+    criticalPoints: weighted('criticalPoints'),
+    defenseIgnoreRate: weighted('defenseIgnoreRate'),
+    poisonChance: weighted('poisonChance'),
+    weak: resolvedComponents.some((component) => component.weak),
+    weakFamilies: [...weakFamilies],
+    weaknessMultiplier,
+    jobProficiency: jobProficiency ? {
+      number: jobProficiency.number,
+      jobName: jobProficiency.jobName,
+      active: resolvedComponents.some((component) => component.jobProficient),
+      multiplier: jobProficiencyMultiplier,
+      matchedWeaponTypes: resolvedComponents
+        .filter((component) => component.jobProficient)
+        .map((component) => component.weaponType)
+    } : null,
+    noAdvance: resolvedComponents.every((component) => component.noAdvance),
+    visualHitCount: resolvedComponents.length === 1 ? resolvedComponents[0].visualHitCount : 1
+  };
+}
+
 function getKingdomBattleDamageForPlay(playerIndex, play, options = {}) {
   const handCards = Array.isArray(play?.cardsHand) ? play.cardsHand : [];
   const tableCards = Array.isArray(play?.cardsTable) ? play.cardsTable : handCards;
@@ -12144,15 +12434,30 @@ function getKingdomBattleDamageForPlay(playerIndex, play, options = {}) {
     const scholarCombatNumber = getKingdomScholarCombatNumber(card, playerIndex, reverseBefore);
     return Math.max(max, scholarCombatNumber == null ? cStrength(card) : scholarCombatNumber);
   }, 0);
-  const result = calculateTarotKingdomPlayerAttack({
+  const attackArgs = {
     cardCount: count,
     maxCardStrength: keyPower,
-    power: getKingdomEffectivePlayerStat(playerIndex, 'power'),
     level: character.level,
-    equipmentPower: combat.equipmentPower,
     growthVersion,
     damageBalanceVersion: areKingdomDamageBalanceRulesEnabled() ? 1 : 0,
     isMajor: count === 1 && handCards[0]?.kind === 'major'
+  };
+  if (areKingdomWeaponRulesEnabled()) {
+    const weaponTrait = buildKingdomWeaponAttack(playerIndex, attackArgs, harmonyMultiplier);
+    return {
+      kind: 'attack',
+      baseDamage: weaponTrait.damage,
+      damage: weaponTrait.damage,
+      weaponTrait,
+      harmony: harmony ? { ...harmony } : null,
+      harmonyMultiplier,
+      label: `${count}枚攻撃${harmony ? '・HARMONY' : ''}`
+    };
+  }
+  const result = calculateTarotKingdomPlayerAttack({
+    ...attackArgs,
+    power: getKingdomEffectivePlayerStat(playerIndex, 'power'),
+    equipmentPower: combat.equipmentPower
   });
   return {
     ...result,
@@ -12163,6 +12468,86 @@ function getKingdomBattleDamageForPlay(playerIndex, play, options = {}) {
     harmonyMultiplier,
     label: `${count}枚攻撃${harmony ? '・HARMONY' : ''}`
   };
+}
+
+function applyKingdomWeaponTraitPoison(playerIndex, attack, directDamage, impairment) {
+  const trait = attack?.weaponTrait;
+  if (
+    !trait
+    || impairment?.blocked
+    || impairment?.missed
+    || Number(directDamage) <= 0
+    || Number(s?.battle?.enemy?.hp) <= 0
+    || Number(trait.poisonChance) <= 0
+  ) return null;
+  const chance = Math.max(0, Math.min(1, Number(trait.poisonChance) || 0));
+  const roll = Math.max(0, Math.min(0.999999, Number(kingdomCombatRandom?.()) || 0));
+  trait.poisonRoll = roll;
+  trait.poisonSuccess = roll < chance;
+  if (!trait.poisonSuccess) return null;
+  const enemy = s.battle.enemy;
+  const previous = getKingdomEffectBucket('enemy')?.poison || {};
+  const maxHpPotency = Math.max(1, Math.floor((Number(enemy.maxHp) || 1) * 0.02));
+  const attackPotency = Math.max(1, Math.floor(Number(directDamage) * 0.2));
+  const potency = Math.max(
+    Number(previous.potency) || 0,
+    Math.min(maxHpPotency, attackPotency)
+  );
+  const applied = setKingdomBattleEffect('enemy', 'poison', {
+    source: 'weapon-trait',
+    sourceIndex: playerIndex,
+    label: '短剣の毒',
+    potency,
+    remainingActions: 3,
+    charges: 3
+  });
+  if (!applied) return null;
+  return {
+    source: 'weapon-trait',
+    kind: 'status',
+    label: '短剣の毒',
+    targetType: 'enemy',
+    statusKey: 'poison',
+    potency,
+    remainingActions: Math.max(1, Number(applied.remainingActions) || 3),
+    chance,
+    roll,
+    success: true
+  };
+}
+
+function calculateKingdomWeaponMitigatedDamage(attack, outgoingDamage, ignoreDefense = false) {
+  const trait = attack?.weaponTrait;
+  const components = Array.isArray(trait?.components) ? trait.components : [];
+  if (!trait || !components.length) {
+    return calculateTarotKingdomEnemyMitigatedDamage(
+      outgoingDamage,
+      ignoreDefense ? 0 : getKingdomEffectiveEnemyDefense()
+    );
+  }
+  const targetOutgoing = Math.max(0, Math.floor(Number(outgoingDamage) || 0));
+  const sourceDamage = Math.max(1, Math.floor(Number(trait.damage) || 1));
+  const outgoingRatio = targetOutgoing / sourceDamage;
+  let allocatedOutgoing = 0;
+  let total = 0;
+  components.forEach((component, index) => {
+    const isLast = index === components.length - 1;
+    const componentOutgoing = isLast
+      ? Math.max(0, targetOutgoing - allocatedOutgoing)
+      : Math.max(0, Math.floor((Number(component.damage) || 0) * outgoingRatio));
+    allocatedOutgoing += componentOutgoing;
+    const defenseIgnoreRate = ignoreDefense
+      ? 1
+      : Math.max(0, Math.min(1, Number(component.defenseIgnoreRate) || 0));
+    const mitigatedDamage = calculateTarotKingdomEnemyMitigatedDamage(
+      componentOutgoing,
+      getKingdomEffectiveEnemyDefense() * (1 - defenseIgnoreRate)
+    );
+    component.outgoingDamage = componentOutgoing;
+    component.mitigatedDamage = mitigatedDamage;
+    total += mitigatedDamage;
+  });
+  return Math.max(0, total);
 }
 
 function applyKingdomPlayerAttack(playerIndex, play) {
@@ -12185,7 +12570,10 @@ function applyKingdomPlayerAttack(playerIndex, play) {
   const actionStatusDamage = areKingdomStatusEffectsV1Enabled()
     ? applyKingdomPlayerAilmentDamage(playerIndex)
     : [];
-  const impairment = resolveKingdomPlayerAttackImpairment(playerIndex, { checkAccuracy: before > 0 });
+  const impairment = resolveKingdomPlayerAttackImpairment(playerIndex, {
+    checkAccuracy: before > 0,
+    weaponAccuracyPoints: attack.weaponTrait?.accuracyPoints || 0
+  });
   recordKingdomGuardianAttackAttempt(playerIndex, impairment);
   if (before <= 0) {
     const secondary = impairment.cancelsAllEffects
@@ -12259,6 +12647,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
       roleStageHits: [],
       harmony: attack.harmony ? { ...attack.harmony } : null,
       harmonyMultiplier: Number(attack.harmonyMultiplier) || 1,
+      weaponTrait: attack.weaponTrait ? cloneKingdomSnapshotValue(attack.weaponTrait, null) : null,
       summonEffectName: secondary.summon?.effectName || '',
       label: impairment.blocked
         ? `${pName(playerIndex)} ${impairment.label}（カード提出成立）`
@@ -12276,7 +12665,8 @@ function applyKingdomPlayerAttack(playerIndex, play) {
   const outgoing = impairment.blocked
     ? { damage: 0, applied: [] }
     : applyKingdomOutgoingDamageBonuses(attack.damage, playerIndex, {
-      damageKind: attack.kind === 'skill' ? 'magic' : 'physical'
+      damageKind: attack.kind === 'skill' ? 'magic' : (attack.weaponTrait?.damageKind || 'physical'),
+      criticalBonusPoints: attack.weaponTrait?.criticalPoints || 0
     });
   if (attack.harmony && !impairment.blocked) {
     outgoing.applied.unshift({
@@ -12285,6 +12675,29 @@ function applyKingdomPlayerAttack(playerIndex, play) {
       label: 'HARMONY',
       multiplier: KINGDOM_HARMONY_DAMAGE_MULTIPLIER,
       potency: 15,
+      success: true
+    });
+  }
+  if (attack.weaponTrait?.weak && !impairment.blocked) {
+    outgoing.applied.unshift({
+      kind: 'weaponWeak',
+      source: 'weapon-trait',
+      label: 'WEAK',
+      multiplier: Number(attack.weaponTrait.weaknessMultiplier) || TAROT_KINGDOM_WEAPON_WEAKNESS_MULTIPLIER,
+      matchedWeaponTypes: attack.weaponTrait.components
+        .filter((component) => component.weak)
+        .map((component) => component.weaponType),
+      success: true
+    });
+  }
+  if (attack.weaponTrait?.jobProficiency?.active && !impairment.blocked) {
+    outgoing.applied.unshift({
+      kind: 'jobWeaponProficiency',
+      source: 'job-weapon-proficiency',
+      label: `得意武器・${attack.weaponTrait.jobProficiency.jobName}`,
+      guardianNumber: attack.weaponTrait.jobProficiency.number,
+      multiplier: Number(attack.weaponTrait.jobProficiency.multiplier) || 1,
+      matchedWeaponTypes: [...attack.weaponTrait.jobProficiency.matchedWeaponTypes],
       success: true
     });
   }
@@ -12298,10 +12711,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
     && Math.abs(submittedRank - fieldRank) >= 5;
   const mitigatedBaseDamage = impairment.blocked
     ? 0
-    : calculateTarotKingdomEnemyMitigatedDamage(
-      outgoing.damage,
-      guardianBreakthrough ? 0 : getKingdomEffectiveEnemyDefense()
-    );
+    : calculateKingdomWeaponMitigatedDamage(attack, outgoing.damage, guardianBreakthrough);
   if (guardianBreakthrough) outgoing.applied.push({
     kind: 'guardianBreakthrough', guardianNumber: 7, potency: 100
   });
@@ -12311,6 +12721,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
   enemy.hp = Math.max(0, before - baseDamage);
   syncKingdomCurrentEnemyVital();
   if (baseDamage > 0) removeKingdomBattleEffect('enemy', 'sleep');
+  const weaponPoison = applyKingdomWeaponTraitPoison(playerIndex, attack, displayBaseDamage, impairment);
   const roleRangeResult = applyKingdomRoleRangeDamage(
     attack,
     playerIndex,
@@ -12347,6 +12758,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
     }] : []),
     ...outgoing.applied,
     ...incomingBase.applied,
+    ...(weaponPoison ? [weaponPoison] : []),
     ...(roleRangeResult ? [roleRangeResult] : []),
     ...secondary.results,
     ...statusDamage
@@ -12391,6 +12803,7 @@ function applyKingdomPlayerAttack(playerIndex, play) {
     guardianCardLevel: secondary.major?.cardLevel || 1,
     awakeningId: secondary.major?.awakeningId || '',
     weaponEffectName: secondary.weapon?.label || '',
+    weaponTrait: attack.weaponTrait ? cloneKingdomSnapshotValue(attack.weaponTrait, null) : null,
     summon: secondary.summon,
     blockedSummon: secondary.blockedSummon || null,
     majorSummon: secondary.majorSummon || null,
@@ -12440,24 +12853,40 @@ function applyKingdomEnemySingleAttack(playerIndex) {
   let guardianCoverReduction = 0;
   let guardianCoverIndex = null;
   if (areKingdomArcanaLoadoutV3EffectsEnabled()) {
-    guardianCoverIndex = getKingdomSeatIndexes().find((index) => {
-      if (index === playerIndex || Number(getKingdomGuardianArcana(index)?.number) !== 12) return false;
-      if (!isKingdomBattlePlayerConscious(index) || !getKingdomEffectBucket('player', index)?.hpShield) return false;
-      const state = getKingdomGuardianState(index);
-      if (!state.v3 || typeof state.v3 !== 'object') state.v3 = { counters: {}, used: {} };
-      const lowestOther = getKingdomSeatIndexes().filter((other) => (
-        other !== index && isKingdomBattlePlayerConscious(other)
-      )).sort((a, b) => (
-        s.players[a].hp / s.players[a].maxHp - s.players[b].hp / s.players[b].maxHp
-      ))[0];
-      return Number(lowestOther) === Number(playerIndex) && Number(state.v3.used.coverTurn) !== Number(s.turnCount);
-    });
+    if (areKingdomArcanaLoadoutV8EffectsEnabled()) {
+      const protectedPlayer = s.players[playerIndex];
+      const protectedMaxHp = Math.max(0, Number(protectedPlayer?.maxHp) || 0);
+      const protectedHp = Math.max(0, Number(protectedPlayer?.hp) || 0);
+      const isCriticallyWounded = protectedMaxHp > 0 && protectedHp * 8 <= protectedMaxHp;
+      if (isCriticallyWounded) {
+        guardianCoverIndex = getKingdomSeatIndexes().find((index) => (
+          index !== playerIndex
+          && Number(getKingdomGuardianArcana(index)?.number) === 12
+          && isKingdomBattlePlayerConscious(index)
+        ));
+      }
+    } else {
+      guardianCoverIndex = getKingdomSeatIndexes().find((index) => {
+        if (index === playerIndex || Number(getKingdomGuardianArcana(index)?.number) !== 12) return false;
+        if (!isKingdomBattlePlayerConscious(index) || !getKingdomEffectBucket('player', index)?.hpShield) return false;
+        const state = getKingdomGuardianState(index);
+        if (!state.v3 || typeof state.v3 !== 'object') state.v3 = { counters: {}, used: {} };
+        const lowestOther = getKingdomSeatIndexes().filter((other) => (
+          other !== index && isKingdomBattlePlayerConscious(other)
+        )).sort((a, b) => (
+          s.players[a].hp / s.players[a].maxHp - s.players[b].hp / s.players[b].maxHp
+        ))[0];
+        return Number(lowestOther) === Number(playerIndex) && Number(state.v3.used.coverTurn) !== Number(s.turnCount);
+      });
+    }
     if (Number.isInteger(guardianCoverIndex)) {
       targetIndex = guardianCoverIndex;
-      getKingdomGuardianState(guardianCoverIndex).v3.used.coverTurn = Number(s.turnCount);
-      guardianCoverReduction = areKingdomArcanaLoadoutV7EffectsEnabled()
-        ? getKingdomGuardianLevelValue(guardianCoverIndex, 10, 65)
-        : 0;
+      if (!areKingdomArcanaLoadoutV8EffectsEnabled()) {
+        getKingdomGuardianState(guardianCoverIndex).v3.used.coverTurn = Number(s.turnCount);
+        guardianCoverReduction = areKingdomArcanaLoadoutV7EffectsEnabled()
+          ? getKingdomGuardianLevelValue(guardianCoverIndex, 10, 65)
+          : 0;
+      }
     }
   }
   const coverMatchesTarget = cover?.protectedIndex == null
@@ -12474,6 +12903,10 @@ function applyKingdomEnemySingleAttack(playerIndex) {
   }
   const summonReduction = summonGuard ? Math.max(0, Math.min(45, Number(summonGuard.potency) || 0)) : 0;
   if (summonGuard) consumeKingdomBattleEffect('party', 'summonGuard');
+  const guardianCoverActivated = Number.isInteger(guardianCoverIndex)
+    && Number(targetIndex) === Number(guardianCoverIndex)
+    && Number(targetIndex) !== Number(playerIndex)
+    && coverReduction <= 0;
   const player = s.players[targetIndex];
   const weakening = getKingdomEnemyAttackMultiplier('single');
   const critical = enemySilenced
@@ -12487,8 +12920,9 @@ function applyKingdomEnemySingleAttack(playerIndex) {
     * (1 - (guardReduction / 100))
   ));
   const accuracy = resolveKingdomEnemyAttackAccuracy(targetIndex);
+  const formationDamage = applyKingdomFormationIncomingDamage(targetIndex, reducedBase, 'physical');
   const defended = accuracy.success
-    ? resolveKingdomPlayerDefense(targetIndex, reducedBase)
+    ? resolveKingdomPlayerDefense(targetIndex, formationDamage.amount)
     : { damage: 0, effects: accuracy.effect ? [accuracy.effect] : [] };
   const damageResult = applyKingdomPlayerHpDamage(targetIndex, defended.damage, { source: 'enemy-single' });
   const damage = damageResult.damage;
@@ -12499,6 +12933,7 @@ function applyKingdomEnemySingleAttack(playerIndex) {
     ...preAttack.effects,
     ...weakening.applied,
     ...(critical.critical ? [{ kind: 'enemyCritical', potency: 50, chance: critical.chance, roll: critical.roll }] : []),
+    ...(accuracy.success ? formationDamage.effects : []),
     ...defended.effects,
     ...(damageResult.lastStand ? [{ kind: 'lastStand', targetIndex }] : [])
   ];
@@ -12507,9 +12942,15 @@ function applyKingdomEnemySingleAttack(playerIndex) {
     : [];
   effects.push(...inflicted);
   if (coverReduction > 0) effects.push({ kind: 'cover', potency: coverReduction, originalTargetIndex: playerIndex });
-  if (Number.isInteger(guardianCoverIndex)) {
+  if (guardianCoverActivated) {
     effects.push({
-      kind: 'guardianCover', guardianNumber: 12, potency: guardianCoverReduction, originalTargetIndex: playerIndex
+      source: 'guardian-passive',
+      kind: 'guardianCover',
+      label: 'かばう',
+      guardianNumber: 12,
+      potency: guardianCoverReduction,
+      originalTargetIndex: playerIndex,
+      damageKind: 'physical'
     });
   }
   if (summonReduction > 0) effects.push({ kind: 'summonGuard', potency: summonReduction });
@@ -12520,7 +12961,7 @@ function applyKingdomEnemySingleAttack(playerIndex) {
   effects.push(...specialEffects);
   const enemyHealing = specialEffects.find((entry) => entry.kind === 'enemy-heal') || null;
   const coverActivated = Number(targetIndex) !== Number(playerIndex)
-    && (coverReduction > 0 || Number.isInteger(guardianCoverIndex));
+    && (coverReduction > 0 || guardianCoverActivated);
   const coverMessage = coverActivated
     ? `${pName(targetIndex)}が${pName(playerIndex)}をかばった！`
     : '';
@@ -12533,9 +12974,11 @@ function applyKingdomEnemySingleAttack(playerIndex) {
     attackReturnDurationMs: attackMotion.returnDurationMs,
     coverIndex: coverActivated ? targetIndex : null,
     protectedIndex: coverActivated ? playerIndex : null,
-    coverKind: coverActivated && Number(guardianCoverIndex) === Number(targetIndex) && coverReduction <= 0
+    coverKind: guardianCoverActivated
       ? 'guardian'
       : (coverActivated ? 'party' : ''),
+    damageKind: 'physical',
+    guardianPassiveName: guardianCoverActivated ? 'かばう' : '',
     targetIndexes: [targetIndex],
     damages: [{
       playerIndex: targetIndex,
@@ -12639,8 +13082,9 @@ function applyKingdomEnemyAreaAttack(clearLeaderIndex = null) {
     if (playerIndex === protectedPlayerIndex) return;
     if (!isKingdomBattlePlayerConscious(playerIndex)) return;
     const accuracy = resolveKingdomEnemyAttackAccuracy(playerIndex);
+    const formationDamage = applyKingdomFormationIncomingDamage(playerIndex, reducedBase, 'physical');
     const defended = accuracy.success
-      ? resolveKingdomPlayerDefense(playerIndex, reducedBase)
+      ? resolveKingdomPlayerDefense(playerIndex, formationDamage.amount)
       : { damage: 0, effects: accuracy.effect ? [accuracy.effect] : [] };
     const damageResult = applyKingdomPlayerHpDamage(playerIndex, defended.damage, { source: 'enemy-area' });
     const damage = damageResult.damage;
@@ -12650,11 +13094,12 @@ function applyKingdomEnemyAreaAttack(clearLeaderIndex = null) {
       damage,
       hpBefore: before,
       hpAfter: player.hp,
-      effects: defended.effects,
+      effects: [...(accuracy.success ? formationDamage.effects : []), ...defended.effects],
       missed: !accuracy.success,
       hitChance: accuracy.chance,
       accuracyRoll: accuracy.roll
     });
+    eventEffects.push(...(accuracy.success ? formationDamage.effects : []));
     eventEffects.push(...defended.effects.map((effect) => ({ ...effect, targetIndex: playerIndex })));
     if (damageResult.lastStand) eventEffects.push({ kind: 'lastStand', targetIndex: playerIndex });
     if (player.hp <= 0) {
@@ -12974,7 +13419,7 @@ function normalizeKingdomRules(
   fallbackCarryHpBetweenRoundsVersion = 1,
   fallbackForcedDrawDeathVersion = 1,
   fallbackDamageGrowthVersion = 1,
-  fallbackArcanaLoadoutEffectsVersion = 7,
+  fallbackArcanaLoadoutEffectsVersion = 8,
   fallbackRoleChainVersion = 1,
   fallbackDamageBalanceVersion = 1,
   fallbackStatusEffectsVersion = 2,
@@ -12982,7 +13427,8 @@ function normalizeKingdomRules(
   fallbackEnemyAbilityVersion = 1,
   fallbackArcanaPointVersion = 1,
   fallbackStageWideAreaDamageVersion = 2,
-  fallbackRoleAttackRangeVersion = 1
+  fallbackRoleAttackRangeVersion = 1,
+  fallbackWeaponRulesVersion = TAROT_KINGDOM_WEAPON_RULES_VERSION
 ) {
   const incoming = rawRules && typeof rawRules === 'object' ? rawRules : {};
   const fallback = Math.max(1, Math.min(20, Math.floor(Number(fallbackHandSize) || DEFAULT_HAND_LIMIT)));
@@ -13066,7 +13512,7 @@ function normalizeKingdomRules(
     ),
     arcanaLoadoutEffectsVersion: Math.max(
       0,
-      Math.min(7, Math.floor(Number(
+      Math.min(8, Math.floor(Number(
         incoming.arcanaLoadoutEffectsVersion ?? fallbackArcanaLoadoutEffectsVersion
       ) || 0))
     ),
@@ -13108,6 +13554,12 @@ function normalizeKingdomRules(
       0,
       Math.min(1, Math.floor(Number(
         incoming.roleAttackRangeVersion ?? fallbackRoleAttackRangeVersion
+      ) || 0))
+    ),
+    weaponRulesVersion: Math.max(
+      0,
+      Math.min(TAROT_KINGDOM_WEAPON_RULES_VERSION, Math.floor(Number(
+        incoming.weaponRulesVersion ?? fallbackWeaponRulesVersion
       ) || 0))
     )
   };
@@ -14402,6 +14854,21 @@ function deserializeStateFromNet(payload) {
       )
     );
   }
+  if (incomingSchema < 33) {
+    incomingRules.arcanaLoadoutEffectsVersion = Math.min(
+      7,
+      Math.max(0, Math.floor(Number(incomingRules.arcanaLoadoutEffectsVersion ?? 7) || 0))
+    );
+  }
+  if (incomingSchema < 34) incomingRules.weaponRulesVersion = 0;
+  else if (incomingSchema < 35) {
+    incomingRules.weaponRulesVersion = Math.min(
+      TAROT_KINGDOM_WEAPON_RULES_BASE_VERSION,
+      Math.max(0, Math.floor(Number(
+        incomingRules.weaponRulesVersion ?? TAROT_KINGDOM_WEAPON_RULES_BASE_VERSION
+      ) || 0))
+    );
+  }
   if (incomingSchema < 19) {
     if (Object.prototype.hasOwnProperty.call(incomingRules, 'enemyCombatVersion')) {
       incomingRules.enemyCombatVersion = Math.min(
@@ -14433,7 +14900,7 @@ function deserializeStateFromNet(payload) {
     incomingSchema < 12 ? 0 : 1,
     incomingSchema < 12 ? 0 : 1,
     incomingSchema < 14 ? 0 : 1,
-    incomingSchema < 16 ? 0 : (incomingSchema < 18 ? 1 : (incomingSchema < 20 ? 2 : (incomingSchema < 24 ? 3 : (incomingSchema < 27 ? 4 : (incomingSchema < 28 ? 5 : (incomingSchema < 30 ? 6 : 7)))))),
+    incomingSchema < 16 ? 0 : (incomingSchema < 18 ? 1 : (incomingSchema < 20 ? 2 : (incomingSchema < 24 ? 3 : (incomingSchema < 27 ? 4 : (incomingSchema < 28 ? 5 : (incomingSchema < 30 ? 6 : (incomingSchema < 33 ? 7 : 8))))))),
     incomingSchema < 17 ? 0 : 1,
     incomingSchema < 21 ? 0 : 1,
     incomingSchema < 22 ? 0 : 1,
@@ -14441,7 +14908,12 @@ function deserializeStateFromNet(payload) {
     incomingSchema < 26 ? 0 : 1,
     incomingSchema < 28 ? 0 : 1,
     incomingSchema < 28 ? 0 : (incomingSchema < 30 ? 1 : 2),
-    incomingSchema < 29 ? 0 : 1
+    incomingSchema < 29 ? 0 : 1,
+    incomingSchema < 34
+      ? 0
+      : (incomingSchema < 35
+          ? TAROT_KINGDOM_WEAPON_RULES_BASE_VERSION
+          : TAROT_KINGDOM_WEAPON_RULES_VERSION)
   );
   [nextState.trick, nextState.lastPlay].forEach((play) => {
     if (!play || typeof play !== 'object') return;
@@ -16774,7 +17246,8 @@ function buildTarotKingdomDebugBattleState(options = {}) {
         affinity: raidProfile.affinity || getTarotKingdomEnemyAffinity(
           raidMonster.id,
           Number(s.rules?.elementAffinityVersion ?? 1)
-        )
+        ),
+        weaponTags: getTarotKingdomMonsterWeaponTags(raidMonster.id)
       };
     }
   }
@@ -16821,6 +17294,9 @@ function buildTarotKingdomDebugBattleState(options = {}) {
   }
   if (options.enemyAffinity && typeof options.enemyAffinity === 'object') {
     s.battle.enemy.affinity = cloneKingdomSnapshotValue(options.enemyAffinity, s.battle.enemy.affinity);
+  }
+  if (Array.isArray(options.enemyWeaponTags)) {
+    s.battle.enemy.weaponTags = options.enemyWeaponTags.map(String).filter(Boolean);
   }
   if (Object.prototype.hasOwnProperty.call(options, 'enemyDamageToParty')) {
     s.battle.metrics.enemyDamageToParty = Math.max(0, Math.floor(Number(options.enemyDamageToParty) || 0));
@@ -18706,6 +19182,27 @@ function exposeTarotKingdomBattleDebugTools(target) {
       play,
       options
     ),
+    battleApplyDirectAttack: (playerIndex, play) => {
+      const event = applyKingdomPlayerAttack(Number(playerIndex), cloneKingdomSnapshotValue(play, {}));
+      render();
+      return { event: cloneKingdomSnapshotValue(event, null), state: snapshotTarotKingdomDebugState() };
+    },
+    battleFormationDamage: (playerIndex, damage, damageKind = 'physical') => cloneKingdomSnapshotValue(
+      applyKingdomFormationIncomingDamage(Number(playerIndex), damage, damageKind),
+      null
+    ),
+    battleApplyEnemySingleAttack: (playerIndex) => {
+      const event = applyKingdomEnemySingleAttack(Number(playerIndex));
+      render();
+      return { event: cloneKingdomSnapshotValue(event, null), state: snapshotTarotKingdomDebugState() };
+    },
+    battleApplyEnemyAreaAttack: (protectedPlayerIndex = null) => {
+      const event = applyKingdomEnemyAreaAttack(
+        protectedPlayerIndex == null ? null : Number(protectedPlayerIndex)
+      );
+      render();
+      return { event: cloneKingdomSnapshotValue(event, null), state: snapshotTarotKingdomDebugState() };
+    },
     battleHpZeroWinner: (lastHitIndex = 0) => ({
       winnerIndex: resolveKingdomHpZeroRoundWinner(Number(lastHitIndex)),
       scores: s.players.map((player, playerIndex) => getKingdomHpZeroHandScore(player, playerIndex))
@@ -23975,6 +24472,12 @@ function ensureKingdomBattlePlayerRow(playerIndex) {
       avatar.appendChild(shieldRing);
     }
     const info = row.querySelector(':scope > .tarot-kingdom-battle-player-info');
+    const header = info?.querySelector(':scope > .tarot-kingdom-battle-player-header');
+    if (header && !header.querySelector(':scope > .tarot-kingdom-battle-player-formation')) {
+      const formation = document.createElement('span');
+      formation.className = 'tarot-kingdom-battle-player-formation';
+      header.appendChild(formation);
+    }
     ensureKingdomBattlePlayerStatusTray(info);
     return row;
   }
@@ -24009,8 +24512,11 @@ function ensureKingdomBattlePlayerRow(playerIndex) {
   name.className = 'tarot-kingdom-battle-player-name';
   const rank = document.createElement('div');
   rank.className = 'tarot-kingdom-battle-player-rank';
+  const formation = document.createElement('span');
+  formation.className = 'tarot-kingdom-battle-player-formation';
   header.appendChild(name);
   header.appendChild(rank);
+  header.appendChild(formation);
 
   const hpWrap = document.createElement('div');
   hpWrap.className = 'tarot-kingdom-battle-player-hp';
@@ -24245,8 +24751,20 @@ function playKingdomBattleAvatarEvent(event, eventIsActive, eventKey) {
     const actorIndex = Number(event.actorIndex);
     const avatar = document.getElementById(`tarotKingdomBattleAvatar-${actorIndex}`);
     if (s?.players?.[actorIndex]?.isPet) return;
-    const weaponType = s?.players?.[actorIndex]?.character?.combat?.weaponType || 'sword';
-    playCombatAvatarAttack(avatar, weaponType, { direction: 'left' }).catch(() => {});
+    const weaponType = event?.weaponTrait?.components?.[0]?.weaponType
+      || s?.players?.[actorIndex]?.character?.combat?.weaponType
+      || 'sword';
+    const visualHitCount = Math.max(1, Math.min(2, Math.floor(Number(event?.weaponTrait?.visualHitCount) || 1)));
+    const playWeaponMotion = async () => {
+      for (let hitIndex = 0; hitIndex < visualHitCount; hitIndex += 1) {
+        await playCombatAvatarAttack(avatar, weaponType, {
+          direction: 'left',
+          noAdvance: event?.weaponTrait?.noAdvance === true,
+          duration: visualHitCount > 1 ? 250 : undefined
+        });
+      }
+    };
+    playWeaponMotion().catch(() => {});
     return;
   }
   if (type === 'enemy-single' || type === 'enemy-area') {
@@ -24802,6 +25320,18 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
         ? rankLabel
         : `Lv${character.level} · ${rankLabel}`;
     }
+    const formation = getKingdomPlayerFormation(playerIndex);
+    row.classList.toggle('is-front-row', formation === 'front');
+    row.classList.toggle('is-back-row', formation === 'back');
+    row.dataset.formation = formation;
+    const formationBadge = row.querySelector('.tarot-kingdom-battle-player-formation');
+    if (formationBadge) {
+      formationBadge.textContent = formation === 'back' ? '後' : '前';
+      formationBadge.title = formation === 'back'
+        ? '後列：敵から受ける物理ダメージ25%軽減'
+        : '前列';
+      formationBadge.setAttribute('aria-label', formationBadge.title);
+    }
     const hpFill = row.querySelector('.tarot-kingdom-battle-player-hp-fill');
     if (hpFill) hpFill.style.width = `${hpRate}%`;
     const hpTrack = row.querySelector('.tarot-kingdom-battle-player-hp-track');
@@ -24982,6 +25512,7 @@ function renderKingdomSecondaryEffectBanner(event, eventIsActive, phase, eventKe
   if (!ui.battleStage) return;
   let node = ui.battleStage.querySelector(':scope > .tarot-kingdom-effect-banner');
   let majorVisual = ui.battleStage.querySelector(':scope > .tarot-kingdom-major-visual');
+  let affinityNode = ui.battleStage.querySelector(':scope > .tarot-kingdom-affinity-hit');
   const resonanceName = String(event?.resonanceName || '').trim();
   const weaponName = String(event?.weaponEffectName || '').trim();
   const guardianPassiveName = String(event?.guardianPassiveName || '').trim();
@@ -24995,56 +25526,10 @@ function renderKingdomSecondaryEffectBanner(event, eventIsActive, phase, eventKe
     && (phase === 'damage' || phase === 'recover' || phase === 'effect');
   const regularEffectVisible = !majorSkillName
     && (phase === 'damage' || phase === 'recover' || phase === 'effect');
-  const show = !!(eventIsActive && (majorSkillName || regularEffectName) && (
+  const showBanner = !!(eventIsActive && (majorSkillName || regularEffectName) && (
     majorSkillVisible || regularEffectVisible || reducedMotion
   ));
-  if (!show) {
-    node?.remove();
-    majorVisual?.remove();
-    ui.battleStage.querySelector(':scope > .tarot-kingdom-affinity-hit')?.remove();
-    return;
-  }
-  if (!node) {
-    node = document.createElement('div');
-    node.className = 'tarot-kingdom-effect-banner';
-    node.setAttribute('aria-live', 'polite');
-    ui.battleStage.appendChild(node);
-  }
-  const majorTone = String(event?.majorTone || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
-  node.classList.toggle('is-major', !!majorSkillName);
-  node.classList.toggle('is-awakened', !!event?.majorAwakened);
-  node.dataset.majorTone = majorTone;
-  const scopedEventKey = String(eventKey || event?.seq || '');
-  node.dataset.eventKey = scopedEventKey;
-  node.textContent = majorSkillName || regularEffectName;
-  if (majorSkillName) {
-    const scope = getKingdomMajorVisualScope(event);
-    const visualKey = `${scopedEventKey}:${majorTone}:${scope}`;
-    if (!majorVisual) {
-      majorVisual = document.createElement('div');
-      majorVisual.className = 'tarot-kingdom-major-visual';
-      majorVisual.setAttribute('aria-hidden', 'true');
-      ui.battleStage.appendChild(majorVisual);
-    }
-    majorVisual.className = 'tarot-kingdom-major-visual';
-    majorVisual.dataset.majorTone = majorTone;
-    majorVisual.dataset.majorScope = scope;
-    if (majorVisual.dataset.eventKey !== visualKey) {
-      majorVisual.dataset.eventKey = visualKey;
-      majorVisual.replaceChildren(
-        Object.assign(document.createElement('span'), { className: 'tarot-kingdom-major-sigil' }),
-        Object.assign(document.createElement('span'), { className: 'tarot-kingdom-major-wave' }),
-        Object.assign(document.createElement('span'), { className: 'tarot-kingdom-major-spark is-one' }),
-        Object.assign(document.createElement('span'), { className: 'tarot-kingdom-major-spark is-two' }),
-        Object.assign(document.createElement('span'), { className: 'tarot-kingdom-major-spark is-three' })
-      );
-    }
-  } else {
-    majorVisual?.remove();
-  }
-
-  let affinityNode = ui.battleStage.querySelector(':scope > .tarot-kingdom-affinity-hit');
-  const reactionResults = Array.isArray(event?.effects)
+  const elementReactions = Array.isArray(event?.effects)
     ? event.effects
       .filter((entry) => ['weak', 'resist'].includes(String(entry?.affinityReaction || '')))
       .filter((entry, index, entries) => entries.findIndex((candidate) => (
@@ -25052,7 +25537,78 @@ function renderKingdomSecondaryEffectBanner(event, eventIsActive, phase, eventKe
         && candidate?.affinityReaction === entry?.affinityReaction
       )) === index)
     : [];
-  if (!reactionResults.length || !(phase === 'effect' || phase === 'recover' || prefersKingdomReducedMotion())) {
+  const weaponWeak = !!(
+    event?.weaponTrait?.weak
+    && !event?.attackMissed
+    && !event?.attackBlocked
+    && Math.max(0, Number(event?.displayBaseDamage ?? event?.baseDamage ?? event?.damage) || 0) > 0
+  );
+  const reactionResults = [
+    ...elementReactions,
+    ...(weaponWeak ? [{
+      element: 'weapon',
+      affinityReaction: 'weapon-weak',
+      weaponTypes: event.weaponTrait.components
+        ?.filter((component) => component?.weak)
+        .map((component) => component.weaponType) || []
+    }] : [])
+  ];
+  const showAffinity = !!(
+    eventIsActive
+    && reactionResults.length
+    && (phase === 'damage' || phase === 'effect' || phase === 'recover' || reducedMotion)
+  );
+  if (!showBanner && !showAffinity) {
+    node?.remove();
+    majorVisual?.remove();
+    affinityNode?.remove();
+    return;
+  }
+  const scopedEventKey = String(eventKey || event?.seq || '');
+  if (showBanner) {
+    if (!node) {
+      node = document.createElement('div');
+      node.className = 'tarot-kingdom-effect-banner';
+      node.setAttribute('aria-live', 'polite');
+      ui.battleStage.appendChild(node);
+    }
+    const majorTone = String(event?.majorTone || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+    node.classList.toggle('is-major', !!majorSkillName);
+    node.classList.toggle('is-awakened', !!event?.majorAwakened);
+    node.dataset.majorTone = majorTone;
+    node.dataset.eventKey = scopedEventKey;
+    node.textContent = majorSkillName || regularEffectName;
+    if (majorSkillName) {
+      const scope = getKingdomMajorVisualScope(event);
+      const visualKey = `${scopedEventKey}:${majorTone}:${scope}`;
+      if (!majorVisual) {
+        majorVisual = document.createElement('div');
+        majorVisual.className = 'tarot-kingdom-major-visual';
+        majorVisual.setAttribute('aria-hidden', 'true');
+        ui.battleStage.appendChild(majorVisual);
+      }
+      majorVisual.className = 'tarot-kingdom-major-visual';
+      majorVisual.dataset.majorTone = majorTone;
+      majorVisual.dataset.majorScope = scope;
+      if (majorVisual.dataset.eventKey !== visualKey) {
+        majorVisual.dataset.eventKey = visualKey;
+        majorVisual.replaceChildren(
+          Object.assign(document.createElement('span'), { className: 'tarot-kingdom-major-sigil' }),
+          Object.assign(document.createElement('span'), { className: 'tarot-kingdom-major-wave' }),
+          Object.assign(document.createElement('span'), { className: 'tarot-kingdom-major-spark is-one' }),
+          Object.assign(document.createElement('span'), { className: 'tarot-kingdom-major-spark is-two' }),
+          Object.assign(document.createElement('span'), { className: 'tarot-kingdom-major-spark is-three' })
+        );
+      }
+    } else {
+      majorVisual?.remove();
+    }
+  } else {
+    node?.remove();
+    majorVisual?.remove();
+  }
+
+  if (!showAffinity) {
     affinityNode?.remove();
     return;
   }
@@ -25069,9 +25625,9 @@ function renderKingdomSecondaryEffectBanner(event, eventIsActive, phase, eventKe
   affinityNode.innerHTML = '';
   reactionResults.forEach((reactionResult) => {
     const badge = document.createElement('span');
-    const elementGlyph = { fire: '🔥', water: '💧', wind: '🌀', earth: '◆' }[reactionResult.element] || '◆';
+    const elementGlyph = { fire: '🔥', water: '💧', wind: '🌀', earth: '◆', weapon: '⚔' }[reactionResult.element] || '◆';
     badge.className = `tarot-kingdom-affinity-badge is-${reactionResult.affinityReaction}`;
-    badge.textContent = `${elementGlyph} ${reactionResult.affinityReaction === 'weak' ? 'WEAK' : 'RESIST'}`;
+    badge.textContent = `${elementGlyph} ${reactionResult.affinityReaction === 'resist' ? 'RESIST' : 'WEAK'}`;
     affinityNode.appendChild(badge);
   });
 }
@@ -28733,14 +29289,64 @@ function ensureKingdomRulebookUi() {
             <span class="tarot-kingdom-rulebook-section-no">05 / BATTLE</span>
             <h3>モンスターバトル</h3>
             <div class="tarot-kingdom-rulebook-copy-grid">
-               <div><h4>出札＝攻撃</h4><p>カードを合法に出すと攻撃。装備・能力値・カード共鳴が威力や追加効果へ反映されます。生まれ変わり自体から追加攻撃は発生しません。</p></div>
-              <div><h4>役と召喚</h4><p>5枚役は通常攻撃より強力。役に応じて単体・全体攻撃となり、召喚獣が現れることもあります。</p></div>
+               <div><h4>出札＝攻撃</h4><p>1〜3枚攻撃の直接ダメージには、常時有効な装備中の武器特性が反映されます。大アルカナ1枚の直接部分も対象です。</p></div>
+              <div><h4>役と召喚</h4><p>5枚役は通常攻撃より強力。武器特性は5枚役、大アルカナの固有効果、小アルカナ共鳴、反撃・追撃、ペット攻撃には適用されません。</p></div>
               <div><h4>敵の弱点と耐性</h4><p>ワンド（火）↔カップ（水）、ソード（風）↔ペンタクル（地）が互いの弱点です。対になる属性は「WEAK」×1.5、敵と同じ属性は「RESIST」×0.6になります。</p></div>
+              <div><h4>前列と後列</h4><p>装備武器から自動決定します。銃系だけなら後列、近接武器を1本でも持つと前列です。後列は敵から受ける物理ダメージを25%軽減します。</p></div>
+               <div><h4>武器弱点</h4><p>敵の生態に合う武器の直接攻撃は×1.25。元素弱点は小アルカナ共鳴などの元素ダメージ、武器弱点は1〜3枚攻撃の直接ダメージに使い、同じダメージへ重ねて乗算しません。該当攻撃が命中した瞬間だけ「WEAK」が表示されます。</p></div>
+              <div><h4>ジョブと得意武器</h4><p>装備中の守護大アルカナがジョブを決めます。得意武器の直接ダメージは、その武器成分だけ×1.10になります。二刀で片側だけ得意なら合計は実質×1.05です。</p></div>
               <div><h4>パスと防御</h4><p>通常のパスでは反撃を受ける場合があります。ただし局開始の公開札だけが場にある間は、反撃も全員パス時の全体攻撃もありません。「防御」は場が流れるまで自動で守り、被害を抑えます。</p></div>
               <div><h4>状態効果</h4><p>毒・リジェネ・能力変化などはアイコンで表示。戦闘画面の状態アイコンを押すと詳細を確認できます。</p></div>
               <div><h4>生まれ変わり</h4><p>対象の敵・ペットは進化前のHPが0になると、状態効果を解除して進化後の姿へ生まれ変わります。超過ダメージは持ち越さず、進化後は本来の最大HPで復帰します。</p></div>
               <div><h4>進化前とペット</h4><p>進化前はHP50%、攻撃・防御・賢さ70%、素早さ85%。ペットの進化は探索終了まで続き、小アルカナを維持して固定の大アルカナだけが進化後へ変わります。</p></div>
               <div><h4>ペットの成長</h4><p>探索勝利時、ペット席が最終的に獲得したTPと同じ量のEXPを得ます。必要EXPはLv1→2が300で、レベルが1上がるごとに75ずつ増えます。</p></div>
+            </div>
+            <h4>武器特性一覧</h4>
+            <div class="tarot-kingdom-rulebook-table-wrap">
+              <table>
+                <thead><tr><th>武器</th><th>列</th><th>直接攻撃への補正</th></tr></thead>
+                <tbody>
+                  <tr><td>剣</td><td>前</td><td>力100%・威力×1.00・命中+5pt</td></tr>
+                  <tr><td>大剣</td><td>前</td><td>力100%・威力×1.18・命中-5pt</td></tr>
+                  <tr><td>短剣</td><td>前</td><td>力65%＋素早さ35%・威力×0.88・命中+8pt・会心+12pt・12%で3行動の毒</td></tr>
+                  <tr><td>斧</td><td>前</td><td>力100%・威力×1.10・命中-4pt・幅0.85〜1.15・防御10%無視</td></tr>
+                  <tr><td>大斧</td><td>前</td><td>力100%・威力×1.18・命中-8pt・幅0.80〜1.20・防御15%無視</td></tr>
+                  <tr><td>ハンマー・鈍器</td><td>前</td><td>力100%・威力×1.05・命中-2pt・幅0.90〜1.10・防御20%無視</td></tr>
+                  <tr><td>槍</td><td>前</td><td>力100%・威力×1.08・命中+2pt・飛行／大型に有効</td></tr>
+                  <tr><td>銃</td><td>後</td><td>力45%＋装備攻撃55%・威力×0.92・命中+5pt・防御30%無視</td></tr>
+                  <tr><td>大銃</td><td>後</td><td>力40%＋装備攻撃60%・威力×1.05・命中-3pt・防御35%無視</td></tr>
+                  <tr><td>杖・ワンド</td><td>前</td><td>力20%＋賢さ80%・威力×0.82・通常攻撃を魔法扱い</td></tr>
+                  <tr><td>素手</td><td>前</td><td>力100%・威力×0.90・命中+3pt・Lvごとに+0.4%（最大+20%）・2ヒット表示</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <h4>ジョブの得意武器</h4>
+            <div class="tarot-kingdom-rulebook-table-wrap">
+              <table>
+                <thead><tr><th>ジョブ</th><th>得意武器</th></tr></thead>
+                <tbody>
+                  <tr><td>トリックスター／吟遊詩人／ギャンブラー</td><td>短剣・銃</td></tr>
+                  <tr><td>呪術師／白魔道士／結界師／魔導士／死霊術師／ドルイド</td><td>杖・ワンド</td></tr>
+                  <tr><td>ナイト／幻影騎士</td><td>剣・槍</td></tr>
+                  <tr><td>バーサーカー</td><td>大剣・斧・大斧</td></tr>
+                  <tr><td>モンク</td><td>素手・ハンマー／鈍器</td></tr>
+                  <tr><td>アサシン</td><td>短剣</td></tr>
+                  <tr><td>パラディン／守護者（吊るされた男）</td><td>剣・ハンマー／鈍器</td></tr>
+                  <tr><td>ものまねし</td><td>すべての武器</td></tr>
+                  <tr><td>暗黒騎士</td><td>大剣・大斧</td></tr>
+                  <tr><td>魔法剣士／魔導戦士</td><td>剣・ワンド</td></tr>
+                  <tr><td>ビショップ</td><td>杖・ハンマー／鈍器</td></tr>
+                  <tr><td>勇者</td><td>剣・大剣</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="tarot-kingdom-rulebook-note">
+              <strong>二刀装備</strong>
+              <span>左右の攻撃武器を50%ずつ合成。同じ武器2本はその特性100%、盾や魔法副手は攻撃武器に数えません。片側だけ弱点なら合計は実質×1.125です。</span>
+            </div>
+            <div class="tarot-kingdom-rulebook-note">
+              <strong>生態と武器弱点</strong>
+              <span>軟体＝剣系 ／ 急所＝短剣 ／ 装甲＝斧・鈍器・銃系 ／ 飛行＝槍・銃系 ／ 魔性＝杖・ワンド ／ 植物＝剣・斧・鈍器系 ／ 大型＝槍 ／ 体勢不安定＝素手 ／ 脆弱殻＝斧・鈍器系。複数タグが同じ弱点を示しても重複しません。</span>
             </div>
             <div class="tarot-kingdom-rulebook-note">
               <strong>生まれ変わる4組</strong>
@@ -28770,7 +29376,7 @@ function ensureKingdomRulebookUi() {
                 <div><dt>場が流れる</dt><dd>場札を片づけ、最後に出した人から新しい場を始めること。</dd></div>
                 <div><dt>親</dt><dd>局の最初に手番を持つプレイヤー。</dd></div>
                 <div><dt>コール</dt><dd>1枚の場札と手札4枚で5枚役を完成させる出し方。</dd></div>
-                <div><dt>共鳴</dt><dd>カード構成やペットなどの条件で発動する追加効果。</dd></div>
+                <div><dt>共鳴</dt><dd>小アルカナのカード構成やペットなどの条件で発動する追加効果。武器特性とは別系統です。</dd></div>
               </dl>
             </div>
           </section>

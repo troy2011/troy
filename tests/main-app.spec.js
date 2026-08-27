@@ -7213,7 +7213,14 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   await expect(page.locator('#meleeDeckEffectList')).not.toContainText(/R=|\dR|R％/);
   await expect(page.locator('#guardianArcanaEffectList')).toContainText('魔導士');
   await expect(page.locator('#guardianArcanaEffectList')).toContainText('守護');
+  await expect(page.locator('#guardianArcanaEffectList')).toContainText('得意');
+  await expect(page.locator('#guardianArcanaEffectList')).toContainText('杖・ワンド');
   await expect(page.locator('#guardianArcanaEffectList')).not.toContainText('覚醒');
+
+  await page.locator('#guardianArcanaEffectList .tarot-guardian-effect-summary').click();
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('得意武器');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('杖・ワンド（直接ダメージ×1.10）');
+  await page.locator('#itemDetailModal .item-detail-corner-close').click();
 
   await page.locator('#inventoryGrid .inventory-item-cell:has(.tarot-number-badge.is-cup)').click();
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('ディバインブレス');

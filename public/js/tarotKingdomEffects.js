@@ -47,7 +47,7 @@ const NEGATIVE_STATUS_PRIORITY = Object.freeze([
     'silence', 'blind', 'fear', 'confusion', 'wet', 'slow', 'weaken', 'vulnerable'
 ]);
 
-const TAROT_KINGDOM_ARCANA_CACHE_VERSION = '20260823-royal-lock-v1';
+const TAROT_KINGDOM_ARCANA_CACHE_VERSION = '20260827-guardian-cover-v1';
 const TAROT_KINGDOM_ARCANA_LOAD_ATTEMPTS = 3;
 
 function validateTarotKingdomArcanaEffects(data, fileName) {

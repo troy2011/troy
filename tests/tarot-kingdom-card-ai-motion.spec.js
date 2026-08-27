@@ -10,11 +10,13 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     await openKingdomDebug(page);
   });
 
-  test('schema 32 publishes current combat rules while older matches keep their rules', async ({ page }) => {
+  test('schema 35 publishes job weapon proficiencies while older matches keep their rules', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
       const current = debug.battleScenario({ withTrick: false });
       const published = debug.battlePublicState();
+      const schema33 = debug.battleDeserialize({ schema: 33, state: current });
+      const schema32 = debug.battleDeserialize({ schema: 32, state: current });
       const schema30 = debug.battleDeserialize({ schema: 30, state: current });
       const schema29 = debug.battleDeserialize({ schema: 29, state: current });
       const schema27 = debug.battleDeserialize({ schema: 27, state: current });
@@ -52,7 +54,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
           }
         }
       });
-      return { current, published, schema30, schema29, schema27, schema20, schema1, schema3, schema4, schema5, schema6 };
+      return { current, published, schema33, schema32, schema30, schema29, schema27, schema20, schema1, schema3, schema4, schema5, schema6 };
     });
 
     expect(audit.current.rules).toMatchObject({
@@ -71,14 +73,15 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       damageGrowthVersion: 1,
       damageBalanceVersion: 1,
       roleChainVersion: 1,
-      arcanaLoadoutEffectsVersion: 7,
+      arcanaLoadoutEffectsVersion: 8,
       arcanaPointVersion: 1,
       stageWideAreaDamageVersion: 2,
       roleAttackRangeVersion: 1,
+      weaponRulesVersion: 2,
       enemyDefeatMode: 'hp-zero'
     });
     expect(audit.current.players.map((player) => player.hand.length)).toEqual([8, 8, 8, 8]);
-    expect(audit.published.schema).toBe(32);
+    expect(audit.published.schema).toBe(35);
     expect(audit.published.state.rules).toMatchObject({
       initialHandSize: 8,
       handLimit: 8,
@@ -95,12 +98,15 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       damageGrowthVersion: 1,
       damageBalanceVersion: 1,
       roleChainVersion: 1,
-      arcanaLoadoutEffectsVersion: 7,
+      arcanaLoadoutEffectsVersion: 8,
       arcanaPointVersion: 1,
       stageWideAreaDamageVersion: 2,
       roleAttackRangeVersion: 1,
+      weaponRulesVersion: 2,
       enemyDefeatMode: 'hp-zero'
     });
+    expect(audit.schema33.rules.weaponRulesVersion).toBe(0);
+    expect(audit.schema32.rules.arcanaLoadoutEffectsVersion).toBe(7);
     expect(audit.schema29.rules).toMatchObject({
       enemyCombatVersion: 2,
       arcanaLoadoutEffectsVersion: 6,

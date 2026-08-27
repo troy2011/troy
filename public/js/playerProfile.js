@@ -12,6 +12,10 @@ import { createRequestId } from './api.js';
 import { showRpgMessage } from './rpgMessages.js';
 import { renderPixelMonsterCompanion } from './pixelMonsterCompanion.js?v=20260825-monster-motion-v2';
 import { bindModalClose } from './modalClose.js';
+import {
+    getTarotKingdomWeaponProfile,
+    resolveTarotKingdomWeaponFormation
+} from './tarotKingdomWeaponRules.js?v=20260827-job-weapon-v1';
 
 const FAVORITE_PLAYERS_STORAGE_PREFIX = 'favorite-players:';
 const MAX_FAVORITE_PLAYERS = 24;
@@ -726,6 +730,47 @@ function renderEquipmentRows(rows = []) {
     `).join('');
 }
 
+function getProfileEquipmentItemId(itemRef) {
+    if (!itemRef) return '';
+    if (typeof itemRef === 'string') return itemRef.trim();
+    return String(itemRef.itemId || itemRef.ItemId || itemRef.id || itemRef.Id || '').trim();
+}
+
+function resolveProfileWeaponType(itemRef, itemSource = {}) {
+    const itemId = getProfileEquipmentItemId(itemRef);
+    const item = itemSource?.[itemId] || (itemRef && typeof itemRef === 'object' ? itemRef : {});
+    const data = item?.customData || {};
+    const declared = String(data.WeaponType || data.weaponType || data.WeaponClass || '').trim();
+    if (declared) return getTarotKingdomWeaponProfile(declared)?.weaponType || '';
+    const normalizedId = itemId.toLowerCase();
+    const prefixes = [
+        ['sword_big_', 'sword_big'], ['axe_big_', 'axe_big'], ['gun_big_', 'gun_big'],
+        ['sword_', 'sword'], ['dagger_', 'dagger'], ['axe_', 'axe'], ['blunt_', 'blunt'],
+        ['polearm_', 'polearm'], ['staff_', 'staff'], ['wand_', 'wand'], ['gun_', 'gun'],
+        ['bow_', 'bow']
+    ];
+    return prefixes.find(([prefix]) => normalizedId.startsWith(prefix))?.[1] || '';
+}
+
+function buildProfileWeaponTraitRow(profile = {}) {
+    const equipment = profile.equipment || {};
+    const itemSource = profile.itemSource || {};
+    const hands = [
+        { label: '右', type: resolveProfileWeaponType(equipment.RightHand, itemSource) },
+        { label: '左', type: resolveProfileWeaponType(equipment.LeftHand, itemSource) }
+    ].map((entry) => ({ ...entry, profile: getTarotKingdomWeaponProfile(entry.type) }))
+        .filter((entry) => entry.profile);
+    if (!hands.length) return null;
+    const weight = hands.length > 1 ? 50 : 100;
+    const formation = resolveTarotKingdomWeaponFormation(hands.map((entry) => entry.type));
+    return {
+        label: '武器特性',
+        name: `${formation === 'back' ? '後列' : '前列'} · ${hands
+            .map((entry) => `${entry.label}${weight}% ${entry.profile.traitLabel}`)
+            .join(' / ')}`
+    };
+}
+
 function normalizeProfileStatValue(value) {
     const numeric = Number(value);
     return Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : 0;
@@ -1144,7 +1189,11 @@ function renderProfile(profile = {}) {
     renderProfileStats(activeProfile.stats);
     renderStatAllocationPanel();
     renderProfileDestiny(activeProfile.destinyProfile);
-    renderEquipmentRows(Array.isArray(profile.equipmentList) ? profile.equipmentList : []);
+    const weaponTraitRow = buildProfileWeaponTraitRow(profile);
+    renderEquipmentRows([
+        ...(Array.isArray(profile.equipmentList) ? profile.equipmentList : []),
+        ...(weaponTraitRow ? [weaponTraitRow] : [])
+    ]);
     renderProfileShip(profile.playerShip || null);
     renderAvatar(
         'playerProfileAvatar',

@@ -40,7 +40,7 @@ import {
     getTarotKingdomCardLevelScale,
     getTarotKingdomCurrentLevelEffectText,
     getTarotKingdomFriendlyEffectText
-} from './tarotKingdomEffects.js?v=20260823-royal-lock-v1';
+} from './tarotKingdomEffects.js?v=20260827-guardian-cover-v1';
 import {
     buildTarotCardMeta,
     compareTarotItems,
@@ -56,6 +56,12 @@ import {
     isTarotMinorCategory,
     matchesInventoryCategory
 } from './tarotCards.js';
+import {
+    getTarotKingdomJobWeaponProficiency,
+    getTarotKingdomJobProficiencyWeaponLabels,
+    getTarotKingdomWeaponProfile,
+    isTarotKingdomJobProficientWithWeapon
+} from './tarotKingdomWeaponRules.js?v=20260827-job-weapon-v1';
 
 let myInventory = [];
 let myCurrentEquipment = {};
@@ -546,17 +552,17 @@ const ITEM_SPRITE_PRESETS = Object.freeze([
     { idPrefixes: ['metal_black_'], path: './Sprites/wardrobe/metal/metal_black.png', width: 32, height: 48, cols: 10, twoHanded: false },
     { idPrefixes: ['metal_'], path: './Sprites/wardrobe/metal/metal.png', width: 32, height: 32, cols: 10, twoHanded: false },
     { idPrefixes: ['shield_'], path: './Sprites/weapons/melee weapons/shield.png', width: 32, height: 32, cols: 10, twoHanded: false },
-    { idPrefixes: ['sword_big_'], path: './Sprites/weapons/melee weapons/sword_big.png', width: 32, height: 48, cols: 10, twoHanded: true },
-    { idPrefixes: ['sword_'], path: './Sprites/weapons/melee weapons/sword.png', width: 32, height: 32, cols: 7, twoHanded: false },
-    { idPrefixes: ['dagger_'], path: './Sprites/weapons/melee weapons/dagger.png', width: 32, height: 32, cols: 7, twoHanded: false },
-    { idPrefixes: ['axe_big_'], path: './Sprites/weapons/melee weapons/axe_big.png', width: 32, height: 48, cols: 5, twoHanded: true },
-    { idPrefixes: ['axe_'], path: './Sprites/weapons/melee weapons/axe.png', width: 32, height: 32, cols: 10, twoHanded: false },
-    { idPrefixes: ['blunt_'], path: './Sprites/weapons/melee weapons/blunt.png', width: 32, height: 32, cols: 10, twoHanded: false },
-    { idPrefixes: ['polearm_'], path: './Sprites/weapons/melee weapons/polearm.png', width: 32, height: 64, cols: 12, twoHanded: true },
+    { idPrefixes: ['sword_big_'], path: './Sprites/weapons/melee weapons/sword_big.png', width: 32, height: 48, cols: 10, twoHanded: true, weaponType: 'sword_big' },
+    { idPrefixes: ['sword_'], path: './Sprites/weapons/melee weapons/sword.png', width: 32, height: 32, cols: 7, twoHanded: false, weaponType: 'sword' },
+    { idPrefixes: ['dagger_'], path: './Sprites/weapons/melee weapons/dagger.png', width: 32, height: 32, cols: 7, twoHanded: false, weaponType: 'dagger' },
+    { idPrefixes: ['axe_big_'], path: './Sprites/weapons/melee weapons/axe_big.png', width: 32, height: 48, cols: 5, twoHanded: true, weaponType: 'axe_big' },
+    { idPrefixes: ['axe_'], path: './Sprites/weapons/melee weapons/axe.png', width: 32, height: 32, cols: 10, twoHanded: false, weaponType: 'axe' },
+    { idPrefixes: ['blunt_'], path: './Sprites/weapons/melee weapons/blunt.png', width: 32, height: 32, cols: 10, twoHanded: false, weaponType: 'blunt' },
+    { idPrefixes: ['polearm_'], path: './Sprites/weapons/melee weapons/polearm.png', width: 32, height: 64, cols: 12, twoHanded: true, weaponType: 'polearm' },
     { idPrefixes: ['staff_'], path: './Sprites/weapons/magic weapons/staff.png', width: 32, height: 64, cols: 13, twoHanded: false, weaponType: 'staff' },
-    { idPrefixes: ['wand_'], path: './Sprites/weapons/magic weapons/wand.png', width: 32, height: 32, cols: 6, twoHanded: false, weaponType: 'staff' },
-    { idPrefixes: ['gun_big_'], path: './Sprites/weapons/ranged weapons/pistol_big.png', width: 64, height: 32, cols: 5, twoHanded: true },
-    { idPrefixes: ['gun_'], path: './Sprites/weapons/ranged weapons/pistol.png', width: 32, height: 32, cols: 4, twoHanded: false }
+    { idPrefixes: ['wand_'], path: './Sprites/weapons/magic weapons/wand.png', width: 32, height: 32, cols: 6, twoHanded: false, weaponType: 'wand' },
+    { idPrefixes: ['gun_big_'], path: './Sprites/weapons/ranged weapons/pistol_big.png', width: 64, height: 32, cols: 5, twoHanded: true, weaponType: 'gun_big' },
+    { idPrefixes: ['gun_'], path: './Sprites/weapons/ranged weapons/pistol.png', width: 32, height: 32, cols: 4, twoHanded: false, weaponType: 'gun' }
 ]);
 
 function resolveInventorySpritePreset(itemOrData) {
@@ -598,6 +604,53 @@ function isTwoHandedInventoryWeapon(itemOrData) {
         return preset.twoHanded;
     }
     return Number(data?.sprite_w || 0) > 32 || Number(data?.sprite_h || 0) > 32;
+}
+
+function resolveInventoryWeaponProfile(itemOrData) {
+    const data = itemOrData?.customData || itemOrData || {};
+    if (getCanonicalTarotCategory(data.Category) !== 'Weapon') return null;
+    const preset = resolveInventorySpritePreset(itemOrData);
+    return getTarotKingdomWeaponProfile(
+        data.WeaponType || data.weaponType || data.WeaponClass || preset?.weaponType || ''
+    );
+}
+
+function getInventoryWeaponTraitDetail(itemOrData) {
+    const profile = resolveInventoryWeaponProfile(itemOrData);
+    if (!profile) return null;
+    const statText = {
+        sword: '力100%', sword_big: '力100%', dagger: '力65%＋素早さ35%',
+        axe: '力100%', axe_big: '力100%', blunt: '力100%', polearm: '力100%',
+        gun: '力45%＋装備攻撃55%', gun_big: '力40%＋装備攻撃60%',
+        staff: '力20%＋賢さ80%', wand: '力20%＋賢さ80%', unarmed: '力100%'
+    }[profile.weaponType] || '力100%';
+    const signed = (value) => {
+        const numeric = Number(value) || 0;
+        if (numeric === 0) return '±0pt';
+        return `${numeric > 0 ? '+' : ''}${numeric}pt`;
+    };
+    const modifiers = [
+        statText,
+        `威力×${Number(profile.damageRate).toFixed(2)}`,
+        `命中${signed(profile.accuracyPoints)}`
+    ];
+    if (Number(profile.criticalPoints)) modifiers.push(`会心${signed(profile.criticalPoints)}`);
+    if (Number(profile.varianceMin) !== 1 || Number(profile.varianceMax) !== 1) {
+        modifiers.push(`幅${Number(profile.varianceMin).toFixed(2)}〜${Number(profile.varianceMax).toFixed(2)}`);
+    }
+    if (Number(profile.defenseIgnoreRate)) modifiers.push(`防御${Math.round(profile.defenseIgnoreRate * 100)}%無視`);
+    if (Number(profile.poisonChance)) {
+        modifiers.push(`毒${Math.round(profile.poisonChance * 100)}%（3行動・最大HP2%と直接20%の低い方）`);
+    }
+    if (profile.damageKind === 'magic') modifiers.push('魔法ダメージ');
+    if (profile.noAdvance) modifiers.push('攻撃時に前進しない');
+    if (profile.weaponType === 'polearm') modifiers.push('飛行・大型へ弱点');
+    if (profile.weaponType === 'unarmed') modifiers.push('Lvごと+0.4%（最大+20%）', '2ヒット表示');
+    return {
+        profile,
+        formationLabel: profile.formation === 'back' ? '後列' : '前列',
+        modifierText: modifiers.join('・')
+    };
 }
 
 const INVENTORY_GROUPS = {
@@ -1854,6 +1907,21 @@ function renderTarotDeckEffectList(root, deckItemIds) {
     root.replaceChildren(createTarotLoadoutEffectRow(item, selectedItemId, slotIndex));
 }
 
+function getGuardianArcanaNumber(item, itemId = item?.itemId) {
+    const data = item?.customData || {};
+    const matchedNumber = String(itemId || '').match(/(?:major|arcana)[_-]?0*(\d{1,2})/i)?.[1];
+    const number = Number(data.ArcanaNumber ?? data.Number ?? matchedNumber);
+    return Number.isInteger(number) && number >= 0 && number <= 21 ? number : null;
+}
+
+function getCurrentGuardianArcanaNumber() {
+    const declared = Number(myTarotGuardian?.number);
+    if (Number.isInteger(declared) && declared >= 0 && declared <= 21) return declared;
+    const itemId = String(myTarotGuardian?.itemId || '');
+    const item = itemId ? myInventory.find((entry) => entry.itemId === itemId) : null;
+    return item ? getGuardianArcanaNumber(item, itemId) : null;
+}
+
 function renderGuardianArcanaEffectList(root) {
     if (!root) return;
     const itemId = String(myTarotGuardian?.itemId || '');
@@ -1862,10 +1930,9 @@ function renderGuardianArcanaEffectList(root) {
         renderTarotLoadoutEmpty(root, '大アルカナを1枚セットすると、守護パッシブが表示されます。');
         return;
     }
-    const data = item.customData || {};
-    const matchedNumber = itemId.match(/(?:major|arcana)[_-]?0*(\d{1,2})/i)?.[1];
-    const number = Number(data.ArcanaNumber ?? data.Number ?? matchedNumber);
+    const number = getGuardianArcanaNumber(item, itemId);
     const definition = getTarotKingdomGuardianDefinition(number);
+    const job = getTarotKingdomJobWeaponProficiency(number);
     const level = getInventoryCardLevel(itemId);
     const button = document.createElement('button');
     button.type = 'button';
@@ -1887,7 +1954,7 @@ function renderGuardianArcanaEffectList(root) {
     title.textContent = definition?.passiveName || item.name || `大アルカナ ${number}`;
     const meta = document.createElement('small');
     meta.className = 'tarot-guardian-effect-meta';
-    meta.textContent = `守護中 · Lv${level}`;
+    meta.textContent = `ジョブ ${job?.jobName || definition?.passiveName || '未設定'} · 守護中 · Lv${level}`;
 
     const passive = document.createElement('span');
     passive.className = 'tarot-guardian-effect-line is-passive';
@@ -1897,7 +1964,15 @@ function renderGuardianArcanaEffectList(root) {
     passiveText.textContent = definition?.passive || '効果データ未登録';
     passive.append(passiveLabel, passiveText);
 
-    copy.append(kicker, title, meta, passive);
+    const proficiency = document.createElement('span');
+    proficiency.className = 'tarot-guardian-effect-line is-proficiency';
+    const proficiencyLabel = document.createElement('b');
+    proficiencyLabel.textContent = '得意';
+    const proficiencyText = document.createElement('span');
+    proficiencyText.textContent = formatGuardianProficiencyWeapons(number);
+    proficiency.append(proficiencyLabel, proficiencyText);
+
+    copy.append(kicker, title, meta, passive, proficiency);
 
     const chevron = document.createElement('span');
     chevron.className = 'tarot-loadout-effect-chevron';
@@ -1905,6 +1980,14 @@ function renderGuardianArcanaEffectList(root) {
     chevron.textContent = '›';
     button.append(visual, copy, chevron);
     root.replaceChildren(button);
+}
+
+function formatGuardianProficiencyWeapons(number) {
+    if (Number(number) === 14) return 'すべての武器（直接ダメージ×1.10）';
+    const labels = getTarotKingdomJobProficiencyWeaponLabels(number);
+    return labels.length
+        ? `${labels.join('・')}（直接ダメージ×1.10）`
+        : 'なし';
 }
 
 function closeArcanaResonanceCatalog(options = {}) {
@@ -2011,7 +2094,9 @@ function openArcanaResonanceCatalog() {
                 : String(definition.effect || getTarotKingdomFriendlyEffectText(definition));
             row.innerHTML = tabKey === 'Major'
                 ? `<div class="arcana-resonance-title"><strong>${definition.number}. ${definition.passiveName}</strong><span>${stateLabel}</span></div>
+                   <p><b>ジョブ</b>：${getTarotKingdomJobWeaponProficiency(definition.number)?.jobName || definition.passiveName}</p>
                    <p><b>${definition.passiveName}</b>：${definition.passive}</p>
+                   <p><b>得意武器</b>：${formatGuardianProficiencyWeapons(definition.number)}</p>
                    <small>${item ? `現在Lvの数値倍率 ×${scale.toFixed(2)}` : '入手後に守護アルカナへ設定できます'}</small>`
                 : `<div class="arcana-resonance-title"><strong>${getTarotRankLabel({ ArcanaRank: definition.rank })} ${definition.name}</strong><span>${stateLabel}</span></div>
                    <p>${effectText}</p>
@@ -2701,6 +2786,10 @@ function getInventoryCardSubtitle(item, canonicalCategory) {
     if (canonicalCategory === 'Consumable') {
         return getItemEffectSummary(cd.Effect) || String(item?.description || '').trim() || '消耗アイテム';
     }
+    if (canonicalCategory === 'Weapon') {
+        const trait = getInventoryWeaponTraitDetail(item);
+        if (trait) return `${trait.formationLabel} / ${trait.profile.traitLabel}`;
+    }
     const statParts = [];
     if (cd.Power) statParts.push(`攻 ${cd.Power}`);
     if (cd.Defense) statParts.push(`${canonicalCategory === 'Shield' ? '盾' : '防'} ${cd.Defense}`);
@@ -2738,6 +2827,10 @@ function getInventoryCardChips(item, canonicalCategory) {
         if (effectSummary) chips.push(effectSummary);
         return chips.slice(0, 2);
     }
+    if (canonicalCategory === 'Weapon') {
+        const trait = getInventoryWeaponTraitDetail(item);
+        if (trait) chips.push(trait.formationLabel, trait.profile.traitLabel);
+    }
     const statChips = [
         cd.Power ? `攻 ${cd.Power}` : '',
         cd.Defense ? `${canonicalCategory === 'Shield' ? '盾' : '防'} ${cd.Defense}` : '',
@@ -2749,7 +2842,7 @@ function getInventoryCardChips(item, canonicalCategory) {
         cd.MpEfficiency ? `MP効率 ${cd.MpEfficiency}` : '',
         cd.StatusRate ? `状態 ${cd.StatusRate}` : ''
     ].filter(Boolean);
-    return statChips.slice(0, 3);
+    return [...chips, ...statChips].slice(0, 3);
 }
 
 function getInventoryCardFooter(item, canonicalCategory) {
@@ -4535,8 +4628,7 @@ function renderTarotCombatDetailSection(item, itemData) {
     if (canonicalCategory === 'TarotMajor') {
         const position = getShipMajorArcanaPosition(item?.itemId);
         const itemId = String(item?.itemId || '');
-        const matchedNumber = itemId.match(/(?:major|arcana)[_-]?0*(\d{1,2})/i)?.[1];
-        const number = Number(itemData?.ArcanaNumber ?? itemData?.Number ?? matchedNumber);
+        const number = getGuardianArcanaNumber(item, itemId);
         const definition = getTarotKingdomGuardianDefinition(number);
         const level = Math.max(1, Number(cardLevelMap[itemId]?.level) || 1);
         const section = document.createElement('section');
@@ -4554,7 +4646,14 @@ function renderTarotCombatDetailSection(item, itemData) {
 
         const rows = document.createElement('div');
         rows.className = 'item-detail-tarot-rows';
+        appendTarotCombatRow(
+            rows,
+            'ジョブ',
+            getTarotKingdomJobWeaponProficiency(number)?.jobName || definition?.passiveName || '未設定',
+            'weapon'
+        );
         appendTarotCombatRow(rows, '守護', definition?.passive || '効果データ未登録', 'skill');
+        appendTarotCombatRow(rows, '得意武器', formatGuardianProficiencyWeapons(number), 'weapon');
         section.appendChild(rows);
 
         descriptionEl.insertAdjacentElement('afterend', section);
@@ -5016,6 +5115,26 @@ function showItemDetailModal(item) {
     const statsEl = document.getElementById('itemDetailStats');
     statsEl.innerHTML = '';
     if (!isTarotCard) {
+        const weaponTrait = canonicalCategory === 'Weapon' ? getInventoryWeaponTraitDetail(item) : null;
+        if (weaponTrait) {
+            appendItemDetailStat(statsEl, '武器特性', weaponTrait.profile.traitLabel, 'weapon');
+            appendItemDetailStat(statsEl, '配置', weaponTrait.formationLabel, 'weapon');
+            appendItemDetailStat(statsEl, '直接攻撃補正', weaponTrait.modifierText, 'weapon');
+            const guardianNumber = getCurrentGuardianArcanaNumber();
+            const job = getTarotKingdomJobWeaponProficiency(guardianNumber);
+            if (job) {
+                const proficient = isTarotKingdomJobProficientWithWeapon(
+                    guardianNumber,
+                    weaponTrait.profile.weaponType
+                );
+                appendItemDetailStat(
+                    statsEl,
+                    'ジョブ適性',
+                    `${job.jobName}：${proficient ? '得意（直接ダメージ×1.10）' : '通常'}`,
+                    proficient ? 'weapon' : ''
+                );
+            }
+        }
         appendItemDetailStat(statsEl, '攻撃力', cd.Power, 'power');
         appendItemDetailStat(statsEl, canonicalCategory === 'Shield' ? '盾性能' : '防御力', cd.Defense, 'defense');
         appendItemDetailStat(statsEl, 'すばやさ', cd.Agi, 'agility');
