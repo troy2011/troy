@@ -7260,6 +7260,10 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   await expect(page.locator('#guardianArcanaEffectList .tarot-inherited-ability')).toContainText('引継ぎ能力');
   await expect(page.locator('#guardianArcanaEffectList .tarot-inherited-ability select')).toHaveValue('tarot_major_00');
 
+  await expect(page.locator('#guardianArcanaEffectList')).toBeHidden();
+  await page.locator('#toggleGuardianArcanaDetails').click();
+  await expect(page.locator('#guardianArcanaEffectList')).toBeVisible();
+  await expect(page.locator('#toggleGuardianArcanaDetails')).toHaveAttribute('aria-expanded', 'true');
   await page.locator('#guardianArcanaEffectList .tarot-guardian-effect-summary').click();
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('得意武器');
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('杖・ワンド（直接ダメージ×1.10）');
@@ -7736,6 +7740,12 @@ test('tarot cards preview, automatically sort, and open detail before changing d
   });
 
   await expect(page.locator('#meleeDeckGrid')).toHaveAttribute('data-deck-count', '1');
+  await expect(page.locator('#tarotDeckPresetList')).toBeHidden();
+  await page.locator('#toggleTarotDeckPresets').click();
+  await expect(page.locator('#tarotDeckPresetList')).toBeVisible();
+  await expect(page.locator('#toggleTarotDeckPresets')).toHaveAttribute('aria-expanded', 'true');
+  await page.locator('#toggleTarotDeckPresets').click();
+  await expect(page.locator('#tarotDeckPresetList')).toBeHidden();
   const tarotSticky = await page.evaluate(() => ({
     switcher: window.getComputedStyle(document.getElementById('inventoryMobileSwitch')).position,
     deck: window.getComputedStyle(document.querySelector('#tabContentInventory .inventory-section[data-panel="tarot"]')).position
@@ -7752,9 +7762,18 @@ test('tarot cards preview, automatically sort, and open detail before changing d
     });
     window.__tarotDeckSelectionObserver.observe(grid, { childList: true });
   });
+  await expect(page.locator('#meleeDeckEffectList')).toBeHidden();
+  await expect(page.locator('body')).toHaveClass(/tabs-ready/);
+  await page.locator('#tabContentInventory').evaluate((element) => element.scrollIntoView({ block: 'start' }));
+  await page.evaluate(() => {
+    const switcherTop = document.getElementById('inventoryMobileSwitch')?.getBoundingClientRect().top || 0;
+    window.scrollBy({ top: -switcherTop, behavior: 'auto' });
+  });
+  await page.screenshot({ path: 'test-results/inventory-tarot-compact-mobile.png', fullPage: false });
   for (let index = 0; index < 12; index += 1) {
     await deckCard.click();
   }
+  await expect(page.locator('#meleeDeckEffectList')).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.__tarotDeckSelectionMutations)).toBe(0);
   await page.evaluate(() => window.__tarotDeckSelectionObserver?.disconnect());
   const bottomNavLayout = await page.locator('#bottomNav').evaluate((nav) => {
@@ -7763,6 +7782,7 @@ test('tarot cards preview, automatically sort, and open detail before changing d
     return {
       position: style.position,
       visibility: style.visibility,
+      columnCount: style.gridTemplateColumns.split(' ').filter(Boolean).length,
       left: rect.left,
       right: rect.right,
       bottom: rect.bottom,
@@ -7772,6 +7792,7 @@ test('tarot cards preview, automatically sort, and open detail before changing d
   });
   expect(bottomNavLayout.position).toBe('fixed');
   expect(bottomNavLayout.visibility).toBe('visible');
+  expect(bottomNavLayout.columnCount).toBe(6);
   expect(bottomNavLayout.left).toBeGreaterThanOrEqual(0);
   expect(bottomNavLayout.right).toBeLessThanOrEqual(bottomNavLayout.viewportWidth);
   expect(bottomNavLayout.bottom).toBeLessThanOrEqual(bottomNavLayout.viewportHeight);
@@ -8309,6 +8330,13 @@ test('equipment cards open detail before equipping from inventory grid', async (
     hint: 'none',
     inventoryColumns: 5
   });
+  await expect(page.locator('body')).toHaveClass(/tabs-ready/);
+  await page.locator('#tabContentInventory').evaluate((element) => element.scrollIntoView({ block: 'start' }));
+  await page.evaluate(() => {
+    const switcherTop = document.getElementById('inventoryMobileSwitch')?.getBoundingClientRect().top || 0;
+    window.scrollBy({ top: -switcherTop, behavior: 'auto' });
+  });
+  await page.screenshot({ path: 'test-results/inventory-equipment-compact-mobile.png', fullPage: false });
   const weaponCard = page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]');
   await weaponCard.scrollIntoViewIfNeeded();
   const equipmentCardMetrics = await weaponCard.evaluate((cell) => {

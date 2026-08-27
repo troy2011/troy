@@ -1611,12 +1611,81 @@ function normalizeSelectedTarotLoadout(deckItemIds) {
     return selectedTarotLoadoutItemId;
 }
 
+function setTarotDisclosureState(contentId, buttonId, panelId, expanded) {
+    const content = document.getElementById(contentId);
+    const button = document.getElementById(buttonId);
+    const panel = document.getElementById(panelId);
+    const isExpanded = expanded === true;
+    if (content) content.hidden = !isExpanded;
+    if (button) button.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    panel?.classList.toggle('is-details-expanded', isExpanded);
+}
+
+function setTarotDeckEffectExpanded(expanded) {
+    setTarotDisclosureState('meleeDeckEffectList', '', 'meleeDeckPanel', expanded);
+    updateTarotDeckGridSelection(
+        document.getElementById('meleeDeckGrid'),
+        selectedTarotLoadoutItemId
+    );
+}
+
+function syncTarotDeckDisclosures() {
+    const presetList = document.getElementById('tarotDeckPresetList');
+    const presetButton = document.getElementById('toggleTarotDeckPresets');
+    if (presetButton && presetList) {
+        presetButton.setAttribute('aria-expanded', presetList.hidden ? 'false' : 'true');
+    }
+    const effectList = document.getElementById('meleeDeckEffectList');
+    document.getElementById('meleeDeckPanel')?.classList.toggle('is-details-expanded', !effectList?.hidden);
+    updateTarotDeckGridSelection(
+        document.getElementById('meleeDeckGrid'),
+        selectedTarotLoadoutItemId
+    );
+    const guardianEffectList = document.getElementById('guardianArcanaEffectList');
+    setTarotDisclosureState(
+        'guardianArcanaEffectList',
+        'toggleGuardianArcanaDetails',
+        'guardianArcanaPanel',
+        !guardianEffectList?.hidden
+    );
+}
+
+function bindTarotDeckDisclosures() {
+    const presetButton = document.getElementById('toggleTarotDeckPresets');
+    if (presetButton && presetButton.dataset.disclosureBound !== 'true') {
+        presetButton.dataset.disclosureBound = 'true';
+        presetButton.addEventListener('click', () => {
+            const presetList = document.getElementById('tarotDeckPresetList');
+            if (!presetList) return;
+            presetList.hidden = !presetList.hidden;
+            presetButton.setAttribute('aria-expanded', presetList.hidden ? 'false' : 'true');
+            syncInventoryStickyMetrics();
+        });
+    }
+    const guardianButton = document.getElementById('toggleGuardianArcanaDetails');
+    if (guardianButton && guardianButton.dataset.disclosureBound !== 'true') {
+        guardianButton.dataset.disclosureBound = 'true';
+        guardianButton.addEventListener('click', () => {
+            const effectList = document.getElementById('guardianArcanaEffectList');
+            setTarotDisclosureState(
+                'guardianArcanaEffectList',
+                'toggleGuardianArcanaDetails',
+                'guardianArcanaPanel',
+                effectList?.hidden !== false
+            );
+            syncInventoryStickyMetrics();
+        });
+    }
+}
+
 function updateTarotDeckGridSelection(gridEl, selectedItemId) {
     if (!gridEl) return;
+    const detailExpanded = document.getElementById('meleeDeckEffectList')?.hidden === false;
     gridEl.querySelectorAll('.tarot-loadout-card.is-equipped').forEach((cell) => {
         const isSelected = String(cell.dataset.tarotItemId || '') === selectedItemId;
         cell.classList.toggle('is-selected', isSelected);
         cell.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+        cell.setAttribute('aria-expanded', isSelected && detailExpanded ? 'true' : 'false');
     });
 }
 
@@ -1663,15 +1732,20 @@ function renderDeckGrid(gridEl, deckItemIds) {
                 ? `${entry.title}を${replacementCandidate.name || '選択したカード'}と入れ替える`
                 : `${entry.title}の共鳴効果を表示`);
             cell.setAttribute('aria-pressed', itemId === selectedItemId ? 'true' : 'false');
+            cell.setAttribute('aria-expanded', 'false');
             cell.addEventListener('click', () => {
                 if (replacementCandidateItemId) {
                     replaceTarotCardInDeck(window.myPlayFabId || null, itemId, replacementCandidateItemId);
                     return;
                 }
-                if (selectedTarotLoadoutItemId === itemId) return;
+                const effectList = document.getElementById('meleeDeckEffectList');
+                if (selectedTarotLoadoutItemId === itemId) {
+                    if (effectList?.hidden !== false) setTarotDeckEffectExpanded(true);
+                    return;
+                }
                 selectedTarotLoadoutItemId = itemId;
-                updateTarotDeckGridSelection(gridEl, itemId);
-                renderTarotDeckEffectList(document.getElementById('meleeDeckEffectList'), getCommonTarotDeck());
+                renderTarotDeckEffectList(effectList, getCommonTarotDeck());
+                setTarotDeckEffectExpanded(true);
             });
             cell.append(createTarotLoadoutVisual(entry));
             const slotBadge = document.createElement('span');
@@ -1874,6 +1948,11 @@ function createTarotLoadoutEffectRow(item, itemId, slotIndex) {
     preview.className = 'tarot-loadout-effect-row';
     preview.dataset.suit = suitName.toLowerCase();
     preview.dataset.slotIndex = String(slotIndex);
+    const collapseButton = document.createElement('button');
+    collapseButton.type = 'button';
+    collapseButton.className = 'tarot-loadout-effect-collapse';
+    collapseButton.setAttribute('aria-label', '選択中の共鳴効果を閉じる');
+    collapseButton.addEventListener('click', () => setTarotDeckEffectExpanded(false));
     const copy = document.createElement('span');
     copy.className = 'tarot-loadout-effect-copy';
     const kicker = document.createElement('span');
@@ -1914,7 +1993,7 @@ function createTarotLoadoutEffectRow(item, itemId, slotIndex) {
         action.addEventListener('click', run);
         actions.appendChild(action);
     });
-    preview.append(copy, actions);
+    preview.append(collapseButton, copy, actions);
     return preview;
 }
 
@@ -2245,6 +2324,8 @@ function renderTarotDeckPanels() {
     renderShipMajorArcanaGrid(document.getElementById('guardianArcanaGrid'));
     renderTarotDeckEffectList(document.getElementById('meleeDeckEffectList'), getCommonTarotDeck());
     renderGuardianArcanaEffectList(document.getElementById('guardianArcanaEffectList'));
+    bindTarotDeckDisclosures();
+    syncTarotDeckDisclosures();
     const catalogButton = document.getElementById('openArcanaResonanceCatalog');
     if (catalogButton && catalogButton.dataset.catalogBound !== 'true') {
         catalogButton.dataset.catalogBound = 'true';
@@ -2483,12 +2564,17 @@ function renderInventorySellControls(visibleItems = []) {
         renderBlackMarketPanel();
         await loadBlackMarketListings({ force: true });
     });
+    marketButton.classList.add('is-market');
+    marketButton.title = '闇市を開く';
+    marketButton.setAttribute('aria-label', '闇市を開く');
     controls.appendChild(marketButton);
 
     const toggleButton = document.createElement('button');
     toggleButton.type = 'button';
-    toggleButton.className = 'inventory-sell-control-btn';
+    toggleButton.className = 'inventory-sell-control-btn is-select';
     toggleButton.textContent = '選択売却';
+    toggleButton.title = '複数選択して売却';
+    toggleButton.setAttribute('aria-label', '複数選択して売却');
     toggleButton.addEventListener('click', () => {
         setInventorySellSelectionMode(true);
     });

@@ -23,7 +23,7 @@
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
     <title>TROYゴールドアプリ</title>
-<link rel="stylesheet" href="style.css?v=20260827-weapon-grip-v4">
+<link rel="stylesheet" href="style.css?v=20260827-inventory-figma-v1">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
     <link rel="stylesheet" href="tarot-kingdom-summons.css?v=20260826-sealed-summon-v1">
@@ -1056,9 +1056,12 @@
                         <div class="tarot-inventory-heading">
                             <h2>デッキ</h2>
                         </div>
-                        <button id="openArcanaResonanceCatalog" class="tarot-loadout-catalog-button" type="button">効果一覧</button>
+                        <div class="tarot-deck-actions">
+                            <button id="toggleTarotDeckPresets" class="tarot-deck-toolbar-button" type="button" aria-controls="tarotDeckPresetList" aria-expanded="false">デッキ管理</button>
+                            <button id="openArcanaResonanceCatalog" class="tarot-loadout-catalog-button" type="button">効果一覧</button>
+                        </div>
                     </div>
-                    <div id="tarotDeckPresetList" class="tarot-deck-presets" aria-label="保存したデッキ編成"></div>
+                    <div id="tarotDeckPresetList" class="tarot-deck-presets" aria-label="保存したデッキ編成" hidden></div>
                     <div class="tarot-deck-panels">
                         <div class="tarot-deck-panel" id="meleeDeckPanel">
                             <div class="tarot-loadout-header">
@@ -1073,17 +1076,18 @@
                                 <div class="tarot-loadout-role-hint">5枚の札が揃うと役判定されます。</div>
                             </div>
                             <div id="meleeDeckGrid" class="tarot-loadout-grid"></div>
-                            <div id="meleeDeckEffectList" class="tarot-loadout-effect-list" aria-live="polite" aria-label="選択中の共鳴効果"></div>
+                            <div id="meleeDeckEffectList" class="tarot-loadout-effect-list" aria-live="polite" aria-label="選択中の共鳴効果" hidden></div>
                         </div>
                         <div class="tarot-deck-panel" id="guardianArcanaPanel">
                             <div class="tarot-loadout-header">
                                 <div>
-                                    <h3>守護アルカナ</h3>
+                                    <h3>守護</h3>
                                 </div>
+                                <button id="toggleGuardianArcanaDetails" class="tarot-panel-disclosure" type="button" aria-controls="guardianArcanaEffectList" aria-expanded="false">設定</button>
                             </div>
                             <div class="tarot-guardian-loadout">
                                 <div id="guardianArcanaGrid" class="tarot-loadout-grid is-guardian"></div>
-                                <div id="guardianArcanaEffectList" class="tarot-loadout-effect-list is-guardian" aria-live="polite"></div>
+                                <div id="guardianArcanaEffectList" class="tarot-loadout-effect-list is-guardian" aria-live="polite" hidden></div>
                             </div>
                         </div>
                     </div>
@@ -1092,20 +1096,22 @@
                 <div class="content-area inventory-section active" data-panel="items">
                     <div class="section-header">
                         <h2 id="inventoryItemsTitle">装備候補</h2>
-                        <select id="inventorySort" class="sort-select">
-                            <option value="default">標準</option>
-                            <option value="power_desc">攻撃力順</option>
-                            <option value="defense_desc">防御力順</option>
-                        </select>
                     </div>
                     <p id="pointMessage"></p>
 
                     <div class="inventory-browse-tools">
-                        <input id="inventorySearch" class="inventory-search-input" type="search" autocomplete="off" placeholder="持ち物を検索" aria-label="持ち物を検索">
-                        <button id="inventorySearchClear" class="inventory-search-clear" type="button" aria-label="検索を消去" title="検索を消去" hidden>x</button>
+                        <div class="inventory-search-field">
+                            <input id="inventorySearch" class="inventory-search-input" type="search" autocomplete="off" placeholder="持ち物を検索" aria-label="持ち物を検索">
+                            <button id="inventorySearchClear" class="inventory-search-clear" type="button" aria-label="検索を消去" title="検索を消去" hidden>x</button>
+                        </div>
+                        <select id="inventorySort" class="sort-select" aria-label="持ち物の並び順">
+                            <option value="default">標準</option>
+                            <option value="power_desc">攻撃力順</option>
+                            <option value="defense_desc">防御力順</option>
+                        </select>
+                        <div id="inventorySellControls" class="inventory-sell-controls" aria-live="polite"></div>
                     </div>
                     <div id="inventoryListSummary" class="inventory-list-summary" aria-live="polite"></div>
-                    <div id="inventorySellControls" class="inventory-sell-controls" aria-live="polite"></div>
                     <div id="inventorySelectionBar" class="inventory-selection-bar" hidden aria-live="polite"></div>
                     <section id="blackMarketPanel" class="black-market-panel" hidden aria-live="polite"></section>
                     <div id="inventoryTabs"></div>
@@ -1756,7 +1762,7 @@
 "ui": "./js/ui.js?v=20260827-weapon-grip-v4",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js",
-"inventory": "./js/inventory.js?v=20260827-buff-fix-v1",
+"inventory": "./js/inventory.js?v=20260827-inventory-figma-v1",
         "game": "./Game.js?v=20260727-nav-guide1"
       }
     }

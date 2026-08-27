@@ -94,7 +94,7 @@ const MODIFIER_DEFINITIONS = [
   { key: 'criticalUp', label: '会心上昇', group: 'buff', axis: 'critical', direction: 1, iconIndex: 140, description: 'クリティカル率が上昇' },
   { key: 'criticalDown', label: '会心低下', group: 'debuff', axis: 'critical', direction: -1, iconIndex: 230, description: 'クリティカル率が低下' },
   { key: 'regen', label: 'リジェネ', group: 'special', iconIndex: 151, description: '場が流れるたびにHPを回復' },
-  { key: 'hpShield', label: 'シールド', group: 'special', iconIndex: 207, description: '一定量のダメージを肩代わり' },
+  { key: 'hpShield', label: 'シールド', group: 'special', iconIndex: 207, description: '局内で残量が尽きるまでダメージを肩代わり' },
   { key: 'damageBarrier', label: 'ダメージ軽減', group: 'special', iconIndex: 204, description: '受けるダメージを軽減' },
   { key: 'areaGuard', label: '全体防御', group: 'special', iconIndex: 204, description: '次の全体攻撃を軽減' },
   { key: 'guard', label: '防御', group: 'special', iconIndex: 203, description: '次に受けるダメージを軽減' },

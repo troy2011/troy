@@ -6343,7 +6343,7 @@ function normalizeKingdomBattleState(
     const normalized = {};
     Object.entries(source).forEach(([key, effect]) => {
       if (!effect || typeof effect !== 'object') return;
-      normalized[String(key)] = {
+      const normalizedEffect = {
         ...effect,
         key: String(effect.key || key),
         potency: Math.max(0, Number(effect.potency) || 0),
@@ -6353,6 +6353,12 @@ function normalizeKingdomBattleState(
           : Math.max(0, Math.floor(Number(effect.remainingTurns) || 0)),
         sourceIndex: Number.isInteger(Number(effect.sourceIndex)) ? Number(effect.sourceIndex) : null
       };
+      if (String(key) === 'hpShield') {
+        const shield = normalizeKingdomRoundShieldEffect(normalizedEffect);
+        if (shield) normalized.hpShield = shield;
+        return;
+      }
+      normalized[String(key)] = normalizedEffect;
     });
     return normalized;
   };
@@ -6867,6 +6873,25 @@ function getKingdomMajorSummonDuration(event = null) {
   return event?.majorSummon?.id ? KINGDOM_MAJOR_SUMMON_ATTACK_MS : 0;
 }
 
+function normalizeKingdomRoundShieldEffect(effect = null) {
+  if (!effect || typeof effect !== 'object') return null;
+  const shieldHp = Math.max(0, Math.floor(Number(effect.shieldHp ?? effect.value) || 0));
+  if (shieldHp <= 0) return null;
+  effect.key = 'hpShield';
+  effect.shieldHp = shieldHp;
+  effect.remainingTurns = null;
+  effect.expiresOn = 'round';
+  return effect;
+}
+
+function normalizeKingdomRoundShieldBucket(bucket = {}) {
+  if (!bucket?.hpShield) return bucket;
+  const shield = normalizeKingdomRoundShieldEffect(bucket.hpShield);
+  if (shield) bucket.hpShield = shield;
+  else delete bucket.hpShield;
+  return bucket;
+}
+
 function ensureKingdomBattleEffects(state = s) {
   if (!state?.battle) return null;
   if (!state.battle.effects || typeof state.battle.effects !== 'object') {
@@ -6879,12 +6904,14 @@ function ensureKingdomBattleEffects(state = s) {
   }
   if (!state.battle.effects.enemy || typeof state.battle.effects.enemy !== 'object') state.battle.effects.enemy = {};
   if (!state.battle.effects.party || typeof state.battle.effects.party !== 'object') state.battle.effects.party = {};
+  normalizeKingdomRoundShieldBucket(state.battle.effects.enemy);
+  normalizeKingdomRoundShieldBucket(state.battle.effects.party);
   if (!Array.isArray(state.battle.effects.players)) {
     state.battle.effects.players = Array.from({ length: getKingdomPlayerCount(state) }, () => ({}));
   }
   state.battle.effects.players = getKingdomSeatIndexes(state).map((index) => {
     const bucket = state.battle.effects.players[index];
-    return bucket && typeof bucket === 'object' ? bucket : {};
+    return normalizeKingdomRoundShieldBucket(bucket && typeof bucket === 'object' ? bucket : {});
   });
   return state.battle.effects;
 }
@@ -7272,11 +7299,21 @@ function setKingdomBattleEffect(targetType, key, effect = {}, targetIndex = null
     key,
     potency,
     charges,
-    remainingTurns,
+    remainingTurns: key === 'hpShield' ? null : remainingTurns,
     ...(shieldHp == null ? {} : { shieldHp }),
     appliedSeq: Math.max(1, Number(s?.battle?.eventSeq || 0) + 1),
-    expiresOn: String(effect.expiresOn || previous?.expiresOn || (remainingTurns == null ? 'clear' : 'turn'))
+    expiresOn: key === 'hpShield'
+      ? 'round'
+      : String(effect.expiresOn || previous?.expiresOn || (remainingTurns == null ? 'clear' : 'turn'))
   };
+  if (key === 'hpShield') {
+    const shield = normalizeKingdomRoundShieldEffect(bucket[key]);
+    if (!shield) {
+      delete bucket[key];
+      return null;
+    }
+    bucket[key] = shield;
+  }
   return bucket[key];
 }
 
@@ -10979,6 +11016,8 @@ function emitKingdomGuardianPassive(playerIndex, label, results = []) {
 
 function getKingdomGuardianPassiveDisplayName(playerIndex, results = []) {
   if (!(Array.isArray(results) && results.some(Boolean))) return '';
+  const actionLabel = results.find((entry) => entry?.label === 'ダブルアップ')?.label;
+  if (actionLabel) return actionLabel;
   const activeNames = Array.from(new Set(results
     .map((entry) => Number(entry?.guardianNumber))
     .filter(Number.isInteger)
@@ -10987,10 +11026,8 @@ function getKingdomGuardianPassiveDisplayName(playerIndex, results = []) {
   if (activeNames.length > 0) return activeNames.join('・');
   const guardian = getKingdomGuardianArcana(playerIndex);
   const definition = guardian ? getTarotKingdomGuardianDefinition(guardian.number) : null;
-  const actionLabel = results.find((entry) => entry?.label === 'ダブルアップ')?.label;
   return String(
-    actionLabel
-    || definition?.passiveName
+    definition?.passiveName
     || guardian?.passiveName
     || results.find((entry) => String(entry?.label || '').trim())?.label
     || ''

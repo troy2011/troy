@@ -2244,6 +2244,56 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.speedAfterClear.battle.effects.players[0].speedUpUntilChainEnds).toBeUndefined();
   });
 
+  test('HP shield persists through field clears until its remaining HP is consumed', async ({ page }) => {
+    const audit = await page.evaluate(({ combatBySeat }) => {
+      const debug = window.TarotKingdomDebug;
+      debug.battleScenario({
+        rules: { statusEffectsVersion: 2 },
+        turnIndex: 1,
+        leaderIndex: 0,
+        hpBySeat: [100, 100, 100, 100],
+        combatBySeat
+      });
+      debug.battleSetCombatRandom(0);
+      const applied = debug.battleApplyModifier('player-1', 'hpShield', {
+        potency: 20,
+        shieldHp: 20,
+        remainingTurns: 1,
+        expiresOn: 'turn'
+      }).state;
+      const afterFirstClear = debug.battleAdvanceEffectTurn(true).state;
+      const afterSecondClear = debug.battleAdvanceEffectTurn(true).state;
+      const afterHit = debug.battlePass(1);
+
+      debug.battleScenario({
+        rules: { statusEffectsVersion: 2 },
+        turnIndex: 1,
+        leaderIndex: 0,
+        hpBySeat: [100, 100, 100, 100],
+        combatBySeat
+      });
+      const restored = debug.battleSetEffects({
+        enemy: {},
+        party: {},
+        players: [{}, {
+          hpShield: { key: 'hpShield', potency: 10, value: 10, remainingTurns: 1, expiresOn: 'turn' }
+        }, {}, {}]
+      });
+
+      return { applied, afterFirstClear, afterSecondClear, afterHit, restored };
+    }, { combatBySeat: zeroDefenseParty });
+
+    const readShield = (state) => state.battle.effects.players[1].hpShield;
+    expect(readShield(audit.applied)).toMatchObject({ shieldHp: 20, remainingTurns: null, expiresOn: 'round' });
+    expect(readShield(audit.afterFirstClear)).toMatchObject({ shieldHp: 20, remainingTurns: null, expiresOn: 'round' });
+    expect(readShield(audit.afterSecondClear)).toMatchObject({ shieldHp: 20, remainingTurns: null, expiresOn: 'round' });
+    expect(readShield(audit.afterHit)).toBeUndefined();
+    expect(audit.afterHit.battle.events.at(-1).effects).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'hpShield', shieldBefore: 20, shieldAfter: 0 })
+    ]));
+    expect(readShield(audit.restored)).toMatchObject({ shieldHp: 10, remainingTurns: null, expiresOn: 'round' });
+  });
+
   test('Hanged Man v8 covers only critically wounded allies from physical single attacks', async ({ page }) => {
     const audit = await page.evaluate(({ combatBySeat }) => {
       const debug = window.TarotKingdomDebug;
