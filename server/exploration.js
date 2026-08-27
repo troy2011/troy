@@ -29,12 +29,21 @@ const {
     buildTarotKingdomStageList,
     calculateTarotKingdomStandings,
     getTarotKingdomExplorationStage,
+    getTarotKingdomMonsterAbp,
     getTarotKingdomShipStageCap,
     getTarotKingdomStageRewardWeights,
     getTarotKingdomTotalBestChips,
     readTarotKingdomExplorationProgress,
     writeTarotKingdomExplorationProgress
 } = require('./tarotKingdomExplorationStages');
+const {
+    JOB_MASTERY,
+    awardTarotKingdomJobAbp,
+    buildPublicState: buildTarotKingdomJobMasteryPublicState,
+    readTarotKingdomJobMasteryState,
+    withTarotKingdomJobMasteryLock,
+    writeTarotKingdomJobMasteryState
+} = require('./tarotKingdomJobMastery');
 const {
     TAROT_KINGDOM_RAID_BOSSES,
     TAROT_KINGDOM_RAID_COLLECTION,
@@ -2280,6 +2289,185 @@ function initializeExplorationRoutes(app, deps) {
         return requireAuthenticatedPlayFabId(req, res, playFabId);
     }
 
+    async function applyTarotKingdomRoundAbp(activeRef, activeData, roundNo, survivors = []) {
+        const explorationId = String(activeData?.id || '').trim();
+        const stageNo = Math.max(1, Math.min(
+            TAROT_KINGDOM_MAX_STAGE,
+            Math.floor(Number(activeData?.stageNo) || 1)
+        ));
+        const stage = getTarotKingdomExplorationStage(stageNo);
+        const safeRoundNo = Math.max(1, Math.min(4, Math.floor(Number(roundNo) || 1)));
+        const monster = stage?.monsters?.[safeRoundNo - 1] || null;
+        const amount = getTarotKingdomMonsterAbp(stageNo, safeRoundNo, monster?.monsterId);
+        if (!explorationId || !monster || amount <= 0 || Number(activeData?.jobMasteryRulesVersion || 0) < 1) {
+            const error = new Error('この探索はABPの対象ではありません。');
+            error.code = 409;
+            throw error;
+        }
+        const participants = new Set([
+            String(activeData?.playFabId || '').trim(),
+            ...(Array.isArray(activeData?.stageParticipants) ? activeData.stageParticipants : [])
+        ].map((id) => String(id || '').trim()).filter(Boolean));
+        const profiles = activeData?.jobMasteryProfiles && typeof activeData.jobMasteryProfiles === 'object'
+            ? activeData.jobMasteryProfiles
+            : {};
+        const submittedSurvivorIds = Array.from(new Set(
+            (Array.isArray(survivors) ? survivors : [])
+                .filter((entry) => entry && entry.isNpc !== true && entry.isPet !== true && Number(entry.hp) > 0)
+                .map((entry) => String(entry.playFabId || '').trim())
+                .filter((id) => id && participants.has(id))
+        ));
+        const pendingKey = String(safeRoundNo);
+        const beforePendingSnap = await activeRef.get();
+        const currentPendingRounds = beforePendingSnap.exists
+            && beforePendingSnap.data()?.jobMasteryPendingRounds
+            && typeof beforePendingSnap.data().jobMasteryPendingRounds === 'object'
+            ? beforePendingSnap.data().jobMasteryPendingRounds
+            : {};
+        const existingRound = currentPendingRounds[pendingKey]
+            && typeof currentPendingRounds[pendingKey] === 'object'
+            ? currentPendingRounds[pendingKey]
+            : null;
+        if (existingRound?.status === 'completed') {
+            return {
+                roundNo: safeRoundNo,
+                monsterId: monster.monsterId,
+                amount,
+                awards: Array.isArray(existingRound.awards) ? existingRound.awards : []
+            };
+        }
+        const survivorIds = existingRound && Array.isArray(existingRound.survivors)
+            ? existingRound.survivors
+                .map((id) => String(id || '').trim())
+                .filter((id) => id && participants.has(id))
+            : submittedSurvivorIds;
+        await activeRef.set({
+            jobMasteryPendingRounds: {
+                ...currentPendingRounds,
+                [pendingKey]: {
+                    roundNo: safeRoundNo,
+                    monsterId: monster.monsterId,
+                    survivors: survivorIds,
+                    status: 'pending',
+                    updatedAtMs: Date.now()
+                }
+            },
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        const awards = [];
+        for (const participantId of survivorIds) {
+            const guardianItemId = String(profiles?.[participantId]?.guardianItemId || '').trim();
+            if (!guardianItemId) continue;
+            const awardId = `${explorationId}+${safeRoundNo}+${participantId}`;
+            const awarded = await withTarotKingdomJobMasteryLock(participantId, async () => {
+                const state = await readTarotKingdomJobMasteryState(participantId, { promisifyPlayFab, PlayFabServer });
+                const result = awardTarotKingdomJobAbp(state, {
+                    awardId,
+                    itemId: guardianItemId,
+                    amount,
+                    catalogCache,
+                    nowMs: Date.now()
+                });
+                result.state = await writeTarotKingdomJobMasteryState(
+                    participantId,
+                    result.state,
+                    { promisifyPlayFab, PlayFabServer }
+                );
+                return result;
+            });
+            const number = Number(awarded.record?.number);
+            awards.push({
+                playFabId: participantId,
+                itemId: guardianItemId,
+                number,
+                jobName: JOB_MASTERY.getJobName(number),
+                abp: awarded.record?.abp || 0,
+                requiredAbp: awarded.record?.requiredAbp || JOB_MASTERY.getRequiredAbp(number),
+                awarded: awarded.awarded,
+                mastered: awarded.mastered,
+                alreadyAwarded: awarded.alreadyAwarded
+            });
+        }
+        const completedRound = {
+            roundNo: safeRoundNo,
+            monsterId: monster.monsterId,
+            survivors: survivorIds,
+            status: 'completed',
+            awards,
+            updatedAtMs: Date.now()
+        };
+        const latest = await activeRef.get();
+        const latestPending = latest.exists && latest.data()?.jobMasteryPendingRounds
+            && typeof latest.data().jobMasteryPendingRounds === 'object'
+            ? latest.data().jobMasteryPendingRounds
+            : {};
+        await activeRef.set({
+            jobMasteryPendingRounds: { ...latestPending, [pendingKey]: completedRound },
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        return { roundNo: safeRoundNo, monsterId: monster.monsterId, amount, awards };
+    }
+
+    app.post('/api/tarot-kingdom/job-abp/round', async (req, res) => {
+        let playFabId = String(req.body?.playFabId || '').trim();
+        const requestedOwnerPlayFabId = String(req.body?.ownerPlayFabId || '').trim();
+        const roomId = String(req.body?.roomId || '').trim();
+        const explorationId = String(req.body?.explorationId || '').trim().slice(0, 128);
+        const roundNo = Math.floor(Number(req.body?.roundNo));
+        if (!playFabId || !explorationId || !Number.isInteger(roundNo)) {
+            return res.status(400).json({ error: '探索IDと局番号が必要です。' });
+        }
+        playFabId = await requireAuthed(req, res, playFabId);
+        if (!playFabId) return;
+        try {
+            const ownerPlayFabId = requestedOwnerPlayFabId || playFabId;
+            const activeRef = firestore.collection(EXPLORATION_COLLECTION).doc(ownerPlayFabId);
+            const activeSnap = await activeRef.get();
+            const activeData = activeSnap.exists ? activeSnap.data() || {} : null;
+            if (
+                !activeData
+                || String(activeData.id || '') !== explorationId
+                || !['active', 'claiming'].includes(String(activeData.status || ''))
+            ) return res.status(409).json({ error: 'ABP対象の探索情報を確認できません。' });
+            const stageRoomId = String(activeData.stageRoomId || '').trim();
+            if (stageRoomId || roomId || ownerPlayFabId !== playFabId) {
+                if (!stageRoomId || roomId !== stageRoomId) {
+                    return res.status(409).json({ error: 'ABP対象の救難ルームを確認できません。' });
+                }
+                const roomCheck = await readTarotKingdomExplorationRoom(stageRoomId, {
+                    ownerPlayFabId,
+                    explorationId,
+                    actorPlayFabId: playFabId,
+                    requireHost: true,
+                    requireMember: true,
+                    allowDeparture: true,
+                    allowInProgress: true
+                });
+                if (!roomCheck.ok) return res.status(roomCheck.code).json({ error: roomCheck.message });
+            }
+            const result = await applyTarotKingdomRoundAbp(
+                activeRef,
+                activeData,
+                roundNo,
+                req.body?.survivors
+            );
+            const requesterAward = result.awards.find((entry) => entry.playFabId === playFabId) || null;
+            let mastery = null;
+            if (requesterAward) {
+                mastery = buildTarotKingdomJobMasteryPublicState(
+                    await readTarotKingdomJobMasteryState(playFabId, { promisifyPlayFab, PlayFabServer })
+                );
+            }
+            return res.json({ success: true, ...result, mastery });
+        } catch (error) {
+            const code = Number(error?.code) || 500;
+            console.error('[tarot-kingdom/job-abp/round] failed:', error?.errorMessage || error?.message || error);
+            return res.status(code >= 400 && code < 600 ? code : 500).json({
+                error: code === 500 ? 'ABPを確定できませんでした。' : error.message
+            });
+        }
+    });
+
     async function readTarotKingdomExplorationRoom(roomId, options = {}) {
         const normalizedRoomId = String(roomId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
         if (!normalizedRoomId || normalizedRoomId !== String(roomId || '').trim()) {
@@ -2293,13 +2481,14 @@ function initializeExplorationRoutes(app, deps) {
         ]);
         const room = roomSnapshot.exists() ? roomSnapshot.val() : null;
         const openRoom = openSnapshot.exists() ? openSnapshot.val() : null;
-        if (!room || !openRoom || openRoom.kind !== 'exploration-rescue') {
+        const allowClosedIndex = options.allowInProgress === true && !openRoom;
+        if (!room || (!allowClosedIndex && (!openRoom || openRoom.kind !== 'exploration-rescue'))) {
             return { ok: false, code: 409, message: 'この救難信号は受付を終了しています。' };
         }
-        if (
+        if (openRoom && (
             String(openRoom.ownerPlayFabId || '').trim() !== String(options.ownerPlayFabId || '').trim()
             || String(openRoom.explorationId || '').trim() !== String(options.explorationId || '').trim()
-        ) {
+        )) {
             return { ok: false, code: 409, message: '救難信号の探索情報が更新されています。' };
         }
         const now = Date.now();
@@ -2339,7 +2528,7 @@ function initializeExplorationRoutes(app, deps) {
             || Number(state.handNo || 0) > 0
             || state.awaitRoundConfirm === true
             || String(state.phase || '') === 'done';
-        if (inProgress || (options.allowDeparture !== true && departureStatus)) {
+        if ((inProgress && options.allowInProgress !== true) || (options.allowDeparture !== true && departureStatus)) {
             return { ok: false, code: 409, message: 'この救難信号は出航済みです。' };
         }
         const actorPlayFabId = String(options.actorPlayFabId || '').trim();
@@ -3404,6 +3593,9 @@ function initializeExplorationRoutes(app, deps) {
                             supplyUnits: entry.effectiveUnits
                         })),
                         tarotEncounter,
+                        jobMasteryRulesVersion: 1,
+                        jobMasteryProfiles: {},
+                        jobMasteryPendingRounds: {},
                         stageParticipants: [playFabId],
                         stagePartyLockedAtMs: 0,
                         startedAtMs: now,
@@ -3500,6 +3692,7 @@ function initializeExplorationRoutes(app, deps) {
                 }
                 tx.update(activeRef, {
                     stageParticipants: participants,
+                    stageRoomId: roomState.roomId,
                     updatedAt: admin.firestore.FieldValue.serverTimestamp()
                 });
             });
@@ -3548,6 +3741,7 @@ function initializeExplorationRoutes(app, deps) {
                 }
                 tx.update(activeRef, {
                     stageParticipants: roomState.participants,
+                    stageRoomId: roomState.roomId,
                     stagePartyLockedAtMs: locked === false ? 0 : Date.now(),
                     updatedAt: admin.firestore.FieldValue.serverTimestamp()
                 });
@@ -3561,7 +3755,7 @@ function initializeExplorationRoutes(app, deps) {
     });
 
     app.post('/api/exploration/retreat', async (req, res) => {
-        let { playFabId, explorationId } = req.body || {};
+        let { playFabId, explorationId, jobAbpRounds } = req.body || {};
         playFabId = String(playFabId || '').trim();
         explorationId = String(explorationId || '').trim();
         if (!playFabId || !explorationId) {
@@ -3569,6 +3763,21 @@ function initializeExplorationRoutes(app, deps) {
         }
         playFabId = await requireAuthed(req, res, playFabId);
         if (!playFabId) return;
+
+        jobAbpRounds = (Array.isArray(jobAbpRounds) ? jobAbpRounds : [])
+            .slice(0, 4)
+            .map((entry) => ({
+                roundNo: Math.max(1, Math.min(4, Math.floor(Number(entry?.roundNo) || 1))),
+                survivors: (Array.isArray(entry?.survivors) ? entry.survivors : [])
+                    .slice(0, 4)
+                    .map((survivor) => ({
+                        playFabId: String(survivor?.playFabId || '').trim(),
+                        hp: Math.max(0, Math.floor(Number(survivor?.hp) || 0)),
+                        isNpc: false,
+                        isPet: false
+                    }))
+                    .filter((survivor) => survivor.playFabId)
+            }));
 
         const activeRef = firestore.collection(EXPLORATION_COLLECTION).doc(playFabId);
         try {
@@ -3615,6 +3824,12 @@ function initializeExplorationRoutes(app, deps) {
                     refundedSupplies: [],
                     refundedGold: 0
                 });
+            }
+
+            if (Number(retreatData?.jobMasteryRulesVersion || 0) >= 1) {
+                for (const round of jobAbpRounds) {
+                    await applyTarotKingdomRoundAbp(activeRef, retreatData, round.roundNo, round.survivors);
+                }
             }
 
             const refundableSupplies = (Array.isArray(retreatData.consumedConsumables)
@@ -3736,7 +3951,8 @@ function initializeExplorationRoutes(app, deps) {
             explorationId,
             tarotFinisher,
             tarotFinishers,
-            tarotStandings
+            tarotStandings,
+            jobAbpRounds
         } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
         tarotOutcome = String(tarotOutcome || '').trim().toLowerCase();
@@ -3777,6 +3993,20 @@ function initializeExplorationRoutes(app, deps) {
                 petOwnerPlayFabId: String(entry?.petOwnerPlayFabId || '').trim(),
                 petMonsterId: String(entry?.petMonsterId || '').trim(),
                 chips: Math.floor(Number(entry?.chips) || 0)
+            }));
+        jobAbpRounds = (Array.isArray(jobAbpRounds) ? jobAbpRounds : [])
+            .slice(0, 4)
+            .map((entry) => ({
+                roundNo: Math.max(1, Math.min(4, Math.floor(Number(entry?.roundNo) || 1))),
+                survivors: (Array.isArray(entry?.survivors) ? entry.survivors : [])
+                    .slice(0, 4)
+                    .map((survivor) => ({
+                        playFabId: String(survivor?.playFabId || '').trim(),
+                        hp: Math.max(0, Math.floor(Number(survivor?.hp) || 0)),
+                        isNpc: false,
+                        isPet: false
+                    }))
+                    .filter((survivor) => survivor.playFabId)
             }));
         if (tarotOutcome && !['victory', 'defeat'].includes(tarotOutcome)) {
             return res.status(400).json({ error: 'tarotOutcome must be victory or defeat' });
@@ -3863,6 +4093,18 @@ function initializeExplorationRoutes(app, deps) {
             });
 
             if (claimError) return res.status(claimError.code).json(claimError);
+
+            if (
+                playFabId === ownerPlayFabId
+                && Number(activeData?.jobMasteryRulesVersion || 0) >= 1
+                && jobAbpRounds.length > 0
+            ) {
+                for (const round of jobAbpRounds) {
+                    await applyTarotKingdomRoundAbp(activeRef, activeData, round.roundNo, round.survivors);
+                }
+                const refreshedActive = await activeRef.get();
+                if (refreshedActive.exists) activeData = refreshedActive.data() || activeData;
+            }
 
             const stage = getTarotKingdomExplorationStage(activeData.stageNo);
             const destination = stage

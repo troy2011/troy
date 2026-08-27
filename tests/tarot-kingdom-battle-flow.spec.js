@@ -513,7 +513,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     audit.roleDamage.forEach((entry, index) => {
       expect(Math.abs(entry.baseDamage - (baseDamage * audit.multipliers[index]))).toBeLessThanOrEqual(1);
     });
-    expect(audit.published.schema).toBe(35);
+    expect(audit.published.schema).toBe(36);
     expect(audit.published.state.rules.roleChainVersion).toBe(1);
     expect(audit.published.state.trick.roleChain).toEqual({ count: 4, multiplier: 1.75 });
     expect(audit.cleared.trick).toBeNull();
@@ -1111,7 +1111,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       return { currentPayload, currentState, v1State, legacyState, previousState };
     });
 
-    expect(audit.currentPayload.schema).toBe(35);
+    expect(audit.currentPayload.schema).toBe(36);
     expect(audit.currentState.rules.statusEffectsVersion).toBe(2);
     expect(audit.currentState.rules.enemyAbilityVersion).toBe(1);
     expect(audit.currentState.battle.enemy.abilities).toBeTruthy();
@@ -3384,7 +3384,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       };
     });
 
-    expect(audit.currentRules.arcanaLoadoutEffectsVersion).toBe(8);
+    expect(audit.currentRules.arcanaLoadoutEffectsVersion).toBe(9);
     expect(audit.currentEvent).toMatchObject({
       majorAwakened: false,
       awakeningId: ''
@@ -3576,6 +3576,50 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.temperance.battle.effects.players.every((effects) => effects.hpShield?.shieldHp === 15)).toBe(true);
   });
 
+  test('schema 36 combines equipped and inherited Guardian passives but never duplicates the same job', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const run = (inheritedNumber) => {
+        const cup = { id: `mastery-cup-${inheritedNumber}`, kind: 'minor', suit: 'Cup', number: 2 };
+        const pentacle = { id: `mastery-pentacle-${inheritedNumber}`, kind: 'minor', suit: 'Pentacle', number: 2 };
+        debug.battleScenario({
+          withTrick: false,
+          turnIndex: 0,
+          hpBySeat: [50, 100, 100, 100],
+          handsBySeat: [[cup, pentacle, { id: `mastery-reserve-${inheritedNumber}`, kind: 'minor', suit: 'Sword', number: 9 }]],
+          charactersBySeat: [{
+            version: 5,
+            guardianArcana: { itemId: 'tarot_major_02', number: 2, cardLevel: 10, passiveId: 'guardian-v9-2' },
+            inheritedGuardianAbility: {
+              itemId: `tarot_major_${String(inheritedNumber).padStart(2, '0')}`,
+              number: inheritedNumber,
+              cardLevel: 10,
+              passiveId: `guardian-v9-${inheritedNumber}`
+            }
+          }],
+          rules: { arcanaLoadoutEffectsVersion: 9 }
+        });
+        const played = debug.battlePlayCards(0, [cup.id, pentacle.id], { resolve: false });
+        return (played.state.battle.events.at(-1)?.effects || [])
+          .filter((effect) => effect.source === 'guardian-passive')
+          .map((effect) => ({
+            guardianNumber: effect.guardianNumber,
+            guardianSource: effect.guardianSource,
+            statusKey: effect.statusKey || '',
+            amount: effect.amount || 0
+          }));
+      };
+      return { distinct: run(3), duplicate: run(2) };
+    });
+
+    expect(audit.distinct).toEqual(expect.arrayContaining([
+      expect.objectContaining({ guardianNumber: 2, guardianSource: 'equipped' }),
+      expect.objectContaining({ guardianNumber: 3, guardianSource: 'inherited', statusKey: 'hpShield' })
+    ]));
+    expect(audit.duplicate.filter((effect) => effect.guardianNumber === 2)).toHaveLength(1);
+    expect(audit.duplicate.some((effect) => effect.guardianSource === 'inherited')).toBe(false);
+  });
+
   test('guardian v5 Temperance copies the previous confirmed minor result without equipping rank 14', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
@@ -3612,7 +3656,10 @@ test.describe('Tarot Kingdom character battle flow', () => {
         copiedAttemptReason: copiedAttempt.reason,
         copiedEventEffects: copied.battle.events.at(-1).effects,
         copiedEffects: copied.battle.events.at(-1).effects.filter((effect) => effect.source === 'guardian-14-copy'),
-        mimicUsed: copied.battle.guardianState?.[0]?.v3?.used?.mimic === true
+        mimicUsed: (
+          copied.battle.guardianState?.[0]?.sources?.equipped?.v3?.used?.mimic
+          ?? copied.battle.guardianState?.[0]?.v3?.used?.mimic
+        ) === true
       };
     });
 
@@ -4127,7 +4174,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.rush.battle.outcome).toBeNull();
     expect(audit.rush.players[0].hand).toHaveLength(1);
     expect(audit.rush.rules.enemyDefeatMode).toBe('hand-empty');
-    expect(audit.hostPublicState.schema).toBe(35);
+    expect(audit.hostPublicState.schema).toBe(36);
     expect(audit.hostPublicState.state.rules.enemyDefeatMode).toBe('hand-empty');
     expect(audit.legacy.rules.enemyDefeatMode).toBe('hand-empty');
   });
@@ -5292,7 +5339,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
       effectiveUnits: 2,
       healRate: 0.2
     });
-    expect(audit.publicState.schema).toBe(35);
+    expect(audit.publicState.schema).toBe(36);
     expect(audit.publicState.state.stage.monsters).toHaveLength(4);
     expect(audit.atmosphereTone).toBe('sunlit-coral');
     expect(audit.atmosphereCss).toContain('74, 159, 196');
@@ -5321,7 +5368,7 @@ test.describe('Tarot Kingdom character battle flow', () => {
     expect(audit.settlementStart.players).toHaveLength(3);
     expect(audit.settled.roundSettlement.rows).toHaveLength(2);
     expect(audit.settled.dealer).toBe(0);
-    expect(audit.published.schema).toBe(35);
+    expect(audit.published.schema).toBe(36);
     expect(audit.published.state.rules.playerCount).toBe(3);
     expect(audit.published.state.players).toHaveLength(3);
   });
@@ -6104,11 +6151,11 @@ test.describe('Tarot Kingdom character battle flow', () => {
         current
       };
     });
-    expect(audit.currentPublic.schema).toBe(35);
+    expect(audit.currentPublic.schema).toBe(36);
     expect(audit.currentPublic.state.rules).toMatchObject({
       playerCount: 4,
       combatEffectsVersion: 1,
-      arcanaLoadoutEffectsVersion: 8,
+      arcanaLoadoutEffectsVersion: 9,
       roleChainVersion: 1,
       summonVersion: 1,
       graveTimingVersion: 1,

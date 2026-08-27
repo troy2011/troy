@@ -63,6 +63,7 @@ const npcSnapshotRoutes = require('./server/routes/npcSnapshotRoutes');
 const territoryRoutes = require('./server/routes/territoryRoutes');
 const weeklyContestRoutes = require('./server/routes/weeklyContestRoutes');
 const { initializeCardRoutes } = require('./server/routes/cardRoutes');
+const jobMastery = require('./server/tarotKingdomJobMastery');
 const { initializeProphecyScheduler } = require('./server/tarotProphecyScheduler');
 const { WeeklyContestScheduler } = require('./server/weeklyContestScheduler');
 
@@ -2029,6 +2030,14 @@ async function main() {
 
     // 探索
     exploration.initializeExplorationRoutes(app, deps);
+
+    // 大アルカナ・ジョブマスター
+    jobMastery.initializeTarotKingdomJobMasteryRoutes(app, {
+        promisifyPlayFab,
+        PlayFabServer,
+        requireAuthenticatedPlayFabId,
+        catalogCache
+    });
 
     // 島ルート
     island.initializeIslandRoutes(app, deps);

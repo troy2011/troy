@@ -457,6 +457,28 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
     })).toBe(3);
   });
 
+  test('inherited Guardian numbers participate in Gambler and Scholar R rules', async () => {
+    const effects = await loadEffectsModule();
+    const players = Array.from({ length: 4 }, () => ({ hp: 100, maxHp: 100 }));
+    expect(effects.resolveTarotKingdomR(4, {
+      actorIndex: 0,
+      guardianNumber: 4,
+      guardianNumbers: [4, 11],
+      reverseBefore: true,
+      rHistory: { turnNo: 3 },
+      players,
+      arcanaLoadoutEffectsVersion: 9
+    })).toBe(10);
+    expect(effects.resolveTarotKingdomR(10, {
+      actorIndex: 0,
+      guardianNumber: 4,
+      guardianNumbers: [4, 10],
+      rHistory: { rank10: { floorByPlayer: [7, 0, 0, 0] } },
+      players,
+      arcanaLoadoutEffectsVersion: 9
+    }, () => 0)).toBe(7);
+  });
+
   test('guardian catalog exposes the revised practical conditions', async () => {
     const effects = await loadEffectsModule();
     const expected = new Map([
@@ -657,6 +679,25 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
     );
     expect(resolved.steps.filter((step) => step.gamblerReplay === true).every((step) => step.apCost === 0)).toBe(true);
 
+    const inherited = effects.resolveTarotKingdomResonance({
+      ...weaponContext(['unarmed'], cards[0]),
+      arcanaLoadoutEffectsVersion: 9,
+      arcanaPoints: 2,
+      playType: 'set',
+      cards,
+      character: {
+        combat: { power: 100, intelligence: 100, weaponType: 'unarmed', weaponTypes: ['unarmed'] },
+        guardianArcana: { number: 4, cardLevel: 1 },
+        inheritedGuardianAbility: { number: 10, cardLevel: 25 },
+        tarotDeck: [
+          { slot: 0, suit: 'Wand', rank: 6, cardLevel: 1 },
+          { slot: 1, suit: 'Sword', rank: 6, cardLevel: 1 }
+        ]
+      }
+    });
+    expect(inherited).toMatchObject({ gamblerDoubleUp: true });
+    expect(inherited.candidates.every((candidate) => candidate.gamblerReplay === true)).toBe(true);
+
     const threeCards = effects.resolveTarotKingdomResonance({
       ...weaponContext(['unarmed'], cards[0]),
       arcanaLoadoutEffectsVersion: 7,
@@ -688,6 +729,21 @@ test.describe('Tarot Kingdom equipped-card resonance', () => {
     };
     expect(effects.resolveTarotKingdomResonance({ ...context, reverseBefore: false })).toBeNull();
     expect(effects.resolveTarotKingdomResonance({ ...context, reverseBefore: true })).toMatchObject({
+      apBefore: 1,
+      apAfter: 0,
+      apSpent: 1,
+      candidates: [{ apCost: 1 }]
+    });
+    const inheritedContext = {
+      ...context,
+      arcanaLoadoutEffectsVersion: 9,
+      character: {
+        ...context.character,
+        guardianArcana: { number: 4, cardLevel: 1 },
+        inheritedGuardianAbility: { number: 11, cardLevel: 25 }
+      }
+    };
+    expect(effects.resolveTarotKingdomResonance({ ...inheritedContext, reverseBefore: true })).toMatchObject({
       apBefore: 1,
       apAfter: 0,
       apSpent: 1,

@@ -230,6 +230,10 @@ export function resolveTarotKingdomR(rank, context = {}, random = Math.random) {
   }
   const history = normalizeTarotKingdomRHistory(context.rHistory, context.players?.length || 4);
   const actorIndex = Math.max(0, Math.floor(finite(context.actorIndex)));
+  const guardianNumbers = new Set([
+    ...(Array.isArray(context.guardianNumbers) ? context.guardianNumbers : []),
+    context.guardianNumber
+  ].map(Number).filter(Number.isInteger));
   let value = 0;
   if (rank === 1) {
     const kinds = new Set((context.handBefore || []).map((card) => (
@@ -245,7 +249,7 @@ export function resolveTarotKingdomR(rank, context = {}, random = Math.random) {
   else if (rank === 8) value = history.playerChanges;
   else if (rank === 9) value = finite(history.dodgeActions[actorIndex]);
   else if (rank === 10) {
-    const floor = context.guardianNumber === 10 ? finite(history.rank10.floorByPlayer[actorIndex]) : 0;
+    const floor = guardianNumbers.has(10) ? finite(history.rank10.floorByPlayer[actorIndex]) : 0;
     const roll = Math.floor(clamp(random(), 0, 0.999999) * (11 - floor)) + floor;
     value = roll;
   } else if (rank === 11) value = Math.max(history.statusApplyActions, history.statusCleanseActions);
@@ -253,7 +257,7 @@ export function resolveTarotKingdomR(rank, context = {}, random = Math.random) {
   else if (rank === 13) value = finite(history.graveCardsByClear[actorIndex]);
   else if (rank === 14) value = Math.abs(finite(context.fieldCard?.number) - finite(context.sourceCard?.number));
   value = clamp(Math.floor(value));
-  if (context.guardianNumber === 11 && context.reverseBefore === true) {
+  if (guardianNumbers.has(11) && context.reverseBefore === true) {
     return Number(context.arcanaLoadoutEffectsVersion || 0) >= 5 ? 10 : 10 - value;
   }
   return value;
@@ -350,10 +354,12 @@ function pentacleSteps(entry, context, r) {
 export function expandTarotKingdomV3Resonance(entry, context = {}) {
   const sourceCard = context.resonanceMatch?.submittedCard || context.cards?.[0] || null;
   const guardianNumber = Number(context.character?.guardianArcana?.number);
+  const inheritedGuardianNumber = Number(context.character?.inheritedGuardianAbility?.number);
   const r = resolveTarotKingdomR(entry.rank, {
     ...context,
     sourceCard,
-    guardianNumber: Number.isInteger(guardianNumber) ? guardianNumber : null
+    guardianNumber: Number.isInteger(guardianNumber) ? guardianNumber : null,
+    guardianNumbers: [guardianNumber, inheritedGuardianNumber].filter(Number.isInteger)
   }, context.random || Math.random);
   const resolved = { ...context, sourceCard, resolvedR: r };
   let steps = [];

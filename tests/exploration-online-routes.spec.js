@@ -46,9 +46,14 @@ function createOnlineRouteHarness() {
   const activeData = {
     id: explorationId,
     status: 'active',
+    playFabId: hostPlayFabId,
+    stageNo: 1,
     tarotEncounter: encounter,
     stageParticipants: [hostPlayFabId, 'PF_DEPARTED'],
-    stagePartyLockedAtMs: 0
+    stagePartyLockedAtMs: 0,
+    jobMasteryRulesVersion: 1,
+    jobMasteryProfiles: {},
+    jobMasteryPendingRounds: {}
   };
   const room = {
     meta: { hostUid: hostPlayFabId },
@@ -75,7 +80,40 @@ function createOnlineRouteHarness() {
     ownerPlayFabId: hostPlayFabId,
     explorationId
   };
-  const activeRef = { id: hostPlayFabId };
+  const routeState = { openRoomVisible: true };
+  const activeRef = {
+    id: hostPlayFabId,
+    async get() {
+      return createSnapshot(activeData);
+    },
+    async set(updates) {
+      Object.assign(activeData, updates);
+    }
+  };
+  const playFabData = {};
+  const PlayFabServer = {
+    GetUserReadOnlyData() {},
+    UpdateUserReadOnlyData() {}
+  };
+  const promisifyPlayFab = async (operation, request) => {
+    if (operation === PlayFabServer.GetUserReadOnlyData) {
+      const values = playFabData[request.PlayFabId] || {};
+      return {
+        Data: Object.fromEntries((request.Keys || []).map((key) => [
+          key,
+          { Value: values[key] || '' }
+        ]))
+      };
+    }
+    if (operation === PlayFabServer.UpdateUserReadOnlyData) {
+      playFabData[request.PlayFabId] = {
+        ...(playFabData[request.PlayFabId] || {}),
+        ...(request.Data || {})
+      };
+      return {};
+    }
+    throw new Error('Unexpected PlayFab operation');
+  };
   const firestore = {
     collection() {
       return { doc: () => activeRef };
@@ -98,7 +136,9 @@ function createOnlineRouteHarness() {
           return {
             async once() {
               if (path === `tarotKingdomRooms/${roomId}`) return createRealtimeSnapshot(room);
-              if (path === `tarotKingdomMatch/openRooms/${roomId}`) return createRealtimeSnapshot(openRoom);
+              if (path === `tarotKingdomMatch/openRooms/${roomId}`) {
+                return createRealtimeSnapshot(routeState.openRoomVisible ? openRoom : null);
+              }
               return createRealtimeSnapshot(null);
             }
           };
@@ -118,6 +158,8 @@ function createOnlineRouteHarness() {
   }, {
     firestore,
     admin,
+    PlayFabServer,
+    promisifyPlayFab,
     requireAuthenticatedPlayFabId: async (_req, _res, playFabId) => playFabId
   });
 
@@ -128,7 +170,9 @@ function createOnlineRouteHarness() {
     hostPlayFabId,
     room,
     roomId,
+    routeState,
     explorationId,
+    playFabData,
     now
   };
 }
@@ -190,4 +234,85 @@ test('online stage party sync drops departed players and blocks a late join afte
     harness.guestPlayFabId
   ]);
   expect(harness.activeData.stagePartyLockedAtMs).toBe(0);
+});
+
+test('round ABP is server-defined, excludes KO actors, and freezes the first survivor list', async () => {
+  const harness = createOnlineRouteHarness();
+  harness.activeData.stageParticipants = [harness.hostPlayFabId, harness.guestPlayFabId];
+  harness.activeData.jobMasteryProfiles = {
+    [harness.hostPlayFabId]: { guardianItemId: 'arcana-4' },
+    [harness.guestPlayFabId]: { guardianItemId: 'arcana-3' }
+  };
+  const handler = harness.handlers.get('/api/tarot-kingdom/job-abp/round');
+  const firstResponse = createResponse();
+
+  await handler({
+    body: {
+      playFabId: harness.hostPlayFabId,
+      explorationId: harness.explorationId,
+      roundNo: 4,
+      survivors: [
+        { playFabId: harness.hostPlayFabId, hp: 12 },
+        { playFabId: harness.guestPlayFabId, hp: 0 },
+        { playFabId: 'NPC-1', hp: 99, isNpc: true }
+      ]
+    }
+  }, firstResponse);
+
+  expect(firstResponse.statusCode).toBe(200);
+  expect(firstResponse.payload.amount).toBe(2);
+  expect(firstResponse.payload.awards).toEqual([
+    expect.objectContaining({
+      playFabId: harness.hostPlayFabId,
+      jobName: 'ナイト',
+      awarded: 2,
+      abp: 2
+    })
+  ]);
+  expect(harness.activeData.jobMasteryPendingRounds['4']).toEqual(expect.objectContaining({
+    survivors: [harness.hostPlayFabId],
+    status: 'completed'
+  }));
+
+  const replayResponse = createResponse();
+  await handler({
+    body: {
+      playFabId: harness.hostPlayFabId,
+      explorationId: harness.explorationId,
+      roundNo: 4,
+      survivors: [
+        { playFabId: harness.hostPlayFabId, hp: 12 },
+        { playFabId: harness.guestPlayFabId, hp: 12 }
+      ]
+    }
+  }, replayResponse);
+
+  expect(replayResponse.statusCode).toBe(200);
+  expect(replayResponse.payload.awards).toHaveLength(1);
+  expect(harness.playFabData[harness.guestPlayFabId]).toBeUndefined();
+});
+
+test('the current online host can confirm ABP after departure closes the rescue listing', async () => {
+  const harness = createOnlineRouteHarness();
+  harness.activeData.stageParticipants = [harness.hostPlayFabId];
+  harness.activeData.stageRoomId = harness.roomId;
+  harness.activeData.jobMasteryProfiles = {
+    [harness.hostPlayFabId]: { guardianItemId: 'arcana-0' }
+  };
+  harness.routeState.openRoomVisible = false;
+  const response = createResponse();
+
+  await harness.handlers.get('/api/tarot-kingdom/job-abp/round')({
+    body: {
+      playFabId: harness.hostPlayFabId,
+      ownerPlayFabId: harness.hostPlayFabId,
+      roomId: harness.roomId,
+      explorationId: harness.explorationId,
+      roundNo: 1,
+      survivors: [{ playFabId: harness.hostPlayFabId, hp: 1 }]
+    }
+  }, response);
+
+  expect(response.statusCode).toBe(200);
+  expect(response.payload).toEqual(expect.objectContaining({ amount: 1, monsterId: 'ismartal-vol3-monster-04' }));
 });

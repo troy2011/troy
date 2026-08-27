@@ -19,8 +19,10 @@ import {
     getBlackMarketListings as requestBlackMarketListings,
     createBlackMarketListing as requestCreateBlackMarketListing,
     cancelBlackMarketListing as requestCancelBlackMarketListing,
-    buyBlackMarketListing as requestBuyBlackMarketListing
-} from './playfabClient.js?v=20260826-tarot-deck-presets-v1';
+    buyBlackMarketListing as requestBuyBlackMarketListing,
+    getTarotJobMastery as requestTarotJobMastery,
+    selectTarotJobMasteryAbility as requestSelectTarotJobMasteryAbility
+} from './playfabClient.js?v=20260827-job-mastery-v1';
 import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites, resolveSpritePathByAvatarColor } from './avatar.js';
 import * as Player from './player.js';
 import {
@@ -40,7 +42,7 @@ import {
     getTarotKingdomCardLevelScale,
     getTarotKingdomCurrentLevelEffectText,
     getTarotKingdomFriendlyEffectText
-} from './tarotKingdomEffects.js?v=20260827-guardian-cover-v1';
+} from './tarotKingdomEffects.js?v=20260827-job-mastery-v1';
 import {
     buildTarotCardMeta,
     compareTarotItems,
@@ -105,6 +107,8 @@ let blackMarketReturnFocusElement = null;
 let equipmentEnhancementKeydownHandler = null;
 // カードレベルデータ: { [itemId]: { level, maxLevel, quantity, duplicateCount, duplicateCost, canLevelUp } }
 let cardLevelMap = {};
+let tarotJobMastery = null;
+let tarotJobMasteryFetchPromise = null;
 let cardLevelsFetchPromise = null;
 let lastCardLevelsFetchAt = 0;
 const INVENTORY_FETCH_COOLDOWN_MS = 1500;
@@ -239,6 +243,26 @@ async function loadCardLevels(options = {}) {
             if (cardLevelsFetchPromise === request) cardLevelsFetchPromise = null;
         }
     );
+    return request;
+}
+
+async function loadTarotJobMastery(options = {}) {
+    const playFabId = String(window.myPlayFabId || '').trim();
+    if (!playFabId) return tarotJobMastery;
+    if (tarotJobMasteryFetchPromise && options.force !== true) return tarotJobMasteryFetchPromise;
+    const request = requestTarotJobMastery(playFabId, { isSilent: true })
+        .then((response) => {
+            tarotJobMastery = response?.mastery || null;
+            return tarotJobMastery;
+        })
+        .catch((error) => {
+            console.warn('[inventory] job mastery load failed:', error);
+            return tarotJobMastery;
+        })
+        .finally(() => {
+            if (tarotJobMasteryFetchPromise === request) tarotJobMasteryFetchPromise = null;
+        });
+    tarotJobMasteryFetchPromise = request;
     return request;
 }
 
@@ -1922,12 +1946,68 @@ function getCurrentGuardianArcanaNumber() {
     return item ? getGuardianArcanaNumber(item, itemId) : null;
 }
 
+function createTarotInheritedAbilityControl() {
+    const wrap = document.createElement('section');
+    wrap.className = 'tarot-inherited-ability';
+    const heading = document.createElement('div');
+    heading.className = 'tarot-inherited-ability-heading';
+    const title = document.createElement('strong');
+    title.textContent = '引継ぎ能力';
+    const note = document.createElement('small');
+    note.textContent = 'MASTER済みから1つ選択';
+    heading.append(title, note);
+    const select = document.createElement('select');
+    select.className = 'tarot-inherited-ability-select';
+    select.setAttribute('aria-label', '引き継ぐジョブ能力');
+    const empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = '設定しない';
+    select.appendChild(empty);
+    const masteredJobs = (Array.isArray(tarotJobMastery?.jobs) ? tarotJobMastery.jobs : [])
+        .filter((job) => job?.mastered === true && job?.itemId)
+        .sort((left, right) => Number(left.number) - Number(right.number));
+    masteredJobs.forEach((job) => {
+        const option = document.createElement('option');
+        option.value = String(job.itemId);
+        option.textContent = `${job.name} MASTER ★`;
+        select.appendChild(option);
+    });
+    select.value = String(tarotJobMastery?.selectedInheritedItemId || '');
+    select.disabled = !tarotJobMastery || masteredJobs.length === 0;
+    const description = document.createElement('p');
+    description.textContent = masteredJobs.length > 0
+        ? '固有パッシブだけを引き継ぎます。得意武器と大アルカナ覚醒は対象外です。'
+        : '大アルカナをMASTERすると、装備を外しても固有能力を1つ引き継げます。';
+    select.addEventListener('change', async () => {
+        const playFabId = String(window.myPlayFabId || '').trim();
+        if (!playFabId) return;
+        select.disabled = true;
+        try {
+            const response = await requestSelectTarotJobMasteryAbility(
+                playFabId,
+                select.value,
+                { isSilent: true, throwOnError: true }
+            );
+            tarotJobMastery = response?.mastery || tarotJobMastery;
+            renderTarotDeckPanels();
+            showInventoryFeedback(select.value ? '引継ぎ能力を設定しました。' : '引継ぎ能力を解除しました。');
+        } catch (error) {
+            showInventoryFeedback(error?.message || '引継ぎ能力を変更できませんでした。', true);
+            await loadTarotJobMastery({ force: true });
+            renderTarotDeckPanels();
+        }
+    });
+    wrap.append(heading, select, description);
+    return wrap;
+}
+
 function renderGuardianArcanaEffectList(root) {
     if (!root) return;
     const itemId = String(myTarotGuardian?.itemId || '');
     const item = itemId ? myInventory.find((entry) => entry.itemId === itemId) : null;
     if (!item) {
         renderTarotLoadoutEmpty(root, '大アルカナを1枚セットすると、守護パッシブが表示されます。');
+        root.appendChild(createTarotInheritedAbilityControl());
         return;
     }
     const number = getGuardianArcanaNumber(item, itemId);
@@ -1979,7 +2059,7 @@ function renderGuardianArcanaEffectList(root) {
     chevron.setAttribute('aria-hidden', 'true');
     chevron.textContent = '›';
     button.append(visual, copy, chevron);
-    root.replaceChildren(button);
+    root.replaceChildren(button, createTarotInheritedAbilityControl());
 }
 
 function formatGuardianProficiencyWeapons(number) {
@@ -4262,7 +4342,10 @@ export function switchInventoryGroup(group, options = {}) {
         renderTarotDeckPanels();
     }
     if (group === 'Tarot' || group === 'All') {
-        loadCardLevels().then(requestPassiveInventoryGridRefresh);
+        Promise.all([loadCardLevels(), loadTarotJobMastery()]).then(() => {
+            requestPassiveInventoryGridRefresh();
+            renderTarotDeckPanels();
+        });
     }
 }
 
@@ -4654,6 +4737,31 @@ function renderTarotCombatDetailSection(item, itemData) {
         );
         appendTarotCombatRow(rows, '守護', definition?.passive || '効果データ未登録', 'skill');
         appendTarotCombatRow(rows, '得意武器', formatGuardianProficiencyWeapons(number), 'weapon');
+        const masteryJob = (Array.isArray(tarotJobMastery?.jobs) ? tarotJobMastery.jobs : [])
+            .find((entry) => Number(entry?.number) === Number(number)) || null;
+        if (masteryJob) {
+            const requiredAbp = Math.max(1, Number(masteryJob.requiredAbp) || 1);
+            const currentAbp = Math.max(0, Math.min(requiredAbp, Number(masteryJob.abp) || 0));
+            appendTarotCombatRow(
+                rows,
+                'ABP',
+                masteryJob.mastered ? 'MASTER ★' : `${currentAbp}/${requiredAbp}`,
+                masteryJob.mastered ? 'master' : 'stat'
+            );
+            const masteryGauge = document.createElement('div');
+            masteryGauge.className = `item-detail-abp-gauge${masteryJob.mastered ? ' is-master' : ''}`;
+            masteryGauge.setAttribute('role', 'progressbar');
+            masteryGauge.setAttribute('aria-label', `${masteryJob.name || 'ジョブ'} ABP`);
+            masteryGauge.setAttribute('aria-valuemin', '0');
+            masteryGauge.setAttribute('aria-valuemax', String(requiredAbp));
+            masteryGauge.setAttribute('aria-valuenow', String(currentAbp));
+            const masteryFill = document.createElement('span');
+            masteryFill.style.width = `${Math.round(currentAbp * 100 / requiredAbp)}%`;
+            masteryGauge.appendChild(masteryFill);
+            rows.appendChild(masteryGauge);
+        } else {
+            appendTarotCombatRow(rows, 'ABP', '読込中', 'stat');
+        }
         section.appendChild(rows);
 
         descriptionEl.insertAdjacentElement('afterend', section);

@@ -169,12 +169,48 @@ export function getPlayerCompatibility(playFabId, targetPlayFabId, options) {
 }
 
 export function getTarotKingdomCombatProfiles(playFabId, targetPlayFabIds, options = {}) {
-    const { roomId = '', ...requestOptions } = options || {};
+    const {
+        roomId = '', explorationId = '', ownerPlayFabId = '', ...requestOptions
+    } = options || {};
     return callApiWithLoader(
         '/api/tarot-kingdom/combat-profiles',
-        { playFabId, targetPlayFabIds, roomId: String(roomId || '').trim() },
+        {
+            playFabId,
+            targetPlayFabIds,
+            roomId: String(roomId || '').trim(),
+            explorationId: String(explorationId || '').trim(),
+            ownerPlayFabId: String(ownerPlayFabId || '').trim()
+        },
         requestOptions
     );
+}
+
+export function getTarotJobMastery(playFabId, options) {
+    return callApiWithLoader('/api/tarot-job-mastery', { playFabId }, options);
+}
+
+export function selectTarotJobMasteryAbility(playFabId, itemId, options) {
+    return callApiWithLoader('/api/tarot-job-mastery/select', {
+        playFabId,
+        itemId: String(itemId || '').trim() || null
+    }, options);
+}
+
+export function awardTarotKingdomRoundAbp(playFabId, explorationId, roundNo, survivors, options) {
+    const { ownerPlayFabId = '', roomId = '', ...requestOptions } = options || {};
+    return callApiWithLoader('/api/tarot-kingdom/job-abp/round', {
+        playFabId,
+        ownerPlayFabId: String(ownerPlayFabId || '').trim(),
+        roomId: String(roomId || '').trim(),
+        explorationId: String(explorationId || '').trim(),
+        roundNo: Math.max(1, Math.min(4, Math.floor(Number(roundNo) || 1))),
+        survivors: (Array.isArray(survivors) ? survivors : []).map((entry) => ({
+            playFabId: String(entry?.playFabId || '').trim(),
+            hp: Math.max(0, Math.floor(Number(entry?.hp) || 0)),
+            isNpc: entry?.isNpc === true,
+            isPet: entry?.isPet === true
+        }))
+    }, requestOptions);
 }
 
 export function getTarotKingdomPetState(playFabId, options) {
@@ -886,10 +922,12 @@ export function getExplorationEncounter(playFabId, options) {
 }
 
 export function retreatExploration(playFabId, explorationId, options) {
-    return callApiWithLoader('/api/exploration/retreat', {
+    const body = {
         playFabId,
         explorationId: String(explorationId || '').trim()
-    }, options);
+    };
+    if (Array.isArray(options?.jobAbpRounds)) body.jobAbpRounds = options.jobAbpRounds;
+    return callApiWithLoader('/api/exploration/retreat', body, options);
 }
 
 export function claimExploration(playFabId, options) {
@@ -917,6 +955,9 @@ export function claimExploration(playFabId, options) {
     }
     if (Array.isArray(options?.tarotStandings)) {
         body.tarotStandings = options.tarotStandings;
+    }
+    if (Array.isArray(options?.jobAbpRounds)) {
+        body.jobAbpRounds = options.jobAbpRounds;
     }
     return callApiWithLoader('/api/exploration/claim', body, options);
 }

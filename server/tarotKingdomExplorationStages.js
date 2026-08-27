@@ -7,6 +7,18 @@ const TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION = 4;
 const TAROT_KINGDOM_MAX_STAGE = 10;
 const TAROT_KINGDOM_STAGE_BEST_CHIPS_MAX = 999999;
 const TAROT_KINGDOM_TOTAL_BEST_CHIPS_STAT = 'troy_tarot_kingdom_chip_total';
+const TAROT_KINGDOM_MONSTER_ABP_BY_STAGE = Object.freeze([
+    Object.freeze([1, 1, 1, 2]),
+    Object.freeze([4, 2, 2, 3]),
+    Object.freeze([5, 3, 3, 4]),
+    Object.freeze([4, 4, 5, 6]),
+    Object.freeze([5, 6, 6, 8]),
+    Object.freeze([7, 7, 8, 10]),
+    Object.freeze([9, 15, 11, 13]),
+    Object.freeze([12, 20, 14, 16]),
+    Object.freeze([16, 18, 20, 24]),
+    Object.freeze([24, 28, 32, 40])
+]);
 
 const MONSTER_BY_ID = new Map(
     PIXEL_MONSTERS_ROSTER.map((monster) => [String(monster?.id || '').trim(), monster])
@@ -184,6 +196,7 @@ const TAROT_KINGDOM_EXPLORATION_STAGES = Object.freeze(STAGE_ROWS.map((row, stag
                 monsterId,
                 monsterName: String(monster.name || monsterId),
                 archetype,
+                abp: TAROT_KINGDOM_MONSTER_ABP_BY_STAGE[stageIndex][roundIndex],
                 weaponTags: Object.freeze(TAROT_KINGDOM_WEAPON_RULES.getMonsterTags(monsterId)),
                 threatLevel: stageIndex * 4 + roundIndex + 1,
                 isBoss: false,
@@ -206,6 +219,15 @@ const TAROT_KINGDOM_EXPLORATION_STAGES = Object.freeze(STAGE_ROWS.map((row, stag
 function getTarotKingdomExplorationStage(stageNo) {
     const safeStageNo = clampInteger(stageNo, 1, TAROT_KINGDOM_EXPLORATION_STAGES.length, 0);
     return TAROT_KINGDOM_EXPLORATION_STAGES[safeStageNo - 1] || null;
+}
+
+function getTarotKingdomMonsterAbp(stageNo, roundNo, monsterId = '') {
+    const stage = getTarotKingdomExplorationStage(stageNo);
+    const safeRoundNo = clampInteger(roundNo, 1, 4, 0);
+    const monster = stage?.monsters?.[safeRoundNo - 1] || null;
+    const normalizedMonsterId = String(monsterId || '').trim();
+    if (!monster || (normalizedMonsterId && normalizedMonsterId !== monster.monsterId)) return 0;
+    return Math.max(0, Math.floor(Number(monster.abp) || 0));
 }
 
 function getTarotKingdomShipStageCap(shipStage) {
@@ -493,6 +515,7 @@ module.exports = {
     TAROT_KINGDOM_EXPLORATION_STAGES,
     TAROT_KINGDOM_STAGE_ENCOUNTER_VERSION,
     TAROT_KINGDOM_TOTAL_BEST_CHIPS_STAT,
+    TAROT_KINGDOM_MONSTER_ABP_BY_STAGE,
     STAGE_REWARD_WEIGHTS,
     applyTarotKingdomStageClear,
     applyTarotKingdomStageBestChips,
@@ -501,6 +524,7 @@ module.exports = {
     buildTarotKingdomStageList,
     calculateTarotKingdomStandings,
     getTarotKingdomExplorationStage,
+    getTarotKingdomMonsterAbp,
     getTarotKingdomShipStageCap,
     getTarotKingdomStageRewardWeights,
     getTarotKingdomTotalBestChips,

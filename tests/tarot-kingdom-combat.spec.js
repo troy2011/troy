@@ -587,6 +587,7 @@ test.describe('Tarot Kingdom combat normalization', () => {
       itemSource: { axe_2: { itemId: 'axe_2' } },
       tarotDeck: [],
       guardianArcana: null,
+      inheritedGuardianAbility: null,
       combat: {
         maxHp: 1,
         power: 15,

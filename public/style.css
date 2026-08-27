@@ -31609,6 +31609,34 @@ body[data-sea-tone] .home-hero-card {
     text-shadow: 0 1px 0 #000;
 }
 
+#itemDetailModal .item-detail-tarot-row.is-master .item-detail-tarot-row-value {
+    color: #ead7ff;
+    text-shadow: 0 0 6px rgba(182, 137, 255, 0.52), 0 1px 0 #000;
+}
+
+#itemDetailModal .item-detail-abp-gauge {
+    width: min(100%, 220px);
+    height: 8px;
+    border: 1px solid rgba(244, 220, 151, 0.48);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.58);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.72);
+    overflow: hidden;
+}
+
+#itemDetailModal .item-detail-abp-gauge > span {
+    display: block;
+    width: var(--abp-progress, 0%);
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #98661d, #f5d36c 72%, #fff1ac);
+    box-shadow: 0 0 5px rgba(255, 219, 110, 0.52);
+}
+
+#itemDetailModal .item-detail-abp-gauge.is-master > span {
+    background: linear-gradient(90deg, #8f6adb, #d9c0ff 70%, #fff1ac);
+}
+
 #itemDetailModal .item-detail-stat-row,
 #itemDetailModal .item-detail-empty {
     min-height: 38px;
@@ -33896,6 +33924,54 @@ body[data-sea-tone] .home-hero-card {
     margin: 0;
 }
 
+#tabContentInventory .tarot-inherited-ability {
+    display: grid;
+    gap: 6px;
+    margin-top: 9px;
+    padding: 9px;
+    border: 1px solid rgba(188, 158, 230, 0.38);
+    border-radius: 6px;
+    color: #f4ecff;
+    background: linear-gradient(135deg, rgba(58, 37, 78, 0.78), rgba(8, 10, 18, 0.88));
+}
+
+#tabContentInventory .tarot-inherited-ability-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+#tabContentInventory .tarot-inherited-ability-heading strong {
+    color: #e2c9ff;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+}
+
+#tabContentInventory .tarot-inherited-ability-heading small {
+    color: #cfc3dc;
+    font-size: 9px;
+}
+
+#tabContentInventory .tarot-inherited-ability select {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 34px;
+    padding: 5px 8px;
+    border: 1px solid rgba(226, 201, 255, 0.5);
+    border-radius: 5px;
+    color: #fff;
+    background: #171020;
+    font: inherit;
+}
+
+#tabContentInventory .tarot-inherited-ability p {
+    margin: 0;
+    color: #cfc3dc;
+    font-size: 10px;
+    line-height: 1.45;
+}
+
 #tabContentInventory .tarot-guardian-effect-summary {
     --guardian-accent: #e7e4db;
     --guardian-glow: rgba(231, 228, 219, 0.24);
@@ -34729,6 +34805,18 @@ body[data-sea-tone] .home-hero-card {
     display: grid;
     min-width: 0;
     gap: 3px;
+}
+
+#tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-player-jobs {
+    min-width: 0;
+    overflow: hidden;
+    color: #e9d5ff;
+    font-size: 7px;
+    font-weight: 850;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-shadow: 1px 1px 0 #000;
 }
 
 #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-player-header {

@@ -35,6 +35,10 @@ async function withCombatProfilesApi(callback, options = {}) {
     }
   };
   const dbReadPaths = [];
+  const firestoreAdmin = () => options.adminFirestore || {};
+  firestoreAdmin.FieldValue = {
+    serverTimestamp: () => ({ serverTimestamp: true })
+  };
 
   require.cache[adminPath] = {
     id: adminPath,
@@ -65,7 +69,7 @@ async function withCombatProfilesApi(callback, options = {}) {
         };
         }
       }),
-      firestore: () => ({})
+      firestore: firestoreAdmin
     }
   };
   require.cache[playfabPath] = {
@@ -128,6 +132,12 @@ async function withCombatProfilesApi(callback, options = {}) {
       Category: 'TarotMajor',
       FriendlyId: 'arcana-1',
       ArcanaNumber: 1
+    },
+    'arcana-0': {
+      DisplayName: '愚者',
+      Category: 'TarotMajor',
+      FriendlyId: 'arcana-0',
+      ArcanaNumber: 0
     }
   };
   const promisifyPlayFab = async (fn, body = {}) => {
@@ -181,6 +191,9 @@ async function withCombatProfilesApi(callback, options = {}) {
           TarotDeckV2: { Value: '["secret-card"]' },
           ...(options.petState ? {
             TarotKingdomPetState: { Value: JSON.stringify(options.petState) }
+          } : {}),
+          ...(options.jobMasteryState ? {
+            TarotKingdomJobMasteryState: { Value: JSON.stringify(options.jobMasteryState) }
           } : {})
         }
       };
@@ -387,6 +400,102 @@ test('combat profile API authenticates the requester and returns sanitized melee
     expect(dbReadPaths.every((refPath) => !refPath.endsWith('/room-test'))).toBe(true);
     expect(dbReadPaths.some((refPath) => refPath.endsWith('/state'))).toBe(false);
   });
+});
+
+test('combat profile includes the selected MASTER ability at its current card level', async () => {
+  await withCombatProfilesApi(async ({ handler }) => {
+    const result = await invoke(handler, {
+      playFabId: 'PF_REQUESTER',
+      targetPlayFabIds: ['PF_REQUESTER']
+    });
+    expect(result.statusCode).toBe(200);
+    expect(result.payload.characters[0].inheritedGuardianAbility).toMatchObject({
+      itemId: 'arcana-0',
+      number: 0,
+      cardLevel: 1
+    });
+  }, {
+    jobMasteryState: {
+      version: 1,
+      selectedInheritedItemId: 'arcana-0',
+      records: {
+        'arcana-0': { itemId: 'arcana-0', number: 0, abp: 500, requiredAbp: 500, masteredAtMs: 1000 }
+      },
+      awardHistory: []
+    },
+    inventoryItems: [
+      { StackId: 'stack-sword', Id: 'weapon_sword_01' },
+      { StackId: 'stack-armor', Id: 'armor_coat_01' },
+      { StackId: 'stack-charm', Id: 'charm_01' },
+      { StackId: 'stack-cup-a', Id: 'minor-cup-1' },
+      { StackId: 'stack-major-1', Id: 'tarot_major_01' },
+      { StackId: 'stack-major-0', Id: 'arcana-0' }
+    ]
+  });
+});
+
+test('a migrated online host freezes mastery profiles against the original owner exploration', async () => {
+  const exploration = {
+    id: 'exp-host-migration',
+    status: 'active',
+    jobMasteryRulesVersion: 1,
+    stageRoomId: 'room-migrated',
+    stageParticipants: ['PF_REQUESTER', 'PF_OWNER'],
+    jobMasteryProfiles: {}
+  };
+  const explorationRef = { id: 'PF_OWNER' };
+  const adminFirestore = {
+    collection(name) {
+      expect(name).toBe('player_explorations');
+      return {
+        doc(playFabId) {
+          expect(playFabId).toBe('PF_OWNER');
+          return explorationRef;
+        }
+      };
+    },
+    async runTransaction(callback) {
+      return callback({
+        async get(ref) {
+          expect(ref).toBe(explorationRef);
+          return { exists: true, data: () => exploration };
+        },
+        set(ref, updates) {
+          expect(ref).toBe(explorationRef);
+          Object.assign(exploration, updates);
+        }
+      });
+    }
+  };
+  const now = Date.now();
+  const roomData = {
+    meta: {
+      hostUid: 'PF_REQUESTER',
+      seatByUid: { PF_REQUESTER: 0, PF_OWNER: 1 },
+      seatOwners: {
+        0: { uid: 'PF_REQUESTER', updatedAt: now },
+        1: { uid: 'PF_OWNER', updatedAt: now }
+      }
+    },
+    presence: {
+      PF_REQUESTER: { uid: 'PF_REQUESTER', seat: 0, updatedAt: now },
+      PF_OWNER: { uid: 'PF_OWNER', seat: 1, updatedAt: now }
+    }
+  };
+
+  await withCombatProfilesApi(async ({ handler }) => {
+    const result = await invoke(handler, {
+      playFabId: 'PF_REQUESTER',
+      ownerPlayFabId: 'PF_OWNER',
+      explorationId: exploration.id,
+      roomId: 'room-migrated',
+      targetPlayFabIds: ['PF_REQUESTER', 'PF_OWNER']
+    });
+
+    expect(result.statusCode).toBe(200);
+    expect(Object.keys(exploration.jobMasteryProfiles).sort()).toEqual(['PF_OWNER', 'PF_REQUESTER']);
+    expect(exploration.jobMasteryProfiles.PF_REQUESTER.guardianItemId).toBeTruthy();
+  }, { adminFirestore, roomData });
 });
 
 test('combat profile snapshots preserve ordered duplicate weapon slots and formation', async () => {
@@ -1012,7 +1121,11 @@ test('combat profile API keeps timed-out work in-flight and bounds the queue', a
 test('playfab client exposes Tarot Kingdom combat profile and pet wrappers', () => {
   const source = fs.readFileSync(path.join(__dirname, '../public/js/playfabClient.js'), 'utf8');
   expect(source).toContain('export function getTarotKingdomCombatProfiles(playFabId, targetPlayFabIds, options = {})');
-  expect(source).toContain("{ playFabId, targetPlayFabIds, roomId: String(roomId || '').trim() }");
+  expect(source).toContain("explorationId: String(explorationId || '').trim()");
+  expect(source).toContain("ownerPlayFabId: String(ownerPlayFabId || '').trim()");
+  expect(source).toContain('export function getTarotJobMastery(playFabId, options)');
+  expect(source).toContain('export function selectTarotJobMasteryAbility(playFabId, itemId, options)');
+  expect(source).toContain('export function awardTarotKingdomRoundAbp(playFabId, explorationId, roundNo, survivors, options)');
   expect(source).toContain('export function getTarotKingdomPetState(playFabId, options)');
   expect(source).toContain('export function chooseTarotKingdomPet(playFabId, offerId, accept, options)');
   expect(source).toContain('body.tarotFinisher = {');

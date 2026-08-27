@@ -40,6 +40,11 @@ const {
     buildTarotKingdomMinorLoadout
 } = require('../tarotKingdomArcanaLoadout');
 const TAROT_KINGDOM_WEAPON_RULES = require('../../public/js/tarotKingdomWeaponRules.shared.js');
+const {
+    TAROT_KINGDOM_JOB_MASTERY_DATA_KEY,
+    buildInheritedGuardian,
+    normalizeTarotKingdomJobMasteryState
+} = require('../tarotKingdomJobMastery');
 
 // ----------------------------------------------------
 // ★ v42: モジュールレベル変数の定義
@@ -227,6 +232,11 @@ function buildTarotKingdomCombatCharacter(profile = {}, cardLevels = {}) {
             _catalogCache || {},
             cardLevels
         ),
+        inheritedGuardianAbility: buildInheritedGuardian(
+            profile?.jobMasteryState,
+            _catalogCache || {},
+            cardLevels
+        ),
         combat: {
             maxHp: Math.max(1, Math.floor(statNumber('MaxHP', statNumber('HP', 1)))),
             power: Math.max(0, Math.floor(statNumber('ちから', 0) + equipmentNumber('Power'))),
@@ -299,7 +309,8 @@ async function getPlayerFullProfile(playFabId, options = {}) {
             MELEE_DECK_DATA_KEY,
             SHIP_DECK_DATA_KEY,
             TAROT_GUARDIAN_DATA_KEY,
-            TAROT_KINGDOM_PET_DATA_KEY
+            TAROT_KINGDOM_PET_DATA_KEY,
+            TAROT_KINGDOM_JOB_MASTERY_DATA_KEY
         ]
         : [...avatarEquipmentKeys, 'lineUserId', TAROT_DECK_DATA_KEY, MELEE_DECK_DATA_KEY, SHIP_DECK_DATA_KEY];
     const equipmentPromise = _promisifyPlayFab(_PlayFabServer.GetUserReadOnlyData, {
@@ -354,6 +365,7 @@ async function getPlayerFullProfile(playFabId, options = {}) {
     let tarotDeckIds = [];
     let guardianArcanaItemId = null;
     let currentPet = null;
+    let jobMasteryState = normalizeTarotKingdomJobMasteryState(null);
     if (equipmentResult.Data) {
         const resolveEquippedValue = (rawValue) => {
             const parsed = parseStoredEquipmentValue(rawValue);
@@ -431,6 +443,9 @@ async function getPlayerFullProfile(playFabId, options = {}) {
                     equipmentResult.Data[TAROT_KINGDOM_PET_DATA_KEY]?.Value
                 ).currentPet
             );
+            jobMasteryState = normalizeTarotKingdomJobMasteryState(
+                equipmentResult.Data[TAROT_KINGDOM_JOB_MASTERY_DATA_KEY]?.Value
+            );
         }
     }
 
@@ -496,6 +511,7 @@ async function getPlayerFullProfile(playFabId, options = {}) {
         equipmentStats: equipmentStats,
         tarotDeckIds,
         guardianArcanaItemId,
+        jobMasteryState,
         currentPet,
         avatar: avatar,
         level: stats.Level
@@ -661,10 +677,12 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const playFabId = String(body.playFabId || '').trim();
         const requesterPlayFabId = String(body.requesterPlayFabId || '').trim();
         const roomId = String(body.roomId || '').trim();
+        const explorationId = String(body.explorationId || '').trim().slice(0, 128);
         if (playFabId && requesterPlayFabId && playFabId !== requesterPlayFabId) {
             return res.status(400).json({ error: '依頼者のプレイヤーIDが一致しません。' });
         }
         const requestedBy = requesterPlayFabId || playFabId;
+        const ownerPlayFabId = String(body.ownerPlayFabId || requestedBy || '').trim();
         if (!requestedBy) {
             return res.status(400).json({ error: 'playFabId is required' });
         }
@@ -847,6 +865,72 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                 && normalizedTargetIds[0] === authenticatedPlayFabId
                 ? currentPets[0].currentPet
                 : null;
+            if (explorationId) {
+                const explorationOwnerId = ownerPlayFabId || authenticatedPlayFabId;
+                if (explorationOwnerId !== authenticatedPlayFabId && !roomId) {
+                    return res.status(403).json({ error: '探索プロフィールは探索の部屋主だけが固定できます。' });
+                }
+                const explorationRef = admin.firestore().collection('player_explorations').doc(explorationOwnerId);
+                const requestedMasteryProfiles = {};
+                characters.forEach((character) => {
+                    const targetId = String(character?.playFabId || '').trim();
+                    if (!targetId) return;
+                    requestedMasteryProfiles[targetId] = {
+                        guardianItemId: String(character?.guardianArcana?.itemId || '').trim() || null,
+                        guardianNumber: Number.isInteger(Number(character?.guardianArcana?.number))
+                            ? Number(character.guardianArcana.number)
+                            : null,
+                        lockedAtMs: Date.now()
+                    };
+                });
+                let explorationConflict = false;
+                await admin.firestore().runTransaction(async (transaction) => {
+                    const explorationSnap = await transaction.get(explorationRef);
+                    const exploration = explorationSnap.exists ? explorationSnap.data() || {} : null;
+                    const explorationParticipants = Array.isArray(exploration?.stageParticipants)
+                        ? exploration.stageParticipants.map((id) => String(id || '').trim()).filter(Boolean)
+                        : [];
+                    const requestedParticipantSet = new Set(normalizedTargetIds);
+                    const onlineExplorationMismatch = !!roomId && (
+                        String(exploration?.stageRoomId || '').trim() !== roomId
+                        || explorationParticipants.length !== normalizedTargetIds.length
+                        || explorationParticipants.some((id) => !requestedParticipantSet.has(id))
+                    );
+                    if (
+                        !exploration
+                        || String(exploration.id || '') !== explorationId
+                        || String(exploration.status || '') !== 'active'
+                        || Number(exploration.jobMasteryRulesVersion || 0) < 1
+                        || onlineExplorationMismatch
+                    ) {
+                        explorationConflict = true;
+                        return;
+                    }
+                    const currentProfiles = exploration.jobMasteryProfiles
+                        && typeof exploration.jobMasteryProfiles === 'object'
+                        ? exploration.jobMasteryProfiles
+                        : {};
+                    const masteryProfiles = { ...currentProfiles };
+                    Object.entries(requestedMasteryProfiles).forEach(([targetId, profile]) => {
+                        if (!Object.prototype.hasOwnProperty.call(masteryProfiles, targetId)) {
+                            masteryProfiles[targetId] = profile;
+                        }
+                    });
+                    const stageParticipants = Array.from(new Set([
+                        ...(Array.isArray(exploration.stageParticipants) ? exploration.stageParticipants : []),
+                        ...normalizedTargetIds
+                    ].map((id) => String(id || '').trim()).filter(Boolean)));
+                    transaction.set(explorationRef, {
+                        jobMasteryProfiles: masteryProfiles,
+                        jobMasteryProfileLockedAtMs: Number(exploration.jobMasteryProfileLockedAtMs) || Date.now(),
+                        stageParticipants,
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                });
+                if (explorationConflict) {
+                    return res.status(409).json({ error: 'ABP対象の探索情報を確認できません。' });
+                }
+            }
             return res.json({ success: true, characters, currentPets, currentPet });
         } catch (error) {
             if (error?.code === TAROT_KINGDOM_PROFILE_TIMEOUT_CODE) {

@@ -32,7 +32,7 @@ import {
     getShipsInView as fetchShipsInView,
     getShipAsset as fetchShipAsset,
     getShipPosition as fetchShipPosition
-} from './playfabClient.js?v=20260827-guardian-cover-v1';
+} from './playfabClient.js?v=20260827-job-mastery-v1';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { bindModalClose } from './modalClose.js';
 import { createRequestId } from './api.js';
@@ -2642,7 +2642,8 @@ export async function claimOnlineExplorationReward(playFabId, ownerPlayFabId, ki
                 explorationId,
                 tarotFinisher: kingdomResult.finisher,
                 tarotFinishers: kingdomResult.finishers,
-                tarotStandings: kingdomResult.standings
+                tarotStandings: kingdomResult.standings,
+                jobAbpRounds: kingdomResult.jobAbpRounds
             });
             await handleExplorationClaimResult(claimData, safePlayFabId, { kingdomResult });
             return claimData;
@@ -2710,7 +2711,8 @@ async function recoverConflictedExploration(playFabId, destinationId, options = 
             explorationId: sequenceResult.kingdomResult?.explorationId,
             tarotFinisher: sequenceResult.kingdomResult?.finisher,
             tarotFinishers: sequenceResult.kingdomResult?.finishers,
-            tarotStandings: sequenceResult.kingdomResult?.standings
+            tarotStandings: sequenceResult.kingdomResult?.standings,
+            jobAbpRounds: sequenceResult.kingdomResult?.jobAbpRounds
         });
         if (claimData?.petOffer) await showTarotKingdomPetOffer(claimData.petOffer, playFabId);
         handleExplorationClaimResult(claimData, playFabId, sequenceResult);
@@ -3070,6 +3072,7 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
         const ownerPlayFabId = String(window.myPlayFabId || window.myPlayFabLoginInfo?.playFabId || '').trim();
         const kingdomResult = await window.launchTarotKingdomExplorationBattle({
             explorationId,
+            ownerPlayFabId,
             destinationId: String(resolvedDestinationId || ''),
             destinationName,
             monsterId: kingdomMonster.id,
@@ -3320,7 +3323,10 @@ async function completeExplorationRetreat(playFabId, sequenceResult) {
     const retreatData = await requestRetreatExploration(
         playFabId,
         sequenceResult.explorationId,
-        { throwOnError: true }
+        {
+            throwOnError: true,
+            jobAbpRounds: sequenceResult.kingdomResult?.jobAbpRounds
+        }
     );
     renderExplorationPanel(retreatData, playFabId);
     showRpgMessage('探索から撤退しました。');
@@ -3668,7 +3674,8 @@ async function startExploration(playFabId, destinationId, payment = {}, triggerB
                 explorationId: sequenceResult.kingdomResult?.explorationId,
                 tarotFinisher: sequenceResult.kingdomResult?.finisher,
                 tarotFinishers: sequenceResult.kingdomResult?.finishers,
-                tarotStandings: sequenceResult.kingdomResult?.standings
+                tarotStandings: sequenceResult.kingdomResult?.standings,
+                jobAbpRounds: sequenceResult.kingdomResult?.jobAbpRounds
             });
             if (claimData?.petOffer) await showTarotKingdomPetOffer(claimData.petOffer, playFabId);
             await handleExplorationClaimResult(claimData, playFabId, sequenceResult);
@@ -3728,7 +3735,8 @@ async function claimExploration(playFabId, active = null) {
                 explorationId: sequenceResult.kingdomResult?.explorationId,
                 tarotFinisher: sequenceResult.kingdomResult?.finisher,
                 tarotFinishers: sequenceResult.kingdomResult?.finishers,
-                tarotStandings: sequenceResult.kingdomResult?.standings
+                tarotStandings: sequenceResult.kingdomResult?.standings,
+                jobAbpRounds: sequenceResult.kingdomResult?.jobAbpRounds
             });
             if (claimData?.petOffer) await showTarotKingdomPetOffer(claimData.petOffer, playFabId);
             await handleExplorationClaimResult(claimData, playFabId, sequenceResult);

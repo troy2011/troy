@@ -7,7 +7,7 @@ import {
     getTarotKingdomResonanceGrowthText,
     getTarotKingdomFriendlyRangeText,
     getTarotKingdomFriendlyEffectText
-} from './tarotKingdomEffectsV3.js?v=20260815-balance-v7';
+} from './tarotKingdomEffectsV3.js?v=20260827-job-mastery-v1';
 import { TAROT_KINGDOM_STATUS_ICON_INDEX } from './tarotKingdomStatuses.js?v=20260812-status-v2';
 
 export { TAROT_KINGDOM_STATUS_ICON_INDEX };
@@ -1422,28 +1422,36 @@ export function resolveTarotKingdomResonance(context = {}) {
     if (!candidates.length) return null;
     const effectsVersion = getTarotKingdomEffectsVersion(context);
     const apEnabled = effectsVersion >= 6;
-    const guardianNumber = Number(
-        normalizeTarotKingdomGuardian(context.character?.guardianArcana)?.number
-        ?? context.guardianNumber
-    );
-    const guardianCardLevel = Math.max(1, Math.min(25, Math.floor(finiteNumber(
-        normalizeTarotKingdomGuardian(context.character?.guardianArcana)?.cardLevel,
-        1
-    ))));
-    const guardianLevelValue = (start, end) => (
-        finiteNumber(start, 0) + ((finiteNumber(end, 0) - finiteNumber(start, 0)) * ((guardianCardLevel - 1) / 24))
-    );
+    const equippedGuardian = normalizeTarotKingdomGuardian(context.character?.guardianArcana);
+    const inheritedGuardian = effectsVersion >= 9
+        ? normalizeTarotKingdomGuardian(context.character?.inheritedGuardianAbility)
+        : null;
+    const guardians = [equippedGuardian, inheritedGuardian].filter((guardian, index, list) => (
+        guardian
+        && list.findIndex((entry) => Number(entry?.number) === Number(guardian.number)) === index
+    ));
+    const guardianFor = (number) => guardians.find((guardian) => Number(guardian?.number) === Number(number)) || null;
+    const guardianLevelValue = (number, start, end) => {
+        const guardianCardLevel = Math.max(1, Math.min(25, Math.floor(finiteNumber(
+            guardianFor(number)?.cardLevel,
+            1
+        ))));
+        return finiteNumber(start, 0)
+            + ((finiteNumber(end, 0) - finiteNumber(start, 0)) * ((guardianCardLevel - 1) / 24));
+    };
+    const hasScholar = !!guardianFor(11);
+    const hasGambler = !!guardianFor(10);
     const scholarNumericMultiplier = effectsVersion >= 7
-        && guardianNumber === 11
+        && hasScholar
         && context.reverseBefore === true
-        ? guardianLevelValue(1.5, 3)
+        ? guardianLevelValue(11, 1.5, 3)
         : 1;
-    const gamblerReplayMultiplier = effectsVersion >= 7 && guardianNumber === 10
-        ? guardianLevelValue(1, 2.5)
+    const gamblerReplayMultiplier = effectsVersion >= 7 && hasGambler
+        ? guardianLevelValue(10, 1, 2.5)
         : 1;
     const submittedCards = Array.isArray(context.cards) ? context.cards : [];
     const gamblerPair = effectsVersion >= 7
-        && guardianNumber === 10
+        && hasGambler
         && context.isCall !== true
         && String(context.playType || '') !== 'role'
         && submittedCards.length === 2
@@ -1479,7 +1487,7 @@ export function resolveTarotKingdomResonance(context = {}) {
                 if (effectsVersion >= 7 && allocation <= 0) return;
             } else {
                 const scholarDiscount = effectsVersion >= 7
-                    && guardianNumber === 11
+                    && hasScholar
                     && context.reverseBefore === true;
                 spent = Math.max(0, Math.floor(candidate.apBaseCost || 0) - (scholarDiscount ? 1 : 0));
                 if (remaining < spent) return;

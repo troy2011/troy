@@ -220,6 +220,9 @@ export function normalizeTarotKingdomCharacter(rawCharacter = {}, fallback = {})
             : (base.itemSource || {}),
         tarotDeck: normalizeTarotKingdomTarotDeck(source.tarotDeck || base.tarotDeck || []),
         guardianArcana: normalizeTarotKingdomGuardian(source.guardianArcana || base.guardianArcana),
+        inheritedGuardianAbility: normalizeTarotKingdomGuardian(
+            source.inheritedGuardianAbility || base.inheritedGuardianAbility
+        ),
         combat: normalizeTarotKingdomCombat(source.combat, base.combat)
     };
 }

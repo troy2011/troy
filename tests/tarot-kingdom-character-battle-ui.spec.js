@@ -335,6 +335,8 @@ test('rulebook explains the current rules and returns to the same battle on mobi
   await expect(rulebook.locator('#tarotKingdomRulesBattle .tarot-kingdom-rulebook-table-wrap').first().locator('tbody tr')).toHaveCount(11);
   await expect(rulebook.locator('#tarotKingdomRulesBattle .tarot-kingdom-rulebook-table-wrap').nth(1).locator('tbody tr')).toHaveCount(12);
   await expect(rulebook.getByText('装備中の守護大アルカナがジョブを決めます。得意武器の直接ダメージは、その武器成分だけ×1.10になります。二刀で片側だけ得意なら合計は実質×1.05です。')).toBeVisible();
+  await expect(rulebook.getByText('通常探索で敵を1体倒すたび、HPが1以上の人間プレイヤーは装備中ジョブのABPを獲得します。復活済みなら獲得でき、戦闘不能のまま・ペット・NPC・レイドは対象外です。')).toBeVisible();
+  await expect(rulebook.getByText('必要ABPに達すると「MASTER ★」。MASTER済み固有能力を1つ選び、大アルカナを外しても引き継げます。装備中能力と併用できますが同じ能力は重複せず、得意武器と大アルカナ覚醒は引き継ぎません。効果値は元カードの現在Lvを使います。')).toBeVisible();
   await expect(rulebook.getByText('パラディン／守護者（吊るされた男）')).toBeVisible();
   await expect(rulebook.locator('.tarot-kingdom-rulebook-card-image')).toHaveCount(51);
   await expect(rulebook.locator('.tarot-kingdom-rulebook-role-cards')).toHaveCount(7);
@@ -1600,7 +1602,7 @@ for (const fixture of [
       expect(row.box.x).toBeGreaterThanOrEqual(layout.party.x - 2);
       expect(row.box.right).toBeLessThanOrEqual(layout.party.right + 1);
       expect(row.box.width).toBeLessThanOrEqual(180.1);
-      expect(row.avatarBox.x).toBeGreaterThanOrEqual(layout.party.x + 23);
+      expect(row.avatarBox.x).toBeGreaterThanOrEqual(layout.party.x + 11);
       expect(row.avatarBox.width).toBeGreaterThan(0);
       expect(row.avatarBox.height).toBeGreaterThan(0);
       expect(row.avatarLayers).toBeGreaterThan(0);

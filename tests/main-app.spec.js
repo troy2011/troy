@@ -7186,6 +7186,39 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
       })
     });
   });
+  await page.route('**/api/tarot-job-mastery', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        mastery: {
+          version: 1,
+          selectedInheritedItemId: 'tarot_major_00',
+          jobs: [
+            {
+              number: 0,
+              name: 'トリックスター',
+              requiredAbp: 500,
+              itemId: 'tarot_major_00',
+              abp: 500,
+              masteredAtMs: 1000,
+              mastered: true
+            },
+            {
+              number: 5,
+              name: '魔導士',
+              requiredAbp: 650,
+              itemId: 'tarot_major_sword_5',
+              abp: 123,
+              masteredAtMs: 0,
+              mastered: false
+            }
+          ]
+        }
+      })
+    });
+  });
 
   await bootstrapMainApp(page);
 
@@ -7223,11 +7256,15 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   await expect(page.locator('#guardianArcanaEffectList')).toContainText('守護');
   await expect(page.locator('#guardianArcanaEffectList')).toContainText('得意');
   await expect(page.locator('#guardianArcanaEffectList')).toContainText('杖・ワンド');
-  await expect(page.locator('#guardianArcanaEffectList')).not.toContainText('覚醒');
+  await expect(page.locator('#guardianArcanaEffectList')).not.toContainText('守護覚醒');
+  await expect(page.locator('#guardianArcanaEffectList .tarot-inherited-ability')).toContainText('引継ぎ能力');
+  await expect(page.locator('#guardianArcanaEffectList .tarot-inherited-ability select')).toHaveValue('tarot_major_00');
 
   await page.locator('#guardianArcanaEffectList .tarot-guardian-effect-summary').click();
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('得意武器');
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('杖・ワンド（直接ダメージ×1.10）');
+  await expect(page.locator('#itemDetailTarotCombat')).toContainText('123/650');
+  await expect(page.locator('#itemDetailTarotCombat .item-detail-abp-gauge')).toHaveAttribute('aria-valuenow', '123');
   await page.locator('#itemDetailModal .item-detail-corner-close').click();
 
   await page.locator('#inventoryGrid .inventory-item-cell:has(.tarot-number-badge.is-cup)').click();
