@@ -1521,6 +1521,73 @@ test.describe('Tarot Kingdom character battle flow', () => {
     ]));
   });
 
+  test('enemy slow changes accuracy in both directions and confusion uses its stored potency', async ({ page }) => {
+    const audit = await page.evaluate(() => {
+      const debug = window.TarotKingdomDebug;
+      const card = (id) => ({ id, kind: 'minor', suit: 'Sword', number: 6 });
+      const playerAttack = (slowed) => {
+        debug.battleScenario({
+          rules: { statusEffectsVersion: 2 },
+          withTrick: false,
+          enemyHp: 500,
+          enemyDefense: 0,
+          enemySpeed: 100,
+          combatBySeat: [{ speed: 30 }],
+          handsBySeat: [[card(`slow-hit-${slowed}`), card(`slow-rest-${slowed}`)]]
+        });
+        if (slowed) debug.battleApplyStatus('enemy', 'slow', { potency: 50, charges: 2 });
+        debug.battleSetCombatRandom(0);
+        return debug.battlePlayOne(0, { resolve: false }).battle.events.at(-1).hitChance;
+      };
+      const enemyAttack = (slowed) => {
+        debug.battleScenario({
+          rules: { statusEffectsVersion: 2 },
+          turnIndex: 1,
+          leaderIndex: 0,
+          enemySpeed: 60,
+          hpBySeat: [100, 100, 100, 100],
+          combatBySeat: Array.from({ length: 4 }, () => ({ maxHp: 100, defense: 0, speed: 100 }))
+        });
+        if (slowed) debug.battleApplyStatus('enemy', 'slow', { potency: 50, charges: 2 });
+        debug.battleSetCombatRandom(0);
+        const state = debug.battlePass(1);
+        return state.battle.events.at(-1).damages[0].hitChance;
+      };
+      const confusedAttack = (potency) => {
+        debug.battleScenario({
+          rules: { statusEffectsVersion: 2 },
+          turnIndex: 1,
+          leaderIndex: 0,
+          enemyHp: 500,
+          hpBySeat: [100, 100, 100, 100],
+          combatBySeat: Array.from({ length: 4 }, () => ({ maxHp: 100, defense: 0, speed: 30 }))
+        });
+        debug.battleApplyStatus('enemy', 'confusion', { potency, charges: 1 });
+        debug.battleSetCombatRandom(0.2);
+        return debug.battlePass(1).battle.events.at(-1);
+      };
+      return {
+        normalPlayerHit: playerAttack(false),
+        slowedPlayerHit: playerAttack(true),
+        normalEnemyHit: enemyAttack(false),
+        slowedEnemyHit: enemyAttack(true),
+        lowConfusion: confusedAttack(10),
+        highConfusion: confusedAttack(80)
+      };
+    });
+
+    expect(audit.slowedPlayerHit).toBeGreaterThan(audit.normalPlayerHit);
+    expect(audit.slowedEnemyHit).toBeLessThan(audit.normalEnemyHit);
+    expect(audit.lowConfusion.type).not.toBe('enemy-self');
+    expect(audit.lowConfusion.effects).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'confusion-resisted', statusKey: 'confusion', chance: 0.1, roll: 0.2 })
+    ]));
+    expect(audit.highConfusion).toMatchObject({
+      type: 'enemy-self',
+      effects: [expect.objectContaining({ statusKey: 'confusion', chance: 0.8, roll: 0.2 })]
+    });
+  });
+
   test('expanded ailments alter combat without preventing the played card from reaching the field', async ({ page }) => {
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
@@ -2068,6 +2135,113 @@ test.describe('Tarot Kingdom character battle flow', () => {
       protectedPlayerIndex: 0
     });
     expect(audit.guardedArea.battle.effects.party.areaGuard).toBeUndefined();
+  });
+
+  test('v3 temporary buffs affect combat and consume at their intended timing', async ({ page }) => {
+    const audit = await page.evaluate(({ combatBySeat }) => {
+      const debug = window.TarotKingdomDebug;
+      const rules = { statusEffectsVersion: 2, arcanaLoadoutEffectsVersion: 3, enemyAbilityVersion: 1 };
+      const emptyEffects = () => ({ enemy: {}, party: {}, players: [{}, {}, {}, {}] });
+      const runPass = (effects, enemyAilment = null, random = 0) => {
+        debug.battleScenario({
+          rules,
+          turnIndex: 1,
+          leaderIndex: 0,
+          hpBySeat: [100, 100, 100, 100],
+          combatBySeat,
+          enemyAilment
+        });
+        debug.battleSetCombatRandom(random);
+        debug.battleSetEffects(effects);
+        return debug.battlePass(1);
+      };
+      const findSingle = (state) => state.battle.events.find((event) => event.type === 'enemy-single');
+
+      const baseline = runPass(emptyEffects());
+      const barrierEffects = emptyEffects();
+      barrierEffects.players[1].damageBarrier = { potency: 25, charges: 2, expiresOn: 'clear' };
+      const barrier = runPass(barrierEffects);
+      const singleGuardEffects = emptyEffects();
+      singleGuardEffects.players[1].singleGuard = { potency: 25, charges: 1, expiresOn: 'clear' };
+      const singleGuard = runPass(singleGuardEffects);
+      const shieldEffects = emptyEffects();
+      shieldEffects.party.shieldPreserve = { potency: 50, charges: 1, expiresOn: 'clear' };
+      shieldEffects.players[1].hpShield = { potency: 20, shieldHp: 20, expiresOn: 'clear' };
+      const shieldPreserve = runPass(shieldEffects);
+      const statusGuardEffects = emptyEffects();
+      statusGuardEffects.party.statusAttackGuard = {
+        potency: 20,
+        statusChanceDown: 20,
+        charges: 1,
+        expiresOn: 'clear'
+      };
+      const statusGuard = runPass(statusGuardEffects, {
+        statusKey: 'poison', label: '毒', chance: 0.5, potency: 5, charges: 1, scope: 'single'
+      }, 0.4);
+
+      const runAttack = (effects) => {
+        debug.battleScenario({ rules, turnIndex: 0, leaderIndex: 0, combatBySeat });
+        debug.battleSetCombatRandom(0);
+        debug.battleSetEffects(effects);
+        return debug.battlePlayOne(0, { resolve: false });
+      };
+      const baseAttack = runAttack(emptyEffects());
+      const attackUpEffects = emptyEffects();
+      attackUpEffects.players[0].nextAttackUp = { potency: 40, charges: 1, expiresOn: 'action' };
+      const boostedAttack = runAttack(attackUpEffects);
+
+      debug.battleScenario({ rules, turnIndex: 0, leaderIndex: 0, combatBySeat });
+      const speedEffects = emptyEffects();
+      speedEffects.players[0].speedUpUntilChainEnds = {
+        potency: 20,
+        expiresOn: 'submission-chain'
+      };
+      debug.battleSetEffects(speedEffects);
+      const speedBeforeClear = debug.battleEffectivePlayerStat(0, 'speed');
+      const speedAfterClear = debug.battleClearTrick(0);
+
+      return {
+        baseline: { state: baseline, event: findSingle(baseline) },
+        barrier: { state: barrier, event: findSingle(barrier) },
+        singleGuard: { state: singleGuard, event: findSingle(singleGuard) },
+        shieldPreserve: { state: shieldPreserve, event: findSingle(shieldPreserve) },
+        statusGuard,
+        baseAttack,
+        boostedAttack,
+        speedBeforeClear,
+        speedAfterClear
+      };
+    }, { combatBySeat: zeroDefenseParty.map((entry, index) => ({ ...entry, speed: index === 0 ? 100 : 10 })) });
+
+    expect(audit.barrier.state.players[1].hp).toBeGreaterThan(audit.baseline.state.players[1].hp);
+    expect(audit.barrier.event.effects).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'damageBarrier', potency: 25, targetIndex: 1 })
+    ]));
+    expect(audit.barrier.state.battle.effects.players[1].damageBarrier.charges).toBe(1);
+
+    expect(audit.singleGuard.state.players[1].hp).toBeGreaterThan(audit.baseline.state.players[1].hp);
+    expect(audit.singleGuard.event.effects).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'singleGuard', potency: 25, targetIndex: 1 })
+    ]));
+    expect(audit.singleGuard.state.battle.effects.players[1].singleGuard).toBeUndefined();
+
+    expect(audit.shieldPreserve.state.battle.effects.players[1].hpShield.shieldHp).toBe(10);
+    expect(audit.shieldPreserve.state.battle.effects.party.shieldPreserve).toBeUndefined();
+    expect(audit.shieldPreserve.event.effects).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'shieldPreserve', potency: 50, targetIndex: 1 })
+    ]));
+
+    const ailment = audit.statusGuard.battle.events
+      .find((event) => event.type === 'enemy-single')
+      ?.effects.find((effect) => effect.kind === 'enemy-ailment');
+    expect(ailment).toMatchObject({ statusKey: 'poison', chance: 0.3, success: false });
+    expect(audit.statusGuard.battle.effects.party.statusAttackGuard).toBeUndefined();
+
+    expect(audit.boostedAttack.battle.events.at(-1).displayBaseDamage)
+      .toBeGreaterThan(audit.baseAttack.battle.events.at(-1).displayBaseDamage);
+    expect(audit.boostedAttack.battle.effects.players[0].nextAttackUp).toBeUndefined();
+    expect(audit.speedBeforeClear).toBe(120);
+    expect(audit.speedAfterClear.battle.effects.players[0].speedUpUntilChainEnds).toBeUndefined();
   });
 
   test('Hanged Man v8 covers only critically wounded allies from physical single attacks', async ({ page }) => {

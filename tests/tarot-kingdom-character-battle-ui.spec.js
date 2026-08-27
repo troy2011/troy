@@ -334,6 +334,9 @@ test('rulebook explains the current rules and returns to the same battle on mobi
   await expect(rulebook.locator('#tarotKingdomRulesRoles .tarot-kingdom-rulebook-table-wrap tbody tr')).toHaveCount(7);
   await expect(rulebook.locator('#tarotKingdomRulesBattle .tarot-kingdom-rulebook-table-wrap').first().locator('tbody tr')).toHaveCount(11);
   await expect(rulebook.locator('#tarotKingdomRulesBattle .tarot-kingdom-rulebook-table-wrap').nth(1).locator('tbody tr')).toHaveCount(12);
+  await expect(rulebook.locator('[data-rulebook-status-table] tbody tr')).toHaveCount(15);
+  await expect(rulebook.getByText('火×0.7、雷系×1.2、麻痺成功率+25pt。火傷と相殺')).toBeVisible();
+  await expect(rulebook.getByText('HPを残して行動不能。プレイヤーは攻撃対象外')).toBeVisible();
   await expect(rulebook.getByText('装備中の守護大アルカナがジョブを決めます。得意武器の直接ダメージは、その武器成分だけ×1.10になります。二刀で片側だけ得意なら合計は実質×1.05です。')).toBeVisible();
   await expect(rulebook.getByText('通常探索で敵を1体倒すたび、HPが1以上の人間プレイヤーは装備中ジョブのABPを獲得します。復活済みなら獲得でき、戦闘不能のまま・ペット・NPC・レイドは対象外です。')).toBeVisible();
   await expect(rulebook.getByText('必要ABPに達すると「MASTER ★」。MASTER済み固有能力を1つ選び、大アルカナを外しても引き継げます。装備中能力と併用できますが同じ能力は重複せず、得意武器と大アルカナ覚醒は引き継ぎません。効果値は元カードの現在Lvを使います。')).toBeVisible();
@@ -558,7 +561,7 @@ test('player ailments appear below the hand count and animate on the avatar with
       enemy: { burn: { label: '火傷', potency: 8, charges: 2, expiresOn: 'action' } },
       party: {},
       players: [{
-        paralysis: { label: '麻痺', charges: 1, expiresOn: 'action' },
+        paralysis: { label: '麻痺', potency: 40, charges: 1, expiresOn: 'action' },
         poison: { label: '毒', potency: 5, charges: 2, expiresOn: 'action' },
         silence: { label: '沈黙', charges: 1, expiresOn: 'action' }
       }, {}, {}, {}]
@@ -585,6 +588,9 @@ test('player ailments appear below the hand count and animate on the avatar with
   await expect(detail.locator('h3')).toContainText('状態');
   await expect(detail.locator('.tarot-kingdom-status-detail-row')).toHaveCount(3);
   await expect(detail).toContainText('2回の場流れまで');
+  await expect(detail).toContainText('麻痺（発動40%）');
+  await expect(detail).toContainText('毒（5ダメージ）');
+  await expect(detail).not.toContainText('毒（5%）');
   await detail.locator('header button').dispatchEvent('click');
   await expect(detail).toBeHidden();
 
@@ -960,7 +966,7 @@ test('buffs, debuffs and support effects use the same compact icon system as ail
     };
   });
   expect(shieldLayout.width).toBeLessThan(shieldLayout.height);
-  expect(shieldLayout.borderWidth).toBe('1px');
+  expect(shieldLayout.borderWidth).toBe('3px');
   expect(shieldLayout.borderRadius).toContain('50%');
   expect(shieldLayout.insideAvatar).toBe(true);
 

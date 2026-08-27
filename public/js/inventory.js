@@ -42,7 +42,7 @@ import {
     getTarotKingdomCardLevelScale,
     getTarotKingdomCurrentLevelEffectText,
     getTarotKingdomFriendlyEffectText
-} from './tarotKingdomEffects.js?v=20260827-job-mastery-v1';
+} from './tarotKingdomEffects.js?v=20260827-buff-fix-v1';
 import {
     buildTarotCardMeta,
     compareTarotItems,

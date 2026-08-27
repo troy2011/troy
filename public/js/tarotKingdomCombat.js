@@ -3,7 +3,7 @@ import {
     normalizeTarotKingdomGuardian,
     normalizeTarotKingdomTarotDeck,
     normalizeTarotKingdomWeaponTypes
-} from './tarotKingdomEffects.js?v=20260827-guardian-cover-v1';
+} from './tarotKingdomEffects.js?v=20260827-buff-fix-v1';
 import {
     resolveTarotKingdomWeaponFormation
 } from './tarotKingdomWeaponRules.js?v=20260827-job-weapon-v1';

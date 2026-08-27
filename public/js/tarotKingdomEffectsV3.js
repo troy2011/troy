@@ -1,4 +1,4 @@
-import { TAROT_KINGDOM_NEGATIVE_STATUS_KEYS } from './tarotKingdomStatuses.js?v=20260812-status-v2';
+import { TAROT_KINGDOM_NEGATIVE_STATUS_KEYS } from './tarotKingdomStatuses.js?v=20260827-buff-fix-v1';
 
 const SUIT_ELEMENT = Object.freeze({ Wand: 'fire', Cup: 'water', Sword: 'wind', Pentacle: 'earth' });
 const NEGATIVE_STATUSES = TAROT_KINGDOM_NEGATIVE_STATUS_KEYS;
@@ -28,7 +28,7 @@ const BUFF_DISPLAY_NAMES = Object.freeze({
   singleGuard: '単体攻撃を軽減',
   damageBarrier: 'ダメージバリア',
   shieldPreserve: 'シールドを保護',
-  cover: '味方を身代わり',
+  cover: '味方をかばう',
   areaGuard: '全体攻撃を軽減',
   guard: '次の被ダメージを軽減',
   statusAttackGuard: '状態異常耐性上昇',

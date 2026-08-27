@@ -19,7 +19,7 @@ const STATUS_DEFINITIONS = [
   {
     key: 'petrify', label: '石化', priority: 145, spriteIndex: 3, visual: 'petrify',
     durationKind: 'round', defaultCount: null, control: true,
-    description: 'HPを残したまま強制スキップ。攻撃対象外で自然解除しない'
+    description: 'HPを残したまま行動不能。プレイヤーに付いた場合は攻撃対象外になり、自然解除しない'
   },
   {
     key: 'silence', label: '沈黙', priority: 115, spriteIndex: 4, visual: 'silence',
@@ -59,7 +59,7 @@ const STATUS_DEFINITIONS = [
   {
     key: 'wet', label: '水浸し', priority: 85, spriteIndex: 11, visual: 'wet',
     durationKind: 'action', defaultCount: 2,
-    description: '火に強くなり、雷ダメージと麻痺成功率が上がる'
+    description: '火ダメージを30%軽減し、雷系ダメージを20%増加。麻痺成功率+25pt。火傷と相殺する'
   },
   {
     key: 'vulnerable', label: '脆弱', priority: 75, spriteIndex: 12, visual: 'vulnerable',
@@ -106,7 +106,7 @@ const MODIFIER_DEFINITIONS = [
   { key: 'decoy', label: '分身', group: 'special', iconIndex: 224, description: '直接攻撃を無効化' },
   { key: 'invisible', label: '透明', group: 'special', iconIndex: 224, description: '直接攻撃を無効化' },
   { key: 'counter', label: '反撃', group: 'special', iconIndex: 136, description: '直接攻撃へ反撃' },
-  { key: 'cover', label: '身代わり', group: 'special', iconIndex: 205, description: '味方への攻撃を身代わり' },
+  { key: 'cover', label: 'かばう', group: 'special', iconIndex: 205, description: '瀕死の味方への物理攻撃を代わりに受ける' },
   { key: 'lastStand', label: '食いしばり', group: 'special', iconIndex: 142, description: '致死ダメージをHP1で耐える' },
   { key: 'autoRevive', label: '自動復活', group: 'special', iconIndex: 151, description: '戦闘不能時に一度復活' },
   { key: 'nextAttackUp', label: '次撃強化', group: 'special', iconIndex: 137, description: '次の攻撃を強化' },
@@ -197,9 +197,14 @@ export function formatTarotKingdomStatusDetail(key, effect = {}) {
     ? getTarotKingdomStatusRemaining(effect, definition)
     : null;
   const potency = Math.max(0, Number(effect.potency) || 0);
-  const potencySuffix = potency > 0 && !['paralysis', 'silence', 'seal', 'sleep', 'freeze', 'petrify'].includes(key)
-    ? `（${Math.round(potency)}${definition.axis === 'accuracy' || definition.axis === 'evasion' ? 'pt' : '%'}）`
-    : '';
+  let potencySuffix = '';
+  if (potency > 0 && getTarotKingdomStatusDefinition(key)) {
+    if (['poison', 'burn'].includes(key)) potencySuffix = `（${Math.round(potency)}ダメージ）`;
+    else if (['paralysis', 'confusion'].includes(key)) potencySuffix = `（発動${Math.round(potency)}%）`;
+    else if (['fear', 'blind', 'vulnerable', 'slow'].includes(key)) potencySuffix = `（${Math.round(potency)}%）`;
+  } else if (potency > 0) {
+    potencySuffix = `（${Math.round(potency)}${definition.axis === 'accuracy' || definition.axis === 'evasion' ? 'pt' : '%'}）`;
+  }
   const remainingTurns = Math.max(0, Math.floor(Number(effect.remainingTurns) || 0));
   const charges = Math.max(0, Math.floor(Number(effect.charges) || 0));
   return {

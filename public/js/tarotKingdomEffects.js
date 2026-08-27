@@ -7,8 +7,8 @@ import {
     getTarotKingdomResonanceGrowthText,
     getTarotKingdomFriendlyRangeText,
     getTarotKingdomFriendlyEffectText
-} from './tarotKingdomEffectsV3.js?v=20260827-job-mastery-v1';
-import { TAROT_KINGDOM_STATUS_ICON_INDEX } from './tarotKingdomStatuses.js?v=20260812-status-v2';
+} from './tarotKingdomEffectsV3.js?v=20260827-buff-fix-v1';
+import { TAROT_KINGDOM_STATUS_ICON_INDEX } from './tarotKingdomStatuses.js?v=20260827-buff-fix-v1';
 
 export { TAROT_KINGDOM_STATUS_ICON_INDEX };
 
@@ -536,7 +536,7 @@ function buildWeaponCandidate(weapon, card, context = {}) {
         }
         const potency = Math.min(50, 15 + (rank * 2));
         return {
-            source: 'weapon', kind: 'guard', label: '身代わり', targetType: 'party', statusKey: 'cover',
+            source: 'weapon', kind: 'guard', label: 'かばう', targetType: 'party', statusKey: 'cover',
             potency, charges: 1, coverIndex: actorIndex, score: potency + 5, rank, weapon, suit
         };
     }
