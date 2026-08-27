@@ -6,7 +6,7 @@ import {
     startAvatarBodyMotion,
     stopAvatarBodyMotion,
     triggerAvatarAttackMotion
-} from './avatar.js';
+} from './avatar.js?v=20260827-avatar-load-race-v1';
 
 const COMBAT_WEAPON_TYPES = new Set([
     'unarmed',

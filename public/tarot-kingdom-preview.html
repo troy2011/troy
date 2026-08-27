@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="robots" content="noindex,follow">
     <title>Tarot Kingdom Preview</title>
-    <link rel="stylesheet" href="./style.css?v=20260827-depth-layer-v1">
+    <link rel="stylesheet" href="./style.css?v=20260827-weapon-grip-v4">
     <link rel="stylesheet" href="./tarot-kingdom-summons.css?v=20260826-sealed-summon-v1">
     <style>
         html, body {
@@ -41,7 +41,7 @@
                 "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
                 "config": "./js/config.js",
                 "api": "./js/api.js",
-                "ui": "./js/ui.js?v=20260827-abp-settlement-v1",
+                "ui": "./js/ui.js?v=20260827-weapon-grip-v4",
                 "avatar": "./js/avatar.js",
                 "player": "./js/player.js",
                 "inventory": "./js/inventory.js?v=20260827-buff-fix-v1",
@@ -79,48 +79,73 @@
         <main class="tarot-kingdom-combat-screen">
         <section id="tarotKingdomBattleStage" class="tarot-kingdom-battle-stage" aria-label="モンスターバトル" hidden>
             <div class="tarot-kingdom-battle-arena tarot-kingdom-battle-arena--moonlit">
-                <label class="tarot-kingdom-demo-enemy-picker" for="tarotKingdomDemoEnemySelect">
-                    <span>DEMO ENEMY</span>
-                    <select id="tarotKingdomDemoEnemySelect" aria-label="デモの敵を選択"></select>
-                </label>
-                <label class="tarot-kingdom-demo-battlefield-picker" for="tarotKingdomDemoBattlefieldSelect">
-                    <span>DEMO FIELD</span>
-                    <select id="tarotKingdomDemoBattlefieldSelect" aria-label="デモの戦闘背景を選択"></select>
-                </label>
-                <label class="tarot-kingdom-demo-pet-picker" for="tarotKingdomDemoPetSelect">
-                    <span>DEMO PET</span>
-                    <select id="tarotKingdomDemoPetSelect" aria-label="デモのペットを選択"></select>
-                </label>
-                <label class="tarot-kingdom-demo-field-scene-picker" for="tarotKingdomDemoFieldSceneSelect">
-                    <span>DEMO FIELD EFFECT</span>
-                    <select id="tarotKingdomDemoFieldSceneSelect" aria-label="デモの場札背景を選択"></select>
-                </label>
-                <label class="tarot-kingdom-demo-role-picker" for="tarotKingdomDemoRoleSelect">
-                    <span>DEMO 5-CARD ROLE</span>
-                    <select id="tarotKingdomDemoRoleSelect" aria-label="デモの5枚役演出を選択"></select>
-                </label>
-                <label class="tarot-kingdom-demo-chain-picker" for="tarotKingdomDemoChainSelect">
-                    <span>DEMO CHAIN</span>
-                    <select id="tarotKingdomDemoChainSelect" aria-label="デモのチェイン数を選択"></select>
-                </label>
-                <label class="tarot-kingdom-demo-status-target-picker" for="tarotKingdomDemoStatusTargetSelect">
-                    <span>DEMO STATUS TARGET</span>
-                    <select id="tarotKingdomDemoStatusTargetSelect" aria-label="状態効果の表示対象を選択">
-                        <option value="enemy">敵</option>
-                        <option value="player-0">味方1</option>
-                        <option value="player-1">味方2</option>
-                        <option value="player-2">味方3</option>
-                        <option value="player-3">味方4</option>
-                    </select>
-                </label>
-                <label class="tarot-kingdom-demo-status-picker" for="tarotKingdomDemoStatusSelect">
-                    <span>DEMO EFFECT</span>
-                    <select id="tarotKingdomDemoStatusSelect" aria-label="表示する状態効果を選択"></select>
-                </label>
-                <label class="tarot-kingdom-demo-summon-picker" for="tarotKingdomDemoSummonSelect">
-                    <span>DEMO SUMMON</span>
-                    <select id="tarotKingdomDemoSummonSelect" aria-label="デモの召喚獣を選択"></select>
-                </label>
+                <aside class="tarot-kingdom-demo-controls" aria-label="デモ表示設定">
+                    <label class="tarot-kingdom-demo-control-picker" for="tarotKingdomDemoControlSelect">
+                        <span>DEMO CONTROL</span>
+                        <select id="tarotKingdomDemoControlSelect" aria-label="表示するデモ設定を選択">
+                            <option value="enemy">敵</option>
+                            <option value="field">戦闘背景</option>
+                            <option value="pet">ペット</option>
+                            <option value="field-effect">場札背景</option>
+                            <option value="role">5枚役</option>
+                            <option value="status">状態効果</option>
+                            <option value="summon">召喚獣</option>
+                            <option value="weapon">武器攻撃</option>
+                        </select>
+                    </label>
+                    <div class="tarot-kingdom-demo-control-panels">
+                        <label class="tarot-kingdom-demo-enemy-picker" data-demo-control-panel="enemy" for="tarotKingdomDemoEnemySelect">
+                            <span>DEMO ENEMY</span>
+                            <select id="tarotKingdomDemoEnemySelect" aria-label="デモの敵を選択"></select>
+                        </label>
+                        <label class="tarot-kingdom-demo-battlefield-picker" data-demo-control-panel="field" for="tarotKingdomDemoBattlefieldSelect" hidden>
+                            <span>DEMO FIELD</span>
+                            <select id="tarotKingdomDemoBattlefieldSelect" aria-label="デモの戦闘背景を選択"></select>
+                        </label>
+                        <label class="tarot-kingdom-demo-pet-picker" data-demo-control-panel="pet" for="tarotKingdomDemoPetSelect" hidden>
+                            <span>DEMO PET</span>
+                            <select id="tarotKingdomDemoPetSelect" aria-label="デモのペットを選択"></select>
+                        </label>
+                        <label class="tarot-kingdom-demo-field-scene-picker" data-demo-control-panel="field-effect" for="tarotKingdomDemoFieldSceneSelect" hidden>
+                            <span>DEMO FIELD EFFECT</span>
+                            <select id="tarotKingdomDemoFieldSceneSelect" aria-label="デモの場札背景を選択"></select>
+                        </label>
+                        <div class="tarot-kingdom-demo-role-panel" data-demo-control-panel="role" hidden>
+                            <label class="tarot-kingdom-demo-role-picker" for="tarotKingdomDemoRoleSelect">
+                                <span>DEMO 5-CARD ROLE</span>
+                                <select id="tarotKingdomDemoRoleSelect" aria-label="デモの5枚役演出を選択"></select>
+                            </label>
+                            <label class="tarot-kingdom-demo-chain-picker" for="tarotKingdomDemoChainSelect">
+                                <span>DEMO CHAIN</span>
+                                <select id="tarotKingdomDemoChainSelect" aria-label="デモのチェイン数を選択"></select>
+                            </label>
+                        </div>
+                        <div class="tarot-kingdom-demo-status-panel" data-demo-control-panel="status" hidden>
+                            <label class="tarot-kingdom-demo-status-target-picker" for="tarotKingdomDemoStatusTargetSelect">
+                                <span>DEMO STATUS TARGET</span>
+                                <select id="tarotKingdomDemoStatusTargetSelect" aria-label="状態効果の表示対象を選択">
+                                    <option value="enemy">敵</option>
+                                    <option value="player-0">味方1</option>
+                                    <option value="player-1">味方2</option>
+                                    <option value="player-2">味方3</option>
+                                    <option value="player-3">味方4</option>
+                                </select>
+                            </label>
+                            <label class="tarot-kingdom-demo-status-picker" for="tarotKingdomDemoStatusSelect">
+                                <span>DEMO EFFECT</span>
+                                <select id="tarotKingdomDemoStatusSelect" aria-label="表示する状態効果を選択"></select>
+                            </label>
+                        </div>
+                        <label class="tarot-kingdom-demo-summon-picker" data-demo-control-panel="summon" for="tarotKingdomDemoSummonSelect" hidden>
+                            <span>DEMO SUMMON</span>
+                            <select id="tarotKingdomDemoSummonSelect" aria-label="デモの召喚獣を選択"></select>
+                        </label>
+                        <label class="tarot-kingdom-demo-weapon-picker" data-demo-control-panel="weapon" for="tarotKingdomDemoWeaponSelect" hidden>
+                            <span>DEMO WEAPON ATTACK</span>
+                            <select id="tarotKingdomDemoWeaponSelect" aria-label="デモの武器攻撃を選択"></select>
+                        </label>
+                    </div>
+                </aside>
                 <section class="tarot-kingdom-battle-enemy is-facing-left" aria-label="敵モンスター">
                     <div class="tarot-kingdom-battle-side-heading">
                         <span class="tarot-kingdom-battle-eyebrow">ENEMY</span>
@@ -231,7 +256,7 @@
         window.myLineProfile = { displayName: 'Preview' };
         window.__TAROT_KINGDOM_PREVIEW__ = true;
 
-        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260827-abp-settlement-v1';
+        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20260827-weapon-grip-v4';
 
         window.TarotKingdomPreview = {
             load: () => loadTarotKingdomPage(),

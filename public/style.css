@@ -2997,47 +2997,47 @@ button.home-player-ship-name {
 }
 
 @keyframes avatarWeaponGunRecoil {
-    0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, -4px) rotate(-2deg); filter: none; }
-    26% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-2px, -4px) rotate(-3deg); filter: brightness(1.05); }
-    45%, 49% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(10px, -3px) rotate(4deg); filter: brightness(1.34) drop-shadow(0 0 5px rgba(251, 191, 36, 0.78)); }
-    63% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(4px, -4px) rotate(1deg); filter: brightness(1.08); }
-    80% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(1px, -4px) rotate(-1deg); filter: none; }
+    0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, 0) rotate(-2deg); filter: none; }
+    26% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-2px, 0) rotate(-3deg); filter: brightness(1.05); }
+    45%, 49% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(8px, 1px) rotate(4deg); filter: brightness(1.34) drop-shadow(0 0 5px rgba(251, 191, 36, 0.78)); }
+    63% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(3px, 0) rotate(1deg); filter: brightness(1.08); }
+    80% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(1px, 0) rotate(-1deg); filter: none; }
 }
 
 @keyframes avatarWeaponBigGunRecoil {
-    0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, -7px) rotate(-2deg); filter: none; }
-    20% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-3px, -6px) rotate(-3deg); filter: brightness(1.04); }
-    40%, 47% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-5px, -5px) rotate(-4deg); filter: brightness(1.08); }
-    48%, 56% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(22px, -3px) rotate(5deg); filter: brightness(1.48) drop-shadow(0 0 9px rgba(251, 191, 36, 0.88)); }
-    66% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(12px, -5px) rotate(2deg); filter: brightness(1.12); }
-    78% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-2px, -7px) rotate(-3deg); filter: none; }
-    90% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(3px, -7px) rotate(-1deg); filter: none; }
+    0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, 0) rotate(-2deg); filter: none; }
+    20% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-2px, 1px) rotate(-3deg); filter: brightness(1.04); }
+    40%, 47% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-3px, 2px) rotate(-4deg); filter: brightness(1.08); }
+    48%, 56% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(15px, 3px) rotate(5deg); filter: brightness(1.48) drop-shadow(0 0 9px rgba(251, 191, 36, 0.88)); }
+    66% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(8px, 1px) rotate(2deg); filter: brightness(1.12); }
+    78% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-1px, 0) rotate(-3deg); filter: none; }
+    90% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(2px, 0) rotate(-1deg); filter: none; }
 }
 
 @keyframes avatarWeaponPolearmThrust {
     0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, 0) rotate(0deg); }
-    18% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(5px, -2px) rotate(-34deg); }
-    36% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(2px, -1px) rotate(-68deg); }
-    46%, 54% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-34px, 3px) rotate(-88deg); }
-    70% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-10px, 1px) rotate(-54deg); }
+    18% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(2px, -1px) rotate(-34deg); }
+    36% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(1px, 0) rotate(-68deg); }
+    46%, 54% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-7px, 2px) rotate(-88deg); }
+    70% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-2px, 0) rotate(-54deg); }
 }
 
 @keyframes avatarHandGunGrip {
-    0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(1px, -5px) rotate(-2deg); }
-    26% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-1px, -5px) rotate(-3deg); }
-    45%, 49% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(8px, -4px) rotate(3deg); }
-    63% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(3px, -5px) rotate(1deg); }
-    80% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(1px, -5px) rotate(-1deg); }
+    0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, 0) rotate(-2deg); }
+    26% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-2px, 0) rotate(-3deg); }
+    45%, 49% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(8px, 1px) rotate(3deg); }
+    63% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(3px, 0) rotate(1deg); }
+    80% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(1px, 0) rotate(-1deg); }
 }
 
 @keyframes avatarHandBigGunGrip {
-    0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, -7px) rotate(-2deg); }
-    20% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-2px, -6px) rotate(-3deg); }
-    40%, 47% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-3px, -5px) rotate(-4deg); }
-    48%, 56% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(15px, -4px) rotate(4deg); }
-    66% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(8px, -6px) rotate(2deg); }
-    78% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-1px, -7px) rotate(-3deg); }
-    90% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(2px, -7px) rotate(-1deg); }
+    0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, 0) rotate(-2deg); }
+    20% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-2px, 1px) rotate(-3deg); }
+    40%, 47% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-3px, 2px) rotate(-4deg); }
+    48%, 56% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(15px, 3px) rotate(4deg); }
+    66% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(8px, 1px) rotate(2deg); }
+    78% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-1px, 0) rotate(-3deg); }
+    90% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(2px, 0) rotate(-1deg); }
 }
 
 @keyframes avatarHandPolearmGrip {
@@ -3072,52 +3072,52 @@ button.home-player-ship-name {
 @keyframes avatarWeaponDaggerJab {
     0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, 0) rotate(-8deg); }
     18% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(1px, 3px) rotate(-36deg); }
-    28%, 36% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-13px, 8px) rotate(-88deg); }
+    28%, 36% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-11px, 8px) rotate(-88deg); }
     48% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-3px, 3px) rotate(-42deg); }
     64% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-1px, 0) rotate(-18deg); }
 }
 
 @keyframes avatarWeaponBluntSmash {
     0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, 0) rotate(-6deg); }
-    22% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(2px, -5px) rotate(-24deg); }
-    40% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(4px, -10px) rotate(-42deg); }
-    56%, 64% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-6px, 8px) rotate(-68deg); }
-    78% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-2px, 3px) rotate(-36deg); }
+    22% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(1px, -3px) rotate(-24deg); }
+    40% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(2px, -8px) rotate(-42deg); }
+    56%, 64% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-4px, 6px) rotate(-68deg); }
+    78% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-1px, 2px) rotate(-36deg); }
 }
 
 @keyframes avatarWeaponAxeChop {
     0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, 0) rotate(-5deg); }
-    22% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(3px, -7px) rotate(-34deg); }
-    40% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(4px, -11px) rotate(-52deg); }
-    54%, 62% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-6px, 9px) rotate(-76deg); }
-    76% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-2px, 3px) rotate(-40deg); }
+    22% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(1px, -4px) rotate(-34deg); }
+    40% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(2px, -8px) rotate(-52deg); }
+    54%, 62% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-4px, 7px) rotate(-76deg); }
+    76% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-1px, 2px) rotate(-40deg); }
 }
 
 @keyframes avatarWeaponGreatswordDrop {
     0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, 0) rotate(-6deg); filter: none; }
-    24%, 50% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(4px, -11px) rotate(-38deg); filter: brightness(1.05); }
-    66%, 78% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-8px, 11px) rotate(-82deg); filter: brightness(1.18) drop-shadow(0 0 4px rgba(254, 240, 138, 0.55)); }
-    90% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-3px, 4px) rotate(-48deg); filter: brightness(1.04); }
+    24%, 50% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(3px, -5px) rotate(-38deg); filter: brightness(1.05); }
+    66%, 78% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-5px, 7px) rotate(-82deg); filter: brightness(1.18) drop-shadow(0 0 4px rgba(254, 240, 138, 0.55)); }
+    90% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-1px, 3px) rotate(-48deg); filter: brightness(1.04); }
 }
 
 @keyframes avatarWeaponGreataxeDrop {
     0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, 0) rotate(-6deg); filter: none; }
-    28%, 58% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(5px, -13px) rotate(-48deg); filter: brightness(1.04); }
-    72%, 82% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-9px, 13px) rotate(-88deg); filter: brightness(1.22) drop-shadow(0 0 5px rgba(254, 215, 170, 0.58)); }
-    94% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-3px, 4px) rotate(-52deg); filter: brightness(1.04); }
+    28%, 56% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(4px, -9px) rotate(-48deg); filter: brightness(1.04); }
+    74%, 86% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-5px, 8px) rotate(-88deg); filter: brightness(1.22) drop-shadow(0 0 5px rgba(254, 215, 170, 0.58)); }
+    94% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-1px, 2px) rotate(-52deg); filter: brightness(1.04); }
 }
 
 @keyframes avatarWeaponStaffCast {
     0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, 0) rotate(-4deg); filter: none; }
-    24% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(2px, -5px) rotate(-9deg); filter: brightness(1.08); }
-    42%, 56% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-1px, -15px) rotate(-17deg); filter: brightness(1.34) drop-shadow(0 0 5px rgba(147, 197, 253, 0.85)); }
-    72% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-2px, -7px) rotate(-10deg); filter: brightness(1.08); }
+    24% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(1px, -3px) rotate(-9deg); filter: brightness(1.08); }
+    42%, 56% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-1px, -9px) rotate(-17deg); filter: brightness(1.34) drop-shadow(0 0 5px rgba(147, 197, 253, 0.85)); }
+    72% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-1px, -3px) rotate(-10deg); filter: brightness(1.08); }
 }
 
 @keyframes avatarWeaponWandFlick {
     0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, 0) rotate(-4deg); filter: none; }
-    22% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(2px, -2px) rotate(-15deg); filter: brightness(1.08); }
-    36%, 46% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-4px, -3px) rotate(15deg); filter: brightness(1.24) drop-shadow(0 0 4px rgba(251, 191, 36, 0.72)); }
+    22% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(1px, -2px) rotate(-15deg); filter: brightness(1.08); }
+    36%, 46% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-3px, -2px) rotate(15deg); filter: brightness(1.24) drop-shadow(0 0 4px rgba(251, 191, 36, 0.72)); }
     60% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-1px, -1px) rotate(4deg); filter: brightness(1.04); }
 }
 
@@ -3169,9 +3169,9 @@ button.home-player-ship-name {
 
 @keyframes avatarWeaponShieldBash {
     0%, 100% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(0, 0) rotate(0deg) scale(1); }
-    24% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(2px, 0) rotate(-1deg) scale(1); }
-    40%, 50% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-24px, 0) rotate(0deg) scale(1.12); }
-    66% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-7px, 0) rotate(0deg) scale(1.03); }
+    24% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(1px, 0) rotate(-1deg) scale(1); }
+    40%, 50% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-13px, 0) rotate(0deg) scale(1.12); }
+    66% { transform: var(--avatar-layer-base-transform, translate(0px, 0px)) translate(-3px, 0) rotate(0deg) scale(1.03); }
 }
 
 @keyframes avatarHandShieldBash {
@@ -5094,23 +5094,23 @@ button.home-player-ship-name {
 
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-gun .avatar-layer[id$="-layer-weapon-right"] {
     animation: avatarWeaponGunRecoil var(--avatar-attack-duration) cubic-bezier(0.12, 0.82, 0.2, 1) both;
-    transform-origin: 18px 27px;
+    transform-origin: 31px 37px;
 }
 
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-gun-big .avatar-layer[id$="-layer-weapon-right"] {
     animation: avatarWeaponBigGunRecoil var(--avatar-attack-duration) cubic-bezier(0.12, 0.82, 0.2, 1) both;
-    transform-origin: 48px 26px;
+    transform-origin: 63px 34px;
 }
 
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-polearm .avatar-layer[id$="-layer-weapon-right"] {
     animation: avatarWeaponPolearmThrust var(--avatar-attack-duration) cubic-bezier(0.18, 0.8, 0.22, 1) both;
-    transform-origin: 16px 55px;
+    transform-origin: 31px 88px;
 }
 
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-shield .avatar-layer[id$="-layer-weapon-right"],
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-shield .avatar-layer[id$="-layer-shield-left"] {
     animation: avatarWeaponShieldBash var(--avatar-attack-duration) cubic-bezier(0.18, 0.78, 0.22, 1) both;
-    transform-origin: 30px 44px;
+    transform-origin: 32px 32px;
 }
 
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-gun .avatar-layer[id$="-layer-hand-right"] {
@@ -5134,7 +5134,7 @@ button.home-player-ship-name {
 
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-sword .avatar-layer[id$="-layer-weapon-right"] {
     animation: avatarWeaponSwordCut var(--avatar-attack-duration) cubic-bezier(0.2, 0.76, 0.24, 1) both;
-    transform-origin: 30px 48px;
+    transform-origin: 31px 44px;
 }
 
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-sword .avatar-layer[id$="-layer-hand-right"] {
@@ -5147,37 +5147,37 @@ button.home-player-ship-name {
 
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-dagger .avatar-layer[id$="-layer-weapon-right"] {
     animation: avatarWeaponDaggerJab var(--avatar-attack-duration) cubic-bezier(0.16, 0.82, 0.2, 1) both;
-    transform-origin: 28px 47px;
+    transform-origin: 27px 42px;
 }
 
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-blunt .avatar-layer[id$="-layer-weapon-right"] {
     animation: avatarWeaponBluntSmash var(--avatar-attack-duration) cubic-bezier(0.18, 0.72, 0.2, 1) both;
-    transform-origin: 31px 54px;
+    transform-origin: 32px 41px;
 }
 
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-axe .avatar-layer[id$="-layer-weapon-right"] {
     animation: avatarWeaponAxeChop var(--avatar-attack-duration) cubic-bezier(0.18, 0.72, 0.2, 1) both;
-    transform-origin: 30px 54px;
+    transform-origin: 33px 41px;
 }
 
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-sword-big .avatar-layer[id$="-layer-weapon-right"] {
     animation: avatarWeaponGreatswordDrop var(--avatar-attack-duration) cubic-bezier(0.18, 0.72, 0.2, 1) both;
-    transform-origin: 31px 70px;
+    transform-origin: 29px 70px;
 }
 
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-axe-big .avatar-layer[id$="-layer-weapon-right"] {
     animation: avatarWeaponGreataxeDrop var(--avatar-attack-duration) cubic-bezier(0.16, 0.72, 0.18, 1) both;
-    transform-origin: 30px 70px;
+    transform-origin: 29px 70px;
 }
 
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-staff .avatar-layer[id$="-layer-weapon-right"] {
     animation: avatarWeaponStaffCast var(--avatar-attack-duration) cubic-bezier(0.2, 0.76, 0.24, 1) both;
-    transform-origin: 28px 92px;
+    transform-origin: 30px 88px;
 }
 
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-wand .avatar-layer[id$="-layer-weapon-right"] {
     animation: avatarWeaponWandFlick var(--avatar-attack-duration) cubic-bezier(0.2, 0.76, 0.24, 1) both;
-    transform-origin: 26px 43px;
+    transform-origin: 27px 42px;
 }
 
 .avatar-combat-actor.is-avatar-attacking.is-avatar-weapon-bow .avatar-layer[id$="-layer-weapon-right"] {
@@ -12847,22 +12847,20 @@ body.tarot-kingdom-preview-body {
     }
 }
 
-/* Preview-only enemy and battlefield galleries. These controls never appear in the live LIFF screen. */
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-enemy-picker,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-battlefield-picker,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-pet-picker,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-field-scene-picker,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-role-picker,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-chain-picker,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-target-picker,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-picker,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-summon-picker {
+/* Preview-only control deck. Only the most recently selected gallery stays open. */
+body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-controls {
     position: absolute;
     top: 8px;
     right: 8px;
     z-index: 42;
     display: grid;
-    width: clamp(122px, 30vw, 166px);
+    width: clamp(132px, 32vw, 174px);
+    gap: 4px;
+}
+
+body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-control-picker,
+body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-control-panels > [data-demo-control-panel] {
+    display: grid;
     padding: 4px 6px 6px;
     gap: 2px;
     border: 1px solid rgba(216, 181, 77, 0.72);
@@ -12872,49 +12870,23 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-sum
     color: #ead58e;
 }
 
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-battlefield-picker {
-    top: 58px;
+body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-control-panels > [data-demo-control-panel][hidden] {
+    display: none;
 }
 
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-pet-picker {
-    top: 108px;
+body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-role-panel,
+body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-panel {
+    gap: 5px;
 }
 
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-field-scene-picker {
-    top: 158px;
+body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-role-panel > label,
+body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-panel > label {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
 }
 
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-role-picker {
-    top: 208px;
-}
-
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-summon-picker {
-    top: 308px;
-}
-
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-chain-picker {
-    top: 258px;
-}
-
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-target-picker,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-picker {
-    right: auto;
-    left: 8px;
-}
-
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-picker {
-    top: 58px;
-}
-
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-enemy-picker > span,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-battlefield-picker > span,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-pet-picker > span,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-field-scene-picker > span,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-role-picker > span,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-chain-picker > span,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-target-picker > span,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-picker > span,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-summon-picker > span {
+body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-controls label > span {
     overflow: hidden;
     font: 700 8px/1.15 "Times New Roman", serif;
     letter-spacing: 0.16em;
@@ -12922,15 +12894,7 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-sum
     white-space: nowrap;
 }
 
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-enemy-picker > select,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-battlefield-picker > select,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-pet-picker > select,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-field-scene-picker > select,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-role-picker > select,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-chain-picker > select,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-target-picker > select,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-picker > select,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-summon-picker > select {
+body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-controls select {
     width: 100%;
     min-width: 0;
     height: 28px;
@@ -12943,78 +12907,19 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-sum
     cursor: pointer;
 }
 
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-enemy-picker > select:focus-visible,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-battlefield-picker > select:focus-visible,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-pet-picker > select:focus-visible,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-field-scene-picker > select:focus-visible,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-role-picker > select:focus-visible,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-chain-picker > select:focus-visible,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-target-picker > select:focus-visible,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-picker > select:focus-visible,
-body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-summon-picker > select:focus-visible {
+body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-controls select:focus-visible {
     outline: 2px solid rgba(246, 213, 114, 0.9);
     outline-offset: 2px;
 }
 
 @media (max-width: 640px) {
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-enemy-picker,
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-battlefield-picker,
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-pet-picker,
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-field-scene-picker,
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-role-picker,
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-chain-picker,
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-target-picker,
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-picker,
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-summon-picker {
+    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-controls {
         top: 6px;
         right: 6px;
-        width: 126px;
-        padding: 3px 5px 5px;
+        width: 132px;
     }
 
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-battlefield-picker {
-        top: 54px;
-    }
-
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-pet-picker {
-        top: 102px;
-    }
-
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-field-scene-picker {
-        top: 150px;
-    }
-
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-role-picker {
-        top: 198px;
-    }
-
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-summon-picker {
-        top: 294px;
-    }
-
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-chain-picker {
-        top: 246px;
-    }
-
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-target-picker,
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-picker {
-        right: auto;
-        left: 6px;
-    }
-
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-picker {
-        top: 54px;
-    }
-
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-enemy-picker > select,
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-battlefield-picker > select,
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-pet-picker > select,
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-field-scene-picker > select,
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-role-picker > select,
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-chain-picker > select,
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-target-picker > select,
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-status-picker > select,
-    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-summon-picker > select {
+    body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-controls select {
         height: 26px;
         font-size: 10px;
     }
@@ -34917,23 +34822,6 @@ body[data-sea-tone] .home-hero-card {
     text-shadow: 0 1px 4px #000;
 }
 
-#tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-enemy.is-attacking:not(.is-projectile-attacking) .tarot-kingdom-battle-enemy-visual {
-    animation:
-        tarotKingdomBattleEnemyAdvance
-            var(--tk-enemy-attack-advance-ms, 180ms)
-            cubic-bezier(0.16, 0.78, 0.2, 1)
-            var(--tk-enemy-attack-elapsed-delay, 0ms)
-            1
-            forwards,
-        tarotKingdomBattleEnemyReturn
-            var(--tk-enemy-attack-return-ms, 180ms)
-            cubic-bezier(0.38, 0, 0.72, 0.42)
-            calc(var(--tk-enemy-attack-animation-ms, 680ms) + var(--tk-enemy-attack-elapsed-delay, 0ms))
-            1
-            forwards;
-    will-change: transform;
-}
-
 #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-enemy.is-hurt .tarot-kingdom-battle-enemy-sprite,
 #tarotKingdomRoot #tarotKingdomEnemySprite.is-hurt {
     animation: tarotKingdomBattleEnemyHurt 360ms ease-out both;
@@ -35014,16 +34902,6 @@ body[data-sea-tone] .home-hero-card {
     50% { box-shadow: 0 0 20px rgba(250, 204, 21, 0.3), inset 3px 0 0 #fde047; }
 }
 
-@keyframes tarotKingdomBattleEnemyAdvance {
-    from { transform: translateX(0); }
-    to { transform: translateX(clamp(44px, 12vw, 92px)); }
-}
-
-@keyframes tarotKingdomBattleEnemyReturn {
-    from { transform: translateX(clamp(44px, 12vw, 92px)); }
-    to { transform: translateX(0); }
-}
-
 @keyframes tarotKingdomBattleEnemyHurt {
     0%, 100% { transform: translateX(0) scale(var(--tarot-kingdom-enemy-scale)); filter: drop-shadow(0 5px 2px rgba(0, 0, 0, 0.58)); }
     22% { transform: translateX(-10px) scale(var(--tarot-kingdom-enemy-scale)); filter: brightness(2.4) sepia(1) saturate(4) hue-rotate(315deg); }
@@ -35032,11 +34910,6 @@ body[data-sea-tone] .home-hero-card {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-enemy.is-attacking .tarot-kingdom-battle-enemy-visual {
-        animation: none;
-        transform: none;
-    }
-
     #tarotKingdomRoot #tarotKingdomBattleStage.is-retreat .tarot-kingdom-battle-player.is-retreating .tarot-kingdom-battle-player-avatar {
         animation: tarotKingdomPlayerRetreatReduced 1600ms ease-out both;
     }

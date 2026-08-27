@@ -144,6 +144,7 @@ export function triggerAvatarAttackMotion(target, options = {}) {
 }
 
 const spritePromiseCache = new Map();
+let avatarPartRenderSequence = 0;
 const ITEM_SPRITE_PRESETS = Object.freeze([
     { idPrefixes: ['accessory_', 'offhand_'], path: './Sprites/items/icons.png', width: 16, height: 16, cols: 16, twoHanded: false },
     { idPrefixes: ['hat_black_'], path: './Sprites/wardrobe/cloth/hat_black.png', width: 32, height: 32, cols: 10, twoHanded: false },
@@ -475,7 +476,15 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
         if (typeof onReady === 'function') onReady();
         return;
     }
+    const renderKey = String(++avatarPartRenderSequence);
+    layer.dataset.renderKey = renderKey;
     layer.dataset.loadState = 'loading';
+    let readyNotified = false;
+    const notifyReady = () => {
+        if (readyNotified) return;
+        readyNotified = true;
+        if (typeof onReady === 'function') onReady();
+    };
 
     if (!imageUrl || spriteIndex < 0) {
         layer.style.backgroundImage = 'none';
@@ -489,13 +498,17 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
         layer.dataset.baseTransform = '';
         layer.style.removeProperty('--avatar-layer-base-transform');
         layer.dataset.loadState = 'ready';
-        if (typeof onReady === 'function') onReady();
+        notifyReady();
         return;
     }
     const pathCandidates = getSpritePathCandidates(imageUrl, itemCategory, avatarColor);
     const tryApplyImage = (candidateIndex) => {
         const currentUrl = pathCandidates[candidateIndex];
         loadSpriteImage(currentUrl).then((img) => {
+            if (layer.dataset.renderKey !== renderKey) {
+                notifyReady();
+                return;
+            }
             if (!img) {
                 if (candidateIndex + 1 < pathCandidates.length) {
                     tryApplyImage(candidateIndex + 1);
@@ -505,7 +518,7 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
                 layer.style.left = '';
                 layer.style.top = '';
                 layer.dataset.loadState = 'error';
-                if (typeof onReady === 'function') onReady();
+                notifyReady();
                 return;
             }
             layer.style.backgroundImage = `url('${currentUrl}')`;
@@ -596,7 +609,7 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
             layer.dataset.scale = String(scale);
             layer.dataset.spriteIndex = String(spriteIndex);
             layer.dataset.loadState = 'ready';
-            if (typeof onReady === 'function') onReady();
+            notifyReady();
         });
     };
 

@@ -109,8 +109,8 @@ import {
   resetCombatAvatarState,
   setCombatAvatarKo,
   setCombatAvatarVictory
-} from './avatarCombat.js?v=20260827-job-weapon-v1';
-import { startAvatarBodyMotion, stopAvatarBodyMotion } from './avatar.js';
+} from './avatarCombat.js?v=20260827-avatar-load-race-v1';
+import { startAvatarBodyMotion, stopAvatarBodyMotion } from './avatar.js?v=20260827-avatar-load-race-v1';
 import {
   PIXEL_MONSTER_COMPANION_OFFSET_Y,
   PIXEL_MONSTER_COMPANION_SCALE
@@ -514,8 +514,6 @@ const KINGDOM_DAMAGE_NUMBER_HOLD_MS = 260;
 const KINGDOM_EFFECT_NAME_MIN_VISIBLE_MS = 720;
 const KINGDOM_ENEMY_SINGLE_EVENT_MS = 860;
 const KINGDOM_ENEMY_AREA_EVENT_MS = 1060;
-const KINGDOM_ENEMY_ATTACK_ADVANCE_MS = 180;
-const KINGDOM_ENEMY_ATTACK_RETURN_MS = 180;
 const KINGDOM_ENEMY_STATUS_EVENT_MS = 840;
 const KINGDOM_JUDGMENT_RECLAIM_EVENT_MS = 1100;
 const KINGDOM_RAID_TRANSFORM_EVENT_MS = 1500;
@@ -715,6 +713,7 @@ let kingdomDemoTrickSceneKey = 'auto';
 let kingdomDemoRoleLastError = '';
 let kingdomDemoSummonId = '';
 let kingdomDemoRoleChainCount = 1;
+let kingdomDemoWeaponOverride = null;
 let kingdomExplorationMonsterId = '';
 let kingdomExplorationSession = null;
 let kingdomRoundPetOfferPromise = null;
@@ -826,6 +825,21 @@ const KINGDOM_DEMO_ROLE_OPTIONS = Object.freeze(ROLE_ORDER.map((roleKey) => Obje
   roleKey,
   label: ROLE_LABEL[roleKey] || roleKey
 })));
+const KINGDOM_DEMO_WEAPON_OPTIONS = Object.freeze([
+  { value: 'unarmed', label: '素手（2ヒット）' },
+  { value: 'sword', label: '剣' },
+  { value: 'sword_big', label: '大剣' },
+  { value: 'dagger', label: '短剣' },
+  { value: 'axe', label: '斧' },
+  { value: 'axe_big', label: '大斧' },
+  { value: 'blunt', label: 'ハンマー・鈍器' },
+  { value: 'polearm', label: '槍' },
+  { value: 'gun', label: '銃' },
+  { value: 'gun_big', label: '大銃' },
+  { value: 'staff', label: '杖' },
+  { value: 'wand', label: 'ワンド' },
+  { value: 'shield', label: '盾打撃' }
+]);
 const KINGDOM_FIELD_SCENE_SRCS = [
   './assets/ui/tarot-kingdom/field-calm-sea.webp',
   './assets/ui/tarot-kingdom/field-lock-lava.webp',
@@ -5259,6 +5273,67 @@ function setKingdomDemoStatus(statusKey = '', targetValue = 'enemy') {
   return true;
 }
 
+async function playKingdomDemoWeaponAttack(weaponType = '') {
+  if (window.__TAROT_KINGDOM_PREVIEW__ !== true) return false;
+  const weapon = KINGDOM_DEMO_WEAPON_OPTIONS.find(({ value }) => value === String(weaponType || ''));
+  const playerIndex = Math.max(0, Number(tkNet.localSeat) || 0);
+  const player = s?.players?.[playerIndex];
+  if (!weapon || !player || player.isPet) return false;
+
+  const character = player.character || buildPreviewKingdomCharacter();
+  const equipment = {
+    ...(character.equipment || {}),
+    RightHand: null,
+    LeftHand: null
+  };
+  const itemSource = { ...(character.itemSource || {}) };
+  if (weapon.value !== 'unarmed') {
+    const itemId = weapon.value === 'shield' ? 'shield_1' : `${weapon.value}_1`;
+    itemSource[itemId] = {
+      itemId,
+      customData: {
+        Category: weapon.value === 'shield' ? 'Shield' : 'Weapon',
+        WeaponType: weapon.value,
+        sprite_index: '1'
+      }
+    };
+    equipment[weapon.value === 'shield' ? 'LeftHand' : 'RightHand'] = itemId;
+  }
+  kingdomDemoWeaponOverride = {
+    weaponType: weapon.value,
+    equipment,
+    itemSource
+  };
+  render();
+  const avatar = document.getElementById(`tarotKingdomBattleAvatar-${playerIndex}`);
+  if (!avatar) return false;
+  const weaponLayer = avatar.querySelector(':scope > .avatar-layer[id$="-layer-weapon-right"], :scope > .avatar-layer[id$="-layer-shield-left"]');
+  if (weapon.value !== 'unarmed' && weaponLayer) {
+    await new Promise((resolve) => {
+      const startedAt = Date.now();
+      const waitForWeapon = () => {
+        if (weaponLayer.dataset.loadState === 'ready' || Date.now() - startedAt >= 600) {
+          resolve();
+          return;
+        }
+        setTimeout(waitForWeapon, 16);
+      };
+      waitForWeapon();
+    });
+  }
+  avatar.dataset.demoWeaponType = weapon.value;
+
+  const visualHitCount = weapon.value === 'unarmed' ? 2 : 1;
+  for (let hitIndex = 0; hitIndex < visualHitCount; hitIndex += 1) {
+    await playCombatAvatarAttack(avatar, weapon.value, {
+      direction: 'left',
+      noAdvance: ['gun', 'gun_big'].includes(weapon.value),
+      duration: visualHitCount > 1 ? 250 : undefined
+    });
+  }
+  return true;
+}
+
 function setKingdomDemoPet(monsterId = '') {
   if (window.__TAROT_KINGDOM_PREVIEW__ !== true) return false;
   const normalizedId = String(monsterId || '').trim();
@@ -5540,9 +5615,9 @@ function getKingdomEnemyAttackMotionProfile(monsterOrId, attackMode = 'single') 
     animationName,
     animationDurationMs,
     usesProjectile: resolvedMotion.usesProjectile === true,
-    advanceDurationMs: KINGDOM_ENEMY_ATTACK_ADVANCE_MS,
-    returnDurationMs: KINGDOM_ENEMY_ATTACK_RETURN_MS,
-    totalDurationMs: animationDurationMs + KINGDOM_ENEMY_ATTACK_RETURN_MS
+    advanceDurationMs: 0,
+    returnDurationMs: 0,
+    totalDurationMs: animationDurationMs
   };
 }
 
@@ -24790,10 +24865,10 @@ function getKingdomBattleEventDuration(event) {
       1,
       Number(event?.attackAnimationDurationMs) || fallback.animationDurationMs
     );
-    const returnDurationMs = Math.max(
-      1,
-      Number(event?.attackReturnDurationMs) || fallback.returnDurationMs
-    );
+    const rawReturnDurationMs = Number(event?.attackReturnDurationMs);
+    const returnDurationMs = Number.isFinite(rawReturnDurationMs)
+      ? Math.max(0, rawReturnDurationMs)
+      : Math.max(0, fallback.returnDurationMs);
     const minimumDurationMs = type === 'enemy-area'
       ? KINGDOM_ENEMY_AREA_EVENT_MS
       : KINGDOM_ENEMY_SINGLE_EVENT_MS;
@@ -25671,10 +25746,16 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
         kingdomPetAnimationTimers.delete(petSprite);
         petSprite.remove();
       }
-      const characterKey = `${Number(s.characterSnapshotCreatedAt || 0)}:${playerIndex}:${character.playFabId || character.source}`;
+      const demoWeapon = window.__TAROT_KINGDOM_PREVIEW__ === true
+        && playerIndex === getLocalPlayerIndex()
+        ? kingdomDemoWeaponOverride
+        : null;
+      const renderEquipment = demoWeapon?.equipment || character.equipment;
+      const renderItemSource = demoWeapon?.itemSource || character.itemSource;
+      const characterKey = `${Number(s.characterSnapshotCreatedAt || 0)}:${playerIndex}:${character.playFabId || character.source}:${demoWeapon?.weaponType || ''}`;
       if (avatar && avatar.dataset.characterKey !== characterKey) {
         avatar.dataset.characterKey = characterKey;
-        renderCombatAvatar(avatar, character.avatarBase, character.equipment, character.itemSource, {
+        renderCombatAvatar(avatar, character.avatarBase, renderEquipment, renderItemSource, {
           prefix: avatar.id,
           isOpponent: false,
           resetState: true
@@ -27041,44 +27122,13 @@ function renderKingdomBattleStage() {
     animationDurationMs: Math.max(
       1,
       Number(visualEvent?.attackAnimationDurationMs) || fallbackAttackMotion.animationDurationMs
-    ),
-    advanceDurationMs: Math.max(
-      1,
-      Number(visualEvent?.attackAdvanceDurationMs) || fallbackAttackMotion.advanceDurationMs
-    ),
-    returnDurationMs: Math.max(
-      1,
-      Number(visualEvent?.attackReturnDurationMs) || fallbackAttackMotion.returnDurationMs
     )
   };
   const enemyAttackElapsedMs = enemyOpeningAttack
     ? Math.max(0, Date.now() - Math.max(0, openingEnemyAttackStartedAt || Date.now()))
     : Math.max(0, elapsed);
   const enemyMovementAnimation = getKingdomMonsterMovementAnimationName(monsterConfig);
-  const enemyReturning = enemyActing
-    && !enemyUsesProjectile
-    && enemyAttackElapsedMs >= enemyAttackMotion.animationDurationMs
-    && enemyAttackElapsedMs < enemyAttackMotion.animationDurationMs + enemyAttackMotion.returnDurationMs;
   const enemyVisualNode = ui.battleEnemy?.querySelector('.tarot-kingdom-battle-enemy-visual') || null;
-  if (enemyVisualNode && enemyActing) {
-    enemyVisualNode.style.setProperty('--tk-enemy-attack-animation-ms', `${enemyAttackMotion.animationDurationMs}ms`);
-    enemyVisualNode.style.setProperty('--tk-enemy-attack-advance-ms', `${enemyAttackMotion.advanceDurationMs}ms`);
-    enemyVisualNode.style.setProperty('--tk-enemy-attack-return-ms', `${enemyAttackMotion.returnDurationMs}ms`);
-    enemyVisualNode.style.setProperty(
-      '--tk-enemy-attack-elapsed-delay',
-      `${-Math.min(
-        enemyAttackMotion.animationDurationMs + enemyAttackMotion.returnDurationMs,
-        enemyAttackElapsedMs
-      )}ms`
-    );
-  } else if (enemyVisualNode) {
-    [
-      '--tk-enemy-attack-animation-ms',
-      '--tk-enemy-attack-advance-ms',
-      '--tk-enemy-attack-return-ms',
-      '--tk-enemy-attack-elapsed-delay'
-    ].forEach((propertyName) => enemyVisualNode.style.removeProperty(propertyName));
-  }
   const enemyHurt = eventIsActive
     && ['attack', 'skill', 'enemy-self', 'enemy-status'].includes(String(visualEvent?.type || ''))
     && (!timeline || prefersKingdomReducedMotion() || ['damage', 'recover'].includes(timelinePhase))
@@ -27100,7 +27150,7 @@ function renderKingdomBattleStage() {
   [ui.battleEnemy, ui.battleEnemySprite].forEach((node) => {
     node?.classList.toggle('is-attacking', enemyActing);
     node?.classList.toggle('is-projectile-attacking', enemyActing && enemyUsesProjectile);
-    node?.classList.toggle('is-returning', enemyReturning);
+    node?.classList.remove('is-returning');
     node?.classList.toggle('is-hurt', enemyHurt);
     node?.classList.toggle('is-defeated', enemyDefeated);
     node?.classList.toggle('is-rush-time', enemyRushTime);
@@ -27125,10 +27175,10 @@ function renderKingdomBattleStage() {
       ? 'escape'
         : (openingIntroStage === 'enter' || enemyRebirthActive
         ? 'entry'
-        : (enemyReturning ? 'return' : (enemyActing ? 'attack' : (enemyHurt ? 'hurt' : 'idle')))));
+        : (enemyActing ? 'attack' : (enemyHurt ? 'hurt' : 'idle'))));
   const monsterMotion = resolveTarotKingdomMonsterMotion({
     monsterId: enemy.id,
-    context: motionContext === 'return' ? 'entry' : motionContext,
+    context: motionContext,
     phase: enemyOpeningAttack ? 'hit-stop' : timelinePhase,
     attackMode: enemyAttackMode,
     hasSpecial: eventHasEnemySpecial,
@@ -27145,12 +27195,10 @@ function renderKingdomBattleStage() {
         ? 'hurt'
         : (motionContext === 'escape'
           ? escapeAnimation
-          : (['entry', 'return'].includes(motionContext) ? openingWalkAnimation : 'idle'))));
-  const animationName = motionContext === 'return'
-    ? openingWalkAnimation
-    : (monsterConfig?.animations?.[monsterMotion.animationName]
-      ? monsterMotion.animationName
-      : motionFallbackAnimation);
+          : (motionContext === 'entry' ? openingWalkAnimation : 'idle'))));
+  const animationName = monsterConfig?.animations?.[monsterMotion.animationName]
+    ? monsterMotion.animationName
+    : motionFallbackAnimation;
   const monsterAnimationGeneration = enemyFinisherActive
     ? `${eventScopeKey}:finisher:${Number(enemy.defeatedAtSeq) || Number(victoryEvent?.seq) || 0}`
     : (enemyEscapeActive
@@ -27175,22 +27223,19 @@ function renderKingdomBattleStage() {
     renderKingdomMonsterAuxEffects(enemyVisualNode, monsterConfig, [], `${eventKey}:frozen`);
   }
   else {
-    const motionElapsedMs = motionContext === 'return'
-      ? Math.max(0, enemyAttackElapsedMs - enemyAttackMotion.animationDurationMs)
-      : (motionContext === 'attack'
+    const motionElapsedMs = motionContext === 'attack'
       ? (animationName === enemyAttackAnimation ? enemyAttackElapsedMs : 0)
       : (motionContext === 'death'
         ? (animationName === 'death' ? finisherElapsed : 0)
-        : (motionContext === 'escape' ? escapeElapsed : 0)));
+        : (motionContext === 'escape' ? escapeElapsed : 0));
     playKingdomMonsterAnimation(animationName, monsterAnimationGeneration, {
       playbackRate: enemyRushTime ? KINGDOM_RUSH_MONSTER_PLAYBACK_RATE : 1,
-      elapsedMs: motionElapsedMs,
-      reverse: motionContext === 'return'
+      elapsedMs: motionElapsedMs
     });
     renderKingdomMonsterAuxEffects(
       enemyVisualNode,
       monsterConfig,
-      eventIsActive && motionContext !== 'return' ? monsterMotion.effects : [],
+      eventIsActive ? monsterMotion.effects : [],
       `${eventKey}:enemy`,
       { direction: 'right', sourceNode: ui.battleEnemySprite }
     );
@@ -29944,6 +29989,7 @@ function bindUi() {
   ui.battleEnemyHpFill = document.getElementById('tarotKingdomEnemyHpFill');
   ui.battleEnemyHpTrack = ui.battleStage?.querySelector('.tarot-kingdom-battle-hp') || null;
   ui.battleEnemySprite = document.getElementById('tarotKingdomEnemySprite');
+  ui.demoControlSelect = document.getElementById('tarotKingdomDemoControlSelect');
   ui.demoEnemySelect = document.getElementById('tarotKingdomDemoEnemySelect');
   ui.demoBattlefieldSelect = document.getElementById('tarotKingdomDemoBattlefieldSelect');
   ui.demoPetSelect = document.getElementById('tarotKingdomDemoPetSelect');
@@ -29953,6 +29999,18 @@ function bindUi() {
   ui.demoSummonSelect = document.getElementById('tarotKingdomDemoSummonSelect');
   ui.demoStatusTargetSelect = document.getElementById('tarotKingdomDemoStatusTargetSelect');
   ui.demoStatusSelect = document.getElementById('tarotKingdomDemoStatusSelect');
+  ui.demoWeaponSelect = document.getElementById('tarotKingdomDemoWeaponSelect');
+  if (ui.demoControlSelect && window.__TAROT_KINGDOM_PREVIEW__ === true) {
+    const demoControlPanels = Array.from(ui.battleStage?.querySelectorAll('[data-demo-control-panel]') || []);
+    const showDemoControlPanel = () => {
+      const selectedPanel = String(ui.demoControlSelect.value || 'enemy');
+      demoControlPanels.forEach((panel) => {
+        panel.hidden = panel.dataset.demoControlPanel !== selectedPanel;
+      });
+    };
+    ui.demoControlSelect.addEventListener('change', showDemoControlPanel);
+    showDemoControlPanel();
+  }
   if (ui.demoStatusSelect && window.__TAROT_KINGDOM_PREVIEW__ === true) {
     const noneOption = document.createElement('option');
     noneOption.value = '';
@@ -30121,6 +30179,24 @@ function bindUi() {
     ui.demoSummonSelect.addEventListener('change', () => {
       const summonId = String(ui.demoSummonSelect.value || '');
       if (summonId) playKingdomDemoSummon(summonId);
+    });
+  }
+  if (ui.demoWeaponSelect && window.__TAROT_KINGDOM_PREVIEW__ === true) {
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '武器を選んで再生';
+    const weaponOptions = KINGDOM_DEMO_WEAPON_OPTIONS.map((weapon) => {
+      const option = document.createElement('option');
+      option.value = weapon.value;
+      option.textContent = weapon.label;
+      return option;
+    });
+    ui.demoWeaponSelect.replaceChildren(placeholder, ...weaponOptions);
+    ui.demoWeaponSelect.value = '';
+    ui.demoWeaponSelect.addEventListener('change', () => {
+      const weaponType = String(ui.demoWeaponSelect.value || '');
+      if (weaponType) void playKingdomDemoWeaponAttack(weaponType);
+      ui.demoWeaponSelect.value = '';
     });
   }
   ui.battleFeed = document.getElementById('tarotKingdomBattleFeed');

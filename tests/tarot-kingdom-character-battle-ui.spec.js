@@ -552,6 +552,7 @@ test('5 skip leaves a wet film and droplets without raising a wave or showing a 
 
 test('player ailments appear below the hand count and animate on the avatar without covering either', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.locator('#tarotKingdomDemoControlSelect').selectOption('field');
   await page.locator('#tarotKingdomDemoBattlefieldSelect').selectOption('stage-02-windswept-deck');
   await expect.poll(() => page.locator('.tarot-kingdom-battle-arena').evaluate((node) => (
     node.style.getPropertyValue('--tarot-kingdom-ground-start').trim()
@@ -904,6 +905,7 @@ test('blindness covers the full actor, silence centers its cross, player confusi
 
 test('buffs, debuffs and support effects use the same compact icon system as ailments', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.locator('#tarotKingdomDemoControlSelect').selectOption('status');
   const demoEffectSelect = page.locator('#tarotKingdomDemoStatusSelect');
   await expect(demoEffectSelect.locator('optgroup')).toHaveCount(3);
   await expect(demoEffectSelect.locator('option[value="powerUp"]')).toHaveCount(1);
@@ -1002,6 +1004,55 @@ test('buffs, debuffs and support effects use the same compact icon system as ail
     return [rect.width, rect.height];
   });
   expect(detailSize).toEqual([24, 24]);
+});
+
+test('preview control deck shows only the selected panel and can replay weapon attacks', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+
+  const controlSelect = page.locator('#tarotKingdomDemoControlSelect');
+  const panels = page.locator('[data-demo-control-panel]');
+  await expect(controlSelect).toBeVisible();
+  await expect(panels.filter({ visible: true })).toHaveCount(1);
+  await expect(page.locator('[data-demo-control-panel="enemy"]')).toBeVisible();
+
+  await controlSelect.selectOption('weapon');
+  await expect(panels.filter({ visible: true })).toHaveCount(1);
+  await expect(page.locator('[data-demo-control-panel="enemy"]')).toBeHidden();
+  await expect(page.locator('[data-demo-control-panel="weapon"]')).toBeVisible();
+
+  const weaponSelect = page.locator('#tarotKingdomDemoWeaponSelect');
+  await expect(weaponSelect.locator('option')).toHaveCount(14);
+  await weaponSelect.selectOption('gun_big');
+  const avatar = page.locator('#tarotKingdomBattleAvatar-0');
+  await expect(avatar).toHaveAttribute('data-demo-weapon-type', 'gun_big');
+  await expect.poll(() => avatar.evaluate((node) => getComputedStyle(node).animationName)).toContain('avatarCombatBigGun');
+  await expect(page.locator('#tarotKingdomBattleAvatar-0-layer-weapon-right')).toHaveCSS(
+    'background-image',
+    /pistol_big\.png/
+  );
+});
+
+test('a stale demo weapon load cannot erase the latest selected weapon', async ({ page }) => {
+  await page.route('**/staff.png', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    await route.continue();
+  });
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.locator('#tarotKingdomDemoControlSelect').selectOption('weapon');
+
+  const weaponSelect = page.locator('#tarotKingdomDemoWeaponSelect');
+  const avatar = page.locator('#tarotKingdomBattleAvatar-0');
+  const weaponLayer = page.locator('#tarotKingdomBattleAvatar-0-layer-weapon-right');
+  await weaponSelect.selectOption('staff');
+  await weaponSelect.selectOption('sword_big');
+
+  await expect(avatar).toHaveAttribute('data-demo-weapon-type', 'sword_big');
+  await expect(avatar).toHaveAttribute('data-character-key', /:sword_big$/);
+  await expect(weaponLayer).toHaveCSS('background-image', /sword_big\.png/);
+  await expect(weaponLayer).toHaveAttribute('data-load-state', 'ready');
+  await page.waitForTimeout(650);
+  await expect(weaponLayer).toHaveCSS('background-image', /sword_big\.png/);
+  await expect(weaponLayer).toHaveAttribute('data-load-state', 'ready');
 });
 
 test('field backgrounds show persistent card effects behind unobscured cards', async ({ page }) => {
@@ -1286,6 +1337,7 @@ test('five-card roles always use rank-specific magic circles and ignore an inclu
 
 test('preview can switch every field-effect background from the demo picker', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.locator('#tarotKingdomDemoControlSelect').selectOption('field-effect');
   const picker = page.locator('#tarotKingdomDemoFieldSceneSelect');
   const trick = page.locator('#tarotKingdomTrick');
   const activeScene = () => trick.locator(':scope > .tarot-kingdom-field-scene-layer.is-active');
@@ -1319,6 +1371,7 @@ test('preview can switch every field-effect background from the demo picker', as
 
 test('preview can replay every normal and call five-card role cinematic', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.locator('#tarotKingdomDemoControlSelect').selectOption('role');
   const picker = page.locator('#tarotKingdomDemoRoleSelect');
   const chainPicker = page.locator('#tarotKingdomDemoChainSelect');
   await expect(picker).toBeVisible();
@@ -1415,6 +1468,7 @@ test('preview can replay every normal and call five-card role cinematic', async 
 
 test('chain indicators stay inside the battlefield and reduced motion keeps a static result', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.locator('#tarotKingdomDemoControlSelect').selectOption('role');
   const inspect = async (width, height) => {
     await page.setViewportSize({ width, height });
     await page.locator('#tarotKingdomDemoChainSelect').selectOption('5');
@@ -2058,6 +2112,7 @@ test('preview enemy picker switches among all purchased Pixel Monsters without c
 
 test('preview pet picker adds a normal monster to the second seat and can remove it', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.locator('#tarotKingdomDemoControlSelect').selectOption('pet');
 
   const picker = page.locator('#tarotKingdomDemoPetSelect');
   await expect(picker).toBeVisible();
@@ -2190,9 +2245,9 @@ test('monsters with two attack sheets use the second one for area attacks and pe
     animationName: 'attack2',
     animationDurationMs: 900,
     usesProjectile: false,
-    advanceDurationMs: 180,
-    returnDurationMs: 180,
-    totalDurationMs: 1080
+    advanceDurationMs: 0,
+    returnDurationMs: 0,
+    totalDurationMs: 900
   });
   expect(selection.projectileMotion).toMatchObject({
     animationName: 'attack',
@@ -2200,15 +2255,15 @@ test('monsters with two attack sheets use the second one for area attacks and pe
   });
   expect(selection.timing.short).toMatchObject({
     animationDurationMs: 400,
-    totalDurationMs: 580
+    totalDurationMs: 400
   });
   expect(selection.timing.medium).toMatchObject({
     animationDurationMs: 900,
-    totalDurationMs: 1080
+    totalDurationMs: 900
   });
   expect(selection.timing.capped).toMatchObject({
     animationDurationMs: 900,
-    totalDurationMs: 1080
+    totalDurationMs: 900
   });
 
   const enemySequence = await page.evaluate(() => {
@@ -2244,13 +2299,13 @@ test('monsters with two attack sheets use the second one for area attacks and pe
       type: 'enemy-single',
       attackAnimationName: 'attack',
       attackAnimationDurationMs: 900,
-      attackReturnDurationMs: 180
+      attackReturnDurationMs: 0
     },
     {
       type: 'enemy-area',
       attackAnimationName: 'attack2',
       attackAnimationDurationMs: 900,
-      attackReturnDurationMs: 180
+      attackReturnDurationMs: 0
     }
   ]);
   expect(enemySequence.animationName).toBe('attack1');
@@ -2297,6 +2352,11 @@ test('monsters with two attack sheets use the second one for area attacks and pe
   await expect(page.locator('#tarotKingdomEnemySprite')).toHaveAttribute('data-animation-name', 'attack2', {
     timeout: 1_800
   });
+  const areaAttackOffset = await page.locator('.tarot-kingdom-battle-enemy-visual').evaluate((visual) => {
+    const transform = getComputedStyle(visual).transform;
+    return transform === 'none' ? 0 : new DOMMatrixReadOnly(transform).m41;
+  });
+  expect(areaAttackOffset).toBe(0);
   await expect(page.locator('#tarotKingdomEnemySprite')).toHaveCSS(
     'background-image',
     /\/pixel-monsters\/vol2\/monster-06\/attack2\.png/
@@ -2448,9 +2508,9 @@ test('all monster attack sheets use their native timing up to the compact battle
     for (const motion of [monster.single, monster.area]) {
       expect(motion.animationDurationMs, monster.name).toBeGreaterThan(0);
       expect(motion.animationDurationMs, monster.name).toBeLessThanOrEqual(900);
-      expect(motion.advanceDurationMs, monster.name).toBe(180);
-      expect(motion.returnDurationMs, monster.name).toBe(180);
-      expect(motion.totalDurationMs, monster.name).toBe(motion.animationDurationMs + 180);
+      expect(motion.advanceDurationMs, monster.name).toBe(0);
+      expect(motion.returnDurationMs, monster.name).toBe(0);
+      expect(motion.totalDurationMs, monster.name).toBe(motion.animationDurationMs);
       observedDurations.add(motion.animationDurationMs);
     }
   });

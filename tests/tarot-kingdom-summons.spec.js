@@ -118,6 +118,7 @@ test.describe('Tarot Kingdom deterministic summons', () => {
       withTrick: false,
       turnIndex: 0
     }));
+    await page.locator('#tarotKingdomDemoControlSelect').selectOption('summon');
     const picker = page.locator('#tarotKingdomDemoSummonSelect');
     await expect(picker).toBeVisible();
     await expect(picker.locator('option:not([value=""])')).toHaveCount(57);

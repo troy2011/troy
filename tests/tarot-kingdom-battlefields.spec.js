@@ -328,6 +328,7 @@ for (const viewport of [
 ]) {
   test(`${viewport.width}px keeps all 11 stage parties standing on their battlefield floor`, async ({ page }) => {
     await openBattle(page, viewport);
+    await page.locator('#tarotKingdomDemoControlSelect').selectOption('field');
     const stageProfiles = [
       ['stage-01-coral-shallows', 33],
       ['stage-02-windswept-deck', 46],
@@ -355,8 +356,8 @@ for (const viewport of [
       expect(geometry.groundStart).toBe(groundStart);
       expect(geometry.players).toHaveLength(4);
       if (battlefieldId === 'stage-02-windswept-deck') {
-        expect(geometry.backgroundPosition).toBe('50% 50%, 50% -24px');
-        expect(geometry.backgroundSize).toBe('cover, 100% calc(100% + 24px)');
+        expect(geometry.backgroundPosition).toBe('50% 50%, 50% -50px');
+        expect(geometry.backgroundSize).toBe('cover, 100% calc(100% + 50px)');
       }
       for (const player of geometry.players) {
         expect(player.bottom).toBeGreaterThanOrEqual(floorStartY);
