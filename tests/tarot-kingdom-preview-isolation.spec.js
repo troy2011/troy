@@ -24,8 +24,8 @@ test('Tarot Kingdom shares the canonical inventory module with the app shell', (
   expect(kingdomSource).not.toContain("} from './inventory.js';");
   expect(shipSource).toContain("import * as Inventory from 'inventory';");
   expect(shipSource).not.toContain("import * as Inventory from './inventory.js';");
-  expect(indexSource).toContain('"inventory": "./js/inventory.js?v=20260827-job-weapon-v1"');
-  expect(previewSource).toContain('"inventory": "./js/inventory.js?v=20260827-job-weapon-v1"');
+  expect(indexSource).toContain('"inventory": "./js/inventory.js?v=20260827-inventory-figma-v1"');
+  expect(previewSource).toContain('"inventory": "./js/inventory.js?v=20260827-inventory-figma-v1"');
 });
 
 test('Tarot Kingdom online lobby uses canonical presence for failover and room counts', () => {
@@ -60,8 +60,19 @@ test('Tarot Kingdom locks the live rescue party before online departure', () => 
   expect(kingdomSource).toContain("if (status !== 'sailing' && status !== 'arrived') return false;");
   expect(serverSource).toContain("joinError = { code: 409, message: 'この救難信号は出航準備に入りました。' };");
   expect(serverSource).toContain('stagePartyLockedAtMs: locked === false ? 0 : Date.now()');
-  expect(kingdomSource).toContain('const partyState = await context.onOnlinePartyLock(tkNet.roomId, false);');
-  expect(kingdomSource).toContain("throw new Error('救難信号へ参加者がいるため撤退できません。');");
+  expect(kingdomSource).toContain('await context.onOnlinePartyLock(tkNet.roomId, false);');
+  expect(kingdomSource).not.toContain("throw new Error('救難信号へ参加者がいるため撤退できません。');");
+});
+
+test('exploration recovery only treats start-request conflicts as resumable starts', () => {
+  const shipSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'ship.js'),
+    'utf8'
+  );
+
+  expect(shipSource).toContain('return error?.isExplorationStartConflict === true;');
+  expect(shipSource).toContain('throw markExplorationStartConflict(error);');
+  expect(shipSource).not.toContain("return message.includes('HTTP 409') || message.includes('探索中です');");
 });
 
 test('Tarot Kingdom retries a transient Arcana catalog failure before starting', async ({ page }) => {
@@ -82,9 +93,10 @@ test('Tarot Kingdom retries a transient Arcana catalog failure before starting',
 });
 
 test('Tarot Kingdom release advances its entry modules and service-worker cache together', () => {
-  const release = '20260827-job-weapon-v1';
-  const shipRelease = '20260827-guardian-cover-v1';
-  const inventoryRelease = release;
+  const release = '20260828-exploration-retreat-v1';
+  const inventoryRelease = '20260827-inventory-figma-v1';
+  const playFabRelease = '20260827-job-mastery-v1';
+  const styleRelease = '20260827-shield-glass-v1';
   const indexSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'index.html'), 'utf8');
   const mainSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'main.js'), 'utf8');
   const uiSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'ui.js'), 'utf8');
@@ -100,19 +112,19 @@ test('Tarot Kingdom release advances its entry modules and service-worker cache 
   expect(indexSource).toContain(`"inventory": "./js/inventory.js?v=${inventoryRelease}"`);
   expect(previewSource).toContain(`"inventory": "./js/inventory.js?v=${inventoryRelease}"`);
   expect(indexSource).toContain(`"ui": "./js/ui.js?v=${release}"`);
-  expect(indexSource).toContain(`style.css?v=${release}`);
+  expect(indexSource).toContain(`style.css?v=${styleRelease}`);
   expect(indexSource).toContain(`src="main.js?v=${release}"`);
   expect(mainSource).toContain(`const TAROT_KINGDOM_RESCUE_VERSION = '${release}';`);
-  expect(mainSource).toContain(`./js/ship.js?v=${shipRelease}`);
+  expect(mainSource).toContain(`./js/ship.js?v=${release}`);
   expect(uiSource).toContain(`const TAROT_KINGDOM_MODULE_VERSION = '${release}';`);
-  expect(uiSource).toContain(`./ship.js?v=${shipRelease}`);
-  expect(islandSource).toContain(`./ship.js?v=${shipRelease}`);
-  expect(worldMapSource).toContain(`./js/ship.js?v=${shipRelease}`);
-  expect(shipSource).toContain(`./playfabClient.js?v=${shipRelease}`);
+  expect(uiSource).toContain(`./ship.js?v=${release}`);
+  expect(islandSource).toContain(`./ship.js?v=${release}`);
+  expect(worldMapSource).toContain(`./js/ship.js?v=${release}`);
+  expect(shipSource).toContain(`./playfabClient.js?v=${playFabRelease}`);
   expect(previewSource).toContain(`"ui": "./js/ui.js?v=${release}"`);
   expect(previewSource).toContain(`./js/tarotKingdom.js?v=${release}`);
-  expect(previewSource).toContain(`./style.css?v=${release}`);
-  expect(serviceWorkerSource).toContain("const CACHE_VERSION = 'troy-app-v20260827c';");
+  expect(previewSource).toContain(`./style.css?v=${styleRelease}`);
+  expect(serviceWorkerSource).toContain("const CACHE_VERSION = 'troy-app-v20260828a';");
 });
 
 function loadServiceWorkerHarness() {

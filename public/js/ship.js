@@ -2663,8 +2663,18 @@ export async function claimOnlineExplorationReward(playFabId, ownerPlayFabId, ki
 }
 
 function isExplorationStartConflict(error) {
+    return error?.isExplorationStartConflict === true;
+}
+
+function markExplorationStartConflict(error) {
     const message = String(error?.message || '');
-    return message.includes('HTTP 409') || message.includes('探索中です');
+    if (!message.includes('HTTP 409') && !message.includes('探索中です')) return error;
+    try {
+        error.isExplorationStartConflict = true;
+    } catch (_) {
+        // The original error is still useful even when it cannot be extended.
+    }
+    return error;
 }
 
 function buildRecoveredExplorationStartData(explorationData, destinationId) {
@@ -3424,6 +3434,7 @@ function renderExplorationPanel(data, playFabId) {
         });
     };
     if (active) {
+        const retreatPending = active.status === 'retreating';
         panel.innerHTML = `
             ${head}
             ${explorationSettings}
@@ -3437,12 +3448,12 @@ function renderExplorationPanel(data, playFabId) {
                     </div>
                 </div>
                 <div class="ship-exploration-badges" aria-label="探索状態">
-                    <span class="ship-exploration-badge is-active">航海中</span>
+                    <span class="ship-exploration-badge is-active">${retreatPending ? '撤退処理中' : '航海中'}</span>
                 </div>
                 <div class="ship-exploration-actions">
-                    <button type="button" data-exploration-claim>出航</button>
+                    ${retreatPending ? '' : '<button type="button" data-exploration-claim>出航</button>'}
                     <button type="button" class="ship-exploration-retreat" data-exploration-retreat
-                        aria-label="探索を中止してステージ選択へ戻る">撤退</button>
+                        aria-label="${retreatPending ? '中断した撤退処理を完了する' : '探索を中止してステージ選択へ戻る'}">${retreatPending ? '撤退を完了' : '撤退'}</button>
                 </div>
             </div>
         `;
@@ -3646,11 +3657,16 @@ async function startExploration(playFabId, destinationId, payment = {}, triggerB
         const stageNo = Math.max(1, Math.floor(Number(payment?.stageNo) || 1));
         const battleMode = payment?.battleMode === 'online' ? 'online' : 'offline';
         const preparationPromise = (async () => {
-            const startData = await requestStartExploration(playFabId, stageNo, createRequestId('exploration-start'), {
-                throwOnError: true,
-                supplies: Array.isArray(payment?.supplies) ? payment.supplies : [],
-                tutorialEnabled: payment?.tutorialEnabled === true
-            });
+            let startData;
+            try {
+                startData = await requestStartExploration(playFabId, stageNo, createRequestId('exploration-start'), {
+                    throwOnError: true,
+                    supplies: Array.isArray(payment?.supplies) ? payment.supplies : [],
+                    tutorialEnabled: payment?.tutorialEnabled === true
+                });
+            } catch (error) {
+                throw markExplorationStartConflict(error);
+            }
             renderExplorationPanel(startData, playFabId);
             const encounterData = await requestExplorationEncounter(playFabId, { throwOnError: true });
             return { startData, encounterData };

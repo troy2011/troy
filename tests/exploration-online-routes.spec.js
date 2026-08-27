@@ -80,14 +80,21 @@ function createOnlineRouteHarness() {
     ownerPlayFabId: hostPlayFabId,
     explorationId
   };
-  const routeState = { openRoomVisible: true };
+  const routeState = {
+    activeExists: true,
+    openRoomVisible: true,
+    removedRealtimePaths: []
+  };
   const activeRef = {
     id: hostPlayFabId,
     async get() {
-      return createSnapshot(activeData);
+      return createSnapshot(routeState.activeExists ? activeData : null);
     },
     async set(updates) {
       Object.assign(activeData, updates);
+    },
+    async delete() {
+      routeState.activeExists = false;
     }
   };
   const playFabData = {};
@@ -121,10 +128,13 @@ function createOnlineRouteHarness() {
     async runTransaction(callback) {
       return callback({
         async get() {
-          return createSnapshot(activeData);
+          return createSnapshot(routeState.activeExists ? activeData : null);
         },
         update(_ref, updates) {
           Object.assign(activeData, updates);
+        },
+        delete() {
+          routeState.activeExists = false;
         }
       });
     }
@@ -140,6 +150,12 @@ function createOnlineRouteHarness() {
                 return createRealtimeSnapshot(routeState.openRoomVisible ? openRoom : null);
               }
               return createRealtimeSnapshot(null);
+            },
+            async remove() {
+              routeState.removedRealtimePaths.push(path);
+              if (path === `tarotKingdomMatch/openRooms/${roomId}`) {
+                routeState.openRoomVisible = false;
+              }
             }
           };
         }
@@ -160,6 +176,9 @@ function createOnlineRouteHarness() {
     admin,
     PlayFabServer,
     promisifyPlayFab,
+    addEconomyItem: async () => ({}),
+    getAllInventoryItems: async () => [],
+    getEntityKeyForPlayFabId: async () => ({ Id: hostPlayFabId, Type: 'title_player_account' }),
     requireAuthenticatedPlayFabId: async (_req, _res, playFabId) => playFabId
   });
 
@@ -315,4 +334,62 @@ test('the current online host can confirm ABP after departure closes the rescue 
 
   expect(response.statusCode).toBe(200);
   expect(response.payload).toEqual(expect.objectContaining({ amount: 1, monsterId: 'ismartal-vol3-monster-04' }));
+});
+
+test('online host retreat ends the exploration even when rescue guests participated', async () => {
+  const harness = createOnlineRouteHarness();
+  harness.activeData.stageParticipants = [harness.hostPlayFabId, harness.guestPlayFabId];
+  harness.activeData.stageRoomId = harness.roomId;
+  const response = createResponse();
+
+  await harness.handlers.get('/api/exploration/retreat')({
+    body: {
+      playFabId: harness.hostPlayFabId,
+      explorationId: harness.explorationId
+    }
+  }, response);
+
+  expect(response.statusCode).toBe(200);
+  expect(response.payload).toEqual(expect.objectContaining({
+    active: null,
+    retreated: true,
+    replayed: false
+  }));
+  expect(harness.routeState.activeExists).toBe(false);
+  expect(harness.routeState.removedRealtimePaths).toEqual(expect.arrayContaining([
+    `tarotKingdomRooms/${harness.roomId}`,
+    `tarotKingdomMatch/openRooms/${harness.roomId}`
+  ]));
+});
+
+test('retreating exploration remains visible and can finish an interrupted refund', async () => {
+  const harness = createOnlineRouteHarness();
+  harness.activeData.status = 'retreating';
+  harness.activeData.stageRoomId = harness.roomId;
+  const statusResponse = createResponse();
+
+  await harness.handlers.get('/api/exploration/status')({
+    body: { playFabId: harness.hostPlayFabId }
+  }, statusResponse);
+
+  expect(statusResponse.statusCode).toBe(200);
+  expect(statusResponse.payload.active).toEqual(expect.objectContaining({
+    id: harness.explorationId,
+    status: 'retreating'
+  }));
+
+  const retreatResponse = createResponse();
+  await harness.handlers.get('/api/exploration/retreat')({
+    body: {
+      playFabId: harness.hostPlayFabId,
+      explorationId: harness.explorationId
+    }
+  }, retreatResponse);
+
+  expect(retreatResponse.statusCode).toBe(200);
+  expect(retreatResponse.payload).toEqual(expect.objectContaining({
+    active: null,
+    retreated: true
+  }));
+  expect(harness.routeState.activeExists).toBe(false);
 });

@@ -29318,12 +29318,7 @@ async function handleKingdomExplorationRetreatClick() {
   ) {
     s.message = '現在の参加状況を確認しています...';
     render();
-    const partyState = await context.onOnlinePartyLock(tkNet.roomId, false);
-    const participants = Array.isArray(partyState?.participants) ? partyState.participants : [];
-    const localPlayFabId = String(window.myPlayFabId || tkNet.uid || '').trim();
-    if (participants.some((participantId) => String(participantId || '').trim() !== localPlayFabId)) {
-      throw new Error('救難信号へ参加者がいるため撤退できません。');
-    }
+    await context.onOnlinePartyLock(tkNet.roomId, false);
   }
   if (isNetModeActive() && tkNet.isHost) {
     await removeCurrentOpenRoomIndex();

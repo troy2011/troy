@@ -2066,6 +2066,66 @@ test('an active exploration can retreat before departing for the locked retry st
   await expectNoPageErrors(errors);
 });
 
+test('an interrupted retreat can be completed without relaunching the battle', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  let retreatBody = null;
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/api/exploration/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ship: { shipId: 'ship-retreating', shipName: '帰港号', form: 'explorer', stage: 2 },
+        active: {
+          id: 'exploration-retreating',
+          status: 'retreating',
+          stageNo: 2,
+          stageId: 'tarot_stage_2',
+          destinationId: 'tarot_stage_2',
+          destinationName: '群礁の島道',
+          imagePath: './Sprites/exploration_destinations/reef_islets.png',
+          shipName: '帰港号'
+        },
+        stages: [],
+        explorationSupplies: []
+      })
+    });
+  });
+  await page.route('**/api/exploration/retreat', async (route) => {
+    retreatBody = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ship: { shipId: 'ship-retreating', shipName: '帰港号', form: 'explorer', stage: 2 },
+        active: null,
+        retreated: true,
+        progress: { version: 2, highestUnlockedStage: 2 },
+        stages: [makeExplorationStage(2, { name: '群礁の島道' })],
+        explorationSupplies: []
+      })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.locator('#btnHomeExploration').click();
+  const panel = page.locator('#shipExplorationPanel');
+  await expect(panel.locator('.ship-exploration-badge')).toHaveText('撤退処理中');
+  await expect(panel.locator('[data-exploration-claim]')).toHaveCount(0);
+  const finishButton = panel.locator('[data-exploration-retreat]');
+  await expect(finishButton).toHaveText('撤退を完了');
+
+  await finishButton.click();
+
+  await expect.poll(() => retreatBody).toEqual({
+    playFabId: 'PF_PLAYWRIGHT',
+    explorationId: 'exploration-retreating'
+  });
+  await expect(panel.locator('[data-exploration-retreat]')).toHaveCount(0);
+  await expect(panel.locator('.ship-exploration-start')).toHaveText('出航');
+  await expectNoPageErrors(errors);
+});
+
 test('exploration popup can retry after its status request fails', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });

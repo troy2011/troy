@@ -925,7 +925,7 @@ function resolveEffectiveStatus(data) {
 function explorationDocToPayload(data = {}) {
     if (!data) return null;
     const effectiveStatus = resolveEffectiveStatus(data);
-    if (effectiveStatus !== 'active') return null;
+    if (effectiveStatus !== 'active' && effectiveStatus !== 'retreating') return null;
     const destination = DESTINATIONS[String(data.destinationId || '')] || null;
     const requiredSupplyUnits = Math.max(0, Math.floor(Number(data.requiredSupplyUnits ?? data.requiredConsumableCount ?? 0) || 0));
     const consumedConsumables = Array.isArray(data.consumedConsumables)
@@ -950,7 +950,7 @@ function explorationDocToPayload(data = {}) {
     const encounter = normalizeExplorationTarotEncounter(data.tarotEncounter);
     return {
         id: String(data.id || ''),
-        status: 'active',
+        status: effectiveStatus,
         destinationId: String(data.destinationId || ''),
         destinationName: String(data.destinationName || ''),
         stageVersion: Math.max(0, Math.floor(Number(data.stageVersion) || 0)),
@@ -3798,15 +3798,6 @@ function initializeExplorationRoutes(app, deps) {
                     return;
                 }
                 if (effectiveStatus === 'active') {
-                    const participants = Array.from(new Set(
-                        (Array.isArray(data.stageParticipants) ? data.stageParticipants : [])
-                            .map((entry) => String(entry || '').trim())
-                            .filter(Boolean)
-                    ));
-                    if (participants.some((participantId) => participantId !== playFabId)) {
-                        retreatError = { code: 409, message: '救難信号へ参加者がいるため撤退できません。' };
-                        return;
-                    }
                     tx.update(activeRef, {
                         status: 'retreating',
                         retreatedAtMs: Date.now(),
@@ -3867,6 +3858,14 @@ function initializeExplorationRoutes(app, deps) {
                     tx.delete(activeRef);
                 }
             });
+            const stageRoomId = String(retreatData.stageRoomId || '').trim();
+            if (stageRoomId && typeof admin.database === 'function') {
+                const database = admin.database();
+                await Promise.allSettled([
+                    database.ref(`tarotKingdomRooms/${stageRoomId}`).remove(),
+                    database.ref(`tarotKingdomMatch/openRooms/${stageRoomId}`).remove()
+                ]);
+            }
             return res.json({
                 ...(await buildExplorationStatus(playFabId)),
                 retreated: true,
