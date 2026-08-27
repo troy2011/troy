@@ -5034,11 +5034,20 @@ function getDailyFortuneRewardText(result) {
     const reward = Math.max(0, Math.floor(Number(result?.rewardPs || 0)));
     const goldPart = reward > 0 ? ` +${reward}G` : '';
     const rewardType = String(result?.rewardType || '').trim().toLowerCase();
+    if (rewardType === 'fragment') {
+        const rewardItemName = String(result?.rewardItemName || result?.cardName || 'カード').trim();
+        const fragmentCount = Math.max(1, Math.floor(Number(result?.rewardFragmentCount || 1)));
+        const fragmentRequired = Math.max(fragmentCount, Math.floor(Number(result?.rewardFragmentRequired || 2)));
+        return `「${rewardItemName}」の欠片を1個受け取った。（${fragmentCount}/${fragmentRequired}）${goldPart}`;
+    }
     if (rewardType === 'card') {
         const rewardItemName = String(result?.rewardItemName || result?.cardName || 'カード').trim();
         const skillName = String(result?.skillName || '').trim();
         const skillPart = skillName ? ` スキル:「${skillName}」` : '';
-        return `「${rewardItemName}」を受け取った。${goldPart}${skillPart}`;
+        if (result?.rewardFragmentCompleted) {
+            return `欠片が2個そろい、「${rewardItemName}」を1枚手に入れた。${goldPart}${skillPart}`;
+        }
+        return `「${rewardItemName}」を1枚手に入れた。${goldPart}${skillPart}`;
     }
     return reward > 0 ? `+${reward}G` : '';
 }
@@ -5158,7 +5167,7 @@ function renderDailyFortuneResult(result, options = {}) {
     cardHost.appendChild(cardEl);
     titleEl.textContent = '本日の運勢';
     resetDailyFortuneResultDetails();
-    setDailyFortuneSubText('カードをめくって、今日の航路を読んでください。');
+    setDailyFortuneSubText('正位置ならカードを獲得。逆位置なら同じカードの欠片を集めます。');
     textEl.textContent = 'まだ伏せたカードに、今日の潮目が隠れています。';
 }
 

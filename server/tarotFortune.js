@@ -9,6 +9,8 @@ const {
 } = require('./contributionStats');
 
 const FORTUNE_DATA_KEY = 'DailyTarotFortune';
+const FORTUNE_FRAGMENT_DATA_KEY = 'DailyTarotCardFragmentsV1';
+const FORTUNE_FRAGMENT_REQUIREMENT = 2;
 const DAILY_BOUNTY_GACHA_DATA_KEY = 'DailyBountyGachaReward';
 const DAILY_BOUNTY_STAT_NAME = PLAYER_DAILY_CONTRIBUTION_STAT;
 const DAILY_BOUNTY_TOP_COUNT = Math.max(1, Math.floor(Number(process.env.DAILY_BOUNTY_TOP_COUNT || 3)));
@@ -1028,16 +1030,37 @@ function pickRandom(list) {
 }
 
 
-function buildFortuneReward(card, orientation) {
+function buildFortuneReward(card, orientation, ownedFragmentCount = 0) {
     const rewardItemName = getCardName(card);
     const rewardPs = getFortuneGoldRewardAmount(card);
     const goldLabel = rewardPs > 0 ? ` / +${rewardPs}G` : '';
+    const rewardItemId = String(card?.id || '').trim();
+    const isReversed = orientation === 'reversed';
+    const currentFragmentCount = Math.max(0, Math.min(
+        FORTUNE_FRAGMENT_REQUIREMENT - 1,
+        Math.floor(Number(ownedFragmentCount) || 0)
+    ));
+    const rewardFragmentCount = isReversed ? currentFragmentCount + 1 : currentFragmentCount;
+    const rewardFragmentCompleted = isReversed && rewardFragmentCount >= FORTUNE_FRAGMENT_REQUIREMENT;
+    const rewardCardGranted = !isReversed || rewardFragmentCompleted;
+    const rewardType = rewardCardGranted ? 'card' : 'fragment';
+    const rewardLabel = rewardFragmentCompleted
+        ? `${rewardItemName}の欠片がそろい、カードを獲得${goldLabel}`
+        : (isReversed
+            ? `${rewardItemName}の欠片を獲得（${rewardFragmentCount}/${FORTUNE_FRAGMENT_REQUIREMENT}）${goldLabel}`
+            : `${rewardItemName}を1枚獲得${goldLabel}`);
     return {
-        rewardType: 'card',
+        rewardType,
         rewardPs,
-        rewardItemId: String(card?.id || '').trim(),
+        rewardItemId,
         rewardItemName,
-        rewardLabel: `${rewardItemName}を獲得${goldLabel}`
+        rewardItemAmount: rewardCardGranted ? 1 : 0,
+        rewardCardGranted,
+        rewardFragmentAmount: isReversed ? 1 : 0,
+        rewardFragmentCount: rewardFragmentCompleted ? 0 : rewardFragmentCount,
+        rewardFragmentRequired: FORTUNE_FRAGMENT_REQUIREMENT,
+        rewardFragmentCompleted,
+        rewardLabel
     };
 }
 
@@ -1170,6 +1193,41 @@ async function writeFortuneRecord(playFabId, record, promisifyPlayFab, PlayFabSe
         PlayFabId: playFabId,
         Data: {
             [FORTUNE_DATA_KEY]: JSON.stringify(record)
+        }
+    });
+}
+
+function normalizeFortuneFragmentRecord(raw) {
+    const source = raw && typeof raw === 'object' ? raw : {};
+    const sourceCounts = source.counts && typeof source.counts === 'object' ? source.counts : {};
+    const counts = {};
+    for (const [cardId, rawCount] of Object.entries(sourceCounts)) {
+        const normalizedId = String(cardId || '').trim();
+        const count = Math.floor(Number(rawCount) || 0);
+        if (!normalizedId || count <= 0) continue;
+        counts[normalizedId] = Math.min(FORTUNE_FRAGMENT_REQUIREMENT - 1, count);
+    }
+    return { version: 1, counts };
+}
+
+async function readFortuneFragmentRecord(playFabId, promisifyPlayFab, PlayFabServer) {
+    const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+        PlayFabId: playFabId,
+        Keys: [FORTUNE_FRAGMENT_DATA_KEY]
+    });
+    const raw = ro?.Data?.[FORTUNE_FRAGMENT_DATA_KEY]?.Value || '';
+    return normalizeFortuneFragmentRecord(parseJsonSafe(raw));
+}
+
+async function writeFortuneFragmentRecord(playFabId, record, promisifyPlayFab, PlayFabServer) {
+    const normalized = normalizeFortuneFragmentRecord(record);
+    await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+        PlayFabId: playFabId,
+        Data: {
+            [FORTUNE_FRAGMENT_DATA_KEY]: JSON.stringify({
+                ...normalized,
+                updatedAt: new Date().toISOString()
+            })
         }
     });
 }
@@ -1373,7 +1431,12 @@ function initializeTarotFortuneRoutes(app, deps) {
                 return res.status(500).json({ error: 'TarotDeckEmpty' });
             }
             const orientation = Math.random() < 0.5 ? 'upright' : 'reversed';
-            const reward = buildFortuneReward(card, orientation);
+            let fragmentRecord = { version: 1, counts: {} };
+            if (orientation === 'reversed') {
+                fragmentRecord = await readFortuneFragmentRecord(playFabId, promisifyPlayFab, PlayFabServer);
+            }
+            const ownedFragmentCount = Number(fragmentRecord.counts?.[card.id] || 0);
+            const reward = buildFortuneReward(card, orientation, ownedFragmentCount);
             const deckType = getDeckType(orientation);
             const skillName = getCardSkillName(card, orientation);
             const result = {
@@ -1395,12 +1458,26 @@ function initializeTarotFortuneRoutes(app, deps) {
                 rewardPs: reward.rewardPs,
                 rewardItemId: reward.rewardItemId,
                 rewardItemName: reward.rewardItemName,
+                rewardItemAmount: reward.rewardItemAmount,
+                rewardCardGranted: reward.rewardCardGranted,
+                rewardFragmentAmount: reward.rewardFragmentAmount,
+                rewardFragmentCount: reward.rewardFragmentCount,
+                rewardFragmentRequired: reward.rewardFragmentRequired,
+                rewardFragmentCompleted: reward.rewardFragmentCompleted,
                 rewardLabel: reward.rewardLabel
             };
 
-            if (reward.rewardType === 'card' && reward.rewardItemId) {
+            if (reward.rewardCardGranted && reward.rewardItemId) {
                 const idempotencyId = `tarot-fortune-card-${playFabId}-${todayKey}-${reward.rewardItemId}`;
-                await addEconomyItem(playFabId, reward.rewardItemId, 1, { idempotencyId });
+                await addEconomyItem(playFabId, reward.rewardItemId, reward.rewardItemAmount, { idempotencyId });
+            }
+            if (orientation === 'reversed' && reward.rewardItemId) {
+                if (reward.rewardFragmentCompleted) {
+                    delete fragmentRecord.counts[reward.rewardItemId];
+                } else {
+                    fragmentRecord.counts[reward.rewardItemId] = reward.rewardFragmentCount;
+                }
+                await writeFortuneFragmentRecord(playFabId, fragmentRecord, promisifyPlayFab, PlayFabServer);
             }
             if (reward.rewardPs > 0) {
                 const goldIdempotencyId = `tarot-fortune-gold-${playFabId}-${todayKey}-${card.id}`;
@@ -1441,6 +1518,8 @@ module.exports = {
         getFortuneStrikeText,
         getFortuneText,
         getFortuneWeather,
+        buildFortuneReward,
+        normalizeFortuneFragmentRecord,
         MAJOR_DAILY_STRIKE_LINES,
         MINOR_DAILY_STRIKE_LINES
     }

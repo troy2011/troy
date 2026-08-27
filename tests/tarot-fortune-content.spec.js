@@ -76,3 +76,53 @@ test('recovery reversals use recovering wind instead of severe weather', () => {
     expect(weather.level, `${card.suit}-${card.number}`).toBeGreaterThanOrEqual(6);
   }
 });
+
+test('daily tarot grants a card upright and completes a reversed card from two fragments', () => {
+  const card = tarotFortune.buildTarotDeck()[0];
+  const uprightReward = tarotFortune.buildFortuneReward(card, 'upright');
+  const firstReversedReward = tarotFortune.buildFortuneReward(card, 'reversed', 0);
+  const secondReversedReward = tarotFortune.buildFortuneReward(card, 'reversed', 1);
+
+  expect(uprightReward).toMatchObject({
+    rewardType: 'card',
+    rewardItemAmount: 1,
+    rewardCardGranted: true,
+    rewardFragmentAmount: 0
+  });
+  expect(firstReversedReward).toMatchObject({
+    rewardType: 'fragment',
+    rewardItemAmount: 0,
+    rewardCardGranted: false,
+    rewardFragmentAmount: 1,
+    rewardFragmentCount: 1,
+    rewardFragmentRequired: 2,
+    rewardFragmentCompleted: false
+  });
+  expect(secondReversedReward).toMatchObject({
+    rewardType: 'card',
+    rewardItemAmount: 1,
+    rewardCardGranted: true,
+    rewardFragmentAmount: 1,
+    rewardFragmentCount: 0,
+    rewardFragmentRequired: 2,
+    rewardFragmentCompleted: true
+  });
+});
+
+test('daily tarot fragment storage keeps only one pending fragment per card', () => {
+  const normalized = tarotFortune.normalizeFortuneFragmentRecord({
+    counts: {
+      'arcana-18': 8,
+      'minor-cup-4': 1,
+      empty: 0
+    }
+  });
+
+  expect(normalized).toEqual({
+    version: 1,
+    counts: {
+      'arcana-18': 1,
+      'minor-cup-4': 1
+    }
+  });
+});

@@ -344,7 +344,7 @@ test('daily tarot fortune loads only after its button is clicked and shows clear
   expect(closeButtonStyle.width).toBe('52px');
   expect(closeButtonStyle.height).toBe('52px');
   expect(closeButtonStyle.fontSize).toBe('0px');
-  await expect(page.locator('#dailyTarotFortuneSub')).toHaveText('カードをめくって、今日の航路を読んでください。');
+  await expect(page.locator('#dailyTarotFortuneSub')).toHaveText('正位置ならカードを獲得。逆位置なら同じカードの欠片を集めます。');
   await expect(page.locator('#dailyTarotFortuneText')).toContainText('まだ伏せたカード');
   await expect(page.locator('#dailyTarotFortuneReward')).toBeHidden();
 
@@ -422,7 +422,7 @@ test('daily tarot fortune adds richer presentation after major arcana reveal', a
           isArcana: true,
           effectType: 'None',
           cardName: '月',
-          orientation: 'upright',
+          orientation: 'reversed',
           fortune: [
             '風向き: 不穏',
             '一言判定: 一寸先も見えん。見張り番を増やしな。',
@@ -433,8 +433,14 @@ test('daily tarot fortune adds richer presentation after major arcana reveal', a
             '噂ではなく一次情報で航路を確かめてください。'
           ].join('\n'),
           rewardPs: 18,
-          rewardType: 'card',
+          rewardType: 'fragment',
           rewardItemName: '月',
+          rewardItemAmount: 0,
+          rewardCardGranted: false,
+          rewardFragmentAmount: 1,
+          rewardFragmentCount: 1,
+          rewardFragmentRequired: 2,
+          rewardFragmentCompleted: false,
           skillName: '霧読みの航法'
         }
       })
@@ -458,13 +464,15 @@ test('daily tarot fortune adds richer presentation after major arcana reveal', a
   await expect(fortuneCard).toHaveClass(/is-major-arcana/);
   await expect(arcanaBadge).toBeVisible();
   await expect(arcanaBadge).toHaveText('MAJOR ARCANA');
+  await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText('逆位置');
   await expect(page.locator('#dailyTarotFortuneText')).toContainText('今日の風向き');
-  await expect(page.locator('#dailyTarotFortuneText')).toContainText('不穏');
-  await expect(page.locator('#dailyTarotFortuneText')).toContainText('4 / 10');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('追い風');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('7 / 10');
   await expect(page.locator('#dailyTarotFortuneText')).toContainText('噂ではなく一次情報で航路を確かめてください。');
-  await expect(page.locator('#dailyTarotFortuneText .tarot-fortune-meter-segment.is-filled')).toHaveCount(4);
+  await expect(page.locator('#dailyTarotFortuneText .tarot-fortune-meter-segment.is-filled')).toHaveCount(7);
   await expect(page.locator('#dailyTarotFortuneText')).not.toContainText('一言判定:');
   await expect(page.locator('#dailyTarotFortuneText')).not.toContainText('船長からの一言:');
+  await expect(page.locator('#dailyTarotFortuneReward')).toContainText('「月」の欠片を1個受け取った。（1/2）');
 
   const majorPresentation = await modal.evaluate((node) => {
     const beforeStyle = window.getComputedStyle(node, '::before');
