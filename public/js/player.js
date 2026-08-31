@@ -11,7 +11,7 @@ import {
     getBountyRanking as fetchBountyRanking,
     getNationTreasuryRanking as fetchNationTreasuryRanking,
     getStoreGameRanking as fetchStoreGameRanking
-} from './playfabClient.js?v=20260826-tutorial-reward-v1';
+} from './playfabClient.js?v=20260830-s1-auth-v1';
 import { formatCurrencyLabel } from './config.js';
 import { getNationLabel } from './nationLabels.js';
 import { renderHomePlayerStatus } from './homePlayerStatus.js';

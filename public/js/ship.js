@@ -32,7 +32,7 @@ import {
     getShipsInView as fetchShipsInView,
     getShipAsset as fetchShipAsset,
     getShipPosition as fetchShipPosition
-} from './playfabClient.js?v=20260827-job-mastery-v1';
+} from './playfabClient.js?v=20260830-s1-auth-v1';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { bindModalClose } from './modalClose.js';
 import { createRequestId } from './api.js';
@@ -3079,7 +3079,7 @@ async function showExplorationAutoSequence(startData, destinationId, encounterDa
     const launchBattle = async (battleMode, tutorialEnabled = false) => {
         const stageNo = Math.max(0, Math.floor(Number(report?.stageNo) || 0));
         const explorationId = String(report.explorationId || report.id || active.id || '');
-        const ownerPlayFabId = String(window.myPlayFabId || window.myPlayFabLoginInfo?.playFabId || '').trim();
+        const ownerPlayFabId = String(window.myPlayFabId || '').trim();
         const kingdomResult = await window.launchTarotKingdomExplorationBattle({
             explorationId,
             ownerPlayFabId,
@@ -4284,23 +4284,23 @@ export function cleanupShipListeners() {
 
 if (typeof window !== 'undefined') {
     window.upgradeShip = (shipId) => {
-        const playFabId = window.myPlayFabId || window.myPlayFabLoginInfo?.playFabId;
+        const playFabId = window.myPlayFabId;
         return upgradeShip(playFabId, shipId);
     };
     window.repairShip = (shipId) => {
-        const playFabId = window.myPlayFabId || window.myPlayFabLoginInfo?.playFabId;
+        const playFabId = window.myPlayFabId;
         return repairShip(playFabId, shipId);
     };
     window.depositShipResources = (shipId) => {
-        const playFabId = window.myPlayFabId || window.myPlayFabLoginInfo?.playFabId;
+        const playFabId = window.myPlayFabId;
         return depositActiveShipResources(playFabId, shipId);
     };
     window.applyShipCargoPreset = (shipId) => {
-        const playFabId = window.myPlayFabId || window.myPlayFabLoginInfo?.playFabId;
+        const playFabId = window.myPlayFabId;
         return applyActiveShipPreset(playFabId, shipId);
     };
     window.editShipCargoPreset = () => {
-        const playFabId = window.myPlayFabId || window.myPlayFabLoginInfo?.playFabId;
+        const playFabId = window.myPlayFabId;
         return showShipCargoPresetEditor(playFabId);
     };
 }

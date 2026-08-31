@@ -30,7 +30,8 @@ const {
     ensureTitleEntityToken,
     getGroupDataValue,
     setGroupDataValues,
-    getEntityKeyFromPlayFabId
+    getEntityKeyFromPlayFabId,
+    requirePlayerEntityKeyForPlayFabId
 } = require('./server/playfab');
 
 // 分割モジュール
@@ -85,6 +86,17 @@ const TROY_ENTRY_DEFAULT_NATION = String(process.env.TROY_ENTRY_DEFAULT_NATION |
 const NATION_KING_LINE_USER_IDS_KEY = 'NationKingLineUserIds';
 const APP_INVITE_COLLECTION = 'app_invites';
 const APP_INVITE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const PLAYER_BOOTSTRAP_READ_ONLY_KEYS = Object.freeze([
+    'Race',
+    'Nation',
+    'NationChangedAt',
+    'AvatarColor',
+    'SkinColorIndex',
+    'FaceIndex',
+    'HairStyleIndex',
+    'FacialHairStyleIndex',
+    'HairColorIndex'
+]);
 
 // Firebase Admin SDK 初期化
 const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -476,7 +488,7 @@ app.use((req, res, next) => {
     res.setHeader(
         'Content-Security-Policy',
         "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' https://static.line-scdn.net https://download.playfab.com; " +
+        "script-src 'self' 'unsafe-inline' https://static.line-scdn.net; " +
         "style-src 'self' 'unsafe-inline' https://www.gstatic.com; " +
         "img-src 'self' data: https://profile.line-scdn.net; " +
         "connect-src 'self' https://api.line.me; " +
@@ -569,14 +581,6 @@ let catalogCache = {};
 let catalogAliasMap = {};
 let catalogCurrencyMap = {};
 
-function normalizeEntityKey(raw) {
-    if (!raw || typeof raw !== 'object') return null;
-    const id = raw.Id || raw.id || raw.EntityId || raw.entityId;
-    const type = raw.Type || raw.type || raw.EntityType || raw.entityType;
-    if (!id || !type) return null;
-    return { Id: String(id), Type: String(type) };
-}
-
 function stripNationEmoji(name) {
     const raw = String(name || '').trim();
     if (!raw) return '';
@@ -627,24 +631,6 @@ async function ensureNationDisplayName(playFabId, nation, preferredBaseName) {
         }
     }
     return { baseName, displayName: nextDisplayName || currentDisplayName };
-}
-
-function getEntityKeyFromToken(entityToken) {
-    if (!entityToken || typeof entityToken !== 'string') return null;
-    const parts = entityToken.split('.');
-    if (parts.length < 2) return null;
-    try {
-        const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-        const padded = payload.padEnd(payload.length + (4 - (payload.length % 4)) % 4, '=');
-        const decoded = Buffer.from(padded, 'base64').toString('utf8');
-        const data = JSON.parse(decoded);
-        return normalizeEntityKey({
-            Id: data?.entityId || data?.EntityId,
-            Type: data?.entityType || data?.EntityType
-        });
-    } catch {
-        return null;
-    }
 }
 
 function normalizePriceAmounts(item) {
@@ -1409,6 +1395,33 @@ app.post('/api/login-playfab', async (req, res) => {
     }
 });
 
+// Firebase 認証済みの本人に、起動表示に必要な非秘密データだけを返す。
+app.post('/api/player-bootstrap', async (req, res) => {
+    const requestedPlayFabId = req.body?.playFabId;
+    const authenticatedPlayFabId = await requireAuthenticatedPlayFabId(req, res, requestedPlayFabId);
+    if (!authenticatedPlayFabId) return;
+
+    try {
+        const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: authenticatedPlayFabId,
+            Keys: PLAYER_BOOTSTRAP_READ_ONLY_KEYS
+        });
+        const playerData = {};
+        for (const key of PLAYER_BOOTSTRAP_READ_ONLY_KEYS) {
+            const value = readOnly?.Data?.[key]?.Value;
+            if (value !== undefined && value !== null) playerData[key] = String(value);
+        }
+        return res.json({
+            playFabId: authenticatedPlayFabId,
+            playerData
+        });
+    } catch (error) {
+        const message = error?.errorMessage || error?.message || String(error);
+        console.error('[player-bootstrap] Error:', message);
+        return res.status(500).json({ error: 'Failed to load player bootstrap data' });
+    }
+});
+
 app.post('/api/get-app-invite-info', async (req, res) => {
     const inviteToken = normalizeInviteToken(req.body?.inviteToken);
     if (!inviteToken) return res.status(400).json({ error: 'inviteToken is required', valid: false });
@@ -1688,12 +1701,11 @@ app.post('/api/create-app-invite', async (req, res) => {
 // 種族設定API
 app.post('/api/set-race', async (req, res) => {
     const { playFabId, raceName, displayName, inviteToken, inviteNation } = req.body || {};
-    const clientEntityKey = normalizeEntityKey(req.body?.entityKey) || getEntityKeyFromToken(req.body?.entityToken);
     if (!playFabId || !raceName) return res.status(400).json({ error: 'playFabId and raceName are required' });
-    console.log(`[set-race] ${playFabId} selected race ${raceName}`);
 
     const authenticatedPlayFabId = await requireAuthenticatedPlayFabId(req, res, playFabId);
     if (!authenticatedPlayFabId) return;
+    console.log(`[set-race] ${authenticatedPlayFabId} selected race ${raceName}`);
 
     let initialStats = {};
     let avatarData = {};
@@ -1725,11 +1737,22 @@ app.post('/api/set-race', async (req, res) => {
             return res.status(400).json({ error: 'Invalid raceName' });
     }
 
-    let setRaceStep = 'init';
+    let setRaceStep = 'resolve-entity';
+    let playerEntity = null;
+    try {
+        playerEntity = await requirePlayerEntityKeyForPlayFabId(authenticatedPlayFabId);
+    } catch (error) {
+        console.warn('[set-race] Server-side player entity resolution failed:', error?.errorMessage || error?.message || error);
+        return res.status(503).json({
+            error: 'PlayerEntityUnavailable',
+            retryable: true
+        });
+    }
+
     try {
         setRaceStep = 'read-player-readonly';
         const currentReadOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-            PlayFabId: playFabId,
+            PlayFabId: authenticatedPlayFabId,
             Keys: ['Nation', 'lineUserId']
         });
         const prevNation = String(currentReadOnly?.Data?.Nation?.Value || '').toLowerCase();
@@ -1755,19 +1778,6 @@ app.post('/api/set-race', async (req, res) => {
         const deps = createDependencies();
         setRaceStep = 'ensure-nation-group';
         let groupInfo = await nation.ensureNationGroupExists(firestore, mapping, deps);
-        let serverEntityKey = null;
-        try {
-            setRaceStep = 'resolve-entity';
-            serverEntityKey = await getEntityKeyFromPlayFabId(playFabId);
-        } catch (e) {
-            console.warn('[set-race] getEntityKeyFromPlayFabId failed:', e?.errorMessage || e?.message || e);
-        }
-        const playerEntity = serverEntityKey?.Id && serverEntityKey?.Type
-            ? serverEntityKey
-            : (clientEntityKey?.Id && clientEntityKey?.Type ? clientEntityKey : null);
-        if (!playerEntity) {
-            return res.status(400).json({ error: 'Failed to resolve player entity' });
-        }
 
         let assignedGroupId = groupInfo.groupId;
         let assignedGroupName = groupInfo.groupName;
@@ -1806,21 +1816,6 @@ app.post('/api/set-race', async (req, res) => {
                 });
             } catch (e) {
                 addMemberError = e;
-                const fallbackEntity = clientEntityKey?.Id && clientEntityKey?.Type ? clientEntityKey : null;
-                const isDifferentEntity =
-                    !!fallbackEntity &&
-                    (String(fallbackEntity.Id) !== String(playerEntity.Id) || String(fallbackEntity.Type) !== String(playerEntity.Type));
-                if (isDifferentEntity) {
-                    try {
-                        await promisifyPlayFab(PlayFabGroups.AddMembers, {
-                            Group: { Id: assignedGroupId, Type: 'group' },
-                            Members: [fallbackEntity]
-                        });
-                        addMemberError = null;
-                    } catch (fallbackError) {
-                        addMemberError = fallbackError;
-                    }
-                }
             }
             if (addMemberError) {
                 const addMsg = String(addMemberError?.errorMessage || addMemberError?.message || addMemberError);
@@ -1837,7 +1832,7 @@ app.post('/api/set-race', async (req, res) => {
                 setRaceStep = 'write-king-doc';
                 const docRef = await nation.getNationGroupDoc(firestore, mapping.groupName);
                 await docRef.set({
-                    kingPlayFabId: playFabId,
+                    kingPlayFabId: authenticatedPlayFabId,
                     kingAssignedAt: admin.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
             }
@@ -1849,7 +1844,7 @@ app.post('/api/set-race', async (req, res) => {
         }
 
         setRaceStep = 'update-display-name';
-        const displayResult = await ensureNationDisplayName(playFabId, assignedNation, displayName || '');
+        const displayResult = await ensureNationDisplayName(authenticatedPlayFabId, assignedNation, displayName || '');
 
         const nationData = {
             Nation: assignedNation
@@ -1857,7 +1852,7 @@ app.post('/api/set-race', async (req, res) => {
 
         setRaceStep = 'update-player-statistics';
         const statsPayload = Object.keys(initialStats).map(key => ({ StatisticName: key, Value: initialStats[key] }));
-        await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, { PlayFabId: playFabId, Statistics: statsPayload });
+        await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, { PlayFabId: authenticatedPlayFabId, Statistics: statsPayload });
 
         avatarData.SkinColorIndex = Math.floor(Math.random() * maxSkinColorIndex) + 1;
         avatarData.FaceIndex = Math.floor(Math.random() * maxFaceIndex) + 1;
@@ -1879,7 +1874,7 @@ app.post('/api/set-race', async (req, res) => {
             BaseDisplayName: displayResult.baseName || displayName || '',
             Nation: nationData.Nation,
             IsKing: isKing ? 'true' : 'false',
-            NationKingId: isKing ? playFabId : null,
+            NationKingId: isKing ? authenticatedPlayFabId : null,
         });
         const readOnlyOptionalPayload = toReadOnlyStringMap({
             AvatarColor: avatarData.AvatarColor,
@@ -1901,7 +1896,7 @@ app.post('/api/set-race', async (req, res) => {
                 return;
             }
             await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
-                PlayFabId: playFabId,
+                PlayFabId: authenticatedPlayFabId,
                 Data: dataMap || {},
                 KeysToRemove: Array.isArray(keysToRemove) ? keysToRemove : []
             });
@@ -1937,11 +1932,11 @@ app.post('/api/set-race', async (req, res) => {
 
         const starterIsland = null;
 
-        const starterAssets = await provisionStarterAssets({ playFabId, entityKey: playerEntity });
+        const starterAssets = await provisionStarterAssets({ playFabId: authenticatedPlayFabId, entityKey: playerEntity });
 
         try {
             await ensureStarterShip({
-                playFabId,
+                playFabId: authenticatedPlayFabId,
                 respawnPosition: starterIsland?.respawnPosition || null
             });
         } catch (e) {
@@ -1953,7 +1948,7 @@ app.post('/api/set-race', async (req, res) => {
                 await inviteAssignment.recordRef.set({
                     inviterNation: assignedNation,
                     useCount: admin.firestore.FieldValue.increment(1),
-                    lastAcceptedPlayFabId: playFabId,
+                    lastAcceptedPlayFabId: authenticatedPlayFabId,
                     lastAcceptedAt: admin.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
             } catch (e) {

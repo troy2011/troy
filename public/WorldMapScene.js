@@ -9,7 +9,7 @@ import {
     consumeVoyageMp as requestConsumeVoyageMp,
     getCapitalWarState as requestCapitalWarState,
     performCapitalWarAction as requestCapitalWarAction
-} from './js/playfabClient.js?v=20260826-tutorial-reward-v1';
+} from './js/playfabClient.js?v=20260830-s1-auth-v1';
 
 // ========================================
 // 定数定義

@@ -14,7 +14,7 @@ import {
     getGuildApplications as fetchGuildApplications,
     approveGuildApplication as requestApproveGuildApplication,
     rejectGuildApplication as requestRejectGuildApplication
-} from './playfabClient.js?v=20260826-tutorial-reward-v1';
+} from './playfabClient.js?v=20260830-s1-auth-v1';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { decoratePlayerTriggerElement } from './playerProfile.js';
 

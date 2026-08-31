@@ -20,7 +20,7 @@ import {
     approveTroyCalendarGoogleSyncReview,
     saveTroyCalendarEntry,
     deleteTroyCalendarEntry
-} from './playfabClient.js?v=20260826-tutorial-reward-v1';
+} from './playfabClient.js?v=20260830-s1-auth-v1';
 import { createRequestId } from './api.js';
 import { buildPlayerTriggerHtml } from './playerProfile.js';
 import { formatUnlockedFeatures } from './featureUnlocks.js';
@@ -1003,7 +1003,6 @@ export function getLastPageData() {
 
 export async function refreshKingNav(playFabId) {
     const nav = document.getElementById('navKing');
-    if (!nav) return false;
 
     try {
         const data = await getNationKingPage(playFabId, { isSilent: true });
@@ -1014,7 +1013,8 @@ export async function refreshKingNav(playFabId) {
         _lastPageData = null;
     }
     _hasKingCheck = true;
-    nav.style.display = _isKing ? '' : 'none';
+    // 王ページの権限判定は維持し、主要ナビはコンセプトどおり5枠に固定する。
+    if (nav) nav.style.display = 'none';
     return _isKing;
 }
 

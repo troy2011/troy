@@ -1,4 +1,4 @@
-import { getTarotBattleSkills } from './playfabClient.js?v=20260826-tutorial-reward-v1';
+import { getTarotBattleSkills } from './playfabClient.js?v=20260830-s1-auth-v1';
 import { getCanonicalTarotCategory } from './tarotCards.js';
 
 const MINOR_SUIT_ALIASES = {

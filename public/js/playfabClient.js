@@ -138,10 +138,9 @@ export function kingUpdateStoreGameScore(playFabId, targetPlayFabId, gameType, s
 }
 
 export function getInventory(playFabId, options) {
-    const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
     return shareReadRequest(
         getReadRequestKey('inventory', playFabId),
-        () => callApiWithLoader('/api/get-inventory', { playFabId, entityKey }, options)
+        () => callApiWithLoader('/api/get-inventory', { playFabId }, options)
     );
 }
 
@@ -256,7 +255,6 @@ export function transferPoints(fromId, toId, amount, options = {}) {
         fromId,
         toId,
         amount,
-        fromEntityKey: window.myPlayFabLoginInfo?.entityKey || null,
         requestId: options?.requestId || null
     }, options);
 }
@@ -445,9 +443,9 @@ export function buyBlackMarketListing(playFabId, listingId, options) {
     return callApiWithLoader('/api/black-market/buy', { playFabId, listingId }, options);
 }
 
-export function getGuildInfo(playFabId, entityKey, options) {
-    const resolvedEntityKey = entityKey || window.myPlayFabLoginInfo?.entityKey || null;
-    return callApiWithLoader('/api/get-guild-info', { playFabId, entityKey: resolvedEntityKey }, options);
+export function getGuildInfo(playFabId, entityKeyOrOptions, maybeOptions) {
+    const options = maybeOptions || entityKeyOrOptions;
+    return callApiWithLoader('/api/get-guild-info', { playFabId }, options);
 }
 
 export function getGuildInviteInfo(playFabId, guildId, crewRoleId, options) {
@@ -814,13 +812,11 @@ export function getResourceStatus(playFabId, islandId, mapId, options) {
 }
 
 export function collectResource(playFabId, islandId, mapId, options) {
-    const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
-    return callApiWithLoader('/api/collect-resource', { playFabId, islandId, mapId, entityKey }, options);
+    return callApiWithLoader('/api/collect-resource', { playFabId, islandId, mapId }, options);
 }
 
 export function startBuildingConstruction(playFabId, islandId, buildingId, mapId, options, extra) {
-    const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
-    const payload = { playFabId, islandId, buildingId, mapId, entityKey, ...(extra || {}) };
+    const payload = { playFabId, islandId, buildingId, mapId, ...(extra || {}) };
     return callApiWithLoader('/api/start-building-construction', payload, options);
 }
 

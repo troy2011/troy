@@ -44,45 +44,6 @@ window.liff = {
 };
 `;
 
-const PLAYFAB_MOCK_SCRIPT = `
-window.PlayFab = window.PlayFab || {
-  settings: {},
-  ClientApi: {},
-  _internalSettings: {}
-};
-window.PlayFab.ClientApi.LoginWithCustomID = (_request, callback) => {
-  callback({
-    data: {
-      PlayFabId: 'PF_PLAYWRIGHT',
-      SessionTicket: 'playwright-session-ticket',
-      EntityToken: {
-        EntityToken: 'playwright-entity-token',
-        Entity: { Id: 'PF_PLAYWRIGHT', Type: 'title_player_account' }
-      }
-    }
-  }, null);
-};
-window.PlayFab.ClientApi.GetUserReadOnlyData = (_request, callback) => {
-  callback({
-    data: {
-      Data: {
-        Race: { Value: 'human' },
-        Nation: { Value: 'fire' },
-        AvatarColor: { Value: 'red' },
-        SkinColorIndex: { Value: '1' },
-        FaceIndex: { Value: '1' },
-        HairStyleIndex: { Value: '1' },
-        HairColorIndex: { Value: '1' },
-        FacialHairStyleIndex: { Value: '0' }
-      }
-    }
-  }, null);
-};
-window.PlayFabClientSDK = window.PlayFab;
-window.PlayFabGroups = window.PlayFabGroups || {};
-window.PlayFabEconomy = window.PlayFabEconomy || {};
-`;
-
 const QRIOUS_MOCK_SCRIPT = `
 window.QRious = class QRious {
   constructor(options = {}) {
@@ -167,14 +128,19 @@ export function onSnapshot(_target, next, error) {
 
 const FIREBASE_AUTH_MOCK_MODULE = `
 let currentCallback = null;
+const currentUser = {
+  uid: 'PF_PLAYWRIGHT',
+  getIdToken: async () => 'playwright-firebase-id-token'
+};
+const auth = { __mock: true, currentUser };
 
 export function getAuth() {
-  return { __mock: true };
+  return auth;
 }
 
 export function onAuthStateChanged(_auth, callback) {
   currentCallback = callback;
-  queueMicrotask(() => callback({ uid: 'PF_PLAYWRIGHT' }));
+  queueMicrotask(() => callback(auth.currentUser));
   return () => {
     if (currentCallback === callback) currentCallback = null;
   };
@@ -182,9 +148,9 @@ export function onAuthStateChanged(_auth, callback) {
 
 export function signInWithCustomToken() {
   queueMicrotask(() => {
-    if (typeof currentCallback === 'function') currentCallback({ uid: 'PF_PLAYWRIGHT' });
+    if (typeof currentCallback === 'function') currentCallback(auth.currentUser);
   });
-  return Promise.resolve({ user: { uid: 'PF_PLAYWRIGHT' } });
+  return Promise.resolve({ user: auth.currentUser });
 }
 `;
 
@@ -532,30 +498,6 @@ async function installBaseAppMocks(page, state, options = {}) {
     });
   });
 
-  await page.route('https://download.playfab.com/PlayFabClientApi.js', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/javascript; charset=utf-8',
-      body: PLAYFAB_MOCK_SCRIPT
-    });
-  });
-
-  await page.route('https://download.playfab.com/PlayFabGroupsApi.js', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/javascript; charset=utf-8',
-      body: ''
-    });
-  });
-
-  await page.route('https://download.playfab.com/PlayFabEconomyApi.js', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/javascript; charset=utf-8',
-      body: ''
-    });
-  });
-
   await page.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js', async (route) => {
     await route.fulfill({
       status: 200,
@@ -605,8 +547,64 @@ async function installBaseAppMocks(page, state, options = {}) {
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
         playFabId: DEFAULT_PLAYER_INFO.playFabId,
-        needsRaceSelection: false,
-        firebaseToken: options.firebaseToken || ''
+        needsRaceSelection: options.needsRaceSelection === true,
+        firebaseToken: options.firebaseToken === undefined
+          ? 'playwright-firebase-custom-token'
+          : options.firebaseToken
+      })
+    });
+  });
+
+  await page.route('**/api/player-bootstrap', async (route) => {
+    state.playerBootstrapBody = JSON.parse(route.request().postData() || '{}');
+    state.playerBootstrapAuthorization = route.request().headers().authorization || '';
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        playFabId: DEFAULT_PLAYER_INFO.playFabId,
+        playerData: options.playerBootstrapData || {
+          Race: 'human',
+          Nation: 'fire',
+          AvatarColor: 'red',
+          SkinColorIndex: '1',
+          FaceIndex: '1',
+          HairStyleIndex: '1',
+          HairColorIndex: '1',
+          FacialHairStyleIndex: '0'
+        }
+      })
+    });
+  });
+
+  await page.route('**/api/ensure-nation-group', async (route) => {
+    state.ensureNationGroupBody = JSON.parse(route.request().postData() || '{}');
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ groupId: 'nation-group-playwright', created: false })
+    });
+  });
+
+  await page.route('**/api/set-race', async (route) => {
+    state.setRaceRequestCount = Number(state.setRaceRequestCount || 0) + 1;
+    state.setRaceBody = JSON.parse(route.request().postData() || '{}');
+    state.setRaceAuthorization = route.request().headers().authorization || '';
+    if (state.setRaceRequestCount <= Number(options.setRaceRetryableFailures || 0)) {
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json; charset=utf-8',
+        body: JSON.stringify({ error: 'PlayerEntityUnavailable', retryable: true })
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        nation: { Nation: 'fire' },
+        starterAssets: { granted: ['ship_common_boat'] }
       })
     });
   });
@@ -758,6 +756,12 @@ async function installBaseAppMocks(page, state, options = {}) {
 async function bootstrapMainApp(page, options = {}) {
   const state = {
     loginPlayFabBody: null,
+    playerBootstrapBody: null,
+    playerBootstrapAuthorization: '',
+    ensureNationGroupBody: null,
+    setRaceBody: null,
+    setRaceAuthorization: '',
+    setRaceRequestCount: 0,
     lastOccupationRequest: null,
     gameRouteHits: 0
   };

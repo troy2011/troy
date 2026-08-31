@@ -4,7 +4,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
 import { getFirestore, collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { firebaseConfig, RACE_COLORS, formatCurrencyLabel } from 'config';
-import { callApiWithLoader, promisifyPlayFab, buildApiUrl, createRequestId } from 'api';
+import { callApiWithLoader, buildApiUrl, createRequestId } from 'api';
 import {
     showTab,
     showConfirmationModal,
@@ -33,7 +33,7 @@ import {
     getPublicPlayerProfile,
     getTroyStatus,
     updateAvatarStyle as requestUpdateAvatarStyle
-} from './js/playfabClient.js?v=20260826-tutorial-reward-v1';
+} from './js/playfabClient.js?v=20260830-s1-auth-v1';
 import { FEATURE_UNLOCK_LEVELS, formatUnlockedFeatures, isFeatureUnlocked, normalizeLevel } from './js/featureUnlocks.js';
 import { bindModalClose, bindTargetModalCloseButtons } from './js/modalClose.js';
 import { startModalViewportTracking, stopModalViewportTracking } from './js/modalViewport.js';
@@ -43,12 +43,6 @@ import { getDatabase, onValue as onDatabaseValue, ref as databaseRef } from "fir
 window.myLineProfile = null;
 window.myPlayFabId = null;
 window.myAvatarBaseInfo = { Race: 'human', SkinColorIndex: 1, FacialHairStyleIndex: 1, Nation: 'fire' };
-window.myEntityToken = null;
-window.myPlayFabLoginInfo = null;
-let playFabLoginInProgress = false;
-let playFabLoginDone = false;
-let playFabLoginPromise = null;
-let lastFirebaseUid = null;
 let initializeAppPromise = null;
 let raceSelectionBound = false;
 let authHandled = false;
@@ -840,9 +834,6 @@ function __perfLog(label) {
     console.log(`[perf] ${label}: ${Math.round(performance.now() - __perfStart)}ms`);
 }
 
-// PlayFab Client SDK の設定
-PlayFab.settings.titleId = '1A0BA';
-
 // --- 初期化フロー ---
 
 let homeExplorationButtonBound = false;
@@ -1472,63 +1463,29 @@ async function initializeLiff() {
         myPlayFabId = loginData.playFabId;
         window.myPlayFabId = loginData.playFabId; // グローバルスコープにも設定
         window.__resolvedTroyEntryNation = loginData.troyEntryNation || null;
-        void refreshHomeExplorationButtonLabel(myPlayFabId);
-        void refreshHomePetCompanion(myPlayFabId);
 
         // --- PlayFab & Firebase Login ---
         authUnsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
+                const authenticatedUid = String(user.uid || '').trim().toUpperCase();
+                const expectedUid = String(myPlayFabId || '').trim().toUpperCase();
+                if (!expectedUid || authenticatedUid !== expectedUid) {
+                    console.warn('[auth] Ignoring Firebase session for a different player.');
+                    return;
+                }
                 if (authHandled) return;
                 authHandled = true;
                 if (typeof authUnsubscribe === 'function') {
                     authUnsubscribe();
                     authUnsubscribe = null;
                 }
-                if (lastFirebaseUid === user.uid && playFabLoginDone) {
-                    return;
-                }
-                lastFirebaseUid = user.uid;
                 __perfLog('firebase auth state: user');
                 console.log("Firebase authenticated successfully. User UID:", user.uid);
                 window.__tkUid = user.uid;
                 startHomeRescueSignalWatcher();
+                void refreshHomeExplorationButtonLabel(myPlayFabId);
+                void refreshHomePetCompanion(myPlayFabId);
 
-                // PlayFab Client SDKにログイン（多重実行ガード）
-                if (!playFabLoginPromise) {
-                    playFabLoginPromise = (async () => {
-                        if (playFabLoginInProgress || playFabLoginDone) return null;
-                        playFabLoginInProgress = true;
-                        try {
-                            const pfLogin = await promisifyPlayFab(PlayFab.ClientApi.LoginWithCustomID, {
-                                CustomId: myLineProfile.userId, CreateAccount: false
-                            });
-                            __perfLog('PlayFab ClientApi.LoginWithCustomID done');
-                            const entityKey = pfLogin?.EntityToken?.Entity || null;
-                            const entityToken = pfLogin?.EntityToken?.EntityToken || PlayFab?._internalSettings?.entityToken || null;
-                            const sessionTicket = pfLogin?.SessionTicket || null;
-                            window.myEntityToken = entityToken;
-                            window.myPlayFabLoginInfo = {
-                                playFabId: pfLogin?.PlayFabId || myPlayFabId || null,
-                                entityKey,
-                                entityToken,
-                                sessionTicket,
-                                newlyCreated: !!pfLogin?.NewlyCreated,
-                                settingsForUser: pfLogin?.SettingsForUser || null
-                            };
-                            playFabLoginDone = true;
-                            return pfLogin;
-                        } finally {
-                            playFabLoginInProgress = false;
-                        }
-                    })();
-                }
-                try {
-                    await playFabLoginPromise;
-                } catch (error) {
-                    playFabLoginPromise = null;
-                    playFabLoginDone = false;
-                    throw error;
-                }
                 void refreshPlayFabDisplayName(myPlayFabId);
 
                 if (loginData.needsRaceSelection) {
@@ -1578,13 +1535,15 @@ async function initializeLiff() {
                 document.getElementById('globalPlayerName').innerText = '認証エラー';
             });
         } else {
-            console.warn("Firebase token not provided. Running in limited mode.");
-            if (loginData.needsRaceSelection) {
-                autoAssignRace();
+            const currentUid = String(auth.currentUser?.uid || '').trim().toUpperCase();
+            const expectedUid = String(myPlayFabId || '').trim().toUpperCase();
+            if (currentUid && currentUid === expectedUid) {
+                console.warn('Firebase custom token was not provided; reusing the matching authenticated session.');
             } else {
-                clearPendingAppInviteState({ removeFromUrl: true });
+                console.error('Firebase token not provided. Protected initialization was not started.');
+                revealAppWrapper();
+                document.getElementById('globalPlayerName').innerText = '認証エラー';
             }
-            revealAppWrapper();
         }
 
     } catch (error) {
@@ -1934,6 +1893,20 @@ async function ensureNationGroupForRace(raceName) {
 
 
 const _RACE_BY_NATION = { fire: 'Human', water: 'Goblin', earth: 'Orc', wind: 'Elf' };
+const SET_RACE_MAX_ATTEMPTS = 2;
+
+async function submitRaceSelection(body) {
+    for (let attempt = 1; attempt <= SET_RACE_MAX_ATTEMPTS; attempt += 1) {
+        try {
+            return await callApiWithLoader('/api/set-race', body, { throwOnError: true });
+        } catch (error) {
+            const canRetry = error?.status === 503 && error?.responseData?.retryable === true;
+            if (!canRetry || attempt >= SET_RACE_MAX_ATTEMPTS) throw error;
+            await new Promise((resolve) => setTimeout(resolve, 600));
+        }
+    }
+    throw new Error('Race selection failed');
+}
 
 async function autoAssignRace() {
     const ALL_RACES = Object.keys(NATION_GROUP_BY_RACE);
@@ -1947,20 +1920,21 @@ async function autoAssignRace() {
         groupInfo = await ensureNationGroupForRace(raceName);
     }
 
-    const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
-    if (!entityKey || !entityKey.Id || !entityKey.Type) throw new Error('Entity key not available');
     const displayName = window.myLineProfile?.displayName || '';
     const troyEntryRequest = getTroyEntryRequestFromUrl();
-    const data = await callApiWithLoader('/api/set-race', {
-        playFabId: myPlayFabId,
-        raceName,
-        isKing: !!groupInfo.created,
-        entityKey,
-        entityToken: window.myEntityToken,
-        displayName,
-        inviteToken: inviteInfo?.valid && !inviteInfo.fixedNation ? pendingAppInviteToken : '',
-        inviteNation: inviteInfo?.valid && inviteInfo.fixedNation ? inviteInfo.nation : ''
-    });
+    let data = null;
+    try {
+        data = await submitRaceSelection({
+            playFabId: myPlayFabId,
+            raceName,
+            isKing: !!groupInfo.created,
+            displayName,
+            inviteToken: inviteInfo?.valid && !inviteInfo.fixedNation ? pendingAppInviteToken : '',
+            inviteNation: inviteInfo?.valid && inviteInfo.fixedNation ? inviteInfo.nation : ''
+        });
+    } catch (error) {
+        console.error('[autoAssignRace] set-race failed:', error?.message || error);
+    }
 
     if (data !== null) {
         clearPendingAppInviteState({ removeFromUrl: true });
@@ -2002,44 +1976,45 @@ function showRaceModal() {
         nameInput.value = window.myLineProfile?.displayName || '';
     }
     void updateRaceInviteMessage();
+    const raceButtonsContainer = document.getElementById('raceButtons');
+    if (raceSelectionBound || !raceButtonsContainer) return;
+    raceSelectionBound = true;
+    let selectionInProgress = false;
 
     const handleRaceSelection = async (event) => {
-        if (event.target.tagName !== 'BUTTON') return;
-        const raceButtonsContainer = document.getElementById('raceButtons');
-        raceButtonsContainer.removeEventListener('click', handleRaceSelection);
-
-        const raceName = event.target.dataset.race;
+        const button = event.target.closest('button[data-race]');
+        if (!button || selectionInProgress) return;
+        selectionInProgress = true;
         const raceMessageEl = document.getElementById('raceMessage');
-        const inviteInfo = await getPendingAppInviteInfo();
-        let groupInfo = { created: false };
-        if (raceMessageEl) {
-            raceMessageEl.innerText = inviteInfo?.valid ? '（招待された国へ所属を設定中...）' : '（国グループを準備中...）';
-        }
-        if (!inviteInfo?.valid) {
-            groupInfo = await ensureNationGroupForRace(raceName);
-        }
-        if (raceMessageEl) raceMessageEl.innerText = '（初期ステータスを設定中...）';
-        const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
-        if (!entityKey || !entityKey.Id || !entityKey.Type) throw new Error('Entity key not available');
-        const displayName = (document.getElementById('raceDisplayNameInput')?.value || '').trim();
-        const troyEntryRequest = getTroyEntryRequestFromUrl();
-        const data = await callApiWithLoader('/api/set-race', {
-            playFabId: myPlayFabId,
-            raceName: raceName,
-            isKing: !!groupInfo.created,
-            entityKey,
-            entityToken: window.myEntityToken,
-            displayName: displayName || window.myLineProfile?.displayName || '',
-            inviteToken: inviteInfo?.valid && !inviteInfo.fixedNation ? pendingAppInviteToken : '',
-            inviteNation: inviteInfo?.valid && inviteInfo.fixedNation ? inviteInfo.nation : ''
-        });
-        if (raceMessageEl) raceMessageEl.innerText = '（島と船を準備中...）';
-        if (data !== null) {
-            document.getElementById('raceModal').style.display = 'none';
-            clearPendingAppInviteState({ removeFromUrl: true });
-            if (displayName) {
-                document.getElementById('globalPlayerName').innerText = displayName;
+
+        try {
+            const raceName = button.dataset.race;
+            const inviteInfo = await getPendingAppInviteInfo();
+            let groupInfo = { created: false };
+            if (raceMessageEl) {
+                raceMessageEl.innerText = inviteInfo?.valid ? '（招待された国へ所属を設定中...）' : '（国グループを準備中...）';
             }
+            if (!inviteInfo?.valid) {
+                groupInfo = await ensureNationGroupForRace(raceName);
+            }
+            if (raceMessageEl) raceMessageEl.innerText = '（初期ステータスを設定中...）';
+            const displayName = (document.getElementById('raceDisplayNameInput')?.value || '').trim();
+            const troyEntryRequest = getTroyEntryRequestFromUrl();
+            const data = await submitRaceSelection({
+                playFabId: myPlayFabId,
+                raceName,
+                isKing: !!groupInfo.created,
+                displayName: displayName || window.myLineProfile?.displayName || '',
+                inviteToken: inviteInfo?.valid && !inviteInfo.fixedNation ? pendingAppInviteToken : '',
+                inviteNation: inviteInfo?.valid && inviteInfo.fixedNation ? inviteInfo.nation : ''
+            });
+
+            if (raceMessageEl) raceMessageEl.innerText = '（島と船を準備中...）';
+            document.getElementById('raceModal').style.display = 'none';
+            raceButtonsContainer.removeEventListener('click', handleRaceSelection);
+            raceSelectionBound = false;
+            clearPendingAppInviteState({ removeFromUrl: true });
+            if (displayName) document.getElementById('globalPlayerName').innerText = displayName;
             await initializeAppFeatures();
             await NationKing.refreshKingNav(myPlayFabId);
             const nation = data?.nation?.Nation || null;
@@ -2063,23 +2038,15 @@ function showRaceModal() {
             const playerInfo = { playFabId: myPlayFabId, race: raceName.toLowerCase(), nation };
             await showTab('home', playerInfo);
             await handleTroyEntryRequest(troyEntryRequest, { clearUrl: true });
-        } else {
-            document.getElementById('raceMessage').innerText = 'エラーが発生しました。';
-            raceButtonsContainer.addEventListener('click', handleRaceSelection);
+        } catch (error) {
+            console.error('[showRaceModal] Race selection failed:', error?.message || error);
+            if (raceMessageEl) raceMessageEl.innerText = '設定できませんでした。もう一度お試しください。';
+        } finally {
+            selectionInProgress = false;
         }
     };
 
-    const raceButtonsContainer = document.getElementById('raceButtons');
-    if (!raceSelectionBound) {
-        raceSelectionBound = true;
-        raceButtonsContainer.addEventListener('click', async (event) => {
-            try {
-                await handleRaceSelection(event);
-            } finally {
-                raceSelectionBound = false;
-            }
-        }, { once: true });
-    }
+    raceButtonsContainer.addEventListener('click', handleRaceSelection);
 }
 
 // --- アバター表示ロジック ---
@@ -2121,13 +2088,13 @@ function showNationChangedNotice() {
 }
 
 async function updateAvatarBaseInfo() {
-    console.log('[updateAvatarBaseInfo] Fetching user data from PlayFab...');
-    const result = await callApiWithLoader(PlayFab.ClientApi.GetUserReadOnlyData, {
-        PlayFabId: myPlayFabId,
-        Keys: ["Race", "Nation", "NationChangedAt", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex", "FacialHairStyleIndex", "HairColorIndex"]
+    console.log('[updateAvatarBaseInfo] Fetching authenticated player bootstrap data...');
+    const result = await callApiWithLoader('/api/player-bootstrap', {
+        playFabId: myPlayFabId
     }, { isSilent: true });
+    const playerData = result?.playerData || null;
 
-        if (result && result.Data) {
+        if (playerData) {
             const parseAvatarStyleIndex = (value, fallback = 1, min = 1) => {
                 const parsed = parseInt(value, 10);
                 return Number.isFinite(parsed) ? Math.max(min, parsed) : fallback;
@@ -2135,7 +2102,7 @@ async function updateAvatarBaseInfo() {
             const isAvatarStyleUnset = (value) => value === undefined || value === null || String(value).trim() === '';
             const avatarStyleDefaultKeys = ['HairStyleIndex', 'FacialHairStyleIndex'];
             let ensuredAvatarStyle = {};
-            if (avatarStyleDefaultKeys.some((key) => isAvatarStyleUnset(result.Data[key]?.Value))) {
+            if (avatarStyleDefaultKeys.some((key) => isAvatarStyleUnset(playerData[key]))) {
                 try {
                     const defaults = await requestEnsureAvatarStyleDefaults(myPlayFabId, {
                         isSilent: true,
@@ -2146,20 +2113,20 @@ async function updateAvatarBaseInfo() {
                     console.warn('[updateAvatarBaseInfo] ensure avatar defaults failed:', error?.message || error);
                 }
             }
-            const readAvatarStyleValue = (key) => ensuredAvatarStyle[key] ?? result.Data[key]?.Value;
+            const readAvatarStyleValue = (key) => ensuredAvatarStyle[key] ?? playerData[key];
             const currentLevel = getCurrentPlayerLevel();
             const isPirateKing = currentLevel >= 51;
-            const nation = isPirateKing ? 'neutral' : (result.Data.Nation?.Value || '').toLowerCase();
-            const nationChangedAt = String(result.Data.NationChangedAt?.Value || '');
+            const nation = isPirateKing ? 'neutral' : (playerData.Nation || '').toLowerCase();
+            const nationChangedAt = String(playerData.NationChangedAt || '');
             const nationColor = getAvatarColorForNation(nation);
             myAvatarBaseInfo = {
-                Race: (result.Data.Race?.Value || 'Human').toLowerCase(),
+                Race: (playerData.Race || 'Human').toLowerCase(),
                 Nation: nation,
-                AvatarColor: isPirateKing ? 'black' : (nationColor || result.Data.AvatarColor?.Value || 'brown'),
-                SkinColorIndex: parseAvatarStyleIndex(result.Data.SkinColorIndex?.Value),
-                FaceIndex: parseAvatarStyleIndex(result.Data.FaceIndex?.Value),
+                AvatarColor: isPirateKing ? 'black' : (nationColor || playerData.AvatarColor || 'brown'),
+                SkinColorIndex: parseAvatarStyleIndex(playerData.SkinColorIndex),
+                FaceIndex: parseAvatarStyleIndex(playerData.FaceIndex),
                 HairStyleIndex: parseAvatarStyleIndex(readAvatarStyleValue('HairStyleIndex')),
-                HairColorIndex: parseAvatarStyleIndex(result.Data.HairColorIndex?.Value),
+                HairColorIndex: parseAvatarStyleIndex(playerData.HairColorIndex),
                 FacialHairStyleIndex: parseAvatarStyleIndex(readAvatarStyleValue('FacialHairStyleIndex'), 1, 0),
                 level: currentLevel
             };

@@ -22,7 +22,7 @@ import {
     buyBlackMarketListing as requestBuyBlackMarketListing,
     getTarotJobMastery as requestTarotJobMastery,
     selectTarotJobMasteryAbility as requestSelectTarotJobMasteryAbility
-} from './playfabClient.js?v=20260827-job-mastery-v1';
+} from './playfabClient.js?v=20260830-s1-auth-v1';
 import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites, resolveSpritePathByAvatarColor } from './avatar.js';
 import * as Player from './player.js';
 import {

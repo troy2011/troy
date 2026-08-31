@@ -1,0 +1,76 @@
+{
+  "sourceConcept": "../concepts-20260828/05-navigator-chart-balanced-sprite-5tabs-v3.png",
+  "generationMode": "built-in image generation",
+  "status": "integrated as optimized WebP assets under public/assets/ui/home-v3 and styled by public/css/home-v3.css",
+  "existingAssetsToReuse": [
+    {
+      "path": "../../../public/Sprites/Ships/guildShips.png",
+      "purpose": "Existing blue guild-ship sprite; do not regenerate"
+    }
+  ],
+  "assets": [
+    {
+      "file": "header-luxury-transparent.png",
+      "size": [1983, 793],
+      "alpha": true,
+      "purpose": "Title header and player-status background",
+      "recommendedUse": "Layer HTML title, subtitle, level, name, and rank over the empty wood/navy areas"
+    },
+    {
+      "file": "hero-navigator-stage.png",
+      "size": [1672, 941],
+      "alpha": false,
+      "purpose": "Moonlit harbor and navigation-chart stage background",
+      "recommendedUse": "Background image behind live ship, avatar, pet, and pedestal layers"
+    },
+    {
+      "file": "panel-currency-parchment.png",
+      "size": [2172, 724],
+      "alpha": true,
+      "purpose": "Gold balance and specialty-resource panel",
+      "recommendedUse": "Nine-slice or border-image with live value and resource counters"
+    },
+    {
+      "file": "panel-rank-stats-transparent.png",
+      "size": [2075, 758],
+      "alpha": true,
+      "purpose": "Rank, EXP, and six-stat panel",
+      "recommendedUse": "Layer live rank, progress bar, and stat values in the reserved compartments"
+    },
+    {
+      "file": "pedestal-brass-transparent.png",
+      "size": [1254, 1254],
+      "alpha": true,
+      "purpose": "Reusable display base for ship, avatar, and pet",
+      "recommendedUse": "Place under existing sprite layers with per-figure scaling"
+    },
+    {
+      "file": "button-explore-transparent.png",
+      "size": [2172, 724],
+      "alpha": true,
+      "purpose": "Explore action background",
+      "recommendedUse": "Nine-slice or full-bleed button background with live icon and label"
+    },
+    {
+      "file": "button-fortune-transparent.png",
+      "size": [1896, 830],
+      "alpha": true,
+      "purpose": "Fortune action background",
+      "recommendedUse": "Nine-slice or full-bleed button background with live icon and label"
+    },
+    {
+      "file": "nav-slot-inactive-transparent.png",
+      "size": [1145, 1374],
+      "alpha": true,
+      "purpose": "Inactive bottom-navigation slot",
+      "recommendedUse": "Reuse across the five navigation buttons"
+    },
+    {
+      "file": "nav-slot-active-transparent.png",
+      "size": [1122, 1402],
+      "alpha": true,
+      "purpose": "Selected bottom-navigation slot",
+      "recommendedUse": "Use only for the active navigation button"
+    }
+  ]
+}

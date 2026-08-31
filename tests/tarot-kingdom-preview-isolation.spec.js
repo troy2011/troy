@@ -95,8 +95,10 @@ test('Tarot Kingdom retries a transient Arcana catalog failure before starting',
 test('Tarot Kingdom release advances its entry modules and service-worker cache together', () => {
   const release = '20260828-exploration-retreat-v1';
   const inventoryRelease = '20260827-inventory-figma-v1';
-  const playFabRelease = '20260827-job-mastery-v1';
-  const styleRelease = '20260827-shield-glass-v1';
+  const mainRelease = '20260830-s1-auth-v1';
+  const playFabRelease = '20260830-s1-auth-v1';
+  const indexStyleRelease = '20260828-home-v3';
+  const previewStyleRelease = '20260827-shield-glass-v1';
   const indexSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'index.html'), 'utf8');
   const mainSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'main.js'), 'utf8');
   const uiSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'ui.js'), 'utf8');
@@ -112,8 +114,8 @@ test('Tarot Kingdom release advances its entry modules and service-worker cache 
   expect(indexSource).toContain(`"inventory": "./js/inventory.js?v=${inventoryRelease}"`);
   expect(previewSource).toContain(`"inventory": "./js/inventory.js?v=${inventoryRelease}"`);
   expect(indexSource).toContain(`"ui": "./js/ui.js?v=${release}"`);
-  expect(indexSource).toContain(`style.css?v=${styleRelease}`);
-  expect(indexSource).toContain(`src="main.js?v=${release}"`);
+  expect(indexSource).toContain(`style.css?v=${indexStyleRelease}`);
+  expect(indexSource).toContain(`src="main.js?v=${mainRelease}"`);
   expect(mainSource).toContain(`const TAROT_KINGDOM_RESCUE_VERSION = '${release}';`);
   expect(mainSource).toContain(`./js/ship.js?v=${release}`);
   expect(uiSource).toContain(`const TAROT_KINGDOM_MODULE_VERSION = '${release}';`);
@@ -123,8 +125,8 @@ test('Tarot Kingdom release advances its entry modules and service-worker cache 
   expect(shipSource).toContain(`./playfabClient.js?v=${playFabRelease}`);
   expect(previewSource).toContain(`"ui": "./js/ui.js?v=${release}"`);
   expect(previewSource).toContain(`./js/tarotKingdom.js?v=${release}`);
-  expect(previewSource).toContain(`./style.css?v=${styleRelease}`);
-  expect(serviceWorkerSource).toContain("const CACHE_VERSION = 'troy-app-v20260828a';");
+  expect(previewSource).toContain(`./style.css?v=${previewStyleRelease}`);
+  expect(serviceWorkerSource).toContain("const CACHE_VERSION = 'troy-app-v20260830-s1-auth-v1';");
 });
 
 function loadServiceWorkerHarness() {

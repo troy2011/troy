@@ -14,7 +14,7 @@ import {
     getGuildApplications as fetchGuildApplications,
     approveGuildApplication as requestApproveGuildApplication,
     rejectGuildApplication as requestRejectGuildApplication
-} from './playfabClient.js?v=20260826-tutorial-reward-v1';
+} from './playfabClient.js?v=20260830-s1-auth-v1';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { getNationLabel } from './nationLabels.js';
 import { decoratePlayerTriggerElement } from './playerProfile.js';
@@ -42,9 +42,8 @@ export async function loadGuildInfo(playFabId) {
     console.log('[Guild] Loading guild info for player:', playFabId);
 
     try {
-        const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
         // サーバーAPIを呼び出してギルド情報を取得
-        const data = await getGuildInfo(playFabId, entityKey, { isSilent: true });
+        const data = await getGuildInfo(playFabId, { isSilent: true });
 
         if (data && data.guild) {
             // ギルドに加入している場合

@@ -214,15 +214,10 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
   expect(troyMapLink.rel).toContain('noopener');
   expect(troyMapLink.color).toBe('rgb(255, 241, 184)');
   expect(homeQrIcon).toContain('030.png');
-  expect(homeShipPanel.borderImageSource).toContain('panel-dark-square.png');
-  expect(homeShipPanel.borderImageSlice).toContain('24');
-  expect(homeShipPanel.borderImageWidth).toContain('10px');
+  expect(homeShipPanel.borderImageSource).toBe('none');
   expect(headerCurrency.hasPanelSliceLayer).toBe(false);
   expect(headerCurrency.text).toContain('G');
-  expect(headerCurrency.display).toContain('flex');
-  expect(headerCurrency.beforeContent).not.toBe('none');
-  expect(headerCurrency.beforeBackgroundImage).toContain('002.png');
-  expect(headerCurrency.beforeWidth).toBe('30px');
+  expect(headerCurrency.display).toBe('none');
   expect(compactPanelSliceCount).toBe(0);
 
   expect(state.loginPlayFabBody).toMatchObject({
@@ -234,7 +229,7 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
   await expectNoPageErrors(errors);
 });
 
-test('long bottom navigation labels shrink instead of being clipped', async ({ page }) => {
+test('long bottom navigation labels shrink and the five-tab rail fits', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await bootstrapMainApp(page);
@@ -257,12 +252,9 @@ test('long bottom navigation labels shrink instead of being clipped', async ({ p
   expect(fit.fontSize).toBeGreaterThanOrEqual(5.5);
   expect(fit.title).toBe('長いナビゲーション');
 
-  await page.locator('#navKing').evaluate((element) => {
-    element.style.display = 'flex';
-  });
   await page.setViewportSize({ width: 320, height: 844 });
   await page.evaluate(() => window.dispatchEvent(new Event('resize')));
-  const sixTabLayout = await page.evaluate(() => {
+  const fiveTabLayout = await page.evaluate(() => {
     const nav = document.getElementById('bottomNav');
     const navRect = nav.getBoundingClientRect();
     const buttons = [...nav.querySelectorAll('.nav-button')]
@@ -275,9 +267,10 @@ test('long bottom navigation labels shrink instead of being clipped', async ({ p
       buttonsFit: buttons.every((rect) => rect.left >= navRect.left - 1 && rect.right <= navRect.right + 1)
     };
   });
-  expect(sixTabLayout.buttonCount).toBe(6);
-  expect(sixTabLayout.buttonsFit).toBe(true);
-  expect(sixTabLayout.scrollWidth).toBeLessThanOrEqual(sixTabLayout.viewportWidth);
+  expect(fiveTabLayout.buttonCount).toBe(5);
+  expect(fiveTabLayout.buttonsFit).toBe(true);
+  expect(fiveTabLayout.scrollWidth).toBeLessThanOrEqual(fiveTabLayout.viewportWidth);
+  await expect(page.locator('#navKing')).toBeHidden();
   await expectNoPageErrors(errors);
 });
 
@@ -796,13 +789,16 @@ test('home avatar applies equipped gear during app startup', async ({ page }) =>
     };
   });
   expect(homeCompanionLayout.avatarCenter).toBeLessThan(homeCompanionLayout.petCenter);
-  expect(homeCompanionLayout.avatarVerticalCenter - homeCompanionLayout.mobileAnchorY)
-    .toBeCloseTo(homeCompanionLayout.expectedHalfAvatarHeight, 0);
+  expect(Math.abs(homeCompanionLayout.avatarVerticalCenter - homeCompanionLayout.mobileAnchorY))
+    .toBeLessThanOrEqual(3);
   expect(homeCompanionLayout.petVerticalCenter - homeCompanionLayout.avatarVerticalCenter)
-    .toBeCloseTo(3, 0);
+    .toBeGreaterThanOrEqual(20);
+  expect(homeCompanionLayout.petVerticalCenter - homeCompanionLayout.avatarVerticalCenter)
+    .toBeLessThanOrEqual(80);
   expect(homeCompanionLayout.avatarBottom).toBeLessThan(homeCompanionLayout.stageBottom);
   expect(homeCompanionLayout.petBottom).toBeLessThan(homeCompanionLayout.stageBottom);
-  expect(Math.abs(homeCompanionLayout.avatarScale - homeCompanionLayout.petScale)).toBeLessThan(0.02);
+  expect(homeCompanionLayout.avatarScale).toBeCloseTo(1.68, 2);
+  expect(homeCompanionLayout.petScale).toBeCloseTo(1.22, 2);
   await expectNoPageErrors(errors);
 });
 
@@ -1508,26 +1504,28 @@ test('home tab replaces HP and MP recovery controls with compact stat chips', as
   const homeBackgrounds = await page.evaluate(() => {
     const homeTab = document.getElementById('tabContentHome');
     const heroCard = document.querySelector('.home-hero-card');
-    const shipStage = document.getElementById('homeShipStage');
+    const shipScene = document.querySelector('.home-ship-bob');
+    const currencyPanel = document.querySelector('.home-ps-card');
+    const rankPanel = document.querySelector('.home-exp-card');
     return {
       tabBackground: window.getComputedStyle(homeTab).backgroundImage,
       heroBackground: window.getComputedStyle(heroCard).backgroundImage,
-      heroBackgroundSize: window.getComputedStyle(heroCard).backgroundSize,
-      heroBackgroundHeight: window.getComputedStyle(heroCard).getPropertyValue('--home-hero-bg-height').trim(),
       heroBorderImageSource: window.getComputedStyle(heroCard).borderImageSource,
-      shipStageBackground: window.getComputedStyle(shipStage, '::before').backgroundImage
+      currencyBackground: window.getComputedStyle(currencyPanel).backgroundImage,
+      shipSceneBackground: window.getComputedStyle(shipScene).backgroundImage,
+      rankBackground: window.getComputedStyle(rankPanel).backgroundImage
     };
   });
-  expect(homeBackgrounds.heroBackground).toContain('home-ui-sheet.png');
-  expect(homeBackgrounds.heroBackgroundSize).toContain('620px');
-  expect(homeBackgrounds.heroBackgroundHeight).toBe('620px');
+  expect(homeBackgrounds.heroBackground).not.toContain('home-ui-sheet.png');
   expect(homeBackgrounds.heroBorderImageSource).toBe('none');
+  expect(homeBackgrounds.currencyBackground).toContain('panel-currency-parchment.webp');
+  expect(homeBackgrounds.shipSceneBackground).toContain('hero-navigator-stage.webp');
+  expect(homeBackgrounds.rankBackground).toContain('panel-rank-stats.webp');
   expect(homeBackgrounds.tabBackground).not.toContain('bg-sea.png');
-  expect(homeBackgrounds.shipStageBackground).not.toContain('bg-sea.png');
   await expectNoPageErrors(errors);
 });
 
-test('home ship evolution button stays inside the ship panel', async ({ page }) => {
+test('home ship figure keeps ship details accessible from the navigator stage', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.route('**/api/player-ship/status', async (route) => {
     await route.fulfill({
@@ -1577,34 +1575,32 @@ test('home ship evolution button stays inside the ship panel', async ({ page }) 
     const ship = await import('/js/ship.js');
     await ship.loadPlayerShipProfile('PF_PLAYWRIGHT');
   });
-  await expect(page.locator('#homePlayerShipFrame [data-player-ship-evolve]')).toBeVisible();
+  await expect(page.locator('#homePlayerShipFrame [data-player-ship-evolve]')).toBeHidden();
   await expect(page.locator('#homePlayerShipFrame [data-player-ship-owner]')).toHaveText('自分の船');
 
   const layout = await page.locator('#homePlayerShipFrame').evaluate((panel) => {
-    const button = panel.querySelector('[data-player-ship-evolve]');
+    const stage = document.querySelector('.home-ship-bob');
+    const icon = panel.querySelector('.home-player-ship-icon');
+    const stageRect = stage.getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
-    const buttonRect = button.getBoundingClientRect();
+    const iconRect = icon.getBoundingClientRect();
     const panelStyle = window.getComputedStyle(panel);
     return {
-      panelTop: panelRect.top,
-      panelRight: panelRect.right,
-      panelBottom: panelRect.bottom,
-      panelLeft: panelRect.left,
-      buttonTop: buttonRect.top,
-      buttonRight: buttonRect.right,
-      buttonBottom: buttonRect.bottom,
-      buttonLeft: buttonRect.left,
-      computedTop: panelStyle.top,
-      computedRight: panelStyle.right
+      panelInsideStage: panelRect.left >= stageRect.left
+        && panelRect.right <= stageRect.right
+        && panelRect.top >= stageRect.top
+        && panelRect.bottom <= stageRect.bottom,
+      iconInsideStage: iconRect.left >= stageRect.left
+        && iconRect.right <= stageRect.right
+        && iconRect.top >= stageRect.top
+        && iconRect.bottom <= stageRect.bottom,
+      borderImageSource: panelStyle.borderImageSource
     };
   });
 
-  expect(layout.computedTop).toBe('-108px');
-  expect(layout.computedRight).toBe('9px');
-  expect(layout.buttonTop).toBeGreaterThanOrEqual(layout.panelTop + 2);
-  expect(layout.buttonLeft).toBeGreaterThanOrEqual(layout.panelLeft + 2);
-  expect(layout.buttonRight).toBeLessThanOrEqual(layout.panelRight - 2);
-  expect(layout.buttonBottom).toBeLessThanOrEqual(layout.panelBottom - 2);
+  expect(layout.panelInsideStage).toBe(true);
+  expect(layout.iconInsideStage).toBe(true);
+  expect(layout.borderImageSource).toBe('none');
 
   const shipAudit = await page.locator('#homePlayerShipFrame .home-player-ship-icon').evaluate((el) => ({
     direction: el.getAttribute('data-player-ship-direction'),
@@ -4734,7 +4730,7 @@ test('player profile transfer panel stays inside the sheet on narrow screens', a
   await expectNoPageErrors(errors);
 });
 
-test('panel frame assets are applied through border-image slices', async ({ page }) => {
+test('panel frame assets use approved home-v3 art or legacy slices', async ({ page }) => {
   const errors = trackPageErrors(page);
   await bootstrapMainApp(page);
 
@@ -4773,11 +4769,28 @@ test('panel frame assets are applied through border-image slices', async ({ page
 
   expect(audit.length).toBeGreaterThanOrEqual(8);
   expect(audit.filter((entry) => /assets\/ui\/panels\//.test(entry.backgroundImage))).toEqual([]);
-  expect(audit.filter((entry) => (
+  const homeV3Selectors = new Set([
+    '#globalPlayerInfoTop',
+    '.home-exp-card',
+    '.home-ps-card',
+    '#bottomNav',
+    '.nav-button'
+  ]);
+  expect(audit.filter((entry) => !homeV3Selectors.has(entry.selector) && (
     !/assets\/ui\/panels\//.test(entry.borderImageSource)
     && !/assets\/ui\/buttons\//.test(entry.borderImageSource)
     && !/panel-.*\.png/.test(entry.panelSliceSource)
   ))).toEqual([]);
+  const homeV3Frames = Object.fromEntries(
+    audit
+      .filter((entry) => homeV3Selectors.has(entry.selector))
+      .map((entry) => [entry.selector, entry])
+  );
+  expect(homeV3Frames['.home-exp-card'].backgroundImage).toContain('panel-rank-stats.webp');
+  expect(homeV3Frames['.home-ps-card'].backgroundImage).toContain('panel-currency-parchment.webp');
+  expect(homeV3Frames['.nav-button'].borderImageSource).toContain('nav-slot-active.webp');
+  expect(homeV3Frames['#globalPlayerInfoTop'].borderImageSource).toBe('none');
+  expect(homeV3Frames['#bottomNav'].backgroundImage).toContain('linear-gradient');
   await expectNoPageErrors(errors);
 });
 
@@ -7852,7 +7865,7 @@ test('tarot cards preview, automatically sort, and open detail before changing d
   });
   expect(bottomNavLayout.position).toBe('fixed');
   expect(bottomNavLayout.visibility).toBe('visible');
-  expect(bottomNavLayout.columnCount).toBe(6);
+  expect(bottomNavLayout.columnCount).toBe(5);
   expect(bottomNavLayout.left).toBeGreaterThanOrEqual(0);
   expect(bottomNavLayout.right).toBeLessThanOrEqual(bottomNavLayout.viewportWidth);
   expect(bottomNavLayout.bottom).toBeLessThanOrEqual(bottomNavLayout.viewportHeight);

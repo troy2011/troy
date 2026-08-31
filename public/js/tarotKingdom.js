@@ -14,7 +14,7 @@ import {
   getTarotKingdomPetState,
   awardTarotKingdomRoundAbp,
   joinExplorationStage
-} from './playfabClient.js?v=20260827-job-mastery-v1';
+} from './playfabClient.js?v=20260830-s1-auth-v1';
 import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260825-purun-idle-v1';
 import {
   auditTarotKingdomMonsterMotionAssignments,
@@ -15521,7 +15521,6 @@ function deserializeStateFromNet(payload) {
 function getKingdomOfflineCheckpointOwnerId() {
   return String(
     window.myPlayFabId
-    || window.myPlayFabLoginInfo?.playFabId
     || ''
   ).trim();
 }

@@ -52,8 +52,8 @@ function installApiAuthFetch() {
 installApiAuthFetch();
 
 /**
- * API呼び出しとPlayFab Client SDK呼び出しをラップし、ローディングスピナーを制御する。
- * @param {string|Function} apiFunctionOrEndpoint - APIエンドポイントの文字列またはPlayFab SDKの関数
+ * サーバーAPI呼び出しをラップし、ローディングスピナーを制御する。
+ * @param {string} apiFunctionOrEndpoint - APIエンドポイント
  * @param {object} body - APIに送信するリクエストボディ
  * @param {object} options - オプション { isSilent: boolean }
  * @returns {Promise<object|null>} APIからのレスポンスデータ、またはエラー時にnull
@@ -64,19 +64,15 @@ export async function callApiWithLoader(apiFunctionOrEndpoint, body, options = {
     if (spinner && !options.isSilent) spinner.style.display = 'flex';
 
     try {
-        let data;
-        if (typeof apiFunctionOrEndpoint === 'function') {
-            // PlayFab Client SDK 関数を呼び出す
-            data = await promisifyPlayFab(apiFunctionOrEndpoint, body);
-        } else {
-            // サーバーAPIエンドポイントを呼び出す
-            data = await callPointApi(apiFunctionOrEndpoint, body);
+        if (typeof apiFunctionOrEndpoint !== 'string') {
+            throw new Error('Browser PlayFab API calls are not supported');
         }
+        const data = await callPointApi(apiFunctionOrEndpoint, body);
         if (spinner) spinner.style.display = 'none';
         return data;
 
     } catch (error) {
-        const endpointName = (typeof apiFunctionOrEndpoint === 'string') ? apiFunctionOrEndpoint : 'PlayFabFunction';
+        const endpointName = (typeof apiFunctionOrEndpoint === 'string') ? apiFunctionOrEndpoint : 'InvalidEndpoint';
         console.error(`Error in callApiWithLoader for ${endpointName}:`, error);
         if (spinner) spinner.style.display = 'none';
 
@@ -145,19 +141,11 @@ async function callPointApi(endpoint, body) {
     if (!response.ok) {
         const base = (data && data.error) ? data.error : (response.statusText || 'APIエラー');
         const details = (data && data.details) ? ': ' + data.details : '';
-        throw new Error(base + details + ' (HTTP ' + response.status + ')');
+        const error = new Error(base + details + ' (HTTP ' + response.status + ')');
+        error.status = response.status;
+        error.responseData = data;
+        throw error;
     }
 
     return data;
-}
-
-// PlayFab Client APIをPromiseでラップする
-export function promisifyPlayFab(apiFunction, request) {
-    return new Promise((resolve, reject) => {
-        apiFunction(request, (result, error) => {
-            if (error) return reject(new Error(error.errorMessage));
-            if (result && result.data) return resolve(result.data);
-            resolve(result);
-        });
-    });
 }

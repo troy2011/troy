@@ -1,5 +1,5 @@
 // c:/Users/ikeda/my-liff-app/public/js/islands.js
-import { getOwnedIslands } from './playfabClient.js?v=20260826-tutorial-reward-v1';
+import { getOwnedIslands } from './playfabClient.js?v=20260830-s1-auth-v1';
 
 function escapeHtml(str) {
     return String(str || '').replace(/[&<>"']/g, (match) => ({

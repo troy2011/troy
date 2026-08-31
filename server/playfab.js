@@ -11,6 +11,8 @@ let _titleEntityTokenExpiresAtMs = 0;
 let _titleEntityTokenPromise = null;
 let _titleEntityKey = null;
 const TITLE_ENTITY_TOKEN_REFRESH_BUFFER_MS = 60 * 1000;
+const PLAYER_ENTITY_RESOLUTION_MAX_ATTEMPTS = 3;
+const PLAYER_ENTITY_RESOLUTION_RETRY_DELAY_MS = 200;
 
 function configurePlayFab({ titleId, secretKey }) {
     if (titleId) PlayFab.settings.titleId = titleId;
@@ -178,6 +180,38 @@ async function getEntityKeyFromPlayFabId(playFabId) {
     return null;
 }
 
+function normalizePlayerEntityKey(entityKey) {
+    const id = String(entityKey?.Id || '').trim();
+    const type = String(entityKey?.Type || '').trim().toLowerCase();
+    if (!id || type !== 'title_player_account') return null;
+    return { Id: id, Type: 'title_player_account' };
+}
+
+async function requirePlayerEntityKeyForPlayFabId(playFabId, options = {}) {
+    const resolveEntityKey = options.resolveEntityKey || getEntityKeyFromPlayFabId;
+    const maxAttempts = Number.isInteger(options.maxAttempts) && options.maxAttempts > 0
+        ? options.maxAttempts
+        : PLAYER_ENTITY_RESOLUTION_MAX_ATTEMPTS;
+    const retryDelayMs = Number.isFinite(options.retryDelayMs) && options.retryDelayMs >= 0
+        ? options.retryDelayMs
+        : PLAYER_ENTITY_RESOLUTION_RETRY_DELAY_MS;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+            const entityKey = normalizePlayerEntityKey(await resolveEntityKey(playFabId));
+            if (entityKey) return entityKey;
+        } catch (error) {
+            if (attempt === maxAttempts) throw error;
+        }
+
+        if (attempt < maxAttempts && retryDelayMs > 0) {
+            await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+        }
+    }
+
+    throw new Error('EntityKeyNotFound');
+}
+
 module.exports = {
     PlayFab,
     PlayFabServer,
@@ -194,5 +228,6 @@ module.exports = {
     isEntityTokenExpiredError,
     getGroupDataValue,
     setGroupDataValues,
-    getEntityKeyFromPlayFabId
+    getEntityKeyFromPlayFabId,
+    requirePlayerEntityKeyForPlayFabId
 };

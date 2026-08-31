@@ -20,7 +20,7 @@ import {
     getCrewRecruitmentBoard,
     saveCrewRecruitment,
     applyCrewRecruitment
-} from './playfabClient.js?v=20260826-tutorial-reward-v1';
+} from './playfabClient.js?v=20260830-s1-auth-v1';
 import { getNationLabel } from './nationLabels.js';
 import { buildPlayerTriggerHtml } from './playerProfile.js';
 import {

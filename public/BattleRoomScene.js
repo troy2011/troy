@@ -8,7 +8,7 @@ import {
     createBattleRoom,
     joinBattleRoom,
     getActiveBattleRoom
-} from './js/playfabClient.js?v=20260826-tutorial-reward-v1';
+} from './js/playfabClient.js?v=20260830-s1-auth-v1';
 import { BattleRoomClient } from './js/battleRoomClient.js';
 import {
     getCachedSkillData, setCachedSkillData, mergeWithLocalCt,

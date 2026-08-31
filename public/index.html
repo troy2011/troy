@@ -15,7 +15,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://static.line-scdn.net" crossorigin>
-    <link rel="preconnect" href="https://download.playfab.com" crossorigin>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="manifest" href="/manifest.webmanifest">
@@ -23,13 +22,14 @@
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
     <title>TROYゴールドアプリ</title>
-<link rel="stylesheet" href="style.css?v=20260827-shield-glass-v1">
+    <link rel="stylesheet" href="style.css?v=20260828-home-v3">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
     <link rel="stylesheet" href="tarot-kingdom-summons.css?v=20260827-summon-element-target-v1">
+    <link rel="stylesheet" href="css/home-v3.css?v=20260828-home-v3">
 </head>
 
-<body class="app-booting">
+<body class="app-booting home-v3">
     <div id="bootSplash" class="boot-splash" aria-label="TROY 起動中">
         <img src="./Sprites/background/title.webp" alt="TROY" class="boot-splash-title" decoding="async" fetchpriority="high">
         <div class="boot-splash-spinner" aria-hidden="true"></div>
@@ -76,6 +76,9 @@
                     </div>
                     <div id="homeShipStage" class="home-ship-stage">
                         <div class="home-ship-bob">
+                            <div class="home-figure-pedestal home-figure-pedestal-ship" aria-hidden="true"><span>SHIP</span></div>
+                            <div class="home-figure-pedestal home-figure-pedestal-avatar" aria-hidden="true"><span>CAPTAIN</span></div>
+                            <div class="home-figure-pedestal home-figure-pedestal-pet" aria-hidden="true"><span>PET</span></div>
                             <img src="Sprites/Ships/homeShip.png" alt="" class="home-ship-image">
                             <div id="home-avatar" class="home-ship-avatar avatar-container" role="button" tabindex="0" aria-label="プレイヤー情報を開く">
                                 <div id="home-avatar-layer-body" class="avatar-layer"></div>
@@ -95,7 +98,7 @@
                         </div>
                         <div class="home-exp-card">
                             <div class="home-exp-header">
-                                <div class="home-exp-rank" data-rank-tier="apprentice">階級 <span id="homeExpRank">見習い</span></div>
+                                <div class="home-exp-rank" data-rank-tier="apprentice"><span id="homeExpRank">見習い</span></div>
                             </div>
                             <div class="home-exp-bar">
                                 <div id="homeExpFill" class="home-exp-fill" style="width: 0%;"></div>
@@ -1744,9 +1747,6 @@
     <!-- ライブラリ (Firebase v9 Modular SDK に変更) -->
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
-    <script src="https://download.playfab.com/PlayFabClientApi.js"></script>
-    <script src="https://download.playfab.com/PlayFabGroupsApi.js"></script>
-
     <!-- importmap を使用してFirebaseモジュールを定義 -->
     <script type="importmap">
     {
@@ -1804,6 +1804,6 @@
     </div>
 
     <!-- Scripts -->
-<script type="module" src="main.js?v=20260828-exploration-retreat-v1"></script>
+<script type="module" src="main.js?v=20260830-s1-auth-v1"></script>
 </body>
 </html>

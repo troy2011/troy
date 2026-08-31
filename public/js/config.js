@@ -11,8 +11,8 @@ export const firebaseConfig = {
     appId: "1:258309007800:web:b37bcaac51dd0e45ba474d"
 };
 
-// API base (Render)
-export const API_BASE_URL = 'https://troy-xetw.onrender.com';
+// Express が静的クライアントと API を同じ origin で配信する。
+export const API_BASE_URL = '';
 window.API_BASE_URL = API_BASE_URL;
 
 // 種族ごとの色定義（16進数カラーコード）
