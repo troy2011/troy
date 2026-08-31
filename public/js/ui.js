@@ -3,7 +3,7 @@
 import * as Player from './player.js';
 import * as Inventory from 'inventory';
 import * as Ship from './ship.js?v=20260828-exploration-retreat-v1';
-import * as NationKing from './nationKing.js?v=20260731-stage-score1';
+import * as NationKing from './nationKing.js?v=20260831-home-king-v1';
 import * as Islands from './islands.js';
 import { getNationAnnouncements } from './playfabClient.js?v=20260830-s1-auth-v1';
 import { loadHomeAnnouncements } from './homeAnnouncements.js';

@@ -7,7 +7,7 @@ const {
   expectNoPageErrors
 } = require('./helpers/main-app-harness');
 
-test('approved home v3 composition keeps five tabs and existing ship sprites', async ({ page }) => {
+test('approved home v3 composition keeps five tabs, king shortcut, and existing ship sprites', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.setViewportSize({ width: 390, height: 698 });
   await page.route('**/api/player-ship/status', async (route) => {
@@ -60,7 +60,8 @@ test('approved home v3 composition keeps five tabs and existing ship sprites', a
 
   await expect(page.locator('body')).toHaveClass(/home-v3/);
   await expect(page.locator('.currency-display')).toBeHidden();
-  await expect(page.locator('#navKing')).toBeHidden();
+  await expect(page.locator('#navKing')).toHaveCount(0);
+  await expect(page.locator('#btnHomeKing')).toBeVisible();
   await expect(page.locator('.home-exp-rank')).not.toContainText('階級');
   await expect(page.locator('#homeExpRank')).toHaveText('見習い');
 
@@ -261,5 +262,30 @@ test('approved home v3 composition keeps five tabs and existing ship sprites', a
   await page.screenshot({ path: screenshotPath });
   console.log(`HOME_V3_SCREENSHOT=${screenshotPath}`);
 
+  await page.locator('#btnHomeKing').click();
+  await expect(page.locator('#tabContentKing')).toBeVisible();
+  await expect(page.locator('body')).toHaveAttribute('data-current-tab', 'king');
+  await expectNoPageErrors(errors);
+});
+
+test('home king shortcut stays hidden for non-king players', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await bootstrapMainApp(page);
+  await page.unroute('**/api/get-nation-king-page');
+  await page.route('**/api/get-nation-king-page', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ notInNation: true })
+    });
+  });
+  await page.evaluate(async () => {
+    const king = await import('/js/nationKing.js?v=20260831-home-king-v1');
+    await king.refreshKingNav('PF_PLAYWRIGHT');
+  });
+
+  await expect(page.locator('#navKing')).toHaveCount(0);
+  await expect(page.locator('#btnHomeKing')).toBeHidden();
+  await expect(page.locator('#tabContentHome')).toBeVisible();
   await expectNoPageErrors(errors);
 });

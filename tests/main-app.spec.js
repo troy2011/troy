@@ -270,7 +270,7 @@ test('long bottom navigation labels shrink and the five-tab rail fits', async ({
   expect(fiveTabLayout.buttonCount).toBe(5);
   expect(fiveTabLayout.buttonsFit).toBe(true);
   expect(fiveTabLayout.scrollWidth).toBeLessThanOrEqual(fiveTabLayout.viewportWidth);
-  await expect(page.locator('#navKing')).toBeHidden();
+  await expect(page.locator('#navKing')).toHaveCount(0);
   await expectNoPageErrors(errors);
 });
 
@@ -4822,7 +4822,7 @@ test('king page no longer exposes raid spawn controls', async ({ page }) => {
   await bootstrapMainApp(page);
 
   await page.evaluate(async () => {
-    const king = await import('/js/nationKing.js?v=20260731-stage-score1');
+    const king = await import('/js/nationKing.js?v=20260831-home-king-v1');
     await king.refreshKingNav('PF_PLAYWRIGHT');
     await window.showTab('king', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
   });
@@ -4878,7 +4878,7 @@ test('king page shows TROY entry QR from priority controls', async ({ page }) =>
   });
 
   await page.evaluate(async () => {
-    const king = await import('/js/nationKing.js?v=20260731-stage-score1');
+    const king = await import('/js/nationKing.js?v=20260831-home-king-v1');
     await king.refreshKingNav('PF_PLAYWRIGHT');
     await window.showTab('king', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
   });
@@ -4899,7 +4899,7 @@ test('king page shows TROY entry QR from priority controls', async ({ page }) =>
     });
   });
   await page.evaluate(async () => {
-    const king = await import('/js/nationKing.js?v=20260731-stage-score1');
+    const king = await import('/js/nationKing.js?v=20260831-home-king-v1');
     await king.loadKingPage('PF_PLAYWRIGHT');
   });
   await expect(page.locator('[data-king-section-tab="ops"]')).toHaveClass(/is-active/);
@@ -4981,7 +4981,7 @@ test('king calendar panel shows reservation review actions', async ({ page }) =>
   });
 
   await page.evaluate(async () => {
-    const king = await import('/js/nationKing.js?v=20260731-stage-score1');
+    const king = await import('/js/nationKing.js?v=20260831-home-king-v1');
     await king.refreshKingNav('PF_PLAYWRIGHT');
     await window.showTab('king', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
   });
@@ -5129,7 +5129,7 @@ test('king calendar save reports Google Business Profile sync and surfaces API f
 
   await page.evaluate(async () => {
     window.__TROY_CALENDAR_SYNC_POLL_DELAYS_MS = [10];
-    const king = await import('/js/nationKing.js?v=20260731-stage-score1');
+    const king = await import('/js/nationKing.js?v=20260831-home-king-v1');
     await king.refreshKingNav('PF_PLAYWRIGHT');
     await window.showTab('king', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
   });
@@ -5298,7 +5298,7 @@ test('king store game scoring saves from each in-store customer row', async ({ p
   });
 
   await page.evaluate(async () => {
-    const king = await import('/js/nationKing.js?v=20260731-stage-score1');
+    const king = await import('/js/nationKing.js?v=20260831-home-king-v1');
     await king.refreshKingNav('PF_PLAYWRIGHT');
     await window.showTab('king', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
   });

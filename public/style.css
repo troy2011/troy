@@ -28394,11 +28394,9 @@ body[data-sea-tone] .home-hero-card {
 #navCompanions { --nav-icon-image: var(--icon-nav-companions); }
 #navInventory { --nav-icon-image: var(--icon-nav-inventory); }
 #navRanking { --nav-icon-image: var(--icon-nav-ranking); }
-#navKing { --nav-icon-image: var(--icon-nav-king); }
 
 
-.nav-button .nav-icon,
-#navKing .nav-icon {
+.nav-button .nav-icon {
     width: 36px;
     height: 36px;
     margin-bottom: 1px;
@@ -28412,8 +28410,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 @media (max-width: 640px) {
-    .nav-button .nav-icon,
-    #navKing .nav-icon {
+    .nav-button .nav-icon {
         width: 32px;
         height: 32px;
     }

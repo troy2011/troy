@@ -1001,9 +1001,12 @@ export function getLastPageData() {
     return _lastPageData;
 }
 
-export async function refreshKingNav(playFabId) {
-    const nav = document.getElementById('navKing');
+function _syncKingEntryVisibility() {
+    const homeKingButton = document.getElementById('btnHomeKing');
+    if (homeKingButton) homeKingButton.hidden = !_isKing;
+}
 
+export async function refreshKingNav(playFabId) {
     try {
         const data = await getNationKingPage(playFabId, { isSilent: true });
         _isKing = !!(data && !data.notInNation);
@@ -1013,8 +1016,8 @@ export async function refreshKingNav(playFabId) {
         _lastPageData = null;
     }
     _hasKingCheck = true;
-    // 王ページの権限判定は維持し、主要ナビはコンセプトどおり5枠に固定する。
-    if (nav) nav.style.display = 'none';
+    // 王ページへの入口は、主要ナビを増やさずホーム上で王だけに表示する。
+    _syncKingEntryVisibility();
     return _isKing;
 }
 
@@ -1033,13 +1036,13 @@ export async function loadKingPage(playFabId, options = {}) {
         _isKing = false;
         _hasKingCheck = true;
         _lastPageData = null;
-        const nav = document.getElementById('navKing');
-        if (nav) nav.style.display = 'none';
+        _syncKingEntryVisibility();
         return;
     }
     _isKing = true;
     _hasKingCheck = true;
     _lastPageData = data;
+    _syncKingEntryVisibility();
 
     const currentEl = document.getElementById('kingAnnouncementCurrent');
     const metaEl = document.getElementById('kingAnnouncementMeta');
