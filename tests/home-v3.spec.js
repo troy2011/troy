@@ -62,6 +62,8 @@ test('approved home v3 composition keeps five tabs, king shortcut, and existing 
   await expect(page.locator('.currency-display')).toBeHidden();
   await expect(page.locator('#navKing')).toHaveCount(0);
   await expect(page.locator('#btnHomeKing')).toBeVisible();
+  await expect(page.locator('#btnHomeKing img')).toHaveAttribute('src', 'assets/ui/icons/nav-king-framed.png');
+  await expect.poll(async () => page.locator('#btnHomeKing img').evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
   await expect(page.locator('.home-exp-rank')).not.toContainText('階級');
   await expect(page.locator('#homeExpRank')).toHaveText('見習い');
 

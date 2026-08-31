@@ -218,12 +218,11 @@ body.home-v3 #tabContentHome .home-king-button {
     cursor: pointer;
 }
 
-body.home-v3 #tabContentHome .home-king-button::before {
-    content: "";
-    width: 28px;
-    height: 28px;
-    flex: 0 0 28px;
-    background: var(--icon-nav-king) center / contain no-repeat;
+body.home-v3 #tabContentHome .home-king-button img {
+    width: 32px;
+    height: 34px;
+    flex: 0 0 32px;
+    object-fit: contain;
     filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.62));
 }
 
@@ -646,10 +645,10 @@ body.home-v3 #bottomNav .nav-button span:last-child {
         font-size: 17px;
     }
 
-    body.home-v3 #tabContentHome .home-king-button::before {
-        width: 24px;
-        height: 24px;
-        flex-basis: 24px;
+    body.home-v3 #tabContentHome .home-king-button img {
+        width: 29px;
+        height: 31px;
+        flex-basis: 29px;
     }
 
     body.home-v3 #tabContentHome .home-ship-stage {
