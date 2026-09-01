@@ -439,7 +439,8 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
     await expect(hpText).toContainText('HP 120 / 120');
     await page.waitForTimeout(Math.max(0, attack.hpRevealAt - attack.now + 40));
     const damage = page.locator(
-      '#tarotKingdomBattleParty [data-player-index="1"] > .tarot-kingdom-player-damage-number.is-show'
+      '#tarotKingdomBattleStage > .tarot-kingdom-damage-layer'
+      + ' > .tarot-kingdom-player-damage-number[data-player-index="1"].is-show'
     );
     await expect(page.locator('#tarotKingdomBattleAvatar-1')).toHaveClass(/is-avatar-damaged/);
     await expect(damage).toHaveCount(0);

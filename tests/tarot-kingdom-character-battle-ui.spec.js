@@ -3007,7 +3007,7 @@ test('a delayed guest replays a host attack once despite opposite 60 second cloc
       expect(duplicateAudit.activeSeq).toBe(firstAudit.activeSeq);
 
       const damageNumber = guest.locator(
-        '.tarot-kingdom-battle-enemy > .tarot-kingdom-damage-number'
+        '#tarotKingdomBattleStage > .tarot-kingdom-damage-layer > .tarot-kingdom-damage-number'
       );
       await expect(damageNumber).toHaveClass(/is-show/, { timeout: 2500 });
       await expect(damageNumber).toHaveText(String(attackEvent.displayDamage));
@@ -3081,6 +3081,76 @@ test('a guest renders one synchronized five-card summon across repeated state an
   } finally {
     await guest.close();
   }
+});
+
+test('damage numbers render in a stage layer above summon effects', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+
+  const result = await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    const roleCards = [
+      { id: 'tk_damage_layer_w2', kind: 'minor', suit: 'Wand', number: 2 },
+      { id: 'tk_damage_layer_c3', kind: 'minor', suit: 'Cup', number: 3 },
+      { id: 'tk_damage_layer_s4', kind: 'minor', suit: 'Sword', number: 4 },
+      { id: 'tk_damage_layer_p5', kind: 'minor', suit: 'Pentacle', number: 5 },
+      { id: 'tk_damage_layer_w6', kind: 'minor', suit: 'Wand', number: 6 }
+    ];
+    debug.battleScenario({
+      withTrick: false,
+      turnIndex: 0,
+      handsBySeat: [[...roleCards, { id: 'tk_damage_layer_keep', kind: 'minor', suit: 'Cup', number: 9 }]]
+    });
+    const played = debug.battlePlayCards(0, roleCards.map((card) => card.id), { resolve: false });
+    if (!played.ok) throw new Error(played.reason || 'role play failed');
+    const event = played.state.battle.events.at(-1);
+    const timeline = played.state.transition?.eventTimelines?.[String(event.seq)]
+      || played.state.transition?.timeline;
+    if (!timeline?.damageNumberAt) throw new Error('damage timeline missing');
+    const originalNow = Date.now;
+    try {
+      Date.now = () => Number(timeline.damageNumberAt) + 1;
+      debug.battleRender();
+    } finally {
+      Date.now = originalNow;
+    }
+    return { damage: Number(event.displayDamage ?? event.damage) || 0 };
+  });
+
+  const stage = page.locator('#tarotKingdomBattleStage');
+  const layer = stage.locator(':scope > .tarot-kingdom-damage-layer');
+  const damage = layer.locator(':scope > .tarot-kingdom-damage-number.is-show');
+  const summon = stage.locator(':scope > .tarot-kingdom-skill-cutin.is-summon');
+  await expect(summon).toHaveCount(1);
+  await expect(damage).toHaveText(String(result.damage));
+
+  const stacking = await page.evaluate(() => {
+    const stageNode = document.getElementById('tarotKingdomBattleStage');
+    const layerNode = stageNode?.querySelector(':scope > .tarot-kingdom-damage-layer');
+    const damageNode = layerNode?.querySelector(':scope > .tarot-kingdom-damage-number');
+    const summonNode = stageNode?.querySelector(':scope > .tarot-kingdom-skill-cutin.is-summon');
+    const damageRect = damageNode?.getBoundingClientRect();
+    const summonRect = summonNode?.getBoundingClientRect();
+    return {
+      layerParentIsStage: layerNode?.parentElement === stageNode,
+      damageParentIsLayer: damageNode?.parentElement === layerNode,
+      layerZIndex: Number(layerNode ? getComputedStyle(layerNode).zIndex : 0),
+      summonZIndex: Number(summonNode ? getComputedStyle(summonNode).zIndex : 0),
+      overlapsSummon: !!(
+        damageRect
+        && summonRect
+        && damageRect.right > summonRect.left
+        && damageRect.left < summonRect.right
+        && damageRect.bottom > summonRect.top
+        && damageRect.top < summonRect.bottom
+      )
+    };
+  });
+  expect(stacking).toMatchObject({
+    layerParentIsStage: true,
+    damageParentIsLayer: true,
+    overlapsSummon: true
+  });
+  expect(stacking.layerZIndex).toBeGreaterThan(stacking.summonZIndex);
 });
 
 test('a sealed five-card role shows its blocked summon without activating its effect', async ({ page }) => {
@@ -3330,7 +3400,7 @@ test('enemy damage pop restarts when the same event is replayed in a new present
     });
 
     const damageNumber = guest.locator(
-      '.tarot-kingdom-battle-enemy > .tarot-kingdom-damage-number'
+      '#tarotKingdomBattleStage > .tarot-kingdom-damage-layer > .tarot-kingdom-damage-number'
     );
     await guest.evaluate((payload) => {
       window.TarotKingdomDebug.battleApplyRemoteState(payload, { localSeat: 1, forcePreview: true });
@@ -3353,8 +3423,8 @@ test('enemy damage pop restarts when the same event is replayed in a new present
     }).toBe(2);
     const replay = await guest.evaluate(() => ({
       starts: window.__tkDamageAnimationStarts.slice(),
-      text: document.querySelector('.tarot-kingdom-battle-enemy > .tarot-kingdom-damage-number')?.textContent,
-      classes: document.querySelector('.tarot-kingdom-battle-enemy > .tarot-kingdom-damage-number')?.className
+      text: document.querySelector('#tarotKingdomBattleStage > .tarot-kingdom-damage-layer > .tarot-kingdom-damage-number')?.textContent,
+      classes: document.querySelector('#tarotKingdomBattleStage > .tarot-kingdom-damage-layer > .tarot-kingdom-damage-number')?.className
     }));
     expect(replay.starts[1]).toMatchObject({
       animationName: 'tarotKingdomDamagePop',

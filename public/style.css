@@ -13146,6 +13146,14 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
 .tarot-kingdom-skill-cutin.is-phase-damage,
 .tarot-kingdom-skill-cutin.is-phase-recover { opacity: 0.28; }
 
+#tarotKingdomBattleStage > .tarot-kingdom-damage-layer {
+    position: absolute;
+    z-index: 76;
+    inset: 0;
+    overflow: visible;
+    pointer-events: none;
+}
+
 .tarot-kingdom-damage-number {
     position: absolute;
     z-index: 58;

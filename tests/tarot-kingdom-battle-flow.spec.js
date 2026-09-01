@@ -1800,8 +1800,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
         Date.now = originalNow;
       }
       const visual = {
-        amount: document.querySelector('.tarot-kingdom-battle-enemy > .tarot-kingdom-damage-number')?.textContent || '',
-        healingClass: document.querySelector('.tarot-kingdom-battle-enemy > .tarot-kingdom-damage-number')?.classList.contains('is-heal') || false,
+        amount: document.querySelector('#tarotKingdomBattleStage > .tarot-kingdom-damage-layer > .tarot-kingdom-damage-number')?.textContent || '',
+        healingClass: document.querySelector('#tarotKingdomBattleStage > .tarot-kingdom-damage-layer > .tarot-kingdom-damage-number')?.classList.contains('is-heal') || false,
         navigation: document.querySelector('#tarotKingdomSelectedEffectText')?.textContent || ''
       };
 
@@ -2398,7 +2398,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
     }, { combatBySeat: zeroDefenseParty });
 
     const enemyNumber = page.locator(
-      '.tarot-kingdom-battle-enemy > .tarot-kingdom-damage-number.is-status-poison.is-show'
+      '#tarotKingdomBattleStage > .tarot-kingdom-damage-layer'
+      + ' > .tarot-kingdom-damage-number.is-status-poison.is-show'
     );
     await expect(enemyNumber).toHaveText('5', { timeout: 2500 });
     const enemyStyle = await enemyNumber.evaluate((node) => ({
@@ -2429,8 +2430,8 @@ test.describe('Tarot Kingdom character battle flow', () => {
     }, { combatBySeat: zeroDefenseParty });
 
     const playerNumber = page.locator(
-      '#tarotKingdomBattleParty > .tarot-kingdom-battle-player[data-player-index="1"]'
-      + ' > .tarot-kingdom-player-damage-number.is-status-poison.is-show'
+      '#tarotKingdomBattleStage > .tarot-kingdom-damage-layer'
+      + ' > .tarot-kingdom-player-damage-number[data-player-index="1"].is-status-poison.is-show'
     );
     await expect(playerNumber).toHaveText('7', { timeout: 2500 });
     const playerStyle = await playerNumber.evaluate((node) => ({

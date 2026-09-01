@@ -17210,6 +17210,7 @@ function resetMatch() {
   }
   setKingdomSummonCinematicState(false);
   ui.battleStage?.querySelector(':scope > .tarot-kingdom-skill-cutin')?.remove();
+  ui.battleStage?.querySelector(':scope > .tarot-kingdom-damage-layer')?.remove();
   ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend', 'is-kingdom-call', 'is-kingdom-call-freeze');
   if (!isNetModeActive()) {
     tkNet.localSeat = 0;
@@ -25548,8 +25549,44 @@ function getKingdomStatusHpNumberTone(event, targetType, targetIndex = null) {
   return uniqueTones.length > 1 ? 'mixed' : (uniqueTones[0] || '');
 }
 
+function ensureKingdomDamageLayer() {
+  if (!ui.battleStage) return null;
+  let layer = ui.battleStage.querySelector(':scope > .tarot-kingdom-damage-layer');
+  if (layer) return layer;
+  layer = document.createElement('div');
+  layer.className = 'tarot-kingdom-damage-layer';
+  layer.setAttribute('aria-hidden', 'true');
+  ui.battleStage.appendChild(layer);
+  return layer;
+}
+
+function positionKingdomDamageNumber(node, target, targetType = 'enemy') {
+  if (!node || !target || !ui.battleStage || !node.isConnected || !target.isConnected) return;
+  const stageRect = ui.battleStage.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  if (stageRect.width <= 0 || stageRect.height <= 0 || targetRect.width <= 0 || targetRect.height <= 0) return;
+  const stageOriginX = stageRect.left + ui.battleStage.clientLeft;
+  const stageOriginY = stageRect.top + ui.battleStage.clientTop;
+  const playerRightOffset = Math.min(66, Math.max(48, window.innerWidth * 0.12));
+  const left = targetType === 'player'
+    ? targetRect.right - stageOriginX - playerRightOffset
+    : targetRect.left - stageOriginX + (targetRect.width * 0.52);
+  const top = targetType === 'player'
+    ? targetRect.top - stageOriginY + 8
+    : targetRect.top - stageOriginY + (targetRect.height * 0.43);
+  node.style.left = `${Math.round(left)}px`;
+  node.style.top = `${Math.round(top)}px`;
+  node.style.right = 'auto';
+}
+
+function syncKingdomDamageNumberPosition(node, target, targetType = 'enemy') {
+  positionKingdomDamageNumber(node, target, targetType);
+  requestAnimationFrame(() => positionKingdomDamageNumber(node, target, targetType));
+}
+
 function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eventKey = '') {
   if (!ui.battleParty) return;
+  const damageLayer = ensureKingdomDamageLayer();
   ui.battleParty.dataset.playerCount = String(getKingdomPlayerCount());
   const timeline = getKingdomBattleTimelineForEvent(activeEvent);
   const phase = getKingdomBattleTimelinePhase(timeline);
@@ -25963,13 +26000,16 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
       && isKingdomDamageNumberReady(timeline)
       && (damageAmount > 0 || damageMissed)
     );
-    let damageNumber = row.querySelector(':scope > .tarot-kingdom-player-damage-number');
+    let damageNumber = damageLayer?.querySelector(
+      `:scope > .tarot-kingdom-player-damage-number[data-player-index="${playerIndex}"]`
+    );
     if (showDamage) {
       if (!damageNumber) {
         damageNumber = document.createElement('div');
         damageNumber.className = 'tarot-kingdom-player-damage-number';
         damageNumber.setAttribute('aria-hidden', 'true');
-        row.appendChild(damageNumber);
+        damageNumber.dataset.playerIndex = String(playerIndex);
+        damageLayer?.appendChild(damageNumber);
       }
       const damageKey = `${activeEvent?.seq || 0}:${playerIndex}:${damageAmount}:${damageMissed ? 'miss' : 'hit'}:${statusDamageTone}`;
       damageNumber.textContent = damageMissed ? 'MISS' : String(damageAmount);
@@ -25986,6 +26026,7 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
       } else {
         damageNumber.classList.add('is-show');
       }
+      syncKingdomDamageNumberPosition(damageNumber, row, 'player');
     } else {
       damageNumber?.remove();
     }
@@ -26735,9 +26776,10 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
 
 function renderKingdomBattleDamageNumber(event, eventIsActive, eventKey = '') {
   if (!ui.battleEnemy) return;
+  const damageLayer = ensureKingdomDamageLayer();
   const timeline = getKingdomBattleTimelineForEvent(event);
   const phase = getKingdomBattleTimelinePhase(timeline);
-  let node = ui.battleEnemy.querySelector(':scope > .tarot-kingdom-damage-number');
+  let node = damageLayer?.querySelector(':scope > .tarot-kingdom-damage-number');
   const displayedDamage = Math.max(
     0,
     Math.floor(Number(event?.displayDamage ?? event?.damage) || 0)
@@ -26771,7 +26813,7 @@ function renderKingdomBattleDamageNumber(event, eventIsActive, eventKey = '') {
     node = document.createElement('div');
     node.className = 'tarot-kingdom-damage-number';
     node.setAttribute('aria-hidden', 'true');
-    ui.battleEnemy.appendChild(node);
+    damageLayer?.appendChild(node);
   }
   node.className = [
     'tarot-kingdom-damage-number',
@@ -26792,6 +26834,7 @@ function renderKingdomBattleDamageNumber(event, eventIsActive, eventKey = '') {
   } else {
     node.classList.add('is-show');
   }
+  syncKingdomDamageNumberPosition(node, ui.battleEnemy, 'enemy');
 }
 
 function preloadKingdomBattlefieldImage(battlefieldId = '') {
@@ -30906,6 +30949,7 @@ export function destroyTarotKingdomPage() {
     delete ui.battleStage.dataset.summonEffect;
     delete ui.battleStage.dataset.summonCategory;
     ui.battleStage.querySelector(':scope > .tarot-kingdom-skill-cutin')?.remove();
+    ui.battleStage.querySelector(':scope > .tarot-kingdom-damage-layer')?.remove();
   }
   if (ui.selectedEffect) {
     delete ui.selectedEffect.dataset.effectMessageToken;
