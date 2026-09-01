@@ -4747,7 +4747,6 @@ test('panel frame assets use approved home-v3 art or legacy slices', async ({ pa
       '#tabContentInventory .inventory-section',
       '#avatarStyleModal .avatar-style-panel',
       '#playerProfileStatAllocation',
-      '#tabContentInventory .equip-slot',
       '#tabContentCompanions .companion-list-panel',
       '#tabContentCompanions .companion-card',
       '#tabContentQr .guild-card'
@@ -5891,7 +5890,7 @@ test('companion member can use shared warehouse currency and items', async ({ pa
   await expectNoPageErrors(errors);
 });
 
-test('current equipment slots render equipped item sprites on the right edge', async ({ page }) => {
+test('current equipment slots render equipped item sprites around the avatar compass', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.route('**/api/get-player-public-profile', async (route) => {
     await route.fulfill({
@@ -6043,27 +6042,27 @@ test('current equipment slots render equipped item sprites on the right edge', a
   const layout = await page.evaluate(() => {
     const slot = document.querySelector('.weapon-slot');
     const stylePanel = document.getElementById('avatarStylePanel');
-    const content = slot?.querySelector('.equip-slot-content');
     const art = document.getElementById('equippedRightHandArt');
     const sprite = art?.querySelector('.equip-slot-item-sprite');
     const armorArt = document.getElementById('equippedArmorArt');
     const armorSprite = armorArt?.querySelector('.equip-slot-item-sprite');
+    const equipmentGrid = document.getElementById('equipmentGrid');
+    const avatarStage = document.querySelector('.inventory-avatar-stage');
     const panelStyle = stylePanel ? window.getComputedStyle(stylePanel) : null;
-    const contentRect = content?.getBoundingClientRect();
     const artRect = art?.getBoundingClientRect();
     const spriteRect = sprite?.getBoundingClientRect();
     const armorArtRect = armorArt?.getBoundingClientRect();
     const armorSpriteRect = armorSprite?.getBoundingClientRect();
     const slotRect = slot?.getBoundingClientRect();
+    const equipmentGridRect = equipmentGrid?.getBoundingClientRect();
+    const avatarStageRect = avatarStage?.getBoundingClientRect();
     return {
       stylePanelDisplay: panelStyle?.display || '',
-      contentRight: contentRect?.right || 0,
-      artLeft: artRect?.left || 0,
-      artRight: artRect?.right || 0,
       artWidth: artRect?.width || 0,
       artHeight: artRect?.height || 0,
       artCenterX: artRect ? artRect.left + artRect.width / 2 : 0,
       artCenterY: artRect ? artRect.top + artRect.height / 2 : 0,
+      slotCenterX: slotRect ? slotRect.left + slotRect.width / 2 : 0,
       spriteWidth: spriteRect?.width || 0,
       spriteHeight: spriteRect?.height || 0,
       spriteCenterX: spriteRect ? spriteRect.left + spriteRect.width / 2 : 0,
@@ -6072,19 +6071,22 @@ test('current equipment slots render equipped item sprites on the right edge', a
       armorSpriteCenterY: armorSpriteRect ? armorSpriteRect.top + armorSpriteRect.height / 2 : 0,
       statAtkColor: window.getComputedStyle(document.querySelector('#equippedRightHandStats .stat-atk')).color,
       statDefColor: window.getComputedStyle(document.querySelector('#equippedLeftHandStats .stat-def')).color,
-      slotRight: slotRect?.right || 0
+      stageBackground: equipmentGrid ? window.getComputedStyle(equipmentGrid).backgroundImage : '',
+      gridCenterX: equipmentGridRect ? equipmentGridRect.left + equipmentGridRect.width / 2 : 0,
+      avatarCenterX: avatarStageRect ? avatarStageRect.left + avatarStageRect.width / 2 : 0
     };
   });
 
   expect(layout.stylePanelDisplay).not.toBe('none');
-  expect(layout.artLeft).toBeGreaterThan(layout.contentRight);
-  expect(layout.slotRight - layout.artRight).toBeLessThan(20);
-  expect(layout.artWidth).toBeGreaterThanOrEqual(52);
-  expect(layout.artHeight).toBeGreaterThanOrEqual(52);
+  expect(Math.abs(layout.artCenterX - layout.slotCenterX)).toBeLessThanOrEqual(2);
+  expect(layout.artWidth).toBeGreaterThanOrEqual(64);
+  expect(layout.artHeight).toBeGreaterThanOrEqual(64);
   expect(Math.max(layout.spriteWidth, layout.spriteHeight)).toBeGreaterThanOrEqual(48);
   expect(Math.abs(layout.spriteCenterX - layout.artCenterX)).toBeLessThanOrEqual(2);
   expect(Math.abs(layout.spriteCenterY - layout.artCenterY)).toBeLessThanOrEqual(2);
   expect(layout.armorSpriteCenterY).toBeLessThan(layout.armorArtCenterY - 2);
+  expect(layout.stageBackground).toContain('loadout-stage-3d.webp');
+  expect(Math.abs(layout.avatarCenterX - layout.gridCenterX)).toBeLessThanOrEqual(2);
   expect(layout.statAtkColor).toBe('rgb(255, 208, 138)');
   expect(layout.statDefColor).toBe('rgb(185, 220, 255)');
   await expectNoPageErrors(errors);
@@ -6092,7 +6094,7 @@ test('current equipment slots render equipped item sprites on the right edge', a
 
 test('inventory current equipment resolves object equipment references', async ({ page }) => {
   const errors = trackPageErrors(page);
-  await page.setViewportSize({ width: 280, height: 844 });
+  await page.setViewportSize({ width: 390, height: 844 });
   const equipmentItems = [
     {
       itemId: 'sword_001',
@@ -6264,7 +6266,7 @@ test('inventory current equipment resolves object equipment references', async (
     })
   ));
   for (const layout of compactNameLayout) {
-    expect(layout.gridColumn).toBe('1 / 4');
+    expect(layout.gridColumn).toBe('1');
     expect(layout.textAlign).toBe('center');
     expect(layout.nameBelowLabel).toBe(true);
     expect(layout.nameBelowArt).toBe(true);
@@ -6273,15 +6275,16 @@ test('inventory current equipment resolves object equipment references', async (
     const rect = icon.getBoundingClientRect();
     const style = window.getComputedStyle(icon);
     return {
+      display: style.display,
       width: Math.round(rect.width),
       height: Math.round(rect.height),
       backgroundSize: style.backgroundSize,
       backgroundImage: style.backgroundImage
     };
   });
-  expect(rightHandSlotIconMetrics.width).toBe(30);
-  expect(rightHandSlotIconMetrics.height).toBe(30);
-  expect(rightHandSlotIconMetrics.backgroundSize).toBe('28px 28px');
+  expect(rightHandSlotIconMetrics.display).toBe('none');
+  expect(rightHandSlotIconMetrics.width).toBe(0);
+  expect(rightHandSlotIconMetrics.height).toBe(0);
   expect(rightHandSlotIconMetrics.backgroundImage).toContain('076.png');
   const leftHandSlotIconMetrics = await page.locator('#tabContentInventory .shield-slot .equip-slot-icon').evaluate((icon) => {
     const style = window.getComputedStyle(icon);
@@ -6402,7 +6405,7 @@ test('current equipment art refits when the mobile equipment layout becomes comp
 
   const art = page.locator('#equippedRightHandArt');
   await expect(art.locator('.equip-slot-item-sprite')).toHaveCount(1);
-  await expect.poll(() => art.evaluate((element) => Math.round(element.getBoundingClientRect().width))).toBe(52);
+  await expect.poll(() => art.evaluate((element) => Math.round(element.getBoundingClientRect().width))).toBe(72);
   const expandedSpriteWidth = await art.locator('.equip-slot-item-sprite').evaluate((sprite) => sprite.getBoundingClientRect().width);
 
   await page.evaluate(() => {
@@ -6421,7 +6424,7 @@ test('current equipment art refits when the mobile equipment layout becomes comp
       spriteWidth: spriteRect?.width || 0
     };
   })).toMatchObject({
-    artWidth: 34,
+    artWidth: 48,
     spriteFitsWidth: true,
     spriteFitsHeight: true
   });
