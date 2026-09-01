@@ -55,10 +55,9 @@ test.describe('public shop MEO page', () => {
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://troy-xetw.onrender.com/shop/menu.html');
   });
 
-  test('publishes operator, OAuth privacy, terms, and first-party GBP tool disclosures', async ({ page, request }) => {
+  test('publishes operator, privacy, terms, and a retired integration notice', async ({ page, request }) => {
     const pages = [
       '/shop/about.html',
-      '/shop/business-profile-sync.html',
       '/shop/privacy.html',
       '/shop/terms.html'
     ];
@@ -68,17 +67,17 @@ test.describe('public shop MEO page', () => {
       expect(await response.text(), `${path} should be indexable`).toContain('name="robots" content="index,follow"');
     }
 
+    const retiredResponse = await request.get('/shop/business-profile-sync.html');
+    expect(retiredResponse.ok()).toBeTruthy();
+    expect(await retiredResponse.text()).toContain('name="robots" content="noindex,follow"');
+
     await page.goto('/shop/business-profile-sync.html');
-    await expect(page.getByRole('heading', { name: '海賊酒場TROY 営業時間同期', level: 1 })).toBeVisible();
-    await expect(page.getByText('所有・管理する1店舗', { exact: false })).toBeVisible();
-    await expect(page.getByText('固定許可リスト', { exact: false })).toBeVisible();
-    await expect(page.getByText('明示的に同意', { exact: false })).toBeVisible();
-    await expect(page.getByText('Google Business Profile APIの利用承認を得ておらず、再申請準備中', { exact: false })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '営業時間同期機能を廃止しました', level: 1 })).toBeVisible();
+    await expect(page.getByText('TROYからGoogle APIへ読み取り・更新・同期は行いません', { exact: false })).toBeVisible();
 
     await page.goto('/shop/privacy.html');
     await expect(page.getByRole('heading', { name: 'プライバシーポリシー', level: 1 })).toBeVisible();
-    await expect(page.getByText('Limited Use requirements', { exact: false })).toBeVisible();
-    await expect(page.getByText('不可逆な照合値だけを最大24時間保持', { exact: false })).toBeVisible();
+    await expect(page.getByText('Google Business Profile API', { exact: false })).toHaveCount(0);
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://troy-xetw.onrender.com/shop/privacy.html');
   });
 
@@ -155,7 +154,7 @@ test.describe('public shop MEO page', () => {
     expect(sitemapText).toContain('<loc>https://troy-xetw.onrender.com/shop/</loc>');
     expect(sitemapText).toContain('<loc>https://troy-xetw.onrender.com/shop/menu.html</loc>');
     expect(sitemapText).toContain('<loc>https://troy-xetw.onrender.com/shop/about.html</loc>');
-    expect(sitemapText).toContain('<loc>https://troy-xetw.onrender.com/shop/business-profile-sync.html</loc>');
+    expect(sitemapText).not.toContain('<loc>https://troy-xetw.onrender.com/shop/business-profile-sync.html</loc>');
     expect(sitemapText).toContain('<loc>https://troy-xetw.onrender.com/shop/privacy.html</loc>');
     expect(sitemapText).toContain('<loc>https://troy-xetw.onrender.com/shop/terms.html</loc>');
   });

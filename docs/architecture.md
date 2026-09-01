@@ -34,9 +34,11 @@ Firebase Functions のディレクトリはなく、CloudScript 以外のバッ�
 
 - プレイヤー／経済: `economy.js`, `inventory.js`, `equipmentEnhancement.js`, `statAllocation.js`, `playerLevel.js`, `shop.js`, `gacha.js`
 - 共有世界: `map.js`, `island.js`, `building.js`, `resourceStorage.js`, `routes/shipRoutes.js`
-- 国家／ギルド／店舗: `nation.js`, `routes/guildRoutes.js`, `events.js`, `chat.js`, `troyCalendarGoogleSync.js`, `musicGame.js`
+- 国家／ギルド／店舗: `nation.js`, `routes/guildRoutes.js`, `events.js`, `chat.js`, `musicGame.js`
 - タロット／戦闘: `exploration.js`, `tarot*.js`, `routes/battleRoutes.js`, `routes/battleRoomRoutes.js`, `routes/cardRoutes.js`
-- 外部連携: `auth.js`, `lineFriendBonus.js`, `googleBusinessProfile.js`
+- 外部連携: `auth.js`, `lineFriendBonus.js`
+
+Google Business Profile APIとの営業時間同期は2026年9月1日に廃止した。TROY営業カレンダーはFirestore内のアプリ用データとして維持し、Google側の営業時間は手動管理する。Googleマップへの外部リンクは同期機能ではない。
 
 `server.js` と一部機能ファイルは大きく、特に `server/nation.js`、`server/exploration.js` は複数機能を持つ。全面分割は行わず、変更する責務の周囲だけを小さく保つ。
 

@@ -54,7 +54,7 @@ React、Next.js、Firestore Functions は現在の実装にはない。存在し
 - G (`PS`) と資源は Economy V2 の `GetInventoryItems` / `AddInventoryItems` / `SubtractInventoryItems` / `PurchaseInventoryItems` を使う。全要求に `Entity: { Id, Type }` を含める。
 - Economy V2 に legacy `PlayFabClient` / `PlayFabServer` economy API を使わない。Player Data、Statistics 等の非 Economy API は対象外。
 - 報酬付与と決済はサーバー権威、整数化、上限確認、所有権確認、可能な限り idempotency ID 付きで行う。
-- `.env`、PlayFab secret、LINE channel secret/token、Firebase service account、Google OAuth 情報をログ、クライアント、Git に出さない。Firebase Web config と LIFF ID は公開識別子であり、秘密の代わりにはならない。
+- `.env`、PlayFab secret、LINE channel secret/token、Firebase service account をログ、クライアント、Git に出さない。Firebase Web config と LIFF ID は公開識別子であり、秘密の代わりにはならない。
 - Firestore／RTDB の直接クライアントアクセスを追加・変更するときはルールを同じ変更で確認する。Firestore ルールは現在このリポジトリに無いため、統合担当の承認なしに直接書込を増やさない。
 - CloudScript、Firebase ルール、認証境界、G、報酬、ランキングの変更は必ず統合担当と該当データ担当がレビューする。
 

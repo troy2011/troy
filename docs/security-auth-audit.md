@@ -138,7 +138,7 @@ S2は2026-08-31時点で機能コードを変更しない方針とした。こ�
 
 ## 4. Express API 認証一覧
 
-全254 APIルートの method、path、状態、認証証拠、権限語、外部システム、定義位置は [express-api-auth-inventory.md](./express-api-auth-inventory.md) に列挙した。
+全252 APIルートの method、path、状態、認証証拠、権限語、外部システム、定義位置は [express-api-auth-inventory.md](./express-api-auth-inventory.md) に列挙した。
 
 ### 認証方式の分布
 

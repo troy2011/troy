@@ -15,9 +15,6 @@ import {
     getReservations,
     reviewReservation,
     getTroyCalendar,
-    getTroyCalendarGoogleSyncStatus,
-    getTroyCalendarGoogleSyncReviewDetails,
-    approveTroyCalendarGoogleSyncReview,
     saveTroyCalendarEntry,
     deleteTroyCalendarEntry
 } from './playfabClient.js?v=20260830-s1-auth-v1';
@@ -30,10 +27,6 @@ let _isKing = false;
 let _lastPageData = null;
 let _hasKingCheck = false;
 let _pendingCalendarCreateRequestId = '';
-let _pendingCalendarGoogleOperationId = '';
-let _calendarSyncWatchToken = 0;
-let _calendarGoogleReviewHash = '';
-const GBP_CONSENT_VERSION = 'gbp-special-hours-v1';
 const STORE_GAME_LABELS = {
     darts_countup: 'ダーツカウントアップ',
     billiards: 'ビリヤード',
@@ -71,227 +64,6 @@ function _setMessage(text, isError = false) {
     if (!el) return;
     el.style.color = isError ? 'var(--danger-color)' : 'var(--accent-color)';
     el.innerText = text || '';
-}
-
-function _calendarSyncFeedback(baseMessage, sync) {
-    const status = String(sync?.status || '').trim().toLowerCase();
-    if (!status) return { message: baseMessage, isError: false };
-    if (status === 'validated') {
-        return {
-            message: `${baseMessage} Googleビジネスプロフィールへの更新内容を検証しました。検証モードのため、実際の反映は行っていません。`,
-            isError: false
-        };
-    }
-    if (status === 'synced') {
-        return {
-            message: `${baseMessage} Googleビジネスプロフィールへ更新リクエストを送信しました。公開表示への反映には時間がかかる場合があります。`,
-            isError: false
-        };
-    }
-    if (status === 'up_to_date') {
-        return {
-            message: `${baseMessage} Googleビジネスプロフィールも最新です。`,
-            isError: false
-        };
-    }
-    if (status === 'queued' && sync?.dryRun === true) {
-        return {
-            message: `${baseMessage} Googleビジネスプロフィールへの更新内容の検証を受け付けました。検証モードのため、実際には反映しません。`,
-            isError: false
-        };
-    }
-    if (status === 'queued') {
-        return {
-            message: `${baseMessage} Googleビジネスプロフィールへの反映を受け付けました。バックグラウンドで同期します。`,
-            isError: false
-        };
-    }
-    if (status === 'retrying') {
-        return {
-            message: `${baseMessage} Googleビジネスプロフィールへ一時的に反映できなかったため、自動再試行中です。`,
-            isError: false
-        };
-    }
-    if (status === 'syncing') {
-        return {
-            message: `${baseMessage} Googleビジネスプロフィールへ同期中です。`,
-            isError: false
-        };
-    }
-    if (status === 'disabled') {
-        return {
-            message: `${baseMessage} Googleビジネスプロフィール連携は無効です。`,
-            isError: false
-        };
-    }
-    if (status === 'not_configured') {
-        return {
-            message: `${baseMessage} Googleビジネスプロフィール連携の設定が不足しています。`,
-            isError: false
-        };
-    }
-    if (status === 'queue_failed') {
-        return {
-            message: `${baseMessage} Googleビジネスプロフィールの同期要求を記録できませんでした。時間をおいて再度保存してください。`,
-            isError: true
-        };
-    }
-    if (status === 'blocked') {
-        if (String(sync?.code || '') === 'GBP_CALENDAR_AUTHORIZATION_REQUIRED') {
-            return {
-                message: `${baseMessage} 過去の同意方式で作成された営業予定が残っているため、Googleへの反映を停止しました。各予定を店舗スタッフが確認して再保存してください。`,
-                isError: true
-            };
-        }
-        return {
-            message: `${baseMessage} Googleビジネスプロフィールへ反映できませんでした。連携設定または営業時間を確認してください。`,
-            isError: true
-        };
-    }
-    if (status === 'conflict_requires_review') {
-        return {
-            message: `${baseMessage} Google側の特別営業時間に別の変更があるため、自動反映を停止しました。差分確認と新しい承認が完了するまでGoogleを上書きしません。`,
-            isError: true
-        };
-    }
-    if (status === 'approval_required') {
-        return {
-            message: `${baseMessage} Google連携の設定が変わったため、この設定を対象にした新しい明示同意が必要です。営業予定を確認して再保存してください。`,
-            isError: true
-        };
-    }
-    if (status === 'configuration_conflict') {
-        return {
-            message: `${baseMessage} Googleビジネスプロフィール連携の設定世代が競合しています。管理者へ連絡してください。`,
-            isError: true
-        };
-    }
-    return { message: baseMessage, isError: false };
-}
-
-function _setCalendarGoogleReviewAction(sync) {
-    const panel = document.getElementById('kingTroyCalendarGoogleReview');
-    const details = document.getElementById('kingTroyCalendarGoogleReviewDetails');
-    const approveButton = document.getElementById('btnKingTroyCalendarGoogleReviewApprove');
-    const status = String(sync?.status || '').trim().toLowerCase();
-    const canReview = status === 'conflict_requires_review';
-    _calendarGoogleReviewHash = '';
-    if (panel) panel.hidden = !canReview;
-    if (details) {
-        details.hidden = true;
-        details.innerHTML = '';
-    }
-    if (approveButton) approveButton.hidden = true;
-}
-
-function _googleSpecialHoursDate(value) {
-    const year = Number(value?.year);
-    const month = Number(value?.month);
-    const day = Number(value?.day);
-    if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return '日付不明';
-    return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-}
-
-function _googleSpecialHoursTime(value) {
-    const hours = Number(value?.hours);
-    const minutes = Number(value?.minutes);
-    if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return '時刻不明';
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-}
-
-function _googleSpecialHoursPeriodText(period) {
-    const startDate = _googleSpecialHoursDate(period?.startDate);
-    if (period?.closed === true) return `${startDate}：休業`;
-    const endDate = _googleSpecialHoursDate(period?.endDate || period?.startDate);
-    const dateSuffix = endDate === startDate ? '' : `${endDate} `;
-    return `${startDate}：${_googleSpecialHoursTime(period?.openTime)} – ${dateSuffix}${_googleSpecialHoursTime(period?.closeTime)}`;
-}
-
-function _googleSpecialHoursListHtml(periods) {
-    const rows = Array.isArray(periods) ? periods : [];
-    if (!rows.length) return '<p>特別営業時間の登録はありません。</p>';
-    return `<ul>${rows.map((period) => `<li>${_escapeHtml(_googleSpecialHoursPeriodText(period))}</li>`).join('')}</ul>`;
-}
-
-function _renderCalendarGoogleReviewDetails(review) {
-    const details = document.getElementById('kingTroyCalendarGoogleReviewDetails');
-    const approveButton = document.getElementById('btnKingTroyCalendarGoogleReviewApprove');
-    if (!details || !approveButton) return;
-    const reason = String(review?.reason || '').trim();
-    const remoteLabel = reason === 'google_updated_special_hours'
-        ? 'Googleから提案されている特別営業時間（未承認）'
-        : '現在Googleに登録されている特別営業時間';
-    const reviewExpiresAt = _formatEpochMs(Number(review?.reviewExpiresAtMs || 0));
-    details.innerHTML = `
-        <div>
-            <strong>${_escapeHtml(remoteLabel)}</strong>
-            ${_googleSpecialHoursListHtml(review?.remoteSpecialHours)}
-        </div>
-        <div>
-            <strong>承認すると送信される特別営業時間</strong>
-            ${_googleSpecialHoursListHtml(review?.proposedSpecialHours)}
-        </div>
-        <p>上の2つを日付・営業／休業・開始時刻・終了時刻まで確認してください。承認時にも同じ差分かをサーバーで再確認します。</p>
-        ${reviewExpiresAt ? `<p>この確認内容の承認期限：${_escapeHtml(reviewExpiresAt)}（期限後は最新差分を再取得してください）</p>` : ''}
-    `;
-    details.hidden = false;
-    approveButton.hidden = false;
-}
-
-async function _refreshCalendarGoogleSyncReview(playFabId) {
-    try {
-        const result = await getTroyCalendarGoogleSyncStatus(playFabId, {
-            isSilent: true,
-            throwOnError: true
-        });
-        const sync = result?.googleBusinessProfileSync || result;
-        _setCalendarGoogleReviewAction(sync);
-        const status = String(sync?.status || '').trim().toLowerCase();
-        if (['conflict_requires_review', 'approval_required', 'configuration_conflict', 'blocked'].includes(status)) {
-            const feedback = _calendarSyncFeedback('', sync);
-            _setMessage(feedback.message.trim(), feedback.isError);
-        }
-    } catch {
-        // Google連携を利用しない営業カレンダー操作には影響させない。
-    }
-}
-
-function _watchCalendarGoogleSync(playFabId, baseMessage) {
-    const token = ++_calendarSyncWatchToken;
-    const configuredDelays = globalThis.__TROY_CALENDAR_SYNC_POLL_DELAYS_MS;
-    const delays = Array.isArray(configuredDelays) && configuredDelays.length
-        ? configuredDelays.slice(0, 4).map((value) => Math.max(0, Math.min(60_000, Number(value) || 0)))
-        : [10_000, 15_000, 20_000];
-    void (async () => {
-        for (const delayMs of delays) {
-            await new Promise((resolve) => setTimeout(resolve, delayMs));
-            if (token !== _calendarSyncWatchToken) return;
-            try {
-                const result = await getTroyCalendarGoogleSyncStatus(playFabId, {
-                    isSilent: true,
-                    throwOnError: true
-                });
-                if (token !== _calendarSyncWatchToken) return;
-                const sync = result?.googleBusinessProfileSync || result;
-                const status = String(sync?.status || '').trim().toLowerCase();
-                if (!status || status === 'status_unavailable') continue;
-                _setCalendarGoogleReviewAction(sync);
-                const feedback = _calendarSyncFeedback(baseMessage, sync);
-                _setMessage(feedback.message, feedback.isError);
-                if (['synced', 'up_to_date', 'validated', 'blocked', 'conflict_requires_review', 'approval_required', 'configuration_conflict', 'disabled', 'not_configured'].includes(status)) {
-                    return;
-                }
-            } catch {
-                // 保存済みの営業予定には影響しないため、次の短時間確認へ進む。
-            }
-        }
-    })();
-}
-
-function _shouldWatchCalendarGoogleSync(sync) {
-    return ['queued', 'syncing', 'retrying'].includes(
-        String(sync?.status || '').trim().toLowerCase()
-    );
 }
 
 function _setKingSectionActive(sectionId = 'store') {
@@ -563,18 +335,6 @@ function _renderKingTroyCalendar(entries = []) {
                 <input id="kingTroyCalendarNote" type="text" class="admin-input" maxlength="300" placeholder="例: 21時から混雑予定" />
             </div>
         </div>
-        <label class="troy-admin-field-label">
-            <input id="kingTroyCalendarGoogleConsent" type="checkbox" />
-            この内容を海賊酒場TROYのGoogleビジネスプロフィール「特別営業時間」にも反映することに同意します（任意）
-        </label>
-        <div class="troy-calendar-note">未選択の場合はアプリ内の営業カレンダーだけを保存します。Googleへ反映する店舗スタッフは、日付・営業時間・休業状態を確認してから選択してください。</div>
-        <div id="kingTroyCalendarGoogleReview" class="troy-admin-help" hidden>
-            <strong>Google側の変更を確認してください</strong>
-            <p>Google APIから最新の具体的な差分を取得し、このアプリが送信する内容と比較してください。必要に応じて<a href="https://www.google.com/maps?cid=2095983393703557607" target="_blank" rel="noopener noreferrer">公開中のGoogle ビジネス プロフィール</a>も確認できます。</p>
-            <button id="btnKingTroyCalendarGoogleReviewLoad" type="button" class="btn-muted">最新の差分を取得</button>
-            <div id="kingTroyCalendarGoogleReviewDetails" aria-live="polite" hidden></div>
-            <button id="btnKingTroyCalendarGoogleReviewApprove" type="button" class="btn-muted" hidden>表示した差分の反映を承認</button>
-        </div>
         <div class="troy-admin-actions">
             <button id="btnKingTroyCalendarSave" class="btn-open">保存</button>
             <button id="btnKingTroyCalendarClear" class="btn-muted">クリア</button>
@@ -610,7 +370,6 @@ async function _loadKingReservations(playFabId) {
 
 function _clearCalendarForm() {
     _pendingCalendarCreateRequestId = '';
-    _pendingCalendarGoogleOperationId = '';
     const idEl = document.getElementById('kingTroyCalendarId');
     const dateEl = document.getElementById('kingTroyCalendarDate');
     const openEl = document.getElementById('kingTroyCalendarOpenTime');
@@ -618,7 +377,6 @@ function _clearCalendarForm() {
     const statusEl = document.getElementById('kingTroyCalendarStatus');
     const titleEl = document.getElementById('kingTroyCalendarTitle');
     const noteEl = document.getElementById('kingTroyCalendarNote');
-    const googleConsentEl = document.getElementById('kingTroyCalendarGoogleConsent');
     if (idEl) idEl.value = '';
     if (dateEl) dateEl.value = '';
     if (openEl) openEl.value = '21:00';
@@ -626,7 +384,6 @@ function _clearCalendarForm() {
     if (statusEl) statusEl.value = 'open';
     if (titleEl) titleEl.value = '';
     if (noteEl) noteEl.value = '';
-    if (googleConsentEl) googleConsentEl.checked = false;
 }
 
 const _KING_MENU_CATEGORY_OPTIONS = [
@@ -867,9 +624,6 @@ function _extractErrorMessage(error, fallback = 'ゴールドの付与に失敗�
     if (message.includes('Authentication required')) return 'ログイン状態を確認できません。再ログインしてください。';
     if (message.includes('EntityKeyNotFound')) return '受取人のアカウントが見つかりません。';
     if (message.includes('CalendarRequestConflict')) return '前回の保存内容と現在の入力が異なります。フォームをクリアして新しく保存してください。';
-    if (message.includes('GoogleBusinessProfileReviewStateChanged')) return 'Google側または送信予定の内容が変わりました。最新の差分をもう一度取得して確認してください。';
-    if (message.includes('GoogleBusinessProfileReviewUnavailable')) return '現在確認できるGoogle差分がありません。同期状態を再読み込みしてください。';
-    if (message.includes('GoogleBusinessProfileReviewNotQueued')) return '差分承認を同期待ちへ登録できませんでした。最新の差分を再取得してください。';
     if (message.includes('FailedToSaveTroyCalendar') || message.includes('FailedToDeleteTroyCalendar')) return fallback;
     return message;
 }
@@ -1126,7 +880,6 @@ function _wireHandlers(playFabId) {
             if (!button) return;
             const sectionId = button.getAttribute('data-king-section-tab') || 'store';
             _setKingSectionActive(sectionId);
-            if (sectionId === 'calendar') void _refreshCalendarGoogleSyncReview(playFabId);
         });
     }
 
@@ -1356,11 +1109,6 @@ function _wireHandlers(playFabId) {
         calendarPanelEl.addEventListener('input', (event) => {
             const target = event.target instanceof Element ? event.target : null;
             if (!target) return;
-            if (target.id === 'kingTroyCalendarGoogleConsent') {
-                _pendingCalendarCreateRequestId = '';
-                _pendingCalendarGoogleOperationId = '';
-                return;
-            }
             if (!target.matches([
                 '#kingTroyCalendarDate',
                 '#kingTroyCalendarOpenTime',
@@ -1370,82 +1118,11 @@ function _wireHandlers(playFabId) {
                 '#kingTroyCalendarNote'
             ].join(','))) return;
             _pendingCalendarCreateRequestId = '';
-            _pendingCalendarGoogleOperationId = '';
-            const googleConsentEl = document.getElementById('kingTroyCalendarGoogleConsent');
-            if (googleConsentEl) googleConsentEl.checked = false;
         });
 
         calendarPanelEl.addEventListener('click', async (event) => {
             const target = event.target instanceof Element ? event.target : null;
             if (!target) return;
-
-            const googleReviewLoadBtn = target.closest('#btnKingTroyCalendarGoogleReviewLoad');
-            if (googleReviewLoadBtn) {
-                const previous = googleReviewLoadBtn.textContent;
-                googleReviewLoadBtn.setAttribute('disabled', 'disabled');
-                googleReviewLoadBtn.textContent = '差分を取得中...';
-                _calendarGoogleReviewHash = '';
-                const approveButton = document.getElementById('btnKingTroyCalendarGoogleReviewApprove');
-                if (approveButton) approveButton.hidden = true;
-                try {
-                    const result = await getTroyCalendarGoogleSyncReviewDetails(playFabId, {
-                        isSilent: true,
-                        throwOnError: true
-                    });
-                    const review = result?.googleBusinessProfileReview || result;
-                    const reviewHash = String(review?.reviewHash || '').trim().toLowerCase();
-                    if (review?.status !== 'review_required'
-                        || !/^[a-f0-9]{64}$/.test(reviewHash)) {
-                        throw new Error('Google側の差分が更新されました。状態を再読み込みしてください。');
-                    }
-                    _renderCalendarGoogleReviewDetails(review);
-                    _calendarGoogleReviewHash = reviewHash;
-                    _setMessage('Google側と送信予定の具体的な差分を表示しました。内容を確認してください。');
-                } catch (error) {
-                    _setMessage(_extractErrorMessage(error, 'Google側の差分取得に失敗しました。'), true);
-                } finally {
-                    googleReviewLoadBtn.removeAttribute('disabled');
-                    googleReviewLoadBtn.textContent = previous;
-                }
-                return;
-            }
-
-            const googleReviewApproveBtn = target.closest('#btnKingTroyCalendarGoogleReviewApprove');
-            if (googleReviewApproveBtn) {
-                const reviewHash = _calendarGoogleReviewHash;
-                if (!reviewHash) {
-                    _setMessage('Google側の差分情報を再読み込みしてください。', true);
-                    return;
-                }
-                const confirmed = confirm('画面に表示されたGoogle側の具体的な特別営業時間と、送信予定の特別営業時間を日付・営業／休業・開始／終了時刻まで確認しました。この表示内容の送信を明示的に承認しますか？');
-                if (!confirmed) return;
-                const previous = googleReviewApproveBtn.textContent;
-                googleReviewApproveBtn.setAttribute('disabled', 'disabled');
-                googleReviewApproveBtn.textContent = '承認中...';
-                try {
-                    const result = await approveTroyCalendarGoogleSyncReview(playFabId, {
-                        googleBusinessProfileConsent: true,
-                        consentVersion: GBP_CONSENT_VERSION,
-                        operationId: createRequestId('gbp-calendar-review'),
-                        reviewHash
-                    }, {
-                        isSilent: true,
-                        throwOnError: true
-                    });
-                    const sync = result?.googleBusinessProfileSync || result;
-                    _setCalendarGoogleReviewAction(sync);
-                    const feedback = _calendarSyncFeedback('Google側との差分確認を承認しました。', sync);
-                    _setMessage(feedback.message, feedback.isError);
-                    if (_shouldWatchCalendarGoogleSync(sync)) {
-                        _watchCalendarGoogleSync(playFabId, 'Google側との差分確認を承認しました。');
-                    }
-                } catch (error) {
-                    _setMessage(_extractErrorMessage(error, 'Google側との差分承認に失敗しました。'), true);
-                    googleReviewApproveBtn.removeAttribute('disabled');
-                    googleReviewApproveBtn.textContent = previous;
-                }
-                return;
-            }
 
             const reservationReviewBtn = target.closest('[data-reservation-review]');
             if (reservationReviewBtn) {
@@ -1470,7 +1147,6 @@ function _wireHandlers(playFabId) {
             const editBtn = target.closest('[data-calendar-edit]');
             if (editBtn) {
                 _pendingCalendarCreateRequestId = '';
-                _pendingCalendarGoogleOperationId = '';
                 const id = String(editBtn.getAttribute('data-calendar-edit') || '');
                 const entry = (_lastPageData?.troyCalendar || []).find((row) => String(row.id) === id);
                 if (!entry) return;
@@ -1488,8 +1164,6 @@ function _wireHandlers(playFabId) {
                 if (statusEl) statusEl.value = entry.status || 'open';
                 if (titleEl) titleEl.value = entry.title || '';
                 if (noteEl) noteEl.value = entry.note || '';
-                const googleConsentEl = document.getElementById('kingTroyCalendarGoogleConsent');
-                if (googleConsentEl) googleConsentEl.checked = false;
                 return;
             }
 
@@ -1497,29 +1171,16 @@ function _wireHandlers(playFabId) {
             if (deleteBtn) {
                 const id = String(deleteBtn.getAttribute('data-calendar-delete') || '');
                 if (!id || !confirm('この営業予定をアプリ内の営業カレンダーから削除しますか？')) return;
-                const googleBusinessProfileConsent = confirm('この予定が現在のGoogle連携対象である場合、この日付の「特別営業時間」をGoogle ビジネス プロフィールからも削除しますか？\n\n連携対象でない既存のGoogle値は保護されます。\nOK: Googleにも反映\nキャンセル: アプリ内だけ削除');
-                const googlePayload = googleBusinessProfileConsent ? {
-                    googleBusinessProfileConsent: true,
-                    consentVersion: GBP_CONSENT_VERSION,
-                    operationId: createRequestId('gbp-calendar-delete')
-                } : {};
                 const previous = deleteBtn.textContent;
                 deleteBtn.setAttribute('disabled', 'disabled');
                 deleteBtn.textContent = '削除中...';
                 try {
-                    const result = await deleteTroyCalendarEntry(playFabId, id, googlePayload, {
+                    await deleteTroyCalendarEntry(playFabId, id, {}, {
                         isSilent: true,
                         throwOnError: true
                     });
                     await loadKingPage(playFabId);
-                    const feedback = _calendarSyncFeedback('営業予定を削除しました。', result?.googleBusinessProfileSync);
-                    _setCalendarGoogleReviewAction(result?.googleBusinessProfileSync);
-                    _setMessage(feedback.message, feedback.isError);
-                    if (_shouldWatchCalendarGoogleSync(result?.googleBusinessProfileSync)) {
-                        _watchCalendarGoogleSync(playFabId, '営業予定を削除しました。');
-                    } else {
-                        _calendarSyncWatchToken += 1;
-                    }
+                    _setMessage('営業予定を削除しました。');
                 } catch (error) {
                     _setMessage(_extractErrorMessage(error, '営業予定の削除に失敗しました。'), true);
                     deleteBtn.removeAttribute('disabled');
@@ -1544,25 +1205,6 @@ function _wireHandlers(playFabId) {
                     title: String(document.getElementById('kingTroyCalendarTitle')?.value || '').trim(),
                     note: String(document.getElementById('kingTroyCalendarNote')?.value || '').trim()
                 };
-                const googleConsentEl = document.getElementById('kingTroyCalendarGoogleConsent');
-                if (googleConsentEl?.checked === true) {
-                    const currentEntry = payload.calendarId
-                        ? (_lastPageData?.troyCalendar || []).find((row) => String(row?.id || '') === payload.calendarId)
-                        : null;
-                    const previousDate = String(currentEntry?.date || '').trim();
-                    if (previousDate && previousDate !== payload.date) {
-                        const confirmed = confirm(`この予定が現在のGoogle連携対象である場合、旧日付 ${previousDate} の特別営業時間を削除対象にし、新日付 ${payload.date} の選択状態を反映します。連携対象でない既存のGoogle値は保護されます。この日付変更をGoogleにも送信しますか？`);
-                        if (!confirmed) {
-                            googleConsentEl.checked = false;
-                            _setMessage('Googleへの反映を取り消しました。必要ならアプリ内だけで保存してください。');
-                            return;
-                        }
-                    }
-                    payload.googleBusinessProfileConsent = true;
-                    payload.consentVersion = GBP_CONSENT_VERSION;
-                    _pendingCalendarGoogleOperationId ||= createRequestId('gbp-calendar-save');
-                    payload.operationId = _pendingCalendarGoogleOperationId;
-                }
                 if (!payload.date) {
                     _setMessage('営業日を入力してください。', true);
                     return;
@@ -1575,20 +1217,13 @@ function _wireHandlers(playFabId) {
                 saveCalendarBtn.setAttribute('disabled', 'disabled');
                 saveCalendarBtn.textContent = '保存中...';
                 try {
-                    const result = await saveTroyCalendarEntry(playFabId, payload, {
+                    await saveTroyCalendarEntry(playFabId, payload, {
                         isSilent: true,
                         throwOnError: true
                     });
                     _clearCalendarForm();
                     await loadKingPage(playFabId);
-                    const feedback = _calendarSyncFeedback('営業予定を保存しました。', result?.googleBusinessProfileSync);
-                    _setCalendarGoogleReviewAction(result?.googleBusinessProfileSync);
-                    _setMessage(feedback.message, feedback.isError);
-                    if (_shouldWatchCalendarGoogleSync(result?.googleBusinessProfileSync)) {
-                        _watchCalendarGoogleSync(playFabId, '営業予定を保存しました。');
-                    } else {
-                        _calendarSyncWatchToken += 1;
-                    }
+                    _setMessage('営業予定を保存しました。');
                 } catch (error) {
                     _setMessage(_extractErrorMessage(error, '営業予定の保存に失敗しました。'), true);
                     saveCalendarBtn.removeAttribute('disabled');

@@ -31,8 +31,7 @@
     "poker:shot": "node scripts/tarot-poker-shot.js",
     "poker:shot:mobile": "node scripts/tarot-poker-shot.js --mobile",
     "kingdom:shot": "node scripts/tarot-kingdom-shot.js",
-    "kingdom:shot:mobile": "node scripts/tarot-kingdom-shot.js --mobile",
-    "gbp:list-locations": "node scripts/list-google-business-profile-locations.js"
+    "kingdom:shot:mobile": "node scripts/tarot-kingdom-shot.js --mobile"
   },
   "keywords": [],
   "author": "",

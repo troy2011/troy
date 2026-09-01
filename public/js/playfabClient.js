@@ -379,22 +379,6 @@ export function getTroyCalendar(playFabId, payload = {}, options) {
     return callApiWithLoader('/api/troy-calendar/list', { playFabId, ...(payload || {}) }, options);
 }
 
-export function getTroyCalendarGoogleSyncStatus(playFabId, options) {
-    return callApiWithLoader('/api/troy-calendar/google-sync-status', { playFabId }, options);
-}
-
-export function getTroyCalendarGoogleSyncReviewDetails(playFabId, options) {
-    return callApiWithLoader('/api/troy-calendar/google-sync-review-details', { playFabId }, options);
-}
-
-export function approveTroyCalendarGoogleSyncReview(playFabId, payload = {}, options) {
-    return callApiWithLoader(
-        '/api/troy-calendar/google-sync-review-approve',
-        { playFabId, ...(payload || {}) },
-        options
-    );
-}
-
 export function saveTroyCalendarEntry(playFabId, payload = {}, options) {
     return callApiWithLoader('/api/troy-calendar/save', { playFabId, ...(payload || {}) }, options);
 }

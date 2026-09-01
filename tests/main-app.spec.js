@@ -5006,16 +5006,11 @@ test('king calendar panel shows reservation review actions', async ({ page }) =>
   await expectNoPageErrors(errors);
 });
 
-test('king calendar save reports Google Business Profile sync and surfaces API failures', async ({ page }) => {
+test('king calendar saves locally without Google integration controls', async ({ page }) => {
   const errors = trackPageErrors(page);
   const saveRequests = [];
-  const syncStatusRequests = [];
-  const reviewDetailsRequests = [];
-  const reviewApprovalRequests = [];
   let calendarEntries = [];
   let saveShouldFail = false;
-  let syncResponse = { status: 'queued', queued: true };
-  let syncStatusResponse = { status: 'up_to_date', updated: false };
 
   await bootstrapMainApp(page);
   await page.unroute('**/api/get-nation-king-page');
@@ -5057,7 +5052,7 @@ test('king calendar save reports Google Business Profile sync and surfaces API f
       return;
     }
     calendarEntries = [{
-      id: 'CAL-SYNCED',
+      id: 'CAL-LOCAL',
       nation: 'global',
       date: body.date,
       openTime: body.openTime,
@@ -5071,167 +5066,45 @@ test('king calendar save reports Google Business Profile sync and surfaces API f
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({
-        success: true,
-        entry: calendarEntries[0],
-        googleBusinessProfileSync: body.googleBusinessProfileConsent === true
-          ? syncResponse
-          : { status: 'not_requested', queued: false }
-      })
-    });
-  });
-  await page.route('**/api/troy-calendar/google-sync-status', async (route) => {
-    syncStatusRequests.push(route.request().postDataJSON());
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({ success: true, googleBusinessProfileSync: syncStatusResponse })
-    });
-  });
-  await page.route('**/api/troy-calendar/google-sync-review-details', async (route) => {
-    reviewDetailsRequests.push(route.request().postDataJSON());
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({
-        success: true,
-        googleBusinessProfileReview: {
-          status: 'review_required',
-          reviewRequired: true,
-          reviewHash: 'a'.repeat(64),
-          reason: 'remote_conflict',
-          remoteSpecialHours: [{
-            startDate: { year: 2026, month: 8, day: 5 },
-            closed: true
-          }],
-          proposedSpecialHours: [{
-            startDate: { year: 2026, month: 8, day: 5 },
-            openTime: { hours: 21, minutes: 0 },
-            endDate: { year: 2026, month: 8, day: 6 },
-            closeTime: { hours: 1, minutes: 30 }
-          }]
-        }
-      })
-    });
-  });
-  await page.route('**/api/troy-calendar/google-sync-review-approve', async (route) => {
-    reviewApprovalRequests.push(route.request().postDataJSON());
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({
-        success: true,
-        googleBusinessProfileSync: { status: 'queued', queued: true }
-      })
+      body: JSON.stringify({ success: true, entry: calendarEntries[0] })
     });
   });
 
   await page.evaluate(async () => {
-    window.__TROY_CALENDAR_SYNC_POLL_DELAYS_MS = [10];
     const king = await import('/js/nationKing.js?v=20260831-home-king-v1');
     await king.refreshKingNav('PF_PLAYWRIGHT');
     await window.showTab('king', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
   });
   await page.locator('[data-king-section-tab="calendar"]').click();
-  await expect.poll(() => syncStatusRequests.length).toBe(1);
-  expect(syncStatusRequests[0]).toEqual({ playFabId: 'PF_PLAYWRIGHT' });
-  await page.locator('#kingTroyCalendarDate').fill('2026-08-01');
+  await expect(page.locator('#kingTroyCalendarGoogleConsent')).toHaveCount(0);
+  await expect(page.locator('#kingTroyCalendarGoogleReview')).toHaveCount(0);
+
+  await page.locator('#kingTroyCalendarDate').fill('2026-09-02');
   await page.locator('#kingTroyCalendarOpenTime').fill('21:00');
   await page.locator('#kingTroyCalendarCloseTime').fill('23:59');
   await page.locator('#kingTroyCalendarTitle').fill('通常営業');
-  await expect(page.locator('#kingTroyCalendarGoogleConsent')).not.toBeChecked();
-  await page.locator('#kingTroyCalendarGoogleConsent').check();
-  await page.locator('#kingTroyCalendarTitle').fill('通常営業（確認後に変更）');
-  await expect(page.locator('#kingTroyCalendarGoogleConsent')).not.toBeChecked();
-  await page.locator('#kingTroyCalendarTitle').fill('通常営業');
   await page.locator('#btnKingTroyCalendarSave').click();
   await expect.poll(() => saveRequests.length).toBe(1);
+  expect(saveRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    date: '2026-09-02',
+    openTime: '21:00',
+    closeTime: '23:59',
+    status: 'open',
+    title: '通常営業'
+  });
+  expect(saveRequests[0].requestId).toMatch(/^[-a-zA-Z0-9]+$/);
   expect(saveRequests[0].googleBusinessProfileConsent).toBeUndefined();
   expect(saveRequests[0].consentVersion).toBeUndefined();
   expect(saveRequests[0].operationId).toBeUndefined();
   await expect(page.locator('#kingPageMessage')).toHaveText('営業予定を保存しました。');
 
-  await page.locator('#kingTroyCalendarDate').fill('2026-08-02');
-  await page.locator('#kingTroyCalendarTitle').fill('通常営業');
-  await page.locator('#kingTroyCalendarGoogleConsent').check();
-  syncStatusResponse = { status: 'synced', updated: true };
-  await page.locator('#btnKingTroyCalendarSave').click();
-
-  await expect.poll(() => saveRequests.length).toBe(2);
-  expect(saveRequests[1]).toMatchObject({
-    playFabId: 'PF_PLAYWRIGHT',
-    date: '2026-08-02',
-    openTime: '21:00',
-    closeTime: '23:59',
-    status: 'open',
-    title: '通常営業',
-    googleBusinessProfileConsent: true,
-    consentVersion: 'gbp-special-hours-v1'
-  });
-  expect(saveRequests[1].requestId).toMatch(/^[-a-zA-Z0-9]+$/);
-  expect(saveRequests[1].operationId).toMatch(/^[-a-zA-Z0-9]+$/);
-  await expect(page.locator('#kingPageMessage')).toContainText(/Googleビジネスプロフィールへの反映を受け付けました|Googleビジネスプロフィールへ更新リクエストを送信しました/);
-  await expect.poll(() => syncStatusRequests.length).toBe(2);
-  expect(syncStatusRequests[1]).toEqual({ playFabId: 'PF_PLAYWRIGHT' });
-  await expect(page.locator('#kingPageMessage')).toContainText('Googleビジネスプロフィールへ更新リクエストを送信しました');
-
-  syncResponse = { status: 'validated', updated: false, dryRun: true };
-  await page.locator('#kingTroyCalendarDate').fill('2026-08-03');
-  await page.locator('#kingTroyCalendarGoogleConsent').check();
-  await page.locator('#btnKingTroyCalendarSave').click();
-  await expect.poll(() => saveRequests.length).toBe(3);
-  expect(saveRequests[2].requestId).toMatch(/^[-a-zA-Z0-9]+$/);
-  expect(saveRequests[2].requestId).not.toBe(saveRequests[1].requestId);
-  await expect(page.locator('#kingPageMessage')).toContainText('更新内容を検証しました');
-  await expect(page.locator('#kingPageMessage')).toContainText('実際の反映は行っていません');
-
   saveShouldFail = true;
-  await page.locator('#kingTroyCalendarDate').fill('2026-08-04');
-  await page.locator('#kingTroyCalendarGoogleConsent').check();
+  await page.locator('#kingTroyCalendarDate').fill('2026-09-03');
   await page.locator('#btnKingTroyCalendarSave').click();
-  await expect.poll(() => saveRequests.length).toBe(4);
+  await expect.poll(() => saveRequests.length).toBe(2);
   await expect(page.locator('#kingPageMessage')).toContainText('営業予定の保存に失敗しました');
-  await expect(page.locator('#kingPageMessage')).not.toContainText('営業予定を保存しました');
-
-  const failedRequestId = saveRequests[3].requestId;
-  saveShouldFail = false;
-  syncResponse = { status: 'queued', queued: true };
-  await page.locator('#btnKingTroyCalendarSave').click();
-  await expect.poll(() => saveRequests.length).toBe(5);
-  expect(saveRequests[4].requestId).toBe(failedRequestId);
-  expect(saveRequests[4].operationId).toBe(saveRequests[3].operationId);
-  await expect(page.locator('#kingPageMessage')).toContainText(/Googleビジネスプロフィールへの反映を受け付けました|Googleビジネスプロフィールへ更新リクエストを送信しました/);
-
-  const reviewHash = 'a'.repeat(64);
-  syncResponse = {
-    status: 'conflict_requires_review',
-    reviewRequired: true,
-    reviewRequiredRemoteSpecialHoursHash: reviewHash
-  };
-  await page.locator('#kingTroyCalendarDate').fill('2026-08-05');
-  await page.locator('#kingTroyCalendarGoogleConsent').check();
-  await page.locator('#btnKingTroyCalendarSave').click();
-  await expect.poll(() => saveRequests.length).toBe(6);
-  await expect(page.locator('#kingTroyCalendarGoogleReview')).toBeVisible();
-  await expect(page.locator('#kingPageMessage')).toContainText('自動反映を停止しました');
-  await expect(page.locator('#btnKingTroyCalendarGoogleReviewApprove')).toBeHidden();
-  await page.locator('#btnKingTroyCalendarGoogleReviewLoad').click();
-  await expect.poll(() => reviewDetailsRequests.length).toBe(1);
-  expect(reviewDetailsRequests[0]).toEqual({ playFabId: 'PF_PLAYWRIGHT' });
-  await expect(page.locator('#kingTroyCalendarGoogleReviewDetails')).toContainText('2026-08-05：休業');
-  await expect(page.locator('#kingTroyCalendarGoogleReviewDetails')).toContainText('2026-08-05：21:00 – 2026-08-06 01:30');
-  await expect(page.locator('#btnKingTroyCalendarGoogleReviewApprove')).toBeVisible();
-  page.once('dialog', (dialog) => dialog.accept());
-  await page.locator('#btnKingTroyCalendarGoogleReviewApprove').click();
-  await expect.poll(() => reviewApprovalRequests.length).toBe(1);
-  expect(reviewApprovalRequests[0]).toMatchObject({
-    playFabId: 'PF_PLAYWRIGHT',
-    googleBusinessProfileConsent: true,
-    consentVersion: 'gbp-special-hours-v1',
-    reviewHash
-  });
-  expect(reviewApprovalRequests[0].operationId).toMatch(/^[-a-zA-Z0-9]+$/);
-  await expect(page.locator('#kingTroyCalendarGoogleReview')).toBeHidden();
+  expect(saveRequests[1].requestId).not.toBe(saveRequests[0].requestId);
   await expectNoPageErrors(errors);
 });
 

@@ -1,8 +1,8 @@
 # Express API 認証インベントリ
 
-最終更新日: 2026-08-31
+最終更新日: 2026-09-01
 
-この表はリポジトリ内の `app/router.get/post/put/patch/delete` から、`/api/` で始まる全ルートを静的抽出したものです。S1-2で `/api/player-bootstrap` を追加したため全 255 件です。
+この表はリポジトリ内の `app/router.get/post/put/patch/delete` から、`/api/` で始まる全ルートを静的抽出したものです。Google Business Profile営業時間同期の専用3ルートを廃止したため、現在は全252件です。
 
 - Authentication はルート登録式とハンドラー本体に現れる認証証拠です。ヘルパー外部に隠れた認証や、認証なしのスタッフ画面という運用前提は別途 `docs/security-auth-audit.md` で評価します。
 - State は GET を read、SSE/イベント購読を listen/read、POST 等は名前が明白な参照系だけ read、それ以外を state-change/command とした上で、危険候補を本文監査でコード追跡しています。
@@ -36,20 +36,17 @@
 | POST | `/api/transfer-points` | state-change | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/economy.js:744` |
 | POST | `/api/get-player-display-name` | read | none in route handler | no global admin role | PlayFab | `server/economy.js:852` |
 | POST | `/api/update-player-display-name` | state-change | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab | `server/economy.js:870` |
-| POST | `/api/troy-calendar/list` | read | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:639` |
-| POST | `/api/troy-calendar/google-sync-status` | read | Firebase ID token (UID = PlayFab ID) | king + allowlisted staff | PlayFab | `server/events.js:665` |
-| POST | `/api/troy-calendar/google-sync-review-details` | read | Firebase ID token (UID = PlayFab ID) | king + allowlisted staff | PlayFab | `server/events.js:682` |
-| POST | `/api/troy-calendar/google-sync-review-approve` | state-change/command | Firebase ID token (UID = PlayFab ID) | king + allowlisted staff | PlayFab | `server/events.js:711` |
-| POST | `/api/troy-calendar/save` | state-change | Firebase ID token (UID = PlayFab ID) | domain checks | PlayFab, Firestore | `server/events.js:756` |
-| POST | `/api/troy-calendar/delete` | state-change | Firebase ID token (UID = PlayFab ID) | domain checks | PlayFab, Firestore | `server/events.js:1041` |
-| POST | `/api/events/list` | read | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:1191` |
-| POST | `/api/events/create` | state-change | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:1214` |
-| POST | `/api/events/join` | state-change | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:1284` |
-| POST | `/api/events/approve` | state-change | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:1368` |
-| POST | `/api/reservations/list` | read | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:1414` |
-| POST | `/api/reservations/create` | state-change | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:1437` |
-| POST | `/api/reservations/review` | state-change | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:1495` |
-| POST | `/api/reservations/cancel` | state-change | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:1522` |
+| POST | `/api/troy-calendar/list` | read | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:529` |
+| POST | `/api/troy-calendar/save` | state-change | Firebase ID token (UID = PlayFab ID) | domain checks | PlayFab, Firestore | `server/events.js:555` |
+| POST | `/api/troy-calendar/delete` | state-change | Firebase ID token (UID = PlayFab ID) | domain checks | PlayFab, Firestore | `server/events.js:749` |
+| POST | `/api/events/list` | read | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:837` |
+| POST | `/api/events/create` | state-change | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:860` |
+| POST | `/api/events/join` | state-change | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:930` |
+| POST | `/api/events/approve` | state-change | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:1014` |
+| POST | `/api/reservations/list` | read | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:1060` |
+| POST | `/api/reservations/create` | state-change | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:1083` |
+| POST | `/api/reservations/review` | state-change | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:1141` |
+| POST | `/api/reservations/cancel` | state-change | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:1168` |
 | POST | `/api/tarot-kingdom/job-abp/round` | state-change/command | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/exploration.js:2411` |
 | POST | `/api/exploration/status` | read | Firebase ID token (UID = PlayFab ID) | no global admin role | - | `server/exploration.js:2727` |
 | POST | `/api/tarot-kingdom/raid/status` | read | Firebase ID token (UID = PlayFab ID) | no global admin role | - | `server/exploration.js:2740` |
