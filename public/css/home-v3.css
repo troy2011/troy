@@ -238,49 +238,6 @@ body.home-v3 #tabContentHome .home-king-button[hidden] {
     display: none;
 }
 
-body.home-v3 #tabContentHome .home-figure-pedestal {
-    position: absolute;
-    bottom: 3%;
-    z-index: 1;
-    width: 28%;
-    max-width: 178px;
-    aspect-ratio: 1;
-    background: url("../assets/ui/home-v3/pedestal-brass.webp") center / contain no-repeat;
-    filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.68));
-    pointer-events: none;
-}
-
-body.home-v3 #tabContentHome .home-figure-pedestal span {
-    position: absolute;
-    right: 14%;
-    bottom: 14%;
-    left: 14%;
-    color: #f0ca74;
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: clamp(8px, 1.6vw, 13px);
-    font-weight: 900;
-    letter-spacing: 0.08em;
-    text-align: center;
-    text-shadow: 0 2px 0 #2b1405;
-}
-
-body.home-v3 #tabContentHome .home-figure-pedestal-ship {
-    left: 15%;
-}
-
-body.home-v3 #tabContentHome .home-figure-pedestal-avatar {
-    left: 55%;
-    transform: translateX(-50%);
-}
-
-body.home-v3 #tabContentHome .home-figure-pedestal-pet {
-    right: 14%;
-}
-
-body.home-v3 #tabContentHome .home-ship-stage:not(.has-pet-companion) .home-figure-pedestal-pet {
-    display: none;
-}
-
 body.home-v3 #tabContentHome .home-ship-avatar,
 body.home-v3 #tabContentHome .home-ship-stage.has-pet-companion .home-ship-avatar,
 body.home-v3 #tabContentHome .home-ship-avatar[data-sea-tone] {
@@ -296,7 +253,7 @@ body.home-v3 #tabContentHome .home-ship-avatar[data-sea-tone] {
 }
 
 body.home-v3 #tabContentHome .home-pet-companion {
-    --pixel-monster-context-scale: 1.5;
+    --pixel-monster-context-scale: 1.65;
     top: auto;
     right: 8%;
     bottom: 20%;
@@ -669,7 +626,7 @@ body.home-v3 #bottomNav .nav-button span:last-child {
     }
 
     body.home-v3 #tabContentHome .home-pet-companion {
-        --pixel-monster-context-scale: 1.22;
+        --pixel-monster-context-scale: 1.5;
         right: 14%;
         bottom: 15%;
     }

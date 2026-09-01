@@ -7,7 +7,7 @@ const {
   expectNoPageErrors
 } = require('./helpers/main-app-harness');
 
-test('approved home v3 composition keeps five tabs, king shortcut, and existing ship sprites', async ({ page }) => {
+test('approved home v3 composition removes figure pedestals and keeps five tabs, king shortcut, and ship sprites', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.setViewportSize({ width: 390, height: 698 });
   await page.route('**/api/player-ship/status', async (route) => {
@@ -53,6 +53,13 @@ test('approved home v3 composition keeps five tabs, king shortcut, and existing 
     const { preloadAvatarBaseSprites, renderAvatar } = await import('/js/avatar.js');
     preloadAvatarBaseSprites(window.myAvatarBaseInfo);
     renderAvatar('home-avatar', window.myAvatarBaseInfo, {}, {}, false);
+    const { renderHomePetCompanion } = await import('/js/playerProfile.js');
+    renderHomePetCompanion({
+      monsterId: 'ismartal-vol1-monster-02',
+      monsterName: 'グリモア',
+      explorationId: 'home-v3-pet-preview',
+      acquiredAtMs: 1000
+    });
   });
   await expect.poll(async () => page.locator('#home-avatar-layer-body').evaluate((layer) => (
     getComputedStyle(layer).backgroundImage
@@ -64,6 +71,7 @@ test('approved home v3 composition keeps five tabs, king shortcut, and existing 
   await expect(page.locator('#btnHomeKing')).toBeVisible();
   await expect(page.locator('#btnHomeKing img')).toHaveAttribute('src', 'assets/ui/icons/nav-king-framed.png');
   await expect.poll(async () => page.locator('#btnHomeKing img').evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
+  await expect(page.locator('#homePetCompanion')).toBeVisible();
   await expect(page.locator('.home-exp-rank')).not.toContainText('階級');
   await expect(page.locator('#homeExpRank')).toHaveText('見習い');
 
@@ -111,7 +119,7 @@ test('approved home v3 composition keeps five tabs, king shortcut, and existing 
   expect(homeVisuals.rankBackgroundSize).toBe('100%');
   expect(homeVisuals.ship).toMatch(/Sprites\/Ships\/(guildShips|ships)\.png/);
   expect(homeVisuals.activeNav).toContain('nav-slot-active.webp');
-  expect(homeVisuals.pedestalCount).toBe(3);
+  expect(homeVisuals.pedestalCount).toBe(0);
   expect(homeVisuals.statChip).toEqual({
     borderWidth: '0px',
     backgroundImage: 'none',
@@ -133,15 +141,13 @@ test('approved home v3 composition keeps five tabs, king shortcut, and existing 
     const stage = rect('.home-ship-bob');
     const ship = rect('.home-player-ship-icon');
     const avatar = rect('.home-ship-avatar');
-    const shipPedestal = rect('.home-figure-pedestal-ship');
-    const avatarPedestal = rect('.home-figure-pedestal-avatar');
+    const pet = document.getElementById('homePetCompanion');
+    const petSprite = rect('#homePetCompanion .pixel-monster-companion-sprite');
     const nav = rect('#bottomNav');
     const title = rect('.app-title-plaque strong');
     const subtitle = rect('.app-title-plaque span');
     const actions = rect('.home-exp-actions');
     const playerInfo = rect('#globalPlayerInfoTop');
-    const shipPedestalRect = rect('.home-figure-pedestal-ship');
-    const avatarPedestalRect = rect('.home-figure-pedestal-avatar');
     const moneyBag = rect('.home-ps-icon');
     const specialtyIcon = rect('.home-specialty-chip span');
     const rankLabel = rect('.home-exp-rank span');
@@ -165,8 +171,7 @@ test('approved home v3 composition keeps five tabs, king shortcut, and existing 
       figures: {
         ship: { top: ship.top, bottom: ship.bottom },
         avatar: { top: avatar.top, bottom: avatar.bottom },
-        shipPedestal: { top: shipPedestalRect.top, bottom: shipPedestalRect.bottom },
-        avatarPedestal: { top: avatarPedestalRect.top, bottom: avatarPedestalRect.bottom }
+        petSprite: { top: petSprite.top, bottom: petSprite.bottom, height: petSprite.height }
       },
       moneyBag: { top: moneyBag.top, bottom: moneyBag.bottom, width: moneyBag.width, height: moneyBag.height },
       specialtyIcon: { width: specialtyIcon.width, height: specialtyIcon.height },
@@ -197,8 +202,7 @@ test('approved home v3 composition keeps five tabs, king shortcut, and existing 
         height: fortuneButton.height
       },
       stageHeight: stage.height,
-      shipPedestalOffset: Math.abs(centerX(ship) - centerX(shipPedestal)),
-      avatarPedestalOffset: Math.abs(centerX(avatar) - centerX(avatarPedestal)),
+      petScale: Number.parseFloat(getComputedStyle(pet).getPropertyValue('--pixel-monster-context-scale')),
       figureCenterGap: centerX(avatar) - centerX(ship),
       nav: { top: nav.top, bottom: nav.bottom, height: nav.height },
       navButton: { top: navButton.top, bottom: navButton.bottom, height: navButton.height },
@@ -208,8 +212,6 @@ test('approved home v3 composition keeps five tabs, king shortcut, and existing 
   });
   expect(alignment.headerCurrencyGap).toBeLessThanOrEqual(20);
   expect(alignment.stageHeight).toBeGreaterThanOrEqual(205);
-  expect(alignment.shipPedestalOffset).toBeLessThanOrEqual(18);
-  expect(alignment.avatarPedestalOffset).toBeLessThanOrEqual(8);
   expect(alignment.figureCenterGap).toBeGreaterThanOrEqual(80);
   expect(alignment.navHeight).toBeGreaterThanOrEqual(52);
   expect(alignment.navHeight).toBeLessThanOrEqual(62);
@@ -256,6 +258,11 @@ test('approved home v3 composition keeps five tabs, king shortcut, and existing 
   expect(alignment.navButton.height).toBeGreaterThanOrEqual(47);
   expect(alignment.navIcon.width).toBeGreaterThanOrEqual(25);
   expect(alignment.navIcon.height).toBeGreaterThanOrEqual(25);
+  expect(alignment.petScale).toBeCloseTo(1.5, 2);
+  expect(alignment.figures.petSprite.height / (alignment.figures.avatar.bottom - alignment.figures.avatar.top))
+    .toBeGreaterThanOrEqual(0.62);
+  expect(alignment.figures.petSprite.height / (alignment.figures.avatar.bottom - alignment.figures.avatar.top))
+    .toBeLessThanOrEqual(0.72);
 
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(200);
