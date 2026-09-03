@@ -1016,6 +1016,26 @@ export function scrollInventoryItemsIntoView(options = {}) {
     });
 }
 
+function scrollCurrentEquipmentIntoView(options = {}) {
+    if (typeof document === 'undefined') return;
+    const loadout = document.querySelector('#tabContentInventory .avatar-card.inventory-section');
+    if (!loadout) return;
+    const behavior = options.behavior || 'smooth';
+    requestAnimationFrame(() => {
+        const switcher = document.getElementById('inventoryMobileSwitch');
+        const switcherBottom = Math.max(0, Math.ceil(switcher?.getBoundingClientRect().bottom || 0));
+        const gap = Math.max(0, Number(options.gap ?? 8) || 0);
+        const targetTop = loadout.getBoundingClientRect().top + window.scrollY - switcherBottom - gap;
+        window.scrollTo({ top: Math.max(0, targetTop), behavior });
+    });
+}
+
+function showCurrentEquipmentAfterMutation() {
+    closeItemDetailModal();
+    switchInventoryGroup('Equipment', { panel: 'items' });
+    scrollCurrentEquipmentIntoView({ behavior: 'smooth' });
+}
+
 function getTargetInventoryCategoryForEquipmentSlot(slotElement) {
     const slotType = slotElement?.dataset?.slot || '';
     if (slotType === 'majorarcana') return 'TarotMajor';
@@ -4082,34 +4102,18 @@ function restoreItemDetailActions(states) {
     });
 }
 
-function refreshOpenItemDetail(itemId, stackId = '', detailEntryKey = '') {
-    const modal = document.getElementById('itemDetailModal');
-    if (!modal || modal.style.display === 'none' || modal.hidden) return;
-    const refreshedItem = (detailEntryKey
-        ? getDisplayInventoryEntries().find((entry) => getInventoryEntryKey(entry) === detailEntryKey)
-        : null)
-        || getInventoryItemByReference({ itemId, stackId });
-    if (refreshedItem) {
-        showItemDetailModal(refreshedItem);
-    } else {
-        closeItemDetailModal();
-    }
-}
-
 export async function equipItem(playFabId, itemId, slot, stackId = '', options = {}) {
     if (!playFabId || equipmentMutationInFlight) return null;
     const fromSlot = String(options.fromSlot || '').trim();
     if (itemId && !(await confirmEquipmentMutation(itemId, slot, stackId, fromSlot))) return null;
 
-    const modal = document.getElementById('itemDetailModal');
-    const detailEntryKey = String(modal?.dataset?.detailEntryKey || '');
     const actionStates = disableItemDetailActions();
     equipmentMutationInFlight = true;
     try {
         const data = await requestEquipItem(playFabId, itemId, slot, { stackId, fromSlot });
         if (data !== null) {
             await getInventory(playFabId, { force: true });
-            refreshOpenItemDetail(itemId, stackId, detailEntryKey);
+            showCurrentEquipmentAfterMutation();
         }
         return data;
     } finally {

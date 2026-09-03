@@ -8548,9 +8548,16 @@ test('single one-handed weapon moves between hands from the detail modal', async
     fromSlot: 'RightHand',
     slot: 'LeftHand'
   });
-  await expect(page.locator('#itemDetailModal')).toBeVisible();
-  await expect(page.getByRole('button', { name: '右手へ移動', exact: true })).toBeEnabled();
-  await expect(page.getByRole('button', { name: '左手を外す', exact: true })).toBeEnabled();
+  await expect(page.locator('#itemDetailModal')).not.toBeVisible();
+  await expect(page.locator('#tabContentInventory')).toHaveAttribute('data-inventory-panel', 'items');
+  await expect(page.locator('#tabContentInventory')).toHaveAttribute('data-inventory-group', 'Equipment');
+  await expect(page.locator('#equippedLeftHand')).toHaveText('Only Sword');
+  await page.waitForFunction(() => {
+    const loadout = document.querySelector('#tabContentInventory .avatar-card.inventory-section');
+    if (!loadout) return false;
+    const loadoutTop = loadout.getBoundingClientRect().top;
+    return loadoutTop >= 0 && loadoutTop < window.innerHeight * 0.45;
+  });
   await expectNoPageErrors(errors);
 });
 
@@ -8636,8 +8643,8 @@ test('two-handed equipment confirms before clearing the other hand', async ({ pa
     stackId: 'polearm-instance-1',
     slot: 'RightHand'
   });
-  await expect(page.locator('#itemDetailModal')).toBeVisible();
-  await expect(page.getByRole('button', { name: '両手を外す', exact: true })).toBeEnabled();
+  await expect(page.locator('#itemDetailModal')).not.toBeVisible();
+  await expect(page.locator('#equippedRightHand')).toHaveText('Long Spear');
   await expectNoPageErrors(errors);
 });
 
@@ -8710,6 +8717,9 @@ test('two owned shields can be equipped in both hands from the detail modal', as
     stackId: 'default',
     slot: 'RightHand'
   });
+  await expect(page.locator('#itemDetailModal')).not.toBeVisible();
+  await expect(page.locator('#tabContentInventory')).toHaveAttribute('data-inventory-panel', 'items');
+  await expect(page.locator('#tabContentInventory')).toHaveAttribute('data-inventory-group', 'Equipment');
   await expectNoPageErrors(errors);
 });
 
