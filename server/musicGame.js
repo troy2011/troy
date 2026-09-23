@@ -15,6 +15,7 @@ const VERIFIED_SAMPLE_SONGS = Object.freeze([
         title: 'カブトムシ',
         artist: 'aiko',
         songNumber: '497445',
+        joysoundNaviGroupId: '922327',
         popularityRank: 1,
         catalog: 'sabikara'
     })
@@ -42,6 +43,11 @@ function htmlToText(value) {
 
 function normalizeSongNumber(value) {
     return String(value || '').replace(/[^0-9]/g, '');
+}
+
+function normalizeJoysoundNaviGroupId(value) {
+    const id = String(value || '').trim();
+    return /^[0-9]+$/.test(id) ? id : '';
 }
 
 function normalizePopularityRank(value) {
@@ -91,15 +97,18 @@ function extractSearchResultSongs(html, startRank = 1) {
         const songNumberMatch = tag.match(/\bdata-tracking-song_no\s*=\s*["']([^"']+)["']/i);
         const titleMatch = tag.match(/\bdata-tracking-title\s*=\s*["']([^"']+)["']/i);
         const artistMatch = tag.match(/\bdata-tracking-artist\s*=\s*["']([^"']+)["']/i);
+        const naviGroupIdMatch = tag.match(/\bdata-tracking-navi_gid\s*=\s*["']([^"']+)["']/i);
         const songNumber = normalizeSongNumber(decodeHtml(songNumberMatch?.[1] || ''));
         const title = normalizeSongTitle(decodeHtml(titleMatch?.[1] || ''));
         const artist = normalizeText(decodeHtml(artistMatch?.[1] || ''));
+        const joysoundNaviGroupId = normalizeJoysoundNaviGroupId(decodeHtml(naviGroupIdMatch?.[1] || ''));
         if (!songNumber || !title || !artist || seenSongNumbers.has(songNumber)) return;
         seenSongNumbers.add(songNumber);
         songs.push({
             title,
             artist,
             songNumber,
+            joysoundNaviGroupId,
             popularityRank: Number(startRank) + songs.length,
             catalog: 'sabikara'
         });
@@ -186,8 +195,9 @@ function validateCatalog(songs, officialTotal, collectedUrlCount) {
         const title = normalizeSongTitle(song?.title);
         const artist = normalizeText(song?.artist);
         const songNumber = normalizeSongNumber(song?.songNumber);
+        const joysoundNaviGroupId = normalizeJoysoundNaviGroupId(song?.joysoundNaviGroupId);
         const popularityRank = normalizePopularityRank(song?.popularityRank);
-        if (!title || !artist || !songNumber || !popularityRank) problems.push(`missing-required-fields:${index}`);
+        if (!title || !artist || !songNumber || !joysoundNaviGroupId || !popularityRank) problems.push(`missing-required-fields:${index}`);
         if (songNumber && seenNumbers.has(songNumber)) duplicateNumbers.push(songNumber);
         if (popularityRank && seenPopularityRanks.has(popularityRank)) duplicatePopularityRanks.push(popularityRank);
         if (songNumber) seenNumbers.add(songNumber);
@@ -349,6 +359,7 @@ async function readCatalog(firestore, exclusions = []) {
             title: normalizeSongTitle(song?.title),
             artist: normalizeText(song?.artist),
             songNumber: normalizeSongNumber(song?.songNumber),
+            joysoundNaviGroupId: normalizeJoysoundNaviGroupId(song?.joysoundNaviGroupId),
             popularityRank: normalizePopularityRank(song?.popularityRank),
             catalog: 'sabikara'
         }))
@@ -396,6 +407,7 @@ async function publishCatalog(firestore, admin, songs, validation, staffPlayFabI
                 title: song.title,
                 artist: song.artist,
                 songNumber: song.songNumber,
+                joysoundNaviGroupId: normalizeJoysoundNaviGroupId(song.joysoundNaviGroupId),
                 popularityRank: normalizePopularityRank(song.popularityRank),
                 catalog: 'sabikara'
             });
@@ -663,6 +675,8 @@ module.exports = {
     initializeMusicGameRoutes,
     normalizeScore,
     parseOfficialTotal,
+    publishCatalog,
+    readCatalog,
     validateCatalog,
     validateResultInput
 };

@@ -21,6 +21,10 @@ Firebase Auth は API／Firebase Rules で使うセッション主体であり�
 
 コレクション名の一部は定数／動的 path で作られる。schema 変更前に `.collection(`、`doc(`、query、index 資料を検索する。
 
+### MUSIC GAME サビカラカタログ
+
+`music_game_catalogs/sabikara/versions/{version}/songs/{songNumber}` に JOYSOUND 曲番号とは別の `joysoundNaviGroupId`（数字の文字列）を保存する。`server/musicGame.js` の取得・検証・公開処理だけが書き込み、`/api/troy-music-game/bootstrap` がスタッフ画面へ渡す。全曲で ID を検証できた場合だけ `activeVersion` を切り替えるため、更新失敗時は既存カタログを維持する。旧 version の曲に ID がない場合も抽選は続け、リンク操作時に更新案内を表示する。再同期はスタッフ画面の「JOYSOUND最新データに更新」で新 version を公開する。戻す必要がある場合は以前の `activeVersion` に切り替えられるが、その version に ID がなければキョクナビ連携は利用できない。
+
 ### Firestore の正本境界
 
 - 共有位置、ルーム、イベント、店舗操作、オンライン投影は Firestore
