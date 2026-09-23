@@ -1,15 +1,15 @@
 const { test, expect } = require('@playwright/test');
 
 const MUSIC_GAME_SONGS = [
-  { title: '曲A', artist: '歌手A', songNumber: '100001', popularityRank: 1 },
-  { title: '曲B', artist: '歌手B', songNumber: '100002', popularityRank: 200 },
-  { title: '曲C', artist: '歌手C', songNumber: '100003', popularityRank: 450 },
-  { title: '曲D', artist: '歌手D', songNumber: '100004', popularityRank: 750 }
+  { title: '曲A', artist: '歌手A', songNumber: '100001', joysoundNaviGroupId: '900001', popularityRank: 1 },
+  { title: '曲B', artist: '歌手B', songNumber: '100002', joysoundNaviGroupId: '900002', popularityRank: 200 },
+  { title: '曲C', artist: '歌手C', songNumber: '100003', joysoundNaviGroupId: '900003', popularityRank: 450 },
+  { title: '曲D', artist: '歌手D', songNumber: '100004', joysoundNaviGroupId: '900004', popularityRank: 750 }
 ];
 
-function makeBootstrap(results = [], exclusions = []) {
+function makeBootstrap(results = [], exclusions = [], catalogSongs = MUSIC_GAME_SONGS) {
   const excludedSongNumbers = new Set(exclusions.map((entry) => entry.songNumber));
-  const songs = MUSIC_GAME_SONGS.filter((entry) => !excludedSongNumbers.has(entry.songNumber));
+  const songs = catalogSongs.filter((entry) => !excludedSongNumbers.has(entry.songNumber));
   return {
     staffPlayFabId: 'STAFF1',
     dayKey: '2026-08-20',
@@ -22,8 +22,8 @@ function makeBootstrap(results = [], exclusions = []) {
       version: 'test-catalog',
       updatedAt: '2026-08-20T10:00:00.000Z',
       songCount: songs.length,
-      officialSongCount: MUSIC_GAME_SONGS.length,
-      excludedSongCount: MUSIC_GAME_SONGS.length - songs.length,
+      officialSongCount: catalogSongs.length,
+      excludedSongCount: catalogSongs.length - songs.length,
       hasPopularityRanks: true,
       validationSuccess: true,
       source: 'joysound',
@@ -40,7 +40,7 @@ async function installMusicGameRoutes(page, state) {
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify(makeBootstrap(state.results, state.exclusions || []))
+      body: JSON.stringify(makeBootstrap(state.results, state.exclusions || [], state.catalogSongs || MUSIC_GAME_SONGS))
     });
   });
   await page.route('**/api/troy-music-game/results', async (route) => {
@@ -106,6 +106,7 @@ test('free challenge selects a song before a participant and saves one idempoten
   await expect(page.locator('.troy-music-game-difficulty-button')).toHaveCount(4);
   await expect(page.locator('#troyMusicGameParticipant')).toBeDisabled();
   await page.getByRole('button', { name: '🎲 曲を抽選する' }).click();
+  await expect(page.getByRole('button', { name: '🎤 キョクナビで開く' })).toBeVisible();
   await expect(page.locator('#troyMusicGameParticipant')).toBeEnabled();
   await page.selectOption('#troyMusicGameParticipant', 'PLAYER1');
   await page.locator('#troyMusicGameScore').fill('96.342');
@@ -163,10 +164,40 @@ test('competitive mode requires the challenger before drawing and intro mode hid
   await page.getByRole('button', { name: 'イントロクイズ', exact: true }).click();
   await page.getByRole('button', { name: '🎲 問題曲を抽選する' }).click();
   await expect(page.getByText('曲名・歌手は非表示です。')).toBeVisible();
+  await expect(page.locator('.troy-music-game-song h3')).toHaveCount(0);
+  await expect(page.locator('.troy-music-game-song-artist')).toHaveCount(0);
   await expect(page.getByText(/JOYSOUND 曲番号：[0-9]+/)).toBeVisible();
+  await expect(page.getByRole('button', { name: '🎤 キョクナビで開く' })).toBeVisible();
   await expect(page.getByRole('button', { name: '答えを見る' })).toBeVisible();
   await page.getByRole('button', { name: '答えを見る' }).click();
   await expect(page.getByText('JOYSOUND 曲番号')).toBeVisible();
+});
+
+test('navi group ID is normalized and the official song detail deep link has no tracking parameter', async ({ page }) => {
+  const state = { results: [], savedPayloads: [], skips: [] };
+  await installMusicGameRoutes(page, state);
+  await page.goto('/troy-music-game.html', { waitUntil: 'domcontentloaded' });
+  const result = await page.evaluate(async () => {
+    const src = document.querySelector('script[src*="troyMusicGame.js"]').src;
+    const { normalizeSong, buildJoysoundNaviUrl } = await import(src);
+    const song = normalizeSong({ title: 'カブトムシ', artist: 'aiko', songNumber: '497445', joysoundNaviGroupId: '92-2327' });
+    return { song, url: buildJoysoundNaviUrl(song.joysoundNaviGroupId) };
+  });
+  expect(result.song.joysoundNaviGroupId).toBe('922327');
+  expect(result.url).toBe('xgi-js-spnavi://navigation?view=songDetails&naviGrpId=922327');
+});
+
+test('song without a navi group ID shows a safe update message', async ({ page }) => {
+  const state = {
+    results: [], savedPayloads: [], skips: [],
+    catalogSongs: [{ ...MUSIC_GAME_SONGS[0], joysoundNaviGroupId: '' }]
+  };
+  await installMusicGameRoutes(page, state);
+  await page.goto('/troy-music-game.html', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: '🎲 曲を抽選する' }).click();
+  await page.getByRole('button', { name: '🎤 キョクナビで開く' }).click();
+  await expect(page.getByRole('status')).toHaveText('キョクナビ用の楽曲IDがありません。JOYSOUND最新データに更新してください。');
+  expect(page.url()).toContain('/troy-music-game.html');
 });
 
 test('skip does not save a result and the latest valid result can be voided', async ({ page }) => {

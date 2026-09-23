@@ -100,12 +100,14 @@ function normalizeSong(value) {
     const title = String(value?.title || '').replace(/\s+/g, ' ').trim();
     const artist = String(value?.artist || '').replace(/\s+/g, ' ').trim();
     const songNumber = String(value?.songNumber || '').replace(/\D/g, '');
+    const joysoundNaviGroupId = String(value?.joysoundNaviGroupId || '').replace(/\D/g, '');
     if (!title || !artist || !songNumber) return null;
     const popularityRank = Number(value?.popularityRank);
     return {
         title,
         artist,
         songNumber,
+        joysoundNaviGroupId,
         popularityRank: Number.isInteger(popularityRank) && popularityRank > 0 ? popularityRank : 0,
         catalog: 'sabikara'
     };
@@ -659,7 +661,7 @@ function renderSong() {
             <strong>問題曲を抽選しました</strong>
             <span class="troy-music-game-small-note">曲名・歌手は非表示です。</span>
             <strong>JOYSOUND 曲番号：${escapeHtml(song.songNumber)}</strong>
-            <div class="troy-music-game-actions"><button type="button" data-action="show-answer" class="troy-music-game-primary">答えを見る</button></div>
+            <div class="troy-music-game-actions"><button type="button" data-action="open-joysound-navi" class="troy-music-game-primary">🎤 キョクナビで開く</button><button type="button" data-action="show-answer" class="troy-music-game-primary">答えを見る</button></div>
         </div>`;
     }
     return `<div class="troy-music-game-song">
@@ -667,8 +669,22 @@ function renderSong() {
         <h3>♪ ${escapeHtml(song.title)}</h3>
         <div class="troy-music-game-song-artist">${escapeHtml(song.artist)}</div>
         <div class="troy-music-game-song-number-block"><span class="troy-music-game-label">JOYSOUND 曲番号</span><div class="troy-music-game-song-number">${escapeHtml(song.songNumber)}</div></div>
-        ${state.mode === 'intro_quiz' ? '<div class="troy-music-game-actions"><button type="button" data-action="hide-answer" class="troy-music-game-muted-button">答えを隠す</button></div>' : ''}
+        <div class="troy-music-game-actions"><button type="button" data-action="open-joysound-navi" class="troy-music-game-primary">🎤 キョクナビで開く</button>${state.mode === 'intro_quiz' ? '<button type="button" data-action="hide-answer" class="troy-music-game-muted-button">答えを隠す</button>' : ''}</div>
     </div>`;
+}
+
+function openJoysoundNavi() {
+    const song = state.selectedSong;
+    if (!song?.joysoundNaviGroupId) {
+        setMessage('キョクナビ用の楽曲IDがありません。JOYSOUND最新データに更新してください。', true);
+        render();
+        return;
+    }
+    window.location.href = buildJoysoundNaviUrl(song.joysoundNaviGroupId);
+}
+
+function buildJoysoundNaviUrl(joysoundNaviGroupId) {
+    return `xgi-js-spnavi://navigation?view=songDetails&naviGrpId=${encodeURIComponent(joysoundNaviGroupId)}`;
 }
 
 function renderResultInput() {
@@ -884,6 +900,7 @@ function bindEvents() {
         if (action === 'set-difficulty') changeDifficulty(button.dataset.difficulty || '');
         if (action === 'set-draw-count') changeDrawCount(button.dataset.drawCount || '');
         if (action === 'choose-drawn-song') chooseDrawnSong(button.dataset.songNumber || '');
+        if (action === 'open-joysound-navi') openJoysoundNavi();
         if (action === 'skip-song') void skipSong();
         if (action === 'exclude-song') void excludeSelectedSong();
         if (action === 'show-answer') {
@@ -935,3 +952,5 @@ if (root) {
     bindEvents();
     void boot();
 }
+
+export { buildJoysoundNaviUrl, normalizeSong };
