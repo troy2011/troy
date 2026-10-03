@@ -114,6 +114,14 @@ body.home-v3[data-sea-tone] #tabContentHome .home-hero-card {
     box-shadow: inset 0 0 0 1px rgba(236, 187, 86, 0.08), 0 16px 34px rgba(0, 0, 0, 0.52);
 }
 
+body.home-v3 .home-profile-status {
+    margin: 0 0 8px;
+    color: #f8dfaa;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+}
+
 body.home-v3 #tabContentHome .home-hero-top {
     width: min(760px, 100%);
     min-height: 0;
@@ -535,6 +543,10 @@ body.home-v3 #bottomNav .nav-button span:last-child {
     body.home-v3[data-sea-tone] #tabContentHome .home-hero-card {
         margin: -18px 5px 0;
         padding: 0 5px;
+    }
+
+    body.home-v3 .home-profile-status {
+        padding-top: 20px;
     }
 
     body.home-v3 #tabContentHome .home-hero-top {

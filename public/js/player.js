@@ -40,8 +40,8 @@ export function getMyCrewRankInfo() {
     return myCrewRankInfo;
 }
 
-export async function getPlayerStats(playFabId) {
-    const data = await fetchPlayerStats(playFabId);
+export async function getPlayerStats(playFabId, options) {
+    const data = await fetchPlayerStats(playFabId, options);
     if (data?.stats) {
         myPlayerStats = data.stats;
         myCrewRankInfo = data.crewRankInfo || null;

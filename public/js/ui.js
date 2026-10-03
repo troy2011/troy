@@ -1081,6 +1081,7 @@ function showWorldMapModal(playerInfo) {
 let gameInstance = null;
 let launchGameFn = null;
 const tabLoaded = { home: false, troy: false, companions: false, tarot: false, ships: false, battle: false, map: false, islands: false, qr: false, inventory: false, ranking: false, king: false };
+let homeLoadPromise = null;
 const audioAvailabilityCache = new Map();
 const audioAvailabilityInFlight = new Set();
 let bottomNavRevealed = false;
@@ -1382,17 +1383,22 @@ export async function showTab(tabId, playerInfo, options = {}) {
         window.scrollTo({ top: 0, behavior: 'auto' });
     }
 
+    if (tabId === 'home' && options.startupShell) {
+        revealBottomNavAfterHomeReady();
+    }
+
     try {
         if (!tabLoaded[tabId]) {
             console.log(`Loading data for tab: ${tabId}`);
             switch (tabId) {
                 case 'home':
-                    await Promise.allSettled([
-                        Player.getPlayerStats(playerInfo.playFabId),
-                        Inventory.refreshResourceSummary(playerInfo.playFabId),
+                    homeLoadPromise ||= Promise.allSettled([
+                        Player.getPlayerStats(playerInfo.playFabId, { isSilent: true }),
+                        Inventory.refreshResourceSummary(playerInfo.playFabId, { isSilent: true }),
                         Ship.loadPlayerShipProfile(playerInfo.playFabId),
                         Ship.loadExplorationPanel(playerInfo.playFabId)
                     ]);
+                    await homeLoadPromise;
                     break;
                 case 'troy':
                     {

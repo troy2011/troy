@@ -26,7 +26,7 @@
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
     <link rel="stylesheet" href="tarot-kingdom-summons.css?v=20260827-summon-element-target-v1">
-    <link rel="stylesheet" href="css/home-v3.css?v=20260831-home-king-v2">
+    <link rel="stylesheet" href="css/home-v3.css?v=20261003-profile-cache-v1">
 </head>
 
 <body class="app-booting home-v3">
@@ -58,19 +58,20 @@
             <!-- 1. ホームタブ -->
             <div id="tabContentHome" class="tab-content">
                 <div class="content-area home-hero-card">
+                    <p id="homeProfileStatus" class="home-profile-status" role="status" hidden></p>
                     <div class="home-hero-top">
                         <div class="home-ps-card">
                             <span class="home-ps-lamp" aria-hidden="true"></span>
                             <div class="home-ps-icon">💰</div>
                             <div class="home-ps-meta">
-                                <div class="home-ps-value"><span class="home-ps-slit"><span id="currentPoints" class="home-ps-slit-value">0</span></span><span class="home-ps-unit">G</span></div>
+                                <div class="home-ps-value"><span class="home-ps-slit"><span id="currentPoints" class="home-ps-slit-value">—</span></span><span class="home-ps-unit">G</span></div>
                             </div>
                             <div class="home-specialty-row" aria-label="特産品の所有数">
                                 <span class="home-specialty-label">特産品</span>
-                                <span class="home-specialty-chip" title="火薬系"><span aria-hidden="true"></span><b id="homeSpecialtyRR">0</b></span>
-                                <span class="home-specialty-chip" title="石材系"><span aria-hidden="true"></span><b id="homeSpecialtyRG">0</b></span>
-                                <span class="home-specialty-chip" title="キノコ系"><span aria-hidden="true"></span><b id="homeSpecialtyRY">0</b></span>
-                                <span class="home-specialty-chip" title="水系"><span aria-hidden="true"></span><b id="homeSpecialtyRB">0</b></span>
+                                <span class="home-specialty-chip" title="火薬系"><span aria-hidden="true"></span><b id="homeSpecialtyRR">—</b></span>
+                                <span class="home-specialty-chip" title="石材系"><span aria-hidden="true"></span><b id="homeSpecialtyRG">—</b></span>
+                                <span class="home-specialty-chip" title="キノコ系"><span aria-hidden="true"></span><b id="homeSpecialtyRY">—</b></span>
+                                <span class="home-specialty-chip" title="水系"><span aria-hidden="true"></span><b id="homeSpecialtyRB">—</b></span>
                             </div>
                         </div>
                     </div>
@@ -99,36 +100,36 @@
                         </div>
                         <div class="home-exp-card">
                             <div class="home-exp-header">
-                                <div class="home-exp-rank" data-rank-tier="apprentice"><span id="homeExpRank">見習い</span></div>
+                                <div class="home-exp-rank" data-rank-tier="apprentice"><span id="homeExpRank">—</span></div>
                             </div>
                             <div class="home-exp-bar">
                                 <div id="homeExpFill" class="home-exp-fill" style="width: 0%;"></div>
                             </div>
-                            <div class="home-exp-values"><span id="homeExpProgress">0</span>/<span id="homeExpNeeded">100</span> EXP</div>
+                            <div class="home-exp-values"><span id="homeExpProgress">—</span>/<span id="homeExpNeeded">—</span> EXP</div>
                             <div class="home-stat-panel" aria-label="能力値">
                                 <div class="home-stat-chip">
                                     <span>力</span>
-                                    <b id="homeStatStr">?</b>
+                                    <b id="homeStatStr">—</b>
                                 </div>
                                 <div class="home-stat-chip">
                                     <span>守</span>
-                                    <b id="homeStatDef">?</b>
+                                    <b id="homeStatDef">—</b>
                                 </div>
                                 <div class="home-stat-chip">
                                     <span>速</span>
-                                    <b id="homeStatAgi">?</b>
+                                    <b id="homeStatAgi">—</b>
                                 </div>
                                 <div class="home-stat-chip">
                                     <span>知</span>
-                                    <b id="homeStatInt">?</b>
+                                    <b id="homeStatInt">—</b>
                                 </div>
                                 <div class="home-stat-chip">
                                     <span>体</span>
-                                    <b id="homeStatVit">?</b>
+                                    <b id="homeStatVit">—</b>
                                 </div>
                                 <div class="home-stat-chip home-stat-chip-hp">
                                     <span>HP</span>
-                                    <b id="homeStatHp">?</b>
+                                    <b id="homeStatHp">—</b>
                                 </div>
                             </div>
                             <div class="home-exp-actions" aria-label="出航メニュー">
@@ -1757,10 +1758,10 @@
         "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
         "config": "./js/config.js",
         "api": "./js/api.js",
-"ui": "./js/ui.js?v=20260828-exploration-retreat-v1",
+"ui": "./js/ui.js?v=20261003-profile-cache-v1",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js",
-"inventory": "./js/inventory.js?v=20260827-inventory-figma-v1",
+"inventory": "./js/inventory.js?v=20261003-profile-cache-v1",
         "game": "./Game.js?v=20260727-nav-guide1"
       }
     }
@@ -1802,6 +1803,6 @@
     </div>
 
     <!-- Scripts -->
-<script type="module" src="main.js?v=20260831-home-king-v1"></script>
+<script type="module" src="main.js?v=20261003-profile-cache-v1"></script>
 </body>
 </html>

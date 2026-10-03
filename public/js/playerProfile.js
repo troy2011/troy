@@ -143,8 +143,9 @@ function normalizeFavoritePlayerEntry(entry = {}) {
 
 function loadFavoritePlayers(playFabId = getCurrentUserPlayFabId()) {
     const storageKey = getFavoritePlayersStorageKey(playFabId);
-    if (!storageKey || typeof window === 'undefined' || !window.localStorage) return [];
+    if (!storageKey || typeof window === 'undefined') return [];
     try {
+        if (!window.localStorage) return [];
         const raw = window.localStorage.getItem(storageKey);
         const parsed = raw ? JSON.parse(raw) : [];
         return (Array.isArray(parsed) ? parsed : [])
@@ -159,12 +160,13 @@ function loadFavoritePlayers(playFabId = getCurrentUserPlayFabId()) {
 
 function saveFavoritePlayers(entries, playFabId = getCurrentUserPlayFabId()) {
     const storageKey = getFavoritePlayersStorageKey(playFabId);
-    if (!storageKey || typeof window === 'undefined' || !window.localStorage) return;
+    if (!storageKey || typeof window === 'undefined') return;
     const normalized = (Array.isArray(entries) ? entries : [])
         .map((entry) => normalizeFavoritePlayerEntry(entry))
         .filter(Boolean)
         .slice(0, MAX_FAVORITE_PLAYERS);
     try {
+        if (!window.localStorage) return;
         window.localStorage.setItem(storageKey, JSON.stringify(normalized));
     } catch (error) {
         console.warn('[playerProfile] Failed to save favorite players:', error);

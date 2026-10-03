@@ -37,6 +37,7 @@ import {
 import { FEATURE_UNLOCK_LEVELS, formatUnlockedFeatures, isFeatureUnlocked, normalizeLevel } from './js/featureUnlocks.js';
 import { bindModalClose, bindTargetModalCloseButtons } from './js/modalClose.js';
 import { startModalViewportTracking, stopModalViewportTracking } from './js/modalViewport.js';
+import { readCachedProfile, writeCachedProfile, clearCachedProfile } from './js/playerBootstrapCache.js';
 
 import { getDatabase, onValue as onDatabaseValue, ref as databaseRef } from "firebase/database";
 // --- グローバル変数 ---
@@ -47,6 +48,11 @@ let initializeAppPromise = null;
 let raceSelectionBound = false;
 let authHandled = false;
 let authUnsubscribe = null;
+let profileAuthUnsubscribe = null;
+let activeProfileUid = null;
+let profileGeneration = 0;
+let profileReady = false;
+let hasCachedProfile = false;
 let transferNoticeUnsubscribe = null;
 let transferNoticeReady = false;
 let lastTransferNoticeId = null;
@@ -855,6 +861,49 @@ function revealAppWrapper() {
     if (wrapper) wrapper.style.display = 'block';
 }
 
+function setProfileStatus(message = '') {
+    const status = document.getElementById('homeProfileStatus');
+    if (!status) return;
+    status.textContent = message;
+    status.hidden = !message;
+}
+
+function watchProfileSession(uid) {
+    activeProfileUid = uid;
+    profileGeneration += 1;
+    profileReady = false;
+    hasCachedProfile = false;
+    if (profileAuthUnsubscribe) profileAuthUnsubscribe();
+    profileAuthUnsubscribe = onAuthStateChanged(auth, (user) => {
+        if (user?.uid === activeProfileUid) return;
+        clearCachedProfile(activeProfileUid);
+        activeProfileUid = null;
+        profileGeneration += 1;
+        profileReady = false;
+        hasCachedProfile = false;
+        window.__tkUid = null;
+        document.body.classList.remove('tabs-ready');
+        document.body.classList.add('app-booting');
+        document.getElementById('appWrapper').style.display = 'none';
+        const splash = document.getElementById('bootSplash');
+        if (splash) {
+            splash.hidden = false;
+            splash.setAttribute('aria-label', '再ログインしてください');
+            let notice = document.getElementById('profileSessionNotice');
+            if (!notice) {
+                notice = document.createElement('button');
+                notice.id = 'profileSessionNotice';
+                notice.type = 'button';
+                notice.addEventListener('click', () => window.location.reload());
+                splash.appendChild(notice);
+            }
+            notice.textContent = '再読み込みしてログイン';
+            const spinner = splash.querySelector('.boot-splash-spinner');
+            if (spinner) spinner.hidden = true;
+        }
+    });
+}
+
 function normalizeHomeTroyPlayFabId(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
@@ -1482,6 +1531,7 @@ async function initializeLiff() {
                 __perfLog('firebase auth state: user');
                 console.log("Firebase authenticated successfully. User UID:", user.uid);
                 window.__tkUid = user.uid;
+                watchProfileSession(user.uid);
                 startHomeRescueSignalWatcher();
                 void refreshHomeExplorationButtonLabel(myPlayFabId);
                 void refreshHomePetCompanion(myPlayFabId);
@@ -1493,12 +1543,30 @@ async function initializeLiff() {
                     autoAssignRace();
                 } else {
                     const troyEntryRequest = getTroyEntryRequestFromUrl();
-                    await applyPendingAppInviteForExistingAccount();
-                    clearPendingAppInviteState({ removeFromUrl: true });
-                    await initializeAppFeatures();
+                    const cached = readCachedProfile(user.uid);
+                    if (cached) {
+                        applyAvatarBaseInfo(cached.playerData);
+                        hasCachedProfile = true;
+                    }
+                    setProfileStatus(hasCachedProfile
+                        ? '前回のプロフィールを表示中・更新しています'
+                        : 'プロフィールを読み込んでいます');
+                    const pendingInvite = applyPendingAppInviteForExistingAccount().then(() => {
+                        clearPendingAppInviteState({ removeFromUrl: true });
+                    });
+                    await initializeAppFeatures({ deferProfile: true, beforeProfile: pendingInvite });
+                    if (activeProfileUid !== user.uid) return;
                     __perfLog('initializeAppFeatures done');
                     revealAppWrapper();
+                    const homeReady = showTab('home', {
+                        playFabId: myPlayFabId,
+                        race: myAvatarBaseInfo.Race || 'human',
+                        nation: myAvatarBaseInfo.Nation
+                    }, { startupShell: true });
                     void NationKing.refreshKingNav(myPlayFabId);
+
+                    await pendingInvite;
+                    if (activeProfileUid !== user.uid) return;
 
                     // Check for help request URL parameters
                     const urlParams = new URLSearchParams(window.location.search);
@@ -1509,7 +1577,8 @@ async function initializeLiff() {
                         }
                     }
 
-                    await showTab('home', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race || 'human', nation: myAvatarBaseInfo.Nation });
+                    await homeReady;
+                    if (activeProfileUid !== user.uid) return;
                     __perfLog('showTab(home) done');
                     await handleTroyEntryRequest(troyEntryRequest, { clearUrl: true });
                     scheduleWorldMapPrefetch();
@@ -1563,7 +1632,7 @@ async function initializeLiff() {
     }
 }
 
-async function initializeAppFeatures() {
+async function initializeAppFeatures(options = {}) {
     if (initializeAppPromise) return initializeAppPromise;
     initializeAppPromise = (async () => {
         console.log('[initializeAppFeatures] Starting initialization...');
@@ -1778,6 +1847,7 @@ async function initializeAppFeatures() {
     document.getElementById('btnConfirmCreateShip').addEventListener('click', () => confirmCreateShip(myPlayFabId));
     document.getElementById('shipTypeSelect').addEventListener('change', updateShipTypeDetails);
     bindAvatarStyleActionButtons();
+    renderAvatarStylePanel();
     window.addEventListener('player:stats-updated', (event) => {
         const level = normalizeLevel(event?.detail?.stats?.Level || 1);
         window.myAvatarBaseInfo = {
@@ -1793,18 +1863,19 @@ async function initializeAppFeatures() {
     new QRious({ element: document.getElementById('myQrCanvas'), value: myPlayFabId, size: 150 });
 
     // --- 初期データ取得 ---
-    const initPromises = [
-        (async () => {
-            await updateAvatarBaseInfo();
-            renderAvatarStylePanel();
-        })()
-    ];
+    const profileTask = (async () => {
+        await options.beforeProfile;
+        await updateAvatarBaseInfo();
+        renderAvatarStylePanel();
+    })();
 
-    try {
-        await Promise.all(initPromises);
-    } catch (e) {
-        console.warn('[initializeAppFeatures] One or more initialization tasks failed:', e);
-    }
+    const guardedProfileTask = profileTask.catch((error) => {
+        console.warn('[initializeAppFeatures] Profile initialization failed:', error);
+        setProfileStatus(hasCachedProfile
+            ? '更新できませんでした。前回のプロフィールを表示しています'
+            : 'プロフィールを取得できませんでした。再読み込みしてください');
+    });
+    if (!options.deferProfile) await guardedProfileTask;
     refreshFavoritePlayersList();
     void refreshLineFriendPromo();
     document.addEventListener('visibilitychange', () => {
@@ -2089,58 +2160,79 @@ function showNationChangedNotice() {
 
 async function updateAvatarBaseInfo() {
     console.log('[updateAvatarBaseInfo] Fetching authenticated player bootstrap data...');
+    const uid = activeProfileUid;
+    const generation = profileGeneration;
+    const isCurrentSession = () => uid && activeProfileUid === uid
+        && profileGeneration === generation && auth.currentUser?.uid === uid;
     const result = await callApiWithLoader('/api/player-bootstrap', {
         playFabId: myPlayFabId
     }, { isSilent: true });
+    if (!isCurrentSession()) return;
     const playerData = result?.playerData || null;
-
-        if (playerData) {
-            const parseAvatarStyleIndex = (value, fallback = 1, min = 1) => {
-                const parsed = parseInt(value, 10);
-                return Number.isFinite(parsed) ? Math.max(min, parsed) : fallback;
-            };
-            const isAvatarStyleUnset = (value) => value === undefined || value === null || String(value).trim() === '';
-            const avatarStyleDefaultKeys = ['HairStyleIndex', 'FacialHairStyleIndex'];
-            let ensuredAvatarStyle = {};
-            if (avatarStyleDefaultKeys.some((key) => isAvatarStyleUnset(playerData[key]))) {
-                try {
-                    const defaults = await requestEnsureAvatarStyleDefaults(myPlayFabId, {
-                        isSilent: true,
-                        throwOnError: true
-                    });
-                    ensuredAvatarStyle = defaults?.avatarStyle || {};
-                } catch (error) {
-                    console.warn('[updateAvatarBaseInfo] ensure avatar defaults failed:', error?.message || error);
-                }
-            }
-            const readAvatarStyleValue = (key) => ensuredAvatarStyle[key] ?? playerData[key];
-            const currentLevel = getCurrentPlayerLevel();
-            const isPirateKing = currentLevel >= 51;
-            const nation = isPirateKing ? 'neutral' : (playerData.Nation || '').toLowerCase();
-            const nationChangedAt = String(playerData.NationChangedAt || '');
-            const nationColor = getAvatarColorForNation(nation);
-            myAvatarBaseInfo = {
-                Race: (playerData.Race || 'Human').toLowerCase(),
-                Nation: nation,
-                AvatarColor: isPirateKing ? 'black' : (nationColor || playerData.AvatarColor || 'brown'),
-                SkinColorIndex: parseAvatarStyleIndex(playerData.SkinColorIndex),
-                FaceIndex: parseAvatarStyleIndex(playerData.FaceIndex),
-                HairStyleIndex: parseAvatarStyleIndex(readAvatarStyleValue('HairStyleIndex')),
-                HairColorIndex: parseAvatarStyleIndex(playerData.HairColorIndex),
-                FacialHairStyleIndex: parseAvatarStyleIndex(readAvatarStyleValue('FacialHairStyleIndex'), 1, 0),
-                level: currentLevel
-            };
-            window.myAvatarBaseInfo = myAvatarBaseInfo;
-            preloadAvatarBaseSprites(myAvatarBaseInfo);
-
-            if (nationChangedAt) {
+    if (!playerData) {
+        setProfileStatus(hasCachedProfile
+            ? '更新できませんでした。前回のプロフィールを表示しています'
+            : 'プロフィールを取得できませんでした。再読み込みしてください');
+        return;
+    }
+    const isAvatarStyleUnset = (value) => value === undefined || value === null || String(value).trim() === '';
+    const avatarStyleDefaultKeys = ['HairStyleIndex', 'FacialHairStyleIndex'];
+    let ensuredAvatarStyle = {};
+    if (avatarStyleDefaultKeys.some((key) => isAvatarStyleUnset(playerData[key]))) {
+        try {
+            const defaults = await requestEnsureAvatarStyleDefaults(myPlayFabId, {
+                isSilent: true,
+                throwOnError: true
+            });
+            ensuredAvatarStyle = defaults?.avatarStyle || {};
+        } catch (error) {
+            console.warn('[updateAvatarBaseInfo] ensure avatar defaults failed:', error?.message || error);
+        }
+    }
+    if (!isCurrentSession()) return;
+    const freshProfile = { ...playerData, ...ensuredAvatarStyle };
+    applyAvatarBaseInfo(freshProfile);
+    writeCachedProfile(uid, freshProfile);
+    profileReady = true;
+    hasCachedProfile = false;
+    setProfileStatus();
+    const nationChangedAt = String(playerData.NationChangedAt || '');
+    try {
+        if (nationChangedAt) {
             const seenAt = String(localStorage.getItem('nationChangedAtSeen') || '');
             if (nationChangedAt !== seenAt) {
                 localStorage.setItem('nationChangedAtSeen', nationChangedAt);
                 showNationChangedNotice();
             }
         }
+    } catch {
+        // A disabled localStorage must not turn a successful refresh into a failure.
     }
+}
+
+function applyAvatarBaseInfo(playerData) {
+    const parseAvatarStyleIndex = (value, fallback = 1, min = 1) => {
+        const parsed = parseInt(value, 10);
+        return Number.isFinite(parsed) ? Math.max(min, parsed) : fallback;
+    };
+    const currentLevel = getCurrentPlayerLevel();
+    const isPirateKing = currentLevel >= 51;
+    const nation = isPirateKing ? 'neutral' : (playerData.Nation || '').toLowerCase();
+    const nationColor = getAvatarColorForNation(nation);
+    myAvatarBaseInfo = {
+        Race: (playerData.Race || 'Human').toLowerCase(),
+        Nation: nation,
+        AvatarColor: isPirateKing ? 'black' : (nationColor || playerData.AvatarColor || 'brown'),
+        SkinColorIndex: parseAvatarStyleIndex(playerData.SkinColorIndex),
+        FaceIndex: parseAvatarStyleIndex(playerData.FaceIndex),
+        HairStyleIndex: parseAvatarStyleIndex(playerData.HairStyleIndex),
+        HairColorIndex: parseAvatarStyleIndex(playerData.HairColorIndex),
+        FacialHairStyleIndex: parseAvatarStyleIndex(playerData.FacialHairStyleIndex, 1, 0),
+        level: currentLevel
+    };
+    window.myAvatarBaseInfo = myAvatarBaseInfo;
+    preloadAvatarBaseSprites(myAvatarBaseInfo);
+    renderAvatar('home-avatar', myAvatarBaseInfo, Inventory.getMyCurrentEquipment?.() || {}, Inventory.getMyInventory?.() || {}, false);
 }
 
 // --- 機能別ロジック ---
@@ -2474,7 +2566,7 @@ function renderAvatarStylePanel() {
     };
     panel.querySelectorAll('[data-avatar-style-action]').forEach((button) => {
         const action = String(button.getAttribute('data-avatar-style-action') || '');
-        button.disabled = avatarStyleSaveInFlight || !actionState[action];
+        button.disabled = !profileReady || avatarStyleSaveInFlight || !actionState[action];
         const priceEl = button.querySelector('span');
         if (priceEl && AVATAR_STYLE_COSTS[action]) priceEl.textContent = `${AVATAR_STYLE_COSTS[action]}G`;
     });
@@ -2496,7 +2588,7 @@ function renderAvatarStylePanel() {
 }
 
 async function randomizeAvatarStyle(action) {
-    if (avatarStyleSaveInFlight || !window.myPlayFabId) return;
+    if (!profileReady || avatarStyleSaveInFlight || !window.myPlayFabId) return;
     const level = getCurrentPlayerLevel();
     const featureByAction = {
         haircut: 'haircut',

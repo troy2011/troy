@@ -3923,7 +3923,7 @@ function beginInventoryFetch(playFabId, options = {}) {
             })
             : Promise.resolve(null);
         const [data, deckData] = await Promise.all([
-            fetchInventory(playFabId),
+            fetchInventory(playFabId, { isSilent: options.isSilent === true }),
             fetchTarotDecks(playFabId, { isSilent: true }),
             loadTarotBattleSkillCache(),
             TAROT_KINGDOM_ARCANA_EFFECTS_READY,
