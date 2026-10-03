@@ -993,7 +993,8 @@ async function submitTroyReservation(playFabId) {
             partySize,
             purpose,
             note,
-            nation: window.myAvatarBaseInfo?.Nation || window.myAvatarBaseInfo?.nation || '',
+            nation: window.isCurrentPlayerProfileReady?.() === false
+                ? '' : (window.myAvatarBaseInfo?.Nation || window.myAvatarBaseInfo?.nation || ''),
             displayName: window.myPlayFabDisplayName || '',
             requestId: createRequestId('troy-reservation-create')
         }, { throwOnError: true });
@@ -1572,11 +1573,12 @@ function normalizePlayFabId(value) {
 }
 
 function resolveTroyNationKey() {
+    const profileNation = window.isCurrentPlayerProfileReady?.() === false
+        ? '' : (window.myAvatarBaseInfo?.Nation || window.myAvatarBaseInfo?.nation || '');
     return String(
         _lastStatus?.nation
         || window.__troyEntryNation
-        || window.myAvatarBaseInfo?.Nation
-        || window.myAvatarBaseInfo?.nation
+        || profileNation
         || ''
     ).trim().toLowerCase();
 }

@@ -550,6 +550,10 @@ async function copyTextToClipboard(text) {
 }
 
 async function createAndCopyInviteLink() {
+    if (!isCurrentPlayerProfileReady()) {
+        showRpgMessage('プロフィールを更新しています。取得後に招待URLを作成してください。', 2600);
+        return;
+    }
     const nation = normalizeNationKey(window.myAvatarBaseInfo?.Nation || window.myAvatarBaseInfo?.nation);
     if (!nation) throw new Error('所属国が未設定のため招待URLを作れません');
     const url = new URL(window.location.origin || window.location.href);
@@ -866,6 +870,12 @@ function setProfileStatus(message = '') {
     if (!status) return;
     status.textContent = message;
     status.hidden = !message;
+}
+
+function isCurrentPlayerProfileReady() {
+    const level = Number(Player.getMyPlayerStats?.()?.Level);
+    return profileReady && Number.isFinite(level) && level > 0
+        && activeProfileUid === auth.currentUser?.uid;
 }
 
 function watchProfileSession(uid) {
@@ -1462,6 +1472,7 @@ const auth = getAuth(firebaseApp);
 const db = getDatabase(firebaseApp);
 const firestore = getFirestore(firebaseApp); // Firestore インスタンス
 window.__firebaseAuth = auth;
+window.isCurrentPlayerProfileReady = isCurrentPlayerProfileReady;
 window.__tkDb = db;
 window.__tkUid = null;
 
@@ -1580,7 +1591,7 @@ async function initializeLiff() {
                     await homeReady;
                     if (activeProfileUid !== user.uid) return;
                     __perfLog('showTab(home) done');
-                    await handleTroyEntryRequest(troyEntryRequest, { clearUrl: true });
+                    await handleTroyEntryRequest(troyEntryRequest, { clearUrl: true, preserveSelectedTab: true });
                     scheduleWorldMapPrefetch();
                     const prefetchHeavy = () => {
                         ensureBuildingMetaLoaded();
@@ -2252,11 +2263,13 @@ async function handleTroyEntryRequest(entryRequest, options = {}) {
         const result = await callApiWithLoader('/api/troy-join', joinBody, { throwOnError: true });
         window.__troyEntryNation = result.nation || resolvedEntryNation || null;
 
-        await showTab('troy', {
-            playFabId: myPlayFabId,
-            race: myAvatarBaseInfo.Race || 'human',
-            nation: result.nation || resolvedEntryNation
-        });
+        if (!options.preserveSelectedTab || document.body?.dataset.currentTab === 'home') {
+            await showTab('troy', {
+                playFabId: myPlayFabId,
+                race: myAvatarBaseInfo.Race || 'human',
+                nation: result.nation || resolvedEntryNation
+            });
+        }
 
         const parts = [];
         if (result?.alreadyEntered) parts.push('TROYに入店済みです');
@@ -2550,6 +2563,8 @@ if (typeof window !== 'undefined') {
 }
 
 function renderAvatarStylePanel() {
+    const inviteButton = document.getElementById('btnCopyInviteLink');
+    if (inviteButton) inviteButton.disabled = !isCurrentPlayerProfileReady();
     const panel = document.getElementById('avatarStylePanel');
     if (!panel) return;
     const level = getCurrentPlayerLevel();
@@ -2566,7 +2581,7 @@ function renderAvatarStylePanel() {
     };
     panel.querySelectorAll('[data-avatar-style-action]').forEach((button) => {
         const action = String(button.getAttribute('data-avatar-style-action') || '');
-        button.disabled = !profileReady || avatarStyleSaveInFlight || !actionState[action];
+        button.disabled = !isCurrentPlayerProfileReady() || avatarStyleSaveInFlight || !actionState[action];
         const priceEl = button.querySelector('span');
         if (priceEl && AVATAR_STYLE_COSTS[action]) priceEl.textContent = `${AVATAR_STYLE_COSTS[action]}G`;
     });
@@ -2588,7 +2603,7 @@ function renderAvatarStylePanel() {
 }
 
 async function randomizeAvatarStyle(action) {
-    if (!profileReady || avatarStyleSaveInFlight || !window.myPlayFabId) return;
+    if (!isCurrentPlayerProfileReady() || avatarStyleSaveInFlight || !window.myPlayFabId) return;
     const level = getCurrentPlayerLevel();
     const featureByAction = {
         haircut: 'haircut',

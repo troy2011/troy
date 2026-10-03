@@ -233,3 +233,76 @@ test('missing custom token reuses only the matching authenticated session', asyn
     expect(await page.evaluate(() => window.myAvatarBaseInfo.Race)).toBe('human');
     await expectNoPageErrors(errors);
 });
+
+test('pending profile and stats cannot supply a cached nation to reservations or invitation links', async ({ page }) => {
+    const errors = trackPageErrors(page);
+    await setup(page);
+    const bootstrap = gate();
+    const stats = gate();
+    const statusBodies = [];
+    const reservationBodies = [];
+    await page.route('**/api/player-bootstrap', async (route) => {
+        await bootstrap.wait;
+        await route.fulfill({ json: { playFabId: UID, playerData: fresh } });
+    });
+    await page.route('**/api/get-stats', async (route) => {
+        await stats.wait;
+        await route.fulfill({ json: { stats: { Level: 4 } } });
+    });
+    await page.route('**/api/get-troy-status', async (route) => {
+        statusBodies.push(JSON.parse(route.request().postData()));
+        await route.fulfill({ json: { nation: 'fire', isOpen: false, members: [] } });
+    });
+    await page.route('**/api/reservations/create', async (route) => {
+        reservationBodies.push(JSON.parse(route.request().postData()));
+        await route.fulfill({ json: { success: true } });
+    });
+    await page.goto('/');
+    await waitForShell(page);
+    await expect(page.locator('#btnCopyInviteLink')).toBeDisabled();
+    await page.locator('#navTroy').click();
+    await expect.poll(() => statusBodies.some((body) => Object.hasOwn(body, 'troyNation'))).toBe(true);
+    expect(statusBodies.every((body) => !body.troyNation)).toBe(true);
+    // Exercise the already-wired reservation handler using a fake form, without real bookings.
+    await page.evaluate(() => {
+        document.getElementById('reservationStartsAt').value = '2026-10-04T18:00';
+        document.getElementById('btnCreateReservation').click();
+    });
+    await expect.poll(() => reservationBodies.length).toBe(1);
+    expect(reservationBodies[0].nation).toBe('');
+    bootstrap.release();
+    await expect(page.locator('#homeProfileStatus')).toBeHidden();
+    // A fresh appearance alone does not turn a placeholder level into confirmed stats.
+    await expect(page.locator('#btnCopyInviteLink')).toBeDisabled();
+    stats.release();
+    await expect(page.locator('#btnCopyInviteLink')).toBeEnabled();
+    await page.evaluate(() => document.getElementById('btnCreateReservation').click());
+    await expect.poll(() => reservationBodies.length).toBe(2);
+    expect(reservationBodies[1].nation).toBe('fire');
+    await expectNoPageErrors(errors);
+});
+
+test('late home completion for an entry URL preserves the tab the user selected', async ({ page }) => {
+    const errors = trackPageErrors(page);
+    await setup(page);
+    const inventory = gate();
+    let entered = false;
+    await page.route('**/api/get-inventory', async (route) => {
+        await inventory.wait;
+        await route.fulfill({ json: { inventory: [], virtualCurrency: { PS: 432 } } });
+    });
+    await page.route('**/api/troy-join', async (route) => {
+        await route.fulfill({ json: { nation: 'fire', alreadyEntered: true } });
+        entered = true;
+    });
+    await page.goto('/?action=troy-entry&troyNation=fire');
+    await waitForShell(page);
+    await page.locator('#navInventory').click();
+    await expect(page.locator('#tabContentInventory')).toBeVisible();
+    inventory.release();
+    await expect.poll(() => entered).toBe(true);
+    await expect(page).not.toHaveURL(/action=troy-entry/);
+    await expect(page.locator('body')).toHaveAttribute('data-current-tab', 'inventory');
+    await expect(page.locator('#tabContentInventory')).toBeVisible();
+    await expectNoPageErrors(errors);
+});
