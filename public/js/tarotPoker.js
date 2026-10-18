@@ -373,18 +373,24 @@ const DAILY_FORTUNE_MINOR_WEATHER_LEVELS = {
 
 const DAILY_FORTUNE_MINOR_WEATHER_EXCEPTIONS = {
     'sword-10': { upright: 1, reversed: 6 },
-    'sword-3': { upright: 2 },
-    'sword-8': { upright: 4 },
-    'cup-10': { upright: 10 },
+    'sword-3': { upright: 2, reversed: 6 },
+    'sword-8': { upright: 4, reversed: 7 },
+    'sword-2': { upright: 5 },
+    'sword-7': { upright: 4 },
+    'cup-10': { upright: 10, reversed: 4 },
     'cup-9': { upright: 8 },
-    'pentacle-10': { upright: 9 },
+    'pentacle-10': { upright: 9, reversed: 3 },
     'pentacle-9': { upright: 8 },
     'wand-6': { upright: 9 },
     'wand-7': { upright: 7 },
     'wand-8': { upright: 9 },
-    'wand-10': { upright: 3 },
-    'pentacle-5': { upright: 3 },
-    'cup-5': { upright: 3 }
+    'wand-10': { upright: 3, reversed: 6 },
+    'sword-5': { upright: 2, reversed: 6 },
+    'sword-9': { upright: 3, reversed: 6 },
+    'cup-4': { upright: 4, reversed: 7 },
+    'cup-7': { upright: 4, reversed: 7 },
+    'pentacle-5': { upright: 3, reversed: 6 },
+    'cup-5': { upright: 3, reversed: 6 }
 };
 
 function normalizeDailyFortuneWeatherLevel(level) {
