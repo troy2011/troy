@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="robots" content="noindex,nofollow">
+    <meta name="theme-color" content="#132e37">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+    <link rel="icon" href="/Sprites/PirateIcon/Icon1.png">
+    <link rel="stylesheet" href="/css/pirate-tarot-artwork.css">
+    <link rel="stylesheet" href="/css/pirate-tarot-self.css">
+    <title>海賊タロット｜一枚から、自分の航路へ</title>
+</head>
+<body>
+    <a class="skip-link" href="#pickerHeading">カード選択へ</a>
+    <header class="masthead"><a href="/pirate-tarot.html" aria-label="海賊タロットの最初の画面へ"><span aria-hidden="true">✦</span> TROY <span class="brand-sub">PIRATE TAROT</span></a><span class="edition">一枚引き</span></header>
+    <main>
+        <section class="intro" aria-labelledby="pageTitle">
+            <p class="eyebrow">あなたが引いた一枚を、あなたの言葉に。</p>
+            <h1 id="pageTitle">一枚から、<br>自分の航路へ。</h1>
+            <p>手元の海賊タロットを一枚引いたら、<br class="wide-break">同じカードと向きを選んでください。</p>
+            <ol class="steps" aria-label="使い方"><li>実物を一枚引く</li><li>カードと向きを選ぶ</li><li>メッセージを読む</li></ol>
+        </section>
+        <p id="loadStatus" class="status" role="status" aria-live="polite">カードを準備しています…</p>
+        <button id="retryLoad" type="button" hidden>もう一度読み込む</button>
+        <section id="picker" class="panel" aria-labelledby="pickerHeading" hidden>
+            <div class="section-heading"><div><p class="eyebrow">YOUR CARD</p><h2 id="pickerHeading" tabindex="-1">引いたカードを選ぶ</h2></div><span id="cardCount" class="muted"></span></div>
+            <label class="search-field" for="cardSearch">カード名・番号で探す<input id="cardSearch" type="search" placeholder="例：愚者、ソード3、カップ 14" autocomplete="off" aria-controls="cardGrid"></label>
+            <div id="deckFilters" class="filters" role="group" aria-label="カードの種類"></div>
+            <div class="search-summary"><span id="searchCount" role="status" aria-live="polite"></span><button id="clearSearch" type="button" class="text-button">検索をクリア</button></div>
+            <div id="cardGrid" class="card-grid" role="group" aria-label="78枚の海賊タロット"></div>
+            <p id="emptySearch" hidden>見つかりませんでした。カード名の一部や、スートを変えて探してみてください。</p>
+        </section>
+        <section id="selection" class="panel selection" aria-labelledby="selectionHeading" hidden>
+            <h2 id="selectionHeading" tabindex="-1">このカードで合っていますか？</h2>
+            <div class="selection-content"><div id="selectedArt" class="selected-art"></div><div class="selection-copy"><p class="eyebrow">SELECTED CARD</p><h3 id="selectedLabel"></h3><p class="muted">実物のカードの向きを選んでください。絵の上が自分から見て上なら正位置、下なら逆位置です。</p><fieldset><legend>カードの向き</legend><label class="direction"><input type="radio" name="orientation" value="upright">正位置 <span>↑ 絵が上向き</span></label><label class="direction"><input type="radio" name="orientation" value="reversed">逆位置 <span>↓ 絵が逆さま</span></label></fieldset><button id="showReading" class="primary" type="button" disabled>この一枚のメッセージを読む</button><button id="changeCard" class="text-button" type="button">カードを選び直す</button></div></div>
+        </section>
+        <section id="result" class="panel result" aria-labelledby="resultHeading" hidden>
+            <p class="eyebrow">A MESSAGE FOR YOUR VOYAGE</p>
+            <h2 id="resultHeading" tabindex="-1">今のあなたへのメッセージ</h2>
+            <div class="result-layout"><div><div id="resultArt" class="result-art"></div><h3 id="resultLabel"></h3><p id="resultDirection" class="muted"></p></div><div class="reading-copy"><p id="resultKeywords" class="keywords"></p><p class="reading-intro">この札のテーマを、今の自分に重なるところから読んでみてください。</p><h3>自分を見つめるヒント</h3><p id="resultPoint"></p><h3>小さく試せること</h3><p id="resultAction"></p><h3>心に留めたいこと</h3><p id="resultCaution"></p><div class="reflection"><span>航海ノートの問い</span><p>今の自分に重なる言葉はどれですか？<br>今日できそうな、小さな一歩を一つ考えてみましょう。</p></div></div></div>
+            <p class="reading-note">占いは、気持ちや状況を整理するためのヒントです。未来や他人の気持ちを確定するものではありません。しっくりこない言葉は受け流し、大切な判断は現実の情報も確かめながら、自分の意思で選んでください。</p>
+            <button id="readAgain" class="primary" type="button">カード・向きを選び直す</button>
+        </section>
+        <noscript><p class="panel">このページを使うにはJavaScriptを有効にしてください。</p></noscript>
+        <footer><span>TROY · 海賊タロット</span><p>引いたカードに、ひと息ついて向き合う時間を。</p></footer>
+    </main>
+    <script type="module" src="/js/pirateTarotSelf.js"></script>
+</body>
+</html>
