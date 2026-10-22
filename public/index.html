@@ -16,7 +16,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://static.line-scdn.net" crossorigin>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet"></noscript>
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" href="/Sprites/PirateIcon/Icon1.png">
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
@@ -32,7 +33,10 @@
 
 <body class="app-booting home-v3">
     <div id="bootSplash" class="boot-splash" aria-label="TROY 起動中">
-        <img src="./Sprites/background/title.webp" alt="TROY" class="boot-splash-title" decoding="async" fetchpriority="high">
+        <picture>
+            <source type="image/avif" srcset="./assets/ui/boot/title.avif">
+            <img src="./Sprites/background/title.webp" alt="TROY" class="boot-splash-title" decoding="async" fetchpriority="high" onerror="this.onerror=null;const source=this.parentElement.querySelector('source');if(source)source.remove()">
+        </picture>
         <div class="boot-splash-spinner" aria-hidden="true"></div>
         <a class="boot-shop-link" href="/shop/">海賊酒場TROYの店舗情報・営業時間</a>
     </div>
@@ -1763,10 +1767,12 @@
         "./js/playerProfile.js": "./js/playerProfile.js?v=20261003-profile-cache-v2",
         "./js/playerBootstrapCache.js": "./js/playerBootstrapCache.js?v=20261003-profile-cache-v2",
         "./js/troy.js": "./js/troy.js?v=20261003-profile-cache-v2",
-"ui": "./js/ui.js?v=20261022-pirate-tarot-artwork-v1",
+        "ui": "./js/ui.js?v=20261022-startup-kingdom-v1",
+        "./js/ui.js": "./js/ui.js?v=20261022-startup-kingdom-v1",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js?v=20261003-profile-cache-v2",
-"inventory": "./js/inventory.js?v=20261022-pirate-tarot-artwork-v1",
+        "inventory": "./js/inventory.js?v=20261022-pirate-tarot-artwork-v1",
+        "./js/inventory.js": "./js/inventory.js?v=20261022-pirate-tarot-artwork-v1",
         "game": "./Game.js?v=20260727-nav-guide1"
       }
     }
@@ -1808,6 +1814,6 @@
     </div>
 
     <!-- Scripts -->
-<script type="module" src="main.js?v=20261022-pirate-tarot-artwork-v1"></script>
+<script type="module" src="main.js?v=20261022-startup-kingdom-v1"></script>
 </body>
 </html>

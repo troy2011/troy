@@ -3,6 +3,7 @@ const http = require('http');
 const path = require('path');
 
 const MIME_TYPES = {
+  '.avif': 'image/avif',
   '.css': 'text/css; charset=utf-8',
   '.gif': 'image/gif',
   '.html': 'text/html; charset=utf-8',

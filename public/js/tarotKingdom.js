@@ -474,7 +474,7 @@ const LEGACY_HAND_SIZE = 6;
 const KINGDOM_FORCED_DRAW_DEATH_THRESHOLD = 3;
 const KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO = 'hp-zero';
 const KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY = 'hand-empty';
-const KINGDOM_RULES_VERSION = 27;
+const KINGDOM_RULES_VERSION = 28;
 const TOTAL_HANDS = 4;
 const START_CHIPS = 100;
 const A_PENALTY = 1;
@@ -6861,7 +6861,29 @@ function doesKingdomCarryHpBetweenRounds(state = s) {
 }
 
 function doesKingdomForcedDrawDeathApply(state = s) {
+  if (areKingdomOpeningRescueRulesEnabled(state)) return false;
   return Number(state?.rules?.forcedDrawDeathVersion || 0) >= 1;
+}
+
+// The card-match proposal does not change exploration, raids, or saved old matches.
+function areKingdomOpeningRescueRulesEnabled(state = s) {
+  return Number(state?.rules?.openingRescueVersion || 0) >= 1
+    && !state?.stage
+    && !state?.raid
+    && state?.tutorialEnabled !== true
+    && (state !== s || !kingdomExplorationSession);
+}
+
+function isKingdomFinalCardOpening(play, mode = 'normal') {
+  const owner = Number(play?.owner);
+  return areKingdomOpeningRescueRulesEnabled()
+    && !s.trick
+    && mode !== 'call'
+    && play?.type === 'set'
+    && Number(s.turn) === owner
+    && (s.leadRequiredOwner == null || Number(s.leadRequiredOwner) === owner)
+    && s.players?.[owner]?.hand?.length === 1
+    && play.cardsHand?.length === 1;
 }
 
 function getKingdomSkillAttackDuration(_effectCount = 0, state = s) {
@@ -13817,6 +13839,7 @@ function normalizeKingdomRules(
   );
   return {
     version: KINGDOM_RULES_VERSION,
+    openingRescueVersion: Math.max(0, Math.min(1, Math.floor(Number(incoming.openingRescueVersion) || 0))),
     initialHandSize,
     handLimit,
     playerCount: normalizeKingdomPlayerCount(incoming.playerCount, PLAYERS.length),
@@ -13968,6 +13991,7 @@ function createKingdomPresentationEpoch() {
 function initState() {
   const playerTemplates = getKingdomInitialPlayerTemplates();
   const rules = normalizeKingdomRules({
+    openingRescueVersion: kingdomExplorationSession ? 0 : 1,
     playerCount: playerTemplates.length
   });
   const npcPolicySeeds = playerTemplates.map((player, playerIndex) => (
@@ -17413,6 +17437,8 @@ function buildTarotKingdomDebugBattleState(options = {}) {
   kingdomCombatRandom = () => 0.5;
   s = initState();
   s.tutorialEnabled = options.tutorialEnabled === true;
+  // Existing combat fixtures describe legacy combat rules; match tests opt in explicitly.
+  s.rules.openingRescueVersion = 0;
   if (options.rules) s.rules = normalizeKingdomRules(options.rules);
   if (options.stage && typeof options.stage === 'object') {
     s.stage = normalizeKingdomExplorationStageState(options.stage);
@@ -20349,6 +20375,11 @@ function getKingdomPlayHarmony(play, trick) {
 function validatePlay(play, mode) {
   const tutorialPlayGateViolation = getKingdomTutorialPlayGateViolation(play, mode);
   if (tutorialPlayGateViolation) return { ok: false, reason: tutorialPlayGateViolation };
+  const finalOpening = isKingdomFinalCardOpening(play, mode);
+  if (finalOpening) return { ok: true };
+  if (areKingdomOpeningRescueRulesEnabled() && !s.trick && isSingleMajorSetPlay(play, 21)) {
+    return { ok: false, reason: '世界21は初手には出せません（手札が最後の1枚の場合を除く）。' };
+  }
   const aceAbilityPlayViolation = getAceAbilityPlayViolation(play, mode);
   if (aceAbilityPlayViolation) return { ok: false, reason: aceAbilityPlayViolation };
   const majorSuitGateViolation = getMajorSuitGateViolation(play, mode);
@@ -21840,6 +21871,10 @@ function continueAfterPlay(pi, play) {
   if (playToken && getKingdomPlayToken(s.lastPlay) !== playToken) return;
   if (!playToken && (s.lastPlay !== play || s.trick !== play)) return;
   const p = s.players[pi];
+  if (areKingdomOpeningRescueRulesEnabled() && p.hand.length === 0) {
+    finishKingdomEmptyHandPlay(pi, play);
+    return;
+  }
   if (play?.type === 'role' && play?.call) {
     const pendingWorldTimeStop = String(play?.role?.key || '') === 'TheWorld'
       && s?.battle?.pendingWorldTimeStop
@@ -21907,15 +21942,7 @@ function continueAfterPlay(pi, play) {
     return;
   }
   if (p.hand.length <= 0) {
-    if (play?.type === 'role') {
-      p.stars = Math.max(0, Number(p.stars) || 0) + 1;
-      if (areKingdomArcanaPointRulesEnabled()) {
-        p.arcanaPoints = Math.max(0, Number(p.arcanaPoints) || 0) + 1;
-      }
-      applyRoleRewardOnClear(pi);
-    }
-    markKingdomBattleVictory(pi);
-    startRoundOutCinematic(pi, play);
+    finishKingdomEmptyHandPlay(pi, play);
     return;
   }
   if (play.type === 'set') {
@@ -21940,6 +21967,19 @@ function continueAfterPlay(pi, play) {
   s.message = `${pName(s.turn)}のターン`;
   scheduleNpc();
   render();
+}
+
+function finishKingdomEmptyHandPlay(playerIndex, play) {
+  const player = s.players[playerIndex];
+  if (play?.type === 'role') {
+    player.stars = Math.max(0, Number(player.stars) || 0) + 1;
+    if (areKingdomArcanaPointRulesEnabled()) {
+      player.arcanaPoints = Math.max(0, Number(player.arcanaPoints) || 0) + 1;
+    }
+    applyRoleRewardOnClear(playerIndex);
+  }
+  markKingdomBattleVictory(playerIndex);
+  startRoundOutCinematic(playerIndex, play);
 }
 
 function getRoundFinishActionLabel(play) {
@@ -22221,6 +22261,11 @@ function applyPlay(pi, play, retryDepth = 0) {
   }].slice(-16);
   s.lastTurnAction = { type: 'play', playerIndex: pi, handNo: s.handNo };
   s.turn = pi;
+  // A legal empty-hand play wins before attacks, World draws, or other card effects.
+  if (areKingdomOpeningRescueRulesEnabled() && p.hand.length === 0) {
+    finishKingdomEmptyHandPlay(pi, play);
+    return;
+  }
   const attackEvent = applyKingdomPlayerAttack(pi, play);
   recordKingdomRHistoryAfterPlay(pi, play, attackEvent);
   const resonanceTriggerEvents = resolveKingdomResonanceTriggers('after-play', {
@@ -29534,6 +29579,7 @@ let kingdomRulebookPreviousFocus = null;
 
 function setKingdomRulebookOpen(open, { restoreFocus = true } = {}) {
   if (!ui.rulebook || !ui.rulebookButton) return;
+  ui.rulebook.querySelector('[data-opening-rescue-rules]')?.toggleAttribute('hidden', !areKingdomOpeningRescueRulesEnabled());
   const shouldOpen = open === true;
   if (shouldOpen && ui.rulebook.hidden) {
     kingdomRulebookPreviousFocus = document.activeElement instanceof HTMLElement
@@ -29842,7 +29888,7 @@ function ensureKingdomRulebookUi() {
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(15, '悪魔 XV'))}<span>悪魔 XV</span></dt><dd>小アルカナのコート札専用。11バックを無視して出せます。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(16, '塔 XVI'))}<span>塔〜太陽 XVI–XIX</span></dt><dd>対応する同スートの1枚場専用で、初手不可。塔＝ソード、星＝カップ、月＝ペンタクル、太陽＝ワンド。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(20, '審判 XX'))}<span>審判 XX</span></dt><dd>通常の出し方で使えます。11バックを切り替え、この札で場を流したプレイヤーが墓地の小アルカナ1枚を回収します。</dd></div>
-                <div><dt>${rulebookCardMarkup(rulebookMajorCard(21, '世界 XXI'))}<span>世界 XXI</span></dt><dd>大アルカナ1枚場へ返して即クリア。11バック中は使用不可。</dd></div>
+                <div><dt>${rulebookCardMarkup(rulebookMajorCard(21, '世界 XXI'))}<span>世界 XXI</span></dt><dd>通常の初手には出せません。大アルカナ1枚場へ返して即クリア。11バック中は使用不可。</dd></div>
               </dl>
             </div>
           </section>
@@ -29948,6 +29994,10 @@ function ensureKingdomRulebookUi() {
           <section id="tarotKingdomRulesHelp" class="tarot-kingdom-rulebook-section is-checklist" tabindex="-1">
             <span class="tarot-kingdom-rulebook-section-no">06 / QUICK JUDGE</span>
             <h3>出せない時の確認</h3>
+            <div class="tarot-kingdom-rulebook-note" data-opening-rescue-rules hidden>
+              <strong>通常対戦の初手救済</strong>
+              <span>自分が親で場に札がなく、最後の1枚なら、世界21を含め初手の出札条件を解除します。それ以外で初手が出せない親は1枚引き、まだ出せなければ次の人へ親を渡します。強制ドロー3回による脱落はありません。合法に出して手札0になったら、札の効果より先に勝利します。スキップの効果や、場札への重ね出し条件は変わりません。全員が初手不能で山札切れ、または全員が補充不能なら、従来どおり引き分け・再戦です。</span>
+            </div>
             <ul>
               <li>場と同じ枚数を選んでいる？</li>
               <li>通常出しの複数枚は同じ数字？</li>
