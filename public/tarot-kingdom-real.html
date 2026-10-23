@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="robots" content="noindex,nofollow">
+    <meta name="theme-color" content="#132e37">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'">
+    <link rel="icon" href="/Sprites/PirateIcon/Icon1.png">
+    <link rel="stylesheet" href="/css/tarot-kingdom-real.css">
+    <title>タロットキングダム｜実物版説明書</title>
+</head>
+<body>
+    <a class="skip-link" href="#preparation">遊び方の本文へ</a>
+    <header class="masthead"><a href="/pirate-tarot.html">← セルフ占いへ</a><span>TROY · 海賊タロット</span></header>
+    <main id="top">
+        <section class="intro" aria-labelledby="pageTitle">
+            <p class="eyebrow">TAROT KINGDOM · TABLETOP RULES</p>
+            <h1 id="pageTitle">タロット<br class="mobile-break">キングダム</h1>
+            <p class="subtitle">実物カードで遊ぶ、一局の説明書</p>
+            <p class="edition"><time datetime="2026-10-23">2026年10月23日版</time> · 初手救済ルール反映</p>
+            <div class="goal"><strong>先に手札を0枚にした人が勝ち。</strong><p>同じ数字の札や5枚役を重ね、手札を出し切りましょう。合法な出札で0枚になったら、札の効果より先に勝利します。</p></div>
+            <ul class="facts" aria-label="ゲームの概要"><li>3〜4人</li><li>78枚すべて使用</li><li>最初の手札8枚</li><li>手札上限8枚</li></ul>
+            <details class="revision"><summary>今回の採用ルールを確認する</summary><ul><li>初手を出せない親は1枚引き、まだ出せなければ次の人へ親を渡します。強制ドローの回数による脱落はありません。</li><li>自分が親で場が空、手札が最後の1枚なら、大札15〜19・21も初手に出せます。</li><li>世界21も、合法に出して手札0枚になれば勝利。場札への重ね出し条件は通常どおりです。</li></ul><p>一局の出し切り対戦を扱います。印刷用説明書「改訂1」以降に採用された初手救済と勝利優先を反映しています。</p></details>
+        </section>
+
+        <nav class="contents" aria-label="説明書の目次">
+            <h2>読みたいところへ</h2>
+            <ol><li><a href="#preparation">準備と配り方</a></li><li><a href="#turn">自分の番と札の強さ</a></li><li><a href="#clear">パス・場流し</a></li><li><a href="#roles">5枚役の一覧</a></li><li><a href="#call">コール</a></li><li><a href="#effects">数字の効果</a></li><li><a href="#major">大アルカナの条件</a></li><li><a href="#rescue">初手が出せないとき</a></li><li><a href="#reference">迷ったとき・用語</a></li></ol>
+        </nav>
+
+        <section id="preparation" class="rule-section" aria-labelledby="preparationTitle">
+            <p class="eyebrow">01 · SETUP</p><h2 id="preparationTitle">準備と配り方</h2>
+            <p>海賊タロット78枚（小アルカナ56枚＋大アルカナ22枚）を使います。本文では、小アルカナを<strong>小札</strong>、大アルカナを<strong>大札</strong>と呼びます。</p>
+            <ol><li>最初の親と、席を回る順番を全員で決めます。</li><li>78枚を混ぜ、親から席順に1枚ずつ、各自8枚になるまで配ります。</li><li>残りは裏向きの山札にします。</li><li>山札の一番上を1枚公開し、親が出した場札として置きます。その札の効果も適用し、通常は次の人から始めます。スキップや即流しなどが起きた場合は、その効果に従います。</li></ol>
+            <p>中央に「場」、各自の前に「自分の墓地」を用意します。大札と除外した札は、小札の墓地と分けて置きます。場の札は、誰が出したか分かるよう少しずつずらして重ねてください。</p>
+        </section>
+
+        <section id="turn" class="rule-section" aria-labelledby="turnTitle">
+            <p class="eyebrow">02 · YOUR TURN</p><h2 id="turnTitle">自分の番と札の強さ</h2>
+            <p>自分の番は<strong>通常出し・5枚役・コール・パス</strong>のいずれかを選びます。出せる札があってもパスできます。ただし、場が空の親はパスせず、出せない場合は<a href="#rescue">初手救済の手順</a>へ進みます。</p>
+            <h3>通常出し：同じ数字を1〜3枚</h3>
+            <p>場と<strong>同じ枚数</strong>で、より強い数字の組を出します。場が空なら、親が通常出しか5枚役で始めます。通常出しの場へ手札だけの5枚役を重ねることはできません。1枚場ならコールを使えます。</p>
+            <div class="example"><strong>小札の強さ（通常時）</strong><p class="rank-order">2 ＜ 3 ＜ 4 ＜ 5 ＜ 6 ＜ 7 ＜ 8 ＜ 9 ＜ 10 ＜ P（11）＜ N（12）＜ Q（13）＜ K（14）＜ A（15）</p><p>P＝ペイジ、N＝ナイト、Q＝クイーン、K＝キング。Aは通常15の強さです。大札1「魔術師」とは別の数字です。</p></div>
+            <p>大札は主数字で比較します。専用条件のある札は<a href="#major">大アルカナの条件</a>も満たす必要があります。11バック中は数字の強弱が逆になります。</p>
+            <h3>同じ強さなら「調和」</h3>
+            <p>通常出しが同値なら、<strong>大札入りは小札だけの組より優先</strong>されます。場に大札があるとき、小札だけの同値では返せません。それ以外の同値は、組に次の調和ペアが1対でもあれば返せます。</p>
+            <ul class="harmony"><li>ワンド ↔ ソード</li><li>カップ ↔ コイン（ペンタクル）</li></ul>
+            <p>スート（札の種類）そのものに固定の順位はありません。</p>
+            <div class="example"><strong>出し方の例</strong><p>カップ6 → ソード7：数字が強いので出せます。<br>ソード7 → ワンド7：同値でも調和なので出せます。</p></div>
+        </section>
+
+        <section id="clear" class="rule-section" aria-labelledby="clearTitle">
+            <p class="eyebrow">03 · PASS &amp; CLEAR</p><h2 id="clearTitle">パスと場流し</h2>
+            <p>最後に札を出した人以外の全員がパスしたら、場を流します。<strong>誰かが新しく札を出せば、全員のパスを解除</strong>します。パスしていても、その後に誰かが出せば再び参加できます。スキップされた人は、パスした扱いにはなりません。</p>
+            <ol><li>場の小札を、出した人それぞれの墓地へ移します。コールに使った場札も、元の出し手の墓地へ戻します。大札と除外札は別置きにします。</li><li>11バック・ロイヤルロック・8の制限・全員のパスを解除します。</li><li>最後に札を出した人が、次の親になります。</li><li>12トラッシュや審判の回収がある場合は、その処理を先に行います。</li><li>親は手札8枚未満で山札があれば、初手前に任意で1枚引けます。初手を作れない場合は<a href="#rescue">初手救済</a>を先に確認します。</li></ol>
+            <p>場に返せないときのパスと、場が空の親が出せないときの救済は、別の手順です。</p>
+        </section>
+
+        <section id="roles" class="rule-section" aria-labelledby="rolesTitle">
+            <p class="eyebrow">04 · FIVE-CARD HANDS</p><h2 id="rolesTitle">5枚役の一覧</h2>
+            <p>手札5枚で役を作ります。<strong>下にいくほど強い</strong>順です。5枚役の場には、より強い役を出します。</p>
+            <ol class="role-list" aria-label="5枚役の強さ（弱い順）">
+                <li><h3>ストレート</h3><p>数字が5つ連続。</p></li>
+                <li><h3>フラッシュ</h3><p>同じスート5枚。大札5枚もフラッシュです。</p></li>
+                <li><h3>フルハウス</h3><p>同じ数字3枚＋別の同じ数字2枚。</p></li>
+                <li><h3>フォーカード</h3><p>同じ数字4枚＋自由な1枚。</p></li>
+                <li><h3>ザ・ワールド</h3><p>世界21を含む大札5枚。</p></li>
+                <li><h3>ストレートフラッシュ</h3><p>同じスートで、数字が5つ連続。</p></li>
+                <li><h3>ファイブカード</h3><p>大札などを使い、同じ数字5枚。</p></li>
+            </ol>
+            <p>Aを1として使えるのは<strong>A・2・3・4・5</strong>の連続だけです。世界21入りの大札5枚はザ・ワールドとして扱います。大札0「愚者」は5枚役の数字ワイルドに使えますが、スートは持ちません。</p>
+            <details><summary>同じ役同士の比べ方</summary><ul><li>ストレート・ストレートフラッシュ：連続する数字の最大値。</li><li>フルハウス：3枚側の数字、同じなら2枚側。</li><li>フォーカード：4枚側の数字、同じなら残り1枚。</li><li>フラッシュ：大きい数字から順に比較。</li></ul><p>同役・同値まで一致したら、調和ペアで返せます。11バックでも役そのものの順位は変わりません。</p></details>
+        </section>
+
+        <section id="call" class="rule-section" aria-labelledby="callTitle">
+            <p class="eyebrow">05 · CALL</p><h2 id="callTitle">コール：場1枚＋手札4枚</h2>
+            <p>1枚の場札に手札4枚を足し、5枚役を作る出し方です。場札は自分の手札へ入れず、そのまま役の一部として使います。大札の場札にコールできるのは<strong>ザ・ワールドだけ</strong>です。</p>
+            <div class="example"><strong>ストレートの例</strong><p>場のカップ6＋手札の3・4・5・7で、3〜7のストレートを作れます。ただし、ほかの手札も含めて6を持っていると、このコールはできません。</p></div>
+            <h3>コールできない3つの条件</h3>
+            <ul><li>ストレート：場札と同じ数字の札が、自分の手札のどこかにある。</li><li>フラッシュ：場札と同じスートが、自分の手札に5枚以上ある。</li><li>フラッシュ：場札が、その5枚の最強札になる。</li></ul>
+            <p>成立後は、8の「コールかパスのみ」の制限・11バック・ロイヤルロックを解除します。以後は5枚役の場として進めます。手札4枚を使い切ったなら、その時点で勝利です。</p>
+        </section>
+
+        <section id="effects" class="rule-section" aria-labelledby="effectsTitle">
+            <p class="eyebrow">06 · NUMBER EFFECTS</p><h2 id="effectsTitle">通常出しで働く数字の効果</h2>
+            <dl class="effect-list">
+                <div><dt>5 · スキップ</dt><dd>小札5は出した枚数ぶん、次の人を飛ばします。大札5「法王」は2人を飛ばします。3人戦の大札5は自分に番が戻ります。スキップはパス扱いにしません。</dd></div>
+                <div><dt>8 · カット</dt><dd>1枚なら、以後はコールかパスのみ。2枚以上なら即座に場を流します。大札8「力」1枚には、条件を満たした世界21でも返せます。</dd></div>
+                <div><dt>11 · バック</dt><dd>小札P（11）または大札11「正義」で、数字の強弱を反転。もう一度11を出すか、場を流すと解除します。役の順位は変わりません。</dd></div>
+                <div><dt>12 · トラッシュ</dt><dd>小札N（12）の1枚出しが、ほかの全員のパスで流れたら、手札1枚を除外できます。手札が1枚のときは除外できず、この処理では上がれません。最初に公開した開始札は対象外です。</dd></div>
+                <div><dt>Q・K · ロイヤルロック</dt><dd>同じスートの1枚場へ小札Q・Kを1枚出すと、スートを固定します。以後そのスートで返します。大札14「節制」、コール成立、または場流しで解除します。</dd></div>
+            </dl>
+            <p class="note">合法に出して手札が0枚になったときは、スキップや場流しなどの効果を処理する前に、その人の勝利です。</p>
+        </section>
+
+        <section id="major" class="rule-section" aria-labelledby="majorTitle">
+            <p class="eyebrow">07 · MAJOR ARCANA</p><h2 id="majorTitle">大アルカナの専用条件</h2>
+            <p>次は主に<strong>通常出し</strong>の条件です。5枚役・コールの条件と分けて確認してください。</p>
+            <dl class="effect-list">
+                <div><dt>0 · 愚者</dt><dd>5枚役では数字ワイルド。スートはありません。</dd></div>
+                <div><dt>1 · 魔術師</dt><dd>数字は1で、全スートを持ちます。小札Aとは別数字です。</dd></div>
+                <div><dt>15 · 悪魔</dt><dd>小札P・N・Q・Kの1枚場に、1枚で返す専用札です。11バックの強弱を無視して返せます。通常は初手に出せません。</dd></div>
+                <div><dt>16 · 塔 ／ 17 · 星 ／ 18 · 月 ／ 19 · 太陽</dt><dd>対応する同じスートの1枚場へ出します。数字の強弱も満たす必要があります。通常は初手に出せません。<ul><li>16 塔 → ソード</li><li>17 星 → カップ</li><li>18 月 → コイン（ペンタクル）</li><li>19 太陽 → ワンド</li></ul></dd></div>
+                <div><dt>20 · 審判</dt><dd>11バックを切り替えます。その後、その場を流して親になった人は、他人の墓地から小札1枚を回収できます。手札上限は8枚。自分の墓地からは回収できません。</dd></div>
+                <div><dt>21 · 世界</dt><dd>大札1枚の場に1枚で返し、即座に場を流します。11バック中は返せません。通常は初手に出せませんが、<strong>自分が親で場が空、最後の1枚なら出せます</strong>。合法に出して手札0枚になれば、その場で勝利です。</dd></div>
+            </dl>
+            <p><strong>小札Aの1枚場は、大札で返せません。</strong>大札のスートは1・16〜19に示したものだけで、それ以外はスートなしです。</p>
+            <p class="note">15〜19・21の初手制限には、下の「最後の1枚」の共通例外があります。場札があるときは、最後の1枚でも専用条件や強弱を満たしてください。</p>
+        </section>
+
+        <section id="rescue" class="rule-section rescue" aria-labelledby="rescueTitle">
+            <p class="eyebrow">08 · OPENING RESCUE</p><h2 id="rescueTitle">初手が出せないとき</h2>
+            <p>これは<strong>自分が親で、場に札がないとき</strong>の手順です。</p>
+            <ol><li><strong>最後の1枚なら、その札を出せます。</strong>世界21や大札15〜19も初手制限を解除します。山札を引くより先に確認し、出して手札0枚なら勝利です。</li><li>手札が2枚以上で初手を作れなければ、山札があり手札上限未満のときに1枚引きます。</li><li>引いた後に初手を作れれば、その人が親を続けて出します。まだ出せない、または引けないなら、次の人へ親を渡します。</li><li>全員が初手を作れず、山札が空か全員が補充不能なら、引き分けとして78枚を混ぜて配り直します。山札切れだけで即終了にはせず、出せる人がいれば続行します。</li></ol>
+            <p><strong>強制ドローの回数は記録しません。3回引いても脱落しません。</strong>旧説明書の行動不能・残り1人で勝者なしの処理は、この実物版では使いません。</p>
+            <div class="example"><strong>世界が最後の1枚の例</strong><p>自分が親で空の場 → 世界21を出して勝利。<br>場が小札7 → 世界21では返せません。<br>場が大札10、11バックなし → 世界21で返して勝利。</p></div>
+        </section>
+
+        <section id="reference" class="rule-section" aria-labelledby="referenceTitle">
+            <p class="eyebrow">09 · QUICK REFERENCE</p><h2 id="referenceTitle">迷ったときの確認</h2>
+            <ul class="checklist"><li>通常出しは、場と同じ枚数で、同じ数字の1〜3枚ですか？</li><li>Aと大札1を同じ数字として混ぜていませんか？</li><li>同値なら、大札優先と調和の条件を満たしていますか？</li><li>8・11バック・ロイヤルロックがかかっていませんか？</li><li>大札の専用条件、コールの3つの禁止条件を満たしていますか？</li><li>最後の1枚の救済は、自分が親で場が空のときですか？</li></ul>
+            <h3>用語</h3><dl class="glossary"><div><dt>親</dt><dd>空の場で最初に札を出す人。</dd></div><div><dt>場</dt><dd>今、返す対象となる札や役。以前の提出札も、場流しまで出し手別に残します。</dd></div><div><dt>墓地</dt><dd>場が流れた小札を、元の出し手別に置く場所。山札へ混ぜ直しません。</dd></div><div><dt>除外</dt><dd>12トラッシュで手札から外した札。墓地とは別に置きます。</dd></div></dl>
+            <p class="scope">この説明書は実物カードでの一局の対戦用です。アプリの探索・HP戦闘・人物やペットの能力・4局のチップ清算は扱いません。</p>
+            <p class="source-note">採用基準：2026年10月23日確認の公開版にある通常対戦の初手救済・手札0枚の勝利優先と、印刷用説明書「改訂1」のカード進行。</p>
+        </section>
+        <footer><a href="#top">↑ 目次のある先頭へ</a><a href="/pirate-tarot.html">← セルフ占いへ</a><p>TROY · 海賊タロット</p></footer>
+    </main>
+</body>
+</html>

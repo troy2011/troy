@@ -25,6 +25,10 @@ main { max-width: 1040px; padding: 0 24px; margin: auto; }
 .intro > p:not(.eyebrow) { color: #536769; }
 .steps { padding: 0; display: flex; gap: 28px; font-size: 13px; margin: 26px 0 0; list-style-position: inside; }
 .steps li::marker { color: #9c7533; }
+.rulebook-entry { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 18px 0; margin-bottom: 28px; border-top: 1px solid #d6d8cc; border-bottom: 1px solid #d6d8cc; }
+.rulebook-entry strong { font-size: 14px; }
+.rulebook-entry p { font-size: 13px; color: #536769; }
+.rulebook-entry a { display: inline-flex; align-items: center; gap: 18px; min-height: 46px; color: #173e46; font-size: 14px; font-weight: 700; text-underline-offset: 5px; }
 .status { color: #536769; }
 .panel { background: #fffdf8; border: 1px solid #d9dccf; border-radius: 14px; padding: 28px; margin-bottom: 24px; scroll-margin-top: 20px; }
 .section-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 24px; }
