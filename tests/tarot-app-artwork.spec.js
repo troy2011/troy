@@ -5,7 +5,7 @@ const { bootstrapMainApp, trackPageErrors, expectNoPageErrors } = require('./hel
 const { __test: fortune } = require('../server/tarotFortune');
 const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/assets/pirate-tarot/manifest.json')));
 const output = process.env.PIRATE_APP_ARTWORK_EVIDENCE;
-const imageUrl = id => `/assets/pirate-tarot/cards/${id}.webp?v=${manifest.assetVersion}`;
+const imageUrl = id => `/assets/pirate-tarot/cards/${id}.webp?v=${manifest.assetVersion}&delivery=20261025`;
 
 async function isolate(page) {
     const blocked = [];
@@ -73,7 +73,7 @@ test('home daily fortune reveals the adopted minor upright once and keeps result
     await bootstrapMainApp(page);
     await page.locator('#btnDailyFortune').click();
     await expect(page.locator('#dailyTarotFortuneCardHost img[data-artwork-side="front"]')).toHaveCount(0);
-    await expect(page.locator('#dailyTarotFortuneCardHost img[data-artwork-side="back"]')).toHaveAttribute('src', `/assets/pirate-tarot/back.webp?v=${manifest.assetVersion}`);
+    await expect(page.locator('#dailyTarotFortuneCardHost img[data-artwork-side="back"]')).toHaveAttribute('src', `/assets/pirate-tarot/back.webp?v=${manifest.assetVersion}&delivery=20261025`);
     await waitImage(page.locator('#dailyTarotFortuneCardHost img[data-artwork-side="back"]'));
     await screenshotModal(page, 'daily-fortune-mobile-back.png');
     expect(requestedArtwork).toEqual([]);

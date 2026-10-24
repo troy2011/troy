@@ -208,7 +208,7 @@ test('artwork identity resolver covers catalog aliases and removes art for non-t
   });
   expect(new Set(result.ids).size).toBe(78);
   expect(result.ids).not.toContain(null);
-  expect(result.image).toBe(`/assets/pirate-tarot/cards/cup-king.webp?v=${artwork.assetVersion}`);
+  expect(result.image).toBe(`/assets/pirate-tarot/cards/cup-king.webp?v=${artwork.assetVersion}&delivery=20261025`);
   expect(result.remaining).toBe(0);
   expect(result.invalid).toEqual([null, null]);
 });

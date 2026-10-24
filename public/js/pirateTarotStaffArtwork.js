@@ -1,4 +1,4 @@
-import { createPirateTarotImage } from './pirateTarotArtwork.js?v=20261024-pirate-v8';
+import { createPirateTarotImage } from './pirateTarotArtwork.js?v=20261025-pirate-delivery-v2';
 
 // Add artwork without changing the staff reading engine, customer list, or send flow.
 const grid = document.getElementById('tarotCardGrid');

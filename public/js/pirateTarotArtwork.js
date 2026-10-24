@@ -1,5 +1,9 @@
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../assets/pirate-tarot/version.js';
 
+// The first v8 deployment cached old origin bytes under the new content-version URL.
+// A separate delivery revision preserves the adopted artwork hash and skips those cache entries.
+const ARTWORK_DELIVERY_REVISION = '20261025';
+
 const SUITS = { wand: 'wand', wands: 'wand', cup: 'cup', cups: 'cup', sword: 'sword', swords: 'sword', pentacle: 'pentacle', pentacles: 'pentacle', coins: 'pentacle' };
 const FACES = { PAGE: 'page', P: 'page', 'ペイジ': 'page', KNIGHT: 'knight', N: 'knight', 'ナイト': 'knight', QUEEN: 'queen', Q: 'queen', 'クイーン': 'queen', KING: 'king', K: 'king', 'キング': 'king', 11: 'page', 12: 'knight', 13: 'queen', 14: 'king' };
 
@@ -23,7 +27,7 @@ export function createPirateTarotImage(cardInput, { label = '', thumbnail = fals
     if (!id) return null;
     const image = document.createElement('img');
     image.className = 'pirate-tarot-artwork';
-    image.src = `/assets/pirate-tarot/${thumbnail ? 'thumbs' : 'cards'}/${id}.webp?v=${PIRATE_TAROT_ARTWORK_VERSION}`;
+    image.src = `/assets/pirate-tarot/${thumbnail ? 'thumbs' : 'cards'}/${id}.webp?v=${PIRATE_TAROT_ARTWORK_VERSION}&delivery=${ARTWORK_DELIVERY_REVISION}`;
     image.alt = label ? `${label}の採用カード${reversed ? '（逆位置）' : ''}` : '';
     image.width = thumbnail ? 160 : 640;
     image.height = thumbnail ? 240 : 960;
@@ -72,7 +76,7 @@ export function renderDailyTarotBackArtwork(host) {
     host.classList.remove('has-pirate-artwork');
     const image = document.createElement('img');
     image.className = 'pirate-tarot-artwork';
-    image.src = `/assets/pirate-tarot/back.webp?v=${PIRATE_TAROT_ARTWORK_VERSION}`;
+    image.src = `/assets/pirate-tarot/back.webp?v=${PIRATE_TAROT_ARTWORK_VERSION}&delivery=${ARTWORK_DELIVERY_REVISION}`;
     image.alt = '';
     image.width = 640;
     image.height = 960;
