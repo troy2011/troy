@@ -1,4 +1,4 @@
-import { renderInventoryTarotArtwork } from './pirateTarotArtwork.js';
+import { renderInventoryTarotArtwork } from './pirateTarotArtwork.js?v=20261024-pirate-v8';
 // c:/Users/ikeda/my-liff-app/public/js/inventory.js
 
 import {

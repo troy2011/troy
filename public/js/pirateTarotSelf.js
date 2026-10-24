@@ -1,4 +1,4 @@
-import { createPirateTarotImage } from './pirateTarotArtwork.js';
+import { createPirateTarotImage } from './pirateTarotArtwork.js?v=20261024-pirate-v8';
 
 const $ = (id) => document.getElementById(id);
 const decks = [['all', 'すべて'], ['major', '大アルカナ'], ['wand', 'ワンド'], ['cup', 'カップ'], ['sword', 'ソード'], ['pentacle', 'ペンタクル（金貨）']];

@@ -151,7 +151,7 @@ test('data loading failure can retry and missing artwork preserves the reading c
   await guard(page);
   let fail = true;
   await page.route('**/data/pirate-self-readings.json', (route) => fail ? route.fulfill({ status: 503, body: '{}' }) : route.continue());
-  await page.route('**/assets/pirate-tarot/cards/major-0.webp', (route) => route.fulfill({ status: 404, body: '' }));
+  await page.route('**/assets/pirate-tarot/cards/major-0.webp*', (route) => route.fulfill({ status: 404, body: '' }));
   await page.goto('/pirate-tarot.html');
   await expect(page.locator('#retryLoad')).toBeVisible();
   fail = false;
@@ -174,7 +174,7 @@ test('staff artwork follows single and triple selections while sending remains u
   await page.goto('/tarot-reading.html');
   await expect(page.locator('#tarotCardGrid button img')).toHaveCount(22);
   await page.locator('[data-card-id="major-6"]').click();
-  await expect(page.locator('.pirate-tarot-staff-gallery img')).toHaveAttribute('src', /major-6.webp$/);
+  await expect(page.locator('.pirate-tarot-staff-gallery img')).toHaveAttribute('src', /major-6\.webp\?v=/);
   await page.locator('[data-orientation="reversed"]').click();
   await expect(page.locator('.pirate-tarot-staff-gallery img')).toHaveClass(/is-reversed/);
   await page.locator('[data-spread-mode="triple"]').click();
@@ -208,7 +208,7 @@ test('artwork identity resolver covers catalog aliases and removes art for non-t
   });
   expect(new Set(result.ids).size).toBe(78);
   expect(result.ids).not.toContain(null);
-  expect(result.image).toBe('/assets/pirate-tarot/cards/cup-king.webp');
+  expect(result.image).toBe(`/assets/pirate-tarot/cards/cup-king.webp?v=${artwork.assetVersion}`);
   expect(result.remaining).toBe(0);
   expect(result.invalid).toEqual([null, null]);
 });

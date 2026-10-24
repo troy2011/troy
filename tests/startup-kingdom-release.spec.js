@@ -9,6 +9,9 @@ test('new entry URLs bypass old cached modules while new and legacy games keep s
     const imports = JSON.parse(html.match(/<script type="importmap">([\s\S]*?)<\/script>/)[1]).imports;
     const main = html.match(/src="(main\.js\?v=[^"]+)"/)[1];
     const version = new URL(main, baseURL).searchParams.get('v');
+    const previewHtml = fs.readFileSync(path.join(root, 'public/tarot-kingdom-preview.html'), 'utf8');
+    const kingdomEntry = previewHtml.match(/from '([^']*tarotKingdom\.js\?v=[^']+)'/)[1];
+    const kingdomUrl = new URL(kingdomEntry, baseURL);
     const cacheVersion = fs.readFileSync(path.join(root, 'public/sw.js'), 'utf8').match(/const CACHE_VERSION = '([^']+)'/)[1];
     expect(imports.ui).toBe(imports['./js/ui.js']);
     expect(imports.ui).toContain('?v=' + version);
@@ -56,7 +59,8 @@ test('new entry URLs bypass old cached modules while new and legacy games keep s
         return { legacy, current: current.ok, empty: current.state.players[0].hand.length, phase: current.state.phase };
     });
     expect(result).toEqual({ legacy: false, current: true, empty: 0, phase: 'roundOutCinematic' });
-    expect(requests).toContain('/js/tarotKingdom.js?v=' + version);
+    // Artwork entry updates do not require downloading an unchanged game engine again.
+    expect(requests).toContain(kingdomUrl.pathname + kingdomUrl.search);
     expect(errors).toEqual([]);
     await context.close();
 });

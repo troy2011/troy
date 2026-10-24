@@ -1,3 +1,5 @@
+import { PIRATE_TAROT_ARTWORK_VERSION } from '../assets/pirate-tarot/version.js';
+
 const SUITS = { wand: 'wand', wands: 'wand', cup: 'cup', cups: 'cup', sword: 'sword', swords: 'sword', pentacle: 'pentacle', pentacles: 'pentacle', coins: 'pentacle' };
 const FACES = { PAGE: 'page', P: 'page', 'ペイジ': 'page', KNIGHT: 'knight', N: 'knight', 'ナイト': 'knight', QUEEN: 'queen', Q: 'queen', 'クイーン': 'queen', KING: 'king', K: 'king', 'キング': 'king', 11: 'page', 12: 'knight', 13: 'queen', 14: 'king' };
 
@@ -21,13 +23,14 @@ export function createPirateTarotImage(cardInput, { label = '', thumbnail = fals
     if (!id) return null;
     const image = document.createElement('img');
     image.className = 'pirate-tarot-artwork';
-    image.src = `/assets/pirate-tarot/${thumbnail ? 'thumbs' : 'cards'}/${id}.webp`;
-    image.alt = label ? `${label}の採用原画${reversed ? '（逆位置）' : ''}` : '';
+    image.src = `/assets/pirate-tarot/${thumbnail ? 'thumbs' : 'cards'}/${id}.webp?v=${PIRATE_TAROT_ARTWORK_VERSION}`;
+    image.alt = label ? `${label}の採用カード${reversed ? '（逆位置）' : ''}` : '';
     image.width = thumbnail ? 160 : 640;
     image.height = thumbnail ? 240 : 960;
     image.loading = eager ? 'eager' : 'lazy';
     image.decoding = 'async';
     image.dataset.artworkCardId = id;
+    image.dataset.artworkSide = 'front';
     image.classList.toggle('is-reversed', reversed);
     // Keep the surrounding card name and controls usable if an asset cannot load.
     image.addEventListener('error', () => { image.hidden = true; }, { once: true });
@@ -61,8 +64,29 @@ export function renderDailyTarotArtwork(card, host, { label = '', reversed = fal
     host.classList.remove('has-pirate-artwork');
     const image = createPirateTarotImage(getDailyTarotArtworkId(card), { label, reversed, eager: true });
     if (!image) return;
+    appendDailyArtwork(host, image);
+}
+
+export function renderDailyTarotBackArtwork(host) {
+    host.querySelector('.pirate-tarot-artwork')?.remove();
+    host.classList.remove('has-pirate-artwork');
+    const image = document.createElement('img');
+    image.className = 'pirate-tarot-artwork';
+    image.src = `/assets/pirate-tarot/back.webp?v=${PIRATE_TAROT_ARTWORK_VERSION}`;
+    image.alt = '';
+    image.width = 640;
+    image.height = 960;
+    image.decoding = 'async';
+    image.dataset.artworkSide = 'back';
+    image.addEventListener('error', () => { image.hidden = true; }, { once: true });
+    appendDailyArtwork(host, image);
+}
+
+function appendDailyArtwork(host, image) {
     host.classList.add('pirate-tarot-artwork-host');
-    // Keep the existing sprite until the adopted image actually loads, including on failure.
-    image.addEventListener('load', () => host.classList.add('has-pirate-artwork'), { once: true });
+    // A late load from a removed back must not hide the reveal animation or fallback sprite.
+    image.addEventListener('load', () => {
+        if (image.parentElement === host) host.classList.add('has-pirate-artwork');
+    }, { once: true });
     host.append(image);
 }

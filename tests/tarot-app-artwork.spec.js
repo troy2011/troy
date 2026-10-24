@@ -5,6 +5,7 @@ const { bootstrapMainApp, trackPageErrors, expectNoPageErrors } = require('./hel
 const { __test: fortune } = require('../server/tarotFortune');
 const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/assets/pirate-tarot/manifest.json')));
 const output = process.env.PIRATE_APP_ARTWORK_EVIDENCE;
+const imageUrl = id => `/assets/pirate-tarot/cards/${id}.webp?v=${manifest.assetVersion}`;
 
 async function isolate(page) {
     const blocked = [];
@@ -71,13 +72,16 @@ test('home daily fortune reveals the adopted minor upright once and keeps result
     await page.setViewportSize({ width: 390, height: 844 });
     await bootstrapMainApp(page);
     await page.locator('#btnDailyFortune').click();
-    await expect(page.locator('#dailyTarotFortuneCardHost img')).toHaveCount(0);
+    await expect(page.locator('#dailyTarotFortuneCardHost img[data-artwork-side="front"]')).toHaveCount(0);
+    await expect(page.locator('#dailyTarotFortuneCardHost img[data-artwork-side="back"]')).toHaveAttribute('src', `/assets/pirate-tarot/back.webp?v=${manifest.assetVersion}`);
+    await waitImage(page.locator('#dailyTarotFortuneCardHost img[data-artwork-side="back"]'));
+    await screenshotModal(page, 'daily-fortune-mobile-back.png');
     expect(requestedArtwork).toEqual([]);
     await page.locator('#dailyTarotFortuneCardHost button').evaluate((button) => { button.click(); button.click(); button.click(); });
     const image = page.locator('#dailyTarotFortuneCardHost img');
     await waitImage(image);
-    await expect(image).toHaveAttribute('src', '/assets/pirate-tarot/cards/sword-3.webp');
-    await expect(image).toHaveAttribute('alt', 'ソードの3の採用原画');
+    await expect(image).toHaveAttribute('src', imageUrl('sword-3'));
+    await expect(image).toHaveAttribute('alt', 'ソードの3の採用カード');
     await expect(image).not.toHaveClass(/is-reversed/);
     await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText('ソードの3');
     await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText('正位置');
@@ -104,7 +108,7 @@ test('major reversed rotates only the adopted art and preserves the fragment rew
     await page.locator('#dailyTarotFortuneCardHost button').click();
     const image = page.locator('#dailyTarotFortuneCardHost img');
     await waitImage(image);
-    await expect(image).toHaveAttribute('src', '/assets/pirate-tarot/cards/major-18.webp');
+    await expect(image).toHaveAttribute('src', imageUrl('major-18'));
     await expect(image).toHaveClass(/is-reversed/);
     const rotation = await image.evaluate((element) => {
         const matrix = new DOMMatrixReadOnly(getComputedStyle(element).transform);
@@ -122,7 +126,9 @@ test('major reversed rotates only the adopted art and preserves the fragment rew
 
 for (const [name, result, expectedId] of [
     ['major zero', dailyResult({ cardNumber: 0, isArcana: true, cardName: '愚者', orientation: 'upright' }), 'major-0'],
-    ['minor court', dailyResult({ cardNumber: 14, suit: 'Cups', cardName: 'カップのキング', orientation: 'reversed' }), 'cup-king']
+    ['minor court', dailyResult({ cardNumber: 14, suit: 'Cups', cardName: 'カップのキング', orientation: 'reversed' }), 'cup-king'],
+    ['adopted cup3', dailyResult({ cardNumber: 3, suit: 'Cups', cardName: 'カップの3', orientation: 'upright' }), 'cup-3'],
+    ['adopted cup10', dailyResult({ cardNumber: 10, suit: 'Cups', cardName: 'カップの10', orientation: 'reversed' }), 'cup-10']
 ]) {
     test(`already claimed ${name} shows adopted art without drawing or granting again`, async ({ page }) => {
         await isolate(page);
@@ -132,7 +138,7 @@ for (const [name, result, expectedId] of [
         await page.locator('#btnDailyFortune').click();
         const image = page.locator('#dailyTarotFortuneCardHost img');
         await waitImage(image);
-        await expect(image).toHaveAttribute('src', `/assets/pirate-tarot/cards/${expectedId}.webp`);
+        await expect(image).toHaveAttribute('src', imageUrl(expectedId));
         await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText(result.cardName);
         await expect(page.locator('#dailyTarotFortuneText')).toContainText(result.strikeLine);
         await expect(page.locator('#dailyTarotFortuneSub')).toHaveText('本日の占い結果です。');
@@ -148,7 +154,7 @@ test('failed daily artwork retains the original reversed sprite, advice and rewa
     const result = dailyResult({ orientation: 'reversed' });
     const draws = await installFortune(page, result);
     let artworkRequests = 0;
-    await page.route('**/assets/pirate-tarot/cards/sword-3.webp', (route) => { artworkRequests++; return route.fulfill({ status: 404, body: '' }); });
+    await page.route('**/assets/pirate-tarot/cards/sword-3.webp*', (route) => { artworkRequests++; return route.fulfill({ status: 404, body: '' }); });
     await page.setViewportSize({ width: 390, height: 844 });
     await bootstrapMainApp(page);
     await page.locator('#btnDailyFortune').click();
@@ -195,13 +201,13 @@ test('owned tarot detail shows the correct adopted front and preserves ownership
     await openOwnedCard(page, 'TarotMajor');
     let image = page.locator('#itemDetailModal .pirate-tarot-inventory-art img');
     await waitImage(image);
-    await expect(image).toHaveAttribute('src', '/assets/pirate-tarot/cards/major-6.webp');
+    await expect(image).toHaveAttribute('src', imageUrl('major-6'));
     await expect(page.locator('#itemDetailName')).toHaveText('恋人');
     await page.evaluate(() => window.closeItemDetailModal());
     await openOwnedCard(page, 'TarotMinor');
     image = page.locator('#itemDetailModal .pirate-tarot-inventory-art img');
     await waitImage(image);
-    await expect(image).toHaveAttribute('src', '/assets/pirate-tarot/cards/pentacle-6.webp');
+    await expect(image).toHaveAttribute('src', imageUrl('pentacle-6'));
     await expect(image).not.toHaveClass(/is-reversed/);
     await expect(page.locator('#itemDetailName')).toHaveText('金貨の6');
     await expect(page.locator('#itemDetailTarotCombat')).toBeVisible();
@@ -215,7 +221,7 @@ test('owned tarot detail shows the correct adopted front and preserves ownership
 test('missing owned-card artwork keeps the card name, skill, old icon and controls usable', async ({ page }) => {
     await isolate(page);
     await mockOwnedCards(page);
-    await page.route('**/assets/pirate-tarot/cards/pentacle-6.webp', (route) => route.fulfill({ status: 404, body: '' }));
+    await page.route('**/assets/pirate-tarot/cards/pentacle-6.webp*', (route) => route.fulfill({ status: 404, body: '' }));
     await page.setViewportSize({ width: 390, height: 844 });
     await bootstrapMainApp(page);
     await openOwnedCard(page);
@@ -226,4 +232,19 @@ test('missing owned-card artwork keeps the card name, skill, old icon and contro
     await expect(page.locator('#itemDetailModal')).toContainText('デッキに追加');
     await page.locator('#itemDetailModal .item-detail-corner-close').click();
     await expect(page.locator('#itemDetailModal')).toBeHidden();
+});
+
+test('missing adopted back retains the existing back sprite and still reveals the correct front', async ({ page }) => {
+    await isolate(page);
+    await page.route('**/assets/pirate-tarot/back.webp*', route => route.fulfill({ status: 404, body: '' }));
+    const draws = await installFortune(page, dailyResult());
+    await bootstrapMainApp(page);
+    await page.locator('#btnDailyFortune').click();
+    const button = page.locator('#dailyTarotFortuneCardHost button');
+    await expect(button.locator('[data-artwork-side="back"]')).toBeHidden();
+    await expect(button.locator('.tarot-card-art')).toBeVisible();
+    await button.click();
+    await waitImage(button.locator('[data-artwork-side="front"]'));
+    await expect(button.locator('img')).toHaveAttribute('src', imageUrl('sword-3'));
+    expect(draws()).toBe(1);
 });

@@ -1,4 +1,4 @@
-import { renderDailyTarotArtwork } from './pirateTarotArtwork.js';
+import { renderDailyTarotArtwork, renderDailyTarotBackArtwork } from './pirateTarotArtwork.js?v=20261024-pirate-v8';
 import { HandEvaluator as TarotEngineHandEvaluator } from './tarot-engine/HandEvaluator.js';
 import { GameController as TarotGameController } from './tarot-engine/GameController.js';
 import { bindModalClose } from './modalClose.js';
@@ -693,6 +693,7 @@ function createDailyFortuneCardElement(card, options = {}) {
     art.className = 'tarot-card-art tarot-fortune-card-art';
     setArtSpriteByIndex(art, hidden ? TAROT_BACK_SPRITE_INDEX : getTarotSpriteIndex(card));
     el.appendChild(art);
+    if (hidden) renderDailyTarotBackArtwork(el);
 
     if (!hidden) {
         el.dataset.revealed = '1';
@@ -712,6 +713,8 @@ async function revealDailyFortuneCardElement(cardEl, card, options = {}) {
 
     cardEl.dataset.revealing = '1';
     cardEl.disabled = true;
+    cardEl.querySelector('[data-artwork-side="back"]')?.remove();
+    cardEl.classList.remove('has-pirate-artwork');
     for (const frame of TAROT_REVEAL_FRAMES) {
         setArtSpriteByIndex(art, frame);
         await wait(TAROT_REVEAL_FRAME_MS);

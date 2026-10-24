@@ -1,8 +1,32 @@
 {
-  "schemaVersion": 1,
-  "sourceEdition": "Pirate Tarot latest originals / 2026-10-22 / adopted S3 v1, P10 v1, P6 v5",
-  "sourceManifestSha256": "ac0d1ae5f0ea23298f0514afba4ebda9dd25ff6e68f6954d320809180951957f",
-  "policy": "Adopted original fronts only. Full aspect ratio retained. No backs or unadopted frame candidates.",
+  "schemaVersion": 2,
+  "assetVersion": "v8-a740ed2707b653a3",
+  "sourceEdition": "Pirate Tarot latest / adopted Cups3 heavy oil v2 and Cups10 ten-cups v8b / 2026-10-24",
+  "frontRevision": "v8",
+  "sourceManifestSha256": "6a224517c19ec57fb1f7bd3dd88b7ae3d5fe62c653a415f0c4ca6cda72d76003",
+  "completedManifestSha256": "ff8132e01e8360926c8844e55595c908bd6bc6735a500955e6c1564d57b1404f",
+  "majorFrame": "02 航海の天測儀・枠全体編集v15／オーディンの目",
+  "policy": "Verified adopted complete fronts, frames and names retained. Isotropic contain fit with transparent padding; no crop or fill. Originals read-only.",
+  "encoding": {
+    "format": "webp",
+    "effort": 5,
+    "fit": "contain",
+    "padding": "transparent",
+    "variants": [
+      {
+        "directory": "cards",
+        "width": 640,
+        "height": 960,
+        "quality": 82
+      },
+      {
+        "directory": "thumbs",
+        "width": 160,
+        "height": 240,
+        "quality": 74
+      }
+    ]
+  },
   "cards": [
     {
       "id": "major-0",
@@ -14,19 +38,26 @@
       "sourceBytes": 3010054,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/00_The_Fool.png",
+        "sha256": "8e92b372ad92ed87912550b4e8dd9a306d65a96bd54e7854c619f4f7fd383992",
+        "bytes": 5803058,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-0.webp",
-        "bytes": 199504,
+        "bytes": 182808,
         "width": 640,
         "height": 960,
-        "sha256": "aa5bcef6570a6295197102c6aa0a12f532e5f2112de510b4c002889ea199d8fd"
+        "sha256": "f8259bab3119e2d475192798bf46b1ae69c362c4531a942819e924eb3c8ac029"
       },
       "thumbs": {
         "path": "thumbs/major-0.webp",
-        "bytes": 13670,
+        "bytes": 14308,
         "width": 160,
         "height": 240,
-        "sha256": "10cc0506912ac7f7be53cdc416ffd9f85dafebef831f9eb545b6b1161dffe6e5"
+        "sha256": "a61fda066c1967827c04100c923323dd477c772f24cdf2d795a7b0587fc5f8a9"
       }
     },
     {
@@ -39,19 +70,26 @@
       "sourceBytes": 2506407,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/01_The_Magician.png",
+        "sha256": "1acf1c18f13ee611759763e1201a4615dbbd0e67a17f8dc53711ab51cff2f570",
+        "bytes": 5512633,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-1.webp",
-        "bytes": 144604,
+        "bytes": 148430,
         "width": 640,
         "height": 960,
-        "sha256": "d760a6009a15d70d00f6ce063cb5e5fef319a289a8c3d6980ec10cd1edd6cff7"
+        "sha256": "a4585ed11d9391159aeec0414f3bee4c8a625cba05a04c9f6d671e0b63bf85a4"
       },
       "thumbs": {
         "path": "thumbs/major-1.webp",
-        "bytes": 11116,
+        "bytes": 12792,
         "width": 160,
         "height": 240,
-        "sha256": "59ae9ee00675db16e531f65d9afc74e1a7c58d79024aa8a3662df491df38fcce"
+        "sha256": "ec9b2b94d739b25c4d8a36d532694c085fb8a3812c31dda896a1196f2265133e"
       }
     },
     {
@@ -64,19 +102,26 @@
       "sourceBytes": 2388339,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/02_The_High_Priestess.png",
+        "sha256": "001f864f1c69a58a80ebeff8b3d8cf2343d5e6687c40a645290baa8d7fb74175",
+        "bytes": 5182084,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-2.webp",
-        "bytes": 108460,
+        "bytes": 128112,
         "width": 640,
         "height": 960,
-        "sha256": "269e60c45a4927f9a4ab844c20f8a8d07729bf611cc62cb1d9f674f65016f57a"
+        "sha256": "6e1a309c261c4194b50af2c5bed0de11b26a8bf9d63158c9b3da85877ca8ca35"
       },
       "thumbs": {
         "path": "thumbs/major-2.webp",
-        "bytes": 8990,
+        "bytes": 11534,
         "width": 160,
         "height": 240,
-        "sha256": "148eead14b66f5ba5f6c79bebbcff436f601caac623a951d206a4e5f780f16f7"
+        "sha256": "dcfd9ef361f1f8343e2e728fbe4eeaeae1dd7bd75296c31e2cf4205a6c21cba4"
       }
     },
     {
@@ -89,19 +134,26 @@
       "sourceBytes": 2870243,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/03_The_Empress.png",
+        "sha256": "d02fd1c1bdff45263bca9b39c9f2ba43a7b7a168e1608d9fb6fd62d80f9f1fa3",
+        "bytes": 5777632,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-3.webp",
-        "bytes": 174334,
+        "bytes": 168036,
         "width": 640,
         "height": 960,
-        "sha256": "e0ec358ae946725b9beddd17021c1167b7a394419a13d8cd161bb2ef2a188449"
+        "sha256": "b1414db6cd112c0d313eeb8e8241f29648d0692edcb2fc5da989f74c2d305398"
       },
       "thumbs": {
         "path": "thumbs/major-3.webp",
-        "bytes": 13452,
+        "bytes": 14190,
         "width": 160,
         "height": 240,
-        "sha256": "5c8937de44aab965007930061d6487ad02aba5b2ba9efcbea2b5ac2af40d6a04"
+        "sha256": "be9b6fc0b9550b1c127a597abd4677028fb013d743e15a40731bba865da11f6b"
       }
     },
     {
@@ -114,19 +166,26 @@
       "sourceBytes": 2788001,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/04_The_Emperor.png",
+        "sha256": "0ee7d7c077bf1e7c5d49f63369120832b12d5789e15c9f539840d6805888b927",
+        "bytes": 5399041,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-4.webp",
-        "bytes": 161224,
+        "bytes": 158290,
         "width": 640,
         "height": 960,
-        "sha256": "924e2ca63ee954b07e44cf910c46f7f8380ffe8998e4ff64c32188ec77a42d8e"
+        "sha256": "dc2174b9b223e7058ec79f58f5245a15f011470b70aff57212bf10d292096e56"
       },
       "thumbs": {
         "path": "thumbs/major-4.webp",
-        "bytes": 9870,
+        "bytes": 12078,
         "width": 160,
         "height": 240,
-        "sha256": "654ea32e87932f90248ee22bbc4e0b56afc49e09ea787ddc44427152e1753b11"
+        "sha256": "462cba35b7a37a5c733e2b55f1c3a5120fa239b7ae6c2af634e5e7586f9e55e9"
       }
     },
     {
@@ -139,19 +198,26 @@
       "sourceBytes": 2837103,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/05_The_Hierophant.png",
+        "sha256": "14cc807d6e8278c43432304fd4b02edd39c93244404417dbe617a38cfeb7656a",
+        "bytes": 5536521,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-5.webp",
-        "bytes": 176556,
+        "bytes": 170744,
         "width": 640,
         "height": 960,
-        "sha256": "260ea22dfe193f3d71b20bc6d75ccc49dd405d0639ab5c9ac79d454828f11800"
+        "sha256": "58c65c5a2927d64f60b0b2db5e867678da0f9bdae9e0c421d998f623b9e75017"
       },
       "thumbs": {
         "path": "thumbs/major-5.webp",
-        "bytes": 13008,
+        "bytes": 13946,
         "width": 160,
         "height": 240,
-        "sha256": "34522de631ab8f9329db7cfc907af7c7688cd35b73d045a0bced6a5da78ad78c"
+        "sha256": "cc3334558f69caf38fe4d76bd673840577f0f8fea6c03009b756e94858b6719d"
       }
     },
     {
@@ -164,19 +230,26 @@
       "sourceBytes": 2822993,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/06_The_Lovers.png",
+        "sha256": "0812b1ae49b32a3ac38ddbaa77a9ddd491da40d55212c2537bc618652117519c",
+        "bytes": 5711751,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-6.webp",
-        "bytes": 179874,
+        "bytes": 166380,
         "width": 640,
         "height": 960,
-        "sha256": "a14a80825b5f84cf8b3e5ba48675e574d6245472f37251cf6bda6b351d937b79"
+        "sha256": "1fec44424763a1df4f4c5845e2f8d7ca0baffbeacb4df94b91d2571ae366bd89"
       },
       "thumbs": {
         "path": "thumbs/major-6.webp",
-        "bytes": 13572,
+        "bytes": 14166,
         "width": 160,
         "height": 240,
-        "sha256": "f4c0bff13f37c5b79016d57500178af7a7f6d97af63ca01ee71b51af8e424697"
+        "sha256": "008fcf399435b6e7689a7b44a71900d8221bb8543d7497e281057b2828d1217f"
       }
     },
     {
@@ -189,19 +262,26 @@
       "sourceBytes": 3103085,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/07_The_Chariot.png",
+        "sha256": "ddb6ffa946e1563de1300bf7118696e8c3b6f6bb94c26bbf2b6e08c2a0d0adf6",
+        "bytes": 5761036,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-7.webp",
-        "bytes": 198258,
+        "bytes": 182476,
         "width": 640,
         "height": 960,
-        "sha256": "acebf53bcedf8ae2ba6210ccf7b988d2a00231eb82776c7ab6fa5fb7e5542edc"
+        "sha256": "ce1925e4118534f5ed688e08c6e4a71eacf8dc0ac41dc9d66a5b2a06b674acca"
       },
       "thumbs": {
         "path": "thumbs/major-7.webp",
-        "bytes": 13974,
+        "bytes": 14636,
         "width": 160,
         "height": 240,
-        "sha256": "b47e41c0501397c79e7689b46089cedd4232edb99584e143c4c0803d6fe92f25"
+        "sha256": "4904abc56bde3703f527bc51ee4e702f466fea0fb7639585efd4956a2bf56933"
       }
     },
     {
@@ -214,19 +294,26 @@
       "sourceBytes": 2523254,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/08_Strength.png",
+        "sha256": "eeb9273515fe1e69c5ff73fbae45608945a4be16e6b27a8151dfe3702a24870c",
+        "bytes": 5348264,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-8.webp",
-        "bytes": 134360,
+        "bytes": 145534,
         "width": 640,
         "height": 960,
-        "sha256": "0b66256c70cbaf38a391afcb50a276638d0752665150c39af8be4adb906d3453"
+        "sha256": "59eaf2f1678a25e6723e56f1823dfc05155b43a8647011faaa9e0e5fe3eb0e1f"
       },
       "thumbs": {
         "path": "thumbs/major-8.webp",
-        "bytes": 10674,
+        "bytes": 12282,
         "width": 160,
         "height": 240,
-        "sha256": "43c36008e2bd5e7758509a59aaeaba39c877e7b1ee32611dd331584787cabd6d"
+        "sha256": "2b4338e516b1d3dc510422b78a20fbf94f7eb3e1d0984392f6bd22939b49f23c"
       }
     },
     {
@@ -239,19 +326,26 @@
       "sourceBytes": 3606429,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/09_The_Hermit.png",
+        "sha256": "27d0c0a5aa883555c78059895e0daa929b33ffe2aa7e1395af7a0598b8b630dc",
+        "bytes": 4978525,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-9.webp",
-        "bytes": 135396,
+        "bytes": 144480,
         "width": 640,
         "height": 960,
-        "sha256": "e6f7ec129e366d7cd7ae2f156ba84402fe1b42b1ffa38a9b314c482517dc97f0"
+        "sha256": "b0ad467f2769f616c9c53fe93b1f57f0e441910d7154259881b9fe9d3870ede2"
       },
       "thumbs": {
         "path": "thumbs/major-9.webp",
-        "bytes": 8114,
+        "bytes": 11188,
         "width": 160,
         "height": 240,
-        "sha256": "0f1dddf1af1b3f5eeebaed0be5aa5e88b3530d76e8ddf8377882b0a7f7142340"
+        "sha256": "f9690adcec497b8b2c83b96390f09f3c217f9d217b72d65eb4f92e2475210dec"
       }
     },
     {
@@ -264,19 +358,26 @@
       "sourceBytes": 3296425,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/10_Wheel_of_Fortune.png",
+        "sha256": "36e32af445b0961d115c29e60be94451455cfcb5de495ac48bfeb8c03e0dc6d5",
+        "bytes": 5604039,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-10.webp",
-        "bytes": 195390,
+        "bytes": 188306,
         "width": 640,
         "height": 960,
-        "sha256": "236e549ac874f4c265093aa1810c7d342cd53f0979ebf9719dacd8d8d7a8ba87"
+        "sha256": "4e6951f172eef496d3464ee2726a23dc420ba8ffe64894aa110a5cf84ca6dffc"
       },
       "thumbs": {
         "path": "thumbs/major-10.webp",
-        "bytes": 11930,
+        "bytes": 13658,
         "width": 160,
         "height": 240,
-        "sha256": "d8798074a99495896d394133af16d175cb5def5da450b951b46d899f77f4af0a"
+        "sha256": "7a415c5ae6e569cc5e381fd2b88441411e25f64db76cd4e155e0d75487acdc15"
       }
     },
     {
@@ -289,19 +390,26 @@
       "sourceBytes": 2758959,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/11_Justice.png",
+        "sha256": "cf441c575bb4d3ffb58a3a4d6bba50f747a7018fba55d5ae40184315ce36c98a",
+        "bytes": 5361603,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-11.webp",
-        "bytes": 143026,
+        "bytes": 150618,
         "width": 640,
         "height": 960,
-        "sha256": "afa4d99afa6e3252a0579db43e6c384f65c5fb92a38bf4c77e625cfeb0ce1d80"
+        "sha256": "fa36c8c141b6ab746e4babcb688bba7b25ed1d23ef5fffeb21a461a637aaacb6"
       },
       "thumbs": {
         "path": "thumbs/major-11.webp",
-        "bytes": 9784,
+        "bytes": 12010,
         "width": 160,
         "height": 240,
-        "sha256": "2b3a9b51c9fb608cc724e4943bad45d1c41cf0b144f2e53adb4a6df53933b073"
+        "sha256": "9f2b7e62500a40df4bfb1d8158b4bc937b4551ccfabc815661bebe37af68d82b"
       }
     },
     {
@@ -314,19 +422,26 @@
       "sourceBytes": 2137895,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/12_The_Hanged_Man.png",
+        "sha256": "3c85984092883691aea65127e5ebabdd69e3ca003752dba5b452d7198621d90b",
+        "bytes": 4934426,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-12.webp",
-        "bytes": 98334,
+        "bytes": 118118,
         "width": 640,
         "height": 960,
-        "sha256": "b19c588c49a2f374304d7906f32e6ad013ed0502f865403057f396d9099d59ad"
+        "sha256": "252d19610571a120342335bd184d59b8a7ee689deb5244b93f8564839ee4a9b0"
       },
       "thumbs": {
         "path": "thumbs/major-12.webp",
-        "bytes": 8458,
+        "bytes": 10936,
         "width": 160,
         "height": 240,
-        "sha256": "29df1e84b916777bc0ab7873d57b971d85ab12009b752fe95c618650c631094b"
+        "sha256": "4c496e7deed20c46aabadebfcc3c310e2e2120ec0e55609ae373967053e0f822"
       }
     },
     {
@@ -339,19 +454,26 @@
       "sourceBytes": 2578254,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/13_Death.png",
+        "sha256": "bcd643cb2184b8eef0b7c323a495e34fb870a96d59d6e741304b6de66764028e",
+        "bytes": 4879088,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-13.webp",
-        "bytes": 126534,
+        "bytes": 136236,
         "width": 640,
         "height": 960,
-        "sha256": "2dd8781d1d3c0ce5f031bd646db6b7afb0fa9f644e31ed857a8c793e0f3c45f7"
+        "sha256": "936e69a5d369f31f32cf2b3867754331d86d5239d4a60b25984d1d9289c3fddc"
       },
       "thumbs": {
         "path": "thumbs/major-13.webp",
-        "bytes": 8790,
+        "bytes": 11282,
         "width": 160,
         "height": 240,
-        "sha256": "adca2631c1ca3eca64bdb4b23ddb960d4efe53cfc64ba8f720369c5d92fc6d4e"
+        "sha256": "4c1201f226531a09c1fa07e7a7dbe5206088f5ca0af1e119d87e59a20adc3413"
       }
     },
     {
@@ -364,19 +486,26 @@
       "sourceBytes": 2624276,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/14_Temperance.png",
+        "sha256": "b63e9acc0355fa93a8df42cc9b68bcfc4637441d93ccea9d35be2dcbb53d280b",
+        "bytes": 5378391,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-14.webp",
-        "bytes": 143638,
+        "bytes": 149292,
         "width": 640,
         "height": 960,
-        "sha256": "fbf85e93646e06540d6432d8229276eb6ea337e68a660d197db2df3e621b060d"
+        "sha256": "c74f6aad6162c19c5ad4568a65178c8ccf6216be722c657c92930d01a4e2f51b"
       },
       "thumbs": {
         "path": "thumbs/major-14.webp",
-        "bytes": 10914,
+        "bytes": 12498,
         "width": 160,
         "height": 240,
-        "sha256": "784156a09047d5014c87ce0e91a2e50160c62cbf43c091895d38a91e4eea3010"
+        "sha256": "97275425448767a0bdfa135f70179e5870eec22e4dc731cc1a71c8796639ec9e"
       }
     },
     {
@@ -389,19 +518,26 @@
       "sourceBytes": 2703687,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/15_The_Devil.png",
+        "sha256": "f68ef57ebfca68ebe13deafdbdc6be9602415b4ca2fce11da12cfda510856da0",
+        "bytes": 5221216,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-15.webp",
-        "bytes": 157612,
+        "bytes": 156880,
         "width": 640,
         "height": 960,
-        "sha256": "f52fbbd5236daba94266e4ca6ef0798e85c921cce885410de377037f29b65a21"
+        "sha256": "9dc1333643f26c6bfdf4f2f5d389a84ec903dc8c7eb5842b22fdc6a8f81d8d91"
       },
       "thumbs": {
         "path": "thumbs/major-15.webp",
-        "bytes": 10780,
+        "bytes": 12318,
         "width": 160,
         "height": 240,
-        "sha256": "7a1fbeb2c97a647bd7ad1e82bd12e0f16bdd40899bb429bc40c36c478586274a"
+        "sha256": "72e9f90ba58e2f4511ad572a474ff5ee1329518c270c8a5265f0740a51c8a431"
       }
     },
     {
@@ -414,19 +550,26 @@
       "sourceBytes": 2770397,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/16_The_Tower.png",
+        "sha256": "b4ea86292e0945097f0dec9cf4c112013b879d81d58c5063b47731c8fcfa4916",
+        "bytes": 5277152,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-16.webp",
-        "bytes": 137498,
+        "bytes": 152786,
         "width": 640,
         "height": 960,
-        "sha256": "901128d8a91aee2a76c7ef21c480bc5bd200f8ed37905aeaa42b1bcb0a2b3b52"
+        "sha256": "34a3803bf5a102aa3642fc5eadf5b67d5af7c701370923b1c92bf9d74103757f"
       },
       "thumbs": {
         "path": "thumbs/major-16.webp",
-        "bytes": 10104,
+        "bytes": 12698,
         "width": 160,
         "height": 240,
-        "sha256": "8a58973e25a24acb5720e7e09a429fbe25df2c1453697856f3b4617e2549a428"
+        "sha256": "d7d32cb17e3af1da0f65703d4a0c515fde36c13b6b8fccc4fce3ace65cfaf8eb"
       }
     },
     {
@@ -439,19 +582,26 @@
       "sourceBytes": 2802930,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/17_The_Star.png",
+        "sha256": "0a5cd409fb9d9edb8cf60e05eb4581db77edbdc6f6cd5e4e1e7fa83b04cdeb52",
+        "bytes": 5151724,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-17.webp",
-        "bytes": 133490,
+        "bytes": 141626,
         "width": 640,
         "height": 960,
-        "sha256": "80d38c0f05ef57f3c94777c985e5b58b85441495c56ea3d1923ebbc1b2460e2e"
+        "sha256": "75ae3944748d43df304d9802f39cc9d9eb74b735f1f4ab4aa0c3499852bf5414"
       },
       "thumbs": {
         "path": "thumbs/major-17.webp",
-        "bytes": 8276,
+        "bytes": 11100,
         "width": 160,
         "height": 240,
-        "sha256": "e1958f63d4d17e39152beda8fb5ed350d6d42c5c87fcd9638cc8aa4192676bee"
+        "sha256": "8a471c8a07939e6a2276294808479028fb0a2bfc7c03eddc287bcbab4ca93a81"
       }
     },
     {
@@ -464,19 +614,26 @@
       "sourceBytes": 4112082,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/18_The_Moon.png",
+        "sha256": "415bb52e8f73c9cf50363a2c4c254e794a6b101176120f68460e2c3380386eb7",
+        "bytes": 5552943,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-18.webp",
-        "bytes": 164926,
+        "bytes": 162530,
         "width": 640,
         "height": 960,
-        "sha256": "d5283433521337cfc4a25e0441ad8b02117a438ab1142e4c29f5a0e0ab338e71"
+        "sha256": "913352476fcb3189a7a5a2769b0a369bf4977e4c29d67c38dbbadcf428370856"
       },
       "thumbs": {
         "path": "thumbs/major-18.webp",
-        "bytes": 11340,
+        "bytes": 13088,
         "width": 160,
         "height": 240,
-        "sha256": "0319f6ed8e58631abb105f037ca73836ac75d4cf09a97585f5304602b2ce8979"
+        "sha256": "842896c0025fee5da689c13853109585633a255e89496249d10dda91dad30093"
       }
     },
     {
@@ -489,19 +646,26 @@
       "sourceBytes": 2703307,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/19_The_Sun.png",
+        "sha256": "40408a208704c4490c402f69e29f371e50120cd391640a7428d8eb59addf95f2",
+        "bytes": 5677877,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-19.webp",
-        "bytes": 139780,
+        "bytes": 145724,
         "width": 640,
         "height": 960,
-        "sha256": "cc44f63ea113144a124b8db5dd28af4b766af37dbacf352b69d1e85bd990a94b"
+        "sha256": "a276209cadec202e618b40fa08c2fbc7d2e556ac264d288a5173d8977ca90f74"
       },
       "thumbs": {
         "path": "thumbs/major-19.webp",
-        "bytes": 10842,
+        "bytes": 12470,
         "width": 160,
         "height": 240,
-        "sha256": "7603b5fd5fbd15066995591fe3c163146f7aa6d98e92f4159c7098b91cb46129"
+        "sha256": "7db29c545fa861ef7c9ebf6551bb4ed108cc1821cbdd29f43812d59b43bef36f"
       }
     },
     {
@@ -514,19 +678,26 @@
       "sourceBytes": 2779459,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/20_Judgement.png",
+        "sha256": "fa801dc0ad685eb80193637c52ccf178cb7cfcfe84ec4041e82cd53c016da16e",
+        "bytes": 5638141,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-20.webp",
-        "bytes": 156754,
+        "bytes": 158828,
         "width": 640,
         "height": 960,
-        "sha256": "72b6c868dbed38214d42564fa0bd7493d9b38bdd9f83984199eaf1f6a8378160"
+        "sha256": "a50f994d77769bdc90b363c0e813c7da24722745d579ae7adeb6ba4921ee001b"
       },
       "thumbs": {
         "path": "thumbs/major-20.webp",
-        "bytes": 11392,
+        "bytes": 13216,
         "width": 160,
         "height": 240,
-        "sha256": "3e4c54d57433f0a0ddbe2bb18ea52ef38b4d32d452e88bd50b53b56f1641edbf"
+        "sha256": "38743341fb5af6026c7ca664f1419f1363e437ebbf231da4cf1a224144c492aa"
       }
     },
     {
@@ -539,19 +710,26 @@
       "sourceBytes": 2805200,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/major/21_The_World.png",
+        "sha256": "1a8f2c01fa735a383719565a4fc3e2a3e5ce38ea0640a38608b6c00f5e074876",
+        "bytes": 5596594,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/major-21.webp",
-        "bytes": 166900,
+        "bytes": 162214,
         "width": 640,
         "height": 960,
-        "sha256": "7521dd02ec4f4b68186726c454b4f97f9ebf638e363756b5fe96b0a629cf5593"
+        "sha256": "3fa9d2590b3397d4d4fa547bf221574d5bdc8c8a16053bc2c2160d1c3f29301a"
       },
       "thumbs": {
         "path": "thumbs/major-21.webp",
-        "bytes": 12078,
+        "bytes": 13474,
         "width": 160,
         "height": 240,
-        "sha256": "ba6a5cb5c6ac299731acaf3a822e3d6a15e94eb6f68ea335e3f8979248bf9bf1"
+        "sha256": "e8110eba2ba980a22c04011457cb7b0b9edd7350aec15f9d8d27d8c192446bfe"
       }
     },
     {
@@ -564,19 +742,26 @@
       "sourceBytes": 2918939,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/swords/01_Ace_of_Swords.png",
+        "sha256": "3f80a533b65740492268e9e2b2e6f34b2128be8266bd05eec40468944ad2d320",
+        "bytes": 5279405,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/sword-1.webp",
-        "bytes": 131312,
+        "bytes": 130108,
         "width": 640,
         "height": 960,
-        "sha256": "3956bce9b7dc7dc4cbc5e68e8e16087b9f37e1bb2a9d6b1dc5bf85f752b1a6ee"
+        "sha256": "153db02ee76ae157a42b77717ea42561e4b85c414f2273a1dc192aa34fafc1bf"
       },
       "thumbs": {
         "path": "thumbs/sword-1.webp",
-        "bytes": 9744,
+        "bytes": 11404,
         "width": 160,
         "height": 240,
-        "sha256": "9ef072f94126febab3afa6151a6bb26a9ee2bd9a360b08e0ae74d380aa24ac3b"
+        "sha256": "9826d6d79d8f2672906e9119e89a30a866071311d15a6292a3c3d94b70f95e71"
       }
     },
     {
@@ -588,19 +773,26 @@
       "sourceBytes": 2832345,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/swords/02_Two_of_Swords.png",
+        "sha256": "a96c1bdf24e69ab1828214bcce0358fd2bddf30ca47ec1dec3a51177041dd4fb",
+        "bytes": 4855620,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/sword-2.webp",
-        "bytes": 119266,
+        "bytes": 120634,
         "width": 640,
         "height": 960,
-        "sha256": "409e28b39f8a4db59c021ca94c9054405535d12f68c2c85e1864bef897579ced"
+        "sha256": "a95ebea8d3a388e612487acba3ca3a8f6fd504c3c967a8462e6f4ab74f73c472"
       },
       "thumbs": {
         "path": "thumbs/sword-2.webp",
-        "bytes": 7512,
+        "bytes": 9624,
         "width": 160,
         "height": 240,
-        "sha256": "4ff21dfe99afd0b66d89c0695d88b57e63369ec3c5e16020411ecd0f046990ce"
+        "sha256": "2f1dbb8f1f5aa7018a9919974370aaf3143057b730c421fbc810d4491676ad2b"
       }
     },
     {
@@ -613,19 +805,26 @@
       "sourceBytes": 2705897,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/swords/03_Three_of_Swords.png",
+        "sha256": "7753baa94bd20791327dca68802bbc235c51c40c86e9090aeb60ccbc20f0c0b5",
+        "bytes": 4883685,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/sword-3.webp",
-        "bytes": 142734,
+        "bytes": 136546,
         "width": 640,
         "height": 960,
-        "sha256": "9f43c6ec909b41424760a21905a436a22feb9f11d27fc851f4d86f6544d86123"
+        "sha256": "ea9079398487bbccfffb2b7e8d0b6ce468e3b271239b61c5cec6c17694a856c2"
       },
       "thumbs": {
         "path": "thumbs/sword-3.webp",
-        "bytes": 8608,
+        "bytes": 9994,
         "width": 160,
         "height": 240,
-        "sha256": "2f5db28cb599438c8bbdc32f818f59f7a3f9ec810747c62d19a75c0b32ad0bbf"
+        "sha256": "b01907e86511205eddbf476d7029c8b5c1f17afbf24724e588ce86bc9d3cd992"
       }
     },
     {
@@ -638,19 +837,26 @@
       "sourceBytes": 2415203,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/swords/04_Four_of_Swords.png",
+        "sha256": "bf8a66b8c96c462e08d0f1e10f37852779cf1a9fff0aed528c0a3fbe1120602e",
+        "bytes": 4950764,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/sword-4.webp",
-        "bytes": 119512,
+        "bytes": 122698,
         "width": 640,
         "height": 960,
-        "sha256": "1dfd5218f7bdd88d44d5ab7dfefb74ff11e10bc191a2a5007565456d0e530f8a"
+        "sha256": "b4ef7d4d05c14ba5153460dd884923c5827f0ced542e3fac5343a61550bfe06c"
       },
       "thumbs": {
         "path": "thumbs/sword-4.webp",
-        "bytes": 8208,
+        "bytes": 9940,
         "width": 160,
         "height": 240,
-        "sha256": "12f34c3cf44bffecc22c0f6fda92f07e077655b3a45130821349c091a647ca9a"
+        "sha256": "4d96f0187809b6b1b53c0074e445c45bb2048abb8be7fb8c7070a612fa383345"
       }
     },
     {
@@ -663,19 +869,26 @@
       "sourceBytes": 2675935,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/swords/05_Five_of_Swords.png",
+        "sha256": "629eb7877589f58447f66e4fdcdfa9e044ef1bd2fd478c0f89c23dfbfe419ee6",
+        "bytes": 4936516,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/sword-5.webp",
-        "bytes": 123762,
+        "bytes": 127040,
         "width": 640,
         "height": 960,
-        "sha256": "41c529f125a4c3d566f86c0ef810432ebdf08ba0b40e178570d9c696d3fcbde8"
+        "sha256": "406dbb6529358479aeb4884693dd9ae40a5e80d6e0f3a57198a87ab348039ba0"
       },
       "thumbs": {
         "path": "thumbs/sword-5.webp",
-        "bytes": 8674,
+        "bytes": 10346,
         "width": 160,
         "height": 240,
-        "sha256": "d79e1df62a0884b07f1de7b0b15bce161fbdb7b33e6544461f97a8ebbc409655"
+        "sha256": "c57d4cbdad854b4e7834fcb77ae4a5141e6983eb4f83c9290df29dc23596f07a"
       }
     },
     {
@@ -687,19 +900,26 @@
       "sourceBytes": 3078762,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/swords/06_Six_of_Swords.png",
+        "sha256": "520a07dfff76fa7c7d6610f441d2579893a16a05e9c72326b9e7a123a440a5e7",
+        "bytes": 5015160,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/sword-6.webp",
-        "bytes": 140240,
+        "bytes": 131838,
         "width": 640,
         "height": 960,
-        "sha256": "ad7e1980c5d07f727d056908b9893cb8570c1285d441e35d838ecba774e2baa3"
+        "sha256": "4644424ae35bc7bb8993e19dc9061df29f19e9ac2839555f44798aa7823e56aa"
       },
       "thumbs": {
         "path": "thumbs/sword-6.webp",
-        "bytes": 8100,
+        "bytes": 9456,
         "width": 160,
         "height": 240,
-        "sha256": "2453bb104847a4e96c1b6d16cf7ddd171bf9e356f08fcfe514163a9d410f155b"
+        "sha256": "d8f74da6c2fa07d8dd568c43613ea50591752b7f13b9e10d7c7616d501b8a439"
       }
     },
     {
@@ -712,19 +932,26 @@
       "sourceBytes": 3972950,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/swords/07_Seven_of_Swords.png",
+        "sha256": "3af17973994bbeca7ed993443274cb892dcc66b9b09f6c931251adc1248dac32",
+        "bytes": 5193296,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/sword-7.webp",
-        "bytes": 140474,
+        "bytes": 137150,
         "width": 640,
         "height": 960,
-        "sha256": "3083b9c05da32059ed108be2e01a01c4c4b1f9f384d3c9b3ecfbacc9ce92b083"
+        "sha256": "13726b73334fe2364425970956a0a9c194e06edd79e05723112d495631d830ee"
       },
       "thumbs": {
         "path": "thumbs/sword-7.webp",
-        "bytes": 10240,
+        "bytes": 11172,
         "width": 160,
         "height": 240,
-        "sha256": "e248faf9fd11ef35ad2da57512ceb694d1760f9dd58e109ceef23ab2bad650a5"
+        "sha256": "2f5cdb57a5e32f3b06760ef53ca1dd4f49116e04f670ccf968c938be99831398"
       }
     },
     {
@@ -737,19 +964,26 @@
       "sourceBytes": 3873551,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/swords/08_Eight_of_Swords.png",
+        "sha256": "c72da5b342adcaed5d0dc95409d11b3d7aff4f6eb860aacaf636319c2a024854",
+        "bytes": 5023183,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/sword-8.webp",
-        "bytes": 143106,
+        "bytes": 133764,
         "width": 640,
         "height": 960,
-        "sha256": "982f6a3f652df80f433dd3ab64b8b35b93329596d62569b8c0e2b841e0c6c8f1"
+        "sha256": "0eb1ff929c76180dc8146583ed72b17f33d454cc3bc282aea10ceb3b16e30960"
       },
       "thumbs": {
         "path": "thumbs/sword-8.webp",
-        "bytes": 7802,
+        "bytes": 9510,
         "width": 160,
         "height": 240,
-        "sha256": "743aba061d992eec6ad3fb8342ac21c894b835dd6d0ef406e7307cc40d047227"
+        "sha256": "95a218c3a9cb747e2a9915e80a3220b24eff9b8fce3995e5909b8564c5fa76a6"
       }
     },
     {
@@ -762,19 +996,26 @@
       "sourceBytes": 2299141,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/swords/09_Nine_of_Swords.png",
+        "sha256": "41e5769275111b27241efbbde616efc7f0178fcab658a8226e5dbb6342f39a3a",
+        "bytes": 4636709,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/sword-9.webp",
-        "bytes": 110662,
+        "bytes": 116152,
         "width": 640,
         "height": 960,
-        "sha256": "8e2d5444c2b9289d21fc70d065d374f9813503af1cbd594890c1595b4ea76640"
+        "sha256": "24087212bb3ed81b9075d665abd95e71cd09102d08a5a6d58576b16f2d322512"
       },
       "thumbs": {
         "path": "thumbs/sword-9.webp",
-        "bytes": 7452,
+        "bytes": 9230,
         "width": 160,
         "height": 240,
-        "sha256": "7226ecf514a2d164b451f0cee87a583612c388ce374df91074b2ba20e1bb23e6"
+        "sha256": "340d8e6b06641db5d3e5c0bd090a632dc44cf108c3b24f254b0ee0765ae1697d"
       }
     },
     {
@@ -787,19 +1028,26 @@
       "sourceBytes": 3719969,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/swords/10_Ten_of_Swords.png",
+        "sha256": "646148ca998faa05616e13e22a735d0a50d564f938eae099af491b54115123ad",
+        "bytes": 4936073,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/sword-10.webp",
-        "bytes": 151388,
+        "bytes": 143216,
         "width": 640,
         "height": 960,
-        "sha256": "1cffa8de9e59af9636e0eca9b2da49942ca5d1d5b31aad016afd2340aac767af"
+        "sha256": "fcb01fa7f46430d3a7e5d2e60e00206704e948a8b10c0e5afbeff054b5f57727"
       },
       "thumbs": {
         "path": "thumbs/sword-10.webp",
-        "bytes": 9096,
+        "bytes": 10698,
         "width": 160,
         "height": 240,
-        "sha256": "d4e13cc8f4f7bc7ea1484223c94e4bcf7da43bc4b5f5966ce2603fa9ff868435"
+        "sha256": "f0e3894315b8c05e358a91c0568f2549a593c3bb7657c3598e3d2e756f7b3de1"
       }
     },
     {
@@ -812,19 +1060,26 @@
       "sourceBytes": 2763510,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/swords/11_Page_of_Swords.png",
+        "sha256": "0071fa44bfd71b576eed4566223f838eadf79b529c99b336bfe74790aeea940a",
+        "bytes": 5415006,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/sword-page.webp",
-        "bytes": 152940,
+        "bytes": 145870,
         "width": 640,
         "height": 960,
-        "sha256": "750f3deb9c46c7f129fb0089c42fc1e2b34c54b54941fdfa0edb99c2bf389f00"
+        "sha256": "cf5b4e5846bbe5a5fd12d0b613ae4c41f0cb3f48828326d663a31a76e30ca1aa"
       },
       "thumbs": {
         "path": "thumbs/sword-page.webp",
-        "bytes": 10906,
+        "bytes": 11514,
         "width": 160,
         "height": 240,
-        "sha256": "8666e5f8f6fb74398ecadd2018e2d363e46e3611e58c2270dd94e74665ead22d"
+        "sha256": "332d6523791f475f086a64c6535c3506583d1735b66aebdb1f4d7552cbc8eb89"
       }
     },
     {
@@ -837,19 +1092,26 @@
       "sourceBytes": 2869542,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/swords/12_Knight_of_Swords.png",
+        "sha256": "1c60d8d83883d051eb785de8c8840356370a385b070ef6767694cae8a7a85fd5",
+        "bytes": 5315433,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/sword-knight.webp",
-        "bytes": 154096,
+        "bytes": 144498,
         "width": 640,
         "height": 960,
-        "sha256": "8f3aeac504a255a6fe2cbb4581e0f15193a210100c0fa8eae28fe0a98b793345"
+        "sha256": "206f2659af35a4c0e3d18549989ff3491cc6887004f7f88b86311caddd84c444"
       },
       "thumbs": {
         "path": "thumbs/sword-knight.webp",
-        "bytes": 10952,
+        "bytes": 11656,
         "width": 160,
         "height": 240,
-        "sha256": "639c77b6ebcb9c29269f2bc7966913b6b3a0e3f69626fbac10b57fe9a1e2ae62"
+        "sha256": "3d50a9ec42f40b2bcf73b67ca6abbf2208308e07d182e0410cc3387806260704"
       }
     },
     {
@@ -862,19 +1124,26 @@
       "sourceBytes": 2864312,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/swords/13_Queen_of_Swords.png",
+        "sha256": "71627bae5c106a6c6ba2207ec784799ae3d27d63ea197e8975aa659710ea7d33",
+        "bytes": 5465026,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/sword-queen.webp",
-        "bytes": 173314,
+        "bytes": 158614,
         "width": 640,
         "height": 960,
-        "sha256": "6e65b7236b7ed92ae979612045cae102a249570b1f573e98f0498c3a10010eaf"
+        "sha256": "678f6c3229abc11cbf4229019e4620b0b2f0018c7502f21a3aeb7908162d794d"
       },
       "thumbs": {
         "path": "thumbs/sword-queen.webp",
-        "bytes": 11724,
+        "bytes": 11950,
         "width": 160,
         "height": 240,
-        "sha256": "977a94ace37c03c4b5185026a0c068553cd5a3fe3c0f58c3069b8741fe74ff19"
+        "sha256": "332d679764989a892a40300d8dab1f82b1b626880c8581fa901e94cb0ff52570"
       }
     },
     {
@@ -887,19 +1156,26 @@
       "sourceBytes": 2642702,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/swords/14_King_of_Swords.png",
+        "sha256": "bfb7c3a236b822bac415ef242168a40a0433a371c1fc706416aa28bee74359e5",
+        "bytes": 5235148,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/sword-king.webp",
-        "bytes": 147778,
+        "bytes": 140410,
         "width": 640,
         "height": 960,
-        "sha256": "23da023d76c4a157545f764accb12643fdce9e688cc6c2e652e593d961d50ae0"
+        "sha256": "3f97fdbb972392d5e6808406732fea4459b4246628717c90241aeb3bb94cef63"
       },
       "thumbs": {
         "path": "thumbs/sword-king.webp",
-        "bytes": 10604,
+        "bytes": 11128,
         "width": 160,
         "height": 240,
-        "sha256": "951d9473bf25be8d0ed7d0a9da28c475638e5f3552377281e74635f5dd3b95af"
+        "sha256": "f9ef02d5d317e4bd6230380375fbd721d32471a011b8a98b310c2bd75c6269ad"
       }
     },
     {
@@ -912,19 +1188,26 @@
       "sourceBytes": 3342893,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/cups/01_Ace_of_Cups.png",
+        "sha256": "56cd12a13f5df5c68920547bf960d501fabe24045b2b1536a8dc0c16a0ed4c27",
+        "bytes": 5544813,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/cup-1.webp",
-        "bytes": 190752,
+        "bytes": 172088,
         "width": 640,
         "height": 960,
-        "sha256": "d3777e03cab89607897dd5a43028b660f6c90e94618ea25c4a278cbc1f5cc163"
+        "sha256": "fdb35e812310686dc3363fd13e8767925a6226fce87853164a7952ad1203839e"
       },
       "thumbs": {
         "path": "thumbs/cup-1.webp",
-        "bytes": 12178,
+        "bytes": 12286,
         "width": 160,
         "height": 240,
-        "sha256": "6e211a73612185740a3871c8fae508d71f99ed03cc5d1651629138ac8309530a"
+        "sha256": "3287b3463923c166c8e7708a9356939d0b4d2b5186e68c38ed4ed0e3f054fc33"
       }
     },
     {
@@ -937,44 +1220,58 @@
       "sourceBytes": 2611081,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/cups/02_Two_of_Cups.png",
+        "sha256": "31d3488127eca795e0d9f4d25fdafce932206321c2d0b14c3142a0c3b83748bd",
+        "bytes": 5290345,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/cup-2.webp",
-        "bytes": 129878,
+        "bytes": 129612,
         "width": 640,
         "height": 960,
-        "sha256": "05805bdf3d08104eab981457fdc8f54954bdeb65a4505ff04e2cc15ff2f3d2f6"
+        "sha256": "3627241c18b3f27847fa9f7e50ff45cefdad6d7ca2eb10e5af36af716c4ec68a"
       },
       "thumbs": {
         "path": "thumbs/cup-2.webp",
-        "bytes": 10064,
+        "bytes": 11022,
         "width": 160,
         "height": 240,
-        "sha256": "030de3e9e6a97492ee4353e60ccd4b344452619ed3df6b41ff912aa2cfc368ea"
+        "sha256": "6b6ecc293c365179cf81e3add0c74b99fd6e2cd60d5204578a33d1a66ee930ad"
       }
     },
     {
       "id": "cup-3",
       "sourceId": "cups-03",
       "label": "杯の3",
-      "selectedVersion": "カップ3・物語画v2／高さ・前後差・杯3個・笑顔の時間差／2026-10-21採用",
+      "selectedVersion": "カップ3・フレッシュ重厚油彩v2／歯を見せない笑顔・3人3杯／2026-10-24採用",
       "source": "art/cups/03_Three_of_Cups.png",
-      "sourceSha256": "57a8e409039897ff90061b791b8ab2595f76e3d9a3cf376a8b09f66ab7e45c23",
-      "sourceBytes": 2301199,
+      "sourceSha256": "ead768e8973f49c6d3378fb255363434a01b873b0372414a87c83582fd974369",
+      "sourceBytes": 2774676,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/cups/03_Three_of_Cups.png",
+        "sha256": "30ccdbf189bc13bf3fefe8f5fa4d234bd3d9516f6ca536763813a967c058f313",
+        "bytes": 5228621,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/cup-3.webp",
-        "bytes": 120050,
+        "bytes": 125578,
         "width": 640,
         "height": 960,
-        "sha256": "e63183f9ec3a73a96c96226a2c7a9d76c215ff584b0785f154f0e05144281800"
+        "sha256": "58f4e1d12616ad6fc0b2995edb6e4bcd03e647b53398f5d14559315f46c43451"
       },
       "thumbs": {
         "path": "thumbs/cup-3.webp",
-        "bytes": 9794,
+        "bytes": 10418,
         "width": 160,
         "height": 240,
-        "sha256": "2a5cf0ab7f0b6105c2c3d95dd611ed8e7870664cdf422c95bbe160aa2e7d09d4"
+        "sha256": "c5663965da4c87bf485cfdb4f746c1cada072147d26932b775a2cd0a78104a00"
       }
     },
     {
@@ -987,19 +1284,26 @@
       "sourceBytes": 2748169,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/cups/04_Four_of_Cups.png",
+        "sha256": "fc53c0772b273dba528a2f225249c25139e0206aa234025b2c452ef96d261ee0",
+        "bytes": 5191595,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/cup-4.webp",
-        "bytes": 133792,
+        "bytes": 133862,
         "width": 640,
         "height": 960,
-        "sha256": "2b421c5ac389d566a0caf2bcf02ddfb8eeca738218ac3bc5be48c49898ab522d"
+        "sha256": "a3f3e30f0194ee2a4075be17213463fca1b375fbc0d45ff5a76b512e0d195d0e"
       },
       "thumbs": {
         "path": "thumbs/cup-4.webp",
-        "bytes": 9550,
+        "bytes": 10674,
         "width": 160,
         "height": 240,
-        "sha256": "9fbdb4f7433d6834681d1cd6e8c75fc7d803dcc165672d1857fa3111935bd415"
+        "sha256": "c2c8fa7fe33109da60a315b49f532bf8c13c6719e5548d39f08a401ad95a204a"
       }
     },
     {
@@ -1012,19 +1316,26 @@
       "sourceBytes": 3774315,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/cups/05_Five_of_Cups.png",
+        "sha256": "0b808ef55f399b1f191c2b40a5a242b6a5d6c626e87d779a9e5f8918be3ce8eb",
+        "bytes": 5000366,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/cup-5.webp",
-        "bytes": 146434,
+        "bytes": 137888,
         "width": 640,
         "height": 960,
-        "sha256": "9e3660d5a95933a656df411255cf823cdfdab3bf5deb07a5e11b4cd194e79e4b"
+        "sha256": "27e3345fc387a05c79c50b17205b6143aae35f82420db40a993ea324eaf73989"
       },
       "thumbs": {
         "path": "thumbs/cup-5.webp",
-        "bytes": 7988,
+        "bytes": 9604,
         "width": 160,
         "height": 240,
-        "sha256": "9fe504514fbd5abd916fcba2861c9d21eb8a9239a4008f826251148384a35450"
+        "sha256": "41cf226a6016fc44b9e18fa671afc73d572489c099ace24c1af202281068cfa2"
       }
     },
     {
@@ -1037,19 +1348,26 @@
       "sourceBytes": 4203086,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/cups/06_Six_of_Cups.png",
+        "sha256": "60bb214bb020ca8cb7dcdb20ad0175a9700ad5ba26c95974ec37d95ed7ecd452",
+        "bytes": 5490970,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/cup-6.webp",
-        "bytes": 178220,
+        "bytes": 165100,
         "width": 640,
         "height": 960,
-        "sha256": "1f950a351d4545a9fce1da8fe422a8f27e82c0acb031e5fdcb3331a7b37be350"
+        "sha256": "d45f6adfe259c073b94ed7e2fa83b44469c60a6d54954be95984708bf71e3b40"
       },
       "thumbs": {
         "path": "thumbs/cup-6.webp",
-        "bytes": 11562,
+        "bytes": 11972,
         "width": 160,
         "height": 240,
-        "sha256": "250659ec638de0b34f5f7b3c7e72069b61e169e3f6a7a39d7353e53db0d134be"
+        "sha256": "d1b5aa7b9f7598b683bec3d44977abcdaded13a36c9a12c9ab60690f4db129ea"
       }
     },
     {
@@ -1062,19 +1380,26 @@
       "sourceBytes": 2956503,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/cups/07_Seven_of_Cups.png",
+        "sha256": "379ad2d9d8e0d51445b58240a77fac894c43e2e30705c1d6870834bfcb7c718e",
+        "bytes": 5429738,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/cup-7.webp",
-        "bytes": 160822,
+        "bytes": 152230,
         "width": 640,
         "height": 960,
-        "sha256": "3fcc1fe611964b5dbeda33f96b740cb78b09b18194d8ba977639957d6874a349"
+        "sha256": "bf7345d9dd7b5f3b1b1f1eca81e7f53e8ee58175c697d23377b78599858642d1"
       },
       "thumbs": {
         "path": "thumbs/cup-7.webp",
-        "bytes": 10466,
+        "bytes": 11440,
         "width": 160,
         "height": 240,
-        "sha256": "390bd9a93c827e818e0922551862f15d6be9bebd1fa412ec9a12e6b4fb05a566"
+        "sha256": "f7346bbe14e8307fcfd3d4c7fed5569fe9813f2d954882ec108d72830c657a54"
       }
     },
     {
@@ -1086,19 +1411,26 @@
       "sourceBytes": 3123081,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/cups/08_Eight_of_Cups.png",
+        "sha256": "7db18f24a3f7afeb80f1113b715153063a513130a41aec6146cf5a37e5bfe28c",
+        "bytes": 5071961,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/cup-8.webp",
-        "bytes": 158488,
+        "bytes": 148010,
         "width": 640,
         "height": 960,
-        "sha256": "5b1b220aeff0c24aaeeb5ab6ff24570b8c6a3939b3dac931424071c4f61d54d1"
+        "sha256": "fd9d69fd8b437abf19aaab2babb42328592f1ca0bcf5d21ab6b8479c2105b12f"
       },
       "thumbs": {
         "path": "thumbs/cup-8.webp",
-        "bytes": 9402,
+        "bytes": 10586,
         "width": 160,
         "height": 240,
-        "sha256": "c4fdfd36314053932d1f5aa04128b55db3cb7719a26a4d5f179b5d5411073659"
+        "sha256": "a14a90d88264b5b473b7bdb2cffb6d199338bb7f61de40ba7fb34537051bfa65"
       }
     },
     {
@@ -1111,44 +1443,58 @@
       "sourceBytes": 2631102,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/cups/09_Nine_of_Cups.png",
+        "sha256": "ff6c302428fcf7151c7c0d6060d2f18f42355de3ddf5086f61195b171e2b1a86",
+        "bytes": 4864898,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/cup-9.webp",
-        "bytes": 129580,
+        "bytes": 130396,
         "width": 640,
         "height": 960,
-        "sha256": "4059071d8fb8a0d547097776ebc5b3ba9f819b2dd0ffa4dd6ddc62d1c545a1a4"
+        "sha256": "5d188cc68f2c16d741f878ac6048a23f263bcac6a1fa52da113b27315a28ff0e"
       },
       "thumbs": {
         "path": "thumbs/cup-9.webp",
-        "bytes": 9372,
+        "bytes": 10554,
         "width": 160,
         "height": 240,
-        "sha256": "cd207f18e89441a62c5f7c4d0e5f0251a06d3f519a60c8a94a0cd2c3ac988071"
+        "sha256": "76bf2c07035cc339f44f93892840c396944d3c9ee78d5cb0c8840a1324bd88f0"
       }
     },
     {
       "id": "cup-10",
       "sourceId": "cups-10",
       "label": "杯の10",
-      "selectedVersion": "カップ10・採用v6起点の物語画v2／手持ち2杯＋卓上8杯・表情差／2026-10-21採用",
+      "selectedVersion": "カップ10・重厚油彩v8b／手持ち2杯＋卓上8杯・合計10杯／2026-10-24採用",
       "source": "art/cups/10_Ten_of_Cups.png",
-      "sourceSha256": "378bbbd99e7371cff56509c3c9b44eb0f8f43cbdaa0227f5513d4cd02b5e8a44",
-      "sourceBytes": 2627859,
+      "sourceSha256": "b5d60a91c48aed8af51a0da168c5909e6c1cdfca51f864c7cb0abbfb5fb6ae33",
+      "sourceBytes": 2562530,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/cups/10_Ten_of_Cups.png",
+        "sha256": "6cfbd29dfa661be4b3cb96a683b967528c3a580fcf18734d2b11a87d84d9901c",
+        "bytes": 5145301,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/cup-10.webp",
-        "bytes": 156240,
+        "bytes": 131532,
         "width": 640,
         "height": 960,
-        "sha256": "e0b6a6a23ec1709114375278a973c21d49ecba74019577a3e9a99518290c0ad7"
+        "sha256": "4037176259a5319d4220b2d411c9b93484815d3071e553b1c3f7af6f450de8b3"
       },
       "thumbs": {
         "path": "thumbs/cup-10.webp",
-        "bytes": 11746,
+        "bytes": 11280,
         "width": 160,
         "height": 240,
-        "sha256": "0e5f28762b8b5de4f16b061654cc6b3d168cc522c17ea23047e5a7589c9c2626"
+        "sha256": "d5afdb53eb67688468e8a87d54e9e80dfe74ba333a840d75919fcc996b543a65"
       }
     },
     {
@@ -1161,19 +1507,26 @@
       "sourceBytes": 2479405,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/cups/11_Page_of_Cups.png",
+        "sha256": "0fbaf317d53aed17ccbc2fecaa3399a40f5cb2c25b02c2b1f8fcf4109b306a69",
+        "bytes": 5226606,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/cup-page.webp",
-        "bytes": 118858,
+        "bytes": 125140,
         "width": 640,
         "height": 960,
-        "sha256": "dabcfe28a2a623076f0d7b9d79c4588cd0f6f90cbd6162e17578098eace1a03d"
+        "sha256": "adeaf8f358f0ccfc4366debcb34e6349216086541967f08953e17c8f05b23678"
       },
       "thumbs": {
         "path": "thumbs/cup-page.webp",
-        "bytes": 9036,
+        "bytes": 10402,
         "width": 160,
         "height": 240,
-        "sha256": "2a6a1c69ea55305a6419a03dfe357555e69c8f15e33c559dd605ee06207c46db"
+        "sha256": "f346ea6fbd57bd189e762848823cbbb4cff8590ecc2f306f9810f551fafff698"
       }
     },
     {
@@ -1186,19 +1539,26 @@
       "sourceBytes": 2680860,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/cups/12_Knight_of_Cups.png",
+        "sha256": "6f92014a242f97816292258e53aa3c56afd0f06ddbbd56d04595b7443f5a21e3",
+        "bytes": 5224557,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/cup-knight.webp",
-        "bytes": 128860,
+        "bytes": 132568,
         "width": 640,
         "height": 960,
-        "sha256": "af7e36f633e150fb4f29ffd58a69308bb3aa14eda2c2bc9f9b13333617775f5d"
+        "sha256": "93fc6f202cb9791c674f6c0ac844562ef01b80dddfef4dadf7f554674dc2feb1"
       },
       "thumbs": {
         "path": "thumbs/cup-knight.webp",
-        "bytes": 9188,
+        "bytes": 10794,
         "width": 160,
         "height": 240,
-        "sha256": "e0c0ff75d616eefb65707d115c3cdc323258af1c427914d7a1902956fdded149"
+        "sha256": "5e1509f4dd0e803355d068a2f1068015202be305213f6e1d8d9598447d5ab54a"
       }
     },
     {
@@ -1211,19 +1571,26 @@
       "sourceBytes": 2343119,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/cups/13_Queen_of_Cups.png",
+        "sha256": "499cfcbd8743fadb64c06d48f58e0c719e14b9bdc2bd505f2a98eaf6603a7269",
+        "bytes": 5071008,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/cup-queen.webp",
-        "bytes": 117190,
+        "bytes": 125250,
         "width": 640,
         "height": 960,
-        "sha256": "19ce83630705f48f568244e6f0fb1ebabccbf07356febd66dc81e319ce8c6dbb"
+        "sha256": "295c028190e778ec3c8dea85e3b610ae694f3feba29bed502334b49926ead22e"
       },
       "thumbs": {
         "path": "thumbs/cup-queen.webp",
-        "bytes": 9784,
+        "bytes": 10814,
         "width": 160,
         "height": 240,
-        "sha256": "eabbd74a23040b8f92bab38f5673efe108b48e1ef51c771261c3fa964eafb6c5"
+        "sha256": "2a0e08aced95ba2596cf0c87767b9388fbaa3a3e478addf5c55825a239d1240a"
       }
     },
     {
@@ -1236,19 +1603,26 @@
       "sourceBytes": 3055316,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/cups/14_King_of_Cups.png",
+        "sha256": "461091c5c358ebbbd68c6017c1ec5eadab4e774dc2d2a0b1a47f6e22ddfc05dc",
+        "bytes": 5609656,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/cup-king.webp",
-        "bytes": 183480,
+        "bytes": 168004,
         "width": 640,
         "height": 960,
-        "sha256": "dd5b5783633f90376be1f64721974d6b0768331456899ab8d7fb795e64eef64f"
+        "sha256": "475a75631adfae23a81933d020447c8d0cae09d24d650ee49a90a448bad2f1a9"
       },
       "thumbs": {
         "path": "thumbs/cup-king.webp",
-        "bytes": 13242,
+        "bytes": 13258,
         "width": 160,
         "height": 240,
-        "sha256": "564e0425874239296945d975642e401c8580ff39d6c3cdd33779971bed35a63b"
+        "sha256": "d34c4e33d31ff164fa8fda3b29cb445ec2a1fe63d2514fe8618f6597fbd4ca15"
       }
     },
     {
@@ -1261,19 +1635,26 @@
       "sourceBytes": 2892734,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/wands/01_Ace_of_Wands.png",
+        "sha256": "a87895679eb95341be21a9b09a090c8791d100277274fc64e0bb5528db5d0774",
+        "bytes": 5234768,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/wand-1.webp",
-        "bytes": 162002,
+        "bytes": 155000,
         "width": 640,
         "height": 960,
-        "sha256": "d9a311cea2f084a5f05f934c7536257091bc4ca0e2493b440ad36cf66ae6b601"
+        "sha256": "8d7c679366d8d25dc69b8f178d16b5b52160e74519a14e71838c43fac3fffcc2"
       },
       "thumbs": {
         "path": "thumbs/wand-1.webp",
-        "bytes": 11666,
+        "bytes": 11732,
         "width": 160,
         "height": 240,
-        "sha256": "a4b16a18b54f5aee7253a2d32444e282f23dbc76fecc481da355118d550873f0"
+        "sha256": "60f6d8b228cae28d20bbce378d5a5875d51e2e54715e9343be40a7b01e4cae07"
       }
     },
     {
@@ -1286,19 +1667,26 @@
       "sourceBytes": 2602144,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/wands/02_Two_of_Wands.png",
+        "sha256": "d316f9cbce2379116c50582eb4973ffa5b88ab6c4db8241425d50f71ce2f70fa",
+        "bytes": 5048847,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/wand-2.webp",
-        "bytes": 119912,
+        "bytes": 123486,
         "width": 640,
         "height": 960,
-        "sha256": "4103c9fe32f1a1dd0611314aa0c75094d639119d3782a4dab806662c401e2674"
+        "sha256": "72d92f5fc640c1a236d56daa1b2d5b5f78f8295874ba1f5b44e1324038c5bd5e"
       },
       "thumbs": {
         "path": "thumbs/wand-2.webp",
-        "bytes": 8668,
+        "bytes": 9626,
         "width": 160,
         "height": 240,
-        "sha256": "39fa01709d2abfd8a1cb9a8fd7f3efa82d2e96a6231985dc82be179552140b53"
+        "sha256": "58ded82a755a4946e08886bf21ccbe48ed569bf6916d57ddeef789d25ff455e7"
       }
     },
     {
@@ -1311,19 +1699,26 @@
       "sourceBytes": 2755087,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/wands/03_Three_of_Wands.png",
+        "sha256": "d0febe558938b603deec17da82c7350907ea176c9b91c0d516cc7e3e8f670a46",
+        "bytes": 5130138,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/wand-3.webp",
-        "bytes": 138692,
+        "bytes": 133338,
         "width": 640,
         "height": 960,
-        "sha256": "10d70811363657ab29966e57b0aa1d5c8af6f0da3dfdc6e26b0a7c055e23f117"
+        "sha256": "de0a678409339ac3e7a225633bd98738fcbdc85848a096776a5cb0f877145295"
       },
       "thumbs": {
         "path": "thumbs/wand-3.webp",
-        "bytes": 9294,
+        "bytes": 10130,
         "width": 160,
         "height": 240,
-        "sha256": "91372c349ac6cd84f6a0537d7146828fa26927a8d1c1be72282eb7a85c423566"
+        "sha256": "c7744953d1b338d59660e536efb854011e41dc143d25897255eafd9cf1f0f209"
       }
     },
     {
@@ -1336,19 +1731,26 @@
       "sourceBytes": 2627682,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/wands/04_Four_of_Wands.png",
+        "sha256": "7d3a53ff0cb7ee3bd6cb9c117fb345b2879aa86479f284e5382afecaeebb2d12",
+        "bytes": 4994942,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/wand-4.webp",
-        "bytes": 128958,
+        "bytes": 128696,
         "width": 640,
         "height": 960,
-        "sha256": "e8a637d561c542ea9cf2de22f2caac426ce8c77d452c9a387664dfc01937908d"
+        "sha256": "1a45be49c8a5c15a5f284d9bf987969fa57d4a723a1c04afa4800e5ef835eb28"
       },
       "thumbs": {
         "path": "thumbs/wand-4.webp",
-        "bytes": 8658,
+        "bytes": 9620,
         "width": 160,
         "height": 240,
-        "sha256": "613d9672f7498b713afd0a7e6ffc91a3bb24df8eec5aa740c7059b823da9ebbc"
+        "sha256": "f89f96dad88b88b2deb365397aa85446bf3d9cc7d585c8abedb94d761d3b3861"
       }
     },
     {
@@ -1361,19 +1763,26 @@
       "sourceBytes": 2849457,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/wands/05_Five_of_Wands.png",
+        "sha256": "c61b45b1ff7ece73f74adc71bb91be39cafc6b16775b842df6b25b4d0ffc20f9",
+        "bytes": 5151346,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/wand-5.webp",
-        "bytes": 150000,
+        "bytes": 146882,
         "width": 640,
         "height": 960,
-        "sha256": "27e555872f658405103e46c7eadabbfa4ee5c21d423620d70fb8b030041123c0"
+        "sha256": "7354d6475f18fc52cd19edc2e809c40927971b0cd082dbabdab7341cadfc2e79"
       },
       "thumbs": {
         "path": "thumbs/wand-5.webp",
-        "bytes": 10628,
+        "bytes": 11082,
         "width": 160,
         "height": 240,
-        "sha256": "6b4516d2ae73bf9b5e1e3a0147c1d97ecb43d896bdc1bf11282dd483164dc4cf"
+        "sha256": "17322e9ab3e5d47393d7e84d403211aac35eddd1c22bfa9cf538d31c365d1f04"
       }
     },
     {
@@ -1386,19 +1795,26 @@
       "sourceBytes": 2901738,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/wands/06_Six_of_Wands.png",
+        "sha256": "eaab22376eafb481e4fe538d40e8702695a9afa522ebbb3f6f57d31e44ffe933",
+        "bytes": 5664923,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/wand-6.webp",
-        "bytes": 183666,
+        "bytes": 169422,
         "width": 640,
         "height": 960,
-        "sha256": "ef3108d79a58deac4e7a8d9f9117fead7fd0c954fa88f0511e5ed32f49ba766b"
+        "sha256": "c589bcdd0dd43001cced08808c2a88ad7fc12b03ddd68e5b58ad1104b9df15bd"
       },
       "thumbs": {
         "path": "thumbs/wand-6.webp",
-        "bytes": 13444,
+        "bytes": 12724,
         "width": 160,
         "height": 240,
-        "sha256": "e8c49c3e2d1c7f5f12e1136c57e03e18dc1cc81b6a7918f29137ce7aed58ad28"
+        "sha256": "6ca6c6b51abcb3acaccef4bb846c209914642f531c965c61fbb506a2e2c73648"
       }
     },
     {
@@ -1411,19 +1827,26 @@
       "sourceBytes": 3299108,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/wands/07_Seven_of_Wands.png",
+        "sha256": "596dd488c018c9df30be44f97a0f254629df32f81407255b0e4caeef26d3988e",
+        "bytes": 5250478,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/wand-7.webp",
-        "bytes": 190782,
+        "bytes": 169866,
         "width": 640,
         "height": 960,
-        "sha256": "c9b5abc7b0ed3f3246609cacd60463c2cb30caf785119bb9ff45dfcb45655f1d"
+        "sha256": "b34cc7740987758c899fa0e1d12c5c477ef4f00cbc45855f0ca6a37abc9b2627"
       },
       "thumbs": {
         "path": "thumbs/wand-7.webp",
-        "bytes": 11252,
+        "bytes": 11398,
         "width": 160,
         "height": 240,
-        "sha256": "0fb2e9f543b791c7b8da1faa4e08a7145e960559536aaaab6980039bc1075eac"
+        "sha256": "2fc2da40d9fe9ad1181b04dc40448abce5b6e247337241b978ae03bd595a5443"
       }
     },
     {
@@ -1436,19 +1859,26 @@
       "sourceBytes": 2709960,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/wands/08_Eight_of_Wands.png",
+        "sha256": "5a4e3ce1ed42d2273ad6012b3ef8bdcb549a0b8dad25647b0a21c1aed02ef500",
+        "bytes": 5098106,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/wand-8.webp",
-        "bytes": 126022,
+        "bytes": 131714,
         "width": 640,
         "height": 960,
-        "sha256": "c06108d8002a776744aafa866244d5f6ec2acfb84c96268176f1837e1dd454f6"
+        "sha256": "b84b5d595a435c9a9e0500bf166760a2fd91699b59a36754e54817d47e1231cd"
       },
       "thumbs": {
         "path": "thumbs/wand-8.webp",
-        "bytes": 9270,
+        "bytes": 10516,
         "width": 160,
         "height": 240,
-        "sha256": "0f6b963b89355bb78dfbe372420e21d80cdc889411ed4360603c51f0766d0b67"
+        "sha256": "85f6313d7394f0467262552be4d0e14b2fc4d1c72e611a1f068932dc5588e76c"
       }
     },
     {
@@ -1461,19 +1891,26 @@
       "sourceBytes": 2661882,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/wands/09_Nine_of_Wands.png",
+        "sha256": "623d84fc821f131337b49a070646633232cf78ceca3c850882b1b3a314f7f32b",
+        "bytes": 5287397,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/wand-9.webp",
-        "bytes": 144330,
+        "bytes": 146482,
         "width": 640,
         "height": 960,
-        "sha256": "b076ce994d17ebfdb38cb776ed7b68e73511da3747ddcf10de6ed4dfa4fecd40"
+        "sha256": "3efd9551200297f0e58db4dd5721756adff06f6eb29b4181d1038c542fedf463"
       },
       "thumbs": {
         "path": "thumbs/wand-9.webp",
-        "bytes": 10558,
+        "bytes": 11100,
         "width": 160,
         "height": 240,
-        "sha256": "a9486653981ab3c7de5c8cd5e394c8f4b924126b60b84a99dc06bbc638a5b841"
+        "sha256": "fec8c9b223f8b6810b4b3f34e52f5a58aa90ed6c7eb8fee7963a936835dcaf95"
       }
     },
     {
@@ -1486,19 +1923,26 @@
       "sourceBytes": 4013806,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/wands/10_Ten_of_Wands.png",
+        "sha256": "e5e29253c96bef705ed3d3a80e4fa395b1cb9f282d4b61eb0da321f666ecb13f",
+        "bytes": 5164458,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/wand-10.webp",
-        "bytes": 141796,
+        "bytes": 140690,
         "width": 640,
         "height": 960,
-        "sha256": "0b4a40996749b03a7ef2649e153dabec8511a40f077d0dbb6047e5e7e565486c"
+        "sha256": "6e027a0cad4fdee60e9cc5eff3662dc7c156a10a4e838c40de2c2e2193396a03"
       },
       "thumbs": {
         "path": "thumbs/wand-10.webp",
-        "bytes": 9894,
+        "bytes": 10400,
         "width": 160,
         "height": 240,
-        "sha256": "9f0b6b473c0ef5ee59e4784074be404438242e18d217a53d8e3d07b1684d6351"
+        "sha256": "2f9ca2fe6499fcfe387b07cebce90319a8bf936302f7b81b620decacb098c700"
       }
     },
     {
@@ -1511,19 +1955,26 @@
       "sourceBytes": 2574490,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/wands/11_Page_of_Wands.png",
+        "sha256": "a16c4327462d6d0eef6c86657edbf54aace32e4bfae84f00dc866c8b60d3f75f",
+        "bytes": 5227593,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/wand-page.webp",
-        "bytes": 134752,
+        "bytes": 135746,
         "width": 640,
         "height": 960,
-        "sha256": "c7846e8a08d3ec6319354f27b23856eaa36c9984d851de1373a0c306ae2b161b"
+        "sha256": "d8849a8f3f9afdd9f2e4e2d25871982d50bfaec8b636dfaf5358f47d7a70676c"
       },
       "thumbs": {
         "path": "thumbs/wand-page.webp",
-        "bytes": 10318,
+        "bytes": 10966,
         "width": 160,
         "height": 240,
-        "sha256": "9296ff03ce4092e7ec364144f28dd65ca537893e0cfa0af4161f58745db8f561"
+        "sha256": "14e9a5d9c47413a2f746249c6ad44ea272f4fcef7b9dbefc0a2324205ddbacca"
       }
     },
     {
@@ -1536,19 +1987,26 @@
       "sourceBytes": 2732325,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/wands/12_Knight_of_Wands.png",
+        "sha256": "e9cc96756826799549a5ef0435ffce40c347fd5a5b1a982bb91927e1e136ea05",
+        "bytes": 5422606,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/wand-knight.webp",
-        "bytes": 145206,
+        "bytes": 143814,
         "width": 640,
         "height": 960,
-        "sha256": "658a9dcc9c2022710f46b68d3b16bdb6d08d57e0e5c40228da766318a5b3c289"
+        "sha256": "c2fdecc3e04d918b508a342306098d004b5d8a593640ad43d5dee684d5b936ed"
       },
       "thumbs": {
         "path": "thumbs/wand-knight.webp",
-        "bytes": 10456,
+        "bytes": 11118,
         "width": 160,
         "height": 240,
-        "sha256": "976ffd4f3e82eadbf9576bfedc7bfa954eaa51accf7bf4e33db03642c72cc8be"
+        "sha256": "7011bc671fce52850c5b175b47310d2b41b163669c55311855aeadf271bfedd7"
       }
     },
     {
@@ -1561,19 +2019,26 @@
       "sourceBytes": 2951795,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/wands/13_Queen_of_Wands.png",
+        "sha256": "b1ed4112df06a769944f96fd845300188f6ea2c10f77a6891e8a44c69e6c1b53",
+        "bytes": 5420972,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/wand-queen.webp",
-        "bytes": 160224,
+        "bytes": 152684,
         "width": 640,
         "height": 960,
-        "sha256": "59d99bc8fa33538d6bbb9a547a08255a49101434870b067f7052bbbb7b0bc337"
+        "sha256": "8df861266515c9b61f6cdea6f2414d8a3dfb87aa814e59c728df6c15d6904c5b"
       },
       "thumbs": {
         "path": "thumbs/wand-queen.webp",
-        "bytes": 10698,
+        "bytes": 11032,
         "width": 160,
         "height": 240,
-        "sha256": "3c28b88cc7d62f3644cb2a9987a0233d0f668b9e092c6fc1e9fa5663f4417dc4"
+        "sha256": "d94b2c80436803f494623758170d24f8b8af7eae4a39dcc8372aa86ea6d4c5d3"
       }
     },
     {
@@ -1586,19 +2051,26 @@
       "sourceBytes": 2703254,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/wands/14_King_of_Wands.png",
+        "sha256": "b2fde5c31188470d0c31bd414fa7bd8975772595b762d9ac274ef5a160829555",
+        "bytes": 5445794,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/wand-king.webp",
-        "bytes": 168062,
+        "bytes": 156970,
         "width": 640,
         "height": 960,
-        "sha256": "aa8f570e7a4394ba73cdbe0087ccbbdb393a8932d30d71db67442cb47b53061a"
+        "sha256": "c7d577a2507b361f7a94b6aca229702a7d654a6a17c459630aa3dd78279db7cf"
       },
       "thumbs": {
         "path": "thumbs/wand-king.webp",
-        "bytes": 11872,
+        "bytes": 11732,
         "width": 160,
         "height": 240,
-        "sha256": "c693e705d83eec66d0ed97e9d529d2bc07eeb700ab963b812859a2a949551d58"
+        "sha256": "1edf139425dac78303c308a3862fb55b0f6b0efb172110da83fa03021671d4a6"
       }
     },
     {
@@ -1611,19 +2083,26 @@
       "sourceBytes": 3035928,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/coins/01_Ace_of_Coins.png",
+        "sha256": "28199da9cd27767911f391edbd7cf40e405684c4da417705a50ae1facd5825d1",
+        "bytes": 5453261,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/pentacle-1.webp",
-        "bytes": 169328,
+        "bytes": 157372,
         "width": 640,
         "height": 960,
-        "sha256": "2aca9362c069c911b0bc6de7a43476526c5b5be69dd7cff42fb1c784fa29ab74"
+        "sha256": "ee1e058036fd5e6827ee206d1950c5f3df21c373c036b1d36bef8a6ae68f577a"
       },
       "thumbs": {
         "path": "thumbs/pentacle-1.webp",
-        "bytes": 12668,
+        "bytes": 12550,
         "width": 160,
         "height": 240,
-        "sha256": "4b4723ffeffdbeeaa212e7e25f2c7bc043326063102327aa08cc4c06cdb54dd4"
+        "sha256": "1b78b3db670ba6dcfddcc6b175ddfa54965cec4dc3fb31edd23000e821cf08f3"
       }
     },
     {
@@ -1636,19 +2115,26 @@
       "sourceBytes": 2575767,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/coins/02_Two_of_Coins.png",
+        "sha256": "a1903a392fa0bddc91285e4d134db33f67d43a7de3209ed491e44ec9227912a2",
+        "bytes": 4990554,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/pentacle-2.webp",
-        "bytes": 127176,
+        "bytes": 127758,
         "width": 640,
         "height": 960,
-        "sha256": "de332360c4dbff7657fd662c74d424f2059c4a5f76d06841b90cd95fd71434c2"
+        "sha256": "d861b7cbb4e1159f62c0e8c0944d8e4ac3054057045db0b0dad2af1330480600"
       },
       "thumbs": {
         "path": "thumbs/pentacle-2.webp",
-        "bytes": 8878,
+        "bytes": 10070,
         "width": 160,
         "height": 240,
-        "sha256": "0aa2e486fb100b7d73f058eb22bde500481eed584fefd40aea167621e3d67778"
+        "sha256": "e1d5a15550045ac72f66b4289ed2ca951cb5981ec3e24da042c3b69f4371c670"
       }
     },
     {
@@ -1661,19 +2147,26 @@
       "sourceBytes": 2733532,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/coins/03_Three_of_Coins.png",
+        "sha256": "e49b2bfc3aa8ad1e5159fdc2741c377a847c59c38c335a481bdc124efc0fa37b",
+        "bytes": 4982942,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/pentacle-3.webp",
-        "bytes": 133498,
+        "bytes": 131848,
         "width": 640,
         "height": 960,
-        "sha256": "a0adc434dfd2b618db87278ee8f361e7f091c52053d2a78b232327a78e80bf83"
+        "sha256": "21fc93952bb29bf466f59f94c72575dd0e1a2378c9d68fab7e323d4e07323849"
       },
       "thumbs": {
         "path": "thumbs/pentacle-3.webp",
-        "bytes": 9412,
+        "bytes": 10248,
         "width": 160,
         "height": 240,
-        "sha256": "4627e8147c5902968a9ba2f41bfac6aab0d3f75e6eea5a22ab2d237897c9045c"
+        "sha256": "394ac797403c5834f5d1f9676bd74304ff8fdd5a674c7a9a9fde52d318427d03"
       }
     },
     {
@@ -1686,19 +2179,26 @@
       "sourceBytes": 2565272,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/coins/04_Four_of_Coins.png",
+        "sha256": "78648f204448dfb3585cf3fe36531d01613ad6e3b75024e1859de0885c9d523c",
+        "bytes": 5061472,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/pentacle-4.webp",
-        "bytes": 135422,
+        "bytes": 134678,
         "width": 640,
         "height": 960,
-        "sha256": "9e36fddc72c41be6f6083dd962015ddc34d014a61ed0815dfe4d9667ff3d8d8b"
+        "sha256": "a95ef871e755c5ebf574746119280ef18da4f583895f31f4c761de8598959bec"
       },
       "thumbs": {
         "path": "thumbs/pentacle-4.webp",
-        "bytes": 10756,
+        "bytes": 11062,
         "width": 160,
         "height": 240,
-        "sha256": "97451e4f9c99988237e60e142d4c3450bef35206289653867aae8587da8a2583"
+        "sha256": "d670c604e5cddd97d14c9d3f0234ebb7d4b7f84ccad0adbea6f15e2221ce2083"
       }
     },
     {
@@ -1711,19 +2211,26 @@
       "sourceBytes": 3004446,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/coins/05_Five_of_Coins.png",
+        "sha256": "58d88bda56f590d437574f2baad4c72fd220c263c655cc768c1c00a4fb94cf59",
+        "bytes": 5122823,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/pentacle-5.webp",
-        "bytes": 163252,
+        "bytes": 147214,
         "width": 640,
         "height": 960,
-        "sha256": "a8f5079e9a524f611eaf9365ef4daefb628caf58a354a2cbac7f0fc62a0d1e26"
+        "sha256": "1325fd42105e4135e222efd9ac7157e9ad57fe9a3b936aff50b7e23d45f9dd0b"
       },
       "thumbs": {
         "path": "thumbs/pentacle-5.webp",
-        "bytes": 10048,
+        "bytes": 10446,
         "width": 160,
         "height": 240,
-        "sha256": "bc185199a4ccc2a895fdd09102b38ff38176929223edd8fa4656177f34065f7e"
+        "sha256": "2255a3384ed8c6293b651d186c769bb3f698df14c8c6694ebec4f58976d9647f"
       }
     },
     {
@@ -1736,19 +2243,26 @@
       "sourceBytes": 4455038,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/coins/06_Six_of_Coins.png",
+        "sha256": "57c4f4ef76d9039f941e6de36f2d3e4984efc09549fb862c8ab5c32469bea657",
+        "bytes": 5155625,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/pentacle-6.webp",
-        "bytes": 132442,
+        "bytes": 131352,
         "width": 640,
         "height": 960,
-        "sha256": "726662d8558a4a52c52c5ec312fa21bb4a794a13ac760f0705bf0514f1f8d02b"
+        "sha256": "9f1ec59ee3d8a342e49539c26fe026a2f11f775a45971c4a87c687aefb4f3d1f"
       },
       "thumbs": {
         "path": "thumbs/pentacle-6.webp",
-        "bytes": 10140,
+        "bytes": 10686,
         "width": 160,
         "height": 240,
-        "sha256": "42e30b32f124990428b3f70e35b417bb7434994d79c6dc9959d93d6ddf7ff741"
+        "sha256": "8ba34e53c0ebaf6e19a13154373771f1f84b172d31c5b51b28912bc83912f1eb"
       }
     },
     {
@@ -1761,19 +2275,26 @@
       "sourceBytes": 2790995,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/coins/07_Seven_of_Coins.png",
+        "sha256": "5584e399ca17f21d0ae619c3686b14554cdb57888b693889996b36201f89ee73",
+        "bytes": 5431146,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/pentacle-7.webp",
-        "bytes": 177792,
+        "bytes": 166264,
         "width": 640,
         "height": 960,
-        "sha256": "f5f6fd52011baf97636c33663c9067b666c0c89d9db3605174249da73f8a57ca"
+        "sha256": "6b39ef20dc4936d56ba5e40ae17f08ceedcfca4ed32a84c59fff5a4da3d8050f"
       },
       "thumbs": {
         "path": "thumbs/pentacle-7.webp",
-        "bytes": 13264,
+        "bytes": 12484,
         "width": 160,
         "height": 240,
-        "sha256": "dcb437b89dd7bef274cf30735ad34697811322754c76a772fe4c8cd0f57550cf"
+        "sha256": "056cfc99429cfcf62e60c69fc68357e1fd3f76b6176c5470729115292534f05e"
       }
     },
     {
@@ -1786,19 +2307,26 @@
       "sourceBytes": 2555567,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/coins/08_Eight_of_Coins.png",
+        "sha256": "cb65dac336dad33e0ded2a2971b98bdd643195865f90dc5a31101cbebe056ed4",
+        "bytes": 4826009,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/pentacle-8.webp",
-        "bytes": 127840,
+        "bytes": 128374,
         "width": 640,
         "height": 960,
-        "sha256": "bcfecba788723fa3784d2158318a0969c59f3549af243e581a54d18f464fe2ec"
+        "sha256": "fb619ff188786ff35dfb629566009431dd28b54e10bbcf0f729965efc3c9f50d"
       },
       "thumbs": {
         "path": "thumbs/pentacle-8.webp",
-        "bytes": 9152,
+        "bytes": 10188,
         "width": 160,
         "height": 240,
-        "sha256": "85720fff88f1005292146e6af21000fdb85e2f5139ecd30b9c73a5775491855c"
+        "sha256": "a75309aeae404d242066c98e972cd8ff6eed7c3f5e47100abd184b3ba1541345"
       }
     },
     {
@@ -1811,19 +2339,26 @@
       "sourceBytes": 2820603,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/coins/09_Nine_of_Coins.png",
+        "sha256": "4491fef984f003f7ccba2dd6a3f2468054d62a5af96dfaf4cecd796818d742a2",
+        "bytes": 5200169,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/pentacle-9.webp",
-        "bytes": 171624,
+        "bytes": 156970,
         "width": 640,
         "height": 960,
-        "sha256": "505bdc9d6c243e69af223dd66bed0e8ebe03163fdc074b24c5cb8355d6e61d32"
+        "sha256": "a1fdd8e75ac74880655a13371b5f51b41a702631fdf0d8a4f829bcc11ab68e02"
       },
       "thumbs": {
         "path": "thumbs/pentacle-9.webp",
-        "bytes": 11032,
+        "bytes": 11170,
         "width": 160,
         "height": 240,
-        "sha256": "30fac75efab313f0cda18d0322471f76726257e9e949947c456eea0f40e376b5"
+        "sha256": "4aa211944494e0c2cb02cbfcc5d83bf51a0ae43b4de281bc9a080e772395e674"
       }
     },
     {
@@ -1836,19 +2371,26 @@
       "sourceBytes": 2830148,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/coins/10_Ten_of_Coins.png",
+        "sha256": "f0186788d8e0baca3605320542e08e7dab5f853f9f6b25b152b490289e653977",
+        "bytes": 5480140,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/pentacle-10.webp",
-        "bytes": 183106,
+        "bytes": 168468,
         "width": 640,
         "height": 960,
-        "sha256": "281dcc79b14a7ed7b7b7374a1730e73f3c613c1d600b62a9472970cda868b842"
+        "sha256": "8c757f170f6f145d1d7ad60a2a7644dcae42f1bef46fa2f7e6a90555292a3769"
       },
       "thumbs": {
         "path": "thumbs/pentacle-10.webp",
-        "bytes": 12528,
+        "bytes": 12440,
         "width": 160,
         "height": 240,
-        "sha256": "5e908717ee76cf86b661a4d7a7c66eadc5901ee01bf14a0ee5f0174ef6acad70"
+        "sha256": "7b8c5881b78a966c6c2c443fc5f2da60c681a478d6e83954fc665ca621a01515"
       }
     },
     {
@@ -1861,19 +2403,26 @@
       "sourceBytes": 2823073,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/coins/11_Page_of_Coins.png",
+        "sha256": "6aa6724d0e589ed0a4887e3df25864d53ad6f6ff80e7f86aaffce6dc8ab02040",
+        "bytes": 5428781,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/pentacle-page.webp",
-        "bytes": 166060,
+        "bytes": 151756,
         "width": 640,
         "height": 960,
-        "sha256": "6b75c7cd7901f1715732dc41a282e7f178b91199138e7ef527056c3fd184539d"
+        "sha256": "fd358e0615c3384c328b984524b22225c7b3cdf24b6d9582333d624de3721aa0"
       },
       "thumbs": {
         "path": "thumbs/pentacle-page.webp",
-        "bytes": 11628,
+        "bytes": 11806,
         "width": 160,
         "height": 240,
-        "sha256": "4ca85821f43a1a474383acd2b379e15261aabc17145296c09eb59c5afb53cc52"
+        "sha256": "30e3e7bfc4fb4746f472f2a01fb6d4e53940d03b1a4a1efd66c44d8cb10bb535"
       }
     },
     {
@@ -1886,19 +2435,26 @@
       "sourceBytes": 2802708,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/coins/12_Knight_of_Coins.png",
+        "sha256": "d207d5a40e109b70ae90b77df57c20c1482418e953297f4f5039ae443faef5bf",
+        "bytes": 5058899,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/pentacle-knight.webp",
-        "bytes": 150484,
+        "bytes": 141782,
         "width": 640,
         "height": 960,
-        "sha256": "4c69d296cd1001721f8ba2e55ff2ca39364fbbdb8e87439df65352dd698bdb8d"
+        "sha256": "06e190dc662372711a64a73ec07429b549bc1187c258670688f8b0bf13f431b7"
       },
       "thumbs": {
         "path": "thumbs/pentacle-knight.webp",
-        "bytes": 9820,
+        "bytes": 10174,
         "width": 160,
         "height": 240,
-        "sha256": "3471abac4786d0e71a2161a63a86eafd545541ae22b4ef50bcf79aa34e206794"
+        "sha256": "601c2e27747cd54eb372a121a6118a911169e8698f2e13da489a7332f4c27f78"
       }
     },
     {
@@ -1911,19 +2467,26 @@
       "sourceBytes": 3033999,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/coins/13_Queen_of_Coins.png",
+        "sha256": "0ddf529947b11c62c347dbbd21f4afb29f5b06f13031050d8d47117c6a655cd1",
+        "bytes": 5554806,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/pentacle-queen.webp",
-        "bytes": 183748,
+        "bytes": 165714,
         "width": 640,
         "height": 960,
-        "sha256": "fedfadd953beecb788f0b538b482d3279b43423214d9f958f751e0a936c408f0"
+        "sha256": "4455cc78db60fa039555b7a7351472b66f5012e9c6c956d66c45e8fd8f4e630e"
       },
       "thumbs": {
         "path": "thumbs/pentacle-queen.webp",
-        "bytes": 13034,
+        "bytes": 12634,
         "width": 160,
         "height": 240,
-        "sha256": "4b2688faa2de98cc4d659ad7aa2bf03abf4e53fe5b7b21de5511a0631e1a8f73"
+        "sha256": "a3933fa8b4745a2e290bc98f8526f454ca59c297d70c3f47cc507f26036e45bc"
       }
     },
     {
@@ -1936,20 +2499,38 @@
       "sourceBytes": 2870275,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
+      "renderSource": {
+        "path": "完成版/PNG/coins/14_King_of_Coins.png",
+        "sha256": "00afb381b2fd4c698b711c9e4887e81e8eb756b04d3ee1b9dcbb5708981fd5f1",
+        "bytes": 5136614,
+        "width": 1160,
+        "height": 1780
+      },
       "cards": {
         "path": "cards/pentacle-king.webp",
-        "bytes": 158050,
+        "bytes": 146088,
         "width": 640,
         "height": 960,
-        "sha256": "49b92a2b31b355e5e74b0a7f240eb19c511c6a91ac19804f46771604fa7a4324"
+        "sha256": "4b3d1be4aed073253c4e95b66a97bb172a481fd51329957b0fc4c4bbdb095039"
       },
       "thumbs": {
         "path": "thumbs/pentacle-king.webp",
-        "bytes": 10654,
+        "bytes": 11214,
         "width": 160,
         "height": 240,
-        "sha256": "261cd22c913fdd3020722c9c0ce30a14d6d7626cb1b79beec7390a569960ec56"
+        "sha256": "f61cd329971b5ef3a5828f692301dd453ee09702ce5dcd33ffd70520651fe463"
       }
     }
-  ]
+  ],
+  "back": {
+    "path": "back.webp",
+    "source": "back/card-back-native.png",
+    "sourceSha256": "121570737c5d49b8e89f7ce0315d5867c3666c83567447f5ab06cab09a921a60",
+    "selectedVersion": "裏面A・移植舵輪 厳密180度対称 v17／2026-10-23最終決定",
+    "sourceBytes": 3536915,
+    "width": 640,
+    "height": 960,
+    "bytes": 132580,
+    "sha256": "c69ea37198a4b2867ce7acfa160231f025fee937a45ad981da90bf7a1e1b06f6"
+  }
 }
