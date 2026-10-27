@@ -140,3 +140,10 @@ React、Next.js、Firestore Functions は現在の実装にはない。存在し
 - G/報酬/ランキング変更: 増減、残高不足、上限、idempotency、派生ランキング同期を確認。
 - 共有契約や広範囲変更: 最後に `npm test`。秘密情報や本番 publish を必要とする script は自動実行しない。
 - 詳細な対応表は `docs/testing.md` を参照する。
+
+### AI による画面検証
+
+- 画面変更後は可能な範囲で実ブラウザを操作・撮影して確認する。起動 PoC は `npm run test:ai`、詳細は `docs/testing.md` の AI Test Architecture。
+- Debug Bridge はテスト runner が注入する読み取り専用 DTO。本番への組込、Secret・token・PIN・任意ユーザー情報の追加、状態変更メソッドは禁止。
+- 本番ユーザーへの破壊的テストは禁止。fixture を優先し、固定 sleep より状態・API 契約の成立を待つ。
+- 成功時は簡潔に、失敗時は scenario・期待値・安全な状態・API 結果・再現手順を残す。生の通信／Console や大量ログを無制限に共有しない。

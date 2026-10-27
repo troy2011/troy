@@ -868,6 +868,7 @@ async function openMapTab(page, playerInfo = DEFAULT_PLAYER_INFO, options = {}) 
 
 module.exports = {
   DEFAULT_PLAYER_INFO,
+  installBaseAppMocks,
   bootstrapMainApp,
   openMapTab,
   prepareMapPlayerContext,
