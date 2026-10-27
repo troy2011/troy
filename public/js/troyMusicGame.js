@@ -1,8 +1,10 @@
 const root = document.getElementById('troyMusicGameRoot');
 const QUEUE_STORAGE_KEY = 'troy.music-game.participant-queue.v1';
 const GUEST_STORAGE_KEY = 'troy.music-game.guests.v1';
+const NAVI_TARGET_STORAGE_KEY = 'troy.music-game.navi-target.v1';
 const RECENT_LIMIT = 20;
 const RECENT_ARTIST_LIMIT = 3;
+const MAX_JOYSOUND_ANDROID_SONG_NUMBER = 2_147_483_647;
 
 const MODE_LABELS = {
     sabikara_free: 'サビカラ自由挑戦',
@@ -32,6 +34,7 @@ const SKIP_REASON_LABELS = {
 };
 
 const state = {
+    naviTarget: loadNaviTarget(),
     mode: 'sabikara_free',
     difficulty: 'easy',
     drawCount: 1,
@@ -79,6 +82,28 @@ function loadSessionList(key) {
     } catch {
         return [];
     }
+}
+
+function loadNaviTarget() {
+    try {
+        return localStorage.getItem(NAVI_TARGET_STORAGE_KEY) === 'store' ? 'store' : 'switch';
+    } catch {
+        return 'switch';
+    }
+}
+
+function changeNaviTarget(value) {
+    if (value !== 'switch' && value !== 'store') return;
+    state.naviTarget = value;
+    try {
+        localStorage.setItem(NAVI_TARGET_STORAGE_KEY, value);
+    } catch {
+        // 保存できないブラウザでも、この画面で選んだ利用先は使える。
+    }
+    setMessage(value === 'switch'
+        ? 'Switch用に切り替えました。曲名をコピーして、Switchモードのキョクナビで検索・予約してください。'
+        : '店舗用に切り替えました。曲詳細のリンクはSwitchモードでは使わないでください。');
+    render();
 }
 
 function persistQueue() {
@@ -646,6 +671,12 @@ function renderParticipantStats() {
 
 function renderSong() {
     const song = state.selectedSong;
+    const switchNaviButton = song && buildJoysoundSwitchNaviUrl(song.songNumber)
+        ? '<button type="button" data-action="open-joysound-navi" class="troy-music-game-primary">Switchのキョクナビで開く</button>'
+        : '';
+    const naviButton = state.naviTarget === 'switch'
+        ? `${switchNaviButton}<button type="button" data-action="copy-switch-song" class="${switchNaviButton ? 'troy-music-game-muted-button' : 'troy-music-game-primary'}">曲名をコピー（Switch用）</button>`
+        : '<button type="button" data-action="open-joysound-navi" class="troy-music-game-primary">🎤 キョクナビで開く</button>';
     if (!song && state.drawnSongChoices.length) {
         return `<div class="troy-music-game-song is-hidden-answer">
             <div class="troy-music-game-section-kicker">SONG CHOICES</div>
@@ -661,7 +692,7 @@ function renderSong() {
             <strong>問題曲を抽選しました</strong>
             <span class="troy-music-game-small-note">曲名・歌手は非表示です。</span>
             <strong>JOYSOUND 曲番号：${escapeHtml(song.songNumber)}</strong>
-            <div class="troy-music-game-actions"><button type="button" data-action="open-joysound-navi" class="troy-music-game-primary">🎤 キョクナビで開く</button><button type="button" data-action="show-answer" class="troy-music-game-primary">答えを見る</button></div>
+            <div class="troy-music-game-actions">${naviButton}<button type="button" data-action="show-answer" class="troy-music-game-primary">答えを見る</button></div>
         </div>`;
     }
     return `<div class="troy-music-game-song">
@@ -669,12 +700,22 @@ function renderSong() {
         <h3>♪ ${escapeHtml(song.title)}</h3>
         <div class="troy-music-game-song-artist">${escapeHtml(song.artist)}</div>
         <div class="troy-music-game-song-number-block"><span class="troy-music-game-label">JOYSOUND 曲番号</span><div class="troy-music-game-song-number">${escapeHtml(song.songNumber)}</div></div>
-        <div class="troy-music-game-actions"><button type="button" data-action="open-joysound-navi" class="troy-music-game-primary">🎤 キョクナビで開く</button>${state.mode === 'intro_quiz' ? '<button type="button" data-action="hide-answer" class="troy-music-game-muted-button">答えを隠す</button>' : ''}</div>
+        <div class="troy-music-game-actions">${naviButton}${state.mode === 'intro_quiz' ? '<button type="button" data-action="hide-answer" class="troy-music-game-muted-button">答えを隠す</button>' : ''}</div>
     </div>`;
 }
 
 function openJoysoundNavi() {
     const song = state.selectedSong;
+    if (!song) return;
+    if (state.naviTarget !== 'store') {
+        const switchNaviUrl = buildJoysoundSwitchNaviUrl(song.songNumber);
+        if (switchNaviUrl) {
+            window.location.href = switchNaviUrl;
+            return;
+        }
+        void copySwitchSong();
+        return;
+    }
     if (!song?.joysoundNaviGroupId) {
         setMessage('キョクナビ用の楽曲IDがありません。JOYSOUND最新データに更新してください。', true);
         render();
@@ -683,8 +724,40 @@ function openJoysoundNavi() {
     window.location.href = buildJoysoundNaviUrl(song.joysoundNaviGroupId);
 }
 
-function buildJoysoundNaviUrl(joysoundNaviGroupId) {
+async function copySwitchSong() {
+    const song = state.selectedSong;
+    if (!song) return;
+    if (navigator.clipboard?.writeText) {
+        try {
+            await navigator.clipboard.writeText(song.title);
+            setMessage('曲名をコピーしました。キョクナビをアプリ一覧から開き、Switchモードの検索欄に貼り付けて予約してください。');
+            render();
+            return;
+        } catch {
+            // クリップボードを使えない場合は、同じ曲名を手動でコピーできるようにする。
+        }
+    }
+    const manualCopy = window.prompt('曲名を手動でコピーし、Switchモードのキョクナビで検索してください。', song.title);
+    setMessage(manualCopy === null
+        ? 'コピーをキャンセルしました。'
+        : 'キョクナビをアプリ一覧から開き、Switchモードでコピーした曲名を検索して予約してください。');
+    render();
+}
+
+function buildJoysoundNaviUrl(joysoundNaviGroupId, userAgent = navigator.userAgent) {
+    if (/Android/i.test(userAgent)) {
+        // JOYSOUND公式と同じ形式で、起動先のAndroidアプリを明示する。
+        return `intent://navigation?naviGrpId=${encodeURIComponent(joysoundNaviGroupId)}&view=songDetails#Intent;scheme=xgi-js-spnavi;package=jp.co.xing.spnavi;end`;
+    }
     return `xgi-js-spnavi://navigation?view=songDetails&naviGrpId=${encodeURIComponent(joysoundNaviGroupId)}`;
+}
+
+function buildJoysoundSwitchNaviUrl(songNumber, userAgent = navigator.userAgent) {
+    const slc = String(songNumber ?? '');
+    if (!/Android/i.test(userAgent) || !/^[0-9]+$/.test(slc) || Number(slc) <= 0 || Number(slc) > MAX_JOYSOUND_ANDROID_SONG_NUMBER) return '';
+    // キョクナビAndroid版5.0.14の外部呼出し用画面は現在の接続モードを使う。根拠はdocs/joysound-switch.md。
+    // 店舗用のnaviGrpIdを渡さず、Switch側のカタログから曲番号(slc)を解決させる。
+    return `intent://navigation?view=songDetails&slc=${encodeURIComponent(slc)}&backAppScheme=https#Intent;scheme=xgi-js-spnavi;package=jp.co.xing.spnavi;end`;
 }
 
 function renderResultInput() {
@@ -797,12 +870,20 @@ function render() {
                 <section class="troy-music-game-main-column">
                     <section class="troy-music-game-panel troy-music-game-play-panel">
                     <div class="troy-music-game-panel-body">
+                        <label class="troy-music-game-field" for="troyMusicGameNaviTarget">
+                            <span>キョクナビの利用先</span>
+                            <select id="troyMusicGameNaviTarget">
+                                <option value="switch"${state.naviTarget === 'switch' ? ' selected' : ''}>Nintendo Switch</option>
+                                <option value="store"${state.naviTarget === 'store' ? ' selected' : ''}>店舗のJOYSOUND</option>
+                            </select>
+                        </label>
                         <div class="troy-music-game-field">
                             <span>一度に抽選する曲数</span>
                             <div class="troy-music-game-choice-list">${[1, 3, 5].map((count) => `<button type="button" data-action="set-draw-count" data-draw-count="${count}" class="${state.drawCount === count ? 'is-selected' : ''}" aria-pressed="${state.drawCount === count}">${count}曲</button>`).join('')}</div>
                         </div>
                         <div class="troy-music-game-draw-row"><button type="button" data-action="draw-song" class="troy-music-game-primary troy-music-game-draw-button" ${canDrawSong() ? '' : 'disabled'}>${drawText}</button></div>
                         ${renderSong()}
+                        ${selectedSong && state.naviTarget === 'switch' ? `<p class="troy-music-game-small-note">${buildJoysoundSwitchNaviUrl(selectedSong.songNumber) ? '「Switchのキョクナビで開く」で曲を開き、予約を確定してください。開けない場合は曲名をコピーして検索できます。' : '曲名をコピーし、キョクナビをアプリ一覧から開いて検索・予約してください。'} Switch版での配信有無はキョクナビで確認してください。</p>` : ''}
                         <div class="troy-music-game-field">
                             <span class="troy-music-game-control-label">${state.mode === 'intro_quiz' ? '♟ 回答者' : '♟ 挑戦者'}</span>
                             <div class="troy-music-game-field-row">
@@ -901,6 +982,7 @@ function bindEvents() {
         if (action === 'set-draw-count') changeDrawCount(button.dataset.drawCount || '');
         if (action === 'choose-drawn-song') chooseDrawnSong(button.dataset.songNumber || '');
         if (action === 'open-joysound-navi') openJoysoundNavi();
+        if (action === 'copy-switch-song') void copySwitchSong();
         if (action === 'skip-song') void skipSong();
         if (action === 'exclude-song') void excludeSelectedSong();
         if (action === 'show-answer') {
@@ -928,6 +1010,7 @@ function bindEvents() {
     });
     root.addEventListener('change', (event) => {
         if (event.target.id === 'troyMusicGameParticipant') selectParticipant(event.target.value);
+        if (event.target.id === 'troyMusicGameNaviTarget') changeNaviTarget(event.target.value);
     });
     root.addEventListener('input', (event) => {
         if (event.target.id === 'troyMusicGameScore') {
@@ -953,4 +1036,4 @@ if (root) {
     void boot();
 }
 
-export { buildJoysoundNaviUrl, normalizeSong };
+export { buildJoysoundNaviUrl, buildJoysoundSwitchNaviUrl, normalizeSong };

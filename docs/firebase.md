@@ -25,6 +25,10 @@ Firebase Auth は API／Firebase Rules で使うセッション主体であり�
 
 `music_game_catalogs/sabikara/versions/{version}/songs/{songNumber}` に JOYSOUND 曲番号とは別の `joysoundNaviGroupId`（数字の文字列）を保存する。`server/musicGame.js` の取得・検証・公開処理だけが書き込み、`/api/troy-music-game/bootstrap` がスタッフ画面へ渡す。全曲で ID を検証できた場合だけ `activeVersion` を切り替えるため、更新失敗時は既存カタログを維持する。旧 version の曲に ID がない場合も抽選は続け、リンク操作時に更新案内を表示する。再同期はスタッフ画面の「JOYSOUND最新データに更新」で新 version を公開する。戻す必要がある場合は以前の `activeVersion` に切り替えられるが、その version に ID がなければキョクナビ連携は利用できない。
 
+キョクナビの利用先は初期値を `switch` とし、ブラウザの `troy.music-game.navi-target.v1` に画面設定のみを保存する。AndroidのSwitch用リンクは `slc` と `backAppScheme` を渡す外部呼出し用画面を使う。通常モードの曲詳細リンクはSwitchモードの解除確認を出すため使用しない。Android以外は曲名コピーを提供し、アプリ一覧から開いたキョクナビのSwitchモードで検索・予約する。静的調査の根拠と実機での確認項目は `docs/joysound-switch.md` を参照。実機での接続維持と各抽選曲のSwitch版での配信有無は未確認。TROYがSwitchの接続状態や予約成功を検知する処理もない。
+
+店舗用の「キョクナビで開く」は、Android では JOYSOUND 公式サイトと同じ `intent://navigation?...#Intent;scheme=xgi-js-spnavi;package=jp.co.xing.spnavi;end`、その他の端末では従来の `xgi-js-spnavi://navigation?...` で楽曲詳細を開く。QR コードとの接続と予約確定は、同じ端末のキョクナビアプリ内で行う。TROY が予約を送信したり、QR 接続情報を保存したりする処理はない。サーバーAPI／カタログの保存形式は従来どおり。UI変更を戻す場合はクライアントとHTMLのモジュール版を一緒に戻すが、従来の曲詳細リンクをSwitch用として再利用しない。
+
 ### Firestore の正本境界
 
 - 共有位置、ルーム、イベント、店舗操作、オンライン投影は Firestore
