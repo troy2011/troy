@@ -282,6 +282,10 @@ test('three-card reading uses dedicated positions, synthesis, and structured LIN
   await expect(linePreview).toHaveValue(/1枚目「表に出ている気持ち」/);
   await expect(linePreview).toHaveValue(/2枚目「隠している本音」/);
   await expect(linePreview).toHaveValue(/3枚目「次に見せる行動」/);
+  await expect(linePreview).toHaveValue(/【恋愛・相手の気持ち】3枚引き/);
+  await expect(linePreview).toHaveValue(/1枚目「表に出ている気持ち」― 愚者（正位置）/);
+  await expect(linePreview).toHaveValue(/2枚目「隠している本音」― 塔（逆位置）/);
+  await expect(linePreview).toHaveValue(/3枚目「次に見せる行動」― 審判（正位置）/);
   await expect(linePreview).not.toHaveValue(/結論:|現状と理由:|近未来:|対策:|注意点:/);
 
   const roleAwareSample = await page.evaluate(() => {
@@ -300,8 +304,9 @@ test('three-card reading uses dedicated positions, synthesis, and structured LIN
   });
   expect(roleAwareSample.staff).toContain('評価を下げる要因では「勝利・称賛」の行きすぎが弱点になります。');
   expect(roleAwareSample.staff).toContain('「重荷・責任」の問題を先に整えることが、悪化を止める条件です。');
-  expect(roleAwareSample.line).toContain('追い風の「勝利・称賛」も、この位置じゃ行きすぎが暗礁になる。');
-  expect(roleAwareSample.line).toContain('「勝利・称賛」の行きすぎを外し、「重荷・責任」の問題を整えな。');
+  expect(roleAwareSample.line).toContain('良い札でも、この位置では長所の行きすぎに目を向けな。');
+  expect(roleAwareSample.line).toContain('称賛を実力の保証だと思うと、次の結果を出す準備が止まる。');
+  expect(roleAwareSample.line).toContain('同じ問題を繰り返す進め方を直しな。');
 
   const difficultDecisionSample = await page.evaluate(() => {
     const app = window.TarotReadingApp;
@@ -314,12 +319,13 @@ test('three-card reading uses dedicated positions, synthesis, and structured LIN
     ];
     return app.buildThreeCardLineReading(topic, selections, 'choice');
   });
-  expect(difficultDecisionSample).toContain('「不摂生・乱れ」だけで決めるな。');
-  expect(difficultDecisionSample).toContain('「不摂生・乱れ」だけで決めるな。守る条件を立て直せば');
+  expect(difficultDecisionSample).toContain('勢いや今の気分だけで決めるな。');
+  expect(difficultDecisionSample).toContain('守る条件を立て直し');
   expect(difficultDecisionSample).not.toContain('「不摂生・乱れ」を判断の軸にしな。');
 
   await page.locator('#tarotCustomerRef').selectOption('TROY:CUSTOMER123');
   await expect(page.locator('#tarotSendLine')).toBeEnabled();
+  const expectedLineText = await linePreview.inputValue();
   await page.locator('#tarotSendLine').click();
   await expect.poll(() => sendRequests.length).toBe(1);
   expect(sendRequests[0]).toMatchObject({
@@ -334,6 +340,7 @@ test('three-card reading uses dedicated positions, synthesis, and structured LIN
     expect.objectContaining({ position: 2, positionLabel: '隠している本音', cardId: 'major-16', orientation: 'reversed' }),
     expect.objectContaining({ position: 3, positionLabel: '次に見せる行動', cardId: 'major-20', orientation: 'upright' })
   ]);
+  expect(sendRequests[0].resultText).toBe(expectedLineText);
 });
 
 test('store tarot separates the spoken reading from the Barbossa LINE message', async ({ page }) => {
@@ -388,8 +395,10 @@ test('store tarot separates the spoken reading from the Barbossa LINE message', 
   const linePreview = page.locator('#tarotResultText');
   await expect(linePreview).toHaveAttribute('readonly', '');
   await expect(linePreview).toHaveValue(/^風向き: 安定\n\n相手の腹はまだ決まっちゃいない。/);
-  await expect(linePreview).toHaveValue(/何の計画も勝算もなしに/);
-  await expect(linePreview).toHaveValue(/愛が味方してくれるとでも/);
+  await expect(linePreview).toHaveValue(/相手の気持ちを読む鍵は「自由・始まり」/);
+  await expect(linePreview).toHaveValue(/願望で空白を埋めるんじゃないよ/);
+  await expect(linePreview).toHaveValue(/【恋愛・相手の気持ち】愚者（正位置）/);
+  await expect(linePreview).toHaveValue(/次の約束にも応じるか、軽さの先を見な/);
   await expect(linePreview).not.toHaveValue(/恋愛鑑定|このカードの意味|結論:|現在地:|次の一手:|禁じ手:|一言判定|船長からの一言/);
 
   const feelingsStaffText = await staffReading.innerText();
@@ -411,7 +420,7 @@ test('store tarot separates the spoken reading from the Barbossa LINE message', 
   await expect(staffReading).toContainText('結論: 現在の風向きは');
   await expect(staffReading).toContainText('言葉の行き違いや裏切りを放置すると、関係の線引きが崩れます。');
   await expect(staffReading).toContainText('対策: まず、助け合いが一方通行になっていないかを整えます。隠していた約束違反や事実を一つ整理し');
-  await expect(linePreview).toHaveValue(/最悪中の最悪のタイミング/);
+  await expect(linePreview).toHaveValue(/誰かの嘘が決まったと、札だけで裁くなよ/);
   await expect(linePreview).not.toHaveValue(/売上|案件|恋愛|恋人/);
 
   await page.locator('#tarotTopicList [data-topic-id="future"]').click();
@@ -615,6 +624,7 @@ test('store tarot separates the spoken reading from the Barbossa LINE message', 
   await expect(linePreview).toHaveValue(/^風向き: 荒天\n\n今のまま旗を上げれば船ごと沈む。/);
   await expect(linePreview).toHaveValue(/致命傷は免れたようだが/);
 
+  const expectedLineText = await linePreview.inputValue();
   await page.locator('#tarotSendLine').click();
   await expect.poll(() => sendRequests.length).toBe(1);
   expect(sendRequests[0]).toMatchObject({
@@ -634,8 +644,52 @@ test('store tarot separates the spoken reading from the Barbossa LINE message', 
   expect(sendRequests[0].resultText).toMatch(/^風向き: 荒天\n\n今のまま旗を上げれば船ごと沈む。/);
   expect(sendRequests[0].resultText).toContain('致命傷は免れたようだが');
   expect(sendRequests[0].resultText).toContain('大炎上の余波');
+  expect(sendRequests[0].resultText).toBe(expectedLineText);
   expect(sendRequests[0].resultText).not.toMatch(/仕事鑑定|このカードの意味|結論:|船長からの一言|船長の結び/);
   await expect(page.locator('#tarotReadingStatus')).toContainText('送信済み');
+});
+
+test('optional situation adapts the preview and sent text and resets across consultations', async ({ page }) => {
+  const requests = [];
+  await mockStoreCustomers(page);
+  await page.route('**/api/tarot-reading/send', async (route) => {
+    requests.push(route.request().postDataJSON());
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, sent: true }) });
+  });
+  await page.goto('/tarot-reading.html');
+  const situation = page.locator('#tarotReadingSituation');
+  const line = page.locator('#tarotResultText');
+  await expect(situation.locator('option')).toHaveCount(3);
+  await page.locator('#tarotCustomerRef').selectOption('TROY:CUSTOMER123');
+  await page.locator('[data-card-id="major-2"]').click();
+  await situation.selectOption('contact_stopped');
+  await expect(line).toHaveValue(/聞かせてもらった今の状況：今は連絡が途切れている/);
+  await expect(line).toHaveValue(/すでに連絡したなら重ねず/);
+  await expect(line).not.toHaveValue(/短い誘いを一度だけ出しな/);
+  await expect(page.locator('#tarotStaffReadingText')).toContainText('追いかける前に待つ範囲');
+  await page.locator('[data-spread-mode="triple"]').click();
+  await page.locator('[data-orientation="reversed"]').click();
+  await page.locator('[data-card-id="major-16"]').click();
+  await page.locator('[data-orientation="upright"]').click();
+  await page.locator('[data-card-id="major-20"]').click();
+  await expect(situation).toHaveValue('contact_stopped');
+  const expected = await line.inputValue();
+  await page.locator('#tarotSendLine').click();
+  await expect.poll(() => requests.length).toBe(1);
+  expect(requests[0].resultText).toBe(expected);
+  expect(requests[0].cards).toHaveLength(3);
+
+  await page.locator('#tarotCustomerRef').selectOption('');
+  await expect(situation).toHaveValue('');
+  await expect(line).not.toHaveValue(/聞かせてもらった今の状況/);
+  await situation.selectOption('before_meeting');
+  await page.locator('[data-subtopic-id="direction"]').click();
+  await expect(situation).toHaveValue('');
+  await expect(situation.locator('option')).toContainText(['指定しない・まだ分からない', '関係をまだ言葉で確認していない', '関係が進まず足踏みしている']);
+  await situation.selectOption('stalled');
+  await page.locator('[data-topic-id="work"]').click();
+  await expect(situation).toHaveValue('');
+  await expect(line).not.toHaveValue(/連絡が途切れている|関係が進まず足踏みしている/);
 });
 
 test('tarot layout keeps the controls compact and the reading legible on desktop and mobile', async ({ page }) => {

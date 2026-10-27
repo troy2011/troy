@@ -162,6 +162,7 @@ this.__tarotAudit = {
   STAFF_TOPIC_FRAMES,
   STAFF_SIMPLE_MEANING_CONTEXTS,
   SUBTOPIC_STAFF_CONTEXTS,
+  READING_CONSULTATIONS,
   SUBTOPICS,
   SUBTOPIC_READING_FRAMES,
   SUBTOPIC_VERDICTS,
@@ -198,7 +199,9 @@ this.__tarotAudit = {
   buildThreeCardStaffReading,
   buildThreeCardLineReading,
   buildThreeCardNearFuture,
-  buildThreeCardLineClosing
+  buildThreeCardLineClosing,
+  makeCaptainReadingText,
+  applyReadingSituation
 };`, context);
     return context.__tarotAudit;
 }
@@ -303,7 +306,7 @@ function collectGeneratedThreeCardReadings(tables) {
                             ),
                             weather,
                             flow: tables.getThreeCardFlow(weather?.levels),
-                            pattern: tables.getThreeCardPattern(selections),
+                            pattern: tables.getThreeCardPattern(selections, positions),
                             verdict: tables.getThreeCardVerdict(topic.id, subtopic, weather?.level),
                             staffText: String(tables.buildThreeCardStaffReading(topic, selections, subtopic) || '').trim(),
                             lineText: String(tables.buildThreeCardLineReading(topic, selections, subtopic) || '').trim()
@@ -327,6 +330,13 @@ function findDuplicateTexts(entries, key) {
         else seen.set(value, identity);
     });
     return duplicates;
+}
+
+function stripLineReadingMetadata(text) {
+    // 「恋人」などのカード名は別テーマでも正当なため、本文の語彙検査からだけ外す。
+    return String(text || '').split('\n')
+        .filter((line) => !/^【/.test(line) && !/^[1-3]枚目「[^」]+」― /.test(line))
+        .join('\n');
 }
 
 function collectCoverageGaps(tables) {
@@ -634,6 +644,11 @@ function main() {
         if (!entry.lineText.startsWith(`風向き: ${entry.readingWeather?.windLabel}\n\n`)) details.push(`line-weather:${identity}`);
         const lineSections = entry.lineText.split(/\n{2,}/).map((section) => section.trim()).filter(Boolean);
         if (entry.verdict?.line && !containsAllSentences(lineSections[1], entry.verdict.line)) details.push(`line-verdict-order:${identity}`);
+        const topic = tables.TOPICS.find((candidate) => candidate.id === entry.topicId);
+        const selectedCard = tables.allCards.find((candidate) => candidate.id === entry.loc);
+        const orientationLabel = entry.orientation === 'reversed' ? '逆位置' : '正位置';
+        const metadata = `【${topic.label}・${entry.subtopicLabel}】${selectedCard.label}（${orientationLabel}）`;
+        if (lineSections[2] !== metadata) details.push(`line-selection-metadata:${identity}`);
         const forbiddenLine = LINE_FORBIDDEN_TEXT.filter((word) => entry.lineText.includes(word));
         if (forbiddenLine.length) details.push(`line-mixed:${identity} [${forbiddenLine.join(', ')}]`);
         const firstLineBodySentence = entry.lineBody.match(/[^。！？!?]+[。！？!?]?/)?.[0]?.trim();
@@ -704,10 +719,12 @@ function main() {
         const staffTopicVocabFlags = (STAFF_TOPIC_VOCAB_FLAGS[entry.topicId] || [])
             .filter((word) => staffBody.includes(word));
         if (staffTopicVocabFlags.length) details.push(`staff-topic-vocab:${identity} [${staffTopicVocabFlags.join(', ')}]`);
-        const lineRedFlags = (RED_FLAGS[entry.topicId] || []).filter((word) => entry.lineText.includes(word));
+        const lineBodyWithoutMetadata = stripLineReadingMetadata(entry.lineText);
+        const lineRedFlags = (RED_FLAGS[entry.topicId] || []).filter((word) => lineBodyWithoutMetadata.includes(word));
         if (lineRedFlags.length) details.push(`line-category:${identity} [${lineRedFlags.join(', ')}]`);
         const qualityFlags = TEXT_QUALITY_FLAGS.filter((word) => `${entry.staffText}\n${entry.lineText}`.includes(word));
         if (qualityFlags.length) details.push(`generated-quality:${identity} [${qualityFlags.join(', ')}]`);
+        if (/９割|9割|パラノイア/.test(entry.lineText)) details.push(`line-unsupported-claim:${identity}`);
         const contextFlags = (SUBTOPIC_CONTEXT_FLAGS[`${entry.topicId}.${entry.subtopicId}`] || [])
             .filter((word) => entry.lineBody.includes(word));
         if (contextFlags.length) details.push(`subtopic-context:${identity} [${contextFlags.join(', ')}]`);
@@ -752,6 +769,9 @@ function main() {
             if (sentenceCount > maxSentences) details.push(`three-card-staff-sentences:${identity}:${index + 1}:${sentenceCount}`);
         });
         const topic = tables.TOPICS.find((item) => item.id === entry.topicId);
+        if (!entry.lineText.includes(`【${topic.label}・${entry.subtopicLabel}】3枚引き`)) {
+            details.push(`three-card-topic-metadata:${identity}`);
+        }
         const positionReadings = entry.positions.map((position, index) => tables.getThreeCardPositionReading(
             topic,
             entry.subtopicId,
@@ -778,6 +798,10 @@ function main() {
             if (!entry.lineText.includes(`${index + 1}枚目「${position.label}」`)) {
                 details.push(`three-card-line-position:${identity}:${index + 1}`);
             }
+            const orientationLabel = orientation === 'reversed' ? '逆位置' : '正位置';
+            if (!entry.lineText.includes(`${index + 1}枚目「${position.label}」― ${card.label}（${orientationLabel}）`)) {
+                details.push(`three-card-selection-metadata:${identity}:${index + 1}`);
+            }
             const positionReading = tables.getThreeCardPositionReading(
                 tables.TOPICS.find((topic) => topic.id === entry.topicId),
                 entry.subtopicId,
@@ -785,7 +809,7 @@ function main() {
                 position,
                 index
             );
-            if (!positionReading?.line || !entry.lineText.includes(positionReading.line)) {
+            if (!positionReading?.line || !containsAllSentences(entry.lineText, positionReading.line)) {
                 details.push(`three-card-line-position-reading:${identity}:${index + 1}`);
             }
             if (positionReading?.role === 'obstacle' && positionReading.tone === 'favorable' && (
@@ -819,6 +843,9 @@ function main() {
         });
         const expectedClosing = tables.buildThreeCardLineClosing(positionReadings, entry.flow.line);
         if (!expectedClosing || !entry.lineText.endsWith(expectedClosing)) details.push(`three-card-line-closing:${identity}`);
+        if (positionReadings[2]?.role === 'outcome' && positionReadings[2].tone === 'difficult' && /へ運ぶ|船は[^。]*へ向かう|次の足場になる/.test(expectedClosing)) {
+            details.push(`three-card-negative-outcome-encouraged:${identity}`);
+        }
         if (positionReadings[1]?.role === 'decision' && positionReadings[1]?.tone === 'difficult' && expectedClosing?.includes('を判断の軸にしな')) {
             details.push(`three-card-decision-closing:${identity}`);
         }
@@ -850,7 +877,8 @@ function main() {
         const staffContextFlags = (SUBTOPIC_STAFF_CONTEXT_FLAGS[`${entry.topicId}.${entry.subtopicId}`] || [])
             .filter((word) => staffCategoryBody.includes(word));
         if (staffContextFlags.length) details.push(`three-card-staff-subtopic-context:${identity} [${staffContextFlags.join(', ')}]`);
-        const lineRedFlags = (RED_FLAGS[entry.topicId] || []).filter((word) => entry.lineText.includes(word));
+        const lineBodyWithoutMetadata = stripLineReadingMetadata(entry.lineText);
+        const lineRedFlags = (RED_FLAGS[entry.topicId] || []).filter((word) => lineBodyWithoutMetadata.includes(word));
         if (lineRedFlags.length) details.push(`three-card-line-category:${identity} [${lineRedFlags.join(', ')}]`);
 
         const levels = entry.weather?.levels || [];

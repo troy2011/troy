@@ -95,7 +95,7 @@ test('Tarot Kingdom retries a transient Arcana catalog failure before starting',
 test('Tarot Kingdom release advances its entry modules and service-worker cache together', () => {
   const release = '20260828-exploration-retreat-v1';
   const inventoryRelease = '20260827-inventory-figma-v1';
-  const mainRelease = '20260830-s1-auth-v1';
+  const appEntryRelease = '20261018-fortune-correctness-v1';
   const playFabRelease = '20260830-s1-auth-v1';
   const indexStyleRelease = '20260828-home-v3';
   const previewStyleRelease = '20260827-shield-glass-v1';
@@ -113,9 +113,9 @@ test('Tarot Kingdom release advances its entry modules and service-worker cache 
 
   expect(indexSource).toContain(`"inventory": "./js/inventory.js?v=${inventoryRelease}"`);
   expect(previewSource).toContain(`"inventory": "./js/inventory.js?v=${inventoryRelease}"`);
-  expect(indexSource).toContain(`"ui": "./js/ui.js?v=${release}"`);
+  expect(indexSource).toContain(`"ui": "./js/ui.js?v=${appEntryRelease}"`);
   expect(indexSource).toContain(`style.css?v=${indexStyleRelease}`);
-  expect(indexSource).toContain(`src="main.js?v=${mainRelease}"`);
+  expect(indexSource).toContain(`src="main.js?v=${appEntryRelease}"`);
   expect(mainSource).toContain(`const TAROT_KINGDOM_RESCUE_VERSION = '${release}';`);
   expect(mainSource).toContain(`./js/ship.js?v=${release}`);
   expect(uiSource).toContain(`const TAROT_KINGDOM_MODULE_VERSION = '${release}';`);

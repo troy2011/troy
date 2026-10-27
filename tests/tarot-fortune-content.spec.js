@@ -1,4 +1,7 @@
 const { test, expect } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
 const { __test: tarotFortune } = require('../server/tarotFortune');
 
 const DIRECTIONS = ['upright', 'reversed'];
@@ -74,6 +77,39 @@ test('recovery reversals use recovering wind instead of severe weather', () => {
   for (const card of recoveryCards) {
     const weather = tarotFortune.getFortuneWeather({ ...card, isArcana: false }, 'reversed');
     expect(weather.level, `${card.suit}-${card.number}`).toBeGreaterThanOrEqual(6);
+  }
+});
+
+test('daily caution cards do not inherit a calm score from another suit', () => {
+  const deck = tarotFortune.buildTarotDeck();
+  for (const id of ['minor-sword-2', 'minor-sword-5', 'minor-sword-7', 'minor-sword-9', 'minor-cup-4', 'minor-cup-7']) {
+    const weather = tarotFortune.getFortuneWeather(deck.find((card) => card.id === id), 'upright');
+    expect(weather.level, id).toBeLessThanOrEqual(5);
+  }
+  const nine = deck.find((card) => card.id === 'minor-sword-9');
+  expect(tarotFortune.getFortuneWeather(nine, 'upright').level).toBe(3);
+  expect(tarotFortune.getFortuneWeather(nine, 'reversed').level).toBe(6);
+});
+
+test('legacy daily results use the same weather as the server for all 156 outcomes', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../public/js/tarotPoker.js'), 'utf8');
+  const start = source.indexOf('const DAILY_FORTUNE_WEATHER_STATUSES');
+  const end = source.indexOf('function getNpcKeys()', start);
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  const context = {};
+  vm.runInNewContext(`${source.slice(start, end)}\nthis.getWeather = getDailyFortuneWeatherStatus;`, context);
+  for (const card of tarotFortune.buildTarotDeck()) {
+    for (const orientation of DIRECTIONS) {
+      const fallbackWeather = context.getWeather({
+        cardId: card.id,
+        cardNumber: card.number,
+        suit: card.suit,
+        isArcana: card.isArcana,
+        orientation
+      });
+      expect(fallbackWeather, `${card.id}:${orientation}`).toEqual(tarotFortune.getFortuneWeather(card, orientation));
+    }
   }
 });
 
