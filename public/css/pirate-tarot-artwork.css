@@ -1,0 +1,36 @@
+.pirate-tarot-artwork {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 2 / 3;
+    object-fit: contain;
+    border-radius: 6px;
+    image-rendering: auto;
+}
+
+.pirate-tarot-artwork.is-reversed { transform: rotate(180deg); }
+.pirate-tarot-artwork[hidden] { display: none; }
+.tarot-reading-card-button > .pirate-tarot-artwork { max-width: 100px; justify-self: center; }
+.pirate-tarot-staff-gallery { display: flex; justify-content: center; gap: 12px; margin: 16px 0; }
+.pirate-tarot-staff-gallery[hidden] { display: none; }
+.pirate-tarot-staff-gallery > .pirate-tarot-artwork { width: min(28%, 170px); }
+.pirate-tarot-inventory-art { width: min(100%, 260px); margin: 12px auto; }
+
+
+.tarot-fortune-pirate-layout {
+    --tarot-card-w: 128px;
+    --tarot-card-h: 192px;
+}
+
+.pirate-tarot-artwork-host > .pirate-tarot-artwork {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+    pointer-events: none;
+}
+
+.pirate-tarot-artwork-host.has-pirate-artwork > :not(.pirate-tarot-artwork) {
+    visibility: hidden;
+}

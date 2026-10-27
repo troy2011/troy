@@ -1,5 +1,6 @@
 // c:/Users/ikeda/my-liff-app/public/js/inventory.js
 
+import { renderInventoryTarotArtwork } from './pirateTarotArtwork.js';
 import {
     getInventory as fetchInventory,
     getEquipment as fetchEquipment,
@@ -5267,6 +5268,7 @@ function showItemDetailModal(item) {
                 : getInventoryCategoryLabel(canonicalCategory);
     }
     document.getElementById('itemDetailDescription').innerText = isTarotCard ? '' : (item.description || '説明がありません。');
+    renderInventoryTarotArtwork(item, modal);
     if (isTarotCard) {
         renderTarotCombatDetailSection(item, cd);
     } else {

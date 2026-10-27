@@ -24,8 +24,8 @@ test('Tarot Kingdom shares the canonical inventory module with the app shell', (
   expect(kingdomSource).not.toContain("} from './inventory.js';");
   expect(shipSource).toContain("import * as Inventory from 'inventory';");
   expect(shipSource).not.toContain("import * as Inventory from './inventory.js';");
-  expect(indexSource).toContain('"inventory": "./js/inventory.js?v=20260827-inventory-figma-v1"');
-  expect(previewSource).toContain('"inventory": "./js/inventory.js?v=20260827-inventory-figma-v1"');
+  expect(indexSource).toContain('"inventory": "./js/inventory.js?v=20261027-pirate-tarot-artwork-v1"');
+  expect(previewSource).toContain('"inventory": "./js/inventory.js?v=20261027-pirate-tarot-artwork-v1"');
 });
 
 test('Tarot Kingdom online lobby uses canonical presence for failover and room counts', () => {
@@ -94,8 +94,8 @@ test('Tarot Kingdom retries a transient Arcana catalog failure before starting',
 
 test('Tarot Kingdom release advances its entry modules and service-worker cache together', () => {
   const release = '20260828-exploration-retreat-v1';
-  const inventoryRelease = '20260827-inventory-figma-v1';
-  const appEntryRelease = '20261018-fortune-correctness-v1';
+  const inventoryRelease = '20261027-pirate-tarot-artwork-v1';
+  const appEntryRelease = '20261027-pirate-tarot-artwork-v1';
   const playFabRelease = '20260830-s1-auth-v1';
   const indexStyleRelease = '20260828-home-v3';
   const previewStyleRelease = '20260827-shield-glass-v1';

@@ -1,3 +1,4 @@
+import { renderDailyTarotArtwork } from './pirateTarotArtwork.js';
 import { HandEvaluator as TarotEngineHandEvaluator } from './tarot-engine/HandEvaluator.js';
 import { GameController as TarotGameController } from './tarot-engine/GameController.js';
 import { bindModalClose } from './modalClose.js';
@@ -671,7 +672,8 @@ function createDailyFortuneCardElement(card, options = {}) {
         hidden = true,
         clickable = false,
         reversed = false,
-        onReveal = null
+        onReveal = null,
+        artworkLabel = ''
     } = options;
     const el = document.createElement('button');
     el.type = 'button';
@@ -680,7 +682,7 @@ function createDailyFortuneCardElement(card, options = {}) {
         el.classList.add('is-clickable');
         el.setAttribute('aria-label', 'カードをめくる');
         el.addEventListener('click', () => {
-            revealDailyFortuneCardElement(el, card, { reversed, onReveal });
+            revealDailyFortuneCardElement(el, card, { reversed, onReveal, artworkLabel });
         });
     } else {
         el.classList.add('is-static');
@@ -696,6 +698,7 @@ function createDailyFortuneCardElement(card, options = {}) {
         el.dataset.revealed = '1';
         el.classList.add('is-revealed');
         if (reversed) el.classList.add('is-reversed');
+        renderDailyTarotArtwork(card, el, { reversed, label: artworkLabel });
     }
 
     return el;
@@ -715,6 +718,7 @@ async function revealDailyFortuneCardElement(cardEl, card, options = {}) {
     }
     setArtSpriteByIndex(art, getTarotSpriteIndex(card));
     if (options.reversed) cardEl.classList.add('is-reversed');
+    renderDailyTarotArtwork(card, cardEl, { reversed: options.reversed, label: options.artworkLabel });
     if (card.isArcana) cardEl.classList.add('is-major-arcana');
     cardEl.classList.remove('is-clickable');
     cardEl.classList.add('is-revealed', 'is-static');
@@ -4947,7 +4951,7 @@ function ensureDailyFortuneOverlay() {
     overlay.id = DAILY_FORTUNE_OVERLAY_ID;
     overlay.className = 'tarot-fortune-overlay';
     overlay.innerHTML = `
-        <div id="${DAILY_FORTUNE_MODAL_ID}" class="tarot-fortune-modal" role="dialog" aria-modal="true" aria-labelledby="${DAILY_FORTUNE_TITLE_ID}">
+        <div id="${DAILY_FORTUNE_MODAL_ID}" class="tarot-fortune-modal tarot-fortune-pirate-layout" role="dialog" aria-modal="true" aria-labelledby="${DAILY_FORTUNE_TITLE_ID}">
             <button type="button" class="tarot-fortune-close ui-modal-close" aria-label="閉じる"></button>
             <div class="tarot-fortune-kicker">DAILY TAROT</div>
             <div id="${DAILY_FORTUNE_TITLE_ID}" class="tarot-fortune-title">本日の運勢</div>
@@ -5021,6 +5025,7 @@ function renderDailyFortuneResultLegacy(result) {
     const card = getCardDataFromFortuneResult(result);
     const cardEl = createCardElement(card, { hidden: false, clickable: false });
     cardEl.classList.add('tarot-fortune-card');
+    renderDailyTarotArtwork(card, cardEl, { label: result?.cardName || getCardDisplayName(card), reversed: result?.orientation === 'reversed' });
     if (String(result?.orientation || '') === 'reversed') {
         cardEl.classList.add('is-reversed');
     }
@@ -5166,6 +5171,7 @@ function renderDailyFortuneResult(result, options = {}) {
         hidden: true,
         clickable: true,
         reversed: isReversed,
+        artworkLabel: result?.cardName || getCardDisplayName(card),
         onReveal: () => { void handleReveal(); }
     });
 

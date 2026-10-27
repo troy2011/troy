@@ -1,0 +1,1955 @@
+{
+  "schemaVersion": 1,
+  "sourceEdition": "Pirate Tarot latest originals / 2026-10-22 / adopted S3 v1, P10 v1, P6 v5",
+  "sourceManifestSha256": "ac0d1ae5f0ea23298f0514afba4ebda9dd25ff6e68f6954d320809180951957f",
+  "policy": "Adopted original fronts only. Full aspect ratio retained. No backs or unadopted frame candidates.",
+  "cards": [
+    {
+      "id": "major-0",
+      "sourceId": "major-00",
+      "label": "愚者",
+      "selectedVersion": "愚者v3・板歩きを見上げる海のワニ／犬の毛と首の鍵修正版",
+      "source": "art/major/00_The_Fool.png",
+      "sourceSha256": "ec149111784747d41e7b8fbc0318cecf1a1e96404176eaa2ffd9f8298a29a4df",
+      "sourceBytes": 3010054,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-0.webp",
+        "bytes": 199504,
+        "width": 640,
+        "height": 960,
+        "sha256": "aa5bcef6570a6295197102c6aa0a12f532e5f2112de510b4c002889ea199d8fd"
+      },
+      "thumbs": {
+        "path": "thumbs/major-0.webp",
+        "bytes": 13670,
+        "width": 160,
+        "height": 240,
+        "sha256": "10cc0506912ac7f7be53cdc416ffd9f85dafebef831f9eb545b6b1161dffe6e5"
+      }
+    },
+    {
+      "id": "major-1",
+      "sourceId": "major-01",
+      "label": "魔術師",
+      "selectedVersion": "魔術師・地球儀除去済み／全体左右反転済みの採用版（花瓶が左・天球儀が右）",
+      "source": "art/major/01_The_Magician.png",
+      "sourceSha256": "50054675ec9d93708f71d5db24ad15e86cdf1b8b9fcc240572ca3e63dbc64b6b",
+      "sourceBytes": 2506407,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-1.webp",
+        "bytes": 144604,
+        "width": 640,
+        "height": 960,
+        "sha256": "d760a6009a15d70d00f6ce063cb5e5fef319a289a8c3d6980ec10cd1edd6cff7"
+      },
+      "thumbs": {
+        "path": "thumbs/major-1.webp",
+        "bytes": 11116,
+        "width": 160,
+        "height": 240,
+        "sha256": "59ae9ee00675db16e531f65d9afc74e1a7c58d79024aa8a3662df491df38fcce"
+      }
+    },
+    {
+      "id": "major-2",
+      "sourceId": "major-02",
+      "label": "女教皇",
+      "selectedVersion": "女教皇",
+      "source": "art/major/02_The_High_Priestess.png",
+      "sourceSha256": "57e759cd660439fe0b0fefe250d1873fb64b8fc6125a38ebd986341264bd40a2",
+      "sourceBytes": 2388339,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-2.webp",
+        "bytes": 108460,
+        "width": 640,
+        "height": 960,
+        "sha256": "269e60c45a4927f9a4ab844c20f8a8d07729bf611cc62cb1d9f674f65016f57a"
+      },
+      "thumbs": {
+        "path": "thumbs/major-2.webp",
+        "bytes": 8990,
+        "width": 160,
+        "height": 240,
+        "sha256": "148eead14b66f5ba5f6c79bebbcff436f601caac623a951d206a4e5f780f16f7"
+      }
+    },
+    {
+      "id": "major-3",
+      "sourceId": "major-03",
+      "label": "女帝",
+      "selectedVersion": "女帝・星柄金バングルv6",
+      "source": "art/major/03_The_Empress.png",
+      "sourceSha256": "b33bd32b68cee0c9057d607591986e0ff09d092031f8ddc5d7e7b0842db1004a",
+      "sourceBytes": 2870243,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-3.webp",
+        "bytes": 174334,
+        "width": 640,
+        "height": 960,
+        "sha256": "e0ec358ae946725b9beddd17021c1167b7a394419a13d8cd161bb2ef2a188449"
+      },
+      "thumbs": {
+        "path": "thumbs/major-3.webp",
+        "bytes": 13452,
+        "width": 160,
+        "height": 240,
+        "sha256": "5c8937de44aab965007930061d6487ad02aba5b2ba9efcbea2b5ac2af40d6a04"
+      }
+    },
+    {
+      "id": "major-4",
+      "sourceId": "major-04",
+      "label": "皇帝",
+      "selectedVersion": "皇帝・背景船の帆とマストの前後関係修正版v3（本人などの画素を維持した合成版）",
+      "source": "art/major/04_The_Emperor.png",
+      "sourceSha256": "6acbc2317acb1c689c9f9b2bb70b568b850529067d7bdeebc21f1f4df55b3e99",
+      "sourceBytes": 2788001,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-4.webp",
+        "bytes": 161224,
+        "width": 640,
+        "height": 960,
+        "sha256": "924e2ca63ee954b07e44cf910c46f7f8380ffe8998e4ff64c32188ec77a42d8e"
+      },
+      "thumbs": {
+        "path": "thumbs/major-4.webp",
+        "bytes": 9870,
+        "width": 160,
+        "height": 240,
+        "sha256": "654ea32e87932f90248ee22bbc4e0b56afc49e09ea787ddc44427152e1753b11"
+      }
+    },
+    {
+      "id": "major-5",
+      "sourceId": "major-05",
+      "label": "教皇",
+      "selectedVersion": "法王・象徴追加採用版（バッカスの足元に交差する二本の鍵）",
+      "source": "art/major/05_The_Hierophant.png",
+      "sourceSha256": "7acbab2e47091a74da440e75ceadfcef5843a1a8547cba0f09a802328ddf2e5c",
+      "sourceBytes": 2837103,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-5.webp",
+        "bytes": 176556,
+        "width": 640,
+        "height": 960,
+        "sha256": "260ea22dfe193f3d71b20bc6d75ccc49dd405d0639ab5c9ac79d454828f11800"
+      },
+      "thumbs": {
+        "path": "thumbs/major-5.webp",
+        "bytes": 13008,
+        "width": 160,
+        "height": 240,
+        "sha256": "34522de631ab8f9329db7cfc907af7c7688cd35b73d045a0bced6a5da78ad78c"
+      }
+    },
+    {
+      "id": "major-6",
+      "sourceId": "major-06",
+      "label": "恋人",
+      "selectedVersion": "恋人・女性が天を見上げる版v1",
+      "source": "art/major/06_The_Lovers.png",
+      "sourceSha256": "440a4e6b94219c62279ac6c805c49b5be512aba3579669ca6def267b72452b69",
+      "sourceBytes": 2822993,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-6.webp",
+        "bytes": 179874,
+        "width": 640,
+        "height": 960,
+        "sha256": "a14a80825b5f84cf8b3e5ba48675e574d6245472f37251cf6bda6b351d937b79"
+      },
+      "thumbs": {
+        "path": "thumbs/major-6.webp",
+        "bytes": 13572,
+        "width": 160,
+        "height": 240,
+        "sha256": "f4c0bff13f37c5b79016d57500178af7a7f6d97af63ca01ee71b51af8e424697"
+      }
+    },
+    {
+      "id": "major-7",
+      "sourceId": "major-07",
+      "label": "戦車",
+      "selectedVersion": "戦車・元絵の手綱除去／左手を左太ももに自然に置くv2",
+      "source": "art/major/07_The_Chariot.png",
+      "sourceSha256": "2936f5f282fda83ccc2c5648292c77ec18a3b9f1db239d1f05832ae9daa91ab8",
+      "sourceBytes": 3103085,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-7.webp",
+        "bytes": 198258,
+        "width": 640,
+        "height": 960,
+        "sha256": "acebf53bcedf8ae2ba6210ccf7b988d2a00231eb82776c7ab6fa5fb7e5542edc"
+      },
+      "thumbs": {
+        "path": "thumbs/major-7.webp",
+        "bytes": 13974,
+        "width": 160,
+        "height": 240,
+        "sha256": "b47e41c0501397c79e7689b46089cedd4232edb99584e143c4c0803d6fe92f25"
+      }
+    },
+    {
+      "id": "major-8",
+      "sourceId": "major-08",
+      "label": "力",
+      "selectedVersion": "力・暗い胸元無限大",
+      "source": "art/major/08_Strength.png",
+      "sourceSha256": "015ea94ddb1f6ca047a6331774cc4b94f0566236bfd5e36b99e42854fd10ee97",
+      "sourceBytes": 2523254,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-8.webp",
+        "bytes": 134360,
+        "width": 640,
+        "height": 960,
+        "sha256": "0b66256c70cbaf38a391afcb50a276638d0752665150c39af8be4adb906d3453"
+      },
+      "thumbs": {
+        "path": "thumbs/major-8.webp",
+        "bytes": 10674,
+        "width": 160,
+        "height": 240,
+        "sha256": "43c36008e2bd5e7758509a59aaeaba39c877e7b1ee32611dd331584787cabd6d"
+      }
+    },
+    {
+      "id": "major-9",
+      "sourceId": "major-09",
+      "label": "隠者",
+      "selectedVersion": "隠者・原画全体の機械的左右反転版（六芒星・元の炎v2から1回）",
+      "source": "art/major/09_The_Hermit.png",
+      "sourceSha256": "1ed5cae513da430167265c5a18cbdd0f3ddc837dac3084a96bd7b087d2d1e82e",
+      "sourceBytes": 3606429,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-9.webp",
+        "bytes": 135396,
+        "width": 640,
+        "height": 960,
+        "sha256": "e6f7ec129e366d7cd7ae2f156ba84402fe1b42b1ffa38a9b314c482517dc97f0"
+      },
+      "thumbs": {
+        "path": "thumbs/major-9.webp",
+        "bytes": 8114,
+        "width": 160,
+        "height": 240,
+        "sha256": "0f1dddf1af1b3f5eeebaed0be5aa5e88b3530d76e8ddf8377882b0a7f7142340"
+      }
+    },
+    {
+      "id": "major-10",
+      "sourceId": "major-10",
+      "label": "運命の輪",
+      "selectedVersion": "運命の輪・猫／小蛇／木ジャッカル／小木片v32",
+      "source": "art/major/10_Wheel_of_Fortune.png",
+      "sourceSha256": "113bb699b7007bc0153e83b3d4c5a3122f191241bb1b903dbdb2cde803a96f82",
+      "sourceBytes": 3296425,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-10.webp",
+        "bytes": 195390,
+        "width": 640,
+        "height": 960,
+        "sha256": "236e549ac874f4c265093aa1810c7d342cd53f0979ebf9719dacd8d8d7a8ba87"
+      },
+      "thumbs": {
+        "path": "thumbs/major-10.webp",
+        "bytes": 11930,
+        "width": 160,
+        "height": 240,
+        "sha256": "d8798074a99495896d394133af16d175cb5def5da450b951b46d899f77f4af0a"
+      }
+    },
+    {
+      "id": "major-11",
+      "sourceId": "major-11",
+      "label": "正義",
+      "selectedVersion": "質感改良・両目の白濁化 正式採用版",
+      "source": "art/major/11_Justice.png",
+      "sourceSha256": "ebe346df3515356154540932d2dfdda4dfb4566011c684e2c8cf4ca547078215",
+      "sourceBytes": 2758959,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-11.webp",
+        "bytes": 143026,
+        "width": 640,
+        "height": 960,
+        "sha256": "afa4d99afa6e3252a0579db43e6c384f65c5fb92a38bf4c77e625cfeb0ce1d80"
+      },
+      "thumbs": {
+        "path": "thumbs/major-11.webp",
+        "bytes": 9784,
+        "width": 160,
+        "height": 240,
+        "sha256": "2b3a9b51c9fb608cc724e4943bad45d1c41cf0b144f2e53adb4a6df53933b073"
+      }
+    },
+    {
+      "id": "major-12",
+      "sourceId": "major-12",
+      "label": "吊るされた男",
+      "selectedVersion": "吊るされた男・採用つま先修正版",
+      "source": "art/major/12_The_Hanged_Man.png",
+      "sourceSha256": "155ea116e10449cf2e80966602fb2d0e4c302023e503fcf786112cf9a29e9dbf",
+      "sourceBytes": 2137895,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-12.webp",
+        "bytes": 98334,
+        "width": 640,
+        "height": 960,
+        "sha256": "b19c588c49a2f374304d7906f32e6ad013ed0502f865403057f396d9099d59ad"
+      },
+      "thumbs": {
+        "path": "thumbs/major-12.webp",
+        "bytes": 8458,
+        "width": 160,
+        "height": 240,
+        "sha256": "29df1e84b916777bc0ab7873d57b971d85ab12009b752fe95c618650c631094b"
+      }
+    },
+    {
+      "id": "major-13",
+      "sourceId": "major-13",
+      "label": "死神",
+      "selectedVersion": "死神・黒いフード／白い五弁バラの黒帆／乗客4人／ザクロ採用版",
+      "source": "art/major/13_Death.png",
+      "sourceSha256": "43e001cbd18480fba0a6e67ccbf7ed2bd280ef26ed33778c213c71ee29856d88",
+      "sourceBytes": 2578254,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-13.webp",
+        "bytes": 126534,
+        "width": 640,
+        "height": 960,
+        "sha256": "2dd8781d1d3c0ce5f031bd646db6b7afb0fa9f644e31ed857a8c793e0f3c45f7"
+      },
+      "thumbs": {
+        "path": "thumbs/major-13.webp",
+        "bytes": 8790,
+        "width": 160,
+        "height": 240,
+        "sha256": "adca2631c1ca3eca64bdb4b23ddb960d4efe53cfc64ba8f720369c5d92fc6d4e"
+      }
+    },
+    {
+      "id": "major-14",
+      "sourceId": "major-14",
+      "label": "節制",
+      "selectedVersion": "節制・オリーブ系の肌／編み上げ髪のテティス版v1",
+      "source": "art/major/14_Temperance.png",
+      "sourceSha256": "57c14a6bd21cb90f5c38314c78c7c8fcb386e83ac894a1afc76bd18ddc288b64",
+      "sourceBytes": 2624276,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-14.webp",
+        "bytes": 143638,
+        "width": 640,
+        "height": 960,
+        "sha256": "fbf85e93646e06540d6432d8229276eb6ea337e68a660d197db2df3e621b060d"
+      },
+      "thumbs": {
+        "path": "thumbs/major-14.webp",
+        "bytes": 10914,
+        "width": 160,
+        "height": 240,
+        "sha256": "784156a09047d5014c87ce0e91a2e50160c62cbf43c091895d38a91e4eea3010"
+      }
+    },
+    {
+      "id": "major-15",
+      "sourceId": "major-15",
+      "label": "悪魔",
+      "selectedVersion": "悪魔v8",
+      "source": "art/major/15_The_Devil.png",
+      "sourceSha256": "f0980e9c0bd8f06e2955481baedb327f7331dee470f14050e97cb4adf85f948d",
+      "sourceBytes": 2703687,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-15.webp",
+        "bytes": 157612,
+        "width": 640,
+        "height": 960,
+        "sha256": "f52fbbd5236daba94266e4ca6ef0798e85c921cce885410de377037f29b65a21"
+      },
+      "thumbs": {
+        "path": "thumbs/major-15.webp",
+        "bytes": 10780,
+        "width": 160,
+        "height": 240,
+        "sha256": "7a1fbeb2c97a647bd7ad1e82bd12e0f16bdd40899bb429bc40c36c478586274a"
+      }
+    },
+    {
+      "id": "major-16",
+      "sourceId": "major-16",
+      "label": "塔",
+      "selectedVersion": "塔・小さな暗い王冠v5",
+      "source": "art/major/16_The_Tower.png",
+      "sourceSha256": "0d5680f5b74c0f0d0a9432e14d5bec5a079ba12f6077086a7aea8e1e78cac04f",
+      "sourceBytes": 2770397,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-16.webp",
+        "bytes": 137498,
+        "width": 640,
+        "height": 960,
+        "sha256": "901128d8a91aee2a76c7ef21c480bc5bd200f8ed37905aeaa42b1bcb0a2b3b52"
+      },
+      "thumbs": {
+        "path": "thumbs/major-16.webp",
+        "bytes": 10104,
+        "width": 160,
+        "height": 240,
+        "sha256": "8a58973e25a24acb5720e7e09a429fbe25df2c1453697856f3b4617e2549a428"
+      }
+    },
+    {
+      "id": "major-17",
+      "sourceId": "major-17",
+      "label": "星",
+      "selectedVersion": "星v4・肩の画面右側の岩に鳥／採用済みの左右方向維持",
+      "source": "art/major/17_The_Star.png",
+      "sourceSha256": "7e8a1eed86377ec3e69bb1598549c455f9c33d24d34a15659f721d6c2b31fd0a",
+      "sourceBytes": 2802930,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-17.webp",
+        "bytes": 133490,
+        "width": 640,
+        "height": 960,
+        "sha256": "80d38c0f05ef57f3c94777c985e5b58b85441495c56ea3d1923ebbc1b2460e2e"
+      },
+      "thumbs": {
+        "path": "thumbs/major-17.webp",
+        "bytes": 8276,
+        "width": 160,
+        "height": 240,
+        "sha256": "e1958f63d4d17e39152beda8fb5ed350d6d42c5c87fcd9638cc8aa4192676bee"
+      }
+    },
+    {
+      "id": "major-18",
+      "sourceId": "major-18",
+      "label": "月",
+      "selectedVersion": "月・カリュプソ幻惑版／左右反転（星・月・2026-10-16）",
+      "source": "art/major/18_The_Moon.png",
+      "sourceSha256": "22f9729ed7de2a9bc922acf21c06b98e736b6018ea823c9325ef9b48c029efb0",
+      "sourceBytes": 4112082,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-18.webp",
+        "bytes": 164926,
+        "width": 640,
+        "height": 960,
+        "sha256": "d5283433521337cfc4a25e0441ad8b02117a438ab1142e4c29f5a0e0ab338e71"
+      },
+      "thumbs": {
+        "path": "thumbs/major-18.webp",
+        "bytes": 11340,
+        "width": 160,
+        "height": 240,
+        "sha256": "0319f6ed8e58631abb105f037ca73836ac75d4cf09a97585f5304602b2ce8979"
+      }
+    },
+    {
+      "id": "major-19",
+      "sourceId": "major-19",
+      "label": "太陽",
+      "selectedVersion": "太陽・子どもがヒマワリ一輪を持つ採用版",
+      "source": "art/major/19_The_Sun.png",
+      "sourceSha256": "74cc2c19d2800eb5badb8730d94e3ac3cd4ff89074adab067c72f53b89c412ba",
+      "sourceBytes": 2703307,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-19.webp",
+        "bytes": 139780,
+        "width": 640,
+        "height": 960,
+        "sha256": "cc44f63ea113144a124b8db5dd28af4b766af37dbacf352b69d1e85bd990a94b"
+      },
+      "thumbs": {
+        "path": "thumbs/major-19.webp",
+        "bytes": 10842,
+        "width": 160,
+        "height": 240,
+        "sha256": "7603b5fd5fbd15066995591fe3c163146f7aa6d98e92f4159c7098b91cb46129"
+      }
+    },
+    {
+      "id": "major-20",
+      "sourceId": "major-20",
+      "label": "審判",
+      "selectedVersion": "審判・トリトンの太い一本尾・法螺貝の十字版",
+      "source": "art/major/20_Judgement.png",
+      "sourceSha256": "d1b4972132ff86bc17274c68e8e7dffd033f2e90138e816373f5e548981de426",
+      "sourceBytes": 2779459,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-20.webp",
+        "bytes": 156754,
+        "width": 640,
+        "height": 960,
+        "sha256": "72b6c868dbed38214d42564fa0bd7493d9b38bdd9f83984199eaf1f6a8378160"
+      },
+      "thumbs": {
+        "path": "thumbs/major-20.webp",
+        "bytes": 11392,
+        "width": 160,
+        "height": 240,
+        "sha256": "3e4c54d57433f0a0ddbe2bb18ea52ef38b4d32d452e88bd50b53b56f1641edbf"
+      }
+    },
+    {
+      "id": "major-21",
+      "sourceId": "major-21",
+      "label": "世界",
+      "selectedVersion": "世界・象徴追加採用版（葉の輪を追加。右上が真珠飾りに接して少し見えにくい点は要確認）",
+      "source": "art/major/21_The_World.png",
+      "sourceSha256": "7b6ecaae4df51150c4adcaf3cec490f292c2b0dd79b66137d4d729939370eaa5",
+      "sourceBytes": 2805200,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/major-21.webp",
+        "bytes": 166900,
+        "width": 640,
+        "height": 960,
+        "sha256": "7521dd02ec4f4b68186726c454b4f97f9ebf638e363756b5fe96b0a629cf5593"
+      },
+      "thumbs": {
+        "path": "thumbs/major-21.webp",
+        "bytes": 12078,
+        "width": 160,
+        "height": 240,
+        "sha256": "ba6a5cb5c6ac299731acaf3a822e3d6a15e94eb6f68ea335e3f8979248bf9bf1"
+      }
+    },
+    {
+      "id": "sword-1",
+      "sourceId": "swords-01",
+      "label": "剣のエース",
+      "selectedVersion": "ソードのエース・風からの誕生／固定9一覧#3／2026-10-21採用",
+      "source": "art/swords/01_Ace_of_Swords.png",
+      "sourceSha256": "9419e1f9b1c250865fe6f0572ae2516ba440a41bd4abd3e189d995a1aaba496a",
+      "sourceBytes": 2918939,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/sword-1.webp",
+        "bytes": 131312,
+        "width": 640,
+        "height": 960,
+        "sha256": "3956bce9b7dc7dc4cbc5e68e8e16087b9f37e1bb2a9d6b1dc5bf85f752b1a6ee"
+      },
+      "thumbs": {
+        "path": "thumbs/sword-1.webp",
+        "bytes": 9744,
+        "width": 160,
+        "height": 240,
+        "sha256": "9ef072f94126febab3afa6151a6bb26a9ee2bd9a360b08e0ae74d380aa24ac3b"
+      }
+    },
+    {
+      "id": "sword-2",
+      "sourceId": "swords-02",
+      "label": "剣の2",
+      "source": "art/swords/02_Two_of_Swords.png",
+      "sourceSha256": "d640be824fadc7d90d996d94d65b66c952605d297cb66547674a262e0d89ff20",
+      "sourceBytes": 2832345,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/sword-2.webp",
+        "bytes": 119266,
+        "width": 640,
+        "height": 960,
+        "sha256": "409e28b39f8a4db59c021ca94c9054405535d12f68c2c85e1864bef897579ced"
+      },
+      "thumbs": {
+        "path": "thumbs/sword-2.webp",
+        "bytes": 7512,
+        "width": 160,
+        "height": 240,
+        "sha256": "4ff21dfe99afd0b66d89c0695d88b57e63369ec3c5e16020411ecd0f046990ce"
+      }
+    },
+    {
+      "id": "sword-3",
+      "sourceId": "swords-03",
+      "label": "剣の3",
+      "selectedVersion": "ソード3 v1・宝箱の心臓と3本の剣／2026-10-22採用",
+      "source": "art/swords/03_Three_of_Swords.png",
+      "sourceSha256": "fdfdc5e9fc1cb4b4656a78576948c3aac29bcbe1c171622bd110c58187bbabdd",
+      "sourceBytes": 2705897,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/sword-3.webp",
+        "bytes": 142734,
+        "width": 640,
+        "height": 960,
+        "sha256": "9f43c6ec909b41424760a21905a436a22feb9f11d27fc851f4d86f6544d86123"
+      },
+      "thumbs": {
+        "path": "thumbs/sword-3.webp",
+        "bytes": 8608,
+        "width": 160,
+        "height": 240,
+        "sha256": "2f5db28cb599438c8bbdc32f818f59f7a3f9ec810747c62d19a75c0b32ad0bbf"
+      }
+    },
+    {
+      "id": "sword-4",
+      "sourceId": "swords-04",
+      "label": "剣の4",
+      "selectedVersion": "剣の4・不採用v2の左接続を修正したハンモックv3／送付済み5候補一覧 #3／2026-10-21採用",
+      "source": "art/swords/04_Four_of_Swords.png",
+      "sourceSha256": "fe886b627e7c94d26b6f12bb5c66845120080006ff7f634616d20b50fd508530",
+      "sourceBytes": 2415203,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/sword-4.webp",
+        "bytes": 119512,
+        "width": 640,
+        "height": 960,
+        "sha256": "1dfd5218f7bdd88d44d5ab7dfefb74ff11e10bc191a2a5007565456d0e530f8a"
+      },
+      "thumbs": {
+        "path": "thumbs/sword-4.webp",
+        "bytes": 8208,
+        "width": 160,
+        "height": 240,
+        "sha256": "12f34c3cf44bffecc22c0f6fda92f07e077655b3a45130821349c091a647ca9a"
+      }
+    },
+    {
+      "id": "sword-5",
+      "sourceId": "swords-05",
+      "label": "剣の5",
+      "selectedVersion": "剣の5・眼帯 v1／海賊モチーフ17案 #8／2026-10-21採用",
+      "source": "art/swords/05_Five_of_Swords.png",
+      "sourceSha256": "1486e41a0f4dec686f8ee14866dca5d5318cdf96694349b06c054748eb5bec80",
+      "sourceBytes": 2675935,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/sword-5.webp",
+        "bytes": 123762,
+        "width": 640,
+        "height": 960,
+        "sha256": "41c529f125a4c3d566f86c0ef810432ebdf08ba0b40e178570d9c696d3fcbde8"
+      },
+      "thumbs": {
+        "path": "thumbs/sword-5.webp",
+        "bytes": 8674,
+        "width": 160,
+        "height": 240,
+        "sha256": "d79e1df62a0884b07f1de7b0b15bce161fbdb7b33e6544461f97a8ebbc409655"
+      }
+    },
+    {
+      "id": "sword-6",
+      "sourceId": "swords-06",
+      "label": "剣の6",
+      "source": "art/swords/06_Six_of_Swords.png",
+      "sourceSha256": "9a6fa44c66053b407f344c35b2a43b5d70557e8ca92a25fec468c442219402e9",
+      "sourceBytes": 3078762,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/sword-6.webp",
+        "bytes": 140240,
+        "width": 640,
+        "height": 960,
+        "sha256": "ad7e1980c5d07f727d056908b9893cb8570c1285d441e35d838ecba774e2baa3"
+      },
+      "thumbs": {
+        "path": "thumbs/sword-6.webp",
+        "bytes": 8100,
+        "width": 160,
+        "height": 240,
+        "sha256": "2453bb104847a4e96c1b6d16cf7ddd171bf9e356f08fcfe514163a9d410f155b"
+      }
+    },
+    {
+      "id": "sword-7",
+      "sourceId": "swords-07",
+      "label": "剣の7",
+      "selectedVersion": "剣7・ラックを上げた版v2／左右反転（追加11枚・2026-10-16）",
+      "source": "art/swords/07_Seven_of_Swords.png",
+      "sourceSha256": "460a3871b6e74674a4297fbadc1f359823691432fbc920e8f68645f49fb26bad",
+      "sourceBytes": 3972950,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/sword-7.webp",
+        "bytes": 140474,
+        "width": 640,
+        "height": 960,
+        "sha256": "3083b9c05da32059ed108be2e01a01c4c4b1f9f384d3c9b3ecfbacc9ce92b083"
+      },
+      "thumbs": {
+        "path": "thumbs/sword-7.webp",
+        "bytes": 10240,
+        "width": 160,
+        "height": 240,
+        "sha256": "e248faf9fd11ef35ad2da57512ceb694d1760f9dd58e109ceef23ab2bad650a5"
+      }
+    },
+    {
+      "id": "sword-8",
+      "sourceId": "swords-08",
+      "label": "剣の8",
+      "selectedVersion": "剣の8／左右反転（追加11枚・2026-10-16）",
+      "source": "art/swords/08_Eight_of_Swords.png",
+      "sourceSha256": "b2f62d60bf40e99f770f1d33fd75bc01ef4508b99498b819defbc5df374475df",
+      "sourceBytes": 3873551,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/sword-8.webp",
+        "bytes": 143106,
+        "width": 640,
+        "height": 960,
+        "sha256": "982f6a3f652df80f433dd3ab64b8b35b93329596d62569b8c0e2b841e0c6c8f1"
+      },
+      "thumbs": {
+        "path": "thumbs/sword-8.webp",
+        "bytes": 7802,
+        "width": 160,
+        "height": 240,
+        "sha256": "743aba061d992eec6ad3fb8342ac21c894b835dd6d0ef406e7307cc40d047227"
+      }
+    },
+    {
+      "id": "sword-9",
+      "sourceId": "swords-09",
+      "label": "剣の9",
+      "selectedVersion": "ソード9・寝具の赤い薔薇と天体模様追加採用版",
+      "source": "art/swords/09_Nine_of_Swords.png",
+      "sourceSha256": "b23f21874dff2aa9a092a084528354a75afe7f684863c13b34b72178976fe8df",
+      "sourceBytes": 2299141,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/sword-9.webp",
+        "bytes": 110662,
+        "width": 640,
+        "height": 960,
+        "sha256": "8e2d5444c2b9289d21fc70d065d374f9813503af1cbd594890c1595b4ea76640"
+      },
+      "thumbs": {
+        "path": "thumbs/sword-9.webp",
+        "bytes": 7452,
+        "width": 160,
+        "height": 240,
+        "sha256": "7226ecf514a2d164b451f0cee87a583612c388ce374df91074b2ba20e1bb23e6"
+      }
+    },
+    {
+      "id": "sword-10",
+      "sourceId": "swords-10",
+      "label": "剣の10",
+      "selectedVersion": "ソード10・採用final_defeat候補／左右反転（追加11枚・2026-10-16）",
+      "source": "art/swords/10_Ten_of_Swords.png",
+      "sourceSha256": "67d545f2eda9d93ba35ef66f5ce84d1bf1251c9055fb0f6b459a0eddab0e65ae",
+      "sourceBytes": 3719969,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/sword-10.webp",
+        "bytes": 151388,
+        "width": 640,
+        "height": 960,
+        "sha256": "1cffa8de9e59af9636e0eca9b2da49942ca5d1d5b31aad016afd2340aac767af"
+      },
+      "thumbs": {
+        "path": "thumbs/sword-10.webp",
+        "bytes": 9096,
+        "width": 160,
+        "height": 240,
+        "sha256": "d4e13cc8f4f7bc7ea1484223c94e4bcf7da43bc4b5f5966ce2603fa9ff868435"
+      }
+    },
+    {
+      "id": "sword-page",
+      "sourceId": "swords-11",
+      "label": "剣のペイジ",
+      "selectedVersion": "歴史的意匠・最新版原画／v2／2026-10-20・ユーザー確認と枠入れ前",
+      "source": "art/swords/11_Page_of_Swords.png",
+      "sourceSha256": "f4253a67f37fa0b02bfe400abd21f4d59da56e565db8cb9181a2015ed65a3e7b",
+      "sourceBytes": 2763510,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/sword-page.webp",
+        "bytes": 152940,
+        "width": 640,
+        "height": 960,
+        "sha256": "750f3deb9c46c7f129fb0089c42fc1e2b34c54b54941fdfa0edb99c2bf389f00"
+      },
+      "thumbs": {
+        "path": "thumbs/sword-page.webp",
+        "bytes": 10906,
+        "width": 160,
+        "height": 240,
+        "sha256": "8666e5f8f6fb74398ecadd2018e2d363e46e3611e58c2270dd94e74665ead22d"
+      }
+    },
+    {
+      "id": "sword-knight",
+      "sourceId": "swords-12",
+      "label": "剣のナイト",
+      "selectedVersion": "歴史的意匠・最新版原画／v2_guard／2026-10-20・ユーザー確認と枠入れ前",
+      "source": "art/swords/12_Knight_of_Swords.png",
+      "sourceSha256": "db0921d7d54923d5c80603a7355ee1b71064f2b63d819749b7ad1b238b756eed",
+      "sourceBytes": 2869542,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/sword-knight.webp",
+        "bytes": 154096,
+        "width": 640,
+        "height": 960,
+        "sha256": "8f3aeac504a255a6fe2cbb4581e0f15193a210100c0fa8eae28fe0a98b793345"
+      },
+      "thumbs": {
+        "path": "thumbs/sword-knight.webp",
+        "bytes": 10952,
+        "width": 160,
+        "height": 240,
+        "sha256": "639c77b6ebcb9c29269f2bc7966913b6b3a0e3f69626fbac10b57fe9a1e2ae62"
+      }
+    },
+    {
+      "id": "sword-queen",
+      "sourceId": "swords-13",
+      "label": "剣のクイーン",
+      "selectedVersion": "歴史的意匠・最新版原画／v4_hilt_scale／2026-10-20・ユーザー確認と枠入れ前",
+      "source": "art/swords/13_Queen_of_Swords.png",
+      "sourceSha256": "881970b4e3cf85f922d6e0b4113d8839359127476c3c1f75024ac66340b86fad",
+      "sourceBytes": 2864312,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/sword-queen.webp",
+        "bytes": 173314,
+        "width": 640,
+        "height": 960,
+        "sha256": "6e65b7236b7ed92ae979612045cae102a249570b1f573e98f0498c3a10010eaf"
+      },
+      "thumbs": {
+        "path": "thumbs/sword-queen.webp",
+        "bytes": 11724,
+        "width": 160,
+        "height": 240,
+        "sha256": "977a94ace37c03c4b5185026a0c068553cd5a3fe3c0f58c3069b8741fe74ff19"
+      }
+    },
+    {
+      "id": "sword-king",
+      "sourceId": "swords-14",
+      "label": "剣のキング",
+      "selectedVersion": "歴史的意匠・最新版原画／v3_historical／2026-10-20・ユーザー確認と枠入れ前",
+      "source": "art/swords/14_King_of_Swords.png",
+      "sourceSha256": "c1cfe1aaa9919a6766126af3fb434692e960b5305b577a5d2870624bc54f6a74",
+      "sourceBytes": 2642702,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/sword-king.webp",
+        "bytes": 147778,
+        "width": 640,
+        "height": 960,
+        "sha256": "23da023d76c4a157545f764accb12643fdce9e688cc6c2e652e593d961d50ae0"
+      },
+      "thumbs": {
+        "path": "thumbs/sword-king.webp",
+        "bytes": 10604,
+        "width": 160,
+        "height": 240,
+        "sha256": "951d9473bf25be8d0ed7d0a9da28c475638e5f3552377281e74635f5dd3b95af"
+      }
+    },
+    {
+      "id": "cup-1",
+      "sourceId": "cups-01",
+      "label": "杯のエース",
+      "selectedVersion": "カップのエース・水からの誕生／固定9一覧#2／2026-10-21採用",
+      "source": "art/cups/01_Ace_of_Cups.png",
+      "sourceSha256": "08636d4b12d9782a2e87cc0cefd12f010a9a93d77ff9d3eb8891833aa1b67522",
+      "sourceBytes": 3342893,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/cup-1.webp",
+        "bytes": 190752,
+        "width": 640,
+        "height": 960,
+        "sha256": "d3777e03cab89607897dd5a43028b660f6c90e94618ea25c4a278cbc1f5cc163"
+      },
+      "thumbs": {
+        "path": "thumbs/cup-1.webp",
+        "bytes": 12178,
+        "width": 160,
+        "height": 240,
+        "sha256": "6e211a73612185740a3871c8fae508d71f99ed03cc5d1651629138ac8309530a"
+      }
+    },
+    {
+      "id": "cup-2",
+      "sourceId": "cups-02",
+      "label": "杯の2",
+      "selectedVersion": "カップ2・物語画質感調整v1／二人の交流・2杯を保持／2026-10-21採用",
+      "source": "art/cups/02_Two_of_Cups.png",
+      "sourceSha256": "fbda449c7d8d480442a22940445115256ea5641318379df1862b3faf8829ee6f",
+      "sourceBytes": 2611081,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/cup-2.webp",
+        "bytes": 129878,
+        "width": 640,
+        "height": 960,
+        "sha256": "05805bdf3d08104eab981457fdc8f54954bdeb65a4505ff04e2cc15ff2f3d2f6"
+      },
+      "thumbs": {
+        "path": "thumbs/cup-2.webp",
+        "bytes": 10064,
+        "width": 160,
+        "height": 240,
+        "sha256": "030de3e9e6a97492ee4353e60ccd4b344452619ed3df6b41ff912aa2cfc368ea"
+      }
+    },
+    {
+      "id": "cup-3",
+      "sourceId": "cups-03",
+      "label": "杯の3",
+      "selectedVersion": "カップ3・物語画v2／高さ・前後差・杯3個・笑顔の時間差／2026-10-21採用",
+      "source": "art/cups/03_Three_of_Cups.png",
+      "sourceSha256": "57a8e409039897ff90061b791b8ab2595f76e3d9a3cf376a8b09f66ab7e45c23",
+      "sourceBytes": 2301199,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/cup-3.webp",
+        "bytes": 120050,
+        "width": 640,
+        "height": 960,
+        "sha256": "e63183f9ec3a73a96c96226a2c7a9d76c215ff584b0785f154f0e05144281800"
+      },
+      "thumbs": {
+        "path": "thumbs/cup-3.webp",
+        "bytes": 9794,
+        "width": 160,
+        "height": 240,
+        "sha256": "2a5cf0ab7f0b6105c2c3d95dd611ed8e7870664cdf422c95bbe160aa2e7d09d4"
+      }
+    },
+    {
+      "id": "cup-4",
+      "sourceId": "cups-04",
+      "label": "杯の4",
+      "selectedVersion": "杯の4・船入り瓶と海賊猿 v1／海賊モチーフ17案 #4／2026-10-21採用",
+      "source": "art/cups/04_Four_of_Cups.png",
+      "sourceSha256": "56ea6cc7d3bd89023c92d755d8453d684fcc4ee21aeddb611f9609e5c79edeeb",
+      "sourceBytes": 2748169,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/cup-4.webp",
+        "bytes": 133792,
+        "width": 640,
+        "height": 960,
+        "sha256": "2b421c5ac389d566a0caf2bcf02ddfb8eeca738218ac3bc5be48c49898ab522d"
+      },
+      "thumbs": {
+        "path": "thumbs/cup-4.webp",
+        "bytes": 9550,
+        "width": 160,
+        "height": 240,
+        "sha256": "9fbdb4f7433d6834681d1cd6e8c75fc7d803dcc165672d1857fa3111935bd415"
+      }
+    },
+    {
+      "id": "cup-5",
+      "sourceId": "cups-05",
+      "label": "杯の5",
+      "selectedVersion": "杯の5／左右反転（追加11枚・2026-10-16）",
+      "source": "art/cups/05_Five_of_Cups.png",
+      "sourceSha256": "90c2fd9b031589b3c4bb2878e7711f68a932ef3bc9b098b29196f749a06de5e3",
+      "sourceBytes": 3774315,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/cup-5.webp",
+        "bytes": 146434,
+        "width": 640,
+        "height": 960,
+        "sha256": "9e3660d5a95933a656df411255cf823cdfdab3bf5deb07a5e11b4cd194e79e4b"
+      },
+      "thumbs": {
+        "path": "thumbs/cup-5.webp",
+        "bytes": 7988,
+        "width": 160,
+        "height": 240,
+        "sha256": "9fe504514fbd5abd916fcba2861c9d21eb8a9239a4008f826251148384a35450"
+      }
+    },
+    {
+      "id": "cup-6",
+      "sourceId": "cups-06",
+      "label": "杯の6",
+      "selectedVersion": "カップ6・幼い男女／女児の両足明瞭化版v2（Library版1）／左右反転（追加11枚・2026-10-16）",
+      "source": "art/cups/06_Six_of_Cups.png",
+      "sourceSha256": "9f11c144ba8ded1205d34f075f97282771d84fd0b72a86b596cdffe5ec552282",
+      "sourceBytes": 4203086,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/cup-6.webp",
+        "bytes": 178220,
+        "width": 640,
+        "height": 960,
+        "sha256": "1f950a351d4545a9fce1da8fe422a8f27e82c0acb031e5fdcb3331a7b37be350"
+      },
+      "thumbs": {
+        "path": "thumbs/cup-6.webp",
+        "bytes": 11562,
+        "width": 160,
+        "height": 240,
+        "sha256": "250659ec638de0b34f5f7b3c7e72069b61e169e3f6a7a39d7353e53db0d134be"
+      }
+    },
+    {
+      "id": "cup-7",
+      "sourceId": "cups-07",
+      "label": "杯の7",
+      "selectedVersion": "杯の7・伝説の島だけを髑髏島へ・クラーケン保持v3／送付済み5候補一覧 #5／2026-10-21採用",
+      "source": "art/cups/07_Seven_of_Cups.png",
+      "sourceSha256": "c9b4b0c20a46bb4d08b1b7c602817fe5cd536d8bcf4275ebd8df66d01d8a84d2",
+      "sourceBytes": 2956503,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/cup-7.webp",
+        "bytes": 160822,
+        "width": 640,
+        "height": 960,
+        "sha256": "3fcc1fe611964b5dbeda33f96b740cb78b09b18194d8ba977639957d6874a349"
+      },
+      "thumbs": {
+        "path": "thumbs/cup-7.webp",
+        "bytes": 10466,
+        "width": 160,
+        "height": 240,
+        "sha256": "390bd9a93c827e818e0922551862f15d6be9bebd1fa412ec9a12e6b4fb05a566"
+      }
+    },
+    {
+      "id": "cup-8",
+      "sourceId": "cups-08",
+      "label": "杯の8",
+      "source": "art/cups/08_Eight_of_Cups.png",
+      "sourceSha256": "5c377e3c63cc0eb6c3c0dd3f2519872802bb541d4fb23f3e747dd3c3ef485e15",
+      "sourceBytes": 3123081,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/cup-8.webp",
+        "bytes": 158488,
+        "width": 640,
+        "height": 960,
+        "sha256": "5b1b220aeff0c24aaeeb5ab6ff24570b8c6a3939b3dac931424071c4f61d54d1"
+      },
+      "thumbs": {
+        "path": "thumbs/cup-8.webp",
+        "bytes": 9402,
+        "width": 160,
+        "height": 240,
+        "sha256": "c4fdfd36314053932d1f5aa04128b55db3cb7719a26a4d5f179b5d5411073659"
+      }
+    },
+    {
+      "id": "cup-9",
+      "sourceId": "cups-09",
+      "label": "杯の9",
+      "selectedVersion": "カップ9・獲得した宝／固定9一覧#6／2026-10-21採用",
+      "source": "art/cups/09_Nine_of_Cups.png",
+      "sourceSha256": "6e6c64434594244e0f008c141cb3388e4297ac64d4c5f13ee5f90bc41e401af1",
+      "sourceBytes": 2631102,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/cup-9.webp",
+        "bytes": 129580,
+        "width": 640,
+        "height": 960,
+        "sha256": "4059071d8fb8a0d547097776ebc5b3ba9f819b2dd0ffa4dd6ddc62d1c545a1a4"
+      },
+      "thumbs": {
+        "path": "thumbs/cup-9.webp",
+        "bytes": 9372,
+        "width": 160,
+        "height": 240,
+        "sha256": "cd207f18e89441a62c5f7c4d0e5f0251a06d3f519a60c8a94a0cd2c3ac988071"
+      }
+    },
+    {
+      "id": "cup-10",
+      "sourceId": "cups-10",
+      "label": "杯の10",
+      "selectedVersion": "カップ10・採用v6起点の物語画v2／手持ち2杯＋卓上8杯・表情差／2026-10-21採用",
+      "source": "art/cups/10_Ten_of_Cups.png",
+      "sourceSha256": "378bbbd99e7371cff56509c3c9b44eb0f8f43cbdaa0227f5513d4cd02b5e8a44",
+      "sourceBytes": 2627859,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/cup-10.webp",
+        "bytes": 156240,
+        "width": 640,
+        "height": 960,
+        "sha256": "e0b6a6a23ec1709114375278a973c21d49ecba74019577a3e9a99518290c0ad7"
+      },
+      "thumbs": {
+        "path": "thumbs/cup-10.webp",
+        "bytes": 11746,
+        "width": 160,
+        "height": 240,
+        "sha256": "0e5f28762b8b5de4f16b061654cc6b3d168cc522c17ea23047e5a7589c9c2626"
+      }
+    },
+    {
+      "id": "cup-page",
+      "sourceId": "cups-11",
+      "label": "杯のペイジ",
+      "selectedVersion": "杯のペイジ・杯のグラスのみ・魚保持・瓶なし native-test-v1／海賊モチーフ17案外・追加杯比較／2026-10-21採用",
+      "source": "art/cups/11_Page_of_Cups.png",
+      "sourceSha256": "4b35b3bd98464ace2369964d839edcb6a68202369ddbbe0cc350d5370e5896b5",
+      "sourceBytes": 2479405,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/cup-page.webp",
+        "bytes": 118858,
+        "width": 640,
+        "height": 960,
+        "sha256": "dabcfe28a2a623076f0d7b9d79c4588cd0f6f90cbd6162e17578098eace1a03d"
+      },
+      "thumbs": {
+        "path": "thumbs/cup-page.webp",
+        "bytes": 9036,
+        "width": 160,
+        "height": 240,
+        "sha256": "2a6a1c69ea55305a6419a03dfe357555e69c8f15e33c559dd605ee06207c46db"
+      }
+    },
+    {
+      "id": "cup-knight",
+      "sourceId": "cups-12",
+      "label": "杯のナイト",
+      "selectedVersion": "歴史的意匠・最新版原画／v2／2026-10-20・ユーザー確認と枠入れ前",
+      "source": "art/cups/12_Knight_of_Cups.png",
+      "sourceSha256": "1d782e7ff4495162205cabcfd7b7057add6f244321353e871fa7e0df8593354a",
+      "sourceBytes": 2680860,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/cup-knight.webp",
+        "bytes": 128860,
+        "width": 640,
+        "height": 960,
+        "sha256": "af7e36f633e150fb4f29ffd58a69308bb3aa14eda2c2bc9f9b13333617775f5d"
+      },
+      "thumbs": {
+        "path": "thumbs/cup-knight.webp",
+        "bytes": 9188,
+        "width": 160,
+        "height": 240,
+        "sha256": "e0c0ff75d616eefb65707d115c3cdc323258af1c427914d7a1902956fdded149"
+      }
+    },
+    {
+      "id": "cup-queen",
+      "sourceId": "cups-13",
+      "label": "杯のクイーン",
+      "selectedVersion": "カップクイーン・蓋付き杯／左右一対の銀把手v1／2026-10-21採用",
+      "source": "art/cups/13_Queen_of_Cups.png",
+      "sourceSha256": "730d60034a8f21ad20d4784479aa402282a39a1de27922c5269240bc93cb8867",
+      "sourceBytes": 2343119,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/cup-queen.webp",
+        "bytes": 117190,
+        "width": 640,
+        "height": 960,
+        "sha256": "19ce83630705f48f568244e6f0fb1ebabccbf07356febd66dc81e319ce8c6dbb"
+      },
+      "thumbs": {
+        "path": "thumbs/cup-queen.webp",
+        "bytes": 9784,
+        "width": 160,
+        "height": 240,
+        "sha256": "eabbd74a23040b8f92bab38f5673efe108b48e1ef51c771261c3fa964eafb6c5"
+      }
+    },
+    {
+      "id": "cup-king",
+      "sourceId": "cups-14",
+      "label": "杯のキング",
+      "selectedVersion": "歴史的意匠・最新版原画／historical_base／2026-10-20・ユーザー確認と枠入れ前",
+      "source": "art/cups/14_King_of_Cups.png",
+      "sourceSha256": "dd02d07917f080884682321a443352c40a9f4a94ff54c83fa1954ba49a6ad9f8",
+      "sourceBytes": 3055316,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/cup-king.webp",
+        "bytes": 183480,
+        "width": 640,
+        "height": 960,
+        "sha256": "dd5b5783633f90376be1f64721974d6b0768331456899ab8d7fb795e64eef64f"
+      },
+      "thumbs": {
+        "path": "thumbs/cup-king.webp",
+        "bytes": 13242,
+        "width": 160,
+        "height": 240,
+        "sha256": "564e0425874239296945d975642e401c8580ff39d6c3cdd33779971bed35a63b"
+      }
+    },
+    {
+      "id": "wand-1",
+      "sourceId": "wands-01",
+      "label": "銃／ワンドのエース",
+      "selectedVersion": "ワンドのエース・炎からの誕生／固定9一覧#1／2026-10-21採用",
+      "source": "art/wands/01_Ace_of_Wands.png",
+      "sourceSha256": "ca12e7ac0deaac8a26cdf8500ca5d3ef9e40ef6b940e27b99599272ef0ac955f",
+      "sourceBytes": 2892734,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/wand-1.webp",
+        "bytes": 162002,
+        "width": 640,
+        "height": 960,
+        "sha256": "d9a311cea2f084a5f05f934c7536257091bc4ca0e2493b440ad36cf66ae6b601"
+      },
+      "thumbs": {
+        "path": "thumbs/wand-1.webp",
+        "bytes": 11666,
+        "width": 160,
+        "height": 240,
+        "sha256": "a4b16a18b54f5aee7253a2d32444e282f23dbc76fecc481da355118d550873f0"
+      }
+    },
+    {
+      "id": "wand-2",
+      "sourceId": "wands-02",
+      "label": "銃／ワンドの2",
+      "selectedVersion": "ワンド2・採用羊皮紙v1起点の物語画質感調整v1／左向き・2銃・薔薇上着・十字架・百合バックル保持／2026-10-21採用",
+      "source": "art/wands/02_Two_of_Wands.png",
+      "sourceSha256": "12fefde51691175d5225700d4ae0df9c20b181706823ff5058be886cfccbb719",
+      "sourceBytes": 2602144,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/wand-2.webp",
+        "bytes": 119912,
+        "width": 640,
+        "height": 960,
+        "sha256": "4103c9fe32f1a1dd0611314aa0c75094d639119d3782a4dab806662c401e2674"
+      },
+      "thumbs": {
+        "path": "thumbs/wand-2.webp",
+        "bytes": 8668,
+        "width": 160,
+        "height": 240,
+        "sha256": "39fa01709d2abfd8a1cb9a8fd7f3efa82d2e96a6231985dc82be179552140b53"
+      }
+    },
+    {
+      "id": "wand-3",
+      "sourceId": "wands-03",
+      "label": "銃／ワンドの3",
+      "selectedVersion": "銃／ワンドの3・宝の地図X v1／海賊モチーフ17案 #5／2026-10-21採用",
+      "source": "art/wands/03_Three_of_Wands.png",
+      "sourceSha256": "68eb86b775a3644b81df5c08126220979bea3d2be4d85793f1a4cf48e6391a51",
+      "sourceBytes": 2755087,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/wand-3.webp",
+        "bytes": 138692,
+        "width": 640,
+        "height": 960,
+        "sha256": "10d70811363657ab29966e57b0aa1d5c8af6f0da3dfdc6e26b0a7c055e23f117"
+      },
+      "thumbs": {
+        "path": "thumbs/wand-3.webp",
+        "bytes": 9294,
+        "width": 160,
+        "height": 240,
+        "sha256": "91372c349ac6cd84f6a0537d7146828fa26927a8d1c1be72282eb7a85c423566"
+      }
+    },
+    {
+      "id": "wand-4",
+      "sourceId": "wands-04",
+      "label": "銃／ワンドの4",
+      "selectedVersion": "ワンド4・壁の4丁の銃と酒場で踊り楽しむ採用版",
+      "source": "art/wands/04_Four_of_Wands.png",
+      "sourceSha256": "f1d4e0da0508f0ab11bf2414a3901e99d80e92a4a97b0ef003401b822a89416d",
+      "sourceBytes": 2627682,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/wand-4.webp",
+        "bytes": 128958,
+        "width": 640,
+        "height": 960,
+        "sha256": "e8a637d561c542ea9cf2de22f2caac426ce8c77d452c9a387664dfc01937908d"
+      },
+      "thumbs": {
+        "path": "thumbs/wand-4.webp",
+        "bytes": 8658,
+        "width": 160,
+        "height": 240,
+        "sha256": "613d9672f7498b713afd0a7e6ffc91a3bb24df8eec5aa740c7059b823da9ebbc"
+      }
+    },
+    {
+      "id": "wand-5",
+      "sourceId": "wands-05",
+      "label": "銃／ワンドの5",
+      "selectedVersion": "ワンド5・酒場の小競り合い／5人5銃／tavern-competition-v1／2026-10-20採用",
+      "source": "art/wands/05_Five_of_Wands.png",
+      "sourceSha256": "dfadf0aa9110944d432d7e4bc3a6549f1f8e4e14ebd32c98bda47615478e0c10",
+      "sourceBytes": 2849457,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/wand-5.webp",
+        "bytes": 150000,
+        "width": 640,
+        "height": 960,
+        "sha256": "27e555872f658405103e46c7eadabbfa4ee5c21d423620d70fb8b030041123c0"
+      },
+      "thumbs": {
+        "path": "thumbs/wand-5.webp",
+        "bytes": 10628,
+        "width": 160,
+        "height": 240,
+        "sha256": "6b4516d2ae73bf9b5e1e3a0147c1d97ecb43d896bdc1bf11282dd483164dc4cf"
+      }
+    },
+    {
+      "id": "wand-6",
+      "sourceId": "wands-06",
+      "label": "銃／ワンドの6",
+      "selectedVersion": "銃／ワンドの6・木の義足 v1／海賊モチーフ17案 #10／2026-10-21採用",
+      "source": "art/wands/06_Six_of_Wands.png",
+      "sourceSha256": "d179c0c62091337a28afe16753bf8ac30464c86ab28c478151983a1fcf33ed85",
+      "sourceBytes": 2901738,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/wand-6.webp",
+        "bytes": 183666,
+        "width": 640,
+        "height": 960,
+        "sha256": "ef3108d79a58deac4e7a8d9f9117fead7fd0c954fa88f0511e5ed32f49ba766b"
+      },
+      "thumbs": {
+        "path": "thumbs/wand-6.webp",
+        "bytes": 13444,
+        "width": 160,
+        "height": 240,
+        "sha256": "e8c49c3e2d1c7f5f12e1136c57e03e18dc1cc81b6a7918f29137ce7aed58ad28"
+      }
+    },
+    {
+      "id": "wand-7",
+      "sourceId": "wands-07",
+      "label": "銃／ワンドの7",
+      "selectedVersion": "ワンド7・迫る6人に対する防御版",
+      "source": "art/wands/07_Seven_of_Wands.png",
+      "sourceSha256": "2c8e1a1bccd73d0e77e3d7a9213a0a9ba6f31f7d43c023edd71dce7b063e7a64",
+      "sourceBytes": 3299108,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/wand-7.webp",
+        "bytes": 190782,
+        "width": 640,
+        "height": 960,
+        "sha256": "c9b5abc7b0ed3f3246609cacd60463c2cb30caf785119bb9ff45dfcb45655f1d"
+      },
+      "thumbs": {
+        "path": "thumbs/wand-7.webp",
+        "bytes": 11252,
+        "width": 160,
+        "height": 240,
+        "sha256": "0fb2e9f543b791c7b8da1faa4e08a7145e960559536aaaab6980039bc1075eac"
+      }
+    },
+    {
+      "id": "wand-8",
+      "sourceId": "wands-08",
+      "label": "銃／ワンドの8",
+      "selectedVersion": "ワンド8・海上8発の砲弾を主役にした元採用版／砲弾だけの版・正式再採用",
+      "source": "art/wands/08_Eight_of_Wands.png",
+      "sourceSha256": "2a13eff47cd36268a463f02779f9ce1a86c30c5b790ae93a88337e44b37eac1f",
+      "sourceBytes": 2709960,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/wand-8.webp",
+        "bytes": 126022,
+        "width": 640,
+        "height": 960,
+        "sha256": "c06108d8002a776744aafa866244d5f6ec2acfb84c96268176f1837e1dd454f6"
+      },
+      "thumbs": {
+        "path": "thumbs/wand-8.webp",
+        "bytes": 9270,
+        "width": 160,
+        "height": 240,
+        "sha256": "0f6b963b89355bb78dfbe372420e21d80cdc889411ed4360603c51f0766d0b67"
+      }
+    },
+    {
+      "id": "wand-9",
+      "sourceId": "wands-09",
+      "label": "銃／ワンドの9",
+      "selectedVersion": "歴史的意匠・最新版原画／no_person／2026-10-20・ユーザー確認と枠入れ前",
+      "source": "art/wands/09_Nine_of_Wands.png",
+      "sourceSha256": "c8ec226bca32032d20f97fe2fe5c9b9ca38d8b755ca308272b1787d4d365fc6f",
+      "sourceBytes": 2661882,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/wand-9.webp",
+        "bytes": 144330,
+        "width": 640,
+        "height": 960,
+        "sha256": "b076ce994d17ebfdb38cb776ed7b68e73511da3747ddcf10de6ed4dfa4fecd40"
+      },
+      "thumbs": {
+        "path": "thumbs/wand-9.webp",
+        "bytes": 10558,
+        "width": 160,
+        "height": 240,
+        "sha256": "a9486653981ab3c7de5c8cd5e394c8f4b924126b60b84a99dc06bbc638a5b841"
+      }
+    },
+    {
+      "id": "wand-10",
+      "sourceId": "wands-10",
+      "label": "銃／ワンドの10",
+      "selectedVersion": "v13／左右反転（追加11枚・2026-10-16）",
+      "source": "art/wands/10_Ten_of_Wands.png",
+      "sourceSha256": "ccc9a5ff4837b77ce2bd4f02e2f9e856b50651ba887362fb9adcc34969fe3c2a",
+      "sourceBytes": 4013806,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/wand-10.webp",
+        "bytes": 141796,
+        "width": 640,
+        "height": 960,
+        "sha256": "0b4a40996749b03a7ef2649e153dabec8511a40f077d0dbb6047e5e7e565486c"
+      },
+      "thumbs": {
+        "path": "thumbs/wand-10.webp",
+        "bytes": 9894,
+        "width": 160,
+        "height": 240,
+        "sha256": "9f0b6b473c0ef5ee59e4784074be404438242e18d217a53d8e3d07b1684d6351"
+      }
+    },
+    {
+      "id": "wand-page",
+      "sourceId": "wands-11",
+      "label": "銃／ワンドのペイジ",
+      "selectedVersion": "歴史的意匠・最新版原画／flattened_butt_revision／2026-10-20・ユーザー確認と枠入れ前",
+      "source": "art/wands/11_Page_of_Wands.png",
+      "sourceSha256": "9c3d010b346d9c4d6778a68d3d0a3c8e9d55308b2b8bfc9241bdb058199f40a3",
+      "sourceBytes": 2574490,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/wand-page.webp",
+        "bytes": 134752,
+        "width": 640,
+        "height": 960,
+        "sha256": "c7846e8a08d3ec6319354f27b23856eaa36c9984d851de1373a0c306ae2b161b"
+      },
+      "thumbs": {
+        "path": "thumbs/wand-page.webp",
+        "bytes": 10318,
+        "width": 160,
+        "height": 240,
+        "sha256": "9296ff03ce4092e7ec364144f28dd65ca537893e0cfa0af4161f58745db8f561"
+      }
+    },
+    {
+      "id": "wand-knight",
+      "sourceId": "wands-12",
+      "label": "銃／ワンドのナイト",
+      "selectedVersion": "歴史的意匠・最新版原画／v6_restored_pistol／2026-10-20・ユーザー確認と枠入れ前",
+      "source": "art/wands/12_Knight_of_Wands.png",
+      "sourceSha256": "8ccb819e023a732adb4de0c1084cc33f5905390e3e04669abdb088f379855347",
+      "sourceBytes": 2732325,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/wand-knight.webp",
+        "bytes": 145206,
+        "width": 640,
+        "height": 960,
+        "sha256": "658a9dcc9c2022710f46b68d3b16bdb6d08d57e0e5c40228da766318a5b3c289"
+      },
+      "thumbs": {
+        "path": "thumbs/wand-knight.webp",
+        "bytes": 10456,
+        "width": 160,
+        "height": 240,
+        "sha256": "976ffd4f3e82eadbf9576bfedc7bfa954eaa51accf7bf4e33db03642c72cc8be"
+      }
+    },
+    {
+      "id": "wand-queen",
+      "sourceId": "wands-13",
+      "label": "銃／ワンドのクイーン",
+      "selectedVersion": "歴史的意匠・最新版原画／historical_base／2026-10-20・ユーザー確認と枠入れ前",
+      "source": "art/wands/13_Queen_of_Wands.png",
+      "sourceSha256": "1c961453a18cacc993e8b39e9ab607f2995c9ce4ed6d957158328cc9e8ed9fd4",
+      "sourceBytes": 2951795,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/wand-queen.webp",
+        "bytes": 160224,
+        "width": 640,
+        "height": 960,
+        "sha256": "59d99bc8fa33538d6bbb9a547a08255a49101434870b067f7052bbbb7b0bc337"
+      },
+      "thumbs": {
+        "path": "thumbs/wand-queen.webp",
+        "bytes": 10698,
+        "width": 160,
+        "height": 240,
+        "sha256": "3c28b88cc7d62f3644cb2a9987a0233d0f668b9e092c6fc1e9fa5663f4417dc4"
+      }
+    },
+    {
+      "id": "wand-king",
+      "sourceId": "wands-14",
+      "label": "銃／ワンドのキング",
+      "selectedVersion": "銃／ワンドのキング・原画の片手をフックにしたv1・火薬樽なし／送付済み5候補一覧 #2／2026-10-21採用",
+      "source": "art/wands/14_King_of_Wands.png",
+      "sourceSha256": "e55f40db8adff49ab4c54b9a219c98ef3507163c6659d9ec60db236bbafe2afd",
+      "sourceBytes": 2703254,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/wand-king.webp",
+        "bytes": 168062,
+        "width": 640,
+        "height": 960,
+        "sha256": "aa8f570e7a4394ba73cdbe0087ccbbdb393a8932d30d71db67442cb47b53061a"
+      },
+      "thumbs": {
+        "path": "thumbs/wand-king.webp",
+        "bytes": 11872,
+        "width": 160,
+        "height": 240,
+        "sha256": "c693e705d83eec66d0ed97e9d529d2bc07eeb700ab963b812859a2a949551d58"
+      }
+    },
+    {
+      "id": "pentacle-1",
+      "sourceId": "coins-01",
+      "label": "金貨のエース",
+      "selectedVersion": "ペンタクルのエース・土からの誕生／固定9一覧#4／2026-10-21採用",
+      "source": "art/coins/01_Ace_of_Coins.png",
+      "sourceSha256": "6523e2e1890e4b9adff740d8b5600599e452561e48462ff1d3eed625c640ca31",
+      "sourceBytes": 3035928,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/pentacle-1.webp",
+        "bytes": 169328,
+        "width": 640,
+        "height": 960,
+        "sha256": "2aca9362c069c911b0bc6de7a43476526c5b5be69dd7cff42fb1c784fa29ab74"
+      },
+      "thumbs": {
+        "path": "thumbs/pentacle-1.webp",
+        "bytes": 12668,
+        "width": 160,
+        "height": 240,
+        "sha256": "4b4723ffeffdbeeaa212e7e25f2c7bc043326063102327aa08cc4c06cdb54dd4"
+      }
+    },
+    {
+      "id": "pentacle-2",
+      "sourceId": "coins-02",
+      "label": "金貨の2",
+      "selectedVersion": "ペンタクル14枚・改訂採用版 02_Two_of_Coins／2026-10-19正式採用",
+      "source": "art/coins/02_Two_of_Coins.png",
+      "sourceSha256": "036b58700b0d2f2227a89dd2d2b95f0f235a98d57d1183ad892fefd06e96f6d7",
+      "sourceBytes": 2575767,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/pentacle-2.webp",
+        "bytes": 127176,
+        "width": 640,
+        "height": 960,
+        "sha256": "de332360c4dbff7657fd662c74d424f2059c4a5f76d06841b90cd95fd71434c2"
+      },
+      "thumbs": {
+        "path": "thumbs/pentacle-2.webp",
+        "bytes": 8878,
+        "width": 160,
+        "height": 240,
+        "sha256": "0aa2e486fb100b7d73f058eb22bde500481eed584fefd40aea167621e3d67778"
+      }
+    },
+    {
+      "id": "pentacle-3",
+      "sourceId": "coins-03",
+      "label": "金貨の3",
+      "selectedVersion": "ペンタクル14枚・改訂採用版 03_Three_of_Coins／2026-10-19正式採用",
+      "source": "art/coins/03_Three_of_Coins.png",
+      "sourceSha256": "a2f7762a3d0db8c4852e8cd6951be34b9ce4d1fe836040a547554646e7e708d8",
+      "sourceBytes": 2733532,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/pentacle-3.webp",
+        "bytes": 133498,
+        "width": 640,
+        "height": 960,
+        "sha256": "a0adc434dfd2b618db87278ee8f361e7f091c52053d2a78b232327a78e80bf83"
+      },
+      "thumbs": {
+        "path": "thumbs/pentacle-3.webp",
+        "bytes": 9412,
+        "width": 160,
+        "height": 240,
+        "sha256": "4627e8147c5902968a9ba2f41bfac6aab0d3f75e6eea5a22ab2d237897c9045c"
+      }
+    },
+    {
+      "id": "pentacle-4",
+      "sourceId": "coins-04",
+      "label": "金貨の4",
+      "selectedVersion": "金貨4・革の金貨袋／４金貨と袋口の一体再構成v5／2026-10-21採用",
+      "source": "art/coins/04_Four_of_Coins.png",
+      "sourceSha256": "e1d91b3f2f830dd70955ac3cd99828881402ac47d2d000f004715dd92b6052f9",
+      "sourceBytes": 2565272,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/pentacle-4.webp",
+        "bytes": 135422,
+        "width": 640,
+        "height": 960,
+        "sha256": "9e36fddc72c41be6f6083dd962015ddc34d014a61ed0815dfe4d9667ff3d8d8b"
+      },
+      "thumbs": {
+        "path": "thumbs/pentacle-4.webp",
+        "bytes": 10756,
+        "width": 160,
+        "height": 240,
+        "sha256": "97451e4f9c99988237e60e142d4c3450bef35206289653867aae8587da8a2583"
+      }
+    },
+    {
+      "id": "pentacle-5",
+      "sourceId": "coins-05",
+      "label": "金貨の5",
+      "selectedVersion": "ペンタクル14枚・改訂採用版 05_Five_of_Coins／2026-10-19正式採用",
+      "source": "art/coins/05_Five_of_Coins.png",
+      "sourceSha256": "4b21e396f1f2ec85def4f8c1ac0e2a0a59aff0a5291da8efd6bb0df9e7e0951f",
+      "sourceBytes": 3004446,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/pentacle-5.webp",
+        "bytes": 163252,
+        "width": 640,
+        "height": 960,
+        "sha256": "a8f5079e9a524f611eaf9365ef4daefb628caf58a354a2cbac7f0fc62a0d1e26"
+      },
+      "thumbs": {
+        "path": "thumbs/pentacle-5.webp",
+        "bytes": 10048,
+        "width": 160,
+        "height": 240,
+        "sha256": "bc185199a4ccc2a895fdd09102b38ff38176929223edd8fa4656177f34065f7e"
+      }
+    },
+    {
+      "id": "pentacle-6",
+      "sourceId": "coins-06",
+      "label": "金貨の6",
+      "selectedVersion": "金貨6 v5・元の可視腕と手を保持、隠れた側の下がる空袖／2026-10-22採用",
+      "source": "art/coins/06_Six_of_Coins.png",
+      "sourceSha256": "be432b749135f1c525fb75c70024aed84bca1e6bce5ac675f6c2444504fb2820",
+      "sourceBytes": 4455038,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/pentacle-6.webp",
+        "bytes": 132442,
+        "width": 640,
+        "height": 960,
+        "sha256": "726662d8558a4a52c52c5ec312fa21bb4a794a13ac760f0705bf0514f1f8d02b"
+      },
+      "thumbs": {
+        "path": "thumbs/pentacle-6.webp",
+        "bytes": 10140,
+        "width": 160,
+        "height": 240,
+        "sha256": "42e30b32f124990428b3f70e35b417bb7434994d79c6dc9959d93d6ddf7ff741"
+      }
+    },
+    {
+      "id": "pentacle-7",
+      "sourceId": "coins-07",
+      "label": "金貨の7",
+      "selectedVersion": "金貨の7・砂時計ペンダント v1／海賊モチーフ17案 #14／2026-10-21採用",
+      "source": "art/coins/07_Seven_of_Coins.png",
+      "sourceSha256": "e09f917adb096f2800e5c5dfb26285ad84ad3895460a091b3f1e5deb89266fd5",
+      "sourceBytes": 2790995,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/pentacle-7.webp",
+        "bytes": 177792,
+        "width": 640,
+        "height": 960,
+        "sha256": "f5f6fd52011baf97636c33663c9067b666c0c89d9db3605174249da73f8a57ca"
+      },
+      "thumbs": {
+        "path": "thumbs/pentacle-7.webp",
+        "bytes": 13264,
+        "width": 160,
+        "height": 240,
+        "sha256": "dcb437b89dd7bef274cf30735ad34697811322754c76a772fe4c8cd0f57550cf"
+      }
+    },
+    {
+      "id": "pentacle-8",
+      "sourceId": "coins-08",
+      "label": "金貨の8",
+      "selectedVersion": "ペンタクル14枚・改訂採用版 08_Eight_of_Coins／2026-10-19正式採用",
+      "source": "art/coins/08_Eight_of_Coins.png",
+      "sourceSha256": "e60405fe193b0aa28d81039ba1cbb3f41df072b94450256f431e2620ca6bbde3",
+      "sourceBytes": 2555567,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/pentacle-8.webp",
+        "bytes": 127840,
+        "width": 640,
+        "height": 960,
+        "sha256": "bcfecba788723fa3784d2158318a0969c59f3549af243e581a54d18f464fe2ec"
+      },
+      "thumbs": {
+        "path": "thumbs/pentacle-8.webp",
+        "bytes": 9152,
+        "width": 160,
+        "height": 240,
+        "sha256": "85720fff88f1005292146e6af21000fdb85e2f5139ecd30b9c73a5775491855c"
+      }
+    },
+    {
+      "id": "pentacle-9",
+      "sourceId": "coins-09",
+      "label": "金貨の9",
+      "selectedVersion": "金貨の9・肩のオウム v1／海賊モチーフ17案 #2／2026-10-21採用",
+      "source": "art/coins/09_Nine_of_Coins.png",
+      "sourceSha256": "de847b98a28ccec0bd7f740d832b2d62ae9105c2c154b508a32bceba7e78c488",
+      "sourceBytes": 2820603,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/pentacle-9.webp",
+        "bytes": 171624,
+        "width": 640,
+        "height": 960,
+        "sha256": "505bdc9d6c243e69af223dd66bed0e8ebe03163fdc074b24c5cb8355d6e61d32"
+      },
+      "thumbs": {
+        "path": "thumbs/pentacle-9.webp",
+        "bytes": 11032,
+        "width": 160,
+        "height": 240,
+        "sha256": "30fac75efab313f0cda18d0322471f76726257e9e949947c456eea0f40e376b5"
+      }
+    },
+    {
+      "id": "pentacle-10",
+      "sourceId": "coins-10",
+      "label": "金貨の10",
+      "selectedVersion": "金貨10 v1・老兵の片脚を木製義足へ／2026-10-22採用",
+      "source": "art/coins/10_Ten_of_Coins.png",
+      "sourceSha256": "67d45b651d94d48b7051ee6d7399aea7e5b6a098cd0750432f67ddd4ab8f093c",
+      "sourceBytes": 2830148,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/pentacle-10.webp",
+        "bytes": 183106,
+        "width": 640,
+        "height": 960,
+        "sha256": "281dcc79b14a7ed7b7b7374a1730e73f3c613c1d600b62a9472970cda868b842"
+      },
+      "thumbs": {
+        "path": "thumbs/pentacle-10.webp",
+        "bytes": 12528,
+        "width": 160,
+        "height": 240,
+        "sha256": "5e908717ee76cf86b661a4d7a7c66eadc5901ee01bf14a0ee5f0174ef6acad70"
+      }
+    },
+    {
+      "id": "pentacle-page",
+      "sourceId": "coins-11",
+      "label": "金貨のペイジ",
+      "selectedVersion": "金貨のペイジ・金貨を噛む v1／海賊モチーフ17案 #15／2026-10-21採用",
+      "source": "art/coins/11_Page_of_Coins.png",
+      "sourceSha256": "992fa59cae60e1be6a1736e5639e75d1043f6adc3592983b39170a1a01d58ea8",
+      "sourceBytes": 2823073,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/pentacle-page.webp",
+        "bytes": 166060,
+        "width": 640,
+        "height": 960,
+        "sha256": "6b75c7cd7901f1715732dc41a282e7f178b91199138e7ef527056c3fd184539d"
+      },
+      "thumbs": {
+        "path": "thumbs/pentacle-page.webp",
+        "bytes": 11628,
+        "width": 160,
+        "height": 240,
+        "sha256": "4ca85821f43a1a474383acd2b379e15261aabc17145296c09eb59c5afb53cc52"
+      }
+    },
+    {
+      "id": "pentacle-knight",
+      "sourceId": "coins-12",
+      "label": "金貨のナイト",
+      "selectedVersion": "ペンタクル14枚・改訂採用版 12_Knight_of_Coins／2026-10-19正式採用",
+      "source": "art/coins/12_Knight_of_Coins.png",
+      "sourceSha256": "2b1e80606fad82068ea3aeeade0b3040ec92d2a54246752f88241e88a6f7442b",
+      "sourceBytes": 2802708,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/pentacle-knight.webp",
+        "bytes": 150484,
+        "width": 640,
+        "height": 960,
+        "sha256": "4c69d296cd1001721f8ba2e55ff2ca39364fbbdb8e87439df65352dd698bdb8d"
+      },
+      "thumbs": {
+        "path": "thumbs/pentacle-knight.webp",
+        "bytes": 9820,
+        "width": 160,
+        "height": 240,
+        "sha256": "3471abac4786d0e71a2161a63a86eafd545541ae22b4ef50bcf79aa34e206794"
+      }
+    },
+    {
+      "id": "pentacle-queen",
+      "sourceId": "coins-13",
+      "label": "金貨のクイーン",
+      "selectedVersion": "ペンタクル14枚・改訂採用版 13_Queen_of_Coins／2026-10-19正式採用",
+      "source": "art/coins/13_Queen_of_Coins.png",
+      "sourceSha256": "2caec407e607ee437f9b4bb4d7364b99a5a5ba22d30152d389326581ba95aaad",
+      "sourceBytes": 3033999,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/pentacle-queen.webp",
+        "bytes": 183748,
+        "width": 640,
+        "height": 960,
+        "sha256": "fedfadd953beecb788f0b538b482d3279b43423214d9f958f751e0a936c408f0"
+      },
+      "thumbs": {
+        "path": "thumbs/pentacle-queen.webp",
+        "bytes": 13034,
+        "width": 160,
+        "height": 240,
+        "sha256": "4b2688faa2de98cc4d659ad7aa2bf03abf4e53fe5b7b21de5511a0631e1a8f73"
+      }
+    },
+    {
+      "id": "pentacle-king",
+      "sourceId": "coins-14",
+      "label": "金貨のキング",
+      "selectedVersion": "ペンタクル14枚・改訂採用版 14_King_of_Coins／2026-10-19正式採用",
+      "source": "art/coins/14_King_of_Coins.png",
+      "sourceSha256": "f33eedf43e54ee726227ce7dd78f317c1444c7898fe65dc3043b241f073f8fc2",
+      "sourceBytes": 2870275,
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "cards": {
+        "path": "cards/pentacle-king.webp",
+        "bytes": 158050,
+        "width": 640,
+        "height": 960,
+        "sha256": "49b92a2b31b355e5e74b0a7f240eb19c511c6a91ac19804f46771604fa7a4324"
+      },
+      "thumbs": {
+        "path": "thumbs/pentacle-king.webp",
+        "bytes": 10654,
+        "width": 160,
+        "height": 240,
+        "sha256": "261cd22c913fdd3020722c9c0ce30a14d6d7626cb1b79beec7390a569960ec56"
+      }
+    }
+  ]
+}

@@ -1,0 +1,229 @@
+const { test, expect } = require('@playwright/test');
+const fs = require('node:fs');
+const path = require('node:path');
+const { bootstrapMainApp, trackPageErrors, expectNoPageErrors } = require('./helpers/main-app-harness');
+const { __test: fortune } = require('../server/tarotFortune');
+const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/assets/pirate-tarot/manifest.json')));
+const output = process.env.PIRATE_APP_ARTWORK_EVIDENCE;
+
+async function isolate(page) {
+    const blocked = [];
+    await page.route('**/*', (route) => {
+        if (new URL(route.request().url()).hostname !== '127.0.0.1') {
+            blocked.push('unknown external request');
+            return route.abort();
+        }
+        return route.continue();
+    });
+    return blocked;
+}
+function dailyResult(overrides = {}) {
+    return { cardId: 'fixture-card-only', cardNumber: 3, suit: 'Swords', isArcana: false, cardName: 'ソードの3', orientation: 'upright', weather: { level: 5, windLabel: '安定' }, strikeLine: 'まず今わかることを一つ確かめ、次の一歩を選んでください。', rewardPs: 3, rewardType: 'card', rewardItemName: 'ソードの3', rewardCardGranted: true, ...overrides };
+}
+async function installFortune(page, result, claimed = false) {
+    let drawCount = 0;
+    await page.route('**/api/tarot-fortune-status', (route) => route.fulfill({ json: claimed ? { canDraw: false, result } : { canDraw: true } }));
+    await page.route('**/api/tarot-fortune-draw', (route) => {
+        drawCount++;
+        return route.fulfill({ json: { balance: 1003, result } });
+    });
+    return () => drawCount;
+}
+async function waitImage(image) {
+    await expect(image).toBeVisible();
+    await image.evaluate(async (element) => { await element.decode(); await new Promise(requestAnimationFrame); });
+    expect(await image.evaluate((element) => element.naturalWidth)).toBe(640);
+}
+async function screenshotModal(page, name) {
+    if (!output) return;
+    await expect(page.locator('.rpg-message-popup')).toHaveCount(0, { timeout: 7000 });
+    const modal = page.locator('#dailyTarotFortuneModal');
+    const active = await page.evaluate(() => document.activeElement?.classList.contains('tarot-fortune-done'));
+    if (active) await modal.focus();
+    await page.screenshot({ path: path.join(output, name), fullPage: false });
+}
+
+test('daily engine cards and catalog cards resolve the same 78 adopted fronts', async ({ page }) => {
+    await isolate(page);
+    await page.goto('/pirate-tarot.html');
+    const deck = fortune.buildTarotDeck();
+    const resolved = await page.evaluate(async (cards) => {
+        const images = await import('/js/pirateTarotArtwork.js');
+        return cards.map((card) => {
+            const number = card.number;
+            const catalog = { Category: card.isArcana ? 'TarotMajor' : 'TarotMinor', ArcanaNumber: number, ArcanaSuit: card.suit, ArcanaRank: number };
+            return { daily: images.getDailyTarotArtworkId(card), inventory: images.getPirateTarotCardId(catalog) };
+        });
+    }, deck);
+    expect(resolved).toHaveLength(78);
+    expect(new Set(resolved.map((entry) => entry.daily)).size).toBe(78);
+    expect(resolved.map((entry) => entry.daily).sort()).toEqual(manifest.cards.map((card) => card.id).sort());
+    for (const entry of resolved) expect(entry.daily).toBe(entry.inventory);
+});
+
+test('home daily fortune reveals the adopted minor upright once and keeps result and reward', async ({ page }) => {
+    await isolate(page);
+    const errors = trackPageErrors(page);
+    const requestedArtwork = [];
+    page.on('request', (request) => { if (request.url().includes('/assets/pirate-tarot/cards/')) requestedArtwork.push(request.url()); });
+    const result = dailyResult();
+    const draws = await installFortune(page, result);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await bootstrapMainApp(page);
+    await page.locator('#btnDailyFortune').click();
+    await expect(page.locator('#dailyTarotFortuneCardHost img')).toHaveCount(0);
+    expect(requestedArtwork).toEqual([]);
+    await page.locator('#dailyTarotFortuneCardHost button').evaluate((button) => { button.click(); button.click(); button.click(); });
+    const image = page.locator('#dailyTarotFortuneCardHost img');
+    await waitImage(image);
+    await expect(image).toHaveAttribute('src', '/assets/pirate-tarot/cards/sword-3.webp');
+    await expect(image).toHaveAttribute('alt', 'ソードの3の採用原画');
+    await expect(image).not.toHaveClass(/is-reversed/);
+    await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText('ソードの3');
+    await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText('正位置');
+    await expect(page.locator('#dailyTarotFortuneText')).toContainText(result.strikeLine);
+    await expect(page.locator('#dailyTarotFortuneReward')).toContainText('ソードの3');
+    await expect(page.locator('#btnDailyFortune')).toBeDisabled();
+    expect(draws()).toBe(1);
+    expect(await image.evaluate((element) => getComputedStyle(element).objectFit)).toBe('contain');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await screenshotModal(page, 'daily-fortune-mobile-upright.png');
+    await page.locator('.tarot-fortune-close').click();
+    await expect(page.locator('#dailyTarotFortuneOverlay')).toBeHidden();
+    await expectNoPageErrors(errors);
+});
+
+test('major reversed rotates only the adopted art and preserves the fragment reward', async ({ page }) => {
+    await isolate(page);
+    const errors = trackPageErrors(page);
+    const result = dailyResult({ cardNumber: 18, suit: 'None', isArcana: true, cardName: '月', orientation: 'reversed', rewardType: 'fragment', rewardItemName: '月', rewardCardGranted: false, rewardFragmentAmount: 1, rewardFragmentCount: 1, rewardFragmentRequired: 2 });
+    const draws = await installFortune(page, result);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await bootstrapMainApp(page);
+    await page.locator('#btnDailyFortune').click();
+    await page.locator('#dailyTarotFortuneCardHost button').click();
+    const image = page.locator('#dailyTarotFortuneCardHost img');
+    await waitImage(image);
+    await expect(image).toHaveAttribute('src', '/assets/pirate-tarot/cards/major-18.webp');
+    await expect(image).toHaveClass(/is-reversed/);
+    const rotation = await image.evaluate((element) => {
+        const matrix = new DOMMatrixReadOnly(getComputedStyle(element).transform);
+        return { a: matrix.a, d: matrix.d };
+    });
+    expect(rotation.a).toBeCloseTo(-1);
+    expect(rotation.d).toBeCloseTo(-1);
+    await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText('月');
+    await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText('逆位置');
+    await expect(page.locator('#dailyTarotFortuneReward')).toContainText('「月」の欠片を1個受け取った。（1/2）');
+    expect(draws()).toBe(1);
+    await screenshotModal(page, 'daily-fortune-mobile-reversed.png');
+    await expectNoPageErrors(errors);
+});
+
+for (const [name, result, expectedId] of [
+    ['major zero', dailyResult({ cardNumber: 0, isArcana: true, cardName: '愚者', orientation: 'upright' }), 'major-0'],
+    ['minor court', dailyResult({ cardNumber: 14, suit: 'Cups', cardName: 'カップのキング', orientation: 'reversed' }), 'cup-king']
+]) {
+    test(`already claimed ${name} shows adopted art without drawing or granting again`, async ({ page }) => {
+        await isolate(page);
+        const draws = await installFortune(page, result, true);
+        await page.setViewportSize({ width: 1440, height: 1000 });
+        await bootstrapMainApp(page);
+        await page.locator('#btnDailyFortune').click();
+        const image = page.locator('#dailyTarotFortuneCardHost img');
+        await waitImage(image);
+        await expect(image).toHaveAttribute('src', `/assets/pirate-tarot/cards/${expectedId}.webp`);
+        await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText(result.cardName);
+        await expect(page.locator('#dailyTarotFortuneText')).toContainText(result.strikeLine);
+        await expect(page.locator('#dailyTarotFortuneSub')).toHaveText('本日の占い結果です。');
+        expect(draws()).toBe(0);
+        const pixels = await image.evaluate((element) => ({ width: element.getBoundingClientRect().width, height: element.getBoundingClientRect().height }));
+        expect(pixels.width / pixels.height).toBeCloseTo(2 / 3);
+        await screenshotModal(page, `daily-fortune-desktop-${expectedId}.png`);
+    });
+}
+
+test('failed daily artwork retains the original reversed sprite, advice and reward', async ({ page }) => {
+    await isolate(page);
+    const result = dailyResult({ orientation: 'reversed' });
+    const draws = await installFortune(page, result);
+    let artworkRequests = 0;
+    await page.route('**/assets/pirate-tarot/cards/sword-3.webp', (route) => { artworkRequests++; return route.fulfill({ status: 404, body: '' }); });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await bootstrapMainApp(page);
+    await page.locator('#btnDailyFortune').click();
+    await page.locator('#dailyTarotFortuneCardHost button').click();
+    await expect(page.locator('#dailyTarotFortuneCardHost img')).toBeHidden();
+    await expect(page.locator('#dailyTarotFortuneCardHost button')).toHaveClass(/is-reversed/);
+    await expect(page.locator('#dailyTarotFortuneCardHost button')).not.toHaveClass(/has-pirate-artwork/);
+    await expect(page.locator('#dailyTarotFortuneCardHost .tarot-card-art')).toBeVisible();
+    await expect(page.locator('#dailyTarotFortuneText')).toContainText(result.strikeLine);
+    await expect(page.locator('#dailyTarotFortuneReward')).toBeVisible();
+    expect(draws()).toBe(1);
+    expect(artworkRequests).toBe(1);
+});
+
+async function openOwnedCard(page, category = 'TarotMinor') {
+    await page.evaluate(async (category) => {
+        document.getElementById('tabContentInventory').style.display = 'block';
+        const inventory = await import('/js/inventory.js');
+        await inventory.getInventory('PF_PLAYWRIGHT', { force: true });
+        inventory.switchInventoryGroup('Tarot');
+        inventory.switchInventoryTab(category);
+    }, category);
+    await page.locator('#inventoryGrid .inventory-item-cell').first().click();
+}
+async function mockOwnedCards(page) {
+    const cards = [
+        { itemId: 'owned_fixture_major_6', name: '恋人', customData: { Category: 'TarotMajor', ArcanaNumber: '6' } },
+        { itemId: 'owned_fixture_pentacle_6', name: '金貨の6', customData: { Category: 'TarotMinor', ArcanaSuit: 'pentacle', ArcanaRank: '6', CardNumber: '6' } }
+    ];
+    await page.route('**/api/get-inventory', (route) => route.fulfill({ json: { inventory: cards, virtualCurrency: { PS: 0 }, contribution: 0 } }));
+}
+
+test('owned tarot detail shows the correct adopted front and preserves ownership actions on mobile', async ({ page }) => {
+    await isolate(page);
+    const errors = trackPageErrors(page);
+    await mockOwnedCards(page);
+    const mutations = [];
+    page.on('request', (request) => {
+        const pathname = new URL(request.url()).pathname;
+        if (/(?:^|[-/])(?:equip|unequip|replace|level-up|upgrade)(?:[-/]|$)/.test(pathname)) mutations.push(pathname);
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await bootstrapMainApp(page);
+    await openOwnedCard(page, 'TarotMajor');
+    let image = page.locator('#itemDetailModal .pirate-tarot-inventory-art img');
+    await waitImage(image);
+    await expect(image).toHaveAttribute('src', '/assets/pirate-tarot/cards/major-6.webp');
+    await expect(page.locator('#itemDetailName')).toHaveText('恋人');
+    await page.evaluate(() => window.closeItemDetailModal());
+    await openOwnedCard(page, 'TarotMinor');
+    image = page.locator('#itemDetailModal .pirate-tarot-inventory-art img');
+    await waitImage(image);
+    await expect(image).toHaveAttribute('src', '/assets/pirate-tarot/cards/pentacle-6.webp');
+    await expect(image).not.toHaveClass(/is-reversed/);
+    await expect(page.locator('#itemDetailName')).toHaveText('金貨の6');
+    await expect(page.locator('#itemDetailTarotCombat')).toBeVisible();
+    await expect(page.locator('#itemDetailModal')).toContainText('デッキに追加');
+    expect(mutations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    if (output) await page.screenshot({ path: path.join(output, 'owned-tarot-detail-mobile.png'), fullPage: false });
+    await expectNoPageErrors(errors);
+});
+
+test('missing owned-card artwork keeps the card name, skill, old icon and controls usable', async ({ page }) => {
+    await isolate(page);
+    await mockOwnedCards(page);
+    await page.route('**/assets/pirate-tarot/cards/pentacle-6.webp', (route) => route.fulfill({ status: 404, body: '' }));
+    await page.setViewportSize({ width: 390, height: 844 });
+    await bootstrapMainApp(page);
+    await openOwnedCard(page);
+    await expect(page.locator('#itemDetailModal .pirate-tarot-inventory-art img')).toBeHidden();
+    await expect(page.locator('#itemDetailName')).toHaveText('金貨の6');
+    await expect(page.locator('#itemDetailIcon')).toBeVisible();
+    await expect(page.locator('#itemDetailTarotCombat')).toBeVisible();
+    await expect(page.locator('#itemDetailModal')).toContainText('デッキに追加');
+    await page.locator('#itemDetailModal .item-detail-corner-close').click();
+    await expect(page.locator('#itemDetailModal')).toBeHidden();
+});
