@@ -16392,6 +16392,10 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
     flex-direction: column;
 }
 
+.tarot-fortune-stage.has-choice .tarot-fortune-reading {
+    display: none;
+}
+
 .tarot-fortune-card-host.is-choice {
     width: 100%;
     gap: 10px;
@@ -16402,18 +16406,71 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
     --tarot-card-h: calc(var(--tarot-card-w) * 1.5);
 }
 
-.tarot-fortune-card-shell.is-selected {
-    animation: tarotFortuneSelectionGlow 380ms ease-out both;
+.tarot-fortune-card-shell.is-revealing {
+    background: linear-gradient(145deg, #102a3c, #352c23);
 }
 
-@keyframes tarotFortuneSelectionGlow {
-    0% { filter: drop-shadow(0 0 2px rgba(248, 226, 168, 0.2)); }
-    50% { filter: drop-shadow(0 0 18px rgba(255, 232, 163, 0.85)); }
-    100% { filter: drop-shadow(0 0 8px rgba(248, 226, 168, 0.3)); }
+.tarot-fortune-card-shell.is-revealing .tarot-fortune-card-art {
+    visibility: hidden;
+}
+
+.tarot-fortune-card-shell.is-revealing::before,
+.tarot-fortune-card-shell.is-revealing::after {
+    content: "";
+    position: absolute;
+    inset: -16px;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.tarot-fortune-card-shell.is-revealing::before {
+    background: radial-gradient(ellipse, rgba(255, 237, 179, 0.34), transparent 68%);
+    animation: tarotFortuneGatherLight 590ms ease-out both;
+}
+
+.tarot-fortune-card-shell.is-revealing::after {
+    background:
+        radial-gradient(circle at 16% 28%, #fff4ca 0 2px, transparent 3px),
+        radial-gradient(circle at 83% 40%, #ffd888 0 2px, transparent 3px),
+        radial-gradient(circle at 28% 82%, #fff4ca 0 1px, transparent 2px),
+        radial-gradient(circle at 74% 74%, #ffd888 0 1px, transparent 2px);
+    animation: tarotFortuneGatherSparks 590ms ease-out both;
+}
+
+.tarot-fortune-card-shell.is-flip-out {
+    animation: tarotFortuneFlipOut 190ms ease-in forwards;
+}
+
+.tarot-fortune-card-shell.is-flip-in {
+    animation: tarotFortuneFlipIn 220ms ease-out both;
+}
+
+@keyframes tarotFortuneGatherLight {
+    0%, 100% { opacity: 0; transform: scale(0.8); }
+    45% { opacity: 1; transform: scale(1.08); }
+}
+
+@keyframes tarotFortuneGatherSparks {
+    0% { opacity: 0; transform: scale(1.18); }
+    35% { opacity: 0.85; }
+    100% { opacity: 0; transform: scale(0.65); }
+}
+
+@keyframes tarotFortuneFlipOut {
+    from { transform: perspective(600px) rotateY(0); }
+    to { transform: perspective(600px) rotateY(90deg); }
+}
+
+@keyframes tarotFortuneFlipIn {
+    from { transform: perspective(600px) rotateY(-90deg); }
+    to { transform: perspective(600px) rotateY(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .tarot-fortune-card-shell.is-selected { animation: none; }
+    .tarot-fortune-card-shell.is-revealing::before,
+    .tarot-fortune-card-shell.is-revealing::after,
+    .tarot-fortune-card-shell.is-flip-out,
+    .tarot-fortune-card-shell.is-flip-in { animation: none; }
 }
 
 .tarot-fortune-modal.is-revisit::before,

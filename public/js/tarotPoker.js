@@ -753,19 +753,29 @@ async function revealDailyFortuneCardElement(cardEl, card, options = {}) {
 
     cardEl.dataset.revealing = '1';
     cardEl.disabled = true;
-    cardEl.querySelector('[data-artwork-side="back"]')?.remove();
-    cardEl.classList.remove('has-pirate-artwork');
-    if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-        for (const frame of TAROT_REVEAL_FRAMES) {
-            setArtSpriteByIndex(art, frame);
-            await wait(TAROT_REVEAL_FRAME_MS);
-        }
+    cardEl.classList.add('is-revealing');
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const isStillOpen = () => cardEl.isConnected
+        && cardEl.closest('.tarot-fortune-overlay')?.style.display === 'flex';
+    if (!reducedMotion) {
+        await wait(180);
+        if (!isStillOpen()) return;
+        cardEl.classList.add('is-flip-out');
+        await wait(190);
+        if (!isStillOpen()) return;
     }
+    cardEl.querySelector('[data-artwork-side="back"]')?.remove();
+    cardEl.classList.remove('has-pirate-artwork', 'is-flip-out');
     setArtSpriteByIndex(art, getTarotSpriteIndex(card));
     if (options.reversed) cardEl.classList.add('is-reversed');
     renderDailyTarotArtwork(card, cardEl, { reversed: options.reversed, label: options.artworkLabel });
+    if (!reducedMotion) {
+        cardEl.classList.add('is-flip-in');
+        await wait(220);
+        if (!isStillOpen()) return;
+    }
+    cardEl.classList.remove('is-revealing', 'is-flip-in', 'is-clickable');
     if (card.isArcana) cardEl.classList.add('is-major-arcana');
-    cardEl.classList.remove('is-clickable');
     cardEl.classList.add('is-revealed', 'is-static');
     cardEl.dataset.revealed = '1';
     delete cardEl.dataset.revealing;
@@ -5242,11 +5252,13 @@ function renderDailyFortuneResult(result, options = {}) {
                     if (other !== chosen) other.remove();
                 });
                 cardHost.classList.remove('is-choice');
-                cardHost.closest('.tarot-fortune-stage')?.classList.remove('has-choice');
                 chosen.classList.add('is-selected');
                 void playDailyFortuneRevealPresentation(chosen, card, {
                     reversed: isReversed, artworkLabel: result?.cardName || getCardDisplayName(card),
-                    onReveal: () => { void handleReveal(); }
+                    onReveal: () => {
+                        cardHost.closest('.tarot-fortune-stage')?.classList.remove('has-choice');
+                        void handleReveal();
+                    }
                 });
             }
         });
@@ -5255,8 +5267,8 @@ function renderDailyFortuneResult(result, options = {}) {
     }
     titleEl.textContent = '本日の運勢';
     resetDailyFortuneResultDetails();
-    setDailyFortuneSubText('正位置ならカードを獲得。逆位置なら同じカードの欠片を集めます。');
-    textEl.textContent = 'カードを1枚選んで開こう。どれを選んでも、決まった今日の運勢が現れます。';
+    setDailyFortuneSubText('カードを1枚選ぶ');
+    textEl.textContent = '';
 }
 
 function normalizeDailyBountyReward(rawReward) {

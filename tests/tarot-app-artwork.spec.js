@@ -80,7 +80,7 @@ test('home daily fortune reveals the adopted minor upright once and keeps result
     await screenshotModal(page, 'daily-fortune-mobile-back.png');
     expect(requestedArtwork).toEqual([]);
     await page.locator('#dailyTarotFortuneCardHost button').first().evaluate((button) => { button.click(); button.click(); button.click(); });
-    const image = page.locator('#dailyTarotFortuneCardHost img');
+    const image = page.locator('#dailyTarotFortuneCardHost img[data-artwork-side="front"]');
     await waitImage(image);
     await expect(image).toHaveAttribute('src', imageUrl('sword-3'));
     await expect(image).toHaveAttribute('alt', 'ソードの3の採用カード');
@@ -108,7 +108,7 @@ test('major reversed rotates only the adopted art and preserves the fragment rew
     await bootstrapMainApp(page);
     await page.locator('#btnDailyFortune').click();
     await page.locator('#dailyTarotFortuneCardHost button').first().click();
-    const image = page.locator('#dailyTarotFortuneCardHost img');
+    const image = page.locator('#dailyTarotFortuneCardHost img[data-artwork-side="front"]');
     await waitImage(image);
     await expect(image).toHaveAttribute('src', imageUrl('major-18'));
     await expect(image).toHaveClass(/is-reversed/);
@@ -248,5 +248,35 @@ test('missing adopted back retains the existing back sprite and still reveals th
     await button.click();
     await waitImage(button.locator('[data-artwork-side="front"]'));
     await expect(button.locator('img')).toHaveAttribute('src', imageUrl('sword-3'));
+    expect(draws()).toBe(1);
+});
+
+
+test('daily reveal uses smooth light and flip, then keeps the full reading', async ({ page }) => {
+    await isolate(page);
+    const result = dailyResult();
+    const draws = await installFortune(page, result);
+    await page.setViewportSize({ width: 320, height: 720 });
+    await bootstrapMainApp(page);
+    await page.locator('#btnDailyFortune').click();
+    await expect(page.locator('#dailyTarotFortuneSub')).toHaveText('カードを1枚選ぶ');
+    await expect(page.locator('.tarot-fortune-reading')).toBeHidden();
+    await page.clock.install();
+    const card = page.locator('#dailyTarotFortuneCardHost button').first();
+    await card.click();
+    await expect(card).toHaveClass(/is-revealing/);
+    await expect(card.locator('.tarot-card-art')).toBeHidden();
+    await expect(card.locator('[data-artwork-side="back"]')).toBeVisible();
+    const lights = await card.evaluate((el) => [getComputedStyle(el, '::before').backgroundImage, getComputedStyle(el, '::after').backgroundImage]);
+    expect(lights.every((background) => background.includes('radial-gradient') && !background.includes('url('))).toBe(true);
+    await page.clock.runFor(180);
+    await expect(card).toHaveClass(/is-flip-out/);
+    await page.clock.runFor(190);
+    await expect(card).toHaveClass(/is-flip-in/);
+    await expect(card.locator('[data-artwork-side="front"]')).toHaveCount(1);
+    await page.clock.runFor(220);
+    await expect(card).toHaveClass(/is-revealed/);
+    await expect(page.locator('#dailyTarotFortuneText')).toContainText(result.strikeLine);
+    await expect(page.locator('#dailyTarotFortuneReward')).toContainText(result.rewardItemName);
     expect(draws()).toBe(1);
 });

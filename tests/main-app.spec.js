@@ -339,8 +339,8 @@ test('daily tarot fortune checks status on startup and shows clear draw states o
   expect(closeButtonStyle.width).toBe('52px');
   expect(closeButtonStyle.height).toBe('52px');
   expect(closeButtonStyle.fontSize).toBe('0px');
-  await expect(page.locator('#dailyTarotFortuneSub')).toHaveText('正位置ならカードを獲得。逆位置なら同じカードの欠片を集めます。');
-  await expect(page.locator('#dailyTarotFortuneText')).toContainText('どれを選んでも');
+  await expect(page.locator('#dailyTarotFortuneSub')).toHaveText('カードを1枚選ぶ');
+  await expect(page.locator('.tarot-fortune-reading')).toBeHidden();
   await expect(page.locator('#dailyTarotFortuneReward')).toBeHidden();
 
   const beforeMetrics = await modal.evaluate((node) => {
