@@ -266,6 +266,31 @@ let dailyFortuneCheckedSession = false;
 let dailyFortuneClaimedSession = false;
 let dailyFortuneCanDrawSession = false;
 let dailyFortuneInFlight = false;
+let dailyFortuneRetryPlayerId = '';
+const dailyFortunePendingDraws = new Set();
+
+function dailyFortunePendingKey(playFabId) {
+    return `troy:fortune-pending:${playFabId}`;
+}
+
+function dailyFortuneJstDay() {
+    return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function setDailyFortunePending(playFabId, pending, key = dailyFortunePendingKey(playFabId)) {
+    if (pending) dailyFortunePendingDraws.add(key);
+    else dailyFortunePendingDraws.delete(key);
+    try {
+        if (pending) localStorage.setItem(key, '1');
+        else localStorage.removeItem(key);
+    } catch { /* In-memory protection is retained for this session. */ }
+}
+
+function hasDailyFortunePending(playFabId) {
+    const key = dailyFortunePendingKey(playFabId);
+    try { return dailyFortunePendingDraws.has(key) || localStorage.getItem(key) === '1'; }
+    catch { return dailyFortunePendingDraws.has(key); }
+}
 let potDisplayValue = null;
 let potRollAnimationId = 0;
 
@@ -574,7 +599,9 @@ async function callJsonApi(endpoint, body) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
         const message = data?.error || `HTTP ${response.status}`;
-        throw new Error(message);
+        const error = new Error(message);
+        error.status = response.status;
+        throw error;
     }
     return data;
 }
@@ -586,6 +613,17 @@ function updateGlobalPsDisplay(balance) {
     if (globalPoints) globalPoints.textContent = value;
     const currentPoints = document.getElementById('currentPoints');
     if (currentPoints) currentPoints.textContent = value;
+}
+
+async function refreshDailyFortuneInventory() {
+    if (typeof window === 'undefined' || typeof window.refreshInventory !== 'function') return;
+    try {
+        const snapshot = await window.refreshInventory({ force: true, isSilent: true });
+        if (!snapshot?.hasInventoryData) throw new Error('InventoryRefreshUnavailable');
+    } catch (error) {
+        console.warn('[dailyFortune] inventory refresh failed:', error);
+        showDailyFortuneRpgMessage('所持品とGを更新できませんでした。再読み込みして確認してください。');
+    }
 }
 
 function getCardDataFromFortuneResult(result) {
@@ -673,6 +711,7 @@ function createDailyFortuneCardElement(card, options = {}) {
         clickable = false,
         reversed = false,
         onReveal = null,
+        onSelect = null,
         artworkLabel = ''
     } = options;
     const el = document.createElement('button');
@@ -682,7 +721,8 @@ function createDailyFortuneCardElement(card, options = {}) {
         el.classList.add('is-clickable');
         el.setAttribute('aria-label', 'カードをめくる');
         el.addEventListener('click', () => {
-            revealDailyFortuneCardElement(el, card, { reversed, onReveal, artworkLabel });
+            if (onSelect) onSelect(el);
+            else revealDailyFortuneCardElement(el, card, { reversed, onReveal, artworkLabel });
         });
     } else {
         el.classList.add('is-static');
@@ -715,9 +755,11 @@ async function revealDailyFortuneCardElement(cardEl, card, options = {}) {
     cardEl.disabled = true;
     cardEl.querySelector('[data-artwork-side="back"]')?.remove();
     cardEl.classList.remove('has-pirate-artwork');
-    for (const frame of TAROT_REVEAL_FRAMES) {
-        setArtSpriteByIndex(art, frame);
-        await wait(TAROT_REVEAL_FRAME_MS);
+    if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+        for (const frame of TAROT_REVEAL_FRAMES) {
+            setArtSpriteByIndex(art, frame);
+            await wait(TAROT_REVEAL_FRAME_MS);
+        }
     }
     setArtSpriteByIndex(art, getTarotSpriteIndex(card));
     if (options.reversed) cardEl.classList.add('is-reversed');
@@ -731,6 +773,12 @@ async function revealDailyFortuneCardElement(cardEl, card, options = {}) {
     if (typeof options.onReveal === 'function') {
         options.onReveal(cardEl);
     }
+}
+
+function playDailyFortuneRevealPresentation(cardEl, card, options) {
+    // Presentation happens after the draw is settled; it never controls rewards.
+    // A future skippable video can be contained here with an immediate fallback.
+    return revealDailyFortuneCardElement(cardEl, card, options);
 }
 
 async function revealCpuHandFromBack() {
@@ -4969,6 +5017,8 @@ function ensureDailyFortuneOverlay() {
                 </div>
             </div>
             <div class="tarot-fortune-actions">
+                <button type="button" class="tarot-fortune-retry tarot-fortune-done" hidden>結果を確認</button>
+                <button type="button" class="tarot-fortune-login tarot-fortune-done" hidden>再ログイン</button>
                 <button type="button" class="tarot-fortune-done">閉じる</button>
             </div>
         </div>
@@ -4982,7 +5032,15 @@ function ensureDailyFortuneOverlay() {
         icon: true,
         isOpen: () => overlay.style.display === 'flex'
     });
-    bindModalClose(overlay.querySelector('.tarot-fortune-done'), closeDailyFortuneOverlay);
+    bindModalClose(overlay.querySelector('.tarot-fortune-done:not(.tarot-fortune-retry):not(.tarot-fortune-login)'), closeDailyFortuneOverlay);
+    overlay.querySelector('.tarot-fortune-login').addEventListener('click', () => window.location.reload());
+    const retry = overlay.querySelector('.tarot-fortune-retry');
+    retry.addEventListener('click', async () => {
+        if (retry.disabled || !dailyFortuneRetryPlayerId) return;
+        retry.disabled = true;
+        try { await showDailyFortune(dailyFortuneRetryPlayerId, { statusOnly: true }); }
+        finally { retry.disabled = false; }
+    });
     return overlay;
 }
 
@@ -5041,7 +5099,6 @@ function renderDailyFortuneResultLegacy(result) {
     setDailyFortuneResultMeta(result);
     renderDailyFortuneReading(result);
     setDailyFortuneReward(result);
-    showDailyFortuneRpgMessage(getDailyFortuneRewardText(result));
 }
 
 function getDailyFortuneRewardText(result) {
@@ -5170,20 +5227,36 @@ function renderDailyFortuneResult(result, options = {}) {
         }
     };
 
-    const cardEl = createDailyFortuneCardElement(card, {
-        hidden: true,
-        clickable: true,
-        reversed: isReversed,
-        artworkLabel: result?.cardName || getCardDisplayName(card),
-        onReveal: () => { void handleReveal(); }
-    });
-
     cardHost.innerHTML = '';
-    cardHost.appendChild(cardEl);
+    cardHost.classList.add('is-choice');
+    cardHost.closest('.tarot-fortune-stage')?.classList.add('has-choice');
+    let selected = false;
+    for (let index = 0; index < 3; index += 1) {
+        const cardEl = createDailyFortuneCardElement(card, {
+            hidden: true, clickable: true, reversed: isReversed,
+            artworkLabel: result?.cardName || getCardDisplayName(card),
+            onSelect: (chosen) => {
+                if (selected) return;
+                selected = true;
+                cardHost.querySelectorAll('.tarot-fortune-card-shell').forEach((other) => {
+                    if (other !== chosen) other.remove();
+                });
+                cardHost.classList.remove('is-choice');
+                cardHost.closest('.tarot-fortune-stage')?.classList.remove('has-choice');
+                chosen.classList.add('is-selected');
+                void playDailyFortuneRevealPresentation(chosen, card, {
+                    reversed: isReversed, artworkLabel: result?.cardName || getCardDisplayName(card),
+                    onReveal: () => { void handleReveal(); }
+                });
+            }
+        });
+        cardEl.setAttribute('aria-label', `カード${index + 1}を選ぶ`);
+        cardHost.appendChild(cardEl);
+    }
     titleEl.textContent = '本日の運勢';
     resetDailyFortuneResultDetails();
     setDailyFortuneSubText('正位置ならカードを獲得。逆位置なら同じカードの欠片を集めます。');
-    textEl.textContent = 'まだ伏せたカードに、今日の潮目が隠れています。';
+    textEl.textContent = 'カードを1枚選んで開こう。どれを選んでも、決まった今日の運勢が現れます。';
 }
 
 function normalizeDailyBountyReward(rawReward) {
@@ -5246,22 +5319,41 @@ function notifyDailyFortuneClaimed(result = null, dayKey = '') {
 
 async function handleDailyFortuneDraw(playFabId) {
     if (!playFabId || dailyFortuneInFlight) return;
+    if (hasDailyFortunePending(playFabId)) {
+        showDailyFortunePending();
+        return;
+    }
     dailyFortuneInFlight = true;
     const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
     try {
         resetDailyFortuneResultDetails();
         if (textEl) textEl.textContent = '運勢を読み込み中...';
+        const pendingKey = dailyFortunePendingKey(playFabId);
+        setDailyFortunePending(playFabId, true, pendingKey);
         const data = await requestDailyFortuneDraw(playFabId);
+        if (!data?.result) throw new Error('ResultUnavailable');
+        setDailyFortunePending(playFabId, false, pendingKey);
         if (data?.result) {
             const reward = normalizeDailyBountyReward(data?.dailyBountyReward || null);
             const shouldRunRewardFx = reward.awarded && !reward.alreadyClaimed;
-            renderDailyFortuneResult(data.result, {
-                onRevealComplete: shouldRunRewardFx
-                    ? async () => {
-                        await playDailyBountyRewardPresentation(reward);
-                    }
-                    : null
-            });
+            const isPreviousDay = data.result.dayKey && data.result.dayKey !== dailyFortuneJstDay();
+            if (data.alreadyClaimed || isPreviousDay) {
+                document.getElementById(DAILY_FORTUNE_MODAL_ID)?.classList.add('is-revisit');
+                renderDailyFortuneResultLegacy(data.result);
+                if (isPreviousDay && document.getElementById(DAILY_FORTUNE_TITLE_ID)) {
+                    document.getElementById(DAILY_FORTUNE_TITLE_ID).textContent = '日付をまたいだ占い結果';
+                }
+                setDailyFortuneSubText(isPreviousDay ? `${data.result.dayKey} の占い結果です。日付が変わりました。` : '本日の占い結果です。');
+                if (shouldRunRewardFx) void playDailyBountyRewardPresentation(reward);
+            } else {
+                renderDailyFortuneResult(data.result, {
+                    onRevealComplete: shouldRunRewardFx
+                        ? async () => {
+                            await playDailyBountyRewardPresentation(reward);
+                        }
+                        : null
+                });
+            }
             dailyFortuneClaimedSession = true;
             dailyFortuneCanDrawSession = false;
             notifyDailyFortuneClaimed(data.result);
@@ -5273,16 +5365,12 @@ async function handleDailyFortuneDraw(playFabId) {
             textEl.textContent = '本日の占い結果を取得しました。';
         }
         const reward = normalizeDailyBountyReward(data?.dailyBountyReward || null);
-        const shouldRefreshInventory = String(data?.result?.rewardType || '').trim().toLowerCase() === 'card'
+        const shouldRefreshInventory = data.alreadyClaimed || !Number.isFinite(data.balance)
+            || String(data?.result?.rewardType || '').trim().toLowerCase() === 'card'
             || (reward.awarded && !reward.alreadyClaimed);
-        if (shouldRefreshInventory && typeof window !== 'undefined' && typeof window.refreshInventory === 'function') {
-            await window.refreshInventory({ force: true });
-        }
+        if (shouldRefreshInventory) await refreshDailyFortuneInventory();
     } catch (error) {
-        setDailyFortuneSubText('カードを開けませんでした。航路を確認してください。');
-        if (textEl) {
-            textEl.textContent = `占いに失敗しました: ${error?.message || 'unknown error'}`;
-        }
+        if (!showDailyFortuneAuthError(error)) showDailyFortunePending();
     } finally {
         dailyFortuneInFlight = false;
     }
@@ -5313,6 +5401,12 @@ async function maybeShowDailyFortunePrompt(playFabId, options = {}) {
     }
     try {
         const status = await requestDailyFortuneStatus(playFabId);
+        if (status?.state === 'pending') {
+            dailyFortuneRetryPlayerId = playFabId;
+            openDailyFortuneOverlay();
+            showDailyFortunePending();
+            return;
+        }
         dailyFortuneCheckedSession = true;
         dailyFortuneCanDrawSession = !!status?.canDraw;
         dailyFortuneClaimedSession = !dailyFortuneCanDrawSession;
@@ -5476,12 +5570,41 @@ export async function showDailyFortunePromptOnLogin(playFabId) {
     await maybeShowDailyFortunePrompt(playFabId, { force: true });
 }
 
-export async function showDailyFortune(playFabId) {
+function showDailyFortunePending() {
+    setDailyFortuneSubText('占いの結果を確認しています。');
+    const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
+    if (textEl) textEl.textContent = '処理状況が不明です。時間をおいて「結果を確認」を押し、解消しない場合はお問い合わせください。';
+    const retry = document.querySelector(`#${DAILY_FORTUNE_OVERLAY_ID} .tarot-fortune-retry`);
+    if (retry) retry.hidden = false;
+}
+
+function showDailyFortuneAuthError(error) {
+    if (error?.status !== 401 && error?.status !== 403) return false;
+    setDailyFortuneSubText('ログイン状態を確認できませんでした。');
+    const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
+    if (textEl) textEl.textContent = '再ログインして、今日の結果を確認してください。';
+    const overlay = document.getElementById(DAILY_FORTUNE_OVERLAY_ID);
+    const retry = overlay?.querySelector('.tarot-fortune-retry');
+    const login = overlay?.querySelector('.tarot-fortune-login');
+    if (retry) retry.hidden = true;
+    if (login) login.hidden = false;
+    return true;
+}
+
+export async function showDailyFortune(playFabId, options = {}) {
     if (!playFabId) return;
+    dailyFortuneRetryPlayerId = playFabId;
     openDailyFortuneOverlay();
     const cardHost = document.getElementById(DAILY_FORTUNE_CARD_HOST_ID);
     const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
     const titleEl = document.getElementById(DAILY_FORTUNE_TITLE_ID);
+    document.getElementById(DAILY_FORTUNE_MODAL_ID)?.classList.remove('is-revisit');
+    const retry = document.querySelector(`#${DAILY_FORTUNE_OVERLAY_ID} .tarot-fortune-retry`);
+    if (retry) retry.hidden = true;
+    const login = document.querySelector(`#${DAILY_FORTUNE_OVERLAY_ID} .tarot-fortune-login`);
+    if (login) login.hidden = true;
+    cardHost?.classList.remove('is-choice');
+    cardHost?.closest('.tarot-fortune-stage')?.classList.remove('has-choice');
     if (titleEl) titleEl.textContent = '本日の運勢';
     if (cardHost) cardHost.innerHTML = '';
     resetDailyFortuneResultDetails();
@@ -5490,25 +5613,44 @@ export async function showDailyFortune(playFabId) {
 
     try {
         const status = await requestDailyFortuneStatus(playFabId);
+        if (status?.state === 'pending') {
+            showDailyFortunePending();
+            return;
+        }
         dailyFortuneCheckedSession = true;
         dailyFortuneCanDrawSession = !!status?.canDraw;
         dailyFortuneClaimedSession = !dailyFortuneCanDrawSession;
         if (dailyFortuneCanDrawSession) {
+            if (hasDailyFortunePending(playFabId)) {
+                showDailyFortunePending();
+                return;
+            }
+            if (options.statusOnly) {
+                setDailyFortuneSubText('本日はまだ占っていません。');
+                if (textEl) textEl.textContent = '閉じてから「占い」を押すと、今日のカードを引けます。';
+                return;
+            }
             await setupDailyFortuneOverlay(playFabId);
             return;
         }
+        setDailyFortunePending(playFabId, false);
         notifyDailyFortuneClaimed(status?.result, status?.dayKey);
         if (status?.result) {
+            document.getElementById(DAILY_FORTUNE_MODAL_ID)?.classList.add('is-revisit');
             renderDailyFortuneResultLegacy(status.result);
             setDailyFortuneSubText('本日の占い結果です。');
+            await refreshDailyFortuneInventory();
             return;
         }
         setDailyFortuneSubText('本日の占いは完了しています。');
         if (textEl) textEl.textContent = 'また明日、次の潮目を占えます。';
     } catch (error) {
-        setDailyFortuneSubText('占いを開けませんでした。航路を確認してください。');
-        if (textEl) {
-            textEl.textContent = `占いに失敗しました: ${error?.message || 'unknown error'}`;
+        if (!showDailyFortuneAuthError(error)) {
+            setDailyFortuneSubText('占いを開けませんでした。航路を確認してください。');
+            if (textEl) {
+                textEl.textContent = '通信を確認して「結果を確認」を押してください。';
+            }
+            if (retry) retry.hidden = false;
         }
         console.warn('[dailyFortune] explicit open failed:', error);
     }

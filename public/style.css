@@ -16387,6 +16387,41 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
     justify-content: center;
 }
 
+.tarot-fortune-stage.has-choice {
+    display: flex;
+    flex-direction: column;
+}
+
+.tarot-fortune-card-host.is-choice {
+    width: 100%;
+    gap: 10px;
+}
+
+.tarot-fortune-card-host.is-choice .tarot-fortune-card-shell {
+    --tarot-card-w: clamp(60px, 23vw, 96px);
+    --tarot-card-h: calc(var(--tarot-card-w) * 1.5);
+}
+
+.tarot-fortune-card-shell.is-selected {
+    animation: tarotFortuneSelectionGlow 380ms ease-out both;
+}
+
+@keyframes tarotFortuneSelectionGlow {
+    0% { filter: drop-shadow(0 0 2px rgba(248, 226, 168, 0.2)); }
+    50% { filter: drop-shadow(0 0 18px rgba(255, 232, 163, 0.85)); }
+    100% { filter: drop-shadow(0 0 8px rgba(248, 226, 168, 0.3)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tarot-fortune-card-shell.is-selected { animation: none; }
+}
+
+.tarot-fortune-modal.is-revisit::before,
+.tarot-fortune-modal.is-revisit::after,
+.tarot-fortune-modal.is-revisit * {
+    animation: none;
+}
+
 .tarot-fortune-reading {
     min-height: 128px;
     display: flex;
@@ -16673,6 +16708,7 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
 .tarot-fortune-actions {
     display: flex;
     justify-content: center;
+    gap: 8px;
     margin-top: 14px;
 }
 

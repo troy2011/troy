@@ -73,11 +73,13 @@ test('home daily fortune reveals the adopted minor upright once and keeps result
     await bootstrapMainApp(page);
     await page.locator('#btnDailyFortune').click();
     await expect(page.locator('#dailyTarotFortuneCardHost img[data-artwork-side="front"]')).toHaveCount(0);
-    await expect(page.locator('#dailyTarotFortuneCardHost img[data-artwork-side="back"]')).toHaveAttribute('src', `/assets/pirate-tarot/back.webp?v=${manifest.assetVersion}&delivery=20261025`);
-    await waitImage(page.locator('#dailyTarotFortuneCardHost img[data-artwork-side="back"]'));
+    const backs = page.locator('#dailyTarotFortuneCardHost img[data-artwork-side="back"]');
+    await expect(backs).toHaveCount(3);
+    await expect(backs.first()).toHaveAttribute('src', `/assets/pirate-tarot/back.webp?v=${manifest.assetVersion}&delivery=20261025`);
+    await waitImage(backs.first());
     await screenshotModal(page, 'daily-fortune-mobile-back.png');
     expect(requestedArtwork).toEqual([]);
-    await page.locator('#dailyTarotFortuneCardHost button').evaluate((button) => { button.click(); button.click(); button.click(); });
+    await page.locator('#dailyTarotFortuneCardHost button').first().evaluate((button) => { button.click(); button.click(); button.click(); });
     const image = page.locator('#dailyTarotFortuneCardHost img');
     await waitImage(image);
     await expect(image).toHaveAttribute('src', imageUrl('sword-3'));
@@ -87,7 +89,7 @@ test('home daily fortune reveals the adopted minor upright once and keeps result
     await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText('正位置');
     await expect(page.locator('#dailyTarotFortuneText')).toContainText(result.strikeLine);
     await expect(page.locator('#dailyTarotFortuneReward')).toContainText('ソードの3');
-    await expect(page.locator('#btnDailyFortune')).toBeDisabled();
+    await expect(page.locator('#btnDailyFortune')).toBeEnabled();
     expect(draws()).toBe(1);
     expect(await image.evaluate((element) => getComputedStyle(element).objectFit)).toBe('contain');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -105,7 +107,7 @@ test('major reversed rotates only the adopted art and preserves the fragment rew
     await page.setViewportSize({ width: 390, height: 844 });
     await bootstrapMainApp(page);
     await page.locator('#btnDailyFortune').click();
-    await page.locator('#dailyTarotFortuneCardHost button').click();
+    await page.locator('#dailyTarotFortuneCardHost button').first().click();
     const image = page.locator('#dailyTarotFortuneCardHost img');
     await waitImage(image);
     await expect(image).toHaveAttribute('src', imageUrl('major-18'));
@@ -158,7 +160,7 @@ test('failed daily artwork retains the original reversed sprite, advice and rewa
     await page.setViewportSize({ width: 390, height: 844 });
     await bootstrapMainApp(page);
     await page.locator('#btnDailyFortune').click();
-    await page.locator('#dailyTarotFortuneCardHost button').click();
+    await page.locator('#dailyTarotFortuneCardHost button').first().click();
     await expect(page.locator('#dailyTarotFortuneCardHost img')).toBeHidden();
     await expect(page.locator('#dailyTarotFortuneCardHost button')).toHaveClass(/is-reversed/);
     await expect(page.locator('#dailyTarotFortuneCardHost button')).not.toHaveClass(/has-pirate-artwork/);
@@ -240,7 +242,7 @@ test('missing adopted back retains the existing back sprite and still reveals th
     const draws = await installFortune(page, dailyResult());
     await bootstrapMainApp(page);
     await page.locator('#btnDailyFortune').click();
-    const button = page.locator('#dailyTarotFortuneCardHost button');
+    const button = page.locator('#dailyTarotFortuneCardHost button').first();
     await expect(button.locator('[data-artwork-side="back"]')).toBeHidden();
     await expect(button.locator('.tarot-card-art')).toBeVisible();
     await button.click();

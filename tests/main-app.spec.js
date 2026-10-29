@@ -274,11 +274,12 @@ test('long bottom navigation labels shrink and the five-tab rail fits', async ({
   await expectNoPageErrors(errors);
 });
 
-test('daily tarot fortune loads only after its button is clicked and shows clear draw states on mobile', async ({ page }) => {
+test('daily tarot fortune checks status on startup and shows clear draw states on mobile', async ({ page }) => {
   const errors = trackPageErrors(page);
   let fortuneStatusRequests = 0;
   let fortuneDrawRequests = 0;
   let tarotModuleRequests = 0;
+  let fortuneDrawn = false;
   page.on('request', (request) => {
     if (request.url().includes('/js/tarotPoker.js')) tarotModuleRequests += 1;
   });
@@ -288,11 +289,12 @@ test('daily tarot fortune loads only after its button is clicked and shows clear
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({ canDraw: true })
+      body: JSON.stringify({ canDraw: !fortuneDrawn })
     });
   });
   await page.route('**/api/tarot-fortune-draw', async (route) => {
     fortuneDrawRequests += 1;
+    fortuneDrawn = true;
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
@@ -316,13 +318,13 @@ test('daily tarot fortune loads only after its button is clicked and shows clear
   });
 
   await bootstrapMainApp(page);
-  expect(fortuneStatusRequests).toBe(0);
+  await expect.poll(() => fortuneStatusRequests).toBe(1);
   expect(tarotModuleRequests).toBe(0);
   await page.locator('#btnDailyFortune').click();
   const overlay = page.locator('#dailyTarotFortuneOverlay');
   const modal = page.locator('#dailyTarotFortuneModal');
   await expect(overlay).toBeVisible();
-  expect(fortuneStatusRequests).toBe(1);
+  expect(fortuneStatusRequests).toBe(2);
   expect(tarotModuleRequests).toBeGreaterThan(0);
   const closeButtonStyle = await page.locator('.tarot-fortune-close').evaluate((node) => {
     const style = window.getComputedStyle(node);
@@ -338,7 +340,7 @@ test('daily tarot fortune loads only after its button is clicked and shows clear
   expect(closeButtonStyle.height).toBe('52px');
   expect(closeButtonStyle.fontSize).toBe('0px');
   await expect(page.locator('#dailyTarotFortuneSub')).toHaveText('正位置ならカードを獲得。逆位置なら同じカードの欠片を集めます。');
-  await expect(page.locator('#dailyTarotFortuneText')).toContainText('まだ伏せたカード');
+  await expect(page.locator('#dailyTarotFortuneText')).toContainText('どれを選んでも');
   await expect(page.locator('#dailyTarotFortuneReward')).toBeHidden();
 
   const beforeMetrics = await modal.evaluate((node) => {
@@ -353,7 +355,8 @@ test('daily tarot fortune loads only after its button is clicked and shows clear
   expect(beforeMetrics.right).toBeLessThanOrEqual(beforeMetrics.viewportWidth);
   expect(beforeMetrics.bottom).toBeLessThanOrEqual(beforeMetrics.viewportHeight);
 
-  await page.locator('#dailyTarotFortuneCardHost .tarot-fortune-card-shell').click();
+  await expect(page.locator('#dailyTarotFortuneCardHost .tarot-fortune-card-shell')).toHaveCount(3);
+  await page.locator('#dailyTarotFortuneCardHost .tarot-fortune-card-shell').first().click();
   await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText('ワンドの7');
   await expect(page.locator('#dailyTarotFortuneResultMeta')).toContainText('正位置');
   await expect(page.locator('#dailyTarotFortuneText')).toContainText('今日の風向き');
@@ -372,8 +375,8 @@ test('daily tarot fortune loads only after its button is clicked and shows clear
   await expect(modal).not.toHaveClass(/is-major-arcana/);
   await expect(page.locator('#dailyTarotFortuneArcanaBadge')).toBeHidden();
   await expect(page.locator('#dailyTarotFortuneCardHost .tarot-fortune-card-shell')).not.toHaveClass(/is-major-arcana/);
-  await expect(page.locator('#btnDailyFortune')).toBeDisabled();
-  await expect(page.locator('#btnDailyFortune')).toHaveText('占い済み');
+  await expect(page.locator('#btnDailyFortune')).toBeEnabled();
+  await expect(page.locator('#btnDailyFortune')).toHaveText('結果を見る');
   expect(fortuneDrawRequests).toBe(1);
 
   const closeTargetAtCenter = await page.locator('.tarot-fortune-close').evaluate((button) => {
@@ -385,9 +388,9 @@ test('daily tarot fortune loads only after its button is clicked and shows clear
   await page.locator('.tarot-fortune-close').click();
   await expect(overlay).toBeHidden();
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.locator('#btnDailyFortune')).toBeDisabled();
-  await expect(page.locator('#btnDailyFortune')).toHaveText('占い済み');
-  expect(fortuneStatusRequests).toBe(1);
+  await expect(page.locator('#btnDailyFortune')).toBeEnabled();
+  await expect(page.locator('#btnDailyFortune')).toHaveText('結果を見る');
+  await expect.poll(() => fortuneStatusRequests).toBe(3);
   expect(fortuneDrawRequests).toBe(1);
   await expectNoPageErrors(errors);
 });
@@ -452,7 +455,7 @@ test('daily tarot fortune adds richer presentation after major arcana reveal', a
   await expect(modal).not.toHaveClass(/is-major-arcana/);
   await expect(arcanaBadge).toBeHidden();
 
-  await fortuneCard.click();
+  await fortuneCard.first().click();
   await expect(modal).toHaveClass(/is-major-arcana/);
   await expect(fortuneCard).toHaveClass(/is-major-arcana/);
   await expect(arcanaBadge).toBeVisible();
@@ -531,8 +534,8 @@ test('daily tarot fortune presents an already claimed result without drawing aga
   await expect(page.locator('#dailyTarotFortuneText')).toContainText('今日のアドバイス');
   await expect(page.locator('#dailyTarotFortuneText .tarot-fortune-meter-segment.is-filled')).toHaveCount(8);
   await expect(page.locator('#dailyTarotFortuneReward')).toContainText('今日の報酬');
-  await expect(page.locator('#btnDailyFortune')).toBeDisabled();
-  await expect(page.locator('#btnDailyFortune')).toHaveText('占い済み');
+  await expect(page.locator('#btnDailyFortune')).toBeEnabled();
+  await expect(page.locator('#btnDailyFortune')).toHaveText('結果を見る');
   expect(drawRequests).toBe(0);
   await expectNoPageErrors(errors);
 });

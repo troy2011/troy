@@ -65,7 +65,7 @@ let pendingFixedInviteNation = '';
 let lineFriendPromoState = null;
 let dailyFortuneOpenPromise = null;
 let dailyFortuneClaimEventBound = false;
-const TAROT_MODULE_VERSION = '20261025-pirate-delivery-v2';
+const TAROT_MODULE_VERSION = '20261029-fortune-ui-v1';
 const TAROT_KINGDOM_RESCUE_VERSION = '20261022-startup-kingdom-v1';
 const DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY = 'troy:daily-fortune-claimed-day';
 const LIFF_CALLBACK_PARAM_KEYS = [
@@ -356,12 +356,28 @@ function hasClaimedDailyFortuneToday() {
     }
 }
 
+function hasPendingDailyFortuneToday(playFabId) {
+    if (!playFabId) return false;
+    try { return localStorage.getItem(`troy:fortune-pending:${playFabId}`) === '1'; }
+    catch { return false; }
+}
+
 function setDailyFortuneButtonClaimed(button, claimed) {
     if (!button) return;
     button.dataset.dailyFortuneClaimed = claimed ? 'true' : 'false';
-    button.disabled = claimed;
-    button.textContent = claimed ? '占い済み' : '占い';
-    button.setAttribute('aria-label', claimed ? '本日の占いは完了しました' : '本日の占い');
+    button.dataset.dailyFortunePending = 'false';
+    button.disabled = Boolean(dailyFortuneOpenPromise);
+    button.textContent = claimed ? '結果を見る' : '占い';
+    button.setAttribute('aria-label', claimed ? '本日の占い結果を見る' : '本日の占い');
+}
+
+function setDailyFortuneButtonPending(button) {
+    if (!button) return;
+    button.dataset.dailyFortuneClaimed = 'false';
+    button.dataset.dailyFortunePending = 'true';
+    button.disabled = Boolean(dailyFortuneOpenPromise);
+    button.textContent = '結果を確認';
+    button.setAttribute('aria-label', '本日の占いの処理状況を確認');
 }
 
 function markDailyFortuneClaimed(dayKey = '') {
@@ -371,7 +387,7 @@ function markDailyFortuneClaimed(dayKey = '') {
     try {
         localStorage.setItem(DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY, todayKey);
     } catch {
-        // The in-memory button lock still prevents repeated draws in this session.
+        // The server remains authoritative when storage is unavailable.
     }
     setDailyFortuneButtonClaimed(document.getElementById('btnDailyFortune'), true);
 }
@@ -379,11 +395,6 @@ function markDailyFortuneClaimed(dayKey = '') {
 async function openDailyFortuneFromButton() {
     if (dailyFortuneOpenPromise) return dailyFortuneOpenPromise;
     const button = document.getElementById('btnDailyFortune');
-    const originalText = button?.textContent || '占い';
-    if (button?.dataset.dailyFortuneClaimed === 'true' || hasClaimedDailyFortuneToday()) {
-        setDailyFortuneButtonClaimed(button, true);
-        return;
-    }
     if (!myPlayFabId) {
         showRpgMessage('ログイン完了後に占えます。', 2200);
         return;
@@ -392,6 +403,7 @@ async function openDailyFortuneFromButton() {
         button.disabled = true;
         button.textContent = '占いを準備中...';
     }
+    dailyFortuneRefreshGeneration += 1;
     dailyFortuneOpenPromise = (async () => {
         const Tarot = await import(`./js/tarotPoker.js?v=${TAROT_MODULE_VERSION}`);
         if (Tarot && typeof Tarot.showDailyFortune === 'function') {
@@ -410,15 +422,41 @@ async function openDailyFortuneFromButton() {
     } finally {
         dailyFortuneOpenPromise = null;
         if (button) {
-            const claimed = button.dataset.dailyFortuneClaimed === 'true' || hasClaimedDailyFortuneToday();
-            if (claimed) {
-                setDailyFortuneButtonClaimed(button, true);
+            if (hasPendingDailyFortuneToday(myPlayFabId)) {
+                setDailyFortuneButtonPending(button);
             } else {
-                button.disabled = false;
-                button.textContent = originalText;
+                const claimed = button.dataset.dailyFortuneClaimed === 'true' || hasClaimedDailyFortuneToday();
+                setDailyFortuneButtonClaimed(button, claimed);
             }
         }
     }
+}
+
+let dailyFortuneRefreshPromise = null;
+let dailyFortuneRefreshGeneration = 0;
+async function refreshDailyFortuneStatus() {
+    if (!myPlayFabId || dailyFortuneOpenPromise || dailyFortuneRefreshPromise) return;
+    const playerId = myPlayFabId;
+    const day = getJstDayKey();
+    const generation = ++dailyFortuneRefreshGeneration;
+    const button = document.getElementById('btnDailyFortune');
+    setDailyFortuneButtonClaimed(button, hasClaimedDailyFortuneToday());
+    dailyFortuneRefreshPromise = (async () => {
+        const status = await callApiWithLoader('/api/tarot-fortune-status', { playFabId: playerId }, { isSilent: true });
+        if (!status || typeof status.canDraw !== 'boolean' || playerId !== myPlayFabId
+            || day !== getJstDayKey() || generation !== dailyFortuneRefreshGeneration || dailyFortuneOpenPromise) return;
+        if (status.state === 'pending' || (status.canDraw && hasPendingDailyFortuneToday(playerId))) {
+            setDailyFortuneButtonPending(button);
+        } else if (!status.canDraw) {
+            markDailyFortuneClaimed(status.dayKey);
+        } else {
+            try { localStorage.removeItem(DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY); } catch { /* optional cache */ }
+            setDailyFortuneButtonClaimed(button, false);
+        }
+    })();
+    try { await dailyFortuneRefreshPromise; }
+    catch (error) { console.warn('[dailyFortune] Failed to refresh status:', error); }
+    finally { dailyFortuneRefreshPromise = null; }
 }
 
 function initDailyFortuneButton() {
@@ -878,6 +916,27 @@ function isCurrentPlayerProfileReady() {
         && activeProfileUid === auth.currentUser?.uid;
 }
 
+function showLoginRecovery(isAuthenticationError = true) {
+    document.body.classList.remove('tabs-ready');
+    document.body.classList.add('app-booting');
+    document.getElementById('appWrapper').style.display = 'none';
+    const splash = document.getElementById('bootSplash');
+    if (!splash) return;
+    splash.hidden = false;
+    splash.setAttribute('aria-label', isAuthenticationError ? 'ログインできませんでした' : 'アプリを開始できませんでした');
+    let notice = document.getElementById('profileSessionNotice');
+    if (!notice) {
+        notice = document.createElement('button');
+        notice.id = 'profileSessionNotice';
+        notice.type = 'button';
+        notice.addEventListener('click', () => window.location.reload());
+        splash.appendChild(notice);
+    }
+    notice.textContent = '再読み込みしてログイン';
+    const spinner = splash.querySelector('.boot-splash-spinner');
+    if (spinner) spinner.hidden = true;
+}
+
 function watchProfileSession(uid) {
     activeProfileUid = uid;
     profileGeneration += 1;
@@ -892,25 +951,7 @@ function watchProfileSession(uid) {
         profileReady = false;
         hasCachedProfile = false;
         window.__tkUid = null;
-        document.body.classList.remove('tabs-ready');
-        document.body.classList.add('app-booting');
-        document.getElementById('appWrapper').style.display = 'none';
-        const splash = document.getElementById('bootSplash');
-        if (splash) {
-            splash.hidden = false;
-            splash.setAttribute('aria-label', '再ログインしてください');
-            let notice = document.getElementById('profileSessionNotice');
-            if (!notice) {
-                notice = document.createElement('button');
-                notice.id = 'profileSessionNotice';
-                notice.type = 'button';
-                notice.addEventListener('click', () => window.location.reload());
-                splash.appendChild(notice);
-            }
-            notice.textContent = '再読み込みしてログイン';
-            const spinner = splash.querySelector('.boot-splash-spinner');
-            if (spinner) spinner.hidden = true;
-        }
+        showLoginRecovery();
     });
 }
 
@@ -1543,6 +1584,7 @@ async function initializeLiff() {
                 console.log("Firebase authenticated successfully. User UID:", user.uid);
                 window.__tkUid = user.uid;
                 watchProfileSession(user.uid);
+                void refreshDailyFortuneStatus();
                 startHomeRescueSignalWatcher();
                 void refreshHomeExplorationButtonLabel(myPlayFabId);
                 void refreshHomePetCompanion(myPlayFabId);
@@ -1611,8 +1653,7 @@ async function initializeLiff() {
             __perfLog('calling signInWithCustomToken');
             signInWithCustomToken(auth, loginData.firebaseToken).catch(error => {
                 console.error("Firebase sign-in failed:", error);
-                revealAppWrapper();
-                document.getElementById('globalPlayerName').innerText = '認証エラー';
+                showLoginRecovery();
             });
         } else {
             const currentUid = String(auth.currentUser?.uid || '').trim().toUpperCase();
@@ -1621,8 +1662,7 @@ async function initializeLiff() {
                 console.warn('Firebase custom token was not provided; reusing the matching authenticated session.');
             } else {
                 console.error('Firebase token not provided. Protected initialization was not started.');
-                revealAppWrapper();
-                document.getElementById('globalPlayerName').innerText = '認証エラー';
+                showLoginRecovery();
             }
         }
 
@@ -1638,8 +1678,7 @@ async function initializeLiff() {
             }
         }
         console.error('Error:', error);
-        revealAppWrapper();
-        document.getElementById('globalPlayerName').innerText = '初期化エラー';
+        showLoginRecovery(false);
     }
 }
 
@@ -1892,6 +1931,7 @@ async function initializeAppFeatures(options = {}) {
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             void refreshLineFriendPromo();
+            void refreshDailyFortuneStatus();
         }
     });
 
