@@ -23,7 +23,7 @@ import {
     buyBlackMarketListing as requestBuyBlackMarketListing,
     getTarotJobMastery as requestTarotJobMastery,
     selectTarotJobMasteryAbility as requestSelectTarotJobMasteryAbility
-} from './playfabClient.js?v=20260830-s1-auth-v1';
+} from './playfabClient.js?v=20261029-startup-v1';
 import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites, resolveSpritePathByAvatarColor } from './avatar.js';
 import * as Player from './player.js';
 import {
@@ -3739,6 +3739,24 @@ function getEquipActionLabel(slot, defaultLabel) {
         : defaultLabel;
 }
 
+export function clearInventorySession() {
+    myInventory = [];
+    myCurrentEquipment = {};
+    myVirtualCurrency = {};
+    myExperience = 0;
+    myExperienceProgress = null;
+    myIsKing = false;
+    myMeleeDeck = [];
+    myShipDeck = [];
+    myMeleeRole = null;
+    myShipRole = null;
+    myShipMajorArcana = [];
+    myTarotGuardian = null;
+    equipmentLoaded = false;
+    lastEquipmentFetchAt = 0;
+    lastInventoryFetchAt = 0;
+}
+
 export function getMyInventory() {
     return myInventory;
 }
@@ -3777,8 +3795,10 @@ export function getMyTarotGuardianSnapshot() {
 }
 
 function beginEquipmentFetch(playFabId, options = {}) {
+    const session = options.session || Player.capturePlayerSession(playFabId);
     const request = (async () => {
         const data = await fetchEquipment(playFabId, { isSilent: options.isSilent === true });
+        if (!Player.isCurrentPlayerSession(session)) return null;
         if (data?.equipment) {
             myCurrentEquipment = data.equipment;
         }
@@ -3799,6 +3819,7 @@ function beginEquipmentFetch(playFabId, options = {}) {
 }
 
 async function loadCurrentEquipment(playFabId, options = {}) {
+    options = { ...options, session: options.session || Player.capturePlayerSession(playFabId) };
     const force = options?.force === true;
     if (equipmentQueuedFetchPromise) return equipmentQueuedFetchPromise;
     if (equipmentFetchPromise) {
@@ -3811,6 +3832,7 @@ async function loadCurrentEquipment(playFabId, options = {}) {
             } catch (_error) {
                 // A forced refresh still needs a fresh snapshot after a failed request.
             }
+            if (!Player.isCurrentPlayerSession(options.session)) return null;
             return beginEquipmentFetch(playFabId, options);
         })();
         equipmentQueuedFetchPromise = queuedRequest;
@@ -3914,6 +3936,9 @@ function applyInventorySnapshot(data) {
 }
 
 function beginInventoryFetch(playFabId, options = {}) {
+    const session = options.session || Player.capturePlayerSession(playFabId);
+    const uid = session.uid;
+    const pointsRevision = Player.getPointsRevision();
     const request = (async () => {
         const force = options?.force === true;
         const includedEquipment = options?.includeEquipment === true;
@@ -3924,17 +3949,34 @@ function beginInventoryFetch(playFabId, options = {}) {
             })
             : Promise.resolve(null);
         const [data, deckData] = await Promise.all([
-            fetchInventory(playFabId, { isSilent: options.isSilent === true }),
+            fetchInventory(playFabId, { isSilent: options.isSilent === true, throwOnError: true }).catch((error) => {
+                if ((error?.status === 401 || error?.status === 403) && Player.isCurrentPlayerSession(session)) {
+                    window.dispatchEvent(new CustomEvent('troy:auth-expired', { detail: { uid } }));
+                }
+                return null;
+            }),
             fetchTarotDecks(playFabId, { isSilent: true }),
             loadTarotBattleSkillCache(),
             TAROT_KINGDOM_ARCANA_EFFECTS_READY,
             equipmentRequest
         ]);
+        if (!Player.isCurrentPlayerSession(session)) {
+            return { data: null, deckData: null, hasInventoryData: false, includedEquipment, discarded: true };
+        }
+        if (pointsRevision !== Player.getPointsRevision()) {
+            // The inventory endpoint can have side effects; never retry it automatically here.
+            Player.markBalanceUnverified(session);
+            return { data: null, deckData: null, hasInventoryData: false, includedEquipment, discarded: true };
+        }
+        if (!data) {
+            Player.markBalanceUnverified(session);
+            return { data: null, deckData: null, hasInventoryData: false, includedEquipment, discarded: true };
+        }
         const hasInventoryData = applyInventorySnapshot(data);
         if (deckData?.ok) {
             applyTarotDeckData(deckData);
         }
-        lastInventoryFetchAt = Date.now();
+        if (hasInventoryData) lastInventoryFetchAt = Date.now();
         return { data, deckData, hasInventoryData, includedEquipment };
     })();
     inventoryFetchPromise = request;
@@ -3950,6 +3992,7 @@ function beginInventoryFetch(playFabId, options = {}) {
 }
 
 function requestInventorySnapshot(playFabId, options = {}) {
+    options = { ...options, session: options.session || Player.capturePlayerSession(playFabId) };
     const force = options?.force === true;
     if (inventoryQueuedFetchPromise) return inventoryQueuedFetchPromise;
     if (inventoryFetchPromise) {
@@ -3962,6 +4005,7 @@ function requestInventorySnapshot(playFabId, options = {}) {
             } catch (_error) {
                 // The queued forced refresh must run even when the prior request failed.
             }
+            if (!Player.isCurrentPlayerSession(options.session)) return null;
             return beginInventoryFetch(playFabId, options);
         })();
         inventoryQueuedFetchPromise = queuedRequest;
@@ -4004,7 +4048,7 @@ export async function getInventory(playFabId, options = {}) {
         }
     }
     const snapshot = await requestInventorySnapshot(playFabId, { ...options, includeEquipment: true });
-    if (!snapshot) return;
+    if (!snapshot || snapshot.discarded) return snapshot;
     if (!snapshot.includedEquipment) {
         await getEquipment(playFabId, { isSilent: true });
     }
@@ -4018,6 +4062,7 @@ export async function refreshResourceSummary(playFabId, options = {}) {
         ...options,
         includeEquipment: force || !equipmentLoaded
     });
+    if (snapshot?.discarded) return snapshot;
     if (!snapshot) {
         updateExperienceUI();
         renderTarotDeckPanels();

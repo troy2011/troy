@@ -11,10 +11,11 @@ import {
     getBountyRanking as fetchBountyRanking,
     getNationTreasuryRanking as fetchNationTreasuryRanking,
     getStoreGameRanking as fetchStoreGameRanking
-} from './playfabClient.js?v=20260830-s1-auth-v1';
+} from './playfabClient.js?v=20261029-startup-v1';
 import { formatCurrencyLabel } from './config.js';
 import { getNationLabel } from './nationLabels.js';
 import { renderHomePlayerStatus } from './homePlayerStatus.js';
+import { readCachedBalance, writeCachedBalance, clearCachedBalance } from './startupBalanceCache.js?v=20261029-startup-v1';
 import {
     STORE_GAME_RANKING_UI,
     formatNumber,
@@ -25,6 +26,9 @@ import {
     renderRankingState
 } from './rankingUi.js?v=20260731-stage-score1';
 
+let pointsRevision = 0;
+let statsRevision = 0;
+const pointsAnimations = new WeakMap();
 let myPlayerStats = {};
 let myCrewRankInfo = null;
 let rankingControlsWired = false;
@@ -41,7 +45,10 @@ export function getMyCrewRankInfo() {
 }
 
 export async function getPlayerStats(playFabId, options) {
+    const session = capturePlayerSession(playFabId);
+    const revision = statsRevision;
     const data = await fetchPlayerStats(playFabId, options);
+    if (!isCurrentPlayerSession(session) || revision !== statsRevision) return;
     if (data?.stats) {
         myPlayerStats = data.stats;
         myCrewRankInfo = data.crewRankInfo || null;
@@ -68,36 +75,130 @@ function updatePlayerStatsDisplay() {
 
 function applyUpdatedStats(updatedStats) {
     if (!updatedStats || typeof updatedStats !== 'object') return;
+    statsRevision += 1;
+    window.__troyStatsRevision = statsRevision;
     myPlayerStats = { ...myPlayerStats, ...updatedStats };
     updatePlayerStatsDisplay();
 }
 
 export async function consumeVoyageMp(playFabId, durationMs) {
+    const session = capturePlayerSession(playFabId);
+    const revision = statsRevision;
     const data = await requestConsumeVoyageMp(playFabId, durationMs, { isSilent: true });
-    if (data?.updatedStats) {
-        applyUpdatedStats(data.updatedStats);
+    if (isCurrentPlayerSession(session) && data?.updatedStats) {
+        if (revision === statsRevision) applyUpdatedStats(data.updatedStats);
+        else window.showRpgMessage?.('状態を更新できませんでした。再読み込みしてください。');
     }
     return data;
 }
 
 export async function recoverDockedMp(playFabId) {
+    const session = capturePlayerSession(playFabId);
+    const revision = statsRevision;
     const data = await requestRecoverDockedMp(playFabId, { isSilent: true });
-    if (data?.updatedStats) {
-        applyUpdatedStats(data.updatedStats);
+    if (isCurrentPlayerSession(session) && data?.updatedStats) {
+        if (revision === statsRevision) applyUpdatedStats(data.updatedStats);
+        else window.showRpgMessage?.('状態を更新できませんでした。再読み込みしてください。');
     }
     return data;
 }
 
 export async function getPoints(playFabId, options) {
+    const session = capturePlayerSession(playFabId);
+    const revision = pointsRevision;
     const data = await fetchPoints(playFabId, options);
+    if (!isCurrentPlayerSession(session) || revision !== pointsRevision) return null;
+    if (!data) markBalanceUnverified(session);
     if (data) {
         updatePointsDisplays(data.points, data.virtualCurrency);
     }
     return data;
 }
 
+export function getPointsRevision() { return pointsRevision; }
+
+export function capturePlayerSession(playFabId) {
+    return { uid: window.__tkUid, playFabId, generation: window.__troySessionGeneration, pointsRevision };
+}
+
+export function isCurrentPlayerSession(session) {
+    return !!session && session.generation === window.__troySessionGeneration
+        && isCurrentPlayer(session.uid, session.playFabId);
+}
+
+function isCurrentPlayer(uid, playFabId) {
+    const expected = String(uid || '').trim().toUpperCase();
+    return !!expected && expected === String(playFabId || '').trim().toUpperCase()
+        && expected === String(window.__tkUid || '').trim().toUpperCase()
+        && expected === String(window.__firebaseAuth?.currentUser?.uid || '').trim().toUpperCase();
+}
+
+export function showCachedBalance(uid) {
+    if (!isCurrentPlayer(uid, window.myPlayFabId)) return false;
+    const points = readCachedBalance(uid);
+    if (points === null) return false;
+    for (const id of ['currentPoints', 'globalPoints']) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = String(points);
+    }
+    const label = document.getElementById('homePointsStatus');
+    if (label) { label.textContent = '前回'; label.removeAttribute('aria-label'); label.hidden = false; }
+    return true;
+}
+
+export function clearPlayerSession(uid) {
+    pointsRevision += 1;
+    window.__troyBalanceRevision = pointsRevision;
+    statsRevision += 1;
+    window.__troyStatsRevision = statsRevision;
+    clearCachedBalance(uid);
+    myPlayerStats = {};
+    myCrewRankInfo = null;
+    for (const id of ['currentPoints', 'globalPoints']) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        const frame = pointsAnimations.get(el);
+        if (frame) cancelAnimationFrame(frame);
+        pointsAnimations.delete(el);
+        el.textContent = '?';
+    }
+    for (const id of ['globalLevel', 'globalRankBadge', 'homeStatStr', 'homeStatDef', 'homeStatAgi', 'homeStatInt', 'homeStatVit', 'homeStatHp', 'currentStr', 'currentDef', 'currentAgi', 'currentInt', 'currentVit', 'currentHp']) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = '?';
+    }
+    const label = document.getElementById('homePointsStatus');
+    if (label) label.hidden = true;
+}
+
 export function syncPointsDisplay(points) {
     updatePointsDisplays(points);
+}
+
+export function syncAuthenticatedPoints(playFabId, points, session) {
+    if (!isCurrentPlayerSession(session) || String(session.playFabId) !== String(playFabId)) return false;
+    if (session.pointsRevision !== pointsRevision) {
+        markBalanceUnverified(session);
+        return false;
+    }
+    updatePointsDisplays(points);
+    return true;
+}
+
+export function invalidateBalance(session) {
+    if (!isCurrentPlayerSession(session)) return;
+    pointsRevision += 1;
+    window.__troyBalanceRevision = pointsRevision;
+    markBalanceUnverified(session);
+}
+
+export function markBalanceUnverified(session) {
+    if (!isCurrentPlayerSession(session)) return;
+    const label = document.getElementById('homePointsStatus');
+    if (label) {
+        label.textContent = '要再読込';
+        label.setAttribute('aria-label', '残高を確認できませんでした。再読み込みしてください。');
+        label.hidden = false;
+    }
 }
 
 export function syncSpecialtyDisplay(virtualCurrency) {
@@ -105,9 +206,10 @@ export function syncSpecialtyDisplay(virtualCurrency) {
 }
 
 export async function addPoints(playFabId) {
+    const session = capturePlayerSession(playFabId);
     const data = await requestAddPoints(playFabId, 10);
-    if (data) {
-        updatePointsDisplays(data.newBalance);
+    if (data && isCurrentPlayerSession(session)) {
+        syncAuthenticatedPoints(playFabId, data.newBalance, session);
         const pointMessageEl = document.getElementById('pointMessage');
         if (pointMessageEl) pointMessageEl.innerText = '10G追加しました！';
         await getRanking();
@@ -115,9 +217,10 @@ export async function addPoints(playFabId) {
 }
 
 export async function usePoints(playFabId) {
+    const session = capturePlayerSession(playFabId);
     const data = await requestUsePoints(playFabId, 5);
-    if (data) {
-        updatePointsDisplays(data.newBalance);
+    if (data && isCurrentPlayerSession(session)) {
+        syncAuthenticatedPoints(playFabId, data.newBalance, session);
         const pointMessageEl = document.getElementById('pointMessage');
         if (pointMessageEl) pointMessageEl.innerText = '5G使いました！';
         await getRanking();
@@ -127,6 +230,12 @@ export async function usePoints(playFabId) {
 function updatePointsDisplays(points, virtualCurrency = null) {
     const value = Number(points);
     if (!Number.isFinite(value)) return;
+    pointsRevision += 1;
+    window.__troyBalanceRevision = pointsRevision;
+    const uid = window.__tkUid;
+    if (isCurrentPlayer(uid, window.myPlayFabId)) writeCachedBalance(uid, value);
+    const label = document.getElementById('homePointsStatus');
+    if (label) label.hidden = true;
     const currentPointsEl = document.getElementById('currentPoints');
     animatePoints(currentPointsEl, value);
     triggerVaultSlide(currentPointsEl);
@@ -149,6 +258,9 @@ function updateSpecialtyDisplays(virtualCurrency = {}) {
 
 function animatePoints(element, target) {
     if (!element) return;
+    const priorFrame = pointsAnimations.get(element);
+    if (priorFrame) cancelAnimationFrame(priorFrame);
+    pointsAnimations.delete(element);
     const current = Number(String(element.innerText || '').replace(/[^\d.-]/g, ''));
     const start = Number.isFinite(current) ? current : 0;
     if (start === target) {
@@ -162,9 +274,10 @@ function animatePoints(element, target) {
         const eased = 1 - Math.pow(1 - t, 3);
         const next = Math.round(start + (target - start) * eased);
         element.innerText = String(next);
-        if (t < 1) requestAnimationFrame(step);
+        if (t < 1) pointsAnimations.set(element, requestAnimationFrame(step));
+        else pointsAnimations.delete(element);
     };
-    requestAnimationFrame(step);
+    pointsAnimations.set(element, requestAnimationFrame(step));
 }
 
 function triggerVaultSlide(element) {

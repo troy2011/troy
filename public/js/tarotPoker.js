@@ -591,6 +591,7 @@ function buildApiUrlLocal(endpoint) {
 }
 
 async function callJsonApi(endpoint, body) {
+    const session = window.capturePlayerSession?.(body?.playFabId);
     const response = await fetch(buildApiUrlLocal(endpoint), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -598,6 +599,10 @@ async function callJsonApi(endpoint, body) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
+        if ((response.status === 401 || response.status === 403)
+            && session && window.isPlayerSessionCurrent?.(session)) {
+            window.dispatchEvent(new CustomEvent('troy:auth-expired', { detail: { uid: session.uid } }));
+        }
         const message = data?.error || `HTTP ${response.status}`;
         const error = new Error(message);
         error.status = response.status;
@@ -606,13 +611,11 @@ async function callJsonApi(endpoint, body) {
     return data;
 }
 
-function updateGlobalPsDisplay(balance) {
+function updateGlobalPsDisplay(balance, playFabId, session) {
     if (!Number.isFinite(Number(balance))) return;
-    const value = String(Math.max(0, Math.floor(Number(balance))));
-    const globalPoints = document.getElementById('globalPoints');
-    if (globalPoints) globalPoints.textContent = value;
-    const currentPoints = document.getElementById('currentPoints');
-    if (currentPoints) currentPoints.textContent = value;
+    if (typeof window.syncAuthenticatedPoints === 'function') {
+        window.syncAuthenticatedPoints(playFabId, Math.max(0, Math.floor(Number(balance))), session);
+    }
 }
 
 async function refreshDailyFortuneInventory() {
@@ -5336,6 +5339,7 @@ async function handleDailyFortuneDraw(playFabId) {
         return;
     }
     dailyFortuneInFlight = true;
+    const balanceSession = window.capturePlayerSession?.(playFabId);
     const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
     try {
         resetDailyFortuneResultDetails();
@@ -5343,6 +5347,7 @@ async function handleDailyFortuneDraw(playFabId) {
         const pendingKey = dailyFortunePendingKey(playFabId);
         setDailyFortunePending(playFabId, true, pendingKey);
         const data = await requestDailyFortuneDraw(playFabId);
+        if (balanceSession && !window.isPlayerSessionCurrent?.(balanceSession)) return;
         if (!data?.result) throw new Error('ResultUnavailable');
         setDailyFortunePending(playFabId, false, pendingKey);
         if (data?.result) {
@@ -5371,7 +5376,7 @@ async function handleDailyFortuneDraw(playFabId) {
             notifyDailyFortuneClaimed(data.result);
         }
         if (Number.isFinite(Number(data?.balance))) {
-            updateGlobalPsDisplay(Number(data.balance));
+            updateGlobalPsDisplay(Number(data.balance), playFabId, balanceSession);
         }
         if (textEl && !data?.result?.fortune) {
             textEl.textContent = '本日の占い結果を取得しました。';
@@ -5382,6 +5387,7 @@ async function handleDailyFortuneDraw(playFabId) {
             || (reward.awarded && !reward.alreadyClaimed);
         if (shouldRefreshInventory) await refreshDailyFortuneInventory();
     } catch (error) {
+        if (balanceSession && !window.isPlayerSessionCurrent?.(balanceSession)) return;
         if (!showDailyFortuneAuthError(error)) showDailyFortunePending();
     } finally {
         dailyFortuneInFlight = false;
@@ -5403,6 +5409,7 @@ function setupDailyFortuneOverlay(playFabId) {
 
 async function maybeShowDailyFortunePrompt(playFabId, options = {}) {
     if (!playFabId) return;
+    const session = window.capturePlayerSession?.(playFabId);
     const force = !!options.force;
     if (dailyFortuneClaimedSession) return;
     if (dailyFortuneCheckedSession && !force) {
@@ -5413,6 +5420,7 @@ async function maybeShowDailyFortunePrompt(playFabId, options = {}) {
     }
     try {
         const status = await requestDailyFortuneStatus(playFabId);
+        if (session && !window.isPlayerSessionCurrent?.(session)) return;
         if (status?.state === 'pending') {
             dailyFortuneRetryPlayerId = playFabId;
             openDailyFortuneOverlay();
@@ -5605,6 +5613,7 @@ function showDailyFortuneAuthError(error) {
 
 export async function showDailyFortune(playFabId, options = {}) {
     if (!playFabId) return;
+    const session = window.capturePlayerSession?.(playFabId);
     dailyFortuneRetryPlayerId = playFabId;
     openDailyFortuneOverlay();
     const cardHost = document.getElementById(DAILY_FORTUNE_CARD_HOST_ID);
@@ -5625,6 +5634,7 @@ export async function showDailyFortune(playFabId, options = {}) {
 
     try {
         const status = await requestDailyFortuneStatus(playFabId);
+        if (session && !window.isPlayerSessionCurrent?.(session)) return;
         if (status?.state === 'pending') {
             showDailyFortunePending();
             return;
@@ -5657,6 +5667,7 @@ export async function showDailyFortune(playFabId, options = {}) {
         setDailyFortuneSubText('本日の占いは完了しています。');
         if (textEl) textEl.textContent = 'また明日、次の潮目を占えます。';
     } catch (error) {
+        if (session && !window.isPlayerSessionCurrent?.(session)) return;
         if (!showDailyFortuneAuthError(error)) {
             setDailyFortuneSubText('占いを開けませんでした。航路を確認してください。');
             if (textEl) {

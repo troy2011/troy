@@ -462,7 +462,9 @@ function renderWarehousePanel(guild) {
     }
 
     if (depositSelect) {
-        const options = buildDepositItemOptionsHtml(currentDepositInventory);
+        const options = currentDepositInventory === null
+            ? { html: '<option value="">所持品を確認できません。再読み込みしてください。</option>', hasItems: false }
+            : buildDepositItemOptionsHtml(currentDepositInventory);
         depositSelect.innerHTML = options.html;
         depositSelect.disabled = !options.hasItems;
     }
@@ -525,7 +527,7 @@ async function refreshWarehouse(playFabId, options = {}) {
             : Promise.resolve(null)
     ]);
     if (warehouseData) normalizeWarehousePayload(warehouseData);
-    if (Array.isArray(inventoryData?.inventory)) currentDepositInventory = inventoryData.inventory;
+    if (shouldLoadInventory) currentDepositInventory = Array.isArray(inventoryData?.inventory) ? inventoryData.inventory : null;
     renderWarehousePanel(currentGuild);
     return warehouseData;
 }
@@ -972,9 +974,14 @@ function renderInvitePanel(guild) {
     updateCrewCreatePreview();
 }
 
+let companionLoadSequence = 0;
 async function loadCompanionPage(playFabId) {
     if (!playFabId) return;
-    setMessage('');
+    const sequence = ++companionLoadSequence;
+    const generation = window.__troySessionGeneration;
+    const page = document.querySelector('.companion-page');
+    page?.classList.add('is-status-unavailable');
+    setMessage('読み込み中');
 
     const [statsData, guildData, boardData] = await Promise.all([
         getPlayerStats(playFabId, { isSilent: true }).catch(() => null),
@@ -982,6 +989,11 @@ async function loadCompanionPage(playFabId) {
         getCrewRecruitmentBoard(playFabId, { isSilent: true }).catch(() => null)
     ]);
 
+    if (sequence !== companionLoadSequence || generation !== window.__troySessionGeneration) return;
+    if (!statsData?.stats || typeof statsData.stats !== 'object' || Array.isArray(statsData.stats)) {
+        setMessage('状態を確認できません。再読み込みしてください。', true);
+        return;
+    }
     currentGuild = guildData?.guild || null;
     currentNationKey = resolveNationKey(statsData, currentGuild);
     currentIsKing = resolveKingFlag(statsData, currentGuild);
@@ -998,16 +1010,18 @@ async function loadCompanionPage(playFabId) {
             getGuildWarehouse(playFabId, currentGuild.guildId, { isSilent: true }).catch(() => null),
             fetchPlayerInventory(playFabId, { isSilent: true }).catch(() => null)
         ]);
+        if (sequence !== companionLoadSequence || generation !== window.__troySessionGeneration) return;
         members = Array.isArray(memberData?.members) ? memberData.members : [];
         warehouseData = fetchedWarehouse;
         inventoryData = fetchedInventory;
     }
     currentMembers = members;
     normalizeWarehousePayload(warehouseData || { warehouse: [], treasury: currentGuild?.treasury || 0 });
-    currentDepositInventory = Array.isArray(inventoryData?.inventory) ? inventoryData.inventory : [];
+    currentDepositInventory = Array.isArray(inventoryData?.inventory) ? inventoryData.inventory : null;
     currentApplications = [];
     if (currentGuild?.guildId && (currentGuild.isOwner || currentGuild.role === '船長')) {
         const applicationsData = await getGuildApplications(playFabId, currentGuild.guildId, { isSilent: true }).catch(() => null);
+        if (sequence !== companionLoadSequence || generation !== window.__troySessionGeneration) return;
         currentApplications = Array.isArray(applicationsData?.applications) ? applicationsData.applications : [];
     }
 
@@ -1023,6 +1037,8 @@ async function loadCompanionPage(playFabId) {
     renderApplications(currentApplications, currentGuild);
     renderRecruitmentBoard(currentRecruitmentPosts, currentGuild);
     switchCrewSection(activeCrewSection);
+    page?.classList.remove('is-status-unavailable');
+    setMessage('');
 }
 
 async function createCrew(playFabId) {

@@ -65,7 +65,7 @@ let pendingFixedInviteNation = '';
 let lineFriendPromoState = null;
 let dailyFortuneOpenPromise = null;
 let dailyFortuneClaimEventBound = false;
-const TAROT_MODULE_VERSION = '20261029-fortune-reveal-v2';
+const TAROT_MODULE_VERSION = '20261029-startup-v1';
 const TAROT_KINGDOM_RESCUE_VERSION = '20261022-startup-kingdom-v1';
 const DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY = 'troy:daily-fortune-claimed-day';
 const LIFF_CALLBACK_PARAM_KEYS = [
@@ -786,17 +786,20 @@ async function claimLineFriendBonus() {
     if (!accessToken) {
         throw new Error('LINEアクセストークンを取得できませんでした');
     }
+    const playFabId = myPlayFabId;
+    const balanceSession = Player.capturePlayerSession(playFabId);
     const result = await callApiWithLoader('/api/claim-line-friend-bonus', {
-        playFabId: myPlayFabId,
+        playFabId,
         lineAccessToken: accessToken
     }, { throwOnError: true });
+    if (!Player.isCurrentPlayerSession(balanceSession)) return;
     if (result?.claimedAt) {
         setStoredLineFriendClaimMarker(result.claimedAt);
     }
     if (Number.isFinite(result?.newBalance)) {
-        Player.syncPointsDisplay(result.newBalance);
+        Player.syncAuthenticatedPoints(playFabId, result.newBalance, balanceSession);
     } else {
-        await Player.getPoints(myPlayFabId);
+        if (Player.isCurrentPlayerSession(balanceSession)) await Player.getPoints(playFabId);
     }
     await refreshLineFriendPromo();
     showRpgMessage(`${result?.rewardAmount || 0}G を受け取りました。`, 2600);
@@ -917,6 +920,8 @@ function isCurrentPlayerProfileReady() {
 }
 
 function showLoginRecovery(isAuthenticationError = true) {
+    const name = document.getElementById('globalPlayerName');
+    if (name) name.textContent = '';
     document.body.classList.remove('tabs-ready');
     document.body.classList.add('app-booting');
     document.getElementById('appWrapper').style.display = 'none';
@@ -937,7 +942,35 @@ function showLoginRecovery(isAuthenticationError = true) {
     if (spinner) spinner.hidden = true;
 }
 
+window.capturePlayerSession = (playFabId) => Player.capturePlayerSession(playFabId);
+window.isPlayerSessionCurrent = (session) => Player.isCurrentPlayerSession(session);
+window.syncAuthenticatedPoints = (playFabId, points, session) => Player.syncAuthenticatedPoints(playFabId, points, session);
+
+function endProfileSession(uid) {
+    if (!uid || uid !== activeProfileUid) return;
+    clearCachedProfile(uid);
+    Player.clearPlayerSession(uid);
+    Inventory.clearInventorySession();
+    document.getElementById('dailyTarotFortuneOverlay')?.remove();
+    myPlayFabId = null;
+    window.myPlayFabId = null;
+    const name = document.getElementById('globalPlayerName');
+    if (name) name.textContent = '';
+    window.__troySessionGeneration = (window.__troySessionGeneration || 0) + 1;
+    activeProfileUid = null;
+    profileGeneration += 1;
+    profileReady = false;
+    hasCachedProfile = false;
+    window.__tkUid = null;
+    window.myAvatarBaseInfo = { Race: 'human', SkinColorIndex: 1, FacialHairStyleIndex: 1, Nation: 'fire' };
+    myAvatarBaseInfo = window.myAvatarBaseInfo;
+    showLoginRecovery();
+}
+
+window.addEventListener('troy:auth-expired', (event) => endProfileSession(event.detail?.uid));
+
 function watchProfileSession(uid) {
+    window.__troySessionGeneration = (window.__troySessionGeneration || 0) + 1;
     activeProfileUid = uid;
     profileGeneration += 1;
     profileReady = false;
@@ -945,13 +978,7 @@ function watchProfileSession(uid) {
     if (profileAuthUnsubscribe) profileAuthUnsubscribe();
     profileAuthUnsubscribe = onAuthStateChanged(auth, (user) => {
         if (user?.uid === activeProfileUid) return;
-        clearCachedProfile(activeProfileUid);
-        activeProfileUid = null;
-        profileGeneration += 1;
-        profileReady = false;
-        hasCachedProfile = false;
-        window.__tkUid = null;
-        showLoginRecovery();
+        endProfileSession(activeProfileUid);
     });
 }
 
@@ -1092,6 +1119,7 @@ async function submitHomeCoinConvert(playFabId = window.myPlayFabId) {
     button.disabled = true;
     button.textContent = '処理中';
     setHomeCoinConvertMessage('');
+    const balanceSession = Player.capturePlayerSession(playFabId);
 
     try {
         const result = await convertTroyGoldToCoin(
@@ -1100,11 +1128,9 @@ async function submitHomeCoinConvert(playFabId = window.myPlayFabId) {
             createRequestId('troy-customer-chip'),
             { throwOnError: true }
         );
+        if (!Player.isCurrentPlayerSession(balanceSession)) return;
         if (Number.isFinite(Number(result?.newBalance))) {
-            const currentPointsEl = document.getElementById('currentPoints');
-            if (currentPointsEl) currentPointsEl.innerText = String(Number(result.newBalance));
-            const globalPointsEl = document.getElementById('globalPoints');
-            if (globalPointsEl) globalPointsEl.innerText = String(Number(result.newBalance));
+            Player.syncAuthenticatedPoints(playFabId, Number(result.newBalance), balanceSession);
         }
         setHomeCoinConvertMessage(`${amount.toLocaleString('ja-JP')}Gをチップ化しました。スタッフからチップを受け取ってください。`, 'success');
         showTroyStaffChipConfirm({
@@ -1584,6 +1610,7 @@ async function initializeLiff() {
                 console.log("Firebase authenticated successfully. User UID:", user.uid);
                 window.__tkUid = user.uid;
                 watchProfileSession(user.uid);
+                Player.showCachedBalance(user.uid);
                 void refreshDailyFortuneStatus();
                 startHomeRescueSignalWatcher();
                 void refreshHomeExplorationButtonLabel(myPlayFabId);
@@ -1947,6 +1974,7 @@ async function initializeAppFeatures(options = {}) {
 
 function subscribeTransferNotifications(playFabId) {
     if (!firestore || !playFabId) return;
+    const balanceSession = Player.capturePlayerSession(playFabId);
     if (typeof transferNoticeUnsubscribe === 'function') {
         transferNoticeUnsubscribe();
         transferNoticeUnsubscribe = null;
@@ -1969,6 +1997,7 @@ function subscribeTransferNotifications(playFabId) {
             return;
         }
         snapshot.docChanges().forEach((change) => {
+            if (!Player.isCurrentPlayerSession(balanceSession)) return;
             if (change.type !== 'added') return;
             if (change.doc.id === lastTransferNoticeId) return;
             lastTransferNoticeId = change.doc.id;
@@ -1987,15 +2016,9 @@ function subscribeTransferNotifications(playFabId) {
                 const pointMessageEl = document.getElementById('pointMessage');
                 if (pointMessageEl) pointMessageEl.innerText = noticeMessage;
             }
-            if (Number.isFinite(Number(data.balanceAfter))) {
-                const nextBalance = Number(data.balanceAfter);
-                const globalPointsEl = document.getElementById('globalPoints');
-                if (globalPointsEl) globalPointsEl.innerText = nextBalance;
-                const currentPointsEl = document.getElementById('currentPoints');
-                if (currentPointsEl) currentPointsEl.innerText = nextBalance;
-            } else {
-                void Player.getPoints(playFabId);
-            }
+            // Notifications can arrive out of order and do not carry a balance version.
+            // Never apply their balanceAfter or automatically reissue a side-effectful read.
+            Player.invalidateBalance(balanceSession);
         });
     });
 }
@@ -2215,9 +2238,15 @@ async function updateAvatarBaseInfo() {
     const generation = profileGeneration;
     const isCurrentSession = () => uid && activeProfileUid === uid
         && profileGeneration === generation && auth.currentUser?.uid === uid;
-    const result = await callApiWithLoader('/api/player-bootstrap', {
-        playFabId: myPlayFabId
-    }, { isSilent: true });
+    let result;
+    try {
+        result = await callApiWithLoader('/api/player-bootstrap', {
+            playFabId: myPlayFabId
+        }, { isSilent: true, throwOnError: true });
+    } catch (error) {
+        if ((error?.status === 401 || error?.status === 403) && isCurrentSession()) endProfileSession(uid);
+        throw error;
+    }
     if (!isCurrentSession()) return;
     const playerData = result?.playerData || null;
     if (!playerData) {
@@ -2719,6 +2748,7 @@ async function showCreateShipModal(context) {
     }
     shipCreateContext = context || null;
     shipCreateBalances = await Ship.getShipResourceBalances(window.myPlayFabId);
+    if (!shipCreateBalances) { showRpgMessage('資源を確認できません。再読み込みしてください。'); return; }
     const selectEl = document.getElementById('shipTypeSelect');
     selectEl.innerHTML = ''; // 既存のオプションをクリア
 
@@ -2861,6 +2891,7 @@ async function legacyConfirmCreateShip_unused(playFabId) {
     if (confirmBtn) confirmBtn.disabled = true;
     try {
         shipCreateBalances = await Ship.getShipResourceBalances(playFabId);
+        if (!shipCreateBalances) { showRpgMessage('資源を確認できません。再読み込みしてください。'); return; }
         const selectedSpec = window.shipCatalog?.[shipItemId] || null;
         const resourceCosts = Ship.getShipBuildResourceCosts(selectedSpec);
         const shortages = Ship.getShipResourceShortages(resourceCosts, shipCreateBalances || {});
@@ -2932,6 +2963,7 @@ async function confirmCreateShip(playFabId) {
 
     try {
         shipCreateBalances = await Ship.getShipResourceBalances(playFabId);
+        if (!shipCreateBalances) { showRpgMessage('資源を確認できません。再読み込みしてください。'); return; }
         const selectedSpec = window.shipCatalog?.[shipItemId] || null;
         const resourceCosts = Ship.getShipBuildResourceCosts(selectedSpec);
         const shortages = Ship.getShipResourceShortages(resourceCosts, shipCreateBalances || {});

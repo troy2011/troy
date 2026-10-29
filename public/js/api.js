@@ -63,6 +63,8 @@ export async function callApiWithLoader(apiFunctionOrEndpoint, body, options = {
     const spinner = document.getElementById('loadingSpinner');
     if (spinner && !options.isSilent) spinner.style.display = 'flex';
 
+    const sessionUid = window.__tkUid;
+    const sessionGeneration = window.__troySessionGeneration;
     try {
         if (typeof apiFunctionOrEndpoint !== 'string') {
             throw new Error('Browser PlayFab API calls are not supported');
@@ -73,6 +75,12 @@ export async function callApiWithLoader(apiFunctionOrEndpoint, body, options = {
 
     } catch (error) {
         const endpointName = (typeof apiFunctionOrEndpoint === 'string') ? apiFunctionOrEndpoint : 'InvalidEndpoint';
+        const protectedReadDenied = error?.status === 403
+            && ['/api/player-bootstrap', '/api/get-inventory'].includes(endpointName);
+        if ((error?.status === 401 || protectedReadDenied) && sessionUid
+            && sessionUid === window.__tkUid && sessionGeneration === window.__troySessionGeneration) {
+            window.dispatchEvent(new CustomEvent('troy:auth-expired', { detail: { uid: sessionUid } }));
+        }
         console.error(`Error in callApiWithLoader for ${endpointName}:`, error);
         if (spinner) spinner.style.display = 'none';
 

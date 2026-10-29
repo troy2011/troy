@@ -1011,13 +1011,10 @@ async function submitTroyReservation(playFabId) {
     }
 }
 
-function updatePointsDisplays(points) {
-    const value = Number(points);
-    if (!Number.isFinite(value)) return;
-    const currentPointsEl = document.getElementById('currentPoints');
-    if (currentPointsEl) currentPointsEl.innerText = String(value);
-    const globalPointsEl = document.getElementById('globalPoints');
-    if (globalPointsEl) globalPointsEl.innerText = String(value);
+function updatePointsDisplays(points, playFabId, session) {
+    if (typeof window.syncAuthenticatedPoints === 'function') {
+        window.syncAuthenticatedPoints(playFabId, points, session);
+    }
 }
 
 function getTroyCoinConvertElements() {
@@ -1074,6 +1071,7 @@ async function submitTroyCoinConvert(playFabId = window.myPlayFabId) {
     button.disabled = true;
     button.textContent = '処理中';
     setTroyCoinConvertMessage('');
+    const balanceSession = window.capturePlayerSession?.(playFabId);
 
     try {
         const result = await convertTroyGoldToCoin(
@@ -1082,8 +1080,9 @@ async function submitTroyCoinConvert(playFabId = window.myPlayFabId) {
             createRequestId('troy-customer-chip'),
             { throwOnError: true }
         );
+        if (balanceSession && !window.isPlayerSessionCurrent?.(balanceSession)) return;
         if (Number.isFinite(Number(result?.newBalance))) {
-            updatePointsDisplays(Number(result.newBalance));
+            updatePointsDisplays(Number(result.newBalance), playFabId, balanceSession);
         }
         setTroyCoinConvertMessage(`${amount.toLocaleString('ja-JP')}Gをチップ化しました。スタッフからチップを受け取ってください。`, 'success');
         if (typeof window.showTroyStaffChipConfirm === 'function') {

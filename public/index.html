@@ -23,7 +23,39 @@
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
     <title>TROYゴールドアプリ</title>
-    <link rel="stylesheet" href="style.css?v=20261029-fortune-reveal-v2">
+    <script type="importmap">
+    {
+      "imports": {
+        "phaser": "./js/vendor/phaser.esm.js",
+        "geofire-common": "/vendor/geofire-common/index.esm.js",
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
+        "firebase/database": "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
+        "config": "./js/config.js",
+        "api": "./js/api.js?v=20261029-startup-v1",
+        "./js/api.js": "./js/api.js?v=20261029-startup-v1",
+        "./js/playfabClient.js?v=20260830-s1-auth-v1": "./js/playfabClient.js?v=20261029-startup-v1",
+        "./js/playfabClient.js": "./js/playfabClient.js?v=20261029-startup-v1",
+        "./js/island.js": "./js/island.js?v=20261029-startup-v1",
+        "./js/ship.js?v=20260828-exploration-retreat-v1": "./js/ship.js?v=20261029-startup-v1",
+        "./js/companions.js?v=20260604d": "./js/companions.js?v=20261029-startup-v1",
+        "./js/player.js": "./js/player.js?v=20261029-startup-v1",
+        "./js/playerProfile.js": "./js/playerProfile.js?v=20261003-profile-cache-v2",
+        "./js/playerBootstrapCache.js": "./js/playerBootstrapCache.js?v=20261003-profile-cache-v2",
+        "./js/troy.js": "./js/troy.js?v=20261029-startup-v1",
+        "ui": "./js/ui.js?v=20261029-startup-v1",
+        "./js/ui.js": "./js/ui.js?v=20261029-startup-v1",
+        "avatar": "./js/avatar.js",
+        "player": "./js/player.js?v=20261029-startup-v1",
+        "inventory": "./js/inventory.js?v=20261029-startup-v1",
+        "./js/inventory.js": "./js/inventory.js?v=20261029-startup-v1",
+        "game": "./Game.js?v=20260727-nav-guide1"
+      }
+    }
+    </script>
+    <script type="module" src="main.js?v=20261029-startup-v1"></script>
+    <link rel="stylesheet" href="style.css?v=20261029-startup-v1">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
     <link rel="stylesheet" href="tarot-kingdom-summons.css?v=20260827-summon-element-target-v1">
@@ -69,7 +101,7 @@
                             <span class="home-ps-lamp" aria-hidden="true"></span>
                             <div class="home-ps-icon">💰</div>
                             <div class="home-ps-meta">
-                                <div class="home-ps-value"><span class="home-ps-slit"><span id="currentPoints" class="home-ps-slit-value">—</span></span><span class="home-ps-unit">G</span></div>
+                                <div class="home-ps-value"><span class="home-ps-slit"><span id="currentPoints" class="home-ps-slit-value">—</span></span><span class="home-ps-unit">G</span><span id="homePointsStatus" class="home-points-status" hidden>前回</span></div>
                             </div>
                             <div class="home-specialty-row" aria-label="特産品の所有数">
                                 <span class="home-specialty-label">特産品</span>
@@ -1752,31 +1784,6 @@
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <!-- importmap を使用してFirebaseモジュールを定義 -->
-    <script type="importmap">
-    {
-      "imports": {
-        "phaser": "./js/vendor/phaser.esm.js",
-        "geofire-common": "/vendor/geofire-common/index.esm.js",
-        "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
-        "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
-        "firebase/database": "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js",
-        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
-        "config": "./js/config.js",
-        "api": "./js/api.js",
-        "./js/player.js": "./js/player.js?v=20261003-profile-cache-v2",
-        "./js/playerProfile.js": "./js/playerProfile.js?v=20261003-profile-cache-v2",
-        "./js/playerBootstrapCache.js": "./js/playerBootstrapCache.js?v=20261003-profile-cache-v2",
-        "./js/troy.js": "./js/troy.js?v=20261003-profile-cache-v2",
-        "ui": "./js/ui.js?v=20261025-pirate-delivery-v2",
-        "./js/ui.js": "./js/ui.js?v=20261025-pirate-delivery-v2",
-        "avatar": "./js/avatar.js",
-        "player": "./js/player.js?v=20261003-profile-cache-v2",
-        "inventory": "./js/inventory.js?v=20261025-pirate-delivery-v2",
-        "./js/inventory.js": "./js/inventory.js?v=20261025-pirate-delivery-v2",
-        "game": "./Game.js?v=20260727-nav-guide1"
-      }
-    }
-    </script>
 
     <!-- 船作成モーダル -->
     <div id="shipCreateModal" class="modal-overlay">
@@ -1814,6 +1821,6 @@
     </div>
 
     <!-- Scripts -->
-<script type="module" src="main.js?v=20261029-fortune-reveal-v2"></script>
+
 </body>
 </html>

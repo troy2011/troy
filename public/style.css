@@ -40297,3 +40297,13 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
         transform: none;
     }
 }
+
+.home-points-status {
+    margin-left: 6px;
+    font-size: 10px;
+    color: #e5d4a4;
+}
+
+.companion-page.is-status-unavailable > :not(.companion-page-header):not(#companionPageMessage) {
+    display: none;
+}

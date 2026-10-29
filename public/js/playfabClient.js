@@ -27,11 +27,14 @@ function getReadRequestKey(scope, ...parts) {
         .join(':');
 }
 
-function shareReadRequest(key, request) {
+function shareReadRequest(key, request, revision = null) {
     const inFlight = inFlightReadRequests.get(key);
-    if (inFlight) return inFlight;
+    if (inFlight) {
+        return revision !== null && inFlight.troyRevision !== revision ? Promise.resolve(null) : inFlight;
+    }
 
     const promise = Promise.resolve().then(request);
+    promise.troyRevision = revision;
     inFlightReadRequests.set(key, promise);
     void promise.then(
         () => {
@@ -72,10 +75,13 @@ async function fetchJson(endpoint, { method = 'GET', body = null } = {}) {
 }
 
 export function getPlayerStats(playFabId, options) {
+    const revision = window.__troyStatsRevision || 0;
+    const generation = window.__troySessionGeneration;
     return shareReadRequest(
-        getReadRequestKey('player-stats', playFabId),
-        () => callApiWithLoader('/api/get-stats', { playFabId }, options)
-    );
+        getReadRequestKey('player-stats', playFabId, generation),
+        () => callApiWithLoader('/api/get-stats', { playFabId }, options),
+        revision
+    ).then(data => generation === window.__troySessionGeneration && revision === (window.__troyStatsRevision || 0) ? data : null);
 }
 
 export function allocateStatPoints(playFabId, allocations, options) {
@@ -101,7 +107,8 @@ export function recoverDockedMp(playFabId, options) {
 export function getPoints(playFabId, options) {
     return getInventory(playFabId, options)
         .then((data) => {
-            const points = Number(data?.virtualCurrency?.PS || 0);
+            if (!data?.virtualCurrency || typeof data.virtualCurrency !== 'object' || Array.isArray(data.virtualCurrency)) return null;
+            const points = Number(data.virtualCurrency.PS ?? 0);
             return { points, virtualCurrency: data?.virtualCurrency || {} };
         });
 }
@@ -138,15 +145,18 @@ export function kingUpdateStoreGameScore(playFabId, targetPlayFabId, gameType, s
 }
 
 export function getInventory(playFabId, options) {
+    const revision = window.__troyBalanceRevision || 0;
+    const generation = window.__troySessionGeneration;
     return shareReadRequest(
-        getReadRequestKey('inventory', playFabId),
-        () => callApiWithLoader('/api/get-inventory', { playFabId }, options)
-    );
+        getReadRequestKey('inventory', playFabId, generation),
+        () => callApiWithLoader('/api/get-inventory', { playFabId }, options),
+        revision
+    ).then(data => generation === window.__troySessionGeneration && revision === (window.__troyBalanceRevision || 0) ? data : null);
 }
 
 export function getEquipment(playFabId, options) {
     return shareReadRequest(
-        getReadRequestKey('equipment', playFabId),
+        getReadRequestKey('equipment', playFabId, window.__troySessionGeneration),
         () => callApiWithLoader('/api/get-equipment', { playFabId }, options)
     );
 }

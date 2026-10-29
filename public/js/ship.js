@@ -287,9 +287,10 @@ export function getShipRepairResourceCosts(tier = 'small') {
 }
 
 export async function getShipResourceBalances(playFabId) {
-    if (!playFabId) return {};
+    if (!playFabId) return null;
     const data = await fetchInventory(playFabId, { isSilent: true });
-    return data?.virtualCurrency || {};
+    const balances = data?.virtualCurrency;
+    return balances && typeof balances === 'object' && !Array.isArray(balances) ? balances : null;
 }
 
 export async function getShipResourceStorage(playFabId, forceRefresh = false) {
@@ -641,7 +642,9 @@ export function calculateCurrentPosition(movement, staticPosition) {
 
 export async function createShip(playFabId, shipItemId, context) {
     const shipSpec = window?.shipCatalog?.[shipItemId] || null;
-    const balances = context?.resourceBalances || await getShipResourceBalances(playFabId);
+    const balances = context && Object.prototype.hasOwnProperty.call(context, 'resourceBalances')
+        ? context.resourceBalances : await getShipResourceBalances(playFabId);
+    if (!balances) { showRpgMessage('資源を確認できません。再読み込みしてください。'); return null; }
     const costs = getShipBuildResourceCosts(shipSpec, context?.nationKey || getCurrentPlayerNationKey());
     const confirmed = await showShipSpendConfirmation({
         title: `${shipSpec?.DisplayName || '船'}を建造`,
@@ -756,6 +759,7 @@ export async function legacyUpgradeShip_unused(playFabId, shipId) {
     const nextLevel = currentLevel + 1;
     const costs = getShipUpgradeResourceCosts(catalogItem || assetData, nextLevel, getCurrentPlayerNationKey());
     const balances = await getShipResourceBalances(playFabId);
+    if (!balances) { showRpgMessage('資源を確認できません。再読み込みしてください。'); return null; }
     const confirmed = await showShipSpendConfirmation({
         title: `Lv${nextLevel}へ強化`,
         subtitle: '必要資源を消費して船を強化します。',
@@ -810,6 +814,7 @@ export async function upgradeShip(playFabId, shipId) {
     const nextLevel = currentLevel + 1;
     const costs = getShipUpgradeResourceCosts(catalogItem || assetData, nextLevel, getCurrentPlayerNationKey());
     const balances = await getShipResourceBalances(playFabId);
+    if (!balances) { showRpgMessage('資源を確認できません。再読み込みしてください。'); return null; }
     const confirmed = await showShipSpendConfirmation({
         title: `Lv${nextLevel}へ強化`,
         subtitle: '必要資源を消費して船を強化します。',

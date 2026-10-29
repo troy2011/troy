@@ -332,6 +332,11 @@ async function confirmFixedResourceSpend({ title, message, costs, confirmLabel =
         balances = null;
     }
 
+    if (!balances || typeof balances !== 'object' || Array.isArray(balances)) {
+        showRpgMessage('資源を確認できません。再読み込みしてください。');
+        return false;
+    }
+
     return new Promise((resolve) => {
         const overlay = document.createElement('div');
         overlay.style.position = 'fixed';
@@ -1452,7 +1457,11 @@ async function loadBuildingList(category, island) {
             fetchBuildingsForCategory(category, island.size),
             playFabId ? fetchInventory(playFabId, { isSilent: true }) : Promise.resolve(null)
         ]);
-        const balances = inventoryResult?.virtualCurrency || {};
+        const balances = inventoryResult?.virtualCurrency;
+        if (!balances || typeof balances !== 'object' || Array.isArray(balances)) {
+            listContainer.innerHTML = '<div class="error">資源を確認できません。再読み込みしてください。</div>';
+            return;
+        }
         const hasBuilding = (island.buildings || []).some(b => b && b.status !== 'demolished');
 
         listContainer.innerHTML = buildings.map(building => `
@@ -1566,6 +1575,11 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
             fetchInventory(playFabId, { isSilent: true }),
             fetchEquipment(playFabId, { isSilent: true }).catch(() => ({ equipment: {} }))
         ]);
+        if (!Array.isArray(inventoryResult?.inventory)) {
+            sellList.innerHTML = '<div>所持品を確認できません。再読み込みしてください。</div>';
+            buyList.innerHTML = '<div>所持品を確認できません。再読み込みしてください。</div>';
+            return;
+        }
         const pricing = shopState?.pricing || { buyMultiplier: 0.7, sellMultiplier: 1.2, itemPrices: {} };
         const itemPrices = pricing.itemPrices || {};
         const buyInput = sheet.querySelector('#shopBuyMultiplier');

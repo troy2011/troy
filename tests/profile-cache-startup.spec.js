@@ -203,7 +203,7 @@ for (const nextUid of [null, 'FAKE_OTHER_USER']) {
         // Flush the fetch continuation without wall-clock sleeps.
         await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         expect(await page.evaluate((key) => localStorage.getItem(key), PREFIX + UID)).toBeNull();
-        expect(await page.evaluate(() => window.myAvatarBaseInfo.Race)).toBe('elf');
+        expect(await page.evaluate(() => window.myAvatarBaseInfo.Race)).toBe('human');
         await expectNoPageErrors(errors);
     });
 }
@@ -217,7 +217,8 @@ test('missing token with a different Firebase session preserves the existing aut
         return route.fulfill({ json: { playFabId: UID, playerData: fresh } });
     });
     await page.goto('/');
-    await expect(page.locator('#globalPlayerName')).toHaveText('認証エラー');
+    await expect(page.locator('#profileSessionNotice')).toBeVisible();
+    await expect(page.locator('#globalPlayerName')).toHaveText('');
     expect(bootstrapCalls).toBe(0);
     expect(await page.evaluate(() => window.myAvatarBaseInfo.Race)).toBe('human');
     await expect(page.locator('#bottomNav')).toBeHidden();

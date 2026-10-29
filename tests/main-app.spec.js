@@ -446,7 +446,7 @@ test('daily tarot fortune adds richer presentation after major arcana reveal', a
   await bootstrapMainApp(page);
   await page.evaluate(async () => {
     const Tarot = await import('/js/tarotPoker.js');
-    await Tarot.showDailyFortunePromptOnLogin('PF_PLAYWRIGHT_MAJOR');
+    await Tarot.showDailyFortunePromptOnLogin('PF_PLAYWRIGHT');
   });
 
   const modal = page.locator('#dailyTarotFortuneModal');
