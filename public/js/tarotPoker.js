@@ -790,9 +790,10 @@ async function revealDailyFortuneCardElement(cardEl, card, options = {}) {
     cardEl.classList.add('is-revealing');
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const generation = dailyFortuneOverlayGeneration;
-    const isStillOpen = () => cardEl.isConnected
+    const ownsOverlay = () => cardEl.isConnected
         && generation === dailyFortuneOverlayGeneration
         && cardEl.closest('.tarot-fortune-overlay')?.style.display === 'flex';
+    const isStillOpen = () => ownsOverlay() && (!options.isCurrentSession || options.isCurrentSession());
     let showedFront = false;
     const showFront = () => {
         if (showedFront) return;
@@ -803,6 +804,7 @@ async function revealDailyFortuneCardElement(cardEl, card, options = {}) {
         if (options.reversed) cardEl.classList.add('is-reversed');
         renderDailyTarotArtwork(card, cardEl, { reversed: options.reversed, label: options.artworkLabel });
     };
+    if (!isStillOpen()) return;
     if (!reducedMotion && !document.hidden) {
         // The weather level only picks the effect strength; the card was decided by the server.
         const outcome = await playDailyFortuneGrandReveal({
@@ -812,6 +814,7 @@ async function revealDailyFortuneCardElement(cardEl, card, options = {}) {
             level: options.weatherLevel,
             wait: waitDailyFortunePresentation,
             isStillOpen,
+            ownsOverlay,
             flipToFront: showFront
         });
         if (outcome.aborted || !isStillOpen()) return;
@@ -5293,6 +5296,10 @@ function renderDailyFortuneResult(result, options = {}) {
     const card = getCardDataFromFortuneResult(result);
     const isReversed = String(result?.orientation || '') === 'reversed';
     const weatherLevel = getDailyFortuneWeatherStatus(result).level;
+    const playerId = String(window.myPlayFabId || '');
+    const session = window.capturePlayerSession?.(playerId);
+    const isCurrentSession = () => !!playerId && playerId === String(window.myPlayFabId || '')
+        && !!session && window.isPlayerSessionCurrent?.(session) === true;
     const finalizeReveal = () => {
         titleEl.textContent = '本日の運勢';
         const modal = document.getElementById(DAILY_FORTUNE_MODAL_ID);
@@ -5326,11 +5333,12 @@ function renderDailyFortuneResult(result, options = {}) {
             hidden: true, clickable: true, reversed: isReversed,
             artworkLabel: result?.cardName || getCardDisplayName(card),
             onSelect: async (chosen) => {
-                if (selected) return;
+                if (selected || !isCurrentSession()) return;
                 selected = true;
                 const generation = dailyFortuneOverlayGeneration;
                 const isStillOpen = () => chosen.isConnected && generation === dailyFortuneOverlayGeneration
-                    && chosen.closest('.tarot-fortune-overlay')?.style.display === 'flex';
+                    && chosen.closest('.tarot-fortune-overlay')?.style.display === 'flex'
+                    && isCurrentSession();
                 const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
                 cardHost.querySelectorAll('.tarot-fortune-card-shell').forEach((other) => {
                     other.disabled = true;
@@ -5364,7 +5372,7 @@ function renderDailyFortuneResult(result, options = {}) {
                     if (!isStillOpen()) return;
                 }
                 void playDailyFortuneRevealPresentation(chosen, card, {
-                    reversed: isReversed, artworkLabel: result?.cardName || getCardDisplayName(card), weatherLevel,
+                    reversed: isReversed, artworkLabel: result?.cardName || getCardDisplayName(card), weatherLevel, isCurrentSession,
                     onReveal: () => {
                         const stage = cardHost.closest('.tarot-fortune-stage');
                         stage?.classList.remove('has-choice');

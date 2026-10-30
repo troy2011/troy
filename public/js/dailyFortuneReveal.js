@@ -40,9 +40,10 @@ function rgba([r, g, b], alpha) {
 }
 
 class FortuneFxCanvas {
-    constructor(canvas) {
+    constructor(canvas, onError) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
+        this.onError = onError;
         this.particles = [];
         this.emitters = [];
         this.running = false;
@@ -83,11 +84,12 @@ class FortuneFxCanvas {
         cancelAnimationFrame(this.frame);
         this.particles = [];
         this.emitters = [];
-        this.ctx?.clearRect(0, 0, this.width || 0, this.height || 0);
+        try { this.ctx?.clearRect(0, 0, this.width || 0, this.height || 0); } catch { /* A failed canvas must not block cleanup. */ }
     }
 
     tick(now) {
         if (!this.running) return;
+        try {
         const dt = Math.min(48, now - this.last) / 1000;
         this.last = now;
         // Shed particles on devices that cannot hold the frame rate.
@@ -110,6 +112,9 @@ class FortuneFxCanvas {
         });
         ctx.globalCompositeOperation = 'source-over';
         this.frame = requestAnimationFrame(this.tick);
+        } catch (error) {
+            this.onError(error);
+        }
     }
 }
 
@@ -242,34 +247,44 @@ export async function playDailyFortuneGrandReveal({
     level,
     wait,
     isStillOpen,
+    ownsOverlay = isStillOpen,
     flipToFront,
     random = Math.random
 }) {
     const tier = getDailyFortuneRevealTier(level);
     const stages = buildStagePlan(tier, random);
-    const fx = createFxDom(host, tier);
-    const engine = new FortuneFxCanvas(fx.querySelector('.tarot-fortune-fx-canvas'));
+    let fx;
+    let engine;
     let cleaned = false;
     let lingerTimer = 0;
+    let resolveFailure;
+    const failure = new Promise((resolve) => { resolveFailure = resolve; });
     const cleanup = () => {
         if (cleaned) return;
         cleaned = true;
         clearTimeout(lingerTimer);
         document.removeEventListener('visibilitychange', onVisibilityChange);
-        engine.stop();
-        fx.remove();
-        overlay?.classList.remove('is-fortune-charging');
-        cardEl.classList.remove('is-fortune-trembling', 'is-fortune-hovering');
+        engine?.stop();
+        fx?.remove();
+        if (ownsOverlay()) overlay?.classList.remove('is-fortune-charging');
+        cardEl.classList.remove('is-fortune-trembling', 'is-fortune-hovering', 'is-flip-out', 'is-flip-in');
     };
     const onVisibilityChange = () => { if (document.hidden) cleanup(); };
     document.addEventListener('visibilitychange', onVisibilityChange);
     const proceed = () => !cleaned && !document.hidden && isStillOpen();
     const finishQuietly = () => {
         cleanup();
-        flipToFront();
-        return { aborted: !isStillOpen(), tier };
+        const open = isStillOpen();
+        if (open) flipToFront();
+        return { aborted: !open, tier };
     };
-
+    const waitForStage = (ms) => Promise.race([wait(ms), failure]);
+    try {
+    fx = createFxDom(host, tier);
+    engine = new FortuneFxCanvas(fx.querySelector('.tarot-fortune-fx-canvas'), () => {
+        cleanup();
+        resolveFailure();
+    });
     engine.resize();
     engine.start();
     const center = () => {
@@ -391,7 +406,7 @@ export async function playDailyFortuneGrandReveal({
     overlay?.classList.add('is-fortune-charging');
     cardEl.classList.add('is-fortune-hovering');
     fx.classList.add('is-charging');
-    await wait(900);
+    await waitForStage(900);
     if (!proceed()) return finishQuietly();
 
     // 2. Promotion: each step cracks the ring into a brighter color.
@@ -400,7 +415,7 @@ export async function playDailyFortuneGrandReveal({
         restartClass(fx, 'is-promoting');
         burst(18, { speed: 120, gravity: 0, life: 0.6, star: 0.5 });
         ring({ from: 0.5, to: 1.2, width: 3, life: 0.45, alpha: 0.7 });
-        await wait(next === 'legend' ? 360 : 440);
+        await waitForStage(next === 'legend' ? 360 : 440);
         if (!proceed()) return finishQuietly();
     }
 
@@ -408,11 +423,11 @@ export async function playDailyFortuneGrandReveal({
     if (tier === 'legend') {
         fx.classList.add('is-omen');
         cardEl.classList.add('is-fortune-trembling');
-        await wait(760);
+        await waitForStage(760);
         if (!proceed()) return finishQuietly();
         cardEl.classList.remove('is-fortune-trembling');
     } else {
-        await wait(380);
+        await waitForStage(380);
         if (!proceed()) return finishQuietly();
     }
 
@@ -422,7 +437,7 @@ export async function playDailyFortuneGrandReveal({
     fx.classList.add('is-imploding');
     cardEl.classList.remove('is-fortune-hovering');
     cardEl.classList.add('is-flip-out');
-    await wait(240);
+    await waitForStage(240);
     if (!proceed()) return finishQuietly();
     flipToFront();
     cardEl.classList.remove('is-flip-out');
@@ -451,7 +466,7 @@ export async function playDailyFortuneGrandReveal({
         confetti(46);
         fx.classList.add('is-jackpot');
     }
-    await wait(340);
+    await waitForStage(340);
     if (!proceed()) return finishQuietly();
     cardEl.classList.remove('is-flip-in');
     overlay?.classList.remove('is-fortune-charging');
@@ -459,6 +474,9 @@ export async function playDailyFortuneGrandReveal({
     // Particles finish on their own beside the result; the reading never waits for them.
     lingerTimer = setTimeout(cleanup, tier === 'legend' ? 2800 : 1800);
     return { aborted: false, tier, cleanup };
+    } catch {
+        return finishQuietly();
+    }
 }
 
 export const __test = { buildStagePlan, getDailyFortuneRevealTier };

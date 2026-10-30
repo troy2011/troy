@@ -23,11 +23,16 @@ test('the published worker loads one updated module generation on restart', asyn
         if (url.pathname === '/sw.js') return send(oldSw);
         if (url.pathname === '/' || url.pathname === '/index.html') {
             const map = updated ? newMap : oldMap;
-            const js = `import * as Player from 'player'; import * as Api from 'api'; import * as Inventory from 'inventory'; import * as Ui from 'ui'; import * as Relative from './js/consumer.js'; import * as LegacyClient from './js/playfabClient.js?v=20260830-s1-auth-v1'; import * as Client from './js/playfabClient.js?v=20261029-startup-v1'; import * as Ship from './js/ship.js?v=20260828-exploration-retreat-v1'; import * as Island from './js/island.js'; import * as Companions from './js/companions.js?v=20260604d'; window.fixture = { player: Player.version, api: Api.version, inventory: Inventory.version, ui: Ui.version, same: Player === Relative.Player && Api === Relative.Api && Inventory === Relative.Inventory && Ui === Relative.Ui, sameClient: LegacyClient === Client, ship: Ship.version, island: Island.version, companions: Companions.version }; await navigator.serviceWorker.register('/sw.js');`;
-            return send(`<!doctype html><script type="importmap">${map}</script><script type="module">${js}</script>`, 'text/html');
+            const js = `import * as Player from 'player'; import * as Api from 'api'; import * as Inventory from 'inventory'; import * as Ui from 'ui'; import * as Profile from './js/playerProfile.js'; import * as Relative from './js/consumer.js'; import * as LegacyClient from './js/playfabClient.js?v=20260830-s1-auth-v1'; import * as Client from './js/playfabClient.js?v=20261029-startup-v1'; import * as Ship from './js/ship.js?v=20260828-exploration-retreat-v1'; import * as Island from './js/island.js'; import * as Companions from './js/companions.js?v=20260604d'; window.fixture = { player: Player.version, api: Api.version, inventory: Inventory.version, ui: Ui.version, profile: Profile.version, same: Player === Relative.Player && Api === Relative.Api && Inventory === Relative.Inventory && Ui === Relative.Ui && Profile === Relative.Profile, sameClient: LegacyClient === Client, ship: Ship.version, island: Island.version, companions: Companions.version }; await navigator.serviceWorker.register('/sw.js');`;
+            const cssVersion = updated ? '20261030-home-layout-v1' : '20261003-profile-cache-v1';
+            return send(`<!doctype html><link rel="stylesheet" href="/css/home-v3.css?v=${cssVersion}"><script type="importmap">${map}</script><script type="module">${js}</script>`, 'text/html');
         }
-        if (url.pathname === '/js/consumer.js') return send("import * as Player from './player.js'; import * as Api from './api.js'; import * as Inventory from './inventory.js'; import * as Ui from './ui.js'; export { Player, Api, Inventory, Ui };");
-        if (['/js/player.js', '/js/api.js', '/js/inventory.js', '/js/ui.js', '/js/playfabClient.js', '/js/ship.js', '/js/island.js', '/js/companions.js'].includes(url.pathname)) return send(`export const version = '${url.search.includes(url.pathname === '/js/ui.js' ? '20261030-fortune-gacha-v1' : '20261029-startup-v1') ? 'new' : 'old'}';`);
+        if (url.pathname === '/js/consumer.js') return send("import * as Player from './player.js'; import * as Api from './api.js'; import * as Inventory from './inventory.js'; import * as Ui from './ui.js'; import * as Profile from './playerProfile.js'; export { Player, Api, Inventory, Ui, Profile };");
+        if (['/js/player.js', '/js/api.js', '/js/inventory.js', '/js/ui.js', '/js/playerProfile.js', '/js/playfabClient.js', '/js/ship.js', '/js/island.js', '/js/companions.js'].includes(url.pathname)) {
+            const version = url.pathname === '/js/ui.js' ? '20261030-fortune-gacha-v1' : url.pathname === '/js/playerProfile.js' ? '20261030-home-layout-v1' : '20261029-startup-v1';
+            return send(`export const version = '${url.search.includes(version) ? 'new' : 'old'}';`);
+        }
+        if (url.pathname === '/css/home-v3.css') return send(`:root { --home-layout-generation: ${url.search.includes('20261030-home-layout-v1') ? 'new' : 'old'}; }`, 'text/css');
         if (url.pathname === '/style.css') return send('', 'text/css');
         if (url.pathname === '/main.js') return send('');
         if (url.pathname === '/manifest.webmanifest') return send('{}', 'application/manifest+json');
@@ -49,13 +54,18 @@ test('the published worker loads one updated module generation on restart', asyn
         });
         await page.reload();
         await expect.poll(() => page.evaluate(() => window.fixture?.player)).toBe('old');
+        expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--home-layout-generation').trim())).toBe('old');
         updated = true;
         await page.goto(origin + '/index.html?updated=1');
-        await expect.poll(() => page.evaluate(() => window.fixture || null)).toEqual({ player: 'new', api: 'new', inventory: 'new', ui: 'new', same: true, sameClient: true, ship: 'new', island: 'new', companions: 'new' });
+        await expect.poll(() => page.evaluate(() => window.fixture || null)).toEqual({ player: 'new', api: 'new', inventory: 'new', ui: 'new', profile: 'new', same: true, sameClient: true, ship: 'new', island: 'new', companions: 'new' });
+        await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--home-layout-generation').trim())).toBe('new');
         for (const asset of ['/js/player.js', '/js/api.js', '/js/inventory.js', '/js/ship.js', '/js/island.js', '/js/companions.js']) {
             expect(requests.some(request => request.updated && request.path === asset && request.query.includes('20261029-startup-v1'))).toBe(true);
         }
         expect(requests.some(request => request.updated && request.path === '/js/ui.js' && request.query.includes('20261030-fortune-gacha-v1'))).toBe(true);
+        for (const asset of ['/js/playerProfile.js', '/css/home-v3.css']) {
+            expect(requests.some(request => request.updated && request.path === asset && request.query.includes('20261030-home-layout-v1'))).toBe(true);
+        }
         const ui = fs.readFileSync(path.join(root, 'public/js/ui.js'), 'utf8');
         const main = fs.readFileSync(path.join(root, 'public/main.js'), 'utf8');
         expect(ui).toContain("const TAROT_MODULE_VERSION = '20261030-fortune-gacha-v1'");

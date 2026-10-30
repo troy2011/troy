@@ -1295,6 +1295,14 @@ export async function openPlayerProfile(targetPlayFabId, options = {}) {
 export function renderHomePetCompanion(currentPet = null) {
     const target = document.getElementById('homePetCompanion');
     const hasPet = renderPixelMonsterCompanion(target, currentPet);
+    const sprite = target?.querySelector('.pixel-monster-companion-sprite');
+    const width = Number.parseFloat(sprite?.style.width);
+    const height = Number.parseFloat(sprite?.style.height);
+    if (hasPet && width > 0 && height > 0) {
+        target.style.setProperty('--home-pet-fit-scale', String(Math.min(1.35, 70 / width, 70 / height)));
+    } else {
+        target?.style.removeProperty('--home-pet-fit-scale');
+    }
     document.getElementById('homeShipStage')?.classList.toggle('has-pet-companion', hasPet);
     return hasPet;
 }

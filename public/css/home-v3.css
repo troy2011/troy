@@ -201,6 +201,15 @@ body.home-v3 #tabContentHome .home-ship-bob {
     animation: none;
 }
 
+@media (min-width: 641px) and (max-height: 500px) {
+    body.home-v3 #tabContentHome .home-ship-bob {
+        height: 211px;
+        aspect-ratio: auto;
+        background-position: center 25%;
+    }
+
+}
+
 body.home-v3 #tabContentHome .home-king-button {
     position: absolute;
     top: 12px;
@@ -270,12 +279,24 @@ body.home-v3 #tabContentHome .home-pet-companion {
     transform: none;
 }
 
+@media (min-width: 641px) and (max-height: 500px) {
+    body.home-v3 #tabContentHome .home-ship-avatar,
+    body.home-v3 #tabContentHome .home-ship-stage.has-pet-companion .home-ship-avatar,
+    body.home-v3 #tabContentHome .home-ship-avatar[data-sea-tone] {
+        bottom: 52.5%;
+    }
+
+    body.home-v3 #tabContentHome .home-pet-companion {
+        bottom: 47.5%;
+    }
+}
+
 body.home-v3 #tabContentHome .home-player-ship-frame,
 body.home-v3 #tabContentHome .home-player-ship-frame.is-exploring {
     position: absolute;
     top: auto;
     right: auto;
-    bottom: 18%;
+    bottom: 57%;
     left: 8%;
     z-index: 4;
     width: 24%;
@@ -286,6 +307,13 @@ body.home-v3 #tabContentHome .home-player-ship-frame.is-exploring {
     border-image: none;
     background: none;
     box-shadow: none;
+}
+
+@media (min-width: 641px) and (max-height: 500px) {
+    body.home-v3 #tabContentHome .home-player-ship-frame,
+    body.home-v3 #tabContentHome .home-player-ship-frame.is-exploring {
+        bottom: 46%;
+    }
 }
 
 body.home-v3 #tabContentHome .home-player-ship-head,
@@ -595,8 +623,8 @@ body.home-v3 #bottomNav .nav-button span:last-child {
 
     body.home-v3 #tabContentHome .home-player-ship-frame,
     body.home-v3 #tabContentHome .home-player-ship-frame.is-exploring {
-        bottom: 34%;
-        left: 17%;
+        bottom: 61%;
+        left: 10%;
         min-height: 74px;
     }
 
@@ -627,20 +655,21 @@ body.home-v3 #bottomNav .nav-button span:last-child {
     }
 
     body.home-v3 #tabContentHome .home-player-ship-icon {
-        transform: scale(1.4);
+        transform: scale(1);
     }
 
     body.home-v3 #tabContentHome .home-ship-avatar,
     body.home-v3 #tabContentHome .home-ship-stage.has-pet-companion .home-ship-avatar,
     body.home-v3 #tabContentHome .home-ship-avatar[data-sea-tone] {
-        bottom: 46%;
+        bottom: 23%;
+        left: 50%;
         transform: translateX(-50%) scale(1.68);
     }
 
     body.home-v3 #tabContentHome .home-pet-companion {
-        --pixel-monster-context-scale: 1.5;
-        right: 14%;
-        bottom: 15%;
+        --pixel-monster-context-scale: var(--home-pet-fit-scale, 1.35);
+        right: 2%;
+        bottom: 16%;
     }
 
     body.home-v3 #tabContentHome .home-exp-card {
