@@ -668,7 +668,7 @@ body.home-v3 #bottomNav .nav-button span:last-child {
 
     body.home-v3 #tabContentHome .home-pet-companion {
         --pixel-monster-context-scale: var(--home-pet-fit-scale, 1.35);
-        right: 2%;
+        right: clamp(3%, calc(15vw - 39px), 6%);
         bottom: 16%;
     }
 
