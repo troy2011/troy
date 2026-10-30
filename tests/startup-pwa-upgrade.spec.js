@@ -27,7 +27,7 @@ test('the published worker loads one updated module generation on restart', asyn
             return send(`<!doctype html><script type="importmap">${map}</script><script type="module">${js}</script>`, 'text/html');
         }
         if (url.pathname === '/js/consumer.js') return send("import * as Player from './player.js'; import * as Api from './api.js'; import * as Inventory from './inventory.js'; import * as Ui from './ui.js'; export { Player, Api, Inventory, Ui };");
-        if (['/js/player.js', '/js/api.js', '/js/inventory.js', '/js/ui.js', '/js/playfabClient.js', '/js/ship.js', '/js/island.js', '/js/companions.js'].includes(url.pathname)) return send(`export const version = '${url.search.includes('20261029-startup-v1') ? 'new' : 'old'}';`);
+        if (['/js/player.js', '/js/api.js', '/js/inventory.js', '/js/ui.js', '/js/playfabClient.js', '/js/ship.js', '/js/island.js', '/js/companions.js'].includes(url.pathname)) return send(`export const version = '${url.search.includes(url.pathname === '/js/ui.js' ? '20261030-fortune-gacha-v1' : '20261029-startup-v1') ? 'new' : 'old'}';`);
         if (url.pathname === '/style.css') return send('', 'text/css');
         if (url.pathname === '/main.js') return send('');
         if (url.pathname === '/manifest.webmanifest') return send('{}', 'application/manifest+json');
@@ -52,13 +52,14 @@ test('the published worker loads one updated module generation on restart', asyn
         updated = true;
         await page.goto(origin + '/index.html?updated=1');
         await expect.poll(() => page.evaluate(() => window.fixture || null)).toEqual({ player: 'new', api: 'new', inventory: 'new', ui: 'new', same: true, sameClient: true, ship: 'new', island: 'new', companions: 'new' });
-        for (const asset of ['/js/player.js', '/js/api.js', '/js/inventory.js', '/js/ui.js', '/js/ship.js', '/js/island.js', '/js/companions.js']) {
+        for (const asset of ['/js/player.js', '/js/api.js', '/js/inventory.js', '/js/ship.js', '/js/island.js', '/js/companions.js']) {
             expect(requests.some(request => request.updated && request.path === asset && request.query.includes('20261029-startup-v1'))).toBe(true);
         }
+        expect(requests.some(request => request.updated && request.path === '/js/ui.js' && request.query.includes('20261030-fortune-gacha-v1'))).toBe(true);
         const ui = fs.readFileSync(path.join(root, 'public/js/ui.js'), 'utf8');
         const main = fs.readFileSync(path.join(root, 'public/main.js'), 'utf8');
-        expect(ui).toContain("const TAROT_MODULE_VERSION = '20261029-startup-v1'");
-        expect(main).toContain("const TAROT_MODULE_VERSION = '20261029-startup-v1'");
+        expect(ui).toContain("const TAROT_MODULE_VERSION = '20261030-fortune-gacha-v1'");
+        expect(main).toContain("const TAROT_MODULE_VERSION = '20261030-fortune-gacha-v1'");
         expect(errors).toEqual([]);
     } finally {
         await context.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve));

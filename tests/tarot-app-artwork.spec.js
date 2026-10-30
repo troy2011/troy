@@ -161,6 +161,7 @@ test('failed daily artwork retains the original reversed sprite, advice and rewa
     await bootstrapMainApp(page);
     await page.locator('#btnDailyFortune').click();
     await page.locator('#dailyTarotFortuneCardHost button').first().click();
+    await expect(page.locator('#dailyTarotFortuneText')).toContainText(result.strikeLine, { timeout: 10000 });
     await expect(page.locator('#dailyTarotFortuneCardHost img')).toBeHidden();
     await expect(page.locator('#dailyTarotFortuneCardHost button')).toHaveClass(/is-reversed/);
     await expect(page.locator('#dailyTarotFortuneCardHost button')).not.toHaveClass(/has-pirate-artwork/);
@@ -252,8 +253,9 @@ test('missing adopted back retains the existing back sprite and still reveals th
 });
 
 
-test('daily reveal uses smooth light and flip, then keeps the full reading', async ({ page }) => {
+test('daily reveal charges light by wind tier, flips, then keeps the full reading', async ({ page }) => {
     await isolate(page);
+    // Sword 3 upright is wind 2, so the quiet moon tier runs without a color promotion.
     const result = dailyResult();
     const draws = await installFortune(page, result);
     await page.setViewportSize({ width: 320, height: 720 });
@@ -262,21 +264,30 @@ test('daily reveal uses smooth light and flip, then keeps the full reading', asy
     await expect(page.locator('#dailyTarotFortuneSub')).toHaveText('カードを1枚選ぶ');
     await expect(page.locator('.tarot-fortune-reading')).toBeHidden();
     await page.clock.install();
+    // Pause so each checkpoint below lands inside its phase regardless of real test speed.
+    await page.clock.pauseAt(Date.now() + 1000);
     const card = page.locator('#dailyTarotFortuneCardHost button').first();
     await card.click();
+    await expect(card).toHaveClass(/is-selected/);
+    await page.clock.runFor(800);
     await expect(card).toHaveClass(/is-revealing/);
     await expect(card.locator('.tarot-card-art')).toBeHidden();
     await expect(card.locator('[data-artwork-side="back"]')).toBeVisible();
-    const lights = await card.evaluate((el) => [getComputedStyle(el, '::before').backgroundImage, getComputedStyle(el, '::after').backgroundImage]);
-    expect(lights.every((background) => background.includes('radial-gradient') && !background.includes('url('))).toBe(true);
-    await page.clock.runFor(180);
+    await expect(page.locator('#dailyTarotFortuneCardHost button')).toHaveCount(1);
+    await expect(page.locator('.tarot-fortune-fx')).toHaveAttribute('data-tier', 'moon');
+    await expect(page.locator('#dailyTarotFortuneOverlay')).toHaveClass(/is-fortune-charging/);
+    await expect(page.locator('.tarot-fortune-reading')).toBeHidden();
+    await page.clock.runFor(1250);
     await expect(card).toHaveClass(/is-flip-out/);
-    await page.clock.runFor(190);
+    await page.clock.runFor(240);
     await expect(card).toHaveClass(/is-flip-in/);
     await expect(card.locator('[data-artwork-side="front"]')).toHaveCount(1);
-    await page.clock.runFor(220);
+    await page.clock.runFor(340);
     await expect(card).toHaveClass(/is-revealed/);
+    await expect(page.locator('#dailyTarotFortuneOverlay')).not.toHaveClass(/is-fortune-charging/);
     await expect(page.locator('#dailyTarotFortuneText')).toContainText(result.strikeLine);
     await expect(page.locator('#dailyTarotFortuneReward')).toContainText(result.rewardItemName);
+    await page.clock.runFor(1800);
+    await expect(page.locator('.tarot-fortune-fx')).toHaveCount(0);
     expect(draws()).toBe(1);
 });

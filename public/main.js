@@ -65,7 +65,7 @@ let pendingFixedInviteNation = '';
 let lineFriendPromoState = null;
 let dailyFortuneOpenPromise = null;
 let dailyFortuneClaimEventBound = false;
-const TAROT_MODULE_VERSION = '20261029-startup-v1';
+const TAROT_MODULE_VERSION = '20261030-fortune-gacha-v1';
 const TAROT_KINGDOM_RESCUE_VERSION = '20261022-startup-kingdom-v1';
 const DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY = 'troy:daily-fortune-claimed-day';
 const LIFF_CALLBACK_PARAM_KEYS = [
@@ -467,6 +467,10 @@ function initDailyFortuneButton() {
         dailyFortuneClaimEventBound = true;
         window.addEventListener('daily-fortune:claimed', (event) => {
             markDailyFortuneClaimed(event?.detail?.dayKey);
+        });
+        window.addEventListener('daily-fortune:day-changed', () => {
+            setDailyFortuneButtonClaimed(button, hasClaimedDailyFortuneToday());
+            void refreshDailyFortuneStatus();
         });
     }
     if (button.dataset.dailyFortuneBound === 'true') return;
@@ -952,6 +956,7 @@ function endProfileSession(uid) {
     Player.clearPlayerSession(uid);
     Inventory.clearInventorySession();
     document.getElementById('dailyTarotFortuneOverlay')?.remove();
+    document.querySelector('.rpg-message-popup.daily-fortune-bounty-notice')?.remove();
     myPlayFabId = null;
     window.myPlayFabId = null;
     const name = document.getElementById('globalPlayerName');
