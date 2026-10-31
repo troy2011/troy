@@ -468,6 +468,13 @@ app.get('/line/qr/:lineUserId', async (req, res) => {
 
 app.use(express.json());
 app.use(require('./server/retiredWorldRoutes').retiredWorldRoutes);
+// Temporary rollout gate: drain old fortune writers before enabling the ledger.
+app.use((req, res, next) => {
+    if (String(req.path || '').toLowerCase().replace(/\/+$/, '') === '/api/tarot-fortune-draw') {
+        return res.status(503).json({ error: 'FortuneTemporarilyUnavailable' });
+    }
+    return next();
+});
 
 configurePlayFab({
     titleId: process.env.PLAYFAB_TITLE_ID,
