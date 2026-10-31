@@ -31841,7 +31841,7 @@ body[data-sea-tone] .home-hero-card {
 
 #itemDetailModal #itemDetailStats {
     display: grid;
-    gap: 6px;
+    gap: 8px;
     margin: 0 0 10px;
     font-weight: 800;
     line-height: 1.3;
@@ -31849,21 +31849,20 @@ body[data-sea-tone] .home-hero-card {
 
 #itemDetailModal .item-detail-tarot-combat {
     display: grid;
-    gap: 7px;
+    gap: 4px;
     margin: 0 0 10px;
-    padding: 9px 10px;
+    padding: 10px 12px;
     border: 1px solid color-mix(in srgb, var(--item-tarot-edge) 52%, transparent);
     border-radius: 6px;
     border-image: none;
-    background:
-        radial-gradient(ellipse at 50% 0%, var(--item-tarot-glow), transparent 58%),
+    background: radial-gradient(ellipse at 50% 0%, var(--item-tarot-glow), transparent 58%),
         rgba(4, 9, 15, 0.82);
 }
 
 #itemDetailModal .item-detail-tarot-combat-title {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     flex-wrap: wrap;
     gap: 8px;
 }
@@ -31884,18 +31883,19 @@ body[data-sea-tone] .home-hero-card {
 
 #itemDetailModal .item-detail-tarot-rows {
     display: grid;
-    gap: 5px;
+    gap: 0;
 }
 
 #itemDetailModal .item-detail-tarot-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    justify-items: center;
-    gap: 3px;
-    padding: 7px 8px;
-    border-radius: 5px;
-    background: rgba(1, 6, 11, 0.54);
-    text-align: center;
+    grid-template-columns: auto minmax(0, 1fr);
+    justify-items: stretch;
+    gap: 12px;
+    padding: 8px 0;
+    border-radius: 0;
+    background: none;
+    text-align: left;
+    align-items: baseline;
 }
 
 #itemDetailModal .item-detail-tarot-row-label {
@@ -31908,10 +31908,10 @@ body[data-sea-tone] .home-hero-card {
 #itemDetailModal .item-detail-tarot-row-value {
     min-width: 0;
     color: #f8fafc;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 900;
     line-height: 1.35;
-    text-align: center;
+    text-align: right;
     overflow-wrap: anywhere;
     text-shadow: 0 1px 0 #000;
 }
@@ -31922,13 +31922,14 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #itemDetailModal .item-detail-abp-gauge {
-    width: min(100%, 220px);
+    width: 100%;
     height: 8px;
     border: 1px solid rgba(244, 220, 151, 0.48);
     border-radius: 999px;
     background: rgba(0, 0, 0, 0.58);
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.72);
     overflow: hidden;
+    margin: 0 0 6px;
 }
 
 #itemDetailModal .item-detail-abp-gauge > span {
@@ -32433,10 +32434,6 @@ body[data-sea-tone] .home-hero-card {
         grid-template-columns: minmax(76px, 0.34fr) minmax(0, 1fr);
         gap: 6px;
         padding-inline: 8px;
-    }
-
-    #itemDetailModal .item-detail-tarot-row {
-        grid-template-columns: minmax(0, 1fr);
     }
 
     #itemDetailModal #itemDetailButtons:not(:has(.item-detail-action.is-move)) {
@@ -40568,4 +40565,322 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
 
 .companion-page.is-status-unavailable > :not(.companion-page-header):not(#companionPageMessage) {
     display: none;
+}
+
+/* Full-screen tarot card viewer (daily fortune result and inventory detail). */
+.is-card-zoomable,
+.tarot-fortune-card-shell.is-card-zoomable {
+    cursor: zoom-in;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.pirate-tarot-inventory-art.is-card-zoomable {
+    position: relative;
+    border-radius: 8px;
+    transition: transform 160ms ease;
+}
+
+.pirate-tarot-inventory-art.is-card-zoomable:active {
+    transform: scale(0.98);
+}
+
+.pirate-tarot-inventory-art.is-card-zoomable:focus-visible,
+.tarot-fortune-card-shell.is-card-zoomable:focus-visible {
+    outline: 2px solid rgba(255, 226, 150, 0.9);
+    outline-offset: 3px;
+}
+
+.tarot-card-viewer {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483100;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    justify-items: center;
+    align-items: center;
+    gap: 12px;
+    padding:
+        max(56px, calc(env(safe-area-inset-top) + 48px))
+        16px
+        max(24px, calc(env(safe-area-inset-bottom) + 16px));
+    background: radial-gradient(ellipse at 50% 42%, rgba(38, 30, 68, 0.94), rgba(6, 5, 14, 0.97) 70%);
+    opacity: 0;
+    transition: opacity 220ms ease;
+    cursor: zoom-out;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: contain;
+    touch-action: none;
+}
+
+.tarot-card-viewer.is-open {
+    opacity: 1;
+}
+
+.tarot-card-viewer.is-closing {
+    opacity: 0;
+    transition-duration: 200ms;
+}
+
+.tarot-card-viewer-stage {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+}
+
+.tarot-card-viewer-frame {
+    /* The card keeps 2:3 and fills whichever side runs out first. */
+    width: min(100%, 480px, calc((100dvh - 180px) * 2 / 3));
+    aspect-ratio: 2 / 3;
+    border-radius: 12px;
+    box-shadow:
+        0 0 0 1px rgba(255, 233, 180, 0.28),
+        0 18px 48px rgba(0, 0, 0, 0.6),
+        0 0 72px rgba(170, 140, 255, 0.22);
+    transform-origin: center;
+    will-change: transform;
+}
+
+.tarot-card-viewer-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: inherit;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.tarot-card-viewer-image.is-reversed {
+    transform: rotate(180deg);
+}
+
+.tarot-card-viewer-caption {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    max-width: 100%;
+    color: #fff4d6;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-align: center;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 240ms ease 120ms, transform 240ms ease 120ms;
+}
+
+.tarot-card-viewer.is-open .tarot-card-viewer-caption {
+    opacity: 1;
+    transform: none;
+}
+
+.tarot-card-viewer-caption:empty {
+    display: none;
+}
+
+.tarot-card-viewer-orientation {
+    padding: 2px 8px;
+    border: 1px solid rgba(255, 196, 170, 0.6);
+    border-radius: 999px;
+    color: #ffd2c0;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.tarot-card-viewer-close {
+    position: absolute;
+    top: max(10px, calc(env(safe-area-inset-top) + 6px));
+    right: max(10px, calc(env(safe-area-inset-right) + 6px));
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 50%;
+    background: rgba(20, 16, 36, 0.6);
+    cursor: pointer;
+}
+
+.tarot-card-viewer-close::before,
+.tarot-card-viewer-close::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 18px;
+    height: 2px;
+    border-radius: 1px;
+    background: #fff;
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.tarot-card-viewer-close::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.tarot-card-viewer-close:focus-visible {
+    outline: 2px solid rgba(255, 226, 150, 0.9);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tarot-card-viewer,
+    .tarot-card-viewer-caption {
+        transition: none;
+    }
+}
+
+/* Inventory detail sheet: one place per fact, numbers at a glance, actions within reach. */
+#itemDetailModal > .item-detail-sheet > .item-detail-close {
+    display: none;
+}
+
+#itemDetailModal .item-detail-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+
+#itemDetailModal .item-detail-stat-grid > .is-tile:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+}
+
+#itemDetailModal .item-detail-stat-row.is-tile {
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: 3px;
+    padding: 8px 11px 9px;
+    border: 1px solid rgba(214, 180, 110, 0.24);
+    border-image: none;
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(255, 224, 142, 0.07), transparent 70%),
+        rgba(2, 4, 7, 0.72);
+}
+
+#itemDetailModal .item-detail-stat-row.is-tile .item-detail-stat-value {
+    font-size: 20px;
+    line-height: 1.1;
+    text-align: left;
+}
+
+#itemDetailModal .item-detail-stat-note {
+    color: #bda174;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+#itemDetailModal .item-detail-stat-list {
+    display: grid;
+    border: 1px solid rgba(214, 180, 110, 0.24);
+    border-radius: 8px;
+    background: rgba(2, 4, 7, 0.66);
+    overflow: hidden;
+}
+
+#itemDetailModal .item-detail-stat-list > .item-detail-stat-row {
+    min-height: 0;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
+    padding: 9px 12px;
+    border: 0;
+    border-image: none;
+    border-radius: 0;
+    background: none;
+}
+
+#itemDetailModal .item-detail-stat-list > .item-detail-stat-row + .item-detail-stat-row {
+    border-top: 1px solid rgba(214, 180, 110, 0.14);
+}
+
+#itemDetailModal #itemDetailButtons,
+#itemDetailModal #itemDetailButtons:not(:has(.item-detail-action.is-move)) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-bottom: 0;
+}
+
+#itemDetailModal #itemDetailButtons > .item-detail-action:last-of-type:nth-of-type(odd) {
+    grid-column: 1 / -1;
+}
+
+/* Tarot: the adopted card is the header; the small sprite is only a fallback. */
+#itemDetailModal .pirate-tarot-inventory-art {
+    position: relative;
+    width: min(56%, 216px);
+    margin: 0 auto 12px;
+}
+
+#itemDetailModal .pirate-tarot-inventory-art > img {
+    border-radius: 8px;
+    box-shadow:
+        0 10px 26px rgba(0, 0, 0, 0.62),
+        0 0 18px var(--item-tarot-glow);
+}
+
+#itemDetailModal[data-detail-kind="tarot"]:has(.pirate-tarot-inventory-art > img:not([hidden])) .item-detail-head {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+#itemDetailModal[data-detail-kind="tarot"]:has(.pirate-tarot-inventory-art > img:not([hidden])) .item-detail-icon-frame {
+    display: none;
+}
+
+#itemDetailModal[data-detail-kind="tarot"]:has(.pirate-tarot-inventory-art > img:not([hidden])) .item-detail-copy {
+    gap: 5px;
+    padding: 0 4px;
+    border: 0;
+    background: none;
+}
+
+#itemDetailModal[data-detail-kind="tarot"] .item-detail-meta {
+    justify-content: center;
+}
+
+#itemDetailModal[data-detail-kind="tarot"].is-tarot-level-up .pirate-tarot-inventory-art {
+    animation: itemDetailTarotLevelUpCard 720ms cubic-bezier(0.18, 0.82, 0.26, 1) both;
+}
+
+#itemDetailModal[data-detail-kind="tarot"].is-tarot-level-up .pirate-tarot-inventory-art::after {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border: 1px solid var(--item-tarot-edge);
+    border-radius: 8px;
+    box-shadow: 0 0 10px var(--item-tarot-glow), inset 0 0 9px var(--item-tarot-glow);
+    content: "";
+    pointer-events: none;
+    animation: itemDetailTarotLevelUpRing 820ms ease-out both;
+}
+
+
+
+
+
+#itemDetailModal .item-detail-tarot-row + .item-detail-tarot-row {
+    border-top: 1px solid color-mix(in srgb, var(--item-tarot-edge) 18%, transparent);
+}
+
+
+#itemDetailModal .item-detail-tarot-row.is-skill {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+}
+
+#itemDetailModal .item-detail-tarot-row.is-skill .item-detail-tarot-row-value {
+    font-weight: 800;
+    line-height: 1.55;
+    text-align: left;
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+    #itemDetailModal[data-detail-kind="tarot"].is-tarot-level-up .pirate-tarot-inventory-art,
+    #itemDetailModal[data-detail-kind="tarot"].is-tarot-level-up .pirate-tarot-inventory-art::after {
+        animation: none;
+    }
 }

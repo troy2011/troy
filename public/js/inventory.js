@@ -1,4 +1,5 @@
 import { renderInventoryTarotArtwork } from './pirateTarotArtwork.js?v=20261025-pirate-delivery-v2';
+import { enableTarotCardZoom } from './tarotCardViewer.js?v=20261031-card-viewer-v1';
 // c:/Users/ikeda/my-liff-app/public/js/inventory.js
 
 import {
@@ -352,7 +353,9 @@ function playTarotLevelUpEffect(previousLevel, newLevel) {
     ) {
         return;
     }
-    const iconFrame = modal.querySelector('.item-detail-icon-frame');
+    // The adopted artwork is the visible card when it loaded; the sprite frame is the fallback.
+    const artwork = modal.querySelector('.pirate-tarot-inventory-art');
+    const iconFrame = artwork?.querySelector('img:not([hidden])') ? artwork : modal.querySelector('.item-detail-icon-frame');
     if (!iconFrame) return;
 
     clearTarotLevelUpEffect(modal);
@@ -4767,9 +4770,9 @@ function createItemDetailMetaChip(label, tone = '') {
     return chip;
 }
 
-function createItemDetailStatRow(label, value, tone = '') {
+function createItemDetailStatRow(label, value, tone = '', options = {}) {
     const row = document.createElement('div');
-    row.className = `item-detail-stat-row${tone ? ` is-${tone}` : ''}`;
+    row.className = `item-detail-stat-row${tone ? ` is-${tone}` : ''}${options.tile ? ' is-tile' : ''}`;
     const labelEl = document.createElement('span');
     labelEl.className = 'item-detail-stat-label';
     labelEl.textContent = label;
@@ -4777,12 +4780,29 @@ function createItemDetailStatRow(label, value, tone = '') {
     valueEl.className = 'item-detail-stat-value';
     valueEl.textContent = String(value);
     row.append(labelEl, valueEl);
+    if (options.note) {
+        const noteEl = document.createElement('small');
+        noteEl.className = 'item-detail-stat-note';
+        noteEl.textContent = options.note;
+        row.appendChild(noteEl);
+    }
     return row;
 }
 
-function appendItemDetailStat(statsEl, label, value, tone = '') {
+function getItemDetailStatGroup(statsEl, className) {
+    let group = statsEl.querySelector(`:scope > .${className}`);
+    if (!group) {
+        group = document.createElement('div');
+        group.className = className;
+        statsEl.appendChild(group);
+    }
+    return group;
+}
+
+function appendItemDetailStat(statsEl, label, value, tone = '', options = {}) {
     if (value === undefined || value === null || value === '') return;
-    statsEl.appendChild(createItemDetailStatRow(label, value, tone));
+    const group = getItemDetailStatGroup(statsEl, options.tile ? 'item-detail-stat-grid' : 'item-detail-stat-list');
+    group.appendChild(createItemDetailStatRow(label, value, tone, options));
 }
 
 function appendTarotMetaStats(statsEl, itemData) {
@@ -4845,11 +4865,9 @@ function renderTarotCombatDetailSection(item, itemData) {
 
     const canonicalCategory = getCanonicalTarotCategory(itemData?.Category);
     if (canonicalCategory === 'TarotMajor') {
-        const position = getShipMajorArcanaPosition(item?.itemId);
         const itemId = String(item?.itemId || '');
         const number = getGuardianArcanaNumber(item, itemId);
         const definition = getTarotKingdomGuardianDefinition(number);
-        const level = Math.max(1, Number(cardLevelMap[itemId]?.level) || 1);
         const section = document.createElement('section');
         section.id = 'itemDetailTarotCombat';
         section.className = 'item-detail-tarot-combat';
@@ -4858,19 +4876,13 @@ function renderTarotCombatDetailSection(item, itemData) {
         title.className = 'item-detail-tarot-combat-title';
         const heading = document.createElement('strong');
         heading.textContent = definition?.passiveName || '守護アルカナ';
-        const state = document.createElement('span');
-        state.textContent = `Lv${level} · ${position > 0 ? '守護中' : '未装備'}`;
-        title.append(heading, state);
+        title.append(heading);
         section.appendChild(title);
 
         const rows = document.createElement('div');
         rows.className = 'item-detail-tarot-rows';
-        appendTarotCombatRow(
-            rows,
-            'ジョブ',
-            getTarotKingdomJobWeaponProficiency(number)?.jobName || definition?.passiveName || '未設定',
-            'weapon'
-        );
+        const jobName = getTarotKingdomJobWeaponProficiency(number)?.jobName || definition?.passiveName || '未設定';
+        if (jobName !== heading.textContent) appendTarotCombatRow(rows, 'ジョブ', jobName, 'weapon');
         appendTarotCombatRow(rows, '守護', definition?.passive || '効果データ未登録', 'skill');
         appendTarotCombatRow(rows, '得意武器', formatGuardianProficiencyWeapons(number), 'weapon');
         const masteryJob = (Array.isArray(tarotJobMastery?.jobs) ? tarotJobMastery.jobs : [])
@@ -4909,7 +4921,6 @@ function renderTarotCombatDetailSection(item, itemData) {
     const resonance = getTarotKingdomMinorApDefinition(suit, rank)
         || getTarotKingdomMinorDefinition(suit, rank);
     const level = Math.max(1, Number(cardLevelMap[item?.itemId]?.level) || 1);
-    const deckPosition = getTarotDeckPosition(item?.itemId);
     const section = document.createElement('section');
     section.id = 'itemDetailTarotCombat';
     section.className = 'item-detail-tarot-combat';
@@ -4918,9 +4929,7 @@ function renderTarotCombatDetailSection(item, itemData) {
     title.className = 'item-detail-tarot-combat-title';
     const heading = document.createElement('strong');
     heading.textContent = resonance?.name || '小アルカナ共鳴';
-    const state = document.createElement('span');
-    state.textContent = `Lv${level} · ${deckPosition > 0 ? `枠${deckPosition}` : '未セット'}`;
-    title.append(heading, state);
+    title.append(heading);
     section.appendChild(title);
 
     const rows = document.createElement('div');
@@ -5314,6 +5323,9 @@ function showItemDetailModal(item) {
     }
     document.getElementById('itemDetailDescription').innerText = isTarotCard ? '' : (item.description || '説明がありません。');
     renderInventoryTarotArtwork(item, modal);
+    const tarotArtwork = modal.querySelector('.pirate-tarot-inventory-art');
+    if (tarotArtwork) modal.querySelector('.item-detail-head')?.before(tarotArtwork);
+    enableTarotCardZoom(tarotArtwork, { label: item.name });
     if (isTarotCard) {
         renderTarotCombatDetailSection(item, cd);
     } else {
@@ -5322,17 +5334,11 @@ function showItemDetailModal(item) {
 
     if (metaEl) {
         metaEl.innerHTML = '';
-        if (!isTarotCard) {
-            metaEl.appendChild(createItemDetailMetaChip(getInventoryCategoryLabel(canonicalCategory), detailKind));
-        }
         if (equipmentRarity) {
             metaEl.appendChild(createItemDetailMetaChip(equipmentRarity, 'enhanced'));
         }
         if (isEquipmentItem && isInventoryItemEquipped(item)) {
             metaEl.appendChild(createItemDetailMetaChip('装備中', 'equipped'));
-        }
-        if (enhancementBonus > 0) {
-            metaEl.appendChild(createItemDetailMetaChip(`強化 +${enhancementBonus}`, 'enhanced'));
         }
         if (isTarotCard) {
             const cardLevel = getInventoryCardLevel(item.itemId);
@@ -5360,6 +5366,20 @@ function showItemDetailModal(item) {
     const statsEl = document.getElementById('itemDetailStats');
     statsEl.innerHTML = '';
     if (!isTarotCard) {
+        const enhancedStat = enhancementBonus > 0 ? item?.enhancement?.primaryStat : '';
+        const enhancementNote = (key) => (enhancedStat === key && item?.enhancement?.baseValue !== undefined
+            ? `基本${item.enhancement.baseValue} +${enhancementBonus}`
+            : '');
+        const appendNumber = (label, value, tone, key) => appendItemDetailStat(statsEl, label, value, tone, { tile: true, note: enhancementNote(key) });
+        appendNumber('攻撃力', cd.Power, 'power', 'Power');
+        appendNumber(canonicalCategory === 'Shield' ? '盾性能' : '防御力', cd.Defense, 'defense', 'Defense');
+        appendNumber('すばやさ', cd.Agi, 'agility');
+        appendNumber('かしこさ', cd.Int, 'magic');
+        appendNumber('術補', cd.MagicPower, 'magic');
+        appendNumber('回復補正', cd.HealPower, 'heal');
+        appendNumber('詠唱補正', cd.CastRate);
+        appendNumber('MP効率', cd.MpEfficiency);
+        appendNumber('状態付与', cd.StatusRate);
         const weaponTrait = canonicalCategory === 'Weapon' ? getInventoryWeaponTraitDetail(item) : null;
         if (weaponTrait) {
             appendItemDetailStat(statsEl, '武器特性', weaponTrait.profile.traitLabel, 'weapon');
@@ -5379,22 +5399,6 @@ function showItemDetailModal(item) {
                     proficient ? 'weapon' : ''
                 );
             }
-        }
-        appendItemDetailStat(statsEl, '攻撃力', cd.Power, 'power');
-        appendItemDetailStat(statsEl, canonicalCategory === 'Shield' ? '盾性能' : '防御力', cd.Defense, 'defense');
-        appendItemDetailStat(statsEl, 'すばやさ', cd.Agi, 'agility');
-        appendItemDetailStat(statsEl, 'かしこさ', cd.Int, 'magic');
-        appendItemDetailStat(statsEl, '術補', cd.MagicPower, 'magic');
-        appendItemDetailStat(statsEl, '回復補正', cd.HealPower, 'heal');
-        appendItemDetailStat(statsEl, '詠唱補正', cd.CastRate);
-        appendItemDetailStat(statsEl, 'MP効率', cd.MpEfficiency);
-        appendItemDetailStat(statsEl, '状態付与', cd.StatusRate);
-        if (enhancementBonus > 0 && item?.enhancement?.primaryStat) {
-            const baseStatLabel = item.enhancement.primaryStat === 'Power'
-                ? '基本攻撃力'
-                : (canonicalCategory === 'Shield' ? '基本盾性能' : '基本防御力');
-            appendItemDetailStat(statsEl, baseStatLabel, item.enhancement.baseValue, 'enhancement');
-            appendItemDetailStat(statsEl, '強化値', `+${enhancementBonus}`, 'enhancement');
         }
         if (cd.Effect) {
             const effectText = typeof cd.Effect === 'object'
@@ -5539,11 +5543,11 @@ function showItemDetailModal(item) {
         if (levelUpAction) addAction(levelUpAction.label, levelUpAction.tone, levelUpAction.run, levelUpAction);
     }
 
-    if (getInventorySellableCount(item) > 0 && isTarotCard) {
+    if (getInventorySellableCount(item) > 0) {
         const management = document.createElement('details');
         management.className = 'item-detail-management';
         const summary = document.createElement('summary');
-        summary.textContent = 'カード管理';
+        summary.textContent = isTarotCard ? 'カード管理' : '売却・出品';
         const managementActions = document.createElement('div');
         managementActions.className = 'item-detail-management-actions';
         const marketDisabled = blackMarketMyActiveCount >= blackMarketMaxActiveListings;
@@ -5563,14 +5567,6 @@ function showItemDetailModal(item) {
         managementActions.appendChild(createItemDetailActionButton('売却 1G', 'sell', () => showSellConfirmationModal(instanceId, item.itemId)));
         management.append(summary, managementActions);
         buttonsEl.appendChild(management);
-    } else if (getInventorySellableCount(item) > 0) {
-        const marketDisabled = blackMarketMyActiveCount >= blackMarketMaxActiveListings;
-        const marketBusy = blackMarketCreatingItemId === getInventoryEntryKey(item);
-        if (marketDisabled) {
-            appendActionNote(`闇市 出品 ${blackMarketMyActiveCount}/${blackMarketMaxActiveListings}`);
-        }
-        addAction(marketBusy ? '出品中' : '闇市に出す', marketDisabled || marketBusy ? 'disabled' : 'market', () => showBlackMarketListingPrompt(item), { disabled: marketDisabled || marketBusy });
-        addAction('売却 1G', 'sell', () => showSellConfirmationModal(instanceId, item.itemId));
     }
 
     updateItemDetailNavigation(item);

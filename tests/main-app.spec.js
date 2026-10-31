@@ -7801,7 +7801,8 @@ test('tarot cards preview, automatically sort, and open detail before changing d
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('サンクチュアリ');
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('回復量を、場が2回流れるまで30％増加');
   await expect(page.locator('#itemDetailTarotCombat')).not.toContainText(/R=|\dR|R％/);
-  await expect(page.locator('#itemDetailTarotCombat')).toContainText('Lv1 · 枠1');
+  await expect(page.locator('#itemDetailMeta')).toContainText('Lv1');
+  await expect(page.locator('#itemDetailMeta')).toContainText('枠1');
   await expect(page.locator('#itemDetailDescription')).toBeHidden();
   await expect(page.locator('#itemDetailStats')).toBeHidden();
   await expect(page.locator('#itemDetailTarotCombat .item-detail-tarot-row')).toHaveCount(2);
@@ -7812,6 +7813,13 @@ test('tarot cards preview, automatically sort, and open detail before changing d
   expect(equipRequests).toHaveLength(0);
   await expect(page.locator('#itemDetailModal')).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
+  const artwork = page.locator('#itemDetailModal .pirate-tarot-inventory-art.is-card-zoomable');
+  await expect(artwork).toBeVisible();
+  await artwork.click();
+  await expect(page.locator('.tarot-card-viewer[role="dialog"]')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.tarot-card-viewer')).toHaveCount(0);
+  await expect(page.locator('#itemDetailModal')).toBeVisible();
   await expect.poll(async () => {
     const geometry = await getItemDetailViewportGeometry(page);
     return geometry.sheet.top >= geometry.viewport.top - 1
@@ -7819,7 +7827,7 @@ test('tarot cards preview, automatically sort, and open detail before changing d
   }).toBe(true);
   expectItemDetailInsideViewport(await getItemDetailViewportGeometry(page));
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('メテオストライク');
-  await expect(page.locator('#itemDetailTarotCombat')).toContainText('未セット');
+  await expect(page.locator('#itemDetailMeta')).toContainText('未セット');
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('ステージ内の敵全体へ強力な火属性魔法ダメージ');
   await expect(page.locator('#itemDetailTarotCombat')).toContainText('消費AP1');
   const originalDetailName = await page.locator('#itemDetailName').textContent();
@@ -8276,7 +8284,7 @@ test('equipment cards open detail before equipping from inventory grid', async (
   }));
   expect(equipmentLayout).toEqual({
     switcher: 'sticky',
-    loadout: 'static',
+    loadout: 'relative',
     sectionHeader: 'none',
     summary: 'none',
     hint: 'none',
@@ -8359,6 +8367,7 @@ test('equipment cards open detail before equipping from inventory grid', async (
   expect(descriptionStyle.backgroundImage).toContain('panel-parchment-wide.png');
   expect(descriptionStyle.height).toBeGreaterThan(24);
   expect(descriptionStyle.textShadow).not.toBe('none');
+  await page.locator('#itemDetailModal .item-detail-management summary').click();
   await page.locator('#itemDetailModal .item-detail-action.is-sell').click();
   await expect(page.locator('#sellConfirmationModal')).toBeVisible();
   expectModalInsideVisualViewport(await getModalViewportGeometry(
@@ -9164,6 +9173,7 @@ test('inventory black market creates listing and shows owner-aware actions', asy
   await page.locator('#inventoryGrid .inventory-item-cell[data-category="Weapon"]').click();
   await expect(page.locator('#itemDetailStats')).toContainText('初代所有者');
   await expect(page.locator('#itemDetailStats')).toContainText('Alice');
+  await page.locator('#itemDetailButtons .item-detail-management summary').click();
   await page.locator('#itemDetailButtons .item-detail-action', { hasText: '闇市に出す' }).click();
   await expect(page.locator('#inventoryActionDialog')).toBeVisible();
   await expect(page.locator('#inventoryActionDialog')).toContainText('1-9999G');
