@@ -36,6 +36,7 @@ import {
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { bindModalClose } from './modalClose.js';
 import { createRequestId } from './api.js';
+import { mountShipyard } from './shipyard.js';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { formatCurrencyLabel } from './config.js';
 import * as Player from './player.js';
@@ -579,7 +580,9 @@ export async function getActiveShipId(playFabId) {
 }
 
 export async function setActiveShip(playFabId, shipId) {
+    const session = Player.capturePlayerSession(playFabId);
     const result = await requestSetActiveShip(playFabId, shipId);
+    if (!Player.isCurrentPlayerSession(session)) return null;
     if (result && result.success) {
         activeShipIdCache = result.activeShipId || shipId;
         activeShipOwnerIdCache = result.shipOwnerPlayFabId || activeShipOwnerIdCache || playFabId || null;
@@ -610,6 +613,7 @@ export async function setActiveShip(playFabId, shipId) {
             }));
         }
         await loadExplorationPanel(playFabId);
+        if (!Player.isCurrentPlayerSession(session)) return null;
         return result;
     }
     return null;
@@ -1313,8 +1317,48 @@ function openHomePlayerShipDetails(event) {
         return;
     }
     if (typeof window.viewShipDetails === 'function') {
-        window.viewShipDetails(shipId, currentPlayerShipProfile || {});
+        const profile = currentPlayerShipProfile;
+        const playerId = window.myPlayFabId;
+        const session = Player.capturePlayerSession(playerId);
+        Promise.resolve(window.viewShipDetails(shipId, profile || {})).then(() => {
+            if (!session || !Player.isCurrentPlayerSession(session) || profile !== currentPlayerShipProfile || isSharedPlayerShipProfile(profile)) return;
+            const content = document.getElementById('shipDetailsContent');
+            const modal = document.getElementById('shipDetailsModal');
+            if (!content || !modal || modal.style.display !== 'flex' || content.querySelector('[data-shipyard-entry]')) return;
+            const button = document.createElement('button');
+            button.type = 'button'; button.dataset.shipyardEntry = ''; button.textContent = '船の管理';
+            button.addEventListener('click', () => openShipyard(playerId, session));
+            content.appendChild(button);
+        }).catch(error => console.warn('[ship] details unavailable:', error?.message || error));
     }
+}
+
+function openShipyard(playerId, session) {
+    if (!Player.isCurrentPlayerSession(session) || document.getElementById('shipyardModal')) return;
+    const overlay = document.createElement('div'); overlay.id = 'shipyardModal';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.7);padding:12px';
+    const panel = document.createElement('div');
+    panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-modal', 'true'); panel.setAttribute('aria-label', '船の管理');
+    panel.style.cssText = 'width:min(100%,480px);max-height:90dvh;overflow:auto;background:#182638;color:#fff;padding:16px;border-radius:12px';
+    const closeButton = document.createElement('button'); closeButton.type = 'button'; closeButton.textContent = '閉じる';
+    const root = document.createElement('div'); panel.append(closeButton, root); overlay.append(panel); document.body.appendChild(overlay);
+    const close = () => { window.removeEventListener('troy:session-changed', onSession); window.removeEventListener('troy:auth-expired', onSession); overlay.remove(); };
+    const onSession = () => { if (!Player.isCurrentPlayerSession(session)) close(); };
+    window.addEventListener('troy:session-changed', onSession); window.addEventListener('troy:auth-expired', onSession);
+    bindModalClose(closeButton, close, { overlay, closeOnBackdrop: true, closeOnEscape: true });
+    mountShipyard(root, { playerId, sessionCurrent: () => Player.isCurrentPlayerSession(session),
+        switchShip: async id => {
+            const result = await setActiveShip(playerId, id);
+            if (result?.success && Player.isCurrentPlayerSession(session)) {
+                try {
+                    const status = await requestPlayerShipStatus(playerId, { isSilent: true, throwOnError: true });
+                    if (Player.isCurrentPlayerSession(session)) renderPlayerShipWidget(withPlayerShipStatusContext(status, playerId));
+                } catch (error) {
+                    console.warn('[ship] status refresh failed after switching:', error?.message || error);
+                }
+            }
+            return result;
+        } });
 }
 
 function handleHomePlayerShipTapKeydown(event) {
@@ -3634,22 +3678,26 @@ function setExplorationStartButtonsPending(triggerButton, pending) {
 export async function loadExplorationPanel(playFabId) {
     const panel = document.getElementById('shipExplorationPanel');
     if (!panel || !playFabId) return;
+    const session = Player.capturePlayerSession(playFabId);
+    if (!Player.isCurrentPlayerSession(session)) return;
     panel.innerHTML = renderExplorationLoading();
     try {
         const [data, petState] = await Promise.all([
             requestExplorationStatus(playFabId, { isSilent: true, throwOnError: true }),
             requestTarotKingdomPetState(playFabId, { isSilent: true, throwOnError: true }).catch(() => null)
         ]);
+        if (!Player.isCurrentPlayerSession(session)) return;
         setCurrentTarotKingdomPet(petState?.currentPet || null);
         renderExplorationPanel(data, playFabId);
         if (petState?.pendingOffer) {
             const choice = await showTarotKingdomPetOffer(petState.pendingOffer, playFabId);
+            if (!Player.isCurrentPlayerSession(session)) return;
             if (choice?.currentPet && typeof choice.currentPet === 'object') {
                 setCurrentTarotKingdomPet(choice.currentPet);
             }
         }
     } catch (error) {
-        renderExplorationLoadError(panel, error, playFabId);
+        if (Player.isCurrentPlayerSession(session)) renderExplorationLoadError(panel, error, playFabId);
     }
 }
 

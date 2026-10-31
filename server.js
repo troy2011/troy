@@ -54,6 +54,7 @@ const {
 const events = require('./server/events');
 const exploration = require('./server/exploration');
 const { createShipProfileGate, createProfileRecoveryReader, writeShipProfile } = require('./server/shipProfileGate');
+const { registerShipConstructionRoutes } = require('./server/shipConstruction');
 const musicGame = require('./server/musicGame');
 
 // 既存ルート
@@ -2034,6 +2035,7 @@ async function main() {
 
     // 探索
     exploration.initializeExplorationRoutes(app, deps);
+    registerShipConstructionRoutes(app, deps);
 
     // 大アルカナ・ジョブマスター
     jobMastery.initializeTarotKingdomJobMasteryRoutes(app, {

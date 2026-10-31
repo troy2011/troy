@@ -93,6 +93,11 @@ function getShipAssetKey(shipId) {
     return `Ship_${shipId}`;
 }
 
+function getShipProfileKey(shipId) {
+    const { createHash } = require('node:crypto');
+    return `ShipProfile_${createHash('sha256').update(String(shipId)).digest('hex').slice(0, 24)}`;
+}
+
 function normalizeShipClassFromItemId(itemId) {
     const key = String(itemId || '').trim().toLowerCase();
     if (!key) return 'common';
@@ -314,6 +319,7 @@ module.exports = {
     normalizePresetPayload,
     sumResourceMap,
     getShipAssetKey,
+    getShipProfileKey,
     getActiveShipId,
     getShipAsset,
     updateShipAsset,

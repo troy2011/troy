@@ -3219,8 +3219,11 @@ function initializeExplorationRoutes(app, deps) {
             const ship = shipContext.isGuildShip
                 ? await resolveGuildShipProfile(shipContext, baseShip, deps)
                 : attachUpgradeCosts(baseShip, catalogCache);
+            const activeShipId = shipContext.isGuildShip ? shipContext.guildShipId
+                : await resourceStorage.getActiveShipId(shipOwnerPlayFabId, { promisifyPlayFab, PlayFabServer });
             res.json({
                 success: true,
+                activeShipId,
                 ship: buildPlayerShipResponse(ship, shipContext, shipOwnerPlayFabId, catalogCache)
             });
         } catch (error) {

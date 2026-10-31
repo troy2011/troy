@@ -533,12 +533,15 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         return (typeof value === 'string' && value.trim()) ? value.trim() : null;
     }
 
-    async function setActiveShipId(playFabId, shipId, shipState) {
+    async function setActiveShipId(playFabId, shipId, shipState, profileData = null) {
         const prevActiveId = await getActiveShipId(playFabId);
-        const data = { ActiveShipId: shipId };
-        await writeShipProfile(playFabId, () => promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
-            PlayFabId: playFabId, Data: data
-        }), data);
+        const data = { ActiveShipId: shipId, ...(profileData || {}) };
+        const update = () => promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Data: data
+        });
+        if (profileData) await writeShipProfile(playFabId, update, data);
+        else await update();
 
         if (prevActiveId && prevActiveId !== shipId) {
             await shipsCollection.doc(prevActiveId).set({
@@ -856,8 +859,15 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         if (!playFabId) return;
 
         try {
-            // 1) Firestoreで所有者チェック
+            const result = await shipProfileGate.run(playFabId, async () => {
             const { shipData, shipOwnerPlayFabId, shipContext } = await assertOwnedShip(playFabId, shipId);
+            if (shipContext.isSharedShip || shipContext.isGuildShip || normalizePlayFabId(shipOwnerPlayFabId) !== normalizePlayFabId(playFabId)) throw Error('SharedShipSwitchUnavailable');
+            const exploration = await db.collection('player_explorations').doc(playFabId).get();
+            if (exploration.exists) throw Error('ExplorationInProgress');
+            const { createHash } = require('node:crypto');
+            const construction = await db.collection('ship_construction').doc(createHash('sha256').update(normalizePlayFabId(playFabId)).digest('hex')).get();
+            const pendingRequestId = construction.exists && construction.data()?.activeRequestId;
+            if (pendingRequestId && shipId === `ship_${normalizePlayFabId(playFabId)}_${String(pendingRequestId).slice(0, 20)}`) throw Error('BuildPending');
 
             // 2) PlayFab側のShip_キーでも存在チェック（不正なshipId弾き）
             const assetKey = `Ship_${shipId}`;
@@ -865,12 +875,44 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 PlayFabId: shipOwnerPlayFabId,
                 Keys: [assetKey]
             });
-            if (!assetResult?.Data?.[assetKey]?.Value) return res.status(403).json({ error: 'Ship asset not owned' });
-
-            await shipProfileGate.run(shipOwnerPlayFabId, () => setActiveShipId(shipOwnerPlayFabId, shipId, shipData));
+            if (!assetResult?.Data?.[assetKey]?.Value) throw Error('ShipNotFound');
+            const asset = JSON.parse(assetResult.Data[assetKey].Value);
+            if (normalizePlayFabId(asset.Owner) !== normalizePlayFabId(playFabId)) throw Error('NotYourShip');
+            const activeId = await getActiveShipId(playFabId);
+            if (!activeId) throw Error('ActiveShipUnavailable');
+            if (activeId === shipId) return { shipOwnerPlayFabId, shipContext, removedCards: [] };
+            const current = await resourceStorage.getPlayerShipProfile(playFabId, { promisifyPlayFab, PlayFabServer }, { persist: false });
+            const currentResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, { PlayFabId: playFabId, Keys: ['PlayerShipProfile'] });
+            const currentRaw = currentResult?.Data?.PlayerShipProfile?.Value || JSON.stringify(current);
+            const original = JSON.parse(currentRaw);
+            if (!original || typeof original !== 'object' || Array.isArray(original)) throw Error('InvalidPlayerShipProfile');
+            const targetKey = resourceStorage.getShipProfileKey(shipId);
+            const targetResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, { PlayFabId: playFabId, Keys: [targetKey] });
+            const targetRaw = targetResult?.Data?.[targetKey]?.Value;
+            const derivedForm = ['explorer', 'merchant', 'fighter', 'defender'].find(form => String(asset.ItemId || '').toLowerCase().includes(form)) || 'boat';
+            const target = targetRaw ? JSON.parse(targetRaw) : resourceStorage.normalizePlayerShipProfile({ form: derivedForm, itemId: asset.ItemId, name: asset.ShipType, level: asset.Level });
+            const cards = resourceStorage.normalizeMajorArcanaItemIds(target.majorArcanaItemIds || [target.majorArcanaItemId || target.majorArcanaId || target.MajorArcanaId].filter(Boolean), target.stage || target.form);
+            let owned = [];
+            if (cards.length) {
+                const entity = await getEntityKeyFromPlayFabId(playFabId);
+                owned = await getAllInventoryItems(entity, economyDeps);
+            }
+            const listings = cards.length ? await db.collection('black_market_listings').where('sellerPlayFabId', '==', playFabId).limit(200).get() : { docs: [] };
+            if (listings.docs.length >= 200) throw Error('ShipInventoryUnavailable');
+            const pendingCards = new Set(listings.docs.map(doc => doc.data()).filter(listing => listing.status === 'creating' && !listing.itemDebited).map(listing => resolveItemId(listing.itemId)));
+            const removedCards = cards.filter(id => pendingCards.has(resolveItemId(id)) || !owned.some(item => item.Id === resolveItemId(id) && Number(item.Amount) > 0));
+            const next = { ...target, majorArcanaItemIds: cards.filter(id => !removedCards.includes(id)) };
+            delete next.majorArcanaItemId; delete next.majorArcanaId; delete next.MajorArcanaId;
+            await setActiveShipId(shipOwnerPlayFabId, shipId, shipData, {
+                [resourceStorage.getShipProfileKey(activeId)]: currentRaw, PlayerShipProfile: JSON.stringify(next)
+            });
+            return { shipOwnerPlayFabId, shipContext, removedCards };
+            });
+            const { shipOwnerPlayFabId, shipContext, removedCards } = result;
             res.json({
                 success: true,
                 activeShipId: shipId,
+                removedCards,
                 shipOwnerPlayFabId,
                 isSharedShip: shipContext.isSharedShip,
                 isGuildShip: shipContext.isGuildShip,
@@ -2042,19 +2084,24 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
 
                 const assetResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
                     PlayFabId: shipOwnerPlayFabId,
-                    Keys: [`Ship_${firestoreData.shipId}`]
+                    Keys: [`Ship_${firestoreData.shipId}`, activeShipId === firestoreData.shipId
+                        ? 'PlayerShipProfile' : resourceStorage.getShipProfileKey(firestoreData.shipId)]
                 });
 
                 let assetData = null;
                 if (assetResult.Data && assetResult.Data[`Ship_${firestoreData.shipId}`]) {
                     assetData = applyShipLevelToShipData(JSON.parse(assetResult.Data[`Ship_${firestoreData.shipId}`].Value));
                 }
+                const profileKey = activeShipId === firestoreData.shipId ? 'PlayerShipProfile' : resourceStorage.getShipProfileKey(firestoreData.shipId);
+                const profileRaw = assetResult.Data?.[profileKey]?.Value;
+                const profile = profileRaw ? JSON.parse(profileRaw) : null;
 
                 const currentPos = calculateCurrentPosition(firestoreData.movement);
 
                 ships.push({
                     shipId: firestoreData.shipId,
                     assetData: assetData,
+                    profileName: typeof profile?.name === 'string' ? profile.name : null,
                     positionData: {
                         ...firestoreData,
                         sharedForPlayFabId: shipContext.isSharedShip ? playFabId : null
