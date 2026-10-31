@@ -29,7 +29,12 @@ test('the published worker loads one updated module generation on restart', asyn
         }
         if (url.pathname === '/js/consumer.js') return send("import * as Player from './player.js'; import * as Api from './api.js'; import * as Inventory from './inventory.js'; import * as Ui from './ui.js'; import * as Profile from './playerProfile.js'; export { Player, Api, Inventory, Ui, Profile };");
         if (['/js/player.js', '/js/api.js', '/js/inventory.js', '/js/ui.js', '/js/playerProfile.js', '/js/playfabClient.js', '/js/ship.js', '/js/island.js', '/js/companions.js'].includes(url.pathname)) {
-            const version = url.pathname === '/js/ui.js' ? '20261030-fortune-gacha-v1' : url.pathname === '/js/playerProfile.js' ? '20261030-home-layout-v1' : '20261029-startup-v1';
+            const version = {
+                '/js/ui.js': '20261030-fortune-gacha-v1',
+                '/js/playerProfile.js': '20261030-home-layout-v1',
+                '/js/inventory.js': '20261031-detail-tidy-v1',
+                '/js/ship.js': '20261031-shipyard-v1'
+            }[url.pathname] || '20261029-startup-v1';
             return send(`export const version = '${url.search.includes(version) ? 'new' : 'old'}';`);
         }
         if (url.pathname === '/css/home-v3.css') return send(`:root { --home-layout-generation: ${url.search.includes('20261030-home-layout-v1') ? 'new' : 'old'}; }`, 'text/css');
@@ -59,8 +64,11 @@ test('the published worker loads one updated module generation on restart', asyn
         await page.goto(origin + '/index.html?updated=1');
         await expect.poll(() => page.evaluate(() => window.fixture || null)).toEqual({ player: 'new', api: 'new', inventory: 'new', ui: 'new', profile: 'new', same: true, sameClient: true, ship: 'new', island: 'new', companions: 'new' });
         await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--home-layout-generation').trim())).toBe('new');
-        for (const asset of ['/js/player.js', '/js/api.js', '/js/inventory.js', '/js/ship.js', '/js/island.js', '/js/companions.js']) {
+        for (const asset of ['/js/player.js', '/js/api.js', '/js/island.js', '/js/companions.js']) {
             expect(requests.some(request => request.updated && request.path === asset && request.query.includes('20261029-startup-v1'))).toBe(true);
+        }
+        for (const [asset, version] of [['/js/inventory.js', '20261031-detail-tidy-v1'], ['/js/ship.js', '20261031-shipyard-v1']]) {
+            expect(requests.some(request => request.updated && request.path === asset && request.query.includes(version))).toBe(true);
         }
         expect(requests.some(request => request.updated && request.path === '/js/ui.js' && request.query.includes('20261030-fortune-gacha-v1'))).toBe(true);
         for (const asset of ['/js/playerProfile.js', '/css/home-v3.css']) {
