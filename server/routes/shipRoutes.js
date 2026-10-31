@@ -6,6 +6,7 @@ const { getEffectsAtPosition } = require('../islandEffects');
 const { FEATURE_UNLOCK_LEVELS, isFeatureUnlocked } = require('../featureUnlocks');
 const { applyDerivedPlayerLevelToStats, buildStatsMapFromStatistics } = require('../playerLevel');
 const { resolveGuildShipContext } = require('../guildShipSharing');
+const { createShipProfileGate, createProfileRecoveryReader, writeShipProfile } = require('../shipProfileGate');
 
 // WorldMapScene.js と同じ座標系（ピクセル）→緯度経度の近似変換（geofire-common用）
 const GEO_CONFIG = {
@@ -50,6 +51,7 @@ function worldToLatLng(point) {
 
 function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, catalogCache, resolveItemId, catalogCurrencyMap, authTools = {}) {
     const db = admin.firestore();
+    const shipProfileGate = createShipProfileGate(db, createProfileRecoveryReader(promisifyPlayFab, PlayFabServer));
     const shipsCollection = db.collection('ships');
     const { PlayFabGroups, PlayFabData, getEntityKeyFromPlayFabId, getTitleEntityKey, withTitleEntityToken } = require('../playfab');
     const { addEconomyItem, subtractEconomyItem, getAllInventoryItems, getVirtualCurrencyMap, VIRTUAL_CURRENCY_CODE } = require('../economy');
@@ -533,10 +535,10 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
 
     async function setActiveShipId(playFabId, shipId, shipState) {
         const prevActiveId = await getActiveShipId(playFabId);
-        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
-            PlayFabId: playFabId,
-            Data: { ActiveShipId: shipId }
-        });
+        const data = { ActiveShipId: shipId };
+        await writeShipProfile(playFabId, () => promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+            PlayFabId: playFabId, Data: data
+        }), data);
 
         if (prevActiveId && prevActiveId !== shipId) {
             await shipsCollection.doc(prevActiveId).set({
@@ -865,7 +867,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             });
             if (!assetResult?.Data?.[assetKey]?.Value) return res.status(403).json({ error: 'Ship asset not owned' });
 
-            await setActiveShipId(shipOwnerPlayFabId, shipId, shipData);
+            await shipProfileGate.run(shipOwnerPlayFabId, () => setActiveShipId(shipOwnerPlayFabId, shipId, shipData));
             res.json({
                 success: true,
                 activeShipId: shipId,

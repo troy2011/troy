@@ -1,4 +1,5 @@
 const resourceStorage = require('./resourceStorage');
+const { createShipProfileGate, createProfileRecoveryReader } = require('./shipProfileGate');
 const { drawLocalGachaItem } = require('./gacha');
 const { resolveGuildShipContext } = require('./guildShipSharing');
 const { getCanonicalTarotCategory, getMajorArcanaSuitInfo, getMajorArcanaTitle } = require('./tarotCards');
@@ -2289,6 +2290,30 @@ function initializeExplorationRoutes(app, deps) {
         return requireAuthenticatedPlayFabId(req, res, playFabId);
     }
 
+    const shipProfileGate = createShipProfileGate(firestore, createProfileRecoveryReader(promisifyPlayFab, PlayFabServer));
+    function guardedShipProfileRoute(path, handler) {
+        app.post(path, async (req, res) => {
+            const requested = req.body?.playFabId;
+            if (!requested) return handler(req, res);
+            const owner = await requireAuthed(req, res, requested);
+            if (!owner) return;
+            // Do not acknowledge success until the shared lock is released.
+            const originalJson = res.json;
+            let sent = false, payload;
+            res.json = function (value) { if (sent) throw Error('DuplicateShipResponse'); sent = true; payload = value; return this; };
+            try {
+                await shipProfileGate.run(owner, () => handler(req, res));
+                res.json = originalJson;
+                if (sent) return res.json(payload);
+            }
+            catch (error) {
+                res.json = originalJson;
+                console.error('[ship-profile-gate] failed:', error?.message || error);
+                if (!res.headersSent) res.status(503).json({ error: 'ShipProfileUnavailable' });
+            }
+        });
+    }
+
     async function applyTarotKingdomRoundAbp(activeRef, activeData, roundNo, survivors = []) {
         const explorationId = String(activeData?.id || '').trim();
         const stageNo = Math.max(1, Math.min(
@@ -3204,7 +3229,7 @@ function initializeExplorationRoutes(app, deps) {
         }
     });
 
-    app.post('/api/player-ship/upgrade', async (req, res) => {
+    guardedShipProfileRoute('/api/player-ship/upgrade', async (req, res) => {
         let { playFabId, targetForm, requestId } = req.body || {};
         if (!playFabId || !targetForm) return res.status(400).json({ error: 'playFabId and targetForm are required' });
         playFabId = await requireAuthed(req, res, playFabId);
@@ -3251,7 +3276,7 @@ function initializeExplorationRoutes(app, deps) {
             try {
                 ship = await resourceStorage.upgradePlayerShipProfile(shipOwnerPlayFabId, targetForm, { promisifyPlayFab, PlayFabServer });
             } catch (upgradeError) {
-                await Promise.all(costs.map((cost) => addEconomyItem(playFabId, cost.ItemId, cost.Amount, {
+                if (!upgradeError?.shipWriteUncertain) await Promise.all(costs.map((cost) => addEconomyItem(playFabId, cost.ItemId, cost.Amount, {
                     idempotencyId: `${idempotencyBase}-refund-${cost.ItemId}`
                 }).catch((refundError) => {
                     console.error('[player-ship/upgrade] refund failed:', playFabId, cost, refundError?.errorMessage || refundError?.message || refundError);
@@ -3276,7 +3301,7 @@ function initializeExplorationRoutes(app, deps) {
         }
     });
 
-    app.post('/api/player-ship/name', async (req, res) => {
+    guardedShipProfileRoute('/api/player-ship/name', async (req, res) => {
         let { playFabId, name } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
         playFabId = await requireAuthed(req, res, playFabId);
@@ -3336,7 +3361,7 @@ function initializeExplorationRoutes(app, deps) {
         };
     }
 
-    app.post('/api/player-ship/major-arcana/equip', async (req, res) => {
+    guardedShipProfileRoute('/api/player-ship/major-arcana/equip', async (req, res) => {
         let { playFabId } = req.body || {};
         const itemId = String(req.body?.itemId || req.body?.cardItemId || '').trim();
         const slotIndexRaw = req.body?.slotIndex;
@@ -3378,7 +3403,7 @@ function initializeExplorationRoutes(app, deps) {
         }
     });
 
-    app.post('/api/player-ship/major-arcana/unequip', async (req, res) => {
+    guardedShipProfileRoute('/api/player-ship/major-arcana/unequip', async (req, res) => {
         let { playFabId } = req.body || {};
         const itemId = String(req.body?.itemId || req.body?.cardItemId || '').trim();
         const slotIndexRaw = req.body?.slotIndex;
@@ -3412,7 +3437,7 @@ function initializeExplorationRoutes(app, deps) {
         }
     });
 
-    app.post('/api/player-ship/major-arcana/move', async (req, res) => {
+    guardedShipProfileRoute('/api/player-ship/major-arcana/move', async (req, res) => {
         let { playFabId } = req.body || {};
         const itemId = String(req.body?.itemId || req.body?.cardItemId || '').trim();
         const direction = String(req.body?.direction || '').trim();
@@ -3447,7 +3472,7 @@ function initializeExplorationRoutes(app, deps) {
         }
     });
 
-    app.post('/api/exploration/start', async (req, res) => {
+    guardedShipProfileRoute('/api/exploration/start', async (req, res) => {
         let { playFabId } = req.body || {};
         const requestedStageNo = Math.floor(Number(req.body?.stageNo) || 0);
         const requestedStage = getTarotKingdomExplorationStage(requestedStageNo);

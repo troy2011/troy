@@ -393,6 +393,18 @@ function parseAvatarStyleReadOnlyValue(readOnlyData, styleKey) {
 // APIルートを初期化
 function initializeInventoryRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, PlayFabData, PlayFabEconomy, firestore, admin, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance, requireAuthenticatedPlayFabId } = deps;
+    const { createShipProfileGate, createProfileRecoveryReader, writeShipProfile } = require('./shipProfileGate');
+    const shipProfileGate = firestore ? createShipProfileGate(firestore, createProfileRecoveryReader(promisifyPlayFab, PlayFabServer)) : null;
+    const withShipInventoryGuard = async (player, action) => {
+        if (!shipProfileGate) throw Error('ShipGateUnavailable');
+        for (let attempt = 0; ; attempt++) {
+            try { return await shipProfileGate.run(player, action); }
+            catch (error) {
+                if (error?.message !== 'ShipProfileBusy' || attempt >= 20) throw error;
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+        }
+    };
     const equipmentMutationQueues = new Map();
     const runWithTitleEntityToken = typeof deps.withTitleEntityToken === 'function'
         ? deps.withTitleEntityToken
@@ -1118,6 +1130,7 @@ function initializeInventoryRoutes(app, deps) {
                 .filter(Boolean);
         } catch (error) {
             console.warn('[inventory-sell] ship major arcana lookup failed:', error?.errorMessage || error?.message || error);
+            throw error;
         }
         return {
             readOnlyData: readOnlyResult?.Data || {},
@@ -1493,10 +1506,10 @@ function initializeInventoryRoutes(app, deps) {
         } : null;
         if (marker) await writeEnhancementPendingMarker(playFabId, marker);
         try {
-            await executeInventoryOperations(context.entityKey, operations, {
+            await writeShipProfile(playFabId, () => executeInventoryOperations(context.entityKey, operations, {
                 eTag: context.eTag,
                 idempotencyId: `equipment-enhancement:${playFabId}:${idempotencyId}`
-            });
+            }));
         } catch (error) {
             if (marker) await writeEnhancementPendingMarker(playFabId, null).catch(() => {});
             throw error;
@@ -1580,7 +1593,7 @@ function initializeInventoryRoutes(app, deps) {
         const totalAmount = sellItems.reduce((sum, entry) => sum + entry.amount, 0);
         const totalGold = totalAmount * INVENTORY_SELL_UNIT_PRICE;
         const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-        for (const entry of sellItems) {
+        await writeShipProfile(playFabId, async () => { for (const entry of sellItems) {
             if (entry.stackId) {
                 await subtractEconomyStack(playFabId, entry.itemId, entry.stackId, entry.amount, {
                     idempotencyId: `inventory-sell-${playFabId}-${entry.stackId}-${stamp}`
@@ -1601,6 +1614,7 @@ function initializeInventoryRoutes(app, deps) {
         }
         await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, totalGold, {
             idempotencyId: `inventory-sell-gold-${playFabId}-${stamp}`
+        });
         });
         const newBalance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
         await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
@@ -1791,7 +1805,7 @@ function initializeInventoryRoutes(app, deps) {
         if (!Number.isInteger(slotIndex)) {
             return { ok: false, status: 400, error: `闇市に出せるのは${BLACK_MARKET_MAX_ACTIVE_LISTINGS}個までです。` };
         }
-        const activeListing = await resumeCreatingBlackMarketListing(listing.listingId);
+        const activeListing = await writeShipProfile(playFabId, () => resumeCreatingBlackMarketListing(listing.listingId));
         return {
             ok: true,
             listing: activeListing,
@@ -2192,7 +2206,7 @@ function initializeInventoryRoutes(app, deps) {
         for (const listing of recoverable.values()) {
             try {
                 if (listing.status === 'creating' && listing.sellerPlayFabId === playFabId) {
-                    await resumeCreatingBlackMarketListing(listing.listingId);
+                    await withShipInventoryGuard(playFabId, () => writeShipProfile(playFabId, () => resumeCreatingBlackMarketListing(listing.listingId)));
                 } else if (listing.status === 'cancelling' && listing.sellerPlayFabId === playFabId) {
                     await resumeBlackMarketCancellation(listing.listingId);
                 } else if (listing.status === 'buying') {
@@ -2468,7 +2482,7 @@ function initializeInventoryRoutes(app, deps) {
         playFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!playFabId) return;
         try {
-            return res.json(await applyEquipmentEnhancement(playFabId, req.body || {}));
+            return res.json(await withShipInventoryGuard(playFabId, () => applyEquipmentEnhancement(playFabId, req.body || {})));
         } catch (error) {
             console.error('[equipment-enhancement/apply] error:', error?.errorMessage || error?.message || error);
             return sendEquipmentEnhancementError(res, error, {
@@ -3426,7 +3440,7 @@ function initializeInventoryRoutes(app, deps) {
 
         try {
             const itemData = normalizeCatalogDisplayData(itemId, catalogCache[itemId] || {});
-            const result = await sellInventoryItems(playFabId, [{ itemId, stackId: itemInstanceId, amount: 1 }]);
+            const result = await withShipInventoryGuard(playFabId, () => sellInventoryItems(playFabId, [{ itemId, stackId: itemInstanceId, amount: 1 }]));
             if (!result.ok) {
                 return res.status(result.status || 400).json({ error: result.error || 'このアイテムは売却できません。' });
             }
@@ -3463,7 +3477,7 @@ function initializeInventoryRoutes(app, deps) {
         console.log(`[アイテム一括売却] ${playFabId} が ${items.length} 種類を売却します...`);
 
         try {
-            const result = await sellInventoryItems(playFabId, items);
+            const result = await withShipInventoryGuard(playFabId, () => sellInventoryItems(playFabId, items));
             if (!result.ok) {
                 return res.status(result.status || 400).json({ error: result.error || 'アイテムを売却できません。' });
             }
@@ -3524,7 +3538,7 @@ function initializeInventoryRoutes(app, deps) {
         playFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!playFabId) return;
         try {
-            const result = await createBlackMarketListing(playFabId, itemId, stackId, price);
+            const result = await withShipInventoryGuard(playFabId, () => createBlackMarketListing(playFabId, itemId, stackId, price));
             if (!result.ok) return res.status(result.status || 400).json({ error: result.error });
             return res.json({ status: 'success', message: '闇市に出品しました。', ...result });
         } catch (error) {

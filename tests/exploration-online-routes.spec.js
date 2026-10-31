@@ -1,3 +1,4 @@
+require('./no-external-services.cjs');
 const { test, expect } = require('@playwright/test');
 const explorationModule = require('../server/exploration');
 

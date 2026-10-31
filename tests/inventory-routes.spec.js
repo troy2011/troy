@@ -1,3 +1,4 @@
+require('./no-external-services.cjs');
 const { test, expect } = require('@playwright/test');
 const { buildPublicProfileShip, initializeInventoryRoutes } = require('../server/inventory');
 
@@ -86,6 +87,7 @@ function makeSellHarness({ readOnlyData = {}, inventoryItems = [], executeInvent
   };
 
   initializeInventoryRoutes(app, {
+    firestore: makeMemoryFirestore(),
     PlayFabServer: {
       GetUserReadOnlyData: getUserReadOnlyDataApi,
       UpdatePlayerStatistics: updatePlayerStatisticsApi
@@ -154,6 +156,7 @@ function makeMemoryFirestore(initialData = {}) {
       const current = store.get(id) || {};
       store.set(id, options.merge ? { ...current, ...data } : { ...data });
     },
+    async delete() { getStore(collectionName).delete(id); },
     async update(data) {
       const store = getStore(collectionName);
       const current = store.get(id) || {};
@@ -198,6 +201,7 @@ function makeMemoryFirestore(initialData = {}) {
       const run = transactionQueue.then(() => callback({
         get: (ref) => ref.get(),
         update: (ref, data) => ref.update(data),
+        delete: (ref) => ref.delete(),
         set: (ref, data, options) => ref.set(data, options)
       }));
       transactionQueue = run.catch(() => {});
@@ -613,7 +617,7 @@ test('sell-items sells multiple selected item copies for one gold each', async (
 
   await handler({
     body: {
-      playFabId: 'PF_PLAYWRIGHT',
+      playFabId: 'PFPLAYWRIGHT',
       items: [
         { itemId: 'junk_001', amount: 2 },
         { itemId: 'potion_001', amount: 1 }
@@ -629,11 +633,11 @@ test('sell-items sells multiple selected item copies for one gold each', async (
     newBalance: 103
   });
   expect(economySubtracts).toEqual([
-    { playFabId: 'PF_PLAYWRIGHT', itemId: 'junk_001', amount: 2 },
-    { playFabId: 'PF_PLAYWRIGHT', itemId: 'potion_001', amount: 1 }
+    { playFabId: 'PFPLAYWRIGHT', itemId: 'junk_001', amount: 2 },
+    { playFabId: 'PFPLAYWRIGHT', itemId: 'potion_001', amount: 1 }
   ]);
   expect(economyAdds).toEqual([
-    { playFabId: 'PF_PLAYWRIGHT', itemId: 'PS', amount: 3 }
+    { playFabId: 'PFPLAYWRIGHT', itemId: 'PS', amount: 3 }
   ]);
   expect(statisticUpdates).toHaveLength(1);
 });
@@ -651,7 +655,7 @@ test('sell-items rejects selling the last equipped item copy', async () => {
 
   await handler({
     body: {
-      playFabId: 'PF_PLAYWRIGHT',
+      playFabId: 'PFPLAYWRIGHT',
       items: [{ itemId: 'sword_001', amount: 1 }]
     }
   }, res);
@@ -677,7 +681,7 @@ test('sell-items allows selling a spare copy while one matching item is equipped
 
   await handler({
     body: {
-      playFabId: 'PF_PLAYWRIGHT',
+      playFabId: 'PFPLAYWRIGHT',
       items: [{ itemId: 'sword_001', amount: 1 }]
     }
   }, res);
@@ -688,10 +692,10 @@ test('sell-items allows selling a spare copy while one matching item is equipped
     totalGold: 1
   });
   expect(economySubtracts).toEqual([
-    { playFabId: 'PF_PLAYWRIGHT', itemId: 'sword_001', amount: 1 }
+    { playFabId: 'PFPLAYWRIGHT', itemId: 'sword_001', amount: 1 }
   ]);
   expect(economyAdds).toEqual([
-    { playFabId: 'PF_PLAYWRIGHT', itemId: 'PS', amount: 1 }
+    { playFabId: 'PFPLAYWRIGHT', itemId: 'PS', amount: 1 }
   ]);
 });
 
@@ -716,7 +720,7 @@ test('sell-items keeps an enhanced stack when selling a grouped unenhanced copy'
 
   await handler({
     body: {
-      playFabId: 'PF_PLAYWRIGHT',
+      playFabId: 'PFPLAYWRIGHT',
       items: [{ itemId: 'sword_001', amount: 1 }]
     }
   }, res);
@@ -742,7 +746,7 @@ test('black-market create lists one item and records first owner for equipment',
 
   await routes.get('/api/black-market/create')({
     body: {
-      playFabId: 'PF_SELLER',
+      playFabId: 'PFSELLER',
       itemId: 'sword_001',
       price: 77
     }
@@ -750,15 +754,15 @@ test('black-market create lists one item and records first owner for equipment',
 
   expect(res.statusCode).toBe(200);
   expect(res.body.listing).toMatchObject({
-    sellerPlayFabId: 'PF_SELLER',
+    sellerPlayFabId: 'PFSELLER',
     itemId: 'sword_001',
     price: 77,
     status: 'active',
-    originPlayFabId: 'PF_SELLER',
-    originDisplayName: 'PF_SELLER-name'
+    originPlayFabId: 'PFSELLER',
+    originDisplayName: 'PFSELLER-name'
   });
   expect(economySubtracts).toEqual([
-    { playFabId: 'PF_SELLER', itemId: 'sword_001', amount: 1 }
+    { playFabId: 'PFSELLER', itemId: 'sword_001', amount: 1 }
   ]);
   expect(firestore.dump('black_market_listings')).toHaveLength(1);
 });
@@ -783,7 +787,7 @@ test('black-market cancel restores the exact enhancement properties', async () =
   const createResponse = makeResponse();
   await routes.get('/api/black-market/create')({
     body: {
-      playFabId: 'PF_SELLER',
+      playFabId: 'PFSELLER',
       itemId: 'sword_001',
       stackId: 'enhanced-sword-stack',
       price: 77
@@ -803,7 +807,7 @@ test('black-market cancel restores the exact enhancement properties', async () =
 
   const cancelResponse = makeResponse();
   await routes.get('/api/black-market/cancel')({
-    body: { playFabId: 'PF_SELLER', listingId: listing.listingId }
+    body: { playFabId: 'PFSELLER', listingId: listing.listingId }
   }, cancelResponse);
   expect(cancelResponse.statusCode).toBe(200);
   expect(economyRequests[1].Operations[0].Add.NewStackValues.DisplayProperties).toMatchObject({
@@ -830,7 +834,7 @@ test('black-market create removes undefined catalog fields before Firestore stor
 
   await routes.get('/api/black-market/create')({
     body: {
-      playFabId: 'PF_SELLER',
+      playFabId: 'PFSELLER',
       itemId: 'sword_001',
       price: 10
     }
@@ -846,7 +850,7 @@ test('black-market create rejects the sixth active listing', async () => {
   const firestore = makeMemoryFirestore({
     black_market_listings: Object.fromEntries(Array.from({ length: 5 }, (_entry, index) => [`listing-${index}`, {
       listingId: `listing-${index}`,
-      sellerPlayFabId: 'PF_SELLER',
+      sellerPlayFabId: 'PFSELLER',
       itemId: 'sword_001',
       itemName: 'Test Sword',
       price: 1,
@@ -864,7 +868,7 @@ test('black-market create rejects the sixth active listing', async () => {
 
   await routes.get('/api/black-market/create')({
     body: {
-      playFabId: 'PF_SELLER',
+      playFabId: 'PFSELLER',
       itemId: 'sword_001',
       price: 1
     }
@@ -885,7 +889,7 @@ test('black-market create does not record first owner for consumables', async ()
 
   await routes.get('/api/black-market/create')({
     body: {
-      playFabId: 'PF_SELLER',
+      playFabId: 'PFSELLER',
       itemId: 'potion_001',
       price: 12
     }
@@ -900,7 +904,7 @@ test('black-market cancel returns item and preserves tracked origin', async () =
     black_market_listings: {
       listing1: {
         listingId: 'listing1',
-        sellerPlayFabId: 'PF_SELLER',
+        sellerPlayFabId: 'PFSELLER',
         sellerDisplayName: 'Seller',
         itemId: 'sword_001',
         itemName: 'Test Sword',
@@ -916,17 +920,17 @@ test('black-market cancel returns item and preserves tracked origin', async () =
 
   await routes.get('/api/black-market/cancel')({
     body: {
-      playFabId: 'PF_SELLER',
+      playFabId: 'PFSELLER',
       listingId: 'listing1'
     }
   }, res);
 
   expect(res.statusCode).toBe(200);
   expect(economyAdds).toEqual([
-    { playFabId: 'PF_SELLER', itemId: 'sword_001', amount: 1 }
+    { playFabId: 'PFSELLER', itemId: 'sword_001', amount: 1 }
   ]);
   expect(firestore.dump('black_market_item_origins')).toContainEqual(expect.objectContaining({
-    ownerPlayFabId: 'PF_SELLER',
+    ownerPlayFabId: 'PFSELLER',
     itemId: 'sword_001',
     originPlayFabId: 'PF_ORIGIN',
     count: 1
@@ -939,7 +943,7 @@ test('black-market buy rejects buying your own listing', async () => {
     black_market_listings: {
       listing1: {
         listingId: 'listing1',
-        sellerPlayFabId: 'PF_SELLER',
+        sellerPlayFabId: 'PFSELLER',
         itemId: 'sword_001',
         itemName: 'Test Sword',
         price: 25,
@@ -952,7 +956,7 @@ test('black-market buy rejects buying your own listing', async () => {
 
   await routes.get('/api/black-market/buy')({
     body: {
-      playFabId: 'PF_SELLER',
+      playFabId: 'PFSELLER',
       listingId: 'listing1'
     }
   }, res);
@@ -968,7 +972,7 @@ test('black-market buy transfers gold and item', async () => {
     black_market_listings: {
       listing1: {
         listingId: 'listing1',
-        sellerPlayFabId: 'PF_SELLER',
+        sellerPlayFabId: 'PFSELLER',
         itemId: 'sword_001',
         itemName: 'Test Sword',
         price: 25,
@@ -995,7 +999,7 @@ test('black-market buy transfers gold and item', async () => {
   ]);
   expect(economyAdds).toEqual([
     { playFabId: 'PF_BUYER', itemId: 'sword_001', amount: 1 },
-    { playFabId: 'PF_SELLER', itemId: 'PS', amount: 25 }
+    { playFabId: 'PFSELLER', itemId: 'PS', amount: 25 }
   ]);
   expect(firestore.dump('black_market_item_origins')).toContainEqual(expect.objectContaining({
     ownerPlayFabId: 'PF_BUYER',
@@ -1015,7 +1019,7 @@ test('black-market buy preserves enhancement properties on the transferred stack
     black_market_listings: {
       listing1: {
         listingId: 'listing1',
-        sellerPlayFabId: 'PF_SELLER',
+        sellerPlayFabId: 'PFSELLER',
         itemId: 'sword_001',
         itemName: 'Test Sword +6',
         price: 25,
@@ -1055,7 +1059,7 @@ test('black-market create rejects decimal prices', async () => {
   const res = makeResponse();
 
   await routes.get('/api/black-market/create')({
-    body: { playFabId: 'PF_SELLER', itemId: 'sword_001', price: 1.5 }
+    body: { playFabId: 'PFSELLER', itemId: 'sword_001', price: 1.5 }
   }, res);
 
   expect(res.statusCode).toBe(400);
@@ -1067,7 +1071,7 @@ test('black-market slot reservation prevents concurrent sixth listings', async (
   const firestore = makeMemoryFirestore({
     black_market_listings: Object.fromEntries(Array.from({ length: 4 }, (_entry, index) => [`listing-${index}`, {
       listingId: `listing-${index}`,
-      sellerPlayFabId: 'PF_SELLER',
+      sellerPlayFabId: 'PFSELLER',
       itemId: 'sword_001',
       itemName: 'Test Sword',
       price: 1,
@@ -1084,8 +1088,8 @@ test('black-market slot reservation prevents concurrent sixth listings', async (
   const create = routes.get('/api/black-market/create');
 
   await Promise.all([
-    create({ body: { playFabId: 'PF_SELLER', itemId: 'sword_001', price: 10 } }, firstRes),
-    create({ body: { playFabId: 'PF_SELLER', itemId: 'sword_001', price: 11 } }, secondRes)
+    create({ body: { playFabId: 'PFSELLER', itemId: 'sword_001', price: 10 } }, firstRes),
+    create({ body: { playFabId: 'PFSELLER', itemId: 'sword_001', price: 11 } }, secondRes)
   ]);
 
   expect([firstRes.statusCode, secondRes.statusCode].sort()).toEqual([200, 400]);
@@ -1093,7 +1097,7 @@ test('black-market slot reservation prevents concurrent sixth listings', async (
   expect(firestore.dump('black_market_listing_slots').filter((slot) => slot.status === 'occupied')).toHaveLength(5);
 });
 
-test('black-market list resumes a creating listing after a transient debit failure', async () => {
+test('black-market recovery waits after an uncertain debit, then resumes', async () => {
   let failDebit = true;
   const { routes, firestore, economySubtracts } = makeBlackMarketHarness({
     inventoryItems: [{ Id: 'sword_001', Amount: 1 }],
@@ -1107,7 +1111,7 @@ test('black-market list resumes a creating listing after a transient debit failu
   const createRes = makeResponse();
 
   await routes.get('/api/black-market/create')({
-    body: { playFabId: 'PF_SELLER', itemId: 'sword_001', price: 20 }
+    body: { playFabId: 'PFSELLER', itemId: 'sword_001', price: 20 }
   }, createRes);
 
   expect(createRes.statusCode).toBe(500);
@@ -1117,8 +1121,14 @@ test('black-market list resumes a creating listing after a transient debit failu
     settlementStatus: 'itemDebitPending'
   });
 
+  const pendingRes = makeResponse();
+  await routes.get('/api/black-market/list')({ body: { playFabId: 'PFSELLER' } }, pendingRes);
+  expect(firestore.dump('black_market_listings')[0]).toMatchObject({ status: 'creating', itemDebited: false });
+  expect(economySubtracts).toHaveLength(1);
+  const [lock] = firestore.dump('ship_profile_writer_gate_v1');
+  await firestore.collection('ship_profile_writer_gate_v1').doc(lock.id).update({ startedAt: Date.now() - 301000 });
   const listRes = makeResponse();
-  await routes.get('/api/black-market/list')({ body: { playFabId: 'PF_SELLER' } }, listRes);
+  await routes.get('/api/black-market/list')({ body: { playFabId: 'PFSELLER' } }, listRes);
 
   expect(listRes.statusCode).toBe(200);
   expect(listRes.body.listings).toHaveLength(1);
@@ -1131,7 +1141,7 @@ test('black-market purchase recovery pays the seller after a settlement failure'
     black_market_listings: {
       listing1: {
         listingId: 'listing1',
-        sellerPlayFabId: 'PF_SELLER',
+        sellerPlayFabId: 'PFSELLER',
         itemId: 'sword_001',
         itemName: 'Test Sword',
         price: 25,
@@ -1145,7 +1155,7 @@ test('black-market purchase recovery pays the seller after a settlement failure'
   const { routes, economyAdds, economySubtracts } = makeBlackMarketHarness({
     firestore,
     addEconomyItemImpl: async (playFabId, itemId) => {
-      if (playFabId === 'PF_SELLER' && itemId === 'PS' && failSellerPayment) {
+      if (playFabId === 'PFSELLER' && itemId === 'PS' && failSellerPayment) {
         throw new Error('temporary seller payment failure');
       }
     }
@@ -1167,7 +1177,7 @@ test('black-market purchase recovery pays the seller after a settlement failure'
 
   failSellerPayment = false;
   const listRes = makeResponse();
-  await routes.get('/api/black-market/list')({ body: { playFabId: 'PF_SELLER' } }, listRes);
+  await routes.get('/api/black-market/list')({ body: { playFabId: 'PFSELLER' } }, listRes);
 
   expect(listRes.statusCode).toBe(200);
   expect(firestore.dump('black_market_listings')[0]).toMatchObject({
@@ -1177,7 +1187,7 @@ test('black-market purchase recovery pays the seller after a settlement failure'
   });
   expect(economySubtracts).toEqual([{ playFabId: 'PF_BUYER', itemId: 'PS', amount: 25 }]);
   expect(economyAdds.filter((entry) => entry.playFabId === 'PF_BUYER' && entry.itemId === 'sword_001')).toHaveLength(1);
-  expect(economyAdds.filter((entry) => entry.playFabId === 'PF_SELLER' && entry.itemId === 'PS')).toHaveLength(2);
+  expect(economyAdds.filter((entry) => entry.playFabId === 'PFSELLER' && entry.itemId === 'PS')).toHaveLength(2);
 });
 
 test('black-market refund failure keeps the listing locked until recovery succeeds', async () => {
@@ -1185,7 +1195,7 @@ test('black-market refund failure keeps the listing locked until recovery succee
     black_market_listings: {
       listing1: {
         listingId: 'listing1',
-        sellerPlayFabId: 'PF_SELLER',
+        sellerPlayFabId: 'PFSELLER',
         itemId: 'sword_001',
         itemName: 'Test Sword',
         price: 25,
@@ -1242,7 +1252,7 @@ test('black-market cancellation remains recoverable when the first return fails'
     black_market_listings: {
       listing1: {
         listingId: 'listing1',
-        sellerPlayFabId: 'PF_SELLER',
+        sellerPlayFabId: 'PFSELLER',
         itemId: 'sword_001',
         itemName: 'Test Sword',
         price: 25,
@@ -1256,7 +1266,7 @@ test('black-market cancellation remains recoverable when the first return fails'
   const { routes } = makeBlackMarketHarness({
     firestore,
     addEconomyItemImpl: async (playFabId, itemId) => {
-      if (playFabId === 'PF_SELLER' && itemId === 'sword_001' && failReturn) {
+      if (playFabId === 'PFSELLER' && itemId === 'sword_001' && failReturn) {
         failReturn = false;
         throw new Error('temporary return failure');
       }
@@ -1265,7 +1275,7 @@ test('black-market cancellation remains recoverable when the first return fails'
   const cancelRes = makeResponse();
 
   await routes.get('/api/black-market/cancel')({
-    body: { playFabId: 'PF_SELLER', listingId: 'listing1' }
+    body: { playFabId: 'PFSELLER', listingId: 'listing1' }
   }, cancelRes);
 
   expect(cancelRes.statusCode).toBe(500);
@@ -1276,7 +1286,7 @@ test('black-market cancellation remains recoverable when the first return fails'
   });
 
   const listRes = makeResponse();
-  await routes.get('/api/black-market/list')({ body: { playFabId: 'PF_SELLER' } }, listRes);
+  await routes.get('/api/black-market/list')({ body: { playFabId: 'PFSELLER' } }, listRes);
 
   expect(listRes.statusCode).toBe(200);
   expect(firestore.dump('black_market_listings')[0]).toMatchObject({
@@ -1292,7 +1302,7 @@ test('black-market rejects cancelling another seller listing without locking it'
     black_market_listings: {
       listing1: {
         listingId: 'listing1',
-        sellerPlayFabId: 'PF_SELLER',
+        sellerPlayFabId: 'PFSELLER',
         itemId: 'sword_001',
         itemName: 'Test Sword',
         price: 25,
@@ -1317,7 +1327,7 @@ test('black-market ownership counts remain correct across concurrent purchases',
     black_market_listings: {
       listing1: {
         listingId: 'listing1',
-        sellerPlayFabId: 'PF_SELLER_1',
+        sellerPlayFabId: 'PFSELLER_1',
         itemId: 'sword_001',
         itemName: 'Test Sword',
         price: 10,
@@ -1327,7 +1337,7 @@ test('black-market ownership counts remain correct across concurrent purchases',
       },
       listing2: {
         listingId: 'listing2',
-        sellerPlayFabId: 'PF_SELLER_2',
+        sellerPlayFabId: 'PFSELLER_2',
         itemId: 'sword_001',
         itemName: 'Test Sword',
         price: 11,

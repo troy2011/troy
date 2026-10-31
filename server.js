@@ -53,6 +53,7 @@ const {
 } = require('./server/tarotItemIds');
 const events = require('./server/events');
 const exploration = require('./server/exploration');
+const { createShipProfileGate, createProfileRecoveryReader, writeShipProfile } = require('./server/shipProfileGate');
 const musicGame = require('./server/musicGame');
 
 // 既存ルート
@@ -1130,6 +1131,11 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
 
 // スターター船確保
 async function ensureStarterShip({ playFabId, respawnPosition }) {
+    const gate = createShipProfileGate(firestore, createProfileRecoveryReader(promisifyPlayFab, PlayFabServer));
+    return gate.run(playFabId, () => ensureStarterShipLocked({ playFabId, respawnPosition }));
+}
+
+async function ensureStarterShipLocked({ playFabId, respawnPosition }) {
     const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
         PlayFabId: playFabId,
         Keys: ['ActiveShipId', 'AvatarColor', 'Nation']
@@ -1162,8 +1168,10 @@ async function ensureStarterShip({ playFabId, respawnPosition }) {
         }
     }
 
-    if (!activeShipId || !shipData) {
-        activeShipId = activeShipId || `ship_${playFabId}_${Date.now()}`;
+    if (activeShipId && !shipData) throw new Error('ActiveShipUnavailable');
+    const created = !activeShipId;
+    if (created) {
+        activeShipId = `ship_${playFabId}_${Date.now()}`;
         shipData = {
             ShipId: activeShipId,
             ShipType: shipSpec?.DisplayName || 'Common Boat',
@@ -1180,13 +1188,12 @@ async function ensureStarterShip({ playFabId, respawnPosition }) {
         };
     }
 
-    await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
-        PlayFabId: playFabId,
-        Data: {
-            ActiveShipId: activeShipId,
-            [`Ship_${activeShipId}`]: JSON.stringify(shipData)
-        }
-    });
+    if (created) {
+        const data = { ActiveShipId: activeShipId, [`Ship_${activeShipId}`]: JSON.stringify(shipData) };
+        await writeShipProfile(playFabId, () => promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+            PlayFabId: playFabId, Data: data
+        }), data);
+    }
 
     const position = respawnPosition || { x: 100, y: 100 };
     const geoPoint = island.worldToLatLng(position);
@@ -1212,8 +1219,10 @@ async function ensureStarterShip({ playFabId, respawnPosition }) {
         lastUpdated: admin.firestore.FieldValue.serverTimestamp()
     };
 
-    await firestore.collection('ships').doc(activeShipId).set(firestoreShipData, { merge: true });
-    await firestore.collection('ships').doc(playFabId).set({
+    const shipRef = firestore.collection('ships').doc(activeShipId);
+    if (!(await shipRef.get()).exists) await shipRef.set(firestoreShipData, { merge: true });
+    const playerRef = firestore.collection('ships').doc(playFabId);
+    if (!(await playerRef.get()).exists) await playerRef.set({
         shipId: activeShipId,
         playFabId: playFabId,
         active: true,

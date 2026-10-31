@@ -1,4 +1,5 @@
 const RESOURCE_ITEM_IDS = ['RR', 'RG', 'RY', 'RB', 'RT', 'RS'];
+const { inShipProfileScope, writeShipProfile } = require('./shipProfileGate');
 const PLAYER_SHIP_PROFILE_KEY = 'PlayerShipProfile';
 
 const PLAYER_SHIP_FORMS = {
@@ -136,12 +137,11 @@ function normalizePlayerShipProfile(input = {}) {
 async function savePlayerShipProfile(playFabId, profile, deps) {
     const { promisifyPlayFab, PlayFabServer } = deps;
     const normalized = normalizePlayerShipProfile(profile);
-    await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+    const data = { [PLAYER_SHIP_PROFILE_KEY]: JSON.stringify(normalized) };
+    await writeShipProfile(playFabId, () => promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
         PlayFabId: playFabId,
-        Data: {
-            [PLAYER_SHIP_PROFILE_KEY]: JSON.stringify(normalized)
-        }
-    });
+        Data: data
+    }), data);
     return normalized;
 }
 
@@ -156,14 +156,15 @@ async function getPlayerShipProfile(playFabId, deps, options = {}) {
         try {
             return normalizePlayerShipProfile(JSON.parse(raw));
         } catch {
-            // fall through to migration/default
+            throw new Error('InvalidPlayerShipProfile');
         }
     }
 
     const activeShipId = result?.Data?.ActiveShipId?.Value || null;
     let migrated = null;
     if (activeShipId) {
-        const shipData = await getShipAsset(playFabId, activeShipId, deps).catch(() => null);
+        const shipData = await getShipAsset(playFabId, activeShipId, deps);
+        if (!shipData) throw new Error('ActiveShipUnavailable');
         const shipClass = normalizeShipClassFromItemId(shipData?.ItemId);
         const form = formFromShipClass(shipClass);
         migrated = normalizePlayerShipProfile({
@@ -175,8 +176,8 @@ async function getPlayerShipProfile(playFabId, deps, options = {}) {
         });
     }
     const profile = migrated || normalizePlayerShipProfile({ form: 'boat' });
-    if (options.persist !== false) {
-        await savePlayerShipProfile(playFabId, profile, deps).catch(() => {});
+    if (options.persist !== false && inShipProfileScope(playFabId)) {
+        await savePlayerShipProfile(playFabId, profile, deps);
     }
     return profile;
 }
