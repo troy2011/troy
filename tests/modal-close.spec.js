@@ -55,3 +55,23 @@ test('shared modal close handles backdrop and Escape without duplicate callbacks
   await page.keyboard.press('Escape');
   await expect.poll(() => page.evaluate(() => window.testCloseCount)).toBe(2);
 });
+
+test('target modal can be closed with Escape after it is reopened', async ({ page }) => {
+  await page.goto('/tarot-reading.html');
+  await page.evaluate(async () => {
+    const { bindTargetModalCloseButtons } = await import('/js/modalClose.js');
+    document.body.innerHTML = `
+      <div id="targetOverlay" style="position:fixed;inset:0;display:flex">
+        <section><button data-modal-close-target="targetOverlay">閉じる</button></section>
+      </div>`;
+    bindTargetModalCloseButtons();
+  });
+  const overlay = page.locator('#targetOverlay');
+  await page.getByRole('button', { name: '閉じる' }).click();
+  await expect(overlay).toBeHidden();
+  await overlay.evaluate(element => { element.style.display = 'flex'; });
+  await expect(overlay).toBeVisible();
+  await expect(overlay).not.toHaveAttribute('aria-hidden', 'true');
+  await page.keyboard.press('Escape');
+  await expect(overlay).toBeHidden();
+});

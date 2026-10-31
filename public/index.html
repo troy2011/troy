@@ -48,18 +48,18 @@
         "./js/ui.js": "./js/ui.js?v=20261031-reveal-extras-v1",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js?v=20261029-startup-v1",
-        "inventory": "./js/inventory.js?v=20261031-detail-tidy-v1",
-        "./js/inventory.js": "./js/inventory.js?v=20261031-detail-tidy-v1",
+        "inventory": "./js/inventory.js?v=20261031-mobile-market-v1",
+        "./js/inventory.js": "./js/inventory.js?v=20261031-mobile-market-v1",
         "game": "./Game.js?v=20260727-nav-guide1"
       }
     }
     </script>
-    <script type="module" src="main.js?v=20261031-reveal-extras-v1"></script>
-    <link rel="stylesheet" href="style.css?v=20261031-reveal-extras-v1">
+    <script type="module" src="main.js?v=20261031-mobile-polish-v1"></script>
+    <link rel="stylesheet" href="style.css?v=20261031-mobile-polish-v1">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
     <link rel="stylesheet" href="tarot-kingdom-summons.css?v=20260827-summon-element-target-v1">
-    <link rel="stylesheet" href="css/home-v3.css?v=20261030-home-layout-v1">
+    <link rel="stylesheet" href="css/home-v3.css?v=20261031-mobile-polish-v1">
     <link rel="stylesheet" href="/css/pirate-tarot-artwork.css">
 </head>
 
@@ -1477,8 +1477,8 @@
             <div class="sheet-handle" aria-hidden="true"></div>
             <button class="item-detail-corner-close ui-modal-close" type="button" aria-label="詳細を閉じる"></button>
             <nav class="item-detail-navigation" aria-label="持ち物を切り替え" hidden>
-                <button class="item-detail-navigation-previous" type="button" aria-label="前の持ち物">‹</button>
-                <button class="item-detail-navigation-next" type="button" aria-label="次の持ち物">›</button>
+                <button class="item-detail-navigation-previous" type="button" aria-label="前の持ち物"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 4 7 12l8 8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                <button class="item-detail-navigation-next" type="button" aria-label="次の持ち物"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 4 8 8-8 8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </nav>
             <div class="item-detail-head">
                 <div class="item-detail-icon-frame">
@@ -1722,7 +1722,7 @@
             <div id="guildMembersList" style="margin: 20px 0;">
                 <!-- メンバーリストがここに動的に表示される -->
             </div>
-            <button type="button" data-modal-close-target="guildMembersModal" style="width: 100%; background: #4b5563;">閉じる</button>
+            <button type="button" class="item-detail-close" data-modal-close-target="guildMembersModal">閉じる</button>
         </div>
     </div>
 
@@ -1737,7 +1737,7 @@
                 <input type="text" id="guildChatInput" placeholder="メッセージを入力..." maxlength="500" style="flex: 1; padding: 12px; border-radius: 4px; border: 1px solid var(--border-color); background: #374151; color: #fff;">
                 <button id="btnSendGuildChat" style="padding: 12px 24px;">送信</button>
             </div>
-            <button type="button" data-modal-close-target="guildChatModal" style="width: 100%; background: #4b5563; margin-top: 12px;">閉じる</button>
+            <button type="button" class="item-detail-close" data-modal-close-target="guildChatModal">閉じる</button>
         </div>
     </div>
 
@@ -1753,7 +1753,7 @@
             <div id="guildWarehouseList" style="margin: 20px 0;">
                 <!-- 倉庫アイテムがここに動的に表示される -->
             </div>
-            <button type="button" data-modal-close-target="guildWarehouseModal" style="width: 100%; background: #4b5563;">閉じる</button>
+            <button type="button" class="item-detail-close" data-modal-close-target="guildWarehouseModal">閉じる</button>
         </div>
     </div>
 
@@ -1764,7 +1764,7 @@
             <div id="guildApplicationsList" style="margin: 20px 0;">
                 <!-- 加入申請リストがここに動的に表示される -->
             </div>
-            <button type="button" data-modal-close-target="guildApplicationsModal" style="width: 100%; background: #4b5563;">閉じる</button>
+            <button type="button" class="item-detail-close" data-modal-close-target="guildApplicationsModal">閉じる</button>
         </div>
     </div>
 
@@ -1812,11 +1812,14 @@
     <!-- 船詳細モーダル -->
     <div id="shipDetailsModal" class="modal-overlay">
         <div class="modal-content" style="max-height: 80vh; overflow-y: auto;">
-            <h2>船の詳細</h2>
+            <div class="ship-details-header">
+                <h2>船の詳細</h2>
+                <button type="button" class="ui-modal-close" aria-label="船の詳細を閉じる" data-modal-close-target="shipDetailsModal"></button>
+            </div>
             <div id="shipDetailsContent" style="margin: 20px 0;">
                 <!-- 船の詳細情報がここに表示される -->
             </div>
-            <button type="button" data-modal-close-target="shipDetailsModal" style="width: 100%; background: #4b5563; color: white; padding: 12px; border-radius: 4px; border: none; cursor: pointer;">閉じる</button>
+            <button type="button" class="item-detail-close" data-modal-close-target="shipDetailsModal">閉じる</button>
         </div>
     </div>
 

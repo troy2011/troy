@@ -102,6 +102,7 @@ let blackMarketMyActiveCount = 0;
 let blackMarketMaxActiveListings = 5;
 let blackMarketOriginsByItemId = {};
 let blackMarketLoading = false;
+let blackMarketLoadGeneration = 0;
 let blackMarketPendingListingId = '';
 let blackMarketCreatingItemId = '';
 let blackMarketErrorMessage = '';
@@ -2586,7 +2587,7 @@ function renderInventorySellControls(visibleItems = []) {
         blackMarketVisible = true;
         blackMarketErrorMessage = '';
         renderBlackMarketPanel();
-        await loadBlackMarketListings({ force: true });
+        await loadBlackMarketListings({ force: true, isSilent: true });
     });
     marketButton.classList.add('is-market');
     marketButton.title = '闇市を開く';
@@ -2651,6 +2652,9 @@ function getBlackMarketPanelElement() {
 }
 
 function closeBlackMarketPanel() {
+    // A late response must not update a closed or subsequently reopened panel.
+    blackMarketLoadGeneration += 1;
+    blackMarketLoading = false;
     blackMarketVisible = false;
     blackMarketErrorMessage = '';
     renderBlackMarketPanel();
@@ -2778,7 +2782,7 @@ function renderBlackMarketPanel() {
     refresh.setAttribute('aria-label', '闇市を更新');
     refresh.title = '更新';
     refresh.disabled = blackMarketLoading;
-    refresh.addEventListener('click', () => loadBlackMarketListings({ force: true }));
+    refresh.addEventListener('click', () => loadBlackMarketListings({ force: true, isSilent: true }));
     const close = createModalCloseButton({ className: 'black-market-close', label: '闇市を閉じる' });
     close.title = '閉じる';
     bindModalClose(close, closeBlackMarketPanel, { icon: true });
@@ -2838,22 +2842,27 @@ async function loadBlackMarketListings(options = {}) {
         renderBlackMarketPanel();
         return null;
     }
+    const generation = ++blackMarketLoadGeneration;
     blackMarketLoading = true;
     blackMarketErrorMessage = '';
     renderBlackMarketPanel();
     try {
-        const data = await requestBlackMarketListings(playFabId, { isSilent: options.isSilent === true });
+        const data = await requestBlackMarketListings(playFabId, { isSilent: options.isSilent === true, throwOnError: true });
+        if (generation !== blackMarketLoadGeneration) return null;
         blackMarketListings = Array.isArray(data?.listings) ? data.listings : [];
         blackMarketMyActiveCount = Number(data?.myActiveCount ?? blackMarketMyActiveCount) || 0;
         blackMarketMaxActiveListings = Number(data?.maxActiveListings ?? blackMarketMaxActiveListings) || 5;
         return data;
     } catch (error) {
+        if (generation !== blackMarketLoadGeneration) return null;
         blackMarketErrorMessage = error?.message || '闇市の取得に失敗しました。';
         showInventoryFeedback(blackMarketErrorMessage, true);
         return null;
     } finally {
-        blackMarketLoading = false;
-        renderBlackMarketPanel();
+        if (generation === blackMarketLoadGeneration) {
+            blackMarketLoading = false;
+            renderBlackMarketPanel();
+        }
     }
 }
 

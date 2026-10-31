@@ -87,8 +87,9 @@ export function bindTargetModalCloseButtons(root = document) {
         const overlay = targetId ? document.getElementById(targetId) : null;
         if (!overlay) return;
         bindModalClose(button, () => {
+            // display:none removes the overlay from the accessibility tree. Openers
+            // restore display directly, so a persistent aria-hidden would hide it on reopen.
             overlay.style.display = 'none';
-            overlay.setAttribute('aria-hidden', 'true');
         }, {
             overlay,
             closeOnBackdrop: true,

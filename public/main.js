@@ -421,6 +421,7 @@ function setDailyFortuneButtonClaimed(button, claimed) {
     button.dataset.dailyFortuneClaimed = claimed ? 'true' : 'false';
     button.dataset.dailyFortunePending = 'false';
     button.disabled = Boolean(dailyFortuneOpenPromise);
+    button.removeAttribute('aria-busy');
     button.textContent = claimed ? '結果を見る' : '占い';
     button.setAttribute('aria-label', claimed ? '本日の占い結果を見る' : '本日の占い');
 }
@@ -430,6 +431,7 @@ function setDailyFortuneButtonPending(button) {
     button.dataset.dailyFortuneClaimed = 'false';
     button.dataset.dailyFortunePending = 'true';
     button.disabled = Boolean(dailyFortuneOpenPromise);
+    button.removeAttribute('aria-busy');
     button.textContent = '結果を確認';
     button.setAttribute('aria-label', '本日の占いの処理状況を確認');
 }
@@ -455,7 +457,9 @@ async function openDailyFortuneFromButton() {
     }
     if (button) {
         button.disabled = true;
-        button.textContent = '占いを準備中...';
+        button.textContent = '準備中…';
+        button.setAttribute('aria-label', '占いの結果を準備中');
+        button.setAttribute('aria-busy', 'true');
     }
     dailyFortuneRefreshGeneration += 1;
     dailyFortuneOpenPromise = (async () => {

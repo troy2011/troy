@@ -10,6 +10,8 @@ test('the published worker loads one updated module generation on restart', asyn
     const previousIndex = cp.execFileSync('git', ['show', '7cd14c0fdb6d671a5f65cc2bdc041b01dae7390f:public/index.html'], { cwd: root, encoding: 'utf8' });
     const mapFrom = html => html.match(/<script type="importmap">([\s\S]*?)<\/script>/)[1];
     const oldMap = mapFrom(previousIndex), newMap = mapFrom(currentIndex);
+    const inventoryVersion = new URL(JSON.parse(newMap).imports.inventory, 'https://fixture.invalid').searchParams.get('v');
+    const homeCssVersion = new URL(currentIndex.match(/href="(css\/home-v3\.css\?[^"]+)"/)[1], 'https://fixture.invalid').searchParams.get('v');
     const oldSw = cp.execFileSync('git', ['show', '7cd14c0fdb6d671a5f65cc2bdc041b01dae7390f:public/sw.js'], { cwd: root, encoding: 'utf8' });
     const errors = [], requests = [];
     let updated = false;
@@ -24,7 +26,7 @@ test('the published worker loads one updated module generation on restart', asyn
         if (url.pathname === '/' || url.pathname === '/index.html') {
             const map = updated ? newMap : oldMap;
             const js = `import * as Player from 'player'; import * as Api from 'api'; import * as Inventory from 'inventory'; import * as Ui from 'ui'; import * as Profile from './js/playerProfile.js'; import * as Relative from './js/consumer.js'; import * as LegacyClient from './js/playfabClient.js?v=20260830-s1-auth-v1'; import * as Client from './js/playfabClient.js?v=20261029-startup-v1'; import * as Ship from './js/ship.js?v=20260828-exploration-retreat-v1'; import * as Island from './js/island.js'; import * as Companions from './js/companions.js?v=20260604d'; window.fixture = { player: Player.version, api: Api.version, inventory: Inventory.version, ui: Ui.version, profile: Profile.version, same: Player === Relative.Player && Api === Relative.Api && Inventory === Relative.Inventory && Ui === Relative.Ui && Profile === Relative.Profile, sameClient: LegacyClient === Client, ship: Ship.version, island: Island.version, companions: Companions.version }; await navigator.serviceWorker.register('/sw.js');`;
-            const cssVersion = updated ? '20261030-home-layout-v1' : '20261003-profile-cache-v1';
+            const cssVersion = updated ? homeCssVersion : '20261003-profile-cache-v1';
             return send(`<!doctype html><link rel="stylesheet" href="/css/home-v3.css?v=${cssVersion}"><script type="importmap">${map}</script><script type="module">${js}</script>`, 'text/html');
         }
         if (url.pathname === '/js/consumer.js') return send("import * as Player from './player.js'; import * as Api from './api.js'; import * as Inventory from './inventory.js'; import * as Ui from './ui.js'; import * as Profile from './playerProfile.js'; export { Player, Api, Inventory, Ui, Profile };");
@@ -32,12 +34,12 @@ test('the published worker loads one updated module generation on restart', asyn
             const version = {
                 '/js/ui.js': '20261031-reveal-extras-v1',
                 '/js/playerProfile.js': '20261030-home-layout-v1',
-                '/js/inventory.js': '20261031-detail-tidy-v1',
+                '/js/inventory.js': inventoryVersion,
                 '/js/ship.js': '20261031-world-retirement-v1'
             }[url.pathname] || '20261029-startup-v1';
             return send(`export const version = '${url.search.includes(version) ? 'new' : 'old'}';`);
         }
-        if (url.pathname === '/css/home-v3.css') return send(`:root { --home-layout-generation: ${url.search.includes('20261030-home-layout-v1') ? 'new' : 'old'}; }`, 'text/css');
+        if (url.pathname === '/css/home-v3.css') return send(`:root { --home-layout-generation: ${url.search.includes(homeCssVersion) ? 'new' : 'old'}; }`, 'text/css');
         if (url.pathname === '/style.css') return send('', 'text/css');
         if (url.pathname === '/main.js') return send('');
         if (url.pathname === '/manifest.webmanifest') return send('{}', 'application/manifest+json');
@@ -67,13 +69,12 @@ test('the published worker loads one updated module generation on restart', asyn
         for (const asset of ['/js/player.js', '/js/api.js', '/js/island.js', '/js/companions.js']) {
             expect(requests.some(request => request.updated && request.path === asset && request.query.includes('20261029-startup-v1'))).toBe(true);
         }
-        for (const [asset, version] of [['/js/inventory.js', '20261031-detail-tidy-v1'], ['/js/ship.js', '20261031-world-retirement-v1']]) {
+        for (const [asset, version] of [['/js/inventory.js', inventoryVersion], ['/js/ship.js', '20261031-world-retirement-v1']]) {
             expect(requests.some(request => request.updated && request.path === asset && request.query.includes(version))).toBe(true);
         }
         expect(requests.some(request => request.updated && request.path === '/js/ui.js' && request.query.includes('20261031-reveal-extras-v1'))).toBe(true);
-        for (const asset of ['/js/playerProfile.js', '/css/home-v3.css']) {
-            expect(requests.some(request => request.updated && request.path === asset && request.query.includes('20261030-home-layout-v1'))).toBe(true);
-        }
+        expect(requests.some(request => request.updated && request.path === '/js/playerProfile.js' && request.query.includes('20261030-home-layout-v1'))).toBe(true);
+        expect(requests.some(request => request.updated && request.path === '/css/home-v3.css' && request.query.includes(homeCssVersion))).toBe(true);
         const ui = fs.readFileSync(path.join(root, 'public/js/ui.js'), 'utf8');
         const main = fs.readFileSync(path.join(root, 'public/main.js'), 'utf8');
         expect(ui).toContain("const TAROT_MODULE_VERSION = '20261031-reveal-extras-v1'");

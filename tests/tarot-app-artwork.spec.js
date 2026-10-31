@@ -388,3 +388,133 @@ test('reduced motion skips the compass, signature and turn but keeps the reverse
     await expect(page.locator('#dailyTarotFortuneText')).toContainText(result.strikeLine);
     expect(draws()).toBe(1);
 });
+
+async function expectViewerShows(page, id, label, width) {
+    const viewer = page.locator('.tarot-card-viewer');
+    await expect(viewer).toHaveClass(/is-open/);
+    const image = viewer.locator('.tarot-card-viewer-image');
+    await expect(image).toHaveAttribute('src', imageUrl(id));
+    await expect(viewer.locator('.tarot-card-viewer-caption')).toContainText(label);
+    await expect(page.locator('.tarot-card-viewer-close')).toBeFocused();
+    await page.waitForTimeout(400);
+    const box = await viewer.locator('.tarot-card-viewer-frame').boundingBox();
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(width + 0.5);
+    expect(box.y + box.height).toBeLessThanOrEqual(844);
+    expect(box.width / box.height).toBeCloseTo(2 / 3, 2);
+    expect(box.width).toBeGreaterThan(width * 0.6);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+}
+
+for (const width of [320, 390, 430]) {
+    test(`revealed daily card opens full screen and closing keeps the reading at ${width}px`, async ({ page }) => {
+        await isolate(page);
+        const errors = trackPageErrors(page);
+        const result = dailyResult();
+        const draws = await installFortune(page, result);
+        await page.setViewportSize({ width, height: 844 });
+        await bootstrapMainApp(page);
+        await page.locator('#btnDailyFortune').click();
+        await page.locator('#dailyTarotFortuneCardHost button').first().click();
+        await expect(page.locator('#dailyTarotFortuneText')).toContainText(result.strikeLine, { timeout: 10000 });
+        const card = page.locator('#dailyTarotFortuneCardHost .tarot-fortune-card-shell');
+        await expect(card).toHaveClass(/is-card-zoomable/);
+        await card.click();
+        await expectViewerShows(page, 'sword-3', 'ソードの3', width);
+        await page.locator('.tarot-card-viewer').click({ position: { x: 20, y: 400 } });
+        await expect(page.locator('.tarot-card-viewer')).toHaveCount(0);
+        await expect(page.locator('#dailyTarotFortuneOverlay')).toBeVisible();
+        await expect(page.locator('#dailyTarotFortuneText')).toContainText(result.strikeLine);
+        await card.click();
+        await page.keyboard.press('Escape');
+        await expect(page.locator('.tarot-card-viewer')).toHaveCount(0);
+        await expect(page.locator('#dailyTarotFortuneOverlay')).toBeVisible();
+        expect(draws()).toBe(1);
+        await expectNoPageErrors(errors);
+    });
+}
+
+test('cards cannot be enlarged before they are revealed', async ({ page }) => {
+    await isolate(page);
+    await installFortune(page, dailyResult());
+    await page.setViewportSize({ width: 390, height: 844 });
+    await bootstrapMainApp(page);
+    await page.locator('#btnDailyFortune').click();
+    await expect(page.locator('#dailyTarotFortuneCardHost .is-card-zoomable')).toHaveCount(0);
+    await page.locator('#dailyTarotFortuneCardHost button').first().click();
+    await page.waitForTimeout(600);
+    await expect(page.locator('.tarot-card-viewer')).toHaveCount(0);
+});
+
+test('reversed and already-claimed cards enlarge with their orientation', async ({ page }) => {
+    await isolate(page);
+    const result = dailyResult({ cardNumber: 18, suit: 'None', isArcana: true, cardName: '月', orientation: 'reversed' });
+    const draws = await installFortune(page, result, true);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await bootstrapMainApp(page);
+    await page.locator('#btnDailyFortune').click();
+    await waitImage(page.locator('#dailyTarotFortuneCardHost img'));
+    await page.locator('#dailyTarotFortuneCardHost .is-card-zoomable').click();
+    await expectViewerShows(page, 'major-18', '月', 390);
+    await expect(page.locator('.tarot-card-viewer-image')).toHaveClass(/is-reversed/);
+    await expect(page.locator('.tarot-card-viewer-caption')).toContainText('逆位置');
+    await page.locator('.tarot-card-viewer-close').click();
+    await expect(page.locator('.tarot-card-viewer')).toHaveCount(0);
+    expect(draws()).toBe(0);
+});
+
+test('failed daily artwork does not offer full screen', async ({ page }) => {
+    await isolate(page);
+    const result = dailyResult();
+    await installFortune(page, result);
+    await page.route('**/assets/pirate-tarot/cards/sword-3.webp*', (route) => route.fulfill({ status: 404, body: '' }));
+    await page.setViewportSize({ width: 390, height: 844 });
+    await bootstrapMainApp(page);
+    await page.locator('#btnDailyFortune').click();
+    await page.locator('#dailyTarotFortuneCardHost button').first().click();
+    await expect(page.locator('#dailyTarotFortuneText')).toContainText(result.strikeLine, { timeout: 10000 });
+    await expect(page.locator('#dailyTarotFortuneCardHost .is-card-zoomable')).toHaveCount(0);
+    await page.locator('#dailyTarotFortuneCardHost .tarot-fortune-card-shell').click({ force: true });
+    await expect(page.locator('.tarot-card-viewer')).toHaveCount(0);
+});
+
+for (const width of [320, 390, 430]) {
+    test(`owned tarot detail card opens full screen and returns to the detail at ${width}px`, async ({ page }) => {
+        await isolate(page);
+        const errors = trackPageErrors(page);
+        await mockOwnedCards(page);
+        await page.setViewportSize({ width, height: 844 });
+        await bootstrapMainApp(page);
+        await openOwnedCard(page, 'TarotMajor');
+        const art = page.locator('#itemDetailModal .pirate-tarot-inventory-art');
+        await waitImage(art.locator('img'));
+        await art.click();
+        await expectViewerShows(page, 'major-6', '恋人', width);
+        await page.keyboard.press('ArrowRight');
+        await expect(page.locator('#itemDetailName')).toHaveText('恋人');
+        await page.locator('.tarot-card-viewer').click();
+        await expect(page.locator('.tarot-card-viewer')).toHaveCount(0);
+        await expect(page.locator('#itemDetailModal')).toBeVisible();
+        await expect(page.locator('#itemDetailName')).toHaveText('恋人');
+        await expect(art).toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(page.locator('.tarot-card-viewer')).toHaveClass(/is-open/);
+        await page.keyboard.press('Escape');
+        await expect(page.locator('.tarot-card-viewer')).toHaveCount(0);
+        await expect(page.locator('#itemDetailModal')).toBeVisible();
+        await expectNoPageErrors(errors);
+    });
+}
+
+test('missing owned-card artwork is not enlarged', async ({ page }) => {
+    await isolate(page);
+    await mockOwnedCards(page);
+    await page.route('**/assets/pirate-tarot/cards/pentacle-6.webp*', (route) => route.fulfill({ status: 404, body: '' }));
+    await page.setViewportSize({ width: 390, height: 844 });
+    await bootstrapMainApp(page);
+    await openOwnedCard(page);
+    await expect(page.locator('#itemDetailModal .pirate-tarot-inventory-art img')).toBeHidden();
+    await expect(page.locator('#itemDetailModal .is-card-zoomable')).toHaveCount(0);
+    await page.locator('#itemDetailModal .pirate-tarot-inventory-art').dispatchEvent('click');
+    await expect(page.locator('.tarot-card-viewer')).toHaveCount(0);
+});

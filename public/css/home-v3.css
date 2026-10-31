@@ -447,6 +447,9 @@ body.home-v3 #tabContentHome .home-exp-actions .home-fortune-btn {
     border-image: none;
     background: url("../assets/ui/home-v3/button-fortune.webp") center / 100% 100% no-repeat;
     color: #f8e9c5;
+    font-size: clamp(14px, 4vw, 16px);
+    gap: 4px;
+    white-space: nowrap;
     text-shadow: 0 2px 0 #24062b;
 }
 
@@ -734,10 +737,20 @@ body.home-v3 #bottomNav .nav-button span:last-child {
         font-size: clamp(20px, 5.6vw, 24px);
     }
 
+    body.home-v3 #tabContentHome .home-exp-actions .home-fortune-btn {
+        font-size: clamp(14px, 4vw, 16px);
+    }
+
     body.home-v3 #tabContentHome .home-exp-actions .home-exploration-btn::before {
         width: 30px;
         height: 30px;
         flex-basis: 30px;
+    }
+
+    body.home-v3 #tabContentHome .home-exp-actions .home-fortune-btn::before {
+        width: 18px;
+        height: 18px;
+        flex-basis: 18px;
     }
 
     body.home-v3 #tabContentHome .home-exp-values {

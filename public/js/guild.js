@@ -316,12 +316,12 @@ function renderGuildMembers(members) {
 
         const nameSpan = document.createElement('span');
         nameSpan.textContent = member.displayName || 'Unknown';
-        nameSpan.style.cssText = 'font-weight: bold; color: var(--text-main);';
+        nameSpan.style.cssText = 'font-weight: bold; color: var(--text-main); min-width: 0; flex: 1 1 auto;';
         decoratePlayerTriggerElement(nameSpan, member.playFabId, { className: 'player-link-inline' });
 
         const roleSpan = document.createElement('span');
         roleSpan.textContent = member.role || 'メンバー';
-        roleSpan.style.cssText = 'font-size: 12px; color: var(--text-sub);';
+        roleSpan.style.cssText = 'font-size: 12px; color: var(--text-sub); flex: 0 0 auto; white-space: nowrap; margin-left: 8px;';
 
         memberDiv.appendChild(nameSpan);
         memberDiv.appendChild(roleSpan);

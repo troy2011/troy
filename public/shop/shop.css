@@ -515,6 +515,7 @@ footer small {
 .size-guide h2 {
     margin: 0;
     font-size: 1rem;
+    text-wrap: balance;
 }
 
 .size-guide div {
@@ -814,6 +815,10 @@ footer small {
 
     .hero h1 {
         font-size: clamp(3rem, 16vw, 4.6rem);
+    }
+
+    .menu-hero h1 {
+        font-size: clamp(2rem, 10vw, 3rem);
     }
 
     .hero-copy br {

@@ -1,5 +1,6 @@
 import { renderDailyTarotArtwork, renderDailyTarotBackArtwork } from './pirateTarotArtwork.js?v=20261025-pirate-delivery-v2';
 import { playDailyFortuneGrandReveal, getDailyFortuneRevealTier } from './dailyFortuneReveal.js?v=20261031-reveal-extras-v1';
+import { enableTarotCardZoom, closeTarotCardViewer } from './tarotCardViewer.js?v=20261031-card-viewer-v1';
 import { HandEvaluator as TarotEngineHandEvaluator } from './tarot-engine/HandEvaluator.js';
 import { GameController as TarotGameController } from './tarot-engine/GameController.js';
 import { bindModalClose } from './modalClose.js';
@@ -827,6 +828,7 @@ async function revealDailyFortuneCardElement(cardEl, card, options = {}) {
     cardEl.classList.add('is-revealed', 'is-static');
     cardEl.dataset.revealed = '1';
     delete cardEl.dataset.revealing;
+    enableTarotCardZoom(cardEl, { label: options.artworkLabel });
 
     if (typeof options.onReveal === 'function') {
         options.onReveal(cardEl);
@@ -5118,6 +5120,7 @@ function closeDailyFortuneOverlay() {
     const overlay = document.getElementById(DAILY_FORTUNE_OVERLAY_ID);
     const unfinished = overlay?.querySelector('.tarot-fortune-stage')?.classList.contains('has-choice');
     dailyFortuneOverlayGeneration += 1;
+    closeTarotCardViewer({ immediate: true });
     overlay?.classList.remove('is-fortune-charging');
     overlay?.querySelectorAll('.tarot-fortune-fx').forEach((fx) => fx.remove());
     if (overlay) overlay.style.display = 'none';
@@ -5165,6 +5168,7 @@ function renderDailyFortuneResultLegacy(result) {
     const cardEl = createCardElement(card, { hidden: false, clickable: false });
     cardEl.classList.add('tarot-fortune-card');
     renderDailyTarotArtwork(card, cardEl, { label: result?.cardName || getCardDisplayName(card), reversed: result?.orientation === 'reversed' });
+    enableTarotCardZoom(cardEl, { label: result?.cardName || getCardDisplayName(card) });
     if (String(result?.orientation || '') === 'reversed') {
         cardEl.classList.add('is-reversed');
     }
