@@ -360,6 +360,62 @@ function hasPendingDailyFortuneToday(playFabId) {
     catch { return false; }
 }
 
+function queueStatusFortuneBounty(playFabId, status) {
+    const day = String(status?.result?.dayKey || '');
+    const reward = status?.dailyBountyReward;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !reward?.awarded || !Array.isArray(reward.items)
+        || !reward.items.length || !reward.items.every(item => typeof item?.itemId === 'string'
+            && item.itemId.length > 0 && item.itemId.length <= 256 && Number.isSafeInteger(item.amount) && item.amount > 0)) return null;
+    const identity = JSON.stringify([day, reward.rewardDayKey, reward.rank, reward.items]);
+    const key = `troy:fortune-bounty-notices:v1:${encodeURIComponent(playFabId)}:${encodeURIComponent(identity)}`;
+    try {
+        if (localStorage.getItem(`${key}:seen`) || localStorage.getItem(key)) return null;
+        localStorage.setItem(key, JSON.stringify({ version: 1, day, reward }));
+    } catch { /* Show the notice in this session even if storage is unavailable. */ }
+    return { key, reward };
+}
+
+function showStatusFortuneBounty(notice) {
+    const host = document.getElementById('dailyTarotFortuneBounty');
+    if (!host || !notice || host.querySelector('[data-status-bounty]')) return;
+    const row = document.createElement('div');
+    row.dataset.statusBounty = 'true';
+    const label = document.createElement('span');
+    label.textContent = `ランキング報酬: ${notice.reward.items.map(item => `${item.itemId}${item.amount > 1 ? ` x${item.amount}` : ''}`).join(' / ')}`;
+    const button = document.createElement('button');
+    button.type = 'button'; button.textContent = '確認';
+    button.addEventListener('click', () => {
+        try { localStorage.setItem(`${notice.key}:seen`, '1'); localStorage.removeItem(notice.key); } catch { /* Display-only state. */ }
+        row.remove();
+        if (!host.children.length) host.hidden = true;
+    }, { once: true });
+    row.append(label, button); host.append(row); host.hidden = false;
+}
+
+async function finishDisplayedFortuneRecovery(playFabId, dayKey, session) {
+    if (!Player.isCurrentPlayerSession(session) || hasPendingDailyFortuneToday(playFabId)) return;
+    const overlay = document.getElementById('dailyTarotFortuneOverlay');
+    const modal = document.getElementById('dailyTarotFortuneModal');
+    if (overlay?.style.display !== 'flex' || !modal?.classList.contains('is-revisit')
+        || !modal.querySelector('.tarot-fortune-summary')) return;
+    const status = await callApiWithLoader('/api/tarot-fortune-status', { playFabId }, { isSilent: true, throwOnError: true });
+    if (!Player.isCurrentPlayerSession(session) || status?.result?.dayKey !== dayKey) return;
+    const notice = queueStatusFortuneBounty(playFabId, status);
+    showStatusFortuneBounty(notice);
+    if (status.bountyPending) {
+        const sub = document.getElementById('dailyTarotFortuneSub');
+        if (sub) sub.textContent = '占い結果は確定しています。ランキング報酬は確認中です。';
+    }
+    if (status.state === 'recovered' && status.recoveryDay === dayKey) {
+        await callApiWithLoader('/api/tarot-fortune-ack-recovery', { playFabId, dayKey }, { isSilent: true, throwOnError: true });
+        if (!Player.isCurrentPlayerSession(session)) return;
+        const sub = document.getElementById('dailyTarotFortuneSub');
+        if (sub) sub.textContent = `${dayKey} の占い結果です。画面を閉じて本日の占いを始められます。`;
+        setDailyFortuneButtonClaimed(document.getElementById('btnDailyFortune'), false);
+    }
+    if (Player.isCurrentPlayerSession(session)) await Inventory.getInventory(playFabId, { force: true, isSilent: true });
+}
+
 function setDailyFortuneButtonClaimed(button, claimed) {
     if (!button) return;
     button.dataset.dailyFortuneClaimed = claimed ? 'true' : 'false';
@@ -443,7 +499,11 @@ async function refreshDailyFortuneStatus() {
         const status = await callApiWithLoader('/api/tarot-fortune-status', { playFabId: playerId }, { isSilent: true });
         if (!status || typeof status.canDraw !== 'boolean' || playerId !== myPlayFabId
             || day !== getJstDayKey() || generation !== dailyFortuneRefreshGeneration || dailyFortuneOpenPromise) return;
-        if (status.state === 'pending' || (status.canDraw && hasPendingDailyFortuneToday(playerId))) {
+        const notice = queueStatusFortuneBounty(playerId, status);
+        if ((notice || status.state === 'recovered') && Player.isCurrentPlayerSession(Player.capturePlayerSession(playerId))) {
+            void Inventory.getInventory(playerId, { force: true, isSilent: true }).catch(() => {});
+        }
+        if (status.state === 'pending' || status.state === 'recovered' || (status.canDraw && hasPendingDailyFortuneToday(playerId))) {
             setDailyFortuneButtonPending(button);
         } else if (!status.canDraw) {
             markDailyFortuneClaimed(status.dayKey);
@@ -465,6 +525,13 @@ function initDailyFortuneButton() {
         dailyFortuneClaimEventBound = true;
         window.addEventListener('daily-fortune:claimed', (event) => {
             markDailyFortuneClaimed(event?.detail?.dayKey);
+            const dayKey = String(event?.detail?.dayKey || '');
+            const playFabId = myPlayFabId;
+            if (!playFabId || !/^\d{4}-\d{2}-\d{2}$/.test(dayKey)) return;
+            const session = Player.capturePlayerSession(playFabId);
+            setTimeout(() => {
+                void finishDisplayedFortuneRecovery(playFabId, dayKey, session).catch(error => console.warn('[dailyFortune] Recovery confirmation failed:', error?.message || error));
+            }, 0);
         });
         window.addEventListener('daily-fortune:day-changed', () => {
             setDailyFortuneButtonClaimed(button, hasClaimedDailyFortuneToday());

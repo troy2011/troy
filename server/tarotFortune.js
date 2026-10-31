@@ -2,10 +2,13 @@ const { VIRTUAL_CURRENCY_CODE, LEADERBOARD_NAME } = require('./economy');
 const { getCardSkillName } = require('./tarotSkillNames');
 const { getDeckType } = require('./tarotDeck');
 const { drawLocalGachaItem } = require('./gacha');
+const { createDailyFortuneLedger } = require('./dailyFortuneLedger');
+const { createDailyFortuneGrant } = require('./dailyFortuneGrant');
 const {
     PLAYER_DAILY_CONTRIBUTION_STAT,
     ensureDailyContributionVersionForToday,
-    getPreviousJstDateKey
+    getPreviousJstDateKey,
+    diffDayKeys
 } = require('./contributionStats');
 
 const FORTUNE_DATA_KEY = 'DailyTarotFortune';
@@ -1261,6 +1264,16 @@ function normalizeDailyBountyRewardRecord(raw, todayKey) {
     };
 }
 
+function isConfirmedDailyBountyRecord(record, day) {
+    if (!record || record.dayKey !== day || typeof record.eligible !== 'boolean'
+        || !Number.isSafeInteger(record.pulls) || record.pulls < 0 || !Array.isArray(record.itemIds)
+        || !record.itemIds.every(id => typeof id === 'string' && id.trim().length > 0 && id.length <= 256)
+        || record.itemIds.length !== record.pulls) return false;
+    return record.eligible
+        ? Number.isSafeInteger(record.rank) && record.rank > 0
+        : record.rank == null && record.pulls === 0;
+}
+
 async function readDailyBountyRewardRecord(playFabId, promisifyPlayFab, PlayFabServer) {
     const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
         PlayFabId: playFabId,
@@ -1284,84 +1297,78 @@ function getDailyBountyPullCount(position) {
     return Math.max(0, Number(DAILY_BOUNTY_PULLS_BY_POSITION[pos] || 0));
 }
 
-async function claimDailyBountyGachaReward(playFabId, deps, todayKey) {
-    const { promisifyPlayFab, PlayFabServer, addEconomyItem } = deps;
-    const current = await readDailyBountyRewardRecord(playFabId, promisifyPlayFab, PlayFabServer);
-    const currentNormalized = normalizeDailyBountyRewardRecord(current, todayKey);
-    if (currentNormalized.alreadyClaimed) {
-        return currentNormalized;
-    }
-
-    const contributionState = await ensureDailyContributionVersionForToday(deps, { todayKey });
-    const rewardDayKey = contributionState.rewardDayKey || getPreviousJstDateKey(todayKey);
-    const rewardVersion = contributionState.rewardVersion;
-    if (!Number.isFinite(rewardVersion)) {
-        const notReadyRecord = {
-            dayKey: todayKey,
-            rewardDayKey,
-            checkedAt: new Date().toISOString(),
-            eligible: false,
-            rank: null,
-            pulls: 0,
-            itemIds: []
-        };
-        await writeDailyBountyRewardRecord(playFabId, notReadyRecord, promisifyPlayFab, PlayFabServer);
-        return normalizeDailyBountyRewardRecord(notReadyRecord, todayKey);
-    }
-
-    const rankingResult = await promisifyPlayFab(PlayFabServer.GetLeaderboard, {
-        StatisticName: DAILY_BOUNTY_STAT_NAME,
-        StartPosition: 0,
-        MaxResultsCount: DAILY_BOUNTY_TOP_COUNT,
-        Version: rewardVersion
-    });
-    const ranking = Array.isArray(rankingResult?.Leaderboard) ? rankingResult.Leaderboard : [];
-    const selfId = normalizePlayFabId(playFabId);
-    let rank = null;
-    for (let i = 0; i < ranking.length; i += 1) {
-        const entryId = normalizePlayFabId(ranking[i]?.PlayFabId);
-        if (entryId && entryId === selfId) {
-            rank = i + 1;
-            break;
+async function prepareDailyBountyPlan(playFabId, deps, todayKey, journal) {
+    const { promisifyPlayFab, PlayFabServer } = deps;
+    let plan = journal.bountyPlan;
+    if (!plan) {
+        const current = await readDailyBountyRewardRecord(playFabId, promisifyPlayFab, PlayFabServer);
+        const normalized = normalizeDailyBountyRewardRecord(current, todayKey);
+        if (normalized.alreadyClaimed) {
+            if (!isConfirmedDailyBountyRecord(current, todayKey)) throw Error('BountyRecordUnverified');
+            plan = { existing: normalized };
+        } else {
+            let basis = journal.bountyBasis;
+            if (!basis) {
+                const contribution = await ensureDailyContributionVersionForToday(deps, { todayKey });
+                const rewardDayKey = getPreviousJstDateKey(todayKey);
+                const recordedDay = contribution.rewardDayKey || rewardDayKey;
+                const validDay = value => /^\d{4}-\d{2}-\d{2}$/.test(value)
+                    && Number.isFinite(Date.parse(`${value}T00:00:00.000Z`))
+                    && new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) === value;
+                if (!validDay(rewardDayKey) || !validDay(recordedDay)) throw Error('BountyHistoryUnavailable');
+                const offset = diffDayKeys(rewardDayKey, recordedDay);
+                let version = contribution.rewardVersion;
+                if (!Number.isInteger(offset) || offset < 0 || offset > 400) throw Error('BountyHistoryUnavailable');
+                if (version != null && (!Number.isSafeInteger(version) || version < 0)) throw Error('BountyHistoryUnavailable');
+                if (offset) {
+                    if (!Number.isSafeInteger(version) || version < offset) throw Error('BountyHistoryUnavailable');
+                    version -= offset;
+                }
+                basis = await journal.saveBountyBasis({ rewardDayKey,
+                    rewardVersion: Number.isFinite(version) ? version : null });
+            }
+            const { rewardDayKey, rewardVersion } = basis;
+            let rank = null;
+            if (Number.isFinite(rewardVersion)) {
+                const result = await promisifyPlayFab(PlayFabServer.GetLeaderboard, {
+                    StatisticName: DAILY_BOUNTY_STAT_NAME, StartPosition: 0,
+                    MaxResultsCount: DAILY_BOUNTY_TOP_COUNT, Version: rewardVersion
+                });
+                if (!Array.isArray(result?.Leaderboard)) throw Error('BountyRankingUnavailable');
+                const ranking = result.Leaderboard;
+                const index = ranking.findIndex(entry => normalizePlayFabId(entry?.PlayFabId) === normalizePlayFabId(playFabId));
+                if (index >= 0) rank = index + 1;
+            }
+            const pulls = rank ? getDailyBountyPullCount(rank) : 0;
+            const itemIds = [];
+            for (let i = 0; i < pulls; i++) {
+                const itemId = String(drawLocalGachaItem(deps.catalogCache)?.itemId || '').trim();
+                if (!itemId) throw Error('BountyCatalogUnavailable');
+                itemIds.push(itemId);
+            }
+            plan = { record: { dayKey: todayKey, rewardDayKey, checkedAt: new Date().toISOString(),
+                eligible: !!rank, rank, pulls, itemIds } };
         }
+        plan = await journal.saveBountyPlan(plan);
     }
+    return plan;
+}
 
-    if (!rank) {
-        const notEligibleRecord = {
-            dayKey: todayKey,
-            rewardDayKey,
-            checkedAt: new Date().toISOString(),
-            eligible: false,
-            rank: null,
-            pulls: 0,
-            itemIds: []
-        };
-        await writeDailyBountyRewardRecord(playFabId, notEligibleRecord, promisifyPlayFab, PlayFabServer);
-        return normalizeDailyBountyRewardRecord(notEligibleRecord, todayKey);
+async function claimDailyBountyGachaReward(playFabId, deps, todayKey, journal) {
+    const { promisifyPlayFab, PlayFabServer } = deps;
+    const plan = journal.bountyPlan;
+    if (!plan) throw Error('BountyPlanUnavailable');
+    if (plan.existing) {
+        await journal.step('bounty_record', async () => {});
+        return plan.existing;
     }
-
-    const pulls = getDailyBountyPullCount(rank);
-    const grantedItemIds = [];
-    for (let i = 0; i < pulls; i += 1) {
-        const gachaResult = drawLocalGachaItem(deps.catalogCache);
-        const itemId = String(gachaResult?.itemId || '').trim();
-        if (!itemId) continue;
-        const idempotencyId = `daily-bounty-gacha-${normalizePlayFabId(playFabId)}-${todayKey}-r${rank}-p${i + 1}-${itemId}`;
-        await addEconomyItem(playFabId, itemId, 1, { idempotencyId });
-        grantedItemIds.push(itemId);
+    for (let i = 0; i < plan.record.itemIds.length; i++) {
+        const itemId = plan.record.itemIds[i];
+        const idempotencyId = `daily-bounty-gacha-${normalizePlayFabId(playFabId)}-${todayKey}-p${i + 1}`;
+        await journal.step(`bounty_grant_${i + 1}`, journal.grant(itemId, 1, idempotencyId));
     }
-
-    const rewardRecord = {
-        dayKey: todayKey,
-        rewardDayKey,
-        checkedAt: new Date().toISOString(),
-        eligible: true,
-        rank,
-        pulls,
-        itemIds: grantedItemIds
-    };
-    await writeDailyBountyRewardRecord(playFabId, rewardRecord, promisifyPlayFab, PlayFabServer);
-    return normalizeDailyBountyRewardRecord(rewardRecord, todayKey);
+    await journal.step('bounty_record', () => writeDailyBountyRewardRecord(playFabId, plan.record, promisifyPlayFab, PlayFabServer));
+    return { ...normalizeDailyBountyRewardRecord(plan.record, todayKey), alreadyClaimed: false };
 }
 
 async function updatePlayerGoldLeaderboard(playFabId, balance, deps) {
@@ -1378,139 +1385,183 @@ async function updatePlayerGoldLeaderboard(playFabId, balance, deps) {
 }
 
 function initializeTarotFortuneRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, addEconomyItem, getCurrencyBalance } = deps;
+    const { promisifyPlayFab, PlayFabServer, getCurrencyBalance, requireAuthenticatedPlayFabId } = deps;
+    const ledger = createDailyFortuneLedger(deps.firestore);
+    let handleDraw;
 
+    async function authenticated(req, res) {
+        const requested = String(req.body?.playFabId || '').trim();
+        if (!requested) { res.status(400).json({ error: 'playFabId is required' }); return null; }
+        if (typeof requireAuthenticatedPlayFabId !== 'function') { res.status(503).json({ error: 'FortuneAuthUnavailable' }); return null; }
+        return requireAuthenticatedPlayFabId(req, res, requested);
+    }
+    function resultResponse(state, day) {
+        return { canDraw: false, dayKey: day, currency: VIRTUAL_CURRENCY_CODE, result: state.result,
+            ...(state.dailyBountyReward ? { dailyBountyReward: { ...state.dailyBountyReward, alreadyClaimed: true } } : {}),
+            ...(state.bountyPending || state.legacyBountyUnverified ? { bountyPending: true } : {}) };
+    }
     app.post('/api/tarot-fortune-status', async (req, res) => {
-        const playFabId = String(req.body?.playFabId || '').trim();
-        if (!playFabId) {
-            return res.status(400).json({ error: 'playFabId is required' });
-        }
+        const playFabId = await authenticated(req, res);
+        if (!playFabId) return;
         try {
             const todayKey = getJstDayKey();
+            const state = await ledger.status(playFabId, todayKey);
+            if (state.state === 'recovered') return res.json({ ...resultResponse(state, state.recoveryDay), state: 'recovered', recoveryDay: state.recoveryDay });
+            if (state.state === 'pending' || state.state === 'core_complete') {
+                // The existing result-check button calls status. It may resume
+                // only an already reserved claim; a new status check never draws.
+                const captured = { code: 200, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
+                await handleDraw(req, captured, state.pendingDay || null);
+                if (state.pendingDay && state.pendingDay !== todayKey) {
+                    const recovered = await ledger.status(playFabId, todayKey);
+                    if (recovered.state === 'recovered') return res.json({ ...resultResponse(recovered, recovered.recoveryDay), state: 'recovered', recoveryDay: recovered.recoveryDay });
+                    return res.json({ state: 'pending', canDraw: false, dayKey: todayKey, result: null });
+                }
+                if (captured.code === 200 && captured.body?.result) {
+                    return res.json({ ...captured.body, canDraw: false, dayKey: todayKey });
+                }
+                return res.json({ state: 'pending', canDraw: false, dayKey: todayKey, result: null });
+            }
+            if (state.state === 'complete') return res.json(resultResponse(state, todayKey));
             const current = await readFortuneRecord(playFabId, promisifyPlayFab, PlayFabServer);
             const canDraw = !current || String(current.dayKey || '') !== todayKey;
-            return res.json({
-                canDraw,
-                dayKey: todayKey,
-                currency: VIRTUAL_CURRENCY_CODE,
-                result: canDraw ? null : current
-            });
+            return res.json({ canDraw, dayKey: todayKey, currency: VIRTUAL_CURRENCY_CODE, result: canDraw ? null : current });
         } catch (error) {
-            console.error('[tarot-fortune-status] Error:', error?.errorMessage || error?.message || error);
-            return res.status(500).json({ error: 'FailedToGetTarotFortuneStatus' });
+            console.error('[tarot-fortune-status] Error:', error?.message || error);
+            return res.status(503).json({ error: 'FailedToGetTarotFortuneStatus' });
         }
     });
 
-    app.post('/api/tarot-fortune-draw', async (req, res) => {
-        const playFabId = String(req.body?.playFabId || '').trim();
-        if (!playFabId) {
-            return res.status(400).json({ error: 'playFabId is required' });
-        }
+    app.post('/api/tarot-fortune-ack-recovery', async (req, res) => {
+        const playFabId = await authenticated(req, res);
+        if (!playFabId) return;
+        const day = String(req.body?.dayKey || '');
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day >= getJstDayKey()) return res.status(400).json({ error: 'InvalidRecoveryDay' });
         try {
-            const todayKey = getJstDayKey();
-            const current = await readFortuneRecord(playFabId, promisifyPlayFab, PlayFabServer);
-            if (current && String(current.dayKey || '') === todayKey) {
-                const balance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
-                let dailyBountyReward = null;
-                try {
-                    dailyBountyReward = await claimDailyBountyGachaReward(playFabId, deps, todayKey);
-                } catch (rewardError) {
-                    console.warn('[daily-bounty-gacha] claim skipped (already fortune claimed):', rewardError?.errorMessage || rewardError?.message || rewardError);
-                }
-                return res.json({
-                    ok: true,
-                    alreadyClaimed: true,
-                    currency: VIRTUAL_CURRENCY_CODE,
-                    balance,
-                    result: current,
-                    dailyBountyReward
-                });
-            }
-
-            const deck = buildTarotDeck();
-            const card = pickRandom(deck);
-            if (!card) {
-                return res.status(500).json({ error: 'TarotDeckEmpty' });
-            }
-            const orientation = Math.random() < 0.5 ? 'upright' : 'reversed';
-            let fragmentRecord = { version: 1, counts: {} };
-            if (orientation === 'reversed') {
-                fragmentRecord = await readFortuneFragmentRecord(playFabId, promisifyPlayFab, PlayFabServer);
-            }
-            const ownedFragmentCount = Number(fragmentRecord.counts?.[card.id] || 0);
-            const reward = buildFortuneReward(card, orientation, ownedFragmentCount);
-            const deckType = getDeckType(orientation);
-            const skillName = getCardSkillName(card, orientation);
-            const result = {
-                dayKey: todayKey,
-                drawnAt: new Date().toISOString(),
-                cardId: card.id,
-                cardNumber: Number(card.number) || 0,
-                suit: card.suit || 'None',
-                isArcana: !!card.isArcana,
-                effectType: card.effectType || 'None',
-                orientation,
-                deckType,
-                skillName,
-                cardName: getCardName(card),
-                weather: getFortuneWeather(card, orientation),
-                strikeLine: getFortuneStrikeText(card, orientation),
-                fortune: getFortuneText(card, orientation),
-                rewardType: reward.rewardType,
-                rewardPs: reward.rewardPs,
-                rewardItemId: reward.rewardItemId,
-                rewardItemName: reward.rewardItemName,
-                rewardItemAmount: reward.rewardItemAmount,
-                rewardCardGranted: reward.rewardCardGranted,
-                rewardFragmentAmount: reward.rewardFragmentAmount,
-                rewardFragmentCount: reward.rewardFragmentCount,
-                rewardFragmentRequired: reward.rewardFragmentRequired,
-                rewardFragmentCompleted: reward.rewardFragmentCompleted,
-                rewardLabel: reward.rewardLabel
-            };
-
-            if (reward.rewardCardGranted && reward.rewardItemId) {
-                const idempotencyId = `tarot-fortune-card-${playFabId}-${todayKey}-${reward.rewardItemId}`;
-                await addEconomyItem(playFabId, reward.rewardItemId, reward.rewardItemAmount, { idempotencyId });
-            }
-            if (orientation === 'reversed' && reward.rewardItemId) {
-                if (reward.rewardFragmentCompleted) {
-                    delete fragmentRecord.counts[reward.rewardItemId];
-                } else {
-                    fragmentRecord.counts[reward.rewardItemId] = reward.rewardFragmentCount;
-                }
-                await writeFortuneFragmentRecord(playFabId, fragmentRecord, promisifyPlayFab, PlayFabServer);
-            }
-            if (reward.rewardPs > 0) {
-                const goldIdempotencyId = `tarot-fortune-gold-${playFabId}-${todayKey}-${card.id}`;
-                await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, reward.rewardPs, { idempotencyId: goldIdempotencyId });
-            }
-            await writeFortuneRecord(playFabId, result, promisifyPlayFab, PlayFabServer);
-            let dailyBountyReward = null;
-            try {
-                dailyBountyReward = await claimDailyBountyGachaReward(playFabId, deps, todayKey);
-            } catch (rewardError) {
-                console.warn('[daily-bounty-gacha] claim skipped:', rewardError?.errorMessage || rewardError?.message || rewardError);
-            }
-            const balance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
-            if (reward.rewardPs > 0) {
-                await updatePlayerGoldLeaderboard(playFabId, balance, { promisifyPlayFab, PlayFabServer });
-            }
-
-            return res.json({
-                ok: true,
-                alreadyClaimed: false,
-                currency: VIRTUAL_CURRENCY_CODE,
-                awarded: reward.rewardPs,
-                balance,
-                result,
-                dailyBountyReward
-            });
+            await ledger.acknowledgeRecovery(playFabId, day);
+            return res.json({ ok: true });
         } catch (error) {
-            console.error('[tarot-fortune-draw] Error:', error?.errorMessage || error?.message || error);
-            return res.status(500).json({ error: 'FailedToDrawTarotFortune' });
+            return res.status(503).json({ error: 'FortuneRecoveryPending' });
         }
     });
+
+    handleDraw = async (req, res, resumeDay = null) => {
+        const playFabId = await authenticated(req, res);
+        if (!playFabId) return;
+        const todayKey = resumeDay || getJstDayKey();
+        let owner = null;
+        try {
+            const current = await readFortuneRecord(playFabId, promisifyPlayFab, PlayFabServer);
+            const legacyResult = current && String(current.dayKey || '') === todayKey ? current : null;
+            let legacyBounty = null;
+            if (legacyResult) {
+                const record = await readDailyBountyRewardRecord(playFabId, promisifyPlayFab, PlayFabServer);
+                if (isConfirmedDailyBountyRecord(record, todayKey)) legacyBounty = normalizeDailyBountyRewardRecord(record, todayKey);
+            }
+            const reservation = await ledger.acquire(playFabId, todayKey, legacyResult, legacyBounty, !!resumeDay);
+            if (reservation.state === 'pending') return res.status(503).json({ error: 'FortunePending' });
+            if (reservation.state === 'complete' || reservation.state === 'core_complete') {
+                return res.json({ ok: true, alreadyClaimed: true, ...resultResponse(reservation, todayKey) });
+            }
+            owner = reservation.owner;
+            let plan = reservation.claim.plan;
+            if (!plan) {
+                if (resumeDay && (reservation.claim.state !== 'preparing'
+                    || Object.keys(reservation.claim.completed || {}).length)) throw Error('FortunePlanUnavailable');
+                const deck = buildTarotDeck();
+                const card = pickRandom(deck);
+                if (!card) {
+                    throw Error('TarotDeckEmpty');
+                }
+                const orientation = Math.random() < 0.5 ? 'upright' : 'reversed';
+                let fragmentRecord = { version: 1, counts: {} };
+                if (orientation === 'reversed') {
+                    fragmentRecord = await readFortuneFragmentRecord(playFabId, promisifyPlayFab, PlayFabServer);
+                }
+                const ownedFragmentCount = Number(fragmentRecord.counts?.[card.id] || 0);
+                const reward = buildFortuneReward(card, orientation, ownedFragmentCount);
+                const deckType = getDeckType(orientation);
+                const skillName = getCardSkillName(card, orientation);
+                const result = {
+                    dayKey: todayKey,
+                    drawnAt: new Date().toISOString(),
+                    cardId: card.id,
+                    cardNumber: Number(card.number) || 0,
+                    suit: card.suit || 'None',
+                    isArcana: !!card.isArcana,
+                    effectType: card.effectType || 'None',
+                    orientation,
+                    deckType,
+                    skillName,
+                    cardName: getCardName(card),
+                    weather: getFortuneWeather(card, orientation),
+                    strikeLine: getFortuneStrikeText(card, orientation),
+                    fortune: getFortuneText(card, orientation),
+                    rewardType: reward.rewardType,
+                    rewardPs: reward.rewardPs,
+                    rewardItemId: reward.rewardItemId,
+                    rewardItemName: reward.rewardItemName,
+                    rewardItemAmount: reward.rewardItemAmount,
+                    rewardCardGranted: reward.rewardCardGranted,
+                    rewardFragmentAmount: reward.rewardFragmentAmount,
+                    rewardFragmentCount: reward.rewardFragmentCount,
+                    rewardFragmentRequired: reward.rewardFragmentRequired,
+                    rewardFragmentCompleted: reward.rewardFragmentCompleted,
+                    rewardLabel: reward.rewardLabel
+                };
+                if (orientation === 'reversed' && reward.rewardItemId) {
+                    if (reward.rewardFragmentCompleted) delete fragmentRecord.counts[reward.rewardItemId];
+                    else fragmentRecord.counts[reward.rewardItemId] = reward.rewardFragmentCount;
+                }
+                plan = JSON.parse(JSON.stringify({ result, fragmentRecord }));
+                await ledger.savePlan(playFabId, todayKey, owner, plan);
+            }
+            const { result, fragmentRecord } = plan;
+            const bountyPlan = await prepareDailyBountyPlan(playFabId, deps, todayKey, {
+                bountyPlan: reservation.claim.bountyPlan,
+                bountyBasis: reservation.claim.bountyBasis,
+                saveBountyBasis: value => ledger.saveBountyBasis(playFabId, todayKey, owner, value),
+                saveBountyPlan: value => ledger.saveBountyPlan(playFabId, todayKey, owner, value)
+            });
+            const grant = await createDailyFortuneGrant(playFabId, deps);
+            const step = async (name, action) => {
+                if (!await ledger.startStep(playFabId, todayKey, owner, name)) return;
+                await action();
+                await ledger.finishStep(playFabId, todayKey, owner, name);
+            };
+            if (result.rewardCardGranted && result.rewardItemId) {
+                await step('card', grant(result.rewardItemId, result.rewardItemAmount,
+                    `tarot-fortune-card-${normalizePlayFabId(playFabId)}-${todayKey}`));
+            }
+            if (result.orientation === 'reversed' && result.rewardItemId) {
+                await step('fragments', () => writeFortuneFragmentRecord(playFabId, fragmentRecord, promisifyPlayFab, PlayFabServer));
+            }
+            if (result.rewardPs > 0) {
+                await step('gold', grant(VIRTUAL_CURRENCY_CODE, result.rewardPs,
+                    `tarot-fortune-gold-${normalizePlayFabId(playFabId)}-${todayKey}`));
+            }
+            await step('fortune_record', () => writeFortuneRecord(playFabId, result, promisifyPlayFab, PlayFabServer));
+            const dailyBountyReward = await claimDailyBountyGachaReward(playFabId, deps, todayKey, {
+                bountyPlan,
+                step, grant
+            });
+            await ledger.finish(playFabId, todayKey, owner, dailyBountyReward, todayKey !== getJstDayKey());
+            let balance;
+            try {
+                balance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
+                if (result.rewardPs > 0) await updatePlayerGoldLeaderboard(playFabId, balance, { promisifyPlayFab, PlayFabServer });
+            } catch (error) { console.warn('[tarot-fortune] balance refresh skipped:', error?.message || error); }
+            return res.json({ ok: true, alreadyClaimed: false, currency: VIRTUAL_CURRENCY_CODE,
+                awarded: result.rewardPs, ...(Number.isFinite(balance) ? { balance } : {}), result, dailyBountyReward });
+        } catch (error) {
+            if (owner) {
+                try { await ledger.release(playFabId, todayKey, owner); } catch { /* Preserve uncertain writes. */ }
+            }
+            console.error('[tarot-fortune-draw] Error:', error?.message || error);
+            return res.status(503).json({ error: 'FortunePending' });
+        }
+    };
+    app.post('/api/tarot-fortune-draw', (req, res) => handleDraw(req, res));
 }
 
 module.exports = {
