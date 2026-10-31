@@ -1220,6 +1220,10 @@ function updateHomeAvatarSeaTone() {
 }
 
 export async function showTab(tabId, playerInfo, options = {}) {
+    // Old map, island and naval battle screens have been retired.
+    if (['map', 'islands', 'battle'].includes(tabId)) {
+        return showTab('home', playerInfo, options);
+    }
     console.log('[showTab] Called with tabId:', tabId, 'playerInfo:', playerInfo);
     if (tabId !== 'tarot' && document.body) {
         // The exploration promise and its home transition can finish in either

@@ -35,4 +35,6 @@ test('concurrent first-login creation cannot replace the created ship', async ()
   await context.ensure({ playFabId: 'ABC' });
   assert.equal(writes, 1); assert.equal(values.ActiveShipId, result.shipId);
   assert.equal(JSON.parse(values[`Ship_${result.shipId}`]).Level, 4);
+  const index = docs.get(`ships/${result.shipId}`);
+  for (const field of ['position', 'movement', 'mapId', 'geohash']) assert.equal(index[field], undefined);
 });

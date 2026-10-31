@@ -111,6 +111,7 @@ class LRUCache {
 
 let activeShipListeners = new Map(); // shipId -> unsubscribe
 let playerShipsListener = null;
+let shipListGeneration = 0;
 let shipsInViewListener = null;
 let animationFrameId = null;
 
@@ -566,7 +567,9 @@ async function showShipSpendConfirmation({ title, subtitle = '', costs, balances
 }
 
 export async function getActiveShipId(playFabId) {
+    const session = Player.capturePlayerSession(playFabId);
     const result = await fetchActiveShip(playFabId, { isSilent: true });
+    if (!Player.isCurrentPlayerSession(session)) return null;
     if (result && result.success) {
         activeShipIdCache = result.activeShipId || null;
         activeShipOwnerIdCache = result.shipOwnerPlayFabId || playFabId || null;
@@ -890,13 +893,13 @@ export async function repairShip(playFabId, shipId, tier = 'small') {
 }
 
 export async function getPlayerShips(playFabId) {
-    const data = await fetchPlayerShips(playFabId, { isSilent: true });
+    const data = await fetchPlayerShips(playFabId, { isSilent: true, throwOnError: true });
 
     if (data && data.success) {
         return data.ships;
     }
 
-    return [];
+    throw new Error('FailedToGetPlayerShips');
 }
 
 export async function getShipsInView(centerX, centerY, radius, mapId = null) {
@@ -3820,9 +3823,6 @@ async function claimExploration(playFabId, active = null) {
 
 export function renderShipCard(ship) {
     const assetData = ship.assetData;
-    const positionData = ship.positionData || {};
-    const movement = positionData.movement || {};
-    const currentPos = ship.currentPosition || positionData.position || { x: 0, y: 0 };
     const isActive = !!ship.isActive;
 
     const catalogItem = resolveCatalogShip(assetData);
@@ -3842,15 +3842,6 @@ export function renderShipCard(ship) {
         return raw || '不明';
     })();
 
-    const positionLabel = (() => {
-        const x = Number(currentPos?.x);
-        const y = Number(currentPos?.y);
-        if (!Number.isFinite(x) || !Number.isFinite(y)) return '未設定';
-        return `(${Math.round(x)}, ${Math.round(y)})`;
-    })();
-
-    const isMoving = !!movement.isMoving;
-    const eta = isMoving ? formatETA(movement.arrivalTime) : '停泊中';
     const shipLevel = Number(assetData?.Level) || 1;
     const canUpgrade = shipLevel < SHIP_LEVEL_CAP;
     const currentHp = Number(assetData?.Stats?.CurrentHP ?? 0);
@@ -3897,10 +3888,6 @@ export function renderShipCard(ship) {
                     </div>
                     <div class="ship-card-id">${ship.shipId}</div>
                 </div>
-                <div class="ship-card-status">
-                    <strong>${isMoving ? '航海中' : '停泊中'}</strong>
-                    <div>${eta}</div>
-                </div>
             </div>
             <div class="ship-card-meta">
                 <div><span>Lv:</span> <b>${shipLevel}</b></div>
@@ -3912,36 +3899,14 @@ export function renderShipCard(ship) {
                     if (Number.isFinite(catalogVision)) return catalogVision;
                     return assetData?.Stats?.VisionRange || 0;
                 })()}</b></div>
-                <div><span>位置:</span> <b>${positionLabel}</b></div>
                 <div><span>積荷:</span> <b>${assetData?.Cargo?.length ?? 0}/${assetData?.Stats?.CargoCapacity ?? 0}</b></div>
                 <div><span>アクション:</span> <b>${actionLabel}</b></div>
                 ${actionDescription ? `<div style="grid-column: 1 / -1; font-size: 12px; color: var(--text-sub);">効果: ${actionDescription}</div>` : ''}
             </div>
-            ${isMoving ? `
-            <div style="margin-top: 12px;">
-                <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">
-                    航路: (${Math.round(movement.departurePos?.x || 0)}, ${Math.round(movement.departurePos?.y || 0)})
-                    → (${Math.round(movement.destinationPos?.x || 0)}, ${Math.round(movement.destinationPos?.y || 0)})
-                </div>
-                <div style="background: rgba(0,0,0,0.3); height: 6px; border-radius: 3px; overflow: hidden;">
-                    <div style="
-                        background: linear-gradient(90deg, var(--accent-color), var(--hp-color));
-                        height: 100%;
-                        width: ${calculateProgress(movement)}%;
-                        transition: width 1s linear;
-                    "></div>
-                </div>
-            </div>
-            ` : ''}
             ${nextUpgradeCostHtml}
             ${shipCargoHtml}
             <div class="ship-card-actions">
                 <button onclick="window.viewShipDetails('${ship.shipId}')">詳細</button>
-                ${isMoving ? `
-                <button data-variant="danger" onclick="window.stopShip('${ship.shipId}')">停止</button>
-                ` : `
-                <button data-variant="accent" onclick="window.startShipVoyageUI('${ship.shipId}')">出航</button>
-                `}
                 ${canUpgrade ? `
                 <button data-variant="accent" onclick="window.upgradeShip('${ship.shipId}')">強化</button>
                 ` : `
@@ -3978,152 +3943,28 @@ export async function displayPlayerShipsInContainer(playFabId, container) {
 }
 
 async function displayPlayerShipsWithRetry(playFabId, retryCount = 0, targetContainer = null) {
-    const MAX_RETRIES = 3;
     const container = targetContainer || document.getElementById('playerShipsContainer');
-    if (!container) {
-        console.warn('[DisplayPlayerShips] Container not found');
-        return;
-    }
-
-    if (playerShipsListener) {
-        console.log('[DisplayPlayerShips] Stopping existing listener');
-        playerShipsListener();
-        playerShipsListener = null;
-    }
-
-    if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = null;
-    }
-
-    const firestore = window.firestore;
-    if (!firestore) {
-        console.error('[DisplayPlayerShips] Firestore not initialized');
-        container.innerHTML = '<div style="text-align: center; color: var(--text-sub); padding: 20px;">Firestoreが初期化されていません</div>';
-        return;
-    }
-    if (!playFabId) {
-        console.warn('[DisplayPlayerShips] playFabId is missing');
-        container.innerHTML = '<div style="text-align: center; color: var(--text-sub); padding: 20px;">ログイン情報が取得できませんでした</div>';
-        return;
-    }
-
+    if (!container || !playFabId) return;
+    const generation = ++shipListGeneration;
+    const session = Player.capturePlayerSession(playFabId);
+    const current = () => generation === shipListGeneration && Player.isCurrentPlayerSession(session);
     try {
         await getActiveShipId(playFabId);
-    } catch (e) {
-        console.warn('[DisplayPlayerShips] Failed to get active ship:', e);
-        activeShipOwnerIdCache = playFabId;
-        activeShipSharedCache = false;
+        if (!current()) return;
+        await loadExplorationPanel(playFabId);
+        if (!current()) return;
+        const ships = await getPlayerShips(playFabId);
+        if (!current()) return;
+        cachedShipsData.clear();
+        for (const ship of ships) cachedShipsData.set(ship.shipId, { assetData: ship.assetData, positionData: {} });
+        container.innerHTML = ships.length
+            ? ships.map(ship => renderShipCard(ship)).join('')
+            : '<div style="text-align:center; padding:20px;">船を所有していません</div>';
+    } catch (error) {
+        if (!current()) return;
+        console.error('[DisplayPlayerShips] Failed:', error);
+        container.textContent = '船の情報を取得できませんでした。';
     }
-    await loadExplorationPanel(playFabId);
-
-    const shipOwnerPlayFabId = activeShipOwnerIdCache || playFabId;
-    const shipsRef = collection(firestore, 'ships');
-    const q = query(shipsRef, where('playFabId', '==', shipOwnerPlayFabId));
-
-    console.log('[DisplayPlayerShips] Starting realtime listener for playFabId:', playFabId, 'shipOwner:', shipOwnerPlayFabId);
-
-    playerShipsListener = onSnapshot(q, async (snapshot) => {
-        console.log('[DisplayPlayerShips] Snapshot received, changes:', snapshot.docChanges().length);
-
-        const shipDocs = snapshot.docs.filter((doc) => {
-            const data = doc.data() || {};
-            const id = data.shipId || data.ShipId || doc.id;
-            return typeof id === 'string' && id.startsWith('ship_') && doc.id === id;
-        });
-
-        if (shipDocs.length === 0) {
-            container.innerHTML = '<div style="text-align: center; color: var(--text-sub); padding: 20px;">船を所有していません</div>';
-            cachedShipsData.clear();
-            return;
-        }
-
-        if (!container.querySelector('.ship-card')) {
-            container.innerHTML = '';
-            cachedShipsData.clear();
-            for (const doc of shipDocs) {
-                const firestoreData = doc.data();
-                const shipId = firestoreData.shipId || firestoreData.ShipId || doc.id;
-                const assetData = shipId ? await getShipAsset(shipOwnerPlayFabId, shipId) : null;
-                await addShipCard(container, shipId, firestoreData, assetData);
-            }
-            return;
-        }
-
-        const changes = snapshot.docChanges();
-        let hasAnyMovingShips = false;
-
-        const processedShipIds = new Set();
-        for (const change of changes) {
-            const firestoreData = change.doc.data();
-            const shipId = firestoreData.shipId || firestoreData.ShipId || change.doc.id;
-            if (typeof shipId !== 'string' || !shipId.startsWith('ship_')) {
-                continue;
-            }
-            if (change.doc.id !== shipId) {
-                continue;
-            }
-            if (processedShipIds.has(shipId)) {
-                continue;
-            }
-            processedShipIds.add(shipId);
-
-            if (change.type === 'added') {
-                console.log(`[DisplayPlayerShips] Ship added: ${shipId}`);
-                const assetData = shipId ? await getShipAsset(shipOwnerPlayFabId, shipId) : null;
-                await addShipCard(container, shipId, firestoreData, assetData);
-            } else if (change.type === 'modified') {
-                console.log(`[DisplayPlayerShips] Ship modified: ${shipId}`);
-                const assetData = shipId ? (cachedShipsData.get(shipId)?.assetData || await getShipAsset(shipOwnerPlayFabId, shipId)) : null;
-                await updateShipCard(container, shipId, firestoreData, assetData);
-            } else if (change.type === 'removed') {
-                console.log(`[DisplayPlayerShips] Ship removed: ${shipId}`);
-                removeShipCard(container, shipId);
-                cachedShipsData.set(shipId, null);
-            }
-        }
-
-        snapshot.forEach((doc) => {
-            const data = doc.data();
-            if (data.movement && data.movement.isMoving) {
-                hasAnyMovingShips = true;
-            }
-        });
-
-        if (hasAnyMovingShips) {
-            startShipAnimation();
-        } else {
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = null;
-            }
-        }
-    }, (error) => {
-        console.error('[DisplayPlayerShips] Listener error:', error);
-
-        if (retryCount < MAX_RETRIES) {
-            const backoffDelay = 2000 * Math.pow(2, retryCount);
-            console.log(`[DisplayPlayerShips] Retrying in ${backoffDelay}ms... (${retryCount + 1}/${MAX_RETRIES})`);
-
-            container.innerHTML = `<div style="text-align: center; color: var(--text-sub); padding: 20px;">接続エラーが発生しました。${backoffDelay/1000}秒後に再試行します...</div>`;
-
-            setTimeout(() => {
-                displayPlayerShipsWithRetry(playFabId, retryCount + 1);
-            }, backoffDelay);
-        } else {
-            console.error('[DisplayPlayerShips] Max retries reached, falling back to REST API');
-            container.innerHTML = `
-                <div style="text-align: center; color: var(--danger-color); padding: 20px;">
-                    <div>リアルタイム接続に失敗しました</div>
-                    <button onclick="location.reload()" style="margin-top: 10px; padding: 8px 16px; background: var(--accent-color); color: white; border: none; border-radius: 4px; cursor: pointer;">
-                        再読み込み
-                    </button>
-                </div>
-            `;
-
-            fallbackToRestApi(playFabId, container);
-        }
-    });
 }
 
 async function fallbackToRestApi(playFabId, container) {
@@ -4310,6 +4151,7 @@ export function watchShipsInView(centerX, centerY, radius, onShipsUpdate, mapId 
 }
 
 export function cleanupShipListeners() {
+    shipListGeneration++;
     console.log('[CleanupShipListeners] Cleaning up all listeners and animations');
 
     if (playerShipsListener) {

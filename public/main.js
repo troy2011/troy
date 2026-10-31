@@ -8,16 +8,14 @@ import { callApiWithLoader, buildApiUrl, createRequestId } from 'api';
 import {
     showTab,
     showConfirmationModal,
-    scheduleWorldMapPrefetch,
     launchTarotKingdomRescueBattle
 } from 'ui';
 import * as Player from 'player';
 import * as Inventory from 'inventory';
 import * as Guild from './js/guild.js';
 import * as Ship from './js/ship.js?v=20260828-exploration-retreat-v1';
-import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js?v=20260831-home-king-v1';
-import { initMapChat, initTroyChat } from './js/mapChat.js';
+import { initTroyChat } from './js/mapChat.js';
 import { renderAvatar, preloadAvatarBaseSprites, playAvatarBodyMotion, stopAvatarBodyMotion } from './js/avatar.js';
 import {
     installPlayerProfileInteractions,
@@ -1653,22 +1651,11 @@ async function initializeLiff() {
                     await pendingInvite;
                     if (activeProfileUid !== user.uid) return;
 
-                    // Check for help request URL parameters
-                    const urlParams = new URLSearchParams(window.location.search);
-                    if (urlParams.get('action') === 'help') {
-                        const islandId = urlParams.get('islandId');
-                        if (islandId) {
-                            await Island.helpConstruction(islandId, myPlayFabId);
-                        }
-                    }
-
                     await homeReady;
                     if (activeProfileUid !== user.uid) return;
                     __perfLog('showTab(home) done');
                     await handleTroyEntryRequest(troyEntryRequest, { clearUrl: true, preserveSelectedTab: true });
-                    scheduleWorldMapPrefetch();
                     const prefetchHeavy = () => {
-                        ensureBuildingMetaLoaded();
                         ensureShipCatalogLoaded();
                     };
                     if (typeof requestIdleCallback === 'function') {
@@ -1738,7 +1725,6 @@ async function initializeAppFeatures(options = {}) {
             showRpgMessage(`LINE特典を処理できませんでした: ${error?.message || error}`, 2600);
         }
     });
-    initMapChat(myPlayFabId);
     initTroyChat(myPlayFabId);
     initHomeCoinConvertPanel();
 
@@ -3150,4 +3136,3 @@ window.viewShipDetails = viewShipDetails;
 window.stopShip = stopShip;
 window.startShipVoyageUI = startShipVoyageUI;
 window.setActiveShip = (shipId) => Ship.setActiveShip(myPlayFabId, shipId);
-window.Island = Island;

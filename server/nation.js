@@ -6281,7 +6281,6 @@ function initializeNationRoutes(app, deps) {
                 PlayFabId: targetPlayFabId,
                 Keys: ['Race', 'Nation']
             });
-            const targetRace = targetRo?.Data?.Race?.Value || null;
             const targetPrevNation = String(targetRo?.Data?.Nation?.Value || '').toLowerCase();
 
             const playerEntity = await getPlayerEntity(targetPlayFabId, { promisifyPlayFab, PlayFabServer });
@@ -6327,33 +6326,11 @@ function initializeNationRoutes(app, deps) {
                 PlayFabAdmin
             });
 
-            const transferResult = await transferOwnedIslands(firestore, targetPlayFabId, requesterPlayFabId, targetNationIsland || kingNation || null);
-            let starterIsland = null;
-            try {
-                const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
-                    PlayFabId: targetPlayFabId,
-                    ProfileConstraints: { ShowDisplayName: true }
-                });
-                const displayName = profile?.PlayerProfile?.DisplayName || null;
-                starterIsland = await createStarterIsland({
-                    playFabId: targetPlayFabId,
-                    raceName: targetRace || 'Human',
-                    nationIsland: targetNationIsland || kingNation || null,
-                    displayName
-                });
-            } catch (e) {
-                console.warn('[king-exile] Failed to create starter island:', e?.errorMessage || e?.message || e);
-            }
-
-            if (starterIsland?.respawnPosition) {
-                await relocateActiveShip(firestore, targetPlayFabId, starterIsland.respawnPosition);
-            }
-
             return res.json({
                 success: true,
                 nationIsland: targetNationIsland || kingNation || null,
-                transferredIslands: transferResult.transferred,
-                starterIsland
+                transferredIslands: 0,
+                starterIsland: null
             });
         } catch (error) {
             console.error('[king-exile] Error:', error?.errorMessage || error?.message || error);

@@ -30,10 +30,10 @@ test('the published worker loads one updated module generation on restart', asyn
         if (url.pathname === '/js/consumer.js') return send("import * as Player from './player.js'; import * as Api from './api.js'; import * as Inventory from './inventory.js'; import * as Ui from './ui.js'; import * as Profile from './playerProfile.js'; export { Player, Api, Inventory, Ui, Profile };");
         if (['/js/player.js', '/js/api.js', '/js/inventory.js', '/js/ui.js', '/js/playerProfile.js', '/js/playfabClient.js', '/js/ship.js', '/js/island.js', '/js/companions.js'].includes(url.pathname)) {
             const version = {
-                '/js/ui.js': '20261030-fortune-gacha-v1',
+                '/js/ui.js': '20261031-world-retirement-v1',
                 '/js/playerProfile.js': '20261030-home-layout-v1',
                 '/js/inventory.js': '20261031-detail-tidy-v1',
-                '/js/ship.js': '20261031-shipyard-v1'
+                '/js/ship.js': '20261031-world-retirement-v1'
             }[url.pathname] || '20261029-startup-v1';
             return send(`export const version = '${url.search.includes(version) ? 'new' : 'old'}';`);
         }
@@ -67,10 +67,10 @@ test('the published worker loads one updated module generation on restart', asyn
         for (const asset of ['/js/player.js', '/js/api.js', '/js/island.js', '/js/companions.js']) {
             expect(requests.some(request => request.updated && request.path === asset && request.query.includes('20261029-startup-v1'))).toBe(true);
         }
-        for (const [asset, version] of [['/js/inventory.js', '20261031-detail-tidy-v1'], ['/js/ship.js', '20261031-shipyard-v1']]) {
+        for (const [asset, version] of [['/js/inventory.js', '20261031-detail-tidy-v1'], ['/js/ship.js', '20261031-world-retirement-v1']]) {
             expect(requests.some(request => request.updated && request.path === asset && request.query.includes(version))).toBe(true);
         }
-        expect(requests.some(request => request.updated && request.path === '/js/ui.js' && request.query.includes('20261030-fortune-gacha-v1'))).toBe(true);
+        expect(requests.some(request => request.updated && request.path === '/js/ui.js' && request.query.includes('20261031-world-retirement-v1'))).toBe(true);
         for (const asset of ['/js/playerProfile.js', '/css/home-v3.css']) {
             expect(requests.some(request => request.updated && request.path === asset && request.query.includes('20261030-home-layout-v1'))).toBe(true);
         }

@@ -4,7 +4,6 @@
 const { PlayFabGroups, PlayFabData, withTitleEntityToken, getEntityKeyFromPlayFabId } = require('../playfab');
 const economy = require('../economy');
 const admin = require('firebase-admin');
-const { geohashForLocation } = require('geofire-common');
 const { buildStatsMapFromStatistics, applyDerivedPlayerLevelToStats } = require('../playerLevel');
 const { getAvatarColorForNation } = require('../nation');
 const {
@@ -51,22 +50,6 @@ const NATION_ALIASES = {
     orc: 'earth',
     elf: 'wind'
 };
-
-const GEO_CONFIG = {
-    GRID_SIZE: 32,
-    MAP_TILE_SIZE: 500,
-    METERS_PER_TILE: 100
-};
-
-function worldToLatLng(point) {
-    const mapPixelSize = GEO_CONFIG.MAP_TILE_SIZE * GEO_CONFIG.GRID_SIZE;
-    const metersPerPixel = GEO_CONFIG.METERS_PER_TILE / GEO_CONFIG.GRID_SIZE;
-    const dxMeters = (point.x - mapPixelSize / 2) * metersPerPixel;
-    const dyMeters = (mapPixelSize / 2 - point.y) * metersPerPixel;
-    const lat = dyMeters / 110574;
-    const lng = dxMeters / 111320;
-    return { lat, lng };
-}
 
 // ギルドレベルシステムの設定
 const GUILD_LEVEL_CONFIG = {
@@ -1460,22 +1443,6 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 const shipRef = db.collection('ships').doc(shipDocId);
                 const existing = await shipRef.get();
                 if (!existing.exists) {
-                    let mapId = null;
-                    let spawnPos = { x: 100, y: 100 };
-                    try {
-                        const playerShipSnap = await db.collection('ships').doc(ownerPlayFabId).get();
-                        if (playerShipSnap.exists) {
-                            const data = playerShipSnap.data() || {};
-                            mapId = data.mapId || null;
-                            const pos = data.position || { x: data.currentX, y: data.currentY };
-                            if (Number.isFinite(Number(pos?.x)) && Number.isFinite(Number(pos?.y))) {
-                                spawnPos = { x: Number(pos.x), y: Number(pos.y) };
-                            }
-                        }
-                    } catch (error) {
-                        console.warn('[GuildShip] Failed to read player ship position:', error?.message || error);
-                    }
-
                     let nationKey = isNationGuild ? kingContext.nationKey : null;
                     let sailColor = 'white';
                     try {
@@ -1499,9 +1466,6 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                         console.warn('[GuildShip] Failed to resolve nation color:', error?.message || error);
                     }
 
-                    const geo = worldToLatLng(spawnPos);
-                    const geohash = geohashForLocation([geo.lat, geo.lng]);
-
                     const maxHp = 5000;
                     await shipRef.set({
                         shipId: shipDocId,
@@ -1509,7 +1473,6 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                         ownerId: ownerPlayFabId,
                         ownerPlayFabId,
                         guildId: guildId,
-                        mapId: mapId,
                         nation: nationKey,
                         guildType,
                         isNationGuild,
@@ -1526,22 +1489,8 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                             domain: 'sea_surface',
                             color: sailColor
                         },
-                        position: { x: spawnPos.x, y: spawnPos.y },
-                        currentX: spawnPos.x,
-                        currentY: spawnPos.y,
-                        targetX: spawnPos.x,
-                        targetY: spawnPos.y,
-                        arrivalTime: Date.now(),
                         speed: 0,
                         shipVisionRange: 260,
-                        movement: {
-                            isMoving: false,
-                            departureTime: null,
-                            arrivalTime: null,
-                            departurePos: null,
-                            destinationPos: null
-                        },
-                        geohash: geohash,
                         lastUpdated: admin.firestore.FieldValue.serverTimestamp()
                     });
                 }

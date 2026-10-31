@@ -1,0 +1,7 @@
+# Online world retirement
+
+The application no longer enters the old map, island or naval-battle screens. Old navigation requests return to home. Startup no longer seeds the world or starts the old prophecy and weekly-contest schedulers. The island, island-shop, world-chat, battle-room, NPC snapshot, territory and weekly-contest routes are no longer registered. Legacy world routes that share modules with retained nation and ship functionality return HTTP 410; the exact set is in `server/retiredWorldRoutes.js`.
+
+The shipyard, owned ships, active selection, ship upgrades, repairs, cargo, exploration, guild membership, Tarot games and real-store features remain. PlayFab `Ship_<id>`, `ActiveShipId`, ship profiles and Economy inventory remain authoritative. Firestore `ships` is retained as a fleet index and shared guild metadata, not the source of ship growth. The ship screen reads its list through the existing authenticated API instead of subscribing to world-position records. New starter and guild ship index records do not create map coordinates. Switching an active ship does not copy or delete historical coordinates.
+
+No Firestore, PlayFab, RTDB or CloudScript data is deleted by this change. Dormant world source and assets remain in the repository so shared dependencies and existing records are not removed accidentally. The account-reset workflow is unchanged. Reverting the code restores the old route registration, but already loaded browser clients can receive HTTP 410 after retirement; cached application modules use a new version.

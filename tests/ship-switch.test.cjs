@@ -62,6 +62,16 @@ test('switch saves the existing full profile and removes sold cards from the tar
   assert.equal(JSON.parse(f.values.PlayerShipProfile).level, 4);
   assert.deepEqual(JSON.parse(f.values.PlayerShipProfile).majorArcanaItemIds, ['owned']);
 });
+test('switch leaves historical world coordinates intact and does not copy them to the player index', async () => {
+  const f = fixture();
+  f.documents.set(`ships/${f.old}`, { shipId: f.old, playFabId: 'ABC', position: { x: 1, y: 2 }, mapId: 'old-map' });
+  f.documents.set(`ships/${f.next}`, { shipId: f.next, playFabId: 'ABC', position: { x: 5, y: 6 }, mapId: 'other-map' });
+  assert.equal((await f.switchTo(f.next)).code, 200);
+  assert.deepEqual(f.documents.get(`ships/${f.old}`).position, { x: 1, y: 2 });
+  assert.equal(f.documents.get(`ships/${f.old}`).mapId, 'old-map');
+  assert.equal(f.documents.get('ships/ABC').position, undefined);
+  assert.equal(f.documents.get('ships/ABC').mapId, undefined);
+});
 test('switch rejects another account and an active exploration', async () => {
   const f = fixture(); assert.equal((await f.switchTo(f.next, 'OTHER')).code, 403);
   f.documents.set('player_explorations/ABC', { stageNo: 1 });

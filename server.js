@@ -467,6 +467,7 @@ app.get('/line/qr/:lineUserId', async (req, res) => {
 });
 
 app.use(express.json());
+app.use(require('./server/retiredWorldRoutes').retiredWorldRoutes);
 
 configurePlayFab({
     titleId: process.env.PLAYFAB_TITLE_ID,
@@ -1196,26 +1197,15 @@ async function ensureStarterShipLocked({ playFabId, respawnPosition }) {
         }), data);
     }
 
-    const position = respawnPosition || { x: 100, y: 100 };
-    const geoPoint = island.worldToLatLng(position);
-    const geohash = geohashForLocation([geoPoint.lat, geoPoint.lng]);
+    // This document is a fleet index, not a world-position record.
     const firestoreShipData = {
         shipId: activeShipId,
         playFabId: playFabId,
-        position: position,
-        geohash: geohash,
         appearance: {
             shipType: shipData.ShipType || 'Common Boat',
             domain: shipDomain,
             color: String(avatarColor).toLowerCase(),
             sailState: 'furled'
-        },
-        movement: {
-            isMoving: false,
-            departureTime: null,
-            arrivalTime: null,
-            departurePos: null,
-            destinationPos: null
         },
         lastUpdated: admin.firestore.FieldValue.serverTimestamp()
     };
@@ -1986,7 +1976,6 @@ async function main() {
     await loadCatalogCache();
 
     // マップ初期化
-    await mapModule.initializeMapData(firestore);
 
     // 共通定数
     const sharedConstants = {
@@ -2046,7 +2035,6 @@ async function main() {
     });
 
     // 島ルート
-    island.initializeIslandRoutes(app, deps);
 
     // インベントリルート
     inventory.initializeInventoryRoutes(app, {
@@ -2077,10 +2065,8 @@ async function main() {
     });
 
     // ショップルート
-    shop.initializeShopRoutes(app, deps);
 
     // チャットルート
-    chat.initializeChatRoutes(app);
 
     // バトルルート
     battleRoutes.initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, lineClient, catalogCache, catalogCurrencyMap, resolveCatalogItemId, sharedConstants, {
@@ -2108,43 +2094,12 @@ async function main() {
     );
 
     // バトルルームルート
-    battleRoomRoutes.initializeBattleRoomRoutes(
-        app,
-        promisifyPlayFab,
-        PlayFabServer,
-        { requireAuthenticatedPlayFabId },
-        lineClient,
-        {
-            promisifyPlayFab,
-            PlayFabEconomy,
-            getEntityKeyFromPlayFabId,
-            resolveItemId: resolveCatalogItemId
-        }
-    );
 
     // NPC スナップショットルート
-    npcSnapshotRoutes.initializeNpcSnapshotRoutes(
-        app,
-        promisifyPlayFab,
-        PlayFabServer,
-        { requireAuthenticatedPlayFabId }
-    );
 
     // 領海ルート
-    territoryRoutes.initializeTerritoryRoutes(
-        app,
-        promisifyPlayFab,
-        PlayFabServer,
-        { requireAuthenticatedPlayFabId }
-    );
 
     // 週次争奪ルート
-    weeklyContestRoutes.initializeWeeklyContestRoutes(
-        app,
-        promisifyPlayFab,
-        PlayFabServer,
-        { requireAuthenticatedPlayFabId }
-    );
 
     // カードレベル育成ルート
     initializeCardRoutes(app, {
@@ -2163,10 +2118,8 @@ async function main() {
     personalityAssessment.initializePersonalityAssessmentRoutes(app, deps);
 
     // タロット予言イベントスケジューラ
-    initializeProphecyScheduler();
 
     // 週次争奪ウィンドウスケジューラ
-    new WeeklyContestScheduler().start();
 
     app.listen(PORT, () => {
         console.log(`サーバーがポート ${PORT} で起動しました。http://localhost:${PORT}`);
