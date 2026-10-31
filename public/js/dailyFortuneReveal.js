@@ -2,6 +2,8 @@
 // Display only: the result is already settled by the server before this runs.
 // Nothing here may change the card, weather, reward or call any API.
 
+import { createWindCompass, playReversedTurn, playArcanaSignature } from './fortuneRevealExtras.js?v=20261031-reveal-extras-v1';
+
 const TIER_STYLES = {
     moon: { core: [236, 232, 255], glow: [167, 139, 250] },
     blue: { core: [224, 251, 255], glow: [56, 189, 248] },
@@ -285,6 +287,7 @@ export async function playDailyFortuneGrandReveal({
         cleanup();
         resolveFailure();
     });
+    const compass = createWindCompass(fx, level);
     engine.resize();
     engine.start();
     const center = () => {
@@ -302,6 +305,7 @@ export async function playDailyFortuneGrandReveal({
     const setStage = (next) => {
         stage = next;
         fx.dataset.stage = next;
+        compass.toStage(next);
     };
 
     const spawnMote = () => {
@@ -435,6 +439,7 @@ export async function playDailyFortuneGrandReveal({
     engine.emitters = [];
     fx.classList.remove('is-charging');
     fx.classList.add('is-imploding');
+    compass.settle();
     cardEl.classList.remove('is-fortune-hovering');
     cardEl.classList.add('is-flip-out');
     await waitForStage(240);
@@ -445,6 +450,9 @@ export async function playDailyFortuneGrandReveal({
     fx.classList.remove('is-imploding');
     fx.classList.add('is-revealed');
     restartClass(fx.querySelector('.tarot-fortune-fx-bloom'), 'is-on');
+    // A reversed card turns over before the reading appears; signatures play beside it.
+    const turnMs = playReversedTurn(fx, cardEl);
+    playArcanaSignature(fx, cardEl);
 
     // 5. Afterglow scaled to the wind level.
     if (tier === 'moon') {
@@ -466,7 +474,7 @@ export async function playDailyFortuneGrandReveal({
         confetti(46);
         fx.classList.add('is-jackpot');
     }
-    await waitForStage(340);
+    await waitForStage(340 + turnMs);
     if (!proceed()) return finishQuietly();
     cardEl.classList.remove('is-flip-in');
     overlay?.classList.remove('is-fortune-charging');

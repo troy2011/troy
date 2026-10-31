@@ -291,3 +291,100 @@ test('daily reveal charges light by wind tier, flips, then keeps the full readin
     await expect(page.locator('.tarot-fortune-fx')).toHaveCount(0);
     expect(draws()).toBe(1);
 });
+
+async function readCompass(page) {
+    return Number(await page.locator('.tarot-fortune-compass-value').textContent());
+}
+
+test('wind compass climbs to the settled level and a reversed card turns over before the reading', async ({ page }) => {
+    await isolate(page);
+    // Cup 5 reversed is wind 6: the blue tier without a promotion, and a minor card without a signature.
+    await page.addInitScript(() => { Math.random = () => 0.99; });
+    const result = dailyResult({ cardNumber: 5, suit: 'Cups', cardName: 'カップ5', orientation: 'reversed' });
+    const draws = await installFortune(page, result);
+    await page.setViewportSize({ width: 320, height: 720 });
+    await bootstrapMainApp(page);
+    await page.locator('#btnDailyFortune').click();
+    await page.clock.install();
+    await page.clock.pauseAt(Date.now() + 1000);
+    const card = page.locator('#dailyTarotFortuneCardHost button').first();
+    await card.click();
+    await page.clock.runFor(800);
+    const compass = page.locator('.tarot-fortune-compass');
+    await expect(compass).toBeVisible();
+    await expect(compass).toHaveClass(/is-searching/);
+    await page.clock.runFor(800);
+    expect(await readCompass(page)).toBe(5);
+    await page.clock.runFor(450);
+    await expect(card).toHaveClass(/is-flip-out/);
+    await page.clock.runFor(240);
+    expect(await readCompass(page)).toBe(6);
+    await expect(compass).toHaveClass(/is-settled/);
+    await expect(card).toHaveClass(/is-reversed-turn/);
+    await expect(page.locator('.tarot-fortune-fx')).toHaveClass(/is-reversed/);
+    await expect(page.locator('.tarot-fortune-fx-reversed')).toHaveText('逆位置');
+    await expect(page.locator('.tarot-fortune-sign')).toHaveCount(0);
+    await page.clock.runFor(340);
+    await expect(card).not.toHaveClass(/is-revealed/);
+    await page.clock.runFor(460);
+    await expect(card).toHaveClass(/is-revealed/);
+    await expect(card).toHaveClass(/is-reversed/);
+    await expect(page.locator('#dailyTarotFortuneText')).toContainText(result.strikeLine);
+    await expect(page.locator('#dailyTarotFortuneReward')).toContainText(result.rewardItemName);
+    await page.clock.runFor(1800);
+    await expect(page.locator('.tarot-fortune-fx')).toHaveCount(0);
+    await expect(card).not.toHaveClass(/is-reversed-turn/);
+    expect(draws()).toBe(1);
+});
+
+test('major arcana signature plays beside the flip and the compass never shows more than the result', async ({ page }) => {
+    await isolate(page);
+    // The Star upright is wind 8: the gold tier, kept without a promotion here.
+    await page.addInitScript(() => { Math.random = () => 0.99; });
+    const result = dailyResult({ cardNumber: 17, suit: 'None', isArcana: true, cardName: '星', rewardItemName: '星' });
+    await installFortune(page, result);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await bootstrapMainApp(page);
+    await page.locator('#btnDailyFortune').click();
+    await page.clock.install();
+    await page.clock.pauseAt(Date.now() + 1000);
+    const card = page.locator('#dailyTarotFortuneCardHost button').first();
+    await card.click();
+    await page.clock.runFor(800);
+    const seen = [];
+    for (let step = 0; step < 15; step += 1) {
+        await page.clock.runFor(100);
+        seen.push(await readCompass(page));
+    }
+    expect(seen.every((value, index) => value <= 8 && (index === 0 || value >= seen[index - 1]))).toBe(true);
+    await expect(card).toHaveClass(/is-flip-in/);
+    expect(await readCompass(page)).toBe(8);
+    await expect(page.locator('.tarot-fortune-fx')).toHaveAttribute('data-sign', 'star');
+    await expect(page.locator('.tarot-fortune-sign[data-sign="star"] .tarot-fortune-sign-streak')).toHaveCount(3);
+    await expect(card).not.toHaveClass(/is-reversed-turn/);
+    await expect(page.locator('.tarot-fortune-fx-reversed')).toHaveCount(0);
+    await page.clock.runFor(400);
+    await expect(card).toHaveClass(/is-revealed/);
+    await expect(page.locator('#dailyTarotFortuneText')).toContainText(result.strikeLine);
+    const signatures = await page.evaluate(async () => (await import('/js/fortuneRevealExtras.js')).__test.SIGNATURES);
+    expect(signatures).toEqual({ 10: 'wheel', 16: 'tower', 17: 'star', 18: 'moon', 19: 'sun', 21: 'world' });
+});
+
+test('reduced motion skips the compass, signature and turn but keeps the reversed card and reading', async ({ page }) => {
+    await isolate(page);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const result = dailyResult({ cardNumber: 18, suit: 'None', isArcana: true, cardName: '月', orientation: 'reversed', rewardItemName: '月' });
+    const draws = await installFortune(page, result);
+    await page.setViewportSize({ width: 430, height: 900 });
+    await bootstrapMainApp(page);
+    await page.locator('#btnDailyFortune').click();
+    const card = page.locator('#dailyTarotFortuneCardHost button').first();
+    await card.click();
+    await expect(card).toHaveClass(/is-revealed/);
+    await expect(card).toHaveClass(/is-quiet-reveal/);
+    await expect(card).toHaveClass(/is-reversed/);
+    await expect(card).not.toHaveClass(/is-reversed-turn/);
+    await expect(page.locator('.tarot-fortune-compass, .tarot-fortune-sign, .tarot-fortune-fx')).toHaveCount(0);
+    await expect(page.locator('#dailyTarotFortuneText')).toContainText(result.strikeLine);
+    expect(draws()).toBe(1);
+});

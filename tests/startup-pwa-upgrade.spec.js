@@ -30,7 +30,7 @@ test('the published worker loads one updated module generation on restart', asyn
         if (url.pathname === '/js/consumer.js') return send("import * as Player from './player.js'; import * as Api from './api.js'; import * as Inventory from './inventory.js'; import * as Ui from './ui.js'; import * as Profile from './playerProfile.js'; export { Player, Api, Inventory, Ui, Profile };");
         if (['/js/player.js', '/js/api.js', '/js/inventory.js', '/js/ui.js', '/js/playerProfile.js', '/js/playfabClient.js', '/js/ship.js', '/js/island.js', '/js/companions.js'].includes(url.pathname)) {
             const version = {
-                '/js/ui.js': '20261031-world-retirement-v1',
+                '/js/ui.js': '20261031-reveal-extras-v1',
                 '/js/playerProfile.js': '20261030-home-layout-v1',
                 '/js/inventory.js': '20261031-detail-tidy-v1',
                 '/js/ship.js': '20261031-world-retirement-v1'
@@ -70,14 +70,14 @@ test('the published worker loads one updated module generation on restart', asyn
         for (const [asset, version] of [['/js/inventory.js', '20261031-detail-tidy-v1'], ['/js/ship.js', '20261031-world-retirement-v1']]) {
             expect(requests.some(request => request.updated && request.path === asset && request.query.includes(version))).toBe(true);
         }
-        expect(requests.some(request => request.updated && request.path === '/js/ui.js' && request.query.includes('20261031-world-retirement-v1'))).toBe(true);
+        expect(requests.some(request => request.updated && request.path === '/js/ui.js' && request.query.includes('20261031-reveal-extras-v1'))).toBe(true);
         for (const asset of ['/js/playerProfile.js', '/css/home-v3.css']) {
             expect(requests.some(request => request.updated && request.path === asset && request.query.includes('20261030-home-layout-v1'))).toBe(true);
         }
         const ui = fs.readFileSync(path.join(root, 'public/js/ui.js'), 'utf8');
         const main = fs.readFileSync(path.join(root, 'public/main.js'), 'utf8');
-        expect(ui).toContain("const TAROT_MODULE_VERSION = '20261030-fortune-gacha-v1'");
-        expect(main).toContain("const TAROT_MODULE_VERSION = '20261030-fortune-gacha-v1'");
+        expect(ui).toContain("const TAROT_MODULE_VERSION = '20261031-reveal-extras-v1'");
+        expect(main).toContain("const TAROT_MODULE_VERSION = '20261031-reveal-extras-v1'");
         expect(errors).toEqual([]);
     } finally {
         await context.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve));
