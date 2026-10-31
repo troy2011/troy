@@ -367,7 +367,47 @@ test('major arcana signature plays beside the flip and the compass never shows m
     await expect(card).toHaveClass(/is-revealed/);
     await expect(page.locator('#dailyTarotFortuneText')).toContainText(result.strikeLine);
     const signatures = await page.evaluate(async () => (await import('/js/fortuneRevealExtras.js')).__test.SIGNATURES);
-    expect(signatures).toEqual({ 10: 'wheel', 16: 'tower', 17: 'star', 18: 'moon', 19: 'sun', 21: 'world' });
+    expect(Object.keys(signatures).map(Number)).toEqual(Array.from({ length: 22 }, (_, number) => number));
+    expect(new Set(Object.values(signatures)).size).toBe(22);
+});
+
+test('every major arcana has its own visible, animated signature and minor cards have none', async ({ page }) => {
+    await isolate(page);
+    await page.setViewportSize({ width: 320, height: 720 });
+    await bootstrapMainApp(page);
+    const report = await page.evaluate(async () => {
+        const { playArcanaSignature } = await import('/js/fortuneRevealExtras.js');
+        const play = (id) => {
+            const fx = document.createElement('div');
+            fx.style.cssText = 'position:fixed;inset:0;';
+            const card = document.createElement('div');
+            card.style.cssText = 'width:98px;height:148px;';
+            card.innerHTML = `<img data-artwork-side="front" data-artwork-card-id="${id}">`;
+            fx.append(card);
+            document.body.append(fx);
+            const name = playArcanaSignature(fx, card);
+            const parts = [...fx.querySelectorAll('.tarot-fortune-sign > *')].map((part) => {
+                const box = part.getBoundingClientRect();
+                const animated = [part, ...part.querySelectorAll('*')].some((node) => getComputedStyle(node).animationName !== 'none');
+                // Layout size, not the animated transform: some parts start scaled to zero.
+                const width = part.offsetWidth ?? box.width;
+                const height = part.offsetHeight ?? box.height;
+                return { sized: width > 0 && height > 0, animated };
+            });
+            fx.remove();
+            return { name, parts };
+        };
+        return {
+            major: Array.from({ length: 22 }, (_, number) => play(`major-${number}`)),
+            minor: ['cup-5', 'wand-7', 'sword-1', 'coin-10'].map(play)
+        };
+    });
+    for (const { name, parts } of report.major) {
+        expect(name).toBeTruthy();
+        expect(parts.length, name).toBeGreaterThan(0);
+        expect(parts.every((part) => part.sized && part.animated), name).toBe(true);
+    }
+    expect(report.minor.every(({ name, parts }) => name === '' && parts.length === 0)).toBe(true);
 });
 
 test('reduced motion skips the compass, signature and turn but keeps the reversed card and reading', async ({ page }) => {

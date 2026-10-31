@@ -6,7 +6,13 @@
 // and the final value comes from the settled wind level.
 const STAGE_FLOOR = { moon: 1, blue: 5, gold: 8, legend: 10 };
 
-const SIGNATURES = { 10: 'wheel', 16: 'tower', 17: 'star', 18: 'moon', 19: 'sun', 21: 'world' };
+// One signature per major arcana, keyed by card number.
+const SIGNATURES = {
+    0: 'fool', 1: 'magician', 2: 'priestess', 3: 'empress', 4: 'emperor', 5: 'hierophant',
+    6: 'lovers', 7: 'chariot', 8: 'strength', 9: 'hermit', 10: 'wheel', 11: 'justice',
+    12: 'hanged', 13: 'death', 14: 'temperance', 15: 'devil', 16: 'tower', 17: 'star',
+    18: 'moon', 19: 'sun', 20: 'judgement', 21: 'world'
+};
 
 const REVERSED_TURN_MS = 460;
 
@@ -114,7 +120,42 @@ export function getFortuneSignature(cardEl) {
     return match ? SIGNATURES[Number(match[1])] || '' : '';
 }
 
+// Small particles take their place and delay from inline custom properties.
+function particles(className, list) {
+    return list.map(([x, y, delay]) => `<i class="${className}" style="--x:${x};--y:${y};--delay:${delay}ms"></i>`).join('');
+}
+
 const SIGNATURE_MARKUP = {
+    fool: particles('tarot-fortune-sign-bubble', [[-0.55, 0.3, 0], [0.5, 0.42, 140], [-0.2, 0.55, 300], [0.25, 0.2, 440], [-0.7, 0.62, 600]]),
+    magician: `<svg class="tarot-fortune-sign-figure is-infinity" viewBox="0 0 120 60" focusable="false">
+        <path d="M60 30 C45 8 15 8 15 30 C15 52 45 52 60 30 C75 8 105 8 105 30 C105 52 75 52 60 30 Z" pathLength="100"></path>
+    </svg>`,
+    priestess: '<i class="tarot-fortune-sign-pillar is-dark"></i><i class="tarot-fortune-sign-pillar is-light"></i>',
+    empress: particles('tarot-fortune-sign-petal', [[-0.7, 0, 0], [0.55, 0, 180], [-0.15, 0, 360], [0.85, 0, 520], [-0.45, 0, 700], [0.2, 0, 860]]),
+    emperor: `<svg class="tarot-fortune-sign-figure is-crown" viewBox="0 0 100 60" focusable="false">
+        <path d="M14 52 L8 16 L32 34 L50 8 L68 34 L92 16 L86 52 Z" pathLength="100"></path>
+    </svg>`,
+    hierophant: `<svg class="tarot-fortune-sign-figure is-keys" viewBox="0 0 100 100" focusable="false">
+        <g transform="rotate(45 50 50)"><circle cx="18" cy="50" r="9" pathLength="100"></circle><path d="M27 50 H90 M80 50 V60 M88 50 V62" pathLength="100"></path></g>
+        <g transform="rotate(135 50 50)"><circle cx="18" cy="50" r="9" pathLength="100"></circle><path d="M27 50 H90 M80 50 V60 M88 50 V62" pathLength="100"></path></g>
+    </svg>`,
+    lovers: `<svg class="tarot-fortune-sign-heart" viewBox="0 0 24 22" focusable="false"><path d="M12 21 C5 15 1 11 1 7 A5 5 0 0 1 12 5 A5 5 0 0 1 23 7 C23 11 19 15 12 21 Z"></path></svg>
+        <svg class="tarot-fortune-sign-heart" viewBox="0 0 24 22" focusable="false"><path d="M12 21 C5 15 1 11 1 7 A5 5 0 0 1 12 5 A5 5 0 0 1 23 7 C23 11 19 15 12 21 Z"></path></svg>`,
+    chariot: particles('tarot-fortune-sign-speed', [[0, -0.42, 0], [0, -0.12, 120], [0, 0.16, 60], [0, 0.44, 200]]),
+    strength: '<i class="tarot-fortune-sign-aura"></i><i class="tarot-fortune-sign-aura"></i>',
+    hermit: '<i class="tarot-fortune-sign-lantern-beam"></i><i class="tarot-fortune-sign-lantern"></i>',
+    justice: `<svg class="tarot-fortune-sign-figure is-scales" viewBox="0 0 120 90" focusable="false">
+        <path d="M60 12 V84 M44 84 H76" pathLength="100"></path>
+        <g class="tarot-fortune-sign-scale-arm"><path d="M14 22 H106 M14 22 L5 46 H23 Z M106 22 L97 46 H115 Z" pathLength="100"></path></g>
+    </svg>`,
+    hanged: '<i class="tarot-fortune-sign-thread"></i><i class="tarot-fortune-sign-halo"></i>',
+    death: '<i class="tarot-fortune-sign-dawn"></i><i class="tarot-fortune-sign-dawn-line"></i>',
+    temperance: `<svg class="tarot-fortune-sign-figure is-flow" viewBox="0 0 120 60" focusable="false">
+        <path d="M12 52 C30 0 90 0 108 52" pathLength="100"></path>
+        <path class="tarot-fortune-sign-flow-drops" d="M12 52 C30 0 90 0 108 52" pathLength="100"></path>
+    </svg>`,
+    devil: '<i class="tarot-fortune-sign-smoke"></i>' + particles('tarot-fortune-sign-ember', [[-0.5, 0, 0], [0.35, 0, 160], [-0.1, 0, 320], [0.65, 0, 460], [-0.75, 0, 620], [0.15, 0, 760]]),
+    judgement: particles('tarot-fortune-sign-ray', [[-24, 0, 0], [0, 0, 120], [24, 0, 240]]),
     sun: '<i class="tarot-fortune-sign-rays"></i><i class="tarot-fortune-sign-disk"></i>',
     moon: '<i class="tarot-fortune-sign-crescent"></i><i class="tarot-fortune-sign-mist"></i><i class="tarot-fortune-sign-mist"></i>',
     star: '<i class="tarot-fortune-sign-streak"></i><i class="tarot-fortune-sign-streak"></i><i class="tarot-fortune-sign-streak"></i><i class="tarot-fortune-sign-sparkle"></i>',

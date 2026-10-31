@@ -1,5 +1,5 @@
 import { renderDailyTarotArtwork, renderDailyTarotBackArtwork } from './pirateTarotArtwork.js?v=20261025-pirate-delivery-v2';
-import { playDailyFortuneGrandReveal, getDailyFortuneRevealTier } from './dailyFortuneReveal.js?v=20261031-reveal-extras-v1';
+import { playDailyFortuneGrandReveal, getDailyFortuneRevealTier } from './dailyFortuneReveal.js?v=20261101-arcana-signs-v1';
 import { enableTarotCardZoom, closeTarotCardViewer } from './tarotCardViewer.js?v=20261031-card-viewer-v1';
 import { HandEvaluator as TarotEngineHandEvaluator } from './tarot-engine/HandEvaluator.js';
 import { GameController as TarotGameController } from './tarot-engine/GameController.js';

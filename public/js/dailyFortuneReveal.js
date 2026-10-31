@@ -2,7 +2,7 @@
 // Display only: the result is already settled by the server before this runs.
 // Nothing here may change the card, weather, reward or call any API.
 
-import { createWindCompass, playReversedTurn, playArcanaSignature } from './fortuneRevealExtras.js?v=20261031-reveal-extras-v1';
+import { createWindCompass, playReversedTurn, playArcanaSignature } from './fortuneRevealExtras.js?v=20261101-arcana-signs-v1';
 
 const TIER_STYLES = {
     moon: { core: [236, 232, 255], glow: [167, 139, 250] },

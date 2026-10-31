@@ -25,7 +25,7 @@ const ensureCompanionModule = async () => {
 };
 
 let tarotModule = null;
-const TAROT_MODULE_VERSION = '20261031-reveal-extras-v1';
+const TAROT_MODULE_VERSION = '20261101-arcana-signs-v1';
 const ensureTarotModule = async () => {
     if (tarotModule) return tarotModule;
     tarotModule = await import(`./tarotPoker.js?v=${TAROT_MODULE_VERSION}`);
