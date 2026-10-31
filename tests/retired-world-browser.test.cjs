@@ -31,6 +31,27 @@ test('retired navigation returns home without loading the world', async () => {
       await page.evaluate(async value => window.showTab(value), tab);
       assert.equal(await page.evaluate(() => document.body.dataset.currentTab), 'home');
     }
+    let activeShip = 'ship_PF_PLAYWRIGHT_1';
+    let shipIds = [activeShip, 'ship_PF_PLAYWRIGHT_2'];
+    const list = () => shipIds.map((shipId, index) => ({ shipId, isActive: shipId === activeShip,
+      assetData: { Owner: 'PF_PLAYWRIGHT', ShipType: `Ship ${index + 1}`, ItemId: 'ship_common_boat', Level: 1,
+        Stats: { MaxHP: 100, CurrentHP: 100, CargoCapacity: 10 } } }));
+    await page.route('**/api/get-active-ship', route => route.fulfill({ json: { success: true, activeShipId: activeShip, shipOwnerPlayFabId: 'PF_PLAYWRIGHT' } }));
+    await page.route('**/api/get-player-ships', route => route.fulfill({ json: { success: true, ships: list(), activeShipId: activeShip, shipOwnerPlayFabId: 'PF_PLAYWRIGHT' } }));
+    await page.route('**/api/set-active-ship', route => {
+      activeShip = route.request().postDataJSON().shipId;
+      return route.fulfill({ json: { success: true, activeShipId: activeShip, shipOwnerPlayFabId: 'PF_PLAYWRIGHT', removedCards: [] } });
+    });
+    await page.evaluate(async () => window.showTab('ships'));
+    assert.equal(await page.locator('#playerShipsContainer .ship-card').count(), 2);
+    assert.equal(await page.locator('[data-ship-id="ship_PF_PLAYWRIGHT_1"] [onclick^="window.depositShipResources"]').count(), 1);
+    await page.evaluate(async () => window.setActiveShip('ship_PF_PLAYWRIGHT_2'));
+    assert.equal(await page.locator('[data-ship-id="ship_PF_PLAYWRIGHT_1"] [onclick^="window.depositShipResources"]').count(), 0);
+    assert.equal(await page.locator('[data-ship-id="ship_PF_PLAYWRIGHT_2"] [onclick^="window.depositShipResources"]').count(), 1);
+    await page.evaluate(async () => window.showTab('home'));
+    shipIds = [...shipIds, 'ship_PF_PLAYWRIGHT_3'];
+    await page.evaluate(async () => window.showTab('ships'));
+    assert.equal(await page.locator('#playerShipsContainer .ship-card').count(), 3);
     assert.deepEqual(worldRequests, []);
     assert.deepEqual(errors, []);
   } finally {

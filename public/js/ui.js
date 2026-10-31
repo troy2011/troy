@@ -1323,7 +1323,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
     }
 
     // 船タブから離れる場合はリスナーをクリーンアップ
-    if (currentActiveTab && currentActiveTab.id === 'navShips' && tabId !== 'ships') {
+    if ((currentTabId === 'ships' || currentActiveTab?.id === 'navShips') && tabId !== 'ships') {
         console.log('[showTab] Leaving ships tab, cleaning up listeners');
         Ship.cleanupShipListeners();
         tabLoaded.ships = false;

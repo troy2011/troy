@@ -615,7 +615,11 @@ export async function setActiveShip(playFabId, shipId) {
                 }
             }));
         }
-        await loadExplorationPanel(playFabId);
+        if (document.body?.dataset.currentTab === 'ships') {
+            await displayPlayerShips(playFabId);
+        } else {
+            await loadExplorationPanel(playFabId);
+        }
         if (!Player.isCurrentPlayerSession(session)) return null;
         return result;
     }

@@ -26,7 +26,7 @@ test('case and a trailing slash do not bypass retired endpoint protection', () =
 test('shipyard, switching, exploration and real-store endpoints remain reachable', () => {
   for (const path of ['/api/ship-construction/context', '/api/ship-construction/build', '/api/get-player-ships',
     '/api/set-active-ship', '/api/upgrade-ship', '/api/repair-ship', '/api/get-ship-resource-storage',
-    '/api/start-exploration', '/api/troy/orders']) {
+    '/api/exploration/status', '/api/troy-orders/list']) {
     let next = false;
     retiredWorldRoutes({ path }, {}, () => { next = true; });
     assert.equal(next, true, path);
