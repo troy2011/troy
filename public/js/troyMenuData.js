@@ -186,7 +186,10 @@ export const TROY_PRODUCT_MENUS = {
             { concept: 'みそ汁', content: '', price: 500, emoji: '🥣' },
             { concept: 'ピクルス', content: '', price: 500, emoji: '🥒' },
             { concept: '珍味', content: '', price: 500, emoji: '🥢' },
-            { concept: 'ポッキー', content: '', price: 300, emoji: '🍫' }
+            { concept: 'ポッキー', content: '', price: 300, emoji: '🍫' },
+            { concept: '乾き物セット', content: '', price: 600, emoji: '🥨' },
+            { concept: 'カップ麺', content: '', price: 500, emoji: '🍜' },
+            { concept: 'フード持ち込み料', content: '', price: 500, emoji: '🧾' }
         ]
     }
 };
