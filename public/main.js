@@ -507,12 +507,13 @@ async function refreshDailyFortuneStatus() {
         if ((notice || status.state === 'recovered') && Player.isCurrentPlayerSession(Player.capturePlayerSession(playerId))) {
             void Inventory.getInventory(playerId, { force: true, isSilent: true }).catch(() => {});
         }
-        if (status.state === 'pending' || status.state === 'recovered' || (status.canDraw && hasPendingDailyFortuneToday(playerId))) {
+        if (status.state === 'pending' || status.state === 'recovered') {
             setDailyFortuneButtonPending(button);
         } else if (!status.canDraw) {
             markDailyFortuneClaimed(status.dayKey);
         } else {
-            try { localStorage.removeItem(DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY); } catch { /* optional cache */ }
+            // canDraw comes from the server ledger, so a pending flag left by a failed request is stale.
+            try { localStorage.removeItem(DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY); localStorage.removeItem(`troy:fortune-pending:${playerId}`); } catch { /* optional cache */ }
             setDailyFortuneButtonClaimed(button, false);
         }
     })();

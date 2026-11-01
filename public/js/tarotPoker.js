@@ -295,6 +295,14 @@ function setDailyFortunePending(playFabId, pending, key = dailyFortunePendingKey
     } catch { /* In-memory protection is retained for this session. */ }
 }
 
+// Errors the server returns before it reserves a claim: nothing was drawn or granted,
+// so the device guard can be dropped and the player may simply try again.
+const DAILY_FORTUNE_NOT_STARTED_ERRORS = new Set(['FortuneTemporarilyUnavailable', 'FortuneAuthUnavailable', 'playFabId is required']);
+
+function isDailyFortuneDrawNotStarted(error) {
+    return error?.status === 401 || error?.status === 403 || DAILY_FORTUNE_NOT_STARTED_ERRORS.has(error?.message);
+}
+
 function hasDailyFortunePending(playFabId) {
     const key = dailyFortunePendingKey(playFabId);
     try { return dailyFortunePendingDraws.has(key) || localStorage.getItem(key) === '1'; }
@@ -5598,9 +5606,14 @@ async function handleDailyFortuneDraw(playFabId) {
         if (shouldRefreshInventory) await refreshDailyFortuneInventory();
     } catch (error) {
         if (balanceSession && !window.isPlayerSessionCurrent?.(balanceSession)) return;
+        const notStarted = isDailyFortuneDrawNotStarted(error);
+        if (notStarted) setDailyFortunePending(playFabId, false);
         if (generation === dailyFortuneOverlayGeneration
             && document.getElementById(DAILY_FORTUNE_OVERLAY_ID)?.style.display === 'flex'
-            && !showDailyFortuneAuthError(error)) showDailyFortunePending();
+            && !showDailyFortuneAuthError(error)) {
+            if (notStarted) showDailyFortuneNotStarted();
+            else showDailyFortunePending();
+        }
     } finally {
         dailyFortuneInFlight = false;
     }
@@ -5646,6 +5659,7 @@ async function maybeShowDailyFortunePrompt(playFabId, options = {}) {
             notifyDailyFortuneClaimed(status?.result, status?.dayKey);
             return;
         }
+        setDailyFortunePending(playFabId, false);
         await setupDailyFortuneOverlay(playFabId);
     } catch (error) {
         console.warn('[dailyFortune] status check failed:', error);
@@ -5810,6 +5824,14 @@ function showDailyFortunePending() {
     if (retry) retry.hidden = false;
 }
 
+function showDailyFortuneNotStarted() {
+    setDailyFortuneSubText('占いを始められませんでした。');
+    const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
+    if (textEl) textEl.textContent = 'まだ占いは行われていません。少し時間をおいて、もう一度「占い」を押してください。';
+    const retry = document.querySelector(`#${DAILY_FORTUNE_OVERLAY_ID} .tarot-fortune-retry`);
+    if (retry) retry.hidden = true;
+}
+
 function showDailyFortuneAuthError(error) {
     if (error?.status !== 401 && error?.status !== 403) return false;
     setDailyFortuneSubText('ログイン状態を確認できませんでした。');
@@ -5858,10 +5880,9 @@ export async function showDailyFortune(playFabId, options = {}) {
         dailyFortuneCanDrawSession = !!status?.canDraw;
         dailyFortuneClaimedSession = !dailyFortuneCanDrawSession;
         if (dailyFortuneCanDrawSession) {
-            if (hasDailyFortunePending(playFabId)) {
-                showDailyFortunePending();
-                return;
-            }
+            // The server ledger is the source of truth: canDraw means no claim exists,
+            // so a flag left on this device by a failed request is stale.
+            setDailyFortunePending(playFabId, false);
             if (options.statusOnly) {
                 setDailyFortuneSubText('本日はまだ占っていません。');
                 if (textEl) textEl.textContent = '閉じてから「占い」を押すと、今日のカードを引けます。';
