@@ -237,6 +237,7 @@ function expandStaffSizedItem(baseItem = {}, sizeOptions = []) {
 function toStaffMenuItem(item = {}, override = {}) {
     return {
         name: String(override.name || getStaffBaseName(item)).trim(),
+        ...(item.menuLabel ? { menuLabel: String(item.menuLabel).trim() } : {}),
         price: normalizePrice(override.price, item.price),
         note: String(override.note || item.staffNote || '').trim(),
         image: String(override.image || item.image || '').trim(),
