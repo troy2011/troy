@@ -131,7 +131,8 @@ const MAJOR_SUMMONS = Object.freeze(MAJOR_SUMMON_NAMES.map((name, number) => sum
     'major',
     '',
     {
-        animationName: 'tkSummonMajorAction',
+        // each major summon has its own timeline in tarot-kingdom-summons.css (tkMajor00-21)
+        animationName: `tkMajor${String(number).padStart(2, '0')}`,
         motionKey: ['flutter', 'float', 'heavy', 'stalk', 'coil'][number % 5],
         visualScale: number >= 16 ? 1.22 : (number >= 10 ? 1.16 : 1.1),
         entryLift: [4, 7, 10][number % 3],

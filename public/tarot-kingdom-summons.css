@@ -827,7 +827,7 @@
     bottom: 2%;
     width: min(63%, 405px);
     height: 80%;
-    animation: tkSummonMajorAction var(--summon-duration) cubic-bezier(.2,.64,.18,1) both;
+    animation: tkSummonMajorAction var(--summon-duration) linear both;
     animation-delay: var(--summon-elapsed, 0ms);
 }
 
@@ -877,37 +877,6 @@
     --summon-fx-secondary: #7ebcff;
 }
 
-.is-pool-major .tarot-kingdom-summon-fx-backdrop {
-    background:
-        radial-gradient(circle at 72% 46%, color-mix(in srgb, var(--summon-fx-primary) 30%, transparent), transparent 34%),
-        conic-gradient(from 210deg at 72% 52%, transparent, color-mix(in srgb, var(--summon-fx-primary) 18%, transparent), transparent 36%);
-    mix-blend-mode: screen;
-    animation: tkFxMajorAtmosphere var(--summon-duration) ease-in-out both;
-    animation-delay: var(--summon-elapsed, 0ms);
-}
-
-.is-pool-major .tarot-kingdom-summon-fx-aura {
-    right: -3%;
-    bottom: 1%;
-    width: 66%;
-    height: 82%;
-    border-radius: 48%;
-    background: radial-gradient(circle, transparent 30%, color-mix(in srgb, var(--summon-fx-primary) 22%, transparent) 52%, transparent 74%);
-    filter: blur(2px);
-    animation: tkFxMajorCharge var(--summon-duration) ease-in-out both;
-    animation-delay: var(--summon-elapsed, 0ms);
-}
-
-.is-pool-major .tarot-kingdom-summon-fx-impact {
-    background:
-        radial-gradient(circle, #fff 0 4%, var(--summon-fx-primary) 5% 14%, transparent 42%),
-        repeating-conic-gradient(from 0deg, transparent 0 10deg, color-mix(in srgb, var(--summon-fx-secondary) 76%, transparent) 11deg 12deg);
-    box-shadow: 0 0 30px var(--summon-fx-primary);
-    mix-blend-mode: screen;
-    animation: tkFxMajorImpact var(--summon-duration) steps(2, end) both;
-    animation-delay: var(--summon-elapsed, 0ms);
-}
-
 @keyframes tkSummonFlushLow {
     0%, 31% { opacity: 0; transform: translate3d(24%, 13%, 0) rotate(5deg) scale(.78); }
     40%, 57% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
@@ -938,6 +907,324 @@
     100% { opacity: 0; transform: translate3d(10%, 4%, 0) scale(.88); }
 }
 
+.tarot-kingdom-summon-pixelfx {
+    position: absolute;
+    z-index: 13;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    image-rendering: pixelated;
+}
+
+/* Major arcana: one timeline per summon. The hit lands at 66.67 % (1600 ms of 2400 ms) together with
+   its pixel effect. Only the figure moves (no camera shake); reduced motion turns these off below. */
+
+/* 0 愚者 — 道化の幻獣: hops in on three bouncing arcs, a silly wobble on the hit */
+.is-summon-id-major_summon_00 .tarot-kingdom-summon-figure { animation-name: tkMajor00; }
+@keyframes tkMajor00 {
+    0%, 33% { opacity: 0; transform: translate3d(34%, 6%, 0) rotate(8deg) scale(.86); }
+    36% { opacity: 1; transform: translate3d(28%, -14%, 0) rotate(-6deg) scale(.9); animation-timing-function: ease-in; }
+    40% { transform: translate3d(22%, 0, 0) rotate(0) scale(1.04, .94); animation-timing-function: ease-out; }
+    44% { transform: translate3d(14%, -16%, 0) rotate(8deg) scale(.98, 1.02); animation-timing-function: ease-in; }
+    48% { transform: translate3d(8%, 0, 0) rotate(0) scale(1.05, .93); animation-timing-function: ease-out; }
+    53% { transform: translate3d(2%, -10%, 0) rotate(-7deg); animation-timing-function: ease-in; }
+    57% { transform: translate3d(0, 0, 0) rotate(0) scale(1.04, .95); }
+    61% { transform: translate3d(3%, -2%, 0) rotate(5deg) scale(1); animation-timing-function: cubic-bezier(.5, 0, .9, .6); }
+    66.67% { transform: translate3d(-22%, -6%, 0) rotate(-14deg) scale(1.03); }
+    70% { transform: translate3d(-18%, 0, 0) rotate(9deg) scale(1.02, .97); }
+    74% { transform: translate3d(-14%, -3%, 0) rotate(-6deg); }
+    79% { transform: translate3d(-8%, 0, 0) rotate(3deg); }
+    88% { opacity: 1; transform: translate3d(4%, -14%, 0) rotate(14deg) scale(.96); }
+    100% { opacity: 0; transform: translate3d(26%, 4%, 0) rotate(24deg) scale(.82); }
+}
+
+/* I 魔術師 — 四元素の魔導獣: materializes in place, floats up, gathers (leans back) then flicks forward */
+.is-summon-id-major_summon_01 .tarot-kingdom-summon-figure { animation-name: tkMajor01; }
+@keyframes tkMajor01 {
+    0%, 34% { opacity: 0; transform: translate3d(0, 2%, 0) scale(.7); filter: brightness(2.2); }
+    44% { opacity: 1; transform: translate3d(0, -4%, 0) scale(1.02); filter: none; animation-timing-function: ease-in-out; }
+    52% { transform: translate3d(0, -8%, 0) scale(1); animation-timing-function: ease-in-out; }
+    60% { transform: translate3d(5%, -9%, 0) rotate(6deg) scale(1.02); animation-timing-function: cubic-bezier(.6, 0, .9, .5); }
+    66.67% { transform: translate3d(-9%, -6%, 0) rotate(-5deg) scale(1.05); }
+    72% { transform: translate3d(-6%, -7%, 0) rotate(-2deg) scale(1.03); animation-timing-function: ease-in-out; }
+    84% { opacity: 1; transform: translate3d(0, -9%, 0) rotate(0) scale(1); filter: none; }
+    100% { opacity: 0; transform: translate3d(0, -12%, 0) scale(.72); filter: brightness(2.2); }
+}
+
+/* II 女教皇 — 月白の神託梟: glides down level from the top right and hovers, perfectly calm, while the circle works */
+.is-summon-id-major_summon_02 .tarot-kingdom-summon-figure { animation-name: tkMajor02; }
+@keyframes tkMajor02 {
+    0%, 30% { opacity: 0; transform: translate3d(30%, -30%, 0) scale(.9); }
+    46% { opacity: 1; transform: translate3d(2%, -8%, 0) scale(1); animation-timing-function: ease-in-out; }
+    54% { transform: translate3d(0, -5%, 0); animation-timing-function: ease-in-out; }
+    62% { transform: translate3d(0, -8%, 0); animation-timing-function: ease-in-out; }
+    66.67% { transform: translate3d(-4%, -7%, 0) scale(1.03); }
+    74% { transform: translate3d(-2%, -5%, 0) scale(1.01); animation-timing-function: ease-in-out; }
+    84% { opacity: 1; transform: translate3d(0, -8%, 0) scale(1); animation-timing-function: ease-in; }
+    100% { opacity: 0; transform: translate3d(24%, -34%, 0) scale(.9); }
+}
+
+/* III 女帝 — 豊穣の世界樹鹿: one long graceful leap in, rears up, then stamps the thorns out of the ground */
+.is-summon-id-major_summon_03 .tarot-kingdom-summon-figure { animation-name: tkMajor03; }
+@keyframes tkMajor03 {
+    0%, 33% { opacity: 0; transform: translate3d(36%, 4%, 0) rotate(-4deg) scale(.88); animation-timing-function: ease-out; }
+    40% { opacity: 1; transform: translate3d(18%, -16%, 0) rotate(-8deg) scale(.96); animation-timing-function: ease-in; }
+    47% { transform: translate3d(0, 0, 0) rotate(3deg) scale(1.03, .96); animation-timing-function: ease-out; }
+    51% { transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+    58% { transform: translate3d(3%, -6%, 0) rotate(9deg) scale(1.02); animation-timing-function: cubic-bezier(.6, 0, 1, .6); }
+    64% { transform: translate3d(-6%, 0, 0) rotate(-4deg) scale(1.04, .95); }
+    66.67%, 70% { transform: translate3d(-7%, 0, 0) rotate(-3deg) scale(1.03, .97); }
+    80% { transform: translate3d(-2%, 0, 0) rotate(0) scale(1); }
+    90% { opacity: 1; transform: translate3d(12%, -12%, 0) rotate(-6deg) scale(.96); }
+    100% { opacity: 0; transform: translate3d(32%, 0, 0) rotate(-2deg) scale(.86); }
+}
+
+/* IV 皇帝 — 皇鋼の獅子王: two heavy, deliberate steps in, braces, one decisive stride as the hammer falls */
+.is-summon-id-major_summon_04 .tarot-kingdom-summon-figure { animation-name: tkMajor04; }
+@keyframes tkMajor04 {
+    0%, 33% { opacity: 0; transform: translate3d(24%, 2%, 0) scale(.94); }
+    37% { opacity: 1; transform: translate3d(18%, -3%, 0) scale(.97); animation-timing-function: ease-in; }
+    41% { transform: translate3d(12%, 0, 0) scale(1.02, .97); }
+    44% { transform: translate3d(12%, 0, 0) scale(1); animation-timing-function: ease-in-out; }
+    48% { transform: translate3d(6%, -3%, 0) scale(1); animation-timing-function: ease-in; }
+    52% { transform: translate3d(0, 0, 0) scale(1.02, .97); }
+    56% { transform: translate3d(0, 0, 0) scale(1); }
+    62% { transform: translate3d(3%, -2%, 0) rotate(3deg) scale(1.02); animation-timing-function: cubic-bezier(.7, 0, 1, .5); }
+    66.67% { transform: translate3d(-10%, 0, 0) rotate(-2deg) scale(1.06, .95); }
+    76% { transform: translate3d(-10%, 0, 0) rotate(0) scale(1.03, .98); }
+    88% { opacity: 1; transform: translate3d(-4%, 0, 0) scale(1); }
+    100% { opacity: 0; transform: translate3d(12%, 0, 0) scale(.94); }
+}
+
+/* V 法王 — 聖堂の法獣: rises solemnly out of the floor and presses forward slowly, like a wall moving */
+.is-summon-id-major_summon_05 .tarot-kingdom-summon-figure { animation-name: tkMajor05; }
+@keyframes tkMajor05 {
+    0%, 32% { opacity: 0; transform: translate3d(0, 26%, 0) scale(.96); clip-path: inset(0 0 100% 0); animation-timing-function: ease-out; }
+    48% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); clip-path: inset(0 0 0 0); }
+    58% { transform: translate3d(0, 0, 0) scale(1.01); animation-timing-function: ease-in-out; }
+    66.67% { transform: translate3d(-6%, 0, 0) scale(1.07); }
+    78% { transform: translate3d(-8%, 0, 0) scale(1.06); animation-timing-function: ease-in; }
+    88% { opacity: 1; transform: translate3d(-6%, 0, 0) scale(1.04); clip-path: inset(0 0 0 0); }
+    100% { opacity: 0; transform: translate3d(-4%, 22%, 0) scale(1); clip-path: inset(0 0 100% 0); }
+}
+
+/* VI 恋人 — 双生の聖翼竜: swoops in on an S curve and circles once, embracing the hit */
+.is-summon-id-major_summon_06 .tarot-kingdom-summon-figure { animation-name: tkMajor06; }
+@keyframes tkMajor06 {
+    0%, 32% { opacity: 0; transform: translate3d(32%, -24%, 0) rotate(-10deg) scale(.86); animation-timing-function: ease-in-out; }
+    39% { opacity: 1; transform: translate3d(14%, -4%, 0) rotate(6deg) scale(.94); animation-timing-function: ease-in-out; }
+    46% { transform: translate3d(8%, -16%, 0) rotate(-6deg) scale(.98); animation-timing-function: ease-in-out; }
+    53% { transform: translate3d(-2%, -8%, 0) rotate(4deg) scale(1.02); animation-timing-function: ease-in-out; }
+    60% { transform: translate3d(4%, -4%, 0) rotate(0) scale(1); animation-timing-function: ease-in; }
+    66.67% { transform: translate3d(-12%, -8%, 0) rotate(-6deg) scale(1.06); }
+    72% { transform: translate3d(-10%, -10%, 0) rotate(-3deg) scale(1.08); animation-timing-function: ease-in-out; }
+    82% { transform: translate3d(-2%, -12%, 0) rotate(4deg) scale(1.02); }
+    90% { opacity: 1; transform: translate3d(8%, -18%, 0) rotate(-4deg) scale(.96); }
+    100% { opacity: 0; transform: translate3d(28%, -32%, 0) rotate(-10deg) scale(.86); }
+}
+
+/* VII 戦車 — 凱旋の戦車獣: revs back, then a flat full-speed charge right through the enemy line, skids, returns */
+.is-summon-id-major_summon_07 .tarot-kingdom-summon-figure { animation-name: tkMajor07; }
+@keyframes tkMajor07 {
+    0%, 34% { opacity: 0; transform: translate3d(40%, 0, 0) scale(.92); animation-timing-function: ease-out; }
+    44% { opacity: 1; transform: translate3d(4%, 0, 0) scale(1); }
+    52% { transform: translate3d(0, 0, 0) scale(1); animation-timing-function: ease-in-out; }
+    60% { transform: translate3d(9%, 1%, 0) rotate(3deg) scale(1.01, .98); animation-timing-function: cubic-bezier(.9, 0, 1, .4); }
+    66.67% { transform: translate3d(-24%, 0, 0) rotate(-3deg) scale(1.04, .97); }
+    70% { transform: translate3d(-27%, 0, 0) rotate(-5deg) scale(1.02); }
+    74% { transform: translate3d(-25%, 0, 0) rotate(2deg) scale(1); animation-timing-function: ease-in-out; }
+    88% { opacity: 1; transform: translate3d(-6%, 0, 0) rotate(0) scale(1); animation-timing-function: ease-in; }
+    100% { opacity: 0; transform: translate3d(40%, 0, 0) scale(.92); }
+}
+
+/* VIII 力 — 不屈の金獅子: lands, crouches low, then one big pounce that pins the enemy and holds */
+.is-summon-id-major_summon_08 .tarot-kingdom-summon-figure { animation-name: tkMajor08; }
+@keyframes tkMajor08 {
+    0%, 34% { opacity: 0; transform: translate3d(20%, -18%, 0) rotate(-4deg) scale(.92); animation-timing-function: ease-in; }
+    44% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1.04, .95); animation-timing-function: ease-out; }
+    48% { transform: translate3d(0, 0, 0) scale(1); }
+    58% { transform: translate3d(4%, 3%, 0) rotate(4deg) scale(1.03, .9); animation-timing-function: ease-out; }
+    62.5% { transform: translate3d(-10%, -16%, 0) rotate(-10deg) scale(.98, 1.04); animation-timing-function: ease-in; }
+    66.67% { transform: translate3d(-24%, 0, 0) rotate(-2deg) scale(1.05, .95); }
+    76% { transform: translate3d(-24%, 0, 0) rotate(-1deg) scale(1.03, .97); }
+    80% { transform: translate3d(-20%, -2%, 0) rotate(0) scale(1); animation-timing-function: ease-in-out; }
+    90% { opacity: 1; transform: translate3d(-2%, 0, 0) scale(1); }
+    100% { opacity: 0; transform: translate3d(16%, -16%, 0) rotate(4deg) scale(.9); }
+}
+
+/* IX 隠者 — 星灯の老亀: the slowest of all — creeps in, barely moves, a small nod of the lamp on the hit */
+.is-summon-id-major_summon_09 .tarot-kingdom-summon-figure { animation-name: tkMajor09; }
+@keyframes tkMajor09 {
+    0%, 30% { opacity: 0; transform: translate3d(14%, 2%, 0) scale(.96); filter: brightness(.6); animation-timing-function: ease-out; }
+    52% { opacity: 1; transform: translate3d(2%, 0, 0) scale(1); filter: none; animation-timing-function: ease-in-out; }
+    62% { transform: translate3d(0, 0, 0) rotate(1deg); animation-timing-function: ease-in-out; }
+    66.67% { transform: translate3d(-3%, 0, 0) rotate(-3deg) scale(1.02); }
+    76% { transform: translate3d(-3%, 0, 0) rotate(-1deg) scale(1.01); animation-timing-function: ease-in-out; }
+    90% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); filter: none; }
+    100% { opacity: 0; transform: translate3d(4%, 0, 0) scale(.98); filter: brightness(.6); }
+}
+
+/* X 運命の輪 — 運命輪の機巧竜: rolls in turning half a wheel, rocks like a balance wheel, and spins into the hit */
+.is-summon-id-major_summon_10 .tarot-kingdom-summon-figure { animation-name: tkMajor10; }
+@keyframes tkMajor10 {
+    0%, 33% { opacity: 0; transform: translate3d(30%, -6%, 0) rotate(160deg) scale(.6); animation-timing-function: cubic-bezier(.2, .7, .3, 1); }
+    46% { opacity: 1; transform: translate3d(0, -4%, 0) rotate(-6deg) scale(1); animation-timing-function: ease-in-out; }
+    52% { transform: translate3d(0, -4%, 0) rotate(5deg); animation-timing-function: ease-in-out; }
+    57% { transform: translate3d(0, -4%, 0) rotate(-4deg); animation-timing-function: ease-in-out; }
+    61% { transform: translate3d(2%, -4%, 0) rotate(3deg) scale(1); animation-timing-function: ease-in; }
+    66.67% { transform: translate3d(-12%, -4%, 0) rotate(-20deg) scale(1.05); }
+    72% { transform: translate3d(-10%, -4%, 0) rotate(6deg) scale(1.03); animation-timing-function: ease-in-out; }
+    78% { transform: translate3d(-6%, -4%, 0) rotate(-2deg) scale(1.01); }
+    88% { opacity: 1; transform: translate3d(0, -4%, 0) rotate(0) scale(1); animation-timing-function: ease-in; }
+    100% { opacity: 0; transform: translate3d(28%, -6%, 0) rotate(-160deg) scale(.6); }
+}
+
+/* XI 正義 — 天秤の審判騎士: exact, symmetric — steps in, stops dead, one straight linear thrust, exact return */
+.is-summon-id-major_summon_11 .tarot-kingdom-summon-figure { animation-name: tkMajor11; }
+@keyframes tkMajor11 {
+    0%, 34% { opacity: 0; transform: translate3d(14%, 0, 0) scale(.96); animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+    44%, 58% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    62% { transform: translate3d(3%, 0, 0) scale(1); animation-timing-function: cubic-bezier(.95, 0, 1, 1); }
+    66.67%, 71% { transform: translate3d(-20%, 0, 0) scale(1.02); animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+    80%, 88% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); animation-timing-function: cubic-bezier(.8, 0, .8, .2); }
+    100% { opacity: 0; transform: translate3d(14%, 0, 0) scale(.96); }
+}
+
+/* XII 吊された男 — 逆さ吊りの深淵人形: lowered from above on its rope, swings like a pendulum and kicks on the hit */
+.is-summon-id-major_summon_12 .tarot-kingdom-summon-figure { animation-name: tkMajor12; transform-origin: 50% -30%; }
+@keyframes tkMajor12 {
+    0%, 32% { opacity: 0; transform: translate3d(0, -60%, 0) rotate(0); animation-timing-function: ease-out; }
+    44% { opacity: 1; transform: translate3d(0, -4%, 0) rotate(-6deg); animation-timing-function: ease-in-out; }
+    51% { transform: translate3d(0, -4%, 0) rotate(7deg); animation-timing-function: ease-in-out; }
+    58% { transform: translate3d(0, -4%, 0) rotate(-5deg); animation-timing-function: ease-in-out; }
+    63% { transform: translate3d(0, -4%, 0) rotate(10deg); animation-timing-function: ease-in; }
+    66.67% { transform: translate3d(-4%, -4%, 0) rotate(-16deg); }
+    72% { transform: translate3d(-2%, -4%, 0) rotate(-6deg); animation-timing-function: ease-in-out; }
+    79% { transform: translate3d(0, -4%, 0) rotate(6deg); animation-timing-function: ease-in-out; }
+    86% { opacity: 1; transform: translate3d(0, -4%, 0) rotate(-3deg); animation-timing-function: ease-in; }
+    100% { opacity: 0; transform: translate3d(0, -62%, 0) rotate(0); }
+}
+
+/* XIII 死神 — 冥府の死騎士: seeps out of the dark without moving, glides flat with no bob, one wide reaping sweep */
+.is-summon-id-major_summon_13 .tarot-kingdom-summon-figure { animation-name: tkMajor13; }
+@keyframes tkMajor13 {
+    0%, 30% { opacity: 0; transform: translate3d(6%, 0, 0) scale(1); filter: brightness(0); }
+    46% { opacity: 1; transform: translate3d(4%, 0, 0); filter: brightness(.55); }
+    54% { transform: translate3d(0, 0, 0); filter: none; }
+    61% { transform: translate3d(-2%, 0, 0) rotate(6deg); animation-timing-function: cubic-bezier(.6, 0, .4, 1); }
+    66.67% { transform: translate3d(-16%, 0, 0) rotate(-9deg) scale(1.04); }
+    74% { transform: translate3d(-18%, 0, 0) rotate(-6deg) scale(1.03); }
+    86% { opacity: 1; transform: translate3d(-14%, 0, 0) rotate(0) scale(1); filter: none; }
+    100% { opacity: 0; transform: translate3d(-12%, 0, 0) scale(1); filter: brightness(0); }
+}
+
+/* XIV 節制 — 双壺の調律天使: floats in on a soft sine, sways in balance, the gentlest push on the hit */
+.is-summon-id-major_summon_14 .tarot-kingdom-summon-figure { animation-name: tkMajor14; }
+@keyframes tkMajor14 {
+    0%, 32% { opacity: 0; transform: translate3d(16%, -10%, 0) scale(.94); animation-timing-function: ease-in-out; }
+    42% { opacity: 1; transform: translate3d(6%, -4%, 0) rotate(-2deg) scale(.98); animation-timing-function: ease-in-out; }
+    50% { transform: translate3d(2%, -8%, 0) rotate(2deg) scale(1); animation-timing-function: ease-in-out; }
+    58% { transform: translate3d(0, -4%, 0) rotate(-2deg); animation-timing-function: ease-in-out; }
+    66.67% { transform: translate3d(-6%, -7%, 0) rotate(2deg) scale(1.03); animation-timing-function: ease-in-out; }
+    76% { transform: translate3d(-4%, -4%, 0) rotate(-2deg) scale(1.02); animation-timing-function: ease-in-out; }
+    86% { opacity: 1; transform: translate3d(0, -8%, 0) rotate(1deg) scale(1); animation-timing-function: ease-in-out; }
+    100% { opacity: 0; transform: translate3d(12%, -18%, 0) scale(.94); }
+}
+
+/* XV 悪魔 — 契約の魔王: doesn't walk — looms, growing slowly larger, then leans over the enemy and holds */
+.is-summon-id-major_summon_15 .tarot-kingdom-summon-figure { animation-name: tkMajor15; }
+@keyframes tkMajor15 {
+    0%, 30% { opacity: 0; transform: translate3d(4%, 0, 0) scale(.82); filter: brightness(.3); animation-timing-function: ease-in; }
+    50% { opacity: 1; transform: translate3d(2%, 0, 0) scale(.94); filter: brightness(.8); }
+    62% { transform: translate3d(0, 0, 0) scale(1.02); filter: none; animation-timing-function: cubic-bezier(.5, 0, .7, .5); }
+    66.67% { transform: translate3d(-10%, -2%, 0) rotate(-7deg) scale(1.12); }
+    80% { transform: translate3d(-11%, -2%, 0) rotate(-6deg) scale(1.13); animation-timing-function: ease-in; }
+    90% { opacity: 1; transform: translate3d(-6%, 0, 0) rotate(-2deg) scale(1.06); filter: none; }
+    100% { opacity: 0; transform: translate3d(0, 0, 0) scale(.9); filter: brightness(.3); }
+}
+
+/* XVI 塔 — 雷塔の破壊巨像: dropped from the sky, lands with weight, then topples forward with the bolt and rights itself */
+.is-summon-id-major_summon_16 .tarot-kingdom-summon-figure { animation-name: tkMajor16; }
+@keyframes tkMajor16 {
+    0%, 33% { opacity: 0; transform: translate3d(0, -70%, 0) scale(.96); animation-timing-function: cubic-bezier(.6, 0, 1, .6); }
+    41% { opacity: 1; transform: translate3d(0, 0, 0) scale(1.05, .93); animation-timing-function: ease-out; }
+    45% { transform: translate3d(0, -2%, 0) scale(.99, 1.02); }
+    49%, 56% { transform: translate3d(0, 0, 0) scale(1); }
+    62% { transform: translate3d(2%, 0, 0) rotate(3deg); animation-timing-function: cubic-bezier(.7, 0, 1, .5); }
+    66.67% { transform: translate3d(-8%, 0, 0) rotate(-10deg) scale(1.03); }
+    72% { transform: translate3d(-8%, 0, 0) rotate(-9deg) scale(1.02); animation-timing-function: ease-in-out; }
+    82% { transform: translate3d(-4%, 0, 0) rotate(1deg) scale(1); }
+    88% { opacity: 1; transform: translate3d(-4%, 0, 0) rotate(0); animation-timing-function: ease-in; }
+    100% { opacity: 0; transform: translate3d(-4%, -60%, 0) scale(.96); }
+}
+
+/* XVII 星 — 星海の天馬: gallops across the sky on a high arc, dives on the hit and soars away up and out */
+.is-summon-id-major_summon_17 .tarot-kingdom-summon-figure { animation-name: tkMajor17; }
+@keyframes tkMajor17 {
+    0%, 32% { opacity: 0; transform: translate3d(36%, -6%, 0) rotate(6deg) scale(.86); animation-timing-function: ease-out; }
+    42% { opacity: 1; transform: translate3d(14%, -24%, 0) rotate(-4deg) scale(.94); animation-timing-function: ease-in-out; }
+    52% { transform: translate3d(2%, -18%, 0) rotate(2deg) scale(1); animation-timing-function: ease-in-out; }
+    59% { transform: translate3d(4%, -24%, 0) rotate(-6deg) scale(1); animation-timing-function: ease-in; }
+    66.67% { transform: translate3d(-16%, -2%, 0) rotate(10deg) scale(1.04); }
+    72% { transform: translate3d(-18%, -4%, 0) rotate(4deg) scale(1.03); animation-timing-function: ease-in; }
+    100% { opacity: 0; transform: translate3d(-34%, -46%, 0) rotate(-14deg) scale(.86); }
+}
+
+/* XVIII 月 — 月蝕の幻狼: prowls in low and slow, freezes, a sudden lunge — then dissolves instead of walking back */
+.is-summon-id-major_summon_18 .tarot-kingdom-summon-figure { animation-name: tkMajor18; }
+@keyframes tkMajor18 {
+    0%, 32% { opacity: 0; transform: translate3d(18%, 4%, 0) scale(.96, .92); filter: brightness(.4); animation-timing-function: linear; }
+    44% { opacity: .9; transform: translate3d(8%, 3%, 0) scale(1, .95); filter: none; animation-timing-function: linear; }
+    56% { opacity: 1; transform: translate3d(0, 3%, 0) scale(1, .95); }
+    62.5% { transform: translate3d(1%, 3%, 0) scale(1.02, .93); animation-timing-function: cubic-bezier(.9, 0, 1, .5); }
+    66.67% { transform: translate3d(-24%, -4%, 0) rotate(-5deg) scale(1.04); filter: none; }
+    72% { opacity: 1; transform: translate3d(-24%, -3%, 0) rotate(-3deg) scale(1.03); filter: none; }
+    84%, 100% { opacity: 0; transform: translate3d(-22%, -6%, 0) scale(1.1); filter: brightness(1.8); }
+}
+
+/* XIX 太陽 — 日輪の聖鳥: rises like the sun from below, spreads to full size, and dives into the flare */
+.is-summon-id-major_summon_19 .tarot-kingdom-summon-figure { animation-name: tkMajor19; }
+@keyframes tkMajor19 {
+    0%, 32% { opacity: 0; transform: translate3d(0, 34%, 0) scale(.8); filter: brightness(1.6); animation-timing-function: cubic-bezier(.2, .7, .3, 1); }
+    50% { opacity: 1; transform: translate3d(0, -12%, 0) scale(1); filter: none; animation-timing-function: ease-in-out; }
+    58% { transform: translate3d(2%, -16%, 0) rotate(4deg) scale(1.06); animation-timing-function: ease-in; }
+    66.67% { transform: translate3d(-18%, -2%, 0) rotate(-8deg) scale(1.02); }
+    74% { transform: translate3d(-16%, -6%, 0) rotate(-4deg) scale(1.02); animation-timing-function: ease-in-out; }
+    86% { opacity: 1; transform: translate3d(-2%, -16%, 0) rotate(2deg) scale(1); filter: none; animation-timing-function: ease-in; }
+    100% { opacity: 0; transform: translate3d(4%, -46%, 0) scale(.84); filter: brightness(1.6); }
+}
+
+/* XX 審判 — 終鐘の熾天使: descends slowly from above and rings the bell — three swings, the last one tolls the hit */
+.is-summon-id-major_summon_20 .tarot-kingdom-summon-figure { animation-name: tkMajor20; transform-origin: 50% 10%; }
+@keyframes tkMajor20 {
+    0%, 30% { opacity: 0; transform: translate3d(0, -40%, 0) scale(.94); animation-timing-function: ease-out; }
+    46% { opacity: 1; transform: translate3d(0, -6%, 0) rotate(0) scale(1); animation-timing-function: ease-in-out; }
+    51% { transform: translate3d(0, -6%, 0) rotate(-4deg); animation-timing-function: ease-in-out; }
+    56% { transform: translate3d(0, -6%, 0) rotate(4deg); animation-timing-function: ease-in-out; }
+    61% { transform: translate3d(0, -6%, 0) rotate(-3deg); animation-timing-function: ease-in-out; }
+    63.5% { transform: translate3d(0, -6%, 0) rotate(6deg); animation-timing-function: ease-in; }
+    66.67% { transform: translate3d(-6%, -6%, 0) rotate(-8deg) scale(1.04); }
+    74% { transform: translate3d(-4%, -6%, 0) rotate(3deg) scale(1.02); animation-timing-function: ease-in-out; }
+    82% { transform: translate3d(-2%, -6%, 0) rotate(-1deg) scale(1); }
+    88% { opacity: 1; transform: translate3d(0, -8%, 0) rotate(0); animation-timing-function: ease-in; }
+    100% { opacity: 0; transform: translate3d(0, -44%, 0) scale(.94); }
+}
+
+/* XXI 世界 — 世界環の古龍: a slow majestic coil in that stops dead with the clock — frozen — then breaks free on the shatter */
+.is-summon-id-major_summon_21 .tarot-kingdom-summon-figure { animation-name: tkMajor21; }
+@keyframes tkMajor21 {
+    0%, 30% { opacity: 0; transform: translate3d(20%, -4%, 0) rotate(4deg) scale(.88); animation-timing-function: ease-out; }
+    42% { opacity: 1; transform: translate3d(6%, -2%, 0) rotate(-2deg) scale(.97); animation-timing-function: ease-out; }
+    /* time stops: held completely still and drained of colour, as the clock freezes */
+    49%, 64% { transform: translate3d(-2%, 0, 0) rotate(0) scale(1); filter: grayscale(1) brightness(.85); }
+    64.5% { filter: none; animation-timing-function: cubic-bezier(.2, .8, .3, 1); }
+    66.67% { transform: translate3d(-16%, -2%, 0) rotate(-6deg) scale(1.06); filter: none; }
+    74% { transform: translate3d(-14%, -3%, 0) rotate(-3deg) scale(1.05); animation-timing-function: ease-in-out; }
+    88% { opacity: 1; transform: translate3d(-4%, -2%, 0) rotate(0) scale(1); animation-timing-function: ease-in; }
+    100% { opacity: 0; transform: translate3d(8%, -6%, 0) rotate(2deg) scale(.88); }
+}
+
 @keyframes tkFxFlushAtmosphere {
     0%, 36% { opacity: 0; transform: scale(.85); }
     48%, 75% { opacity: .9; transform: scale(1); }
@@ -948,25 +1235,6 @@
     0%, 64% { opacity: 0; transform: translateX(58%) scaleX(.08); }
     66.67%, 69.33% { opacity: 1; transform: translateX(-70%) scaleX(1.45); }
     74%, 100% { opacity: 0; transform: translateX(-96%) scaleX(.45); }
-}
-
-@keyframes tkFxMajorAtmosphere {
-    0%, 22% { opacity: 0; transform: scale(1.08); }
-    38%, 82% { opacity: 1; transform: scale(1); }
-    96%, 100% { opacity: 0; transform: scale(.94); }
-}
-
-@keyframes tkFxMajorCharge {
-    0%, 47% { opacity: 0; transform: scale(.5) rotate(-8deg); }
-    56%, 65% { opacity: .9; transform: scale(1) rotate(0); }
-    66.67%, 73% { opacity: 1; transform: scale(1.12) rotate(4deg); }
-    86%, 100% { opacity: 0; transform: scale(1.34) rotate(8deg); }
-}
-
-@keyframes tkFxMajorImpact {
-    0%, 66.5% { opacity: 0; transform: scale(.18); }
-    66.67%, 69.33% { opacity: 1; transform: scale(1.2); }
-    74%, 100% { opacity: 0; transform: scale(1.8); }
 }
 
 /* Entry pool: lively, but each still settles before its single attack. */

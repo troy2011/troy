@@ -13249,7 +13249,19 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
 
 #tarotKingdomBattleStage.is-battle-hit-stop :is(.tarot-kingdom-battle-player.is-battle-hit-stop .tarot-kingdom-battle-player-avatar, #tarotKingdomEnemySprite) {
     animation-play-state: paused !important;
-    filter: brightness(2.1) contrast(1.25) drop-shadow(0 0 10px #fff3bb);
+    /* softer than before: the pixel hit effect now shows the contact, so the sprite need not flash white */
+    filter: brightness(1.5) contrast(1.1) drop-shadow(0 0 6px #fff3bb);
+}
+
+/* Pixel-art hit effects (tarotKingdomPixelFx.js): one small canvas scaled up, just under the damage numbers. */
+#tarotKingdomBattleStage > .tarot-kingdom-pixelfx-layer {
+    position: absolute;
+    z-index: 57;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    image-rendering: pixelated;
 }
 
 #tarotKingdomBattleStage.is-battle-skill.is-battle-damage .tarot-kingdom-battle-arena {

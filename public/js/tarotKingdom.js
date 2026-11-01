@@ -81,7 +81,7 @@ import {
   createTarotKingdomSummonStateById,
   getTarotKingdomSummonById,
   resolveTarotKingdomSummon
-} from './tarotKingdomSummons.js?v=20260812-summon-v2';
+} from './tarotKingdomSummons.js?v=20261101-major-motion-v1';
 import {
   TAROT_KINGDOM_BATTLEFIELDS,
   TAROT_KINGDOM_RAID_BATTLEFIELD_ID,
@@ -115,6 +115,13 @@ import {
   PIXEL_MONSTER_COMPANION_OFFSET_Y,
   PIXEL_MONSTER_COMPANION_SCALE
 } from './pixelMonsterCompanion.js?v=20260825-monster-motion-v2';
+import {
+  playTarotKingdomEnemyAttackFx,
+  playTarotKingdomMajorFx,
+  playTarotKingdomWeaponHitFx,
+  stopTarotKingdomPixelFx,
+  warmTarotKingdomPixelFx
+} from './tarotKingdomPixelFx.js?v=20261101-pixelfx-v1';
 
 const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 const TAROT_TILE_W = 48;
@@ -507,6 +514,8 @@ const KINGDOM_SUMMON_PARTY_RETURN_MS = 3800;
 const KINGDOM_SUMMON_RESULT_REVEAL_MS = 3900;
 const KINGDOM_SUMMON_HUD_RETURN_MS = 4200;
 const KINGDOM_NORMAL_HIT_STOP_MS = 80;
+const KINGDOM_WEAPON_IMPACT_SHAKE_MAX_X_PX = 2;
+const KINGDOM_WEAPON_IMPACT_SHAKE_MAX_Y_PX = 1;
 const KINGDOM_SKILL_HIT_STOP_MS = 120;
 const KINGDOM_NORMAL_HP_TWEEN_MS = 240;
 const KINGDOM_SKILL_HP_TWEEN_MS = 320;
@@ -17180,6 +17189,8 @@ function resetMatch() {
   kingdomBattleTerminalFxEventKey = '';
   kingdomSummonHapticEventKey = '';
   kingdomWeaponImpactEventKey = '';
+  kingdomBattlePixelFxEventKey = '';
+  stopTarotKingdomPixelFx(ui.battleStage);
   if (kingdomWeaponImpactTimer) {
     clearTimeout(kingdomWeaponImpactTimer);
     kingdomWeaponImpactTimer = null;
@@ -25303,6 +25314,64 @@ function hasKingdomBattleHitImpact(event) {
   return false;
 }
 
+// A re-render this long after the impact must not start the hit effect again.
+const KINGDOM_PIXEL_FX_LATE_START_MS = 120;
+let kingdomBattlePixelFxEventKey = '';
+
+function getKingdomAttackEffectElement(event) {
+  const effects = Array.isArray(event?.effects) ? event.effects : [];
+  return String(effects.map((effect) => effect?.element).find(Boolean) || event?.element || '');
+}
+
+/*
+ * Pixel-art hit effects for normal weapon attacks and enemy attacks. Display only: the timeline's
+ * impactAt (already decided by the battle) says when the effect lands; nothing here touches results.
+ */
+function playKingdomBattlePixelFx(event, eventIsActive, eventKey) {
+  if (!ui.battleStage) return;
+  // Fetch the effect core while the battle is on screen, so the first hit is not late.
+  void warmTarotKingdomPixelFx();
+  if (!event || !eventIsActive) return;
+  const type = String(event.type || '');
+  const isWeaponAttack = type === 'attack' && !event?.majorSummon;
+  const isEnemyAttack = type === 'enemy-single' || type === 'enemy-area';
+  if (!isWeaponAttack && !isEnemyAttack) return;
+  if (kingdomBattlePixelFxEventKey === eventKey) return;
+  const timeline = getKingdomBattleTimelineForEvent(event);
+  const impactAt = Number(timeline?.impactAt) || 0;
+  if (!impactAt || Date.now() > impactAt + KINGDOM_PIXEL_FX_LATE_START_MS) return;
+  if (!hasKingdomBattleHitImpact(event)) return;
+  kingdomBattlePixelFxEventKey = eventKey;
+  if (isWeaponAttack) {
+    const actorIndex = Number(event.actorIndex);
+    // Pets keep their own sprite motions and projectiles.
+    if (s?.players?.[actorIndex]?.isPet) return;
+    const weaponType = event?.weaponTrait?.components?.[0]?.weaponType
+      || s?.players?.[actorIndex]?.character?.combat?.weaponType
+      || 'sword';
+    void playTarotKingdomWeaponHitFx(ui.battleStage, {
+      weaponType: getCombatWeaponMotionProfile(weaponType).weapon,
+      impactAt,
+      attackerEl: document.getElementById(`tarotKingdomBattleAvatar-${actorIndex}`),
+      targetEl: ui.battleEnemySprite,
+      critical: (Array.isArray(event?.effects) ? event.effects : []).some((effect) => effect?.kind === 'critical'),
+      element: getKingdomAttackEffectElement(event)
+    });
+    return;
+  }
+  const targetEls = getKingdomBattleHitTargetIndexes(event)
+    .filter((targetIndex) => !s?.players?.[Number(targetIndex)]?.isPet)
+    .map((targetIndex) => document.getElementById(`tarotKingdomBattleAvatar-${Number(targetIndex)}`))
+    .filter(Boolean);
+  void playTarotKingdomEnemyAttackFx(ui.battleStage, {
+    attackMode: type === 'enemy-area' ? 'area' : 'single',
+    element: s?.battle?.enemy?.affinity?.native || '',
+    impactAt,
+    enemyEl: ui.battleEnemySprite,
+    targetEls
+  });
+}
+
 function playKingdomBattleAvatarEvent(event, eventIsActive, eventKey) {
   if (!event || !eventIsActive) return;
   const type = String(event.type || '');
@@ -26082,6 +26151,7 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
   });
   syncKingdomCoverInterposition(activeEvent, eventIsActive, eventKey, timeline);
   playKingdomBattleAvatarEvent(activeEvent, eventIsActive, eventKey);
+  playKingdomBattlePixelFx(activeEvent, eventIsActive, eventKey);
 }
 
 function renderKingdomBattleFeed() {
@@ -26639,6 +26709,7 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   cutin.style.setProperty('--summon-role-show-at', `${roleShowAtMs}ms`);
   cutin.dataset.roleShowAt = String(roleShowAtMs);
   const content = document.createDocumentFragment();
+  let majorPixelFxCanvas = null;
   const title = document.createElement('strong');
   title.className = 'tarot-kingdom-skill-cutin-title';
   title.textContent = isSummonSealed
@@ -26768,8 +26839,16 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
       chainImpact.textContent = `${roleChainCount} CHAIN`;
       chainImpact.setAttribute('aria-hidden', 'true');
     }
-    content.append(seal, portal, figure, copy, effectField, impact);
+    content.append(seal, portal, figure, copy);
+    // Major arcana draw their own pixel effect instead of the shared CSS effect layers.
+    if (!isMajorSummonEvent) content.append(effectField, impact);
     if (chainImpact) content.append(chainImpact);
+    if (isMajorSummonEvent) {
+      majorPixelFxCanvas = document.createElement('canvas');
+      majorPixelFxCanvas.className = 'tarot-kingdom-summon-pixelfx';
+      majorPixelFxCanvas.setAttribute('aria-hidden', 'true');
+      content.append(majorPixelFxCanvas);
+    }
   } else if (isSummonSealed) {
     delete cutin.dataset.partyHideAt;
     delete cutin.dataset.partyReturnAt;
@@ -26817,6 +26896,13 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
     cutin.removeAttribute('aria-label');
   }
   cutin.replaceChildren(content);
+  if (majorPixelFxCanvas) {
+    void playTarotKingdomMajorFx(majorPixelFxCanvas, summonState?.majorNumber, {
+      elapsedMs,
+      enemyEl: ui.battleEnemySprite,
+      stageEl: ui.battleStage
+    });
+  }
 }
 
 function renderKingdomBattleDamageNumber(event, eventIsActive, eventKey = '') {
@@ -27160,8 +27246,9 @@ function renderKingdomBattleStage() {
     kingdomWeaponImpactEventKey = weaponImpactHapticKey;
     if (kingdomWeaponImpactTimer) clearTimeout(kingdomWeaponImpactTimer);
     const impactDurationMs = Math.max(100, Number(weaponImpactShake.duration) || 160);
-    ui.battleStage.style.setProperty('--tk-weapon-impact-x', `${Math.max(1, Number(weaponImpactShake.x) || 1)}px`);
-    ui.battleStage.style.setProperty('--tk-weapon-impact-y', `${Math.max(1, Number(weaponImpactShake.y) || 1)}px`);
+    // The pixel hit effect carries the weight now, so the screen itself only nudges (no heavy shake).
+    ui.battleStage.style.setProperty('--tk-weapon-impact-x', `${Math.min(KINGDOM_WEAPON_IMPACT_SHAKE_MAX_X_PX, Math.max(1, Number(weaponImpactShake.x) || 1))}px`);
+    ui.battleStage.style.setProperty('--tk-weapon-impact-y', `${Math.min(KINGDOM_WEAPON_IMPACT_SHAKE_MAX_Y_PX, Math.max(1, Number(weaponImpactShake.y) || 1))}px`);
     ui.battleStage.style.setProperty('--tk-weapon-impact-duration', `${impactDurationMs}ms`);
     ui.battleStage.classList.remove('is-weapon-impact-shake');
     void ui.battleStage.offsetWidth;
@@ -30922,6 +31009,7 @@ export function destroyTarotKingdomPage() {
   clearKingdomRemotePresentation();
   clearKingdomPresentationPlaybackTimers();
   clearKingdomCardDealFx();
+  stopTarotKingdomPixelFx(ui.battleStage);
   kingdomStateGeneration += 1;
   kingdomRoundPetOfferPromise = null;
   kingdomRoundPetOfferChecked.clear();
