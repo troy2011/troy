@@ -632,6 +632,7 @@ test('player ailments appear below the hand count and animate on the avatar with
       actorStatus: avatar?.getAttribute('data-combat-status') || '',
       actorMotion: avatar?.getAttribute('data-status-motion') || '',
       actorFilter: avatar ? getComputedStyle(avatar).filter : '',
+      actorPixelStatus: avatar?.getAttribute('data-pixel-status') || '',
       actorAnimation: avatar ? getComputedStyle(avatar).animationName : '',
       accentStatus: accent?.getAttribute('data-status') || '',
       accentShape: accentBefore?.clipPath || '',
@@ -656,7 +657,9 @@ test('player ailments appear below the hand count and animate on the avatar with
   expect(layout.actorStatus).toBe('paralysis');
   expect(layout.actorMotion).toBe('interrupt');
   expect(layout.actorFilter).toContain('drop-shadow');
-  expect(layout.actorFilter).toContain('255, 246, 107');
+  // the pixelfx loop draws the status, so only the ground shadow stays (no CSS tint or outline)
+  expect(layout.actorPixelStatus).toBe('paralysis');
+  expect(layout.actorFilter).not.toContain('255, 246, 107');
   expect(layout.actorAnimation).toContain('tarotKingdomActorParalysis');
   expect(layout.accentStatus).toBe('paralysis');
   expect(layout.accentShape).toContain('polygon');
@@ -672,6 +675,7 @@ test('player ailments appear below the hand count and animate on the avatar with
       actorStatus: sprite.getAttribute('data-combat-status') || '',
       actorMotion: sprite.getAttribute('data-status-motion') || '',
       actorFilter: getComputedStyle(sprite).filter,
+      actorPixelStatus: sprite.getAttribute('data-pixel-status') || '',
       accentStatus: accent?.getAttribute('data-status') || '',
       accentInsideActor: Boolean(accentRect
         && accentRect.left >= spriteRect.left
@@ -684,7 +688,8 @@ test('player ailments appear below the hand count and animate on the avatar with
   expect(enemyLayout.actorStatus).toBe('burn');
   expect(enemyLayout.actorMotion).toBe('agitated');
   expect(enemyLayout.actorFilter).toContain('drop-shadow');
-  expect(enemyLayout.actorFilter).toContain('255, 181, 57');
+  expect(enemyLayout.actorPixelStatus).toBe('burn');
+  expect(enemyLayout.actorFilter).not.toContain('255, 181, 57');
   expect(enemyLayout.accentStatus).toBe('burn');
   expect(enemyLayout.accentInsideActor).toBe(true);
 

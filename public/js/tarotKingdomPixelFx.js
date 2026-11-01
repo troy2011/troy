@@ -144,7 +144,9 @@ function loadCore() {
 
 function loadEffect(path) {
   if (!moduleCache.has(path)) {
-    const promise = import(`./vendor/pixelfx/fx/${path}.js`);
+    const promise = path.startsWith('troy/')
+      ? import(`./tarotKingdomStatusFx/${path.slice('troy/'.length)}.js`)
+      : import(`./vendor/pixelfx/fx/${path}.js`);
     // A failed load must not stay cached forever; the next battle can try again.
     promise.catch(() => moduleCache.delete(path));
     moduleCache.set(path, promise);
@@ -215,7 +217,7 @@ function createPlayer(canvas, scale, core, { removeWhenDone = false } = {}) {
         layer.fx.stop();
         layer.stopped = true;
       }
-      const targetSeconds = Math.max(0, ((now - layer.startAt) / 1000) * layer.speed);
+      const targetSeconds = Math.min(layer.holdAt ?? Infinity, Math.max(0, ((now - layer.startAt) / 1000) * layer.speed));
       while (layer.fx.t < targetSeconds - 1e-6) {
         layer.fx.update(Math.min(MAX_STEP_SECONDS, targetSeconds - layer.fx.t));
       }
@@ -582,21 +584,32 @@ export const TAROT_KINGDOM_KNOCKBACK_PX = KNOCKBACK_PX;
 
 const WET_PALETTE = Object.freeze(['#0a1a33', '#0f2f5c', '#1d5b9a', '#2f8fd0', '#62c8f4', '#bdefff']);
 
-// One looping effect per negative status, drawn on and around the actor. Effects that repaint the body
-// get the actor's real sprite pixels, cut from its layers by snapshotActor, so they follow its outline.
-// Every status was tried side by side with the existing CSS accents; these are the ones that read better.
-// The others keep the CSS accent only: petrify (the stone looked faded, not heavier), silence and seal
-// (the floor rune circle spread over the next party rows), fear and blind (the rage and curse looks
-// read as anger and curse), vulnerable (the glitch hid the whole sprite) and slow (the clock covered
-// the whole ally and its neighbours).
+// Petrify holds once the statue has cracked all over, on a frame where its shudder is at rest, before it
+// would burst into chunks (at 2.2 s).
+const PETRIFY_HOLD_SECONDS = 2.06;
+const STONE_PALETTE = Object.freeze(['#141414', '#2a2a2a', '#454545', '#626262', '#808080', '#a2a2a2', '#c8c8c8', '#ececec']);
+
+// One looping effect per negative status, drawn on and around the actor; while it runs, the CSS accent
+// and tint stand down (see [data-pixel-status] in style.css). Effects that repaint the body get the
+// actor's real sprite pixels, cut from its layers by snapshotActor, so they follow its outline.
+// 'troy/…' effects are our own (public/js/tarotKingdomStatusFx/), written where no pixelfx status fits:
+// pixelfx has no blind, fear, vulnerable or silence, and its rune circle and clock are drawn too big for
+// a party slot. holdAt stops a one-shot at that second.
 const STATUS_RECIPES = Object.freeze({
   paralysis: { path: 'lightning/electrified' },
   freeze: { path: 'status/frozen' },
   sleep: { path: 'status/sleep' },
+  petrify: { path: 'status/petrified', palette: STONE_PALETTE, holdAt: PETRIFY_HOLD_SECONDS },
+  silence: { path: 'troy/silence' },
+  seal: { path: 'troy/seal' },
   confusion: { path: 'status/confused' },
   poison: { path: 'status/poisoned' },
   burn: { path: 'status/burning' },
+  fear: { path: 'troy/fear' },
+  blind: { path: 'troy/blind' },
   wet: { path: 'status/bleeding', palette: WET_PALETTE },
+  vulnerable: { path: 'troy/vulnerable' },
+  slow: { path: 'troy/slow' },
   curse: { path: 'status/cursed' }
 });
 
@@ -803,11 +816,14 @@ export async function syncTarotKingdomStatusFx(stageEl, actorKey, actorEl, statu
       y: Math.round(start.y),
       actor,
       light: 0.7,
+      // the enemy faces right and the party faces left, so trails (slow) fall behind on opposite sides
+      trail: actorKey === 'enemy' ? -1 : 1,
       ...(recipe.palette ? { palette: recipe.palette } : {})
     });
     entry.layer = {
       fx,
       speed: 1,
+      holdAt: recipe.holdAt,
       startAt: Date.now(),
       stopAt: Infinity,
       endAt: Infinity,

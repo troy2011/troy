@@ -55,12 +55,16 @@ test('every recipe effect is vendored and plays without errors', async () => {
   const core = await importJs(path.join(VENDOR, 'core', 'index.js'));
   const paths = [...new Set(allRecipes(tables).map((recipe) => recipe.path))];
   for (const effectPath of paths) {
-    const file = path.join(VENDOR, 'fx', `${effectPath}.js`);
-    assert.ok(fs.existsSync(file), `missing vendored effect ${effectPath}`);
+    // 'troy/…' effects are the game's own, next to the vendored library
+    const file = effectPath.startsWith('troy/')
+      ? path.join(JS_DIR, 'tarotKingdomStatusFx', `${effectPath.slice('troy/'.length)}.js`)
+      : path.join(VENDOR, 'fx', `${effectPath}.js`);
+    assert.ok(fs.existsSync(file), `missing effect ${effectPath}`);
     const mod = await importJs(file);
     const frame = core.createFrame(195, 160);
-    // status loops get the same capsule silhouette the game passes for its actors
-    const actor = effectPath.startsWith('status/') ? tables.capsuleActor(17, 26) : undefined;
+    // status loops get the capsule silhouette the game falls back to for actors without sprite layers
+    const isStatus = Object.values(tables.STATUS_RECIPES).some((recipe) => recipe.path === effectPath);
+    const actor = isStatus ? tables.capsuleActor(17, 26) : undefined;
     const fx = core.createFx(mod, { x: 98, y: 120, flip: true, light: 0.8, ...(actor ? { actor } : {}) });
     // step through the whole effect at 30 fps, drawing every frame
     const duration = Math.min(4, Number(mod.meta?.duration) || 1);
@@ -83,13 +87,16 @@ test('the vendored lightning and burning keep their flashes soft', () => {
   assert.match(electrified, /const lift = \[0\.5, 0\.25, -0\.2\]\[j\.a\] \* j\.k/, 'paralysis jolts brighten the sprite instead of flashing it');
 });
 
-test('every negative status either has a pixel loop or keeps its CSS accent on purpose', async () => {
+test('every negative status has a pixel loop', async () => {
   const tables = await loadRecipes();
   const { TAROT_KINGDOM_NEGATIVE_STATUS_KEYS } = await importJs(path.join(JS_DIR, 'tarotKingdomStatuses.js'));
-  const cssOnly = ['petrify', 'silence', 'seal', 'fear', 'blind', 'vulnerable', 'slow'];
-  for (const key of TAROT_KINGDOM_NEGATIVE_STATUS_KEYS) {
-    assert.ok(Boolean(tables.STATUS_RECIPES[key]) !== cssOnly.includes(key), `status ${key}`);
-  }
+  for (const key of TAROT_KINGDOM_NEGATIVE_STATUS_KEYS) assert.ok(tables.STATUS_RECIPES[key], `status ${key}`);
+});
+
+test('while a pixel loop runs, the CSS status accent and tint stand down', () => {
+  const css = fs.readFileSync(path.join(ROOT, 'public', 'style.css'), 'utf8');
+  assert.match(css, /\[data-pixel-status\] > \.tarot-kingdom-status-accent \{\s*visibility: hidden;/);
+  assert.match(css, /\[data-combat-status\]\[data-pixel-status\] \{\s*filter: var\(--tk-status-ground-shadow\);/);
 });
 
 test('every major summon has its own motion timeline that reduced motion can switch off', () => {

@@ -39848,6 +39848,12 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
     display: none;
 }
 
+/* The pixelfx status loop replaces the accent while it runs; reduced motion has no loop and keeps it. */
+:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui
+    #tarotKingdomBattleStage [data-pixel-status] > .tarot-kingdom-status-accent {
+    visibility: hidden;
+}
+
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui
     #tarotKingdomBattleStage .tarot-kingdom-status-accent::before,
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui
@@ -40219,6 +40225,13 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui
     #tarotKingdomBattleStage #tarotKingdomEnemySprite[data-combat-status] {
     --tk-status-ground-shadow: drop-shadow(0 7px 4px rgba(0, 0, 0, 0.82));
+}
+
+/* A pixelfx status loop draws the status on the sprite itself, so the CSS tint and outline stand down. */
+:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui
+    #tarotKingdomBattleStage
+    :is(.tarot-kingdom-battle-player-avatar, #tarotKingdomEnemySprite)[data-combat-status][data-pixel-status] {
+    filter: var(--tk-status-ground-shadow);
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui
