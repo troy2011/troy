@@ -11,6 +11,11 @@ const REDUCED_MOTION_HOLD_MS = 400;
 const REDUCED_MOTION_FADE_MS = 300;
 // pixelfx simulations step at 120 Hz; never step more than one 30 fps frame at a time.
 const MAX_STEP_SECONDS = 1 / 30;
+// Status loops alone redraw at about 20 fps (pixelfx poses hold on 12 fps steps anyway).
+const LOOP_FRAME_MS = 50;
+// Knock-back on a hit: a small push away from the attacker, then back. No screen shake.
+const KNOCKBACK_PX = Object.freeze({ enemy: 5, enemyCritical: 8, ally: 4 });
+const KNOCKBACK_MS = 260;
 
 // The major-arcana cutin lasts 2400 ms and the summon lunges at 66.67 % of it.
 export const TAROT_KINGDOM_MAJOR_FX_HIT_MS = 1600;
@@ -74,6 +79,7 @@ const MAJOR_RECIPES = Object.freeze([
 // Party weapon hits. The party stands on the right, so directional effects are mirrored (flip) and
 // `back` is measured from the enemy's feet towards the attacker.
 const CRITICAL_LAYER = Object.freeze({ path: 'impacts/crit-hit', back: -6, up: 14, hit: 0.05 });
+const GUARD_LAYER = Object.freeze({ path: 'impacts/parry', back: 0, up: 14, hit: 0.05, opts: { palette: PALETTES.steel } });
 const WEAPON_RECIPES = Object.freeze({
   unarmed: [{ path: 'impacts/blunt-hit', back: 4, up: 4, hit: 0 }],
   dagger: [{ path: 'melee/dagger-flurry', back: 37, up: -8, hit: 0.12, flip: true, tint: true }],
@@ -186,6 +192,16 @@ function createPlayer(canvas, scale, core, { removeWhenDone = false } = {}) {
   const step = (now) => {
     layers.forEach((layer) => {
       layer.visible = now >= layer.startAt && now < layer.endAt;
+      if (layer.follow) {
+        // status loops stay on their actor while it lunges, recoils or the layout changes
+        const anchor = layer.follow();
+        if (anchor) {
+          layer.fx.options.x = Math.round(anchor.x);
+          layer.fx.options.y = Math.round(anchor.y);
+        } else {
+          layer.visible = false;
+        }
+      }
       if (layer.fly && layer.visible) {
         const progress = Math.min(1, (now - layer.startAt) / Math.max(1, layer.fly.ms));
         layer.fx.options.x = Math.round(layer.fly.fromX + ((layer.fly.toX - layer.fly.fromX) * progress));
@@ -210,13 +226,20 @@ function createPlayer(canvas, scale, core, { removeWhenDone = false } = {}) {
     draw();
   };
 
+  let lastStepAt = 0;
   const tick = () => {
     rafId = 0;
     if (!canvas.isConnected) {
       layers.length = 0;
       return;
     }
-    step(Date.now());
+    const now = Date.now();
+    // With only status loops on screen, redraw at a calmer rate to spare slow phones.
+    const onlyLoops = layers.length > 0 && layers.every((layer) => layer.loop);
+    if (!onlyLoops || now - lastStepAt >= LOOP_FRAME_MS) {
+      lastStepAt = now;
+      step(now);
+    }
     if (layers.length > 0) {
       rafId = requestAnimationFrame(tick);
     } else if (removeWhenDone) {
@@ -231,6 +254,18 @@ function createPlayer(canvas, scale, core, { removeWhenDone = false } = {}) {
     add(layer) {
       layers.push(layer);
       if (!rafId) rafId = requestAnimationFrame(tick);
+    },
+    has(layer) {
+      return layers.includes(layer);
+    },
+    // Let a layer fade out (0.3 s of its own time) and then drop it.
+    retire(layer, now = Date.now()) {
+      if (!layer || !layers.includes(layer)) return;
+      if (!layer.stopped) {
+        layer.fx.stop();
+        layer.stopped = true;
+      }
+      layer.endAt = Math.min(layer.endAt, now + FADE_MARGIN_MS);
     },
     // Reduced motion: paint one quiet still of the contact frame, then fade it away.
     still(at) {
@@ -307,6 +342,8 @@ function ensureStageCanvas(stageEl) {
 }
 
 const stagePlayers = new WeakMap();
+// stage → Map(actorKey → { statusKey, layer }) for the status loops on that stage
+const stageStatusLayers = new WeakMap();
 function getStagePlayer(stageEl, core) {
   const canvas = ensureStageCanvas(stageEl);
   canvas.style.opacity = '';
@@ -315,7 +352,11 @@ function getStagePlayer(stageEl, core) {
   // The canvas resolution follows the stage size; rebuild the player when the stage was resized.
   const width = Math.ceil(canvas.clientWidth / DEFAULT_PIXEL_SCALE);
   if (!entry || entry.canvas !== canvas || entry.player.width !== width) {
-    entry?.player.stop();
+    if (entry) {
+      entry.player.stop();
+      // the old player's status loops went with it; the next status sync adds them again
+      stageStatusLayers.delete(stageEl);
+    }
     entry = { canvas, player: createPlayer(canvas, DEFAULT_PIXEL_SCALE, core) };
     stagePlayers.set(stageEl, entry);
   }
@@ -432,7 +473,7 @@ export async function playTarotKingdomWeaponHitFx(stageEl, {
 
 /** Enemy attack on one or more party members, landing exactly on impactAt (Date.now clock). */
 export async function playTarotKingdomEnemyAttackFx(stageEl, {
-  attackMode = 'single', element = '', impactAt = Date.now(), enemyEl = null, targetEls = []
+  attackMode = 'single', element = '', impactAt = Date.now(), enemyEl = null, targetEls = [], critical = false, guarded = false
 } = {}) {
   const targetsInput = (Array.isArray(targetEls) ? targetEls : []).filter(Boolean);
   if (!stageEl || targetsInput.length === 0) return;
@@ -500,9 +541,141 @@ export async function playTarotKingdomEnemyAttackFx(stageEl, {
         recipe: recipe.drift ? { ...recipe, drift: towardsEnemy < 0 ? recipe.drift : -recipe.drift } : recipe
       });
     });
+    // A critical hit flares on top; a hit taken by a guard or cover clashes like a parry instead.
+    if (critical || guarded) {
+      targets.forEach((t) => specs.push({
+        recipe: guarded ? GUARD_LAYER : CRITICAL_LAYER,
+        x: t.cx / scale,
+        y: (t.feet / scale) - (guarded ? GUARD_LAYER.up : CRITICAL_LAYER.up),
+        flip: false,
+        impactAt,
+        endAt,
+        stopAt: endAt - FADE_MARGIN_MS
+      }));
+    }
     await addLayers(player, core, specs, { reducedMotion: prefersReducedMotion(), impactAt });
   } catch (error) {
     console.warn('[TarotKingdom] pixelfx enemy attack skipped', error);
+  }
+}
+
+/**
+ * Knock-back: nudges an actor away from the hit and back, landing on impactAt. It animates the
+ * independent `translate` property, so it adds to the actor's own transform animations instead of
+ * replacing them. Skipped for reduced motion.
+ */
+export function nudgeTarotKingdomActor(element, { dx = 0, impactAt = Date.now() } = {}) {
+  if (!element?.animate || !dx || prefersReducedMotion()) return;
+  const delay = Math.max(0, impactAt - Date.now());
+  element.animate([
+    { translate: '0 0' },
+    { translate: `${dx}px 0`, offset: 0.25 },
+    { translate: '0 0' }
+  ], { duration: KNOCKBACK_MS, delay, easing: 'cubic-bezier(.2,.8,.3,1)' });
+}
+
+export const TAROT_KINGDOM_KNOCKBACK_PX = KNOCKBACK_PX;
+
+// Status loops drawn around the actor. Statuses whose pixelfx version repaints or covers the body
+// (freeze, petrify, poison, curse) or the face (slow's clock) keep the existing CSS accents, because we
+// only pass the actor's approximate silhouette.
+const STATUS_RECIPES = Object.freeze({
+  paralysis: { path: 'status/stunned' },
+  sleep: { path: 'status/sleep' },
+  confusion: { path: 'status/confused' },
+  burn: { path: 'status/burning' }
+});
+
+export function hasTarotKingdomStatusFx(statusKey) {
+  return Object.prototype.hasOwnProperty.call(STATUS_RECIPES, String(statusKey || ''));
+}
+
+// A rough body silhouette (a capsule) in art pixels, shaped like the pixelfx stock actor:
+// feet at the origin, mask laid out from (x, y) = (-w/2, -h).
+const actorCache = new Map();
+function capsuleActor(width, height) {
+  const w = Math.max(10, Math.min(64, Math.round(width)));
+  const h = Math.max(12, Math.min(72, Math.round(height)));
+  const key = `${w}x${h}`;
+  if (actorCache.has(key)) return actorCache.get(key);
+  const data = new Uint8Array(w * h);
+  const cx = (w - 1) / 2;
+  const r = w * 0.42;
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      const yy = Math.min(Math.max(y, r), h - 1 - (r * 0.6));
+      if (((x - cx) ** 2) + (((y - yy) * 1.1) ** 2) <= r * r) data[(y * w) + x] = 1;
+    }
+  }
+  const actor = { mask: { w, h, data }, x: -Math.floor(w / 2), y: -h, w, h, k: 0, head: [0, -h], chest: [0, -Math.round(h * 0.65)] };
+  actorCache.set(key, actor);
+  return actor;
+}
+
+/**
+ * Keeps one looping status effect on an actor (the actor's highest-priority negative status).
+ * Call it on every status render; it only changes something when the status key changes.
+ */
+export async function syncTarotKingdomStatusFx(stageEl, actorKey, actorEl, statusKey = '') {
+  if (!stageEl || !actorKey) return;
+  const wanted = !prefersReducedMotion() && actorEl && hasTarotKingdomStatusFx(statusKey) ? String(statusKey) : '';
+  let map = stageStatusLayers.get(stageEl);
+  const current = map?.get(actorKey);
+  if ((current?.statusKey || '') === wanted) return;
+  if (!map) {
+    map = new Map();
+    stageStatusLayers.set(stageEl, map);
+  }
+  const entry = { statusKey: wanted, layer: null };
+  map.set(actorKey, entry);
+  if (actorEl) {
+    if (wanted) actorEl.dataset.pixelStatus = wanted;
+    else delete actorEl.dataset.pixelStatus;
+  }
+  try {
+    const core = await loadCore();
+    const player = getStagePlayer(stageEl, core);
+    if (current?.layer) player.retire(current.layer);
+    if (!wanted) return;
+    const recipe = STATUS_RECIPES[wanted];
+    const mod = await loadEffect(recipe.path);
+    // the status may have changed again while the effect was loading
+    if (stageStatusLayers.get(stageEl)?.get(actorKey) !== entry || !actorEl.isConnected) return;
+    const scale = player.scale;
+    const follow = () => {
+      const stageRect = stageEl.getBoundingClientRect();
+      const rect = actorEl.getBoundingClientRect();
+      if (!actorEl.isConnected || rect.width <= 0 || rect.height <= 0) return null;
+      return {
+        x: (rect.left - stageRect.left + (rect.width / 2)) / scale,
+        y: (rect.bottom - stageRect.top - (rect.height * 0.06)) / scale
+      };
+    };
+    const start = follow();
+    if (!start) return;
+    const rect = actorEl.getBoundingClientRect();
+    const actor = capsuleActor((rect.width * 0.5) / scale, (rect.height * 0.78) / scale);
+    const fx = core.createFx(mod, {
+      x: Math.round(start.x),
+      y: Math.round(start.y),
+      actor,
+      light: 0.7,
+      ...(recipe.palette ? { palette: recipe.palette } : {})
+    });
+    entry.layer = {
+      fx,
+      speed: 1,
+      startAt: Date.now(),
+      stopAt: Infinity,
+      endAt: Infinity,
+      loop: true,
+      follow,
+      visible: false,
+      stopped: false
+    };
+    player.add(entry.layer);
+  } catch (error) {
+    console.warn('[TarotKingdom] pixelfx status skipped', error);
   }
 }
 
@@ -511,7 +684,9 @@ export function stopTarotKingdomPixelFx(stageEl) {
   if (!stageEl) return;
   stagePlayers.get(stageEl)?.player.stop();
   stagePlayers.delete(stageEl);
+  stageStatusLayers.delete(stageEl);
+  stageEl.querySelectorAll('[data-pixel-status]').forEach((el) => { delete el.dataset.pixelStatus; });
   stageEl.querySelector(':scope > .tarot-kingdom-pixelfx-layer')?.remove();
 }
 
-export const __test = { MAJOR_RECIPES, WEAPON_RECIPES, ENEMY_SINGLE_RECIPES, ENEMY_AREA_RECIPES, CRITICAL_LAYER, normalizeElement };
+export const __test = { MAJOR_RECIPES, WEAPON_RECIPES, ENEMY_SINGLE_RECIPES, ENEMY_AREA_RECIPES, CRITICAL_LAYER, GUARD_LAYER, STATUS_RECIPES, normalizeElement, capsuleActor };

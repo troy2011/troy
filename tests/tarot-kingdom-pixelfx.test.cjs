@@ -30,6 +30,8 @@ function allRecipes(tables) {
   return [
     ...tables.MAJOR_RECIPES,
     tables.CRITICAL_LAYER,
+    tables.GUARD_LAYER,
+    ...Object.values(tables.STATUS_RECIPES),
     ...Object.values(tables.WEAPON_RECIPES).flat(),
     ...Object.values(tables.ENEMY_SINGLE_RECIPES).flat(),
     ...Object.values(tables.ENEMY_AREA_RECIPES).flat()
@@ -57,7 +59,9 @@ test('every recipe effect is vendored and plays without errors', async () => {
     assert.ok(fs.existsSync(file), `missing vendored effect ${effectPath}`);
     const mod = await importJs(file);
     const frame = core.createFrame(195, 160);
-    const fx = core.createFx(mod, { x: 98, y: 120, flip: true, light: 0.8 });
+    // status loops get the same capsule silhouette the game passes for its actors
+    const actor = effectPath.startsWith('status/') ? tables.capsuleActor(17, 26) : undefined;
+    const fx = core.createFx(mod, { x: 98, y: 120, flip: true, light: 0.8, ...(actor ? { actor } : {}) });
     // step through the whole effect at 30 fps, drawing every frame
     const duration = Math.min(4, Number(mod.meta?.duration) || 1);
     for (let t = 0; t < duration; t += 1 / 30) {
@@ -68,11 +72,13 @@ test('every recipe effect is vendored and plays without errors', async () => {
   }
 });
 
-test('the vendored lightning keeps a single soft stroke (no strobe)', () => {
+test('the vendored lightning and burning keep their flashes soft', () => {
   const source = fs.readFileSync(path.join(VENDOR, 'fx', 'lightning', 'lightning-strike.js'), 'utf8');
   assert.match(source, /const STROKES = \[\{ t: 0\.76, k: 1 \}\];/);
   assert.match(source, /const FLICK = \[1, 0\.85, 0\.7, 0\.55, 0\.42, 0\.3, 0\.2\];/);
   assert.ok(fs.existsSync(path.join(VENDOR, 'LICENSE')), 'pixelfx MIT license ships with the code');
+  const burning = fs.readFileSync(path.join(VENDOR, 'fx', 'status', 'burning.js'), 'utf8');
+  assert.ok(!burning.includes('p.px(a.x + mx, a.y + my, WHITE)'), 'burning no longer flashes the body white each tick');
 });
 
 test('every major summon has its own motion timeline that reduced motion can switch off', () => {

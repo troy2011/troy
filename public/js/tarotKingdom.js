@@ -119,9 +119,12 @@ import {
   playTarotKingdomEnemyAttackFx,
   playTarotKingdomMajorFx,
   playTarotKingdomWeaponHitFx,
+  nudgeTarotKingdomActor,
   stopTarotKingdomPixelFx,
+  syncTarotKingdomStatusFx,
+  TAROT_KINGDOM_KNOCKBACK_PX,
   warmTarotKingdomPixelFx
-} from './tarotKingdomPixelFx.js?v=20261101-pixelfx-v1';
+} from './tarotKingdomPixelFx.js?v=20261102-pixelfx-v2';
 
 const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 const TAROT_TILE_W = 48;
@@ -25270,6 +25273,7 @@ function renderKingdomPlayerStatusEffects(row, playerIndex, conscious) {
   if (shieldRing) shieldRing.hidden = !(conscious && isKingdomModifierEffectActive('hpShield', bucket.hpShield));
   syncKingdomActorStatusVisual(avatar, statusKey);
   syncKingdomActorStatusMotion(avatar, statusKey, { isPet: avatar?.classList.contains('is-pet') === true });
+  void syncTarotKingdomStatusFx(ui.battleStage, `player-${playerIndex}`, avatar, conscious ? statusKey : '');
 }
 
 function renderKingdomEnemyStatusEffects() {
@@ -25291,6 +25295,12 @@ function renderKingdomEnemyStatusEffects() {
     Number(s?.battle?.enemy?.hp) > 0 && isKingdomModifierEffectActive('hpShield', enemyBucket.hpShield)
   );
   syncKingdomActorStatusVisual(ui.battleEnemySprite, statusKey);
+  void syncTarotKingdomStatusFx(
+    ui.battleStage,
+    'enemy',
+    ui.battleEnemySprite,
+    Number(s?.battle?.enemy?.hp) > 0 ? statusKey : ''
+  );
 }
 
 function getKingdomBattleHitTargetIndexes(event) {
@@ -25316,6 +25326,8 @@ function hasKingdomBattleHitImpact(event) {
 
 // A re-render this long after the impact must not start the hit effect again.
 const KINGDOM_PIXEL_FX_LATE_START_MS = 120;
+// Effects that mean a guard, cover or summon took the enemy's hit for (part of) the party.
+const KINGDOM_PIXEL_FX_GUARD_KINDS = new Set(['cover', 'guardianCover', 'summonGuard', 'singleGuard']);
 let kingdomBattlePixelFxEventKey = '';
 
 function getKingdomAttackEffectElement(event) {
@@ -25342,6 +25354,7 @@ function playKingdomBattlePixelFx(event, eventIsActive, eventKey) {
   if (!impactAt || Date.now() > impactAt + KINGDOM_PIXEL_FX_LATE_START_MS) return;
   if (!hasKingdomBattleHitImpact(event)) return;
   kingdomBattlePixelFxEventKey = eventKey;
+  const effects = Array.isArray(event?.effects) ? event.effects : [];
   if (isWeaponAttack) {
     const actorIndex = Number(event.actorIndex);
     // Pets keep their own sprite motions and projectiles.
@@ -25349,13 +25362,20 @@ function playKingdomBattlePixelFx(event, eventIsActive, eventKey) {
     const weaponType = event?.weaponTrait?.components?.[0]?.weaponType
       || s?.players?.[actorIndex]?.character?.combat?.weaponType
       || 'sword';
+    const attackerEl = document.getElementById(`tarotKingdomBattleAvatar-${actorIndex}`);
+    const critical = effects.some((effect) => effect?.kind === 'critical');
     void playTarotKingdomWeaponHitFx(ui.battleStage, {
       weaponType: getCombatWeaponMotionProfile(weaponType).weapon,
       impactAt,
-      attackerEl: document.getElementById(`tarotKingdomBattleAvatar-${actorIndex}`),
+      attackerEl,
       targetEl: ui.battleEnemySprite,
-      critical: (Array.isArray(event?.effects) ? event.effects : []).some((effect) => effect?.kind === 'critical'),
+      critical,
       element: getKingdomAttackEffectElement(event)
+    });
+    // the enemy is pushed away from the attacker (the party stands on the right)
+    nudgeTarotKingdomActor(ui.battleEnemySprite, {
+      dx: -(critical ? TAROT_KINGDOM_KNOCKBACK_PX.enemyCritical : TAROT_KINGDOM_KNOCKBACK_PX.enemy),
+      impactAt
     });
     return;
   }
@@ -25368,8 +25388,12 @@ function playKingdomBattlePixelFx(event, eventIsActive, eventKey) {
     element: s?.battle?.enemy?.affinity?.native || '',
     impactAt,
     enemyEl: ui.battleEnemySprite,
-    targetEls
+    targetEls,
+    critical: effects.some((effect) => effect?.kind === 'enemyCritical'),
+    guarded: effects.some((effect) => KINGDOM_PIXEL_FX_GUARD_KINDS.has(String(effect?.kind || '')))
   });
+  // hit party members are pushed away from the enemy (the enemy stands on the left)
+  targetEls.forEach((targetEl) => nudgeTarotKingdomActor(targetEl, { dx: TAROT_KINGDOM_KNOCKBACK_PX.ally, impactAt }));
 }
 
 function playKingdomBattleAvatarEvent(event, eventIsActive, eventKey) {
