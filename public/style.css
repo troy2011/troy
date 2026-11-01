@@ -39841,9 +39841,6 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
     inset: 8% 15% 7%;
 }
 
-/* An actor showing a pixel-art status loop (tarotKingdomPixelFx.js) drops the CSS accent for that status. */
-:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui
-    #tarotKingdomBattleStage [data-pixel-status] > .tarot-kingdom-status-accent,
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui
     #tarotKingdomBattleStage .tarot-kingdom-status-accent[hidden],
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui

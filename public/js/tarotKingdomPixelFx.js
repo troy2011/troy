@@ -473,7 +473,7 @@ export async function playTarotKingdomWeaponHitFx(stageEl, {
 
 /** Enemy attack on one or more party members, landing exactly on impactAt (Date.now clock). */
 export async function playTarotKingdomEnemyAttackFx(stageEl, {
-  attackMode = 'single', element = '', impactAt = Date.now(), enemyEl = null, targetEls = [], critical = false, guarded = false
+  attackMode = 'single', element = '', impactAt = Date.now(), enemyEl = null, targetEls = [], critical = false, guarded = false, ownProjectile = false
 } = {}) {
   const targetsInput = (Array.isArray(targetEls) ? targetEls : []).filter(Boolean);
   if (!stageEl || targetsInput.length === 0) return;
@@ -501,6 +501,8 @@ export async function playTarotKingdomEnemyAttackFx(stageEl, {
     const endAt = impactAt + HIT_FX_TAIL_MS;
     const specs = [];
     recipes.forEach((recipe) => {
+      // the monster's own projectile sprite already flies; do not send a second one
+      if (ownProjectile && (recipe.fly || recipe.jet)) return;
       const base = { recipe, impactAt, endAt, stopAt: endAt - FADE_MARGIN_MS, flip: towardsEnemy > 0 };
       if (recipe.each) {
         targets.forEach((t, index) => specs.push({
@@ -546,7 +548,9 @@ export async function playTarotKingdomEnemyAttackFx(stageEl, {
       targets.forEach((t) => specs.push({
         recipe: guarded ? GUARD_LAYER : CRITICAL_LAYER,
         x: t.cx / scale,
-        y: (t.feet / scale) - (guarded ? GUARD_LAYER.up : CRITICAL_LAYER.up),
+        // both effects draw their flare a set height above the origin (crit-hit 26, parry 30 art px),
+        // so put the origin that far below the actor's middle
+        y: (t.cy / scale) + (guarded ? 22 : 18),
         flip: false,
         impactAt,
         endAt,

@@ -124,7 +124,7 @@ import {
   syncTarotKingdomStatusFx,
   TAROT_KINGDOM_KNOCKBACK_PX,
   warmTarotKingdomPixelFx
-} from './tarotKingdomPixelFx.js?v=20261102-pixelfx-v2';
+} from './tarotKingdomPixelFx.js?v=20261102-pixelfx-v3';
 
 const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 const TAROT_TILE_W = 48;
@@ -25383,8 +25383,18 @@ function playKingdomBattlePixelFx(event, eventIsActive, eventKey) {
     .filter((targetIndex) => !s?.players?.[Number(targetIndex)]?.isPet)
     .map((targetIndex) => document.getElementById(`tarotKingdomBattleAvatar-${Number(targetIndex)}`))
     .filter(Boolean);
+  const attackMode = type === 'enemy-area' ? 'area' : 'single';
+  // Monsters with their own projectile sprite keep it; the pixel effect then only adds the impact.
+  const enemyOwnProjectile = resolveTarotKingdomMonsterMotion({
+    monsterId: s?.battle?.enemy?.id,
+    context: 'attack',
+    phase: 'hit-stop',
+    attackMode,
+    seed: Number(event?.seq) || 0
+  })?.usesProjectile === true;
   void playTarotKingdomEnemyAttackFx(ui.battleStage, {
-    attackMode: type === 'enemy-area' ? 'area' : 'single',
+    attackMode,
+    ownProjectile: enemyOwnProjectile,
     element: s?.battle?.enemy?.affinity?.native || '',
     impactAt,
     enemyEl: ui.battleEnemySprite,
