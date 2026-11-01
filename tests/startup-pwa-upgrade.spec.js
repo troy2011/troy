@@ -11,6 +11,7 @@ test('the published worker loads one updated module generation on restart', asyn
     const mapFrom = html => html.match(/<script type="importmap">([\s\S]*?)<\/script>/)[1];
     const oldMap = mapFrom(previousIndex), newMap = mapFrom(currentIndex);
     const inventoryVersion = new URL(JSON.parse(newMap).imports.inventory, 'https://fixture.invalid').searchParams.get('v');
+    const uiVersion = new URL(JSON.parse(newMap).imports.ui, 'https://fixture.invalid').searchParams.get('v');
     const homeCssVersion = new URL(currentIndex.match(/href="(css\/home-v3\.css\?[^"]+)"/)[1], 'https://fixture.invalid').searchParams.get('v');
     const oldSw = cp.execFileSync('git', ['show', '7cd14c0fdb6d671a5f65cc2bdc041b01dae7390f:public/sw.js'], { cwd: root, encoding: 'utf8' });
     const errors = [], requests = [];
@@ -32,7 +33,7 @@ test('the published worker loads one updated module generation on restart', asyn
         if (url.pathname === '/js/consumer.js') return send("import * as Player from './player.js'; import * as Api from './api.js'; import * as Inventory from './inventory.js'; import * as Ui from './ui.js'; import * as Profile from './playerProfile.js'; export { Player, Api, Inventory, Ui, Profile };");
         if (['/js/player.js', '/js/api.js', '/js/inventory.js', '/js/ui.js', '/js/playerProfile.js', '/js/playfabClient.js', '/js/ship.js', '/js/island.js', '/js/companions.js'].includes(url.pathname)) {
             const version = {
-                '/js/ui.js': '20261101-arcana-signs-v1',
+                '/js/ui.js': uiVersion,
                 '/js/playerProfile.js': '20261030-home-layout-v1',
                 '/js/inventory.js': inventoryVersion,
                 '/js/ship.js': '20261031-world-retirement-v1'
@@ -72,7 +73,7 @@ test('the published worker loads one updated module generation on restart', asyn
         for (const [asset, version] of [['/js/inventory.js', inventoryVersion], ['/js/ship.js', '20261031-world-retirement-v1']]) {
             expect(requests.some(request => request.updated && request.path === asset && request.query.includes(version))).toBe(true);
         }
-        expect(requests.some(request => request.updated && request.path === '/js/ui.js' && request.query.includes('20261101-arcana-signs-v1'))).toBe(true);
+        expect(requests.some(request => request.updated && request.path === '/js/ui.js' && request.query.includes(uiVersion))).toBe(true);
         expect(requests.some(request => request.updated && request.path === '/js/playerProfile.js' && request.query.includes('20261030-home-layout-v1'))).toBe(true);
         expect(requests.some(request => request.updated && request.path === '/css/home-v3.css' && request.query.includes(homeCssVersion))).toBe(true);
         const ui = fs.readFileSync(path.join(root, 'public/js/ui.js'), 'utf8');

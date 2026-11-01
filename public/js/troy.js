@@ -59,6 +59,14 @@ function getItemOptionChoices(item = null) {
     return Array.isArray(item?.mixers) ? item.mixers : [];
 }
 
+function getMenuDisplayName(item = null) {
+    const name = String(item?.concept || item?.name || '').trim();
+    const original = item?.menuId === 'food'
+        ? TROY_PRODUCT_MENUS.food.items.find((entry) => entry.concept === name)
+        : null;
+    return String(item?.menuLabel || original?.menuLabel || name).trim();
+}
+
 function getItemOptionFieldLabel(item = null) {
     const label = String(item?.optionLabelName || '').trim();
     return label || '割り物';
@@ -599,7 +607,7 @@ function openMenuBoardOrderModal(row) {
     _menuBoardOrderDraft = { menuId, index, item, optionLabel, sizeLabel };
 
     renderMenuBoardOrderIcon(elements.icon, item, menuId);
-    if (elements.title) elements.title.textContent = nameText || '商品';
+    if (elements.title) elements.title.textContent = getMenuDisplayName(item) || '商品';
     if (elements.detail) elements.detail.textContent = getMenuBoardDetailText(item) || ' ';
 
     if (elements.optionField && elements.option) {
@@ -751,7 +759,7 @@ function renderTroyMenuBoard() {
 
         const name = document.createElement('div');
         name.className = 'troy-menu-board-name';
-        name.textContent = nameText || '商品';
+        name.textContent = getMenuDisplayName(item) || '商品';
 
         const detailText = getMenuBoardDetailText(item);
         const detail = document.createElement('div');
@@ -1345,7 +1353,7 @@ function openMenuModal(menuId) {
 
         const concept = document.createElement('div');
         concept.className = 'troy-menu-modal-item-name';
-        concept.textContent = item.concept || item.name || '';
+        concept.textContent = getMenuDisplayName(item);
 
         const content = document.createElement('div');
         content.className = 'troy-menu-modal-item-content';
