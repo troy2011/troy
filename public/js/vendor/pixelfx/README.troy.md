@@ -12,10 +12,13 @@ upstream folder layout (`core/`, `fx/<category>/`). The files are plain ES modul
 
 - `fx/lightning/lightning-strike.js`: a single stroke and a soft decay instead of three restrikes with a
   7-step strobe, so the bolt does not flash repeatedly. Marked with `// troy:` comments.
-- `fx/status/burning.js`: no whole-body white/orange flash on each 0.6 s tick (repeated flashing, and
-  our actors pass only an approximate silhouette). Marked with a `// troy:` comment.
+- `fx/status/burning.js`: no whole-body white/orange flash on each 0.6 s tick (repeated flashing).
+  Marked with a `// troy:` comment.
+- `fx/lightning/electrified.js`: the jolt (three every two seconds) lifts the body's shading by about
+  half as much and its glows are dimmer and sit on the actor's chest, so it brightens instead of
+  flashing. Marked with a `// troy:` comment.
 
 ## Updating
 
-Copy the same set from a newer commit, re-apply the change above, update the commit hash here, and check
+Copy the same set from a newer commit, re-apply the changes above, update the commit hash here, and check
 every recipe in `tarotKingdomPixelFx.js` still loads (`node --test tests/tarot-kingdom-pixelfx.test.cjs`).

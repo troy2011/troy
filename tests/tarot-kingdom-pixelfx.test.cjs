@@ -79,6 +79,17 @@ test('the vendored lightning and burning keep their flashes soft', () => {
   assert.ok(fs.existsSync(path.join(VENDOR, 'LICENSE')), 'pixelfx MIT license ships with the code');
   const burning = fs.readFileSync(path.join(VENDOR, 'fx', 'status', 'burning.js'), 'utf8');
   assert.ok(!burning.includes('p.px(a.x + mx, a.y + my, WHITE)'), 'burning no longer flashes the body white each tick');
+  const electrified = fs.readFileSync(path.join(VENDOR, 'fx', 'lightning', 'electrified.js'), 'utf8');
+  assert.match(electrified, /const lift = \[0\.5, 0\.25, -0\.2\]\[j\.a\] \* j\.k/, 'paralysis jolts brighten the sprite instead of flashing it');
+});
+
+test('every negative status either has a pixel loop or keeps its CSS accent on purpose', async () => {
+  const tables = await loadRecipes();
+  const { TAROT_KINGDOM_NEGATIVE_STATUS_KEYS } = await importJs(path.join(JS_DIR, 'tarotKingdomStatuses.js'));
+  const cssOnly = ['petrify', 'silence', 'seal', 'fear', 'blind', 'vulnerable', 'slow'];
+  for (const key of TAROT_KINGDOM_NEGATIVE_STATUS_KEYS) {
+    assert.ok(Boolean(tables.STATUS_RECIPES[key]) !== cssOnly.includes(key), `status ${key}`);
+  }
 });
 
 test('every major summon has its own motion timeline that reduced motion can switch off', () => {

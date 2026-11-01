@@ -89,8 +89,7 @@ export function drawBack(p, t, o) {
 export function draw(p, t, o) {
   const F = fit(o.palette, 9).reverse(), CH = fit(o.char, 3), a = o.actor, S = shape(a), { list, scorch } = spots(a, o.seed);
   const ph = since(t), tick = Math.floor(t / TICK) % 2, fl = flare(t);
-  // troy: no body flash on each tick. It would repeat about twice a second (photosensitivity), and our
-  // actors pass only an approximate silhouette, so painting the whole body would show its shape.
+  // troy: no body flash on each tick. It would repeat about twice a second (photosensitivity).
   // scorch marks spreading over the clothes from this tick, ember-edged, cooling and fading by the next
   for (const sc of scorch[tick]) {
     const grow = clamp(ph / 0.14), fade = 1 - clamp((ph - 0.25) / 0.33), r = sc.r * (0.4 + 0.6 * grow);

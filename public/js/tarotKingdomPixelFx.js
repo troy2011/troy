@@ -580,22 +580,151 @@ export function nudgeTarotKingdomActor(element, { dx = 0, impactAt = Date.now() 
 
 export const TAROT_KINGDOM_KNOCKBACK_PX = KNOCKBACK_PX;
 
-// Status loops drawn around the actor. Statuses whose pixelfx version repaints or covers the body
-// (freeze, petrify, poison, curse) or the face (slow's clock) keep the existing CSS accents, because we
-// only pass the actor's approximate silhouette.
+const WET_PALETTE = Object.freeze(['#0a1a33', '#0f2f5c', '#1d5b9a', '#2f8fd0', '#62c8f4', '#bdefff']);
+
+// One looping effect per negative status, drawn on and around the actor. Effects that repaint the body
+// get the actor's real sprite pixels, cut from its layers by snapshotActor, so they follow its outline.
+// Every status was tried side by side with the existing CSS accents; these are the ones that read better.
+// The others keep the CSS accent only: petrify (the stone looked faded, not heavier), silence and seal
+// (the floor rune circle spread over the next party rows), fear and blind (the rage and curse looks
+// read as anger and curse), vulnerable (the glitch hid the whole sprite) and slow (the clock covered
+// the whole ally and its neighbours).
 const STATUS_RECIPES = Object.freeze({
-  paralysis: { path: 'status/stunned' },
+  paralysis: { path: 'lightning/electrified' },
+  freeze: { path: 'status/frozen' },
   sleep: { path: 'status/sleep' },
   confusion: { path: 'status/confused' },
-  burn: { path: 'status/burning' }
+  poison: { path: 'status/poisoned' },
+  burn: { path: 'status/burning' },
+  wet: { path: 'status/bleeding', palette: WET_PALETTE },
+  curse: { path: 'status/cursed' }
 });
 
 export function hasTarotKingdomStatusFx(statusKey) {
   return Object.prototype.hasOwnProperty.call(STATUS_RECIPES, String(statusKey || ''));
 }
 
+const spriteImages = new Map();
+function loadSpriteImage(url) {
+  let pending = spriteImages.get(url);
+  if (!pending) {
+    const image = new Image();
+    image.src = url;
+    pending = image.decode().then(() => image, () => null);
+    spriteImages.set(url, pending);
+  }
+  return pending;
+}
+
+// A CSS background length ("12px", "50%", "auto") resolved against the box and the image size.
+function backgroundLength(value, box, image, fallback) {
+  if (!value || value === 'auto') return fallback;
+  if (value.endsWith('%')) return ((box - image) * parseFloat(value)) / 100;
+  return parseFloat(value) || 0;
+}
+
+function backgroundSize(style, box, image) {
+  const [w = 'auto', h = 'auto'] = style.backgroundSize.split(',')[0].trim().split(/\s+/);
+  if (w === 'cover' || w === 'contain') {
+    const fit = (w === 'cover' ? Math.max : Math.min)(box.w / image.w, box.h / image.h);
+    return { w: image.w * fit, h: image.h * fit };
+  }
+  const size = (v, b) => (v.endsWith('%') ? (b * parseFloat(v)) / 100 : parseFloat(v));
+  const width = w === 'auto' ? NaN : size(w, box.w);
+  const height = h === 'auto' ? NaN : size(h, box.h);
+  if (Number.isFinite(width) && Number.isFinite(height)) return { w: width, h: height };
+  if (Number.isFinite(width)) return { w: width, h: (image.h * width) / image.w };
+  if (Number.isFinite(height)) return { w: (image.w * height) / image.h, h: height };
+  return { ...image };
+}
+
+const isMirrored = (style) => {
+  const scale = style.scale && style.scale !== 'none' ? parseFloat(style.scale) : 1;
+  const matrix = style.transform && style.transform !== 'none' ? new DOMMatrixReadOnly(style.transform) : null;
+  return (scale < 0) !== ((matrix?.a ?? 1) < 0);
+};
+
+/**
+ * Cuts the actor's current look out of its sprite layers (each a background-image sprite sheet) into
+ * a pixelfx actor: mask, pixels (ABGR, as ImageData stores them) and where its feet are within the
+ * element. Returns null when nothing is drawn, so the caller can fall back to a capsule.
+ */
+async function snapshotActor(actorEl, scale) {
+  const rect = actorEl.getBoundingClientRect();
+  const w = Math.ceil(rect.width / scale);
+  const h = Math.ceil(rect.height / scale);
+  if (w <= 0 || h <= 0) return null;
+  const layers = [actorEl, ...actorEl.querySelectorAll('*')].map((el) => {
+    const style = getComputedStyle(el);
+    const url = /url\("?([^")]+)"?\)/.exec(style.backgroundImage)?.[1];
+    const box = el.getBoundingClientRect();
+    if (!url || style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) < 0.05) return null;
+    if (box.width <= 0 || box.height <= 0) return null;
+    return { el, style, url, box };
+  }).filter(Boolean);
+  if (!layers.length) return null;
+  const images = await Promise.all(layers.map((layer) => loadSpriteImage(layer.url)));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = false;
+  ctx.scale(1 / scale, 1 / scale);
+  layers.forEach(({ el, style, box }, index) => {
+    const image = images[index];
+    if (!image) return;
+    // the layer's box in the actor, and how much its own transforms scale it
+    const x = box.left - rect.left;
+    const y = box.top - rect.top;
+    const sx = box.width / (el.offsetWidth || box.width);
+    const sy = box.height / (el.offsetHeight || box.height);
+    const layout = { w: el.offsetWidth || box.width, h: el.offsetHeight || box.height };
+    const natural = { w: image.naturalWidth, h: image.naturalHeight };
+    const size = backgroundSize(style, layout, natural);
+    const [px = '0%', py = '0%'] = style.backgroundPosition.split(',')[0].trim().split(/\s+/);
+    const left = backgroundLength(px, layout.w, size.w, 0);
+    const top = backgroundLength(py, layout.h, size.h, 0);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, box.width, box.height);
+    ctx.clip();
+    if (isMirrored(style)) {
+      ctx.translate((2 * x) + box.width, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(image, x + (left * sx), y + (top * sy), size.w * sx, size.h * sy);
+    ctx.restore();
+  });
+  const all = new Uint32Array(ctx.getImageData(0, 0, w, h).data.buffer);
+  let x0 = w; let y0 = h; let x1 = -1; let y1 = -1;
+  for (let i = 0; i < all.length; i += 1) {
+    if ((all[i] >>> 24) < 128) continue;
+    const px = i % w; const py = Math.floor(i / w);
+    x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+  }
+  if (x1 < 0) return null;
+  const mw = x1 - x0 + 1;
+  const mh = y1 - y0 + 1;
+  const data = new Uint8Array(mw * mh);
+  const pixels = new Uint32Array(mw * mh);
+  for (let my = 0; my < mh; my += 1) {
+    for (let mx = 0; mx < mw; mx += 1) {
+      const c = all[((y0 + my) * w) + x0 + mx];
+      if ((c >>> 24) < 128) continue;
+      data[(my * mw) + mx] = 1;
+      pixels[(my * mw) + mx] = (c | 0xff000000) >>> 0;
+    }
+  }
+  const half = Math.floor(mw / 2);
+  return {
+    actor: { mask: { w: mw, h: mh, data }, pixels, x: -half, y: -mh, w: mw, h: mh, k: 0, head: [0, -mh], chest: [0, -Math.round(mh * 0.65)] },
+    // the feet (the effect origin) in CSS px from the element's top-left corner
+    feet: { x: (x0 + half) * scale, y: (y1 + 1) * scale }
+  };
+}
+
 // A rough body silhouette (a capsule) in art pixels, shaped like the pixelfx stock actor:
-// feet at the origin, mask laid out from (x, y) = (-w/2, -h).
+// feet at the origin, mask laid out from (x, y) = (-w/2, -h). Used when an actor has no sprite layers.
 const actorCache = new Map();
 function capsuleActor(width, height) {
   const w = Math.max(10, Math.min(64, Math.round(width)));
@@ -603,15 +732,19 @@ function capsuleActor(width, height) {
   const key = `${w}x${h}`;
   if (actorCache.has(key)) return actorCache.get(key);
   const data = new Uint8Array(w * h);
+  // electrified reads the body's colors; a capsule is a flat mid grey
+  const pixels = new Uint32Array(w * h);
   const cx = (w - 1) / 2;
   const r = w * 0.42;
   for (let y = 0; y < h; y += 1) {
     for (let x = 0; x < w; x += 1) {
       const yy = Math.min(Math.max(y, r), h - 1 - (r * 0.6));
-      if (((x - cx) ** 2) + (((y - yy) * 1.1) ** 2) <= r * r) data[(y * w) + x] = 1;
+      if (((x - cx) ** 2) + (((y - yy) * 1.1) ** 2) > r * r) continue;
+      data[(y * w) + x] = 1;
+      pixels[(y * w) + x] = 0xff6b6b6b;
     }
   }
-  const actor = { mask: { w, h, data }, x: -Math.floor(w / 2), y: -h, w, h, k: 0, head: [0, -h], chest: [0, -Math.round(h * 0.65)] };
+  const actor = { mask: { w, h, data }, pixels, x: -Math.floor(w / 2), y: -h, w, h, k: 0, head: [0, -h], chest: [0, -Math.round(h * 0.65)] };
   actorCache.set(key, actor);
   return actor;
 }
@@ -646,19 +779,25 @@ export async function syncTarotKingdomStatusFx(stageEl, actorKey, actorEl, statu
     // the status may have changed again while the effect was loading
     if (stageStatusLayers.get(stageEl)?.get(actorKey) !== entry || !actorEl.isConnected) return;
     const scale = player.scale;
+    const startRect = actorEl.getBoundingClientRect();
+    if (startRect.width <= 0 || startRect.height <= 0) return;
+    const snapshot = await snapshotActor(actorEl, scale).catch(() => null);
+    if (stageStatusLayers.get(stageEl)?.get(actorKey) !== entry || !actorEl.isConnected) return;
+    const actor = snapshot?.actor || capsuleActor((startRect.width * 0.5) / scale, (startRect.height * 0.78) / scale);
+    // the feet as a share of the element, so the effect stays on them while the element scales
+    const feetX = snapshot ? snapshot.feet.x / startRect.width : 0.5;
+    const feetY = snapshot ? snapshot.feet.y / startRect.height : 0.94;
     const follow = () => {
       const stageRect = stageEl.getBoundingClientRect();
       const rect = actorEl.getBoundingClientRect();
       if (!actorEl.isConnected || rect.width <= 0 || rect.height <= 0) return null;
       return {
-        x: (rect.left - stageRect.left + (rect.width / 2)) / scale,
-        y: (rect.bottom - stageRect.top - (rect.height * 0.06)) / scale
+        x: (rect.left - stageRect.left + (rect.width * feetX)) / scale,
+        y: (rect.top - stageRect.top + (rect.height * feetY)) / scale
       };
     };
     const start = follow();
     if (!start) return;
-    const rect = actorEl.getBoundingClientRect();
-    const actor = capsuleActor((rect.width * 0.5) / scale, (rect.height * 0.78) / scale);
     const fx = core.createFx(mod, {
       x: Math.round(start.x),
       y: Math.round(start.y),
