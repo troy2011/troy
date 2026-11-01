@@ -46,6 +46,7 @@ function diffDayKeys(fromDayKey, toDayKey) {
 }
 
 function normalizeVersionNumber(value) {
+    if (value === null || value === '') return null;
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) return null;
     return Math.max(0, Math.floor(parsed));
@@ -204,22 +205,27 @@ async function ensureDailyContributionVersionForToday(deps, options = {}) {
             } else {
                 const gapDays = Math.max(0, Math.min(DAILY_CONTRIBUTION_MAX_CATCHUP_DAYS, diffDayKeys(lockedState.activeDayKey, todayKey)));
                 if (gapDays > 0) {
-                    for (let i = 0; i < gapDays; i += 1) {
+                    // PlayFab refuses back-to-back increments (StatisticVersionIncrementRateExceeded),
+                    // so a rollover makes at most one. A version newer than the recorded one means an
+                    // earlier attempt already incremented but could not save, so it is adopted instead.
+                    const recordedVersion = activeVersion;
+                    if (latestVersion > recordedVersion) {
+                        activeVersion = latestVersion;
+                    } else {
                         const incrementResult = await promisifyPlayFab(PlayFabAdmin.IncrementPlayerStatisticVersion, {
                             StatisticName: PLAYER_DAILY_CONTRIBUTION_STAT
                         });
                         const incrementedVersion = normalizeVersionNumber(incrementResult?.StatisticVersion?.Version);
-                        if (Number.isFinite(incrementedVersion)) {
-                            activeVersion = incrementedVersion;
-                        } else {
-                            activeVersion += 1;
-                        }
+                        activeVersion = Number.isFinite(incrementedVersion) ? incrementedVersion : recordedVersion + 1;
                     }
+                    // Only a one-day, one-version step leaves yesterday's contributions alone in the
+                    // previous version. Otherwise no version holds just yesterday, so none is rewarded.
+                    const previousIsYesterday = gapDays === 1 && activeVersion === recordedVersion + 1;
                     nextState = {
                         activeDayKey: todayKey,
                         activeVersion,
                         previousDayKey: getPreviousJstDateKey(todayKey),
-                        previousVersion: Math.max(0, activeVersion - 1)
+                        previousVersion: previousIsYesterday ? recordedVersion : null
                     };
                 }
             }
