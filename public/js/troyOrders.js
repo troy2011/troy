@@ -894,7 +894,7 @@ function buildPosCategoryHtml(customerEntry = null) {
                 data-item-category-label="${escapeHtml(cat.category)}">
                 ${thumb}
                 <span class="troy-orders-pos-copy">
-                    <strong class="troy-orders-pos-name">${escapeHtml(item.name)}</strong>
+                    <strong class="troy-orders-pos-name">${escapeHtml(item.menuLabel || item.name)}</strong>
                     ${item.note ? `<small>${escapeHtml(item.note)}</small>` : ''}
                 </span>
                 <span class="troy-orders-pos-price">${formatYen(item.price)}</span>

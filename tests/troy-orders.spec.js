@@ -178,7 +178,7 @@ test('staff register creates a checkout from an in-store member and settles with
     ['ピザトースト', /Sprites\/food\/snack_mini_pizza_plate\.png/],
     ['ビーフジャーキー', /Sprites\/food\/pirate_jerky_platter\.png/],
     ['ポテトチップス', /Sprites\/food\/snack_potato_chips_bowl\.png/],
-    ['カップラーメン', /Sprites\/food\/snack_ramen_bowl\.png/],
+    ['カップ麺', /Sprites\/food\/snack_ramen_bowl\.png/],
     ['みそ汁', /Sprites\/food\/snack_miso_soup_bowl\.png/],
     ['ピクルス', /Sprites\/food\/pirate_pickle_barrel\.png/],
     ['珍味', /Sprites\/food\/pirate_dried_squid_plate\.png/]

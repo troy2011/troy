@@ -90,7 +90,7 @@ test.describe('public shop MEO page', () => {
         ...Object.values(TROY_PRODUCT_MENUS).flatMap((category) => category.items),
         ...TROY_BOTTLE_ITEMS
       ].map((item) => ({
-        name: item.concept,
+        name: item.menuLabel || item.concept,
         price: `${item.price}${item.sizeOptions?.length ? '〜' : ''}`
       }));
     });

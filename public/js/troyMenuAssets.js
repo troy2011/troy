@@ -51,11 +51,11 @@ const MENU_IMAGE_RULES = [
     { pattern: /梅水晶|梅/u, image: foodAsset('pirate_ume_crystal_bowl.png') },
     { pattern: /フライドポテト/u, image: foodAsset('pirate_french_fries_bucket.png') },
     { pattern: /フランク/u, image: foodAsset('snack_sausage_skillet.png') },
-    { pattern: /ミックスナッツ|ナッツ/u, image: foodAsset('pirate_mixed_nuts_barrel.png') },
+    { pattern: /乾き物セット|ミックスナッツ|ナッツ/u, image: foodAsset('pirate_mixed_nuts_barrel.png') },
     { pattern: /ピザトースト|ピザ/u, image: foodAsset('snack_mini_pizza_plate.png') },
     { pattern: /ビーフジャーキー|ジャーキー/u, image: foodAsset('pirate_jerky_platter.png') },
     { pattern: /ポテトチップス/u, image: foodAsset('snack_potato_chips_bowl.png') },
-    { pattern: /カップラーメン|ラーメン/u, image: foodAsset('snack_ramen_bowl.png') },
+    { pattern: /カップ麺|カップラーメン|ラーメン/u, image: foodAsset('snack_ramen_bowl.png') },
     { pattern: /みそ汁|味噌汁/u, image: foodAsset('snack_miso_soup_bowl.png') },
     { pattern: /ピクルス/u, image: foodAsset('pirate_pickle_barrel.png') },
     { pattern: /珍味/u, image: foodAsset('pirate_dried_squid_plate.png') },
@@ -93,6 +93,7 @@ export function getTroyMenuImage(categoryId = '', item = {}) {
     if (explicit) return explicit;
 
     const normalizedCategory = String(categoryId || item?.menuId || item?.categoryId || '').trim().toLowerCase();
+    if (normalizedCategory === 'food' && String(item?.concept || item?.name || '').trim() === 'フード持ち込み料') return '';
     const searchText = getMenuAssetSearchText(item);
     const matched = MENU_IMAGE_RULES.find((rule) => rule.pattern.test(searchText));
     if (matched) return matched.image;
