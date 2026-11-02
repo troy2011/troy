@@ -29,6 +29,7 @@ async function loadRecipes() {
 function allRecipes(tables) {
   return [
     ...tables.MAJOR_RECIPES,
+    ...Object.values(tables.SUMMON_RECIPES).flatMap((recipe) => [...recipe.hit, ...(recipe.party || [])]),
     tables.CRITICAL_LAYER,
     tables.GUARD_LAYER,
     ...Object.values(tables.STATUS_RECIPES),
@@ -46,6 +47,9 @@ test('every major arcana, weapon type and enemy element has a recipe', async () 
     assert.ok(tables.ENEMY_SINGLE_RECIPES[element]?.length, `single ${element}`);
     assert.ok(tables.ENEMY_AREA_RECIPES[element]?.length, `area ${element}`);
   }
+  const { TAROT_KINGDOM_SUMMONS } = await importJs(path.join(JS_DIR, 'tarotKingdomSummons.js'));
+  for (const summon of TAROT_KINGDOM_SUMMONS) assert.ok(tables.SUMMON_RECIPES[summon.effectKey], `summon effect ${summon.effectKey}`);
+  for (const suit of ['Wand', 'Cup', 'Sword', 'Pentacle']) assert.ok(tables.SUMMON_RECIPES[`flush:${suit}`], `flush ${suit}`);
   assert.equal(tables.normalizeElement('FIRE'), 'fire');
   assert.equal(tables.normalizeElement('unknown'), 'neutral');
 });

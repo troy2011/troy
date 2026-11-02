@@ -117,14 +117,16 @@ import {
 } from './pixelMonsterCompanion.js?v=20260825-monster-motion-v2';
 import {
   playTarotKingdomEnemyAttackFx,
+  getTarotKingdomSummonFxKey,
   playTarotKingdomMajorFx,
+  playTarotKingdomSummonFx,
   playTarotKingdomWeaponHitFx,
   nudgeTarotKingdomActor,
   stopTarotKingdomPixelFx,
   syncTarotKingdomStatusFx,
   TAROT_KINGDOM_KNOCKBACK_PX,
   warmTarotKingdomPixelFx
-} from './tarotKingdomPixelFx.js?v=20261102-pixelfx-v3';
+} from './tarotKingdomPixelFx.js?v=20261102-pixelfx-v4';
 
 const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 const TAROT_TILE_W = 48;
@@ -26744,6 +26746,7 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   cutin.dataset.roleShowAt = String(roleShowAtMs);
   const content = document.createDocumentFragment();
   let majorPixelFxCanvas = null;
+  let summonPixelFxCanvas = null;
   const title = document.createElement('strong');
   title.className = 'tarot-kingdom-skill-cutin-title';
   title.textContent = isSummonSealed
@@ -26874,8 +26877,18 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
       chainImpact.setAttribute('aria-hidden', 'true');
     }
     content.append(seal, portal, figure, copy);
-    // Major arcana draw their own pixel effect instead of the shared CSS effect layers.
-    if (!isMajorSummonEvent) content.append(effectField, impact);
+    // Major arcana and the summon effects pixelfx knows draw their own pixel effect instead of the shared
+    // CSS effect layers.
+    const hasSummonPixelFx = !isMajorSummonEvent
+      && !!getTarotKingdomSummonFxKey(effectKey, summonState?.flushSuit);
+    if (hasSummonPixelFx) {
+      summonPixelFxCanvas = document.createElement('canvas');
+      summonPixelFxCanvas.className = 'tarot-kingdom-summon-pixelfx';
+      summonPixelFxCanvas.setAttribute('aria-hidden', 'true');
+      content.append(summonPixelFxCanvas);
+    } else if (!isMajorSummonEvent) {
+      content.append(effectField, impact);
+    }
     if (chainImpact) content.append(chainImpact);
     if (isMajorSummonEvent) {
       majorPixelFxCanvas = document.createElement('canvas');
@@ -26935,6 +26948,17 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
       elapsedMs,
       enemyEl: ui.battleEnemySprite,
       stageEl: ui.battleStage
+    });
+  }
+  if (summonPixelFxCanvas) {
+    void playTarotKingdomSummonFx(summonPixelFxCanvas, {
+      effectKey,
+      flushSuit: summonState?.flushSuit,
+      elapsedMs,
+      enemyEl: ui.battleEnemySprite,
+      stageEl: ui.battleStage,
+      partyEls: Array.from(ui.battleParty?.querySelectorAll('.tarot-kingdom-battle-player-avatar:not(.is-pet)') || [])
+        .filter((avatar) => !avatar.closest('.is-ko'))
     });
   }
 }

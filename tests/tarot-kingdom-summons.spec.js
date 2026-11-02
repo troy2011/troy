@@ -464,18 +464,17 @@ test.describe('Tarot Kingdom deterministic summons', () => {
         heldX,
         recoilX,
         stageAnimations,
-        muzzleLeft: getComputedStyle(cutin.querySelector('.tarot-kingdom-summon-fx-aura')).left,
-        projectileAnimation: getComputedStyle(
-          cutin.querySelector('.tarot-kingdom-summon-fx-projectile')
-        ).animationName
+        // the shot itself is drawn by pixelfx on a canvas instead of the CSS effect layers
+        pixelFxCount: cutin.querySelectorAll('.tarot-kingdom-summon-pixelfx').length,
+        effectFieldCount: cutin.querySelectorAll('.tarot-kingdom-summon-effect').length
       };
     });
 
     expect(Math.abs(audit.heldX - audit.impactX)).toBeLessThan(2);
     expect(audit.recoilX).toBeGreaterThan(audit.heldX + 20);
     expect(audit.stageAnimations).toContain('tkSummonCameraHeavyHit');
-    expect(audit.projectileAnimation).toBe('tkFxCannonMimic');
-    expect(Number.parseFloat(audit.muzzleLeft)).toBeGreaterThan(0);
+    expect(audit.pixelFxCount).toBe(1);
+    expect(audit.effectFieldCount).toBe(0);
   });
 
   test('role strength—not randomness—selects the summon from weak to strong', async () => {
@@ -636,6 +635,7 @@ test.describe('Tarot Kingdom summon integration', () => {
         summonId: cutin?.dataset.summonId || '',
         effectClass: cutin?.querySelector('.tarot-kingdom-summon-effect')?.className || '',
         effectNodeCount: cutin?.querySelectorAll('.tarot-kingdom-summon-effect-node').length || 0,
+        pixelFxCount: cutin?.querySelectorAll('.tarot-kingdom-summon-pixelfx').length || 0,
         effectLayerCount: cutin?.querySelectorAll(
           '.tarot-kingdom-summon-fx'
         ).length || 0,
@@ -689,11 +689,11 @@ test.describe('Tarot Kingdom summon integration', () => {
       summonMotion: 'flutter',
       summonPool: 'entry',
       summonId: 'skeletal_parrot',
-      effectNodeCount: 6,
-      effectLayerCount: 8,
+      // pixelfx draws the effect on a canvas; the CSS effect layers are not built
+      effectNodeCount: 0,
+      effectLayerCount: 0,
+      pixelFxCount: 1,
       figureAnimationName: 'tkSummonSkeletalParrot',
-      effectSigilAnimationName: 'tkFxSkeletalParrot',
-      effectProjectileAnimationName: 'tkFxCommandRay',
       sealCount: 1,
       partyHideAt: 550,
       partyReturnAt: 3800,
@@ -705,7 +705,7 @@ test.describe('Tarot Kingdom summon integration', () => {
     expect(audit.figureFilter).toBe('none');
     expect(audit.artFilter).toContain('drop-shadow');
     expect(audit.promotedDescendantCount).toBeLessThanOrEqual(16);
-    expect(audit.effectClass).toContain('is-effect-command');
+    expect(audit.effectClass).toBe('');
     await page.waitForTimeout(80);
     const elapsedAfterRender = await page.evaluate(() => {
       window.TarotKingdomDebug.battleRender();

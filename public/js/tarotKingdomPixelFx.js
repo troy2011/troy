@@ -13,6 +13,8 @@ const REDUCED_MOTION_FADE_MS = 300;
 const MAX_STEP_SECONDS = 1 / 30;
 // Status loops alone redraw at about 20 fps (pixelfx poses hold on 12 fps steps anyway).
 const LOOP_FRAME_MS = 50;
+// Summon effects (marked calm) redraw at 30 fps, the rate pixelfx effects are drawn for.
+const CALM_FRAME_MS = 33;
 // Knock-back on a hit: a small push away from the attacker, then back. No screen shake.
 const KNOCKBACK_PX = Object.freeze({ enemy: 5, enemyCritical: 8, ally: 4 });
 const KNOCKBACK_MS = 260;
@@ -23,6 +25,13 @@ const MAJOR_FX_STOP_MS = 2150;
 // Long effects are squeezed into the cutin, never slower than real time nor faster than this.
 const MAJOR_FX_MAX_SPEED = 1.7;
 const MAJOR_FX_FIT_SECONDS = 2.2;
+// A normal 5-card summon cutin lasts 4500 ms and the summon lunges at 66.67 % of it; the party is back on
+// stage from 3800 ms, so effects on the party land just after that.
+export const TAROT_KINGDOM_SUMMON_FX_HIT_MS = 3000;
+const SUMMON_FX_STOP_MS = 4100;
+const SUMMON_FX_END_MS = 4500;
+const SUMMON_PARTY_FX_AT_MS = 3850;
+const SUMMON_PARTY_FX_TAIL_MS = 1400;
 // Weapon and enemy hits stay on screen at most this long after the impact.
 const HIT_FX_TAIL_MS = 900;
 
@@ -75,6 +84,94 @@ const MAJOR_RECIPES = Object.freeze([
   { path: 'holy/holy-pillar', dx: 0, up: -5, hit: 1.5 },
   { path: 'arcane/time-stop', dx: 0, up: -4, hit: 2.42, scale: 3 }
 ]);
+
+/*
+ * Normal 5-card summons, by effect. `hit` layers paint on the cutin, anchored like the major arcana on the
+ * enemy's feet (`delay` ms after the impact; `fly` comes in from the summon on the right; `actor` wraps the
+ * enemy's real sprite). `party` layers land on each standing party member once the party is back, for the
+ * effects that heal, guard or power it up. The role's own damage always lands on the enemy at the impact.
+ */
+const SEA_PALETTE = ['#06142a', '#0a2a50', '#0e4a80', '#1673b0', '#2ea3d8', '#6fd2f0', '#bff0ff', '#ffffff'];
+const SUMMON_RECIPES = Object.freeze({
+  // 破城強襲 + 崩し: a stone spike rams up under the enemy as the floor is slammed
+  rupture: {
+    hit: [
+      { path: 'nature/earth-spike', dx: 0, up: -8, hit: 0.9, speed: 1.6 },
+      { path: 'impacts/ground-slam', dx: 0, up: -5, hit: 0.15, speed: 1.3 }
+    ]
+  },
+  // 爆炎砲撃 + 火傷: a fireball lobbed from the summon bursts on the enemy
+  inferno: {
+    hit: [
+      { path: 'fire/fireball', fly: { ms: 320, up: 18 } },
+      { path: 'explosions/small-explosion', dx: 0, up: -8, hit: 0.03, speed: 1.6 }
+    ]
+  },
+  // 怒涛連撃: three slashes in quick succession, a spark on each
+  barrage: {
+    hit: [
+      { path: 'melee/sword-slash', dx: 39, up: -8, hit: 0.03, flip: true, palette: PALETTES.sky },
+      { path: 'melee/sword-slash', dx: 39, up: -2, hit: 0.03, flip: true, palette: PALETTES.sky, delay: 170 },
+      { path: 'melee/sword-slash', dx: 39, up: -12, hit: 0.03, flip: true, palette: PALETTES.sky, delay: 340 },
+      { path: 'impacts/hit-spark', dx: 8, up: 16, hit: 0, flip: true },
+      { path: 'impacts/hit-spark', dx: 4, up: 22, hit: 0, flip: true, delay: 170 },
+      { path: 'impacts/hit-spark', dx: 10, up: 10, hit: 0, flip: true, delay: 340 }
+    ]
+  },
+  // 深海拘束 (麻痺): sea-green roots burst up and cinch round the enemy
+  bind: {
+    hit: [
+      { path: 'nature/root-snare', dx: 0, up: 0, hit: 1.0, actor: true, palette: SEA_PALETTE },
+      { path: 'water/splash', dx: 0, up: -8, hit: 0.02, speed: 1.6 }
+    ]
+  },
+  // 奈落暗転 (暗闇): a black orb swallows the light over the enemy's head
+  eclipse: {
+    hit: [{ path: 'shadow/void-orb', dx: 0, up: 0, hit: 0.63, light: 0.6 }]
+  },
+  // 亡霊攪乱 (混乱): ghost skulls circle the enemy
+  chaos: {
+    hit: [{ path: 'shadow/necro-skulls', dx: 0, up: -35, hit: 0.6 }]
+  },
+  // 生命潮 (回復): a wave breaks on the enemy, then the party is healed
+  tide: {
+    hit: [{ path: 'water/splash', dx: 0, up: -8, hit: 0.02, speed: 1.4 }],
+    party: [{ path: 'holy/heal', palette: SEA_PALETTE, opts: { drain: 0 } }]
+  },
+  // 海神障壁 (防御): a blow on the enemy, then a golden bubble round each party member
+  aegis: {
+    hit: [{ path: 'impacts/blunt-hit', dx: 4, up: 4, hit: 0, opts: { warm: '#ffe9a8' } }],
+    party: [{ path: 'holy/divine-shield', opts: { radius: 16 } }]
+  },
+  // 艦隊号令 (次の攻撃強化): a salvo on the enemy, then a cone of light on each party member
+  command: {
+    hit: [
+      { path: 'explosions/small-explosion', dx: 0, up: -8, hit: 0.03, speed: 1.8 },
+      { path: 'impacts/hit-spark', dx: 12, up: 20, hit: 0, flip: true, delay: 160 }
+    ],
+    party: [{ path: 'holy/blessing' }]
+  },
+  // 四象召喚: the flush suit's element on the enemy, and its blessing on the party
+  'flush:Wand': {
+    hit: [{ path: 'fire/flame-pillar', dx: 0, up: -8, hit: 0.68, speed: 1.4, light: 0.3, until: 700 }],
+    party: [{ path: 'holy/blessing', palette: PALETTES.sun }]
+  },
+  'flush:Cup': {
+    hit: [{ path: 'water/wave-crash', dx: 10, up: -8, hit: 1.3, speed: 1.4, flip: true }],
+    party: [{ path: 'holy/heal', palette: SEA_PALETTE, opts: { drain: 0 } }]
+  },
+  'flush:Sword': {
+    hit: [{ path: 'nature/tornado', dx: 0, up: -9, hit: 0.3, until: 900 }],
+    party: [{ path: 'holy/blessing', palette: ELEMENT_PALETTES.wind }]
+  },
+  'flush:Pentacle': {
+    hit: [
+      { path: 'nature/boulder', dx: 0, up: -8, hit: 0.52, flip: true },
+      { path: 'impacts/ground-slam', dx: 0, up: -5, hit: 0.15, speed: 1.3 }
+    ],
+    party: [{ path: 'holy/divine-shield', palette: ELEMENT_PALETTES.earth, opts: { radius: 16 } }]
+  }
+});
 
 // Party weapon hits. The party stands on the right, so directional effects are mirrored (flip) and
 // `back` is measured from the enemy's feet towards the attacker.
@@ -183,12 +280,17 @@ function createPlayer(canvas, scale, core, { removeWhenDone = false } = {}) {
   const image = new ImageData(width, height);
   const layers = [];
   let rafId = 0;
+  let blank = true;
 
   const draw = () => {
+    const shown = layers.filter((layer) => layer.visible);
+    // nothing to show and nothing left on the canvas: skip the full-canvas upload
+    if (!shown.length && blank) return;
     core.clearFrame(frame);
-    layers.forEach((layer) => { if (layer.visible) layer.fx.draw(frame); });
+    shown.forEach((layer) => layer.fx.draw(frame));
     core.composite(frame, image.data, null);
     ctx.putImageData(image, 0, 0);
+    blank = !shown.length;
   };
 
   const step = (now) => {
@@ -236,9 +338,11 @@ function createPlayer(canvas, scale, core, { removeWhenDone = false } = {}) {
       return;
     }
     const now = Date.now();
-    // With only status loops on screen, redraw at a calmer rate to spare slow phones.
+    // With only status loops or summon effects on screen, redraw at a calmer rate to spare slow phones.
     const onlyLoops = layers.length > 0 && layers.every((layer) => layer.loop);
-    if (!onlyLoops || now - lastStepAt >= LOOP_FRAME_MS) {
+    const onlyCalm = layers.length > 0 && layers.every((layer) => layer.loop || layer.calm);
+    const frameMs = onlyLoops ? LOOP_FRAME_MS : (onlyCalm ? CALM_FRAME_MS : 0);
+    if (now - lastStepAt >= frameMs) {
       lastStepAt = now;
       step(now);
     }
@@ -371,6 +475,7 @@ async function addLayers(player, core, specs, { reducedMotion, impactAt }) {
     if (!mod) return;
     const spec = specs[index];
     const layer = buildLayer(core, mod, spec.recipe, spec);
+    layer.calm = !!spec.calm;
     if (spec.fly) {
       layer.startAt = impactAt - spec.fly.ms;
       layer.endAt = impactAt;
@@ -422,6 +527,119 @@ export async function playTarotKingdomMajorFx(canvas, majorNumber, { elapsedMs =
     // Effects are decoration; a failed load leaves the cutin as it was.
     console.warn('[TarotKingdom] pixelfx major effect skipped', error);
   }
+}
+
+export function getTarotKingdomSummonFxKey(effectKey, flushSuit = '') {
+  const key = effectKey === 'flushElemental' ? `flush:${flushSuit}` : String(effectKey || '');
+  return Object.prototype.hasOwnProperty.call(SUMMON_RECIPES, key) ? key : '';
+}
+
+/**
+ * Normal 5-card summon: paints the summon's effect on a canvas inside the 4500 ms cutin, and, for effects
+ * that help the party, a short effect on each standing party member (partyEls) once the party is back.
+ * elapsedMs is how far into the cutin we already are (a re-render can join part-way).
+ */
+export async function playTarotKingdomSummonFx(canvas, {
+  effectKey = '', flushSuit = '', elapsedMs = 0, enemyEl = null, stageEl = null, partyEls = []
+} = {}) {
+  const recipe = SUMMON_RECIPES[getTarotKingdomSummonFxKey(effectKey, flushSuit)];
+  if (!canvas || !recipe) return;
+  const cutinStartAt = Date.now() - Math.max(0, Number(elapsedMs) || 0);
+  const impactAt = cutinStartAt + TAROT_KINGDOM_SUMMON_FX_HIT_MS;
+  const reducedMotion = prefersReducedMotion();
+  try {
+    const core = await loadCore();
+    if (!canvas.isConnected) return;
+    const player = createPlayer(canvas, DEFAULT_PIXEL_SCALE, core);
+    const stageRect = (stageEl || canvas.parentElement)?.getBoundingClientRect?.();
+    const enemy = stageRect ? rectIn(stageRect, enemyEl) : null;
+    const scale = player.scale;
+    // Without an enemy on screen, aim where the enemy usually stands.
+    const feetX = enemy ? enemy.cx / scale : player.width * 0.25;
+    const feetY = enemy ? enemy.feet / scale : player.height * 0.7;
+    const wrap = recipe.hit.some((layer) => layer.actor) && enemyEl
+      ? await snapshotActor(enemyEl, scale).catch(() => null)
+      : null;
+    const specs = recipe.hit.map((layer) => {
+      const at = impactAt + (layer.delay || 0);
+      const spec = {
+        recipe: layer.actor ? { ...layer, opts: { ...layer.opts, actor: wrap?.actor || capsuleActor(16, 24) } } : layer,
+        x: feetX + (layer.dx || 0),
+        y: feetY - (layer.up || 0),
+        flip: !!layer.flip,
+        impactAt: at,
+        stopAt: cutinStartAt + SUMMON_FX_STOP_MS,
+        endAt: cutinStartAt + SUMMON_FX_END_MS,
+        calm: true
+      };
+      if (layer.fly) {
+        // from the summon's chest, on the right of the stage
+        spec.fly = {
+          ms: layer.fly.ms,
+          fromX: player.width * 0.72,
+          fromY: player.height * 0.42,
+          toX: feetX,
+          toY: feetY - layer.fly.up
+        };
+      }
+      return spec;
+    });
+    if (reducedMotion) {
+      // the cutin holds one still pose from the start, so paint one quiet still of the contact frame at once;
+      // the party effects are left out
+      await addLayers(player, core, specs, { reducedMotion: true, impactAt });
+      return;
+    }
+    await addLayers(player, core, specs, { reducedMotion: false, impactAt });
+    if (recipe.party?.length && stageEl) {
+      setTimeout(() => {
+        if (canvas.isConnected) void playSummonPartyFx(stageEl, core, recipe.party, partyEls);
+      }, Math.max(0, cutinStartAt + SUMMON_PARTY_FX_AT_MS - Date.now()));
+    }
+  } catch (error) {
+    console.warn('[TarotKingdom] pixelfx summon effect skipped', error);
+  }
+}
+
+// Resolves once the element is shown again (the party is hidden for most of the cutin), or after maxMs.
+function whenVisible(el, maxMs = 600) {
+  const until = Date.now() + maxMs;
+  return new Promise((resolve) => {
+    const check = () => {
+      if (!el.isConnected || getComputedStyle(el).visibility === 'visible' || Date.now() >= until) resolve();
+      else requestAnimationFrame(check);
+    };
+    check();
+  });
+}
+
+// The party's half of a summon effect, on the stage overlay, wrapped round each member's real sprite.
+async function playSummonPartyFx(stageEl, core, recipes, partyEls) {
+  // the snapshot only sees sprite layers that are shown
+  if (partyEls[0]) await whenVisible(partyEls[0]);
+  const player = getStagePlayer(stageEl, core);
+  const scale = player.scale;
+  const stageRect = stageEl.getBoundingClientRect();
+  const mods = await Promise.all(recipes.map((recipe) => loadEffect(recipe.path).catch(() => null)));
+  await Promise.all(partyEls.map(async (el, index) => {
+    const rect = el?.isConnected ? el.getBoundingClientRect() : null;
+    if (!rect || rect.width <= 0 || rect.height <= 0) return;
+    const snapshot = await snapshotActor(el, scale).catch(() => null);
+    const actor = snapshot?.actor || capsuleActor((rect.width * 0.5) / scale, (rect.height * 0.78) / scale);
+    const x = (rect.left - stageRect.left + (snapshot ? snapshot.feet.x : rect.width / 2)) / scale;
+    const y = (rect.top - stageRect.top + (snapshot ? snapshot.feet.y : rect.height * 0.94)) / scale;
+    // members light up one after another, down the party
+    const startAt = Date.now() + (index * 90);
+    mods.forEach((mod, layerIndex) => {
+      if (!mod) return;
+      const recipe = recipes[layerIndex];
+      const layer = buildLayer(core, mod, { ...recipe, opts: { ...recipe.opts, actor } }, {
+        x, y, flip: true, impactAt: startAt, endAt: startAt + SUMMON_PARTY_FX_TAIL_MS, stopAt: startAt + SUMMON_PARTY_FX_TAIL_MS - FADE_MARGIN_MS
+      });
+      layer.calm = true;
+      player.add(layer);
+    });
+  }));
 }
 
 /** Party weapon hit on the enemy, landing exactly on impactAt (Date.now clock). */
@@ -848,4 +1066,4 @@ export function stopTarotKingdomPixelFx(stageEl) {
   stageEl.querySelector(':scope > .tarot-kingdom-pixelfx-layer')?.remove();
 }
 
-export const __test = { MAJOR_RECIPES, WEAPON_RECIPES, ENEMY_SINGLE_RECIPES, ENEMY_AREA_RECIPES, CRITICAL_LAYER, GUARD_LAYER, STATUS_RECIPES, normalizeElement, capsuleActor };
+export const __test = { MAJOR_RECIPES, SUMMON_RECIPES, WEAPON_RECIPES, ENEMY_SINGLE_RECIPES, ENEMY_AREA_RECIPES, CRITICAL_LAYER, GUARD_LAYER, STATUS_RECIPES, normalizeElement, capsuleActor };
