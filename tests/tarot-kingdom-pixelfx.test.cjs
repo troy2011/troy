@@ -30,6 +30,9 @@ function allRecipes(tables) {
   return [
     ...tables.MAJOR_RECIPES,
     ...Object.values(tables.SUMMON_RECIPES).flatMap((recipe) => [...recipe.hit, ...(recipe.party || [])]),
+    ...Object.values(tables.RESONANCE_RECIPES).flat(),
+    ...Object.values(tables.RESONANCE_ELEMENT_RECIPES).flat(),
+    ...Object.values(tables.MONSTER_ATTACK_RECIPES).flatMap((entry) => [...entry.single, ...entry.area]),
     ...Object.values(tables.ACTOR_FX_RECIPES),
     tables.CRITICAL_LAYER,
     tables.GUARD_LAYER,
@@ -53,6 +56,47 @@ test('every major arcana, weapon type and enemy element has a recipe', async () 
   for (const suit of ['Wand', 'Cup', 'Sword', 'Pentacle']) assert.ok(tables.SUMMON_RECIPES[`flush:${suit}`], `flush ${suit}`);
   assert.equal(tables.normalizeElement('FIRE'), 'fire');
   assert.equal(tables.normalizeElement('unknown'), 'neutral');
+});
+
+test('every attacking minor resonance has its own effect, and the summons keep the showiest ones', async () => {
+  const tables = await loadRecipes();
+  const catalog = JSON.parse(fs.readFileSync(path.join(ROOT, 'public', 'data', 'tarot-kingdom-arcana-ap-effects.json'), 'utf8'));
+  const ids = new Set(catalog.minor.map((entry) => entry.id));
+  const attacking = [
+    ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14].map((rank) => `sword-${rank}`),
+    ...[1, 2, 3, 4, 5, 7, 8, 9, 13, 14].map((rank) => `wand-${rank}`),
+    'pentacle-9'
+  ];
+  for (const id of attacking) {
+    assert.ok(ids.has(id), `catalog ${id}`);
+    assert.ok(tables.RESONANCE_RECIPES[id]?.length, `resonance ${id}`);
+  }
+  for (const element of ['wind', 'fire', 'water', 'earth']) assert.ok(tables.RESONANCE_ELEMENT_RECIPES[element]?.length, `fallback ${element}`);
+  // normal weapon hits stay small: the cleaves, shockwaves and explosions belong to the summons
+  const summonOnly = ['melee/heavy-cleave', 'melee/hammer-smash', 'explosions/small-explosion', 'impacts/ground-slam'];
+  const weaponPaths = Object.values(tables.WEAPON_RECIPES).flat().map((recipe) => recipe.path);
+  for (const effectPath of summonOnly) assert.ok(!weaponPaths.includes(effectPath), `weapon hit uses ${effectPath}`);
+});
+
+test('every monster has its own single and area attack, apart from the summon and major-arcana effects', async () => {
+  const tables = await loadRecipes();
+  const { PIXEL_MONSTERS_ROSTER } = await importJs(path.join(JS_DIR, 'pixelMonstersManifest.js'));
+  for (const monster of PIXEL_MONSTERS_ROSTER) {
+    assert.ok(tables.MONSTER_ATTACK_RECIPES[monster.id]?.single?.length, `single ${monster.id}`);
+    assert.ok(tables.MONSTER_ATTACK_RECIPES[monster.id]?.area?.length, `area ${monster.id}`);
+  }
+  // small accents such as sparks are shared with the normal weapon hits, so they are not reserved
+  const weaponPaths = new Set(Object.values(tables.WEAPON_RECIPES).flat().map((recipe) => recipe.path));
+  const reserved = new Set([
+    ...tables.MAJOR_RECIPES.map((recipe) => recipe.path),
+    ...Object.values(tables.SUMMON_RECIPES).flatMap((recipe) => recipe.hit.map((layer) => layer.path))
+  ].filter((effectPath) => !weaponPaths.has(effectPath)));
+  const enemyPaths = [
+    ...Object.values(tables.MONSTER_ATTACK_RECIPES).flatMap((entry) => [...entry.single, ...entry.area]),
+    ...Object.values(tables.ENEMY_SINGLE_RECIPES).flat(),
+    ...Object.values(tables.ENEMY_AREA_RECIPES).flat()
+  ].map((recipe) => recipe.path);
+  for (const effectPath of enemyPaths) assert.ok(!reserved.has(effectPath), `enemy attack uses ${effectPath}`);
 });
 
 test('every recipe effect is vendored and plays without errors', async () => {

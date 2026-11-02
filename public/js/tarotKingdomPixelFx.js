@@ -107,15 +107,15 @@ const SUMMON_RECIPES = Object.freeze({
       { path: 'explosions/small-explosion', dx: 0, up: -8, hit: 0.03, speed: 1.6 }
     ]
   },
-  // 怒涛連撃: three slashes in quick succession, a spark on each
+  // 怒涛連撃: two blazing cleaves, then a hammer blow with a shockwave, a spark on each
   barrage: {
     hit: [
-      { path: 'melee/sword-slash', dx: 39, up: -8, hit: 0.03, flip: true, palette: PALETTES.sky },
-      { path: 'melee/sword-slash', dx: 39, up: -2, hit: 0.03, flip: true, palette: PALETTES.sky, delay: 170 },
-      { path: 'melee/sword-slash', dx: 39, up: -12, hit: 0.03, flip: true, palette: PALETTES.sky, delay: 340 },
+      { path: 'melee/heavy-cleave', dx: 45, up: -12, hit: 0.5, speed: 1.6, flip: true },
+      { path: 'melee/heavy-cleave', dx: 45, up: -6, hit: 0.5, speed: 1.6, flip: true, delay: 200 },
+      { path: 'melee/hammer-smash', dx: 45, up: -12, hit: 0.3, speed: 1.4, flip: true, delay: 400 },
       { path: 'impacts/hit-spark', dx: 8, up: 16, hit: 0, flip: true },
-      { path: 'impacts/hit-spark', dx: 4, up: 22, hit: 0, flip: true, delay: 170 },
-      { path: 'impacts/hit-spark', dx: 10, up: 10, hit: 0, flip: true, delay: 340 }
+      { path: 'impacts/hit-spark', dx: 4, up: 22, hit: 0, flip: true, delay: 200 },
+      { path: 'impacts/hit-spark', dx: 10, up: 10, hit: 0, flip: true, delay: 400 }
     ]
   },
   // 深海拘束 (麻痺): sea-green roots burst up and cinch round the enemy
@@ -173,8 +173,80 @@ const SUMMON_RECIPES = Object.freeze({
   }
 });
 
+/*
+ * Minor-arcana resonance attacks, by resonanceId. They ride on the card's weapon hit, a beat after it, and sit
+ * between a weapon hit and a summon in size: the summons keep the biggest effects. Anchored like the summons
+ * on the enemy's feet (`dx` towards the party on the right; `delay` ms after the resonance's own start; `fly`
+ * comes in from the attacker). Resonances without an entry fall back to their element.
+ */
+const WIND = ELEMENT_PALETTES.wind;
+const RESONANCE_RECIPES = Object.freeze({
+  'sword-1': [{ path: 'projectiles/energy-disc', fly: { ms: 220, up: 16 }, palette: WIND }],
+  'sword-2': [
+    { path: 'melee/scythe-reap', dx: 2, up: -10, hit: 0.5, speed: 1.8, flip: true, palette: WIND },
+    { path: 'melee/scythe-reap', dx: -2, up: -4, hit: 0.5, speed: 1.8, palette: WIND, delay: 160 }
+  ],
+  'sword-3': [
+    { path: 'melee/spear-sweep', dx: 40, up: 2, hit: 0.1, speed: 1.6, flip: true, palette: WIND },
+    { path: 'impacts/hit-spark', dx: 6, up: 12, hit: 0, flip: true, delay: 120 },
+    { path: 'impacts/hit-spark', dx: 2, up: 18, hit: 0, flip: true, delay: 240 }
+  ],
+  'sword-4': [{ path: 'nature/leaf-storm', dx: 0, up: 0, hit: 0.3, speed: 1.3, until: 800, palette: WIND }],
+  'sword-5': [{ path: 'water/whirlpool', dx: 0, up: -4, hit: 0.3, speed: 1.4, until: 800, palette: WIND }],
+  'sword-6': [
+    { path: 'melee/scythe-reap', dx: 2, up: -10, hit: 0.5, speed: 1.8, flip: true, palette: PALETTES.leaf },
+    { path: 'nature/acid-splash', dx: 0, up: 0, hit: 0.6, speed: 1.6, until: 700, delay: 120 }
+  ],
+  'sword-7': [{ path: 'fire/fire-tornado', dx: 0, up: 0, hit: 0.3, speed: 1.3, until: 900, palette: WIND }],
+  'sword-8': [{ path: 'melee/uppercut', dx: 0, up: 0, hit: 0.07, palette: WIND }],
+  'sword-9': [
+    { path: 'melee/spin-slash', dx: 0, up: -6, hit: 0.15, speed: 1.4, palette: WIND },
+    { path: 'melee/spin-slash', dx: 0, up: 4, hit: 0.15, speed: 1.4, flip: true, palette: WIND, delay: 220 }
+  ],
+  'sword-10': [
+    { path: 'melee/scythe-reap', dx: 2, up: -10, hit: 0.5, speed: 1.8, flip: true, palette: PALETTES.steel },
+    { path: 'melee/scythe-reap', dx: -2, up: -10, hit: 0.5, speed: 1.8, palette: PALETTES.steel, delay: 120 }
+  ],
+  'sword-12': [
+    { path: 'explosions/implosion', dx: 0, up: 18, hit: 0.7, speed: 1.6, palette: WIND },
+    { path: 'melee/spin-slash', dx: 0, up: -2, hit: 0.15, speed: 1.4, palette: WIND, delay: 150 }
+  ],
+  'sword-13': [{ path: 'lightning/thunderclap', dx: 0, up: 0, hit: 0.1 }],
+  'sword-14': [
+    { path: 'water/whirlpool', dx: 0, up: -4, hit: 0.3, speed: 1.4, until: 900, palette: WIND },
+    { path: 'fire/fire-tornado', dx: 0, up: 0, hit: 0.3, speed: 1.3, until: 900, palette: WIND, delay: 120 }
+  ],
+  'wand-1': [{ path: 'fire/flamethrower', dx: 70, up: 14, hit: 0.2, until: 500, flip: true }],
+  'wand-2': [{ path: 'arcane/arcane-missiles', dx: 0, up: 20, hit: 0.4, speed: 1.5, palette: ELEMENT_PALETTES.fire }],
+  'wand-3': [
+    { path: 'fire/spirit-flame', dx: 0, up: 0, hit: 0.3, speed: 1.4, until: 700, palette: ELEMENT_PALETTES.fire },
+    { path: 'impacts/hit-spark', dx: 4, up: 14, hit: 0, flip: true, opts: { palette: PALETTES.sun } }
+  ],
+  'wand-4': [{ path: 'fire/flamethrower', dx: 80, up: 10, hit: 0.2, until: 900, flip: true }],
+  'wand-5': [{ path: 'fire/fire-ring', dx: 0, up: 0, hit: 0.5, speed: 1.4, until: 900 }],
+  'wand-7': [{ path: 'fire/meteor', dx: 0, up: 0, hit: 0.7, speed: 1.3, until: 1100 }],
+  'wand-8': [{ path: 'arcane/arcane-beam', dx: 78, up: 8, hit: 0.3, speed: 1.4, until: 700, flip: true, palette: PALETTES.sun }],
+  'wand-9': [{ path: 'holy/sunburst', dx: 0, up: 18, hit: 0.2, speed: 1.4, until: 800, palette: PALETTES.sun }],
+  'wand-13': [{ path: 'fire/fire-tornado', dx: 0, up: 0, hit: 0.3, speed: 1.3, until: 1000 }],
+  'wand-14': [
+    { path: 'fire/fire-ring', dx: 0, up: 0, hit: 0.5, speed: 1.4, until: 1100 },
+    { path: 'fire/meteor', dx: 0, up: 0, hit: 0.7, speed: 1.3, until: 1100, delay: 150 }
+  ],
+  'pentacle-9': [{ path: 'explosions/implosion', dx: 0, up: 18, hit: 0.7, speed: 1.6, palette: ELEMENT_PALETTES.earth }]
+});
+const RESONANCE_ELEMENT_RECIPES = Object.freeze({
+  wind: [{ path: 'melee/spin-slash', dx: 0, up: -2, hit: 0.15, speed: 1.4, palette: WIND }],
+  fire: [{ path: 'fire/spirit-flame', dx: 0, up: 0, hit: 0.3, speed: 1.4, until: 600, palette: ELEMENT_PALETTES.fire }],
+  water: [{ path: 'water/whirlpool', dx: 0, up: -4, hit: 0.3, speed: 1.4, until: 600 }],
+  earth: [{ path: 'impacts/heavy-landing', dx: 0, up: 0, hit: 0.1 }]
+});
+// A resonance starts this long after the weapon hit and stays at most this long after its own start.
+const RESONANCE_FX_DELAY_MS = 160;
+const RESONANCE_FX_TAIL_MS = 1500;
+
 // Party weapon hits. The party stands on the right, so directional effects are mirrored (flip) and
-// `back` is measured from the enemy's feet towards the attacker.
+// `back` is measured from the enemy's feet towards the attacker. Normal hits stay small and quick: the showier
+// cleaves, shockwaves and explosions are kept for the summons.
 const CRITICAL_LAYER = Object.freeze({ path: 'impacts/crit-hit', back: -6, up: 14, hit: 0.05 });
 const GUARD_LAYER = Object.freeze({ path: 'impacts/parry', back: 0, up: 14, hit: 0.05, opts: { palette: PALETTES.steel } });
 const WEAPON_RECIPES = Object.freeze({
@@ -193,41 +265,331 @@ const WEAPON_RECIPES = Object.freeze({
     { path: 'projectiles/arrow', fly: { ms: 170, up: 14 } },
     { path: 'impacts/hit-spark', back: 9, up: 11, hit: 0, flip: true, tint: true }
   ],
-  axe: [{ path: 'melee/heavy-cleave', back: 45, up: -12, hit: 0.5, speed: 1.6, flip: true, tint: true }],
-  blunt: [{ path: 'melee/hammer-smash', back: 45, up: -12, hit: 0.3, speed: 1.4, flip: true, tint: true }],
-  gun_big: [{ path: 'explosions/small-explosion', back: 0, up: -12, hit: 0.03, speed: 1.8 }],
+  axe: [
+    { path: 'melee/sword-slash', back: 39, up: -10, hit: 0.03, flip: true, opts: { palette: PALETTES.steel }, tint: true },
+    { path: 'impacts/hit-spark', back: 9, up: 11, hit: 0, flip: true }
+  ],
+  blunt: [
+    { path: 'impacts/blunt-hit', back: 4, up: 4, hit: 0 },
+    { path: 'impacts/hit-spark', back: 9, up: 11, hit: 0, flip: true, tint: true }
+  ],
+  gun_big: [
+    { path: 'impacts/bullet-impact', back: 13, up: 8, hit: 0, flip: true },
+    { path: 'impacts/hit-spark', back: 9, up: 14, hit: 0, flip: true }
+  ],
   sword_big: [{ path: 'melee/double-slash', back: 43, up: -12, hit: 0.3, flip: true, opts: { palette: PALETTES.steel }, tint: true }],
   axe_big: [
-    { path: 'melee/heavy-cleave', back: 49, up: -15, hit: 0.5, speed: 1.3, flip: true, tint: true },
-    { path: 'impacts/ground-slam', back: 0, up: -8, hit: 0.15, speed: 1.4 }
+    { path: 'melee/double-slash', back: 43, up: -14, hit: 0.3, flip: true, opts: { palette: PALETTES.steel }, tint: true },
+    { path: 'impacts/blunt-hit', back: 4, up: 4, hit: 0, opts: { warm: '#cfe6ff' } }
   ]
 });
 
 // Enemy attacks on the party. The enemy is on the left, so effects keep their natural right-facing
 // direction. Single attacks anchor on the target's feet; area attacks on the party's lowest feet line.
+// These are the fallbacks by element for a monster without its own entry in MONSTER_ATTACK_RECIPES; like
+// those, they leave the summons' and the major arcana's effects alone.
 const ENEMY_SINGLE_RECIPES = Object.freeze({
   neutral: [{ path: 'melee/claw-swipe', back: 20, up: -9, hit: 0.1 }],
-  fire: [
-    { path: 'fire/fireball', fly: { ms: 260, up: 10 } },
-    { path: 'impacts/hit-spark', back: 12, up: 4, hit: 0 }
-  ],
+  fire: [{ path: 'fire/fire-breath', breath: true, hit: 0.3, until: 360, light: 0.7 }],
   water: [
     { path: 'water/water-jet', jet: true, up: 13, hit: 0.18, until: 260 },
-    { path: 'water/splash', back: 0, up: -9, hit: 0.02, speed: 1.6 }
+    { path: 'water/ripples', back: 0, up: 0, hit: 0.2, speed: 1.4, until: 500 }
   ],
   wind: [{ path: 'lightning/zap-hit', back: 0, up: 7, hit: 0.12 }],
-  earth: [{ path: 'nature/earth-spike', back: 0, up: -16, hit: 0.9, speed: 2 }],
-  light: [{ path: 'holy/smite', back: 0, up: -10, hit: 0.56 }],
+  earth: [{ path: 'ice/ice-spikes', back: 10, up: 0, hit: 0.5, speed: 1.6, until: 500, palette: ELEMENT_PALETTES.earth }],
+  light: [{ path: 'ice/snowflake-burst', back: 0, up: 0, hit: 0.3, speed: 1.6, until: 500, palette: PALETTES.gold }],
   dark: [{ path: 'shadow/shadow-tendrils', back: 0, up: -16, hit: 0.7, speed: 1.8 }]
 });
 const ENEMY_AREA_RECIPES = Object.freeze({
-  neutral: [{ path: 'impacts/ground-slam', back: 0, up: 0, hit: 0.15, speed: 1.3 }],
+  neutral: [{ path: 'impacts/heavy-landing', each: true, up: 0, hit: 0.1, staggerMs: 60 }],
   fire: [{ path: 'fire/fire-breath', breath: true, hit: 0.35, until: 520, light: 0.7 }],
-  water: [{ path: 'water/splash', each: true, up: -9, hit: 0.02, speed: 1.6, staggerMs: 50 }],
-  wind: [{ path: 'nature/tornado', back: 0, up: -9, hit: 0.3, until: 700, drift: 16 }],
+  water: [{ path: 'water/rain-splash', back: 0, up: 0, hit: 0.4, speed: 1.4, until: 600 }],
+  wind: [{ path: 'ice/blizzard-vortex', back: 0, up: 0, hit: 0.3, until: 600, drift: 16, palette: ELEMENT_PALETTES.wind }],
   earth: [{ path: 'nature/quake', back: 8, up: -3, hit: 0.6, speed: 1.6 }],
-  light: [{ path: 'arcane/star-fall', back: 0, up: -9, hit: 0.75, palette: PALETTES.gold }],
-  dark: [{ path: 'shadow/dark-explosion', back: 0, up: -9, hit: 1.6, speed: 1.7 }]
+  light: [{ path: 'ice/frost-nova', back: 0, up: 0, hit: 0.7, speed: 1.6, until: 500, palette: PALETTES.gold }],
+  dark: [{ path: 'shadow/shadow-flames', each: true, up: 0, hit: 0.4, speed: 1.4, until: 500, staggerMs: 60 }]
+});
+
+/*
+ * Each monster's own attack, by monster id: `single` lands on the one target, `area` on the party line (or
+ * on every target with `each`). Fields as for the enemy fallbacks above. Monsters that throw their own
+ * projectile sprite (see tarotKingdomMonsterMotions.js) keep it; their `fly` and `jet` layers are then skipped.
+ */
+const EP = ELEMENT_PALETTES;
+const INK = ['#05030a', '#120c22', '#221838', '#34264f', '#4a3a6a', '#665490', '#8c78b8', '#c4b4e8'];
+const MONSTER_ATTACK_RECIPES = Object.freeze({
+  // ── earth ──
+  // トゲマル: its spikes ricochet off the target / spikes burst from the ground
+  'ismartal-vol1-monster-01': {
+    single: [{ path: 'impacts/ricochet', back: 8, up: 10, hit: 0.05 }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0 }],
+    area: [{ path: 'ice/ice-spikes', back: 40, up: 0, hit: 0.5, speed: 1.6, until: 500, palette: EP.earth }]
+  },
+  // マシュロン: a mushroom puffs spores
+  'ismartal-vol1-monster-07': {
+    single: [{ path: 'nature/spore-burst', back: 0, up: 0, hit: 1.0, speed: 2, until: 600 }],
+    area: [{ path: 'nature/spore-burst', each: true, up: 0, hit: 1.0, speed: 2, until: 600, staggerMs: 90 }]
+  },
+  // モクリン: a creeping vine lashes out / vines lash the whole party
+  'ismartal-vol1-monster-08': {
+    single: [{ path: 'nature/vine-whip', back: 26, up: 0, hit: 0.55, speed: 1.4 }],
+    area: [{ path: 'nature/vine-whip', each: true, back: 26, up: 0, hit: 0.55, speed: 1.4, staggerMs: 80 }]
+  },
+  // カブロン: the beetle's horn tosses dirt / the ground quakes
+  'ismartal-vol2-monster-04': {
+    single: [{ path: 'explosions/dirt-explosion', back: 0, up: 0, hit: 0.1, speed: 1.6, until: 500 }],
+    area: [{ path: 'nature/quake', back: 8, up: -3, hit: 0.6, speed: 1.6 }]
+  },
+  // バルガン (boss): a crushing blow in a burst of dirt / spikes and a quake
+  'ismartal-vol2-monster-07': {
+    single: [
+      { path: 'explosions/dirt-explosion', back: 0, up: 0, hit: 0.1, speed: 1.4, until: 600 },
+      { path: 'impacts/heavy-landing', back: 0, up: 0, hit: 0.1 }
+    ],
+    area: [
+      { path: 'nature/quake', back: 8, up: -3, hit: 0.6, speed: 1.6 },
+      { path: 'ice/ice-spikes', back: 14, up: 0, hit: 0.5, speed: 1.6, until: 600, palette: EP.earth }
+    ]
+  },
+  // ノッカ: a knock — POW / a thud under every member
+  'ismartal-vol2-monster-09': {
+    single: [{ path: 'explosions/cartoon-pow', back: 0, up: 8, hit: 0.1, speed: 1.4 }],
+    area: [{ path: 'impacts/heavy-landing', each: true, up: 0, hit: 0.1, staggerMs: 70 }]
+  },
+  // ウッドラ: a twig lash / leaves come down on the party
+  'ismartal-vol2-monster-10': {
+    single: [{ path: 'nature/vine-whip', back: 26, up: 0, hit: 0.55, speed: 1.4, palette: EP.earth }],
+    area: [{ path: 'weather/falling-leaves', back: 0, up: 0, hit: 0.6, speed: 1.6, until: 700 }]
+  },
+  // コロック: a pebble ricochets / a burst of dirt
+  'ismartal-vol2-monster-13': {
+    single: [{ path: 'impacts/ricochet', back: 8, up: 4, hit: 0.05, palette: EP.earth }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0 }],
+    area: [{ path: 'explosions/dirt-explosion', back: 0, up: 0, hit: 0.1, speed: 1.6, until: 600 }]
+  },
+  // スパイナ: its thrown spike sticks / a field of spikes
+  'ismartal-vol2-monster-14': {
+    single: [{ path: 'impacts/hit-spark', back: 4, up: 12, hit: 0 }, { path: 'impacts/ricochet', back: 6, up: 10, hit: 0.05, palette: EP.earth }],
+    area: [{ path: 'ice/ice-spikes', each: true, back: 10, up: 0, hit: 0.5, speed: 1.8, until: 450, staggerMs: 60, palette: EP.earth }]
+  },
+  // グラヴァ: a rock falls on the target / on each member
+  'ismartal-vol3-monster-01': {
+    single: [{ path: 'ice/icicle-fall', back: 0, up: 0, hit: 1.0, speed: 1.8, until: 450, palette: EP.earth }],
+    area: [{ path: 'ice/icicle-fall', each: true, up: 0, hit: 1.0, speed: 1.8, until: 450, staggerMs: 80, palette: EP.earth }]
+  },
+  // キノガル: its spore shot bursts in ghostly flame / a poison fog
+  'ismartal-vol3-monster-08': {
+    single: [{ path: 'shadow/shadow-flames', back: 0, up: 0, hit: 0.4, speed: 1.6, until: 500, palette: PALETTES.leaf }],
+    area: [{ path: 'nature/poison-cloud', back: 0, up: 8, hit: 0.4, speed: 1.4, until: 600 }]
+  },
+  // ── dark ──
+  // グリモア: the spellbook casts / a curse sigil on each member
+  'ismartal-vol1-monster-02': {
+    single: [{ path: 'arcane/spell-charge', back: 0, up: 0, hit: 0.4, speed: 1.6, until: 500, palette: EP.dark }],
+    area: [{ path: 'arcane/spell-charge', each: true, up: 0, hit: 0.4, speed: 1.6, until: 500, staggerMs: 70, palette: EP.dark }]
+  },
+  // ボーンテイル: its thrown bone drains a soul / souls rise from the party
+  'ismartal-vol1-monster-03': {
+    single: [{ path: 'shadow/shadow-tendrils', back: 0, up: -16, hit: 0.7, speed: 1.8 }],
+    area: [{ path: 'spawn/soul-rise', each: true, up: 0, hit: 0.6, speed: 1.8, until: 500, staggerMs: 70 }]
+  },
+  // ゲルバット: a vampire bite / a swarm of bats
+  'ismartal-vol1-monster-06': {
+    single: [{ path: 'shadow/life-steal', back: 0, up: 0, hit: 0.9, speed: 1.8, until: 500 }],
+    area: [{ path: 'critters/bat', each: true, up: 6, hit: 0.3, speed: 1.4, until: 500, staggerMs: 60 }]
+  },
+  // アビソス (boss): the abyss drains the target / dark flames under the party
+  'ismartal-vol2-monster-15': {
+    single: [{ path: 'shadow/soul-drain', back: 0, up: 0, hit: 0.4, speed: 1.4, until: 600 }],
+    area: [
+      { path: 'shadow/shadow-flames', each: true, up: 0, hit: 0.4, speed: 1.4, until: 600, staggerMs: 60 },
+      { path: 'shadow/shadow-tendrils', back: 0, up: -16, hit: 0.7, speed: 1.8 }
+    ]
+  },
+  // ネブラ: its shot bursts into dark flame / a rift opens under the party
+  'ismartal-vol2-monster-20': {
+    single: [{ path: 'shadow/shadow-flames', back: 0, up: 0, hit: 0.4, speed: 1.6, until: 500 }],
+    area: [{ path: 'spawn/spawn-portal', back: 0, up: 0, hit: 1.25, speed: 1.6, until: 500 }]
+  },
+  // グールン: a rotten claw / a cloud of rot
+  'ismartal-vol3-monster-07': {
+    single: [{ path: 'melee/claw-swipe', back: 20, up: -9, hit: 0.1, palette: PALETTES.leaf }],
+    area: [{ path: 'nature/poison-cloud', back: 0, up: 8, hit: 0.4, speed: 1.4, until: 600, palette: PALETTES.leaf }]
+  },
+  // クロモ: a shadow bite / a smoke bomb
+  'ismartal-vol3-monster-09': {
+    single: [{ path: 'melee/claw-swipe', back: 20, up: -9, hit: 0.1, palette: EP.dark }],
+    area: [{ path: 'explosions/smoke-bomb', back: 30, up: 0, hit: 1.2, speed: 1.8, until: 500, palette: INK }]
+  },
+  // ノクス: its dark shot strikes / crows dive on each member
+  'ismartal-vol3-monster-10': {
+    single: [{ path: 'arcane/blink-in', back: 0, up: 0, hit: 0.35, speed: 1.4, palette: EP.dark }],
+    area: [{ path: 'critters/bird', each: true, up: 8, hit: 0.3, speed: 1.6, until: 500, staggerMs: 60, palette: EP.dark }]
+  },
+  // ── water ──
+  // ツノガイ: a water jet / ripples under each member
+  'ismartal-vol1-monster-04': {
+    single: [{ path: 'water/water-jet', jet: true, up: 13, hit: 0.18, until: 260 }, { path: 'water/ripples', back: 0, up: 0, hit: 0.2, speed: 1.4, until: 500 }],
+    area: [{ path: 'water/ripples', each: true, up: 0, hit: 0.2, speed: 1.4, until: 500, staggerMs: 60 }]
+  },
+  // ミドロ: a water snake bites / a downpour
+  'ismartal-vol1-monster-13': {
+    single: [{ path: 'critters/snake', back: 10, up: 0, hit: 0.4, speed: 1.6, until: 500, palette: EP.water }],
+    area: [{ path: 'water/rain-splash', back: 0, up: 0, hit: 0.4, speed: 1.4, until: 600 }]
+  },
+  // ポルポ: an ink jet / ink ripples under each member
+  'ismartal-vol1-monster-14': {
+    single: [{ path: 'water/water-jet', jet: true, up: 13, hit: 0.18, until: 260, palette: INK }, { path: 'water/ripples', back: 0, up: 0, hit: 0.2, speed: 1.4, until: 500, palette: INK }],
+    area: [{ path: 'water/ripples', each: true, up: 0, hit: 0.2, speed: 1.4, until: 500, staggerMs: 60, palette: INK }]
+  },
+  // アクエル: a water orb drops / a waterfall crashes down
+  'ismartal-vol1-monster-20': {
+    single: [{ path: 'water/water-orb', back: 0, up: 0, hit: 0.3, speed: 1.6, until: 450 }, { path: 'water/ripples', back: 0, up: 0, hit: 0.1, speed: 1.4, until: 500 }],
+    area: [{ path: 'water/waterfall', back: 0, up: 0, hit: 0.2, speed: 1.4, until: 550 }]
+  },
+  // フロス: an ice lance / a frost nova
+  'ismartal-vol2-monster-01': {
+    single: [{ path: 'ice/ice-lance', back: 30, up: 12, hit: 0.5, speed: 1.6 }],
+    area: [{ path: 'ice/frost-nova', back: 0, up: 0, hit: 0.7, speed: 1.6, until: 500 }]
+  },
+  // ルビット: frost breath / a blizzard
+  'ismartal-vol2-monster-08': {
+    single: [{ path: 'ice/frost-breath', breath: true, hit: 0.3, until: 400 }],
+    area: [{ path: 'ice/blizzard-vortex', back: 0, up: 0, hit: 0.3, until: 600, drift: 16 }]
+  },
+  // ケロッツ: a tongue lash / frogs leap on each member
+  'ismartal-vol2-monster-12': {
+    single: [{ path: 'melee/whip-crack', back: 40, up: 12, hit: 0.2, speed: 1.3, palette: PALETTES.blood }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0.05 }],
+    area: [{ path: 'critters/frog', each: true, up: 0, hit: 1.5, speed: 1.6, until: 450, staggerMs: 80 }]
+  },
+  // プルン: a slime blob lands / slimes drop on each member
+  'ismartal-vol3-monster-04': {
+    single: [{ path: 'critters/slime', back: 0, up: 0, hit: 1.05, speed: 1.6, until: 450, palette: EP.water }],
+    area: [{ path: 'critters/slime', each: true, up: 0, hit: 1.05, speed: 1.6, until: 450, staggerMs: 70, palette: EP.water }]
+  },
+  // ── neutral ──
+  // ピコアイ: an eye glares at the target / at every member
+  'ismartal-vol1-monster-05': {
+    single: [{ path: 'critters/eyeball', back: 0, up: 0, hit: 0.3, speed: 1.4, until: 500 }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0.1 }],
+    area: [{ path: 'critters/eyeball', each: true, up: 0, hit: 0.3, speed: 1.4, until: 500, staggerMs: 70 }]
+  },
+  // メカノ: its bullet hits / a laser grid
+  'ismartal-vol2-monster-17': {
+    single: [{ path: 'impacts/bullet-impact', back: 13, up: 8, hit: 0 }, { path: 'impacts/ricochet', back: 8, up: 10, hit: 0.05 }],
+    area: [{ path: 'scifi/laser-grid', back: 0, up: 0, hit: 0.5, speed: 1.4, until: 550 }]
+  },
+  // ── fire ──
+  // ホタルビ: a fire wisp darts in / wisps on each member
+  'ismartal-vol1-monster-09': {
+    single: [{ path: 'critters/wisp', back: 0, up: 0, hit: 0.5, speed: 1.6, until: 450, palette: EP.fire }],
+    area: [{ path: 'critters/wisp', each: true, up: 0, hit: 0.5, speed: 1.6, until: 450, staggerMs: 60, palette: EP.fire }]
+  },
+  // ガルネズ: fire breath / a fire bomb lands in the party
+  'ismartal-vol1-monster-11': {
+    single: [{ path: 'fire/fire-breath', breath: true, hit: 0.3, until: 360, light: 0.7 }],
+    area: [{ path: 'explosions/grenade', back: 30, up: 0, hit: 1.75, speed: 1.4, until: 500 }]
+  },
+  // ガブリラ: a burning vine / lava pools under each member
+  'ismartal-vol1-monster-15': {
+    single: [{ path: 'nature/vine-whip', back: 26, up: 0, hit: 0.55, speed: 1.4, palette: EP.fire }],
+    area: [{ path: 'nature/toxic-puddle', each: true, up: 0, hit: 0.4, speed: 1.4, until: 600, staggerMs: 60, palette: EP.fire }]
+  },
+  // ビズン: its stinger burns / flares come down on each member
+  'ismartal-vol2-monster-11': {
+    single: [{ path: 'impacts/ricochet', back: 8, up: 10, hit: 0.05, palette: PALETTES.sun }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0, opts: { palette: PALETTES.sun } }],
+    area: [{ path: 'projectiles/flare', each: true, up: 0, hit: 0.3, speed: 1.4, until: 500, staggerMs: 60 }]
+  },
+  // フレマ: a fire bolt / a burning barrel blows
+  'ismartal-vol2-monster-18': {
+    single: [{ path: 'projectiles/plasma-shot', back: 20, up: 12, hit: 0.2, speed: 1.4, until: 400, palette: EP.fire }],
+    area: [{ path: 'explosions/barrel-explosion', back: 0, up: 0, hit: 1.25, speed: 1.6, until: 600 }]
+  },
+  // バクス: the mimic bites / spits its coins at the party
+  'ismartal-vol2-monster-19': {
+    single: [{ path: 'melee/claw-swipe', back: 20, up: -9, hit: 0.1, palette: PALETTES.sun }],
+    area: [{ path: 'spawn/coin-drop', back: 0, up: 0, hit: 0.3, speed: 1.4, until: 700 }]
+  },
+  // イグニス: a jet of flame / a long sweep of flame over the party
+  'ismartal-vol3-monster-02': {
+    single: [{ path: 'fire/fire-breath', breath: true, hit: 0.3, until: 400, light: 0.8 }],
+    area: [{ path: 'fire/fire-breath', breath: true, hit: 0.35, until: 640, light: 0.9 }]
+  },
+  // ヨミル: a ghost fire / every member burns away for a moment
+  'ismartal-vol3-monster-06': {
+    single: [{ path: 'shadow/shadow-flames', back: 0, up: 0, hit: 0.4, speed: 1.6, until: 500, palette: EP.fire }],
+    area: [{ path: 'spawn/dissolve-burn', each: true, up: 0, hit: 1.0, speed: 2, until: 450, staggerMs: 70 }]
+  },
+  // ── wind ──
+  // リーフロ: a leaf lash / petals in a gust
+  'ismartal-vol1-monster-10': {
+    single: [{ path: 'melee/whip-crack', back: 40, up: 12, hit: 0.2, speed: 1.3, palette: PALETTES.leaf }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0.05, opts: { palette: PALETTES.leaf } }],
+    area: [{ path: 'weather/cherry-blossoms', back: 0, up: 0, hit: 0.6, speed: 1.6, until: 700, palette: PALETTES.leaf }]
+  },
+  // コバット: a shock bite / bats on each member
+  'ismartal-vol1-monster-17': {
+    single: [{ path: 'lightning/zap-hit', back: 0, up: 7, hit: 0.12 }],
+    area: [{ path: 'critters/bat', each: true, up: 6, hit: 0.3, speed: 1.4, until: 500, staggerMs: 60, palette: EP.wind }]
+  },
+  // ラムネロ: a ball of lightning / chain lightning through the party
+  'ismartal-vol1-monster-18': {
+    single: [{ path: 'lightning/ball-lightning', back: 0, up: 0, hit: 2.25, speed: 2, until: 400 }],
+    area: [{ path: 'lightning/chain-lightning', back: 40, up: 10, hit: 0.3, speed: 1.4, until: 500 }]
+  },
+  // チュロ: a static jolt / a storm cloud
+  'ismartal-vol1-monster-19': {
+    single: [{ path: 'lightning/charge-up', back: 0, up: 0, hit: 1.6, speed: 2, until: 400 }],
+    area: [{ path: 'lightning/storm-cloud', back: 0, up: 0, hit: 1.75, speed: 1.4, until: 500 }]
+  },
+  // パピル: its shot bursts into scales / butterflies on each member
+  'ismartal-vol2-monster-02': {
+    single: [{ path: 'ice/snowflake-burst', back: 0, up: 0, hit: 0.3, speed: 1.6, until: 450, palette: EP.wind }],
+    area: [{ path: 'critters/butterfly', each: true, up: 0, hit: 0.75, speed: 1.6, until: 500, staggerMs: 70, palette: EP.wind }]
+  },
+  // モスガン: poison scales / a cloud of scales
+  'ismartal-vol2-monster-03': {
+    single: [{ path: 'ice/snowflake-burst', back: 0, up: 0, hit: 0.3, speed: 1.6, until: 450, palette: PALETTES.gold }],
+    area: [{ path: 'nature/poison-cloud', back: 0, up: 8, hit: 0.4, speed: 1.4, until: 600, palette: PALETTES.gold }]
+  },
+  // グリバト: its seed glows and bursts / spores over each member
+  'ismartal-vol2-monster-06': {
+    single: [{ path: 'arcane/spell-charge', back: 0, up: 0, hit: 0.4, speed: 1.6, until: 500, palette: PALETTES.leaf }],
+    area: [{ path: 'nature/spore-burst', each: true, up: 0, hit: 1.0, speed: 2, until: 600, staggerMs: 90, palette: PALETTES.leaf }]
+  },
+  // トルネ: a whirlwind / a whirlwind on each member
+  'ismartal-vol3-monster-03': {
+    single: [{ path: 'ice/blizzard-vortex', back: 0, up: 0, hit: 0.3, until: 500, palette: EP.wind }],
+    area: [{ path: 'ice/blizzard-vortex', each: true, up: 0, hit: 0.3, until: 500, staggerMs: 60, palette: EP.wind }]
+  },
+  // モクモ: a lightning bolt / a storm over each member
+  'ismartal-vol3-monster-05': {
+    single: [{ path: 'lightning/storm-cloud', back: 0, up: 0, hit: 1.75, speed: 1.4, until: 450 }],
+    area: [{ path: 'lightning/storm-cloud', each: true, up: 0, hit: 1.75, speed: 1.4, until: 450, staggerMs: 80 }]
+  },
+  // ── light ──
+  // フェリカ: a dive / feathers of light burst round the party
+  'ismartal-vol1-monster-12': {
+    single: [{ path: 'critters/bird', back: 0, up: 8, hit: 0.3, speed: 1.6, until: 450, palette: PALETTES.gold }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0.2, opts: { palette: PALETTES.gold } }],
+    area: [{ path: 'ice/snowflake-burst', each: true, up: 0, hit: 0.3, speed: 1.6, until: 450, staggerMs: 60, palette: PALETTES.gold }]
+  },
+  // ツキバネ: a moth of light strikes / light spikes round the party
+  'ismartal-vol1-monster-16': {
+    single: [{ path: 'critters/butterfly', back: 0, up: 0, hit: 0.75, speed: 1.6, until: 450, palette: PALETTES.gold }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0.1, opts: { palette: PALETTES.gold } }],
+    area: [{ path: 'ice/frost-nova', back: 0, up: 0, hit: 0.7, speed: 1.6, until: 500, palette: PALETTES.gold }]
+  },
+  // リルフィ: its shot lights a wisp / every member flickers with light
+  'ismartal-vol2-monster-05': {
+    single: [{ path: 'critters/wisp', back: 0, up: 0, hit: 0.5, speed: 1.6, until: 450, palette: PALETTES.gold }],
+    area: [{ path: 'arcane/blink-in', each: true, up: 0, hit: 0.35, speed: 1.4, staggerMs: 60, palette: PALETTES.gold }]
+  },
+  // オルビス (boss): a laser bolt and a scan / a laser grid of light
+  'ismartal-vol2-monster-16': {
+    single: [
+      { path: 'projectiles/laser-bolt', back: 20, up: 12, hit: 0.2, speed: 1.4, until: 300, palette: PALETTES.gold },
+      { path: 'ice/snowflake-burst', back: 0, up: 0, hit: 0.3, speed: 1.6, until: 450, palette: PALETTES.gold }
+    ],
+    area: [
+      { path: 'scifi/laser-grid', back: 0, up: 0, hit: 0.5, speed: 1.4, until: 550, palette: PALETTES.gold },
+      { path: 'ice/frost-nova', back: 0, up: 0, hit: 0.7, speed: 1.6, until: 500, palette: PALETTES.gold }
+    ]
+  }
 });
 
 const moduleCache = new Map();
@@ -760,8 +1122,59 @@ export async function playTarotKingdomWeaponHitFx(stageEl, {
 }
 
 /** Enemy attack on one or more party members, landing exactly on impactAt (Date.now clock). */
+export function hasTarotKingdomResonanceFx(resonanceId, element = '') {
+  return !!(RESONANCE_RECIPES[String(resonanceId || '')] || RESONANCE_ELEMENT_RECIPES[normalizeElement(element)]);
+}
+
+/** A minor-arcana resonance attack on the enemy, a beat after the card's weapon hit (impactAt). */
+export async function playTarotKingdomResonanceFx(stageEl, {
+  resonanceId = '', element = '', impactAt = Date.now(), attackerEl = null, targetEl = null
+} = {}) {
+  const recipes = RESONANCE_RECIPES[String(resonanceId || '')] || RESONANCE_ELEMENT_RECIPES[normalizeElement(element)];
+  if (!stageEl || !targetEl || !recipes) return;
+  try {
+    const core = await loadCore();
+    const player = getStagePlayer(stageEl, core);
+    const stageRect = stageEl.getBoundingClientRect();
+    const target = rectIn(stageRect, targetEl);
+    if (!target) return;
+    const attacker = rectIn(stageRect, attackerEl);
+    const scale = player.scale;
+    const feetX = target.cx / scale;
+    const feetY = target.feet / scale;
+    const startAt = impactAt + RESONANCE_FX_DELAY_MS;
+    const endAt = startAt + RESONANCE_FX_TAIL_MS;
+    const specs = recipes.map((recipe) => {
+      const at = startAt + (recipe.delay || 0);
+      const spec = {
+        recipe,
+        x: feetX + (recipe.dx || 0),
+        y: feetY - (recipe.up || 0),
+        flip: !!recipe.flip,
+        impactAt: at,
+        endAt,
+        stopAt: endAt - FADE_MARGIN_MS
+      };
+      if (recipe.fly) {
+        spec.fly = {
+          ms: recipe.fly.ms,
+          fromX: (attacker ? attacker.cx : target.cx + 120) / scale,
+          fromY: feetY - recipe.fly.up,
+          toX: feetX,
+          toY: feetY - recipe.fly.up
+        };
+        spec.flip = true;
+      }
+      return spec;
+    });
+    await addLayers(player, core, specs, { reducedMotion: prefersReducedMotion(), impactAt: startAt });
+  } catch (error) {
+    console.warn('[TarotKingdom] pixelfx resonance skipped', error);
+  }
+}
+
 export async function playTarotKingdomEnemyAttackFx(stageEl, {
-  attackMode = 'single', element = '', impactAt = Date.now(), enemyEl = null, targetEls = [], critical = false, guarded = false, ownProjectile = false
+  attackMode = 'single', monsterId = '', element = '', impactAt = Date.now(), enemyEl = null, targetEls = [], critical = false, guarded = false, ownProjectile = false
 } = {}) {
   const targetsInput = (Array.isArray(targetEls) ? targetEls : []).filter(Boolean);
   if (!stageEl || targetsInput.length === 0) return;
@@ -775,7 +1188,8 @@ export async function playTarotKingdomEnemyAttackFx(stageEl, {
     const enemy = rectIn(stageRect, enemyEl);
     const elementKey = normalizeElement(element);
     const area = attackMode === 'area';
-    const recipes = (area ? ENEMY_AREA_RECIPES : ENEMY_SINGLE_RECIPES)[elementKey]
+    const recipes = MONSTER_ATTACK_RECIPES[String(monsterId || '')]?.[area ? 'area' : 'single']
+      || (area ? ENEMY_AREA_RECIPES : ENEMY_SINGLE_RECIPES)[elementKey]
       || (area ? ENEMY_AREA_RECIPES.neutral : ENEMY_SINGLE_RECIPES.neutral);
     const anchorX = targets.reduce((sum, t) => sum + t.cx, 0) / targets.length / scale;
     const anchorFeet = Math.max(...targets.map((t) => t.feet)) / scale;
@@ -1134,4 +1548,4 @@ export function stopTarotKingdomPixelFx(stageEl) {
   stageEl.querySelector(':scope > .tarot-kingdom-pixelfx-layer')?.remove();
 }
 
-export const __test = { MAJOR_RECIPES, SUMMON_RECIPES, ACTOR_FX_RECIPES, WEAPON_RECIPES, ENEMY_SINGLE_RECIPES, ENEMY_AREA_RECIPES, CRITICAL_LAYER, GUARD_LAYER, STATUS_RECIPES, normalizeElement, capsuleActor };
+export const __test = { MAJOR_RECIPES, SUMMON_RECIPES, RESONANCE_RECIPES, RESONANCE_ELEMENT_RECIPES, MONSTER_ATTACK_RECIPES, ACTOR_FX_RECIPES, WEAPON_RECIPES, ENEMY_SINGLE_RECIPES, ENEMY_AREA_RECIPES, CRITICAL_LAYER, GUARD_LAYER, STATUS_RECIPES, normalizeElement, capsuleActor };

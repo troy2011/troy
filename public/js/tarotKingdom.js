@@ -120,6 +120,7 @@ import {
   getTarotKingdomSummonFxKey,
   playTarotKingdomActorFx,
   playTarotKingdomMajorFx,
+  playTarotKingdomResonanceFx,
   playTarotKingdomSummonFx,
   playTarotKingdomWeaponHitFx,
   nudgeTarotKingdomActor,
@@ -127,7 +128,7 @@ import {
   syncTarotKingdomStatusFx,
   TAROT_KINGDOM_KNOCKBACK_PX,
   warmTarotKingdomPixelFx
-} from './tarotKingdomPixelFx.js?v=20261102-pixelfx-v5';
+} from './tarotKingdomPixelFx.js?v=20261102-pixelfx-v7';
 
 const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 const TAROT_TILE_W = 48;
@@ -752,7 +753,6 @@ let kingdomTransitionTimer = null;
 let kingdomSummonPreloadStarted = false;
 let kingdomFieldScenePreloadStarted = false;
 let kingdomSummonCinematicKey = '';
-let kingdomSummonHapticEventKey = '';
 let kingdomSummonPartyMotionPaused = false;
 let kingdomSummonPartyPauseTimer = null;
 let kingdomSummonPartyResumeTimer = null;
@@ -17232,7 +17232,6 @@ function resetMatch() {
   kingdomMonsterAnimationKey = '';
   kingdomBattleVisualEventKey = '';
   kingdomBattleTerminalFxEventKey = '';
-  kingdomSummonHapticEventKey = '';
   kingdomWeaponImpactEventKey = '';
   kingdomBattlePixelFxEventKey = '';
   stopTarotKingdomPixelFx(ui.battleStage);
@@ -22369,7 +22368,6 @@ function applyPlay(pi, play, retryDepth = 0) {
 
   if (isCallPlay) {
     clearPendingTurnAdvanceAfterTrick();
-    vibrateOnce(65);
     clearNpcTimer();
     s.phase = 'callCinematic';
     s.message = `${p.name}がコール！ 場札を5枚役に取り込み中...`;
@@ -25414,6 +25412,23 @@ function playKingdomBattlePixelFx(event, eventIsActive, eventKey) {
       critical,
       element: getKingdomAttackEffectElement(event)
     });
+    // a minor-arcana resonance attack lands its own effect a beat after the weapon
+    const resonanceHit = effects.find((effect) => (
+      effect?.source === 'resonance'
+      && effect?.targetType === 'enemy'
+      && ['damage', 'magic'].includes(String(effect?.kind || ''))
+      && effect?.success !== false
+      && Math.max(0, Number(effect?.displayAmount ?? effect?.amount) || 0) > 0
+    ));
+    if (resonanceHit) {
+      void playTarotKingdomResonanceFx(ui.battleStage, {
+        resonanceId: resonanceHit.resonanceId,
+        element: resonanceHit.element,
+        impactAt,
+        attackerEl,
+        targetEl: ui.battleEnemySprite
+      });
+    }
     // the enemy is pushed away from the attacker (the party stands on the right)
     nudgeTarotKingdomActor(ui.battleEnemySprite, {
       dx: -(critical ? TAROT_KINGDOM_KNOCKBACK_PX.enemyCritical : TAROT_KINGDOM_KNOCKBACK_PX.enemy),
@@ -25436,6 +25451,7 @@ function playKingdomBattlePixelFx(event, eventIsActive, eventKey) {
   })?.usesProjectile === true;
   void playTarotKingdomEnemyAttackFx(ui.battleStage, {
     attackMode,
+    monsterId: s?.battle?.enemy?.id || '',
     ownProjectile: enemyOwnProjectile,
     element: s?.battle?.enemy?.affinity?.native || '',
     impactAt,
@@ -27368,7 +27384,6 @@ function renderKingdomBattleStage() {
     ui.battleStage.classList.remove('is-weapon-impact-shake');
     void ui.battleStage.offsetWidth;
     ui.battleStage.classList.add('is-weapon-impact-shake');
-    vibrateOnce(Math.min(80, Math.max(18, Math.round((Number(weaponImpactShake.x) || 1) * 10))));
     kingdomWeaponImpactTimer = setTimeout(() => {
       kingdomWeaponImpactTimer = null;
       ui.battleStage?.classList.remove('is-weapon-impact-shake');
@@ -27376,26 +27391,6 @@ function renderKingdomBattleStage() {
       ui.battleStage?.style.removeProperty('--tk-weapon-impact-y');
       ui.battleStage?.style.removeProperty('--tk-weapon-impact-duration');
     }, impactDurationMs + 24);
-  }
-  const summonHapticKey = (
-    eventIsActive
-    && timelinePhase === 'hit-stop'
-    && String(visualEvent?.type || '') === 'skill'
-    && visualEventHasHitImpact
-    && visualEvent?.summon?.id
-  )
-    ? `${eventKey}:${String(visualEvent.summon.id)}`
-    : '';
-  if (
-    summonHapticKey
-    && kingdomSummonHapticEventKey !== summonHapticKey
-    && !prefersKingdomReducedMotion()
-  ) {
-    kingdomSummonHapticEventKey = summonHapticKey;
-    const summonPool = getTarotKingdomSummonById(visualEvent.summon.id)?.pool;
-    const baseHapticMs = ['advanced', 'legendary'].includes(String(summonPool)) ? 90 : 55;
-    const chainLevel = Math.min(3, Math.max(0, normalizeKingdomRoleChainCount(visualEvent?.roleChain?.count) - 1));
-    vibrateOnce(baseHapticMs + (chainLevel * 15));
   }
   const raidState = normalizeKingdomRaidState(s?.raid);
   const raidBattlefieldActive = raidState != null
