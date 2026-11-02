@@ -613,6 +613,76 @@ function whenVisible(el, maxMs = 600) {
   });
 }
 
+// An actor's real sprite as a pixelfx actor, and its feet in art pixels on the stage overlay; a capsule
+// stands in when the sprite cannot be read. Null when the element is not laid out.
+async function wrapActor(el, stageRect, scale) {
+  const rect = el?.isConnected ? el.getBoundingClientRect() : null;
+  if (!rect || rect.width <= 0 || rect.height <= 0) return null;
+  const snapshot = await snapshotActor(el, scale).catch(() => null);
+  return {
+    actor: snapshot?.actor || capsuleActor((rect.width * 0.5) / scale, (rect.height * 0.78) / scale),
+    // false when the capsule stands in: effects that repaint the body would paint a grey capsule
+    real: !!snapshot,
+    x: (rect.left - stageRect.left + (snapshot ? snapshot.feet.x : rect.width / 2)) / scale,
+    y: (rect.top - stageRect.top + (snapshot ? snapshot.feet.y : rect.height * 0.94)) / scale,
+    // the party stands on the right and faces left
+    facesLeft: rect.left + (rect.width / 2) > stageRect.left + (stageRect.width / 2)
+  };
+}
+
+/*
+ * One-shot effects on a single actor, for results outside the summon cutin: heals, shields, buffs,
+ * cleanses and revivals on the party, an enemy powering itself up, and a debuff cast on a party member.
+ * (A defeated enemy gets none: its own death sheet already ends in smoke.) `until` cuts a looping effect off after that many ms; `shield` sizes the bubble to the actor;
+ * `body` effects repaint the actor's own pixels and are skipped when its sprite cannot be read.
+ */
+const ACTOR_FX_RECIPES = Object.freeze({
+  heal: { path: 'holy/heal', body: true, opts: { drain: 0 } },
+  regen: { path: 'holy/heal', body: true, palette: PALETTES.leaf, opts: { drain: 0 } },
+  shield: { path: 'holy/divine-shield', shield: true },
+  buff: { path: 'holy/blessing' },
+  cleanse: { path: 'holy/halo', until: 1000 },
+  revive: { path: 'spawn/respawn-beam', body: true, speed: 1.4 },
+  enemyBuff: { path: 'status/rage', body: true, until: 1100 },
+  enemyHeal: { path: 'holy/heal', body: true, palette: PALETTES.leaf, opts: { drain: 0 } },
+  curse: { path: 'shadow/curse', body: true, speed: 1.5 }
+});
+const ACTOR_FX_KEY_LIMIT = 64;
+// stage → event keys whose actor effect already played, so a re-render does not replay it
+const playedActorFx = new WeakMap();
+
+export function hasTarotKingdomActorFx(kind) {
+  return Object.prototype.hasOwnProperty.call(ACTOR_FX_RECIPES, String(kind || ''));
+}
+
+/** Plays one actor effect on the stage overlay, once per key. Skipped for reduced motion. */
+export async function playTarotKingdomActorFx(stageEl, actorEl, kind, { key = '' } = {}) {
+  const recipe = ACTOR_FX_RECIPES[kind];
+  if (!stageEl || !actorEl || !recipe || prefersReducedMotion()) return;
+  if (key) {
+    let played = playedActorFx.get(stageEl);
+    if (!played) playedActorFx.set(stageEl, (played = new Set()));
+    if (played.has(key)) return;
+    played.add(key);
+    if (played.size > ACTOR_FX_KEY_LIMIT) played.delete(played.values().next().value);
+  }
+  try {
+    // read the sprite now, before awaiting anything: a defeated enemy fades out right after this call
+    const wrapping = wrapActor(actorEl, stageEl.getBoundingClientRect(), DEFAULT_PIXEL_SCALE);
+    const [core, mod, wrapped] = await Promise.all([loadCore(), loadEffect(recipe.path), wrapping]);
+    if (!wrapped || !actorEl.isConnected || (recipe.body && !wrapped.real)) return;
+    const player = getStagePlayer(stageEl, core);
+    const { actor, x, y, facesLeft } = wrapped;
+    const opts = { ...recipe.opts, actor, ...(recipe.shield ? { radius: Math.max(12, Math.min(34, Math.round(actor.h * 0.62))) } : {}) };
+    const startAt = Date.now();
+    const layer = buildLayer(core, mod, { ...recipe, opts }, { x, y, flip: facesLeft, impactAt: startAt });
+    layer.calm = true;
+    player.add(layer);
+  } catch (error) {
+    console.warn('[TarotKingdom] pixelfx actor effect skipped', error);
+  }
+}
+
 // The party's half of a summon effect, on the stage overlay, wrapped round each member's real sprite.
 async function playSummonPartyFx(stageEl, core, recipes, partyEls) {
   // the snapshot only sees sprite layers that are shown
@@ -622,12 +692,10 @@ async function playSummonPartyFx(stageEl, core, recipes, partyEls) {
   const stageRect = stageEl.getBoundingClientRect();
   const mods = await Promise.all(recipes.map((recipe) => loadEffect(recipe.path).catch(() => null)));
   await Promise.all(partyEls.map(async (el, index) => {
-    const rect = el?.isConnected ? el.getBoundingClientRect() : null;
-    if (!rect || rect.width <= 0 || rect.height <= 0) return;
-    const snapshot = await snapshotActor(el, scale).catch(() => null);
-    const actor = snapshot?.actor || capsuleActor((rect.width * 0.5) / scale, (rect.height * 0.78) / scale);
-    const x = (rect.left - stageRect.left + (snapshot ? snapshot.feet.x : rect.width / 2)) / scale;
-    const y = (rect.top - stageRect.top + (snapshot ? snapshot.feet.y : rect.height * 0.94)) / scale;
+    const wrapped = await wrapActor(el, stageRect, scale);
+    // heal repaints the body; without the real sprite it would paint a grey capsule
+    if (!wrapped || (!wrapped.real && recipes.some((recipe) => recipe.path === 'holy/heal'))) return;
+    const { actor, x, y } = wrapped;
     // members light up one after another, down the party
     const startAt = Date.now() + (index * 90);
     mods.forEach((mod, layerIndex) => {
@@ -1066,4 +1134,4 @@ export function stopTarotKingdomPixelFx(stageEl) {
   stageEl.querySelector(':scope > .tarot-kingdom-pixelfx-layer')?.remove();
 }
 
-export const __test = { MAJOR_RECIPES, SUMMON_RECIPES, WEAPON_RECIPES, ENEMY_SINGLE_RECIPES, ENEMY_AREA_RECIPES, CRITICAL_LAYER, GUARD_LAYER, STATUS_RECIPES, normalizeElement, capsuleActor };
+export const __test = { MAJOR_RECIPES, SUMMON_RECIPES, ACTOR_FX_RECIPES, WEAPON_RECIPES, ENEMY_SINGLE_RECIPES, ENEMY_AREA_RECIPES, CRITICAL_LAYER, GUARD_LAYER, STATUS_RECIPES, normalizeElement, capsuleActor };

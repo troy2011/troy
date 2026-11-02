@@ -118,6 +118,7 @@ import {
 import {
   playTarotKingdomEnemyAttackFx,
   getTarotKingdomSummonFxKey,
+  playTarotKingdomActorFx,
   playTarotKingdomMajorFx,
   playTarotKingdomSummonFx,
   playTarotKingdomWeaponHitFx,
@@ -126,7 +127,7 @@ import {
   syncTarotKingdomStatusFx,
   TAROT_KINGDOM_KNOCKBACK_PX,
   warmTarotKingdomPixelFx
-} from './tarotKingdomPixelFx.js?v=20261102-pixelfx-v4';
+} from './tarotKingdomPixelFx.js?v=20261102-pixelfx-v5';
 
 const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 const TAROT_TILE_W = 48;
@@ -11180,6 +11181,45 @@ function renderKingdomEffectResultText(host, event, eventIsActive, phase, target
     return node;
   });
   stack.replaceChildren(...nodes);
+}
+
+// Which pixel effect an effect result plays on its target (display only). Heals on the party play from the
+// heal number; summon results on the party play inside the summon's own effect.
+const KINGDOM_ACTOR_FX_PRIORITY = ['revive', 'shield', 'cleanse', 'enemyHeal', 'enemyBuff', 'buff', 'curse'];
+function getKingdomActorResultFxKind(entry, targetType, eventType) {
+  if (!entry || entry.success === false) return '';
+  const kind = String(entry.kind || '');
+  if (['revive-percent', 'revive-fixed', 'major-revive'].includes(kind) || entry.revived === true) return 'revive';
+  const statusKey = String(entry.statusKey || '').toLowerCase();
+  if (kind.includes('shield') || kind === 'guard' || statusKey.includes('shield') || statusKey.includes('guard')) {
+    return targetType === 'enemy' ? 'enemyBuff' : 'shield';
+  }
+  if (kind.includes('cleanse') && Number(entry.amount) > 0) return 'cleanse';
+  if (kind === 'enemy-heal' && Number(entry.amount) > 0) return 'enemyHeal';
+  const presentation = getKingdomEffectResultPresentation(entry);
+  if (!presentation) return '';
+  if (presentation.tone === 'negative') {
+    // a debuff the enemy casts on a party member; ailments on the enemy show as its status loop
+    return targetType === 'player' && eventType === 'enemy-status' ? 'curse' : '';
+  }
+  return targetType === 'enemy' ? 'enemyBuff' : 'buff';
+}
+
+function playKingdomActorResultFx(actorEl, event, eventIsActive, phase, targetType, targetIndex = null) {
+  if (!actorEl || !ui.battleStage || !isKingdomEffectResultReady(event, eventIsActive, phase)) return;
+  if (targetType !== 'enemy' && event?.summon?.id) return;
+  const eventType = String(event?.type || '');
+  const kinds = new Set((Array.isArray(event?.effects) ? event.effects : []).filter((entry) => {
+    const entryTarget = String(entry?.targetType || '');
+    return targetType === 'enemy'
+      ? entryTarget === 'enemy'
+      : entryTarget === 'party' || (entryTarget === 'player' && Number(entry?.targetIndex) === Number(targetIndex));
+  }).map((entry) => getKingdomActorResultFxKind(entry, targetType, eventType)));
+  const kind = KINGDOM_ACTOR_FX_PRIORITY.find((candidate) => kinds.has(candidate));
+  if (!kind) return;
+  void playTarotKingdomActorFx(ui.battleStage, actorEl, kind, {
+    key: `result:${Number(event?.seq) || 0}:${eventType}:${targetType}:${targetIndex ?? 'all'}`
+  });
 }
 
 function buildKingdomEffectNavigationMessage(results = []) {
@@ -25880,6 +25920,9 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
         && String(activeEvent?.type || '') === 'pet-rebirth'
         && Number(activeEvent?.targetIndex) === playerIndex;
       avatar.classList.toggle('is-rebirth-active', petRebirthActive);
+      if (petRebirthActive) {
+        void playTarotKingdomActorFx(ui.battleStage, avatar, 'revive', { key: `rebirth:${eventKey}:${playerIndex}` });
+      }
       let sprite = avatar.querySelector(':scope > .tarot-kingdom-battle-pet-sprite');
       if (!sprite) {
         avatar.replaceChildren();
@@ -26127,6 +26170,15 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
       ].filter(Boolean).join(' ');
       if (healNumber.dataset.eventKey !== healKey) {
         healNumber.dataset.eventKey = healKey;
+        // summon heals play on the party from the summon's own effect
+        if (!activeEvent?.summon?.id) {
+          void playTarotKingdomActorFx(
+            ui.battleStage,
+            row.querySelector('.tarot-kingdom-battle-player-avatar'),
+            regenTick ? 'regen' : 'heal',
+            { key: `heal:${healKey}` }
+          );
+        }
         healNumber.classList.remove('is-show');
         requestAnimationFrame(() => healNumber?.classList.add('is-show'));
       } else {
@@ -26181,6 +26233,9 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
       damageNumber?.remove();
     }
     renderKingdomEffectResultText(row, activeEvent, eventIsActive, phase, 'player', playerIndex);
+    playKingdomActorResultFx(
+      row.querySelector('.tarot-kingdom-battle-player-avatar'), activeEvent, eventIsActive, phase, 'player', playerIndex
+    );
   });
   Array.from(ui.battleParty.querySelectorAll('.tarot-kingdom-battle-player')).forEach((row) => {
     if (Number(row.dataset.playerIndex) >= s.players.length) row.remove();
@@ -26308,7 +26363,9 @@ function renderKingdomSecondaryEffectBanner(event, eventIsActive, phase, eventKe
     node.dataset.majorTone = majorTone;
     node.dataset.eventKey = scopedEventKey;
     node.textContent = majorSkillName || regularEffectName;
-    if (majorSkillName) {
+    // With motion on, the major summon's pixel effect and the result effects on each actor show the major
+    // skill; the CSS veil, sigil and sparks only stand in for them when reduced motion is on.
+    if (majorSkillName && reducedMotion) {
       const scope = getKingdomMajorVisualScope(event);
       const visualKey = `${scopedEventKey}:${majorTone}:${scope}`;
       if (!majorVisual) {
@@ -27350,6 +27407,9 @@ function renderKingdomBattleStage() {
   const petRebirthActive = eventIsActive && String(visualEvent?.type || '') === 'pet-rebirth';
   ui.battleStage.classList.toggle('is-raid-transforming', raidTransformActive);
   ui.battleStage.classList.toggle('is-rebirth-active', enemyRebirthActive || petRebirthActive);
+  if (enemyRebirthActive) {
+    void playTarotKingdomActorFx(ui.battleStage, ui.battleEnemySprite, 'revive', { key: `rebirth:${eventKey}` });
+  }
   ui.battleStage.classList.toggle('is-rush-time', enemyRushTime);
   ui.battleStage.classList.toggle('is-enemy-finisher', enemyFinisherActive);
   ui.battleStage.classList.toggle('is-enemy-escape', enemyEscapeActive);
@@ -27536,6 +27596,7 @@ function renderKingdomBattleStage() {
   renderKingdomSecondaryEffectBanner(visualEvent, eventIsActive, timelinePhase, eventKey);
   renderKingdomBattleDamageNumber(visualEvent, eventIsActive, eventKey);
   renderKingdomEffectResultText(ui.battleEnemy, visualEvent, eventIsActive, timelinePhase, 'enemy');
+  playKingdomActorResultFx(ui.battleEnemySprite, visualEvent, eventIsActive, timelinePhase, 'enemy');
   renderKingdomBattleParty(visualEvent, eventIsActive, eventKey);
   renderKingdomChampionCeremony();
   renderKingdomBattleFeed();

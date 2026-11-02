@@ -30,6 +30,7 @@ function allRecipes(tables) {
   return [
     ...tables.MAJOR_RECIPES,
     ...Object.values(tables.SUMMON_RECIPES).flatMap((recipe) => [...recipe.hit, ...(recipe.party || [])]),
+    ...Object.values(tables.ACTOR_FX_RECIPES),
     tables.CRITICAL_LAYER,
     tables.GUARD_LAYER,
     ...Object.values(tables.STATUS_RECIPES),

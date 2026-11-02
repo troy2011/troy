@@ -639,7 +639,8 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       };
     });
     expect(dustFx.spriteAnimation).toContain('tarotKingdomEnemyDustLeft');
-    expect(dustFx.particleAnimation).toContain('tarotKingdomEnemyDustParticles');
+    // the death sheet already ends in smoke, so no dust particles are drawn over it
+    expect(dustFx.particleAnimation).toBe('none');
   });
 
   test('a surviving enemy turns away and escapes without becoming a pet finisher', async ({ page }) => {
