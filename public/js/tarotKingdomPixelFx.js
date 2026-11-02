@@ -667,6 +667,7 @@ function createPlayer(canvas, scale, core, { removeWhenDone = false } = {}) {
         } else {
           layer.visible = false;
         }
+        if (layer.pauseUntil && now < layer.pauseUntil) layer.visible = false;
       }
       if (layer.fly && layer.visible) {
         const progress = Math.min(1, (now - layer.startAt) / Math.max(1, layer.fly.ms));
@@ -1009,6 +1010,46 @@ const ACTOR_FX_RECIPES = Object.freeze({
   enemyHeal: { path: 'holy/heal', body: true, palette: PALETTES.leaf, opts: { drain: 0 } },
   curse: { path: 'shadow/curse', body: true, speed: 1.5 }
 });
+/*
+ * Support resonances (minor arcana that heal, shield, buff or weaken) get their own effect on each
+ * target, in place of the generic one above. Recipes take the actor recipe fields plus up/dx offsets.
+ * Debuffs on the enemy add a cast here; their lasting status loop (STATUS_RECIPES) carries on after.
+ * pentacle-6 and pentacle-13 put the enemy to sleep or turn it to stone: that status loop is their effect.
+ */
+const LEAF = PALETTES.leaf;
+const GOLD = PALETTES.gold;
+const SUPPORT_RESONANCE_RECIPES = Object.freeze({
+  'cup-1': [{ path: 'holy/heal', body: true, opts: { drain: 0 } }, { path: 'pickups/heart-pickup' }],
+  'cup-2': [{ path: 'pickups/collect-burst', up: 14, palette: PALETTES.sky }],
+  'cup-3': [{ path: 'holy/heal', body: true, palette: LEAF, opts: { drain: 0 } }, { path: 'pickups/collect-burst', up: 14, palette: LEAF }],
+  'cup-4': [{ path: 'water/drip', up: 4 }],
+  'cup-5': [{ path: 'holy/halo', until: 1000 }, { path: 'holy/divine-shield', shield: true, palette: LEAF }],
+  'cup-6': [{ path: 'nature/healing-bloom', speed: 1.4 }],
+  'cup-7': [{ path: 'water/water-orb', up: 8, until: 1200 }],
+  'cup-8': [{ path: 'holy/heal', body: true, opts: { drain: 0 } }, { path: 'holy/halo', until: 1100 }],
+  'cup-9': [{ path: 'holy/heal', body: true, palette: PALETTES.sun, opts: { drain: 0 } }, { path: 'pickups/potion', until: 1300 }],
+  'cup-10': [{ path: 'holy/halo', until: 1200 }, { path: 'pickups/collect-burst', up: 14, palette: GOLD }],
+  'cup-11': [{ path: 'holy/heal', body: true, opts: { drain: 0 } }, { path: 'pickups/power-star', until: 1100 }],
+  'cup-12': [{ path: 'spawn/respawn-beam', body: true, speed: 1.4 }, { path: 'holy/halo', until: 1200 }],
+  'cup-13': [{ path: 'spawn/egg-hatch', speed: 1.6 }],
+  'cup-14': [{ path: 'holy/heal', body: true, opts: { drain: 0 } }, { path: 'holy/divine-shield', shield: true }],
+  'pentacle-1': [{ path: 'holy/divine-shield', shield: true }, { path: 'pickups/coin-spin', until: 1200 }],
+  'pentacle-2': [{ path: 'holy/divine-shield', shield: true, palette: PALETTES.sky }],
+  'pentacle-3': [{ path: 'status/slowed', until: 1500 }],
+  'pentacle-4': [{ path: 'explosions/smoke-bomb', up: 6 }, { path: 'pickups/coin-spin', until: 1000 }],
+  'pentacle-5': [{ path: 'impacts/ricochet', up: 12, palette: PALETTES.steel }, { path: 'impacts/hit-spark', up: 12, palette: PALETTES.steel }],
+  'pentacle-7': [{ path: 'status/stunned', until: 1400 }],
+  'pentacle-8': [{ path: 'status/charmed', until: 1500 }],
+  'pentacle-10': [{ path: 'shadow/curse', body: true, speed: 1.5 }],
+  'pentacle-11': [{ path: 'pickups/collect-burst', up: 14, palette: PALETTES.steel }, { path: 'pickups/coin-spin', until: 1100 }],
+  'pentacle-12': [{ path: 'holy/divine-shield', shield: true, palette: PALETTES.steel }, { path: 'holy/halo', until: 900 }],
+  'pentacle-14': [{ path: 'status/haste', until: 1000, dx: -44 }],
+  'sword-11': [{ path: 'lightning/charge-up', palette: ELEMENT_PALETTES.wind, speed: 1.3 }],
+  'wand-6': [{ path: 'arcane/spell-charge' }],
+  'wand-10': [{ path: 'lightning/charge-up', speed: 1.3 }],
+  'wand-11': [{ path: 'arcane/spell-charge', palette: ELEMENT_PALETTES.fire }],
+  'wand-12': [{ path: 'pickups/power-star', palette: ELEMENT_PALETTES.dark, until: 1100 }]
+});
 const ACTOR_FX_KEY_LIMIT = 64;
 // stage → event keys whose actor effect already played, so a re-render does not replay it
 const playedActorFx = new WeakMap();
@@ -1017,10 +1058,31 @@ export function hasTarotKingdomActorFx(kind) {
   return Object.prototype.hasOwnProperty.call(ACTOR_FX_RECIPES, String(kind || ''));
 }
 
-/** Plays one actor effect on the stage overlay, once per key. Skipped for reduced motion. */
-export async function playTarotKingdomActorFx(stageEl, actorEl, kind, { key = '' } = {}) {
-  const recipe = ACTOR_FX_RECIPES[kind];
-  if (!stageEl || !actorEl || !recipe || prefersReducedMotion()) return;
+export function hasTarotKingdomSupportResonanceFx(resonanceId) {
+  return Object.prototype.hasOwnProperty.call(SUPPORT_RESONANCE_RECIPES, String(resonanceId || ''));
+}
+
+// While a one-shot plays on an actor, its lasting status loop and shield ring step back so the
+// one-shot reads clearly (the ring through [data-pixel-fx-active] in style.css).
+function quietActorWhile(stageEl, actorEl, until) {
+  stageStatusLayers.get(stageEl)?.forEach((entry) => {
+    if (entry.layer?.actorEl === actorEl) entry.layer.pauseUntil = Math.max(entry.layer.pauseUntil || 0, until);
+  });
+  const token = String(until);
+  actorEl.dataset.pixelFxActive = token;
+  setTimeout(() => {
+    if (actorEl.dataset.pixelFxActive === token) delete actorEl.dataset.pixelFxActive;
+  }, Math.max(0, until - Date.now()));
+}
+
+/**
+ * Plays one actor effect on the stage overlay, once per key. Skipped for reduced motion.
+ * A support resonanceId with its own recipe replaces the generic kind.
+ */
+export async function playTarotKingdomActorFx(stageEl, actorEl, kind, { key = '', resonanceId = '' } = {}) {
+  const recipes = SUPPORT_RESONANCE_RECIPES[String(resonanceId || '')]
+    || (ACTOR_FX_RECIPES[kind] ? [ACTOR_FX_RECIPES[kind]] : null);
+  if (!stageEl || !actorEl || !recipes || prefersReducedMotion()) return;
   if (key) {
     let played = playedActorFx.get(stageEl);
     if (!played) playedActorFx.set(stageEl, (played = new Set()));
@@ -1031,15 +1093,32 @@ export async function playTarotKingdomActorFx(stageEl, actorEl, kind, { key = ''
   try {
     // read the sprite now, before awaiting anything: a defeated enemy fades out right after this call
     const wrapping = wrapActor(actorEl, stageEl.getBoundingClientRect(), DEFAULT_PIXEL_SCALE);
-    const [core, mod, wrapped] = await Promise.all([loadCore(), loadEffect(recipe.path), wrapping]);
-    if (!wrapped || !actorEl.isConnected || (recipe.body && !wrapped.real)) return;
+    const [core, mods, wrapped] = await Promise.all([
+      loadCore(),
+      Promise.all(recipes.map((recipe) => loadEffect(recipe.path).catch(() => null))),
+      wrapping
+    ]);
+    if (!wrapped || !actorEl.isConnected) return;
     const player = getStagePlayer(stageEl, core);
     const { actor, x, y, facesLeft } = wrapped;
-    const opts = { ...recipe.opts, actor, ...(recipe.shield ? { radius: Math.max(12, Math.min(34, Math.round(actor.h * 0.62))) } : {}) };
     const startAt = Date.now();
-    const layer = buildLayer(core, mod, { ...recipe, opts }, { x, y, flip: facesLeft, impactAt: startAt });
-    layer.calm = true;
-    player.add(layer);
+    let endAt = startAt;
+    recipes.forEach((recipe, index) => {
+      const mod = mods[index];
+      if (!mod || (recipe.body && !wrapped.real)) return;
+      const opts = { ...recipe.opts, actor, ...(recipe.shield ? { radius: Math.max(12, Math.min(34, Math.round(actor.h * 0.62))) } : {}) };
+      // a negative dx stands in front of the actor (towards the other side), so a shield guards it
+      const layer = buildLayer(core, mod, { ...recipe, opts }, {
+        x: x + ((recipe.dx || 0) * (facesLeft ? 1 : -1)),
+        y: y - (recipe.up || 0),
+        flip: facesLeft,
+        impactAt: startAt
+      });
+      layer.calm = true;
+      player.add(layer);
+      endAt = Math.max(endAt, Math.min(layer.endAt, startAt + 2600));
+    });
+    if (endAt > startAt) quietActorWhile(stageEl, actorEl, endAt);
   } catch (error) {
     console.warn('[TarotKingdom] pixelfx actor effect skipped', error);
   }
@@ -1528,6 +1607,7 @@ export async function syncTarotKingdomStatusFx(stageEl, actorKey, actorEl, statu
       stopAt: Infinity,
       endAt: Infinity,
       loop: true,
+      actorEl,
       follow,
       visible: false,
       stopped: false
@@ -1548,4 +1628,4 @@ export function stopTarotKingdomPixelFx(stageEl) {
   stageEl.querySelector(':scope > .tarot-kingdom-pixelfx-layer')?.remove();
 }
 
-export const __test = { MAJOR_RECIPES, SUMMON_RECIPES, RESONANCE_RECIPES, RESONANCE_ELEMENT_RECIPES, MONSTER_ATTACK_RECIPES, ACTOR_FX_RECIPES, WEAPON_RECIPES, ENEMY_SINGLE_RECIPES, ENEMY_AREA_RECIPES, CRITICAL_LAYER, GUARD_LAYER, STATUS_RECIPES, normalizeElement, capsuleActor };
+export const __test = { MAJOR_RECIPES, SUMMON_RECIPES, RESONANCE_RECIPES, RESONANCE_ELEMENT_RECIPES, SUPPORT_RESONANCE_RECIPES, MONSTER_ATTACK_RECIPES, ACTOR_FX_RECIPES, WEAPON_RECIPES, ENEMY_SINGLE_RECIPES, ENEMY_AREA_RECIPES, CRITICAL_LAYER, GUARD_LAYER, STATUS_RECIPES, normalizeElement, capsuleActor };

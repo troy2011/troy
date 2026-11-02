@@ -119,6 +119,7 @@ import {
   playTarotKingdomEnemyAttackFx,
   getTarotKingdomSummonFxKey,
   playTarotKingdomActorFx,
+  hasTarotKingdomSupportResonanceFx,
   playTarotKingdomMajorFx,
   playTarotKingdomResonanceFx,
   playTarotKingdomSummonFx,
@@ -128,7 +129,7 @@ import {
   syncTarotKingdomStatusFx,
   TAROT_KINGDOM_KNOCKBACK_PX,
   warmTarotKingdomPixelFx
-} from './tarotKingdomPixelFx.js?v=20261102-pixelfx-v7';
+} from './tarotKingdomPixelFx.js?v=20261102-pixelfx-v8';
 
 const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 const TAROT_TILE_W = 48;
@@ -11205,21 +11206,40 @@ function getKingdomActorResultFxKind(entry, targetType, eventType) {
   return targetType === 'enemy' ? 'enemyBuff' : 'buff';
 }
 
+function isKingdomEffectEntryOnActor(entry, targetType, targetIndex) {
+  const entryTarget = String(entry?.targetType || '');
+  return targetType === 'enemy'
+    ? entryTarget === 'enemy'
+    : entryTarget === 'party' || (entryTarget === 'player' && Number(entry?.targetIndex) === Number(targetIndex));
+}
+
+// The support resonance (heal, shield, buff or debuff) that landed on this actor and has its own effect.
+function getKingdomSupportResonanceFxId(event, targetType, targetIndex = null) {
+  const entry = (Array.isArray(event?.effects) ? event.effects : []).find((candidate) => (
+    candidate?.source === 'resonance'
+    && candidate?.success !== false
+    && isKingdomEffectEntryOnActor(candidate, targetType, targetIndex)
+    && hasTarotKingdomSupportResonanceFx(candidate?.resonanceId)
+  ));
+  return String(entry?.resonanceId || '');
+}
+
 function playKingdomActorResultFx(actorEl, event, eventIsActive, phase, targetType, targetIndex = null) {
   if (!actorEl || !ui.battleStage || !isKingdomEffectResultReady(event, eventIsActive, phase)) return;
   if (targetType !== 'enemy' && event?.summon?.id) return;
   const eventType = String(event?.type || '');
-  const kinds = new Set((Array.isArray(event?.effects) ? event.effects : []).filter((entry) => {
-    const entryTarget = String(entry?.targetType || '');
-    return targetType === 'enemy'
-      ? entryTarget === 'enemy'
-      : entryTarget === 'party' || (entryTarget === 'player' && Number(entry?.targetIndex) === Number(targetIndex));
-  }).map((entry) => getKingdomActorResultFxKind(entry, targetType, eventType)));
+  const key = `result:${Number(event?.seq) || 0}:${eventType}:${targetType}:${targetIndex ?? 'all'}`;
+  const resonanceId = getKingdomSupportResonanceFxId(event, targetType, targetIndex);
+  if (resonanceId) {
+    void playTarotKingdomActorFx(ui.battleStage, actorEl, '', { key, resonanceId });
+    return;
+  }
+  const kinds = new Set((Array.isArray(event?.effects) ? event.effects : [])
+    .filter((entry) => isKingdomEffectEntryOnActor(entry, targetType, targetIndex))
+    .map((entry) => getKingdomActorResultFxKind(entry, targetType, eventType)));
   const kind = KINGDOM_ACTOR_FX_PRIORITY.find((candidate) => kinds.has(candidate));
   if (!kind) return;
-  void playTarotKingdomActorFx(ui.battleStage, actorEl, kind, {
-    key: `result:${Number(event?.seq) || 0}:${eventType}:${targetType}:${targetIndex ?? 'all'}`
-  });
+  void playTarotKingdomActorFx(ui.battleStage, actorEl, kind, { key });
 }
 
 function buildKingdomEffectNavigationMessage(results = []) {
@@ -26186,8 +26206,8 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
       ].filter(Boolean).join(' ');
       if (healNumber.dataset.eventKey !== healKey) {
         healNumber.dataset.eventKey = healKey;
-        // summon heals play on the party from the summon's own effect
-        if (!activeEvent?.summon?.id) {
+        // summon heals play on the party from the summon's own effect, support resonances from their own
+        if (!activeEvent?.summon?.id && !getKingdomSupportResonanceFxId(activeEvent, 'player', playerIndex)) {
           void playTarotKingdomActorFx(
             ui.battleStage,
             row.querySelector('.tarot-kingdom-battle-player-avatar'),

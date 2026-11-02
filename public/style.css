@@ -40099,7 +40099,16 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
         0 0 12px rgba(80, 196, 255, 0.38);
     clip-path: polygon(50% 0, 82% 10%, 100% 36%, 92% 76%, 50% 100%, 8% 76%, 0 36%, 18% 10%);
     transform: translateX(-50%);
-    animation: tarotKingdomShieldGlass 2400ms ease-in-out infinite;
+    opacity: 0.4;
+    animation: tarotKingdomShieldGlass 3200ms ease-in-out infinite;
+    transition: opacity 240ms ease-out;
+}
+
+/* While a heal or buff effect plays on the actor, the lasting shield steps back so the effect reads. */
+:is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui
+    #tarotKingdomBattleStage [data-pixel-fx-active] > .tarot-kingdom-shield-ring {
+    opacity: 0.1;
+    animation: none;
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui
@@ -40412,8 +40421,8 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
 }
 
 @keyframes tarotKingdomShieldGlass {
-    0%, 100% { opacity: 0.74; filter: brightness(0.94) saturate(0.96); }
-    50% { opacity: 0.92; filter: brightness(1.12) saturate(1.08); }
+    0%, 100% { opacity: 0.34; filter: brightness(0.94) saturate(0.9); }
+    50% { opacity: 0.46; filter: brightness(1.04) saturate(0.96); }
 }
 
 @keyframes tarotKingdomShieldGlassImpact {

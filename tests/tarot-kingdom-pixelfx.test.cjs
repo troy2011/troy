@@ -32,6 +32,7 @@ function allRecipes(tables) {
     ...Object.values(tables.SUMMON_RECIPES).flatMap((recipe) => [...recipe.hit, ...(recipe.party || [])]),
     ...Object.values(tables.RESONANCE_RECIPES).flat(),
     ...Object.values(tables.RESONANCE_ELEMENT_RECIPES).flat(),
+    ...Object.values(tables.SUPPORT_RESONANCE_RECIPES).flat(),
     ...Object.values(tables.MONSTER_ATTACK_RECIPES).flatMap((entry) => [...entry.single, ...entry.area]),
     ...Object.values(tables.ACTOR_FX_RECIPES),
     tables.CRITICAL_LAYER,
@@ -76,6 +77,26 @@ test('every attacking minor resonance has its own effect, and the summons keep t
   const summonOnly = ['melee/heavy-cleave', 'melee/hammer-smash', 'explosions/small-explosion', 'impacts/ground-slam'];
   const weaponPaths = Object.values(tables.WEAPON_RECIPES).flat().map((recipe) => recipe.path);
   for (const effectPath of summonOnly) assert.ok(!weaponPaths.includes(effectPath), `weapon hit uses ${effectPath}`);
+});
+
+test('every other minor resonance has its own support effect, or a status loop that carries it', async () => {
+  const tables = await loadRecipes();
+  const catalog = JSON.parse(fs.readFileSync(path.join(ROOT, 'public', 'data', 'tarot-kingdom-arcana-ap-effects.json'), 'utf8'));
+  // sleep and petrify show as the enemy's status loop
+  const statusLoopOnly = new Set(['pentacle-6', 'pentacle-13']);
+  for (const { id } of catalog.minor) {
+    if (tables.RESONANCE_RECIPES[id] || statusLoopOnly.has(id)) continue;
+    assert.ok(tables.SUPPORT_RESONANCE_RECIPES[id]?.length, `support resonance ${id}`);
+  }
+  for (const id of Object.keys(tables.SUPPORT_RESONANCE_RECIPES)) assert.ok(!tables.RESONANCE_RECIPES[id], `${id} is both an attack and a support`);
+});
+
+test('the lasting shield stays faint and steps back while a one-shot plays on the actor', () => {
+  const css = fs.readFileSync(path.join(ROOT, 'public', 'style.css'), 'utf8');
+  const glass = css.slice(css.indexOf('@keyframes tarotKingdomShieldGlass {'));
+  const peak = Math.max(...[...glass.slice(0, glass.indexOf('}\n')).matchAll(/opacity: ([\d.]+)/g)].map((m) => Number(m[1])));
+  assert.ok(peak <= 0.5, `shield ring peaks at ${peak}`);
+  assert.match(css, /\[data-pixel-fx-active\] > \.tarot-kingdom-shield-ring \{\s*opacity: 0\.1;\s*animation: none;/);
 });
 
 test('every monster has its own single and area attack, apart from the summon and major-arcana effects', async () => {
