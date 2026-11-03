@@ -65,7 +65,7 @@ import {
     getTarotKingdomJobProficiencyWeaponLabels,
     getTarotKingdomWeaponProfile,
     isTarotKingdomJobProficientWithWeapon
-} from './tarotKingdomWeaponRules.js?v=20260827-job-weapon-v1';
+} from './tarotKingdomWeaponRules.js?v=20261103-element-balance-v1';
 
 let myInventory = [];
 let myCurrentEquipment = {};

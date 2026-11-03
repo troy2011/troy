@@ -65,36 +65,40 @@ const LEGACY_MONSTER_IDS_BY_NATIVE_ELEMENT = Object.freeze({
     ])
 });
 
+// The four elements hold ten monsters each so no weakness is starved of targets; light and dark stay rare.
+// Elements follow each monster's look (Mokurin is a dark hand, Galnez a sea creature, Rubit a fire imp).
+// Battles keep the affinity stored on their enemy, so a battle already under way is not changed.
 const MONSTER_IDS_BY_NATIVE_ELEMENT = Object.freeze({
     fire: Object.freeze([
-        'ismartal-vol1-monster-09', 'ismartal-vol2-monster-11', 'ismartal-vol1-monster-11',
-        'ismartal-vol1-monster-15', 'ismartal-vol2-monster-18', 'ismartal-vol2-monster-19',
-        'ismartal-vol3-monster-02', 'ismartal-vol3-monster-06'
+        'ismartal-vol1-monster-01', 'ismartal-vol1-monster-02', 'ismartal-vol1-monster-03',
+        'ismartal-vol1-monster-09', 'ismartal-vol2-monster-08', 'ismartal-vol2-monster-09',
+        'ismartal-vol2-monster-14', 'ismartal-vol2-monster-18', 'ismartal-vol3-monster-02',
+        'ismartal-vol3-monster-09'
     ]),
     water: Object.freeze([
-        'ismartal-vol3-monster-04', 'ismartal-vol1-monster-04', 'ismartal-vol1-monster-14',
-        'ismartal-vol1-monster-20', 'ismartal-vol1-monster-13', 'ismartal-vol2-monster-08',
-        'ismartal-vol2-monster-01', 'ismartal-vol2-monster-12'
+        'ismartal-vol1-monster-04', 'ismartal-vol1-monster-11', 'ismartal-vol1-monster-13',
+        'ismartal-vol1-monster-14', 'ismartal-vol1-monster-19', 'ismartal-vol1-monster-20',
+        'ismartal-vol2-monster-01', 'ismartal-vol2-monster-12', 'ismartal-vol2-monster-13',
+        'ismartal-vol3-monster-04'
     ]),
     wind: Object.freeze([
-        'ismartal-vol2-monster-02', 'ismartal-vol3-monster-05', 'ismartal-vol1-monster-10',
-        'ismartal-vol2-monster-06', 'ismartal-vol1-monster-17', 'ismartal-vol2-monster-03',
-        'ismartal-vol1-monster-18', 'ismartal-vol1-monster-19', 'ismartal-vol3-monster-03'
+        'ismartal-vol1-monster-06', 'ismartal-vol1-monster-10', 'ismartal-vol1-monster-12',
+        'ismartal-vol1-monster-17', 'ismartal-vol1-monster-18', 'ismartal-vol2-monster-03',
+        'ismartal-vol2-monster-06', 'ismartal-vol2-monster-11', 'ismartal-vol3-monster-03',
+        'ismartal-vol3-monster-05'
     ]),
     earth: Object.freeze([
-        'ismartal-vol1-monster-07', 'ismartal-vol1-monster-01', 'ismartal-vol2-monster-04',
-        'ismartal-vol1-monster-08', 'ismartal-vol2-monster-09', 'ismartal-vol2-monster-10',
-        'ismartal-vol3-monster-08', 'ismartal-vol3-monster-01', 'ismartal-vol2-monster-13',
-        'ismartal-vol2-monster-14', 'ismartal-vol2-monster-07'
+        'ismartal-vol1-monster-07', 'ismartal-vol1-monster-15', 'ismartal-vol2-monster-04',
+        'ismartal-vol2-monster-05', 'ismartal-vol2-monster-07', 'ismartal-vol2-monster-10',
+        'ismartal-vol2-monster-20', 'ismartal-vol3-monster-01', 'ismartal-vol3-monster-07',
+        'ismartal-vol3-monster-08'
     ]),
     light: Object.freeze([
-        'ismartal-vol1-monster-12', 'ismartal-vol2-monster-05',
-        'ismartal-vol1-monster-16', 'ismartal-vol2-monster-16'
+        'ismartal-vol1-monster-16', 'ismartal-vol2-monster-02', 'ismartal-vol2-monster-16'
     ]),
     dark: Object.freeze([
-        'ismartal-vol1-monster-02', 'ismartal-vol1-monster-03', 'ismartal-vol1-monster-06',
-        'ismartal-vol2-monster-15', 'ismartal-vol2-monster-20', 'ismartal-vol3-monster-07',
-        'ismartal-vol3-monster-09', 'ismartal-vol3-monster-10'
+        'ismartal-vol1-monster-08', 'ismartal-vol2-monster-15', 'ismartal-vol2-monster-19',
+        'ismartal-vol3-monster-06', 'ismartal-vol3-monster-10'
     ]),
     neutral: Object.freeze([
         'ismartal-vol1-monster-05', 'ismartal-vol2-monster-17'

@@ -6,7 +6,7 @@ import {
 } from './tarotKingdomEffects.js?v=20260827-buff-fix-v1';
 import {
     resolveTarotKingdomWeaponFormation
-} from './tarotKingdomWeaponRules.js?v=20260827-job-weapon-v1';
+} from './tarotKingdomWeaponRules.js?v=20261103-element-balance-v1';
 
 const NPC_STYLE_BY_SEAT = Object.freeze({
     1: { key: 'cautious', hp: 1.10, power: 0.85, defense: 1.20, weaponType: 'shield' },

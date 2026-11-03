@@ -29,7 +29,7 @@ import {
   getTarotKingdomMajorSecondaryDamageScale,
   getTarotKingdomResonanceDamageFloor,
   normalizeTarotKingdomCharacter
-} from './tarotKingdomCombat.js?v=20260827-buff-fix-v1';
+} from './tarotKingdomCombat.js?v=20261103-element-balance-v1';
 import {
   TAROT_KINGDOM_ARCANA_EFFECTS_READY,
   getTarotKingdomPhysicalScale,
@@ -61,7 +61,7 @@ import {
   getTarotKingdomWeakFamiliesForTags,
   resolveTarotKingdomWeaponComponents,
   resolveTarotKingdomWeaponFormation
-} from './tarotKingdomWeaponRules.js?v=20260827-job-weapon-v1';
+} from './tarotKingdomWeaponRules.js?v=20261103-element-balance-v1';
 import {
   TAROT_KINGDOM_NEGATIVE_STATUS_KEYS,
   TAROT_KINGDOM_HARD_CONTROL_KEYS,
@@ -93,14 +93,14 @@ import {
   calculateTarotKingdomEnemyMitigatedDamage,
   createTarotKingdomEnemyCombatProfile,
   getTarotKingdomEnemyAilmentChance
-} from './tarotKingdomEnemies.js?v=20260827-job-weapon-v1';
+} from './tarotKingdomEnemies.js?v=20261103-element-balance-v1';
 import {
   TAROT_KINGDOM_ELEMENT_LABELS,
   auditTarotKingdomMajorEffects,
   getTarotKingdomElementMultiplier,
   getTarotKingdomEnemyAffinity,
   getTarotKingdomMajorSkill
-} from './tarotKingdomMajorEffects.js?v=20260827-guardian-cover-v1';
+} from './tarotKingdomMajorEffects.js?v=20261103-element-balance-v1';
 import {
   flashCombatAvatarHurt,
   getCombatWeaponMotionProfile,
@@ -133,7 +133,7 @@ import {
   syncTarotKingdomStatusFx,
   TAROT_KINGDOM_KNOCKBACK_PX,
   warmTarotKingdomPixelFx
-} from './tarotKingdomPixelFx.js?v=20261103-pixelfx-v9';
+} from './tarotKingdomPixelFx.js?v=20261103-pixelfx-v10';
 
 const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 const TAROT_TILE_W = 48;

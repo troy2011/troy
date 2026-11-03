@@ -1,4 +1,4 @@
-import './tarotKingdomWeaponRules.shared.js?v=20260827-job-weapon-v1';
+import './tarotKingdomWeaponRules.shared.js?v=20261103-element-balance-v1';
 
 const rules = globalThis.TarotKingdomWeaponRules;
 

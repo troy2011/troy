@@ -318,26 +318,179 @@ const ENEMY_AREA_RECIPES = Object.freeze({
 const EP = ELEMENT_PALETTES;
 const INK = ['#05030a', '#120c22', '#221838', '#34264f', '#4a3a6a', '#665490', '#8c78b8', '#c4b4e8'];
 const MONSTER_ATTACK_RECIPES = Object.freeze({
-  // ── earth ──
-  // トゲマル: its spikes ricochet off the target / spikes burst from the ground
+  // ── fire ──
+  // トゲマル: its burning spikes ricochet off the target / burning spikes burst from the ground
   'ismartal-vol1-monster-01': {
-    single: [{ path: 'impacts/ricochet', back: 8, up: 10, hit: 0.05 }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0 }],
-    area: [{ path: 'ice/ice-spikes', back: 40, up: 0, hit: 0.5, speed: 1.6, until: 500, palette: EP.earth }]
+    single: [{ path: 'impacts/ricochet', back: 8, up: 10, hit: 0.05, palette: EP.fire }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0, opts: { palette: PALETTES.sun } }],
+    area: [{ path: 'ice/ice-spikes', back: 40, up: 0, hit: 0.5, speed: 1.6, until: 500, palette: EP.fire }]
   },
+  // グリモア: the spellbook casts / a fire sigil on each member
+  'ismartal-vol1-monster-02': {
+    single: [{ path: 'arcane/spell-charge', back: 0, up: 0, hit: 0.4, speed: 1.6, until: 500, palette: EP.fire }],
+    area: [{ path: 'arcane/spell-charge', each: true, up: 0, hit: 0.4, speed: 1.6, until: 500, staggerMs: 70, palette: EP.fire }]
+  },
+  // ボーンテイル: its thrown bone bursts into bone fire / bone fires rise under each member
+  'ismartal-vol1-monster-03': {
+    single: [{ path: 'shadow/shadow-flames', back: 0, up: 0, hit: 0.4, speed: 1.6, until: 500, palette: EP.fire }],
+    area: [{ path: 'shadow/shadow-flames', each: true, up: 0, hit: 0.4, speed: 1.4, until: 500, staggerMs: 70, palette: EP.fire }]
+  },
+  // ホタルビ: a fire wisp darts in / wisps on each member
+  'ismartal-vol1-monster-09': {
+    single: [{ path: 'critters/wisp', back: 0, up: 0, hit: 0.5, speed: 1.6, until: 450, palette: EP.fire }],
+    area: [{ path: 'critters/wisp', each: true, up: 0, hit: 0.5, speed: 1.6, until: 450, staggerMs: 60, palette: EP.fire }]
+  },
+  // ルビット: the imp breathes fire / a ring of fire round the party (with its own fire-breath sprite)
+  'ismartal-vol2-monster-08': {
+    single: [{ path: 'fire/fire-breath', breath: true, hit: 0.3, until: 360, light: 0.7 }],
+    area: [{ path: 'fire/fire-ring', back: 0, up: 0, hit: 0.3, speed: 1.6, until: 600 }]
+  },
+  // ノッカ: a knock — POW / a ring of fire round the party
+  'ismartal-vol2-monster-09': {
+    single: [{ path: 'explosions/cartoon-pow', back: 0, up: 8, hit: 0.1, speed: 1.4 }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0.1, opts: { palette: PALETTES.sun } }],
+    area: [{ path: 'fire/fire-ring', back: 0, up: 0, hit: 0.3, speed: 1.6, until: 600 }]
+  },
+  // スパイナ: its thrown burning spike sticks / a field of burning spikes
+  'ismartal-vol2-monster-14': {
+    single: [{ path: 'impacts/hit-spark', back: 4, up: 12, hit: 0, opts: { palette: PALETTES.sun } }, { path: 'impacts/ricochet', back: 6, up: 10, hit: 0.05, palette: EP.fire }],
+    area: [{ path: 'ice/ice-spikes', each: true, back: 10, up: 0, hit: 0.5, speed: 1.8, until: 450, staggerMs: 60, palette: EP.fire }]
+  },
+  // フレマ: a fire bolt / a burning barrel blows
+  'ismartal-vol2-monster-18': {
+    single: [{ path: 'projectiles/plasma-shot', back: 20, up: 12, hit: 0.2, speed: 1.4, until: 400, palette: EP.fire }],
+    area: [{ path: 'explosions/barrel-explosion', back: 0, up: 0, hit: 1.25, speed: 1.6, until: 600 }]
+  },
+  // イグニス: a jet of flame / a long sweep of flame over the party
+  'ismartal-vol3-monster-02': {
+    single: [{ path: 'fire/fire-breath', breath: true, hit: 0.3, until: 400, light: 0.8 }],
+    area: [{ path: 'fire/fire-breath', breath: true, hit: 0.35, until: 640, light: 0.9 }]
+  },
+  // クロモ: the bomb's fuse bites / the bomb blows in the party
+  'ismartal-vol3-monster-09': {
+    single: [{ path: 'explosions/cartoon-pow', back: 0, up: 8, hit: 0.1, speed: 1.4 }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0.1, opts: { palette: PALETTES.sun } }],
+    area: [{ path: 'explosions/grenade', back: 30, up: 0, hit: 1.75, speed: 1.4, until: 500 }]
+  },
+  // ── water ──
+  // ツノガイ: a water jet / ripples under each member
+  'ismartal-vol1-monster-04': {
+    single: [{ path: 'water/water-jet', jet: true, up: 13, hit: 0.18, until: 260 }, { path: 'water/ripples', back: 0, up: 0, hit: 0.2, speed: 1.4, until: 500 }],
+    area: [{ path: 'water/ripples', each: true, up: 0, hit: 0.2, speed: 1.4, until: 500, staggerMs: 60 }]
+  },
+  // ガルネズ: a water jet / a whirlpool under the party
+  'ismartal-vol1-monster-11': {
+    single: [{ path: 'water/water-jet', jet: true, up: 13, hit: 0.18, until: 260 }, { path: 'water/ripples', back: 0, up: 0, hit: 0.2, speed: 1.4, until: 500 }],
+    area: [{ path: 'water/whirlpool', back: 0, up: -4, hit: 0.3, speed: 1.4, until: 600 }]
+  },
+  // ミドロ: a water snake bites / a downpour
+  'ismartal-vol1-monster-13': {
+    single: [{ path: 'critters/snake', back: 10, up: 0, hit: 0.4, speed: 1.6, until: 500, palette: EP.water }],
+    area: [{ path: 'water/rain-splash', back: 0, up: 0, hit: 0.4, speed: 1.4, until: 600 }]
+  },
+  // ポルポ: an ink jet / ink ripples under each member
+  'ismartal-vol1-monster-14': {
+    single: [{ path: 'water/water-jet', jet: true, up: 13, hit: 0.18, until: 260, palette: INK }, { path: 'water/ripples', back: 0, up: 0, hit: 0.2, speed: 1.4, until: 500, palette: INK }],
+    area: [{ path: 'water/ripples', each: true, up: 0, hit: 0.2, speed: 1.4, until: 500, staggerMs: 60, palette: INK }]
+  },
+  // チュロ: a blob of water drops on the target / a downpour
+  'ismartal-vol1-monster-19': {
+    single: [{ path: 'water/water-orb', back: 0, up: 0, hit: 0.3, speed: 1.6, until: 450 }, { path: 'water/ripples', back: 0, up: 0, hit: 0.1, speed: 1.4, until: 500 }],
+    area: [{ path: 'water/rain-splash', back: 0, up: 0, hit: 0.4, speed: 1.4, until: 600 }]
+  },
+  // アクエル: a water orb drops / a waterfall crashes down
+  'ismartal-vol1-monster-20': {
+    single: [{ path: 'water/water-orb', back: 0, up: 0, hit: 0.3, speed: 1.6, until: 450 }, { path: 'water/ripples', back: 0, up: 0, hit: 0.1, speed: 1.4, until: 500 }],
+    area: [{ path: 'water/waterfall', back: 0, up: 0, hit: 0.2, speed: 1.4, until: 550 }]
+  },
+  // フロス: an ice lance / a frost nova
+  'ismartal-vol2-monster-01': {
+    single: [{ path: 'ice/ice-lance', back: 30, up: 12, hit: 0.5, speed: 1.6 }],
+    area: [{ path: 'ice/frost-nova', back: 0, up: 0, hit: 0.7, speed: 1.6, until: 500 }]
+  },
+  // ケロッツ: a tongue lash / frogs leap on each member
+  'ismartal-vol2-monster-12': {
+    single: [{ path: 'melee/whip-crack', back: 40, up: 12, hit: 0.2, speed: 1.3, palette: PALETTES.blood }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0.05 }],
+    area: [{ path: 'critters/frog', each: true, up: 0, hit: 1.5, speed: 1.6, until: 450, staggerMs: 80 }]
+  },
+  // コロック: the slug's wet bite / a downpour
+  'ismartal-vol2-monster-13': {
+    single: [{ path: 'melee/claw-swipe', back: 20, up: -9, hit: 0.1, palette: EP.water }, { path: 'water/ripples', back: 0, up: 0, hit: 0.2, speed: 1.4, until: 500 }],
+    area: [{ path: 'water/rain-splash', back: 0, up: 0, hit: 0.4, speed: 1.4, until: 600 }]
+  },
+  // プルン: a slime blob lands / slimes drop on each member
+  'ismartal-vol3-monster-04': {
+    single: [{ path: 'critters/slime', back: 0, up: 0, hit: 1.05, speed: 1.6, until: 450, palette: EP.water }],
+    area: [{ path: 'critters/slime', each: true, up: 0, hit: 1.05, speed: 1.6, until: 450, staggerMs: 70, palette: EP.water }]
+  },
+  // ── wind ──
+  // ゲルバット: a bite in a gust / a swarm of bats
+  'ismartal-vol1-monster-06': {
+    single: [{ path: 'melee/claw-swipe', back: 20, up: -9, hit: 0.1, palette: EP.wind }],
+    area: [{ path: 'critters/bat', each: true, up: 6, hit: 0.3, speed: 1.4, until: 500, staggerMs: 60, palette: EP.wind }]
+  },
+  // リーフロ: a leaf lash / petals in a gust
+  'ismartal-vol1-monster-10': {
+    single: [{ path: 'melee/whip-crack', back: 40, up: 12, hit: 0.2, speed: 1.3, palette: PALETTES.leaf }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0.05, opts: { palette: PALETTES.leaf } }],
+    area: [{ path: 'weather/cherry-blossoms', back: 0, up: 0, hit: 0.6, speed: 1.6, until: 700, palette: PALETTES.leaf }]
+  },
+  // フェリカ: the swarm whirls onto the target / onto each member
+  'ismartal-vol1-monster-12': {
+    single: [{ path: 'ice/blizzard-vortex', back: 0, up: 0, hit: 0.3, until: 450, palette: EP.wind }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0.2 }],
+    area: [{ path: 'ice/blizzard-vortex', each: true, up: 0, hit: 0.3, until: 450, staggerMs: 60, palette: EP.wind }]
+  },
+  // コバット: a shock bite / bats on each member
+  'ismartal-vol1-monster-17': {
+    single: [{ path: 'lightning/zap-hit', back: 0, up: 7, hit: 0.12 }],
+    area: [{ path: 'critters/bat', each: true, up: 6, hit: 0.3, speed: 1.4, until: 500, staggerMs: 60, palette: EP.wind }]
+  },
+  // ラムネロ: it breathes a puff of gas / a cloud of gas rolls over the party (as its own gas sprite)
+  'ismartal-vol1-monster-18': {
+    single: [{ path: 'nature/poison-cloud', back: 0, up: 8, hit: 0.4, speed: 1.6, until: 500 }],
+    area: [{ path: 'nature/poison-cloud', back: 0, up: 8, hit: 0.4, speed: 1.4, until: 600 }]
+  },
+  // モスガン: poison scales / a cloud of scales
+  'ismartal-vol2-monster-03': {
+    single: [{ path: 'ice/snowflake-burst', back: 0, up: 0, hit: 0.3, speed: 1.6, until: 450, palette: PALETTES.gold }],
+    area: [{ path: 'nature/poison-cloud', back: 0, up: 8, hit: 0.4, speed: 1.4, until: 600, palette: PALETTES.gold }]
+  },
+  // グリバト: its seed glows and bursts / spores over each member
+  'ismartal-vol2-monster-06': {
+    single: [{ path: 'arcane/spell-charge', back: 0, up: 0, hit: 0.4, speed: 1.6, until: 500, palette: PALETTES.leaf }],
+    area: [{ path: 'nature/spore-burst', each: true, up: 0, hit: 1.0, speed: 2, until: 600, staggerMs: 90, palette: PALETTES.leaf }]
+  },
+  // ビズン: its stinger strikes / the bees zip at each member
+  'ismartal-vol2-monster-11': {
+    single: [{ path: 'impacts/ricochet', back: 8, up: 10, hit: 0.05, palette: EP.wind }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0 }],
+    area: [{ path: 'lightning/zap-hit', each: true, up: 7, hit: 0.12, staggerMs: 70 }]
+  },
+  // トルネ: a whirlwind / a whirlwind on each member
+  'ismartal-vol3-monster-03': {
+    single: [{ path: 'ice/blizzard-vortex', back: 0, up: 0, hit: 0.3, until: 500, palette: EP.wind }],
+    area: [{ path: 'ice/blizzard-vortex', each: true, up: 0, hit: 0.3, until: 500, staggerMs: 60, palette: EP.wind }]
+  },
+  // モクモ: a lightning bolt / a storm over each member
+  'ismartal-vol3-monster-05': {
+    single: [{ path: 'lightning/storm-cloud', back: 0, up: 0, hit: 1.75, speed: 1.4, until: 450 }],
+    area: [{ path: 'lightning/storm-cloud', each: true, up: 0, hit: 1.75, speed: 1.4, until: 450, staggerMs: 80 }]
+  },
+  // ── earth ──
   // マシュロン: a mushroom puffs spores
   'ismartal-vol1-monster-07': {
     single: [{ path: 'nature/spore-burst', back: 0, up: 0, hit: 1.0, speed: 2, until: 600 }],
     area: [{ path: 'nature/spore-burst', each: true, up: 0, hit: 1.0, speed: 2, until: 600, staggerMs: 90 }]
   },
-  // モクリン: a creeping vine lashes out / vines lash the whole party
-  'ismartal-vol1-monster-08': {
+  // ガブリラ: a vine lash / acid pools under each member
+  'ismartal-vol1-monster-15': {
     single: [{ path: 'nature/vine-whip', back: 26, up: 0, hit: 0.55, speed: 1.4 }],
-    area: [{ path: 'nature/vine-whip', each: true, back: 26, up: 0, hit: 0.55, speed: 1.4, staggerMs: 80 }]
+    area: [{ path: 'nature/toxic-puddle', each: true, up: 0, hit: 0.4, speed: 1.4, until: 600, staggerMs: 60 }]
   },
   // カブロン: the beetle's horn tosses dirt / the ground quakes
   'ismartal-vol2-monster-04': {
     single: [{ path: 'explosions/dirt-explosion', back: 0, up: 0, hit: 0.1, speed: 1.6, until: 500 }],
     area: [{ path: 'nature/quake', back: 8, up: -3, hit: 0.6, speed: 1.6 }]
+  },
+  // リルフィ: its thrown spear sticks / stone spikes burst under each member
+  'ismartal-vol2-monster-05': {
+    single: [{ path: 'impacts/hit-spark', back: 4, up: 12, hit: 0 }, { path: 'impacts/ricochet', back: 6, up: 10, hit: 0.05, palette: EP.earth }],
+    area: [{ path: 'ice/ice-spikes', each: true, back: 10, up: 0, hit: 0.5, speed: 1.8, until: 450, staggerMs: 60, palette: EP.earth }]
   },
   // バルガン (boss): a crushing blow in a burst of dirt / spikes and a quake
   'ismartal-vol2-monster-07': {
@@ -350,234 +503,41 @@ const MONSTER_ATTACK_RECIPES = Object.freeze({
       { path: 'ice/ice-spikes', back: 14, up: 0, hit: 0.5, speed: 1.6, until: 600, palette: EP.earth }
     ]
   },
-  // ノッカ: a knock — POW / a thud under every member
-  'ismartal-vol2-monster-09': {
-    single: [{ path: 'explosions/cartoon-pow', back: 0, up: 8, hit: 0.1, speed: 1.4 }],
-    area: [{ path: 'impacts/heavy-landing', each: true, up: 0, hit: 0.1, staggerMs: 70 }]
-  },
   // ウッドラ: a twig lash / leaves come down on the party
   'ismartal-vol2-monster-10': {
     single: [{ path: 'nature/vine-whip', back: 26, up: 0, hit: 0.55, speed: 1.4, palette: EP.earth }],
     area: [{ path: 'weather/falling-leaves', back: 0, up: 0, hit: 0.6, speed: 1.6, until: 700 }]
   },
-  // コロック: a pebble ricochets / a burst of dirt
-  'ismartal-vol2-monster-13': {
-    single: [{ path: 'impacts/ricochet', back: 8, up: 4, hit: 0.05, palette: EP.earth }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0 }],
-    area: [{ path: 'explosions/dirt-explosion', back: 0, up: 0, hit: 0.1, speed: 1.6, until: 600 }]
-  },
-  // スパイナ: its thrown spike sticks / a field of spikes
-  'ismartal-vol2-monster-14': {
-    single: [{ path: 'impacts/hit-spark', back: 4, up: 12, hit: 0 }, { path: 'impacts/ricochet', back: 6, up: 10, hit: 0.05, palette: EP.earth }],
-    area: [{ path: 'ice/ice-spikes', each: true, back: 10, up: 0, hit: 0.5, speed: 1.8, until: 450, staggerMs: 60, palette: EP.earth }]
+  // ネブラ: the worm's thrown rock lands / the ground quakes
+  'ismartal-vol2-monster-20': {
+    single: [{ path: 'impacts/heavy-landing', back: 0, up: 0, hit: 0.1 }, { path: 'impacts/ricochet', back: 6, up: 10, hit: 0.05, palette: EP.earth }],
+    area: [{ path: 'nature/quake', back: 8, up: -3, hit: 0.6, speed: 1.6 }]
   },
   // グラヴァ: a rock falls on the target / on each member
   'ismartal-vol3-monster-01': {
     single: [{ path: 'ice/icicle-fall', back: 0, up: 0, hit: 1.0, speed: 1.8, until: 450, palette: EP.earth }],
     area: [{ path: 'ice/icicle-fall', each: true, up: 0, hit: 1.0, speed: 1.8, until: 450, staggerMs: 80, palette: EP.earth }]
   },
-  // キノガル: its spore shot bursts in ghostly flame / a poison fog
-  'ismartal-vol3-monster-08': {
-    single: [{ path: 'shadow/shadow-flames', back: 0, up: 0, hit: 0.4, speed: 1.6, until: 500, palette: PALETTES.leaf }],
-    area: [{ path: 'nature/poison-cloud', back: 0, up: 8, hit: 0.4, speed: 1.4, until: 600 }]
-  },
-  // ── dark ──
-  // グリモア: the spellbook casts / a curse sigil on each member
-  'ismartal-vol1-monster-02': {
-    single: [{ path: 'arcane/spell-charge', back: 0, up: 0, hit: 0.4, speed: 1.6, until: 500, palette: EP.dark }],
-    area: [{ path: 'arcane/spell-charge', each: true, up: 0, hit: 0.4, speed: 1.6, until: 500, staggerMs: 70, palette: EP.dark }]
-  },
-  // ボーンテイル: its thrown bone drains a soul / souls rise from the party
-  'ismartal-vol1-monster-03': {
-    single: [{ path: 'shadow/shadow-tendrils', back: 0, up: -16, hit: 0.7, speed: 1.8 }],
-    area: [{ path: 'spawn/soul-rise', each: true, up: 0, hit: 0.6, speed: 1.8, until: 500, staggerMs: 70 }]
-  },
-  // ゲルバット: a vampire bite / a swarm of bats
-  'ismartal-vol1-monster-06': {
-    single: [{ path: 'shadow/life-steal', back: 0, up: 0, hit: 0.9, speed: 1.8, until: 500 }],
-    area: [{ path: 'critters/bat', each: true, up: 6, hit: 0.3, speed: 1.4, until: 500, staggerMs: 60 }]
-  },
-  // アビソス (boss): the abyss drains the target / dark flames under the party
-  'ismartal-vol2-monster-15': {
-    single: [{ path: 'shadow/soul-drain', back: 0, up: 0, hit: 0.4, speed: 1.4, until: 600 }],
-    area: [
-      { path: 'shadow/shadow-flames', each: true, up: 0, hit: 0.4, speed: 1.4, until: 600, staggerMs: 60 },
-      { path: 'shadow/shadow-tendrils', back: 0, up: -16, hit: 0.7, speed: 1.8 }
-    ]
-  },
-  // ネブラ: its shot bursts into dark flame / a rift opens under the party
-  'ismartal-vol2-monster-20': {
-    single: [{ path: 'shadow/shadow-flames', back: 0, up: 0, hit: 0.4, speed: 1.6, until: 500 }],
-    area: [{ path: 'spawn/spawn-portal', back: 0, up: 0, hit: 1.25, speed: 1.6, until: 500 }]
-  },
   // グールン: a rotten claw / a cloud of rot
   'ismartal-vol3-monster-07': {
     single: [{ path: 'melee/claw-swipe', back: 20, up: -9, hit: 0.1, palette: PALETTES.leaf }],
     area: [{ path: 'nature/poison-cloud', back: 0, up: 8, hit: 0.4, speed: 1.4, until: 600, palette: PALETTES.leaf }]
   },
-  // クロモ: a shadow bite / a smoke bomb
-  'ismartal-vol3-monster-09': {
-    single: [{ path: 'melee/claw-swipe', back: 20, up: -9, hit: 0.1, palette: EP.dark }],
-    area: [{ path: 'explosions/smoke-bomb', back: 30, up: 0, hit: 1.2, speed: 1.8, until: 500, palette: INK }]
-  },
-  // ノクス: its dark shot strikes / crows dive on each member
-  'ismartal-vol3-monster-10': {
-    single: [{ path: 'arcane/blink-in', back: 0, up: 0, hit: 0.35, speed: 1.4, palette: EP.dark }],
-    area: [{ path: 'critters/bird', each: true, up: 8, hit: 0.3, speed: 1.6, until: 500, staggerMs: 60, palette: EP.dark }]
-  },
-  // ── water ──
-  // ツノガイ: a water jet / ripples under each member
-  'ismartal-vol1-monster-04': {
-    single: [{ path: 'water/water-jet', jet: true, up: 13, hit: 0.18, until: 260 }, { path: 'water/ripples', back: 0, up: 0, hit: 0.2, speed: 1.4, until: 500 }],
-    area: [{ path: 'water/ripples', each: true, up: 0, hit: 0.2, speed: 1.4, until: 500, staggerMs: 60 }]
-  },
-  // ミドロ: a water snake bites / a downpour
-  'ismartal-vol1-monster-13': {
-    single: [{ path: 'critters/snake', back: 10, up: 0, hit: 0.4, speed: 1.6, until: 500, palette: EP.water }],
-    area: [{ path: 'water/rain-splash', back: 0, up: 0, hit: 0.4, speed: 1.4, until: 600 }]
-  },
-  // ポルポ: an ink jet / ink ripples under each member
-  'ismartal-vol1-monster-14': {
-    single: [{ path: 'water/water-jet', jet: true, up: 13, hit: 0.18, until: 260, palette: INK }, { path: 'water/ripples', back: 0, up: 0, hit: 0.2, speed: 1.4, until: 500, palette: INK }],
-    area: [{ path: 'water/ripples', each: true, up: 0, hit: 0.2, speed: 1.4, until: 500, staggerMs: 60, palette: INK }]
-  },
-  // アクエル: a water orb drops / a waterfall crashes down
-  'ismartal-vol1-monster-20': {
-    single: [{ path: 'water/water-orb', back: 0, up: 0, hit: 0.3, speed: 1.6, until: 450 }, { path: 'water/ripples', back: 0, up: 0, hit: 0.1, speed: 1.4, until: 500 }],
-    area: [{ path: 'water/waterfall', back: 0, up: 0, hit: 0.2, speed: 1.4, until: 550 }]
-  },
-  // フロス: an ice lance / a frost nova
-  'ismartal-vol2-monster-01': {
-    single: [{ path: 'ice/ice-lance', back: 30, up: 12, hit: 0.5, speed: 1.6 }],
-    area: [{ path: 'ice/frost-nova', back: 0, up: 0, hit: 0.7, speed: 1.6, until: 500 }]
-  },
-  // ルビット: frost breath / a blizzard
-  'ismartal-vol2-monster-08': {
-    single: [{ path: 'ice/frost-breath', breath: true, hit: 0.3, until: 400 }],
-    area: [{ path: 'ice/blizzard-vortex', back: 0, up: 0, hit: 0.3, until: 600, drift: 16 }]
-  },
-  // ケロッツ: a tongue lash / frogs leap on each member
-  'ismartal-vol2-monster-12': {
-    single: [{ path: 'melee/whip-crack', back: 40, up: 12, hit: 0.2, speed: 1.3, palette: PALETTES.blood }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0.05 }],
-    area: [{ path: 'critters/frog', each: true, up: 0, hit: 1.5, speed: 1.6, until: 450, staggerMs: 80 }]
-  },
-  // プルン: a slime blob lands / slimes drop on each member
-  'ismartal-vol3-monster-04': {
-    single: [{ path: 'critters/slime', back: 0, up: 0, hit: 1.05, speed: 1.6, until: 450, palette: EP.water }],
-    area: [{ path: 'critters/slime', each: true, up: 0, hit: 1.05, speed: 1.6, until: 450, staggerMs: 70, palette: EP.water }]
-  },
-  // ── neutral ──
-  // ピコアイ: an eye glares at the target / at every member
-  'ismartal-vol1-monster-05': {
-    single: [{ path: 'critters/eyeball', back: 0, up: 0, hit: 0.3, speed: 1.4, until: 500 }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0.1 }],
-    area: [{ path: 'critters/eyeball', each: true, up: 0, hit: 0.3, speed: 1.4, until: 500, staggerMs: 70 }]
-  },
-  // メカノ: its bullet hits / a laser grid
-  'ismartal-vol2-monster-17': {
-    single: [{ path: 'impacts/bullet-impact', back: 13, up: 8, hit: 0 }, { path: 'impacts/ricochet', back: 8, up: 10, hit: 0.05 }],
-    area: [{ path: 'scifi/laser-grid', back: 0, up: 0, hit: 0.5, speed: 1.4, until: 550 }]
-  },
-  // ── fire ──
-  // ホタルビ: a fire wisp darts in / wisps on each member
-  'ismartal-vol1-monster-09': {
-    single: [{ path: 'critters/wisp', back: 0, up: 0, hit: 0.5, speed: 1.6, until: 450, palette: EP.fire }],
-    area: [{ path: 'critters/wisp', each: true, up: 0, hit: 0.5, speed: 1.6, until: 450, staggerMs: 60, palette: EP.fire }]
-  },
-  // ガルネズ: fire breath / a fire bomb lands in the party
-  'ismartal-vol1-monster-11': {
-    single: [{ path: 'fire/fire-breath', breath: true, hit: 0.3, until: 360, light: 0.7 }],
-    area: [{ path: 'explosions/grenade', back: 30, up: 0, hit: 1.75, speed: 1.4, until: 500 }]
-  },
-  // ガブリラ: a burning vine / lava pools under each member
-  'ismartal-vol1-monster-15': {
-    single: [{ path: 'nature/vine-whip', back: 26, up: 0, hit: 0.55, speed: 1.4, palette: EP.fire }],
-    area: [{ path: 'nature/toxic-puddle', each: true, up: 0, hit: 0.4, speed: 1.4, until: 600, staggerMs: 60, palette: EP.fire }]
-  },
-  // ビズン: its stinger burns / flares come down on each member
-  'ismartal-vol2-monster-11': {
-    single: [{ path: 'impacts/ricochet', back: 8, up: 10, hit: 0.05, palette: PALETTES.sun }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0, opts: { palette: PALETTES.sun } }],
-    area: [{ path: 'projectiles/flare', each: true, up: 0, hit: 0.3, speed: 1.4, until: 500, staggerMs: 60 }]
-  },
-  // フレマ: a fire bolt / a burning barrel blows
-  'ismartal-vol2-monster-18': {
-    single: [{ path: 'projectiles/plasma-shot', back: 20, up: 12, hit: 0.2, speed: 1.4, until: 400, palette: EP.fire }],
-    area: [{ path: 'explosions/barrel-explosion', back: 0, up: 0, hit: 1.25, speed: 1.6, until: 600 }]
-  },
-  // バクス: the mimic bites / spits its coins at the party
-  'ismartal-vol2-monster-19': {
-    single: [{ path: 'melee/claw-swipe', back: 20, up: -9, hit: 0.1, palette: PALETTES.sun }],
-    area: [{ path: 'spawn/coin-drop', back: 0, up: 0, hit: 0.3, speed: 1.4, until: 700 }]
-  },
-  // イグニス: a jet of flame / a long sweep of flame over the party
-  'ismartal-vol3-monster-02': {
-    single: [{ path: 'fire/fire-breath', breath: true, hit: 0.3, until: 400, light: 0.8 }],
-    area: [{ path: 'fire/fire-breath', breath: true, hit: 0.35, until: 640, light: 0.9 }]
-  },
-  // ヨミル: a ghost fire / every member burns away for a moment
-  'ismartal-vol3-monster-06': {
-    single: [{ path: 'shadow/shadow-flames', back: 0, up: 0, hit: 0.4, speed: 1.6, until: 500, palette: EP.fire }],
-    area: [{ path: 'spawn/dissolve-burn', each: true, up: 0, hit: 1.0, speed: 2, until: 450, staggerMs: 70 }]
-  },
-  // ── wind ──
-  // リーフロ: a leaf lash / petals in a gust
-  'ismartal-vol1-monster-10': {
-    single: [{ path: 'melee/whip-crack', back: 40, up: 12, hit: 0.2, speed: 1.3, palette: PALETTES.leaf }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0.05, opts: { palette: PALETTES.leaf } }],
-    area: [{ path: 'weather/cherry-blossoms', back: 0, up: 0, hit: 0.6, speed: 1.6, until: 700, palette: PALETTES.leaf }]
-  },
-  // コバット: a shock bite / bats on each member
-  'ismartal-vol1-monster-17': {
-    single: [{ path: 'lightning/zap-hit', back: 0, up: 7, hit: 0.12 }],
-    area: [{ path: 'critters/bat', each: true, up: 6, hit: 0.3, speed: 1.4, until: 500, staggerMs: 60, palette: EP.wind }]
-  },
-  // ラムネロ: a ball of lightning / chain lightning through the party
-  'ismartal-vol1-monster-18': {
-    single: [{ path: 'lightning/ball-lightning', back: 0, up: 0, hit: 2.25, speed: 2, until: 400 }],
-    area: [{ path: 'lightning/chain-lightning', back: 40, up: 10, hit: 0.3, speed: 1.4, until: 500 }]
-  },
-  // チュロ: a static jolt / a storm cloud
-  'ismartal-vol1-monster-19': {
-    single: [{ path: 'lightning/charge-up', back: 0, up: 0, hit: 1.6, speed: 2, until: 400 }],
-    area: [{ path: 'lightning/storm-cloud', back: 0, up: 0, hit: 1.75, speed: 1.4, until: 500 }]
-  },
-  // パピル: its shot bursts into scales / butterflies on each member
-  'ismartal-vol2-monster-02': {
-    single: [{ path: 'ice/snowflake-burst', back: 0, up: 0, hit: 0.3, speed: 1.6, until: 450, palette: EP.wind }],
-    area: [{ path: 'critters/butterfly', each: true, up: 0, hit: 0.75, speed: 1.6, until: 500, staggerMs: 70, palette: EP.wind }]
-  },
-  // モスガン: poison scales / a cloud of scales
-  'ismartal-vol2-monster-03': {
-    single: [{ path: 'ice/snowflake-burst', back: 0, up: 0, hit: 0.3, speed: 1.6, until: 450, palette: PALETTES.gold }],
-    area: [{ path: 'nature/poison-cloud', back: 0, up: 8, hit: 0.4, speed: 1.4, until: 600, palette: PALETTES.gold }]
-  },
-  // グリバト: its seed glows and bursts / spores over each member
-  'ismartal-vol2-monster-06': {
-    single: [{ path: 'arcane/spell-charge', back: 0, up: 0, hit: 0.4, speed: 1.6, until: 500, palette: PALETTES.leaf }],
-    area: [{ path: 'nature/spore-burst', each: true, up: 0, hit: 1.0, speed: 2, until: 600, staggerMs: 90, palette: PALETTES.leaf }]
-  },
-  // トルネ: a whirlwind / a whirlwind on each member
-  'ismartal-vol3-monster-03': {
-    single: [{ path: 'ice/blizzard-vortex', back: 0, up: 0, hit: 0.3, until: 500, palette: EP.wind }],
-    area: [{ path: 'ice/blizzard-vortex', each: true, up: 0, hit: 0.3, until: 500, staggerMs: 60, palette: EP.wind }]
-  },
-  // モクモ: a lightning bolt / a storm over each member
-  'ismartal-vol3-monster-05': {
-    single: [{ path: 'lightning/storm-cloud', back: 0, up: 0, hit: 1.75, speed: 1.4, until: 450 }],
-    area: [{ path: 'lightning/storm-cloud', each: true, up: 0, hit: 1.75, speed: 1.4, until: 450, staggerMs: 80 }]
+  // キノガル: its spore shot bursts in ghostly flame / a poison fog
+  'ismartal-vol3-monster-08': {
+    single: [{ path: 'shadow/shadow-flames', back: 0, up: 0, hit: 0.4, speed: 1.6, until: 500, palette: PALETTES.leaf }],
+    area: [{ path: 'nature/poison-cloud', back: 0, up: 8, hit: 0.4, speed: 1.4, until: 600 }]
   },
   // ── light ──
-  // フェリカ: a dive / feathers of light burst round the party
-  'ismartal-vol1-monster-12': {
-    single: [{ path: 'critters/bird', back: 0, up: 8, hit: 0.3, speed: 1.6, until: 450, palette: PALETTES.gold }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0.2, opts: { palette: PALETTES.gold } }],
-    area: [{ path: 'ice/snowflake-burst', each: true, up: 0, hit: 0.3, speed: 1.6, until: 450, staggerMs: 60, palette: PALETTES.gold }]
-  },
   // ツキバネ: a moth of light strikes / light spikes round the party
   'ismartal-vol1-monster-16': {
     single: [{ path: 'critters/butterfly', back: 0, up: 0, hit: 0.75, speed: 1.6, until: 450, palette: PALETTES.gold }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0.1, opts: { palette: PALETTES.gold } }],
     area: [{ path: 'ice/frost-nova', back: 0, up: 0, hit: 0.7, speed: 1.6, until: 500, palette: PALETTES.gold }]
   },
-  // リルフィ: its shot lights a wisp / every member flickers with light
-  'ismartal-vol2-monster-05': {
-    single: [{ path: 'critters/wisp', back: 0, up: 0, hit: 0.5, speed: 1.6, until: 450, palette: PALETTES.gold }],
-    area: [{ path: 'arcane/blink-in', each: true, up: 0, hit: 0.35, speed: 1.4, staggerMs: 60, palette: PALETTES.gold }]
+  // パピル: its shot bursts into shining scales / shining butterflies on each member
+  'ismartal-vol2-monster-02': {
+    single: [{ path: 'ice/snowflake-burst', back: 0, up: 0, hit: 0.3, speed: 1.6, until: 450, palette: PALETTES.gold }],
+    area: [{ path: 'critters/butterfly', each: true, up: 0, hit: 0.75, speed: 1.6, until: 500, staggerMs: 70, palette: PALETTES.gold }]
   },
   // オルビス (boss): a laser bolt and a scan / a laser grid of light
   'ismartal-vol2-monster-16': {
@@ -589,6 +549,46 @@ const MONSTER_ATTACK_RECIPES = Object.freeze({
       { path: 'scifi/laser-grid', back: 0, up: 0, hit: 0.5, speed: 1.4, until: 550, palette: PALETTES.gold },
       { path: 'ice/frost-nova', back: 0, up: 0, hit: 0.7, speed: 1.6, until: 500, palette: PALETTES.gold }
     ]
+  },
+  // ── dark ──
+  // モクリン: shadow arms reach up under the target / under each member (the Devil keeps the clawing hands)
+  'ismartal-vol1-monster-08': {
+    single: [{ path: 'shadow/shadow-tendrils', back: 0, up: -16, hit: 0.7, speed: 1.8 }],
+    area: [{ path: 'shadow/shadow-tendrils', each: true, up: -16, hit: 0.7, speed: 1.8, staggerMs: 80 }]
+  },
+  // アビソス (boss): the abyss drains the target / dark flames under the party
+  'ismartal-vol2-monster-15': {
+    single: [{ path: 'shadow/soul-drain', back: 0, up: 0, hit: 0.4, speed: 1.4, until: 600 }],
+    area: [
+      { path: 'shadow/shadow-flames', each: true, up: 0, hit: 0.4, speed: 1.4, until: 600, staggerMs: 60 },
+      { path: 'shadow/shadow-tendrils', back: 0, up: -16, hit: 0.7, speed: 1.8 }
+    ]
+  },
+  // バクス: the mimic's dark bite / spits its coins at the party
+  'ismartal-vol2-monster-19': {
+    single: [{ path: 'melee/claw-swipe', back: 20, up: -9, hit: 0.1, palette: EP.dark }],
+    area: [{ path: 'spawn/coin-drop', back: 0, up: 0, hit: 0.3, speed: 1.4, until: 700 }]
+  },
+  // ヨミル: a dark flame / souls are pulled up from each member
+  'ismartal-vol3-monster-06': {
+    single: [{ path: 'shadow/shadow-flames', back: 0, up: 0, hit: 0.4, speed: 1.6, until: 500 }],
+    area: [{ path: 'spawn/soul-rise', each: true, up: 0, hit: 0.6, speed: 1.8, until: 500, staggerMs: 70 }]
+  },
+  // ノクス: its dark shot strikes / crows dive on each member
+  'ismartal-vol3-monster-10': {
+    single: [{ path: 'arcane/blink-in', back: 0, up: 0, hit: 0.35, speed: 1.4, palette: EP.dark }],
+    area: [{ path: 'critters/bird', each: true, up: 8, hit: 0.3, speed: 1.6, until: 500, staggerMs: 60, palette: EP.dark }]
+  },
+  // ── neutral ──
+  // ピコアイ: an eye glares at the target / at every member
+  'ismartal-vol1-monster-05': {
+    single: [{ path: 'critters/eyeball', back: 0, up: 0, hit: 0.3, speed: 1.4, until: 500 }, { path: 'impacts/hit-spark', back: 4, up: 12, hit: 0.1 }],
+    area: [{ path: 'critters/eyeball', each: true, up: 0, hit: 0.3, speed: 1.4, until: 500, staggerMs: 70 }]
+  },
+  // メカノ: its bullet hits / a laser grid
+  'ismartal-vol2-monster-17': {
+    single: [{ path: 'impacts/bullet-impact', back: 13, up: 8, hit: 0 }, { path: 'impacts/ricochet', back: 8, up: 10, hit: 0.05 }],
+    area: [{ path: 'scifi/laser-grid', back: 0, up: 0, hit: 0.5, speed: 1.4, until: 550 }]
   }
 });
 
@@ -1199,7 +1199,8 @@ export async function playTarotKingdomEnemyEntranceFx(stageEl, anchorEl, { eleme
  */
 const GRAND_FINAL_CUTIN_MS = 3000;
 const CELEBRATION_RECIPES = Object.freeze({
-  roundWin: [{ path: 'ui/level-up', opts: { text: 'WIN!' }, until: 1900 }],
+  // a star over the winner's head: the level-up pillar and its rings swallowed the whole party column
+  roundWin: [{ path: 'pickups/power-star', up: 18, until: 1400 }],
   champion: [{ path: 'ui/confetti', center: true, delay: GRAND_FINAL_CUTIN_MS }],
   treasure: [{ path: 'pickups/chest-open', center: true, delay: GRAND_FINAL_CUTIN_MS, until: 2600 }]
 });

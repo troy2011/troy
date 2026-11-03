@@ -1361,7 +1361,7 @@ test('preview can switch every field-effect background from the demo picker', as
   const activeScene = () => trick.locator(':scope > .tarot-kingdom-field-scene-layer.is-active');
 
   await expect(picker).toBeVisible();
-  await expect(picker.locator('option')).toHaveCount(23);
+  await expect(picker.locator('option')).toHaveCount(27);
 
   await picker.selectOption('role-straight');
   await expect(trick).toHaveClass(/is-scene-role-straight/);

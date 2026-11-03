@@ -20,9 +20,9 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
     expect(new Set(Object.values(audit.affinities).map((affinity) => affinity.native)))
       .toEqual(new Set(audit.elements));
     expect(Object.values(audit.affinities).filter((affinity) => affinity.native === 'light'))
-      .toHaveLength(4);
+      .toHaveLength(3);
     expect(Object.values(audit.affinities).filter((affinity) => affinity.native === 'dark'))
-      .toHaveLength(8);
+      .toHaveLength(5);
     expect(Object.values(audit.affinities).filter((affinity) => affinity.native === 'neutral'))
       .toHaveLength(2);
     expect(audit.missingMonsterIds).toEqual([]);
@@ -192,7 +192,7 @@ test.describe('Tarot Kingdom major arcana battle effects', () => {
       const {
         getTarotKingdomElementMultiplier,
         getTarotKingdomEnemyAffinity
-      } = await import('/js/tarotKingdomMajorEffects.js?v=20260827-guardian-cover-v1');
+      } = await import('/js/tarotKingdomMajorEffects.js?v=20261103-element-balance-v1');
       const audit = window.TarotKingdomDebug.battleMajorEffectsAudit();
       const pairByNative = Object.fromEntries(['fire', 'water', 'wind', 'earth'].map((native) => {
         const affinity = Object.values(audit.affinities).find((entry) => entry.native === native);

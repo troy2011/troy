@@ -15,7 +15,7 @@ import { bindModalClose } from './modalClose.js';
 import {
     getTarotKingdomWeaponProfile,
     resolveTarotKingdomWeaponFormation
-} from './tarotKingdomWeaponRules.js?v=20260827-job-weapon-v1';
+} from './tarotKingdomWeaponRules.js?v=20261103-element-balance-v1';
 
 const FAVORITE_PLAYERS_STORAGE_PREFIX = 'favorite-players:';
 const MAX_FAVORITE_PLAYERS = 24;

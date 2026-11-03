@@ -91,7 +91,7 @@
         'ismartal-vol3-monster-06': Object.freeze(['arcane', 'unsteady']),
         'ismartal-vol1-monster-06': Object.freeze(['flying', 'large']),
         'ismartal-vol2-monster-12': Object.freeze(['unsteady', 'vital']),
-        'ismartal-vol1-monster-08': Object.freeze(['plant', 'unsteady']),
+        'ismartal-vol1-monster-08': Object.freeze(['arcane', 'unsteady']),
         'ismartal-vol2-monster-10': Object.freeze(['plant', 'large']),
         'ismartal-vol2-monster-11': Object.freeze(['flying', 'vital']),
         'ismartal-vol1-monster-03': Object.freeze(['brittle', 'arcane']),
