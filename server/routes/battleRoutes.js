@@ -1,6 +1,7 @@
 // battle.js (v42 - 共通関数をexportsするように変更)
 require('dotenv').config();
 const economy = require('../economy');
+const { tarotKingdomRoomRoots } = require('../tarotKingdomRoomPaths');
 const { getEntityKeyFromPlayFabId, withTitleEntityToken } = require('../playfab');
 const { applyDerivedPlayerLevelToStats } = require('../playerLevel');
 const {
@@ -745,7 +746,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
             }
 
             if (roomId) {
-                const roomRoot = `tarotKingdomRooms/${roomId}`;
+                const roomRoot = `${tarotKingdomRoomRoots(roomId).rooms}/${roomId}`;
                 const [hostSnapshot, seatSnapshot, seatOwnersSnapshot, presenceSnapshot] = await Promise.all([
                     db.ref(`${roomRoot}/meta/hostUid`).once('value'),
                     db.ref(`${roomRoot}/meta/seatByUid`).once('value'),

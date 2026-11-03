@@ -311,8 +311,9 @@ test('rulebook explains the current rules and returns to the same battle on mobi
   await expect(rulebook.getByRole('heading', { name: '60秒でわかる遊び方' })).toBeVisible();
   await expect(rulebook.getByRole('button', { name: /カードが出せない/ })).toBeVisible();
   await expect(rulebook.locator('.tarot-kingdom-rulebook-judge-flow > li')).toHaveCount(4);
-  await expect(rulebook.getByText('Aは通常時の最強札（15）')).toBeVisible();
-  await expect(rulebook.getByText('数字1とは別物で、大アルカナでは返せません。Aを1として使えるのは、A–2–3–4–5のストレートだけ。')).toBeVisible();
+  await expect(rulebook.getByText('Aは通常時の最強の小アルカナ（15）')).toBeVisible();
+  await expect(rulebook.getByText('数字1とは別物です。対応スートに出せる塔・星・月・太陽は、同スートのAも対象です。Aを1として使えるのは、A–2–3–4–5のストレートだけ。')).toBeVisible();
+  await expect(rulebook.locator('[data-major-suit-rule]')).toContainText('対応する同スートの1枚場専用（Aを含む）');
   await expect(rulebook.getByText('通常のパスでは反撃を受ける場合があります。ただし局開始の公開札だけが場にある間は、反撃も全員パス時の全体攻撃もありません。「防御」は場が流れるまで自動で守り、被害を抑えます。')).toBeVisible();
   await expect(rulebook.getByText('1枚なら次の応答をコールかパスに限定、2枚以上なら場を即クリア。場が流れるまで敵を石化。力VIIIの1枚場には世界XXIでも返せます。')).toBeVisible();
   await expect(rulebook.getByText('小アルカナ12を1枚で通常の場流しにすると、残り手札から好きな1枚を除外。除外だけで手札0にはできません。')).toBeVisible();
@@ -4174,6 +4175,27 @@ test('stage 1 teaches four actions with minor-only scripted hands', async ({ pag
     });
     expect(layout.overflow).toBeLessThanOrEqual(0);
     expect(layout.cardsInside).toBe(true);
+  }
+});
+
+test('matching major cards show playable on an ace and other suits do not', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  for (const [number, suit] of [[16, 'Sword'], [17, 'Cup'], [18, 'Pentacle'], [19, 'Wand']]) {
+    const scenario = (fieldSuit) => ({
+      turnIndex: 0,
+      tableCard: { id: 'field-ace', kind: 'minor', suit: fieldSuit, number: 1 },
+      handsBySeat: [[
+        { id: `reply-${number}`, kind: 'major', suit: 'None', number },
+        { id: 'keep', kind: 'minor', suit: 'Cup', number: 6 }
+      ]]
+    });
+    await page.evaluate(options => window.TarotKingdomDebug.battleScenario(options), scenario(suit));
+    const card = page.locator(`#tarotKingdomHand > .tarot-card[data-card-id="reply-${number}"]`);
+    await expect(card).toHaveClass(/is-playable/);
+    await card.click();
+    await expect(page.locator('#tarotKingdomPlayButton')).toHaveClass(/is-confirm-ready/);
+    await page.evaluate(options => window.TarotKingdomDebug.battleScenario(options), scenario(suit === 'Sword' ? 'Cup' : 'Sword'));
+    await expect(card).not.toHaveClass(/is-playable/);
   }
 });
 

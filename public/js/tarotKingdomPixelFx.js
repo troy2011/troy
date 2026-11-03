@@ -593,21 +593,37 @@ const MONSTER_ATTACK_RECIPES = Object.freeze({
 });
 
 const moduleCache = new Map();
+const failedEffectLoads = new Map();
 let corePromise = null;
+let failedCoreLoads = 0;
 
 function loadCore() {
   // Relative dynamic imports resolve against this module's URL, so no bundler or path config is needed.
-  if (!corePromise) corePromise = import('./vendor/pixelfx/core/index.js');
+  if (!corePromise) {
+    const retry = failedCoreLoads ? `?retry=${failedCoreLoads}` : '';
+    const pending = import(`./vendor/pixelfx/core/index.js${retry}`);
+    corePromise = pending;
+    pending.catch(() => {
+      if (corePromise === pending) { corePromise = null; failedCoreLoads += 1; }
+    });
+  }
   return corePromise;
 }
 
 function loadEffect(path) {
   if (!moduleCache.has(path)) {
+    const retry = failedEffectLoads.get(path) || 0;
+    const suffix = retry ? `?retry=${retry}` : '';
     const promise = path.startsWith('troy/')
-      ? import(`./tarotKingdomStatusFx/${path.slice('troy/'.length)}.js`)
-      : import(`./vendor/pixelfx/fx/${path}.js`);
+      ? import(`./tarotKingdomStatusFx/${path.slice('troy/'.length)}.js${suffix}`)
+      : import(`./vendor/pixelfx/fx/${path}.js${suffix}`);
     // A failed load must not stay cached forever; the next battle can try again.
-    promise.catch(() => moduleCache.delete(path));
+    promise.catch(() => {
+      if (moduleCache.get(path) === promise) {
+        moduleCache.delete(path);
+        failedEffectLoads.set(path, retry + 1);
+      }
+    });
     moduleCache.set(path, promise);
   }
   return moduleCache.get(path);
@@ -643,6 +659,15 @@ function createPlayer(canvas, scale, core, { removeWhenDone = false } = {}) {
   const layers = [];
   let rafId = 0;
   let blank = true;
+  let stillFadeTimer = 0;
+  let stillClearTimer = 0;
+
+  const clearStillTimers = () => {
+    clearTimeout(stillFadeTimer);
+    clearTimeout(stillClearTimer);
+    stillFadeTimer = 0;
+    stillClearTimer = 0;
+  };
 
   const draw = () => {
     const shown = layers.filter((layer) => layer.visible);
@@ -721,6 +746,10 @@ function createPlayer(canvas, scale, core, { removeWhenDone = false } = {}) {
     height,
     scale,
     add(layer) {
+      // A previous reduced-motion still must not hide or clear the next hit.
+      clearStillTimers();
+      canvas.style.opacity = '';
+      canvas.style.transition = '';
       layers.push(layer);
       if (!rafId) rafId = requestAnimationFrame(tick);
     },
@@ -738,20 +767,22 @@ function createPlayer(canvas, scale, core, { removeWhenDone = false } = {}) {
     },
     // Reduced motion: paint one quiet still of the contact frame, then fade it away.
     still(at) {
+      clearStillTimers();
       // cancel the pending frame first, or it would repaint the now-empty layer list over the still
       if (rafId) cancelAnimationFrame(rafId);
       rafId = 0;
       step(at);
       layers.length = 0;
       canvas.style.transition = `opacity ${REDUCED_MOTION_FADE_MS}ms ease-out`;
-      setTimeout(() => { canvas.style.opacity = '0'; }, REDUCED_MOTION_HOLD_MS);
-      setTimeout(() => {
+      stillFadeTimer = setTimeout(() => { canvas.style.opacity = '0'; }, REDUCED_MOTION_HOLD_MS);
+      stillClearTimer = setTimeout(() => {
         // a shared stage canvas is reused by the next hit, so leave it blank rather than just invisible
         ctx.clearRect(0, 0, width, height);
         if (removeWhenDone) canvas.remove();
       }, REDUCED_MOTION_HOLD_MS + REDUCED_MOTION_FADE_MS + 40);
     },
     stop() {
+      clearStillTimers();
       if (rafId) cancelAnimationFrame(rafId);
       rafId = 0;
       layers.length = 0;
@@ -1666,19 +1697,17 @@ export async function syncTarotKingdomStatusFx(stageEl, actorKey, actorEl, statu
   const wanted = !prefersReducedMotion() && actorEl && hasTarotKingdomStatusFx(statusKey) ? String(statusKey) : '';
   let map = stageStatusLayers.get(stageEl);
   const current = map?.get(actorKey);
-  if ((current?.statusKey || '') === wanted) return;
+  if ((current?.statusKey || '') === wanted && (!current?.retryAt || Date.now() < current.retryAt)) return;
   if (!map) {
     map = new Map();
     stageStatusLayers.set(stageEl, map);
   }
   const entry = { statusKey: wanted, layer: null };
   map.set(actorKey, entry);
-  if (actorEl) {
-    if (wanted) actorEl.dataset.pixelStatus = wanted;
-    else delete actorEl.dataset.pixelStatus;
-  }
+  if (actorEl) delete actorEl.dataset.pixelStatus;
   try {
     const core = await loadCore();
+    if (stageStatusLayers.get(stageEl)?.get(actorKey) !== entry) return;
     const player = getStagePlayer(stageEl, core);
     if (current?.layer) player.retire(current.layer);
     if (!wanted) return;
@@ -1688,7 +1717,10 @@ export async function syncTarotKingdomStatusFx(stageEl, actorKey, actorEl, statu
     if (stageStatusLayers.get(stageEl)?.get(actorKey) !== entry || !actorEl.isConnected) return;
     const scale = player.scale;
     const startRect = actorEl.getBoundingClientRect();
-    if (startRect.width <= 0 || startRect.height <= 0) return;
+    if (startRect.width <= 0 || startRect.height <= 0) {
+      entry.retryAt = Date.now() + 1000;
+      return;
+    }
     const snapshot = await snapshotActor(actorEl, scale).catch(() => null);
     if (stageStatusLayers.get(stageEl)?.get(actorKey) !== entry || !actorEl.isConnected) return;
     const actor = snapshot?.actor || capsuleActor((startRect.width * 0.5) / scale, (startRect.height * 0.78) / scale);
@@ -1705,7 +1737,10 @@ export async function syncTarotKingdomStatusFx(stageEl, actorKey, actorEl, statu
       };
     };
     const start = follow();
-    if (!start) return;
+    if (!start) {
+      entry.retryAt = Date.now() + 1000;
+      return;
+    }
     const fx = core.createFx(mod, {
       x: Math.round(start.x),
       y: Math.round(start.y),
@@ -1729,7 +1764,13 @@ export async function syncTarotKingdomStatusFx(stageEl, actorKey, actorEl, statu
       stopped: false
     };
     player.add(entry.layer);
+    actorEl.dataset.pixelStatus = wanted;
   } catch (error) {
+    // Keep the CSS status visible and allow the next render to retry a failed load.
+    if (stageStatusLayers.get(stageEl)?.get(actorKey) === entry) {
+      entry.retryAt = Date.now() + 1000;
+      if (actorEl) delete actorEl.dataset.pixelStatus;
+    }
     console.warn('[TarotKingdom] pixelfx status skipped', error);
   }
 }

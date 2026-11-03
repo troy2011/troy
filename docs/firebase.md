@@ -50,7 +50,9 @@ Firebase Auth は API／Firebase Rules で使うセッション主体であり�
 - `tarotKingdomRooms/<roomId>`: meta、presence、公開 state、host-only authority state、seat ごとの private hand、actions
 - `navalPlunderRooms/<roomId>`: 海戦ルーム
 
-Tarot Kingdom では Firebase UID と seat ownership を結び、公開 state に秘密の手札／deck を含めない validation がある。ルール変更時は `tests/tarot-kingdom-rtdb-rules.spec.js` を必ず更新・実行する。
+新ルールの Tarot Kingdom は `tarotKingdomMatchV37/openRooms` と `tarotKingdomRoomsV37/<roomId>` を使い、旧クライアントのルームと分離する。旧ルームは元の path に残る。room ID の `tkv37_` 接頭辞でクライアントと探索・戦闘 API の参照先をそろえる。
+
+リポジトリの `database.rules.json` には UID と seat ownership の結び付けや秘密の手札／deck を公開 state に含めない validation がある。ただし、2026-11-03 に Firebase コンソールで確認した配備中ルールは認証済み利用者に root の read/write を許しており、リポジトリのルールとは一致しない。したがって現行環境で authority state 等が rules により非公開と仮定してはならない。リポジトリのルールは現行 state schema にも追随していないため、差分を照合・レビューせずに配備しない。ルール変更時は `tests/tarot-kingdom-rtdb-rules.spec.js` を必ず更新・実行する。
 
 `navalPlunderRooms` は現状 `auth != null` だけで room 全体の read/write を許す。参加者、所有者、操作種別、timestamp、schema の制約を追加するまで、恒久報酬の権威として使わない。
 

@@ -1,4 +1,5 @@
 const resourceStorage = require('./resourceStorage');
+const { tarotKingdomRoomRoots } = require('./tarotKingdomRoomPaths');
 const { createShipProfileGate, createProfileRecoveryReader } = require('./shipProfileGate');
 const { drawLocalGachaItem } = require('./gacha');
 const { resolveGuildShipContext } = require('./guildShipSharing');
@@ -2500,9 +2501,10 @@ function initializeExplorationRoutes(app, deps) {
         }
         const database = typeof admin.database === 'function' ? admin.database() : null;
         if (!database) return { ok: false, code: 503, message: '救難ルームを確認できません。' };
+        const roots = tarotKingdomRoomRoots(normalizedRoomId);
         const [roomSnapshot, openSnapshot] = await Promise.all([
-            database.ref(`tarotKingdomRooms/${normalizedRoomId}`).once('value'),
-            database.ref(`tarotKingdomMatch/openRooms/${normalizedRoomId}`).once('value')
+            database.ref(`${roots.rooms}/${normalizedRoomId}`).once('value'),
+            database.ref(`${roots.matches}/openRooms/${normalizedRoomId}`).once('value')
         ]);
         const room = roomSnapshot.exists() ? roomSnapshot.val() : null;
         const openRoom = openSnapshot.exists() ? openSnapshot.val() : null;
@@ -2655,7 +2657,7 @@ function initializeExplorationRoutes(app, deps) {
         }
         const database = typeof admin.database === 'function' ? admin.database() : null;
         if (!database) return { ok: false, message: 'チーム情報を確認できません。' };
-        const snapshot = await database.ref(`tarotKingdomRooms/${normalizedRoomId}`).once('value');
+        const snapshot = await database.ref(`${tarotKingdomRoomRoots(normalizedRoomId).rooms}/${normalizedRoomId}`).once('value');
         const room = snapshot.exists() ? snapshot.val() : null;
         const players = room?.state?.state?.players;
         if (!isTarotKingdomRaidPartyEligible(players)) {
@@ -3889,9 +3891,10 @@ function initializeExplorationRoutes(app, deps) {
             const stageRoomId = String(retreatData.stageRoomId || '').trim();
             if (stageRoomId && typeof admin.database === 'function') {
                 const database = admin.database();
+                const roots = tarotKingdomRoomRoots(stageRoomId);
                 await Promise.allSettled([
-                    database.ref(`tarotKingdomRooms/${stageRoomId}`).remove(),
-                    database.ref(`tarotKingdomMatch/openRooms/${stageRoomId}`).remove()
+                    database.ref(`${roots.rooms}/${stageRoomId}`).remove(),
+                    database.ref(`${roots.matches}/openRooms/${stageRoomId}`).remove()
                 ]);
             }
             return res.json({

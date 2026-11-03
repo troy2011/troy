@@ -32,12 +32,14 @@ function createResponse() {
   };
 }
 
-function createOnlineRouteHarness() {
+function createOnlineRouteHarness({ roomId = 'tk_online_party' } = {}) {
   const handlers = new Map();
   const explorationId = 'exp-online-party';
   const hostPlayFabId = 'PF_HOST';
   const guestPlayFabId = 'PF_GUEST';
-  const roomId = 'tk_online_party';
+  const isVersionedRoom = roomId.startsWith('tkv37_');
+  const roomsRoot = isVersionedRoom ? 'tarotKingdomRoomsV37' : 'tarotKingdomRooms';
+  const matchesRoot = isVersionedRoom ? 'tarotKingdomMatchV37' : 'tarotKingdomMatch';
   const now = Date.now();
   const encounter = explorationModule.__test.buildTarotKingdomStageEncounter({
     explorationId,
@@ -146,15 +148,15 @@ function createOnlineRouteHarness() {
         ref(path) {
           return {
             async once() {
-              if (path === `tarotKingdomRooms/${roomId}`) return createRealtimeSnapshot(room);
-              if (path === `tarotKingdomMatch/openRooms/${roomId}`) {
+              if (path === `${roomsRoot}/${roomId}`) return createRealtimeSnapshot(room);
+              if (path === `${matchesRoot}/openRooms/${roomId}`) {
                 return createRealtimeSnapshot(routeState.openRoomVisible ? openRoom : null);
               }
               return createRealtimeSnapshot(null);
             },
             async remove() {
               routeState.removedRealtimePaths.push(path);
-              if (path === `tarotKingdomMatch/openRooms/${roomId}`) {
+              if (path === `${matchesRoot}/openRooms/${roomId}`) {
                 routeState.openRoomVisible = false;
               }
             }
@@ -254,6 +256,32 @@ test('online stage party sync drops departed players and blocks a late join afte
     harness.guestPlayFabId
   ]);
   expect(harness.activeData.stagePartyLockedAtMs).toBe(0);
+});
+
+test('versioned online rooms preserve the same party validation and retreat cleanup', async () => {
+  const harness = createOnlineRouteHarness({ roomId: 'tkv37_online_party' });
+  const response = createResponse();
+  await harness.handlers.get('/api/exploration/stage-party-sync')({ body: {
+    playFabId: harness.hostPlayFabId, ownerPlayFabId: harness.hostPlayFabId,
+    explorationId: harness.explorationId, roomId: harness.roomId, locked: true
+  } }, response);
+  expect(response.statusCode).toBe(200);
+  expect(harness.activeData.stageParticipants).toEqual([harness.hostPlayFabId]);
+  const unauthorised = createResponse();
+  await harness.handlers.get('/api/exploration/stage-party-sync')({ body: {
+    playFabId: harness.guestPlayFabId, ownerPlayFabId: harness.hostPlayFabId,
+    explorationId: harness.explorationId, roomId: harness.roomId, locked: true
+  } }, unauthorised);
+  expect(unauthorised.statusCode).toBe(403);
+  harness.activeData.stageRoomId = harness.roomId;
+  const retreat = createResponse();
+  await harness.handlers.get('/api/exploration/retreat')({ body: {
+    playFabId: harness.hostPlayFabId, explorationId: harness.explorationId
+  } }, retreat);
+  expect(retreat.statusCode).toBe(200);
+  expect(harness.routeState.removedRealtimePaths).toEqual(expect.arrayContaining([
+    `tarotKingdomRoomsV37/${harness.roomId}`, `tarotKingdomMatchV37/openRooms/${harness.roomId}`
+  ]));
 });
 
 test('round ABP is server-defined, excludes KO actors, and freezes the first survivor list', async () => {

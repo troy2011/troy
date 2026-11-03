@@ -133,7 +133,7 @@ import {
   syncTarotKingdomStatusFx,
   TAROT_KINGDOM_KNOCKBACK_PX,
   warmTarotKingdomPixelFx
-} from './tarotKingdomPixelFx.js?v=20261103-pixelfx-v10';
+} from './tarotKingdomPixelFx.js?v=20261103-pixelfx-v11';
 
 const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 const TAROT_TILE_W = 48;
@@ -493,7 +493,7 @@ const LEGACY_HAND_SIZE = 6;
 const KINGDOM_FORCED_DRAW_DEATH_THRESHOLD = 3;
 const KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO = 'hp-zero';
 const KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY = 'hand-empty';
-const KINGDOM_RULES_VERSION = 28;
+const KINGDOM_RULES_VERSION = 29;
 const TOTAL_HANDS = 4;
 const START_CHIPS = 100;
 const A_PENALTY = 1;
@@ -576,7 +576,7 @@ const KINGDOM_SUMMON_EFFECT_VISUALS = Object.freeze({
   flushElemental: Object.freeze({ category: 'hybrid', choreography: 'elemental-surge', cue: 'elemental-charge', impact: 'elemental-burst' }),
   'major-arcana': Object.freeze({ category: 'hybrid', choreography: 'arcana-invocation', cue: 'arcana-awaken', impact: 'arcana-release' })
 });
-const KINGDOM_NET_SCHEMA_VERSION = 36;
+const KINGDOM_NET_SCHEMA_VERSION = 37;
 const KINGDOM_PRIVATE_STATE_VERSION = 2;
 const KINGDOM_OFFLINE_CHECKPOINT_VERSION = 2;
 const KINGDOM_OFFLINE_CHECKPOINT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -586,7 +586,8 @@ const KINGDOM_NET_STATE_WRITE_DELAY = 90;
 const KINGDOM_PRESENTATION_VERSION = 1;
 const KINGDOM_PRESENTATION_CUE_LIMIT = 8;
 const KINGDOM_PRESENTATION_MAX_DURATION_MS = 12000;
-const TK_MATCH_ROOT = 'tarotKingdomMatch';
+const TK_MATCH_ROOT = 'tarotKingdomMatchV37';
+const TK_ROOM_PREFIX = 'tkv37_';
 const TK_FALLBACK_AUTO_ROOM_COUNT = 6;
 const TK_OPEN_ROOM_HEARTBEAT_MS = 10000;
 const TK_OPEN_ROOM_STALE_MS = 45000;
@@ -2692,7 +2693,9 @@ function getKingdomCardEffectDescription(card) {
     };
     return majorEffectMap[n] || '';
   }
-  if (n === 1) return '通常時15 / 大アルカナでは返せない';
+  if (n === 1) return Number(s?.rules?.majorArcanaGateVersion || 0) >= 2
+    ? '通常時15 / 同スートの塔・星・月・太陽は返せる'
+    : '通常時15 / 大アルカナでは返せない';
   if (n === 5) return '5スキップ';
   if (n === 8) return '8カット';
   if (n === 11) return '11バック';
@@ -14012,7 +14015,7 @@ function normalizeKingdomRules(
   fallbackSummonVersion = 1,
   fallbackGraveTimingVersion = 1,
   fallbackEnemyCombatVersion = 3,
-  fallbackMajorArcanaGateVersion = 1,
+  fallbackMajorArcanaGateVersion = 2,
   fallbackMajorArcanaSpecialVersion = 3,
   fallbackStageVersion = 0,
   fallbackMajorBattleEffectsVersion = 3,
@@ -14074,7 +14077,7 @@ function normalizeKingdomRules(
     ),
     majorArcanaGateVersion: Math.max(
       0,
-      Math.min(1, Math.floor(Number(incoming.majorArcanaGateVersion ?? fallbackMajorArcanaGateVersion) || 0))
+      Math.min(2, Math.floor(Number(incoming.majorArcanaGateVersion ?? fallbackMajorArcanaGateVersion) || 0))
     ),
     majorArcanaSpecialVersion: Math.max(
       0,
@@ -14196,6 +14199,7 @@ function initState() {
   const playerTemplates = getKingdomInitialPlayerTemplates();
   const rules = normalizeKingdomRules({
     openingRescueVersion: kingdomExplorationSession ? 0 : 1,
+    ...(isNetModeActive() && !isKingdomVersionedRoom(tkNet.roomId) ? { majorArcanaGateVersion: 1 } : {}),
     playerCount: playerTemplates.length
   });
   const npcPolicySeeds = playerTemplates.map((player, playerIndex) => (
@@ -14473,6 +14477,18 @@ function normalizeTarotKingdomRoomId(value) {
   return String(value || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
 }
 
+function isKingdomVersionedRoom(roomId) {
+  return String(roomId || '').startsWith(TK_ROOM_PREFIX);
+}
+
+function kingdomRoomPath(roomId) {
+  return `${isKingdomVersionedRoom(roomId) ? 'tarotKingdomRoomsV37' : 'tarotKingdomRooms'}/${roomId}`;
+}
+
+function kingdomMatchRoot(roomId) {
+  return isKingdomVersionedRoom(roomId) ? TK_MATCH_ROOT : 'tarotKingdomMatch';
+}
+
 function getTarotKingdomDebugMode() {
   if (typeof window === 'undefined') return '';
   const params = new URLSearchParams(window.location.search || '');
@@ -14490,7 +14506,7 @@ function getTarotKingdomDebugWinnerIndex() {
 function generateTarotKingdomRoomId() {
   const t = Date.now().toString(36);
   const r = Math.random().toString(36).slice(2, 8);
-  return `tk_${t}${r}`;
+  return `${TK_ROOM_PREFIX}${t}${r}`;
 }
 
 function isPermissionDeniedError(error) {
@@ -14624,7 +14640,7 @@ async function registerOpenRoomIndex(db, roomId, ownerUid) {
   const explorationContext = kingdomExplorationSession?.context || null;
   const isExplorationRescue = explorationContext?.mode === 'online';
   try {
-    await set(ref(db, `${TK_MATCH_ROOT}/openRooms/${roomId}`), {
+    await set(ref(db, `${kingdomMatchRoot(roomId)}/openRooms/${roomId}`), {
       roomId,
       ownerUid: normalizedOwnerUid,
       kind: isExplorationRescue ? 'exploration-rescue' : 'match',
@@ -14655,14 +14671,14 @@ async function inspectJoinableRescueRoom(db, roomId, item = null) {
   if (!db || !normalizedRoomId) return null;
   const openItem = item && typeof item === 'object'
     ? item
-    : await get(ref(db, `${TK_MATCH_ROOT}/openRooms/${normalizedRoomId}`))
+    : await get(ref(db, `${kingdomMatchRoot(normalizedRoomId)}/openRooms/${normalizedRoomId}`))
       .then((snapshot) => (snapshot.exists() ? snapshot.val() : null));
   if (!openItem || openItem.kind !== 'exploration-rescue') return null;
   const now = Date.now();
   const updatedAt = Number(openItem.updatedAt || openItem.createdAt || 0);
   if (!updatedAt || (now - updatedAt) > TK_OPEN_ROOM_STALE_MS) return null;
 
-  const roomPath = `tarotKingdomRooms/${normalizedRoomId}`;
+  const roomPath = kingdomRoomPath(normalizedRoomId);
   const [stateSnap, presenceSnap, hostUidSnap] = await Promise.all([
     get(ref(db, `${roomPath}/state`)),
     get(ref(db, `${roomPath}/presence`)),
@@ -14713,17 +14729,19 @@ export async function listTarotKingdomRescueRooms() {
   if (!db || !uid) {
     throw new Error('オンライン接続を準備中です。少し待ってから再受信してください。');
   }
-  let openSnap;
+  let openSnaps;
   try {
-    openSnap = await get(ref(db, `${TK_MATCH_ROOT}/openRooms`));
+    openSnaps = await Promise.all([
+      get(ref(db, `${TK_MATCH_ROOT}/openRooms`)),
+      get(ref(db, 'tarotKingdomMatch/openRooms'))
+    ]);
   } catch (error) {
     if (isPermissionDeniedError(error)) {
       throw new Error('救難信号の一覧を取得する権限がありません。');
     }
     throw error;
   }
-  if (!openSnap.exists()) return [];
-  const openMap = openSnap.val() || {};
+  const openMap = Object.assign({}, ...openSnaps.map((snapshot) => snapshot.exists() ? snapshot.val() || {} : {}));
   const localPlayFabId = String(window.myPlayFabId || '').trim();
   const rooms = await Promise.all(Object.entries(openMap).map(async ([roomId, item]) => {
     if (item?.kind !== 'exploration-rescue') return null;
@@ -14762,7 +14780,7 @@ async function pickJoinableOpenRoom(db) {
     if (isStale) {
       continue;
     }
-    const roomPath = `tarotKingdomRooms/${roomId}`;
+    const roomPath = kingdomRoomPath(roomId);
     const stateSnap = await get(ref(db, `${roomPath}/state`));
     const payload = stateSnap.exists() ? stateSnap.val() : null;
     const inProgress = isRoomInProgressFromStatePayload(payload);
@@ -14785,8 +14803,8 @@ async function pickJoinableOpenRoom(db) {
 
 async function pickJoinableFallbackRoom(db) {
   for (let i = 0; i < TK_FALLBACK_AUTO_ROOM_COUNT; i += 1) {
-    const roomId = `tk_auto_${i}`;
-    const roomPath = `tarotKingdomRooms/${roomId}`;
+    const roomId = `${TK_ROOM_PREFIX}auto_${i}`;
+    const roomPath = kingdomRoomPath(roomId);
     const stateSnap = await get(ref(db, `${roomPath}/state`)).catch(() => null);
     const payload = stateSnap?.exists?.() ? stateSnap.val() : null;
     const inProgress = isRoomInProgressFromStatePayload(payload);
@@ -14800,7 +14818,7 @@ async function pickJoinableFallbackRoom(db) {
     if (count <= 0) return roomId;
     if (hasLiveHost) return roomId;
   }
-  return `tk_auto_${Math.floor(Math.random() * TK_FALLBACK_AUTO_ROOM_COUNT)}`;
+  return `${TK_ROOM_PREFIX}auto_${Math.floor(Math.random() * TK_FALLBACK_AUTO_ROOM_COUNT)}`;
 }
 
 async function findOrCreateAutoRoomId(db) {
@@ -15363,6 +15381,9 @@ function deserializeStateFromNet(payload) {
     ...(rawState.rules && typeof rawState.rules === 'object' ? rawState.rules : {})
   };
   if (incomingSchema < 7) incomingRules.majorArcanaGateVersion = 0;
+  if (incomingSchema >= 7 && incomingSchema < 37) {
+    incomingRules.majorArcanaGateVersion = Math.min(1, Math.max(0, Math.floor(Number(incomingRules.majorArcanaGateVersion ?? 1) || 0)));
+  }
   if (incomingSchema < 8) incomingRules.majorArcanaSpecialVersion = 0;
   if (incomingSchema < 10) incomingRules.stageVersion = 0;
   if (incomingSchema < 11) {
@@ -15501,7 +15522,7 @@ function deserializeStateFromNet(payload) {
     incomingSchema < 19
       ? (Object.prototype.hasOwnProperty.call(rawState.rules || {}, 'enemyCombatVersion') ? 1 : 0)
       : (incomingSchema < 30 ? 2 : 3),
-    incomingSchema < 7 ? 0 : 1,
+    incomingSchema < 7 ? 0 : (incomingSchema < 37 ? 1 : 2),
     incomingSchema < 8 ? 0 : (incomingSchema < 24 ? 1 : (incomingSchema < 31 ? 2 : 3)),
     incomingSchema < 10 ? 0 : (incomingSchema < 28 ? 1 : 2),
     incomingSchema < 11 ? 0 : (incomingSchema < 15 ? 1 : (incomingSchema < 24 ? 2 : 3)),
@@ -15922,7 +15943,7 @@ function shouldRoomStayOpen() {
 
 async function syncOpenRoomIndex() {
   if (!isNetModeActive() || !tkNet.isHost || !tkNet.roomId || !netOpenRoomIndexEnabled) return;
-  const openRef = ref(tkNet.db, `${TK_MATCH_ROOT}/openRooms/${tkNet.roomId}`);
+  const openRef = ref(tkNet.db, `${kingdomMatchRoot(tkNet.roomId)}/openRooms/${tkNet.roomId}`);
   try {
     if (shouldRoomStayOpen()) {
       await registerOpenRoomIndex(tkNet.db, tkNet.roomId, tkNet.uid);
@@ -16340,7 +16361,7 @@ async function refreshOpenRoomsPanel() {
   }
   const rows = [];
   for (const [roomId, item] of entries) {
-    const roomPath = `tarotKingdomRooms/${roomId}`;
+    const roomPath = kingdomRoomPath(roomId);
     const presenceCount = await readRoomPresenceCount(tkNet.db, roomPath).catch(() => 0);
     rows.push({
       roomId,
@@ -16651,7 +16672,7 @@ async function armKingdomHostDisconnectHooks() {
   }
 
   if (netOpenRoomIndexEnabled && !tkNet.openRoomDisconnect && isNetModeActive() && tkNet.isHost) {
-    const hook = onDisconnect(ref(db, `${TK_MATCH_ROOT}/openRooms/${roomId}`));
+    const hook = onDisconnect(ref(db, `${kingdomMatchRoot(roomId)}/openRooms/${roomId}`));
     tkNet.openRoomDisconnect = hook;
     try {
       await hook.remove();
@@ -17123,7 +17144,7 @@ function startRoomSubscriptions() {
   }
 
   if (netOpenRoomIndexEnabled) {
-    const openRoomsRef = ref(tkNet.db, `${TK_MATCH_ROOT}/openRooms`);
+    const openRoomsRef = ref(tkNet.db, `${kingdomMatchRoot(tkNet.roomId)}/openRooms`);
     netOpenRoomsUnsub = onValue(openRoomsRef, (snapshot) => {
       netOpenRoomsCache = snapshot.exists() ? (snapshot.val() || {}) : {};
       refreshOpenRoomsPanel().catch((error) => {
@@ -17158,7 +17179,7 @@ function teardownTarotKingdomNetwork() {
     presenceGraceTimer = null;
   }
   if (tkNet.isHost && tkNet.db && tkNet.roomId && netOpenRoomIndexEnabled) {
-    remove(ref(tkNet.db, `${TK_MATCH_ROOT}/openRooms/${tkNet.roomId}`)).catch(() => {});
+    remove(ref(tkNet.db, `${kingdomMatchRoot(tkNet.roomId)}/openRooms/${tkNet.roomId}`)).catch(() => {});
   }
   if (tkNet.presenceRef && tkNet.db) {
     remove(tkNet.presenceRef).catch(() => {});
@@ -17245,7 +17266,7 @@ async function ensureTarotKingdomNetwork() {
       tkNet.db = db;
       tkNet.uid = String(uid);
       tkNet.roomId = roomId;
-      tkNet.roomPath = `tarotKingdomRooms/${roomId}`;
+      tkNet.roomPath = kingdomRoomPath(roomId);
       tkNet.localPlayerName = String(window.myPlayFabDisplayName || window.myLineProfile?.displayName || window.myPlayFabId || 'Player');
       netRoomStateReady = false;
       netLocalPrivateHandPayload = null;
@@ -17257,7 +17278,7 @@ async function ensureTarotKingdomNetwork() {
       if (tkNet.localSeat < 0 && !explicitRoomId) {
         roomId = generateTarotKingdomRoomId();
         tkNet.roomId = roomId;
-        tkNet.roomPath = `tarotKingdomRooms/${roomId}`;
+        tkNet.roomPath = kingdomRoomPath(roomId);
         await ensureSeatAssignment();
       }
       if (tkNet.localSeat < 0) {
@@ -20453,6 +20474,9 @@ function getAceAbilityPlayViolation(play, mode) {
     && fieldCards.length === 1
     && isMinorAceCard(fieldCards[0])
   ) {
+    // 16〜19は同スートの場に出すルールで判定する。Aもその対象に含む。
+    if (Number(s.rules?.majorArcanaGateVersion || 0) >= 2
+      && played.length === 1 && isMajorSuitGateCard(played[0])) return null;
     return 'Aの能力：大アルカナでは返せません。';
   }
   return null;
@@ -29586,7 +29610,7 @@ function returnToKingdomModeChoice(message = 'オンラインかオフライン�
 async function removeCurrentOpenRoomIndex() {
   if (!isNetModeActive() || !tkNet.isHost || !netOpenRoomIndexEnabled || !tkNet.roomId) return;
   try {
-    await remove(ref(tkNet.db, `${TK_MATCH_ROOT}/openRooms/${tkNet.roomId}`)).catch(() => {});
+    await remove(ref(tkNet.db, `${kingdomMatchRoot(tkNet.roomId)}/openRooms/${tkNet.roomId}`)).catch(() => {});
   } catch (_) {
     // syncOpenRoomIndex will re-open or degrade permission mode if needed
   }
@@ -29969,6 +29993,14 @@ let kingdomRulebookPreviousFocus = null;
 function setKingdomRulebookOpen(open, { restoreFocus = true } = {}) {
   if (!ui.rulebook || !ui.rulebookButton) return;
   ui.rulebook.querySelector('[data-opening-rescue-rules]')?.toggleAttribute('hidden', !areKingdomOpeningRescueRulesEnabled());
+  const aceRule = ui.rulebook.querySelector('[data-ace-reply-rule]');
+  if (aceRule) aceRule.textContent = Number(s?.rules?.majorArcanaGateVersion || 0) >= 2
+    ? '数字1とは別物です。対応スートに出せる塔・星・月・太陽は、同スートのAも対象です。Aを1として使えるのは、A–2–3–4–5のストレートだけ。'
+    : '数字1とは別物で、大アルカナでは返せません。Aを1として使えるのは、A–2–3–4–5のストレートだけ。';
+  const majorSuitRule = ui.rulebook.querySelector('[data-major-suit-rule]');
+  if (majorSuitRule) majorSuitRule.textContent = Number(s?.rules?.majorArcanaGateVersion || 0) >= 2
+    ? '対応する同スートの1枚場専用（Aを含む）。塔＝ソード、星＝カップ、月＝ペンタクル、太陽＝ワンド。通常の初手には出せませんが、最後の1枚の特例があります。11バックやロックなど他の制限も適用されます。'
+    : '対応する同スートの1枚場専用（Aを除く）。塔＝ソード、星＝カップ、月＝ペンタクル、太陽＝ワンド。通常の初手には出せませんが、最後の1枚の特例があります。';
   const shouldOpen = open === true;
   if (shouldOpen && ui.rulebook.hidden) {
     kingdomRulebookPreviousFocus = document.activeElement instanceof HTMLElement
@@ -30163,8 +30195,8 @@ function ensureKingdomRulebookUi() {
               </div>
             </div>
             <div class="tarot-kingdom-rulebook-alert">
-              <strong>Aは通常時の最強札（15）</strong>
-              <span>数字1とは別物で、大アルカナでは返せません。Aを1として使えるのは、A–2–3–4–5のストレートだけ。</span>
+              <strong>Aは通常時の最強の小アルカナ（15）</strong>
+              <span data-ace-reply-rule>数字1とは別物です。対応スートに出せる塔・星・月・太陽は、同スートのAも対象です。Aを1として使えるのは、A–2–3–4–5のストレートだけ。</span>
             </div>
           </section>
 
@@ -30275,7 +30307,7 @@ function ensureKingdomRulebookUi() {
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(0, '愚者 0'))}<span>愚者 0</span></dt><dd>5枚役だけで数字ワイルド。単独ではスートになりませんが、大アルカナ5枚ならフラッシュ扱いです。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(1, '魔術師 I'))}<span>魔術師 I</span></dt><dd>数字1固定・オールスート。Aとは組にできません。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(15, '悪魔 XV'))}<span>悪魔 XV</span></dt><dd>小アルカナのコート札専用。11バックを無視して出せます。</dd></div>
-                <div><dt>${rulebookCardMarkup(rulebookMajorCard(16, '塔 XVI'))}<span>塔〜太陽 XVI–XIX</span></dt><dd>対応する同スートの1枚場専用で、初手不可。塔＝ソード、星＝カップ、月＝ペンタクル、太陽＝ワンド。</dd></div>
+                <div><dt>${rulebookCardMarkup(rulebookMajorCard(16, '塔 XVI'))}<span>塔〜太陽 XVI–XIX</span></dt><dd data-major-suit-rule>対応する同スートの1枚場専用（Aを含む）。塔＝ソード、星＝カップ、月＝ペンタクル、太陽＝ワンド。通常の初手には出せませんが、最後の1枚の特例があります。11バックやロックなど他の制限も適用されます。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(20, '審判 XX'))}<span>審判 XX</span></dt><dd>通常の出し方で使えます。11バックを切り替え、この札で場を流したプレイヤーが墓地の小アルカナ1枚を回収します。</dd></div>
                 <div><dt>${rulebookCardMarkup(rulebookMajorCard(21, '世界 XXI'))}<span>世界 XXI</span></dt><dd>通常の初手には出せません。大アルカナ1枚場へ返して即クリア。11バック中は使用不可。</dd></div>
               </dl>
