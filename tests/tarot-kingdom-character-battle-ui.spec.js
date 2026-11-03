@@ -723,6 +723,52 @@ test('player ailments appear below the hand count and animate on the avatar with
   expect(Math.abs(lowFloorRowTop - layout.rowTop)).toBeLessThanOrEqual(1);
 });
 
+test('a status that lands during a walking frame stays on the enemy instead of drawing a second one', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  // Kerottsu stands in an 85px idle frame but walks in a 39px one
+  await page.evaluate(() => window.TarotKingdomDebug.battleSetDemoEnemy('ismartal-vol2-monster-12'));
+  await page.waitForTimeout(2500);
+  await page.evaluate(async () => {
+    const sprite = document.querySelector('#tarotKingdomBattleStage .tarot-kingdom-battle-enemy-sprite');
+    const holdWalkFrame = setInterval(() => {
+      sprite.style.width = '39px';
+      sprite.style.height = '36px';
+      sprite.style.backgroundImage = "url('./Sprites/pixel-monsters/vol2/monster-12/run.png')";
+      sprite.style.backgroundSize = 'auto';
+      sprite.style.backgroundPosition = '0px 0px';
+    }, 5);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    window.TarotKingdomDebug.battleApplyStatus('enemy', 'poison');
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    clearInterval(holdWalkFrame);
+  });
+  await page.waitForTimeout(1500);
+  const placement = await page.evaluate(() => {
+    const sprite = document.querySelector('#tarotKingdomBattleStage .tarot-kingdom-battle-enemy-sprite');
+    const canvas = document.querySelector('#tarotKingdomBattleStage > .tarot-kingdom-pixelfx-layer');
+    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    let left = canvas.width;
+    let right = -1;
+    for (let index = 3; index < pixels.length; index += 4) {
+      if (pixels[index] < 128) continue;
+      const x = ((index - 3) / 4) % canvas.width;
+      left = Math.min(left, x);
+      right = Math.max(right, x);
+    }
+    const canvasRect = canvas.getBoundingClientRect();
+    const spriteRect = sprite.getBoundingClientRect();
+    const cssPerPixel = canvasRect.width / canvas.width;
+    return {
+      drawn: right >= left,
+      effectCenter: canvasRect.left + (((left + right + 1) / 2) * cssPerPixel),
+      // the frog stands on its idle anchor, 66.75 of the 85px frame, and the enemy is drawn mirrored
+      bodyCenter: spriteRect.left + (spriteRect.width * (1 - (66.75 / 85)))
+    };
+  });
+  expect(placement.drawn).toBe(true);
+  expect(Math.abs(placement.effectCenter - placement.bodyCenter)).toBeLessThan(16);
+});
+
 test('hard-control statuses stop the actor while slow and sleep use distinct motion profiles', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   const avatar = page.locator('.tarot-kingdom-battle-player[data-player-index="0"] .tarot-kingdom-battle-player-avatar');

@@ -1662,6 +1662,17 @@ async function snapshotActor(actorEl, scale) {
   };
 }
 
+// How often a status loop checks whether its actor's sprite frame changed size.
+const STATUS_FRAME_CHECK_MS = 200;
+
+// The layout size of the actor and its sprite layers; it changes when an animation with another frame
+// size starts, not when the actor is moved or transformed.
+function actorFrameSize(actorEl) {
+  return [actorEl, ...actorEl.querySelectorAll('*')]
+    .map((el) => `${el.offsetWidth}x${el.offsetHeight}`)
+    .join(',');
+}
+
 // A rough body silhouette (a capsule) in art pixels, shaped like the pixelfx stock actor:
 // feet at the origin, mask laid out from (x, y) = (-w/2, -h). Used when an actor has no sprite layers.
 const actorCache = new Map();
@@ -1725,12 +1736,42 @@ export async function syncTarotKingdomStatusFx(stageEl, actorKey, actorEl, statu
     if (stageStatusLayers.get(stageEl)?.get(actorKey) !== entry || !actorEl.isConnected) return;
     const actor = snapshot?.actor || capsuleActor((startRect.width * 0.5) / scale, (startRect.height * 0.78) / scale);
     // the feet as a share of the element, so the effect stays on them while the element scales
-    const feetX = snapshot ? snapshot.feet.x / startRect.width : 0.5;
-    const feetY = snapshot ? snapshot.feet.y / startRect.height : 0.94;
+    let feetX = snapshot ? snapshot.feet.x / startRect.width : 0.5;
+    let feetY = snapshot ? snapshot.feet.y / startRect.height : 0.94;
+    // A sprite's frame size changes with its animation (a monster's walk sheet is narrower than its idle
+    // one). The body cut out for one frame size sits beside the actor in another, drawing a second
+    // monster, so the body is cut out again whenever the frame size changes, and hidden until then.
+    let frameSize = actorFrameSize(actorEl);
+    let nextFrameCheckAt = 0;
+    let recutting = false;
+    const recutBody = (size) => {
+      recutting = true;
+      snapshotActor(actorEl, scale).catch(() => null).then((next) => {
+        recutting = false;
+        if (!entry.layer || stageStatusLayers.get(stageEl)?.get(actorKey) !== entry || !actorEl.isConnected) return;
+        const rect = actorEl.getBoundingClientRect();
+        // a failed cut keeps the old body rather than retrying on every frame
+        frameSize = size;
+        if (!next || rect.width <= 0 || rect.height <= 0) return;
+        entry.layer.fx.options.actor = next.actor;
+        feetX = next.feet.x / rect.width;
+        feetY = next.feet.y / rect.height;
+      });
+    };
     const follow = () => {
       const stageRect = stageEl.getBoundingClientRect();
       const rect = actorEl.getBoundingClientRect();
       if (!actorEl.isConnected || rect.width <= 0 || rect.height <= 0) return null;
+      if (recutting) return null;
+      const now = Date.now();
+      if (snapshot && now >= nextFrameCheckAt) {
+        nextFrameCheckAt = now + STATUS_FRAME_CHECK_MS;
+        const size = actorFrameSize(actorEl);
+        if (size !== frameSize) {
+          recutBody(size);
+          return null;
+        }
+      }
       return {
         x: (rect.left - stageRect.left + (rect.width * feetX)) / scale,
         y: (rect.top - stageRect.top + (rect.height * feetY)) / scale
