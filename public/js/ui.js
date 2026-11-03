@@ -33,7 +33,7 @@ const ensureTarotModule = async () => {
 };
 
 let tarotKingdomModule = null;
-const TAROT_KINGDOM_MODULE_VERSION = '20261103-pet-size-v1';
+const TAROT_KINGDOM_MODULE_VERSION = '20261103-projectile-aim-v1';
 const ensureTarotKingdomModule = async () => {
     if (tarotKingdomModule) return tarotKingdomModule;
     tarotKingdomModule = await import(`./tarotKingdom.js?v=${TAROT_KINGDOM_MODULE_VERSION}`);

@@ -24695,6 +24695,27 @@ function playKingdomMonsterAuxAnimation(node, monster, animationName, generation
   return true;
 }
 
+// A monster's own projectile sprite flies from its body to each target it hits (one sprite per target);
+// without a target on screen it falls back to a fixed throw towards the other side.
+const KINGDOM_MONSTER_PROJECTILE_FALLBACK = Object.freeze({ x: 190, y: 32 });
+const KINGDOM_MONSTER_PROJECTILE_FLIGHT_MS = 520;
+
+function getKingdomMonsterProjectileAims(host, launchX, launchY, direction, targetNodes) {
+  const hostRect = host.getBoundingClientRect();
+  const aims = (Array.isArray(targetNodes) ? targetNodes : [])
+    .filter((node) => node instanceof Element && node.isConnected)
+    .map((node) => node.getBoundingClientRect())
+    .filter((rect) => rect.width > 0 && rect.height > 0)
+    // the target's chest: half way down its box
+    .map((rect) => ({
+      x: Math.round((rect.left - hostRect.left) + (rect.width / 2) - launchX),
+      y: Math.round((rect.top - hostRect.top) + (rect.height / 2) - launchY)
+    }));
+  return aims.length
+    ? aims
+    : [{ x: direction * KINGDOM_MONSTER_PROJECTILE_FALLBACK.x, y: KINGDOM_MONSTER_PROJECTILE_FALLBACK.y }];
+}
+
 function renderKingdomMonsterAuxEffects(host, monster, effects = [], generationKey = '', options = {}) {
   if (!host) return;
   const specs = Array.isArray(effects) ? effects : [];
@@ -24704,14 +24725,12 @@ function renderKingdomMonsterAuxEffects(host, monster, effects = [], generationK
     const animationName = String(effect?.animationName || '');
     if (!monster?.animations?.[animationName]) return;
     const effectKey = `${generationKey}:${index}:${animationName}`;
-    wantedKeys.add(effectKey);
-    let wrapper = Array.from(host.querySelectorAll(':scope > [data-kingdom-monster-aux]'))
-      .find((node) => node.dataset.kingdomMonsterAux === effectKey);
-    if (!wrapper) {
-      wrapper = document.createElement('div');
-      wrapper.dataset.kingdomMonsterAux = effectKey;
-      wrapper.setAttribute('aria-hidden', 'true');
-      wrapper.style.position = 'absolute';
+    const placement = String(effect?.placement || 'projectile');
+    let wrappers = Array.from(host.querySelectorAll(':scope > [data-kingdom-monster-aux]')).filter((node) => {
+      const key = String(node.dataset.kingdomMonsterAux || '');
+      return key === effectKey || key.startsWith(`${effectKey}:target-`);
+    });
+    if (!wrappers.length) {
       const direction = options.direction === 'right' ? 1 : -1;
       const sourceNode = options.sourceNode instanceof Element ? options.sourceNode : null;
       const hostRect = host.getBoundingClientRect();
@@ -24732,44 +24751,60 @@ function renderKingdomMonsterAuxEffects(host, monster, effects = [], generationK
       const launchY = hasSourceRect
         ? sourceRect.top - hostRect.top + (sourceRect.height * 0.44)
         : hostRect.height * 0.46;
-      wrapper.style.left = `${Math.round(launchX)}px`;
-      wrapper.style.top = `${Math.round(launchY)}px`;
-      wrapper.style.width = '1px';
-      wrapper.style.height = '1px';
-      wrapper.style.pointerEvents = 'none';
-      wrapper.style.zIndex = '6';
-      const sprite = document.createElement('div');
-      sprite.dataset.kingdomMonsterAuxSprite = 'true';
-      sprite.style.position = 'absolute';
-      wrapper.appendChild(sprite);
-      host.appendChild(wrapper);
-      wrapper.dataset.projectileOriginX = String(Math.round(launchX));
-      wrapper.dataset.projectileOriginY = String(Math.round(launchY));
-      wrapper.dataset.projectileSource = hasSourceRect ? 'sprite' : 'fallback';
-      const placement = String(effect?.placement || 'projectile');
-      if (!prefersKingdomReducedMotion() && placement === 'projectile') {
-        wrapper.animate([
-          { transform: 'translate3d(0, 0, 0)', opacity: 1 },
-          { transform: `translate3d(${direction * 190}px, 32px, 0)`, opacity: 1 }
-        ], { duration: 520, easing: 'linear', fill: 'both' });
-      } else if (!prefersKingdomReducedMotion() && placement === 'area') {
-        wrapper.animate([
-          { transform: 'scale(0.72)', opacity: 0.35 },
-          { transform: 'scale(1)', opacity: 1 }
-        ], { duration: 260, easing: 'ease-out', fill: 'both' });
-      } else if (placement === 'brood') {
-        wrapper.style.left = options.direction === 'right' ? '78%' : '22%';
-        wrapper.style.top = '74%';
-      }
+      const aims = placement === 'projectile'
+        ? getKingdomMonsterProjectileAims(host, launchX, launchY, direction, options.targetNodes)
+        : [null];
+      wrappers = aims.map((aim, aimIndex) => {
+        const wrapper = document.createElement('div');
+        wrapper.dataset.kingdomMonsterAux = aims.length > 1 ? `${effectKey}:target-${aimIndex}` : effectKey;
+        wrapper.setAttribute('aria-hidden', 'true');
+        wrapper.style.position = 'absolute';
+        wrapper.style.left = `${Math.round(launchX)}px`;
+        wrapper.style.top = `${Math.round(launchY)}px`;
+        wrapper.style.width = '1px';
+        wrapper.style.height = '1px';
+        wrapper.style.pointerEvents = 'none';
+        wrapper.style.zIndex = '6';
+        const sprite = document.createElement('div');
+        sprite.dataset.kingdomMonsterAuxSprite = 'true';
+        sprite.style.position = 'absolute';
+        wrapper.appendChild(sprite);
+        host.appendChild(wrapper);
+        wrapper.dataset.projectileOriginX = String(Math.round(launchX));
+        wrapper.dataset.projectileOriginY = String(Math.round(launchY));
+        wrapper.dataset.projectileSource = hasSourceRect ? 'sprite' : 'fallback';
+        if (aim) {
+          wrapper.dataset.projectileAimX = String(aim.x);
+          wrapper.dataset.projectileAimY = String(aim.y);
+        }
+        if (!prefersKingdomReducedMotion() && aim) {
+          wrapper.animate([
+            { transform: 'translate3d(0, 0, 0)', opacity: 1 },
+            { transform: `translate3d(${aim.x}px, ${aim.y}px, 0)`, opacity: 1 }
+          ], { duration: KINGDOM_MONSTER_PROJECTILE_FLIGHT_MS, easing: 'linear', fill: 'both' });
+        } else if (!prefersKingdomReducedMotion() && placement === 'area') {
+          wrapper.animate([
+            { transform: 'scale(0.72)', opacity: 0.35 },
+            { transform: 'scale(1)', opacity: 1 }
+          ], { duration: 260, easing: 'ease-out', fill: 'both' });
+        } else if (placement === 'brood') {
+          wrapper.style.left = options.direction === 'right' ? '78%' : '22%';
+          wrapper.style.top = '74%';
+        }
+        return wrapper;
+      });
     }
-    const sprite = wrapper.querySelector(':scope > [data-kingdom-monster-aux-sprite]');
-    playKingdomMonsterAuxAnimation(
-      sprite,
-      monster,
-      animationName,
-      effectKey,
-      Number(effect?.scale) || 2
-    );
+    wrappers.forEach((wrapper) => {
+      const wrapperKey = String(wrapper.dataset.kingdomMonsterAux || '');
+      wantedKeys.add(wrapperKey);
+      playKingdomMonsterAuxAnimation(
+        wrapper.querySelector(':scope > [data-kingdom-monster-aux-sprite]'),
+        monster,
+        animationName,
+        wrapperKey,
+        Number(effect?.scale) || 2
+      );
+    });
   });
   host.querySelectorAll(':scope > [data-kingdom-monster-aux]').forEach((node) => {
     if (!wantedKeys.has(String(node.dataset.kingdomMonsterAux || ''))) clearKingdomMonsterAuxNode(node);
@@ -26205,7 +26240,7 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
         monster,
         eventIsActive ? petMotion.effects : [],
         `${eventKey}:pet-${playerIndex}`,
-        { direction: 'left', sourceNode: sprite }
+        { direction: 'left', sourceNode: sprite, targetNodes: [ui.battleEnemySprite] }
       );
       setCombatAvatarVictory(
         avatar,
@@ -27796,7 +27831,15 @@ function renderKingdomBattleStage() {
       monsterConfig,
       eventIsActive ? monsterMotion.effects : [],
       `${eventKey}:enemy`,
-      { direction: 'right', sourceNode: ui.battleEnemySprite }
+      {
+        direction: 'right',
+        sourceNode: ui.battleEnemySprite,
+        // every attacked seat, also one that dodged or guarded
+        targetNodes: [...new Set((Array.isArray(visualEvent?.damages) ? visualEvent.damages : [])
+          .map((entry) => Number(entry?.playerIndex))
+          .filter(Number.isInteger))]
+          .map((targetIndex) => document.getElementById(`tarotKingdomBattleAvatar-${targetIndex}`))
+      }
     );
   }
   renderKingdomEnemyStatusEffects();

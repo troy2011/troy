@@ -268,6 +268,23 @@ async function readBattleLayout(page) {
   });
 }
 
+
+// How far a projectile sprite's flight ends from the centre of the nearest of the given boxes. A target
+// recoils a few px when hit, so callers allow a small miss.
+function projectileLandingMiss(wrapper, targets) {
+  const host = wrapper?.parentElement;
+  const hostRect = host?.getBoundingClientRect();
+  const frames = wrapper?.getAnimations?.()[0]?.effect?.getKeyframes?.() || [];
+  const end = frames[frames.length - 1]?.transform || 'none';
+  const travel = end === 'none' ? { m41: 0, m42: 0 } : new DOMMatrixReadOnly(end);
+  const landX = hostRect.left + Number.parseFloat(wrapper.style.left) + travel.m41;
+  const landY = hostRect.top + Number.parseFloat(wrapper.style.top) + travel.m42;
+  return Math.min(...targets.map((target) => {
+    const rect = target.getBoundingClientRect();
+    return Math.hypot(rect.left + (rect.width / 2) - landX, rect.top + (rect.height / 2) - landY);
+  }));
+}
+
 test('rulebook explains the current rules and returns to the same battle on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await abortFirebaseDataRequests(page);
@@ -2388,7 +2405,8 @@ test('monsters with two attack sheets use the second one for area attacks and pe
     .toHaveCount(1, { timeout: 700 });
   const enemyProjectileOrigin = await page.locator(
     '[data-kingdom-monster-aux-sprite][data-animation-name="image_m6a_projectile"]'
-  ).evaluate((projectile) => {
+  ).evaluate((projectile, landingMissSource) => {
+    const landingMiss = new Function(`return (${landingMissSource})`)();
     const wrapper = projectile.parentElement;
     const host = wrapper?.parentElement;
     const source = host?.querySelector(':scope > #tarotKingdomEnemySprite');
@@ -2406,10 +2424,13 @@ test('monsters with two attack sheets use the second one for area attacks and pe
       targetCenterX: partyRect ? partyRect.left + (partyRect.width / 2) : NaN,
       travelX: endTransform === 'none' ? 0 : new DOMMatrixReadOnly(endTransform).m41,
       spriteLeft: Number.parseFloat(projectile.style.left || ''),
-      halfWidth: -(Number.parseFloat(projectile.style.width || '') / 2)
+      halfWidth: -(Number.parseFloat(projectile.style.width || '') / 2),
+      landingMiss: landingMiss(wrapper, [...document.querySelectorAll('[id^="tarotKingdomBattleAvatar-"]')])
     };
-  });
+  }, projectileLandingMiss.toString());
   expect(enemyProjectileOrigin.source).toBe('sprite');
+  // it flies to the attacked party member, not a fixed distance
+  expect(enemyProjectileOrigin.landingMiss).toBeLessThanOrEqual(8);
   expect(Math.abs(enemyProjectileOrigin.originX - enemyProjectileOrigin.expectedX)).toBeLessThanOrEqual(1);
   expect(enemyProjectileOrigin.targetCenterX).toBeGreaterThan(enemyProjectileOrigin.sourceCenterX);
   expect(enemyProjectileOrigin.travelX).toBeGreaterThan(0);
@@ -2530,7 +2551,8 @@ test('monsters with two attack sheets use the second one for area attacks and pe
     '[data-kingdom-monster-aux-sprite][data-animation-name="image_m6a_projectile"]'
   );
   await expect(petProjectile).toHaveCount(1, { timeout: 700 });
-  const petProjectileOrigin = await petProjectile.evaluate((projectile) => {
+  const petProjectileOrigin = await petProjectile.evaluate((projectile, landingMissSource) => {
+    const landingMiss = new Function(`return (${landingMissSource})`)();
     const wrapper = projectile.parentElement;
     const host = wrapper?.parentElement;
     const source = host?.querySelector(':scope > .tarot-kingdom-battle-pet-sprite');
@@ -2548,10 +2570,13 @@ test('monsters with two attack sheets use the second one for area attacks and pe
       targetCenterX: enemyRect ? enemyRect.left + (enemyRect.width / 2) : NaN,
       travelX: endTransform === 'none' ? 0 : new DOMMatrixReadOnly(endTransform).m41,
       spriteLeft: Number.parseFloat(projectile.style.left || ''),
-      halfWidth: -(Number.parseFloat(projectile.style.width || '') / 2)
+      halfWidth: -(Number.parseFloat(projectile.style.width || '') / 2),
+      landingMiss: landingMiss(wrapper, [document.querySelector('#tarotKingdomEnemySprite')])
     };
-  });
+  }, projectileLandingMiss.toString());
   expect(petProjectileOrigin.source).toBe('sprite');
+  // it flies to the enemy
+  expect(petProjectileOrigin.landingMiss).toBeLessThanOrEqual(8);
   expect(Math.abs(petProjectileOrigin.originX - petProjectileOrigin.expectedX)).toBeLessThanOrEqual(1);
   expect(petProjectileOrigin.targetCenterX).toBeLessThan(petProjectileOrigin.sourceCenterX);
   expect(petProjectileOrigin.travelX).toBeLessThan(0);
