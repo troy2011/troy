@@ -451,10 +451,11 @@ const MONSTER_ATTACK_RECIPES = Object.freeze({
     single: [{ path: 'ice/snowflake-burst', back: 0, up: 0, hit: 0.3, speed: 1.6, until: 450, palette: PALETTES.gold }],
     area: [{ path: 'nature/poison-cloud', back: 0, up: 8, hit: 0.4, speed: 1.4, until: 600, palette: PALETTES.gold }]
   },
-  // グリバト: its seed glows and bursts / spores over each member
+  // グリバト: its seed glows and bursts / its vines lash each member
+  // (spore-burst grows a toadstool, which is キノガル's)
   'ismartal-vol2-monster-06': {
     single: [{ path: 'arcane/spell-charge', back: 0, up: 0, hit: 0.4, speed: 1.6, until: 500, palette: PALETTES.leaf }],
-    area: [{ path: 'nature/spore-burst', each: true, up: 0, hit: 1.0, speed: 2, until: 600, staggerMs: 90, palette: PALETTES.leaf }]
+    area: [{ path: 'nature/vine-whip', each: true, up: 0, hit: 0.55, speed: 1.4, staggerMs: 90, palette: PALETTES.leaf }]
   },
   // ビズン: its stinger strikes / the bees zip at each member
   'ismartal-vol2-monster-11': {

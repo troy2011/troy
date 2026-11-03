@@ -19533,20 +19533,21 @@ body.home-exploration-popup-open #globalStatusBar {
     background: #6b7280;
 }
 
+/* the Kingdom card colors of each element's suit: Wand red, Cup blue, Sword purple, Pentacle green */
 .ship-exploration-monster-element.is-fire {
-    background: #c2410c;
+    background: #b83a31;
 }
 
 .ship-exploration-monster-element.is-water {
-    background: #1d4ed8;
+    background: #2f6fae;
 }
 
 .ship-exploration-monster-element.is-wind {
-    background: #0f766e;
+    background: #7d55c9;
 }
 
 .ship-exploration-monster-element.is-earth {
-    background: #92400e;
+    background: #2e8556;
 }
 
 .ship-exploration-monster-element.is-light {
@@ -19554,8 +19555,10 @@ body.home-exploration-popup-open #globalStatusBar {
     background: #facc15;
 }
 
+/* darker than wind's purple so the two read apart */
 .ship-exploration-monster-element.is-dark {
-    background: #6d28d9;
+    border: 1px solid #8048b8;
+    background: #2c1a4a;
 }
 
 .ship-exploration-monster-detail-close {
