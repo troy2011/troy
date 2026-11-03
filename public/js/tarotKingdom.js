@@ -117,8 +117,11 @@ import {
 } from './pixelMonsterCompanion.js?v=20260825-monster-motion-v2';
 import {
   playTarotKingdomEnemyAttackFx,
+  playTarotKingdomEnemyDefeatFx,
+  playTarotKingdomEnemyEntranceFx,
   getTarotKingdomSummonFxKey,
   playTarotKingdomActorFx,
+  playTarotKingdomCelebrationFx,
   hasTarotKingdomSupportResonanceFx,
   playTarotKingdomMajorFx,
   playTarotKingdomResonanceFx,
@@ -126,10 +129,11 @@ import {
   playTarotKingdomWeaponHitFx,
   nudgeTarotKingdomActor,
   stopTarotKingdomPixelFx,
+  syncTarotKingdomAmbientFx,
   syncTarotKingdomStatusFx,
   TAROT_KINGDOM_KNOCKBACK_PX,
   warmTarotKingdomPixelFx
-} from './tarotKingdomPixelFx.js?v=20261102-pixelfx-v8';
+} from './tarotKingdomPixelFx.js?v=20261103-pixelfx-v9';
 
 const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 const TAROT_TILE_W = 48;
@@ -823,6 +827,10 @@ const KINGDOM_DEMO_TRICK_SCENE_OPTIONS = Object.freeze([
   { value: 'cut', label: '8カット・海の亀裂', classes: ['is-scene-cut'] },
   { value: 'skip', label: '5スキップ・大波', classes: ['is-scene-skip'] },
   { value: 'world-stop', label: '世界・時間停止', classes: ['is-scene-world'] },
+  { value: 'major-tower', label: '大アルカナ・塔の嵐', classes: [] },
+  { value: 'major-star', label: '大アルカナ・星の流れ星', classes: [] },
+  { value: 'major-moon', label: '大アルカナ・月の夜雲', classes: [] },
+  { value: 'major-sun', label: '大アルカナ・太陽の光', classes: [] },
   { value: 'role-straight', label: '5枚役・ストレート', classes: ['is-scene-role', 'is-scene-role-straight'] },
   { value: 'role-flush-wand', label: '5枚役・フラッシュ（ワンド）', classes: ['is-scene-role', 'is-scene-role-flush', 'is-scene-role-suit-wand'] },
   { value: 'role-flush-cup', label: '5枚役・フラッシュ（カップ）', classes: ['is-scene-role', 'is-scene-role-flush', 'is-scene-role-suit-cup'] },
@@ -1104,7 +1112,68 @@ function syncKingdomTrickSceneClass() {
     }
   } finally {
     syncKingdomFieldSceneFade();
+    void syncTarotKingdomAmbientFx(ui.battleStage, getKingdomFieldWeatherKey());
   }
+}
+
+// The weather over the whole stage follows the field effects that stay in force, not the short flashes
+// (8 Cut, 5 Skip), so the rule that limits the next play can be read at a glance.
+const KINGDOM_DEMO_SCENE_WEATHER = Object.freeze({
+  'lock-wand': 'lock-wand',
+  'lock-cup': 'lock-cup',
+  'lock-sword': 'lock-sword',
+  'lock-pentacle': 'lock-pentacle',
+  reverse: 'back',
+  'world-stop': 'world',
+  'major-tower': 'tower',
+  'major-star': 'star',
+  'major-moon': 'moon',
+  'major-sun': 'sun'
+});
+
+// The Tower and the Star act at once and leave little behind, so their weather is a burst that outlasts the
+// cut-in for a while and then gives way to whatever the field shows.
+const KINGDOM_WEATHER_BURST_MS = 5000;
+const KINGDOM_WEATHER_BURST_BY_MAJOR = Object.freeze({ 16: 'tower', 17: 'star' });
+let kingdomWeatherBurst = null;
+let kingdomWeatherBurstTimer = 0;
+
+function startKingdomWeatherBurst(majorNumber, startedAt, durationMs) {
+  const key = KINGDOM_WEATHER_BURST_BY_MAJOR[Number(majorNumber)];
+  if (!key) return;
+  const until = Number(startedAt) + durationMs + KINGDOM_WEATHER_BURST_MS;
+  if (until <= Date.now()) return;
+  kingdomWeatherBurst = { key, until };
+  clearTimeout(kingdomWeatherBurstTimer);
+  kingdomWeatherBurstTimer = setTimeout(() => {
+    kingdomWeatherBurst = null;
+    if (ui.battleStage) void syncTarotKingdomAmbientFx(ui.battleStage, getKingdomFieldWeatherKey());
+  }, until - Date.now());
+  if (ui.battleStage) void syncTarotKingdomAmbientFx(ui.battleStage, getKingdomFieldWeatherKey());
+}
+
+function hasKingdomStarBlessing(effects) {
+  return (Array.isArray(effects?.players) ? effects.players : []).some((bucket) => (
+    bucket?.regen?.label === '星の再生' || bucket?.hpShield?.label === '祝星の加護'
+  ));
+}
+
+function getKingdomFieldWeatherKey() {
+  if (window.__TAROT_KINGDOM_PREVIEW__ === true && kingdomDemoTrickSceneKey !== 'auto') {
+    return KINGDOM_DEMO_SCENE_WEATHER[kingdomDemoTrickSceneKey] || '';
+  }
+  if (!s?.battle || s.battle.outcome) return '';
+  if (kingdomWeatherBurst && kingdomWeatherBurst.until > Date.now()) return kingdomWeatherBurst.key;
+  const lockSuit = String(s.lock?.suit || '').toLowerCase();
+  if (['wand', 'cup', 'sword', 'pentacle'].includes(lockSuit)) return `lock-${lockSuit}`;
+  if (s.reverse) return 'back';
+  const effects = s.battle.effects;
+  if (effects?.enemy?.timeStop) return 'world';
+  // the major arcana that stay in force: the Moon's mirage, the Sun's blessing, the Star's lasting care
+  if (effects?.enemy?.majorConfusion || effects?.enemy?.mirageBlind) return 'moon';
+  if (effects?.party?.sunBlessing) return 'sun';
+  if (hasKingdomStarBlessing(effects)) return 'star';
+  return '';
 }
 
 function getKingdomChipRanking() {
@@ -5661,6 +5730,67 @@ function preloadKingdomMonsterAnimation(animationSrc = '') {
   });
   kingdomMonsterAnimationPreloadPromises.set(src, preload);
   return preload;
+}
+
+// Median lowest opaque row per sprite sheet, so a tightly cropped fly clip can hover like idle.
+const kingdomMonsterClipBottoms = new Map();
+
+function measureKingdomMonsterClipBottom(animation, onReady = null) {
+  const src = String(animation?.src || '').trim();
+  if (!src || typeof Image !== 'function' || typeof document === 'undefined') return null;
+  const cached = kingdomMonsterClipBottoms.get(src);
+  if (typeof cached === 'number') return cached;
+  if (cached) return null;
+  kingdomMonsterClipBottoms.set(src, 'pending');
+  const image = new Image();
+  image.addEventListener('load', () => {
+    const width = Math.max(1, Number(animation.frameWidth) || 1);
+    const height = Math.max(1, Number(animation.frameHeight) || 1);
+    const columns = Math.max(1, Number(animation.columns) || 1);
+    const frameCount = Math.max(1, Number(animation.frameCount) || 1);
+    let bottoms = [];
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(image, 0, 0);
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      for (let frame = 0; frame < frameCount; frame += 1) {
+        const fx = (frame % columns) * width;
+        const fy = Math.floor(frame / columns) * height;
+        let bottom = -1;
+        for (let y = height - 1; y >= 0 && bottom < 0; y -= 1) {
+          for (let x = 0; x < width; x += 1) {
+            if (data[(((fy + y) * canvas.width) + fx + x) * 4 + 3] > 24) { bottom = y + 1; break; }
+          }
+        }
+        if (bottom > 0) bottoms.push(bottom);
+      }
+    } catch {
+      bottoms = [];
+    }
+    bottoms.sort((a, b) => a - b);
+    kingdomMonsterClipBottoms.set(src, bottoms.length ? bottoms[Math.floor(bottoms.length / 2)] : height);
+    onReady?.();
+  }, { once: true });
+  image.addEventListener('error', () => kingdomMonsterClipBottoms.set(src, Number(animation.frameHeight) || 0), { once: true });
+  image.src = src;
+  return null;
+}
+
+// Source-pixel lift that puts an air monster's movement clip at the same hover height as its idle clip.
+function getKingdomMonsterClipLift(monster, animation, onReady = null) {
+  const anchor = animation?.anchor;
+  const idle = monster?.animations?.idle;
+  if (!idle || animation === idle || anchor?.mode !== 'air') return 0;
+  if (monster.animations[getKingdomMonsterMovementAnimationName(monster)] !== animation) return 0;
+  const idleBottom = measureKingdomMonsterClipBottom(idle, onReady);
+  const clipBottom = measureKingdomMonsterClipBottom(animation, onReady);
+  if (idleBottom == null || clipBottom == null) return 0;
+  const idleAnchorY = Number(idle.anchor?.y ?? monster.idleAnchor?.y) || Number(idle.frameHeight) || 0;
+  const clipAnchorY = Number(anchor.y) || Number(animation.frameHeight) || 0;
+  return Math.max(0, (idleAnchorY - idleBottom) - (clipAnchorY - clipBottom));
 }
 
 function preloadKingdomMonsterAnimations(monsterId = '', animationNames = []) {
@@ -24742,6 +24872,15 @@ function setKingdomMonsterFrame(node, monster, animation, frameIndex) {
   } else {
     node.style.removeProperty('--tarot-kingdom-enemy-scale');
   }
+  const applyClipLift = () => {
+    if (!node.style.backgroundImage.includes(animation.src)) return;
+    const lift = getKingdomMonsterClipLift(monster, animation);
+    node.style.setProperty('--tarot-kingdom-enemy-clip-lift', `${Math.round(lift * pixelScale)}px`);
+  };
+  node.style.setProperty(
+    '--tarot-kingdom-enemy-clip-lift',
+    `${Math.round(getKingdomMonsterClipLift(monster, animation, applyClipLift) * pixelScale)}px`
+  );
   const shadowHost = node.parentElement?.classList.contains('tarot-kingdom-battle-enemy-visual')
     ? node.parentElement
     : null;
@@ -25928,6 +26067,15 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
       !!(s.battle?.outcome === 'victory' && Number.isInteger(presentationWinnerIndex) && presentationWinnerIndex === playerIndex)
     );
     row.classList.toggle('is-match-champion', championIndex === playerIndex);
+    // the last round's winner is under the grand-final cutin; the champion gets the celebration then
+    if (row.classList.contains('is-round-winner') && !isKingdomMatchDoneState(s)) {
+      void playTarotKingdomCelebrationFx(
+        ui.battleStage,
+        row.querySelector('.tarot-kingdom-battle-player-avatar'),
+        'roundWin',
+        { key: `round-win:${Number(s.handNo) || 0}:${playerIndex}` }
+      );
+    }
     const retreating = retreatEventVisible && retreatingPlayerIndex === playerIndex;
     row.classList.toggle('is-retreating', retreating);
 
@@ -27037,6 +27185,7 @@ function renderKingdomSkillCutin(event, eventIsActive, phase) {
   }
   cutin.replaceChildren(content);
   if (majorPixelFxCanvas) {
+    startKingdomWeatherBurst(summonState?.majorNumber, Date.now() - elapsedMs, summonDurationMs);
     void playTarotKingdomMajorFx(majorPixelFxCanvas, summonState?.majorNumber, {
       elapsedMs,
       enemyEl: ui.battleEnemySprite,
@@ -27215,6 +27364,10 @@ function renderKingdomChampionCeremony() {
   score.className = 'tarot-kingdom-champion-score';
   score.textContent = `${Math.max(0, Number(champion.chips) || 0)} TP`;
   ceremony.replaceChildren(eyebrow, rank, title, name, score);
+  const groundEl = ui.battleEnemy?.querySelector('.tarot-kingdom-battle-enemy-visual') || ui.battleEnemy;
+  void playTarotKingdomCelebrationFx(ui.battleStage, groundEl, kingdomExplorationSession ? 'treasure' : 'champion', {
+    key: `champion:${renderKey}`
+  });
   ceremony.setAttribute('aria-label', `最終順位1位 ${name.textContent} ${score.textContent}`);
 }
 
@@ -27529,6 +27682,21 @@ function renderKingdomBattleStage() {
     node?.classList.toggle('is-raid-transforming', raidTransformActive);
     node?.classList.toggle('is-rebirth-active', enemyRebirthActive);
   });
+  const enemyElement = enemy.affinity?.native || '';
+  if (openingIntroStage === 'enter' && enemyVisualNode) {
+    void playTarotKingdomEnemyEntranceFx(ui.battleStage, enemyVisualNode, {
+      element: enemyElement,
+      key: `enter:${Number(s?.handNo) || 0}:${enemy.id}`
+    });
+  }
+  // only once the monster's own death sheet has played out, so its own animation is never covered
+  if (enemyDustActive) {
+    void playTarotKingdomEnemyDefeatFx(ui.battleStage, ui.battleEnemySprite, {
+      element: enemyElement,
+      monsterId: enemy.id,
+      key: `defeat:${Number(enemy.defeatedAtSeq) || Number(victoryEvent?.seq) || 0}:${enemy.id}`
+    });
+  }
 
   const escapeAnimation = String(victoryEvent?.escapeAnimation || '')
     || getKingdomMonsterMovementAnimationName(enemy.id);

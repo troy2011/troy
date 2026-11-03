@@ -13247,6 +13247,19 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
     image-rendering: pixelated;
 }
 
+/* Stage atmosphere (fireflies, fog, rain): over the battlefield art, under every actor.
+   Screen blending drops the effects' own dark night haze and keeps only their light. */
+#tarotKingdomBattleStage .tarot-kingdom-battle-arena > .tarot-kingdom-pixelfx-ambient {
+    position: absolute;
+    z-index: 1;
+    mix-blend-mode: screen;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    image-rendering: pixelated;
+}
+
 #tarotKingdomBattleStage.is-battle-skill.is-battle-damage .tarot-kingdom-battle-arena {
     animation: tarotKingdomSkillImpact 260ms steps(2, end) both;
 }
@@ -37662,7 +37675,7 @@ body.tarot-kingdom-preview-body {
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomEnemySprite[data-facing="left"] {
     position: absolute;
     right: auto;
-    bottom: calc(var(--tarot-kingdom-enemy-anchor-y) - var(--tarot-kingdom-enemy-frame-height) + var(--tarot-kingdom-enemy-offset-y, 0px));
+    bottom: calc(var(--tarot-kingdom-enemy-anchor-y) - var(--tarot-kingdom-enemy-frame-height) + var(--tarot-kingdom-enemy-offset-y, 0px) + var(--tarot-kingdom-enemy-clip-lift, 0px));
     left: 50%;
     margin-left: calc(-1 * var(--tarot-kingdom-enemy-anchor-x));
     transform: scaleX(var(--tarot-kingdom-enemy-confusion-facing-scale-x, var(--tarot-kingdom-enemy-facing-scale-x, -1))) scaleY(var(--tarot-kingdom-enemy-scale-y, 1)) scale(var(--tarot-kingdom-enemy-scale));

@@ -35,6 +35,9 @@ function allRecipes(tables) {
     ...Object.values(tables.SUPPORT_RESONANCE_RECIPES).flat(),
     ...Object.values(tables.MONSTER_ATTACK_RECIPES).flatMap((entry) => [...entry.single, ...entry.area]),
     ...Object.values(tables.ACTOR_FX_RECIPES),
+    tables.ENEMY_ENTRANCE_RECIPE,
+    ...Object.values(tables.CELEBRATION_RECIPES).flat(),
+    ...Object.values(tables.AMBIENT_RECIPES),
     tables.CRITICAL_LAYER,
     tables.GUARD_LAYER,
     ...Object.values(tables.STATUS_RECIPES),
@@ -89,6 +92,60 @@ test('every other minor resonance has its own support effect, or a status loop t
     assert.ok(tables.SUPPORT_RESONANCE_RECIPES[id]?.length, `support resonance ${id}`);
   }
   for (const id of Object.keys(tables.SUPPORT_RESONANCE_RECIPES)) assert.ok(!tables.RESONANCE_RECIPES[id], `${id} is both an attack and a support`);
+});
+
+test('enemies walk in over a small circle and break up only after their own death sheet', async () => {
+  const tables = await loadRecipes();
+  for (const element of ELEMENTS.filter((value) => value !== 'neutral')) {
+    assert.ok(tables.ACTOR_FX_RECIPES[tables.ENEMY_DEFEAT_KIND_BY_ELEMENT[element]]?.body, `defeat ${element}`);
+  }
+  assert.ok(tables.ACTOR_FX_RECIPES.defeatNeutral?.body);
+  const { PIXEL_MONSTERS_ROSTER } = await importJs(path.join(JS_DIR, 'pixelMonstersManifest.js'));
+  for (const boss of PIXEL_MONSTERS_ROSTER.filter((monster) => monster.isBoss === true)) {
+    const recipe = tables.ACTOR_FX_RECIPES[tables.BOSS_DEFEAT_KIND_BY_MONSTER[boss.id]];
+    assert.ok(recipe, `boss finale ${boss.id}`);
+    assert.ok(recipe.until <= 1200, `boss finale ${boss.id} clears before the next round`);
+  }
+  assert.ok(tables.ENEMY_ENTRANCE_RECIPE.until <= 900, 'the circle closes before its fountain hides the monster');
+  const source = fs.readFileSync(path.join(JS_DIR, 'tarotKingdom.js'), 'utf8');
+  assert.match(source, /if \(enemyDustActive\) \{\s*void playTarotKingdomEnemyDefeatFx\(/);
+  const css = fs.readFileSync(path.join(ROOT, 'public', 'style.css'), 'utf8');
+  assert.ok(css.includes('var(--tarot-kingdom-enemy-clip-lift, 0px)'), 'a flying monster keeps its hover height in its fly clip');
+});
+
+test('victories celebrate on the stage, and the match-end ones wait for the grand-final cutin', async () => {
+  const tables = await loadRecipes();
+  for (const kind of ['roundWin', 'champion', 'treasure']) assert.ok(tables.CELEBRATION_RECIPES[kind]?.length, kind);
+  for (const recipe of [...tables.CELEBRATION_RECIPES.champion, ...tables.CELEBRATION_RECIPES.treasure]) {
+    assert.ok(recipe.delay >= 2800, `${recipe.path} waits for the cutin`);
+  }
+  const source = fs.readFileSync(path.join(JS_DIR, 'tarotKingdom.js'), 'utf8');
+  assert.match(source, /is-round-winner'\) && !isKingdomMatchDoneState\(s\)\) \{\s*void playTarotKingdomCelebrationFx\(/);
+});
+
+test('lasting field effects bring their own weather, which redraws slowly and never darkens the art', async () => {
+  const tables = await loadRecipes();
+  const keys = ['lock-wand', 'lock-cup', 'lock-sword', 'lock-pentacle', 'back', 'world', 'tower', 'star', 'moon', 'sun'];
+  assert.deepEqual(Object.keys(tables.AMBIENT_RECIPES).sort(), [...keys].sort());
+  for (const [id, recipe] of Object.entries(tables.AMBIENT_RECIPES)) {
+    assert.ok(!recipe.frameMs || recipe.frameMs >= 83, `${id} redraws at 12 fps or less`);
+  }
+  const game = fs.readFileSync(path.join(JS_DIR, 'tarotKingdom.js'), 'utf8');
+  assert.match(game, /syncKingdomFieldSceneFade\(\);\s*void syncTarotKingdomAmbientFx\(ui\.battleStage, getKingdomFieldWeatherKey\(\)\);/);
+  assert.ok(!/syncTarotKingdomAmbientFx\(ui\.battleStage, battlefield\.id\)/.test(game), 'battlefields carry no weather of their own');
+  // the Tower and the Star come as a burst with the cut-in; the Moon and the Sun last as long as their effect
+  assert.match(game, /startKingdomWeatherBurst\(summonState\?\.majorNumber, Date\.now\(\) - elapsedMs, summonDurationMs\);/);
+  assert.match(game, /KINGDOM_WEATHER_BURST_BY_MAJOR = Object\.freeze\(\{ 16: 'tower', 17: 'star' \}\)/);
+  assert.match(game, /majorConfusion \|\| effects\?\.enemy\?\.mirageBlind\) return 'moon';/);
+  assert.match(game, /party\?\.sunBlessing\) return 'sun';/);
+  // time stop: the leaves stop falling and the loop ends
+  assert.ok(tables.AMBIENT_RECIPES.world.freezeAfter > 0);
+  const source = fs.readFileSync(path.join(JS_DIR, 'tarotKingdomPixelFx.js'), 'utf8');
+  assert.match(source, /const AMBIENT_FRAME_MS = (\d+);/);
+  assert.ok(Number(source.match(/const AMBIENT_FRAME_MS = (\d+);/)[1]) >= 83);
+  assert.match(source, /prefersReducedMotion\(\) \? null : AMBIENT_RECIPES\[id\]/);
+  const css = fs.readFileSync(path.join(ROOT, 'public', 'style.css'), 'utf8');
+  assert.match(css, /> \.tarot-kingdom-pixelfx-ambient \{[^}]*mix-blend-mode: screen;/);
 });
 
 test('the lasting shield stays faint and steps back while a one-shot plays on the actor', () => {

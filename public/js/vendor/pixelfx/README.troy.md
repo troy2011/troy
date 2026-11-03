@@ -20,6 +20,9 @@ upstream folder layout (`core/`, `fx/<category>/`). The files are plain ES modul
 - `fx/holy/heal.js`: an extra `drain` option (default 1); the 5-card summon heal passes 0 so the party is
   not greyed out before the hoop restores it. Marked with a `// troy:` comment.
 
+- `fx/weather/embers.js`: not upstream. Embers rising off a lava field for the Royal Lock (Wand) weather,
+  written in the style of `weather/snow.js`. Keep it when updating.
+
 ## Updating
 
 Copy the same set from a newer commit, re-apply the changes above, update the commit hash here, and check

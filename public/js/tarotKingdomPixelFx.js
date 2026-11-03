@@ -996,7 +996,7 @@ async function wrapActor(el, stageRect, scale) {
 /*
  * One-shot effects on a single actor, for results outside the summon cutin: heals, shields, buffs,
  * cleanses and revivals on the party, an enemy powering itself up, and a debuff cast on a party member.
- * (A defeated enemy gets none: its own death sheet already ends in smoke.) `until` cuts a looping effect off after that many ms; `shield` sizes the bubble to the actor;
+ * A defeated enemy gets one only after its own death sheet has finished (see playTarotKingdomEnemyDefeatFx). `until` cuts a looping effect off after that many ms; `shield` sizes the bubble to the actor;
  * `body` effects repaint the actor's own pixels and are skipped when its sprite cannot be read.
  */
 const ACTOR_FX_RECIPES = Object.freeze({
@@ -1008,8 +1008,34 @@ const ACTOR_FX_RECIPES = Object.freeze({
   revive: { path: 'spawn/respawn-beam', body: true, speed: 1.4 },
   enemyBuff: { path: 'status/rage', body: true, until: 1100 },
   enemyHeal: { path: 'holy/heal', body: true, palette: PALETTES.leaf, opts: { drain: 0 } },
-  curse: { path: 'shadow/curse', body: true, speed: 1.5 }
+  curse: { path: 'shadow/curse', body: true, speed: 1.5 },
+  // the remains of a defeated enemy break up by its element
+  defeatFire: { path: 'spawn/dissolve-burn', body: true, speed: 1.8 },
+  // cut before the shards skate along the floor to the party's feet
+  defeatWater: { path: 'spawn/shatter-death', body: true, speed: 1.8, until: 1000 },
+  defeatDark: { path: 'spawn/soul-rise', body: true, speed: 1.8 },
+  defeatLight: { path: 'spawn/soul-rise', body: true, speed: 1.8, palette: PALETTES.gold },
+  defeatWind: { path: 'spawn/disintegrate', body: true, speed: 1.8, palette: ELEMENT_PALETTES.wind },
+  defeatEarth: { path: 'spawn/disintegrate', body: true, speed: 1.8, palette: ELEMENT_PALETTES.earth },
+  defeatNeutral: { path: 'spawn/disintegrate', body: true, speed: 1.8 },
+  // a raid boss goes out with a blast instead; cut before the smoke column outstays the victory
+  bossDefeatBlast: { path: 'explosions/big-explosion', speed: 1.2, until: 1100 },
+  bossDefeatAbyss: { path: 'explosions/big-explosion', speed: 1.2, until: 1100, palette: ELEMENT_PALETTES.dark },
+  bossDefeatNova: { path: 'explosions/nuke', speed: 1.3, until: 1100, palette: PALETTES.gold }
 });
+
+const BOSS_DEFEAT_KIND_BY_MONSTER = Object.freeze({
+  'ismartal-vol2-monster-07': 'bossDefeatBlast', // バルガン
+  'ismartal-vol2-monster-15': 'bossDefeatAbyss', // アビソス
+  'ismartal-vol2-monster-16': 'bossDefeatNova' // オルビス
+});
+
+const ENEMY_DEFEAT_KIND_BY_ELEMENT = Object.freeze({
+  fire: 'defeatFire', water: 'defeatWater', dark: 'defeatDark', light: 'defeatLight', wind: 'defeatWind', earth: 'defeatEarth'
+});
+
+// A small summoning circle a monster walks onto; it closes as the walk-in ends, before its fountain would hide the monster.
+const ENEMY_ENTRANCE_RECIPE = Object.freeze({ path: 'spawn/spawn-portal', speed: 1.1, until: 850, opts: { width: 16 } });
 /*
  * Support resonances (minor arcana that heal, shield, buff or weaken) get their own effect on each
  * target, in place of the generic one above. Recipes take the actor recipe fields plus up/dx offsets.
@@ -1121,6 +1147,95 @@ export async function playTarotKingdomActorFx(stageEl, actorEl, kind, { key = ''
     if (endAt > startAt) quietActorWhile(stageEl, actorEl, endAt);
   } catch (error) {
     console.warn('[TarotKingdom] pixelfx actor effect skipped', error);
+  }
+}
+
+/**
+ * A defeated enemy's remains breaking up. Call it once the monster's own death sheet has played to the end,
+ * on the last frame, so the effect never covers that animation.
+ */
+export function playTarotKingdomEnemyDefeatFx(stageEl, enemyEl, { element = '', monsterId = '', key = '' } = {}) {
+  const kind = BOSS_DEFEAT_KIND_BY_MONSTER[String(monsterId || '')]
+    || ENEMY_DEFEAT_KIND_BY_ELEMENT[normalizeElement(element)]
+    || 'defeatNeutral';
+  return playTarotKingdomActorFx(stageEl, enemyEl, kind, { key });
+}
+
+/** A circle on the ground where an entering enemy will stand; anchorEl is the untransformed enemy box. */
+export async function playTarotKingdomEnemyEntranceFx(stageEl, anchorEl, { element = '', key = '' } = {}) {
+  if (!stageEl || !anchorEl || prefersReducedMotion()) return;
+  if (key) {
+    let played = playedActorFx.get(stageEl);
+    if (!played) playedActorFx.set(stageEl, (played = new Set()));
+    if (played.has(key)) return;
+    played.add(key);
+    if (played.size > ACTOR_FX_KEY_LIMIT) played.delete(played.values().next().value);
+  }
+  try {
+    const startAt = Date.now();
+    const [core, mod] = await Promise.all([loadCore(), loadEffect(ENEMY_ENTRANCE_RECIPE.path)]);
+    const player = getStagePlayer(stageEl, core);
+    const target = rectIn(stageEl.getBoundingClientRect(), anchorEl);
+    if (!target) return;
+    const tint = normalizeElement(element) === 'neutral' ? null : ELEMENT_PALETTES[normalizeElement(element)];
+    const layer = buildLayer(core, mod, ENEMY_ENTRANCE_RECIPE, {
+      x: target.cx / player.scale,
+      y: target.feet / player.scale,
+      impactAt: startAt,
+      palette: tint
+    });
+    layer.calm = true;
+    player.add(layer);
+  } catch (error) {
+    console.warn('[TarotKingdom] pixelfx enemy entrance skipped', error);
+  }
+}
+
+/*
+ * Display-only celebrations: the round winner's pillar over its avatar, confetti for the match champion,
+ * and a treasure chest when an exploration battle is won. `center` plays on the stage's middle at the anchor's
+ * feet line, so a wide effect is not cut off at the edge. The match-end ones wait (`delay`) for the grand-final
+ * cutin, which covers the whole stage, to clear.
+ */
+const GRAND_FINAL_CUTIN_MS = 3000;
+const CELEBRATION_RECIPES = Object.freeze({
+  roundWin: [{ path: 'ui/level-up', opts: { text: 'WIN!' }, until: 1900 }],
+  champion: [{ path: 'ui/confetti', center: true, delay: GRAND_FINAL_CUTIN_MS }],
+  treasure: [{ path: 'pickups/chest-open', center: true, delay: GRAND_FINAL_CUTIN_MS, until: 2600 }]
+});
+
+export async function playTarotKingdomCelebrationFx(stageEl, anchorEl, kind, { key = '' } = {}) {
+  const recipes = CELEBRATION_RECIPES[kind];
+  if (!stageEl || !anchorEl || !recipes || prefersReducedMotion()) return;
+  if (key) {
+    let played = playedActorFx.get(stageEl);
+    if (!played) playedActorFx.set(stageEl, (played = new Set()));
+    if (played.has(key)) return;
+    played.add(key);
+    if (played.size > ACTOR_FX_KEY_LIMIT) played.delete(played.values().next().value);
+  }
+  try {
+    const startAt = Date.now();
+    const [core, mods] = await Promise.all([
+      loadCore(),
+      Promise.all(recipes.map((recipe) => loadEffect(recipe.path).catch(() => null)))
+    ]);
+    const player = getStagePlayer(stageEl, core);
+    const stageRect = stageEl.getBoundingClientRect();
+    const target = rectIn(stageRect, anchorEl);
+    if (!target) return;
+    recipes.forEach((recipe, index) => {
+      if (!mods[index]) return;
+      const layer = buildLayer(core, mods[index], recipe, {
+        x: (recipe.center ? stageRect.width / 2 : target.cx) / player.scale,
+        y: target.feet / player.scale - (recipe.up || 0),
+        impactAt: startAt + (recipe.delay || 0)
+      });
+      layer.calm = true;
+      player.add(layer);
+    });
+  } catch (error) {
+    console.warn('[TarotKingdom] pixelfx celebration skipped', error);
   }
 }
 
@@ -1619,8 +1734,116 @@ export async function syncTarotKingdomStatusFx(stageEl, actorKey, actorEl, statu
 }
 
 /** Clears the stage overlay (battle end, page exit). */
+/*
+ * Field weather: while a lasting field effect holds (a Royal Lock, 11 Back, The World's time stop), one looping
+ * weather effect plays behind the actors so the rule in force can be read from the whole stage. It has its own
+ * small canvas inside the arena, redraws at AMBIENT_FRAME_MS and stops while the page or the stage is hidden.
+ * The weather effects paint their own floor (grass, puddles); `below` sinks the origin under the canvas so
+ * only what floats in the air shows over the battlefield art. They also fill the scene with a dark night haze,
+ * so the canvas is screen-blended (style.css): the haze leaves the battlefield as it is and only the light shows.
+ * Reduced motion gets none.
+ */
+const AMBIENT_FRAME_MS = 83;
+const AMBIENT_FADE_MS = 400;
+const AMBIENT_RECIPES = Object.freeze({
+  // Royal Lock, by the locked suit: embers rising off lava, ice snow, a thunderstorm's rain, rock dust
+  'lock-wand': { path: 'weather/embers', below: 0 },
+  'lock-cup': { path: 'weather/snow', below: 16 },
+  'lock-sword': { path: 'weather/rain', below: 14, opacity: 0.8 },
+  // the fog banks drift slowly, so they redraw less often: it is the costliest one
+  'lock-pentacle': { path: 'weather/fog', below: -40, opacity: 0.6, frameMs: 125, opts: { palette: ELEMENT_PALETTES.earth } },
+  // 11 Back turns the order over: curtains of light shift across the sky
+  back: { path: 'weather/aurora', below: 0, opacity: 0.8, frameMs: 125 },
+  // The World stops time: leaves drift down for a moment and then hang in the air, never redrawn after
+  world: { path: 'weather/falling-leaves', below: 16, freezeAfter: 3.5 },
+  // the major arcana: the Tower's storm and the Star's falling stars come in a burst after the cut-in; the
+  // Moon's mirage and the Sun's blessing last as long as their effect does
+  tower: { path: 'weather/storm', below: 14, opacity: 0.85 },
+  star: { path: 'weather/shooting-stars', below: 0 },
+  moon: { path: 'weather/clouds', below: 0, opacity: 0.7, frameMs: 125 },
+  sun: { path: 'weather/god-rays', below: 0, opacity: 0.7, frameMs: 125 }
+});
+const stageAmbients = new WeakMap();
+
+function stopAmbient(stageEl) {
+  const ambient = stageAmbients.get(stageEl);
+  if (!ambient) return;
+  ambient.stopped = true;
+  if (ambient.rafId) cancelAnimationFrame(ambient.rafId);
+  ambient.canvas.style.opacity = '0';
+  setTimeout(() => ambient.canvas.remove(), AMBIENT_FADE_MS);
+  stageAmbients.delete(stageEl);
+}
+
+/** Starts, switches or stops the field weather for weatherKey ('' for none); the same key again is free. */
+export async function syncTarotKingdomAmbientFx(stageEl, weatherKey = '') {
+  if (!stageEl) return;
+  const id = String(weatherKey || '');
+  const recipe = prefersReducedMotion() ? null : AMBIENT_RECIPES[id];
+  const current = stageAmbients.get(stageEl);
+  if (current && current.id === id && recipe) return;
+  stopAmbient(stageEl);
+  const arena = stageEl.querySelector('.tarot-kingdom-battle-arena');
+  if (!recipe || !arena) return;
+  const canvas = document.createElement('canvas');
+  canvas.className = 'tarot-kingdom-pixelfx-ambient';
+  canvas.setAttribute('aria-hidden', 'true');
+  canvas.style.opacity = '0';
+  canvas.style.transition = `opacity ${AMBIENT_FADE_MS}ms ease-out`;
+  arena.prepend(canvas);
+  const ambient = { id, canvas, rafId: 0, stopped: false };
+  stageAmbients.set(stageEl, ambient);
+  try {
+    const [core, mod] = await Promise.all([loadCore(), loadEffect(recipe.path)]);
+    if (ambient.stopped) return;
+    const width = Math.max(1, Math.ceil(canvas.clientWidth / DEFAULT_PIXEL_SCALE));
+    const height = Math.max(1, Math.ceil(canvas.clientHeight / DEFAULT_PIXEL_SCALE));
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    const frame = core.createFrame(width, height);
+    const image = new ImageData(width, height);
+    const fx = core.createFx(mod, { ...(recipe.opts || {}), x: Math.round(width / 2), y: height + recipe.below });
+    let lastAt = 0;
+    let played = 0;
+    let frozen = false;
+    requestAnimationFrame(() => { if (!ambient.stopped) canvas.style.opacity = String(recipe.opacity ?? 1); });
+    const tick = (now) => {
+      ambient.rafId = 0;
+      if (ambient.stopped) return;
+      if (!canvas.isConnected) { stageAmbients.delete(stageEl); return; }
+      // hidden tab or hidden stage: keep the loop alive but skip the work, and do not jump ahead on return
+      const shown = !document.hidden && canvas.offsetParent !== null;
+      if (!shown) lastAt = 0;
+      else if (now - lastAt >= (recipe.frameMs || AMBIENT_FRAME_MS)) {
+        let left = lastAt ? Math.min(0.2, (now - lastAt) / 1000) : AMBIENT_FRAME_MS / 1000;
+        played += left;
+        frozen = recipe.freezeAfter > 0 && played >= recipe.freezeAfter;
+        while (left > 1e-6) {
+          const dt = Math.min(MAX_STEP_SECONDS, left);
+          fx.update(dt);
+          left -= dt;
+        }
+        lastAt = now;
+        core.clearFrame(frame);
+        fx.draw(frame);
+        core.composite(frame, image.data, null);
+        ctx.putImageData(image, 0, 0);
+        // a still picture from here on: the canvas keeps it, so the loop can end
+        if (frozen) return;
+      }
+      ambient.rafId = requestAnimationFrame(tick);
+    };
+    ambient.rafId = requestAnimationFrame(tick);
+  } catch (error) {
+    console.warn('[TarotKingdom] pixelfx ambient skipped', error);
+    stopAmbient(stageEl);
+  }
+}
+
 export function stopTarotKingdomPixelFx(stageEl) {
   if (!stageEl) return;
+  stopAmbient(stageEl);
   stagePlayers.get(stageEl)?.player.stop();
   stagePlayers.delete(stageEl);
   stageStatusLayers.delete(stageEl);
@@ -1628,4 +1851,4 @@ export function stopTarotKingdomPixelFx(stageEl) {
   stageEl.querySelector(':scope > .tarot-kingdom-pixelfx-layer')?.remove();
 }
 
-export const __test = { MAJOR_RECIPES, SUMMON_RECIPES, RESONANCE_RECIPES, RESONANCE_ELEMENT_RECIPES, SUPPORT_RESONANCE_RECIPES, MONSTER_ATTACK_RECIPES, ACTOR_FX_RECIPES, WEAPON_RECIPES, ENEMY_SINGLE_RECIPES, ENEMY_AREA_RECIPES, CRITICAL_LAYER, GUARD_LAYER, STATUS_RECIPES, normalizeElement, capsuleActor };
+export const __test = { MAJOR_RECIPES, SUMMON_RECIPES, RESONANCE_RECIPES, RESONANCE_ELEMENT_RECIPES, SUPPORT_RESONANCE_RECIPES, MONSTER_ATTACK_RECIPES, ACTOR_FX_RECIPES, ENEMY_DEFEAT_KIND_BY_ELEMENT, BOSS_DEFEAT_KIND_BY_MONSTER, ENEMY_ENTRANCE_RECIPE, CELEBRATION_RECIPES, AMBIENT_RECIPES, WEAPON_RECIPES, ENEMY_SINGLE_RECIPES, ENEMY_AREA_RECIPES, CRITICAL_LAYER, GUARD_LAYER, STATUS_RECIPES, normalizeElement, capsuleActor };
