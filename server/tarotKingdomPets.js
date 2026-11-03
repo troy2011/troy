@@ -31,6 +31,15 @@ const TAROT_KINGDOM_PET_REBIRTH_STAT_MULTIPLIERS = Object.freeze({
     speed: 0.85
 });
 
+// Pets are drawn at their owner's pixel size. A player's art is about 25px tall, so
+// monsters whose visible art is longer than 56px on a side (over about twice a
+// player) cannot become pets. Pets already owned are kept.
+const TAROT_KINGDOM_PET_OVERSIZED_MONSTER_IDS = Object.freeze([
+    'ismartal-vol1-monster-20', // アクエル
+    'ismartal-vol2-monster-03', // モスガン
+    'ismartal-vol2-monster-06' // グリバト
+]);
+
 const MONSTER_BY_ID = new Map(
     PIXEL_MONSTERS_ROSTER.map((monster) => [String(monster?.id || '').trim(), monster])
 );
@@ -70,6 +79,11 @@ function getTarotKingdomPetExperienceFromTp(earnedTp = 0) {
 
 function getTarotKingdomPetMonster(monsterId = '') {
     return MONSTER_BY_ID.get(String(monsterId || '').trim()) || null;
+}
+
+function canTarotKingdomMonsterBecomePet(monster) {
+    return !!monster && monster.isBoss !== true
+        && !TAROT_KINGDOM_PET_OVERSIZED_MONSTER_IDS.includes(String(monster.id || ''));
 }
 
 function getTarotKingdomPetRecruitChance(stageNo = 1) {
@@ -245,7 +259,7 @@ function normalizeTarotKingdomPendingPetOffer(value) {
     const monster = getTarotKingdomPetMonster(value.monsterId);
     const explorationId = String(value.explorationId || '').trim().slice(0, 128);
     const offerId = String(value.offerId || '').trim().slice(0, 220);
-    if (!monster || monster.isBoss === true || !explorationId || !offerId) return null;
+    if (!canTarotKingdomMonsterBecomePet(monster) || !explorationId || !offerId) return null;
     return {
         offerId,
         monsterId: monster.id,
@@ -447,7 +461,7 @@ function isTarotKingdomPetRecruitEligible({
 } = {}) {
     const monster = getTarotKingdomPetMonster(encounter?.monsterId);
     const playFabId = String(authenticatedPlayFabId || '').trim();
-    if (!monster || monster.isBoss === true || String(outcome || '').trim().toLowerCase() !== 'victory') return false;
+    if (!canTarotKingdomMonsterBecomePet(monster) || String(outcome || '').trim().toLowerCase() !== 'victory') return false;
     if (!playFabId || !finisher || typeof finisher !== 'object') return false;
     if (String(finisher.mode || '').trim().toLowerCase() !== 'offline') return false;
     const roundNo = Math.floor(Number(finisher.roundNo) || 0);
@@ -472,7 +486,7 @@ function rollTarotKingdomPetOffer({
     }
     const monster = getTarotKingdomPetMonster(encounter?.monsterId);
     const safeExplorationId = String(explorationId || encounter?.explorationId || '').trim().slice(0, 128);
-    if (!monster || monster.isBoss === true || !safeExplorationId) {
+    if (!canTarotKingdomMonsterBecomePet(monster) || !safeExplorationId) {
         return { state: normalizedState, offer: null, created: false };
     }
     if (normalizedState.currentPet?.monsterId === monster.id) {
@@ -575,6 +589,7 @@ module.exports = {
     TAROT_KINGDOM_PET_MAX_LEVEL,
     TAROT_KINGDOM_PET_MINOR_ARCANA_LIMIT,
     TAROT_KINGDOM_PET_NAME_MAX_LENGTH,
+    TAROT_KINGDOM_PET_OVERSIZED_MONSTER_IDS,
     TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT,
     TAROT_KINGDOM_PET_STATE_VERSION,
     TAROT_KINGDOM_PET_REBIRTHS,
@@ -582,6 +597,7 @@ module.exports = {
     awardTarotKingdomPetExperience,
     buildTarotKingdomPetOfferView,
     buildTarotKingdomPetPublicRecord,
+    canTarotKingdomMonsterBecomePet,
     getTarotKingdomPetArcanaProfile,
     getTarotKingdomPetRecruitChance,
     getTarotKingdomPetExperienceFromTp,

@@ -113,7 +113,8 @@ import {
 import { startAvatarBodyMotion, stopAvatarBodyMotion } from './avatar.js?v=20260827-avatar-load-race-v1';
 import {
   PIXEL_MONSTER_COMPANION_OFFSET_Y,
-  PIXEL_MONSTER_COMPANION_SCALE
+  PIXEL_MONSTER_COMPANION_SCALE,
+  getPixelMonsterPetFitScale
 } from './pixelMonsterCompanion.js?v=20260825-monster-motion-v2';
 import {
   playTarotKingdomEnemyAttackFx,
@@ -24560,7 +24561,7 @@ function setKingdomPetFrame(node, monster, animation, frameIndex) {
   const frame = Math.max(0, Math.min(frameCount - 1, Math.floor(Number(frameIndex) || 0)));
   const col = frame % columns;
   const row = Math.floor(frame / columns);
-  const scale = KINGDOM_PET_DISPLAY_SCALE;
+  const scale = KINGDOM_PET_DISPLAY_SCALE * getPixelMonsterPetFitScale(monster.id);
   const renderedWidth = width * scale;
   const animationAnchor = animation.anchor && typeof animation.anchor === 'object'
     ? animation.anchor
@@ -24569,6 +24570,8 @@ function setKingdomPetFrame(node, monster, animation, frameIndex) {
     ? monster.idleAnchor
     : {});
   const anchorMode = idleAnchor.mode === 'air' ? 'air' : 'ground';
+  const anchorX = Math.max(0, Math.min(width, Number(idleAnchor.x) || (width / 2)));
+  const anchorY = Math.max(0, Math.min(height, Number(idleAnchor.y) || height));
   node.style.width = `${width}px`;
   node.style.height = `${height}px`;
   node.style.backgroundImage = `url('${animation.src}')`;
@@ -24579,7 +24582,9 @@ function setKingdomPetFrame(node, monster, animation, frameIndex) {
   node.style.setProperty('--tarot-kingdom-pet-scale', String(scale));
   node.style.setProperty('--tarot-kingdom-pet-scale-x', monster.flipX === true ? '-1' : '1');
   node.style.setProperty('--tarot-kingdom-pet-scale-y', monster.flipY === true ? '-1' : '1');
-  node.style.setProperty('--tarot-kingdom-pet-origin-y', monster.flipY === true ? '50%' : '100%');
+  // scale around the feet so the empty margin under the art does not lift the pet
+  node.style.setProperty('--tarot-kingdom-pet-anchor-x', `${anchorX}px`);
+  node.style.setProperty('--tarot-kingdom-pet-origin-y', monster.flipY === true ? '50%' : `${anchorY}px`);
   const configuredOffsetY = Object.prototype.hasOwnProperty.call(
     KINGDOM_PET_OFFSET_Y_BY_MONSTER_ID,
     String(monster.id || '')
@@ -24591,10 +24596,7 @@ function setKingdomPetFrame(node, monster, animation, frameIndex) {
     `${Math.max(-24, Math.min(24, configuredOffsetY))}px`
   );
   node.style.setProperty('--tarot-kingdom-pet-frame-height', `${height}px`);
-  node.style.setProperty(
-    '--tarot-kingdom-pet-anchor-y',
-    `${Math.max(0, Math.min(height, Number(idleAnchor.y) || height))}px`
-  );
+  node.style.setProperty('--tarot-kingdom-pet-anchor-y', `${anchorY}px`);
   node.dataset.monsterId = String(monster.id || '');
   node.dataset.monsterAnchor = anchorMode;
   const host = node.closest('.tarot-kingdom-battle-player-avatar');

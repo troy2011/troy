@@ -801,7 +801,7 @@ test('home avatar applies equipped gear during app startup', async ({ page }) =>
   expect(homeCompanionLayout.avatarBottom).toBeLessThan(homeCompanionLayout.stageBottom);
   expect(homeCompanionLayout.petBottom).toBeLessThan(homeCompanionLayout.stageBottom);
   expect(homeCompanionLayout.avatarScale).toBeCloseTo(1.68, 2);
-  expect(homeCompanionLayout.petScale).toBeCloseTo(1.5, 2);
+  expect(homeCompanionLayout.petScale).toBeCloseTo(1.68, 2);
   await expectNoPageErrors(errors);
 });
 
@@ -4344,7 +4344,7 @@ test('player profile shows public stats on the left with avatar on the right', a
   expect(layout.avatarWidth).toBeGreaterThanOrEqual(126);
   expect(layout.avatarCenterOffset).toBeGreaterThan(-12);
   expect(layout.petCenterOffset).toBeGreaterThan(25);
-  expect(Math.abs(layout.petScale - 1.18)).toBeLessThan(0.02);
+  expect(Math.abs(layout.petScale - 1.12)).toBeLessThan(0.02);
   expect(layout.petTranslateY).toBeCloseTo(29, 0);
   expect(layout.petNameTranslateY).toBeCloseTo(46, 0);
   expect(layout.petNameClientWidth).toBeGreaterThanOrEqual(110);

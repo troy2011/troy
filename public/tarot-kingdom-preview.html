@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="robots" content="noindex,follow">
     <title>Tarot Kingdom Preview</title>
-    <link rel="stylesheet" href="./style.css?v=20261103-monster-detail-v1">
+    <link rel="stylesheet" href="./style.css?v=20261103-pet-size-v1">
     <link rel="stylesheet" href="./tarot-kingdom-summons.css?v=20261103-element-ace-v8">
     <style>
         html, body {
@@ -41,7 +41,8 @@
                 "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
                 "config": "./js/config.js",
                 "api": "./js/api.js",
-                "ui": "./js/ui.js?v=20261103-element-ace-v8",
+                "ui": "./js/ui.js?v=20261103-pet-size-v1",
+                "./js/pixelMonsterCompanion.js?v=20260825-monster-motion-v2": "./js/pixelMonsterCompanion.js?v=20261103-pet-size-v1",
                 "avatar": "./js/avatar.js",
                 "player": "./js/player.js",
                 "inventory": "./js/inventory.js?v=20261103-element-balance-v1",
@@ -256,7 +257,7 @@
         window.myLineProfile = { displayName: 'Preview' };
         window.__TAROT_KINGDOM_PREVIEW__ = true;
 
-        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20261103-element-ace-v8';
+        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20261103-pet-size-v1';
 
         window.TarotKingdomPreview = {
             load: () => loadTarotKingdomPage(),

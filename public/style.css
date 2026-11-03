@@ -28206,12 +28206,12 @@ body[data-sea-tone] .home-hero-card {
     bottom: 12px;
     left: 50%;
     transform:
-        translateX(-50%)
+        translateX(calc(-1 * var(--pixel-monster-companion-anchor-x, 24px)))
         translateY(var(--pixel-monster-companion-offset-y, 0px))
         scaleX(var(--pixel-monster-companion-scale-x, 1))
         scaleY(var(--pixel-monster-companion-scale-y, 1))
         scale(calc(var(--pixel-monster-companion-scale, 1) * var(--pixel-monster-context-scale, 1)));
-    transform-origin: 50% var(--pixel-monster-companion-origin-y, 100%);
+    transform-origin: var(--pixel-monster-companion-anchor-x, 50%) var(--pixel-monster-companion-origin-y, 100%);
 }
 
 .pixel-monster-companion[data-monster-anchor="ground"] .pixel-monster-companion-sprite {
@@ -33422,6 +33422,7 @@ body[data-sea-tone] .home-hero-card {
     }
 
     #playerProfileModal .player-profile-pet-companion {
+        --pixel-monster-context-scale: 1.12;
         right: -4px;
         bottom: 27px;
         width: 82px;
@@ -38590,11 +38591,11 @@ body.tarot-kingdom-preview-body {
     bottom: 8px;
     left: calc(50% - 4px);
     pointer-events: none;
-    transform: translateX(-50%) translateY(var(--tarot-kingdom-pet-offset-y, 0px))
+    transform: translateX(calc(-1 * var(--tarot-kingdom-pet-anchor-x, 24px))) translateY(var(--tarot-kingdom-pet-offset-y, 0px))
         scaleX(var(--tarot-kingdom-pet-scale-x, 1))
         scaleY(var(--tarot-kingdom-pet-scale-y, 1))
         scale(var(--tarot-kingdom-pet-scale, 1));
-    transform-origin: 50% var(--tarot-kingdom-pet-origin-y, 100%);
+    transform-origin: var(--tarot-kingdom-pet-anchor-x, 50%) var(--tarot-kingdom-pet-origin-y, 100%);
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player-avatar.is-pet[data-monster-anchor="ground"] .tarot-kingdom-battle-pet-sprite {

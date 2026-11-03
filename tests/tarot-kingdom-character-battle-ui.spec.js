@@ -2590,7 +2590,7 @@ test('player attack and retreat keep silhouette shadows without legacy oval shad
 });
 
 for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1000 }]) {
-  test(`all demo pets use idle-art grounding without changing flying offsets at ${viewport.width}px`, async ({ page }) => {
+  test(`all demo pets use idle-art grounding, their owner's pixel size and flying offsets at ${viewport.width}px`, async ({ page }) => {
     await openOfflineBattle(page, viewport);
     const audit = await page.evaluate(() => {
       const debug = window.TarotKingdomDebug;
@@ -2608,6 +2608,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1000 
           petHostScale: getComputedStyle(petAvatar).getPropertyValue('--avatar-combat-scale').trim(),
           petSpriteScale: sprite?.style.getPropertyValue('--tarot-kingdom-pet-scale') || '',
           offsetY: sprite?.style.getPropertyValue('--tarot-kingdom-pet-offset-y') || '',
+          origin: spriteStyle?.transformOrigin || '',
           bottom: spriteStyle?.bottom || '',
           horizontalAnchor: spriteStyle ? parseFloat(spriteStyle.left) : NaN,
           hostCenter: petAvatar ? petAvatar.offsetWidth / 2 : NaN,
@@ -2622,7 +2623,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1000 
     expect(audit.filter((pet) => !(
       !!pet.playerScale
       && pet.petHostScale === pet.playerScale
-      && pet.petSpriteScale === '1'
+      && Number(pet.petSpriteScale) > 0
+      && Number(pet.petSpriteScale) <= 2
       && pet.horizontalAnchor <= pet.hostCenter - 3
       && pet.horizontalAnchor >= pet.hostCenter - 5
       && pet.ovalShadowContent === 'none'
@@ -2630,7 +2632,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 900, height: 1000 
       && pet.playerOrder.join(',') === 'you,pet,npc1,npc2'
     ))).toEqual([]);
     const lilfi = audit.find((entry) => entry.id === 'ismartal-vol2-monster-05');
-    expect(lilfi).toMatchObject({ anchor: 'ground', offsetY: '0px', bottom: '-27px' });
+    // a small pet keeps its owner's pixel size and scales around its feet
+    expect(lilfi).toMatchObject({ anchor: 'ground', offsetY: '0px', bottom: '-27px', petSpriteScale: '2', origin: '40px 59px' });
+    // a large pet shrinks to fit the seat (art 53px tall into 36px)
+    expect(Number(audit.find((entry) => entry.id === 'ismartal-vol1-monster-15').petSpriteScale)).toBeCloseTo(2 * 36 / 53, 3);
     expect(audit.find((entry) => entry.id === 'ismartal-vol2-monster-17'))
       .toMatchObject({ anchor: 'ground', offsetY: '0px', bottom: '-37px' });
     expect(audit.find((entry) => entry.id === 'ismartal-vol3-monster-09'))
