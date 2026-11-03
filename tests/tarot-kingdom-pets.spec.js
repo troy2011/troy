@@ -2,7 +2,6 @@ const { test, expect } = require('@playwright/test');
 const manifest = require('../public/Sprites/pixel-monsters/manifest.json');
 const {
   TAROT_KINGDOM_PET_MAX_LEVEL,
-  TAROT_KINGDOM_PET_OVERSIZED_MONSTER_IDS,
   TAROT_KINGDOM_PET_RECRUIT_BASE_PERCENT,
   TAROT_KINGDOM_PET_REBIRTHS,
   TAROT_KINGDOM_PET_REBIRTH_STAT_MULTIPLIERS,
@@ -10,7 +9,6 @@ const {
   awardTarotKingdomPetExperience,
   buildTarotKingdomPetOfferView,
   buildTarotKingdomPetPublicRecord,
-  canTarotKingdomMonsterBecomePet,
   getTarotKingdomPetArcanaProfile,
   getTarotKingdomPetRecruitChance,
   getTarotKingdomPetExperienceFromTp,
@@ -94,7 +92,6 @@ test.describe('Tarot Kingdom monster recruitment', () => {
 
     const rejected = [
       { encounter: { monsterId: bossMonster.id } },
-      { encounter: { monsterId: 'ismartal-vol2-monster-03' } },
       { outcome: 'defeat' },
       { finisher: eligibleFinisher({ roundNo: 0 }) },
       { finisher: eligibleFinisher({ roundNo: 5 }) },
@@ -114,29 +111,6 @@ test.describe('Tarot Kingdom monster recruitment', () => {
         ...overrides
       })).toBe(false);
     });
-  });
-
-  test('monsters over about twice a player in size cannot become pets, but an owned one is kept', () => {
-    expect(TAROT_KINGDOM_PET_OVERSIZED_MONSTER_IDS).toHaveLength(3);
-    const petCandidates = manifest.filter(canTarotKingdomMonsterBecomePet);
-    expect(petCandidates).toHaveLength(manifest.length - 3 - 3);
-    TAROT_KINGDOM_PET_OVERSIZED_MONSTER_IDS.forEach((monsterId) => {
-      expect(manifest.some((monster) => monster.id === monsterId && monster.isBoss !== true)).toBe(true);
-      const rolled = rollTarotKingdomPetOffer({
-        state: null,
-        encounter: { monsterId, stageNo: 1 },
-        explorationId: 'explore-big',
-        random: () => 0
-      });
-      expect(rolled.offer).toBeNull();
-    });
-    const saved = normalizeTarotKingdomPetState({
-      version: TAROT_KINGDOM_PET_STATE_VERSION,
-      currentPet: { monsterId: 'ismartal-vol1-monster-20', explorationId: 'old', acquiredAtMs: 1000 },
-      pendingOffer: { offerId: 'tkpet-old', monsterId: 'ismartal-vol1-monster-20', explorationId: 'old', rolledAtMs: 1000 }
-    });
-    expect(saved.currentPet?.monsterId).toBe('ismartal-vol1-monster-20');
-    expect(saved.pendingOffer).toBeNull();
   });
 
   test('recruitment chance decreases from 15 percent to 6 percent across ten stages', () => {
