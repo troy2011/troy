@@ -95,6 +95,10 @@ let equipmentMutationInFlight = false;
 let inventoryStickyResizeObserver = null;
 let inventorySellSelectionMode = false;
 let selectedInventorySellItemIds = new Set();
+// Holding an item this long starts multi-select; moving further than the slop cancels it as a scroll.
+const INVENTORY_LONG_PRESS_MS = 500;
+const INVENTORY_LONG_PRESS_SLOP_PX = 10;
+let inventoryLongPressClickPending = false;
 let inventorySearchQuery = '';
 let blackMarketVisible = false;
 let blackMarketListings = [];
@@ -2521,6 +2525,48 @@ function toggleInventorySellSelection(item) {
     return true;
 }
 
+function startInventorySellSelectionWith(item) {
+    if (isInventoryItemSellable(item)) selectedInventorySellItemIds.add(getInventoryEntryKey(item));
+    else showInventoryFeedback('このアイテムは売却できません。', true);
+    setInventorySellSelectionMode(true);
+}
+
+function bindInventoryLongPress(cell, item) {
+    let timer = null;
+    let origin = null;
+    const cancel = () => {
+        if (timer) clearTimeout(timer);
+        timer = null;
+        origin = null;
+    };
+    cell.addEventListener('pointerdown', (event) => {
+        if (inventorySellSelectionMode || tarotDeckReplacementTargetItemId || event.button > 0) return;
+        if (event.target.closest('.inventory-sell-check, .inventory-item-quick-action')) return;
+        cancel();
+        origin = { x: event.clientX, y: event.clientY };
+        timer = setTimeout(() => {
+            timer = null;
+            origin = null;
+            // The click that ends this press must not open the detail or toggle the item back.
+            // The next press is a new tap, so it lifts the block whether or not that click came.
+            inventoryLongPressClickPending = true;
+            document.addEventListener('pointerdown', () => {
+                inventoryLongPressClickPending = false;
+            }, { once: true, capture: true });
+            navigator.vibrate?.(15);
+            startInventorySellSelectionWith(item);
+        }, INVENTORY_LONG_PRESS_MS);
+    });
+    cell.addEventListener('pointermove', (event) => {
+        if (!origin) return;
+        if (Math.hypot(event.clientX - origin.x, event.clientY - origin.y) > INVENTORY_LONG_PRESS_SLOP_PX) cancel();
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach((type) => cell.addEventListener(type, cancel));
+    cell.addEventListener('contextmenu', (event) => {
+        if (timer || inventoryLongPressClickPending) event.preventDefault();
+    });
+}
+
 function setInventorySellSelectionMode(isActive) {
     inventorySellSelectionMode = isActive === true;
     if (!inventorySellSelectionMode) selectedInventorySellItemIds.clear();
@@ -3575,6 +3621,14 @@ function createInventoryCell(item, requestedCategory) {
     }
     cell.addEventListener('click', (event) => {
         if (event.target.closest('.inventory-sell-check, .inventory-item-quick-action')) return;
+        if (inventoryLongPressClickPending) {
+            inventoryLongPressClickPending = false;
+            return;
+        }
+        if (inventorySellSelectionMode) {
+            toggleInventorySellSelection(item);
+            return;
+        }
         if (isTarotDeckReplacementMode) {
             if (itemId === tarotDeckReplacementTargetItemId) {
                 clearTarotDeckReplacementTarget();
@@ -3597,6 +3651,7 @@ function createInventoryCell(item, requestedCategory) {
         }
         showItemDetailModal(item);
     });
+    bindInventoryLongPress(cell, item);
     if (inventorySellSelectionMode) {
         const sellCheck = document.createElement('button');
         sellCheck.type = 'button';
@@ -3711,7 +3766,8 @@ function createInventoryCell(item, requestedCategory) {
     main.appendChild(copy);
     cell.appendChild(main);
 
-    if (!isTarotCard && !isEquipmentCard && quickActions.length) {
+    // While selecting for sale a tap toggles the card, so a "use" button there would act by mistake.
+    if (!isTarotCard && !isEquipmentCard && quickActions.length && !inventorySellSelectionMode) {
         const tail = document.createElement('div');
         tail.className = 'inventory-item-tail';
         if (quickActions.length) {

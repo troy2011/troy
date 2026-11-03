@@ -29564,6 +29564,9 @@ body[data-sea-tone] .home-hero-card {
     border-radius: 8px;
     overflow: hidden;
     cursor: pointer;
+    /* Long-press starts multi-select, so keep the OS text selection and callout away. */
+    -webkit-touch-callout: none;
+    user-select: none;
     border: 11px solid transparent;
     scroll-margin-top: calc(var(--inventory-sticky-top) + var(--inventory-switch-sticky-height) + 18px);
     scroll-margin-bottom: calc(var(--nav-height) + var(--safe-bottom) + 20px);
@@ -30738,6 +30741,9 @@ body[data-sea-tone] .home-hero-card {
     z-index: 12;
     width: 28px;
     height: 28px;
+    /* The shared button touch-target min-height would stretch the circle into an oval. */
+    min-width: 28px;
+    min-height: 28px;
     display: grid;
     place-items: center;
     padding: 0;

@@ -8975,9 +8975,9 @@ test('inventory selection sell sends multiple sellable item copies at one gold e
     };
   });
   expect(sellModeTapPoint.isAboveBottomNav).toBe(true);
+  // In selection mode a tap toggles the card instead of opening its detail.
   await page.mouse.click(sellModeTapPoint.x, sellModeTapPoint.y);
-  await expect(page.locator('#itemDetailModal')).toBeVisible();
-  await page.evaluate(() => window.closeItemDetailModal && window.closeItemDetailModal());
+  await expect(sellModeCard).toHaveClass(/is-sell-selected/);
   await expect(page.locator('#itemDetailModal')).toBeHidden();
   await page.locator('#inventorySelectionBar .inventory-sell-control-btn', { hasText: '全選択' }).click();
 

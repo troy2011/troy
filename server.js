@@ -2053,6 +2053,7 @@ async function main() {
         subtractEconomyItem: deps.subtractEconomyItem,
         getCurrencyBalance: deps.getCurrencyBalance,
         requireAuthenticatedPlayFabId,
+        resolveItemId: resolveCatalogItemId,
         ensureDailyBountyConversion: (playFabId) => economy.ensureDailyBountyConversion(playFabId, {
             promisifyPlayFab,
             PlayFabServer,
