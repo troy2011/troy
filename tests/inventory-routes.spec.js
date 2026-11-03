@@ -733,7 +733,113 @@ test('sell-items keeps an enhanced stack when selling a grouped unenhanced copy'
       Amount: 1,
       DeleteEmptyStacks: true
     }
+  }, {
+    Add: { Item: { Id: 'PS' }, Amount: 1 }
   }]);
+});
+
+// PlayFab allows ten operations and 250 item units per call, so a large sale is split into
+// batches that each remove items and pay their gold together.
+const THROTTLED = { errorCode: 1199, errorMessage: 'The maximum API request rate has been exceeded', retryAfterSeconds: 0.01 };
+function makeManyStacks(count, amount = 1) {
+  return Array.from({ length: count }, (_, index) => ({ Id: 'junk_001', StackId: `stack-${index}`, Amount: amount }));
+}
+async function sellAll(harness, stacks) {
+  const res = makeResponse();
+  await harness.handler({
+    body: { playFabId: 'PFPLAYWRIGHT', items: stacks.map((stack) => ({ itemId: stack.Id, stackId: stack.StackId, amount: stack.Amount })) }
+  }, res);
+  return res;
+}
+const subtractUnits = (request) => request.Operations
+  .filter((operation) => operation.Subtract)
+  .reduce((sum, operation) => sum + operation.Subtract.Amount, 0);
+
+test('sell-items batches many stacks into atomic calls within the PlayFab limits', async () => {
+  const stacks = makeManyStacks(20);
+  const executeRequests = [];
+  const harness = makeSellHarness({
+    inventoryItems: stacks,
+    executeInventoryOperationsImpl: async (request) => { executeRequests.push(request); return {}; }
+  });
+  const res = await sellAll(harness, stacks);
+
+  expect(res.statusCode).toBe(200);
+  expect(res.body).toMatchObject({ soldCount: 20, totalGold: 20, partial: false });
+  expect(executeRequests).toHaveLength(3);
+  for (const request of executeRequests) {
+    expect(request.Operations.length).toBeLessThanOrEqual(10);
+    expect(request.Operations.at(-1)).toEqual({ Add: { Item: { Id: 'PS' }, Amount: subtractUnits(request) } });
+  }
+  expect(new Set(executeRequests.map((request) => request.IdempotencyId)).size).toBe(3);
+  expect(harness.economyAdds).toHaveLength(0);
+});
+
+test('sell-items splits a stack larger than one call can carry', async () => {
+  const stacks = makeManyStacks(1, 300);
+  const executeRequests = [];
+  const harness = makeSellHarness({
+    inventoryItems: stacks,
+    executeInventoryOperationsImpl: async (request) => { executeRequests.push(request); return {}; }
+  });
+  const res = await sellAll(harness, stacks);
+
+  expect(res.statusCode).toBe(200);
+  expect(res.body).toMatchObject({ soldCount: 300, totalGold: 300 });
+  expect(executeRequests.map(subtractUnits)).toEqual([125, 125, 50]);
+  for (const request of executeRequests) {
+    expect(subtractUnits(request) + request.Operations.at(-1).Add.Amount).toBeLessThanOrEqual(250);
+  }
+});
+
+test('sell-items retries a throttled batch with the same idempotency id', async () => {
+  const stacks = makeManyStacks(2);
+  const executeRequests = [];
+  const harness = makeSellHarness({
+    inventoryItems: stacks,
+    executeInventoryOperationsImpl: async (request) => {
+      executeRequests.push(request);
+      if (executeRequests.length === 1) throw THROTTLED;
+      return {};
+    }
+  });
+  const res = await sellAll(harness, stacks);
+
+  expect(res.statusCode).toBe(200);
+  expect(res.body).toMatchObject({ soldCount: 2, partial: false });
+  expect(executeRequests).toHaveLength(2);
+  expect(executeRequests[1].IdempotencyId).toBe(executeRequests[0].IdempotencyId);
+});
+
+test('sell-items keeps finished batches and reports the rest when a later batch keeps failing', async () => {
+  const stacks = makeManyStacks(12);
+  let calls = 0;
+  const harness = makeSellHarness({
+    inventoryItems: stacks,
+    executeInventoryOperationsImpl: async () => {
+      calls += 1;
+      if (calls > 1) throw THROTTLED;
+      return {};
+    }
+  });
+  const res = await sellAll(harness, stacks);
+
+  expect(res.statusCode).toBe(200);
+  expect(res.body).toMatchObject({ soldCount: 9, totalGold: 9, partial: true });
+  expect(res.body.message).toContain('残りの3個');
+  expect(calls).toBe(1 + 3);
+});
+
+test('sell-items answers 429 when the first batch stays throttled', async () => {
+  const stacks = makeManyStacks(2);
+  const harness = makeSellHarness({
+    inventoryItems: stacks,
+    executeInventoryOperationsImpl: async () => { throw THROTTLED; }
+  });
+  const res = await sellAll(harness, stacks);
+
+  expect(res.statusCode).toBe(429);
+  expect(res.body.error).toContain('混み合っています');
 });
 
 test('black-market create lists one item and records first owner for equipment', async () => {

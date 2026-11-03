@@ -60,6 +60,12 @@ const GACHA_COST = Number(process.env.GACHA_COST || 10);
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
 const INVENTORY_SELL_UNIT_PRICE = 1;
+// PlayFab allows ten operations and 250 item units per ExecuteInventoryOperations call.
+// Each sell batch keeps one slot for the gold and counts the gold units as well.
+const INVENTORY_SELL_BATCH_SUBTRACTS = 9;
+const INVENTORY_SELL_BATCH_UNITS = Math.floor(250 / (1 + INVENTORY_SELL_UNIT_PRICE));
+const INVENTORY_SELL_THROTTLE_RETRIES = 2;
+const INVENTORY_SELL_THROTTLE_MAX_WAIT_MS = 5000;
 const BLACK_MARKET_LISTINGS_COLLECTION = 'black_market_listings';
 const BLACK_MARKET_OWNERSHIP_COLLECTION = 'black_market_item_origins';
 const BLACK_MARKET_SLOTS_COLLECTION = 'black_market_listing_slots';
@@ -392,7 +398,7 @@ function parseAvatarStyleReadOnlyValue(readOnlyData, styleKey) {
 
 // APIルートを初期化
 function initializeInventoryRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, PlayFabData, PlayFabEconomy, firestore, admin, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance, requireAuthenticatedPlayFabId } = deps;
+    const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, PlayFabData, PlayFabEconomy, firestore, admin, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance, requireAuthenticatedPlayFabId, resolveItemId } = deps;
     const { createShipProfileGate, createProfileRecoveryReader, writeShipProfile } = require('./shipProfileGate');
     const shipProfileGate = firestore ? createShipProfileGate(firestore, createProfileRecoveryReader(promisifyPlayFab, PlayFabServer)) : null;
     const withShipInventoryGuard = async (player, action) => {
@@ -1590,32 +1596,25 @@ function initializeInventoryRoutes(app, deps) {
             });
         }
 
-        const totalAmount = sellItems.reduce((sum, entry) => sum + entry.amount, 0);
-        const totalGold = totalAmount * INVENTORY_SELL_UNIT_PRICE;
+        const requestedAmount = sellItems.reduce((sum, entry) => sum + entry.amount, 0);
         const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-        await writeShipProfile(playFabId, async () => { for (const entry of sellItems) {
-            if (entry.stackId) {
-                await subtractEconomyStack(playFabId, entry.itemId, entry.stackId, entry.amount, {
-                    idempotencyId: `inventory-sell-${playFabId}-${entry.stackId}-${stamp}`
-                });
-            } else {
-                for (const [index, selection] of entry.stackSelections.entries()) {
-                    if (selection.stackId) {
-                        await subtractEconomyStack(playFabId, entry.itemId, selection.stackId, selection.amount, {
-                            idempotencyId: `inventory-sell-${playFabId}-${selection.stackId}-${stamp}`
-                        });
-                    } else {
-                        await subtractEconomyItem(playFabId, entry.itemId, selection.amount, {
-                            idempotencyId: `inventory-sell-${playFabId}-${entry.itemId}-${index}-${stamp}`
-                        });
-                    }
+        let totalAmount = requestedAmount;
+        if (PlayFabEconomy?.ExecuteInventoryOperations) {
+            totalAmount = await writeShipProfile(playFabId, () => sellInventoryBatches(entityKey, playFabId, sellItems, stamp));
+        } else {
+            await writeShipProfile(playFabId, async () => { for (const entry of sellItems) {
+                for (const [index, selection] of (entry.stackSelections || [{ stackId: '', amount: entry.amount }]).entries()) {
+                    await subtractEconomyItem(playFabId, entry.itemId, selection.amount, {
+                        idempotencyId: `inventory-sell-${playFabId}-${entry.itemId}-${index}-${stamp}`
+                    });
                 }
             }
+            await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, requestedAmount * INVENTORY_SELL_UNIT_PRICE, {
+                idempotencyId: `inventory-sell-gold-${playFabId}-${stamp}`
+            });
+            });
         }
-        await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, totalGold, {
-            idempotencyId: `inventory-sell-gold-${playFabId}-${stamp}`
-        });
-        });
+        const totalGold = totalAmount * INVENTORY_SELL_UNIT_PRICE;
         const newBalance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
         await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
             PlayFabId: playFabId,
@@ -1625,10 +1624,80 @@ function initializeInventoryRoutes(app, deps) {
         return {
             ok: true,
             soldCount: totalAmount,
+            requestedCount: requestedAmount,
             totalGold,
             newBalance,
             items: sellItems
         };
+    }
+
+    // Splits the sale into atomic batches that each remove items and pay their gold together,
+    // so a refused batch never takes items without paying. Returns the number of units sold.
+    function buildInventorySellBatches(sellItems) {
+        const parts = [];
+        sellItems.forEach((entry) => {
+            const selections = entry.stackId
+                ? [{ stackId: entry.stackId, amount: entry.amount }]
+                : entry.stackSelections;
+            selections.forEach((selection) => {
+                let remaining = selection.amount;
+                while (remaining > 0) {
+                    const amount = Math.min(remaining, INVENTORY_SELL_BATCH_UNITS);
+                    parts.push({ itemId: entry.itemId, stackId: selection.stackId || '', amount });
+                    remaining -= amount;
+                }
+            });
+        });
+        const batches = [];
+        let current = null;
+        parts.forEach((part) => {
+            if (!current || current.parts.length >= INVENTORY_SELL_BATCH_SUBTRACTS
+                || current.units + part.amount > INVENTORY_SELL_BATCH_UNITS) {
+                current = { parts: [], units: 0 };
+                batches.push(current);
+            }
+            current.parts.push(part);
+            current.units += part.amount;
+        });
+        return batches;
+    }
+
+    async function executeInventorySellBatch(entityKey, operations, idempotencyId) {
+        for (let attempt = 0; ; attempt += 1) {
+            try {
+                return await executeInventoryOperations(entityKey, operations, { idempotencyId });
+            } catch (error) {
+                if (attempt >= INVENTORY_SELL_THROTTLE_RETRIES || !isEquipmentEnhancementThrottled(error)) throw error;
+                // The same IdempotencyId makes the retry safe if PlayFab had applied the batch.
+                const retryMs = Number(error?.retryAfterSeconds) * 1000;
+                await new Promise((resolve) => setTimeout(resolve,
+                    Math.min(INVENTORY_SELL_THROTTLE_MAX_WAIT_MS, Number.isFinite(retryMs) && retryMs > 0 ? retryMs : 1000 * (attempt + 1))));
+            }
+        }
+    }
+
+    async function sellInventoryBatches(entityKey, playFabId, sellItems, stamp) {
+        const goldItemId = typeof resolveItemId === 'function' ? resolveItemId(VIRTUAL_CURRENCY_CODE) : VIRTUAL_CURRENCY_CODE;
+        let soldCount = 0;
+        for (const [index, batch] of buildInventorySellBatches(sellItems).entries()) {
+            const operations = batch.parts.map((part) => ({
+                Subtract: {
+                    Item: part.stackId ? { Id: part.itemId, StackId: part.stackId } : { Id: part.itemId },
+                    Amount: part.amount,
+                    DeleteEmptyStacks: true
+                }
+            }));
+            operations.push({ Add: { Item: { Id: goldItemId }, Amount: batch.units * INVENTORY_SELL_UNIT_PRICE } });
+            try {
+                await executeInventorySellBatch(entityKey, operations, `inventory-sell-${playFabId}-${stamp}-${index}`);
+            } catch (error) {
+                if (!soldCount) throw error;
+                console.warn('[アイテム一括売却] 途中で停止:', error?.errorMessage || error?.message || error);
+                return soldCount;
+            }
+            soldCount += batch.units;
+        }
+        return soldCount;
     }
 
     function getBlackMarketErrorMessage(error) {
@@ -3483,7 +3552,10 @@ function initializeInventoryRoutes(app, deps) {
             }
             return res.json({
                 status: 'success',
-                message: `${result.soldCount}個を${result.totalGold}Gで売却しました。`,
+                message: result.soldCount < result.requestedCount
+                    ? `${result.soldCount}個を${result.totalGold}Gで売却しました。残りの${result.requestedCount - result.soldCount}個は混み合っていたため売却していません。少し待ってからもう一度お試しください。`
+                    : `${result.soldCount}個を${result.totalGold}Gで売却しました。`,
+                partial: result.soldCount < result.requestedCount,
                 soldCount: result.soldCount,
                 totalGold: result.totalGold,
                 newBalance: result.newBalance,
@@ -3492,6 +3564,10 @@ function initializeInventoryRoutes(app, deps) {
         } catch (error) {
             console.error('[アイテム一括売却] エラー', error.errorMessage || error.message, error.apiErrorInfo);
 
+            if (isEquipmentEnhancementThrottled(error)) {
+                res.set?.('Retry-After', '5');
+                return res.status(429).json({ error: '売却が混み合っています。少し待ってから、もう一度売却してください。' });
+            }
             if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'ItemNotFound') {
                 return res.status(400).json({ error: '指定されたアイテムが見つかりません。' });
             }
