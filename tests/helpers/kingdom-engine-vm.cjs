@@ -115,7 +115,20 @@ async function loadKingdomEngine(root, options = {}) {
       resolveTransition: () => {if(s.transition){s.transition.endsAt=0; resolveKingdomTransition();}},
       effects: play => applySetEffects(play),
       publicState: () => serializeStateForNet(),
+      authorityState: () => serializeKingdomAuthorityStateForNet(),
       deserialize: payload => deserializeStateFromNet(payload)
+      , roomPaths: id => ({ room: kingdomRoomPath(id), index: kingdomMatchRoot(id) + '/openRooms' })
+      , initialRulesForRoom: id => {
+        const previous = { ...tkNet };
+        Object.assign(tkNet, { enabled: true, db: {}, uid: 'local-fixture', roomId: id, roomPath: kingdomRoomPath(id) });
+        try { return initState().rules; } finally { Object.assign(tkNet, previous); }
+      }
+      , promoteHost: async id => {
+        Object.assign(tkNet, { enabled: true, db: {}, uid: 'local-fixture', roomId: id, roomPath: kingdomRoomPath(id), localSeat: 0, isHost: true });
+        netRoomStateReady = true;
+        const promoted = await activateKingdomPromotedHost();
+        return { promoted, rules: s?.rules, hands: s?.players?.map(player => player.hand), hostReady: netHostAuthorityReady };
+      }
       , random: fn => { kingdomCombatRandom=fn; kingdomNpcRandom=fn; }
     };
   `;
@@ -137,7 +150,7 @@ async function loadKingdomEngine(root, options = {}) {
             return getModule(path.resolve(path.dirname(fileURLToPath(referencing.identifier)), stripped));
         }
         const names = importNames(sources.get(referencing.identifier) || '', specifier);
-        const values = Object.fromEntries(names.map(name => [name, name === 'PIXEL_MONSTER_COMPANION_OFFSET_Y' ? 0 : name === 'PIXEL_MONSTER_COMPANION_SCALE' ? 1 : name.startsWith('getMy') ? (() => ({})) : (() => { throw Error('External/presentation dependency called: ' + name); })]));
+        const values = Object.fromEntries(names.map(name => [name, options.stubs?.[specifier]?.[name] ?? (name === 'PIXEL_MONSTER_COMPANION_OFFSET_Y' ? 0 : name === 'PIXEL_MONSTER_COMPANION_SCALE' ? 1 : name.startsWith('getMy') ? (() => ({})) : (() => { throw Error('External/presentation dependency called: ' + name); }))]));
         const stub = new vm.SyntheticModule(names, function () { for (const name of names)
             this.setExport(name, values[name]); }, { context });
         return stub;

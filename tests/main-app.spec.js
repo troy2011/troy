@@ -2737,7 +2737,7 @@ test('exploration rescue waits in the online lobby and departs before battle', a
         window.__explorationOnlineParty = participants;
       },
       onOnlinePartyLock: async (roomId, locked) => {
-        const roomState = window.__pwFirebaseDbApi.getValue(`tarotKingdomRooms/${roomId}/state`)?.state;
+        const roomState = window.__pwFirebaseDbApi.getValue(`tarotKingdomRoomsV37/${roomId}/state`)?.state;
         window.__explorationDepartureOrder = [
           ...(window.__explorationDepartureOrder || []),
           {
@@ -2775,7 +2775,7 @@ test('exploration rescue waits in the online lobby and departs before battle', a
   await expect.poll(() => page.evaluate(() => {
     const entries = Array.from(window.__pwFirebaseDbStore?.values?.entries?.() || []);
     const presenceEntry = entries.find(([path]) => (
-      String(path).startsWith('tarotKingdomRooms/')
+      String(path).startsWith('tarotKingdomRoomsV37/')
       && String(path).endsWith('/presence/PF_PLAYWRIGHT')
     ));
     return presenceEntry?.[1]?.ship || null;
@@ -2783,7 +2783,7 @@ test('exploration rescue waits in the online lobby and departs before battle', a
 
   await expect.poll(() => page.evaluate(() => {
     const entries = Array.from(window.__pwFirebaseDbStore?.values?.entries?.() || []);
-    const roomEntry = entries.find(([path]) => String(path).startsWith('tarotKingdomMatch/openRooms/'));
+    const roomEntry = entries.find(([path]) => String(path).startsWith('tarotKingdomMatchV37/openRooms/'));
     return roomEntry?.[1] || null;
   }), { timeout: 7000 }).not.toBeNull();
   await page.locator('#tarotKingdomStartOnlineButton').click();
@@ -2804,13 +2804,13 @@ test('exploration rescue waits in the online lobby and departs before battle', a
   await expect(page.locator('#tarotKingdomBattleStage')).toBeVisible({ timeout: 7000 });
   await expect.poll(() => page.evaluate(() => {
     const entries = Array.from(window.__pwFirebaseDbStore?.values?.entries?.() || []);
-    const roomEntry = entries.find(([path]) => String(path).startsWith('tarotKingdomMatch/openRooms/'));
+    const roomEntry = entries.find(([path]) => String(path).startsWith('tarotKingdomMatchV37/openRooms/'));
     return roomEntry?.[1] || null;
   }), { timeout: 7000 }).toBeNull();
   await expect.poll(() => page.evaluate(() => {
     const entries = Array.from(window.__pwFirebaseDbStore?.values?.entries?.() || []);
     const stateEntry = entries.find(([path]) => (
-      String(path).startsWith('tarotKingdomRooms/')
+      String(path).startsWith('tarotKingdomRoomsV37/')
       && String(path).endsWith('/state')
     ));
     return stateEntry?.[1]?.state?.rules?.enemyDefeatMode || '';
@@ -2918,7 +2918,7 @@ test('exploration rescue starts battle after a third player replaces a pet seat'
         window.__rosterPartyLock = { roomId, locked };
       },
       onRaidEncounter: async (roomId) => {
-        const roomPath = `tarotKingdomRooms/${roomId}`;
+        const roomPath = `tarotKingdomRoomsV37/${roomId}`;
         const roomState = window.__pwFirebaseDbApi.getValue(`${roomPath}/state`)?.state;
         const presence = window.__pwFirebaseDbApi.getValue(`${roomPath}/presence`) || {};
         const liveRows = Object.values(presence);
@@ -2956,7 +2956,7 @@ test('exploration rescue starts battle after a third player replaces a pet seat'
   await expect.poll(() => page.evaluate(() => {
     const entries = Array.from(window.__pwFirebaseDbStore?.values?.entries?.() || []);
     const localPresence = entries.find(([path]) => (
-      String(path).startsWith('tarotKingdomRooms/')
+      String(path).startsWith('tarotKingdomRoomsV37/')
       && String(path).endsWith('/presence/PF_PLAYWRIGHT')
     ));
     return localPresence?.[0] || '';
@@ -2966,7 +2966,7 @@ test('exploration rescue starts battle after a third player replaces a pet seat'
   await page.evaluate(({ currentHostPet, currentGuestPet }) => {
     const entries = Array.from(window.__pwFirebaseDbStore.values.entries());
     const localPresenceEntry = entries.find(([path]) => (
-      String(path).startsWith('tarotKingdomRooms/')
+      String(path).startsWith('tarotKingdomRoomsV37/')
       && String(path).endsWith('/presence/PF_PLAYWRIGHT')
     ));
     const roomPath = String(localPresenceEntry[0]).replace(/\/presence\/PF_PLAYWRIGHT$/, '');

@@ -1,3 +1,4 @@
+require('./no-external-services.cjs');
 const fs = require('fs');
 const path = require('path');
 const { test, expect } = require('@playwright/test');
@@ -301,6 +302,21 @@ async function invoke(handler, body) {
   await handler({ body }, response);
   return { statusCode, payload, headers };
 }
+
+test('versioned room combat profiles still enforce authenticated membership', async () => {
+  await withCombatProfilesApi(async ({ handler, dbReadPaths }) => {
+    const ok = await invoke(handler, {
+      playFabId: 'PF_REQUESTER', targetPlayFabIds: ['PF_REQUESTER', 'PF_A', 'PF_B'], roomId: 'tkv37_test'
+    });
+    expect(ok.statusCode).toBe(200);
+    expect(dbReadPaths).toHaveLength(4);
+    expect(dbReadPaths.every(path => path.startsWith('tarotKingdomRoomsV37/tkv37_test/'))).toBe(true);
+    const denied = await invoke(handler, {
+      playFabId: 'PF_REQUESTER', targetPlayFabIds: ['PF_REQUESTER', 'PF_A', 'PF_UNKNOWN'], roomId: 'tkv37_test'
+    });
+    expect(denied.statusCode).toBe(409);
+  });
+});
 
 test('combat profile API authenticates the requester and returns sanitized melee-derived snapshots', async () => {
   await withCombatProfilesApi(async ({ handler, authenticatedIds, readOnlyRequests, profileRequests, dbReadPaths }) => {

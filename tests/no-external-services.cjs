@@ -1,5 +1,5 @@
 'use strict';
-if (globalThis.__troyExternalServicesBlocked) return;
+if (!globalThis.__troyExternalServicesBlocked) {
 globalThis.__troyExternalServicesBlocked = true;
 
 // Test-only preload: never load the PlayFab SDK or permit an outgoing socket.
@@ -20,6 +20,7 @@ const fakePlayFab = { settings: {}, _internalSettings: {}, PlayFabServer: fakeAp
   PlayFabAuthentication: fakeApi, PlayFabGroups: fakeApi, PlayFabData: fakeApi, PlayFabEconomy: fakeApi,
   PlayFabClient: fakeApi };
 Module._load = function (request, parent, isMain) {
+  if (request === 'dotenv') return { ...originalLoad.call(this, request, parent, isMain), config: () => ({ parsed: {} }) };
   if (request === 'playfab-sdk') return fakePlayFab;
   if (typeof request === 'string' && request.startsWith('playfab-sdk/')) return fakeApi;
   if (typeof request === 'string' && /[\\/]node_modules[\\/]playfab-sdk(?:[\\/]|$)/i.test(request))
@@ -36,3 +37,4 @@ net.connect = net.createConnection = () => blocked('net.connect');
 net.Socket.prototype.connect = () => blocked('socket.connect');
 globalThis.fetch = () => blocked('fetch');
 if ('WebSocket' in globalThis) globalThis.WebSocket = class { constructor() { blocked('WebSocket'); } };
+}
