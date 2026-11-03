@@ -786,6 +786,63 @@ test('a status that lands during a walking frame stays on the enemy instead of d
   expect(Math.abs(placement.effectCenter - placement.bodyCenter)).toBeLessThan(16);
 });
 
+test('a confused enemy hitting itself stays turned away from the party', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    debug.battleScenario({ pass: [false, true, true, true], leaderIndex: 1, turnIndex: 0, handCounts: [2, 2, 2, 2] });
+    debug.battleSetDemoEnemy('ismartal-vol2-monster-12');
+    debug.battleApplyStatus('enemy', 'confusion', { potency: 100 });
+  });
+  await page.waitForTimeout(1200);
+  const facing = () => page.locator('#tarotKingdomEnemySprite').evaluate((sprite) => (
+    Math.sign(new DOMMatrixReadOnly(getComputedStyle(sprite).transform).a)
+  ));
+  const confusedFacing = await facing();
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleSetCombatRandom(0);
+    window.TarotKingdomDebug.battlePass(0);
+  });
+  await expect(page.locator('#tarotKingdomEnemySprite')).toHaveClass(/is-self-attacking/, { timeout: 3000 });
+  expect(await facing()).toBe(confusedFacing);
+  await expect(page.locator('#tarotKingdomEnemySprite')).toHaveClass(/is-hurt/, { timeout: 2000 });
+  expect(await facing()).toBe(confusedFacing);
+});
+
+test('a pet attacks with the effect its monster uses as an enemy', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  await page.evaluate(() => {
+    window.TarotKingdomDebug.battleScenario({
+      pet: { monsterId: 'ismartal-vol2-monster-08', monsterName: 'ルビット', number: 8, volume: 2 },
+      tableCard: { id: 'pet-fx-field', kind: 'minor', suit: 'Wand', number: 1 },
+      handsBySeat: [
+        [{ id: 'pet-fx-human', kind: 'minor', suit: 'Cup', number: 3 }],
+        [{ id: 'pet-fx-2', kind: 'minor', suit: 'Wand', number: 2 }, { id: 'pet-fx-keep', kind: 'minor', suit: 'Cup', number: 9 }],
+        [{ id: 'pet-fx-npc2', kind: 'minor', suit: 'Sword', number: 4 }],
+        [{ id: 'pet-fx-npc3', kind: 'minor', suit: 'Pentacle', number: 5 }]
+      ],
+      turnIndex: 1
+    });
+    window.TarotKingdomDebug.battlePlayOne(1, { resolve: false });
+  });
+  // Rubit's fire ring lights the effect layer over the enemy
+  await expect.poll(() => page.evaluate(() => {
+    const canvas = document.querySelector('#tarotKingdomBattleStage > .tarot-kingdom-pixelfx-layer');
+    const enemy = document.getElementById('tarotKingdomEnemySprite')?.getBoundingClientRect();
+    if (!canvas || !enemy) return 0;
+    const rect = canvas.getBoundingClientRect();
+    const perPixel = canvas.width / rect.width;
+    const x = Math.max(0, Math.floor((enemy.left - rect.left) * perPixel));
+    const width = Math.max(1, Math.floor(enemy.width * perPixel));
+    const y = Math.max(0, Math.floor((enemy.top - rect.top) * perPixel));
+    const height = Math.max(1, Math.floor(enemy.height * perPixel));
+    const pixels = canvas.getContext('2d').getImageData(x, y, width, height).data;
+    let lit = 0;
+    for (let index = 3; index < pixels.length; index += 4) if (pixels[index] > 128) lit += 1;
+    return lit;
+  }), { timeout: 2500, intervals: [50] }).toBeGreaterThan(40);
+});
+
 test('hard-control statuses stop the actor while slow and sleep use distinct motion profiles', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   const avatar = page.locator('.tarot-kingdom-battle-player[data-player-index="0"] .tarot-kingdom-battle-player-avatar');

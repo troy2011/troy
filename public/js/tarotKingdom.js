@@ -24926,7 +24926,9 @@ function setKingdomMonsterFrame(node, monster, animation, frameIndex) {
   const flipX = monster.flipX === true;
   const flipY = monster.flipY === true;
   node.style.setProperty('--tarot-kingdom-enemy-offset-y', `${battleOffsetY}px`);
-  node.style.setProperty('--tarot-kingdom-enemy-facing-scale-x', flipX ? '1' : '-1');
+  // a confused enemy hitting itself stays turned away from the party, as it stands while confused
+  const turnedAway = node.classList.contains('is-self-attacking');
+  node.style.setProperty('--tarot-kingdom-enemy-facing-scale-x', (flipX !== turnedAway) ? '1' : '-1');
   node.style.setProperty('--tarot-kingdom-enemy-escape-facing-scale-x', flipX ? '-1' : '1');
   node.style.setProperty('--tarot-kingdom-enemy-scale-y', flipY ? '-1' : '1');
   node.style.setProperty(
@@ -25623,9 +25625,12 @@ function playKingdomBattlePixelFx(event, eventIsActive, eventKey) {
   void warmTarotKingdomPixelFx();
   if (!event || !eventIsActive) return;
   const type = String(event.type || '');
+  const actorIsPet = !!s?.players?.[Number(event.actorIndex)]?.isPet;
   const isWeaponAttack = type === 'attack' && !event?.majorSummon;
+  // a pet's five-card skill is its area attack
+  const isPetSkill = actorIsPet && type === 'skill' && !event?.summon && !event?.majorSummon;
   const isEnemyAttack = type === 'enemy-single' || type === 'enemy-area';
-  if (!isWeaponAttack && !isEnemyAttack) return;
+  if (!isWeaponAttack && !isPetSkill && !isEnemyAttack) return;
   if (kingdomBattlePixelFxEventKey === eventKey) return;
   const timeline = getKingdomBattleTimelineForEvent(event);
   const impactAt = Number(timeline?.impactAt) || 0;
@@ -25633,10 +25638,12 @@ function playKingdomBattlePixelFx(event, eventIsActive, eventKey) {
   if (!hasKingdomBattleHitImpact(event)) return;
   kingdomBattlePixelFxEventKey = eventKey;
   const effects = Array.isArray(event?.effects) ? event.effects : [];
+  if (actorIsPet) {
+    playKingdomPetAttackPixelFx(event, impactAt, type === 'skill' ? 'area' : 'single');
+    return;
+  }
   if (isWeaponAttack) {
     const actorIndex = Number(event.actorIndex);
-    // Pets keep their own sprite motions and projectiles.
-    if (s?.players?.[actorIndex]?.isPet) return;
     const weaponType = event?.weaponTrait?.components?.[0]?.weaponType
       || s?.players?.[actorIndex]?.character?.combat?.weaponType
       || 'sword';
@@ -25700,6 +25707,34 @@ function playKingdomBattlePixelFx(event, eventIsActive, eventKey) {
   });
   // hit party members are pushed away from the enemy (the enemy stands on the left)
   targetEls.forEach((targetEl) => nudgeTarotKingdomActor(targetEl, { dx: TAROT_KINGDOM_KNOCKBACK_PX.ally, impactAt }));
+}
+
+// A pet attacks the enemy with the same effect its monster uses on the party, aimed the other way.
+function playKingdomPetAttackPixelFx(event, impactAt, attackMode) {
+  const actorIndex = Number(event.actorIndex);
+  const monsterId = String(s?.players?.[actorIndex]?.character?.monsterId || '');
+  const petAvatar = document.getElementById(`tarotKingdomBattleAvatar-${actorIndex}`);
+  const petSprite = petAvatar?.querySelector(':scope > .tarot-kingdom-battle-pet-sprite') || petAvatar;
+  if (!monsterId || !petSprite || !ui.battleEnemySprite) return;
+  const effects = Array.isArray(event?.effects) ? event.effects : [];
+  const critical = effects.some((effect) => effect?.kind === 'critical');
+  void playTarotKingdomEnemyAttackFx(ui.battleStage, {
+    attackMode,
+    monsterId,
+    // its own projectile sprite already flies to the enemy
+    ownProjectile: resolveTarotKingdomMonsterMotion({
+      monsterId, context: 'attack', phase: 'hit-stop', attackMode, seed: Number(event?.seq) || 0, isPet: true
+    })?.usesProjectile === true,
+    element: getTarotKingdomEnemyAffinity(monsterId, Number(s.rules?.elementAffinityVersion ?? 1))?.native || '',
+    impactAt,
+    enemyEl: petSprite,
+    targetEls: [ui.battleEnemySprite],
+    critical
+  });
+  nudgeTarotKingdomActor(ui.battleEnemySprite, {
+    dx: -(critical ? TAROT_KINGDOM_KNOCKBACK_PX.enemyCritical : TAROT_KINGDOM_KNOCKBACK_PX.enemy),
+    impactAt
+  });
 }
 
 function playKingdomBattleAvatarEvent(event, eventIsActive, eventKey) {
@@ -27744,6 +27779,13 @@ function renderKingdomBattleStage() {
     && !enemyEscapeActive;
   const enemyConfused = !!s.reverse && !enemyDefeated && !enemyRushTime && !enemyEscapeActive;
   const enemyAreaSealed = !!enemy.areaAttackSealedUntilClear && !enemyDefeated && !enemyRushTime && !enemyEscapeActive;
+  const enemySelfAttacking = eventIsActive && String(visualEvent?.type || '') === 'enemy-self';
+  if (ui.battleEnemySprite && ui.battleEnemySprite.classList.contains('is-self-attacking') !== enemySelfAttacking) {
+    ui.battleEnemySprite.classList.toggle('is-self-attacking', enemySelfAttacking);
+    // turn now rather than on the next animation frame
+    const facing = ui.battleEnemySprite.style.getPropertyValue('--tarot-kingdom-enemy-facing-scale-x').trim();
+    if (facing) ui.battleEnemySprite.style.setProperty('--tarot-kingdom-enemy-facing-scale-x', facing === '1' ? '-1' : '1');
+  }
   [ui.battleEnemy, ui.battleEnemySprite].forEach((node) => {
     node?.classList.toggle('is-attacking', enemyActing);
     node?.classList.toggle('is-projectile-attacking', enemyActing && enemyUsesProjectile);
