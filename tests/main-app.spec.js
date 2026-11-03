@@ -1882,6 +1882,23 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   expect(explorationPreviewMetrics.lilfi.bottom).toBeLessThan(0);
   expect(explorationPreviewMetrics.rubit.bottom).toBeLessThan(0);
   await expect(lockedStage.locator('.ship-exploration-stage-monster.is-silhouette')).toHaveCount(4);
+  // a met monster opens its detail; one not met yet keeps its secret
+  await firstStage.locator('[data-monster-id="ismartal-vol1-monster-07"]').click();
+  const monsterDetail = page.locator('.ship-exploration-monster-detail');
+  await expect(monsterDetail).toBeVisible();
+  await expect(monsterDetail.locator('.ship-exploration-monster-detail-head')).toContainText('マシュロン');
+  await expect(monsterDetail.locator('.ship-exploration-monster-detail-head')).toContainText('討伐済み');
+  await expect(monsterDetail.locator('.ship-exploration-monster-detail-row').filter({ hasText: '属性' }).first()).toContainText('地');
+  await expect(monsterDetail.locator('.ship-exploration-monster-detail-row').filter({ hasText: '弱点' })).toContainText('風');
+  await expect(monsterDetail.locator('.ship-exploration-monster-detail-row').filter({ hasText: '有効な武器' })).toContainText('剣');
+  await monsterDetail.locator('[data-monster-detail-close]').click();
+  await expect(monsterDetail).toHaveCount(0);
+  await firstStage.locator('.ship-exploration-stage-monster.is-silhouette').first().click();
+  await expect(monsterDetail.locator('.ship-exploration-monster-detail-head')).toHaveText('？？？');
+  await expect(monsterDetail).toContainText('まだ出会っていない');
+  await expect(monsterDetail).not.toContainText('属性');
+  await monsterDetail.locator('[data-monster-detail-close]').click();
+  await expect(monsterDetail).toHaveCount(0);
   await expect(firstStage.locator('.ship-exploration-badge')).toHaveCount(0);
   await expect(firstStage.locator('.ship-exploration-start')).toHaveText('出航');
   await expect(secondStage.locator('.ship-exploration-meta')).toContainText('最高 2位 / BEST 420チップ / CLEAR 3');

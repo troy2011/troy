@@ -19329,6 +19329,24 @@ body.home-exploration-popup-open #globalStatusBar {
     grid-template-rows: 48px auto;
     justify-items: center;
     gap: 2px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    color: inherit;
+    font: inherit;
+    background: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.ship-exploration-stage-monster:active {
+    background: rgba(76, 43, 19, 0.12);
+}
+
+.ship-exploration-stage-monster:focus-visible {
+    outline: 2px solid #c79c47;
+    outline-offset: 1px;
 }
 
 .ship-exploration-stage-monster-visual {
@@ -19398,6 +19416,156 @@ body.home-exploration-popup-open #globalStatusBar {
 .ship-exploration-stage-monster.is-silhouette .ship-exploration-stage-monster-name {
     color: #695642;
     letter-spacing: 0.06em;
+}
+
+/* Monster detail: opened from a monster in a stage's list */
+.ship-exploration-monster-detail {
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 10px;
+}
+
+.ship-exploration-monster-detail-head {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.ship-exploration-monster-detail-head strong {
+    color: #fff1bd;
+    font-size: 17px;
+    line-height: 1.25;
+}
+
+.ship-exploration-monster-detail-badge {
+    padding: 2px 7px;
+    border-radius: 999px;
+    color: #fff8df;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    background: #9f241f;
+}
+
+.ship-exploration-monster-detail-badge.is-defeated {
+    background: #4b5563;
+}
+
+.ship-exploration-monster-detail-stage {
+    position: relative;
+    height: 118px;
+    overflow: hidden;
+    border: 1px solid rgba(211, 179, 102, 0.28);
+    border-radius: 8px;
+    background:
+        radial-gradient(ellipse at 50% 92%, rgba(0, 0, 0, 0.38) 0 22%, transparent 23%),
+        linear-gradient(180deg, rgba(57, 45, 30, 0.6), rgba(22, 18, 14, 0.85));
+}
+
+.ship-exploration-monster-detail-sprite {
+    position: absolute;
+    bottom: var(--exploration-monster-result-bottom, 6px);
+    left: 50%;
+    transform-origin: center bottom;
+}
+
+.ship-exploration-monster-detail-stage.is-silhouette .ship-exploration-monster-detail-sprite {
+    opacity: 0.8;
+    filter: brightness(0) saturate(0);
+}
+
+.ship-exploration-monster-detail-body {
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.ship-exploration-monster-detail-look {
+    margin: 0 0 8px;
+    color: #e2e8f0;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.ship-exploration-monster-detail-stats {
+    display: grid;
+    gap: 5px;
+    margin: 0;
+}
+
+.ship-exploration-monster-detail-row {
+    display: grid;
+    grid-template-columns: 74px minmax(0, 1fr);
+    gap: 8px;
+    align-items: baseline;
+    padding-bottom: 5px;
+    border-bottom: 1px solid rgba(211, 179, 102, 0.16);
+}
+
+.ship-exploration-monster-detail-row dt {
+    color: #d3b366;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.ship-exploration-monster-detail-row dd {
+    min-width: 0;
+    margin: 0;
+    color: #f8fafc;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.ship-exploration-monster-detail-row small {
+    display: block;
+    color: #cbd5e1;
+    font-size: 11px;
+}
+
+.ship-exploration-monster-element {
+    display: inline-block;
+    min-width: 28px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 900;
+    text-align: center;
+    background: #6b7280;
+}
+
+.ship-exploration-monster-element.is-fire {
+    background: #c2410c;
+}
+
+.ship-exploration-monster-element.is-water {
+    background: #1d4ed8;
+}
+
+.ship-exploration-monster-element.is-wind {
+    background: #0f766e;
+}
+
+.ship-exploration-monster-element.is-earth {
+    background: #92400e;
+}
+
+.ship-exploration-monster-element.is-light {
+    color: #3b2f05;
+    background: #facc15;
+}
+
+.ship-exploration-monster-element.is-dark {
+    background: #6d28d9;
+}
+
+.ship-exploration-monster-detail-close {
+    min-height: 40px;
+    border: 1px solid #c79c47;
+    border-radius: 8px;
+    color: #fff3c4;
+    font: inherit;
+    font-weight: 900;
+    background: rgba(94, 67, 18, 0.5);
 }
 
 .ship-exploration-stage-supply-slots {

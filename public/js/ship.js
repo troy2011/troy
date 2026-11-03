@@ -43,6 +43,7 @@ import * as Player from './player.js';
 import * as Inventory from 'inventory';
 import { buildAvatarLayerMarkup, renderAvatar, triggerAvatarAttackMotion } from './avatar.js';
 import { PIXEL_MONSTERS_ROSTER } from './pixelMonstersManifest.js?v=20260825-monster-motion-v2';
+import { getTarotKingdomMonsterDetail } from './tarotKingdomBestiary.js?v=20261103-bestiary-v1';
 
 const EXPLORATION_ENEMY_DEFEAT_MODE_STORAGE_KEY = 'troy:exploration-enemy-defeat-mode';
 const EXPLORATION_ENEMY_DEFEAT_MODE_DEFAULT = 'hp-zero';
@@ -1725,6 +1726,7 @@ function renderExplorationPixelMonster(
         compactMaxWidth = maxWidth,
         compactMaxHeight = maxHeight,
         fitVisibleArt = false,
+        maxScale = 1,
         transform = 'scale(var(--exploration-monster-scale))'
     } = {}
 ) {
@@ -1754,7 +1756,7 @@ function renderExplorationPixelMonster(
     const compactPreviewBaseline = fitVisibleArt ? (anchorMode === 'air' ? 7 : 4) : (anchorMode === 'air' ? 12 : 4);
     const previewArtMaxHeight = Math.max(1, maxHeight - (fitVisibleArt ? previewBaseline : 0));
     const compactArtMaxHeight = Math.max(1, compactMaxHeight - (fitVisibleArt ? compactPreviewBaseline : 0));
-    const previewScale = Math.min(1, maxWidth / artDisplayWidth, previewArtMaxHeight / artDisplayHeight);
+    const previewScale = Math.min(maxScale, maxWidth / artDisplayWidth, previewArtMaxHeight / artDisplayHeight);
     const compactPreviewScale = Math.min(
         1,
         compactMaxWidth / artDisplayWidth,
@@ -1801,9 +1803,10 @@ function renderExplorationStageMonsters(stage = {}) {
                 const revealed = entry?.revealed === true || stageCleared || defeated;
                 const label = revealed ? String(entry?.monsterName || monster?.name || 'モンスター') : '？？？';
                 return `
-                    <div class="ship-exploration-stage-monster${revealed ? ' is-revealed' : ' is-silhouette'}${defeated ? ' is-defeated' : ''}"
+                    <button type="button" class="ship-exploration-stage-monster${revealed ? ' is-revealed' : ' is-silhouette'}${defeated ? ' is-defeated' : ''}"
                         data-monster-id="${escapeHtml(monsterId)}"
-                        aria-label="${escapeHtml(defeated ? `${label}・討伐済み` : label)}">
+                        data-monster-detail="${revealed ? 'revealed' : 'hidden'}"
+                        aria-label="${escapeHtml(`${defeated ? `${label}・討伐済み` : label}の詳細`)}">
                         <div class="ship-exploration-stage-monster-visual">
                              ${renderExplorationPixelMonster(monster, 'ship-exploration-stage-monster-sprite', {
                                  maxWidth: 50,
@@ -1815,7 +1818,7 @@ function renderExplorationStageMonsters(stage = {}) {
                             ${defeated ? '<span class="ship-exploration-stage-monster-defeat" aria-label="討伐済み">討</span>' : ''}
                         </div>
                         <span class="ship-exploration-stage-monster-name">${escapeHtml(label)}</span>
-                    </div>
+                    </button>
                 `;
             }).join('')}
         </div>
@@ -1846,6 +1849,71 @@ function animateExplorationPetIdle(node, monster) {
         node.style.backgroundPosition = `-${col * frameWidth * pixelScale}px -${row * frameHeight * pixelScale}px`;
     }, intervalMs);
     return () => window.clearInterval(timerId);
+}
+
+// A monster in a stage's list opens its detail. One not met yet keeps its secret: only its silhouette shows.
+function showExplorationMonsterDetailDialog(monsterId, { revealed = false, defeated = false } = {}) {
+    const monster = PIXEL_MONSTERS_ROSTER.find((entry) => entry.id === monsterId) || null;
+    const detail = revealed ? getTarotKingdomMonsterDetail(monsterId) : null;
+    if (!monster) return;
+    document.querySelector('.ship-exploration-monster-detail-overlay')?.remove();
+    const overlay = document.createElement('div');
+    overlay.className = 'ship-exploration-payment-overlay ship-exploration-monster-detail-overlay';
+    const name = revealed ? monster.name : '？？？';
+    const row = (label, value) => (value ? `<div class="ship-exploration-monster-detail-row"><dt>${label}</dt><dd>${value}</dd></div>` : '');
+    const body = detail
+        ? `
+            <p class="ship-exploration-monster-detail-look">${escapeHtml(detail.look)}</p>
+            <dl class="ship-exploration-monster-detail-stats">
+                ${row('属性', `<span class="ship-exploration-monster-element is-${escapeHtml(detail.element || 'neutral')}">${escapeHtml(detail.elementLabel)}</span>`)}
+                ${row('弱点', detail.weakLabel ? `<span class="ship-exploration-monster-element is-${escapeHtml(detail.weak || '')}">${escapeHtml(detail.weakLabel)}</span>` : 'なし')}
+                ${row('耐性', detail.resistLabel ? `<span class="ship-exploration-monster-element is-${escapeHtml(detail.resist || '')}">${escapeHtml(detail.resistLabel)}</span>` : 'なし')}
+                ${row('単体攻撃', escapeHtml(detail.singleAttack))}
+                ${row('全体攻撃', escapeHtml(detail.areaAttack))}
+                ${row('状態異常', escapeHtml(detail.ailmentLabels.join('・')))}
+                ${row('特殊能力', detail.specialLabel ? `${escapeHtml(detail.specialLabel)}<small>${escapeHtml(detail.specialText)}</small>` : '')}
+                ${row('特徴', escapeHtml(detail.traitLabels.join('・')))}
+                ${row('有効な武器', escapeHtml(detail.weakWeaponLabels.join(' / ')))}
+            </dl>
+        `
+        : '<p class="ship-exploration-monster-detail-look">まだ出会っていないモンスターです。戦うと詳細がわかります。</p>';
+    overlay.innerHTML = `
+        <div class="ship-exploration-payment-dialog ship-exploration-monster-detail" role="dialog" aria-modal="true" aria-label="${escapeHtml(name)}の詳細">
+            <div class="ship-exploration-monster-detail-head">
+                <strong>${escapeHtml(name)}</strong>
+                ${monster.isBoss === true && revealed ? '<span class="ship-exploration-monster-detail-badge">BOSS</span>' : ''}
+                ${defeated ? '<span class="ship-exploration-monster-detail-badge is-defeated">討伐済み</span>' : ''}
+            </div>
+            <div class="ship-exploration-monster-detail-stage${revealed ? '' : ' is-silhouette'}">
+                ${renderExplorationPixelMonster(monster, 'ship-exploration-monster-detail-sprite', {
+                    maxWidth: 150,
+                    maxHeight: 110,
+                    fitVisibleArt: true,
+                    // small monsters are drawn larger here so their look can be made out
+                    maxScale: 3,
+                    transform: 'translateX(calc(-50% + var(--exploration-monster-anchor-offset-x, 0px))) scale(var(--exploration-monster-scale, 1))'
+                })}
+            </div>
+            <div class="ship-exploration-monster-detail-body">${body}</div>
+            <button type="button" class="ship-exploration-monster-detail-close" data-monster-detail-close>閉じる</button>
+        </div>
+    `;
+    const sprite = overlay.querySelector('.ship-exploration-monster-detail-sprite');
+    const stopIdle = revealed ? animateExplorationPetIdle(sprite, monster) : () => {};
+    const close = () => {
+        stopIdle();
+        overlay.remove();
+        document.body.classList.remove('modal-lock');
+    };
+    overlay.addEventListener('click', (event) => {
+        if (event.target === overlay || event.target.closest('[data-monster-detail-close]')) close();
+    });
+    overlay.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') close();
+    });
+    document.body.appendChild(overlay);
+    document.body.classList.add('modal-lock');
+    overlay.querySelector('[data-monster-detail-close]')?.focus();
 }
 
 async function showTarotKingdomPetOffer(offer, playFabId) {
@@ -3596,6 +3664,14 @@ function renderExplorationPanel(data, playFabId) {
     `;
     bindExplorationSettings();
     bindRescueCheck();
+    panel.querySelectorAll('[data-monster-detail]').forEach((button) => {
+        button.addEventListener('click', () => {
+            showExplorationMonsterDetailDialog(String(button.getAttribute('data-monster-id') || ''), {
+                revealed: button.getAttribute('data-monster-detail') === 'revealed',
+                defeated: button.classList.contains('is-defeated')
+            });
+        });
+    });
     panel.querySelectorAll('[data-exploration-start]').forEach((button) => {
         button.addEventListener('click', async () => {
             const destinationId = String(button.getAttribute('data-exploration-start') || '');
