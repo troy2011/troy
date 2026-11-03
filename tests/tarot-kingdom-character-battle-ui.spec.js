@@ -786,6 +786,54 @@ test('a status that lands during a walking frame stays on the enemy instead of d
   expect(Math.abs(placement.effectCenter - placement.bodyCenter)).toBeLessThan(16);
 });
 
+test('a status loop leaves no second enemy when 11 Back turns it or the next enemy arrives', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  // The status effect's lit pixels must stay over the art of the enemy shown now. artX is where the art
+  // spans in its idle frame (left and right edge, frame width), measured from the sprite sheets.
+  const effectOutsideEnemy = (artX) => page.evaluate(([artLeft, artRight, frameWidth]) => {
+    const canvas = document.querySelector('#tarotKingdomBattleStage > .tarot-kingdom-pixelfx-layer');
+    const spriteEl = document.getElementById('tarotKingdomEnemySprite');
+    const sprite = spriteEl.getBoundingClientRect();
+    const native = new DOMMatrixReadOnly(getComputedStyle(spriteEl).transform).a > 0;
+    const share = (x) => sprite.left + (sprite.width * (native ? x : frameWidth - x) / frameWidth);
+    const left = Math.min(share(artLeft), share(artRight)) - 12;
+    const right = Math.max(share(artLeft), share(artRight)) + 12;
+    const rect = canvas.getBoundingClientRect();
+    const cssPerPixel = rect.width / canvas.width;
+    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    let outside = 0;
+    for (let index = 3; index < pixels.length; index += 4) {
+      if (pixels[index] < 128) continue;
+      const x = rect.left + ((((index - 3) / 4) % canvas.width) * cssPerPixel);
+      if (x < left || x > right) outside += 1;
+    }
+    return outside;
+  }, artX);
+  await page.evaluate(() => window.TarotKingdomDebug.battleSetDemoEnemy('ismartal-vol2-monster-12'));
+  await page.waitForTimeout(2000);
+  await page.evaluate(() => window.TarotKingdomDebug.battleApplyStatus('enemy', 'poison'));
+  await page.waitForTimeout(1500);
+  // 11 Back turns the poisoned frog away from the party
+  await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    debug.battleScenario({ reverse: true, withTrick: true });
+    debug.battleSetDemoEnemy('ismartal-vol2-monster-12');
+    debug.battleApplyStatus('enemy', 'poison');
+  });
+  await page.waitForTimeout(2500);
+  // Kerottsu: art 50..83 of its 85px frame
+  expect(await effectOutsideEnemy([50, 83, 85])).toBeLessThan(20);
+  // the next enemy arrives poisoned too
+  await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    debug.battleScenario({ reverse: true, withTrick: true });
+    debug.battleApplyStatus('enemy', 'poison');
+  });
+  await page.waitForTimeout(2500);
+  // Grava: art 21..58 of its 81px frame
+  expect(await effectOutsideEnemy([21, 58, 81])).toBeLessThan(20);
+});
+
 test('a confused enemy hitting itself stays turned away from the party', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   await page.evaluate(() => {

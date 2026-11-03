@@ -1663,14 +1663,20 @@ async function snapshotActor(actorEl, scale) {
   };
 }
 
-// How often a status loop checks whether its actor's sprite frame changed size.
+// How often a status loop checks whether its actor's look changed.
 const STATUS_FRAME_CHECK_MS = 200;
 
-// The layout size of the actor and its sprite layers; it changes when an animation with another frame
-// size starts, not when the actor is moved or transformed.
+// What the body cut out for a status loop depends on: the layout size of the actor and its sprite layers
+// (an animation with another frame size), which way it faces (a confused enemy turns away, as in 11 Back),
+// and the sprite folder (the next enemy of a battle). Moving the actor or its animation frames does not count.
 function actorFrameSize(actorEl) {
   return [actorEl, ...actorEl.querySelectorAll('*')]
-    .map((el) => `${el.offsetWidth}x${el.offsetHeight}`)
+    .map((el) => {
+      const transform = getComputedStyle(el).transform;
+      const facing = transform && transform !== 'none' && new DOMMatrixReadOnly(transform).a < 0 ? '-' : '+';
+      const folder = /url\("?([^")]*)\/[^/")]+"?\)/.exec(el.style.backgroundImage)?.[1] || '';
+      return `${el.offsetWidth}x${el.offsetHeight}${facing}${folder}`;
+    })
     .join(',');
 }
 
@@ -1714,14 +1720,18 @@ export async function syncTarotKingdomStatusFx(stageEl, actorKey, actorEl, statu
     map = new Map();
     stageStatusLayers.set(stageEl, map);
   }
-  const entry = { statusKey: wanted, layer: null };
+  // Every older loop still on the stage is handed on until the newest call retires it: a status that goes
+  // off and on again faster than the effect core loads must not leave the old loop (and the body it cut
+  // out) drawing beside the actor.
+  const entry = { statusKey: wanted, layer: null, stale: [current?.layer, ...(current?.stale || [])].filter(Boolean) };
   map.set(actorKey, entry);
   if (actorEl) delete actorEl.dataset.pixelStatus;
   try {
     const core = await loadCore();
     if (stageStatusLayers.get(stageEl)?.get(actorKey) !== entry) return;
     const player = getStagePlayer(stageEl, core);
-    if (current?.layer) player.retire(current.layer);
+    entry.stale.forEach((layer) => player.retire(layer));
+    entry.stale = [];
     if (!wanted) return;
     const recipe = STATUS_RECIPES[wanted];
     const mod = await loadEffect(recipe.path);
@@ -1733,16 +1743,18 @@ export async function syncTarotKingdomStatusFx(stageEl, actorKey, actorEl, statu
       entry.retryAt = Date.now() + 1000;
       return;
     }
+    // the look the body is cut from; read before the cut, so a change while it runs is caught
+    let frameSize = actorFrameSize(actorEl);
     const snapshot = await snapshotActor(actorEl, scale).catch(() => null);
     if (stageStatusLayers.get(stageEl)?.get(actorKey) !== entry || !actorEl.isConnected) return;
     const actor = snapshot?.actor || capsuleActor((startRect.width * 0.5) / scale, (startRect.height * 0.78) / scale);
     // the feet as a share of the element, so the effect stays on them while the element scales
     let feetX = snapshot ? snapshot.feet.x / startRect.width : 0.5;
     let feetY = snapshot ? snapshot.feet.y / startRect.height : 0.94;
-    // A sprite's frame size changes with its animation (a monster's walk sheet is narrower than its idle
-    // one). The body cut out for one frame size sits beside the actor in another, drawing a second
-    // monster, so the body is cut out again whenever the frame size changes, and hidden until then.
-    let frameSize = actorFrameSize(actorEl);
+    // The body cut out for one look sits beside the actor in another, drawing a second monster: a walk
+    // sheet narrower than the idle one, an enemy turned away by confusion or 11 Back, or the next enemy
+    // under a status of the same name. So the body is cut out again whenever the look changes
+    // (actorFrameSize), and hidden until then.
     let nextFrameCheckAt = 0;
     let recutting = false;
     const recutBody = (size) => {
