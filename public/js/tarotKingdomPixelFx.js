@@ -1871,6 +1871,7 @@ export async function syncTarotKingdomAmbientFx(stageEl, weatherKey = '') {
   if (!recipe || !arena) return;
   const canvas = document.createElement('canvas');
   canvas.className = 'tarot-kingdom-pixelfx-ambient';
+  canvas.dataset.weather = id;
   canvas.setAttribute('aria-hidden', 'true');
   canvas.style.opacity = '0';
   canvas.style.transition = `opacity ${AMBIENT_FADE_MS}ms ease-out`;

@@ -133,9 +133,9 @@ test('lasting field effects bring their own weather, which redraws slowly and ne
   const game = fs.readFileSync(path.join(JS_DIR, 'tarotKingdom.js'), 'utf8');
   assert.match(game, /syncKingdomFieldSceneFade\(\);\s*void syncTarotKingdomAmbientFx\(ui\.battleStage, getKingdomFieldWeatherKey\(\)\);/);
   assert.ok(!/syncTarotKingdomAmbientFx\(ui\.battleStage, battlefield\.id\)/.test(game), 'battlefields carry no weather of their own');
-  // the Tower and the Star come as a burst with the cut-in; the Moon and the Sun last as long as their effect
+  // the Tower, the Star, the Moon and the Sun turn the weather with their cut-in, and it stays until the next change
   assert.match(game, /startKingdomWeatherBurst\(summonState\?\.majorNumber, Date\.now\(\) - elapsedMs, summonDurationMs\);/);
-  assert.match(game, /KINGDOM_WEATHER_BURST_BY_MAJOR = Object\.freeze\(\{ 16: 'tower', 17: 'star' \}\)/);
+  assert.match(game, /KINGDOM_MAJOR_WEATHER_BY_NUMBER = Object\.freeze\(\{ 16: 'tower', 17: 'star', 18: 'moon', 19: 'sun' \}\)/);
   assert.match(game, /majorConfusion \|\| effects\?\.enemy\?\.mirageBlind\) return 'moon';/);
   assert.match(game, /party\?\.sunBlessing\) return 'sun';/);
   // time stop: the leaves stop falling and the loop ends

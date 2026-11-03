@@ -1133,24 +1133,26 @@ const KINGDOM_DEMO_SCENE_WEATHER = Object.freeze({
   'major-sun': 'sun'
 });
 
-// The Tower and the Star act at once and leave little behind, so their weather is a burst that outlasts the
-// cut-in for a while and then gives way to whatever the field shows.
-const KINGDOM_WEATHER_BURST_MS = 5000;
-const KINGDOM_WEATHER_BURST_BY_MAJOR = Object.freeze({ 16: 'tower', 17: 'star' });
-let kingdomWeatherBurst = null;
-let kingdomWeatherBurstTimer = 0;
+// The Tower, the Star, the Moon and the Sun turn the weather when they are summoned, and it stays until the
+// weather changes again: another of them is summoned, or a field effect (a Royal Lock, 11 Back, The World)
+// starts. The battle's end clears it. It is display only, so a client that missed the summon shows none.
+// A summon is taken as new for this long after its cut-in starts (a render can lag behind the cut-in).
+const KINGDOM_MAJOR_WEATHER_START_WINDOW_MS = 5000;
+const KINGDOM_MAJOR_WEATHER_BY_NUMBER = Object.freeze({ 16: 'tower', 17: 'star', 18: 'moon', 19: 'sun' });
+// renders of one cut-in see its start a few ms apart
+const KINGDOM_MAJOR_SUMMON_SAME_MS = 1500;
+let kingdomMajorWeather = null;
+let kingdomLastMajorSummonAt = 0;
+let kingdomLastFieldWeather = '';
 
 function startKingdomWeatherBurst(majorNumber, startedAt, durationMs) {
-  const key = KINGDOM_WEATHER_BURST_BY_MAJOR[Number(majorNumber)];
+  const key = KINGDOM_MAJOR_WEATHER_BY_NUMBER[Number(majorNumber)];
   if (!key) return;
-  const until = Number(startedAt) + durationMs + KINGDOM_WEATHER_BURST_MS;
-  if (until <= Date.now()) return;
-  kingdomWeatherBurst = { key, until };
-  clearTimeout(kingdomWeatherBurstTimer);
-  kingdomWeatherBurstTimer = setTimeout(() => {
-    kingdomWeatherBurst = null;
-    if (ui.battleStage) void syncTarotKingdomAmbientFx(ui.battleStage, getKingdomFieldWeatherKey());
-  }, until - Date.now());
+  if (Number(startedAt) + durationMs + KINGDOM_MAJOR_WEATHER_START_WINDOW_MS <= Date.now()) return;
+  // every render of the same cut-in calls this again; only a new summon turns the weather
+  if (Math.abs(Number(startedAt) - kingdomLastMajorSummonAt) < KINGDOM_MAJOR_SUMMON_SAME_MS) return;
+  kingdomLastMajorSummonAt = Number(startedAt);
+  kingdomMajorWeather = { key };
   if (ui.battleStage) void syncTarotKingdomAmbientFx(ui.battleStage, getKingdomFieldWeatherKey());
 }
 
@@ -1160,18 +1162,34 @@ function hasKingdomStarBlessing(effects) {
   ));
 }
 
+// The lasting field effects, in the order they take the stage.
+function getKingdomLastingFieldWeatherKey() {
+  const lockSuit = String(s.lock?.suit || '').toLowerCase();
+  if (['wand', 'cup', 'sword', 'pentacle'].includes(lockSuit)) return `lock-${lockSuit}`;
+  if (s.reverse) return 'back';
+  if (s.battle.effects?.enemy?.timeStop) return 'world';
+  return '';
+}
+
 function getKingdomFieldWeatherKey() {
   if (window.__TAROT_KINGDOM_PREVIEW__ === true && kingdomDemoTrickSceneKey !== 'auto') {
     return KINGDOM_DEMO_SCENE_WEATHER[kingdomDemoTrickSceneKey] || '';
   }
-  if (!s?.battle || s.battle.outcome) return '';
-  if (kingdomWeatherBurst && kingdomWeatherBurst.until > Date.now()) return kingdomWeatherBurst.key;
-  const lockSuit = String(s.lock?.suit || '').toLowerCase();
-  if (['wand', 'cup', 'sword', 'pentacle'].includes(lockSuit)) return `lock-${lockSuit}`;
-  if (s.reverse) return 'back';
+  if (!s?.battle || s.battle.outcome) {
+    kingdomMajorWeather = null;
+    kingdomLastFieldWeather = '';
+    return '';
+  }
+  const field = getKingdomLastingFieldWeatherKey();
+  // a field effect that starts is a change of weather, and replaces a major arcana's
+  if (field !== kingdomLastFieldWeather) {
+    kingdomLastFieldWeather = field;
+    if (field) kingdomMajorWeather = null;
+  }
+  if (kingdomMajorWeather) return kingdomMajorWeather.key;
+  if (field) return field;
+  // without a summon seen here, the major arcana effects that stay in force still show their weather
   const effects = s.battle.effects;
-  if (effects?.enemy?.timeStop) return 'world';
-  // the major arcana that stay in force: the Moon's mirage, the Sun's blessing, the Star's lasting care
   if (effects?.enemy?.majorConfusion || effects?.enemy?.mirageBlind) return 'moon';
   if (effects?.party?.sunBlessing) return 'sun';
   if (hasKingdomStarBlessing(effects)) return 'star';
